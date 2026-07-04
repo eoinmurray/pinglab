@@ -66,12 +66,12 @@
     [_--max-samples INT_], [all], [[_--infer_] Cap the evaluation set to N samples.],
     [_--outputs OUTPUT [dots.c]_], [—], [[_--infer_] Extra artifacts from the single forward pass (_metrics.json_ always written): _per_cell_rates_ (per-cell E/I Hz → _per_cell_rates.npz_), _pop_traces_ (per-trial population activity → _pop_traces.npz_, base signal for PSD / f_γ), _rasters_ (sparse spike indices → _rasters.npz_, for cycle-level analysis).],
     [_--tau-gaba FLOAT_], [inherited / 9.0], [[_--infer_] Override τ_GABA (ms) to replay a trained cell under specified inhibitory dynamics. Normally unset — _--load-config_ inherits the trained value.],
-    [_--skip-load PREFIX [dots.c]_], [—], [[_--infer_] Drop _state_dict_ keys with these prefixes before loading (e.g. _W_ei. W_ie._) so a fresh sub-block survives — transfer-load probes (nb038).],
-    [_--perturb-mode {drop, add, add_split}_], [—], [[_--infer_] Hidden-spike perturbation inside the forward loop: _drop_ (Bernoulli mask), _add_ (Poisson Hz), _add_split_ (separate E/I Poisson). The nb037 drop/add asymmetry.],
+    [_--skip-load PREFIX [dots.c]_], [—], [[_--infer_] Drop _state_dict_ keys with these prefixes before loading (e.g. _W_ei. W_ie._) so a fresh sub-block survives — transfer-load probes (exp038).],
+    [_--perturb-mode {drop, add, add_split}_], [—], [[_--infer_] Hidden-spike perturbation inside the forward loop: _drop_ (Bernoulli mask), _add_ (Poisson Hz), _add_split_ (separate E/I Poisson). The exp037 drop/add asymmetry.],
     [_--perturb-level LEVEL [dots.c]_], [—], [[_--perturb-mode_] One value for _drop_ (probability) or _add_ (Hz); two values (E Hz, I Hz) for _add_split_.],
-    [_--i-override-file PATH_], [—], [[_--infer_] NPZ with a sparse per-trial I-spike stream to substitute for the inhibitory spikes each timestep — injection dual of _--outputs rasters_ (nb042).],
-    [_--input-file PATH_], [—], [NPZ with _input_spikes_ (T, B, N_IN) to forward instead of Poisson input — arbitrary stimulus (nb048 digit streams).],
-    [_--scale-w-in / --scale-w-ei / --scale-w-ie FLOAT_], [1.0], [[_--infer_] Multiply loaded input / E→I / I→E weights before the forward pass — inference-time coupling sweeps without retraining (nb038).],
+    [_--i-override-file PATH_], [—], [[_--infer_] NPZ with a sparse per-trial I-spike stream to substitute for the inhibitory spikes each timestep — injection dual of _--outputs rasters_ (exp042).],
+    [_--input-file PATH_], [—], [NPZ with _input_spikes_ (T, B, N_IN) to forward instead of Poisson input — arbitrary stimulus (exp048 digit streams).],
+    [_--scale-w-in / --scale-w-ei / --scale-w-ie FLOAT_], [1.0], [[_--infer_] Multiply loaded input / E→I / I→E weights before the forward pass — inference-time coupling sweeps without retraining (exp038).],
     [_--sample-index INT_], [—], [Raw test-set index for a snapshot, overriding _--digit_ / _--sample_.],
     [_--n-in / --n-inh / --n-batch INT_], [784 / — / 64], [[synthetic-spikes] Input channels, inhibitory pool size, Poisson trials averaged.],
     [_--w-ei-mean / --w-ie-mean FLOAT_], [from _--ei-strength_], [[synthetic-spikes] Explicit W_EI / W_IE mean (std = 0.1·mean).],
@@ -103,7 +103,7 @@
     [_--fr-reg-upper-theta FLOAT_], [0 (off)], [Upper-bound target spike count per neuron per trial (θ_u). Adds _s_u · Σ relu(⟨z_i⟩ − θ_u)²_ to the loss. Cramer et al. SHD RSNN: 100.],
     [_--fr-reg-upper-strength FLOAT_], [0], [Coefficient s_u on the upper regulariser. Cramer et al.: 0.06.],
     [_--fr-reg-mode {per-neuron, population}_], [_per-neuron_], [Pooling axis for the regulariser. _per-neuron_ concentrates pressure on the highest-firing cells (Cramer recipe); _population_ uses one scalar over the grand mean, distributing pressure uniformly.],
-    [_--tau-gaba FLOAT_], [9.0 ms], [Override τ_GABA. Default = _models.py_'s value (Börgers / Buzsáki-Wang range). nb041 sweeps this across {4.5 … 27} ms while training PING from scratch; the realised gamma frequency f_γ tracks 1/τ_GABA.],
+    [_--tau-gaba FLOAT_], [9.0 ms], [Override τ_GABA. Default = _models.py_'s value (Börgers / Buzsáki-Wang range). exp041 sweeps this across {4.5 … 27} ms while training PING from scratch; the realised gamma frequency f_γ tracks 1/τ_GABA.],
     [_--frame-rate INT_], [10], [fps for the per-epoch observation video, where one is emitted.],
   )
 
@@ -118,7 +118,7 @@
     --out-dir runs/foo/dump
   ```
 
-  Keys follow _W_ff_N_init_ / _W_ff_N_trained_ (feedforward, per layer N) plus the E-I blocks _W_ei_ / _W_ie_. This is how notebooks recover the trained readout matrix (W_out = the last _W_ff_) or compare init-vs-trained loop weights (the nb049 pruning analysis) without loading the model in-process. It takes the shared option groups plus _--load-config_ / _--load-weights_.
+  Keys follow _W_ff_N_init_ / _W_ff_N_trained_ (feedforward, per layer N) plus the E-I blocks _W_ei_ / _W_ie_. This is how notebooks recover the trained readout matrix (W_out = the last _W_ff_) or compare init-vs-trained loop weights (the exp049 pruning analysis) without loading the model in-process. It takes the shared option groups plus _--load-config_ / _--load-weights_.
 
   == Shared options
 
@@ -195,7 +195,7 @@
     [_--w-ii MEAN STD_], [_0 0_], [W_II (I→I) init. Off by default (canonical PING has no I→I). Enable for balanced-network experiments.],
     [_--w-ee MEAN STD_], [_0 0_], [W_EE (E→E) init. Off by default. Enable for the full four-coupling balanced network, where recurrent excitation pins the E rate.],
     [_--trainable-w-ei_], [frozen], [Promote E→I to gradient-carrying. Asks whether the optimiser will discover the PING-loop weights from scratch.],
-    [_--trainable-w-ie_], [frozen], [Promote I→E. The nb049 result _gradient descent dismantles PING_ comes from flipping _--trainable-w-ei_ and _--trainable-w-ie_ on simultaneously.],
+    [_--trainable-w-ie_], [frozen], [Promote I→E. The exp049 result _gradient descent dismantles PING_ comes from flipping _--trainable-w-ei_ and _--trainable-w-ie_ on simultaneously.],
   )
 
   === Output
@@ -268,7 +268,7 @@
     --outputs pop_traces per_cell_rates
   ```
 
-  *Loop-transfer at inference (nb038).* Take a network trained as COBA and scale its E→I coupling up at inference, with no retraining:
+  *Loop-transfer at inference (exp038).* Take a network trained as COBA and scale its E→I coupling up at inference, with no retraining:
 
   ```
   uv run python src/cli/cli.py sim --infer \
@@ -277,7 +277,7 @@
     --scale-w-ei 1.0 --scale-w-ie 1.0 --outputs rasters
   ```
 
-  *Perturbation sweep (nb037).* Drop a fraction of emitted spikes, or add off-phase Poisson noise, inside the forward loop:
+  *Perturbation sweep (exp037).* Drop a fraction of emitted spikes, or add off-phase Poisson noise, inside the forward loop:
 
   ```
   uv run python src/cli/cli.py sim --infer \

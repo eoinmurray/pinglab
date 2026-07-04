@@ -53,7 +53,7 @@
   The readout collapses the last hidden layer's activity into class logits; `--readout` picks how. Four modes:
 
   - `spike-count` — sum last-hidden spikes over the trial and project linearly, $hat(y) = (sum_t s^"hid"_t) W_"out" + b_"out"$. Equivalent to spike-rate up to a constant.
-  - `mem-mean` — pass spikes through a final non-resetting LIF and average its membrane potential over the trial. Default for the COBA/PING recipes; used by #link("/nb025/")[nb025] and the streaming entries.
+  - `mem-mean` — pass spikes through a final non-resetting LIF and average its membrane potential over the trial. Default for the COBA/PING recipes; used by #link("/exp025/")[exp025] and the streaming entries.
   - `li` — leaky integrator: a non-spiking LIF whose final-step membrane potential is the logit.
   - `rate` — softmax over per-trial spike rates.
 
@@ -65,7 +65,7 @@
 
   $ cal(L)_"fr" = s_u dot "ReLU"(macron(r) - theta_u) + s_l dot "ReLU"(theta_l - macron(r)) $
 
-  where $macron(r)$ is the per-layer mean firing rate (per-neuron or population, set by `--fr-reg-mode`). This is the mechanism behind the $theta_u$ sweeps in #link("/nb025/")[nb025] and the rate-floor framing in #link("/ar009/")[ar009].
+  where $macron(r)$ is the per-layer mean firing rate (per-neuron or population, set by `--fr-reg-mode`). This is the mechanism behind the $theta_u$ sweeps in #link("/exp025/")[exp025] and the rate-floor framing in #link("/ar009/")[ar009].
 
   == Weight init
 

@@ -6,7 +6,7 @@
 )
 
 #let body = [
-  A reading of #link("https://doi.org/10.1162/089976600300015899")[Gerstner (2000), _Population Dynamics of Spiking Neurons: Fast Transients, Asynchronous States, and Locking_] (Neural Computation 12(1):43–89, communicated by Carl van Vreeswijk). It is the population/mean-field companion to the microscopic balanced state we build in #link("/nb058/")[nb058] and the gamma rhythm in #link("/nb050/")[nb050]: the same asynchronous-vs-rhythmic question, viewed from above the spikes.
+  A reading of #link("https://doi.org/10.1162/089976600300015899")[Gerstner (2000), _Population Dynamics of Spiking Neurons: Fast Transients, Asynchronous States, and Locking_] (Neural Computation 12(1):43–89, communicated by Carl van Vreeswijk). It is the population/mean-field companion to the microscopic balanced state we build in #link("/exp058/")[exp058] and the gamma rhythm in #link("/exp050/")[exp050]: the same asynchronous-vs-rhythmic question, viewed from above the spikes.
 
   *In plain English.* Stop tracking individual neurons and track a single number — the fraction of the population firing right now, $A(t)$. Gerstner writes one equation for how $A(t)$ evolves, then asks two things of it. _When does the population fire steadily and independently?_ (asynchronous). _When does it collapse into a synchronous pulse train?_ (locking). The answer is a phase diagram in two knobs: how noisy the neurons are, and how long their signals take to arrive. High noise keeps the population asynchronous; low noise (or short delays) tips it into a rhythm. That boundary is precisely the AI-to-gamma transition our notebooks explore — derived here analytically rather than simulated.
 
@@ -47,7 +47,7 @@
 
   The mechanism is a compression of firing-time differences. If $h$ is rising as the pulse arrives, a neuron that was slightly late sees a slightly larger drive and catches up; the spread of firing times shrinks, the pulse narrows, and the activity peak grows. Formally the compression is equivalent to a growing activity, $h'(t) > 0 <==> A(t) > A(t - T)$. Fire on the rising edge and synchrony feeds itself; fire on the falling edge and the pulse disperses.
 
-  This is exactly the PING loop of #link("/nb050/")[nb050] stated at the population level: inhibition recruited on the rising edge of recurrent excitation tightens each gamma volley. The locking theorem is _why_ a gamma rhythm is a stable attractor of this hardware, not a coincidence of one parameter set.
+  This is exactly the PING loop of #link("/exp050/")[exp050] stated at the population level: inhibition recruited on the rising edge of recurrent excitation tightens each gamma volley. The locking theorem is _why_ a gamma rhythm is a stable attractor of this hardware, not a coincidence of one parameter set.
 
   == Asynchronous firing: a fixed point, and when it survives
 
@@ -80,14 +80,14 @@
 
   == The bridge to the balanced state — where the noise comes from
 
-  Here is the tension worth dwelling on, and the reason this paper pairs so cleanly with #link("/nb058/")[nb058]. *For Gerstner, the noise level $sigma$ is an input parameter* — you dial it, and it tells you whether asynchrony is stable. He is explicit (§8.2) that fluctuations arising from the _internal recurrent coupling_ are hard to treat exactly, and points to #link("https://doi.org/10.1162/089976699300016179")[Brunel & Hakim (1999)] for the sparse case.
+  Here is the tension worth dwelling on, and the reason this paper pairs so cleanly with #link("/exp058/")[exp058]. *For Gerstner, the noise level $sigma$ is an input parameter* — you dial it, and it tells you whether asynchrony is stable. He is explicit (§8.2) that fluctuations arising from the _internal recurrent coupling_ are hard to treat exactly, and points to #link("https://doi.org/10.1162/089976699300016179")[Brunel & Hakim (1999)] for the sparse case.
 
-  That gap is exactly what Vreeswijk–Sompolinsky — and our nb058 — fill from below. In the strongly coupled balanced state the noise is *not external*: the recurrent dynamics are deterministically chaotic, and the aperiodic spike traffic each cell receives _is_ the noise. So the two pictures compose:
+  That gap is exactly what Vreeswijk–Sompolinsky — and our exp058 — fill from below. In the strongly coupled balanced state the noise is *not external*: the recurrent dynamics are deterministically chaotic, and the aperiodic spike traffic each cell receives _is_ the noise. So the two pictures compose:
 
-  - *V&S / nb058* explains _where_ the noise comes from: self-generated chaos (we measured a positive Lyapunov exponent on frozen input).
+  - *V&S / exp058* explains _where_ the noise comes from: self-generated chaos (we measured a positive Lyapunov exponent on frozen input).
   - *Gerstner* explains, _given_ that noise, whether the population sits in the stable-asynchronous corner or tips into a rhythm.
 
-  A balanced network manufacturing its own high effective $sigma$ is precisely what parks it in Gerstner's "asynchrony-stable" region without any external noise source — and lowering that self-generated noise (weaker coupling, more shared input) is what walks it across the bifurcation into the gamma regime of nb050.
+  A balanced network manufacturing its own high effective $sigma$ is precisely what parks it in Gerstner's "asynchrony-stable" region without any external noise source — and lowering that self-generated noise (weaker coupling, more shared input) is what walks it across the bifurcation into the gamma regime of exp050.
 
   == Why the asynchronous state is useful
 
@@ -95,5 +95,5 @@
 
   == One-paragraph summary
 
-  Track the firing fraction $A(t)$; it obeys a renewal integral equation closed by the input potential $h$. A flat $A_0$ (asynchrony) and a pulsed $A(t)$ (locking) are both solutions. Locking is stable when neurons fire on the rising edge of $h$ (the PING mechanism); asynchrony is stable when the neurons are noisy enough, and loses stability — via a Hopf bifurcation set by noise and delay — into a population rhythm. The one ingredient the theory takes as given, the noise, is the very thing the balanced-state chaos of nb058 supplies. Two lenses, one boundary.
+  Track the firing fraction $A(t)$; it obeys a renewal integral equation closed by the input potential $h$. A flat $A_0$ (asynchrony) and a pulsed $A(t)$ (locking) are both solutions. Locking is stable when neurons fire on the rising edge of $h$ (the PING mechanism); asynchrony is stable when the neurons are noisy enough, and loses stability — via a Hopf bifurcation set by noise and delay — into a population rhythm. The one ingredient the theory takes as given, the noise, is the very thing the balanced-state chaos of exp058 supplies. Two lenses, one boundary.
 ]

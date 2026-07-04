@@ -66,7 +66,7 @@
 
   with step (12) for each population $p in {E, I}$: $V^p_(t+1) = V^p_oo + (V^p_t - V^p_oo) e^(-Delta t \/ tau^p_"eff")$.
 
-  Being the _exact_ frozen-conductance integral, (12) is *dt-invariant* — $N$ small steps equal one big step, so firing rates and the gamma frequency are physical (Hz) properties, not timestep artifacts (#link("/nb044/")[nb044]). A forward-Euler step $V_(t+1) = V_t + (Delta t \/ C_m) I_"net"(V_t)$ — not dt-invariant — is kept only as a parity toggle (_COBA_INTEGRATOR_).
+  Being the _exact_ frozen-conductance integral, (12) is *dt-invariant* — $N$ small steps equal one big step, so firing rates and the gamma frequency are physical (Hz) properties, not timestep artifacts (#link("/exp044/")[exp044]). A forward-Euler step $V_(t+1) = V_t + (Delta t \/ C_m) I_"net"(V_t)$ — not dt-invariant — is kept only as a parity toggle (_COBA_INTEGRATOR_).
 
   Each step runs in fixed order: conductances (7)–(9), then $g_"tot", tau_"eff", V_oo$, then the membrane step (12), then spike + reset (6). *The zero-order hold is this ordering* — the conductances advance once, then stay fixed while the membrane integrates across $Delta t$. E and I advance synchronously, phase-locking the E→I→E gamma cycle to the grid.
 ]

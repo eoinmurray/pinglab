@@ -123,7 +123,7 @@
 
   By (8) the forward trajectory $x^t$ is bitwise identical with or without the flag, so this is a pure modification of the gradient, not of the dynamics. ∎
 
-  In code this is the single line `_scale_grad(dv, 1.0 / v_grad_dampen)` in the LIF step. Since $|rho.alt| tilde k^2 c$ for an order-unity loop constant $c$, the threshold (11) scales like $sqrt(|rho.alt|) tilde k sqrt(c)$, consistent with the recipes: $gamma approx 80$ for the unitless standard SNN and $gamma approx 1000$ for COBA/PING (used by #link("/nb025/")[nb025] and downstream), whose larger conductance-scale loop constant demands the larger $gamma$.
+  In code this is the single line `_scale_grad(dv, 1.0 / v_grad_dampen)` in the LIF step. Since $|rho.alt| tilde k^2 c$ for an order-unity loop constant $c$, the threshold (11) scales like $sqrt(|rho.alt|) tilde k sqrt(c)$, consistent with the recipes: $gamma approx 80$ for the unitless standard SNN and $gamma approx 1000$ for COBA/PING (used by #link("/exp025/")[exp025] and downstream), whose larger conductance-scale loop constant demands the larger $gamma$.
 
   == Corollary — the cost, and choosing γ
 
