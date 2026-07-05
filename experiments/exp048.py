@@ -33,6 +33,7 @@ REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from helpers import theme  # noqa: E402
+from helpers.cli import replot_target  # noqa: E402
 from helpers.datasets import load_mnist_split  # noqa: E402
 from helpers.figsave import save_figure  # noqa: E402
 from helpers.paths import artifacts_and_figures  # noqa: E402
@@ -988,16 +989,16 @@ def main() -> None:
     # save_figure.
     theme.set_paper_mode(True)
 
-    if "--replot-grid" in sys.argv:
+    if replot_target(sys.argv) == "grid":
         cached = FIGURES / "numbers.json"
         if not cached.exists():
             raise SystemExit(
-                f"--replot-grid: no cached data at {cached}; run the full notebook first."
+                f"--replot grid: no cached data at {cached}; run the full notebook first."
             )
         data = json.loads(cached.read_text())
         grid_agg = data.get("grid_sweep_agg", [])
         if not grid_agg:
-            raise SystemExit("--replot-grid: cached numbers.json has no grid_sweep_agg.")
+            raise SystemExit("--replot grid: cached numbers.json has no grid_sweep_agg.")
         plot_grid_heatmap(
             grid_agg, FIGURES / "acc_grid_tau_rate", "exp048-replot",
         )

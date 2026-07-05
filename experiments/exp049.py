@@ -38,6 +38,7 @@ REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from helpers import theme  # noqa: E402
+from helpers.cli import replot_target  # noqa: E402
 from helpers.figsave import save_figure  # noqa: E402
 from helpers.modal import parse_modal_gpu  # noqa: E402
 from helpers.paths import artifacts_and_figures  # noqa: E402
@@ -1274,20 +1275,21 @@ def main() -> None:
     # vector, emitted as both SVG (docs) and PDF (manuscript) by save_figure.
     theme.set_paper_mode(True)
 
-    if "--curves-only" in sys.argv:
+    _replot = replot_target(sys.argv)
+    if _replot == "curves":
         fig_training_curves(FIGURES / "training_curves", "exp049-curves")
         print(f"wrote {FIGURES / 'training_curves'}.{{svg,pdf}}")
         return
-
-    if "--portrait-only" in sys.argv:
+    if _replot == "portrait":
         fig_phase_portrait(FIGURES / "phase_portrait", "exp049-portrait")
         print(f"wrote {FIGURES / 'phase_portrait'}.{{svg,pdf}}")
         return
-
-    if "--accrate-only" in sys.argv:
+    if _replot == "accrate":
         fig_acc_rate_trajectory(FIGURES / "acc_rate_trajectory", "exp049-accrate")
         print(f"wrote {FIGURES / 'acc_rate_trajectory'}.{{svg,pdf}}")
         return
+    if _replot:
+        raise SystemExit(f"--replot: unknown figure {_replot!r}; choose curves|portrait|accrate")
 
     modal_gpu = parse_modal_gpu(sys.argv)
     notebook_run_id = next_run_id(SLUG)

@@ -40,6 +40,7 @@ REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from helpers import theme  # noqa: E402
+from helpers.cli import replot_target  # noqa: E402
 from helpers.datasets import load_mnist_split  # noqa: E402
 from helpers.figsave import save_figure  # noqa: E402
 from helpers.fmt import format_duration  # noqa: E402
@@ -1526,7 +1527,7 @@ def main() -> None:
     # vector, emitted as both SVG (docs) and PDF (manuscript) by save_figure.
     theme.set_paper_mode(True)
 
-    if "--compound-only" in sys.argv:
+    if replot_target(sys.argv) == "compound":
         build_rhythm_compound()
         return
 

@@ -21,22 +21,23 @@ import pytest
 
 EXPERIMENTS = Path(__file__).resolve().parents[3] / "experiments"
 
-# Exact meta flags: run-dir wiping, cloud dispatch, and idempotency/resume.
+# Exact meta flags: run-dir wiping, cloud dispatch, idempotency/resume, and the
+# unified figure re-render selector (`--replot <name>` — skip compute, redraw one
+# figure from cache; the runner maps <name> to a render fn via helpers.cli).
 ALLOWED_EXACT = {
     "--no-wipe-dir", "--wipe-dir",   # wipe control
     "--modal-gpu",                   # cloud dispatch (opt-in)
     "--skip-training",               # reuse existing weights, just re-analyze
     "--only-missing",                # resume: only run cells not already done
+    "--replot",                      # re-render one figure from cache (takes a name)
 }
-# Meta patterns: figure-subset re-render selectors (--curves-only, --replot-grid …).
-ALLOWED_PATTERNS = (re.compile(r"^--[a-z0-9-]+-only$"), re.compile(r"^--replot-[a-z0-9-]+$"))
 
 # Canonical runners only — exp<digits>.py, so exp022_runpod.py et al. are skipped.
 RUNNERS = sorted(p for p in EXPERIMENTS.glob("exp*.py") if re.fullmatch(r"exp\d+\.py", p.name))
 
 
 def _is_meta(flag: str) -> bool:
-    return flag in ALLOWED_EXACT or any(p.match(flag) for p in ALLOWED_PATTERNS)
+    return flag in ALLOWED_EXACT
 
 
 def _accepted_flags(src: str) -> set[str]:
