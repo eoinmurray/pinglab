@@ -1533,8 +1533,6 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--modal-gpu", default="none")
     parser.add_argument("--no-wipe-dir", action="store_true")
-    parser.add_argument("--seeds", nargs="*", type=int, default=list(SEEDS),
-                        help="subset of exp025 PING seeds to evaluate")
     args = parser.parse_args()
 
     modal_gpu = parse_modal_gpu(sys.argv)
@@ -1545,7 +1543,7 @@ def main() -> None:
 
     t_start = time.monotonic()
     notebook_run_id = next_run_id(SLUG)
-    print(f"notebook_run_id = {notebook_run_id} seeds={args.seeds}")
+    print(f"notebook_run_id = {notebook_run_id} seeds={SEEDS}")
 
     prepare_run_dirs(
         SLUG, notebook_run_id, wipe=not args.no_wipe_dir, make_artifacts=True,
@@ -1553,7 +1551,7 @@ def main() -> None:
     )
 
     rows: list[dict] = []
-    for seed in args.seeds:
+    for seed in SEEDS:
         train_dir = NB035_ARTIFACTS / f"ping__off__seed{seed}"
         if not (train_dir / "weights.pth").exists():
             raise SystemExit(
@@ -1573,15 +1571,15 @@ def main() -> None:
             )
 
     # Raster strip — single trial per condition from seed 42.
-    raster_train_dir = NB035_ARTIFACTS / f"ping__off__seed{args.seeds[0]}"
+    raster_train_dir = NB035_ARTIFACTS / f"ping__off__seed{SEEDS[0]}"
     print(
-        f"[raster] single-trial panels from seed {args.seeds[0]}, "
+        f"[raster] single-trial panels from seed {SEEDS[0]}, "
         f"sample {RASTER_SAMPLE_IDX}"
     )
     samples = [
         capture_condition_raster(
             raster_train_dir, cond, RASTER_SAMPLE_IDX,
-            seed_offset=args.seeds[0],
+            seed_offset=SEEDS[0],
         )
         for cond in CONDITIONS
     ]
@@ -1596,7 +1594,7 @@ def main() -> None:
     # Predicts the rate-release transition at σ ≈ 1/f_γ ≈ 28 ms.
     print(f"[jitter] sweep σ ∈ {list(JITTER_SIGMAS_MS)} ms")
     jitter_rows: list[dict] = []
-    for seed in args.seeds:
+    for seed in SEEDS:
         train_dir = NB035_ARTIFACTS / f"ping__off__seed{seed}"
         for sigma_ms in JITTER_SIGMAS_MS:
             cond = f"jitter_sigma_{sigma_ms:g}"
@@ -1631,7 +1629,7 @@ def main() -> None:
     # Jitter raster strip — one panel per σ from the diagnostic subset,
     # all from the first seed at sample 0 so panels read against the
     # baseline raster strip directly.
-    raster_seed = args.seeds[0]
+    raster_seed = SEEDS[0]
     raster_train_dir = NB035_ARTIFACTS / f"ping__off__seed{raster_seed}"
     print(
         f"[jitter-raster] panels from seed {raster_seed}, "
@@ -1660,7 +1658,7 @@ def main() -> None:
     # at which the integrated g_i profile starts looking continuous).
     print(f"[cell-jitter] sweep σ ∈ {list(CELL_JITTER_SIGMAS_MS)} ms")
     cell_jitter_rows: list[dict] = []
-    for seed in args.seeds:
+    for seed in SEEDS:
         train_dir = NB035_ARTIFACTS / f"ping__off__seed{seed}"
         for sigma_ms in CELL_JITTER_SIGMAS_MS:
             cond = f"cell_jitter_sigma_{sigma_ms:g}"
@@ -1718,9 +1716,9 @@ def main() -> None:
 
     # ── Pareto sweep ──────────────────────────────────────────────
     # Probe whether the rhythmic baseline sits at the (low E, high acc)
-    # corner of the (α, k) grid. Single seed (first in args.seeds) — the
+    # corner of the (α, k) grid. Single seed (first in SEEDS) — the
     # frontier shape, not error bars, is the load-bearing observation.
-    pareto_seed = args.seeds[0]
+    pareto_seed = SEEDS[0]
     pareto_train_dir = NB035_ARTIFACTS / f"ping__off__seed{pareto_seed}"
     print(
         f"[pareto] α × k sweep on seed {pareto_seed}: "
@@ -1822,7 +1820,7 @@ def main() -> None:
         "duration_s": round(duration_s, 1),
         "duration": format_duration(duration_s),
         "config": {
-            "seeds": list(args.seeds),
+            "seeds": list(SEEDS),
             "conditions": list(CONDITIONS),
             "jitter_sigmas_ms": list(JITTER_SIGMAS_MS),
             "f_gamma_reference_hz": F_GAMMA_REFERENCE_HZ,
