@@ -559,8 +559,8 @@ def _runpod_api_key() -> str:
     cfg = Path.home() / ".runpod" / "config.toml"
     if cfg.exists():
         for line in cfg.read_text().splitlines():
-            if line.strip().startswith("apiKey"):
-                return line.split("=", 1)[1].strip().strip('"')
+            if line.strip().lower().startswith("apikey"):
+                return line.split("=", 1)[1].strip().strip("'\"")
     raise SystemExit("no RunPod API key (set RUNPOD_API_KEY or run `runpodctl config`)")
 
 
