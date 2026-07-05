@@ -377,9 +377,6 @@ def plot_ceiling_vs_fgamma(rows: list[dict], out_path: Path, run_id: str) -> dic
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--no-wipe-dir", action="store_true")
-    parser.add_argument("--seeds", nargs="*", type=int, default=list(SEEDS))
-    parser.add_argument("--tau-gabas", nargs="*", type=float,
-                        default=list(TAU_GABA_SWEEP_MS))
     args = parser.parse_args()
 
     # Publication profile: every figure this notebook writes is a print-sized
@@ -391,8 +388,8 @@ def main() -> None:
     t_start = time.monotonic()
     notebook_run_id = next_run_id(SLUG)
     print(f"notebook_run_id = {notebook_run_id}")
-    print(f"  τ_GABAs: {args.tau_gabas}")
-    print(f"  seeds:   {args.seeds}")
+    print(f"  τ_GABAs: {TAU_GABA_SWEEP_MS}")
+    print(f"  seeds:   {SEEDS}")
 
     prepare_run_dirs(SLUG, notebook_run_id, wipe=not args.no_wipe_dir,
                      make_artifacts=True, scale=SCALE, host="local")
@@ -401,10 +398,10 @@ def main() -> None:
     print(f"loaded f_γ for {len(f_gamma_map)} exp041 cells")
 
     rows: list[dict] = []
-    n_cells = len(args.tau_gabas) * len(args.seeds)
+    n_cells = len(TAU_GABA_SWEEP_MS) * len(SEEDS)
     cells_done = 0
-    for tau in args.tau_gabas:
-        for seed in args.seeds:
+    for tau in TAU_GABA_SWEEP_MS:
+        for seed in SEEDS:
             train_dir = exp041_cell_dir(tau, seed)
             if not (train_dir / "weights.pth").exists():
                 print(f"[skip] missing {train_dir.relative_to(REPO)}")
@@ -460,8 +457,8 @@ def main() -> None:
         "duration_s": duration_s,
         "duration": f"{int(duration_s // 60)}m {int(duration_s % 60):02d}s",
         "config": {
-            "tau_gabas_ms": list(args.tau_gabas),
-            "seeds": list(args.seeds),
+            "tau_gabas_ms": list(TAU_GABA_SWEEP_MS),
+            "seeds": list(SEEDS),
             "exp041_source": "ping__tg{N}__seed{S} (100-epoch baselines)",
         },
         "global_fracs": global_fracs,
