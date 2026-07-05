@@ -1,0 +1,21 @@
+{
+  "slug": "exp022",
+  "run_id": "r001",
+  "run_at": "2026-07-05T22:23:43+00:00",
+  "git_sha": "cc36be1",
+  "dirty": false,
+  "code_dirty": false,
+  "patch": null,
+  "host": "local",
+  "scale": {
+    "dataset": "mnist",
+    "max_samples": 7000,
+    "epochs": 50,
+    "t_ms": 200.0,
+    "dt_ms": 0.1,
+    "batch_size": 256,
+    "seeds": 3,
+    "cells": 87,
+    "grid": "2 architectures \u00d7 5 families"
+  }
+}
