@@ -34,6 +34,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from exp022 import cell_dir as shared_cell_dir  # noqa: E402
 from exp022 import cell_name  # noqa: E402
 from helpers import theme  # noqa: E402
+from helpers.cli import replot_target  # noqa: E402
 from helpers.figsave import save_figure  # noqa: E402
 from helpers.fmt import format_duration  # noqa: E402
 from helpers.modal import parse_modal_gpu  # noqa: E402
@@ -750,7 +751,7 @@ def main() -> None:
     # vector, emitted as both SVG (docs) and PDF (manuscript) by save_figure.
     theme.set_paper_mode(True)
 
-    if "--compound-only" in sys.argv:
+    if replot_target(sys.argv) == "compound":
         build_loop_transfer_compound()
         return
     modal_gpu = parse_modal_gpu(sys.argv)
