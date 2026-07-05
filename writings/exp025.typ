@@ -67,9 +67,9 @@
 
   *Spike-budget regulariser.* To probe the rate axis, the training loss adds a soft
   upper bound on per-trial spike count. For each E cell $n$ with mean per-trial spike
-  count $overline(z)_n$:
+  count $macron(z)_n$:
 
-  $ L_"rate" = lambda sum_n "ReLU"(overline(z)_n - theta_u)^2, $
+  $ L_"rate" = lambda sum_n "ReLU"(macron(z)_n - theta_u)^2, $
 
   with $theta_u$ the per-cell budget (spikes/trial) and $lambda = 10^(-3)$; only
   cells over budget contribute, cells under it are free, and the total loss is

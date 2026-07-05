@@ -81,10 +81,10 @@
   $ tilde(s)_i = min(s_i + bb(1)[u_i < r_"add" dot Delta t \/ 1000], 1). $
 
   Sweep $r_"add" in {0, 2, ..., 40}$ Hz, 21 levels. On the right panel of Figure 1
-  the add level is expressed *per population* — $r_"add"^E = "pct" dot overline(r_E)$,
-  $r_"add"^I = "pct" dot overline(r_I)$, each architecture scaled by its own
+  the add level is expressed *per population* — $r_"add"^E = "pct" dot macron(r_E)$,
+  $r_"add"^I = "pct" dot macron(r_I)$, each architecture scaled by its own
   baseline — because the baselines differ by an order of magnitude
-  (COBA $overline(r_E) = 65$ Hz vs PING $overline(r_E) = 6$ Hz), so a fixed
+  (COBA $macron(r_E) = 65$ Hz vs PING $macron(r_E) = 6$ Hz), so a fixed
   "10 Hz of noise" would be 15% of COBA's rate but 170% of PING's. The per-step RNG
   is seeded separately from the input encoder, so the Poisson input stream matches
   the unperturbed baseline. Total: 2 models × (11 drop + 21 add) = 64 forward passes.
