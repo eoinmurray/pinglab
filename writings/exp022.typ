@@ -110,7 +110,7 @@
   coba and ping at θ_u = off, all 70k images, seeds 42/43/44 (6 cells) — the full-data baseline. — *not trained yet*
 
   #figure(
-    rect(width: 100%, height: 4cm, stroke: 0.5pt + gray, fill: luma(245))[#align(center + horizon)[#text(fill: gray)[Figure 1 — canonical reference training curves · not trained yet]]],
+    block(width: 100%, height: 4cm, inset: 1em, stroke: 0.5pt + gray, radius: 3pt, fill: luma(245))[#text(fill: gray)[Figure 1 — canonical reference training curves · not trained yet]],
     caption: [Test accuracy over epochs, canonical full-MNIST cells. *Not trained yet* — new cells awaiting the canonical run.],
   )
 
@@ -119,7 +119,7 @@
   coba and ping across θ_u ∈ off, 5, 2, 1, 0.5, 0.2, three seeds each (36 cells) — so the accuracy–rate frontier carries error bars at every point. θ_u is the spike budget in spikes/trial. — *not trained yet*
 
   #figure(
-    rect(width: 100%, height: 4cm, stroke: 0.5pt + gray, fill: luma(245))[#align(center + horizon)[#text(fill: gray)[Figure 2 — θ_u sweep training curves · not trained yet]]],
+    block(width: 100%, height: 4cm, inset: 1em, stroke: 0.5pt + gray, radius: 3pt, fill: luma(245))[#text(fill: gray)[Figure 2 — θ_u sweep training curves · not trained yet]],
     caption: [Test accuracy over epochs across the θ_u sweep. Tighter budgets (smaller θ_u) plateau lower — the spike-economy trade-off.],
   )
 
@@ -128,7 +128,7 @@
   ping across τ_GABA ∈ 4.5, 6, 9, 12, 18, 27 ms, three seeds each (18 cells). — *not trained yet*
 
   #figure(
-    rect(width: 100%, height: 4cm, stroke: 0.5pt + gray, fill: luma(245))[#align(center + horizon)[#text(fill: gray)[Figure 3 — τ_GABA ladder training curves · not trained yet]]],
+    block(width: 100%, height: 4cm, inset: 1em, stroke: 0.5pt + gray, radius: 3pt, fill: luma(245))[#text(fill: gray)[Figure 3 — τ_GABA ladder training curves · not trained yet]],
     caption: [Test accuracy over epochs across the τ_GABA ladder; cells converge to similar accuracy regardless of inhibitory decay.],
   )
 
@@ -137,7 +137,7 @@
   ping across Δt ∈ 0.05, 0.1, 0.25, 0.5, 1.0 ms (physical T fixed), three seeds each (15 cells) — the documented timestep exception. — *not trained yet*
 
   #figure(
-    rect(width: 100%, height: 4cm, stroke: 0.5pt + gray, fill: luma(245))[#align(center + horizon)[#text(fill: gray)[Figure 4 — Δt sweep training curves · not trained yet]]],
+    block(width: 100%, height: 4cm, inset: 1em, stroke: 0.5pt + gray, radius: 3pt, fill: luma(245))[#text(fill: gray)[Figure 4 — Δt sweep training curves · not trained yet]],
     caption: [Test accuracy over epochs across the integration-timestep sweep.],
   )
 
@@ -146,7 +146,7 @@
   ping with four recurrent-loop inits — frozen PING, trainable from PING / zero / small seed — three seeds each (12 cells). — *not trained yet*
 
   #figure(
-    rect(width: 100%, height: 4cm, stroke: 0.5pt + gray, fill: luma(245))[#align(center + horizon)[#text(fill: gray)[Figure 5 — init variants training curves · not trained yet]]],
+    block(width: 100%, height: 4cm, inset: 1em, stroke: 0.5pt + gray, radius: 3pt, fill: luma(245))[#text(fill: gray)[Figure 5 — init variants training curves · not trained yet]],
     caption: [Test accuracy over epochs across the recurrent-loop inits; trainable-loop cells learn noisier curves than the frozen control.],
   )
 ]
