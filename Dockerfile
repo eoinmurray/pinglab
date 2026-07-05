@@ -13,12 +13,18 @@ FROM nvidia/cuda:12.8.1-runtime-ubuntu22.04
 ENV DEBIAN_FRONTEND=noninteractive \
     PATH="/root/.local/bin:${PATH}"
 
-# openssh-server + rsync: RunPod drives the pod over SSH and we rsync artifacts
-# back, so the container must run its own sshd (the CUDA base has neither).
+# openssh-server + rsync: the collect step rsyncs artifacts off the volume over
+# SSH, so the container runs its own sshd (the CUDA base has neither).
 RUN apt-get update && apt-get install -y --no-install-recommends \
         git curl ca-certificates build-essential openssh-server rsync \
     && rm -rf /var/lib/apt/lists/* \
     && mkdir -p /run/sshd
+
+# runpodctl: a self-running pod removes ITSELF when its work is done (authing via
+# the injected RUNPOD_API_KEY), so nothing depends on the laptop for teardown.
+RUN curl -fsSL https://github.com/runpod/runpodctl/releases/latest/download/runpodctl-linux-amd64 \
+        -o /usr/local/bin/runpodctl \
+    && chmod +x /usr/local/bin/runpodctl
 
 # uv manages Python + the locked dependency set.
 RUN curl -LsSf https://astral.sh/uv/install.sh | sh
@@ -44,15 +50,25 @@ RUN uv sync --no-dev \
 # checked at runtime on a GPU host, not here (the builder has no GPU).
 RUN uv run --no-sync python -c "import torch; print('baked torch', torch.__version__)"
 
-# Start script: install RunPod's injected public key, then run sshd in the
-# foreground (keeps the container alive and lets the launcher connect). Written
-# at build time; $PUBLIC_KEY is expanded at runtime, not here.
+# Start script — two modes, chosen at runtime by the CELLS env var:
+#   • CELLS set → fire-and-forget training. Start sshd in the background (for
+#     debugging), check out the exact pinned commit ($PIN_SHA), then hand off to
+#     exp022.py --pod-run, which trains the assigned cells to the mounted network
+#     volume and self-terminates. A background backstop force-removes the pod
+#     after $MAX_RUNTIME so a hung job can never bill forever.
+#   • CELLS unset → just sshd in the foreground (the collect step / debugging).
+# $PUBLIC_KEY / $PIN_SHA / $CELLS / $MAX_RUNTIME expand at runtime, not build.
 RUN printf '%s\n' \
       '#!/bin/bash' \
       'mkdir -p /root/.ssh && chmod 700 /root/.ssh' \
       '[ -n "$PUBLIC_KEY" ] && echo "$PUBLIC_KEY" > /root/.ssh/authorized_keys && chmod 600 /root/.ssh/authorized_keys' \
       'ssh-keygen -A' \
-      'exec /usr/sbin/sshd -D -e' \
+      'if [ -z "$CELLS" ]; then exec /usr/sbin/sshd -D -e; fi' \
+      '/usr/sbin/sshd' \
+      'cd /workspace/pinglab' \
+      'git fetch origin "$PIN_SHA" --depth 1 -q && git reset --hard "$PIN_SHA" -q' \
+      '( sleep "${MAX_RUNTIME:-54000}"; runpodctl remove pod "$RUNPOD_POD_ID" ) &' \
+      'exec uv run --no-sync python experiments/exp022.py --pod-run' \
     > /start.sh && chmod +x /start.sh
 
 CMD ["/start.sh"]

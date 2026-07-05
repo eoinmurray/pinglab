@@ -24,8 +24,10 @@ Writing: writings/exp022.typ · figures + numbers.json: artifacts/data/exp022/
 
 from __future__ import annotations
 
+import argparse
 import json
 import os
+import subprocess
 import sys
 import time
 from pathlib import Path
@@ -35,7 +37,10 @@ import matplotlib.pyplot as plt
 REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from helpers import theme  # noqa: E402
+from helpers import (
+    runpod,  # noqa: E402
+    theme,  # noqa: E402
+)
 from helpers.fmt import format_duration  # noqa: E402
 from helpers.modal import BatchDispatcher, parse_modal_gpu  # noqa: E402
 from helpers.operating_point import TAU_GABA_GAMMA_MS  # noqa: E402
@@ -50,8 +55,19 @@ ARTIFACTS, FIGURES = artifacts_and_figures(SLUG)
 # ── Canonical training registry (the hub the collection reuses) ──────
 # Analysis notebooks import `load_cell` / `cell_dir` from this module rather
 # than retraining; this entry is the single producer of the shared cells.
-TRAINING_ROOT = REPO / "temp" / "notebooks" / "training"
+# PINGLAB_TRAINING_ROOT overrides the location: RunPod pods set it to the shared
+# network-volume mount (/shared/training) so a fan-out writes durable artifacts
+# there instead of an ephemeral pod disk. Local runs use the default and are
+# unaffected. cell_dir / load_cell read through this, so every consumer follows.
+TRAINING_ROOT = Path(os.environ.get(
+    "PINGLAB_TRAINING_ROOT", str(REPO / "temp" / "notebooks" / "training")))
 SNN_TOOL = REPO / "tools" / "snn" / "tool.py"
+
+# RunPod fan-out anchors (created 2026-07-05): the shared network volume and the
+# datacenter it lives in. EU-RO-1 carries High 4090 AND 5090 stock, so pods and
+# the volume co-locate and provisioning is reliable. See run_via_runpod().
+RUNPOD_DATACENTER = "EU-RO-1"
+RUNPOD_VOLUME_ID = "3t2fhu0bzr"
 
 EPOCHS_STANDARD = 50           # standard depth (halved from 100 — see exp022.mdx §2)
 DT_MS = 0.1
@@ -432,7 +448,221 @@ def plot_family_curves(family: str, cells: list[dict],
     return n
 
 
+# ── RunPod fan-out (the third dispatch backend, alongside local + Modal) ──
+# The generic pod-fleet machinery lives in helpers/runpod.py; these functions
+# are the exp022-specific glue that tells it what to train. Driven by the
+# `--runpod` path in main(); see writings/exp022.typ §3 for the compute design.
+
+def runpod_is_done(cell: dict, plumbing: bool) -> bool:
+    """A cell is done iff its metrics.json exists AND was trained at the scale
+    THIS run expects (max_samples, epochs, dt all matching).
+
+    Existence alone is not enough: TRAINING_ROOT is littered with cells from
+    earlier, coarser standards (e.g. 2000 samples / 100 epochs), and a bare
+    exists() check — what --only-missing does — would skip those and silently
+    ship a mixed-scale, invalid dataset. Comparing the baked config makes the
+    marker honest: a stale cell reads as pending and gets retrained.
+    """
+    p = cell_dir(cell["name"]) / "metrics.json"
+    if not p.exists():
+        return False
+    try:
+        cfg = json.loads(p.read_text()).get("config", {})
+    except (json.JSONDecodeError, OSError):
+        return False
+    if plumbing:
+        os.environ["PINGLAB_NB022_PLUMBING"] = "1"
+    want_ms, want_ep = cell_samples_epochs(cell)
+    return (cfg.get("max_samples") == want_ms
+            and cfg.get("epochs") == want_ep
+            and cfg.get("dt") == cell["dt_ms"])
+
+
+def _train_one_cell(cell: dict, plumbing: bool) -> None:
+    """Train ONE cell by invoking the SNN CLI — flags identical to a local run.
+
+    Writes to cell_dir(name), which sits under TRAINING_ROOT — on a pod that is
+    the shared network volume (/shared/training via PINGLAB_TRAINING_ROOT), so
+    the artifact is durable the moment it lands. Used by --pod-run and --train-cell.
+    """
+    ms, ep = cell_samples_epochs(cell)  # honours PINGLAB_NB022_PLUMBING
+    spec = cell
+    if plumbing:
+        # build_train_args re-applies a canonical cell's own max_samples (70000),
+        # which would defeat the tiny plumbing scale. Strip it so the plumbing
+        # ms=100 takes — and so runpod_is_done agrees with what was trained.
+        spec = {k: v for k, v in cell.items() if k != "max_samples"}
+    args = build_train_args(spec, cell_dir(cell["name"]), ms, ep)
+    print(f"[train-cell] {cell['name']} (n={ms}, {ep} ep) → {cell_dir(cell['name'])}")
+    subprocess.run([sys.executable, str(SNN_TOOL), *args], cwd=REPO, check=True)
+
+
+def pod_run() -> None:
+    """Pod-side entrypoint (image start script runs `exp022.py --pod-run`).
+
+    Trains every cell named in the CELLS env var to the shared volume, skipping
+    any already done there (scale-aware marker → free resume across pods), then
+    self-terminates so the pod stops billing without the laptop's involvement.
+    Self-termination runs in `finally`, so it happens even if a cell errors.
+    """
+    plumbing = os.environ.get("PINGLAB_NB022_PLUMBING") == "1"
+    names = os.environ.get("CELLS", "").split()
+    print(f"[pod-run] cells={names} plumbing={plumbing} "
+          f"root={TRAINING_ROOT}")
+    try:
+        for name in names:
+            cell = next((c for c in CANONICAL_CELLS if c["name"] == name), None)
+            if cell is None:
+                print(f"[pod-run] unknown cell {name!r} — skipping")
+                continue
+            if runpod_is_done(cell, plumbing):
+                print(f"[skip] {name} already done on the volume")
+                continue
+            try:
+                _train_one_cell(cell, plumbing)
+            except Exception as e:  # noqa: BLE001 — isolate one cell's failure
+                print(f"[FAIL] {name}: {e}")
+    finally:
+        runpod.pod_self_terminate()
+
+
+def runpod_buckets(cells: list[dict], cells_per_pod: int) -> list[dict]:
+    """Assign cells to pods: each canonical cell → its own pod (heavy, isolated);
+    every other family packed cells_per_pod at a time. Returns [{name, cells}]."""
+    canonical = [c["name"] for c in cells if c["family"] == "canonical"]
+    sweep = [c["name"] for c in cells if c["family"] != "canonical"]
+    buckets = [{"name": f"canon-{n}", "cells": [n]} for n in canonical]
+    for i in range(0, len(sweep), cells_per_pod):
+        buckets.append({"name": f"sweep-{i // cells_per_pod:02d}",
+                        "cells": sweep[i:i + cells_per_pod]})
+    return buckets
+
+
+def _git_head_sha() -> str:
+    return subprocess.run(["git", "rev-parse", "HEAD"], cwd=REPO,
+                          capture_output=True, text=True, check=True).stdout.strip()
+
+
+def _sha_is_pushed(sha: str) -> bool:
+    """True if the sha is on a remote branch (pods fetch it from GitHub)."""
+    out = subprocess.run(["git", "branch", "-r", "--contains", sha], cwd=REPO,
+                         capture_output=True, text=True).stdout.strip()
+    return bool(out)
+
+
+def _runpod_api_key() -> str:
+    """The RunPod API key, needed on pods for self-termination. From the env or
+    runpodctl's config."""
+    key = os.environ.get("RUNPOD_API_KEY")
+    if key:
+        return key
+    cfg = Path.home() / ".runpod" / "config.toml"
+    if cfg.exists():
+        for line in cfg.read_text().splitlines():
+            if line.strip().startswith("apiKey"):
+                return line.split("=", 1)[1].strip().strip('"')
+    raise SystemExit("no RunPod API key (set RUNPOD_API_KEY or run `runpodctl config`)")
+
+
+def run_via_runpod(argv: list[str]) -> None:
+    """`--runpod` dispatch: fire a laptop-independent RunPod fan-out.
+
+    Pods self-run their assigned cells to the shared network volume and
+    self-terminate; the laptop only fires them. Retrieve results afterwards with
+    `--runpod --collect`, then build figures with `exp022.py --skip-training`.
+    Dry-run by DEFAULT; --live to create pods. See helpers/runpod.py.
+    """
+    ap = argparse.ArgumentParser(prog="exp022.py --runpod")
+    ap.add_argument("--runpod", action="store_true")  # already routed here
+    ap.add_argument("--live", action="store_true",
+                    help="actually create pods and spend money (default: dry-run)")
+    ap.add_argument("--collect", action="store_true",
+                    help="pull trained cells off the volume to TRAINING_ROOT, then exit")
+    ap.add_argument("--gpu", choices=("4090", "5090"), default="4090",
+                    help="GPU to run on (5090 = pricier/faster/32GB; default 4090)")
+    ap.add_argument("--plumbing", action="store_true",
+                    help="tiny wiring scale (PINGLAB_NB022_PLUMBING) — a cheap pod smoke")
+    ap.add_argument("--only", nargs="+", metavar="CELL",
+                    help="restrict to these cell names (e.g. a single smoke cell)")
+    ap.add_argument("--cells-per-pod", type=int, default=9,
+                    help="sweep cells packed per pod (default 9)")
+    args = ap.parse_args(argv[1:])
+
+    if args.collect:
+        print(f"collecting from volume {RUNPOD_VOLUME_ID} @ {RUNPOD_DATACENTER} "
+              f"→ {TRAINING_ROOT}")
+        runpod.collect(datacenter=RUNPOD_DATACENTER, volume_id=RUNPOD_VOLUME_ID,
+                       local_root=str(TRAINING_ROOT))
+        print("→ build figures with: uv run python experiments/exp022.py --skip-training")
+        return
+
+    cells = CANONICAL_CELLS
+    if args.only:
+        wanted = set(args.only)
+        cells = [c for c in cells if c["name"] in wanted]
+        missing = wanted - {c["name"] for c in cells}
+        if missing:
+            raise SystemExit(f"unknown cell(s): {sorted(missing)}")
+
+    buckets = runpod_buckets(cells, args.cells_per_pod)
+    dry = not args.live
+    scale = "plumbing" if args.plumbing else "standard"
+    n_cells = sum(len(b["cells"]) for b in buckets)
+    print(f"{'DRY-RUN' if dry else 'LIVE'}  scale={scale}  gpu={args.gpu}")
+    print(f"fleet: {len(buckets)} pods · {n_cells} cells "
+          f"(pods skip cells already done on the volume)")
+
+    if dry:
+        for b in buckets:
+            print(f"\n▸ POD {b['name']} [{args.gpu} @ {RUNPOD_DATACENTER}] "
+                  f"— CELLS={' '.join(b['cells'])}")
+        print("\n(dry-run — nothing created. Re-run with --live to spend.)")
+        return
+
+    # ── Provenance: pin an exact, pushed commit + the image digest ──
+    sha = _git_head_sha()
+    if not _sha_is_pushed(sha):
+        raise SystemExit(f"HEAD {sha[:12]} is not pushed to origin — pods fetch "
+                         "from GitHub. Commit + push, then re-run.")
+    digest = runpod.resolve_image_digest() or "(digest unresolved)"
+    api_key = _runpod_api_key()
+    print(f"pinned sha : {sha}")
+    print(f"image      : {digest}")
+
+    max_runtime = "2400" if args.plumbing else "54000"  # 40 min smoke / 15 hr real
+    common = {
+        "PIN_SHA": sha,
+        "RUNPOD_API_KEY": api_key,
+        "PINGLAB_TRAINING_ROOT": f"{runpod.VOLUME_MOUNT}/training",
+        "MAX_RUNTIME": max_runtime,
+    }
+    if args.plumbing:
+        common["PINGLAB_NB022_PLUMBING"] = "1"
+    pods = [{"name": b["name"], "env": {**common, "CELLS": " ".join(b["cells"])}}
+            for b in buckets]
+
+    fired = runpod.fire(pods, gpu=args.gpu, datacenter=RUNPOD_DATACENTER,
+                        volume_id=RUNPOD_VOLUME_ID)
+    ok = [p for p in fired if p["id"]]
+    print(f"\n=== fired {len(ok)}/{len(pods)} pods ({args.gpu}) ===")
+    print("pods self-run + self-terminate; monitor with `runpodctl pod list`.")
+    print("when the list is empty, collect: "
+          "uv run python experiments/exp022.py --runpod --collect"
+          + (" --plumbing" if args.plumbing else ""))
+
+
 def main() -> None:
+    # RunPod backend + kill switch are handled before the local/Modal path.
+    if "--pod-run" in sys.argv:
+        pod_run()   # runs ON a pod: train assigned cells to the volume, self-terminate
+        return
+    if "--reap" in sys.argv:
+        runpod.reap_all_pods()
+        return
+    if "--runpod" in sys.argv:
+        run_via_runpod(sys.argv)
+        return
+
     modal_gpu = parse_modal_gpu(sys.argv)
     skip_training = "--skip-training" in sys.argv
     only_missing = "--only-missing" in sys.argv
