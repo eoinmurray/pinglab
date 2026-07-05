@@ -26,7 +26,9 @@ defined in [`GLOSSARY.md`](GLOSSARY.md).
 
 ## 3. Repo layout — the framework/content firewall
 
-**3.1 — Black box** (pure upstream; never edited here, swapped wholesale on update): `demolab-engine/build/` (the Typst engine: `main.typ`, `lib.typ`, `build.py`, `style.css`, `favicon.svg`), `demolab-engine/runbooks/` (the runbooks), and `demolab-engine/guides/` (this file + `GLOSSARY.md` + `HOUSE-STYLE.md`). Updates cleanly and survives any deletion of example content.
+The concrete annotated file tree is in [`STRUCTURE.md`](STRUCTURE.md); this section is the *why* — which zone each path belongs to and how it updates.
+
+**3.1 — Black box** (pure upstream; never edited here, swapped wholesale on update): `demolab-engine/build/` (the Typst engine: `main.typ`, `lib.typ`, `build.py`, `style.css`, `favicon.svg`), `demolab-engine/runbooks/` (the runbooks), and `demolab-engine/guides/` (this file + `GLOSSARY.md` + `HOUSE-STYLE.md` + `STRUCTURE.md`). Updates cleanly and survives any deletion of example content.
 
 **3.2 — Reconciled** (framework, but kept thin or pinned to root by tooling; updated by diff, not swap): `AGENTS.md` + its `CLAUDE.md` pointer (both thin — they just point here), `README.md`, the `Taskfile`, `pyproject.toml`, and `.github/` CI.
 

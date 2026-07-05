@@ -4,7 +4,7 @@ Triggers: **"update demolab"**, "update from upstream", "pull the latest demolab
 
 **The model: the engine is a black box; your stuff lives outside it.** Updating is a **vendor-copy**, not a merge. Three tiers:
 
-- **Swap wholesale** (pure upstream — the user never edits these): the entire **`demolab-engine/`** — `build/` (the Typst engine), `runbooks/` (these runbooks), and `guides/` (`RULES.md`, `GLOSSARY.md`, `HOUSE-STYLE.md`). Nothing user-owned lives in there, so it's a clean overwrite.
+- **Swap wholesale** (pure upstream — the user never edits these): the entire **`demolab-engine/`** — `build/` (the Typst engine), `runbooks/` (these runbooks), and `guides/` (`RULES.md`, `GLOSSARY.md`, `HOUSE-STYLE.md`, `STRUCTURE.md`). Nothing user-owned lives in there, so it's a clean overwrite.
 - **Never touch** (100% the user's): `demolab.yaml` (their branding, if present), `writings/`, `tools/`, `experiments/`, `artifacts/`, `temp/`.
 - **Reconcile carefully** (framework, but often customised or pinned to root): `AGENTS.md`, `Taskfile.yml`, `.github/workflows/deploy.yml`, `pyproject.toml`, `README.md`. Diff these and apply changes *with the user's say-so* — don't clobber their added tasks, deps, or prose.
 
