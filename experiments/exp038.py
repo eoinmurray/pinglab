@@ -50,7 +50,7 @@ SNN_TOOL = REPO / "tools" / "snn" / "tool.py"
 MAX_SAMPLES = 500
 T_MS = 200.0
 DT_TRAIN = 0.1
-BASELINE_EPOCHS: int = 30  # baseline cell training horizon (in exp022 now)
+BASELINE_EPOCHS: int = 50  # baseline cell training horizon (in exp022 now)
 
 # Run scale — stamped into the manifest by run_dirs.prepare and rendered as
 # the Methods table via RunScale; the mdx never restates these numbers.
@@ -535,10 +535,6 @@ def plot_ei_rasters(samples: list[dict], out_path: Path, run_id: str) -> None:
             ha="left", va="center",
             fontsize=theme.SIZE_LABEL,
         )
-        if i == 0:
-            ax.set_title(
-                "E (black) and I (red) spikes — single trial, MNIST test sample 0"
-            )
         if i < n - 1:
             ax.tick_params(axis="x", labelbottom=False)
     axes[-1].set_xlabel("time (ms)")
@@ -702,7 +698,6 @@ def fig_loop_transfer_compound(points, raster_lo, raster_hi, out_path, run_id):
     ax_r.plot(eis, inh, marker="s", ms=3, color=theme.DEEP_RED, label="I")
     ax_r.set_xlabel("inference E→I strength")
     ax_r.set_ylabel("rate (Hz)")
-    ax_r.set_title("E rate falls ≈ 10× as the loop engages", loc="left", fontsize=theme.SIZE_LABEL)
     ax_r.legend(fontsize=theme.SIZE_LEGEND, frameon=False)
     _despine(ax_r)
 
@@ -715,7 +710,6 @@ def fig_loop_transfer_compound(points, raster_lo, raster_hi, out_path, run_id):
     ax_a.set_ylim(0, 100)
     ax_a.set_xlabel("inference E→I strength")
     ax_a.set_ylabel("test accuracy (%)")
-    ax_a.set_title("Accuracy degrades without retraining", loc="left", fontsize=theme.SIZE_LABEL)
     ax_a.legend(fontsize=theme.SIZE_LEGEND, frameon=False, loc="lower left")
     _despine(ax_a)
 
@@ -725,25 +719,77 @@ def fig_loop_transfer_compound(points, raster_lo, raster_hi, out_path, run_id):
     plt.close(fig)
 
 
-def build_loop_transfer_compound(run_id: str = "replot") -> None:
-    """Replot-only: inference sweep on the cached COBA weights, no training."""
-    train_dir = baseline_dir("coba")
-    if not (train_dir / "weights.pth").exists():
-        raise SystemExit(f"need trained coba weights at {train_dir} (run the notebook once)")
+def _load_cached_ei_points() -> list[dict]:
+    """Read the ei-sweep results from the previous run's cached metrics.json —
+    no inference. Raises with a clear message if the cache is absent."""
     sweep_root = _ei_sweep_dir()
-    sweep_root.mkdir(parents=True, exist_ok=True)
-    points = []
+    points: list[dict] = []
     for ei in EI_SWEEP:
-        m = run_inproc_infer(train_dir, ei, sweep_root / f"infer_ei{ei:g}")
-        points.append({"ei_strength": ei, "acc": m["best_acc"],
-                       "hid_rate_hz": m.get("hid_rate_hz"), "inh_rate_hz": m.get("inh_rate_hz")})
-        print(f"[ei-sweep] ei={ei}: acc={m['best_acc']:.1f}% E={m.get('hid_rate_hz')} Hz")
-    r_lo = capture_ei_raster(train_dir, 0.0, EI_RASTER_SAMPLE_IDX)
-    r_hi = capture_ei_raster(train_dir, 1.0, EI_RASTER_SAMPLE_IDX)
+        mfile = sweep_root / f"infer_ei{ei:g}" / "metrics.json"
+        if not mfile.exists():
+            raise SystemExit(
+                f"--replot needs cached ei-sweep data at {mfile.parent}; "
+                "run the notebook once without --replot first."
+            )
+        m = json.loads(mfile.read_text())
+        rates_hz = m.get("rates_hz", {})
+        hid = next((k for k in rates_hz if k.startswith("hid")), None)
+        inh = next((k for k in rates_hz if k.startswith("inh")), None)
+        points.append({
+            "ei_strength": ei,
+            "acc": float(m["best_acc"]),
+            "hid_rate_hz": rates_hz.get(hid) if hid else None,
+            "inh_rate_hz": rates_hz.get(inh) if inh else None,
+            "n_total": int(m.get("n_total", 0)),
+        })
+    return points
+
+
+def _load_cached_ei_raster(ei_strength: float, sample_idx: int) -> dict:
+    """Read a single-trial raster from the previous run's cached snapshot.npz —
+    no inference. Mirrors capture_ei_raster's parsing without the sim call."""
+    cfg = json.loads((baseline_dir("coba") / "config.json").read_text())
+    snap = ARTIFACTS / "ei_raster" / f"ei{ei_strength:g}_s{sample_idx}" / "snapshot.npz"
+    if not snap.exists():
+        raise SystemExit(
+            f"--replot needs cached raster at {snap}; "
+            "run the notebook once without --replot first."
+        )
+    d = np.load(snap)
+    e_full, i_full = d["spk_e"], d["spk_i"]
+    if e_full.ndim == 3:
+        e_full = e_full[:, 0, :]
+    if i_full.ndim == 3:
+        i_full = i_full[:, 0, :]
+    rng = np.random.default_rng(0)
+    e_idx = np.sort(rng.choice(e_full.shape[1], EI_RASTER_N_E_PLOT, replace=False))
+    i_idx = np.sort(rng.choice(i_full.shape[1], EI_RASTER_N_I_PLOT, replace=False))
+    return {
+        "ei_strength": float(ei_strength),
+        "label": int(d["label"]),
+        "e": e_full[:, e_idx].astype(bool),
+        "i": i_full[:, i_idx].astype(bool),
+        "dt": float(cfg["dt"]),
+        "t_ms": float(cfg["t_ms"]),
+    }
+
+
+def replot_figures(run_id: str = "replot") -> None:
+    """Regenerate the two published figures (ei_rasters + loop_transfer_compound)
+    from the previous run's cached inference outputs — no inference, no training.
+    Use when only the figure rendering changed (labels, style, layout); a full run
+    is only needed when the underlying numbers change."""
+    points = _load_cached_ei_points()
+    raster_samples = [
+        _load_cached_ei_raster(ei, EI_RASTER_SAMPLE_IDX) for ei in EI_RASTER
+    ]
     FIGURES.mkdir(parents=True, exist_ok=True)
-    out = FIGURES / "loop_transfer_compound"
-    fig_loop_transfer_compound(points, r_lo, r_hi, out, run_id)
-    print(f"wrote {out}.{{png,pdf}}")
+    plot_ei_rasters(raster_samples, FIGURES / "ei_rasters", run_id)
+    print(f"wrote {FIGURES / 'ei_rasters'}.{{png,pdf}}")
+    fig_loop_transfer_compound(
+        points, raster_samples[0], raster_samples[-1],
+        FIGURES / "loop_transfer_compound", run_id)
+    print(f"wrote {FIGURES / 'loop_transfer_compound'}.{{png,pdf}}")
 
 
 def main() -> None:
@@ -751,8 +797,11 @@ def main() -> None:
     # vector, emitted as both SVG (docs) and PDF (manuscript) by save_figure.
     theme.set_paper_mode(True)
 
-    if replot_target(sys.argv) == "compound":
-        build_loop_transfer_compound()
+    # `--replot <name>` re-renders the published figures from cached inference
+    # outputs and exits — no training, no inference. For regenerating figures after
+    # a style/label change; a full run is only needed when the numbers change.
+    if replot_target(sys.argv) is not None:
+        replot_figures()
         return
     modal_gpu = parse_modal_gpu(sys.argv)
     skip_training = "--skip-training" in sys.argv

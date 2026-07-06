@@ -143,6 +143,13 @@ def _infer_cell(train_dir: Path, extra_args: list[str], out_name: str) -> Path:
     cfg = json.loads((train_dir / "config.json").read_text())
     out_dir = (ARTIFACTS / out_name / train_dir.name).resolve()
     out_dir.mkdir(parents=True, exist_ok=True)
+    # Reuse cached inference when present. The sim forward is the expensive step
+    # and is deterministic for a fixed (cell, mode), so skip it if the expected
+    # output is already here — this makes `--skip-training` a true re-plot pass
+    # (a full run wipes ARTIFACTS first, so it always re-infers fresh).
+    expected = "pop_traces.npz" if any("pop_traces" in a for a in extra_args) else "snapshot.npz"
+    if (out_dir / expected).exists() and (out_dir / "metrics.json").exists():
+        return out_dir
     subprocess.run(
         [
             "uv", "run", "python", str(SNN_TOOL), "sim", "--infer",
@@ -290,7 +297,7 @@ def plot_quantitative_law(
         by_tau.setdefault(r["tau_gaba_ms"], []).append(r)
 
     fig, (ax_rate, ax_acc) = plt.subplots(
-        2, 1, figsize=(5.6, 4.2), sharex=True,
+        2, 1, figsize=(6.5, 4.2), sharex=True,
         gridspec_kw={"hspace": 0.12, "height_ratios": [1.6, 1.0]},
     )
 
@@ -321,10 +328,10 @@ def plot_quantitative_law(
             label=f"τ_GABA = {tau:g} ms" if tau == TAU_GABA_GAMMA_MS else None,
         )
         ax_rate.annotate(
-            f" {tau:g} ms · {fg_mu:.0f} Hz",
+            f" {tau:g} ms",
             (fg_mu, er_mu),
             fontsize=theme.SIZE_ANNOTATION, color=theme.MUTED,
-            xytext=(4, 0), textcoords="offset points",
+            xytext=(9, 0), textcoords="offset points",
             va="center",
         )
         ax_acc.errorbar(
@@ -383,10 +390,6 @@ def plot_quantitative_law(
         ax.spines["right"].set_visible(False)
         ax.tick_params(labelsize=theme.SIZE_TICK)
     ax_rate.legend(fontsize=theme.SIZE_LEGEND, frameon=False, loc="upper left")
-    fig.suptitle(
-        "Retrained τ_GABA sweep — post-training E rate tracks measured $f_γ$",
-        fontsize=theme.SIZE_TITLE,
-    )
     fig.tight_layout()
     stamp_figure(fig, run_id)
     out_path.parent.mkdir(parents=True, exist_ok=True)
@@ -410,7 +413,7 @@ def plot_training_curves(
     cmap = plt.get_cmap("viridis")
     taus_sorted = list(TAU_GABA_SWEEP)
     fig, (ax_acc, ax_rate) = plt.subplots(
-        2, 1, figsize=(6.9, 5.175), sharex=True,
+        2, 1, figsize=(6.5, 5.175), sharex=True,
         gridspec_kw={"hspace": 0.15},
     )
     for i, tau in enumerate(taus_sorted):
@@ -435,10 +438,6 @@ def plot_training_curves(
         ax.spines["top"].set_visible(False)
         ax.spines["right"].set_visible(False)
         ax.grid(True, alpha=0.15, lw=0.4)
-    fig.suptitle(
-        "Per-cell training curves — convergence check across τ_GABA sweep",
-        fontsize=theme.SIZE_TITLE,
-    )
     fig.tight_layout()
     stamp_figure(fig, run_id)
     out_path.parent.mkdir(parents=True, exist_ok=True)
@@ -456,7 +455,7 @@ def plot_psd_panel(
     for r in rows:
         by_tau.setdefault(r["tau_gaba_ms"], []).append(r)
 
-    fig, ax = plt.subplots(figsize=(5.6, 3.15))
+    fig, ax = plt.subplots(figsize=(6.5, 3.15))
     cmap = plt.get_cmap("viridis")
     taus_sorted = sorted(by_tau.keys())
     for i, tau in enumerate(taus_sorted):
@@ -481,10 +480,6 @@ def plot_psd_panel(
     ax.legend(fontsize=theme.SIZE_LEGEND, frameon=False, ncol=2)
     ax.spines["top"].set_visible(False)
     ax.spines["right"].set_visible(False)
-    fig.suptitle(
-        "Trained-network population PSDs — peak marks $f_γ$",
-        fontsize=theme.SIZE_TITLE,
-    )
     fig.tight_layout()
     stamp_figure(fig, run_id)
     out_path.parent.mkdir(parents=True, exist_ok=True)
@@ -511,7 +506,7 @@ def plot_per_trial_peaks(
     cmap = plt.get_cmap("viridis")
 
     fig, axes = plt.subplots(
-        n_taus, 1, figsize=(6.9, (1.5 * n_taus + 1.0) * 0.8625), sharex=True,
+        n_taus, 1, figsize=(6.5, (1.5 * n_taus + 1.0) * 0.8625), sharex=True,
     )
     if n_taus == 1:
         axes = [axes]
@@ -551,10 +546,6 @@ def plot_per_trial_peaks(
 
     axes[-1].set_xlabel("Per-trial PSD peak frequency (Hz)",
                         fontsize=theme.SIZE_LABEL)
-    fig.suptitle(
-        "Per-trial peak distribution vs trial-mean-PSD peak",
-        fontsize=theme.SIZE_TITLE,
-    )
     fig.tight_layout()
     stamp_figure(fig, run_id)
     out_path.parent.mkdir(parents=True, exist_ok=True)
@@ -577,7 +568,7 @@ def plot_raster_strip(
     n_i = RASTER_N_I_PLOT
     gap = 6
     fig, axes = plt.subplots(
-        n, 1, figsize=(6.9, (1.0 * n + 1.0) * 0.69),
+        n, 1, figsize=(6.5, (1.0 * n + 1.0) * 0.69),
         sharex=True, gridspec_kw={"hspace": 0.22},
     )
     if n == 1:
@@ -604,11 +595,6 @@ def plot_raster_strip(
             ha="left", va="center",
             fontsize=theme.SIZE_LABEL,
         )
-        if i == 0:
-            ax.set_title(
-                "Trained-PING rasters at each τ_GABA (seed 42, MNIST digit 0 sample 0) — "
-                "x-axis is physical time in ms"
-            )
         if i < n - 1:
             ax.tick_params(axis="x", labelbottom=False)
     axes[-1].set_xlabel("time (ms)")
@@ -621,6 +607,131 @@ def plot_raster_strip(
 
 # ─── success criteria ───────────────────────────────────────────────
 
+# ─── plot cache ─────────────────────────────────────────────────────
+# Inference over the 18 cells takes ≈40 min. The plotting functions only
+# consume already-reduced data (`rows` + raster snapshots), so we persist
+# that reduction to a cache and expose `--plot-only` to re-render figures
+# from it without touching the CLI. This is what makes iterating on figure
+# styling cheap.
+
+
+def _cache_dir() -> Path:
+    return ARTIFACTS / "cache"
+
+
+def dump_plot_cache(rows: list[dict], raster_samples: list[dict]) -> None:
+    """Persist everything the plotting functions consume: per-cell `rows`
+    (scalars + PSD arrays, all JSON-native) and the raster snapshots (bool
+    spike arrays → npz, scalars → json sidecar)."""
+    cdir = _cache_dir()
+    cdir.mkdir(parents=True, exist_ok=True)
+    (cdir / "rows.json").write_text(json.dumps(rows))
+    arrays: dict[str, np.ndarray] = {}
+    meta: list[dict] = []
+    for k, s in enumerate(raster_samples):
+        arrays[f"e{k}"] = s["e"]
+        arrays[f"i{k}"] = s["i"]
+        meta.append({kk: vv for kk, vv in s.items() if kk not in ("e", "i")})
+    np.savez_compressed(cdir / "raster.npz", **arrays)
+    (cdir / "raster_meta.json").write_text(json.dumps(meta))
+    print(f"[cache] wrote {cdir}/{{rows.json,raster.npz,raster_meta.json}}")
+
+
+def load_plot_cache() -> tuple[list[dict], list[dict] | None]:
+    """Reload a cache written by dump_plot_cache. A missing raster cache is
+    tolerated (returns None) so a scalar-only cache still renders the law."""
+    cdir = _cache_dir()
+    rows_path = cdir / "rows.json"
+    if not rows_path.exists():
+        raise SystemExit(
+            f"--plot-only: no cache at {rows_path}. Run a full pass first "
+            "so inference can populate it."
+        )
+    rows = json.loads(rows_path.read_text())
+    raster_samples: list[dict] | None = None
+    rp, mp = cdir / "raster.npz", cdir / "raster_meta.json"
+    if rp.exists() and mp.exists():
+        arr = np.load(rp)
+        meta = json.loads(mp.read_text())
+        raster_samples = []
+        for k, m in enumerate(meta):
+            s = dict(m)
+            s["e"] = arr[f"e{k}"]
+            s["i"] = arr[f"i{k}"]
+            raster_samples.append(s)
+    return rows, raster_samples
+
+
+def render_figures(
+    rows: list[dict], raster_samples: list[dict] | None, notebook_run_id: str
+) -> dict:
+    """Render every figure from already-computed data. Shared by the full
+    run and --plot-only. Figures whose inputs are absent from a partial
+    cache are skipped with a printed notice rather than crashing. Returns
+    the affine-fit dict for numbers.json."""
+    fit = plot_quantitative_law(rows, FIGURES / "rate_vs_fgamma", notebook_run_id)
+    print(
+        f"wrote {FIGURES / 'rate_vs_fgamma'}.{{svg,pdf}}  "
+        f"(affine: a={fit['a_affine']:.2f}, p={fit['p_affine']:.3f}, "
+        f"R²={fit['r2_affine']:.3f})"
+    )
+
+    if rows and all(r.get("freqs_hz") for r in rows):
+        plot_psd_panel(rows, FIGURES / "psds", notebook_run_id)
+        print(f"wrote {FIGURES / 'psds'}.{{svg,pdf}}")
+        plot_per_trial_peaks(rows, FIGURES / "per_trial_peaks", notebook_run_id)
+        print(f"wrote {FIGURES / 'per_trial_peaks'}.{{svg,pdf}}")
+    else:
+        print("[plot-only] skipping psds + per_trial_peaks — no PSD arrays cached")
+
+    if raster_samples:
+        plot_raster_strip(
+            raster_samples, FIGURES / "raster_strip", notebook_run_id,
+            t_window_ms=RASTER_T_WINDOW_MS,
+        )
+        print(f"wrote {FIGURES / 'raster_strip'}.{{png,pdf}}")
+    else:
+        print("[plot-only] skipping raster_strip — no raster snapshots cached")
+
+    plot_training_curves(FIGURES / "training_curves", notebook_run_id)
+    print(f"wrote {FIGURES / 'training_curves'}.{{svg,pdf}}")
+    return fit
+
+
+def write_numbers(
+    rows: list[dict], fit: dict, notebook_run_id: str, duration_s: float
+) -> None:
+    train_cfg = load_config(cell_dir(TAU_GABA_SWEEP[0], SEEDS[0]))
+    summary = {
+        "notebook_run_id": notebook_run_id,
+        "git_sha": train_cfg.get("git_sha"),
+        "duration_s": round(duration_s, 1),
+        "duration": format_duration(duration_s),
+        "config": {
+            "dataset": "mnist",
+            "tau_gaba_sweep_ms": list(TAU_GABA_SWEEP),
+            "seeds": list(SEEDS),
+            "f_gamma_band_hz": list(F_GAMMA_BAND_HZ),
+            "max_samples": MAX_SAMPLES,
+            "epochs": EPOCHS,
+            "t_ms": T_MS,
+            "dt": DT_TRAIN,
+        },
+        "fit": fit,
+        # results: keep only the per-cell scalars the writeup reads. The bulky
+        # arrays (freqs/psd, and the 14k-element per-trial peak list) live in the
+        # plot cache (temp/experiments/exp041/cache) — dumping them here bloated
+        # numbers.json to ~7 MB for no consumer.
+        "results": [
+            {k: v for k, v in r.items()
+             if k not in ("freqs_hz", "psd", "per_trial_peaks_hz")}
+            for r in rows
+        ],
+    }
+    (FIGURES / "numbers.json").write_text(json.dumps(summary, indent=2) + "\n")
+    print(f"wrote {FIGURES / 'numbers.json'}")
+
+
 def main() -> None:
     # Publication profile: every figure this notebook writes is a print-sized
     # vector, emitted as both SVG (docs) and PDF (manuscript) by save_figure.
@@ -629,8 +740,27 @@ def main() -> None:
     modal_gpu = parse_modal_gpu(sys.argv)
     skip_training = "--skip-training" in sys.argv
     wipe_dir = "--no-wipe-dir" not in sys.argv
+    plot_only = "--plot-only" in sys.argv
 
     t_start = time.monotonic()
+
+    if plot_only:
+        # Re-render figures from the cached inference results only — no CLI
+        # inference, and crucially no wipe (that would delete the cache and
+        # the surviving figures). Reuse the run id from the last manifest so
+        # the provenance stamp matches the run that produced the data.
+        manifest = FIGURES / "_manifest.json"
+        notebook_run_id = (
+            json.loads(manifest.read_text()).get("run_id", next_run_id(SLUG))
+            if manifest.exists() else next_run_id(SLUG)
+        )
+        print(f"[plot-only] run_id={notebook_run_id} — re-rendering from cache")
+        rows, raster_samples = load_plot_cache()
+        fit = render_figures(rows, raster_samples, notebook_run_id)
+        write_numbers(rows, fit, notebook_run_id, time.monotonic() - t_start)
+        print(f"  total duration: {format_duration(time.monotonic() - t_start)}")
+        return
+
     notebook_run_id = next_run_id(SLUG)
     n_cells = len(TAU_GABA_SWEEP) * len(SEEDS)
     print(
@@ -666,21 +796,6 @@ def main() -> None:
                 f"f_γ={res['f_gamma_hz']:6.2f} Hz  ({time.monotonic() - t0:.1f}s)"
             )
 
-    fit = plot_quantitative_law(
-        rows, FIGURES / "rate_vs_fgamma", notebook_run_id,
-    )
-    print(
-        f"wrote {FIGURES / 'rate_vs_fgamma'}.{{svg,pdf}}  "
-        f"(affine: a={fit['a_affine']:.2f}, p={fit['p_affine']:.3f}, "
-        f"R²={fit['r2_affine']:.3f})"
-    )
-    plot_psd_panel(rows, FIGURES / "psds", notebook_run_id)
-    print(f"wrote {FIGURES / 'psds'}.{{svg,pdf}}")
-    plot_per_trial_peaks(
-        rows, FIGURES / "per_trial_peaks", notebook_run_id,
-    )
-    print(f"wrote {FIGURES / 'per_trial_peaks'}.{{svg,pdf}}")
-
     # Raster strip — one panel per τ_GABA cluster, seed 42 only. Makes
     # the affine law visceral: shorter τ_GABA → faster gamma → more
     # E spikes per unit time.
@@ -690,43 +805,13 @@ def main() -> None:
     for tau_ms in TAU_GABA_SWEEP:
         train_dir = cell_dir(tau_ms, SEEDS[0])
         raster_samples.append(capture_raster(train_dir, RASTER_SAMPLE_IDX))
-    plot_raster_strip(
-        raster_samples, FIGURES / "raster_strip", notebook_run_id,
-        t_window_ms=RASTER_T_WINDOW_MS,
-    )
-    print(f"wrote {FIGURES / 'raster_strip'}.{{png,pdf}}")
 
-    plot_training_curves(FIGURES / "training_curves", notebook_run_id)
-    print(f"wrote {FIGURES / 'training_curves'}.{{svg,pdf}}")
+    # Cache the reduced data so figures can be re-rendered via --plot-only.
+    dump_plot_cache(rows, raster_samples)
 
-    duration_s = time.monotonic() - t_start
-    train_cfg = load_config(cell_dir(TAU_GABA_SWEEP[0], SEEDS[0]))
-    summary = {
-        "notebook_run_id": notebook_run_id,
-        "git_sha": train_cfg.get("git_sha"),
-        "duration_s": round(duration_s, 1),
-        "duration": format_duration(duration_s),
-        "config": {
-            "dataset": "mnist",
-            "tau_gaba_sweep_ms": list(TAU_GABA_SWEEP),
-            "seeds": list(SEEDS),
-            "f_gamma_band_hz": list(F_GAMMA_BAND_HZ),
-            "max_samples": MAX_SAMPLES,
-            "epochs": EPOCHS,
-            "t_ms": T_MS,
-            "dt": DT_TRAIN,
-        },
-        "fit": fit,
-        # results: drop bulky freqs/psd lists; keep them in per-cell
-        # numpy if you want them in the future.
-        "results": [
-            {k: v for k, v in r.items() if k not in ("freqs_hz", "psd")}
-            for r in rows
-        ],
-    }
-    (FIGURES / "numbers.json").write_text(json.dumps(summary, indent=2) + "\n")
-    print(f"wrote {FIGURES / 'numbers.json'}")
-    print(f"  total duration: {summary['duration']}")
+    fit = render_figures(rows, raster_samples, notebook_run_id)
+    write_numbers(rows, fit, notebook_run_id, time.monotonic() - t_start)
+    print(f"  total duration: {format_duration(time.monotonic() - t_start)}")
 
 
 

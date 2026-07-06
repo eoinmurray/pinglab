@@ -169,18 +169,7 @@ def plot_summary(rows_by_ni: dict, out_path: Path, run_id: str) -> None:
     ax_e.text(W_IE_DEFAULT + 0.4, ax_e.get_ylim()[1] * 0.06, "default",
               fontsize=theme.SIZE_ANNOTATION - 1, color=theme.GREY_DARK,
               ha="left", va="bottom")
-    ax_e.annotate(
-        "all $N_I$ overlap:\nrate set by $W^{IE}$, not pool size",
-        xy=(8.0, [r["r_e_hz"] for r in
-                  sorted(rows_by_ni[n_is[-1]], key=lambda r: r["w_ie"])][4]),
-        xytext=(6.0, ax_e.get_ylim()[1] * 0.78),
-        fontsize=theme.SIZE_ANNOTATION - 1, color=theme.GREY_DARK,
-        ha="left", va="center",
-        arrowprops=dict(arrowstyle="->", color=theme.GREY_MID, lw=0.8),
-    )
     ax_e.legend(fontsize=theme.SIZE_LEGEND - 1, frameon=False, loc="upper right")
-    fig.suptitle("Rate is set by the per-synapse weight, not the pool size",
-                 fontsize=theme.SIZE_TITLE)
     fig.tight_layout()
     stamp_figure(fig, run_id)
     out_path.parent.mkdir(parents=True, exist_ok=True)

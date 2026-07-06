@@ -114,20 +114,13 @@ tasks:
       - uv run python demolab-engine/build/build.py
 
   dev:
-    desc: "Serve the Typst site with hot-reload (auto-picks a free port from 3000; override: task dev -- 3010)"
+    desc: "🔥 Serve the site with hot-reload + in-browser build errors (auto-picks a free port from 3000; override: task dev -- 3010)"
     cmds:
-      # Regenerate the manifest once (picks up added/removed entries), then let
-      # `typst watch` serve + live-reload on edits to any .typ / lib.typ / style.css.
-      - uv run python demolab-engine/build/build.py --generate-only
-      - |
-        port="{{.CLI_ARGS}}"
-        if [ -z "$port" ]; then
-          # typst's own port fallback is unreliable, so find the first free one ourselves.
-          port=3000
-          while lsof -iTCP:"$port" -sTCP:LISTEN >/dev/null 2>&1; do port=$((port + 1)); done
-        fi
-        echo "→ serving on http://localhost:$port  (Ctrl-C to stop)"
-        typst watch --format bundle --features bundle,html --root . demolab-engine/build/main.typ artifacts/site/ --port "$port"
+      # A Python dev server (demolab-engine/build/devserver.py) rebuilds via build.py on any
+      # source change and serves artifacts/site/ with live-reload. Unlike `typst watch` it
+      # re-globs each build (so new entries + decks appear without a restart) and surfaces a
+      # failed compile as a full-screen overlay in the browser instead of only the terminal.
+      - uv run python demolab-engine/build/devserver.py {{.CLI_ARGS}}
 
   run:
     desc: "Run a demolab experiment end-to-end — e.g. task run -- nb047"

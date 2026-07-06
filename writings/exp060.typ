@@ -5,7 +5,7 @@
   date: "2026-06-26",
   description: "What strong coupling means: the per-synapse weight scales as 1/sqrt(K) with fan-in, forcing E-I balance and irregular cortex-like firing.",
   collection: "miscellaneous",
-  status: "final",
+  status: "draft",
 )
 
 

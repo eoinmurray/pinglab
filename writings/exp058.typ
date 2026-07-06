@@ -5,7 +5,7 @@
   date: "2026-06-24",
   description: "Pushing the conductance-based COBANet into the full four-coupling regime reproduces the Vreeswijk-Sompolinsky balanced, chaotic, asynchronous-irregular state.",
   collection: "miscellaneous",
-  status: "revising",
+  status: "draft",
 )
 
 

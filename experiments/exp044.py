@@ -63,7 +63,9 @@ RASTER_T_WINDOW_MS: float = 100.0  # show first 100 ms so the cycle is visible
 
 # Baked run scale (the retired "small" tier).
 MAX_SAMPLES: int = 500
-EPOCHS: int = 10
+# The exp022 dt-family cells this entry reads are trained 50 epochs; mirror that
+# so the reported scale matches the cells actually plotted.
+EPOCHS: int = 50
 
 # Run scale — stamped into the manifest by run_dirs.prepare and rendered as
 # the Methods table via RunScale; the mdx never restates these numbers.
@@ -225,10 +227,6 @@ def plot_dt_sweep(rows: list[dict], out_path: Path, run_id: str) -> None:
     ax_acc.set_ylim(0, 100)
     ax_acc.spines["top"].set_visible(False)
 
-    fig.suptitle(
-        "PING Δt audit — post-training E rate and accuracy vs integration timestep",
-        fontsize=theme.SIZE_TITLE,
-    )
     fig.tight_layout()
     stamp_figure(fig, run_id)
     out_path.parent.mkdir(parents=True, exist_ok=True)
@@ -276,11 +274,6 @@ def plot_raster_strip(
             ha="left", va="center",
             fontsize=theme.SIZE_LABEL,
         )
-        if i == 0:
-            ax.set_title(
-                "Trained-PING rasters at each Δt (seed 42, MNIST digit 0 sample 0) — "
-                "x-axis is physical time in ms"
-            )
         if i < n - 1:
             ax.tick_params(axis="x", labelbottom=False)
     axes[-1].set_xlabel("time (ms)")
@@ -326,10 +319,6 @@ def plot_training_curves(out_path: Path, run_id: str) -> None:
         ax.spines["top"].set_visible(False)
         ax.spines["right"].set_visible(False)
         ax.grid(True, alpha=0.15, lw=0.4)
-    fig.suptitle(
-        "Per-cell training curves — convergence check across Δt sweep",
-        fontsize=theme.SIZE_TITLE,
-    )
     fig.tight_layout()
     stamp_figure(fig, run_id)
     out_path.parent.mkdir(parents=True, exist_ok=True)

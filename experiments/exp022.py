@@ -8,7 +8,7 @@ their own. This replaces the collection's older "standalone runner, no
 cross-notebook helpers" rule with a train-once / reuse-many policy (see ar016).
 
 87 cells across five families (canonical, θ_u, τ_GABA, Δt, init) that exp025
-defines and that exp024 / exp036 / exp037 / exp038 each used to retrain
+defines and that exp024 / exp037 / exp038 each used to retrain
 independently. Standard: 50 epochs, dt = 0.1 ms, T = 200 ms, and THREE seeds
 (42/43/44) for every cell — including the θ_u interior, so the accuracy–rate
 frontier carries error bars (it was single-seed; no longer). Canonical sees all
@@ -82,12 +82,14 @@ TAU_AMPA_MS = 2.0          # AMPA decay — fixed across the collection (no CLI 
 TAU_GABA_GAMMA = TAU_GABA_GAMMA_MS
 
 # Canonical recipe (from exp025 — the reference training).
-# Gradient dampening (--v-grad-dampen) is loop-specific: [exp064](exp064) showed
-# PING needs it (its BPTT gradient explodes through the E→I→E loop without it),
-# while COBA is insensitive and trains identically at dampening 1. So COBA trains
-# with NO dampening (1) and PING keeps the stabiliser (1000). Training COBA
-# without the crutch keeps the two architectures honest — COBA earns its accuracy
-# on the bare feedforward gradient.
+# Gradient dampening (--v-grad-dampen) is loop-specific. Sweeping a dampening
+# ladder {1, 10, 100, 1000} across both architectures shows PING needs it: its
+# BPTT gradient explodes through the recurrent E→I→E loop at dampening 1 and the
+# network only trains once the stabiliser is applied, whereas COBA (no loop) is
+# insensitive and trains identically across the whole ladder. So COBA trains with
+# NO dampening (1) and PING keeps the stabiliser (1000). Training COBA without the
+# crutch keeps the two architectures honest — COBA earns its accuracy on the bare
+# feedforward gradient.
 MODEL_RECIPES: dict[str, dict] = {
     "coba": {
         "__build_as": "ping",
@@ -423,7 +425,7 @@ def plot_family_curves(family: str, cells: list[dict],
     linestyle = {"coba": "--", "ping": "-", "ping_init": "-"}
     models = list(dict.fromkeys(c["model"] for c in cells))
 
-    fig, ax = plt.subplots(figsize=(12.0, 6.75), dpi=150)
+    fig, ax = plt.subplots(figsize=(6.5, 3.66))   # H11–H12: column width, 16:9
     n = 0
     for c in cells:
         eps, accs = training_curve(cell_dir(c["name"]))
@@ -446,12 +448,11 @@ def plot_family_curves(family: str, cells: list[dict],
     ax.set_ylim(0, 100)
     for sp in ("top", "right"):
         ax.spines[sp].set_visible(False)
-    ax.set_title(f"{FAMILY_LABELS[family]} — {n}/{len(cells)} cells trained",
-                 loc="left", fontweight="semibold", fontsize=theme.SIZE_LABEL)
+    # H11: no plot title — the Typst caption carries the family + takeaway.
     fig.tight_layout()
     stamp_figure(fig, run_id)
     out_path.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(out_path, dpi=150)
+    fig.savefig(out_path)   # H10: line plot → SVG (caller passes .svg); dpi from theme
     plt.close(fig)
     return n
 
@@ -689,7 +690,7 @@ def _gamma_psd(spk_i, dt):
     return fr, P, (fpk if prom > 2.5 else None)
 
 
-def _plot_snapshot_raster(snap_path: Path, out_png: Path, title: str) -> None:
+def _plot_snapshot_raster(snap_path: Path, out_png: Path) -> None:
     """Raster + population rate + I-population PSD (γ peak labelled) for a single
     fixed-image snapshot. The PSD describes the exact raster shown."""
     import numpy as np
@@ -706,8 +707,8 @@ def _plot_snapshot_raster(snap_path: Path, out_png: Path, title: str) -> None:
     fr, P, fgam = _gamma_psd(si, dt)
 
     theme.apply()
-    plt.rcParams["savefig.bbox"] = "standard"
-    fig = plt.figure(figsize=(12, 7.6), dpi=130)
+    # H12: stacked multi-panel, column width, height capped so it fits a page.
+    fig = plt.figure(figsize=(6.5, 5.0))
     gs = fig.add_gridspec(2, 2, height_ratios=[3, 1.15], width_ratios=[3, 1],
                           hspace=0.32, wspace=0.20)
     ax = fig.add_subplot(gs[0, :])
@@ -720,9 +721,13 @@ def _plot_snapshot_raster(snap_path: Path, out_png: Path, title: str) -> None:
     ax.set_ylim(0, ne + ni)
     ax.set_xlim(0, tms)
     ax.set_ylabel("neuron  (E below · I above)")
+    # H11: no plot title (config descriptor lives in the caption). The measured
+    # values stay as a compact data annotation — they're computed at render time
+    # from this raster, so they can't drift, unlike a hand-typed caption number.
     gtxt = f"f_γ ≈ {fgam:.0f} Hz" if fgam else "asynchronous (no γ)"
-    ax.set_title(f"{title}   ·   digit 0   ·   E {e_hz:.0f} Hz · I {i_hz:.0f} Hz · {gtxt}",
-                 loc="left", fontweight="semibold", fontsize=11)
+    ax.annotate(f"digit 0 · E {e_hz:.0f} Hz · I {i_hz:.0f} Hz · {gtxt}",
+                xy=(0, 1.02), xycoords="axes fraction", fontsize=theme.SIZE_ANNOTATION,
+                color=theme.MUTED, ha="left", va="bottom")
 
     bins = np.arange(0, tms + 1, 1.0)
     re, _ = np.histogram(et * dt, bins=bins)
@@ -759,7 +764,7 @@ def _plot_snapshot_raster(snap_path: Path, out_png: Path, title: str) -> None:
         for sp in ("top", "right"):
             a.spines[sp].set_visible(False)
     out_png.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(out_png, dpi=130)
+    fig.savefig(out_png)   # PNG (dense raster, H10); dpi 240 from theme (H11)
     plt.close(fig)
 
 
@@ -791,10 +796,98 @@ def appendix_rasters() -> None:
                  "--digit", "0", "--sample", "0",
                  "--out-dir", str(scratch), "--wipe-dir"],
                 cwd=REPO, check=True, capture_output=True)
-            model = "COBA" if c["model"] == "coba" else "PING"
-            _plot_snapshot_raster(scratch / "snapshot.npz", rdir / f"{c['name']}.png",
-                                  f"{model} · {c['family']} · {c['tag']}")
+            _plot_snapshot_raster(scratch / "snapshot.npz", rdir / f"{c['name']}.png")
             print(f"  {c['name']}.png")
+    finally:
+        shutil.rmtree(scratch_root, ignore_errors=True)
+
+
+# ── Results: the data-fraction contrast (100% vs 10% MNIST) ──────────
+# The canonical cells train on all 70k images; every sweep (including the
+# no-budget `off` cell) trains on 10%. Weights differ ONLY in that fraction, so
+# the raster density gap between coba/ping canonical and off is attributable to
+# the training data alone — the visual counterpart to the ≈ 2× firing-rate gap.
+
+def _raster_panel(ax, snap_path: Path) -> tuple[float, float]:
+    """Draw one raster (E black below the divider, I red above) into `ax` from a
+    fixed-image snapshot and return its measured (E, I) mean rate in Hz. No PSD /
+    rate sub-panels — this figure is about spike DENSITY, not rhythm."""
+    import numpy as np
+
+    d = np.load(snap_path)
+    se, si, dt = d["spk_e"], d["spk_i"], float(d["dt"])
+    T, ne = se.shape
+    ni = si.shape[1]
+    tms = T * dt
+    et, ec = np.nonzero(se)
+    it, ic = np.nonzero(si)
+    e_hz = se.sum() / ne / (tms / 1000)
+    i_hz = si.sum() / max(ni, 1) / (tms / 1000)
+    ax.scatter(et * dt, ec, s=0.5, c=theme.INK_BLACK, marker="|", linewidths=0.25)
+    ax.scatter(it * dt, ic + ne, s=0.5, c=theme.DEEP_RED, marker="|", linewidths=0.25)
+    ax.axhline(ne, color="k", lw=0.4, alpha=0.4)
+    ax.set_ylim(0, ne + ni)
+    ax.set_xlim(0, tms)
+    return e_hz, i_hz
+
+
+def comparison_rasters() -> None:
+    """One 2×2 raster figure contrasting training-data fraction. The SAME digit-0
+    image runs through the no-budget coba and ping cells trained on ALL of MNIST
+    (canonical) versus 10% (spike-budget = off); rows are the two architectures,
+    columns the data fraction. Only the fraction differs between a row's two
+    cells, so the density gap is attributable to it. Reuses the already-trained
+    seed-42 weights (no retraining) → artifacts/data/exp022/comparison__data_fraction.png."""
+    import shutil
+
+    # (row label, 100%-MNIST cell, 10%-MNIST cell) — seed 42 as the representative.
+    grid = [
+        ("COBA", "coba__canonical__seed42", "coba__off__seed42"),
+        ("PING", "ping__canonical__seed42", "ping__off__seed42"),
+    ]
+    col_titles = ["100% MNIST (canonical)", "10% MNIST (off)"]
+    scratch_root = REPO / "temp" / "experiments" / f"{SLUG}_comparison_scratch"
+    theme.apply()
+    fig, axes = plt.subplots(2, 2, figsize=(9, 5.06),   # H11–H12: 16:9
+                             gridspec_kw={"hspace": 0.30, "wspace": 0.14})
+    print(f"comparison: 4 rasters (seed 42) → "
+          f"{(FIGURES / 'comparison__data_fraction.png').relative_to(REPO)}")
+    try:
+        for r, (label, full_cell, sub_cell) in enumerate(grid):
+            for cc, name in enumerate((full_cell, sub_cell)):
+                ax = axes[r][cc]
+                d = cell_dir(name)
+                if not (d / "weights.pth").exists():
+                    ax.text(0.5, 0.5, f"{name}\n(no weights)", ha="center",
+                            va="center", transform=ax.transAxes,
+                            fontsize=theme.SIZE_ANNOTATION, color=theme.MUTED)
+                    continue
+                scratch = scratch_root / name
+                subprocess.run(
+                    [sys.executable, str(SNN_TOOL), "sim", "--infer",
+                     "--load-config", str(d / "config.json"),
+                     "--load-weights", str(d / "weights.pth"),
+                     "--digit", "0", "--sample", "0",
+                     "--out-dir", str(scratch), "--wipe-dir"],
+                    cwd=REPO, check=True, capture_output=True)
+                e_hz, i_hz = _raster_panel(ax, scratch / "snapshot.npz")
+                ax.annotate(f"E {e_hz:.0f} Hz · I {i_hz:.0f} Hz",
+                            xy=(0, 1.01), xycoords="axes fraction",
+                            fontsize=theme.SIZE_ANNOTATION, color=theme.MUTED,
+                            ha="left", va="bottom")
+                if r == 0:
+                    ax.set_title(col_titles[cc], fontsize=theme.SIZE_LABEL)
+                if cc == 0:
+                    ax.set_ylabel(f"{label}\nneuron (E · I)")
+                if r == 1:
+                    ax.set_xlabel("time (ms)")
+                for sp in ("top", "right"):
+                    ax.spines[sp].set_visible(False)
+        out = FIGURES / "comparison__data_fraction.png"
+        out.parent.mkdir(parents=True, exist_ok=True)
+        fig.savefig(out)   # PNG (dense raster, H10); dpi 240 from theme (H11)
+        plt.close(fig)
+        print(f"  wrote {out.relative_to(REPO)}")
     finally:
         shutil.rmtree(scratch_root, ignore_errors=True)
 
@@ -803,6 +896,9 @@ def main() -> None:
     # RunPod backend + kill switch are handled before the local/Modal path.
     if "--appendix-rasters" in sys.argv:
         appendix_rasters()
+        return
+    if "--comparison-rasters" in sys.argv:
+        comparison_rasters()
         return
     if "--pod-run" in sys.argv:
         pod_run()   # runs ON a pod: train assigned cells to the volume, self-terminate
@@ -868,7 +964,7 @@ def main() -> None:
         n_trained = sum(1 for c in fcells
                         if (cell_dir(c["name"]) / "metrics.jsonl").exists())
         family_status[fam] = {"cells": len(fcells), "trained": n_trained}
-        out = FIGURES / f"curves__{fam}.png"
+        out = FIGURES / f"curves__{fam}.svg"   # H10: line plots → SVG
         if n_trained:
             plot_family_curves(fam, fcells, out, run_id)
             print(f"wrote {out}")

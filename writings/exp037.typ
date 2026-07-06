@@ -3,7 +3,7 @@
   date: "2026-05-30",
   description: "Perturbs the hidden spike stream of trained PING and COBA at inference; PING forgives ≈80% dropped spikes but breaks on ≈15% added — the gamma cycle made visible.",
   collection: "gamma-gated-sparsity",
-  status: "revising",
+  status: "draft",
 )
 
 

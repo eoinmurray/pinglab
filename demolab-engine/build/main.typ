@@ -25,13 +25,16 @@
 #let collection-order = config.at("collection-order", default: ())
 #let collection-meta = config.at("collections", default: (:))
 
-// Import each writing dynamically (import paths may be computed — no literal codegen).
-// An entry contributes meta + body; a deck contributes only meta (touying is paged-only,
-// so decks are compiled to standalone PDFs by build.py and embedded as assets below).
-#let entries = manifest.entries.map(e => {
+// Import each *good* writing dynamically (import paths may be computed — no literal codegen).
+// An entry contributes meta + body; a deck contributes only meta (touying is paged-only, so decks
+// are compiled to standalone PDFs by build.py and embedded as assets below). An entry build.py
+// flagged with an `error` (a missing figure, a Typst error) is NOT imported — it would fail the
+// whole compile — but rendered as a stub page below, so one bad page fails on its own.
+#let entries = manifest.entries.filter(e => "error" not in e).map(e => {
   import "/writings/" + e.id + ".typ": meta, body
   (id: e.id, kind: e.kind, meta: meta, body: body)
 })
+#let broken = manifest.entries.filter(e => "error" in e)
 #let decks = manifest.decks.map(d => {
   import "/writings/" + d.id + ".slide.typ": meta
   (id: d.id, meta: meta)
@@ -49,17 +52,30 @@
 }
 // site favicon (a lab-notebook mark), linked from every page's <head> by lib.typ
 #asset("favicon.svg", read("/demolab-engine/build/favicon.svg", encoding: none))
+// hover popovers for inline citations (web-only), referenced by lib.typ's web-styles
+#asset("cite-popover.js", read("/demolab-engine/build/cite-popover.js", encoding: none))
 
 // --- documents (one compile emits them all into artifacts/site/) ---
-#document("index.html", title: [#brand.name])[#index-page(entries, decks: decks, brand: brand, collection-order: collection-order, collection-meta: collection-meta)]
-#document("all.html", title: [#brand.name — all entries])[#all-page(entries, decks: decks, brand: brand, collection-meta: collection-meta)]
-// One page per collection (web only — the book/PDFs don't have collection pages).
+// The homepage always exists; on a freshly-scaffolded repo (no entries) it shows a
+// friendly empty state. Everything else is emitted only when there's content.
 #let all-items = collect-items(entries, decks)
-#for c in all-items.map(it => it.coll).dedup() {
-  [#document(c + ".html", title: [#brand.name — #collection-label(c, collection-meta)])[#collection-page(c, all-items.filter(x => x.coll == c), brand: brand, collection-meta: collection-meta)]]
+#document("index.html", title: [#brand.name])[#index-page(entries, decks: decks, brand: brand, collection-order: collection-order, collection-meta: collection-meta)]
+#if all-items.len() > 0 {
+  [#document("all.html", title: [#brand.name — all entries])[#all-page(entries, decks: decks, brand: brand, collection-meta: collection-meta)]]
+  // one page per collection (web only — the book/PDFs don't have collection pages)
+  for c in all-items.map(it => it.coll).dedup() {
+    [#document(c + ".html", title: [#brand.name — #collection-label(c, collection-meta)])[#collection-page(c, all-items.filter(x => x.coll == c), brand: brand, collection-meta: collection-meta)]]
+  }
 }
 #for e in entries {
   [#document(e.id + ".html", title: [#e.meta.title])[#entry-page(e.meta, e.body, id: e.id, brand: brand)]]
-  [#document("pdfs/" + e.id + ".pdf", title: [#e.meta.title])[#entry-page(e.meta, e.body, id: e.id, brand: brand)]]
+  [#document("pdfs/" + e.id + ".pdf", title: [#e.meta.title])[#numbered-pages(entry-page(e.meta, e.body, id: e.id, brand: brand))]]
 }
-#document("pdfs/book.pdf", title: [#brand.book-title])[#book-page(entries, brand: brand)]
+// stub pages for entries that failed to build — a visible "this page failed" placeholder at the
+// entry's own URL (web only; excluded from listings + the book), so the rest of the site is fine.
+#for e in broken {
+  [#document(e.id + ".html", title: [#e.id])[#broken-entry-page(e.id, e.error, brand: brand)]]
+}
+#if entries.len() > 0 {
+  [#document("pdfs/book.pdf", title: [#brand.book-title])[#numbered-pages(book-page(entries, brand: brand))]]
+}

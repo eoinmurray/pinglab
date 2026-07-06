@@ -1,0 +1,50 @@
+# Opt-in Pages workflow. demolab ships engine-only with NO active deploy workflow; `task
+# deploy-setup` (or the getting-started runbook) copies this file to .github/workflows/deploy.yml
+# once the user chooses to publish. It's an engine template, so "update demolab" refreshes it.
+name: Build the Typst bundle and deploy to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # The Typst CLI compiles the bundle (--features bundle,html). Typst ships the
+      # New Computer Modern fonts the writings use, so no font install is needed.
+      - uses: typst-community/setup-typst@v4
+
+      # demolab-engine/build/build.py is pure standard library — it only shells out to typst — so
+      # the runner's Python is enough; no `uv sync` / project deps required to build.
+      - name: Build the site bundle
+        run: python3 demolab-engine/build/build.py
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          # Self-contained: HTML + video assets + a pdfs/ subdir the [pdf] links point at.
+          path: artifacts/site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

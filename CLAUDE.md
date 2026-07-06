@@ -1,9 +1,19 @@
 The working conventions for this repo live in the demolab guides:
 
 - `demolab-engine/guides/RULES.md` — the framework invariants (repo structure, the tool↔experiment boundary, provenance, how to add a tool / experiment / writing).
-- `demolab-engine/guides/HOUSE-STYLE.md` — authoring style, rules H1–H13 (prose, math with every term defined, 16:9 figures, `≈` not `~`, native Typst math, structure).
+- `demolab-engine/guides/HOUSESTYLE.md` — authoring style, rules H1–H13 (prose, math with every term defined, 16:9 figures, `≈` not `~`, native Typst math, structure).
 
 Read them before making any edits.
+
+## Commands — type a NAME
+
+demolab is driven by names in CAPS. **If the user's message is just one of these names, that IS the command — do it, don't ask what they mean:**
+
+- **`HELP`** — list the runbooks and guides (the menu).
+- **A runbook name** (`GETTING-STARTED`, `TOUR`, `LINT`, `DOCTOR`, `RED-TEAM`, `STEELMAN`, `NEXT`, `UPDATE`, `MIGRATE-CODE`, `MIGRATE-STACK`, `FROM-JUPYTER`, `FROM-PAPER`, `EMBED-DOCS`, `GROUND-CLAIMS`) — **start that runbook** and drive it step by step.
+- **A guide name** (`RULES`, `HOUSESTYLE`, `SLIDES`, `STRUCTURE`, `GLOSSARY`, `SUPPORT`) — **walk the user through that guide** interactively.
+
+The full table (with what each does and its lower-case aliases) is in [AGENTS.md](AGENTS.md).
 
 Non-negotiables kept here so they are always in context (full detail in the article):
 
