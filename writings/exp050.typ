@@ -8,7 +8,6 @@
   status: "revising",
 )
 
-#let run = json("/artifacts/data/exp050/numbers.json")
 
 #let body = [
   == Abstract
@@ -66,12 +65,12 @@
   == Results
 
   #figure(
-    image("/artifacts/data/exp050/input_compare.png", width: 100%),
+    block(width: 100%, height: 4cm, inset: 1em, stroke: 0.5pt + gray, radius: 3pt, fill: luma(245))[#text(fill: gray)[pending re-run with new canonical data]],
     caption: [Top: a 300 ms raster of the drive — PING's shared input layer (left) and the V&S cell's per-cell private streams (right), both 45 Hz. Bottom: the population rate of each drive. Both are featureless, steady Poisson at the same rate; the input carries no oscillation in either regime. The regimes differ only in _correlation structure_ — shared layer vs private streams — not in rate or temporal content.],
   )
 
   #figure(
-    image("/artifacts/data/exp050/raster_compare.png", width: 100%),
+    block(width: 100%, height: 4cm, inset: 1em, stroke: 0.5pt + gray, radius: 3pt, fill: luma(245))[#text(fill: gray)[pending re-run with new canonical data]],
     caption: [Row 1 is the raster with both populations on one axis — E (black) below, I (red) above the divider — so the I-leads-E gamma timing is visible directly. Both networks have identical wiring (sparse $p = 0.2$, matched weights, no $W^(I I)$); only the input differs. Left, PING (shared input): cycle-locked gamma bursts, a sharp 32 Hz peak, regular (sub-Poisson) ISIs (CV 0.64), cross-correlations combing at the gamma period (peak 0.063). Right, V&S AI (independent input): scattered raster, broadband spectrum, irregular ISIs, flat cross-correlation (peak 0.010). Same network and wiring, opposite dynamics — the input correlation alone.],
   )
 

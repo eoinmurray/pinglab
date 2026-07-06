@@ -6,7 +6,6 @@
   status: "revising",
 )
 
-#let run = json("/artifacts/data/exp025/numbers.json")
 
 #let body = [
   The trained networks this entry uses are produced once in the shared training
@@ -94,7 +93,7 @@
   == Results
 
   #figure(
-    image("/artifacts/data/exp025/results_compound.png", width: 100%),
+    block(width: 100%, height: 4cm, inset: 1em, stroke: 0.5pt + gray, radius: 3pt, fill: luma(245))[#text(fill: gray)[pending re-run with new canonical data]],
     caption: [
       The headline comparison in one 2×2 frame (rasters, learning, and the
       accuracy–rate frontier together). *Top* — trained-baseline single-trial
@@ -114,7 +113,7 @@
   )
 
   #figure(
-    image("/artifacts/data/exp025/theta_p_fgamma.svg", width: 100%),
+    block(width: 100%, height: 4cm, inset: 1em, stroke: 0.5pt + gray, radius: 3pt, fill: luma(245))[#text(fill: gray)[pending re-run with new canonical data]],
     caption: [
       Six $("PING", theta_u)$ cells, 256 test trials each. *$p$ stays in 0.19–0.24*
       across the entire sweep — the architecture protects the participation gate —
@@ -126,7 +125,7 @@
   )
 
   #figure(
-    image("/artifacts/data/exp025/low_w_in_sweep.svg", width: 100%),
+    block(width: 100%, height: 4cm, inset: 1em, stroke: 0.5pt + gray, radius: 3pt, fill: luma(245))[#text(fill: gray)[pending re-run with new canonical data]],
     caption: [
       Per-epoch training traces from four PING networks (seed 42, $theta_u = 0.2$
       from epoch 0), one per column. Top: test accuracy. Bottom: test-set E (black)
@@ -138,7 +137,7 @@
   )
 
   #figure(
-    image("/artifacts/data/exp025/w_in_scale_sweep.svg", width: 100%),
+    block(width: 100%, height: 4cm, inset: 1em, stroke: 0.5pt + gray, radius: 3pt, fill: luma(245))[#text(fill: gray)[pending re-run with new canonical data]],
     caption: [
       Inference-time $W_"in"$ scale sweep on the two networks trained under the
       heaviest penalty ($theta_u = 0.2$); every $W_"in"$ weight multiplied by a
@@ -152,7 +151,7 @@
   )
 
   #figure(
-    image("/artifacts/data/exp025/w_in_scale_sweep_vs_rate.svg", width: 100%),
+    block(width: 100%, height: 4cm, inset: 1em, stroke: 0.5pt + gray, radius: 3pt, fill: luma(245))[#text(fill: gray)[pending re-run with new canonical data]],
     caption: [
       The same 24-point sweep as Figure 4, re-projected with hidden E rate on the
       x-axis. Filled stars mark each cell's trained operating point ($s = 1$): PING

@@ -6,7 +6,6 @@
   status: "revising",
 )
 
-#let run = json("/artifacts/data/exp038/numbers.json")
 
 #let body = [
   The trained networks this entry uses are produced once in the shared training
@@ -47,7 +46,7 @@
   == Results
 
   #figure(
-    image("/artifacts/data/exp038/loop_transfer_compound.png", width: 100%),
+    block(width: 100%, height: 4cm, inset: 1em, stroke: 0.5pt + gray, radius: 3pt, fill: luma(245))[#text(fill: gray)[pending re-run with new canonical data]],
     caption: [
       Switching the recurrent I-loop on _at inference_ on a trained COBA network —
       no retraining, $W^(E I) \/ W^(I E)$ freshly wired (the COBA checkpoint stores
@@ -65,7 +64,7 @@
   )
 
   #figure(
-    image("/artifacts/data/exp038/ei_rasters.png", width: 100%),
+    block(width: 100%, height: 4cm, inset: 1em, stroke: 0.5pt + gray, radius: 3pt, fill: luma(245))[#text(fill: gray)[pending re-run with new canonical data]],
     caption: [
       The full transition: trained COBA replayed at six inference-time _ei_strength_
       values (same trial, same feedforward weights, a fresh I-loop each row). At

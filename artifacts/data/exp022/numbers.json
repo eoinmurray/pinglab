@@ -1,8 +1,8 @@
 {
-  "notebook_run_id": "r001",
-  "git_sha": null,
-  "duration_s": 0.9,
-  "duration": "1s",
+  "notebook_run_id": "r004",
+  "git_sha": "cc36be1",
+  "duration_s": 0.5,
+  "duration": "0s",
   "standard": {
     "epochs": 50,
     "dt_ms": 0.1,
@@ -11,7 +11,7 @@
     "max_samples_canonical": 70000,
     "max_samples_sweeps": 7000
   },
-  "training_root": "temp/notebooks/training",
+  "training_root": "temp/experiments/exp022",
   "families": [
     "canonical",
     "theta_u",

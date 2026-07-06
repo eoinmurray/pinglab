@@ -55,7 +55,7 @@ def baseline_dir(seed: int) -> Path:
     # θ_u = off PING baseline now lives in the shared training root (exp022
     # train-once / reuse-many), not the retired per-notebook exp025 dir.
     return (
-        REPO / "temp" / "notebooks" / "training"
+        REPO / "temp" / "experiments" / "exp022"
         / f"ping__off__seed{seed}"
     )
 

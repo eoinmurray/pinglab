@@ -8,7 +8,6 @@
   status: "final",
 )
 
-#let run = json("/artifacts/data/exp060/numbers.json")
 
 #let body = [
   What does it mean to say a recurrent network is _strongly coupled_? It is tempting to read it as "dense wiring" or "big synaptic weights," but neither alone is the definition. The real answer is about how the synaptic weight _scales_ as the network grows — and getting it right is what separates a network that fires like cortex from one that does not. This note derives that from scratch, and the two figures are computed straight from the scaling laws, not simulated.
@@ -67,7 +66,7 @@
   (Cross-referencing note: #link("/exp058/")[exp058] currently writes this relation inverted, $J = w \/ sqrt(K)$. The version here — $J = w sqrt(K)$, weights shrinking as $1 \/ sqrt(K)$ — is the one that keeps $sigma$ at $O(1)$, so it is the convention to trust; the two are being reconciled.)
 
   #figure(
-    image("/artifacts/data/exp060/input_scaling.png", width: 100%),
+    block(width: 100%, height: 4cm, inset: 1em, stroke: 0.5pt + gray, radius: 3pt, fill: luma(245))[#text(fill: gray)[pending re-run with new canonical data]],
     caption: [Equations (3)–(4) made visual. *Left:* the mean recurrent input $mu$ — under strong coupling it climbs $prop sqrt(K)$ (so each population's drive is huge and must cancel); under weak coupling it is flat. *Right:* the fluctuation $sigma$, and the punchline — under strong coupling it stays $O(1)$ as the network grows (irregular firing survives), while under weak coupling it decays $prop 1 \/ sqrt(K)$ to zero (the network goes deterministic). Analytic; no simulation.],
   )
 
@@ -112,7 +111,7 @@
   $ w prop 1 / sqrt((1-s) N_"pre") quad "(to hold " J " fixed)" quad (9) $
 
   #figure(
-    image("/artifacts/data/exp060/weight_vs_sparsity.png", width: 100%),
+    block(width: 100%, height: 4cm, inset: 1em, stroke: 0.5pt + gray, radius: 3pt, fill: luma(245))[#text(fill: gray)[pending re-run with new canonical data]],
     caption: [Equation (9). To stay in the same coupling regime as the network is made sparser (right, smaller $K$), the per-synapse weight has to grow — gently at first, then steeply as $s -> 1$. Sparsity $s$ and weight $w$ are not independent: a change in one must be matched in the other to hold $J$ fixed.],
   )
 

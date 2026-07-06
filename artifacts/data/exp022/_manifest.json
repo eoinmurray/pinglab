@@ -1,9 +1,9 @@
 {
   "slug": "exp022",
-  "run_id": "r001",
-  "run_at": "2026-07-05T22:23:43+00:00",
-  "git_sha": "cc36be1",
-  "dirty": false,
+  "run_id": "r004",
+  "run_at": "2026-07-06T10:16:14+00:00",
+  "git_sha": "e434a4e",
+  "dirty": true,
   "code_dirty": false,
   "patch": null,
   "host": "local",

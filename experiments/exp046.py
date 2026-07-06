@@ -48,7 +48,7 @@ SNN_TOOL = REPO / "tools" / "snn" / "tool.py"
 
 # τ_GABA sweep cells now live in the shared training root (exp022
 # train-once / reuse-many), not the retired per-notebook exp041 dir.
-NB041_ARTIFACTS = REPO / "temp" / "notebooks" / "training"
+NB041_ARTIFACTS = REPO / "temp" / "experiments" / "exp022"
 NB041_NUMBERS = (
     REPO / "artifacts" / "data" / "exp041"
     / "numbers.json"

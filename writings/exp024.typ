@@ -6,7 +6,6 @@
   status: "revising",
 )
 
-#let run = json("/artifacts/data/exp024/numbers.json")
 
 #let body = [
   The trained networks this entry uses are produced once in the shared training
@@ -34,7 +33,7 @@
   == Results
 
   #figure(
-    image("/artifacts/data/exp024/coba_curves.png", width: 100%),
+    block(width: 100%, height: 4cm, inset: 1em, stroke: 0.5pt + gray, radius: 3pt, fill: luma(245))[#text(fill: gray)[pending re-run with new canonical data]],
     caption: [
       COBA, three seeds. Loss (train solid, test dashed) and *accuracy plateau by
       ≈ 15 epochs*, but the *E rate keeps climbing to ≈ 77 Hz and is still rising
@@ -43,7 +42,7 @@
   )
 
   #figure(
-    image("/artifacts/data/exp024/ping_curves.png", width: 100%),
+    block(width: 100%, height: 4cm, inset: 1em, stroke: 0.5pt + gray, radius: 3pt, fill: luma(245))[#text(fill: gray)[pending re-run with new canonical data]],
     caption: [
       PING, three seeds. Loss and accuracy plateau by ≈ 15 epochs as in COBA, but
       here the *E rate locks flat at ≈ 4–9 Hz* — converged. (The I rate, dashed,
@@ -54,7 +53,7 @@
   )
 
   #figure(
-    image("/artifacts/data/exp024/confidence_inflation.png", width: 100%),
+    block(width: 100%, height: 4cm, inset: 1em, stroke: 0.5pt + gray, radius: 3pt, fill: luma(245))[#text(fill: gray)[pending re-run with new canonical data]],
     caption: [
       Test accuracy (left), test cross-entropy on a log axis (middle), and E firing
       rate (right) vs epoch; three seeds each, COBA red / PING black. Dotted
