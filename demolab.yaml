@@ -1,5 +1,5 @@
 # pinglab publishing config (read by the demolab engine; omit fields for defaults).
-name: PINGLAB
+name: Pinglab
 book-title: pinglab — the book
 contents-title: pinglab — contents
 

@@ -1,0 +1,609 @@
+{
+  "notebook_run_id": "r001",
+  "git_sha": "cc36be1",
+  "duration_s": 3029.5,
+  "duration": "50m 30s",
+  "config": {
+    "dataset": "mnist",
+    "models": [
+      "coba",
+      "ping"
+    ],
+    "theta_u_grid_spikes": [
+      5.0,
+      2.0,
+      1.0,
+      0.5,
+      0.2
+    ],
+    "theta_u_grid_hz": [
+      25.0,
+      10.0,
+      5.0,
+      2.5,
+      1.0
+    ],
+    "max_samples": 500,
+    "epochs": 30,
+    "t_ms": 200.0,
+    "dt": 0.1,
+    "seeds_baseline": [
+      42,
+      43,
+      44
+    ],
+    "seed_sweep": 42,
+    "fr_strength_upper": 0.001
+  },
+  "baseline_results": [
+    {
+      "model": "coba",
+      "theta_u": null,
+      "theta_display": "off",
+      "theta_u_hz": null,
+      "seed": 42,
+      "best_acc": 90.71428571428571,
+      "best_epoch": 40,
+      "final_acc": 90.5,
+      "rate_e": 182.6123046875
+    },
+    {
+      "model": "coba",
+      "theta_u": null,
+      "theta_display": "off",
+      "theta_u_hz": null,
+      "seed": 43,
+      "best_acc": 90.64285714285714,
+      "best_epoch": 40,
+      "final_acc": 90.5,
+      "rate_e": 179.501953125
+    },
+    {
+      "model": "coba",
+      "theta_u": null,
+      "theta_display": "off",
+      "theta_u_hz": null,
+      "seed": 44,
+      "best_acc": 90.78571428571429,
+      "best_epoch": 40,
+      "final_acc": 90.64285714285714,
+      "rate_e": 181.484375
+    },
+    {
+      "model": "coba",
+      "theta_u": 5.0,
+      "theta_display": "5",
+      "theta_u_hz": 25.0,
+      "seed": 42,
+      "best_acc": 85.35714285714286,
+      "best_epoch": 49,
+      "final_acc": 85.0,
+      "rate_e": 25.3369140625
+    },
+    {
+      "model": "coba",
+      "theta_u": 2.0,
+      "theta_display": "2",
+      "theta_u_hz": 10.0,
+      "seed": 42,
+      "best_acc": 78.0,
+      "best_epoch": 35,
+      "final_acc": 76.85714285714286,
+      "rate_e": 9.9365234375
+    },
+    {
+      "model": "coba",
+      "theta_u": 1.0,
+      "theta_display": "1",
+      "theta_u_hz": 5.0,
+      "seed": 42,
+      "best_acc": 69.64285714285714,
+      "best_epoch": 6,
+      "final_acc": 68.42857142857143,
+      "rate_e": 4.599609375
+    },
+    {
+      "model": "coba",
+      "theta_u": 0.5,
+      "theta_display": "0.5",
+      "theta_u_hz": 2.5,
+      "seed": 42,
+      "best_acc": 65.85714285714286,
+      "best_epoch": 4,
+      "final_acc": 62.92857142857143,
+      "rate_e": 0.947265625
+    },
+    {
+      "model": "coba",
+      "theta_u": 0.2,
+      "theta_display": "0.2",
+      "theta_u_hz": 1.0,
+      "seed": 42,
+      "best_acc": 59.857142857142854,
+      "best_epoch": 2,
+      "final_acc": 58.714285714285715,
+      "rate_e": 0.0
+    },
+    {
+      "model": "ping",
+      "theta_u": null,
+      "theta_display": "off",
+      "theta_u_hz": null,
+      "seed": 42,
+      "best_acc": 91.42857142857143,
+      "best_epoch": 32,
+      "final_acc": 91.0,
+      "rate_e": 12.4365234375
+    },
+    {
+      "model": "ping",
+      "theta_u": null,
+      "theta_display": "off",
+      "theta_u_hz": null,
+      "seed": 43,
+      "best_acc": 91.57142857142857,
+      "best_epoch": 32,
+      "final_acc": 91.14285714285714,
+      "rate_e": 12.3193359375
+    },
+    {
+      "model": "ping",
+      "theta_u": null,
+      "theta_display": "off",
+      "theta_u_hz": null,
+      "seed": 44,
+      "best_acc": 91.71428571428571,
+      "best_epoch": 26,
+      "final_acc": 91.07142857142857,
+      "rate_e": 12.236328125
+    },
+    {
+      "model": "ping",
+      "theta_u": 5.0,
+      "theta_display": "5",
+      "theta_u_hz": 25.0,
+      "seed": 42,
+      "best_acc": 91.42857142857143,
+      "best_epoch": 41,
+      "final_acc": 91.21428571428571,
+      "rate_e": 11.3671875
+    },
+    {
+      "model": "ping",
+      "theta_u": 2.0,
+      "theta_display": "2",
+      "theta_u_hz": 10.0,
+      "seed": 42,
+      "best_acc": 91.71428571428571,
+      "best_epoch": 50,
+      "final_acc": 91.71428571428571,
+      "rate_e": 9.8291015625
+    },
+    {
+      "model": "ping",
+      "theta_u": 1.0,
+      "theta_display": "1",
+      "theta_u_hz": 5.0,
+      "seed": 42,
+      "best_acc": 90.14285714285714,
+      "best_epoch": 29,
+      "final_acc": 89.92857142857143,
+      "rate_e": 5.2783203125
+    },
+    {
+      "model": "ping",
+      "theta_u": 0.5,
+      "theta_display": "0.5",
+      "theta_u_hz": 2.5,
+      "seed": 42,
+      "best_acc": 88.0,
+      "best_epoch": 45,
+      "final_acc": 87.28571428571429,
+      "rate_e": 6.2109375
+    },
+    {
+      "model": "ping",
+      "theta_u": 0.2,
+      "theta_display": "0.2",
+      "theta_u_hz": 1.0,
+      "seed": 42,
+      "best_acc": 86.07142857142857,
+      "best_epoch": 50,
+      "final_acc": 86.07142857142857,
+      "rate_e": 4.1015625
+    }
+  ],
+  "ei_sweep": [
+    {
+      "ei_strength": 0.0,
+      "acc": 90.43571428571428,
+      "hid_rate_hz": 133.39656494140624,
+      "inh_rate_hz": 0.0,
+      "n_total": 14000
+    },
+    {
+      "ei_strength": 0.1,
+      "acc": 85.9,
+      "hid_rate_hz": 103.32820556640625,
+      "inh_rate_hz": 26.325336216517858,
+      "n_total": 14000
+    },
+    {
+      "ei_strength": 0.2,
+      "acc": 72.59285714285714,
+      "hid_rate_hz": 49.1537158203125,
+      "inh_rate_hz": 51.130887276785714,
+      "n_total": 14000
+    },
+    {
+      "ei_strength": 0.3,
+      "acc": 66.44285714285714,
+      "hid_rate_hz": 31.503305315290177,
+      "inh_rate_hz": 53.911236049107146,
+      "n_total": 14000
+    },
+    {
+      "ei_strength": 0.4,
+      "acc": 62.99285714285714,
+      "hid_rate_hz": 23.241827218191965,
+      "inh_rate_hz": 53.71324497767857,
+      "n_total": 14000
+    },
+    {
+      "ei_strength": 0.5,
+      "acc": 60.47142857142857,
+      "hid_rate_hz": 18.427325962611608,
+      "inh_rate_hz": 53.005897042410716,
+      "n_total": 14000
+    },
+    {
+      "ei_strength": 0.6,
+      "acc": 58.614285714285714,
+      "hid_rate_hz": 15.286589704241072,
+      "inh_rate_hz": 52.34331333705357,
+      "n_total": 14000
+    },
+    {
+      "ei_strength": 0.7,
+      "acc": 57.114285714285714,
+      "hid_rate_hz": 13.048296944754464,
+      "inh_rate_hz": 51.736865234375,
+      "n_total": 14000
+    },
+    {
+      "ei_strength": 0.8,
+      "acc": 56.09285714285714,
+      "hid_rate_hz": 11.387927943638394,
+      "inh_rate_hz": 51.32154017857143,
+      "n_total": 14000
+    },
+    {
+      "ei_strength": 0.9,
+      "acc": 55.385714285714286,
+      "hid_rate_hz": 10.113407156808035,
+      "inh_rate_hz": 51.04704520089286,
+      "n_total": 14000
+    },
+    {
+      "ei_strength": 1.0,
+      "acc": 54.58571428571429,
+      "hid_rate_hz": 9.077772739955357,
+      "inh_rate_hz": 50.90244838169643,
+      "n_total": 14000
+    }
+  ],
+  "fi_sweep_uniform": [
+    {
+      "model": "coba",
+      "input_rate_hz": 0.0,
+      "e_rate_hz": 0.0,
+      "i_rate_hz": 0.0
+    },
+    {
+      "model": "coba",
+      "input_rate_hz": 1.0,
+      "e_rate_hz": 38.48968505859375,
+      "i_rate_hz": 0.0
+    },
+    {
+      "model": "coba",
+      "input_rate_hz": 2.0,
+      "e_rate_hz": 97.18154907226562,
+      "i_rate_hz": 0.0
+    },
+    {
+      "model": "coba",
+      "input_rate_hz": 3.0,
+      "e_rate_hz": 148.74786376953125,
+      "i_rate_hz": 0.0
+    },
+    {
+      "model": "coba",
+      "input_rate_hz": 4.0,
+      "e_rate_hz": 193.1695556640625,
+      "i_rate_hz": 0.0
+    },
+    {
+      "model": "coba",
+      "input_rate_hz": 5.0,
+      "e_rate_hz": 233.82186889648438,
+      "i_rate_hz": 0.0
+    },
+    {
+      "model": "coba",
+      "input_rate_hz": 6.0,
+      "e_rate_hz": 270.3614807128906,
+      "i_rate_hz": 0.0
+    },
+    {
+      "model": "coba",
+      "input_rate_hz": 7.0,
+      "e_rate_hz": 302.9594421386719,
+      "i_rate_hz": 0.0
+    },
+    {
+      "model": "coba",
+      "input_rate_hz": 8.0,
+      "e_rate_hz": 331.6473388671875,
+      "i_rate_hz": 0.0
+    },
+    {
+      "model": "coba",
+      "input_rate_hz": 9.0,
+      "e_rate_hz": 357.4949645996094,
+      "i_rate_hz": 0.0
+    },
+    {
+      "model": "coba",
+      "input_rate_hz": 10.0,
+      "e_rate_hz": 381.4776611328125,
+      "i_rate_hz": 0.0
+    },
+    {
+      "model": "coba",
+      "input_rate_hz": 12.0,
+      "e_rate_hz": 422.9057312011719,
+      "i_rate_hz": 0.0
+    },
+    {
+      "model": "coba",
+      "input_rate_hz": 14.0,
+      "e_rate_hz": 457.884521484375,
+      "i_rate_hz": 0.0
+    },
+    {
+      "model": "coba",
+      "input_rate_hz": 16.0,
+      "e_rate_hz": 487.7046203613281,
+      "i_rate_hz": 0.0
+    },
+    {
+      "model": "coba",
+      "input_rate_hz": 18.0,
+      "e_rate_hz": 513.1446838378906,
+      "i_rate_hz": 0.0
+    },
+    {
+      "model": "coba",
+      "input_rate_hz": 20.0,
+      "e_rate_hz": 535.6594848632812,
+      "i_rate_hz": 0.0
+    },
+    {
+      "model": "coba",
+      "input_rate_hz": 25.0,
+      "e_rate_hz": 581.3565063476562,
+      "i_rate_hz": 0.0
+    },
+    {
+      "model": "coba",
+      "input_rate_hz": 30.0,
+      "e_rate_hz": 616.2240600585938,
+      "i_rate_hz": 0.0
+    },
+    {
+      "model": "coba",
+      "input_rate_hz": 35.0,
+      "e_rate_hz": 643.3869934082031,
+      "i_rate_hz": 0.0
+    },
+    {
+      "model": "coba",
+      "input_rate_hz": 40.0,
+      "e_rate_hz": 665.57373046875,
+      "i_rate_hz": 0.0
+    },
+    {
+      "model": "coba",
+      "input_rate_hz": 50.0,
+      "e_rate_hz": 699.1264343261719,
+      "i_rate_hz": 0.0
+    },
+    {
+      "model": "coba",
+      "input_rate_hz": 60.0,
+      "e_rate_hz": 723.7374877929688,
+      "i_rate_hz": 0.0
+    },
+    {
+      "model": "coba",
+      "input_rate_hz": 70.0,
+      "e_rate_hz": 741.6654968261719,
+      "i_rate_hz": 0.0
+    },
+    {
+      "model": "coba",
+      "input_rate_hz": 80.0,
+      "e_rate_hz": 754.4828796386719,
+      "i_rate_hz": 0.0
+    },
+    {
+      "model": "coba",
+      "input_rate_hz": 90.0,
+      "e_rate_hz": 764.5231628417969,
+      "i_rate_hz": 0.0
+    },
+    {
+      "model": "coba",
+      "input_rate_hz": 100.0,
+      "e_rate_hz": 773.3988952636719,
+      "i_rate_hz": 0.0
+    },
+    {
+      "model": "ping",
+      "input_rate_hz": 0.0,
+      "e_rate_hz": 0.0,
+      "i_rate_hz": 0.0
+    },
+    {
+      "model": "ping",
+      "input_rate_hz": 1.0,
+      "e_rate_hz": 4.2840576171875,
+      "i_rate_hz": 18.2879638671875
+    },
+    {
+      "model": "ping",
+      "input_rate_hz": 2.0,
+      "e_rate_hz": 6.280059814453125,
+      "i_rate_hz": 33.607177734375
+    },
+    {
+      "model": "ping",
+      "input_rate_hz": 3.0,
+      "e_rate_hz": 7.951507568359375,
+      "i_rate_hz": 44.949951171875
+    },
+    {
+      "model": "ping",
+      "input_rate_hz": 4.0,
+      "e_rate_hz": 9.498443603515625,
+      "i_rate_hz": 55.4327392578125
+    },
+    {
+      "model": "ping",
+      "input_rate_hz": 5.0,
+      "e_rate_hz": 10.535125732421875,
+      "i_rate_hz": 64.1510009765625
+    },
+    {
+      "model": "ping",
+      "input_rate_hz": 6.0,
+      "e_rate_hz": 11.671295166015625,
+      "i_rate_hz": 71.6070556640625
+    },
+    {
+      "model": "ping",
+      "input_rate_hz": 7.0,
+      "e_rate_hz": 12.579803466796875,
+      "i_rate_hz": 79.55322265625
+    },
+    {
+      "model": "ping",
+      "input_rate_hz": 8.0,
+      "e_rate_hz": 13.4130859375,
+      "i_rate_hz": 85.5902099609375
+    },
+    {
+      "model": "ping",
+      "input_rate_hz": 9.0,
+      "e_rate_hz": 14.226837158203125,
+      "i_rate_hz": 91.06689453125
+    },
+    {
+      "model": "ping",
+      "input_rate_hz": 10.0,
+      "e_rate_hz": 14.8870849609375,
+      "i_rate_hz": 95.4052734375
+    },
+    {
+      "model": "ping",
+      "input_rate_hz": 12.0,
+      "e_rate_hz": 16.5338134765625,
+      "i_rate_hz": 106.7462158203125
+    },
+    {
+      "model": "ping",
+      "input_rate_hz": 14.0,
+      "e_rate_hz": 17.58453369140625,
+      "i_rate_hz": 114.6453857421875
+    },
+    {
+      "model": "ping",
+      "input_rate_hz": 16.0,
+      "e_rate_hz": 18.741607666015625,
+      "i_rate_hz": 124.3511962890625
+    },
+    {
+      "model": "ping",
+      "input_rate_hz": 18.0,
+      "e_rate_hz": 19.713897705078125,
+      "i_rate_hz": 131.3330078125
+    },
+    {
+      "model": "ping",
+      "input_rate_hz": 20.0,
+      "e_rate_hz": 20.491485595703125,
+      "i_rate_hz": 137.869873046875
+    },
+    {
+      "model": "ping",
+      "input_rate_hz": 25.0,
+      "e_rate_hz": 22.83721923828125,
+      "i_rate_hz": 154.4403076171875
+    },
+    {
+      "model": "ping",
+      "input_rate_hz": 30.0,
+      "e_rate_hz": 24.42169189453125,
+      "i_rate_hz": 167.308349609375
+    },
+    {
+      "model": "ping",
+      "input_rate_hz": 35.0,
+      "e_rate_hz": 25.68145751953125,
+      "i_rate_hz": 181.5472412109375
+    },
+    {
+      "model": "ping",
+      "input_rate_hz": 40.0,
+      "e_rate_hz": 26.750640869140625,
+      "i_rate_hz": 191.849365234375
+    },
+    {
+      "model": "ping",
+      "input_rate_hz": 50.0,
+      "e_rate_hz": 28.894805908203125,
+      "i_rate_hz": 218.2958984375
+    },
+    {
+      "model": "ping",
+      "input_rate_hz": 60.0,
+      "e_rate_hz": 30.92010498046875,
+      "i_rate_hz": 242.947998046875
+    },
+    {
+      "model": "ping",
+      "input_rate_hz": 70.0,
+      "e_rate_hz": 33.256988525390625,
+      "i_rate_hz": 268.7579345703125
+    },
+    {
+      "model": "ping",
+      "input_rate_hz": 80.0,
+      "e_rate_hz": 35.45806884765625,
+      "i_rate_hz": 293.709716796875
+    },
+    {
+      "model": "ping",
+      "input_rate_hz": 90.0,
+      "e_rate_hz": 37.989959716796875,
+      "i_rate_hz": 319.090576171875
+    },
+    {
+      "model": "ping",
+      "input_rate_hz": 100.0,
+      "e_rate_hz": 40.3558349609375,
+      "i_rate_hz": 344.5001220703125
+    }
+  ]
+}

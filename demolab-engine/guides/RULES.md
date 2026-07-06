@@ -28,11 +28,11 @@ defined in [`GLOSSARY.md`](GLOSSARY.md).
 
 The concrete annotated file tree is in [`STRUCTURE.md`](STRUCTURE.md); this section is the *why* — which zone each path belongs to and how it updates.
 
-**3.1 — Black box** (pure upstream; never edited here, swapped wholesale on update): `demolab-engine/build/` (the Typst engine: `main.typ`, `lib.typ`, `build.py`, `style.css`, `favicon.svg`), `demolab-engine/runbooks/` (the runbooks), and `demolab-engine/guides/` (this file + `GLOSSARY.md` + `HOUSE-STYLE.md` + `STRUCTURE.md`). Updates cleanly and survives any deletion of example content.
+**3.1 — Black box** (pure upstream; never edited here, swapped wholesale on update): `demolab-engine/build/` (the Typst engine: `main.typ`, `lib.typ`, `build.py`, `devserver.py`, `style.css`, `cite-popover.js`, `favicon.svg`, `test_engine_build.py`, `test_devserver.py`, `test_slide_catalog.py`, `test_command_catalog.py`, `test_build_resilience.py`), `demolab-engine/runbooks/` (the runbooks), `demolab-engine/guides/` (this file + `GLOSSARY.md` + `HOUSESTYLE.md` + `SLIDES.md` + `STRUCTURE.md` + `SUPPORT.md`), `demolab-engine/scaffold/` (the `skeleton/` + `demo/` overlays that `task scaffold`/`add-demo-content` lay down, and `demo-manifest.json`), and the engine's `VERSION` + `CHANGELOG.md` (SemVer; `task version` prints it, *"update demolab"* compares it). demolab ships **engine-only** — this zone plus the reconciled root files, no content dirs — so the demo isn't committed working-tree clutter; it's engine data, materialised on demand and doubling as the smoke-test fixture. Updates cleanly and survives any deletion of scaffolded content.
 
 **3.2 — Reconciled** (framework, but kept thin or pinned to root by tooling; updated by diff, not swap): `AGENTS.md` + its `CLAUDE.md` pointer (both thin — they just point here), `README.md`, the `Taskfile`, `pyproject.toml`, and `.github/` CI.
 
-**3.3 — Branding, yours, optional** (a root override the engine reads; never overwritten by updates): `demolab.yaml` — the wordmark + PDF titles. Absent ⇒ engine defaults. Deeper theming (`style.css`, `favicon.svg`) currently lives inside the black box, so editing it is possible but gets overwritten on update — treat as advanced.
+**3.3 — Your root overrides, optional** (root files the framework reads; never overwritten by updates): `demolab.yaml` (wordmark + PDF titles + collections) and `HOUSESTYLE.local.md` (your house-style overrides, which extend or replace the default `HOUSESTYLE.md`; an agent reads it). Absent ⇒ engine defaults. Deeper web theming (`style.css`, `favicon.svg`) currently lives inside the black box, so editing it is possible but gets overwritten on update — treat as advanced.
 
 **3.4 — User content** (100% the user's — freely deletable and replaceable): `tools/*`, `experiments/*` (runners, plus `playground.py` — the Streamlit demo, exempt from the contract), `writings/*` (`.typ` writeups), `artifacts/*` (`data/` per-run figures + `numbers.json`, `pdfs/` compiled PDFs; `artifacts/site/` is a gitignored build), `temp/*` (regenerable scratch).
 
@@ -40,7 +40,7 @@ The concrete annotated file tree is in [`STRUCTURE.md`](STRUCTURE.md); this sect
 
 **4.1 — Reuse is the bar.** A tool exists to hold *reusable* science — a model or solver run across more than one experiment, or the same one re-run with swept parameters. Using a tool is a choice, not a requirement: a genuine one-off can compute inline in its runner and stage its own `artifacts/data/expNNN/` directly; articles (`ar*`) use no tool at all. **Don't manufacture a tiny tool to satisfy the contract** — the CLI, manifest, tests, and import firewall earn their ceremony by being *shared*. Going inline trades away the manifest validation, provenance stamp, and easy unit-testing — fine for a throwaway. When reuse actually appears, **promote** the code into `tools/<tool>/tool.py` then and point the runner at its CLI — not in anticipation.
 
-**4.2 — Tools emit data, not plots.** A tool writes the CSV/JSON a figure is drawn *from*; drawing the figure is the runner's job. The one exception is a **rendering** (a physics video, `mujoco` → `.mp4`), which a tool *does* produce. `write_output` validates that a declared `headline_video` exists on disk and that every `headline_metrics` key is in `output.json` — so a manifest can never lie about a run.
+**4.2 — Tools emit data, not plots.** A tool writes the machine-readable data a figure is drawn *from* — the format is the author's choice (CSV, JSON/JSONL, `.npz`, Parquet, HDF5, whatever suits the science); drawing the figure is the runner's job. What matters is that the *data* is emitted, not a rendered plot, so the figure can be redrawn and the numbers are available. (The contract files themselves — `config.json`, `output.json`, `manifest.json`, `numbers.json` — are always JSON; only the figure-data format is open.) The one exception is a **rendering** (a physics video, `mujoco` → `.mp4`), which a tool *does* produce. `write_output` validates that a declared `headline_video` exists on disk and that every `headline_metrics` key is in `output.json` — so a manifest can never lie about a run.
 
 **4.3 — The file set.** Each tool subcommand `<cmd>` writes a fixed set of files into `temp/<tool>/<cmd>/`, overwriting the previous run:
 
@@ -51,10 +51,10 @@ The concrete annotated file tree is in [`STRUCTURE.md`](STRUCTURE.md); this sect
 | `manifest.json` | `{ headline_video?: str, headline_metrics: [str, …] }` |
 | `output.log` | timestamped log lines |
 | `run.sh` | executable script that re-invokes the tool with the same args |
-| `<cmd>.csv`, … | the run's data — the numbers a figure would be drawn from |
+| `<cmd>.csv` / `.json` / `.npz` / … | the run's data — the numbers a figure would be drawn from (author's choice of format) |
 | `<cmd>.mp4` | *rendering tools only* — the canonical video (`manifest.headline_video`) |
 
-**4.4 — The runner reads, doesn't hardcode.** Subcommand name maps 1:1 to the directory under `temp/<tool>/`. The runner reads `manifest.json` to discover the headline metrics (and a headline video, if any) — it never hardcodes metric field names. It *renders* the figures itself from the tool's CSV data. It only chooses *which* commands an experiment bundles (`COMMANDS` in `expNNN.py`).
+**4.4 — The runner reads, doesn't hardcode.** Subcommand name maps 1:1 to the directory under `temp/<tool>/`. The runner reads `manifest.json` to discover the headline metrics (and a headline video, if any) — it never hardcodes metric field names. It *renders* the figures itself from the tool's data (whatever format the tool wrote). It only chooses *which* commands an experiment bundles (`COMMANDS` in `expNNN.py`).
 
 **4.5 — Import boundary.** A runner reaches a tool by *running its CLI* (subprocess), never by `import`ing it, and tools never import runner code. They communicate only through the files in §4.3 — which is what keeps tools generic and the contract language-neutral (§1.4).
 
@@ -84,7 +84,7 @@ The concrete annotated file tree is in [`STRUCTURE.md`](STRUCTURE.md); this sect
 
 ## 6. Authoring writings
 
-For *how a writing should read* — prose, math, figures, structure — see [`HOUSE-STYLE.md`](HOUSE-STYLE.md). This section is the mechanics.
+For *how a writing should read* — prose, math, figures, structure — see [`HOUSESTYLE.md`](HOUSESTYLE.md). This section is the mechanics.
 
 **6.1 — `meta` + `body`.** A writing is `writings/<id>.typ`: a `#let meta = (title, date, description?, collection?, status?)` block and a `#let body = [ … ]` block. `build.py` discovers entries by those two top-level definitions. Model a new one on `exp000.typ`.
 
@@ -92,20 +92,31 @@ For *how a writing should read* — prose, math, figures, structure — see [`HO
 - `numbers-table(entry, title: "…")` — a parameter/metric table straight from a `numbers.json` command entry.
 - `video("<file>.mp4", caption: […])` — plays as HTML `<video>`, omitted from the PDF. `build.py` auto-emits every mp4 as a bundle asset.
 - `provenance-footer(run.<cmd>.config)` — the git-commit footer.
+- `cite(...)` + `reference-list(...)` — inline citations + a DOI reference list (see §6.6).
+- `pending-figure(caption: […], note: […], ratio: 16/9)` — a placeholder for a figure whose asset isn't ready yet (a re-run in flight, data not cleared for release). Numbers as a normal "Figure N" and reserves the figure's footprint (a tinted dashed panel) so the page doesn't reflow when the real plot lands. Swap it back to `#figure(#image(...), …)` once the asset exists — a `pending-figure` left in a `final` entry is a lint smell.
 
 Numbers must come from the run (§5.4) — never hand-type a literal that could disagree with `numbers.json`.
 
 **6.3 — Figures.** A data figure is a tool-rendered PNG staged by the runner — `#image("/artifacts/data/<id>/fig.png", width: 100%)`. A *drawing* (a schematic, not a simulation result) can be drawn directly in Typst — native graphics scale crisply, no image file. For something a reader should *explore*, point them at the Streamlit playground (`task playground`); in-browser interactivity is deliberately not part of the static site.
 
-**6.4 — The `status` field.** Optional `meta` field for lifecycle — `draft → building → revising → final`, and back freely. It renders next to the date on the entry's page and in the book. Free-form; pick a convention and stick to it.
+**6.4 — The `status` field.** Optional `meta` field for lifecycle — `draft → building → revising → final`, and back freely. It renders as **plain text** next to the date **everywhere the entry appears**: its own page, every listing (each collection page + `all.html`), and the PDF/book. `final` (the default) shows **nothing** — a clean line means done, so only work-in-progress is flagged. Free-form; pick a convention and stick to it. It also drives listing order (§6.5).
 
-**6.5 — Collections.** Set `collection: <slug>` in an entry's `meta` to group it on the homepage; the slug title-cases by default (`neuron-models` → "Neuron models"). An optional `collections` map + `collection-order` list in the root `demolab.yaml` give each collection a `label` / `description` and set the display order — a collection with no registry entry still works. Decks are grouped under `slides`. Uncollected entries fall under `uncategorized`. `all.html` lists everything flat, newest first, tagged with each entry's collection.
+**6.5 — Collections & ordering.** Set `collection: <slug>` in an entry's `meta` to group it on the homepage; the slug title-cases by default (`neuron-models` → "Neuron models"). An optional `collections` map + `collection-order` list in the root `demolab.yaml` give each collection a `label` / `description` and set the display order — a collection with no registry entry still works. Decks are grouped under `slides`; uncollected entries fall under `uncategorized`. Every listing (each collection page + `all.html`) groups entries by kind — **Articles, then Experiments, then Slides** — and within a group sorts by **status** (lifecycle order, so work-in-progress surfaces above `final`) then by **id**, newest first.
+
+**6.6 — Citations & references.** Cite prior work with two `lib.typ` helpers, so numbering, linking, and the web popover all come for free — never hand-type a bracket or a manual list (HOUSESTYLE H24). Import both: `#import "/demolab-engine/build/lib.typ": cite, reference-list`.
+
+- **Inline** — `#cite(1, 2)` renders `[1, 2]`. The numbers are **author-managed** (you pass them), so there's no `.bib` file to keep in sync. On the web each number links to its entry.
+- **The list** — `#reference-list(((text: [Author A, Author B (year). Title. _Journal_ vol:pp.], doi: "10.…"), …))` renders the numbered **References** section. Each item is a dict: `text` is free Typst content (italicise the journal/title with `_…_`); `doi` is optional and, when present, renders a `doi:…` link to `https://doi.org/<doi>` that opens in a **new tab**.
+- **Numbering is positional** — `#cite(1)` points at the *first* entry in the list, `#cite(2)` the second, and so on. Keep the inline numbers and the list order in step (this is the thing hand-typing would silently break).
+- **Hover popovers (web only)** — hovering an inline cite shows a small Wikipedia-style card with that reference's text + DOI, pulled from the rendered list entry (so it can't drift). The PDF has no scripts: the inline `[n]` and the References section still render, just without the popover.
+
+See `ar006` for a worked example — ten references with DOIs, inline cites throughout, and the reference list at the foot of the body.
 
 ## 7. Adding an experiment
 
 **7.1 — Tool subcommand.** Add a subcommand (or reuse one) in the relevant `tools/<tool>/tool.py`. Pass a `manifest` to `write_output` declaring the headline metrics (and a video, for a rendering tool).
 
-**7.2 — Runner.** Create `experiments/expNNN.py` modeled on an existing runner; declare `COMMANDS`; render the figure(s) from the CSV data into `artifacts/data/expNNN/`. Single-tool runners use bare strings (`COMMANDS = ("lif", "net")`); multi-tool runners use `(tool, command)` pairs (`COMMANDS = (("mujoco", "cartpole"),)`).
+**7.2 — Runner.** Create `experiments/expNNN.py` modeled on an existing runner; declare `COMMANDS`; render the figure(s) from the tool's data into `artifacts/data/expNNN/`. Single-tool runners use bare strings (`COMMANDS = ("lif", "net")`); multi-tool runners use `(tool, command)` pairs (`COMMANDS = (("mujoco", "cartpole"),)`).
 
 **7.3 — Writeup.** Create `writings/expNNN.typ` as a `meta` + `body` pair (§6.1); read the run with `json(...)`, embed figures with `#image(...)`, render tables with `#numbers-table(...)`.
 

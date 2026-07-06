@@ -21,13 +21,19 @@ deliverables.
 Each writings/<id>.typ exposes `#let meta = (...)` and `#let body = [...]`.
 Entries not yet in that convention are skipped (incremental migration).
 """
+from __future__ import annotations  # keep type hints lazy so `X | None` works on Python 3.9 too
+
 import json
+import os
+import re
 import shutil
 import subprocess
 import sys
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[2]  # repo root (this file is demolab-engine/build/)
+# Content root. Normally the repo root (this file is demolab-engine/build/); override with
+# DEMOLAB_ROOT so the engine can be built against a fixture (see the smoke test).
+ROOT = Path(os.environ.get("DEMOLAB_ROOT") or Path(__file__).resolve().parents[2])
 WRITINGS = ROOT / "writings"
 ENGINE = ROOT / "demolab-engine" / "build"  # the Typst engine (main.typ, lib.typ, style.css)
 MAIN = ENGINE / "main.typ"                 # committed bundle root (reads the manifest)
@@ -67,20 +73,24 @@ def discover_decks():
     return [p.name.removesuffix(".slide.typ") for p in sorted(WRITINGS.glob("*.slide.typ"))]
 
 
-def write_manifest(ids: list[str], deck_ids: list[str]) -> None:
+def write_manifest(ids: list[str], deck_ids: list[str], broken: dict | None = None) -> None:
     """Write temp/bundle/index.json — the id/asset lists demolab-engine/build/main.typ reads.
 
     This is the only place per-entry knowledge is assembled, and it's pure data (no Typst
     source): the entry ids + kind, each entry's mp4 filenames (globbed here because Typst
-    can't list a directory), and the deck ids."""
-    entries = [
-        {
+    can't list a directory), and the deck ids. An entry in `broken` (id -> error text) carries an
+    `error` field and loads no assets — main.typ renders it as a stub instead of importing it."""
+    broken = broken or {}
+    entries = []
+    for i in ids:
+        entry = {
             "id": i,
             "kind": "experiment" if i.startswith("exp") else "article",
-            "videos": [v.name for v in sorted((ROOT / "artifacts" / "data" / i).glob("*.mp4"))],
+            "videos": [] if i in broken else [v.name for v in sorted((ROOT / "artifacts" / "data" / i).glob("*.mp4"))],
         }
-        for i in ids
-    ]
+        if i in broken:
+            entry["error"] = broken[i]
+        entries.append(entry)
     # Signal whether the optional root demolab.yaml exists — Typst can't stat files, so
     # main.typ only reads it (for branding) when this flag says it's there.
     manifest = {
@@ -91,53 +101,116 @@ def write_manifest(ids: list[str], deck_ids: list[str]) -> None:
     MANIFEST.write_text(json.dumps(manifest, indent=2) + "\n")
 
 
-def compile_decks(deck_ids: list[str]) -> None:
-    """Compile each standalone deck to a scratch PDF (temp/bundle/decks/<id>.pdf).
+def compile_decks(deck_ids: list[str]) -> list[str]:
+    """Compile each standalone deck to a scratch PDF (temp/bundle/decks/<id>.pdf); return the ones
+    that built. A deck that fails to compile is skipped with a warning rather than failing the whole
+    build (main.typ only embeds decks that produced a PDF).
 
-    main.typ embeds these as bundle assets at pdfs/<id>.pdf (so both `task build` and
-    `typst watch` (dev) emit + serve them). Must run before the bundle compile so the
-    asset `read(...)` finds the files. Decks don't live-reload in dev — re-run
-    `task dev`/`task build` to pick up deck edits."""
+    main.typ embeds these as bundle assets at pdfs/<id>.pdf. Must run before the bundle compile so
+    the asset `read(...)` finds the files. The dev server (devserver.py) reruns this on every
+    change, so deck edits and new decks live-reload like any entry."""
     DECKS.mkdir(parents=True, exist_ok=True)
+    good = []
     for d in deck_ids:
-        subprocess.run(
+        proc = subprocess.run(
             [TYPST, "compile", "--root", str(ROOT),
              str(WRITINGS / f"{d}.slide.typ"), str(DECKS / f"{d}.pdf")],
-            check=True,
+            capture_output=True, text=True,
         )
+        if proc.returncode == 0:
+            good.append(d)
+        else:
+            print(f"  ⚠ deck {d} failed to build — skipping it: "
+                  + _error_excerpt(proc.stdout + proc.stderr).splitlines()[0], flush=True)
+    return good
+
+
+def _entry_from_error(err: str, candidates: set) -> str | None:
+    """Which entry did a bundle-compile error come from? Parsed from a `/writings/<id>.typ` mention
+    in the message (only ids we can still drop)."""
+    for m in re.finditer(r"/writings/([A-Za-z0-9_-]+)\.typ", err):
+        if m.group(1) in candidates:
+            return m.group(1)
+    return None
+
+
+def _error_excerpt(err: str, lines: int = 8) -> str:
+    """The first `error:` block from Typst's output, for the stub page and the warning."""
+    rows = err.splitlines()
+    for i, row in enumerate(rows):
+        if row.lstrip().startswith("error:"):
+            return "\n".join(rows[i:i + lines]).strip()
+    return err.strip() or "build failed"
+
+
+def compile_bundle(ids: list[str], deck_ids: list[str]) -> dict:
+    """Compile the whole bundle. If an entry fails (a missing figure, a Typst error), flag it and
+    retry, so it renders as a stub page instead of taking the rest of the site down with it. Returns
+    the {id: error} map of entries that were stubbed."""
+    broken: dict = {}
+    while True:
+        write_manifest(ids, deck_ids, broken=broken)
+        proc = subprocess.run(
+            [TYPST, "compile", "--format", "bundle", "--features", "bundle,html",
+             "--root", str(ROOT), str(MAIN), str(SITE) + "/"],
+            capture_output=True, text=True,
+        )
+        if proc.returncode == 0:
+            return broken
+        err = proc.stdout + proc.stderr
+        bad = _entry_from_error(err, set(ids) - broken.keys())
+        if bad is None:
+            # Not attributable to one entry (an engine, asset, or deck error): surface the real
+            # failure rather than looping.
+            sys.stderr.write(err)
+            raise subprocess.CalledProcessError(proc.returncode, proc.args, proc.stdout, proc.stderr)
+        broken[bad] = _error_excerpt(err)
+        print(f"  ⚠ {bad} failed to build — stubbing it, keeping the rest: "
+              + broken[bad].splitlines()[0], flush=True)
 
 
 def main() -> None:
-    # --generate-only writes the manifest + deck PDFs without compiling the bundle — used
-    # by `task dev`, which then runs `typst watch` on the committed main.typ (its own HTTP
-    # server + live reload; main.typ re-reads the manifest, so writing edits hot-reload).
+    # --generate-only writes the manifest + deck PDFs without compiling the bundle: a hand
+    # tool for inspecting what the compiler will see. (Dev serving is devserver.py, which runs
+    # a full build on each change; it doesn't use this flag.)
     generate_only = "--generate-only" in sys.argv
+    # --skip-decks reuses the deck PDFs already in temp/bundle/decks/ instead of recompiling
+    # them. The dev server passes it when a change touched no deck source or data asset, so a
+    # prose/CSS/lib edit doesn't pay for deck compilation it can't have affected. Safe only when
+    # those PDFs exist (a full build ran first); a bare `task build` never skips.
+    skip_decks = "--skip-decks" in sys.argv
     ids = discover()
     deck_ids = discover_decks()
-    if not ids:
-        print("no converted writings (need `#let meta` + `#let body`)", file=sys.stderr)
-        sys.exit(1)
+    # Zero writings is a valid state (a freshly `task scaffold`-ed repo): main.typ renders
+    # a friendly empty-state homepage, so we build rather than error.
     BUILD.mkdir(parents=True, exist_ok=True)
-    # Compile decks first so their PDFs exist for the asset embeds in main.typ.
-    compile_decks(deck_ids)
-    write_manifest(ids, deck_ids)
+    # Compile decks first so their PDFs exist for the asset embeds in main.typ (skip reuses the
+    # PDFs already on disk). Either way, only decks that actually have a PDF are referenced.
+    if skip_decks:
+        good_decks = [d for d in deck_ids if (DECKS / f"{d}.pdf").exists()]
+    else:
+        good_decks = compile_decks(deck_ids)
+    write_manifest(ids, good_decks)
     SITE.mkdir(parents=True, exist_ok=True)
     if generate_only:
         print(f"wrote manifest for {len(ids)} entries: {', '.join(ids)}"
-              + (f" + {len(deck_ids)} decks: {', '.join(deck_ids)}" if deck_ids else ""))
+              + (f" + {len(good_decks)} decks: {', '.join(good_decks)}" if good_decks else ""))
         return
-    subprocess.run(
-        [TYPST, "compile", "--format", "bundle", "--features", "bundle,html",
-         "--root", str(ROOT), str(MAIN), str(SITE) + "/"],
-        check=True,
-    )
+    # One bad entry (a missing figure, a Typst error) becomes a stub page instead of failing the
+    # whole site — compile_bundle flags it and retries.
+    broken = compile_bundle(ids, good_decks)
+    good = [i for i in ids if i not in broken]
     # mirror the compiled PDFs (entries, book, and decks) to the committed artifacts/pdfs/
     PDFS.mkdir(parents=True, exist_ok=True)
     for pdf in sorted((SITE / "pdfs").glob("*.pdf")):
         shutil.copy(pdf, PDFS / pdf.name)
-    built = f"built {len(ids)} entries" + (f" + {len(deck_ids)} decks" if deck_ids else "")
-    print(f"{built} -> {SITE}/ (pdfs mirrored -> {PDFS}/)  entries: {', '.join(ids)}"
-          + (f"  decks: {', '.join(deck_ids)}" if deck_ids else ""))
+    built = f"built {len(good)} entries" + (f" + {len(good_decks)} decks" if good_decks else "")
+    print(f"{built} -> {SITE}/ (pdfs mirrored -> {PDFS}/)  entries: {', '.join(good)}"
+          + (f"  decks: {', '.join(good_decks)}" if good_decks else ""))
+    if broken:
+        n = len(broken)
+        print(f"  ⚠ stubbed {n} broken entr{'y' if n == 1 else 'ies'} (fix + rebuild): "
+              + ", ".join(sorted(broken)), flush=True)
 
 
 if __name__ == "__main__":

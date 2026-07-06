@@ -5,7 +5,7 @@
   date: "2026-06-08",
   description: "A PING network trained one digit at a time classifies a stream of digits at a fraction of the time each, with no retraining — only the readout window changes.",
   collection: "gamma-gated-sparsity",
-  status: "revising",
+  status: "draft",
 )
 
 

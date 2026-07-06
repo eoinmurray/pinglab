@@ -3,7 +3,7 @@
   date: "2026-07-02",
   description: "A literature companion to the manuscript (ar009): agent-located source pointers and self-checked quotes for each reference.",
   collection: "gamma-gated-sparsity",
-  status: "draft",
+  status: "final",
 )
 
 #let body = [

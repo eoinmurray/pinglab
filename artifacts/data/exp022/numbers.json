@@ -1,7 +1,7 @@
 {
-  "notebook_run_id": "r004",
+  "notebook_run_id": "r005",
   "git_sha": "cc36be1",
-  "duration_s": 0.5,
+  "duration_s": 0.4,
   "duration": "0s",
   "standard": {
     "epochs": 50,

@@ -1,9 +1,9 @@
 #let meta = (
-  title: "Switching the loop on at inference cuts E rate ≈10×",
+  title: "Switching the loop on at inference cuts E rate ≈15×",
   date: "2026-05-30",
-  description: "Loads a trained COBA network and switches the I-loop on at inference by sweeping ei_strength from 0 to 1; the same weights fire ≈10× slower.",
+  description: "Loads a trained COBA network and switches the I-loop on at inference by sweeping ei_strength from 0 to 1; the same weights fire ≈15× slower.",
   collection: "gamma-gated-sparsity",
-  status: "revising",
+  status: "final",
 )
 
 
@@ -14,10 +14,12 @@
   == Abstract
 
   Loads a trained COBA network and switches the I-loop on at inference by sweeping
-  _ei_strength_ from 0 to 1. The same feedforward weights that fire at ≈ 52 Hz
-  without the loop fire at ≈ 5 Hz with the loop engaged, and accuracy stays within
-  ≈ 12 pp of the COBA baseline. PING gating is a post-hoc sparsity knob — the
-  architecture, not the training, supplies the gamma dynamics.
+  _ei_strength_ from 0 to 1. The same feedforward weights that fire at ≈ 133 Hz
+  without the loop fire at ≈ 9 Hz with it engaged, a ≈ 15× drop with no weight
+  update. Accuracy, though, falls ≈ 36 pp (from ≈ 90% to ≈ 55%) as the loop engages,
+  because the readout was never trained with it. PING gating is a post-hoc sparsity
+  knob: the architecture, not the training, supplies the gamma dynamics, but using
+  it well still needs training _with_ the loop.
 
   == Method
 
@@ -26,9 +28,9 @@
     [Parameter], [Value],
     [Integration timestep $Delta t$], [0.1 ms],
     [Trial duration $T$], [200 ms],
-    [MNIST samples (80/20 stratified split of 2000)],
-    [1600 train / 400 test (≈ 2.9% of the 70k-sample MNIST corpus)],
-    [Epochs], [10],
+    [MNIST samples (80/20 stratified split of 500)],
+    [400 train / 100 test (≈ 0.7% of the 70k-sample MNIST corpus)],
+    [Epochs], [50],
   )
 
   The PING and COBA baseline definitions and the training recipe are in
@@ -38,7 +40,7 @@
   for "architectural response to drive".)
 
   *Inference-time probe.* The trained COBA baseline (seed 42, $theta_u =$ off) is
-  loaded and _ei_strength_ — the I-loop gain — is overridden at eval time across 11
+  loaded and _ei_strength_ (the I-loop gain) is overridden at eval time across 11
   values from 0 to 1. $W_"in"$ and $W_"out"$ load from the COBA checkpoint;
   $W^(E I)$ and $W^(I E)$ are freshly initialised (the COBA checkpoint stores these
   at zero, so skipping the load leaves a functional I-loop). No retraining.
@@ -46,17 +48,18 @@
   == Results
 
   #figure(
-    block(width: 100%, height: 4cm, inset: 1em, stroke: 0.5pt + gray, radius: 3pt, fill: luma(245))[#text(fill: gray)[pending re-run with new canonical data]],
+    image("/artifacts/data/exp038/loop_transfer_compound.png", width: 100%,
+      alt: "Trained COBA replayed with the inference-time I-loop swept from 0 to 1: rasters at ei=0 and ei=1, E and I rate versus loop strength, and test accuracy versus loop strength."),
     caption: [
-      Switching the recurrent I-loop on _at inference_ on a trained COBA network —
-      no retraining, $W^(E I) \/ W^(I E)$ freshly wired (the COBA checkpoint stores
-      them at zero). *Top* — the same feedforward weights fire densely and
+      Switching the recurrent I-loop on _at inference_ on a trained COBA network (no
+      retraining; $W^(E I) \/ W^(I E)$ freshly wired, since the COBA checkpoint
+      stores them at zero). *Top*: the same feedforward weights fire densely and
       asynchronously at _ei = 0_ (COBA) and in gamma bands at _ei = 1_ (PING); the
       gamma dynamics come from the inhibitory architecture, not from training.
-      *Bottom left* — E rate falls ≈ 10× (≈ 60 → 5 Hz) as the loop engages while I
-      rises to ≈ 28 Hz; the suppression is continuous in loop strength. *Bottom
-      right* — accuracy _degrades_ without retraining, from the ≈ 87% COBA baseline
-      to ≈ 63% at full strength (a ≈ 24 pp cost). So the architecture supplies the
+      *Bottom left*: E rate falls ≈ 15× (≈ 133 → 9 Hz) as the loop engages while I
+      rises to ≈ 51 Hz; the suppression is continuous in loop strength. *Bottom
+      right*: accuracy _degrades_ without retraining, from the ≈ 90% COBA baseline
+      to ≈ 55% at full strength (a ≈ 36 pp cost). So the architecture supplies the
       rate-gating for free, but using it well needs training _with_ the loop
       (#link("/exp025/")[exp025]): the sparsity is architectural, the accuracy is
       learned.
@@ -64,13 +67,14 @@
   )
 
   #figure(
-    block(width: 100%, height: 4cm, inset: 1em, stroke: 0.5pt + gray, radius: 3pt, fill: luma(245))[#text(fill: gray)[pending re-run with new canonical data]],
+    image("/artifacts/data/exp038/ei_rasters.png", width: 100%,
+      alt: "Six stacked E/I spike rasters of the same trial replayed at ei_strength 0, 0.2, 0.4, 0.6, 0.8, 1, showing dense asynchronous firing giving way to gamma bands as the loop strengthens."),
     caption: [
       The full transition: trained COBA replayed at six inference-time _ei_strength_
       values (same trial, same feedforward weights, a fresh I-loop each row). At
       _ei = 0_ the asynchronous-dense COBA pattern persists; by _ei ≈ 0.4_ the same
       weights produce gamma cycles, sharpening toward _ei = 1_. The rhythm appears
-      continuously as the loop is wired in — no retraining at any point.
+      continuously as the loop is wired in, with no retraining at any point.
     ],
   )
 ]

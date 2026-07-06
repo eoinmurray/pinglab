@@ -817,8 +817,11 @@ def plot_theta_p_fgamma(
         xs_all = [r["theta_u_hz"] for r in ping]
         ax_r.plot(xs_all, [r["e_rate"] for r in ping],
                   marker="o", color=theme.INK_BLACK, lw=1.5, label="PING E (measured)")
+        # Predicted overlay stays greyscale-safe: near-black ink is reserved for the
+        # measured trace, red is the single accent (COBA), so the prediction is grey
+        # dashed with its own marker rather than a second chromatic hue (H13).
         ax_r.plot(xs, [r["p"] * r["f_gamma"] for r in ping_pf],
-                  marker="^", color=theme.AMBER, lw=1.5, ls="--",
+                  marker="^", color=theme.GREY_MID, lw=1.5, ls="--",
                   label="p × f_γ (predicted)")
         ax_a.plot(xs_all, [r["acc"] for r in ping],
                   marker="o", color=theme.INK_BLACK, lw=1.5, label="PING")
@@ -848,11 +851,7 @@ def plot_theta_p_fgamma(
     ax_a.set_ylim(0, 100)
     ax_a.legend(fontsize=theme.SIZE_LABEL, frameon=False, loc="lower left")
 
-    fig.suptitle(
-        "Decomposing the rate floor under the spike penalty: "
-        "θ_u presses on f_γ, p is architecturally protected, accuracy holds",
-        fontsize=theme.SIZE_TITLE,
-    )
+    # No baked-in suptitle: the caption carries the takeaway (HOUSESTYLE H17).
     fig.tight_layout()
     stamp_figure(fig, run_id)
     save_figure(fig, out_path)
@@ -913,8 +912,11 @@ def plot_low_w_in(rows: list[dict], out_path: Path, run_id: str) -> None:
     (red) overlaid. Reads per-epoch traces from each run's metrics.json."""
     theme.apply()
     n = len(rows)
+    # Fixed 16:9 at column width (HOUSESTYLE H12) — one aspect across the writeup.
+    # The earlier n-dependent height collapsed to a wide strip whose two stacked
+    # y-axis labels overprinted each other; a taller frame gives each row room.
     fig, axes = plt.subplots(
-        2, n, figsize=(6.9, 5.5 * 6.9 / (4.0 * n)), dpi=150, sharex=True,
+        2, n, figsize=(6.9, 3.881), dpi=150, sharex=True,
     )
     rate_max = 0.0
     for col, row in enumerate(rows):
@@ -958,11 +960,8 @@ def plot_low_w_in(rows: list[dict], out_path: Path, run_id: str) -> None:
     for col in range(n):
         axes[1, col].set_ylim(0, rate_max * 1.1 if rate_max > 0 else 1.0)
 
-    fig.suptitle(
-        f"Per-epoch traces — PING, $\\theta_u = {LOW_W_IN_THETA_U:g}$, "
-        "varying $W_\\text{in}$ init",
-        fontsize=theme.SIZE_TITLE,
-    )
+    # No baked-in suptitle: the caption carries the takeaway (HOUSESTYLE H17). The
+    # per-column $W_"in"$ headers identify the panels.
     fig.tight_layout()
     stamp_figure(fig, run_id)
     save_figure(fig, out_path)
@@ -1105,11 +1104,8 @@ def plot_w_in_scale_sweep(rows: list[dict], out_path: Path, run_id: str) -> None
     axes[5].set_ylabel("I rate (Hz)", fontsize=theme.SIZE_LABEL)
     axes[5].set_title("I rate", fontsize=theme.SIZE_TITLE)
     axes[0].legend(fontsize=theme.SIZE_LABEL, frameon=False, loc="upper right")
-    fig.suptitle(
-        "Inference-time $W_\\text{in}$ scale sweep on trained networks "
-        "(dashed line = trained $s = 1$)",
-        fontsize=theme.SIZE_TITLE,
-    )
+    # No baked-in suptitle: the caption carries the takeaway (HOUSESTYLE H17). The
+    # s = 1 dashed line and ≈ f* dotted line are already annotated in-panel.
     fig.tight_layout()
     stamp_figure(fig, run_id)
     save_figure(fig, out_path)
@@ -1185,11 +1181,8 @@ def plot_w_in_scale_sweep_vs_rate(
     axes[5].set_ylabel("$W_\\text{in}$ scale $s$", fontsize=theme.SIZE_LABEL)
     axes[5].set_title("$W_\\text{in}$ scale", fontsize=theme.SIZE_TITLE)
     axes[0].legend(fontsize=theme.SIZE_LABEL, frameon=False, loc="upper right")
-    fig.suptitle(
-        "Inference-time $W_\\text{in}$ scale sweep — replotted vs E rate "
-        "(stars mark trained $s = 1$)",
-        fontsize=theme.SIZE_TITLE,
-    )
+    # No baked-in suptitle: the caption carries the takeaway (HOUSESTYLE H17). The
+    # trained-point stars are already annotated in-panel.
     fig.tight_layout()
     stamp_figure(fig, run_id)
     save_figure(fig, out_path)
@@ -1275,8 +1268,7 @@ def fig_results_compound(rows, npz_coba, npz_ping, out_path, run_id):
     ax_acc.set_xlabel("epoch")
     ax_acc.set_ylabel("test accuracy (%)")
     ax_acc.set_ylim(0, 100)
-    ax_acc.set_title("Both architectures learn the task", loc="left",
-                     fontsize=theme.SIZE_LABEL)
+    # No baked-in title: the caption carries the takeaway (HOUSESTYLE H17).
     ax_acc.legend(fontsize=theme.SIZE_LEGEND, frameon=False, loc="lower right")
     _despine(ax_acc)
 
@@ -1317,7 +1309,9 @@ def fig_results_compound(rows, npz_coba, npz_ping, out_path, run_id):
         # PING star: label up-right into open plot space; COBA star sits top-
         # right, so label down-left to avoid clipping the axis and the title.
         if m == "ping":
-            dxdy, ha, va = (8, 8), "left", "bottom"
+            # Label up-and-right of the star, into the open space above the trace,
+            # with enough offset that it never crowds the frontier line.
+            dxdy, ha, va = (14, 5), "left", "bottom"
         else:
             dxdy, ha, va = (-6, -8), "right", "top"
         ax_fr.annotate(f"{m.upper()}\n{base[1]:.0f}% @ {base[0]:.0f} Hz",
@@ -1326,10 +1320,9 @@ def fig_results_compound(rows, npz_coba, npz_ping, out_path, run_id):
                        fontsize=theme.SIZE_ANNOTATION, color=MODEL_COLORS[m])
     ax_fr.set_xlabel("hidden-E firing rate (Hz)")
     ax_fr.set_ylabel("test accuracy (%)")
-    ax_fr.set_title("Same accuracy, fewer spikes", loc="left",
-                    fontsize=theme.SIZE_LABEL)
+    # No baked-in title: the caption carries the takeaway (HOUSESTYLE H17).
     ax_fr.legend(fontsize=theme.SIZE_LEGEND, frameon=False, loc="lower right",
-                 title="★ = θ_u off", title_fontsize=theme.SIZE_ANNOTATION)
+                 title="★ = spike budget off", title_fontsize=theme.SIZE_ANNOTATION)
     _despine(ax_fr)
 
     stamp_figure(fig, run_id)

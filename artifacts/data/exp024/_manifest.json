@@ -1,0 +1,20 @@
+{
+  "slug": "exp024",
+  "run_id": "r003",
+  "run_at": "2026-07-06T18:24:55+00:00",
+  "git_sha": "7e1dbda",
+  "dirty": true,
+  "code_dirty": false,
+  "patch": null,
+  "host": "local",
+  "scale": {
+    "dataset": "mnist",
+    "max_samples": 2000,
+    "epochs": 50,
+    "t_ms": 200.0,
+    "dt_ms": 0.1,
+    "batch_size": 256,
+    "seeds": 3,
+    "cells": 6
+  }
+}

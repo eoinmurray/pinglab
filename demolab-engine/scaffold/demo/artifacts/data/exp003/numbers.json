@@ -1,0 +1,21 @@
+{
+  "double_pendulum": {
+    "config": {
+      "command": "double_pendulum",
+      "theta1": 2.0,
+      "theta2": 0.0,
+      "epsilon": 0.001,
+      "duration": 8.0,
+      "fps": 60,
+      "separation_threshold": 0.1,
+      "_provenance": {
+        "commit": "60d7d7abdefdf5945b985cc6f2e088ce5b74b007",
+        "dirty": false,
+        "generated_at": "2026-07-03T10:30:15+00:00"
+      }
+    },
+    "separation_time_s": 2.968,
+    "max_separation_m": 1.2096309484781214,
+    "final_separation_m": 0.5648867078342311
+  }
+}

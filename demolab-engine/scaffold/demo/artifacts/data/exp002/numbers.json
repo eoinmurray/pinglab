@@ -1,0 +1,18 @@
+{
+  "cartpole": {
+    "config": {
+      "command": "cartpole",
+      "theta0": 0.15,
+      "duration": 4.0,
+      "fps": 60,
+      "_provenance": {
+        "commit": "60d7d7abdefdf5945b985cc6f2e088ce5b74b007",
+        "dirty": false,
+        "generated_at": "2026-07-03T10:30:15+00:00"
+      }
+    },
+    "fall_time_s": 0.595,
+    "final_angle_deg": 89.52964154260019,
+    "max_cart_displacement_m": 3.0510211680757322e-05
+  }
+}

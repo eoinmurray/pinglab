@@ -251,8 +251,6 @@ def plot_hysteresis(sweep, hopf, out_path, run_id):
                 ha="left", va="center")
     ax.set_xlabel("$I_\\text{ext}$ (nA)", fontsize=theme.SIZE_LABEL)
     ax.set_ylabel("E amplitude (peak-to-peak)", fontsize=theme.SIZE_LABEL)
-    ax.set_title("Hysteresis sweep — reversible onset (supercritical)",
-                 fontsize=theme.SIZE_TITLE)
     ax.legend(fontsize=theme.SIZE_LEGEND, frameon=False, loc="upper left")
     fig.tight_layout()
     stamp_figure(fig, run_id)
@@ -320,8 +318,6 @@ def plot_eigenvalues_complex(results, hopf, out_path, run_id):
     cbar.set_label("$I_\\text{ext}$ (nA)", fontsize=theme.SIZE_LABEL)
     ax.set_xlabel("Re$(\\lambda)$", fontsize=theme.SIZE_LABEL)
     ax.set_ylabel("Im$(\\lambda)$", fontsize=theme.SIZE_LABEL)
-    ax.set_title("4D eigenvalues in the complex plane",
-                 fontsize=theme.SIZE_TITLE)
     fig.tight_layout()
     stamp_figure(fig, run_id)
     fig.savefig(out_path, dpi=150)
@@ -352,8 +348,6 @@ def plot_limit_cycle(hopf, out_path, run_id, offset=0.4):
     ax2 = ax.twinx()
     ax2.plot(tt - tt[0], I, color=theme.DEEP_RED, lw=1.3, label="$I$")
     ax2.set_ylabel("$I$ rate", fontsize=theme.SIZE_LABEL, color=theme.DEEP_RED)
-    ax.set_title(f"4D limit cycle near onset — E leads I by ≈ {abs(lag_ms):.1f} ms",
-                 fontsize=theme.SIZE_TITLE)
     fig.tight_layout()
     stamp_figure(fig, run_id)
     fig.savefig(out_path, dpi=150)
@@ -398,8 +392,6 @@ def plot_frequency_vs_tau_gaba(mf, meas, out_path, run_id):
                 label="spiking $f_\\gamma$ (exp041)")
     ax.set_xlabel("$\\tau_\\text{GABA}$ (ms)", fontsize=theme.SIZE_LABEL)
     ax.set_ylabel("gamma frequency (Hz)", fontsize=theme.SIZE_LABEL)
-    ax.set_title("Frequency falls with inhibitory decay in both",
-                 fontsize=theme.SIZE_TITLE)
     ax.legend(fontsize=theme.SIZE_LEGEND, frameon=False, loc="upper right")
     fig.tight_layout()
     stamp_figure(fig, run_id)
@@ -592,8 +584,6 @@ def plot_phase_planes(hopf, out_path, run_id, offset=0.4):
         ax.set_ylabel(labels[b], fontsize=theme.SIZE_LABEL)
         ax.spines["top"].set_visible(False)
         ax.spines["right"].set_visible(False)
-    fig.suptitle("4D limit-cycle projected onto every variable pair",
-                 fontsize=theme.SIZE_TITLE)
     fig.tight_layout()
     stamp_figure(fig, run_id)
     fig.savefig(out_path, dpi=150)
@@ -614,11 +604,12 @@ def plot_timeseries(hopf, out_path, run_id, offset=0.4):
     tt = np.linspace(700 - 3 * period, 700, 1500)
     Y = sol.sol(tt)
     t = tt - tt[0]
-    # loop order E -> g_e^I -> I -> g_i^E
+    # loop order E -> g_e^I -> I -> g_i^E; one trace per panel, so near-black ink
+    # throughout (colour would separate nothing — H13).
     rows = [(0, "$E$ rate", theme.INK_BLACK),
-            (2, "$g_e^I$", theme.ELECTRIC_CYAN),
-            (1, "$I$ rate", theme.DEEP_RED),
-            (3, "$g_i^E$", theme.AMBER)]
+            (2, "$g_e^I$", theme.INK_BLACK),
+            (1, "$I$ rate", theme.INK_BLACK),
+            (3, "$g_i^E$", theme.INK_BLACK)]
     fig, axes = plt.subplots(4, 1, figsize=(8.0, 6.5), dpi=150, sharex=True)
     for ax, (idx, lab, col) in zip(axes, rows):
         ax.plot(t, Y[idx], color=col, lw=1.4)
@@ -626,8 +617,6 @@ def plot_timeseries(hopf, out_path, run_id, offset=0.4):
         ax.spines["top"].set_visible(False)
         ax.spines["right"].set_visible(False)
     axes[-1].set_xlabel("time (ms)", fontsize=theme.SIZE_LABEL)
-    fig.suptitle("The four state variables over the limit cycle (loop order)",
-                 fontsize=theme.SIZE_TITLE)
     fig.tight_layout()
     stamp_figure(fig, run_id)
     fig.savefig(out_path, dpi=150)
@@ -652,7 +641,7 @@ def plot_reduction_ladder(hopf4, hopf3, hopf2, out_path, run_id, I_ext=1.0):
     fig, ax = plt.subplots(figsize=(8.0, 4.5), dpi=150)
     ax.plot(s4.t, d4, color=theme.INK_BLACK, lw=1.4,
             label=f"4D full — Hopf ($f^\\star$ = {hopf4['freq_star_Hz']:.0f} Hz)")
-    ax.plot(s3.t, d3, color=theme.ELECTRIC_CYAN, lw=1.4,
+    ax.plot(s3.t, d3, color=theme.INK_BLACK, lw=1.4, ls="--",
             label=f"3D, AMPA slaved — Hopf ($f^\\star$ = {hopf3['freq_star_Hz']:.0f} Hz)"
             if hopf3 else "3D, AMPA slaved")
     ax.plot(s2.t, d2, color=theme.DEEP_RED, lw=1.6,
@@ -663,8 +652,6 @@ def plot_reduction_ladder(hopf4, hopf3, hopf2, out_path, run_id, I_ext=1.0):
     ax.spines["top"].set_visible(False)
     ax.spines["right"].set_visible(False)
     ax.legend(fontsize=theme.SIZE_LEGEND, frameon=False, loc="upper right")
-    ax.set_title(f"Eliminating variables: 2D loses the rhythm, 3D keeps it "
-                 f"($I_\\text{{ext}}$ = {I_ext:g} nA)", fontsize=theme.SIZE_TITLE)
     fig.tight_layout()
     stamp_figure(fig, run_id)
     fig.savefig(out_path, dpi=150)
@@ -682,7 +669,6 @@ def fig_bifurcation_compound(results, hopf, sweep, mf, meas, out_path, run_id):
     B — the hysteresis sweep (supercritical, reversible onset).
     C — gamma frequency vs τ_GABA, calibrated mean-field vs exp041 spiking."""
     theme.apply()
-    plt.rcParams["savefig.bbox"] = "standard"  # keep the saved 16:9 exact
     from matplotlib.gridspec import GridSpec
 
     # Wide 3:1 strip — a 1×3 panel row reads better near-square per panel than
@@ -778,20 +764,20 @@ def main() -> None:
               f"width {criticality['hyst_width_nA']} nA; "
               f"A² slope {criticality['A2_slope']:.3e}, "
               f"R²={criticality['A2_r2']:.3f})")
-        plot_hysteresis(criticality, hopf, FIGURES / "hysteresis.png", run_id)
-        print(f"  wrote {FIGURES / 'hysteresis.png'}")
+        plot_hysteresis(criticality, hopf, FIGURES / "hysteresis.svg", run_id)
+        print(f"  wrote {FIGURES / 'hysteresis.svg'}")
 
         plot_eigenvalues_complex(
-            results, hopf, FIGURES / "eigenvalues_complex.png", run_id)
-        print(f"  wrote {FIGURES / 'eigenvalues_complex.png'}")
+            results, hopf, FIGURES / "eigenvalues_complex.svg", run_id)
+        print(f"  wrote {FIGURES / 'eigenvalues_complex.svg'}")
         twod = compute_2d_vs_4d(hopf)
-        limitcyc = plot_limit_cycle(hopf, FIGURES / "limit_cycle.png", run_id)
-        print(f"  wrote {FIGURES / 'limit_cycle.png'}")
+        limitcyc = plot_limit_cycle(hopf, FIGURES / "limit_cycle.svg", run_id)
+        print(f"  wrote {FIGURES / 'limit_cycle.svg'}")
 
-        plot_timeseries(hopf, FIGURES / "timeseries.png", run_id)
-        print(f"  wrote {FIGURES / 'timeseries.png'}")
-        plot_phase_planes(hopf, FIGURES / "phase_planes.png", run_id)
-        print(f"  wrote {FIGURES / 'phase_planes.png'}")
+        plot_timeseries(hopf, FIGURES / "timeseries.svg", run_id)
+        print(f"  wrote {FIGURES / 'timeseries.svg'}")
+        plot_phase_planes(hopf, FIGURES / "phase_planes.svg", run_id)
+        print(f"  wrote {FIGURES / 'phase_planes.svg'}")
 
     # Dimensional reductions: how low can the model go? Test all six choices
     # of which variable pair to keep (eliminate the other two by QSS) plus the
@@ -816,8 +802,8 @@ def main() -> None:
              if hopf3 else "no Hopf"))
     if hopf:
         plot_reduction_ladder(hopf, hopf3, two_d["keep_ge_gi (QSS rates)"],
-                              FIGURES / "reduction_ladder.png", run_id)
-        print(f"  wrote {FIGURES / 'reduction_ladder.png'}")
+                              FIGURES / "reduction_ladder.svg", run_id)
+        print(f"  wrote {FIGURES / 'reduction_ladder.svg'}")
 
     print(f"[{SLUG}] frequency vs tau_GABA (calibrated vs exp041 spiking)")
     mf_freq = frequency_vs_tau_gaba([4.5, 6.0, 9.0, 12.0, 18.0, 27.0], I_grid)
@@ -829,15 +815,15 @@ def main() -> None:
               + (f"{f:.2f} Hz" if f else "—")
               + (f"  spiking f_gamma={m:.2f} Hz" if m else ""))
     plot_frequency_vs_tau_gaba(
-        mf_freq, meas_fgamma, FIGURES / "freq_vs_tau_gaba.png", run_id)
-    print(f"  wrote {FIGURES / 'freq_vs_tau_gaba.png'}")
+        mf_freq, meas_fgamma, FIGURES / "freq_vs_tau_gaba.svg", run_id)
+    print(f"  wrote {FIGURES / 'freq_vs_tau_gaba.svg'}")
 
     # Claim-3 anchor compound: Hopf crossing + hysteresis + frequency.
     if hopf and criticality:
         fig_bifurcation_compound(
             results, hopf, criticality, mf_freq, meas_fgamma,
-            FIGURES / "bifurcation_compound.png", run_id)
-        print(f"  wrote {FIGURES / 'bifurcation_compound.png'}")
+            FIGURES / "bifurcation_compound.svg", run_id)
+        print(f"  wrote {FIGURES / 'bifurcation_compound.svg'}")
 
     summary = {
         "slug": SLUG,

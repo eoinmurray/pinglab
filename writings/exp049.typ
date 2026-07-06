@@ -5,7 +5,7 @@
   date: "2026-06-09",
   description: "Unfreeze the recurrent inhibitory weights and Adam does not rediscover PING — it prunes the loop to a dense-E, silent-I COBA network from every initialisation.",
   collection: "gamma-gated-sparsity",
-  status: "revising",
+  status: "draft",
 )
 
 

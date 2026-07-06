@@ -1,0 +1,16 @@
+{
+  "slug": "exp042",
+  "run_id": "r001",
+  "run_at": "2026-07-06T18:43:02+00:00",
+  "git_sha": "7e1dbda",
+  "dirty": true,
+  "code_dirty": false,
+  "patch": null,
+  "host": "local",
+  "scale": {
+    "dataset": "mnist",
+    "seeds": 3,
+    "cells": 3,
+    "grid": "jitter \u03c3 \u00d710, cell-jitter \u03c3 \u00d79, \u03b1\u00d7k = 5\u00d75, xtau \u03c4\u00d7\u03c3 = 6\u00d710"
+  }
+}

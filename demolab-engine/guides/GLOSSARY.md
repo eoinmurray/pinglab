@@ -20,7 +20,7 @@ RULES' `§N.M`) and listed alphabetically. Section references like `§4.3` point
 
 **G8 — Contract.** The file-based interface between a tool and an experiment: a tool writes a fixed set of files (§4.3), a runner reads them by running the tool's CLI (§4.5). It's language-neutral (§1.4).
 
-**G9 — Deck.** A `writings/<id>.slide.typ` Touying slide deck. Paged-only, so it's compiled to a standalone PDF and grouped under the `slides` collection — listed, but not rendered as an HTML page and not an **entry** (G11).
+**G9 — Deck.** A `writings/<id>.slide.typ` Touying slide deck. Paged-only, so it's compiled to a standalone PDF and grouped under the `slides` collection — listed, but not rendered as an HTML page and not an **entry** (G11). Authoring guide: [`SLIDES.md`](SLIDES.md).
 
 **G10 — Engine.** `demolab-engine/build/`: the Typst publishing code (`main.typ`, `lib.typ`, `build.py`, `style.css`, `favicon.svg`). The heart of the black box (G3).
 

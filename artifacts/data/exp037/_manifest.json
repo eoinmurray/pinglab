@@ -1,0 +1,21 @@
+{
+  "slug": "exp037",
+  "run_id": "r001",
+  "run_at": "2026-07-06T18:43:10+00:00",
+  "git_sha": "7e1dbda",
+  "dirty": true,
+  "code_dirty": false,
+  "patch": null,
+  "host": "local",
+  "scale": {
+    "dataset": "mnist",
+    "max_samples": 500,
+    "epochs": 30,
+    "t_ms": 200.0,
+    "dt_ms": 0.1,
+    "batch_size": 256,
+    "seeds": 3,
+    "cells": 12,
+    "grid": "2 models \u00d7 6 \u03b8_u values"
+  }
+}

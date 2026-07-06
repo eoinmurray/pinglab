@@ -5,7 +5,7 @@
   date: "2026-06-09",
   description: "One COBANet runs as gamma PING or the Vreeswijk-Sompolinsky asynchronous-irregular state; the single control is the cross-cell correlation of the input.",
   collection: "miscellaneous",
-  status: "revising",
+  status: "draft",
 )
 
 

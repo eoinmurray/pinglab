@@ -1,16 +1,15 @@
-"""Notebook runner for entry 024 — 100-epoch convergence audit.
+"""Notebook runner for entry 024 — convergence audit.
 
-Trains PING and COBA-no-loop networks at medium-tier sample count but
-for 100 epochs (vs exp025's 30). The convergence diagnostics in
-exp041/exp044 showed test accuracy plateaus within ~ 10–15 epochs
-while E rate keeps drifting upward past epoch 30. This entry asks
-whether both metrics stabilise with enough training, and — when the
-rate does not — surfaces enough mechanism plots to diagnose *why*.
+Reads the shared theta_u = off baselines (coba and ping, three seeds each)
+from the exp022 training hub and plots their per-epoch history; it does not
+train (train-once / reuse-many). Those cells run 50 epochs. The convergence
+diagnostics in exp041/exp044 showed test accuracy plateaus within 10-15 epochs
+while the E rate keeps drifting upward, and this entry asks whether both metrics
+stabilise, surfacing the mechanism plots that diagnose why when the rate does not.
 
-Six cells: {coba, ping} × seed {42, 43, 44}. Same baseline recipe as
-exp025 except epochs = 100. Per-epoch trainable-parameter Frobenius
-norms are captured via the `weight_norms` field added to train.py for
-this audit.
+Six cells: {coba, ping} x seed {42, 43, 44}, read from exp022. Per-epoch
+trainable-parameter Frobenius norms come from the `weight_norms` field that
+train.py records for every cell.
 
 Writing: writings/exp024.typ · figures + numbers.json: artifacts/data/exp024/
 """
@@ -43,8 +42,9 @@ SNN_TOOL = REPO / "tools" / "snn" / "tool.py"
 T_MS = 200.0
 DT_TRAIN = 0.1
 
-# Hardcoded recipe value — this is the point of the entry.
-EPOCHS: int = 100
+# The exp022 theta_u = off baselines this entry reads run 50 epochs; mirror that
+# horizon here so the reported Methods scale matches the cells actually plotted.
+EPOCHS: int = 50
 
 SEEDS: tuple[int, ...] = (42, 43, 44)
 
@@ -696,7 +696,9 @@ def plot_model_curves(model: str, out_path: Path, run_id: str) -> None:
     plt.rcParams["savefig.bbox"] = "standard"
     cells = {k: v for k, v in _gather_cells().items() if k[0] == model}
     color = MODEL_COLORS[model]
-    fig, (axL, axA, axR) = plt.subplots(1, 3, figsize=(13.5, 4.5), dpi=150)
+    # Column-width three-panel row (H11): built at the ~6.9 in column so the fonts
+    # and line weights match the rest of the collection, not 2x-shrunk on display.
+    fig, (axL, axA, axR) = plt.subplots(1, 3, figsize=(6.9, 2.5), dpi=150)
     for (_, seed), met in sorted(cells.items()):
         eps = np.array([e["ep"] for e in met["epochs"]])
         axL.plot(eps, [e.get("loss", 0) for e in met["epochs"]],
@@ -728,8 +730,6 @@ def plot_model_curves(model: str, out_path: Path, run_id: str) -> None:
         ax.set_xlabel("epoch")
         for sp in ("top", "right"):
             ax.spines[sp].set_visible(False)
-    fig.suptitle(f"{model.upper()} — loss, accuracy, firing rate vs epoch",
-                 fontsize=theme.SIZE_TITLE)
     fig.tight_layout()
     stamp_figure(fig, run_id)
     out_path.parent.mkdir(parents=True, exist_ok=True)
@@ -759,12 +759,13 @@ def plot_confidence_inflation(out_path: Path, run_id: str) -> None:
     firing rate. Three panels vs epoch (3 seeds each, COBA red / PING black):
     test accuracy, test cross-entropy, E firing rate. Dotted verticals mark
     each model's accuracy-convergence epoch; CE and rate keep moving to its
-    right. (Direct per-epoch logit margin/confidence arrives once the cells
-    are retrained with the new train.py logging.)"""
+    right. (Per-epoch logit margin/confidence are already recorded in each
+    cell's metrics and can be plotted directly.)"""
     theme.apply()
     plt.rcParams["savefig.bbox"] = "standard"
     cells = _gather_cells()
-    fig, (axA, axL, axR) = plt.subplots(1, 3, figsize=(13.5, 4.5), dpi=150)
+    # Column-width three-panel row (H11), matching plot_model_curves and siblings.
+    fig, (axA, axL, axR) = plt.subplots(1, 3, figsize=(6.9, 2.5), dpi=150)
 
     conv_ep: dict[str, float] = {}
     for model in MODELS:
@@ -806,11 +807,6 @@ def plot_confidence_inflation(out_path: Path, run_id: str) -> None:
         ax.set_xlabel("epoch")
         for sp in ("top", "right"):
             ax.spines[sp].set_visible(False)
-    fig.suptitle(
-        "Accuracy converges (dotted line); cross-entropy and rate do not — "
-        "the loss keeps buying confidence with spikes",
-        fontsize=theme.SIZE_TITLE,
-    )
     fig.tight_layout()
     stamp_figure(fig, run_id)
     out_path.parent.mkdir(parents=True, exist_ok=True)
@@ -846,14 +842,14 @@ def main() -> None:
     # standard train command for every cell.
 
     # Two figures, one per model, read straight from the shared cells'
-    # per-epoch training history (no inference needed).
-    plot_model_curves("coba", FIGURES / "coba_curves.png", notebook_run_id)
-    print(f"wrote {FIGURES / 'coba_curves.png'}")
-    plot_model_curves("ping", FIGURES / "ping_curves.png", notebook_run_id)
-    print(f"wrote {FIGURES / 'ping_curves.png'}")
+    # per-epoch training history (no inference needed). Line plots → SVG (H10).
+    plot_model_curves("coba", FIGURES / "coba_curves.svg", notebook_run_id)
+    print(f"wrote {FIGURES / 'coba_curves.svg'}")
+    plot_model_curves("ping", FIGURES / "ping_curves.svg", notebook_run_id)
+    print(f"wrote {FIGURES / 'ping_curves.svg'}")
     plot_confidence_inflation(
-        FIGURES / "confidence_inflation.png", notebook_run_id)
-    print(f"wrote {FIGURES / 'confidence_inflation.png'}")
+        FIGURES / "confidence_inflation.svg", notebook_run_id)
+    print(f"wrote {FIGURES / 'confidence_inflation.svg'}")
 
     finals = {}
     for (model, seed), met in _gather_cells().items():

@@ -184,7 +184,7 @@ def apply() -> None:
         "image.cmap": "pinglab_brand",
 
         "savefig.facecolor": PAPER,
-        "savefig.dpi": 150,
+        "savefig.dpi": 240,       # H11: ≥200 floor for crisp retina + print
         "savefig.bbox": "tight",
     })
 
