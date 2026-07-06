@@ -52,10 +52,14 @@ def compute_metrics(spk_e, spk_i, dt, model_name="ping", n_e=1024, n_i=256):
         "cv": pop_cv,
         "act": active_frac,
         "contrast": float(contrast) if contrast is not None else 0.0,
-        # Gamma frequency (Hz) from the autocorrelogram lobe lag, plus the raw
-        # rhythmicity scalars so nothing is lost. f0_hz is None when no rhythm
-        # is resolved (e.g. asynchronous COBA), not 0 — absence ≠ 0 Hz.
-        "f0_hz": (1000.0 / lobe_lag) if lobe_lag else None,
+        # f0_hz DISABLED (2026-07-06): the `1000/lobe_lag` autocorrelogram
+        # heuristic is unreliable — across the exp022 gold-star run it returned a
+        # constant ≈1000 Hz (lobe_lag≈1 ms) for 84/87 cells, i.e. the first
+        # autocorr lobe is a sub-cycle feature, not the gamma period. Emitting a
+        # fake frequency is worse than none. The raw rhythmicity scalars below
+        # are kept (nothing lost); the true f_γ is measured by the dedicated
+        # spectral analysis over pop_traces, not here.
+        "f0_hz": None,
         "lobe_lag_ms": _f(lobe_lag),
         "trough_lag_ms": _f(rhy.get("trough_lag")),
         "iei_mode_lag_ms": _f(rhy.get("iei_mode_lag")),

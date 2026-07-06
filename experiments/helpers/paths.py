@@ -15,7 +15,9 @@ from __future__ import annotations
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[2]
-ARTIFACTS_ROOT = REPO / "temp" / "notebooks"
+# Per-experiment scratch lives under temp/experiments/<slug> ("notebooks" is the
+# deprecated name for this root — everything is an experiment now).
+ARTIFACTS_ROOT = REPO / "temp" / "experiments"
 FIGURES_ROOT = REPO / "artifacts" / "data"
 
 

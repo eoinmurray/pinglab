@@ -6,7 +6,6 @@
   status: "revising",
 )
 
-#let run = json("/artifacts/data/exp041/numbers.json")
 
 #let body = [
   The trained networks this entry uses are produced once in the shared training
@@ -68,7 +67,7 @@
   == Results
 
   #figure(
-    image("/artifacts/data/exp041/training_curves.svg", width: 100%),
+    block(width: 100%, height: 4cm, inset: 1em, stroke: 0.5pt + gray, radius: 3pt, fill: luma(245))[#text(fill: gray)[pending re-run with new canonical data]],
     caption: [
       Per-cell accuracy (top) and E rate (bottom) over training. Accuracy plateaus
       by epoch 15; the E rate keeps climbing until epoch 70–100, so the 100-epoch
@@ -77,7 +76,7 @@
   )
 
   #figure(
-    image("/artifacts/data/exp041/psds.svg", width: 100%),
+    block(width: 100%, height: 4cm, inset: 1em, stroke: 0.5pt + gray, radius: 3pt, fill: luma(245))[#text(fill: gray)[pending re-run with new canonical data]],
     caption: [
       Trial-mean Welch PSDs by $tau_"GABA"$; dots mark the parabolic-interpolated
       peak. The peak shifts cleanly from ≈ 14 Hz at $tau_"GABA" = 27$ ms to ≈ 54 Hz
@@ -86,7 +85,7 @@
   )
 
   #figure(
-    image("/artifacts/data/exp041/raster_strip.png", width: 100%),
+    block(width: 100%, height: 4cm, inset: 1em, stroke: 0.5pt + gray, radius: 3pt, fill: luma(245))[#text(fill: gray)[pending re-run with new canonical data]],
     caption: [
       One MNIST trial through each network. The cycle period stretches from ≈ 17 ms
       ($r_E = 14.5$ Hz) to ≈ 63 ms ($r_E = 4.6$ Hz) — the eye and the spectrum
@@ -95,7 +94,7 @@
   )
 
   #figure(
-    image("/artifacts/data/exp041/rate_vs_fgamma.svg", width: 100%),
+    block(width: 100%, height: 4cm, inset: 1em, stroke: 0.5pt + gray, radius: 3pt, fill: luma(245))[#text(fill: gray)[pending re-run with new canonical data]],
     caption: [
       The law itself. Top: mean post-training E rate vs $f_gamma$, six clusters ×
       three seeds, error bars from seed variance — the affine fit passes through

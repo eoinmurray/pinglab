@@ -8,7 +8,6 @@
   status: "final",
 )
 
-#let run = json("/artifacts/data/exp064/numbers.json")
 
 #let body = [
   == Introduction
@@ -35,12 +34,12 @@
   == Results
 
   #figure(
-    image("/artifacts/data/exp064/accuracy_vs_dampen.svg", width: 100%),
+    block(width: 100%, height: 4cm, inset: 1em, stroke: 0.5pt + gray, radius: 3pt, fill: luma(245))[#text(fill: gray)[pending re-run with new canonical data]],
     caption: [Best accuracy across the dampening ladder. COBA is flat — it trains at $d = 1$ as well as at $d = 1000$. PING climbs from chance, needing dampening to train.],
   )
 
   #figure(
-    image("/artifacts/data/exp064/gradnorm_vs_dampen.svg", width: 100%),
+    block(width: 100%, height: 4cm, inset: 1em, stroke: 0.5pt + gray, radius: 3pt, fill: luma(245))[#text(fill: gray)[pending re-run with new canonical data]],
     caption: [The mechanism: at low dampening PING's gradient norm blows up through the E→I→E loop, while COBA's stays bounded — which is why only PING's accuracy collapses.],
   )
 

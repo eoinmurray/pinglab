@@ -6,7 +6,6 @@
   status: "revising",
 )
 
-#let run = json("/artifacts/data/exp036/numbers.json")
 
 #let body = [
   The trained networks this entry uses are produced once in the shared training
@@ -67,7 +66,7 @@
   == Results
 
   #figure(
-    image("/artifacts/data/exp036/coupling_sweep.png", width: 100%),
+    block(width: 100%, height: 4cm, inset: 1em, stroke: 0.5pt + gray, radius: 3pt, fill: luma(245))[#text(fill: gray)[pending re-run with new canonical data]],
     caption: [
       Inference-time $W_"in"$ scale sweep on trained PING ($theta_u =$ off) with
       either $W^(E I)$ or $W^(I E)$ scaled. Top: accuracy. Bottom: I rate. Left:
@@ -76,7 +75,7 @@
   )
 
   #figure(
-    image("/artifacts/data/exp036/wei_wie_acc_vs_e.png", width: 100%),
+    block(width: 100%, height: 4cm, inset: 1em, stroke: 0.5pt + gray, radius: 3pt, fill: luma(245))[#text(fill: gray)[pending re-run with new canonical data]],
     caption: [
       Each dot is one cell of the 5×5 $(W^(E I), W^(I E))$ training grid, plotted at
       its best-epoch test accuracy vs final hidden-E rate. Colour encodes the third
@@ -86,7 +85,7 @@
   )
 
   #figure(
-    image("/artifacts/data/exp036/wei_diagonal.png", width: 100%),
+    block(width: 100%, height: 4cm, inset: 1em, stroke: 0.5pt + gray, radius: 3pt, fill: luma(245))[#text(fill: gray)[pending re-run with new canonical data]],
     caption: [
       $W^(E I)$ scanned over ${0, 0.1, 0.25, 0.4, 0.5, 0.6, 0.75, 1.0, 1.5, 2.0}$
       with $W^(I E) = 2 W^(E I)$. Error bars are mean ± std of the best-epoch test

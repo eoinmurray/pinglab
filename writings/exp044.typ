@@ -6,7 +6,6 @@
   status: "revising",
 )
 
-#let run = json("/artifacts/data/exp044/numbers.json")
 
 #let body = [
   The trained networks this entry uses are produced once in the shared training
@@ -47,7 +46,7 @@
   == Results
 
   #figure(
-    image("/artifacts/data/exp044/dt_sweep.svg", width: 100%),
+    block(width: 100%, height: 4cm, inset: 1em, stroke: 0.5pt + gray, radius: 3pt, fill: luma(245))[#text(fill: gray)[pending re-run with new canonical data]],
     caption: [
       Hidden E rate (black) and test accuracy (red) as Δt varies 20× on a log
       scale. Error bars from three seeds.
@@ -55,7 +54,7 @@
   )
 
   #figure(
-    image("/artifacts/data/exp044/raster_strip.pdf", width: 100%),
+    block(width: 100%, height: 4cm, inset: 1em, stroke: 0.5pt + gray, radius: 3pt, fill: luma(245))[#text(fill: gray)[pending re-run with new canonical data]],
     caption: [
       Single-trial rasters at each Δt, x-axis in _physical_ ms (not steps). All five
       panels show E and I bursts at the same gamma cadence (≈ 30 ms cycle). The
@@ -64,7 +63,7 @@
   )
 
   #figure(
-    image("/artifacts/data/exp044/training_curves.svg", width: 100%),
+    block(width: 100%, height: 4cm, inset: 1em, stroke: 0.5pt + gray, radius: 3pt, fill: luma(245))[#text(fill: gray)[pending re-run with new canonical data]],
     caption: [
       Top: test accuracy converges by epoch ≈ 10–15 across all Δt. Bottom: test E
       rate has _not_ converged in 30 epochs — every curve is still rising. The

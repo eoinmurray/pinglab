@@ -6,7 +6,6 @@
   status: "revising",
 )
 
-#let run = json("/artifacts/data/exp033/numbers.json")
 
 #let body = [
   == Abstract
@@ -300,7 +299,7 @@
   == Results
 
   #figure(
-    image("/artifacts/data/exp033/bifurcation_compound.png", width: 100%),
+    block(width: 100%, height: 4cm, inset: 1em, stroke: 0.5pt + gray, radius: 3pt, fill: luma(245))[#text(fill: gray)[pending re-run with new canonical data]],
     caption: [
       Summary of the analysis; the detailed panels follow. *A* — the Hopf: one
       eigenvalue pair crosses into the right half-plane at $I^* = 0.59$ nA, fixing a
@@ -327,7 +326,7 @@
   network's gamma qualitatively, not quantitatively (Figure 3).
 
   #figure(
-    image("/artifacts/data/exp033/eigenvalues_complex.png", width: 100%),
+    block(width: 100%, height: 4cm, inset: 1em, stroke: 0.5pt + gray, radius: 3pt, fill: luma(245))[#text(fill: gray)[pending re-run with new canonical data]],
     caption: [
       *How to read it.* Each dot is one eigenvalue $lambda$ of the Jacobian (28). Its
       horizontal position is the growth rate $"Re" lambda$ — negative means that mode
@@ -348,7 +347,7 @@
   )
 
   #figure(
-    image("/artifacts/data/exp033/freq_vs_tau_gaba.png", width: 100%),
+    block(width: 100%, height: 4cm, inset: 1em, stroke: 0.5pt + gray, radius: 3pt, fill: luma(245))[#text(fill: gray)[pending re-run with new canonical data]],
     caption: [
       Both fall monotonically with $tau_"GABA"$ — the inhibitory decay is the clock in
       both. The match is qualitative, not quantitative: the calibrated mean-field is
@@ -372,7 +371,7 @@
   narrow band of drive above $I_"ext"^*$.
 
   #figure(
-    image("/artifacts/data/exp033/hysteresis.png", width: 100%),
+    block(width: 100%, height: 4cm, inset: 1em, stroke: 0.5pt + gray, radius: 3pt, fill: luma(245))[#text(fill: gray)[pending re-run with new canonical data]],
     caption: [
       Quasi-static up/down ramp of the drive across $I_"ext"^*$. The rising branch
       (black, drive increasing) and falling branch (red, drive decreasing) coincide:
@@ -386,7 +385,7 @@
   Above onset, E leads I by ≈ 5 ms — the loop delay the 2D reduction omits.
 
   #figure(
-    image("/artifacts/data/exp033/limit_cycle.png", width: 100%),
+    block(width: 100%, height: 4cm, inset: 1em, stroke: 0.5pt + gray, radius: 3pt, fill: luma(245))[#text(fill: gray)[pending re-run with new canonical data]],
     caption: [
       $E$ (black) and $I$ (red) over the limit cycle at
       $I_"ext" = I^* + 0.4$ nA. The E burst leads the I burst by ≈ 5 ms: E recruits I,
@@ -509,7 +508,7 @@
     original variables.
 
   #figure(
-    image("/artifacts/data/exp033/timeseries.png", width: 100%),
+    block(width: 100%, height: 4cm, inset: 1em, stroke: 0.5pt + gray, radius: 3pt, fill: luma(245))[#text(fill: gray)[pending re-run with new canonical data]],
     caption: [
       The four state variables over the limit cycle ($I_"ext" = I^* + 0.4$ nA), in
       loop order $E -> g_e^I -> I -> g_i^E$. Each peaks after the one above it:
@@ -520,7 +519,7 @@
   )
 
   #figure(
-    image("/artifacts/data/exp033/phase_planes.png", width: 100%),
+    block(width: 100%, height: 4cm, inset: 1em, stroke: 0.5pt + gray, radius: 3pt, fill: luma(245))[#text(fill: gray)[pending re-run with new canonical data]],
     caption: [
       The 4D limit cycle ($I_"ext" = I^* + 0.4$ nA) projected onto all six variable
       pairs. Every projection is one closed loop — the trajectory lives on a 2D centre
@@ -532,7 +531,7 @@
   )
 
   #figure(
-    image("/artifacts/data/exp033/reduction_ladder.png", width: 100%),
+    block(width: 100%, height: 4cm, inset: 1em, stroke: 0.5pt + gray, radius: 3pt, fill: luma(245))[#text(fill: gray)[pending re-run with new canonical data]],
     caption: [
       The reductions tested by simulation: $g_i^E$ after a small kick at a common drive
       ($I_"ext" = 1$ nA, above every threshold). The 4D model (black, $f^* = 24$ Hz)

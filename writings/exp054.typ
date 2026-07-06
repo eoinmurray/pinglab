@@ -8,7 +8,6 @@
   status: "final",
 )
 
-#let run = json("/artifacts/data/exp054/numbers.json")
 
 #let body = [
   == Abstract
@@ -39,27 +38,27 @@
   == Results
 
   #figure(
-    image("/artifacts/data/exp054/turnon_maps_compound.png", width: 100%),
+    block(width: 100%, height: 4cm, inset: 1em, stroke: 0.5pt + gray, radius: 3pt, fill: luma(245))[#text(fill: gray)[pending re-run with new canonical data]],
     caption: [The anchor result: gamma switches on smoothly across the recurrent-weight plane, read as scalar maps over the $W_(E I) times W_(I E)$ grid (untrained networks, private per-cell Poisson input) with example rasters beneath. *Top* — three per-cell summaries, every cell labelled. *E rate* is high along both zero edges (the loop is broken, E fires at the input-driven ≈95 Hz) and gated down through the interior; *I rate* is silent where $W_(E I) = 0$, runs away along $W_(I E) = 0$ (clipped so the interior is legible), and is controlled once the loop closes; *lobe–trough contrast* (the rhythm scored 0–1) reads exactly 0 along both COBA edges and rises smoothly toward strong coupling, with three points marked along the $W_(I E) = 2 W_(E I)$ diagonal. *Bottom* — E/I rasters (E black, I red above) at those points: *A* the fully-off origin ($W_(E I) = W_(I E) = 0$), asynchronous with no I; *B* weak coupling, emerging volleys (contrast 0.27, below the half-way mark); *C* strong coupling, sharp volleys (contrast 0.98). E rate falling, I rate rising, and contrast rising are three readings of the same loop engaging. The full per-cell detail — every raster and autocorrelogram — is in the figures below; the rate-fairness behind the contrast metric is in Figures 4–5.],
   )
 
   #figure(
-    image("/artifacts/data/exp054/grid_rasters.png", width: 100%),
+    block(width: 100%, height: 4cm, inset: 1em, stroke: 0.5pt + gray, radius: 3pt, fill: luma(245))[#text(fill: gray)[pending re-run with new canonical data]],
     caption: [E/I rasters for a 6×6 subset of the grid (every other cell; the heatmaps below use all 121). The two zero edges are the controls: $W_(E I) = 0$ (left column) leaves I silent and E asynchronous; $W_(I E) = 0$ (bottom row) lets I fire but not inhibit E, so both stay dense — neither is rhythmic. The interior shows clear gamma volleys (E black, I red) that sharpen as either weight grows — the rhythm the contrast (Figure 1) scores.],
   )
 
   #figure(
-    image("/artifacts/data/exp054/grid_autocorr.png", width: 100%),
+    block(width: 100%, height: 4cm, inset: 1em, stroke: 0.5pt + gray, radius: 3pt, fill: luma(245))[#text(fill: gray)[pending re-run with new canonical data]],
     caption: [The E-population autocorrelogram $A(ell)$ for a 6×6 subset of the grid (lag 0–50 ms; dotted line = chance, $A = 1$), with the located lobe (▲) and trough (▼) marked. The two zero edges are flat at 1 — asynchronous firing, no structure. Through the interior the Mexican hat emerges: a sharp central lobe at ≈1 ms over a trough near the half-period, with a secondary peak at the full period further out. The contrast in Figure 1 is exactly this lobe-versus-trough read off as one number.],
   )
 
   #figure(
-    image("/artifacts/data/exp054/rate_invariance.png", width: 100%),
+    block(width: 100%, height: 4cm, inset: 1em, stroke: 0.5pt + gray, radius: 3pt, fill: luma(245))[#text(fill: gray)[pending re-run with new canonical data]],
     caption: [The rate-invariance test that justifies the private-input choice. Each line is a *non-rhythmic null network* (no inhibitory loop, no rhythm at any drive) scanned over input rate; a rate-invariant metric should read ≈0 everywhere. With *private input* (black) it does — flat at ≤0.04 across all firing rates. With *shared input* (grey dashed) it instead *climbs to 1.00 as firing thins*: cells sharing input channels fire coincidentally, and the metric reads that as rhythm. The real PING cells (red) sit well above the private-input null, so their contrast is genuine — no correction needed.],
   )
 
   #figure(
-    image("/artifacts/data/exp054/null_autocorr.png", width: 100%),
+    block(width: 100%, height: 4cm, inset: 1em, stroke: 0.5pt + gray, radius: 3pt, fill: luma(245))[#text(fill: gray)[pending re-run with new canonical data]],
     caption: [Why shared input fails and private input does not, at matched low firing rates. *Top (shared input):* coincident spikes from shared channels leave a central peak over a shallow dip — a spurious hat with no inhibitory loop behind it — and the metric marks a lobe (▲) and trough (▼) and reports a non-zero contrast. *Bottom (private input):* the same firing rates, but with one channel per cell the central peak is gone; $A(ell)$ is flat shot-noise around chance and the contrast collapses to ≈0. Same rate, same spike counts — the only difference is whether cells share input.],
   )
 
@@ -68,7 +67,7 @@
   The turn-on above is _what_ the network does; the #link("/exp033/")[exp033] 4D conductance mean-field is _why_. This final section stacks the two into one manuscript figure — the empirical maps and example rasters directly over the mean-field bifurcation that predicts them. It recomputes the #link("/exp033/")[exp033] numerics (Hopf crossing, hysteresis sweep, gamma-vs-$tau_"GABA"$) and reuses this notebook's own map and raster rendering, so restyling Figure 1 propagates here automatically — no figures are copied. (This is the anchor that was formerly its own entry.)
 
   #figure(
-    image("/artifacts/data/exp054/onset_super_compound.png", width: 100%),
+    block(width: 100%, height: 4cm, inset: 1em, stroke: 0.5pt + gray, radius: 3pt, fill: luma(245))[#text(fill: gray)[pending re-run with new canonical data]],
     caption: [Panels are lettered *A–I* in reading order. *Top (empirics, A–C).* Across the $W_(E I) times W_(I E)$ plane the E rate falls (*A*), the I rate rises (*B*), and the lobe–trough contrast rises (*C*) — three readings of one loop engaging, 0 along both COBA edges and smoothly up toward strong coupling. The contrast map circles three points along the $W_(I E) = 2 W_(E I)$ diagonal, shown as rasters *D/E/F*: the fully-off origin (*D*), emerging volleys (*E*), and sharp gamma volleys (*F*). *Bottom (theory, G–I, #link("/exp033/")[exp033]).* The same onset from a 4D conductance mean-field calibrated from the biophysics: a complex-conjugate eigenvalue pair crosses into the right half-plane at $I^* = 0.60$ nA (a Hopf, *G*), the amplitude rises continuously with coinciding up/down branches (supercritical and reversible, not a hard switch, *H*), and the predicted gamma frequency falls with $tau_"GABA"$ in step with the #link("/exp041/")[exp041] spiking measurement (*I*). The smooth empirical turn-on is exactly what a supercritical Hopf predicts.],
   )
 ]

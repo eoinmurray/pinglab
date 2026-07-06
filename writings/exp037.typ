@@ -6,7 +6,6 @@
   status: "revising",
 )
 
-#let run = json("/artifacts/data/exp037/numbers.json")
 
 #let body = [
   The trained networks this entry uses are produced once in the shared training
@@ -92,7 +91,7 @@
   == Results
 
   #figure(
-    image("/artifacts/data/exp037/perturbation_curves.svg", width: 100%),
+    block(width: 100%, height: 4cm, inset: 1em, stroke: 0.5pt + gray, radius: 3pt, fill: luma(245))[#text(fill: gray)[pending re-run with new canonical data]],
     caption: [
       *Left (drop)*: Bernoulli mask, % of emitted spikes dropped. *Right (add)*:
       Poisson injection per population (each scaled by its own baseline, so the
@@ -103,7 +102,7 @@
   )
 
   #figure(
-    image("/artifacts/data/exp037/perturb_rasters__drop__ping.png", width: 100%),
+    block(width: 100%, height: 4cm, inset: 1em, stroke: 0.5pt + gray, radius: 3pt, fill: luma(245))[#text(fill: gray)[pending re-run with new canonical data]],
     caption: [
       Trained PING replayed on the same MNIST digit 0 trial across the six drop
       levels of Figure 1's left panel (0, 30, 60, 80, 90, 100%); E (black) above I
@@ -113,7 +112,7 @@
   )
 
   #figure(
-    image("/artifacts/data/exp037/perturb_rasters__add__ping.png", width: 100%),
+    block(width: 100%, height: 4cm, inset: 1em, stroke: 0.5pt + gray, radius: 3pt, fill: luma(245))[#text(fill: gray)[pending re-run with new canonical data]],
     caption: [
       Trained PING replayed across the six pct-of-baseline add levels of Figure 1's
       right panel (0, 5, 15, 25, 40, 80%). The cycle visibly dissolves across
@@ -122,7 +121,7 @@
   )
 
   #figure(
-    image("/artifacts/data/exp037/perturb_rasters__drop__coba.png", width: 100%),
+    block(width: 100%, height: 4cm, inset: 1em, stroke: 0.5pt + gray, radius: 3pt, fill: luma(245))[#text(fill: gray)[pending re-run with new canonical data]],
     caption: [
       Trained COBA replayed across the same drop sweep as Figure 2. With no cycle to
       preserve, dropping spikes just thins a uniform asynchronous mean.
@@ -130,7 +129,7 @@
   )
 
   #figure(
-    image("/artifacts/data/exp037/perturb_rasters__add__coba.png", width: 100%),
+    block(width: 100%, height: 4cm, inset: 1em, stroke: 0.5pt + gray, radius: 3pt, fill: luma(245))[#text(fill: gray)[pending re-run with new canonical data]],
     caption: [
       Trained COBA replayed across the same pct-of-baseline add sweep as Figure 3.
       Added spikes blend into COBA's asynchronous mean — no temporal structure to

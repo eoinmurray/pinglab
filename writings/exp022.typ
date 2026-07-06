@@ -107,46 +107,206 @@
 
   === 1. Canonical reference (θ_u off, all MNIST)
 
-  coba and ping at θ_u = off, all 70k images, seeds 42/43/44 (6 cells) — the full-data baseline. — *not trained yet*
+  coba and ping at θ_u = off, all 70k images, seeds 42/43/44 (6 cells) — the full-data baseline. Unconstrained, the two architectures are essentially tied: coba reaches ≈ 95.5 % and ping ≈ 94.0 %, with near-zero across-seed spread. This is the reference point from which the spike-budget sweep pulls them apart.
 
   #figure(
-    block(width: 100%, height: 4cm, inset: 1em, stroke: 0.5pt + gray, radius: 3pt, fill: luma(245))[#text(fill: gray)[Figure 1 — canonical reference training curves · not trained yet]],
-    caption: [Test accuracy over epochs, canonical full-MNIST cells. *Not trained yet* — new cells awaiting the canonical run.],
+    image("/artifacts/data/exp022/curves__canonical.png", width: 100%),
+    caption: [Test accuracy over epochs, canonical full-MNIST cells (coba dashed, ping solid; three seeds each). The two loops reach parity when no spike budget is imposed.],
   )
 
   === 2. θ_u spike-budget sweep
 
-  coba and ping across θ_u ∈ off, 5, 2, 1, 0.5, 0.2, three seeds each (36 cells) — so the accuracy–rate frontier carries error bars at every point. θ_u is the spike budget in spikes/trial. — *not trained yet*
+  coba and ping across θ_u ∈ off, 5, 2, 1, 0.5, 0.2, three seeds each (36 cells) — so the accuracy–rate frontier carries error bars at every point. θ_u is the spike budget in spikes/trial. This is the headline result: as the budget tightens, ping degrades gracefully (91.6 → 86.5 %) while coba collapses (90.7 → 60.1 %), a gap that widens monotonically from ≈ 0 to ≈ 26 points. ping's γ-rhythm gates sparsity; coba's bare feedforward code cannot pay the budget without shedding accuracy.
 
   #figure(
-    block(width: 100%, height: 4cm, inset: 1em, stroke: 0.5pt + gray, radius: 3pt, fill: luma(245))[#text(fill: gray)[Figure 2 — θ_u sweep training curves · not trained yet]],
-    caption: [Test accuracy over epochs across the θ_u sweep. Tighter budgets (smaller θ_u) plateau lower — the spike-economy trade-off.],
+    image("/artifacts/data/exp022/curves__theta_u.png", width: 100%),
+    caption: [Test accuracy over epochs across the θ_u sweep. Tighter budgets (smaller θ_u) plateau lower — the spike-economy trade-off — and coba falls far faster than ping.],
   )
 
   === 3. τ_GABA ladder
 
-  ping across τ_GABA ∈ 4.5, 6, 9, 12, 18, 27 ms, three seeds each (18 cells). — *not trained yet*
+  ping across τ_GABA ∈ 4.5, 6, 9, 12, 18, 27 ms, three seeds each (18 cells). Accuracy is largely insensitive to inhibitory decay (≈ 88–92 % across the ladder), but the *rhythm* is not: measured from the trained networks, the γ-frequency falls monotonically with τ_GABA (≈ 50 Hz at 4.5 ms → ≈ 19 Hz at 27 ms), sitting at ≈ 45 Hz at the canonical τ_GABA = 6 ms — matching the operating point (Appendix).
 
   #figure(
-    block(width: 100%, height: 4cm, inset: 1em, stroke: 0.5pt + gray, radius: 3pt, fill: luma(245))[#text(fill: gray)[Figure 3 — τ_GABA ladder training curves · not trained yet]],
+    image("/artifacts/data/exp022/curves__tau_gaba.png", width: 100%),
     caption: [Test accuracy over epochs across the τ_GABA ladder; cells converge to similar accuracy regardless of inhibitory decay.],
   )
 
   === 4. Δt sweep
 
-  ping across Δt ∈ 0.05, 0.1, 0.25, 0.5, 1.0 ms (physical T fixed), three seeds each (15 cells) — the documented timestep exception. — *not trained yet*
+  ping across Δt ∈ 0.05, 0.1, 0.25, 0.5, 1.0 ms (physical T fixed), three seeds each (15 cells) — the documented timestep exception. Accuracy is flat across the sweep (≈ 90.4–91.4 %): the integrator is robust to timestep from 0.1 to 1.0 ms, and the 0.05 ms cells (which need ≈ 31 GB and so ran on a 5090) agree.
 
   #figure(
-    block(width: 100%, height: 4cm, inset: 1em, stroke: 0.5pt + gray, radius: 3pt, fill: luma(245))[#text(fill: gray)[Figure 4 — Δt sweep training curves · not trained yet]],
-    caption: [Test accuracy over epochs across the integration-timestep sweep.],
+    image("/artifacts/data/exp022/curves__dt.png", width: 100%),
+    caption: [Test accuracy over epochs across the integration-timestep sweep; accuracy is insensitive to Δt over the tested range.],
   )
 
   === 5. Init variants
 
-  ping with four recurrent-loop inits — frozen PING, trainable from PING / zero / small seed — three seeds each (12 cells). — *not trained yet*
+  ping with four recurrent-loop inits — frozen PING, trainable from PING / zero / small seed — three seeds each (12 cells). All reach ≈ 89–91 %, but only the frozen-PING control keeps the true E/I regime (E ≈ 10 Hz, I ≈ 62 Hz): the trainable-loop cells drift toward a feedforward code (high E, low or zero I) — the zero-init cells never engage inhibition at all (I ≈ 0 Hz). Comparable accuracy, but the rhythm is not learned when it is not built in.
 
   #figure(
-    block(width: 100%, height: 4cm, inset: 1em, stroke: 0.5pt + gray, radius: 3pt, fill: luma(245))[#text(fill: gray)[Figure 5 — init variants training curves · not trained yet]],
+    image("/artifacts/data/exp022/curves__init.png", width: 100%),
     caption: [Test accuracy over epochs across the recurrent-loop inits; trainable-loop cells learn noisier curves than the frozen control.],
   )
+
+  == Appendix — per-config spike rasters (digit 0)
+
+  The same fixed MNIST image (digit 0, sample 0) sent through each trained network (seed 42 as the per-config representative), so every raster is directly comparable. E cells sit below the divider, I cells above; the lower panel is the 1 ms population rate. These are the visual counterpart to the firing-rate and rhythm numbers above — sparse γ-rhythmic PING versus dense asynchronous COBA, and how each regime deforms under the sweeps.
+
+  === A.1 Canonical reference
+
+  #figure(
+    image("/artifacts/data/exp022/rasters/coba__canonical__seed42.png", width: 100%),
+    caption: [COBA, canonical = off · all MNIST.],
+  )
+
+  #figure(
+    image("/artifacts/data/exp022/rasters/ping__canonical__seed42.png", width: 100%),
+    caption: [PING, canonical = off · all MNIST.],
+  )
+
+  === A.2 θ_u spike-budget sweep
+
+  #figure(
+    image("/artifacts/data/exp022/rasters/coba__off__seed42.png", width: 100%),
+    caption: [COBA, theta u = off.],
+  )
+
+  #figure(
+    image("/artifacts/data/exp022/rasters/coba__tu5__seed42.png", width: 100%),
+    caption: [COBA, theta u = 5.],
+  )
+
+  #figure(
+    image("/artifacts/data/exp022/rasters/coba__tu2__seed42.png", width: 100%),
+    caption: [COBA, theta u = 2.],
+  )
+
+  #figure(
+    image("/artifacts/data/exp022/rasters/coba__tu1__seed42.png", width: 100%),
+    caption: [COBA, theta u = 1.],
+  )
+
+  #figure(
+    image("/artifacts/data/exp022/rasters/coba__tu0p5__seed42.png", width: 100%),
+    caption: [COBA, theta u = 0.5.],
+  )
+
+  #figure(
+    image("/artifacts/data/exp022/rasters/coba__tu0p2__seed42.png", width: 100%),
+    caption: [COBA, theta u = 0.2.],
+  )
+
+  #figure(
+    image("/artifacts/data/exp022/rasters/ping__off__seed42.png", width: 100%),
+    caption: [PING, theta u = off.],
+  )
+
+  #figure(
+    image("/artifacts/data/exp022/rasters/ping__tu5__seed42.png", width: 100%),
+    caption: [PING, theta u = 5.],
+  )
+
+  #figure(
+    image("/artifacts/data/exp022/rasters/ping__tu2__seed42.png", width: 100%),
+    caption: [PING, theta u = 2.],
+  )
+
+  #figure(
+    image("/artifacts/data/exp022/rasters/ping__tu1__seed42.png", width: 100%),
+    caption: [PING, theta u = 1.],
+  )
+
+  #figure(
+    image("/artifacts/data/exp022/rasters/ping__tu0p5__seed42.png", width: 100%),
+    caption: [PING, theta u = 0.5.],
+  )
+
+  #figure(
+    image("/artifacts/data/exp022/rasters/ping__tu0p2__seed42.png", width: 100%),
+    caption: [PING, theta u = 0.2.],
+  )
+
+  === A.3 τ_GABA ladder
+
+  #figure(
+    image("/artifacts/data/exp022/rasters/ping__tg4p5__seed42.png", width: 100%),
+    caption: [PING, tau gaba = τ=4.5.],
+  )
+
+  #figure(
+    image("/artifacts/data/exp022/rasters/ping__tg6__seed42.png", width: 100%),
+    caption: [PING, tau gaba = τ=6.],
+  )
+
+  #figure(
+    image("/artifacts/data/exp022/rasters/ping__tg9__seed42.png", width: 100%),
+    caption: [PING, tau gaba = τ=9.],
+  )
+
+  #figure(
+    image("/artifacts/data/exp022/rasters/ping__tg12__seed42.png", width: 100%),
+    caption: [PING, tau gaba = τ=12.],
+  )
+
+  #figure(
+    image("/artifacts/data/exp022/rasters/ping__tg18__seed42.png", width: 100%),
+    caption: [PING, tau gaba = τ=18.],
+  )
+
+  #figure(
+    image("/artifacts/data/exp022/rasters/ping__tg27__seed42.png", width: 100%),
+    caption: [PING, tau gaba = τ=27.],
+  )
+
+  === A.4 Δt sweep
+
+  #figure(
+    image("/artifacts/data/exp022/rasters/ping__dt0p05__seed42.png", width: 100%),
+    caption: [PING, dt = dt=0.05.],
+  )
+
+  #figure(
+    image("/artifacts/data/exp022/rasters/ping__dt0p1__seed42.png", width: 100%),
+    caption: [PING, dt = dt=0.1.],
+  )
+
+  #figure(
+    image("/artifacts/data/exp022/rasters/ping__dt0p25__seed42.png", width: 100%),
+    caption: [PING, dt = dt=0.25.],
+  )
+
+  #figure(
+    image("/artifacts/data/exp022/rasters/ping__dt0p5__seed42.png", width: 100%),
+    caption: [PING, dt = dt=0.5.],
+  )
+
+  #figure(
+    image("/artifacts/data/exp022/rasters/ping__dt1__seed42.png", width: 100%),
+    caption: [PING, dt = dt=1.],
+  )
+
+  === A.5 Init variants
+
+  #figure(
+    image("/artifacts/data/exp022/rasters/frozen_ping__seed42.png", width: 100%),
+    caption: [PING, init = frozen_ping.],
+  )
+
+  #figure(
+    image("/artifacts/data/exp022/rasters/trainable_ping_init__seed42.png", width: 100%),
+    caption: [PING, init = trainable_ping_init.],
+  )
+
+  #figure(
+    image("/artifacts/data/exp022/rasters/trainable_zero_init__seed42.png", width: 100%),
+    caption: [PING, init = trainable_zero_init.],
+  )
+
+  #figure(
+    image("/artifacts/data/exp022/rasters/trainable_small_init__seed42.png", width: 100%),
+    caption: [PING, init = trainable_small_init.],
+  )
+
 ]

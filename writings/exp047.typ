@@ -8,7 +8,6 @@
   status: "revising",
 )
 
-#let run = json("/artifacts/data/exp047/numbers.json")
 
 #let body = [
   == Abstract
@@ -44,7 +43,7 @@
   The lesson for sweeping or training $N_I$: the rate is governed by the per-synapse $W^(I E)$ measured against $g_i^*$. Hold $W^(I E)$ fixed and the rate is invariant to pool size; change $N_I$ alone, at fixed per-synapse weight, and nothing moves.
 
   #figure(
-    image("/artifacts/data/exp047/rate_vs_w_ie.svg", width: 100%),
+    block(width: 100%, height: 4cm, inset: 1em, stroke: 0.5pt + gray, radius: 3pt, fill: luma(245))[#text(fill: gray)[pending re-run with new canonical data]],
     caption: [E (left) and I (right) per-cell rate versus the per-synapse weight $W^(I E)$, one line per pool size $N_I$. The lines collapse: at any fixed $W^(I E)$ the rate is the same for $N_I = 16$, $64$, or $256$, while it falls steadily with $W^(I E)$ — the logarithmic, saturating dependence of equation (3). The rate is set by the per-synapse kick, not the pool size. Dotted line marks the biophysical default $W^(I E) = 2$ μS.],
   )
 ]

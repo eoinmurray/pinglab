@@ -8,7 +8,6 @@
   status: "revising",
 )
 
-#let run = json("/artifacts/data/exp046/numbers.json")
 
 #let body = [
   == Abstract
@@ -30,7 +29,7 @@
   == Results
 
   #figure(
-    image("/artifacts/data/exp046/spikes_per_cycle_distribution.svg", width: 100%),
+    block(width: 100%, height: 4cm, inset: 1em, stroke: 0.5pt + gray, radius: 3pt, fill: luma(245))[#text(fill: gray)[pending re-run with new canonical data]],
     caption: [Distribution of E spike count per gamma cycle per cell, by $tau_"GABA"$, three seeds aggregated. Across *48 million (cell, cycle) pairs*, the architecture is overwhelmingly bimodal: each cell either emits zero spikes in a given cycle (≈ 77% of the time) or exactly one (≈ 22% of the time). Two-or-more events occur in 0.55% of cycles; three-or-more in 0.04%.],
   )
 ]

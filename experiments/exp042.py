@@ -63,7 +63,7 @@ EVAL_SEED = 20260415  # mirror cli.encoders.EVAL_SEED (kept in sync by hand)
 # θ_u = off PING baseline now lives in the shared training root (exp022
 # train-once / reuse-many). Three seeds available; exp042 runs against all
 # three for error bars.
-NB035_ARTIFACTS = REPO / "temp" / "notebooks" / "training"
+NB035_ARTIFACTS = REPO / "temp" / "experiments" / "exp022"
 SEEDS: tuple[int, ...] = (42, 43, 44)
 
 CONDITIONS: tuple[str, ...] = ("baseline", "phase_shuffled_i", "poisson_matched_i")
@@ -101,7 +101,7 @@ MIX_K_GRID: tuple[float, ...] = (0.25, 0.5, 1.0, 2.0, 4.0)
 # trained cells and re-runs the cycle-coherent jitter sweep at each
 # cell's own 1/f_γ. Outputs xtau_raw_sweeps, xtau_dimensional_collapse,
 # xtau_inflection_vs_period.
-NB041_ARTIFACTS = REPO / "temp" / "notebooks" / "training"
+NB041_ARTIFACTS = REPO / "temp" / "experiments" / "exp022"
 NB041_NUMBERS = (
     REPO / "artifacts" / "data" / "exp041"
     / "numbers.json"

@@ -6,7 +6,6 @@
   status: "revising",
 )
 
-#let run = json("/artifacts/data/exp042/numbers.json")
 
 #let body = [
   == Abstract
@@ -48,7 +47,7 @@
   == Results
 
   #figure(
-    image("/artifacts/data/exp042/rhythm_compound.png", width: 100%),
+    block(width: 100%, height: 4cm, inset: 1em, stroke: 0.5pt + gray, radius: 3pt, fill: luma(245))[#text(fill: gray)[pending re-run with new canonical data]],
     caption: [
       Two inference-time perturbations of the trained-PING I-stream, *both holding
       mean per-cell I rate fixed* (annotated on each raster). They push the E rate in
@@ -68,7 +67,7 @@
   === Per-I-cell jitter
 
   #figure(
-    image("/artifacts/data/exp042/cell_jitter_sweep.svg", width: 100%),
+    block(width: 100%, height: 4cm, inset: 1em, stroke: 0.5pt + gray, radius: 3pt, fill: luma(245))[#text(fill: gray)[pending re-run with new canonical data]],
     caption: [
       Per-I-cell jitter sweep, three seeds. Each spike receives an independent
       Gaussian offset; mean per-cell I rate is preserved exactly. *E rate (cyan,
@@ -82,7 +81,7 @@
   )
 
   #figure(
-    image("/artifacts/data/exp042/cell_jitter_raster_strip.png", width: 100%),
+    block(width: 100%, height: 4cm, inset: 1em, stroke: 0.5pt + gray, radius: 3pt, fill: luma(245))[#text(fill: gray)[pending re-run with new canonical data]],
     caption: [
       Single trial replayed at five per-cell jitter levels. At $sigma = 0$ the
       I-bursts are crisp vertical bands. *At $sigma = 1$ ms* the bursts visibly smear
@@ -96,7 +95,7 @@
   === Cycle-coherent jitter
 
   #figure(
-    image("/artifacts/data/exp042/jitter_sweep.svg", width: 100%),
+    block(width: 100%, height: 4cm, inset: 1em, stroke: 0.5pt + gray, radius: 3pt, fill: luma(245))[#text(fill: gray)[pending re-run with new canonical data]],
     caption: [
       E rate (black) and accuracy (red) vs cycle-coherent jitter $sigma$, seed 42.
       Horizontal dashed lines mark the baseline rate (≈ 8 Hz) and the full
@@ -107,7 +106,7 @@
   )
 
   #figure(
-    image("/artifacts/data/exp042/jitter_raster_strip.png", width: 100%),
+    block(width: 100%, height: 4cm, inset: 1em, stroke: 0.5pt + gray, radius: 3pt, fill: luma(245))[#text(fill: gray)[pending re-run with new canonical data]],
     caption: [
       Single trial replayed at five jitter levels (seed 42, MNIST digit 0 sample 0).
       Per-trial E rate annotated on each panel. *The I-bands stay vertical and crisp

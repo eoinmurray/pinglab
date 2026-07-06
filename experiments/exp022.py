@@ -60,7 +60,7 @@ ARTIFACTS, FIGURES = artifacts_and_figures(SLUG)
 # there instead of an ephemeral pod disk. Local runs use the default and are
 # unaffected. cell_dir / load_cell read through this, so every consumer follows.
 TRAINING_ROOT = Path(os.environ.get(
-    "PINGLAB_TRAINING_ROOT", str(REPO / "temp" / "notebooks" / "training")))
+    "PINGLAB_TRAINING_ROOT", str(REPO / "temp" / "experiments" / "exp022")))
 SNN_TOOL = REPO / "tools" / "snn" / "tool.py"
 
 # RunPod fan-out anchors (created 2026-07-05): the shared network volume and the
@@ -344,6 +344,14 @@ def _json_safe(o):
 
 def load_metrics(d: Path) -> dict:
     p = d / "metrics.json"
+    return json.loads(p.read_text()) if p.exists() else {}
+
+
+def load_config(d: Path) -> dict:
+    """A cell's config.json — carries git_sha / torch_version / device, which
+    metrics.json's own `config` block does NOT (its git_sha is null). The
+    manifest reads provenance from here."""
+    p = d / "config.json"
     return json.loads(p.read_text()) if p.exists() else {}
 
 
@@ -651,8 +659,151 @@ def run_via_runpod(argv: list[str]) -> None:
           + (" --plumbing" if args.plumbing else ""))
 
 
+# ── Appendix: one fixed-input raster per config (visual inspection) ──
+
+def _gamma_psd(spk_i, dt):
+    """I-population power spectrum + gamma peak from a single-trial raster.
+
+    1 ms population rate → 3 ms Gaussian smooth (suppresses the harmonics that
+    sharp inhibitory bursts inject) → Hann-windowed FFT. Returns (freqs, psd,
+    f_gamma); f_gamma is None when the I population is silent (COBA — no E/I
+    loop) or no prominent γ is resolved. The 3 ms kernel is chosen so the visible
+    peak is the FUNDAMENTAL, not the 2× harmonic — verified against the
+    multi-trial τ_GABA scaling, which matches nb041 (τ=6 ms → ≈ 45 Hz)."""
+    import numpy as np
+
+    T, ni = spk_i.shape
+    spm = max(1, round(1.0 / dt))          # timesteps per 1 ms bin (dt-aware:
+    nb = T // spm                          # the Δt sweep cells vary dt)
+    b = spk_i[: nb * spm].reshape(nb, spm, ni).sum(axis=(1, 2)).astype(float)  # pop/ms
+    if b.sum() < 50:                       # essentially silent (e.g. COBA I pop)
+        return None, None, None
+    k = np.exp(-0.5 * ((np.arange(31) - 15) / 3.0) ** 2)
+    k /= k.sum()
+    x = np.convolve(b - b.mean(), k, "same") * np.hanning(nb)
+    fr = np.fft.rfftfreq(nb, 1 / 1000.0)   # 1 kHz after 1 ms binning
+    P = np.abs(np.fft.rfft(x)) ** 2
+    band = (fr >= 20) & (fr <= 110)
+    fpk = float(fr[band][np.argmax(P[band])])
+    prom = P[band].max() / (np.median(P[band]) + 1e-9)
+    return fr, P, (fpk if prom > 2.5 else None)
+
+
+def _plot_snapshot_raster(snap_path: Path, out_png: Path, title: str) -> None:
+    """Raster + population rate + I-population PSD (γ peak labelled) for a single
+    fixed-image snapshot. The PSD describes the exact raster shown."""
+    import numpy as np
+
+    d = np.load(snap_path)
+    se, si, dt = d["spk_e"], d["spk_i"], float(d["dt"])
+    T, ne = se.shape
+    ni = si.shape[1]
+    tms = T * dt
+    et, ec = np.nonzero(se)
+    it, ic = np.nonzero(si)
+    e_hz = se.sum() / ne / (tms / 1000)
+    i_hz = si.sum() / max(ni, 1) / (tms / 1000)
+    fr, P, fgam = _gamma_psd(si, dt)
+
+    theme.apply()
+    plt.rcParams["savefig.bbox"] = "standard"
+    fig = plt.figure(figsize=(12, 7.6), dpi=130)
+    gs = fig.add_gridspec(2, 2, height_ratios=[3, 1.15], width_ratios=[3, 1],
+                          hspace=0.32, wspace=0.20)
+    ax = fig.add_subplot(gs[0, :])
+    ax2 = fig.add_subplot(gs[1, 0])
+    ax3 = fig.add_subplot(gs[1, 1])
+
+    ax.scatter(et * dt, ec, s=1.0, c=theme.INK_BLACK, marker="|", linewidths=0.35)
+    ax.scatter(it * dt, ic + ne, s=1.0, c=theme.DEEP_RED, marker="|", linewidths=0.35)
+    ax.axhline(ne, color="k", lw=0.4, alpha=0.4)
+    ax.set_ylim(0, ne + ni)
+    ax.set_xlim(0, tms)
+    ax.set_ylabel("neuron  (E below · I above)")
+    gtxt = f"f_γ ≈ {fgam:.0f} Hz" if fgam else "asynchronous (no γ)"
+    ax.set_title(f"{title}   ·   digit 0   ·   E {e_hz:.0f} Hz · I {i_hz:.0f} Hz · {gtxt}",
+                 loc="left", fontweight="semibold", fontsize=11)
+
+    bins = np.arange(0, tms + 1, 1.0)
+    re, _ = np.histogram(et * dt, bins=bins)
+    ri, _ = np.histogram(it * dt, bins=bins)
+    ctr = (bins[:-1] + bins[1:]) / 2
+    ax2.plot(ctr, re / ne * 1000, c=theme.INK_BLACK, lw=0.7, label="E")
+    ax2.plot(ctr, ri / max(ni, 1) * 1000, c=theme.DEEP_RED, lw=0.7, label="I")
+    ax2.set_xlabel("time (ms)")
+    ax2.set_ylabel("Hz/cell")
+    ax2.set_xlim(0, tms)
+    ax2.legend(loc="upper right", frameon=False, ncol=2, fontsize=8)
+
+    if fr is not None:
+        import numpy as np
+        # Normalise to the gamma-band peak (not the DC/onset bin, which otherwise
+        # dwarfs the rhythm) and drop the low-freq ramp so f_γ is the visual focus.
+        gband = (fr >= 20) & (fr <= 110)
+        norm = P[gband].max() or 1.0
+        m = (fr >= 8) & (fr <= 120)
+        ax3.plot(fr[m], np.clip(P[m] / norm, 0, 1.3), c=theme.DEEP_RED, lw=1.0)
+        if fgam:
+            ax3.axvline(fgam, color=theme.INK_BLACK, ls="--", lw=0.9)
+            ax3.annotate(f"{fgam:.0f} Hz", xy=(fgam, 1.0), xytext=(5, -3),
+                         textcoords="offset points", fontsize=9, fontweight="bold")
+        ax3.set_ylim(0, 1.3)
+    else:
+        ax3.text(0.5, 0.5, "I silent\n(no γ loop)", ha="center", va="center",
+                 transform=ax3.transAxes, fontsize=9, color=theme.MUTED)
+    ax3.set_xlim(0, 120)
+    ax3.set_xlabel("freq (Hz)")
+    ax3.set_ylabel("I PSD (norm)")
+
+    for a in (ax, ax2, ax3):
+        for sp in ("top", "right"):
+            a.spines[sp].set_visible(False)
+    out_png.parent.mkdir(parents=True, exist_ok=True)
+    fig.savefig(out_png, dpi=130)
+    plt.close(fig)
+
+
+def appendix_rasters() -> None:
+    """Generate one digit-0/sample-0 raster per seed-42 config for the writeup
+    appendix. The SAME fixed MNIST image is sent through every trained network
+    (via `sim --infer --digit 0 --sample 0` → snapshot.npz), so the rasters are
+    directly comparable across configs. Writes to artifacts/data/exp022/rasters/."""
+    import shutil
+
+    cells = [c for c in CANONICAL_CELLS if c["seed"] == 42]
+    rdir = FIGURES / "rasters"
+    # Snapshots are pure throwaway (only needed to plot each PNG). Keep them under
+    # the temp/experiments/ namespace and wipe the whole scratch tree at the end,
+    # so temp stays minimal — the PNGs in artifacts/ are the durable output.
+    scratch_root = REPO / "temp" / "experiments" / f"{SLUG}_appendix_scratch"
+    print(f"appendix: {len(cells)} rasters (seed 42) → {rdir.relative_to(REPO)}")
+    try:
+        for c in cells:
+            d = cell_dir(c["name"])
+            if not (d / "weights.pth").exists():
+                print(f"[skip] {c['name']} — no weights")
+                continue
+            scratch = scratch_root / c["name"]
+            subprocess.run(
+                [sys.executable, str(SNN_TOOL), "sim", "--infer",
+                 "--load-config", str(d / "config.json"),
+                 "--load-weights", str(d / "weights.pth"),
+                 "--digit", "0", "--sample", "0",
+                 "--out-dir", str(scratch), "--wipe-dir"],
+                cwd=REPO, check=True, capture_output=True)
+            model = "COBA" if c["model"] == "coba" else "PING"
+            _plot_snapshot_raster(scratch / "snapshot.npz", rdir / f"{c['name']}.png",
+                                  f"{model} · {c['family']} · {c['tag']}")
+            print(f"  {c['name']}.png")
+    finally:
+        shutil.rmtree(scratch_root, ignore_errors=True)
+
+
 def main() -> None:
     # RunPod backend + kill switch are handled before the local/Modal path.
+    if "--appendix-rasters" in sys.argv:
+        appendix_rasters()
+        return
     if "--pod-run" in sys.argv:
         pod_run()   # runs ON a pod: train assigned cells to the volume, self-terminate
         return
@@ -725,10 +876,11 @@ def main() -> None:
             print(f"[not trained] {fam} — no figure (placeholder shown)")
 
     duration_s = time.monotonic() - t_start
-    # rows is a heterogeneous list of dicts, so r["name"] widens to a union;
-    # coerce to str for cell_dir (the value is always the cell-name string).
-    git_sha = next((c for c in (load_metrics(cell_dir(str(r["name"]))).get("config", {})
-                                 for r in rows) if c), {}).get("git_sha")
+    # Provenance: the git sha lives in each cell's config.json (metrics.json's
+    # own config block has a null git_sha). Take the first cell that has one.
+    # coerce to str for cell_dir (r["name"] widens to a union across rows).
+    git_sha = next((s for s in (load_config(cell_dir(str(r["name"]))).get("git_sha")
+                                for r in rows) if s), None)
     summary = {
         "notebook_run_id": run_id,
         "git_sha": git_sha,

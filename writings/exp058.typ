@@ -8,7 +8,6 @@
   status: "revising",
 )
 
-#let run = json("/artifacts/data/exp058/numbers.json")
 
 #let body = [
   == Abstract
@@ -59,17 +58,17 @@
   == Results
 
   #figure(
-    image("/artifacts/data/exp058/raster__ai.png", width: 100%),
+    block(width: 100%, height: 4cm, inset: 1em, stroke: 0.5pt + gray, radius: 3pt, fill: luma(245))[#text(fill: gray)[pending re-run with new canonical data]],
     caption: [Four diagnostics of the four-coupling state (E black, I red above the divider; ⟨r_E⟩ ≈ 17.5, ⟨r_I⟩ ≈ 25.4 Hz). *What we expect.* Irregular (ISI CV ≈ 1; a constant-current cell sits at 0), asynchronous (near-zero pairwise correlation), rhythmless (broadband, no peak). *What we see.* _Raster:_ scattered, no bands. _PSD:_ broadband, no sustained rhythm — the single-trial spectral max wanders seed to seed (5–90 Hz across six seeds), so it is not a peak; but a _weak_ gamma-band E–I resonance does survive seed-averaging (≈ 2× the floor near 40 Hz — the same E↔I loop that sharpens into PING gamma in #link("/exp050/")[exp050], here heavily damped). _ISI CV:_ median 1.11 (E), 1.20 (I). _Cross-correlogram:_ flat, peak |C(τ)| ≈ 0.01, despite heavy shared input — the active decorrelation of #link("https://doi.org/10.1126/science.1179850")[Renart et al. (2010)]. *Do they align?* Yes on all three — the COBANet enters the balanced state untuned.],
   )
 
   #figure(
-    image("/artifacts/data/exp058/k_sweep.png", width: 100%),
+    block(width: 100%, height: 4cm, inset: 1em, stroke: 0.5pt + gray, radius: 3pt, fill: luma(245))[#text(fill: gray)[pending re-run with new canonical data]],
     caption: [Fan-in $K = 10 -> 160$ at fixed $N_E = 1024$ — equivalently sparsity $s = 1 - K \/ N_E$ from 0.99 to 0.84 (top axis) — with recurrent weights scaled $prop sqrt(K)$ (black, the V&S $J \/ sqrt(K)$ rule) versus held fixed (grey); $r_I$ shown in red. ±1 SD over three seeds, 3 s trials. *What we expect.* Strong coupling keeps the $O(1)$ fluctuations, so irregularity _survives_ as $K$ grows; weak coupling loses them ($prop 1 \/ sqrt(K)$), so cells _regularise_. Asynchrony holds in both. *What we see.* _Irregularity:_ strong stays supra-Poisson (CV 1.2–1.3, easing to 1.11 at $K = 160$); weak decays to ≈ 1.0, the Poisson floor. _Asynchrony:_ both ≈ 0.006 throughout. _Rates:_ strong $r_E$ drifts 17.5 → 4.9 Hz (the $O(1 \/ sqrt(K))$ finite-$K$ correction); weak holds ≈ 17 Hz. *Do they align?* Yes — only $J \/ sqrt(K)$ keeps the recurrent irregularity alive as $K$ grows; the gap is the signature. The one mismatch is the strong-coupling rate drift (Next steps); whether the survival is _self-generated_ is settled by Figure 3.],
   )
 
   #figure(
-    image("/artifacts/data/exp058/lyapunov.png", width: 100%),
+    block(width: 100%, height: 4cm, inset: 1em, stroke: 0.5pt + gray, radius: 3pt, fill: luma(245))[#text(fill: gray)[pending re-run with new canonical data]],
     caption: [Two clones on _identical_ quenched-DC input, the second kicked by ε = 0.1 mV at $t = 0$; voltage distance $norm(Delta V(t))$, seed-mean (bold) with a ±1 SD band over five seeds, lightly smoothed. *What we expect.* If chaotic, the kick is _amplified_ — $norm(Delta V)$ grows exponentially (λ > 0) — and with noise-free input that can only be network-generated. The decoupled control should not grow (λ ≤ 0). *What we see.* _Balanced (black):_ $norm(Delta V)$ rises steeply (fitted rate λ ≈ +28 s⁻¹) then saturates at the attractor size (≈ 250 mV). _Decoupled (grey):_ neither amplified nor forgotten — a fixed phase offset, λ ≈ 0. *Do they align?* Yes — λ > 0 for the balanced net, ≈ 0 for the control: deterministic chaos, self-generated. Caveat: an _initial-growth_ estimate (saturation caps the window), so the sign, not the magnitude, is the result — a renormalised Benettin scheme would pin exact λ (Next steps).],
   )
 

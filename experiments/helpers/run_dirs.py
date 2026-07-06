@@ -47,11 +47,19 @@ def prepare(
     """
     artifacts, figures = artifacts_and_figures(slug)
     if wipe:
-        targets = (figures,) if skip_training else (artifacts, figures)
-        for d in targets:
-            if d.exists():
-                print(f"[wipe] {d.relative_to(REPO)}")
-                shutil.rmtree(d)
+        # A full run wipes the whole artifacts (cached sim output) dir; skip
+        # training keeps it. The FIGURES dir is refreshed by removing only its
+        # top-level FILES — auxiliary SUBDIRECTORIES (e.g. exp022's rasters/,
+        # produced by a separate --appendix-rasters pass and expensive to
+        # rebuild) are preserved, so a figure refresh never silently nukes them.
+        if not skip_training and artifacts.exists():
+            print(f"[wipe] {artifacts.relative_to(REPO)}")
+            shutil.rmtree(artifacts)
+        if figures.exists():
+            print(f"[wipe] {figures.relative_to(REPO)} (top-level files; subdirs kept)")
+            for p in figures.iterdir():
+                if p.is_file():
+                    p.unlink()
     if make_artifacts:
         artifacts.mkdir(parents=True, exist_ok=True)
     figures.mkdir(parents=True, exist_ok=True)
