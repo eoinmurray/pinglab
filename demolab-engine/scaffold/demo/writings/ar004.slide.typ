@@ -1,13 +1,16 @@
-// ar004: the demolab talk — a ~10-slide intro for an academic lab group. It's a *deck*
-// (`.slide.typ`), so it declares `#let meta` but no `#let body`: compiled standalone to a PDF and
-// linked from the homepage, excluded from the HTML/book passes. Compiled with `--root .`. Every
-// slide is lifted from a catalog layout (SLIDES.md D11 / the gallery ar005.slide.typ) — the
-// `// layout: <name>` note on each marks which block it came from.
+// ar004: the demolab talk — an intro for an academic lab group, in two acts: coding agents in
+// computational science (part one), then demolab as the workflow built on them (part two). It's a
+// *deck* (`.slide.typ`): declares `#let meta` but no `#let body`, compiled standalone to a PDF and
+// linked from the homepage, excluded from the HTML/book passes. Compiled with `--root .`. Most
+// slides are lifted from a catalog layout (SLIDES.md D11 / the gallery ar005.slide.typ) — the
+// `// layout: <name>` note marks which block it came from; the `// custom:` ones are bespoke.
 #import "@preview/touying:0.6.1": *
 #import themes.simple: *
+#import "@preview/cetz:0.3.4"
+#import "@preview/cetz-plot:0.1.1": plot
 
 #let meta = (
-  title: "Demolab — the talk",
+  title: "Coding agents in computational science",
   date: "2026-07-06",
 )
 
@@ -25,86 +28,173 @@
 
 // layout: title
 #title-slide[
-  = Demolab
-  #v(0.3em)
-  An agent-operated lab notebook for computational science.
+  #set align(left)
+  = Coding agents in computational science
+  #v(0.4em)
+  What AI can and can't do for our work, and a reproducible workflow built on it.
   #v(1.2em)
-  #text(size: 24pt)[#link("https://demolab.eoinmurray.info")[demolab.eoinmurray.info]]
-  #v(1.0em)
   #text(size: 17pt, fill: muted)[Eoin Murray · lab group talk]
 ]
 
-// layout: two-column
-== What demolab is, and isn't
-
-#grid(columns: (1fr, 1fr), gutter: 28pt,
-  [
-    *It is*
-    - *Self-publishing*: repo → site + PDFs.
-    - *Reproducible*: numbers read from the run.
-    - *Agent-operated*: plain language.
-    - *Yours*: your science and git history.
-  ],
-  [
-    *It isn't*
-    - Another hand-maintained notebook.
-    - A library you write code against.
-    - Tied to Python.
-    - Autonomous — you stay in the loop.
-  ],
-)
-#v(1em)
-#align(center)[*A structure and a workflow, not a framework.*]
+// ═══════════════════════════════ PART ONE ═══════════════════════════════
+// layout: section-divider
+#focus-slide(background: white, foreground: ink)[
+  #text(size: 15pt, fill: muted)[PART ONE]
+  #v(0.4em)
+  #text(size: 44pt, weight: "bold", fill: ink)[Coding agents]
+  #v(0.5em)
+  #line(length: 20%, stroke: 1pt + muted)
+]
 
 // layout: bullets
-== The gap
+== An observation
 
-- In my circles, *software engineers* use coding agents constantly.
-- *Academics* — far less.
-- Yet our work is exactly what they're good at: *code + write-up + literature*.
-- Meanwhile results rot: scripts, stray plots, numbers retyped into the paper.
-- *demolab is an attempt to close that gap.*
+#text(size: 32pt)[
+  #v(0.5em)
+  - *Software engineers* use coding agents like crazy.
+  #v(0.5em)
+  - *Scientists*, far less so.
+]
+
+// custom: SWE-bench Verified capability curve — real numbers (agents resolving real, human-validated
+// GitHub issues, ~33% at the 2024 launch to ~77% in late 2025), with the autocomplete → chat → agent
+// arc as context. Shows a skeptical room how fast this got good. Source: swebench.com.
+== Coding agents are now useful
+
+#align(center)[
+  #cetz.canvas(length: 1cm, {
+    import cetz.draw: *
+    plot.plot(
+      size: (16, 6.2),
+      x-min: 2024.42,
+      x-max: 2026,
+      y-min: 0,
+      y-max: 100,
+      x-tick-step: 0.5,
+      y-tick-step: 25,
+      x-minor-tick-step: none,
+      y-minor-tick-step: none,
+      y-grid: true,
+      x-label: none,
+      y-label: none,
+      x-format: v => {
+        let months = ("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")
+        let y = calc.floor(v + 0.001)
+        let mi = int(calc.round((v - y) * 12))
+        if mi == 12 {
+          y = y + 1
+          mi = 0
+        }
+        text(size: 13pt)[#months.at(mi) #str(y)]
+      },
+      y-format: v => text(size: 15pt)[#str(calc.round(v))%],
+      axis-style: "left",
+      {
+        let data = (
+          (2024.6, 33),
+          (2024.85, 49),
+          (2025.05, 55),
+          (2025.2, 63),
+          (2025.4, 72),
+          (2025.7, 74),
+          (2025.92, 77),
+        )
+        plot.add(
+          data,
+          mark: "o",
+          mark-size: 0.15,
+          fill: true,
+          fill-type: "axis",
+          style: (stroke: 2.8pt + ink, fill: rgb("#ecece9")),
+          mark-style: (fill: ink, stroke: none),
+        )
+        plot.annotate(resize: false, {
+          content((2024.62, 43), text(size: 14pt, weight: "bold", fill: ink)[33%])
+          content((2025.78, 88), text(size: 17pt, weight: "bold", fill: ink)[77%])
+        })
+      },
+    )
+  })
+]
+#v(0.4em)
+#align(center)[#text(
+  size: 15pt,
+  fill: muted,
+)[Share of real, human-validated GitHub issues an agent resolves end-to-end — SWE-bench Verified (swebench.com). Software bugs, not science.]]
+#v(0.6em)
+#align(center)[#text(
+  size: 16pt,
+)[autocomplete #text(fill: muted)[(2021)] #sym.arrow.r chat #text(fill: muted)[(2023)] #sym.arrow.r *agents that do real work* #text(fill: muted)[(2025)]]]
 
 // layout: bullets
-== Coding agents — what are they?
+== What a coding agent is
 
-- AI assistants that read a repo and *do the work* — not just autocomplete.
-- Run in your terminal or editor: read files, run commands, edit, verify.
-- You drive them in *plain language*; they follow instructions in the repo.
-- Prominent ones: *Claude Code*, *Cursor*, *Copilot* (agent mode), *Gemini CLI*, *aider*.
-- demolab is *operated by* one — so there's no web dev and no build config for you.
+- *Does the work*, not just autocomplete: reads, runs, edits, verifies.
+- Driven in *plain language*, from your terminal.
+- Many exist, commercial and open — no vendor lock-in.
+- Only recently good enough — still uneven, still supervised.
 
-// layout: two-column
-== Before and after coding agents
+// layout: bullets
+== More is possible
 
-#grid(columns: (1fr, 1fr), gutter: 28pt,
-  [
-    *Before*
-    - You hand-write boilerplate, plots, build config.
-    - Docs and code quietly drift apart.
-    - Reproducing an old result is archaeology.
-  ],
-  [
-    *After*
-    - You describe the result; it scaffolds and runs it.
-    - Prose, figures, and numbers stay in sync.
-    - Roughly *5× the throughput*, more projects in flight.
-  ],
-)
-#v(1em)
-#align(center)[*The plumbing stops being your job.*]
+- Not the same work done faster — a *lower bar for what's worth doing at all*.
+- A task that cost an afternoon, you skipped. At ten minutes, you just do it.
+- So the skipped work happens: the extra *baseline*, the *ablation*, reproducing a *cited result*, the *README* nobody writes.
+- You take on *more — and things you'd never have bothered with*.
 
-// layout: bullets (+ a centred takeaway)
-== Problems with coding agents
+// layout: bullets
+== Weaknesses of coding agents
 
 - *Confidently wrong*: they fabricate APIs, numbers, and citations.
-- *No memory*: they forget context between sessions unless it's written down.
+- *Comprehension debt*: they implement things you don't understand — and you ship them.
 - *Weak judgement*: they won't tell you the experiment itself is a bad idea.
 - *Drift & noise*: code and prose fall out of sync; they over-produce.
+- *Brainrot*: prompt-and-wait is a slot machine — personally, I can't agent-code and read deeply the same day.
 
-#v(0.9em)
-#align(center)[*demolab's answer: guardrails* — numbers from the run, a fixed structure,\
-git provenance on every result, and lint / doctor / red-team checks. Trust the structure.]
+// ═══════════════════════════════ PART TWO ═══════════════════════════════
+// layout: section-divider
+#focus-slide(background: white, foreground: ink)[
+  #text(size: 15pt, fill: muted)[PART TWO]
+  #v(0.4em)
+  #text(size: 44pt, weight: "bold", fill: ink)[Demolab]
+  #v(0.4em)
+  #text(size: 20pt, fill: muted)[Rails for the agent]
+]
+
+// layout: bullets (numbered — the principles)
+== Principles of demolab
+
++ `tools/` compute, `experiments/` do analysis and plots.
++ Each experiment is a runner (`.py`) and a write-up (`.typ`).
++ Tools and experiments talk through *data files*, never imports.
++ *Raw data is disposable* (`temp/`); the distilled record is committed (`artifacts/`).
++ Bring any stack.
++ *Agent-operated*: plain language in, you stay in the loop.
++ Provenance built in.
+
+// layout: two-column
+== Typst: a modern LaTeX
+
+#grid(
+  columns: (1fr, 1fr),
+  gutter: 28pt,
+  [
+    *LaTeX*
+    - Slow, multi-pass compiles.
+    - Cryptic error messages.
+    - PDF only.
+    - Macro soup and package hell.
+  ],
+  [
+    *Typst*
+    - *Instant*, incremental compiles.
+    - *Readable* errors with line numbers.
+    - One source → *web and PDF*.
+    - *Imports files*, no hardcoded numbers.
+  ],
+)
+#v(1em)
+#align(center)[*The same beautiful math: selectable MathML on the web, typeset in the PDF.*]
 
 // layout: code-panel
 == The shape of a demolab repo
@@ -126,28 +216,36 @@ git provenance on every result, and lint / doctor / red-team checks. Trust the s
   ]
 ]
 
-// layout: two-column
+// custom: guides + runbooks rendered as a stylised terminal panel — dark, monospace, with a cursor —
+// so the slide *shows* the command grammar: you type a NAME to your coding agent and it drives
+// demolab. The dark panel also gives the light deck a striking break.
 == Guides and runbooks
 
-// command chips: the names are things you type, so set them as monospace pills (atomic, so a
-// kebab name never breaks mid-hyphen).
-#let cmd(n) = box(fill: luma(244), stroke: 0.5pt + luma(214), radius: 5pt, inset: (x: 7pt, y: 3pt), text(size: 15pt, raw(n)))
-#set par(leading: 1em)
-
-#grid(columns: (1fr, 1fr), gutter: 28pt, align: top,
-  [
-    *Guides* — the rules, always on
-    #v(0.7em)
-    #cmd("RULES") #cmd("HOUSESTYLE") #cmd("SLIDES") #cmd("STRUCTURE") #cmd("GLOSSARY") #cmd("SUPPORT")
-  ],
-  [
-    *Runbooks* — 14, on demand
-    #v(0.7em)
-    #cmd("GETTING-STARTED") #cmd("TOUR") #cmd("LINT") #cmd("DOCTOR") #cmd("RED-TEAM") #cmd("STEELMAN") #cmd("NEXT") #cmd("MIGRATE-CODE") #cmd("MIGRATE-STACK") #cmd("UPDATE") #cmd("FROM-JUPYTER") #cmd("FROM-PAPER") #cmd("EMBED-DOCS") #cmd("GROUND-CLAIMS")
-  ],
-)
-#v(1.2em)
-#align(center)[*Type the NAME — a guide walks you through, a runbook runs.*]
+#let fg = rgb("#f4f4f2")
+#let dim = rgb("#8f8f8f")
+#align(center)[
+  #block(fill: ink, radius: 12pt, inset: (x: 30pt, y: 26pt), width: 90%)[
+    #set align(left)
+    #set text(font: "DejaVu Sans Mono", fill: fg, size: 16pt)
+    #set par(leading: 0.85em)
+    #text(fill: dim)[my-coding-agent ▸ ]#text(weight: "bold")[HELP]#h(0.2em)#box(
+      fill: fg,
+      width: 0.5em,
+      height: 0.95em,
+      baseline: 0.12em,
+    )
+    #v(1.1em)
+    #text(weight: "bold")[GUIDES]#h(1.4em)#text(fill: dim)[\# always on — walk me through it]
+    #v(0.4em)
+    RULES HOUSESTYLE SLIDES STRUCTURE GLOSSARY SUPPORT
+    #v(1.1em)
+    #text(weight: "bold")[RUNBOOKS]#h(1.1em)#text(fill: dim)[\# on demand — run it, step by step]
+    #v(0.4em)
+    GETTING-STARTED TOUR LINT DOCTOR RED-TEAM STEELMAN \
+    NEXT MIGRATE-CODE MIGRATE-STACK FROM-JUPYTER FROM-PAPER \
+    EMBED-DOCS GROUND-CLAIMS UPDATE
+  ]
+]
 
 // layout: code-panel
 == Driven by a handful of commands
