@@ -40,7 +40,18 @@ import subprocess
 import time
 from pathlib import Path
 
+from .dotenv import load_dotenv
 from .paths import REPO
+
+# ── Laptop-side .env autoload ────────────────────────────────────────
+# The dispatch side reads its credentials straight from os.environ
+# (RUNPOD_CONTAINER_REGISTRY_AUTH_ID for authenticated GHCR pulls, RUNPOD_API_KEY,
+# the PINGLAB_* path overrides). Auto-load the repo-root .env at import so the
+# human need not `source` it before firing — env still wins over the file
+# (override=False). Gated on RUNPOD_POD_ID: a pod gets its env injected by
+# dispatch() and has no .env, so --pod-run execution is untouched.
+if not os.environ.get("RUNPOD_POD_ID"):
+    load_dotenv()
 
 # ── Fleet configuration ──────────────────────────────────────────────
 IMAGE = "ghcr.io/eoinmurray/pinglab:cu128"
@@ -152,7 +163,100 @@ def pod_self_terminate() -> None:
     _sh(["runpodctl", "remove", "pod", pod_id], check=False)
 
 
+# ── Container-registry auth (authenticated GHCR pulls) ───────────────
+# A fan-out cold-pulls IMAGE on N pods at once. Anonymous GHCR pulls share a
+# tight rate limit, so under load those pulls throttle and pods sit "RUNNING but
+# not ready" for 30+ min. Attaching a RunPod "Container Registry Auth" credential
+# at pod creation authenticates every pull and restores ~2–4 min cold starts.
+# The credential is created ONCE on the RunPod side and its id exported into the
+# env — nothing secret ever lives in the repo. See the one-time setup below.
+#
+#   One-time (RunPod side; needs a GitHub PAT with read:packages):
+#     runpodctl registry create --name ghcr \
+#         --username eoinmurray --password <PAT>   # → prints the auth id
+#     export RUNPOD_CONTAINER_REGISTRY_AUTH_ID=<that id>
+#
+# Absent ⇒ pods fall back to anonymous pulls (a one-time warning), so nothing
+# breaks for anyone without the credential set.
+
+RUNPOD_GRAPHQL_URL = "https://api.runpod.io/graphql"
+_ANON_PULL_WARNED = False
+
+
+def registry_auth_id() -> str | None:
+    """The RunPod container-registry auth id for authenticated image pulls, from
+    RUNPOD_CONTAINER_REGISTRY_AUTH_ID (mirrors how api_key() reads the env). None
+    ⇒ anonymous pulls (throttle-prone under a large fan-out)."""
+    return os.environ.get("RUNPOD_CONTAINER_REGISTRY_AUTH_ID") or None
+
+
+def _warn_anonymous_pull_once() -> None:
+    """Warn (once per process) that pods will pull IMAGE unauthenticated — a big
+    fan-out may hit the GHCR rate limit and stall on cold start."""
+    global _ANON_PULL_WARNED
+    if _ANON_PULL_WARNED:
+        return
+    _ANON_PULL_WARNED = True
+    print("  [registry-auth] RUNPOD_CONTAINER_REGISTRY_AUTH_ID unset — pods will "
+          f"pull {IMAGE} anonymously; a large fan-out may hit the GHCR rate limit "
+          "and stall on cold start (set the auth id — see runpod.py).")
+
+
 # ── Pod lifecycle (laptop side) ──────────────────────────────────────
+
+def _create_pod_graphql(name: str, gpu: str, *, datacenter: str, volume_id: str,
+                        full_env: dict[str, str], cost: float,
+                        auth_id: str) -> str:
+    """Create one pod via the RunPod GraphQL podFindAndDeployOnDemand mutation,
+    attaching *auth_id* so the GHCR image pull is authenticated.
+
+    This mirrors the exact payload the installed `runpodctl create pod` sends
+    (secure cloud, price ceiling → deployCost, gpu, DC-pinned network volume,
+    30 GB container disk, ssh, env), adding the containerRegistryAuthId field —
+    which this runpodctl version's `create pod` cannot pass as a flag. Used only
+    when the auth id is set; otherwise create_pod keeps the proven CLI path.
+    """
+    import urllib.request
+
+    pod_input = {
+        "cloudType": "SECURE",                 # --secureCloud
+        "name": name,
+        "imageName": IMAGE,
+        "gpuTypeId": GPU_IDS[gpu],
+        "gpuCount": 1,
+        "dataCenterId": datacenter,            # must match the network volume's DC
+        "networkVolumeId": volume_id,
+        "volumeMountPath": VOLUME_MOUNT,
+        "volumeInGb": 1,                       # runpodctl --volumeSize default
+        "containerDiskInGb": 30,               # --containerDiskSize
+        "minMemoryInGb": 20,                   # runpodctl --mem default
+        "minVcpuCount": 1,                     # runpodctl --vcpu default
+        "deployCost": cost,                    # --cost $/hr price ceiling
+        "ports": "22/tcp",
+        "startSsh": True,
+        "containerRegistryAuthId": auth_id,    # ← the authenticated-pull credential
+        "env": [{"key": k, "value": v} for k, v in full_env.items()],
+    }
+    query = ("mutation createPod($input: PodFindAndDeployOnDemandInput!) {"
+             " podFindAndDeployOnDemand(input: $input) { id } }")
+    body = json.dumps({"query": query, "variables": {"input": pod_input}}).encode()
+    req = urllib.request.Request(
+        f"{RUNPOD_GRAPHQL_URL}?api_key={api_key()}",
+        data=body,
+        headers={"Content-Type": "application/json"},
+        method="POST",
+    )
+    with urllib.request.urlopen(req, timeout=120) as r:
+        payload = json.loads(r.read())
+    errs = payload.get("errors")
+    if errs:
+        raise RuntimeError(f"podFindAndDeployOnDemand failed: {errs[0].get('message')}")
+    pod = (payload.get("data") or {}).get("podFindAndDeployOnDemand") or {}
+    pod_id = pod.get("id")
+    if not pod_id:
+        raise RuntimeError(f"no pod id in GraphQL response: {payload}")
+    return str(pod_id)
+
 
 def create_pod(name: str, gpu: str, *, datacenter: str, volume_id: str,
                env: dict[str, str], cost: float | None = None) -> str:
@@ -162,8 +266,22 @@ def create_pod(name: str, gpu: str, *, datacenter: str, volume_id: str,
     script self-runs the assignment; without CELLS the pod just runs sshd (the
     collect / debug mode). PUBLIC_KEY is always injected so sshd accepts our key.
     Raises on no-stock / API error.
+
+    When RUNPOD_CONTAINER_REGISTRY_AUTH_ID is set, creation routes through the
+    GraphQL path so the image pull is authenticated (see _create_pod_graphql);
+    otherwise it uses the proven runpodctl CLI path with an anonymous pull.
     """
     full_env = {"PUBLIC_KEY": PUBKEY_PATH.read_text().strip(), **env}
+    cost_val = cost if cost is not None else COST_CEILING[gpu]
+
+    auth_id = registry_auth_id()
+    if auth_id:
+        return _create_pod_graphql(
+            name, gpu, datacenter=datacenter, volume_id=volume_id,
+            full_env=full_env, cost=cost_val, auth_id=auth_id,
+        )
+
+    _warn_anonymous_pull_once()
     cmd = [
         "runpodctl", "create", "pod",
         "--name", name,
@@ -174,7 +292,7 @@ def create_pod(name: str, gpu: str, *, datacenter: str, volume_id: str,
         "--dataCenterId", datacenter,          # must match the network volume's DC
         "--networkVolumeId", volume_id,
         "--volumePath", VOLUME_MOUNT,
-        "--cost", str(cost if cost is not None else COST_CEILING[gpu]),
+        "--cost", str(cost_val),
         "--containerDiskSize", "30",
         "--ports", "22/tcp",
         "--startSSH",
