@@ -17,7 +17,10 @@ TEMP_DIR = Path(__file__).resolve().parents[2] / "temp" / "neuron"
 def _run_provenance() -> dict:
     """Git commit + dirty flag + UTC timestamp for this run, so every committed
     result records which code produced it. Degrades gracefully outside a git repo
-    (e.g. a degit'd copy): commit is null."""
+    (e.g. a degit'd copy): commit is null.
+
+    The runner-side twin lives in experiments/helpers/provenance.py; kept separate
+    because the tool↔runner firewall (§4.5) forbids a tool importing experiments/."""
     here = Path(__file__).resolve().parent
 
     def git(*args: str) -> str:

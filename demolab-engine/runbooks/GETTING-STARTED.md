@@ -1,6 +1,8 @@
 # Runbook: Getting started
 
-Triggers: **"how do I get started"**, "help me set up", "onboard me", "walk me through this repo". Goal: the user's lab is scaffolded, branded, building (and optionally published), they understand the loop, and they've landed their first experiment — a fresh one, or the first piece of a migrated codebase.
+Set the user's lab up end to end — scaffolded, branded, building (and optionally published) — until they understand the loop and have landed their first experiment: a fresh one, or the first piece of a migrated codebase.
+
+**Triggers** — say any of these, or just `GETTING-STARTED`: **"how do I get started"**, "help me set up", "onboard me", "walk me through this repo".
 
 ## Decisions the agent surfaces
 

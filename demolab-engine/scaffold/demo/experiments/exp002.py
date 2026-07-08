@@ -4,6 +4,8 @@ from pathlib import Path
 
 import sh
 
+from helpers import provenance  # run.sh reproducer into the committed record (RULES §4.7)
+
 ROOT = Path(__file__).resolve().parents[1]
 TEMP = ROOT / "temp"
 ARTIFACTS = ROOT / "artifacts" / "data" / "exp002"
@@ -62,6 +64,8 @@ def main() -> None:
     numbers_path = ARTIFACTS / "numbers.json"
     numbers_path.write_text(json.dumps(collect_numbers(), indent=2) + "\n")
     print(f"wrote {numbers_path}")
+
+    provenance.write_run_sh(ARTIFACTS)
 
 
 if __name__ == "__main__":

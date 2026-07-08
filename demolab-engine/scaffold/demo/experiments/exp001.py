@@ -11,6 +11,7 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 import sh
 
+from helpers import provenance  # run.sh reproducer into the committed record (RULES §4.7)
 from helpers import style as _style  # shared figure style (HOUSESTYLE H10-H16); applies rcParams on import
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -94,6 +95,8 @@ def main() -> None:
     numbers_path = ARTIFACTS / "numbers.json"
     numbers_path.write_text(json.dumps(collect_numbers(), indent=2) + "\n")
     print(f"wrote {numbers_path}")
+
+    provenance.write_run_sh(ARTIFACTS)
 
 
 if __name__ == "__main__":

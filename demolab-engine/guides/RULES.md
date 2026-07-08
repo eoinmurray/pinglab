@@ -38,7 +38,7 @@ The concrete annotated file tree is in [`STRUCTURE.md`](STRUCTURE.md); this sect
 
 ## 4. The tool ↔ experiment contract
 
-**4.1 — Reuse is the bar.** A tool exists to hold *reusable* science — a model or solver run across more than one experiment, or the same one re-run with swept parameters. Using a tool is a choice, not a requirement: a genuine one-off can compute inline in its runner and stage its own `artifacts/data/expNNN/` directly; articles (`ar*`) use no tool at all. **Don't manufacture a tiny tool to satisfy the contract** — the CLI, manifest, tests, and import firewall earn their ceremony by being *shared*. Going inline trades away the manifest validation, provenance stamp, and easy unit-testing — fine for a throwaway. When reuse actually appears, **promote** the code into `tools/<tool>/tool.py` then and point the runner at its CLI — not in anticipation.
+**4.1 — Reuse is the bar.** A tool exists to hold *reusable* science — a model or solver run across more than one experiment, or the same one re-run with swept parameters. Using a tool is a choice, not a requirement: a genuine one-off can compute inline in its runner and stage its own `artifacts/data/expNNN/` directly; articles (`ar*`) use no tool at all. **Don't manufacture a tiny tool to satisfy the contract** — the CLI, manifest, tests, and import firewall earn their ceremony by being *shared*. Going inline trades away the manifest validation and easy unit-testing — fine for a throwaway; provenance is *not* lost, since an inline runner stamps it with `helpers/provenance.stamp` (§4.7). When reuse actually appears, **promote** the code into `tools/<tool>/tool.py` then and point the runner at its CLI — not in anticipation.
 
 **4.2 — Tools emit data, not plots.** A tool writes the machine-readable data a figure is drawn *from* — the format is the author's choice (CSV, JSON/JSONL, `.npz`, Parquet, HDF5, whatever suits the science); drawing the figure is the runner's job. What matters is that the *data* is emitted, not a rendered plot, so the figure can be redrawn and the numbers are available. (The contract files themselves — `config.json`, `output.json`, `manifest.json`, `numbers.json` — are always JSON; only the figure-data format is open.) The one exception is a **rendering** (a physics video, `mujoco` → `.mp4`), which a tool *does* produce. `write_output` validates that a declared `headline_video` exists on disk and that every `headline_metrics` key is in `output.json` — so a manifest can never lie about a run.
 
@@ -67,11 +67,11 @@ The concrete annotated file tree is in [`STRUCTURE.md`](STRUCTURE.md); this sect
 }
 ```
 
-**4.7 — Provenance.** `setup_run_dir` stamps a `_provenance` block into `config.json` — the git commit SHA, a `dirty` flag (uncommitted changes at run time), and a UTC timestamp — which flows into the committed `numbers.json`. Every published result records exactly which code produced it; the publisher surfaces it as a page/PDF footer. Degrades gracefully outside a git repo (`commit: null`).
+**4.7 — Provenance.** `setup_run_dir` stamps a `_provenance` block into `config.json` — the git commit SHA, a `dirty` flag (uncommitted changes at run time), and a UTC timestamp — which flows into the committed `numbers.json`. Every published result records exactly which code produced it; the publisher surfaces it as a page/PDF footer. Degrades gracefully outside a git repo (`commit: null`). An **inline** runner (no tool to inherit from) gets the same block by wrapping its config in `helpers/provenance.stamp(config)` — the runner-side twin of `setup_run_dir`'s stamp, kept as a separate copy because the firewall (§4.5) forbids a tool importing `experiments/`. Alongside the stamp, every runner drops a `run.sh` reproducer into `artifacts/data/<id>/` via `helpers/provenance.write_run_sh(ARTIFACTS)` — the committed twin of the `run.sh` tools write into scratch `temp/` (§4.3).
 
 ## 5. Publishing
 
-**5.1 — Scratch vs record.** `temp/<tool>/<cmd>/` is scratch — gitignored, overwritten every run. The runner writes the rendered figure(s) + aggregated `numbers.json` (and any video) into **`artifacts/data/<id>/`**, which *is* committed. That folder is the publisher-neutral record: the single place the publisher reads from.
+**5.1 — Scratch vs record.** `temp/<tool>/<cmd>/` is scratch — gitignored, overwritten every run. The runner writes the rendered figure(s) + aggregated `numbers.json` (and any video) + a `run.sh` reproducer into **`artifacts/data/<id>/`**, which *is* committed. That folder is the publisher-neutral record: the single place the publisher reads from. (The tool's own `run.sh` stays in scratch `temp/`; the runner's is committed here.)
 
 **5.2 — Typst is the publisher.** `task build` runs `demolab-engine/build/build.py`, which globs `writings/*.typ` (and each entry's mp4s) into a JSON manifest (`temp/bundle/index.json`), then compiles the committed, static `demolab-engine/build/main.typ` (which reads the manifest) to **three targets in one pass** — no generated Typst source:
 - **Web** — `artifacts/site/`: `index.html` (entries grouped by collection, §6.5), `all.html` (every entry, newest first), and an HTML page per entry (figures inline, videos play, math as MathML, styled by `demolab-engine/build/style.css`).
@@ -116,11 +116,19 @@ See `ar006` for a worked example — ten references with DOIs, inline cites thro
 
 **7.1 — Tool subcommand.** Add a subcommand (or reuse one) in the relevant `tools/<tool>/tool.py`. Pass a `manifest` to `write_output` declaring the headline metrics (and a video, for a rendering tool).
 
-**7.2 — Runner.** Create `experiments/expNNN.py` modeled on an existing runner; declare `COMMANDS`; render the figure(s) from the tool's data into `artifacts/data/expNNN/`. Single-tool runners use bare strings (`COMMANDS = ("lif", "net")`); multi-tool runners use `(tool, command)` pairs (`COMMANDS = (("mujoco", "cartpole"),)`).
+**7.2 — Runner.** Create `experiments/expNNN.py` modeled on an existing runner; declare `COMMANDS`; render the figure(s) from the tool's data into `artifacts/data/expNNN/`. Single-tool runners use bare strings (`COMMANDS = ("lif", "net")`); multi-tool runners use `(tool, command)` pairs (`COMMANDS = (("mujoco", "cartpole"),)`). Finish `main()` with `helpers/provenance.write_run_sh(ARTIFACTS)` so the committed record carries a reproducer; an inline runner also stamps each config with `helpers/provenance.stamp` (§4.7).
 
 **7.3 — Writeup.** Create `writings/expNNN.typ` as a `meta` + `body` pair (§6.1); read the run with `json(...)`, embed figures with `#image(...)`, render tables with `#numbers-table(...)`.
 
 **7.4 — Run + build.** `uv run python experiments/expNNN.py`, then `task build` (or the running `task dev`).
+
+**7.5 — Staged runs (optional).** An expensive experiment — long training, a big sweep — may split its runner into ordered stages so you can re-enter without repeating the costly prefix. The flow, in dependency order:
+
+- **compute** — the simulation/training itself; writes bulk output to `temp/` (scratch, §5.1).
+- **analyse** — reads that scratch and distils what the figures need into the committed record `artifacts/data/<id>/` (the plot-ready bundle: `numbers.json` plus any arrays a plot consumes).
+- **plot** — renders the figures, reading **only** from `artifacts/data/<id>/`.
+
+Each stage depends only on its predecessor's output, so a run can start at any stage: full (default), analyse + plot (reuse `temp/`), or plot only (reuse the committed record). **The invariant is the boundary, not the mechanism** — the plot stage reads only from `artifacts/data/<id>/`, which is exactly what lets "plot only" reproduce every figure from a clean clone with no `temp/` (§5.1, §5.3). demolab does **not** mandate *how* you stage: flag names, a stage harness, function signatures, where scratch lives — all the author's call. Most runners need none of this and stay a single one-shot `main()` (§7.2); staging is opt-in, earned by compute cost. Reproducibility never depends on it either — a full run always regenerates `temp/` from `run.sh` (§4.7) and the figures fall out.
 
 ## 8. Adding a tool
 

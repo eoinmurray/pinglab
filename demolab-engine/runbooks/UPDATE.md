@@ -1,6 +1,8 @@
 # Runbook: Update demolab from upstream
 
-Triggers: **"update demolab"**, "update from upstream", "pull the latest demolab", "get the newest engine". Goal: refresh the demolab **engine** to the latest upstream while leaving everything that's *yours* — branding, content, deps — untouched.
+Refresh the demolab **engine** to the latest upstream while leaving everything that's *yours* — branding, content, deps — untouched.
+
+**Triggers** — say any of these, or just `UPDATE`: **"update demolab"**, "update from upstream", "pull the latest demolab", "get the newest engine".
 
 **The model: the engine is a black box; your stuff lives outside it.** Updating is a **vendor-copy**, not a merge. Three tiers:
 

@@ -34,11 +34,11 @@ RULES' `§N.M`) and listed alphabetically. Section references like `§4.3` point
 
 **G15 — Manifest.** Two things: (a) `manifest.json`, which a tool writes to declare its headline metrics/video (§4.3); (b) `temp/bundle/index.json`, the build manifest `build.py` writes for `main.typ` to read (§5.2).
 
-**G16 — `numbers.json`.** The aggregated, committed record of a run: each command's `config.json` + headline metrics + a `_provenance` stamp, in `artifacts/data/<id>/`. Writings read it so numbers can't drift (§4.6, §5.4).
+**G16 — `numbers.json`.** The aggregated, committed record of a run: each command's `config.json` + headline metrics + a `_provenance` stamp, in `artifacts/data/<id>/` (alongside a `run.sh` reproducer the runner writes). Writings read it so numbers can't drift (§4.6, §5.4).
 
 **G17 — Playground.** `experiments/playground.py`, the interactive Streamlit demo. Not an `exp*` runner; exempt from the contract, but still drives a tool's CLI (§8.5).
 
-**G18 — Provenance.** The `_provenance` block stamped into every run: git commit SHA, a `dirty` flag, a UTC timestamp. Surfaced as a page/PDF footer (§4.7).
+**G18 — Provenance.** The `_provenance` block stamped into every run: git commit SHA, a `dirty` flag, a UTC timestamp. Stamped by a tool's `setup_run_dir` or, for an inline runner, `helpers/provenance.stamp`. Surfaced as a page/PDF footer (§4.7).
 
 **G19 — Record.** See **artifacts** (G2), `artifacts/data/<id>/`: the publisher-neutral, committed output of a run.
 

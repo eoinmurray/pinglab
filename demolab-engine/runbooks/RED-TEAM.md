@@ -1,6 +1,8 @@
 # Runbook: Red-team an experiment
 
-Triggers: **"red-team"**, "red team my experiment", "critique this experiment", "poke holes in this", "review my results", **RED-TEAM**. Goal: an adversarial, pre-submission self-review of an experiment's **integrity** — does the writeup's claim actually hold up against the code and the data? Report each gap with a `file:line` and a concrete fix; fix only what the user approves.
+An adversarial, pre-submission self-review of an experiment's **integrity** — does the writeup's claim actually hold up against the code and the data? Report each gap with a `file:line` and a concrete fix; fix only what the user approves.
+
+**Triggers** — say any of these, or just `RED-TEAM`: **"red-team"**, "red team my experiment", "critique this experiment", "poke holes in this", "review my results".
 
 This is the **integrity** pass, and it completes the trio: **DOCTOR** audits the structural rules, **LINT** audits the prose, **RED-TEAM** audits whether the result is *true and defensible*. Its edge over a human co-author: it reads the code, the data, **and** the claims, so it can cross-check them against each other — the check nobody does by hand. Its constructive twin is **STEELMAN** (the best *honest* case for the result); run both to find the weak points *and* the real strength. Scope defaults to one experiment; pass **"all"** for a whole-lab pre-submission sweep.
 
