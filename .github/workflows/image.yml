@@ -45,5 +45,12 @@ jobs:
           tags: |
             ghcr.io/eoinmurray/pinglab:cu128
             ghcr.io/eoinmurray/pinglab:latest
+          # RunPod's image puller hangs on the OCI image *index* that buildx
+          # emits by default: the SLSA provenance/SBOM attestations add an
+          # `unknown/unknown` manifest, and pods sit at RUNNING/"pod not ready"
+          # forever (never pull, never boot). Force a single amd64 manifest so
+          # the tag resolves to one plain image RunPod can pull cleanly.
+          provenance: false
+          sbom: false
           cache-from: type=gha
           cache-to: type=gha,mode=max
