@@ -28,8 +28,8 @@
     [Parameter], [Value],
     [Integration timestep $Delta t$], [0.1 ms],
     [Trial duration $T$], [200 ms],
-    [MNIST samples (80/20 stratified split of 500)],
-    [400 train / 100 test (≈ 0.7% of the 70k-sample MNIST corpus)],
+    [MNIST samples (80/20 stratified split of 7000)],
+    [5600 train / 1400 test (≈ 10% of the 70k-sample MNIST corpus)],
     [Epochs], [50],
   )
 

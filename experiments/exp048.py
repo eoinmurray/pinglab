@@ -708,12 +708,6 @@ def plot_headline_stream(s: dict, out_path: Path, run_id: str) -> None:
     ax_d.spines["top"].set_visible(False)
     ax_d.spines["right"].set_visible(False)
 
-    fig.suptitle(
-        f"Streaming digit classification on trained PING — "
-        f"{n_dig} digits at $\\tau$ = {tau_ms:g} ms per digit "
-        f"(input {s['input_rate_hz']:g} Hz Poisson)",
-        fontsize=theme.SIZE_TITLE,
-    )
     stamp_figure(fig, run_id)
     out_path.parent.mkdir(parents=True, exist_ok=True)
     save_figure(fig, out_path, formats=("png", "pdf"))  # dense raster: PNG, not SVG
@@ -924,11 +918,6 @@ def plot_varying_headline_stream(s: dict, out_path: Path, run_id: str) -> None:
     ax_d.spines["top"].set_visible(False)
     ax_d.spines["right"].set_visible(False)
 
-    fig.suptitle(
-        "Streaming digit classification — per-segment $(\\tau, $ rate$)$ varies, "
-        "trained PING (no retraining)",
-        fontsize=theme.SIZE_TITLE,
-    )
     stamp_figure(fig, run_id)
     out_path.parent.mkdir(parents=True, exist_ok=True)
     save_figure(fig, out_path, formats=("png", "pdf"))  # dense raster: PNG, not SVG
@@ -968,10 +957,6 @@ def plot_grid_heatmap(rows: list[dict], out_path: Path, run_id: str) -> None:
             )
     cbar = fig.colorbar(im, ax=ax, shrink=0.85)
     cbar.set_label("Per-segment accuracy (%)", fontsize=theme.SIZE_LABEL)
-    fig.suptitle(
-        "Streaming accuracy across $(\\tau,$ input rate$)$ on trained PING",
-        fontsize=theme.SIZE_TITLE,
-    )
     fig.tight_layout()
     stamp_figure(fig, run_id)
     out_path.parent.mkdir(parents=True, exist_ok=True)

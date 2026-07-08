@@ -13,8 +13,6 @@ Writing: writings/exp050.typ · figures + numbers.json: artifacts/data/exp050/
 
 from __future__ import annotations
 
-import json
-import subprocess
 import sys
 import time
 from pathlib import Path
@@ -26,14 +24,15 @@ REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from helpers import theme  # noqa: E402
-from helpers.modal import parse_modal_gpu  # noqa: E402
+from helpers.cli import parse_meta  # noqa: E402
+from helpers.numbers import write_numbers  # noqa: E402
 from helpers.paths import artifacts_and_figures  # noqa: E402
-from helpers.run_dirs import prepare as prepare_run_dirs  # noqa: E402
+from helpers.run_cli import run_cli  # noqa: E402
+from helpers.run_dirs import published_run  # noqa: E402
 from helpers.run_id import next_run_id  # noqa: E402
 
 SLUG = "exp050"
 ARTIFACTS, FIGURES = artifacts_and_figures(SLUG)
-SNN_TOOL = REPO / "tools" / "snn" / "tool.py"
 SCOPE_OUT_PNG = REPO / "temp" / "pinglab-cli" / "snapshot.png"
 SCOPE_OUT_NPZ = REPO / "temp" / "pinglab-cli" / "snapshot.npz"
 
@@ -422,99 +421,95 @@ def plot_input_compare(snaps: dict, out_path: Path) -> None:
 
 
 def main() -> None:
-    modal_gpu = parse_modal_gpu(sys.argv)
-    wipe_dir = "--no-wipe-dir" not in sys.argv
+    meta = parse_meta(sys.argv)
 
     t_start = time.monotonic()
-    notebook_run_id = next_run_id(SLUG)
-    print(f"notebook_run_id = {notebook_run_id}")
+    run_id = next_run_id(SLUG)
+    print(f"notebook_run_id = {run_id}")
 
-    prepare_run_dirs(
-        SLUG, notebook_run_id, wipe=wipe_dir, make_artifacts=False,
-        scale=SCALE,
-        host=f"modal:{modal_gpu}" if modal_gpu else "local",
-    )
+    # Atomic publish: everything lands in `figdir` (a staging dir, named to avoid
+    # the local `figures` path-map below) and swaps in only if the run completes.
+    with published_run(
+        SLUG, run_id, make_artifacts=False, scale=SCALE, plot_only=meta.plot_only,
+    ) as (_artifacts, figdir):
+        figures: dict[str, Path] = {}
+        summary_rows: list[dict] = []
+        snaps: dict[str, Path] = {}  # per-cell snapshot copies for the raster figure
+        for cell, spec in CELLS.items():
+            for p in (SCOPE_OUT_PNG, SCOPE_OUT_NPZ):
+                if p.exists():
+                    p.unlink()
+            scope_argv = [*COMMON_ARGS, *spec["args"]]
+            print(f"[scope] {cell}: {' '.join(scope_argv)}")
+            run_cli(scope_argv)
+            if not SCOPE_OUT_NPZ.exists():
+                raise SystemExit(f"pinglab-cli did not produce {SCOPE_OUT_NPZ}")
 
-    figures: dict[str, Path] = {}
-    summary_rows: list[dict] = []
-    snaps: dict[str, Path] = {}  # per-cell snapshot copies for the raster figure
-    for cell, spec in CELLS.items():
-        for p in (SCOPE_OUT_PNG, SCOPE_OUT_NPZ):
-            if p.exists():
-                p.unlink()
-        scope_argv = [*COMMON_ARGS, *spec["args"]]
-        cmd = ["uv", "run", "python", str(SNN_TOOL), *scope_argv]
-        print(f"[scope] {cell}: {' '.join(scope_argv)}")
-        subprocess.run(cmd, cwd=REPO, check=True)
-        if not SCOPE_OUT_NPZ.exists():
-            raise SystemExit(f"pinglab-cli did not produce {SCOPE_OUT_NPZ}")
+            # Stash a copy so the side-by-side raster figure can reload both
+            # regimes after the loop (SCOPE_OUT_NPZ is overwritten each cell).
+            snap_dst = SCOPE_OUT_NPZ.parent / f"snap_{cell}.npz"
+            snap_dst.write_bytes(SCOPE_OUT_NPZ.read_bytes())
+            snaps[cell] = snap_dst
 
-        # Stash a copy so the side-by-side raster figure can reload both
-        # regimes after the loop (SCOPE_OUT_NPZ is overwritten each cell).
-        snap_dst = SCOPE_OUT_NPZ.parent / f"snap_{cell}.npz"
-        snap_dst.write_bytes(SCOPE_OUT_NPZ.read_bytes())
-        snaps[cell] = snap_dst
+            # Summary statistics for the row table — exactly the quantities the
+            # raster comparison (Figure 1) reads off: rates, ISI CV, PSD peak,
+            # pairwise correlation.
+            data = np.load(SCOPE_OUT_NPZ)
+            spk_e = data["spk_e"]
+            spk_i = data["spk_i"]
+            dt = float(data["dt"])
+            e_rate = float(spk_e.mean() * 1000.0 / dt)
+            i_rate = float(spk_i.mean() * 1000.0 / dt) if spk_i.size > 0 else 0.0
+            cvs_e = _isi_cvs(spk_e, dt)
+            cvs_i = _isi_cvs(spk_i, dt) if spk_i.size > 0 else np.array([])
+            med_cv_e = float(np.median(cvs_e)) if cvs_e.size > 0 else float("nan")
+            med_cv_i = float(np.median(cvs_i)) if cvs_i.size > 0 else float("nan")
+            _, _, f_peak = _population_psd(spk_e, dt)
+            _, _, peak_abs_xcorr = _pair_cross_correlogram(spk_e, dt)
 
-        # Summary statistics for the row table — exactly the quantities the
-        # raster comparison (Figure 1) reads off: rates, ISI CV, PSD peak,
-        # pairwise correlation.
-        data = np.load(SCOPE_OUT_NPZ)
-        spk_e = data["spk_e"]
-        spk_i = data["spk_i"]
-        dt = float(data["dt"])
-        e_rate = float(spk_e.mean() * 1000.0 / dt)
-        i_rate = float(spk_i.mean() * 1000.0 / dt) if spk_i.size > 0 else 0.0
-        cvs_e = _isi_cvs(spk_e, dt)
-        cvs_i = _isi_cvs(spk_i, dt) if spk_i.size > 0 else np.array([])
-        med_cv_e = float(np.median(cvs_e)) if cvs_e.size > 0 else float("nan")
-        med_cv_i = float(np.median(cvs_i)) if cvs_i.size > 0 else float("nan")
-        _, _, f_peak = _population_psd(spk_e, dt)
-        _, _, peak_abs_xcorr = _pair_cross_correlogram(spk_e, dt)
+            summary_rows.append({
+                "cell": cell,
+                "e_rate_hz": e_rate,
+                "i_rate_hz": i_rate,
+                "median_isi_cv_e": med_cv_e,
+                "median_isi_cv_i": med_cv_i,
+                "f_psd_peak_hz": f_peak,
+                "peak_abs_xcorr_e": peak_abs_xcorr,
+            })
 
-        summary_rows.append({
-            "cell": cell,
-            "e_rate_hz": e_rate,
-            "i_rate_hz": i_rate,
-            "median_isi_cv_e": med_cv_e,
-            "median_isi_cv_i": med_cv_i,
-            "f_psd_peak_hz": f_peak,
-            "peak_abs_xcorr_e": peak_abs_xcorr,
-        })
+        # The figures this entry shows, both side-by-side PING vs V&S AI:
+        # the external drive each receives, and the raster page (combined E+I
+        # raster, PSD, ISI-CV, cross-correlogram).
+        if snaps:
+            input_dst = figdir / "input_compare.png"
+            plot_input_compare(snaps, input_dst)
+            figures["input_compare"] = input_dst
 
-    # The figures this entry shows, both side-by-side PING vs V&S AI:
-    # the external drive each receives, and the raster page (combined E+I
-    # raster, PSD, ISI-CV, cross-correlogram).
-    if snaps:
-        input_dst = FIGURES / "input_compare.png"
-        plot_input_compare(snaps, input_dst)
-        figures["input_compare"] = input_dst
+            raster_dst = figdir / "raster_compare.png"
+            plot_raster_compare(snaps, raster_dst)
+            figures["raster_compare"] = raster_dst
 
-        raster_dst = FIGURES / "raster_compare.png"
-        plot_raster_compare(snaps, raster_dst)
-        figures["raster_compare"] = raster_dst
+        duration_s = time.monotonic() - t_start
 
-    duration_s = time.monotonic() - t_start
-    summary = {
-        "notebook_run_id": notebook_run_id,
-        "duration_s": round(duration_s, 1),
-        "common_args": COMMON_ARGS,
-        "cells": {cell: spec["args"] for cell, spec in CELLS.items()},
-        "summary": summary_rows,
-    }
-    def _clean(o):
-        import math
-        if isinstance(o, float) and (math.isnan(o) or math.isinf(o)):
-            return None
-        if isinstance(o, dict):
-            return {k: _clean(v) for k, v in o.items()}
-        if isinstance(o, list):
-            return [_clean(v) for v in o]
-        return o
-    (FIGURES / "numbers.json").write_text(
-        json.dumps(_clean(summary), indent=2, allow_nan=False) + "\n"
-    )
-    print(f"wrote {FIGURES / 'numbers.json'}")
-    print(f"  duration: {duration_s:.1f}s")
+        def _clean(o):
+            import math
+            if isinstance(o, float) and (math.isnan(o) or math.isinf(o)):
+                return None
+            if isinstance(o, dict):
+                return {k: _clean(v) for k, v in o.items()}
+            if isinstance(o, list):
+                return [_clean(v) for v in o]
+            return o
+
+        write_numbers(
+            figdir, run_id=run_id, duration_s=duration_s,
+            payload=_clean({
+                "common_args": COMMON_ARGS,
+                "cells": {cell: spec["args"] for cell, spec in CELLS.items()},
+                "summary": summary_rows,
+            }),
+        )
+        print(f"wrote {figdir / 'numbers.json'}")
 
 
 if __name__ == "__main__":

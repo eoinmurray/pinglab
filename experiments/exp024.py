@@ -28,16 +28,15 @@ REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from helpers import theme  # noqa: E402
-from helpers.fmt import format_duration  # noqa: E402
-from helpers.modal import parse_modal_gpu  # noqa: E402
+from helpers.cli import parse_meta  # noqa: E402
+from helpers.numbers import write_numbers  # noqa: E402
 from helpers.paths import artifacts_and_figures  # noqa: E402
-from helpers.run_dirs import prepare as prepare_run_dirs  # noqa: E402
+from helpers.run_dirs import published_run  # noqa: E402
 from helpers.run_id import next_run_id  # noqa: E402
 from helpers.stamp import stamp_figure  # noqa: E402
 
 SLUG = "exp024"
 ARTIFACTS, FIGURES = artifacts_and_figures(SLUG)
-SNN_TOOL = REPO / "tools" / "snn" / "tool.py"
 
 T_MS = 200.0
 DT_TRAIN = 0.1
@@ -48,7 +47,9 @@ EPOCHS: int = 50
 
 SEEDS: tuple[int, ...] = (42, 43, 44)
 
-MAX_SAMPLES: int = 2000
+# Matches the exp022 sweep-cell scale (10% of MNIST = 7000) so the reported
+# Methods table matches the θ_u=off baseline cells actually read.
+MAX_SAMPLES: int = 7000
 BATCH_SIZE: int = 256
 
 # Run scale — stamped into the manifest by run_dirs.prepare and rendered as
@@ -815,64 +816,57 @@ def plot_confidence_inflation(out_path: Path, run_id: str) -> None:
 
 
 def main() -> None:
-    modal_gpu = parse_modal_gpu(sys.argv)
-    skip_training = "--skip-training" in sys.argv
-    wipe_dir = "--no-wipe-dir" not in sys.argv
+    meta = parse_meta(sys.argv)
 
     t_start = time.monotonic()
-    notebook_run_id = next_run_id(SLUG)
+    run_id = next_run_id(SLUG)
     n_cells = len(MODELS) * len(SEEDS)
     print(
-        f"notebook_run_id = {notebook_run_id} epochs={EPOCHS} "
+        f"notebook_run_id = {run_id} epochs={EPOCHS} "
         f"cells={n_cells}"
-        + ("  [skip-training]" if skip_training else "")
-        + (f"  [modal:{modal_gpu}]" if modal_gpu else "")
-    )
-
-    prepare_run_dirs(
-        SLUG, notebook_run_id, wipe=wipe_dir, skip_training=skip_training,
-        make_artifacts=False,
-        scale=SCALE,
-        host=f"modal:{modal_gpu}" if modal_gpu else "local",
+        + ("  [skip-training]" if meta.skip_training else "")
     )
 
     # Training lives in exp022 now (train-once / reuse-many): the θ_u=off
     # baselines this audit reads are a registry family there. exp024 only
     # consumes them — the per-epoch weight_norms it needs are written by the
-    # standard train command for every cell.
+    # standard train command for every cell. Atomic publish: everything lands
+    # in `figures` (a staging dir) and swaps into place only if the run completes.
+    with published_run(
+        SLUG, run_id, skip_training=meta.skip_training, make_artifacts=False,
+        scale=SCALE, plot_only=meta.plot_only,
+    ) as (_artifacts, figures):
+        # Two figures, one per model, read straight from the shared cells'
+        # per-epoch training history (no inference needed). Line plots → SVG (H10).
+        plot_model_curves("coba", figures / "coba_curves.svg", run_id)
+        print(f"wrote {figures / 'coba_curves.svg'}")
+        plot_model_curves("ping", figures / "ping_curves.svg", run_id)
+        print(f"wrote {figures / 'ping_curves.svg'}")
+        plot_confidence_inflation(
+            figures / "confidence_inflation.svg", run_id)
+        print(f"wrote {figures / 'confidence_inflation.svg'}")
 
-    # Two figures, one per model, read straight from the shared cells'
-    # per-epoch training history (no inference needed). Line plots → SVG (H10).
-    plot_model_curves("coba", FIGURES / "coba_curves.svg", notebook_run_id)
-    print(f"wrote {FIGURES / 'coba_curves.svg'}")
-    plot_model_curves("ping", FIGURES / "ping_curves.svg", notebook_run_id)
-    print(f"wrote {FIGURES / 'ping_curves.svg'}")
-    plot_confidence_inflation(
-        FIGURES / "confidence_inflation.svg", notebook_run_id)
-    print(f"wrote {FIGURES / 'confidence_inflation.svg'}")
+        finals = {}
+        for (model, seed), met in _gather_cells().items():
+            last = met["epochs"][-1]
+            finals[f"{model}__seed{seed}"] = {
+                "acc": last.get("acc"), "rate_e": last.get("test_rate_e"),
+                "rate_i": last.get("test_rate_i"),
+            }
 
-    finals = {}
-    for (model, seed), met in _gather_cells().items():
-        last = met["epochs"][-1]
-        finals[f"{model}__seed{seed}"] = {
-            "acc": last.get("acc"), "rate_e": last.get("test_rate_e"),
-            "rate_i": last.get("test_rate_i"),
-        }
-
-    duration_s = time.monotonic() - t_start
-    train_cfg = load_config(cell_dir(MODELS[0], SEEDS[0]))
-    summary_doc = {
-        "notebook_run_id": notebook_run_id,
-        "git_sha": train_cfg.get("git_sha"),
-        "duration_s": round(duration_s, 1),
-        "duration": format_duration(duration_s),
-        "config": {"dataset": "mnist", "models": MODELS, "seeds": list(SEEDS),
-                   "epochs": EPOCHS, "t_ms": T_MS, "dt": DT_TRAIN},
-        "final": finals,
-    }
-    (FIGURES / "numbers.json").write_text(json.dumps(summary_doc, indent=2) + "\n")
-    print(f"wrote {FIGURES / 'numbers.json'}")
-    print(f"  total duration: {summary_doc['duration']}")
+        duration_s = time.monotonic() - t_start
+        train_cfg = load_config(cell_dir(MODELS[0], SEEDS[0]))
+        write_numbers(
+            figures, run_id=run_id, duration_s=duration_s,
+            payload={
+                "git_sha_train": train_cfg.get("git_sha"),
+                "config": {"dataset": "mnist", "models": MODELS,
+                           "seeds": list(SEEDS), "epochs": EPOCHS,
+                           "t_ms": T_MS, "dt": DT_TRAIN},
+                "final": finals,
+            },
+        )
+        print(f"wrote {figures / 'numbers.json'}")
 
 
 

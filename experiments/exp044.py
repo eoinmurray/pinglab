@@ -16,7 +16,6 @@ Writing: writings/exp044.typ · figures + numbers.json: artifacts/data/exp044/
 from __future__ import annotations
 
 import json
-import subprocess
 import sys
 import time
 from pathlib import Path
@@ -28,17 +27,17 @@ REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from helpers import theme  # noqa: E402
+from helpers.cli import parse_meta  # noqa: E402
 from helpers.figsave import save_figure  # noqa: E402
-from helpers.fmt import format_duration  # noqa: E402
-from helpers.modal import parse_modal_gpu  # noqa: E402
+from helpers.numbers import write_numbers  # noqa: E402
 from helpers.paths import artifacts_and_figures  # noqa: E402
-from helpers.run_dirs import prepare as prepare_run_dirs  # noqa: E402
+from helpers.run_cli import run_cli  # noqa: E402
+from helpers.run_dirs import published_run  # noqa: E402
 from helpers.run_id import next_run_id  # noqa: E402
 from helpers.stamp import stamp_figure  # noqa: E402
 
 SLUG = "exp044"
 ARTIFACTS, FIGURES = artifacts_and_figures(SLUG)
-SNN_TOOL = REPO / "tools" / "snn" / "tool.py"
 
 T_MS = 200.0
 
@@ -61,8 +60,9 @@ RASTER_N_E_PLOT: int = 200
 RASTER_N_I_PLOT: int = 64
 RASTER_T_WINDOW_MS: float = 100.0  # show first 100 ms so the cycle is visible
 
-# Baked run scale (the retired "small" tier).
-MAX_SAMPLES: int = 500
+# exp022 sweep-cell scale (10% of MNIST = 7000); reporting only — exp022 owns
+# the dt-family training this entry reads.
+MAX_SAMPLES: int = 7000
 # The exp022 dt-family cells this entry reads are trained 50 epochs; mirror that
 # so the reported scale matches the cells actually plotted.
 EPOCHS: int = 50
@@ -111,16 +111,14 @@ def _infer_cell(train_dir: Path, extra_args: list[str], out_name: str) -> Path:
     """
     out_dir = (ARTIFACTS / out_name / train_dir.name).resolve()
     out_dir.mkdir(parents=True, exist_ok=True)
-    subprocess.run(
+    run_cli(
         [
-            "uv", "run", "python", str(SNN_TOOL), "sim", "--infer",
+            "sim", "--infer",
             "--load-config", str((train_dir / "config.json").resolve()),
             "--load-weights", str((train_dir / "weights.pth").resolve()),
             "--out-dir", str(out_dir),
             *extra_args,
-        ],
-        cwd=REPO,
-        check=True,
+        ]
     )
     return out_dir
 
@@ -326,90 +324,82 @@ def plot_training_curves(out_path: Path, run_id: str) -> None:
     plt.close(fig)
 
 def main() -> None:
-    modal_gpu = parse_modal_gpu(sys.argv)
-    skip_training = "--skip-training" in sys.argv
-    wipe_dir = "--no-wipe-dir" not in sys.argv
+    meta = parse_meta(sys.argv)
 
     # Publication profile: every figure this notebook writes is a print-sized
     # vector, emitted as both SVG (docs) and PDF (manuscript) by save_figure.
     theme.set_paper_mode(True)
 
     t_start = time.monotonic()
-    notebook_run_id = next_run_id(SLUG)
+    run_id = next_run_id(SLUG)
     n_cells = len(DT_SWEEP_MS) * len(SEEDS)
     print(
-        f"notebook_run_id = {notebook_run_id} cells={n_cells}"
-        + ("  [skip-training]" if skip_training else "")
-        + (f"  [modal:{modal_gpu}]" if modal_gpu else "")
-    )
-
-    prepare_run_dirs(
-        SLUG, notebook_run_id, wipe=wipe_dir, skip_training=skip_training,
-        make_artifacts=False,
-        scale=SCALE,
-        host=f"modal:{modal_gpu}" if modal_gpu else "local",
+        f"notebook_run_id = {run_id} cells={n_cells}"
+        + ("  [skip-training]" if meta.skip_training else "")
     )
 
     # Training lives in exp022 now (train-once / reuse-many): the dt sweep is a
     # registry family there (the documented dt exception). This notebook only
-    # consumes the cells.
+    # consumes the cells. Atomic publish: everything lands in `figures` (a staging
+    # dir) and swaps into place only if the run completes.
+    with published_run(
+        SLUG, run_id, skip_training=meta.skip_training, make_artifacts=False,
+        scale=SCALE, plot_only=meta.plot_only,
+    ) as (_artifacts, figures):
+        rows: list[dict] = []
+        for dt_ms in DT_SWEEP_MS:
+            for seed in SEEDS:
+                run_dir = cell_dir(dt_ms, seed)
+                if not (run_dir / "weights.pth").exists():
+                    raise SystemExit(f"missing weights: {run_dir / 'weights.pth'}")
+                t0 = time.monotonic()
+                res = measure_rate_acc(run_dir)
+                res["seed"] = seed
+                rows.append(res)
+                print(
+                    f"  Δt={dt_ms:>5.2f}ms seed={seed}  "
+                    f"acc={res['acc']:5.2f}%  E={res['e_rate_hz']:6.2f} Hz  "
+                    f"I={res['i_rate_hz']:6.2f} Hz  ({time.monotonic() - t0:.1f}s)"
+                )
 
-    rows: list[dict] = []
-    for dt_ms in DT_SWEEP_MS:
-        for seed in SEEDS:
-            run_dir = cell_dir(dt_ms, seed)
-            if not (run_dir / "weights.pth").exists():
-                raise SystemExit(f"missing weights: {run_dir / 'weights.pth'}")
-            t0 = time.monotonic()
-            res = measure_rate_acc(run_dir)
-            res["seed"] = seed
-            rows.append(res)
-            print(
-                f"  Δt={dt_ms:>5.2f}ms seed={seed}  "
-                f"acc={res['acc']:5.2f}%  E={res['e_rate_hz']:6.2f} Hz  "
-                f"I={res['i_rate_hz']:6.2f} Hz  ({time.monotonic() - t0:.1f}s)"
-            )
+        plot_dt_sweep(rows, figures / "dt_sweep", run_id)
+        print(f"wrote {figures / 'dt_sweep'}.{{svg,pdf}}")
 
-    plot_dt_sweep(rows, FIGURES / "dt_sweep", notebook_run_id)
-    print(f"wrote {FIGURES / 'dt_sweep'}.{{svg,pdf}}")
+        # Raster strip — one trial per Δt, all from seed 42.
+        raster_seed = SEEDS[0]
+        print(f"[raster] single-trial panels from seed {raster_seed}, "
+              f"sample {RASTER_SAMPLE_IDX}")
+        samples = []
+        for dt_ms in DT_SWEEP_MS:
+            run_dir = cell_dir(dt_ms, raster_seed)
+            samples.append(capture_raster(run_dir, RASTER_SAMPLE_IDX))
+        plot_raster_strip(
+            samples, figures / "raster_strip", run_id,
+            t_window_ms=RASTER_T_WINDOW_MS,
+        )
+        print(f"wrote {figures / 'raster_strip'}.{{png,pdf}}")
+        plot_training_curves(figures / "training_curves", run_id)
+        print(f"wrote {figures / 'training_curves'}.{{svg,pdf}}")
 
-    # Raster strip — one trial per Δt, all from seed 42.
-    raster_seed = SEEDS[0]
-    print(f"[raster] single-trial panels from seed {raster_seed}, "
-          f"sample {RASTER_SAMPLE_IDX}")
-    samples = []
-    for dt_ms in DT_SWEEP_MS:
-        run_dir = cell_dir(dt_ms, raster_seed)
-        samples.append(capture_raster(run_dir, RASTER_SAMPLE_IDX))
-    plot_raster_strip(
-        samples, FIGURES / "raster_strip", notebook_run_id,
-        t_window_ms=RASTER_T_WINDOW_MS,
-    )
-    print(f"wrote {FIGURES / 'raster_strip'}.{{png,pdf}}")
-    plot_training_curves(FIGURES / "training_curves", notebook_run_id)
-    print(f"wrote {FIGURES / 'training_curves'}.{{svg,pdf}}")
-
-    duration_s = time.monotonic() - t_start
-    train_cfg = load_config(cell_dir(DT_SWEEP_MS[0], SEEDS[0]))
-    summary = {
-        "notebook_run_id": notebook_run_id,
-        "git_sha": train_cfg.get("git_sha"),
-        "duration_s": round(duration_s, 1),
-        "duration": format_duration(duration_s),
-        "config": {
-            "dataset": "mnist",
-            "dt_sweep_ms": list(DT_SWEEP_MS),
-            "seeds": list(SEEDS),
-            "batch_size": BATCH_SIZE,
-            "max_samples": MAX_SAMPLES,
-            "epochs": EPOCHS,
-            "t_ms": T_MS,
-        },
-        "results": rows,
-    }
-    (FIGURES / "numbers.json").write_text(json.dumps(summary, indent=2) + "\n")
-    print(f"wrote {FIGURES / 'numbers.json'}")
-    print(f"  total duration: {summary['duration']}")
+        duration_s = time.monotonic() - t_start
+        train_cfg = load_config(cell_dir(DT_SWEEP_MS[0], SEEDS[0]))
+        write_numbers(
+            figures, run_id=run_id, duration_s=duration_s,
+            payload={
+                "git_sha_train": train_cfg.get("git_sha"),
+                "config": {
+                    "dataset": "mnist",
+                    "dt_sweep_ms": list(DT_SWEEP_MS),
+                    "seeds": list(SEEDS),
+                    "batch_size": BATCH_SIZE,
+                    "max_samples": MAX_SAMPLES,
+                    "epochs": EPOCHS,
+                    "t_ms": T_MS,
+                },
+                "results": rows,
+            },
+        )
+        print(f"wrote {figures / 'numbers.json'}")
 
 
 

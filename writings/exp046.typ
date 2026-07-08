@@ -1,18 +1,18 @@
 #import "/demolab-engine/build/lib.typ": numbers-table, provenance-footer
 
 #let meta = (
-  title: "Near-strict 1-spike-per-cycle ceiling: 99.45% of (cell, cycle) pairs",
+  title: "Near-strict 1-spike-per-cycle ceiling: 98.9% of (cell, cycle) pairs",
   date: "2026-06-04",
   description: "Counting E spikes per gamma cycle across exp041's 18 checkpoints shows the architecture is overwhelmingly one-spike-per-cycle.",
   collection: "gamma-gated-sparsity",
-  status: "draft",
+  status: "final",
 )
 
 
 #let body = [
   == Abstract
 
-  #link("/exp041/")[exp041]'s slope $p approx 0.20$ was interpreted as _"each E cell joins a cycle with ≈ 20% probability"_. That reading assumes the per-cycle spike count is bounded by 1 — an E cell either participates in this cycle or not. This notebook measures that directly: walking through every gamma cycle on the test set and counting how many spikes each E cell actually emits, on all 18 trained checkpoints in exp041's $tau_"GABA"$ sweep.
+  #link("/exp041/")[exp041]'s slope $p approx 0.20$ was interpreted as _"each E cell joins a cycle with ≈ 20% probability"_. That reading assumes the per-cycle spike count is bounded by 1 (an E cell either participates in this cycle or not). This notebook measures that directly: walking through every gamma cycle on the test set and counting how many spikes each E cell actually emits, on all 18 trained checkpoints in exp041's $tau_"GABA"$ sweep.
 
   == Methods
 
@@ -24,12 +24,19 @@
   + For each (cell, cycle, trial), count the number of E spikes within the cycle window.
   + Bucket counts globally into ${0, 1, 2, >= 3}$ and aggregate by $tau_"GABA"$.
 
-  The cycle anchor is the I-burst — this is the right anchor because the cycle is operationally defined as _"the time between one inhibitory blanket and the next"_, not as the time between E bursts (which can be silent on a given cycle).
+  The cycle anchor is the I-burst: this is the right anchor because the cycle is operationally defined as _"the time between one inhibitory blanket and the next"_, not as the time between E bursts (which can be silent on a given cycle).
 
   == Results
 
   #figure(
-    block(width: 100%, height: 4cm, inset: 1em, stroke: 0.5pt + gray, radius: 3pt, fill: luma(245))[#text(fill: gray)[pending re-run with new canonical data]],
-    caption: [Distribution of E spike count per gamma cycle per cell, by $tau_"GABA"$, three seeds aggregated. Across *48 million (cell, cycle) pairs*, the architecture is overwhelmingly bimodal: each cell either emits zero spikes in a given cycle (≈ 77% of the time) or exactly one (≈ 22% of the time). Two-or-more events occur in 0.55% of cycles; three-or-more in 0.04%.],
+    image("/artifacts/data/exp046/spikes_per_cycle_distribution.svg", width: 100%,
+      alt: "Six bar charts, one per τ_GABA, of the probability an E cell emits 0, 1, 2, or ≥3 spikes in a gamma cycle; every panel is dominated by the 0 and 1 bars."),
+    caption: [Distribution of E spike count per gamma cycle per cell, by $tau_"GABA"$, three seeds aggregated. Across *179 million (cell, cycle) pairs*, the architecture is overwhelmingly bimodal: each cell either emits zero spikes in a given cycle (≈ 79% of the time) or exactly one (≈ 20% of the time). Two-or-more events occur in ≈ 1.1% of cycles; three-or-more in ≈ 0.14%. Pooled over the sweep, 98.9% of pairs carry at most one spike.],
+  )
+
+  #figure(
+    image("/artifacts/data/exp046/ceiling_vs_fgamma.svg", width: 100%,
+      alt: "Per-cell E rate against measured gamma frequency; the busiest cell tracks the one-spike-per-cycle line while the median cell tracks exp041's shallower slope."),
+    caption: [Per-cell E rate versus measured gamma frequency $f_gamma$ across the $tau_"GABA"$ sweep. The busiest cell in each network tracks the one-spike-per-cycle ceiling $r = f_gamma$ (max-cell fit $r = 0.97 f_gamma$, $R^2 = 0.88$), while the median cell sits on exp041's shallower $r approx 0.20 f_gamma$ participation slope. The ceiling is near-strict: even the most active cell rarely exceeds one spike per cycle.],
   )
 ]

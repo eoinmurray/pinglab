@@ -17,8 +17,6 @@ Writing: writings/exp058.typ · figures + numbers.json: artifacts/data/exp058/
 
 from __future__ import annotations
 
-import json
-import subprocess
 import sys
 import time
 from pathlib import Path
@@ -30,14 +28,15 @@ REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from helpers import theme  # noqa: E402
-from helpers.modal import parse_modal_gpu  # noqa: E402
+from helpers.cli import parse_meta  # noqa: E402
+from helpers.numbers import write_numbers  # noqa: E402
 from helpers.paths import artifacts_and_figures  # noqa: E402
-from helpers.run_dirs import prepare as prepare_run_dirs  # noqa: E402
+from helpers.run_cli import run_cli  # noqa: E402
+from helpers.run_dirs import published_run  # noqa: E402
 from helpers.run_id import next_run_id  # noqa: E402
 
 SLUG = "exp058"
 ARTIFACTS, FIGURES = artifacts_and_figures(SLUG)
-SNN_TOOL = REPO / "tools" / "snn" / "tool.py"
 SCOPE_OUT_PNG = REPO / "temp" / "pinglab-cli" / "snapshot.png"
 SCOPE_OUT_NPZ = REPO / "temp" / "pinglab-cli" / "snapshot.npz"
 
@@ -407,8 +406,7 @@ def _run_and_measure(scope_argv: list[str]) -> dict:
     for p in (SCOPE_OUT_PNG, SCOPE_OUT_NPZ):
         if p.exists():
             p.unlink()
-    cmd = ["uv", "run", "python", str(SNN_TOOL), *COMMON_ARGS, *scope_argv]
-    subprocess.run(cmd, cwd=REPO, check=True)
+    run_cli([*COMMON_ARGS, *scope_argv])
     if not SCOPE_OUT_NPZ.exists():
         raise SystemExit(f"pinglab-cli did not produce {SCOPE_OUT_NPZ}")
     data = np.load(SCOPE_OUT_NPZ)
@@ -587,8 +585,7 @@ def run_lyapunov() -> dict:
             argv = [*COMMON_ARGS, "--t-ms", LYAP_T_MS,
                     *_chaos_args(vspec, seed), "--lyapunov-eps", LYAP_EPS]
             print(f"[lyap] {vkey} seed={seed}")
-            subprocess.run(["uv", "run", "python", str(SNN_TOOL), *argv],
-                           cwd=REPO, check=True)
+            run_cli(argv)
             data = np.load(SCOPE_OUT_NPZ)
             if "lyap_vdist" not in data:
                 raise SystemExit("snapshot did not save lyap_vdist")
@@ -651,101 +648,96 @@ def plot_lyapunov(lyap: dict, out_path: Path) -> None:
 
 
 def main() -> None:
-    modal_gpu = parse_modal_gpu(sys.argv)
-    wipe_dir = "--no-wipe-dir" not in sys.argv
+    meta = parse_meta(sys.argv)
 
     t_start = time.monotonic()
-    notebook_run_id = next_run_id(SLUG)
-    print(f"notebook_run_id = {notebook_run_id}")
+    run_id = next_run_id(SLUG)
+    print(f"notebook_run_id = {run_id}")
 
-    prepare_run_dirs(
-        SLUG, notebook_run_id, wipe=wipe_dir, make_artifacts=False,
-        scale=SCALE,
-        host=f"modal:{modal_gpu}" if modal_gpu else "local",
-    )
+    # Atomic publish: everything lands in `figures` (a staging dir) and swaps
+    # into place only if the run completes.
+    with published_run(
+        SLUG, run_id, skip_training=meta.skip_training, make_artifacts=False,
+        scale=SCALE, plot_only=meta.plot_only,
+    ) as (_artifacts, figures):
+        summary_rows: list[dict] = []
+        for cell, spec in CELLS.items():
+            for p in (SCOPE_OUT_PNG, SCOPE_OUT_NPZ):
+                if p.exists():
+                    p.unlink()
+            scope_argv = [*COMMON_ARGS, *spec["args"]]
+            print(f"[scope] {cell}: {' '.join(scope_argv)}")
+            run_cli(scope_argv)
+            if not SCOPE_OUT_NPZ.exists():
+                raise SystemExit(f"pinglab-cli did not produce {SCOPE_OUT_NPZ}")
 
-    figures: dict[str, Path] = {}
-    summary_rows: list[dict] = []
-    for cell, spec in CELLS.items():
-        for p in (SCOPE_OUT_PNG, SCOPE_OUT_NPZ):
-            if p.exists():
-                p.unlink()
-        scope_argv = [*COMMON_ARGS, *spec["args"]]
-        cmd = ["uv", "run", "python", str(SNN_TOOL), *scope_argv]
-        print(f"[scope] {cell}: {' '.join(scope_argv)}")
-        subprocess.run(cmd, cwd=REPO, check=True)
-        if not SCOPE_OUT_NPZ.exists():
-            raise SystemExit(f"pinglab-cli did not produce {SCOPE_OUT_NPZ}")
+            raster_dst = figures / f"raster__{cell}.png"
+            plot_raster(SCOPE_OUT_NPZ, raster_dst, spec["title"])
+            print(f"wrote {raster_dst}")
 
-        raster_dst = FIGURES / f"raster__{cell}.png"
-        plot_raster(SCOPE_OUT_NPZ, raster_dst, spec["title"])
-        figures[f"raster__{cell}"] = raster_dst
-        print(f"wrote {raster_dst}")
+            # Summary statistics — the quantities the raster page reads off.
+            data = np.load(SCOPE_OUT_NPZ)
+            spk_e, spk_i = data["spk_e"], data["spk_i"]
+            dt = float(data["dt"])
+            e_rate = float(spk_e.mean() * 1000.0 / dt)
+            i_rate = float(spk_i.mean() * 1000.0 / dt) if spk_i.size > 0 else 0.0
+            cvs_e = _isi_cvs(spk_e, dt)
+            cvs_i = _isi_cvs(spk_i, dt) if spk_i.size > 0 else np.array([])
+            med_cv_e = float(np.median(cvs_e)) if cvs_e.size > 0 else float("nan")
+            med_cv_i = float(np.median(cvs_i)) if cvs_i.size > 0 else float("nan")
+            _, _, f_peak = _population_psd(spk_e, dt)
+            _, _, peak_abs_xcorr = _pair_cross_correlogram(spk_e, dt)
+            summary_rows.append({
+                "cell": cell,
+                "e_rate_hz": e_rate,
+                "i_rate_hz": i_rate,
+                "median_isi_cv_e": med_cv_e,
+                "median_isi_cv_i": med_cv_i,
+                "f_psd_peak_hz": f_peak,
+                "peak_abs_xcorr_e": peak_abs_xcorr,
+            })
 
-        # Summary statistics — the quantities the raster page reads off.
-        data = np.load(SCOPE_OUT_NPZ)
-        spk_e, spk_i = data["spk_e"], data["spk_i"]
-        dt = float(data["dt"])
-        e_rate = float(spk_e.mean() * 1000.0 / dt)
-        i_rate = float(spk_i.mean() * 1000.0 / dt) if spk_i.size > 0 else 0.0
-        cvs_e = _isi_cvs(spk_e, dt)
-        cvs_i = _isi_cvs(spk_i, dt) if spk_i.size > 0 else np.array([])
-        med_cv_e = float(np.median(cvs_e)) if cvs_e.size > 0 else float("nan")
-        med_cv_i = float(np.median(cvs_i)) if cvs_i.size > 0 else float("nan")
-        _, _, f_peak = _population_psd(spk_e, dt)
-        _, _, peak_abs_xcorr = _pair_cross_correlogram(spk_e, dt)
-        summary_rows.append({
-            "cell": cell,
-            "e_rate_hz": e_rate,
-            "i_rate_hz": i_rate,
-            "median_isi_cv_e": med_cv_e,
-            "median_isi_cv_i": med_cv_i,
-            "f_psd_peak_hz": f_peak,
-            "peak_abs_xcorr_e": peak_abs_xcorr,
-        })
+        # K-sweep, strong J/√K vs weak coupling → Figure 2.
+        ksweep = run_k_sweep()
+        ksweep_dst = figures / "k_sweep.png"
+        plot_k_sweep(ksweep, ksweep_dst)
+        print(f"wrote {ksweep_dst}")
 
-    # K-sweep, strong J/√K vs weak coupling → Figure 2.
-    ksweep = run_k_sweep()
-    ksweep_dst = FIGURES / "k_sweep.png"
-    plot_k_sweep(ksweep, ksweep_dst)
-    figures["k_sweep"] = ksweep_dst
-    print(f"wrote {ksweep_dst}")
+        # Direct Lyapunov-exponent measurement → Figure 3.
+        lyap = run_lyapunov()
+        lyap_dst = figures / "lyapunov.png"
+        plot_lyapunov(lyap, lyap_dst)
+        print(f"wrote {lyap_dst}")
+        lyap_summary = {
+            vk: {"label": v["label"], "lambda_per_s": v["lambda_per_s"]}
+            for vk, v in lyap["variants"].items()
+        }
 
-    # Direct Lyapunov-exponent measurement → Figure 3.
-    lyap = run_lyapunov()
-    lyap_dst = FIGURES / "lyapunov.png"
-    plot_lyapunov(lyap, lyap_dst)
-    figures["lyapunov"] = lyap_dst
-    print(f"wrote {lyap_dst}")
-    lyap_summary = {
-        vk: {"label": v["label"], "lambda_per_s": v["lambda_per_s"]}
-        for vk, v in lyap["variants"].items()
-    }
+        duration_s = time.monotonic() - t_start
+        payload = {
+            "common_args": COMMON_ARGS,
+            "cells": {cell: spec["args"] for cell, spec in CELLS.items()},
+            "summary": summary_rows,
+            "k_sweep": ksweep,
+            "lyapunov": lyap_summary,
+        }
 
-    duration_s = time.monotonic() - t_start
-    summary = {
-        "notebook_run_id": notebook_run_id,
-        "duration_s": round(duration_s, 1),
-        "common_args": COMMON_ARGS,
-        "cells": {cell: spec["args"] for cell, spec in CELLS.items()},
-        "summary": summary_rows,
-        "k_sweep": ksweep,
-        "lyapunov": lyap_summary,
-    }
-    def _clean(o):
-        import math
-        if isinstance(o, float) and (math.isnan(o) or math.isinf(o)):
-            return None
-        if isinstance(o, dict):
-            return {k: _clean(v) for k, v in o.items()}
-        if isinstance(o, list):
-            return [_clean(v) for v in o]
-        return o
-    (FIGURES / "numbers.json").write_text(
-        json.dumps(_clean(summary), indent=2, allow_nan=False) + "\n"
-    )
-    print(f"wrote {FIGURES / 'numbers.json'}")
-    print(f"  duration: {duration_s:.1f}s")
+        def _clean(o):
+            import math
+            if isinstance(o, float) and (math.isnan(o) or math.isinf(o)):
+                return None
+            if isinstance(o, dict):
+                return {k: _clean(v) for k, v in o.items()}
+            if isinstance(o, list):
+                return [_clean(v) for v in o]
+            return o
+
+        write_numbers(
+            figures, run_id=run_id, duration_s=duration_s,
+            payload=_clean(payload),
+        )
+        print(f"wrote {figures / 'numbers.json'}")
+        print(f"  duration: {duration_s:.1f}s")
 
 
 if __name__ == "__main__":

@@ -26,7 +26,6 @@ Writing: writings/exp049.typ · figures + numbers.json: artifacts/data/exp049/
 from __future__ import annotations
 
 import json
-import subprocess
 import sys
 import time
 from pathlib import Path
@@ -38,20 +37,22 @@ REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from helpers import theme  # noqa: E402
-from helpers.cli import replot_target  # noqa: E402
+from helpers.cli import parse_meta  # noqa: E402
 from helpers.figsave import save_figure  # noqa: E402
-from helpers.modal import parse_modal_gpu  # noqa: E402
+from helpers.numbers import write_numbers  # noqa: E402
 from helpers.paths import artifacts_and_figures  # noqa: E402
-from helpers.run_dirs import prepare as prepare_run_dirs  # noqa: E402
+from helpers.run_cli import run_cli  # noqa: E402
+from helpers.run_dirs import published_run  # noqa: E402
 from helpers.run_id import next_run_id  # noqa: E402
 from helpers.stamp import stamp_figure  # noqa: E402
 
 SLUG = "exp049"
 ARTIFACTS, FIGURES = artifacts_and_figures(SLUG)
-SNN_TOOL = REPO / "tools" / "snn" / "tool.py"
 
-MAX_SAMPLES = 500
-EPOCHS = 10
+# The exp022 init-family cells this entry reads are trained 50 epochs on the 10%
+# MNIST subset (7000 samples); mirror that so the reported scale matches the cells.
+MAX_SAMPLES = 7000
+EPOCHS = 50
 T_MS = 200.0
 DT_TRAIN = 0.1
 
@@ -156,16 +157,14 @@ def _infer_cell(train_dir: Path, extra_args: list[str], out_name: str) -> Path:
     train_dir = train_dir.resolve()
     out_dir = (ARTIFACTS / out_name / train_dir.name).resolve()
     out_dir.mkdir(parents=True, exist_ok=True)
-    subprocess.run(
+    run_cli(
         [
-            "uv", "run", "python", str(SNN_TOOL), "sim", "--infer",
+            "sim", "--infer",
             "--load-config", str(train_dir / "config.json"),
             "--load-weights", str(train_dir / "weights.pth"),
             "--out-dir", str(out_dir),
             *extra_args,
-        ],
-        cwd=REPO,
-        check=True,
+        ]
     )
     return out_dir
 
@@ -186,15 +185,13 @@ def load_init_and_trained_weights(train_dir: Path):
     train_dir = train_dir.resolve()
     out_dir = (ARTIFACTS / "weights_dump" / train_dir.name).resolve()
     out_dir.mkdir(parents=True, exist_ok=True)
-    subprocess.run(
+    run_cli(
         [
-            "uv", "run", "python", str(SNN_TOOL), "dump-weights",
+            "dump-weights",
             "--load-config", str(train_dir / "config.json"),
             "--load-weights", str(train_dir / "weights.pth"),
             "--out-dir", str(out_dir),
-        ],
-        cwd=REPO,
-        check=True,
+        ]
     )
     d = np.load(out_dir / "weights_dump.npz")
     return (
@@ -900,8 +897,6 @@ def fig_attractor(summary_rows, out_path, run_id):
                 arrowprops=dict(arrowstyle="->", color=theme.DEEP_RED, lw=1.0))
     ax.set_xlabel("E firing rate (Hz)", fontsize=theme.SIZE_LABEL)
     ax.set_ylabel("I firing rate (Hz)", fontsize=theme.SIZE_LABEL)
-    ax.set_title("Trainable W_EI/W_IE never reach PING — every init collapses to the loop-free corner",
-                 fontsize=theme.SIZE_LABEL, color=theme.INK)
     ax.legend(fontsize=theme.SIZE_LEGEND, frameon=False, loc="upper right",
               title="condition · test acc", title_fontsize=theme.SIZE_LEGEND)
     ax.margins(0.13)
@@ -1113,10 +1108,6 @@ def fig_phase_portrait(out_path: Path, run_id: str) -> None:
 
     ax.set_xlabel("E firing rate (Hz)", fontsize=theme.SIZE_LABEL)
     ax.set_ylabel("pingness  (lobe–trough contrast)", fontsize=theme.SIZE_LABEL)
-    ax.set_title(
-        "Training trajectories collapse to COBA — PING persists only under freeze",
-        fontsize=theme.SIZE_LABEL - 1, color=theme.INK,
-    )
     ax.spines["top"].set_visible(False)
     ax.spines["right"].set_visible(False)
     ax.set_ylim(0, 1.0)
@@ -1235,10 +1226,6 @@ def fig_acc_rate_trajectory(out_path: Path, run_id: str) -> None:
 
     ax.set_xlabel("E firing rate (Hz)", fontsize=theme.SIZE_LABEL)
     ax.set_ylabel("Test accuracy (%)", fontsize=theme.SIZE_LABEL)
-    ax.set_title(
-        "Same accuracy reached at very different spike economies — colour shows who still has the rhythm",
-        fontsize=theme.SIZE_LABEL - 1, color=theme.INK,
-    )
     ax.spines["top"].set_visible(False)
     ax.spines["right"].set_visible(False)
     ax.set_ylim(60, 100)
@@ -1270,136 +1257,140 @@ def fig_acc_rate_trajectory(out_path: Path, run_id: str) -> None:
     plt.close(fig)
 
 
+def _clean(o):
+    if isinstance(o, float) and (o != o or o in (float("inf"), float("-inf"))):
+        return None
+    if isinstance(o, dict):
+        return {k: _clean(v) for k, v in o.items()}
+    if isinstance(o, list):
+        return [_clean(v) for v in o]
+    return o
+
+
 def main() -> None:
     # Publication profile: every figure this notebook writes is a print-sized
     # vector, emitted as both SVG (docs) and PDF (manuscript) by save_figure.
     theme.set_paper_mode(True)
+    meta = parse_meta(sys.argv)
 
-    _replot = replot_target(sys.argv)
-    if _replot == "curves":
-        fig_training_curves(FIGURES / "training_curves", "exp049-curves")
-        print(f"wrote {FIGURES / 'training_curves'}.{{svg,pdf}}")
+    # Targeted single-figure redraw: --plot-only <fig>. These read cell metrics
+    # directly (no aggregation needed), so we stage from the published dir,
+    # redraw just that figure, and publish.
+    if meta.plot_fig:
+        run_id = next_run_id(SLUG)
+        with published_run(
+            SLUG, run_id, plot_only=True, scale=SCALE,
+        ) as (_artifacts, figures):
+            if meta.plot_fig == "curves":
+                fig_training_curves(figures / "training_curves", run_id)
+                print(f"wrote {figures / 'training_curves'}.{{svg,pdf}}")
+            elif meta.plot_fig == "portrait":
+                fig_phase_portrait(figures / "phase_portrait", run_id)
+                print(f"wrote {figures / 'phase_portrait'}.{{svg,pdf}}")
+            elif meta.plot_fig == "accrate":
+                fig_acc_rate_trajectory(figures / "acc_rate_trajectory", run_id)
+                print(f"wrote {figures / 'acc_rate_trajectory'}.{{svg,pdf}}")
+            else:
+                raise SystemExit(
+                    f"--plot-only: unknown figure {meta.plot_fig!r}; "
+                    "choose curves|portrait|accrate"
+                )
         return
-    if _replot == "portrait":
-        fig_phase_portrait(FIGURES / "phase_portrait", "exp049-portrait")
-        print(f"wrote {FIGURES / 'phase_portrait'}.{{svg,pdf}}")
-        return
-    if _replot == "accrate":
-        fig_acc_rate_trajectory(FIGURES / "acc_rate_trajectory", "exp049-accrate")
-        print(f"wrote {FIGURES / 'acc_rate_trajectory'}.{{svg,pdf}}")
-        return
-    if _replot:
-        raise SystemExit(f"--replot: unknown figure {_replot!r}; choose curves|portrait|accrate")
 
-    modal_gpu = parse_modal_gpu(sys.argv)
-    notebook_run_id = next_run_id(SLUG)
-    prepare_run_dirs(
-        SLUG, notebook_run_id, wipe=False, make_artifacts=True,
-        scale=SCALE,
-        host=f"modal:{modal_gpu}" if modal_gpu else "local",
-    )
-    t_start = time.monotonic()
+    run_id = next_run_id(SLUG)
+    with published_run(
+        SLUG, run_id, make_artifacts=True, scale=SCALE, plot_only=meta.plot_only,
+    ) as (_artifacts, figures):
+        t_start = time.monotonic()
 
-    # Training lives in exp022 now (train-once / reuse-many): the init-variant
-    # conditions are a registry family there. This notebook only consumes them.
+        # Training lives in exp022 now (train-once / reuse-many): the init-variant
+        # conditions are a registry family there. This notebook only consumes them.
 
-    # ── Per-condition aggregation
-    print("[aggregate] reading metrics from trained cells")
-    metrics_by_cond: dict[str, list[dict]] = {}
-    final_by_cond: dict[str, list[dict]] = {}
-    rasters_by_cond: dict[str, dict] = {}
-    summary_rows: list[dict] = []
+        # ── Per-condition aggregation
+        print("[aggregate] reading metrics from trained cells")
+        metrics_by_cond: dict[str, list[dict]] = {}
+        final_by_cond: dict[str, list[dict]] = {}
+        rasters_by_cond: dict[str, dict] = {}
+        summary_rows: list[dict] = []
 
-    for cond in COND_ORDER:
-        metrics_list: list[dict] = []
-        final_list: list[dict] = []
-        for seed in SEEDS:
-            d = cell_dir(cond, seed)
-            if not (d / "metrics.json").exists():
-                print(f"  missing {cond}/seed={seed} → skipping")
-                continue
-            m = load_metrics(d)
-            metrics_list.append(m)
-            f = measure_trained_state(d)
-            final_list.append(f)
-            summary_rows.append({
-                "condition": cond,
-                "seed": int(seed),
-                **{k: v for k, v in f.items() if k not in ("psd", "freqs_hz")},
-            })
-            print(
-                f"  {cond} seed={seed}  acc={f['acc']:5.2f}%  "
-                f"E={f['e_rate_hz']:5.2f} Hz  I={f['i_rate_hz']:5.2f} Hz  "
-                f"f_γ={f['f_gamma_hz']:5.2f} Hz  "
-                f"|W_ei|={f['w_ei_mean']:.4f}  |W_ie|={f['w_ie_mean']:.4f}"
+        for cond in COND_ORDER:
+            metrics_list: list[dict] = []
+            final_list: list[dict] = []
+            for seed in SEEDS:
+                d = cell_dir(cond, seed)
+                if not (d / "metrics.json").exists():
+                    print(f"  missing {cond}/seed={seed} → skipping")
+                    continue
+                m = load_metrics(d)
+                metrics_list.append(m)
+                f = measure_trained_state(d)
+                final_list.append(f)
+                summary_rows.append({
+                    "condition": cond,
+                    "seed": int(seed),
+                    **{k: v for k, v in f.items() if k not in ("psd", "freqs_hz")},
+                })
+                print(
+                    f"  {cond} seed={seed}  acc={f['acc']:5.2f}%  "
+                    f"E={f['e_rate_hz']:5.2f} Hz  I={f['i_rate_hz']:5.2f} Hz  "
+                    f"f_γ={f['f_gamma_hz']:5.2f} Hz  "
+                    f"|W_ei|={f['w_ei_mean']:.4f}  |W_ie|={f['w_ie_mean']:.4f}"
+                )
+            metrics_by_cond[cond] = metrics_list
+            final_by_cond[cond] = final_list
+            if final_list:
+                # First seed's raster as representative.
+                rasters_by_cond[cond] = capture_raster(
+                    cell_dir(cond, SEEDS[0]),
+                )
+
+        # Per-condition diagnostic cards + matching weight-matrix cards.
+        for cond in COND_ORDER:
+            out = figures / f"card__{cond}"
+            plot_condition_card(
+                cond,
+                metrics_by_cond.get(cond, []),
+                final_by_cond.get(cond, []),
+                rasters_by_cond.get(cond),
+                out, run_id,
             )
-        metrics_by_cond[cond] = metrics_list
-        final_by_cond[cond] = final_list
-        if final_list:
-            # First seed's raster as representative.
-            rasters_by_cond[cond] = capture_raster(
-                cell_dir(cond, SEEDS[0]),
-            )
+            print(f"wrote {out}.{{png,pdf}}")
+            seed_to_dir = {
+                s: cell_dir(cond, s) for s in SEEDS
+                if (cell_dir(cond, s) / "weights.pth").exists()
+            }
+            if seed_to_dir:
+                w_out = figures / f"weights__{cond}"
+                plot_weight_matrices(cond, seed_to_dir, w_out, run_id)
+                print(f"wrote {w_out}.{{svg,pdf}}")
 
-    # Per-condition diagnostic cards + matching weight-matrix cards.
-    for cond in COND_ORDER:
-        out = FIGURES / f"card__{cond}"
-        plot_condition_card(
-            cond,
-            metrics_by_cond.get(cond, []),
-            final_by_cond.get(cond, []),
-            rasters_by_cond.get(cond),
-            out, notebook_run_id,
+        fig_attractor(summary_rows, figures / "attractor_ei", run_id)
+        print(f"wrote {figures / 'attractor_ei'}.{{svg,pdf}}")
+
+        fig_training_curves(figures / "training_curves", run_id)
+        print(f"wrote {figures / 'training_curves'}.{{svg,pdf}}")
+
+        fig_phase_portrait(figures / "phase_portrait", run_id)
+        print(f"wrote {figures / 'phase_portrait'}.{{svg,pdf}}")
+
+        fig_acc_rate_trajectory(figures / "acc_rate_trajectory", run_id)
+        print(f"wrote {figures / 'acc_rate_trajectory'}.{{svg,pdf}}")
+
+        duration_s = time.monotonic() - t_start
+        write_numbers(
+            figures, run_id=run_id, duration_s=duration_s,
+            payload=_clean({
+                "config": {
+                    "epochs": EPOCHS,
+                    "max_samples": MAX_SAMPLES,
+                    "seeds": SEEDS,
+                    "conditions": CONDITIONS,
+                    "common_recipe": COMMON_RECIPE,
+                },
+                "summary": summary_rows,
+            }),
         )
-        print(f"wrote {out}.{{png,pdf}}")
-        seed_to_dir = {
-            s: cell_dir(cond, s) for s in SEEDS
-            if (cell_dir(cond, s) / "weights.pth").exists()
-        }
-        if seed_to_dir:
-            w_out = FIGURES / f"weights__{cond}"
-            plot_weight_matrices(cond, seed_to_dir, w_out, notebook_run_id)
-            print(f"wrote {w_out}.{{svg,pdf}}")
-
-
-    fig_attractor(summary_rows, FIGURES / "attractor_ei", notebook_run_id)
-    print(f"wrote {FIGURES / 'attractor_ei'}.{{svg,pdf}}")
-
-    fig_training_curves(FIGURES / "training_curves", notebook_run_id)
-    print(f"wrote {FIGURES / 'training_curves'}.{{svg,pdf}}")
-
-    fig_phase_portrait(FIGURES / "phase_portrait", notebook_run_id)
-    print(f"wrote {FIGURES / 'phase_portrait'}.{{svg,pdf}}")
-
-    fig_acc_rate_trajectory(FIGURES / "acc_rate_trajectory", notebook_run_id)
-    print(f"wrote {FIGURES / 'acc_rate_trajectory'}.{{svg,pdf}}")
-
-    duration_s = time.monotonic() - t_start
-    summary = {
-        "notebook_run_id": notebook_run_id,
-        "duration_s": round(duration_s, 1),
-        "config": {
-            "epochs": EPOCHS,
-            "max_samples": MAX_SAMPLES,
-            "seeds": SEEDS,
-            "conditions": CONDITIONS,
-            "common_recipe": COMMON_RECIPE,
-        },
-        "summary": summary_rows,
-    }
-    def _clean(o):
-        if isinstance(o, float) and (o != o or o in (float("inf"), float("-inf"))):
-            return None
-        if isinstance(o, dict):
-            return {k: _clean(v) for k, v in o.items()}
-        if isinstance(o, list):
-            return [_clean(v) for v in o]
-        return o
-    (FIGURES / "numbers.json").write_text(
-        json.dumps(_clean(summary), indent=2, allow_nan=False) + "\n"
-    )
-    print(f"wrote {FIGURES / 'numbers.json'}")
-    print(f"  duration: {duration_s:.1f}s")
+        print(f"wrote {figures / 'numbers.json'}")
 
 
 if __name__ == "__main__":
