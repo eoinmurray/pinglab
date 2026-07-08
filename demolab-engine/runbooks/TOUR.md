@@ -1,6 +1,8 @@
 # Runbook: Tour the lab
 
-Triggers: **"tour"**, "walk me through this repo", "give me a tour", "orient me", "what's in here", **TOUR**. Goal: a guided orientation to an existing lab — what's here, how it fits, what each experiment concluded, and where to start — for a new collaborator, a reviewer, or your own future self.
+A guided orientation to an existing lab — what's here, how it fits, what each experiment concluded, and where to start — for a new collaborator, a reviewer, or your own future self.
+
+**Triggers** — say any of these, or just `TOUR`: **"tour"**, "walk me through this repo", "give me a tour", "orient me", "what's in here".
 
 DOCTOR *audits* the repo against the rules; TOUR *orients* a human in it. It reads the content and narrates it — no changes, no fixes, just a clear map. Adapt the depth to who's asking: a new lab member wants the on-ramp, a reviewer wants the results.
 

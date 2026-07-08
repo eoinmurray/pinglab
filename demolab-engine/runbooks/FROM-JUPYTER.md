@@ -1,6 +1,8 @@
 # Runbook: Convert a Jupyter notebook into an experiment
 
-Triggers: **"from jupyter"**, "convert my notebook", "import this notebook", "make my notebook reproducible", **FROM-JUPYTER**. Goal: turn a `.ipynb` into a proper demolab experiment — a runner + writeup — with the randomness seeded, the numbers wired to `numbers.json` so they can't drift, and the page reproducing (or correcting) the notebook's output.
+Turn a `.ipynb` into a proper demolab experiment — a runner + writeup — with the randomness seeded, the numbers wired to `numbers.json` so they can't drift, and the page reproducing (or correcting) the notebook's output.
+
+**Triggers** — say any of these, or just `FROM-JUPYTER`: **"from jupyter"**, "convert my notebook", "import this notebook", "make my notebook reproducible".
 
 Notebooks are where most computational science lives, and they're the opposite of reproducible: out-of-order execution, hidden global state, unseeded randomness, hardcoded numbers in the prose, no pinned environment. This runbook **launders** one into something that runs top-to-bottom, deterministically, with every published number traceable to the run. Drive it interactively — don't silently rewrite; **propose the mapping and confirm before building**.
 
@@ -29,8 +31,10 @@ If the notebook is really several results, **propose a split** into multiple exp
 ## 4. Wire the numbers so they can't drift — the point of the whole thing
 Find every hardcoded number in the prose ("a firing rate of 90 Hz", "improved by 12%") and replace it with a `numbers.json` reference (`#run.<command>.<metric>`, or a `#numbers-table(...)`) — never a typed literal (RULES §6.2, HOUSESTYLE H9). **If a number in the prose has no source in the run, that's a flag:** either compute it into the run, or cut the claim.
 
+Because a converted notebook computes **inline** (no tool to inherit from), stamp provenance yourself: wrap each command's config in `helpers/provenance.stamp(config)` when building `numbers.json`, so the run records which commit produced it (RULES §4.7) and DOCTOR's provenance check passes.
+
 ## 5. Build and check parity
-`task run -- expNNN`, then `task build` (or the running `task dev`). Open the new page beside the notebook's original output and confirm the figures + numbers match. If they differ, **explain why** — usually the notebook's numbers were stale or from out-of-order runs, and the reproducible version is the correct one. That's a feature, not a regression.
+End the runner's `main()` with `helpers/provenance.write_run_sh(ARTIFACTS)` so the committed record carries a reproducer (RULES §4.7), then `task run -- expNNN` and `task build` (or the running `task dev`). Open the new page beside the notebook's original output and confirm the figures + numbers match. If they differ, **explain why** — usually the notebook's numbers were stale or from out-of-order runs, and the reproducible version is the correct one. That's a feature, not a regression.
 
 ## 6. Hand off
 Show the page + its PDF. State plainly **what was dropped** (scratch cells) and **what was fixed** (seeds added, drifting numbers wired to the run, deps pinned). Then offer to run **RED-TEAM** on the fresh experiment — a just-laundered notebook is exactly the thing to adversarially check before anyone trusts it.

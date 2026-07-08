@@ -20,7 +20,7 @@ collection-order: [documentation, neuron-models, mujoco, streamlit, slides]
 collections:
   documentation:
     label: Documentation
-    description: How demolab works — the always-on guides that set the conventions and the on-demand runbooks the agent runs, each linked to its source on GitHub.
+    description: "How demolab works: getting started, the always-on guides that set the conventions, and the on-demand runbooks the agent runs."
   neuron-models:
     label: Neuron models
     description: Integrate-and-fire neurons and the membrane biophysics behind them.

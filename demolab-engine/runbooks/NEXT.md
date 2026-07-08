@@ -1,6 +1,8 @@
 # Runbook: Propose the next experiments
 
-Triggers: **"what next"**, "what should I run next", "propose next experiments", "where do I go from here", **NEXT**. Goal: read the whole arc of the lab's results and propose the follow-up experiments worth running — the missing control, the ablation, the parameter regime left unprobed, the confound left open — as concrete, scoped suggestions the user picks from.
+Read the whole arc of the lab's results and propose the follow-up experiments worth running — the missing control, the ablation, the parameter regime left unprobed, the confound left open — as concrete, scoped suggestions the user picks from.
+
+**Triggers** — say any of these, or just `NEXT`: **"what next"**, "what should I run next", "propose next experiments", "where do I go from here".
 
 This is the research-direction pass. Its edge: it reads *every* experiment's runner, numbers, and writeup at once, so it sees the arc a single-experiment view can't — what's been established, what's assumed, what's untested. It **proposes; the scientist decides.** Nothing here runs compute; it's reasoning over the committed record.
 

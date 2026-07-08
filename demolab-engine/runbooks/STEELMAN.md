@@ -1,6 +1,8 @@
 # Runbook: Steelman a result
 
-Triggers: **"steelman"**, "make the case for this", "strengthen my claim", "best case for this result", **STEELMAN**. Goal: build the strongest *honest* case for an experiment's result — the most compelling framing, the best supporting evidence already in the run, and the tightest way to state the claim — without overclaiming.
+Build the strongest *honest* case for an experiment's result — the most compelling framing, the best supporting evidence already in the run, and the tightest way to state the claim — without overclaiming.
+
+**Triggers** — say any of these, or just `STEELMAN`: **"steelman"**, "make the case for this", "strengthen my claim", "best case for this result".
 
 RED-TEAM attacks a result; STEELMAN defends it. **Run them as a pair:** the attack finds the weak points, the steelman finds the real strength, and the truth is where they meet. This is not spin — everything it asserts must be backed by the data (the same bar RED-TEAM holds). Its job is to make sure you aren't *under*-selling a genuine result or burying your strongest evidence.
 

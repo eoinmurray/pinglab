@@ -10,7 +10,7 @@
 #import "@preview/cetz-plot:0.1.1": plot
 
 #let meta = (
-  title: "Coding agents in computational science",
+  title: "An opinionated take on coding agents in computational science",
   date: "2026-07-06",
 )
 
@@ -29,11 +29,9 @@
 // layout: title
 #title-slide[
   #set align(left)
-  = Coding agents in computational science
-  #v(0.4em)
-  What AI can and can't do for our work, and a reproducible workflow built on it.
+  = An opinionated take on coding agents in computational science
   #v(1.2em)
-  #text(size: 17pt, fill: muted)[Eoin Murray · lab group talk]
+  #text(size: 17pt, fill: muted)[Eoin Murray]
 ]
 
 // ═══════════════════════════════ PART ONE ═══════════════════════════════
@@ -127,29 +125,54 @@
 )[autocomplete #text(fill: muted)[(2021)] #sym.arrow.r chat #text(fill: muted)[(2023)] #sym.arrow.r *agents that do real work* #text(fill: muted)[(2025)]]]
 
 // layout: bullets
-== What a coding agent is
+== What a coding agent is (demo)
 
 - *Does the work*, not just autocomplete: reads, runs, edits, verifies.
-- Driven in *plain language*, from your terminal.
+- *Can do anything your terminal can do*.
 - Many exist, commercial and open — no vendor lock-in.
 - Only recently good enough — still uneven, still supervised.
 
 // layout: bullets
-== More is possible
+== Strengths of coding agents
 
-- Not the same work done faster — a *lower bar for what's worth doing at all*.
-- A task that cost an afternoon, you skipped. At ten minutes, you just do it.
-- So the skipped work happens: the extra *baseline*, the *ablation*, reproducing a *cited result*, the *README* nobody writes.
-- You take on *more — and things you'd never have bothered with*.
+- *The same work faster*.
+- *Do the things you always wanted but didn't have time*.
 
 // layout: bullets
 == Weaknesses of coding agents
 
-- *Confidently wrong*: they fabricate APIs, numbers, and citations.
-- *Comprehension debt*: they implement things you don't understand — and you ship them.
-- *Weak judgement*: they won't tell you the experiment itself is a bad idea.
-- *Drift & noise*: code and prose fall out of sync; they over-produce.
-- *Brainrot*: prompt-and-wait is a slot machine — personally, I can't agent-code and read deeply the same day.
+- *Confidently wrong* — fake APIs, numbers, citations.
+- *Comprehension debt* — you ship code you don't understand.
+- *Weak judgement* — won't kill a bad experiment.
+- *Brainrot* — can't agent-code and read deeply the same day.
+
+// layout: table (custom: agent pricing — seat price + usage tail; June 2026 billing)
+== The price of coding agents
+
+#v(0.2em)
+#align(center)[
+  #table(
+    columns: (1.2fr, 1fr, 1.2fr),
+    stroke: none,
+    align: (left, right, right),
+    inset: 7pt,
+    table.header([*Agent*], [*Entry*], [*Heavy use/mo*]),
+    table.hline(),
+    [GitHub Copilot], [\$10/mo], [\$39–100/mo],
+    [Cursor], [\$20/mo], [\$60–200/mo],
+    [Windsurf], [\$20/mo], [\$200/mo],
+    [Claude Code], [\$20/mo], [\$100–200/mo],
+    [Codex (ChatGPT)], [\$20/mo], [usage tail],
+    [Antigravity], [\$20/mo], [\$100–200/mo],
+    [DeepSeek (API)], [API key], [\$15–90/mo],
+    [Local Llama (8B)], [\$0], [not agent-grade],
+  )
+]
+#v(0.5em)
+#align(center)[#text(
+  size: 15pt,
+  fill: muted,
+)[Bundled agents: seat + usage meter. DeepSeek: pay-per-token. Local Llama: free, assist-tier only.]]
 
 // ═══════════════════════════════ PART TWO ═══════════════════════════════
 // layout: section-divider
@@ -161,16 +184,35 @@
   #text(size: 20pt, fill: muted)[Rails for the agent]
 ]
 
+// layout: code-panel
+== The shape of a demolab repo (demo: pinglab)
+
+#align(center)[
+  #block(fill: luma(245), stroke: 0.75pt + luma(210), radius: 12pt, inset: 26pt)[
+    #set align(left)
+    #text(size: 20pt)[
+      ```
+      tools/          the science — models & solvers
+      experiments/    the runners — expNNN.py per experiment
+      writings/       the writeups — one .typ per entry
+      temp/           the raw run data — gitignored, big
+      artifacts/      the distilled record — data/ + pdfs/ (committed)
+      demolab.yaml    branding + collections (optional)
+      demolab-engine/ the engine (black box you never edit)
+      ```
+    ]
+  ]
+]
+
 // layout: bullets (numbered — the principles)
 == Principles of demolab
 
-+ `tools/` compute, `experiments/` do analysis and plots.
-+ Each experiment is a runner (`.py`) and a write-up (`.typ`).
-+ Tools and experiments talk through *data files*, never imports.
-+ *Raw data is disposable* (`temp/`); the distilled record is committed (`artifacts/`).
-+ Bring any stack.
-+ *Agent-operated*: plain language in, you stay in the loop.
-+ Provenance built in.
++ *Tools compute, experiments analyse* — clean split.
++ *One experiment* = a runner + a write-up.
++ *Talk through files*, never imports.
++ *Raw data is disposable* — the record is committed.
++ *Bring any stack.*
++ *Provenance built in.*
 
 // layout: two-column
 == Typst: a modern LaTeX
@@ -195,26 +237,6 @@
 )
 #v(1em)
 #align(center)[*The same beautiful math: selectable MathML on the web, typeset in the PDF.*]
-
-// layout: code-panel
-== The shape of a demolab repo
-
-#align(center)[
-  #block(fill: luma(245), stroke: 0.75pt + luma(210), radius: 12pt, inset: 26pt)[
-    #set align(left)
-    #text(size: 20pt)[
-      ```
-      tools/          the science — models & solvers
-      experiments/    the runners — expNNN.py per experiment
-      writings/       the writeups — one .typ per entry
-      temp/           the raw run data — gitignored, big
-      artifacts/      the distilled record — data/ + pdfs/ (committed)
-      demolab.yaml    branding + collections (optional)
-      demolab-engine/ the engine (black box you never edit)
-      ```
-    ]
-  ]
-]
 
 // custom: guides + runbooks rendered as a stylised terminal panel — dark, monospace, with a cursor —
 // so the slide *shows* the command grammar: you type a NAME to your coding agent and it drives
@@ -264,28 +286,37 @@
     ]
   ]
 ]
+#v(0.9em)
+#align(center)[*Or just operate manually — no agent required.*]
 
 // layout: bullets
 == Use any stack you want
 
-- Ships set up for *Python*: `uv`, tools + runners as `.py`, `pytest`.
-- But the contract is *files, not a language*: a tool just writes `numbers.json` + data.
-- So switching is a conversation: *"migrate the stack to MATLAB"* — the agent follows a runbook.
-- Works for *MATLAB · R · Julia · Octave*; the Typst publishing and the contract stay put.
-- Keep Python only for plotting, or drop it entirely — your call.
+- *Default: Python* — `uv`, `.py` runners, `pytest`.
+- *Files, not imports* — tools write `numbers.json`; runners never import tools.
+- *Switch by asking* — *migrate the stack to MATLAB*; the agent runs a runbook.
+- *MATLAB · R · Julia · Octave* — Typst and the contract stay put.
+- *Python optional* — plotting only, or drop it entirely.
 
-// layout: closer
-== Try it
+// layout: closer — bare focus-slide; no card, just a clean centred stack
+#focus-slide(background: white, foreground: ink)[
+  #align(center)[
+    #text(size: 12pt, fill: muted, tracking: 2pt)[GETTING STARTED]
+    #v(0.25em)
+    #link("https://demolab.eoinmurray.info")[
+      #text(size: 34pt, weight: "bold", fill: ink)[demolab.eoinmurray.info]
+    ]
 
-#align(center)[
-  #text(size: 30pt)[*#link("https://demolab.eoinmurray.info")[demolab.eoinmurray.info]*]
-  #v(1.0em)
-  #box[
-    #set align(left)
-    - Open a coding agent in a new, empty folder.
-    - Point it at the repo; approve as it sets things up.
-    - It hands you a live URL and your first experiment.
+    #v(1.6em)
+
+    #text(size: 12pt, fill: muted, tracking: 2pt)[SUPPORT]
+    #v(0.25em)
+    #link("https://github.com/eoinmurray/demolab")[
+      #text(size: 22pt, weight: "bold", fill: ink)[github.com/eoinmurray/demolab]
+    ]
+    #v(0.4em)
+    #text(size: 15pt, fill: muted)[
+      Open a #link("https://github.com/eoinmurray/demolab/issues")[GitHub issue] and I'll fix it quickly.
+    ]
   ]
-  #v(1.0em)
-  #text(size: 18pt, fill: muted)[Hand it the loop, keep the science yours.]
 ]

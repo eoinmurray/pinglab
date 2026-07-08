@@ -1,6 +1,8 @@
 # Runbook: Reproduce a paper's result
 
-Triggers: **"from paper"**, "reproduce this paper", "replicate figure N", "implement this paper", **FROM-PAPER**. Goal: given a paper (PDF, arXiv link, or DOI), scaffold experiment(s) that reproduce its **key result** — a figure or a headline number — in your stack, so you can check it yourself rather than take it on faith.
+Given a paper (PDF, arXiv link, or DOI), scaffold experiment(s) that reproduce its **key result** — a figure or a headline number — in your stack, so you can check it yourself rather than take it on faith.
+
+**Triggers** — say any of these, or just `FROM-PAPER`: **"from paper"**, "reproduce this paper", "replicate figure N", "implement this paper".
 
 Reproducing a paper is how you learn a method and how you verify a claim, and it's the natural on-ramp for a scientist arriving with "I read this — does it hold up?". The agent reads the paper *and* builds the experiment, wiring the reproduced numbers to the run so what you get is checkable, not asserted. Drive it interactively — **propose the plan and confirm before building**; a paper is a spec you implement, not copy.
 

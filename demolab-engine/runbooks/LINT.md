@@ -1,6 +1,8 @@
 # Runbook: Lint against the house style
 
-Triggers: **"lint"**, "lint the writings", "lint the repo against the house style", "check the house style", "does this read like an LLM wrote it". Goal: check a repo's writings against [`HOUSESTYLE.md`](../guides/HOUSESTYLE.md) (H1–H24), report each violation with the H-rule it breaks and a `file:line` (or figure path), and fix only what the user approves.
+Check a repo's writings against [`HOUSESTYLE.md`](../guides/HOUSESTYLE.md) (H1–H24), report each violation with the H-rule it breaks and a `file:line` (or figure path), and fix only what the user approves.
+
+**Triggers** — say any of these, or just `LINT`: **"lint"**, "lint the writings", "lint the repo against the house style", "check the house style", "does this read like an LLM wrote it".
 
 This is the **style** pass — one of three: *Doctor* audits the structural RULES, *Lint* (here) audits the prose **and the figures**, and *Red-team* audits whether the result is true and defensible. Run all three for a full check. `HOUSESTYLE.md` is the source of truth for every rule: this runbook cites it, it does not restate it. Scope is `writings/*.typ` (the published prose) **and the rendered figures it embeds** (`artifacts/data/<id>/*.svg`, `*.png`) — the plots are half of a writing and are lint targets, not just decoration. The framework docs are reference material and out of scope unless the user asks.
 

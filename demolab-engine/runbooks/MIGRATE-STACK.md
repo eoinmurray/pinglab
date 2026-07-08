@@ -1,6 +1,8 @@
 # Runbook: Migrating the stack to another language
 
-Triggers: **"migrate the stack to MATLAB / Julia / R"**, "rejig the repo for `<language>`", "use MATLAB / Julia instead of Python", "my science is in `<language>`". Goal: the user writes their **science in their language** while Typst publishing and the file-based contract stay exactly as they are. Python is demolab's *opinionated example*, not a lock-in.
+The user writes their **science in their language** while Typst publishing and the file-based contract stay exactly as they are. Python is demolab's *opinionated example*, not a lock-in.
+
+**Triggers** — say any of these, or just `MIGRATE-STACK`: **"migrate the stack to MATLAB / Julia / R"**, "rejig the repo for `<language>`", "use MATLAB / Julia instead of Python", "my science is in `<language>`".
 
 **Why this needs almost no restructuring.** The contract is *file-based and language-neutral* (see `../guides/RULES.md`): a tool is reached by **running its CLI** (a subprocess), never by importing, and it communicates only through files — `config.json`, `output.json`, `manifest.json`, `output.log`, `run.sh`, and its figure data (`<cmd>.csv`, `.json`, `.npz`, … — author's choice of format). Any executable that parses arguments and writes those files is a valid tool. Typst publishes from `numbers.json` + PNG figures and doesn't care what produced them. So only the **tool** layer is language-bound — pick the smallest change that gets the user's language in.
 

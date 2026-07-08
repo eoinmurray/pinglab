@@ -23,14 +23,14 @@ demolab/
 │   └── mujoco/               tool.py + test_mujoco.py
 ├── experiments/            the runners — one expNNN.py per experiment     [§3.4, §7, G22]
 │   ├── expNNN.py             runs a tool's CLI, renders figures, stages artifacts/data/expNNN/
-│   ├── helpers/              shared runner code (not experiments) — e.g. style.py (figure style, H15)
+│   ├── helpers/              shared runner code (not experiments) — style.py (figure style, H15), provenance.py (§4.7)
 │   └── playground.py         the interactive Streamlit demo (exempt from the contract, §8.5, G16)
 ├── writings/               the writeups — one .typ per entry, by id       [§6, G24, HOUSESTYLE]
 │   ├── expNNN.typ            an experiment writeup (#let meta + #let body)
 │   ├── arNNN.typ             an article — prose-only, no runner            [G1]
 │   └── arNNN.slide.typ       a deck — Touying slides → standalone PDF      [G9]
 ├── artifacts/              the committed record of every run              [§5]
-│   ├── data/<id>/            figures + numbers.json (+ any mp4) — the publisher-neutral record  [§5.1, G18]
+│   ├── data/<id>/            figures + numbers.json + run.sh (+ any mp4) — the publisher-neutral record  [§5.1, G18]
 │   ├── pdfs/                 compiled PDFs (per entry + book.pdf) — shareable                    [§5.3]
 │   └── site/                 the built web site — GITIGNORED (CI rebuilds + deploys it)          [§5.3]
 ├── demolab.yaml            optional branding + collections config          [§3.3, §6.5, G4]
@@ -84,6 +84,6 @@ demolab/
 
 demolab ships engine-only; the content tree is materialised on demand from `demolab-engine/scaffold/`.
 
-**S7 — Two overlays, one command each.** `skeleton/` is the bare structure (empty `writings/` `experiments/` `tools/` `artifacts/` + the config templates `demolab.yaml`, `HOUSESTYLE.local.md`, `experiments/helpers/style.py`); `task scaffold` copies it into the repo root non-destructively (`rsync --ignore-existing`, so re-running never clobbers your work). `demo/` is the worked example; `task add-demo-content` runs `scaffold` then overlays it. `task clear-demo-content` deletes exactly the paths in `demo-manifest.json` — nothing you authored is listed there, so it can't touch your content.
+**S7 — Two overlays, one command each.** `skeleton/` is the bare structure (empty `writings/` `experiments/` `tools/` `artifacts/` + the config templates `demolab.yaml`, `HOUSESTYLE.local.md`, `experiments/helpers/style.py` + `experiments/helpers/provenance.py`); `task scaffold` copies it into the repo root non-destructively (`rsync --ignore-existing`, so re-running never clobbers your work). `demo/` is the worked example; `task add-demo-content` runs `scaffold` then overlays it. `task clear-demo-content` deletes exactly the paths in `demo-manifest.json` — nothing you authored is listed there, so it can't touch your content.
 
 **S8 — The demo is the engine's test.** Because `demo/` lives inside the swapped-wholesale `demolab-engine/`, it versions with the engine and can't drift from it. [`test_engine_build.py`](../build/test_engine_build.py) (run by `task test`) assembles skeleton + demo in a throwaway tree via `DEMOLAB_ROOT` and builds it end-to-end — so the shipped example is also the integration smoke test. It also asserts the empty (skeleton-only) tree builds its empty-state homepage.

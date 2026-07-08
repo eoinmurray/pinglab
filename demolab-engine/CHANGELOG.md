@@ -14,6 +14,46 @@ the runbook shows the entries between your version and the latest.
 
 ## [Unreleased]
 
+## [0.5.1] — 2026-07-08
+
+### Added
+- **Staged-experiment flow (RULES §7.5) + a DOCTOR check for it.** An optional, opt-in
+  contract for expensive runners: split the runner into `compute → analyse → plot` so a run
+  can re-enter at any stage (full / skip-compute / plot-only) without repeating the costly
+  prefix. The one boundary the contract enforces is that the **plot** stage reads only from the
+  committed `artifacts/data/<id>/` record — which is what makes a plot-only pass reproducible
+  from a clean clone with no `temp/` (§5.1, §5.3). The rule deliberately defines the *flow and
+  the boundary, not the mechanism*: no mandated flag names, stage harness, or function
+  signatures, and most runners stay one-shot. DOCTOR §3 adds a matching **behavioural** check —
+  re-run a staged runner's plot-only mode with `temp/` hidden and confirm the figures still
+  render; a pass that only fails with scratch hidden is reaching into `temp/`. Advisory unless
+  the experiment claims clone-and-replot, since plotting from warm `temp/` while iterating is fine.
+
+## [0.5.0] — 2026-07-08
+
+### Added
+- **Experiment runners now carry provenance like tools do**, via a new
+  `experiments/helpers/provenance.py`. Two helpers: `stamp(config)` adds the same
+  `_provenance` block (git commit, `dirty` flag, UTC timestamp) that a tool's
+  `setup_run_dir` writes — so an **inline** runner (no tool to inherit from) produces a
+  `numbers.json` indistinguishable to `numbers-table` / `provenance-footer` / DOCTOR; and
+  `write_run_sh(ARTIFACTS)` drops a `run.sh` reproducer into the committed
+  `artifacts/data/<id>/` record — the committed twin of the `run.sh` tools write into
+  scratch `temp/`. The demo runners (`exp000`–`exp003`) now emit `run.sh`, DOCTOR flags a
+  record missing one, and the stamp is kept as a separate copy from `tools/*/tool.py`
+  because the firewall (§4.5) forbids a tool importing `experiments/`. (RULES §4.1, §4.7,
+  §7.2; FROM-JUPYTER step 4–5.)
+
+## [0.4.6] — 2026-07-07
+
+### Changed
+- **Runbooks lead with a human overview, then a labeled `Triggers` line.** Each runbook opened with
+  its agent-routing `Triggers:` line, which reads as machinery to a person. Every runbook now opens
+  with a plain-language description of what it does and when to use it, followed by a
+  `**Triggers** — say any of these, or just \`NAME\`:` line. The trigger phrases are unchanged and
+  the step-by-step bodies are untouched, so agent routing is unaffected; the files just read as
+  documentation for a human too. (The guides already led with a human summary.)
+
 ## [0.4.5] — 2026-07-07
 
 ### Changed

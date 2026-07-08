@@ -1,6 +1,8 @@
 # Runbook: Migrating existing code
 
-Triggers: **"migrate my code"**, "import my repo", "bring my existing code in". Three principles: **one experiment at a time**, **wrap don't rewrite** (the new `tool.py` is a thin adapter that imports and calls their functions — never reimplement their science), and **one environment** (their deps fold into the root `pyproject.toml`). Get one experiment publishing end to end before touching the next.
+Bring an existing codebase into demolab on three principles: **one experiment at a time**, **wrap don't rewrite** (the new `tool.py` is a thin adapter that imports and calls their functions — never reimplement their science), and **one environment** (their deps fold into the root `pyproject.toml`). Get one experiment publishing end to end before touching the next.
+
+**Triggers** — say any of these, or just `MIGRATE-CODE`: **"migrate my code"**, "import my repo", "bring my existing code in".
 
 1. **Inventory.** Read their repo (local path or clone). List candidate experiments — each script/function that ends in a figure or a few numbers. With the user, pick the single simplest first.
 2. **Bring their code in.** Installable package → `uv add <name>` (PyPI, or git/local-path dep) + `uv sync`, then `import` it. Loose scripts → copy only the modules the experiment needs next to `tool.py` or into a shared package under `tools/`.
