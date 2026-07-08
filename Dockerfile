@@ -5,13 +5,25 @@
 # torch build so pods boot ready-to-train — a per-pod `uv sync` hung on a fresh
 # box and is the entire reason this image exists.
 #
+# torch/torchvision resolve to the cu128 build straight from the lockfile:
+# pyproject pins the PyTorch cu128 wheel index for Linux (`[tool.uv.sources]`),
+# so `uv sync` installs the driver-correct build ONCE. There is no second
+# `--reinstall` step and no throwaway PyPI/cu13 torch baked in a lower layer —
+# that duplicate was ≈7 GB of the old image.
+#
 # Code is NOT baked: pods `git pull` the latest at launch, so only a dependency
-# change requires a rebuild. Pods must run training with `uv run --no-sync` so
-# the pinned cu128 torch below is not reverted to the lockfile's default (cu130).
+# change requires a rebuild. Pods run training with `uv run --no-sync` to skip
+# the (now redundant) resolve on boot — the lockfile already pins cu128, so this
+# is a speed optimisation, not a correctness one.
 FROM nvidia/cuda:12.8.1-runtime-ubuntu22.04
 
+# UV_NO_CACHE: never populate ~/.cache/uv, so no wheel cache bloats the layer
+# (torch is multi-GB). UV_LINK_MODE=copy: the base image's / is a single fs, but
+# copy avoids any cross-device hardlink warning during install.
 ENV DEBIAN_FRONTEND=noninteractive \
-    PATH="/root/.local/bin:${PATH}"
+    PATH="/root/.local/bin:${PATH}" \
+    UV_NO_CACHE=1 \
+    UV_LINK_MODE=copy
 
 # openssh-server + rsync: the collect step rsyncs artifacts off the volume over
 # SSH, so the container runs its own sshd (the CUDA base has neither).
@@ -22,33 +34,27 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 # runpodctl: a self-running pod removes ITSELF when its work is done (authing via
 # the injected RUNPOD_API_KEY), so nothing depends on the laptop for teardown.
+# uv manages Python + the locked dependency set. Both fetched in one layer.
 RUN curl -fsSL https://github.com/runpod/runpodctl/releases/latest/download/runpodctl-linux-amd64 \
         -o /usr/local/bin/runpodctl \
-    && chmod +x /usr/local/bin/runpodctl
+    && chmod +x /usr/local/bin/runpodctl \
+    && curl -LsSf https://astral.sh/uv/install.sh | sh
 
-# uv manages Python + the locked dependency set.
-RUN curl -LsSf https://astral.sh/uv/install.sh | sh
-
-# Clone once to resolve the lockfile into a warm venv layer. This code snapshot
-# is throwaway — pods refresh it with `git pull` at launch.
+# Clone once, bake the deps (skip the dev group = ruff/ty), and smoke-test the
+# baked env — all in one layer so no intermediate cache survives. `uv sync`
+# resolves the lockfile's cu128 torch directly (see header): a single torch
+# install, driver-compatible with RunPod's CUDA 12.8. cu128 carries the
+# recompile_limit rename, so no source patch is needed (unlike the cu124
+# fallback for the older CUED drivers). The clone is throwaway — pods refresh it
+# with `git pull` at launch. `import torch` verifies the env imports; CUDA
+# availability is checked at runtime on a GPU host (the builder has no GPU).
 WORKDIR /workspace
-RUN git clone --depth 1 https://github.com/eoinmurray/pinglab.git
+RUN git clone --depth 1 https://github.com/eoinmurray/pinglab.git \
+    && cd pinglab \
+    && uv sync --no-dev --locked \
+    && uv run --no-sync python -c "import torch; print('baked torch', torch.__version__)" \
+    && rm -rf /root/.cache
 WORKDIR /workspace/pinglab
-
-# Bake the deps (skip the dev group = ruff/ty), then swap torch to the cu128
-# build RunPod's driver (CUDA 12.8) supports. cu128 carries the recompile_limit
-# rename, so no source patch is needed (unlike the cu124 fallback for the older
-# CUED drivers).
-# --reinstall is required: without it uv sees "torch" already satisfied by the
-# cu130 build uv sync installed and no-ops, leaving the wrong (driver-incompatible)
-# build baked in.
-RUN uv sync --no-dev \
- && uv pip install --index-url https://download.pytorch.org/whl/cu128 \
-        --reinstall torch torchvision
-
-# Fail the build early if the baked env is broken. CUDA availability itself is
-# checked at runtime on a GPU host, not here (the builder has no GPU).
-RUN uv run --no-sync python -c "import torch; print('baked torch', torch.__version__)"
 
 # Start script — two modes, chosen at runtime by the CELLS env var:
 #   • CELLS set → fire-and-forget work. Start sshd in the background (for
