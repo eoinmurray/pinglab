@@ -21,7 +21,7 @@ Fields:
               git_sha, `git apply` the patch, then re-run. This is the whole
               point — you run without committing first, and provenance still
               lets a cold clone reconstruct the exact source.
-  host        "local" or "modal:<GPU>" — where the training cells executed
+  host        where the training cells executed (e.g. "local")
   scale       the runner's declared run scale (max_samples, epochs, t_ms, ...)
 
 Notebooks must not import src/cli, so the git capture is deliberately

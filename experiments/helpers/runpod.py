@@ -1,41 +1,51 @@
-"""Generic RunPod fan-out backend — fire-and-forget over a network volume.
+"""The one RunPod fan-out system every experiment uses — fire-and-forget over a
+network volume.
 
-The counterpart to helpers/modal.py. Where the SSH-drive design babysat every
-pod from the laptop, this is laptop-independent: pods are created with their work
-assignment as env vars, self-run against a shared RunPod network volume, and
-self-terminate when done. The laptop is only needed to *fire* the pods (seconds)
-and, once they are gone, to *collect* the volume's contents (minutes). If the
-laptop sleeps or dies mid-run, the pods carry on and the artifacts stay safe on
-the volume.
+The dispatch backend for cloud runs (Modal, the earlier SSH-driven backend, was
+retired). Where that design babysat every pod from the laptop, this is
+laptop-independent: pods are created with their work assignment as env vars,
+self-run against a shared RunPod network volume, and self-terminate when done.
+The laptop is only needed to *fire* the pods (seconds) and, once they are gone,
+to *collect* the volume's contents (minutes). If the laptop sleeps or dies
+mid-run, the pods carry on and the artifacts stay safe on the volume.
 
-Division of labour:
-  • This module owns pod lifecycle: create (pinned to the volume's datacenter),
-    fire the fleet, collect artifacts back via a throwaway pod, and — above all —
-    teardown that VERIFIES a pod is gone (destroy_pod) plus a standalone kill
-    switch (reap_all_pods). pod_self_terminate() runs ON a pod so it can remove
-    itself at the end of its work.
-  • The runner (exp022) owns the *what*: which cells, the pinned git sha, and the
-    pod-side --pod-run entrypoint the image starts.
+Two layers, both here:
+  • Pod lifecycle (low level): create (pinned to the volume's datacenter), fire
+    the fleet, collect a volume subpath via a throwaway pod, teardown that
+    VERIFIES a pod is gone (destroy_pod), and a kill switch (reap_all_pods).
+    pod_self_terminate() runs ON a pod to remove itself at the end of its work.
+  • Fan-out orchestration (high level): `dispatch()` is the single --runpod entry
+    every runner calls — it dry-runs / collects / fires from a list of pod
+    buckets. `pod_run_loop()` is the single --pod-run entry every runner calls on
+    the pod — it iterates the CELLS assignment, skips done jobs, and always
+    self-terminates. `chunk_buckets()` packs jobs into pods.
+
+The runner owns only the *what*: it enumerates its job ids (cell names for
+training, infer-job ids for analysis), maps a job id to an `is_done` check and a
+`run_job` action, and picks where output lands on the volume. Everything about
+talking to RunPod lives here, so exp022 (training), exp037 and exp042 (inference)
+all share one code path.
 
 The pod's start script (see the repo Dockerfile) self-runs when the CELLS env var
-is set: it checks out PIN_SHA, trains each cell in CELLS to the volume (writing
-under PINGLAB_TRAINING_ROOT = <mount>/training), then self-terminates. With no
-CELLS it just runs sshd — that mode is what collect() and any debugging use.
-
-Nothing here knows about training; it is reusable by any runner that can express
-its work as pods carrying a CELLS assignment.
+is set: it checks out PIN_SHA, runs experiments/${PINGLAB_POD_RUNNER}.py --pod-run
+(the runner `dispatch()` recorded), then self-terminates. With no CELLS it just
+runs sshd — the mode collect_subpath() and debugging use.
 """
 
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 import time
 from pathlib import Path
 
+from .paths import REPO
+
 # ── Fleet configuration ──────────────────────────────────────────────
 IMAGE = "ghcr.io/eoinmurray/pinglab:cu128"
 GPU_IDS = {"4090": "NVIDIA GeForce RTX 4090", "5090": "NVIDIA GeForce RTX 5090"}
+GPU_CHOICES = tuple(GPU_IDS)
 # $/hr ceilings (measured EU-RO-1 secure 2026-07-05: 4090 $0.69, 5090 $0.99),
 # with a little margin so create never rejects on a small price wobble.
 COST_CEILING = {"4090": 0.79, "5090": 1.09}
@@ -45,10 +55,47 @@ VOLUME_MOUNT = "/shared"                    # network volume mount point on pods
 PUBKEY_PATH = Path.home() / ".ssh" / "id_ed25519.pub"
 PRIVKEY_PATH = Path.home() / ".ssh" / "id_ed25519"
 
+# Account-level anchors (created 2026-07-05): the shared network volume and the
+# datacenter it lives in. EU-RO-1 carries High 4090 AND 5090 stock, so pods and
+# the volume co-locate and provisioning is reliable. Every runner fans out here.
+DATACENTER = "EU-RO-1"
+VOLUME_ID = "3t2fhu0bzr"
+
+# The volume layout pods read/write (all under VOLUME_MOUNT):
+#   training/          — the exp022 weight bank every analysis runner loads
+#   artifacts/<slug>/  — per-experiment infer scratch an analysis fan-out writes
+TRAINING_SUBDIR = "training"
+ARTIFACTS_SUBDIR = "artifacts"
+
 # Timeouts (seconds) — used only for the collect pod, which we DO wait on.
 SSH_ATTEMPT_TIMEOUT = 600      # readiness spans 40s→>490s; wait out slow pods
 PROVISION_ATTEMPTS = 3         # fresh-pod retries before giving up
 PROVISION_BACKOFF_S = 20       # pause between attempts (let stock recover)
+
+# Default pod wall-clock backstops (seconds): the image force-removes a pod after
+# MAX_RUNTIME so a hung job can never bill forever. 15 hr real / 40 min smoke.
+MAX_RUNTIME_S = 54000
+PLUMBING_RUNTIME_S = 2400
+
+
+# ── Local ↔ volume path contract ─────────────────────────────────────
+# Both resolved from env on a pod (set by dispatch) and default to local scratch
+# on a laptop, so a runner writes to the same relative place in both worlds.
+
+def training_root() -> Path:
+    """The exp022 weight bank: PINGLAB_TRAINING_ROOT on a pod (/shared/training),
+    else the local scratch default. cell_dir / load_cell read through this."""
+    return Path(os.environ.get(
+        "PINGLAB_TRAINING_ROOT",
+        str(REPO / "temp" / "experiments" / "exp022"),
+    ))
+
+
+def artifacts_scratch(slug: str) -> Path:
+    """A runner's infer scratch: PINGLAB_ARTIFACTS_ROOT on a pod
+    (/shared/artifacts/<slug>), else local temp/experiments/<slug>."""
+    override = os.environ.get("PINGLAB_ARTIFACTS_ROOT")
+    return Path(override) if override else REPO / "temp" / "experiments" / slug
 
 
 def _sh(cmd: list[str], timeout: float | None = None, check: bool = True) -> str:
@@ -295,14 +342,9 @@ def sync_dir(host: str, port: int, remote_dir: str, local_dir: str) -> None:
 
 # ── Collect artifacts off the volume ─────────────────────────────────
 
-def collect(*, datacenter: str, volume_id: str, local_root: str,
-            gpu: str = "4090") -> None:
-    """Retrieve <mount>/training from the volume to local_root via a throwaway pod.
-
-    Spins one cheap pod (no CELLS → sshd only) with the volume mounted, rsyncs
-    the training root down, and tears the pod down. This is the only step that
-    needs the laptop after firing — run it once the fleet has self-terminated.
-    """
+def _collect_via_pod(*, remote_dir: str, local_dir: str, datacenter: str,
+                     volume_id: str, gpu: str = "4090") -> None:
+    """Rsync *remote_dir* on the volume (absolute pod path) → *local_dir*."""
     pod_id = None
     try:
         for attempt in range(1, PROVISION_ATTEMPTS + 1):
@@ -319,8 +361,191 @@ def collect(*, datacenter: str, volume_id: str, local_root: str,
                 time.sleep(PROVISION_BACKOFF_S)
         else:
             raise RuntimeError("could not provision a collector pod")
-        print(f"  [collect] rsync {VOLUME_MOUNT}/training → {local_root}")
-        sync_dir(host, port, f"{VOLUME_MOUNT}/training/", f"{local_root}/")
+        print(f"  [collect] rsync {remote_dir} → {local_dir}")
+        sync_dir(host, port, f"{remote_dir.rstrip('/')}/", f"{local_dir}/")
         print("  [collect] done")
     finally:
         destroy_pod(pod_id)
+
+
+def collect_subpath(*, subpath: str, local_dir: str, datacenter: str,
+                    volume_id: str, gpu: str = "4090") -> None:
+    """Retrieve an arbitrary subpath under the volume mount (e.g. training or
+    artifacts/exp037) to local_dir via a throwaway pod.
+
+    Spins one cheap pod (no CELLS → sshd only) with the volume mounted, rsyncs
+    the subpath down, and tears the pod down. This is the only step that needs
+    the laptop after firing — run it once the fleet has self-terminated. The
+    --collect path in dispatch() is the single caller."""
+    remote = f"{VOLUME_MOUNT}/{subpath.strip('/')}"
+    _collect_via_pod(
+        remote_dir=remote,
+        local_dir=local_dir,
+        datacenter=datacenter,
+        volume_id=volume_id,
+        gpu=gpu,
+    )
+
+
+# ── Provenance + auth (shared by every fan-out) ──────────────────────
+
+def head_sha() -> str:
+    """The current HEAD sha (pods check this exact commit out)."""
+    return subprocess.run(
+        ["git", "rev-parse", "HEAD"], cwd=REPO,
+        capture_output=True, text=True, check=True,
+    ).stdout.strip()
+
+
+def sha_is_pushed(sha: str) -> bool:
+    """True if the sha is on a remote branch (pods fetch it from GitHub)."""
+    out = subprocess.run(
+        ["git", "branch", "-r", "--contains", sha], cwd=REPO,
+        capture_output=True, text=True,
+    ).stdout.strip()
+    return bool(out)
+
+
+def api_key() -> str:
+    """The RunPod API key, needed on pods for self-termination. From the env or
+    runpodctl's config."""
+    key = os.environ.get("RUNPOD_API_KEY")
+    if key:
+        return key
+    cfg = Path.home() / ".runpod" / "config.toml"
+    if cfg.exists():
+        for line in cfg.read_text().splitlines():
+            if line.strip().lower().startswith("apikey"):
+                return line.split("=", 1)[1].strip().strip("'\"")
+    raise SystemExit("no RunPod API key (set RUNPOD_API_KEY or run `runpodctl config`)")
+
+
+# ── Job → pod bucketing ──────────────────────────────────────────────
+
+def chunk_buckets(job_ids: list[str], per_pod: int, *, prefix: str = "job") -> list[dict]:
+    """Pack job ids into pod assignments [{name, cells}, …], `per_pod` each.
+
+    `cells` is the historical key name the CELLS env is built from — a "cell" is
+    just a job id (a training cell name, or an infer-job id). A runner that needs
+    a smarter split (e.g. exp022's canonical-per-pod) builds its own buckets and
+    passes them straight to dispatch()."""
+    buckets = []
+    for i in range(0, len(job_ids), per_pod):
+        buckets.append({
+            "name": f"{prefix}-{i // per_pod:02d}",
+            "cells": job_ids[i:i + per_pod],
+        })
+    return buckets
+
+
+# ── Fan-out orchestration (the one --runpod entry) ───────────────────
+
+def dispatch(
+    *,
+    slug: str,
+    runner: str,
+    buckets: list[dict],
+    gpu: str = "4090",
+    live: bool = False,
+    plumbing: bool = False,
+    collect: bool = False,
+    collect_subdir: str,
+    local_collect_dir: str,
+    extra_env: dict[str, str] | None = None,
+    plumbing_env: dict[str, str] | None = None,
+    max_runtime_s: int = MAX_RUNTIME_S,
+    plumbing_runtime_s: int = PLUMBING_RUNTIME_S,
+) -> None:
+    """The single laptop-side --runpod path for every runner.
+
+    Three modes, chosen by the flags:
+      • collect=True  → rsync <mount>/<collect_subdir> down to local_collect_dir.
+      • live=False    → dry-run: print the fleet plan, create nothing.
+      • live=True     → pin+verify the sha, then fire the fleet fire-and-forget.
+
+    `buckets` is [{"name", "cells": [job-id, …]}]; the runner builds them (via
+    chunk_buckets or its own logic). `runner` is the experiments/expNNN stem the
+    pod re-invokes as `--pod-run` (recorded in PINGLAB_POD_RUNNER). `extra_env` /
+    `plumbing_env` inject runner-specific env (e.g. PINGLAB_ARTIFACTS_ROOT)."""
+    if collect:
+        print(f"collecting {VOLUME_MOUNT}/{collect_subdir} @ {DATACENTER} "
+              f"→ {local_collect_dir}")
+        collect_subpath(
+            subpath=collect_subdir, local_dir=str(local_collect_dir),
+            datacenter=DATACENTER, volume_id=VOLUME_ID, gpu=gpu,
+        )
+        print(f"→ build figures with: uv run python experiments/{runner}.py --skip-training")
+        return
+
+    n_jobs = sum(len(b["cells"]) for b in buckets)
+    dry = not live
+    scale = "plumbing" if plumbing else "standard"
+    print(f"{'DRY-RUN' if dry else 'LIVE'}  runner={runner}  gpu={gpu}  scale={scale}")
+    print(f"fleet: {len(buckets)} pods · {n_jobs} jobs "
+          f"(pods skip jobs already done on the volume)")
+
+    if dry:
+        for b in buckets:
+            print(f"\n▸ POD {b['name']} [{gpu} @ {DATACENTER}] "
+                  f"— CELLS={' '.join(b['cells'])}")
+        print("\n(dry-run — nothing created. Re-run with --live to spend.)")
+        return
+
+    # ── Provenance: pin an exact, pushed commit + the image digest ──
+    sha = head_sha()
+    if not sha_is_pushed(sha):
+        raise SystemExit(f"HEAD {sha[:12]} is not pushed to origin — pods fetch "
+                         "from GitHub. Commit + push, then re-run.")
+    digest = resolve_image_digest() or "(digest unresolved)"
+    print(f"pinned sha : {sha}")
+    print(f"image      : {digest}")
+
+    common = {
+        "PIN_SHA": sha,
+        "RUNPOD_API_KEY": api_key(),
+        "PINGLAB_TRAINING_ROOT": f"{VOLUME_MOUNT}/{TRAINING_SUBDIR}",
+        "PINGLAB_POD_RUNNER": runner,
+        "MAX_RUNTIME": str(plumbing_runtime_s if plumbing else max_runtime_s),
+    }
+    if extra_env:
+        common.update(extra_env)
+    if plumbing and plumbing_env:
+        common.update(plumbing_env)
+
+    pods = [{"name": b["name"], "env": {**common, "CELLS": " ".join(b["cells"])}}
+            for b in buckets]
+
+    fired = fire(pods, gpu=gpu, datacenter=DATACENTER, volume_id=VOLUME_ID)
+    ok = [p for p in fired if p["id"]]
+    print(f"\n=== fired {len(ok)}/{len(pods)} pods ({gpu}) ===")
+    print("pods self-run + self-terminate; monitor with `runpodctl pod list`.")
+    print(f"when the list is empty, collect: "
+          f"uv run python experiments/{runner}.py --runpod --collect"
+          + (" --plumbing" if plumbing else ""))
+
+
+def pod_run_loop(*, job_ids: list[str], is_done, run_job, label: str = "pod-run") -> None:
+    """The single pod-side --pod-run path for every runner.
+
+    Runs each job named in the CELLS env var, skipping any already done on the
+    volume (scale/existence check is the runner's `is_done`), then ALWAYS
+    self-terminates (finally) so the pod stops billing even if a job errors.
+    `run_job(job_id)` does the one job; `job_ids` is the full valid set (an
+    unknown CELLS token is skipped, not run)."""
+    names = os.environ.get("CELLS", "").split()
+    valid = set(job_ids)
+    print(f"[{label}] jobs={names}")
+    try:
+        for name in names:
+            if name not in valid:
+                print(f"[{label}] unknown job {name!r} — skipping")
+                continue
+            if is_done(name):
+                print(f"[skip] {name} already done on the volume")
+                continue
+            try:
+                run_job(name)
+            except Exception as e:  # noqa: BLE001 — isolate one job's failure
+                print(f"[FAIL] {name}: {e}")
+    finally:
+        pod_self_terminate()

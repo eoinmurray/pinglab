@@ -17,7 +17,6 @@ Writing: writings/exp037.typ · figures + numbers.json: artifacts/data/exp037/
 from __future__ import annotations
 
 import json
-import subprocess
 import sys
 import time
 from pathlib import Path
@@ -32,16 +31,19 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from exp022 import cell_dir as shared_cell_dir  # noqa: E402
 from exp022 import cell_name  # noqa: E402
 from helpers import theme  # noqa: E402
+from helpers.cli import Meta, parse_meta  # noqa: E402
 from helpers.figsave import save_figure  # noqa: E402
 from helpers.fmt import format_duration  # noqa: E402
-from helpers.modal import parse_modal_gpu  # noqa: E402
 from helpers.paths import artifacts_and_figures  # noqa: E402
+from helpers import runpod  # noqa: E402
+from helpers.run_cli import run_cli  # noqa: E402
 from helpers.run_dirs import prepare as prepare_run_dirs  # noqa: E402
 from helpers.run_id import next_run_id  # noqa: E402
 from helpers.stamp import stamp_figure  # noqa: E402
 
 SLUG = "exp037"
-ARTIFACTS, FIGURES = artifacts_and_figures(SLUG)
+_ARTIFACTS_DEFAULT, FIGURES = artifacts_and_figures(SLUG)
+ARTIFACTS = runpod.artifacts_scratch(SLUG)
 SNN_TOOL = REPO / "tools" / "snn" / "tool.py"
 
 MAX_SAMPLES = 500
@@ -105,6 +107,102 @@ SCALE = {
     "grid": "2 models × 6 θ_u values",
 }
 
+def _level_tag(level) -> str:
+    if isinstance(level, (list, tuple)):
+        return "_".join(_level_tag(x) for x in level)
+    return f"{float(level):g}".replace(".", "p")
+
+
+def _parse_job(job_id: str) -> tuple[str, str, str, str]:
+    """Return (kind, model, mode, level_tag). kind is 'sweep' or 'raster'."""
+    parts = job_id.split("__")
+    if len(parts) != 4:
+        raise ValueError(f"bad job id {job_id!r}")
+    return parts[0], parts[1], parts[2], parts[3]
+
+
+def _level_from_tag(tag: str):
+    return float(tag.replace("p", "."))
+
+
+def infer_jobs() -> list[str]:
+    jobs: list[str] = []
+    for model in MODELS:
+        for mode, levels in (
+            ("drop", PERTURB_DROP_LEVELS),
+            ("add", PERTURB_ADD_LEVELS),
+        ):
+            for level in levels:
+                jobs.append(f"sweep__{model}__{mode}__{_level_tag(level)}")
+        for mode, levels in (
+            ("drop", PERTURB_RASTER_DROP_LEVELS),
+            ("add", PERTURB_RASTER_ADD_LEVELS),
+        ):
+            for level in levels:
+                jobs.append(f"raster__{model}__{mode}__{_level_tag(level)}")
+    return jobs
+
+
+PLUMBING_JOBS = ["sweep__ping__drop__0p0", "raster__ping__drop__0p0"]
+
+
+def job_is_done(job_id: str) -> bool:
+    kind, model, mode, tag = _parse_job(job_id)
+    level = _level_from_tag(tag)
+    train_dir = baseline_dir(model)
+    if kind == "sweep":
+        out = _perturb_out_dir(train_dir, mode, level) / "metrics.json"
+    elif kind == "raster":
+        out = ARTIFACTS / "perturb_raster" / f"{mode}_{level}_s0" / "snapshot.npz"
+    else:
+        return False
+    if not out.exists():
+        return False
+    if kind == "sweep":
+        try:
+            json.loads(out.read_text())
+        except (json.JSONDecodeError, OSError):
+            return False
+    return True
+
+
+def run_infer_job(job_id: str) -> None:
+    kind, model, mode, tag = _parse_job(job_id)
+    level = _level_from_tag(tag)
+    train_dir = baseline_dir(model)
+    if kind == "sweep":
+        run_perturbation_sweep(train_dir, mode, level, reuse=True)
+    elif kind == "raster":
+        capture_perturbation_raster(train_dir, mode, level, 0)
+    else:
+        raise ValueError(f"unknown job kind in {job_id!r}")
+
+
+def pod_run() -> None:
+    runpod.pod_run_loop(job_ids=infer_jobs(), is_done=job_is_done, run_job=run_infer_job)
+
+
+def run_via_runpod(meta: Meta) -> None:
+    jobs = list(PLUMBING_JOBS if meta.plumbing else infer_jobs())
+    if meta.only_cells:
+        wanted = set(meta.only_cells)
+        jobs = [j for j in jobs if j in wanted]
+        missing = wanted - set(jobs)
+        if missing:
+            raise SystemExit(f"unknown job(s): {sorted(missing)}")
+    runpod.dispatch(
+        slug=SLUG, runner=SLUG,
+        buckets=runpod.chunk_buckets(jobs, meta.cells_per_pod, prefix="infer"),
+        gpu=meta.gpu, live=meta.live, plumbing=meta.plumbing, collect=meta.collect,
+        collect_subdir=f"{runpod.ARTIFACTS_SUBDIR}/{SLUG}",
+        local_collect_dir=str(runpod.artifacts_scratch(SLUG)),
+        extra_env={
+            "PINGLAB_ARTIFACTS_ROOT": f"{runpod.VOLUME_MOUNT}/{runpod.ARTIFACTS_SUBDIR}/{SLUG}",
+            "PINGLAB_NO_SYNC": "1",
+        },
+    )
+
+
 def theta_label(theta_u: float | None) -> str:
     """Filesystem-safe label for an out-dir."""
     if theta_u is None:
@@ -159,18 +257,16 @@ def capture_perturbation_raster(
     lvl = list(level) if isinstance(level, (list, tuple)) else [level]
     out_dir = (ARTIFACTS / "perturb_raster" / f"{mode}_{'_'.join(str(x) for x in lvl)}_s{sample_idx}").resolve()
     out_dir.mkdir(parents=True, exist_ok=True)
-    subprocess.run(
+    run_cli(
         [
-            "uv", "run", "python", str(SNN_TOOL), "sim", "--infer",
+            "sim", "--infer",
             "--load-config", str((train_dir / "config.json").resolve()),
             "--load-weights", str((train_dir / "weights.pth").resolve()),
             "--perturb-mode", mode,
             "--perturb-level", *[str(x) for x in lvl],
             "--sample-index", str(sample_idx),
             "--out-dir", str(out_dir),
-        ],
-        cwd=REPO,
-        check=True,
+        ]
     )
     d = np.load(out_dir / "snapshot.npz")
     e_full, i_full = d["spk_e"], d["spk_i"]
@@ -249,7 +345,13 @@ def plot_perturbation_rasters(
 
 
 
-def run_perturbation_sweep(train_dir: Path, mode: str, level) -> dict:
+def _perturb_out_dir(train_dir: Path, mode: str, level) -> Path:
+    lvl = list(level) if isinstance(level, (list, tuple)) else [level]
+    return (ARTIFACTS / "perturb"
+            / f"{mode}_{'_'.join(str(x) for x in lvl)}_{train_dir.name}").resolve()
+
+
+def run_perturbation_sweep(train_dir: Path, mode: str, level, *, reuse: bool = False) -> dict:
     """Evaluate the test set under a hidden-spike perturbation, via the CLI.
 
     Runs `sim --infer --perturb-mode M --perturb-level L`; the perturbation is
@@ -257,21 +359,28 @@ def run_perturbation_sweep(train_dir: Path, mode: str, level) -> dict:
     come from metrics.json.
     """
     lvl = list(level) if isinstance(level, (list, tuple)) else [level]
-    out_dir = (ARTIFACTS / "perturb" / f"{mode}_{'_'.join(str(x) for x in lvl)}_{train_dir.name}").resolve()
+    out_dir = _perturb_out_dir(train_dir, mode, level)
     out_dir.mkdir(parents=True, exist_ok=True)
-    subprocess.run(
-        [
-            "uv", "run", "python", str(SNN_TOOL), "sim", "--infer",
-            "--load-config", str((train_dir / "config.json").resolve()),
-            "--load-weights", str((train_dir / "weights.pth").resolve()),
-            "--perturb-mode", mode,
-            "--perturb-level", *[str(x) for x in lvl],
-            "--out-dir", str(out_dir),
-        ],
-        cwd=REPO,
-        check=True,
-    )
-    m = json.loads((out_dir / "metrics.json").read_text())
+    mfile = out_dir / "metrics.json"
+    m = None
+    if reuse and mfile.exists():
+        try:
+            m = json.loads(mfile.read_text())
+            print(f"  [reuse] {mode} {lvl} {train_dir.name}")
+        except json.JSONDecodeError:
+            m = None
+    if m is None:
+        run_cli(
+            [
+                "sim", "--infer",
+                "--load-config", str((train_dir / "config.json").resolve()),
+                "--load-weights", str((train_dir / "weights.pth").resolve()),
+                "--perturb-mode", mode,
+                "--perturb-level", *[str(x) for x in lvl],
+                "--out-dir", str(out_dir),
+            ]
+        )
+        m = json.loads(mfile.read_text())
     rates = m.get("rates_hz", {})
     hid = max((k for k in rates if k.startswith("hid")), default=None)
     return {
@@ -387,13 +496,21 @@ def plot_perturbation_curves(
 
 
 def main() -> None:
-    # Publication profile: every figure this notebook writes is a print-sized
-    # vector, emitted as both SVG (docs) and PDF (manuscript) by save_figure.
     theme.set_paper_mode(True)
 
-    modal_gpu = parse_modal_gpu(sys.argv)
-    skip_training = "--skip-training" in sys.argv
-    wipe_dir = "--no-wipe-dir" not in sys.argv
+    meta = parse_meta(sys.argv, allow_dispatch=True)
+    if meta.pod_run:
+        pod_run()
+        return
+    if meta.reap:
+        runpod.reap_all_pods()
+        return
+    if meta.runpod:
+        run_via_runpod(meta)
+        return
+
+    skip_training = meta.skip_training
+    wipe_dir = not skip_training
 
     t_start = time.monotonic()
     notebook_run_id = next_run_id(SLUG)
@@ -407,7 +524,7 @@ def main() -> None:
         SLUG, notebook_run_id, wipe=wipe_dir, skip_training=skip_training,
         make_artifacts=False,
         scale=SCALE,
-        host=f"modal:{modal_gpu}" if modal_gpu else "local",
+        host="local",
     )
 
     # Training lives in exp022 now (train-once / reuse-many). This notebook
@@ -461,7 +578,7 @@ def main() -> None:
             ("add", PERTURB_ADD_LEVELS),
         ):
             for level in levels:
-                res = run_perturbation_sweep(train_dir, mode, level)
+                res = run_perturbation_sweep(train_dir, mode, level, reuse=skip_training)
                 res["model"] = model
                 perturb_rows.append(res)
                 print(

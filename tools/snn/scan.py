@@ -22,9 +22,17 @@ def _auto_device() -> torch.device:
     sensible defaults: use GPU if available (training is ~3x faster), fall back to
     CPU on machines without accelerators.
 
+    The PINGLAB_DEVICE env var forces a specific device (e.g. "cpu", "mps",
+    "cuda") when set, overriding auto-detection — useful for CPU/MPS parity
+    checks and for pinning a device without a CLI flag.
+
     Returns:
         torch.device: cuda, mps, or cpu, in order of speed.
     """
+    import os
+    forced = os.environ.get("PINGLAB_DEVICE")
+    if forced:
+        return torch.device(forced)
     if torch.cuda.is_available():
         return torch.device("cuda")
     if torch.backends.mps.is_available():

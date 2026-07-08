@@ -238,7 +238,7 @@ def write_test_predictions(path: Path, predictions: list):
 def _git_sha() -> str:
     """Return current git SHA with '(dirty)' suffix if uncommitted changes.
 
-    Honors PINGLAB_GIT_SHA env var as a fallback so Modal containers (which
+    Honors PINGLAB_GIT_SHA env var as a fallback so remote containers (which
     don't have .git mounted) still record the host's SHA.
     """
     try:
@@ -693,7 +693,7 @@ class Heartbeat:
         live counter climbs where the finished row will land, instead of a
         wall of lines. Call clear() before the finished row prints so the row
         overwrites the live line cleanly.
-      • non-TTY (output.log, Modal) — emits a plain line every `log_interval`
+      • non-TTY (output.log, remote pod) — emits a plain line every `log_interval`
         s. A periodic record with no control characters; clear() is a no-op.
 
     `beat()` takes an already-formatted line (see epoch_progress) and dims it.

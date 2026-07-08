@@ -21,16 +21,10 @@ import pytest
 
 EXPERIMENTS = Path(__file__).resolve().parents[3] / "experiments"
 
-# Exact meta flags: run-dir wiping, cloud dispatch, idempotency/resume, and the
-# unified figure re-render selector (`--replot <name>` — skip compute, redraw one
-# figure from cache; the runner maps <name> to a render fn via helpers.cli).
-ALLOWED_EXACT = {
-    "--no-wipe-dir", "--wipe-dir",   # wipe control
-    "--modal-gpu",                   # cloud dispatch (opt-in)
-    "--skip-training",               # reuse existing weights, just re-analyze
-    "--only-missing",                # resume: only run cells not already done
-    "--replot",                      # re-render one figure from cache (takes a name)
-}
+from experiments.helpers.cli import ALL_META_FLAGS
+
+# Synced with helpers/cli.py — the closed meta vocabulary (+ legacy wipe/replot).
+ALLOWED_EXACT = set(ALL_META_FLAGS) | {"--no-wipe-dir", "--wipe-dir", "--replot"}
 
 # Canonical runners only — exp<digits>.py, so exp022_runpod.py et al. are skipped.
 RUNNERS = sorted(p for p in EXPERIMENTS.glob("exp*.py") if re.fullmatch(r"exp\d+\.py", p.name))

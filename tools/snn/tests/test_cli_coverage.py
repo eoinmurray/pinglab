@@ -121,12 +121,10 @@ class TestParseArgsSubcommands:
                 "sim",
                 "--independent-drive", "500", "0.03",
                 "--seed", "7",
-                "--modal-gpu", "A100",
             ]
         )
         assert args.independent_drive == [500.0, 0.03]
         assert args.seed == 7
-        assert args.modal_gpu == "A100"
 
 
 class TestParseArgsAutoFlip:
@@ -374,42 +372,6 @@ class TestResolveWIn:
 
     def test_pair_passthrough(self):
         assert _resolve_w_in(SimpleNamespace(w_in=[5.0, 2.0])) == [5.0, 2.0]
-
-
-# ─────────────────────────────────────────────────────────────────────────
-# _dispatch_to_modal — argv stripping (stub the real dispatch)
-# ─────────────────────────────────────────────────────────────────────────
-
-
-class TestModalDispatch:
-    def test_main_modal_strips_flags(self, monkeypatch, tmp_path):
-        captured = {}
-
-        def _fake_dispatch(cli_args, out_dir, gpu):
-            captured["cli_args"] = cli_args
-            captured["out_dir"] = out_dir
-            captured["gpu"] = gpu
-
-        import modal_app
-
-        monkeypatch.setattr(modal_app, "dispatch_to_modal", _fake_dispatch)
-
-        rc = cli.main(
-            [
-                "sim",
-                "--modal",
-                "--modal-gpu", "A100",
-                "--n-hidden", "32",
-                "--out-dir", str(tmp_path / "m"),
-            ]
-        )
-        assert rc == 0
-        # --modal and --modal-gpu (+ its value) are stripped before re-dispatch.
-        assert "--modal" not in captured["cli_args"]
-        assert "--modal-gpu" not in captured["cli_args"]
-        assert "A100" not in captured["cli_args"]
-        assert "--n-hidden" in captured["cli_args"]
-        assert captured["gpu"] == "A100"
 
 
 # ─────────────────────────────────────────────────────────────────────────
