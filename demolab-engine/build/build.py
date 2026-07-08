@@ -204,13 +204,18 @@ def main() -> None:
     PDFS.mkdir(parents=True, exist_ok=True)
     for pdf in sorted((SITE / "pdfs").glob("*.pdf")):
         shutil.copy(pdf, PDFS / pdf.name)
-    built = f"built {len(good)} entries" + (f" + {len(good_decks)} decks" if good_decks else "")
-    print(f"{built} -> {SITE}/ (pdfs mirrored -> {PDFS}/)  entries: {', '.join(good)}"
-          + (f"  decks: {', '.join(good_decks)}" if good_decks else ""))
+    # The verbose detail (which ids built / stubbed, where the PDFs mirror) goes on its own line;
+    # the CONCISE summary is printed LAST, because the dev-server watch loop echoes only build.py's
+    # final stdout line on each rebuild. So a `task dev` session shows a terse one-liner, while a
+    # one-shot `task build` still prints the full id list above it.
+    print(f"  entries: {', '.join(good)}"
+          + (f"  ·  decks: {', '.join(good_decks)}" if good_decks else "")
+          + (f"  ·  ⚠ stubbed: {', '.join(sorted(broken))}" if broken else "")
+          + f"  ·  pdfs -> {PDFS.relative_to(ROOT)}/")
+    summary = f"built {len(good)} entries" + (f" + {len(good_decks)} decks" if good_decks else "")
     if broken:
-        n = len(broken)
-        print(f"  ⚠ stubbed {n} broken entr{'y' if n == 1 else 'ies'} (fix + rebuild): "
-              + ", ".join(sorted(broken)), flush=True)
+        summary += f", {len(broken)} stubbed"
+    print(f"{summary} -> {SITE.relative_to(ROOT)}/", flush=True)
 
 
 if __name__ == "__main__":

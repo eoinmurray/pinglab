@@ -53,6 +53,7 @@ committed run outputs the writeups use, never ad-hoc images.
 #set align(horizon)
 
 #title-slide[
+  #set align(left)  // demolab titles are left-aligned, not centred
   = Title
   #v(0.4em)
   Tagline.
@@ -109,7 +110,7 @@ and swap the demo content for yours. The gallery holds the one tested, page-coun
 list is the index (name → when-to-use). Each is a `==` slide unless noted, in the order you'll reach
 for them:
 
-- **`layout: title`** — opens the deck: `#title-slide[= … ]`. Mirror it with the closer.
+- **`layout: title`** — opens the deck, left-aligned (`#title-slide[#set align(left) …]`). Mirror it with the closer.
 - **`layout: bullets`** — the workhorse. Bold the load-bearing phrase; two lines per bullet max; five bullets is the ceiling.
 - **`layout: two-column`** — paired panels for comparisons (does/does-not, before/after). Parallel sides — same count, same shape — with a centred bold takeaway.
 - **`layout: three-column`** — triads only; a fourth column wants a table. Header + one line each.

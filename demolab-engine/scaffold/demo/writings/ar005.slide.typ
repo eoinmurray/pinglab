@@ -38,6 +38,7 @@
 
 // layout: title — opens the deck; mirror the closer so it bookends
 #title-slide[
+  #set align(left)
   = Slide layout gallery
   #v(0.4em)
   A worked example of every demolab slide layout.

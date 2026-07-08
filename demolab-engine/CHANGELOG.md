@@ -14,6 +14,15 @@ the runbook shows the entries between your version and the latest.
 
 ## [Unreleased]
 
+## [0.4.5] — 2026-07-07
+
+### Changed
+- **The dev server's rebuild log is now one terse line.** `task dev` reprinted the full output paths
+  and every entry/deck id on *every* rebuild, so an active editing session buried the terminal in
+  wrapping dumps. `build.py` now prints a concise summary last
+  (`built 9 entries + 2 decks -> artifacts/site/`) — which is all the watch loop echoes per rebuild —
+  and keeps the full id list on the line above, shown only by a one-shot `task build`.
+
 ## [0.4.4] — 2026-07-06
 
 ### Fixed
