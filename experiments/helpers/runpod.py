@@ -240,10 +240,15 @@ def _create_pod_graphql(name: str, gpu: str, *, datacenter: str, volume_id: str,
     query = ("mutation createPod($input: PodFindAndDeployOnDemandInput!) {"
              " podFindAndDeployOnDemand(input: $input) { id } }")
     body = json.dumps({"query": query, "variables": {"input": pod_input}}).encode()
+    # A User-Agent is required: api.runpod.io sits behind Cloudflare, which
+    # 1010-bans urllib's default "Python-urllib/x.y" signature (→ HTTP 403
+    # "error code: 1010"). runpodctl sends a normal UA and is unaffected; this
+    # raw urllib POST must set one explicitly or every create is Forbidden.
     req = urllib.request.Request(
         f"{RUNPOD_GRAPHQL_URL}?api_key={api_key()}",
         data=body,
-        headers={"Content-Type": "application/json"},
+        headers={"Content-Type": "application/json",
+                 "User-Agent": "pinglab-runpod/1.0"},
         method="POST",
     )
     with urllib.request.urlopen(req, timeout=120) as r:
