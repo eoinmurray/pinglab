@@ -272,8 +272,6 @@ def plot_distribution(rows: list[dict], out_path: Path, run_id: str) -> dict:
         if i == 0:
             ax.set_ylabel("P(spikes per E cell per cycle)",
                           fontsize=theme.SIZE_LABEL)
-        ax.set_xlabel("spikes / (cell · cycle)",
-                      fontsize=theme.SIZE_LABEL)
         ax.spines["top"].set_visible(False)
         ax.spines["right"].set_visible(False)
         ax.set_ylim(0, 1.05)
@@ -284,10 +282,7 @@ def plot_distribution(rows: list[dict], out_path: Path, run_id: str) -> dict:
             "frac_two": float(frac[2]),
             "frac_three_plus": float(frac[3]),
         }
-    fig.suptitle(
-        "Spike count per E cell per gamma cycle — distribution by τ_GABA",
-        fontsize=theme.SIZE_TITLE,
-    )
+    fig.supxlabel("spikes / (cell · cycle)", fontsize=theme.SIZE_LABEL)
     fig.tight_layout()
     stamp_figure(fig, run_id)
     out_path.parent.mkdir(parents=True, exist_ok=True)
@@ -355,11 +350,6 @@ def plot_ceiling_vs_fgamma(rows: list[dict], out_path: Path, run_id: str) -> dic
     ax.spines["right"].set_visible(False)
     ax.grid(True, alpha=0.15, lw=0.4)
     ax.legend(fontsize=theme.SIZE_LEGEND, frameon=False, loc="upper left")
-    ax.set_title(
-        f"Per-cell ceiling: max-cell rate = {slope_max:.2f}·f_γ"
-        f"  (R² = {r2_max:.3f})",
-        fontsize=theme.SIZE_TITLE,
-    )
     fig.tight_layout()
     stamp_figure(fig, run_id)
     out_path.parent.mkdir(parents=True, exist_ok=True)

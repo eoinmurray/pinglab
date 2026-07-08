@@ -19,7 +19,6 @@ Writing: writings/exp041.typ · figures + numbers.json: artifacts/data/exp041/
 from __future__ import annotations
 
 import json
-import subprocess
 import sys
 import time
 from pathlib import Path
@@ -32,21 +31,22 @@ REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from helpers import theme  # noqa: E402
+from helpers.cli import parse_meta  # noqa: E402
 from helpers.figsave import save_figure  # noqa: E402
 from helpers.fmt import format_duration  # noqa: E402
-from helpers.modal import parse_modal_gpu  # noqa: E402
+from helpers.numbers import write_numbers as write_numbers_json  # noqa: E402
 from helpers.operating_point import (  # noqa: E402
     MODELS_DEFAULT_TAU_GABA_MS,
     TAU_GABA_GAMMA_MS,
 )
 from helpers.paths import artifacts_and_figures  # noqa: E402
-from helpers.run_dirs import prepare as prepare_run_dirs  # noqa: E402
+from helpers.run_cli import run_cli  # noqa: E402
+from helpers.run_dirs import published_run  # noqa: E402
 from helpers.run_id import next_run_id  # noqa: E402
 from helpers.stamp import stamp_figure  # noqa: E402
 
 SLUG = "exp041"
 ARTIFACTS, FIGURES = artifacts_and_figures(SLUG)
-SNN_TOOL = REPO / "tools" / "snn" / "tool.py"
 
 T_MS = 200.0
 DT_TRAIN = 0.1
@@ -72,8 +72,10 @@ RASTER_N_E_PLOT: int = 200
 RASTER_N_I_PLOT: int = 64
 RASTER_T_WINDOW_MS: float = 100.0
 
-MAX_SAMPLES = 500
-EPOCHS = 10
+# exp022 sweep-cell scale (10% of MNIST = 7000, 50 epochs) — the cells this
+# entry reads; reporting only (exp022 owns the training).
+MAX_SAMPLES = 7000
+EPOCHS = 50
 
 # Match exp025 PING recipe — same network, same optimiser,
 # same readout; only τ_GABA varies.
@@ -150,17 +152,15 @@ def _infer_cell(train_dir: Path, extra_args: list[str], out_name: str) -> Path:
     expected = "pop_traces.npz" if any("pop_traces" in a for a in extra_args) else "snapshot.npz"
     if (out_dir / expected).exists() and (out_dir / "metrics.json").exists():
         return out_dir
-    subprocess.run(
+    run_cli(
         [
-            "uv", "run", "python", str(SNN_TOOL), "sim", "--infer",
+            "sim", "--infer",
             "--load-config", str(train_dir / "config.json"),
             "--load-weights", str(train_dir / "weights.pth"),
             "--tau-gaba", str(_cell_tau_gaba(cfg)),
             "--out-dir", str(out_dir),
             *extra_args,
-        ],
-        cwd=REPO,
-        check=True,
+        ]
     )
     return out_dir
 
@@ -663,13 +663,13 @@ def load_plot_cache() -> tuple[list[dict], list[dict] | None]:
 
 
 def render_figures(
-    rows: list[dict], raster_samples: list[dict] | None, notebook_run_id: str
+    rows: list[dict], raster_samples: list[dict] | None, run_id: str
 ) -> dict:
     """Render every figure from already-computed data. Shared by the full
     run and --plot-only. Figures whose inputs are absent from a partial
     cache are skipped with a printed notice rather than crashing. Returns
     the affine-fit dict for numbers.json."""
-    fit = plot_quantitative_law(rows, FIGURES / "rate_vs_fgamma", notebook_run_id)
+    fit = plot_quantitative_law(rows, FIGURES / "rate_vs_fgamma", run_id)
     print(
         f"wrote {FIGURES / 'rate_vs_fgamma'}.{{svg,pdf}}  "
         f"(affine: a={fit['a_affine']:.2f}, p={fit['p_affine']:.3f}, "
@@ -677,140 +677,143 @@ def render_figures(
     )
 
     if rows and all(r.get("freqs_hz") for r in rows):
-        plot_psd_panel(rows, FIGURES / "psds", notebook_run_id)
+        plot_psd_panel(rows, FIGURES / "psds", run_id)
         print(f"wrote {FIGURES / 'psds'}.{{svg,pdf}}")
-        plot_per_trial_peaks(rows, FIGURES / "per_trial_peaks", notebook_run_id)
+        plot_per_trial_peaks(rows, FIGURES / "per_trial_peaks", run_id)
         print(f"wrote {FIGURES / 'per_trial_peaks'}.{{svg,pdf}}")
     else:
         print("[plot-only] skipping psds + per_trial_peaks — no PSD arrays cached")
 
     if raster_samples:
         plot_raster_strip(
-            raster_samples, FIGURES / "raster_strip", notebook_run_id,
+            raster_samples, FIGURES / "raster_strip", run_id,
             t_window_ms=RASTER_T_WINDOW_MS,
         )
         print(f"wrote {FIGURES / 'raster_strip'}.{{png,pdf}}")
     else:
         print("[plot-only] skipping raster_strip — no raster snapshots cached")
 
-    plot_training_curves(FIGURES / "training_curves", notebook_run_id)
+    plot_training_curves(FIGURES / "training_curves", run_id)
     print(f"wrote {FIGURES / 'training_curves'}.{{svg,pdf}}")
     return fit
 
 
 def write_numbers(
-    rows: list[dict], fit: dict, notebook_run_id: str, duration_s: float
+    rows: list[dict], fit: dict, run_id: str, duration_s: float
 ) -> None:
     train_cfg = load_config(cell_dir(TAU_GABA_SWEEP[0], SEEDS[0]))
-    summary = {
-        "notebook_run_id": notebook_run_id,
-        "git_sha": train_cfg.get("git_sha"),
-        "duration_s": round(duration_s, 1),
-        "duration": format_duration(duration_s),
-        "config": {
-            "dataset": "mnist",
-            "tau_gaba_sweep_ms": list(TAU_GABA_SWEEP),
-            "seeds": list(SEEDS),
-            "f_gamma_band_hz": list(F_GAMMA_BAND_HZ),
-            "max_samples": MAX_SAMPLES,
-            "epochs": EPOCHS,
-            "t_ms": T_MS,
-            "dt": DT_TRAIN,
+    write_numbers_json(
+        FIGURES, run_id=run_id, duration_s=duration_s,
+        payload={
+            "git_sha_train": train_cfg.get("git_sha"),
+            "config": {
+                "dataset": "mnist",
+                "tau_gaba_sweep_ms": list(TAU_GABA_SWEEP),
+                "seeds": list(SEEDS),
+                "f_gamma_band_hz": list(F_GAMMA_BAND_HZ),
+                "max_samples": MAX_SAMPLES,
+                "epochs": EPOCHS,
+                "t_ms": T_MS,
+                "dt": DT_TRAIN,
+            },
+            "fit": fit,
+            # results: keep only the per-cell scalars the writeup reads. The bulky
+            # arrays (freqs/psd, and the 14k-element per-trial peak list) live in the
+            # plot cache (temp/experiments/exp041/cache) — dumping them here bloated
+            # numbers.json to ~7 MB for no consumer.
+            "results": [
+                {k: v for k, v in r.items()
+                 if k not in ("freqs_hz", "psd", "per_trial_peaks_hz")}
+                for r in rows
+            ],
         },
-        "fit": fit,
-        # results: keep only the per-cell scalars the writeup reads. The bulky
-        # arrays (freqs/psd, and the 14k-element per-trial peak list) live in the
-        # plot cache (temp/experiments/exp041/cache) — dumping them here bloated
-        # numbers.json to ~7 MB for no consumer.
-        "results": [
-            {k: v for k, v in r.items()
-             if k not in ("freqs_hz", "psd", "per_trial_peaks_hz")}
-            for r in rows
-        ],
-    }
-    (FIGURES / "numbers.json").write_text(json.dumps(summary, indent=2) + "\n")
+    )
     print(f"wrote {FIGURES / 'numbers.json'}")
 
 
 def main() -> None:
+    global FIGURES
+    meta = parse_meta(sys.argv)
+
     # Publication profile: every figure this notebook writes is a print-sized
     # vector, emitted as both SVG (docs) and PDF (manuscript) by save_figure.
     theme.set_paper_mode(True)
 
-    modal_gpu = parse_modal_gpu(sys.argv)
-    skip_training = "--skip-training" in sys.argv
-    wipe_dir = "--no-wipe-dir" not in sys.argv
-    plot_only = "--plot-only" in sys.argv
-
     t_start = time.monotonic()
 
-    if plot_only:
+    if meta.plot_only:
         # Re-render figures from the cached inference results only — no CLI
         # inference, and crucially no wipe (that would delete the cache and
         # the surviving figures). Reuse the run id from the last manifest so
         # the provenance stamp matches the run that produced the data.
         manifest = FIGURES / "_manifest.json"
-        notebook_run_id = (
+        run_id = (
             json.loads(manifest.read_text()).get("run_id", next_run_id(SLUG))
             if manifest.exists() else next_run_id(SLUG)
         )
-        print(f"[plot-only] run_id={notebook_run_id} — re-rendering from cache")
-        rows, raster_samples = load_plot_cache()
-        fit = render_figures(rows, raster_samples, notebook_run_id)
-        write_numbers(rows, fit, notebook_run_id, time.monotonic() - t_start)
+        print(f"[plot-only] run_id={run_id} — re-rendering from cache")
+        # Atomic publish: stage from the published dir and swap back into place
+        # only if re-rendering completes. Point the module FIGURES path at the
+        # staging dir for this run so the plot/numbers helpers write there.
+        with published_run(
+            SLUG, run_id, plot_only=True, scale=SCALE,
+        ) as (_artifacts, figures):
+            FIGURES = figures  # atomic-publish: point the module path at staging
+            rows, raster_samples = load_plot_cache()
+            fit = render_figures(rows, raster_samples, run_id)
+            write_numbers(rows, fit, run_id, time.monotonic() - t_start)
         print(f"  total duration: {format_duration(time.monotonic() - t_start)}")
         return
 
-    notebook_run_id = next_run_id(SLUG)
+    run_id = next_run_id(SLUG)
     n_cells = len(TAU_GABA_SWEEP) * len(SEEDS)
     print(
-        f"notebook_run_id = {notebook_run_id} cells={n_cells}"
-        + ("  [skip-training]" if skip_training else "")
-        + (f"  [modal:{modal_gpu}]" if modal_gpu else "")
-    )
-
-    prepare_run_dirs(
-        SLUG, notebook_run_id, wipe=wipe_dir, skip_training=skip_training,
-        make_artifacts=False,
-        scale=SCALE,
-        host=f"modal:{modal_gpu}" if modal_gpu else "local",
+        f"notebook_run_id = {run_id} cells={n_cells}"
+        + ("  [skip-training]" if meta.skip_training else "")
     )
 
     # Training lives in exp022 now (train-once / reuse-many): the τ_GABA ladder
-    # is a registry family there. This notebook only consumes the cells.
+    # is a registry family there. This notebook only consumes the cells. Atomic
+    # publish: everything lands in `figures` (a staging dir) and swaps into place
+    # only if the run completes.
+    with published_run(
+        SLUG, run_id, skip_training=meta.skip_training, make_artifacts=False,
+        scale=SCALE, plot_only=meta.plot_only,
+    ) as (_artifacts, figures):
+        FIGURES = figures  # atomic-publish: point the module path at staging
 
-    # Inference: measure (acc, E rate, f_γ) per cell.
-    rows: list[dict] = []
-    for tau in TAU_GABA_SWEEP:
-        for seed in SEEDS:
-            run_dir = cell_dir(tau, seed)
-            if not (run_dir / "weights.pth").exists():
-                raise SystemExit(f"missing weights: {run_dir / 'weights.pth'}")
-            t0 = time.monotonic()
-            res = measure_rate_and_psd(run_dir)
-            res["seed"] = seed
-            rows.append(res)
-            print(
-                f"  τ_GABA={tau:>5.1f}ms seed={seed}  "
-                f"acc={res['acc']:5.2f}%  E={res['e_rate_hz']:6.2f} Hz  "
-                f"f_γ={res['f_gamma_hz']:6.2f} Hz  ({time.monotonic() - t0:.1f}s)"
-            )
+        # Inference: measure (acc, E rate, f_γ) per cell.
+        rows: list[dict] = []
+        for tau in TAU_GABA_SWEEP:
+            for seed in SEEDS:
+                run_dir = cell_dir(tau, seed)
+                if not (run_dir / "weights.pth").exists():
+                    raise SystemExit(f"missing weights: {run_dir / 'weights.pth'}")
+                t0 = time.monotonic()
+                res = measure_rate_and_psd(run_dir)
+                res["seed"] = seed
+                rows.append(res)
+                print(
+                    f"  τ_GABA={tau:>5.1f}ms seed={seed}  "
+                    f"acc={res['acc']:5.2f}%  E={res['e_rate_hz']:6.2f} Hz  "
+                    f"f_γ={res['f_gamma_hz']:6.2f} Hz  ({time.monotonic() - t0:.1f}s)"
+                )
 
-    # Raster strip — one panel per τ_GABA cluster, seed 42 only. Makes
-    # the affine law visceral: shorter τ_GABA → faster gamma → more
-    # E spikes per unit time.
-    print(f"[raster] single-trial panels from seed {SEEDS[0]}, "
-          f"sample {RASTER_SAMPLE_IDX}")
-    raster_samples = []
-    for tau_ms in TAU_GABA_SWEEP:
-        train_dir = cell_dir(tau_ms, SEEDS[0])
-        raster_samples.append(capture_raster(train_dir, RASTER_SAMPLE_IDX))
+        # Raster strip — one panel per τ_GABA cluster, seed 42 only. Makes
+        # the affine law visceral: shorter τ_GABA → faster gamma → more
+        # E spikes per unit time.
+        print(f"[raster] single-trial panels from seed {SEEDS[0]}, "
+              f"sample {RASTER_SAMPLE_IDX}")
+        raster_samples = []
+        for tau_ms in TAU_GABA_SWEEP:
+            train_dir = cell_dir(tau_ms, SEEDS[0])
+            raster_samples.append(capture_raster(train_dir, RASTER_SAMPLE_IDX))
 
-    # Cache the reduced data so figures can be re-rendered via --plot-only.
-    dump_plot_cache(rows, raster_samples)
+        # Cache the reduced data so figures can be re-rendered via --plot-only.
+        dump_plot_cache(rows, raster_samples)
 
-    fit = render_figures(rows, raster_samples, notebook_run_id)
-    write_numbers(rows, fit, notebook_run_id, time.monotonic() - t_start)
+        fit = render_figures(rows, raster_samples, run_id)
+        write_numbers(rows, fit, run_id, time.monotonic() - t_start)
     print(f"  total duration: {format_duration(time.monotonic() - t_start)}")
 
 

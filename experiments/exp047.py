@@ -22,7 +22,6 @@ importing it — the tool forwards the flags to cli.py and stamps provenance.
 from __future__ import annotations
 
 import json
-import subprocess
 import sys
 import time
 from pathlib import Path
@@ -34,15 +33,17 @@ REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from helpers import theme  # noqa: E402
+from helpers.cli import parse_meta  # noqa: E402
 from helpers.figsave import save_figure  # noqa: E402
+from helpers.numbers import write_numbers  # noqa: E402
 from helpers.paths import artifacts_and_figures  # noqa: E402
-from helpers.run_dirs import prepare as prepare_run_dirs  # noqa: E402
+from helpers.run_cli import run_cli  # noqa: E402
+from helpers.run_dirs import published_run  # noqa: E402
 from helpers.run_id import next_run_id  # noqa: E402
 from helpers.stamp import stamp_figure  # noqa: E402
 
 SLUG = "exp047"
 ARTIFACTS, FIGURES = artifacts_and_figures(SLUG)
-SNN_TOOL = REPO / "tools" / "snn" / "tool.py"
 
 # ── Architecture constants ──────────────────────────────────────────
 N_E: int = 1024
@@ -103,9 +104,9 @@ def measure_one(n_inh: int, w_ie_mean: float, n_batch: int) -> dict:
     """
     out_dir = (ARTIFACTS / "probe" / f"nI{int(n_inh)}_wie{w_ie_mean:g}").resolve()
     out_dir.mkdir(parents=True, exist_ok=True)
-    subprocess.run(
+    run_cli(
         [
-            "uv", "run", "python", str(SNN_TOOL), "sim",
+            "sim",
             "--input", "synthetic-spikes",
             "--model", "ping",
             "--n-hidden", str(N_E),
@@ -121,9 +122,7 @@ def measure_one(n_inh: int, w_ie_mean: float, n_batch: int) -> dict:
             "--dt", str(DT),
             "--seed", str(SEED),
             "--out-dir", str(out_dir),
-        ],
-        cwd=REPO,
-        check=True,
+        ]
     )
     m = json.loads((out_dir / "metrics.json").read_text())
     r_e = float(m["rate_e_hz"])
@@ -179,56 +178,55 @@ def plot_summary(rows_by_ni: dict, out_path: Path, run_id: str) -> None:
 
 # ── Main ────────────────────────────────────────────────────────────
 def main() -> None:
+    meta = parse_meta(sys.argv)
     n_batch = N_BATCH
-    wipe_dir = "--no-wipe-dir" not in sys.argv
 
     # Publication profile: every figure this notebook writes is a print-sized
     # vector, emitted as both SVG (docs) and PDF (manuscript) by save_figure.
     theme.set_paper_mode(True)
 
-    notebook_run_id = next_run_id(SLUG)
-    prepare_run_dirs(SLUG, notebook_run_id, wipe=wipe_dir, make_artifacts=True,
-                     scale=SCALE, host="local")
+    run_id = next_run_id(SLUG)
+    with published_run(
+        SLUG, run_id, scale=SCALE, plot_only=meta.plot_only,
+    ) as (_artifacts, figures):
+        t_start = time.monotonic()
+        print(f"[w_ie x n_inh sweep] N_E={N_E}  input={INPUT_RATE_HZ:g} Hz  "
+              f"batch={n_batch}")
+        rows_by_ni: dict[int, list[dict]] = {}
+        for n_inh in N_I_SWEEP:
+            print(f"--- N_I = {n_inh} ---")
+            ni_rows: list[dict] = []
+            for w_ie in W_IE_VALUES:
+                r = measure_one(n_inh, w_ie, n_batch)
+                ni_rows.append(r)
+                print(f"  W^IE={r['w_ie']:>5.2f} μS  "
+                      f"E={r['r_e_hz']:6.2f} Hz  I={r['r_i_hz']:6.2f} Hz")
+            rows_by_ni[n_inh] = ni_rows
 
-    t_start = time.monotonic()
-    print(f"[w_ie x n_inh sweep] N_E={N_E}  input={INPUT_RATE_HZ:g} Hz  "
-          f"batch={n_batch}")
-    rows_by_ni: dict[int, list[dict]] = {}
-    for n_inh in N_I_SWEEP:
-        print(f"--- N_I = {n_inh} ---")
-        ni_rows: list[dict] = []
-        for w_ie in W_IE_VALUES:
-            r = measure_one(n_inh, w_ie, n_batch)
-            ni_rows.append(r)
-            print(f"  W^IE={r['w_ie']:>5.2f} μS  "
-                  f"E={r['r_e_hz']:6.2f} Hz  I={r['r_i_hz']:6.2f} Hz")
-        rows_by_ni[n_inh] = ni_rows
+        summary_out = figures / "rate_vs_w_ie"
+        plot_summary(rows_by_ni, summary_out, run_id)
+        print(f"wrote {summary_out}.{{svg,pdf}}")
 
-    summary_out = FIGURES / "rate_vs_w_ie"
-    plot_summary(rows_by_ni, summary_out, notebook_run_id)
-    print(f"wrote {summary_out}.{{svg,pdf}}")
-
-    duration_s = time.monotonic() - t_start
-    summary = {
-        "notebook_run_id": notebook_run_id,
-        "duration_s": round(duration_s, 1),
-        "config": {
-            "n_e": N_E,
-            "n_in": N_IN,
-            "t_ms": T_MS,
-            "dt": DT,
-            "input_rate_hz": INPUT_RATE_HZ,
-            "n_batch": n_batch,
-            "seed": SEED,
-            "w_ie_values": W_IE_VALUES,
-            "n_i_sweep": N_I_SWEEP,
-            "w_ie_default": W_IE_DEFAULT,
-        },
-        "rows_by_n_i": {str(k): v for k, v in rows_by_ni.items()},
-    }
-    (FIGURES / "numbers.json").write_text(json.dumps(summary, indent=2) + "\n")
-    print(f"wrote {FIGURES / 'numbers.json'}")
-    print(f"  duration: {duration_s:.1f}s")
+        duration_s = time.monotonic() - t_start
+        write_numbers(
+            figures, run_id=run_id, duration_s=duration_s,
+            payload={
+                "config": {
+                    "n_e": N_E,
+                    "n_in": N_IN,
+                    "t_ms": T_MS,
+                    "dt": DT,
+                    "input_rate_hz": INPUT_RATE_HZ,
+                    "n_batch": n_batch,
+                    "seed": SEED,
+                    "w_ie_values": W_IE_VALUES,
+                    "n_i_sweep": N_I_SWEEP,
+                    "w_ie_default": W_IE_DEFAULT,
+                },
+                "rows_by_n_i": {str(k): v for k, v in rows_by_ni.items()},
+            },
+        )
+        print(f"wrote {figures / 'numbers.json'}")
 
 
 if __name__ == "__main__":

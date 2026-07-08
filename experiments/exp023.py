@@ -15,8 +15,6 @@ Writing: writings/exp023.typ · figures + numbers.json: artifacts/data/exp023/
 
 from __future__ import annotations
 
-import json
-import subprocess
 import sys
 import time
 from pathlib import Path
@@ -29,16 +27,16 @@ REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from helpers import nblog, theme  # noqa: E402
+from helpers.cli import parse_meta  # noqa: E402
 from helpers.figsave import save_figure  # noqa: E402
-from helpers.fmt import format_duration  # noqa: E402
-from helpers.modal import parse_modal_gpu  # noqa: E402
+from helpers.numbers import write_numbers  # noqa: E402
 from helpers.paths import artifacts_and_figures  # noqa: E402
-from helpers.run_dirs import prepare as prepare_run_dirs  # noqa: E402
+from helpers.run_cli import run_cli  # noqa: E402
+from helpers.run_dirs import published_run  # noqa: E402
 from helpers.run_id import next_run_id  # noqa: E402
 
 SLUG = "exp023"
 ARTIFACTS, FIGURES = artifacts_and_figures(SLUG)
-SNN_TOOL = REPO / "tools" / "snn" / "tool.py"
 SCOPE_OUT_PNG = REPO / "temp" / "pinglab-cli" / "snapshot.png"
 SCOPE_OUT_NPZ = REPO / "temp" / "pinglab-cli" / "snapshot.npz"
 
@@ -313,18 +311,7 @@ def fi_sweep(bar: nblog.ProgressBar | None = None) -> dict:
                 "--out-dir",
                 str(out_dir),
             ]
-            # Capture the CLI's own output so the progress bar owns the
-            # terminal; on failure, surface what it printed before re-raising.
-            proc = subprocess.run(
-                ["uv", "run", "python", str(SNN_TOOL), *argv],
-                cwd=REPO,
-                capture_output=True,
-                text=True,
-            )
-            if proc.returncode != 0:
-                sys.stdout.write(proc.stdout)
-                sys.stderr.write(proc.stderr)
-                proc.check_returncode()
+            run_cli([*argv])
             # Single-trial snapshot (no --outputs/--n-batch): read the spikes and
             # compute the mean per-cell rate here.
             d = np.load(out_dir / "snapshot.npz")
@@ -806,120 +793,107 @@ def plot_architecture(out_path: Path) -> None:
 
 
 def main() -> None:
+    meta = parse_meta(sys.argv)
+
     # Publication profile: every figure this notebook writes is a print-sized
     # vector, emitted as both SVG (docs) and PDF (manuscript) by save_figure.
     theme.set_paper_mode(True)
 
-    modal_gpu = parse_modal_gpu(sys.argv)
-    wipe_dir = "--no-wipe-dir" not in sys.argv
-
     t_start = time.monotonic()
-    notebook_run_id = next_run_id(SLUG)
-    log = nblog.Run(SLUG, notebook_run_id, subtitle="PING fundamentals")
+    run_id = next_run_id(SLUG)
+    log = nblog.Run(SLUG, run_id, subtitle="PING fundamentals")
 
-    prepare_run_dirs(
-        SLUG,
-        notebook_run_id,
-        wipe=wipe_dir,
-        make_artifacts=False,
-        scale=SCALE,
-        host=f"modal:{modal_gpu}" if modal_gpu else "local",
-    )
+    # Atomic publish: everything lands in `figures` (a staging dir) and swaps
+    # into place only if the run completes.
+    with published_run(
+        SLUG, run_id, skip_training=meta.skip_training, make_artifacts=False,
+        scale=SCALE, plot_only=meta.plot_only,
+    ) as (_artifacts, figures):
+        fig_paths: dict[str, Path] = {}
 
-    figures: dict[str, Path] = {}
+        # Architecture schematic — manuscript Figure 0 (pure drawing, no compute).
+        arch_dst = figures / "architecture"
+        plot_architecture(arch_dst)
+        fig_paths["architecture"] = arch_dst
+        log.phase("architecture", "schematic (Figure 0)")
+        log.wrote(arch_dst, "svg,pdf")
 
-    # Architecture schematic — manuscript Figure 0 (pure drawing, no compute).
-    arch_dst = FIGURES / "architecture"
-    plot_architecture(arch_dst)
-    figures["architecture"] = arch_dst
-    log.phase("architecture", "schematic (Figure 0)")
-    log.wrote(arch_dst, "svg,pdf")
+        snaps: dict[str, dict] = {}
+        for cell, spec in CELLS.items():
+            for p in (SCOPE_OUT_PNG, SCOPE_OUT_NPZ):
+                if p.exists():
+                    p.unlink()
+            scope_argv = [*COMMON_ARGS, *spec["args"]]
+            log.phase(f"sim · {cell}", " ".join(spec["args"]))
+            run_cli([*scope_argv])
+            if not SCOPE_OUT_NPZ.exists():
+                raise SystemExit(f"pinglab-cli did not produce {SCOPE_OUT_NPZ}")
 
-    snaps: dict[str, dict] = {}
-    for cell, spec in CELLS.items():
-        for p in (SCOPE_OUT_PNG, SCOPE_OUT_NPZ):
-            if p.exists():
-                p.unlink()
-        scope_argv = [*COMMON_ARGS, *spec["args"]]
-        cmd = ["uv", "run", "python", str(SNN_TOOL), *scope_argv]
-        log.phase(f"sim · {cell}", " ".join(spec["args"]))
-        # Capture the CLI's own instrument-panel output so this notebook's log
-        # stays clean; on failure, surface it before raising.
-        proc = subprocess.run(cmd, cwd=REPO, capture_output=True, text=True)
-        if proc.returncode != 0:
-            sys.stdout.write(proc.stdout)
-            sys.stderr.write(proc.stderr)
-            proc.check_returncode()
-        if not SCOPE_OUT_NPZ.exists():
-            raise SystemExit(f"pinglab-cli did not produce {SCOPE_OUT_NPZ}")
+            data = np.load(SCOPE_OUT_NPZ)
+            snaps[cell] = {
+                "spk_e": np.array(data["spk_e"]),
+                "spk_i": np.array(data["spk_i"]),
+                "dt": float(data["dt"]),
+            }
 
-        data = np.load(SCOPE_OUT_NPZ)
-        snaps[cell] = {
-            "spk_e": np.array(data["spk_e"]),
-            "spk_i": np.array(data["spk_i"]),
-            "dt": float(data["dt"]),
+            traces_dst = figures / f"traces__{cell}"
+            # Short label for the per-panel titles (the full recipe is in the mdx
+            # caption); the long spec["title"] squished the small trace tiles.
+            panel_paths = plot_traces(SCOPE_OUT_NPZ, traces_dst, cell.upper())
+            for p in panel_paths:
+                fig_paths[p.stem] = p
+                log.wrote(p, "svg,pdf")
+
+        # Free-running f–I curves (uniform Poisson sweep), folded into the super
+        # figure. One bar over every (cell, input-rate) sim.
+        fi_bar = log.bar(len(FI_EI) * len(FI_RATES_HZ), "f–I sweep")
+        fi = fi_sweep(bar=fi_bar)
+        fi_bar.done()
+
+        column_titles = {
+            "coba": "A   COBA — recurrent loop off",
+            "ping": "B   PING — recurrent loop active",
         }
 
-        traces_dst = FIGURES / f"traces__{cell}"
-        # Short label for the per-panel titles (the full recipe is in the mdx
-        # caption); the long spec["title"] squished the small trace tiles.
-        panel_paths = plot_traces(SCOPE_OUT_NPZ, traces_dst, cell.upper())
-        for p in panel_paths:
-            figures[p.stem] = p
-            log.wrote(p, "svg,pdf")
+        # Super figure: COBA vs PING side by side (raster, PSD + f–I). Used by the
+        # manuscript's Claim 1 (the architecture is its own Claim 0 figure there).
+        compound_dst = figures / "raster_compound"
+        f_gamma = plot_raster_compound(snaps, fi, compound_dst, column_titles)
+        fig_paths["raster_compound"] = compound_dst
+        log.wrote(compound_dst, "png,pdf")
 
-    # Free-running f–I curves (uniform Poisson sweep), folded into the super
-    # figure. One bar over every (cell, input-rate) sim.
-    fi_bar = log.bar(len(FI_EI) * len(FI_RATES_HZ), "f–I sweep")
-    fi = fi_sweep(bar=fi_bar)
-    fi_bar.done()
+        # Merged overview for this notebook: each column's architecture schematic
+        # sits directly above its raster / PSD / f–I plots.
+        overview_dst = figures / "overview_compound"
+        plot_raster_compound(snaps, fi, overview_dst, column_titles, include_arch=True)
+        fig_paths["overview_compound"] = overview_dst
+        log.wrote(overview_dst, "png,pdf")
 
-    column_titles = {
-        "coba": "A   COBA — recurrent loop off",
-        "ping": "B   PING — recurrent loop active",
-    }
+        for cell, fg in f_gamma.items():
+            log.result(f"f_gamma[{cell}]", f"{fg if fg is None else round(fg, 2)} Hz")
 
-    # Super figure: COBA vs PING side by side (raster, PSD + f–I). Used by the
-    # manuscript's Claim 1 (the architecture is its own Claim 0 figure there).
-    compound_dst = FIGURES / "raster_compound"
-    f_gamma = plot_raster_compound(snaps, fi, compound_dst, column_titles)
-    figures["raster_compound"] = compound_dst
-    log.wrote(compound_dst, "png,pdf")
-
-    # Merged overview for this notebook: each column's architecture schematic
-    # sits directly above its raster / PSD / f–I plots.
-    overview_dst = FIGURES / "overview_compound"
-    plot_raster_compound(snaps, fi, overview_dst, column_titles, include_arch=True)
-    figures["overview_compound"] = overview_dst
-    log.wrote(overview_dst, "png,pdf")
-
-    for cell, fg in f_gamma.items():
-        log.result(f"f_gamma[{cell}]", f"{fg if fg is None else round(fg, 2)} Hz")
-
-    duration_s = time.monotonic() - t_start
-    summary = {
-        "notebook_run_id": notebook_run_id,
-        "duration_s": round(duration_s, 1),
-        "duration": format_duration(duration_s),
-        "config": {
-            "model": "ping",
-            "input": "mnist d0 s0",
-            "cells": list(CELLS),
-            "t_ms": 400,
-            "dt_ms": DT_MS,
-            "input_rate_hz": 50,
-            "modal_gpu": modal_gpu,
-        },
-        # f_γ measured from each shown raster's E-population PSD (None = no
-        # recurrent rhythm, i.e. COBA loop off). The mdx reads these rather than
-        # restating a hand-typed number.
-        "f_gamma_hz": f_gamma,
-        "fi_curves": fi,
-        "results": [],
-    }
-    (FIGURES / "numbers.json").write_text(json.dumps(summary, indent=2) + "\n")
-    log.wrote(FIGURES / "numbers.json")
-    log.summary(duration_s, out_dir=FIGURES)
+        duration_s = time.monotonic() - t_start
+        write_numbers(
+            figures, run_id=run_id, duration_s=duration_s,
+            payload={
+                "config": {
+                    "model": "ping",
+                    "input": "mnist d0 s0",
+                    "cells": list(CELLS),
+                    "t_ms": 400,
+                    "dt_ms": DT_MS,
+                    "input_rate_hz": 50,
+                },
+                # f_γ measured from each shown raster's E-population PSD (None = no
+                # recurrent rhythm, i.e. COBA loop off). The mdx reads these rather
+                # than restating a hand-typed number.
+                "f_gamma_hz": f_gamma,
+                "fi_curves": fi,
+                "results": [],
+            },
+        )
+        log.wrote(figures / "numbers.json")
+        log.summary(duration_s, out_dir=figures)
 
 
 if __name__ == "__main__":

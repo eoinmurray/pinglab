@@ -18,7 +18,6 @@ Writing: writings/exp060.typ · figures + numbers.json: artifacts/data/exp060/
 
 from __future__ import annotations
 
-import json
 import sys
 import time
 from pathlib import Path
@@ -31,9 +30,10 @@ REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from helpers import theme  # noqa: E402
-from helpers.fmt import format_duration  # noqa: E402
+from helpers.cli import parse_meta  # noqa: E402
+from helpers.numbers import write_numbers  # noqa: E402
 from helpers.paths import artifacts_and_figures  # noqa: E402
-from helpers.run_dirs import prepare as prepare_run_dirs  # noqa: E402
+from helpers.run_dirs import published_run  # noqa: E402
 from helpers.run_id import next_run_id  # noqa: E402
 from helpers.stamp import stamp_figure  # noqa: E402
 
@@ -139,31 +139,30 @@ def plot_weight_vs_sparsity(out_path: Path, run_id: str) -> dict:
 
 
 def main() -> None:
-    wipe_dir = "--no-wipe-dir" not in sys.argv
+    meta = parse_meta(sys.argv)
     t_start = time.monotonic()
     run_id = next_run_id(SLUG)
     print(f"experiment_run_id = {run_id} (analytic, no compute)")
 
-    prepare_run_dirs(SLUG, run_id, wipe=wipe_dir, make_artifacts=False)
+    with published_run(
+        SLUG, run_id, make_artifacts=False, plot_only=meta.plot_only,
+    ) as (_artifacts, figures):
+        scaling = plot_input_scaling(figures / "input_scaling.png", run_id)
+        print(f"wrote {figures / 'input_scaling.png'}")
+        weight = plot_weight_vs_sparsity(figures / "weight_vs_sparsity.png", run_id)
+        print(f"wrote {figures / 'weight_vs_sparsity.png'}")
 
-    scaling = plot_input_scaling(FIGURES / "input_scaling.png", run_id)
-    print(f"wrote {FIGURES / 'input_scaling.png'}")
-    weight = plot_weight_vs_sparsity(FIGURES / "weight_vs_sparsity.png", run_id)
-    print(f"wrote {FIGURES / 'weight_vs_sparsity.png'}")
-
-    duration_s = time.monotonic() - t_start
-    summary = {
-        "notebook_run_id": run_id,
-        "duration_s": round(duration_s, 2),
-        "duration": format_duration(duration_s),
-        "kind": "analytic",
-        "config": {"N_pre": N_PRE, "r": R, "J0": J0, "W0": W0},
-        "input_scaling": scaling,
-        "weight_vs_sparsity": weight,
-    }
-    (FIGURES / "numbers.json").write_text(json.dumps(summary, indent=2) + "\n")
-    print(f"wrote {FIGURES / 'numbers.json'}")
-    print(f"  total duration: {summary['duration']}")
+        duration_s = time.monotonic() - t_start
+        write_numbers(
+            figures, run_id=run_id, duration_s=duration_s,
+            payload={
+                "kind": "analytic",
+                "config": {"N_pre": N_PRE, "r": R, "J0": J0, "W0": W0},
+                "input_scaling": scaling,
+                "weight_vs_sparsity": weight,
+            },
+        )
+        print(f"wrote {figures / 'numbers.json'}")
 
 
 if __name__ == "__main__":

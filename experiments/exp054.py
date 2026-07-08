@@ -23,7 +23,6 @@ from __future__ import annotations
 
 import importlib.util
 import json
-import subprocess
 import sys
 import time
 from pathlib import Path
@@ -35,8 +34,9 @@ REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from helpers import theme  # noqa: E402
+from helpers.cli import parse_meta  # noqa: E402
 from helpers.figsave import save_figure  # noqa: E402
-from helpers.modal import parse_modal_gpu  # noqa: E402
+from helpers.numbers import write_numbers  # noqa: E402
 from helpers.paths import artifacts_and_figures  # noqa: E402
 from helpers.rhythmicity import (  # noqa: E402
     iei_histogram,
@@ -44,10 +44,9 @@ from helpers.rhythmicity import (  # noqa: E402
     rhythmicity_scalars,
     spike_autocorrelogram,
 )
-from helpers.run_dirs import prepare as prepare_run_dirs  # noqa: E402
+from helpers.run_cli import run_cli  # noqa: E402
+from helpers.run_dirs import published_run  # noqa: E402
 from helpers.run_id import next_run_id  # noqa: E402
-
-SNN_TOOL = REPO / "tools" / "snn" / "tool.py"
 
 SLUG = "exp054"
 ARTIFACTS, FIGURES = artifacts_and_figures(SLUG)
@@ -119,7 +118,7 @@ def ping_spikes(wei, wie, rate_hz, sim_ms, dt, private=True):
     out_dir = (ARTIFACTS / "probe" / tag).resolve()
     out_dir.mkdir(parents=True, exist_ok=True)
     cmd = [
-        "uv", "run", "python", str(SNN_TOOL), "sim",
+        "sim",
         "--input", "synthetic-spikes",
         "--model", "ping",
         "--n-hidden", str(NET_N_E),
@@ -139,7 +138,7 @@ def ping_spikes(wei, wie, rate_hz, sim_ms, dt, private=True):
         cmd += ["--private-w-in", "--w-in", str(PRIVATE_W_IN)]
     else:
         cmd += ["--w-in", str(SHARED_W_IN), "--w-in-sparsity", str(SHARED_W_IN_SP)]
-    subprocess.run(cmd, cwd=REPO, check=True)
+    run_cli(cmd)
 
     R = np.load(out_dir / "rasters.npz")
     T, n_e, n_i = int(R["T"]), int(R["n_e"]), int(R["n_i"])
@@ -309,8 +308,6 @@ def fig_grid_rasters(grid, out_path):
                 ax.set_xlabel(f"{WEI_MEAN_GRID[wei_idx]:.1f}", fontsize=theme.SIZE_TICK)
     fig.supxlabel("W_EI mean (μS)", fontsize=theme.SIZE_LABEL)
     fig.supylabel("W_IE mean (μS)", fontsize=theme.SIZE_LABEL)
-    fig.suptitle(f"Rasters over W_EI × W_IE  ({nr}×{nc} subset; E black, I red)",
-                 fontsize=theme.SIZE_TITLE, color=theme.INK)
     fig.tight_layout(rect=(0.02, 0.02, 1, 0.97))
     fig.savefig(out_path, dpi=150)
     plt.close(fig)
@@ -350,8 +347,6 @@ def fig_grid_autocorr(grid, out_path):
                 ax.set_xlabel(f"{WEI_MEAN_GRID[wei_idx]:.1f}", fontsize=theme.SIZE_TICK)
     fig.supxlabel("W_EI mean (μS)", fontsize=theme.SIZE_LABEL)
     fig.supylabel("W_IE mean (μS)", fontsize=theme.SIZE_LABEL)
-    fig.suptitle(f"E autocorrelogram A(ℓ) over W_EI × W_IE  ({nr}×{nc} subset; lag 0–50 ms, dotted = chance)",
-                 fontsize=theme.SIZE_TITLE, color=theme.INK)
     fig.tight_layout(rect=(0.02, 0.02, 1, 0.97))
     fig.savefig(out_path, dpi=150)
     plt.close(fig)
@@ -407,8 +402,6 @@ def fig_turnon_compound(grid, out_path):
     ax_hm.set_yticklabels([f"{v:.1f}" for v in WIE_MEAN_GRID], fontsize=theme.SIZE_TICK)
     ax_hm.set_xlabel("W_EI mean (μS)", fontsize=theme.SIZE_LABEL)
     ax_hm.set_ylabel("W_IE mean (μS)", fontsize=theme.SIZE_LABEL)
-    ax_hm.set_title("Gamma turns on across W_EI × W_IE", loc="left",
-                    fontsize=theme.SIZE_TITLE, fontweight="semibold")
     cb = fig.colorbar(im, ax=ax_hm, pad=0.015)
     cb.set_label("lobe–trough contrast", fontsize=theme.SIZE_LABEL)
     for iy in range(ct.shape[0]):
@@ -642,8 +635,6 @@ def fig_rate_invariance(grid, priv_null, shared_null, out_path):
     ax.set_ylabel("lobe–trough contrast", fontsize=theme.SIZE_LABEL)
     ax.set_ylim(-0.05, 1.05)
     ax.set_xlim(0, max(g_rate.max(), sr.max(), pr.max()) * 1.03)
-    ax.set_title("Private per-cell input makes the metric rate-invariant",
-                 fontsize=theme.SIZE_LABEL, color=theme.INK)
     ax.legend(fontsize=theme.SIZE_LEGEND, frameon=False, loc="center right")
     fig.tight_layout()
     fig.savefig(out_path, dpi=150)
@@ -684,8 +675,6 @@ def fig_null_autocorr(shared_null, priv_null, out_path):
                 ax.set_ylabel(f"{lbl}\nA(ℓ)", fontsize=theme.SIZE_LABEL)
             if ri == 1:
                 ax.set_xlabel("lag (ms)", fontsize=theme.SIZE_LABEL)
-    fig.suptitle("Null autocorrelograms: shared input grows a spurious hat at low firing, private stays flat",
-                 fontsize=theme.SIZE_TITLE, color=theme.INK)
     fig.tight_layout(rect=(0, 0, 1, 0.95))
     fig.savefig(out_path, dpi=150)
     plt.close(fig)
@@ -819,108 +808,104 @@ def build_super_compound(grid, results, hopf, sweep, mf, meas, out_path):
 
 
 def main():
-    argv = sys.argv[1:]
-    modal_gpu = parse_modal_gpu(argv)  # accepted for contract parity; unused (local CPU)
+    meta = parse_meta(sys.argv)
     sim_ms = SIM_MS
 
-    if modal_gpu:
-        print("note: exp054 is local CPU; --modal-gpu ignored.")
-
     t_start = time.monotonic()
-    notebook_run_id = next_run_id(SLUG)
-    prepare_run_dirs(SLUG, notebook_run_id, make_artifacts=True, scale=SCALE,
-                     host=f"modal:{modal_gpu}" if modal_gpu else "local")
-    theme.apply()
-    plt.rcParams["savefig.bbox"] = "standard"  # keep the saved 16:9 exact
+    run_id = next_run_id(SLUG)
+    with published_run(
+        SLUG, run_id, scale=SCALE, plot_only=meta.plot_only,
+    ) as (_artifacts, figures):
+        theme.apply()
+        plt.rcParams["savefig.bbox"] = "standard"  # keep the saved 16:9 exact
 
-    n_nets = len(WEI_MEAN_GRID) * len(WIE_MEAN_GRID)
-    print(f"exp054 | {n_nets} untrained PING networks, private "
-          f"{NET_INPUT_RATE:.0f} Hz per-cell Poisson input, sim {sim_ms:.0f} ms (compiles per net)…")
-    grid = run_grid(NET_INPUT_RATE, sim_ms)
-    fig_turnon_maps_compound(grid, FIGURES / "turnon_maps_compound.png")
-    fig_turnon_compound(grid, FIGURES / "turnon_compound.png")
-    fig_grid_maps_compound(grid, FIGURES / "grid_maps.png")
-    fig_grid_rasters(grid, FIGURES / "grid_rasters.png")
-    fig_grid_autocorr(grid, FIGURES / "grid_autocorr.png")
-    print("wrote turnon_maps_compound + turnon_compound + grid_maps + grid_rasters + grid_autocorr")
+        n_nets = len(WEI_MEAN_GRID) * len(WIE_MEAN_GRID)
+        print(f"exp054 | {n_nets} untrained PING networks, private "
+              f"{NET_INPUT_RATE:.0f} Hz per-cell Poisson input, sim {sim_ms:.0f} ms (compiles per net)…")
+        grid = run_grid(NET_INPUT_RATE, sim_ms)
+        fig_turnon_maps_compound(grid, figures / "turnon_maps_compound.png")
+        fig_turnon_compound(grid, figures / "turnon_compound.png")
+        fig_grid_maps_compound(grid, figures / "grid_maps.png")
+        fig_grid_rasters(grid, figures / "grid_rasters.png")
+        fig_grid_autocorr(grid, figures / "grid_autocorr.png")
+        print("wrote turnon_maps_compound + turnon_compound + grid_maps + grid_rasters + grid_autocorr")
 
-    rates = [c["rate_hz"] for row in grid for c in row]
-    contrasts = [c["contrast"] for row in grid for c in row]
-    print(f"  contrast {np.nanmin(contrasts):.2f}–{np.nanmax(contrasts):.2f}; "
-          f"E rate {min(rates):.1f}–{max(rates):.1f} Hz")
+        rates = [c["rate_hz"] for row in grid for c in row]
+        contrasts = [c["contrast"] for row in grid for c in row]
+        print(f"  contrast {np.nanmin(contrasts):.2f}–{np.nanmax(contrasts):.2f}; "
+              f"E rate {min(rates):.1f}–{max(rates):.1f} Hz")
 
-    print("  rate-invariance: null networks scanned over input rate (private + shared)…")
-    priv_null = null_scan(sim_ms, private=True)
-    shared_null = null_scan(sim_ms, private=False)
-    fig_rate_invariance(grid, priv_null, shared_null, FIGURES / "rate_invariance.png")
-    fig_null_autocorr(shared_null, priv_null, FIGURES / "null_autocorr.png")
-    pmax = max(d["contrast"] for d in priv_null)
-    smax = max(d["contrast"] for d in shared_null)
-    print(f"wrote rate_invariance + null_autocorr  (null contrast max: private {pmax:.2f}, shared {smax:.2f})")
+        print("  rate-invariance: null networks scanned over input rate (private + shared)…")
+        priv_null = null_scan(sim_ms, private=True)
+        shared_null = null_scan(sim_ms, private=False)
+        fig_rate_invariance(grid, priv_null, shared_null, figures / "rate_invariance.png")
+        fig_null_autocorr(shared_null, priv_null, figures / "null_autocorr.png")
+        pmax = max(d["contrast"] for d in priv_null)
+        smax = max(d["contrast"] for d in shared_null)
+        print(f"wrote rate_invariance + null_autocorr  (null contrast max: private {pmax:.2f}, shared {smax:.2f})")
 
-    # ── Onset super-compound — empirical turn-on (this notebook) over the exp033
-    # 4D mean-field bifurcation. Migrated from the retired nb057; the maps/rasters
-    # reuse the shared helpers above, so restyling Figure 1 propagates here. ──
-    exp033 = _load_runner("exp033")
-    print("exp033 numerics: 4D mean-field sweep, Hopf, hysteresis, frequency …")
-    I_grid = np.linspace(0.0, 4.0, 401)
-    results = exp033.sweep(I_grid)
-    hopf = exp033.find_hopf(results)
-    criticality = exp033.hysteresis_sweep(hopf["I_ext_star"])
-    mf_freq = exp033.frequency_vs_tau_gaba([4.5, 6.0, 9.0, 12.0, 18.0, 27.0], I_grid)
-    meas_fgamma = exp033.load_exp041_fgamma()
-    build_super_compound(grid, results, hopf, criticality, mf_freq, meas_fgamma,
-                         FIGURES / "onset_super_compound")
-    print("wrote onset_super_compound.{png,pdf}")
+        # ── Onset super-compound — empirical turn-on (this notebook) over the exp033
+        # 4D mean-field bifurcation. Migrated from the retired nb057; the maps/rasters
+        # reuse the shared helpers above, so restyling Figure 1 propagates here. ──
+        exp033 = _load_runner("exp033")
+        print("exp033 numerics: 4D mean-field sweep, Hopf, hysteresis, frequency …")
+        I_grid = np.linspace(0.0, 4.0, 401)
+        results = exp033.sweep(I_grid)
+        hopf = exp033.find_hopf(results)
+        criticality = exp033.hysteresis_sweep(hopf["I_ext_star"])
+        mf_freq = exp033.frequency_vs_tau_gaba([4.5, 6.0, 9.0, 12.0, 18.0, 27.0], I_grid)
+        meas_fgamma = exp033.load_exp041_fgamma()
+        build_super_compound(grid, results, hopf, criticality, mf_freq, meas_fgamma,
+                             figures / "onset_super_compound")
+        print("wrote onset_super_compound.{png,pdf}")
 
-    duration_s = time.monotonic() - t_start
-    numbers = {
-        "notebook_run_id": notebook_run_id,
-        "duration_s": duration_s,
-        "duration": f"{int(duration_s // 60)}m {int(duration_s % 60):02d}s",
-        "config": {
-            "source": "untrained PING networks, private per-cell Poisson input",
-            "dt_ms": DT_MS,
-            "sim_ms": sim_ms,
-            "burn_ms": NET_BURN_MS,
-            "n_e": NET_N_E,
-            "input_rate_hz": NET_INPUT_RATE,
-            "private_w_in": PRIVATE_W_IN,
-            "max_lag_ms": MAX_LAG_MS,
-            "bin_ms": BIN_MS,
-        },
-        "grid": {
-            "wei_mean": list(WEI_MEAN_GRID),
-            "wie_mean": list(WIE_MEAN_GRID),
-            "contrast": [
-                [(c["contrast"] if np.isfinite(c["contrast"]) else None) for c in row]
-                for row in grid
-            ],
-            "rate_e_hz": [
-                [(c["rate_hz"] if np.isfinite(c["rate_hz"]) else None) for c in row]
-                for row in grid
-            ],
-            "rate_i_hz": [
-                [(c["rate_i_hz"] if np.isfinite(c["rate_i_hz"]) else None) for c in row]
-                for row in grid
-            ],
-            "rate_e_min_hz": float(np.nanmin(rates)),
-            "rate_e_max_hz": float(np.nanmax(rates)),
-            "contrast_min": float(np.nanmin(contrasts)),
-            "contrast_max": float(np.nanmax(contrasts)),
-        },
-        "rate_invariance": {
-            "private_null_max": float(pmax),
-            "shared_null_max": float(smax),
-            "private_scan": {"rate_hz": [d["rate"] for d in priv_null],
-                             "contrast": [d["contrast"] for d in priv_null]},
-            "shared_scan": {"rate_hz": [d["rate"] for d in shared_null],
-                            "contrast": [d["contrast"] for d in shared_null]},
-        },
-    }
-    (FIGURES / "numbers.json").write_text(json.dumps(numbers, indent=2, default=float))
-    print(f"wrote {FIGURES / 'numbers.json'}")
-    print(f"\nTotal runtime: {numbers['duration']}")
+        duration_s = time.monotonic() - t_start
+        # default=float coerces residual numpy scalars; round-trip so write_numbers
+        # (which json.dumps the envelope) receives plain Python types.
+        payload = json.loads(json.dumps({
+            "config": {
+                "source": "untrained PING networks, private per-cell Poisson input",
+                "dt_ms": DT_MS,
+                "sim_ms": sim_ms,
+                "burn_ms": NET_BURN_MS,
+                "n_e": NET_N_E,
+                "input_rate_hz": NET_INPUT_RATE,
+                "private_w_in": PRIVATE_W_IN,
+                "max_lag_ms": MAX_LAG_MS,
+                "bin_ms": BIN_MS,
+            },
+            "grid": {
+                "wei_mean": list(WEI_MEAN_GRID),
+                "wie_mean": list(WIE_MEAN_GRID),
+                "contrast": [
+                    [(c["contrast"] if np.isfinite(c["contrast"]) else None) for c in row]
+                    for row in grid
+                ],
+                "rate_e_hz": [
+                    [(c["rate_hz"] if np.isfinite(c["rate_hz"]) else None) for c in row]
+                    for row in grid
+                ],
+                "rate_i_hz": [
+                    [(c["rate_i_hz"] if np.isfinite(c["rate_i_hz"]) else None) for c in row]
+                    for row in grid
+                ],
+                "rate_e_min_hz": float(np.nanmin(rates)),
+                "rate_e_max_hz": float(np.nanmax(rates)),
+                "contrast_min": float(np.nanmin(contrasts)),
+                "contrast_max": float(np.nanmax(contrasts)),
+            },
+            "rate_invariance": {
+                "private_null_max": float(pmax),
+                "shared_null_max": float(smax),
+                "private_scan": {"rate_hz": [d["rate"] for d in priv_null],
+                                 "contrast": [d["contrast"] for d in priv_null]},
+                "shared_scan": {"rate_hz": [d["rate"] for d in shared_null],
+                                "contrast": [d["contrast"] for d in shared_null]},
+            },
+        }, default=float))
+        write_numbers(figures, run_id=run_id, duration_s=duration_s, payload=payload)
+        print(f"wrote {figures / 'numbers.json'}")
+        print(f"\nTotal runtime: {int(duration_s // 60)}m {int(duration_s % 60):02d}s")
 
 
 if __name__ == "__main__":

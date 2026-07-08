@@ -20,7 +20,6 @@ Writing: writings/exp038.typ · figures + numbers.json: artifacts/data/exp038/
 from __future__ import annotations
 
 import json
-import subprocess
 import sys
 import time
 from pathlib import Path
@@ -34,20 +33,19 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from exp022 import cell_dir as shared_cell_dir  # noqa: E402
 from exp022 import cell_name  # noqa: E402
 from helpers import theme  # noqa: E402
-from helpers.cli import replot_target  # noqa: E402
+from helpers.cli import parse_meta, replot_target  # noqa: E402
 from helpers.figsave import save_figure  # noqa: E402
-from helpers.fmt import format_duration  # noqa: E402
-from helpers.modal import parse_modal_gpu  # noqa: E402
+from helpers.numbers import write_numbers  # noqa: E402
 from helpers.paths import artifacts_and_figures  # noqa: E402
-from helpers.run_dirs import prepare as prepare_run_dirs  # noqa: E402
+from helpers.run_cli import run_cli  # noqa: E402
+from helpers.run_dirs import published_run  # noqa: E402
 from helpers.run_id import next_run_id  # noqa: E402
 from helpers.stamp import stamp_figure  # noqa: E402
 
 SLUG = "exp038"
 ARTIFACTS, FIGURES = artifacts_and_figures(SLUG)
-SNN_TOOL = REPO / "tools" / "snn" / "tool.py"
 
-MAX_SAMPLES = 500
+MAX_SAMPLES = 7000  # exp022 sweep-cell scale (10% of MNIST); reporting only
 T_MS = 200.0
 DT_TRAIN = 0.1
 BASELINE_EPOCHS: int = 50  # baseline cell training horizon (in exp022 now)
@@ -163,17 +161,15 @@ def run_inproc_infer(train_dir: Path, ei_strength: float, out_dir: Path) -> dict
     """
     out_dir = Path(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
-    subprocess.run(
+    run_cli(
         [
-            "uv", "run", "python", str(SNN_TOOL), "sim", "--infer",
+            "sim", "--infer",
             "--load-config", str((train_dir / "config.json").resolve()),
             "--load-weights", str((train_dir / "weights.pth").resolve()),
             "--ei-strength", str(ei_strength),
             "--skip-load", "W_ei.", "W_ie.",
             "--out-dir", str(out_dir.resolve()),
-        ],
-        cwd=REPO,
-        check=True,
+        ]
     )
     m = json.loads((out_dir / "metrics.json").read_text())
     rates_hz = m.get("rates_hz", {})
@@ -201,18 +197,16 @@ def capture_ei_raster(train_dir: Path, ei_strength: float, sample_idx: int) -> d
     cfg = json.loads((train_dir / "config.json").read_text())
     out_dir = (ARTIFACTS / "ei_raster" / f"ei{ei_strength:g}_s{sample_idx}").resolve()
     out_dir.mkdir(parents=True, exist_ok=True)
-    subprocess.run(
+    run_cli(
         [
-            "uv", "run", "python", str(SNN_TOOL), "sim", "--infer",
+            "sim", "--infer",
             "--load-config", str((train_dir / "config.json").resolve()),
             "--load-weights", str((train_dir / "weights.pth").resolve()),
             "--ei-strength", str(ei_strength),
             "--skip-load", "W_ei.", "W_ie.",
             "--sample-index", str(sample_idx),
             "--out-dir", str(out_dir),
-        ],
-        cwd=REPO,
-        check=True,
+        ]
     )
     d = np.load(out_dir / "snapshot.npz")
     e_full, i_full = d["spk_e"], d["spk_i"]
@@ -240,17 +234,15 @@ def capture_rate_raster(train_dir: Path, spike_rate: float, sample_idx: int) -> 
     cfg = json.loads((train_dir / "config.json").read_text())
     out_dir = (ARTIFACTS / "rate_raster" / f"r{spike_rate:g}_s{sample_idx}").resolve()
     out_dir.mkdir(parents=True, exist_ok=True)
-    subprocess.run(
+    run_cli(
         [
-            "uv", "run", "python", str(SNN_TOOL), "sim", "--infer",
+            "sim", "--infer",
             "--load-config", str((train_dir / "config.json").resolve()),
             "--load-weights", str((train_dir / "weights.pth").resolve()),
             "--input-rate", str(spike_rate),
             "--sample-index", str(sample_idx),
             "--out-dir", str(out_dir),
-        ],
-        cwd=REPO,
-        check=True,
+        ]
     )
     d = np.load(out_dir / "snapshot.npz")
     e_full, i_full = d["spk_e"], d["spk_i"]
@@ -357,9 +349,9 @@ def run_fi_sweep_uniform(notebook_run_id: str, rates: list[float] | None = None)
         for rate in rates:
             out_dir = (ARTIFACTS / "fi_uniform" / f"{model}_r{rate:g}").resolve()
             out_dir.mkdir(parents=True, exist_ok=True)
-            subprocess.run(
+            run_cli(
                 [
-                    "uv", "run", "python", str(SNN_TOOL), "sim",
+                    "sim",
                     "--input", "synthetic-spikes",
                     "--load-config", str((train_dir / "config.json").resolve()),
                     "--load-weights", str((train_dir / "weights.pth").resolve()),
@@ -367,9 +359,7 @@ def run_fi_sweep_uniform(notebook_run_id: str, rates: list[float] | None = None)
                     "--input-rate", str(rate),
                     "--n-batch", str(FI_UNIFORM_BATCH),
                     "--out-dir", str(out_dir),
-                ],
-                cwd=REPO,
-                check=True,
+                ]
             )
             m = json.loads((out_dir / "metrics.json").read_text())
             rows.append({
@@ -803,120 +793,117 @@ def main() -> None:
     if replot_target(sys.argv) is not None:
         replot_figures()
         return
-    modal_gpu = parse_modal_gpu(sys.argv)
-    skip_training = "--skip-training" in sys.argv
-    wipe_dir = "--no-wipe-dir" not in sys.argv
+    meta = parse_meta(sys.argv)
 
     t_start = time.monotonic()
-    notebook_run_id = next_run_id(SLUG)
+    run_id = next_run_id(SLUG)
     n_cells = len(MODELS) * len(THETA_U_GRID)
     print(
-        f"notebook_run_id = {notebook_run_id} cells={n_cells}"
-        + ("  [skip-training]" if skip_training else "")
-    )
-
-    prepare_run_dirs(
-        SLUG, notebook_run_id, wipe=wipe_dir, skip_training=skip_training,
-        make_artifacts=False,
-        scale=SCALE,
-        host=f"modal:{modal_gpu}" if modal_gpu else "local",
+        f"notebook_run_id = {run_id} cells={n_cells}"
+        + ("  [skip-training]" if meta.skip_training else "")
     )
 
     # Training lives in exp022 now (train-once / reuse-many). This notebook
-    # consumes the shared cells via cell_dir → exp022.load_cell.
+    # consumes the shared cells via cell_dir → exp022.load_cell. Atomic publish:
+    # everything lands in `figures` (a staging dir) and swaps into place only if
+    # the run completes.
+    with published_run(
+        SLUG, run_id, skip_training=meta.skip_training, make_artifacts=False,
+        scale=SCALE, plot_only=meta.plot_only,
+    ) as (_artifacts, figures):
+        global FIGURES
+        FIGURES = figures   # atomic-publish: point the module path at the staging dir for this run
 
-    rows: list[dict] = []
-    for model in MODELS:
-        for theta_u in THETA_U_GRID:
-            for seed in seeds_for(theta_u):
-                run_dir = cell_dir(model, theta_u, seed)
-                if not (run_dir / "metrics.json").exists():
-                    raise SystemExit(f"missing metrics: {run_dir / 'metrics.json'}")
-                metrics = load_metrics(run_dir)
-                last = metrics["epochs"][-1]
-                rows.append(
-                    {
-                        "model": model,
-                        "theta_u": theta_u,
-                        "theta_display": theta_display(theta_u),
-                        "theta_u_hz": theta_hz(theta_u),
-                        "seed": seed,
-                        "best_acc": float(metrics["best_acc"]),
-                        "best_epoch": int(metrics["best_epoch"]),
-                        "final_acc": float(last["acc"]),
-                        "rate_e": float(last.get("rate_e") or 0.0),
-                    }
-                )
+        rows: list[dict] = []
+        for model in MODELS:
+            for theta_u in THETA_U_GRID:
+                for seed in seeds_for(theta_u):
+                    run_dir = cell_dir(model, theta_u, seed)
+                    if not (run_dir / "metrics.json").exists():
+                        raise SystemExit(f"missing metrics: {run_dir / 'metrics.json'}")
+                    metrics = load_metrics(run_dir)
+                    last = metrics["epochs"][-1]
+                    rows.append(
+                        {
+                            "model": model,
+                            "theta_u": theta_u,
+                            "theta_display": theta_display(theta_u),
+                            "theta_u_hz": theta_hz(theta_u),
+                            "seed": seed,
+                            "best_acc": float(metrics["best_acc"]),
+                            "best_epoch": int(metrics["best_epoch"]),
+                            "final_acc": float(last["acc"]),
+                            "rate_e": float(last.get("rate_e") or 0.0),
+                        }
+                    )
 
-    print("  results:")
-    for r in rows:
-        theta_str = (
-            f"θ_u={r['theta_display']:>4} ({r['theta_u_hz']:>4.1f} Hz)"
-            if r["theta_u"] is not None
-            else "θ_u= off"
+        print("  results:")
+        for r in rows:
+            theta_str = (
+                f"θ_u={r['theta_display']:>4} ({r['theta_u_hz']:>4.1f} Hz)"
+                if r["theta_u"] is not None
+                else "θ_u= off"
+            )
+            print(
+                f"    {r['model']:<5}  {theta_str}  "
+                f"acc(final)={r['final_acc']:6.2f}%  best={r['best_acc']:6.2f}%  "
+                f"rate_e={r['rate_e']:6.1f} Hz"
+            )
+
+        # Stacked raster snapshot at the first 10 frames of the rate sweep —
+        # same panel style as the ei-sweep rasters so the two read as a pair.
+        rate_grid = np.linspace(0.0, 100.0, 40)[:10]
+        print(f"[rate-rasters] capturing rates {[round(r, 2) for r in rate_grid]}")
+        rate_samples = [
+            capture_rate_raster(baseline_dir("ping"), float(r), sample_idx=0)
+            for r in rate_grid
+        ]
+        plot_rate_rasters(
+            rate_samples, figures / "rate_rasters__ping", run_id
         )
-        print(
-            f"    {r['model']:<5}  {theta_str}  "
-            f"acc(final)={r['final_acc']:6.2f}%  best={r['best_acc']:6.2f}%  "
-            f"rate_e={r['rate_e']:6.1f} Hz"
+        print(f"wrote {figures / 'rate_rasters__ping'}.{{png,pdf}}")
+        plot_fi_curve(rate_samples, figures / "fi_curve__ping", run_id)
+        print(f"wrote {figures / 'fi_curve__ping'}.{{svg,pdf}}")
+
+        # Uniform-input f-I curves for PING and COBA — no MNIST structure.
+        print("[fi-sweep] uniform Poisson input on trained PING and COBA (wide)")
+        fi_rows = run_fi_sweep_uniform(run_id)
+        plot_fi_curve_uniform(
+            fi_rows, figures / "fi_curve_uniform", run_id,
         )
+        print(f"wrote {figures / 'fi_curve_uniform'}.{{svg,pdf}}")
 
-    # Stacked raster snapshot at the first 10 frames of the rate sweep —
-    # same panel style as the ei-sweep rasters so the two read as a pair.
-    rate_grid = np.linspace(0.0, 100.0, 40)[:10]
-    print(f"[rate-rasters] capturing rates {[round(r, 2) for r in rate_grid]}")
-    rate_samples = [
-        capture_rate_raster(baseline_dir("ping"), float(r), sample_idx=0)
-        for r in rate_grid
-    ]
-    plot_rate_rasters(
-        rate_samples, FIGURES / "rate_rasters__ping", notebook_run_id
-    )
-    print(f"wrote {FIGURES / 'rate_rasters__ping'}.{{png,pdf}}")
-    plot_fi_curve(rate_samples, FIGURES / "fi_curve__ping", notebook_run_id)
-    print(f"wrote {FIGURES / 'fi_curve__ping'}.{{svg,pdf}}")
+        # EI-strength sweep (subsumes nb019): replay COBA-trained weights
+        # with progressively stronger I-loop.
+        ei_points = run_ei_sweep(run_id)
 
-    # Uniform-input f-I curves for PING and COBA — no MNIST structure.
-    print("[fi-sweep] uniform Poisson input on trained PING and COBA (wide)")
-    fi_rows = run_fi_sweep_uniform(notebook_run_id)
-    plot_fi_curve_uniform(
-        fi_rows, FIGURES / "fi_curve_uniform", notebook_run_id,
-    )
-    print(f"wrote {FIGURES / 'fi_curve_uniform'}.{{svg,pdf}}")
-
-    # EI-strength sweep (subsumes nb019): replay COBA-trained weights
-    # with progressively stronger I-loop.
-    ei_points = run_ei_sweep(notebook_run_id)
-
-    duration_s = time.monotonic() - t_start
-    train_cfg = load_config(baseline_dir(MODELS[0]))
-    summary = {
-        "notebook_run_id": notebook_run_id,
-        "git_sha": train_cfg.get("git_sha"),
-        "duration_s": round(duration_s, 1),
-        "duration": format_duration(duration_s),
-        "config": {
-            "dataset": "mnist",
-            "models": MODELS,
-            "theta_u_grid_spikes": [t for t in THETA_U_GRID if t is not None],
-            "theta_u_grid_hz": [
-                theta_hz(t) for t in THETA_U_GRID if t is not None
-            ],
-            "max_samples": MAX_SAMPLES,
-            "epochs": BASELINE_EPOCHS,
-            "t_ms": T_MS,
-            "dt": DT_TRAIN,
-            "seeds_baseline": SEEDS_BASELINE,
-            "seed_sweep": SEED_SWEEP,
-            "fr_strength_upper": FR_STRENGTH_UPPER,
-        },
-        "baseline_results": rows,
-        "ei_sweep": ei_points,
-        "fi_sweep_uniform": fi_rows,
-    }
-    (FIGURES / "numbers.json").write_text(json.dumps(summary, indent=2) + "\n")
-    print(f"wrote {FIGURES / 'numbers.json'}")
-    print(f"  total duration: {summary['duration']}")
+        duration_s = time.monotonic() - t_start
+        train_cfg = load_config(baseline_dir(MODELS[0]))
+        write_numbers(
+            figures, run_id=run_id, duration_s=duration_s,
+            payload={
+                "git_sha_train": train_cfg.get("git_sha"),
+                "config": {
+                    "dataset": "mnist",
+                    "models": MODELS,
+                    "theta_u_grid_spikes": [t for t in THETA_U_GRID if t is not None],
+                    "theta_u_grid_hz": [
+                        theta_hz(t) for t in THETA_U_GRID if t is not None
+                    ],
+                    "max_samples": MAX_SAMPLES,
+                    "epochs": BASELINE_EPOCHS,
+                    "t_ms": T_MS,
+                    "dt": DT_TRAIN,
+                    "seeds_baseline": SEEDS_BASELINE,
+                    "seed_sweep": SEED_SWEEP,
+                    "fr_strength_upper": FR_STRENGTH_UPPER,
+                },
+                "baseline_results": rows,
+                "ei_sweep": ei_points,
+                "fi_sweep_uniform": fi_rows,
+            },
+        )
+        print(f"wrote {figures / 'numbers.json'}")
 
 
 

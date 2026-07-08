@@ -29,7 +29,6 @@ Writing: writings/exp025.typ · figures + numbers.json: artifacts/data/exp025/
 from __future__ import annotations
 
 import json
-import subprocess
 import sys
 import time
 from pathlib import Path
@@ -43,18 +42,17 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from exp022 import cell_dir as shared_cell_dir  # noqa: E402
 from exp022 import cell_name  # noqa: E402
 from helpers import theme  # noqa: E402
-from helpers.cli import replot_target  # noqa: E402
+from helpers.cli import parse_meta  # noqa: E402
 from helpers.figsave import save_figure  # noqa: E402
-from helpers.fmt import format_duration  # noqa: E402
-from helpers.modal import BatchDispatcher, parse_modal_gpu  # noqa: E402
+from helpers.numbers import write_numbers  # noqa: E402
 from helpers.paths import artifacts_and_figures  # noqa: E402
-from helpers.run_dirs import prepare as prepare_run_dirs  # noqa: E402
+from helpers.run_cli import run_cli  # noqa: E402
+from helpers.run_dirs import published_run  # noqa: E402
 from helpers.run_id import next_run_id  # noqa: E402
 from helpers.stamp import stamp_figure  # noqa: E402
 
 SLUG = "exp025"
 ARTIFACTS, FIGURES = artifacts_and_figures(SLUG)
-SNN_TOOL = REPO / "tools" / "snn" / "tool.py"
 
 MAX_SAMPLES = 500
 EPOCHS = 10
@@ -469,9 +467,8 @@ def generate_raster(model: str, out_path: Path) -> None:
         "--t-ms", "400",
         "--out-dir", str(infer_dir),
     ]
-    cmd = ["uv", "run", "python", str(SNN_TOOL), *argv]
     print(f"[raster] {model}: {' '.join(argv)}")
-    subprocess.run(cmd, cwd=REPO, check=True)
+    run_cli(argv)
     if not npz_path.exists():
         raise SystemExit(f"pinglab-cli did not produce {npz_path}")
     render_raster(npz_path, out_path, f"{model} — trained network, MNIST digit 0, 400 ms")
@@ -561,7 +558,7 @@ def _infer_cell(
     out_dir = (ARTIFACTS / out_name / train_dir.name).resolve()
     out_dir.mkdir(parents=True, exist_ok=True)
     cmd = [
-        "uv", "run", "python", str(SNN_TOOL), "sim", "--infer",
+        "sim", "--infer",
         "--load-config", str(train_dir / "config.json"),
         "--load-weights", str(train_dir / "weights.pth"),
         "--out-dir", str(out_dir),
@@ -569,7 +566,7 @@ def _infer_cell(
     if max_samples is not None:
         cmd += ["--max-samples", str(max_samples)]
     cmd += list(extra_args or [])
-    subprocess.run(cmd, cwd=REPO, check=True)
+    run_cli(cmd)
     return out_dir
 
 
@@ -1331,7 +1328,7 @@ def fig_results_compound(rows, npz_coba, npz_ping, out_path, run_id):
     plt.close(fig)
 
 
-def build_results_compound(run_id: str = "replot") -> None:
+def build_results_compound(figures: Path, run_id: str) -> None:
     """Assemble rows from cached cell metrics and render the results compound —
     no training, no inference reruns."""
     rows: list[dict] = []
@@ -1354,66 +1351,59 @@ def build_results_compound(run_id: str = "replot") -> None:
     for p in (npz_coba, npz_ping):
         if not p.exists():
             raise SystemExit(f"missing cached raster: {p} (run the notebook once first)")
-    out = FIGURES / "results_compound"
+    out = figures / "results_compound"
     fig_results_compound(rows, npz_coba, npz_ping, out, run_id)
     print(f"wrote {out}.{{png,pdf}}")
 
 
 def main() -> None:
+    meta = parse_meta(sys.argv)
+
     # Publication profile: every figure this notebook writes is a print-sized
     # vector, emitted as both SVG (docs) and PDF (manuscript) by save_figure;
     # dense rasters go to PNG + PDF. Set before any early-return path so the
-    # `--replot compound` route gets paper mode too.
+    # `--plot-only compound` route gets paper mode too.
     theme.set_paper_mode(True)
-    if replot_target(sys.argv) == "compound":
-        build_results_compound()
+
+    if meta.plot_fig == "compound":
+        # Redraw the results compound from cache only — no training, no inference
+        # reruns — and republish atomically alongside the other figures.
+        run_id = next_run_id(SLUG)
+        with published_run(
+            SLUG, run_id, plot_only=True, scale=SCALE,
+        ) as (_artifacts, figures):
+            build_results_compound(figures, run_id)
         return
-    modal_gpu = parse_modal_gpu(sys.argv)
-    skip_training = "--skip-training" in sys.argv
-    wipe_dir = "--no-wipe-dir" not in sys.argv
 
     t_start = time.monotonic()
-    notebook_run_id = next_run_id(SLUG)
+    run_id = next_run_id(SLUG)
     n_cells = len(MODELS) * len(THETA_U_GRID)
     print(
-        f"notebook_run_id = {notebook_run_id} cells={n_cells}"
-        + ("  [skip-training]" if skip_training else "")
+        f"notebook_run_id = {run_id} cells={n_cells}"
+        + ("  [skip-training]" if meta.skip_training else "")
     )
 
-    prepare_run_dirs(
-        SLUG, notebook_run_id, wipe=wipe_dir, skip_training=skip_training,
-        make_artifacts=False,
-        scale=SCALE,
-        host=f"modal:{modal_gpu}" if modal_gpu else "local",
-    )
+    with published_run(
+        SLUG, run_id, skip_training=meta.skip_training, make_artifacts=False,
+        scale=SCALE, plot_only=meta.plot_only,
+    ) as (_artifacts, figures):
+        _run(meta, run_id, figures, t_start)
 
-    only_missing = "--only-missing" in sys.argv
-    if not skip_training:
-        dispatcher = BatchDispatcher(modal_gpu, REPO, SNN_TOOL)
+
+def _run(meta, run_id: str, figures: Path, t_start: float) -> None:
+    if not meta.skip_training:
         # θ_u sweep training moved to exp022 (train-once / reuse-many); exp025
         # reads those cells via cell_dir and trains only its low_w_in sweep.
-        # Low-w_in alternate-schedule sweep:
-        gpu_override = None
-        if modal_gpu in ("T4", "L4", "A10G"):
-            gpu_override = "A100"
         for w_in in LOW_W_IN_VALUES:
             out = low_w_in_cell_dir(w_in)
-            if only_missing and (out / "metrics.json").exists():
+            if meta.only_missing and (out / "metrics.json").exists():
                 print(
                     f"[skip] low_w_in/w_in={w_in} already trained → "
                     f"{out.relative_to(REPO)}"
                 )
                 continue
-            print(
-                f"[train] low_w_in/w_in={w_in} → {out.relative_to(REPO)}"
-                + (f"  [modal:{modal_gpu}]" if modal_gpu else "")
-            )
-            dispatcher.submit(
-                build_low_w_in_args(w_in, out),
-                out,
-                gpu_override=gpu_override,
-            )
-        dispatcher.drain()
+            print(f"[train] low_w_in/w_in={w_in} → {out.relative_to(REPO)}")
+            run_cli(build_low_w_in_args(w_in, out))
 
     rows: list[dict] = []
     for model in MODELS:
@@ -1484,12 +1474,12 @@ def main() -> None:
                 f"f_γ={fg} Hz  p={pp}"
             )
     plot_theta_p_fgamma(
-        pfg_rows, FIGURES / "theta_p_fgamma", notebook_run_id,
+        pfg_rows, figures / "theta_p_fgamma", run_id,
     )
-    print(f"wrote {FIGURES / 'theta_p_fgamma'}.{{svg,pdf}}")
+    print(f"wrote {figures / 'theta_p_fgamma'}.{{svg,pdf}}")
 
     for model in MODELS:
-        out = FIGURES / f"raster__{model}"
+        out = figures / f"raster__{model}"
         generate_raster(model, out)
         print(f"wrote {out}.{{png,pdf}}")
 
@@ -1498,8 +1488,8 @@ def main() -> None:
     npz_coba = baseline_dir("coba") / "infer" / "snapshot.npz"
     npz_ping = baseline_dir("ping") / "infer" / "snapshot.npz"
     if npz_coba.exists() and npz_ping.exists():
-        out = FIGURES / "results_compound"
-        fig_results_compound(rows, npz_coba, npz_ping, out, notebook_run_id)
+        out = figures / "results_compound"
+        fig_results_compound(rows, npz_coba, npz_ping, out, run_id)
         print(f"wrote {out}.{{png,pdf}}")
 
     # Low-w_in alternate-schedule sweep — reads metrics from the three
@@ -1525,53 +1515,51 @@ def main() -> None:
             f"E={last.get('rate_e') or 0:6.2f} Hz  "
             f"I={last.get('rate_i') or 0:6.2f} Hz"
         )
-    plot_low_w_in(low_w_in_rows, FIGURES / "low_w_in_sweep", notebook_run_id)
-    print(f"wrote {FIGURES / 'low_w_in_sweep'}.{{svg,pdf}}")
+    plot_low_w_in(low_w_in_rows, figures / "low_w_in_sweep", run_id)
+    print(f"wrote {figures / 'low_w_in_sweep'}.{{svg,pdf}}")
 
     # W_in scale sweep — direct test of the bifurcation argument.
     print("[w_in-scale-sweep] inference-only on trained PING and COBA")
-    w_in_scale_rows = run_w_in_scale_sweep(notebook_run_id)
+    w_in_scale_rows = run_w_in_scale_sweep(run_id)
     plot_w_in_scale_sweep(
-        w_in_scale_rows, FIGURES / "w_in_scale_sweep", notebook_run_id,
+        w_in_scale_rows, figures / "w_in_scale_sweep", run_id,
     )
-    print(f"wrote {FIGURES / 'w_in_scale_sweep'}.{{svg,pdf}}")
+    print(f"wrote {figures / 'w_in_scale_sweep'}.{{svg,pdf}}")
     plot_w_in_scale_sweep_vs_rate(
         w_in_scale_rows,
-        FIGURES / "w_in_scale_sweep_vs_rate",
-        notebook_run_id,
+        figures / "w_in_scale_sweep_vs_rate",
+        run_id,
     )
-    print(f"wrote {FIGURES / 'w_in_scale_sweep_vs_rate'}.{{svg,pdf}}")
+    print(f"wrote {figures / 'w_in_scale_sweep_vs_rate'}.{{svg,pdf}}")
 
     duration_s = time.monotonic() - t_start
     train_cfg = load_config(baseline_dir(MODELS[0]))
-    summary = {
-        "notebook_run_id": notebook_run_id,
-        "git_sha": train_cfg.get("git_sha"),
-        "duration_s": round(duration_s, 1),
-        "duration": format_duration(duration_s),
-        "config": {
-            "dataset": "mnist",
-            "models": MODELS,
-            "theta_u_grid_spikes": [t for t in THETA_U_GRID if t is not None],
-            "theta_u_grid_hz": [
-                theta_hz(t) for t in THETA_U_GRID if t is not None
-            ],
-            "max_samples": MAX_SAMPLES,
-            "epochs": EPOCHS,
-            "t_ms": T_MS,
-            "dt": DT_TRAIN,
-            "seeds_baseline": SEEDS_BASELINE,
-            "seed_sweep": SEED_SWEEP,
-            "fr_strength_upper": FR_STRENGTH_UPPER,
+    write_numbers(
+        figures, run_id=run_id, duration_s=duration_s,
+        payload={
+            "git_sha_train": train_cfg.get("git_sha"),
+            "config": {
+                "dataset": "mnist",
+                "models": MODELS,
+                "theta_u_grid_spikes": [t for t in THETA_U_GRID if t is not None],
+                "theta_u_grid_hz": [
+                    theta_hz(t) for t in THETA_U_GRID if t is not None
+                ],
+                "max_samples": MAX_SAMPLES,
+                "epochs": EPOCHS,
+                "t_ms": T_MS,
+                "dt": DT_TRAIN,
+                "seeds_baseline": SEEDS_BASELINE,
+                "seed_sweep": SEED_SWEEP,
+                "fr_strength_upper": FR_STRENGTH_UPPER,
+            },
+            "results": rows,
+            "theta_p_fgamma": pfg_rows,
+            "low_w_in_sweep": low_w_in_rows,
+            "w_in_scale_sweep": w_in_scale_rows,
         },
-        "results": rows,
-        "theta_p_fgamma": pfg_rows,
-        "low_w_in_sweep": low_w_in_rows,
-        "w_in_scale_sweep": w_in_scale_rows,
-    }
-    (FIGURES / "numbers.json").write_text(json.dumps(summary, indent=2) + "\n")
-    print(f"wrote {FIGURES / 'numbers.json'}")
-    print(f"  total duration: {summary['duration']}")
+    )
+    print(f"wrote {figures / 'numbers.json'}")
 
 
 
