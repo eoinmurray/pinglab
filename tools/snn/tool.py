@@ -539,19 +539,6 @@ def _build_parent_parser():
         "(CPU + CUDA + MPS) before dataset load and "
         "model init. Persisted to config.json.",
     )
-    exec_group.add_argument(
-        "--modal",
-        action="store_true",
-        help="Run on Modal.com instead of locally. "
-        "Artifacts sync back to --out-dir after completion.",
-    )
-    exec_group.add_argument(
-        "--modal-gpu",
-        type=str,
-        default="T4",
-        choices=["none", "T4", "L4", "A10G", "A100", "H100"],
-        help="GPU type for Modal runs (default: T4). Use 'none' for CPU-only.",
-    )
     return parent
 
 
@@ -815,7 +802,7 @@ each subcommand's --help):
   Train (train)  --lr, --epochs, --batch-size, --max-samples,
                  --fr-reg-upper-theta, --fr-reg-upper-strength
   Sim (sim)      --infer, --load-config, --load-weights, --max-samples
-  Output / exec  --out-dir, --wipe-dir, --modal, --modal-gpu
+  Output / exec  --out-dir, --wipe-dir
 
 Examples:
   python -m cli                                    # sim (metrics only)
@@ -1413,24 +1400,6 @@ _MODE_HANDLERS = {
 }
 
 
-def _dispatch_to_modal(args, argv):
-    """Re-dispatch the run to Modal, stripping --modal / --modal-gpu from argv."""
-    out_dir = args.out_dir or str(DEFAULT_ARTIFACT_ROOT)
-    cli_args = []
-    i = 0
-    while i < len(argv):
-        if argv[i] == "--modal-gpu":
-            i += 2  # skip flag and its value
-        elif argv[i] == "--modal":
-            i += 1
-        else:
-            cli_args.append(argv[i])
-            i += 1
-    from modal_app import dispatch_to_modal
-
-    dispatch_to_modal(cli_args, out_dir, gpu=args.modal_gpu)
-
-
 def main(argv=None):
     """Parse args and run the requested mode. Returns a process exit code."""
     _t0 = _time.monotonic()
@@ -1438,11 +1407,6 @@ def main(argv=None):
     argv = sys.argv[1:] if argv is None else list(argv)
     args = parse_args(argv)
     mode = args.mode
-
-    # --modal: re-dispatch to Modal and exit
-    if getattr(args, "modal", False):
-        _dispatch_to_modal(args, argv)
-        return 0
 
     # Build config for non-train modes (build_config syncs the module aliases).
     if mode != "train":

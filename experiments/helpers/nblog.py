@@ -150,7 +150,7 @@ class ProgressBar:
         return + clear-to-EOL), so a bar fills where it stands instead of
         scrolling a wall of lines. done() finalises the line and drops to the
         next row.
-      • non-TTY (log file, CI, Modal) — no control characters: a plain line is
+      • non-TTY (log file, CI, remote pod) — no control characters: a plain line is
         emitted at most every `log_interval` seconds, plus one at completion.
 
     The bar owns the terminal while live, so the caller should keep the wrapped

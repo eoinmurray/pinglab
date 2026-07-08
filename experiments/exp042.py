@@ -22,8 +22,8 @@ Writing: writings/exp042.typ · figures + numbers.json: artifacts/data/exp042/
 
 from __future__ import annotations
 
-import argparse
 import json
+import re
 import subprocess
 import sys
 import time
@@ -40,30 +40,30 @@ REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from helpers import theme  # noqa: E402
-from helpers.cli import replot_target  # noqa: E402
+from helpers.cli import Meta, parse_meta  # noqa: E402
 from helpers.datasets import load_mnist_split  # noqa: E402
 from helpers.figsave import save_figure  # noqa: E402
 from helpers.fmt import format_duration  # noqa: E402
-from helpers.modal import parse_modal_gpu  # noqa: E402
 from helpers.operating_point import (  # noqa: E402
     F_GAMMA_HZ,
     MODELS_DEFAULT_TAU_GABA_MS,
     TAU_GABA_GAMMA_MS,
 )
 from helpers.paths import artifacts_and_figures  # noqa: E402
+from helpers.run_cli import run_cli  # noqa: E402
 from helpers.run_dirs import prepare as prepare_run_dirs  # noqa: E402
 from helpers.run_id import next_run_id  # noqa: E402
+from helpers import runpod  # noqa: E402
 from helpers.stamp import stamp_figure  # noqa: E402
 
 SLUG = "exp042"
-ARTIFACTS, FIGURES = artifacts_and_figures(SLUG)
+_ARTIFACTS_DEFAULT, FIGURES = artifacts_and_figures(SLUG)
+ARTIFACTS = runpod.artifacts_scratch(SLUG)
 SNN_TOOL = REPO / "tools" / "snn" / "tool.py"
 EVAL_SEED = 20260415  # mirror cli.encoders.EVAL_SEED (kept in sync by hand)
 
-# θ_u = off PING baseline now lives in the shared training root (exp022
-# train-once / reuse-many). Three seeds available; exp042 runs against all
-# three for error bars.
-NB035_ARTIFACTS = REPO / "temp" / "experiments" / "exp022"
+TRAINING_ROOT = runpod.training_root()
+NB035_ARTIFACTS = TRAINING_ROOT
 SEEDS: tuple[int, ...] = (42, 43, 44)
 
 CONDITIONS: tuple[str, ...] = ("baseline", "phase_shuffled_i", "poisson_matched_i")
@@ -101,7 +101,7 @@ MIX_K_GRID: tuple[float, ...] = (0.25, 0.5, 1.0, 2.0, 4.0)
 # trained cells and re-runs the cycle-coherent jitter sweep at each
 # cell's own 1/f_γ. Outputs xtau_raw_sweeps, xtau_dimensional_collapse,
 # xtau_inflection_vs_period.
-NB041_ARTIFACTS = REPO / "temp" / "experiments" / "exp022"
+NB041_ARTIFACTS = TRAINING_ROOT
 NB041_NUMBERS = (
     REPO / "artifacts" / "data" / "exp041"
     / "numbers.json"
@@ -168,14 +168,14 @@ def _run_baseline(train_dir: Path, tau_gaba=None):
         out_dir = (ARTIFACTS / "baseline" / train_dir.name).resolve()
         out_dir.mkdir(parents=True, exist_ok=True)
         cmd = [
-            "uv", "run", "python", str(SNN_TOOL), "sim", "--infer",
+            "sim", "--infer",
             "--load-config", str((train_dir / "config.json").resolve()),
             "--load-weights", str((train_dir / "weights.pth").resolve()),
             "--outputs", "rasters", "--out-dir", str(out_dir),
         ]
         if tau_gaba is not None:
             cmd += ["--tau-gaba", str(tau_gaba)]
-        subprocess.run(cmd, cwd=REPO, check=True)
+        run_cli(cmd)
         m = json.loads((out_dir / "metrics.json").read_text())
         R = dict(np.load(out_dir / "rasters.npz"))
         _BASE_CACHE[key] = (m, R)
@@ -216,14 +216,14 @@ def _run_with_override(train_dir: Path, override_path: Path, tau_gaba=None) -> d
     out_dir = (ARTIFACTS / "ovrun" / f"{train_dir.name}__{override_path.stem}").resolve()
     out_dir.mkdir(parents=True, exist_ok=True)
     cmd = [
-        "uv", "run", "python", str(SNN_TOOL), "sim", "--infer",
+        "sim", "--infer",
         "--load-config", str((train_dir / "config.json").resolve()),
         "--load-weights", str((train_dir / "weights.pth").resolve()),
         "--i-override-file", str(override_path), "--out-dir", str(out_dir),
     ]
     if tau_gaba is not None:
         cmd += ["--tau-gaba", str(tau_gaba)]
-    subprocess.run(cmd, cwd=REPO, check=True)
+    run_cli(cmd)
     return json.loads((out_dir / "metrics.json").read_text())
 
 
@@ -1520,35 +1520,188 @@ def build_rhythm_compound(run_id: str = "replot") -> None:
     print(f"wrote {FIGURES / 'rhythm_compound'}")
 
 
+# ── RunPod infer jobs ────────────────────────────────────────────────
+
+_JOB_CATALOG: list[dict] | None = None
+
+
+def _enc_job_token(text: str) -> str:
+    return re.sub(r"(\d)\.(\d)", r"\1p\2", text)
+
+
+def _job_id(kind: str, *parts: str) -> str:
+    return kind + "__" + "__".join(_enc_job_token(p) for p in parts)
+
+
+def _job_catalog() -> list[dict]:
+    global _JOB_CATALOG
+    if _JOB_CATALOG is not None:
+        return _JOB_CATALOG
+    catalog: list[dict] = []
+    for seed in SEEDS:
+        train_dir = TRAINING_ROOT / f"ping__off__seed{seed}"
+        for cond in CONDITIONS:
+            catalog.append({
+                "id": _job_id("eval", train_dir.name, cond),
+                "run": lambda td=train_dir, c=cond, s=seed: evaluate_condition(
+                    td, c, seed_offset=s),
+                "done": ARTIFACTS / "baseline" / train_dir.name / "metrics.json"
+                if cond == "baseline" else None,
+                "train_dir": train_dir,
+                "condition": cond,
+                "seed_offset": seed,
+            })
+        for sigma_ms in JITTER_SIGMAS_MS:
+            cond = f"jitter_sigma_{sigma_ms:g}"
+            off = seed + int(sigma_ms)
+            catalog.append({
+                "id": _job_id("eval", train_dir.name, cond),
+                "run": lambda td=train_dir, c=cond, o=off: evaluate_condition(
+                    td, c, seed_offset=o),
+                "train_dir": train_dir, "condition": cond, "seed_offset": off,
+            })
+        for sigma_ms in CELL_JITTER_SIGMAS_MS:
+            cond = f"cell_jitter_sigma_{sigma_ms:g}"
+            off = seed + int(sigma_ms * 13)
+            catalog.append({
+                "id": _job_id("eval", train_dir.name, cond),
+                "run": lambda td=train_dir, c=cond, o=off: evaluate_condition(
+                    td, c, seed_offset=o),
+                "train_dir": train_dir, "condition": cond, "seed_offset": off,
+            })
+    pareto_dir = TRAINING_ROOT / f"ping__off__seed{SEEDS[0]}"
+    for alpha in MIX_ALPHA_GRID:
+        for k in MIX_K_GRID:
+            if alpha == 0.0 and k == 1.0:
+                continue
+            cond = f"alpha_mix_a{alpha:g}_k{k:g}"
+            off = SEEDS[0] + int(alpha * 100) + int(k * 10)
+            catalog.append({
+                "id": _job_id("eval", pareto_dir.name, cond),
+                "run": lambda td=pareto_dir, c=cond, o=off: evaluate_condition(
+                    td, c, seed_offset=o),
+                "train_dir": pareto_dir, "condition": cond, "seed_offset": off,
+            })
+    try:
+        f_gamma_map = _xtau_load_exp041_f_gamma()
+    except SystemExit:
+        f_gamma_map = {}
+    for tau in XTAU_TAU_GABAS_MS:
+        for seed in XTAU_SEEDS:
+            train_dir = _xtau_exp041_cell_dir(tau, seed)
+            if not (train_dir / "weights.pth").exists():
+                continue
+            f_gamma = f_gamma_map.get((tau, seed))
+            if not f_gamma or f_gamma <= 0:
+                continue
+            cycle_ms = 1000.0 / f_gamma
+            for sigma_ms in XTAU_SIGMAS_MS:
+                off = seed + int(sigma_ms)
+                catalog.append({
+                    "id": _job_id("xtau", train_dir.name, f"{sigma_ms:g}"),
+                    "run": lambda td=train_dir, s=sigma_ms, c=cycle_ms, o=off:
+                        _xtau_evaluate_cell(td, s, c, seed_offset=o),
+                    "train_dir": train_dir,
+                    "condition": f"jitter_sigma_{sigma_ms:g}",
+                    "seed_offset": off,
+                    "xtau": True,
+                })
+    _JOB_CATALOG = catalog
+    return catalog
+
+
+def infer_jobs() -> list[str]:
+    return [j["id"] for j in _job_catalog()]
+
+
+PLUMBING_JOBS = [
+    _job_id("eval", "ping__off__seed42", "baseline"),
+    _job_id("eval", "ping__off__seed42", "jitter_sigma_7.0"),
+]
+
+
+def _job_spec(job_id: str) -> dict:
+    for spec in _job_catalog():
+        if spec["id"] == job_id:
+            return spec
+    raise KeyError(job_id)
+
+
+def _job_metrics_path(spec: dict) -> Path:
+    if spec.get("done"):
+        return spec["done"]
+    train_dir = spec["train_dir"]
+    condition = spec["condition"]
+    seed_offset = spec["seed_offset"]
+    ov_stem = f"{train_dir.name}_{condition}_{seed_offset}"
+    return ARTIFACTS / "ovrun" / f"{train_dir.name}__{ov_stem}" / "metrics.json"
+
+
+def job_is_done(job_id: str) -> bool:
+    try:
+        spec = _job_spec(job_id)
+    except KeyError:
+        return False
+    path = _job_metrics_path(spec)
+    return path.exists()
+
+
+def run_infer_job(job_id: str) -> None:
+    spec = _job_spec(job_id)
+    spec["run"]()
+
+
+def pod_run() -> None:
+    runpod.pod_run_loop(job_ids=infer_jobs(), is_done=job_is_done, run_job=run_infer_job)
+
+
+def run_via_runpod(meta: Meta) -> None:
+    jobs = list(PLUMBING_JOBS if meta.plumbing else infer_jobs())
+    if meta.only_cells:
+        wanted = set(meta.only_cells)
+        jobs = [j for j in jobs if j in wanted]
+        missing = wanted - set(jobs)
+        if missing:
+            raise SystemExit(f"unknown job(s): {sorted(missing)}")
+    runpod.dispatch(
+        slug=SLUG, runner=SLUG,
+        buckets=runpod.chunk_buckets(jobs, meta.cells_per_pod, prefix="infer"),
+        gpu=meta.gpu, live=meta.live, plumbing=meta.plumbing, collect=meta.collect,
+        collect_subdir=f"{runpod.ARTIFACTS_SUBDIR}/{SLUG}",
+        local_collect_dir=str(runpod.artifacts_scratch(SLUG)),
+        extra_env={
+            "PINGLAB_ARTIFACTS_ROOT": f"{runpod.VOLUME_MOUNT}/{runpod.ARTIFACTS_SUBDIR}/{SLUG}",
+            "PINGLAB_NO_SYNC": "1",
+        },
+    )
+
+
 # ─── success criteria ───────────────────────────────────────────────
 
 def main() -> None:
-    # Publication profile: every figure this notebook writes is a print-sized
-    # vector, emitted as both SVG (docs) and PDF (manuscript) by save_figure.
     theme.set_paper_mode(True)
 
-    if replot_target(sys.argv) == "compound":
+    meta = parse_meta(sys.argv, allow_dispatch=True)
+    if meta.plot_only and meta.plot_fig == "compound":
         build_rhythm_compound()
         return
-
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--modal-gpu", default="none")
-    parser.add_argument("--no-wipe-dir", action="store_true")
-    args = parser.parse_args()
-
-    modal_gpu = parse_modal_gpu(sys.argv)
-    if modal_gpu:
-        raise SystemExit(
-            "exp042 is inference-only on local exp025 weights; --modal-gpu unused"
-        )
+    if meta.pod_run:
+        pod_run()
+        return
+    if meta.reap:
+        runpod.reap_all_pods()
+        return
+    if meta.runpod:
+        run_via_runpod(meta)
+        return
 
     t_start = time.monotonic()
     notebook_run_id = next_run_id(SLUG)
     print(f"notebook_run_id = {notebook_run_id} seeds={SEEDS}")
 
     prepare_run_dirs(
-        SLUG, notebook_run_id, wipe=not args.no_wipe_dir, make_artifacts=True,
-        scale=SCALE, host=f"modal:{modal_gpu}" if modal_gpu else "local",
+        SLUG, notebook_run_id, wipe=not meta.skip_training, make_artifacts=True,
+        scale=SCALE, host="local",
     )
 
     rows: list[dict] = []

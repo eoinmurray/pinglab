@@ -51,13 +51,13 @@ RUN uv sync --no-dev \
 RUN uv run --no-sync python -c "import torch; print('baked torch', torch.__version__)"
 
 # Start script — two modes, chosen at runtime by the CELLS env var:
-#   • CELLS set → fire-and-forget training. Start sshd in the background (for
+#   • CELLS set → fire-and-forget work. Start sshd in the background (for
 #     debugging), check out the exact pinned commit ($PIN_SHA), then hand off to
-#     exp022.py --pod-run, which trains the assigned cells to the mounted network
-#     volume and self-terminates. A background backstop force-removes the pod
-#     after $MAX_RUNTIME so a hung job can never bill forever.
+#     experiments/${PINGLAB_POD_RUNNER}.py --pod-run (default exp022). Training
+#     pods write to /shared/training; infer pods write to /shared/artifacts/<slug>.
+#     Self-terminates when done; a backstop removes the pod after $MAX_RUNTIME.
 #   • CELLS unset → just sshd in the foreground (the collect step / debugging).
-# $PUBLIC_KEY / $PIN_SHA / $CELLS / $MAX_RUNTIME expand at runtime, not build.
+# $PUBLIC_KEY / $PIN_SHA / $CELLS / $PINGLAB_POD_RUNNER / $MAX_RUNTIME at runtime.
 RUN printf '%s\n' \
       '#!/bin/bash' \
       'mkdir -p /root/.ssh && chmod 700 /root/.ssh' \
@@ -68,7 +68,8 @@ RUN printf '%s\n' \
       'cd /workspace/pinglab' \
       'git fetch origin "$PIN_SHA" --depth 1 -q && git reset --hard "$PIN_SHA" -q' \
       '( sleep "${MAX_RUNTIME:-54000}"; runpodctl remove pod "$RUNPOD_POD_ID" ) &' \
-      'exec uv run --no-sync python experiments/exp022.py --pod-run' \
+      'RUNNER="${PINGLAB_POD_RUNNER:-exp022}"' \
+      'exec uv run --no-sync python experiments/${RUNNER}.py --pod-run' \
     > /start.sh && chmod +x /start.sh
 
 CMD ["/start.sh"]

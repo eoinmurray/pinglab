@@ -18,7 +18,7 @@ how to add a tool / experiment / writing; authoring style is in
   `python` / `python3` / `bun`-build directly for the new structure.
 - **Commits:** author every commit as the human only — never a `Co-Authored-By:` / agent
   trailer, never an agent in the author/committer fields.
-- **No Modal without explicit permission** — `--modal-gpu` spends real money; default local.
+- **No RunPod fan-outs without explicit permission** — `--runpod --live` (and any pod-creating call) spends real money; default local.
 - **Never write to GitHub issues/PRs** (reading is fine). Don't open branches/PRs unless asked.
 
 ## Commands — type a NAME
