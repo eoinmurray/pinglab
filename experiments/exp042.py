@@ -23,7 +23,9 @@ Writing: writings/exp042.typ · figures + numbers.json: artifacts/data/exp042/
 from __future__ import annotations
 
 import json
+import os
 import re
+import shutil
 import subprocess
 import sys
 import time
@@ -160,24 +162,60 @@ def _load_eval(train_dir: Path):
 _BASE_CACHE: dict = {}
 
 
+def _baseline_complete(rasters_path: Path, metrics_path: Path) -> bool:
+    """True iff a finished baseline (raster + metrics) is already on disk and
+    loadable. Lets all-but-the-first sharer of a train_dir reuse it — see
+    _run_baseline."""
+    if not (rasters_path.exists() and metrics_path.exists()):
+        return False
+    try:
+        json.loads(metrics_path.read_text())
+        with np.load(rasters_path):
+            pass
+    except Exception:  # noqa: BLE001 — a torn/legacy file counts as incomplete
+        return False
+    return True
+
+
 def _run_baseline(train_dir: Path, tau_gaba=None):
     """Baseline pass via `sim --infer --outputs rasters`; return (metrics, rasters).
-    Cached per (cell, τ_GABA) — the baseline I-stream is condition-independent."""
+    Cached per (cell, τ_GABA) — the baseline I-stream is condition-independent.
+
+    The ~800 MB raster is also cached on the shared volume so a re-fire, or a
+    sibling pod running another condition of the same cell, REUSES it instead of
+    recomputing. Under the 1-job-per-pod fan-out the busiest cell is shared by
+    ~46 conditions on ~46 separate pods; without this every one would recompute
+    and concurrently clobber the same file. The compute writes to a private temp
+    dir and is published with os.replace (atomic on one filesystem), so a
+    concurrent reader never sees a half-written raster."""
     key = f"{train_dir}|{tau_gaba}"
     if key not in _BASE_CACHE:
         out_dir = (ARTIFACTS / "baseline" / train_dir.name).resolve()
-        out_dir.mkdir(parents=True, exist_ok=True)
-        cmd = [
-            "sim", "--infer",
-            "--load-config", str((train_dir / "config.json").resolve()),
-            "--load-weights", str((train_dir / "weights.pth").resolve()),
-            "--outputs", "rasters", "--out-dir", str(out_dir),
-        ]
-        if tau_gaba is not None:
-            cmd += ["--tau-gaba", str(tau_gaba)]
-        run_cli(cmd)
-        m = json.loads((out_dir / "metrics.json").read_text())
-        R = dict(np.load(out_dir / "rasters.npz"))
+        rasters_path = out_dir / "rasters.npz"
+        metrics_path = out_dir / "metrics.json"
+        if not _baseline_complete(rasters_path, metrics_path):
+            out_dir.mkdir(parents=True, exist_ok=True)
+            tmp = out_dir.parent / f".{train_dir.name}.tmp.{os.getpid()}"
+            shutil.rmtree(tmp, ignore_errors=True)
+            tmp.mkdir(parents=True, exist_ok=True)
+            try:
+                cmd = [
+                    "sim", "--infer",
+                    "--load-config", str((train_dir / "config.json").resolve()),
+                    "--load-weights", str((train_dir / "weights.pth").resolve()),
+                    "--outputs", "rasters", "--out-dir", str(tmp),
+                ]
+                if tau_gaba is not None:
+                    cmd += ["--tau-gaba", str(tau_gaba)]
+                run_cli(cmd)
+                # Publish atomically; metrics last so _baseline_complete only
+                # passes once both files are live.
+                os.replace(tmp / "rasters.npz", rasters_path)
+                os.replace(tmp / "metrics.json", metrics_path)
+            finally:
+                shutil.rmtree(tmp, ignore_errors=True)
+        m = json.loads(metrics_path.read_text())
+        R = dict(np.load(metrics_path.parent / "rasters.npz"))
         _BASE_CACHE[key] = (m, R)
     return _BASE_CACHE[key]
 
