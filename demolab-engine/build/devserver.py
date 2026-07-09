@@ -28,23 +28,36 @@ import time
 from pathlib import Path
 from urllib.parse import unquote
 
-ROOT = Path(os.environ.get("DEMOLAB_ROOT") or Path(__file__).resolve().parents[2])
-ENGINE = ROOT / "demolab-engine" / "build"
+import build
+
+ROOT = build.ROOT
+ENGINE = build.ENGINE
 BUILD_PY = ENGINE / "build.py"
-SITE = ROOT / "artifacts" / "site"
+SITE = build.SITE
 
 # Source trees whose changes trigger a rebuild. SOURCES only — never artifacts/site (build.py
 # writes it, which would loop). Add/remove within these dirs is detected too (the file set is
 # part of the signature), which is what lets new entries appear.
-WATCH_DIRS = [
-    (ROOT / "writings", "*.typ"),                 # entries + decks (content + add/remove)
-    (ENGINE, "*.typ"),                            # lib.typ, main.typ
-    (ENGINE, "*.css"),
-    (ENGINE, "*.js"),
-    (ENGINE, "*.py"),                             # build.py / devserver.py themselves
-    (ROOT / "artifacts" / "data", "**/*"),        # runner outputs (figures, videos, numbers)
-]
-WATCH_FILES = [ROOT / "demolab.yaml"]             # optional brand config (may not exist)
+if build.DEMO:
+    WATCH_DIRS = [
+        (build.CONTENT / "writings", "*.typ"),
+        (ENGINE, "*.typ"),
+        (ENGINE, "*.css"),
+        (ENGINE, "*.js"),
+        (ENGINE, "*.py"),
+        (build.CONTENT / "artifacts" / "data", "**/*"),
+    ]
+    WATCH_FILES = [build.CONTENT / "demolab.yaml"]
+else:
+    WATCH_DIRS = [
+        (ROOT / "writings", "*.typ"),                 # entries + decks (content + add/remove)
+        (ENGINE, "*.typ"),                            # lib.typ, main.typ
+        (ENGINE, "*.css"),
+        (ENGINE, "*.js"),
+        (ENGINE, "*.py"),                             # build.py / devserver.py themselves
+        (ROOT / "artifacts" / "data", "**/*"),        # runner outputs (figures, videos, numbers)
+    ]
+    WATCH_FILES = [ROOT / "demolab.yaml"]             # optional brand config (may not exist)
 POLL_SECONDS = 0.4
 DEBOUNCE_SECONDS = 0.15
 BUILD_TIMEOUT = 120  # a compile still running after this is stuck, not slow — surface it, don't hang

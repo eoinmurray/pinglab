@@ -13,6 +13,16 @@ description: A lab notebook for computational science — reproducible results, 
 # author: Your Name
 # contact: you@example.com
 
+# Optional homepage welcome — a hero above the collection directory (web only). Absent ⇒ the
+# homepage is title + tagline + collections, as today. Keys: `body` (multi-paragraph prose),
+# `links` ([{label, href}, …]), `install` ({label?, unix?, windows?}), `prompt` ({label?, text?}),
+# `footer` (plain string or {text, href}). See scaffold/demo/demolab.yaml for a worked example.
+# welcome:
+#   body: |
+#     Your pitch here.
+#   install:
+#     unix: curl -LsSf https://example.com/install.sh | sh
+
 # Homepage collections. Entries are grouped by their `collection:` meta field; this
 # registry gives each collection a display label + description and sets the order. A
 # collection with no entry here still works — its slug is just title-cased.

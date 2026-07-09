@@ -7,6 +7,7 @@
 // excluded from the HTML/book passes. Compile with `--root .` so /artifacts/... resolves (D3).
 #import "@preview/touying:0.6.1": *
 #import themes.simple: *
+#import "/demolab-engine/build/lib.typ": data-file
 
 #let meta = (
   title: "Slide layout gallery",
@@ -33,7 +34,7 @@
 #set align(horizon)
 
 // Real run data for the table / figure / big-number slides — read from the record, never typed.
-#let run = json("/artifacts/data/exp000/numbers.json")
+#let run = json(data-file("exp000/numbers.json"))
 #let cap(body) = text(size: 14pt, fill: muted)[#body]
 
 // layout: title — opens the deck; mirror the closer so it bookends
@@ -162,7 +163,7 @@ where:
 
 #v(0.5em)
 #align(center)[
-  #image("/artifacts/data/exp000/lif.svg", height: 250pt)
+  #image(data-file("exp000/lif.svg"), height: 250pt)
   #cap[Membrane potential of a single LIF neuron under tonic input; it charges and resets at threshold, firing at #calc.round(run.lif.firing_rate_hz) Hz.]
 ]
 
@@ -170,7 +171,7 @@ where:
 == Figure + bullets
 
 #grid(columns: (55%, 1fr), gutter: 22pt, align: horizon,
-  image("/artifacts/data/exp000/lif.svg", height: 200pt),
+  image(data-file("exp000/lif.svg"), height: 200pt),
   [
     - Each sweep is the membrane charging through its RC constant.
     - Every vertical drop is a *reset* after a spike.
@@ -184,13 +185,13 @@ where:
 #grid(columns: (1fr, 1fr), gutter: 20pt,
   [
     #align(center)[
-      #image("/artifacts/data/exp000/lif.svg", height: 160pt)
+      #image(data-file("exp000/lif.svg"), height: 160pt)
       #cap[(a) LIF: linear integrate-and-fire.]
     ]
   ],
   [
     #align(center)[
-      #image("/artifacts/data/exp001/eif.svg", height: 160pt)
+      #image(data-file("exp001/eif.svg"), height: 160pt)
       #cap[(b) EIF: exponential spike onset.]
     ]
   ],
@@ -201,10 +202,10 @@ where:
 == Figure grid (2×2)
 
 #grid(columns: (1fr, 1fr), rows: (auto, auto), column-gutter: 18pt, row-gutter: 10pt, align: center,
-  image("/artifacts/data/exp000/lif.svg", height: 120pt),
-  image("/artifacts/data/exp001/eif.svg", height: 120pt),
-  image("/artifacts/data/exp000/net.png", height: 150pt),
-  image("/artifacts/data/exp001/enet.png", height: 150pt),
+  image(data-file("exp000/lif.svg"), height: 120pt),
+  image(data-file("exp001/eif.svg"), height: 120pt),
+  image(data-file("exp000/net.png"), height: 150pt),
+  image(data-file("exp001/enet.png"), height: 150pt),
 )
 
 // layout: hero-stack — the result large on the left, evidence stacked right
@@ -213,14 +214,14 @@ where:
 #grid(columns: (60%, 1fr), gutter: 20pt, align: horizon,
   [
     #align(center)[
-      #image("/artifacts/data/exp000/net.png", height: 255pt)
+      #image(data-file("exp000/net.png"), height: 255pt)
       #cap[The network sustains irregular firing — the result being argued.]
     ]
   ],
   [
     #stack(spacing: 12pt,
-      image("/artifacts/data/exp000/lif.svg", height: 105pt),
-      image("/artifacts/data/exp001/eif.svg", height: 105pt),
+      image(data-file("exp000/lif.svg"), height: 105pt),
+      image(data-file("exp001/eif.svg"), height: 105pt),
     )
     #cap[Single-cell traces as supporting evidence.]
   ],

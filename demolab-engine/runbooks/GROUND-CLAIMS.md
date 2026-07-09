@@ -1,66 +1,61 @@
 # Runbook: Grounding cited claims in their sources
 
-An agent-operated procedure for building a **claim-verification companion**: for each
-work cited in a manuscript, point the reader to the exact sentence(s) in the source
-that back the claim. No scripts, no install — an agent follows this one file.
+> Build a **claim-verification companion**: for each work cited in a manuscript, point the reader
+> to the exact sentence(s) in the source that back the claim. No scripts, no install — an agent
+> follows this one file.
 
-Output is a **pointer aid, not an authority**: quotes are agent-located and self-checked
-for verbatim match, but the reader confirms against the source before citing. Every
-page produced under this runbook must carry that disclaimer (see *Labeling*).
+## When to use
+When a manuscript leans on cited works and you want each citation traceable to the exact sentence
+in the source that backs it. The output is a **pointer aid, not an authority**: quotes are
+agent-located and self-checked for verbatim match, but the reader confirms against the source
+before citing. Every page produced under this runbook must carry that disclaimer (see *Labeling*).
 
----
+Have two things in place before you start:
 
-## What you (the human) provide
+1. **The manuscript**, with a numbered reference list and inline citation markers (e.g. `[26]`).
+   (In pinglab: the ar009 article + its `ar009-references.ts` list.)
+2. **The source papers as files** in one folder — you download them yourself (institutional
+   access, open access, wherever). Name each file so the reference is identifiable, or let the
+   agent match by title/DOI. Papers you don't provide are flagged as missing; the agent never
+   invents their content.
 
-1. **The manuscript**, with a numbered reference list and inline citation markers
-   (e.g. `[26]`). (In pinglab: the ar009 article + its `ar009-references.ts` list.)
-2. **The source papers as files** in one folder — you download them yourself
-   (institutional access, open access, wherever). Name each file so the reference is
-   identifiable, or let the agent match by title/DOI. Papers you don't provide are
-   flagged as missing; the agent never invents their content.
+The agent produces one section per reference, in the **Entry format** below (Summary / Claim it
+supports / Quotes), assembled into the companion page in reference-number order.
 
-## What the agent produces
+## What it does
 
-One section per reference, in the **Entry format** below (Summary / Claim it supports /
-Quotes), assembled into the companion page in reference-number order.
+0. **Confirm the inputs.** The manuscript (numbered references + inline markers) and the source
+   papers as files are provided. Papers not provided are flagged missing — never invented.
 
----
+1. **Map claims to citations.** Read the manuscript. For every reference number, record which
+   paragraph(s) cite it and copy the **verbatim** manuscript sentence carrying that citation. This
+   is the "Claim it supports" content and it is pure copying — no interpretation.
 
-## Procedure
+2. **For each reference that has a source file:**
+   - **Read the source in full.** Not the abstract, not from memory.
+   - **Summary** — one paragraph, from the source: what it is and what it argues.
+   - **Claim it supports** — paste the verbatim manuscript line(s) from step 1.
+   - **Quotes** — find sentence(s) in the source that back that specific claim. Copy each
+     **character-for-character**. Prefer 1–3 strong anchors over many weak ones.
 
-### 1. Map claims to citations
-Read the manuscript. For every reference number, record which paragraph(s) cite it and
-copy the **verbatim** manuscript sentence carrying that citation. This is the "Claim it
-supports" content and it is pure copying — no interpretation.
+3. **Self-verify every quote — the load-bearing step.** For each quote you are about to write,
+   re-locate it in the source text and confirm ALL of the following. If any fails, **drop the
+   quote** — never reword the source to fit.
+   - It is a **single contiguous passage** actually present in the source.
+   - It matches **character-for-character**, ignoring ONLY these typographic artifacts: line
+     breaks, end-of-line hyphenation (`inhibi-\ntion` → `inhibition`), ligatures (`ﬁ`→`fi`), smart
+     vs straight quotes/dashes, and runs of whitespace.
+   - It differs in **no word, no number, and no negation**. If you had to add or drop a "not"/"no",
+     change a number, or swap a word to make it fit the claim, it FAILS. ("was silent" must never
+     stand in for "was not silent".)
+   - It is a real clause, not a 2–3 word fragment (roughly 4+ words).
 
-### 2. For each reference that has a source file
-- **Read the source in full.** Not the abstract, not from memory.
-- **Summary** — one paragraph, from the source: what it is and what it argues.
-- **Claim it supports** — paste the verbatim manuscript line(s) from step 1.
-- **Quotes** — find sentence(s) in the source that back that specific claim. Copy each
-  **character-for-character**. Prefer 1–3 strong anchors over many weak ones.
+4. **Missing or abstract-only sources.** No source file, or only the abstract → say so explicitly
+   in *Quotes*, e.g. *No verbatim anchor — source not provided*, and stop. Never fabricate a quote
+   or infer one from the title.
 
-### 3. Self-verify every quote — the load-bearing step
-For each quote you are about to write, re-locate it in the source text and confirm ALL
-of the following. If any fails, **drop the quote** — never reword the source to fit.
-
-- It is a **single contiguous passage** actually present in the source.
-- It matches **character-for-character**, ignoring ONLY these typographic artifacts:
-  line breaks, end-of-line hyphenation (`inhibi-\ntion` → `inhibition`), ligatures
-  (`ﬁ`→`fi`), smart vs straight quotes/dashes, and runs of whitespace.
-- It differs in **no word, no number, and no negation**. If you had to add or drop a
-  "not"/"no", change a number, or swap a word to make it fit the claim, it FAILS.
-  ("was silent" must never stand in for "was not silent".)
-- It is a real clause, not a 2–3 word fragment (roughly 4+ words).
-
-### 4. Missing or abstract-only sources
-No source file, or only the abstract → say so explicitly in *Quotes*, e.g.
-*No verbatim anchor — source not provided*, and stop. Never fabricate a quote or infer
-one from the title.
-
-### 5. Assemble
-Write each section under its anchor in the Entry format, in reference-number order, and
-add the *Labeling* line to the page header.
+5. **Assemble.** Write each section under its anchor in the Entry format, in reference-number
+   order, and add the *Labeling* line to the page header.
 
 ---
 
@@ -157,3 +152,15 @@ stay central. Keep the self-verify (step 3) inside each agent; it is not optiona
 - **Guarantee correctness.** Self-verify catches most fabrications and dropped
   negations, but it is an agent check, not a deterministic one; the reader is the final
   verifier.
+
+---
+
+## Agent contract
+- **Triggers** — `GROUND-CLAIMS`.
+- **Gates** — the manuscript (numbered references + inline citation markers) and the source papers
+  as files are provided; the runbook never fetches papers. Missing sources are flagged, never
+  invented.
+- **Report & apply** — every companion page must carry the *Labeling* disclaimer near the top; the
+  output is a pointer aid, not an authority, and the reader is the final verifier. Self-verify
+  (step 3) is not optional, including inside any fanned-out agent. A quote that fails self-verify
+  is dropped, never reworded to pass.

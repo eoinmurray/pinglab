@@ -1,5 +1,5 @@
 #let meta = (
-  title: "RULES: the contract",
+  title: "The contract",
   date: "2026-07-07",
   description: "The conventions that govern a demolab repo: its toolchain, the engine/content firewall, and the tool-to-experiment contract.",
   collection: "documentation",

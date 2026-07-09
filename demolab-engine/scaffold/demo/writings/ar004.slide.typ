@@ -34,6 +34,13 @@
   #text(size: 17pt, fill: muted)[Eoin Murray]
 ]
 
+// layout: bullets (numbered — the agenda)
+== Agenda
+
++ *Coding agents* — why now?
++ *Demolab v1* — ready for trial.
++ *Demolab v2* — autoresearch and lab scale.
+
 // ═══════════════════════════════ PART ONE ═══════════════════════════════
 // layout: section-divider
 #focus-slide(background: white, foreground: ink)[
@@ -137,6 +144,8 @@
 
 - *The same work faster*.
 - *Do the things you always wanted but didn't have time*.
+- *Autodocumentation* — the work writes itself down as it goes.
+- *Read the literature* — turn a paper straight into runnable code.
 
 // layout: bullets
 == Weaknesses of coding agents
@@ -145,6 +154,9 @@
 - *Comprehension debt* — you ship code you don't understand.
 - *Weak judgement* — won't kill a bad experiment.
 - *Brainrot* — can't agent-code and read deeply the same day.
+
+#v(1.1em)
+#align(center)[#text(size: 24pt, weight: "bold", fill: ink)[Powerful tool, needs supervision.]]
 
 // layout: table (custom: agent pricing — seat price + usage tail; June 2026 billing)
 == The price of coding agents
@@ -179,10 +191,36 @@
 #focus-slide(background: white, foreground: ink)[
   #text(size: 15pt, fill: muted)[PART TWO]
   #v(0.4em)
-  #text(size: 44pt, weight: "bold", fill: ink)[Demolab]
-  #v(0.4em)
-  #text(size: 20pt, fill: muted)[Rails for the agent]
+  #text(size: 40pt, weight: "bold", fill: ink)[Demolab v1 — a framework for the agent]
 ]
+
+// layout: bullets
+== What demolab is
+
+- *Demolab writes code, runs programs, and documents results.*
+- *A lab notebook for computational science* — the science lives as code.
+- *One loop* — run → data → write-up → publish.
+- *One build* — the whole repo becomes a website and PDFs.
+- *Numbers come from the run* — never retyped, so the page can't drift.
+- *Reproducible by default* — provenance stamped on every result.
+
+// layout: bullets
+== Why demolab
+
+- *Results drift* — retyped numbers, stale figures. Here they come from the run.
+- *Reproducibility rots* — a year on, nothing builds. One command rebuilds it all.
+- *Code and paper split up* — the experiment and the write-up live in one repo.
+- *Agents need rails* — operate in plain language, keep the science yours.
+
+// layout: bullets (numbered — the principles)
+== Principles of demolab
+
++ *Tools compute, experiments analyse* — clean split.
++ *One experiment* = a runner + a write-up.
++ *Talk through files*, never imports.
++ *Raw data is disposable* — the record is committed.
++ *Bring any stack.*
++ *Provenance built in.*
 
 // layout: code-panel
 == The shape of a demolab repo (demo: pinglab)
@@ -203,16 +241,6 @@
     ]
   ]
 ]
-
-// layout: bullets (numbered — the principles)
-== Principles of demolab
-
-+ *Tools compute, experiments analyse* — clean split.
-+ *One experiment* = a runner + a write-up.
-+ *Talk through files*, never imports.
-+ *Raw data is disposable* — the record is committed.
-+ *Bring any stack.*
-+ *Provenance built in.*
 
 // layout: two-column
 == Typst: a modern LaTeX
@@ -238,10 +266,9 @@
 #v(1em)
 #align(center)[*The same beautiful math: selectable MathML on the web, typeset in the PDF.*]
 
-// custom: guides + runbooks rendered as a stylised terminal panel — dark, monospace, with a cursor —
-// so the slide *shows* the command grammar: you type a NAME to your coding agent and it drives
-// demolab. The dark panel also gives the light deck a striking break.
-== Guides and runbooks
+// custom: guides as a dark terminal panel — type HELP and the agent walks you through the docs.
+// The dark panel also gives the light deck a striking break.
+== Guides
 
 #let fg = rgb("#f4f4f2")
 #let dim = rgb("#8f8f8f")
@@ -257,17 +284,33 @@
       baseline: 0.12em,
     )
     #v(1.1em)
-    #text(weight: "bold")[GUIDES]#h(1.4em)#text(fill: dim)[\# always on — walk me through it]
+    #text(weight: "bold")[GUIDES]#h(1.4em)#text(fill: dim)[\# always on — the conventions]
     #v(0.4em)
     RULES HOUSESTYLE SLIDES STRUCTURE GLOSSARY SUPPORT
-    #v(1.1em)
+  ]
+]
+#v(0.9em)
+#align(center)[*Type `HELP` — demolab walks you through its own documentation.*]
+
+// custom: runbooks as a dark terminal panel — named agent programs you invoke by name.
+== Runbooks
+
+#let fg = rgb("#f4f4f2")
+#let dim = rgb("#8f8f8f")
+#align(center)[
+  #block(fill: ink, radius: 12pt, inset: (x: 30pt, y: 26pt), width: 90%)[
+    #set align(left)
+    #set text(font: "DejaVu Sans Mono", fill: fg, size: 16pt)
+    #set par(leading: 0.85em)
     #text(weight: "bold")[RUNBOOKS]#h(1.1em)#text(fill: dim)[\# on demand — run it, step by step]
-    #v(0.4em)
+    #v(0.6em)
     GETTING-STARTED TOUR LINT DOCTOR RED-TEAM STEELMAN \
     NEXT MIGRATE-CODE MIGRATE-STACK FROM-JUPYTER FROM-PAPER \
     EMBED-DOCS GROUND-CLAIMS UPDATE
   ]
 ]
+#v(0.9em)
+#align(center)[*Agent programs — read papers, convert code, migrate the stack, update.*]
 
 // layout: code-panel
 == Driven by a handful of commands
@@ -298,7 +341,8 @@
 - *MATLAB · R · Julia · Octave* — Typst and the contract stay put.
 - *Python optional* — plotting only, or drop it entirely.
 
-// layout: closer — bare focus-slide; no card, just a clean centred stack
+// layout: closer — bare focus-slide; no card, just a clean centred stack.
+// Closes the Demolab v1 section before the v2 divider.
 #focus-slide(background: white, foreground: ink)[
   #align(center)[
     #text(size: 12pt, fill: muted, tracking: 2pt)[GETTING STARTED]
@@ -320,3 +364,26 @@
     ]
   ]
 ]
+
+// ═══════════════════════════════ PART THREE ═══════════════════════════════
+// layout: section-divider
+#focus-slide(background: white, foreground: ink)[
+  #text(size: 15pt, fill: muted)[PART THREE]
+  #v(0.4em)
+  #text(size: 40pt, weight: "bold", fill: ink)[Demolab v2 — the future of demolab]
+]
+
+// layout: bullets
+== Autoresearch
+
+- *Give the agent a goal and compute.*
+- *It runs the loop* — goal → code → compute → read the data → document → iterate.
+- *Every step is recorded* — a committed experiment and write-up per attempt.
+- *The rails already exist* — provenance, reproducibility, and a published trail come free.
+
+// layout: bullets
+== Lab scale
+
+- *v1 is one person* — a single researcher's lab notebook.
+- *Next: a lab on a GitHub org* — many users, one shared flow.
+- *It compounds* — questions and answers, code review, shared code across the lab.

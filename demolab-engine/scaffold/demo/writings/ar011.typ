@@ -1,5 +1,5 @@
 #let meta = (
-  title: "SUPPORT: getting help",
+  title: "Getting help",
   date: "2026-07-07",
   description: "Where to get help with demolab, how to report a bug, and what to include so it's answerable fast.",
   collection: "documentation",

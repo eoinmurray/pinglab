@@ -1,4 +1,4 @@
-#import "/demolab-engine/build/lib.typ": numbers-table, provenance-footer
+#import "/demolab-engine/build/lib.typ": numbers-table, provenance-footer, data-file
 
 #let meta = (
   title: "EIF voltage traces and a recurrent network raster",
@@ -8,8 +8,8 @@
   status: "final",
 )
 
-#let run = json("/artifacts/data/exp001/numbers.json")
-#let lif-rate = json("/artifacts/data/exp000/numbers.json").lif.firing_rate_hz
+#let run = json(data-file("exp001/numbers.json"))
+#let lif-rate = json(data-file("exp000/numbers.json")).lif.firing_rate_hz
 
 #let body = [
   The exponential integrate-and-fire (EIF) neuron replaces LIF's hard threshold with an
@@ -54,7 +54,7 @@
   shifts.
 
   #figure(
-    image("/artifacts/data/exp001/eif.svg", width: 100%),
+    image(data-file("exp001/eif.svg"), width: 100%),
     caption: [Single EIF neuron under tonic input: membrane potential (mV) against time (ms).
       The soft exponential threshold produces a curved spike upswing rather than LIF's hard
       reset, and periodic firing at #calc.round(run.eif.firing_rate_hz, digits: 0) Hz.],
@@ -66,7 +66,7 @@
   across neurons, the same asynchronous-irregular regime as the LIF network, shifted in rate.
 
   #figure(
-    image("/artifacts/data/exp001/enet.png", width: 100%),
+    image(data-file("exp001/enet.png"), width: 100%),
     caption: [EIF network raster (top: spike time vs neuron index) and mean input current
       (bottom, nA vs ms) across #run.enet.config.n neurons over
       #calc.round(run.enet.config.duration, digits: 0) ms. Mean firing rate

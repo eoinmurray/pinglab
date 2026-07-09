@@ -1,4 +1,4 @@
-#import "/demolab-engine/build/lib.typ": numbers-table, provenance-footer
+#import "/demolab-engine/build/lib.typ": numbers-table, provenance-footer, data-file
 
 #let meta = (
   title: "LIF voltage traces and a recurrent network raster",
@@ -8,7 +8,7 @@
   status: "final",
 )
 
-#let run = json("/artifacts/data/exp000/numbers.json")
+#let run = json(data-file("exp000/numbers.json"))
 
 #let body = [
   A single leaky integrate-and-fire (LIF) neuron driven by a steady supra-threshold
@@ -49,7 +49,7 @@
   charging through its RC time constant; each vertical line is a reset after a spike.
 
   #figure(
-    image("/artifacts/data/exp000/lif.svg", width: 100%),
+    image(data-file("exp000/lif.svg"), width: 100%),
     caption: [Single LIF neuron under tonic input: membrane potential (mV) against time (ms).
       The membrane charges toward its steady state and resets at each threshold crossing,
       giving periodic firing at #calc.round(run.lif.firing_rate_hz, digits: 0) Hz.],
@@ -62,7 +62,7 @@
   neuron over half a second; the panel beneath tracks the network's mean total input current.
 
   #figure(
-    image("/artifacts/data/exp000/net.png", width: 100%),
+    image(data-file("exp000/net.png"), width: 100%),
     caption: [Network raster (top: spike time vs neuron index) and mean input current (bottom,
       nA vs ms) across #run.net.config.n recurrently coupled LIF neurons over
       #calc.round(run.net.config.duration, digits: 0) ms. Mean firing rate
