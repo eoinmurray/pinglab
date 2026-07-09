@@ -9,9 +9,10 @@ operating questions.
 | Channel | Use it for |
 |--|--|
 | **GitHub issues** — [github.com/eoinmurray/demolab/issues](https://github.com/eoinmurray/demolab/issues) | bugs, feature requests, and questions about the framework — anything the next person might hit too |
-| **Email** — [em586@cam.ac.uk](mailto:em586@cam.ac.uk) | private matters, or if you can't use GitHub |
 
-Prefer **GitHub issues**: they're searchable, so your question helps the next person and the fix lands in the open. Use **email** for anything you can't or don't want to post publicly.
+GitHub issues are searchable, so your question helps the next person and the fix lands in the open.
+
+Install the [GitHub CLI](https://cli.github.com/) (`gh`, e.g. `brew install gh` then `gh auth login`) and your agent can file issues for you: describe the problem and ask it to submit — it will gather the details below, write the report, and post it with `gh issue create`.
 
 ## Before you open an issue
 

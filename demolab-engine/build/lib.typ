@@ -15,6 +15,12 @@
   contact: none,     // optional email/url; if set, the byline links to it (mailto for an @, else href)
 )
 
+// Root-relative path to a run artifact under artifacts/data/. In a normal lab content-prefix is
+// empty and this is `/artifacts/data/<rel>`; dev:demo-site passes content-prefix so the demo can
+// live under demolab-engine/scaffold/demo/ while Typst --root stays at the repo checkout.
+#let content-prefix = sys.inputs.at("content-prefix", default: "")
+#let data-file(rel) = content-prefix + "/artifacts/data/" + rel
+
 // --- human-date: render an ISO "YYYY-MM-DD" as a reader-friendly "16 June 2026" ---
 // Dates are authored ISO (sortable, unambiguous); this is the form shown on the page.
 // Falls back to the raw string if it isn't a well-formed ISO date.
@@ -403,7 +409,72 @@
 // The homepage: a directory of collections (decks fall under `slides`), each a link to its
 // own page. Order follows demolab.yaml's `collection-order`; unlisted collections sort
 // after, by first appearance. Entry rows live on the per-collection pages.
-#let index-page(entries, decks: (), brand: default-brand, collection-order: (), collection-meta: (:)) = {
+// An optional `welcome` block in demolab.yaml renders a hero above the directory (pitch,
+// install commands, links) — used by the upstream demo site; absent on a normal lab.
+// `welcome.hide-directory: true` stops the homepage after the welcome block (no collection
+// index or page foot) — an upstream-only landing-page mode, not documented in the skeleton.
+#let welcome-block(welcome) = {
+  if welcome == none { return }
+  html.elem("div", attrs: (class: "welcome"), {
+    if welcome.at("body", default: none) != none {
+      for para in welcome.body.trim().split("\n\n") {
+        let t = para.trim()
+        if t.len() > 0 {
+          html.elem("p", attrs: (class: "welcome-body"), t)
+        }
+      }
+    }
+    if welcome.at("links", default: none) != none {
+      html.elem("p", attrs: (class: "welcome-links"), {
+        for (i, l) in welcome.links.enumerate() {
+          if i > 0 { [ · ] }
+          link(l.at("href", default: ""), l.at("label", default: ""))
+        }
+      })
+    }
+    let inst = welcome.at("install", default: none)
+    if inst != none {
+      if inst.at("label", default: none) != none {
+        html.elem("p", attrs: (class: "welcome-kicker"), inst.label)
+      }
+      if inst.at("unix", default: none) != none {
+        html.elem("div", attrs: (class: "welcome-cmd"), {
+          html.elem("div", attrs: (class: "welcome-os"), [macOS / Linux])
+          html.elem("pre", inst.unix)
+        })
+      }
+      if inst.at("windows", default: none) != none {
+        html.elem("div", attrs: (class: "welcome-cmd"), {
+          html.elem("div", attrs: (class: "welcome-os"), [Windows])
+          html.elem("pre", inst.windows)
+        })
+      }
+    }
+    let prompt = welcome.at("prompt", default: none)
+    if prompt != none {
+      if prompt.at("label", default: none) != none {
+        html.elem("p", attrs: (class: "welcome-kicker"), prompt.label)
+      }
+      if prompt.at("text", default: none) != none {
+        html.elem("div", attrs: (class: "welcome-cmd"), {
+          html.elem("pre", prompt.text)
+        })
+      }
+    }
+    let foot = welcome.at("footer", default: none)
+    if foot != none {
+      html.elem("p", attrs: (class: "welcome-foot"), {
+        if type(foot) == dictionary and foot.at("href", default: none) != none {
+          link(foot.href, foot.at("text", default: foot.href))
+        } else {
+          foot
+        }
+      })
+    }
+  })
+}
+
+#let index-page(entries, decks: (), brand: default-brand, collection-order: (), collection-meta: (:), welcome: none) = {
   web-styles(brand: brand)
   set text(font: "New Computer Modern", size: 11pt)
   set heading(outlined: false) // keep the homepage out of the book's TOC
@@ -440,13 +511,17 @@
         ])
       })
     } else {
-      collection-index(colls, collection-meta)
-      html.elem("p", attrs: (class: "page-foot"), {
-        link("all.html", "Browse all entries")
-        [ · also available as a ]
-        link("pdfs/book.pdf", "single pdf")
-        [.]
-      })
+      welcome-block(welcome)
+      let hide-dir = welcome != none and welcome.at("hide-directory", default: false)
+      if not hide-dir {
+        collection-index(colls, collection-meta)
+        html.elem("p", attrs: (class: "page-foot"), {
+          link("all.html", "Browse all entries")
+          [ · also available as a ]
+          link("pdfs/book.pdf", "single pdf")
+          [.]
+        })
+      }
     }
   })
 }

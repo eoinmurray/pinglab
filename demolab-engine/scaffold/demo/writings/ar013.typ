@@ -1,5 +1,5 @@
 #let meta = (
-  title: "STRUCTURE: the file tree",
+  title: "The file tree",
   date: "2026-07-07",
   description: "A map of a demolab repo: where your content lives, where the engine lives, and what the build reconciles.",
   collection: "documentation",

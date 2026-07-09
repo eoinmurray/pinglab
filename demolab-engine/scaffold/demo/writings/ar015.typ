@@ -1,5 +1,5 @@
 #let meta = (
-  title: "HOUSESTYLE: writing style",
+  title: "Writing style",
   date: "2026-07-07",
   description: "How a demolab write-up should read: prose, math, figures, captions, and citations, and how to override the defaults per lab.",
   collection: "documentation",

@@ -46,6 +46,9 @@ demolab is driven by typing a **name in CAPS** (SCREAMING-KEBAB). Three commands
 | [`MIGRATE-STACK`](demolab-engine/runbooks/MIGRATE-STACK.md) | switch language (MATLAB / R / Julia / …) | "migrate the stack to MATLAB" |
 | [`GROUND-CLAIMS`](demolab-engine/runbooks/GROUND-CLAIMS.md) | back every claim with a run or citation | "ground my claims" |
 | [`NEXT`](demolab-engine/runbooks/NEXT.md) | suggest what to run next | "what next", "what should I run next" |
+| [`AUTORESEARCH`](demolab-engine/runbooks/AUTORESEARCH.md) | start / steer a research program | "start a research program", "set up autoresearch" |
+| [`PLAN`](demolab-engine/runbooks/PLAN.md) | plan the next experiments + triage last night | "plan the next experiments", "triage last night" |
+| [`NIGHT-SHIFT`](demolab-engine/runbooks/NIGHT-SHIFT.md) | work the queue overnight, autonomously | "work the queue overnight", "run tonight's experiments" |
 | [`UPDATE`](demolab-engine/runbooks/UPDATE.md) | vendor the latest engine | "update demolab" |
 | [`DOCTOR`](demolab-engine/runbooks/DOCTOR.md) | audit the structure against RULES | "doctor the repo" |
 | [`LINT`](demolab-engine/runbooks/LINT.md) | audit the prose + figures vs the house style | "lint the writings" |
@@ -62,3 +65,4 @@ demolab is driven by typing a **name in CAPS** (SCREAMING-KEBAB). Three commands
 | [`STRUCTURE`](demolab-engine/guides/STRUCTURE.md) | the annotated file tree |
 | [`GLOSSARY`](demolab-engine/guides/GLOSSARY.md) | the vocabulary |
 | [`SUPPORT`](demolab-engine/guides/SUPPORT.md) | getting a human (issues / email) |
+| [`AUTORESEARCH-RULES`](demolab-engine/guides/AUTORESEARCH-RULES.md) | the semi-autonomous research contract (plan/log/queue/night-shift, git flow) | "how does the queue / night-shift work" |

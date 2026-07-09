@@ -1,4 +1,4 @@
-#import "/demolab-engine/build/lib.typ": numbers-table, provenance-footer, video
+#import "/demolab-engine/build/lib.typ": numbers-table, provenance-footer, video, data-file
 
 #let meta = (
   title: "A chaotic double pendulum in MuJoCo",
@@ -8,7 +8,7 @@
   status: "draft",
 )
 
-#let run = json("/artifacts/data/exp003/numbers.json")
+#let run = json(data-file("exp003/numbers.json"))
 
 #let body = [
   The double pendulum is the textbook example of a deterministic system that is, in

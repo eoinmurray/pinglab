@@ -1,4 +1,4 @@
-#import "/demolab-engine/build/lib.typ": numbers-table, provenance-footer, video
+#import "/demolab-engine/build/lib.typ": numbers-table, provenance-footer, video, data-file
 
 #let meta = (
   title: "A passive cartpole in MuJoCo",
@@ -8,7 +8,7 @@
   status: "revising",
 )
 
-#let run = json("/artifacts/data/exp002/numbers.json")
+#let run = json(data-file("exp002/numbers.json"))
 
 #let body = [
   The cartpole is the simplest physics-engine model that still looks like something: a

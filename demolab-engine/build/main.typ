@@ -15,15 +15,18 @@
 
 // The manifest build.py wrote: { entries: [{id, kind, videos}], decks: [{id}],
 // has_brand_config }.
-#let manifest = json("/temp/bundle/index.json")
+#let build-root = sys.inputs.at("build-root", default: "")
+#let manifest = json(build-root + "/temp/bundle/index.json")
+#let content-prefix = manifest.at("content_prefix", default: "")
 
 // The optional root demolab.yaml (build.py sets has_brand_config after checking it exists
 // — Typst can't stat). Branding merges over engine defaults; collection label/order are
 // read from it too. Absent ⇒ engine defaults + derivation-only collections.
-#let config = if manifest.has_brand_config { yaml("/demolab.yaml") } else { (:) }
+#let config = if manifest.has_brand_config { yaml(content-prefix + "/demolab.yaml") } else { (:) }
 #let brand = default-brand + config
 #let collection-order = config.at("collection-order", default: ())
 #let collection-meta = config.at("collections", default: (:))
+#let welcome = config.at("welcome", default: none)
 
 // Import each *good* writing dynamically (import paths may be computed — no literal codegen).
 // An entry contributes meta + body; a deck contributes only meta (touying is paged-only, so decks
@@ -31,12 +34,12 @@
 // flagged with an `error` (a missing figure, a Typst error) is NOT imported — it would fail the
 // whole compile — but rendered as a stub page below, so one bad page fails on its own.
 #let entries = manifest.entries.filter(e => "error" not in e).map(e => {
-  import "/writings/" + e.id + ".typ": meta, body
+  import content-prefix + "/writings/" + e.id + ".typ": meta, body
   (id: e.id, kind: e.kind, meta: meta, body: body)
 })
 #let broken = manifest.entries.filter(e => "error" in e)
 #let decks = manifest.decks.map(d => {
-  import "/writings/" + d.id + ".slide.typ": meta
+  import content-prefix + "/writings/" + d.id + ".slide.typ": meta
   (id: d.id, meta: meta)
 })
 
@@ -44,11 +47,11 @@
 // every mp4 an experiment produced (filenames discovered by build.py, carried in the
 // manifest), referenced by basename from the writing's #video(...)
 #for e in manifest.entries {
-  for v in e.videos { asset(v, read("/artifacts/data/" + e.id + "/" + v, encoding: none)) }
+  for v in e.videos { asset(v, read(content-prefix + "/artifacts/data/" + e.id + "/" + v, encoding: none)) }
 }
 // deck PDFs, embedded at pdfs/<id>.pdf so `typst watch` serves them too
 #for d in manifest.decks {
-  asset("pdfs/" + d.id + ".pdf", read("/temp/bundle/decks/" + d.id + ".pdf", encoding: none))
+  asset("pdfs/" + d.id + ".pdf", read(build-root + "/temp/bundle/decks/" + d.id + ".pdf", encoding: none))
 }
 // site favicon (a lab-notebook mark), linked from every page's <head> by lib.typ
 #asset("favicon.svg", read("/demolab-engine/build/favicon.svg", encoding: none))
@@ -59,7 +62,7 @@
 // The homepage always exists; on a freshly-scaffolded repo (no entries) it shows a
 // friendly empty state. Everything else is emitted only when there's content.
 #let all-items = collect-items(entries, decks)
-#document("index.html", title: [#brand.name])[#index-page(entries, decks: decks, brand: brand, collection-order: collection-order, collection-meta: collection-meta)]
+#document("index.html", title: [#brand.name])[#index-page(entries, decks: decks, brand: brand, collection-order: collection-order, collection-meta: collection-meta, welcome: welcome)]
 #if all-items.len() > 0 {
   [#document("all.html", title: [#brand.name — all entries])[#all-page(entries, decks: decks, brand: brand, collection-meta: collection-meta)]]
   // one page per collection (web only — the book/PDFs don't have collection pages)

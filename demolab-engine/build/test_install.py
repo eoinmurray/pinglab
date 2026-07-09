@@ -1,4 +1,4 @@
-"""Tests for the install scripts (landing/install.sh, landing/install.ps1).
+"""Tests for the install scripts (demolab-engine/scaffold/demo/site/install.sh, install.ps1).
 
 The install.sh bug that shipped — a Unicode ellipsis glued to `$DIR`, which a byte-oriented
 `/bin/sh` swallowed into the variable name and crashed under `set -u` — would have been caught
@@ -6,9 +6,6 @@ here two ways: the pure-ASCII guard, and actually running the script end-to-end.
 
 The end-to-end run clones from a LOCAL repo via the DEMOLAB_REPO override, so it's offline and
 fast; the toolchain-install branches are skipped because uv/typst/task are already present.
-
-These live in the engine but reference landing/, which the installer prunes from a user's copy —
-so they skip cleanly wherever landing/ is absent (i.e. everywhere but upstream).
 """
 import os
 import shutil
@@ -18,10 +15,11 @@ from pathlib import Path
 import pytest
 
 REPO = Path(__file__).resolve().parents[2]
-SH = REPO / "landing" / "install.sh"
-PS1 = REPO / "landing" / "install.ps1"
+SITE = REPO / "demolab-engine" / "scaffold" / "demo" / "site"
+SH = SITE / "install.sh"
+PS1 = SITE / "install.ps1"
 
-pytestmark = pytest.mark.skipif(not SH.exists(), reason="landing/ absent (pruned from user copies)")
+pytestmark = pytest.mark.skipif(not SH.exists(), reason="demo/site installers absent")
 
 
 def _is_ascii(p: Path) -> bool:
@@ -63,8 +61,7 @@ def test_install_sh_end_to_end(tmp_path):
     assert (lab / "demolab-engine").is_dir(), "engine present"
     assert (lab / "writings").is_dir(), "structure scaffolded"
     assert (lab / "demolab.yaml").exists(), "config scaffolded"
-    assert not (lab / "landing").exists(), "project landing pruned from the user's copy"
-    assert not (lab / ".github" / "workflows" / "landing.yml").exists(), "landing workflow pruned"
+    assert not (lab / ".github" / "workflows" / "landing.yml").exists(), "upstream Pages workflow pruned"
 
 
 @pytest.mark.skipif(shutil.which("pwsh") is None, reason="no pwsh (PowerShell) to parse .ps1")

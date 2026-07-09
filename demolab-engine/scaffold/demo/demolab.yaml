@@ -1,0 +1,45 @@
+# Shipped demo config — overlays skeleton/demolab.yaml when `task add-demo-content` (or CI)
+# materialises the demo. Adds a homepage welcome block for demolab.eoinmurray.info.
+name: Demolab
+book-title: Demolab — the book
+contents-title: Demolab — contents
+description: A lab notebook for computational science — reproducible results, published and citable.
+
+collection-order: [documentation, neuron-models, mujoco, streamlit, slides]
+collections:
+  documentation:
+    label: Documentation
+    description: "How demolab works: getting started, the always-on guides that set the conventions, and the on-demand runbooks the agent runs."
+  neuron-models:
+    label: Neuron models
+    description: Integrate-and-fire neurons and the membrane biophysics behind them.
+  mujoco:
+    label: MuJoCo physics
+    description: Rigid-body simulations rendered to video.
+  streamlit:
+    label: Interactive
+    description: Live, slider-driven demos.
+  slides:
+    label: Talks & slides
+    description: Deck PDFs from talks — paged-only, linked as PDF.
+
+# Optional homepage hero — rendered above the collection directory (see lib.typ welcome-block).
+welcome:
+  body: |
+    A lab notebook for computational science — reproducible, provenance-stamped results, published to web and PDF, run by a coding agent instead of a build system.
+  links:
+    - label: GitHub
+      href: https://github.com/eoinmurray/demolab
+    - label: Documentation
+      href: documentation.html
+  install:
+    label: Installation
+    unix: curl -LsSf https://demolab.eoinmurray.info/install.sh | sh
+    windows: powershell -ExecutionPolicy ByPass -c "irm https://demolab.eoinmurray.info/install.ps1 | iex"
+  prompt:
+    label: Already have a coding agent?
+    text: Clone github.com/eoinmurray/demolab and follow its GETTING-STARTED.md strictly.
+  footer:
+    text: Open source, MIT licensed.
+    href: https://github.com/eoinmurray/demolab/blob/main/LICENSE
+  hide-directory: true  # upstream landing: welcome only, no collection index below

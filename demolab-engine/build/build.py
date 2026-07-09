@@ -32,10 +32,17 @@ import sys
 from pathlib import Path
 
 # Content root. Normally the repo root (this file is demolab-engine/build/); override with
-# DEMOLAB_ROOT so the engine can be built against a fixture (see the smoke test).
-ROOT = Path(os.environ.get("DEMOLAB_ROOT") or Path(__file__).resolve().parents[2])
-WRITINGS = ROOT / "writings"
-ENGINE = ROOT / "demolab-engine" / "build"  # the Typst engine (main.typ, lib.typ, style.css)
+# DEMOLAB_ROOT (e.g. demolab-engine/scaffold/demo for `task dev:demo-site`). When the root is the
+# shipped demo, writings/data/config are read from there directly; Typst --root stays at the real
+# repo checkout so engine paths resolve, with content-prefix/build-root passed as --input.
+REPO = Path(__file__).resolve().parents[2]
+DEMO_ROOT = REPO / "demolab-engine" / "scaffold" / "demo"
+ROOT = Path(os.environ.get("DEMOLAB_ROOT") or REPO)
+DEMO = os.environ.get("DEMOLAB_DEMO") == "1" or ROOT.resolve() == DEMO_ROOT.resolve()
+CONTENT = DEMO_ROOT if DEMO else ROOT
+WRITINGS = CONTENT / "writings"
+_local_engine = ROOT / "demolab-engine" / "build"
+ENGINE = _local_engine if (_local_engine / "main.typ").exists() else REPO / "demolab-engine" / "build"
 MAIN = ENGINE / "main.typ"                 # committed bundle root (reads the manifest)
 BUILD = ROOT / "temp" / "bundle"          # scratch: the generated manifest + deck PDFs
 MANIFEST = BUILD / "index.json"            # scratch: id/asset lists main.typ reads
@@ -43,6 +50,25 @@ DECKS = BUILD / "decks"                     # scratch: compiled deck PDFs, embed
 SITE = ROOT / "artifacts" / "site"         # bundle output (HTML + mp4 + pdfs/), gitignored
 PDFS = ROOT / "artifacts" / "pdfs"         # committed copy of the PDFs (shareable)
 TYPST = "typst"  # system CLI — needs --features bundle,html (experimental)
+
+
+def typst_root_and_inputs() -> tuple[Path, list[str]]:
+    """Typst --root and --input flags. Demo mode keeps --root at the real repo (engine + prefixed
+    content paths) while scratch/output live under DEMOLAB_ROOT (usually scaffold/demo/)."""
+    prefix = content_prefix()
+    if prefix:
+        inputs = ["--input", f"content-prefix={prefix}"]
+        if ROOT != REPO:
+            inputs.extend(["--input", f"build-root=/{ROOT.relative_to(REPO).as_posix()}"])
+        return REPO, inputs
+    return ROOT, []
+
+
+def content_prefix() -> str:
+    """Root-relative prefix for content paths in main.typ ('' at repo root, else '/demolab-engine/scaffold/demo')."""
+    if not DEMO:
+        return ""
+    return "/" + CONTENT.relative_to(REPO).as_posix()
 
 
 def discover():
@@ -86,7 +112,7 @@ def write_manifest(ids: list[str], deck_ids: list[str], broken: dict | None = No
         entry = {
             "id": i,
             "kind": "experiment" if i.startswith("exp") else "article",
-            "videos": [] if i in broken else [v.name for v in sorted((ROOT / "artifacts" / "data" / i).glob("*.mp4"))],
+            "videos": [] if i in broken else [v.name for v in sorted((CONTENT / "artifacts" / "data" / i).glob("*.mp4"))],
         }
         if i in broken:
             entry["error"] = broken[i]
@@ -96,7 +122,8 @@ def write_manifest(ids: list[str], deck_ids: list[str], broken: dict | None = No
     manifest = {
         "entries": entries,
         "decks": [{"id": d} for d in deck_ids],
-        "has_brand_config": (ROOT / "demolab.yaml").exists(),
+        "has_brand_config": (CONTENT / "demolab.yaml").exists(),
+        "content_prefix": content_prefix(),
     }
     MANIFEST.write_text(json.dumps(manifest, indent=2) + "\n")
 
@@ -111,9 +138,10 @@ def compile_decks(deck_ids: list[str]) -> list[str]:
     change, so deck edits and new decks live-reload like any entry."""
     DECKS.mkdir(parents=True, exist_ok=True)
     good = []
+    typst_root, inputs = typst_root_and_inputs()
     for d in deck_ids:
         proc = subprocess.run(
-            [TYPST, "compile", "--root", str(ROOT),
+            [TYPST, "compile", "--root", str(typst_root), *inputs,
              str(WRITINGS / f"{d}.slide.typ"), str(DECKS / f"{d}.pdf")],
             capture_output=True, text=True,
         )
@@ -150,9 +178,10 @@ def compile_bundle(ids: list[str], deck_ids: list[str]) -> dict:
     broken: dict = {}
     while True:
         write_manifest(ids, deck_ids, broken=broken)
+        typst_root, inputs = typst_root_and_inputs()
         proc = subprocess.run(
             [TYPST, "compile", "--format", "bundle", "--features", "bundle,html",
-             "--root", str(ROOT), str(MAIN), str(SITE) + "/"],
+             "--root", str(typst_root), *inputs, str(MAIN), str(SITE) + "/"],
             capture_output=True, text=True,
         )
         if proc.returncode == 0:

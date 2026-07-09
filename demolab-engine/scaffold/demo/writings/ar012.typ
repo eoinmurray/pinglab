@@ -1,5 +1,5 @@
 #let meta = (
-  title: "GLOSSARY: the vocabulary",
+  title: "The vocabulary",
   date: "2026-07-07",
   description: "The demolab vocabulary defined precisely: tool, experiment, writing, deck, collection, artifact, provenance, and the easy-to-confuse distinctions.",
   collection: "documentation",

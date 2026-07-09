@@ -1,6 +1,14 @@
-# Opt-in Pages workflow. demolab ships engine-only with NO active deploy workflow; `task
-# deploy-setup` (or the getting-started runbook) copies this file to .github/workflows/deploy.yml
-# once the user chooses to publish. It's an engine template, so "update demolab" refreshes it.
+# Opt-in Pages workflow — production deploy. demolab ships engine-only with NO active deploy
+# workflow; `task deploy-setup` (or the getting-started runbook) copies this file plus preview.yml
+# into .github/workflows/ once the user chooses to publish. Both are engine templates, so
+# "update demolab" refreshes them.
+#
+# This uses the BRANCH-based Pages flow (build → commit the site to the `gh-pages` branch),
+# not the GitHub-Actions Pages flow, so that per-PR previews (preview.yml) can live in the same
+# branch under pr-preview/. That means a one-time settings change:
+#     Settings → Pages → Source: "Deploy from a branch" → branch `gh-pages` / `(root)`
+# A lab still on the old "GitHub Actions" source keeps deploying until you flip this; see the
+# migration note in demolab-engine/CHANGELOG.md.
 name: Build the Typst bundle and deploy to GitHub Pages
 
 on:
@@ -8,17 +16,18 @@ on:
     branches: [main]
   workflow_dispatch:
 
+# The deploy commits the built site to the gh-pages branch, so the token needs write.
 permissions:
-  contents: read
-  pages: write
-  id-token: write
+  contents: write
 
+# Serialise production deploys against each other and against preview teardowns, so two
+# writers never race a commit to gh-pages. Preview builds use their own per-PR group.
 concurrency:
-  group: pages
+  group: pages-deploy
   cancel-in-progress: false
 
 jobs:
-  build:
+  deploy:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -32,19 +41,17 @@ jobs:
       - name: Build the site bundle
         run: python3 demolab-engine/build/build.py
 
-      - uses: actions/configure-pages@v5
-
-      - uses: actions/upload-pages-artifact@v3
+      # Publish artifacts/site to the root of the gh-pages branch. `clean: true` prunes stale
+      # files, but clean-exclude PRESERVES:
+      #   - pr-preview/  — live PR previews (preview.yml owns these; a prod deploy must not wipe them)
+      #   - CNAME        — the custom-domain marker GitHub writes when you set a Pages domain
+      - name: Deploy to gh-pages
+        uses: JamesIves/github-pages-deploy-action@v4
         with:
-          # Self-contained: HTML + video assets + a pdfs/ subdir the [pdf] links point at.
-          path: artifacts/site
-
-  deploy:
-    needs: build
-    runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    steps:
-      - id: deployment
-        uses: actions/deploy-pages@v4
+          folder: artifacts/site
+          branch: gh-pages
+          clean: true
+          clean-exclude: |
+            pr-preview/
+            CNAME
+          single-commit: true   # keep gh-pages a single snapshot commit, not an ever-growing history

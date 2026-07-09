@@ -186,6 +186,30 @@ ol.refs .doi:hover { color: var(--ink); }
 .empty-lead { font-size: 1.2rem; color: var(--ink); margin: 0 0 .6rem; }
 .empty-state p:not(.empty-lead) { color: var(--muted); }
 
+/* Optional homepage welcome (demolab.yaml `welcome:`) — pitch + install commands above the
+   collection directory. Used by the upstream demo; absent on a normal lab homepage. */
+.welcome { margin: 0 0 2.25rem; max-width: 36rem; line-height: 1.65; }
+.welcome-body { margin: 0 0 1rem; }
+.welcome-links { margin: 0 0 1.5rem; font-size: var(--fs-small); }
+.welcome-links a { text-decoration: underline; }
+.welcome-kicker {
+  font-family: var(--mono); font-size: .72rem; color: var(--muted);
+  text-transform: uppercase; letter-spacing: .08em; margin: 1.5rem 0 .35rem;
+}
+.welcome-cmd { margin: 0 0 .75rem; }
+.welcome-os {
+  font-family: var(--mono); font-size: .72rem; color: var(--muted);
+  text-transform: uppercase; letter-spacing: .08em; margin-bottom: .35rem;
+}
+.welcome pre {
+  margin: 0; padding: .85rem 1rem; overflow-x: auto;
+  font-family: var(--mono); font-size: .82rem; line-height: 1.5;
+  background: var(--paper-tint); border: 1px solid var(--rule); border-radius: 6px;
+}
+.welcome-foot { margin: 1.25rem 0 0; font-size: var(--fs-small); color: var(--muted); }
+.welcome-foot a { color: var(--muted); }
+.welcome-foot a:hover { color: var(--ink); }
+
 /* Homepage collection directory: collection-name links, description beneath. These are the
    page's hero items, so they sit one step above body — the middle of the home hierarchy
    (title 28.8 → collection 20.7 → description 15.3). */
