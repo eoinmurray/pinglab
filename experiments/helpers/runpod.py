@@ -187,6 +187,8 @@ def registry_auth_id() -> str | None:
     """The RunPod container-registry auth id for authenticated image pulls, from
     RUNPOD_CONTAINER_REGISTRY_AUTH_ID (mirrors how api_key() reads the env). None
     ⇒ anonymous pulls (throttle-prone under a large fan-out)."""
+    if not os.environ.get("RUNPOD_POD_ID"):
+        load_dotenv()
     return os.environ.get("RUNPOD_CONTAINER_REGISTRY_AUTH_ID") or None
 
 
@@ -532,6 +534,8 @@ def sha_is_pushed(sha: str) -> bool:
 def api_key() -> str:
     """The RunPod API key, needed on pods for self-termination. From the env or
     runpodctl's config."""
+    if not os.environ.get("RUNPOD_POD_ID"):
+        load_dotenv()
     key = os.environ.get("RUNPOD_API_KEY")
     if key:
         return key
