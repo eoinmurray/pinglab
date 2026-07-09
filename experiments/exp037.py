@@ -331,8 +331,7 @@ def plot_perturbation_rasters(
             ha="left", va="center",
             fontsize=theme.SIZE_LABEL,
         )
-        if i == 0:
-            ax.set_title(title)
+        # H17: no baked-in figure title — the writeup caption carries the takeaway.
         if i < n - 1:
             ax.tick_params(axis="x", labelbottom=False)
     axes[-1].set_xlabel("time (ms)")
@@ -451,7 +450,9 @@ def plot_perturbation_curves(
             "Add — Poisson noise as % of baseline",
             fontsize=theme.SIZE_LABEL, loc="left", pad=4,
         )
-        ax_add.set_xlim(-2, 102)
+        # PING (low baseline) collapses past ≈100% of its own rate; extend the
+        # axis so its full descent to chance is visible, not clipped.
+        ax_add.set_xlim(-4, 150)
     else:
         for model in MODELS:
             rows = sorted(
@@ -481,10 +482,7 @@ def plot_perturbation_curves(
     ax_add.legend(
         loc="upper right", fontsize=theme.SIZE_LEGEND, frameon=False,
     )
-    fig.suptitle(
-        "Hidden-spike perturbation — accuracy vs perturbation level",
-        fontsize=theme.SIZE_TITLE,
-    )
+    # H17: no baked-in figure title — the writeup caption carries the takeaway.
     fig.tight_layout()
     stamp_figure(fig, run_id)
     out_path.parent.mkdir(parents=True, exist_ok=True)
@@ -585,8 +583,21 @@ def main() -> None:
                     f"  {model:<5} {mode:<4} level={level:>5.2f}  "
                     f"acc={res['acc']:5.2f}%  E={res['e_rate_hz']:6.2f} Hz"
                 )
+    # Right panel as % of each model's own baseline E rate (the architecture-fair
+    # view): a fixed added rate is a far larger relative insult to PING (low
+    # baseline) than to COBA, so both perturbation panels read in %.
+    base_e = {}
+    for model in MODELS:
+        rs = [r["rate_e"] for r in rows if r["model"] == model and r["theta_u"] is None]
+        base_e[model] = sum(rs) / len(rs) if rs else 0.0
+    add_pct_rows = [
+        {"model": r["model"], "pct": r["level"] / base_e[r["model"]], "acc": r["acc"]}
+        for r in perturb_rows
+        if r["mode"] == "add" and base_e.get(r["model"], 0.0) > 0
+    ]
     plot_perturbation_curves(
-        perturb_rows, FIGURES / "perturbation_curves", notebook_run_id
+        perturb_rows, FIGURES / "perturbation_curves", notebook_run_id,
+        add_pct_rows=add_pct_rows,
     )
     print(f"wrote {FIGURES / 'perturbation_curves'}.{{svg,pdf}}")
 

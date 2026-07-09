@@ -1,0 +1,730 @@
+{
+  "notebook_run_id": "r010",
+  "git_sha": "cc36be1",
+  "duration_s": 33.1,
+  "duration": "33s",
+  "config": {
+    "dataset": "mnist",
+    "models": [
+      "coba",
+      "ping"
+    ],
+    "theta_u_grid_spikes": [
+      5.0,
+      2.0,
+      1.0,
+      0.5,
+      0.2
+    ],
+    "theta_u_grid_hz": [
+      25.0,
+      10.0,
+      5.0,
+      2.5,
+      1.0
+    ],
+    "max_samples": 500,
+    "epochs": 30,
+    "t_ms": 200.0,
+    "dt": 0.1,
+    "seeds_baseline": [
+      42,
+      43,
+      44
+    ],
+    "seed_sweep": 42,
+    "fr_strength_upper": 0.001
+  },
+  "baseline_results": [
+    {
+      "model": "coba",
+      "theta_u": null,
+      "theta_display": "off",
+      "theta_u_hz": null,
+      "seed": 42,
+      "best_acc": 90.71428571428571,
+      "best_epoch": 40,
+      "final_acc": 90.5,
+      "rate_e": 182.6123046875
+    },
+    {
+      "model": "coba",
+      "theta_u": null,
+      "theta_display": "off",
+      "theta_u_hz": null,
+      "seed": 43,
+      "best_acc": 90.64285714285714,
+      "best_epoch": 40,
+      "final_acc": 90.5,
+      "rate_e": 179.501953125
+    },
+    {
+      "model": "coba",
+      "theta_u": null,
+      "theta_display": "off",
+      "theta_u_hz": null,
+      "seed": 44,
+      "best_acc": 90.78571428571429,
+      "best_epoch": 40,
+      "final_acc": 90.64285714285714,
+      "rate_e": 181.484375
+    },
+    {
+      "model": "coba",
+      "theta_u": 5.0,
+      "theta_display": "5",
+      "theta_u_hz": 25.0,
+      "seed": 42,
+      "best_acc": 85.35714285714286,
+      "best_epoch": 49,
+      "final_acc": 85.0,
+      "rate_e": 25.3369140625
+    },
+    {
+      "model": "coba",
+      "theta_u": 2.0,
+      "theta_display": "2",
+      "theta_u_hz": 10.0,
+      "seed": 42,
+      "best_acc": 78.0,
+      "best_epoch": 35,
+      "final_acc": 76.85714285714286,
+      "rate_e": 9.9365234375
+    },
+    {
+      "model": "coba",
+      "theta_u": 1.0,
+      "theta_display": "1",
+      "theta_u_hz": 5.0,
+      "seed": 42,
+      "best_acc": 69.64285714285714,
+      "best_epoch": 6,
+      "final_acc": 68.42857142857143,
+      "rate_e": 4.599609375
+    },
+    {
+      "model": "coba",
+      "theta_u": 0.5,
+      "theta_display": "0.5",
+      "theta_u_hz": 2.5,
+      "seed": 42,
+      "best_acc": 65.85714285714286,
+      "best_epoch": 4,
+      "final_acc": 62.92857142857143,
+      "rate_e": 0.947265625
+    },
+    {
+      "model": "coba",
+      "theta_u": 0.2,
+      "theta_display": "0.2",
+      "theta_u_hz": 1.0,
+      "seed": 42,
+      "best_acc": 59.857142857142854,
+      "best_epoch": 2,
+      "final_acc": 58.714285714285715,
+      "rate_e": 0.0
+    },
+    {
+      "model": "ping",
+      "theta_u": null,
+      "theta_display": "off",
+      "theta_u_hz": null,
+      "seed": 42,
+      "best_acc": 91.42857142857143,
+      "best_epoch": 32,
+      "final_acc": 91.0,
+      "rate_e": 12.4365234375
+    },
+    {
+      "model": "ping",
+      "theta_u": null,
+      "theta_display": "off",
+      "theta_u_hz": null,
+      "seed": 43,
+      "best_acc": 91.57142857142857,
+      "best_epoch": 32,
+      "final_acc": 91.14285714285714,
+      "rate_e": 12.3193359375
+    },
+    {
+      "model": "ping",
+      "theta_u": null,
+      "theta_display": "off",
+      "theta_u_hz": null,
+      "seed": 44,
+      "best_acc": 91.71428571428571,
+      "best_epoch": 26,
+      "final_acc": 91.07142857142857,
+      "rate_e": 12.236328125
+    },
+    {
+      "model": "ping",
+      "theta_u": 5.0,
+      "theta_display": "5",
+      "theta_u_hz": 25.0,
+      "seed": 42,
+      "best_acc": 91.42857142857143,
+      "best_epoch": 41,
+      "final_acc": 91.21428571428571,
+      "rate_e": 11.3671875
+    },
+    {
+      "model": "ping",
+      "theta_u": 2.0,
+      "theta_display": "2",
+      "theta_u_hz": 10.0,
+      "seed": 42,
+      "best_acc": 91.71428571428571,
+      "best_epoch": 50,
+      "final_acc": 91.71428571428571,
+      "rate_e": 9.8291015625
+    },
+    {
+      "model": "ping",
+      "theta_u": 1.0,
+      "theta_display": "1",
+      "theta_u_hz": 5.0,
+      "seed": 42,
+      "best_acc": 90.14285714285714,
+      "best_epoch": 29,
+      "final_acc": 89.92857142857143,
+      "rate_e": 5.2783203125
+    },
+    {
+      "model": "ping",
+      "theta_u": 0.5,
+      "theta_display": "0.5",
+      "theta_u_hz": 2.5,
+      "seed": 42,
+      "best_acc": 88.0,
+      "best_epoch": 45,
+      "final_acc": 87.28571428571429,
+      "rate_e": 6.2109375
+    },
+    {
+      "model": "ping",
+      "theta_u": 0.2,
+      "theta_display": "0.2",
+      "theta_u_hz": 1.0,
+      "seed": 42,
+      "best_acc": 86.07142857142857,
+      "best_epoch": 50,
+      "final_acc": 86.07142857142857,
+      "rate_e": 4.1015625
+    }
+  ],
+  "perturbation": [
+    {
+      "mode": "drop",
+      "level": 0.0,
+      "acc": 90.43571428571428,
+      "e_rate_hz": 133.3964418247768,
+      "n_total": 14000,
+      "model": "coba"
+    },
+    {
+      "mode": "drop",
+      "level": 0.1,
+      "acc": 90.46428571428571,
+      "e_rate_hz": 120.05656877790179,
+      "n_total": 14000,
+      "model": "coba"
+    },
+    {
+      "mode": "drop",
+      "level": 0.2,
+      "acc": 90.49285714285715,
+      "e_rate_hz": 106.71734305245536,
+      "n_total": 14000,
+      "model": "coba"
+    },
+    {
+      "mode": "drop",
+      "level": 0.3,
+      "acc": 90.52142857142857,
+      "e_rate_hz": 93.37652901785714,
+      "n_total": 14000,
+      "model": "coba"
+    },
+    {
+      "mode": "drop",
+      "level": 0.4,
+      "acc": 90.59285714285714,
+      "e_rate_hz": 80.03760672433036,
+      "n_total": 14000,
+      "model": "coba"
+    },
+    {
+      "mode": "drop",
+      "level": 0.5,
+      "acc": 90.5,
+      "e_rate_hz": 66.696015625,
+      "n_total": 14000,
+      "model": "coba"
+    },
+    {
+      "mode": "drop",
+      "level": 0.6,
+      "acc": 90.28571428571429,
+      "e_rate_hz": 53.353697335379465,
+      "n_total": 14000,
+      "model": "coba"
+    },
+    {
+      "mode": "drop",
+      "level": 0.7,
+      "acc": 90.05714285714286,
+      "e_rate_hz": 40.013439243861605,
+      "n_total": 14000,
+      "model": "coba"
+    },
+    {
+      "mode": "drop",
+      "level": 0.8,
+      "acc": 89.65,
+      "e_rate_hz": 26.673755929129463,
+      "n_total": 14000,
+      "model": "coba"
+    },
+    {
+      "mode": "drop",
+      "level": 0.9,
+      "acc": 88.7,
+      "e_rate_hz": 13.337245396205358,
+      "n_total": 14000,
+      "model": "coba"
+    },
+    {
+      "mode": "drop",
+      "level": 1.0,
+      "acc": 9.864285714285714,
+      "e_rate_hz": 0.0,
+      "n_total": 14000,
+      "model": "coba"
+    },
+    {
+      "mode": "add",
+      "level": 0.0,
+      "acc": 90.43571428571428,
+      "e_rate_hz": 133.3964418247768,
+      "n_total": 14000,
+      "model": "coba"
+    },
+    {
+      "mode": "add",
+      "level": 2.0,
+      "acc": 90.55714285714286,
+      "e_rate_hz": 135.37008754185268,
+      "n_total": 14000,
+      "model": "coba"
+    },
+    {
+      "mode": "add",
+      "level": 4.0,
+      "acc": 90.58571428571429,
+      "e_rate_hz": 137.34476457868303,
+      "n_total": 14000,
+      "model": "coba"
+    },
+    {
+      "mode": "add",
+      "level": 6.0,
+      "acc": 90.63571428571429,
+      "e_rate_hz": 139.3170036969866,
+      "n_total": 14000,
+      "model": "coba"
+    },
+    {
+      "mode": "add",
+      "level": 8.0,
+      "acc": 90.57142857142857,
+      "e_rate_hz": 141.29167027064733,
+      "n_total": 14000,
+      "model": "coba"
+    },
+    {
+      "mode": "add",
+      "level": 10.0,
+      "acc": 90.63571428571429,
+      "e_rate_hz": 143.26399483816965,
+      "n_total": 14000,
+      "model": "coba"
+    },
+    {
+      "mode": "add",
+      "level": 12.0,
+      "acc": 90.65714285714286,
+      "e_rate_hz": 145.23831298828125,
+      "n_total": 14000,
+      "model": "coba"
+    },
+    {
+      "mode": "add",
+      "level": 14.0,
+      "acc": 90.57142857142857,
+      "e_rate_hz": 147.2107728794643,
+      "n_total": 14000,
+      "model": "coba"
+    },
+    {
+      "mode": "add",
+      "level": 16.0,
+      "acc": 90.53571428571429,
+      "e_rate_hz": 149.18374337332588,
+      "n_total": 14000,
+      "model": "coba"
+    },
+    {
+      "mode": "add",
+      "level": 18.0,
+      "acc": 90.47857142857143,
+      "e_rate_hz": 151.15768519810268,
+      "n_total": 14000,
+      "model": "coba"
+    },
+    {
+      "mode": "add",
+      "level": 20.0,
+      "acc": 90.47857142857143,
+      "e_rate_hz": 153.13149832589286,
+      "n_total": 14000,
+      "model": "coba"
+    },
+    {
+      "mode": "add",
+      "level": 22.0,
+      "acc": 90.41428571428571,
+      "e_rate_hz": 155.10449951171876,
+      "n_total": 14000,
+      "model": "coba"
+    },
+    {
+      "mode": "add",
+      "level": 24.0,
+      "acc": 90.31428571428572,
+      "e_rate_hz": 157.07950613839284,
+      "n_total": 14000,
+      "model": "coba"
+    },
+    {
+      "mode": "add",
+      "level": 26.0,
+      "acc": 90.22857142857143,
+      "e_rate_hz": 159.05301060267857,
+      "n_total": 14000,
+      "model": "coba"
+    },
+    {
+      "mode": "add",
+      "level": 28.0,
+      "acc": 90.06428571428572,
+      "e_rate_hz": 161.02653076171876,
+      "n_total": 14000,
+      "model": "coba"
+    },
+    {
+      "mode": "add",
+      "level": 30.0,
+      "acc": 90.05,
+      "e_rate_hz": 163.00040980747767,
+      "n_total": 14000,
+      "model": "coba"
+    },
+    {
+      "mode": "add",
+      "level": 32.0,
+      "acc": 89.92857142857143,
+      "e_rate_hz": 164.97525111607143,
+      "n_total": 14000,
+      "model": "coba"
+    },
+    {
+      "mode": "add",
+      "level": 34.0,
+      "acc": 89.74285714285715,
+      "e_rate_hz": 166.94452183314732,
+      "n_total": 14000,
+      "model": "coba"
+    },
+    {
+      "mode": "add",
+      "level": 36.0,
+      "acc": 89.71428571428571,
+      "e_rate_hz": 168.92266985212055,
+      "n_total": 14000,
+      "model": "coba"
+    },
+    {
+      "mode": "add",
+      "level": 38.0,
+      "acc": 89.50714285714285,
+      "e_rate_hz": 170.8952685546875,
+      "n_total": 14000,
+      "model": "coba"
+    },
+    {
+      "mode": "add",
+      "level": 40.0,
+      "acc": 89.32857142857142,
+      "e_rate_hz": 172.86793736049108,
+      "n_total": 14000,
+      "model": "coba"
+    },
+    {
+      "mode": "drop",
+      "level": 0.0,
+      "acc": 91.02142857142857,
+      "e_rate_hz": 9.355164969308035,
+      "n_total": 14000,
+      "model": "ping"
+    },
+    {
+      "mode": "drop",
+      "level": 0.1,
+      "acc": 91.2,
+      "e_rate_hz": 9.347044503348215,
+      "n_total": 14000,
+      "model": "ping"
+    },
+    {
+      "mode": "drop",
+      "level": 0.2,
+      "acc": 91.25714285714285,
+      "e_rate_hz": 9.340089634486608,
+      "n_total": 14000,
+      "model": "ping"
+    },
+    {
+      "mode": "drop",
+      "level": 0.3,
+      "acc": 91.00714285714285,
+      "e_rate_hz": 9.338898228236607,
+      "n_total": 14000,
+      "model": "ping"
+    },
+    {
+      "mode": "drop",
+      "level": 0.4,
+      "acc": 91.05714285714286,
+      "e_rate_hz": 9.319136090959821,
+      "n_total": 14000,
+      "model": "ping"
+    },
+    {
+      "mode": "drop",
+      "level": 0.5,
+      "acc": 90.22142857142858,
+      "e_rate_hz": 9.30646728515625,
+      "n_total": 14000,
+      "model": "ping"
+    },
+    {
+      "mode": "drop",
+      "level": 0.6,
+      "acc": 89.50714285714285,
+      "e_rate_hz": 9.28377162388393,
+      "n_total": 14000,
+      "model": "ping"
+    },
+    {
+      "mode": "drop",
+      "level": 0.7,
+      "acc": 87.28571428571429,
+      "e_rate_hz": 9.28945068359375,
+      "n_total": 14000,
+      "model": "ping"
+    },
+    {
+      "mode": "drop",
+      "level": 0.8,
+      "acc": 84.93571428571428,
+      "e_rate_hz": 9.510868094308035,
+      "n_total": 14000,
+      "model": "ping"
+    },
+    {
+      "mode": "drop",
+      "level": 0.9,
+      "acc": 76.87142857142857,
+      "e_rate_hz": 10.59988525390625,
+      "n_total": 14000,
+      "model": "ping"
+    },
+    {
+      "mode": "drop",
+      "level": 1.0,
+      "acc": 9.864285714285714,
+      "e_rate_hz": 0.0,
+      "n_total": 14000,
+      "model": "ping"
+    },
+    {
+      "mode": "add",
+      "level": 0.0,
+      "acc": 91.02142857142857,
+      "e_rate_hz": 9.355227399553572,
+      "n_total": 14000,
+      "model": "ping"
+    },
+    {
+      "mode": "add",
+      "level": 2.0,
+      "acc": 91.02857142857142,
+      "e_rate_hz": 9.796971261160714,
+      "n_total": 14000,
+      "model": "ping"
+    },
+    {
+      "mode": "add",
+      "level": 4.0,
+      "acc": 90.21428571428571,
+      "e_rate_hz": 10.327311662946428,
+      "n_total": 14000,
+      "model": "ping"
+    },
+    {
+      "mode": "add",
+      "level": 6.0,
+      "acc": 88.61428571428571,
+      "e_rate_hz": 10.949561593191964,
+      "n_total": 14000,
+      "model": "ping"
+    },
+    {
+      "mode": "add",
+      "level": 8.0,
+      "acc": 84.66428571428571,
+      "e_rate_hz": 11.669654715401785,
+      "n_total": 14000,
+      "model": "ping"
+    },
+    {
+      "mode": "add",
+      "level": 10.0,
+      "acc": 74.88571428571429,
+      "e_rate_hz": 12.523586077008929,
+      "n_total": 14000,
+      "model": "ping"
+    },
+    {
+      "mode": "add",
+      "level": 12.0,
+      "acc": 54.02142857142857,
+      "e_rate_hz": 13.488100934709822,
+      "n_total": 14000,
+      "model": "ping"
+    },
+    {
+      "mode": "add",
+      "level": 14.0,
+      "acc": 24.664285714285715,
+      "e_rate_hz": 14.568910435267858,
+      "n_total": 14000,
+      "model": "ping"
+    },
+    {
+      "mode": "add",
+      "level": 16.0,
+      "acc": 15.592857142857143,
+      "e_rate_hz": 16.27746616908482,
+      "n_total": 14000,
+      "model": "ping"
+    },
+    {
+      "mode": "add",
+      "level": 18.0,
+      "acc": 13.342857142857143,
+      "e_rate_hz": 18.201670619419644,
+      "n_total": 14000,
+      "model": "ping"
+    },
+    {
+      "mode": "add",
+      "level": 20.0,
+      "acc": 12.55,
+      "e_rate_hz": 20.149717145647323,
+      "n_total": 14000,
+      "model": "ping"
+    },
+    {
+      "mode": "add",
+      "level": 22.0,
+      "acc": 12.057142857142857,
+      "e_rate_hz": 22.109544852120536,
+      "n_total": 14000,
+      "model": "ping"
+    },
+    {
+      "mode": "add",
+      "level": 24.0,
+      "acc": 11.457142857142857,
+      "e_rate_hz": 24.082195870535713,
+      "n_total": 14000,
+      "model": "ping"
+    },
+    {
+      "mode": "add",
+      "level": 26.0,
+      "acc": 11.242857142857142,
+      "e_rate_hz": 26.061236049107144,
+      "n_total": 14000,
+      "model": "ping"
+    },
+    {
+      "mode": "add",
+      "level": 28.0,
+      "acc": 11.07857142857143,
+      "e_rate_hz": 28.045873674665177,
+      "n_total": 14000,
+      "model": "ping"
+    },
+    {
+      "mode": "add",
+      "level": 30.0,
+      "acc": 10.978571428571428,
+      "e_rate_hz": 30.035123814174106,
+      "n_total": 14000,
+      "model": "ping"
+    },
+    {
+      "mode": "add",
+      "level": 32.0,
+      "acc": 10.778571428571428,
+      "e_rate_hz": 32.02839599609375,
+      "n_total": 14000,
+      "model": "ping"
+    },
+    {
+      "mode": "add",
+      "level": 34.0,
+      "acc": 10.57857142857143,
+      "e_rate_hz": 34.02305768694196,
+      "n_total": 14000,
+      "model": "ping"
+    },
+    {
+      "mode": "add",
+      "level": 36.0,
+      "acc": 10.25,
+      "e_rate_hz": 36.011512276785716,
+      "n_total": 14000,
+      "model": "ping"
+    },
+    {
+      "mode": "add",
+      "level": 38.0,
+      "acc": 10.564285714285715,
+      "e_rate_hz": 38.01477434430804,
+      "n_total": 14000,
+      "model": "ping"
+    },
+    {
+      "mode": "add",
+      "level": 40.0,
+      "acc": 10.507142857142858,
+      "e_rate_hz": 40.01184151785714,
+      "n_total": 14000,
+      "model": "ping"
+    }
+  ]
+}
