@@ -19,7 +19,7 @@ how to add a tool / experiment / writing; authoring style is in
 - **Commits:** author every commit as the human only — never a `Co-Authored-By:` / agent
   trailer, never an agent in the author/committer fields.
 - **No RunPod fan-outs without explicit permission** — `--runpod --live` (and any pod-creating call) spends real money; default local.
-- **Never write to GitHub issues/PRs** (reading is fine). Don't open branches/PRs unless asked.
+- **Don't write to GitHub issues/PRs without explicit permission** — with explicit permission, creating/posting an issue is fine; reading is always fine. Don't open branches/PRs unless asked.
 
 ## Commands — type a NAME
 
