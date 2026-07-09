@@ -1665,7 +1665,7 @@ def run_via_runpod(meta: Meta) -> None:
             raise SystemExit(f"unknown job(s): {sorted(missing)}")
     runpod.dispatch(
         slug=SLUG, runner=SLUG,
-        buckets=runpod.chunk_buckets(jobs, meta.cells_per_pod, prefix="infer"),
+        buckets=runpod.chunk_buckets(jobs, meta.cells_per_pod, prefix="infer42"),
         gpu=meta.gpu, live=meta.live, plumbing=meta.plumbing, collect=meta.collect,
         collect_subdir=f"{runpod.ARTIFACTS_SUBDIR}/{SLUG}",
         local_collect_dir=str(runpod.artifacts_scratch(SLUG)),
