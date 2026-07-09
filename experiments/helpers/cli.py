@@ -60,7 +60,11 @@ class Meta:
     reap: bool = False
     pod_run: bool = False
     plumbing: bool = False
-    gpu: str = "4090"
+    # 5090 is the default pool: measured more reliable to provision than 4090
+    # (which hit an account-wide Low-stock crunch on 2026-07-09 and stalled on
+    # startup), and faster compute narrows the ~40%/hr price gap. Override per
+    # run with --gpu 4090 when 4090 stock is healthy and you want the cheaper box.
+    gpu: str = "5090"
     cells_per_pod: int = 9
     only_cells: list[str] = field(default_factory=list)
 

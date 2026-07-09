@@ -468,7 +468,7 @@ def sync_dir(host: str, port: int, remote_dir: str, local_dir: str) -> None:
 # ── Collect artifacts off the volume ─────────────────────────────────
 
 def _collect_via_pod(*, remote_dir: str, local_dir: str, datacenter: str,
-                     volume_id: str, gpu: str = "4090") -> None:
+                     volume_id: str, gpu: str = "5090") -> None:
     """Rsync *remote_dir* on the volume (absolute pod path) → *local_dir*."""
     pod_id = None
     try:
@@ -494,7 +494,7 @@ def _collect_via_pod(*, remote_dir: str, local_dir: str, datacenter: str,
 
 
 def collect_subpath(*, subpath: str, local_dir: str, datacenter: str,
-                    volume_id: str, gpu: str = "4090") -> None:
+                    volume_id: str, gpu: str = "5090") -> None:
     """Retrieve an arbitrary subpath under the volume mount (e.g. training or
     artifacts/exp037) to local_dir via a throwaway pod.
 
@@ -572,7 +572,7 @@ def dispatch(
     slug: str,
     runner: str,
     buckets: list[dict],
-    gpu: str = "4090",
+    gpu: str = "5090",
     live: bool = False,
     plumbing: bool = False,
     collect: bool = False,
