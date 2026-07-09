@@ -268,6 +268,29 @@ def _run_with_override(train_dir: Path, override_path: Path, tau_gaba=None) -> d
     return json.loads((out_dir / "metrics.json").read_text())
 
 
+def _cached_condition_metrics(train_dir: Path, condition: str, seed_offset: int):
+    """Read a previously-computed metrics.json for one (cell, condition) off disk,
+    WITHOUT re-running the sim — for --skip-training builds over collected data.
+    Returns the metrics dict, or None if not present. Reads the FINAL output only
+    (does NOT need the excluded baseline rasters / override npz).
+
+    Paths mirror exactly what the compute path writes:
+      - baseline → ARTIFACTS / "baseline" / <cell> / "metrics.json"  (_run_baseline)
+      - otherwise → ARTIFACTS / "ovrun" / "<cell>__<cell>_<cond>_<off>" / "metrics.json"
+        (evaluate_condition's ov_path.stem fed to _run_with_override; identical to
+        _job_metrics_path's ov_stem).
+    """
+    if condition == "baseline":
+        path = ARTIFACTS / "baseline" / train_dir.name / "metrics.json"
+    else:
+        ov_stem = f"{train_dir.name}_{condition}_{seed_offset}"
+        path = ARTIFACTS / "ovrun" / f"{train_dir.name}__{ov_stem}" / "metrics.json"
+    try:
+        return json.loads(path.read_text())
+    except (OSError, json.JSONDecodeError):
+        return None
+
+
 def _pack_metrics(m: dict, condition: str) -> dict:
     """Shape a CLI metrics.json into exp042's per-condition row."""
     rates = m.get("rates_hz", {})
@@ -484,14 +507,23 @@ def _alpha_mix_i_stream(
 
 
 def evaluate_condition(
-    train_dir: Path, condition: str, seed_offset: int = 0, cycle_period_ms=None
+    train_dir: Path, condition: str, seed_offset: int = 0, cycle_period_ms=None,
+    reuse: bool = False,
 ) -> dict:
     """Accuracy + E/I rate for one I-override condition, via the CLI.
 
     Two passes: baseline (`--outputs rasters`, cached) supplies the I-stream, the
     notebook builds the override with its pure transforms, then `--i-override-file`
     replays it. baseline condition just reads the baseline metrics.
+
+    reuse=True (--skip-training over collected data): read the already-computed
+    metrics.json off disk and skip the sim entirely; fall through to compute on a
+    cache miss.
     """
+    if reuse:
+        cached = _cached_condition_metrics(train_dir, condition, seed_offset)
+        if cached is not None:
+            return _pack_metrics(cached, condition)
     import torch
     cfg, _, _ = _load_eval(train_dir)
     m0, R = _run_baseline(train_dir)
@@ -506,10 +538,19 @@ def evaluate_condition(
     return _pack_metrics(_run_with_override(train_dir, ov_path), condition)
 
 
-def _snapshot(train_dir: Path, sample_idx: int, name: str, i_override=None):
+def _snapshot(train_dir: Path, sample_idx: int, name: str, i_override=None, reuse=False):
     """Single-trial snapshot via `sim --infer --sample-index N` (optional
-    --i-override-file); return the loaded snapshot.npz dict."""
+    --i-override-file); return the loaded snapshot.npz dict.
+
+    reuse=True: read the already-collected snapshot.npz from the same out_dir the
+    compute path writes to, WITHOUT running the sim. Returns None on a cache miss
+    so callers can fall through to compute."""
     out_dir = (ARTIFACTS / "condraster" / f"{train_dir.name}_{name}").resolve()
+    if reuse:
+        try:
+            return np.load(out_dir / "snapshot.npz")
+        except (OSError, ValueError):
+            return None
     out_dir.mkdir(parents=True, exist_ok=True)
     cmd = [
         "uv", "run", "python", str(SNN_TOOL), "sim", "--infer",
@@ -527,41 +568,54 @@ def _snapshot(train_dir: Path, sample_idx: int, name: str, i_override=None):
 
 def capture_condition_raster(
     train_dir: Path, condition: str, sample_idx: int,
-    seed_offset: int = 0, cycle_period_ms=None,
+    seed_offset: int = 0, cycle_period_ms=None, reuse: bool = False,
 ) -> dict:
     """Single-trial raster under one I-override condition, via the CLI snapshot.
 
     Baseline snapshot supplies the trial's I-stream; the notebook builds the
     override and a second snapshot replays it under --i-override-file.
-    """
-    import torch
-    cfg = json.loads((train_dir / "config.json").read_text())
-    d0 = _snapshot(train_dir, sample_idx, f"base_s{sample_idx}")
 
-    if condition == "baseline":
-        d = d0
-    else:
-        s_i = d0["spk_i"]
-        if s_i.ndim == 3:
-            s_i = s_i[:, 0, :]
-        gen = torch.Generator().manual_seed(EVAL_SEED + 17 + seed_offset)
-        kwargs = {"cycle_period_ms": cycle_period_ms} if cycle_period_ms else {}
-        ov = _build_override(
-            torch.from_numpy(s_i[:, None, :].astype(np.float32)),
-            condition, gen, dt_ms=float(cfg["dt"]), **kwargs,
-        ).detach().cpu().numpy()[:, 0, :]  # (T, n_i)
-        ti, ci = ov.nonzero()
-        ov_path = (
-            ARTIFACTS / "condraster" / f"{train_dir.name}_{condition}_s{sample_idx}_ov.npz"
-        ).resolve()
-        ov_path.parent.mkdir(parents=True, exist_ok=True)
-        np.savez(
-            ov_path, n_trials=np.int32(1), T=np.int32(ov.shape[0]),
-            n_i=np.int32(ov.shape[1]),
-            i_trial=np.zeros(ti.size, "int32"),
-            i_t=ti.astype("int32"), i_cell=ci.astype("int32"),
+    reuse=True (--skip-training over collected data): load the FINAL collected
+    snapshot.npz directly and skip the baseline pass + override build (their
+    intermediates were excluded from collect); fall through to compute on a miss.
+    """
+    cfg = json.loads((train_dir / "config.json").read_text())
+
+    d = None
+    if reuse:
+        name = (
+            f"base_s{sample_idx}" if condition == "baseline"
+            else f"{condition}_s{sample_idx}"
         )
-        d = _snapshot(train_dir, sample_idx, f"{condition}_s{sample_idx}", i_override=ov_path)
+        d = _snapshot(train_dir, sample_idx, name, reuse=True)
+
+    if d is None:
+        d0 = _snapshot(train_dir, sample_idx, f"base_s{sample_idx}")
+        if condition == "baseline":
+            d = d0
+        else:
+            import torch
+            s_i = d0["spk_i"]
+            if s_i.ndim == 3:
+                s_i = s_i[:, 0, :]
+            gen = torch.Generator().manual_seed(EVAL_SEED + 17 + seed_offset)
+            kwargs = {"cycle_period_ms": cycle_period_ms} if cycle_period_ms else {}
+            ov = _build_override(
+                torch.from_numpy(s_i[:, None, :].astype(np.float32)),
+                condition, gen, dt_ms=float(cfg["dt"]), **kwargs,
+            ).detach().cpu().numpy()[:, 0, :]  # (T, n_i)
+            ti, ci = ov.nonzero()
+            ov_path = (
+                ARTIFACTS / "condraster" / f"{train_dir.name}_{condition}_s{sample_idx}_ov.npz"
+            ).resolve()
+            ov_path.parent.mkdir(parents=True, exist_ok=True)
+            np.savez(
+                ov_path, n_trials=np.int32(1), T=np.int32(ov.shape[0]),
+                n_i=np.int32(ov.shape[1]),
+                i_trial=np.zeros(ti.size, "int32"),
+                i_t=ti.astype("int32"), i_cell=ci.astype("int32"),
+            )
+            d = _snapshot(train_dir, sample_idx, f"{condition}_s{sample_idx}", i_override=ov_path)
 
     e_full, i_full = d["spk_e"], d["spk_i"]
     if e_full.ndim == 3:
@@ -763,11 +817,7 @@ def plot_jitter_raster_strip(
             ha="left", va="center",
             fontsize=theme.SIZE_LABEL,
         )
-        if i == 0:
-            ax.set_title(
-                "Single-trial rasters — trained PING (exp025 seed 42) "
-                "under cycle-coherent I-jitter"
-            )
+        # H17: caption carries the takeaway
         if i < n - 1:
             ax.tick_params(axis="x", labelbottom=False)
     axes[-1].set_xlabel("time (ms)")
@@ -820,11 +870,7 @@ def plot_cell_jitter_raster_strip(
             ha="left", va="center",
             fontsize=theme.SIZE_LABEL,
         )
-        if i == 0:
-            ax.set_title(
-                "Single-trial rasters — trained PING (exp025 seed 42) "
-                "under per-I-cell jitter (within-burst smearing)"
-            )
+        # H17: caption carries the takeaway
         if i < n - 1:
             ax.tick_params(axis="x", labelbottom=False)
     axes[-1].set_xlabel("time (ms)")
@@ -918,10 +964,7 @@ def plot_cell_jitter_sweep(
     ax_acc.set_ylim(0, 100)
     ax_acc.axhline(10.0, color=theme.DEEP_RED, lw=0.5, ls=":", alpha=0.4)
 
-    fig.suptitle(
-        "Per-I-cell jitter sweep — within-burst synchrony silences E",
-        fontsize=theme.SIZE_TITLE,
-    )
+    # H17: caption carries the takeaway
     fig.tight_layout()
     stamp_figure(fig, run_id)
     out_path.parent.mkdir(parents=True, exist_ok=True)
@@ -1078,10 +1121,7 @@ def plot_jitter_sweep(
     ax_acc.tick_params(axis="y", labelcolor=theme.DEEP_RED)
     ax_acc.set_ylim(0, 100)
 
-    fig.suptitle(
-        "Jitter sweep — E rate release scales with σ; transition at 1/f_γ",
-        fontsize=theme.SIZE_TITLE,
-    )
+    # H17: caption carries the takeaway
     ax_rate.spines["top"].set_visible(False)
     ax_acc.spines["top"].set_visible(False)
     fig.tight_layout()
@@ -1217,27 +1257,39 @@ def _xtau_load_exp041_f_gamma() -> dict[tuple[float, int], float]:
 
 def _xtau_evaluate_cell(
     train_dir: Path, sigma_ms: float, cycle_period_ms: float,
-    seed_offset: int = 0,
+    seed_offset: int = 0, reuse: bool = False,
 ) -> dict:
     """Per-cell inference under cycle-coherent jitter (the cell's own 1/f_γ as the
-    binning period), via the CLI two-pass override under the cell's τ_GABA."""
-    import torch
+    binning period), via the CLI two-pass override under the cell's τ_GABA.
+
+    reuse=True (--skip-training over collected data): read the already-computed
+    metrics.json off disk and skip the sim; fall through to compute on a miss.
+    τ_GABA is read from the cell's config.json, which is present locally."""
     cfg = json.loads((train_dir / "config.json").read_text())
     tau_gaba_ms = float(cfg.get("tau_gaba_ms") or MODELS_DEFAULT_TAU_GABA_MS)
-    m0, R = _run_baseline(train_dir, tau_gaba=tau_gaba_ms)
-    if sigma_ms <= 0.0:
-        p = _pack_metrics(m0, "baseline")
-    else:
-        gen = torch.Generator().manual_seed(EVAL_SEED + 17 + seed_offset)
-        cond = f"jitter_sigma_{sigma_ms:g}"
-        ov_path = (
-            ARTIFACTS / "override" / f"{train_dir.name}_{cond}_{seed_offset}.npz"
-        ).resolve()
-        ov_path.parent.mkdir(parents=True, exist_ok=True)
-        _build_override_file(
-            R, cond, gen, float(cfg["dt"]), ov_path, cycle_period_ms=cycle_period_ms,
-        )
-        p = _pack_metrics(_run_with_override(train_dir, ov_path, tau_gaba=tau_gaba_ms), cond)
+    cond = "baseline" if sigma_ms <= 0.0 else f"jitter_sigma_{sigma_ms:g}"
+
+    p = None
+    if reuse:
+        cached = _cached_condition_metrics(train_dir, cond, seed_offset)
+        if cached is not None:
+            p = _pack_metrics(cached, cond)
+
+    if p is None:
+        import torch
+        m0, R = _run_baseline(train_dir, tau_gaba=tau_gaba_ms)
+        if sigma_ms <= 0.0:
+            p = _pack_metrics(m0, "baseline")
+        else:
+            gen = torch.Generator().manual_seed(EVAL_SEED + 17 + seed_offset)
+            ov_path = (
+                ARTIFACTS / "override" / f"{train_dir.name}_{cond}_{seed_offset}.npz"
+            ).resolve()
+            ov_path.parent.mkdir(parents=True, exist_ok=True)
+            _build_override_file(
+                R, cond, gen, float(cfg["dt"]), ov_path, cycle_period_ms=cycle_period_ms,
+            )
+            p = _pack_metrics(_run_with_override(train_dir, ov_path, tau_gaba=tau_gaba_ms), cond)
     return {
         "tau_gaba_ms": tau_gaba_ms,
         "sigma_ms": float(sigma_ms),
@@ -1514,11 +1566,7 @@ def fig_rhythm_compound(
         title="Displace bursts → E rate rises",
         baseline_e=baseline_e, symlog=True,
     )
-    fig.suptitle(
-        "Gamma gates the rate, not mean inhibition — "
-        "matched mean I, opposite E response",
-        fontsize=theme.SIZE_TITLE,
-    )
+    # H17: caption carries the takeaway
     fig.tight_layout(rect=(0, 0, 1, 0.96))
     stamp_figure(fig, run_id)
     out_path.parent.mkdir(parents=True, exist_ok=True)
@@ -1674,6 +1722,13 @@ def _job_metrics_path(spec: dict) -> Path:
     train_dir = spec["train_dir"]
     condition = spec["condition"]
     seed_offset = spec["seed_offset"]
+    # An xtau cell at σ=0 is a pure baseline pass: _xtau_evaluate_cell returns the
+    # baseline metrics (written to baseline/<cell>/ by _run_baseline), NOT an
+    # override eval, so its done-marker is the baseline metrics — not an ovrun path
+    # that is never written. Without this the 18 xtau σ=0 jobs never register as
+    # done and get re-fired every round forever.
+    if spec.get("xtau") and condition == "jitter_sigma_0":
+        return ARTIFACTS / "baseline" / train_dir.name / "metrics.json"
     ov_stem = f"{train_dir.name}_{condition}_{seed_offset}"
     return ARTIFACTS / "ovrun" / f"{train_dir.name}__{ov_stem}" / "metrics.json"
 
@@ -1756,7 +1811,9 @@ def main() -> None:
         print(f"[eval] seed={seed} from {train_dir.relative_to(REPO)}")
         for cond in CONDITIONS:
             t0 = time.monotonic()
-            res = evaluate_condition(train_dir, cond, seed_offset=seed)
+            res = evaluate_condition(
+                train_dir, cond, seed_offset=seed, reuse=meta.skip_training,
+            )
             res["seed"] = seed
             rows.append(res)
             print(
@@ -1774,7 +1831,7 @@ def main() -> None:
     samples = [
         capture_condition_raster(
             raster_train_dir, cond, RASTER_SAMPLE_IDX,
-            seed_offset=SEEDS[0],
+            seed_offset=SEEDS[0], reuse=meta.skip_training,
         )
         for cond in CONDITIONS
     ]
@@ -1796,7 +1853,8 @@ def main() -> None:
             t0 = time.monotonic()
             # Reuse evaluate_condition — it dispatches on the condition string.
             res = evaluate_condition(train_dir, cond,
-                                     seed_offset=seed + int(sigma_ms))
+                                     seed_offset=seed + int(sigma_ms),
+                                     reuse=meta.skip_training)
             res["seed"] = seed
             res["sigma_ms"] = float(sigma_ms)
             jitter_rows.append(res)
@@ -1835,7 +1893,7 @@ def main() -> None:
         cond = f"jitter_sigma_{sigma_ms:g}"
         sample = capture_condition_raster(
             raster_train_dir, cond, RASTER_SAMPLE_IDX,
-            seed_offset=raster_seed + int(sigma_ms),
+            seed_offset=raster_seed + int(sigma_ms), reuse=meta.skip_training,
         )
         sample["sigma_ms"] = float(sigma_ms)
         jitter_raster_samples.append(sample)
@@ -1859,7 +1917,8 @@ def main() -> None:
             cond = f"cell_jitter_sigma_{sigma_ms:g}"
             t0 = time.monotonic()
             res = evaluate_condition(train_dir, cond,
-                                     seed_offset=seed + int(sigma_ms * 13))
+                                     seed_offset=seed + int(sigma_ms * 13),
+                                     reuse=meta.skip_training)
             res["seed"] = seed
             res["sigma_ms"] = float(sigma_ms)
             cell_jitter_rows.append(res)
@@ -1888,7 +1947,7 @@ def main() -> None:
         cond = f"cell_jitter_sigma_{sigma_ms:g}"
         sample = capture_condition_raster(
             raster_train_dir, cond, RASTER_SAMPLE_IDX,
-            seed_offset=raster_seed + int(sigma_ms * 13),
+            seed_offset=raster_seed + int(sigma_ms * 13), reuse=meta.skip_training,
         )
         sample["sigma_ms"] = float(sigma_ms)
         cell_jitter_raster_samples.append(sample)
@@ -1930,6 +1989,7 @@ def main() -> None:
             res = evaluate_condition(
                 pareto_train_dir, cond,
                 seed_offset=pareto_seed + int(alpha * 100) + int(k * 10),
+                reuse=meta.skip_training,
             )
             res["seed"] = pareto_seed
             res["alpha"] = float(alpha)
@@ -1981,6 +2041,7 @@ def main() -> None:
                     res = _xtau_evaluate_cell(
                         train_dir, sigma, cycle_ms,
                         seed_offset=seed + int(sigma),
+                        reuse=meta.skip_training,
                     )
                     res["seed"] = seed
                     res["f_gamma_hz"] = f_gamma
