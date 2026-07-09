@@ -28,6 +28,7 @@ import re
 import shutil
 import subprocess
 import sys
+import tempfile
 import time
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -195,9 +196,11 @@ def _run_baseline(train_dir: Path, tau_gaba=None):
         metrics_path = out_dir / "metrics.json"
         if not _baseline_complete(rasters_path, metrics_path):
             out_dir.mkdir(parents=True, exist_ok=True)
-            tmp = out_dir.parent / f".{train_dir.name}.tmp.{os.getpid()}"
-            shutil.rmtree(tmp, ignore_errors=True)
-            tmp.mkdir(parents=True, exist_ok=True)
+            # A unique temp dir per WRITER: two pods are separate containers and
+            # can share a PID, so a pid-named dir on the shared volume would
+            # collide. mkdtemp guarantees uniqueness across pods.
+            tmp = Path(tempfile.mkdtemp(
+                prefix=f".{train_dir.name}.tmp.", dir=out_dir.parent))
             try:
                 cmd = [
                     "sim", "--infer",
