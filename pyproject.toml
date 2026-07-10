@@ -51,8 +51,11 @@ torchvision = [{ index = "pytorch-cu128", marker = "sys_platform == 'linux'" }]
 [tool.pytest.ini_options]
 # The engine + its suite live under tools/snn (the snn tool). pythonpath adds
 # tools/snn so the engine's flat imports (`import config`/`models`) resolve, and
-# the repo root so `import tools.snn` resolves as a package.
-testpaths = ["tools/snn/tests"]
+# the repo root so `import tools.snn` resolves as a package. experiments/tests
+# holds cross-runner gates (e.g. the meta-flag allowlist) — they belong with the
+# experiments they govern, not under the tool (RULES §4.5: tools never import
+# experiments/).
+testpaths = ["tools/snn/tests", "experiments/tests"]
 pythonpath = ["tools/snn", "."]
 markers = [
     "slow: minutes of wall-clock — subprocess/GPU end-to-end tests OR heavy in-process torch training; `pytest -m 'not slow'` is the fast iteration lane",
