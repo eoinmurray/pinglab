@@ -21,6 +21,20 @@ how to add a tool / experiment / writing; authoring style is in
 - **No RunPod fan-outs without explicit permission** — `--runpod --live` (and any pod-creating call) spends real money; default local.
 - **Don't write to GitHub issues/PRs without explicit permission** — with explicit permission, creating/posting an issue is fine; reading is always fine. Don't open branches/PRs unless asked.
 
+## Session hygiene
+
+Eoin tends to let sessions grow far too large. When the conversation **changes topic** (a new
+experiment, a pivot from writing to debugging, a finished runbook, an unrelated question), the
+agent should proactively say so and suggest the right cleanup — don't wait to be asked:
+
+- **`/clear`** when the new topic shares nothing with the old one — carry-over context is pure
+  cost. Offer a one-paragraph handoff summary to paste into the fresh session if useful.
+- **`/compact`** when the thread continues but the history is mostly spent (long tool output,
+  finished sub-tasks, resolved debugging).
+
+Suggest at natural boundaries (task done, topic pivot) — not mid-task, and at most once per
+boundary; if declined, drop it until the next one.
+
 ## Commands — type a NAME
 
 demolab is driven by typing a **name in CAPS** (SCREAMING-KEBAB). Three commands:
