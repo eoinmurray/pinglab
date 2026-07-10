@@ -1,11 +1,15 @@
 {
   "slug": "exp023",
-  "run_id": "r001",
-  "run_at": "2026-07-06T13:53:58+00:00",
-  "git_sha": "7e1dbda",
+  "run_id": "r002",
+  "run_at": "2026-07-10T18:54:01+00:00",
+  "git_sha": "de07d43",
   "dirty": true,
-  "code_dirty": false,
-  "patch": null,
+  "code_dirty": true,
+  "patch": {
+    "file": "_dirty.patch",
+    "sha256": "5f24411295508b9252008e58ef59c248356abb66b8d5050457ed255904a9e167",
+    "lines": 661
+  },
   "host": "local",
   "scale": {
     "input": "uniform Poisson (synthetic-spikes)",
