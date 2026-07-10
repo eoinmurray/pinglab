@@ -71,7 +71,7 @@ tasks:
         vars: { CLI_ARGS: "" }
       - task: typecheck
       - >-
-        uv run pytest tools/snn/tests -m "not slow"
+        uv run pytest tools/snn/tests experiments/tests -m "not slow"
         --ignore=tools/snn/tests/test_train_integration.py
         --ignore=tools/snn/tests/test_infer_integration.py
         {{.CLI_ARGS}}
@@ -82,12 +82,12 @@ tasks:
       - task: lint
         vars: { CLI_ARGS: "" }
       - task: typecheck
-      - uv run pytest tools/snn/tests {{.CLI_ARGS}}
+      - uv run pytest tools/snn/tests experiments/tests {{.CLI_ARGS}}
 
   test:cov:
     desc: Tests with the coverage report (mirrors CI)
     cmds:
-      - uv run pytest tools/snn/tests --cov --cov-report=term-missing
+      - uv run pytest tools/snn/tests experiments/tests --cov --cov-report=term-missing
 
   # ── CLI (pinglab-cli) ───────────────────────────────────────────────────
   sim:
