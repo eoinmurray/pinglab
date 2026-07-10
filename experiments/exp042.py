@@ -1491,6 +1491,10 @@ def _compound_raster_panel(ax, s: dict, title: str, subtitle: str) -> None:
         + f"\nE = {s['e_rate_hz']:.1f} Hz   I = {s['i_rate_hz']:.1f} Hz",
         transform=ax.transAxes, ha="right", va="top",
         fontsize=theme.SIZE_ANNOTATION, color=theme.MUTED,
+        # Opaque backing so the annotation reads over the dense I-raster instead
+        # of crowding into the red spikes.
+        bbox=dict(boxstyle="round,pad=0.25", facecolor="white",
+                  edgecolor="none", alpha=0.92),
     )
     _despine(ax)
 

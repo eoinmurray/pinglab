@@ -930,6 +930,38 @@ def _load_epoch_curves() -> dict:
     return runs
 
 
+def _rhythmicity_summary() -> dict:
+    """Init / epoch-1 / final lobe–trough contrast (R) per condition, read from the
+    cached per-epoch metrics.jsonl (the exp022 train-once root) — no inference.
+
+    This is what §2.4 of ar009 quotes: the trainable inits collapse the rhythm
+    within the first logged epoch, while the frozen control holds the canonical R.
+    Because it reads only committed logs, it can be refreshed via
+    `--plot-only rhythmicity` without re-running the (~29 min) cell inference."""
+    curves = _load_epoch_curves()
+    trainable = {"trainable_ping_init", "trainable_zero_init", "trainable_small_init"}
+    ep1: list[float] = []
+    fin_tr: list[float] = []
+    fin_fz: list[float] = []
+    for c in curves.values():
+        pairs = sorted(
+            (e, v) for e, v in zip(c["ep"], c["contrast"]) if v is not None
+        )
+        if not pairs:
+            continue
+        if c["cond"] in trainable:
+            ep1.append(pairs[0][1])
+            fin_tr.append(pairs[-1][1])
+        elif c["cond"] == "frozen_ping":
+            fin_fz.append(pairs[-1][1])
+    return {
+        "canonical_contrast": float(np.mean(fin_fz)) if fin_fz else None,
+        "epoch1_contrast_trainable": float(np.mean(ep1)) if ep1 else None,
+        "final_contrast_trainable_min": float(np.min(fin_tr)) if fin_tr else None,
+        "final_contrast_trainable_max": float(np.max(fin_tr)) if fin_tr else None,
+    }
+
+
 def fig_training_curves(out_path: Path, run_id: str) -> None:
     """Real per-epoch training curves from the logs, 2×2: accuracy, E rate,
     I rate, and pingness (exp054 lobe–trough contrast). Trainable inits (black)
@@ -1290,10 +1322,25 @@ def main() -> None:
             elif meta.plot_fig == "accrate":
                 fig_acc_rate_trajectory(figures / "acc_rate_trajectory", run_id)
                 print(f"wrote {figures / 'acc_rate_trajectory'}.{{svg,pdf}}")
+            elif meta.plot_fig == "rhythmicity":
+                # Log-only refresh: recompute the R (lobe–trough contrast) summary
+                # from the cached per-epoch metrics and patch it into the existing
+                # numbers.json (copied into staging by published_run). No inference,
+                # no figures — seconds, not the ~29 min a full cell re-inference costs.
+                nums_path = figures / "numbers.json"
+                if not nums_path.exists():
+                    raise SystemExit(
+                        "--plot-only rhythmicity: no published numbers.json to patch; "
+                        "run the full notebook once first."
+                    )
+                data = json.loads(nums_path.read_text())
+                data["rhythmicity"] = _rhythmicity_summary()
+                nums_path.write_text(json.dumps(data, indent=2) + "\n")
+                print(f"patched rhythmicity into {nums_path}")
             else:
                 raise SystemExit(
                     f"--plot-only: unknown figure {meta.plot_fig!r}; "
-                    "choose curves|portrait|accrate"
+                    "choose curves|portrait|accrate|rhythmicity"
                 )
         return
 
@@ -1388,6 +1435,7 @@ def main() -> None:
                     "common_recipe": COMMON_RECIPE,
                 },
                 "summary": summary_rows,
+                "rhythmicity": _rhythmicity_summary(),
             }),
         )
         print(f"wrote {figures / 'numbers.json'}")
