@@ -117,6 +117,9 @@ figcaption,
 .byline { font-size: var(--fs-small); color: var(--muted); margin: -.9rem 0 1.5rem; }
 .byline a { color: var(--muted); }
 .byline a:hover { color: var(--ink); }
+/* Home link at the top of an entry page: quiet, small, one step back to the directory. */
+.home-link { display: inline-block; font-size: var(--fs-small); color: var(--muted); text-decoration: none; margin: 0 0 1.1rem; }
+.home-link:hover { color: var(--ink); text-decoration: underline; }
 
 /* Citations: inline numbers stay in the text (underline on hover); the reference list is
    secondary text, each entry's DOI a quiet link out. */

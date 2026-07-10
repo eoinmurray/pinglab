@@ -6,10 +6,11 @@ is the experiment's job, not the tool's.
 """
 import csv
 import json
+import subprocess
+import sys
 from pathlib import Path
 
 import matplotlib.pyplot as plt
-import sh
 
 from helpers import provenance  # run.sh reproducer into the committed record (RULES §4.7)
 from helpers import style as _style  # shared figure style (HOUSESTYLE H10-H16); applies rcParams on import
@@ -23,7 +24,9 @@ COMMANDS = ("lif", "net")
 
 
 def run_tool(*args: str) -> None:
-    sh.uv.run("python", str(TOOL), *args, _fg=True)
+    # sys.executable is the uv-managed venv python (`task run` wraps us in `uv run`). Not the
+    # `sh` package — it doesn't support Windows. Same idiom as playground.py.
+    subprocess.run([sys.executable, str(TOOL), *args], check=True)
 
 
 def read_csv(path: Path) -> dict[str, list[float]]:

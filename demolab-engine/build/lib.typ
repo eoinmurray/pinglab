@@ -215,7 +215,8 @@
 }
 
 // Flatten entries + decks into one uniform list of link rows. Decks (paged-only) link to
-// their PDF and are forced into the `slides` collection; entries link to their HTML page.
+// their PDF and fall into the `slides` collection unless their meta says otherwise;
+// entries link to their HTML page.
 #let collect-items(entries, decks) = {
   entries.map(e => (
     id: e.id,
@@ -233,7 +234,7 @@
     title: d.meta.title,
     date: d.meta.date,
     status: d.meta.at("status", default: "final"),
-    coll: "slides",
+    coll: d.meta.at("collection", default: "slides"),
     href: "pdfs/" + d.id + ".pdf",
     pdf: "pdfs/" + d.id + ".pdf",
     deck: true,
@@ -376,6 +377,14 @@
       }
     }
   }
+  // A small home link at the very top (web only) — one quiet click back to the lab directory,
+  // so a reader who lands deep on an entry (e.g. straight from the onboarding flow) is never
+  // stranded. The PDF/book carry no navigation chrome, so this is html-only.
+  context {
+    if target() == "html" {
+      html.elem("a", attrs: (class: "home-link", href: "index.html"), [← Home])
+    }
+  }
   heading(level: 1, meta.title)
   // the metadata strip under the title — id · date · status · pdf, all inline on the left (web
   // only; the PDF pass shows the plain gray meta line without the pdf link, since it *is* the pdf).
@@ -406,7 +415,7 @@
   context { if target() == "html" { html.elem("div", attrs: (class: "entry-tail")) } }
 }
 
-// The homepage: a directory of collections (decks fall under `slides`), each a link to its
+// The homepage: a directory of collections (decks fall under `slides` by default), each a link to its
 // own page. Order follows demolab.yaml's `collection-order`; unlisted collections sort
 // after, by first appearance. Entry rows live on the per-collection pages.
 // An optional `welcome` block in demolab.yaml renders a hero above the directory (pitch,

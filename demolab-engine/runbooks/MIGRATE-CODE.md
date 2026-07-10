@@ -31,7 +31,7 @@ publishing end to end before touching the next.
    import runner code (`experiments/`), and a runner reaches it by *running* it, never
    importing (a `tools` ↔ `experiments` import boundary kept by convention). Add a test
    (`task test`). Verify `temp/<tool>/<cmd>/` has the full set.
-5. **Runner + writing.** As in the [Getting started](GETTING-STARTED.md) runbook, step 4.
+5. **Runner + writing.** As in the [Getting started](GETTING-STARTED.md) runbook, step 2.
    Confirm the published figure and numbers match their original code's output.
 6. **Repeat** for the next experiment; stop when the ones that matter are done.
 

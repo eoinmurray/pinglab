@@ -266,6 +266,16 @@ class DevServer(http.server.ThreadingHTTPServer):
     daemon_threads = True
     allow_reuse_address = True  # rebind cleanly after a restart (no TIME_WAIT stall)
 
+    def server_bind(self):
+        if self.address_family == socket.AF_INET6:
+            # Accept IPv4 on the same socket (dual-stack). Windows resolves `localhost` to the
+            # IPv6 ::1 first, so an IPv4-only bind makes the printed URL unreachable there.
+            try:
+                self.socket.setsockopt(socket.IPPROTO_IPV6, socket.IPV6_V6ONLY, 0)
+            except OSError:
+                pass  # platform forces v6-only; IPv6 localhost still works
+        return super().server_bind()
+
     def handle_error(self, request, client_address):
         exc = sys.exc_info()[1]
         if _is_benign_disconnect(exc):
@@ -327,13 +337,26 @@ def watch_loop():
             last = snapshot()
 
 
+def make_server(port):
+    """Bind dual-stack so both http://localhost (::1 on Windows) and 127.0.0.1 reach the
+    server; fall back to IPv4-only where the machine has no IPv6 stack."""
+    if socket.has_ipv6:
+        try:
+            DevServer.address_family = socket.AF_INET6
+            return DevServer(("::", port), Handler)
+        except OSError:
+            pass  # no usable IPv6 (or the port is taken there) — try plain IPv4
+    DevServer.address_family = socket.AF_INET
+    return DevServer(("0.0.0.0", port), Handler)
+
+
 def main():
     explicit = len(sys.argv) > 1 and bool(sys.argv[1].strip())
     port = pick_port(sys.argv)
     server = None
     while server is None:
         try:
-            server = DevServer(("0.0.0.0", port), Handler)
+            server = make_server(port)
         except OSError as e:
             # The chosen port raced (someone grabbed it between the free check and bind). For an
             # auto-picked port, step to the next; for an explicit one, fail clearly.

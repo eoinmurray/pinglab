@@ -1,8 +1,8 @@
 import json
 import shutil
+import subprocess
+import sys
 from pathlib import Path
-
-import sh
 
 from helpers import provenance  # run.sh reproducer into the committed record (RULES §4.7)
 
@@ -17,7 +17,9 @@ COMMANDS = (
 
 def run_tool(tool: str, command: str) -> None:
     tool_path = ROOT / "tools" / tool / "tool.py"
-    sh.uv.run("python", str(tool_path), command, _fg=True)
+    # sys.executable is the uv-managed venv python (`task run` wraps us in `uv run`). Not the
+    # `sh` package — it doesn't support Windows. Same idiom as playground.py.
+    subprocess.run([sys.executable, str(tool_path), command], check=True)
 
 
 def artifact_dir(tool: str, command: str) -> Path:

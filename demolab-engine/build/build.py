@@ -49,7 +49,18 @@ MANIFEST = BUILD / "index.json"            # scratch: id/asset lists main.typ re
 DECKS = BUILD / "decks"                     # scratch: compiled deck PDFs, embedded as assets
 SITE = ROOT / "artifacts" / "site"         # bundle output (HTML + mp4 + pdfs/), gitignored
 PDFS = ROOT / "artifacts" / "pdfs"         # committed copy of the PDFs (shareable)
-TYPST = "typst"  # system CLI — needs --features bundle,html (experimental)
+def _find_typst() -> str:
+    """The typst CLI — needs --features bundle,html (experimental). A repo-local install wins
+    (.tools/bin — the no-package-manager fallback for locked-down machines), then PATH;
+    shutil.which resolves typst.exe on Windows, where a bare name can fail."""
+    for name in ("typst.exe", "typst"):
+        local = REPO / ".tools" / "bin" / name
+        if local.exists():
+            return str(local)
+    return shutil.which("typst") or "typst"
+
+
+TYPST = _find_typst()
 
 
 def typst_root_and_inputs() -> tuple[Path, list[str]]:
