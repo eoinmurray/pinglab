@@ -1,7 +1,8 @@
 {
-  "notebook_run_id": "r001",
-  "duration_s": 109.0,
-  "duration": "1m 49s",
+  "run_id": "r002",
+  "git_sha": "de07d43",
+  "duration_s": 28.2,
+  "duration": "28s",
   "config": {
     "model": "ping",
     "input": "mnist d0 s0",
@@ -11,8 +12,7 @@
     ],
     "t_ms": 400,
     "dt_ms": 0.1,
-    "input_rate_hz": 50,
-    "modal_gpu": null
+    "input_rate_hz": 50
   },
   "f_gamma_hz": {
     "coba": null,

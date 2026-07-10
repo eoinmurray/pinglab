@@ -169,5 +169,11 @@
       "w_ei_mean": 0.00026129340403713286,
       "w_ie_mean": 0.003637133166193962
     }
-  ]
+  ],
+  "rhythmicity": {
+    "canonical_contrast": 0.9994713000850429,
+    "epoch1_contrast_trainable": 0.07804969799830049,
+    "final_contrast_trainable_min": 0.030646323039324748,
+    "final_contrast_trainable_max": 0.14103899506569684
+  }
 }

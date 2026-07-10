@@ -1,0 +1,723 @@
+diff --git a/experiments/exp023.py b/experiments/exp023.py
+index 6aeb34c..c155c79 100644
+--- a/experiments/exp023.py
++++ b/experiments/exp023.py
+@@ -441,6 +441,10 @@ def plot_raster_compound(
+                 color=theme.GREY_MID,
+                 fontstyle="italic",
+                 fontsize=theme.SIZE_LABEL - 1,
++                # Opaque backing so the note reads over the dense raster instead of
++                # smearing into it like a ghost watermark.
++                bbox=dict(boxstyle="round,pad=0.2", facecolor="white",
++                          edgecolor="none", alpha=0.75),
+             )
+         ax_r.set_ylim(0, total)
+         ax_r.set_xlim(0, T * dt)
+diff --git a/experiments/exp025.py b/experiments/exp025.py
+index a76da4e..7ee5cbe 100644
+--- a/experiments/exp025.py
++++ b/experiments/exp025.py
+@@ -1237,7 +1237,11 @@ def fig_results_compound(rows, npz_coba, npz_ping, out_path, run_id):
+             ax.set_yticklabels(["E"])
+             ax.text(T * dt * 0.985, N_E - 30, "I silent (loop off)",
+                     ha="right", va="top", fontsize=theme.SIZE_LABEL - 1,
+-                    color=theme.MUTED, fontstyle="italic")
++                    color=theme.MUTED, fontstyle="italic",
++                    # Opaque backing so the note reads over the dense raster
++                    # instead of smearing into it like a ghost watermark.
++                    bbox=dict(boxstyle="round,pad=0.2", facecolor="white",
++                              edgecolor="none", alpha=0.75))
+         ax.set_xlim(0, T * dt)
+         ax.set_xlabel("time (ms)")
+         ax.tick_params(axis="y", length=0)
+diff --git a/experiments/exp042.py b/experiments/exp042.py
+index 0f33670..02f8dfc 100644
+--- a/experiments/exp042.py
++++ b/experiments/exp042.py
+@@ -1491,6 +1491,10 @@ def _compound_raster_panel(ax, s: dict, title: str, subtitle: str) -> None:
+         + f"\nE = {s['e_rate_hz']:.1f} Hz   I = {s['i_rate_hz']:.1f} Hz",
+         transform=ax.transAxes, ha="right", va="top",
+         fontsize=theme.SIZE_ANNOTATION, color=theme.MUTED,
++        # Opaque backing so the annotation reads over the dense I-raster instead
++        # of crowding into the red spikes.
++        bbox=dict(boxstyle="round,pad=0.25", facecolor="white",
++                  edgecolor="none", alpha=0.92),
+     )
+     _despine(ax)
+ 
+diff --git a/experiments/exp048.py b/experiments/exp048.py
+index 9b33a83..5fc1d66 100644
+--- a/experiments/exp048.py
++++ b/experiments/exp048.py
+@@ -787,7 +787,7 @@ def plot_varying_headline_stream(s: dict, out_path: Path, run_id: str) -> None:
+ 
+     fig = plt.figure(figsize=(6.9, 5.33), dpi=150)
+     gs = fig.add_gridspec(
+-        4, 1, height_ratios=[1.1, 2.2, 1.2, 2.0], hspace=0.18,
++        4, 1, height_ratios=[1.35, 2.2, 1.2, 2.0], hspace=0.18,
+     )
+ 
+     # Panel A: digit thumbnails with per-segment (τ, rate) labels.
+@@ -831,13 +831,19 @@ def plot_varying_headline_stream(s: dict, out_path: Path, run_id: str) -> None:
+         sub.set_xticks([])
+         sub.set_yticks([])
+         ok_color = theme.INK_BLACK if seg_pred[d] == labels[d] else theme.DEEP_RED
+-        # Compact 2-line title; rotate slightly to fit on narrow segments.
+-        # τ value first since that's the structural knob; rate beneath.
+-        sub.set_title(
+-            f"{tau_ms:g} ms\n{rate_hz:g} Hz",
+-            fontsize=theme.SIZE_LABEL - 1,
+-            color=theme.MUTED,
+-            pad=2,
++        # (τ, rate) caption. A per-inset title is centred over an axes whose width
++        # scales with the segment's *time span*, so short segments get titles wider
++        # than their thumbnail that overprint neighbours. Draw it instead on ax_a at
++        # the segment centre (x in data ms), single line, and stagger adjacent
++        # segments across two rows so labels never collide however narrow a segment
++        # is. τ first (the structural knob), rate second.
++        x_c = 0.5 * (x_lo + x_hi)
++        y_row = 1.02 if d % 2 == 0 else 1.15
++        ax_a.text(
++            x_c, y_row, f"{tau_ms:g} ms · {rate_hz:g} Hz",
++            transform=ax_a.get_xaxis_transform(),
++            ha="center", va="bottom",
++            fontsize=theme.SIZE_LABEL - 2, color=theme.MUTED, clip_on=False,
+         )
+         # Per-segment prediction badge inset into the thumbnail's top
+         # — same colour scheme as the readout traces below.
+@@ -967,6 +973,31 @@ def plot_grid_heatmap(rows: list[dict], out_path: Path, run_id: str) -> None:
+     plt.close(fig)
+ 
+ 
++# ── Varying-headline cache ──────────────────────────────────────────
++# The varying-headline figure (Fig 12) is otherwise drawn only in the full run,
++# which also runs the ~280 min grid sweep. Persisting the single-stream result
++# lets `--replot headline` redraw it in isolation; `segments` is the module
++# constant VARYING_HEADLINE, so only the computed arrays are cached.
++_HEADLINE_CACHE_KEYS = (
++    "segment_steps", "T_stream_steps", "labels", "pixels",
++    "spk_e", "spk_i", "probs", "seg_preds", "seg_correct", "seg_ends",
++)
++
++
++def _save_headline_cache(v: dict, path: Path) -> None:
++    np.savez(path, **{k: np.asarray(v[k]) for k in _HEADLINE_CACHE_KEYS})
++
++
++def _load_headline_cache(path: Path) -> dict:
++    z = np.load(path)
++    v: dict = {"segments": VARYING_HEADLINE, "T_stream_steps": int(z["T_stream_steps"])}
++    for k in ("pixels", "spk_e", "spk_i", "probs"):
++        v[k] = z[k]
++    for k in ("segment_steps", "labels", "seg_preds", "seg_correct", "seg_ends"):
++        v[k] = z[k].tolist()
++    return v
++
++
+ # ── Main ────────────────────────────────────────────────────────────
+ def main() -> None:
+     # Publication profile: every figure this notebook writes is a print-sized
+@@ -990,6 +1021,24 @@ def main() -> None:
+         print(f"wrote {FIGURES / 'acc_grid_tau_rate'}.png (replotted from cache)")
+         return
+ 
++    if replot_target(sys.argv) == "headline":
++        # Redraw Fig 12 without the grid sweep. Use the cache if present (instant);
++        # otherwise compute just the single 5-segment stream (_load_eval + one
++        # forward — seconds, no sweep) and seed the cache for next time.
++        cache = FIGURES / "varying_headline_cache.npz"
++        if cache.exists():
++            v = _load_headline_cache(cache)
++        else:
++            print("--replot headline: no cache; computing the single stream (no grid sweep)")
++            train_dir, cfg, X_te, y_te = _load_eval(seed=SEEDS[0])
++            v = run_varying_headline(train_dir, cfg, X_te, y_te)
++            _save_headline_cache(v, cache)
++        plot_varying_headline_stream(
++            v, FIGURES / "varying_headline_stream", "exp048-replot",
++        )
++        print(f"wrote {FIGURES / 'varying_headline_stream'}.png (replot)")
++        return
++
+     notebook_run_id = next_run_id(SLUG)
+     prepare_run_dirs(
+         SLUG, notebook_run_id, wipe=False, make_artifacts=True,
+@@ -1018,6 +1067,7 @@ def main() -> None:
+     plot_varying_headline_stream(
+         v, FIGURES / "varying_headline_stream", notebook_run_id,
+     )
++    _save_headline_cache(v, FIGURES / "varying_headline_cache.npz")
+     print(f"wrote {FIGURES / 'varying_headline_stream'}.png")
+ 
+     # Multi-seed sweeps: τ-sweep and grid both run per-seed and average.
+diff --git a/experiments/exp049.py b/experiments/exp049.py
+index 7b47f89..6aaf399 100644
+--- a/experiments/exp049.py
++++ b/experiments/exp049.py
+@@ -930,6 +930,38 @@ def _load_epoch_curves() -> dict:
+     return runs
+ 
+ 
++def _rhythmicity_summary() -> dict:
++    """Init / epoch-1 / final lobe–trough contrast (R) per condition, read from the
++    cached per-epoch metrics.jsonl (the exp022 train-once root) — no inference.
++
++    This is what §2.4 of ar009 quotes: the trainable inits collapse the rhythm
++    within the first logged epoch, while the frozen control holds the canonical R.
++    Because it reads only committed logs, it can be refreshed via
++    `--plot-only rhythmicity` without re-running the (~29 min) cell inference."""
++    curves = _load_epoch_curves()
++    trainable = {"trainable_ping_init", "trainable_zero_init", "trainable_small_init"}
++    ep1: list[float] = []
++    fin_tr: list[float] = []
++    fin_fz: list[float] = []
++    for c in curves.values():
++        pairs = sorted(
++            (e, v) for e, v in zip(c["ep"], c["contrast"]) if v is not None
++        )
++        if not pairs:
++            continue
++        if c["cond"] in trainable:
++            ep1.append(pairs[0][1])
++            fin_tr.append(pairs[-1][1])
++        elif c["cond"] == "frozen_ping":
++            fin_fz.append(pairs[-1][1])
++    return {
++        "canonical_contrast": float(np.mean(fin_fz)) if fin_fz else None,
++        "epoch1_contrast_trainable": float(np.mean(ep1)) if ep1 else None,
++        "final_contrast_trainable_min": float(np.min(fin_tr)) if fin_tr else None,
++        "final_contrast_trainable_max": float(np.max(fin_tr)) if fin_tr else None,
++    }
++
++
+ def fig_training_curves(out_path: Path, run_id: str) -> None:
+     """Real per-epoch training curves from the logs, 2×2: accuracy, E rate,
+     I rate, and pingness (exp054 lobe–trough contrast). Trainable inits (black)
+@@ -1290,10 +1322,25 @@ def main() -> None:
+             elif meta.plot_fig == "accrate":
+                 fig_acc_rate_trajectory(figures / "acc_rate_trajectory", run_id)
+                 print(f"wrote {figures / 'acc_rate_trajectory'}.{{svg,pdf}}")
++            elif meta.plot_fig == "rhythmicity":
++                # Log-only refresh: recompute the R (lobe–trough contrast) summary
++                # from the cached per-epoch metrics and patch it into the existing
++                # numbers.json (copied into staging by published_run). No inference,
++                # no figures — seconds, not the ~29 min a full cell re-inference costs.
++                nums_path = figures / "numbers.json"
++                if not nums_path.exists():
++                    raise SystemExit(
++                        "--plot-only rhythmicity: no published numbers.json to patch; "
++                        "run the full notebook once first."
++                    )
++                data = json.loads(nums_path.read_text())
++                data["rhythmicity"] = _rhythmicity_summary()
++                nums_path.write_text(json.dumps(data, indent=2) + "\n")
++                print(f"patched rhythmicity into {nums_path}")
+             else:
+                 raise SystemExit(
+                     f"--plot-only: unknown figure {meta.plot_fig!r}; "
+-                    "choose curves|portrait|accrate"
++                    "choose curves|portrait|accrate|rhythmicity"
+                 )
+         return
+ 
+@@ -1388,6 +1435,7 @@ def main() -> None:
+                     "common_recipe": COMMON_RECIPE,
+                 },
+                 "summary": summary_rows,
++                "rhythmicity": _rhythmicity_summary(),
+             }),
+         )
+         print(f"wrote {figures / 'numbers.json'}")
+diff --git a/experiments/exp054.py b/experiments/exp054.py
+index aa4378c..d742227 100644
+--- a/experiments/exp054.py
++++ b/experiments/exp054.py
+@@ -761,9 +761,17 @@ def build_super_compound(grid, results, hopf, sweep, mf, meas, out_path):
+     # sc is assigned inside the eigenvalue loop (always ≥1 eigenvalue); narrow
+     # the None branch. PathCollection from scatter is a valid ScalarMappable.
+     assert sc is not None
+-    cbar = fig.colorbar(sc, ax=axA, fraction=0.046, pad=0.02)
+-    cbar.set_label("$I_\\text{ext}$ (nA)", fontsize=theme.SIZE_TICK - 1)
+-    cbar.ax.tick_params(labelsize=theme.SIZE_TICK - 1)
++    # Colour-bar as an inset INSIDE panel G. `fig.colorbar(ax=axA)` steals space
++    # from axA's right edge and drops the bar (plus its "I_ext (nA)" label) into the
++    # G|H gutter, where it collides with panel H's y-axis label and ticks. An inset
++    # keeps it within G's own footprint, in the sparse upper-left of the eigenvalue
++    # scatter, so the mean-field row stays legible.
++    cax = axA.inset_axes([0.06, 0.56, 0.035, 0.38])
++    cbar = fig.colorbar(sc, cax=cax)
++    cbar.set_label("$I_\\text{ext}$ (nA)", fontsize=theme.SIZE_TICK - 2, labelpad=2)
++    cbar.ax.tick_params(labelsize=theme.SIZE_TICK - 2)
++    cbar.ax.yaxis.set_ticks_position("right")
++    cbar.ax.yaxis.set_label_position("right")
+     axA.set_xlabel("Re$(\\lambda)$", fontsize=theme.SIZE_LABEL)
+     axA.set_ylabel("Im$(\\lambda)$", fontsize=theme.SIZE_LABEL)
+     axA.set_title(f"Hopf crossing at $I^\\star$ = {hopf['I_ext_star']:.2f} nA",
+@@ -807,10 +815,51 @@ def build_super_compound(grid, results, hopf, sweep, mf, meas, out_path):
+     theme.apply()
+ 
+ 
++# ── Onset super-compound cache ──────────────────────────────────────
++# The onset super-compound (Fig 2 of ar009) is otherwise redrawn only by the full
++# run, whose ~6 min cost is the 121-network `run_grid`. Persisting its inputs — the
++# grid plus the exp033 mean-field results — lets `--plot-only super` redraw it in
++# seconds. The structures are nested dict/list/ndarray, so they go in as a single
++# object-array payload (a local regen cache under the gitignored data dir, same
++# role as exp048's headline cache).
++def _save_super_cache(path, grid, results, hopf, criticality, mf_freq, meas_fgamma):
++    payload = np.empty(6, dtype=object)
++    payload[:] = [grid, results, hopf, criticality, mf_freq, meas_fgamma]
++    np.savez(path, payload=payload)
++
++
++def _load_super_cache(path):
++    payload = np.load(path, allow_pickle=True)["payload"]
++    grid, results, hopf, criticality, mf_freq, meas_fgamma = payload
++    return grid, results, hopf, criticality, mf_freq, meas_fgamma
++
++
+ def main():
+     meta = parse_meta(sys.argv)
+     sim_ms = SIM_MS
+ 
++    if meta.plot_fig == "super":
++        # Fast redraw of the onset super-compound from cache — no 121-network grid
++        # re-simulation. Mirrors exp048's `--plot-only headline`; requires one prior
++        # full run to seed the cache (like exp048's `--replot grid`).
++        run_id = next_run_id(SLUG)
++        with published_run(
++            SLUG, run_id, scale=SCALE, plot_only=True,
++        ) as (_artifacts, figures):
++            theme.apply()
++            plt.rcParams["savefig.bbox"] = "standard"
++            cache = figures / "super_compound_cache.npz"
++            if not cache.exists():
++                raise SystemExit(
++                    "--plot-only super: no cache at "
++                    f"{cache}; run the full notebook once first."
++                )
++            grid, results, hopf, criticality, mf_freq, meas_fgamma = _load_super_cache(cache)
++            build_super_compound(grid, results, hopf, criticality, mf_freq, meas_fgamma,
++                                 figures / "onset_super_compound")
++            print("wrote onset_super_compound.{png,pdf} (replot from cache)")
++        return
++
+     t_start = time.monotonic()
+     run_id = next_run_id(SLUG)
+     with published_run(
+@@ -857,7 +906,9 @@ def main():
+         meas_fgamma = exp033.load_exp041_fgamma()
+         build_super_compound(grid, results, hopf, criticality, mf_freq, meas_fgamma,
+                              figures / "onset_super_compound")
+-        print("wrote onset_super_compound.{png,pdf}")
++        _save_super_cache(figures / "super_compound_cache.npz",
++                          grid, results, hopf, criticality, mf_freq, meas_fgamma)
++        print("wrote onset_super_compound.{png,pdf} (+ super_compound_cache.npz)")
+ 
+         duration_s = time.monotonic() - t_start
+         # default=float coerces residual numpy scalars; round-trip so write_numbers
+
+diff --git a/experiments/helpers/warm_pod.py b/experiments/helpers/warm_pod.py
+new file mode 100644
+index 0000000..31e960a
+--- /dev/null
++++ b/experiments/helpers/warm_pod.py
+@@ -0,0 +1,297 @@
++#!/usr/bin/env python
++"""Warm (persistent) RunPod pod with a renewable idle lease.
++
++The fan-out in runpod.py is fire-and-forget batch: pods self-run a CELLS
++assignment and self-terminate. This is the opposite shape — ONE long-lived pod
++you SSH into for short, interactive runs, kept alive only while you are actually
++running experiments and STOPPED (not destroyed) after an idle window, so it
++stops billing GPU but keeps its container disk and wakes fast.
++
++Two halves, mirroring runpod.py:
++  • launch (laptop side): create a Secure sshd-only pod on the shared volume,
++    then arm the watcher on it over SSH so the watcher outlives your laptop.
++  • watch (pod side): every POLL_S seconds, renew the lease to now+LEASE_HOURS
++    whenever an experiment-runner process is alive; when the lease expires with
++    nothing running, `runpodctl stop pod` self-stops the pod. `resume` re-arms it.
++
++WHAT COUNTS AS "USING IT": a runner process — `experiments/expNNN.py` — is
++running. That is the ONLY renewal signal (chosen over SSH-login or GPU-util):
++merely connecting does not hold the pod open, and a long run can never be
++stopped mid-flight, because every poll while it runs pushes the deadline out.
++This needs NO runner edits and NO image rebuild — the watcher is injected over
++SSH and detects activity by process, so every runner is covered for free.
++
++Stop vs terminate: stop keeps the container disk (~cents/day storage) and wakes
++fast; the /shared network volume survives either way. A hard ceiling
++(MAX_WARM_HOURS from launch) stops the pod regardless, so a wedged activity
++check can never bill forever.
++
++CLI (run from the repo root):
++    # laptop: create a warm 5090 pod with a 3-hour idle lease, arm the watcher
++    uv run python experiments/helpers/warm_pod.py launch --gpu 5090 --hours 3
++    uv run python experiments/helpers/warm_pod.py launch --dry-run     # plan only
++    # laptop: wake a stopped pod and re-arm the same lease
++    uv run python experiments/helpers/warm_pod.py resume <pod_id> --hours 3
++    # laptop: stop it now / list warm pods
++    uv run python experiments/helpers/warm_pod.py stop <pod_id>
++    uv run python experiments/helpers/warm_pod.py status
++    # pod side (armed by launch/resume — you do not call this yourself):
++    uv run python experiments/helpers/warm_pod.py watch --hours 3
++"""
++
++from __future__ import annotations
++
++import argparse
++import os
++import re
++import subprocess
++import sys
++import time
++from pathlib import Path
++
++# Runner-style bootstrap: put experiments/ on sys.path so the laptop-side
++# `launch`/`resume` can `from helpers import runpod`. The pod-side `watch` path
++# imports nothing from the package (stdlib + runpodctl only), so it works even
++# on an older baked image before this file's checkout lands.
++sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
++
++# ── Lease configuration ──────────────────────────────────────────────
++LEASE_HOURS = 3.0            # idle window: stop after this long with no runner
++POLL_S = 60                  # how often the watcher checks for activity
++MAX_WARM_HOURS = 24.0        # hard ceiling from launch — stop regardless (safety)
++
++# The lease + watcher log live on the shared network volume so they survive a
++# stop and are visible to a collector pod. Overridable for local testing.
++WARM_DIR = Path(os.environ.get("PINGLAB_WARM_DIR", "/shared/.warm"))
++
++# A "runner is active" = a live `experiments/expNNN.py` process. The watcher's
++# own cmdline is `experiments/helpers/warm_pod.py`, which does NOT match, so the
++# watcher never counts itself as activity.
++RUNNER_RE = re.compile(r"experiments/exp[0-9]{3}\.py")
++
++# Reuse runpod.py's pod-side constant so the arm command uses the same uv.
++UV = "/root/.local/bin/uv"
++POD_REPO = "/workspace/pinglab"
++
++
++def _now() -> float:
++    """Wall-clock epoch seconds (the lease is wall-clock so it reads sanely in
++    the file and survives a watcher restart)."""
++    return time.time()
++
++
++def _pod_id() -> str | None:
++    """This pod's id, injected by RunPod as RUNPOD_POD_ID. None off a pod."""
++    return os.environ.get("RUNPOD_POD_ID")
++
++
++# ── Pod side: the watcher ────────────────────────────────────────────
++
++def _runner_active() -> bool:
++    """True iff an experiment-runner process is currently running on this pod.
++
++    Lists every process with its full (untruncated, `ww`) command line and keeps
++    only those matching RUNNER_RE. Uses `ps axww` rather than `pgrep -f` because
++    pgrep's regex dialect and its `-a` flag are not portable (macOS pgrep has no
++    `-a`), and this keeps the exact match in Python. The watcher's own cmdline
++    (warm_pod.py) does not match RUNNER_RE, so it never counts itself."""
++    out = subprocess.run(["ps", "axww"], capture_output=True, text=True)
++    return any(RUNNER_RE.search(line) for line in out.stdout.splitlines())
++
++
++def _write_lease(pod_id: str, deadline: float, hard_deadline: float) -> None:
++    """Persist the current lease to WARM_DIR/<pod_id>.lease (human-readable, for
++    `cat` on the pod). The watcher owns the live countdown in memory; this file
++    is observability, not the source of truth."""
++    WARM_DIR.mkdir(parents=True, exist_ok=True)
++    fmt = "%Y-%m-%dT%H:%M:%SZ"
++    (WARM_DIR / f"{pod_id}.lease").write_text(
++        f"idle_deadline={int(deadline)}  # {time.strftime(fmt, time.gmtime(deadline))}\n"
++        f"hard_deadline={int(hard_deadline)}  # {time.strftime(fmt, time.gmtime(hard_deadline))}\n"
++        f"lease_hours={LEASE_HOURS}\n"
++    )
++
++
++def _stop_pod(pod_id: str) -> None:
++    """Stop (not remove) this pod: releases the GPU and stops GPU billing while
++    keeping the container disk for a fast `resume`. runpodctl auths via the
++    injected RUNPOD_API_KEY env, exactly as pod_self_terminate does."""
++    print(f"[warm-watch] idle → stopping pod {pod_id}", flush=True)
++    r = subprocess.run(["runpodctl", "stop", "pod", pod_id],
++                       capture_output=True, text=True)
++    print(f"[warm-watch] runpodctl stop: {(r.stdout + r.stderr).strip()[:200]}",
++          flush=True)
++
++
++def watch(hours: float = LEASE_HOURS, poll_s: int = POLL_S,
++          max_hours: float = MAX_WARM_HOURS) -> None:
++    """Pod-side loop: renew while a runner is alive, else stop when the idle
++    lease (or the hard ceiling) expires. Blocks until it stops the pod."""
++    pod_id = _pod_id()
++    if not pod_id:
++        raise SystemExit("[warm-watch] no RUNPOD_POD_ID — this runs on a pod only")
++
++    start = _now()
++    hard_deadline = start + max_hours * 3600
++    deadline = start + hours * 3600
++    _write_lease(pod_id, deadline, hard_deadline)
++    print(f"[warm-watch] armed on {pod_id}: idle={hours}h ceiling={max_hours}h "
++          f"poll={poll_s}s", flush=True)
++
++    while True:
++        now = _now()
++        if now >= hard_deadline:
++            print(f"[warm-watch] hard ceiling ({max_hours}h) reached", flush=True)
++            _stop_pod(pod_id)
++            return
++        if _runner_active():
++            # "Using it" — push the idle deadline out (capped at the ceiling).
++            deadline = min(now + hours * 3600, hard_deadline)
++            _write_lease(pod_id, deadline, hard_deadline)
++        elif now >= deadline:
++            _stop_pod(pod_id)
++            return
++        time.sleep(poll_s)
++
++
++# ── Laptop side: launch / resume / stop / status ─────────────────────
++
++def _arm(host: str, port: int, sha: str, hours: float, max_hours: float) -> None:
++    """Over SSH, check the pod's repo out to *sha* (so this file is present even
++    on an older baked image), then start the watcher detached under nohup so it
++    survives the SSH session and the laptop sleeping."""
++    from helpers import runpod  # lazy: laptop side only
++
++    cmd = (
++        f"cd {POD_REPO} && git fetch --quiet origin && git checkout --quiet {sha} "
++        f"&& mkdir -p {WARM_DIR} "
++        f"&& nohup {UV} run python experiments/helpers/warm_pod.py watch "
++        f"--hours {hours} --max-hours {max_hours} "
++        f"> {WARM_DIR}/watch.log 2>&1 & echo armed"
++    )
++    out = runpod.run_on_pod(host, port, cmd, timeout=120)
++    print(f"[warm] watcher armed ({out.strip() or 'ok'})")
++
++
++def launch(gpu: str = "5090", hours: float = LEASE_HOURS,
++           max_hours: float = MAX_WARM_HOURS, dry_run: bool = False) -> None:
++    """Create a Secure sshd-only warm pod on the shared volume and arm the
++    watcher. Spends money — dry_run prints the plan and creates nothing."""
++    from helpers import runpod  # lazy: laptop side only
++
++    sha = runpod.head_sha()
++    print(f"WARM POD  gpu={gpu}  idle-lease={hours}h  hard-ceiling={max_hours}h")
++    print(f"pinned sha : {sha}")
++    if dry_run:
++        print(f"\n(dry-run) would create 1 secure pod ({gpu} @ {runpod.DATACENTER}, "
++              f"volume {runpod.VOLUME_ID}) with sshd only, then over SSH: checkout "
++              f"{sha[:12]} and nohup the watcher (stop after {hours}h idle).")
++        print("re-run without --dry-run to spend.")
++        return
++
++    # The watcher checks the pod's repo out to this sha; it must be on the remote
++    # or `git checkout` on the pod fails (same guarantee the fan-out enforces).
++    if not runpod.sha_is_pushed(sha):
++        raise SystemExit(f"HEAD {sha[:12]} is not pushed to origin — the pod "
++                         "fetches from GitHub. Commit + push, then re-run.")
++
++    # RUNPOD_API_KEY lets the watcher stop the pod; no CELLS ⇒ the image runs
++    # sshd only (the warm/interactive mode).
++    pod_id = runpod.create_pod(
++        "warm", gpu, datacenter=runpod.DATACENTER, volume_id=runpod.VOLUME_ID,
++        env={"RUNPOD_API_KEY": runpod.api_key()},
++    )
++    print(f"[warm] created pod {pod_id} — waiting for SSH…")
++    host, port = runpod.wait_for_ssh(pod_id)
++    _arm(host, port, sha, hours, max_hours)
++
++    print(f"\n=== warm pod {pod_id} up ({gpu}) ===")
++    print(f"  ssh -i ~/.ssh/id_ed25519 -p {port} root@{host}")
++    print(f"  cd {POD_REPO} && {UV} run python experiments/exp042.py   # your short runs")
++    print(f"  it STOPS after {hours}h with no runner; each run resets the clock.")
++    print(f"  resume : uv run python experiments/helpers/warm_pod.py resume {pod_id} --hours {hours}")
++    print(f"  stop   : uv run python experiments/helpers/warm_pod.py stop {pod_id}")
++
++
++def resume(pod_id: str, hours: float = LEASE_HOURS,
++           max_hours: float = MAX_WARM_HOURS) -> None:
++    """Wake a stopped warm pod (`runpodctl start pod`) and re-arm the watcher —
++    a stop killed the previous nohup watcher, so resume restarts it."""
++    from helpers import runpod  # lazy: laptop side only
++
++    sha = runpod.head_sha()
++    if not runpod.sha_is_pushed(sha):
++        raise SystemExit(f"HEAD {sha[:12]} is not pushed to origin — commit + push first.")
++    print(f"[warm] starting pod {pod_id}…")
++    r = subprocess.run(["runpodctl", "start", "pod", pod_id],
++                       capture_output=True, text=True)
++    print(f"  runpodctl start: {(r.stdout + r.stderr).strip()[:200]}")
++    host, port = runpod.wait_for_ssh(pod_id)
++    _arm(host, port, sha, hours, max_hours)
++    print(f"[warm] pod {pod_id} resumed and re-armed ({hours}h idle lease)")
++    print(f"  ssh -i ~/.ssh/id_ed25519 -p {port} root@{host}")
++
++
++def stop(pod_id: str) -> None:
++    """Manually stop a warm pod now (keeps the disk; wake with `resume`)."""
++    print(f"[warm] stopping pod {pod_id}…")
++    r = subprocess.run(["runpodctl", "stop", "pod", pod_id],
++                       capture_output=True, text=True)
++    print(f"  runpodctl stop: {(r.stdout + r.stderr).strip()[:200]}")
++
++
++def status() -> None:
++    """List every pod on the account (warm pods included) so you can see what is
++    running/stopped and grab an id for resume/stop."""
++    from helpers import runpod  # lazy: laptop side only
++
++    pods = runpod.running_pods()
++    if not pods:
++        print("no pods on the account.")
++        return
++    for p in pods:
++        print(f"  {p.get('id')}  {p.get('name')}  {p.get('desiredStatus') or p.get('status')}")
++
++
++# ── CLI ──────────────────────────────────────────────────────────────
++
++def _main(argv: list[str] | None = None) -> None:
++    ap = argparse.ArgumentParser(description="Warm RunPod pod with a renewable idle lease.")
++    sub = ap.add_subparsers(dest="cmd", required=True)
++
++    p_launch = sub.add_parser("launch", help="create a warm pod + arm the watcher (laptop)")
++    p_launch.add_argument("--gpu", default="5090", choices=("4090", "5090"))
++    p_launch.add_argument("--hours", type=float, default=LEASE_HOURS)
++    p_launch.add_argument("--max-hours", type=float, default=MAX_WARM_HOURS)
++    p_launch.add_argument("--dry-run", action="store_true")
++
++    p_watch = sub.add_parser("watch", help="run the lease watcher (pod side; armed for you)")
++    p_watch.add_argument("--hours", type=float, default=LEASE_HOURS)
++    p_watch.add_argument("--max-hours", type=float, default=MAX_WARM_HOURS)
++    p_watch.add_argument("--poll", type=int, default=POLL_S)
++
++    p_resume = sub.add_parser("resume", help="wake a stopped warm pod + re-arm (laptop)")
++    p_resume.add_argument("pod_id")
++    p_resume.add_argument("--hours", type=float, default=LEASE_HOURS)
++    p_resume.add_argument("--max-hours", type=float, default=MAX_WARM_HOURS)
++
++    p_stop = sub.add_parser("stop", help="stop a warm pod now (laptop)")
++    p_stop.add_argument("pod_id")
++
++    sub.add_parser("status", help="list pods on the account (laptop)")
++
++    a = ap.parse_args(argv)
++    if a.cmd == "launch":
++        launch(gpu=a.gpu, hours=a.hours, max_hours=a.max_hours, dry_run=a.dry_run)
++    elif a.cmd == "watch":
++        watch(hours=a.hours, poll_s=a.poll, max_hours=a.max_hours)
++    elif a.cmd == "resume":
++        resume(a.pod_id, hours=a.hours, max_hours=a.max_hours)
++    elif a.cmd == "stop":
++        stop(a.pod_id)
++    elif a.cmd == "status":
++        status()
++
++
++if __name__ == "__main__":
++    _main()
+
+diff --git a/experiments/tests/test_warm_pod.py b/experiments/tests/test_warm_pod.py
+new file mode 100644
+index 0000000..7965e3b
+--- /dev/null
++++ b/experiments/tests/test_warm_pod.py
+@@ -0,0 +1,94 @@
++"""Unit tests for the warm-pod idle lease (helpers/warm_pod.py).
++
++Deterministic — no real pods, no real processes. `ps axww` and the wall clock
++are mocked so the watcher's renew/stop logic is exercised in-memory:
++  • _runner_active parses ps output and matches only real runners (expNNN.py),
++    never the watcher itself.
++  • watch() stops the pod once the idle window passes with nothing running.
++  • a live runner keeps renewing the lease, so a long run is never stopped.
++  • the hard ceiling stops the pod even if activity never ceases (safety valve).
++"""
++from types import SimpleNamespace
++
++import pytest
++from experiments.helpers import warm_pod as w
++
++
++def _fake_ps(stdout):
++    """A subprocess.run stand-in that returns fixed `ps axww` output."""
++    return lambda *a, **k: SimpleNamespace(stdout=stdout, returncode=0)
++
++
++def test_runner_active_detects_runner(monkeypatch):
++    monkeypatch.setattr(w.subprocess, "run", _fake_ps(
++        "  1 ??  Ss  0:00 /usr/sbin/sshd -D\n"
++        "123 pts/0 Rl 3:21 python experiments/exp042.py\n"))
++    assert w._runner_active() is True
++
++
++def test_runner_active_idle_ignores_watcher(monkeypatch):
++    # The watcher's own cmdline must NOT count as a run, or it would hold itself
++    # open forever.
++    monkeypatch.setattr(w.subprocess, "run", _fake_ps(
++        "  1 ??  Ss  0:00 /usr/sbin/sshd -D\n"
++        " 42 pts/0 Sl 0:01 python experiments/helpers/warm_pod.py watch --hours 3\n"))
++    assert w._runner_active() is False
++
++
++def _fake_clock(monkeypatch, start=1000.0):
++    """Patch _now() and time.sleep() onto a shared fake clock; sleeping advances
++    it. Returns the clock dict so a test can read the elapsed time."""
++    clock = {"t": start}
++    monkeypatch.setattr(w, "_now", lambda: clock["t"])
++    monkeypatch.setattr(w.time, "sleep", lambda s: clock.__setitem__("t", clock["t"] + s))
++    monkeypatch.setattr(w, "_write_lease", lambda *a, **k: None)
++    return clock
++
++
++def test_watch_stops_on_idle(monkeypatch):
++    _fake_clock(monkeypatch)
++    monkeypatch.setattr(w, "_runner_active", lambda: False)
++    monkeypatch.setenv("RUNPOD_POD_ID", "pod-1")
++    stopped = []
++    monkeypatch.setattr(w, "_stop_pod", lambda pid: stopped.append(pid))
++
++    w.watch(hours=2 / 3600, poll_s=1, max_hours=24)  # 2-second idle window
++    assert stopped == ["pod-1"]
++
++
++def test_watch_renews_while_a_run_is_active(monkeypatch):
++    clock = _fake_clock(monkeypatch)
++    calls = {"n": 0}
++
++    def active():
++        calls["n"] += 1
++        return calls["n"] <= 5  # a run occupies the first 5 polls, then finishes
++
++    monkeypatch.setattr(w, "_runner_active", active)
++    monkeypatch.setenv("RUNPOD_POD_ID", "pod-1")
++    stopped = []
++    monkeypatch.setattr(w, "_stop_pod", lambda pid: stopped.append(pid))
++
++    w.watch(hours=2 / 3600, poll_s=1, max_hours=24)  # 2s window, but 5s of activity
++    assert stopped == ["pod-1"]
++    # It ran well past the 2s idle window — the active run held it open (no
++    # mid-flight kill), and it stopped only once activity ceased.
++    assert clock["t"] - 1000.0 > 5
++
++
++def test_watch_hard_ceiling_stops_even_if_always_busy(monkeypatch):
++    _fake_clock(monkeypatch)
++    monkeypatch.setattr(w, "_runner_active", lambda: True)  # never idle
++    monkeypatch.setenv("RUNPOD_POD_ID", "pod-1")
++    stopped = []
++    monkeypatch.setattr(w, "_stop_pod", lambda pid: stopped.append(pid))
++
++    # Ceiling of 2 seconds despite perpetual activity — the safety valve fires.
++    w.watch(hours=1, poll_s=60, max_hours=2 / 3600)
++    assert stopped == ["pod-1"]
++
++
++def test_watch_requires_pod_id(monkeypatch):
++    monkeypatch.delenv("RUNPOD_POD_ID", raising=False)
++    with pytest.raises(SystemExit):
++        w.watch()

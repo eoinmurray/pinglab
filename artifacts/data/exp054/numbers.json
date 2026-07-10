@@ -1,8 +1,8 @@
 {
-  "run_id": "r002",
-  "git_sha": "b3f5efc",
-  "duration_s": 378.6,
-  "duration": "6m 19s",
+  "run_id": "r004",
+  "git_sha": "de07d43",
+  "duration_s": 327.2,
+  "duration": "5m 27s",
   "config": {
     "source": "untrained PING networks, private per-cell Poisson input",
     "dt_ms": 0.25,
