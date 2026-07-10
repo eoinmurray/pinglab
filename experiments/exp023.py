@@ -441,6 +441,10 @@ def plot_raster_compound(
                 color=theme.GREY_MID,
                 fontstyle="italic",
                 fontsize=theme.SIZE_LABEL - 1,
+                # Opaque backing so the note reads over the dense raster instead of
+                # smearing into it like a ghost watermark.
+                bbox=dict(boxstyle="round,pad=0.2", facecolor="white",
+                          edgecolor="none", alpha=0.75),
             )
         ax_r.set_ylim(0, total)
         ax_r.set_xlim(0, T * dt)

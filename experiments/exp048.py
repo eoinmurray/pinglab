@@ -787,7 +787,7 @@ def plot_varying_headline_stream(s: dict, out_path: Path, run_id: str) -> None:
 
     fig = plt.figure(figsize=(6.9, 5.33), dpi=150)
     gs = fig.add_gridspec(
-        4, 1, height_ratios=[1.1, 2.2, 1.2, 2.0], hspace=0.18,
+        4, 1, height_ratios=[1.35, 2.2, 1.2, 2.0], hspace=0.18,
     )
 
     # Panel A: digit thumbnails with per-segment (τ, rate) labels.
@@ -831,13 +831,19 @@ def plot_varying_headline_stream(s: dict, out_path: Path, run_id: str) -> None:
         sub.set_xticks([])
         sub.set_yticks([])
         ok_color = theme.INK_BLACK if seg_pred[d] == labels[d] else theme.DEEP_RED
-        # Compact 2-line title; rotate slightly to fit on narrow segments.
-        # τ value first since that's the structural knob; rate beneath.
-        sub.set_title(
-            f"{tau_ms:g} ms\n{rate_hz:g} Hz",
-            fontsize=theme.SIZE_LABEL - 1,
-            color=theme.MUTED,
-            pad=2,
+        # (τ, rate) caption. A per-inset title is centred over an axes whose width
+        # scales with the segment's *time span*, so short segments get titles wider
+        # than their thumbnail that overprint neighbours. Draw it instead on ax_a at
+        # the segment centre (x in data ms), single line, and stagger adjacent
+        # segments across two rows so labels never collide however narrow a segment
+        # is. τ first (the structural knob), rate second.
+        x_c = 0.5 * (x_lo + x_hi)
+        y_row = 1.02 if d % 2 == 0 else 1.15
+        ax_a.text(
+            x_c, y_row, f"{tau_ms:g} ms · {rate_hz:g} Hz",
+            transform=ax_a.get_xaxis_transform(),
+            ha="center", va="bottom",
+            fontsize=theme.SIZE_LABEL - 2, color=theme.MUTED, clip_on=False,
         )
         # Per-segment prediction badge inset into the thumbnail's top
         # — same colour scheme as the readout traces below.
@@ -967,6 +973,31 @@ def plot_grid_heatmap(rows: list[dict], out_path: Path, run_id: str) -> None:
     plt.close(fig)
 
 
+# ── Varying-headline cache ──────────────────────────────────────────
+# The varying-headline figure (Fig 12) is otherwise drawn only in the full run,
+# which also runs the ~280 min grid sweep. Persisting the single-stream result
+# lets `--replot headline` redraw it in isolation; `segments` is the module
+# constant VARYING_HEADLINE, so only the computed arrays are cached.
+_HEADLINE_CACHE_KEYS = (
+    "segment_steps", "T_stream_steps", "labels", "pixels",
+    "spk_e", "spk_i", "probs", "seg_preds", "seg_correct", "seg_ends",
+)
+
+
+def _save_headline_cache(v: dict, path: Path) -> None:
+    np.savez(path, **{k: np.asarray(v[k]) for k in _HEADLINE_CACHE_KEYS})
+
+
+def _load_headline_cache(path: Path) -> dict:
+    z = np.load(path)
+    v: dict = {"segments": VARYING_HEADLINE, "T_stream_steps": int(z["T_stream_steps"])}
+    for k in ("pixels", "spk_e", "spk_i", "probs"):
+        v[k] = z[k]
+    for k in ("segment_steps", "labels", "seg_preds", "seg_correct", "seg_ends"):
+        v[k] = z[k].tolist()
+    return v
+
+
 # ── Main ────────────────────────────────────────────────────────────
 def main() -> None:
     # Publication profile: every figure this notebook writes is a print-sized
@@ -988,6 +1019,24 @@ def main() -> None:
             grid_agg, FIGURES / "acc_grid_tau_rate", "exp048-replot",
         )
         print(f"wrote {FIGURES / 'acc_grid_tau_rate'}.png (replotted from cache)")
+        return
+
+    if replot_target(sys.argv) == "headline":
+        # Redraw Fig 12 without the grid sweep. Use the cache if present (instant);
+        # otherwise compute just the single 5-segment stream (_load_eval + one
+        # forward — seconds, no sweep) and seed the cache for next time.
+        cache = FIGURES / "varying_headline_cache.npz"
+        if cache.exists():
+            v = _load_headline_cache(cache)
+        else:
+            print("--replot headline: no cache; computing the single stream (no grid sweep)")
+            train_dir, cfg, X_te, y_te = _load_eval(seed=SEEDS[0])
+            v = run_varying_headline(train_dir, cfg, X_te, y_te)
+            _save_headline_cache(v, cache)
+        plot_varying_headline_stream(
+            v, FIGURES / "varying_headline_stream", "exp048-replot",
+        )
+        print(f"wrote {FIGURES / 'varying_headline_stream'}.png (replot)")
         return
 
     notebook_run_id = next_run_id(SLUG)
@@ -1018,6 +1067,7 @@ def main() -> None:
     plot_varying_headline_stream(
         v, FIGURES / "varying_headline_stream", notebook_run_id,
     )
+    _save_headline_cache(v, FIGURES / "varying_headline_cache.npz")
     print(f"wrote {FIGURES / 'varying_headline_stream'}.png")
 
     # Multi-seed sweeps: τ-sweep and grid both run per-seed and average.

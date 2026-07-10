@@ -761,9 +761,17 @@ def build_super_compound(grid, results, hopf, sweep, mf, meas, out_path):
     # sc is assigned inside the eigenvalue loop (always ≥1 eigenvalue); narrow
     # the None branch. PathCollection from scatter is a valid ScalarMappable.
     assert sc is not None
-    cbar = fig.colorbar(sc, ax=axA, fraction=0.046, pad=0.02)
-    cbar.set_label("$I_\\text{ext}$ (nA)", fontsize=theme.SIZE_TICK - 1)
-    cbar.ax.tick_params(labelsize=theme.SIZE_TICK - 1)
+    # Colour-bar as an inset INSIDE panel G. `fig.colorbar(ax=axA)` steals space
+    # from axA's right edge and drops the bar (plus its "I_ext (nA)" label) into the
+    # G|H gutter, where it collides with panel H's y-axis label and ticks. An inset
+    # keeps it within G's own footprint, in the sparse upper-left of the eigenvalue
+    # scatter, so the mean-field row stays legible.
+    cax = axA.inset_axes([0.06, 0.56, 0.035, 0.38])
+    cbar = fig.colorbar(sc, cax=cax)
+    cbar.set_label("$I_\\text{ext}$ (nA)", fontsize=theme.SIZE_TICK - 2, labelpad=2)
+    cbar.ax.tick_params(labelsize=theme.SIZE_TICK - 2)
+    cbar.ax.yaxis.set_ticks_position("right")
+    cbar.ax.yaxis.set_label_position("right")
     axA.set_xlabel("Re$(\\lambda)$", fontsize=theme.SIZE_LABEL)
     axA.set_ylabel("Im$(\\lambda)$", fontsize=theme.SIZE_LABEL)
     axA.set_title(f"Hopf crossing at $I^\\star$ = {hopf['I_ext_star']:.2f} nA",
@@ -807,9 +815,50 @@ def build_super_compound(grid, results, hopf, sweep, mf, meas, out_path):
     theme.apply()
 
 
+# ── Onset super-compound cache ──────────────────────────────────────
+# The onset super-compound (Fig 2 of ar009) is otherwise redrawn only by the full
+# run, whose ~6 min cost is the 121-network `run_grid`. Persisting its inputs — the
+# grid plus the exp033 mean-field results — lets `--plot-only super` redraw it in
+# seconds. The structures are nested dict/list/ndarray, so they go in as a single
+# object-array payload (a local regen cache under the gitignored data dir, same
+# role as exp048's headline cache).
+def _save_super_cache(path, grid, results, hopf, criticality, mf_freq, meas_fgamma):
+    payload = np.empty(6, dtype=object)
+    payload[:] = [grid, results, hopf, criticality, mf_freq, meas_fgamma]
+    np.savez(path, payload=payload)
+
+
+def _load_super_cache(path):
+    payload = np.load(path, allow_pickle=True)["payload"]
+    grid, results, hopf, criticality, mf_freq, meas_fgamma = payload
+    return grid, results, hopf, criticality, mf_freq, meas_fgamma
+
+
 def main():
     meta = parse_meta(sys.argv)
     sim_ms = SIM_MS
+
+    if meta.plot_fig == "super":
+        # Fast redraw of the onset super-compound from cache — no 121-network grid
+        # re-simulation. Mirrors exp048's `--plot-only headline`; requires one prior
+        # full run to seed the cache (like exp048's `--replot grid`).
+        run_id = next_run_id(SLUG)
+        with published_run(
+            SLUG, run_id, scale=SCALE, plot_only=True,
+        ) as (_artifacts, figures):
+            theme.apply()
+            plt.rcParams["savefig.bbox"] = "standard"
+            cache = figures / "super_compound_cache.npz"
+            if not cache.exists():
+                raise SystemExit(
+                    "--plot-only super: no cache at "
+                    f"{cache}; run the full notebook once first."
+                )
+            grid, results, hopf, criticality, mf_freq, meas_fgamma = _load_super_cache(cache)
+            build_super_compound(grid, results, hopf, criticality, mf_freq, meas_fgamma,
+                                 figures / "onset_super_compound")
+            print("wrote onset_super_compound.{png,pdf} (replot from cache)")
+        return
 
     t_start = time.monotonic()
     run_id = next_run_id(SLUG)
@@ -857,7 +906,9 @@ def main():
         meas_fgamma = exp033.load_exp041_fgamma()
         build_super_compound(grid, results, hopf, criticality, mf_freq, meas_fgamma,
                              figures / "onset_super_compound")
-        print("wrote onset_super_compound.{png,pdf}")
+        _save_super_cache(figures / "super_compound_cache.npz",
+                          grid, results, hopf, criticality, mf_freq, meas_fgamma)
+        print("wrote onset_super_compound.{png,pdf} (+ super_compound_cache.npz)")
 
         duration_s = time.monotonic() - t_start
         # default=float coerces residual numpy scalars; round-trip so write_numbers

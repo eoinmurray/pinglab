@@ -1237,7 +1237,11 @@ def fig_results_compound(rows, npz_coba, npz_ping, out_path, run_id):
             ax.set_yticklabels(["E"])
             ax.text(T * dt * 0.985, N_E - 30, "I silent (loop off)",
                     ha="right", va="top", fontsize=theme.SIZE_LABEL - 1,
-                    color=theme.MUTED, fontstyle="italic")
+                    color=theme.MUTED, fontstyle="italic",
+                    # Opaque backing so the note reads over the dense raster
+                    # instead of smearing into it like a ghost watermark.
+                    bbox=dict(boxstyle="round,pad=0.2", facecolor="white",
+                              edgecolor="none", alpha=0.75))
         ax.set_xlim(0, T * dt)
         ax.set_xlabel("time (ms)")
         ax.tick_params(axis="y", length=0)
