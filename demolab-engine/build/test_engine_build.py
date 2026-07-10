@@ -61,12 +61,28 @@ def test_demo_fixture_builds_full_site(tmp_path: Path) -> None:
     index = (site / "index.html").read_text()
     # ".empty-state" also appears in the inlined stylesheet, so key on the rendered copy.
     assert "Your lab is ready" not in index, "demo has content, so no empty state"
-    assert "Installation" in index, "demo welcome block renders on the homepage"
-    assert "Open source, MIT licensed" in index, "demo welcome footer renders"
-    assert '<ul class="coll-list"' not in index, "demo landing hides the collection directory"
-    assert '<p class="page-foot"' not in index, "demo landing hides the page foot"
+    # The marketing welcome hero is landing-only (site/demolab.yaml) — a user's lab must get a
+    # normal homepage: no hero, collection directory visible.
+    assert "paste into your coding agent" not in index, "landing hero must NOT land in a user lab"
+    assert '<div class="welcome"' not in index, "no welcome block in a user lab"
+    assert '<ul class="coll-list"' in index, "collection directory visible in a user lab"
     entry = (site / "exp000.html").read_text()
     assert "<img" in entry or "<svg" in entry, "a figure made it into the entry page"
+
+
+def test_landing_fixture_builds_marketing_homepage(tmp_path: Path) -> None:
+    """The upstream landing (Pages deploy) applies site/demolab.yaml over the root config —
+    the welcome hero renders and the collection directory is hidden. Mirrors landing.yml."""
+    root = tmp_path / "repo"
+    root.mkdir()
+    _assemble(root, demo=True)
+    shutil.copy(SCAFFOLD / "demo" / "site" / "demolab.yaml", root / "demolab.yaml")
+    _build(root)
+
+    index = (root / "artifacts" / "site" / "index.html").read_text()
+    assert "paste into your coding agent" in index, "welcome hero renders on the landing"
+    assert "Open source, MIT licensed" in index, "welcome footer renders"
+    assert '<ul class="coll-list"' not in index, "landing hides the collection directory"
 
 
 def test_emitted_html_has_no_root_absolute_urls(tmp_path: Path) -> None:

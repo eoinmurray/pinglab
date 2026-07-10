@@ -2,8 +2,12 @@
 
 The end-to-end behaviour — hot-add of a new entry, the browser error overlay on a failed
 compile — is exercised by hand against `task dev`; these cover the two string transforms the
-server leans on, which are easy to break silently.
+server leans on, which are easy to break silently, plus the loopback bind (sockets only, no
+HTTP request, no build) that an IPv4-only server gets wrong on Windows.
 """
+import socket
+import threading
+
 import devserver
 
 
@@ -50,6 +54,24 @@ def test_within_blocks_traversal(tmp_path):
     # `..` that climbs out of the site must be rejected
     assert not devserver._within(site / ".." / "secret.html", site)
     assert not devserver._within(site / ".." / ".." / "etc" / "hosts.html", site)
+
+
+def test_make_server_accepts_both_loopbacks():
+    # The banner says http://localhost, but Windows resolves `localhost` to the IPv6 ::1 first
+    # — an IPv4-only bind makes that URL dead there while 127.0.0.1 works. make_server must
+    # therefore accept connections on BOTH loopbacks (dual-stack), not just 127.0.0.1.
+    server = devserver.make_server(0)  # port 0 → OS assigns a free one
+    port = server.server_address[1]
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+    try:
+        with socket.create_connection(("127.0.0.1", port), timeout=2):
+            pass
+        if server.address_family == socket.AF_INET6:  # IPv4-only fallback hosts skip this leg
+            with socket.create_connection(("::1", port), timeout=2):
+                pass
+    finally:
+        server.shutdown()
+        server.server_close()
 
 
 def test_deck_affecting_triggers_on_slide_and_data():

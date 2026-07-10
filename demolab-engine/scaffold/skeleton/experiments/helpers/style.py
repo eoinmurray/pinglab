@@ -11,6 +11,10 @@ runner to runner.
 """
 import matplotlib as mpl
 
+# Headless backend: demolab figures are savefig-only (never plt.show()), and the default GUI
+# backend breaks where Tcl/Tk is absent — notably uv-managed pythons on Windows.
+mpl.use("Agg")
+
 INK = "#1a1a1a"     # near-black: the default for any single trace (H13)
 ACCENT = "#c8102e"  # signal red: only to separate two traces sharing one axis (H13)
 BAND = "#cccccc"    # light grey: error bands and fills (H13)

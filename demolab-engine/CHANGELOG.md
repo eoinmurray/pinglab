@@ -48,14 +48,67 @@ the runbook shows the entries between your version and the latest.
   > never opted into Pages is unaffected until it runs `task deploy-setup`.
 
 ### Changed
+- **GETTING-STARTED rebuilt around the user's own first experiment.** Onboarding no longer
+  overlays the demo into a fresh lab — the lab starts clean, and the finished example is the
+  landing site (built from `scaffold/demo/`, which stays as the agent's file-shape reference
+  and the test fixture). The flow is now three questions (ready? · what should your first
+  experiment be? — with field-calibrated starter suggestions for the blank-canvas case, and
+  code/notebook/paper as branches into the migrate runbooks · publish?) and a mandatory
+  **touch-it moment**: change a parameter, re-run, watch the page's figures and numbers update
+  with no prose touched. Branding and publishing moved after the first experiment;
+  fresh-vs-migrate, demo-or-clean, and stack are no longer standalone questions.
+  `task add-demo-content` remains as an unadvertised escape hatch.
 - **`task dev:demo-site` reads and serves directly from `demolab-engine/scaffold/demo/`.** Sets
   `DEMOLAB_ROOT` there (no root symlinks, no `temp/demo-site/` staging). A `content-prefix`
   Typst input + `data-file()` in `lib.typ` let demo writings resolve `/artifacts/data/…` while
   `--root` stays at the repo checkout for the engine.
-- **Install scripts moved into the shipped demo.** `install.sh`, `install.ps1`, and `CNAME` now live
-  at `demolab-engine/scaffold/demo/site/` (served at the Pages root alongside the demo). The
-  top-level `landing/` directory is gone. `task add-demo-content` skips `site/` so installers
-  don't land in a user's lab root.
+- **The top-level `landing/` directory is gone.** `CNAME` now lives at
+  `demolab-engine/scaffold/demo/site/` (served at the Pages root alongside the demo).
+  `task add-demo-content` skips `site/` so it doesn't land in a user's lab root.
+
+### Fixed
+- **The upstream marketing homepage no longer leaks into user labs.** `task add-demo-content`
+  copied `scaffold/demo/demolab.yaml` — which carried the demolab.eoinmurray.info `welcome:`
+  hero and `hide-directory: true` — over the lab's root config, so a fresh lab's homepage was
+  the upstream landing page (own collections hidden), and `task clear-demo-content` didn't undo
+  it. The hero now lives in a landing-only `scaffold/demo/site/demolab.yaml` (site/ is excluded
+  from the overlay), applied only by the Pages deploy; the demo config a user receives is
+  branding + demo collections. Build tests now pin both: user fixture gets no hero and a
+  visible directory, landing fixture gets the hero.
+
+### Removed
+- **The one-line install scripts are retired.** `install.sh` / `install.ps1` (and their
+  end-to-end tests) are gone; the agent-based install is the one supported path — open a coding
+  agent in an empty folder and paste the GETTING-STARTED prompt. The runbook's step 2 owns the
+  toolchain install, including the portable `.tools/bin/` fallback for machines without a
+  package manager.
+
+## [0.5.3] — 2026-07-09
+
+Windows portability, driven by a field report from a real Windows setup (thank you!). The flow
+worked conceptually; everything below is plumbing that assumed Unix.
+
+### Fixed
+- **`http://localhost` now works on Windows.** The dev server bound IPv4-only while printing a
+  `localhost` URL — and Windows resolves `localhost` to the IPv6 `::1` first, so the printed URL
+  was unreachable (only `127.0.0.1` worked). It now binds dual-stack, with an IPv4-only fallback
+  where IPv6 is absent.
+- **No more Unix-only shell in tasks.** `task scaffold` / `task add-demo-content` used `rsync`
+  and `task slides` used `grep` + `basename` — none exist on Windows. Both are now small stdlib
+  Python engines (`overlay.py`, `slides.py`) with the same semantics (re-scaffold never clobbers,
+  the demo's prebuilt `site/` never lands in your tree).
+- **Demo runners no longer use the `sh` package** (it does not support Windows) — they invoke
+  tools via `subprocess` + `sys.executable`, the same idiom as the playground.
+- **Figures render headless.** The shared figure style forces matplotlib's `Agg` backend;
+  the default GUI backend broke where Tcl/Tk is absent (notably uv-managed pythons on Windows).
+- **`typst` resolution.** The build prefers a repo-local `.tools/bin/typst(.exe)` — the blessed
+  fallback for machines with no package manager — then PATH.
+
+### Added
+- **CI runs the test suite on Windows** (`tests.yml`, ubuntu + windows matrix), so these
+  regressions get caught on a real Windows runner.
+- **GETTING-STARTED covers Windows**: `winget` install line, the portable `.tools/bin/` fallback,
+  and sandbox notes (`UV_CACHE_DIR`, repo-local temp, network approvals for dependency fetches).
 
 ## [0.5.2] — 2026-07-08
 

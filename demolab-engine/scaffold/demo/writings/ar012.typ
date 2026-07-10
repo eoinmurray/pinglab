@@ -29,7 +29,8 @@
   - *Writing*: any `writings/<id>.typ`: an experiment's writeup, an article, or a deck. It is a
     `meta` plus `body` pair the engine discovers and publishes.
   - *Deck*: a `writings/<id>.slide.typ` Touying slide deck. It is paged-only, compiled to a
-    standalone PDF and grouped under the `slides` collection: listed, but not an entry.
+    standalone PDF and grouped under the `slides` collection (or its `meta.collection`, if
+    set): listed, but not an entry.
   - *Entry*: a published item that becomes its own page, meaning an experiment or an article.
     Decks are listed but are not entries.
 
