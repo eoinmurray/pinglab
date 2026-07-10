@@ -42,7 +42,10 @@ if TYPE_CHECKING:  # torch is imported lazily inside the functions at runtime
 REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from helpers import theme  # noqa: E402
+from helpers import (
+    runpod,  # noqa: E402
+    theme,  # noqa: E402
+)
 from helpers.cli import Meta, parse_meta  # noqa: E402
 from helpers.datasets import load_mnist_split  # noqa: E402
 from helpers.figsave import save_figure  # noqa: E402
@@ -56,7 +59,6 @@ from helpers.paths import artifacts_and_figures  # noqa: E402
 from helpers.run_cli import run_cli  # noqa: E402
 from helpers.run_dirs import prepare as prepare_run_dirs  # noqa: E402
 from helpers.run_id import next_run_id  # noqa: E402
-from helpers import runpod  # noqa: E402
 from helpers.stamp import stamp_figure  # noqa: E402
 
 SLUG = "exp042"
