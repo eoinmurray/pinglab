@@ -1,0 +1,26 @@
+{
+  "slug": "exp061",
+  "run_id": "r002",
+  "run_at": "2026-07-11T18:37:47+00:00",
+  "git_sha": "813032c",
+  "dirty": true,
+  "code_dirty": true,
+  "patch": {
+    "file": "_dirty.patch",
+    "sha256": "c8d2d2123aa4d25527b5d0559ecd2ec5e9d8b94f29dce06d63373315fad7ebfa",
+    "lines": 69
+  },
+  "host": "local",
+  "scale": {
+    "dataset": "shd",
+    "sweep": "\u0394t \u2208 {1.0, 0.5, 0.25} ms",
+    "max_samples": 128,
+    "t_ms": 1000.0,
+    "epochs": 15,
+    "n_hidden": 256,
+    "seeds": 1,
+    "seed": 42,
+    "recipe": "Rung A (free signed-recurrent ceiling, no Dale's law, fr-reg on)",
+    "compute": "local-cpu"
+  }
+}
