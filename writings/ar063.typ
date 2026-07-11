@@ -59,13 +59,19 @@
       unbounded W_ee growth. This entry defines the problem the rest of the queue
       solves.
 
-  + *exp061 — does finer dt stabilise the integration?* _(3 seeds · status: queued)_
+  + *exp061 — does finer dt stabilise the integration?* _(1 seed · status: done — killed)_
     - _Hypothesis:_ the NaN divergence is exp-Euler stiffness at coarse dt;
       halving and quartering dt (1.0 → 0.5 → 0.25) drops the NaN-epoch rate
       toward zero.
     - _Kill:_ if NaN persists at dt 0.25, coarse integration is not the cause —
       drop dt from the recipe and look upstream (state clamping).
     - _Measures:_ NaN-epoch rate and max gradient norm vs dt.
+    - _Result (#link("/exp061/")[exp061]):_ *killed.* NaN reproduced at dt 1.0
+      (13/30 epochs) but _persists_ at dt 0.25 (16/30), and the max pre-clip
+      gradient norm gets ≈ 13 orders of magnitude _worse_ as dt shrinks
+      (3·10⁴ → 4·10¹⁷) — finer dt quadruples the BPTT unroll and the recurrent
+      gradient chain explodes. Not coarse-dt stiffness. dt drops from the recipe;
+      the forward-pass state clamp becomes the lead (see Amendments).
 
   + *exp062 — is Dale's law the implicit stabiliser?* _(3 seeds · status: queued)_
     - _Hypothesis:_ the Dale's-law constraint (non-negativity clamp) keeps the
@@ -93,6 +99,17 @@
 
   == Amendments
 
-  None yet. Any change to a hypothesis or kill criterion after an experiment has
-  run against it is added here as a dated entry, never edited in place.
+  Any change to a hypothesis or kill criterion after an experiment has run
+  against it is added here as a dated entry, never edited in place.
+
+  - *2026-07-11 — dt dropped; forward-pass state clamp promoted from fallback to
+    lead.* #link("/exp061/")[exp061] killed the dt-stiffness hypothesis: finer dt
+    did not remove the NaN and made the pre-clip gradient explosion orders of
+    magnitude worse (the longer BPTT unroll dominates). With neither dt (exp061)
+    nor weight size (exp060: NaN at epoch 2 with tiny weights) explaining the
+    divergence, the reserved forward-pass state clamp — bounding voltage and
+    conductance each timestep so a diverging trajectory cannot reach NaN — is now
+    the primary lead rather than a last resort. It is a change to the shared
+    model, so it enters the queue after the two remaining no-code-change probes
+    (exp062 Dale's law, exp063 weight decay) unless those close the case first.
 ]
