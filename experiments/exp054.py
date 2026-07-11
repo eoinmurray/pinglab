@@ -820,9 +820,10 @@ def build_super_compound(grid, results, hopf, sweep, mf, meas, out_path):
 # run, whose ~6 min cost is the 121-network `run_grid`. Persisting its inputs — the
 # grid plus the exp033 mean-field results — lets `--plot-only super` redraw it in
 # seconds. The structures are nested dict/list/ndarray, so they go in as a single
-# object-array payload (a local regen cache under the gitignored data dir, same
-# role as exp048's headline cache).
+# object-array payload, written to the gitignored scratch dir (ARTIFACTS/temp),
+# not the published data dir — it is regenerable and shouldn't be committed.
 def _save_super_cache(path, grid, results, hopf, criticality, mf_freq, meas_fgamma):
+    path.parent.mkdir(parents=True, exist_ok=True)
     payload = np.empty(6, dtype=object)
     payload[:] = [grid, results, hopf, criticality, mf_freq, meas_fgamma]
     np.savez(path, payload=payload)
@@ -848,7 +849,7 @@ def main():
         ) as (_artifacts, figures):
             theme.apply()
             plt.rcParams["savefig.bbox"] = "standard"
-            cache = figures / "super_compound_cache.npz"
+            cache = _artifacts / "super_compound_cache.npz"
             if not cache.exists():
                 raise SystemExit(
                     "--plot-only super: no cache at "
@@ -906,9 +907,9 @@ def main():
         meas_fgamma = exp033.load_exp041_fgamma()
         build_super_compound(grid, results, hopf, criticality, mf_freq, meas_fgamma,
                              figures / "onset_super_compound")
-        _save_super_cache(figures / "super_compound_cache.npz",
+        _save_super_cache(_artifacts / "super_compound_cache.npz",
                           grid, results, hopf, criticality, mf_freq, meas_fgamma)
-        print("wrote onset_super_compound.{png,pdf} (+ super_compound_cache.npz)")
+        print("wrote onset_super_compound.{png,pdf} (+ super_compound_cache.npz in scratch)")
 
         duration_s = time.monotonic() - t_start
         # default=float coerces residual numpy scalars; round-trip so write_numbers

@@ -985,6 +985,7 @@ _HEADLINE_CACHE_KEYS = (
 
 
 def _save_headline_cache(v: dict, path: Path) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
     np.savez(path, **{k: np.asarray(v[k]) for k in _HEADLINE_CACHE_KEYS})
 
 
@@ -1025,7 +1026,7 @@ def main() -> None:
         # Redraw Fig 12 without the grid sweep. Use the cache if present (instant);
         # otherwise compute just the single 5-segment stream (_load_eval + one
         # forward — seconds, no sweep) and seed the cache for next time.
-        cache = FIGURES / "varying_headline_cache.npz"
+        cache = ARTIFACTS / "varying_headline_cache.npz"
         if cache.exists():
             v = _load_headline_cache(cache)
         else:
@@ -1067,7 +1068,7 @@ def main() -> None:
     plot_varying_headline_stream(
         v, FIGURES / "varying_headline_stream", notebook_run_id,
     )
-    _save_headline_cache(v, FIGURES / "varying_headline_cache.npz")
+    _save_headline_cache(v, ARTIFACTS / "varying_headline_cache.npz")
     print(f"wrote {FIGURES / 'varying_headline_stream'}.png")
 
     # Multi-seed sweeps: τ-sweep and grid both run per-seed and average.

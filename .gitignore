@@ -44,3 +44,6 @@ temp/
 artifacts/site/
 # CLI scratch if the default artifact root is ever hit (normally writes to temp/)
 tools/artifacts/
+
+# regen caches for --plot-only/--replot live in scratch (temp/), never the published data dir
+artifacts/data/**/*_cache.npz
