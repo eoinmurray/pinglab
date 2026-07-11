@@ -75,6 +75,16 @@ EPOCHS = 30                       # matches exp060; enough epochs for NaNs to su
 PLUMBING_SUBSET = 64
 PLUMBING_EPOCHS = 2
 
+# Local-CPU scale (PINGLAB_EXP061_LOCAL=1) — a reduced first-read scale that runs
+# the whole sweep on CPU in ~40 min when the RunPod fan-out is unavailable (this
+# lab's cloud sandbox blocks outbound SSH, so the rsync-over-SSH collect step
+# cannot pull results back — see writings/exp061.typ §Compute). The stiffness the
+# plan targets is a per-forward-pass property (exp060 diverged at epoch 2 with
+# tiny weights), so it is expected to show at this scale; the RunPod path above
+# runs the full exp060-matching scale from an unrestricted network.
+LOCAL_SUBSET = 128
+LOCAL_EPOCHS = 15
+
 # Rung A recipe (from exp060) as flag/value pairs, minus --dt / --seed / --out-dir
 # which build_train_args supplies per cell.
 RECIPE: list[str] = [
@@ -132,12 +142,27 @@ def _plumbing() -> bool:
     return os.environ.get("PINGLAB_EXP061_PLUMBING") == "1"
 
 
+def _local() -> bool:
+    return os.environ.get("PINGLAB_EXP061_LOCAL") == "1"
+
+
 def cell_samples_epochs() -> tuple[int, int]:
-    """(max_samples, epochs) at the standard scale, or the tiny plumbing scale
-    when PINGLAB_EXP061_PLUMBING=1."""
+    """(max_samples, epochs): the tiny plumbing scale under
+    PINGLAB_EXP061_PLUMBING, the reduced local-CPU scale under
+    PINGLAB_EXP061_LOCAL, else the full RunPod scale."""
     if _plumbing():
         return PLUMBING_SUBSET, PLUMBING_EPOCHS
+    if _local():
+        return LOCAL_SUBSET, LOCAL_EPOCHS
     return SUBSET, EPOCHS
+
+
+def _compute_label() -> str:
+    if _plumbing():
+        return "runpod-plumbing"
+    if _local():
+        return "local-cpu"
+    return "runpod"
 
 
 def build_train_args(cell: dict, out_dir: Path) -> list[str]:
@@ -373,11 +398,14 @@ def main() -> None:
 
     t_start = time.monotonic()
     run_id = next_run_id(SLUG)
-    print(f"notebook_run_id = {run_id} cells={len(CELLS)}"
+    ms, ep = cell_samples_epochs()
+    scale = {**SCALE, "max_samples": ms, "epochs": ep, "compute": _compute_label()}
+    print(f"notebook_run_id = {run_id} cells={len(CELLS)} "
+          f"scale=({ms} samples, {ep} ep, {_compute_label()})"
           + ("  [skip-training]" if skip_training else ""))
 
     with published_run(
-        SLUG, run_id, make_artifacts=True, scale=SCALE,
+        SLUG, run_id, make_artifacts=True, scale=scale,
         skip_training=skip_training, plot_only=meta.plot_only,
     ) as (_artifacts, figures):
         # Local training (CPU here; the real sweep runs on RunPod). Skipped when
@@ -412,6 +440,9 @@ def main() -> None:
         payload = {
             "dt_sweep": list(DT_SWEEP_MS),
             "seed": SEED,
+            "max_samples": ms,
+            "epochs": ep,
+            "compute": _compute_label(),
             "n_cells": len(CELLS),
             "n_trained": len(trained),
             "cells": stats,
