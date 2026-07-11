@@ -1,0 +1,23 @@
+{
+  "slug": "exp059",
+  "run_id": "r001",
+  "run_at": "2026-07-11T13:10:22+00:00",
+  "git_sha": "7ad5386",
+  "dirty": true,
+  "code_dirty": true,
+  "patch": {
+    "file": "_dirty.patch",
+    "sha256": "3b30f457f62e9c7d840871d0d3e04234d7a205a768bafc1e6a36f4b403345d88",
+    "lines": 638
+  },
+  "host": "local",
+  "scale": {
+    "dataset": "shd",
+    "split": "train",
+    "n_channels": 700,
+    "n_classes": 20,
+    "gallery_panels": 20,
+    "spread_class": "null",
+    "spread_panels": 4
+  }
+}

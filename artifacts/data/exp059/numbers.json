@@ -1,0 +1,41 @@
+{
+  "run_id": "r001",
+  "git_sha": "7ad5386",
+  "duration_s": 1.0,
+  "duration": "1s",
+  "split": "train",
+  "n_utterances": 8156,
+  "n_classes": 20,
+  "n_channels": 700,
+  "events_per_utterance_median": 7605.0,
+  "events_per_utterance_min": 2410,
+  "events_per_utterance_max": 14917,
+  "gallery_event_counts": {
+    "null": 5676,
+    "eins": 10561,
+    "zwei": 6604,
+    "drei": 4274,
+    "vier": 7934,
+    "f\u00fcnf": 4896,
+    "sechs": 6144,
+    "sieben": 12023,
+    "acht": 8927,
+    "neun": 12889,
+    "zero": 10088,
+    "one": 4278,
+    "two": 7000,
+    "three": 12118,
+    "four": 7071,
+    "five": 5078,
+    "six": 5568,
+    "seven": 8816,
+    "eight": 9162,
+    "nine": 6401
+  },
+  "within_class_event_counts": {
+    "sample_9": 5676,
+    "sample_17": 12133,
+    "sample_26": 11731,
+    "sample_34": 6309
+  }
+}
