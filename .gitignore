@@ -48,5 +48,9 @@ tools/artifacts/
 # regen caches for --plot-only/--replot live in scratch (temp/), never the published data dir
 artifacts/data/**/*_cache.npz
 
+# atomic-publish staging dirs (run_dirs.published_run): a run writes here and the
+# dir is renamed into the published data dir on success — transient, never committed.
+artifacts/data/*.staging/
+
 # demolab engine staging (materialised by the demolab CLI; regenerated on engine updates)
 .demolab/
