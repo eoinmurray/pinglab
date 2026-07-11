@@ -1,0 +1,22 @@
+{
+  "slug": "exp058",
+  "run_id": "r002",
+  "run_at": "2026-07-11T13:01:05+00:00",
+  "git_sha": "e7b8aa6",
+  "dirty": true,
+  "code_dirty": true,
+  "patch": {
+    "file": "_dirty.patch",
+    "sha256": "e3d5d196f928c6665104731700785f289473f01f473d40381dc3bfb72f1ac0eb",
+    "lines": 328
+  },
+  "host": "local",
+  "scale": {
+    "input": "synthetic-spikes",
+    "t_ms": 1000,
+    "input_rate_hz": 1,
+    "seeds": 3,
+    "cells": 1,
+    "grid": "K \u2208 [10, 20, 40, 80, 160]"
+  }
+}

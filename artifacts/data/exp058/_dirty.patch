@@ -1,0 +1,327 @@
+diff --git a/experiments/exp058.py b/experiments/exp058.py
+index 25f74fa..cfaccea 100644
+--- a/experiments/exp058.py
++++ b/experiments/exp058.py
+@@ -303,13 +303,10 @@ def plot_raster(npz_path: Path, out_path: Path, title: str) -> None:
+     e_idx, e_t = np.where(spk_e.T)
+     ax_r.scatter(t_ms[e_t], e_idx, s=1.0, c=theme.INK_BLACK, marker="|",
+                  linewidths=0.5)
+-    e_rate = float(spk_e.mean() * 1000.0 / dt)
+-    i_rate = 0.0
+     if has_i:
+         i_idx, i_t = np.where(spk_i.T)
+         ax_r.scatter(t_ms[i_t], i_idx + N_E, s=1.0, c=theme.DEEP_RED,
+                      marker="|", linewidths=0.5)
+-        i_rate = float(spk_i.mean() * 1000.0 / dt)
+         ax_r.axhline(N_E, color=theme.GREY_MID, lw=0.6, alpha=0.8)
+         ax_r.text(0.995, 0.985, "I", transform=ax_r.transAxes, ha="right",
+                   va="top", fontsize=theme.SIZE_LABEL, color=theme.DEEP_RED,
+@@ -321,8 +318,8 @@ def plot_raster(npz_path: Path, out_path: Path, title: str) -> None:
+     ax_r.set_xlim(0, T * dt)
+     ax_r.set_xlabel("time (ms)")
+     ax_r.set_ylabel("neuron  (E below · I above)")
+-    ax_r.set_title(f"{title}  ·  ⟨r_E⟩ = {e_rate:.1f}, ⟨r_I⟩ = {i_rate:.1f} Hz",
+-                   loc="left")
++    # No baked-in figure title (H17): the caption carries the takeaway; the
++    # rates are reported in the summary table (numbers.json), not on the plot.
+     ax_r.spines["top"].set_visible(False)
+     ax_r.spines["right"].set_visible(False)
+ 
+@@ -541,11 +538,8 @@ def plot_k_sweep(sweep: dict, out_path: Path) -> None:
+                    loc="left", fontsize=theme.SIZE_LABEL, pad=24)
+     ax_r.legend(fontsize=theme.SIZE_LABEL - 3, frameon=False, loc="best")
+ 
+-    fig.suptitle(
+-        "The defining V&S limit — scaling weights $\\propto\\sqrt{K}$ sustains "
+-        "supra-Poisson irregularity as K grows; fixed weights decay to the floor",
+-        x=0.01, ha="left", fontsize=theme.SIZE_LABEL + 1)
+-    fig.tight_layout(rect=(0, 0, 1, 0.95))
++    # No baked-in figure title (H17): the caption carries the takeaway.
++    fig.tight_layout()
+     fig.savefig(out_path, dpi=150)
+     plt.close(fig)
+ 
+@@ -636,10 +630,11 @@ def plot_lyapunov(lyap: dict, out_path: Path) -> None:
+     ax.set_ylim(bottom=0)
+     ax.set_xlabel("time since ε-kick (ms)")
+     ax.set_ylabel(r"voltage distance $\Vert \Delta V(t) \Vert$  (mV)")
+-    ax.set_title("Direct Lyapunov exponent — only the balanced net amplifies "
+-                 "the kick", loc="left", fontsize=theme.SIZE_LABEL)
++    # No baked-in figure title (H17): the caption carries the takeaway. Legend
++    # sits in the white valley between the flat balanced trace (bottom) and the
++    # elevated decoupled trace (top), so it clears both curves.
+     ax.legend(fontsize=theme.SIZE_LABEL - 1, frameon=False, loc="center",
+-              bbox_to_anchor=(0.58, 0.60))
++              bbox_to_anchor=(0.5, 0.40))
+     ax.spines["top"].set_visible(False)
+     ax.spines["right"].set_visible(False)
+     fig.tight_layout()
+diff --git a/tools/snn/datasets.py b/tools/snn/datasets.py
+index 55a7c43..54e3ea6 100644
+--- a/tools/snn/datasets.py
++++ b/tools/snn/datasets.py
+@@ -1,28 +1,105 @@
+-"""Dataset loaders — MNIST.
++"""Dataset loaders — MNIST (static images) and SHD (spiking audio events).
+ 
+ Pulled out of cli.py. The single
+ canonical entry point is `load_dataset(name, ...)`. Image-mode notebooks
+ (snapshot rendering) use `_load_dataset_image()` for a single sample.
++
++MNIST returns dense (N, 784) pixel rows in [0, 1] that the train/infer paths
++Poisson-encode per batch. SHD is event data — each utterance is a list of
++(spike_time_seconds, unit) pairs over 700 channels — so it returns an OBJECT
++array of per-sample event tuples instead of a dense block; the caller bins each
++sample to spikes lazily (see ShdBinnedDataset in train.py). Densifying the whole
++set at the model's native dt would be tens of GB, hence the lazy contract.
+ """
+ 
+ from __future__ import annotations
+ 
++import gzip
++import os
++import shutil
++import urllib.request
++
+ import numpy as np
+ 
++# ── SHD (Spiking Heidelberg Digits) constants ─────────────────────────────
++# 700 input channels (cochlea model), 20 classes (spoken digits 0-9 in German
++# + English). These are fixed properties of the dataset, so the loader reports
++# them rather than the caller guessing.
++SHD_N_IN = 700
++SHD_N_CLASSES = 20
++_SHD_DIR = "/tmp/shd"
++_SHD_URLS = {
++    # Canonical host (Zenke lab). Files are gzip-compressed HDF5.
++    "train": "https://zenkelab.org/datasets/shd_train.h5.gz",
++    "test": "https://zenkelab.org/datasets/shd_test.h5.gz",
++}
++
+ # Smart per-dataset hidden-size defaults (used by build_net auto-config).
+ DATASET_N_HIDDEN_DEFAULTS = {
+     "mnist": 1024,  # n_in = 784, next pow2
++    "shd": 256,  # n_in = 700; Cramer et al. RSNNs use ~128-256 recurrent units
+ }
+ 
+ 
++def _download_shd(split):
++    """Fetch + gunzip one SHD split to _SHD_DIR, returning the local .h5 path.
++
++    Downloads shd_<split>.h5.gz once and decompresses it; subsequent calls reuse
++    the cached .h5. No checksum verification yet — see the .md5 files hosted
++    alongside the archives if this ever needs hardening.
++    """
++    os.makedirs(_SHD_DIR, exist_ok=True)
++    h5_path = os.path.join(_SHD_DIR, f"shd_{split}.h5")
++    if os.path.exists(h5_path):
++        return h5_path
++    gz_path = h5_path + ".gz"
++    if not os.path.exists(gz_path):
++        urllib.request.urlretrieve(_SHD_URLS[split], gz_path)
++    with gzip.open(gz_path, "rb") as f_in, open(h5_path, "wb") as f_out:
++        shutil.copyfileobj(f_in, f_out)
++    return h5_path
++
++
++def _read_shd_split(split):
++    """Read one SHD .h5 split into (events, labels).
++
++    Returns:
++        events: object ndarray, events[i] = (units_int16, times_float32) — the
++                spike unit indices and their times (seconds) for utterance i.
++        labels: int64 ndarray of class ids in [0, SHD_N_CLASSES).
++    """
++    import h5py
++
++    with h5py.File(_download_shd(split), "r") as f:
++        times = f["spikes"]["times"]
++        units = f["spikes"]["units"]
++        labels = np.asarray(f["labels"], dtype=np.int64)
++        events = np.empty(len(labels), dtype=object)
++        for i in range(len(labels)):
++            events[i] = (
++                np.asarray(units[i], dtype=np.int16),
++                np.asarray(times[i], dtype=np.float32),
++            )
++    return events, labels
++
++
++def _subsample(events, labels, max_samples):
++    """Deterministic (seed 42) subset of an event/label pair for smoke runs."""
++    if max_samples is None or max_samples >= len(labels):
++        return events, labels
++    idx = np.random.RandomState(42).choice(len(labels), max_samples, replace=False)
++    return events[idx], labels[idx]
++
++
+ def load_dataset(name, max_samples=None, split=False, dt_ms=None, t_ms=None):
+     """Load full dataset as (X, y) numpy arrays in [0, 1] / int64.
+ 
+     Args:
+-        name: "mnist"
++        name: "mnist" (dense pixel rows) or "shd" (object array of events)
+         max_samples: optional cap; deterministic random subset (seed 42)
+-        split: if True, return (X_tr, X_te, y_tr, y_te) via stratified 80/20
+-               train_test_split(seed 42); otherwise return (X, y)
++        split: if True, return (X_tr, X_te, y_tr, y_te). MNIST uses a stratified
++               80/20 train_test_split(seed 42); SHD uses its official split.
++               If False, return (X, y).
+         dt_ms, t_ms: currently unused; kept for call-site compatibility
+ 
+     Single canonical loader used by train, infer, and image paths so
+@@ -55,6 +132,19 @@ def load_dataset(name, max_samples=None, split=False, dt_ms=None, t_ms=None):
+                 mnist_test.targets.numpy(),
+             ]
+         ).astype(np.int64)
++    elif name == "shd":
++        # Event data. Keep SHD's OFFICIAL train/test split — it holds out two
++        # speakers unseen in training, and every published SHD number is reported
++        # on that test set, so concat-and-resplit (the MNIST recipe) would break
++        # comparability. Returns object arrays of per-sample (units, times); the
++        # caller bins them to spikes lazily at the run's dt.
++        X_tr, y_tr = _read_shd_split("train")
++        X_te, y_te = _read_shd_split("test")
++        X_tr, y_tr = _subsample(X_tr, y_tr, max_samples)
++        X_te, y_te = _subsample(X_te, y_te, max_samples)
++        if split:
++            return X_tr, X_te, y_tr, y_te
++        return np.concatenate([X_tr, X_te]), np.concatenate([y_tr, y_te])
+     else:
+         raise ValueError(f"Unknown dataset: {name}")
+ 
+diff --git a/tools/snn/train.py b/tools/snn/train.py
+index 29524e9..bc94f8a 100644
+--- a/tools/snn/train.py
++++ b/tools/snn/train.py
+@@ -27,6 +27,7 @@ from config import (
+ )
+ from datasets import (
+     DATASET_N_HIDDEN_DEFAULTS,
++    SHD_N_IN,
+     _load_dataset_image,
+     load_dataset,
+ )
+@@ -82,6 +83,46 @@ def _firing_rate_penalty(spike_counts, theta, strength):
+     return reg
+ 
+ 
++# Datasets whose samples are static images (Poisson-encoded per batch). Anything
++# not listed here is treated as pre-spiked event data (e.g. SHD).
++IMAGE_DATASETS = {"mnist"}
++
++
++class ShdBinnedDataset(torch.utils.data.Dataset):
++    """Bin SHD event lists to dense (T_steps, n_in) spike tensors on the fly.
++
++    SHD ships as per-utterance events (spike time in seconds + unit index in
++    [0, 700)). Densifying the whole set at the model's native dt would be tens of
++    GB, so each sample is binned lazily here using the CURRENT module globals
++    M.T_steps / M.dt — both pinned by set_sim_dt() before the loader runs, so a
++    fork'd DataLoader worker sees the run's values. The returned (T_steps, n_in)
++    tensor stacks to (B, T_steps, n_in), which encode_batch() passes straight
++    through (transposed to (T_steps, B, n_in)) as already-spiked input.
++    """
++
++    def __init__(self, events, labels, n_in):
++        self.events = events  # object array; events[i] = (units_i16, times_f32)
++        self.labels = labels
++        self.n_in = n_in
++
++    def __len__(self):
++        return len(self.labels)
++
++    def __getitem__(self, i):
++        units, times = self.events[i]
++        T = M.T_steps
++        dt_s = M.dt / 1000.0  # bin width in seconds (dt is ms)
++        bins = np.floor(times / dt_s).astype(np.int64)
++        # Drop events past the sim window; clamp channels defensively.
++        keep = (bins >= 0) & (bins < T) & (units >= 0) & (units < self.n_in)
++        x = torch.zeros(T, self.n_in, dtype=torch.float32)
++        x[
++            torch.from_numpy(bins[keep]),
++            torch.from_numpy(units[keep].astype(np.int64)),
++        ] = 1.0
++        return x, int(self.labels[i])
++
++
+ def train(
+     model_name="ping",
+     lr=0.01,
+@@ -172,16 +213,24 @@ def train(
+     X_tr, X_te, y_tr, y_te = load_dataset(
+         dataset, max_samples=max_samples, split=True
+     )
+-    M.N_IN = 784
++    # Output classes are a property of the labels, not a hardcode. Set the module
++    # global so build_net sizes W_ff[-1] correctly (mnist=10, shd=20).
++    M.N_OUT = int(max(int(y_tr.max()), int(y_te.max()))) + 1
+     bs = batch_size if batch_size is not None else BATCH_SIZE
+-    train_loader = DataLoader(
+-        TensorDataset(torch.from_numpy(X_tr), torch.from_numpy(y_tr)),
+-        batch_size=bs,
+-        shuffle=True,
+-    )
+-    test_loader = DataLoader(
+-        TensorDataset(torch.from_numpy(X_te), torch.from_numpy(y_te)), batch_size=bs
+-    )
++    # Event datasets (SHD) arrive as an object array of per-sample event lists →
++    # bin to (T_steps, n_in) spikes lazily. Image datasets (MNIST) arrive as
++    # dense (N, n_in) pixel rows and Poisson-encode per batch. N_IN comes from the
++    # data in both cases (784 for MNIST pixels, 700 for SHD channels).
++    if getattr(X_tr, "dtype", None) == object:
++        M.N_IN = SHD_N_IN
++        train_ds = ShdBinnedDataset(X_tr, y_tr, n_in=SHD_N_IN)
++        test_ds = ShdBinnedDataset(X_te, y_te, n_in=SHD_N_IN)
++    else:
++        M.N_IN = X_tr.shape[1]
++        train_ds = TensorDataset(torch.from_numpy(X_tr), torch.from_numpy(y_tr))
++        test_ds = TensorDataset(torch.from_numpy(X_te), torch.from_numpy(y_te))
++    train_loader = DataLoader(train_ds, batch_size=bs, shuffle=True)
++    test_loader = DataLoader(test_ds, batch_size=bs)
+ 
+     # Model — symmetry-break standard-snn (dense W_in needs heterogeneous init phases).
+     # Skip randomize_init when Kaiming init is used: Kaiming already gives
+@@ -278,21 +327,26 @@ def train(
+ 
+     # Train uses the module-level log (already set up by save_run_artifacts)
+ 
+-    # Pre-generate fixed reference spike train using the canonical loader
+-    # (same as image mode) so init/end snapshots use the same digit-0 sample
+-    # regardless of train/test split shuffling.
+-    ref_pixel_vec, ref_image = _load_dataset_image(
+-        dataset, digit_class=0, sample_idx=0
+-    )
+-    ref_input = torch.from_numpy(ref_pixel_vec).float().unsqueeze(0).to(device)
+-    torch.manual_seed(0)
+-    pixels = ref_input.clamp(0, 1)
+-    p = M.max_rate_hz * dt / 1000.0
+-    ref_spikes = (
+-        (torch.rand(M.T_steps, 1, M.N_IN, device=device) < pixels * p)
+-        .float()
+-        .squeeze(1)
+-    )
++    # Pre-generate a fixed reference spike train so the init/end snapshots use the
++    # same sample regardless of train/test shuffling. Image data: Poisson-encode a
++    # fixed digit-0 sample. Event data (SHD): bin the first test utterance — there
++    # is no pixel image to encode.
++    if dataset in IMAGE_DATASETS:
++        ref_pixel_vec, _ref_image = _load_dataset_image(
++            dataset, digit_class=0, sample_idx=0
++        )
++        ref_input = torch.from_numpy(ref_pixel_vec).float().unsqueeze(0).to(device)
++        torch.manual_seed(0)
++        pixels = ref_input.clamp(0, 1)
++        p = M.max_rate_hz * dt / 1000.0
++        ref_spikes = (
++            (torch.rand(M.T_steps, 1, M.N_IN, device=device) < pixels * p)
++            .float()
++            .squeeze(1)
++        )
++    else:
++        # (T_steps, N_IN) already-binned spikes for the first test sample.
++        ref_spikes = test_ds[0][0].to(device)
+ 
+     if snapshot_init:
+ 
