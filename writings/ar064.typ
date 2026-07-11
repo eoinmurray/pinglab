@@ -16,29 +16,50 @@
 
   == Digest
 
-  _Latest, for the 30-second morning read. Updated 2026-07-11 20:35 BST._
+  _Latest, for the 30-second morning read. Updated 2026-07-11 20:45 BST._
 
-  *We have a stable recipe.* #link("/exp062/")[exp062] confirmed *Dale's law is
-  the implicit stabiliser*: at the exact settings where the free signed net NaNs
-  13/30 epochs, the Dale's-law net trains *NaN-free* (0/30) with the gradient
-  bounded (3·10⁴ → ≈ 190) and W_ee bounded (9.2 → 5.4), costing a few points of
-  accuracy (56.8% → 53.2%). The program's core goal — a conductance E/I net that
-  trains stably on SHD — now has a working answer.
+  *The stability queue is complete, and it has one clean answer: Dale's law.*
+  Of the three soft knobs the free net can vary without a model change —
+  #link("/exp061/")[Δt], #link("/exp062/")[Dale's law], #link("/exp063/")[weight
+  decay] — only Dale's law stabilises.
 
-  Getting there: #link("/exp061/")[exp061] *killed the Δt hypothesis* (finer Δt
-  made the gradient explosion orders of magnitude worse, not better — it is a
-  recurrent-unroll gradient explosion, not coarse-Δt stiffness).
+  - *Δt (exp061, killed):* finer Δt made the gradient explosion _worse_ (longer
+    BPTT unroll), NaN persists at 0.25. Not stiffness.
+  - *Dale's law (exp062, supported):* the free net's 13/30 NaN epochs → *0/30*
+    under the non-negativity constraint; gradient 3·10⁴ → ≈ 190, W_ee 9.2 → 5.4.
+    Costs accuracy (56.8% → 53.2%). *The stable recipe.*
+  - *Weight decay (exp063, killed):* NaN persists at every λ up to 1e-1
+    (15/13/12/11 of 30), W_ee unbounded (~9 throughout). Regularises — accuracy
+    rises to 63.4% — but does not stabilise.
 
-  *Reframe for the remaining queue.* Stability is solved by the constraint, so
-  the open question shifts: can weight decay (exp063) or the forward-pass state
-  clamp stabilise the _free_ signed net and keep its extra accuracy, rather than
-  paying Dale's law's accuracy tax?
+  *Where the program goes next.* Stabilising the _free_ net (to keep its higher
+  accuracy) is not reachable by any soft knob, so the reserved *forward-pass
+  state clamp* — a shared-model change — is the live lead. exp063's accuracy
+  headroom (63.4% at strong decay, above every other recipe) suggests a
+  clamped-at-strong-decay signed net could top the program. *That is a model
+  change and a human call — parked for the gate.*
 
-  *Infra (resolved).* SSH-blocked sandbox → the pod collector's rsync-over-SSH
-  fails; fixed by reading the RunPod volume over its *S3 HTTPS API*
-  (`collect_via_s3`). RunPod path fully usable.
+  *Infra (resolved).* SSH-blocked sandbox → rsync-over-SSH collector fails; fixed
+  by reading the RunPod volume over its *S3 HTTPS API* (`collect_via_s3`).
 
   == Sessions
+
+  === 2026-07-11 20:45 BST — exp063: weight decay regularises, does not stabilise
+
+  Closed out the no-code-change stability queue.
+
+  - *exp063 — weight-decay sweep on the free net (done, kill).* Swept λ ∈ {0,
+    1e-3, 1e-2, 1e-1} on _--no-dales-law_ at Δt = 1.0. #link("/exp063/")[Result]:
+    NaN persists at every strength (15/13/12/11 of 30, never zero) and W_ee stays
+    pinned near 9 regardless of λ — decay does not bound the runaway weight. Kill
+    fires. But accuracy climbs monotonically with λ (56.3% → 63.4%, the free net's
+    best), so decay is a strong regulariser, not a stabiliser.
+
+  - *Program state.* The three soft knobs are exhausted; only Dale's law
+    stabilises. To stabilise the free net _and_ keep its accuracy, the plan's
+    reserved forward-pass state clamp (a `tools/snn/models.py` change) is the next
+    experiment — deliberately left for the human gate, since it is a model change,
+    not a knob.
 
   === 2026-07-11 20:35 BST — exp062: Dale's law is the stabiliser (supported)
 
