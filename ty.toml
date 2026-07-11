@@ -11,9 +11,9 @@ root = ["tools/snn", "experiments", "."]
 [src]
 exclude = [
     ".venv",
-    # Vendored black box (never edited here) + generated output — not our
+    # Engine staging (machine-managed) + generated output — not our
     # type-checked surface.
-    "demolab-engine",
+    ".demolab",
     "artifacts",
     "temp",
 ]

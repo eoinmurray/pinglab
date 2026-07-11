@@ -382,6 +382,15 @@ wheels = [
 ]
 
 [[package]]
+name = "demolab-cli"
+version = "1.0.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/10/e5/c278ee828dad3c22ac7fcb4f8c2a40fda33ed458dca95f4b3010dd0fa5d5/demolab_cli-1.0.0.tar.gz", hash = "sha256:d6dfd5d0420a0e112c3b67aec68a30c8d02d1d6567ab853aa67c6a41ff924c1a", size = 3500789, upload-time = "2026-07-11T12:40:55.228Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/88/d6/3d49392291c32263c84eed394ab9e6aa39f648c00cbb63d7bba16e75973d/demolab_cli-1.0.0-py3-none-any.whl", hash = "sha256:54ede78ab6e15db53e33305f361d01cd5334f6ab84926402bd8dce2a4a2f783b", size = 3395749, upload-time = "2026-07-11T12:40:53.548Z" },
+]
+
+[[package]]
 name = "exceptiongroup"
 version = "1.3.1"
 source = { registry = "https://pypi.org/simple" }
@@ -1306,6 +1315,7 @@ name = "pinglab"
 version = "0.1.1"
 source = { editable = "." }
 dependencies = [
+    { name = "demolab-cli" },
     { name = "h5py" },
     { name = "matplotlib" },
     { name = "numpy", version = "2.2.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
@@ -1332,6 +1342,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
+    { name = "demolab-cli", specifier = ">=1.0" },
     { name = "h5py", specifier = ">=3.16.0" },
     { name = "matplotlib", specifier = ">=3.10.8" },
     { name = "numpy", specifier = ">=2.2.6" },
