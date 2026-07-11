@@ -1,28 +1,105 @@
-"""Dataset loaders — MNIST.
+"""Dataset loaders — MNIST (static images) and SHD (spiking audio events).
 
 Pulled out of cli.py. The single
 canonical entry point is `load_dataset(name, ...)`. Image-mode notebooks
 (snapshot rendering) use `_load_dataset_image()` for a single sample.
+
+MNIST returns dense (N, 784) pixel rows in [0, 1] that the train/infer paths
+Poisson-encode per batch. SHD is event data — each utterance is a list of
+(spike_time_seconds, unit) pairs over 700 channels — so it returns an OBJECT
+array of per-sample event tuples instead of a dense block; the caller bins each
+sample to spikes lazily (see ShdBinnedDataset in train.py). Densifying the whole
+set at the model's native dt would be tens of GB, hence the lazy contract.
 """
 
 from __future__ import annotations
 
+import gzip
+import os
+import shutil
+import urllib.request
+
 import numpy as np
+
+# ── SHD (Spiking Heidelberg Digits) constants ─────────────────────────────
+# 700 input channels (cochlea model), 20 classes (spoken digits 0-9 in German
+# + English). These are fixed properties of the dataset, so the loader reports
+# them rather than the caller guessing.
+SHD_N_IN = 700
+SHD_N_CLASSES = 20
+_SHD_DIR = "/tmp/shd"
+_SHD_URLS = {
+    # Canonical host (Zenke lab). Files are gzip-compressed HDF5.
+    "train": "https://zenkelab.org/datasets/shd_train.h5.gz",
+    "test": "https://zenkelab.org/datasets/shd_test.h5.gz",
+}
 
 # Smart per-dataset hidden-size defaults (used by build_net auto-config).
 DATASET_N_HIDDEN_DEFAULTS = {
     "mnist": 1024,  # n_in = 784, next pow2
+    "shd": 256,  # n_in = 700; Cramer et al. RSNNs use ~128-256 recurrent units
 }
+
+
+def _download_shd(split):
+    """Fetch + gunzip one SHD split to _SHD_DIR, returning the local .h5 path.
+
+    Downloads shd_<split>.h5.gz once and decompresses it; subsequent calls reuse
+    the cached .h5. No checksum verification yet — see the .md5 files hosted
+    alongside the archives if this ever needs hardening.
+    """
+    os.makedirs(_SHD_DIR, exist_ok=True)
+    h5_path = os.path.join(_SHD_DIR, f"shd_{split}.h5")
+    if os.path.exists(h5_path):
+        return h5_path
+    gz_path = h5_path + ".gz"
+    if not os.path.exists(gz_path):
+        urllib.request.urlretrieve(_SHD_URLS[split], gz_path)
+    with gzip.open(gz_path, "rb") as f_in, open(h5_path, "wb") as f_out:
+        shutil.copyfileobj(f_in, f_out)
+    return h5_path
+
+
+def _read_shd_split(split):
+    """Read one SHD .h5 split into (events, labels).
+
+    Returns:
+        events: object ndarray, events[i] = (units_int16, times_float32) — the
+                spike unit indices and their times (seconds) for utterance i.
+        labels: int64 ndarray of class ids in [0, SHD_N_CLASSES).
+    """
+    import h5py
+
+    with h5py.File(_download_shd(split), "r") as f:
+        times = f["spikes"]["times"]
+        units = f["spikes"]["units"]
+        labels = np.asarray(f["labels"], dtype=np.int64)
+        events = np.empty(len(labels), dtype=object)
+        for i in range(len(labels)):
+            events[i] = (
+                np.asarray(units[i], dtype=np.int16),
+                np.asarray(times[i], dtype=np.float32),
+            )
+    return events, labels
+
+
+def _subsample(events, labels, max_samples):
+    """Deterministic (seed 42) subset of an event/label pair for smoke runs."""
+    if max_samples is None or max_samples >= len(labels):
+        return events, labels
+    idx = np.random.RandomState(42).choice(len(labels), max_samples, replace=False)
+    return events[idx], labels[idx]
 
 
 def load_dataset(name, max_samples=None, split=False, dt_ms=None, t_ms=None):
     """Load full dataset as (X, y) numpy arrays in [0, 1] / int64.
 
     Args:
-        name: "mnist"
+        name: "mnist" (dense pixel rows) or "shd" (object array of events)
         max_samples: optional cap; deterministic random subset (seed 42)
-        split: if True, return (X_tr, X_te, y_tr, y_te) via stratified 80/20
-               train_test_split(seed 42); otherwise return (X, y)
+        split: if True, return (X_tr, X_te, y_tr, y_te). MNIST uses a stratified
+               80/20 train_test_split(seed 42); SHD uses its official split.
+               If False, return (X, y).
         dt_ms, t_ms: currently unused; kept for call-site compatibility
 
     Single canonical loader used by train, infer, and image paths so
@@ -55,6 +132,19 @@ def load_dataset(name, max_samples=None, split=False, dt_ms=None, t_ms=None):
                 mnist_test.targets.numpy(),
             ]
         ).astype(np.int64)
+    elif name == "shd":
+        # Event data. Keep SHD's OFFICIAL train/test split — it holds out two
+        # speakers unseen in training, and every published SHD number is reported
+        # on that test set, so concat-and-resplit (the MNIST recipe) would break
+        # comparability. Returns object arrays of per-sample (units, times); the
+        # caller bins them to spikes lazily at the run's dt.
+        X_tr, y_tr = _read_shd_split("train")
+        X_te, y_te = _read_shd_split("test")
+        X_tr, y_tr = _subsample(X_tr, y_tr, max_samples)
+        X_te, y_te = _subsample(X_te, y_te, max_samples)
+        if split:
+            return X_tr, X_te, y_tr, y_te
+        return np.concatenate([X_tr, X_te]), np.concatenate([y_tr, y_te])
     else:
         raise ValueError(f"Unknown dataset: {name}")
 

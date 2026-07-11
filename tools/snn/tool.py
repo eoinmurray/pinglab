@@ -463,8 +463,9 @@ def _build_parent_parser():
         "--dataset",
         type=str,
         default="mnist",
-        choices=["mnist"],
-        help="Dataset (default: mnist)",
+        choices=["mnist", "shd"],
+        help="Dataset: mnist (static images) or shd (Spiking Heidelberg "
+        "Digits, event-based audio; 700 channels, 20 classes). Default: mnist.",
     )
 
     wt_group = parent.add_argument_group("Weights (advanced)")
