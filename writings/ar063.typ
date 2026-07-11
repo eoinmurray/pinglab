@@ -88,7 +88,7 @@
       cost is a few points of accuracy, which reframes exp063 and the state clamp
       (below) as ways to keep the free net's accuracy _without_ its divergence.
 
-  + *exp063 — does weight decay bound the free recurrence?* _(status: queued)_
+  + *exp063 — does weight decay bound the free recurrence?* _(1 seed · status: done — killed)_
     - _Hypothesis:_ decay strong enough (sweep 0 → 1e-3 → 1e-2) bounds W_ee and
       removes the divergence in the free net. A first pass at 1e-3 tamed the
       gradient explosion (7.5M → ~900) but did _not_ bound W_ee or remove the
@@ -96,6 +96,10 @@
     - _Kill:_ if even 1e-2 leaves W_ee growing and NaN present, decay is not part
       of the recipe (it regularises but does not stabilise).
     - _Measures:_ max weight norm and NaN-epoch rate vs decay strength.
+    - _Result (#link("/exp063/")[exp063]):_ *killed* (swept to 1e-1). NaN persists
+      at every λ (15/13/12/11 of 30 epochs) and W_ee stays ≈ 9 throughout — decay
+      does not bound the recurrence. It _regularises_ (accuracy 56.3% → 63.4% with
+      λ) but does not stabilise. Confirms the kill: decay is not the stabiliser.
 
   The firing-rate regulariser is already in the recipe (without it the earlier
   run blew up to a 526 Hz inhibitory rate); the queue attributes the _remaining_
@@ -128,4 +132,16 @@
     divergence_: exp063 (weight decay) and the forward-pass state clamp are now
     tested as stabilisers of the _signed_ net, worth running only if that
     accuracy gap is worth chasing.
+
+  - *2026-07-11 — soft-knob queue exhausted; the state clamp is the next
+    experiment.* With #link("/exp063/")[exp063] killed, all three no-code-change
+    knobs are tested and only Dale's law stabilises. Stabilising the _free_ net —
+    the only way to keep its accuracy (exp063 reached 63.4%, above every other
+    recipe) — is not reachable by Δt, Dale's law, or weight decay, so it requires
+    the reserved forward-pass state clamp: bound voltage and conductance each
+    timestep in `tools/snn/models.py` so a diverging trajectory cannot reach NaN.
+    That is a shared-model change rather than a knob, so it is left for the human
+    gate to authorise as the program's next entry (candidate: a clamped free net
+    at strong weight decay, aiming to beat both the free net's accuracy and Dale's
+    law's stability).
 ]
