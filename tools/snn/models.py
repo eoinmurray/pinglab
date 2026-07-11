@@ -482,6 +482,7 @@ class COBANet(nn.Module):
         dales_law=True,
         hidden_sizes=None,
         readout_mode="rate",
+        trainable_w_ee=False,
         trainable_w_ei=False,
         trainable_w_ie=False,
         trainable_w_ii=False,
@@ -524,9 +525,12 @@ class COBANet(nn.Module):
             p1, p2, d, s = _parse_weight_spec(spec, dist, sparsity)
             self.W_ff.append(nn.Parameter(init_weight((n_pre, n_post), d, p1, p2, s)))
 
-        # E-I weights per E-I layer. W_ee / W_ei / W_ie are fixed anatomical
-        # connectivity (the recurrent inhibitory circuit is a substrate the
-        # readout learns to read, not a trainable thing).
+        # E-I weights per E-I layer. By default the recurrent circuit is fixed
+        # anatomical connectivity — a substrate the readout learns to read — but
+        # each of the four blocks (W_ee / W_ei / W_ie / W_ii) can be made a
+        # trainable parameter via its trainable_w_* flag. Training all four with
+        # --no-dales-law turns the hidden layer into a free signed recurrent
+        # matrix (a generic RSNN, no longer E/I-constrained).
         self.W_ee = nn.ParameterDict()
         self.W_ei = nn.ParameterDict()
         self.W_ie = nn.ParameterDict()
@@ -541,7 +545,7 @@ class COBANet(nn.Module):
             p1, p2, d, s = _parse_weight_spec(w_ee, dist, sparsity)
             w_ee_t = nn.Parameter(
                 init_weight((n_e, n_e), d, p1, p2, s),
-                requires_grad=False,
+                requires_grad=trainable_w_ee,
             )
             p1, p2, d, s = _parse_weight_spec(w_ei, dist, sparsity)
             w_ei_t = nn.Parameter(

@@ -410,15 +410,17 @@ def test_w_ii_propagates_to_train_config(tmp_path):
 
 
 def test_trainable_w_flags_make_recurrent_matrices_gradient_carrying():
-    """Each --trainable-w-{ei,ie,ii} flag makes the corresponding
+    """Each --trainable-w-{ee,ei,ie,ii} flag makes the corresponding
     recurrent matrix gradient-carrying. nb049's whole story depends on
-    this — without it, Adam can't push W^EI entries below zero."""
+    this — without it, Adam can't push W^EI entries below zero; W_ee is the
+    signed-recurrent-RSNN ceiling (all four trainable under --no-dales-law)."""
     import sys
 
     sys.path.insert(0, "src/cli")
     from config import build_net
 
     for flag, attr in [
+        ("trainable_w_ee", "W_ee"),
         ("trainable_w_ei", "W_ei"),
         ("trainable_w_ie", "W_ie"),
         ("trainable_w_ii", "W_ii"),
@@ -440,6 +442,32 @@ def test_trainable_w_flags_make_recurrent_matrices_gradient_carrying():
         assert W_trainable.requires_grad, (
             f"--{flag.replace('_', '-')} did not make {attr} gradient-carrying"
         )
+
+
+@pytest.mark.slow
+def test_trainable_w_flags_propagate_through_cli(tmp_path):
+    """All four --trainable-w-* flags survive the CLI → _run_train → train()
+    path: they land in config.json AND raise n_trainable by the recurrent
+    block size. Guards the exact bug this session fixed — --trainable-w-ii was
+    accepted by the model/build_net but silently DROPPED in _run_train, so it
+    was dead from the CLI. The in-process build_net test above can't catch that
+    (it never exercises _run_train); this subprocess test does."""
+    frozen = tmp_path / "frozen"
+    _train_probe(frozen, "--no-dales-law", "--w-ee", "0.3", "0.1")
+    trained = tmp_path / "trained"
+    _train_probe(
+        trained, "--no-dales-law", "--w-ee", "0.3", "0.1",
+        "--trainable-w-ee", "--trainable-w-ei",
+        "--trainable-w-ie", "--trainable-w-ii",
+    )
+    cf, ct = _read_config(frozen), _read_config(trained)
+    for k in ("trainable_w_ee", "trainable_w_ei", "trainable_w_ie", "trainable_w_ii"):
+        assert cf[k] is False, f"{k} should default False"
+        assert ct[k] is True, f"--{k.replace('_', '-')} did not reach config.json"
+    assert ct["n_trainable"] > cf["n_trainable"], (
+        f"trainable-w flags did not add trainable params: "
+        f"frozen={cf['n_trainable']} trained={ct['n_trainable']}"
+    )
 
 
 def test_ei_sparsity_zeros_recurrent_entries():

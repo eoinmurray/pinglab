@@ -294,6 +294,7 @@ def build_net(
     dales_law=True,
     hidden_sizes=None,
     readout_mode="rate",
+    trainable_w_ee=False,
     trainable_w_ei=False,
     trainable_w_ie=False,
     trainable_w_ii=False,
@@ -322,6 +323,8 @@ def build_net(
         kwargs["hidden_sizes"] = list(hidden_sizes)
 
     kwargs["dales_law"] = dales_law
+    if trainable_w_ee:
+        kwargs["trainable_w_ee"] = True
     if trainable_w_ei:
         kwargs["trainable_w_ei"] = True
     if trainable_w_ie:
