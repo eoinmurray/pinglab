@@ -27,6 +27,7 @@ from config import (
 )
 from datasets import (
     DATASET_N_HIDDEN_DEFAULTS,
+    SHD_N_IN,
     _load_dataset_image,
     load_dataset,
 )
@@ -80,6 +81,46 @@ def _firing_rate_penalty(spike_counts, theta, strength):
         term = strength * (torch.relu(excess) ** 2)
         reg = reg + term.sum()
     return reg
+
+
+# Datasets whose samples are static images (Poisson-encoded per batch). Anything
+# not listed here is treated as pre-spiked event data (e.g. SHD).
+IMAGE_DATASETS = {"mnist"}
+
+
+class ShdBinnedDataset(torch.utils.data.Dataset):
+    """Bin SHD event lists to dense (T_steps, n_in) spike tensors on the fly.
+
+    SHD ships as per-utterance events (spike time in seconds + unit index in
+    [0, 700)). Densifying the whole set at the model's native dt would be tens of
+    GB, so each sample is binned lazily here using the CURRENT module globals
+    M.T_steps / M.dt — both pinned by set_sim_dt() before the loader runs, so a
+    fork'd DataLoader worker sees the run's values. The returned (T_steps, n_in)
+    tensor stacks to (B, T_steps, n_in), which encode_batch() passes straight
+    through (transposed to (T_steps, B, n_in)) as already-spiked input.
+    """
+
+    def __init__(self, events, labels, n_in):
+        self.events = events  # object array; events[i] = (units_i16, times_f32)
+        self.labels = labels
+        self.n_in = n_in
+
+    def __len__(self):
+        return len(self.labels)
+
+    def __getitem__(self, i):
+        units, times = self.events[i]
+        T = M.T_steps
+        dt_s = M.dt / 1000.0  # bin width in seconds (dt is ms)
+        bins = np.floor(times / dt_s).astype(np.int64)
+        # Drop events past the sim window; clamp channels defensively.
+        keep = (bins >= 0) & (bins < T) & (units >= 0) & (units < self.n_in)
+        x = torch.zeros(T, self.n_in, dtype=torch.float32)
+        x[
+            torch.from_numpy(bins[keep]),
+            torch.from_numpy(units[keep].astype(np.int64)),
+        ] = 1.0
+        return x, int(self.labels[i])
 
 
 def train(
@@ -172,16 +213,24 @@ def train(
     X_tr, X_te, y_tr, y_te = load_dataset(
         dataset, max_samples=max_samples, split=True
     )
-    M.N_IN = 784
+    # Output classes are a property of the labels, not a hardcode. Set the module
+    # global so build_net sizes W_ff[-1] correctly (mnist=10, shd=20).
+    M.N_OUT = int(max(int(y_tr.max()), int(y_te.max()))) + 1
     bs = batch_size if batch_size is not None else BATCH_SIZE
-    train_loader = DataLoader(
-        TensorDataset(torch.from_numpy(X_tr), torch.from_numpy(y_tr)),
-        batch_size=bs,
-        shuffle=True,
-    )
-    test_loader = DataLoader(
-        TensorDataset(torch.from_numpy(X_te), torch.from_numpy(y_te)), batch_size=bs
-    )
+    # Event datasets (SHD) arrive as an object array of per-sample event lists →
+    # bin to (T_steps, n_in) spikes lazily. Image datasets (MNIST) arrive as
+    # dense (N, n_in) pixel rows and Poisson-encode per batch. N_IN comes from the
+    # data in both cases (784 for MNIST pixels, 700 for SHD channels).
+    if getattr(X_tr, "dtype", None) is not None and X_tr.dtype.kind == "O":
+        M.N_IN = SHD_N_IN
+        train_ds = ShdBinnedDataset(X_tr, y_tr, n_in=SHD_N_IN)
+        test_ds = ShdBinnedDataset(X_te, y_te, n_in=SHD_N_IN)
+    else:
+        M.N_IN = X_tr.shape[1]
+        train_ds = TensorDataset(torch.from_numpy(X_tr), torch.from_numpy(y_tr))
+        test_ds = TensorDataset(torch.from_numpy(X_te), torch.from_numpy(y_te))
+    train_loader = DataLoader(train_ds, batch_size=bs, shuffle=True)
+    test_loader = DataLoader(test_ds, batch_size=bs)
 
     # Model — symmetry-break standard-snn (dense W_in needs heterogeneous init phases).
     # Skip randomize_init when Kaiming init is used: Kaiming already gives
@@ -278,21 +327,26 @@ def train(
 
     # Train uses the module-level log (already set up by save_run_artifacts)
 
-    # Pre-generate fixed reference spike train using the canonical loader
-    # (same as image mode) so init/end snapshots use the same digit-0 sample
-    # regardless of train/test split shuffling.
-    ref_pixel_vec, ref_image = _load_dataset_image(
-        dataset, digit_class=0, sample_idx=0
-    )
-    ref_input = torch.from_numpy(ref_pixel_vec).float().unsqueeze(0).to(device)
-    torch.manual_seed(0)
-    pixels = ref_input.clamp(0, 1)
-    p = M.max_rate_hz * dt / 1000.0
-    ref_spikes = (
-        (torch.rand(M.T_steps, 1, M.N_IN, device=device) < pixels * p)
-        .float()
-        .squeeze(1)
-    )
+    # Pre-generate a fixed reference spike train so the init/end snapshots use the
+    # same sample regardless of train/test shuffling. Image data: Poisson-encode a
+    # fixed digit-0 sample. Event data (SHD): bin the first test utterance — there
+    # is no pixel image to encode.
+    if dataset in IMAGE_DATASETS:
+        ref_pixel_vec, _ref_image = _load_dataset_image(
+            dataset, digit_class=0, sample_idx=0
+        )
+        ref_input = torch.from_numpy(ref_pixel_vec).float().unsqueeze(0).to(device)
+        torch.manual_seed(0)
+        pixels = ref_input.clamp(0, 1)
+        p = M.max_rate_hz * dt / 1000.0
+        ref_spikes = (
+            (torch.rand(M.T_steps, 1, M.N_IN, device=device) < pixels * p)
+            .float()
+            .squeeze(1)
+        )
+    else:
+        # (T_steps, N_IN) already-binned spikes for the first test sample.
+        ref_spikes = test_ds[0][0].to(device)
 
     if snapshot_init:
 
