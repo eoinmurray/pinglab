@@ -157,6 +157,7 @@ def train(
     trainable_w_ei=False,
     trainable_w_ie=False,
     trainable_w_ii=False,
+    state_clamp=False,
 ):
     """Train a model on mnist."""
     from torch.utils.data import DataLoader, TensorDataset
@@ -257,6 +258,7 @@ def train(
         trainable_w_ei=trainable_w_ei,
         trainable_w_ie=trainable_w_ie,
         trainable_w_ii=trainable_w_ii,
+        state_clamp=state_clamp,
     )
     if readout_mode != "rate":
         log.info(f"  readout_mode={readout_mode}")
@@ -312,6 +314,7 @@ def train(
         "trainable_w_ei": trainable_w_ei,
         "trainable_w_ie": trainable_w_ie,
         "trainable_w_ii": trainable_w_ii,
+        "state_clamp": state_clamp,
         "seed": seed,
         "tau_gaba_ms": float(M.tau_gaba),
         # Swept / recipe-varying knobs — must be structured fields, not just
@@ -825,6 +828,7 @@ def train(
             "trainable_w_ei": trainable_w_ei,
             "trainable_w_ie": trainable_w_ie,
             "trainable_w_ii": trainable_w_ii,
+            "state_clamp": state_clamp,
             "seed": seed,
             "n_hidden": M.N_HID,
             "n_inh": M.N_INH,
