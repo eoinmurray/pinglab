@@ -212,7 +212,14 @@ def pod_run() -> None:
 
 def run_via_runpod(argv: list[str]) -> None:
     meta = parse_meta(argv, allow_dispatch=True)
-    buckets = [{"name": c["name"], "cells": [c["name"]]} for c in CELLS]
+    cells = CELLS
+    if meta.only_cells:                       # fire a subset (e.g. a cell that missed on no-stock)
+        wanted = set(meta.only_cells)
+        cells = [c for c in CELLS if c["name"] in wanted]
+        missing = wanted - {c["name"] for c in cells}
+        if missing:
+            raise SystemExit(f"unknown cell(s): {sorted(missing)}")
+    buckets = [{"name": c["name"], "cells": [c["name"]]} for c in cells]
     runpod.dispatch(
         slug=SLUG, runner=SLUG,
         buckets=buckets,
