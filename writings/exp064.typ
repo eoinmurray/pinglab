@@ -12,9 +12,62 @@
 #let free = cell-by("free__seed42")
 #let clamp = cell-by("clamp__seed42")
 #let clampwd = cell-by("clampwd__seed42")
+#let oom(x) = calc.round(calc.log(x, base: 10))
 
-#let results-caption = [_What we see_ is written in the Reading section below.]
-#let reading-body = [_(finalised once the run's numbers are in.)_]
+#let results-caption = [
+  *What we see confirms the mechanism.* The free baseline (red) carries
+  #free.nan_epochs of #free.epochs NaN epochs; both clamped cells (black) drop
+  that to *zero*. Critically, ‖W_ee‖ is unchanged by the clamp
+  (#calc.round(clamp.max_wee_norm, digits: 1) vs the free net's
+  #calc.round(free.max_wee_norm, digits: 1)) — the clamp bounds the conductance,
+  not the weight, exactly as the $g_"tot" <= 0$ mechanism predicts. And accuracy
+  is untouched: the clamped net reaches #calc.round(clamp.best_acc_pct, digits: 1)%,
+  matching the free baseline's #calc.round(free.best_acc_pct, digits: 1)%.
+]
+
+#let reading-body = [
+  *The clamp stabilises the signed net at no accuracy cost.* The free baseline
+  diverges as always — #free.nan_epochs of #free.epochs epochs NaN, peak pre-clip
+  gradient ≈ 10#super[#oom(free.max_grad_norm)]. Add only the forward-pass state
+  clamp and the divergence vanishes: #clamp.nan_epochs NaN epochs, the gradient
+  bounded at ≈ #calc.round(clamp.max_grad_norm), and best accuracy
+  #calc.round(clamp.best_acc_pct, digits: 1)% — indistinguishable from the free
+  net's #calc.round(free.best_acc_pct, digits: 1)%. The clamp is nearly
+  transparent when the net behaves and bites only when a conductance would cross
+  into the divergent $g_"tot" <= 0$ regime.
+
+  *This is the mechanism confirmed, not just a fix that works.* Two signatures pin
+  it down. First, ‖W_ee‖ is unchanged by the clamp
+  (#calc.round(clamp.max_wee_norm, digits: 1) clamped vs
+  #calc.round(free.max_wee_norm, digits: 1) free) — the weights grow exactly as
+  before; the clamp bounds the *state* (conductance), not the weight, which is
+  why #link("/exp063/")[weight decay] (which bounds weights) could not fix it and
+  the clamp can. Second, the effect is total (#free.nan_epochs → #clamp.nan_epochs
+  NaN epochs), as a hard floor on a divergent quantity should be — not the partial
+  trend a soft regulariser gives.
+
+  *The program's answer, ranked.* Three recipes now train the net stably:
+  #link("/exp062/")[Dale's law], the state clamp, and clamp + decay. The state
+  clamp is the best of them — it keeps the signed net's full accuracy
+  (#calc.round(clamp.best_acc_pct, digits: 1)%, clearing the Dale's-law recipe by
+  several points) while removing the divergence, where Dale's law paid for
+  stability with accuracy. The plan's registered goal was a stable recipe; the
+  sharper answer is that the free net never needed *constraining*, only its
+  *state bounding*.
+
+  *What is left.* Strong decay on top of the clamp did not lift accuracy here
+  (#calc.round(clampwd.best_acc_pct, digits: 1)%), so exp063's unstable 63.4% peak
+  was a property of the diverging trajectory, not headroom the clamp preserves —
+  the stable ceiling for this recipe sits near
+  #calc.round(clamp.best_acc_pct, digits: 1)%. Confirming across seeds, and
+  whether the clamp shifts the network's γ-rhythm or sparsity, are the natural
+  follow-ups.
+
+  #emph[Caveat.] Single seed; the stability effect is categorical
+  (#free.nan_epochs vs #clamp.nan_epochs NaN) so robust, but the accuracy gaps
+  between the stable recipes are within a few points and want the 3-seed
+  confirmation — cheap on the RunPod + S3 path.
+]
 
 #let body = [
   == What this checks
