@@ -471,8 +471,10 @@ def train(
         total_loss = 0.0
         n_batches = 0
         grad_sum = 0.0
+        grad_max = 0.0            # peak pre-clip global grad norm this epoch
         n_grad = 0
         n_skipped_steps = 0
+        n_nan_forward = 0         # batches whose forward pass returned NaN logits
         layer_ratio_sum = {}
         grad_norm_sum = {}
         n_samples_train = 0
@@ -485,6 +487,7 @@ def train(
             logits = net(input_spikes=spk)
             if torch.isnan(logits).any():
                 opt.zero_grad()
+                n_nan_forward += 1
                 continue
             loss = loss_fn(logits, y_b)
             spike_counts = getattr(net, "last_spike_counts", None)
@@ -518,6 +521,7 @@ def train(
                 total_loss += loss.item()
                 n_batches += 1
                 grad_sum += gn_f
+                grad_max = max(grad_max, gn_f)
                 n_grad += 1
             n_samples_train += y_b.size(0)
             # Within-epoch heartbeat: a live partial row (running loss under the
@@ -672,10 +676,12 @@ def train(
             "observe_s": observe_s,
             "samples": n_samples_train,
             "grad_norm": avg_grad,
+            "grad_norm_max": grad_max,
             "grad_ratios": grad_ratios,
             "grad_norms": grad_norms,
             "weight_norms": weight_norms,
             "skipped_steps": n_skipped_steps,
+            "nan_forward_batches": n_nan_forward,
             "new_best": new_best,
         }
         # Flatten per-parameter gradient norms to scalar fields so they land in
