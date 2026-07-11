@@ -16,26 +16,46 @@
 
   == Digest
 
-  _Latest, for the 30-second morning read. Updated 2026-07-11 20:10 BST._
+  _Latest, for the 30-second morning read. Updated 2026-07-11 20:35 BST._
 
-  #link("/exp061/")[exp061] ran and *killed the Δt hypothesis*. Full sweep
-  (1000 samples, 30 epochs, one seed, RunPod): NaN reproduces at Δt = 1.0
-  (13/30 epochs) but *persists at Δt = 0.25* (16/30), and the peak pre-clip
-  gradient norm gets ≈ 13 orders of magnitude *worse* as Δt shrinks
-  (3·10⁴ → 4·10¹⁷). The divergence is not coarse-Δt stiffness — finer Δt
-  quadruples the BPTT unroll and the gradient chain explodes. *The forward-pass
-  state clamp is now the live lead.* Δt is dropped as a stabiliser.
+  *We have a stable recipe.* #link("/exp062/")[exp062] confirmed *Dale's law is
+  the implicit stabiliser*: at the exact settings where the free signed net NaNs
+  13/30 epochs, the Dale's-law net trains *NaN-free* (0/30) with the gradient
+  bounded (3·10⁴ → ≈ 190) and W_ee bounded (9.2 → 5.4), costing a few points of
+  accuracy (56.8% → 53.2%). The program's core goal — a conductance E/I net that
+  trains stably on SHD — now has a working answer.
 
-  *Infra note (resolved).* The cloud sandbox blocks outbound SSH, so the
-  rsync-over-SSH pod collector could not pull results back. Fixed by reading the
-  RunPod network volume directly over its *S3 HTTPS API* (helpers/runpod.py
-  `collect_via_s3`) — no collector pod, no SSH. The RunPod path is fully usable
-  again.
+  Getting there: #link("/exp061/")[exp061] *killed the Δt hypothesis* (finer Δt
+  made the gradient explosion orders of magnitude worse, not better — it is a
+  recurrent-unroll gradient explosion, not coarse-Δt stiffness).
 
-  *Still queued:* exp062 (Dale's law as stabiliser) is running next; exp063
-  (weight-decay sweep) waits behind it.
+  *Reframe for the remaining queue.* Stability is solved by the constraint, so
+  the open question shifts: can weight decay (exp063) or the forward-pass state
+  clamp stabilise the _free_ signed net and keep its extra accuracy, rather than
+  paying Dale's law's accuracy tax?
+
+  *Infra (resolved).* SSH-blocked sandbox → the pod collector's rsync-over-SSH
+  fails; fixed by reading the RunPod volume over its *S3 HTTPS API*
+  (`collect_via_s3`). RunPod path fully usable.
 
   == Sessions
+
+  === 2026-07-11 20:35 BST — exp062: Dale's law is the stabiliser (supported)
+
+  Ran the second stability probe; the program's goal is met.
+
+  - *exp062 — Dale's law free vs constrained (done, supported).* Two cells,
+    identical but for the constraint, at Δt = 1.0 where the free net diverges.
+    #link("/exp062/")[Result]: the free net NaNs 13/30 epochs (peak gradient
+    ≈ 3·10⁴, W_ee 9.2); the Dale's-law net trains *NaN-free* (0/30, gradient
+    ≈ 190, W_ee 5.4) at 53.2% vs the free net's 56.8%. The non-negativity
+    projection bounds the E→I→E loop gain below the runaway threshold, so the
+    divergence never starts. First stable recipe achieved.
+
+  - *Direction.* The remaining queue changes meaning. exp063 (weight decay) and
+    the state clamp are no longer needed _for stability_ — Dale's law provides
+    it — but they are the way to ask whether the free signed net's extra accuracy
+    can be kept without its divergence. That is the more interesting question now.
 
   === 2026-07-11 20:10 BST — exp061 killed the Δt hypothesis; RunPod collect fixed
 
