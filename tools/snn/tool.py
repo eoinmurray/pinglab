@@ -513,6 +513,14 @@ def _build_parent_parser():
         "network (recurrent excitation pins the E rate).",
     )
     wt_group.add_argument(
+        "--trainable-w-ee",
+        action="store_true",
+        help="Make COBANet's E→E matrix gradient-carrying (default: "
+        "frozen). With --no-dales-law and the other three trainable-w-* "
+        "flags, the hidden layer becomes a free signed recurrent matrix "
+        "(a generic RSNN, no longer E/I-constrained).",
+    )
+    wt_group.add_argument(
         "--trainable-w-ei",
         action="store_true",
         help="Make COBANet's E→I matrix gradient-carrying (default: "
@@ -525,6 +533,13 @@ def _build_parent_parser():
         help="Make COBANet's I→E matrix gradient-carrying (default: "
         "frozen). Use to ask whether the optimiser would discover the "
         "PING-loop weights from scratch.",
+    )
+    wt_group.add_argument(
+        "--trainable-w-ii",
+        action="store_true",
+        help="Make COBANet's I→I matrix gradient-carrying (default: "
+        "frozen). Completes the set so all four recurrent blocks can train "
+        "together (see --trainable-w-ee).",
     )
     out_group = parent.add_argument_group("Output")
     out_group.add_argument("--out-dir", type=str, default=None, help="Output directory")
@@ -1267,8 +1282,10 @@ def _run_train(args, C, out_dir, log):
         tau_gaba=args.tau_gaba,
         fr_reg_upper_theta=args.fr_reg_upper_theta,
         fr_reg_upper_strength=args.fr_reg_upper_strength,
+        trainable_w_ee=args.trainable_w_ee,
         trainable_w_ei=args.trainable_w_ei,
         trainable_w_ie=args.trainable_w_ie,
+        trainable_w_ii=args.trainable_w_ii,
     )
 
 
@@ -1359,8 +1376,10 @@ def _run_dump_weights(args, C, out_dir, log):
         dales_law=args.dales_law,
         seed=args.seed,
         readout_mode=getattr(args, "readout_mode", "rate"),
+        trainable_w_ee=getattr(args, "trainable_w_ee", False),
         trainable_w_ei=getattr(args, "trainable_w_ei", False),
         trainable_w_ie=getattr(args, "trainable_w_ie", False),
+        trainable_w_ii=getattr(args, "trainable_w_ii", False),
     )
 
 

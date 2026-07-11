@@ -791,8 +791,10 @@ def dump_weights(
     dales_law=True,
     seed=None,
     readout_mode="rate",
+    trainable_w_ee=False,
     trainable_w_ei=False,
     trainable_w_ie=False,
+    trainable_w_ii=False,
     kaiming_init=False,
 ):
     """Emit initialisation and trained weight matrices to weights_dump.npz.
@@ -834,8 +836,10 @@ def dump_weights(
         dales_law=dales_law,
         hidden_sizes=hidden_sizes,
         readout_mode=readout_mode,
+        trainable_w_ee=trainable_w_ee,
         trainable_w_ei=trainable_w_ei,
         trainable_w_ie=trainable_w_ie,
+        trainable_w_ii=trainable_w_ii,
     )
 
     _WEIGHT_DICTS = ("W_ei", "W_ie", "W_ee", "W_ii")
