@@ -1,0 +1,32 @@
+{
+  "slug": "exp060",
+  "run_id": "r002",
+  "run_at": "2026-07-11T15:44:47+00:00",
+  "git_sha": "e9c5096",
+  "dirty": true,
+  "code_dirty": true,
+  "patch": {
+    "file": "_dirty.patch",
+    "sha256": "9a39927090e4191870746d8b73a6af3eed9121c8e87df24d5a9709e270b6f53c",
+    "lines": 262
+  },
+  "host": "local",
+  "scale": {
+    "dataset": "shd",
+    "rung": "A (free signed-recurrent ceiling)",
+    "max_samples": 1000,
+    "t_ms": 1000,
+    "dt": 1.0,
+    "n_hidden": 256,
+    "epochs": 30,
+    "lr": 0.001,
+    "weight_decay": 0.001,
+    "dales_law": false,
+    "trainable_blocks": [
+      "W_ee",
+      "W_ei",
+      "W_ie",
+      "W_ii"
+    ]
+  }
+}

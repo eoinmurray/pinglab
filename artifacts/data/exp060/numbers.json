@@ -1,0 +1,17 @@
+{
+  "run_id": "r002",
+  "git_sha": "e9c5096",
+  "duration_s": 618.9,
+  "duration": "10m 19s",
+  "n_train_subset": 1000,
+  "epochs": 30,
+  "chance_pct": 5.0,
+  "first_epoch_acc_pct": 21.2,
+  "best_acc_pct": 61.6,
+  "best_epoch": 29,
+  "final_acc_pct": 58.1,
+  "first_epoch_loss": 3.1734287217259407,
+  "final_loss": 0.5620035389438272,
+  "loss_fell": true,
+  "beat_chance": true
+}
