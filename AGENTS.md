@@ -1,20 +1,14 @@
-# AGENTS.md
+> **demolab lab** — before working here, run `demolab docs` and follow what it prints
+> (the agent manual + runbook menu; no venv yet? `uvx demolab-cli docs`). A user message
+> that is just a NAME in CAPS (`HELP`, `LINT`, `DOCTOR`, …) is a command — the manual explains.
 
-This is a **demolab** lab (an agent-operated lab notebook). **Before doing anything else,
-run `demolab docs` and follow what it prints** — the full agent manual plus the menu of
-runbooks and guides, always in step with the installed engine. (No venv yet? `uv sync`
-provides the `demolab` command, or run `uvx demolab-cli docs`.)
+# pinglab
 
-If the user's message is a NAME in CAPS (`HELP`, `LINT`, `DOCTOR`, …), that **is** the
-command — the manual explains. Two rules worth stating even before you've read it: commits
-are authored as the human only (never an agent trailer or co-author), and results are never
-hand-typed (writings read their run's data).
-
-## This lab's own rules
-
-pinglab — spiking E/I (PING) networks, trained with surrogate gradients and diagnosed via
+Spiking E/I (PING) networks, trained with surrogate gradients and diagnosed via
 Δt-stability. The `tools/snn` engine emits data → `experiments/` runners render figures →
 `writings/*.typ` publish via Typst.
+
+## This lab's rules
 
 - **Toolchain here also includes `task` (go-task)** for this repo's own lanes — lint,
   typecheck, tests, sim/train (`task` lists them). Publishing tasks delegate to `demolab`.
