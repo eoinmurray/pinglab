@@ -512,6 +512,86 @@ def collect_subpath(*, subpath: str, local_dir: str, datacenter: str,
     )
 
 
+# ── Collect over the RunPod S3 volume API (no pod, no SSH) ────────────
+# RunPod network volumes are S3-compatible over HTTPS at a per-datacenter
+# endpoint, so results can be read straight off the volume with no collector pod
+# and no SSH. This is the collect path for restricted networks that block
+# outbound SSH (:22) but allow HTTPS (:443) — e.g. the policy-proxied cloud
+# sandbox — where the rsync-over-SSH collector cannot connect at all. The bucket
+# is the volume id; auth is SigV4 with RunPod-issued S3 API keys (User Settings →
+# S3 API Keys, distinct from RUNPOD_API_KEY), read from RUNPOD_S3_ACCESS_KEY_ID /
+# RUNPOD_S3_SECRET_ACCESS_KEY. Absent ⇒ callers fall back to the SSH collector.
+
+def s3_endpoint(datacenter: str = DATACENTER) -> str:
+    """The volume's S3-compatible endpoint for its datacenter (HTTPS)."""
+    return f"https://s3api-{datacenter.lower()}.runpod.io"
+
+
+def s3_credentials() -> tuple[str, str] | None:
+    """RunPod S3 (access-key-id, secret) from the env, or None if unset.
+
+    Mirrors api_key()/registry_auth_id(): loads the repo-root .env first (unless
+    on a pod), then reads the dedicated RUNPOD_S3_* vars — deliberately NOT the
+    generic AWS_* names, which a sandbox may already populate with unrelated
+    credentials."""
+    if not os.environ.get("RUNPOD_POD_ID"):
+        load_dotenv()
+    ak = os.environ.get("RUNPOD_S3_ACCESS_KEY_ID")
+    sk = os.environ.get("RUNPOD_S3_SECRET_ACCESS_KEY")
+    return (ak, sk) if ak and sk else None
+
+
+def collect_via_s3(*, subpath: str, local_dir: str, datacenter: str = DATACENTER,
+                   volume_id: str = VOLUME_ID) -> int:
+    """Download every object under *subpath* on the volume to *local_dir*, over
+    HTTPS via the RunPod S3 API. Returns the number of files fetched.
+
+    Mirrors the SSH collector's layout: an object key `<subpath>/<cell>/f.json`
+    lands at `<local_dir>/<cell>/f.json` (the subpath prefix is stripped), so
+    downstream `cell_dir()` lookups resolve identically to a pod-rsync collect.
+    Requires RUNPOD_S3_* creds and the boto3 dev dependency; raises SystemExit
+    with an actionable message if either is missing."""
+    creds = s3_credentials()
+    if not creds:
+        raise SystemExit(
+            "no RunPod S3 credentials — set RUNPOD_S3_ACCESS_KEY_ID and "
+            "RUNPOD_S3_SECRET_ACCESS_KEY (RunPod console → Settings → S3 API Keys)."
+        )
+    try:
+        import boto3  # dev-only dependency; never imported on a pod
+        from botocore.config import Config
+    except ImportError as e:
+        raise SystemExit(
+            "boto3 is required for the S3 collect path (dev group): "
+            "run `uv sync` (or `uv sync --group dev`)."
+        ) from e
+
+    access_key, secret_key = creds
+    endpoint = s3_endpoint(datacenter)
+    s3 = boto3.client(
+        "s3", endpoint_url=endpoint, region_name=datacenter.lower(),
+        aws_access_key_id=access_key, aws_secret_access_key=secret_key,
+        config=Config(signature_version="s3v4", s3={"addressing_style": "path"}),
+    )
+    prefix = subpath.strip("/") + "/"
+    local = Path(local_dir)
+    print(f"  [s3-collect] {endpoint}/{volume_id}/{prefix} → {local}")
+    paginator = s3.get_paginator("list_objects_v2")
+    n = 0
+    for page in paginator.paginate(Bucket=volume_id, Prefix=prefix):
+        for obj in page.get("Contents", []):
+            key = obj["Key"]
+            if key.endswith("/"):
+                continue  # directory placeholder
+            rel = key[len(prefix):]                 # strip the collected prefix
+            dest = local / rel
+            dest.parent.mkdir(parents=True, exist_ok=True)
+            s3.download_file(volume_id, key, str(dest))
+            n += 1
+    print(f"  [s3-collect] {n} file(s) fetched")
+    return n
+
+
 # ── Provenance + auth (shared by every fan-out) ──────────────────────
 
 def head_sha() -> str:
@@ -597,10 +677,18 @@ def dispatch(
     if collect:
         print(f"collecting {VOLUME_MOUNT}/{collect_subdir} @ {DATACENTER} "
               f"→ {local_collect_dir}")
-        collect_subpath(
-            subpath=collect_subdir, local_dir=str(local_collect_dir),
-            datacenter=DATACENTER, volume_id=VOLUME_ID, gpu=gpu,
-        )
+        # Prefer the S3 volume API (HTTPS, no pod, no SSH) when RunPod S3 creds
+        # are set — the only collect path that works on SSH-blocked networks;
+        # otherwise fall back to the throwaway-pod rsync-over-SSH collector.
+        if s3_credentials():
+            collect_via_s3(subpath=collect_subdir, local_dir=str(local_collect_dir))
+        else:
+            print("  (no RUNPOD_S3_* creds — using the SSH collector pod; set S3 "
+                  "creds to collect over HTTPS instead)")
+            collect_subpath(
+                subpath=collect_subdir, local_dir=str(local_collect_dir),
+                datacenter=DATACENTER, volume_id=VOLUME_ID, gpu=gpu,
+            )
         print(f"→ build figures with: uv run python experiments/{runner}.py --skip-training")
         return
 
