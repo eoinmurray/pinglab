@@ -10,14 +10,13 @@ Spiking E/I (PING) networks, trained with surrogate gradients and diagnosed via
 
 ## This lab's rules
 
-- **Toolchain here also includes `task` (go-task)** for this repo's own lanes — lint,
-  typecheck, tests, sim/train (`task` lists them). Publishing tasks delegate to `demolab`.
 - **No RunPod fan-outs without explicit permission** — `--runpod --live` (and any
   pod-creating call) spends real money; default local. Same for anything Modal-dispatching.
 - **Don't write to GitHub issues/PRs without explicit permission** — with explicit
   permission, creating/posting an issue is fine; reading is always fine. Don't open
   branches/PRs unless asked — "commit and push" means commit + push to the current branch.
 - **Free reign on notebooks; editing the cli (`tools/snn`) needs explicit permission.**
+- NEVER add Co-Authored-By, "Generated with Claude Code", or any other AI-attribution trailers to commit messages or PR descriptions. Commits are authored by Eoin alone.
 
 ## Session hygiene
 
