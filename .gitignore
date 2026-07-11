@@ -47,3 +47,6 @@ tools/artifacts/
 
 # regen caches for --plot-only/--replot live in scratch (temp/), never the published data dir
 artifacts/data/**/*_cache.npz
+
+# demolab engine staging (materialised by the demolab CLI; regenerated on engine updates)
+.demolab/

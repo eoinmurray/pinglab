@@ -1,4 +1,4 @@
-#import "/demolab-engine/build/lib.typ": cite, reference-list
+#import "/.demolab/lib.typ": cite, reference-list
 
 #let meta = (
   title: "Manuscript",

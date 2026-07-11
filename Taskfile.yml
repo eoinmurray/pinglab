@@ -1,7 +1,7 @@
 # Taskfile for pinglab — https://taskfile.dev  (run `task` to list everything)
 #
 # Stack: Python via uv (tools/snn = engine, experiments/ = runners); publishing
-# via Typst (writings/ + artifacts/, built by demolab-engine). See `task build`/`dev`.
+# via Typst (writings/ + artifacts/, built by the demolab-cli engine). See `task build`/`dev`.
 # House rule: everything here runs LOCAL. No task dispatches Modal — that
 # spends real money, so it stays an explicit opt-in via a runner's own
 # --modal-gpu flag (e.g. `task run -- nb022 --modal-gpu A100`), never a task.
@@ -105,22 +105,23 @@ tasks:
     cmds:
       - "{{.CLI}} {{.CLI_ARGS}}"
 
-  # ── Publishing (Typst via demolab-engine) ───────────────────────────────
+  # ── Publishing (Typst via the demolab-cli package) ──────────────────────
   # `task build` / `task dev` drive the Typst engine over writings/ + artifacts/;
-  # `task run` runs a demolab experiment.
+  # `task run` runs a demolab experiment. The engine lives in the demolab-cli
+  # dependency (uv sync installs the `demolab` command); no vendored engine dir.
   build:
     desc: "Build the Typst bundle → artifacts/site/ (web) + artifacts/pdfs/ (PDFs + book)"
     cmds:
-      - uv run python demolab-engine/build/build.py
+      - uv run demolab build
 
   dev:
     desc: "🔥 Serve the site with hot-reload + in-browser build errors (auto-picks a free port from 3000; override: task dev -- 3010)"
     cmds:
-      # A Python dev server (demolab-engine/build/devserver.py) rebuilds via build.py on any
-      # source change and serves artifacts/site/ with live-reload. Unlike `typst watch` it
-      # re-globs each build (so new entries + decks appear without a restart) and surfaces a
-      # failed compile as a full-screen overlay in the browser instead of only the terminal.
-      - uv run python demolab-engine/build/devserver.py {{.CLI_ARGS}}
+      # demolab's dev server rebuilds on any source change and serves artifacts/site/
+      # with live-reload. Unlike `typst watch` it re-globs each build (so new entries +
+      # decks appear without a restart) and surfaces a failed compile as a full-screen
+      # overlay in the browser instead of only the terminal.
+      - uv run demolab dev {{.CLI_ARGS}}
 
   run:
     desc: "Run a demolab experiment end-to-end — e.g. task run -- nb047"

@@ -1,4 +1,4 @@
-#import "/demolab-engine/build/lib.typ": numbers-table, provenance-footer
+#import "/.demolab/lib.typ": numbers-table, provenance-footer
 
 #let meta = (
   title: "Strong vs Weak Coupling",
