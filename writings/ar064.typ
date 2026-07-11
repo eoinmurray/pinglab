@@ -16,10 +16,25 @@
 
   == Digest
 
-  _Latest, for the 30-second morning read. Updated 2026-07-11 20:45 BST._
+  _Latest, for the 30-second morning read. Updated 2026-07-11 23:35 BST._
 
-  *The stability queue is complete, and it has one clean answer: Dale's law.*
-  Of the three soft knobs the free net can vary without a model change —
+  *Goal exceeded: the forward-pass state clamp is the best stable recipe.*
+  #link("/exp064/")[exp064] tested the lead the queue pointed to — and it wins.
+  Reading the forward pass showed the divergence is the exp-Euler
+  $v_infinity = (…)\/g_"tot"$ blowing up when signed weights drive
+  $g_"tot" = g_L + g_e + g_i <= 0$ (why exp060 NaN'd at epoch 2 with tiny
+  weights: it is the _sign_, not the magnitude). A clamp that floors conductances
+  at 0 each timestep (physical) keeps $g_"tot" >= g_L > 0$. Result: the free net
+  goes from *13/30 NaN → 0/30*, gradient 3·10⁴ → ≈ 190, at *56.9%* — matching the
+  free baseline (56.8%) and beating Dale's law (53.2%). It bounds the *state*, not
+  the weights (W_ee unchanged), so it keeps the signed net's full accuracy where
+  Dale's law paid for stability. *The free net never needed constraining, only its
+  state bounding.* Implemented in `tools/snn/models.py` (`--state-clamp`, off by
+  default).
+
+  *The stability picture, ranked:* state clamp (56.9%, stable) > Dale's law
+  (53.2%, stable) ≫ free / Δt / weight decay (all diverge). Of the three soft
+  knobs the free net can vary without a model change —
   #link("/exp061/")[Δt], #link("/exp062/")[Dale's law], #link("/exp063/")[weight
   decay] — only Dale's law stabilises.
 
@@ -43,6 +58,29 @@
   by reading the RunPod volume over its *S3 HTTPS API* (`collect_via_s3`).
 
   == Sessions
+
+  === 2026-07-11 23:35 BST — exp064: the state clamp wins (goal exceeded)
+
+  Implemented the reserved model change and ran it — it is the best recipe.
+
+  - *Forward-pass state clamp (`tools/snn/models.py`, `--state-clamp`).* Reading
+    the COBA exp-Euler step showed the divergence mechanism: $v_infinity$ divides
+    by $g_"tot" = g_L + g_e + g_i$, and signed weights let a conductance go
+    negative, so $g_"tot"$ crosses zero and $v_infinity$ → NaN. The clamp floors
+    conductances at 0 (caps magnitude at 100 µS) each timestep, keeping
+    $g_"tot" >= g_L > 0$. Off by default, so every prior run is unchanged.
+
+  - *exp064 — free vs clamp vs clamp+decay (done, stabilises).*
+    #link("/exp064/")[Result]: free 13/30 NaN → free+clamp *0/30*, gradient
+    3·10⁴ → ≈ 190, at *56.9%* (vs free 56.8%). Both clamped cells stable; clamp
+    beats Dale's law (53.2%) with no accuracy cost. W_ee is unchanged by the clamp
+    (~9.1) — it bounds the state, not the weight, which is why weight decay could
+    not fix it and the clamp can. Mechanism confirmed.
+
+  - *Operational note.* The 4090 pool in EU-RO-1 stalled two clamp pods in startup
+    (no `config.json` after 40–80 min, no output); the same cell ran fine on a
+    5090. Killed the stalled pods (nothing leaked) and re-fired on 5090. A 4090
+    startup-stall flag for the next shift.
 
   === 2026-07-11 20:45 BST — exp063: weight decay regularises, does not stabilise
 
