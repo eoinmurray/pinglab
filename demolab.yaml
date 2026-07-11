@@ -3,11 +3,14 @@ name: Pinglab
 book-title: pinglab — the book
 contents-title: pinglab — contents
 
-collection-order: [gamma-gated-sparsity, documentation, literature, miscellaneous, weekly-feed]
+collection-order: [gamma-gated-sparsity, spiking-heidelberg-digits, documentation, literature, miscellaneous, weekly-feed]
 collections:
   gamma-gated-sparsity:
     label: Gamma-gated sparsity
     description: PING E/I networks trained with surrogate gradients; what sets the rate, the rhythm, and the sparsity.
+  spiking-heidelberg-digits:
+    label: Spiking Heidelberg Digits
+    description: Training the PING E/I network on the SHD event-based audio benchmark — from raw cochlear spikes to spoken-digit classification.
   documentation:
     label: Documentation
     description: Model derivations, conventions, and how the toolkit works.

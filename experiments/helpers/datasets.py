@@ -12,7 +12,76 @@ it exists for the few notebooks that must build custom stimuli from raw pixels
 
 from __future__ import annotations
 
+import gzip
+import os
+import shutil
+import urllib.request
+
 import numpy as np
+
+# ── SHD (Spiking Heidelberg Digits) ───────────────────────────────────────
+# Class id → spoken word. SHD is digits 0-9 in German (labels 0-9) then English
+# (labels 10-19), 20 classes total. Kept here so figures can title a raster with
+# the word rather than a bare integer.
+SHD_LABELS = [
+    "null", "eins", "zwei", "drei", "vier",
+    "fünf", "sechs", "sieben", "acht", "neun",
+    "zero", "one", "two", "three", "four",
+    "five", "six", "seven", "eight", "nine",
+]
+_SHD_DIR = "/tmp/shd"
+_SHD_URLS = {
+    "train": "https://zenkelab.org/datasets/shd_train.h5.gz",
+    "test": "https://zenkelab.org/datasets/shd_test.h5.gz",
+}
+
+
+def _shd_h5(split: str) -> str:
+    """Fetch + gunzip one SHD split to _SHD_DIR, returning the local .h5 path.
+
+    Mirrors the tool-side download (tools/snn/datasets.py) rather than importing
+    it — same tool↔experiment boundary the mnist path respects. Reuses the cache
+    the CLI may already have populated at /tmp/shd.
+    """
+    os.makedirs(_SHD_DIR, exist_ok=True)
+    h5_path = os.path.join(_SHD_DIR, f"shd_{split}.h5")
+    if os.path.exists(h5_path):
+        return h5_path
+    gz_path = h5_path + ".gz"
+    if not os.path.exists(gz_path):
+        urllib.request.urlretrieve(_SHD_URLS[split], gz_path)
+    with gzip.open(gz_path, "rb") as f_in, open(h5_path, "wb") as f_out:
+        shutil.copyfileobj(f_in, f_out)
+    return h5_path
+
+
+def load_shd_events(split: str = "train", max_samples: int | None = None):
+    """Return (events, labels) for one SHD split — raw spike events, not binned.
+
+    events: object ndarray, events[i] = (units_int16, times_float32) — the spike
+            unit index in [0, 700) and its time in seconds for utterance i.
+    labels: int64 ndarray of class ids in [0, 20).
+
+    Raw events are exactly what a raster needs; binning to a spike tensor is the
+    trainer's job (see ShdBinnedDataset in tools/snn/train.py). Deterministic
+    subset at seed 42 when max_samples is set.
+    """
+    import h5py
+
+    with h5py.File(_shd_h5(split), "r") as f:
+        times = f["spikes"]["times"]
+        units = f["spikes"]["units"]
+        labels = np.asarray(f["labels"], dtype=np.int64)
+        events = np.empty(len(labels), dtype=object)
+        for i in range(len(labels)):
+            events[i] = (
+                np.asarray(units[i], dtype=np.int16),
+                np.asarray(times[i], dtype=np.float32),
+            )
+    if max_samples is not None and max_samples < len(labels):
+        idx = np.random.RandomState(42).choice(len(labels), max_samples, replace=False)
+        events, labels = events[idx], labels[idx]
+    return events, labels
 
 
 def load_mnist_split(max_samples: int | None = None):
