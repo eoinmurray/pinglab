@@ -303,13 +303,10 @@ def plot_raster(npz_path: Path, out_path: Path, title: str) -> None:
     e_idx, e_t = np.where(spk_e.T)
     ax_r.scatter(t_ms[e_t], e_idx, s=1.0, c=theme.INK_BLACK, marker="|",
                  linewidths=0.5)
-    e_rate = float(spk_e.mean() * 1000.0 / dt)
-    i_rate = 0.0
     if has_i:
         i_idx, i_t = np.where(spk_i.T)
         ax_r.scatter(t_ms[i_t], i_idx + N_E, s=1.0, c=theme.DEEP_RED,
                      marker="|", linewidths=0.5)
-        i_rate = float(spk_i.mean() * 1000.0 / dt)
         ax_r.axhline(N_E, color=theme.GREY_MID, lw=0.6, alpha=0.8)
         ax_r.text(0.995, 0.985, "I", transform=ax_r.transAxes, ha="right",
                   va="top", fontsize=theme.SIZE_LABEL, color=theme.DEEP_RED,
@@ -321,8 +318,8 @@ def plot_raster(npz_path: Path, out_path: Path, title: str) -> None:
     ax_r.set_xlim(0, T * dt)
     ax_r.set_xlabel("time (ms)")
     ax_r.set_ylabel("neuron  (E below · I above)")
-    ax_r.set_title(f"{title}  ·  ⟨r_E⟩ = {e_rate:.1f}, ⟨r_I⟩ = {i_rate:.1f} Hz",
-                   loc="left")
+    # No baked-in figure title (H17): the caption carries the takeaway; the
+    # rates are reported in the summary table (numbers.json), not on the plot.
     ax_r.spines["top"].set_visible(False)
     ax_r.spines["right"].set_visible(False)
 
@@ -541,11 +538,8 @@ def plot_k_sweep(sweep: dict, out_path: Path) -> None:
                    loc="left", fontsize=theme.SIZE_LABEL, pad=24)
     ax_r.legend(fontsize=theme.SIZE_LABEL - 3, frameon=False, loc="best")
 
-    fig.suptitle(
-        "The defining V&S limit — scaling weights $\\propto\\sqrt{K}$ sustains "
-        "supra-Poisson irregularity as K grows; fixed weights decay to the floor",
-        x=0.01, ha="left", fontsize=theme.SIZE_LABEL + 1)
-    fig.tight_layout(rect=(0, 0, 1, 0.95))
+    # No baked-in figure title (H17): the caption carries the takeaway.
+    fig.tight_layout()
     fig.savefig(out_path, dpi=150)
     plt.close(fig)
 
@@ -636,10 +630,11 @@ def plot_lyapunov(lyap: dict, out_path: Path) -> None:
     ax.set_ylim(bottom=0)
     ax.set_xlabel("time since ε-kick (ms)")
     ax.set_ylabel(r"voltage distance $\Vert \Delta V(t) \Vert$  (mV)")
-    ax.set_title("Direct Lyapunov exponent — only the balanced net amplifies "
-                 "the kick", loc="left", fontsize=theme.SIZE_LABEL)
+    # No baked-in figure title (H17): the caption carries the takeaway. Legend
+    # sits in the white valley between the flat balanced trace (bottom) and the
+    # elevated decoupled trace (top), so it clears both curves.
     ax.legend(fontsize=theme.SIZE_LABEL - 1, frameon=False, loc="center",
-              bbox_to_anchor=(0.58, 0.60))
+              bbox_to_anchor=(0.5, 0.40))
     ax.spines["top"].set_visible(False)
     ax.spines["right"].set_visible(False)
     fig.tight_layout()
