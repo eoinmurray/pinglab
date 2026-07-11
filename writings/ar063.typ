@@ -73,7 +73,7 @@
       gradient chain explodes. Not coarse-dt stiffness. dt drops from the recipe;
       the forward-pass state clamp becomes the lead (see Amendments).
 
-  + *exp062 — is Dale's law the implicit stabiliser?* _(3 seeds · status: queued)_
+  + *exp062 — is Dale's law the implicit stabiliser?* _(1 seed · status: done — supported)_
     - _Hypothesis:_ the Dale's-law constraint (non-negativity clamp) keeps the
       dynamics in a stable regime; the same recipe *with* Dale's law trains
       NaN-free where the free version diverges.
@@ -81,6 +81,12 @@
       is not what stabilises — the free-vs-constrained difference lies elsewhere.
     - _Measures:_ NaN-epoch rate, max weight norm, and best accuracy, free vs
       constrained.
+    - _Result (#link("/exp062/")[exp062]):_ *supported.* At matched settings the
+      free net NaNs 13/30 epochs (gradient ≈ 3·10⁴, W_ee 9.2); the Dale's-law net
+      trains _NaN-free_ (0/30, gradient ≈ 190, W_ee 5.4) at 53.2% vs the free
+      net's 56.8%. Dale's law is the stabiliser — the first stable recipe. The
+      cost is a few points of accuracy, which reframes exp063 and the state clamp
+      (below) as ways to keep the free net's accuracy _without_ its divergence.
 
   + *exp063 — does weight decay bound the free recurrence?* _(status: queued)_
     - _Hypothesis:_ decay strong enough (sweep 0 → 1e-3 → 1e-2) bounds W_ee and
@@ -112,4 +118,14 @@
     the primary lead rather than a last resort. It is a change to the shared
     model, so it enters the queue after the two remaining no-code-change probes
     (exp062 Dale's law, exp063 weight decay) unless those close the case first.
+
+  - *2026-07-11 — the stability goal is met; exp063 + the state clamp are
+    reframed.* #link("/exp062/")[exp062] confirmed Dale's law trains the net
+    NaN-free at settings where the free net diverges — a working stable recipe,
+    which is the program's registered goal. Dale's law costs a few points of
+    accuracy against the free net, so the remaining probes are no longer about
+    _finding_ stability but about _keeping the free net's accuracy without its
+    divergence_: exp063 (weight decay) and the forward-pass state clamp are now
+    tested as stabilisers of the _signed_ net, worth running only if that
+    accuracy gap is worth chasing.
 ]
