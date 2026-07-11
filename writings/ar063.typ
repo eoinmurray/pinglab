@@ -101,6 +101,23 @@
       does not bound the recurrence. It _regularises_ (accuracy 56.3% → 63.4% with
       λ) but does not stabilise. Confirms the kill: decay is not the stabiliser.
 
+  + *exp064 — does the forward-pass state clamp stabilise the free net?*
+    _(1 seed · status: done — the answer)_ _(origin: promoted from the amendments
+    below; a shared-model change, authorised by the scientist)_
+    - _Hypothesis:_ the divergence is the exp-Euler $v_infinity = (…)\/g_"tot"$
+      blowing up when signed weights drive $g_"tot" = g_L + g_e + g_i <= 0$;
+      flooring conductances at 0 each timestep keeps $g_"tot" >= g_L > 0$ and
+      removes the NaN while the weights stay signed.
+    - _Kill:_ if the clamp leaves NaN present, the $g_"tot" <= 0$ mechanism is not
+      the whole cause.
+    - _Measures:_ NaN-epoch rate, max weight norm, best accuracy — free vs
+      free+clamp vs clamp+decay.
+    - _Result (#link("/exp064/")[exp064]):_ *the answer.* Free 13/30 NaN →
+      free+clamp *0/30*, gradient 3·10⁴ → ≈ 190, at *56.9%* (vs free 56.8%,
+      Dale's law 53.2%). W_ee unchanged (~9) — the clamp bounds the _state_, not
+      the weight, which is why decay could not fix it. The best stable recipe:
+      the signed net kept its full accuracy, only its state bounded.
+
   The firing-rate regulariser is already in the recipe (without it the earlier
   run blew up to a 526 Hz inhibitory rate); the queue attributes the _remaining_
   ingredients. If none of dt, Dale's law, or decay yields a NaN-free recipe, a
@@ -144,4 +161,15 @@
     gate to authorise as the program's next entry (candidate: a clamped free net
     at strong weight decay, aiming to beat both the free net's accuracy and Dale's
     law's stability).
+
+  - *2026-07-11 — goal exceeded; the state clamp is the answer, arc closed.*
+    #link("/exp064/")[exp064] ran the reserved clamp (scientist-authorised) and it
+    wins: the free signed net trains NaN-free (13/30 → 0/30) at 56.9%, matching the
+    free baseline and beating Dale's law, by bounding the _state_ (conductance ≥ 0)
+    not the weights. The registered goal — a minimal stable recipe — is met with
+    _no_ accuracy cost, and the mechanism is pinned (g_tot ≤ 0 under signed
+    weights), closing the arc Δt → Dale's law → weight decay → state clamp. Natural
+    follow-ups, as new entries rather than amendments: the 3-seed confirmation, and
+    whether the clamp shifts the network's γ-rhythm or sparsity — the questions the
+    program deferred until training was reliable, which it now is.
 ]
