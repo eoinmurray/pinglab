@@ -737,6 +737,15 @@ def _build_subparsers(parser, parent):
         "current-based models 0.01 (default: 0.01).",
     )
     train_parser.add_argument(
+        "--weight-decay",
+        type=float,
+        default=0.0,
+        help="AdamW decoupled weight decay (default: 0 = plain Adam). Bounds "
+        "the free signed recurrent weights under --no-dales-law, which "
+        "otherwise grow without limit and tip the forward pass into NaN "
+        "divergence; leave at 0 for Dale's-law runs.",
+    )
+    train_parser.add_argument(
         "--epochs",
         type=int,
         default=0,
@@ -1255,6 +1264,7 @@ def _resolve_w_in(args):
 def _run_train(args, C, out_dir, log):
     train(
         model_name=args.model,
+        weight_decay=args.weight_decay,
         lr=args.lr,
         epochs=args.epochs,
         dt=args.dt or 0.1,

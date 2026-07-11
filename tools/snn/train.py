@@ -126,6 +126,7 @@ class ShdBinnedDataset(torch.utils.data.Dataset):
 def train(
     model_name="ping",
     lr=0.01,
+    weight_decay=0.0,
     epochs=100,
     dt=0.1,
     out_dir=None,
@@ -285,6 +286,7 @@ def train(
         "mode": "train",
         "model": model_name,
         "lr": lr,
+        "weight_decay": weight_decay,
         "epochs": epochs,
         "dt": dt,
         "t_ms": M.T_ms,
@@ -416,7 +418,12 @@ def train(
         return 0.0
 
 
-    opt = torch.optim.Adam(net.parameters(), lr=lr)
+    # AdamW (decoupled weight decay); identical to Adam when weight_decay=0, so
+    # the default leaves every existing run unchanged. Weight decay bounds the
+    # free signed recurrent weights (W_ee especially) that otherwise grow without
+    # limit under --no-dales-law and tip the forward pass into NaN divergence —
+    # the constraint Dale's law provides implicitly via its non-negativity clamp.
+    opt = torch.optim.AdamW(net.parameters(), lr=lr, weight_decay=weight_decay)
     # Dale's law via projected gradient: clamp the constrained weights back onto
     # the non-negative orthant after every step. Registered once as a step-post
     # hook so it can't be forgotten (no-op when --no-dales-law allows signed
@@ -793,6 +800,7 @@ def train(
             "t_ms": M.T_ms,
             "epochs": epochs,
             "lr": lr,
+            "weight_decay": weight_decay,
             "input_rate": M.max_rate_hz,
             "w_in": list(w_in) if w_in else None,
             "w_in_sparsity": w_in_sparsity,
