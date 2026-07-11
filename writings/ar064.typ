@@ -16,16 +16,53 @@
 
   == Digest
 
-  _Latest, for the 30-second morning read. Updated 2026-07-11 17:36 BST._
+  _Latest, for the 30-second morning read. Updated 2026-07-11 20:10 BST._
 
-  Program opened. Goal set: find the minimal recipe that trains a conductance
-  E/I net stably on SHD. #link("/exp060/")[exp060] smoke trains to 61% on a
-  subset but *diverges intermittently* (NaN forward-passes, unbounded W_ee).
-  Stability queue (dt / Dale's law / weight decay) is registered and waiting.
-  *Open anomaly for a human:* NaN appears even at epoch 2 when weights are small
-  — so it is not weight-growth runaway; likely integration stiffness at dt = 1.0.
+  #link("/exp061/")[exp061] ran and *killed the Δt hypothesis*. Full sweep
+  (1000 samples, 30 epochs, one seed, RunPod): NaN reproduces at Δt = 1.0
+  (13/30 epochs) but *persists at Δt = 0.25* (16/30), and the peak pre-clip
+  gradient norm gets ≈ 13 orders of magnitude *worse* as Δt shrinks
+  (3·10⁴ → 4·10¹⁷). The divergence is not coarse-Δt stiffness — finer Δt
+  quadruples the BPTT unroll and the gradient chain explodes. *The forward-pass
+  state clamp is now the live lead.* Δt is dropped as a stabiliser.
+
+  *Infra note (resolved).* The cloud sandbox blocks outbound SSH, so the
+  rsync-over-SSH pod collector could not pull results back. Fixed by reading the
+  RunPod network volume directly over its *S3 HTTPS API* (helpers/runpod.py
+  `collect_via_s3`) — no collector pod, no SSH. The RunPod path is fully usable
+  again.
+
+  *Still queued:* exp062 (Dale's law as stabiliser) is running next; exp063
+  (weight-decay sweep) waits behind it.
 
   == Sessions
+
+  === 2026-07-11 20:10 BST — exp061 killed the Δt hypothesis; RunPod collect fixed
+
+  Ran the first stability experiment and solved a compute blocker on the way.
+
+  - *exp061 — Δt sweep (done, kill).* Swept Δt ∈ {1.0, 0.5, 0.25} ms on the free
+    signed-recurrent net, single seed, full exp060 scale, on RunPod.
+    #link("/exp061/")[The result] refutes the plan's hypothesis: NaN is
+    reproduced at the coarse Δt (so the mechanism is real) but *not removed* by
+    finer Δt — it persists at Δt = 0.25, and the peak pre-clip gradient norm
+    explodes monotonically worse (3·10⁴ → 5·10¹² → 4·10¹⁷) because quartering Δt
+    quadruples the BPTT unroll (1000 → 4000 steps). Kill criterion fires; the
+    divergence is a gradient explosion over the recurrent unroll, not exp-Euler
+    stiffness. Δt leaves the recipe.
+
+  - *Instrumentation.* Added two per-epoch metrics to the trainer the sweep
+    needed but that were previously invisible: `grad_norm_max` (peak pre-clip
+    global norm; only the mean was recorded) and `nan_forward_batches` (NaN
+    forward passes were silently skipped). Additive only.
+
+  - *Compute blocker, fixed.* The RunPod fan-out's collector rsyncs off the
+    shared volume over SSH; the cloud sandbox blocks outbound :22, so pods
+    trained fine but results were stranded on the volume. Routed around it: a
+    RunPod network volume is S3-compatible over HTTPS, so `collect_via_s3` reads
+    the trained cells straight off the volume with the S3 API. The earlier
+    "failed" plumbing pods turned out to have trained correctly all along — only
+    collection was broken.
 
   === 2026-07-11 17:36 BST — program opened
 
