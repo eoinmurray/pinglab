@@ -1,0 +1,67 @@
+{
+  "run_id": "r002",
+  "git_sha": "813032c",
+  "duration_s": 1.1,
+  "duration": "1s",
+  "dt_sweep": [
+    1.0,
+    0.5,
+    0.25
+  ],
+  "seed": 42,
+  "max_samples": 128,
+  "epochs": 15,
+  "compute": "local-cpu",
+  "n_cells": 3,
+  "n_trained": 3,
+  "cells": [
+    {
+      "trained": true,
+      "name": "dt1__seed42",
+      "dt": 1.0,
+      "epochs": 15,
+      "nan_epochs": 0,
+      "nan_epoch_rate": 0.0,
+      "nan_forward_batches": 0,
+      "skipped_steps": 0,
+      "max_grad_norm": 5866.3779296875,
+      "max_wee_norm": 2.151177406311035,
+      "best_acc_pct": 24.21875,
+      "best_epoch": 13
+    },
+    {
+      "trained": true,
+      "name": "dt0p5__seed42",
+      "dt": 0.5,
+      "epochs": 15,
+      "nan_epochs": 0,
+      "nan_epoch_rate": 0.0,
+      "nan_forward_batches": 0,
+      "skipped_steps": 0,
+      "max_grad_norm": 1061.9559326171875,
+      "max_wee_norm": 2.007312059402466,
+      "best_acc_pct": 29.6875,
+      "best_epoch": 14
+    },
+    {
+      "trained": true,
+      "name": "dt0p25__seed42",
+      "dt": 0.25,
+      "epochs": 15,
+      "nan_epochs": 0,
+      "nan_epoch_rate": 0.0,
+      "nan_forward_batches": 0,
+      "skipped_steps": 0,
+      "max_grad_norm": 14177172480.0,
+      "max_wee_norm": 2.174006700515747,
+      "best_acc_pct": 22.65625,
+      "best_epoch": 12
+    }
+  ],
+  "finest_dt": 0.25,
+  "nan_reproduced_at_coarse_dt": false,
+  "nan_at_finest_dt": false,
+  "grad_falls_with_finer_dt": false,
+  "verdict": "inconclusive \u2014 the coarse \u0394t did not diverge at this scale, so the NaN mechanism was not exercised; needs the full scale where exp060 diverged",
+  "chance_pct": 5.0
+}
