@@ -1,0 +1,22 @@
+{
+  "slug": "exp062",
+  "run_id": "r001",
+  "run_at": "2026-07-11T19:58:33+00:00",
+  "git_sha": "14ad946",
+  "dirty": false,
+  "code_dirty": false,
+  "patch": null,
+  "host": "local",
+  "scale": {
+    "dataset": "shd",
+    "contrast": "free (--no-dales-law) vs constrained (--dales-law)",
+    "max_samples": 1000,
+    "t_ms": 1000.0,
+    "dt_ms": 1.0,
+    "epochs": 30,
+    "n_hidden": 256,
+    "seeds": 1,
+    "seed": 42,
+    "compute": "runpod"
+  }
+}

@@ -10,11 +10,54 @@
 #let r = json("/artifacts/data/exp062/numbers.json")
 #let free = r.cells.filter(c => c.dales_law == false).at(0)
 #let dales = r.cells.filter(c => c.dales_law == true).at(0)
+#let oom(x) = calc.round(calc.log(x, base: 10))
 
-// Results-dependent prose — finalised against the run's actual outcome, with
-// every number still read from numbers.json.
-#let results-caption = [_What we see_ is written in the Reading section below.]
-#let reading-body = [_(finalised once the run's numbers are in.)_]
+#let results-caption = [
+  *What we see confirms it.* The free net (red) carries #free.nan_epochs of
+  #free.epochs epochs NaN and a peak ‖W_ee‖ of
+  #calc.round(free.max_wee_norm, digits: 1); Dale's law (black) drops the
+  NaN-epoch rate to *zero* and holds ‖W_ee‖ at
+  #calc.round(dales.max_wee_norm, digits: 1), while best accuracy barely moves
+  (#calc.round(free.best_acc_pct, digits: 1)% → #calc.round(dales.best_acc_pct, digits: 1)%).
+  The constraint buys stability for a few points of accuracy.
+]
+
+#let reading-body = [
+  The free net diverges exactly as before — #free.nan_epochs of #free.epochs
+  epochs NaN, peak pre-clip gradient norm ≈ 10#super[#oom(free.max_grad_norm)] —
+  reproducing #link("/exp061/")[exp061]'s coarse-Δt cell. Flip the single flag to
+  Dale's law and, at otherwise identical settings, the divergence is *gone*:
+  #dales.nan_epochs NaN epochs, the peak gradient norm bounded at
+  ≈ #calc.round(dales.max_grad_norm) (some
+  #(oom(free.max_grad_norm) - oom(dales.max_grad_norm)) orders of magnitude
+  tamer), and ‖W_ee‖ held at #calc.round(dales.max_wee_norm, digits: 1) against
+  the free net's #calc.round(free.max_wee_norm, digits: 1).
+
+  *The hypothesis holds.* Dale's law is the implicit stabiliser. Its
+  non-negativity projection clamps the recurrent weights each step, bounding the
+  E→I→E loop gain below the runaway threshold the free signed net crosses — the
+  divergence never starts, so there is no gradient explosion to clip. This is the
+  first *stable recipe* the program's goal asked for: a conductance E/I net that
+  trains to completion on SHD with no NaN and bounded dynamics, decisively above
+  chance (#calc.round(dales.best_acc_pct, digits: 1)% against the
+  #calc.round(r.chance_pct)% floor).
+
+  *The cost, and where this points.* Stability is not free — the constrained net
+  gives up a few points of peak accuracy
+  (#calc.round(dales.best_acc_pct, digits: 1)% vs
+  #calc.round(free.best_acc_pct, digits: 1)%), the price of denying the signed
+  recurrence its full expressivity. So two threads open. For the _minimal stable
+  recipe_, Dale's law now answers it; the queue's remaining probe (exp063, weight
+  decay) and the reserved state clamp become alternative stabilisers that may not
+  be needed. For _recovering the free net's accuracy without its divergence_,
+  those same tools become the live question: can weight decay or a forward-pass
+  state clamp tame the signed net and keep its extra accuracy?
+
+  #emph[Caveat.] Single seed — a point contrast, not error-barred. The effect is
+  categorical (#free.nan_epochs vs #dales.nan_epochs NaN epochs), so a seed sweep
+  is unlikely to reverse it; the confirming 3-seed run is cheap on the RunPod + S3
+  path.
+]
 
 #let body = [
   == What this checks
