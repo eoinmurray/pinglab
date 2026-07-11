@@ -1,22 +1,10 @@
-The working conventions for this repo live in the demolab guides (shipped in the
-`demolab-cli` package — `demolab docs <NAME>` prints a guide's path; read it):
+# CLAUDE.md
 
-- `demolab docs RULES` — the framework invariants (repo structure, the tool↔experiment boundary, provenance, how to add a tool / experiment / writing).
-- `demolab docs HOUSESTYLE` — authoring style, rules H1–H13 (prose, math with every term defined, 16:9 figures, `≈` not `~`, native Typst math, structure).
+Read [AGENTS.md](AGENTS.md), then run `demolab docs` and follow what it prints — it is the
+agent manual for working in this lab. A user message that is just a NAME in CAPS (`HELP`,
+`LINT`, `DOCTOR`, …) is a command; the manual explains how each routes.
 
-Read them before making any edits.
-
-## Commands — type a NAME
-
-demolab is driven by names in CAPS. **If the user's message is just one of these names, that IS the command — do it, don't ask what they mean:**
-
-- **`HELP`** — run `demolab docs` and present the menu of runbooks and guides.
-- **A runbook name** (e.g. `TOUR`, `LINT`, `DOCTOR`, `RED-TEAM`, `STEELMAN`, `NEXT`, `AUTORESEARCH`, `PLAN`, `NIGHT-SHIFT`, `UPDATE`) — run `demolab docs <NAME>`, read the file, then **start that runbook** and drive it step by step.
-- **A guide name** (e.g. `RULES`, `HOUSESTYLE`, `SLIDES`, `STRUCTURE`, `GLOSSARY`, `SUPPORT`, `AUTORESEARCH-RULES`) — read it the same way, then **walk the user through that guide** interactively.
-
-The full, current menu comes from `demolab docs` — run it rather than relying on a memorised list. Interaction rules are in [AGENTS.md](AGENTS.md).
-
-Non-negotiables kept here so they are always in context (full detail in the article):
+Non-negotiables kept here so they are always in context (detail in [AGENTS.md](AGENTS.md)):
 
 - Do NOT dispatch RunPod fan-outs (`exp022.py --runpod --live`, or any pod-creating call) without explicit permission — RunPod spends real money. Default to local runs.
 - Do NOT write to GitHub issues without explicit permission — with explicit permission, creating/posting an issue is fine. Never comment on existing issues without explicit permission. Reading is always fine.
