@@ -12,8 +12,50 @@
 #let weakest = cells.first()
 #let strongest = cells.last()
 
-#let results-caption = [_What we see_ is written in the Reading section below.]
-#let reading-body = [_(finalised once the run's numbers are in.)_]
+#let results-caption = [
+  *What we see fails the test.* The NaN-epoch rate falls only a little as λ grows
+  — #weakest.nan_epochs of #weakest.epochs epochs at λ = 0 to #strongest.nan_epochs
+  at λ = #strongest.wd — and never reaches zero; ‖W_ee‖ barely moves
+  (≈ #calc.round(weakest.max_wee_norm, digits: 1) throughout), so decay does not
+  bound the runaway weight. One thing does improve monotonically: best accuracy
+  climbs from #calc.round(weakest.best_acc_pct, digits: 1)% to
+  #calc.round(strongest.best_acc_pct, digits: 1)% — decay is a good regulariser,
+  just not a stabiliser.
+]
+
+#let reading-body = [
+  *The kill criterion fires.* Even the strongest decay (λ = #strongest.wd) leaves
+  the free net diverging — #strongest.nan_epochs of #strongest.epochs epochs NaN —
+  and ‖W_ee‖ is essentially flat across the whole sweep
+  (#calc.round(strongest.max_wee_norm, digits: 1) at the strongest λ against
+  #calc.round(weakest.max_wee_norm, digits: 1) at zero). Weight decay neither
+  bounds the recurrent weight nor removes the divergence. It _regularises_ —
+  accuracy rises steadily with λ, from #calc.round(weakest.best_acc_pct, digits: 1)%
+  to #calc.round(strongest.best_acc_pct, digits: 1)%, the free net's best number
+  yet — but that is a generalisation effect, not a stability one. Decay leaves the
+  stability recipe.
+
+  *The picture is now complete for the three soft knobs.* Of the ingredients the
+  free net can vary without touching the model — Δt (#link("/exp061/")[exp061]),
+  Dale's law (#link("/exp062/")[exp062]), weight decay (here) — only Dale's law
+  stabilises. Δt makes the gradient explosion _worse_; weight decay regularises
+  without bounding W_ee; only the hard non-negativity constraint holds the E→I→E
+  loop gain below runaway. So the free signed net's divergence is not reachable by
+  any soft knob tested — stabilising it _while keeping its accuracy_ needs the
+  reserved model change: a forward-pass state clamp bounding voltage and
+  conductance so a diverging trajectory cannot reach NaN.
+
+  *A hint for that next step.* Decay's accuracy gain — up to
+  #calc.round(strongest.best_acc_pct, digits: 1)%, the free net's best here and
+  well above the Dale's-law recipe — says the signed net has headroom the
+  constraint gives up. A state clamp that stabilises the free net _at strong
+  decay_ could plausibly beat every recipe in the program so far. That is the
+  experiment the plan now points to.
+
+  #emph[Caveat.] Single seed; the effect is categorical (NaN present at every λ),
+  so unlikely to reverse, but the 3-seed confirmation is cheap on the RunPod + S3
+  path.
+]
 
 #let body = [
   == What this checks
