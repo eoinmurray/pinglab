@@ -68,5 +68,11 @@
     "citation_new": 36,
     "embedding_new": 0
   },
-  "saturation_verdict": "Four decorrelated channels; last two added +36 and +0 in-scope against 1154 and 263 screened candidates. Marginal yield collapsed => corpus saturating at 161. The embedding null (orthogonal, seed-centered) argues few un-caught in-scope papers remain near the corpus; discounted for D's recency bias (old stratum covered by citation channel)."
+  "saturation_verdict": "Four decorrelated channels; last two added +36 and +0 in-scope against 1154 and 263 screened candidates. Marginal yield collapsed => corpus saturating at 161. The embedding null (orthogonal, seed-centered) argues few un-caught in-scope papers remain near the corpus; discounted for D's recency bias (old stratum covered by citation channel).",
+  "provenance": {
+    "memory_only": 59,
+    "search_only": 45,
+    "memory_and_search": 21,
+    "citation_only": 36
+  }
 }
