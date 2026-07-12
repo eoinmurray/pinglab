@@ -6,3 +6,9 @@
 {"phase":"scout","source":"openalex","query":"title_and_abstract.search:gamma oscillation stimulus selection","count":70,"note":"attention/selection axis"}
 {"phase":"scout","source":"openalex","query":"title_and_abstract.search:gamma interneuron coincidence detection","count":6,"note":"coincidence axis thin under keyword; concept-level needed (F2)"}
 {"phase":"freeze","event":"anchors_verified","dois":["10.1162/neco.2007.07-06-289","10.1073/pnas.0809511105","10.1016/j.neuron.2009.09.009","10.1016/j.neuron.2015.09.034"],"source":"crossref"}
+{"phase":"harvest","source":"memory","sample":"A","n_verified":44,"n_discarded_hallucination":0,"note":"44 memory candidates DOI-verified via Crossref; 2 short-title false-negatives recovered by direct query"}
+{"phase":"search","source":"openalex","sample":"B-v1","n_kept":119,"filter":"MECH AND FUNC in title+abstract","note":"BUG: strict mechanism-keyword filter + ranking-distorting query suffixes -> disjoint from A"}
+{"phase":"measure","attempt":1,"n_A":44,"n_B":119,"m":0,"verdict":"INVALID: m=0, samples from disjoint populations (different membership rules)"}
+{"phase":"measure","attempt":2,"population":"gamma AND function (loose P)","n_A":12,"n_B":696,"m":4,"N_hat":1811,"verdict":"INVALID: population = broad gamma-function balloon we excluded; A undercounted (missing OpenAlex abstracts)"}
+{"phase":"measure","attempt":3,"population":"gamma AND function AND mechanism (P') + S2 abstract backfill","n_A":8,"n_B":344,"m":2,"N_hat":1034,"verdict":"INVALID: P' drops 36/44 canonical in-scope papers (function-forward abstracts lack mechanism keywords); no keyword predicate equals the semantic scope"}
+{"phase":"measure","finding":"Automated keyword capture-recapture cannot faithfully sample a mechanism-carries-function scope. Strict filter excludes canonical in-scope papers; loose filter admits the excluded balloon. Escalation to citation-graph sampling required (runbook phase-6).","recall_estimate":"unreliable"}
