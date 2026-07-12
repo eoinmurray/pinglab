@@ -1,7 +1,8 @@
 [
  {
   "doi": "10.1016/0042-6989(93)90236-p",
-  "cite": "Niebur, Koch & Rosin (1993). An oscillation-based model for the neuronal basis of attention.",
+  "byline": "Niebur, Koch & Rosin (1993)",
+  "title": "An oscillation-based model for the neuronal basis of attention",
   "venue": "Vision Research",
   "axis": "attention-selection",
   "rationale": "Proposes an oscillation-based model where interneuron-network gamma synchronization among attended neurons implements the neuronal basis of selective attention.",
@@ -10,7 +11,8 @@
  },
  {
   "doi": "10.1007/bf00962722",
-  "cite": "Niebur & Koch (1994). A model for the neuronal implementation of selective visual attention based on temporal correlation among neurons.",
+  "byline": "Niebur & Koch (1994)",
+  "title": "A model for the neuronal implementation of selective visual attention based on temporal correlation among neurons",
   "venue": "Journal of Computational Neuroscience",
   "axis": "attention-selection",
   "rationale": "Models selective visual attention via temporal correlation among neurons, using inhibitory-network-generated synchrony to tag and select the attended stimulus's assembly.",
@@ -19,7 +21,8 @@
  },
  {
   "doi": "10.1073/pnas.0502366102",
-  "cite": "Börgers, Epstein & Kopell (2005). Background gamma rhythmicity and attention in cortical local circuits: A computational study.",
+  "byline": "Börgers, Epstein & Kopell (2005)",
+  "title": "Background gamma rhythmicity and attention in cortical local circuits: A computational study",
   "venue": "Proceedings of the National Academy of Sciences",
   "axis": "attention-selection",
   "rationale": "Computational model links cholinergic neuromodulation to a background PING gamma rhythm that amplifies stimulus-specific responses and enhances competition, proposing gamma as the substrate of preparatory attention.",
@@ -28,7 +31,8 @@
  },
  {
   "doi": "10.48550/arxiv.q-bio/0503019",
-  "cite": "Tiesinga et al. (2005). Inhibitory synchrony as a mechanism for attentional gain modulation.",
+  "byline": "Tiesinga et al. (2005)",
+  "title": "Inhibitory synchrony as a mechanism for attentional gain modulation",
   "venue": "arXiv (Cornell University)",
   "axis": "attention-selection",
   "rationale": "Top-down control of local interneuron-network synchrony modulates a target neuron's firing rate and spike-LFP gamma coherence, so attentional gain in V4 is the vehicle-function of synchronized inhibitory (E-I) gamma.",
@@ -37,7 +41,8 @@
  },
  {
   "doi": "10.1007/s10827-006-6358-0",
-  "cite": "Buia & Tiesinga (2006). Attentional modulation of firing rate and synchrony in a model cortical network.",
+  "byline": "Buia & Tiesinga (2006)",
+  "title": "Attentional modulation of firing rate and synchrony in a model cortical network",
   "venue": "Journal of Computational Neuroscience",
   "axis": "attention-selection",
   "rationale": "Models attention as reduced drive to interneurons in a cortical E-I network, so that gamma synchrony set by the interneuron network shifts the contrast-response (gain) curve as seen in V4.",
@@ -46,7 +51,8 @@
  },
  {
   "doi": "10.1016/j.neunet.2006.08.005",
-  "cite": "Mishra, Fellous & Sejnowski (2006). Selective attention through phase relationship of excitatory and inhibitory input synchrony in a model cortical neuron.",
+  "byline": "Mishra, Fellous & Sejnowski (2006)",
+  "title": "Selective attention through phase relationship of excitatory and inhibitory input synchrony in a model cortical neuron",
   "venue": "Neural Networks",
   "axis": "attention-selection",
   "rationale": "Models selective attention as controlled by the phase relationship between synchronous excitatory and inhibitory (interneuron) inputs, gating a cortical neuron's response by gamma-phase alignment.",
@@ -55,7 +61,8 @@
  },
  {
   "doi": "10.48550/arxiv.q-bio/0611030",
-  "cite": "Tiesinga & Buia (2006). Attentional modulation in layer 4 of the visual cortex could be mediated by interneurons with complex receptive field characteristics.",
+  "byline": "Tiesinga & Buia (2006)",
+  "title": "Attentional modulation in layer 4 of the visual cortex could be mediated by interneurons with complex receptive field characteristics",
   "venue": "arXiv (Cornell University)",
   "axis": "attention-selection",
   "rationale": "Increasing interneuron excitability in a layer-4 orientation-tuned circuit raises spike-LFP gamma coherence without changing rate, reproducing attentional modulation through control of the E-I gamma network.",
@@ -64,7 +71,8 @@
  },
  {
   "doi": "10.1152/jn.01004.2007",
-  "cite": "Buia & Tiesinga (2008). Role of Interneuron Diversity in the Cortical Microcircuit for Attention.",
+  "byline": "Buia & Tiesinga (2008)",
+  "title": "Role of Interneuron Diversity in the Cortical Microcircuit for Attention",
   "venue": "Journal of Neurophysiology",
   "axis": "attention-selection",
   "rationale": "A V4 microcircuit model with PV-like feedforward interneurons shows feature-based attention shifts assembly synchrony into the gamma band and resolves stimulus competition, arguing interneuron-diversity-based gamma mediates attentional selection among competing stimuli.",
@@ -73,7 +81,8 @@
  },
  {
   "doi": "10.1111/j.1460-9568.2009.06833.x",
-  "cite": "Deco & Thiele (2009). Attention – oscillations and neuropharmacology.",
+  "byline": "Deco & Thiele (2009)",
+  "title": "Attention – oscillations and neuropharmacology",
   "venue": "European Journal of Neuroscience",
   "axis": "attention-selection",
   "rationale": "Review of attention arguing that NMDA/AMPA- (and ACh-) tuned gamma-range rhythmic synchronization in local circuits enables enhanced processing of attended stimuli and efficient communication between ensembles.",
@@ -82,7 +91,8 @@
  },
  {
   "doi": "10.1523/jneurosci.4222-09.2010",
-  "cite": "Ardid et al. (2010). Reconciling Coherent Oscillation with Modulationof Irregular Spiking Activity in Selective Attention:Gamma-Range Synchronization between Sensoryand Executive Cortical Areas.",
+  "byline": "Ardid et al. (2010)",
+  "title": "Reconciling Coherent Oscillation with Modulationof Irregular Spiking Activity in Selective Attention:Gamma-Range Synchronization between Sensoryand Executive Cortical Areas",
   "venue": "Journal of Neuroscience",
   "axis": "attention-selection",
   "rationale": "A reciprocal MT<->PFC spiking loop reproduces attention-driven interareal gamma coherence that is feature-selective and enhances sensory gain, making sparsely-synchronized E-I gamma the vehicle for selective attention.",
@@ -91,7 +101,8 @@
  },
  {
   "doi": "10.1016/j.neuron.2013.08.019",
-  "cite": "Vinck et al. (2013). Attentional Modulation of Cell-Class-Specific Gamma-Band Synchronization in Awake Monkey Area V4.",
+  "byline": "Vinck et al. (2013)",
+  "title": "Attentional Modulation of Cell-Class-Specific Gamma-Band Synchronization in Awake Monkey Area V4",
   "venue": "Neuron",
   "axis": "attention-selection",
   "rationale": "Dissects attention's effect on gamma synchronization of narrow- vs broad-spiking (interneuron vs pyramidal) cells in V4, showing attention reshapes the E-I gamma cycle that selects attended stimuli.",
@@ -100,7 +111,8 @@
  },
  {
   "doi": "10.1162/neco_a_00742",
-  "cite": "Blaes & Burwick (2015). Attentional Bias Through Oscillatory Coherence Between Excitatory Activity and Inhibitory Minima.",
+  "byline": "Blaes & Burwick (2015)",
+  "title": "Attentional Bias Through Oscillatory Coherence Between Excitatory Activity and Inhibitory Minima",
   "venue": "Neural Computation",
   "axis": "attention-selection",
   "rationale": "A coupled excitatory-inhibitory gamma network implements attentional bias as oscillatory (spike-field) coherence between target-encoding excitatory units and the inhibitory pool, selecting the attended target while suppressing distracters.",
@@ -109,7 +121,8 @@
  },
  {
   "doi": "10.1101/2020.07.24.220319",
-  "cite": "Boroujeni, Tiesinga & Womelsdorf (2020). Interneuron Specific Gamma Synchronization Indexes Cue Uncertainty and Prediction Errors in Lateral Prefrontal and Anterior Cingulate Cortex.",
+  "byline": "Boroujeni, Tiesinga & Womelsdorf (2020)",
+  "title": "Interneuron Specific Gamma Synchronization Indexes Cue Uncertainty and Prediction Errors in Lateral Prefrontal and Anterior Cingulate Cortex",
   "venue": "bioRxiv (Cold Spring Harbor Laboratory)",
   "axis": "attention-selection",
   "rationale": "A specific interneuron subclass's 35-45 Hz gamma-synchronous spiking indexes cue uncertainty and prediction errors in PFC/ACC and is modeled as a soft winner-take-all gate — interneuron gamma as the selection/gating vehicle.",
@@ -118,7 +131,8 @@
  },
  {
   "doi": "10.1111/ejn.14744",
-  "cite": "Lü et al. (2020). Phasic cholinergic signaling promotes emergence of local gamma rhythms in excitatory–inhibitory networks.",
+  "byline": "Lü et al. (2020)",
+  "title": "Phasic cholinergic signaling promotes emergence of local gamma rhythms in excitatory–inhibitory networks",
   "venue": "European Journal of Neuroscience",
   "axis": "attention-selection",
   "rationale": "Computational E-I modeling shows brief acetylcholine pulses (via M-current suppression) trigger transient PING gamma, arguing the E-I loop's cholinergically driven gamma underlies cue detection in behavioral attention tasks.",
@@ -127,7 +141,8 @@
  },
  {
   "doi": "10.1093/cercor/bhac355",
-  "cite": "Wagatsuma, Nobukawa & Fukai (2022). A microcircuit model involving parvalbumin, somatostatin, and vasoactive intestinal polypeptide inhibitory interneurons for the modulation of neuronal oscillation during visual processing.",
+  "byline": "Wagatsuma, Nobukawa & Fukai (2022)",
+  "title": "A microcircuit model involving parvalbumin, somatostatin, and vasoactive intestinal polypeptide inhibitory interneurons for the modulation of neuronal oscillation during visual processing",
   "venue": "Cerebral Cortex",
   "axis": "attention-selection",
   "rationale": "A PV/SOM/VIP microcircuit model in which PV-generated gamma (vs SOM beta) regulates the integration of feedforward sensory and feedback attentional signals during visual processing.",
@@ -136,7 +151,8 @@
  },
  {
   "doi": "10.3389/fncom.2024.1439632",
-  "cite": "Zheng et al. (2024). Analyzing top-down visual attention in the context of gamma oscillations: a layer- dependent network-of- networks approach.",
+  "byline": "Zheng et al. (2024)",
+  "title": "Analyzing top-down visual attention in the context of gamma oscillations: a layer- dependent network-of- networks approach",
   "venue": "Frontiers in Computational Neuroscience",
   "axis": "attention-selection",
   "rationale": "A layer-dependent network-of-PING-networks reproduces top-down attentional enhancement of neuronal responses, using the E-I gamma loop across cortical layers as the vehicle for selective attention.",
@@ -145,7 +161,8 @@
  },
  {
   "doi": "10.1038/s41598-025-24109-1",
-  "cite": "Sajedin, FallahTaherpazir & Menhaj (2025). Cholinergic modulation mediates attentional mechanism to enhance coherence between cortical layers in macaque V1 and V4.",
+  "byline": "Sajedin, FallahTaherpazir & Menhaj (2025)",
+  "title": "Cholinergic modulation mediates attentional mechanism to enhance coherence between cortical layers in macaque V1 and V4",
   "venue": "Scientific Reports",
   "axis": "attention-selection",
   "rationale": "Biophysical V1-V4 model shows cholinergic drive enhances gamma synchrony/coherence via increased inhibitory drive to reproduce attentional modulation of inter-areal communication in visual cortex.",
@@ -154,7 +171,8 @@
  },
  {
   "doi": "10.1146/annurev.physiol.55.1.349",
-  "cite": "Singer (1993). Synchronization of Cortical Activity and Its Putative Role in Information Processing and Learning.",
+  "byline": "Singer (1993)",
+  "title": "Synchronization of Cortical Activity and Its Putative Role in Information Processing and Learning",
   "venue": "Annual Review of Physiology",
   "axis": "binding-synchrony",
   "rationale": "Singer's foundational review arguing that synchronization of cortical activity (temporal correlation among assemblies) serves feature binding and information processing/learning, the origin of the binding-by-synchrony hypothesis.",
@@ -163,7 +181,8 @@
  },
  {
   "doi": "10.1007/bf00962716",
-  "cite": "Gray (1994). Synchronous oscillations in neuronal systems: Mechanisms and functions.",
+  "byline": "Gray (1994)",
+  "title": "Synchronous oscillations in neuronal systems: Mechanisms and functions",
   "venue": "Journal of Computational Neuroscience",
   "axis": "binding-synchrony",
   "rationale": "Reviews synchronous oscillations as the mechanism for perceptual feature binding, with the gamma rhythm arising from local excitatory-inhibitory network interactions grouping co-active neurons.",
@@ -172,7 +191,8 @@
  },
  {
   "doi": "10.1038/383621a0",
-  "cite": "Traub et al. (1996). A mechanism for generation of long-range synchronous fast oscillations in the cortex.",
+  "byline": "Traub et al. (1996)",
+  "title": "A mechanism for generation of long-range synchronous fast oscillations in the cortex",
   "venue": "Nature",
   "axis": "binding-synchrony",
   "rationale": "Describes an E-I network mechanism producing long-range zero-lag synchronous fast oscillations, supplying the synchronization substrate for binding features across distant cortical sites.",
@@ -181,7 +201,8 @@
  },
  {
   "doi": "10.1109/ijcnn.2003.1223931",
-  "cite": "Eckhorn et al. (2004). Dynamic cortical cooperation related to visual perception.",
+  "byline": "Eckhorn et al. (2004)",
+  "title": "Dynamic cortical cooperation related to visual perception",
   "venue": "",
   "axis": "binding-synchrony",
   "rationale": "Perceptually modulated gamma synchrony (generated by inhibitory feedback loops) among neural groups binds figure features while decoupling figure from background, supporting the binding-by-synchronization account of visual perception.",
@@ -190,7 +211,8 @@
  },
  {
   "doi": "10.1073/pnas.0705708104",
-  "cite": "Tort et al. (2007). On the formation of gamma-coherent cell assemblies by oriens lacunosum-moleculare interneurons in the hippocampus.",
+  "byline": "Tort et al. (2007)",
+  "title": "On the formation of gamma-coherent cell assemblies by oriens lacunosum-moleculare interneurons in the hippocampus",
   "venue": "Proceedings of the National Academy of Sciences",
   "axis": "binding-synchrony",
   "rationale": "Hippocampal network model shows O-LM interneurons produce gamma coherence that couples anatomically distinct pyramidal modules into gamma-coherent cell assemblies, an interneuron-driven synchrony mechanism for binding distant cells.",
@@ -199,7 +221,8 @@
  },
  {
   "doi": "10.1109/tnn.2007.900238",
-  "cite": "Arthur & Boahen (2007). Synchrony in Silicon: The Gamma Rhythm.",
+  "byline": "Arthur & Boahen (2007)",
+  "title": "Synchrony in Silicon: The Gamma Rhythm",
   "venue": "IEEE Transactions on Neural Networks",
   "axis": "binding-synchrony",
   "rationale": "A silicon interneuron network synchronizing in the gamma band via shunting inhibition entrains model excitatory principal neurons to implement object binding, instantiating the interneuron-network gamma mechanism as the vehicle for feature binding.",
@@ -208,7 +231,8 @@
  },
  {
   "doi": "10.1167/10.7.1270",
-  "cite": "Thomas & Rufin (2010). Gamma oscillations decompose the visual scene into object-based perceptual cycles: a computational model.",
+  "byline": "Thomas & Rufin (2010)",
+  "title": "Gamma oscillations decompose the visual scene into object-based perceptual cycles: a computational model",
   "venue": "Journal of Vision",
   "axis": "binding-synchrony",
   "rationale": "A V1 model with feedback inhibition, refractory periods and gestalt lateral connections generates gamma cycles that both bind an object's features by co-firing and act as a winner-take-all gate, decomposing the scene into successive object-based perceptual cycles.",
@@ -217,7 +241,8 @@
  },
  {
   "doi": "10.1111/ejn.12287",
-  "cite": "Folias et al. (2013). Synchronisation hubs in the visual cortex may arise from strong rhythmic inhibition during gamma oscillations.",
+  "byline": "Folias et al. (2013)",
+  "title": "Synchronisation hubs in the visual cortex may arise from strong rhythmic inhibition during gamma oscillations",
   "venue": "European Journal of Neuroscience",
   "axis": "binding-synchrony",
   "rationale": "Strong rhythmic inhibition during gamma makes certain visual-cortex neurons synchronization hubs that entrain promiscuously with others, so the E-I gamma mechanism sets which neurons synchronize while preserving orientation selectivity.",
@@ -226,7 +251,8 @@
  },
  {
   "doi": "10.1101/279505",
-  "cite": "Cornford et al. (2018). Dendritic NMDA receptors in parvalbumin neurons enable strong and stable neuronal assemblies.",
+  "byline": "Cornford et al. (2018)",
+  "title": "Dendritic NMDA receptors in parvalbumin neurons enable strong and stable neuronal assemblies",
   "venue": "bioRxiv (Cold Spring Harbor Laboratory)",
   "axis": "binding-synchrony",
   "rationale": "Dendritic NMDARs give PV cells supralinear (coincidence-sensitive) integration of feedback excitation so that reciprocal E-I recruitment strengthens and stabilizes principal-cell assemblies, the gamma-generating loop thereby binding neurons into robust assemblies and explaining sensory-gating deficits when it fails.",
@@ -235,7 +261,8 @@
  },
  {
   "doi": "10.1101/2021.06.09.447667",
-  "cite": "Barbosa et al. (2021). Across-area synchronization supports feature integration in working memory.",
+  "byline": "Barbosa et al. (2021)",
+  "title": "Across-area synchronization supports feature integration in working memory",
   "venue": "bioRxiv (Cold Spring Harbor Laboratory)",
   "axis": "binding-synchrony",
   "rationale": "PING gamma (fast excitation, slow feedback inhibition) holds memory items at distinct phases, and weak cross-area coupling synchronizes the two PING networks to bind color and location features in working memory.",
@@ -244,7 +271,8 @@
  },
  {
   "doi": "10.3389/fncir.2021.716965",
-  "cite": "Barbosa et al. (2021). Across-Area Synchronization Supports Feature Integration in a Biophysical Network Model of Working Memory.",
+  "byline": "Barbosa et al. (2021)",
+  "title": "Across-Area Synchronization Supports Feature Integration in a Biophysical Network Model of Working Memory",
   "venue": "Frontiers in Neural Circuits",
   "axis": "binding-synchrony",
   "rationale": "Reciprocally coupled color and location attractor networks, each generating gamma via recurrent excitation and feedback inhibition, bind features through cross-area gamma synchrony, making PING gamma the vehicle for feature binding in working memory.",
@@ -253,7 +281,8 @@
  },
  {
   "doi": "10.1007/s12559-023-10202-y",
-  "cite": "Ursino & Pirazzini (2023). Construction of a Hierarchical Organization in Semantic Memory: A Model Based on Neural Masses and Gamma-Band Synchronization.",
+  "byline": "Ursino & Pirazzini (2023)",
+  "title": "Construction of a Hierarchical Organization in Semantic Memory: A Model Based on Neural Masses and Gamma-Band Synchronization",
   "venue": "Cognitive Computation",
   "axis": "binding-synchrony",
   "rationale": "In a neural-mass attractor model of semantic memory, GABAergic-interneuron/E-I balance produces gamma synchronization that binds shared features into hierarchical concept representations, making the PING rhythm the vehicle for feature binding.",
@@ -262,7 +291,8 @@
  },
  {
   "doi": "10.1016/j.neuron.2007.01.031",
-  "cite": "Fuchs et al. (2007). Recruitment of Parvalbumin-Positive Interneurons Determines Hippocampal Function and Associated Behavior.",
+  "byline": "Fuchs et al. (2007)",
+  "title": "Recruitment of Parvalbumin-Positive Interneurons Determines Hippocampal Function and Associated Behavior",
   "venue": "Neuron",
   "axis": "causal-optogenetic-performance",
   "rationale": "Genetically altering fast AMPA drive to parvalbumin interneurons disrupts hippocampal gamma and associated behavior, causally linking PV-interneuron recruitment (the PING driver) to network function.",
@@ -271,7 +301,8 @@
  },
  {
   "doi": "10.1038/nature07991",
-  "cite": "Sohal et al. (2009). Parvalbumin neurons and gamma rhythms enhance cortical circuit performance.",
+  "byline": "Sohal et al. (2009)",
+  "title": "Parvalbumin neurons and gamma rhythms enhance cortical circuit performance",
   "venue": "Nature",
   "axis": "causal-optogenetic-performance",
   "rationale": "Optogenetically drives PV interneurons to generate gamma and shows this enhances cortical signal transmission by reducing noise, causally tying PV-gamma to improved circuit performance.",
@@ -280,7 +311,8 @@
  },
  {
   "doi": "10.1038/nature08002",
-  "cite": "Cardin et al. (2009). Driving fast-spiking cells induces gamma rhythm and controls sensory responses.",
+  "byline": "Cardin et al. (2009)",
+  "title": "Driving fast-spiking cells induces gamma rhythm and controls sensory responses",
   "venue": "Nature",
   "axis": "causal-optogenetic-performance",
   "rationale": "Optogenetic driving of fast-spiking PV interneurons selectively amplifies gamma and the timing of sensory input relative to the gamma cycle controls the amplitude/precision of evoked responses, the founding causal FS-gamma demonstration.",
@@ -289,7 +321,8 @@
  },
  {
   "doi": "10.1016/j.neuron.2010.09.017",
-  "cite": "Korotkova et al. (2010). NMDA Receptor Ablation on Parvalbumin-Positive Interneurons Impairs Hippocampal Synchrony, Spatial Representations, and Working Memory.",
+  "byline": "Korotkova et al. (2010)",
+  "title": "NMDA Receptor Ablation on Parvalbumin-Positive Interneurons Impairs Hippocampal Synchrony, Spatial Representations, and Working Memory",
   "venue": "Neuron",
   "axis": "causal-optogenetic-performance",
   "rationale": "Cell-type-specific NMDA-receptor ablation on parvalbumin interneurons degrades hippocampal gamma synchrony, spatial coding, and working memory, giving causal evidence that PV-interneuron gamma from the E-I loop supports cognitive performance (title-inferred, empty abstract).",
@@ -298,7 +331,8 @@
  },
  {
   "doi": "10.1038/mp.2011.31",
-  "cite": "Carlén et al. (2011). A critical role for NMDA receptors in parvalbumin interneurons for gamma rhythm induction and behavior.",
+  "byline": "Carlén et al. (2011)",
+  "title": "A critical role for NMDA receptors in parvalbumin interneurons for gamma rhythm induction and behavior",
   "venue": "Molecular Psychiatry",
   "axis": "causal-optogenetic-performance",
   "rationale": "Deletes NMDA receptors selectively in PV interneurons, causally disrupting PV-driven gamma induction and producing specific cognitive deficits, directly linking the PV-gamma E-I mechanism to behavioural performance.",
@@ -307,7 +341,8 @@
  },
  {
   "doi": "10.1038/nature10360",
-  "cite": "Yizhar et al. (2011). Neocortical excitation/inhibition balance in information processing and social dysfunction.",
+  "byline": "Yizhar et al. (2011)",
+  "title": "Neocortical excitation/inhibition balance in information processing and social dysfunction",
   "venue": "Nature",
   "axis": "causal-optogenetic-performance",
   "rationale": "Optogenetically elevating cellular E/I balance in prefrontal cortex raises 30-80 Hz gamma power and causally impairs information processing and social behavior, tying inhibition-generated gamma to circuit and behavioral performance.",
@@ -316,7 +351,8 @@
  },
  {
   "doi": "10.1038/nn.3797",
-  "cite": "Siegle, Pritchett & Moore (2014). Gamma-range synchronization of fast-spiking interneurons can enhance detection of tactile stimuli.",
+  "byline": "Siegle, Pritchett & Moore (2014)",
+  "title": "Gamma-range synchronization of fast-spiking interneurons can enhance detection of tactile stimuli",
   "venue": "Nature Neuroscience",
   "axis": "causal-optogenetic-performance",
   "rationale": "Optogenetic FS-gamma enhances detection of less-salient tactile stimuli specifically when excitation arrives in the 20-25 ms window after FS synchronization, causally tying the interneuron-set inhibitory window to perceptual performance.",
@@ -325,7 +361,8 @@
  },
  {
   "doi": "10.1016/j.neuron.2015.02.019",
-  "cite": "Cho et al. (2015). Gamma Rhythms Link Prefrontal Interneuron Dysfunction with Cognitive Inflexibility in Dlx5/6+/− Mice.",
+  "byline": "Cho et al. (2015)",
+  "title": "Gamma Rhythms Link Prefrontal Interneuron Dysfunction with Cognitive Inflexibility in Dlx5/6+/− Mice",
   "venue": "Neuron",
   "axis": "causal-optogenetic-performance",
   "rationale": "Optogenetically driving prefrontal fast-spiking interneurons at gamma restores cognitive flexibility in Dlx5/6 mutant mice, causally linking FSIN-generated gamma to cognition.",
@@ -334,7 +371,8 @@
  },
  {
   "doi": "10.1016/j.cell.2015.11.038",
-  "cite": "Kim et al. (2016). Prefrontal Parvalbumin Neurons in Control of Attention.",
+  "byline": "Kim et al. (2016)",
+  "title": "Prefrontal Parvalbumin Neurons in Control of Attention",
   "venue": "Cell",
   "axis": "causal-optogenetic-performance",
   "rationale": "Optogenetically silencing vs gamma-synchronizing prefrontal FS-PV interneurons causally impairs vs improves attentional behavior, tying PV-driven gamma and pyramidal phase-locking to attention.",
@@ -343,7 +381,8 @@
  },
  {
   "doi": "10.1016/j.neuron.2019.06.014",
-  "cite": "Shin & Moore (2019). Persistent Gamma Spiking in SI Nonsensory Fast Spiking Cells Predicts Perceptual Success.",
+  "byline": "Shin & Moore (2019)",
+  "title": "Persistent Gamma Spiking in SI Nonsensory Fast Spiking Cells Predicts Perceptual Success",
   "venue": "Neuron",
   "axis": "causal-optogenetic-performance",
   "rationale": "Claims perceptual detection success is predicted by sustained gamma-regular spiking of a nonsensory FS interneuron subtype, casting FS-mediated E-I gamma as the temporal reference whose regularity gates perceptual performance.",
@@ -352,7 +391,8 @@
  },
  {
   "doi": "10.1038/s41467-019-08873-z",
-  "cite": "Tan et al. (2019). Gamma oscillations in somatosensory cortex recruit prefrontal and descending serotonergic pathways in aversion and nociception.",
+  "byline": "Tan et al. (2019)",
+  "title": "Gamma oscillations in somatosensory cortex recruit prefrontal and descending serotonergic pathways in aversion and nociception",
   "venue": "Nature Communications",
   "axis": "causal-optogenetic-performance",
   "rationale": "Optogenetic activation of S1 PV interneurons induces gamma that causally enhances nociceptive sensitivity and aversive behavior, tying PV-driven gamma to a behavioural pain-processing outcome.",
@@ -361,7 +401,8 @@
  },
  {
   "doi": "10.1101/784330",
-  "cite": "Cho et al. (2019). Interhemispheric gamma synchrony between parvalbumin interneurons supports behavioral adaptation.",
+  "byline": "Cho et al. (2019)",
+  "title": "Interhemispheric gamma synchrony between parvalbumin interneurons supports behavioral adaptation",
   "venue": "bioRxiv (Cold Spring Harbor Laboratory)",
   "axis": "causal-optogenetic-performance",
   "rationale": "Out-of-phase optogenetic disruption of parvalbumin-interneuron ~40 Hz interhemispheric synchrony causally impairs behavioral adaptation, showing PV-driven gamma synchrony is required for prefrontal communication supporting learning.",
@@ -370,7 +411,8 @@
  },
  {
   "doi": "10.1038/s41593-020-0647-1",
-  "cite": "Cho et al. (2020). Cross-hemispheric gamma synchrony between prefrontal parvalbumin interneurons supports behavioral adaptation during rule shift learning.",
+  "byline": "Cho et al. (2020)",
+  "title": "Cross-hemispheric gamma synchrony between prefrontal parvalbumin interneurons supports behavioral adaptation during rule shift learning",
   "venue": "Nature Neuroscience",
   "axis": "causal-optogenetic-performance",
   "rationale": "Cross-hemispheric gamma synchrony between prefrontal PV interneurons is causally required (out-of-phase optogenetic disruption causes perseveration) for behavioral adaptation, casting PV-gamma coherence as the vehicle for flexible rule-shift learning.",
@@ -379,7 +421,8 @@
  },
  {
   "doi": "10.1101/2022.03.25.485752",
-  "cite": "Patrono et al. (2022). The role of optogenetic stimulations of parvalbumin-positive interneurons in the prefrontal cortex and the ventral hippocampus on an acute MK801 model of schizophrenia-like cognitive inflexibility.",
+  "byline": "Patrono et al. (2022)",
+  "title": "The role of optogenetic stimulations of parvalbumin-positive interneurons in the prefrontal cortex and the ventral hippocampus on an acute MK801 model of schizophrenia-like cognitive inflexibility",
   "venue": "bioRxiv (Cold Spring Harbor Laboratory)",
   "axis": "causal-optogenetic-performance",
   "rationale": "Optogenetically driving PFC and ventral-hippocampal PV interneurons is used to rescue MK801-induced cognitive inflexibility, arguing that PV-generated prefrontal gamma (and its theta-coupled cross-regional synchronization) causally supports attentional set-shifting behavior.",
@@ -388,7 +431,8 @@
  },
  {
   "doi": "10.1016/j.celrep.2022.110693",
-  "cite": "Dalal & Haddad (2022). Upstream γ-synchronization enhances odor processing in downstream neurons.",
+  "byline": "Dalal & Haddad (2022)",
+  "title": "Upstream γ-synchronization enhances odor processing in downstream neurons",
   "venue": "Cell Reports",
   "axis": "causal-optogenetic-performance",
   "rationale": "Optogenetically increasing mitral-cell gamma-synchrony (via GABAergic granule cells) causally enhances downstream piriform odor coding despite lower firing rates, giving direct causal evidence that inhibition-based gamma-synchrony improves inter-areal sensory transmission.",
@@ -397,7 +441,8 @@
  },
  {
   "doi": "10.7554/elife.78349",
-  "cite": "Ferguson, Glick & Huguenard (2023). Prefrontal PV interneurons facilitate attention and are linked to attentional dysfunction in a mouse model of absence epilepsy.",
+  "byline": "Ferguson, Glick & Huguenard (2023)",
+  "title": "Prefrontal PV interneurons facilitate attention and are linked to attentional dysfunction in a mouse model of absence epilepsy",
   "venue": "eLife",
   "axis": "causal-optogenetic-performance",
   "rationale": "Gamma-frequency optogenetic stimulation of prefrontal PV interneurons rescues attention deficits in Scn8a+/- mice, giving causal evidence that PV-driven gamma from the E-I loop underlies attentional performance.",
@@ -406,7 +451,8 @@
  },
  {
   "doi": "10.1177/15357597241251709",
-  "cite": "Knowles (2024). Attentional Deficits and Absence Epilepsy: A Tale of 2 Interneuronopathies.",
+  "byline": "Knowles (2024)",
+  "title": "Attentional Deficits and Absence Epilepsy: A Tale of 2 Interneuronopathies",
   "venue": "Epiliepsy currents/Epilepsy currents",
   "axis": "causal-optogenetic-performance",
   "rationale": "Attention deficits track PV-interneuron hypoactivity and reduced cue-evoked gamma, and gamma-frequency optogenetic PVIN stimulation rescues attentional performance, making the PING-type PV->pyramidal gamma loop the causal vehicle for attention.",
@@ -415,7 +461,8 @@
  },
  {
   "doi": "10.1016/s0166-2236(96)80019-1",
-  "cite": "König, Engel & Singer (1996). Integrator or coincidence detector? The role of the cortical neuron revisited.",
+  "byline": "König, Engel & Singer (1996)",
+  "title": "Integrator or coincidence detector? The role of the cortical neuron revisited",
   "venue": "Trends in Neurosciences",
   "axis": "coincidence-gain-window",
   "rationale": "Argues cortical neurons operate as coincidence detectors rather than integrators, so inhibition-set narrow integration windows enable synchrony-based signaling relevant to temporal binding.",
@@ -424,7 +471,8 @@
  },
  {
   "doi": "10.1016/s0304-3940(98)00676-4",
-  "cite": "Burchell, Faulkner & Whittington (1998). Gamma frequency oscillations gate temporally coded afferent inputs in the rat hippocampal slice.",
+  "byline": "Burchell, Faulkner & Whittington (1998)",
+  "title": "Gamma frequency oscillations gate temporally coded afferent inputs in the rat hippocampal slice",
   "venue": "Neuroscience Letters",
   "axis": "coincidence-gain-window",
   "rationale": "Hippocampal gamma oscillations gate temporally coded afferent inputs, so the inhibition-defined gamma window of the E-I network determines which timed inputs are admitted (title-inferred, empty abstract).",
@@ -433,7 +481,8 @@
  },
  {
   "doi": "10.1523/jneurosci.20-03-01170.2000",
-  "cite": "Palva et al. (2000). Fast Network Oscillations in the Newborn Rat Hippocampus<i>In Vitro</i>.",
+  "byline": "Palva et al. (2000)",
+  "title": "Fast Network Oscillations in the Newborn Rat Hippocampus<i>In Vitro</i>",
   "venue": "Journal of Neuroscience",
   "axis": "coincidence-gain-window",
   "rationale": "GABAergic gamma-frequency modulation synchronizes newborn hippocampal pyramidal firing to millisecond precision, proposed as a substrate for selective coincidence detection, making the E-I gamma the vehicle for a precise integration window.",
@@ -442,7 +491,8 @@
  },
  {
   "doi": "10.1080/net.13.1.41.66",
-  "cite": "Tiesinga et al. (2002). Information transfer in entrained cortical neurons.",
+  "byline": "Tiesinga et al. (2002)",
+  "title": "Information transfer in entrained cortical neurons",
   "venue": "Network Computation in Neural Systems",
   "axis": "coincidence-gain-window",
   "rationale": "Synchronized gap-junction-coupled interneuron inhibition entrains pyramidal cells and, counterintuitively, increases the mutual information their spike phase carries about input — inhibitory gamma entrainment as the vehicle for information transfer.",
@@ -451,7 +501,8 @@
  },
  {
   "doi": "10.1016/j.tins.2003.10.010",
-  "cite": "Jónás et al. (2003). Interneuron Diversity series: Fast in, fast out – temporal and spatial signal processing in hippocampal interneurons.",
+  "byline": "Jónás et al. (2003)",
+  "title": "Interneuron Diversity series: Fast in, fast out – temporal and spatial signal processing in hippocampal interneurons",
   "venue": "Trends in Neurosciences",
   "axis": "coincidence-gain-window",
   "rationale": "Reviews how fast-spiking hippocampal interneurons' rapid, precise signaling ('fast in, fast out') imposes narrow temporal integration windows, positioning interneuron speed as the basis for coincidence detection and gamma timing.",
@@ -460,7 +511,8 @@
  },
  {
   "doi": "10.1016/j.jphysparis.2005.09.002",
-  "cite": "Tiesinga et al. (2004). Inhibitory synchrony as a mechanism for attentional gain modulation.",
+  "byline": "Tiesinga et al. (2004)",
+  "title": "Inhibitory synchrony as a mechanism for attentional gain modulation",
   "venue": "Journal of Physiology-Paris",
   "axis": "coincidence-gain-window",
   "rationale": "Shows that increasing synchrony of local interneuron (inhibitory) inputs modulates a neuron's f-I gain and spike-LFP gamma coherence, offering inhibitory synchrony as the mechanism of attentional gain modulation.",
@@ -469,7 +521,8 @@
  },
  {
   "doi": "10.1016/j.neucom.2004.01.108",
-  "cite": "Tiesinga et al. (2004). Synchronization as a mechanism for attentional gain modulation.",
+  "byline": "Tiesinga et al. (2004)",
+  "title": "Synchronization as a mechanism for attentional gain modulation",
   "venue": "Neurocomputing",
   "axis": "coincidence-gain-window",
   "rationale": "Companion modeling work arguing synchrony of inhibitory interneuron input controls neuronal gain and spike-input coherence, the substrate of attentional gain modulation in the gamma band.",
@@ -478,7 +531,8 @@
  },
  {
   "doi": "10.1371/journal.pcbi.1000342",
-  "cite": "Paik, Kumar & Glaser (2009). Spontaneous Local Gamma Oscillation Selectively Enhances Neural Network Responsiveness.",
+  "byline": "Paik, Kumar & Glaser (2009)",
+  "title": "Spontaneous Local Gamma Oscillation Selectively Enhances Neural Network Responsiveness",
   "venue": "PLoS Computational Biology",
   "axis": "coincidence-gain-window",
   "rationale": "In an E-I Hodgkin-Huxley model, reciprocal E-I/I-E gamma injects a periodic current that amplifies weak feedforward inputs, so the PING rhythm acts as an input-strength-dependent gain mechanism selectively boosting network responsiveness.",
@@ -487,7 +541,8 @@
  },
  {
   "doi": "10.3389/fnhum.2010.00185",
-  "cite": "Knoblich et al. (2010). What do We Gain from Gamma? Local Dynamic Gain Modulation Drives Enhanced Efficacy and Efficiency of Signal Transmission.",
+  "byline": "Knoblich et al. (2010)",
+  "title": "What do We Gain from Gamma? Local Dynamic Gain Modulation Drives Enhanced Efficacy and Efficiency of Signal Transmission",
   "venue": "Frontiers in Human Neuroscience",
   "axis": "coincidence-gain-window",
   "rationale": "Optogenetic 40 Hz FS-interneuron drive sharpens a post-stimulus temporal window that boosts spike precision and downstream gain, making inhibition-set coincidence windows of the E-I loop the vehicle for efficient signal transmission.",
@@ -496,7 +551,8 @@
  },
  {
   "doi": "10.1523/jneurosci.4818-09.2010",
-  "cite": "Otte, Hasenstaub & Callaway (2010). Cell Type-Specific Control of Neuronal Responsiveness by Gamma-Band Oscillatory Inhibition.",
+  "byline": "Otte, Hasenstaub & Callaway (2010)",
+  "title": "Cell Type-Specific Control of Neuronal Responsiveness by Gamma-Band Oscillatory Inhibition",
   "venue": "Journal of Neuroscience",
   "axis": "coincidence-gain-window",
   "rationale": "Using dynamic-clamp gamma-frequency perisomatic inhibition, the paper shows cell-type-specific control of neuronal responsiveness, so synchronized interneuron gamma sets the gain and integration window with which each cell type transforms input to output.",
@@ -505,7 +561,8 @@
  },
  {
   "doi": "10.1007/s11571-011-9169-6",
-  "cite": "Li et al. (2011). Impact of gamma-oscillatory inhibition on the signal transmission of a cortical pyramidal neuron.",
+  "byline": "Li et al. (2011)",
+  "title": "Impact of gamma-oscillatory inhibition on the signal transmission of a cortical pyramidal neuron",
   "venue": "Cognitive Neurodynamics",
   "axis": "coincidence-gain-window",
   "rationale": "Modeling a pyramidal neuron under gamma-oscillatory inhibition, the paper shows this rhythmic perisomatic inhibition shapes signal transmission, so the E-I gamma cycle gates the neuron's gain and effective integration window.",
@@ -514,7 +571,8 @@
  },
  {
   "doi": "10.1016/j.cub.2014.10.017",
-  "cite": "Lozano‐Soldevilla et al. (2014). GABAergic Modulation of Visual Gamma and Alpha Oscillations and Its Consequences for Working Memory Performance.",
+  "byline": "Lozano‐Soldevilla et al. (2014)",
+  "title": "GABAergic Modulation of Visual Gamma and Alpha Oscillations and Its Consequences for Working Memory Performance",
   "venue": "Current Biology",
   "axis": "coincidence-gain-window",
   "rationale": "Pharmacological GABAergic modulation shifts visual gamma (and alpha), and these changes in inhibition-generated gamma track working-memory performance, casting the E-I gamma cycle as the inhibitory processing window supporting memory.",
@@ -523,7 +581,8 @@
  },
  {
   "doi": "10.1016/j.tins.2018.07.015",
-  "cite": "Cardin (2018). Inhibitory Interneurons Regulate Temporal Precision and Correlations in Cortical Circuits.",
+  "byline": "Cardin (2018)",
+  "title": "Inhibitory Interneurons Regulate Temporal Precision and Correlations in Cortical Circuits",
   "venue": "Trends in Neurosciences",
   "axis": "coincidence-gain-window",
   "rationale": "Reviews how GABAergic interneurons in the E-I circuit regulate spike-timing precision and suppress slow correlations, making inhibition the vehicle for temporal windowing and coordinated cortical rhythms.",
@@ -532,7 +591,8 @@
  },
  {
   "doi": "10.1038/s41598-018-26779-6",
-  "cite": "Orekhova et al. (2018). Input-dependent modulation of MEG gamma oscillations reflects gain control in the visual cortex.",
+  "byline": "Orekhova et al. (2018)",
+  "title": "Input-dependent modulation of MEG gamma oscillations reflects gain control in the visual cortex",
   "venue": "Scientific Reports",
   "axis": "coincidence-gain-window",
   "rationale": "MEG visual gamma power follows a bell-shaped input-output curve interpreted as inhibitory gain control, using the E-I balance underlying gamma as a non-invasive index of the cortex's capacity to counterbalance excitation with inhibition.",
@@ -541,7 +601,8 @@
  },
  {
   "doi": "10.1155/2020/8823111",
-  "cite": "Han et al. (2020). High-Frequency Synchronization Improves Firing Rate Contrast and Information Transmission Efficiency in E/I Neuronal Networks.",
+  "byline": "Han et al. (2020)",
+  "title": "High-Frequency Synchronization Improves Firing Rate Contrast and Information Transmission Efficiency in E/I Neuronal Networks",
   "venue": "Neural Plasticity",
   "axis": "coincidence-gain-window",
   "rationale": "High-frequency synchronization in E/I network models enhances firing-rate contrast and information-encoding efficiency, so the E-I gamma rhythm sharpens gain/contrast to improve information transmission.",
@@ -550,7 +611,8 @@
  },
  {
   "doi": "10.1371/journal.pcbi.1009416",
-  "cite": "Susin & Destexhe (2021). Integration, coincidence detection and resonance in networks of spiking neurons expressing Gamma oscillations and asynchronous states.",
+  "byline": "Susin & Destexhe (2021)",
+  "title": "Integration, coincidence detection and resonance in networks of spiking neurons expressing Gamma oscillations and asynchronous states",
   "venue": "PLoS Computational Biology",
   "axis": "coincidence-gain-window",
   "rationale": "PING/ING gamma states modulate network responsiveness and resonance to afferent stimuli relative to the asynchronous mode, making the E-I gamma cycle the vehicle for gating stimulus integration and gain.",
@@ -559,7 +621,8 @@
  },
  {
   "doi": "10.1073/pnas.97.4.1867",
-  "cite": "Kopell et al. (2000). Gamma rhythms and beta rhythms have different synchronization properties.",
+  "byline": "Kopell et al. (2000)",
+  "title": "Gamma rhythms and beta rhythms have different synchronization properties",
   "venue": "Proceedings of the National Academy of Sciences",
   "axis": "communication-coherence-routing",
   "rationale": "E-I gamma synchronizes only over short delays while beta tolerates long ones, assigning gamma the role of local computation and beta of long-range interaction — the mechanism sets the spatial scale of communication.",
@@ -568,7 +631,8 @@
  },
  {
   "doi": "10.1016/s0925-2312(01)00464-7",
-  "cite": "Tiesinga et al. (2001). Optimal information transfer in synchronized neocortical neurons.",
+  "byline": "Tiesinga et al. (2001)",
+  "title": "Optimal information transfer in synchronized neocortical neurons",
   "venue": "Neurocomputing",
   "axis": "communication-coherence-routing",
   "rationale": "Argues synchronization among neocortical neurons optimizes information transfer, with inhibition-set synchronous windows serving as the vehicle for efficient signal transmission between populations.",
@@ -577,7 +641,8 @@
  },
  {
   "doi": "10.1038/35086012",
-  "cite": "Salinas & Sejnowski (2001). Correlated neuronal activity and the flow of neural information.",
+  "byline": "Salinas & Sejnowski (2001)",
+  "title": "Correlated neuronal activity and the flow of neural information",
   "venue": "Nature reviews. Neuroscience",
   "axis": "communication-coherence-routing",
   "rationale": "Argues correlated/synchronous activity gates the flow of neural information, so inhibition-generated synchrony acts as the vehicle controlling which signals are transmitted downstream.",
@@ -586,7 +651,8 @@
  },
  {
   "doi": "10.1016/j.tics.2005.08.011",
-  "cite": "Fries (2005). A mechanism for cognitive dynamics: neuronal communication through neuronal coherence.",
+  "byline": "Fries (2005)",
+  "title": "A mechanism for cognitive dynamics: neuronal communication through neuronal coherence",
   "venue": "Trends in Cognitive Sciences",
   "axis": "communication-coherence-routing",
   "rationale": "The founding communication-through-coherence hypothesis: rhythmic (gamma) inhibitory windows must be phase-aligned between groups for effective interaction, making E-I gamma coherence the vehicle for flexible inter-areal communication.",
@@ -595,7 +661,8 @@
  },
  {
   "doi": "10.1073/pnas.0809302105",
-  "cite": "Middleton et al. (2008). NMDA receptor-dependent switching between different gamma rhythm-generating microcircuits in entorhinal cortex.",
+  "byline": "Middleton et al. (2008)",
+  "title": "NMDA receptor-dependent switching between different gamma rhythm-generating microcircuits in entorhinal cortex",
   "venue": "Proceedings of the National Academy of Sciences",
   "axis": "communication-coherence-routing",
   "rationale": "NMDA-dependent switching of interneuron-mediated gamma frequencies in entorhinal cortex matches distinct hippocampal subfield frequencies, so the E-I gamma mechanism sets the temporal channel for information transfer between regions.",
@@ -604,7 +671,8 @@
  },
  {
   "doi": "10.1007/s00422-010-0390-x",
-  "cite": "Gielen, Krupa & Zeitler (2010). Gamma oscillations as a mechanism for selective information transmission.",
+  "byline": "Gielen, Krupa & Zeitler (2010)",
+  "title": "Gamma oscillations as a mechanism for selective information transmission",
   "venue": "Biological Cybernetics",
   "axis": "communication-coherence-routing",
   "rationale": "Shows PING-type gamma-modulated input makes a downstream neuron phase-lock to and selectively transmit the larger of competing gamma inputs, implementing selective information routing.",
@@ -613,7 +681,8 @@
  },
  {
   "doi": "10.3389/fnhum.2010.00196",
-  "cite": "Tiesinga & Sejnowski (2010). Mechanisms for Phase Shifting in Cortical Networks and their Role in Communication through Coherence.",
+  "byline": "Tiesinga & Sejnowski (2010)",
+  "title": "Mechanisms for Phase Shifting in Cortical Networks and their Role in Communication through Coherence",
   "venue": "Frontiers in Human Neuroscience",
   "axis": "communication-coherence-routing",
   "rationale": "Reciprocal E-I network models phase-shift their gamma output in response to depolarization or I-cell pulses, providing the phase-adjustment mechanism that implements communication-through-coherence and stimulus selection.",
@@ -622,7 +691,8 @@
  },
  {
   "doi": "10.1523/jneurosci.2209-11.2011",
-  "cite": "Ainsworth et al. (2011). Dual Gamma Rhythm Generators Control Interlaminar Synchrony in Auditory Cortex.",
+  "byline": "Ainsworth et al. (2011)",
+  "title": "Dual Gamma Rhythm Generators Control Interlaminar Synchrony in Auditory Cortex",
   "venue": "Journal of Neuroscience",
   "axis": "communication-coherence-routing",
   "rationale": "Distinct laminar gamma generators (including a granular-layer PING) must frequency-match to provide temporal coupling of co-active regions, making E-I gamma the vehicle for interlaminar/inter-regional synchronization and signal control.",
@@ -631,7 +701,8 @@
  },
  {
   "doi": "10.1016/j.neuron.2012.10.038",
-  "cite": "Bastos et al. (2012). Canonical Microcircuits for Predictive Coding.",
+  "byline": "Bastos et al. (2012)",
+  "title": "Canonical Microcircuits for Predictive Coding",
   "venue": "Neuron",
   "axis": "communication-coherence-routing",
   "rationale": "Maps predictive-coding computations onto the canonical cortical microcircuit, assigning gamma from superficial E-I populations to feedforward message passing between hierarchical areas.",
@@ -640,7 +711,8 @@
  },
  {
   "doi": "10.1113/jphysiol.2013.263889",
-  "cite": "Pietersen et al. (2013). Transition between fast and slow gamma modes in rat hippocampus area CA1 <i>in vitro</i> is modulated by slow CA3 gamma oscillations.",
+  "byline": "Pietersen et al. (2013)",
+  "title": "Transition between fast and slow gamma modes in rat hippocampus area CA1 <i>in vitro</i> is modulated by slow CA3 gamma oscillations",
   "venue": "The Journal of Physiology",
   "axis": "communication-coherence-routing",
   "rationale": "Feedback-inhibition-generated fast CA1 gamma can be forced to the slower CA3 gamma via feed-forward inhibition, letting CA1 switch its effective communication between entorhinal cortex and CA3, with gamma synchrony determining the effectiveness of neuronal communication for memory encoding vs recall.",
@@ -649,7 +721,8 @@
  },
  {
   "doi": "10.1186/1471-2202-14-s1-p226",
-  "cite": "Hahn et al. (2013). Synfire chains and gamma oscillations: two complementary modes of information transmission in cortical networks.",
+  "byline": "Hahn et al. (2013)",
+  "title": "Synfire chains and gamma oscillations: two complementary modes of information transmission in cortical networks",
   "venue": "BMC Neuroscience",
   "axis": "communication-coherence-routing",
   "rationale": "Flexible routing of activity across specialized networks is achieved by consistent phase relations between E-I-generated population gamma oscillations, so PING-type coherence is the vehicle for high-fidelity inter-network communication.",
@@ -658,7 +731,8 @@
  },
  {
   "doi": "10.3389/fncom.2013.00029",
-  "cite": "Srinivasan, Thorpe & Nunez (2013). Top-Down Influences on Local Networks: Basic Theory with Experimental Implications.",
+  "byline": "Srinivasan, Thorpe & Nunez (2013)",
+  "title": "Top-Down Influences on Local Networks: Basic Theory with Experimental Implications",
   "venue": "Frontiers in Computational Neuroscience",
   "axis": "communication-coherence-routing",
   "rationale": "A Wilson-Cowan E-I gamma local network is modulated by slow (alpha/theta) rhythms carrying attention/arousal biases, making cross-frequency control of E-I gamma the vehicle for top-down/bottom-up interaction between spatial scales.",
@@ -667,7 +741,8 @@
  },
  {
   "doi": "10.1016/j.neuron.2013.03.003",
-  "cite": "Holcombe, Svärd & Hallstadius (2014). Gamma emission tomography for determining pin-wise percent fission gas release in fuel assemblies at the Halden Boiling Water Reactor.",
+  "byline": "Holcombe, Svärd & Hallstadius (2014)",
+  "title": "Gamma emission tomography for determining pin-wise percent fission gas release in fuel assemblies at the Halden Boiling Water Reactor",
   "venue": "Neuron",
   "axis": "communication-coherence-routing",
   "rationale": "Despite the garbled title, the abstract shows V1-V2 gamma coherence is maintained across stimulus-induced frequency changes, supporting communication-through-coherence via correlated E-I gamma between areas.",
@@ -676,7 +751,8 @@
  },
  {
   "doi": "10.1016/j.neuron.2014.12.018",
-  "cite": "Bastos et al. (2014). Visual Areas Exert Feedforward and Feedback Influences through Distinct Frequency Channels.",
+  "byline": "Bastos et al. (2014)",
+  "title": "Visual Areas Exert Feedforward and Feedback Influences through Distinct Frequency Channels",
   "venue": "Neuron",
   "axis": "communication-coherence-routing",
   "rationale": "Shows visual areas route feedforward influences through gamma and feedback through lower frequencies, so E-I gamma coherence implements directional inter-areal communication.",
@@ -685,7 +761,8 @@
  },
  {
   "doi": "10.1038/nrn3668",
-  "cite": "Akam & Kullmann (2014). Oscillatory multiplexing of population codes for selective communication in the mammalian brain.",
+  "byline": "Akam & Kullmann (2014)",
+  "title": "Oscillatory multiplexing of population codes for selective communication in the mammalian brain",
   "venue": "Nature reviews. Neuroscience",
   "axis": "communication-coherence-routing",
   "rationale": "Review proposes oscillatory (gamma) multiplexing of firing-rate population codes enables selective inter-areal communication by reconfiguring effective connectivity, with periodic inhibitory modulation as the routing substrate.",
@@ -694,7 +771,8 @@
  },
  {
   "doi": "10.1016/j.neuron.2015.09.034",
-  "cite": "Fries (2015). Rhythms for Cognition: Communication through Coherence.",
+  "byline": "Fries (2015)",
+  "title": "Rhythms for Cognition: Communication through Coherence",
   "venue": "Neuron",
   "axis": "communication-coherence-routing",
   "rationale": "Fries's canonical statement that flexible neuronal communication is mechanistically implemented by coherence of E-I gamma rhythms establishing open windows between sending and receiving groups.",
@@ -703,7 +781,8 @@
  },
  {
   "doi": "10.1523/jneurosci.0629-15.2015",
-  "cite": "Lee, Whittington & Kopell (2015). Potential Mechanisms Underlying Intercortical Signal Regulation via Cholinergic Neuromodulators.",
+  "byline": "Lee, Whittington & Kopell (2015)",
+  "title": "Potential Mechanisms Underlying Intercortical Signal Regulation via Cholinergic Neuromodulators",
   "venue": "Journal of Neuroscience",
   "axis": "communication-coherence-routing",
   "rationale": "Cholinergic modulation lets top-down beta/gamma interact with a bottom-up E-I gamma rhythm to gate signal flow between primary sensory and association cortex, making the PING gamma the vehicle for flexible inter-areal routing.",
@@ -712,7 +791,8 @@
  },
  {
   "doi": "10.1152/jn.01038.2014",
-  "cite": "Harnack, Ernst & Pawelzik (2015). A model for attentional information routing through coherence predicts biased competition and multistable perception.",
+  "byline": "Harnack, Ernst & Pawelzik (2015)",
+  "title": "A model for attentional information routing through coherence predicts biased competition and multistable perception",
   "venue": "Journal of Neurophysiology",
   "axis": "communication-coherence-routing",
   "rationale": "A two-layer spiking network with lateral inhibition uses phase shifts between sending and receiving layers to route the attended stimulus, reproducing both biased competition and selective information routing via gamma coherence.",
@@ -721,7 +801,8 @@
  },
  {
   "doi": "10.1371/journal.pcbi.1005162",
-  "cite": "McLelland & VanRullen (2016). Theta-Gamma Coding Meets Communication-through-Coherence: Neuronal Oscillatory Multiplexing Theories Reconciled.",
+  "byline": "McLelland & VanRullen (2016)",
+  "title": "Theta-Gamma Coding Meets Communication-through-Coherence: Neuronal Oscillatory Multiplexing Theories Reconciled",
   "venue": "PLoS Computational Biology",
   "axis": "communication-coherence-routing",
   "rationale": "Feedback-inhibition (PING) gamma phase-matching selectively routes single items via communication-through-coherence while theta-gamma multiplexing supports a phase code, with the E-I gamma rhythm as the vehicle for both.",
@@ -730,7 +811,8 @@
  },
  {
   "doi": "10.1038/nn.4562",
-  "cite": "Veit et al. (2017). Cortical gamma band synchronization through somatostatin interneurons.",
+  "byline": "Veit et al. (2017)",
+  "title": "Cortical gamma band synchronization through somatostatin interneurons",
   "venue": "Nature Neuroscience",
   "axis": "communication-coherence-routing",
   "rationale": "Optogenetics shows dendrite-targeting SOM interneurons are required for visually induced gamma and long-distance coherence across visual cortex, casting the inhibitory gamma mechanism as the vehicle for synchronizing distributed assemblies for information transfer.",
@@ -739,7 +821,8 @@
  },
  {
   "doi": "10.1038/nn.4569",
-  "cite": "Palmigiano et al. (2017). Flexible information routing by transient synchrony.",
+  "byline": "Palmigiano et al. (2017)",
+  "title": "Flexible information routing by transient synchrony",
   "venue": "Nature Neuroscience",
   "axis": "communication-coherence-routing",
   "rationale": "Modeling shows transient gamma synchrony among E-I networks flexibly routes information by dynamically reconfiguring effective connectivity, the core communication-through-coherence claim.",
@@ -748,7 +831,8 @@
  },
  {
   "doi": "10.3389/fncom.2017.00006",
-  "cite": "Wal & Tiesinga (2017). Phase Difference between Model Cortical Areas Determines Level of Information Transfer.",
+  "byline": "Wal & Tiesinga (2017)",
+  "title": "Phase Difference between Model Cortical Areas Determines Level of Information Transfer",
   "venue": "Frontiers in Computational Neuroscience",
   "axis": "communication-coherence-routing",
   "rationale": "Two PING circuits transfer information maximally only when their frequency-set phase difference aligns their susceptibility windows, so the E-I gamma loop's phase relationship is the vehicle for flexible inter-areal routing (communication-through-coherence).",
@@ -757,7 +841,8 @@
  },
  {
   "doi": "10.1038/s41467-017-00936-3",
-  "cite": "Strüber et al. (2017). Distance-dependent inhibition facilitates focality of gamma oscillations in the dentate gyrus.",
+  "byline": "Strüber et al. (2017)",
+  "title": "Distance-dependent inhibition facilitates focality of gamma oscillations in the dentate gyrus",
   "venue": "Nature Communications",
   "axis": "communication-coherence-routing",
   "rationale": "Distance-dependent inhibition among perisomatic interneurons fragments dentate gamma into multiple focal synchronous centers, letting the interneuron-based PING mechanism route and process complex inputs in parallel across flexibly organized assemblies.",
@@ -766,7 +851,8 @@
  },
  {
   "doi": "10.1371/journal.pcbi.1006357",
-  "cite": "Sherfey et al. (2018). Flexible resonance in prefrontal networks with strong feedback inhibition.",
+  "byline": "Sherfey et al. (2018)",
+  "title": "Flexible resonance in prefrontal networks with strong feedback inhibition",
   "venue": "PLoS Computational Biology",
   "axis": "communication-coherence-routing",
   "rationale": "Strong feedback inhibition makes PFC networks resonant relays that preferentially transmit inputs near their gamma frequency, so the PING E-I loop is the vehicle for frequency-selective routing/gain of oscillatory signals.",
@@ -775,7 +861,8 @@
  },
  {
   "doi": "10.1113/jp274986",
-  "cite": "Adesnik (2018). Layer‐specific excitation/inhibition balances during neuronal synchronization in the visual cortex.",
+  "byline": "Adesnik (2018)",
+  "title": "Layer‐specific excitation/inhibition balances during neuronal synchronization in the visual cortex",
   "venue": "The Journal of Physiology",
   "axis": "communication-coherence-routing",
   "rationale": "Layer-specific optogenetic drive shows excitatory neurons in any layer entrain gamma while balanced inhibition promotes propagation of activity to downstream layers, making layer-specific E-I gamma the vehicle for inter-laminar information flow.",
@@ -784,7 +871,8 @@
  },
  {
   "doi": "10.1101/531574",
-  "cite": "Sherfey et al. (2019). Prefrontal oscillations modulate the propagation of neuronal activity required for working memory.",
+  "byline": "Sherfey et al. (2019)",
+  "title": "Prefrontal oscillations modulate the propagation of neuronal activity required for working memory",
   "venue": "bioRxiv (Cold Spring Harbor Laboratory)",
   "axis": "communication-coherence-routing",
   "rationale": "Biophysical PFC modeling shows local inhibition-based gamma/beta oscillations set the inter-burst period that selectively gates which working-memory item propagates to downstream effectors, making the E-I rhythm the vehicle for flexible signal routing.",
@@ -793,7 +881,8 @@
  },
  {
   "doi": "10.1371/journal.pcbi.1007019",
-  "cite": "Dumont & Gutkin (2019). Macroscopic phase resetting-curves determine oscillatory coherence and signal transfer in inter-coupled neural circuits.",
+  "byline": "Dumont & Gutkin (2019)",
+  "title": "Macroscopic phase resetting-curves determine oscillatory coherence and signal transfer in inter-coupled neural circuits",
   "venue": "PLoS Computational Biology",
   "axis": "communication-coherence-routing",
   "rationale": "Macroscopic phase-resetting curves of PING/ING gamma circuits determine the phase-locking states that govern signal transfer between coupled areas, making the E-I gamma rhythm the vehicle for inter-areal communication.",
@@ -802,7 +891,8 @@
  },
  {
   "doi": "10.1016/j.nlm.2020.107228",
-  "cite": "Sherfey et al. (2020). Prefrontal oscillations modulate the propagation of neuronal activity required for working memory.",
+  "byline": "Sherfey et al. (2020)",
+  "title": "Prefrontal oscillations modulate the propagation of neuronal activity required for working memory",
   "venue": "Neurobiology of Learning and Memory",
   "axis": "communication-coherence-routing",
   "rationale": "Biophysical PFC model argues local interneuron-generated oscillations selectively gate which working-memory item propagates to downstream effectors, making the inhibition-based rhythm the vehicle for flexible signal routing.",
@@ -811,7 +901,8 @@
  },
  {
   "doi": "10.1101/2020.12.09.417782",
-  "cite": "Lewis et al. (2020). Cortical resonance selects coherent input.",
+  "byline": "Lewis et al. (2020)",
+  "title": "Cortical resonance selects coherent input",
   "venue": "bioRxiv (Cold Spring Harbor Laboratory)",
   "axis": "communication-coherence-routing",
   "rationale": "Optogenetically injecting white-noise excitation into pyramidal cells reveals that feedback-inhibition-generated cortical gamma resonance selectively transmits coherent input components, giving causal support for communication-through-coherence.",
@@ -820,7 +911,8 @@
  },
  {
   "doi": "10.1101/2021.08.13.456218",
-  "cite": "Reyner-Parra & Huguet (2021). Phase-locking patterns underlying effective communication in exact firing rate models of neural networks.",
+  "byline": "Reyner-Parra & Huguet (2021)",
+  "title": "Phase-locking patterns underlying effective communication in exact firing rate models of neural networks",
   "venue": "bioRxiv (Cold Spring Harbor Laboratory)",
   "axis": "communication-coherence-routing",
   "rationale": "Exact mean-field PING models show excitatory-inhibitory populations must phase-lock so input volleys arrive at excitability peaks, implementing communication-through-coherence between gamma-oscillating circuits.",
@@ -829,7 +921,8 @@
  },
  {
   "doi": "10.1101/2021.10.29.466430",
-  "cite": "Lucas, Obermayer & Metzner (2021). Synchronization through uncorrelated noise in excitatory-inhibitory networks.",
+  "byline": "Lucas, Obermayer & Metzner (2021)",
+  "title": "Synchronization through uncorrelated noise in excitatory-inhibitory networks",
   "venue": "bioRxiv (Cold Spring Harbor Laboratory)",
   "axis": "communication-coherence-routing",
   "rationale": "Uncorrelated synaptic noise induces synchronization between PING excitatory-inhibitory networks and thereby facilitates inter-regional gamma communication via a mechanism distinct from strong coupling.",
@@ -838,7 +931,8 @@
  },
  {
   "doi": "10.1016/j.celrep.2021.109083",
-  "cite": "Lewis et al. (2021). Cortical gamma-band resonance preferentially transmits coherent input.",
+  "byline": "Lewis et al. (2021)",
+  "title": "Cortical gamma-band resonance preferentially transmits coherent input",
   "venue": "Cell Reports",
   "axis": "communication-coherence-routing",
   "rationale": "Optogenetically probing pyramidal cells shows the recurrent E-I gamma resonance preferentially transmits coherent input, providing causal evidence for communication-through-coherence as the function of cortical gamma.",
@@ -847,7 +941,8 @@
  },
  {
   "doi": "10.1016/j.neuron.2022.10.036",
-  "cite": "Veit et al. (2022). Cortical VIP neurons locally control the gain but globally control the coherence of gamma band rhythms.",
+  "byline": "Veit et al. (2022)",
+  "title": "Cortical VIP neurons locally control the gain but globally control the coherence of gamma band rhythms",
   "venue": "Neuron",
   "axis": "communication-coherence-routing",
   "rationale": "Shows VIP disinhibition (via VIP->SST) globally tunes long-range gamma coherence for stimulus-matched routing while locally scaling gamma gain, making the E-I gamma loop the vehicle for coherence-based inter-areal communication.",
@@ -856,7 +951,8 @@
  },
  {
   "doi": "10.1371/journal.pcbi.1009342",
-  "cite": "Reyner-Parra & Huguet (2022). Phase-locking patterns underlying effective communication in exact firing rate models of neural networks.",
+  "byline": "Reyner-Parra & Huguet (2022)",
+  "title": "Phase-locking patterns underlying effective communication in exact firing rate models of neural networks",
   "venue": "PLoS Computational Biology",
   "axis": "communication-coherence-routing",
   "rationale": "Exact mean-field PING networks are analyzed to find the phase-locked states that make input volleys arrive at excitability peaks, so the E-I gamma rhythm is the vehicle for effective communication-through-coherence.",
@@ -865,7 +961,8 @@
  },
  {
   "doi": "10.3389/fncom.2022.825865",
-  "cite": "Rebscher, Obermayer & Metzner (2022). Synchronization Through Uncorrelated Noise in Excitatory-Inhibitory Networks.",
+  "byline": "Rebscher, Obermayer & Metzner (2022)",
+  "title": "Synchronization Through Uncorrelated Noise in Excitatory-Inhibitory Networks",
   "venue": "Frontiers in Computational Neuroscience",
   "axis": "communication-coherence-routing",
   "rationale": "Uncorrelated synaptic noise enhances between-region synchronization of PING networks, so the E-I gamma mechanism supports inter-regional communication even under noisy conditions.",
@@ -874,7 +971,8 @@
  },
  {
   "doi": "10.1016/j.neuroimage.2023.120375",
-  "cite": "Katsanevaki et al. (2023). Attentional effects on local V1 microcircuits explain selective V1-V4 communication.",
+  "byline": "Katsanevaki et al. (2023)",
+  "title": "Attentional effects on local V1 microcircuits explain selective V1-V4 communication",
   "venue": "NeuroImage",
   "axis": "communication-coherence-routing",
   "rationale": "Dynamic causal modeling attributes selective V1-V4 routing to attentional changes in intrinsic V1 inhibition that let the attended stimulus's gamma entrain V4, making the local E-I gamma circuit the vehicle for selective communication.",
@@ -883,7 +981,8 @@
  },
  {
   "doi": "10.1093/cercor/bhad077",
-  "cite": "González‐Burgos et al. (2023). Mechanisms regulating the properties of inhibition-based gamma oscillations in primate prefrontal and parietal cortices.",
+  "byline": "González‐Burgos et al. (2023)",
+  "title": "Mechanisms regulating the properties of inhibition-based gamma oscillations in primate prefrontal and parietal cortices",
   "venue": "Cerebral Cortex",
   "axis": "communication-coherence-routing",
   "rationale": "Recurrent-excitation and GABAAR-mediated synchrony set distinct inhibition-based gamma frequencies in primate DLPFC versus PPC, and these matched frequencies are argued to enable information transfer between the two areas of the working-memory network.",
@@ -892,7 +991,8 @@
  },
  {
   "doi": "10.1101/2024.03.08.584173",
-  "cite": "Phensy et al. (2024). Prefrontal gamma oscillations engage dynamic cell type-specific configurations to support flexible behavior.",
+  "byline": "Phensy et al. (2024)",
+  "title": "Prefrontal gamma oscillations engage dynamic cell type-specific configurations to support flexible behavior",
   "venue": "bioRxiv (Cold Spring Harbor Laboratory)",
   "axis": "communication-coherence-routing",
   "rationale": "PV-interneuron-entrained ~40Hz gamma is shown (via optogenetics/voltage imaging) to organize distinct circuit-specific synchronization motifs that route PFC->mediodorsal-thalamus communication in a behaviorally selective way to support flexible behavior.",
@@ -901,7 +1001,8 @@
  },
  {
   "doi": "10.1016/j.neuron.2026.05.002",
-  "cite": "Phensy et al. (2026). Prefrontal gamma oscillations engage dynamic cell-type-specific configurations to support flexible behavior.",
+  "byline": "Phensy et al. (2026)",
+  "title": "Prefrontal gamma oscillations engage dynamic cell-type-specific configurations to support flexible behavior",
   "venue": "Neuron",
   "axis": "communication-coherence-routing",
   "rationale": "Uses voltage imaging and optogenetics to show PV-interneuron gamma synchronization with MD-projecting PFC neurons forms circuit-specific motifs that route PFC->MD communication in support of flexible behavior.",
@@ -910,7 +1011,8 @@
  },
  {
   "doi": "10.1016/0959-4388(95)80012-3",
-  "cite": "Buzsáki & Chrobak (1995). Temporal structure in spatially organized neuronal ensembles: a role for interneuronal networks.",
+  "byline": "Buzsáki & Chrobak (1995)",
+  "title": "Temporal structure in spatially organized neuronal ensembles: a role for interneuronal networks",
   "venue": "Current Opinion in Neurobiology",
   "axis": "mechanism-review",
   "rationale": "Reviews how interneuronal networks impose temporal structure on spatially organized ensembles, arguing inhibition-based oscillations provide the timing reference for ensemble coding.",
@@ -919,7 +1021,8 @@
  },
  {
   "doi": "10.1016/s0166-2236(96)10023-0",
-  "cite": "Jefferys, Traub & Whittington (1996). Neuronal networks for induced ‘40 Hz’ rhythms.",
+  "byline": "Jefferys, Traub & Whittington (1996)",
+  "title": "Neuronal networks for induced ‘40 Hz’ rhythms",
   "venue": "Trends in Neurosciences",
   "axis": "mechanism-review",
   "rationale": "Reviews simulations showing interneuron and E-I networks generate induced 40 Hz rhythms, linking that mechanism to higher functions such as feature binding and lower-level phase coding.",
@@ -928,7 +1031,8 @@
  },
  {
   "doi": "10.1016/s0167-8760(00)00173-2",
-  "cite": "Whittington et al. (2000). Inhibition-based rhythms: experimental and mathematical observations on network dynamics.",
+  "byline": "Whittington et al. (2000)",
+  "title": "Inhibition-based rhythms: experimental and mathematical observations on network dynamics",
   "venue": "International Journal of Psychophysiology",
   "axis": "mechanism-review",
   "rationale": "Reviews experimental and mathematical work on inhibition-based (interneuron-network) rhythm generation, establishing the E-I/inhibitory mechanism that underlies gamma's temporal-coordination functions.",
@@ -937,7 +1041,8 @@
  },
  {
   "doi": "10.1016/j.tins.2003.09.016",
-  "cite": "Whittington & Traub (2003). Interneuron Diversity series: Inhibitory interneurons and network oscillations in vitro.",
+  "byline": "Whittington & Traub (2003)",
+  "title": "Interneuron Diversity series: Inhibitory interneurons and network oscillations in vitro",
   "venue": "Trends in Neurosciences",
   "axis": "mechanism-review",
   "rationale": "Reviews how mutually connected inhibitory interneuron networks generate gamma/beta rhythms in vitro, framing the interneuron E-I mechanism as the substrate for temporal coordination of cortical activity.",
@@ -946,7 +1051,8 @@
  },
  {
   "doi": "10.1016/j.neuron.2009.09.009",
-  "cite": "Tiesinga & Sejnowski (2009). Cortical Enlightenment: Are Attentional Gamma Oscillations Driven by ING or PING?.",
+  "byline": "Tiesinga & Sejnowski (2009)",
+  "title": "Cortical Enlightenment: Are Attentional Gamma Oscillations Driven by ING or PING?",
   "venue": "Neuron",
   "axis": "mechanism-review",
   "rationale": "Perspective dissecting whether attentional gamma is generated by ING vs PING interneuron mechanisms, i.e. which E-I circuit motif underlies the attention-related gamma rhythm.",
@@ -955,7 +1061,8 @@
  },
  {
   "doi": "10.1002/dneu.20814",
-  "cite": "Whittington et al. (2010). Multiple origins of the cortical gamma rhythm.",
+  "byline": "Whittington et al. (2010)",
+  "title": "Multiple origins of the cortical gamma rhythm",
   "venue": "Developmental Neurobiology",
   "axis": "mechanism-review",
   "rationale": "Reviews how inhibition-based (interneuron/E-I) gamma provides shared temporal structure and argues different interneuron mechanisms of gamma generation carry distinct functional correlates including assembly formation and inter-regional communication.",
@@ -964,7 +1071,8 @@
  },
  {
   "doi": "10.1111/ejn.12606",
-  "cite": "大橋 et al. (2010). 8139 低層アパートの長期優良化に向けた研究 : その1 アンケート調査等による市場可能性(住宅の長寿命化,建築社会システム).",
+  "byline": "大橋 et al. (2010)",
+  "title": "8139 低層アパートの長期優良化に向けた研究 : その1 アンケート調査等による市場可能性(住宅の長寿命化,建築社会システム)",
   "venue": "学術講演梗概集. F-1, 都市計画, 建築経済・住宅問題",
   "axis": "mechanism-review",
   "rationale": "Review arguing that inhibition-excitation gamma generation arises from a limited set of circuit motifs that support many cognitive functions (perception, attention, memory, motivation, behavioral control) rather than a single universal one.",
@@ -973,7 +1081,8 @@
  },
  {
   "doi": "10.1152/physrev.00035.2008",
-  "cite": "Wang (2010). Neurophysiological and Computational Principles of Cortical Rhythms in Cognition.",
+  "byline": "Wang (2010)",
+  "title": "Neurophysiological and Computational Principles of Cortical Rhythms in Cognition",
   "venue": "Physiological Reviews",
   "axis": "mechanism-review",
   "rationale": "Wang's review synthesizing how gamma and theta rhythms arise from interneuronal networks and reciprocal excitatory-inhibitory loops and how these synchronous rhythms sculpt temporal coordination across cognitive functions.",
@@ -982,7 +1091,8 @@
  },
  {
   "doi": "10.1016/j.pbiomolbio.2010.10.004",
-  "cite": "Uhlhaas et al. (2010). A new look at gamma? High- (&gt;60 Hz) γ-band activity in cortical networks: Function, mechanisms and impairment.",
+  "byline": "Uhlhaas et al. (2010)",
+  "title": "A new look at gamma? High- (&gt;60 Hz) γ-band activity in cortical networks: Function, mechanisms and impairment",
   "venue": "Progress in Biophysics and Molecular Biology",
   "axis": "mechanism-review",
   "rationale": "Review arguing that high-frequency (>60 Hz) gamma generated by the E-I interneuron loop supports cortical computation and is disrupted in disease, surveying mechanism-to-function links across several cognitive domains.",
@@ -991,7 +1101,8 @@
  },
  {
   "doi": "10.1016/j.neuron.2012.08.004",
-  "cite": "Ainsworth et al. (2012). Rates and Rhythms: A Synergistic View of Frequency and Temporal Coding in Neuronal Networks.",
+  "byline": "Ainsworth et al. (2012)",
+  "title": "Rates and Rhythms: A Synergistic View of Frequency and Temporal Coding in Neuronal Networks",
   "venue": "Neuron",
   "axis": "mechanism-review",
   "rationale": "Reviews how inhibition-based rhythms including gamma synergistically combine rate and temporal (phase) coding, arguing the E-I oscillation structures information across frequency and timing.",
@@ -1000,7 +1111,8 @@
  },
  {
   "doi": "10.1146/annurev-neuro-062111-150444",
-  "cite": "Buzsáki & Wang (2012). Mechanisms of Gamma Oscillations.",
+  "byline": "Buzsáki & Wang (2012)",
+  "title": "Mechanisms of Gamma Oscillations",
   "venue": "Annual Review of Neuroscience",
   "axis": "mechanism-review",
   "rationale": "Canonical review establishing that gamma rhythmogenesis is inextricably tied to perisomatic inhibition emerging from coordinated excitation-inhibition, framing the mechanism that later functional claims depend on.",
@@ -1009,7 +1121,8 @@
  },
  {
   "doi": "10.1016/j.tics.2014.12.002",
-  "cite": "Ray & Maunsell (2014). Do gamma oscillations play a role in cerebral cortex?.",
+  "byline": "Ray & Maunsell (2014)",
+  "title": "Do gamma oscillations play a role in cerebral cortex?",
   "venue": "Trends in Cognitive Sciences",
   "axis": "mechanism-review",
   "rationale": "Critically reviews whether E-I-generated gamma actually supports functions such as inter-areal communication and phase coding, weighing the mechanism-to-function link across attention, memory and routing accounts.",
@@ -1018,7 +1131,8 @@
  },
  {
   "doi": "10.1038/jcbfm.2014.104",
-  "cite": "Kann, Papageorgiou & Draguhn (2014). Highly Energized Inhibitory Interneurons are a Central Element for Information Processing in Cortical Networks.",
+  "byline": "Kann, Papageorgiou & Draguhn (2014)",
+  "title": "Highly Energized Inhibitory Interneurons are a Central Element for Information Processing in Cortical Networks",
   "venue": "Journal of Cerebral Blood Flow & Metabolism",
   "axis": "mechanism-review",
   "rationale": "Reviews how energetically specialized fast-spiking PV interneurons provide the 'clockwork' rhythmic inhibition of the E-I loop that generates gamma as a central element for cortical information processing.",
@@ -1027,7 +1141,8 @@
  },
  {
   "doi": "10.1038/nn.3764",
-  "cite": "Womelsdorf et al. (2014). Dynamic circuit motifs underlying rhythmic gain control, gating and integration.",
+  "byline": "Womelsdorf et al. (2014)",
+  "title": "Dynamic circuit motifs underlying rhythmic gain control, gating and integration",
   "venue": "Nature Neuroscience",
   "axis": "mechanism-review",
   "rationale": "Review casting recurrent E-I interneuron circuit motifs as the substrate for rhythmic gain control, gating and temporal integration, linking the PING mechanism to multiple routing/gating functions.",
@@ -1036,7 +1151,8 @@
  },
  {
   "doi": "10.1016/j.biopsych.2015.02.005",
-  "cite": "Pittman-Polletta et al. (2015). Brain Rhythms Connect Impaired Inhibition to Altered Cognition in Schizophrenia.",
+  "byline": "Pittman-Polletta et al. (2015)",
+  "title": "Brain Rhythms Connect Impaired Inhibition to Altered Cognition in Schizophrenia",
   "venue": "Biological Psychiatry",
   "axis": "mechanism-review",
   "rationale": "Review theorizing that fast-spiking-interneuron dysfunction degrades PING-generated gamma, and that this altered temporal structure links impaired inhibition to the cognitive/perceptual deficits of schizophrenia across multiple functions.",
@@ -1045,7 +1161,8 @@
  },
  {
   "doi": "10.1523/jneurosci.0990-16.2016",
-  "cite": "Sohal (2016). How Close Are We to Understanding What (if Anything) γ Oscillations Do in Cortical Circuits?.",
+  "byline": "Sohal (2016)",
+  "title": "How Close Are We to Understanding What (if Anything) γ Oscillations Do in Cortical Circuits?",
   "venue": "Journal of Neuroscience",
   "axis": "mechanism-review",
   "rationale": "Sohal reviews the many candidate mechanisms by which E-I gamma oscillations could modulate input responses, activity patterns and output efficacy, arguing about how the gamma mechanism links to cortical function across several proposed roles.",
@@ -1054,7 +1171,8 @@
  },
  {
   "doi": "10.7554/elife",
-  "cite": " (2017). eLife.",
+  "byline": "(2017)",
+  "title": "eLife",
   "venue": "eLife",
   "axis": "mechanism-review",
   "rationale": "Metadata contains only the journal name eLife with no title, authors, or abstract, so no specific functional claim is inferable; defaulting to mechanism-review without fabricating specifics.",
@@ -1063,7 +1181,8 @@
  },
  {
   "doi": "10.1007/s11571-021-09767-x",
-  "cite": "Han, Shapley & Xing (2021). Gamma rhythms in the visual cortex: functions and mechanisms.",
+  "byline": "Han, Shapley & Xing (2021)",
+  "title": "Gamma rhythms in the visual cortex: functions and mechanisms",
   "venue": "Cognitive Neurodynamics",
   "axis": "mechanism-review",
   "rationale": "A review of gamma in visual cortex weighing candidate functions against E-I and thalamic generating mechanisms, spanning attention, encoding, and communication accounts of the rhythm.",
@@ -1072,7 +1191,8 @@
  },
  {
   "doi": "10.1176/appi.ajp.20220147",
-  "cite": "Sohal (2022). Transforming Discoveries About Cortical Microcircuits and Gamma Oscillations Into New Treatments for Cognitive Deficits in Schizophrenia.",
+  "byline": "Sohal (2022)",
+  "title": "Transforming Discoveries About Cortical Microcircuits and Gamma Oscillations Into New Treatments for Cognitive Deficits in Schizophrenia",
   "venue": "American Journal of Psychiatry",
   "axis": "mechanism-review",
   "rationale": "Sohal's overview argues that PV-interneuron-generated cortical gamma, deficient in schizophrenia, causally supports cognition, citing mouse optogenetic studies where disrupting or enhancing synchronized gamma reproduces or ameliorates cognitive deficits.",
@@ -1081,7 +1201,8 @@
  },
  {
   "doi": "10.1162/neco.1997.9.6.1251",
-  "cite": "Traub, Whittington & Jefferys (1997). Gamma Oscillation Model Predicts Intensity Coding by Phase Rather than Frequency.",
+  "byline": "Traub, Whittington & Jefferys (1997)",
+  "title": "Gamma Oscillation Model Predicts Intensity Coding by Phase Rather than Frequency",
   "venue": "Neural Computation",
   "axis": "phase-coding-timing",
   "rationale": "A distributed pyramidal-interneuron network where interneuron spike doublets set a zero-phase temporal framework predicts stimulus intensity is coded by gamma phase rather than frequency, making the E-I gamma cycle the reference for a phase code that also supports feature binding.",
@@ -1090,7 +1211,8 @@
  },
  {
   "doi": "10.1088/0954-898x/13/1/302",
-  "cite": "Tiesinga et al. (2002). Information transfer in entrained cortical neurons.",
+  "byline": "Tiesinga et al. (2002)",
+  "title": "Information transfer in entrained cortical neurons",
   "venue": "Network Computation in Neural Systems",
   "axis": "phase-coding-timing",
   "rationale": "When pyramidal cells are entrained by synchronized inhibitory gamma input, mutual information between the number of inputs and the output-spike phase lag rises, so the E-I gamma cycle acts as a phase code carrying afferent information.",
@@ -1099,7 +1221,8 @@
  },
  {
   "doi": "10.1016/j.neuron.2005.06.016",
-  "cite": "Hasenstaub et al. (2005). Inhibitory Postsynaptic Potentials Carry Synchronized Frequency Information in Active Cortical Networks.",
+  "byline": "Hasenstaub et al. (2005)",
+  "title": "Inhibitory Postsynaptic Potentials Carry Synchronized Frequency Information in Active Cortical Networks",
   "venue": "Neuron",
   "axis": "phase-coding-timing",
   "rationale": "Shows rhythmic IPSPs from the interneuron network carry synchronized gamma-frequency timing information to pyramidal cells, providing the inhibitory clock that times cortical spiking.",
@@ -1108,7 +1231,8 @@
  },
  {
   "doi": "10.1016/j.tins.2007.05.005",
-  "cite": "Fries, Nikolić & Singer (2007). The gamma cycle.",
+  "byline": "Fries, Nikolić & Singer (2007)",
+  "title": "The gamma cycle",
   "venue": "Trends in Neurosciences",
   "axis": "phase-coding-timing",
   "rationale": "Proposes the gamma cycle produced by the E-I loop as a temporal frame that orders pyramidal spikes by excitation strength, supplying a phase-of-firing code and reference for downstream reading.",
@@ -1117,7 +1241,8 @@
  },
  {
   "doi": "10.1038/nrn2315",
-  "cite": "Tiesinga, Fellous & Sejnowski (2008). Regulation of spike timing in visual cortical circuits.",
+  "byline": "Tiesinga, Fellous & Sejnowski (2008)",
+  "title": "Regulation of spike timing in visual cortical circuits",
   "venue": "Nature reviews. Neuroscience",
   "axis": "phase-coding-timing",
   "rationale": "Review argues interneuron-generated gamma regulates the precise spike timing of pyramidal cells in visual cortical circuits, framing rhythmic inhibition as the mechanism that sets a spike-timing code.",
@@ -1126,7 +1251,8 @@
  },
  {
   "doi": "10.1523/jneurosci.3948-07.2008",
-  "cite": "Morita et al. (2008). Recurrent Synaptic Input and the Timing of Gamma-Frequency-Modulated Firing of Pyramidal Cells during Neocortical “UP” States.",
+  "byline": "Morita et al. (2008)",
+  "title": "Recurrent Synaptic Input and the Timing of Gamma-Frequency-Modulated Firing of Pyramidal Cells during Neocortical “UP” States",
   "venue": "Journal of Neuroscience",
   "axis": "phase-coding-timing",
   "rationale": "Dynamic-clamp shows pyramidal gamma-phase firing during UP states requires low-latency FS->RS inhibition rather than recurrent excitation, making the PING inhibitory drive the vehicle for gamma-timed pyramidal spiking that maximizes representational capacity.",
@@ -1135,7 +1261,8 @@
  },
  {
   "doi": "10.1371/journal.pcbi.1000239",
-  "cite": "Mazzoni et al. (2008). Encoding of Naturalistic Stimuli by Local Field Potential Spectra in Networks of Excitatory and Inhibitory Neurons.",
+  "byline": "Mazzoni et al. (2008)",
+  "title": "Encoding of Naturalistic Stimuli by Local Field Potential Spectra in Networks of Excitatory and Inhibitory Neurons",
   "venue": "PLoS Computational Biology",
   "axis": "phase-coding-timing",
   "rationale": "A sparse E-I network encodes static input rates into gamma-range oscillations generated by excitatory-inhibitory interaction, so gamma from the E-I loop serves as the code carrying sensory information in the LFP.",
@@ -1144,7 +1271,8 @@
  },
  {
   "doi": "10.1073/pnas.1405300111",
-  "cite": "Carvalho et al. (2009). SEVEN POPULATION TEMPORAL STRUCTURE IN THREE FOREST FRAGMENTS IN THE UPPER RIO GRANDE REGION, MINAS GERAIS.",
+  "byline": "Carvalho et al. (2009)",
+  "title": "SEVEN POPULATION TEMPORAL STRUCTURE IN THREE FOREST FRAGMENTS IN THE UPPER RIO GRANDE REGION, MINAS GERAIS",
   "venue": "CERNE",
   "axis": "phase-coding-timing",
   "rationale": "Model cortical circuit shows the balance of mono- vs disynaptic drive to inhibitory neurons regulates gamma power/frequency and hence pyramidal spike timing, linking interneuron-driven oscillation to a stimulus-modulated spike-timing code.",
@@ -1153,7 +1281,8 @@
  },
  {
   "doi": "10.3389/conf.fnins.2010.03.00004",
-  "cite": "Edward (2010). Neuronal biophysics modulate the ability of gamma oscillations to control response timing.",
+  "byline": "Edward (2010)",
+  "title": "Neuronal biophysics modulate the ability of gamma oscillations to control response timing",
   "venue": "Frontiers in Neuroscience",
   "axis": "phase-coding-timing",
   "rationale": "Neuronal biophysics determine how synchronized inhibitory gamma enforces temporal precision and controls the timing of postsynaptic responses, making the interneuron-gamma inhibition the vehicle for spike-timing control.",
@@ -1162,7 +1291,8 @@
  },
  {
   "doi": "10.3389/fnhum.2010.00205",
-  "cite": "Miconi & VanRullen (2010). The Gamma Slideshow: Object-Based Perceptual Cycles in a Model of the Visual Cortex.",
+  "byline": "Miconi & VanRullen (2010)",
+  "title": "The Gamma Slideshow: Object-Based Perceptual Cycles in a Model of the Visual Cortex",
   "venue": "Frontiers in Human Neuroscience",
   "axis": "phase-coding-timing",
   "rationale": "In a V1 model, feedback interneuron inhibition generating gamma combines with lateral Gestalt connections so different objects fire on successive gamma cycles, using the PING cycle as a phase reference that temporally segments the scene into perceptual cycles.",
@@ -1171,7 +1301,8 @@
  },
  {
   "doi": "10.1016/j.tics.2012.12.003",
-  "cite": "Nikolić, Fries & Singer (2012). Gamma oscillations: precise temporal coordination without a metronome.",
+  "byline": "Nikolić, Fries & Singer (2012)",
+  "title": "Gamma oscillations: precise temporal coordination without a metronome",
   "venue": "Trends in Cognitive Sciences",
   "axis": "phase-coding-timing",
   "rationale": "Argues gamma provides precise, self-organized temporal coordination of spikes without an external clock, casting the E-I gamma cycle as a flexible timing reference for neural coordination and communication.",
@@ -1180,7 +1311,8 @@
  },
  {
   "doi": "10.1073/pnas.1114223109",
-  "cite": "Womelsdorf et al. (2012). Orientation selectivity and noise correlation in awake monkey area V1 are modulated by the gamma cycle.",
+  "byline": "Womelsdorf et al. (2012)",
+  "title": "Orientation selectivity and noise correlation in awake monkey area V1 are modulated by the gamma cycle",
   "venue": "Proceedings of the National Academy of Sciences",
   "axis": "phase-coding-timing",
   "rationale": "Orientation selectivity and noise correlations vary across the gamma cycle, so the E-I-driven gamma phase acts as a temporal reference that maximizes stimulus-selective, low-noise spiking for downstream readout.",
@@ -1189,7 +1321,8 @@
  },
  {
   "doi": "10.3389/fncom.2013.00018",
-  "cite": "Sancristóbal et al. (2013). Emergent bimodal firing patterns implement different encoding strategies during gamma-band oscillations.",
+  "byline": "Sancristóbal et al. (2013)",
+  "title": "Emergent bimodal firing patterns implement different encoding strategies during gamma-band oscillations",
   "venue": "Frontiers in Computational Neuroscience",
   "axis": "phase-coding-timing",
   "rationale": "In a balanced E-I network expressing gamma, emergent bimodal firing lets neurons co-encode input rate and LFP gamma phase, making the E-I gamma cycle the vehicle for a phase-based encoding strategy.",
@@ -1198,7 +1331,8 @@
  },
  {
   "doi": "10.1371/journal.pcbi.1004072",
-  "cite": "Lowet et al. (2015). Input-Dependent Frequency Modulation of Cortical Gamma Oscillations Shapes Spatial Synchronization and Enables Phase Coding.",
+  "byline": "Lowet et al. (2015)",
+  "title": "Input-Dependent Frequency Modulation of Cortical Gamma Oscillations Shapes Spatial Synchronization and Enables Phase Coding",
   "venue": "PLoS Computational Biology",
   "axis": "phase-coding-timing",
   "rationale": "Input-dependent gamma-frequency modulation in an E-I network sets phase relations that carry stimulus information (phase coding) and organize spatial synchronization, making the PING gamma cycle the vehicle for temporal coding.",
@@ -1207,7 +1341,8 @@
  },
  {
   "doi": "10.1371/journal.pcbi.1005760",
-  "cite": "Li & Cleland (2017). A coupled-oscillator model of olfactory bulb gamma oscillations.",
+  "byline": "Li & Cleland (2017)",
+  "title": "A coupled-oscillator model of olfactory bulb gamma oscillations",
   "venue": "PLoS Computational Biology",
   "axis": "phase-coding-timing",
   "rationale": "In the olfactory bulb, a pyramidal-resonance interneuron-network gamma (PRING) provides a zero-phase common clock that phase-restricts informative principal-cell spikes, making the E-I gamma cycle the vehicle for a phase-of-firing code.",
@@ -1216,7 +1351,8 @@
  },
  {
   "doi": "10.1101/374314",
-  "cite": "Shin & Moore (2018). Persistent Gamma Spiking in Non-Sensory Fast-Spiking Cells Predicts Perceptual Success.",
+  "byline": "Shin & Moore (2018)",
+  "title": "Persistent Gamma Spiking in Non-Sensory Fast-Spiking Cells Predicts Perceptual Success",
   "venue": "bioRxiv (Cold Spring Harbor Laboratory)",
   "axis": "phase-coding-timing",
   "rationale": "A non-sensory fast-spiking interneuron subtype whose regular gamma-periodic firing (the FS-driven gamma template) persists across stimulus onset predicts perceptual detection, arguing the E-I gamma clock provides the temporal reference that enables perception.",
@@ -1225,7 +1361,8 @@
  },
  {
   "doi": "10.1101/583955",
-  "cite": "Onorato et al. (2019). A distinct class of bursting neurons with strong gamma synchronization and stimulus selectivity in monkey V1.",
+  "byline": "Onorato et al. (2019)",
+  "title": "A distinct class of bursting neurons with strong gamma synchronization and stimulus selectivity in monkey V1",
   "venue": "bioRxiv (Cold Spring Harbor Laboratory)",
   "axis": "phase-coding-timing",
   "rationale": "A bursting excitatory 'pacemaker' cell class in monkey V1 whose gamma phase-locking (via rhythmic inhibition from interneurons, i.e. the E-I loop) is highly predictive of its orientation tuning, arguing gamma-phase relative to the E-I rhythm encodes and transmits stimulus information.",
@@ -1234,7 +1371,8 @@
  },
  {
   "doi": "10.1523/eneuro.0388-18.2018",
-  "cite": "Feng et al. (2019). Gamma Oscillations in the Basolateral Amygdala: Biophysical Mechanisms and Computational Consequences.",
+  "byline": "Feng et al. (2019)",
+  "title": "Gamma Oscillations in the Basolateral Amygdala: Biophysical Mechanisms and Computational Consequences",
   "venue": "eNeuro",
   "axis": "phase-coding-timing",
   "rationale": "A biophysical BLA model shows gamma arising from reciprocal principal-cell/fast-spiking-interneuron interaction entrains individual neurons' spike timing, making the PING cycle a temporal reference that structures amygdalar spiking.",
@@ -1243,7 +1381,8 @@
  },
  {
   "doi": "10.1101/2020.07.09.194811",
-  "cite": "Meneghetti et al. (2020). Thalamic inputs determine functionally distinct gamma bands in mouse primary visual cortex.",
+  "byline": "Meneghetti et al. (2020)",
+  "title": "Thalamic inputs determine functionally distinct gamma bands in mouse primary visual cortex",
   "venue": "bioRxiv (Cold Spring Harbor Laboratory)",
   "axis": "phase-coding-timing",
   "rationale": "A recurrent E-I network reproduces a broadband gamma channel encoding high-contrast information distinct from the thalamic narrowband, so the E-I gamma band functions as a code for complementary visual features (preprint of the eNeuro study).",
@@ -1252,7 +1391,8 @@
  },
  {
   "doi": "10.1523/eneuro.0106-21.2021",
-  "cite": "Meneghetti et al. (2021). Narrow and Broad γ Bands Process Complementary Visual Information in Mouse Primary Visual Cortex.",
+  "byline": "Meneghetti et al. (2021)",
+  "title": "Narrow and Broad γ Bands Process Complementary Visual Information in Mouse Primary Visual Cortex",
   "venue": "eNeuro",
   "axis": "phase-coding-timing",
   "rationale": "Broadband gamma arising from cortical excitatory-inhibitory interplay carries high-contrast information (complementary to thalamic narrowband), so the E-I gamma band is the vehicle for encoding distinct visual features.",
@@ -1261,7 +1401,8 @@
  },
  {
   "doi": "10.1073/pnas.2123182120",
-  "cite": "Quast et al. (2023). Rapid synaptic and gamma rhythm signature of mouse critical period plasticity.",
+  "byline": "Quast et al. (2023)",
+  "title": "Rapid synaptic and gamma rhythm signature of mouse critical period plasticity",
   "venue": "Proceedings of the National Academy of Sciences",
   "axis": "phase-coding-timing",
   "rationale": "Computational TC model shows an interneuronal (PV) gamma rhythm dissociates thalamic input from cortical spiking, driving spike-timing-dependent plasticity that opens critical-period plasticity, using ING timing as the plasticity gate.",
@@ -1270,7 +1411,8 @@
  },
  {
   "doi": "10.7554/elife.89519",
-  "cite": "Cattani et al. (2023). Basolateral amygdala oscillations enable fear learning in a biophysical model.",
+  "byline": "Cattani et al. (2023)",
+  "title": "Basolateral amygdala oscillations enable fear learning in a biophysical model",
   "venue": "eLife",
   "axis": "phase-coding-timing",
   "rationale": "A biophysical BLA model shows PV/SOM/VIP interneurons generate theta-gamma rhythms that shape spike-timing-dependent plasticity to build a fear circuit, so interneuron-based rhythms enable learning by structuring precise spike timing.",
@@ -1279,7 +1421,8 @@
  },
  {
   "doi": "10.1101/2023.04.28.538604",
-  "cite": "Cattani et al. (2023). Basolateral amygdala oscillations enable fear learning in a biophysical model.",
+  "byline": "Cattani et al. (2023)",
+  "title": "Basolateral amygdala oscillations enable fear learning in a biophysical model",
   "venue": "bioRxiv (Cold Spring Harbor Laboratory)",
   "axis": "phase-coding-timing",
   "rationale": "Preprint of the BLA fear-learning model showing interneuron-generated theta-gamma rhythms shape spike-timing-dependent plasticity, so the E-I rhythms enable associative learning by organizing precise spike timing.",
@@ -1288,7 +1431,8 @@
  },
  {
   "doi": "10.1371/journal.pcbi.1013363",
-  "cite": "Chalkiadakis et al. (2025). The role of feedforward and feedback inhibition in modulating theta-gamma cross-frequency interactions in neural circuits.",
+  "byline": "Chalkiadakis et al. (2025)",
+  "title": "The role of feedforward and feedback inhibition in modulating theta-gamma cross-frequency interactions in neural circuits",
   "venue": "PLoS Computational Biology",
   "axis": "phase-coding-timing",
   "rationale": "Feedback-inhibition PING versus feedforward ING gamma set the directionality of theta-gamma cross-frequency coupling that organizes memory firing sequences, making the E-I gamma mechanism the vehicle for phase-organized timing.",
@@ -1297,7 +1441,8 @@
  },
  {
   "doi": "10.32388/rih5uu",
-  "cite": "Chalkiadakis et al. (2025). The Role of Feedforward and Feedback Inhibition in Modulating Theta-Gamma Cross-Frequency Interactions.",
+  "byline": "Chalkiadakis et al. (2025)",
+  "title": "The Role of Feedforward and Feedback Inhibition in Modulating Theta-Gamma Cross-Frequency Interactions",
   "venue": "Qeios",
   "axis": "phase-coding-timing",
   "rationale": "This preprint shows PING feedback versus ING feedforward inhibition set the directionality of theta-gamma cross-frequency coupling that organizes neuronal firing sequences, making the E-I gamma motif the vehicle for phase-organized timing.",
@@ -1306,7 +1451,8 @@
  },
  {
   "doi": "10.1093/cercor/bhag044",
-  "cite": "Tucker & Luu (2026). Excitatory-inhibitory resonance in cognition stabilizes synaptic traces in memory.",
+  "byline": "Tucker & Luu (2026)",
+  "title": "Excitatory-inhibitory resonance in cognition stabilizes synaptic traces in memory",
   "venue": "Cerebral Cortex",
   "axis": "phase-coding-timing",
   "rationale": "Representation is carried by phase alignment of pyramidal-interneuron network gamma (PING), and excitatory-inhibitory resonance across laminae stabilizes synaptic memory traces.",
@@ -1315,7 +1461,8 @@
  },
  {
   "doi": "10.1023/a:1021124317706",
-  "cite": "Olufsen et al. (2003). New Roles for the Gamma Rhythm: Population Tuning and Preprocessing for the Beta Rhythm.",
+  "byline": "Olufsen et al. (2003)",
+  "title": "New Roles for the Gamma Rhythm: Population Tuning and Preprocessing for the Beta Rhythm",
   "venue": "Journal of Computational Neuroscience",
   "axis": "stimulus-competition",
   "rationale": "Proposes a new role for gamma in population tuning, where the E-I gamma cycle sharpens which neurons fire (winner selection) and preprocesses activity for the beta rhythm.",
@@ -1324,7 +1471,8 @@
  },
  {
   "doi": "10.1038/nature01360",
-  "cite": "Doiron et al. (2003). Inhibitory feedback required for network oscillatory responses to communication but not prey stimuli.",
+  "byline": "Doiron et al. (2003)",
+  "title": "Inhibitory feedback required for network oscillatory responses to communication but not prey stimuli",
   "venue": "Nature",
   "axis": "stimulus-competition",
   "rationale": "Shows inhibitory feedback is required to generate oscillatory network responses selectively to global communication stimuli but not prey stimuli, making the E-I feedback loop the vehicle for stimulus-specific selection.",
@@ -1333,7 +1481,8 @@
  },
  {
   "doi": "10.1162/089976604322742029",
-  "cite": "Tiesinga & Sejnowski (2004). Rapid Temporal Modulation of Synchrony by Competition in Cortical Interneuron Networks.",
+  "byline": "Tiesinga & Sejnowski (2004)",
+  "title": "Rapid Temporal Modulation of Synchrony by Competition in Cortical Interneuron Networks",
   "venue": "Neural Computation",
   "axis": "stimulus-competition",
   "rationale": "Hodgkin-Huxley interneuron-network models show selectively activating a fraction of GABAergic interneurons rapidly synchronizes them and suppresses competitors, so 'synchrony by competition' modulates gamma synchrony (with minimal rate change) to enhance attended stimulus impact on downstream cortex.",
@@ -1342,7 +1491,8 @@
  },
  {
   "doi": "10.48550/arxiv.q-bio/0410019",
-  "cite": "Tiesinga (2004). Stimulus competition by inhibitory interference.",
+  "byline": "Tiesinga (2004)",
+  "title": "Stimulus competition by inhibitory interference",
   "venue": "arXiv (Cornell University)",
   "axis": "stimulus-competition",
   "rationale": "A V4 model where two interneuron networks deliver synchronous inhibitory volleys shows stimulus competition set by inter-volley delay, with attention biasing the competition, making interference between inhibitory gamma volleys the vehicle for biased competition.",
@@ -1351,7 +1501,8 @@
  },
  {
   "doi": "10.1016/j.neucom.2005.12.089",
-  "cite": "Tiesinga (2006). Stimulus competition by inhibitory interference.",
+  "byline": "Tiesinga (2006)",
+  "title": "Stimulus competition by inhibitory interference",
   "venue": "Neurocomputing",
   "axis": "stimulus-competition",
   "rationale": "Proposes that interference between competing inhibitory (interneuron) gamma rhythms lets one stimulus assembly suppress another, implementing stimulus competition through inhibition.",
@@ -1360,7 +1511,8 @@
  },
  {
   "doi": "10.1162/neco.2007.07-06-289",
-  "cite": "Börgers & Kopell (2007). Gamma Oscillations and Stimulus Selection.",
+  "byline": "Börgers & Kopell (2007)",
+  "title": "Gamma Oscillations and Stimulus Selection",
   "venue": "Neural Computation",
   "axis": "stimulus-competition",
   "rationale": "Borgers and Kopell show a coherent gamma-frequency input gains a large competitive advantage over less coherent inputs when the target circuit includes GABA-A interneurons, providing the PING-based mechanism for attentional biasing of stimulus competition.",
@@ -1369,7 +1521,8 @@
  },
  {
   "doi": "10.1073/pnas.0809511105",
-  "cite": "Börgers, Epstein & Kopell (2008). Gamma oscillations mediate stimulus competition and attentional selection in a cortical network model.",
+  "byline": "Börgers, Epstein & Kopell (2008)",
+  "title": "Gamma oscillations mediate stimulus competition and attentional selection in a cortical network model",
   "venue": "Proceedings of the National Academy of Sciences",
   "axis": "stimulus-competition",
   "rationale": "Cortical network model shows PING gamma oscillations mediate stimulus competition and attentional selection via oscillatory selection, where interneuron coherence regulates competing assemblies' firing rates.",
@@ -1378,7 +1531,8 @@
  },
  {
   "doi": "10.1523/jneurosci.6044-08.2009",
-  "cite": "Almeida, Idiart & Lisman (2009). A Second Function of Gamma Frequency Oscillations: An E%-Max Winner-Take-All Mechanism Selects Which Cells Fire.",
+  "byline": "Almeida, Idiart & Lisman (2009)",
+  "title": "A Second Function of Gamma Frequency Oscillations: An E%-Max Winner-Take-All Mechanism Selects Which Cells Fire",
   "venue": "Journal of Neuroscience",
   "axis": "stimulus-competition",
   "rationale": "Gamma-frequency feedback inhibition implements an E%-max winner-take-all that selects which principal cells fire and sharpens V1 orientation tuning, making the E-I gamma loop the vehicle for competitive stimulus selection.",
@@ -1387,7 +1541,8 @@
  },
  {
   "doi": "10.3389/fncom.2011.00062",
-  "cite": "Wildie (2012). Establishing communication between neuronal populations through competitive entrainment.",
+  "byline": "Wildie (2012)",
+  "title": "Establishing communication between neuronal populations through competitive entrainment",
   "venue": "Frontiers in Computational Neuroscience",
   "axis": "stimulus-competition",
   "rationale": "Multiple stimuli compete to entrain a target population by gamma coherence and only the winner is transmitted via communication-through-coherence, making the PING E-I loop the vehicle for competitive stimulus selection and routing.",
@@ -1396,7 +1551,8 @@
  },
  {
   "doi": "10.1162/0899766054796905",
-  "cite": "Hualde (2013). Nueces para esquivar el cáncer de próstata.",
+  "byline": "Hualde (2013)",
+  "title": "Nueces para esquivar el cáncer de próstata",
   "venue": "Neural Computation",
   "axis": "stimulus-competition",
   "rationale": "A V4 model driven by synchronous inhibition from competing local interneuron networks reproduces biased-competition firing-rate and spike-field-coherence effects, arguing attention resolves stimulus competition by modulating gamma-generating interneuron synchrony.",
@@ -1405,7 +1561,8 @@
  },
  {
   "doi": "10.3389/fncom.2013.00033",
-  "cite": "Börgers & Walker (2013). Toggling between gamma-frequency activity and suppression of cell assemblies.",
+  "byline": "Börgers & Walker (2013)",
+  "title": "Toggling between gamma-frequency activity and suppression of cell assemblies",
   "venue": "Frontiers in Computational Neuroscience",
   "axis": "stimulus-competition",
   "rationale": "The PING suppression boundary lets strongly-driven I-cells suppress subsets of E-cells so that strong assembly volleys are followed by weaker ones, making the reciprocal E-I loop a mechanism for competitive gating/winner-selection among cell assemblies.",
@@ -1414,7 +1571,8 @@
  },
  {
   "doi": "10.1162/neco_a_00785",
-  "cite": "Mostafa, Müller & Indiveri (2015). Rhythmic Inhibition Allows Neural Networks to Search for Maximally Consistent States.",
+  "byline": "Mostafa, Müller & Indiveri (2015)",
+  "title": "Rhythmic Inhibition Allows Neural Networks to Search for Maximally Consistent States",
   "venue": "Neural Computation",
   "axis": "stimulus-competition",
   "rationale": "Gamma-band rhythmic inhibition drives coupled cortical motifs to search for maximally consistent states, implementing constraint-satisfaction and perceptual multistability so the E-I gamma rhythm mediates competition among candidate network configurations.",
@@ -1423,7 +1581,8 @@
  },
  {
   "doi": "10.1002/hipo.23093",
-  "cite": "Rennó‐Costa, Teixeira & Soltesz (2019). Regulation of gamma‐frequency oscillation by feedforward inhibition: A computational modeling study.",
+  "byline": "Rennó‐Costa, Teixeira & Soltesz (2019)",
+  "title": "Regulation of gamma‐frequency oscillation by feedforward inhibition: A computational modeling study",
   "venue": "Hippocampus",
   "axis": "stimulus-competition",
   "rationale": "Argues the reciprocal E-I (PING) gamma rhythm selects which subset of cells fires each cycle (level of selection/winner-take-all), and that feedforward inhibition stabilizes this selection against input magnitude.",
@@ -1432,7 +1591,8 @@
  },
  {
   "doi": "10.1016/j.neuron.2019.09.039",
-  "cite": "Onorato et al. (2019). A Distinct Class of Bursting Neurons with Strong Gamma Synchronization and Stimulus Selectivity in Monkey V1.",
+  "byline": "Onorato et al. (2019)",
+  "title": "A Distinct Class of Bursting Neurons with Strong Gamma Synchronization and Stimulus Selectivity in Monkey V1",
   "venue": "Neuron",
   "axis": "stimulus-competition",
   "rationale": "Argues a distinct bursting cell class in V1 that strongly gamma-synchronizes carries the strongest stimulus selectivity, tying E-I/PING gamma synchronization to which stimulus-tuned population dominates the local representation.",
@@ -1441,7 +1601,8 @@
  },
  {
   "doi": "10.7554/elife.69111",
-  "cite": "Boroujeni, Tiesinga & Womelsdorf (2021). Interneuron-specific gamma synchronization indexes cue uncertainty and prediction errors in lateral prefrontal and anterior cingulate cortex.",
+  "byline": "Boroujeni, Tiesinga & Womelsdorf (2021)",
+  "title": "Interneuron-specific gamma synchronization indexes cue uncertainty and prediction errors in lateral prefrontal and anterior cingulate cortex",
   "venue": "eLife",
   "axis": "stimulus-competition",
   "rationale": "An identified interneuron subclass shows uncertainty-linked gamma-synchronous spiking that circuit modeling interprets as soft winner-take-all gating, making interneuron gamma the vehicle for competitive selection of high-uncertainty information.",
