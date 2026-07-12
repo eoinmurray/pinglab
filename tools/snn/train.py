@@ -88,7 +88,7 @@ def _firing_rate_penalty(spike_counts, theta, strength):
 IMAGE_DATASETS = {"mnist"}
 
 
-class ShdBinnedDataset(torch.utils.data.Dataset):
+class ShdBinnedDataset(torch.utils.data.Dataset[tuple[torch.Tensor, int]]):
     """Bin SHD event lists to dense (T_steps, n_in) spike tensors on the fly.
 
     SHD ships as per-utterance events (spike time in seconds + unit index in
@@ -108,8 +108,8 @@ class ShdBinnedDataset(torch.utils.data.Dataset):
     def __len__(self):
         return len(self.labels)
 
-    def __getitem__(self, i):
-        units, times = self.events[i]
+    def __getitem__(self, index) -> tuple[torch.Tensor, int]:
+        units, times = self.events[index]
         T = M.T_steps
         dt_s = M.dt / 1000.0  # bin width in seconds (dt is ms)
         bins = np.floor(times / dt_s).astype(np.int64)
@@ -120,7 +120,7 @@ class ShdBinnedDataset(torch.utils.data.Dataset):
             torch.from_numpy(bins[keep]),
             torch.from_numpy(units[keep].astype(np.int64)),
         ] = 1.0
-        return x, int(self.labels[i])
+        return x, int(self.labels[index])
 
 
 def train(
