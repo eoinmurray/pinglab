@@ -1,0 +1,8 @@
+{"phase":"preflight","event":"reachability","openalex":200,"crossref":200,"arxiv":"301->https ok","keys":{"semantic_scholar":false,"pubmed":false},"polite_pool_email":true}
+{"phase":"scout","source":"openalex","query":"title_and_abstract.search:pyramidal interneuron network gamma","count":510,"note":"mechanism ceiling"}
+{"phase":"scout","source":"openalex","query":"title_and_abstract.search:PING gamma oscillation","count":100,"note":"mechanism core"}
+{"phase":"scout","source":"openalex","query":"title_and_abstract.search:gamma oscillation attention mechanism","count":557,"note":"broad ceiling"}
+{"phase":"scout","source":"openalex","query":"title_and_abstract.search:communication through coherence","count":5878,"note":"balloon; OR-matched; excluded by F1"}
+{"phase":"scout","source":"openalex","query":"title_and_abstract.search:gamma oscillation stimulus selection","count":70,"note":"attention/selection axis"}
+{"phase":"scout","source":"openalex","query":"title_and_abstract.search:gamma interneuron coincidence detection","count":6,"note":"coincidence axis thin under keyword; concept-level needed (F2)"}
+{"phase":"freeze","event":"anchors_verified","dois":["10.1162/neco.2007.07-06-289","10.1073/pnas.0809511105","10.1016/j.neuron.2009.09.009","10.1016/j.neuron.2015.09.034"],"source":"crossref"}

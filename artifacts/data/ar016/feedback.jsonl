@@ -1,0 +1,4 @@
+{"marker":"F1","question":"CTC breadth: strict (name PING) vs loose (any gamma)","answer":"strict — only CTC papers that name PING as the generator","resolution":"exclusion added; loose-CTC balloon excluded"}
+{"marker":"F2","question":"include coincidence-detection / gain-control axis?","answer":"include it","resolution":"function axis kept; concept-level queries planned in phase 5"}
+{"marker":"F3","question":"reviews & opinion pieces in or out?","answer":"keep reviews","resolution":"reviews making mechanism->function argument counted as members"}
+{"marker":"F4","question":"era floor?","answer":"everything","resolution":"no era floor; back to ~1989 gamma-synchrony-function era"}
