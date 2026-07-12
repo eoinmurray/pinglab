@@ -74,5 +74,16 @@
     "search_only": 45,
     "memory_and_search": 21,
     "citation_only": 36
+  },
+  "funnel": {
+    "distinct_papers_judged": 3111,
+    "accepted_in_scope": 161,
+    "rejected": 2950,
+    "acceptance_pct": 5.2,
+    "by_stage": {
+      "search_plus_memory_union": 1694,
+      "citation_candidates": 1154,
+      "embedding_candidates": 263
+    }
   }
 }
