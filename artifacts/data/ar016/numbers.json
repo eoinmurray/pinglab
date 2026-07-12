@@ -1,6 +1,6 @@
 {
   "status": "measured-3source",
-  "corpus_in_hand": 161,
+  "corpus_in_hand": 160,
   "by_channel": {
     "memory": 80,
     "search": 66,
@@ -71,15 +71,15 @@
   "saturation_verdict": "Four decorrelated channels; last two added +36 and +0 in-scope against 1154 and 263 screened candidates. Marginal yield collapsed => corpus saturating at 161. The embedding null (orthogonal, seed-centered) argues few un-caught in-scope papers remain near the corpus; discounted for D's recency bias (old stratum covered by citation channel).",
   "provenance": {
     "memory_only": 59,
-    "search_only": 45,
     "memory_and_search": 21,
-    "citation_only": 36
+    "search_only": 45,
+    "citation_only": 35
   },
   "funnel": {
     "distinct_papers_judged": 3111,
-    "accepted_in_scope": 161,
-    "rejected": 2950,
-    "acceptance_pct": 5.2,
+    "accepted_in_scope": 160,
+    "rejected": 2951,
+    "acceptance_pct": 5.1,
     "by_stage": {
       "search_plus_memory_union": 1694,
       "citation_candidates": 1154,
@@ -89,7 +89,7 @@
   "axis_distribution": {
     "communication-coherence-routing": 39,
     "phase-coding-timing": 26,
-    "mechanism-review": 19,
+    "mechanism-review": 18,
     "attention-selection": 17,
     "causal-optogenetic-performance": 17,
     "coincidence-gain-window": 16,
@@ -97,12 +97,13 @@
     "binding-synchrony": 12
   },
   "field_coverage": {
-    "title": 161,
+    "title": 160,
     "authors": 160,
-    "year": 161,
+    "year": 160,
     "venue": 160,
-    "primary_axis": 161,
-    "rationale": 161,
-    "abstract": 125
-  }
+    "primary_axis": 160,
+    "rationale": 160,
+    "abstract": 122
+  },
+  "note_metadata": "Identity (title/authors/year/venue) authoritative from Crossref; OpenAlex had corrupt records for 4 DOIs (now fixed); 1 junk DOI (10.7554/elife) dropped 161->160."
 }

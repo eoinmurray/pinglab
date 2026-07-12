@@ -89,7 +89,7 @@
   ]
  },
  {
-  "text": "Palva et al. (2000). Fast Network Oscillations in the Newborn Rat Hippocampus<i>In Vitro</i>. _Journal of Neuroscience_.",
+  "text": "Palva et al. (2000). Fast Network Oscillations in the Newborn Rat Hippocampus<i>In Vitro</i>. _The Journal of Neuroscience_.",
   "doi": "10.1523/jneurosci.20-03-01170.2000",
   "year": 2000,
   "channel": [
@@ -105,7 +105,7 @@
   ]
  },
  {
-  "text": "Salinas & Sejnowski (2001). Correlated neuronal activity and the flow of neural information. _Nature reviews. Neuroscience_.",
+  "text": "Salinas & Sejnowski (2001). Correlated neuronal activity and the flow of neural information. _Nature Reviews Neuroscience_.",
   "doi": "10.1038/35086012",
   "year": 2001,
   "channel": [
@@ -121,7 +121,7 @@
   ]
  },
  {
-  "text": "Tiesinga et al. (2002). Information transfer in entrained cortical neurons. _Network Computation in Neural Systems_.",
+  "text": "Tiesinga et al. (2002). Information transfer in entrained cortical neurons. _Network: Computation in Neural Systems_.",
   "doi": "10.1080/net.13.1.41.66",
   "year": 2002,
   "channel": [
@@ -129,7 +129,7 @@
   ]
  },
  {
-  "text": "Tiesinga et al. (2002). Information transfer in entrained cortical neurons. _Network Computation in Neural Systems_.",
+  "text": "Tiesinga et al. (2002). Information transfer in entrained cortical neurons. _Network: Computation in Neural Systems_.",
   "doi": "10.1088/0954-898x/13/1/302",
   "year": 2002,
   "channel": [
@@ -139,14 +139,6 @@
  {
   "text": "Doiron et al. (2003). Inhibitory feedback required for network oscillatory responses to communication but not prey stimuli. _Nature_.",
   "doi": "10.1038/nature01360",
-  "year": 2003,
-  "channel": [
-   "memory"
-  ]
- },
- {
-  "text": "Jónás et al. (2003). Interneuron Diversity series: Fast in, fast out – temporal and spatial signal processing in hippocampal interneurons. _Trends in Neurosciences_.",
-  "doi": "10.1016/j.tins.2003.10.010",
   "year": 2003,
   "channel": [
    "memory"
@@ -169,11 +161,19 @@
   ]
  },
  {
-  "text": "Eckhorn et al. (2004). Dynamic cortical cooperation related to visual perception.",
+  "text": "Eckhorn et al. (2004). Dynamic cortical cooperation related to visual perception. _Proceedings of the International Joint Conference on Neural Networks, 2003._.",
   "doi": "10.1109/ijcnn.2003.1223931",
   "year": 2004,
   "channel": [
    "search"
+  ]
+ },
+ {
+  "text": "Jonas et al. (2004). Interneuron Diversity series: Fast in, fast out – temporal and spatial signal processing in hippocampal interneurons. _Trends in Neurosciences_.",
+  "doi": "10.1016/j.tins.2003.10.010",
+  "year": 2004,
+  "channel": [
+   "memory"
   ]
  },
  {
@@ -234,6 +234,14 @@
   ]
  },
  {
+  "text": "Tiesinga (2005). Stimulus Competition by Inhibitory Interference. _Neural Computation_.",
+  "doi": "10.1162/0899766054796905",
+  "year": 2005,
+  "channel": [
+   "memory"
+  ]
+ },
+ {
   "text": "Tiesinga et al. (2005). Inhibitory synchrony as a mechanism for attentional gain modulation. _arXiv (Cornell University)_.",
   "doi": "10.48550/arxiv.q-bio/0503019",
   "year": 2005,
@@ -282,15 +290,6 @@
   ]
  },
  {
-  "text": "Börgers & Kopell (2007). Gamma Oscillations and Stimulus Selection. _Neural Computation_.",
-  "doi": "10.1162/neco.2007.07-06-289",
-  "year": 2007,
-  "channel": [
-   "memory",
-   "search"
-  ]
- },
- {
   "text": "Fries, Nikolić & Singer (2007). The gamma cycle. _Trends in Neurosciences_.",
   "doi": "10.1016/j.tins.2007.05.005",
   "year": 2007,
@@ -324,6 +323,15 @@
   ]
  },
  {
+  "text": "Börgers & Kopell (2008). Gamma Oscillations and Stimulus Selection. _Neural Computation_.",
+  "doi": "10.1162/neco.2007.07-06-289",
+  "year": 2008,
+  "channel": [
+   "memory",
+   "search"
+  ]
+ },
+ {
   "text": "Börgers, Epstein & Kopell (2008). Gamma oscillations mediate stimulus competition and attentional selection in a cortical network model. _Proceedings of the National Academy of Sciences_.",
   "doi": "10.1073/pnas.0809511105",
   "year": 2008,
@@ -349,7 +357,7 @@
   ]
  },
  {
-  "text": "Morita et al. (2008). Recurrent Synaptic Input and the Timing of Gamma-Frequency-Modulated Firing of Pyramidal Cells during Neocortical “UP” States. _Journal of Neuroscience_.",
+  "text": "Morita et al. (2008). Recurrent Synaptic Input and the Timing of Gamma-Frequency-Modulated Firing of Pyramidal Cells during Neocortical “UP” States. _The Journal of Neuroscience_.",
   "doi": "10.1523/jneurosci.3948-07.2008",
   "year": 2008,
   "channel": [
@@ -357,7 +365,7 @@
   ]
  },
  {
-  "text": "Tiesinga, Fellous & Sejnowski (2008). Regulation of spike timing in visual cortical circuits. _Nature reviews. Neuroscience_.",
+  "text": "Tiesinga, Fellous & Sejnowski (2008). Regulation of spike timing in visual cortical circuits. _Nature Reviews Neuroscience_.",
   "doi": "10.1038/nrn2315",
   "year": 2008,
   "channel": [
@@ -375,14 +383,6 @@
  {
   "text": "Cardin et al. (2009). Driving fast-spiking cells induces gamma rhythm and controls sensory responses. _Nature_.",
   "doi": "10.1038/nature08002",
-  "year": 2009,
-  "channel": [
-   "memory"
-  ]
- },
- {
-  "text": "Carvalho et al. (2009). SEVEN POPULATION TEMPORAL STRUCTURE IN THREE FOREST FRAGMENTS IN THE UPPER RIO GRANDE REGION, MINAS GERAIS. _CERNE_.",
-  "doi": "10.1073/pnas.1405300111",
   "year": 2009,
   "channel": [
    "memory"
@@ -423,7 +423,7 @@
   ]
  },
  {
-  "text": "Ardid et al. (2010). Reconciling Coherent Oscillation with Modulationof Irregular Spiking Activity in Selective Attention:Gamma-Range Synchronization between Sensoryand Executive Cortical Areas. _Journal of Neuroscience_.",
+  "text": "Ardid et al. (2010). Reconciling Coherent Oscillation with Modulationof Irregular Spiking Activity in Selective Attention:Gamma-Range Synchronization between Sensoryand Executive Cortical Areas. _The Journal of Neuroscience_.",
   "doi": "10.1523/jneurosci.4222-09.2010",
   "year": 2010,
   "channel": [
@@ -474,7 +474,7 @@
   ]
  },
  {
-  "text": "Otte, Hasenstaub & Callaway (2010). Cell Type-Specific Control of Neuronal Responsiveness by Gamma-Band Oscillatory Inhibition. _Journal of Neuroscience_.",
+  "text": "Otte, Hasenstaub & Callaway (2010). Cell Type-Specific Control of Neuronal Responsiveness by Gamma-Band Oscillatory Inhibition. _The Journal of Neuroscience_.",
   "doi": "10.1523/jneurosci.4818-09.2010",
   "year": 2010,
   "channel": [
@@ -499,14 +499,6 @@
   ]
  },
  {
-  "text": "Uhlhaas et al. (2010). A new look at gamma? High- (&gt;60 Hz) γ-band activity in cortical networks: Function, mechanisms and impairment. _Progress in Biophysics and Molecular Biology_.",
-  "doi": "10.1016/j.pbiomolbio.2010.10.004",
-  "year": 2010,
-  "channel": [
-   "citation"
-  ]
- },
- {
   "text": "Wang (2010). Neurophysiological and Computational Principles of Cortical Rhythms in Cognition. _Physiological Reviews_.",
   "doi": "10.1152/physrev.00035.2008",
   "year": 2010,
@@ -516,23 +508,7 @@
   ]
  },
  {
-  "text": "Whittington et al. (2010). Multiple origins of the cortical gamma rhythm. _Developmental Neurobiology_.",
-  "doi": "10.1002/dneu.20814",
-  "year": 2010,
-  "channel": [
-   "memory"
-  ]
- },
- {
-  "text": "大橋 et al. (2010). 8139 低層アパートの長期優良化に向けた研究 : その1 アンケート調査等による市場可能性(住宅の長寿命化,建築社会システム). _学術講演梗概集. F-1, 都市計画, 建築経済・住宅問題_.",
-  "doi": "10.1111/ejn.12606",
-  "year": 2010,
-  "channel": [
-   "search"
-  ]
- },
- {
-  "text": "Ainsworth et al. (2011). Dual Gamma Rhythm Generators Control Interlaminar Synchrony in Auditory Cortex. _Journal of Neuroscience_.",
+  "text": "Ainsworth et al. (2011). Dual Gamma Rhythm Generators Control Interlaminar Synchrony in Auditory Cortex. _The Journal of Neuroscience_.",
   "doi": "10.1523/jneurosci.2209-11.2011",
   "year": 2011,
   "channel": [
@@ -541,19 +517,27 @@
   ]
  },
  {
-  "text": "Carlén et al. (2011). A critical role for NMDA receptors in parvalbumin interneurons for gamma rhythm induction and behavior. _Molecular Psychiatry_.",
-  "doi": "10.1038/mp.2011.31",
-  "year": 2011,
-  "channel": [
-   "memory"
-  ]
- },
- {
   "text": "Li et al. (2011). Impact of gamma-oscillatory inhibition on the signal transmission of a cortical pyramidal neuron. _Cognitive Neurodynamics_.",
   "doi": "10.1007/s11571-011-9169-6",
   "year": 2011,
   "channel": [
    "citation"
+  ]
+ },
+ {
+  "text": "Uhlhaas et al. (2011). A new look at gamma? High- (&gt;60 Hz) γ-band activity in cortical networks: Function, mechanisms and impairment. _Progress in Biophysics and Molecular Biology_.",
+  "doi": "10.1016/j.pbiomolbio.2010.10.004",
+  "year": 2011,
+  "channel": [
+   "citation"
+  ]
+ },
+ {
+  "text": "Whittington et al. (2011). Multiple origins of the cortical gamma rhythm. _Developmental Neurobiology_.",
+  "doi": "10.1002/dneu.20814",
+  "year": 2011,
+  "channel": [
+   "memory"
   ]
  },
  {
@@ -589,8 +573,8 @@
   ]
  },
  {
-  "text": "Nikolić, Fries & Singer (2012). Gamma oscillations: precise temporal coordination without a metronome. _Trends in Cognitive Sciences_.",
-  "doi": "10.1016/j.tics.2012.12.003",
+  "text": "Carlén et al. (2012). A critical role for NMDA receptors in parvalbumin interneurons for gamma rhythm induction and behavior. _Molecular Psychiatry_.",
+  "doi": "10.1038/mp.2011.31",
   "year": 2012,
   "channel": [
    "memory"
@@ -638,18 +622,19 @@
   ]
  },
  {
-  "text": "Hualde (2013). Nueces para esquivar el cáncer de próstata. _Neural Computation_.",
-  "doi": "10.1162/0899766054796905",
+  "text": "Nikolić, Fries & Singer (2013). Gamma oscillations: precise temporal coordination without a metronome. _Trends in Cognitive Sciences_.",
+  "doi": "10.1016/j.tics.2012.12.003",
   "year": 2013,
   "channel": [
    "memory"
   ]
  },
  {
-  "text": "Pietersen et al. (2013). Transition between fast and slow gamma modes in rat hippocampus area CA1 <i>in vitro</i> is modulated by slow CA3 gamma oscillations. _The Journal of Physiology_.",
-  "doi": "10.1113/jphysiol.2013.263889",
+  "text": "Roberts et al. (2013). Robust Gamma Coherence between Macaque V1 and V2 by Dynamic Frequency Matching. _Neuron_.",
+  "doi": "10.1016/j.neuron.2013.03.003",
   "year": 2013,
   "channel": [
+   "memory",
    "search"
   ]
  },
@@ -680,7 +665,7 @@
   ]
  },
  {
-  "text": "Akam & Kullmann (2014). Oscillatory multiplexing of population codes for selective communication in the mammalian brain. _Nature reviews. Neuroscience_.",
+  "text": "Akam & Kullmann (2014). Oscillatory multiplexing of population codes for selective communication in the mammalian brain. _Nature Reviews Neuroscience_.",
   "doi": "10.1038/nrn3668",
   "year": 2014,
   "channel": [
@@ -688,24 +673,23 @@
   ]
  },
  {
-  "text": "Bastos et al. (2014). Visual Areas Exert Feedforward and Feedback Influences through Distinct Frequency Channels. _Neuron_.",
-  "doi": "10.1016/j.neuron.2014.12.018",
+  "text": "Bosman, Lansink & Pennartz (2014). Functions of gamma‐band synchronization in cognition: from single circuits to functional diversity across cortical and subcortical systems. _European Journal of Neuroscience_.",
+  "doi": "10.1111/ejn.12606",
+  "year": 2014,
+  "channel": [
+   "search"
+  ]
+ },
+ {
+  "text": "Jadi & Sejnowski (2014). Cortical oscillations arise from contextual interactions that regulate sparse coding. _Proceedings of the National Academy of Sciences_.",
+  "doi": "10.1073/pnas.1405300111",
   "year": 2014,
   "channel": [
    "memory"
   ]
  },
  {
-  "text": "Holcombe, Svärd & Hallstadius (2014). Gamma emission tomography for determining pin-wise percent fission gas release in fuel assemblies at the Halden Boiling Water Reactor. _Neuron_.",
-  "doi": "10.1016/j.neuron.2013.03.003",
-  "year": 2014,
-  "channel": [
-   "memory",
-   "search"
-  ]
- },
- {
-  "text": "Kann, Papageorgiou & Draguhn (2014). Highly Energized Inhibitory Interneurons are a Central Element for Information Processing in Cortical Networks. _Journal of Cerebral Blood Flow & Metabolism_.",
+  "text": "Kann, Papageorgiou & Draguhn (2014). Highly Energized Inhibitory Interneurons are a Central Element for Information Processing in Cortical Networks. _Journal of Cerebral Blood Flow &amp; Metabolism_.",
   "doi": "10.1038/jcbfm.2014.104",
   "year": 2014,
   "channel": [
@@ -713,7 +697,7 @@
   ]
  },
  {
-  "text": "Lozano‐Soldevilla et al. (2014). GABAergic Modulation of Visual Gamma and Alpha Oscillations and Its Consequences for Working Memory Performance. _Current Biology_.",
+  "text": "Lozano-Soldevilla et al. (2014). GABAergic Modulation of Visual Gamma and Alpha Oscillations and Its Consequences for Working Memory Performance. _Current Biology_.",
   "doi": "10.1016/j.cub.2014.10.017",
   "year": 2014,
   "channel": [
@@ -721,11 +705,11 @@
   ]
  },
  {
-  "text": "Ray & Maunsell (2014). Do gamma oscillations play a role in cerebral cortex?. _Trends in Cognitive Sciences_.",
-  "doi": "10.1016/j.tics.2014.12.002",
+  "text": "Pietersen et al. (2014). Transition between fast and slow gamma modes in rat hippocampus area CA1 <i>in vitro</i> is modulated by slow CA3 gamma oscillations. _The Journal of Physiology_.",
+  "doi": "10.1113/jphysiol.2013.263889",
   "year": 2014,
   "channel": [
-   "memory"
+   "search"
   ]
  },
  {
@@ -740,6 +724,14 @@
   "text": "Womelsdorf et al. (2014). Dynamic circuit motifs underlying rhythmic gain control, gating and integration. _Nature Neuroscience_.",
   "doi": "10.1038/nn.3764",
   "year": 2014,
+  "channel": [
+   "memory"
+  ]
+ },
+ {
+  "text": "Bastos et al. (2015). Visual Areas Exert Feedforward and Feedback Influences through Distinct Frequency Channels. _Neuron_.",
+  "doi": "10.1016/j.neuron.2014.12.018",
+  "year": 2015,
   "channel": [
    "memory"
   ]
@@ -777,7 +769,7 @@
   ]
  },
  {
-  "text": "Lee, Whittington & Kopell (2015). Potential Mechanisms Underlying Intercortical Signal Regulation via Cholinergic Neuromodulators. _Journal of Neuroscience_.",
+  "text": "Lee, Whittington & Kopell (2015). Potential Mechanisms Underlying Intercortical Signal Regulation via Cholinergic Neuromodulators. _The Journal of Neuroscience_.",
   "doi": "10.1523/jneurosci.0629-15.2015",
   "year": 2015,
   "channel": [
@@ -785,7 +777,7 @@
   ]
  },
  {
-  "text": "Lowet et al. (2015). Input-Dependent Frequency Modulation of Cortical Gamma Oscillations Shapes Spatial Synchronization and Enables Phase Coding. _PLoS Computational Biology_.",
+  "text": "Lowet et al. (2015). Input-Dependent Frequency Modulation of Cortical Gamma Oscillations Shapes Spatial Synchronization and Enables Phase Coding. _PLOS Computational Biology_.",
   "doi": "10.1371/journal.pcbi.1004072",
   "year": 2015,
   "channel": [
@@ -809,6 +801,14 @@
   ]
  },
  {
+  "text": "Ray & Maunsell (2015). Do gamma oscillations play a role in cerebral cortex?. _Trends in Cognitive Sciences_.",
+  "doi": "10.1016/j.tics.2014.12.002",
+  "year": 2015,
+  "channel": [
+   "memory"
+  ]
+ },
+ {
   "text": "Kim et al. (2016). Prefrontal Parvalbumin Neurons in Control of Attention. _Cell_.",
   "doi": "10.1016/j.cell.2015.11.038",
   "year": 2016,
@@ -818,7 +818,7 @@
   ]
  },
  {
-  "text": "McLelland & VanRullen (2016). Theta-Gamma Coding Meets Communication-through-Coherence: Neuronal Oscillatory Multiplexing Theories Reconciled. _PLoS Computational Biology_.",
+  "text": "McLelland & VanRullen (2016). Theta-Gamma Coding Meets Communication-through-Coherence: Neuronal Oscillatory Multiplexing Theories Reconciled. _PLOS Computational Biology_.",
   "doi": "10.1371/journal.pcbi.1005162",
   "year": 2016,
   "channel": [
@@ -827,7 +827,7 @@
   ]
  },
  {
-  "text": "Sohal (2016). How Close Are We to Understanding What (if Anything) γ Oscillations Do in Cortical Circuits?. _Journal of Neuroscience_.",
+  "text": "Sohal (2016). How Close Are We to Understanding What (if Anything) γ Oscillations Do in Cortical Circuits?. _The Journal of Neuroscience_.",
   "doi": "10.1523/jneurosci.0990-16.2016",
   "year": 2016,
   "channel": [
@@ -835,15 +835,7 @@
   ]
  },
  {
-  "text": "(2017). eLife. _eLife_.",
-  "doi": "10.7554/elife",
-  "year": 2017,
-  "channel": [
-   "citation"
-  ]
- },
- {
-  "text": "Li & Cleland (2017). A coupled-oscillator model of olfactory bulb gamma oscillations. _PLoS Computational Biology_.",
+  "text": "Li & Cleland (2017). A coupled-oscillator model of olfactory bulb gamma oscillations. _PLOS Computational Biology_.",
   "doi": "10.1371/journal.pcbi.1005760",
   "year": 2017,
   "channel": [
@@ -915,7 +907,7 @@
   ]
  },
  {
-  "text": "Sherfey et al. (2018). Flexible resonance in prefrontal networks with strong feedback inhibition. _PLoS Computational Biology_.",
+  "text": "Sherfey et al. (2018). Flexible resonance in prefrontal networks with strong feedback inhibition. _PLOS Computational Biology_.",
   "doi": "10.1371/journal.pcbi.1006357",
   "year": 2018,
   "channel": [
@@ -939,7 +931,7 @@
   ]
  },
  {
-  "text": "Dumont & Gutkin (2019). Macroscopic phase resetting-curves determine oscillatory coherence and signal transfer in inter-coupled neural circuits. _PLoS Computational Biology_.",
+  "text": "Dumont & Gutkin (2019). Macroscopic phase resetting-curves determine oscillatory coherence and signal transfer in inter-coupled neural circuits. _PLOS Computational Biology_.",
   "doi": "10.1371/journal.pcbi.1007019",
   "year": 2019,
   "channel": [
@@ -947,19 +939,11 @@
   ]
  },
  {
-  "text": "Feng et al. (2019). Gamma Oscillations in the Basolateral Amygdala: Biophysical Mechanisms and Computational Consequences. _eNeuro_.",
+  "text": "Feng et al. (2019). Gamma Oscillations in the Basolateral Amygdala: Biophysical Mechanisms and Computational Consequences. _eneuro_.",
   "doi": "10.1523/eneuro.0388-18.2018",
   "year": 2019,
   "channel": [
    "citation"
-  ]
- },
- {
-  "text": "Onorato et al. (2019). A Distinct Class of Bursting Neurons with Strong Gamma Synchronization and Stimulus Selectivity in Monkey V1. _Neuron_.",
-  "doi": "10.1016/j.neuron.2019.09.039",
-  "year": 2019,
-  "channel": [
-   "memory"
   ]
  },
  {
@@ -1035,7 +1019,7 @@
   ]
  },
  {
-  "text": "Lü et al. (2020). Phasic cholinergic signaling promotes emergence of local gamma rhythms in excitatory–inhibitory networks. _European Journal of Neuroscience_.",
+  "text": "Lu et al. (2020). Phasic cholinergic signaling promotes emergence of local gamma rhythms in excitatory–inhibitory networks. _European Journal of Neuroscience_.",
   "doi": "10.1111/ejn.14744",
   "year": 2020,
   "channel": [
@@ -1048,6 +1032,14 @@
   "year": 2020,
   "channel": [
    "citation"
+  ]
+ },
+ {
+  "text": "Onorato et al. (2020). A Distinct Class of Bursting Neurons with Strong Gamma Synchronization and Stimulus Selectivity in Monkey V1. _Neuron_.",
+  "doi": "10.1016/j.neuron.2019.09.039",
+  "year": 2020,
+  "channel": [
+   "memory"
   ]
  },
  {
@@ -1084,14 +1076,6 @@
   ]
  },
  {
-  "text": "Han, Shapley & Xing (2021). Gamma rhythms in the visual cortex: functions and mechanisms. _Cognitive Neurodynamics_.",
-  "doi": "10.1007/s11571-021-09767-x",
-  "year": 2021,
-  "channel": [
-   "citation"
-  ]
- },
- {
   "text": "Lewis et al. (2021). Cortical gamma-band resonance preferentially transmits coherent input. _Cell Reports_.",
   "doi": "10.1016/j.celrep.2021.109083",
   "year": 2021,
@@ -1100,7 +1084,7 @@
   ]
  },
  {
-  "text": "Lucas, Obermayer & Metzner (2021). Synchronization through uncorrelated noise in excitatory-inhibitory networks. _bioRxiv (Cold Spring Harbor Laboratory)_.",
+  "text": "Lucas, Klaus & Christoph (2021). Synchronization through uncorrelated noise in excitatory-inhibitory networks. _bioRxiv (Cold Spring Harbor Laboratory)_.",
   "doi": "10.1101/2021.10.29.466430",
   "year": 2021,
   "channel": [
@@ -1108,7 +1092,7 @@
   ]
  },
  {
-  "text": "Meneghetti et al. (2021). Narrow and Broad γ Bands Process Complementary Visual Information in Mouse Primary Visual Cortex. _eNeuro_.",
+  "text": "Meneghetti et al. (2021). Narrow and Broad γ Bands Process Complementary Visual Information in Mouse Primary Visual Cortex. _eneuro_.",
   "doi": "10.1523/eneuro.0106-21.2021",
   "year": 2021,
   "channel": [
@@ -1124,7 +1108,7 @@
   ]
  },
  {
-  "text": "Susin & Destexhe (2021). Integration, coincidence detection and resonance in networks of spiking neurons expressing Gamma oscillations and asynchronous states. _PLoS Computational Biology_.",
+  "text": "Susin & Destexhe (2021). Integration, coincidence detection and resonance in networks of spiking neurons expressing Gamma oscillations and asynchronous states. _PLOS Computational Biology_.",
   "doi": "10.1371/journal.pcbi.1009416",
   "year": 2021,
   "channel": [
@@ -1134,6 +1118,14 @@
  {
   "text": "Dalal & Haddad (2022). Upstream γ-synchronization enhances odor processing in downstream neurons. _Cell Reports_.",
   "doi": "10.1016/j.celrep.2022.110693",
+  "year": 2022,
+  "channel": [
+   "citation"
+  ]
+ },
+ {
+  "text": "Han, Shapley & Xing (2022). Gamma rhythms in the visual cortex: functions and mechanisms. _Cognitive Neurodynamics_.",
+  "doi": "10.1007/s11571-021-09767-x",
   "year": 2022,
   "channel": [
    "citation"
@@ -1156,7 +1148,7 @@
   ]
  },
  {
-  "text": "Reyner-Parra & Huguet (2022). Phase-locking patterns underlying effective communication in exact firing rate models of neural networks. _PLoS Computational Biology_.",
+  "text": "Reyner-Parra & Huguet (2022). Phase-locking patterns underlying effective communication in exact firing rate models of neural networks. _PLOS Computational Biology_.",
   "doi": "10.1371/journal.pcbi.1009342",
   "year": 2022,
   "channel": [
@@ -1172,33 +1164,8 @@
   ]
  },
  {
-  "text": "Veit et al. (2022). Cortical VIP neurons locally control the gain but globally control the coherence of gamma band rhythms. _Neuron_.",
-  "doi": "10.1016/j.neuron.2022.10.036",
-  "year": 2022,
-  "channel": [
-   "memory",
-   "search"
-  ]
- },
- {
-  "text": "Wagatsuma, Nobukawa & Fukai (2022). A microcircuit model involving parvalbumin, somatostatin, and vasoactive intestinal polypeptide inhibitory interneurons for the modulation of neuronal oscillation during visual processing. _Cerebral Cortex_.",
-  "doi": "10.1093/cercor/bhac355",
-  "year": 2022,
-  "channel": [
-   "search"
-  ]
- },
- {
   "text": "Cattani et al. (2023). Basolateral amygdala oscillations enable fear learning in a biophysical model. _bioRxiv (Cold Spring Harbor Laboratory)_.",
   "doi": "10.1101/2023.04.28.538604",
-  "year": 2023,
-  "channel": [
-   "citation"
-  ]
- },
- {
-  "text": "Cattani et al. (2023). Basolateral amygdala oscillations enable fear learning in a biophysical model. _eLife_.",
-  "doi": "10.7554/elife.89519",
   "year": 2023,
   "channel": [
    "citation"
@@ -1213,7 +1180,7 @@
   ]
  },
  {
-  "text": "González‐Burgos et al. (2023). Mechanisms regulating the properties of inhibition-based gamma oscillations in primate prefrontal and parietal cortices. _Cerebral Cortex_.",
+  "text": "Gonzalez-Burgos et al. (2023). Mechanisms regulating the properties of inhibition-based gamma oscillations in primate prefrontal and parietal cortices. _Cerebral Cortex_.",
   "doi": "10.1093/cercor/bhad077",
   "year": 2023,
   "channel": [
@@ -1237,15 +1204,32 @@
   ]
  },
  {
-  "text": "Ursino & Pirazzini (2023). Construction of a Hierarchical Organization in Semantic Memory: A Model Based on Neural Masses and Gamma-Band Synchronization. _Cognitive Computation_.",
-  "doi": "10.1007/s12559-023-10202-y",
+  "text": "Veit et al. (2023). Cortical VIP neurons locally control the gain but globally control the coherence of gamma band rhythms. _Neuron_.",
+  "doi": "10.1016/j.neuron.2022.10.036",
   "year": 2023,
+  "channel": [
+   "memory",
+   "search"
+  ]
+ },
+ {
+  "text": "Wagatsuma, Nobukawa & Fukai (2023). A microcircuit model involving parvalbumin, somatostatin, and vasoactive intestinal polypeptide inhibitory interneurons for the modulation of neuronal oscillation during visual processing. _Cerebral Cortex_.",
+  "doi": "10.1093/cercor/bhac355",
+  "year": 2023,
+  "channel": [
+   "search"
+  ]
+ },
+ {
+  "text": "Cattani et al. (2024). Basolateral amygdala oscillations enable fear learning in a biophysical model. _eLife_.",
+  "doi": "10.7554/elife.89519",
+  "year": 2024,
   "channel": [
    "citation"
   ]
  },
  {
-  "text": "Knowles (2024). Attentional Deficits and Absence Epilepsy: A Tale of 2 Interneuronopathies. _Epiliepsy currents/Epilepsy currents_.",
+  "text": "Knowles (2024). Attentional Deficits and Absence Epilepsy: A Tale of 2 Interneuronopathies. _Epilepsy Currents_.",
   "doi": "10.1177/15357597241251709",
   "year": 2024,
   "channel": [
@@ -1258,6 +1242,14 @@
   "year": 2024,
   "channel": [
    "search"
+  ]
+ },
+ {
+  "text": "Ursino & Pirazzini (2024). Construction of a Hierarchical Organization in Semantic Memory: A Model Based on Neural Masses and Gamma-Band Synchronization. _Cognitive Computation_.",
+  "doi": "10.1007/s12559-023-10202-y",
+  "year": 2024,
+  "channel": [
+   "citation"
   ]
  },
  {
@@ -1277,7 +1269,7 @@
   ]
  },
  {
-  "text": "Chalkiadakis et al. (2025). The role of feedforward and feedback inhibition in modulating theta-gamma cross-frequency interactions in neural circuits. _PLoS Computational Biology_.",
+  "text": "Chalkiadakis et al. (2025). The role of feedforward and feedback inhibition in modulating theta-gamma cross-frequency interactions in neural circuits. _PLOS Computational Biology_.",
   "doi": "10.1371/journal.pcbi.1013363",
   "year": 2025,
   "channel": [
