@@ -305,6 +305,14 @@ def _build_parent_parser():
         help="Allow signed (positive + negative) weights.",
     )
     net_group.add_argument(
+        "--state-clamp",
+        action="store_true",
+        default=False,
+        help="Forward-pass state clamp: floor conductances at 0 (and cap "
+             "magnitude) each timestep, so a signed-weight net cannot drive "
+             "g_tot <= 0 into NaN. Bounds the state, keeps weights signed.",
+    )
+    net_group.add_argument(
         "--ei-strength",
         type=float,
         default=0.5,
@@ -1296,6 +1304,7 @@ def _run_train(args, C, out_dir, log):
         trainable_w_ei=args.trainable_w_ei,
         trainable_w_ie=args.trainable_w_ie,
         trainable_w_ii=args.trainable_w_ii,
+        state_clamp=args.state_clamp,
     )
 
 

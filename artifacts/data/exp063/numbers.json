@@ -1,0 +1,78 @@
+{
+  "run_id": "r001",
+  "git_sha": "a5a6097",
+  "duration_s": 0.4,
+  "duration": "0s",
+  "wd_sweep": [
+    0.0,
+    0.001,
+    0.01,
+    0.1
+  ],
+  "seed": 42,
+  "dt_ms": 1.0,
+  "max_samples": 1000,
+  "epochs": 30,
+  "compute": "runpod",
+  "n_cells": 4,
+  "n_trained": 4,
+  "cells": [
+    {
+      "trained": true,
+      "name": "wd0__seed42",
+      "wd": 0.0,
+      "epochs": 30,
+      "nan_epochs": 15,
+      "nan_epoch_rate": 0.5,
+      "nan_forward_batches": 12,
+      "max_grad_norm": 22300.896484375,
+      "max_wee_norm": 8.828913688659668,
+      "best_acc_pct": 56.3,
+      "best_epoch": 24
+    },
+    {
+      "trained": true,
+      "name": "wd0p001__seed42",
+      "wd": 0.001,
+      "epochs": 30,
+      "nan_epochs": 13,
+      "nan_epoch_rate": 0.43333333333333335,
+      "nan_forward_batches": 12,
+      "max_grad_norm": 30151.0859375,
+      "max_wee_norm": 9.179692268371582,
+      "best_acc_pct": 56.8,
+      "best_epoch": 23
+    },
+    {
+      "trained": true,
+      "name": "wd0p01__seed42",
+      "wd": 0.01,
+      "epochs": 30,
+      "nan_epochs": 12,
+      "nan_epoch_rate": 0.4,
+      "nan_forward_batches": 8,
+      "max_grad_norm": 14725.5400390625,
+      "max_wee_norm": 8.69578742980957,
+      "best_acc_pct": 58.3,
+      "best_epoch": 17
+    },
+    {
+      "trained": true,
+      "name": "wd0p1__seed42",
+      "wd": 0.1,
+      "epochs": 30,
+      "nan_epochs": 11,
+      "nan_epoch_rate": 0.36666666666666664,
+      "nan_forward_batches": 9,
+      "max_grad_norm": 47565.4140625,
+      "max_wee_norm": 8.889288902282715,
+      "best_acc_pct": 63.4,
+      "best_epoch": 30
+    }
+  ],
+  "nan_at_strongest_decay": true,
+  "first_stable_decay": null,
+  "weakest_decay": 0.0,
+  "verdict": "kill \u2014 even the strongest decay leaves NaN present; weight decay regularises but does not stabilise the free net",
+  "chance_pct": 5.0
+}
