@@ -75,6 +75,11 @@ dev = [
     "pytest-cov>=7.1.0",
     "ruff>=0.15.20",
     "ty>=0.0.55",
+    # boto3: the RunPod S3 volume-collect path (helpers/runpod.py collect_via_s3)
+    # reads trained cells off the shared network volume over HTTPS. It runs only
+    # on the collecting machine, never on a pod, so it lives in dev — the pod
+    # image builds with `uv sync --no-dev` and stays lean (no boto3 baked in).
+    "boto3>=1.34",
 ]
 
 [tool.coverage.run]

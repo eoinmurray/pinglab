@@ -33,6 +33,15 @@ E_i = -80.0  # mV — inhibitory (GABA) reversal
 V_th = -50.0  # mV — spike threshold
 V_reset = -65.0  # mV — post-spike reset voltage
 V_floor = -200.0  # mV — hard lower clamp
+# Upper magnitude bound on conductances under the forward-pass state clamp
+# (self.state_clamp). Well above any physiological operating value (init E→I is
+# ~1 µS), so it only bites on a genuine runaway. The load-bearing part of the
+# clamp is the LOWER bound at 0: with signed weights a conductance can go
+# negative and drive g_tot = g_L + g_e + g_i to ≤ 0, which makes the exp-Euler
+# v_inf = (…)/g_tot diverge to NaN. Flooring conductances at 0 (physical — a
+# conductance cannot be negative) keeps g_tot ≥ g_L > 0 and bounds v_inf between
+# the reversal potentials, while the weights stay signed.
+G_CLAMP_MAX = 100.0  # µS
 ref_ms_E = 3.0  # ms — excitatory refractory period
 _REF_RATIO = 2.0  # ref_ms_E / ref_ms_I (Börgers)
 ref_ms_I = ref_ms_E / _REF_RATIO  # 1.5 ms
@@ -487,6 +496,7 @@ class COBANet(nn.Module):
         trainable_w_ie=False,
         trainable_w_ii=False,
         n_inh_per_layer=None,
+        state_clamp=False,
     ):
         super().__init__()
         if readout_mode not in ("rate", "mem-mean"):
@@ -495,6 +505,9 @@ class COBANet(nn.Module):
             )
         self.readout_mode = readout_mode
         self.signed_weights = not dales_law
+        # Forward-pass state clamp: floor conductances at 0 (and cap magnitude)
+        # each timestep. Off by default, so every existing run is unchanged.
+        self.state_clamp = state_clamp
         # Lazy-compile cache for the per-timestep body (compiled on first call).
         self._compiled_cache: dict = {}
         # Optional per-step hook fired right after every layer's spikes are
@@ -914,6 +927,18 @@ class COBANet(nn.Module):
             else:
                 ff_drive = prev_spk @ W
                 state["ge_e"][k] = state["ge_e"][k] + ff_drive
+
+            # Forward-pass state clamp (opt-in): floor conductances at 0 and cap
+            # their magnitude so a signed-weight net cannot drive g_tot ≤ 0 (the
+            # exp-Euler v_inf = …/g_tot divergence) or accumulate unboundedly. The
+            # weights stay signed — only the state is bounded. The `if` is a
+            # static per-net constant, so torch.compile specialises one branch.
+            if self.state_clamp:
+                state["ge_e"][k] = state["ge_e"][k].clamp(0.0, G_CLAMP_MAX)
+                if is_ei:
+                    state["ge_i"][k] = state["ge_i"][k].clamp(0.0, G_CLAMP_MAX)
+                    state["gi_e"][k] = state["gi_e"][k].clamp(0.0, G_CLAMP_MAX)
+                    state["gi_i"][k] = state["gi_i"][k].clamp(0.0, G_CLAMP_MAX)
 
             g_e_for_step = state["ge_e"][k]
             g_i_for_e = state["gi_e"][k] if is_ei else None

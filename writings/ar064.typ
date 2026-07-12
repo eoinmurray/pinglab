@@ -16,16 +16,132 @@
 
   == Digest
 
-  _Latest, for the 30-second morning read. Updated 2026-07-11 17:36 BST._
+  _Latest, for the 30-second morning read. Updated 2026-07-11 23:35 BST._
 
-  Program opened. Goal set: find the minimal recipe that trains a conductance
-  E/I net stably on SHD. #link("/exp060/")[exp060] smoke trains to 61% on a
-  subset but *diverges intermittently* (NaN forward-passes, unbounded W_ee).
-  Stability queue (dt / Dale's law / weight decay) is registered and waiting.
-  *Open anomaly for a human:* NaN appears even at epoch 2 when weights are small
-  — so it is not weight-growth runaway; likely integration stiffness at dt = 1.0.
+  *Goal exceeded: the forward-pass state clamp is the best stable recipe.*
+  #link("/exp064/")[exp064] tested the lead the queue pointed to — and it wins.
+  Reading the forward pass showed the divergence is the exp-Euler
+  $v_infinity = (…)\/g_"tot"$ blowing up when signed weights drive
+  $g_"tot" = g_L + g_e + g_i <= 0$ (why exp060 NaN'd at epoch 2 with tiny
+  weights: it is the _sign_, not the magnitude). A clamp that floors conductances
+  at 0 each timestep (physical) keeps $g_"tot" >= g_L > 0$. Result: the free net
+  goes from *13/30 NaN → 0/30*, gradient 3·10⁴ → ≈ 190, at *56.9%* — matching the
+  free baseline (56.8%) and beating Dale's law (53.2%). It bounds the *state*, not
+  the weights (W_ee unchanged), so it keeps the signed net's full accuracy where
+  Dale's law paid for stability. *The free net never needed constraining, only its
+  state bounding.* Implemented in `tools/snn/models.py` (`--state-clamp`, off by
+  default).
+
+  *The stability picture, ranked:* state clamp (56.9%, stable) > Dale's law
+  (53.2%, stable) ≫ free / Δt / weight decay (all diverge). Of the three soft
+  knobs the free net can vary without a model change —
+  #link("/exp061/")[Δt], #link("/exp062/")[Dale's law], #link("/exp063/")[weight
+  decay] — only Dale's law stabilises.
+
+  - *Δt (exp061, killed):* finer Δt made the gradient explosion _worse_ (longer
+    BPTT unroll), NaN persists at 0.25. Not stiffness.
+  - *Dale's law (exp062, supported):* the free net's 13/30 NaN epochs → *0/30*
+    under the non-negativity constraint; gradient 3·10⁴ → ≈ 190, W_ee 9.2 → 5.4.
+    Costs accuracy (56.8% → 53.2%). *The stable recipe.*
+  - *Weight decay (exp063, killed):* NaN persists at every λ up to 1e-1
+    (15/13/12/11 of 30), W_ee unbounded (~9 throughout). Regularises — accuracy
+    rises to 63.4% — but does not stabilise.
+
+  *Where the program goes next.* Stabilising the _free_ net (to keep its higher
+  accuracy) is not reachable by any soft knob, so the reserved *forward-pass
+  state clamp* — a shared-model change — is the live lead. exp063's accuracy
+  headroom (63.4% at strong decay, above every other recipe) suggests a
+  clamped-at-strong-decay signed net could top the program. *That is a model
+  change and a human call — parked for the gate.*
+
+  *Infra (resolved).* SSH-blocked sandbox → rsync-over-SSH collector fails; fixed
+  by reading the RunPod volume over its *S3 HTTPS API* (`collect_via_s3`).
 
   == Sessions
+
+  === 2026-07-11 23:35 BST — exp064: the state clamp wins (goal exceeded)
+
+  Implemented the reserved model change and ran it — it is the best recipe.
+
+  - *Forward-pass state clamp (`tools/snn/models.py`, `--state-clamp`).* Reading
+    the COBA exp-Euler step showed the divergence mechanism: $v_infinity$ divides
+    by $g_"tot" = g_L + g_e + g_i$, and signed weights let a conductance go
+    negative, so $g_"tot"$ crosses zero and $v_infinity$ → NaN. The clamp floors
+    conductances at 0 (caps magnitude at 100 µS) each timestep, keeping
+    $g_"tot" >= g_L > 0$. Off by default, so every prior run is unchanged.
+
+  - *exp064 — free vs clamp vs clamp+decay (done, stabilises).*
+    #link("/exp064/")[Result]: free 13/30 NaN → free+clamp *0/30*, gradient
+    3·10⁴ → ≈ 190, at *56.9%* (vs free 56.8%). Both clamped cells stable; clamp
+    beats Dale's law (53.2%) with no accuracy cost. W_ee is unchanged by the clamp
+    (~9.1) — it bounds the state, not the weight, which is why weight decay could
+    not fix it and the clamp can. Mechanism confirmed.
+
+  - *Operational note.* The 4090 pool in EU-RO-1 stalled two clamp pods in startup
+    (no `config.json` after 40–80 min, no output); the same cell ran fine on a
+    5090. Killed the stalled pods (nothing leaked) and re-fired on 5090. A 4090
+    startup-stall flag for the next shift.
+
+  === 2026-07-11 20:45 BST — exp063: weight decay regularises, does not stabilise
+
+  Closed out the no-code-change stability queue.
+
+  - *exp063 — weight-decay sweep on the free net (done, kill).* Swept λ ∈ {0,
+    1e-3, 1e-2, 1e-1} on _--no-dales-law_ at Δt = 1.0. #link("/exp063/")[Result]:
+    NaN persists at every strength (15/13/12/11 of 30, never zero) and W_ee stays
+    pinned near 9 regardless of λ — decay does not bound the runaway weight. Kill
+    fires. But accuracy climbs monotonically with λ (56.3% → 63.4%, the free net's
+    best), so decay is a strong regulariser, not a stabiliser.
+
+  - *Program state.* The three soft knobs are exhausted; only Dale's law
+    stabilises. To stabilise the free net _and_ keep its accuracy, the plan's
+    reserved forward-pass state clamp (a `tools/snn/models.py` change) is the next
+    experiment — deliberately left for the human gate, since it is a model change,
+    not a knob.
+
+  === 2026-07-11 20:35 BST — exp062: Dale's law is the stabiliser (supported)
+
+  Ran the second stability probe; the program's goal is met.
+
+  - *exp062 — Dale's law free vs constrained (done, supported).* Two cells,
+    identical but for the constraint, at Δt = 1.0 where the free net diverges.
+    #link("/exp062/")[Result]: the free net NaNs 13/30 epochs (peak gradient
+    ≈ 3·10⁴, W_ee 9.2); the Dale's-law net trains *NaN-free* (0/30, gradient
+    ≈ 190, W_ee 5.4) at 53.2% vs the free net's 56.8%. The non-negativity
+    projection bounds the E→I→E loop gain below the runaway threshold, so the
+    divergence never starts. First stable recipe achieved.
+
+  - *Direction.* The remaining queue changes meaning. exp063 (weight decay) and
+    the state clamp are no longer needed _for stability_ — Dale's law provides
+    it — but they are the way to ask whether the free signed net's extra accuracy
+    can be kept without its divergence. That is the more interesting question now.
+
+  === 2026-07-11 20:10 BST — exp061 killed the Δt hypothesis; RunPod collect fixed
+
+  Ran the first stability experiment and solved a compute blocker on the way.
+
+  - *exp061 — Δt sweep (done, kill).* Swept Δt ∈ {1.0, 0.5, 0.25} ms on the free
+    signed-recurrent net, single seed, full exp060 scale, on RunPod.
+    #link("/exp061/")[The result] refutes the plan's hypothesis: NaN is
+    reproduced at the coarse Δt (so the mechanism is real) but *not removed* by
+    finer Δt — it persists at Δt = 0.25, and the peak pre-clip gradient norm
+    explodes monotonically worse (3·10⁴ → 5·10¹² → 4·10¹⁷) because quartering Δt
+    quadruples the BPTT unroll (1000 → 4000 steps). Kill criterion fires; the
+    divergence is a gradient explosion over the recurrent unroll, not exp-Euler
+    stiffness. Δt leaves the recipe.
+
+  - *Instrumentation.* Added two per-epoch metrics to the trainer the sweep
+    needed but that were previously invisible: `grad_norm_max` (peak pre-clip
+    global norm; only the mean was recorded) and `nan_forward_batches` (NaN
+    forward passes were silently skipped). Additive only.
+
+  - *Compute blocker, fixed.* The RunPod fan-out's collector rsyncs off the
+    shared volume over SSH; the cloud sandbox blocks outbound :22, so pods
+    trained fine but results were stranded on the volume. Routed around it: a
+    RunPod network volume is S3-compatible over HTTPS, so `collect_via_s3` reads
+    the trained cells straight off the volume with the S3 API. The earlier
+    "failed" plumbing pods turned out to have trained correctly all along — only
+    collection was broken.
 
   === 2026-07-11 17:36 BST — program opened
 

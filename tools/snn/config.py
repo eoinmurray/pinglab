@@ -299,6 +299,7 @@ def build_net(
     trainable_w_ie=False,
     trainable_w_ii=False,
     n_inh_per_layer=None,
+    state_clamp=False,
 ):
     """Construct a network with the given config.
 
@@ -323,6 +324,7 @@ def build_net(
         kwargs["hidden_sizes"] = list(hidden_sizes)
 
     kwargs["dales_law"] = dales_law
+    kwargs["state_clamp"] = state_clamp
     if trainable_w_ee:
         kwargs["trainable_w_ee"] = True
     if trainable_w_ei:
