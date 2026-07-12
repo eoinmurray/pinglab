@@ -1,1 +1,9 @@
-{"corpus_size":4,"note":"seeds only; pre-harvest","estimated_true_size":null,"recall_pct":null,"n_A_memory":null,"n_B_search":null,"m_overlap":null,"status":"frozen-pre-run"}
+{
+  "status": "measure-blocked",
+  "verified_memory_corpus": 44,
+  "search_pool_uncurated": 344,
+  "estimated_true_size": null,
+  "recall_pct": null,
+  "reason": "Automated keyword capture-recapture is invalid for this scope: mechanism-carries-function membership is an expert-judgment relation that no keyword predicate replicates. Strict (mechanism-keyword) filters drop canonical in-scope papers whose abstracts are function-forward (Fries 2015, Womelsdorf 2007, Buzsaki-Wang 2012); loose (gamma+function) filters admit the balloon the scope excludes. Three measurement attempts logged in runlog.jsonl (m=0, then broad-balloon N=1811, then N=1034 with 36/44 memory papers dropped).",
+  "next_step": "citation-graph escalation (runbook phase 6): sample recall via anchor + memory reference/citation networks, which encode the semantic 'these papers talk to each other' relation that keywords miss."
+}
