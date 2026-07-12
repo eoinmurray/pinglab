@@ -14,6 +14,7 @@ Writing: writings/exp060.typ · figures + numbers.json: artifacts/data/exp060/
 from __future__ import annotations
 
 import json
+import math
 import sys
 import time
 from pathlib import Path
@@ -84,16 +85,42 @@ def _epochs(metrics: dict) -> list[dict]:
     return eps
 
 
+def _train_arg(flag: str) -> str:
+    """Pull a flag's value straight out of TRAIN_ARGS so the config surfaced to
+    the writeup can never drift from what training actually received."""
+    return TRAIN_ARGS[TRAIN_ARGS.index(flag) + 1]
+
+
+# The full SHD training pool (dataset constant; we take a subset of it) and the
+# program plan's "decisively above chance" bar (registered in ar063). Neither is
+# a run output, but both are cited in the writeup, so they live here rather than
+# hand-typed in the prose.
+N_TRAIN_POOL = 8156
+PLAN_THRESHOLD_PCT = 25.0
+
+
+def _first_nan_epoch(eps: list[dict]) -> int | None:
+    """First epoch index whose test_loss is NaN (the SHD collection references a
+    'NaN at epoch 2' spike). None if the test loss never goes NaN."""
+    for e in eps:
+        tl = e.get("test_loss")
+        if tl is None or (isinstance(tl, float) and math.isnan(tl)):
+            return e["ep"]
+    return None
+
+
 def plot_loss(metrics: dict, stem: Path) -> None:
     """Train + test loss against epoch — the 'is it learning at all' curve."""
     theme.apply()
     eps = _epochs(metrics)
     x = [e["ep"] for e in eps]
-    fig, ax = plt.subplots(figsize=(8.0, 4.5), dpi=150)
-    ax.plot(x, [e["loss"] for e in eps], color=theme.INK_BLACK, lw=2.0, label="train")
+    # figsize + dpi + linewidth come from the shared theme (H15); the test trace
+    # is dashed so the two series survive a grayscale print (H13).
+    fig, ax = plt.subplots(figsize=(6.9, 3.881))
+    ax.plot(x, [e["loss"] for e in eps], color=theme.INK_BLACK, label="train")
     ax.plot(
         x, [e.get("test_loss") for e in eps],
-        color=theme.DEEP_RED, lw=2.0, label="test",
+        color=theme.DEEP_RED, ls="--", label="test",
     )
     ax.set_xlabel("epoch")
     ax.set_ylabel("cross-entropy loss")
@@ -111,12 +138,15 @@ def plot_accuracy(metrics: dict, stem: Path) -> None:
     theme.apply()
     eps = _epochs(metrics)
     x = [e["ep"] for e in eps]
-    fig, ax = plt.subplots(figsize=(8.0, 4.5), dpi=150)
+    # figsize + dpi + linewidth come from the shared theme (H15); the chance
+    # floor is a thin dashed grey reference line, distinct from the near-black
+    # accuracy trace without a second chromatic accent (H13).
+    fig, ax = plt.subplots(figsize=(6.9, 3.881))
     ax.axhline(
         CHANCE_PCT, color=theme.GREY_MID, lw=1.0, ls="--",
         label=f"chance ({CHANCE_PCT:.0f}%)",
     )
-    ax.plot(x, [e["acc"] for e in eps], color=theme.INK_BLACK, lw=2.0, label="test accuracy")
+    ax.plot(x, [e["acc"] for e in eps], color=theme.INK_BLACK, label="test accuracy")
     ax.set_xlabel("epoch")
     ax.set_ylabel("test accuracy (%)")
     ax.set_xlim(min(x), max(x))
@@ -160,7 +190,9 @@ def main() -> None:
         first_acc = eps[0]["acc"]
         payload = {
             "n_train_subset": SCALE["max_samples"],
+            "n_classes": N_CLASSES,
             "epochs": len(eps),
+            "first_epoch": eps[0]["ep"],
             "chance_pct": CHANCE_PCT,
             "first_epoch_acc_pct": first_acc,
             "best_acc_pct": metrics.get("best_acc"),
@@ -168,8 +200,25 @@ def main() -> None:
             "final_acc_pct": eps[-1]["acc"],
             "first_epoch_loss": eps[0]["loss"],
             "final_loss": eps[-1]["loss"],
+            "first_nan_epoch": _first_nan_epoch(eps),
             "loss_fell": eps[-1]["loss"] < eps[0]["loss"],
             "beat_chance": (metrics.get("best_acc") or 0) > CHANCE_PCT,
+            # Every config input the writeup quotes, sourced from SCALE /
+            # TRAIN_ARGS so the Methods table and prose can never drift from the
+            # run. dt/t are the integration grid; theta/strength the regulariser.
+            "config": {
+                "n_hidden": SCALE["n_hidden"],
+                "dt_ms": SCALE["dt"],
+                "t_ms": int(SCALE["t_ms"]),
+                "t_steps": int(SCALE["t_ms"] / SCALE["dt"]),
+                "lr": SCALE["lr"],
+                "weight_decay": SCALE["weight_decay"],
+                "batch_size": int(_train_arg("--batch-size")),
+                "fr_reg_upper_theta": float(_train_arg("--fr-reg-upper-theta")),
+                "fr_reg_upper_strength": float(_train_arg("--fr-reg-upper-strength")),
+                "n_train_pool": N_TRAIN_POOL,
+                "plan_threshold_pct": PLAN_THRESHOLD_PCT,
+            },
         }
 
         duration_s = time.monotonic() - t_start

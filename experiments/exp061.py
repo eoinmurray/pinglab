@@ -108,6 +108,13 @@ CELLS: list[dict] = [
     for _dt in DT_SWEEP_MS
 ]
 
+
+def _recipe_val(flag: str) -> str:
+    """The value that follows `flag` in the RECIPE list — a single source of truth
+    so the writeup can interpolate config inputs (n-hidden, lr, …) straight from
+    the recipe rather than re-typing them in prose."""
+    return RECIPE[RECIPE.index(flag) + 1]
+
 SCALE = {
     "dataset": "shd",
     "sweep": "Δt ∈ {1.0, 0.5, 0.25} ms",
@@ -327,10 +334,11 @@ def plot_stability(stats: list[dict], stem: Path) -> None:
     theme.apply()
     trained = [s for s in stats if s.get("trained")]
     dts = [s["dt"] for s in trained]
-    fig, axes = plt.subplots(1, 3, figsize=(11.0, 3.6), dpi=150)
+    fig, axes = plt.subplots(1, 3, figsize=(6.5, 2.4))
 
+    # H13: separate subplots stay near-black; no decorative per-panel accent.
     axes[0].plot(dts, [100 * s["nan_epoch_rate"] for s in trained],
-                 "o-", color=theme.DEEP_RED, lw=2.0, ms=7)
+                 "o-", color=theme.INK_BLACK, lw=2.0, ms=7)
     axes[0].set_ylabel("NaN-epoch rate (%)")
     axes[0].set_ylim(bottom=-2)
 
@@ -354,17 +362,24 @@ def plot_grad_trace(stem: Path) -> None:
     """Per-epoch max pre-clip grad norm, one line per Δt (log y) — shows WHEN the
     gradient spikes fire, not just their peak."""
     theme.apply()
-    fig, ax = plt.subplots(figsize=(8.0, 4.5), dpi=150)
-    colours = [theme.DEEP_RED, theme.AMBER, theme.INK_BLACK]
+    fig, ax = plt.subplots(figsize=(6.5, 3.66))
+    # H13: near-black by default, at most one accent (red for the finest Δt), and a
+    # distinct line style per Δt so the three traces survive a grayscale print and
+    # read for colour-blind viewers — not colour alone.
+    styles = [
+        (theme.INK_BLACK, "-"),
+        (theme.INK_BLACK, "--"),
+        (theme.DEEP_RED, ":"),
+    ]
     drew = False
-    for cell, colour in zip(CELLS, colours):
+    for cell, (colour, ls) in zip(CELLS, styles):
         p = cell_dir(cell["name"]) / "metrics.json"
         if not p.exists():
             continue
         eps = json.loads(p.read_text()).get("epochs") or []
         x = [e["ep"] for e in eps]
         y = [e.get("grad_norm_max", e.get("grad_norm")) for e in eps]
-        ax.plot(x, y, "-", color=colour, lw=1.8, label=f"Δt = {cell['dt']:g} ms")
+        ax.plot(x, y, ls=ls, color=colour, lw=1.8, label=f"Δt = {cell['dt']:g} ms")
         drew = True
     if drew:
         ax.set_yscale("log")
@@ -472,6 +487,21 @@ def main() -> None:
             "max_samples": ms,
             "epochs": ep,
             "compute": _compute_label(),
+            # Config inputs held fixed across the Δt sweep (exp060's Rung A recipe),
+            # surfaced here so the writeup interpolates every one from data instead
+            # of hand-typing them. t_ms drives T_steps = T/Δt in the writeup; the
+            # dt values themselves come from each cell's `dt`.
+            "config": {
+                "n_hidden": int(_recipe_val("--n-hidden")),
+                "n_seeds": len({c["seed"] for c in CELLS}),
+                "t_ms": int(T_MS),
+                "lr": float(_recipe_val("--lr")),
+                "weight_decay": float(_recipe_val("--weight-decay")),
+                "batch_size": int(_recipe_val("--batch-size")),
+                "fr_reg_upper_theta": int(_recipe_val("--fr-reg-upper-theta")),
+                "fr_reg_upper_strength": float(_recipe_val("--fr-reg-upper-strength")),
+                "local_subset": LOCAL_SUBSET,
+            },
             "n_cells": len(CELLS),
             "n_trained": len(trained),
             "cells": stats,

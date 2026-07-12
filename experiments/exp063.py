@@ -85,6 +85,12 @@ RECIPE: list[str] = [
 ]
 
 
+def _recipe_val(flag: str) -> str:
+    """Read the value following a flag in RECIPE (so config numbers in the
+    writeup are interpolated from the same source that drives training)."""
+    return RECIPE[RECIPE.index(flag) + 1]
+
+
 def _wd_label(wd: float) -> str:
     """Cell-name-safe label for a decay value: 0 → wd0, 1e-3 → wd1em3."""
     if wd == 0:
@@ -274,24 +280,30 @@ def _wd_ticks(ax, wds: list[float]) -> None:
 
 
 def plot_decay_sweep(stats: list[dict], stem: Path) -> None:
-    """NaN-epoch rate, max ‖W_ee‖ (log), and best accuracy vs weight decay."""
+    """NaN-epoch rate, max ‖W_ee‖, and best accuracy vs weight decay."""
     theme.apply()
     trained = sorted([s for s in stats if s.get("trained")], key=lambda s: s["wd"])
     wds = [s["wd"] for s in trained]
     x = range(len(trained))
-    fig, axes = plt.subplots(1, 3, figsize=(11.0, 3.6), dpi=150)
+    # Column-width multi-panel row (H11/H12: ≈6.5 in wide, one aspect). dpi and
+    # linewidth come from theme.apply(), not per-call overrides (H15).
+    fig, axes = plt.subplots(1, 3, figsize=(6.5, 2.8))
 
+    # Separate subplots stay near-black — no decorative per-panel colour (H13).
     axes[0].plot(x, [100 * s["nan_epoch_rate"] for s in trained], "o-",
-                 color=theme.DEEP_RED, lw=2.0, ms=7)
+                 color=theme.INK_BLACK, ms=6)
     axes[0].set_ylabel("NaN-epoch rate (%)")
-    axes[0].set_ylim(bottom=-2)
+    axes[0].set_ylim(bottom=0)
 
+    # Zero-based y-axis: ‖W_ee‖ barely moves across the sweep, so an auto-zoomed
+    # axis would visually exaggerate a flat quantity (plot honesty, H13/H2).
     axes[1].plot(x, [s["max_wee_norm"] for s in trained], "o-",
-                 color=theme.INK_BLACK, lw=2.0, ms=7)
+                 color=theme.INK_BLACK, ms=6)
     axes[1].set_ylabel("max ‖W_ee‖")
+    axes[1].set_ylim(bottom=0)
 
     axes[2].plot(x, [s["best_acc_pct"] for s in trained], "o-",
-                 color=theme.INK_BLACK, lw=2.0, ms=7)
+                 color=theme.INK_BLACK, ms=6)
     axes[2].axhline(CHANCE_PCT, color=theme.GREY_MID, lw=1.0, ls="--")
     axes[2].set_ylabel("best test accuracy (%)")
 
@@ -378,6 +390,19 @@ def main() -> None:
             "max_samples": ms,
             "epochs": ep,
             "compute": _compute_label(),
+            # Config inputs the writeup interpolates instead of hand-typing them:
+            # every fixed recipe number the prose/table/captions cite, sourced
+            # from the same RECIPE/SCALE that drives training.
+            "config": {
+                "n_hidden": int(_recipe_val("--n-hidden")),
+                "batch_size": int(_recipe_val("--batch-size")),
+                "lr": float(_recipe_val("--lr")),
+                "theta_u": int(_recipe_val("--fr-reg-upper-theta")),
+                "s_u": float(_recipe_val("--fr-reg-upper-strength")),
+                "t_ms": T_MS,
+                "dt_ms": DT_MS,
+                "seeds": SCALE["seeds"],
+            },
             "n_cells": len(CELLS),
             "n_trained": len(trained),
             "cells": stats,
