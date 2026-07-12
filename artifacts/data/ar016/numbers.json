@@ -1,9 +1,23 @@
 {
-  "status": "measure-blocked",
-  "verified_memory_corpus": 44,
-  "search_pool_uncurated": 344,
-  "estimated_true_size": null,
-  "recall_pct": null,
-  "reason": "Automated keyword capture-recapture is invalid for this scope: mechanism-carries-function membership is an expert-judgment relation that no keyword predicate replicates. Strict (mechanism-keyword) filters drop canonical in-scope papers whose abstracts are function-forward (Fries 2015, Womelsdorf 2007, Buzsaki-Wang 2012); loose (gamma+function) filters admit the balloon the scope excludes. Three measurement attempts logged in runlog.jsonl (m=0, then broad-balloon N=1811, then N=1034 with 36/44 memory papers dropped).",
-  "next_step": "citation-graph escalation (runbook phase 6): sample recall via anchor + memory reference/citation networks, which encode the semantic 'these papers talk to each other' relation that keywords miss."
+  "corpus_in_scope": 125,
+  "n_A_memory": 80,
+  "n_B_search": 66,
+  "m_overlap": 21,
+  "memory_only": 59,
+  "search_only": 45,
+  "estimated_true_size": 246,
+  "estimated_true_size_ci95": [
+    175,
+    316
+  ],
+  "recall_pct": 51,
+  "abstractless_rescued_via_memory_judgment": 46,
+  "method": "Chapman capture-recapture; single population; membership = two-stage abstract judge where abstract present, else memory harvest judgment (abstract-blind verdicts unreliable on seminal abstract-less papers); non-paper DOIs removed",
+  "status": "measured",
+  "caveats": [
+    "abstract-availability bias: OpenAlex lacks abstracts for many seminal papers; those judged by memory not text",
+    "two heterogeneous capture channels (memory=old/seminal, search=recent/indexed) -> rough estimate",
+    "single membership judge per paper (no cross-judge vote)",
+    "keyless: no Semantic Scholar/PubMed"
+  ]
 }
