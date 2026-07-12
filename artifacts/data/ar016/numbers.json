@@ -85,5 +85,24 @@
       "citation_candidates": 1154,
       "embedding_candidates": 263
     }
+  },
+  "axis_distribution": {
+    "communication-coherence-routing": 39,
+    "phase-coding-timing": 26,
+    "mechanism-review": 19,
+    "attention-selection": 17,
+    "causal-optogenetic-performance": 17,
+    "coincidence-gain-window": 16,
+    "stimulus-competition": 15,
+    "binding-synchrony": 12
+  },
+  "field_coverage": {
+    "title": 161,
+    "authors": 160,
+    "year": 161,
+    "venue": 160,
+    "primary_axis": 161,
+    "rationale": 161,
+    "abstract": 125
   }
 }
