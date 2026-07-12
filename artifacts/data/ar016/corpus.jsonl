@@ -123,3 +123,39 @@
 {"doi": "10.48550/arxiv.q-bio/0611030", "title": "Attentional modulation in layer 4 of the visual cortex could be mediated by interneurons with complex receptive field characteristics", "membership": "in", "channels": ["search"], "abstract_judged": true, "verified": true}
 {"doi": "10.7554/elife.69111", "title": "Interneuron-specific gamma synchronization indexes cue uncertainty and prediction errors in lateral prefrontal and anterior cingulate cortex", "membership": "in", "channels": ["memory", "search"], "abstract_judged": true, "verified": true}
 {"doi": "10.7554/elife.78349", "title": "Prefrontal PV interneurons facilitate attention and are linked to attentional dysfunction in a mouse model of absence epilepsy", "membership": "in", "channels": ["search"], "abstract_judged": true, "verified": true}
+{"doi": "10.1073/pnas.1114223109", "title": "", "membership": "in", "channels": ["citation"], "abstract_judged": true, "verified": true}
+{"doi": "10.1016/s0304-3940(98)00676-4", "title": "", "membership": "in", "channels": ["citation"], "abstract_judged": true, "verified": true}
+{"doi": "10.1152/jn.01038.2014", "title": "", "membership": "in", "channels": ["citation"], "abstract_judged": true, "verified": true}
+{"doi": "10.1007/s11571-021-09767-x", "title": "", "membership": "in", "channels": ["citation"], "abstract_judged": true, "verified": true}
+{"doi": "10.1088/0954-898x/13/1/302", "title": "", "membership": "in", "channels": ["citation"], "abstract_judged": true, "verified": true}
+{"doi": "10.1016/j.neuron.2010.09.017", "title": "", "membership": "in", "channels": ["citation"], "abstract_judged": true, "verified": true}
+{"doi": "10.1073/pnas.0809302105", "title": "", "membership": "in", "channels": ["citation"], "abstract_judged": true, "verified": true}
+{"doi": "10.1113/jp274986", "title": "", "membership": "in", "channels": ["citation"], "abstract_judged": true, "verified": true}
+{"doi": "10.1371/journal.pcbi.1000239", "title": "", "membership": "in", "channels": ["citation"], "abstract_judged": true, "verified": true}
+{"doi": "10.1016/j.celrep.2021.109083", "title": "", "membership": "in", "channels": ["citation"], "abstract_judged": true, "verified": true}
+{"doi": "10.1016/j.neuroimage.2023.120375", "title": "", "membership": "in", "channels": ["citation"], "abstract_judged": true, "verified": true}
+{"doi": "10.1523/eneuro.0106-21.2021", "title": "", "membership": "in", "channels": ["citation"], "abstract_judged": true, "verified": true}
+{"doi": "10.1101/2020.07.09.194811", "title": "", "membership": "in", "channels": ["citation"], "abstract_judged": true, "verified": true}
+{"doi": "10.1016/j.pbiomolbio.2010.10.004", "title": "", "membership": "in", "channels": ["citation"], "abstract_judged": true, "verified": true}
+{"doi": "10.1016/j.biopsych.2015.02.005", "title": "", "membership": "in", "channels": ["citation"], "abstract_judged": true, "verified": true}
+{"doi": "10.1371/journal.pcbi.1000342", "title": "", "membership": "in", "channels": ["citation"], "abstract_judged": true, "verified": true}
+{"doi": "10.1523/eneuro.0388-18.2018", "title": "", "membership": "in", "channels": ["citation"], "abstract_judged": true, "verified": true}
+{"doi": "10.1038/s41467-017-00936-3", "title": "", "membership": "in", "channels": ["citation"], "abstract_judged": true, "verified": true}
+{"doi": "10.1038/nature10360", "title": "", "membership": "in", "channels": ["citation"], "abstract_judged": true, "verified": true}
+{"doi": "10.1523/jneurosci.4818-09.2010", "title": "", "membership": "in", "channels": ["citation"], "abstract_judged": true, "verified": true}
+{"doi": "10.1101/784330", "title": "", "membership": "in", "channels": ["citation"], "abstract_judged": true, "verified": true}
+{"doi": "10.1007/s12559-023-10202-y", "title": "", "membership": "in", "channels": ["citation"], "abstract_judged": true, "verified": true}
+{"doi": "10.1016/j.cub.2014.10.017", "title": "", "membership": "in", "channels": ["citation"], "abstract_judged": true, "verified": true}
+{"doi": "10.1007/s11571-011-9169-6", "title": "", "membership": "in", "channels": ["citation"], "abstract_judged": true, "verified": true}
+{"doi": "10.3389/fnhum.2010.00205", "title": "", "membership": "in", "channels": ["citation"], "abstract_judged": true, "verified": true}
+{"doi": "10.1162/neco_a_00785", "title": "", "membership": "in", "channels": ["citation"], "abstract_judged": true, "verified": true}
+{"doi": "10.1155/2020/8823111", "title": "", "membership": "in", "channels": ["citation"], "abstract_judged": true, "verified": true}
+{"doi": "10.1016/j.celrep.2022.110693", "title": "", "membership": "in", "channels": ["citation"], "abstract_judged": true, "verified": true}
+{"doi": "10.1111/ejn.12287", "title": "", "membership": "in", "channels": ["citation"], "abstract_judged": true, "verified": true}
+{"doi": "10.48550/arxiv.q-bio/0410019", "title": "", "membership": "in", "channels": ["citation"], "abstract_judged": true, "verified": true}
+{"doi": "10.1093/cercor/bhad077", "title": "", "membership": "in", "channels": ["citation"], "abstract_judged": true, "verified": true}
+{"doi": "10.7554/elife.89519", "title": "", "membership": "in", "channels": ["citation"], "abstract_judged": true, "verified": true}
+{"doi": "10.1038/s41598-018-26779-6", "title": "", "membership": "in", "channels": ["citation"], "abstract_judged": true, "verified": true}
+{"doi": "10.1101/2023.04.28.538604", "title": "", "membership": "in", "channels": ["citation"], "abstract_judged": true, "verified": true}
+{"doi": "10.1101/2020.12.09.417782", "title": "", "membership": "in", "channels": ["citation"], "abstract_judged": true, "verified": true}
+{"doi": "10.7554/elife", "title": "", "membership": "in", "channels": ["citation"], "abstract_judged": true, "verified": true}
