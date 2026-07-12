@@ -139,42 +139,31 @@
 
   All #n.corpus_in_hand papers, grouped by primary function axis and sorted by year, each with a one-sentence statement of how the E–I/PING gamma mechanism carries its functional claim and a tag for the channel that found it (_m_ memory · _s_ search · _m+s_ both · _c_ citation).
 
-  #let bib-css = "
-    .cb-entry{margin:0 0 .85rem 0;line-height:1.55;}
-    .cb-entry .byl{font-weight:650;}
-    .cb-entry em{font-style:italic;}
-    .cb-doi{color:var(--muted);text-decoration:none;font-size:.88em;margin-left:.25em;}
-    .cb-doi:hover{text-decoration:underline;color:var(--ink);}
-    .cb-why{font-size:var(--fs-small);color:var(--muted);margin:.2rem 0 0 1.4rem;line-height:1.5;}
-    .cb-chan{display:inline-block;font-size:.72em;letter-spacing:.03em;color:var(--muted);border:1px solid currentColor;border-radius:3px;padding:0 .35em;margin-left:.45em;opacity:.6;vertical-align:.08em;}
-  "
   #context {
     let web = target() == "html"
-    if web { html.elem("style", bib-css) }
     for (key, label) in axis-order {
       let items = cv.filter(r => r.axis == key)
       heading(level: 3, label + " (" + str(items.len()) + ")")
-      for r in items {
-        if web {
-          html.elem("div", attrs: (class: "cb-entry"), {
-            html.elem("span", attrs: (class: "byl"), r.byline)
-            ". " + r.title + ". "
-            if r.venue != "" { html.elem("em", r.venue); ". " }
-            html.elem("a", attrs: (class: "cb-doi", href: "https://doi.org/" + r.doi, target: "_blank", rel: "noopener"), "doi:" + r.doi)
-            html.elem("div", attrs: (class: "cb-why"), {
-              r.rationale
-              html.elem("span", attrs: (class: "cb-chan"), r.channel)
+      if web {
+        // reuse the house citation style: ol.refs + .doi from .demolab/style.css
+        html.elem("ol", attrs: (class: "refs"), {
+          for r in items {
+            html.elem("li", {
+              html.elem("strong", r.byline)
+              ". " + r.title + ". "
+              if r.venue != "" { html.elem("em", r.venue); ". " }
+              html.elem("a", attrs: (class: "doi", href: "https://doi.org/" + r.doi, target: "_blank", rel: "noopener"), "doi:" + r.doi)
+              html.elem("br")
+              r.rationale + " "
+              html.elem("span", attrs: (class: "doi"), "[" + r.channel + "]")
             })
-          })
-        } else {
-          block(below: 0.9em, {
-            strong(r.byline); ". "; r.title; ". "
-            if r.venue != "" { emph(r.venue); ". " }
-            text(fill: luma(110), size: 0.9em)[doi:#r.doi]
-            linebreak()
-            pad(left: 1.2em, text(size: 0.9em, fill: luma(100))[#r.rationale #h(0.3em) #box(stroke: 0.5pt + luma(180), inset: (x: 0.35em), radius: 2pt)[#text(size: 0.85em)[#r.channel]]])
-          })
-        }
+          }
+        })
+      } else {
+        enum(..items.map(r => [
+          #strong(r.byline). #r.title.#if r.venue != "" [ #emph(r.venue).] #text(fill: luma(120))[doi:#r.doi] \
+          #r.rationale #text(fill: luma(140))[\[#r.channel\]]
+        ]))
       }
     }
   }
