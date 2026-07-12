@@ -1,7 +1,7 @@
 {
-  "run_id": "r001",
-  "git_sha": "a5a6097",
-  "duration_s": 0.4,
+  "run_id": "r004",
+  "git_sha": "14e1efc",
+  "duration_s": 0.2,
   "duration": "0s",
   "wd_sweep": [
     0.0,
@@ -14,6 +14,16 @@
   "max_samples": 1000,
   "epochs": 30,
   "compute": "runpod",
+  "config": {
+    "n_hidden": 256,
+    "batch_size": 32,
+    "lr": 0.001,
+    "theta_u": 100,
+    "s_u": 0.06,
+    "t_ms": 1000.0,
+    "dt_ms": 1.0,
+    "seeds": 1
+  },
   "n_cells": 4,
   "n_trained": 4,
   "cells": [

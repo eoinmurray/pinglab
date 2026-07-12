@@ -42,6 +42,27 @@
 #let cyc_e_hi = calc.round(cyc_at(100.0, "e_rate_hz"), digits: 1)
 #let cyc_acc_hi = calc.round(cyc_at(100.0, "acc"), digits: 1)
 
+// Rate-matched anchor for the compound figure and the strict same-mean claim:
+// σ = 14 ms — a single magnitude used for BOTH arms so the compound reads as one
+// manipulation strength, opposite outcome. It is a measured grid point on each
+// sweep; there the displaced-burst tail has barely reached the trial edge, so
+// realised I is still within a few percent of baseline while the per-cell E has
+// fully collapsed and the cycle-coherent E has risen well above baseline.
+#let anchor_sigma = 14
+#let cyc_e_anchor = calc.round(cyc_at(14.0, "e_rate_hz"), digits: 1)
+#let cyc_acc_anchor = calc.round(cyc_at(14.0, "acc"), digits: 1)
+#let cyc_i_anchor = calc.round(cyc_at(14.0, "i_rate_hz"), digits: 1)
+
+// Realised (measured) I rates for the "mean inhibition held fixed" check:
+// both arms hold it at the anchor; only cycle-coherent at σ = 100 ms drops it
+// (finite-window truncation of the most-displaced bursts).
+#let base_i = calc.round(by_cond("baseline", "i_rate_hz"), digits: 1)
+#let cell_i5 = calc.round(cell_at(5.0, "i_rate_hz"), digits: 1)
+#let cell_i_anchor = calc.round(cell_at(14.0, "i_rate_hz"), digits: 1)
+#let cyc_i_hi = calc.round(cyc_at(100.0, "i_rate_hz"), digits: 1)
+#let cyc_i_drop_pct = calc.round(100 * (base_i - cyc_i_hi) / base_i)
+#let cyc_i_anchor_drop_pct = calc.round(100 * (base_i - cyc_i_anchor) / base_i)
+
 // Gamma period 1/f_γ: the predicted transition timescale.
 #let period_ms = calc.round(1000 / cfg.f_gamma_reference_hz, digits: 1)
 
@@ -62,8 +83,20 @@
   forward pass, then an override tensor replaces it in a second pass via the
   #link("/exp037/")[exp037] hidden-perturbation hook. The E-population experiences only
   the override I-stream through $W^(I E)$; the readout consumes the perturbed E
-  spikes. Mean per-cell I rate is matched to the baseline to four decimals across
-  every perturbation.
+  spikes.
+
+  Every perturbation only _moves_ spikes in time (or, for Poisson, redraws at the
+  matched count) — none adds or removes them — so the mean per-cell I rate is
+  matched to baseline by construction: exactly for phase-shuffle, and to within
+  ≈ #cyc_i_anchor_drop_pct% for the jitter families across the range where each
+  result is read. The one exception is cycle-coherent jitter at the largest $sigma$:
+  a Gaussian block offset with $sigma = 100$ ms displaces part of each burst past
+  the ends of the fixed presentation window, where it is clamped and lost, so the
+  _realised_ I rate falls to #cyc_i_hi Hz (#cyc_i_drop_pct% below the #base_i Hz
+  baseline). Realised I is therefore plotted on every sweep, and the strict
+  same-mean-inhibition comparison (the compound figure below) is anchored at
+  $sigma = #anchor_sigma$ ms, where realised I is still within
+  #cyc_i_anchor_drop_pct% of baseline on both arms.
 
   Five perturbation families:
 
@@ -93,21 +126,28 @@
     image(
       "/artifacts/data/exp042/rhythm_compound.png",
       width: 100%,
-      alt: "A two-by-two panel. Top row: two single-trial rasters of trained PING (E spikes black, I spikes red). Top left, per-I-cell jitter at sigma 5 ms, where the I-bursts have dissolved into continuous asynchronous firing and E is silent. Top right, cycle-coherent jitter at sigma 100 ms, where the I-bursts stay sharp but are displaced and dense E firing fills the gaps. Bottom row: two twin-axis line plots of hidden E rate (black diamonds) and accuracy (red squares) versus jitter sigma. Bottom left (per-cell) both fall to near zero; bottom right (cycle-coherent) E rate rises while accuracy stays high.",
+      alt: "A two-by-two panel; both top rasters use the same jitter magnitude, sigma 14 ms, differing only in the kind of jitter. Top row: two single-trial rasters of trained PING (E spikes black, I spikes red). Top left, per-I-cell jitter, where the I-bursts have dissolved into continuous asynchronous firing and E is silent. Top right, cycle-coherent jitter, where the I-bursts stay sharp but are displaced and E firing appears in the gaps; both panels have near-identical realised I rates. Bottom row: two twin-axis line plots of hidden E rate (black diamonds) and accuracy (red squares) versus jitter sigma, each with a grey realised mean I-rate trace. Bottom left (per-cell) E and accuracy fall to near zero while realised I stays flat near 53 Hz; bottom right (cycle-coherent) E rate rises and accuracy stays high, while the grey realised-I trace holds flat then droops at the largest sigma.",
     ),
     caption: [
       Two inference-time perturbations of the trained-PING I-stream, *both holding
-      mean per-cell I rate fixed*, push the E rate in _opposite_ directions, which a
-      mean-inhibition account cannot produce. *Left column, smear the bursts:*
-      per-I-cell jitter (σ = 5 ms shown) scatters the spikes within each burst,
-      destroying synchrony while leaving the mean untouched; the burst dissolves into
-      a continuous shunt, the E rate falls to zero, and accuracy collapses toward
-      chance (#pois_acc% at the Poisson limit). *Right column, move the bursts:*
-      cycle-coherent jitter (σ = 100 ms shown) displaces each gamma burst bodily but
-      keeps its within-burst synchrony; the I-stream opens gaps and the E rate _rises_
-      from #base_e Hz at baseline to #cyc_e_hi Hz, accuracy holding near #cyc_acc_hi%.
-      Same mean inhibition, opposite outcome: what gates the E rate is the _timing_ of
-      inhibition, the rhythm, not its average level.
+      the mean per-cell I rate fixed at ≈ #base_i Hz*, push the E rate in _opposite_
+      directions, which a mean-inhibition account cannot produce. *Both columns use
+      the same jitter magnitude, σ = #anchor_sigma ms* — only the _kind_ of jitter
+      differs. *Left column, smear the bursts:* per-I-cell jitter (realised I
+      #cell_i_anchor Hz) scatters the spikes within each burst, destroying synchrony
+      while leaving the mean untouched; the burst dissolves into a continuous shunt,
+      the E rate falls to zero, and accuracy collapses toward chance (#pois_acc% at the
+      Poisson limit). *Right column, move the bursts:* cycle-coherent jitter (realised
+      I #cyc_i_anchor Hz — within #cyc_i_anchor_drop_pct% of the left column) displaces
+      each gamma burst bodily but keeps its within-burst synchrony; the I-stream opens
+      gaps and the E rate _rises_ from #base_e Hz at baseline to #cyc_e_anchor Hz,
+      accuracy holding near #cyc_acc_anchor%. Same jitter magnitude, same mean
+      inhibition (both ≈ #base_i Hz), opposite outcome: what gates the E rate is the
+      _timing_ of inhibition, the rhythm, not its average level. The cycle-coherent
+      rise continues past the full phase-shuffle level to #cyc_e_hi Hz by σ = 100 ms
+      (bottom-right sweep), but there the finite trial window truncates the
+      most-displaced bursts and realised I falls #cyc_i_drop_pct%, so the strict
+      rate-matched reading is taken at σ = #anchor_sigma ms; see Methods.
     ],
   )
 
@@ -117,7 +157,7 @@
     image(
       "/artifacts/data/exp042/cell_jitter_sweep.svg",
       width: 100%,
-      alt: "Twin-axis line plot: hidden E rate (black diamonds, left axis) and test accuracy (red squares, right axis) versus per-I-cell jitter sigma in milliseconds. Both fall steeply from baseline near zero sigma; E rate is essentially zero by 5 ms and accuracy reaches chance by 9 ms. Horizontal dashed lines mark baseline 9.1 Hz and the rate-matched Poisson floor; a dotted vertical line marks tau_GABA = 6 ms.",
+      alt: "Twin-axis line plot: hidden E rate (black diamonds, left axis) and test accuracy (red squares, right axis) versus per-I-cell jitter sigma in milliseconds on a symlog axis. Both fall steeply from baseline at small sigma; E rate is essentially zero by 5 ms and accuracy reaches chance by 9 ms. A grey line shows the realised mean I rate, flat near 53 Hz across the whole sweep and dipping only slightly to about 49 Hz by 50 ms.",
     ),
     caption: [
       Per-I-cell jitter sweep, three seeds. Each spike receives an independent
@@ -127,9 +167,10 @@
       (#cell_e5 Hz) by $sigma ≈ 5$ ms, below $tau_"GABA" = 6$ ms. *Accuracy (red
       squares, right axis) holds at ≈ #cell_acc05% up to $sigma = 0.5$ ms*, then
       collapses through #cell_acc1% (σ = 1), #cell_acc2% (σ = 2) and #cell_acc5%
-      (σ = 5), bottoming at chance (#cell_acc9%) by $sigma = 9$ ms. The
-      $sigma -> oo$ asymptote is the rate-matched Poisson regime: E silent, accuracy
-      at chance.
+      (σ = 5), bottoming at chance (#cell_acc9%) by $sigma = 9$ ms. The grey trace is
+      the realised mean I rate, held flat near #base_i Hz across the sweep: the E
+      collapse happens under matched inhibition. The $sigma -> oo$ asymptote is the
+      rate-matched Poisson regime: E silent, accuracy at chance.
     ],
   )
 
@@ -157,17 +198,22 @@
     image(
       "/artifacts/data/exp042/jitter_sweep.svg",
       width: 100%,
-      alt: "Twin-axis line plot on a symlog sigma axis: hidden E rate (black diamonds, left axis) rises monotonically from about 9 Hz to 66 Hz as cycle-coherent jitter sigma grows, while test accuracy (red squares, right axis) declines gently from about 91 to 82 percent. Horizontal dashed lines mark baseline 9.1 Hz and the phase-shuffle level 25.9 Hz; a dotted vertical line marks 1 over f_gamma = 22.8 ms.",
+      alt: "Twin-axis line plot on a symlog sigma axis: hidden E rate (black diamonds, left axis) rises monotonically from about 9 Hz to 66 Hz as cycle-coherent jitter sigma grows, while test accuracy (red squares, right axis) declines gently from about 91 to 82 percent. A grey line shows the realised mean I rate: flat near 53 Hz up to about sigma 14 ms, then drooping to about 40 Hz by sigma 100 ms.",
     ),
     caption: [
       E rate (black diamonds) and accuracy (red squares) vs cycle-coherent jitter
-      $sigma$, three seeds. Horizontal dashed lines mark the baseline rate (#base_e Hz)
-      and the full phase-shuffle level (#shuf_e Hz, the reference with within-burst
-      structure destroyed); the vertical dotted line sits at $sigma = 1 \/ f_gamma$
-      ≈ #period_ms ms, the predicted transition timescale. As $sigma$ grows the
-      displaced bursts open wider gaps and the E rate climbs _past_ the phase-shuffle
-      level to #cyc_e_hi Hz by $sigma = 100$ ms, while accuracy declines only gently,
-      holding near #cyc_acc_hi%.
+      $sigma$, three seeds. As $sigma$ grows the displaced bursts open wider gaps and
+      the E rate climbs from baseline (#base_e Hz) _past_ the full phase-shuffle level
+      (#shuf_e Hz, the reference with within-burst structure destroyed) to #cyc_e_hi Hz
+      by $sigma = 100$ ms, with the sharpest rise near the predicted transition
+      timescale $sigma = 1 \/ f_gamma$ ≈ #period_ms ms; accuracy declines only gently,
+      holding near #cyc_acc_hi%. The grey trace is the realised mean I rate: it holds
+      within #cyc_i_anchor_drop_pct% of baseline through $sigma ≈ #anchor_sigma$ ms —
+      where the E rate has already risen to #cyc_e_anchor Hz — then droops to
+      #cyc_i_hi Hz (#cyc_i_drop_pct% below baseline) by $sigma = 100$ ms, as the finite
+      trial window truncates the most-displaced bursts. The strict same-mean-inhibition
+      comparison is read at the smaller $sigma$, where the rate is matched and the E
+      rise is already unambiguous.
     ],
   )
 
@@ -187,4 +233,23 @@
       accordingly.
     ],
   )
+
+  == Next steps
+
+  *Toroidal (wrapped) jitter, to extend the rate-matched range and disentangle
+  release from truncation.* The strict same-mean-inhibition claim is now anchored at
+  $sigma = #anchor_sigma$ ms, where realised I holds within #cyc_i_anchor_drop_pct% of
+  baseline on both arms and the E rate has already risen to #cyc_e_anchor Hz — the
+  qualitative result stands on rate-matched ground. Beyond $sigma ≈ 30$ ms, though,
+  the cycle-coherent E-rate rise and the realised-I droop become confounded: some of
+  the extra E firing is genuine gap-opening, and some is simply less inhibition
+  delivered, because the finite window clamps and loses the most-displaced bursts.
+  Wrapping each block offset modulo the trial length would restore exact spike-count
+  preservation at every $sigma$ and separate the two, at the cost of re-injecting a
+  wrapped burst at the opposite trial edge — a phase artifact of its own, so the
+  wrapped sweep is a robustness check, not a replacement. The prediction: if the
+  wrapped E rate still climbs past the phase-shuffle level (#shuf_e Hz), the release at
+  large $sigma$ is real; if it flattens there, part of the #cyc_e_hi Hz overshoot at
+  $sigma = 100$ ms was the truncation. Either way the anchored rhythm-vs-mean
+  conclusion is unaffected.
 ]

@@ -62,6 +62,13 @@ DT_MS = 1.0
 T_MS = 1000.0
 SUBSET = 1000
 EPOCHS = 30
+LR = 0.001
+BATCH_SIZE = 32
+N_HIDDEN = 256
+# Lower bound of the forward-pass state clamp (a conductance cannot be physically
+# negative). The upper cap G_CLAMP_MAX is imported from tools/snn/models so the
+# writeup's "floor at 0, cap at 100 µS" reads the same source the model enforces.
+G_CLAMP_MIN = 0.0
 
 PLUMBING_SUBSET = 64
 PLUMBING_EPOCHS = 2
@@ -74,10 +81,10 @@ RECIPE: list[str] = [
     "--dataset", "shd",
     "--t-ms", str(int(T_MS)),
     "--dt", str(DT_MS),
-    "--n-hidden", "256",
+    "--n-hidden", str(N_HIDDEN),
     "--model", "ping",
-    "--batch-size", "32",
-    "--lr", "0.001",
+    "--batch-size", str(BATCH_SIZE),
+    "--lr", str(LR),
     "--no-dales-law",
     "--w-ee", "0.3", "0.1",
     "--trainable-w-ee", "--trainable-w-ei", "--trainable-w-ie", "--trainable-w-ii",
@@ -103,7 +110,7 @@ SCALE = {
     "t_ms": T_MS,
     "dt_ms": DT_MS,
     "epochs": EPOCHS,
-    "n_hidden": 256,
+    "n_hidden": N_HIDDEN,
     "seeds": 1,
     "seed": SEED,
     "dales_law": False,
@@ -284,7 +291,7 @@ def plot_bars(stats: list[dict], stem: Path) -> None:
     labels = [s["label"] for s in trained]
     x = range(len(trained))
     colours = [theme.DEEP_RED if not s["clamp"] else theme.INK_BLACK for s in trained]
-    fig, axes = plt.subplots(1, 3, figsize=(11.5, 3.8), dpi=150)
+    fig, axes = plt.subplots(1, 3, figsize=(6.5, 3.66))  # 16:9 at column width (H11–H12)
 
     axes[0].bar(x, [100 * s["nan_epoch_rate"] for s in trained], color=colours, width=0.6)
     axes[0].set_ylabel("NaN-epoch rate (%)")
@@ -309,9 +316,13 @@ def plot_bars(stats: list[dict], stem: Path) -> None:
 def plot_loss_traces(stem: Path) -> None:
     """Test loss per epoch across the three cells — NaN epochs show as gaps."""
     theme.apply()
-    fig, ax = plt.subplots(figsize=(8.0, 4.5), dpi=150)
-    colours = [theme.DEEP_RED, theme.INK_BLACK, theme.ELECTRIC_CYAN]
-    for cell, colour in zip(CELLS, colours):
+    fig, ax = plt.subplots(figsize=(6.5, 3.66))  # 16:9 at column width (H11–H12)
+    # H13: near-black ink, a single red accent for the diverging free baseline,
+    # and the two clamped cells separated by line style so the figure survives a
+    # grayscale print and colour-blind readers.
+    colours = [theme.DEEP_RED, theme.INK_BLACK, theme.INK_BLACK]
+    styles = ["-", "--", ":"]
+    for cell, colour, style in zip(CELLS, colours, styles):
         p = cell_dir(cell["name"]) / "metrics.json"
         if not p.exists():
             continue
@@ -319,7 +330,7 @@ def plot_loss_traces(stem: Path) -> None:
         x = [e["ep"] for e in eps]
         y = [e.get("test_loss") if isinstance(e.get("test_loss"), (int, float))
              and math.isfinite(e.get("test_loss")) else float("nan") for e in eps]
-        ax.plot(x, y, "-", color=colour, lw=1.8, label=cell["label"])
+        ax.plot(x, y, style, color=colour, lw=1.8, label=cell["label"])
     ax.set_xlabel("epoch")
     ax.set_ylabel("test cross-entropy loss")
     ax.legend(fontsize=theme.SIZE_LEGEND, frameon=False)
@@ -406,12 +417,29 @@ def main() -> None:
                        + (f"; best stable accuracy {best_stable_acc:.1f}%"
                           if best_stable_acc is not None else ""))
 
+        # Config inputs the writeup quotes (hidden units, T, lr, batch, the state
+        # clamp's floor/cap) — sourced here so no number is hand-typed in the prose.
+        # G_CLAMP_MAX is imported from the model so the doc and the enforced clamp
+        # stay one number. Imported lazily to keep torch off the dispatch path.
+        sys.path.insert(0, str(SNN_TOOL.parent))
+        from models import G_CLAMP_MAX  # noqa: E402  (tools/snn added to sys.path above)
+
+        config = {
+            "n_hidden": N_HIDDEN,
+            "t_ms": T_MS,
+            "lr": LR,
+            "batch_size": BATCH_SIZE,
+            "g_clamp_min": G_CLAMP_MIN,
+            "g_clamp_max": G_CLAMP_MAX,
+        }
+
         payload = {
             "seed": SEED,
             "dt_ms": DT_MS,
             "max_samples": ms,
             "epochs": ep,
             "compute": _compute_label(),
+            "config": config,
             "n_cells": len(CELLS),
             "n_trained": len(by_name),
             "cells": stats,

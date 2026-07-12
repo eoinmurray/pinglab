@@ -54,6 +54,15 @@ GALLERY_SAMPLE_IDX = 0  # first matching utterance of each class
 SPREAD_CLASS = 0  # "null"
 SPREAD_N = 4
 
+# Gallery layout: 20 panels laid out ncols wide (nrows falls out of the count).
+GALLERY_NCOLS = 5
+
+# Firing-rate regulariser constants (Cramer et al. upper-rate bound) that the
+# NEXT entries use. Kept here so the writeup can read them off numbers.json
+# rather than hand-typing them into prose.
+RATE_TARGET_THETA_U = 100  # target upper bound on a unit's firing rate
+RATE_WEIGHT_S_U = 0.06  # strength of the penalty applied above that bound
+
 SCALE = {
     "dataset": "shd",
     "split": SPLIT,
@@ -97,10 +106,10 @@ def plot_gallery(events, labels, out_path: Path) -> dict:
         float(events[i][1].max()) * 1000.0 for _, i in idxs
     ) * 1.02
 
-    ncols = 5
+    ncols = GALLERY_NCOLS
     nrows = int(np.ceil(len(idxs) / ncols))
     fig, axes = plt.subplots(
-        nrows, ncols, figsize=(8.0, 4.5), dpi=200, sharex=True, sharey=True,
+        nrows, ncols, figsize=(6.5, 3.66), sharex=True, sharey=True,
     )
     axes = np.atleast_1d(axes).ravel()
     counts = {}
@@ -119,7 +128,7 @@ def plot_gallery(events, labels, out_path: Path) -> dict:
     fig.supxlabel("time (ms)", fontsize=theme.SIZE_LABEL)
     fig.supylabel("cochlear channel", fontsize=theme.SIZE_LABEL)
     fig.tight_layout()
-    fig.savefig(out_path, dpi=200)
+    fig.savefig(out_path)
     plt.close(fig)
     return counts
 
@@ -135,7 +144,7 @@ def plot_within_class(events, labels, out_path: Path) -> dict:
     xlim_ms = max(float(events[i][1].max()) * 1000.0 for i in idxs) * 1.02
 
     fig, axes = plt.subplots(
-        1, len(idxs), figsize=(8.0, 4.5), dpi=200, sharey=True,
+        1, len(idxs), figsize=(6.5, 3.66), sharey=True,
     )
     axes = np.atleast_1d(axes).ravel()
     used = {}
@@ -148,13 +157,8 @@ def plot_within_class(events, labels, out_path: Path) -> dict:
         used[f"sample_{i}"] = int(len(units))
 
     fig.supxlabel("time (ms)", fontsize=theme.SIZE_LABEL)
-    word = SHD_LABELS[SPREAD_CLASS]
-    fig.suptitle(
-        f'class {SPREAD_CLASS} · "{word}" · {len(idxs)} utterances',
-        fontsize=theme.SIZE_TITLE, y=1.02,
-    )
     fig.tight_layout()
-    fig.savefig(out_path, dpi=200)
+    fig.savefig(out_path)
     plt.close(fig)
     return used
 
@@ -183,16 +187,43 @@ def main() -> None:
 
         # Dataset-level summary numbers the writing can read off.
         ev_per_utt = np.array([len(events[i][0]) for i in range(len(events))])
+        # Per-utterance duration = time of the last spike (events carry times in s).
+        dur_per_utt = np.array(
+            [float(events[i][1].max()) for i in range(len(events))]
+        )
+        n_classes = int(len(set(labels.tolist())))
+        digits_per_lang = n_classes // 2  # 10 spoken digits per language
+
         payload = {
             "split": SPLIT,
             "n_utterances": int(len(labels)),
-            "n_classes": int(len(set(labels.tolist()))),
+            "n_classes": n_classes,
             "n_channels": SHD_N_IN,
             "events_per_utterance_median": float(np.median(ev_per_utt)),
             "events_per_utterance_min": int(ev_per_utt.min()),
             "events_per_utterance_max": int(ev_per_utt.max()),
+            "duration_min_s": float(dur_per_utt.min()),
+            "duration_median_s": float(np.median(dur_per_utt)),
+            "duration_max_s": float(dur_per_utt.max()),
             "gallery_event_counts": gallery_counts,
             "within_class_event_counts": spread_counts,
+            # Recipe constants + descriptive ranges the prose/captions cite, so no
+            # number is hand-typed into the writeup.
+            "config": {
+                "digit_min": 0,
+                "digit_max": digits_per_lang - 1,  # 9
+                "german_label_min": 0,
+                "german_label_max": digits_per_lang - 1,  # 9
+                "english_label_min": digits_per_lang,  # 10
+                "english_label_max": n_classes - 1,  # 19
+                "channel_min": 0,  # cochlear channels are 0-indexed
+                "spread_class": SPREAD_CLASS,  # 0 ("null")
+                "spread_panels": SPREAD_N,  # 4
+                "gallery_ncols": GALLERY_NCOLS,  # 5
+                "gallery_nrows": int(np.ceil(len(GALLERY_CLASSES) / GALLERY_NCOLS)),
+                "rate_target_theta_u": RATE_TARGET_THETA_U,  # 100
+                "rate_weight_s_u": RATE_WEIGHT_S_U,  # 0.06
+            },
         }
 
         duration_s = time.monotonic() - t_start

@@ -53,7 +53,6 @@ from helpers.fmt import format_duration  # noqa: E402
 from helpers.operating_point import (  # noqa: E402
     F_GAMMA_HZ,
     MODELS_DEFAULT_TAU_GABA_MS,
-    TAU_GABA_GAMMA_MS,
 )
 from helpers.paths import artifacts_and_figures  # noqa: E402
 from helpers.run_cli import run_cli  # noqa: E402
@@ -884,15 +883,12 @@ def plot_cell_jitter_raster_strip(
 
 
 def plot_cell_jitter_sweep(
-    cell_rows: list[dict], baseline_e_rate: float,
-    poisson_e_rate: float, out_path: Path, run_id: str,
-    tau_gaba_ms: float = TAU_GABA_GAMMA_MS,
+    cell_rows: list[dict], out_path: Path, run_id: str,
 ) -> None:
-    """Per-I-cell jitter sweep — E rate + accuracy on twin axes.
+    """Per-I-cell jitter sweep — E rate, accuracy, and realised I rate.
 
-    Mirrors plot_jitter_sweep's layout but for the per-spike jitter family.
-    Annotates the predicted transition at σ ≈ τ_GABA (the smearing width
-    at which g_i looks continuous) and the Poisson asymptote.
+    Same twin-axis layout and grey realised-I trace as plot_jitter_sweep, for
+    the per-spike jitter family.
     """
     theme.apply()
     by_sigma: dict[float, list[dict]] = {}
@@ -916,55 +912,57 @@ def plot_cell_jitter_sweep(
         if len(by_sigma[s]) > 1 else 0.0 for s in sigmas_sorted
     ]
 
+    i_means = [
+        float(np.mean([r["i_rate_hz"] for r in by_sigma[s]])) for s in sigmas_sorted
+    ]
+
     fig, ax_rate = plt.subplots(figsize=(5.6, 3.11))
     ax_rate.errorbar(
         sigmas_sorted, e_means, yerr=e_sems,
         marker="D", markersize=6, lw=1.4, color=theme.INK_BLACK, capsize=3,
         label="E rate (Hz)",
     )
+    # Realised mean I rate — the "held fixed" control, same grey full-trace styling
+    # as the cycle-coherent sweep. Per-cell jitter only moves each spike by a small
+    # independent offset, so it stays flat near baseline through the E collapse.
+    ax_rate.plot(
+        sigmas_sorted, i_means, marker="o", markersize=6, lw=1.4,
+        color=theme.GREY_MID, label="realised I rate (Hz)",
+    )
+    # Symlog x-axis (linthresh matched to plot_jitter_sweep) so the per-cell
+    # collapse — all of which happens below σ ≈ 9 ms — spreads across the plot
+    # instead of piling into the left margin, and the two paired sweep figures
+    # share one x-scale for direct comparison.
+    ax_rate.set_xscale("symlog", linthresh=1.0)
     ax_rate.set_xlabel(
-        "Per-I-cell jitter σ on the I-stream (ms)",
+        "Per-I-cell jitter σ on the I-stream (ms, symlog)",
         fontsize=theme.SIZE_LABEL,
     )
-    ax_rate.set_ylabel("Hidden E rate (Hz)",
+    ax_rate.set_ylabel("Firing rate (Hz)",
                        fontsize=theme.SIZE_LABEL, color=theme.INK_BLACK)
     ax_rate.tick_params(axis="y", labelcolor=theme.INK_BLACK)
-
-    # Reference horizontal lines: baseline and Poisson (the σ → ∞ asymptote).
-    ax_rate.axhline(baseline_e_rate, color=theme.MUTED, lw=0.7, ls="--", alpha=0.7)
-    ax_rate.text(
-        ax_rate.get_xlim()[1], baseline_e_rate + 0.4,
-        f"  baseline ≈ {baseline_e_rate:.1f} Hz",
-        fontsize=theme.SIZE_ANNOTATION, color=theme.MUTED,
-        ha="right", va="bottom",
-    )
-    ax_rate.axhline(poisson_e_rate, color=theme.DEEP_RED, lw=0.7, ls="--",
-                    alpha=0.7)
-    ax_rate.text(
-        ax_rate.get_xlim()[1], poisson_e_rate + 0.4,
-        f"  rate-matched Poisson ≈ {poisson_e_rate:.1f} Hz",
-        fontsize=theme.SIZE_ANNOTATION, color=theme.DEEP_RED,
-        ha="right", va="bottom",
-    )
-    # Predicted transition: τ_GABA (smearing width at which g_i goes continuous).
-    ax_rate.axvline(tau_gaba_ms, color=theme.GREY_MID, lw=0.7, ls=":", alpha=0.8)
-    ax_rate.text(
-        tau_gaba_ms, ax_rate.get_ylim()[1] * 0.95,
-        f" τ_GABA = {tau_gaba_ms:g} ms",
-        fontsize=theme.SIZE_ANNOTATION, color=theme.MUTED,
-        ha="left", va="top",
-    )
 
     ax_acc = ax_rate.twinx()
     ax_acc.errorbar(
         sigmas_sorted, acc_means, yerr=acc_sems,
         marker="s", markersize=6, lw=1.4, color=theme.DEEP_RED, capsize=3,
+        label="Test accuracy (%)",
     )
     ax_acc.set_ylabel("Test accuracy (%)",
                       fontsize=theme.SIZE_LABEL, color=theme.DEEP_RED)
     ax_acc.tick_params(axis="y", labelcolor=theme.DEEP_RED)
     ax_acc.set_ylim(0, 100)
-    ax_acc.axhline(10.0, color=theme.DEEP_RED, lw=0.5, ls=":", alpha=0.4)
+
+    # Self-identify all three traces (twin-axis colours alone don't survive
+    # greyscale print): a single legend combining both axes' handles, replacing
+    # the earlier inline grey-only label and activating the previously-unused
+    # label= kwargs.
+    h_rate, l_rate = ax_rate.get_legend_handles_labels()
+    h_acc, l_acc = ax_acc.get_legend_handles_labels()
+    ax_rate.legend(
+        h_rate + h_acc, l_rate + l_acc,
+        loc="center right", frameon=False, fontsize=theme.SIZE_LEGEND,
+    )
 
     # H17: caption carries the takeaway
     fig.tight_layout()
@@ -1041,10 +1039,9 @@ def plot_pareto_raster_strip(
 
 
 def plot_jitter_sweep(
-    jitter_rows: list[dict], baseline_e_rate: float,
-    phase_shuffle_e_rate: float, out_path: Path, run_id: str,
+    jitter_rows: list[dict], out_path: Path, run_id: str,
 ) -> None:
-    """E rate vs σ_ms with predicted inflection at 1/f_γ annotated.
+    """E rate, accuracy, and realised I rate vs cycle-coherent jitter σ.
 
     jitter_rows: list of dicts with sigma_ms, e_rate_hz, i_rate_hz, acc.
     Aggregated across seeds before plotting.
@@ -1071,6 +1068,10 @@ def plot_jitter_sweep(
         if len(by_sigma[s]) > 1 else 0.0 for s in sigmas_sorted
     ]
 
+    i_means = [
+        float(np.mean([r["i_rate_hz"] for r in by_sigma[s]])) for s in sigmas_sorted
+    ]
+
     fig, ax_rate = plt.subplots(figsize=(5.6, 3.11))
     # Use a symlog x-axis so both σ = 0 and σ = 100 are visible.
     ax_rate.errorbar(
@@ -1078,50 +1079,42 @@ def plot_jitter_sweep(
         marker="D", markersize=6, lw=1.4, color=theme.INK_BLACK, capsize=3,
         label="E rate (Hz)",
     )
+    # Realised mean I rate — the "held fixed" control, same grey full-trace styling
+    # as the per-cell sweep. Flat near baseline over the rate-matched range; droops at
+    # large σ where the Gaussian block offset displaces part of each burst past the
+    # trial window (see Methods note).
+    ax_rate.plot(
+        sigmas_sorted, i_means, marker="o", markersize=6, lw=1.4,
+        color=theme.GREY_MID, label="realised I rate (Hz)",
+    )
     ax_rate.set_xscale("symlog", linthresh=1.0)
     ax_rate.set_xlabel(
         "Cycle-coherent jitter σ on the I-stream (ms, symlog)",
         fontsize=theme.SIZE_LABEL,
     )
-    ax_rate.set_ylabel("Hidden E rate (Hz)",
+    ax_rate.set_ylabel("Firing rate (Hz)",
                        fontsize=theme.SIZE_LABEL, color=theme.INK_BLACK)
     ax_rate.tick_params(axis="y", labelcolor=theme.INK_BLACK)
-
-    # Annotate baseline and full-phase-shuffle reference levels.
-    ax_rate.axhline(baseline_e_rate, color=theme.MUTED, lw=0.7, ls="--", alpha=0.7)
-    ax_rate.text(
-        ax_rate.get_xlim()[1], baseline_e_rate + 0.4,
-        f"  baseline ≈ {baseline_e_rate:.1f} Hz",
-        fontsize=theme.SIZE_ANNOTATION, color=theme.MUTED,
-        ha="right", va="bottom",
-    )
-    ax_rate.axhline(phase_shuffle_e_rate, color=theme.DEEP_RED, lw=0.7, ls="--",
-                    alpha=0.7)
-    ax_rate.text(
-        ax_rate.get_xlim()[1], phase_shuffle_e_rate + 0.4,
-        f"  full phase-shuffle ≈ {phase_shuffle_e_rate:.1f} Hz",
-        fontsize=theme.SIZE_ANNOTATION, color=theme.DEEP_RED,
-        ha="right", va="bottom",
-    )
-    # Annotate predicted inflection at 1/f_γ.
-    period_ms = 1000.0 / F_GAMMA_REFERENCE_HZ
-    ax_rate.axvline(period_ms, color=theme.GREY_MID, lw=0.7, ls=":", alpha=0.8)
-    ax_rate.text(
-        period_ms, ax_rate.get_ylim()[1] * 0.95,
-        f" 1/f_γ = {period_ms:.1f} ms",
-        fontsize=theme.SIZE_ANNOTATION, color=theme.MUTED,
-        ha="left", va="top",
-    )
 
     ax_acc = ax_rate.twinx()
     ax_acc.errorbar(
         sigmas_sorted, acc_means, yerr=acc_sems,
         marker="s", markersize=6, lw=1.4, color=theme.DEEP_RED, capsize=3,
+        label="Test accuracy (%)",
     )
     ax_acc.set_ylabel("Test accuracy (%)",
                       fontsize=theme.SIZE_LABEL, color=theme.DEEP_RED)
     ax_acc.tick_params(axis="y", labelcolor=theme.DEEP_RED)
     ax_acc.set_ylim(0, 100)
+
+    # Self-identify all three traces with one legend combining both axes'
+    # handles (replaces the inline grey-only label; matches plot_cell_jitter_sweep).
+    h_rate, l_rate = ax_rate.get_legend_handles_labels()
+    h_acc, l_acc = ax_acc.get_legend_handles_labels()
+    ax_rate.legend(
+        h_rate + h_acc, l_rate + l_acc,
+        loc="center left", frameon=False, fontsize=theme.SIZE_LEGEND,
+    )
 
     # H17: caption carries the takeaway
     ax_rate.spines["top"].set_visible(False)
@@ -1501,7 +1494,7 @@ def _compound_raster_panel(ax, s: dict, title: str, subtitle: str) -> None:
 
 def _compound_sweep_panel(
     ax, rows: list[dict], *, xlabel: str, title: str,
-    baseline_e: float, symlog: bool,
+    symlog: bool, legend_loc: str,
 ) -> None:
     """One sweep panel — E rate (black) and accuracy (red, twin axis) vs σ."""
     by_sigma: dict[float, list[dict]] = {}
@@ -1509,31 +1502,43 @@ def _compound_sweep_panel(
         by_sigma.setdefault(r["sigma_ms"], []).append(r)
     sig = sorted(by_sigma)
     e_means = [float(np.mean([r["e_rate_hz"] for r in by_sigma[s]])) for s in sig]
+    i_means = [float(np.mean([r["i_rate_hz"] for r in by_sigma[s]])) for s in sig]
     a_means = [float(np.mean([r["acc"] for r in by_sigma[s]])) for s in sig]
 
-    ax.plot(sig, e_means, marker="D", ms=5, lw=1.4, color=theme.INK_BLACK)
+    ax.plot(sig, e_means, marker="D", ms=5, lw=1.4, color=theme.INK_BLACK,
+            label="E rate")
+    # Realised (measured) mean I rate on the same Hz axis — makes the "mean
+    # inhibition held fixed" control visible directly. It sits flat near
+    # baseline over the rate-matched range and only droops where the finite
+    # trial window truncates the displaced-burst tail (cycle-coherent, large σ).
+    ax.plot(sig, i_means, marker=".", ms=4, lw=1.0, color=theme.GREY_MID,
+            ls="-", alpha=0.75, label="realised I")
     if symlog:
         ax.set_xscale("symlog", linthresh=1.0)
     ax.set_xlabel(xlabel, fontsize=theme.SIZE_LABEL)
-    ax.set_ylabel("E rate (Hz)", color=theme.INK_BLACK, fontsize=theme.SIZE_LABEL)
+    ax.set_ylabel("firing rate (Hz)", color=theme.INK_BLACK,
+                  fontsize=theme.SIZE_LABEL)
     ax.tick_params(axis="y", labelcolor=theme.INK_BLACK)
-    ax.axhline(baseline_e, color=theme.MUTED, lw=0.7, ls="--", alpha=0.7)
-    ax.text(ax.get_xlim()[1], baseline_e, f" baseline ≈ {baseline_e:.1f} Hz",
-            fontsize=theme.SIZE_ANNOTATION, color=theme.MUTED,
-            ha="right", va="bottom")
     ax.set_title(title, fontsize=theme.SIZE_LABEL)
 
     ax_acc = ax.twinx()
-    ax_acc.plot(sig, a_means, marker="s", ms=5, lw=1.4, color=theme.DEEP_RED)
+    ax_acc.plot(sig, a_means, marker="s", ms=5, lw=1.4, color=theme.DEEP_RED,
+                label="accuracy")
     ax_acc.set_ylabel("accuracy (%)", color=theme.DEEP_RED, fontsize=theme.SIZE_LABEL)
     ax_acc.tick_params(axis="y", labelcolor=theme.DEEP_RED)
     ax_acc.set_ylim(0, 100)
     ax.spines["top"].set_visible(False)
     ax_acc.spines["top"].set_visible(False)
 
+    # Self-identify all three traces; combine both axes' handles into one legend.
+    h_rate, l_rate = ax.get_legend_handles_labels()
+    h_acc, l_acc = ax_acc.get_legend_handles_labels()
+    ax.legend(h_rate + h_acc, l_rate + l_acc, loc=legend_loc,
+              frameon=False, fontsize=theme.SIZE_ANNOTATION)
+
 
 def fig_rhythm_compound(
-    cyc_rows: list[dict], cell_rows: list[dict], baseline_e: float,
+    cyc_rows: list[dict], cell_rows: list[dict],
     raster_cyc: dict, raster_cell: dict, out_path: Path, run_id: str,
 ) -> None:
     """2×2 manuscript compound — matched mean I, opposite E response.
@@ -1562,15 +1567,18 @@ def fig_rhythm_compound(
     )
     _compound_sweep_panel(
         axes[1, 0], cell_rows,
-        xlabel="per-I-cell jitter σ (ms)",
+        xlabel="per-I-cell jitter σ (ms, symlog)",
         title="Smear bursts → E rate falls to zero",
-        baseline_e=baseline_e, symlog=False,
+        # Symlog to match the cycle-coherent panel (and the standalone sweeps):
+        # the per-cell collapse all happens below σ ≈ 9 ms and would otherwise
+        # pile into the left margin, breaking the side-by-side read.
+        symlog=True, legend_loc="center right",
     )
     _compound_sweep_panel(
         axes[1, 1], cyc_rows,
         xlabel="cycle-coherent jitter σ (ms, symlog)",
         title="Displace bursts → E rate rises",
-        baseline_e=baseline_e, symlog=True,
+        symlog=True, legend_loc="center left",
     )
     # H17: caption carries the takeaway
     fig.tight_layout(rect=(0, 0, 1, 0.96))
@@ -1581,38 +1589,68 @@ def fig_rhythm_compound(
     plt.rcParams["savefig.bbox"] = prev_bbox
 
 
-def build_rhythm_compound(run_id: str = "replot") -> None:
+def build_rhythm_compound(run_id: str | None = None) -> None:
     """Rebuild the compound from cached numbers.json — no sweep re-runs.
 
     Sweep curves load from numbers.json; the two example rasters are cheap
     single-trial forward passes against the cached exp025 PING weights.
+    ``run_id`` defaults to the cached notebook_run_id so the corner stamp stays
+    consistent with the committed run rather than reading "replot".
     """
     data = json.loads((FIGURES / "numbers.json").read_text())
-    rows = data["results"]
+    if run_id is None:
+        run_id = data["notebook_run_id"]
     cyc_rows = data["jitter_sweep"]
     cell_rows = data["cell_jitter_sweep"]
-    baseline_e = float(np.mean(
-        [r["e_rate_hz"] for r in rows if r["condition"] == "baseline"]
-    ))
 
     seed = int(data["config"]["seeds"][0])
     train_dir = NB035_ARTIFACTS / f"ping__off__seed{seed}"
+    # Same jitter magnitude on both arms — σ = 14 ms. See the note in main() on why
+    # this σ (a shared measured grid point), not σ = 100 ms, is the headline raster.
     raster_cyc = capture_condition_raster(
-        train_dir, "jitter_sigma_100", RASTER_SAMPLE_IDX,
-        seed_offset=seed + 100,
+        train_dir, "jitter_sigma_14", RASTER_SAMPLE_IDX,
+        seed_offset=seed + 14,
     )
-    raster_cyc["sigma_ms"] = 100.0
+    raster_cyc["sigma_ms"] = 14.0
     raster_cell = capture_condition_raster(
-        train_dir, "cell_jitter_sigma_5", RASTER_SAMPLE_IDX,
-        seed_offset=seed + int(5 * 13),
+        train_dir, "cell_jitter_sigma_14", RASTER_SAMPLE_IDX,
+        seed_offset=seed + int(14 * 13),
     )
-    raster_cell["sigma_ms"] = 5.0
+    raster_cell["sigma_ms"] = 14.0
 
     fig_rhythm_compound(
-        cyc_rows, cell_rows, baseline_e, raster_cyc, raster_cell,
+        cyc_rows, cell_rows, raster_cyc, raster_cell,
         FIGURES / "rhythm_compound", run_id,
     )
     print(f"wrote {FIGURES / 'rhythm_compound'}")
+
+
+def replot_sweeps_from_cache(which: str | None = None) -> None:
+    """Redraw the numbers.json-only sweep figures without re-running inference.
+
+    ``which`` selects one figure by name (``jitter_sweep`` or
+    ``cell_jitter_sweep``); ``None`` redraws both. Each is stamped with the
+    cached ``notebook_run_id`` so the corner tag and provenance stay consistent
+    with the committed run — this only re-renders the plot, the numbers are
+    untouched.
+    """
+    data = json.loads((FIGURES / "numbers.json").read_text())
+    run_id = data["notebook_run_id"]
+    targets = {
+        "jitter_sweep": lambda: plot_jitter_sweep(
+            data["jitter_sweep"], FIGURES / "jitter_sweep", run_id),
+        "cell_jitter_sweep": lambda: plot_cell_jitter_sweep(
+            data["cell_jitter_sweep"], FIGURES / "cell_jitter_sweep", run_id),
+    }
+    if which is not None and which not in targets:
+        raise SystemExit(
+            f"--plot-only {which}: not a cache-redrawable figure; choose from "
+            f"{sorted(targets)} or 'compound'"
+        )
+    for name, draw in targets.items():
+        if which in (None, name):
+            draw()
+            print(f"wrote {FIGURES / name}")
 
 
 # ── RunPod infer jobs ────────────────────────────────────────────────
@@ -1784,8 +1822,11 @@ def main() -> None:
     theme.set_paper_mode(True)
 
     meta = parse_meta(sys.argv, allow_dispatch=True)
-    if meta.plot_only and meta.plot_fig == "compound":
-        build_rhythm_compound()
+    if meta.plot_only:
+        if meta.plot_fig == "compound":
+            build_rhythm_compound()
+        else:
+            replot_sweeps_from_cache(meta.plot_fig)
         return
     if meta.pod_run:
         pod_run()
@@ -1870,19 +1911,7 @@ def main() -> None:
                 f"I={res['i_rate_hz']:6.2f} Hz  ({time.monotonic() - t0:.1f}s)"
             )
 
-    # Reference levels: baseline from the three-condition section above;
-    # full phase-shuffle from the same section gives the upper asymptote
-    # the jitter sweep should approach at σ ≫ 1/f_γ.
-    baseline_e = float(np.mean(
-        [r["e_rate_hz"] for r in rows if r["condition"] == "baseline"]
-    ))
-    phase_shuffle_e = float(np.mean(
-        [r["e_rate_hz"] for r in rows if r["condition"] == "phase_shuffled_i"]
-    ))
-    plot_jitter_sweep(
-        jitter_rows, baseline_e, phase_shuffle_e,
-        FIGURES / "jitter_sweep", notebook_run_id,
-    )
+    plot_jitter_sweep(jitter_rows, FIGURES / "jitter_sweep", notebook_run_id)
     print(f"wrote {FIGURES / 'jitter_sweep'}")
 
     # Jitter raster strip — one panel per σ from the diagnostic subset,
@@ -1934,12 +1963,8 @@ def main() -> None:
                 f"I={res['i_rate_hz']:6.2f} Hz  ({time.monotonic() - t0:.1f}s)"
             )
 
-    poisson_e = float(np.mean(
-        [r["e_rate_hz"] for r in rows if r["condition"] == "poisson_matched_i"]
-    ))
     plot_cell_jitter_sweep(
-        cell_jitter_rows, baseline_e, poisson_e,
-        FIGURES / "cell_jitter_sweep", notebook_run_id,
+        cell_jitter_rows, FIGURES / "cell_jitter_sweep", notebook_run_id,
     )
     print(f"wrote {FIGURES / 'cell_jitter_sweep'}")
 
@@ -1964,12 +1989,24 @@ def main() -> None:
     )
     print(f"wrote {FIGURES / 'cell_jitter_raster_strip'}")
 
-    # Manuscript compound: matched mean I, opposite E response. Reuse the
-    # σ = 100 ms cycle-coherent and σ = 5 ms per-cell raster samples.
-    raster_cyc = next(s for s in jitter_raster_samples if s["sigma_ms"] == 100.0)
-    raster_cell = next(s for s in cell_jitter_raster_samples if s["sigma_ms"] == 5.0)
+    # Manuscript compound: matched mean I, opposite E response. Use the SAME jitter
+    # magnitude on both arms — σ = 14 ms — so the figure reads as one manipulation
+    # strength with opposite outcomes; only the KIND of jitter differs. σ = 14 ms is
+    # a measured grid point on both sweeps where the per-cell arm has fully silenced E
+    # and the cycle-coherent arm has raised it well above baseline, while realised I
+    # still holds within a few percent on both. (σ = 100 ms would push realised I down
+    # ~24% via finite-window truncation — that σ stays in the sweep panels below, not
+    # as the headline raster.) The cyc σ = 14 raster is already captured in the strip
+    # above; the per-cell σ = 14 raster is captured fresh here (not a strip σ).
+    compound_sigma = 14.0
+    raster_cyc = next(s for s in jitter_raster_samples if s["sigma_ms"] == compound_sigma)
+    raster_cell = capture_condition_raster(
+        raster_train_dir, f"cell_jitter_sigma_{compound_sigma:g}", RASTER_SAMPLE_IDX,
+        seed_offset=raster_seed + int(compound_sigma * 13), reuse=meta.skip_training,
+    )
+    raster_cell["sigma_ms"] = compound_sigma
     fig_rhythm_compound(
-        jitter_rows, cell_jitter_rows, baseline_e, raster_cyc, raster_cell,
+        jitter_rows, cell_jitter_rows, raster_cyc, raster_cell,
         FIGURES / "rhythm_compound", notebook_run_id,
     )
     print(f"wrote {FIGURES / 'rhythm_compound'}")

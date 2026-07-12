@@ -1,8 +1,8 @@
 {
-  "run_id": "r001",
-  "git_sha": "14ad946",
-  "duration_s": 0.5,
-  "duration": "1s",
+  "run_id": "r004",
+  "git_sha": "14e1efc",
+  "duration_s": 0.3,
+  "duration": "0s",
   "seed": 42,
   "dt_ms": 1.0,
   "max_samples": 1000,
@@ -43,5 +43,16 @@
   "free_diverges": true,
   "dales_diverges": false,
   "verdict": "supported \u2014 the free net diverges and the Dale's-law net trains NaN-free at matched settings",
-  "chance_pct": 5.0
+  "chance_pct": 5.0,
+  "config": {
+    "n_hidden": 256,
+    "t_ms": 1000,
+    "batch_size": 32,
+    "lr": 0.001,
+    "weight_decay": 0.001,
+    "fr_reg_upper_theta": 100.0,
+    "fr_reg_upper_strength": 0.06,
+    "n_classes": 20,
+    "seeds": 1
+  }
 }

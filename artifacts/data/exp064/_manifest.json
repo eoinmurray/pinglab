@@ -1,11 +1,15 @@
 {
   "slug": "exp064",
-  "run_id": "r001",
-  "run_at": "2026-07-11T23:29:09+00:00",
-  "git_sha": "33eec72",
-  "dirty": false,
-  "code_dirty": false,
-  "patch": null,
+  "run_id": "r003",
+  "run_at": "2026-07-12T12:03:26+00:00",
+  "git_sha": "14e1efc",
+  "dirty": true,
+  "code_dirty": true,
+  "patch": {
+    "file": "_dirty.patch",
+    "sha256": "fd1db6a891616fec9088193ed0f33068d8fa5b38142687850a264207df3402ec",
+    "lines": 544
+  },
   "host": "local",
   "scale": {
     "dataset": "shd",

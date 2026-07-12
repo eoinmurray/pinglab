@@ -1,8 +1,8 @@
 {
-  "run_id": "r003",
-  "git_sha": "62335de",
-  "duration_s": 0.9,
-  "duration": "1s",
+  "run_id": "r006",
+  "git_sha": "14e1efc",
+  "duration_s": 0.4,
+  "duration": "0s",
   "dt_sweep": [
     1.0,
     0.5,
@@ -12,6 +12,17 @@
   "max_samples": 1000,
   "epochs": 30,
   "compute": "runpod",
+  "config": {
+    "n_hidden": 256,
+    "n_seeds": 1,
+    "t_ms": 1000,
+    "lr": 0.001,
+    "weight_decay": 0.001,
+    "batch_size": 32,
+    "fr_reg_upper_theta": 100,
+    "fr_reg_upper_strength": 0.06,
+    "local_subset": 128
+  },
   "n_cells": 3,
   "n_trained": 3,
   "cells": [

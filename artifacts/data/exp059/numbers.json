@@ -1,6 +1,6 @@
 {
-  "run_id": "r001",
-  "git_sha": "7ad5386",
+  "run_id": "r004",
+  "git_sha": "14e1efc",
   "duration_s": 1.0,
   "duration": "1s",
   "split": "train",
@@ -10,6 +10,9 @@
   "events_per_utterance_median": 7605.0,
   "events_per_utterance_min": 2410,
   "events_per_utterance_max": 14917,
+  "duration_min_s": 0.2333984375,
+  "duration_median_s": 0.70458984375,
+  "duration_max_s": 1.369140625,
   "gallery_event_counts": {
     "null": 5676,
     "eins": 10561,
@@ -37,5 +40,20 @@
     "sample_17": 12133,
     "sample_26": 11731,
     "sample_34": 6309
+  },
+  "config": {
+    "digit_min": 0,
+    "digit_max": 9,
+    "german_label_min": 0,
+    "german_label_max": 9,
+    "english_label_min": 10,
+    "english_label_max": 19,
+    "channel_min": 0,
+    "spread_class": 0,
+    "spread_panels": 4,
+    "gallery_ncols": 5,
+    "gallery_nrows": 4,
+    "rate_target_theta_u": 100,
+    "rate_weight_s_u": 0.06
   }
 }

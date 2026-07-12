@@ -1,0 +1,528 @@
+diff --git a/experiments/exp059.py b/experiments/exp059.py
+index f51ded7..6380e63 100644
+--- a/experiments/exp059.py
++++ b/experiments/exp059.py
+@@ -54,6 +54,15 @@ GALLERY_SAMPLE_IDX = 0  # first matching utterance of each class
+ SPREAD_CLASS = 0  # "null"
+ SPREAD_N = 4
+ 
++# Gallery layout: 20 panels laid out ncols wide (nrows falls out of the count).
++GALLERY_NCOLS = 5
++
++# Firing-rate regulariser constants (Cramer et al. upper-rate bound) that the
++# NEXT entries use. Kept here so the writeup can read them off numbers.json
++# rather than hand-typing them into prose.
++RATE_TARGET_THETA_U = 100  # target upper bound on a unit's firing rate
++RATE_WEIGHT_S_U = 0.06  # strength of the penalty applied above that bound
++
+ SCALE = {
+     "dataset": "shd",
+     "split": SPLIT,
+@@ -97,10 +106,10 @@ def plot_gallery(events, labels, out_path: Path) -> dict:
+         float(events[i][1].max()) * 1000.0 for _, i in idxs
+     ) * 1.02
+ 
+-    ncols = 5
++    ncols = GALLERY_NCOLS
+     nrows = int(np.ceil(len(idxs) / ncols))
+     fig, axes = plt.subplots(
+-        nrows, ncols, figsize=(8.0, 4.5), dpi=200, sharex=True, sharey=True,
++        nrows, ncols, figsize=(6.5, 3.66), sharex=True, sharey=True,
+     )
+     axes = np.atleast_1d(axes).ravel()
+     counts = {}
+@@ -119,7 +128,7 @@ def plot_gallery(events, labels, out_path: Path) -> dict:
+     fig.supxlabel("time (ms)", fontsize=theme.SIZE_LABEL)
+     fig.supylabel("cochlear channel", fontsize=theme.SIZE_LABEL)
+     fig.tight_layout()
+-    fig.savefig(out_path, dpi=200)
++    fig.savefig(out_path)
+     plt.close(fig)
+     return counts
+ 
+@@ -135,7 +144,7 @@ def plot_within_class(events, labels, out_path: Path) -> dict:
+     xlim_ms = max(float(events[i][1].max()) * 1000.0 for i in idxs) * 1.02
+ 
+     fig, axes = plt.subplots(
+-        1, len(idxs), figsize=(8.0, 4.5), dpi=200, sharey=True,
++        1, len(idxs), figsize=(6.5, 3.66), sharey=True,
+     )
+     axes = np.atleast_1d(axes).ravel()
+     used = {}
+@@ -148,13 +157,8 @@ def plot_within_class(events, labels, out_path: Path) -> dict:
+         used[f"sample_{i}"] = int(len(units))
+ 
+     fig.supxlabel("time (ms)", fontsize=theme.SIZE_LABEL)
+-    word = SHD_LABELS[SPREAD_CLASS]
+-    fig.suptitle(
+-        f'class {SPREAD_CLASS} · "{word}" · {len(idxs)} utterances',
+-        fontsize=theme.SIZE_TITLE, y=1.02,
+-    )
+     fig.tight_layout()
+-    fig.savefig(out_path, dpi=200)
++    fig.savefig(out_path)
+     plt.close(fig)
+     return used
+ 
+@@ -183,16 +187,42 @@ def main() -> None:
+ 
+         # Dataset-level summary numbers the writing can read off.
+         ev_per_utt = np.array([len(events[i][0]) for i in range(len(events))])
++        # Per-utterance duration = time of the last spike (events carry times in s).
++        dur_per_utt = np.array(
++            [float(events[i][1].max()) for i in range(len(events))]
++        )
++        n_classes = int(len(set(labels.tolist())))
++        digits_per_lang = n_classes // 2  # 10 spoken digits per language
++
+         payload = {
+             "split": SPLIT,
+             "n_utterances": int(len(labels)),
+-            "n_classes": int(len(set(labels.tolist()))),
++            "n_classes": n_classes,
+             "n_channels": SHD_N_IN,
+             "events_per_utterance_median": float(np.median(ev_per_utt)),
+             "events_per_utterance_min": int(ev_per_utt.min()),
+             "events_per_utterance_max": int(ev_per_utt.max()),
++            "duration_min_s": float(dur_per_utt.min()),
++            "duration_median_s": float(np.median(dur_per_utt)),
++            "duration_max_s": float(dur_per_utt.max()),
+             "gallery_event_counts": gallery_counts,
+             "within_class_event_counts": spread_counts,
++            # Recipe constants + descriptive ranges the prose/captions cite, so no
++            # number is hand-typed into the writeup.
++            "config": {
++                "digit_min": 0,
++                "digit_max": digits_per_lang - 1,  # 9
++                "german_label_min": 0,
++                "german_label_max": digits_per_lang - 1,  # 9
++                "english_label_min": digits_per_lang,  # 10
++                "english_label_max": n_classes - 1,  # 19
++                "spread_class": SPREAD_CLASS,  # 0 ("null")
++                "spread_panels": SPREAD_N,  # 4
++                "gallery_ncols": GALLERY_NCOLS,  # 5
++                "gallery_nrows": int(np.ceil(len(GALLERY_CLASSES) / GALLERY_NCOLS)),
++                "rate_target_theta_u": RATE_TARGET_THETA_U,  # 100
++                "rate_weight_s_u": RATE_WEIGHT_S_U,  # 0.06
++            },
+         }
+ 
+         duration_s = time.monotonic() - t_start
+diff --git a/experiments/exp060.py b/experiments/exp060.py
+index c514873..f46bd32 100644
+--- a/experiments/exp060.py
++++ b/experiments/exp060.py
+@@ -14,6 +14,7 @@ Writing: writings/exp060.typ · figures + numbers.json: artifacts/data/exp060/
+ from __future__ import annotations
+ 
+ import json
++import math
+ import sys
+ import time
+ from pathlib import Path
+@@ -84,16 +85,42 @@ def _epochs(metrics: dict) -> list[dict]:
+     return eps
+ 
+ 
++def _train_arg(flag: str) -> str:
++    """Pull a flag's value straight out of TRAIN_ARGS so the config surfaced to
++    the writeup can never drift from what training actually received."""
++    return TRAIN_ARGS[TRAIN_ARGS.index(flag) + 1]
++
++
++# The full SHD training pool (dataset constant; we take a subset of it) and the
++# program plan's "decisively above chance" bar (registered in ar063). Neither is
++# a run output, but both are cited in the writeup, so they live here rather than
++# hand-typed in the prose.
++N_TRAIN_POOL = 8156
++PLAN_THRESHOLD_PCT = 25.0
++
++
++def _first_nan_epoch(eps: list[dict]) -> int | None:
++    """First epoch index whose test_loss is NaN (the SHD collection references a
++    'NaN at epoch 2' spike). None if the test loss never goes NaN."""
++    for e in eps:
++        tl = e.get("test_loss")
++        if tl is None or (isinstance(tl, float) and math.isnan(tl)):
++            return e["ep"]
++    return None
++
++
+ def plot_loss(metrics: dict, stem: Path) -> None:
+     """Train + test loss against epoch — the 'is it learning at all' curve."""
+     theme.apply()
+     eps = _epochs(metrics)
+     x = [e["ep"] for e in eps]
+-    fig, ax = plt.subplots(figsize=(8.0, 4.5), dpi=150)
+-    ax.plot(x, [e["loss"] for e in eps], color=theme.INK_BLACK, lw=2.0, label="train")
++    # figsize + dpi + linewidth come from the shared theme (H15); the test trace
++    # is dashed so the two series survive a grayscale print (H13).
++    fig, ax = plt.subplots(figsize=(6.9, 3.881))
++    ax.plot(x, [e["loss"] for e in eps], color=theme.INK_BLACK, label="train")
+     ax.plot(
+         x, [e.get("test_loss") for e in eps],
+-        color=theme.DEEP_RED, lw=2.0, label="test",
++        color=theme.DEEP_RED, ls="--", label="test",
+     )
+     ax.set_xlabel("epoch")
+     ax.set_ylabel("cross-entropy loss")
+@@ -111,12 +138,15 @@ def plot_accuracy(metrics: dict, stem: Path) -> None:
+     theme.apply()
+     eps = _epochs(metrics)
+     x = [e["ep"] for e in eps]
+-    fig, ax = plt.subplots(figsize=(8.0, 4.5), dpi=150)
++    # figsize + dpi + linewidth come from the shared theme (H15); the chance
++    # floor is a thin dashed grey reference line, distinct from the near-black
++    # accuracy trace without a second chromatic accent (H13).
++    fig, ax = plt.subplots(figsize=(6.9, 3.881))
+     ax.axhline(
+         CHANCE_PCT, color=theme.GREY_MID, lw=1.0, ls="--",
+         label=f"chance ({CHANCE_PCT:.0f}%)",
+     )
+-    ax.plot(x, [e["acc"] for e in eps], color=theme.INK_BLACK, lw=2.0, label="test accuracy")
++    ax.plot(x, [e["acc"] for e in eps], color=theme.INK_BLACK, label="test accuracy")
+     ax.set_xlabel("epoch")
+     ax.set_ylabel("test accuracy (%)")
+     ax.set_xlim(min(x), max(x))
+@@ -160,7 +190,9 @@ def main() -> None:
+         first_acc = eps[0]["acc"]
+         payload = {
+             "n_train_subset": SCALE["max_samples"],
++            "n_classes": N_CLASSES,
+             "epochs": len(eps),
++            "first_epoch": eps[0]["ep"],
+             "chance_pct": CHANCE_PCT,
+             "first_epoch_acc_pct": first_acc,
+             "best_acc_pct": metrics.get("best_acc"),
+@@ -168,8 +200,25 @@ def main() -> None:
+             "final_acc_pct": eps[-1]["acc"],
+             "first_epoch_loss": eps[0]["loss"],
+             "final_loss": eps[-1]["loss"],
++            "first_nan_epoch": _first_nan_epoch(eps),
+             "loss_fell": eps[-1]["loss"] < eps[0]["loss"],
+             "beat_chance": (metrics.get("best_acc") or 0) > CHANCE_PCT,
++            # Every config input the writeup quotes, sourced from SCALE /
++            # TRAIN_ARGS so the Methods table and prose can never drift from the
++            # run. dt/t are the integration grid; theta/strength the regulariser.
++            "config": {
++                "n_hidden": SCALE["n_hidden"],
++                "dt_ms": SCALE["dt"],
++                "t_ms": int(SCALE["t_ms"]),
++                "t_steps": int(SCALE["t_ms"] / SCALE["dt"]),
++                "lr": SCALE["lr"],
++                "weight_decay": SCALE["weight_decay"],
++                "batch_size": int(_train_arg("--batch-size")),
++                "fr_reg_upper_theta": float(_train_arg("--fr-reg-upper-theta")),
++                "fr_reg_upper_strength": float(_train_arg("--fr-reg-upper-strength")),
++                "n_train_pool": N_TRAIN_POOL,
++                "plan_threshold_pct": PLAN_THRESHOLD_PCT,
++            },
+         }
+ 
+         duration_s = time.monotonic() - t_start
+diff --git a/experiments/exp061.py b/experiments/exp061.py
+index 99acb60..64701a7 100644
+--- a/experiments/exp061.py
++++ b/experiments/exp061.py
+@@ -327,10 +327,11 @@ def plot_stability(stats: list[dict], stem: Path) -> None:
+     theme.apply()
+     trained = [s for s in stats if s.get("trained")]
+     dts = [s["dt"] for s in trained]
+-    fig, axes = plt.subplots(1, 3, figsize=(11.0, 3.6), dpi=150)
++    fig, axes = plt.subplots(1, 3, figsize=(6.5, 2.4))
+ 
++    # H13: separate subplots stay near-black; no decorative per-panel accent.
+     axes[0].plot(dts, [100 * s["nan_epoch_rate"] for s in trained],
+-                 "o-", color=theme.DEEP_RED, lw=2.0, ms=7)
++                 "o-", color=theme.INK_BLACK, lw=2.0, ms=7)
+     axes[0].set_ylabel("NaN-epoch rate (%)")
+     axes[0].set_ylim(bottom=-2)
+ 
+@@ -354,17 +355,24 @@ def plot_grad_trace(stem: Path) -> None:
+     """Per-epoch max pre-clip grad norm, one line per Δt (log y) — shows WHEN the
+     gradient spikes fire, not just their peak."""
+     theme.apply()
+-    fig, ax = plt.subplots(figsize=(8.0, 4.5), dpi=150)
+-    colours = [theme.DEEP_RED, theme.AMBER, theme.INK_BLACK]
++    fig, ax = plt.subplots(figsize=(6.5, 3.66))
++    # H13: near-black by default, at most one accent (red for the finest Δt), and a
++    # distinct line style per Δt so the three traces survive a grayscale print and
++    # read for colour-blind viewers — not colour alone.
++    styles = [
++        (theme.INK_BLACK, "-"),
++        (theme.INK_BLACK, "--"),
++        (theme.DEEP_RED, ":"),
++    ]
+     drew = False
+-    for cell, colour in zip(CELLS, colours):
++    for cell, (colour, ls) in zip(CELLS, styles):
+         p = cell_dir(cell["name"]) / "metrics.json"
+         if not p.exists():
+             continue
+         eps = json.loads(p.read_text()).get("epochs") or []
+         x = [e["ep"] for e in eps]
+         y = [e.get("grad_norm_max", e.get("grad_norm")) for e in eps]
+-        ax.plot(x, y, "-", color=colour, lw=1.8, label=f"Δt = {cell['dt']:g} ms")
++        ax.plot(x, y, ls=ls, color=colour, lw=1.8, label=f"Δt = {cell['dt']:g} ms")
+         drew = True
+     if drew:
+         ax.set_yscale("log")
+diff --git a/experiments/exp062.py b/experiments/exp062.py
+index 140bdbb..1ac56aa 100644
+--- a/experiments/exp062.py
++++ b/experiments/exp062.py
+@@ -160,6 +160,29 @@ def _cell_by_name(name: str) -> dict | None:
+     return next((c for c in CELLS if c["name"] == name), None)
+ 
+ 
++def _recipe_val(flag: str) -> str:
++    """The value passed to *flag* in RECIPE (the single arg after it), so the
++    config sub-dict below is sourced from the recipe itself, never re-typed."""
++    return RECIPE[RECIPE.index(flag) + 1]
++
++
++def recipe_config() -> dict:
++    """The fixed-recipe config inputs the writeup interpolates, pulled straight
++    from RECIPE / the shared constants so no number is hand-typed twice. Every
++    value here is a training input (as opposed to a run output)."""
++    return {
++        "n_hidden": int(_recipe_val("--n-hidden")),
++        "t_ms": int(_recipe_val("--t-ms")),
++        "batch_size": int(_recipe_val("--batch-size")),
++        "lr": float(_recipe_val("--lr")),
++        "weight_decay": float(_recipe_val("--weight-decay")),
++        "fr_reg_upper_theta": float(_recipe_val("--fr-reg-upper-theta")),
++        "fr_reg_upper_strength": float(_recipe_val("--fr-reg-upper-strength")),
++        "n_classes": N_CLASSES,
++        "seeds": SCALE["seeds"],
++    }
++
++
+ # ── RunPod fan-out (one pod per cell) ────────────────────────────────
+ 
+ def runpod_is_done(cell: dict) -> bool:
+@@ -280,7 +303,9 @@ def plot_comparison(stats: list[dict], stem: Path) -> None:
+     labels = [s["label"] for s in trained]
+     x = range(len(trained))
+     colours = [theme.DEEP_RED if not s["dales_law"] else theme.INK_BLACK for s in trained]
+-    fig, axes = plt.subplots(1, 3, figsize=(11.0, 3.6), dpi=150)
++    # H11–H12: column width (6.5 in), one 16:9 aspect shared with loss_traces.
++    # dpi + facecolor come from theme (savefig.dpi 240, white bg) — not set here.
++    fig, axes = plt.subplots(1, 3, figsize=(6.5, 3.66))
+ 
+     axes[0].bar(x, [100 * s["nan_epoch_rate"] for s in trained], color=colours, width=0.6)
+     axes[0].set_ylabel("NaN-epoch rate (%)")
+@@ -305,7 +330,8 @@ def plot_comparison(stats: list[dict], stem: Path) -> None:
+ def plot_loss_traces(stem: Path) -> None:
+     """Per-epoch train loss, free vs constrained — NaN epochs show as gaps."""
+     theme.apply()
+-    fig, ax = plt.subplots(figsize=(8.0, 4.5), dpi=150)
++    # H11–H12: column width (6.5 in), one 16:9 aspect shared with the bar figure.
++    fig, ax = plt.subplots(figsize=(6.5, 3.66))
+     for cell in CELLS:
+         p = cell_dir(cell["name"]) / "metrics.json"
+         if not p.exists():
+@@ -314,11 +340,15 @@ def plot_loss_traces(stem: Path) -> None:
+         x = [e["ep"] for e in eps]
+         y = [e.get("test_loss") if isinstance(e.get("test_loss"), (int, float))
+              and math.isfinite(e.get("test_loss")) else float("nan") for e in eps]
++        # H13: the accent (free) also gets a dashed line-style so the two series
++        # survive a grayscale print; the near-black control stays solid. Widths
++        # come from the theme (lines.linewidth) — not set here.
+         colour = theme.DEEP_RED if not cell["dales_law"] else theme.INK_BLACK
+-        ax.plot(x, y, "-", color=colour, lw=1.8, label=cell["label"])
++        style = "--" if not cell["dales_law"] else "-"
++        ax.plot(x, y, color=colour, ls=style, label=cell["label"])
+     ax.set_xlabel("epoch")
+     ax.set_ylabel("test cross-entropy loss")
+-    ax.legend(fontsize=theme.SIZE_LEGEND, frameon=False)
++    ax.legend()
+     for sp in ("top", "right"):
+         ax.spines[sp].set_visible(False)
+     fig.tight_layout()
+@@ -410,6 +440,7 @@ def main() -> None:
+             "dales_diverges": dales_diverges,
+             "verdict": verdict,
+             "chance_pct": CHANCE_PCT,
++            "config": recipe_config(),
+         }
+         duration_s = time.monotonic() - t_start
+         write_numbers(figures, run_id=run_id, duration_s=duration_s, payload=payload)
+diff --git a/experiments/exp063.py b/experiments/exp063.py
+index af189d2..7149dd4 100644
+--- a/experiments/exp063.py
++++ b/experiments/exp063.py
+@@ -85,6 +85,12 @@ RECIPE: list[str] = [
+ ]
+ 
+ 
++def _recipe_val(flag: str) -> str:
++    """Read the value following a flag in RECIPE (so config numbers in the
++    writeup are interpolated from the same source that drives training)."""
++    return RECIPE[RECIPE.index(flag) + 1]
++
++
+ def _wd_label(wd: float) -> str:
+     """Cell-name-safe label for a decay value: 0 → wd0, 1e-3 → wd1em3."""
+     if wd == 0:
+@@ -274,24 +280,30 @@ def _wd_ticks(ax, wds: list[float]) -> None:
+ 
+ 
+ def plot_decay_sweep(stats: list[dict], stem: Path) -> None:
+-    """NaN-epoch rate, max ‖W_ee‖ (log), and best accuracy vs weight decay."""
++    """NaN-epoch rate, max ‖W_ee‖, and best accuracy vs weight decay."""
+     theme.apply()
+     trained = sorted([s for s in stats if s.get("trained")], key=lambda s: s["wd"])
+     wds = [s["wd"] for s in trained]
+     x = range(len(trained))
+-    fig, axes = plt.subplots(1, 3, figsize=(11.0, 3.6), dpi=150)
++    # Column-width multi-panel row (H11/H12: ≈6.5 in wide, one aspect). dpi and
++    # linewidth come from theme.apply(), not per-call overrides (H15).
++    fig, axes = plt.subplots(1, 3, figsize=(6.5, 2.8))
+ 
++    # Separate subplots stay near-black — no decorative per-panel colour (H13).
+     axes[0].plot(x, [100 * s["nan_epoch_rate"] for s in trained], "o-",
+-                 color=theme.DEEP_RED, lw=2.0, ms=7)
++                 color=theme.INK_BLACK, ms=6)
+     axes[0].set_ylabel("NaN-epoch rate (%)")
+-    axes[0].set_ylim(bottom=-2)
++    axes[0].set_ylim(bottom=0)
+ 
++    # Zero-based y-axis: ‖W_ee‖ barely moves across the sweep, so an auto-zoomed
++    # axis would visually exaggerate a flat quantity (plot honesty, H13/H2).
+     axes[1].plot(x, [s["max_wee_norm"] for s in trained], "o-",
+-                 color=theme.INK_BLACK, lw=2.0, ms=7)
++                 color=theme.INK_BLACK, ms=6)
+     axes[1].set_ylabel("max ‖W_ee‖")
++    axes[1].set_ylim(bottom=0)
+ 
+     axes[2].plot(x, [s["best_acc_pct"] for s in trained], "o-",
+-                 color=theme.INK_BLACK, lw=2.0, ms=7)
++                 color=theme.INK_BLACK, ms=6)
+     axes[2].axhline(CHANCE_PCT, color=theme.GREY_MID, lw=1.0, ls="--")
+     axes[2].set_ylabel("best test accuracy (%)")
+ 
+@@ -378,6 +390,18 @@ def main() -> None:
+             "max_samples": ms,
+             "epochs": ep,
+             "compute": _compute_label(),
++            # Config inputs the writeup interpolates instead of hand-typing them:
++            # every fixed recipe number the prose/table/captions cite, sourced
++            # from the same RECIPE/SCALE that drives training.
++            "config": {
++                "n_hidden": int(_recipe_val("--n-hidden")),
++                "batch_size": int(_recipe_val("--batch-size")),
++                "lr": float(_recipe_val("--lr")),
++                "theta_u": int(_recipe_val("--fr-reg-upper-theta")),
++                "s_u": float(_recipe_val("--fr-reg-upper-strength")),
++                "t_ms": T_MS,
++                "dt_ms": DT_MS,
++            },
+             "n_cells": len(CELLS),
+             "n_trained": len(trained),
+             "cells": stats,
+diff --git a/experiments/exp064.py b/experiments/exp064.py
+index fea4ed0..0aa57f0 100644
+--- a/experiments/exp064.py
++++ b/experiments/exp064.py
+@@ -62,6 +62,13 @@ DT_MS = 1.0
+ T_MS = 1000.0
+ SUBSET = 1000
+ EPOCHS = 30
++LR = 0.001
++BATCH_SIZE = 32
++N_HIDDEN = 256
++# Lower bound of the forward-pass state clamp (a conductance cannot be physically
++# negative). The upper cap G_CLAMP_MAX is imported from tools/snn/models so the
++# writeup's "floor at 0, cap at 100 µS" reads the same source the model enforces.
++G_CLAMP_MIN = 0.0
+ 
+ PLUMBING_SUBSET = 64
+ PLUMBING_EPOCHS = 2
+@@ -74,10 +81,10 @@ RECIPE: list[str] = [
+     "--dataset", "shd",
+     "--t-ms", str(int(T_MS)),
+     "--dt", str(DT_MS),
+-    "--n-hidden", "256",
++    "--n-hidden", str(N_HIDDEN),
+     "--model", "ping",
+-    "--batch-size", "32",
+-    "--lr", "0.001",
++    "--batch-size", str(BATCH_SIZE),
++    "--lr", str(LR),
+     "--no-dales-law",
+     "--w-ee", "0.3", "0.1",
+     "--trainable-w-ee", "--trainable-w-ei", "--trainable-w-ie", "--trainable-w-ii",
+@@ -103,7 +110,7 @@ SCALE = {
+     "t_ms": T_MS,
+     "dt_ms": DT_MS,
+     "epochs": EPOCHS,
+-    "n_hidden": 256,
++    "n_hidden": N_HIDDEN,
+     "seeds": 1,
+     "seed": SEED,
+     "dales_law": False,
+@@ -284,7 +291,7 @@ def plot_bars(stats: list[dict], stem: Path) -> None:
+     labels = [s["label"] for s in trained]
+     x = range(len(trained))
+     colours = [theme.DEEP_RED if not s["clamp"] else theme.INK_BLACK for s in trained]
+-    fig, axes = plt.subplots(1, 3, figsize=(11.5, 3.8), dpi=150)
++    fig, axes = plt.subplots(1, 3, figsize=(6.5, 3.66))  # 16:9 at column width (H11–H12)
+ 
+     axes[0].bar(x, [100 * s["nan_epoch_rate"] for s in trained], color=colours, width=0.6)
+     axes[0].set_ylabel("NaN-epoch rate (%)")
+@@ -309,9 +316,13 @@ def plot_bars(stats: list[dict], stem: Path) -> None:
+ def plot_loss_traces(stem: Path) -> None:
+     """Test loss per epoch across the three cells — NaN epochs show as gaps."""
+     theme.apply()
+-    fig, ax = plt.subplots(figsize=(8.0, 4.5), dpi=150)
+-    colours = [theme.DEEP_RED, theme.INK_BLACK, theme.ELECTRIC_CYAN]
+-    for cell, colour in zip(CELLS, colours):
++    fig, ax = plt.subplots(figsize=(6.5, 3.66))  # 16:9 at column width (H11–H12)
++    # H13: near-black ink, a single red accent for the diverging free baseline,
++    # and the two clamped cells separated by line style so the figure survives a
++    # grayscale print and colour-blind readers.
++    colours = [theme.DEEP_RED, theme.INK_BLACK, theme.INK_BLACK]
++    styles = ["-", "--", ":"]
++    for cell, colour, style in zip(CELLS, colours, styles):
+         p = cell_dir(cell["name"]) / "metrics.json"
+         if not p.exists():
+             continue
+@@ -319,7 +330,7 @@ def plot_loss_traces(stem: Path) -> None:
+         x = [e["ep"] for e in eps]
+         y = [e.get("test_loss") if isinstance(e.get("test_loss"), (int, float))
+              and math.isfinite(e.get("test_loss")) else float("nan") for e in eps]
+-        ax.plot(x, y, "-", color=colour, lw=1.8, label=cell["label"])
++        ax.plot(x, y, style, color=colour, lw=1.8, label=cell["label"])
+     ax.set_xlabel("epoch")
+     ax.set_ylabel("test cross-entropy loss")
+     ax.legend(fontsize=theme.SIZE_LEGEND, frameon=False)
+@@ -406,12 +417,28 @@ def main() -> None:
+                        + (f"; best stable accuracy {best_stable_acc:.1f}%"
+                           if best_stable_acc is not None else ""))
+ 
++        # Config inputs the writeup quotes (hidden units, T, lr, batch, the state
++        # clamp's floor/cap) — sourced here so no number is hand-typed in the prose.
++        # G_CLAMP_MAX is imported from the model so the doc and the enforced clamp
++        # stay one number. Imported lazily to keep torch off the dispatch path.
++        from models import G_CLAMP_MAX  # noqa: E402  (tools/snn on sys.path via SNN_TOOL)
++
++        config = {
++            "n_hidden": N_HIDDEN,
++            "t_ms": T_MS,
++            "lr": LR,
++            "batch_size": BATCH_SIZE,
++            "g_clamp_min": G_CLAMP_MIN,
++            "g_clamp_max": G_CLAMP_MAX,
++        }
++
+         payload = {
+             "seed": SEED,
+             "dt_ms": DT_MS,
+             "max_samples": ms,
+             "epochs": ep,
+             "compute": _compute_label(),
++            "config": config,
+             "n_cells": len(CELLS),
+             "n_trained": len(by_name),
+             "cells": stats,

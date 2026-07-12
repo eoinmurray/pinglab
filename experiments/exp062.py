@@ -160,6 +160,29 @@ def _cell_by_name(name: str) -> dict | None:
     return next((c for c in CELLS if c["name"] == name), None)
 
 
+def _recipe_val(flag: str) -> str:
+    """The value passed to *flag* in RECIPE (the single arg after it), so the
+    config sub-dict below is sourced from the recipe itself, never re-typed."""
+    return RECIPE[RECIPE.index(flag) + 1]
+
+
+def recipe_config() -> dict:
+    """The fixed-recipe config inputs the writeup interpolates, pulled straight
+    from RECIPE / the shared constants so no number is hand-typed twice. Every
+    value here is a training input (as opposed to a run output)."""
+    return {
+        "n_hidden": int(_recipe_val("--n-hidden")),
+        "t_ms": int(_recipe_val("--t-ms")),
+        "batch_size": int(_recipe_val("--batch-size")),
+        "lr": float(_recipe_val("--lr")),
+        "weight_decay": float(_recipe_val("--weight-decay")),
+        "fr_reg_upper_theta": float(_recipe_val("--fr-reg-upper-theta")),
+        "fr_reg_upper_strength": float(_recipe_val("--fr-reg-upper-strength")),
+        "n_classes": N_CLASSES,
+        "seeds": SCALE["seeds"],
+    }
+
+
 # ── RunPod fan-out (one pod per cell) ────────────────────────────────
 
 def runpod_is_done(cell: dict) -> bool:
@@ -280,7 +303,9 @@ def plot_comparison(stats: list[dict], stem: Path) -> None:
     labels = [s["label"] for s in trained]
     x = range(len(trained))
     colours = [theme.DEEP_RED if not s["dales_law"] else theme.INK_BLACK for s in trained]
-    fig, axes = plt.subplots(1, 3, figsize=(11.0, 3.6), dpi=150)
+    # H11–H12: column width (6.5 in), one 16:9 aspect shared with loss_traces.
+    # dpi + facecolor come from theme (savefig.dpi 240, white bg) — not set here.
+    fig, axes = plt.subplots(1, 3, figsize=(6.5, 3.66))
 
     axes[0].bar(x, [100 * s["nan_epoch_rate"] for s in trained], color=colours, width=0.6)
     axes[0].set_ylabel("NaN-epoch rate (%)")
@@ -305,7 +330,8 @@ def plot_comparison(stats: list[dict], stem: Path) -> None:
 def plot_loss_traces(stem: Path) -> None:
     """Per-epoch train loss, free vs constrained — NaN epochs show as gaps."""
     theme.apply()
-    fig, ax = plt.subplots(figsize=(8.0, 4.5), dpi=150)
+    # H11–H12: column width (6.5 in), one 16:9 aspect shared with the bar figure.
+    fig, ax = plt.subplots(figsize=(6.5, 3.66))
     for cell in CELLS:
         p = cell_dir(cell["name"]) / "metrics.json"
         if not p.exists():
@@ -314,11 +340,15 @@ def plot_loss_traces(stem: Path) -> None:
         x = [e["ep"] for e in eps]
         y = [e.get("test_loss") if isinstance(e.get("test_loss"), (int, float))
              and math.isfinite(e.get("test_loss")) else float("nan") for e in eps]
+        # H13: the accent (free) also gets a dashed line-style so the two series
+        # survive a grayscale print; the near-black control stays solid. Widths
+        # come from the theme (lines.linewidth) — not set here.
         colour = theme.DEEP_RED if not cell["dales_law"] else theme.INK_BLACK
-        ax.plot(x, y, "-", color=colour, lw=1.8, label=cell["label"])
+        style = "--" if not cell["dales_law"] else "-"
+        ax.plot(x, y, color=colour, ls=style, label=cell["label"])
     ax.set_xlabel("epoch")
     ax.set_ylabel("test cross-entropy loss")
-    ax.legend(fontsize=theme.SIZE_LEGEND, frameon=False)
+    ax.legend()
     for sp in ("top", "right"):
         ax.spines[sp].set_visible(False)
     fig.tight_layout()
@@ -410,6 +440,7 @@ def main() -> None:
             "dales_diverges": dales_diverges,
             "verdict": verdict,
             "chance_pct": CHANCE_PCT,
+            "config": recipe_config(),
         }
         duration_s = time.monotonic() - t_start
         write_numbers(figures, run_id=run_id, duration_s=duration_s, payload=payload)
