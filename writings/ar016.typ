@@ -24,6 +24,7 @@
 #let sc = n.scout
 #let hl = n.hallucination
 #let cv = json("/artifacts/data/ar016/corpus_view.json")
+#let crit = json("/artifacts/data/ar016/critiques.json")
 
 // function-axis display order + human labels
 #let axis-order = (
@@ -157,6 +158,8 @@
 
   What can be claimed: this is a DOI-verified corpus of #n.corpus_in_hand papers, with a _measured_ (not assumed) recall of roughly #rlo–#rhi %, and a documented reason for every paper's inclusion. What cannot: that it is complete. The tail of a semantic corpus goes asymptotic (papers in no index, mis-tagged, or truly obscure cost more per paper than the bulk did), and the capture–recapture band (#tlo–#thi) is itself uncertain because the channels are heterogeneous. One structural fact surfaced along the way: the most-cited _references_ of this corpus are foundational papers that are purely mechanism (how gamma is generated) or purely function (attention modulates gamma), each satisfying only half the "mechanism _carries_ function" test — which is why the citation graph flooded us with candidates but converted few. The scope boundary is genuinely restrictive; the intersection is the smaller, more interesting set.
 
+  One class of paper the strict scope excludes by construction is the _critique_. Papers that attack a functional claim (does synchrony bind? does gamma carry a usable code?) argue at the level of spike timing or coding in general, without committing to the pyramidal↔interneuron loop as the generator, so they fail the mechanism-as-vehicle test. The judge duly rejected the canonical skeptics it saw (Shadlen & Movshon's _Synchrony Unbound_ and both Ray & Maunsell papers), and the recall channels never chased the others (Thiele & Stoner, Palanca & DeAngelis, Merker), because the scope does not target them. This is correct for the map but a liability for the review, which cannot omit the opposition. The major critiques are therefore listed in the appendix as adjacent-but-excluded, to be engaged there rather than left silently absent.
+
   One assumption the run itself falsified is that a language model is a poor recall oracle. Multiplexed across #str(20) decorrelated passes and filtered through DOI verification, memory became the _largest_ single channel: #(pv.memory_only + pv.memory_and_search) of the #n.corpus_in_hand in-scope papers, #pv.memory_only of them found by memory alone, with near-zero fabrication (#hl.pilot_real of #hl.pilot_recalled papers real in the controlled pilot, #hl.memory_unresolvable of #hl.memory_unique_dois unresolvable in the full harvest). The lesson is that decorrelation plus verification, not distrust, is what makes memory usable for recall.
 
   == Next steps
@@ -200,6 +203,32 @@
           #r.rationale #text(fill: luma(140))[\[#r.channel\]]
         ]))
       }
+    }
+  }
+
+  == Appendix: adjacent critiques (not corpus members)
+
+  These are the major skeptical papers on gamma/synchrony function. They are _not_ in the frozen corpus and are excluded from every count and recall figure above: each attacks a functional claim without naming the E–I/PING loop as the generator, so it fails the mechanism-as-vehicle test. They are recorded here so the review can engage the opposition rather than omit it. The disposition tag marks whether the build surfaced and rejected the paper, or never reached it.
+
+  #context {
+    let web = target() == "html"
+    if web {
+      html.elem("ol", attrs: (class: "refs"), {
+        for r in crit {
+          html.elem("li", {
+            html.elem("strong", r.byline)
+            ". " + r.title + ". "
+            html.elem("em", r.venue)
+            ". "
+            html.elem("a", attrs: (class: "doi", href: "https://doi.org/" + r.doi, target: "_blank", rel: "noopener"), "doi:" + r.doi)
+            html.elem("span", attrs: (class: "doi"), " (" + r.disposition + ")")
+          })
+        }
+      })
+    } else {
+      enum(..crit.map(r => [
+        #strong(r.byline). #r.title. #emph(r.venue). #text(fill: luma(120))[doi:#r.doi] #text(fill: luma(140))[(#r.disposition)]
+      ]))
     }
   }
 ]
