@@ -1,7 +1,7 @@
 #import "/.demolab/lib.typ": cite, reference-list
 
 #let meta = (
-  title: "The Functional Role of PING: a Measured Corpus",
+  title: "The Functional Role of PING: mapping the space",
   date: "2026-07-12",
   description: "An exhaustive, DOI-verified, recall-measured corpus of papers in which the PING mechanism (gamma from reciprocal pyramidal–interneuron interaction) is explicitly the vehicle for a functional claim. Built by four decorrelated capture channels, membership decided by a consistent two-stage judge, completeness estimated by capture–recapture.",
   collection: "miscellaneous",
@@ -57,14 +57,15 @@
     [*Estimated recall*], [≈ #rlo–#rhi %],
     [*Channels*], [memory · keyword-search · citation-graph · embedding],
     [*Membership authority*], [one two-stage judge (wide-net → confirm), consistent across channels],
-    [*Coverage caveats*], [keyless (no Semantic Scholar / PubMed); single judge per paper; OpenAlex abstract gaps on seminal papers],
+    [*Coverage caveats*],
+    [keyless (no Semantic Scholar / PubMed); single judge per paper; OpenAlex abstract gaps on seminal papers],
   )
 
   The estimate is a *range, not a point*, and that is deliberate. The three pairwise capture–recapture estimates disagree (#n.estimates.chapman_memory_x_search.N, #n.estimates.chapman_search_x_citation.N, and #n.estimates.chapman_memory_x_citation.N), and that disagreement is diagnostic, not noise: the channels have heterogeneous catchability (memory reaches the old and seminal, search the recent and well-indexed), which violates the independence the estimator assumes. No single $hat(N)$ is trustworthy, so the honest output is the band #tlo–#thi and a recall of #rlo–#rhi %.
 
   == Methods
 
-  The premise is a division of labour. The model is a good *size oracle* and *membership judge* but a bad *recall oracle*: it can size the field and judge any single paper, but cannot list the papers without fabricating. So databases and the citation graph supply recall, the model decides membership, and completeness is estimated statistically. The procedure, in order:
+  The premise is a division of labour. The model is a good *size oracle* (it can tell hundreds from thousands) and *membership judge* (it can rule a specific paper in or out). Its *memory* is also a recall channel: unreliable in a single readout, where it is lossy and confabulates at the margin, but reliable once multiplexed across many decorrelated passes and filtered through DOI verification. On that footing, recall is gathered from four channels (memory among them), membership is decided by judgment, and completeness is estimated statistically. The procedure, in order:
 
   + *Refine and scout the question, before anything is frozen.* The raw interest ("the big questions about PING") is too broad to search, so it is narrowed conversationally: the model reflects the corpus size back from memory (gamma broadly is thousands of papers; the mechanism-carries-function slice is hundreds), weighs narrowing and widening axes by their size, and converges on #sc.anchors anchors with explicit in/out boundaries, targeting #sc.target_range.at(0)–#sc.target_range.at(1). A cheap scout pass then probes live database counts to confirm the slice is exhaustible and expose traps: the mechanism core returns #sc.probes.PING_gamma_oscillation–#sc.probes.pyramidal_interneuron_network_gamma hits against the "communication through coherence" balloon (#sc.probes.communication_through_coherence hits) the scope must exclude, and the coincidence/gain axis is nearly invisible to keywords (#sc.probes.gamma_interneuron_coincidence hits), needing concept-level queries later. It also flags collisions like "PING" naming a network tool. The result is the scope proposal, estimated at #sc.frozen_estimate.at(0)–#sc.frozen_estimate.at(1), which is then frozen.
 
@@ -156,6 +157,8 @@
 
   What can be claimed: this is a DOI-verified corpus of #n.corpus_in_hand papers, with a *measured* (not assumed) recall of roughly #rlo–#rhi %, and a documented reason for every paper's inclusion. What cannot: that it is complete. The tail of a semantic corpus goes asymptotic (papers in no index, mis-tagged, or truly obscure cost more per paper than the bulk did), and the capture–recapture band (#tlo–#thi) is itself uncertain because the channels are heterogeneous. One structural fact surfaced along the way: the most-cited *references* of this corpus are foundational papers that are purely mechanism (how gamma is generated) or purely function (attention modulates gamma), each satisfying only half the "mechanism *carries* function" test — which is why the citation graph flooded us with candidates but converted few. The scope boundary is genuinely restrictive; the intersection is the smaller, more interesting set.
 
+  One assumption the run itself falsified is that a language model is a poor recall oracle. Multiplexed across #str(20) decorrelated passes and filtered through DOI verification, memory became the *largest* single channel: #(pv.memory_only + pv.memory_and_search) of the #n.corpus_in_hand in-scope papers, #pv.memory_only of them found by memory alone, with near-zero fabrication (#hl.pilot_real of #hl.pilot_recalled papers real in the controlled pilot, #hl.memory_unresolvable of #hl.memory_unique_dois unresolvable in the full harvest). The lesson is that decorrelation plus verification, not distrust, is what makes memory usable for recall.
+
   == Next steps
 
   The corpus is the input to the review, not the review. The obvious continuations: (1) a second, independent judge pass to turn the single-judge boundary into a voted one and tighten precision; (2) one more orthogonal recall channel where a key exists (PubMed for the biomedical silo, or author-complete feeds for the core labs), expected, from the yield curve, to add only single digits; (3) the synthesis itself, reading down each axis below to map which mechanistic claims are contested and where the gaps are. Scope reopens only under a new freeze tag; questions that surfaced during the build are logged, not silently acted on.
@@ -176,8 +179,15 @@
             html.elem("li", {
               html.elem("strong", r.byline)
               ". " + r.title + ". "
-              if r.venue != "" { html.elem("em", r.venue); ". " }
-              html.elem("a", attrs: (class: "doi", href: "https://doi.org/" + r.doi, target: "_blank", rel: "noopener"), "doi:" + r.doi)
+              if r.venue != "" {
+                html.elem("em", r.venue)
+                ". "
+              }
+              html.elem(
+                "a",
+                attrs: (class: "doi", href: "https://doi.org/" + r.doi, target: "_blank", rel: "noopener"),
+                "doi:" + r.doi,
+              )
               html.elem("br")
               r.rationale + " "
               html.elem("span", attrs: (class: "doi"), "[" + r.channel + "]")
