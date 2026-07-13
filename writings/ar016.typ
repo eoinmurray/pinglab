@@ -41,7 +41,7 @@
 #let body = [
   == Abstract
 
-  This article is a _corpus_, not a review. It is an attempt at making an exhaustive, auditable paper list for one narrow question (the map), leaving the synthesis, the open debates, and the gaps for a later pass. The question:
+  This article is a _corpus_, not a review. It is an attempt at an exhaustive, auditable paper list for one narrow question, leaving the synthesis, the open debates, and the gaps to a later pass. The question:
 
   #quote(block: true)[
     In which papers is the PING mechanism explicitly the vehicle for a functional claim?
@@ -62,20 +62,20 @@
     [keyless (no Semantic Scholar / PubMed); single judge per paper; OpenAlex abstract gaps on seminal papers],
   )
 
-  The estimate is a _range, not a point_, and that is deliberate. Completeness is measured by _capture–recapture_ (the Lincoln–Petersen / Chapman estimator): when two channels independently sample one fixed population, the size of their overlap implies how many papers both missed, and so the true size $hat(N)$. Computed over the three channel-pairs that overlap it yields three estimates, and they disagree, #n.estimates.chapman_memory_x_search.N (memory × search), #n.estimates.chapman_search_x_citation.N (search × citation), and #n.estimates.chapman_memory_x_citation.N (memory × citation). That disagreement is diagnostic, not noise: the channels have heterogeneous catchability (memory reaches the old and seminal, search the recent and well-indexed), which violates the independence the estimator assumes. No single $hat(N)$ is trustworthy, so the honest output is the band #tlo–#thi and a recall of #rlo–#rhi %.
+  The estimate is a range, not a point. Completeness is measured by _capture–recapture_ (the Lincoln–Petersen / Chapman estimator): when two channels independently sample one fixed population, the size of their overlap implies how many papers both missed, and so the true size $hat(N)$. Computed over the three channel-pairs that overlap, it yields three estimates, and they disagree: #n.estimates.chapman_memory_x_search.N (memory × search), #n.estimates.chapman_search_x_citation.N (search × citation), and #n.estimates.chapman_memory_x_citation.N (memory × citation). The disagreement is expected rather than anomalous: the channels have heterogeneous catchability (memory reaches the old and seminal, search the recent and well-indexed), which violates the independence the estimator assumes. No single $hat(N)$ is reliable, so we report the band #tlo–#thi and a recall of #rlo–#rhi % rather than a point value.
 
   == Methods
 
-  The model is a good _size oracle_ (it can tell hundreds from thousands) and _membership judge_ (it can rule a specific paper in or out). Its _memory_ is also a recall channel: unreliable in a single readout, where it is lossy and confabulates at the margin, but reliable once multiplexed across many decorrelated passes and filtered through DOI verification. On that footing, recall is gathered from four channels (memory among them), membership is decided by judgment, and completeness is estimated statistically. The procedure, in order:
+  The model can estimate the size of a literature (it can tell hundreds from thousands) and judge whether a specific paper is in scope. Its memory is also a recall channel: unreliable in a single readout, where it is lossy and confabulates at the margin, but usable once multiplexed across many decorrelated passes and filtered through DOI verification. Recall is gathered from four channels (memory among them), membership is decided by judgment, and completeness is estimated statistically. The procedure, in order:
 
   + *Refine and scout the question, before anything is frozen.* The raw interest ("the big questions about PING") is too broad to search, so it is narrowed conversationally: the model reflects the corpus size back from memory (gamma broadly is thousands of papers; the mechanism-carries-function slice is hundreds), weighs narrowing and widening axes by their size, and converges on #sc.anchors anchors with explicit in/out boundaries, targeting #sc.target_range.at(0)–#sc.target_range.at(1). A cheap scout pass then probes live database counts to confirm the slice is exhaustible and expose traps: the mechanism core returns #sc.probes.PING_gamma_oscillation–#sc.probes.pyramidal_interneuron_network_gamma hits against the "communication through coherence" balloon (#sc.probes.communication_through_coherence hits) the scope must exclude, and the coincidence/gain axis is nearly invisible to keywords (#sc.probes.gamma_interneuron_coincidence hits), needing concept-level queries later. It also flags collisions like "PING" naming a network tool. The result is the scope proposal, estimated at #sc.frozen_estimate.at(0)–#sc.frozen_estimate.at(1), which is then frozen.
 
   + *Freeze the scope.* The inclusion rubric is fixed and git tagged (`freeze-ar016-v1`) before any measured run, so both capture samples target one fixed population and the recall figure is meaningful.
 
   + *Gather recall from four orthogonal channels,* chosen to fail on different papers so their union covers what any one misses:
-    - *Memory / weights:* 20 decorrelated elicitation passes (per-lab, per-function-axis, per-decade), each in its own context, unioned. This channel is the knowledge baked into the model's trained weights. Owns the old, seminal, abstract-less stratum.
-    - *Keyword search:* a deep OpenAlex full-text sweep across the frozen synonym ring (the fixed set of the concept's synonyms and near-terms, agreed at scope-freeze), deliberately high-recall. Owns the recent, well-indexed stratum.
-    - *Citation graph:* the backward references and forward citers of the found set, scored by how many of the corpus each candidate connects to. Owns the well-connected stratum, independent of words and of memory.
+    - *Memory / weights:* 20 decorrelated elicitation passes (per-lab, per-function-axis, per-decade), each in its own context, unioned. This channel is the knowledge baked into the model's trained weights. Covers the old, seminal, abstract-less stratum.
+    - *Keyword search:* a deep OpenAlex full-text sweep across the frozen synonym ring (the fixed set of the concept's synonyms and near-terms, agreed at scope-freeze), deliberately high-recall. Covers the recent, well-indexed stratum.
+    - *Citation graph:* the backward references and forward citers of the found set, scored by how many of the corpus each candidate connects to. Covers the well-connected stratum, independent of words and of memory.
     - *Embedding:* nearest neighbours of the strongest seeds in SPECTER (a document-embedding model, served by Semantic Scholar, that places papers by learned content similarity), independent of shared words, citations, and authorship.
 
   + *Verify every candidate DOI against Crossref.* An unresolvable DOI is treated as a hallucination and discarded, so nothing enters the corpus that cannot be resolved to a real paper.
@@ -86,13 +86,13 @@
 
   === Hallucination and verification
 
-  Because a language model generates the memory channel, fabricated references are the obvious failure mode. Every model-proposed reference passes a two-layer DOI check: each generating pass self-verifies against Crossref and drops what will not resolve, then an independent re-check resolves the deduplicated union again. In a controlled pilot where the model gave author, year, and title (not DOIs) and the resolver did the lookup, all #hl.pilot_real of #hl.pilot_recalled recalled papers were real, resolvable works: the model recalled genuine papers, not invented ones. In the full harvest the #str(20) memory passes returned #hl.memory_raw_returns candidates, deduplicated to #hl.memory_unique_dois references, of which #hl.memory_unresolvable failed to resolve at the re-check.
+  Because a language model generates the memory channel, fabricated references are the obvious failure mode. Every model-proposed reference passes a two-layer DOI check: each generating pass self-verifies against Crossref and drops what will not resolve, then an independent re-check resolves the deduplicated union again. In a controlled pilot where the model gave author, year, and title (not DOIs) and the resolver did the lookup, all #hl.pilot_real of #hl.pilot_recalled recalled papers were real, resolvable works. In the full harvest the #str(20) memory passes returned #hl.memory_raw_returns candidates, deduplicated to #hl.memory_unique_dois references, of which #hl.memory_unresolvable failed to resolve at the re-check.
 
-  The caveat is that DOI-resolution catches an _invented identifier_ but not a _valid DOI attached to the wrong paper_. That residual is real: a later audit removed #hl.junk_doi_removed reference whose DOI resolved only to a journal, and corrected #hl.metadata_corrected records with valid DOIs but corrupt third-party metadata (a prostate-cancer note, a Japanese architecture paper). Resolution is necessary but not sufficient; a Crossref-versus-OpenAlex cross-check closes the gap. Net, one fabricated-looking entry reached the list and was removed, leaving a corpus where every DOI resolves to the paper it claims to be.
+  The caveat is that DOI-resolution catches an _invented identifier_ but not a _valid DOI attached to the wrong paper_. That residual is real: a later audit removed #hl.junk_doi_removed reference whose DOI resolved only to a journal, and corrected #hl.metadata_corrected records with valid DOIs but corrupt third-party metadata (a prostate-cancer note, a Japanese architecture paper). Resolution is necessary but not sufficient; a Crossref-versus-OpenAlex cross-check catches the rest. One such entry reached the list and was removed.
 
   == Results
 
-  The four channels surfaced #fn.distinct_papers_judged distinct candidate papers, every one put through the same membership judge. #fn.accepted_in_scope survived and #fn.rejected were rejected, an acceptance rate of #fn.acceptance_pct %. That selectivity is the scope doing its work: most candidates are gamma-and-cognition papers that never make the mechanism-_carries_-function argument, and the judge holds the line.
+  The four channels surfaced #fn.distinct_papers_judged distinct candidate papers, every one put through the same membership judge. #fn.accepted_in_scope were accepted and #fn.rejected rejected, an acceptance rate of #fn.acceptance_pct %. Most rejected candidates are gamma-and-cognition papers that do not make the mechanism-_carries_-function argument.
 
   #table(
     columns: (auto, auto),
@@ -108,7 +108,7 @@
 
   === Provenance
 
-  The corpus is genuinely the union of complementary channels; no single one would have built it:
+  The corpus is the union of complementary channels; no single one would have produced it:
 
   #table(
     columns: (auto, auto),
@@ -121,11 +121,11 @@
     [*Total*], [#n.corpus_in_hand],
   )
 
-  Only #pv.memory_and_search of the #n.corpus_in_hand papers were caught by both memory and keyword search. The low overlap is real channel complementarity, and it is _why_ it took four channels rather than one.
+  Only #pv.memory_and_search of the #n.corpus_in_hand papers were caught by both memory and keyword search. The low overlap reflects the channels' complementarity, and is why four were needed rather than one.
 
   === Saturation
 
-  The stopping decision rests on the marginal-yield curve, not on hitting a target. Each successive channel returned fewer new in-scope papers:
+  The stopping point rests on the marginal-yield curve rather than a target count. Each successive channel returned fewer new in-scope papers:
 
   #table(
     columns: (auto, auto, auto),
@@ -138,7 +138,7 @@
     [embedding (SPECTER)], [+#yc.embedding_new], [#fn.by_stage.embedding_candidates],
   )
 
-  The yield collapsed from #yc.memory to +#yc.search_new to +#yc.citation_new to +#yc.embedding_new. The final channel (orthogonal, abstract-rich, centred on the hundred strongest seeds) screened #fn.by_stage.embedding_candidates semantic neighbours and added nothing. That is the saturation signal: not a proof (nothing here is), but the convergent kind, falling returns together with an orthogonal null. It is discounted only slightly: SPECTER is recency-biased, so its null speaks most strongly for the recent stratum, but the citation channel already swept the old one, so the un-caught region looks small either way.
+  The yield fell from #yc.memory to +#yc.search_new to +#yc.citation_new to +#yc.embedding_new. The final channel (orthogonal, abstract-rich, centred on the hundred strongest seeds) screened #fn.by_stage.embedding_candidates semantic neighbours and added nothing. This is a saturation signal rather than a proof: falling returns together with a null from an orthogonal channel. It should be discounted somewhat, since SPECTER is recency-biased and its null is strongest for recent work; but the citation channel already covered the older literature, so the remaining un-caught set is probably small.
 
   === Distribution by function axis
 
@@ -152,15 +152,15 @@
     [*Total*], [#n.corpus_in_hand],
   )
 
-  Communication-through-coherence and routing is the largest single axis (#ax.at("communication-coherence-routing", default: 0)): the field's centre of gravity is the claim that the E–I gamma rhythm gates _which_ signals pass between areas. The causal / optogenetic cluster (#ax.at("causal-optogenetic-performance", default: 0)) is now a first-class axis in its own right, marking the shift from "gamma correlates with function" to "drive the PV cells and watch function change". The full annotated list, grouped by axis with a one-line rationale per paper, is the bibliography below.
+  Communication-through-coherence and routing is the largest axis (#ax.at("communication-coherence-routing", default: 0)): the recurring claim is that the E–I gamma rhythm gates which signals pass between areas. The causal / optogenetic cluster (#ax.at("causal-optogenetic-performance", default: 0)) is a sizeable group of its own, reflecting a shift from correlating gamma with function to manipulating PV interneurons and measuring the effect. The full annotated list, grouped by axis with a one-line rationale per paper, is the bibliography below.
 
   == Discussion
 
-  What can be claimed: this is a DOI-verified corpus of #n.corpus_in_hand papers, with a _measured_ (not assumed) recall of roughly #rlo–#rhi %, and a documented reason for every paper's inclusion. What cannot: that it is complete. The tail of a semantic corpus goes asymptotic (papers in no index, mis-tagged, or truly obscure cost more per paper than the bulk did), and the capture–recapture band (#tlo–#thi) is itself uncertain because the channels are heterogeneous. One structural fact surfaced along the way: the most-cited _references_ of this corpus are foundational papers that are purely mechanism (how gamma is generated) or purely function (attention modulates gamma), each satisfying only half the "mechanism _carries_ function" test — which is why the citation graph flooded us with candidates but converted few. The scope boundary is genuinely restrictive; the intersection is the smaller, more interesting set.
+  This is a DOI-verified corpus of #n.corpus_in_hand papers, with a _measured_ recall of roughly #rlo–#rhi %, and a recorded reason for each paper's inclusion. It is not complete. The tail of a semantic corpus is expensive (papers in no index, mis-tagged, or obscure cost more per paper than the bulk did), and the capture–recapture band (#tlo–#thi) is itself uncertain because the channels are heterogeneous. The most-cited references of the corpus are foundational papers that are purely mechanism (how gamma is generated) or purely function (attention modulates gamma), each satisfying only half the "mechanism carries function" test; this is why the citation graph returned many candidates but few members. The scope is restrictive, and the set it defines is small.
 
-  One class of paper the strict scope excludes by construction is the _critique_. Papers that attack a functional claim (does synchrony bind? does gamma carry a usable code?) argue at the level of spike timing or coding in general, without committing to the pyramidal↔interneuron loop as the generator, so they fail the mechanism-as-vehicle test. The judge duly rejected the canonical skeptics it saw (Shadlen & Movshon's _Synchrony Unbound_ and both Ray & Maunsell papers), and the recall channels never chased the others (Thiele & Stoner, Palanca & DeAngelis, Merker), because the scope does not target them. This is correct for the map but a liability for the review, which cannot omit the opposition. The major critiques are therefore listed in the appendix as adjacent-but-excluded, to be engaged there rather than left silently absent.
+  The strict scope excludes one class of paper by construction: the _critique_. Papers that question a functional claim (does synchrony bind? does gamma carry a usable code?) argue at the level of spike timing or coding in general, without naming the pyramidal↔interneuron loop as the generator, so they fail the mechanism-as-vehicle test. The judge rejected the canonical skeptics it saw (Shadlen & Movshon's _Synchrony Unbound_ and both Ray & Maunsell papers), and the recall channels did not reach the others (Thiele & Stoner, Palanca & DeAngelis, Merker), since the scope does not target them. This is consistent for a corpus but a limitation for a review, which should not omit the critical literature. The major critiques are listed in the appendix, outside the corpus, for that later pass.
 
-  One assumption the run itself falsified is that a language model is a poor recall oracle. Multiplexed across #str(20) decorrelated passes and filtered through DOI verification, memory became the _largest_ single channel: #(pv.memory_only + pv.memory_and_search) of the #n.corpus_in_hand in-scope papers, #pv.memory_only of them found by memory alone, with near-zero fabrication (#hl.pilot_real of #hl.pilot_recalled papers real in the controlled pilot, #hl.memory_unresolvable of #hl.memory_unique_dois unresolvable in the full harvest). The lesson is that decorrelation plus verification, not distrust, is what makes memory usable for recall.
+  The run did not support the assumption that a language model is a poor recall channel. Multiplexed across #str(20) decorrelated passes and filtered through DOI verification, memory was the largest single channel: #(pv.memory_only + pv.memory_and_search) of the #n.corpus_in_hand in-scope papers, #pv.memory_only of them found by memory alone, with low fabrication (#hl.pilot_real of #hl.pilot_recalled real in the controlled pilot, #hl.memory_unresolvable of #hl.memory_unique_dois unresolvable in the full harvest). What made memory usable was decorrelation and verification, not restricting its use.
 
   == Next steps
 
@@ -208,7 +208,7 @@
 
   == Appendix: adjacent critiques (not corpus members)
 
-  These are the major skeptical papers on gamma/synchrony function. They are _not_ in the frozen corpus and are excluded from every count and recall figure above: each attacks a functional claim without naming the E–I/PING loop as the generator, so it fails the mechanism-as-vehicle test. They are recorded here so the review can engage the opposition rather than omit it. The disposition tag marks whether the build surfaced and rejected the paper, or never reached it.
+  These are the major skeptical papers on gamma/synchrony function. They are _not_ in the frozen corpus and are excluded from every count and recall figure above: each questions a functional claim without naming the E–I/PING loop as the generator, so it fails the mechanism-as-vehicle test. They are recorded here for the later review. The disposition tag marks whether the build surfaced and rejected the paper, or never reached it.
 
   #context {
     let web = target() == "html"
