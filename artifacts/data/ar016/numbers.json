@@ -105,5 +105,38 @@
     "rationale": 160,
     "abstract": 122
   },
-  "note_metadata": "Identity (title/authors/year/venue) authoritative from Crossref; OpenAlex had corrupt records for 4 DOIs (now fixed); 1 junk DOI (10.7554/elife) dropped 161->160."
+  "note_metadata": "Identity (title/authors/year/venue) authoritative from Crossref; OpenAlex had corrupt records for 4 DOIs (now fixed); 1 junk DOI (10.7554/elife) dropped 161->160.",
+  "scout": {
+    "target_range": [
+      100,
+      400
+    ],
+    "frozen_estimate": [
+      100,
+      250
+    ],
+    "anchors": 4,
+    "probes": {
+      "pyramidal_interneuron_network_gamma": 510,
+      "PING_gamma_oscillation": 100,
+      "gamma_attention_mechanism": 557,
+      "communication_through_coherence": 5878,
+      "gamma_stimulus_selection": 70,
+      "gamma_interneuron_coincidence": 6
+    },
+    "collisions": [
+      "'PING' also names the ICMP network tool",
+      "coincidence/gain axis near-empty under keyword (6 hits) -> needs concept-level queries"
+    ]
+  },
+  "hallucination": {
+    "pilot_recalled": 44,
+    "pilot_real": 44,
+    "memory_raw_returns": 420,
+    "memory_unique_dois": 180,
+    "memory_unresolvable": 0,
+    "junk_doi_removed": 1,
+    "metadata_corrected": 4,
+    "note": "DOI-resolution catches invented identifiers but not valid-DOI->wrong-paper; the residual was caught by a Crossref-vs-OpenAlex metadata cross-check"
+  }
 }
