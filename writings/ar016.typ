@@ -25,6 +25,7 @@
 #let hl = n.hallucination
 #let cv = json("/artifacts/data/ar016/corpus_view.json")
 #let crit = json("/artifacts/data/ar016/critiques.json")
+#let scope = json("/artifacts/data/ar016/scope.json")
 
 // function-axis display order + human labels
 #let axis-order = (
@@ -91,6 +92,31 @@
   The caveat is that DOI-resolution catches an _invented identifier_ but not a _valid DOI attached to the wrong paper_. That residual is real: a later audit removed #hl.junk_doi_removed reference whose DOI resolved only to a journal, and corrected #hl.metadata_corrected records with valid DOIs but corrupt third-party metadata (a prostate-cancer note, a Japanese architecture paper). Resolution is necessary but not sufficient; a Crossref-versus-OpenAlex cross-check catches the rest. One such entry reached the list and was removed.
 
   == Results
+
+  === Scope
+
+  Scouting produced the frozen scope (tag `freeze-ar016-v1`), estimated at #sc.frozen_estimate.at(0)–#sc.frozen_estimate.at(1) papers. A paper is in only if it names the PING / E–I loop as the gamma generator _and_ draws a functional claim from it; correlation-only phenomenology, mechanism with no functional claim, non-gamma work, and mechanism-agnostic critiques are out. Four boundary questions were resolved during scouting: communication-through-coherence counts only when the E–I/PING generator is named (not for generic gamma); the coincidence-detection and gain axis is included, reached by concept-level rather than keyword queries; reviews that argue mechanism→function are kept as members; and there is no era floor. The scope was seeded by #scope.anchors.len() anchor papers:
+
+  #context {
+    let web = target() == "html"
+    if web {
+      html.elem("ol", attrs: (class: "refs"), {
+        for a in scope.anchors {
+          html.elem("li", {
+            html.elem("strong", a.authors + " (" + str(a.year) + ")")
+            ". " + a.title + ". "
+            html.elem("a", attrs: (class: "doi", href: "https://doi.org/" + a.doi, target: "_blank", rel: "noopener"), "doi:" + a.doi)
+          })
+        }
+      })
+    } else {
+      enum(..scope.anchors.map(a => [
+        #strong(a.authors + " (" + str(a.year) + ")"). #a.title. #text(fill: luma(120))[doi:#a.doi]
+      ]))
+    }
+  }
+
+  === Selection
 
   The four channels surfaced #fn.distinct_papers_judged distinct candidate papers, every one put through the same membership judge. #fn.accepted_in_scope were accepted and #fn.rejected rejected, an acceptance rate of #fn.acceptance_pct %. Most rejected candidates are gamma-and-cognition papers that do not make the mechanism-_carries_-function argument.
 
