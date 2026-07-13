@@ -73,7 +73,7 @@
   + *Freeze the scope.* The inclusion rubric is fixed and git tagged (`freeze-ar016-v1`) before any measured run, so both capture samples target one fixed population and the recall figure is meaningful.
 
   + *Gather recall from four orthogonal channels,* chosen to fail on different papers so their union covers what any one misses:
-    - *Memory:* 20 decorrelated elicitation passes (per-lab, per-function-axis, per-decade), each in its own context, unioned. Owns the old, seminal, abstract-less stratum.
+    - *Memory / weights:* 20 decorrelated elicitation passes (per-lab, per-function-axis, per-decade), each in its own context, unioned. This channel is the knowledge baked into the model's trained weights. Owns the old, seminal, abstract-less stratum.
     - *Keyword search:* a deep OpenAlex full-text sweep across the frozen synonym ring (the fixed set of the concept's synonyms and near-terms, agreed at scope-freeze), deliberately high-recall. Owns the recent, well-indexed stratum.
     - *Citation graph:* the backward references and forward citers of the found set, scored by how many of the corpus each candidate connects to. Owns the well-connected stratum, independent of words and of memory.
     - *Embedding:* nearest neighbours of the strongest seeds in SPECTER (a document-embedding model, served by Semantic Scholar, that places papers by learned content similarity), independent of shared words, citations, and authorship.
