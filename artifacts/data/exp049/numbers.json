@@ -57,7 +57,23 @@
       "i_rate_hz": 60.575185546875,
       "f_gamma_hz": 50.0,
       "w_ei_mean": 0.0009763374691829085,
-      "w_ie_mean": 0.007809170987457037
+      "w_ie_mean": 0.007809170987457037,
+      "w_ei": {
+        "init_mean": 0.0009763374691829085,
+        "trained_mean": 0.0009763374691829085,
+        "init_zero_fraction": 0.0,
+        "trained_zero_fraction": 0.0,
+        "init_positive_mean": 0.0009763374691829085,
+        "trained_positive_mean": 0.0009763374691829085
+      },
+      "w_ie": {
+        "init_mean": 0.007809170987457037,
+        "trained_mean": 0.007809170987457037,
+        "init_zero_fraction": 0.0,
+        "trained_zero_fraction": 0.0,
+        "init_positive_mean": 0.007809170987457037,
+        "trained_positive_mean": 0.007809170987457037
+      }
     },
     {
       "condition": "frozen_ping",
@@ -67,7 +83,23 @@
       "i_rate_hz": 53.56397321428572,
       "f_gamma_hz": 45.0,
       "w_ei_mean": 0.0009765292634256184,
-      "w_ie_mean": 0.007807369343936443
+      "w_ie_mean": 0.007807369343936443,
+      "w_ei": {
+        "init_mean": 0.0009765292634256184,
+        "trained_mean": 0.0009765292634256184,
+        "init_zero_fraction": 0.0,
+        "trained_zero_fraction": 0.0,
+        "init_positive_mean": 0.0009765292634256184,
+        "trained_positive_mean": 0.0009765292634256184
+      },
+      "w_ie": {
+        "init_mean": 0.007807369343936443,
+        "trained_mean": 0.007807369343936443,
+        "init_zero_fraction": 0.0,
+        "trained_zero_fraction": 0.0,
+        "init_positive_mean": 0.007807369343936443,
+        "trained_positive_mean": 0.007807369343936443
+      }
     },
     {
       "condition": "frozen_ping",
@@ -77,7 +109,23 @@
       "i_rate_hz": 57.37051060267857,
       "f_gamma_hz": 45.0,
       "w_ei_mean": 0.0009766268776729703,
-      "w_ie_mean": 0.007812713272869587
+      "w_ie_mean": 0.007812713272869587,
+      "w_ei": {
+        "init_mean": 0.0009766268776729703,
+        "trained_mean": 0.0009766268776729703,
+        "init_zero_fraction": 0.0,
+        "trained_zero_fraction": 0.0,
+        "init_positive_mean": 0.0009766268776729703,
+        "trained_positive_mean": 0.0009766268776729703
+      },
+      "w_ie": {
+        "init_mean": 0.007812713272869587,
+        "trained_mean": 0.007812713272869587,
+        "init_zero_fraction": 0.0,
+        "trained_zero_fraction": 0.0,
+        "init_positive_mean": 0.007812713272869587,
+        "trained_positive_mean": 0.007812713272869587
+      }
     },
     {
       "condition": "trainable_ping_init",
@@ -87,7 +135,23 @@
       "i_rate_hz": 3.3617940848214287,
       "f_gamma_hz": 90.0,
       "w_ei_mean": 0.0004509513673838228,
-      "w_ie_mean": 0.0087051996961236
+      "w_ie_mean": 0.0087051996961236,
+      "w_ei": {
+        "init_mean": 0.0009763374691829085,
+        "trained_mean": 0.0004509513673838228,
+        "init_zero_fraction": 0.0,
+        "trained_zero_fraction": 0.7619476318359375,
+        "init_positive_mean": 0.0009763374691829085,
+        "trained_positive_mean": 0.0018943366594612598
+      },
+      "w_ie": {
+        "init_mean": 0.007809170987457037,
+        "trained_mean": 0.0087051996961236,
+        "init_zero_fraction": 0.0,
+        "trained_zero_fraction": 0.0106964111328125,
+        "init_positive_mean": 0.007809170987457037,
+        "trained_positive_mean": 0.008799321949481964
+      }
     },
     {
       "condition": "trainable_ping_init",
@@ -97,7 +161,23 @@
       "i_rate_hz": 4.28802734375,
       "f_gamma_hz": 90.0,
       "w_ei_mean": 0.0011993956286460161,
-      "w_ie_mean": 0.00965394638478756
+      "w_ie_mean": 0.00965394638478756,
+      "w_ei": {
+        "init_mean": 0.0009765292634256184,
+        "trained_mean": 0.0011993956286460161,
+        "init_zero_fraction": 0.0,
+        "trained_zero_fraction": 0.3789176940917969,
+        "init_positive_mean": 0.0009765292634256184,
+        "trained_positive_mean": 0.0019311383366584778
+      },
+      "w_ie": {
+        "init_mean": 0.007807369343936443,
+        "trained_mean": 0.00965394638478756,
+        "init_zero_fraction": 0.0,
+        "trained_zero_fraction": 0.016094207763671875,
+        "init_positive_mean": 0.007807369343936443,
+        "trained_positive_mean": 0.00981185957789421
+      }
     },
     {
       "condition": "trainable_ping_init",
@@ -107,7 +187,23 @@
       "i_rate_hz": 3.595313895089286,
       "f_gamma_hz": 90.0,
       "w_ei_mean": 0.00037116679595783353,
-      "w_ie_mean": 0.00846722349524498
+      "w_ie_mean": 0.00846722349524498,
+      "w_ei": {
+        "init_mean": 0.0009766268776729703,
+        "trained_mean": 0.00037116679595783353,
+        "init_zero_fraction": 0.0,
+        "trained_zero_fraction": 0.8568496704101562,
+        "init_positive_mean": 0.0009766268776729703,
+        "trained_positive_mean": 0.0025928467512130737
+      },
+      "w_ie": {
+        "init_mean": 0.007812713272869587,
+        "trained_mean": 0.00846722349524498,
+        "init_zero_fraction": 0.0,
+        "trained_zero_fraction": 0.009349822998046875,
+        "init_positive_mean": 0.007812713272869587,
+        "trained_positive_mean": 0.00854713749140501
+      }
     },
     {
       "condition": "trainable_zero_init",
@@ -117,7 +213,23 @@
       "i_rate_hz": 0.0,
       "f_gamma_hz": 10.0,
       "w_ei_mean": 0.0,
-      "w_ie_mean": 0.0
+      "w_ie_mean": 0.0,
+      "w_ei": {
+        "init_mean": 0.0,
+        "trained_mean": 0.0,
+        "init_zero_fraction": 1.0,
+        "trained_zero_fraction": 1.0,
+        "init_positive_mean": 0.0,
+        "trained_positive_mean": 0.0
+      },
+      "w_ie": {
+        "init_mean": 0.0,
+        "trained_mean": 0.0,
+        "init_zero_fraction": 1.0,
+        "trained_zero_fraction": 1.0,
+        "init_positive_mean": 0.0,
+        "trained_positive_mean": 0.0
+      }
     },
     {
       "condition": "trainable_zero_init",
@@ -127,7 +239,23 @@
       "i_rate_hz": 0.0,
       "f_gamma_hz": 10.0,
       "w_ei_mean": 0.0,
-      "w_ie_mean": 0.0
+      "w_ie_mean": 0.0,
+      "w_ei": {
+        "init_mean": 0.0,
+        "trained_mean": 0.0,
+        "init_zero_fraction": 1.0,
+        "trained_zero_fraction": 1.0,
+        "init_positive_mean": 0.0,
+        "trained_positive_mean": 0.0
+      },
+      "w_ie": {
+        "init_mean": 0.0,
+        "trained_mean": 0.0,
+        "init_zero_fraction": 1.0,
+        "trained_zero_fraction": 1.0,
+        "init_positive_mean": 0.0,
+        "trained_positive_mean": 0.0
+      }
     },
     {
       "condition": "trainable_zero_init",
@@ -137,7 +265,23 @@
       "i_rate_hz": 0.0,
       "f_gamma_hz": 10.0,
       "w_ei_mean": 0.0,
-      "w_ie_mean": 0.0
+      "w_ie_mean": 0.0,
+      "w_ei": {
+        "init_mean": 0.0,
+        "trained_mean": 0.0,
+        "init_zero_fraction": 1.0,
+        "trained_zero_fraction": 1.0,
+        "init_positive_mean": 0.0,
+        "trained_positive_mean": 0.0
+      },
+      "w_ie": {
+        "init_mean": 0.0,
+        "trained_mean": 0.0,
+        "init_zero_fraction": 1.0,
+        "trained_zero_fraction": 1.0,
+        "init_positive_mean": 0.0,
+        "trained_positive_mean": 0.0
+      }
     },
     {
       "condition": "trainable_small_init",
@@ -147,7 +291,23 @@
       "i_rate_hz": 6.463235212053571,
       "f_gamma_hz": 90.0,
       "w_ei_mean": 0.0002623204200062901,
-      "w_ie_mean": 0.002937090350314975
+      "w_ie_mean": 0.002937090350314975,
+      "w_ei": {
+        "init_mean": 9.763376147020608e-05,
+        "trained_mean": 0.0002623204200062901,
+        "init_zero_fraction": 0.0,
+        "trained_zero_fraction": 0.8599853515625,
+        "init_positive_mean": 9.763376147020608e-05,
+        "trained_positive_mean": 0.001873521483503282
+      },
+      "w_ie": {
+        "init_mean": 0.0007809168891981244,
+        "trained_mean": 0.002937090350314975,
+        "init_zero_fraction": 0.0,
+        "trained_zero_fraction": 0.08097457885742188,
+        "init_positive_mean": 0.0007809168891981244,
+        "trained_positive_mean": 0.0031958750914782286
+      }
     },
     {
       "condition": "trainable_small_init",
@@ -157,7 +317,23 @@
       "i_rate_hz": 6.408424944196429,
       "f_gamma_hz": 90.0,
       "w_ei_mean": 0.0003120405599474907,
-      "w_ie_mean": 0.003914596978574991
+      "w_ie_mean": 0.003914596978574991,
+      "w_ei": {
+        "init_mean": 9.765292634256184e-05,
+        "trained_mean": 0.0003120405599474907,
+        "init_zero_fraction": 0.0,
+        "trained_zero_fraction": 0.8297119140625,
+        "init_positive_mean": 9.765292634256184e-05,
+        "trained_positive_mean": 0.0018324274569749832
+      },
+      "w_ie": {
+        "init_mean": 0.000780736852902919,
+        "trained_mean": 0.003914596978574991,
+        "init_zero_fraction": 0.0,
+        "trained_zero_fraction": 0.08253860473632812,
+        "init_positive_mean": 0.000780736852902919,
+        "trained_positive_mean": 0.004266769625246525
+      }
     },
     {
       "condition": "trainable_small_init",
@@ -167,7 +343,23 @@
       "i_rate_hz": 7.055442243303571,
       "f_gamma_hz": 90.0,
       "w_ei_mean": 0.00026129340403713286,
-      "w_ie_mean": 0.003637133166193962
+      "w_ie_mean": 0.003637133166193962,
+      "w_ei": {
+        "init_mean": 9.766267612576485e-05,
+        "trained_mean": 0.00026129340403713286,
+        "init_zero_fraction": 0.0,
+        "trained_zero_fraction": 0.8330307006835938,
+        "init_positive_mean": 9.766267612576485e-05,
+        "trained_positive_mean": 0.0015649190172553062
+      },
+      "w_ie": {
+        "init_mean": 0.0007812713156454265,
+        "trained_mean": 0.003637133166193962,
+        "init_zero_fraction": 0.0,
+        "trained_zero_fraction": 0.06447982788085938,
+        "init_positive_mean": 0.0007812713156454265,
+        "trained_positive_mean": 0.003887819591909647
+      }
     }
   ],
   "rhythmicity": {

@@ -325,7 +325,7 @@
 
   The restriction to the E↔I loop is intended to make the rhythm unambiguously PING: excluding $W_(i i)$ rules out ING, and excluding $W_(e e)$ rules out recurrent-E driven oscillation#cite(7, 45). The conductance-based (COBA) baseline used as a non-PING control is the loop-off limit of the same architecture, obtained by setting $W^(E I) = W^(I E) = 0$.
 
-  The loop weights $W^(E I)$ and $W^(I E)$ are held fixed (untrained) in the experiments reported in §2.3 and §2.5–§2.7. The loop is treated as a structural prior, consistent with the inhibitory-plasticity literature, in which inhibitory synapses serve an experience-dependent E/I balance role rather than carrying the feedforward computational features that the excitatory pathway acquires#cite(38, 39). The choice is also supported empirically by the result in §2.4 (Figures 4–5) that gradient descent prunes the loop when its weights are released. A Dale's-law clamp constrains the signs of all trained weights throughout training (§5.4).
+  The loop weights $W^(E I)$ and $W^(I E)$ are held fixed (untrained) in the experiments reported in §2.3 and §2.5–§2.7. The loop is treated as a structural prior, consistent with the inhibitory-plasticity literature, in which inhibitory synapses serve an experience-dependent E/I balance role rather than carrying the feedforward computational features that the excitatory pathway acquires#cite(38, 39). The choice is also supported empirically by the result in §2.4 (Figures 4–5) that gradient descent does not preserve effective E→I recruitment when the recurrent conductances are released. A Dale's-law clamp constrains all trained conductance magnitudes to remain non-negative throughout training (§5.4).
 
   === 5.3 Mean-field reduction
 
