@@ -912,7 +912,7 @@
 
   *Summary.* A paper introducing Dale's ANNs (DANNs), networks respecting Dale's principle via separate excitatory and inhibitory populations with strictly non-negative weights, where inhibitory interneurons provide subtractive and divisive inhibition. Dale's principle is usually omitted because it impairs learning, yet DANNs learn as well as standard MLPs and far better than sign-constrained columns (ColumnEi). Two insights enable this: the architecture resembles normalization schemes, motivating a weight initialization balancing excitation and inhibition; and inhibitory updates are scaled via Fisher-Information corrections so both affect the output comparably.
 
-  *Claim it supports (§5.4.8).* _"E1 After each optimiser step, weights are projected onto their sign cones [52, 53]: $W_"in"$ and $W^(E I)$ are clipped to non-negative values, and $W^(I E)$ to non-positive values."_
+  *Claim it supports (§5.4.8).* _"After each optimiser step, the trainable conductance magnitudes are projected onto the non-negative cone [52, 53]; pathway identity and reversal potential determine whether their effect is excitatory or inhibitory."_
 
   *Quotes.*
 
@@ -929,7 +929,7 @@
 
   *Summary.* This paper trains recurrent spiking neural networks (SNNs) constrained by mouse-neocortex connectivity to perform a binary motion-entropy change-detection task. It reports that task success coincides with the emergence of push-pull, cross-stimulus-modulated inhibition: excitatory units strengthen connections to like-modulated units while inhibitory units strengthen connections to oppositely-modulated units. The authors find this inhibitory motif fails to emerge when Dale's law is not enforced, and that jittering spike times by a few milliseconds impairs performance, underscoring the roles of structured inhibition and precise spike-time coordination in sparse cortical-like networks.
 
-  *Claim it supports (§5.4.8).* _"E1 After each optimiser step, weights are projected onto their sign cones [52, 53]: $W_"in"$ and $W^(E I)$ are clipped to non-negative values, and $W^(I E)$ to non-positive values."_
+  *Claim it supports (§5.4.8).* _"The trained network preserves excitatory and inhibitory pathway identity throughout optimisation [52, 53]. In the present conductance formulation, every stored magnitude remains non-negative and the pathway reversal potential supplies the physiological sign."_
 
   *Quotes.*
 
