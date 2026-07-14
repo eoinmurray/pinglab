@@ -1,53 +1,89 @@
 #import "/.demolab/lib.typ": numbers-table, provenance-footer
 
 #let meta = (
-  title: "The PING rate is set by the per-synapse weight, not the pool size",
-  date: "2026-06-08",
-  description: "Sweeping per-synapse inhibitory weight and pool size independently, the rate-vs-weight curves for every pool size collapse onto one.",
+  title: "Pool-size invariance requires inverse synaptic scaling",
+  date: "2026-07-14",
+  description: "Paired controls separate fixed summed I→E coupling from fixed realised synaptic strength as the inhibitory pool grows.",
   collection: "gamma-gated-sparsity",
   status: "final",
 )
 
+#let r = json("/artifacts/data/exp047/numbers.json")
+#let ft = r.summary.fixed_total
+#let fs = r.summary.fixed_synapse
+#let e(control, level, n) = control.at(level).at(n).r_e_hz_mean
+#let i(control, level, n) = control.at(level).at(n).r_i_hz_mean
+#let re-ft-lo = e(ft, "2", "16")
+#let re-ft-hi = e(ft, "2", "256")
+#let re-fs-lo = e(fs, "0.0078125", "16")
+#let re-fs-hi = e(fs, "0.0078125", "256")
+#let ri-fs-lo = i(fs, "0.0078125", "16")
+#let ri-fs-hi = i(fs, "0.0078125", "256")
+#let cfg = r.config
+#let n-lo = cfg.n_i_sweep.at(0)
+#let n-mid = cfg.n_i_sweep.at(1)
+#let n-hi = cfg.n_i_sweep.at(2)
+#let g-lo = cfg.reference_g_ie.at(0)
+#let g-mid = cfg.reference_g_ie.at(1)
+#let g-hi = cfg.reference_g_ie.at(2)
+#let j-lo-ns = calc.round(cfg.reference_j_ie.at(0) * 1000, digits: 2)
+#let j-mid-ns = calc.round(cfg.reference_j_ie.at(1) * 1000, digits: 2)
+#let j-hi-ns = calc.round(cfg.reference_j_ie.at(2) * 1000, digits: 2)
+#let n-seeds = cfg.seeds.len()
+#let re-ft-lo-fmt = calc.round(re-ft-lo, digits: 2)
+#let re-ft-hi-fmt = calc.round(re-ft-hi, digits: 2)
+#let re-fs-lo-fmt = calc.round(re-fs-lo, digits: 2)
+#let re-fs-hi-fmt = calc.round(re-fs-hi, digits: 2)
+#let ri-fs-lo-fmt = calc.round(ri-fs-lo, digits: 2)
+#let ri-fs-hi-fmt = calc.round(ri-fs-hi, digits: 2)
 
 #let body = [
   == Abstract
 
-  The PING rate is a function of the per-synapse inhibitory weight $W^(I E)$ (measured against a fixed release level $g_i^*$), *not* of the pool size $N_I$. Sweeping the two independently, the rate-vs-$W^(I E)$ curves for every $N_I$ collapse onto one.
+  The apparent invariance of pyramidal–interneuron network gamma (PING) firing rate to inhibitory-pool size is a consequence of the simulator's fan-in normalization, not independence from interneuron count. Excitatory cells are denoted E and inhibitory cells I. The nominal I→E parameter $G_(I E)$ is divided by the presynaptic pool size, so the realised mean synaptic conductance is $j_(I E) = G_(I E) / N_I$. We vary $N_I$ under paired controls. Rates remain flat when $G_(I E)$ is fixed and $j_(I E) prop 1 / N_I$; when the realised synapse $j_(I E)$ is fixed, rates change strongly with $N_I$. Pool-size invariance therefore requires compensatory inverse scaling of individual synapses.
 
   == Methods
 
-  *1. The mechanism, in words.* In a PING cycle the E volley recruits I, the I spikes shunt each E cell toward the inhibitory reversal $E_i$, and E stays quiet until that shunt decays enough for the drive to climb $V$ back to threshold. The cycle's clock, and hence the rate, is that recovery: how far one inhibitory event drives the conductance past the level that silences E, and how long it takes to decay back. This is a _per-event_ quantity. Adding more I cells delivers the same shunt through more synapses; it does not change how deep a single event pins a cell or how long the pin lasts. So the rate should track the per-synapse strength, not $N_I$. The rest of this section makes that precise.
+  *1. Weight convention.* For a dense I→E matrix with shape $N_I times N_E$, the simulator draws a non-negative weight with nominal mean $G_(I E)$ and then divides every entry by its presynaptic fan-in $N_I$. Thus
 
-  *2. The invariant release level.* Reduce to one representative E cell, the COBANet membrane of #link("/ar003/")[ar003], with the feedforward excitation written as a tonic current $I_"ext"$ as in #link("/exp033/")[exp033]. This single-cell picture is a heuristic to _motivate_ the prediction below, not a proof of it; the full network (§5, Figure 1) is what tests it. When the inhibitory conductance varies slowly the voltage tracks its instantaneous steady state $V_oo$ (ar003, eqs 11–13; valid in the high-conductance state of a volley, where the open conductances pull the effective membrane time constant below $tau_"GABA"$). Setting $V_oo = V_"th"$ gives the conductance at which the cell is _released_ to fire again,
+  $ cal(E)[W_(k j)^(I E)] approx j_(I E) = G_(I E) / N_I, quad cal(E)[sum_(k=1)^(N_I) W_(k j)^(I E)] approx G_(I E). quad (1) $
 
-  $ g_i^* = (I_"ext" - I_"th") / (V_"th" - E_i), quad I_"th" eq.triple g_L (V_"th" - E_L). quad (1) $
+    $G_(I E)$ is consequently an expected _summed coupling_, not the conductance of one synapse. An inhibitory volley with active set $cal(A)$ gives E cell $j$ the conductance increment
 
-  with $g_L$ the leak conductance and $E_L$ the leak reversal (ar003's membrane constants), $V_"th"$ the spike threshold, and $E_i$ the inhibitory reversal. So $g_i^*$ is built from intrinsic constants and the drive alone: *it contains neither $N_I$ nor the per-synapse weight $W^(I E)$.* It is the level the cycle is pinned to.
+    $ Delta g_j^I = sum_(k in cal(A)) W_(k j)^(I E), quad (2) $
 
-  *3. The cycle clock.* Each inhibitory spike adds $W^(I E)$ to $g_i$, which then decays with $tau_"GABA"$ (ar003's exponential synapse, eq 8). After a volley peaks at $g_i^"pk"$ (the sum of the fresh kicks), the conductance decays back through $g_i^*$ after
+    where:
 
-  $ T_"sup" = tau_"GABA" ln (g_i^"pk") / (g_i^*), quad (2) $
+    - $cal(E)$ denotes expectation over random weight initialization;
+    - $W_(k j)^(I E)$ is the realised conductance from inhibitory cell $k$ to excitatory cell $j$;
+    - $j_(I E)$ is the mean realised conductance of one I→E synapse;
+    - $G_(I E)$ is the expected sum of all I→E weights arriving at one E cell;
+    - $N_I$ and $N_E$ are the inhibitory and excitatory pool sizes;
+    - $cal(A)$ is the set of inhibitory cells active in a volley; and
+    - $Delta g_j^I$ is the resulting inhibitory-conductance increment at excitatory cell $j$.
 
-  so the gamma period is $T approx T_"build" + T_"sup"$ and $r_E prop 1 \/ T$. A self-organized loop recruits I only until $g_i$ crosses $g_i^*$ and E shuts off, so the volley overshoots by about one quantum, $g_i^"pk" approx g_i^* + W^(I E)$, and
+    Equation 2 therefore depends on both the realised synapses and the number of participating inhibitory cells.
 
-  $ T_"sup" approx tau_"GABA" ln (1 + (W^(I E)) / (g_i^*)). quad (3) $
+  *2. Paired controls.* We sweep $N_I in {#n-lo, #n-mid, #n-hi}$ under two conventions. In the fixed-summed-coupling arm, $G_(I E) in {#g-lo, #g-mid, #g-hi}$ μS is held fixed, forcing $j_(I E) prop 1 / N_I$. In the fixed-synapse arm, $j_(I E) in {#j-lo-ns, #j-mid-ns, #j-hi-ns}$ nS is held fixed and the nominal parameter is set to $G_(I E) = N_I j_(I E)$. The two arms coincide at the reference pool $N_I = #cfg.n_i_reference$.
 
-  *4. The prediction: collapse onto $W^(I E)$.* Equation (3) has no $N_I$ in it. The suppression, hence the rate, is a function of the per-event jump $W^(I E)$ relative to the invariant $g_i^*$ alone, increasing (rate falling) with $W^(I E)$ and saturating logarithmically. The test is therefore to vary $W^(I E)$ and $N_I$ _independently_ and plot the rate against $W^(I E)$: if (3) holds, the curves for different $N_I$ must lie on top of one another.
-
-  *5. Simulation.* Untrained PING at $N_E = 1024$, $Delta t = 0.1$ ms, $T = 200$ ms. Per-synapse $W^(I E)$ swept over {0.5, 1, 2, 4, 8, 16} μS (spread held at 10% of the mean) and pool size $N_I$ over {16, 64, 256}, the two varied on an independent grid. Fixed $W^(E I) tilde cal(N)(1.0, 0.1)$ μS and uniform 25 Hz Poisson input; inference only. The biophysical default is $W^(I E) = 2$ μS.
+  *3. Simulation.* Untrained dense PING network, $N_E = #cfg.n_e$, $Delta t = #cfg.dt_ms$ ms, $T = #cfg.t_ms$ ms, #cfg.n_batch independent Poisson-input trials per network and #n-seeds network/input seeds per condition. E→I summed coupling is fixed at #cfg.g_ei_total μS; input comprises #cfg.n_in independent #cfg.input_rate_hz Hz Poisson channels. Markers show seed means and error bars ±1 standard deviation (SD).
 
   == Results
 
-  The curves collapse (Figure 1). At each per-synapse weight the three pool sizes agree to within $approx 0.1$ Hz (at the default $W^(I E) = 2$ μS, $r_E = 6.42$, $6.44$, $6.45$ Hz for $N_I = 16, 64, 256$), and the rate falls smoothly with $W^(I E)$, from $approx 9.4$ Hz at $0.5$ μS to $approx 4.2$ Hz at $16$ μS, the decelerating, saturating dependence eq (3) predicts (the precise functional form is not pinned by six points, and turning the cycle period into a per-cell rate would need a participation factor (3) does not supply). The I rates (right panel) collapse the same way. Pool size does not move the rate; the per-synapse weight does.
+  Fixed summed coupling produces overlapping rate curves. At $G_(I E) = #g-mid$ μS, the E rate is #re-ft-lo-fmt Hz for $N_I = #n-lo$ and #re-ft-hi-fmt Hz for $N_I = #n-hi$. This is the expected consequence of holding the summed I→E coupling fixed while shrinking each realised synapse as $1 / N_I$.
 
-  The lesson for sweeping or training $N_I$: the rate is governed by the per-synapse $W^(I E)$ measured against $g_i^*$. Hold $W^(I E)$ fixed and the rate is invariant to pool size; change $N_I$ alone, at fixed per-synapse weight, and nothing moves.
+  Fixed realised synaptic strength gives the opposite result. At $j_(I E) = #j-mid-ns$ nS, increasing $N_I$ from #n-lo to #n-hi changes the E rate from #re-fs-lo-fmt to #re-fs-hi-fmt Hz and the I rate from #ri-fs-lo-fmt to #ri-fs-hi-fmt Hz. Every tested synaptic strength shows the same pool-size dependence. The direction is mechanistically consistent: more inhibitory cells at unchanged individual strength produce greater population-level inhibition, while the recurrent feedback reduces both E activity and the I activity it recruits.
 
   #figure(
     image(
-      "/artifacts/data/exp047/rate_vs_w_ie.svg",
+      "/artifacts/data/exp047/pool_size_controls.svg",
       width: 100%,
-      alt: "E and I per-cell firing rate versus per-synapse inhibitory weight, with one line per pool size; the three pool-size lines lie on top of one another.",
+      alt: "Four panels comparing E and I firing rates across inhibitory pool sizes. Rates are flat when summed coupling is fixed, but fall strongly with pool size when realised synaptic strength is fixed.",
     ),
-    caption: [E (left) and I (right) per-cell rate versus the per-synapse weight $W^(I E)$, one line per pool size $N_I$. The lines collapse: at any fixed $W^(I E)$ the rate is the same for $N_I = 16$, $64$, or $256$, while it falls steadily with $W^(I E)$, the logarithmic, saturating dependence of equation (3). The rate is set by the per-synapse kick, not the pool size. Dotted line marks the biophysical default $W^(I E) = 2$ μS.],
+    caption: [*Excitatory and inhibitory firing rates across inhibitory-pool size under two I→E scaling controls.* Top: excitatory-cell rate in Hz per cell. Bottom: inhibitory-cell rate in Hz per cell. *(a)* Holding the expected summed I→E coupling $G_(I E)$ fixed makes the realised synapse $j_(I E) = G_(I E) / N_I$ shrink as the pool grows. *(b)* Holding $j_(I E)$ fixed makes summed coupling grow with $N_I$. Each curve is one coupling level; markers are means and error bars ±1 standard deviation (SD) over #n-seeds seeds, with #cfg.n_batch trials per seed. The controls coincide at the reference pool $N_I = #cfg.n_i_reference$. Rates are invariant to pool size only under inverse scaling of individual synapses.],
   )
+
+  == Conclusion
+
+  The network is not intrinsically insensitive to inhibitory-pool size. It is insensitive only along a specific normalization path: individual I→E synapses must scale approximately as $1 / N_I$ so that expected summed coupling stays fixed. The operative control variable in this dense model is population-level inhibitory drive, jointly determined by pool size, realised synaptic strength, and volley participation. This experiment does not establish that the same inverse scaling holds biologically; it identifies the compensation required for invariance in the model.
 ]

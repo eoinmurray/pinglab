@@ -1,9 +1,9 @@
 #import "/.demolab/lib.typ": numbers-table, provenance-footer
 
 #let meta = (
-  title: "Gradient descent prunes PING via Dale's-law clamping",
+  title: "Gradient descent does not preserve a trainable PING loop",
   date: "2026-06-09",
-  description: "Unfreeze the recurrent inhibitory weights and Adam does not rediscover PING; it prunes the loop to a dense-E, silent-I COBA network from every initialisation.",
+  description: "Unfreeze the recurrent conductances and Adam does not preserve or recover effective E-to-I recruitment; every tested initialisation moves toward dense E firing and weak I activity.",
   collection: "gamma-gated-sparsity",
   status: "final",
 )
@@ -14,11 +14,13 @@
 
   == Abstract
 
-  #link("/exp025/")[exp025] freezes the recurrent inhibitory weights $W^(E I), W^(I E)$ at biophysical values. Unfreeze them and Adam does _not_ rediscover PING: from any initialisation (canonical, zero, or 10% of canonical) training prunes most $W^(E I)$ entries below zero, the Dale's-law forward-pass clamp turns them into structural zeros, and the network collapses to dense E firing with I silent, at ≈ 90% accuracy, matching the frozen PING control (≈ 91%) to within ≈ 1 pp. PING is a structural prior the freeze _imposes_, not one gradient descent recovers on its own, and dropping it costs no accuracy.
+  #link("/exp025/")[exp025] freezes the recurrent conductances $W^(E I), W^(I E)$ at biophysical values. When they are trainable, Adam does _not_ preserve or recover effective PING from any tested initialisation (canonical, zero, or 10% of canonical): E→I recruitment weakens or remains absent, inhibitory firing collapses, and the network moves toward dense E firing at ≈ 90% accuracy, close to the frozen PING control (≈ 91%). The matrices store non-negative conductance magnitudes; inhibition is produced by the GABA reversal potential, not by a negative $W^(I E)$. PING is therefore a structural prior imposed by the frozen loop in this setup, not one gradient descent recovers on its own.
 
   == Method
 
   *Architecture.* $N_E = 1024$ excitatory, $N_I = 256$ inhibitory, mem-mean readout, Dale's law enforced. Hyperparameters match the #link("/exp025/")[exp025] PING baseline: Adam at lr $4 times 10^(-4)$, batch 256, surrogate slope 1, $W_"in" tilde cal(N)(1.2, 0.12)$ at 95% sparsity, gradient norm clipped to 1.0, $Delta t = 0.1$ ms, $T = 200$ ms, no firing-rate regulariser.
+
+  Both recurrent matrices are non-negative conductance magnitudes. After each optimiser step they are projected onto the non-negative cone. Their physiological sign is supplied by the pathway reversal potential: I→E contributes $g_I (E_I - V)$ with $E_I = -80$ mV and is therefore inhibitory despite $W^(I E) >= 0$.
 
   *Sweep.* Four conditions × three seeds (42, 43, 44) on the 10% MNIST subset (5600 train / 1400 test), 50 epochs. Only the initial $(W^(E I), W^(I E))$ and the trainable-or-not flag vary:
 
@@ -31,7 +33,7 @@
     [_trainable_small_init_], [$0.1 times$ canonical], [*yes*],
   )
 
-  Canonical biophysical means $W^(E I) tilde cal(N)(1.0, 0.1)$ μS, $W^(I E) tilde cal(N)(2.0, 0.2)$ μS at $N_I = 256$, fan-in-normalised, so the trainer reports per-edge means of ≈ 0.0010 and ≈ 0.0078. "PING is on" means the inhibitory loop is alive: I fires at a healthy rate and paces a gamma rhythm; "the loop is gone" means I is silenced and E fires densely (plain COBA). The firing rates are the cleanest read of which regime a trained network lands in.
+  Canonical biophysical means $W^(E I) tilde cal(N)(1.0, 0.1)$ μS, $W^(I E) tilde cal(N)(2.0, 0.2)$ μS at $N_I = 256$, fan-in-normalised, so the trainer reports per-edge means of ≈ 0.0010 and ≈ 0.0078. "PING is on" means the inhibitory loop is active: E recruits I, and I paces a gamma rhythm through GABA conductance. "The loop is lost" means E→I recruitment is too weak to sustain that regime, I activity is low or absent, and E fires densely. The firing rates and rhythmicity are the cleanest read of which regime a trained network reaches.
 
   == Results
 
