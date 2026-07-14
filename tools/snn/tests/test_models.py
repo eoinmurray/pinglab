@@ -77,13 +77,12 @@ class TestSeedReproducibility:
             assert torch.equal(pa, pb)
 
 
-class TestDalesLawClamp:
-    """Dale's-law forward-pass clamp: when signed_weights=False (default
-    ``dales_law=True`` at build time) the forward pass must use
-    max(W_ff, 0) rather than the raw stored weights. This is the
-    mechanism that lets nb049's optimiser push trainable weights below
-    zero in storage without those negative entries propagating into the
-    network's dynamics."""
+class TestFeedforwardDalesClamp:
+    """The forward clamp applies specifically to feedforward ``W_ff``.
+
+    Recurrent conductances are used directly and kept non-negative by the
+    post-optimiser ``project_dales()`` call.
+    """
 
     def test_negative_w_ff_zeroes_out_in_forward(self):
         """If Dale's law is on, replacing a positive W_ff entry with a
@@ -141,3 +140,74 @@ class TestDalesLawClamp:
             "signed_weights=True should let negative W_ff entries change "
             "the forward output, but zero and -100 gave identical logits"
         )
+
+
+class TestRecurrentDalesProjection:
+    def _trainable_net(self, *, dales_law=True):
+        return build_net(
+            "ping", hidden_sizes=[32], dales_law=dales_law,
+            trainable_w_ee=True, trainable_w_ei=True,
+            trainable_w_ie=True, trainable_w_ii=True,
+        )
+
+    def test_project_dales_projects_every_constrained_matrix(self):
+        net = self._trainable_net()
+        constrained = list(net.W_ff) + [
+            p
+            for name in ("W_ee", "W_ei", "W_ie", "W_ii")
+            for p in getattr(net, name).values()
+        ]
+        with torch.no_grad():
+            for p in constrained:
+                p.fill_(-1.0)
+
+        net.project_dales()
+
+        assert all(torch.count_nonzero(p).item() == 0 for p in constrained)
+        assert all(torch.all(p >= 0) for p in net.W_ie.values())
+
+    def test_project_dales_leaves_frozen_recurrence_untouched(self):
+        net = build_net("ping", hidden_sizes=[32], dales_law=True)
+        with torch.no_grad():
+            net.W_ie["1"].fill_(-1.0)
+
+        net.project_dales()
+
+        assert torch.all(net.W_ie["1"] == -1.0)
+
+    def test_signed_mode_is_not_projected(self):
+        net = self._trainable_net(dales_law=False)
+        with torch.no_grad():
+            net.W_ie["1"].fill_(-1.0)
+
+        net.project_dales()
+
+        assert torch.all(net.W_ie["1"] == -1.0)
+
+    def test_negative_optimizer_update_is_projected_to_zero(self):
+        net = self._trainable_net()
+        param = net.W_ie["1"]
+        with torch.no_grad():
+            param.fill_(0.25)
+        opt = torch.optim.SGD([param], lr=1.0)
+        opt.register_step_post_hook(lambda *_: net.project_dales())
+        param.grad = torch.ones_like(param)
+
+        opt.step()
+
+        assert torch.count_nonzero(param).item() == 0
+
+    def test_positive_w_ie_increases_gaba_conductance(self):
+        spikes_i = torch.tensor([[1.0, 0.0]])
+        w_ie = torch.tensor([[0.4, 0.2], [0.3, 0.1]])
+        g_i_before = torch.zeros(1, 2)
+
+        g_i_after = g_i_before + spikes_i @ w_ie
+
+        assert torch.all(g_i_after > g_i_before)
+
+    def test_positive_gaba_conductance_is_hyperpolarising_above_e_i(self):
+        v = torch.tensor([M.E_i + 10.0])
+        current = M.coba_current(torch.zeros_like(v), v, torch.tensor([0.5]))
+
+        assert current.item() < 0

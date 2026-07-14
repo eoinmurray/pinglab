@@ -77,5 +77,5 @@
 
   == Dale's law under Adam
 
-  When Dale's law is on, weight matrices are clamped to $W >= 0$ in the forward pass _and_ projected back into the non-negative cone by `project_dales()` after every optimiser step. The forward clamp keeps the simulation honest; the post-step projection stops the trainable parameters themselves from drifting into the negative orthant under Adam's momentum.
+  When Dale's law is on, the feedforward matrices $W_"ff"$ are clamped to $W >= 0$ when they are read by the forward pass and every trainable constrained matrix is projected back into the non-negative cone by `project_dales()` after each optimiser step. The recurrent conductance matrices $W_(e e)$, $W_(e i)$, $W_(i e)$, and $W_(i i)$ are not forward-clamped: they are initialised non-negative and, when trainable, kept non-negative by the post-step projection. Their entries are conductance magnitudes; pathway-specific reversal potentials, rather than a negative stored $W_(i e)$, determine whether a synapse is excitatory or inhibitory.
 ]
