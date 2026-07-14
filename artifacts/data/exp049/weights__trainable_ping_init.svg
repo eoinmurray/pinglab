@@ -1,12 +1,12 @@
 <?xml version="1.0" encoding="utf-8" standalone="no"?>
 <!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN"
   "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
-<svg xmlns:xlink="http://www.w3.org/1999/xlink" width="510.938312pt" height="170.6544pt" viewBox="0 0 510.938312 170.6544" xmlns="http://www.w3.org/2000/svg" version="1.1">
+<svg xmlns:xlink="http://www.w3.org/1999/xlink" width="505.970312pt" height="207.9816pt" viewBox="0 0 505.970312 207.9816" xmlns="http://www.w3.org/2000/svg" version="1.1">
  <metadata>
   <rdf:RDF xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:cc="http://creativecommons.org/ns#" xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">
    <cc:Work>
     <dc:type rdf:resource="http://purl.org/dc/dcmitype/StillImage"/>
-    <dc:date>2026-07-07T13:15:12.159820</dc:date>
+    <dc:date>2026-07-14T12:25:56.629016</dc:date>
     <dc:format>image/svg+xml</dc:format>
     <dc:creator>
      <cc:Agent>
@@ -21,9 +21,9 @@
  </defs>
  <g id="figure_1">
   <g id="patch_1">
-   <path d="M 0 170.6544 
-L 510.938312 170.6544 
-L 510.938312 0 
+   <path d="M 0 207.9816 
+L 505.970312 207.9816 
+L 505.970312 0 
 L 0 0 
 z
 " style="fill: #ffffff"/>
@@ -31,7 +31,7 @@ z
   <g id="axes_1">
    <g id="text_1">
     <!-- Trainable, PING init -->
-    <g style="fill: #1a1a1a" transform="translate(44.990313 9.245586) scale(0.095 -0.095)">
+    <g style="fill: #1a1a1a" transform="translate(44.990313 10.240869) scale(0.095 -0.095)">
      <defs>
       <path id="Menlo-Regular-54" d="M 147 4666 
 L 3706 4666 
@@ -331,8 +331,8 @@ z
     </g>
    </g>
    <g id="text_2">
-    <!-- Recurrent-weight distributions  ·  pooled across 3 seeds  ·  effective (post-clamp) values -->
-    <g style="fill: #888888" transform="translate(144.890031 8.537461) scale(0.065 -0.065)">
+    <!-- Recurrent-weight distributions · pooled across 3 seeds · post-projection values -->
+    <g style="fill: #888888" transform="translate(44.990313 23.04001) scale(0.065 -0.065)">
      <defs>
       <path id="Menlo-Regular-52" d="M 2375 2203 
 Q 2619 2141 2791 1967 
@@ -622,25 +622,25 @@ Q 3263 3116 3048 2859
 Q 2834 2603 2425 2497 
 z
 " transform="scale(0.015625)"/>
-      <path id="Menlo-Regular-66" d="M 3322 4863 
-L 3322 4384 
-L 2669 4384 
-Q 2359 4384 2239 4257 
-Q 2119 4131 2119 3809 
-L 2119 3500 
-L 3322 3500 
-L 3322 3053 
-L 2119 3053 
-L 2119 0 
-L 1544 0 
-L 1544 3053 
-L 609 3053 
-L 609 3500 
-L 1544 3500 
-L 1544 3744 
-Q 1544 4319 1808 4591 
-Q 2072 4863 2631 4863 
-L 3322 4863 
+      <path id="Menlo-Regular-6a" d="M 1875 -63 
+L 1875 3053 
+L 884 3053 
+L 884 3500 
+L 2450 3500 
+L 2450 -63 
+Q 2450 -672 2170 -1001 
+Q 1891 -1331 1375 -1331 
+L 581 -1331 
+L 581 -844 
+L 1313 -844 
+Q 1594 -844 1734 -648 
+Q 1875 -453 1875 -63 
+z
+M 1875 4863 
+L 2450 4863 
+L 2450 4134 
+L 1875 4134 
+L 1875 4863 
 z
 " transform="scale(0.015625)"/>
       <path id="Menlo-Regular-76" d="M 313 3500 
@@ -651,62 +651,6 @@ L 3541 3500
 L 2297 0 
 L 1556 0 
 L 313 3500 
-z
-" transform="scale(0.015625)"/>
-      <path id="Menlo-Regular-28" d="M 2672 5169 
-Q 2256 4456 2051 3748 
-Q 1847 3041 1847 2322 
-Q 1847 1606 2051 897 
-Q 2256 188 2672 -531 
-L 2172 -531 
-Q 1700 213 1469 917 
-Q 1238 1622 1238 2322 
-Q 1238 3019 1469 3725 
-Q 1700 4431 2172 5169 
-L 2672 5169 
-z
-" transform="scale(0.015625)"/>
-      <path id="Menlo-Regular-6d" d="M 2113 3144 
-Q 2219 3369 2383 3476 
-Q 2547 3584 2778 3584 
-Q 3200 3584 3373 3257 
-Q 3547 2931 3547 2028 
-L 3547 0 
-L 3022 0 
-L 3022 2003 
-Q 3022 2744 2939 2923 
-Q 2856 3103 2638 3103 
-Q 2388 3103 2295 2911 
-Q 2203 2719 2203 2003 
-L 2203 0 
-L 1678 0 
-L 1678 2003 
-Q 1678 2753 1589 2928 
-Q 1500 3103 1269 3103 
-Q 1041 3103 952 2911 
-Q 863 2719 863 2003 
-L 863 0 
-L 341 0 
-L 341 3500 
-L 863 3500 
-L 863 3200 
-Q 966 3388 1120 3486 
-Q 1275 3584 1472 3584 
-Q 1709 3584 1867 3475 
-Q 2025 3366 2113 3144 
-z
-" transform="scale(0.015625)"/>
-      <path id="Menlo-Regular-29" d="M 1088 5169 
-L 1588 5169 
-Q 2059 4431 2290 3725 
-Q 2522 3019 2522 2322 
-Q 2522 1619 2290 912 
-Q 2059 206 1588 -531 
-L 1088 -531 
-Q 1503 194 1708 903 
-Q 1913 1613 1913 2322 
-Q 1913 3034 1708 3743 
-Q 1503 4453 1088 5169 
 z
 " transform="scale(0.015625)"/>
      </defs>
@@ -741,74 +685,63 @@ z
      <use xlink:href="#Menlo-Regular-6e" transform="translate(1685.742188 0)"/>
      <use xlink:href="#Menlo-Regular-73" transform="translate(1745.947266 0)"/>
      <use xlink:href="#Menlo-Regular-20" transform="translate(1806.152344 0)"/>
-     <use xlink:href="#Menlo-Regular-20" transform="translate(1866.357422 0)"/>
-     <use xlink:href="#Menlo-Regular-b7" transform="translate(1926.5625 0)"/>
-     <use xlink:href="#Menlo-Regular-20" transform="translate(1986.767578 0)"/>
-     <use xlink:href="#Menlo-Regular-20" transform="translate(2046.972656 0)"/>
-     <use xlink:href="#Menlo-Regular-70" transform="translate(2107.177734 0)"/>
-     <use xlink:href="#Menlo-Regular-6f" transform="translate(2167.382812 0)"/>
-     <use xlink:href="#Menlo-Regular-6f" transform="translate(2227.587891 0)"/>
-     <use xlink:href="#Menlo-Regular-6c" transform="translate(2287.792969 0)"/>
-     <use xlink:href="#Menlo-Regular-65" transform="translate(2347.998047 0)"/>
-     <use xlink:href="#Menlo-Regular-64" transform="translate(2408.203125 0)"/>
-     <use xlink:href="#Menlo-Regular-20" transform="translate(2468.408203 0)"/>
-     <use xlink:href="#Menlo-Regular-61" transform="translate(2528.613281 0)"/>
-     <use xlink:href="#Menlo-Regular-63" transform="translate(2588.818359 0)"/>
-     <use xlink:href="#Menlo-Regular-72" transform="translate(2649.023438 0)"/>
-     <use xlink:href="#Menlo-Regular-6f" transform="translate(2709.228516 0)"/>
-     <use xlink:href="#Menlo-Regular-73" transform="translate(2769.433594 0)"/>
-     <use xlink:href="#Menlo-Regular-73" transform="translate(2829.638672 0)"/>
+     <use xlink:href="#Menlo-Regular-b7" transform="translate(1866.357422 0)"/>
+     <use xlink:href="#Menlo-Regular-20" transform="translate(1926.5625 0)"/>
+     <use xlink:href="#Menlo-Regular-70" transform="translate(1986.767578 0)"/>
+     <use xlink:href="#Menlo-Regular-6f" transform="translate(2046.972656 0)"/>
+     <use xlink:href="#Menlo-Regular-6f" transform="translate(2107.177734 0)"/>
+     <use xlink:href="#Menlo-Regular-6c" transform="translate(2167.382812 0)"/>
+     <use xlink:href="#Menlo-Regular-65" transform="translate(2227.587891 0)"/>
+     <use xlink:href="#Menlo-Regular-64" transform="translate(2287.792969 0)"/>
+     <use xlink:href="#Menlo-Regular-20" transform="translate(2347.998047 0)"/>
+     <use xlink:href="#Menlo-Regular-61" transform="translate(2408.203125 0)"/>
+     <use xlink:href="#Menlo-Regular-63" transform="translate(2468.408203 0)"/>
+     <use xlink:href="#Menlo-Regular-72" transform="translate(2528.613281 0)"/>
+     <use xlink:href="#Menlo-Regular-6f" transform="translate(2588.818359 0)"/>
+     <use xlink:href="#Menlo-Regular-73" transform="translate(2649.023438 0)"/>
+     <use xlink:href="#Menlo-Regular-73" transform="translate(2709.228516 0)"/>
+     <use xlink:href="#Menlo-Regular-20" transform="translate(2769.433594 0)"/>
+     <use xlink:href="#Menlo-Regular-33" transform="translate(2829.638672 0)"/>
      <use xlink:href="#Menlo-Regular-20" transform="translate(2889.84375 0)"/>
-     <use xlink:href="#Menlo-Regular-33" transform="translate(2950.048828 0)"/>
-     <use xlink:href="#Menlo-Regular-20" transform="translate(3010.253906 0)"/>
-     <use xlink:href="#Menlo-Regular-73" transform="translate(3070.458984 0)"/>
-     <use xlink:href="#Menlo-Regular-65" transform="translate(3130.664062 0)"/>
-     <use xlink:href="#Menlo-Regular-65" transform="translate(3190.869141 0)"/>
-     <use xlink:href="#Menlo-Regular-64" transform="translate(3251.074219 0)"/>
-     <use xlink:href="#Menlo-Regular-73" transform="translate(3311.279297 0)"/>
+     <use xlink:href="#Menlo-Regular-73" transform="translate(2950.048828 0)"/>
+     <use xlink:href="#Menlo-Regular-65" transform="translate(3010.253906 0)"/>
+     <use xlink:href="#Menlo-Regular-65" transform="translate(3070.458984 0)"/>
+     <use xlink:href="#Menlo-Regular-64" transform="translate(3130.664062 0)"/>
+     <use xlink:href="#Menlo-Regular-73" transform="translate(3190.869141 0)"/>
+     <use xlink:href="#Menlo-Regular-20" transform="translate(3251.074219 0)"/>
+     <use xlink:href="#Menlo-Regular-b7" transform="translate(3311.279297 0)"/>
      <use xlink:href="#Menlo-Regular-20" transform="translate(3371.484375 0)"/>
-     <use xlink:href="#Menlo-Regular-20" transform="translate(3431.689453 0)"/>
-     <use xlink:href="#Menlo-Regular-b7" transform="translate(3491.894531 0)"/>
-     <use xlink:href="#Menlo-Regular-20" transform="translate(3552.099609 0)"/>
-     <use xlink:href="#Menlo-Regular-20" transform="translate(3612.304688 0)"/>
-     <use xlink:href="#Menlo-Regular-65" transform="translate(3672.509766 0)"/>
-     <use xlink:href="#Menlo-Regular-66" transform="translate(3732.714844 0)"/>
-     <use xlink:href="#Menlo-Regular-66" transform="translate(3792.919922 0)"/>
-     <use xlink:href="#Menlo-Regular-65" transform="translate(3853.125 0)"/>
-     <use xlink:href="#Menlo-Regular-63" transform="translate(3913.330078 0)"/>
-     <use xlink:href="#Menlo-Regular-74" transform="translate(3973.535156 0)"/>
-     <use xlink:href="#Menlo-Regular-69" transform="translate(4033.740234 0)"/>
-     <use xlink:href="#Menlo-Regular-76" transform="translate(4093.945312 0)"/>
-     <use xlink:href="#Menlo-Regular-65" transform="translate(4154.150391 0)"/>
-     <use xlink:href="#Menlo-Regular-20" transform="translate(4214.355469 0)"/>
-     <use xlink:href="#Menlo-Regular-28" transform="translate(4274.560547 0)"/>
-     <use xlink:href="#Menlo-Regular-70" transform="translate(4334.765625 0)"/>
-     <use xlink:href="#Menlo-Regular-6f" transform="translate(4394.970703 0)"/>
-     <use xlink:href="#Menlo-Regular-73" transform="translate(4455.175781 0)"/>
-     <use xlink:href="#Menlo-Regular-74" transform="translate(4515.380859 0)"/>
-     <use xlink:href="#Menlo-Regular-2d" transform="translate(4575.585938 0)"/>
-     <use xlink:href="#Menlo-Regular-63" transform="translate(4635.791016 0)"/>
-     <use xlink:href="#Menlo-Regular-6c" transform="translate(4695.996094 0)"/>
-     <use xlink:href="#Menlo-Regular-61" transform="translate(4756.201172 0)"/>
-     <use xlink:href="#Menlo-Regular-6d" transform="translate(4816.40625 0)"/>
-     <use xlink:href="#Menlo-Regular-70" transform="translate(4876.611328 0)"/>
-     <use xlink:href="#Menlo-Regular-29" transform="translate(4936.816406 0)"/>
-     <use xlink:href="#Menlo-Regular-20" transform="translate(4997.021484 0)"/>
-     <use xlink:href="#Menlo-Regular-76" transform="translate(5057.226562 0)"/>
-     <use xlink:href="#Menlo-Regular-61" transform="translate(5117.431641 0)"/>
-     <use xlink:href="#Menlo-Regular-6c" transform="translate(5177.636719 0)"/>
-     <use xlink:href="#Menlo-Regular-75" transform="translate(5237.841797 0)"/>
-     <use xlink:href="#Menlo-Regular-65" transform="translate(5298.046875 0)"/>
-     <use xlink:href="#Menlo-Regular-73" transform="translate(5358.251953 0)"/>
+     <use xlink:href="#Menlo-Regular-70" transform="translate(3431.689453 0)"/>
+     <use xlink:href="#Menlo-Regular-6f" transform="translate(3491.894531 0)"/>
+     <use xlink:href="#Menlo-Regular-73" transform="translate(3552.099609 0)"/>
+     <use xlink:href="#Menlo-Regular-74" transform="translate(3612.304688 0)"/>
+     <use xlink:href="#Menlo-Regular-2d" transform="translate(3672.509766 0)"/>
+     <use xlink:href="#Menlo-Regular-70" transform="translate(3732.714844 0)"/>
+     <use xlink:href="#Menlo-Regular-72" transform="translate(3792.919922 0)"/>
+     <use xlink:href="#Menlo-Regular-6f" transform="translate(3853.125 0)"/>
+     <use xlink:href="#Menlo-Regular-6a" transform="translate(3913.330078 0)"/>
+     <use xlink:href="#Menlo-Regular-65" transform="translate(3973.535156 0)"/>
+     <use xlink:href="#Menlo-Regular-63" transform="translate(4033.740234 0)"/>
+     <use xlink:href="#Menlo-Regular-74" transform="translate(4093.945312 0)"/>
+     <use xlink:href="#Menlo-Regular-69" transform="translate(4154.150391 0)"/>
+     <use xlink:href="#Menlo-Regular-6f" transform="translate(4214.355469 0)"/>
+     <use xlink:href="#Menlo-Regular-6e" transform="translate(4274.560547 0)"/>
+     <use xlink:href="#Menlo-Regular-20" transform="translate(4334.765625 0)"/>
+     <use xlink:href="#Menlo-Regular-76" transform="translate(4394.970703 0)"/>
+     <use xlink:href="#Menlo-Regular-61" transform="translate(4455.175781 0)"/>
+     <use xlink:href="#Menlo-Regular-6c" transform="translate(4515.380859 0)"/>
+     <use xlink:href="#Menlo-Regular-75" transform="translate(4575.585938 0)"/>
+     <use xlink:href="#Menlo-Regular-65" transform="translate(4635.791016 0)"/>
+     <use xlink:href="#Menlo-Regular-73" transform="translate(4695.996094 0)"/>
     </g>
    </g>
   </g>
   <g id="axes_2">
    <g id="patch_2">
-    <path d="M 44.990313 140.7936 
-L 241.550313 140.7936 
-L 241.550313 37.377199 
-L 44.990313 37.377199 
+    <path d="M 44.990313 170.3472 
+L 231.803536 170.3472 
+L 231.803536 48.003871 
+L 44.990313 48.003871 
 z
 " style="fill: #ffffff"/>
    </g>
@@ -816,17 +749,17 @@ z
     <g id="xtick_1">
      <g id="line2d_1">
       <defs>
-       <path id="md67f2b7f25" d="M 0 0 
+       <path id="m6be00f4f43" d="M 0 0 
 L 0 3 
 " style="stroke: #1a1a1a; stroke-width: 0.8"/>
       </defs>
       <g>
-       <use xlink:href="#md67f2b7f25" x="44.990313" y="140.7936" style="fill: #1a1a1a; stroke: #1a1a1a; stroke-width: 0.8"/>
+       <use xlink:href="#m6be00f4f43" x="44.990313" y="170.3472" style="fill: #1a1a1a; stroke: #1a1a1a; stroke-width: 0.8"/>
       </g>
      </g>
      <g id="text_3">
       <!-- 0.00 -->
-      <g style="fill: #1a1a1a" transform="translate(36.561875 152.632194) scale(0.07 -0.07)">
+      <g style="fill: #1a1a1a" transform="translate(36.561875 182.185794) scale(0.07 -0.07)">
        <defs>
         <path id="Menlo-Regular-30" d="M 1925 4734 
 Q 2672 4734 3055 4125 
@@ -871,12 +804,12 @@ z
     <g id="xtick_2">
      <g id="line2d_2">
       <g>
-       <use xlink:href="#md67f2b7f25" x="75.93903" y="140.7936" style="fill: #1a1a1a; stroke: #1a1a1a; stroke-width: 0.8"/>
+       <use xlink:href="#m6be00f4f43" x="74.404383" y="170.3472" style="fill: #1a1a1a; stroke: #1a1a1a; stroke-width: 0.8"/>
       </g>
      </g>
      <g id="text_4">
       <!-- 0.02 -->
-      <g style="fill: #1a1a1a" transform="translate(67.510593 152.632194) scale(0.07 -0.07)">
+      <g style="fill: #1a1a1a" transform="translate(65.975946 182.185794) scale(0.07 -0.07)">
        <defs>
         <path id="Menlo-Regular-32" d="M 1166 531 
 L 3309 531 
@@ -913,12 +846,12 @@ z
     <g id="xtick_3">
      <g id="line2d_3">
       <g>
-       <use xlink:href="#md67f2b7f25" x="106.887748" y="140.7936" style="fill: #1a1a1a; stroke: #1a1a1a; stroke-width: 0.8"/>
+       <use xlink:href="#m6be00f4f43" x="103.818454" y="170.3472" style="fill: #1a1a1a; stroke: #1a1a1a; stroke-width: 0.8"/>
       </g>
      </g>
      <g id="text_5">
       <!-- 0.04 -->
-      <g style="fill: #1a1a1a" transform="translate(98.459311 152.632194) scale(0.07 -0.07)">
+      <g style="fill: #1a1a1a" transform="translate(95.390016 182.185794) scale(0.07 -0.07)">
        <defs>
         <path id="Menlo-Regular-34" d="M 2297 4091 
 L 825 1625 
@@ -950,12 +883,12 @@ z
     <g id="xtick_4">
      <g id="line2d_4">
       <g>
-       <use xlink:href="#md67f2b7f25" x="137.836466" y="140.7936" style="fill: #1a1a1a; stroke: #1a1a1a; stroke-width: 0.8"/>
+       <use xlink:href="#m6be00f4f43" x="133.232524" y="170.3472" style="fill: #1a1a1a; stroke: #1a1a1a; stroke-width: 0.8"/>
       </g>
      </g>
      <g id="text_6">
       <!-- 0.06 -->
-      <g style="fill: #1a1a1a" transform="translate(129.408028 152.632194) scale(0.07 -0.07)">
+      <g style="fill: #1a1a1a" transform="translate(124.804087 182.185794) scale(0.07 -0.07)">
        <defs>
         <path id="Menlo-Regular-36" d="M 3097 4563 
 L 3097 3981 
@@ -998,12 +931,12 @@ z
     <g id="xtick_5">
      <g id="line2d_5">
       <g>
-       <use xlink:href="#md67f2b7f25" x="168.785184" y="140.7936" style="fill: #1a1a1a; stroke: #1a1a1a; stroke-width: 0.8"/>
+       <use xlink:href="#m6be00f4f43" x="162.646595" y="170.3472" style="fill: #1a1a1a; stroke: #1a1a1a; stroke-width: 0.8"/>
       </g>
      </g>
      <g id="text_7">
       <!-- 0.08 -->
-      <g style="fill: #1a1a1a" transform="translate(160.356746 152.632194) scale(0.07 -0.07)">
+      <g style="fill: #1a1a1a" transform="translate(154.218157 182.185794) scale(0.07 -0.07)">
        <defs>
         <path id="Menlo-Regular-38" d="M 1925 2216 
 Q 1503 2216 1273 1980 
@@ -1055,12 +988,12 @@ z
     <g id="xtick_6">
      <g id="line2d_6">
       <g>
-       <use xlink:href="#md67f2b7f25" x="199.733901" y="140.7936" style="fill: #1a1a1a; stroke: #1a1a1a; stroke-width: 0.8"/>
+       <use xlink:href="#m6be00f4f43" x="192.060666" y="170.3472" style="fill: #1a1a1a; stroke: #1a1a1a; stroke-width: 0.8"/>
       </g>
      </g>
      <g id="text_8">
       <!-- 0.10 -->
-      <g style="fill: #1a1a1a" transform="translate(191.305464 152.632194) scale(0.07 -0.07)">
+      <g style="fill: #1a1a1a" transform="translate(183.632228 182.185794) scale(0.07 -0.07)">
        <defs>
         <path id="Menlo-Regular-31" d="M 844 528 
 L 1825 528 
@@ -1087,12 +1020,12 @@ z
     <g id="xtick_7">
      <g id="line2d_7">
       <g>
-       <use xlink:href="#md67f2b7f25" x="230.682619" y="140.7936" style="fill: #1a1a1a; stroke: #1a1a1a; stroke-width: 0.8"/>
+       <use xlink:href="#m6be00f4f43" x="221.474736" y="170.3472" style="fill: #1a1a1a; stroke: #1a1a1a; stroke-width: 0.8"/>
       </g>
      </g>
      <g id="text_9">
       <!-- 0.12 -->
-      <g style="fill: #1a1a1a" transform="translate(222.254182 152.632194) scale(0.07 -0.07)">
+      <g style="fill: #1a1a1a" transform="translate(213.046299 182.185794) scale(0.07 -0.07)">
        <use xlink:href="#Menlo-Regular-30"/>
        <use xlink:href="#Menlo-Regular-2e" transform="translate(60.205078 0)"/>
        <use xlink:href="#Menlo-Regular-31" transform="translate(120.410156 0)"/>
@@ -1101,86 +1034,113 @@ z
      </g>
     </g>
     <g id="text_10">
-     <!-- effective weight  (Dale-clamped, surviving entries shown) -->
-     <g style="fill: #1a1a1a" transform="translate(6.007187 164.549225) scale(0.08 -0.08)">
+     <!-- conductance magnitude (surviving &gt; 0) -->
+     <g style="fill: #1a1a1a" transform="translate(49.296299 194.102825) scale(0.08 -0.08)">
       <defs>
-       <path id="Menlo-Regular-44" d="M 1363 519 
-Q 2159 519 2475 911 
-Q 2791 1303 2791 2328 
-Q 2791 3363 2477 3755 
-Q 2163 4147 1363 4147 
-L 1063 4147 
-L 1063 519 
-L 1363 519 
+       <path id="Menlo-Regular-6d" d="M 2113 3144 
+Q 2219 3369 2383 3476 
+Q 2547 3584 2778 3584 
+Q 3200 3584 3373 3257 
+Q 3547 2931 3547 2028 
+L 3547 0 
+L 3022 0 
+L 3022 2003 
+Q 3022 2744 2939 2923 
+Q 2856 3103 2638 3103 
+Q 2388 3103 2295 2911 
+Q 2203 2719 2203 2003 
+L 2203 0 
+L 1678 0 
+L 1678 2003 
+Q 1678 2753 1589 2928 
+Q 1500 3103 1269 3103 
+Q 1041 3103 952 2911 
+Q 863 2719 863 2003 
+L 863 0 
+L 341 0 
+L 341 3500 
+L 863 3500 
+L 863 3200 
+Q 966 3388 1120 3486 
+Q 1275 3584 1472 3584 
+Q 1709 3584 1867 3475 
+Q 2025 3366 2113 3144 
 z
-M 1375 4666 
-Q 2444 4666 2950 4097 
-Q 3456 3528 3456 2328 
-Q 3456 1134 2950 567 
-Q 2444 0 1375 0 
-L 428 0 
-L 428 4666 
-L 1375 4666 
+" transform="scale(0.015625)"/>
+       <path id="Menlo-Regular-28" d="M 2672 5169 
+Q 2256 4456 2051 3748 
+Q 1847 3041 1847 2322 
+Q 1847 1606 2051 897 
+Q 2256 188 2672 -531 
+L 2172 -531 
+Q 1700 213 1469 917 
+Q 1238 1622 1238 2322 
+Q 1238 3019 1469 3725 
+Q 1700 4431 2172 5169 
+L 2672 5169 
+z
+" transform="scale(0.015625)"/>
+       <path id="Menlo-Regular-3e" d="M 275 3003 
+L 275 3572 
+L 3578 2266 
+L 3578 1747 
+L 275 441 
+L 275 1013 
+L 2931 2003 
+L 275 3003 
+z
+" transform="scale(0.015625)"/>
+       <path id="Menlo-Regular-29" d="M 1088 5169 
+L 1588 5169 
+Q 2059 4431 2290 3725 
+Q 2522 3019 2522 2322 
+Q 2522 1619 2290 912 
+Q 2059 206 1588 -531 
+L 1088 -531 
+Q 1503 194 1708 903 
+Q 1913 1613 1913 2322 
+Q 1913 3034 1708 3743 
+Q 1503 4453 1088 5169 
 z
 " transform="scale(0.015625)"/>
       </defs>
-      <use xlink:href="#Menlo-Regular-65"/>
-      <use xlink:href="#Menlo-Regular-66" transform="translate(60.205078 0)"/>
-      <use xlink:href="#Menlo-Regular-66" transform="translate(120.410156 0)"/>
-      <use xlink:href="#Menlo-Regular-65" transform="translate(180.615234 0)"/>
-      <use xlink:href="#Menlo-Regular-63" transform="translate(240.820312 0)"/>
-      <use xlink:href="#Menlo-Regular-74" transform="translate(301.025391 0)"/>
-      <use xlink:href="#Menlo-Regular-69" transform="translate(361.230469 0)"/>
-      <use xlink:href="#Menlo-Regular-76" transform="translate(421.435547 0)"/>
-      <use xlink:href="#Menlo-Regular-65" transform="translate(481.640625 0)"/>
-      <use xlink:href="#Menlo-Regular-20" transform="translate(541.845703 0)"/>
-      <use xlink:href="#Menlo-Regular-77" transform="translate(602.050781 0)"/>
-      <use xlink:href="#Menlo-Regular-65" transform="translate(662.255859 0)"/>
-      <use xlink:href="#Menlo-Regular-69" transform="translate(722.460938 0)"/>
-      <use xlink:href="#Menlo-Regular-67" transform="translate(782.666016 0)"/>
-      <use xlink:href="#Menlo-Regular-68" transform="translate(842.871094 0)"/>
-      <use xlink:href="#Menlo-Regular-74" transform="translate(903.076172 0)"/>
-      <use xlink:href="#Menlo-Regular-20" transform="translate(963.28125 0)"/>
-      <use xlink:href="#Menlo-Regular-20" transform="translate(1023.486328 0)"/>
-      <use xlink:href="#Menlo-Regular-28" transform="translate(1083.691406 0)"/>
-      <use xlink:href="#Menlo-Regular-44" transform="translate(1143.896484 0)"/>
-      <use xlink:href="#Menlo-Regular-61" transform="translate(1204.101562 0)"/>
-      <use xlink:href="#Menlo-Regular-6c" transform="translate(1264.306641 0)"/>
-      <use xlink:href="#Menlo-Regular-65" transform="translate(1324.511719 0)"/>
-      <use xlink:href="#Menlo-Regular-2d" transform="translate(1384.716797 0)"/>
-      <use xlink:href="#Menlo-Regular-63" transform="translate(1444.921875 0)"/>
-      <use xlink:href="#Menlo-Regular-6c" transform="translate(1505.126953 0)"/>
-      <use xlink:href="#Menlo-Regular-61" transform="translate(1565.332031 0)"/>
-      <use xlink:href="#Menlo-Regular-6d" transform="translate(1625.537109 0)"/>
-      <use xlink:href="#Menlo-Regular-70" transform="translate(1685.742188 0)"/>
-      <use xlink:href="#Menlo-Regular-65" transform="translate(1745.947266 0)"/>
-      <use xlink:href="#Menlo-Regular-64" transform="translate(1806.152344 0)"/>
-      <use xlink:href="#Menlo-Regular-2c" transform="translate(1866.357422 0)"/>
+      <use xlink:href="#Menlo-Regular-63"/>
+      <use xlink:href="#Menlo-Regular-6f" transform="translate(60.205078 0)"/>
+      <use xlink:href="#Menlo-Regular-6e" transform="translate(120.410156 0)"/>
+      <use xlink:href="#Menlo-Regular-64" transform="translate(180.615234 0)"/>
+      <use xlink:href="#Menlo-Regular-75" transform="translate(240.820312 0)"/>
+      <use xlink:href="#Menlo-Regular-63" transform="translate(301.025391 0)"/>
+      <use xlink:href="#Menlo-Regular-74" transform="translate(361.230469 0)"/>
+      <use xlink:href="#Menlo-Regular-61" transform="translate(421.435547 0)"/>
+      <use xlink:href="#Menlo-Regular-6e" transform="translate(481.640625 0)"/>
+      <use xlink:href="#Menlo-Regular-63" transform="translate(541.845703 0)"/>
+      <use xlink:href="#Menlo-Regular-65" transform="translate(602.050781 0)"/>
+      <use xlink:href="#Menlo-Regular-20" transform="translate(662.255859 0)"/>
+      <use xlink:href="#Menlo-Regular-6d" transform="translate(722.460938 0)"/>
+      <use xlink:href="#Menlo-Regular-61" transform="translate(782.666016 0)"/>
+      <use xlink:href="#Menlo-Regular-67" transform="translate(842.871094 0)"/>
+      <use xlink:href="#Menlo-Regular-6e" transform="translate(903.076172 0)"/>
+      <use xlink:href="#Menlo-Regular-69" transform="translate(963.28125 0)"/>
+      <use xlink:href="#Menlo-Regular-74" transform="translate(1023.486328 0)"/>
+      <use xlink:href="#Menlo-Regular-75" transform="translate(1083.691406 0)"/>
+      <use xlink:href="#Menlo-Regular-64" transform="translate(1143.896484 0)"/>
+      <use xlink:href="#Menlo-Regular-65" transform="translate(1204.101562 0)"/>
+      <use xlink:href="#Menlo-Regular-20" transform="translate(1264.306641 0)"/>
+      <use xlink:href="#Menlo-Regular-28" transform="translate(1324.511719 0)"/>
+      <use xlink:href="#Menlo-Regular-73" transform="translate(1384.716797 0)"/>
+      <use xlink:href="#Menlo-Regular-75" transform="translate(1444.921875 0)"/>
+      <use xlink:href="#Menlo-Regular-72" transform="translate(1505.126953 0)"/>
+      <use xlink:href="#Menlo-Regular-76" transform="translate(1565.332031 0)"/>
+      <use xlink:href="#Menlo-Regular-69" transform="translate(1625.537109 0)"/>
+      <use xlink:href="#Menlo-Regular-76" transform="translate(1685.742188 0)"/>
+      <use xlink:href="#Menlo-Regular-69" transform="translate(1745.947266 0)"/>
+      <use xlink:href="#Menlo-Regular-6e" transform="translate(1806.152344 0)"/>
+      <use xlink:href="#Menlo-Regular-67" transform="translate(1866.357422 0)"/>
       <use xlink:href="#Menlo-Regular-20" transform="translate(1926.5625 0)"/>
-      <use xlink:href="#Menlo-Regular-73" transform="translate(1986.767578 0)"/>
-      <use xlink:href="#Menlo-Regular-75" transform="translate(2046.972656 0)"/>
-      <use xlink:href="#Menlo-Regular-72" transform="translate(2107.177734 0)"/>
-      <use xlink:href="#Menlo-Regular-76" transform="translate(2167.382812 0)"/>
-      <use xlink:href="#Menlo-Regular-69" transform="translate(2227.587891 0)"/>
-      <use xlink:href="#Menlo-Regular-76" transform="translate(2287.792969 0)"/>
-      <use xlink:href="#Menlo-Regular-69" transform="translate(2347.998047 0)"/>
-      <use xlink:href="#Menlo-Regular-6e" transform="translate(2408.203125 0)"/>
-      <use xlink:href="#Menlo-Regular-67" transform="translate(2468.408203 0)"/>
-      <use xlink:href="#Menlo-Regular-20" transform="translate(2528.613281 0)"/>
-      <use xlink:href="#Menlo-Regular-65" transform="translate(2588.818359 0)"/>
-      <use xlink:href="#Menlo-Regular-6e" transform="translate(2649.023438 0)"/>
-      <use xlink:href="#Menlo-Regular-74" transform="translate(2709.228516 0)"/>
-      <use xlink:href="#Menlo-Regular-72" transform="translate(2769.433594 0)"/>
-      <use xlink:href="#Menlo-Regular-69" transform="translate(2829.638672 0)"/>
-      <use xlink:href="#Menlo-Regular-65" transform="translate(2889.84375 0)"/>
-      <use xlink:href="#Menlo-Regular-73" transform="translate(2950.048828 0)"/>
-      <use xlink:href="#Menlo-Regular-20" transform="translate(3010.253906 0)"/>
-      <use xlink:href="#Menlo-Regular-73" transform="translate(3070.458984 0)"/>
-      <use xlink:href="#Menlo-Regular-68" transform="translate(3130.664062 0)"/>
-      <use xlink:href="#Menlo-Regular-6f" transform="translate(3190.869141 0)"/>
-      <use xlink:href="#Menlo-Regular-77" transform="translate(3251.074219 0)"/>
-      <use xlink:href="#Menlo-Regular-6e" transform="translate(3311.279297 0)"/>
-      <use xlink:href="#Menlo-Regular-29" transform="translate(3371.484375 0)"/>
+      <use xlink:href="#Menlo-Regular-3e" transform="translate(1986.767578 0)"/>
+      <use xlink:href="#Menlo-Regular-20" transform="translate(2046.972656 0)"/>
+      <use xlink:href="#Menlo-Regular-30" transform="translate(2107.177734 0)"/>
+      <use xlink:href="#Menlo-Regular-29" transform="translate(2167.382812 0)"/>
      </g>
     </g>
    </g>
@@ -1188,17 +1148,17 @@ z
     <g id="ytick_1">
      <g id="line2d_8">
       <defs>
-       <path id="m2034c1daee" d="M 0 0 
+       <path id="m767b892688" d="M 0 0 
 L -3 0 
 " style="stroke: #1a1a1a; stroke-width: 0.8"/>
       </defs>
       <g>
-       <use xlink:href="#m2034c1daee" x="44.990313" y="140.7936" style="fill: #1a1a1a; stroke: #1a1a1a; stroke-width: 0.8"/>
+       <use xlink:href="#m767b892688" x="44.990313" y="170.3472" style="fill: #1a1a1a; stroke: #1a1a1a; stroke-width: 0.8"/>
       </g>
      </g>
      <g id="text_11">
       <!-- 0 -->
-      <g style="fill: #1a1a1a" transform="translate(34.276094 143.462897) scale(0.07 -0.07)">
+      <g style="fill: #1a1a1a" transform="translate(34.276094 173.016497) scale(0.07 -0.07)">
        <use xlink:href="#Menlo-Regular-30"/>
       </g>
      </g>
@@ -1206,12 +1166,12 @@ L -3 0
     <g id="ytick_2">
      <g id="line2d_9">
       <g>
-       <use xlink:href="#m2034c1daee" x="44.990313" y="115.745837" style="fill: #1a1a1a; stroke: #1a1a1a; stroke-width: 0.8"/>
+       <use xlink:href="#m767b892688" x="44.990313" y="140.715279" style="fill: #1a1a1a; stroke: #1a1a1a; stroke-width: 0.8"/>
       </g>
      </g>
      <g id="text_12">
       <!-- 200000 -->
-      <g style="fill: #1a1a1a" transform="translate(13.205 118.415134) scale(0.07 -0.07)">
+      <g style="fill: #1a1a1a" transform="translate(13.205 143.384575) scale(0.07 -0.07)">
        <use xlink:href="#Menlo-Regular-32"/>
        <use xlink:href="#Menlo-Regular-30" transform="translate(60.205078 0)"/>
        <use xlink:href="#Menlo-Regular-30" transform="translate(120.410156 0)"/>
@@ -1224,12 +1184,12 @@ L -3 0
     <g id="ytick_3">
      <g id="line2d_10">
       <g>
-       <use xlink:href="#m2034c1daee" x="44.990313" y="90.698075" style="fill: #1a1a1a; stroke: #1a1a1a; stroke-width: 0.8"/>
+       <use xlink:href="#m767b892688" x="44.990313" y="111.083357" style="fill: #1a1a1a; stroke: #1a1a1a; stroke-width: 0.8"/>
       </g>
      </g>
      <g id="text_13">
       <!-- 400000 -->
-      <g style="fill: #1a1a1a" transform="translate(13.205 93.367372) scale(0.07 -0.07)">
+      <g style="fill: #1a1a1a" transform="translate(13.205 113.752654) scale(0.07 -0.07)">
        <use xlink:href="#Menlo-Regular-34"/>
        <use xlink:href="#Menlo-Regular-30" transform="translate(60.205078 0)"/>
        <use xlink:href="#Menlo-Regular-30" transform="translate(120.410156 0)"/>
@@ -1242,12 +1202,12 @@ L -3 0
     <g id="ytick_4">
      <g id="line2d_11">
       <g>
-       <use xlink:href="#m2034c1daee" x="44.990313" y="65.650312" style="fill: #1a1a1a; stroke: #1a1a1a; stroke-width: 0.8"/>
+       <use xlink:href="#m767b892688" x="44.990313" y="81.451436" style="fill: #1a1a1a; stroke: #1a1a1a; stroke-width: 0.8"/>
       </g>
      </g>
      <g id="text_14">
       <!-- 600000 -->
-      <g style="fill: #1a1a1a" transform="translate(13.205 68.319609) scale(0.07 -0.07)">
+      <g style="fill: #1a1a1a" transform="translate(13.205 84.120733) scale(0.07 -0.07)">
        <use xlink:href="#Menlo-Regular-36"/>
        <use xlink:href="#Menlo-Regular-30" transform="translate(60.205078 0)"/>
        <use xlink:href="#Menlo-Regular-30" transform="translate(120.410156 0)"/>
@@ -1260,12 +1220,12 @@ L -3 0
     <g id="ytick_5">
      <g id="line2d_12">
       <g>
-       <use xlink:href="#m2034c1daee" x="44.990313" y="40.60255" style="fill: #1a1a1a; stroke: #1a1a1a; stroke-width: 0.8"/>
+       <use xlink:href="#m767b892688" x="44.990313" y="51.819514" style="fill: #1a1a1a; stroke: #1a1a1a; stroke-width: 0.8"/>
       </g>
      </g>
      <g id="text_15">
       <!-- 800000 -->
-      <g style="fill: #1a1a1a" transform="translate(13.205 43.271846) scale(0.07 -0.07)">
+      <g style="fill: #1a1a1a" transform="translate(13.205 54.488811) scale(0.07 -0.07)">
        <use xlink:href="#Menlo-Regular-38"/>
        <use xlink:href="#Menlo-Regular-30" transform="translate(60.205078 0)"/>
        <use xlink:href="#Menlo-Regular-30" transform="translate(120.410156 0)"/>
@@ -1277,7 +1237,7 @@ L -3 0
     </g>
     <g id="text_16">
      <!-- entry count -->
-     <g style="fill: #1a1a1a" transform="translate(7.54125 115.574775) rotate(-90) scale(0.08 -0.08)">
+     <g style="fill: #1a1a1a" transform="translate(7.54125 135.664911) rotate(-90) scale(0.08 -0.08)">
       <defs>
        <path id="Menlo-Regular-79" d="M 2681 1125 
 Q 2538 759 2316 163 
@@ -1313,326 +1273,326 @@ z
     </g>
    </g>
    <g id="patch_3">
-    <path d="M 44.990313 140.7936 
-L 44.990313 115.008056 
-L 49.001741 115.008056 
-L 49.001741 136.697665 
-L 53.01317 136.697665 
-L 53.01317 139.610344 
-L 57.024598 139.610344 
-L 57.024598 140.215873 
-L 61.036027 140.215873 
-L 61.036027 140.435167 
-L 65.047455 140.435167 
-L 65.047455 140.575434 
-L 69.058884 140.575434 
-L 69.058884 140.638304 
-L 73.070312 140.638304 
-L 73.070312 140.684893 
-L 77.081741 140.684893 
-L 77.081741 140.70969 
-L 81.09317 140.70969 
-L 81.09317 140.726096 
-L 85.104598 140.726096 
-L 85.104598 140.73837 
-L 89.116027 140.73837 
-L 89.116027 140.751144 
-L 93.127455 140.751144 
-L 93.127455 140.760537 
-L 97.138884 140.760537 
-L 97.138884 140.766799 
-L 101.150312 140.766799 
-L 101.150312 140.772936 
-L 105.161741 140.772936 
-L 105.161741 140.77807 
-L 109.17317 140.77807 
-L 109.17317 140.779198 
-L 113.184598 140.779198 
-L 113.184598 140.782955 
-L 117.196027 140.782955 
-L 117.196027 140.785459 
-L 121.207455 140.785459 
-L 121.207455 140.787463 
-L 125.218884 140.787463 
-L 125.218884 140.787088 
-L 129.230312 140.787088 
-L 129.230312 140.788465 
-L 133.241741 140.788465 
-L 133.241741 140.789467 
-L 137.25317 140.789467 
-L 137.25317 140.790344 
-L 141.264598 140.790344 
-L 141.264598 140.791095 
-L 145.276027 140.791095 
-L 145.276027 140.791095 
-L 149.287455 140.791095 
-L 149.287455 140.791596 
-L 153.298884 140.791596 
-L 153.298884 140.791847 
-L 157.310312 140.791847 
-L 157.310312 140.791721 
-L 161.321741 140.791721 
-L 161.321741 140.79122 
-L 165.33317 140.79122 
-L 165.33317 140.792723 
-L 169.344598 140.792723 
-L 169.344598 140.792473 
-L 173.356027 140.792473 
-L 173.356027 140.793099 
-L 177.367455 140.793099 
-L 177.367455 140.79335 
-L 181.378884 140.79335 
-L 181.378884 140.792849 
-L 185.390312 140.792849 
-L 185.390312 140.793099 
-L 189.401741 140.793099 
-L 189.401741 140.792849 
-L 193.41317 140.792849 
-L 193.41317 140.793099 
-L 197.424598 140.793099 
-L 197.424598 140.79335 
-L 201.436027 140.79335 
-L 201.436027 140.7936 
-L 205.447455 140.7936 
-L 205.447455 140.793224 
-L 209.458884 140.793224 
-L 209.458884 140.7936 
-L 213.470312 140.7936 
-L 213.470312 140.7936 
-L 217.481741 140.7936 
-L 217.481741 140.7936 
-L 221.49317 140.7936 
-L 221.49317 140.7936 
-L 225.504598 140.7936 
-L 225.504598 140.7936 
-L 229.516027 140.7936 
-L 229.516027 140.793475 
-L 233.527455 140.793475 
-L 233.527455 140.7936 
-L 237.538884 140.7936 
-L 237.538884 140.7936 
-L 241.550312 140.7936 
-L 241.550312 140.7936 
-L 237.538884 140.7936 
-L 237.538884 140.7936 
-L 233.527455 140.7936 
-L 233.527455 140.7936 
-L 229.516027 140.7936 
-L 229.516027 140.7936 
-L 225.504598 140.7936 
-L 225.504598 140.7936 
-L 221.49317 140.7936 
-L 221.49317 140.7936 
-L 217.481741 140.7936 
-L 217.481741 140.7936 
-L 213.470312 140.7936 
-L 213.470312 140.7936 
-L 209.458884 140.7936 
-L 209.458884 140.7936 
-L 205.447455 140.7936 
-L 205.447455 140.7936 
-L 201.436027 140.7936 
-L 201.436027 140.7936 
-L 197.424598 140.7936 
-L 197.424598 140.7936 
-L 193.41317 140.7936 
-L 193.41317 140.7936 
-L 189.401741 140.7936 
-L 189.401741 140.7936 
-L 185.390312 140.7936 
-L 185.390312 140.7936 
-L 181.378884 140.7936 
-L 181.378884 140.7936 
-L 177.367455 140.7936 
-L 177.367455 140.7936 
-L 173.356027 140.7936 
-L 173.356027 140.7936 
-L 169.344598 140.7936 
-L 169.344598 140.7936 
-L 165.33317 140.7936 
-L 165.33317 140.7936 
-L 161.321741 140.7936 
-L 161.321741 140.7936 
-L 157.310312 140.7936 
-L 157.310312 140.7936 
-L 153.298884 140.7936 
-L 153.298884 140.7936 
-L 149.287455 140.7936 
-L 149.287455 140.7936 
-L 145.276027 140.7936 
-L 145.276027 140.7936 
-L 141.264598 140.7936 
-L 141.264598 140.7936 
-L 137.25317 140.7936 
-L 137.25317 140.7936 
-L 133.241741 140.7936 
-L 133.241741 140.7936 
-L 129.230312 140.7936 
-L 129.230312 140.7936 
-L 125.218884 140.7936 
-L 125.218884 140.7936 
-L 121.207455 140.7936 
-L 121.207455 140.7936 
-L 117.196027 140.7936 
-L 117.196027 140.7936 
-L 113.184598 140.7936 
-L 113.184598 140.7936 
-L 109.17317 140.7936 
-L 109.17317 140.7936 
-L 105.161741 140.7936 
-L 105.161741 140.7936 
-L 101.150312 140.7936 
-L 101.150312 140.7936 
-L 97.138884 140.7936 
-L 97.138884 140.7936 
-L 93.127455 140.7936 
-L 93.127455 140.7936 
-L 89.116027 140.7936 
-L 89.116027 140.7936 
-L 85.104598 140.7936 
-L 85.104598 140.7936 
-L 81.09317 140.7936 
-L 81.09317 140.7936 
-L 77.081741 140.7936 
-L 77.081741 140.7936 
-L 73.070312 140.7936 
-L 73.070312 140.7936 
-L 69.058884 140.7936 
-L 69.058884 140.7936 
-L 65.047455 140.7936 
-L 65.047455 140.7936 
-L 61.036027 140.7936 
-L 61.036027 140.7936 
-L 57.024598 140.7936 
-L 57.024598 140.7936 
-L 53.01317 140.7936 
-L 53.01317 140.7936 
-L 49.001741 140.7936 
-L 49.001741 140.7936 
+    <path d="M 44.990313 170.3472 
+L 44.990313 139.84247 
+L 48.802827 139.84247 
+L 48.802827 165.50164 
+L 52.615342 165.50164 
+L 52.615342 168.947388 
+L 56.427857 168.947388 
+L 56.427857 169.66374 
+L 60.240372 169.66374 
+L 60.240372 169.923167 
+L 64.052886 169.923167 
+L 64.052886 170.089106 
+L 67.865401 170.089106 
+L 67.865401 170.163482 
+L 71.677916 170.163482 
+L 71.677916 170.218597 
+L 75.490431 170.218597 
+L 75.490431 170.247933 
+L 79.302945 170.247933 
+L 79.302945 170.267342 
+L 83.11546 170.267342 
+L 83.11546 170.281862 
+L 86.927975 170.281862 
+L 86.927975 170.296974 
+L 90.74049 170.296974 
+L 90.74049 170.308086 
+L 94.553004 170.308086 
+L 94.553004 170.315494 
+L 98.365519 170.315494 
+L 98.365519 170.322754 
+L 102.178034 170.322754 
+L 102.178034 170.328828 
+L 105.990549 170.328828 
+L 105.990549 170.330162 
+L 109.803063 170.330162 
+L 109.803063 170.334606 
+L 113.615578 170.334606 
+L 113.615578 170.33757 
+L 117.428093 170.33757 
+L 117.428093 170.33994 
+L 121.240608 170.33994 
+L 121.240608 170.339496 
+L 125.053122 170.339496 
+L 125.053122 170.341125 
+L 128.865637 170.341125 
+L 128.865637 170.342311 
+L 132.678152 170.342311 
+L 132.678152 170.343348 
+L 136.490667 170.343348 
+L 136.490667 170.344237 
+L 140.303181 170.344237 
+L 140.303181 170.344237 
+L 144.115696 170.344237 
+L 144.115696 170.344829 
+L 147.928211 170.344829 
+L 147.928211 170.345126 
+L 151.740726 170.345126 
+L 151.740726 170.344978 
+L 155.55324 170.344978 
+L 155.55324 170.344385 
+L 159.365755 170.344385 
+L 159.365755 170.346163 
+L 163.17827 170.346163 
+L 163.17827 170.345867 
+L 166.990785 170.345867 
+L 166.990785 170.346607 
+L 170.8033 170.346607 
+L 170.8033 170.346904 
+L 174.615814 170.346904 
+L 174.615814 170.346311 
+L 178.428329 170.346311 
+L 178.428329 170.346607 
+L 182.240844 170.346607 
+L 182.240844 170.346311 
+L 186.053359 170.346311 
+L 186.053359 170.346607 
+L 189.865873 170.346607 
+L 189.865873 170.346904 
+L 193.678388 170.346904 
+L 193.678388 170.3472 
+L 197.490903 170.3472 
+L 197.490903 170.346756 
+L 201.303418 170.346756 
+L 201.303418 170.3472 
+L 205.115932 170.3472 
+L 205.115932 170.3472 
+L 208.928447 170.3472 
+L 208.928447 170.3472 
+L 212.740962 170.3472 
+L 212.740962 170.3472 
+L 216.553477 170.3472 
+L 216.553477 170.3472 
+L 220.365991 170.3472 
+L 220.365991 170.347052 
+L 224.178506 170.347052 
+L 224.178506 170.3472 
+L 227.991021 170.3472 
+L 227.991021 170.3472 
+L 231.803536 170.3472 
+L 231.803536 170.3472 
+L 227.991021 170.3472 
+L 227.991021 170.3472 
+L 224.178506 170.3472 
+L 224.178506 170.3472 
+L 220.365991 170.3472 
+L 220.365991 170.3472 
+L 216.553477 170.3472 
+L 216.553477 170.3472 
+L 212.740962 170.3472 
+L 212.740962 170.3472 
+L 208.928447 170.3472 
+L 208.928447 170.3472 
+L 205.115932 170.3472 
+L 205.115932 170.3472 
+L 201.303418 170.3472 
+L 201.303418 170.3472 
+L 197.490903 170.3472 
+L 197.490903 170.3472 
+L 193.678388 170.3472 
+L 193.678388 170.3472 
+L 189.865873 170.3472 
+L 189.865873 170.3472 
+L 186.053359 170.3472 
+L 186.053359 170.3472 
+L 182.240844 170.3472 
+L 182.240844 170.3472 
+L 178.428329 170.3472 
+L 178.428329 170.3472 
+L 174.615814 170.3472 
+L 174.615814 170.3472 
+L 170.8033 170.3472 
+L 170.8033 170.3472 
+L 166.990785 170.3472 
+L 166.990785 170.3472 
+L 163.17827 170.3472 
+L 163.17827 170.3472 
+L 159.365755 170.3472 
+L 159.365755 170.3472 
+L 155.55324 170.3472 
+L 155.55324 170.3472 
+L 151.740726 170.3472 
+L 151.740726 170.3472 
+L 147.928211 170.3472 
+L 147.928211 170.3472 
+L 144.115696 170.3472 
+L 144.115696 170.3472 
+L 140.303181 170.3472 
+L 140.303181 170.3472 
+L 136.490667 170.3472 
+L 136.490667 170.3472 
+L 132.678152 170.3472 
+L 132.678152 170.3472 
+L 128.865637 170.3472 
+L 128.865637 170.3472 
+L 125.053122 170.3472 
+L 125.053122 170.3472 
+L 121.240608 170.3472 
+L 121.240608 170.3472 
+L 117.428093 170.3472 
+L 117.428093 170.3472 
+L 113.615578 170.3472 
+L 113.615578 170.3472 
+L 109.803063 170.3472 
+L 109.803063 170.3472 
+L 105.990549 170.3472 
+L 105.990549 170.3472 
+L 102.178034 170.3472 
+L 102.178034 170.3472 
+L 98.365519 170.3472 
+L 98.365519 170.3472 
+L 94.553004 170.3472 
+L 94.553004 170.3472 
+L 90.74049 170.3472 
+L 90.74049 170.3472 
+L 86.927975 170.3472 
+L 86.927975 170.3472 
+L 83.11546 170.3472 
+L 83.11546 170.3472 
+L 79.302945 170.3472 
+L 79.302945 170.3472 
+L 75.490431 170.3472 
+L 75.490431 170.3472 
+L 71.677916 170.3472 
+L 71.677916 170.3472 
+L 67.865401 170.3472 
+L 67.865401 170.3472 
+L 64.052886 170.3472 
+L 64.052886 170.3472 
+L 60.240372 170.3472 
+L 60.240372 170.3472 
+L 56.427857 170.3472 
+L 56.427857 170.3472 
+L 52.615342 170.3472 
+L 52.615342 170.3472 
+L 48.802827 170.3472 
+L 48.802827 170.3472 
 z
-" clip-path="url(#pbfc5fc5427)" style="fill: #1a1a1a; opacity: 0.32; stroke: #1a1a1a; stroke-width: 0.8; stroke-linejoin: miter"/>
+" clip-path="url(#p55d6c15c1f)" style="fill: #1a1a1a; opacity: 0.32; stroke: #1a1a1a; stroke-width: 0.8; stroke-linejoin: miter"/>
    </g>
    <g id="patch_4">
-    <path d="M 44.990313 140.7936 
-L 44.990313 42.30179 
-L 49.001741 42.30179 
-L 49.001741 140.7936 
-L 53.01317 140.7936 
-L 53.01317 140.7936 
-L 57.024598 140.7936 
-L 57.024598 140.7936 
-L 61.036027 140.7936 
-L 61.036027 140.7936 
-L 65.047455 140.7936 
-L 65.047455 140.7936 
-L 69.058884 140.7936 
-L 69.058884 140.7936 
-L 73.070312 140.7936 
-L 73.070312 140.7936 
-L 77.081741 140.7936 
-L 77.081741 140.7936 
-L 81.09317 140.7936 
-L 81.09317 140.7936 
-L 85.104598 140.7936 
-L 85.104598 140.7936 
-L 89.116027 140.7936 
-L 89.116027 140.7936 
-L 93.127455 140.7936 
-L 93.127455 140.7936 
-L 97.138884 140.7936 
-L 97.138884 140.7936 
-L 101.150312 140.7936 
-L 101.150312 140.7936 
-L 105.161741 140.7936 
-L 105.161741 140.7936 
-L 109.17317 140.7936 
-L 109.17317 140.7936 
-L 113.184598 140.7936 
-L 113.184598 140.7936 
-L 117.196027 140.7936 
-L 117.196027 140.7936 
-L 121.207455 140.7936 
-L 121.207455 140.7936 
-L 125.218884 140.7936 
-L 125.218884 140.7936 
-L 129.230312 140.7936 
-L 129.230312 140.7936 
-L 133.241741 140.7936 
-L 133.241741 140.7936 
-L 137.25317 140.7936 
-L 137.25317 140.7936 
-L 141.264598 140.7936 
-L 141.264598 140.7936 
-L 145.276027 140.7936 
-L 145.276027 140.7936 
-L 149.287455 140.7936 
-L 149.287455 140.7936 
-L 153.298884 140.7936 
-L 153.298884 140.7936 
-L 157.310312 140.7936 
-L 157.310312 140.7936 
-L 161.321741 140.7936 
-L 161.321741 140.7936 
-L 165.33317 140.7936 
-L 165.33317 140.7936 
-L 169.344598 140.7936 
-L 169.344598 140.7936 
-L 173.356027 140.7936 
-L 173.356027 140.7936 
-L 177.367455 140.7936 
-L 177.367455 140.7936 
-L 181.378884 140.7936 
-L 181.378884 140.7936 
-L 185.390312 140.7936 
-L 185.390312 140.7936 
-L 189.401741 140.7936 
-L 189.401741 140.7936 
-L 193.41317 140.7936 
-L 193.41317 140.7936 
-L 197.424598 140.7936 
-L 197.424598 140.7936 
-L 201.436027 140.7936 
-L 201.436027 140.7936 
-L 205.447455 140.7936 
-L 205.447455 140.7936 
-L 209.458884 140.7936 
-L 209.458884 140.7936 
-L 213.470312 140.7936 
-L 213.470312 140.7936 
-L 217.481741 140.7936 
-L 217.481741 140.7936 
-L 221.49317 140.7936 
-L 221.49317 140.7936 
-L 225.504598 140.7936 
-L 225.504598 140.7936 
-L 229.516027 140.7936 
-L 229.516027 140.7936 
-L 233.527455 140.7936 
-L 233.527455 140.7936 
-L 237.538884 140.7936 
-L 237.538884 140.7936 
-L 241.550312 140.7936 
-L 241.550312 140.7936 
-" clip-path="url(#pbfc5fc5427)" style="fill: none; stroke: #1a1a1a; stroke-width: 1.6; stroke-linejoin: miter"/>
+    <path d="M 44.990313 170.3472 
+L 44.990313 53.829744 
+L 48.802827 53.829744 
+L 48.802827 170.3472 
+L 52.615342 170.3472 
+L 52.615342 170.3472 
+L 56.427857 170.3472 
+L 56.427857 170.3472 
+L 60.240372 170.3472 
+L 60.240372 170.3472 
+L 64.052886 170.3472 
+L 64.052886 170.3472 
+L 67.865401 170.3472 
+L 67.865401 170.3472 
+L 71.677916 170.3472 
+L 71.677916 170.3472 
+L 75.490431 170.3472 
+L 75.490431 170.3472 
+L 79.302945 170.3472 
+L 79.302945 170.3472 
+L 83.11546 170.3472 
+L 83.11546 170.3472 
+L 86.927975 170.3472 
+L 86.927975 170.3472 
+L 90.74049 170.3472 
+L 90.74049 170.3472 
+L 94.553004 170.3472 
+L 94.553004 170.3472 
+L 98.365519 170.3472 
+L 98.365519 170.3472 
+L 102.178034 170.3472 
+L 102.178034 170.3472 
+L 105.990549 170.3472 
+L 105.990549 170.3472 
+L 109.803063 170.3472 
+L 109.803063 170.3472 
+L 113.615578 170.3472 
+L 113.615578 170.3472 
+L 117.428093 170.3472 
+L 117.428093 170.3472 
+L 121.240608 170.3472 
+L 121.240608 170.3472 
+L 125.053122 170.3472 
+L 125.053122 170.3472 
+L 128.865637 170.3472 
+L 128.865637 170.3472 
+L 132.678152 170.3472 
+L 132.678152 170.3472 
+L 136.490667 170.3472 
+L 136.490667 170.3472 
+L 140.303181 170.3472 
+L 140.303181 170.3472 
+L 144.115696 170.3472 
+L 144.115696 170.3472 
+L 147.928211 170.3472 
+L 147.928211 170.3472 
+L 151.740726 170.3472 
+L 151.740726 170.3472 
+L 155.55324 170.3472 
+L 155.55324 170.3472 
+L 159.365755 170.3472 
+L 159.365755 170.3472 
+L 163.17827 170.3472 
+L 163.17827 170.3472 
+L 166.990785 170.3472 
+L 166.990785 170.3472 
+L 170.8033 170.3472 
+L 170.8033 170.3472 
+L 174.615814 170.3472 
+L 174.615814 170.3472 
+L 178.428329 170.3472 
+L 178.428329 170.3472 
+L 182.240844 170.3472 
+L 182.240844 170.3472 
+L 186.053359 170.3472 
+L 186.053359 170.3472 
+L 189.865873 170.3472 
+L 189.865873 170.3472 
+L 193.678388 170.3472 
+L 193.678388 170.3472 
+L 197.490903 170.3472 
+L 197.490903 170.3472 
+L 201.303418 170.3472 
+L 201.303418 170.3472 
+L 205.115932 170.3472 
+L 205.115932 170.3472 
+L 208.928447 170.3472 
+L 208.928447 170.3472 
+L 212.740962 170.3472 
+L 212.740962 170.3472 
+L 216.553477 170.3472 
+L 216.553477 170.3472 
+L 220.365991 170.3472 
+L 220.365991 170.3472 
+L 224.178506 170.3472 
+L 224.178506 170.3472 
+L 227.991021 170.3472 
+L 227.991021 170.3472 
+L 231.803536 170.3472 
+L 231.803536 170.3472 
+" clip-path="url(#p55d6c15c1f)" style="fill: none; stroke: #1a1a1a; stroke-width: 1.6; stroke-linejoin: miter"/>
    </g>
    <g id="line2d_13">
-    <path d="M 46.50148 140.7936 
-L 46.50148 37.377199 
-" clip-path="url(#pbfc5fc5427)" style="fill: none; stroke-dasharray: 0.9,1.485; stroke-dashoffset: 0; stroke: #6a6a6a; stroke-width: 0.9"/>
+    <path d="M 46.426546 170.3472 
+L 46.426546 48.003871 
+" clip-path="url(#p55d6c15c1f)" style="fill: none; stroke-dasharray: 0.9,1.485; stroke-dashoffset: 0; stroke: #6a6a6a; stroke-width: 0.9"/>
    </g>
    <g id="patch_5">
-    <path d="M 44.990313 140.7936 
-L 44.990313 37.377199 
+    <path d="M 44.990313 170.3472 
+L 44.990313 48.003871 
 " style="fill: none; stroke: #1a1a1a; stroke-width: 0.8; stroke-linejoin: miter; stroke-linecap: square"/>
    </g>
    <g id="patch_6">
-    <path d="M 44.990313 140.7936 
-L 241.550312 140.7936 
+    <path d="M 44.990313 170.3472 
+L 231.803536 170.3472 
 " style="fill: none; stroke: #1a1a1a; stroke-width: 0.8; stroke-linejoin: miter; stroke-linecap: square"/>
    </g>
    <g id="text_17">
     <!--   canonical -->
-    <g style="fill: #6a6a6a" transform="translate(51.458746 110.608017) rotate(-90) scale(0.065 -0.065)">
+    <g style="fill: #6a6a6a" transform="translate(51.383812 130.698153) rotate(-90) scale(0.065 -0.065)">
      <use xlink:href="#Menlo-Regular-20"/>
      <use xlink:href="#Menlo-Regular-20" transform="translate(60.205078 0)"/>
      <use xlink:href="#Menlo-Regular-63" transform="translate(120.410156 0)"/>
@@ -1648,20 +1608,20 @@ L 241.550312 140.7936
    </g>
    <g id="text_18">
     <g id="patch_7">
-     <path d="M 83.056588 76.338386 
-L 239.584713 76.338386 
-Q 242.184713 76.338386 242.184713 73.738386 
-L 242.184713 60.128807 
-Q 242.184713 57.528807 239.584713 57.528807 
-L 83.056588 57.528807 
-Q 80.456588 57.528807 80.456588 60.128807 
-L 80.456588 73.738386 
-Q 80.456588 76.338386 83.056588 76.338386 
+     <path d="M 73.407278 91.128982 
+L 229.935403 91.128982 
+Q 232.535403 91.128982 232.535403 88.528982 
+L 232.535403 74.919403 
+Q 232.535403 72.319403 229.935403 72.319403 
+L 73.407278 72.319403 
+Q 70.807278 72.319403 70.807278 74.919403 
+L 70.807278 88.528982 
+Q 70.807278 91.128982 73.407278 91.128982 
 z
 " style="fill: #ffffff; opacity: 0.95; stroke: #6a6a6a; stroke-width: 0.5; stroke-linejoin: miter"/>
     </g>
     <!-- init     mean = 0.0010    pruned =  0.0% -->
-    <g style="fill: #888888" transform="translate(83.056588 65.086073) scale(0.065 -0.065)">
+    <g style="fill: #888888" transform="translate(73.407278 79.876669) scale(0.065 -0.065)">
      <defs>
       <path id="Menlo-Regular-3d" d="M 275 1563 
 L 3578 1563 
@@ -1770,7 +1730,7 @@ z
      <use xlink:href="#Menlo-Regular-25" transform="translate(2347.998047 0)"/>
     </g>
     <!-- trained  mean = 0.0007    pruned = 66.6% -->
-    <g style="fill: #888888" transform="translate(83.056588 72.386589) scale(0.065 -0.065)">
+    <g style="fill: #888888" transform="translate(73.407278 87.177185) scale(0.065 -0.065)">
      <defs>
       <path id="Menlo-Regular-37" d="M 434 4666 
 L 3372 4666 
@@ -1827,7 +1787,7 @@ z
    </g>
    <g id="text_19">
     <!-- $W^{EI}$  (1024 × 256) -->
-    <g style="fill: #1a1a1a" transform="translate(44.990313 33.377199) scale(0.08 -0.08)">
+    <g style="fill: #1a1a1a" transform="translate(44.990313 44.003871) scale(0.08 -0.08)">
      <defs>
       <path id="DejaVuSans-Oblique-57" d="M 616 4666 
 L 1228 4666 
@@ -1929,17 +1889,17 @@ z
    </g>
    <g id="legend_1">
     <g id="patch_8">
-     <path d="M 188.950781 49.015793 
-L 200.150781 49.015793 
-L 200.150781 44.115793 
-L 188.950781 44.115793 
-L 188.950781 49.015793 
+     <path d="M 179.204004 152.297044 
+L 190.404004 152.297044 
+L 190.404004 147.397044 
+L 179.204004 147.397044 
+L 179.204004 152.297044 
 z
 " style="fill: none; stroke: #1a1a1a; stroke-width: 1.6; stroke-linejoin: miter"/>
     </g>
     <g id="text_20">
      <!-- init -->
-     <g style="fill: #1a1a1a" transform="translate(205.750781 49.015793) scale(0.07 -0.07)">
+     <g style="fill: #1a1a1a" transform="translate(196.004004 152.297044) scale(0.07 -0.07)">
       <use xlink:href="#Menlo-Regular-69"/>
       <use xlink:href="#Menlo-Regular-6e" transform="translate(60.205078 0)"/>
       <use xlink:href="#Menlo-Regular-69" transform="translate(120.410156 0)"/>
@@ -1947,16 +1907,16 @@ z
      </g>
     </g>
     <g id="patch_9">
-     <path d="M 188.950781 59.310168 
-L 200.150781 59.310168 
-L 200.150781 54.410168 
-L 188.950781 54.410168 
+     <path d="M 179.204004 162.591419 
+L 190.404004 162.591419 
+L 190.404004 157.691419 
+L 179.204004 157.691419 
 z
 " style="fill: #1a1a1a; opacity: 0.32; stroke: #1a1a1a; stroke-width: 0.8; stroke-linejoin: miter"/>
     </g>
     <g id="text_21">
      <!-- trained -->
-     <g style="fill: #1a1a1a" transform="translate(205.750781 59.310168) scale(0.07 -0.07)">
+     <g style="fill: #1a1a1a" transform="translate(196.004004 162.591419) scale(0.07 -0.07)">
       <use xlink:href="#Menlo-Regular-74"/>
       <use xlink:href="#Menlo-Regular-72" transform="translate(60.205078 0)"/>
       <use xlink:href="#Menlo-Regular-61" transform="translate(120.410156 0)"/>
@@ -1970,10 +1930,10 @@ z
   </g>
   <g id="axes_3">
    <g id="patch_10">
-    <path d="M 300.518313 140.7936 
-L 497.078313 140.7936 
-L 497.078313 37.377199 
-L 300.518313 37.377199 
+    <path d="M 310.265089 170.3472 
+L 497.078312 170.3472 
+L 497.078312 48.003871 
+L 310.265089 48.003871 
 z
 " style="fill: #ffffff"/>
    </g>
@@ -1981,234 +1941,189 @@ z
     <g id="xtick_8">
      <g id="line2d_14">
       <g>
-       <use xlink:href="#md67f2b7f25" x="300.518313" y="140.7936" style="fill: #1a1a1a; stroke: #1a1a1a; stroke-width: 0.8"/>
+       <use xlink:href="#m6be00f4f43" x="310.265089" y="170.3472" style="fill: #1a1a1a; stroke: #1a1a1a; stroke-width: 0.8"/>
       </g>
      </g>
      <g id="text_22">
-      <!-- 0.00 -->
-      <g style="fill: #1a1a1a" transform="translate(292.089875 152.632194) scale(0.07 -0.07)">
+      <!-- 0.000 -->
+      <g style="fill: #1a1a1a" transform="translate(299.729542 182.185794) scale(0.07 -0.07)">
        <use xlink:href="#Menlo-Regular-30"/>
        <use xlink:href="#Menlo-Regular-2e" transform="translate(60.205078 0)"/>
        <use xlink:href="#Menlo-Regular-30" transform="translate(120.410156 0)"/>
        <use xlink:href="#Menlo-Regular-30" transform="translate(180.615234 0)"/>
+       <use xlink:href="#Menlo-Regular-30" transform="translate(240.820312 0)"/>
       </g>
      </g>
     </g>
     <g id="xtick_9">
      <g id="line2d_15">
       <g>
-       <use xlink:href="#md67f2b7f25" x="324.393644" y="140.7936" style="fill: #1a1a1a; stroke: #1a1a1a; stroke-width: 0.8"/>
+       <use xlink:href="#m6be00f4f43" x="338.629378" y="170.3472" style="fill: #1a1a1a; stroke: #1a1a1a; stroke-width: 0.8"/>
       </g>
      </g>
      <g id="text_23">
-      <!-- 0.02 -->
-      <g style="fill: #1a1a1a" transform="translate(315.965207 152.632194) scale(0.07 -0.07)">
+      <!-- 0.025 -->
+      <g style="fill: #1a1a1a" transform="translate(328.093831 182.185794) scale(0.07 -0.07)">
        <use xlink:href="#Menlo-Regular-30"/>
        <use xlink:href="#Menlo-Regular-2e" transform="translate(60.205078 0)"/>
        <use xlink:href="#Menlo-Regular-30" transform="translate(120.410156 0)"/>
        <use xlink:href="#Menlo-Regular-32" transform="translate(180.615234 0)"/>
+       <use xlink:href="#Menlo-Regular-35" transform="translate(240.820312 0)"/>
       </g>
      </g>
     </g>
     <g id="xtick_10">
      <g id="line2d_16">
       <g>
-       <use xlink:href="#md67f2b7f25" x="348.268976" y="140.7936" style="fill: #1a1a1a; stroke: #1a1a1a; stroke-width: 0.8"/>
+       <use xlink:href="#m6be00f4f43" x="366.993667" y="170.3472" style="fill: #1a1a1a; stroke: #1a1a1a; stroke-width: 0.8"/>
       </g>
      </g>
      <g id="text_24">
-      <!-- 0.04 -->
-      <g style="fill: #1a1a1a" transform="translate(339.840538 152.632194) scale(0.07 -0.07)">
+      <!-- 0.050 -->
+      <g style="fill: #1a1a1a" transform="translate(356.45812 182.185794) scale(0.07 -0.07)">
        <use xlink:href="#Menlo-Regular-30"/>
        <use xlink:href="#Menlo-Regular-2e" transform="translate(60.205078 0)"/>
        <use xlink:href="#Menlo-Regular-30" transform="translate(120.410156 0)"/>
-       <use xlink:href="#Menlo-Regular-34" transform="translate(180.615234 0)"/>
+       <use xlink:href="#Menlo-Regular-35" transform="translate(180.615234 0)"/>
+       <use xlink:href="#Menlo-Regular-30" transform="translate(240.820312 0)"/>
       </g>
      </g>
     </g>
     <g id="xtick_11">
      <g id="line2d_17">
       <g>
-       <use xlink:href="#md67f2b7f25" x="372.144308" y="140.7936" style="fill: #1a1a1a; stroke: #1a1a1a; stroke-width: 0.8"/>
+       <use xlink:href="#m6be00f4f43" x="395.357955" y="170.3472" style="fill: #1a1a1a; stroke: #1a1a1a; stroke-width: 0.8"/>
       </g>
      </g>
      <g id="text_25">
-      <!-- 0.06 -->
-      <g style="fill: #1a1a1a" transform="translate(363.71587 152.632194) scale(0.07 -0.07)">
+      <!-- 0.075 -->
+      <g style="fill: #1a1a1a" transform="translate(384.822409 182.185794) scale(0.07 -0.07)">
        <use xlink:href="#Menlo-Regular-30"/>
        <use xlink:href="#Menlo-Regular-2e" transform="translate(60.205078 0)"/>
        <use xlink:href="#Menlo-Regular-30" transform="translate(120.410156 0)"/>
-       <use xlink:href="#Menlo-Regular-36" transform="translate(180.615234 0)"/>
+       <use xlink:href="#Menlo-Regular-37" transform="translate(180.615234 0)"/>
+       <use xlink:href="#Menlo-Regular-35" transform="translate(240.820312 0)"/>
       </g>
      </g>
     </g>
     <g id="xtick_12">
      <g id="line2d_18">
       <g>
-       <use xlink:href="#md67f2b7f25" x="396.019639" y="140.7936" style="fill: #1a1a1a; stroke: #1a1a1a; stroke-width: 0.8"/>
+       <use xlink:href="#m6be00f4f43" x="423.722244" y="170.3472" style="fill: #1a1a1a; stroke: #1a1a1a; stroke-width: 0.8"/>
       </g>
      </g>
      <g id="text_26">
-      <!-- 0.08 -->
-      <g style="fill: #1a1a1a" transform="translate(387.591202 152.632194) scale(0.07 -0.07)">
+      <!-- 0.100 -->
+      <g style="fill: #1a1a1a" transform="translate(413.186697 182.185794) scale(0.07 -0.07)">
        <use xlink:href="#Menlo-Regular-30"/>
        <use xlink:href="#Menlo-Regular-2e" transform="translate(60.205078 0)"/>
-       <use xlink:href="#Menlo-Regular-30" transform="translate(120.410156 0)"/>
-       <use xlink:href="#Menlo-Regular-38" transform="translate(180.615234 0)"/>
+       <use xlink:href="#Menlo-Regular-31" transform="translate(120.410156 0)"/>
+       <use xlink:href="#Menlo-Regular-30" transform="translate(180.615234 0)"/>
+       <use xlink:href="#Menlo-Regular-30" transform="translate(240.820312 0)"/>
       </g>
      </g>
     </g>
     <g id="xtick_13">
      <g id="line2d_19">
       <g>
-       <use xlink:href="#md67f2b7f25" x="419.894971" y="140.7936" style="fill: #1a1a1a; stroke: #1a1a1a; stroke-width: 0.8"/>
+       <use xlink:href="#m6be00f4f43" x="452.086533" y="170.3472" style="fill: #1a1a1a; stroke: #1a1a1a; stroke-width: 0.8"/>
       </g>
      </g>
      <g id="text_27">
-      <!-- 0.10 -->
-      <g style="fill: #1a1a1a" transform="translate(411.466534 152.632194) scale(0.07 -0.07)">
+      <!-- 0.125 -->
+      <g style="fill: #1a1a1a" transform="translate(441.550986 182.185794) scale(0.07 -0.07)">
        <use xlink:href="#Menlo-Regular-30"/>
        <use xlink:href="#Menlo-Regular-2e" transform="translate(60.205078 0)"/>
        <use xlink:href="#Menlo-Regular-31" transform="translate(120.410156 0)"/>
-       <use xlink:href="#Menlo-Regular-30" transform="translate(180.615234 0)"/>
+       <use xlink:href="#Menlo-Regular-32" transform="translate(180.615234 0)"/>
+       <use xlink:href="#Menlo-Regular-35" transform="translate(240.820312 0)"/>
       </g>
      </g>
     </g>
     <g id="xtick_14">
      <g id="line2d_20">
       <g>
-       <use xlink:href="#md67f2b7f25" x="443.770303" y="140.7936" style="fill: #1a1a1a; stroke: #1a1a1a; stroke-width: 0.8"/>
+       <use xlink:href="#m6be00f4f43" x="480.450822" y="170.3472" style="fill: #1a1a1a; stroke: #1a1a1a; stroke-width: 0.8"/>
       </g>
      </g>
      <g id="text_28">
-      <!-- 0.12 -->
-      <g style="fill: #1a1a1a" transform="translate(435.341865 152.632194) scale(0.07 -0.07)">
+      <!-- 0.150 -->
+      <g style="fill: #1a1a1a" transform="translate(469.915275 182.185794) scale(0.07 -0.07)">
        <use xlink:href="#Menlo-Regular-30"/>
        <use xlink:href="#Menlo-Regular-2e" transform="translate(60.205078 0)"/>
        <use xlink:href="#Menlo-Regular-31" transform="translate(120.410156 0)"/>
-       <use xlink:href="#Menlo-Regular-32" transform="translate(180.615234 0)"/>
+       <use xlink:href="#Menlo-Regular-35" transform="translate(180.615234 0)"/>
+       <use xlink:href="#Menlo-Regular-30" transform="translate(240.820312 0)"/>
       </g>
      </g>
     </g>
-    <g id="xtick_15">
-     <g id="line2d_21">
-      <g>
-       <use xlink:href="#md67f2b7f25" x="467.645634" y="140.7936" style="fill: #1a1a1a; stroke: #1a1a1a; stroke-width: 0.8"/>
-      </g>
-     </g>
-     <g id="text_29">
-      <!-- 0.14 -->
-      <g style="fill: #1a1a1a" transform="translate(459.217197 152.632194) scale(0.07 -0.07)">
-       <use xlink:href="#Menlo-Regular-30"/>
-       <use xlink:href="#Menlo-Regular-2e" transform="translate(60.205078 0)"/>
-       <use xlink:href="#Menlo-Regular-31" transform="translate(120.410156 0)"/>
-       <use xlink:href="#Menlo-Regular-34" transform="translate(180.615234 0)"/>
-      </g>
-     </g>
-    </g>
-    <g id="xtick_16">
-     <g id="line2d_22">
-      <g>
-       <use xlink:href="#md67f2b7f25" x="491.520966" y="140.7936" style="fill: #1a1a1a; stroke: #1a1a1a; stroke-width: 0.8"/>
-      </g>
-     </g>
-     <g id="text_30">
-      <!-- 0.16 -->
-      <g style="fill: #1a1a1a" transform="translate(483.092529 152.632194) scale(0.07 -0.07)">
-       <use xlink:href="#Menlo-Regular-30"/>
-       <use xlink:href="#Menlo-Regular-2e" transform="translate(60.205078 0)"/>
-       <use xlink:href="#Menlo-Regular-31" transform="translate(120.410156 0)"/>
-       <use xlink:href="#Menlo-Regular-36" transform="translate(180.615234 0)"/>
-      </g>
-     </g>
-    </g>
-    <g id="text_31">
-     <!-- effective weight  (Dale-clamped, surviving entries shown) -->
-     <g style="fill: #1a1a1a" transform="translate(261.535188 164.549225) scale(0.08 -0.08)">
-      <use xlink:href="#Menlo-Regular-65"/>
-      <use xlink:href="#Menlo-Regular-66" transform="translate(60.205078 0)"/>
-      <use xlink:href="#Menlo-Regular-66" transform="translate(120.410156 0)"/>
-      <use xlink:href="#Menlo-Regular-65" transform="translate(180.615234 0)"/>
-      <use xlink:href="#Menlo-Regular-63" transform="translate(240.820312 0)"/>
-      <use xlink:href="#Menlo-Regular-74" transform="translate(301.025391 0)"/>
-      <use xlink:href="#Menlo-Regular-69" transform="translate(361.230469 0)"/>
-      <use xlink:href="#Menlo-Regular-76" transform="translate(421.435547 0)"/>
-      <use xlink:href="#Menlo-Regular-65" transform="translate(481.640625 0)"/>
-      <use xlink:href="#Menlo-Regular-20" transform="translate(541.845703 0)"/>
-      <use xlink:href="#Menlo-Regular-77" transform="translate(602.050781 0)"/>
-      <use xlink:href="#Menlo-Regular-65" transform="translate(662.255859 0)"/>
-      <use xlink:href="#Menlo-Regular-69" transform="translate(722.460938 0)"/>
-      <use xlink:href="#Menlo-Regular-67" transform="translate(782.666016 0)"/>
-      <use xlink:href="#Menlo-Regular-68" transform="translate(842.871094 0)"/>
-      <use xlink:href="#Menlo-Regular-74" transform="translate(903.076172 0)"/>
-      <use xlink:href="#Menlo-Regular-20" transform="translate(963.28125 0)"/>
-      <use xlink:href="#Menlo-Regular-20" transform="translate(1023.486328 0)"/>
-      <use xlink:href="#Menlo-Regular-28" transform="translate(1083.691406 0)"/>
-      <use xlink:href="#Menlo-Regular-44" transform="translate(1143.896484 0)"/>
-      <use xlink:href="#Menlo-Regular-61" transform="translate(1204.101562 0)"/>
-      <use xlink:href="#Menlo-Regular-6c" transform="translate(1264.306641 0)"/>
-      <use xlink:href="#Menlo-Regular-65" transform="translate(1324.511719 0)"/>
-      <use xlink:href="#Menlo-Regular-2d" transform="translate(1384.716797 0)"/>
-      <use xlink:href="#Menlo-Regular-63" transform="translate(1444.921875 0)"/>
-      <use xlink:href="#Menlo-Regular-6c" transform="translate(1505.126953 0)"/>
-      <use xlink:href="#Menlo-Regular-61" transform="translate(1565.332031 0)"/>
-      <use xlink:href="#Menlo-Regular-6d" transform="translate(1625.537109 0)"/>
-      <use xlink:href="#Menlo-Regular-70" transform="translate(1685.742188 0)"/>
-      <use xlink:href="#Menlo-Regular-65" transform="translate(1745.947266 0)"/>
-      <use xlink:href="#Menlo-Regular-64" transform="translate(1806.152344 0)"/>
-      <use xlink:href="#Menlo-Regular-2c" transform="translate(1866.357422 0)"/>
+    <g id="text_29">
+     <!-- conductance magnitude (surviving &gt; 0) -->
+     <g style="fill: #1a1a1a" transform="translate(314.571076 194.102825) scale(0.08 -0.08)">
+      <use xlink:href="#Menlo-Regular-63"/>
+      <use xlink:href="#Menlo-Regular-6f" transform="translate(60.205078 0)"/>
+      <use xlink:href="#Menlo-Regular-6e" transform="translate(120.410156 0)"/>
+      <use xlink:href="#Menlo-Regular-64" transform="translate(180.615234 0)"/>
+      <use xlink:href="#Menlo-Regular-75" transform="translate(240.820312 0)"/>
+      <use xlink:href="#Menlo-Regular-63" transform="translate(301.025391 0)"/>
+      <use xlink:href="#Menlo-Regular-74" transform="translate(361.230469 0)"/>
+      <use xlink:href="#Menlo-Regular-61" transform="translate(421.435547 0)"/>
+      <use xlink:href="#Menlo-Regular-6e" transform="translate(481.640625 0)"/>
+      <use xlink:href="#Menlo-Regular-63" transform="translate(541.845703 0)"/>
+      <use xlink:href="#Menlo-Regular-65" transform="translate(602.050781 0)"/>
+      <use xlink:href="#Menlo-Regular-20" transform="translate(662.255859 0)"/>
+      <use xlink:href="#Menlo-Regular-6d" transform="translate(722.460938 0)"/>
+      <use xlink:href="#Menlo-Regular-61" transform="translate(782.666016 0)"/>
+      <use xlink:href="#Menlo-Regular-67" transform="translate(842.871094 0)"/>
+      <use xlink:href="#Menlo-Regular-6e" transform="translate(903.076172 0)"/>
+      <use xlink:href="#Menlo-Regular-69" transform="translate(963.28125 0)"/>
+      <use xlink:href="#Menlo-Regular-74" transform="translate(1023.486328 0)"/>
+      <use xlink:href="#Menlo-Regular-75" transform="translate(1083.691406 0)"/>
+      <use xlink:href="#Menlo-Regular-64" transform="translate(1143.896484 0)"/>
+      <use xlink:href="#Menlo-Regular-65" transform="translate(1204.101562 0)"/>
+      <use xlink:href="#Menlo-Regular-20" transform="translate(1264.306641 0)"/>
+      <use xlink:href="#Menlo-Regular-28" transform="translate(1324.511719 0)"/>
+      <use xlink:href="#Menlo-Regular-73" transform="translate(1384.716797 0)"/>
+      <use xlink:href="#Menlo-Regular-75" transform="translate(1444.921875 0)"/>
+      <use xlink:href="#Menlo-Regular-72" transform="translate(1505.126953 0)"/>
+      <use xlink:href="#Menlo-Regular-76" transform="translate(1565.332031 0)"/>
+      <use xlink:href="#Menlo-Regular-69" transform="translate(1625.537109 0)"/>
+      <use xlink:href="#Menlo-Regular-76" transform="translate(1685.742188 0)"/>
+      <use xlink:href="#Menlo-Regular-69" transform="translate(1745.947266 0)"/>
+      <use xlink:href="#Menlo-Regular-6e" transform="translate(1806.152344 0)"/>
+      <use xlink:href="#Menlo-Regular-67" transform="translate(1866.357422 0)"/>
       <use xlink:href="#Menlo-Regular-20" transform="translate(1926.5625 0)"/>
-      <use xlink:href="#Menlo-Regular-73" transform="translate(1986.767578 0)"/>
-      <use xlink:href="#Menlo-Regular-75" transform="translate(2046.972656 0)"/>
-      <use xlink:href="#Menlo-Regular-72" transform="translate(2107.177734 0)"/>
-      <use xlink:href="#Menlo-Regular-76" transform="translate(2167.382812 0)"/>
-      <use xlink:href="#Menlo-Regular-69" transform="translate(2227.587891 0)"/>
-      <use xlink:href="#Menlo-Regular-76" transform="translate(2287.792969 0)"/>
-      <use xlink:href="#Menlo-Regular-69" transform="translate(2347.998047 0)"/>
-      <use xlink:href="#Menlo-Regular-6e" transform="translate(2408.203125 0)"/>
-      <use xlink:href="#Menlo-Regular-67" transform="translate(2468.408203 0)"/>
-      <use xlink:href="#Menlo-Regular-20" transform="translate(2528.613281 0)"/>
-      <use xlink:href="#Menlo-Regular-65" transform="translate(2588.818359 0)"/>
-      <use xlink:href="#Menlo-Regular-6e" transform="translate(2649.023438 0)"/>
-      <use xlink:href="#Menlo-Regular-74" transform="translate(2709.228516 0)"/>
-      <use xlink:href="#Menlo-Regular-72" transform="translate(2769.433594 0)"/>
-      <use xlink:href="#Menlo-Regular-69" transform="translate(2829.638672 0)"/>
-      <use xlink:href="#Menlo-Regular-65" transform="translate(2889.84375 0)"/>
-      <use xlink:href="#Menlo-Regular-73" transform="translate(2950.048828 0)"/>
-      <use xlink:href="#Menlo-Regular-20" transform="translate(3010.253906 0)"/>
-      <use xlink:href="#Menlo-Regular-73" transform="translate(3070.458984 0)"/>
-      <use xlink:href="#Menlo-Regular-68" transform="translate(3130.664062 0)"/>
-      <use xlink:href="#Menlo-Regular-6f" transform="translate(3190.869141 0)"/>
-      <use xlink:href="#Menlo-Regular-77" transform="translate(3251.074219 0)"/>
-      <use xlink:href="#Menlo-Regular-6e" transform="translate(3311.279297 0)"/>
-      <use xlink:href="#Menlo-Regular-29" transform="translate(3371.484375 0)"/>
+      <use xlink:href="#Menlo-Regular-3e" transform="translate(1986.767578 0)"/>
+      <use xlink:href="#Menlo-Regular-20" transform="translate(2046.972656 0)"/>
+      <use xlink:href="#Menlo-Regular-30" transform="translate(2107.177734 0)"/>
+      <use xlink:href="#Menlo-Regular-29" transform="translate(2167.382812 0)"/>
      </g>
     </g>
    </g>
    <g id="matplotlib.axis_4">
     <g id="ytick_6">
-     <g id="line2d_23">
+     <g id="line2d_21">
       <g>
-       <use xlink:href="#m2034c1daee" x="300.518313" y="140.7936" style="fill: #1a1a1a; stroke: #1a1a1a; stroke-width: 0.8"/>
+       <use xlink:href="#m767b892688" x="310.265089" y="170.3472" style="fill: #1a1a1a; stroke: #1a1a1a; stroke-width: 0.8"/>
       </g>
      </g>
-     <g id="text_32">
+     <g id="text_30">
       <!-- 0 -->
-      <g style="fill: #1a1a1a" transform="translate(289.804094 143.462897) scale(0.07 -0.07)">
+      <g style="fill: #1a1a1a" transform="translate(299.550871 173.016497) scale(0.07 -0.07)">
        <use xlink:href="#Menlo-Regular-30"/>
       </g>
      </g>
     </g>
     <g id="ytick_7">
-     <g id="line2d_24">
+     <g id="line2d_22">
       <g>
-       <use xlink:href="#m2034c1daee" x="300.518313" y="113.447943" style="fill: #1a1a1a; stroke: #1a1a1a; stroke-width: 0.8"/>
+       <use xlink:href="#m767b892688" x="310.265089" y="154.172016" style="fill: #1a1a1a; stroke: #1a1a1a; stroke-width: 0.8"/>
       </g>
      </g>
-     <g id="text_33">
-      <!-- 200000 -->
-      <g style="fill: #1a1a1a" transform="translate(268.733 116.11724) scale(0.07 -0.07)">
-       <use xlink:href="#Menlo-Regular-32"/>
+     <g id="text_31">
+      <!-- 100000 -->
+      <g style="fill: #1a1a1a" transform="translate(278.479777 156.841312) scale(0.07 -0.07)">
+       <use xlink:href="#Menlo-Regular-31"/>
        <use xlink:href="#Menlo-Regular-30" transform="translate(60.205078 0)"/>
        <use xlink:href="#Menlo-Regular-30" transform="translate(120.410156 0)"/>
        <use xlink:href="#Menlo-Regular-30" transform="translate(180.615234 0)"/>
@@ -2218,15 +2133,15 @@ z
      </g>
     </g>
     <g id="ytick_8">
-     <g id="line2d_25">
+     <g id="line2d_23">
       <g>
-       <use xlink:href="#m2034c1daee" x="300.518313" y="86.102286" style="fill: #1a1a1a; stroke: #1a1a1a; stroke-width: 0.8"/>
+       <use xlink:href="#m767b892688" x="310.265089" y="137.996831" style="fill: #1a1a1a; stroke: #1a1a1a; stroke-width: 0.8"/>
       </g>
      </g>
-     <g id="text_34">
-      <!-- 400000 -->
-      <g style="fill: #1a1a1a" transform="translate(268.733 88.771583) scale(0.07 -0.07)">
-       <use xlink:href="#Menlo-Regular-34"/>
+     <g id="text_32">
+      <!-- 200000 -->
+      <g style="fill: #1a1a1a" transform="translate(278.479777 140.666128) scale(0.07 -0.07)">
+       <use xlink:href="#Menlo-Regular-32"/>
        <use xlink:href="#Menlo-Regular-30" transform="translate(60.205078 0)"/>
        <use xlink:href="#Menlo-Regular-30" transform="translate(120.410156 0)"/>
        <use xlink:href="#Menlo-Regular-30" transform="translate(180.615234 0)"/>
@@ -2236,14 +2151,68 @@ z
      </g>
     </g>
     <g id="ytick_9">
+     <g id="line2d_24">
+      <g>
+       <use xlink:href="#m767b892688" x="310.265089" y="121.821647" style="fill: #1a1a1a; stroke: #1a1a1a; stroke-width: 0.8"/>
+      </g>
+     </g>
+     <g id="text_33">
+      <!-- 300000 -->
+      <g style="fill: #1a1a1a" transform="translate(278.479777 124.490943) scale(0.07 -0.07)">
+       <use xlink:href="#Menlo-Regular-33"/>
+       <use xlink:href="#Menlo-Regular-30" transform="translate(60.205078 0)"/>
+       <use xlink:href="#Menlo-Regular-30" transform="translate(120.410156 0)"/>
+       <use xlink:href="#Menlo-Regular-30" transform="translate(180.615234 0)"/>
+       <use xlink:href="#Menlo-Regular-30" transform="translate(240.820312 0)"/>
+       <use xlink:href="#Menlo-Regular-30" transform="translate(301.025391 0)"/>
+      </g>
+     </g>
+    </g>
+    <g id="ytick_10">
+     <g id="line2d_25">
+      <g>
+       <use xlink:href="#m767b892688" x="310.265089" y="105.646462" style="fill: #1a1a1a; stroke: #1a1a1a; stroke-width: 0.8"/>
+      </g>
+     </g>
+     <g id="text_34">
+      <!-- 400000 -->
+      <g style="fill: #1a1a1a" transform="translate(278.479777 108.315759) scale(0.07 -0.07)">
+       <use xlink:href="#Menlo-Regular-34"/>
+       <use xlink:href="#Menlo-Regular-30" transform="translate(60.205078 0)"/>
+       <use xlink:href="#Menlo-Regular-30" transform="translate(120.410156 0)"/>
+       <use xlink:href="#Menlo-Regular-30" transform="translate(180.615234 0)"/>
+       <use xlink:href="#Menlo-Regular-30" transform="translate(240.820312 0)"/>
+       <use xlink:href="#Menlo-Regular-30" transform="translate(301.025391 0)"/>
+      </g>
+     </g>
+    </g>
+    <g id="ytick_11">
      <g id="line2d_26">
       <g>
-       <use xlink:href="#m2034c1daee" x="300.518313" y="58.756629" style="fill: #1a1a1a; stroke: #1a1a1a; stroke-width: 0.8"/>
+       <use xlink:href="#m767b892688" x="310.265089" y="89.471278" style="fill: #1a1a1a; stroke: #1a1a1a; stroke-width: 0.8"/>
       </g>
      </g>
      <g id="text_35">
+      <!-- 500000 -->
+      <g style="fill: #1a1a1a" transform="translate(278.479777 92.140574) scale(0.07 -0.07)">
+       <use xlink:href="#Menlo-Regular-35"/>
+       <use xlink:href="#Menlo-Regular-30" transform="translate(60.205078 0)"/>
+       <use xlink:href="#Menlo-Regular-30" transform="translate(120.410156 0)"/>
+       <use xlink:href="#Menlo-Regular-30" transform="translate(180.615234 0)"/>
+       <use xlink:href="#Menlo-Regular-30" transform="translate(240.820312 0)"/>
+       <use xlink:href="#Menlo-Regular-30" transform="translate(301.025391 0)"/>
+      </g>
+     </g>
+    </g>
+    <g id="ytick_12">
+     <g id="line2d_27">
+      <g>
+       <use xlink:href="#m767b892688" x="310.265089" y="73.296093" style="fill: #1a1a1a; stroke: #1a1a1a; stroke-width: 0.8"/>
+      </g>
+     </g>
+     <g id="text_36">
       <!-- 600000 -->
-      <g style="fill: #1a1a1a" transform="translate(268.733 61.425926) scale(0.07 -0.07)">
+      <g style="fill: #1a1a1a" transform="translate(278.479777 75.96539) scale(0.07 -0.07)">
        <use xlink:href="#Menlo-Regular-36"/>
        <use xlink:href="#Menlo-Regular-30" transform="translate(60.205078 0)"/>
        <use xlink:href="#Menlo-Regular-30" transform="translate(120.410156 0)"/>
@@ -2253,9 +2222,27 @@ z
       </g>
      </g>
     </g>
-    <g id="text_36">
+    <g id="ytick_13">
+     <g id="line2d_28">
+      <g>
+       <use xlink:href="#m767b892688" x="310.265089" y="57.120909" style="fill: #1a1a1a; stroke: #1a1a1a; stroke-width: 0.8"/>
+      </g>
+     </g>
+     <g id="text_37">
+      <!-- 700000 -->
+      <g style="fill: #1a1a1a" transform="translate(278.479777 59.790205) scale(0.07 -0.07)">
+       <use xlink:href="#Menlo-Regular-37"/>
+       <use xlink:href="#Menlo-Regular-30" transform="translate(60.205078 0)"/>
+       <use xlink:href="#Menlo-Regular-30" transform="translate(120.410156 0)"/>
+       <use xlink:href="#Menlo-Regular-30" transform="translate(180.615234 0)"/>
+       <use xlink:href="#Menlo-Regular-30" transform="translate(240.820312 0)"/>
+       <use xlink:href="#Menlo-Regular-30" transform="translate(301.025391 0)"/>
+      </g>
+     </g>
+    </g>
+    <g id="text_38">
      <!-- entry count -->
-     <g style="fill: #1a1a1a" transform="translate(263.06925 115.574775) rotate(-90) scale(0.08 -0.08)">
+     <g style="fill: #1a1a1a" transform="translate(272.816027 135.664911) rotate(-90) scale(0.08 -0.08)">
       <use xlink:href="#Menlo-Regular-65"/>
       <use xlink:href="#Menlo-Regular-6e" transform="translate(60.205078 0)"/>
       <use xlink:href="#Menlo-Regular-74" transform="translate(120.410156 0)"/>
@@ -2271,326 +2258,326 @@ z
     </g>
    </g>
    <g id="patch_11">
-    <path d="M 300.518313 140.7936 
-L 300.518313 131.407613 
-L 304.529741 131.407613 
-L 304.529741 112.165295 
-L 308.54117 112.165295 
-L 308.54117 110.165234 
-L 312.552598 110.165234 
-L 312.552598 115.595124 
-L 316.564027 115.595124 
-L 316.564027 134.748843 
-L 320.575455 134.748843 
-L 320.575455 138.265221 
-L 324.586884 138.265221 
-L 324.586884 139.426044 
-L 328.598313 139.426044 
-L 328.598313 140.011377 
-L 332.609741 140.011377 
-L 332.609741 140.307257 
-L 336.62117 140.307257 
-L 336.62117 140.472289 
-L 340.632598 140.472289 
-L 340.632598 140.575108 
-L 344.644027 140.575108 
-L 344.644027 140.643336 
-L 348.655455 140.643336 
-L 348.655455 140.688182 
-L 352.666884 140.688182 
-L 352.666884 140.708418 
-L 356.678313 140.708418 
-L 356.678313 140.730705 
-L 360.689741 140.730705 
-L 360.689741 140.747659 
-L 364.70117 140.747659 
-L 364.70117 140.760785 
-L 368.712598 140.760785 
-L 368.712598 140.764067 
-L 372.724027 140.764067 
-L 372.724027 140.769809 
-L 376.735455 140.769809 
-L 376.735455 140.775415 
-L 380.746884 140.775415 
-L 380.746884 140.777876 
-L 384.758313 140.777876 
-L 384.758313 140.783482 
-L 388.769741 140.783482 
-L 388.769741 140.784439 
-L 392.78117 140.784439 
-L 392.78117 140.785806 
-L 396.792598 140.785806 
-L 396.792598 140.786764 
-L 400.804027 140.786764 
-L 400.804027 140.787447 
-L 404.815455 140.787447 
-L 404.815455 140.789225 
-L 408.826884 140.789225 
-L 408.826884 140.789225 
-L 412.838313 140.789225 
-L 412.838313 140.790319 
-L 416.849741 140.790319 
-L 416.849741 140.790319 
-L 420.86117 140.790319 
-L 420.86117 140.791002 
-L 424.872598 140.791002 
-L 424.872598 140.791549 
-L 428.884027 140.791549 
-L 428.884027 140.791276 
-L 432.895455 140.791276 
-L 432.895455 140.791959 
-L 436.906884 140.791959 
-L 436.906884 140.792916 
-L 440.918313 140.792916 
-L 440.918313 140.792096 
-L 444.929741 140.792096 
-L 444.929741 140.792643 
-L 448.94117 140.792643 
-L 448.94117 140.79278 
-L 452.952598 140.79278 
-L 452.952598 140.793053 
-L 456.964027 140.793053 
-L 456.964027 140.793327 
-L 460.975455 140.793327 
-L 460.975455 140.793053 
-L 464.986884 140.793053 
-L 464.986884 140.793327 
-L 468.998313 140.793327 
-L 468.998313 140.792506 
-L 473.009741 140.792506 
-L 473.009741 140.792916 
-L 477.02117 140.792916 
-L 477.02117 140.793463 
-L 481.032598 140.793463 
-L 481.032598 140.793327 
-L 485.044027 140.793327 
-L 485.044027 140.79319 
-L 489.055455 140.79319 
-L 489.055455 140.7936 
-L 493.066884 140.7936 
-L 493.066884 140.7936 
-L 497.078313 140.7936 
-L 497.078313 140.7936 
-L 493.066884 140.7936 
-L 493.066884 140.7936 
-L 489.055455 140.7936 
-L 489.055455 140.7936 
-L 485.044027 140.7936 
-L 485.044027 140.7936 
-L 481.032598 140.7936 
-L 481.032598 140.7936 
-L 477.02117 140.7936 
-L 477.02117 140.7936 
-L 473.009741 140.7936 
-L 473.009741 140.7936 
-L 468.998313 140.7936 
-L 468.998313 140.7936 
-L 464.986884 140.7936 
-L 464.986884 140.7936 
-L 460.975455 140.7936 
-L 460.975455 140.7936 
-L 456.964027 140.7936 
-L 456.964027 140.7936 
-L 452.952598 140.7936 
-L 452.952598 140.7936 
-L 448.94117 140.7936 
-L 448.94117 140.7936 
-L 444.929741 140.7936 
-L 444.929741 140.7936 
-L 440.918313 140.7936 
-L 440.918313 140.7936 
-L 436.906884 140.7936 
-L 436.906884 140.7936 
-L 432.895455 140.7936 
-L 432.895455 140.7936 
-L 428.884027 140.7936 
-L 428.884027 140.7936 
-L 424.872598 140.7936 
-L 424.872598 140.7936 
-L 420.86117 140.7936 
-L 420.86117 140.7936 
-L 416.849741 140.7936 
-L 416.849741 140.7936 
-L 412.838313 140.7936 
-L 412.838313 140.7936 
-L 408.826884 140.7936 
-L 408.826884 140.7936 
-L 404.815455 140.7936 
-L 404.815455 140.7936 
-L 400.804027 140.7936 
-L 400.804027 140.7936 
-L 396.792598 140.7936 
-L 396.792598 140.7936 
-L 392.78117 140.7936 
-L 392.78117 140.7936 
-L 388.769741 140.7936 
-L 388.769741 140.7936 
-L 384.758313 140.7936 
-L 384.758313 140.7936 
-L 380.746884 140.7936 
-L 380.746884 140.7936 
-L 376.735455 140.7936 
-L 376.735455 140.7936 
-L 372.724027 140.7936 
-L 372.724027 140.7936 
-L 368.712598 140.7936 
-L 368.712598 140.7936 
-L 364.70117 140.7936 
-L 364.70117 140.7936 
-L 360.689741 140.7936 
-L 360.689741 140.7936 
-L 356.678313 140.7936 
-L 356.678313 140.7936 
-L 352.666884 140.7936 
-L 352.666884 140.7936 
-L 348.655455 140.7936 
-L 348.655455 140.7936 
-L 344.644027 140.7936 
-L 344.644027 140.7936 
-L 340.632598 140.7936 
-L 340.632598 140.7936 
-L 336.62117 140.7936 
-L 336.62117 140.7936 
-L 332.609741 140.7936 
-L 332.609741 140.7936 
-L 328.598313 140.7936 
-L 328.598313 140.7936 
-L 324.586884 140.7936 
-L 324.586884 140.7936 
-L 320.575455 140.7936 
-L 320.575455 140.7936 
-L 316.564027 140.7936 
-L 316.564027 140.7936 
-L 312.552598 140.7936 
-L 312.552598 140.7936 
-L 308.54117 140.7936 
-L 308.54117 140.7936 
-L 304.529741 140.7936 
-L 304.529741 140.7936 
+    <path d="M 310.265089 170.3472 
+L 310.265089 159.243421 
+L 314.077604 159.243421 
+L 314.077604 136.479437 
+L 317.890119 136.479437 
+L 317.890119 134.113331 
+L 321.702634 134.113331 
+L 321.702634 140.536982 
+L 325.515148 140.536982 
+L 325.515148 163.196151 
+L 329.327663 163.196151 
+L 329.327663 167.356085 
+L 333.140178 167.356085 
+L 333.140178 168.729358 
+L 336.952693 168.729358 
+L 336.952693 169.421818 
+L 340.765207 169.421818 
+L 340.765207 169.771849 
+L 344.577722 169.771849 
+L 344.577722 169.967083 
+L 348.390237 169.967083 
+L 348.390237 170.088721 
+L 352.202752 170.088721 
+L 352.202752 170.169435 
+L 356.015266 170.169435 
+L 356.015266 170.222489 
+L 359.827781 170.222489 
+L 359.827781 170.246429 
+L 363.640296 170.246429 
+L 363.640296 170.272794 
+L 367.452811 170.272794 
+L 367.452811 170.292851 
+L 371.265325 170.292851 
+L 371.265325 170.30838 
+L 375.07784 170.30838 
+L 375.07784 170.312262 
+L 378.890355 170.312262 
+L 378.890355 170.319055 
+L 382.70287 170.319055 
+L 382.70287 170.325687 
+L 386.515385 170.325687 
+L 386.515385 170.328599 
+L 390.327899 170.328599 
+L 390.327899 170.33523 
+L 394.140414 170.33523 
+L 394.140414 170.336363 
+L 397.952929 170.336363 
+L 397.952929 170.33798 
+L 401.765444 170.33798 
+L 401.765444 170.339112 
+L 405.577958 170.339112 
+L 405.577958 170.339921 
+L 409.390473 170.339921 
+L 409.390473 170.342024 
+L 413.202988 170.342024 
+L 413.202988 170.342024 
+L 417.015503 170.342024 
+L 417.015503 170.343318 
+L 420.828017 170.343318 
+L 420.828017 170.343318 
+L 424.640532 170.343318 
+L 424.640532 170.344127 
+L 428.453047 170.344127 
+L 428.453047 170.344774 
+L 432.265562 170.344774 
+L 432.265562 170.34445 
+L 436.078076 170.34445 
+L 436.078076 170.345259 
+L 439.890591 170.345259 
+L 439.890591 170.346391 
+L 443.703106 170.346391 
+L 443.703106 170.345421 
+L 447.515621 170.345421 
+L 447.515621 170.346068 
+L 451.328135 170.346068 
+L 451.328135 170.346229 
+L 455.14065 170.346229 
+L 455.14065 170.346553 
+L 458.953165 170.346553 
+L 458.953165 170.346876 
+L 462.76568 170.346876 
+L 462.76568 170.346553 
+L 466.578194 170.346553 
+L 466.578194 170.346876 
+L 470.390709 170.346876 
+L 470.390709 170.345906 
+L 474.203224 170.345906 
+L 474.203224 170.346391 
+L 478.015739 170.346391 
+L 478.015739 170.347038 
+L 481.828253 170.347038 
+L 481.828253 170.346876 
+L 485.640768 170.346876 
+L 485.640768 170.346715 
+L 489.453283 170.346715 
+L 489.453283 170.3472 
+L 493.265798 170.3472 
+L 493.265798 170.3472 
+L 497.078312 170.3472 
+L 497.078312 170.3472 
+L 493.265798 170.3472 
+L 493.265798 170.3472 
+L 489.453283 170.3472 
+L 489.453283 170.3472 
+L 485.640768 170.3472 
+L 485.640768 170.3472 
+L 481.828253 170.3472 
+L 481.828253 170.3472 
+L 478.015739 170.3472 
+L 478.015739 170.3472 
+L 474.203224 170.3472 
+L 474.203224 170.3472 
+L 470.390709 170.3472 
+L 470.390709 170.3472 
+L 466.578194 170.3472 
+L 466.578194 170.3472 
+L 462.76568 170.3472 
+L 462.76568 170.3472 
+L 458.953165 170.3472 
+L 458.953165 170.3472 
+L 455.14065 170.3472 
+L 455.14065 170.3472 
+L 451.328135 170.3472 
+L 451.328135 170.3472 
+L 447.515621 170.3472 
+L 447.515621 170.3472 
+L 443.703106 170.3472 
+L 443.703106 170.3472 
+L 439.890591 170.3472 
+L 439.890591 170.3472 
+L 436.078076 170.3472 
+L 436.078076 170.3472 
+L 432.265562 170.3472 
+L 432.265562 170.3472 
+L 428.453047 170.3472 
+L 428.453047 170.3472 
+L 424.640532 170.3472 
+L 424.640532 170.3472 
+L 420.828017 170.3472 
+L 420.828017 170.3472 
+L 417.015503 170.3472 
+L 417.015503 170.3472 
+L 413.202988 170.3472 
+L 413.202988 170.3472 
+L 409.390473 170.3472 
+L 409.390473 170.3472 
+L 405.577958 170.3472 
+L 405.577958 170.3472 
+L 401.765444 170.3472 
+L 401.765444 170.3472 
+L 397.952929 170.3472 
+L 397.952929 170.3472 
+L 394.140414 170.3472 
+L 394.140414 170.3472 
+L 390.327899 170.3472 
+L 390.327899 170.3472 
+L 386.515385 170.3472 
+L 386.515385 170.3472 
+L 382.70287 170.3472 
+L 382.70287 170.3472 
+L 378.890355 170.3472 
+L 378.890355 170.3472 
+L 375.07784 170.3472 
+L 375.07784 170.3472 
+L 371.265325 170.3472 
+L 371.265325 170.3472 
+L 367.452811 170.3472 
+L 367.452811 170.3472 
+L 363.640296 170.3472 
+L 363.640296 170.3472 
+L 359.827781 170.3472 
+L 359.827781 170.3472 
+L 356.015266 170.3472 
+L 356.015266 170.3472 
+L 352.202752 170.3472 
+L 352.202752 170.3472 
+L 348.390237 170.3472 
+L 348.390237 170.3472 
+L 344.577722 170.3472 
+L 344.577722 170.3472 
+L 340.765207 170.3472 
+L 340.765207 170.3472 
+L 336.952693 170.3472 
+L 336.952693 170.3472 
+L 333.140178 170.3472 
+L 333.140178 170.3472 
+L 329.327663 170.3472 
+L 329.327663 170.3472 
+L 325.515148 170.3472 
+L 325.515148 170.3472 
+L 321.702634 170.3472 
+L 321.702634 170.3472 
+L 317.890119 170.3472 
+L 317.890119 170.3472 
+L 314.077604 170.3472 
+L 314.077604 170.3472 
 z
-" clip-path="url(#p770b90bf2e)" style="fill: #c8102e; opacity: 0.32; stroke: #c8102e; stroke-width: 0.8; stroke-linejoin: miter"/>
+" clip-path="url(#p1ca15921ec)" style="fill: #c8102e; opacity: 0.32; stroke: #c8102e; stroke-width: 0.8; stroke-linejoin: miter"/>
    </g>
    <g id="patch_12">
-    <path d="M 300.518313 140.7936 
-L 300.518313 140.7936 
-L 304.529741 140.7936 
-L 304.529741 131.953843 
-L 308.54117 131.953843 
-L 308.54117 42.30179 
-L 312.552598 42.30179 
-L 312.552598 140.597668 
-L 316.564027 140.597668 
-L 316.564027 140.7936 
-L 320.575455 140.7936 
-L 320.575455 140.7936 
-L 324.586884 140.7936 
-L 324.586884 140.7936 
-L 328.598313 140.7936 
-L 328.598313 140.7936 
-L 332.609741 140.7936 
-L 332.609741 140.7936 
-L 336.62117 140.7936 
-L 336.62117 140.7936 
-L 340.632598 140.7936 
-L 340.632598 140.7936 
-L 344.644027 140.7936 
-L 344.644027 140.7936 
-L 348.655455 140.7936 
-L 348.655455 140.7936 
-L 352.666884 140.7936 
-L 352.666884 140.7936 
-L 356.678313 140.7936 
-L 356.678313 140.7936 
-L 360.689741 140.7936 
-L 360.689741 140.7936 
-L 364.70117 140.7936 
-L 364.70117 140.7936 
-L 368.712598 140.7936 
-L 368.712598 140.7936 
-L 372.724027 140.7936 
-L 372.724027 140.7936 
-L 376.735455 140.7936 
-L 376.735455 140.7936 
-L 380.746884 140.7936 
-L 380.746884 140.7936 
-L 384.758313 140.7936 
-L 384.758313 140.7936 
-L 388.769741 140.7936 
-L 388.769741 140.7936 
-L 392.78117 140.7936 
-L 392.78117 140.7936 
-L 396.792598 140.7936 
-L 396.792598 140.7936 
-L 400.804027 140.7936 
-L 400.804027 140.7936 
-L 404.815455 140.7936 
-L 404.815455 140.7936 
-L 408.826884 140.7936 
-L 408.826884 140.7936 
-L 412.838313 140.7936 
-L 412.838313 140.7936 
-L 416.849741 140.7936 
-L 416.849741 140.7936 
-L 420.86117 140.7936 
-L 420.86117 140.7936 
-L 424.872598 140.7936 
-L 424.872598 140.7936 
-L 428.884027 140.7936 
-L 428.884027 140.7936 
-L 432.895455 140.7936 
-L 432.895455 140.7936 
-L 436.906884 140.7936 
-L 436.906884 140.7936 
-L 440.918313 140.7936 
-L 440.918313 140.7936 
-L 444.929741 140.7936 
-L 444.929741 140.7936 
-L 448.94117 140.7936 
-L 448.94117 140.7936 
-L 452.952598 140.7936 
-L 452.952598 140.7936 
-L 456.964027 140.7936 
-L 456.964027 140.7936 
-L 460.975455 140.7936 
-L 460.975455 140.7936 
-L 464.986884 140.7936 
-L 464.986884 140.7936 
-L 468.998313 140.7936 
-L 468.998313 140.7936 
-L 473.009741 140.7936 
-L 473.009741 140.7936 
-L 477.02117 140.7936 
-L 477.02117 140.7936 
-L 481.032598 140.7936 
-L 481.032598 140.7936 
-L 485.044027 140.7936 
-L 485.044027 140.7936 
-L 489.055455 140.7936 
-L 489.055455 140.7936 
-L 493.066884 140.7936 
-L 493.066884 140.7936 
-L 497.078313 140.7936 
-L 497.078313 140.7936 
-" clip-path="url(#p770b90bf2e)" style="fill: none; stroke: #c8102e; stroke-width: 1.6; stroke-linejoin: miter"/>
+    <path d="M 310.265089 170.3472 
+L 310.265089 170.3472 
+L 314.077604 170.3472 
+L 314.077604 159.88962 
+L 317.890119 159.88962 
+L 317.890119 53.829744 
+L 321.702634 53.829744 
+L 321.702634 170.11541 
+L 325.515148 170.11541 
+L 325.515148 170.3472 
+L 329.327663 170.3472 
+L 329.327663 170.3472 
+L 333.140178 170.3472 
+L 333.140178 170.3472 
+L 336.952693 170.3472 
+L 336.952693 170.3472 
+L 340.765207 170.3472 
+L 340.765207 170.3472 
+L 344.577722 170.3472 
+L 344.577722 170.3472 
+L 348.390237 170.3472 
+L 348.390237 170.3472 
+L 352.202752 170.3472 
+L 352.202752 170.3472 
+L 356.015266 170.3472 
+L 356.015266 170.3472 
+L 359.827781 170.3472 
+L 359.827781 170.3472 
+L 363.640296 170.3472 
+L 363.640296 170.3472 
+L 367.452811 170.3472 
+L 367.452811 170.3472 
+L 371.265325 170.3472 
+L 371.265325 170.3472 
+L 375.07784 170.3472 
+L 375.07784 170.3472 
+L 378.890355 170.3472 
+L 378.890355 170.3472 
+L 382.70287 170.3472 
+L 382.70287 170.3472 
+L 386.515385 170.3472 
+L 386.515385 170.3472 
+L 390.327899 170.3472 
+L 390.327899 170.3472 
+L 394.140414 170.3472 
+L 394.140414 170.3472 
+L 397.952929 170.3472 
+L 397.952929 170.3472 
+L 401.765444 170.3472 
+L 401.765444 170.3472 
+L 405.577958 170.3472 
+L 405.577958 170.3472 
+L 409.390473 170.3472 
+L 409.390473 170.3472 
+L 413.202988 170.3472 
+L 413.202988 170.3472 
+L 417.015503 170.3472 
+L 417.015503 170.3472 
+L 420.828017 170.3472 
+L 420.828017 170.3472 
+L 424.640532 170.3472 
+L 424.640532 170.3472 
+L 428.453047 170.3472 
+L 428.453047 170.3472 
+L 432.265562 170.3472 
+L 432.265562 170.3472 
+L 436.078076 170.3472 
+L 436.078076 170.3472 
+L 439.890591 170.3472 
+L 439.890591 170.3472 
+L 443.703106 170.3472 
+L 443.703106 170.3472 
+L 447.515621 170.3472 
+L 447.515621 170.3472 
+L 451.328135 170.3472 
+L 451.328135 170.3472 
+L 455.14065 170.3472 
+L 455.14065 170.3472 
+L 458.953165 170.3472 
+L 458.953165 170.3472 
+L 462.76568 170.3472 
+L 462.76568 170.3472 
+L 466.578194 170.3472 
+L 466.578194 170.3472 
+L 470.390709 170.3472 
+L 470.390709 170.3472 
+L 474.203224 170.3472 
+L 474.203224 170.3472 
+L 478.015739 170.3472 
+L 478.015739 170.3472 
+L 481.828253 170.3472 
+L 481.828253 170.3472 
+L 485.640768 170.3472 
+L 485.640768 170.3472 
+L 489.453283 170.3472 
+L 489.453283 170.3472 
+L 493.265798 170.3472 
+L 493.265798 170.3472 
+L 497.078312 170.3472 
+L 497.078312 170.3472 
+" clip-path="url(#p1ca15921ec)" style="fill: none; stroke: #c8102e; stroke-width: 1.6; stroke-linejoin: miter"/>
    </g>
-   <g id="line2d_27">
-    <path d="M 309.844614 140.7936 
-L 309.844614 37.377199 
-" clip-path="url(#p770b90bf2e)" style="fill: none; stroke-dasharray: 0.9,1.485; stroke-dashoffset: 0; stroke: #6a6a6a; stroke-width: 0.9"/>
+   <g id="line2d_29">
+    <path d="M 319.12893 170.3472 
+L 319.12893 48.003871 
+" clip-path="url(#p1ca15921ec)" style="fill: none; stroke-dasharray: 0.9,1.485; stroke-dashoffset: 0; stroke: #6a6a6a; stroke-width: 0.9"/>
    </g>
    <g id="patch_13">
-    <path d="M 300.518313 140.7936 
-L 300.518313 37.377199 
+    <path d="M 310.265089 170.3472 
+L 310.265089 48.003871 
 " style="fill: none; stroke: #1a1a1a; stroke-width: 0.8; stroke-linejoin: miter; stroke-linecap: square"/>
    </g>
    <g id="patch_14">
-    <path d="M 300.518313 140.7936 
-L 497.078313 140.7936 
+    <path d="M 310.265089 170.3472 
+L 497.078312 170.3472 
 " style="fill: none; stroke: #1a1a1a; stroke-width: 0.8; stroke-linejoin: miter; stroke-linecap: square"/>
    </g>
-   <g id="text_37">
+   <g id="text_39">
     <!--   canonical -->
-    <g style="fill: #6a6a6a" transform="translate(314.80188 110.608017) rotate(-90) scale(0.065 -0.065)">
+    <g style="fill: #6a6a6a" transform="translate(324.086195 130.698153) rotate(-90) scale(0.065 -0.065)">
      <use xlink:href="#Menlo-Regular-20"/>
      <use xlink:href="#Menlo-Regular-20" transform="translate(60.205078 0)"/>
      <use xlink:href="#Menlo-Regular-63" transform="translate(120.410156 0)"/>
@@ -2604,22 +2591,22 @@ L 497.078313 140.7936
      <use xlink:href="#Menlo-Regular-6c" transform="translate(602.050781 0)"/>
     </g>
    </g>
-   <g id="text_38">
+   <g id="text_40">
     <g id="patch_15">
-     <path d="M 338.584587 76.338386 
-L 495.112713 76.338386 
-Q 497.712713 76.338386 497.712713 73.738386 
-L 497.712713 60.128807 
-Q 497.712713 57.528807 495.112713 57.528807 
-L 338.584587 57.528807 
-Q 335.984587 57.528807 335.984587 60.128807 
-L 335.984587 73.738386 
-Q 335.984587 76.338386 338.584587 76.338386 
+     <path d="M 338.682055 91.128982 
+L 495.21018 91.128982 
+Q 497.81018 91.128982 497.81018 88.528982 
+L 497.81018 74.919403 
+Q 497.81018 72.319403 495.21018 72.319403 
+L 338.682055 72.319403 
+Q 336.082055 72.319403 336.082055 74.919403 
+L 336.082055 88.528982 
+Q 336.082055 91.128982 338.682055 91.128982 
 z
 " style="fill: #ffffff; opacity: 0.95; stroke: #6a6a6a; stroke-width: 0.5; stroke-linejoin: miter"/>
     </g>
     <!-- init     mean = 0.0078    pruned =  0.0% -->
-    <g style="fill: #888888" transform="translate(338.584587 65.086073) scale(0.065 -0.065)">
+    <g style="fill: #888888" transform="translate(338.682055 79.876669) scale(0.065 -0.065)">
      <use xlink:href="#Menlo-Regular-69"/>
      <use xlink:href="#Menlo-Regular-6e" transform="translate(60.205078 0)"/>
      <use xlink:href="#Menlo-Regular-69" transform="translate(120.410156 0)"/>
@@ -2662,7 +2649,7 @@ z
      <use xlink:href="#Menlo-Regular-25" transform="translate(2347.998047 0)"/>
     </g>
     <!-- trained  mean = 0.0089    pruned =  1.2% -->
-    <g style="fill: #888888" transform="translate(338.584587 72.386589) scale(0.065 -0.065)">
+    <g style="fill: #888888" transform="translate(338.682055 87.177185) scale(0.065 -0.065)">
      <defs>
       <path id="Menlo-Regular-39" d="M 1863 2069 
 Q 2266 2069 2495 2359 
@@ -2737,9 +2724,9 @@ z
      <use xlink:href="#Menlo-Regular-25" transform="translate(2347.998047 0)"/>
     </g>
    </g>
-   <g id="text_39">
+   <g id="text_41">
     <!-- $W^{IE}$  (256 × 1024) -->
-    <g style="fill: #1a1a1a" transform="translate(300.518313 33.377199) scale(0.08 -0.08)">
+    <g style="fill: #1a1a1a" transform="translate(310.265089 44.003871) scale(0.08 -0.08)">
      <use xlink:href="#DejaVuSans-Oblique-57" transform="translate(0 0.684375)"/>
      <use xlink:href="#DejaVuSans-Oblique-49" transform="translate(105.893724 38.965625) scale(0.7)"/>
      <use xlink:href="#DejaVuSans-Oblique-45" transform="translate(126.538255 38.965625) scale(0.7)"/>
@@ -2761,17 +2748,17 @@ z
    </g>
    <g id="legend_2">
     <g id="patch_16">
-     <path d="M 444.478781 49.015793 
-L 455.678781 49.015793 
-L 455.678781 44.115793 
-L 444.478781 44.115793 
-L 444.478781 49.015793 
+     <path d="M 444.478781 152.297044 
+L 455.678781 152.297044 
+L 455.678781 147.397044 
+L 444.478781 147.397044 
+L 444.478781 152.297044 
 z
 " style="fill: none; stroke: #c8102e; stroke-width: 1.6; stroke-linejoin: miter"/>
     </g>
-    <g id="text_40">
+    <g id="text_42">
      <!-- init -->
-     <g style="fill: #1a1a1a" transform="translate(461.278781 49.015793) scale(0.07 -0.07)">
+     <g style="fill: #1a1a1a" transform="translate(461.278781 152.297044) scale(0.07 -0.07)">
       <use xlink:href="#Menlo-Regular-69"/>
       <use xlink:href="#Menlo-Regular-6e" transform="translate(60.205078 0)"/>
       <use xlink:href="#Menlo-Regular-69" transform="translate(120.410156 0)"/>
@@ -2779,16 +2766,16 @@ z
      </g>
     </g>
     <g id="patch_17">
-     <path d="M 444.478781 59.310168 
-L 455.678781 59.310168 
-L 455.678781 54.410168 
-L 444.478781 54.410168 
+     <path d="M 444.478781 162.591419 
+L 455.678781 162.591419 
+L 455.678781 157.691419 
+L 444.478781 157.691419 
 z
 " style="fill: #c8102e; opacity: 0.32; stroke: #c8102e; stroke-width: 0.8; stroke-linejoin: miter"/>
     </g>
-    <g id="text_41">
+    <g id="text_43">
      <!-- trained -->
-     <g style="fill: #1a1a1a" transform="translate(461.278781 59.310168) scale(0.07 -0.07)">
+     <g style="fill: #1a1a1a" transform="translate(461.278781 162.591419) scale(0.07 -0.07)">
       <use xlink:href="#Menlo-Regular-74"/>
       <use xlink:href="#Menlo-Regular-72" transform="translate(60.205078 0)"/>
       <use xlink:href="#Menlo-Regular-61" transform="translate(120.410156 0)"/>
@@ -2800,22 +2787,22 @@ z
     </g>
    </g>
   </g>
-  <g id="text_42">
-   <!-- r002 -->
-   <g style="fill: #888888" transform="translate(493.8455 167.862603) scale(0.065 -0.065)">
+  <g id="text_44">
+   <!-- r007 -->
+   <g style="fill: #888888" transform="translate(488.8775 205.189803) scale(0.065 -0.065)">
     <use xlink:href="#Menlo-Regular-72"/>
     <use xlink:href="#Menlo-Regular-30" transform="translate(60.205078 0)"/>
     <use xlink:href="#Menlo-Regular-30" transform="translate(120.410156 0)"/>
-    <use xlink:href="#Menlo-Regular-32" transform="translate(180.615234 0)"/>
+    <use xlink:href="#Menlo-Regular-37" transform="translate(180.615234 0)"/>
    </g>
   </g>
  </g>
  <defs>
-  <clipPath id="pbfc5fc5427">
-   <rect x="44.990313" y="37.377199" width="196.56" height="103.416401"/>
+  <clipPath id="p55d6c15c1f">
+   <rect x="44.990313" y="48.003871" width="186.813223" height="122.343329"/>
   </clipPath>
-  <clipPath id="p770b90bf2e">
-   <rect x="300.518313" y="37.377199" width="196.56" height="103.416401"/>
+  <clipPath id="p1ca15921ec">
+   <rect x="310.265089" y="48.003871" width="186.813223" height="122.343329"/>
   </clipPath>
  </defs>
 </svg>

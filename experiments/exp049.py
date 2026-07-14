@@ -202,6 +202,25 @@ def load_init_and_trained_weights(train_dir: Path):
     )
 
 
+def weight_summary(init_arr: np.ndarray, trained_arr: np.ndarray) -> dict[str, float]:
+    """Return matrix-specific conductance statistics for numbers.json."""
+    init = init_arr.ravel()
+    trained = trained_arr.ravel()
+
+    def _positive_mean(values: np.ndarray) -> float:
+        positive = values[values > 0]
+        return float(positive.mean()) if positive.size else 0.0
+
+    return {
+        "init_mean": float(init.mean()),
+        "trained_mean": float(trained.mean()),
+        "init_zero_fraction": float((init <= 0).mean()),
+        "trained_zero_fraction": float((trained <= 0).mean()),
+        "init_positive_mean": _positive_mean(init),
+        "trained_positive_mean": _positive_mean(trained),
+    }
+
+
 def plot_weight_matrices(
     cond: str,
     seed_to_dir: dict[int, Path],
@@ -238,13 +257,13 @@ def plot_weight_matrices(
     canon_ei = 1.0 / 1024.0
     canon_ie = 2.0 / 256.0
 
-    fig = plt.figure(figsize=(6.9, 2.55), dpi=150)
+    fig = plt.figure(figsize=(6.9, 3.05), dpi=150)
     gs = GridSpec(
         2, 2, figure=fig,
         width_ratios=[1.0, 1.0],
-        height_ratios=[0.10, 1.0],
-        hspace=0.45, wspace=0.30,
-        top=0.92, bottom=0.16, left=0.06, right=0.97,
+        height_ratios=[0.18, 1.0],
+        hspace=0.34, wspace=0.42,
+        top=0.94, bottom=0.17, left=0.07, right=0.98,
     )
     ax_hdr = fig.add_subplot(gs[0, :])
     ax_ei  = fig.add_subplot(gs[1, 0])
@@ -253,21 +272,21 @@ def plot_weight_matrices(
     # --- header ---
     ax_hdr.set_axis_off()
     ax_hdr.text(
-        0.0, 0.5, label,
+        0.0, 0.72, label,
         transform=ax_hdr.transAxes, ha="left", va="center",
         fontsize=theme.SIZE_TITLE + 1, fontweight="semibold",
         color=COND_COLOURS[cond],
     )
     ax_hdr.text(
-        1.0, 0.5,
-        f"Recurrent-weight distributions  ·  pooled across {len(seeds_sorted)} seeds  ·  effective (post-clamp) values",
-        transform=ax_hdr.transAxes, ha="right", va="center",
+        0.0, 0.10,
+        f"Recurrent-weight distributions · pooled across {len(seeds_sorted)} seeds · post-projection values",
+        transform=ax_hdr.transAxes, ha="left", va="center",
         fontsize=theme.SIZE_CAPTION, color=theme.LABEL, fontfamily="monospace",
     )
 
     def _panel(ax, init_arr, trained_arr, title, color, canon_mean):
-        flat_init = np.maximum(init_arr.ravel(), 0.0)
-        flat_trained = np.maximum(trained_arr.ravel(), 0.0)
+        flat_init = init_arr.ravel()
+        flat_trained = trained_arr.ravel()
         nonzero_init    = flat_init[flat_init > 0]
         nonzero_trained = flat_trained[flat_trained > 0]
         v_hi = float(max(
@@ -278,10 +297,11 @@ def plot_weight_matrices(
         ))
         bins = np.linspace(0.0, v_hi * 1.05, 50)
 
-        eff_init = flat_init.mean()
-        eff_trained = flat_trained.mean()
-        frac_pruned_init = float((flat_init <= 0).mean())
-        frac_pruned_trained = float((flat_trained <= 0).mean())
+        stats = weight_summary(flat_init, flat_trained)
+        eff_init = stats["init_mean"]
+        eff_trained = stats["trained_mean"]
+        frac_pruned_init = stats["init_zero_fraction"]
+        frac_pruned_trained = stats["trained_zero_fraction"]
 
         # Surviving (>0) distributions only — keeps the histogram readable.
         if nonzero_init.size:
@@ -306,16 +326,19 @@ def plot_weight_matrices(
         )
 
         ax.set_title(title, fontsize=theme.SIZE_LABEL, loc="left", pad=4)
-        ax.set_xlabel("effective weight  (Dale-clamped, surviving entries shown)",
+        ax.set_xlabel("conductance magnitude (surviving > 0)",
                       fontsize=theme.SIZE_LABEL)
         ax.set_ylabel("entry count", fontsize=theme.SIZE_LABEL)
         ax.spines["top"].set_visible(False)
         ax.spines["right"].set_visible(False)
         ax.tick_params(labelsize=theme.SIZE_LABEL - 1, direction="out", length=3)
         ax.set_xlim(0, v_hi * 1.05)
-        ax.legend(
-            fontsize=theme.SIZE_LEGEND, frameon=False, loc="upper right",
-        )
+        handles, labels = ax.get_legend_handles_labels()
+        if handles:
+            ax.legend(
+                handles, labels, fontsize=theme.SIZE_LEGEND,
+                frameon=False, loc="lower right",
+            )
 
         # Stats box (upper-right): the two key numbers per row.
         stat_text = (
@@ -357,10 +380,13 @@ def measure_trained_state(train_dir: Path) -> dict:
     m = json.loads((out_dir / "metrics.json").read_text())
     rates = m.get("rates_hz", {})
 
-    # Trained W_ei / W_ie means via dump-weights (mean abs of the trained matrices).
-    _, w_ei_trained, _, w_ie_trained = load_init_and_trained_weights(train_dir)
-    w_ei_mean = float(np.abs(w_ei_trained).mean())
-    w_ie_mean = float(np.abs(w_ie_trained).mean())
+    # Report E→I and I→E separately: functional loop loss need not mean that
+    # both recurrent conductance matrices sparsify in the same way.
+    w_ei_init, w_ei_trained, w_ie_init, w_ie_trained = (
+        load_init_and_trained_weights(train_dir)
+    )
+    w_ei_summary = weight_summary(w_ei_init, w_ei_trained)
+    w_ie_summary = weight_summary(w_ie_init, w_ie_trained)
 
     # f_γ via Welch PSD on the per-trial E-population trace (from pop_traces.npz).
     pt = np.load(out_dir / "pop_traces.npz")
@@ -401,8 +427,10 @@ def measure_trained_state(train_dir: Path) -> dict:
         "e_rate_hz": float(rates.get("hid", 0.0)),
         "i_rate_hz": float(rates.get("inh", 0.0)),
         "f_gamma_hz": f_gamma,
-        "w_ei_mean": w_ei_mean,
-        "w_ie_mean": w_ie_mean,
+        "w_ei_mean": w_ei_summary["trained_mean"],
+        "w_ie_mean": w_ie_summary["trained_mean"],
+        "w_ei": w_ei_summary,
+        "w_ie": w_ie_summary,
         "psd": psd_used.tolist(),
         "freqs_hz": freqs_used.tolist(),
     }
@@ -892,7 +920,7 @@ def fig_attractor(summary_rows, out_path, run_id):
     ax.annotate("PING\nloop on", xy=(9, 38), xytext=(17, 33),
                 fontsize=theme.SIZE_LABEL, color=theme.MUTED, va="center",
                 arrowprops=dict(arrowstyle="->", color=theme.MUTED, lw=1.0))
-    ax.annotate("loop pruned → COBA\n(I silent)", xy=(45, 0.6), xytext=(28, 13),
+    ax.annotate("functional loop lost → COBA\n(I silent)", xy=(45, 0.6), xytext=(28, 13),
                 fontsize=theme.SIZE_LABEL, color=theme.DEEP_RED, va="center",
                 arrowprops=dict(arrowstyle="->", color=theme.DEEP_RED, lw=1.0))
     ax.set_xlabel("E firing rate (Hz)", fontsize=theme.SIZE_LABEL)
@@ -966,7 +994,7 @@ def fig_training_curves(out_path: Path, run_id: str) -> None:
     """Real per-epoch training curves from the logs, 2×2: accuracy, E rate,
     I rate, and pingness (exp054 lobe–trough contrast). Trainable inits (black)
     vs the frozen-PING control (red dashed). The I-rate collapse and the
-    pingness gap are the loop being pruned."""
+    pingness gap mark loss of effective E→I recruitment."""
     theme.apply()
     plt.rcParams["savefig.bbox"] = "standard"  # keep the saved 16:9 exact
 
@@ -1135,7 +1163,7 @@ def fig_phase_portrait(out_path: Path, run_id: str) -> None:
         fontsize=theme.SIZE_LABEL, color=theme.MUTED, fontstyle="italic",
     )
     ax.text(
-        0.98, 0.04, "COBA basin\n(loop pruned)",
+        0.98, 0.04, "COBA basin\n(functional loop lost)",
         transform=ax.transAxes, ha="right", va="bottom",
         fontsize=theme.SIZE_LABEL, color=theme.DEEP_RED, fontstyle="italic",
     )
@@ -1339,10 +1367,45 @@ def main() -> None:
                 data["rhythmicity"] = _rhythmicity_summary()
                 nums_path.write_text(json.dumps(data, indent=2) + "\n")
                 print(f"patched rhythmicity into {nums_path}")
+            elif meta.plot_fig == "weights":
+                # Checkpoint-only refresh: persist matrix-specific E→I and I→E
+                # summaries and redraw their distribution cards. This performs
+                # no training and no inference pass.
+                nums_path = figures / "numbers.json"
+                if not nums_path.exists():
+                    raise SystemExit(
+                        "--plot-only weights: no published numbers.json to patch; "
+                        "run the full notebook once first."
+                    )
+                data = json.loads(nums_path.read_text())
+                rows = {
+                    (r["condition"], int(r["seed"])): r
+                    for r in data.get("summary", [])
+                }
+                for cond in COND_ORDER:
+                    seed_to_dir = {
+                        seed: cell_dir(cond, seed) for seed in SEEDS
+                        if (cell_dir(cond, seed) / "weights.pth").exists()
+                    }
+                    for seed, train_dir in seed_to_dir.items():
+                        w_ei_init, w_ei_trained, w_ie_init, w_ie_trained = (
+                            load_init_and_trained_weights(train_dir)
+                        )
+                        row = rows[(cond, seed)]
+                        row["w_ei"] = weight_summary(w_ei_init, w_ei_trained)
+                        row["w_ie"] = weight_summary(w_ie_init, w_ie_trained)
+                        row["w_ei_mean"] = row["w_ei"]["trained_mean"]
+                        row["w_ie_mean"] = row["w_ie"]["trained_mean"]
+                    if seed_to_dir:
+                        out = figures / f"weights__{cond}"
+                        plot_weight_matrices(cond, seed_to_dir, out, run_id)
+                        print(f"wrote {out}.{{svg,pdf}}")
+                nums_path.write_text(json.dumps(_clean(data), indent=2) + "\n")
+                print(f"patched matrix-specific summaries into {nums_path}")
             else:
                 raise SystemExit(
                     f"--plot-only: unknown figure {meta.plot_fig!r}; "
-                    "choose curves|portrait|accrate|rhythmicity"
+                    "choose curves|portrait|accrate|rhythmicity|weights"
                 )
         return
 
