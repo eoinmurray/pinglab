@@ -986,13 +986,15 @@ def fig_training_curves(out_path: Path, run_id: str) -> None:
 
     panels = [
         ("A", "test accuracy (%)", "acc", (0, 100)),
-        ("B", "E firing rate (Hz)", "rate_e", (0, 60)),
-        ("C", "I firing rate (Hz)", "rate_i", (0, 55)),
-        ("D", "pingness  (lobe–trough contrast)", "contrast", (0, 1.0)),
+        ("B", "E firing rate (Hz)", "rate_e", (0, 85)),
+        ("C", "I firing rate (Hz)", "rate_i", (0, 65)),
+        ("D", "rhythmicity R", "contrast", (0, 1.0)),
     ]
     xmax = max(max(d["ep"]) for d in runs.values())
-    fig, axes = plt.subplots(2, 2, figsize=(5.6, 3.15), dpi=200,
-                             gridspec_kw={"hspace": 0.34, "wspace": 0.2})
+    fig, axes = plt.subplots(
+        2, 2, figsize=(6.9, 3.88), dpi=200,
+        gridspec_kw={"hspace": 0.38, "wspace": 0.38},
+    )
     axes = axes.ravel()
     for k, (letter, ylabel, key, ylim) in enumerate(panels):
         ax = axes[k]
@@ -1028,7 +1030,7 @@ def fig_training_curves(out_path: Path, run_id: str) -> None:
                          lw=2.0, ls="--" if cond == "frozen_ping" else "-",
                          label=CONDITIONS[cond]["label"])
     axes[0].legend(frameon=False, fontsize=theme.SIZE_LEGEND - 1, loc="lower right")
-    fig.tight_layout(pad=0.4)
+    fig.subplots_adjust(left=0.09, right=0.98, bottom=0.14, top=0.97)
     stamp_figure(fig, run_id)
     out_path.parent.mkdir(parents=True, exist_ok=True)
     # Crop surrounding whitespace — this is a standalone publication figure, so

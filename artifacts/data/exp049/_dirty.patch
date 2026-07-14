@@ -1,483 +1,420 @@
+diff --git a/experiments/exp047.py b/experiments/exp047.py
+index 6ee8866..139bfd9 100644
+--- a/experiments/exp047.py
++++ b/experiments/exp047.py
+@@ -1,22 +1,14 @@
+-"""Experiment runner for entry exp047 — what sets the PING rate.
+-
+-Independently sweep the per-synapse I->E weight W^IE and the inhibitory
+-pool size N_I on an untrained PING network, and measure per-cell E and I
+-rates. The claim is anchor-free: the rate is a function of the per-event
+-shunt W^IE (relative to the fixed release level g_i*), NOT of N_I. So
+-when r is plotted against W^IE the curves for different N_I collapse onto
+-one another — pool size does not move the rate, the per-synapse weight
+-does. The three "scalings" (constant per-synapse, synaptic 1/N, critical
+-1/sqrt(N)) are then just rules for choosing W^IE given N_I, i.e. paths
+-across this single master curve; they need an arbitrary anchor and are
+-not plotted.
+-
+-Inference only — no training. Untrained PING with the canonical
+-biophysical init at each (N_I, W^IE).
+-
+-Writing: writings/exp047.typ · figures + numbers.json: artifacts/data/exp047/
+-Reaches the pinglab engine through the snn tool (tools/snn/tool.py), never
+-importing it — the tool forwards the flags to cli.py and stamps provenance.
++"""Experiment 047 — disentangle inhibitory pool size from I→E coupling.
++
++The engine fan-in-normalises recurrent matrices, so the nominal I→E parameter
++G_IE is the expected summed weight onto one E cell, while the realised mean
++synaptic weight is j_IE = G_IE / N_I.  This experiment varies N_I under two
++controls in one plotset:
++
++1. fixed G_IE (the engine's default convention; j_IE falls as 1/N_I), and
++2. fixed j_IE (G_IE grows as N_I).
++
++Inference only.  The runner uses the public snn CLI and does not modify it.
+ """
+ 
+ from __future__ import annotations
+@@ -27,9 +19,9 @@ import time
+ from pathlib import Path
+ 
+ import matplotlib.pyplot as plt
++import numpy as np
+ 
+ REPO = Path(__file__).resolve().parents[1]
+-# Helpers + sibling runners live alongside this file under experiments/.
+ sys.path.insert(0, str(Path(__file__).resolve().parent))
+ 
+ from helpers import theme  # noqa: E402
+@@ -45,40 +37,26 @@ from helpers.stamp import stamp_figure  # noqa: E402
+ SLUG = "exp047"
+ ARTIFACTS, FIGURES = artifacts_and_figures(SLUG)
+ 
+-# ── Architecture constants ──────────────────────────────────────────
+-N_E: int = 1024
+-N_IN: int = 784
+-T_MS: float = 200.0
+-DT: float = 0.1
+-N_STEPS: int = int(T_MS / DT)
+-
+-# Untrained-PING init (matches exp023's biophysical-scale defaults so the
+-# loop self-sustains at init without any training).
+-W_IN_MEAN: float = 1.2
+-W_IN_STD: float = 0.12
+-W_IN_SPARSITY: float = 0.95
+-W_EI_MEAN: float = 1.0
+-W_EI_STD: float = 0.1
+-
+-INPUT_RATE_HZ: float = 25.0  # uniform Poisson, matches exp025's baseline
+-SEED: int = 42
+-
+-# The per-synapse I->E weight is the control variable. Its biophysical
+-# default (the 1:4-init value) is W_IE_DEFAULT; the figure marks it but
+-# does not anchor anything to it.
+-W_IE_DEFAULT: float = 2.0
+-W_IE_REL_STD: float = 0.1  # per-synapse spread held at 10% of the mean
+-
+-# Independent sweeps: per-synapse weight (x-axis) and pool size (lines).
+-W_IE_VALUES: list[float] = [0.5, 1.0, 2.0, 4.0, 8.0, 16.0]
+-N_I_SWEEP: list[int] = [16, 64, 256]
+-
+-# Baked "small"-tier run scale (retired --tier system): batch of 4 trials.
+-N_BATCH: int = 4
+-
+-# Run scale — stamped into the manifest by run_dirs.prepare and rendered as
+-# the Methods table via RunScale; the mdx never restates these numbers.
+-SCALE: dict = {
++N_E = 1024
++N_IN = 784
++N_I_SWEEP = [16, 64, 256]
++N_I_REFERENCE = 256
++T_MS = 500.0
++DT = 0.1
++N_BATCH = 8
++SEEDS = [40, 41, 42]
++
++W_IN_MEAN = 1.2
++W_IN_SPARSITY = 0.95
++W_EI_TOTAL = 1.0
++INPUT_RATE_HZ = 25.0
++
++# At the reference pool these are both nominal total couplings G_IE and,
++# divided by N_I_REFERENCE, the realised per-synapse strengths j_IE.
++REFERENCE_G_IE = [1.0, 2.0, 4.0]
++REFERENCE_J_IE = [g / N_I_REFERENCE for g in REFERENCE_G_IE]
++
++SCALE = {
+     "input": "synthetic-spikes",
+     "max_samples": N_BATCH,
+     "t_ms": T_MS,
+@@ -86,89 +64,94 @@ SCALE: dict = {
+     "input_rate_hz": INPUT_RATE_HZ,
+     "hidden": N_E,
+     "batch_size": N_BATCH,
+-    "seeds": 1,
+-    "cells": len(W_IE_VALUES) * len(N_I_SWEEP),
+-    "grid": f"{len(W_IE_VALUES)} W_ie × {len(N_I_SWEEP)} N_I",
++    "seeds": len(SEEDS),
++    "cells": len(N_I_SWEEP) * len(REFERENCE_G_IE) * 2,
++    "grid": "fixed total coupling + fixed realised synapse",
+ }
+ 
+ 
+-# ── Sweep ───────────────────────────────────────────────────────────
+-def measure_one(n_inh: int, w_ie_mean: float, n_batch: int) -> dict:
+-    """One (N_I, W^IE) point via the snn tool: untrained PING driven by uniform
+-    Poisson input, returning population E/I rates and the pop-weighted total.
+-
+-    Shells out to `tools/snn/tool.py sim`, which forwards to `cli.py sim` (which
+-    builds the untrained net and runs it) — the experiment only runs it and reads
+-    metrics.json back. The recurrent means map to ei_strength=1 (→ w_ei=(1, 0.1))
+-    and ei_ratio=W^IE (→ w_ie=(W^IE, 0.1·W^IE)).
+-    """
+-    out_dir = (ARTIFACTS / "probe" / f"nI{int(n_inh)}_wie{w_ie_mean:g}").resolve()
++def measure_one(n_inh: int, g_ie: float, seed: int) -> dict:
++    """Measure one network; G_IE is the pre-normalisation CLI parameter."""
++    tag = f"nI{n_inh}_g{g_ie:.8g}_s{seed}"
++    out_dir = (ARTIFACTS / "probe" / tag).resolve()
+     out_dir.mkdir(parents=True, exist_ok=True)
+-    run_cli(
+-        [
+-            "sim",
+-            "--input", "synthetic-spikes",
+-            "--model", "ping",
+-            "--n-hidden", str(N_E),
+-            "--n-in", str(N_IN),
+-            "--n-inh", str(int(n_inh)),
+-            "--ei-strength", "1",
+-            "--ei-ratio", str(w_ie_mean),
+-            "--w-in", str(W_IN_MEAN),
+-            "--w-in-sparsity", str(W_IN_SPARSITY),
+-            "--input-rate", str(INPUT_RATE_HZ),
+-            "--n-batch", str(int(n_batch)),
+-            "--t-ms", str(T_MS),
+-            "--dt", str(DT),
+-            "--seed", str(SEED),
+-            "--out-dir", str(out_dir),
+-        ]
+-    )
+-    m = json.loads((out_dir / "metrics.json").read_text())
+-    r_e = float(m["rate_e_hz"])
+-    r_i = float(m["rate_i_hz"])
+-    r_total = (N_E * r_e + n_inh * r_i) / (N_E + n_inh)
+-
++    run_cli([
++        "sim",
++        "--input", "synthetic-spikes",
++        "--model", "ping",
++        "--n-hidden", str(N_E),
++        "--n-in", str(N_IN),
++        "--n-inh", str(n_inh),
++        "--ei-strength", str(W_EI_TOTAL),
++        "--ei-ratio", str(g_ie / W_EI_TOTAL),
++        "--w-in", str(W_IN_MEAN),
++        "--w-in-sparsity", str(W_IN_SPARSITY),
++        "--input-rate", str(INPUT_RATE_HZ),
++        "--n-batch", str(N_BATCH),
++        "--t-ms", str(T_MS),
++        "--dt", str(DT),
++        "--seed", str(seed),
++        "--out-dir", str(out_dir),
++    ])
++    metrics = json.loads((out_dir / "metrics.json").read_text())
+     return {
+-        "n_inh": int(n_inh),
+-        "n_e": int(N_E),
+-        "w_ie": float(w_ie_mean),
+-        "r_e_hz": r_e,
+-        "r_i_hz": r_i,
+-        "r_total_hz": r_total,
++        "n_i": n_inh,
++        "g_ie_total": g_ie,
++        "j_ie_synapse": g_ie / n_inh,
++        "seed": seed,
++        "r_e_hz": float(metrics["rate_e_hz"]),
++        "r_i_hz": float(metrics["rate_i_hz"]),
+     }
+ 
+ 
+-# ── Plotting ────────────────────────────────────────────────────────
+-def plot_summary(rows_by_ni: dict, out_path: Path, run_id: str) -> None:
+-    """One summary figure: E (left) and I (right) per-cell rate vs the
+-    per-synapse weight W^IE, one line per pool size N_I. The lines
+-    collapse onto one another — the rate is set by W^IE, not N_I."""
++def summarise(rows: list[dict]) -> dict:
++    result = {}
++    for key in ("r_e_hz", "r_i_hz"):
++        values = np.asarray([row[key] for row in rows], dtype=float)
++        result[f"{key}_mean"] = float(values.mean())
++        result[f"{key}_sd"] = float(values.std(ddof=1))
++    return result
++
++
++def plot_controls(summary: dict, out_path: Path, run_id: str) -> None:
+     theme.apply()
+-    fig, (ax_e, ax_i) = plt.subplots(1, 2, figsize=(5.6, 2.41))
+-    palette = [theme.DEEP_RED, theme.AMBER, theme.INK_BLACK]
++    fig, axes = plt.subplots(2, 2, figsize=(6.4, 5.0), sharex=True)
++    colors = [theme.GREY_MID, theme.DEEP_RED, theme.INK_BLACK]
+     markers = ["s", "^", "o"]
+-    n_is = sorted(rows_by_ni.keys())
+-    for ax, key in ((ax_e, "r_e_hz"), (ax_i, "r_i_hz")):
+-        for n_inh, col, mk in zip(n_is, palette, markers):
+-            rows = sorted(rows_by_ni[n_inh], key=lambda r: r["w_ie"])
+-            xs = [r["w_ie"] for r in rows]
+-            ys = [r[key] for r in rows]
+-            ax.plot(xs, ys, mk + "-", color=col, lw=1.6, ms=6,
+-                    label=f"$N_I = {n_inh}$")
+-        ax.axvline(W_IE_DEFAULT, ls=":", color=theme.GREY_MID, lw=0.8)
+-        ax.set_xlabel("per-synapse $W^{IE}$  (μS)", fontsize=theme.SIZE_LABEL)
+-        ax.set_xlim(0, 16.5)
++
++    controls = [
++        ("fixed_total", "(a) Fixed summed coupling $G_{IE}$", REFERENCE_G_IE),
++        ("fixed_synapse", "(b) Fixed realised synapse $j_{IE}$", REFERENCE_J_IE),
++    ]
++    for col, (control, title, levels) in enumerate(controls):
++        axes[0, col].set_title(title, fontsize=theme.SIZE_TITLE)
++        for level, color, marker in zip(levels, colors, markers):
++            cells = [summary[control][f"{level:.12g}"][str(n)] for n in N_I_SWEEP]
++            if control == "fixed_total":
++                label = f"$G_{{IE}}={level:g}$ μS"
++            else:
++                label = f"$j_{{IE}}={level * 1000:.2f}$ nS"
++            for row, metric in enumerate(("r_e_hz", "r_i_hz")):
++                means = [cell[f"{metric}_mean"] for cell in cells]
++                sds = [cell[f"{metric}_sd"] for cell in cells]
++                axes[row, col].errorbar(
++                    N_I_SWEEP, means, yerr=sds, marker=marker, color=color,
++                    lw=1.5, ms=5.5, capsize=2, label=label,
++                )
++
++    for row, ylabel in enumerate(("E rate  (Hz / cell)", "I rate  (Hz / cell)")):
++        axes[row, 0].set_ylabel(ylabel, fontsize=theme.SIZE_LABEL)
++    for ax in axes.flat:
++        ax.set_xscale("log", base=2)
++        ax.set_xticks(N_I_SWEEP, labels=[str(n) for n in N_I_SWEEP])
++        ax.set_ylim(bottom=0)
+         ax.spines["top"].set_visible(False)
+         ax.spines["right"].set_visible(False)
+-    ax_e.set_ylabel("E rate  (Hz / cell)", fontsize=theme.SIZE_LABEL)
+-    ax_i.set_ylabel("I rate  (Hz / cell)", fontsize=theme.SIZE_LABEL)
+-    ax_e.set_ylim(bottom=0)
+-    ax_i.set_ylim(bottom=0)
+-    ax_e.text(W_IE_DEFAULT + 0.4, ax_e.get_ylim()[1] * 0.06, "default",
+-              fontsize=theme.SIZE_ANNOTATION - 1, color=theme.GREY_DARK,
+-              ha="left", va="bottom")
+-    ax_e.legend(fontsize=theme.SIZE_LEGEND - 1, frameon=False, loc="upper right")
++    for ax in axes[1, :]:
++        ax.set_xlabel("inhibitory pool size  $N_I$", fontsize=theme.SIZE_LABEL)
++    axes[0, 0].legend(frameon=False, fontsize=theme.SIZE_LEGEND - 1)
++    axes[0, 1].legend(frameon=False, fontsize=theme.SIZE_LEGEND - 1)
++
+     fig.tight_layout()
+     stamp_figure(fig, run_id)
+     out_path.parent.mkdir(parents=True, exist_ok=True)
+@@ -176,56 +159,72 @@ def plot_summary(rows_by_ni: dict, out_path: Path, run_id: str) -> None:
+     plt.close(fig)
+ 
+ 
+-# ── Main ────────────────────────────────────────────────────────────
+ def main() -> None:
+     meta = parse_meta(sys.argv)
+-    n_batch = N_BATCH
+-
+-    # Publication profile: every figure this notebook writes is a print-sized
+-    # vector, emitted as both SVG (docs) and PDF (manuscript) by save_figure.
+     theme.set_paper_mode(True)
+-
+     run_id = next_run_id(SLUG)
+-    with published_run(
+-        SLUG, run_id, scale=SCALE, plot_only=meta.plot_only,
+-    ) as (_artifacts, figures):
+-        t_start = time.monotonic()
+-        print(f"[w_ie x n_inh sweep] N_E={N_E}  input={INPUT_RATE_HZ:g} Hz  "
+-              f"batch={n_batch}")
+-        rows_by_ni: dict[int, list[dict]] = {}
+-        for n_inh in N_I_SWEEP:
+-            print(f"--- N_I = {n_inh} ---")
+-            ni_rows: list[dict] = []
+-            for w_ie in W_IE_VALUES:
+-                r = measure_one(n_inh, w_ie, n_batch)
+-                ni_rows.append(r)
+-                print(f"  W^IE={r['w_ie']:>5.2f} μS  "
+-                      f"E={r['r_e_hz']:6.2f} Hz  I={r['r_i_hz']:6.2f} Hz")
+-            rows_by_ni[n_inh] = ni_rows
+-
+-        summary_out = figures / "rate_vs_w_ie"
+-        plot_summary(rows_by_ni, summary_out, run_id)
+-        print(f"wrote {summary_out}.{{svg,pdf}}")
+-
+-        duration_s = time.monotonic() - t_start
++
++    with published_run(SLUG, run_id, scale=SCALE, plot_only=meta.plot_only) as (
++        _artifacts, figures,
++    ):
++        started = time.monotonic()
++        cache: dict[tuple[int, float, int], dict] = {}
++
++        def get(n_i: int, g_ie: float, seed: int) -> dict:
++            key = (n_i, round(g_ie, 12), seed)
++            if key not in cache:
++                print(f"N_I={n_i:3d}  G_IE={g_ie:.6g} μS  seed={seed}")
++                cache[key] = measure_one(n_i, g_ie, seed)
++            return cache[key]
++
++        raw = {"fixed_total": {}, "fixed_synapse": {}}
++        summary = {"fixed_total": {}, "fixed_synapse": {}}
++
++        for g_ie in REFERENCE_G_IE:
++            level = f"{g_ie:.12g}"
++            raw["fixed_total"][level] = {}
++            summary["fixed_total"][level] = {}
++            for n_i in N_I_SWEEP:
++                rows = [get(n_i, g_ie, seed) for seed in SEEDS]
++                raw["fixed_total"][level][str(n_i)] = rows
++                summary["fixed_total"][level][str(n_i)] = summarise(rows)
++
++        for j_ie in REFERENCE_J_IE:
++            level = f"{j_ie:.12g}"
++            raw["fixed_synapse"][level] = {}
++            summary["fixed_synapse"][level] = {}
++            for n_i in N_I_SWEEP:
++                g_ie = n_i * j_ie
++                rows = [get(n_i, g_ie, seed) for seed in SEEDS]
++                raw["fixed_synapse"][level][str(n_i)] = rows
++                summary["fixed_synapse"][level][str(n_i)] = summarise(rows)
++
++        plot_controls(summary, figures / "pool_size_controls", run_id)
+         write_numbers(
+-            figures, run_id=run_id, duration_s=duration_s,
++            figures,
++            run_id=run_id,
++            duration_s=time.monotonic() - started,
+             payload={
+                 "config": {
+                     "n_e": N_E,
+                     "n_in": N_IN,
+-                    "t_ms": T_MS,
+-                    "dt": DT,
+-                    "input_rate_hz": INPUT_RATE_HZ,
+-                    "n_batch": n_batch,
+-                    "seed": SEED,
+-                    "w_ie_values": W_IE_VALUES,
+                     "n_i_sweep": N_I_SWEEP,
+-                    "w_ie_default": W_IE_DEFAULT,
++                    "n_i_reference": N_I_REFERENCE,
++                    "reference_g_ie": REFERENCE_G_IE,
++                    "reference_j_ie": REFERENCE_J_IE,
++                    "g_ei_total": W_EI_TOTAL,
++                    "input_rate_hz": INPUT_RATE_HZ,
++                    "t_ms": T_MS,
++                    "dt_ms": DT,
++                    "n_batch": N_BATCH,
++                    "seeds": SEEDS,
+                 },
+-                "rows_by_n_i": {str(k): v for k, v in rows_by_ni.items()},
++                "definition": "j_ie_synapse = g_ie_total / n_i",
++                "raw": raw,
++                "summary": summary,
+             },
+         )
++        print(f"wrote {figures / 'pool_size_controls'}.{{svg,pdf}}")
+         print(f"wrote {figures / 'numbers.json'}")
+ 
+ 
 diff --git a/experiments/exp049.py b/experiments/exp049.py
-index 7b47f89..6aaf399 100644
+index 6aaf399..70b758f 100644
 --- a/experiments/exp049.py
 +++ b/experiments/exp049.py
-@@ -930,6 +930,38 @@ def _load_epoch_curves() -> dict:
-     return runs
+@@ -986,13 +986,15 @@ def fig_training_curves(out_path: Path, run_id: str) -> None:
  
- 
-+def _rhythmicity_summary() -> dict:
-+    """Init / epoch-1 / final lobe–trough contrast (R) per condition, read from the
-+    cached per-epoch metrics.jsonl (the exp022 train-once root) — no inference.
-+
-+    This is what §2.4 of ar009 quotes: the trainable inits collapse the rhythm
-+    within the first logged epoch, while the frozen control holds the canonical R.
-+    Because it reads only committed logs, it can be refreshed via
-+    `--plot-only rhythmicity` without re-running the (~29 min) cell inference."""
-+    curves = _load_epoch_curves()
-+    trainable = {"trainable_ping_init", "trainable_zero_init", "trainable_small_init"}
-+    ep1: list[float] = []
-+    fin_tr: list[float] = []
-+    fin_fz: list[float] = []
-+    for c in curves.values():
-+        pairs = sorted(
-+            (e, v) for e, v in zip(c["ep"], c["contrast"]) if v is not None
-+        )
-+        if not pairs:
-+            continue
-+        if c["cond"] in trainable:
-+            ep1.append(pairs[0][1])
-+            fin_tr.append(pairs[-1][1])
-+        elif c["cond"] == "frozen_ping":
-+            fin_fz.append(pairs[-1][1])
-+    return {
-+        "canonical_contrast": float(np.mean(fin_fz)) if fin_fz else None,
-+        "epoch1_contrast_trainable": float(np.mean(ep1)) if ep1 else None,
-+        "final_contrast_trainable_min": float(np.min(fin_tr)) if fin_tr else None,
-+        "final_contrast_trainable_max": float(np.max(fin_tr)) if fin_tr else None,
-+    }
-+
-+
- def fig_training_curves(out_path: Path, run_id: str) -> None:
-     """Real per-epoch training curves from the logs, 2×2: accuracy, E rate,
-     I rate, and pingness (exp054 lobe–trough contrast). Trainable inits (black)
-@@ -1290,10 +1322,25 @@ def main() -> None:
-             elif meta.plot_fig == "accrate":
-                 fig_acc_rate_trajectory(figures / "acc_rate_trajectory", run_id)
-                 print(f"wrote {figures / 'acc_rate_trajectory'}.{{svg,pdf}}")
-+            elif meta.plot_fig == "rhythmicity":
-+                # Log-only refresh: recompute the R (lobe–trough contrast) summary
-+                # from the cached per-epoch metrics and patch it into the existing
-+                # numbers.json (copied into staging by published_run). No inference,
-+                # no figures — seconds, not the ~29 min a full cell re-inference costs.
-+                nums_path = figures / "numbers.json"
-+                if not nums_path.exists():
-+                    raise SystemExit(
-+                        "--plot-only rhythmicity: no published numbers.json to patch; "
-+                        "run the full notebook once first."
-+                    )
-+                data = json.loads(nums_path.read_text())
-+                data["rhythmicity"] = _rhythmicity_summary()
-+                nums_path.write_text(json.dumps(data, indent=2) + "\n")
-+                print(f"patched rhythmicity into {nums_path}")
-             else:
-                 raise SystemExit(
-                     f"--plot-only: unknown figure {meta.plot_fig!r}; "
--                    "choose curves|portrait|accrate"
-+                    "choose curves|portrait|accrate|rhythmicity"
-                 )
-         return
- 
-@@ -1388,6 +1435,7 @@ def main() -> None:
-                     "common_recipe": COMMON_RECIPE,
-                 },
-                 "summary": summary_rows,
-+                "rhythmicity": _rhythmicity_summary(),
-             }),
-         )
-         print(f"wrote {figures / 'numbers.json'}")
-
-diff --git a/experiments/helpers/warm_pod.py b/experiments/helpers/warm_pod.py
-new file mode 100644
-index 0000000..31e960a
---- /dev/null
-+++ b/experiments/helpers/warm_pod.py
-@@ -0,0 +1,297 @@
-+#!/usr/bin/env python
-+"""Warm (persistent) RunPod pod with a renewable idle lease.
-+
-+The fan-out in runpod.py is fire-and-forget batch: pods self-run a CELLS
-+assignment and self-terminate. This is the opposite shape — ONE long-lived pod
-+you SSH into for short, interactive runs, kept alive only while you are actually
-+running experiments and STOPPED (not destroyed) after an idle window, so it
-+stops billing GPU but keeps its container disk and wakes fast.
-+
-+Two halves, mirroring runpod.py:
-+  • launch (laptop side): create a Secure sshd-only pod on the shared volume,
-+    then arm the watcher on it over SSH so the watcher outlives your laptop.
-+  • watch (pod side): every POLL_S seconds, renew the lease to now+LEASE_HOURS
-+    whenever an experiment-runner process is alive; when the lease expires with
-+    nothing running, `runpodctl stop pod` self-stops the pod. `resume` re-arms it.
-+
-+WHAT COUNTS AS "USING IT": a runner process — `experiments/expNNN.py` — is
-+running. That is the ONLY renewal signal (chosen over SSH-login or GPU-util):
-+merely connecting does not hold the pod open, and a long run can never be
-+stopped mid-flight, because every poll while it runs pushes the deadline out.
-+This needs NO runner edits and NO image rebuild — the watcher is injected over
-+SSH and detects activity by process, so every runner is covered for free.
-+
-+Stop vs terminate: stop keeps the container disk (~cents/day storage) and wakes
-+fast; the /shared network volume survives either way. A hard ceiling
-+(MAX_WARM_HOURS from launch) stops the pod regardless, so a wedged activity
-+check can never bill forever.
-+
-+CLI (run from the repo root):
-+    # laptop: create a warm 5090 pod with a 3-hour idle lease, arm the watcher
-+    uv run python experiments/helpers/warm_pod.py launch --gpu 5090 --hours 3
-+    uv run python experiments/helpers/warm_pod.py launch --dry-run     # plan only
-+    # laptop: wake a stopped pod and re-arm the same lease
-+    uv run python experiments/helpers/warm_pod.py resume <pod_id> --hours 3
-+    # laptop: stop it now / list warm pods
-+    uv run python experiments/helpers/warm_pod.py stop <pod_id>
-+    uv run python experiments/helpers/warm_pod.py status
-+    # pod side (armed by launch/resume — you do not call this yourself):
-+    uv run python experiments/helpers/warm_pod.py watch --hours 3
-+"""
-+
-+from __future__ import annotations
-+
-+import argparse
-+import os
-+import re
-+import subprocess
-+import sys
-+import time
-+from pathlib import Path
-+
-+# Runner-style bootstrap: put experiments/ on sys.path so the laptop-side
-+# `launch`/`resume` can `from helpers import runpod`. The pod-side `watch` path
-+# imports nothing from the package (stdlib + runpodctl only), so it works even
-+# on an older baked image before this file's checkout lands.
-+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-+
-+# ── Lease configuration ──────────────────────────────────────────────
-+LEASE_HOURS = 3.0            # idle window: stop after this long with no runner
-+POLL_S = 60                  # how often the watcher checks for activity
-+MAX_WARM_HOURS = 24.0        # hard ceiling from launch — stop regardless (safety)
-+
-+# The lease + watcher log live on the shared network volume so they survive a
-+# stop and are visible to a collector pod. Overridable for local testing.
-+WARM_DIR = Path(os.environ.get("PINGLAB_WARM_DIR", "/shared/.warm"))
-+
-+# A "runner is active" = a live `experiments/expNNN.py` process. The watcher's
-+# own cmdline is `experiments/helpers/warm_pod.py`, which does NOT match, so the
-+# watcher never counts itself as activity.
-+RUNNER_RE = re.compile(r"experiments/exp[0-9]{3}\.py")
-+
-+# Reuse runpod.py's pod-side constant so the arm command uses the same uv.
-+UV = "/root/.local/bin/uv"
-+POD_REPO = "/workspace/pinglab"
-+
-+
-+def _now() -> float:
-+    """Wall-clock epoch seconds (the lease is wall-clock so it reads sanely in
-+    the file and survives a watcher restart)."""
-+    return time.time()
-+
-+
-+def _pod_id() -> str | None:
-+    """This pod's id, injected by RunPod as RUNPOD_POD_ID. None off a pod."""
-+    return os.environ.get("RUNPOD_POD_ID")
-+
-+
-+# ── Pod side: the watcher ────────────────────────────────────────────
-+
-+def _runner_active() -> bool:
-+    """True iff an experiment-runner process is currently running on this pod.
-+
-+    Lists every process with its full (untruncated, `ww`) command line and keeps
-+    only those matching RUNNER_RE. Uses `ps axww` rather than `pgrep -f` because
-+    pgrep's regex dialect and its `-a` flag are not portable (macOS pgrep has no
-+    `-a`), and this keeps the exact match in Python. The watcher's own cmdline
-+    (warm_pod.py) does not match RUNNER_RE, so it never counts itself."""
-+    out = subprocess.run(["ps", "axww"], capture_output=True, text=True)
-+    return any(RUNNER_RE.search(line) for line in out.stdout.splitlines())
-+
-+
-+def _write_lease(pod_id: str, deadline: float, hard_deadline: float) -> None:
-+    """Persist the current lease to WARM_DIR/<pod_id>.lease (human-readable, for
-+    `cat` on the pod). The watcher owns the live countdown in memory; this file
-+    is observability, not the source of truth."""
-+    WARM_DIR.mkdir(parents=True, exist_ok=True)
-+    fmt = "%Y-%m-%dT%H:%M:%SZ"
-+    (WARM_DIR / f"{pod_id}.lease").write_text(
-+        f"idle_deadline={int(deadline)}  # {time.strftime(fmt, time.gmtime(deadline))}\n"
-+        f"hard_deadline={int(hard_deadline)}  # {time.strftime(fmt, time.gmtime(hard_deadline))}\n"
-+        f"lease_hours={LEASE_HOURS}\n"
+     panels = [
+         ("A", "test accuracy (%)", "acc", (0, 100)),
+-        ("B", "E firing rate (Hz)", "rate_e", (0, 60)),
+-        ("C", "I firing rate (Hz)", "rate_i", (0, 55)),
+-        ("D", "pingness  (lobe–trough contrast)", "contrast", (0, 1.0)),
++        ("B", "E firing rate (Hz)", "rate_e", (0, 85)),
++        ("C", "I firing rate (Hz)", "rate_i", (0, 65)),
++        ("D", "rhythmicity R", "contrast", (0, 1.0)),
+     ]
+     xmax = max(max(d["ep"]) for d in runs.values())
+-    fig, axes = plt.subplots(2, 2, figsize=(5.6, 3.15), dpi=200,
+-                             gridspec_kw={"hspace": 0.34, "wspace": 0.2})
++    fig, axes = plt.subplots(
++        2, 2, figsize=(6.9, 3.88), dpi=200,
++        gridspec_kw={"hspace": 0.38, "wspace": 0.38},
 +    )
-+
-+
-+def _stop_pod(pod_id: str) -> None:
-+    """Stop (not remove) this pod: releases the GPU and stops GPU billing while
-+    keeping the container disk for a fast `resume`. runpodctl auths via the
-+    injected RUNPOD_API_KEY env, exactly as pod_self_terminate does."""
-+    print(f"[warm-watch] idle → stopping pod {pod_id}", flush=True)
-+    r = subprocess.run(["runpodctl", "stop", "pod", pod_id],
-+                       capture_output=True, text=True)
-+    print(f"[warm-watch] runpodctl stop: {(r.stdout + r.stderr).strip()[:200]}",
-+          flush=True)
-+
-+
-+def watch(hours: float = LEASE_HOURS, poll_s: int = POLL_S,
-+          max_hours: float = MAX_WARM_HOURS) -> None:
-+    """Pod-side loop: renew while a runner is alive, else stop when the idle
-+    lease (or the hard ceiling) expires. Blocks until it stops the pod."""
-+    pod_id = _pod_id()
-+    if not pod_id:
-+        raise SystemExit("[warm-watch] no RUNPOD_POD_ID — this runs on a pod only")
-+
-+    start = _now()
-+    hard_deadline = start + max_hours * 3600
-+    deadline = start + hours * 3600
-+    _write_lease(pod_id, deadline, hard_deadline)
-+    print(f"[warm-watch] armed on {pod_id}: idle={hours}h ceiling={max_hours}h "
-+          f"poll={poll_s}s", flush=True)
-+
-+    while True:
-+        now = _now()
-+        if now >= hard_deadline:
-+            print(f"[warm-watch] hard ceiling ({max_hours}h) reached", flush=True)
-+            _stop_pod(pod_id)
-+            return
-+        if _runner_active():
-+            # "Using it" — push the idle deadline out (capped at the ceiling).
-+            deadline = min(now + hours * 3600, hard_deadline)
-+            _write_lease(pod_id, deadline, hard_deadline)
-+        elif now >= deadline:
-+            _stop_pod(pod_id)
-+            return
-+        time.sleep(poll_s)
-+
-+
-+# ── Laptop side: launch / resume / stop / status ─────────────────────
-+
-+def _arm(host: str, port: int, sha: str, hours: float, max_hours: float) -> None:
-+    """Over SSH, check the pod's repo out to *sha* (so this file is present even
-+    on an older baked image), then start the watcher detached under nohup so it
-+    survives the SSH session and the laptop sleeping."""
-+    from helpers import runpod  # lazy: laptop side only
-+
-+    cmd = (
-+        f"cd {POD_REPO} && git fetch --quiet origin && git checkout --quiet {sha} "
-+        f"&& mkdir -p {WARM_DIR} "
-+        f"&& nohup {UV} run python experiments/helpers/warm_pod.py watch "
-+        f"--hours {hours} --max-hours {max_hours} "
-+        f"> {WARM_DIR}/watch.log 2>&1 & echo armed"
-+    )
-+    out = runpod.run_on_pod(host, port, cmd, timeout=120)
-+    print(f"[warm] watcher armed ({out.strip() or 'ok'})")
-+
-+
-+def launch(gpu: str = "5090", hours: float = LEASE_HOURS,
-+           max_hours: float = MAX_WARM_HOURS, dry_run: bool = False) -> None:
-+    """Create a Secure sshd-only warm pod on the shared volume and arm the
-+    watcher. Spends money — dry_run prints the plan and creates nothing."""
-+    from helpers import runpod  # lazy: laptop side only
-+
-+    sha = runpod.head_sha()
-+    print(f"WARM POD  gpu={gpu}  idle-lease={hours}h  hard-ceiling={max_hours}h")
-+    print(f"pinned sha : {sha}")
-+    if dry_run:
-+        print(f"\n(dry-run) would create 1 secure pod ({gpu} @ {runpod.DATACENTER}, "
-+              f"volume {runpod.VOLUME_ID}) with sshd only, then over SSH: checkout "
-+              f"{sha[:12]} and nohup the watcher (stop after {hours}h idle).")
-+        print("re-run without --dry-run to spend.")
-+        return
-+
-+    # The watcher checks the pod's repo out to this sha; it must be on the remote
-+    # or `git checkout` on the pod fails (same guarantee the fan-out enforces).
-+    if not runpod.sha_is_pushed(sha):
-+        raise SystemExit(f"HEAD {sha[:12]} is not pushed to origin — the pod "
-+                         "fetches from GitHub. Commit + push, then re-run.")
-+
-+    # RUNPOD_API_KEY lets the watcher stop the pod; no CELLS ⇒ the image runs
-+    # sshd only (the warm/interactive mode).
-+    pod_id = runpod.create_pod(
-+        "warm", gpu, datacenter=runpod.DATACENTER, volume_id=runpod.VOLUME_ID,
-+        env={"RUNPOD_API_KEY": runpod.api_key()},
-+    )
-+    print(f"[warm] created pod {pod_id} — waiting for SSH…")
-+    host, port = runpod.wait_for_ssh(pod_id)
-+    _arm(host, port, sha, hours, max_hours)
-+
-+    print(f"\n=== warm pod {pod_id} up ({gpu}) ===")
-+    print(f"  ssh -i ~/.ssh/id_ed25519 -p {port} root@{host}")
-+    print(f"  cd {POD_REPO} && {UV} run python experiments/exp042.py   # your short runs")
-+    print(f"  it STOPS after {hours}h with no runner; each run resets the clock.")
-+    print(f"  resume : uv run python experiments/helpers/warm_pod.py resume {pod_id} --hours {hours}")
-+    print(f"  stop   : uv run python experiments/helpers/warm_pod.py stop {pod_id}")
-+
-+
-+def resume(pod_id: str, hours: float = LEASE_HOURS,
-+           max_hours: float = MAX_WARM_HOURS) -> None:
-+    """Wake a stopped warm pod (`runpodctl start pod`) and re-arm the watcher —
-+    a stop killed the previous nohup watcher, so resume restarts it."""
-+    from helpers import runpod  # lazy: laptop side only
-+
-+    sha = runpod.head_sha()
-+    if not runpod.sha_is_pushed(sha):
-+        raise SystemExit(f"HEAD {sha[:12]} is not pushed to origin — commit + push first.")
-+    print(f"[warm] starting pod {pod_id}…")
-+    r = subprocess.run(["runpodctl", "start", "pod", pod_id],
-+                       capture_output=True, text=True)
-+    print(f"  runpodctl start: {(r.stdout + r.stderr).strip()[:200]}")
-+    host, port = runpod.wait_for_ssh(pod_id)
-+    _arm(host, port, sha, hours, max_hours)
-+    print(f"[warm] pod {pod_id} resumed and re-armed ({hours}h idle lease)")
-+    print(f"  ssh -i ~/.ssh/id_ed25519 -p {port} root@{host}")
-+
-+
-+def stop(pod_id: str) -> None:
-+    """Manually stop a warm pod now (keeps the disk; wake with `resume`)."""
-+    print(f"[warm] stopping pod {pod_id}…")
-+    r = subprocess.run(["runpodctl", "stop", "pod", pod_id],
-+                       capture_output=True, text=True)
-+    print(f"  runpodctl stop: {(r.stdout + r.stderr).strip()[:200]}")
-+
-+
-+def status() -> None:
-+    """List every pod on the account (warm pods included) so you can see what is
-+    running/stopped and grab an id for resume/stop."""
-+    from helpers import runpod  # lazy: laptop side only
-+
-+    pods = runpod.running_pods()
-+    if not pods:
-+        print("no pods on the account.")
-+        return
-+    for p in pods:
-+        print(f"  {p.get('id')}  {p.get('name')}  {p.get('desiredStatus') or p.get('status')}")
-+
-+
-+# ── CLI ──────────────────────────────────────────────────────────────
-+
-+def _main(argv: list[str] | None = None) -> None:
-+    ap = argparse.ArgumentParser(description="Warm RunPod pod with a renewable idle lease.")
-+    sub = ap.add_subparsers(dest="cmd", required=True)
-+
-+    p_launch = sub.add_parser("launch", help="create a warm pod + arm the watcher (laptop)")
-+    p_launch.add_argument("--gpu", default="5090", choices=("4090", "5090"))
-+    p_launch.add_argument("--hours", type=float, default=LEASE_HOURS)
-+    p_launch.add_argument("--max-hours", type=float, default=MAX_WARM_HOURS)
-+    p_launch.add_argument("--dry-run", action="store_true")
-+
-+    p_watch = sub.add_parser("watch", help="run the lease watcher (pod side; armed for you)")
-+    p_watch.add_argument("--hours", type=float, default=LEASE_HOURS)
-+    p_watch.add_argument("--max-hours", type=float, default=MAX_WARM_HOURS)
-+    p_watch.add_argument("--poll", type=int, default=POLL_S)
-+
-+    p_resume = sub.add_parser("resume", help="wake a stopped warm pod + re-arm (laptop)")
-+    p_resume.add_argument("pod_id")
-+    p_resume.add_argument("--hours", type=float, default=LEASE_HOURS)
-+    p_resume.add_argument("--max-hours", type=float, default=MAX_WARM_HOURS)
-+
-+    p_stop = sub.add_parser("stop", help="stop a warm pod now (laptop)")
-+    p_stop.add_argument("pod_id")
-+
-+    sub.add_parser("status", help="list pods on the account (laptop)")
-+
-+    a = ap.parse_args(argv)
-+    if a.cmd == "launch":
-+        launch(gpu=a.gpu, hours=a.hours, max_hours=a.max_hours, dry_run=a.dry_run)
-+    elif a.cmd == "watch":
-+        watch(hours=a.hours, poll_s=a.poll, max_hours=a.max_hours)
-+    elif a.cmd == "resume":
-+        resume(a.pod_id, hours=a.hours, max_hours=a.max_hours)
-+    elif a.cmd == "stop":
-+        stop(a.pod_id)
-+    elif a.cmd == "status":
-+        status()
-+
-+
-+if __name__ == "__main__":
-+    _main()
-
-diff --git a/experiments/tests/test_warm_pod.py b/experiments/tests/test_warm_pod.py
-new file mode 100644
-index 0000000..7965e3b
---- /dev/null
-+++ b/experiments/tests/test_warm_pod.py
-@@ -0,0 +1,94 @@
-+"""Unit tests for the warm-pod idle lease (helpers/warm_pod.py).
-+
-+Deterministic — no real pods, no real processes. `ps axww` and the wall clock
-+are mocked so the watcher's renew/stop logic is exercised in-memory:
-+  • _runner_active parses ps output and matches only real runners (expNNN.py),
-+    never the watcher itself.
-+  • watch() stops the pod once the idle window passes with nothing running.
-+  • a live runner keeps renewing the lease, so a long run is never stopped.
-+  • the hard ceiling stops the pod even if activity never ceases (safety valve).
-+"""
-+from types import SimpleNamespace
-+
-+import pytest
-+from experiments.helpers import warm_pod as w
-+
-+
-+def _fake_ps(stdout):
-+    """A subprocess.run stand-in that returns fixed `ps axww` output."""
-+    return lambda *a, **k: SimpleNamespace(stdout=stdout, returncode=0)
-+
-+
-+def test_runner_active_detects_runner(monkeypatch):
-+    monkeypatch.setattr(w.subprocess, "run", _fake_ps(
-+        "  1 ??  Ss  0:00 /usr/sbin/sshd -D\n"
-+        "123 pts/0 Rl 3:21 python experiments/exp042.py\n"))
-+    assert w._runner_active() is True
-+
-+
-+def test_runner_active_idle_ignores_watcher(monkeypatch):
-+    # The watcher's own cmdline must NOT count as a run, or it would hold itself
-+    # open forever.
-+    monkeypatch.setattr(w.subprocess, "run", _fake_ps(
-+        "  1 ??  Ss  0:00 /usr/sbin/sshd -D\n"
-+        " 42 pts/0 Sl 0:01 python experiments/helpers/warm_pod.py watch --hours 3\n"))
-+    assert w._runner_active() is False
-+
-+
-+def _fake_clock(monkeypatch, start=1000.0):
-+    """Patch _now() and time.sleep() onto a shared fake clock; sleeping advances
-+    it. Returns the clock dict so a test can read the elapsed time."""
-+    clock = {"t": start}
-+    monkeypatch.setattr(w, "_now", lambda: clock["t"])
-+    monkeypatch.setattr(w.time, "sleep", lambda s: clock.__setitem__("t", clock["t"] + s))
-+    monkeypatch.setattr(w, "_write_lease", lambda *a, **k: None)
-+    return clock
-+
-+
-+def test_watch_stops_on_idle(monkeypatch):
-+    _fake_clock(monkeypatch)
-+    monkeypatch.setattr(w, "_runner_active", lambda: False)
-+    monkeypatch.setenv("RUNPOD_POD_ID", "pod-1")
-+    stopped = []
-+    monkeypatch.setattr(w, "_stop_pod", lambda pid: stopped.append(pid))
-+
-+    w.watch(hours=2 / 3600, poll_s=1, max_hours=24)  # 2-second idle window
-+    assert stopped == ["pod-1"]
-+
-+
-+def test_watch_renews_while_a_run_is_active(monkeypatch):
-+    clock = _fake_clock(monkeypatch)
-+    calls = {"n": 0}
-+
-+    def active():
-+        calls["n"] += 1
-+        return calls["n"] <= 5  # a run occupies the first 5 polls, then finishes
-+
-+    monkeypatch.setattr(w, "_runner_active", active)
-+    monkeypatch.setenv("RUNPOD_POD_ID", "pod-1")
-+    stopped = []
-+    monkeypatch.setattr(w, "_stop_pod", lambda pid: stopped.append(pid))
-+
-+    w.watch(hours=2 / 3600, poll_s=1, max_hours=24)  # 2s window, but 5s of activity
-+    assert stopped == ["pod-1"]
-+    # It ran well past the 2s idle window — the active run held it open (no
-+    # mid-flight kill), and it stopped only once activity ceased.
-+    assert clock["t"] - 1000.0 > 5
-+
-+
-+def test_watch_hard_ceiling_stops_even_if_always_busy(monkeypatch):
-+    _fake_clock(monkeypatch)
-+    monkeypatch.setattr(w, "_runner_active", lambda: True)  # never idle
-+    monkeypatch.setenv("RUNPOD_POD_ID", "pod-1")
-+    stopped = []
-+    monkeypatch.setattr(w, "_stop_pod", lambda pid: stopped.append(pid))
-+
-+    # Ceiling of 2 seconds despite perpetual activity — the safety valve fires.
-+    w.watch(hours=1, poll_s=60, max_hours=2 / 3600)
-+    assert stopped == ["pod-1"]
-+
-+
-+def test_watch_requires_pod_id(monkeypatch):
-+    monkeypatch.delenv("RUNPOD_POD_ID", raising=False)
-+    with pytest.raises(SystemExit):
-+        w.watch()
+     axes = axes.ravel()
+     for k, (letter, ylabel, key, ylim) in enumerate(panels):
+         ax = axes[k]
+@@ -1028,7 +1030,7 @@ def fig_training_curves(out_path: Path, run_id: str) -> None:
+                          lw=2.0, ls="--" if cond == "frozen_ping" else "-",
+                          label=CONDITIONS[cond]["label"])
+     axes[0].legend(frameon=False, fontsize=theme.SIZE_LEGEND - 1, loc="lower right")
+-    fig.tight_layout(pad=0.4)
++    fig.subplots_adjust(left=0.09, right=0.98, bottom=0.14, top=0.97)
+     stamp_figure(fig, run_id)
+     out_path.parent.mkdir(parents=True, exist_ok=True)
+     # Crop surrounding whitespace — this is a standalone publication figure, so
