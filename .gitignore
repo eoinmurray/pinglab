@@ -41,6 +41,7 @@ node_modules
 
 # demolab (Typst publishing) + experiment scratch + build output
 temp/
+tmp/
 artifacts/site/
 # CLI scratch if the default artifact root is ever hit (normally writes to temp/)
 tools/artifacts/
