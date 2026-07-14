@@ -26,6 +26,7 @@ from __future__ import annotations
 
 import json
 import os
+import shutil
 import subprocess
 import sys
 import time
@@ -60,6 +61,15 @@ ARTIFACTS, FIGURES = artifacts_and_figures(SLUG)
 # unaffected. cell_dir / load_cell read through this, so every consumer follows.
 TRAINING_ROOT = runpod.training_root()
 SNN_TOOL = REPO / "tools" / "snn" / "tool.py"
+
+# The published/calibrated bank remains at TRAINING_ROOT.  The matched rerun is
+# a separate, versioned generation: incomplete matched cells can never shadow a
+# calibrated cell merely because their historical names are the same.
+MATCHED_GENERATION = "matched_mid_v1"
+MATCHED_TRAINING_ROOT = Path(os.environ.get(
+    "PINGLAB_MATCHED_TRAINING_ROOT",
+    str(TRAINING_ROOT / MATCHED_GENERATION),
+))
 
 EPOCHS_STANDARD = 50           # standard depth (halved from 100 — see exp022.mdx §2)
 DT_MS = 0.1
@@ -108,6 +118,18 @@ MODEL_RECIPES: dict[str, dict] = {
         "--batch-size": "256",
     },
 }
+
+# Predeclared after the local viability pilot and the full-scale seed-42 gate.
+# These are the only feedforward/readout scales in the matched generation.
+# Do not tune them after inspecting later seeds or sweep cells.
+MATCHED_MODEL_RECIPES: dict[str, dict] = {
+    model: {
+        **recipe,
+        "--w-in": "0.9",
+        "--readout-w-out-scale": "225",
+    }
+    for model, recipe in MODEL_RECIPES.items()
+}
 MODELS = ["coba", "ping"]
 MODEL_COLORS = {"coba": theme.DEEP_RED, "ping": theme.INK_BLACK}
 MODEL_MARKERS = {"coba": "s", "ping": "D"}
@@ -116,6 +138,10 @@ MODEL_MARKERS = {"coba": "s", "ping": "D"}
 # whose whole point is to vary ei-strength + recurrent trainability per cell.
 MODEL_RECIPES["ping_init"] = {
     k: v for k, v in MODEL_RECIPES["ping"].items() if k != "--ei-strength"
+}
+MATCHED_MODEL_RECIPES["ping_init"] = {
+    k: v for k, v in MATCHED_MODEL_RECIPES["ping"].items()
+    if k != "--ei-strength"
 }
 
 # exp049 init conditions: (ei_strength, trainable W_EI, trainable W_IE).
@@ -184,7 +210,7 @@ def _theta_u_cells() -> list[dict]:
                 cells.append({
                     "name": cell_name(m, tu, s), "model": m, "family": "theta_u",
                     "tag": theta_display(tu), "seed": s, "dt_ms": DT_MS,
-                    "tau_gaba": TAU_GABA_GAMMA, "extra": extra,
+                    "tau_gaba": TAU_GABA_GAMMA, "theta_u": tu, "extra": extra,
                 })
     return cells
 
@@ -239,6 +265,29 @@ def _init_cells() -> list[dict]:
 CANONICAL_CELLS = (_canonical_cells() + _theta_u_cells() + _tau_gaba_cells()
                    + _dt_cells() + _init_cells())
 
+# Same five scientific families and cell names as the calibrated bank, but a
+# distinct root and a frozen shared-scale recipe.  Consumers do not switch to
+# this generation until the complete rerun and downstream audit pass.
+MATCHED_CELLS = [
+    {**cell, "generation": MATCHED_GENERATION, "recipe_family": "matched_mid"}
+    for cell in CANONICAL_CELLS
+]
+
+
+def matched_cell_dir(name: str) -> Path:
+    """One cell in the isolated matched generation."""
+    return MATCHED_TRAINING_ROOT / name
+
+
+def matched_canary_cells() -> list[dict]:
+    """Stage-2-as-Stage-3-canary: theta-off seeds 43/44 for both models."""
+    return [
+        cell for cell in MATCHED_CELLS
+        if cell["family"] == "theta_u"
+        and cell.get("theta_u") is None
+        and cell["seed"] in (43, 44)
+    ]
+
 # Run scale — stamped into the manifest by run_dirs.prepare and rendered as
 # the Methods table via RunScale; the mdx never restates these numbers.
 SCALE = {
@@ -273,9 +322,10 @@ def load_cell(name: str) -> Path:
 
 
 def build_train_args(spec: dict, out_dir: Path,
-                     max_samples: int, epochs: int) -> list[str]:
+                     max_samples: int, epochs: int,
+                     recipes: dict[str, dict] | None = None) -> list[str]:
     """CLI `train` args for one registry cell, across all families."""
-    recipe = MODEL_RECIPES[spec["model"]]
+    recipe = (recipes or MODEL_RECIPES)[spec["model"]]
     ms = spec.get("max_samples") or max_samples   # canonical cells override
     args = [
         "train",
@@ -299,6 +349,155 @@ def build_train_args(spec: dict, out_dir: Path,
             args += [k, v]
     args += spec["extra"]
     return args
+
+
+def build_matched_train_args(spec: dict, out_dir: Path,
+                             max_samples: int, epochs: int) -> list[str]:
+    """Train args for the frozen matched_mid recipe generation."""
+    return build_train_args(
+        spec, out_dir, max_samples, epochs, recipes=MATCHED_MODEL_RECIPES,
+    )
+
+
+def _arg_value(args: list[str], flag: str, default=None):
+    if flag not in args:
+        return default
+    return args[args.index(flag) + 1]
+
+
+def matched_expected_config(spec: dict, *, plumbing: bool = False) -> dict:
+    """The config fields that make a cached matched cell reproducible.
+
+    This is deliberately stricter than checking for metrics.json: a calibrated
+    cell or a stale plumbing run must never satisfy the matched completion
+    marker just because it has the right basename.
+    """
+    if plumbing:
+        sample_count, epochs = MAX_SAMPLES, EPOCHS
+        build_spec = {k: v for k, v in spec.items() if k != "max_samples"}
+    else:
+        sample_count, epochs = cell_samples_epochs(spec)
+        build_spec = spec
+    args = build_matched_train_args(
+        build_spec, Path("/matched-config-check"), sample_count, epochs,
+    )
+    mean_w_in = float(_arg_value(args, "--w-in"))
+    theta = _arg_value(args, "--fr-reg-upper-theta")
+    theta_strength = _arg_value(args, "--fr-reg-upper-strength")
+    return {
+        "model": _arg_value(args, "--model"),
+        "max_samples": int(_arg_value(args, "--max-samples")),
+        "epochs": int(_arg_value(args, "--epochs")),
+        "seed": int(_arg_value(args, "--seed")),
+        "dt": float(_arg_value(args, "--dt")),
+        "t_ms": float(_arg_value(args, "--t-ms")),
+        "tau_gaba_ms": float(_arg_value(args, "--tau-gaba")),
+        "batch_size": int(_arg_value(args, "--batch-size")),
+        "lr": float(_arg_value(args, "--lr")),
+        "ei_strength": float(_arg_value(args, "--ei-strength")),
+        "v_grad_dampen": float(_arg_value(args, "--v-grad-dampen")),
+        "w_in": [mean_w_in, mean_w_in * 0.1],
+        "w_in_sparsity": float(_arg_value(args, "--w-in-sparsity")),
+        "readout_mode": _arg_value(args, "--readout"),
+        "readout_w_out_scale": float(_arg_value(args, "--readout-w-out-scale")),
+        "fr_reg_upper_theta": float(theta) if theta is not None else 0.0,
+        "fr_reg_upper_strength": (
+            float(theta_strength) if theta_strength is not None else 0.0
+        ),
+        "trainable_w_ei": "--trainable-w-ei" in args,
+        "trainable_w_ie": "--trainable-w-ie" in args,
+    }
+
+
+def _config_value_matches(got, want) -> bool:
+    if isinstance(want, float):
+        try:
+            return abs(float(got) - want) <= 1e-9 * max(1.0, abs(want))
+        except (TypeError, ValueError):
+            return False
+    if isinstance(want, list):
+        return (isinstance(got, list) and len(got) == len(want)
+                and all(_config_value_matches(g, w) for g, w in zip(got, want)))
+    return got == want
+
+
+def matched_cell_validation(spec: dict, *, plumbing: bool = False,
+                            root: Path | None = None,
+                            directory: Path | None = None) -> tuple[bool, list[str]]:
+    """Return whether a matched cell is complete plus every failed check."""
+    d = directory or ((root or MATCHED_TRAINING_ROOT) / spec["name"])
+    errors = []
+    for filename in ("config.json", "metrics.json", "weights.pth"):
+        if not (d / filename).exists():
+            errors.append(f"missing {filename}")
+    if errors:
+        return False, errors
+    try:
+        cfg = json.loads((d / "config.json").read_text())
+        metrics = json.loads((d / "metrics.json").read_text())
+    except (json.JSONDecodeError, OSError) as exc:
+        return False, [f"invalid JSON: {exc}"]
+    for key, want in matched_expected_config(spec, plumbing=plumbing).items():
+        got = cfg.get(key)
+        if not _config_value_matches(got, want):
+            errors.append(f"{key}: got {got!r}, want {want!r}")
+    if len(metrics.get("epochs", [])) != matched_expected_config(
+        spec, plumbing=plumbing,
+    )["epochs"]:
+        errors.append("metrics epoch count does not match config")
+    return not errors, errors
+
+
+def matched_cell_is_done(spec: dict, *, plumbing: bool = False) -> bool:
+    return matched_cell_validation(spec, plumbing=plumbing)[0]
+
+
+def adopt_matched_stage1(*, source_root: Path | None = None) -> list[str]:
+    """Copy the two validated seed-42 gate cells into matched_mid_v1.
+
+    The gate used the final recipe and full sweep scale, so retraining it would
+    waste compute.  Validation happens against the registry before either copy.
+    Existing valid destinations are left untouched.
+    """
+    source = source_root or (TRAINING_ROOT / "matched_mid_stage1")
+    adopted = []
+    for model in MODELS:
+        spec = next(
+            c for c in MATCHED_CELLS
+            if c["family"] == "theta_u" and c.get("theta_u") is None
+            and c["model"] == model and c["seed"] == 42
+        )
+        source_dir = source / f"{model}__seed42"
+        ok, errors = matched_cell_validation(spec, directory=source_dir)
+        if not ok:
+            raise SystemExit(
+                f"cannot adopt Stage 1 {model}: " + "; ".join(errors)
+            )
+        dest = matched_cell_dir(spec["name"])
+        if matched_cell_is_done(spec):
+            print(f"[adopt skip] {spec['name']} already valid")
+            continue
+        if dest.exists():
+            raise SystemExit(
+                f"refusing to overwrite invalid matched destination {dest}"
+            )
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        # Multiple canary pods may reach adoption together. Copy to a private
+        # sibling then publish with one atomic rename; the loser verifies the
+        # winner instead of exposing a half-copied directory as "complete".
+        token = os.environ.get("RUNPOD_POD_ID", str(os.getpid()))
+        staged = dest.with_name(f".{dest.name}.adopting-{token}")
+        shutil.rmtree(staged, ignore_errors=True)
+        shutil.copytree(source_dir, staged)
+        try:
+            staged.rename(dest)
+        except OSError:
+            shutil.rmtree(staged, ignore_errors=True)
+            if not matched_cell_is_done(spec):
+                raise
+        adopted.append(spec["name"])
+        print(f"[adopt] {source_dir} → {dest}")
+    return adopted
 
 
 # ── Runner ───────────────────────────────────────────────────────────
@@ -519,7 +718,9 @@ def pod_run() -> None:
         return cell is not None and runpod_is_done(cell, plumbing)
 
     def run_job(name: str) -> None:
-        _train_one_cell(_cell_by_name(name), plumbing)
+        cell = _cell_by_name(name)
+        assert cell is not None  # pod_run_loop only passes registered job ids
+        _train_one_cell(cell, plumbing)
 
     runpod.pod_run_loop(
         job_ids=[c["name"] for c in CANONICAL_CELLS],
