@@ -397,9 +397,12 @@ def publish() -> None:
                 train / "matched_rasters" / "rasters.npz",
                 model_raw / "matched_rasters.npz",
             )
-            shutil.copy2(
-                train / "matched_rasters" / "metrics.json",
-                model_raw / "replay_metrics.json",
+            replay_metrics = json.loads(
+                (train / "matched_rasters" / "metrics.json").read_text()
+            )
+            replay_metrics["config"]["load_weights"] = "raster_weights.pth"
+            (model_raw / "replay_metrics.json").write_text(
+                json.dumps(replay_metrics, indent=2) + "\n"
             )
         if (SMOKE_ROOT / "smoke_summary.json").exists():
             shutil.copy2(SMOKE_ROOT / "smoke_summary.json", raw / "smoke_summary.json")
