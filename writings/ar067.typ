@@ -35,7 +35,7 @@
 #let body = [
   == Checkpoint CP-001
 
-  This initial checkpoint preserves the user-visible session through the
+  This initial checkpoint preserves the user-visible research conversation through the
   request for an activity log and the first acknowledgement. The immutable
   private source is stored outside the repository. Its SHA-256 prefix is
   `f85b936a4a2e`. The session identifier is
@@ -78,10 +78,6 @@
   + Build, push, update pull request 50, and stop at the human review gate.
 
   == Privacy-sanitized visible transcript
-
-  #message-card("user", "2026-07-18 19:19:51.440 UTC",
-    "019f76ab-932b-72c2-b163-463ead65d8d5", "CP-001",
-    "# AGENTS.md instructions for [REDACTED_PRIVATE_PATH]\n\n<INSTRUCTIONS>\n> **demolab lab** — before working here, run `demolab docs` and follow what it prints\n> (the agent manual + runbook menu; no venv yet? `uvx demolab-cli docs`). A user message\n> that is just a NAME in CAPS (`HELP`, `LINT`, `DOCTOR`, …) is a command — the manual explains.\n\n# pinglab\n\nSpiking E/I (PING) networks, trained with surrogate gradients and diagnosed via\nΔt-stability. The `tools/snn` engine emits data → `experiments/` runners render figures →\n`writings/*.typ` publish via Typst.\n\n## This lab's rules\n\n- **No RunPod fan-outs without explicit permission** — `--runpod --live` (and any\n  pod-creating call) spends real money; default local. Same for anything Modal-dispatching.\n- **Don't write to GitHub issues/PRs without explicit permission** — with explicit\n  permission, creating/posting an issue is fine; reading is always fine. Don't open\n  branches/PRs unless asked — \"commit and push\" means commit + push to the current branch.\n- **Free reign on notebooks; editing the cli (`tools/snn`) needs explicit permission.**\n- NEVER add Co-Authored-By, \"Generated with Claude Code\", or any other AI-attribution trailers to commit messages or PR descriptions. Commits are authored by Eoin alone.\n\n## Session hygiene\n\nEoin tends to let sessions grow far too large. When the conversation **changes topic** (a new\nexperiment, a pivot from writing to debugging, a finished runbook, an unrelated question), the\nagent should proactively say so and suggest the right cleanup — don't wait to be asked:\n\n- **`/clear`** when the new topic shares nothing with the old one — carry-over context is pure\n  cost. Offer a one-paragraph handoff summary to paste into the fresh session if useful.\n- **`/compact`** when the thread continues but the history is mostly spent (long tool output,\n  finished sub-tasks, resolved debugging).\n\nSuggest at natural boundaries (task done, topic pivot) — not mid-task, and at most once per\nboundary; if declined, drop it until the next one.\n\n</INSTRUCTIONS>\n[REDACTED_ENVIRONMENT_CONTEXT]")
 
   #message-card("user", "2026-07-18 19:19:51.482 UTC",
     "019f76ab-932b-72c2-b163-463ead65d8d5", "CP-001",
