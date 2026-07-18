@@ -163,15 +163,13 @@ def write_h5_subset(source: Path, destination: Path, indices: np.ndarray) -> Non
         tmp.unlink()
     with h5py.File(source, "r") as src, h5py.File(tmp, "w") as dst:
         spikes = dst.create_group("spikes")
-        times = spikes.create_dataset(
-            "times", (len(indices),), dtype=h5py.vlen_dtype(np.dtype("float16"))
-        )
-        units = spikes.create_dataset(
-            "units", (len(indices),), dtype=h5py.vlen_dtype(np.dtype("uint16"))
-        )
-        for out_idx, source_idx in enumerate(indices):
-            times[out_idx] = np.asarray(src["spikes/times"][source_idx], dtype=np.float16)
-            units[out_idx] = np.asarray(src["spikes/units"][source_idx], dtype=np.uint16)
+        # HDF5 fancy indexing accepts the sorted indices and performs the copy
+        # in C.  Assigning thousands of vlen rows in Python adds minutes of
+        # staging latency on each pod without changing a byte of science.
+        times = src["spikes/times"][indices]
+        units = src["spikes/units"][indices]
+        spikes.create_dataset("times", data=times, dtype=src["spikes/times"].dtype)
+        spikes.create_dataset("units", data=units, dtype=src["spikes/units"].dtype)
         dst.create_dataset("labels", data=np.asarray(src["labels"])[indices])
         extra = dst.create_group("extra")
         extra.create_dataset("speaker", data=np.asarray(src["extra/speaker"])[indices])
