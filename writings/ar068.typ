@@ -166,6 +166,29 @@
 
   == Record
 
-  _Empty until the mandate is approved, committed on `main`, and execution
-  begins._
+  === 2026-07-18 22:50–22:52 UTC: mandate lock and night branch
+
+  The scientist approved the complete mandate without amendment. It was
+  preregistered on `main` at commit `2ee03ac` before the experiment runner or
+  any exp068 result existed. The dedicated night branch was created from that
+  exact commit. At the compute gate, exp068 had spent 0 USD and no pods were
+  active.
+
+  === 2026-07-18 22:52–23:04 UTC: implementation and local smoke
+
+  The experiment runner stages the official training data into a deterministic
+  7,340-utterance development-training set and an 816-utterance validation set,
+  stratified jointly by speaker and class at seed 42. During training, the
+  official test split is physically unavailable. Experiment-side checkpoint
+  instrumentation preserves the registered validation tie-break without
+  changing `tools/snn`.
+
+  The registered local smoke used 128 staged training and 128 staged validation
+  utterances for two epochs. Both cells remained finite and active, and neither
+  recorded a skipped update or non-finite batch. COBA selected epoch 1 with
+  11.72% validation accuracy and 23.93 Hz excitatory activity. PING selected
+  epoch 2 with 10.16% validation accuracy, 2.95 Hz excitatory activity, and
+  14.56 Hz inhibitory activity. These values test plumbing only and are not
+  evidence for the hypothesis. The host's complete 8,156-sample training and
+  2,264-sample official-test caches were restored byte-for-byte after staging.
 ]
