@@ -493,4 +493,46 @@
   The raster figure passes visual inspection and the full build succeeds with 32 entries. A final privacy scan caught two local absolute paths inside copied replay-metrics JSON. I’m fixing the publisher to normalize those fields to the derived checkpoint basename, then I’ll republish and rerun the fail-closed sensitive-pattern scan before committing any artifacts.
   ```
 
+
+  == Checkpoint CP-004
+
+  This final review-gate checkpoint follows commit
+  #link("https://github.com/eoinmurray/pinglab/commit/1d385c6")[1d385c6].
+  Its immutable private source has SHA-256 prefix `c12985c69eec`. The
+  session identifier remains `019f76ab-932b-72c2-b163-463ead65d8d5`; the
+  checkpoint time is `2026-07-18 20:18:14.807 UTC`.
+
+  === Review-gate milestone
+
+  The complete evidence packet, experiment report, night Digest, and activity
+  log are committed and pushed. Pull request 50 has the final Digest, exact
+  observed compute spend, validation record, and a timestamped review-gate
+  comment. The pull request remains draft and unmerged.
+
+  === Visible messages added in CP-004
+
+  ==== Message 42: 2026-07-18 20:17:26.625 UTC | assistant
+
+  Session: `019f76ab-932b-72c2-b163-463ead65d8d5`. Checkpoint: `CP-004`.
+
+  ```text
+  All focused validations now pass: artifact assertions, runner lint/compile, sensitive-pattern scan, no attribution trailers, 32-entry Demolab build, and zero active pods. The failed assertion was only my expected raw-file count (12 files were intentionally published, not 10); the packet itself was valid. I’m committing the final evidence packet, `exp066` report, completed `ar066` Digest/Record, and CP-003 activity log now.
+  ```
+
+  ==== Message 43: 2026-07-18 20:17:55.441 UTC | assistant
+
+  Session: `019f76ab-932b-72c2-b163-463ead65d8d5`. Checkpoint: `CP-004`.
+
+  ```text
+  The final evidence commit `1d385c6` is pushed. I’m updating PR #50’s title and description to the completed Digest, adding a timestamped review-gate comment with the protocol deviations and validations, and then I’ll make one final CP-004 activity-log checkpoint linked to `1d385c6`. I will not merge.
+  ```
+
+  ==== Message 44: 2026-07-18 20:18:14.807 UTC | assistant
+
+  Session: `019f76ab-932b-72c2-b163-463ead65d8d5`. Checkpoint: `CP-004`.
+
+  ```text
+  The review-gate comment posted successfully, but `gh pr edit` hit GitHub’s deprecated Projects-classic GraphQL field before updating the title/body. I’m applying the same already-approved PR update through the REST endpoint instead; this changes only PR metadata and avoids the deprecated field.
+  ```
+
 ]
