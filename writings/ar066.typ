@@ -155,4 +155,11 @@
   as saturation, matching the meaning of the registered criterion. This did
   not alter a scientific setting or require a rerun. The runner and corrected
   gate are recorded in #link("https://github.com/eoinmurray/pinglab/commit/e42b264")[commit e42b264].
+
+  === Pilot dispatch attempts
+
+  The first pilot dispatch created no pod because the local dispatch host did
+  not have the deployment public key expected by the existing RunPod helper.
+  No model ran and no RunPod charge accrued. This was an infrastructure abort,
+  not an observation of either registered cell.
 ]
