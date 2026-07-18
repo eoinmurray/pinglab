@@ -85,6 +85,7 @@ def infer_args(model: str, train: Path, out: Path, sample_idx: int) -> list[str]
     return [
         "sim", "--infer", "--load-config", str(train / "config.json"),
         "--load-weights", str(train / "weights.pth"),
+        "--dataset", "shd",
         "--sample-index", str(sample_idx), "--out-dir", str(out), "--wipe-dir",
     ]
 
@@ -162,15 +163,22 @@ def validate_cell(root: Path, model: str, *, smoke: bool, rasters: bool = False)
     return errors
 
 
+def capture_rasters(root: Path, model: str) -> None:
+    out = cell_dir(root, model)
+    for idx in SAMPLE_INDICES:
+        raster_out = out / "rasters" / f"sample_{idx}"
+        if (raster_out / "snapshot.npz").exists():
+            continue
+        print(f"[raster] {model} test position {idx}")
+        run_cli(infer_args(model, out, raster_out, idx))
+
+
 def train_cell(root: Path, model: str, *, smoke: bool, capture: bool) -> None:
     out = cell_dir(root, model)
     print(f"[train] {model} ({'smoke' if smoke else 'pilot'})")
     run_cli(train_args(model, out, smoke=smoke))
     if capture:
-        for idx in SAMPLE_INDICES:
-            raster_out = out / "rasters" / f"sample_{idx}"
-            print(f"[raster] {model} test position {idx}")
-            run_cli(infer_args(model, out, raster_out, idx))
+        capture_rasters(root, model)
 
 
 def run_smoke() -> None:
@@ -203,7 +211,12 @@ def pilot_done(model: str) -> bool:
 
 def pod_run() -> None:
     def run_job(model: str) -> None:
-        train_cell(PILOT_ROOT, model, smoke=False, capture=True)
+        training_errors = validate_cell(PILOT_ROOT, model, smoke=False, rasters=False)
+        if training_errors:
+            train_cell(PILOT_ROOT, model, smoke=False, capture=False)
+        else:
+            print(f"[reuse] {model} validated training cell")
+        capture_rasters(PILOT_ROOT, model)
         errors = validate_cell(PILOT_ROOT, model, smoke=False, rasters=True)
         if errors:
             raise RuntimeError(f"{model} pilot validation failed: {errors}")

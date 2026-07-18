@@ -138,7 +138,7 @@
 
   == Record
 
-  === Local smoke stage
+  === 2026-07-18 19:23–19:28 UTC: local smoke stage
 
   The registered seed-42 smoke passed for both cells at the original shared
   input-weight scale, so the pre-registered shared adjustment was not used.
@@ -156,7 +156,7 @@
   not alter a scientific setting or require a rerun. The runner and corrected
   gate are recorded in #link("https://github.com/eoinmurray/pinglab/commit/e42b264")[commit e42b264].
 
-  === Pilot dispatch attempts
+  === 2026-07-18 19:32 UTC: pilot dispatch attempt 1
 
   The first pilot dispatch created no pod because the local dispatch host did
   not have the deployment public key expected by the existing RunPod helper.
