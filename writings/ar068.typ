@@ -191,4 +191,15 @@
   14.56 Hz inhibitory activity. These values test plumbing only and are not
   evidence for the hypothesis. The host's complete 8,156-sample training and
   2,264-sample official-test caches were restored byte-for-byte after staging.
+
+  === 2026-07-18 23:11 UTC: full comparison dispatched
+
+  A final evaluator audit used two staged validation utterances and the smoke
+  checkpoint to verify the 20-class checkpoint load, prediction capture,
+  cross-entropy, activity, speaker grouping, and runtime paths without accessing
+  official-test evidence. Two RTX 5090 pods then started concurrently from
+  pinned commit `96748e5`, one per architecture, at 0.99 USD per pod-hour. Each
+  has a 10,800-second self-removal backstop, for a maximum actual-rate exposure
+  of 5.94 USD. The pre-dispatch spend and active-pod count were both zero. The
+  official-test seal remains closed until both validation checkpoints freeze.
 ]

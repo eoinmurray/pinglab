@@ -292,4 +292,35 @@
   #message-card("assistant", "2026-07-18 23:09:35.726 UTC",
     "019f76ab-932b-72c2-b163-463ead65d8d5", "CP-004",
     "The optimized writer completes the full split in 6.9 seconds. Audit results are exact: 7,340 train + 816 validation = 8,156, with all 20 classes, all 10 training speakers, and all 200 speaker×class strata present in both partitions; index hashes match the smoke provenance. I’m committing this staging correction and a trace checkpoint before dispatch.")
+
+  == Checkpoint CP-005
+
+  This compute-dispatch checkpoint follows staging commit `96748e5`. Its
+  immutable private source has SHA-256 prefix `db4b6ce7514e`; the session
+  identifier remains `019f76ab-932b-72c2-b163-463ead65d8d5`, and the checkpoint
+  time is `2026-07-18 23:11:55.171 UTC`.
+
+  === Compute lifecycle
+
+  The sealed evaluator passed a two-utterance staged-validation audit. At
+  2026-07-18 23:11:29 UTC, two RTX 5090 pods were dispatched concurrently from
+  pinned commit `96748e5`, one for each architecture. Their actual rates are
+  0.99 USD per hour and each has a 10,800-second hard self-removal backstop,
+  limiting actual-rate exposure to 5.94 USD. No pod identifier or sensitive
+  infrastructure detail is published. The official-test seal was closed at
+  dispatch; exp068 spend before dispatch was 0 USD.
+
+  === Visible messages added in CP-005
+
+  #message-card("assistant", "2026-07-18 23:11:03.633 UTC",
+    "019f76ab-932b-72c2-b163-463ead65d8d5", "CP-005",
+    "The optimized staging checkpoint is pushed at `96748e5`. One high-risk path remains unexercised: the experiment-side sealed evaluator. I’m testing it against two staged validation utterances and the smoke checkpoint—not the official test—so shape, 20-class readout, prediction capture, subgroup logic, and checkpoint loading are proven before cloud spend.")
+
+  #message-card("assistant", "2026-07-18 23:11:27.519 UTC",
+    "019f76ab-932b-72c2-b163-463ead65d8d5", "CP-005",
+    "The sealed evaluator passes on staged validation data: it loads the selected 20-class checkpoint, emits per-sample logits and predictions, cross-entropy, accuracy, firing rates, speaker grouping, and runtime without touching official test. The tiny two-sample audit naturally has empty diagnostic groups; the full registered test contains every class and both unseen speakers.\n\nI’m crossing the authorized compute gate now: two RTX 5090 pods, one architecture each, 10,800-second hard self-removal backstops. Maximum ceiling exposure is $6.54 at the helper’s $1.09/hour cap, below the registered $10 limit.")
+
+  #message-card("assistant", "2026-07-18 23:11:49.877 UTC",
+    "019f76ab-932b-72c2-b163-463ead65d8d5", "CP-005",
+    "Both pods are provisioned at the actual rate of $0.99/hour each, so the three-hour hard-backstop exposure is $5.94 total. They are still in startup; the official-test seal remains closed. I’m checkpointing this dispatch in ar068/ar069 and PR #51 while the pods run independently under their backstops.")
 ]
