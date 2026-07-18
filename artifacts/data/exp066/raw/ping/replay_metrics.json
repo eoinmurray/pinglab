@@ -1,0 +1,22 @@
+{
+  "mode": "probe",
+  "model": "ping",
+  "config": {
+    "dt": 1.0,
+    "t_ms": 1000.0,
+    "n_in": 700,
+    "n_hidden": 256,
+    "n_inh": 64,
+    "ei_strength": 1.0,
+    "ei_ratio": 2.0,
+    "input_rate_hz": 25.0,
+    "n_batch": 3,
+    "load_weights": "raster_weights.pth"
+  },
+  "rate_e_hz": 7.799479166666667,
+  "rate_i_hz": 32.692708333333336,
+  "rates_hz": {
+    "hid": 7.799479166666667,
+    "inh": 32.692708333333336
+  }
+}

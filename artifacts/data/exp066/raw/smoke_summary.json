@@ -1,0 +1,29 @@
+{
+  "input_scale": 0.9,
+  "adjustment_used": false,
+  "cells": {
+    "coba": {
+      "passed": true,
+      "errors": [],
+      "final_loss": 3.2458807229995728,
+      "final_test_loss": 3.384113311767578,
+      "final_accuracy_pct": 10.15625,
+      "final_e_rate_hz": 20.52734375,
+      "final_i_rate_hz": 0.0,
+      "skipped_steps": 0,
+      "nan_forward_batches": 0
+    },
+    "ping": {
+      "passed": true,
+      "errors": [],
+      "final_loss": 2.8833263516426086,
+      "final_test_loss": 3.1004698872566223,
+      "final_accuracy_pct": 6.25,
+      "final_e_rate_hz": 2.53125,
+      "final_i_rate_hz": 13.0,
+      "skipped_steps": 0,
+      "nan_forward_batches": 0
+    }
+  },
+  "passed": true
+}
