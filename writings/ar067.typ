@@ -535,4 +535,62 @@
   The review-gate comment posted successfully, but `gh pr edit` hit GitHub’s deprecated Projects-classic GraphQL field before updating the title/body. I’m applying the same already-approved PR update through the REST endpoint instead; this changes only PR metadata and avoids the deprecated field.
   ```
 
+
+  == Checkpoint CP-005
+
+  This CI-validation checkpoint follows
+  #link("https://github.com/eoinmurray/pinglab/commit/f05f34a")[f05f34a].
+  Its immutable private source has SHA-256 prefix `1b4693c6ebaf`. The
+  session identifier remains `019f76ab-932b-72c2-b163-463ead65d8d5`; the
+  checkpoint time is `2026-07-18 20:24:16.978 UTC`.
+
+  === Validation milestone
+
+  Targeted type checking found and corrected every exp066 diagnostic without
+  changing scientific behavior. The refreshed evidence is at `cde899c`. The
+  repository-wide workflow still reports unrelated historical diagnostics;
+  these were documented on pull request 50 and left outside experiment scope.
+
+  === Visible messages added in CP-005
+
+  ==== Message 45: 2026-07-18 20:19:31.760 UTC | assistant
+
+  Session: `019f76ab-932b-72c2-b163-463ead65d8d5`. Checkpoint: `CP-005`.
+
+  ```text
+  PR #50 now has the completed title, Digest, exact observed spend, validation list, and timestamped publication-gate comment; it remains draft and unmerged. CP-004 has been added with private source hash prefix `c12985c69eec` and the final visible messages through the PR metadata update. I’m rebuilding and committing that last activity checkpoint, then I’ll verify the remote PR/preview state and hand off at the human gate.
+  ```
+
+  ==== Message 46: 2026-07-18 20:20:50.668 UTC | assistant
+
+  Session: `019f76ab-932b-72c2-b163-463ead65d8d5`. Checkpoint: `CP-005`.
+
+  ```text
+  The branch is clean and fully pushed at `f05f34a`; PR #50 is open, draft, and unmerged; zero pods remain. GitHub’s preview, lint, and test workflows are currently in progress on the final checkpoint. I’ll wait for those checks so the rendered links are verified rather than merely predicted; if a check fails, I’ll inspect it before the final handoff.
+  ```
+
+  ==== Message 47: 2026-07-18 20:21:28.596 UTC | assistant
+
+  Session: `019f76ab-932b-72c2-b163-463ead65d8d5`. Checkpoint: `CP-005`.
+
+  ```text
+  The final GitHub lint check failed while preview and tests are still running. I’m applying the GitHub CI-fix workflow now: inspect the failing Actions log first, identify whether it is caused by exp066/ar067, and make only a scoped correction if needed.
+  ```
+
+  ==== Message 48: 2026-07-18 20:22:07.826 UTC | assistant
+
+  Session: `019f76ab-932b-72c2-b163-463ead65d8d5`. Checkpoint: `CP-005`.
+
+  ```text
+  The lint root cause is mixed: 11 diagnostics predate exp066 in unchanged files, while 7 are new type-inference errors in `exp066.py` caused by the heterogeneous `COMMON` dictionary and unannotated error lists. The focused fix is to introduce typed scalar constants for arithmetic/arguments and annotate the validation lists; it does not change runtime values or scientific behavior. This correction is already within the original mandate to complete and validate exp066, so I’m applying only those exp066 fixes and will run `ty check experiments/exp066.py` locally before pushing. I will not touch the unrelated historical diagnostics.
+  ```
+
+  ==== Message 49: 2026-07-18 20:24:16.978 UTC | assistant
+
+  Session: `019f76ab-932b-72c2-b163-463ead65d8d5`. Checkpoint: `CP-005`.
+
+  ```text
+  The exp066 type errors are fixed and targeted `ty`, Ruff, and compile checks pass. Evidence provenance is refreshed and pushed at `cde899c`. The repository-wide lint workflow still has 11 unrelated pre-existing diagnostics in exp041/048/054/065 and older tests; changing those would expand beyond exp066, so I’m not modifying them. I’ll record that residual CI state on PR #50, verify the preview deployment, and add the final activity checkpoint.
+  ```
+
 ]
