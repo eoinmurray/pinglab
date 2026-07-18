@@ -183,4 +183,73 @@
   #message-card("assistant", "2026-07-18 22:50:54.407 UTC",
     "019f76ab-932b-72c2-b163-463ead65d8d5", "CP-002",
     "Mandate approved. I’m locking `ar068`, `ar069`, and the reserved `exp068` ID on `main` now, including a hash-linked approval checkpoint. Only after that preregistration commit is pushed will I create the dedicated night branch or run the local smoke.")
+
+  == Checkpoint CP-003
+
+  This implementation-and-smoke checkpoint follows the mandate anchor
+  `2ee03ac`. Its immutable private source has SHA-256 prefix
+  `ade35e683d6f`; the session identifier remains
+  `019f76ab-932b-72c2-b163-463ead65d8d5`, and the checkpoint time is
+  `2026-07-18 23:04:58.048 UTC`.
+
+  === Milestone ledger
+
+  + The approved mandate was committed and pushed to `main` at `2ee03ac`; the
+    night branch was created from that exact anchor.
+  + The initial combined cleanup command was rejected locally because it used a
+    force-removal flag. Nothing ran; the build and explicit cleanup then
+    succeeded without discarding user work.
+  + The runner initially violated the repository's experiment import gate by
+    importing the engine model module directly. Focused checks caught this
+    before compute. Engine access now routes through the existing tool
+    entrypoint; `tools/snn` remains unchanged.
+  + Runner-controlled staging produced a deterministic joint speaker/class
+    split with 7,340 development-training and 816 validation utterances. The
+    official test is unavailable until both checkpoint-freeze flags exist.
+  + Experiment-side epoch instrumentation implements the registered selection
+    order: highest validation accuracy, lower validation cross-entropy, then
+    earlier epoch.
+  + The local two-epoch smoke passed both matched cells with finite active
+    dynamics and no skipped or non-finite updates. Its accuracy values are
+    plumbing diagnostics only.
+  + Targeted Ruff, `ty`, compilation, and the two-pod dry run pass. No cloud pod
+    has been created; exp068 spend remains 0 USD.
+
+  === Visible messages added in CP-003
+
+  #message-card("assistant", "2026-07-18 22:51:23.100 UTC",
+    "019f76ab-932b-72c2-b163-463ead65d8d5", "CP-003",
+    "The combined validation command was rejected by the safety wrapper because it contained force-removal syntax for known build byproducts. Nothing ran. I’ll rerun the build and cleanup as separate, explicit operations without force flags.")
+
+  #message-card("assistant", "2026-07-18 22:52:15.269 UTC",
+    "019f76ab-932b-72c2-b163-463ead65d8d5", "CP-003",
+    "The mandate is now immutably preregistered on `main` at `2ee03ac`, authored solely as Eoin. I’m creating `night/spiking-heidelberg-digits/ar068` from that exact commit. The registered exposure is one local smoke, two concurrent pods maximum, approximately three hours each, and $10 total; current exp068 spend is $0 with zero pods active.")
+
+  #message-card("assistant", "2026-07-18 22:52:25.660 UTC",
+    "019f76ab-932b-72c2-b163-463ead65d8d5", "CP-003",
+    "The night branch is created from the exact locked commit. I’m mapping the existing SHD loader, trainer outputs, checkpoint behavior, and RunPod helper before implementing; the key requirement is to substitute validation for the trainer’s per-epoch “test” split and keep the official test physically unavailable until both selected checkpoints are frozen.")
+
+  #message-card("assistant", "2026-07-18 22:55:22.134 UTC",
+    "019f76ab-932b-72c2-b163-463ead65d8d5", "CP-003",
+    "The existing trainer does not preserve every epoch checkpoint, so its default “first strict accuracy improvement” rule cannot satisfy the registered validation tie-break. Without touching `tools/snn`, I’m adding experiment-side checkpoint instrumentation: at each emitted validation epoch, `exp068.py` snapshots the live model only when the registered lexicographic rule improves (accuracy, then loss, then earlier epoch). The runner will replace the CLI’s deployment checkpoint with that explicitly selected state before any sealed-test evaluation.")
+
+  #message-card("assistant", "2026-07-18 22:58:49.978 UTC",
+    "019f76ab-932b-72c2-b163-463ead65d8d5", "CP-003",
+    "The first focused checks exposed two implementation issues before any compute: unused publication imports, and the repository’s experiment gate correctly rejected a direct `models` import. I’m keeping the no-`tools/snn` constraint by routing all engine access through `tools/snn/tool.py`’s existing re-exports, while retaining runner-side split, checkpoint selection, and sealed evaluation. The two-pod dry run itself is correct and created nothing.")
+
+  #message-card("assistant", "2026-07-18 22:59:45.213 UTC",
+    "019f76ab-932b-72c2-b163-463ead65d8d5", "CP-003",
+    "The runner now passes targeted Ruff, `ty`, compilation, and the two-pod dry run. I’m starting the registered local 128-train/128-validation, two-epoch plumbing smoke. It will stage the joint speaker/class split, run COBA then PING, enforce the registered checkpoint rule, and restore the host’s cached official files afterward. These smoke metrics are not scientific evidence.")
+
+  #message-card("assistant", "2026-07-18 23:00:28.893 UTC",
+    "019f76ab-932b-72c2-b163-463ead65d8d5", "CP-003",
+    "The smoke split staged correctly: COBA sees exactly 128 development-training and 128 validation utterances, with the registered 256E/64I configuration and finite initial activity. Epoch 1 is compiling/training now; no official-test data are involved.")
+
+  #message-card("assistant", "2026-07-18 23:02:54.398 UTC",
+    "019f76ab-932b-72c2-b163-463ead65d8d5", "CP-003",
+    "COBA smoke completed cleanly: finite two-epoch training, active E population (~24 Hz), zero I as configured, and the registered selector froze epoch 1 at 11.7% validation accuracy. PING is now training with the same staged indices and its registered 1000 dampening; its initial E/I activity is finite and active. Accuracy remains plumbing-only.")
+
+  #message-card("assistant", "2026-07-18 23:04:34.734 UTC",
+    "019f76ab-932b-72c2-b163-463ead65d8d5", "CP-003",
+    "The registered smoke passed both cells with the original locked recipe: COBA selected epoch 1 at 11.72% validation accuracy with 23.93 Hz E activity; PING selected epoch 2 at 10.16% with 2.95 Hz E and 14.56 Hz I activity. All losses and diagnostics were finite, no updates were skipped, and both staged splits used the same index hashes. These numbers are plumbing evidence only. I’m verifying the host’s official SHD cache was restored, then checkpointing the implementation and smoke record before any cloud dispatch.")
 ]
