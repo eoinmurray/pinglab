@@ -252,4 +252,44 @@
   #message-card("assistant", "2026-07-18 23:04:34.734 UTC",
     "019f76ab-932b-72c2-b163-463ead65d8d5", "CP-003",
     "The registered smoke passed both cells with the original locked recipe: COBA selected epoch 1 at 11.72% validation accuracy with 23.93 Hz E activity; PING selected epoch 2 at 10.16% with 2.95 Hz E and 14.56 Hz I activity. All losses and diagnostics were finite, no updates were skipped, and both staged splits used the same index hashes. These numbers are plumbing evidence only. I’m verifying the host’s official SHD cache was restored, then checkpointing the implementation and smoke record before any cloud dispatch.")
+
+  == Checkpoint CP-004
+
+  This pre-dispatch integrity checkpoint follows implementation commit
+  `ea7b80a`. Its immutable private source has SHA-256 prefix
+  `2ceed244e77d`; the session identifier remains
+  `019f76ab-932b-72c2-b163-463ead65d8d5`, and the checkpoint time is
+  `2026-07-18 23:09:44.045 UTC`.
+
+  === Integrity audit
+
+  The first full staging attempt wrote variable-length event rows in a Python
+  loop and exceeded the local command window. It created no pod, touched no
+  official-test observation, and produced no scientific result. Bulk HDF5
+  fancy indexing reduced the same full staging operation to 6.9 seconds. The
+  audited files contain exactly 7,340 development-training and 816 validation
+  utterances, all 20 classes, all 10 official-training speakers, and all 200
+  speaker-by-class strata in both partitions. The train and validation index
+  hashes match the smoke provenance.
+
+  Pull request 51 is open as a draft with the live preview and timestamped
+  smoke comment. RunPod spend remains 0 USD and zero pods are active.
+
+  === Visible messages added in CP-004
+
+  #message-card("assistant", "2026-07-18 23:05:56.450 UTC",
+    "019f76ab-932b-72c2-b163-463ead65d8d5", "CP-004",
+    "The smoke outcome and engineering corrections are now recorded in the cold-readable Record and CP-003 trace. I’m using the GitHub publish workflow to build, commit, push this exact pre-cloud runner, and open the new draft PR; that gives the live activity log a preview before the authorized compute dispatch.")
+
+  #message-card("assistant", "2026-07-18 23:07:43.260 UTC",
+    "019f76ab-932b-72c2-b163-463ead65d8d5", "CP-004",
+    "PR #51 is open as a draft with the timestamped smoke checkpoint. Before spending, I’m doing one final non-test-data plumbing audit: generate the full 7,340/816 staged files locally, verify every official-training sample appears exactly once, confirm joint speaker/class coverage, and validate the two pods would see identical index hashes. I will not inspect or evaluate the official test split.")
+
+  #message-card("assistant", "2026-07-18 23:08:35.261 UTC",
+    "019f76ab-932b-72c2-b163-463ead65d8d5", "CP-004",
+    "The full staging audit uncovered a real performance issue, not a scientific failure: writing 7,340 variable-length HDF5 rows one by one did not finish within the local command window, leaving only a temporary validation file. The split itself remains valid, but this implementation would waste pod time before training. I’m optimizing the experiment-side HDF5 subset writer in bulk and will rerun the same audit; no pod or official-test access occurred.")
+
+  #message-card("assistant", "2026-07-18 23:09:35.726 UTC",
+    "019f76ab-932b-72c2-b163-463ead65d8d5", "CP-004",
+    "The optimized writer completes the full split in 6.9 seconds. Audit results are exact: 7,340 train + 816 validation = 8,156, with all 20 classes, all 10 training speakers, and all 200 speaker×class strata present in both partitions; index hashes match the smoke provenance. I’m committing this staging correction and a trace checkpoint before dispatch.")
 ]
