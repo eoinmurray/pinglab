@@ -1,0 +1,115 @@
+{
+  "run_id": "r004",
+  "git_sha": "9cbc0fd",
+  "duration_s": 4.6,
+  "duration": "5s",
+  "chance_accuracy_pct": 5.0,
+  "success_criterion_pct": 20.0,
+  "seed": 42,
+  "input_scale_adjustment_used": false,
+  "preselected_test_positions": [
+    0,
+    1,
+    2
+  ],
+  "cells": {
+    "coba": {
+      "best_accuracy_pct": 31.0,
+      "best_epoch": 19,
+      "final_accuracy_pct": 28.4,
+      "final_train_loss": 2.3401896879076958,
+      "final_test_loss": 2.5181497782468796,
+      "final_e_rate_hz": 21.484375,
+      "final_i_rate_hz": 0.0,
+      "nan_forward_batches": 0,
+      "skipped_steps": 0,
+      "beat_chance": true,
+      "passed_registered_accuracy": true,
+      "total_elapsed_s": 534.8691592863761
+    },
+    "ping": {
+      "best_accuracy_pct": 34.7,
+      "best_epoch": 9,
+      "final_accuracy_pct": 31.7,
+      "final_train_loss": 2.417408622801304,
+      "final_test_loss": 2.4647047072649,
+      "final_e_rate_hz": 10.296875,
+      "final_i_rate_hz": 29.0,
+      "nan_forward_batches": 0,
+      "skipped_steps": 0,
+      "beat_chance": true,
+      "passed_registered_accuracy": true,
+      "total_elapsed_s": 530.8247649231926
+    }
+  },
+  "experiment_passed": true,
+  "config": {
+    "dataset": "shd",
+    "max_samples": 1000,
+    "epochs": 20,
+    "t_ms": 1000.0,
+    "dt_ms": 1.0,
+    "n_input": 700,
+    "n_classes": 20,
+    "n_hidden": 256,
+    "n_inhibitory": 64,
+    "batch_size": 32,
+    "learning_rate": 0.0004,
+    "input_weight_mean": 0.9,
+    "input_sparsity": 0.95,
+    "readout_scale": 225.0,
+    "readout": "mem-mean",
+    "seed": 42,
+    "firing_rate_regularizer": false,
+    "dales_law": true,
+    "models": [
+      "coba",
+      "ping"
+    ],
+    "test_sample_indices": [
+      0,
+      1,
+      2
+    ],
+    "recipes": {
+      "coba": {
+        "ei_strength": 0.0,
+        "v_grad_dampen": 1.0
+      },
+      "ping": {
+        "ei_strength": 1.0,
+        "v_grad_dampen": 1000.0
+      }
+    }
+  },
+  "runpod": {
+    "hourly_rate_usd": 0.99,
+    "attempt_1_observed_s": 1435.063,
+    "attempt_2_observed_s": 78.492,
+    "total_observed_s": 1513.555,
+    "total_spend_usd": 0.416227625,
+    "active_pods_after_collection": 0
+  },
+  "raster_evidence": {
+    "labels": [
+      10,
+      11,
+      7
+    ],
+    "input_event_counts": [
+      11273,
+      9386,
+      10424
+    ],
+    "cells": {
+      "coba": {
+        "e_rate_hz": 27.108072916666668,
+        "i_rate_hz": 0.0
+      },
+      "ping": {
+        "e_rate_hz": 7.799479166666667,
+        "i_rate_hz": 32.692708333333336
+      }
+    }
+  }
+}

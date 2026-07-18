@@ -1,0 +1,14 @@
+{
+  "raw/coba/matched_rasters.npz": "940ea5a280b98805e4a75b8cd79966ecbd41c0c823d9c0c7839e3f1680409fe7",
+  "raw/coba/metrics.json": "708d0897fd4331ea59cfc55990ca2ce9be6a1e57fa315722dd4c64bbab696658",
+  "raw/coba/metrics.jsonl": "8322fceeb2c12c0b1742197864dc4029f71b1d187b294e0b74f0bd5c49768a80",
+  "raw/coba/replay_metrics.json": "8274b195cf68852c07c59e795ea65100dbaddec28155252019efa5e2d55d3829",
+  "raw/coba/test_predictions.json": "f4a92bcaa5a6b95e268ffa7843c0a1773121fc36345c904c234fb5c5628cf259",
+  "raw/matched_input.npz": "88623ffa90a58c5da90c9232eb1245135011330f85e3db3d1ff80080ab1d8dda",
+  "raw/ping/matched_rasters.npz": "ac1efb6f1a775a36af2c50bd9dfd90383fb67132b927fe7917c76603b3c1e15c",
+  "raw/ping/metrics.json": "8357da0231a0eac1e5dd61e043dc5355948ba76d62545c1ed0100b918413c15b",
+  "raw/ping/metrics.jsonl": "abf880a176995570f60f5f368879e536f50462a7b6e80bc58c17786b7801244e",
+  "raw/ping/replay_metrics.json": "0e997cfc11b9359035978c8fafdc9595978a344e38d6d1a8bede40a6b9ee62cf",
+  "raw/ping/test_predictions.json": "387591fa1817918133adaef6784b0bd65700920d5cfa9f81ce4071c4543167ea",
+  "raw/smoke_summary.json": "3cbc62cdaa0ee7e16ebbb6c7d3f7c0fa003fad2729107c7f3e2eb5bfa56a7c48"
+}
