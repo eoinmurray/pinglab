@@ -1,0 +1,39 @@
+{
+  "slug": "exp066",
+  "run_id": "r004",
+  "run_at": "2026-07-18T20:13:50+00:00",
+  "git_sha": "9cbc0fd",
+  "dirty": true,
+  "code_dirty": false,
+  "patch": null,
+  "host": "local",
+  "scale": {
+    "dataset": "shd",
+    "max_samples": 1000,
+    "epochs": 20,
+    "t_ms": 1000.0,
+    "dt_ms": 1.0,
+    "n_input": 700,
+    "n_classes": 20,
+    "n_hidden": 256,
+    "n_inhibitory": 64,
+    "batch_size": 32,
+    "learning_rate": 0.0004,
+    "input_weight_mean": 0.9,
+    "input_sparsity": 0.95,
+    "readout_scale": 225.0,
+    "readout": "mem-mean",
+    "seed": 42,
+    "firing_rate_regularizer": false,
+    "dales_law": true,
+    "models": [
+      "coba",
+      "ping"
+    ],
+    "test_sample_indices": [
+      0,
+      1,
+      2
+    ]
+  }
+}

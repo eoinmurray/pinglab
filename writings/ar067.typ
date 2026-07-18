@@ -409,4 +409,88 @@
   Local validation confirms both registered training cells completed successfully: COBA best accuracy 31.0% (final 28.4%), PING best 34.7% (final 31.7%), with finite losses, active populations, zero skipped steps, and zero non-finite batches. The first pod was observable from 19:32:30 to 19:56:25 UTC at $0.99/hour, giving $0.394642 of observed billed exposure; I’ll reconcile that against any provider billing record before calling it exact. This attempt established the learning result but failed the raster deliverable, so I’m recording it as an incomplete attempt and creating CP-002 before the raster-only retry.
   ```
 
+
+  == Checkpoint CP-003
+
+  This milestone checkpoint follows commit
+  #link("https://github.com/eoinmurray/pinglab/commit/f384c77")[f384c77].
+  Its immutable private source has SHA-256 prefix `ae0d589ce51c`. The
+  session identifier remains `019f76ab-932b-72c2-b163-463ead65d8d5`; the
+  checkpoint time is `2026-07-18 20:13:25.451 UTC`.
+
+  === Scientific milestone
+
+  The second cloud snapshot attempt also failed, and all pods were reaped.
+  No further cloud action was taken. A local replay used the existing CLI
+  arbitrary-input interface with the exact preselected SHD spikes and the
+  trained input/recurrent weights. It emitted validated matched E/I rasters
+  for both cells. The final evidence packet confirms the registered one-seed
+  feasibility result and is published under `artifacts/data/exp066`.
+
+  === Visible messages added in CP-003
+
+  ==== Message 34: 2026-07-18 19:59:48.751 UTC | assistant
+
+  Session: `019f76ab-932b-72c2-b163-463ead65d8d5`. Checkpoint: `CP-003`.
+
+  ```text
+  The incomplete first attempt and CP-002 are committed and pushed at `f384c77`. I’m launching the second and final permitted attempt for these cells now. The pushed runner validates and reuses the 20-epoch weights, explicitly activates SHD input, and captures only test positions 0, 1, and 2 for each model. One pod, no retraining, and the same two-hour backstop.
+  ```
+
+  ==== Message 35: 2026-07-18 20:01:15.957 UTC | assistant
+
+  Session: `019f76ab-932b-72c2-b163-463ead65d8d5`. Checkpoint: `CP-003`.
+
+  ```text
+  The raster-only retry started, reused the validated weights, and self-removed within about a minute; there are again zero active pods. I’m collecting and validating all six SHD snapshots now. If they pass, the total observed exposure for this second pod will be added to the first attempt and no further RunPod action will occur.
+  ```
+
+  ==== Message 36: 2026-07-18 20:01:50.868 UTC | assistant
+
+  Session: `019f76ab-932b-72c2-b163-463ead65d8d5`. Checkpoint: `CP-003`.
+
+  ```text
+  The six snapshots still failed. The retry did activate SHD correctly, but the CLI’s single-sample snapshot path then aborted before writing data; the run log shows the configured SHD replay started and stopped immediately. I will not edit `tools/snn`. I’m checking the CLI’s separate batch `--outputs rasters` capability, which can record the preselected first three test positions from the same weights without changing the design or spending more cloud money. If that existing path works locally, the registered evidence packet can still be completed within authority.
+  ```
+
+  ==== Message 37: 2026-07-18 20:03:22.635 UTC | assistant
+
+  Session: `019f76ab-932b-72c2-b163-463ead65d8d5`. Checkpoint: `CP-003`.
+
+  ```text
+  The second cloud evidence attempt is a recorded failure and no further pod will be created. Its start-to-removal exposure is being added to the cost ledger. I’m checkpointing that killed attempt now, then I’ll implement the local arbitrary-input replay in `exp066.py`, using the official SHD test positions 0–2 binned exactly at 1 ms and the existing CLI batch-raster output.
+  ```
+
+  ==== Message 38: 2026-07-18 20:05:32.993 UTC | assistant
+
+  Session: `019f76ab-932b-72c2-b163-463ead65d8d5`. Checkpoint: `CP-003`.
+
+  ```text
+  The batch-raster route reached the saved model but hit a readout-only shape mismatch: the probe builder defaults to 10 outputs while SHD training has 20. The hidden E/I dynamics needed for rasters are unaffected by the readout. I can keep using the existing CLI by supplying a derived checkpoint with only the incompatible readout tensor omitted; all input and recurrent weights remain the trained values, and raster generation does not consume the classifier readout. This is an experiment-side replay adaptation, not a CLI or scientific-design change.
+  ```
+
+  ==== Message 39: 2026-07-18 20:06:37.178 UTC | assistant
+
+  Session: `019f76ab-932b-72c2-b163-463ead65d8d5`. Checkpoint: `CP-003`.
+
+  ```text
+  The local existing-CLI replay succeeded for both models on the exact official SHD test positions 0–2. It emitted matched sparse E/I rasters from the trained input/recurrent weights; the 20-class readout was deliberately omitted only from this dynamics-only replay because the probe builder has a 10-class output head. COBA replay rates are 27.1 Hz E and 0 Hz I; PING rates are 7.8 Hz E and 32.7 Hz I. I’m now publishing the validated artifact packet and figures from these recorded files.
+  ```
+
+  ==== Message 40: 2026-07-18 20:12:36.047 UTC | assistant
+
+  Session: `019f76ab-932b-72c2-b163-463ead65d8d5`. Checkpoint: `CP-003`.
+
+  ```text
+  The final packet is published under `artifacts/data/exp066` with raw metrics, sparse rasters, the exact matched input tensor, SHA-256 inventory, provenance manifest, reproducer, curves, diagnostics, and raster figure. I’m visually inspecting the raster panel and then building both `exp066.typ` and the updated timestamped `ar066.typ`; any presentation defect will be fixed before the final commits.
+  ```
+
+  ==== Message 41: 2026-07-18 20:13:25.451 UTC | assistant
+
+  Session: `019f76ab-932b-72c2-b163-463ead65d8d5`. Checkpoint: `CP-003`.
+
+  ```text
+  The raster figure passes visual inspection and the full build succeeds with 32 entries. A final privacy scan caught two local absolute paths inside copied replay-metrics JSON. I’m fixing the publisher to normalize those fields to the derived checkpoint basename, then I’ll republish and rerun the fail-closed sensitive-pattern scan before committing any artifacts.
+  ```
+
 ]

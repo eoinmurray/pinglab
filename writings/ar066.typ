@@ -13,18 +13,34 @@
       baseline: "The 5% chance floor for SHD's 20 classes; both models must exceed 20% test accuracy in the pilot.",
       seeds: 1,
       budget: "One local smoke stage plus at most two RunPod training attempts per model; 2 h per attempt and $40 total RunPod spend.",
-      status: "running",
+      status: "done",
       origin: "human",
     ),
   ),
 )
 
+#let r = json("/artifacts/data/exp066/numbers.json")
+
 #let body = [
   == Digest
 
-  This section is intentionally empty until the shift finishes. It will report
-  what completed, what failed its registered criterion, the compute used, and
-  the next question worth testing.
+  The single queued experiment is confirmed at its registered feasibility bar.
+  COBA reaches #(r.cells.coba.best_accuracy_pct)% best held-out accuracy and PING
+  reaches #(r.cells.ping.best_accuracy_pct)%, both above the
+  #(r.success_criterion_pct)% criterion and #(r.chance_accuracy_pct)% chance
+  floor. Neither run records a skipped update or non-finite forward batch, and
+  matched replays of the same preselected SHD utterances produce active,
+  directly comparable input and E/I rasters. The shared input-scale adjustment
+  was not used.
+
+  Two cloud evidence-capture attempts failed after the valid training runs: the
+  first did not activate SHD input during replay, and the second reached SHD but
+  stopped in the single-sample snapshot path. The evidence packet was completed
+  locally with the existing arbitrary-input batch interface and the same saved
+  weights. RunPod spend was #calc.round(r.runpod.total_spend_usd, digits: 2) USD,
+  with #(r.runpod.active_pods_after_collection) active pods at shift end. One
+  seed on a small subset establishes feasibility only; a later mandate would
+  need multiple seeds and full-scale data before comparing architectures.
 
   == Mandate
 
@@ -192,4 +208,22 @@
   excitatory and inhibitory rasters. A local, non-training replay through that
   interface is the remaining in-scope route to complete the evidence packet
   without changing the registered design or editing the SNN CLI.
+
+  === 2026-07-18 20:05–20:10 UTC: local matched replay and conclusion
+
+  The official SHD test utterances at the three preselected positions were
+  binned at the registered timestep and replayed identically through each
+  trained cell's input and recurrent weights. The existing batch interface
+  emitted all requested sparse E/I rasters. It constructs a ten-class probe
+  readout, so the incompatible trained 20-class readout tensor was omitted from
+  this dynamics-only replay; the readout has no feedback into the hidden E/I
+  populations. Commit
+  #link("https://github.com/eoinmurray/pinglab/commit/ed75220")[ed75220]
+  records this experiment-side adaptation.
+
+  The final evidence packet passes the registered criteria. COBA and PING both
+  exceed #(r.success_criterion_pct)% held-out accuracy, their losses and activity
+  diagnostics remain finite, and the fixed-utterance rasters expose the expected
+  disabled-I COBA and active-E/I PING dynamics. The result is confirmed for the
+  registered feasibility question, subject to the one-seed limitation.
 ]
