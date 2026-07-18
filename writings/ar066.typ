@@ -178,4 +178,18 @@
   #link("https://github.com/eoinmurray/pinglab/commit/b40d0ed")[b40d0ed]
   makes dataset selection explicit during replay and makes the next attempt
   reuse validated training cells rather than train them again.
+
+  === 2026-07-18 19:59–20:01 UTC: pilot evidence attempt 2
+
+  The second RunPod attempt reused both validated training cells and activated
+  SHD input, but the existing single-sample inference path stopped before
+  emitting a spike snapshot. Both training results remained intact and no model
+  was retrained. This exhausts the planned cloud evidence-capture attempts; no
+  further pod will be created.
+
+  The existing CLI also provides an arbitrary-spike-input batch probe that can
+  replay the same fixed SHD utterances through saved weights and emit sparse
+  excitatory and inhibitory rasters. A local, non-training replay through that
+  interface is the remaining in-scope route to complete the evidence packet
+  without changing the registered design or editing the SNN CLI.
 ]
