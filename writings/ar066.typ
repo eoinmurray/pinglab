@@ -156,10 +156,26 @@
   not alter a scientific setting or require a rerun. The runner and corrected
   gate are recorded in #link("https://github.com/eoinmurray/pinglab/commit/e42b264")[commit e42b264].
 
-  === 2026-07-18 19:32 UTC: pilot dispatch attempt 1
+  === 2026-07-18 19:30–19:31 UTC: pilot dispatch attempt 1
 
   The first pilot dispatch created no pod because the local dispatch host did
   not have the deployment public key expected by the existing RunPod helper.
   No model ran and no RunPod charge accrued. This was an infrastructure abort,
   not an observation of either registered cell.
+
+  === 2026-07-18 19:32–19:56 UTC: pilot attempt 1
+
+  Both registered 20-epoch training cells completed and exceeded the accuracy
+  criterion. COBA and PING remained finite and active, and neither cell recorded
+  a skipped update or non-finite forward batch. This establishes the learning
+  portion of the evidence packet for seed 42.
+
+  The attempt did not complete the registered evidence packet because the
+  post-training replay inherited the trained configuration but did not activate
+  SHD dataset input. It therefore emitted no SHD spike snapshot. The training
+  artifacts are valid, but the attempt is incomplete because the matched input,
+  excitatory, and inhibitory rasters are missing. Commit
+  #link("https://github.com/eoinmurray/pinglab/commit/b40d0ed")[b40d0ed]
+  makes dataset selection explicit during replay and makes the next attempt
+  reuse validated training cells rather than train them again.
 ]
