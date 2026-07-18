@@ -339,5 +339,74 @@
   ```text
   I’ll add a separate timestamped activity-log article on the existing branch and checkpoint it before continuing the experiment. Privacy takes precedence over verbatim publication where the transcript contains infrastructure identifiers: the private raw copy will remain outside the repository with a SHA-256 prefix recorded, while the publishable transcript will preserve message text and order but redact only sensitive substrings. I’ll fail closed if I cannot identify the authoritative session transcript or sanitize it confidently. The running pod remains under its existing self-removal backstop while I checkpoint.
   ```
-]
 
+  == Checkpoint CP-002
+
+  This milestone checkpoint follows commit
+  #link("https://github.com/eoinmurray/pinglab/commit/b40d0ed")[b40d0ed].
+  Its immutable private source has SHA-256 prefix `8b91a098c680`. The
+  session identifier remains `019f76ab-932b-72c2-b163-463ead65d8d5`; the
+  checkpoint time is `2026-07-18 19:57:21.392 UTC`.
+
+  === Scientific milestone
+
+  The first billable pilot attempt completed both registered training cells.
+  COBA reached 31.0% best test accuracy and PING reached 34.7%; both remained
+  finite and active with no skipped updates or non-finite forward batches.
+  The attempt did not finish the evidence packet because replay failed to
+  activate SHD input and produced no rasters. The next permitted attempt will
+  reuse the validated weights and capture only the missing preselected rasters.
+  Observed provider exposure for the first pod was 0.394642 USD pending final
+  reconciliation against provider billing.
+
+  === Visible messages added in CP-002
+
+  ==== Message 28: 2026-07-18 19:50:13.400 UTC | assistant
+
+  Session: `019f76ab-932b-72c2-b163-463ead65d8d5`. Checkpoint: `CP-002`.
+
+  ```text
+  The authoritative session JSONL is identified, copied outside the repository with read-only permissions, and hashed. Its SHA-256 prefix is `f85b936a4a2e`; the public checkpoint will identify session `019f76ab-932b-72c2-b163-463ead65d8d5` as `CP-001`. Sanitization found three publishable-message exposures: a private workspace/home path, an SSH public-key path, and a live pod identifier. Those exact substrings will be replaced with explicit redaction markers; all other visible wording and chronology will remain intact.
+  ```
+
+  ==== Message 29: 2026-07-18 19:51:03.154 UTC | assistant
+
+  Session: `019f76ab-932b-72c2-b163-463ead65d8d5`. Checkpoint: `CP-002`.
+
+  ```text
+  `writings/ar067.typ` now contains CP-001 with 27 timestamped visible messages, per-message role/session/checkpoint metadata, a scientific ledger, pending work, explicit redaction markers, and the private source hash prefix. I’m building it now and will commit the checkpoint together with the already-described replay correction and timestamp normalization, so the repository state matches the activity log at the checkpoint.
+  ```
+
+  ==== Message 30: 2026-07-18 19:51:41.812 UTC | assistant
+
+  Session: `019f76ab-932b-72c2-b163-463ead65d8d5`. Checkpoint: `CP-002`.
+
+  ```text
+  CP-001 is built, validated, committed as `b40d0ed`, and pushed to `autoresearch/shd`; PR #50’s preview workflow has been triggered. The public article passed the sensitive-pattern scan, and the raw immutable transcript remains outside the repo with hash prefix `f85b936a4a2e`. I’m returning to the pilot now and will add CP-002 at the next meaningful milestone, hash-linked to commit `b40d0ed`.
+  ```
+
+  ==== Message 31: 2026-07-18 19:51:56.675 UTC | assistant
+
+  Session: `019f76ab-932b-72c2-b163-463ead65d8d5`. Checkpoint: `CP-002`.
+
+  ```text
+  PING has now crossed the registered criterion as well: epoch 10 reports 27.7% test accuracy, finite loss, 6.71 Hz test E rate, 28.5 Hz test I rate, and no skipped or non-finite batches. Both cells therefore provisionally satisfy the accuracy/activity criteria; I’m letting the remaining registered epochs finish before concluding.
+  ```
+
+  ==== Message 32: 2026-07-18 19:56:36.035 UTC | assistant
+
+  Session: `019f76ab-932b-72c2-b163-463ead65d8d5`. Checkpoint: `CP-002`.
+
+  ```text
+  The first billable pod has self-removed, so active pod count is zero. Both 20-epoch training cells completed, but—as expected from the replay bug—no SHD snapshots were produced. I’m collecting the durable training artifacts now, validating both complete cells locally, and then I’ll commit this failed evidence-capture attempt before launching the permitted second attempt solely for the missing rasters.
+  ```
+
+  ==== Message 33: 2026-07-18 19:57:21.392 UTC | assistant
+
+  Session: `019f76ab-932b-72c2-b163-463ead65d8d5`. Checkpoint: `CP-002`.
+
+  ```text
+  Local validation confirms both registered training cells completed successfully: COBA best accuracy 31.0% (final 28.4%), PING best 34.7% (final 31.7%), with finite losses, active populations, zero skipped steps, and zero non-finite batches. The first pod was observable from 19:32:30 to 19:56:25 UTC at $0.99/hour, giving $0.394642 of observed billed exposure; I’ll reconcile that against any provider billing record before calling it exact. This attempt established the learning result but failed the raster deliverable, so I’m recording it as an incomplete attempt and creating CP-002 before the raster-only retry.
+  ```
+
+]
