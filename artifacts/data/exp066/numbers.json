@@ -1,8 +1,8 @@
 {
-  "run_id": "r004",
-  "git_sha": "9cbc0fd",
-  "duration_s": 4.6,
-  "duration": "5s",
+  "run_id": "r005",
+  "git_sha": "d811180",
+  "duration_s": 4.1,
+  "duration": "4s",
   "chance_accuracy_pct": 5.0,
   "success_criterion_pct": 20.0,
   "seed": 42,
