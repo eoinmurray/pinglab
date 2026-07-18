@@ -24,16 +24,21 @@ from pathlib import Path
 from typing import Any, Iterator
 
 import h5py
+import matplotlib.pyplot as plt
 import numpy as np
 
 REPO = Path(__file__).resolve().parents[1]
 SNN = REPO / "tools" / "snn"
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from helpers import runpod  # noqa: E402
+from helpers import runpod, theme  # noqa: E402
 from helpers.cli import parse_meta  # noqa: E402
 from helpers.datasets import _SHD_URLS, _shd_h5  # noqa: E402
+from helpers.figsave import save_figure  # noqa: E402
+from helpers.numbers import write_numbers  # noqa: E402
 from helpers.paths import artifacts_and_figures  # noqa: E402
+from helpers.run_dirs import published_run  # noqa: E402
+from helpers.run_id import next_run_id  # noqa: E402
 
 SLUG = "exp068"
 ARTIFACTS, FIGURES = artifacts_and_figures(SLUG)
@@ -664,6 +669,297 @@ def run_via_runpod(meta: Any) -> None:
     )
 
 
+def load_json(path: Path) -> dict[str, Any]:
+    return json.loads(path.read_text())
+
+
+def validate_collected() -> dict[str, Any]:
+    errors: list[str] = []
+    cells: dict[str, Any] = {}
+    frozen = {model: load_json(FROZEN_ROOT / f"{model}.json") for model in MODELS}
+    for model in MODELS:
+        out = cell_dir(CELL_ROOT, model)
+        errors.extend(f"{model}: {error}" for error in validate_training(model, out, smoke=False))
+        for relative in (
+            "complete.json",
+            "official_test/metrics.json",
+            "official_test/predictions.json",
+            "official_test/matched_input.npz",
+            "official_test/matched_rasters/rasters.npz",
+        ):
+            if not (out / relative).exists():
+                errors.append(f"{model}: missing {relative}")
+        if not errors:
+            cells[model] = {
+                "training": load_json(out / "metrics.json"),
+                "selection": load_json(out / "checkpoint_selection.json"),
+                "official": load_json(out / "official_test/metrics.json"),
+                "frozen": frozen[model],
+            }
+    if frozen["coba"]["split_train_indices_sha256"] != frozen["ping"]["split_train_indices_sha256"]:
+        errors.append("cells used different development-training indices")
+    if frozen["coba"]["split_validation_indices_sha256"] != frozen["ping"]["split_validation_indices_sha256"]:
+        errors.append("cells used different validation indices")
+    if cells:
+        official_hashes = {cells[model]["official"]["official_test_sha256"] for model in MODELS}
+        if len(official_hashes) != 1:
+            errors.append("cells used different official-test files")
+        latest_freeze = max(frozen[model]["frozen_at"] for model in MODELS)
+        for model in MODELS:
+            if cells[model]["official"]["evaluated_at"] <= latest_freeze:
+                errors.append(f"{model}: official test preceded paired checkpoint freeze")
+            predictions = load_json(cell_dir(CELL_ROOT, model) / "official_test/predictions.json")
+            if len(predictions) != OFFICIAL_TEST_SIZE:
+                errors.append(f"{model}: wrong official prediction count")
+            if not all(math.isfinite(float(value)) for value in (
+                cells[model]["official"]["accuracy_pct"],
+                cells[model]["official"]["cross_entropy"],
+                cells[model]["official"]["macro_class_accuracy_pct"],
+                cells[model]["official"]["seen_speaker_accuracy_pct"],
+                cells[model]["official"]["unseen_speaker_accuracy_pct"],
+                cells[model]["official"]["e_rate_hz"],
+            )):
+                errors.append(f"{model}: non-finite official diagnostic")
+        input_hashes = {
+            sha256_file(cell_dir(CELL_ROOT, model) / "official_test/matched_input.npz")
+            for model in MODELS
+        }
+        if len(input_hashes) != 1:
+            errors.append("matched raster inputs differ")
+    if errors:
+        raise SystemExit("collected exp068 failed integrity checks:\n" + "\n".join(errors))
+    return cells
+
+
+def plot_validation_curves(cells: dict[str, Any], stem: Path) -> None:
+    theme.apply()
+    fig, axes = plt.subplots(1, 2, figsize=(6.5, 3.25))
+    styles = {"coba": (theme.DEEP_RED, "--", "s"), "ping": (theme.INK_BLACK, "-", "D")}
+    for model in MODELS:
+        epochs = cells[model]["training"]["epochs"]
+        x = [epoch["ep"] for epoch in epochs]
+        color, linestyle, marker = styles[model]
+        axes[0].plot(x, [epoch["loss"] for epoch in epochs], color=color, linestyle=linestyle,
+                     marker=marker, markevery=5, label=f"{model.upper()} train")
+        axes[0].plot(x, [epoch["test_loss"] for epoch in epochs], color=color,
+                     linestyle=":", label=f"{model.upper()} validation")
+        axes[1].plot(x, [epoch["acc"] for epoch in epochs], color=color,
+                     linestyle=linestyle, marker=marker, markevery=5, label=model.upper())
+        selected = cells[model]["selection"]
+        axes[1].scatter([selected["epoch"]], [selected["accuracy_pct"]], color=color,
+                        marker=marker, s=32, zorder=4)
+    axes[0].set(xlabel="epoch", ylabel="cross-entropy loss")
+    axes[1].set(xlabel="epoch", ylabel="validation accuracy (%)")
+    for axis in axes:
+        axis.spines[["top", "right"]].set_visible(False)
+        axis.legend(frameon=False, fontsize=7)
+    fig.tight_layout()
+    save_figure(fig, stem)
+    plt.close(fig)
+
+
+def plot_activity_curves(cells: dict[str, Any], stem: Path) -> None:
+    theme.apply()
+    fig, axes = plt.subplots(1, 2, figsize=(6.5, 3.25), sharex=True)
+    for model, color, linestyle in (
+        ("coba", theme.DEEP_RED, "--"),
+        ("ping", theme.INK_BLACK, "-"),
+    ):
+        epochs = cells[model]["training"]["epochs"]
+        x = [epoch["ep"] for epoch in epochs]
+        axes[0].plot(x, [epoch.get("test_rate_e", 0.0) for epoch in epochs],
+                     color=color, linestyle=linestyle, label=model.upper())
+        axes[1].plot(x, [epoch.get("test_rate_i", 0.0) or 0.0 for epoch in epochs],
+                     color=color, linestyle=linestyle, label=model.upper())
+    axes[0].set(xlabel="epoch", ylabel="validation E rate (Hz)")
+    axes[1].set(xlabel="epoch", ylabel="validation I rate (Hz)")
+    for axis in axes:
+        axis.spines[["top", "right"]].set_visible(False)
+        axis.legend(frameon=False)
+    fig.tight_layout()
+    save_figure(fig, stem)
+    plt.close(fig)
+
+
+def plot_test_diagnostics(cells: dict[str, Any], stem: Path) -> None:
+    theme.apply()
+    labels = ("overall", "macro class", "seen", "unseen")
+    fields = (
+        "accuracy_pct",
+        "macro_class_accuracy_pct",
+        "seen_speaker_accuracy_pct",
+        "unseen_speaker_accuracy_pct",
+    )
+    x = np.arange(len(labels))
+    width = 0.35
+    fig, axes = plt.subplots(1, 2, figsize=(6.5, 3.25))
+    for offset, model, color, hatch in (
+        (-width / 2, "coba", theme.DEEP_RED, "//"),
+        (width / 2, "ping", theme.INK_BLACK, ""),
+    ):
+        values = [cells[model]["official"][field] for field in fields]
+        axes[0].bar(x + offset, values, width, color=color, hatch=hatch, label=model.upper())
+        axes[1].scatter(
+            [cells[model]["official"]["e_rate_hz"]],
+            [cells[model]["official"]["accuracy_pct"]],
+            color=color,
+            marker="s" if model == "coba" else "D",
+            s=48,
+            label=model.upper(),
+        )
+    axes[0].set_xticks(x, labels, rotation=20, ha="right")
+    axes[0].set_ylabel("official-test accuracy (%)")
+    axes[1].set(xlabel="official-test E rate (Hz)", ylabel="official-test accuracy (%)")
+    for axis in axes:
+        axis.spines[["top", "right"]].set_visible(False)
+        axis.legend(frameon=False)
+    fig.tight_layout()
+    save_figure(fig, stem)
+    plt.close(fig)
+
+
+def plot_matched_rasters(stem: Path) -> None:
+    theme.apply()
+    input_path = cell_dir(CELL_ROOT, "coba") / "official_test/matched_input.npz"
+    input_data = np.load(input_path)
+    input_spikes = input_data["input_spikes"]
+    fig, axes = plt.subplots(6, len(RASTER_POSITIONS), figsize=(6.5, 5.5), sharex=True)
+    for col, position in enumerate(RASTER_POSITIONS):
+        for block, model in enumerate(MODELS):
+            data = np.load(cell_dir(CELL_ROOT, model) / "official_test/matched_rasters/rasters.npz")
+            e = np.zeros((int(data["T"]), int(data["n_e"])), dtype=np.uint8)
+            i = np.zeros((int(data["T"]), int(data["n_i"])), dtype=np.uint8)
+            emask = data["e_trial"] == col
+            imask = data["i_trial"] == col
+            e[data["e_t"][emask], data["e_cell"][emask]] = 1
+            i[data["i_t"][imask], data["i_cell"][imask]] = 1
+            for row_offset, (array, label) in enumerate(zip((input_spikes[:, col, :], e, i),
+                                                            ("input", "E", "I"))):
+                axis = axes[block * 3 + row_offset, col]
+                timesteps, units = np.nonzero(array)
+                axis.scatter(timesteps * float(input_data["dt"]), units, s=0.25,
+                             color=theme.INK_BLACK, linewidths=0, rasterized=True)
+                if col == 0:
+                    axis.set_ylabel(f"{model.upper()} {label}", fontsize=7)
+                if block == 0 and row_offset == 0:
+                    speaker = int(input_data["speakers"][col])
+                    axis.set_title(f"position {position} · speaker {speaker}", fontsize=7)
+                axis.spines[["top", "right"]].set_visible(False)
+                axis.tick_params(labelsize=6)
+    for axis in axes[-1]:
+        axis.set_xlabel("time (ms)")
+    fig.tight_layout(h_pad=0.3, w_pad=0.5)
+    fig.savefig(stem, dpi=240, bbox_inches="tight", facecolor="white")
+    plt.close(fig)
+
+
+def interpretation(delta: float) -> str:
+    if delta >= 2.0:
+        return "promising PING accuracy claim"
+    if delta > 0.0:
+        return "weak directional PING signal"
+    return "no PING accuracy advantage"
+
+
+def publish() -> None:
+    cells = validate_collected()
+    ledger_path = SCRATCH / "compute_ledger.json"
+    if not ledger_path.exists():
+        raise SystemExit("missing compute_ledger.json with exact observed RunPod spend")
+    compute_ledger = load_json(ledger_path)
+    if int(compute_ledger.get("active_pods_after_collection", -1)) != 0:
+        raise SystemExit("compute ledger does not confirm zero active pods")
+    run_id = next_run_id(SLUG)
+    t0 = time.monotonic()
+    with published_run(SLUG, run_id, make_artifacts=True, scale=SCALE,
+                       skip_training=True) as (_, figures):
+        plot_validation_curves(cells, figures / "validation_curves")
+        plot_activity_curves(cells, figures / "activity_curves")
+        plot_test_diagnostics(cells, figures / "official_test_diagnostics")
+        plot_matched_rasters(figures / "matched_rasters.png")
+        raw = figures / "raw"
+        raw.mkdir()
+        if (SMOKE_ROOT / "smoke_summary.json").exists():
+            shutil.copy2(SMOKE_ROOT / "smoke_summary.json", raw / "smoke_summary.json")
+        shutil.copy2(ledger_path, raw / "compute_ledger.json")
+        shutil.copy2(FROZEN_ROOT / "coba.json", raw / "coba_frozen.json")
+        shutil.copy2(FROZEN_ROOT / "ping.json", raw / "ping_frozen.json")
+        for model in MODELS:
+            source = cell_dir(CELL_ROOT, model)
+            destination = raw / model
+            destination.mkdir()
+            for name in ("config.json", "metrics.json", "metrics.jsonl", "checkpoint_selection.json"):
+                shutil.copy2(source / name, destination / name)
+            for name in ("metrics.json", "predictions.json", "matched_input.npz"):
+                shutil.copy2(source / "official_test" / name, destination / f"official_{name}")
+            shutil.copy2(
+                source / "official_test/matched_rasters/rasters.npz",
+                destination / "matched_rasters.npz",
+            )
+        delta = (
+            cells["ping"]["official"]["accuracy_pct"]
+            - cells["coba"]["official"]["accuracy_pct"]
+        )
+        cell_payload: dict[str, Any] = {}
+        for model in MODELS:
+            training = cells[model]["training"]
+            official = cells[model]["official"]
+            cell_payload[model] = {
+                "selected_epoch": cells[model]["selection"]["epoch"],
+                "selected_validation_accuracy_pct": cells[model]["selection"]["accuracy_pct"],
+                "selected_validation_loss": cells[model]["selection"]["cross_entropy"],
+                "official_test": official,
+                "training_elapsed_s": training.get("total_elapsed_s"),
+                "training_peak_gpu_memory_bytes": training.get("perf", {}).get("peak_memory_bytes"),
+                "skipped_steps": sum(int(epoch.get("skipped_steps", 0)) for epoch in training["epochs"]),
+                "nan_forward_batches": sum(
+                    int(epoch.get("nan_forward_batches", 0)) for epoch in training["epochs"]
+                ),
+            }
+        payload = {
+            "result_status": "done",
+            "seed": SEED,
+            "primary": {
+                "delta_accuracy_pp": delta,
+                "interpretation": interpretation(delta),
+                "promising_threshold_pp": 2.0,
+            },
+            "cells": cell_payload,
+            "split": {
+                "official_train_count": 8156,
+                "development_train_count": 7340,
+                "validation_count": 816,
+                "official_test_count": OFFICIAL_TEST_SIZE,
+                "train_indices_sha256": cells["coba"]["frozen"]["split_train_indices_sha256"],
+                "validation_indices_sha256": cells["coba"]["frozen"]["split_validation_indices_sha256"],
+                "official_test_sha256": cells["coba"]["official"]["official_test_sha256"],
+                "unseen_speakers": list(UNSEEN_SPEAKERS),
+            },
+            "config": SCALE,
+            "integrity": {
+                "checkpoint_selection_rule": cells["coba"]["selection"]["rule"],
+                "official_test_after_both_frozen": True,
+                "matched_partitions": True,
+                "matched_raster_inputs": True,
+            },
+            "runpod": compute_ledger,
+        }
+        write_numbers(figures, run_id=run_id, duration_s=time.monotonic() - t0, payload=payload)
+        (figures / "reproduce.sh").write_text(
+            "#!/usr/bin/env bash\nset -euo pipefail\n"
+            "uv run python experiments/exp068.py\n"
+            "uv run python experiments/exp068.py --runpod\n"
+            "# Add --live only with explicit RunPod spending authority.\n"
+            "uv run python experiments/exp068.py --runpod --collect\n"
+            "uv run python experiments/exp068.py --skip-training\n"
+        )
+        hashes: dict[str, str] = {}
+        for path in sorted(raw.rglob("*")):
+            if path.is_file():
+                hashes[str(path.relative_to(figures))] = sha256_file(path)
+        atomic_json(figures / "raw_sha256.json", hashes)
+
+
 def main() -> None:
     meta = parse_meta(sys.argv, allow_dispatch=True)
     if meta.reap:
@@ -676,7 +972,8 @@ def main() -> None:
         run_via_runpod(meta)
         return
     if meta.skip_training or meta.plot_only:
-        raise SystemExit("publication is enabled only after both collected cells validate")
+        publish()
+        return
     run_smoke()
 
 
