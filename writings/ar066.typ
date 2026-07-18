@@ -13,7 +13,7 @@
       baseline: "The 5% chance floor for SHD's 20 classes; both models must exceed 20% test accuracy in the pilot.",
       seeds: 1,
       budget: "One local smoke stage plus at most two RunPod training attempts per model; 2 h per attempt and $40 total RunPod spend.",
-      status: "queued",
+      status: "running",
       origin: "human",
     ),
   ),
@@ -138,8 +138,21 @@
 
   == Record
 
-  This section is intentionally empty until the mandate is approved and
-  committed. During the shift it will record the scientific outcome of each stage,
-  including seeds, aborts, criterion failures, and anomalies. Engineering
-  details belong in the experiment commit rather than here.
+  === Local smoke stage
+
+  The registered seed-42 smoke passed for both cells at the original shared
+  input-weight scale, so the pre-registered shared adjustment was not used.
+  Both losses and all recorded diagnostics remained finite, neither optimiser
+  skipped an update, and both hidden populations were active. The COBA cell had
+  excitatory activity with its disabled inhibitory loop, while the PING cell
+  had both excitatory and inhibitory activity. The local accuracy values are
+  plumbing diagnostics only and are not evidence for the hypothesis.
+
+  The first implementation attempt incorrectly equated the fraction of cells
+  that fired at least once with saturation. Inspection showed that the COBA
+  population had a modest firing rate even though every cell fired during the
+  one-second utterance. The gate was corrected to use near-timestep-rate firing
+  as saturation, matching the meaning of the registered criterion. This did
+  not alter a scientific setting or require a rerun. The runner and corrected
+  gate are recorded in #link("https://github.com/eoinmurray/pinglab/commit/e42b264")[commit e42b264].
 ]
