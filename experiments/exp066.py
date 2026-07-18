@@ -48,7 +48,7 @@ INPUT_SCALE = 0.9
 
 COMMON = {
     "dataset": "shd", "max_samples": 1000, "epochs": 20,
-    "t_ms": 1000.0, "dt_ms": 1.0, "n_hidden": 256,
+    "t_ms": 1000.0, "dt_ms": 1.0, "n_input": 700, "n_classes": 20, "n_hidden": 256,
     "n_inhibitory": 64, "batch_size": 32, "learning_rate": 0.0004,
     "input_weight_mean": INPUT_SCALE, "input_sparsity": 0.95,
     "readout_scale": 225.0, "readout": "mem-mean", "seed": SEED,
