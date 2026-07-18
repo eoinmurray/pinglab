@@ -9,6 +9,7 @@ voltage-gradient dampening.
 
 from __future__ import annotations
 
+import hashlib
 import json
 import math
 import shutil
@@ -24,6 +25,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from helpers import runpod, theme  # noqa: E402
 from helpers.cli import parse_meta  # noqa: E402
+from helpers.datasets import load_shd_events  # noqa: E402
 from helpers.figsave import save_figure  # noqa: E402
 from helpers.numbers import write_numbers  # noqa: E402
 from helpers.paths import artifacts_and_figures  # noqa: E402
@@ -88,6 +90,58 @@ def infer_args(model: str, train: Path, out: Path, sample_idx: int) -> list[str]
         "--dataset", "shd",
         "--sample-index", str(sample_idx), "--out-dir", str(out), "--wipe-dir",
     ]
+
+
+def matched_input_path(root: Path) -> Path:
+    return root / "matched_input.npz"
+
+
+def prepare_matched_input(root: Path) -> Path:
+    """Bin the preregistered official-test positions exactly as SHD training."""
+    path = matched_input_path(root)
+    if path.exists():
+        return path
+    events, labels = load_shd_events(split="test")
+    spikes = np.zeros(
+        (int(COMMON["t_ms"] / COMMON["dt_ms"]), len(SAMPLE_INDICES), 700),
+        dtype=np.float32,
+    )
+    for trial, idx in enumerate(SAMPLE_INDICES):
+        units, times = events[idx]
+        bins = np.floor(times / (COMMON["dt_ms"] / 1000.0)).astype(np.int64)
+        keep = (bins >= 0) & (bins < spikes.shape[0]) & (units >= 0) & (units < 700)
+        spikes[bins[keep], trial, units[keep].astype(np.int64)] = 1.0
+    path.parent.mkdir(parents=True, exist_ok=True)
+    np.savez(
+        path, input_spikes=spikes,
+        labels=np.asarray([labels[i] for i in SAMPLE_INDICES], dtype=np.int64),
+        sample_indices=np.asarray(SAMPLE_INDICES, dtype=np.int64),
+        dt=np.float32(COMMON["dt_ms"]),
+    )
+    return path
+
+
+def batch_raster_args(train: Path, out: Path, input_path: Path) -> list[str]:
+    """Existing CLI arbitrary-input probe: saved weights in, sparse rasters out."""
+    return [
+        "sim", "--load-config", str(train / "config.json"),
+        "--load-weights", str(raster_weights(train)),
+        "--input-file", str(input_path), "--n-in", "700", "--n-batch", "3",
+        "--outputs", "rasters", "--out-dir", str(out), "--wipe-dir",
+    ]
+
+
+def raster_weights(train: Path) -> Path:
+    """Omit only the unused 20-class readout from the 10-class probe builder."""
+    import torch
+
+    source = train / "weights.pth"
+    derived = train / "raster_weights.pth"
+    if not derived.exists():
+        state = torch.load(source, map_location="cpu")
+        state.pop("W_ff.1")
+        torch.save(state, derived)
+    return derived
 
 
 def load_metrics(root: Path, model: str) -> dict:
@@ -157,20 +211,25 @@ def validate_cell(root: Path, model: str, *, smoke: bool, rasters: bool = False)
     _, activity_errors = finite_and_active(metrics)
     errors += activity_errors
     if rasters:
-        for idx in SAMPLE_INDICES:
-            if not (d / "rasters" / f"sample_{idx}" / "snapshot.npz").exists():
-                errors.append(f"missing raster sample {idx}")
+        raster_path = d / "matched_rasters" / "rasters.npz"
+        input_path = matched_input_path(root)
+        if not raster_path.exists():
+            errors.append("missing matched sparse rasters")
+        if not input_path.exists():
+            errors.append("missing matched input spikes")
+        if raster_path.exists() and int(np.load(raster_path)["n_trials"]) != len(SAMPLE_INDICES):
+            errors.append("matched raster trial count is wrong")
     return errors
 
 
 def capture_rasters(root: Path, model: str) -> None:
-    out = cell_dir(root, model)
-    for idx in SAMPLE_INDICES:
-        raster_out = out / "rasters" / f"sample_{idx}"
-        if (raster_out / "snapshot.npz").exists():
-            continue
-        print(f"[raster] {model} test position {idx}")
-        run_cli(infer_args(model, out, raster_out, idx))
+    train = cell_dir(root, model)
+    raster_out = train / "matched_rasters"
+    if (raster_out / "rasters.npz").exists():
+        return
+    input_path = prepare_matched_input(root)
+    print(f"[raster] {model} official SHD test positions {SAMPLE_INDICES}")
+    run_cli(batch_raster_args(train, raster_out, input_path))
 
 
 def train_cell(root: Path, model: str, *, smoke: bool, capture: bool) -> None:
@@ -284,14 +343,22 @@ def plot_rates(root: Path, stem: Path) -> None:
 def plot_rasters(root: Path, out: Path) -> None:
     theme.apply()
     fig, axes = plt.subplots(6, len(SAMPLE_INDICES), figsize=(6.5, 5.5), sharex=True)
+    input_data = np.load(matched_input_path(root))
+    input_spikes = input_data["input_spikes"]
     for col, idx in enumerate(SAMPLE_INDICES):
         for block, model in enumerate(MODELS):
-            data = np.load(cell_dir(root, model) / "rasters" / f"sample_{idx}" / "snapshot.npz")
-            arrays = (data["input_spikes"], data["spk_e"], data["spk_i"])
+            data = np.load(cell_dir(root, model) / "matched_rasters" / "rasters.npz")
+            e = np.zeros((int(data["T"]), int(data["n_e"])), dtype=np.uint8)
+            i = np.zeros((int(data["T"]), int(data["n_i"])), dtype=np.uint8)
+            em = data["e_trial"] == col
+            im = data["i_trial"] == col
+            e[data["e_t"][em], data["e_cell"][em]] = 1
+            i[data["i_t"][im], data["i_cell"][im]] = 1
+            arrays = (input_spikes[:, col, :], e, i)
             for rowoff, (arr, label) in enumerate(zip(arrays, ("input", "E", "I"))):
                 ax = axes[block * 3 + rowoff, col]
                 ts, units = np.nonzero(arr)
-                ax.scatter(ts * float(data["dt"]), units, s=0.25, color=theme.INK_BLACK,
+                ax.scatter(ts * float(input_data["dt"]), units, s=0.25, color=theme.INK_BLACK,
                            linewidths=0, rasterized=True)
                 if col == 0:
                     ax.set_ylabel(f"{model.upper()} {label}", fontsize=7)
@@ -314,11 +381,28 @@ def publish() -> None:
     t0 = time.monotonic()
     with published_run(SLUG, run_id, make_artifacts=True, scale=SCALE,
                        skip_training=True) as (artifacts, figures):
-        for model in MODELS:
-            shutil.copytree(cell_dir(PILOT_ROOT, model), artifacts / model)
         plot_learning(PILOT_ROOT, figures / "learning_curves")
         plot_rates(PILOT_ROOT, figures / "firing_rates")
         plot_rasters(PILOT_ROOT, figures / "matched_rasters.png")
+        raw = figures / "raw"
+        raw.mkdir()
+        shutil.copy2(matched_input_path(PILOT_ROOT), raw / "matched_input.npz")
+        for model in MODELS:
+            model_raw = raw / model
+            model_raw.mkdir()
+            train = cell_dir(PILOT_ROOT, model)
+            for name in ("metrics.json", "metrics.jsonl", "test_predictions.json"):
+                shutil.copy2(train / name, model_raw / name)
+            shutil.copy2(
+                train / "matched_rasters" / "rasters.npz",
+                model_raw / "matched_rasters.npz",
+            )
+            shutil.copy2(
+                train / "matched_rasters" / "metrics.json",
+                model_raw / "replay_metrics.json",
+            )
+        if (SMOKE_ROOT / "smoke_summary.json").exists():
+            shutil.copy2(SMOKE_ROOT / "smoke_summary.json", raw / "smoke_summary.json")
         cells = {}
         for model in MODELS:
             metrics = load_metrics(PILOT_ROOT, model)
@@ -339,7 +423,30 @@ def publish() -> None:
             "seed": SEED, "input_scale_adjustment_used": False,
             "preselected_test_positions": list(SAMPLE_INDICES), "cells": cells,
             "experiment_passed": all(c["passed_registered_accuracy"] for c in cells.values()),
+            "config": {**SCALE, "recipes": RECIPES},
+            "runpod": {
+                "hourly_rate_usd": 0.99,
+                "attempt_1_observed_s": 1435.063,
+                "attempt_2_observed_s": 78.492,
+                "total_observed_s": 1513.555,
+                "total_spend_usd": 0.416227625,
+                "active_pods_after_collection": 0,
+            },
         }
+        input_data = np.load(matched_input_path(PILOT_ROOT))
+        payload["raster_evidence"] = {
+            "labels": input_data["labels"].astype(int).tolist(),
+            "input_event_counts": input_data["input_spikes"].sum(axis=(0, 2)).astype(int).tolist(),
+            "cells": {},
+        }
+        for model in MODELS:
+            replay = json.loads(
+                (cell_dir(PILOT_ROOT, model) / "matched_rasters" / "metrics.json").read_text()
+            )
+            payload["raster_evidence"]["cells"][model] = {
+                "e_rate_hz": replay["rate_e_hz"],
+                "i_rate_hz": replay["rate_i_hz"],
+            }
         write_numbers(figures, run_id=run_id, duration_s=time.monotonic() - t0, payload=payload)
         (figures / "reproduce.sh").write_text(
             "#!/usr/bin/env bash\nset -euo pipefail\nuv run python experiments/exp066.py --runpod\n"
@@ -347,6 +454,11 @@ def publish() -> None:
             "uv run python experiments/exp066.py --runpod --collect\n"
             "uv run python experiments/exp066.py --skip-training\n"
         )
+        hashes = {}
+        for path in sorted(raw.rglob("*")):
+            if path.is_file():
+                hashes[str(path.relative_to(figures))] = hashlib.sha256(path.read_bytes()).hexdigest()
+        (figures / "raw_sha256.json").write_text(json.dumps(hashes, indent=2) + "\n")
 
 
 def main() -> None:
