@@ -45,16 +45,20 @@ SEED = 42
 CHANCE_PCT = 5.0
 SUCCESS_PCT = 20.0
 INPUT_SCALE = 0.9
+DT_MS = 1.0
+T_MS = 1000.0
+N_INPUT = 700
+READOUT_MODE = "mem-mean"
 
 COMMON = {
     "dataset": "shd", "max_samples": 1000, "epochs": 20,
-    "t_ms": 1000.0, "dt_ms": 1.0, "n_input": 700, "n_classes": 20, "n_hidden": 256,
+    "t_ms": T_MS, "dt_ms": DT_MS, "n_input": N_INPUT, "n_classes": 20, "n_hidden": 256,
     "n_inhibitory": 64, "batch_size": 32, "learning_rate": 0.0004,
     "input_weight_mean": INPUT_SCALE, "input_sparsity": 0.95,
-    "readout_scale": 225.0, "readout": "mem-mean", "seed": SEED,
+    "readout_scale": 225.0, "readout": READOUT_MODE, "seed": SEED,
     "firing_rate_regularizer": False, "dales_law": True,
 }
-RECIPES = {
+RECIPES: dict[str, dict[str, float]] = {
     "coba": {"ei_strength": 0.0, "v_grad_dampen": 1.0},
     "ping": {"ei_strength": 1.0, "v_grad_dampen": 1000.0},
 }
@@ -71,13 +75,13 @@ def train_args(model: str, out: Path, *, smoke: bool) -> list[str]:
         "train", "--model", "ping", "--dataset", "shd",
         "--max-samples", "128" if smoke else str(COMMON["max_samples"]),
         "--epochs", "2" if smoke else str(COMMON["epochs"]),
-        "--t-ms", str(COMMON["t_ms"]), "--dt", str(COMMON["dt_ms"]),
+        "--t-ms", str(T_MS), "--dt", str(DT_MS),
         "--n-hidden", str(COMMON["n_hidden"]), "--batch-size", str(COMMON["batch_size"]),
         "--lr", str(COMMON["learning_rate"]), "--seed", str(SEED),
         "--ei-strength", str(recipe["ei_strength"]),
         "--v-grad-dampen", str(recipe["v_grad_dampen"]),
         "--w-in", str(INPUT_SCALE), "--w-in-sparsity", str(COMMON["input_sparsity"]),
-        "--readout", COMMON["readout"],
+        "--readout", READOUT_MODE,
         "--readout-w-out-scale", str(COMMON["readout_scale"]),
         "--out-dir", str(out), "--wipe-dir",
     ]
@@ -103,20 +107,20 @@ def prepare_matched_input(root: Path) -> Path:
         return path
     events, labels = load_shd_events(split="test")
     spikes = np.zeros(
-        (int(COMMON["t_ms"] / COMMON["dt_ms"]), len(SAMPLE_INDICES), 700),
+        (int(T_MS / DT_MS), len(SAMPLE_INDICES), N_INPUT),
         dtype=np.float32,
     )
     for trial, idx in enumerate(SAMPLE_INDICES):
         units, times = events[idx]
-        bins = np.floor(times / (COMMON["dt_ms"] / 1000.0)).astype(np.int64)
-        keep = (bins >= 0) & (bins < spikes.shape[0]) & (units >= 0) & (units < 700)
+        bins = np.floor(times / (DT_MS / 1000.0)).astype(np.int64)
+        keep = (bins >= 0) & (bins < spikes.shape[0]) & (units >= 0) & (units < N_INPUT)
         spikes[bins[keep], trial, units[keep].astype(np.int64)] = 1.0
     path.parent.mkdir(parents=True, exist_ok=True)
     np.savez(
         path, input_spikes=spikes,
         labels=np.asarray([labels[i] for i in SAMPLE_INDICES], dtype=np.int64),
         sample_indices=np.asarray(SAMPLE_INDICES, dtype=np.int64),
-        dt=np.float32(COMMON["dt_ms"]),
+        dt=np.float32(DT_MS),
     )
     return path
 
@@ -167,7 +171,7 @@ def finite_and_active(metrics: dict) -> tuple[bool, list[str]]:
     # ``act`` is the fraction of cells that fired at least once over the whole
     # utterance, so 100% active is not saturation.  Saturation means firing on
     # nearly every integration step; at dt=1 ms that is near 1000 Hz.
-    if float(final.get("rate_e", 0.0)) >= 0.95 * (1000.0 / COMMON["dt_ms"]):
+    if float(final.get("rate_e", 0.0)) >= 0.95 * (1000.0 / DT_MS):
         errors.append("excitatory population is saturated")
     if RECIPES[metrics.get("cell_model", "coba")]["ei_strength"] > 0:
         rate_i = final.get("rate_i")
@@ -188,7 +192,7 @@ def validate_config(metrics: dict, model: str, *, smoke: bool) -> list[str]:
         "readout_mode": "mem-mean", "dales_law": True,
         "fr_reg_upper_theta": 0.0, "fr_reg_upper_strength": 0.0,
     }
-    errors = []
+    errors: list[str] = []
     for key, expected in want.items():
         got = cfg.get(key)
         if got != expected:
@@ -201,8 +205,11 @@ def validate_config(metrics: dict, model: str, *, smoke: bool) -> list[str]:
 
 def validate_cell(root: Path, model: str, *, smoke: bool, rasters: bool = False) -> list[str]:
     d = cell_dir(root, model)
-    errors = [f"missing {name}" for name in ("config.json", "metrics.json", "weights.pth")
-              if not (d / name).exists()]
+    errors: list[str] = [
+        f"missing {name}"
+        for name in ("config.json", "metrics.json", "weights.pth")
+        if not (d / name).exists()
+    ]
     if errors:
         return errors
     metrics = load_metrics(root, model)
