@@ -667,4 +667,37 @@
     "The artifact publisher now has a complete provenance bundle: locked split hashes, frozen checkpoint hashes, all validation/activity curves, official-test diagnostics, predictions, matched input/E/I rasters, reproducer, and raw-file hashes. Measured exposure was $2.4414148 total, well below the $10 ceiling. I’m updating the timestamped research record and validating the cold-readable report now.")
 
 
++
+  == Checkpoint CP-007
+
+  This publication checkpoint follows result commit `7671ce4`. Its immutable
+  private source has SHA-256 prefix `5844f8c17d81`; the session identifier
+  remains `019f76ab-932b-72c2-b163-463ead65d8d5`, and the checkpoint time is
+  `2026-07-19 00:35 UTC`. It is hash-linked to CP-006 by chronology and records
+  the completed artifact verification, build, push, and pull-request update.
+
+  === Publication ledger
+
+  + Twenty published raw-file hashes and the registered result assertions were
+    independently verified. Targeted Ruff, type, and compilation checks pass.
+  + The first document build exposed two presentation-only Typst interpolation
+    ambiguities. Both were corrected without changing data or interpretation;
+    the subsequent build produced 35 entries with zero stubs.
+  + The fixed matched raster was visually inspected and shows byte-identical
+    inputs, the expected empty COBA I population, and active PING E/I dynamics.
+  + Commit `7671ce4` was pushed to the existing night branch. Pull request 51
+    now contains the timestamped result/reap log and remains draft and unmerged
+    at the human publication gate.
+
+  === Visible messages added in CP-007
+
+  #message-card("assistant", "2026-07-19 00:30:46.485 UTC",
+    "019f76ab-932b-72c2-b163-463ead65d8d5", "CP-007",
+    "Focused Python checks pass, and the privacy scan found no credential, host, pod-ID, IP, SSH, or private-path leakage. The first document build caught a Typst interpolation ambiguity around “816-utterance”; I’m fixing that presentation-only syntax and rebuilding. No scientific data or interpretation changes.")
+
+  #message-card("assistant", "2026-07-19 00:32:55.233 UTC",
+    "019f76ab-932b-72c2-b163-463ead65d8d5", "CP-007",
+    "The sealed result, report, activity trace, and rendered PDFs are committed and pushed at `7671ce4`. The matched raster inspection is clean: inputs are identical by column, COBA’s disabled I rows are empty as expected, and PING shows active E/I dynamics. I’m posting the timestamped result/reap checkpoint to PR #51 and checking its preview/CI before the final review handoff.")
+
+
 ]
