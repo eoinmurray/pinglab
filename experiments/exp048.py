@@ -1003,7 +1003,7 @@ def plot_grid_and_rate(
         grid[i, j] = r["acc"]
 
     fig, (ax, curve_ax) = plt.subplots(
-        2, 1, figsize=(6.9, 8.2), gridspec_kw={"height_ratios": (1.15, 1)},
+        2, 1, figsize=(6.9, 7.1), gridspec_kw={"height_ratios": (1.15, 1)},
     )
     im = ax.imshow(
         grid, origin="lower", aspect="auto", cmap="magma",
