@@ -1,0 +1,16 @@
+{
+  "session_id": "019f76ab-932b-72c2-b163-463ead65d8d5",
+  "checkpoint_id": "CP-011",
+  "messages": [
+    {
+      "timestamp": "2026-07-19 08:16:08.625 UTC",
+      "role": "assistant",
+      "content": "Candidate 3 is committed and pushed at `e9d0332`. Even using the unreconciled one-hour maxima for both completed attempts, this final short pair can raise cumulative exposure only to $5.94, below the $10 ceiling. I’m posting the smoke milestone and dispatching exactly the registered two-job pair from the clean commit."
+    },
+    {
+      "timestamp": "2026-07-19 08:16:32.029 UTC",
+      "role": "assistant",
+      "content": "The final short candidate is live from `e9d0332`: exactly two 5090 pods at $0.99/hour, one per cell, and no third pod. One-hour backstops hold the cumulative worst-case exposure at $5.94. I’m recording the dispatch checkpoint, then monitoring to zero before collection and the final ladder decision."
+    }
+  ]
+}

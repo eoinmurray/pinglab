@@ -304,4 +304,13 @@
   19.00 Hz I. The development-only alias contained no official-test file. A
   dry run created no pod and resolved to exactly one job per cell. Candidate-3
   paid dispatch remains pending this checkpoint.
+
+  === 2026-07-19 08:16 UTC: candidate-3 dispatch
+
+  From clean commit `e9d0332`, the final dry run found zero existing pods and
+  exactly two jobs. One COBA and one PING 5090 pod were dispatched at 0.99 USD
+  per pod-hour with one-hour backstops; the verified fleet contained exactly
+  those two pods. Even using the one-hour maxima for all three short pairs, the
+  cumulative hard exposure is 5.94 USD under the authorized 10 USD ceiling.
+  Result and exact billing remain pending.
 ]
