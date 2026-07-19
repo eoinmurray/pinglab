@@ -19,6 +19,7 @@
 #let trace-ten = json("/artifacts/data/ar073/messages_cp010.json")
 #let trace-eleven = json("/artifacts/data/ar073/messages_cp011.json")
 #let trace-twelve = json("/artifacts/data/ar073/messages_cp012.json")
+#let trace-thirteen = json("/artifacts/data/ar073/messages_cp013.json")
 
 #let verbatim-prose(value) = {
   for (index, line) in value.split("\n").enumerate() {
@@ -355,4 +356,31 @@
   === Visible messages added in CP-012
 
   #for message in trace-twelve.messages { message-card(message, trace-twelve) }
+
+  == Checkpoint CP-013
+
+  *All work independent of final provider settlement is complete.* This
+  checkpoint follows aggregation commit `971e253`. Its immutable private source
+  has SHA-256 prefix `bd61a8aa2b24`, and its checkpoint time is
+  `2026-07-19 09:14:12.307 UTC`.
+
+  === Decision and action ledger
+
+  + Candidate 2's authoritative provider charge settled at 0.13992502 USD,
+    bringing the exact two-attempt subtotal to 0.39097231 USD. Its complete raw
+    data, curves, activity panels, and rasters are published.
+  + Candidate 3's curves, activity diagnostics, and matched rasters were
+    rendered directly from its already collected records while billing remains
+    pending. All three rasters passed visual inspection.
+  + Cross-attempt validation confirms five finite epochs per cell, zero skipped
+    or non-finite updates, byte-identical paired inputs, no official-test file,
+    and zero active pods.
+  + The 41-entry Demolab build passes without stubs. GitHub preview and tests
+    pass; lint remains red only from previously documented unrelated type debt.
+  + The only pending work is candidate-3 authoritative billing, final atomic
+    publication, cumulative cost insertion, rebuild, push, and review gate.
+
+  === Visible messages added in CP-013
+
+  #for message in trace-thirteen.messages { message-card(message, trace-thirteen) }
 ]

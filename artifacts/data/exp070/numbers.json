@@ -1,44 +1,163 @@
 {
-  "run_id": "r002",
-  "git_sha": "768af93",
-  "duration_s": 4.7,
-  "duration": "5s",
+  "run_id": "r004",
+  "git_sha": "971e253",
+  "duration_s": 4.3,
+  "duration": "4s",
   "result_status": "killed",
-  "stage": "short_candidate",
-  "attempt": "temporal_2ms",
+  "stage": "short_ladder",
+  "attempt": "input_scale_1p2",
+  "attempt_order": [
+    "temporal_2ms",
+    "input_scale_1p2",
+    "learning_rate_1e3"
+  ],
+  "attempts": {
+    "temporal_2ms": {
+      "result_status": "killed",
+      "attempt": "temporal_2ms",
+      "cells": {
+        "coba": {
+          "epoch": 5,
+          "validation_accuracy_pct": 23.529411764705884,
+          "validation_cross_entropy": 2.6777606193835917,
+          "validation_e_rate_hz": 14.224446614583334,
+          "validation_i_rate_hz": 0.0,
+          "gradient_norm": 96.29752014823582,
+          "saturation_threshold_hz": 475.0,
+          "skipped_steps": 0,
+          "nan_forward_batches": 0,
+          "exp069_epoch_five_accuracy_pct": 27.941176470588236,
+          "exp069_epoch_five_cross_entropy": 2.472071592624371,
+          "accuracy_gain_pp": -4.4117647058823515,
+          "cross_entropy_change": 0.20568902675922063,
+          "clears_promotion_gate": false
+        },
+        "ping": {
+          "epoch": 5,
+          "validation_accuracy_pct": 27.69607843137255,
+          "validation_cross_entropy": 2.592463099039518,
+          "validation_e_rate_hz": 6.612462660845588,
+          "validation_i_rate_hz": 29.10665594362745,
+          "gradient_norm": 0.2127902693722559,
+          "saturation_threshold_hz": 475.0,
+          "skipped_steps": 0,
+          "nan_forward_batches": 0,
+          "exp069_epoch_five_accuracy_pct": 32.59803921568628,
+          "exp069_epoch_five_cross_entropy": 2.444715765806345,
+          "accuracy_gain_pp": -4.901960784313729,
+          "cross_entropy_change": 0.1477473332331729,
+          "clears_promotion_gate": false
+        }
+      }
+    },
+    "input_scale_1p2": {
+      "result_status": "killed",
+      "attempt": "input_scale_1p2",
+      "cells": {
+        "coba": {
+          "epoch": 5,
+          "validation_accuracy_pct": 27.941176470588236,
+          "validation_cross_entropy": 2.4889209545575657,
+          "validation_e_rate_hz": 25.22035845588235,
+          "validation_i_rate_hz": 0.0,
+          "gradient_norm": 163.13089738928753,
+          "saturation_threshold_hz": 950.0,
+          "skipped_steps": 0,
+          "nan_forward_batches": 0,
+          "exp069_epoch_five_accuracy_pct": 27.941176470588236,
+          "exp069_epoch_five_cross_entropy": 2.472071592624371,
+          "accuracy_gain_pp": 0.0,
+          "cross_entropy_change": 0.01684936193319464,
+          "clears_promotion_gate": false
+        },
+        "ping": {
+          "epoch": 5,
+          "validation_accuracy_pct": 33.700980392156865,
+          "validation_cross_entropy": 2.4462467523721547,
+          "validation_e_rate_hz": 8.307329963235293,
+          "validation_i_rate_hz": 36.98692172181372,
+          "gradient_norm": 0.3025109819096068,
+          "saturation_threshold_hz": 950.0,
+          "skipped_steps": 0,
+          "nan_forward_batches": 0,
+          "exp069_epoch_five_accuracy_pct": 32.59803921568628,
+          "exp069_epoch_five_cross_entropy": 2.444715765806345,
+          "accuracy_gain_pp": 1.102941176470587,
+          "cross_entropy_change": 0.0015309865658097443,
+          "clears_promotion_gate": false
+        }
+      }
+    },
+    "learning_rate_1e3": {
+      "result_status": "killed",
+      "attempt": "learning_rate_1e3",
+      "cells": {
+        "coba": {
+          "epoch": 5,
+          "validation_accuracy_pct": 26.102941176470587,
+          "validation_cross_entropy": 2.4857632563664365,
+          "validation_e_rate_hz": 30.638202742034313,
+          "validation_i_rate_hz": 0.0,
+          "gradient_norm": 110.30740150783373,
+          "skipped_steps": 0,
+          "nan_forward_batches": 0,
+          "exp069_epoch_five_accuracy_pct": 27.941176470588236,
+          "exp069_epoch_five_cross_entropy": 2.472071592624371,
+          "accuracy_gain_pp": -1.8382352941176485,
+          "cross_entropy_change": 0.01369166374206543,
+          "clears_promotion_gate": false
+        },
+        "ping": {
+          "epoch": 5,
+          "validation_accuracy_pct": 34.19117647058823,
+          "validation_cross_entropy": 2.3299535054426928,
+          "validation_e_rate_hz": 10.16176949295343,
+          "validation_i_rate_hz": 45.26192938112745,
+          "gradient_norm": 0.21304357816343722,
+          "skipped_steps": 0,
+          "nan_forward_batches": 0,
+          "exp069_epoch_five_accuracy_pct": 32.59803921568628,
+          "exp069_epoch_five_cross_entropy": 2.444715765806345,
+          "accuracy_gain_pp": 1.5931372549019542,
+          "cross_entropy_change": -0.11476226036365222,
+          "clears_promotion_gate": false
+        }
+      }
+    }
+  },
   "seed": 42,
   "promotion_accuracy_gain_pp": 3.0,
   "cells": {
     "coba": {
       "epoch": 5,
-      "validation_accuracy_pct": 23.529411764705884,
-      "validation_cross_entropy": 2.6777606193835917,
-      "validation_e_rate_hz": 14.224446614583334,
+      "validation_accuracy_pct": 27.941176470588236,
+      "validation_cross_entropy": 2.4889209545575657,
+      "validation_e_rate_hz": 25.22035845588235,
       "validation_i_rate_hz": 0.0,
-      "gradient_norm": 96.29752014823582,
-      "saturation_threshold_hz": 475.0,
+      "gradient_norm": 163.13089738928753,
+      "saturation_threshold_hz": 950.0,
       "skipped_steps": 0,
       "nan_forward_batches": 0,
       "exp069_epoch_five_accuracy_pct": 27.941176470588236,
       "exp069_epoch_five_cross_entropy": 2.472071592624371,
-      "accuracy_gain_pp": -4.4117647058823515,
-      "cross_entropy_change": 0.20568902675922063,
+      "accuracy_gain_pp": 0.0,
+      "cross_entropy_change": 0.01684936193319464,
       "clears_promotion_gate": false
     },
     "ping": {
       "epoch": 5,
-      "validation_accuracy_pct": 27.69607843137255,
-      "validation_cross_entropy": 2.592463099039518,
-      "validation_e_rate_hz": 6.612462660845588,
-      "validation_i_rate_hz": 29.10665594362745,
-      "gradient_norm": 0.2127902693722559,
-      "saturation_threshold_hz": 475.0,
+      "validation_accuracy_pct": 33.700980392156865,
+      "validation_cross_entropy": 2.4462467523721547,
+      "validation_e_rate_hz": 8.307329963235293,
+      "validation_i_rate_hz": 36.98692172181372,
+      "gradient_norm": 0.3025109819096068,
+      "saturation_threshold_hz": 950.0,
       "skipped_steps": 0,
       "nan_forward_batches": 0,
       "exp069_epoch_five_accuracy_pct": 32.59803921568628,
       "exp069_epoch_five_cross_entropy": 2.444715765806345,
-      "accuracy_gain_pp": -4.901960784313729,
-      "cross_entropy_change": 0.1477473332331729,
+      "accuracy_gain_pp": 1.102941176470587,
+      "cross_entropy_change": 0.0015309865658097443,
       "clears_promotion_gate": false
     }
   },
@@ -59,9 +178,9 @@
     "collision_audit_selection": "every eighth development utterance from index zero",
     "collision_audit_sample_count": 1020,
     "collision_audit_event_count": 8005618,
-    "same_channel_bin_collision_event_count": 7522,
-    "same_channel_bin_collision_pct": 0.09395901728011503,
-    "candidate_dt_ms": 2.0,
+    "same_channel_bin_collision_event_count": 0,
+    "same_channel_bin_collision_pct": 0.0,
+    "candidate_dt_ms": 1.0,
     "window_ms": 1000.0
   },
   "config": {
@@ -76,11 +195,11 @@
     "n_inhibitory": 64,
     "batch_size": 32,
     "learning_rate": 0.0004,
-    "input_weight_mean": 0.9,
+    "input_weight_mean": 1.2,
     "input_sparsity": 0.95,
     "readout_scale": 225.0,
     "readout": "mem-mean",
-    "dt_ms": 2.0,
+    "dt_ms": 1.0,
     "t_ms": 1000.0,
     "raster_positions": [
       9,
@@ -98,7 +217,7 @@
       }
     },
     "experiment": "exp070",
-    "attempt": "temporal_2ms"
+    "attempt": "input_scale_1p2"
   },
   "integrity": {
     "official_test_access": "forbidden and absent from runner",
@@ -106,24 +225,52 @@
     "selection_rule": "max validation accuracy; tie lower validation cross-entropy; tie earlier epoch"
   },
   "runpod": {
-    "active_pods_after_collection": 0,
-    "billing_method": "authoritative RunPod per-pod billing history after self-termination; provider amounts and billed milliseconds recorded without pod identifiers",
-    "reconciled_at": "2026-07-19T08:32:58Z",
-    "cells": {
-      "coba": {
-        "gpu": "RTX 5090",
-        "hourly_rate_usd": 0.99,
-        "provider_billed_ms": 453684,
-        "spend_usd": 0.12511032167822123
+    "attempts": {
+      "temporal_2ms": {
+        "active_pods_after_collection": 0,
+        "billing_method": "authoritative RunPod per-pod billing history after self-termination; provider amounts and billed milliseconds recorded without pod identifiers",
+        "reconciled_at": "2026-07-19T08:32:58Z",
+        "cells": {
+          "coba": {
+            "gpu": "RTX 5090",
+            "hourly_rate_usd": 0.99,
+            "provider_billed_ms": 453684,
+            "spend_usd": 0.12511032167822123
+          },
+          "ping": {
+            "gpu": "RTX 5090",
+            "hourly_rate_usd": 0.99,
+            "provider_billed_ms": 456690,
+            "spend_usd": 0.12593696918338537
+          }
+        },
+        "currency": "USD",
+        "total_spend_usd": 0.2510472908616066
       },
-      "ping": {
-        "gpu": "RTX 5090",
-        "hourly_rate_usd": 0.99,
-        "provider_billed_ms": 456690,
-        "spend_usd": 0.12593696918338537
+      "input_scale_1p2": {
+        "active_pods_after_collection": 0,
+        "billing_method": "authoritative RunPod per-pod billing history after self-termination; provider amounts and billed milliseconds recorded without pod identifiers",
+        "reconciled_at": "2026-07-19T08:51:40Z",
+        "cells": {
+          "coba": {
+            "gpu": "RTX 5090",
+            "hourly_rate_usd": 0.99,
+            "provider_billed_ms": 253450,
+            "spend_usd": 0.07004597317427397
+          },
+          "ping": {
+            "gpu": "RTX 5090",
+            "hourly_rate_usd": 0.99,
+            "provider_billed_ms": 252843,
+            "spend_usd": 0.06987905036658049
+          }
+        },
+        "currency": "USD",
+        "total_spend_usd": 0.13992502354085445
       }
     },
-    "currency": "USD",
-    "total_spend_usd": 0.2510472908616066
+    "total_spend_usd": 0.39097231440246105,
+    "active_pods_after_collection": 0,
+    "exact_all_recorded_attempts": false
   }
 }
