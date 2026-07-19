@@ -14,7 +14,7 @@
       baseline: "exp066 established one-seed feasibility on 1,000 training utterances: COBA reached 31.0% best held-out accuracy and PING 34.7%. The present contemporaneous matched COBA cell is the architectural baseline; the 5% SHD chance floor remains a diagnostic reference.",
       seeds: 1,
       budget: "One local plumbing smoke plus one 40-epoch full run per architecture; two concurrent pods maximum, 3 h target per pod, and 10 USD hard total RunPod spend.",
-      status: "queued",
+      status: "done",
       origin: "human",
     ),
   ),
@@ -23,7 +23,14 @@
 #let body = [
   == Digest
 
-  _Empty until the registered experiment finishes._
+  `exp068` completed the locked one-seed comparison without a protocol change.
+  PING reached 45.72% official-test accuracy against COBA's 35.07%, a registered
+  difference of +10.64 percentage points and therefore a promising exploratory
+  PING accuracy claim. PING also had lower official-test cross-entropy (2.06
+  versus 2.35), higher macro-class accuracy (45.47% versus 34.64%), and lower
+  excitatory firing (10.50 Hz versus 28.44 Hz). Both checkpoints froze before
+  the complete 2,264-utterance official test was exposed. This is a one-seed
+  result that motivates, but does not substitute for, confirmation.
 
   == Mandate
 
@@ -202,4 +209,23 @@
   has a 10,800-second self-removal backstop, for a maximum actual-rate exposure
   of 5.94 USD. The pre-dispatch spend and active-pod count were both zero. The
   official-test seal remains closed until both validation checkpoints freeze.
+
+  === 2026-07-19 00:24–00:26 UTC: paired freeze, sealed test, and reap
+
+  PING froze epoch 40 at 43.50% validation accuracy; COBA froze epoch 25 at
+  40.81%. Both frozen records carried the same development-training and
+  validation index hashes. Only after both records existed did the cells stage
+  and evaluate the complete official test. The paired result was then disclosed:
+  PING classified 1,035 of 2,264 utterances (45.72%) and COBA classified 794
+  (35.07%), for the registered +10.64 percentage-point difference. PING's macro
+  class accuracy was 45.47% versus 34.64%; seen-speaker accuracy was 44.10%
+  versus 38.68%; unseen-speaker accuracy was 46.09% versus 34.24%.
+
+  Both runs completed with zero skipped updates and zero non-finite forward
+  batches. PING's official-test E/I rates were 10.50/47.99 Hz; COBA's E rate was
+  28.44 Hz and its disabled inhibitory loop remained at zero. The pods
+  self-removed immediately after their completion markers, an explicit reap
+  found nothing left to terminate, and a provider listing confirmed zero active
+  pods. Observed compute spend was 2.4414148 USD: 1.220103775 USD for COBA and
+  1.221311025 USD for PING at the actual 0.99 USD/h rate.
 ]

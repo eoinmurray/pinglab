@@ -1,0 +1,190 @@
+{
+  "run_id": "r001",
+  "git_sha": "1fa2c43",
+  "duration_s": 5.1,
+  "duration": "5s",
+  "result_status": "done",
+  "seed": 42,
+  "primary": {
+    "delta_accuracy_pp": 10.64487632508834,
+    "interpretation": "promising PING accuracy claim",
+    "promising_threshold_pp": 2.0
+  },
+  "cells": {
+    "coba": {
+      "selected_epoch": 25,
+      "selected_validation_accuracy_pct": 40.80882352941177,
+      "selected_validation_loss": 2.337907864497258,
+      "official_test": {
+        "evaluated_at": "2026-07-19T00:25:25.911+00:00",
+        "checkpoint_sha256": "37e891616d2117cf9923146540aa351c55f744b3d5a5c260db34e1cd37a15b32",
+        "n_total": 2264,
+        "n_correct": 794,
+        "accuracy_pct": 35.07067137809187,
+        "cross_entropy": 2.3451720497212225,
+        "macro_class_accuracy_pct": 34.63651498754997,
+        "class_accuracy_pct": [
+          17.475728155339805,
+          7.4074074074074066,
+          37.142857142857146,
+          0.0,
+          59.48275862068966,
+          10.909090909090908,
+          95.41284403669725,
+          19.26605504587156,
+          28.07017543859649,
+          41.74757281553398,
+          9.01639344262295,
+          33.057851239669425,
+          80.16528925619835,
+          4.166666666666666,
+          25.217391304347824,
+          0.8928571428571428,
+          25.423728813559322,
+          31.40495867768595,
+          95.9349593495935,
+          70.53571428571429
+        ],
+        "seen_speaker_accuracy_pct": 38.67924528301887,
+        "unseen_speaker_accuracy_pct": 34.23913043478261,
+        "seen_count": 424,
+        "unseen_count": 1840,
+        "e_rate_hz": 28.44199460302562,
+        "i_rate_hz": 0.0,
+        "elapsed_s": 13.461988043040037,
+        "peak_gpu_memory_bytes": 473444864,
+        "official_test_sha256": "47d8621a092cb483bea9448a93c0a3375a6726d370045090c2f7a77f70f95df3"
+      },
+      "training_elapsed_s": 4077.947170028463,
+      "training_peak_gpu_memory_bytes": 473444864,
+      "skipped_steps": 0,
+      "nan_forward_batches": 0
+    },
+    "ping": {
+      "selected_epoch": 40,
+      "selected_validation_accuracy_pct": 43.504901960784316,
+      "selected_validation_loss": 2.1508214427874637,
+      "official_test": {
+        "evaluated_at": "2026-07-19T00:25:30.967+00:00",
+        "checkpoint_sha256": "f9e83cc17b89b85eab7b9ed371719067e38d21c46dbccc7458e33ce66e31ecc8",
+        "n_total": 2264,
+        "n_correct": 1035,
+        "accuracy_pct": 45.71554770318021,
+        "cross_entropy": 2.055464746252808,
+        "macro_class_accuracy_pct": 45.46750608754954,
+        "class_accuracy_pct": [
+          27.184466019417474,
+          29.629629629629626,
+          22.857142857142858,
+          34.31372549019608,
+          87.93103448275862,
+          44.54545454545455,
+          83.4862385321101,
+          20.18348623853211,
+          90.35087719298247,
+          70.87378640776699,
+          23.770491803278688,
+          37.1900826446281,
+          54.54545454545454,
+          53.333333333333336,
+          11.304347826086957,
+          14.285714285714285,
+          37.28813559322034,
+          20.66115702479339,
+          99.1869918699187,
+          46.42857142857143
+        ],
+        "seen_speaker_accuracy_pct": 44.10377358490566,
+        "unseen_speaker_accuracy_pct": 46.08695652173913,
+        "seen_count": 424,
+        "unseen_count": 1840,
+        "e_rate_hz": 10.497430915967314,
+        "i_rate_hz": 47.98775673586572,
+        "elapsed_s": 13.677659152075648,
+        "peak_gpu_memory_bytes": 473444864,
+        "official_test_sha256": "47d8621a092cb483bea9448a93c0a3375a6726d370045090c2f7a77f70f95df3"
+      },
+      "training_elapsed_s": 4059.2869001785293,
+      "training_peak_gpu_memory_bytes": 473444864,
+      "skipped_steps": 0,
+      "nan_forward_batches": 0
+    }
+  },
+  "split": {
+    "official_train_count": 8156,
+    "development_train_count": 7340,
+    "validation_count": 816,
+    "official_test_count": 2264,
+    "train_indices_sha256": "2fee22abaf3629ec1d10179847380b2829968d748fea60607b8f7bb2e3b1de71",
+    "validation_indices_sha256": "5b9f014ae3a4ab48b6586e7d014b8cdbd73b182c4c9cba2b9492ba203cd4ee3a",
+    "official_test_sha256": "47d8621a092cb483bea9448a93c0a3375a6726d370045090c2f7a77f70f95df3",
+    "unseen_speakers": [
+      4,
+      5
+    ]
+  },
+  "config": {
+    "seed": 42,
+    "epochs": 40,
+    "validation_fraction": 0.1,
+    "models": [
+      "coba",
+      "ping"
+    ],
+    "n_hidden": 256,
+    "n_inhibitory": 64,
+    "batch_size": 32,
+    "learning_rate": 0.0004,
+    "input_weight_mean": 0.9,
+    "input_sparsity": 0.95,
+    "readout_scale": 225.0,
+    "readout": "mem-mean",
+    "dt_ms": 1.0,
+    "t_ms": 1000.0,
+    "raster_positions": [
+      0,
+      47,
+      947
+    ],
+    "recipes": {
+      "coba": {
+        "ei_strength": 0.0,
+        "v_grad_dampen": 1.0
+      },
+      "ping": {
+        "ei_strength": 1.0,
+        "v_grad_dampen": 1000.0
+      }
+    }
+  },
+  "integrity": {
+    "checkpoint_selection_rule": "max validation accuracy; tie lower validation cross-entropy; tie earlier epoch",
+    "official_test_after_both_frozen": true,
+    "matched_partitions": true,
+    "matched_raster_inputs": true
+  },
+  "runpod": {
+    "active_pods_after_collection": 0,
+    "billing_method": "actual hourly rate multiplied by provider-created timestamp through experiment complete marker immediately preceding self-removal",
+    "cells": {
+      "coba": {
+        "completed_at": "2026-07-19T00:25:27.368+00:00",
+        "created_at": "2026-07-18T23:11:30.627+00:00",
+        "gpu": "RTX 5090",
+        "hourly_rate_usd": 0.99,
+        "observed_seconds": 4436.741,
+        "spend_usd": 1.220103775
+      },
+      "ping": {
+        "completed_at": "2026-07-19T00:25:32.436+00:00",
+        "created_at": "2026-07-18T23:11:31.305+00:00",
+        "gpu": "RTX 5090",
+        "hourly_rate_usd": 0.99,
+        "observed_seconds": 4441.131,
+        "spend_usd": 1.221311025
+      }
+    },
+    "currency": "USD",
+    "total_spend_usd": 2.4414148
+  }
+}

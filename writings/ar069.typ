@@ -323,4 +323,348 @@
   #message-card("assistant", "2026-07-18 23:11:49.877 UTC",
     "019f76ab-932b-72c2-b163-463ead65d8d5", "CP-005",
     "Both pods are provisioned at the actual rate of $0.99/hour each, so the three-hour hard-backstop exposure is $5.94 total. They are still in startup; the official-test seal remains closed. I’m checkpointing this dispatch in ar068/ar069 and PR #51 while the pods run independently under their backstops.")
++
+  == Checkpoint CP-006
+
+  This full-run and paired-result checkpoint follows CP-005. Its immutable
+  private source has SHA-256 prefix `ab5f70410d5d`; the session identifier
+  remains `019f76ab-932b-72c2-b163-463ead65d8d5`, and the checkpoint time is
+  `2026-07-19 00:29:04.330 UTC`.
+
+  === Scientific and operational ledger
+
+  + Both fixed 40-epoch cells completed with finite diagnostics and no skipped
+    updates. COBA froze epoch 25; PING froze epoch 40.
+  + The official test remained sealed until both checkpoint records existed.
+    The paired evaluation then used all 2,264 official-test utterances exactly
+    once per frozen checkpoint.
+  + PING achieved 45.72% accuracy and COBA 35.07%, a registered +10.64
+    percentage-point difference. PING also improved macro-class accuracy and
+    cross-entropy while reducing excitatory firing. This meets the preregistered
+    promising-signal band but remains one-seed exploratory evidence.
+  + Both pods self-removed after their completion markers. Explicit reap and
+    provider-list checks found zero active pods. Measured spend was 2.4414148
+    USD at the actual 0.99 USD/h rate.
+  + The artifact publisher produced provenance, numbers, reproducer, curves,
+    diagnostics, predictions, raw hashes, and matched input/E/I rasters.
+
+  === Visible messages added in CP-006
+
+  #message-card("assistant", "2026-07-18 23:13:23.128 UTC",
+    "019f76ab-932b-72c2-b163-463ead65d8d5", "CP-006",
+    "The dispatch checkpoint is built, committed, and pushed at `5548f4b`; the pods remain pinned to pre-dispatch implementation `96748e5`. They are still cold-starting at roughly one minute, with accrued exposure around $0.03 total. I’m monitoring the two existing pods only—no duplicate dispatch.")
+
+  #message-card("assistant", "2026-07-18 23:14:33.585 UTC",
+    "019f76ab-932b-72c2-b163-463ead65d8d5", "CP-006",
+    "At about 2.5 minutes both pods report RUNNING, consistent with the normal authenticated image-pull/startup window. No shared artifacts have appeared yet and accrued exposure is about $0.08 total. The three-hour self-removal backstops remain armed.")
+
+  #message-card("assistant", "2026-07-18 23:15:34.302 UTC",
+    "019f76ab-932b-72c2-b163-463ead65d8d5", "CP-006",
+    "Both pods are still in provider startup and have not exposed their execution endpoints; no experiment process has begun and no shared output exists. This is a cold-start delay, not a model failure. At roughly four minutes, exposure is about $0.13 total, so I’m continuing to monitor the existing pods rather than creating replacements.")
+
+  #message-card("assistant", "2026-07-18 23:16:55.302 UTC",
+    "019f76ab-932b-72c2-b163-463ead65d8d5", "CP-006",
+    "Provider state confirms both GPUs are rented but containers have not started (`uptimeSeconds = 0`), so this is provisioning/image startup rather than experiment execution. I’m treating sensitive provider environment fields as private audit material and will not publish them. At roughly seven minutes, exposure is about $0.23 total; I’ll allow the existing authenticated pulls more time under the hard budget.")
+
+  #message-card("assistant", "2026-07-18 23:17:46.178 UTC",
+    "019f76ab-932b-72c2-b163-463ead65d8d5", "CP-006",
+    "Both containers are now live and each pinned runner is training its assigned architecture. The shared volume contains both live validation metric streams, confirming the two-cell fan-out and common split path are active. The official-test seal is still closed; accrued exposure is about $0.27 total.")
+
+  #message-card("assistant", "2026-07-18 23:18:39.644 UTC",
+    "019f76ab-932b-72c2-b163-463ead65d8d5", "CP-006",
+    "Both training processes are active and consuming GPU memory; the first full epoch has not yet completed, which is expected because it includes compilation plus 230 training batches and 26 validation batches. No failure marker or frozen-checkpoint flag exists. I’ll report at the first completed validation epoch rather than infer from partial batches.")
+
+  #message-card("assistant", "2026-07-18 23:19:16.846 UTC",
+    "019f76ab-932b-72c2-b163-463ead65d8d5", "CP-006",
+    "Epoch 1 completed for both cells with finite diagnostics and no skipped updates. Validation accuracy is 20.34% for COBA and 22.79% for PING; PING’s validation E rate is 6.01 Hz versus COBA’s 23.15 Hz, with active I at 26.79 Hz. These are live validation diagnostics, not sealed-test results. Epoch time is about 111–114 seconds, projecting roughly 75–80 minutes for 40 epochs plus final evaluation—comfortably within the backstops and budget.")
+
+  #message-card("assistant", "2026-07-18 23:19:32.965 UTC",
+    "019f76ab-932b-72c2-b163-463ead65d8d5", "CP-006",
+    "While the fixed cloud runs continue, I’m implementing only the local collection/publication path: cross-cell integrity checks, artifact hashing, figures, and `numbers.json` assembly. This cannot affect the pinned training pods or reveal official-test data early; they remain on `96748e5`.")
+
+  #message-card("assistant", "2026-07-18 23:21:37.268 UTC",
+    "019f76ab-932b-72c2-b163-463ead65d8d5", "CP-006",
+    "Epoch 2 remains finite with zero skipped/non-finite batches. Validation accuracy is 20.59% COBA and 25.37% PING; the directional gap is validation-only and cannot be interpreted as the registered outcome. Epoch times have settled near 99–102 seconds. The local publisher now passes targeted Ruff, `ty`, compilation, and diff checks, without changing the pinned runs.")
+
+  #message-card("assistant", "2026-07-18 23:23:03.530 UTC",
+    "019f76ab-932b-72c2-b163-463ead65d8d5", "CP-006",
+    "Epoch 3 completes cleanly: validation reaches 29.53% COBA and 33.46% PING, with PING still using much less E activity (7.18 vs 23.78 Hz). This remains checkpoint-selection data only. The sealed evidence publisher is separately committed at `1fa2c43`; running pods are unaffected and continue from `96748e5`.")
+
+  #message-card("assistant", "2026-07-18 23:24:29.648 UTC",
+    "019f76ab-932b-72c2-b163-463ead65d8d5", "CP-006",
+    "Epoch 4 remains finite with no skipped updates; both validation accuracies dipped from their epoch-3 best, so the registered selector correctly keeps the earlier checkpoints. I’m switching to a compact 45-second monitor that reports only epoch counts, failure/freeze flags, and active-pod count. This avoids exposing provider details or overinterpreting validation fluctuations.")
+
+  #message-card("assistant", "2026-07-18 23:25:52.379 UTC",
+    "019f76ab-932b-72c2-b163-463ead65d8d5", "CP-006",
+    "At 23:25 UTC both cells remain in epoch 5, with two pods active, no failure marker, and no checkpoint frozen yet. The comparison is progressing normally; the sealed-test barrier remains closed.")
+
+  #message-card("assistant", "2026-07-18 23:26:48.627 UTC",
+    "019f76ab-932b-72c2-b163-463ead65d8d5", "CP-006",
+    "Both cells have completed epoch 5. No failure or freeze flag is present, and both pods remain active. I’m letting the fixed protocol continue unchanged; the next detailed metric check will be at a wider milestone unless an integrity flag appears.")
+
+  #message-card("assistant", "2026-07-18 23:27:45.697 UTC",
+    "019f76ab-932b-72c2-b163-463ead65d8d5", "CP-006",
+    "At 23:27 UTC both are still processing epoch 6; the monitor shows no failures, no frozen checkpoint, and two active pods. Current exposure is approximately $0.51 total, well inside budget.")
+
+  #message-card("assistant", "2026-07-18 23:28:39.914 UTC",
+    "019f76ab-932b-72c2-b163-463ead65d8d5", "CP-006",
+    "Epoch 6 is complete for both; they are now inside epoch 7. The official-test barrier remains closed and there are still no integrity failures. Estimated exposure is about $0.56 total.")
+
+  #message-card("assistant", "2026-07-18 23:29:34.075 UTC",
+    "019f76ab-932b-72c2-b163-463ead65d8d5", "CP-006",
+    "PING has completed epoch 7 while COBA is finishing its seventh epoch; this small skew is consistent with their observed epoch times. Both pods remain healthy and no sealed-test action has occurred.")
+
+  #message-card("assistant", "2026-07-18 23:30:28.211 UTC",
+    "019f76ab-932b-72c2-b163-463ead65d8d5", "CP-006",
+    "Both cells are synchronized at 7/40 epochs with two active pods, no failure flags, and no frozen checkpoint. Estimated total exposure is about $0.61.")
+
+  #message-card("assistant", "2026-07-18 23:31:23.129 UTC",
+    "019f76ab-932b-72c2-b163-463ead65d8d5", "CP-006",
+    "PING has completed epoch 8; COBA is finishing epoch 8. No integrity marker has fired, and the official-test seal remains closed.")
+
+  #message-card("assistant", "2026-07-18 23:33:12.063 UTC",
+    "019f76ab-932b-72c2-b163-463ead65d8d5", "CP-006",
+    "Both cells were at 8/40 at the last monitor tick, with no failure or freeze flags. I’ve drafted a neutral, artifact-driven exp068 report whose verdict and every number will come from `numbers.json`; it deliberately makes no pre-result title claim. It cannot build until the sealed artifacts exist and will be validated only afterward.")
+
+  #message-card("assistant", "2026-07-18 23:34:07.134 UTC",
+    "019f76ab-932b-72c2-b163-463ead65d8d5", "CP-006",
+    "Both cells are at 9/40, still matched in progress with two active pods and no failure/freeze markers. Estimated exposure is about $0.74 total. The official test remains unavailable.")
+
+  #message-card("assistant", "2026-07-18 23:35:13.919 UTC",
+    "019f76ab-932b-72c2-b163-463ead65d8d5", "CP-006",
+    "At the 10/40 milestone both runs remain finite with zero skipped or non-finite batches. Validation accuracy is 34.56% COBA and 36.64% PING; PING’s E rate remains substantially lower (8.78 vs 25.21 Hz) with active I at 39.42 Hz. These diagnostics do not open or predict the registered official-test comparison.")
+
+  #message-card("assistant", "2026-07-18 23:36:08.356 UTC",
+    "019f76ab-932b-72c2-b163-463ead65d8d5", "CP-006",
+    "Both cells are processing epoch 11; the paired freeze barrier is still closed and no failure flag exists. Total exposure is approximately $0.80.")
+
+  #message-card("assistant", "2026-07-18 23:37:06.646 UTC",
+    "019f76ab-932b-72c2-b163-463ead65d8d5", "CP-006",
+    "Both cells have completed epoch 11. The one malformed local monitor poll was retried immediately and had no effect on either pod. No run failure or protocol anomaly is present.")
+
+  #message-card("assistant", "2026-07-18 23:38:01.999 UTC",
+    "019f76ab-932b-72c2-b163-463ead65d8d5", "CP-006",
+    "Both cells are at 12/40 with no failures and two active pods. The official-test seal is still closed; estimated exposure is about $0.88 total.")
+
+  #message-card("assistant", "2026-07-18 23:38:56.593 UTC",
+    "019f76ab-932b-72c2-b163-463ead65d8d5", "CP-006",
+    "Epoch 13 is in progress for both architectures. No checkpoint has frozen and no failure marker exists. Current exposure remains below $1.00.")
+
+  #message-card("assistant", "2026-07-18 23:39:50.093 UTC",
+    "019f76ab-932b-72c2-b163-463ead65d8d5", "CP-006",
+    "Both cells have completed epoch 13 cleanly. The paired validation phase continues unchanged with the official test sealed.")
+
+  #message-card("assistant", "2026-07-18 23:40:44.193 UTC",
+    "019f76ab-932b-72c2-b163-463ead65d8d5", "CP-006",
+    "Both are inside epoch 14; no integrity or lifecycle state has changed. Estimated cumulative exposure is about $0.95.")
+
+  #message-card("assistant", "2026-07-18 23:41:39.356 UTC",
+    "019f76ab-932b-72c2-b163-463ead65d8d5", "CP-006",
+    "PING has completed epoch 14; COBA is finishing the same epoch. Both pods remain active with no failure or freeze flag, and sealed evaluation has not begun.")
+
+  #message-card("assistant", "2026-07-18 23:42:34.270 UTC",
+    "019f76ab-932b-72c2-b163-463ead65d8d5", "CP-006",
+    "Both cells are synchronized at 14/40. Estimated total RunPod exposure is about $1.00, still far below the $10 ceiling.")
+
+  #message-card("assistant", "2026-07-18 23:43:41.647 UTC",
+    "019f76ab-932b-72c2-b163-463ead65d8d5", "CP-006",
+    "At 15/40, both remain finite with zero skipped/non-finite batches. The registered selector currently retains COBA epoch 14 at 35.91% validation accuracy and PING epoch 15 at 38.48%. PING’s latest E rate is 9.23 Hz versus COBA’s 26.15 Hz. These remain validation-only diagnostics; the official-test gate is closed.")
+
+  #message-card("assistant", "2026-07-18 23:44:36.356 UTC",
+    "019f76ab-932b-72c2-b163-463ead65d8d5", "CP-006",
+    "Both cells are processing epoch 16 with no lifecycle or integrity change. Cumulative exposure is approximately $1.08.")
+
+  #message-card("assistant", "2026-07-18 23:45:33.877 UTC",
+    "019f76ab-932b-72c2-b163-463ead65d8d5", "CP-006",
+    "Both cells have completed epoch 16. No failures, frozen checkpoints, or official-test activity are present.")
+
+  #message-card("assistant", "2026-07-18 23:46:28.998 UTC",
+    "019f76ab-932b-72c2-b163-463ead65d8d5", "CP-006",
+    "Epoch 17 is in progress for both. Two pods remain active and the run stays within the fixed protocol and budget.")
+
+  #message-card("assistant", "2026-07-18 23:47:24.855 UTC",
+    "019f76ab-932b-72c2-b163-463ead65d8d5", "CP-006",
+    "Both cells have completed epoch 17 and are inside epoch 18. No integrity flag has fired; estimated cumulative exposure is about $1.18.")
+
+  #message-card("assistant", "2026-07-18 23:48:19.859 UTC",
+    "019f76ab-932b-72c2-b163-463ead65d8d5", "CP-006",
+    "Both cells are at 18/40, with no failure or freeze markers and the official test still sealed.")
+
+  #message-card("assistant", "2026-07-18 23:49:16.576 UTC",
+    "019f76ab-932b-72c2-b163-463ead65d8d5", "CP-006",
+    "Epoch 19 is in progress on both pods. Exposure is approximately $1.23 total; the $10 hard ceiling remains distant.")
+
+  #message-card("assistant", "2026-07-18 23:50:13.980 UTC",
+    "019f76ab-932b-72c2-b163-463ead65d8d5", "CP-006",
+    "Both cells have completed epoch 19 without an integrity event. The paired validation phase continues; sealed evaluation has not begun.")
+
+  #message-card("assistant", "2026-07-18 23:51:07.951 UTC",
+    "019f76ab-932b-72c2-b163-463ead65d8d5", "CP-006",
+    "Both are inside epoch 20 with two active pods, no failure marker, and no frozen checkpoint.")
+
+  #message-card("assistant", "2026-07-18 23:52:12.186 UTC",
+    "019f76ab-932b-72c2-b163-463ead65d8d5", "CP-006",
+    "At 20/40, both remain finite with zero skipped or non-finite batches. The selector currently retains COBA epoch 16 at 38.48% validation accuracy and PING epoch 20 at 42.03%. PING’s latest E rate is 9.49 Hz versus COBA’s 26.54 Hz. Half the fixed training protocol is complete; the official test remains sealed.")
+
+  #message-card("assistant", "2026-07-18 23:53:06.163 UTC",
+    "019f76ab-932b-72c2-b163-463ead65d8d5", "CP-006",
+    "PING has completed epoch 21 while COBA finishes the same epoch. Two pods remain active, with no failure or freeze marker; cumulative exposure is about $1.37.")
+
+  #message-card("assistant", "2026-07-18 23:54:00.360 UTC",
+    "019f76ab-932b-72c2-b163-463ead65d8d5", "CP-006",
+    "Both cells are synchronized at 21/40. The validation-only phase remains healthy and sealed evaluation has not begun.")
+
+  #message-card("assistant", "2026-07-18 23:54:54.207 UTC",
+    "019f76ab-932b-72c2-b163-463ead65d8d5", "CP-006",
+    "Both pods are inside epoch 22 with no integrity state change. Estimated exposure is about $1.42 total, still well under budget.")
+
+  #message-card("assistant", "2026-07-18 23:55:47.887 UTC",
+    "019f76ab-932b-72c2-b163-463ead65d8d5", "CP-006",
+    "Both cells have completed epoch 22. No failure marker, paired freeze, or official-test access is present.")
+
+  #message-card("assistant", "2026-07-18 23:56:41.079 UTC",
+    "019f76ab-932b-72c2-b163-463ead65d8d5", "CP-006",
+    "Epoch 23 is in progress for both architectures; the fixed protocol continues without intervention.")
+
+  #message-card("assistant", "2026-07-18 23:57:35.977 UTC",
+    "019f76ab-932b-72c2-b163-463ead65d8d5", "CP-006",
+    "Both cells have completed epoch 23 and are inside epoch 24. Cumulative exposure is approximately $1.52; no integrity or lifecycle anomaly is present.")
+
+  #message-card("assistant", "2026-07-18 23:58:30.003 UTC",
+    "019f76ab-932b-72c2-b163-463ead65d8d5", "CP-006",
+    "Both cells are at 24/40 with two active pods, no failures, and no frozen checkpoints. The official test remains sealed.")
+
+  #message-card("assistant", "2026-07-18 23:59:22.991 UTC",
+    "019f76ab-932b-72c2-b163-463ead65d8d5", "CP-006",
+    "Epoch 25 is in progress for both. Estimated total exposure is about $1.57, still far below the hard ceiling.")
+
+  #message-card("assistant", "2026-07-19 00:00:27.361 UTC",
+    "019f76ab-932b-72c2-b163-463ead65d8d5", "CP-006",
+    "At 25/40, diagnostics remain finite with zero skipped/non-finite batches. The selector now retains COBA epoch 25 at 40.81% validation accuracy and PING epoch 23 at 43.38%. Latest E rates are 26.99 Hz COBA and 9.58 Hz PING. These checkpoints remain provisional until all 40 epochs finish.")
+
+  #message-card("assistant", "2026-07-19 00:01:31.428 UTC",
+    "019f76ab-932b-72c2-b163-463ead65d8d5", "CP-006",
+    "Both cells are processing epoch 26. The date rollover does not change the immutable night ID or registered contract; no integrity state has changed.")
+
+  #message-card("assistant", "2026-07-19 00:02:24.862 UTC",
+    "019f76ab-932b-72c2-b163-463ead65d8d5", "CP-006",
+    "Both cells have completed epoch 26, with PING briefly finishing first. No failures or frozen checkpoints exist; exposure is approximately $1.67 total.")
+
+  #message-card("assistant", "2026-07-19 00:03:18.692 UTC",
+    "019f76ab-932b-72c2-b163-463ead65d8d5", "CP-006",
+    "PING has completed epoch 27 while COBA finishes it. The official-test barrier remains closed and both pods remain healthy.")
+
+  #message-card("assistant", "2026-07-19 00:04:13.036 UTC",
+    "019f76ab-932b-72c2-b163-463ead65d8d5", "CP-006",
+    "Both cells are synchronized at 27/40 with no failure or freeze markers. Estimated cumulative exposure is about $1.73.")
+
+  #message-card("assistant", "2026-07-19 00:05:09.271 UTC",
+    "019f76ab-932b-72c2-b163-463ead65d8d5", "CP-006",
+    "Epoch 28 is in progress for both. No intervention, tuning, or sealed-test access has occurred.")
+
+  #message-card("assistant", "2026-07-19 00:06:03.599 UTC",
+    "019f76ab-932b-72c2-b163-463ead65d8d5", "CP-006",
+    "Both cells have completed epoch 28. Two pods remain active; no integrity state has changed and the test seal remains closed.")
+
+  #message-card("assistant", "2026-07-19 00:06:58.266 UTC",
+    "019f76ab-932b-72c2-b163-463ead65d8d5", "CP-006",
+    "Both cells are at 29/40 with no failure/freeze flags. Estimated total exposure is about $1.83, leaving substantial budget headroom.")
+
+  #message-card("assistant", "2026-07-19 00:07:53.448 UTC",
+    "019f76ab-932b-72c2-b163-463ead65d8d5", "CP-006",
+    "Epoch 30 is in progress on both pods. The paired freeze barrier remains closed and no anomaly has appeared.")
+
+  #message-card("assistant", "2026-07-19 00:08:59.056 UTC",
+    "019f76ab-932b-72c2-b163-463ead65d8d5", "CP-006",
+    "At 30/40, both runs remain finite with zero skipped/non-finite batches. The selector still retains COBA epoch 25 at 40.81% and PING epoch 23 at 43.38% validation accuracy. Latest E rates are 27.38 Hz COBA and 9.83 Hz PING. Ten fixed epochs remain before checkpoint freeze.")
+
+  #message-card("assistant", "2026-07-19 00:09:52.651 UTC",
+    "019f76ab-932b-72c2-b163-463ead65d8d5", "CP-006",
+    "Both cells are processing epoch 31. Exposure is approximately $1.90 total, with no integrity or lifecycle change.")
+
+  #message-card("assistant", "2026-07-19 00:10:46.338 UTC",
+    "019f76ab-932b-72c2-b163-463ead65d8d5", "CP-006",
+    "PING has completed epoch 31 while COBA finishes it. The official-test seal remains closed and no failure marker exists.")
+
+  #message-card("assistant", "2026-07-19 00:11:42.211 UTC",
+    "019f76ab-932b-72c2-b163-463ead65d8d5", "CP-006",
+    "PING is at 32/40 and COBA at 31/40, a normal sub-epoch skew. Both pods remain healthy; no checkpoint has frozen and sealed evaluation has not begun.")
+
+  #message-card("assistant", "2026-07-19 00:12:37.771 UTC",
+    "019f76ab-932b-72c2-b163-463ead65d8d5", "CP-006",
+    "Both cells are synchronized at 32/40. Estimated exposure is about $2.01 total, with no integrity flags.")
+
+  #message-card("assistant", "2026-07-19 00:13:38.302 UTC",
+    "019f76ab-932b-72c2-b163-463ead65d8d5", "CP-006",
+    "PING has completed epoch 33 while COBA finishes it. The transient local polling syntax error did not touch either pod; both remain active with the sealed-test barrier closed.")
+
+  #message-card("assistant", "2026-07-19 00:14:32.541 UTC",
+    "019f76ab-932b-72c2-b163-463ead65d8d5", "CP-006",
+    "Both cells are at 33/40 with no failure or freeze markers. Seven training epochs remain.")
+
+  #message-card("assistant", "2026-07-19 00:15:26.586 UTC",
+    "019f76ab-932b-72c2-b163-463ead65d8d5", "CP-006",
+    "Epoch 34 is in progress for both architectures. Exposure is approximately $2.09 total; the run remains well within budget.")
+
+  #message-card("assistant", "2026-07-19 00:16:20.399 UTC",
+    "019f76ab-932b-72c2-b163-463ead65d8d5", "CP-006",
+    "Both cells have completed epoch 34 and are inside epoch 35. No integrity state has changed; the official test remains sealed.")
+
+  #message-card("assistant", "2026-07-19 00:17:28.634 UTC",
+    "019f76ab-932b-72c2-b163-463ead65d8d5", "CP-006",
+    "At 35/40, both remain finite with zero skipped/non-finite batches. The provisional selected checkpoints remain COBA epoch 25 at 40.81% and PING epoch 23 at 43.38% validation accuracy. Latest E rates are 27.57 Hz COBA and 9.93 Hz PING. Five fixed epochs remain.")
+
+  #message-card("assistant", "2026-07-19 00:18:22.534 UTC",
+    "019f76ab-932b-72c2-b163-463ead65d8d5", "CP-006",
+    "Both are processing epoch 36. No failures or frozen checkpoint flags exist; exposure is about $2.20 total.")
+
+  #message-card("assistant", "2026-07-19 00:19:18.962 UTC",
+    "019f76ab-932b-72c2-b163-463ead65d8d5", "CP-006",
+    "Both cells have completed epoch 36 cleanly. Four epochs remain before the paired checkpoint freeze.")
+
+  #message-card("assistant", "2026-07-19 00:20:12.985 UTC",
+    "019f76ab-932b-72c2-b163-463ead65d8d5", "CP-006",
+    "Epoch 37 is in progress for both. The official-test seal remains closed, and no model-specific action has been taken.")
+
+  #message-card("assistant", "2026-07-19 00:21:09.329 UTC",
+    "019f76ab-932b-72c2-b163-463ead65d8d5", "CP-006",
+    "Both cells have completed epoch 37 and are inside epoch 38. Estimated cumulative exposure is about $2.29.")
+
+  #message-card("assistant", "2026-07-19 00:22:03.970 UTC",
+    "019f76ab-932b-72c2-b163-463ead65d8d5", "CP-006",
+    "Both cells are at 38/40 with no failures and no frozen checkpoints. Two fixed training epochs remain; the test barrier is still closed.")
+
+  #message-card("assistant", "2026-07-19 00:22:57.845 UTC",
+    "019f76ab-932b-72c2-b163-463ead65d8d5", "CP-006",
+    "Epoch 39 is in progress for both architectures. Exposure is approximately $2.35 total; the comparison remains within all limits.")
+
+  #message-card("assistant", "2026-07-19 00:23:51.651 UTC",
+    "019f76ab-932b-72c2-b163-463ead65d8d5", "CP-006",
+    "PING has completed epoch 39; COBA is finishing it. No integrity marker has fired and sealed evaluation remains blocked.")
+
+  #message-card("assistant", "2026-07-19 00:24:47.595 UTC",
+    "019f76ab-932b-72c2-b163-463ead65d8d5", "CP-006",
+    "Both cells are synchronized at 39/40. The final fixed training epoch is now in progress; neither checkpoint has frozen yet.")
+
+  #message-card("assistant", "2026-07-19 00:25:42.130 UTC",
+    "019f76ab-932b-72c2-b163-463ead65d8d5", "CP-006",
+    "PING has completed epoch 40 and is finalizing its validation artifacts; COBA is still finishing epoch 40. The paired freeze barrier correctly remains closed until both checkpoint records exist.")
+
+  #message-card("assistant", "2026-07-19 00:26:45.613 UTC",
+    "019f76ab-932b-72c2-b163-463ead65d8d5", "CP-006",
+    "I’m at the paired completion barrier now. I’m continuing the existing monitor, then I’ll collect both sealed official-test results together, reap and verify zero pods, publish the evidence bundle, and finish PR #51 at the human-review gate.")
+
+  #message-card("assistant", "2026-07-19 00:27:03.033 UTC",
+    "019f76ab-932b-72c2-b163-463ead65d8d5", "CP-006",
+    "Both pods have self-terminated, so the one-pod-per-cell ceiling is satisfied and there is no active cloud exposure. I’m collecting the two result bundles without opening either result in isolation; the next scientific read will be paired.")
+
+  #message-card("assistant", "2026-07-19 00:27:57.953 UTC",
+    "019f76ab-932b-72c2-b163-463ead65d8d5", "CP-006",
+    "The paired result is decisive at this exploratory scale: PING reached 45.72% official-test accuracy versus COBA’s 35.07%, a +10.64 percentage-point advantage. PING also improved macro-class accuracy and cross-entropy; the sealed test contained all 2,264 official examples. Both result files were present before disclosure, and a post-run reap check confirms zero pods.")
+
+  #message-card("assistant", "2026-07-19 00:29:04.330 UTC",
+    "019f76ab-932b-72c2-b163-463ead65d8d5", "CP-006",
+    "The artifact publisher now has a complete provenance bundle: locked split hashes, frozen checkpoint hashes, all validation/activity curves, official-test diagnostics, predictions, matched input/E/I rasters, reproducer, and raw-file hashes. Measured exposure was $2.4414148 total, well below the $10 ceiling. I’m updating the timestamped research record and validating the cold-readable report now.")
+
+
 ]
