@@ -18,6 +18,7 @@
 #let trace-nine = json("/artifacts/data/ar073/messages_cp009.json")
 #let trace-ten = json("/artifacts/data/ar073/messages_cp010.json")
 #let trace-eleven = json("/artifacts/data/ar073/messages_cp011.json")
+#let trace-twelve = json("/artifacts/data/ar073/messages_cp012.json")
 
 #let verbatim-prose(value) = {
   for (index, line) in value.split("\n").enumerate() {
@@ -328,4 +329,30 @@
   === Visible messages added in CP-011
 
   #for message in trace-eleven.messages { message-card(message, trace-eleven) }
+
+  == Checkpoint CP-012
+
+  *All registered short candidates are killed and the ladder terminates.* This
+  checkpoint follows dispatch commit `768af93`. Its immutable private source
+  has SHA-256 prefix `a58a4f6c4400`, and its checkpoint time is
+  `2026-07-19 08:38:08.255 UTC`.
+
+  === Decision and action ledger
+
+  + Both candidate-3 pods self-terminated, the fleet returned to zero, and the
+    complete outputs were collected before evaluation.
+  + At epoch five, COBA is 1.84 points below exp069 with cross-entropy 0.0137
+    worse. PING is 1.59 points above exp069 with cross-entropy 0.1148 better,
+    but misses the locked +3-point threshold.
+  + Both cells are finite and active with no skipped or non-finite updates.
+    Candidate 3 is killed; all three candidates are now killed and the protocol
+    forbids a forty-epoch run.
+  + Candidate 1's authoritative provider charge is 0.251047 USD. Later billing
+    rows remain unsettled, so exact cumulative spend is still pending. The
+    candidate-1 artifacts and cold-readable experiment report are published in
+    draft form while reconciliation continues.
+
+  === Visible messages added in CP-012
+
+  #for message in trace-twelve.messages { message-card(message, trace-twelve) }
 ]

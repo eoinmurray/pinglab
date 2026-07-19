@@ -307,6 +307,21 @@ def publish_attempt() -> None:
         baseline.plot_validation_curves(cells, figures / "short_validation_curves")
         baseline.plot_activity_curves(cells, figures / "short_activity_curves")
         baseline.plot_matched_rasters(figures / "matched_rasters.png")
+        prior_attempt_figures = FIGURES / "attempts"
+        if prior_attempt_figures.exists():
+            for source in prior_attempt_figures.iterdir():
+                if source.is_dir() and source.name != ATTEMPT:
+                    shutil.copytree(source, figures / "attempts" / source.name)
+        attempt_figures = figures / "attempts" / ATTEMPT
+        attempt_figures.mkdir(parents=True)
+        for name in (
+            "short_validation_curves.pdf",
+            "short_validation_curves.svg",
+            "short_activity_curves.pdf",
+            "short_activity_curves.svg",
+            "matched_rasters.png",
+        ):
+            shutil.copy2(figures / name, attempt_figures / name)
         prior_raw = FIGURES / "raw"
         if prior_raw.exists():
             for source in prior_raw.iterdir():
