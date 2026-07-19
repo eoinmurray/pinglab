@@ -8,6 +8,7 @@
 )
 
 #let base = json("/artifacts/data/exp069/numbers.json")
+#let summary = json("/artifacts/data/exp070/numbers.json")
 #let temporal = json("/artifacts/data/exp070/raw/temporal_2ms/attempt_decision.json")
 #let input = json("/artifacts/data/exp070/raw/input_scale_1p2/attempt_decision.json")
 #let rate = json("/artifacts/data/exp070/raw/learning_rate_1e3/attempt_decision.json")
@@ -128,7 +129,13 @@
 
   This is one seed and one held-out development split, deliberately appropriate
   for exploratory triage rather than a defended population claim. The official
-  SHD test was neither staged nor loaded. Exact provider billing is recorded
-  per attempt in the artifact bundle; final cumulative reconciliation remains
-  pending provider settlement for the two later pairs.
+  SHD test was neither staged nor loaded. Exact provider billing was
+  #calc.round(summary.runpod.attempts.temporal_2ms.total_spend_usd, digits: 6)
+  USD for candidate 1,
+  #calc.round(summary.runpod.attempts.input_scale_1p2.total_spend_usd, digits: 6)
+  USD for candidate 2, and
+  #calc.round(summary.runpod.attempts.learning_rate_1e3.total_spend_usd, digits: 6)
+  USD for candidate 3: #calc.round(summary.runpod.total_spend_usd, digits: 6)
+  USD total, with #summary.runpod.active_pods_after_collection active pods after
+  collection.
 ]

@@ -20,6 +20,7 @@
 #let trace-eleven = json("/artifacts/data/ar073/messages_cp011.json")
 #let trace-twelve = json("/artifacts/data/ar073/messages_cp012.json")
 #let trace-thirteen = json("/artifacts/data/ar073/messages_cp013.json")
+#let trace-fourteen = json("/artifacts/data/ar073/messages_cp014.json")
 
 #let verbatim-prose(value) = {
   for (index, line) in value.split("\n").enumerate() {
@@ -383,4 +384,29 @@
   === Visible messages added in CP-013
 
   #for message in trace-thirteen.messages { message-card(message, trace-thirteen) }
+
+  == Checkpoint CP-014
+
+  *Provider reconciliation and final atomic publication are complete.* This
+  checkpoint follows diagnostics commit `3e27721`. Its immutable private source
+  has SHA-256 prefix `c4b4c0583be4`, and its checkpoint time is
+  `2026-07-19 09:17:58.200 UTC`.
+
+  === Decision and action ledger
+
+  + Candidate 3's authoritative charge is 0.08879619 USD: 0.04449077 USD COBA
+    and 0.04430542 USD PING.
+  + Exact cumulative exp070 spend is 0.47976851 USD across all six pods. The
+    provider ledgers and aggregate `numbers.json` report zero active pods and
+    confirm that every recorded attempt has exact billing.
+  + Candidate 3's complete raw metrics, matched inputs, rasters, curves, firing
+    diagnostics, decision, smoke, configuration, and ledger are atomically
+    published. The final publication manifest is clean.
+  + Pending work is limited to final validation, Demolab build, commit/push,
+    preview verification, PR review-gate comment, and human handoff. No merge
+    is authorized.
+
+  === Visible messages added in CP-014
+
+  #for message in trace-fourteen.messages { message-card(message, trace-fourteen) }
 ]

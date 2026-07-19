@@ -48,8 +48,8 @@
   higher learning rate improves PING by 1.59 points and lowers its loss, but
   reduces COBA by 1.84 points. No candidate clears the joint +3-point,
   non-worse-loss gate. All runs are finite and active, the official SHD test
-  remains sealed, and exact cumulative billing awaits provider settlement for
-  the two later pairs.
+  remains sealed, and exact cumulative provider billing is 0.479769 USD with
+  zero active pods.
 
   == Mandate
 
@@ -328,6 +328,7 @@
   locked +3-point threshold and COBA moves oppositely. Candidate 3 is therefore
   killed. Since every registered short candidate is killed, the protocol stops
   here and forbids a forty-epoch run. Candidate 1's authoritative provider
-  charge has settled at 0.251047 USD; charges for candidates 2 and 3 remain
-  pending and will be reconciled before final review.
+  charge settled at 0.251047 USD, candidate 2 at 0.139925 USD, and candidate 3
+  at 0.088796 USD. Exact cumulative spend is 0.479769 USD, with zero active
+  pods after collection.
 ]
