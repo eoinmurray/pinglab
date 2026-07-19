@@ -14,7 +14,7 @@
       baseline: "exp069, seed 42, on the identical 7,340-utterance development-training and 816-utterance validation partition. Comparisons use exp069 at epoch five, its selected checkpoint through epoch forty, and its final eighty-epoch selected checkpoint; the official SHD test is unavailable.",
       seeds: 1,
       budget: "One local 128-training/128-validation two-epoch smoke per implemented candidate; at most three matched five-epoch full-data candidate pairs; then at most one matched forty-epoch promoted pair. Paid compute is forbidden until a runtime and cost estimate receives fresh authorization.",
-      status: "queued",
+      status: "running",
       origin: "human",
     ),
   ),
@@ -220,6 +220,27 @@
   PING 5090 pod were dispatched from `cd82023` at 0.99 USD per pod-hour. The
   verified fleet contained exactly those two pods, giving a 1.98 USD maximum
   exposure under the one-hour backstops. Both jobs use the same development
-  partition and candidate settings; no official-test route exists. Result,
-  billing, and promotion status remain pending self-termination and collection.
+  partition and candidate settings; no official-test route exists.
+
+  === 2026-07-19 07:31–07:35 UTC: candidate 1 killed
+
+  Both pods self-terminated about eight minutes after dispatch, the active
+  fleet returned to zero, and both complete five-epoch records were collected.
+  The candidate was finite and active with no skipped steps or non-finite
+  forward batches, but it failed the registered efficacy gate in both cells.
+
+  #table(
+    columns: (1fr, auto, auto, auto, auto),
+    table.header([*Cell*], [*Accuracy*], [*vs exp069*], [*Cross-entropy*], [*vs exp069*]),
+    [COBA], [23.53%], [-4.41 pp], [2.678], [+0.206],
+    [PING], [27.70%], [-4.90 pp], [2.592], [+0.148],
+  )
+
+  Doubling the temporal bin width therefore made early validation learning
+  worse, not faster. This is a scientific kill rather than a plumbing failure:
+  COBA remained active at 14.22 Hz and PING remained active at 6.61 Hz E and
+  29.11 Hz I. Candidate 2 remains next by registration, but has not been
+  implemented or dispatched. Exact provider billing is still pending in the
+  provider history; publication remains fail-closed rather than substituting
+  an estimated charge.
 ]
