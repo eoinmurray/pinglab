@@ -218,4 +218,30 @@ with evidence, exact spend, validation, rendered links, and PR #52.])
 
   #message-card("assistant", "2026-07-19 01:39:56.429 UTC", "CP-003",
     [The registered smoke gate passed exactly: both cells were finite, all update counters stayed clean, COBA E activity was 23.93 Hz, and PING E/I activity was 2.95/14.56 Hz. The split hashes exactly match exp068. I’m checkpointing the implementation and smoke evidence—plus the resumed visible transcript—before dispatching either pod.])
+
+  == Checkpoint CP-004
+
+  This compute-dispatch checkpoint follows commit `b944ebf`. Its immutable
+  private source has SHA-256 prefix `2006f03650d5`, and its checkpoint time is
+  `2026-07-19 01:43:23.094 UTC`. Provider pod identifiers and sensitive
+  infrastructure details are excluded.
+
+  === Compute ledger
+
+  + Exactly two single-GPU pods were dispatched, one per architecture, at
+    0.99 USD/hour each. Four-hour backstops cap exposure at 7.92 USD.
+  + A transient PING capacity miss was recovered by the existing bounded
+    provisioning retry. The resulting active fleet was exactly two.
+  + Both cells are pinned to `b944ebf`; official-test access remains forbidden.
+
+  === Visible messages added in CP-004
+
+  #message-card("assistant", "2026-07-19 01:42:35.132 UTC", "CP-004",
+    [Smoke checkpoint `b944ebf` is pushed and the rendered trace/night PDFs were rebuilt. The gate authorizes full compute, so I’m posting the timestamped smoke milestone to PR #52, then I’ll dry-run the exact two-cell dispatch before using `--live`. I’m applying the GitHub publishing workflow because these PR writes are explicitly part of the mandate.])
+
+  #message-card("assistant", "2026-07-19 01:42:46.629 UTC", "CP-004",
+    [The dry-run resolves to exactly two 5090 pods—one COBA and one PING—with no extra jobs. The smoke checkpoint is pinned and the projected worst-case backstop cost remains below the authorized \$10 ceiling. I’m dispatching those two pods now; immediately afterward I’ll record their creation time and verify the fleet count is exactly two.])
+
+  #message-card("assistant", "2026-07-19 01:43:23.094 UTC", "CP-004",
+    [Both pods are now running at \$0.99/hour each, pinned to `b944ebf`; the first PING capacity request briefly found no stock, then the registered retry succeeded without creating an extra pod. Fleet count is exactly two, so the maximum four-hour exposure is \$7.92—inside the \$10 ceiling. I’m recording this dispatch milestone while the pods train.])
 ]
