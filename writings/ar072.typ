@@ -1,0 +1,191 @@
+#let meta = (
+  title: "Night shift — accelerating matched SHD learning",
+  date: "2026-07-19",
+  description: "A locked one-seed exploratory ladder that tests whether temporal discretization, shared input drive, or optimization can improve both matched Dale-constrained COBA and PING cells before a forty-epoch validation-only comparison.",
+  collection: "spiking-heidelberg-digits",
+  status: "draft",
+  order: 8,
+  activity_trace: "ar073",
+  queue: (
+    (
+      id: "exp070",
+      hypothesis: "The first registered short-run intervention that clears the promotion gate will improve both COBA and PING selected held-out validation accuracy by at least three percentage points at forty epochs relative to each cell's exp069 trajectory through epoch forty.",
+      kill: "Kill an attempt for non-finite loss or logits, any skipped update, silence, saturation, partition mismatch, official-test access, or failure of either cell to clear the registered short-run promotion gate. If all three short candidates are killed, stop without a forty-epoch run. Kill the final hypothesis if either promoted cell improves by less than three percentage points over its own exp069 through-epoch-forty selected validation baseline.",
+      baseline: "exp069, seed 42, on the identical 7,340-utterance development-training and 816-utterance validation partition. Comparisons use exp069 at epoch five, its selected checkpoint through epoch forty, and its final eighty-epoch selected checkpoint; the official SHD test is unavailable.",
+      seeds: 1,
+      budget: "One local 128-training/128-validation two-epoch smoke per implemented candidate; at most three matched five-epoch full-data candidate pairs; then at most one matched forty-epoch promoted pair. Paid compute is forbidden until a runtime and cost estimate receives fresh authorization.",
+      status: "queued",
+      origin: "human",
+    ),
+  ),
+)
+
+#let prior = json("/artifacts/data/exp069/numbers.json")
+#let prior-c = json("/artifacts/data/exp069/raw/coba/metrics.json")
+#let prior-p = json("/artifacts/data/exp069/raw/ping/metrics.json")
+
+#let first-five(run) = run.epochs.at(4)
+#let best-through-forty(run) = run.epochs.slice(0, 40).fold(
+  (acc: -1.0, loss: 1e9, ep: 0),
+  (best, row) => if row.acc > best.acc or
+    (row.acc == best.acc and row.test_loss < best.loss) {
+      (acc: row.acc, loss: row.test_loss, ep: row.ep)
+    } else { best },
+)
+
+#let c5 = first-five(prior-c)
+#let p5 = first-five(prior-p)
+#let c40 = best-through-forty(prior-c)
+#let p40 = best-through-forty(prior-p)
+
+#let body = [
+  == Digest
+
+  *The experiment is registered but has not started.* The exp069 evidence
+  indicates that adding epochs is too slow for iteration and does not identify
+  the limiting mechanism. This night therefore uses a short, ordered
+  intervention ladder. It promotes the first candidate that improves both
+  cells, freezes that configuration, and tests it for forty epochs. No official
+  SHD test data may be loaded or inspected.
+
+  == Mandate
+
+  === Question and fixed comparison
+
+  Can one mechanistically motivated, matched change make both Dale-constrained
+  conductance-based (COBA) and pyramidal-interneuron gamma (PING) networks learn
+  SHD materially faster, while preserving a direct comparison between their
+  recurrent cells?
+
+  Both cells retain 256 excitatory and 64 inhibitory slots, identical input and
+  readout dimensions, fixed Dale-constrained recurrence, batch size 32, seed
+  42, the exp069 development split, membrane-mean classification objective,
+  and the registered validation checkpoint rule. COBA disables its inhibitory
+  loop and uses no voltage-gradient dampening. PING enables the loop and uses
+  dampening 1000. Capacity, connectivity, recurrence structure, data ordering,
+  and all settings not named by a candidate remain unchanged and matched.
+
+  === Baseline trajectory
+
+  #table(
+    columns: (1fr, auto, auto, auto),
+    table.header([*Cell*], [*Epoch-five accuracy*], [*Epoch-five loss*], [*Best accuracy through forty*]),
+    [COBA], [#calc.round(c5.acc, digits: 2)%], [#calc.round(c5.test_loss, digits: 3)], [#calc.round(c40.acc, digits: 2)% at epoch #c40.ep],
+    [PING], [#calc.round(p5.acc, digits: 2)%], [#calc.round(p5.test_loss, digits: 3)], [#calc.round(p40.acc, digits: 2)% at epoch #p40.ep],
+  )
+
+  The final exp069 selected checkpoints remain a required contextual
+  comparison: COBA reached
+  #calc.round(prior.cells.coba.selected_validation_accuracy_pct, digits: 2)%
+  and PING reached
+  #calc.round(prior.cells.ping.selected_validation_accuracy_pct, digits: 2)%
+  after eighty epochs.
+
+  === Registered intervention ladder
+
+  1. *Temporal resolution.* Change the integration and input-bin width from
+     1 ms to 2 ms while retaining the 1,000 ms observation window and every
+     other exp069 setting. This halves backpropagation depth while remaining
+     commensurate with the fastest registered synaptic time constant.
+  2. *Shared input drive.* Only if candidate 1 is killed, restore 1 ms and
+     increase the shared input-weight mean from 0.9 to 1.2. This tests whether
+     weak PING excitatory recruitment limits early learning without tuning one
+     architecture separately.
+  3. *Optimization.* Only if candidates 1 and 2 are killed, restore the exp069
+     input settings and increase the matched Adam learning rate from 0.0004 to
+     0.001. No scheduler, weight decay, loss change, or architecture-specific
+     optimizer is allowed.
+
+  Stop the ladder at the first promoted candidate. Do not combine candidates,
+  search intermediate values, or run later candidates after a promotion.
+  Inhibitory balance, gradient flow, and existing time constants remain
+  diagnostics. A new time-constant mechanism or readout would require a
+  separate exact preregistration before implementation or results; this mandate
+  does not authorize an unspecified rescue.
+
+  === Promotion, final test, and interpretation
+
+  Each candidate first passes a local 128-training/128-validation, two-epoch
+  plumbing smoke, then runs both cells for exactly five epochs on the full
+  development-training partition. Promote the first candidate only when, at
+  epoch five, both cells exceed their own exp069 epoch-five validation accuracy
+  by at least three percentage points, neither validation cross-entropy is
+  worse, all losses and gradients are finite, no update is skipped, and the E
+  population in both cells plus the PING I population remain active and below
+  saturation.
+
+  Freeze the promoted configuration before extending it. Train both frozen
+  cells for exactly forty epochs from the registered seed and initialisation.
+  Select checkpoints by highest validation accuracy, then lower validation
+  cross-entropy, then earlier epoch. The primary criterion is an improvement of
+  at least three percentage points for *each* cell over that cell's exp069
+  selected checkpoint through epoch forty. Report the contemporaneous
+  PING-minus-COBA difference as a secondary diagnostic, not as a seeded
+  architecture claim. Also compare both cells with exp069's eighty-epoch
+  selected checkpoints without selective checkpoint reporting.
+
+  === Queue and operating contract
+
+  #table(
+    columns: (auto, 1fr),
+    table.header([*Field*], [*exp070*]),
+    [Hypothesis], [#meta.queue.first().hypothesis],
+    [Baseline], [#meta.queue.first().baseline],
+    [Kill criterion], [#meta.queue.first().kill],
+    [Seed count], [#str(meta.queue.first().seeds)],
+    [Budget], [#meta.queue.first().budget],
+    [Status], [#meta.queue.first().status],
+  )
+
+  ```yaml
+  budgets:
+    local_smoke_samples: 128
+    short_epochs: 5
+    short_candidate_pairs_max: 3
+    final_epochs: 40
+    seeds_default: 1
+    runpod_total_usd: pending_fresh_authorization
+  scope:
+    collection: spiking-heidelberg-digits
+    experiment_id: exp070
+    activity_trace: ar073
+    tools_snn_edits: narrow_and_backward_compatible_only
+    official_test_access: forbidden
+    pr: 52
+    main_edits: forbidden
+  stop_when:
+    - first_candidate_promoted_and_final_pair_complete
+    - all_candidates_killed
+    - paid_compute_authority_required
+    - protocol_integrity_failure
+    - invasive_engine_change_required
+  ```
+
+  Paid compute begins only after the local checks pass and the scientist
+  approves an explicit estimate and hard ceiling. At most one pod per cell may
+  be used under that approval, and every pod must be reaped immediately. Do not
+  run the full test suite on the local 4 GB host. Use focused checks and the
+  complete Demolab build.
+
+  == Record
+
+  === 2026-07-19 06:44–06:49 UTC: diagnosis and registration
+
+  The scientist approved the exploratory objective, one-seed policy, locked
+  comparison, intervention order, official-test prohibition, and fresh
+  paid-compute gate in the attached goal. The existing pull request remains the
+  requested programme branch; `main` is not modified. This branch checkpoint
+  therefore serves as the pre-result anchor, a documented workflow deviation
+  from placing a new-night mandate on `main`.
+
+  Exp069's complete local histories show finite but slow learning in both
+  cells, active populations, and no skipped updates. Its COBA input gradient is
+  repeatedly clipped while PING's dampened gradient is much smaller, yet both
+  validation losses continue falling. A development-data-only input audit
+  found that extending the one-second window would recover too few events to
+  explain the accuracy ceiling. Coarsening to 2 ms loses little same-channel
+  event multiplicity and halves the recurrent unroll; 4 ms is already coarse
+  relative to the AMPA decay. Candidate 1 was therefore fixed at 2 ms before
+  any exp070 training result existed. No new runner, smoke, cloud job,
+  official-test access, or spend exists at this checkpoint.
+]
