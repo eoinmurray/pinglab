@@ -487,4 +487,55 @@ The next continuation can collect immediately once the monitor reports completio
 
   #message-card("assistant", "2026-07-19 04:12:10.443 UTC", "CP-005",
     [The integrity gate passes: both cells have exactly 80 finite epoch records, zero skipped/non-finite updates, active selected populations, matched validation raster inputs, and zero active pods. I found one publication-only omission before generating artifacts—the registered diagnostics require COBA’s change from 40.81% and the contemporaneous PING–COBA gap in `numbers.json`. I’m adding those derived fields without changing any run or criterion.])
+
+  == Checkpoint CP-006
+
+  This publication checkpoint follows result commit `5e80b23`. Its immutable
+  private source has SHA-256 prefix `afa0dba76b1b`, and its checkpoint time is
+  `2026-07-19 05:05:12.446 UTC`.
+
+  === Publication ledger
+
+  + Delayed provider billing was allowed to settle before publication, avoiding
+    a material spend understatement. Authoritative charges total 4.627566222
+    USD; zero pods remain.
+  + The artifact bundle contains provenance, sixteen verified raw hashes,
+    reproducer scripts, learning/activity curves, diagnostics, and matched
+    validation rasters. Visual raster inspection passed.
+  + Two report builds exposed punctuation-adjacent Typst interpolation errors.
+    Both were presentation-only, were corrected without changing results, and
+    the final 38-entry build passed with zero stubs.
+  + The result commit was pushed. Focused Ruff, type checking, compilation,
+    registered assertions, epoch integrity, raw hashes, matched inputs,
+    reproducer syntax, official-test-route absence, zero-pod state, and remote
+    tracking all passed.
+  + The normal PR metadata edit hit a GitHub Projects-classic deprecation error.
+    The authorized REST fallback updated PR 52 successfully; it remains draft,
+    open, and unmerged.
+
+  === Visible messages added in CP-006
+
+  #message-card("assistant", "2026-07-19 04:15:18.960 UTC", "CP-006",
+    [The provider’s billing-history endpoint is lagging termination: it currently reports only about 91 billed minutes per pod, less than the collected 128–135 minute training runtimes, so publishing that total would understate spend. I’m waiting for the authoritative per-pod billing records to settle while keeping the fleet at zero; no further compute cost is accruing.])
+
+  #message-card("assistant", "2026-07-19 04:40:39.868 UTC", "CP-006",
+    [Billing reconciliation is progressing monotonically but is still incomplete at \$4.013: that remains below the GPU-time implied by the collected runtimes plus provisioning. I’m extending the zero-cost reconciliation wait until the per-pod records cover the observed lifecycles; this does not spend additional money.])
+
+  #message-card("assistant", "2026-07-19 05:01:07.033 UTC", "CP-006",
+    [The authoritative billing records have settled and now cover 8,472.906 seconds for COBA and 8,282.638 seconds for PING. Exact provider charges are \$2.340118571 and \$2.287447651, totaling \$4.627566222—well below the \$10 ceiling. I’m freezing this ledger, generating the artifact bundle, then visually checking the figures before writing the final scientific record.])
+
+  #message-card("assistant", "2026-07-19 05:02:39.801 UTC", "CP-006",
+    [The artifact bundle is published with provenance, raw hashes, reproducer, both learning/activity curves, diagnostics, and matched validation rasters; visual raster inspection confirms byte-matched inputs and active PING E/I dynamics. I’ve now made the report and night Digest fully artifact-driven and am running the complete Demolab build.])
+
+  #message-card("assistant", "2026-07-19 05:02:45.073 UTC", "CP-006",
+    [The first full build found a Typst interpolation ambiguity in exp069: punctuation immediately after a JSON field was parsed as part of the key. This is report syntax only; I’m separating the rendered count from the following word and rebuilding.])
+
+  #message-card("assistant", "2026-07-19 05:04:12.822 UTC", "CP-006",
+    [The complete 38-entry build now passes with zero stubs. The first report build exposed two punctuation-adjacent JSON interpolation errors; both were presentation-only and are preserved as the publication attempt before the successful rebuild. I’m committing the artifact-backed result checkpoint now, then I’ll run the final integrity audit and add the closing activity checkpoint.])
+
+  #message-card("assistant", "2026-07-19 05:04:56.861 UTC", "CP-006",
+    [The result checkpoint is `5e80b23`. Final integrity checks pass: all 16 raw hashes, registered result assertions, 80 finite epochs per cell, shell reproducers, official-test route absence, Ruff, type checking, compilation, zero pods, and clean remote tracking. I’m correcting the result PR comment’s literal commit placeholder, replacing the stale PR description with the evidence Digest, and adding the final hash-linked activity checkpoint.])
+
+  #message-card("assistant", "2026-07-19 05:05:12.446 UTC", "CP-006",
+    [The correction comment posted, but `gh pr edit` hit GitHub’s deprecated Projects-classic GraphQL field before changing the PR metadata. I’m recording that external tooling failure and using GitHub’s direct pull-request REST update for the same authorized title/body; the branch and experiment remain untouched.])
 ]
