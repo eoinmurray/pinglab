@@ -8,6 +8,7 @@
 )
 
 #let trace = json("/artifacts/data/ar073/messages.json")
+#let trace-two = json("/artifacts/data/ar073/messages_cp002.json")
 
 #let verbatim-prose(value) = {
   for (index, line) in value.split("\n").enumerate() {
@@ -16,7 +17,7 @@
   }
 }
 
-#let message-card(message) = {
+#let message-card(message, checkpoint) = {
   let speaker = if message.role == "user" { "User" } else { "Assistant" }
   block(width: 100%, breakable: true, fill: luma(96%), stroke: 0.6pt + luma(82%),
     radius: 4pt, inset: 10pt)[
@@ -24,7 +25,7 @@
       [#text(size: 8pt, fill: luma(42%), message.timestamp)])
     #v(3pt)
     #text(size: 7.5pt, fill: luma(48%))[
-      Role: #message.role · Checkpoint: #trace.checkpoint_id · Session: #trace.session_id
+      Role: #message.role · Checkpoint: #checkpoint.checkpoint_id · Session: #checkpoint.session_id
     ]
     #v(7pt)
     #verbatim-prose(message.content)
@@ -68,5 +69,32 @@
 
   == Privacy-sanitized visible transcript
 
-  #for message in trace.messages { message-card(message) }
+  #for message in trace.messages { message-card(message, trace) }
+
+  == Checkpoint CP-002
+
+  *Candidate 1 is implemented and its local smoke gate passes.* This checkpoint
+  follows mandate anchor `cac3d07`. Its immutable private source has SHA-256
+  prefix `8b7c5612397e`, and its checkpoint time is
+  `2026-07-19 07:04:04.503 UTC`.
+
+  === Decision and action ledger
+
+  + The exp070 runner changes only temporal resolution and short-run duration
+    while reusing exp069's split, checkpoint selection, diagnostics, rasters,
+    and cloud orchestration. `tools/snn` is unchanged.
+  + A pre-smoke audit found that inherited backup/restore plumbing could copy an
+    existing official-test cache even though it never evaluated it. Exp070 now
+    redirects the engine to a development-only alias, closing that protocol
+    ambiguity before training.
+  + Focused Ruff, `ty`, compilation, and two-pod dry-run checks pass. The dry
+    run created no pod.
+  + Both 2 ms smoke cells are finite and active, use the exact exp069 split
+    hashes, and report no skipped or non-finite updates. Spend remains 0 USD.
+  + Pending work is a commit/push checkpoint and fresh authority for the matched
+    five-epoch cloud pair. No paid compute may start before that approval.
+
+  === Visible messages added in CP-002
+
+  #for message in trace-two.messages { message-card(message, trace-two) }
 ]
