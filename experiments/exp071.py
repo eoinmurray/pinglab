@@ -229,13 +229,13 @@ def configure_baseline() -> None:
     baseline.LOCAL_SPLIT_ROOT = LOCAL_SPLIT_ROOT
     baseline.SHD_DIR = INSTALLED_SPLIT_ROOT
     baseline.__dict__["EPOCHS"] = EPOCHS
-    baseline.N_HIDDEN = HIDDEN_SIZES[-1]
-    baseline.N_INHIBITORY = HIDDEN_SIZES[-1] // 4
-    baseline.READOUT_MODE = READOUT_MODE
-    baseline.READOUT_SCALE = READOUT_SCALE
-    baseline.train_args = train_args
-    baseline.validate_training = validate_training
-    baseline.capture_matched_rasters = capture_matched_rasters
+    baseline.__dict__["N_HIDDEN"] = HIDDEN_SIZES[-1]
+    baseline.__dict__["N_INHIBITORY"] = HIDDEN_SIZES[-1] // 4
+    baseline.__dict__["READOUT_MODE"] = READOUT_MODE
+    baseline.__dict__["READOUT_SCALE"] = READOUT_SCALE
+    baseline.__dict__["train_args"] = train_args
+    baseline.__dict__["validate_training"] = validate_training
+    baseline.__dict__["capture_matched_rasters"] = capture_matched_rasters
     baseline.SCALE = {
         **baseline.SCALE,
         "experiment": SLUG,
@@ -297,13 +297,18 @@ def pod_run() -> None:
 
 
 def run_via_runpod(meta: Any) -> None:
+    cells = meta.only_cells or list(baseline.MODELS)
+    unknown = sorted(set(cells) - set(baseline.MODELS))
+    if unknown:
+        raise SystemExit(f"unknown exp071 cells for --only-cells: {unknown}")
+    buckets = [
+        {"name": f"exp071-{POD_LABEL}-{model}", "cells": [model]}
+        for model in cells
+    ]
     runpod.dispatch(
         slug=SLUG,
         runner=SLUG,
-        buckets=[
-            {"name": f"exp071-{POD_LABEL}-coba", "cells": ["coba"]},
-            {"name": f"exp071-{POD_LABEL}-ping", "cells": ["ping"]},
-        ],
+        buckets=buckets,
         gpu=meta.gpu,
         live=meta.live,
         collect=meta.collect,
