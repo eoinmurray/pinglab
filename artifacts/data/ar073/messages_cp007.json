@@ -1,0 +1,21 @@
+{
+  "session_id": "019f76ab-932b-72c2-b163-463ead65d8d5",
+  "checkpoint_id": "CP-007",
+  "messages": [
+    {
+      "timestamp": "2026-07-19 07:37:37.732 UTC",
+      "role": "assistant",
+      "content": "The killed candidate is now committed and pushed at `9e1385a`, with its timestamped activity checkpoint and PR milestone comment. No later candidate has started. I’m waiting only for the provider’s authoritative billing rows so this attempt can be published with exact spend, then I’ll advance to the preregistered 1.2 input-scale smoke."
+    },
+    {
+      "timestamp": "2026-07-19 07:41:19.944 UTC",
+      "role": "assistant",
+      "content": "Candidate 2 is now implemented exactly as registered: 1 ms is restored and only the shared input-weight mean changes from 0.9 to 1.2. The runner can still reproduce and publish the killed 2 ms attempt without mixing its files. Focused lint, type, compile, and promotion-gate tests pass; I’m running the required local 128/128 two-epoch smoke now."
+    },
+    {
+      "timestamp": "2026-07-19 07:46:43.509 UTC",
+      "role": "assistant",
+      "content": "The candidate-2 smoke passes: both cells are finite and active, use the exact registered 7,340/816 split hashes, and the development-only alias contains no official-test file. COBA ends at 26.79 Hz E; PING at 3.24 Hz E and 17.00 Hz I, with no skipped/non-finite updates. I’m checkpointing this smoke and verifying the two-job dry run before any paid dispatch."
+    }
+  ]
+}

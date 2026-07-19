@@ -1,13 +1,14 @@
-"""Registered first exp070 attempt: matched 2 ms SHD temporal resolution.
+"""Registered exp070 exploratory ladder for matched COBA and PING cells.
 
 This runner reuses exp069's validated split, checkpoint-selection, training,
-diagnostic, raster, and RunPod plumbing.  It changes only the experiment paths,
-the integration/input-bin width (1 ms -> 2 ms), and the registered short-run
-duration (80 epochs -> 5 epochs).  The official SHD test has no route here.
+diagnostic, raster, and RunPod plumbing. Candidate 1 (2 ms) was killed. The
+default is now registered candidate 2: restore 1 ms and change only the shared
+input-weight mean from 0.9 to 1.2. The official SHD test has no route here.
 
 Default execution is the local 128/128, two-epoch smoke.  Cloud execution needs
-the explicit ``--runpod --live`` spending gate.  Collection publishes the
-attempt and derives promotion or kill from the locked epoch-five thresholds.
+the explicit ``--runpod --live`` spending gate. A registered attempt can be
+selected for artifact publication with ``EXP070_ATTEMPT``; unregistered values
+fail closed.
 """
 
 from __future__ import annotations
@@ -15,6 +16,7 @@ from __future__ import annotations
 import hashlib
 import json
 import math
+import os
 import shutil
 import sys
 import time
@@ -35,10 +37,27 @@ from helpers.run_dirs import published_run  # noqa: E402
 from helpers.run_id import next_run_id  # noqa: E402
 
 SLUG = "exp070"
-ATTEMPT = "temporal_2ms"
 SHORT_EPOCHS = 5
-DT_MS = 2.0
 PROMOTION_ACCURACY_GAIN_PP = 3.0
+ATTEMPT_SPECS: dict[str, dict[str, float | str]] = {
+    "temporal_2ms": {
+        "dt_ms": 2.0,
+        "input_weight_mean": 0.9,
+        "pod_label": "2ms",
+    },
+    "input_scale_1p2": {
+        "dt_ms": 1.0,
+        "input_weight_mean": 1.2,
+        "pod_label": "input-1p2",
+    },
+}
+ATTEMPT = os.environ.get("EXP070_ATTEMPT", "input_scale_1p2")
+if ATTEMPT not in ATTEMPT_SPECS:
+    raise RuntimeError(f"unregistered exp070 attempt: {ATTEMPT}")
+ATTEMPT_SPEC = ATTEMPT_SPECS[ATTEMPT]
+DT_MS = float(ATTEMPT_SPEC["dt_ms"])
+INPUT_SCALE = float(ATTEMPT_SPEC["input_weight_mean"])
+POD_LABEL = str(ATTEMPT_SPEC["pod_label"])
 
 ARTIFACTS, FIGURES = artifacts_and_figures(SLUG)
 SCRATCH = runpod.artifacts_scratch(SLUG)
@@ -50,8 +69,8 @@ LOCAL_SPLIT_ROOT = REPO / "temp" / "experiments" / SLUG / "split"
 INSTALLED_SPLIT_ROOT = REPO / "temp" / "experiments" / SLUG / "installed_shd"
 
 EXP069_RAW = REPO / "artifacts" / "data" / "exp069" / "raw"
-COMMITTED_SMOKE = REPO / "artifacts" / "data" / SLUG / "smoke_summary.json"
-COMPUTE_LEDGER = SCRATCH / "compute_ledger.json"
+COMMITTED_SMOKE = REPO / "artifacts" / "data" / SLUG / "raw" / ATTEMPT / "smoke_summary.json"
+COMPUTE_LEDGER = SCRATCH / "compute_ledgers" / f"{ATTEMPT}.json"
 
 
 def configure_baseline() -> None:
@@ -68,12 +87,14 @@ def configure_baseline() -> None:
     baseline.SHD_DIR = INSTALLED_SPLIT_ROOT
     baseline.__dict__["EPOCHS"] = SHORT_EPOCHS
     baseline.DT_MS = DT_MS
+    baseline.INPUT_SCALE = INPUT_SCALE
     baseline.SCALE = {
         **baseline.SCALE,
         "experiment": SLUG,
         "attempt": ATTEMPT,
         "epochs": SHORT_EPOCHS,
         "dt_ms": DT_MS,
+        "input_weight_mean": INPUT_SCALE,
     }
     # The engine historically resolves SHD through a module-level directory.
     # Redirect it to exp070's staged development-only alias.  This prevents the
@@ -151,6 +172,7 @@ def run_smoke() -> None:
     summary = json.loads(summary_path.read_text())
     summary["attempt"] = ATTEMPT
     summary["candidate_dt_ms"] = DT_MS
+    summary["candidate_input_weight_mean"] = INPUT_SCALE
     summary["input_audit"] = input_audit()
     baseline.atomic_json(summary_path, summary)
 
@@ -168,7 +190,7 @@ def pod_run() -> None:
         job_ids=list(baseline.MODELS),
         is_done=cell_done,
         run_job=run_full_cell,
-        label="exp070-temporal-2ms-short",
+        label=f"exp070-{POD_LABEL}-short",
     )
 
 
@@ -177,8 +199,8 @@ def run_via_runpod(meta: Any) -> None:
         slug=SLUG,
         runner=SLUG,
         buckets=[
-            {"name": "exp070-2ms-coba", "cells": ["coba"]},
-            {"name": "exp070-2ms-ping", "cells": ["ping"]},
+            {"name": f"exp070-{POD_LABEL}-coba", "cells": ["coba"]},
+            {"name": f"exp070-{POD_LABEL}-ping", "cells": ["ping"]},
         ],
         gpu=meta.gpu,
         live=meta.live,
@@ -272,6 +294,11 @@ def publish_attempt() -> None:
         baseline.plot_validation_curves(cells, figures / "short_validation_curves")
         baseline.plot_activity_curves(cells, figures / "short_activity_curves")
         baseline.plot_matched_rasters(figures / "matched_rasters.png")
+        prior_raw = FIGURES / "raw"
+        if prior_raw.exists():
+            for source in prior_raw.iterdir():
+                if source.is_dir() and source.name != ATTEMPT:
+                    shutil.copytree(source, figures / "raw" / source.name)
         raw = figures / "raw" / ATTEMPT
         raw.mkdir(parents=True)
         shutil.copy2(smoke_path, raw / "smoke_summary.json")
@@ -287,6 +314,10 @@ def publish_attempt() -> None:
                 source / "validation_probe/matched_rasters/rasters.npz",
                 destination / "matched_rasters.npz",
             )
+        baseline.atomic_json(
+            raw / "attempt_decision.json",
+            {"result_status": decision, "attempt": ATTEMPT, "cells": diagnostics},
+        )
         payload = {
             "result_status": decision,
             "stage": "short_candidate",
@@ -312,11 +343,11 @@ def publish_attempt() -> None:
         write_numbers(figures, run_id=run_id, duration_s=time.monotonic() - t0, payload=payload)
         (figures / "reproduce.sh").write_text(
             "#!/usr/bin/env bash\nset -euo pipefail\n"
-            "uv run python experiments/exp070.py\n"
-            "uv run python experiments/exp070.py --runpod\n"
+            f"EXP070_ATTEMPT={ATTEMPT} uv run python experiments/exp070.py\n"
+            f"EXP070_ATTEMPT={ATTEMPT} uv run python experiments/exp070.py --runpod\n"
             "# Add --live only with fresh, explicit RunPod spending authority.\n"
-            "uv run python experiments/exp070.py --runpod --collect\n"
-            "uv run python experiments/exp070.py --skip-training\n"
+            f"EXP070_ATTEMPT={ATTEMPT} uv run python experiments/exp070.py --runpod --collect\n"
+            f"EXP070_ATTEMPT={ATTEMPT} uv run python experiments/exp070.py --skip-training\n"
         )
 
 

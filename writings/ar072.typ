@@ -243,4 +243,20 @@
   implemented or dispatched. Exact provider billing is still pending in the
   provider history; publication remains fail-closed rather than substituting
   an estimated charge.
+
+  === 2026-07-19 07:41–07:47 UTC: candidate-2 smoke gate
+
+  Candidate 2 was implemented only after the candidate-1 kill checkpoint. It
+  restores the 1 ms baseline and changes only the shared input-weight mean from
+  0.9 to 1.2. The runner rejects unregistered attempt names and keeps each
+  attempt's cells, smoke, decision, and compute ledger separate. `tools/snn`
+  remains unchanged.
+
+  Its required 128-training/128-validation, two-epoch smoke passed for both
+  cells with finite losses and gradients, no skipped updates, and the exact
+  registered split hashes. COBA ended at 26.79 Hz E; PING ended at 3.24 Hz E
+  and 17.00 Hz I. The development-only alias contained no official-test file.
+  A cloud dry run found an empty fleet and exactly two candidate-2 jobs, one
+  per cell; it created no pod. Paid candidate-2 dispatch remains pending this
+  checkpoint and candidate-1 billing reconciliation.
 ]

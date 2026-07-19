@@ -13,6 +13,7 @@
 #let trace-four = json("/artifacts/data/ar073/messages_cp004.json")
 #let trace-five = json("/artifacts/data/ar073/messages_cp005.json")
 #let trace-six = json("/artifacts/data/ar073/messages_cp006.json")
+#let trace-seven = json("/artifacts/data/ar073/messages_cp007.json")
 
 #let verbatim-prose(value) = {
   for (index, line) in value.split("\n").enumerate() {
@@ -203,4 +204,30 @@
   === Visible messages added in CP-006
 
   #for message in trace-six.messages { message-card(message, trace-six) }
+
+  == Checkpoint CP-007
+
+  *Candidate 2 is implemented and passes its local smoke gate.* This checkpoint
+  follows the killed-attempt commit `9e1385a`. Its immutable private source has
+  SHA-256 prefix `b12370990974`, and its checkpoint time is
+  `2026-07-19 07:47:15.296 UTC`.
+
+  === Decision and action ledger
+
+  + Candidate 2 restores 1 ms and changes only the matched shared input-weight
+    mean from 0.9 to 1.2. Candidate 1's outputs remain separately addressable.
+  + Focused Ruff, type, compile, and promotion-gate checks pass. `tools/snn` is
+    unchanged.
+  + The required 128-training/128-validation two-epoch smoke passes in both
+    cells. COBA ends at 26.79 Hz E; PING ends at 3.24 Hz E and 17.00 Hz I.
+    Losses and gradients are finite and no update is skipped.
+  + The exact registered split hashes are retained and the development-only
+    alias contains no official-test file. The two-job cloud dry run creates no
+    pod and resolves to exactly one job per cell.
+  + Candidate-1 provider billing is still delayed. The fleet is empty and
+    candidate 2 has not been dispatched at this checkpoint.
+
+  === Visible messages added in CP-007
+
+  #for message in trace-seven.messages { message-card(message, trace-seven) }
 ]
