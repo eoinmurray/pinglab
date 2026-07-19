@@ -175,34 +175,51 @@ Reply *go* to approve this mandate.])
 
 `/goal Continue and complete the locked exp069 autoresearch night on PR #52.`
 
-Repository and state: work in (PRIVATE LOCAL PATH REDACTED), on branch
-`night/spiking-heidelberg-digits/ar070`; PR #51/exp068 was merged as `569926f`;
-the mandate is locked in `writings/ar070.typ` at `3c440aa`; draft PR #52 is
-#link("https://github.com/eoinmurray/pinglab/pull/52")[open]; the latest night
-checkpoint is `08edd92`; the trace is `writings/ar071.typ`; and exp069 compute
-has not started, with \$0 spend and zero active pods.
+Repository and state:
+- Work in (PRIVATE LOCAL PATH REDACTED).
+- Current branch: night/spiking-heidelberg-digits/ar070.
+- PR #51/exp068 was accepted and merged into main as 569926f.
+- The exp069 mandate is locked in writings/ar070.typ on main at 3c440aa.
+- Draft PR #52: https://github.com/eoinmurray/pinglab/pull/52
+- Latest night checkpoint: 08edd92.
+- Activity trace: writings/ar071.typ.
+- Experiment/report IDs: exp069 and writings/exp069.typ.
+- No exp069 compute has started; recorded spend is \$0 and there should be zero active pods.
 
-Execute the registered design exactly: one seed (42), the identical deterministic
-7,340/816 exp068 split and hashes, every exp068 setting unchanged except 80
-epochs rather than 40, COBA loop off with no voltage-gradient dampening, PING
-loop on with dampening 1000, and the registered validation checkpoint rule.
-The official SHD test is forbidden. Do not tune, rescue, edit `tools/snn`, or
-change the design after results.
+Execute the registered design exactly:
+- Test whether extending matched training from 40 to 80 epochs raises PING’s selected validation accuracy by at least 3 percentage points over exp068’s 43.50% baseline.
+- One seed: 42.
+- Reuse exp068’s exact deterministic 7,340-training/816-validation split and verify its index hashes.
+- Preserve every exp068 architecture, optimizer, input, readout, ordering, and preprocessing setting.
+- The only scientific change is 80 training epochs instead of 40.
+- COBA: inhibitory loop disabled and no voltage-gradient dampening.
+- PING: inhibitory loop enabled and dampening 1000.
+- Use the registered checkpoint rule: highest validation accuracy, then lower validation cross-entropy, then earlier epoch.
+- The official SHD test is forbidden: do not stage, load, inspect, evaluate, or report it.
+- No architecture-specific tuning, rescue, or post-result design changes.
+- Do not edit tools/snn without asking first.
 
-Run the 128/128 two-epoch local smoke first. If finite, active, matched, and
-without persistent skipped updates, run one 80-epoch cell per architecture on
-at most two concurrent pods, under four-hour backstops and a \$10 hard total
-ceiling. Reap and verify zero pods. Use focused checks and `demolab build`, not
-the full local test suite.
+Execution protocol:
+1. Run the registered local 128-training/128-validation, two-epoch smoke first.
+2. Require finite optimization, active populations, matched partitions, and no persistent skipped updates.
+3. If the gate passes, run one full 80-epoch cell per architecture.
+4. RunPod authorization: at most two concurrent pods, one per architecture, with a hard total ceiling of \$10 and four-hour per-pod backstops.
+5. Reap pods after completion or failure and verify zero remain.
+6. Do not run the full test suite on the 4 GB host; use focused Ruff, ty, compilation/integrity checks, and demolab build.
 
-Deliver `experiments/exp069.py`, `artifacts/data/exp069`, and
-`writings/exp069.typ`; update the timestamped ar070 Record/Digest and the
-verbatim, sanitized, hash-linked ar071 trace; comment on PR #52 at milestones;
-make focused commits; build, push, and update the existing draft PR. Do not
-create another branch/PR, modify main, merge PR #52, or access the official
-test. Stop before any scientific-design change, `tools/snn` edit, budget
-overrun, or action needing new authority. Finish at the human publication gate
-with evidence, exact spend, validation, rendered links, and PR #52.])
+Deliverables:
+- Implement through experiments/exp069.py using existing CLI capabilities.
+- Produce artifacts/data/exp069 with provenance, split hashes, numbers.json, reproducer, learning/activity curves, runtime and memory diagnostics, skipped/non-finite counters, and matched validation input/E/I rasters.
+- Create writings/exp069.typ as a cold-readable artifact-driven report.
+- Update the timestamped Record and Digest in writings/ar070.typ.
+- Continue writings/ar071.typ with verbatim chronological user-visible messages and timestamped, hash-linked checkpoints. Exclude hidden reasoning and tool payloads; sanitize credentials, tokens, SSH material, IPs, private paths, environment values, pod identifiers, and sensitive infrastructure. Maintain immutable private raw transcript checkpoints outside the repository and record their SHA-256 prefix hashes.
+- Add timestamped PR #52 comments at meaningful scientific and compute milestones.
+- Make focused commits for implementation, smoke, dispatch, results, failures, and publication; preserve killed attempts.
+- Build successfully, push the existing branch, and update PR #52.
+- Do not create another branch or PR, modify main, merge PR #52, or use the official test.
+- Stop and ask before changing the registered scientific design, editing tools/snn, exceeding the compute budget, or taking another action requiring authority.
+- Finish at the human publication gate with a concise evidence summary, exact compute spend, validation performed, rendered ar070/ar071/exp069 links, and PR #52. Leave it draft and unmerged.
+])
 
   #message-card("assistant", "2026-07-19 01:33:02.681 UTC", "CP-003",
     [I’m resuming exp069 from the locked branch state. I’ll first verify the Demolab runbook, worktree, PR/pod state, and mandate, then implement and smoke-test before any authorized compute dispatch. I’ll also checkpoint this resumed visible thread into the sanitized activity log before publication.])
