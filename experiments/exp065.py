@@ -36,9 +36,7 @@ from helpers.run_id import next_run_id  # noqa: E402
 
 SLUG = "exp065"
 CHECKPOINT_ROOT = REPO / "temp" / "experiments" / SLUG / "ann"
-PING_CACHE_ROOT = REPO / "temp" / "experiments" / SLUG / "ping_rate"
 MATCHED_CACHE_ROOT = REPO / "temp" / "experiments" / SLUG / "matched_masking"
-EXP048_NUMBERS = REPO / "artifacts" / "data" / "exp048" / "numbers.json"
 
 N_INPUT = 784
 N_HIDDEN = 1024
@@ -53,10 +51,6 @@ RETENTION_Q = (1.0, 0.9, 0.8, 0.7, 0.6, 0.5, 0.4, 0.3,
                0.2, 0.1, 0.05, 0.02, 0.01, 0.0075, 0.005, 0.0025, 0.0)
 CHANCE_ACCURACY = 1.0 / N_CLASSES
 PING_T_MS = 200.0
-PING_NEW_RATES_HZ = (0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0, 2.0, 3.0)
-PING_REUSED_RATES_HZ = (5.0, 10.0, 25.0, 50.0, 100.0, 200.0)
-PING_STREAMS = 10
-PING_DIGITS_PER_STREAM = 10
 MATCHED_Q = (1.0, 0.5, 0.2, 0.1, 0.05, 0.02, 0.01, 0.005, 0.0)
 MATCHED_IMAGES = 100
 MATCHED_STREAM_SIZE = 10
@@ -72,9 +66,6 @@ SCALE = {
     "seeds": len(SEEDS),
     "mask_draws": MASK_DRAWS,
     "retention_levels": len(RETENTION_Q),
-    "ping_new_rate_cells": len(PING_NEW_RATES_HZ) * len(SEEDS),
-    "ping_digits_per_new_cell": PING_STREAMS * PING_DIGITS_PER_STREAM,
-    "ping_reused_source": "exp048 200-ms grid",
     "matched_mask_levels": len(MATCHED_Q),
     "matched_images_per_level": MATCHED_IMAGES,
     "compute": "local",
@@ -245,95 +236,6 @@ def chance_bound(rows: list[dict]) -> dict | None:
     return max(eligible, key=lambda r: r["q"]) if eligible else None
 
 
-def reused_ping_rows() -> list[dict]:
-    """Read, rather than recompute, exp048's published 200-ms rate cells."""
-    data = json.loads(EXP048_NUMBERS.read_text())
-    rows = []
-    for row in data["grid_sweep_agg"]:
-        if row["tau_ms"] == PING_T_MS and row["input_rate_hz"] in PING_REUSED_RATES_HZ:
-            rows.append({
-                **row,
-                "accuracy": row["acc"] / 100.0,
-                "accuracy_sem": row["acc_sem"] / 100.0,
-                "source": "exp048",
-            })
-    if len(rows) != len(PING_REUSED_RATES_HZ):
-        raise RuntimeError("exp048 does not contain the expected 200-ms rate cells")
-    return sorted(rows, key=lambda r: r["input_rate_hz"])
-
-
-def _ping_cache(seed: int, rate_hz: float) -> Path:
-    return PING_CACHE_ROOT / f"seed{seed}" / f"rate_{rate_hz:g}.json"
-
-
-def compute_ping_cell(seed: int, rate_hz: float) -> dict:
-    """Run one missing low-rate PING cell using exp048's frozen network recipe."""
-    cache = _ping_cache(seed, rate_hz)
-    if cache.exists():
-        return json.loads(cache.read_text())
-
-    # Lazy experiment-layer reuse: exp048 owns the exact encoding, frozen-weight
-    # simulation, and trained mem-mean readout recipe being extended here.
-    import exp048
-
-    train_dir, cfg, x_test, y_test = exp048._load_eval(seed=seed)
-    w_out = exp048._load_w_out(train_dir)
-    tau_out_ms = float(cfg.get("tau_out_ms", 2.0))
-    tau_steps = int(round(PING_T_MS / exp048.DT))
-    rng = np.random.default_rng(65_000 + seed)
-    n_correct = 0
-    n_total = 0
-    for stream in range(PING_STREAMS):
-        # The same sample indices and uniforms are used at every rate, making
-        # the low-rate cells paired and their spike trains nested by rate.
-        idx = rng.choice(len(y_test), PING_DIGITS_PER_STREAM, replace=False)
-        generator = torch.Generator().manual_seed(65_000 + 100 * seed + stream)
-        spike_input = exp048.encode_stream(x_test[idx], PING_T_MS, rate_hz, generator)
-        spike_e, _ = exp048._run_stream(train_dir, spike_input)
-        logits = exp048.sliding_readout(spike_e, w_out, tau_out_ms, window_ms=PING_T_MS)
-        ends = np.arange(1, PING_DIGITS_PER_STREAM + 1) * tau_steps - 1
-        prediction = logits.argmax(axis=-1)[ends]
-        n_correct += int((prediction == y_test[idx]).sum())
-        n_total += len(idx)
-
-    row = {
-        "tau_ms": PING_T_MS,
-        "input_rate_hz": rate_hz,
-        "train_seed": seed,
-        "n_correct": n_correct,
-        "n_total": n_total,
-        "accuracy": n_correct / n_total,
-    }
-    cache.parent.mkdir(parents=True, exist_ok=True)
-    cache.write_text(json.dumps(row, indent=2) + "\n")
-    return row
-
-
-def low_rate_ping_rows() -> tuple[list[dict], list[dict]]:
-    """Compute/cache per-seed low-rate cells and aggregate mean ± SEM."""
-    per_seed = []
-    for rate_hz in PING_NEW_RATES_HZ:
-        for seed in SEEDS:
-            row = compute_ping_cell(seed, rate_hz)
-            per_seed.append(row)
-            print(f"  PING seed={seed} rate={rate_hz:g} Hz: "
-                  f"{100 * row['accuracy']:.1f}% ({row['n_correct']}/{row['n_total']})")
-    aggregate = []
-    for rate_hz in PING_NEW_RATES_HZ:
-        cells = [r for r in per_seed if r["input_rate_hz"] == rate_hz]
-        values = np.array([r["accuracy"] for r in cells])
-        aggregate.append({
-            "tau_ms": PING_T_MS,
-            "input_rate_hz": rate_hz,
-            "accuracy": float(values.mean()),
-            "accuracy_sem": float(values.std(ddof=1) / math.sqrt(len(values))),
-            "n_seeds": len(values),
-            "n_total": sum(r["n_total"] for r in cells),
-            "source": "exp065",
-        })
-    return per_seed, aggregate
-
-
 def matched_stimuli(
     binary_test: torch.Tensor, y_test: torch.Tensor, q: float,
 ) -> tuple[torch.Tensor, torch.Tensor, np.ndarray]:
@@ -438,10 +340,12 @@ def matched_masking_rows(
             "ann_by_seed": ann_cells,
             "ping_by_seed": ping_cells,
             "ann_confusion": confusion(
-                repeated_labels, [p for cell in ann_cells for p in cell["predictions"]],
+                repeated_labels,
+                [p for cell in ann_cells for p in cell["predictions"]],  # ty: ignore[not-iterable]
             ),
             "ping_confusion": confusion(
-                repeated_labels, [p for cell in ping_cells for p in cell["predictions"]],
+                repeated_labels,
+                [p for cell in ping_cells for p in cell["predictions"]],
             ),
         })
         print(f"  matched q={q:g}: ANN={100 * rows[-1]['ann_accuracy']:.1f}% "
@@ -464,32 +368,6 @@ def plot_calibration(rows: list[dict], bound: dict | None, out: Path) -> None:
                    label=f"chance bound q={bound['q']:.2g}")
     ax.set(xlabel="foreground retention probability q", ylabel="P(correct) (%)",
            xlim=(0, 1), ylim=(0, 101))
-    ax.legend(frameon=False)
-    fig.tight_layout()
-    save_figure(fig, out)
-    plt.close(fig)
-
-
-def plot_ping_rate(rows: list[dict], out: Path) -> None:
-    theme.set_paper_mode()
-    fig, ax = plt.subplots(figsize=(6.5, 4.0))
-    rates = np.array([r["input_rate_hz"] for r in rows])
-    acc = 100 * np.array([r["accuracy"] for r in rows])
-    sem = 100 * np.array([r["accuracy_sem"] for r in rows])
-    is_new = np.array([r["source"] == "exp065" for r in rows])
-    ax.plot(rates, acc, color=theme.INK_BLACK, lw=1.8)
-    ax.fill_between(rates, acc - sem, acc + sem, color=theme.INK_BLACK,
-                    alpha=0.15, linewidth=0)
-    ax.scatter(rates[is_new], acc[is_new], color=theme.DEEP_RED, marker="o",
-               label="exp065 low-rate cells", zorder=3)
-    ax.scatter(rates[~is_new], acc[~is_new], color=theme.INK_BLACK, marker="s",
-               label="reused exp048 cells", zorder=3)
-    ax.axhline(100 * CHANCE_ACCURACY, color=theme.DEEP_RED, ls="--", lw=1.2,
-               label="chance (10%)")
-    ax.axvline(25.0, color=theme.GREY_MID, ls=":", lw=1.2,
-               label="trained rate (25 Hz)")
-    ax.set(xlabel="Poisson encoding rate (Hz)", ylabel="P(correct) (%)",
-           xlim=(0, 50), ylim=(0, 101))
     ax.legend(frameon=False)
     fig.tight_layout()
     save_figure(fig, out)
@@ -583,10 +461,6 @@ def main() -> None:
     print("evaluating paired masking curve")
     rows = calibration(models, binary_test, y_test, device)
     bound = chance_bound(rows)
-    print("evaluating/collating frozen PING encoding-rate curve")
-    ping_per_seed, ping_new = low_rate_ping_rows()
-    ping_rows = sorted([*ping_new, *reused_ping_rows()],
-                       key=lambda r: r["input_rate_hz"])
     print("evaluating matched ANN–PING foreground masking")
     matched_rows, matched_images = matched_masking_rows(
         models, binary_test, y_test, device,
@@ -594,7 +468,6 @@ def main() -> None:
 
     with published_run(SLUG, run_id, scale=SCALE, skip_training=meta.skip_training) as (_, figures):
         plot_calibration(rows, bound, figures / "ann_masking_calibration")
-        plot_ping_rate(ping_rows, figures / "ping_encoding_rate")
         plot_matched_masking(matched_rows, figures / "matched_masking")
         plot_diagnostics(matched_rows, matched_images, figures / "masking_diagnostics")
         payload = {
@@ -608,6 +481,7 @@ def main() -> None:
                 "matched_q": list(MATCHED_Q),
                 "matched_images": MATCHED_IMAGES,
                 "matched_rate_hz": MATCHED_RATE_HZ,
+                "matched_presentation_ms": PING_T_MS,
             },
             "dataset": {"train_samples": len(x_train), "test_samples": len(x_test)},
             "parameter_count": sum(p.numel() for p in next(iter(models.values())).parameters()),
@@ -617,16 +491,6 @@ def main() -> None:
             "chance_accuracy": CHANCE_ACCURACY,
             "chance_bound": bound,
             "masking_curve": rows,
-            "ping_rate": {
-                "presentation_ms": PING_T_MS,
-                "trained_rate_hz": 25.0,
-                "new_rates_hz": list(PING_NEW_RATES_HZ),
-                "new_streams_per_seed": PING_STREAMS,
-                "digits_per_stream": PING_DIGITS_PER_STREAM,
-                "per_seed_new_cells": ping_per_seed,
-                "curve": ping_rows,
-                "reused_source": "artifacts/data/exp048/numbers.json:grid_sweep_agg",
-            },
             "matched_masking": {
                 "protocol": "identical held-out examples and Bernoulli masks for ANN and PING",
                 "rows": matched_rows,

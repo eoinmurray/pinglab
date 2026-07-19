@@ -20,6 +20,7 @@ Writing: writings/exp048.typ · figures + numbers.json: artifacts/data/exp048/
 from __future__ import annotations
 
 import json
+import math
 import subprocess
 import sys
 import time
@@ -88,6 +89,10 @@ TAU_SWEEP_MS: list[float] = [25.0, 50.0, 100.0, 200.0]
 # resolve the sub-cycle failure regime.
 TAU_GRID_MS: list[float] = [10.0, 15.0, 25.0, 40.0, 50.0, 75.0, 100.0, 200.0]
 RATE_GRID_HZ: list[float] = [5.0, 10.0, 25.0, 50.0, 100.0, 200.0]
+LOW_RATE_HZ: list[float] = [0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0, 2.0, 3.0]
+LOW_RATE_STREAMS: int = 10
+LOW_RATE_DIGITS_PER_STREAM: int = 10
+LOW_RATE_CACHE_ROOT = REPO / "temp" / "experiments" / SLUG / "low_rate"
 
 # Varying-stream headline — per-segment (τ_ms, input_rate_hz). Spans a
 # wide drive × duration range to show the trained network is robust to
@@ -492,6 +497,61 @@ def aggregate_grid_rows(rows: list[dict]) -> list[dict]:
             "n_total": int(n_totals[(tau_ms, rate_hz)]),
         })
     return out
+
+
+def _low_rate_cache(seed: int, rate_hz: float) -> Path:
+    return LOW_RATE_CACHE_ROOT / f"seed{seed}" / f"rate_{rate_hz:g}.json"
+
+
+def run_low_rate_cell(seed: int, rate_hz: float) -> dict:
+    """Evaluate one 200-ms low-rate cell, caching the expensive forward pass."""
+    cache = _low_rate_cache(seed, rate_hz)
+    if cache.exists():
+        return json.loads(cache.read_text())
+    train_dir, cfg, x_test, y_test = _load_eval(seed=seed)
+    w_out = _load_w_out(train_dir)
+    tau_out_ms = float(cfg.get("tau_out_ms", 2.0))
+    tau_steps = int(round(TRAINED_T_MS / DT))
+    rng = np.random.default_rng(65_000 + seed)
+    n_correct = n_total = 0
+    for stream in range(LOW_RATE_STREAMS):
+        idx = rng.choice(len(y_test), LOW_RATE_DIGITS_PER_STREAM, replace=False)
+        generator = torch.Generator().manual_seed(65_000 + 100 * seed + stream)
+        spike_input = encode_stream(x_test[idx], TRAINED_T_MS, rate_hz, generator)
+        spike_e, _ = _run_stream(train_dir, spike_input)
+        logits = sliding_readout(spike_e, w_out, tau_out_ms, window_ms=TRAINED_T_MS)
+        ends = np.arange(1, LOW_RATE_DIGITS_PER_STREAM + 1) * tau_steps - 1
+        n_correct += int((logits.argmax(axis=-1)[ends] == y_test[idx]).sum())
+        n_total += len(idx)
+    row = {"tau_ms": TRAINED_T_MS, "input_rate_hz": rate_hz,
+           "train_seed": seed, "n_correct": n_correct, "n_total": n_total,
+           "accuracy": n_correct / n_total}
+    cache.parent.mkdir(parents=True, exist_ok=True)
+    cache.write_text(json.dumps(row, indent=2) + "\n")
+    return row
+
+
+def run_low_rate_sweep() -> tuple[list[dict], list[dict]]:
+    per_seed = [run_low_rate_cell(seed, rate) for rate in LOW_RATE_HZ for seed in SEEDS]
+    aggregate = []
+    for rate in LOW_RATE_HZ:
+        cells = [row for row in per_seed if row["input_rate_hz"] == rate]
+        values = np.array([row["accuracy"] for row in cells])
+        aggregate.append({"tau_ms": TRAINED_T_MS, "input_rate_hz": rate,
+                          "accuracy": float(values.mean()),
+                          "accuracy_sem": float(values.std(ddof=1) / math.sqrt(len(values))),
+                          "n_seeds": len(values),
+                          "n_total": sum(row["n_total"] for row in cells),
+                          "source": "exp048 low-rate sweep"})
+    return per_seed, aggregate
+
+
+def rate_curve(grid_rows: list[dict], low_rate_rows: list[dict]) -> list[dict]:
+    reused = [{**row, "accuracy": row["acc"] / 100.0,
+               "accuracy_sem": row["acc_sem"] / 100.0,
+               "source": "exp048 grid"}
+              for row in grid_rows if row["tau_ms"] == TRAINED_T_MS]
+    return sorted([*low_rate_rows, *reused], key=lambda row: row["input_rate_hz"])
 
 
 def aggregate_tau_rows(rows: list[dict]) -> list[dict]:
@@ -930,7 +990,9 @@ def plot_varying_headline_stream(s: dict, out_path: Path, run_id: str) -> None:
     plt.close(fig)
 
 
-def plot_grid_heatmap(rows: list[dict], out_path: Path, run_id: str) -> None:
+def plot_grid_and_rate(
+    rows: list[dict], rate_rows: list[dict], out_path: Path, run_id: str,
+) -> None:
     theme.apply()
     taus = sorted(set(r["tau_ms"] for r in rows))
     rates = sorted(set(r["input_rate_hz"] for r in rows))
@@ -940,7 +1002,9 @@ def plot_grid_heatmap(rows: list[dict], out_path: Path, run_id: str) -> None:
         j = taus.index(r["tau_ms"])
         grid[i, j] = r["acc"]
 
-    fig, ax = plt.subplots(figsize=(6.9, 5.06))
+    fig, (ax, curve_ax) = plt.subplots(
+        1, 2, figsize=(8.0, 3.5), gridspec_kw={"width_ratios": (1.15, 1)},
+    )
     im = ax.imshow(
         grid, origin="lower", aspect="auto", cmap="magma",
         vmin=0, vmax=100,
@@ -963,13 +1027,33 @@ def plot_grid_heatmap(rows: list[dict], out_path: Path, run_id: str) -> None:
             )
     cbar = fig.colorbar(im, ax=ax, shrink=0.85)
     cbar.set_label("Per-segment accuracy (%)", fontsize=theme.SIZE_LABEL)
+    visible = [row for row in rate_rows if row["input_rate_hz"] <= 50.0]
+    curve_rates = np.array([row["input_rate_hz"] for row in visible])
+    curve_acc = 100 * np.array([row["accuracy"] for row in visible])
+    curve_sem = 100 * np.array([row["accuracy_sem"] for row in visible])
+    is_low = np.array([row["source"] == "exp048 low-rate sweep" for row in visible])
+    curve_ax.plot(curve_rates, curve_acc, color=theme.INK_BLACK, lw=1.8)
+    curve_ax.fill_between(curve_rates, curve_acc - curve_sem, curve_acc + curve_sem,
+                          color=theme.INK_BLACK, alpha=0.15, linewidth=0)
+    curve_ax.scatter(curve_rates[is_low], curve_acc[is_low], color=theme.DEEP_RED,
+                     marker="o", label="extended low-rate cells", zorder=3)
+    curve_ax.scatter(curve_rates[~is_low], curve_acc[~is_low], color=theme.INK_BLACK,
+                     marker="s", label="200-ms grid cells", zorder=3)
+    curve_ax.axhline(10, color=theme.DEEP_RED, ls="--", lw=1.2, label="chance (10%)")
+    curve_ax.axvline(INPUT_RATE_HZ, color=theme.GREY_MID, ls=":", lw=1.2,
+                     label=f"trained rate ({INPUT_RATE_HZ:g} Hz)")
+    curve_ax.set(xlabel="Poisson encoding rate (Hz)", ylabel="P(correct) (%)",
+                 xlim=(0, 50), ylim=(0, 101))
+    curve_ax.legend(frameon=False, fontsize=7, loc="lower right")
+    ax.set_title("A   Duration–rate sweep", loc="left", fontweight="bold")
+    curve_ax.set_title("B   Extended 200-ms rate slice", loc="left", fontweight="bold")
     fig.tight_layout()
     stamp_figure(fig, run_id)
     out_path.parent.mkdir(parents=True, exist_ok=True)
     # Equal breathing room on all four sides (tight bbox + uniform pad),
     # so the plot sits centered in the exported image.
     with plt.rc_context({"savefig.pad_inches": 0.15}):
-        save_figure(fig, out_path, formats=("png", "pdf"))  # heatmap: PNG, not SVG
+        save_figure(fig, out_path, formats=("png", "pdf"))
     plt.close(fig)
 
 
@@ -986,7 +1070,10 @@ _HEADLINE_CACHE_KEYS = (
 
 def _save_headline_cache(v: dict, path: Path) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    np.savez(path, **{k: np.asarray(v[k]) for k in _HEADLINE_CACHE_KEYS})
+    np.savez(
+        path,
+        **{k: np.asarray(v[k]) for k in _HEADLINE_CACHE_KEYS},  # ty: ignore[invalid-argument-type]
+    )
 
 
 def _load_headline_cache(path: Path) -> dict:
@@ -1016,9 +1103,31 @@ def main() -> None:
         grid_agg = data.get("grid_sweep_agg", [])
         if not grid_agg:
             raise SystemExit("--replot grid: cached numbers.json has no grid_sweep_agg.")
-        plot_grid_heatmap(
-            grid_agg, FIGURES / "acc_grid_tau_rate", "exp048-replot",
-        )
+        psychometric = data.get("encoding_rate_psychometric", {})
+        if not psychometric:
+            source_data = json.loads(
+                (REPO / "artifacts" / "data" / "exp065" / "numbers.json").read_text()
+            )
+            old = source_data["ping_rate"]
+            low_aggregate = [{**row, "source": "exp048 low-rate sweep"}
+                             for row in old["curve"] if row["source"] == "exp065"]
+            psychometric = {
+                "presentation_ms": TRAINED_T_MS, "trained_rate_hz": INPUT_RATE_HZ,
+                "new_rates_hz": LOW_RATE_HZ,
+                "new_streams_per_seed": LOW_RATE_STREAMS,
+                "digits_per_stream": LOW_RATE_DIGITS_PER_STREAM,
+                "per_seed_new_cells": old["per_seed_new_cells"],
+                "curve": rate_curve(grid_agg, low_aggregate),
+                "migration_source": "exp065 initial computation",
+            }
+            data["encoding_rate_psychometric"] = psychometric
+            cached.write_text(json.dumps(data, indent=2) + "\n")
+        psychometric_curve = psychometric["curve"]
+        assert isinstance(psychometric_curve, list)
+        plot_grid_and_rate(
+                           grid_agg,
+                           psychometric_curve,  # ty: ignore[invalid-argument-type]
+                           FIGURES / "acc_grid_tau_rate", "exp048-replot")
         print(f"wrote {FIGURES / 'acc_grid_tau_rate'}.png (replotted from cache)")
         return
 
@@ -1107,9 +1216,10 @@ def main() -> None:
     print(f"wrote {FIGURES / 'acc_vs_tau'}.svg")
 
     grid_agg = aggregate_grid_rows(grid_rows)
-    plot_grid_heatmap(
-        grid_agg, FIGURES / "acc_grid_tau_rate", notebook_run_id,
-    )
+    low_rate_per_seed, low_rate_agg = run_low_rate_sweep()
+    psychometric = rate_curve(grid_agg, low_rate_agg)
+    plot_grid_and_rate(grid_agg, psychometric,
+                       FIGURES / "acc_grid_tau_rate", notebook_run_id)
     print(f"wrote {FIGURES / 'acc_grid_tau_rate'}.png")
 
     duration_s = time.monotonic() - t_start
@@ -1145,6 +1255,15 @@ def main() -> None:
         },
         "grid_sweep_per_seed": grid_rows,
         "grid_sweep_agg": grid_agg,
+        "encoding_rate_psychometric": {
+            "presentation_ms": TRAINED_T_MS,
+            "trained_rate_hz": INPUT_RATE_HZ,
+            "new_rates_hz": LOW_RATE_HZ,
+            "new_streams_per_seed": LOW_RATE_STREAMS,
+            "digits_per_stream": LOW_RATE_DIGITS_PER_STREAM,
+            "per_seed_new_cells": low_rate_per_seed,
+            "curve": psychometric,
+        },
     }
     (FIGURES / "numbers.json").write_text(json.dumps(summary, indent=2) + "\n")
     print(f"wrote {FIGURES / 'numbers.json'}")
