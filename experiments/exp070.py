@@ -387,7 +387,8 @@ def publish_attempt() -> None:
             },
         }
         write_numbers(figures, run_id=run_id, duration_s=time.monotonic() - t0, payload=payload)
-        (figures / "reproduce.sh").write_text(
+        reproducer = figures / "reproduce.sh"
+        reproducer.write_text(
             "#!/usr/bin/env bash\nset -euo pipefail\n"
             f"EXP070_ATTEMPT={ATTEMPT} uv run python experiments/exp070.py\n"
             f"EXP070_ATTEMPT={ATTEMPT} uv run python experiments/exp070.py --runpod\n"
@@ -395,6 +396,7 @@ def publish_attempt() -> None:
             f"EXP070_ATTEMPT={ATTEMPT} uv run python experiments/exp070.py --runpod --collect\n"
             f"EXP070_ATTEMPT={ATTEMPT} uv run python experiments/exp070.py --skip-training\n"
         )
+        reproducer.chmod(0o755)
 
 
 def main() -> None:
