@@ -1,0 +1,16 @@
+{
+  "session_id": "019f76ab-932b-72c2-b163-463ead65d8d5",
+  "checkpoint_id": "CP-008",
+  "messages": [
+    {
+      "timestamp": "2026-07-19 07:49:25.308 UTC",
+      "role": "assistant",
+      "content": "Candidate 2 is committed and pushed at `04d5a28`. Exact candidate-1 billing is still absent from the provider history, but its one-hour guard makes the hard cumulative exposure at most $1.98; adding this registered short pair can raise that bound only to $3.96, safely below the authorized $10 ceiling. I’m posting the smoke milestone, rerunning the clean dry run, then dispatching exactly one pod per cell."
+    },
+    {
+      "timestamp": "2026-07-19 07:49:57.899 UTC",
+      "role": "assistant",
+      "content": "The candidate-2 pair is live from clean commit `04d5a28`: exactly two 5090 pods at $0.99/hour, one COBA and one PING, with no third pod. The one-hour safeguards put the cumulative worst-case bound at $3.96 across both short attempts. I’m checkpointing this dispatch without publishing infrastructure identifiers, then monitoring until the fleet returns to zero."
+    }
+  ]
+}
