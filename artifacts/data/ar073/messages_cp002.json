@@ -1,0 +1,51 @@
+{
+  "session_id": "019f76ab-932b-72c2-b163-463ead65d8d5",
+  "checkpoint_id": "CP-002",
+  "messages": [
+    {
+      "timestamp": "2026-07-19 06:50:08.850 UTC",
+      "role": "assistant",
+      "content": "I’ve frozen the first private transcript checkpoint outside the repository as read-only, with SHA-256 prefix `5189910c09c9`. The public trace will redact the attachment’s private path and preserve the message plus attached mandate verbatim; no credentials, tokens, addresses, environment values, or infrastructure identifiers will enter the article."
+    },
+    {
+      "timestamp": "2026-07-19 06:52:40.014 UTC",
+      "role": "assistant",
+      "content": "The mandate and CP-001 trace are written. I’m validating three things before the checkpoint commit: the trace JSON is syntactically sound, the publishable files contain no sensitive path/token/address patterns, and the entire Demolab collection renders with the new articles."
+    },
+    {
+      "timestamp": "2026-07-19 06:54:07.371 UTC",
+      "role": "assistant",
+      "content": "The build succeeds with 40 entries. It also refreshed every tracked PDF and emitted several stale untracked stub PDFs, which is normal build churn rather than experiment content. I’m narrowing the checkpoint to the two new article PDFs, the updated book, the articles, and the sanitized trace data; existing articles/PDFs remain untouched."
+    },
+    {
+      "timestamp": "2026-07-19 06:55:56.532 UTC",
+      "role": "assistant",
+      "content": "CP-001 passes the full 40-entry build and the fail-closed sensitive-pattern scan. I’m committing only the new mandate, activity trace/data, their PDFs, and the updated book, then pushing the existing branch so PR #52’s preview advances."
+    },
+    {
+      "timestamp": "2026-07-19 06:57:23.024 UTC",
+      "role": "assistant",
+      "content": "The first candidate needs no engine change: exp069 already exposes timestep, preserves the exact split, and records the required losses, gradients, rates, and checkpoints. I’m implementing exp070 as a narrow orchestration layer over that validated runner, with 2 ms hardcoded, a local smoke default, two short cloud cells only, and an automatic promotion/kill decision against the registered epoch-five baselines."
+    },
+    {
+      "timestamp": "2026-07-19 06:59:38.280 UTC",
+      "role": "assistant",
+      "content": "The focused checks exposed only two type-level literal assignments, now fixed. Before smoke, I caught a stricter protocol issue in the inherited plumbing: exp069 temporarily backed up any existing `(OFFICIAL TEST CACHE PATH REDACTED)` while installing validation under the CLI’s fixed filename. It never evaluated that file, but exp070’s “no access” rule is stronger. I’m isolating the trainer’s SHD alias in an experiment-specific directory so the official test file is neither copied nor opened."
+    },
+    {
+      "timestamp": "2026-07-19 07:00:27.614 UTC",
+      "role": "assistant",
+      "content": "The isolated runner now passes Ruff, `ty`, compilation, and a two-pod dry run; the dry run created nothing. I’m starting the registered local 128/128, two-epoch candidate-1 smoke. It will read only official training data to derive development train/validation subsets, and the engine will see those subsets in the exp070-specific alias directory."
+    },
+    {
+      "timestamp": "2026-07-19 07:01:42.047 UTC",
+      "role": "assistant",
+      "content": "Candidate 1’s COBA smoke completed cleanly at 2 ms: finite two-epoch training, active 16 Hz excitatory firing, zero inhibitory activity as registered, and no update failures. PING is now running under dampening 1000 in the same isolated split."
+    },
+    {
+      "timestamp": "2026-07-19 07:04:01.063 UTC",
+      "role": "assistant",
+      "content": "The registered local smoke passed both cells. COBA finished active at 16.18 Hz E; PING at 4.27/15.00 Hz E/I; both had finite losses, exact exp069 split hashes, and no validation/test alias leakage. I’m promoting the smoke evidence into the committed artifact record, then checkpointing the runner and timestamped trace before asking for paid-compute authority."
+    }
+  ]
+}

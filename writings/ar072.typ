@@ -23,6 +23,7 @@
 #let prior = json("/artifacts/data/exp069/numbers.json")
 #let prior-c = json("/artifacts/data/exp069/raw/coba/metrics.json")
 #let prior-p = json("/artifacts/data/exp069/raw/ping/metrics.json")
+#let smoke = json("/artifacts/data/exp070/smoke_summary.json")
 
 #let first-five(run) = run.epochs.at(4)
 #let best-through-forty(run) = run.epochs.slice(0, 40).fold(
@@ -188,4 +189,18 @@
   relative to the AMPA decay. Candidate 1 was therefore fixed at 2 ms before
   any exp070 training result existed. No new runner, smoke, cloud job,
   official-test access, or spend exists at this checkpoint.
+
+  === 2026-07-19 07:00–07:04 UTC: candidate-1 smoke gate
+
+  The 2 ms candidate passed its registered local plumbing smoke. Both cells
+  completed two finite epochs on 128 development-training and 128 validation
+  utterances with the exp069 partition hashes and no skipped or non-finite
+  updates. COBA's final excitatory rate was
+  #calc.round(smoke.cells.coba.final_e_rate_hz, digits: 2) Hz. PING's final
+  excitatory and inhibitory rates were
+  #calc.round(smoke.cells.ping.final_e_rate_hz, digits: 2) Hz and
+  #calc.round(smoke.cells.ping.final_i_rate_hz, digits: 2) Hz. The trainer used
+  an experiment-specific development-data alias, so the official test cache
+  was neither copied nor opened. Cloud spend remained 0 USD and no pod was
+  created.
 ]
