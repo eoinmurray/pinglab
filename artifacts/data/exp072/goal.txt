@@ -1,0 +1,56 @@
+/goal Design and execute the next exploratory SHD experiment from updated main at f32299bb1b48d18ba9dfe6328097d2147bcc6286, using the newly merged tools/snn adaptive conductance controls to test whether COBA/PING validation accuracy can move meaningfully beyond the exp071 ~70% plateau toward canonical SHD RSNN performance.
+
+Create the next numbered experiment, likely exp072, on a new branch. Do not modify main directly after branching. Open a draft PR after the first meaningful commit.
+
+Scientific objective:
+Run a one-seed exploratory validation-only ladder on SHD comparing matched Dale-constrained COBA and PING networks while testing two new neuron-dynamics paths:
+1. trainable conductance leak / membrane time constants via --train-leak;
+2. adaptive E-cell thresholds via --adaptive-threshold;
+3. the combination of both.
+
+Use the exp071 cumulative-potential readout baseline as the control:
+--readout cumulative-potential --signed-readout --readout-bias
+
+Constraints:
+- Use one seed only.
+- Do not use the official SHD test set.
+- Use a held-out validation split from the training set for all selection decisions.
+- Keep COBA and PING matched except for registered cell-specific voltage-gradient dampening and PING E/I coupling.
+- Preserve matched input, readout, training split, optimizer, batch, preprocessing, and candidate flags across COBA/PING within each candidate.
+- COBA should use the no-inhibitory-loop setting; PING should use the registered inhibitory-loop setting and dampening 1000.
+- Use short runs first for iteration speed, about 8-10 epochs per candidate.
+- Promote only the most promising candidate to a matched 40-epoch validation run.
+- Do not run multiple seeds unless I explicitly authorize it later.
+- RunPod spending requires explicit approval before pod creation.
+- Use at most one pod at a time unless I explicitly authorize parallelism.
+- Reap any pod when finished.
+- Do not merge the PR.
+- Avoid the full local test suite on the 4 GB Hetzner host; use focused checks and demolab build.
+
+Candidate ladder:
+0. Control: exp071 architecture/readout without new adaptive controls.
+1. Trainable leak only:
+   --train-leak
+2. Adaptive threshold only:
+   --adaptive-threshold
+3. Combined:
+   --train-leak --adaptive-threshold
+
+Suggested default bounds:
+- E membrane tau: [5, 50] ms
+- I membrane tau: [2, 20] ms
+- adaptive threshold tau: [50, 500] ms
+- adaptive threshold initial strength: 1.0 mV
+- adaptive threshold max strength: 20.0 mV
+
+Deliverables:
+- Produce artifacts/data/exp072 with numbers.json, provenance, reproducer, training curves, firing-rate diagnostics, parameter diagnostics for learned tau/adaptation values, and matched input/E/I rasters.
+- Write writings/exp072.typ as the canonical cold-readable experiment report.
+- Include this goal prompt below the abstract.
+- Append timestamped activity-log/thread checkpoints in the experiment appendix.
+- Record scientific decisions, failures, anomalies, costs, commits, results, and pending work.
+- Sanitize any publishable logs before committing.
+- Build and validate with focused checks plus demolab build.
+- Commit meaningful attempts, including killed attempts, with clear messages.
+- Push the branch and update the PR with evidence.
+- Finish at the human review gate with a concise evidence summary, exact compute spend, validation performed, links to the rendered exp072 file and PR, and a recommendation for the next move toward 90% SHD.
