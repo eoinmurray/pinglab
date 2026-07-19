@@ -346,10 +346,23 @@ def publish_attempt() -> None:
             raw / "attempt_decision.json",
             {"result_status": decision, "attempt": ATTEMPT, "cells": diagnostics},
         )
+        attempts: dict[str, Any] = {}
+        billing: dict[str, Any] = {}
+        for attempt_name in ATTEMPT_SPECS:
+            attempt_raw = figures / "raw" / attempt_name
+            decision_path = attempt_raw / "attempt_decision.json"
+            ledger_path = attempt_raw / "compute_ledger.json"
+            if decision_path.exists():
+                attempts[attempt_name] = json.loads(decision_path.read_text())
+            if ledger_path.exists():
+                billing[attempt_name] = json.loads(ledger_path.read_text())
+        cumulative_spend = sum(float(row["total_spend_usd"]) for row in billing.values())
         payload = {
             "result_status": decision,
-            "stage": "short_candidate",
+            "stage": "short_ladder",
             "attempt": ATTEMPT,
+            "attempt_order": list(ATTEMPT_SPECS),
+            "attempts": attempts,
             "seed": baseline.SEED,
             "promotion_accuracy_gain_pp": PROMOTION_ACCURACY_GAIN_PP,
             "cells": diagnostics,
@@ -366,7 +379,12 @@ def publish_attempt() -> None:
                 "matched_partitions": True,
                 "selection_rule": cells["coba"]["selection"]["rule"],
             },
-            "runpod": compute_ledger,
+            "runpod": {
+                "attempts": billing,
+                "total_spend_usd": cumulative_spend,
+                "active_pods_after_collection": 0,
+                "exact_all_recorded_attempts": len(billing) == len(attempts),
+            },
         }
         write_numbers(figures, run_id=run_id, duration_s=time.monotonic() - t0, payload=payload)
         (figures / "reproduce.sh").write_text(
