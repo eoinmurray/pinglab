@@ -269,4 +269,25 @@
   remain delayed, but its hard exposure is at most 1.98 USD; adding candidate
   2 leaves a cumulative hard bound of 3.96 USD under the authorized 10 USD
   ceiling. Result and exact billing remain pending.
+
+  === 2026-07-19 08:05–08:07 UTC: candidate 2 killed
+
+  PING self-terminated first and COBA followed by 08:05:03 UTC. Both complete
+  records were collected and the active fleet was zero before the registered
+  decision was evaluated.
+
+  #table(
+    columns: (1fr, auto, auto, auto, auto),
+    table.header([*Cell*], [*Accuracy*], [*vs exp069*], [*Cross-entropy*], [*vs exp069*]),
+    [COBA], [27.94%], [+0.00 pp], [2.489], [+0.0168],
+    [PING], [33.70%], [+1.10 pp], [2.446], [+0.00153],
+  )
+
+  The stronger shared input did not clear the three-point gate in either cell,
+  and both validation cross-entropies were slightly worse. COBA remained active
+  at 25.22 Hz E; PING remained active at 8.31 Hz E and 36.99 Hz I. Losses and
+  gradients were finite with no skipped or non-finite updates, making this a
+  clean scientific kill. Candidate 3—the isolated matched learning-rate change
+  from 0.0004 to 0.001—is the only remaining registered short attempt. Exact
+  provider billing remains delayed; the publication gate stays closed.
 ]
