@@ -203,4 +203,14 @@
   an experiment-specific development-data alias, so the official test cache
   was neither copied nor opened. Cloud spend remained 0 USD and no pod was
   created.
+
+  === 2026-07-19 07:21 UTC: paid-compute authority
+
+  The scientist authorized the proposed 10 USD hard total RunPod ceiling for
+  exp070. The approved fleet permits at most two concurrent pods, exactly one
+  per cell, with one-hour backstops for short candidates and two-hour
+  backstops for a promoted final pair. Every pod must be reaped immediately.
+  The fleet was empty, spend remained 0 USD, and the branch was clean at
+  `2bc22d3` before the authorization checkpoint. Candidate 1 is the only
+  authorized dispatch at this stage.
 ]
