@@ -10,6 +10,7 @@
 #let trace = json("/artifacts/data/ar073/messages.json")
 #let trace-two = json("/artifacts/data/ar073/messages_cp002.json")
 #let trace-three = json("/artifacts/data/ar073/messages_cp003.json")
+#let trace-four = json("/artifacts/data/ar073/messages_cp004.json")
 
 #let verbatim-prose(value) = {
   for (index, line) in value.split("\n").enumerate() {
@@ -128,4 +129,27 @@
   === Visible messages added in CP-003
 
   #for message in trace-three.messages { message-card(message, trace-three) }
+
+  == Checkpoint CP-004
+
+  *Fresh paid-compute authority is explicit and bounded.* This checkpoint
+  follows hardening commit `2bc22d3`. Its immutable private source has SHA-256
+  prefix `c20363a95684`, and its checkpoint time is
+  `2026-07-19 07:21:26.366 UTC`.
+
+  === Decision and action ledger
+
+  + The scientist authorized a 10 USD hard total ceiling across exp070, with at
+    most two concurrent pods and exactly one cell per pod.
+  + Short candidates carry one-hour pod backstops. A promoted forty-epoch pair
+    may use two-hour backstops. Every pod must be reaped immediately.
+  + Before this checkpoint the fleet was empty, spend was 0 USD, the branch was
+    clean at `2bc22d3`, and the pull request remained draft and unmerged.
+  + The next action is limited to the registered five-epoch 2 ms pair. No later
+    candidate or final pair is dispatched before applying the registered
+    result-dependent decision.
+
+  === Visible messages added in CP-004
+
+  #for message in trace-four.messages { message-card(message, trace-four) }
 ]
