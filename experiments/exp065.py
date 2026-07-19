@@ -340,10 +340,12 @@ def matched_masking_rows(
             "ann_by_seed": ann_cells,
             "ping_by_seed": ping_cells,
             "ann_confusion": confusion(
-                repeated_labels, [p for cell in ann_cells for p in cell["predictions"]],
+                repeated_labels,
+                [p for cell in ann_cells for p in cell["predictions"]],  # ty: ignore[not-iterable]
             ),
             "ping_confusion": confusion(
-                repeated_labels, [p for cell in ping_cells for p in cell["predictions"]],
+                repeated_labels,
+                [p for cell in ping_cells for p in cell["predictions"]],
             ),
         })
         print(f"  matched q={q:g}: ANN={100 * rows[-1]['ann_accuracy']:.1f}% "

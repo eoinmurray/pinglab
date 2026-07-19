@@ -1070,7 +1070,10 @@ _HEADLINE_CACHE_KEYS = (
 
 def _save_headline_cache(v: dict, path: Path) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    np.savez(path, **{k: np.asarray(v[k]) for k in _HEADLINE_CACHE_KEYS})
+    np.savez(
+        path,
+        **{k: np.asarray(v[k]) for k in _HEADLINE_CACHE_KEYS},  # ty: ignore[invalid-argument-type]
+    )
 
 
 def _load_headline_cache(path: Path) -> dict:
@@ -1119,7 +1122,11 @@ def main() -> None:
             }
             data["encoding_rate_psychometric"] = psychometric
             cached.write_text(json.dumps(data, indent=2) + "\n")
-        plot_grid_and_rate(grid_agg, psychometric["curve"],
+        psychometric_curve = psychometric["curve"]
+        assert isinstance(psychometric_curve, list)
+        plot_grid_and_rate(
+                           grid_agg,
+                           psychometric_curve,  # ty: ignore[invalid-argument-type]
                            FIGURES / "acc_grid_tau_rate", "exp048-replot")
         print(f"wrote {FIGURES / 'acc_grid_tau_rate'}.png (replotted from cache)")
         return

@@ -8,6 +8,7 @@ import torch
 def _load_exp065():
     path = Path(__file__).resolve().parents[1] / "exp065.py"
     spec = importlib.util.spec_from_file_location("exp065", path)
+    assert spec is not None
     module = importlib.util.module_from_spec(spec)
     assert spec.loader is not None
     spec.loader.exec_module(module)
