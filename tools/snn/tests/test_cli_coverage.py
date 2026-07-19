@@ -107,6 +107,21 @@ class TestParseArgsSubcommands:
         args2 = parse_args(["train", "--readout", "rate"])
         assert args2.dales_law is True  # default
 
+    def test_cumulative_signed_readout_flags(self):
+        args = parse_args([
+            "train", "--readout", "cumulative-potential",
+            "--signed-readout", "--readout-bias",
+        ])
+        assert args.readout_mode == "cumulative-potential"
+        assert args.signed_readout is True
+        assert args.readout_bias is True
+        disabled = parse_args([
+            "train", "--signed-readout", "--readout-bias",
+            "--no-signed-readout", "--no-readout-bias",
+        ])
+        assert disabled.signed_readout is False
+        assert disabled.readout_bias is False
+
     def test_nargs_weight_and_hidden_flags(self):
         args = parse_args(
             ["train", "--n-hidden", "64", "32", "--w-in", "10", "2", "--w-ei", "0.5", "0.1"]
@@ -240,6 +255,21 @@ class TestApplyLoadConfig:
         args = Namespace(load_config=str(cfg_path), n_hidden=None, model="ping")
         _apply_load_config(args, ["--load-config", str(cfg_path)], config_to_args, dest_to_flag)
         assert args.n_hidden == [256]
+
+    def test_training_readout_mode_key_is_inherited(self, tmp_path):
+        cfg_path = tmp_path / "train-config.json"
+        cfg_path.write_text(json.dumps({
+            "model": "ping",
+            "readout_mode": "cumulative-potential",
+        }))
+        config_to_args, dest_to_flag = _mapping()
+        args = Namespace(
+            load_config=str(cfg_path), model="ping", readout_mode="rate"
+        )
+        _apply_load_config(
+            args, ["--load-config", str(cfg_path)], config_to_args, dest_to_flag
+        )
+        assert args.readout_mode == "cumulative-potential"
 
     def test_legacy_model_alias_remapped(self, tmp_path, monkeypatch, capsys):
         # LEGACY_MODEL_ALIASES is empty in the live config, so seed one to drive
