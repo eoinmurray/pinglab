@@ -1,9 +1,9 @@
 {
   "slug": "exp070",
-  "run_id": "r004",
-  "run_at": "2026-07-19T08:52:20+00:00",
-  "git_sha": "971e253",
-  "dirty": true,
+  "run_id": "r005",
+  "run_at": "2026-07-19T09:16:29+00:00",
+  "git_sha": "3e27721",
+  "dirty": false,
   "code_dirty": false,
   "patch": null,
   "host": "local",
@@ -18,8 +18,8 @@
     "n_hidden": 256,
     "n_inhibitory": 64,
     "batch_size": 32,
-    "learning_rate": 0.0004,
-    "input_weight_mean": 1.2,
+    "learning_rate": 0.001,
+    "input_weight_mean": 0.9,
     "input_sparsity": 0.95,
     "readout_scale": 225.0,
     "readout": "mem-mean",
@@ -41,6 +41,6 @@
       }
     },
     "experiment": "exp070",
-    "attempt": "input_scale_1p2"
+    "attempt": "learning_rate_1e3"
   }
 }

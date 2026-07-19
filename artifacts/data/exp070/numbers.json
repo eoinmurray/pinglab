@@ -1,11 +1,11 @@
 {
-  "run_id": "r004",
-  "git_sha": "971e253",
-  "duration_s": 4.3,
-  "duration": "4s",
+  "run_id": "r005",
+  "git_sha": "3e27721",
+  "duration_s": 5.3,
+  "duration": "5s",
   "result_status": "killed",
   "stage": "short_ladder",
-  "attempt": "input_scale_1p2",
+  "attempt": "learning_rate_1e3",
   "attempt_order": [
     "temporal_2ms",
     "input_scale_1p2",
@@ -99,6 +99,7 @@
           "validation_e_rate_hz": 30.638202742034313,
           "validation_i_rate_hz": 0.0,
           "gradient_norm": 110.30740150783373,
+          "saturation_threshold_hz": 950.0,
           "skipped_steps": 0,
           "nan_forward_batches": 0,
           "exp069_epoch_five_accuracy_pct": 27.941176470588236,
@@ -114,6 +115,7 @@
           "validation_e_rate_hz": 10.16176949295343,
           "validation_i_rate_hz": 45.26192938112745,
           "gradient_norm": 0.21304357816343722,
+          "saturation_threshold_hz": 950.0,
           "skipped_steps": 0,
           "nan_forward_batches": 0,
           "exp069_epoch_five_accuracy_pct": 32.59803921568628,
@@ -130,34 +132,34 @@
   "cells": {
     "coba": {
       "epoch": 5,
-      "validation_accuracy_pct": 27.941176470588236,
-      "validation_cross_entropy": 2.4889209545575657,
-      "validation_e_rate_hz": 25.22035845588235,
+      "validation_accuracy_pct": 26.102941176470587,
+      "validation_cross_entropy": 2.4857632563664365,
+      "validation_e_rate_hz": 30.638202742034313,
       "validation_i_rate_hz": 0.0,
-      "gradient_norm": 163.13089738928753,
+      "gradient_norm": 110.30740150783373,
       "saturation_threshold_hz": 950.0,
       "skipped_steps": 0,
       "nan_forward_batches": 0,
       "exp069_epoch_five_accuracy_pct": 27.941176470588236,
       "exp069_epoch_five_cross_entropy": 2.472071592624371,
-      "accuracy_gain_pp": 0.0,
-      "cross_entropy_change": 0.01684936193319464,
+      "accuracy_gain_pp": -1.8382352941176485,
+      "cross_entropy_change": 0.01369166374206543,
       "clears_promotion_gate": false
     },
     "ping": {
       "epoch": 5,
-      "validation_accuracy_pct": 33.700980392156865,
-      "validation_cross_entropy": 2.4462467523721547,
-      "validation_e_rate_hz": 8.307329963235293,
-      "validation_i_rate_hz": 36.98692172181372,
-      "gradient_norm": 0.3025109819096068,
+      "validation_accuracy_pct": 34.19117647058823,
+      "validation_cross_entropy": 2.3299535054426928,
+      "validation_e_rate_hz": 10.16176949295343,
+      "validation_i_rate_hz": 45.26192938112745,
+      "gradient_norm": 0.21304357816343722,
       "saturation_threshold_hz": 950.0,
       "skipped_steps": 0,
       "nan_forward_batches": 0,
       "exp069_epoch_five_accuracy_pct": 32.59803921568628,
       "exp069_epoch_five_cross_entropy": 2.444715765806345,
-      "accuracy_gain_pp": 1.102941176470587,
-      "cross_entropy_change": 0.0015309865658097443,
+      "accuracy_gain_pp": 1.5931372549019542,
+      "cross_entropy_change": -0.11476226036365222,
       "clears_promotion_gate": false
     }
   },
@@ -194,8 +196,8 @@
     "n_hidden": 256,
     "n_inhibitory": 64,
     "batch_size": 32,
-    "learning_rate": 0.0004,
-    "input_weight_mean": 1.2,
+    "learning_rate": 0.001,
+    "input_weight_mean": 0.9,
     "input_sparsity": 0.95,
     "readout_scale": 225.0,
     "readout": "mem-mean",
@@ -217,7 +219,7 @@
       }
     },
     "experiment": "exp070",
-    "attempt": "input_scale_1p2"
+    "attempt": "learning_rate_1e3"
   },
   "integrity": {
     "official_test_access": "forbidden and absent from runner",
@@ -267,10 +269,31 @@
         },
         "currency": "USD",
         "total_spend_usd": 0.13992502354085445
+      },
+      "learning_rate_1e3": {
+        "active_pods_after_collection": 0,
+        "billing_method": "authoritative RunPod per-pod billing history after self-termination; provider amounts and billed milliseconds recorded without pod identifiers",
+        "reconciled_at": "2026-07-19T09:16:00Z",
+        "cells": {
+          "coba": {
+            "gpu": "RTX 5090",
+            "hourly_rate_usd": 0.99,
+            "provider_billed_ms": 160522,
+            "spend_usd": 0.04449077229946852
+          },
+          "ping": {
+            "gpu": "RTX 5090",
+            "hourly_rate_usd": 0.99,
+            "provider_billed_ms": 159848,
+            "spend_usd": 0.044305420480668545
+          }
+        },
+        "currency": "USD",
+        "total_spend_usd": 0.08879619278013708
       }
     },
-    "total_spend_usd": 0.39097231440246105,
+    "total_spend_usd": 0.4797685071825981,
     "active_pods_after_collection": 0,
-    "exact_all_recorded_attempts": false
+    "exact_all_recorded_attempts": true
   }
 }
