@@ -21,6 +21,7 @@
 #let trace-twelve = json("/artifacts/data/ar073/messages_cp012.json")
 #let trace-thirteen = json("/artifacts/data/ar073/messages_cp013.json")
 #let trace-fourteen = json("/artifacts/data/ar073/messages_cp014.json")
+#let trace-fifteen = json("/artifacts/data/ar073/messages_cp015.json")
 
 #let verbatim-prose(value) = {
   for (index, line) in value.split("\n").enumerate() {
@@ -409,4 +410,29 @@
   === Visible messages added in CP-014
 
   #for message in trace-fourteen.messages { message-card(message, trace-fourteen) }
+
+  == Checkpoint CP-015
+
+  *The experiment is at the human review gate.* This checkpoint follows final
+  publication commit `e14a9f8`. Its immutable private source has SHA-256 prefix
+  `bbf458216b1c`, and its checkpoint time is
+  `2026-07-19 09:23:18.451 UTC`.
+
+  === Decision and action ledger
+
+  + Focused lint, type, compilation, decision tests, aggregate-cost checks,
+    artifact completeness, matched-input, privacy, and official-test-absence
+    validation pass. The Demolab build contains 41 entries and zero stubs.
+  + Pull request 52 now has an exp070-specific title and cold-readable digest,
+    including the three killed decisions, exact 0.47976851 USD spend, zero-pod
+    teardown, validation evidence, and rendered report links.
+  + The repository-wide lint job remains red only from the same documented type
+    debt outside exp070. No exp070-focused diagnostic fails.
+  + The branch remains a draft, open, and unmerged. Remaining work is this
+    checkpoint build and push, refreshed preview verification, a final
+    timestamped PR comment, and human review. No merge is authorized.
+
+  === Visible messages added in CP-015
+
+  #for message in trace-fifteen.messages { message-card(message, trace-fifteen) }
 ]
