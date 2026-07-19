@@ -55,6 +55,10 @@ tau_ampa = 2.0  # ms — AMPA decay
 # config and inherit it on --load-config, so this default only sets fresh runs
 # that pass neither flag.
 tau_gaba = 9.0  # ms — GABA decay (Börgers: 9 ms; Buzsaki & Wang: 8-12 ms)
+TRAINABLE_TAU_M_E_BOUNDS_MS = (5.0, 50.0)
+TRAINABLE_TAU_M_I_BOUNDS_MS = (2.0, 20.0)
+ADAPT_TAU_BOUNDS_MS = (50.0, 500.0)
+ADAPT_STRENGTH_MAX_MV = 20.0
 
 # ── Input encoding ────────────────────────────────────────────────────────
 max_rate_hz = (
@@ -186,6 +190,20 @@ def spike_biophysical(v, threshold_offset=0.0):
 def _scale_grad(x, scale):
     """Return x unchanged in forward, but multiply gradient by scale in backward."""
     return x * scale + x.detach() * (1.0 - scale)
+
+
+def _bounded_logit(value: float, lo: float, hi: float) -> float:
+    """Logit whose sigmoid maps to ``value`` inside the open interval [lo, hi]."""
+    if not lo < value < hi:
+        raise ValueError(f"initial value {value} must lie inside ({lo}, {hi})")
+    y = (value - lo) / (hi - lo)
+    y = min(max(y, 1e-6), 1.0 - 1e-6)
+    return math.log(y / (1.0 - y))
+
+
+def _bounded_from_logit(logit, lo: float, hi: float):
+    """Map an unconstrained trainable tensor to a bounded positive parameter."""
+    return lo + (hi - lo) * torch.sigmoid(logit)
 
 
 # ── Layer primitives ─────────────────────────────────────────────────────
@@ -407,19 +425,30 @@ def init_weight(shape, dist="normal", p1=0.0, p2=0.1, sparsity=0.0):
 COBA_INTEGRATOR = "expeuler"  # "expeuler" | "fwd"  — parity toggle for COBA integration
 
 
-def e_step_coba(v, ref, g_e, g_i=None, ref_steps=None, threshold_offset=None,
-                v_noise_std=0.0):
+def e_step_coba(
+    v,
+    ref,
+    g_e,
+    g_i=None,
+    ref_steps=None,
+    threshold_offset=None,
+    v_noise_std=0.0,
+    C_m=None,
+    g_L=None,
+):
     """One E-neuron LIF step with COBA driving force."""
     if ref_steps is None:
         ref_steps = ref_steps_E
+    C_m = C_m_E if C_m is None else C_m
+    g_L = g_L_E if g_L is None else g_L
     if COBA_INTEGRATOR == "expeuler":
         return lif_step_expeuler(
             v,
             ref,
             g_e,
             g_i,
-            C_m_E,
-            g_L_E,
+            C_m,
+            g_L,
             ref_steps,
             spike_biophysical,
             v_grad_dampen=V_GRAD_DAMPEN,
@@ -430,29 +459,40 @@ def e_step_coba(v, ref, g_e, g_i=None, ref_steps=None, threshold_offset=None,
         v,
         coba_current(g_e, v, g_i),
         ref,
-        C_m_E,
-        g_L_E,
+        C_m,
+        g_L,
         ref_steps,
         spike_biophysical,
         v_grad_dampen=V_GRAD_DAMPEN,
     )
 
 
-def i_step_coba(v, ref, g_e, g_i=None, threshold_offset=None, v_noise_std=0.0):
+def i_step_coba(
+    v,
+    ref,
+    g_e,
+    g_i=None,
+    threshold_offset=None,
+    v_noise_std=0.0,
+    C_m=None,
+    g_L=None,
+):
     """One I-neuron LIF step with COBA driving force.
 
     ``g_i`` is the I→I inhibitory conductance on the I cell, used for
     Brunel/Vreeswijk-style balanced-network experiments where I-cells have
     recurrent self-inhibition. Default ``None`` preserves the canonical PING
     architecture (no I→I)."""
+    C_m = C_m_I if C_m is None else C_m
+    g_L = g_L_I if g_L is None else g_L
     if COBA_INTEGRATOR == "expeuler":
         return lif_step_expeuler(
             v,
             ref,
             g_e,
             g_i,
-            C_m_I,
-            g_L_I,
+            C_m,
+            g_L,
             ref_steps_I,
             spike_biophysical,
             v_grad_dampen=V_GRAD_DAMPEN,
@@ -463,8 +503,8 @@ def i_step_coba(v, ref, g_e, g_i=None, threshold_offset=None, v_noise_std=0.0):
         v,
         coba_current(g_e, v, g_i),
         ref,
-        C_m_I,
-        g_L_I,
+        C_m,
+        g_L,
         ref_steps_I,
         spike_biophysical,
         v_grad_dampen=V_GRAD_DAMPEN,
@@ -509,6 +549,13 @@ class COBANet(nn.Module):
         trainable_w_ii=False,
         n_inh_per_layer=None,
         state_clamp=False,
+        train_leak=False,
+        tau_m_e_bounds_ms=TRAINABLE_TAU_M_E_BOUNDS_MS,
+        tau_m_i_bounds_ms=TRAINABLE_TAU_M_I_BOUNDS_MS,
+        adaptive_threshold=False,
+        adapt_tau_bounds_ms=ADAPT_TAU_BOUNDS_MS,
+        adapt_strength_init_mv=1.0,
+        adapt_strength_max_mv=ADAPT_STRENGTH_MAX_MV,
     ):
         super().__init__()
         if readout_mode not in ("rate", "mem-mean", "cumulative-potential"):
@@ -527,6 +574,13 @@ class COBANet(nn.Module):
         # Forward-pass state clamp: floor conductances at 0 (and cap magnitude)
         # each timestep. Off by default, so every existing run is unchanged.
         self.state_clamp = state_clamp
+        self.train_leak = bool(train_leak)
+        self.tau_m_e_bounds_ms = tuple(float(x) for x in tau_m_e_bounds_ms)
+        self.tau_m_i_bounds_ms = tuple(float(x) for x in tau_m_i_bounds_ms)
+        self.adaptive_threshold = bool(adaptive_threshold)
+        self.adapt_tau_bounds_ms = tuple(float(x) for x in adapt_tau_bounds_ms)
+        self.adapt_strength_init_mv = float(adapt_strength_init_mv)
+        self.adapt_strength_max_mv = float(adapt_strength_max_mv)
         # Lazy-compile cache for the per-timestep body (compiled on first call).
         self._compiled_cache: dict = {}
         # Optional per-step hook fired right after every layer's spikes are
@@ -626,6 +680,65 @@ class COBANet(nn.Module):
             self.W_ie[k] = w_ie_t
             self.W_ii[k] = w_ii_t
 
+        self.tau_m_e_logit = nn.ParameterDict()
+        self.tau_m_i_logit = nn.ParameterDict()
+        if self.train_leak:
+            e_lo, e_hi = self.tau_m_e_bounds_ms
+            i_lo, i_hi = self.tau_m_i_bounds_ms
+            e_init = _bounded_logit(tau_m_E, e_lo, e_hi)
+            i_init = _bounded_logit(tau_m_I, i_lo, i_hi)
+            for i in self.ei_layers:
+                n_e = sizes[i - 1]
+                n_i = self.n_inh_per_layer.get(i, n_e // 4)
+                k = str(i)
+                self.tau_m_e_logit[k] = nn.Parameter(torch.full((n_e,), e_init))
+                self.tau_m_i_logit[k] = nn.Parameter(torch.full((n_i,), i_init))
+
+        self.adapt_tau_logit = nn.ParameterDict()
+        self.adapt_strength_logit = nn.ParameterDict()
+        if self.adaptive_threshold:
+            tau_lo, tau_hi = self.adapt_tau_bounds_ms
+            tau_init = _bounded_logit((tau_lo * tau_hi) ** 0.5, tau_lo, tau_hi)
+            strength_lo, strength_hi = 0.0, self.adapt_strength_max_mv
+            strength_init = min(max(self.adapt_strength_init_mv, 1e-6), strength_hi - 1e-6)
+            strength_logit = _bounded_logit(strength_init, strength_lo, strength_hi)
+            for i in self.ei_layers:
+                n_e = sizes[i - 1]
+                k = str(i)
+                self.adapt_tau_logit[k] = nn.Parameter(torch.full((n_e,), tau_init))
+                self.adapt_strength_logit[k] = nn.Parameter(
+                    torch.full((n_e,), strength_logit)
+                )
+
+    def leak_params(self, layer_key: str):
+        """Return (C_m_E, g_L_E, C_m_I, g_L_I) for one layer.
+
+        With ``train_leak`` off this is the historical scalar COBA leak.  With it
+        on, per-neuron bounded membrane time constants are converted back to
+        leak conductances via g_L = C_m / τ_m, preserving ar003's conductance
+        equation while giving cells heterogeneous integration horizons.
+        """
+        if not self.train_leak:
+            return C_m_E, g_L_E, C_m_I, g_L_I
+        e_lo, e_hi = self.tau_m_e_bounds_ms
+        i_lo, i_hi = self.tau_m_i_bounds_ms
+        tau_e = _bounded_from_logit(self.tau_m_e_logit[layer_key], e_lo, e_hi)
+        tau_i = _bounded_from_logit(self.tau_m_i_logit[layer_key], i_lo, i_hi)
+        return C_m_E, C_m_E / tau_e, C_m_I, C_m_I / tau_i
+
+    def adapt_params(self, layer_key: str):
+        """Return bounded adaptive-threshold decay and strength for one E layer."""
+        if not self.adaptive_threshold:
+            return None, None
+        tau_lo, tau_hi = self.adapt_tau_bounds_ms
+        tau = _bounded_from_logit(self.adapt_tau_logit[layer_key], tau_lo, tau_hi)
+        strength = _bounded_from_logit(
+            self.adapt_strength_logit[layer_key],
+            0.0,
+            self.adapt_strength_max_mv,
+        )
+        return torch.exp(-dt / tau), strength
+
     def _hid_key(self, layer_idx):
         if self.n_layers == 1:
             return "hid"
@@ -688,6 +801,7 @@ class COBANet(nn.Module):
         # Per-layer state
         v_e, ref_e, ge_e, gi_e, s_e = {}, {}, {}, {}, {}
         v_i, ref_i, ge_i, gi_i, s_i = {}, {}, {}, {}, {}
+        a_e = {}
         drive_gains = {}
         for i in range(1, self.n_layers + 1):
             n_e = self.hidden_sizes[i - 1]
@@ -702,6 +816,8 @@ class COBANet(nn.Module):
             )
             ge_e[k] = init_conductance(B, n_e, device)
             s_e[k] = torch.zeros(B, n_e, device=device)
+            if self.adaptive_threshold:
+                a_e[k] = torch.zeros(B, n_e, device=device)
             if i in self.ei_layers:
                 n_i = self.n_inh_per_layer.get(i, n_e // 4)
                 gi_e[k] = init_conductance(B, n_e, device)
@@ -792,6 +908,7 @@ class COBANet(nn.Module):
             "ge_e": ge_e,
             "gi_e": gi_e,
             "s_e": s_e,
+            "a_e": a_e,
             "v_i": v_i,
             "ref_i": ref_i,
             "ge_i": ge_i,
@@ -809,6 +926,10 @@ class COBANet(nn.Module):
         ref_steps_I = max(1, int(round(ref_ms_I / dt)))
         beta_snn = np.exp(-dt / tau_snn)
         beta_out = np.exp(-dt / tau_out_ms)
+        leak_params = {str(i): self.leak_params(str(i)) for i in range(1, self.n_layers + 1)}
+        adapt_params = {
+            str(i): self.adapt_params(str(i)) for i in range(1, self.n_layers + 1)
+        }
 
         cfg = {
             "B": B,
@@ -832,6 +953,9 @@ class COBANet(nn.Module):
             "ref_steps_I": ref_steps_I,
             "beta_snn": beta_snn,
             "beta_out": beta_out,
+            "leak_params": leak_params,
+            "adaptive_threshold": self.adaptive_threshold,
+            "adapt_params": adapt_params,
         }
 
         # Lazy-init torch.compile on the per-timestep body, with a CPU-skip
@@ -998,22 +1122,37 @@ class COBANet(nn.Module):
             g_i_for_i = state["gi_i"][k] if is_ei else None
             v_noise = cfg["v_noise_std"]
             v_noise_i = v_noise if cfg["noise_on_inh"] else 0.0
+            c_m_e, g_l_e, c_m_i, g_l_i = cfg["leak_params"][k]
+            threshold_e = state["a_e"][k] if cfg["adaptive_threshold"] else None
             if is_ei:
                 state["v_e"][k], state["s_e"][k], state["ref_e"][k] = e_step_coba(
                     state["v_e"][k],
                     state["ref_e"][k],
                     g_e_for_step,
                     g_i_for_e,
+                    threshold_offset=threshold_e,
                     v_noise_std=v_noise,
+                    C_m=c_m_e,
+                    g_L=g_l_e,
                 )
                 state["v_i"][k], state["s_i"][k], state["ref_i"][k] = i_step_coba(
                     state["v_i"][k], state["ref_i"][k], g_e_for_i, g_i_for_i,
                     v_noise_std=v_noise_i,
+                    C_m=c_m_i,
+                    g_L=g_l_i,
                 )
             else:
                 state["v_e"][k], state["s_e"][k], state["ref_e"][k] = e_step_coba(
                     state["v_e"][k], state["ref_e"][k], g_e_for_step,
+                    threshold_offset=threshold_e,
                     v_noise_std=v_noise,
+                    C_m=c_m_e,
+                    g_L=g_l_e,
+                )
+            if cfg["adaptive_threshold"]:
+                adapt_decay, adapt_strength = cfg["adapt_params"][k]
+                state["a_e"][k] = (
+                    state["a_e"][k] * adapt_decay + state["s_e"][k] * adapt_strength
                 )
 
             if self._hidden_perturb_fn is not None:

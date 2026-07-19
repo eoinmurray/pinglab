@@ -141,6 +141,13 @@ def infer(
     readout_mode="rate",
     signed_readout=False,
     readout_bias=False,
+    train_leak=False,
+    tau_m_e_bounds_ms=None,
+    tau_m_i_bounds_ms=None,
+    adaptive_threshold=False,
+    adapt_tau_bounds_ms=None,
+    adapt_strength_init_mv=1.0,
+    adapt_strength_max_mv=None,
 ):
     """Run inference with saved weights at a given dt.
 
@@ -189,6 +196,13 @@ def infer(
         readout_mode=readout_mode,
         signed_readout=signed_readout,
         readout_bias=readout_bias,
+        train_leak=train_leak,
+        tau_m_e_bounds_ms=tau_m_e_bounds_ms,
+        tau_m_i_bounds_ms=tau_m_i_bounds_ms,
+        adaptive_threshold=adaptive_threshold,
+        adapt_tau_bounds_ms=adapt_tau_bounds_ms,
+        adapt_strength_init_mv=adapt_strength_init_mv,
+        adapt_strength_max_mv=adapt_strength_max_mv,
     )
 
     # Load weights. skip_load drops matching state_dict keys (by prefix) so a
@@ -503,6 +517,13 @@ def infer_and_snapshot(
     readout_mode="rate",
     signed_readout=False,
     readout_bias=False,
+    train_leak=False,
+    tau_m_e_bounds_ms=None,
+    tau_m_i_bounds_ms=None,
+    adaptive_threshold=False,
+    adapt_tau_bounds_ms=None,
+    adapt_strength_init_mv=1.0,
+    adapt_strength_max_mv=None,
 ):
     """Run inference on a single sample and save full spike trajectory to snapshot.npz.
 
@@ -559,6 +580,13 @@ def infer_and_snapshot(
         readout_mode=readout_mode,
         signed_readout=signed_readout,
         readout_bias=readout_bias,
+        train_leak=train_leak,
+        tau_m_e_bounds_ms=tau_m_e_bounds_ms,
+        tau_m_i_bounds_ms=tau_m_i_bounds_ms,
+        adaptive_threshold=adaptive_threshold,
+        adapt_tau_bounds_ms=adapt_tau_bounds_ms,
+        adapt_strength_init_mv=adapt_strength_init_mv,
+        adapt_strength_max_mv=adapt_strength_max_mv,
     )
 
     # Load weights (skip_load drops matching keys by prefix — see infer()).
@@ -640,6 +668,13 @@ def probe(
     outputs=None,
     tau_gaba=None,
     private_w_in=False,
+    train_leak=False,
+    tau_m_e_bounds_ms=None,
+    tau_m_i_bounds_ms=None,
+    adaptive_threshold=False,
+    adapt_tau_bounds_ms=None,
+    adapt_strength_init_mv=1.0,
+    adapt_strength_max_mv=None,
 ):
     """Drive a net with uniform homogeneous Poisson input; emit E/I rates.
 
@@ -678,6 +713,13 @@ def probe(
         dales_law=dales_law,
         hidden_sizes=hidden_sizes,
         n_inh_per_layer=n_inh_per_layer,
+        train_leak=train_leak,
+        tau_m_e_bounds_ms=tau_m_e_bounds_ms,
+        tau_m_i_bounds_ms=tau_m_i_bounds_ms,
+        adaptive_threshold=adaptive_threshold,
+        adapt_tau_bounds_ms=adapt_tau_bounds_ms,
+        adapt_strength_init_mv=adapt_strength_init_mv,
+        adapt_strength_max_mv=adapt_strength_max_mv,
     )
     if w_ei_mean is not None or w_ie_mean is not None:
         build_kwargs["w_ei"] = (float(w_ei_mean or 0.0), float(w_ei_mean or 0.0) * 0.1)
@@ -810,6 +852,13 @@ def dump_weights(
     trainable_w_ie=False,
     trainable_w_ii=False,
     kaiming_init=False,
+    train_leak=False,
+    tau_m_e_bounds_ms=None,
+    tau_m_i_bounds_ms=None,
+    adaptive_threshold=False,
+    adapt_tau_bounds_ms=None,
+    adapt_strength_init_mv=1.0,
+    adapt_strength_max_mv=None,
 ):
     """Emit initialisation and trained weight matrices to weights_dump.npz.
 
@@ -856,6 +905,13 @@ def dump_weights(
         trainable_w_ei=trainable_w_ei,
         trainable_w_ie=trainable_w_ie,
         trainable_w_ii=trainable_w_ii,
+        train_leak=train_leak,
+        tau_m_e_bounds_ms=tau_m_e_bounds_ms,
+        tau_m_i_bounds_ms=tau_m_i_bounds_ms,
+        adaptive_threshold=adaptive_threshold,
+        adapt_tau_bounds_ms=adapt_tau_bounds_ms,
+        adapt_strength_init_mv=adapt_strength_init_mv,
+        adapt_strength_max_mv=adapt_strength_max_mv,
     )
 
     _WEIGHT_DICTS = ("W_ei", "W_ie", "W_ee", "W_ii")
@@ -874,10 +930,21 @@ def dump_weights(
     if hasattr(net, "W_ff"):
         for i, w in enumerate(net.W_ff):
             dump[f"W_ff_{i}_init"] = w.detach().cpu().numpy()
-    for name in ("b_out", "readout_alpha"):
+    for name in (
+        "b_out",
+        "readout_alpha",
+        "tau_m_e_logit",
+        "tau_m_i_logit",
+        "adapt_tau_logit",
+        "adapt_strength_logit",
+    ):
         parameter = getattr(net, name, None)
         if parameter is not None:
-            dump[f"{name}_init"] = parameter.detach().cpu().numpy()
+            if isinstance(parameter, torch.nn.ParameterDict):
+                for k, value in parameter.items():
+                    dump[f"{name}_{k}_init"] = value.detach().cpu().numpy()
+            else:
+                dump[f"{name}_init"] = parameter.detach().cpu().numpy()
 
     # TRAINED weights: pulled from the saved state_dict (keys look like "W_ei.1"
     # or "W_ff.2"). W_ff entries are emitted too; the last index is W_out.
@@ -894,6 +961,14 @@ def dump_weights(
         elif sk in ("b_out", "readout_alpha"):
             arr = sv.detach().cpu().numpy() if hasattr(sv, "detach") else np.asarray(sv)
             dump[f"{sk}_trained"] = arr
+        elif name in (
+            "tau_m_e_logit",
+            "tau_m_i_logit",
+            "adapt_tau_logit",
+            "adapt_strength_logit",
+        ) and key:
+            arr = sv.detach().cpu().numpy() if hasattr(sv, "detach") else np.asarray(sv)
+            dump[f"{name}_{key}_trained"] = arr
 
     assert out_dir is not None, "dump_weights requires out_dir"
     out_path = Path(out_dir) / "weights_dump.npz"
