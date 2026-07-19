@@ -1,647 +1,92 @@
 diff --git a/experiments/exp072.py b/experiments/exp072.py
-new file mode 100644
-index 0000000..afae06f
---- /dev/null
+index afae06f..054496c 100644
+--- a/experiments/exp072.py
 +++ b/experiments/exp072.py
-@@ -0,0 +1,641 @@
-+"""Exploratory exp072 SHD ladder for adaptive conductance controls.
-+
-+This runner reuses exp069's validation-only SHD split, checkpoint selection,
-+diagnostics, matched rasters, and RunPod plumbing.  The official SHD test has no
-+route here.  The default command runs a local 128/128 two-epoch smoke for the
-+selected registered candidate; cloud execution still requires the explicit
-+``--runpod --live`` spending gate.
-+
-+Select the registered candidate with ``EXP072_ATTEMPT``:
-+
-+* ``control``: exp071 architecture/readout without new adaptive controls.
-+* ``train_leak``: control plus bounded trainable conductance leak.
-+* ``adaptive_threshold``: control plus bounded adaptive E-cell threshold.
-+* ``combined``: both trainable leak and adaptive threshold.
-+
-+Select ``EXP072_STAGE=short`` for the 8-epoch screening run and
-+``EXP072_STAGE=final40`` for the promoted 40-epoch run.  The runner fails closed
-+for any unregistered attempt or stage.
-+"""
-+
-+from __future__ import annotations
-+
-+import hashlib
-+import json
-+import math
-+import os
-+import shutil
-+import sys
-+import time
-+from datetime import datetime, timezone
-+from pathlib import Path
-+from typing import Any
-+
-+REPO = Path(__file__).resolve().parents[1]
-+sys.path.insert(0, str(Path(__file__).resolve().parent))
-+
-+import exp069 as baseline  # noqa: E402
-+from helpers import runpod  # noqa: E402
-+from helpers.cli import parse_meta  # noqa: E402
-+from helpers.numbers import write_numbers  # noqa: E402
-+from helpers.paths import artifacts_and_figures  # noqa: E402
-+from helpers.run_dirs import published_run  # noqa: E402
-+from helpers.run_id import next_run_id  # noqa: E402
-+
-+SLUG = "exp072"
-+SHORT_EPOCHS = 8
-+FINAL_EPOCHS = 40
-+READOUT_MODE = "cumulative-potential"
-+SIGNED_READOUT = True
-+READOUT_BIAS = True
-+READOUT_SCALE = 1.0
-+PROMOTION_ACCURACY_GAIN_PP = 3.0
-+BASELINE_ATTEMPT = "control"
-+ATTEMPT_SPECS: dict[str, dict[str, Any]] = {
-+    "control": {
-+        "hidden_sizes": [256],
-+        "description": "exp071 architecture/readout without adaptive conductance controls",
-+        "pod_label": "control",
-+        "flags": [],
-+    },
-+    "train_leak": {
-+        "hidden_sizes": [256],
-+        "description": "bounded trainable conductance leak / membrane time constants",
-+        "pod_label": "leak",
-+        "flags": ["--train-leak"],
-+    },
-+    "adaptive_threshold": {
-+        "hidden_sizes": [256],
-+        "description": "bounded adaptive E-cell thresholds",
-+        "pod_label": "adapt",
-+        "flags": ["--adaptive-threshold"],
-+    },
-+    "combined": {
-+        "hidden_sizes": [256],
-+        "description": "trainable leak plus adaptive E-cell thresholds",
-+        "pod_label": "combined",
-+        "flags": ["--train-leak", "--adaptive-threshold"],
-+    },
-+}
-+STAGE_SPECS = {
-+    "short": {"epochs": SHORT_EPOCHS, "pod_suffix": "short"},
-+    "final40": {"epochs": FINAL_EPOCHS, "pod_suffix": "final40"},
-+}
-+ATTEMPT = os.environ.get("EXP072_ATTEMPT", BASELINE_ATTEMPT)
-+STAGE = os.environ.get("EXP072_STAGE", "short")
-+if ATTEMPT not in ATTEMPT_SPECS:
-+    raise RuntimeError(f"unregistered exp072 attempt: {ATTEMPT}")
-+if STAGE not in STAGE_SPECS:
-+    raise RuntimeError(f"unregistered exp072 stage: {STAGE}")
-+ATTEMPT_SPEC = ATTEMPT_SPECS[ATTEMPT]
-+STAGE_SPEC = STAGE_SPECS[STAGE]
-+HIDDEN_SIZES = [int(x) for x in ATTEMPT_SPEC["hidden_sizes"]]
-+EPOCHS = int(STAGE_SPEC["epochs"])
-+POD_LABEL = f"{ATTEMPT_SPEC['pod_label']}-{STAGE_SPEC['pod_suffix']}"
-+
-+ARTIFACTS, FIGURES = artifacts_and_figures(SLUG)
-+SCRATCH = runpod.artifacts_scratch(SLUG)
-+CELL_ROOT = SCRATCH / "cells" / STAGE / ATTEMPT
-+FROZEN_ROOT = SCRATCH / "frozen" / STAGE / ATTEMPT
-+FAILURE_ROOT = SCRATCH / "failures" / STAGE / ATTEMPT
-+SMOKE_ROOT = REPO / "temp" / "experiments" / SLUG / "smoke" / ATTEMPT
-+LOCAL_SPLIT_ROOT = REPO / "temp" / "experiments" / SLUG / "split"
-+INSTALLED_SPLIT_ROOT = REPO / "temp" / "experiments" / SLUG / "installed_shd"
-+
-+EXP070_RAW = REPO / "artifacts" / "data" / "exp070" / "raw"
-+COMMITTED_SMOKE = REPO / "artifacts" / "data" / SLUG / "raw" / "smoke" / ATTEMPT / "smoke_summary.json"
-+COMPUTE_LEDGER = SCRATCH / "compute_ledgers" / f"{STAGE}-{ATTEMPT}.json"
-+ORIGINAL_VALIDATE_TRAINING = baseline.validate_training
-+
-+GOAL_PROMPT = """/goal Design and execute the next exploratory SHD experiment from updated main at f32299bb1b48d18ba9dfe6328097d2147bcc6286, using the newly merged tools/snn adaptive conductance controls to test whether COBA/PING validation accuracy can move meaningfully beyond the exp071 ~70% plateau toward canonical SHD RSNN performance.
-+
-+Create the next numbered experiment, likely exp072, on a new branch. Do not modify main directly after branching. Open a draft PR after the first meaningful commit.
-+
-+Scientific objective:
-+Run a one-seed exploratory validation-only ladder on SHD comparing matched Dale-constrained COBA and PING networks while testing two new neuron-dynamics paths:
-+1. trainable conductance leak / membrane time constants via --train-leak;
-+2. adaptive E-cell thresholds via --adaptive-threshold;
-+3. the combination of both.
-+
-+Use the exp071 cumulative-potential readout baseline as the control:
-+--readout cumulative-potential --signed-readout --readout-bias
-+
-+Constraints:
-+- Use one seed only.
-+- Do not use the official SHD test set.
-+- Use a held-out validation split from the training set for all selection decisions.
-+- Keep COBA and PING matched except for registered cell-specific voltage-gradient dampening and PING E/I coupling.
-+- Preserve matched input, readout, training split, optimizer, batch, preprocessing, and candidate flags across COBA/PING within each candidate.
-+- COBA should use the no-inhibitory-loop setting; PING should use the registered inhibitory-loop setting and dampening 1000.
-+- Use short runs first for iteration speed, about 8-10 epochs per candidate.
-+- Promote only the most promising candidate to a matched 40-epoch validation run.
-+- Do not run multiple seeds unless I explicitly authorize it later.
-+- RunPod spending requires explicit approval before pod creation.
-+- Use at most one pod at a time unless I explicitly authorize parallelism.
-+- Reap any pod when finished.
-+- Do not merge the PR.
-+- Avoid the full local test suite on the 4 GB Hetzner host; use focused checks and demolab build.
-+
-+Candidate ladder:
-+0. Control: exp071 architecture/readout without new adaptive controls.
-+1. Trainable leak only:
-+   --train-leak
-+2. Adaptive threshold only:
-+   --adaptive-threshold
-+3. Combined:
-+   --train-leak --adaptive-threshold
-+
-+Suggested default bounds:
-+- E membrane tau: [5, 50] ms
-+- I membrane tau: [2, 20] ms
-+- adaptive threshold tau: [50, 500] ms
-+- adaptive threshold initial strength: 1.0 mV
-+- adaptive threshold max strength: 20.0 mV
-+
-+Deliverables:
-+- Produce artifacts/data/exp072 with numbers.json, provenance, reproducer, training curves, firing-rate diagnostics, parameter diagnostics for learned tau/adaptation values, and matched input/E/I rasters.
-+- Write writings/exp072.typ as the canonical cold-readable experiment report.
-+- Include this goal prompt below the abstract.
-+- Append timestamped activity-log/thread checkpoints in the experiment appendix.
-+- Record scientific decisions, failures, anomalies, costs, commits, results, and pending work.
-+- Sanitize any publishable logs before committing.
-+- Build and validate with focused checks plus demolab build.
-+- Commit meaningful attempts, including killed attempts, with clear messages.
-+- Push the branch and update the PR with evidence.
-+- Finish at the human review gate with a concise evidence summary, exact compute spend, validation performed, links to the rendered exp072 file and PR, and a recommendation for the next move toward 90% SHD."""
-+
-+
-+def utc_now() -> str:
-+    return datetime.now(timezone.utc).isoformat(timespec="milliseconds").replace("+00:00", "Z")
-+
-+
-+def sha256_file(path: Path) -> str:
-+    digest = hashlib.sha256()
-+    with path.open("rb") as handle:
-+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
-+            digest.update(chunk)
-+    return digest.hexdigest()
-+
-+
-+def train_args(model: str, out: Path, *, smoke: bool) -> list[str]:
-+    recipe = baseline.RECIPES[model]
-+    args = [
-+        "train", "--model", "ping", "--dataset", "shd",
-+        "--epochs", str(baseline.SMOKE_EPOCHS if smoke else EPOCHS),
-+        "--t-ms", str(baseline.T_MS), "--dt", str(baseline.DT_MS),
-+        "--n-hidden", *(str(size) for size in HIDDEN_SIZES),
-+        "--batch-size", str(baseline.BATCH_SIZE),
-+        "--lr", str(baseline.LEARNING_RATE), "--seed", str(baseline.SEED),
-+        "--ei-strength", str(recipe["ei_strength"]),
-+        "--v-grad-dampen", str(recipe["v_grad_dampen"]),
-+        "--w-in", str(baseline.INPUT_SCALE),
-+        "--w-in-sparsity", str(baseline.INPUT_SPARSITY),
-+        "--readout", READOUT_MODE,
-+        "--readout-w-out-scale", str(READOUT_SCALE),
-+        "--out-dir", str(out), "--wipe-dir",
-+    ]
-+    if SIGNED_READOUT:
-+        args.append("--signed-readout")
-+    if READOUT_BIAS:
-+        args.append("--readout-bias")
-+    args.extend(str(flag) for flag in ATTEMPT_SPEC["flags"])
-+    return args
-+
-+
-+def validate_training(model: str, out: Path, *, smoke: bool) -> list[str]:
-+    errors = ORIGINAL_VALIDATE_TRAINING(model, out, smoke=smoke)
-+    if not (out / "metrics.json").exists():
-+        return errors
-+    metrics = json.loads((out / "metrics.json").read_text())
-+    cfg = metrics.get("config", {})
-+    full_cfg = json.loads((out / "config.json").read_text()) if (out / "config.json").exists() else cfg
-+    hidden_sizes = full_cfg.get("hidden_sizes")
-+    if hidden_sizes is None and full_cfg.get("n_hidden") is not None:
-+        hidden_sizes = [int(full_cfg["n_hidden"])]
-+    if hidden_sizes != HIDDEN_SIZES:
-+        errors.append(f"hidden_sizes: got {hidden_sizes!r}, want {HIDDEN_SIZES!r}")
-+    if cfg.get("readout_mode") != READOUT_MODE:
-+        errors.append(f"readout_mode: got {cfg.get('readout_mode')!r}, want {READOUT_MODE!r}")
-+    if bool(cfg.get("signed_readout")) is not SIGNED_READOUT:
-+        errors.append("signed_readout mismatch")
-+    if bool(cfg.get("readout_bias")) is not READOUT_BIAS:
-+        errors.append("readout_bias mismatch")
-+    want_train_leak = "--train-leak" in ATTEMPT_SPEC["flags"]
-+    want_adaptive_threshold = "--adaptive-threshold" in ATTEMPT_SPEC["flags"]
-+    if bool(full_cfg.get("train_leak")) is not want_train_leak:
-+        errors.append(f"train_leak: got {full_cfg.get('train_leak')!r}, want {want_train_leak!r}")
-+    if bool(full_cfg.get("adaptive_threshold")) is not want_adaptive_threshold:
-+        errors.append(
-+            "adaptive_threshold: "
-+            f"got {full_cfg.get('adaptive_threshold')!r}, want {want_adaptive_threshold!r}"
-+        )
-+    return errors
-+
-+
-+def capture_matched_rasters(model: str, train_out: Path, validation_h5: Path) -> None:
-+    import torch
-+
-+    snn_tool, _, _, _, _, _ = baseline.import_snn_modules()
-+    probe_root = train_out / "validation_probe"
-+    probe_root.mkdir(parents=True, exist_ok=True)
-+    input_path = probe_root / "matched_input.npz"
-+    baseline.prepare_matched_input(validation_h5, input_path)
-+    state = torch.load(train_out / "weights.pth", map_location="cpu")
-+    final_readout_key = f"W_ff.{len(HIDDEN_SIZES)}"
-+    state.pop(final_readout_key, None)
-+    raster_weights = probe_root / "raster_weights.pth"
-+    torch.save(state, raster_weights)
-+    raster_out = probe_root / "matched_rasters"
-+    rc = snn_tool.main(
-+        [
-+            "sim", "--load-config", str(train_out / "config.json"),
-+            "--load-weights", str(raster_weights), "--input-file", str(input_path),
-+            "--n-in", str(baseline.N_INPUT), "--n-batch", str(len(baseline.RASTER_POSITIONS)),
-+            "--outputs", "rasters", "--out-dir", str(raster_out), "--wipe-dir",
-+        ]
-+    )
-+    if rc or not (raster_out / "rasters.npz").exists():
-+        raise RuntimeError("matched raster capture failed")
-+
-+
-+def configure_baseline() -> None:
-+    """Point exp069's validated machinery at the selected exp072 candidate."""
-+    baseline.__dict__["SLUG"] = SLUG
-+    baseline.ARTIFACTS = ARTIFACTS
-+    baseline.FIGURES = FIGURES
-+    baseline.SCRATCH = SCRATCH
-+    baseline.CELL_ROOT = CELL_ROOT
-+    baseline.FROZEN_ROOT = FROZEN_ROOT
-+    baseline.FAILURE_ROOT = FAILURE_ROOT
-+    baseline.SMOKE_ROOT = SMOKE_ROOT
-+    baseline.LOCAL_SPLIT_ROOT = LOCAL_SPLIT_ROOT
-+    baseline.SHD_DIR = INSTALLED_SPLIT_ROOT
-+    baseline.__dict__["EPOCHS"] = EPOCHS
-+    baseline.__dict__["N_HIDDEN"] = HIDDEN_SIZES[-1]
-+    baseline.__dict__["N_INHIBITORY"] = HIDDEN_SIZES[-1] // 4
-+    baseline.__dict__["READOUT_MODE"] = READOUT_MODE
-+    baseline.__dict__["READOUT_SCALE"] = READOUT_SCALE
-+    baseline.__dict__["train_args"] = train_args
-+    baseline.__dict__["validate_training"] = validate_training
-+    baseline.__dict__["capture_matched_rasters"] = capture_matched_rasters
-+    baseline.SCALE = {
-+        **baseline.SCALE,
-+        "experiment": SLUG,
-+        "attempt": ATTEMPT,
-+        "stage": STAGE,
-+        "epochs": EPOCHS,
-+        "hidden_sizes": HIDDEN_SIZES,
-+        "n_hidden": HIDDEN_SIZES[-1],
-+        "n_inhibitory": HIDDEN_SIZES[-1] // 4,
-+        "readout": READOUT_MODE,
-+        "signed_readout": SIGNED_READOUT,
-+        "readout_bias": READOUT_BIAS,
-+        "readout_scale": READOUT_SCALE,
-+        "candidate_flags": list(ATTEMPT_SPEC["flags"]),
-+        "train_leak": "--train-leak" in ATTEMPT_SPEC["flags"],
-+        "adaptive_threshold": "--adaptive-threshold" in ATTEMPT_SPEC["flags"],
+@@ -461,9 +461,42 @@ def parameter_diagnostics(train_out: Path) -> dict[str, Any]:
+     return diagnostics
+ 
+ 
++def existing_activity_logs() -> dict[str, str]:
++    """Return already-published sanitized activity logs before publication rewrites."""
++    activity = REPO / "artifacts" / "data" / SLUG / "activity"
++    if not activity.exists():
++        return {}
++    return {
++        path.name: path.read_text()
++        for path in sorted(activity.glob("messages_cp*.json"))
++        if path.is_file()
 +    }
-+    _, _, snn_train, _, _, _ = baseline.import_snn_modules()
-+    snn_datasets = sys.modules[snn_train.load_dataset.__module__]
-+    setattr(snn_datasets, "_SHD_DIR", str(INSTALLED_SPLIT_ROOT))
 +
 +
-+configure_baseline()
-+
-+
-+def load_metrics(model: str) -> dict[str, Any]:
-+    return json.loads((CELL_ROOT / model / "metrics.json").read_text())
-+
-+
-+def run_smoke() -> None:
-+    baseline.run_smoke()
-+    summary_path = SMOKE_ROOT / "smoke_summary.json"
-+    summary = json.loads(summary_path.read_text())
-+    summary.update(
-+        experiment=SLUG,
-+        attempt=ATTEMPT,
-+        stage="smoke",
-+        hidden_sizes=HIDDEN_SIZES,
-+        readout=READOUT_MODE,
-+        signed_readout=SIGNED_READOUT,
-+        readout_bias=READOUT_BIAS,
-+        readout_scale=READOUT_SCALE,
-+        flags=list(ATTEMPT_SPEC["flags"]),
-+        train_leak="--train-leak" in ATTEMPT_SPEC["flags"],
-+        adaptive_threshold="--adaptive-threshold" in ATTEMPT_SPEC["flags"],
-+    )
-+    baseline.atomic_json(summary_path, summary)
-+
-+
-+def run_full_cell(model: str) -> None:
-+    baseline.run_full_cell(model)
-+
-+
-+def cell_done(model: str) -> bool:
-+    return baseline.cell_done(model)
-+
-+
-+def pod_run() -> None:
-+    runpod.pod_run_loop(
-+        job_ids=list(baseline.MODELS),
-+        is_done=cell_done,
-+        run_job=run_full_cell,
-+        label=f"exp072-{POD_LABEL}",
-+    )
-+
-+
-+def run_via_runpod(meta: Any) -> None:
-+    cells = meta.only_cells or list(baseline.MODELS)
-+    unknown = sorted(set(cells) - set(baseline.MODELS))
-+    if unknown:
-+        raise SystemExit(f"unknown exp072 cells for --only-cells: {unknown}")
-+    buckets = [
-+        {"name": f"exp072-{POD_LABEL}-{model}", "cells": [model]}
-+        for model in cells
-+    ]
-+    runpod.dispatch(
-+        slug=SLUG,
-+        runner=SLUG,
-+        buckets=buckets,
-+        gpu=meta.gpu,
-+        live=meta.live,
-+        collect=meta.collect,
-+        plumbing=False,
-+        collect_subdir=f"{runpod.ARTIFACTS_SUBDIR}/{SLUG}",
-+        local_collect_dir=str(SCRATCH),
-+        extra_env={
-+            "PINGLAB_ARTIFACTS_ROOT": f"{runpod.VOLUME_MOUNT}/{runpod.ARTIFACTS_SUBDIR}/{SLUG}",
-+            "EXP072_ATTEMPT": ATTEMPT,
-+            "EXP072_STAGE": STAGE,
-+        },
-+        max_runtime_s=7200 if STAGE == "final40" else 3600,
-+    )
-+
-+
-+def attempt_diagnostics(cells: dict[str, Any]) -> dict[str, Any]:
-+    diagnostics: dict[str, Any] = {}
-+    for model in baseline.MODELS:
-+        training = cells[model]["training"]
-+        selection = cells[model]["selection"]
-+        selected_epoch = int(selection["epoch"])
-+        selected_record = training["epochs"][selected_epoch - 1]
-+        final = training["epochs"][-1]
-+        finite_keys = ("loss", "test_loss", "acc", "grad_norm", "test_rate_e")
-+        finite = all(math.isfinite(float(final.get(key, math.nan))) for key in finite_keys)
-+        if model == "ping":
-+            finite = finite and math.isfinite(float(final.get("test_rate_i", math.nan)))
-+        saturation_hz = 0.95 * (1000.0 / baseline.DT_MS)
-+        active = 0.0 < float(final["test_rate_e"]) < saturation_hz
-+        if model == "ping":
-+            active = active and 0.0 < float(final.get("test_rate_i") or 0.0) < saturation_hz
-+        clean = (
-+            finite
-+            and active
-+            and sum(int(epoch.get("skipped_steps", 0)) for epoch in training["epochs"]) == 0
-+            and sum(int(epoch.get("nan_forward_batches", 0)) for epoch in training["epochs"]) == 0
-+        )
-+        diagnostics[model] = {
-+            "selected_epoch": selected_epoch,
-+            "selected_validation_accuracy_pct": float(selection["accuracy_pct"]),
-+            "selected_validation_cross_entropy": float(selection["cross_entropy"]),
-+            "selected_validation_e_rate_hz": float(selected_record.get("test_rate_e") or 0.0),
-+            "selected_validation_i_rate_hz": float(selected_record.get("test_rate_i") or 0.0),
-+            "final_validation_accuracy_pct": float(final["acc"]),
-+            "final_validation_cross_entropy": float(final["test_loss"]),
-+            "final_validation_e_rate_hz": float(final["test_rate_e"]),
-+            "final_validation_i_rate_hz": float(final.get("test_rate_i") or 0.0),
-+            "gradient_norm": float(final["grad_norm"]),
-+            "finite": finite,
-+            "active": active,
-+            "clean": clean,
-+            "training_elapsed_s": training.get("total_elapsed_s"),
-+            "training_peak_gpu_memory_bytes": training.get("perf", {}).get("peak_memory_bytes"),
-+        }
-+    return diagnostics
-+
-+
-+def _bounded_from_logit_values(values: Any, lo: float, hi: float) -> list[float]:
-+    import numpy as np
-+
-+    arr = np.asarray(values, dtype=np.float64)
-+    return (lo + (hi - lo) / (1.0 + np.exp(-arr))).reshape(-1).tolist()
-+
-+
-+def _summary(values: list[float]) -> dict[str, float]:
-+    import numpy as np
-+
-+    arr = np.asarray(values, dtype=np.float64)
-+    return {"min": float(arr.min()), "mean": float(arr.mean()), "max": float(arr.max())}
-+
-+
-+def parameter_diagnostics(train_out: Path) -> dict[str, Any]:
-+    """Summarise learned bounded leak/adaptation parameters from saved weights."""
-+    import torch
-+
-+    state = torch.load(train_out / "weights.pth", map_location="cpu")
-+    diagnostics: dict[str, Any] = {
-+        "train_leak": "--train-leak" in ATTEMPT_SPEC["flags"],
-+        "adaptive_threshold": "--adaptive-threshold" in ATTEMPT_SPEC["flags"],
-+        "bounds": {
-+            "tau_m_e_ms": [5.0, 50.0],
-+            "tau_m_i_ms": [2.0, 20.0],
-+            "adapt_tau_ms": [50.0, 500.0],
-+            "adapt_strength_mv": [0.0, 20.0],
-+        },
-+        "layers": {},
++def restore_activity_logs(figures: Path, logs: dict[str, str]) -> dict[str, Any]:
++    """Copy sanitized activity logs into the freshly published artifact tree."""
++    activity = figures / "activity"
++    activity.mkdir(parents=True, exist_ok=True)
++    for name, content in logs.items():
++        (activity / name).write_text(content)
++    checkpoint_ids = [Path(name).stem.removeprefix("messages_") for name in logs]
++    latest = checkpoint_ids[-1] if checkpoint_ids else None
++    return {
++        "checkpoint_ids": checkpoint_ids,
++        "latest_checkpoint_id": latest,
++        "latest_checkpoint_time_utc": utc_now(),
++        "publishable_log": (
++            f"artifacts/data/{SLUG}/activity/messages_{latest}.json"
++            if latest
++            else None
++        ),
 +    }
-+    for layer in range(1, len(HIDDEN_SIZES) + 1):
-+        key = str(layer)
-+        layer_payload: dict[str, Any] = {}
-+        if f"tau_m_e_logit.{key}" in state:
-+            tau_e = _bounded_from_logit_values(state[f"tau_m_e_logit.{key}"], 5.0, 50.0)
-+            tau_i = _bounded_from_logit_values(state[f"tau_m_i_logit.{key}"], 2.0, 20.0)
-+            layer_payload["tau_m_e_ms"] = _summary(tau_e)
-+            layer_payload["tau_m_i_ms"] = _summary(tau_i)
-+        if f"adapt_tau_logit.{key}" in state:
-+            adapt_tau = _bounded_from_logit_values(state[f"adapt_tau_logit.{key}"], 50.0, 500.0)
-+            adapt_strength = _bounded_from_logit_values(state[f"adapt_strength_logit.{key}"], 0.0, 20.0)
-+            layer_payload["adapt_tau_ms"] = _summary(adapt_tau)
-+            layer_payload["adapt_strength_mv"] = _summary(adapt_strength)
-+        diagnostics["layers"][key] = layer_payload
-+    return diagnostics
 +
 +
-+def publish_pre_result() -> None:
-+    run_id = next_run_id(SLUG)
-+    t0 = time.monotonic()
-+    smoke_path = SMOKE_ROOT / "smoke_summary.json"
-+    smoke = json.loads(smoke_path.read_text()) if smoke_path.exists() else None
-+    smoke_ladder: dict[str, Any] = {}
-+    for name in ATTEMPT_SPECS:
-+        candidate_smoke = REPO / "temp" / "experiments" / SLUG / "smoke" / name / "smoke_summary.json"
-+        if candidate_smoke.exists():
-+            smoke_ladder[name] = json.loads(candidate_smoke.read_text())
-+    all_smokes_passed = bool(smoke_ladder) and all(
-+        bool(summary.get("passed")) for summary in smoke_ladder.values()
-+    )
-+    with published_run(SLUG, run_id, make_artifacts=True, scale=baseline.SCALE,
-+                       skip_training=True) as (_, figures):
-+        raw = figures / "raw"
-+        raw.mkdir()
-+        for name in ATTEMPT_SPECS:
-+            candidate_smoke = REPO / "temp" / "experiments" / SLUG / "smoke" / name / "smoke_summary.json"
-+            if not candidate_smoke.exists():
-+                continue
-+            smoke_raw = raw / "smoke" / name
-+            smoke_raw.mkdir(parents=True)
-+            shutil.copy2(candidate_smoke, smoke_raw / "smoke_summary.json")
-+        (figures / "goal.txt").write_text(GOAL_PROMPT + "\n")
-+        payload = {
-+            "result_status": "preregistered",
-+            "stage": "local_smoke_ladder_passed" if all_smokes_passed else (
-+                "local_smoke_passed" if smoke and smoke.get("passed") else "pre_result_scaffold"
-+            ),
-+            "seed": baseline.SEED,
-+            "attempt_order": list(ATTEMPT_SPECS),
-+            "attempts": {
-+                name: {
-+                    "description": spec["description"],
-+                    "hidden_sizes": spec["hidden_sizes"],
-+                    "readout": READOUT_MODE,
-+                    "signed_readout": SIGNED_READOUT,
-+                    "readout_bias": READOUT_BIAS,
-+                    "flags": spec["flags"],
-+                }
-+                for name, spec in ATTEMPT_SPECS.items()
-+            },
-+            "screening_epochs": SHORT_EPOCHS,
-+            "promotion_epochs": FINAL_EPOCHS,
-+            "promotion_accuracy_gain_pp": PROMOTION_ACCURACY_GAIN_PP,
-+            "split": {
-+                "development_train_count": 7340,
-+                "validation_count": 816,
-+                "train_indices_sha256": baseline.EXP068_TRAIN_HASH,
-+                "validation_indices_sha256": baseline.EXP068_VALIDATION_HASH,
-+                "official_test_access": "forbidden and absent from runner",
-+            },
-+            "config": baseline.SCALE,
-+            "smoke": smoke,
-+            "smoke_ladder": smoke_ladder,
-+            "runpod": {
-+                "total_spend_usd": 0.0,
-+                "active_pods_after_collection": 0,
-+                "paid_compute_started": False,
-+            },
-+            "activity": {
-+                "latest_checkpoint_id": "cp001",
-+                "latest_checkpoint_time_utc": utc_now(),
-+                "publishable_log": "artifacts/data/exp072/activity/messages_cp001.json",
-+            },
-+        }
-+        baseline.atomic_json(raw / "pre_result_status.json", payload)
-+        write_numbers(figures, run_id=run_id, duration_s=time.monotonic() - t0, payload=payload)
-+        reproducer = figures / "reproduce.sh"
-+        reproducer.write_text(
-+            "#!/usr/bin/env bash\nset -euo pipefail\n"
-+            "uv run python experiments/exp072.py --plot-only\n"
-+            "EXP072_ATTEMPT=control uv run python experiments/exp072.py\n"
-+            "EXP072_ATTEMPT=control EXP072_STAGE=short uv run python experiments/exp072.py --runpod\n"
-+            "# Add --live only with fresh, explicit RunPod spending authority.\n"
-+            "EXP072_ATTEMPT=control EXP072_STAGE=short uv run python experiments/exp072.py --runpod --live\n"
-+            "EXP072_ATTEMPT=control EXP072_STAGE=short uv run python experiments/exp072.py --runpod --collect\n"
-+            "EXP072_ATTEMPT=control EXP072_STAGE=short uv run python experiments/exp072.py --skip-training\n"
-+        )
-+        reproducer.chmod(0o755)
-+
-+
-+def publish_attempt() -> None:
-+    if not COMPUTE_LEDGER.exists():
-+        raise SystemExit("missing compute_ledger.json with exact observed RunPod spend")
-+    compute_ledger = json.loads(COMPUTE_LEDGER.read_text())
-+    if int(compute_ledger.get("active_pods_after_collection", -1)) != 0:
-+        raise SystemExit("compute ledger does not confirm zero active pods")
-+    if not math.isfinite(float(compute_ledger.get("total_spend_usd", math.nan))):
-+        raise SystemExit("compute ledger does not contain finite total_spend_usd")
-+    exact_billing = bool(compute_ledger.get("exact_provider_billing", True))
-+    cells = baseline.validate_collected()
-+    diagnostics = attempt_diagnostics(cells)
-+    smoke_path = SMOKE_ROOT / "smoke_summary.json"
-+    if not smoke_path.exists():
-+        smoke_path = COMMITTED_SMOKE
-+    run_id = next_run_id(SLUG)
-+    t0 = time.monotonic()
-+    with published_run(SLUG, run_id, make_artifacts=True, scale=baseline.SCALE,
-+                       skip_training=True) as (_, figures):
-+        baseline.plot_validation_curves(cells, figures / f"{STAGE}_{ATTEMPT}_validation_curves")
-+        baseline.plot_activity_curves(cells, figures / f"{STAGE}_{ATTEMPT}_activity_curves")
-+        baseline.plot_matched_rasters(figures / f"{STAGE}_{ATTEMPT}_matched_rasters.png")
-+        raw = figures / "raw" / STAGE / ATTEMPT
-+        raw.mkdir(parents=True)
-+        if smoke_path.exists():
-+            shutil.copy2(smoke_path, raw / "smoke_summary.json")
-+        shutil.copy2(COMPUTE_LEDGER, raw / "compute_ledger.json")
-+        for model in baseline.MODELS:
-+            source = CELL_ROOT / model
-+            destination = raw / model
-+            destination.mkdir()
-+            for name in ("config.json", "metrics.json", "metrics.jsonl", "checkpoint_selection.json"):
-+                shutil.copy2(source / name, destination / name)
-+            shutil.copy2(source / "validation_probe/matched_input.npz", destination / "matched_input.npz")
-+            shutil.copy2(
-+                source / "validation_probe/matched_rasters/rasters.npz",
-+                destination / "matched_rasters.npz",
-+            )
-+            baseline.atomic_json(destination / "parameter_diagnostics.json", parameter_diagnostics(source))
-+        payload = {
-+            "result_status": "done",
-+            "stage": STAGE,
-+            "attempt": ATTEMPT,
-+            "attempt_order": list(ATTEMPT_SPECS),
-+            "seed": baseline.SEED,
-+            "cells": diagnostics,
-+            "parameters": {
-+                model: parameter_diagnostics(CELL_ROOT / model)
-+                for model in baseline.MODELS
-+            },
-+            "split": {
-+                "development_train_count": 7340,
-+                "validation_count": 816,
-+                "train_indices_sha256": baseline.EXP068_TRAIN_HASH,
-+                "validation_indices_sha256": baseline.EXP068_VALIDATION_HASH,
-+            },
-+            "config": baseline.SCALE,
-+            "integrity": {
-+                "official_test_access": "forbidden and absent from runner",
-+                "matched_partitions": True,
-+                "matched_raster_inputs": True,
-+                "selection_rule": cells["coba"]["selection"]["rule"],
-+            },
-+            "runpod": compute_ledger,
-+            "spend": {
-+                "total_spend_usd": float(compute_ledger["total_spend_usd"]),
-+                "exact_provider_billing": exact_billing,
-+                "status": "exact" if exact_billing else "timestamp_estimate_pending_provider_reconciliation",
-+            },
-+        }
-+        baseline.atomic_json(raw / "attempt_decision.json", payload)
-+        write_numbers(figures, run_id=run_id, duration_s=time.monotonic() - t0, payload=payload)
-+
-+
-+def main() -> None:
-+    meta = parse_meta(sys.argv, allow_dispatch=True)
-+    if meta.reap:
-+        runpod.reap_all_pods()
-+        return
-+    if meta.pod_run:
-+        pod_run()
-+        return
-+    if meta.runpod:
-+        run_via_runpod(meta)
-+        return
-+    if meta.plot_only:
-+        publish_pre_result()
-+        return
-+    if meta.skip_training:
-+        publish_attempt()
-+        return
-+    run_smoke()
-+
-+
-+if __name__ == "__main__":
-+    main()
+ def publish_pre_result() -> None:
+     run_id = next_run_id(SLUG)
+     t0 = time.monotonic()
++    activity_logs = existing_activity_logs()
+     smoke_path = SMOKE_ROOT / "smoke_summary.json"
+     smoke = json.loads(smoke_path.read_text()) if smoke_path.exists() else None
+     smoke_ladder: dict[str, Any] = {}
+@@ -476,6 +509,7 @@ def publish_pre_result() -> None:
+     )
+     with published_run(SLUG, run_id, make_artifacts=True, scale=baseline.SCALE,
+                        skip_training=True) as (_, figures):
++        activity_payload = restore_activity_logs(figures, activity_logs)
+         raw = figures / "raw"
+         raw.mkdir()
+         for name in ATTEMPT_SPECS:
+@@ -522,11 +556,7 @@ def publish_pre_result() -> None:
+                 "active_pods_after_collection": 0,
+                 "paid_compute_started": False,
+             },
+-            "activity": {
+-                "latest_checkpoint_id": "cp001",
+-                "latest_checkpoint_time_utc": utc_now(),
+-                "publishable_log": "artifacts/data/exp072/activity/messages_cp001.json",
+-            },
++            "activity": activity_payload,
+         }
+         baseline.atomic_json(raw / "pre_result_status.json", payload)
+         write_numbers(figures, run_id=run_id, duration_s=time.monotonic() - t0, payload=payload)
+@@ -555,6 +585,7 @@ def publish_attempt() -> None:
+     exact_billing = bool(compute_ledger.get("exact_provider_billing", True))
+     cells = baseline.validate_collected()
+     diagnostics = attempt_diagnostics(cells)
++    activity_logs = existing_activity_logs()
+     smoke_path = SMOKE_ROOT / "smoke_summary.json"
+     if not smoke_path.exists():
+         smoke_path = COMMITTED_SMOKE
+@@ -562,6 +593,7 @@ def publish_attempt() -> None:
+     t0 = time.monotonic()
+     with published_run(SLUG, run_id, make_artifacts=True, scale=baseline.SCALE,
+                        skip_training=True) as (_, figures):
++        activity_payload = restore_activity_logs(figures, activity_logs)
+         baseline.plot_validation_curves(cells, figures / f"{STAGE}_{ATTEMPT}_validation_curves")
+         baseline.plot_activity_curves(cells, figures / f"{STAGE}_{ATTEMPT}_activity_curves")
+         baseline.plot_matched_rasters(figures / f"{STAGE}_{ATTEMPT}_matched_rasters.png")
+@@ -607,6 +639,7 @@ def publish_attempt() -> None:
+                 "selection_rule": cells["coba"]["selection"]["rule"],
+             },
+             "runpod": compute_ledger,
++            "activity": activity_payload,
+             "spend": {
+                 "total_spend_usd": float(compute_ledger["total_spend_usd"]),
+                 "exact_provider_billing": exact_billing,

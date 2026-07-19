@@ -461,9 +461,42 @@ def parameter_diagnostics(train_out: Path) -> dict[str, Any]:
     return diagnostics
 
 
+def existing_activity_logs() -> dict[str, str]:
+    """Return already-published sanitized activity logs before publication rewrites."""
+    activity = REPO / "artifacts" / "data" / SLUG / "activity"
+    if not activity.exists():
+        return {}
+    return {
+        path.name: path.read_text()
+        for path in sorted(activity.glob("messages_cp*.json"))
+        if path.is_file()
+    }
+
+
+def restore_activity_logs(figures: Path, logs: dict[str, str]) -> dict[str, Any]:
+    """Copy sanitized activity logs into the freshly published artifact tree."""
+    activity = figures / "activity"
+    activity.mkdir(parents=True, exist_ok=True)
+    for name, content in logs.items():
+        (activity / name).write_text(content)
+    checkpoint_ids = [Path(name).stem.removeprefix("messages_") for name in logs]
+    latest = checkpoint_ids[-1] if checkpoint_ids else None
+    return {
+        "checkpoint_ids": checkpoint_ids,
+        "latest_checkpoint_id": latest,
+        "latest_checkpoint_time_utc": utc_now(),
+        "publishable_log": (
+            f"artifacts/data/{SLUG}/activity/messages_{latest}.json"
+            if latest
+            else None
+        ),
+    }
+
+
 def publish_pre_result() -> None:
     run_id = next_run_id(SLUG)
     t0 = time.monotonic()
+    activity_logs = existing_activity_logs()
     smoke_path = SMOKE_ROOT / "smoke_summary.json"
     smoke = json.loads(smoke_path.read_text()) if smoke_path.exists() else None
     smoke_ladder: dict[str, Any] = {}
@@ -476,6 +509,7 @@ def publish_pre_result() -> None:
     )
     with published_run(SLUG, run_id, make_artifacts=True, scale=baseline.SCALE,
                        skip_training=True) as (_, figures):
+        activity_payload = restore_activity_logs(figures, activity_logs)
         raw = figures / "raw"
         raw.mkdir()
         for name in ATTEMPT_SPECS:
@@ -522,11 +556,7 @@ def publish_pre_result() -> None:
                 "active_pods_after_collection": 0,
                 "paid_compute_started": False,
             },
-            "activity": {
-                "latest_checkpoint_id": "cp001",
-                "latest_checkpoint_time_utc": utc_now(),
-                "publishable_log": "artifacts/data/exp072/activity/messages_cp001.json",
-            },
+            "activity": activity_payload,
         }
         baseline.atomic_json(raw / "pre_result_status.json", payload)
         write_numbers(figures, run_id=run_id, duration_s=time.monotonic() - t0, payload=payload)
@@ -555,6 +585,7 @@ def publish_attempt() -> None:
     exact_billing = bool(compute_ledger.get("exact_provider_billing", True))
     cells = baseline.validate_collected()
     diagnostics = attempt_diagnostics(cells)
+    activity_logs = existing_activity_logs()
     smoke_path = SMOKE_ROOT / "smoke_summary.json"
     if not smoke_path.exists():
         smoke_path = COMMITTED_SMOKE
@@ -562,6 +593,7 @@ def publish_attempt() -> None:
     t0 = time.monotonic()
     with published_run(SLUG, run_id, make_artifacts=True, scale=baseline.SCALE,
                        skip_training=True) as (_, figures):
+        activity_payload = restore_activity_logs(figures, activity_logs)
         baseline.plot_validation_curves(cells, figures / f"{STAGE}_{ATTEMPT}_validation_curves")
         baseline.plot_activity_curves(cells, figures / f"{STAGE}_{ATTEMPT}_activity_curves")
         baseline.plot_matched_rasters(figures / f"{STAGE}_{ATTEMPT}_matched_rasters.png")
@@ -607,6 +639,7 @@ def publish_attempt() -> None:
                 "selection_rule": cells["coba"]["selection"]["rule"],
             },
             "runpod": compute_ledger,
+            "activity": activity_payload,
             "spend": {
                 "total_spend_usd": float(compute_ledger["total_spend_usd"]),
                 "exact_provider_billing": exact_billing,

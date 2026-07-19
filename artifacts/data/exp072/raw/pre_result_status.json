@@ -41208,8 +41208,14 @@
     "paid_compute_started": false
   },
   "activity": {
-    "latest_checkpoint_id": "cp001",
-    "latest_checkpoint_time_utc": "2026-07-19T23:37:48.228Z",
-    "publishable_log": "artifacts/data/exp072/activity/messages_cp001.json"
+    "checkpoint_ids": [
+      "cp001",
+      "cp002",
+      "cp003",
+      "cp004"
+    ],
+    "latest_checkpoint_id": "cp004",
+    "latest_checkpoint_time_utc": "2026-07-19T23:46:18.347Z",
+    "publishable_log": "artifacts/data/exp072/activity/messages_cp004.json"
   }
 }
