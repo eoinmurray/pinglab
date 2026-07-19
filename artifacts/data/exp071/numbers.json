@@ -1,11 +1,11 @@
 {
-  "run_id": "r004",
-  "git_sha": "f58d93a",
-  "duration_s": 4.2,
+  "run_id": "r005",
+  "git_sha": "666e291",
+  "duration_s": 4.3,
   "duration": "4s",
   "result_status": "done",
-  "stage": "short",
-  "attempt": "cumulative_256_256",
+  "stage": "final40",
+  "attempt": "cumulative_baseline",
   "attempt_order": [
     "cumulative_baseline",
     "cumulative_256_256"
@@ -13,38 +13,38 @@
   "seed": 42,
   "cells": {
     "coba": {
-      "selected_epoch": 5,
-      "selected_validation_accuracy_pct": 32.84313725490196,
-      "selected_validation_cross_entropy": 2.159944314223069,
-      "selected_validation_e_rate_hz": 71.34302236519608,
+      "selected_epoch": 36,
+      "selected_validation_accuracy_pct": 68.38235294117646,
+      "selected_validation_cross_entropy": 1.1455509593853583,
+      "selected_validation_e_rate_hz": 30.165441176470587,
       "selected_validation_i_rate_hz": 0.0,
-      "final_validation_accuracy_pct": 31.862745098039216,
-      "final_validation_cross_entropy": 2.116000418479626,
-      "final_validation_e_rate_hz": 71.10393210018383,
+      "final_validation_accuracy_pct": 65.93137254901961,
+      "final_validation_cross_entropy": 1.1357033527814424,
+      "final_validation_e_rate_hz": 30.26322189031863,
       "final_validation_i_rate_hz": 0.0,
-      "gradient_norm": 478.27184594195825,
+      "gradient_norm": 366.55185195259423,
       "finite": true,
       "active": true,
       "clean": true,
-      "training_elapsed_s": 1580.4735145450104,
-      "training_peak_gpu_memory_bytes": 646021632
+      "training_elapsed_s": 3834.02903517097,
+      "training_peak_gpu_memory_bytes": 477028864
     },
     "ping": {
-      "selected_epoch": 7,
-      "selected_validation_accuracy_pct": 42.76960784313726,
-      "selected_validation_cross_entropy": 1.8651616527484014,
-      "selected_validation_e_rate_hz": 11.079091988357844,
-      "selected_validation_i_rate_hz": 39.40600107230392,
-      "final_validation_accuracy_pct": 42.279411764705884,
-      "final_validation_cross_entropy": 1.799264398904947,
-      "final_validation_e_rate_hz": 11.259516697303921,
-      "final_validation_i_rate_hz": 40.07153799019608,
-      "gradient_norm": 8.172419638219088,
+      "selected_epoch": 38,
+      "selected_validation_accuracy_pct": 69.48529411764706,
+      "selected_validation_cross_entropy": 0.9843250490151919,
+      "selected_validation_e_rate_hz": 9.563893037683824,
+      "selected_validation_i_rate_hz": 44.886220894607845,
+      "final_validation_accuracy_pct": 68.25980392156863,
+      "final_validation_cross_entropy": 0.985521885064932,
+      "final_validation_e_rate_hz": 9.711191214767156,
+      "final_validation_i_rate_hz": 45.441731770833336,
+      "gradient_norm": 6.348045570954032,
       "finite": true,
       "active": true,
       "clean": true,
-      "training_elapsed_s": 1193.6420955886133,
-      "training_peak_gpu_memory_bytes": 646021632
+      "training_elapsed_s": 3889.0695484330063,
+      "training_peak_gpu_memory_bytes": 477028864
     }
   },
   "split": {
@@ -55,7 +55,7 @@
   },
   "config": {
     "seed": 42,
-    "epochs": 8,
+    "epochs": 40,
     "validation_fraction": 0.1,
     "models": [
       "coba",
@@ -87,10 +87,9 @@
       }
     },
     "experiment": "exp071",
-    "attempt": "cumulative_256_256",
-    "stage": "short",
+    "attempt": "cumulative_baseline",
+    "stage": "final40",
     "hidden_sizes": [
-      256,
       256
     ],
     "signed_readout": true,
@@ -103,13 +102,13 @@
     "selection_rule": "max validation accuracy; tie lower validation cross-entropy; tie earlier epoch"
   },
   "runpod": {
-    "created_at_utc": "2026-07-19T13:36:00.000Z",
+    "created_at_utc": "2026-07-19T15:50:00.000Z",
     "exact_provider_billing": false,
     "billing_status": "timestamp_estimate_pending_provider_reconciliation",
-    "total_spend_usd": 1.76,
+    "total_spend_usd": 4.15,
     "active_pods_after_collection": 0,
     "currency": "USD",
-    "estimate_basis": "Manual timestamp estimate from RunPod create, self-termination, and collector observation windows at 0.99 USD/hour; exact per-pod billing endpoint had not reconciled at publication time.",
+    "estimate_basis": "Manual timestamp estimate from RunPod create, stop/self-termination, and collector observation windows at 0.99 USD/hour; exact per-pod billing endpoint had not reconciled at publication time.",
     "attempts": {
       "cloud-coba-001": {
         "kind": "killed_monitoring_attempt",
@@ -150,11 +149,27 @@
       "short-cumulative_256_256-ping-collector": {
         "kind": "completed_collection",
         "estimated_spend_usd": 0.07
+      },
+      "final40-cumulative_baseline-coba": {
+        "kind": "completed_final40_training_and_collection",
+        "estimated_spend_usd": 1.12
+      },
+      "final40-cumulative_baseline-coba-collector": {
+        "kind": "completed_collection",
+        "estimated_spend_usd": 0.03
+      },
+      "final40-cumulative_baseline-ping": {
+        "kind": "completed_final40_training_and_collection",
+        "estimated_spend_usd": 1.14
+      },
+      "final40-cumulative_baseline-ping-collector": {
+        "kind": "completed_collection",
+        "estimated_spend_usd": 0.05
       }
     }
   },
   "spend": {
-    "total_spend_usd": 1.76,
+    "total_spend_usd": 4.15,
     "exact_provider_billing": false,
     "status": "timestamp_estimate_pending_provider_reconciliation"
   }

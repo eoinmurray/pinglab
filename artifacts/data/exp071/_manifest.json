@@ -1,15 +1,15 @@
 {
   "slug": "exp071",
-  "run_id": "r004",
-  "run_at": "2026-07-19T13:36:12+00:00",
-  "git_sha": "f58d93a",
+  "run_id": "r005",
+  "run_at": "2026-07-19T15:48:11+00:00",
+  "git_sha": "666e291",
   "dirty": false,
   "code_dirty": false,
   "patch": null,
   "host": "local",
   "scale": {
     "seed": 42,
-    "epochs": 8,
+    "epochs": 40,
     "validation_fraction": 0.1,
     "models": [
       "coba",
@@ -41,10 +41,9 @@
       }
     },
     "experiment": "exp071",
-    "attempt": "cumulative_256_256",
-    "stage": "short",
+    "attempt": "cumulative_baseline",
+    "stage": "final40",
     "hidden_sizes": [
-      256,
       256
     ],
     "signed_readout": true,
