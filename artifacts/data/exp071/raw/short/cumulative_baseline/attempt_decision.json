@@ -1,8 +1,4 @@
 {
-  "run_id": "r003",
-  "git_sha": "7d6866a",
-  "duration_s": 5.6,
-  "duration": "6s",
   "result_status": "done",
   "stage": "short",
   "attempt": "cumulative_baseline",

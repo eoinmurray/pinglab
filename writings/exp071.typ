@@ -11,6 +11,7 @@
 #let trace = json("/artifacts/data/exp071/activity/messages_cp001.json")
 #let trace-two = json("/artifacts/data/exp071/activity/messages_cp002.json")
 #let trace-three = json("/artifacts/data/exp071/activity/messages_cp003.json")
+#let trace-four = json("/artifacts/data/exp071/activity/messages_cp004.json")
 
 #let maybe-pct(x) = {
   if type(x) == float or type(x) == int {
@@ -88,9 +89,9 @@
     columns: (auto, 1.4fr, auto, auto),
     table.header([*Order*], [*Candidate*], [*Short epochs*], [*Status*]),
     [1], [Baseline 256-cell architecture plus cumulative-potential readout],
-    [#r.screening_epochs], [registered],
+    [#r.config.epochs], [registered],
     [2], [Two hidden layers, 256 cells each, same readout],
-    [#r.screening_epochs], [conditional],
+    [#r.config.epochs], [conditional],
   )
 
   Candidate selection uses held-out validation accuracy and cross-entropy only.
@@ -124,8 +125,25 @@
     COBA selected #maybe-pct(r.cells.coba.selected_validation_accuracy_pct)
     validation accuracy; PING selected
     #maybe-pct(r.cells.ping.selected_validation_accuracy_pct). Exact spend was
-    #calc.round(r.runpod.total_spend_usd, digits: 3) USD, with
-    #r.runpod.active_pods_after_collection active pods after collection.
+    #if r.spend.exact_provider_billing [
+      #calc.round(r.spend.total_spend_usd, digits: 3) USD
+    ] else [
+      pending; the timestamp estimate is
+      #calc.round(r.spend.total_spend_usd, digits: 3) USD
+    ], with #r.runpod.active_pods_after_collection active pods after collection.
+
+    #v(8pt)
+    #image("/artifacts/data/exp071/short_cumulative_baseline_validation_curves.svg", width: 100%)
+    #v(4pt)
+    #image("/artifacts/data/exp071/short_cumulative_baseline_activity_curves.svg", width: 100%)
+    #v(4pt)
+    #image("/artifacts/data/exp071/short_cumulative_baseline_matched_rasters.png", width: 100%)
+
+    Candidate one clears the short-screen viability gate: both cells trained
+    above chance, remained finite and active, produced matched learning curves
+    and input/E/I rasters, and had no skipped or non-finite updates. It is not
+    yet the forty-epoch promotion decision, because the registered next step is
+    the conditional two-hidden-layer short candidate.
   ]
 
   == Activity appendix
@@ -170,4 +188,17 @@
   ==== Visible messages added
 
   #for message in trace-three.messages { message-card(message, trace-three) }
+
+  === Checkpoint #trace-four.checkpoint_id
+
+  Timestamp: `#trace-four.checkpoint_time_utc`. Sanitized source hash prefix:
+  `#trace-four.sanitized_sha256_prefix`.
+
+  ==== Decisions, actions, and pending work
+
+  #for item in trace-four.ledger { [+ #item] }
+
+  ==== Visible messages added
+
+  #for message in trace-four.messages { message-card(message, trace-four) }
 ]

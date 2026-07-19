@@ -1,0 +1,54 @@
+{
+  "checkpoint_id": "cp004",
+  "session_id": "exp071-continuation-redacted",
+  "checkpoint_time_utc": "2026-07-19T12:34:00.000Z",
+  "sanitized_sha256_prefix": "ef5167aa34cb",
+  "predecessor_checkpoint_id": "cp003",
+  "sanitization": {
+    "policy": "fail-closed publishable transcript: hidden reasoning and tool payloads are excluded; credentials, tokens, SSH material, IP addresses, private local paths, environment values, and sensitive infrastructure details are redacted or omitted.",
+    "private_raw_transcript": "not committed",
+    "uncertainty": "medium; provider outputs and launch commands contained infrastructure identifiers, so publishable text records scientific state and redacted operational facts only"
+  },
+  "ledger": [
+    "An existing authenticated container-registry entry was used for the next live attempts, fixing the earlier anonymous image-pull/startup problem without changing the registered scientific design.",
+    "Candidate one, cumulative_baseline, completed the 8-epoch short stage for COBA and PING with one live pod at a time.",
+    "COBA selected epoch 8 with validation accuracy 60.049019607843135%, validation cross-entropy 1.5872331674282367, final E rate 28.346392463235293 Hz, no skipped steps, and no non-finite batches.",
+    "PING selected epoch 8 with validation accuracy 57.96568627450981%, validation cross-entropy 1.4047367160136883, final E/I rates 7.494308172487745 / 36.273169424019606 Hz, no skipped steps, and no non-finite batches.",
+    "Matched validation curves, activity curves, and input/E/I rasters were published under artifacts/data/exp071.",
+    "The active pod list was empty after both collections.",
+    "Exact provider billing had not reconciled at checkpoint time. The temporary timestamp-based estimate is 0.77 USD total across killed startup attempts, productive COBA/PING runs, and collector pods; exact spend remains pending.",
+    "Candidate one clears the finite-active-above-chance short viability gate. The next registered step is candidate two, cumulative_256_256, before any forty-epoch promotion decision."
+  ],
+  "messages": [
+    {
+      "timestamp": "2026-07-19T12:34:00.000Z",
+      "role": "assistant",
+      "content": "The earlier hangup is pinned down: anonymous GHCR pulls were the likely culprit. I found the existing registry auth entry, confirmed the active pod list is empty, and I’m re-running the COBA short screen with authenticated image pull — still one pod only."
+    },
+    {
+      "timestamp": "2026-07-19T12:34:00.000Z",
+      "role": "assistant",
+      "content": "Much better: the authenticated COBA pod is running and visible. I’m polling it in short windows; if it finishes normally I’ll collect/reap and then start PING."
+    },
+    {
+      "timestamp": "2026-07-19T12:34:00.000Z",
+      "role": "assistant",
+      "content": "COBA finished and self-terminated. I’m collecting the artifacts now; the collector itself is transient cloud compute, so I’ll also verify it reaps before launching PING."
+    },
+    {
+      "timestamp": "2026-07-19T12:34:00.000Z",
+      "role": "assistant",
+      "content": "COBA short is collected: selected epoch 8 at 60.05% validation accuracy, finite/active, no skipped or non-finite updates, matched rasters present. Active pods are empty again, so I’m starting PING short now under the same authenticated path."
+    },
+    {
+      "timestamp": "2026-07-19T12:34:00.000Z",
+      "role": "assistant",
+      "content": "PING is running cleanly now. I’ve also logged the COBA→PING handoff on PR #55. Next step is collection, then I’ll publish both curves/rasters into exp071 before moving to candidate two."
+    },
+    {
+      "timestamp": "2026-07-19T12:34:00.000Z",
+      "role": "assistant",
+      "content": "PING finished and collected. Candidate one is now a real short-screen result: COBA 60.05%, PING 57.97%, both finite/active, both with rasters, no skipped/non-finite updates. I’m publishing those artifacts into the report and recording the spend as exact-provider-pending with the conservative timestamp estimate."
+    }
+  ]
+}
