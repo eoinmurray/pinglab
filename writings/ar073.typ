@@ -12,6 +12,7 @@
 #let trace-three = json("/artifacts/data/ar073/messages_cp003.json")
 #let trace-four = json("/artifacts/data/ar073/messages_cp004.json")
 #let trace-five = json("/artifacts/data/ar073/messages_cp005.json")
+#let trace-six = json("/artifacts/data/ar073/messages_cp006.json")
 
 #let verbatim-prose(value) = {
   for (index, line) in value.split("\n").enumerate() {
@@ -176,4 +177,30 @@
   === Visible messages added in CP-005
 
   #for message in trace-five.messages { message-card(message, trace-five) }
+
+  == Checkpoint CP-006
+
+  *Candidate 1 is killed after the registered five-epoch comparison.* This
+  checkpoint follows dispatch commit `1bba764`. Its immutable private source
+  has SHA-256 prefix `cf6b7ebf703b`, and its checkpoint time is
+  `2026-07-19 07:34:41.277 UTC`.
+
+  === Decision and action ledger
+
+  + Both pods self-terminated about eight minutes after dispatch; the active
+    fleet is zero and the complete cell outputs were collected.
+  + COBA reached 23.53% validation accuracy at epoch five, 4.41 percentage
+    points below exp069, while cross-entropy worsened by 0.206 to 2.678.
+  + PING reached 27.70%, 4.90 points below exp069, while cross-entropy worsened
+    by 0.148 to 2.592.
+  + Both cells were finite and active with no skipped or non-finite updates, so
+    this is a scientific kill rather than a plumbing failure. The 2 ms change
+    fails every registered promotion requirement.
+  + Exact provider billing has not yet appeared in the billing history. The
+    publication gate remains closed until the authoritative spend is recorded;
+    no estimate is substituted. Candidate 2 has not been implemented or run.
+
+  === Visible messages added in CP-006
+
+  #for message in trace-six.messages { message-card(message, trace-six) }
 ]
