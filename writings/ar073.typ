@@ -11,6 +11,7 @@
 #let trace-two = json("/artifacts/data/ar073/messages_cp002.json")
 #let trace-three = json("/artifacts/data/ar073/messages_cp003.json")
 #let trace-four = json("/artifacts/data/ar073/messages_cp004.json")
+#let trace-five = json("/artifacts/data/ar073/messages_cp005.json")
 
 #let verbatim-prose(value) = {
   for (index, line) in value.split("\n").enumerate() {
@@ -152,4 +153,27 @@
   === Visible messages added in CP-004
 
   #for message in trace-four.messages { message-card(message, trace-four) }
+
+  == Checkpoint CP-005
+
+  *Only the registered candidate-1 pair is dispatched.* This checkpoint follows
+  authority commit `cd82023`. Its immutable private source has SHA-256 prefix
+  `3b4b22492a5c`, and its checkpoint time is
+  `2026-07-19 07:23:43.025 UTC`.
+
+  === Decision and action ledger
+
+  + The dry run found zero existing pods and exactly two jobs: one COBA and one
+    PING cell at 2 ms for five epochs.
+  + Two 5090 pods were created at 0.99 USD/hour each, pinned to `cd82023`, with
+    one-hour self-removal backstops. The post-dispatch fleet count was exactly
+    two, so worst-case exposure for this attempt is 1.98 USD.
+  + Pod identifiers and other infrastructure details remain only in the private
+    trace. The public record retains names, counts, rates, commit, and bounds.
+  + Pending work is self-termination, collection, exact provider billing,
+    artifact publication, and the preregistered promotion decision.
+
+  === Visible messages added in CP-005
+
+  #for message in trace-five.messages { message-card(message, trace-five) }
 ]

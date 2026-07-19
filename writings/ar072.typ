@@ -213,4 +213,13 @@
   The fleet was empty, spend remained 0 USD, and the branch was clean at
   `2bc22d3` before the authorization checkpoint. Candidate 1 is the only
   authorized dispatch at this stage.
+
+  === 2026-07-19 07:23 UTC: candidate-1 dispatch
+
+  A clean dry run resolved to exactly two five-epoch jobs. One COBA and one
+  PING 5090 pod were dispatched from `cd82023` at 0.99 USD per pod-hour. The
+  verified fleet contained exactly those two pods, giving a 1.98 USD maximum
+  exposure under the one-hour backstops. Both jobs use the same development
+  partition and candidate settings; no official-test route exists. Result,
+  billing, and promotion status remain pending self-termination and collection.
 ]
