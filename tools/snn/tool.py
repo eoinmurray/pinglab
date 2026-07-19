@@ -347,6 +347,76 @@ def _build_parent_parser():
              "g_tot <= 0 into NaN. Bounds the state, keeps weights signed.",
     )
     net_group.add_argument(
+        "--train-leak",
+        action="store_true",
+        default=False,
+        help="Make each hidden COBA cell's leak membrane time constant trainable "
+        "under bounded positive τ_m ranges. Implements ar003's g_L = C_m / τ_m "
+        "without changing synaptic τ_AMPA/τ_GABA. Default off.",
+    )
+    net_group.add_argument(
+        "--no-train-leak",
+        dest="train_leak",
+        action="store_false",
+        help="Disable trainable leak conductance / τ_m heterogeneity (default).",
+    )
+    net_group.add_argument(
+        "--tau-m-e-bounds-ms",
+        type=float,
+        nargs=2,
+        default=None,
+        metavar=("MIN", "MAX"),
+        help="Bounds for trainable excitatory membrane τ_m in ms when "
+        "--train-leak is enabled. Default: models.py "
+        "TRAINABLE_TAU_M_E_BOUNDS_MS.",
+    )
+    net_group.add_argument(
+        "--tau-m-i-bounds-ms",
+        type=float,
+        nargs=2,
+        default=None,
+        metavar=("MIN", "MAX"),
+        help="Bounds for trainable inhibitory membrane τ_m in ms when "
+        "--train-leak is enabled. Default: models.py "
+        "TRAINABLE_TAU_M_I_BOUNDS_MS.",
+    )
+    net_group.add_argument(
+        "--adaptive-threshold",
+        action="store_true",
+        default=False,
+        help="Enable trainable E-cell adaptive thresholds: recent spikes raise "
+        "the effective threshold and decay with a bounded τ_adapt. Default off.",
+    )
+    net_group.add_argument(
+        "--no-adaptive-threshold",
+        dest="adaptive_threshold",
+        action="store_false",
+        help="Disable adaptive thresholds (default).",
+    )
+    net_group.add_argument(
+        "--adapt-tau-bounds-ms",
+        type=float,
+        nargs=2,
+        default=None,
+        metavar=("MIN", "MAX"),
+        help="Bounds for trainable E-cell adaptive-threshold τ in ms. Default: "
+        "models.py ADAPT_TAU_BOUNDS_MS.",
+    )
+    net_group.add_argument(
+        "--adapt-strength-init-mv",
+        type=float,
+        default=1.0,
+        help="Initial per-spike adaptive-threshold increment in mV. The value "
+        "is trainable and bounded by --adapt-strength-max-mv. Default: 1.0.",
+    )
+    net_group.add_argument(
+        "--adapt-strength-max-mv",
+        type=float,
+        default=None,
+        help="Upper bound for trainable adaptive-threshold strength in mV. "
+        "Default: models.py ADAPT_STRENGTH_MAX_MV.",
+    )
+    net_group.add_argument(
         "--ei-strength",
         type=float,
         default=0.5,
@@ -861,6 +931,7 @@ each subcommand's --help):
 
   Network        --model, --n-hidden, --ei-strength, --ei-ratio,
                  --ei-sparsity, --w-in-sparsity, --dt, --t-ms, --seed
+  Dynamics       --train-leak, --adaptive-threshold
   Readout        --readout {rate,mem-mean,cumulative-potential},
                  --signed-readout, --readout-bias, --readout-w-out-scale,
                  --dales-law, --no-dales-law
@@ -1342,6 +1413,13 @@ def _run_train(args, C, out_dir, log):
         trainable_w_ie=args.trainable_w_ie,
         trainable_w_ii=args.trainable_w_ii,
         state_clamp=args.state_clamp,
+        train_leak=args.train_leak,
+        tau_m_e_bounds_ms=args.tau_m_e_bounds_ms,
+        tau_m_i_bounds_ms=args.tau_m_i_bounds_ms,
+        adaptive_threshold=args.adaptive_threshold,
+        adapt_tau_bounds_ms=args.adapt_tau_bounds_ms,
+        adapt_strength_init_mv=args.adapt_strength_init_mv,
+        adapt_strength_max_mv=args.adapt_strength_max_mv,
     )
 
 
@@ -1382,6 +1460,13 @@ def _emit_infer(args, C, out_dir, log, snapshot_mode=False):
             readout_mode=args.readout_mode,
             signed_readout=args.signed_readout,
             readout_bias=args.readout_bias,
+            train_leak=args.train_leak,
+            tau_m_e_bounds_ms=args.tau_m_e_bounds_ms,
+            tau_m_i_bounds_ms=args.tau_m_i_bounds_ms,
+            adaptive_threshold=args.adaptive_threshold,
+            adapt_tau_bounds_ms=args.adapt_tau_bounds_ms,
+            adapt_strength_init_mv=args.adapt_strength_init_mv,
+            adapt_strength_max_mv=args.adapt_strength_max_mv,
         )
         return
 
@@ -1412,6 +1497,13 @@ def _emit_infer(args, C, out_dir, log, snapshot_mode=False):
         readout_mode=args.readout_mode,
         signed_readout=args.signed_readout,
         readout_bias=args.readout_bias,
+        train_leak=args.train_leak,
+        tau_m_e_bounds_ms=args.tau_m_e_bounds_ms,
+        tau_m_i_bounds_ms=args.tau_m_i_bounds_ms,
+        adaptive_threshold=args.adaptive_threshold,
+        adapt_tau_bounds_ms=args.adapt_tau_bounds_ms,
+        adapt_strength_init_mv=args.adapt_strength_init_mv,
+        adapt_strength_max_mv=args.adapt_strength_max_mv,
     )["acc"]
 
 
@@ -1444,6 +1536,13 @@ def _run_dump_weights(args, C, out_dir, log):
         trainable_w_ei=getattr(args, "trainable_w_ei", False),
         trainable_w_ie=getattr(args, "trainable_w_ie", False),
         trainable_w_ii=getattr(args, "trainable_w_ii", False),
+        train_leak=getattr(args, "train_leak", False),
+        tau_m_e_bounds_ms=getattr(args, "tau_m_e_bounds_ms", None),
+        tau_m_i_bounds_ms=getattr(args, "tau_m_i_bounds_ms", None),
+        adaptive_threshold=getattr(args, "adaptive_threshold", False),
+        adapt_tau_bounds_ms=getattr(args, "adapt_tau_bounds_ms", None),
+        adapt_strength_init_mv=getattr(args, "adapt_strength_init_mv", 1.0),
+        adapt_strength_max_mv=getattr(args, "adapt_strength_max_mv", None),
     )
 
 
@@ -1474,6 +1573,13 @@ def _emit_probe(args, C, out_dir, log):
         outputs=getattr(args, "outputs", None),
         tau_gaba=getattr(args, "tau_gaba", None),
         private_w_in=getattr(args, "private_w_in", False),
+        train_leak=getattr(args, "train_leak", False),
+        tau_m_e_bounds_ms=getattr(args, "tau_m_e_bounds_ms", None),
+        tau_m_i_bounds_ms=getattr(args, "tau_m_i_bounds_ms", None),
+        adaptive_threshold=getattr(args, "adaptive_threshold", False),
+        adapt_tau_bounds_ms=getattr(args, "adapt_tau_bounds_ms", None),
+        adapt_strength_init_mv=getattr(args, "adapt_strength_init_mv", 1.0),
+        adapt_strength_max_mv=getattr(args, "adapt_strength_max_mv", None),
     )
 
 

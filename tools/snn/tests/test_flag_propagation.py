@@ -233,6 +233,29 @@ def test_v_grad_dampen_propagates(tmp_path):
     assert _read_config(out)["v_grad_dampen"] == 1234.0
 
 
+@pytest.mark.slow
+def test_trainable_leak_and_adaptive_threshold_propagate_to_config(tmp_path):
+    out = tmp_path / "adaptive-conductance"
+    _train_probe(
+        out,
+        "--train-leak",
+        "--tau-m-e-bounds-ms", "6", "40",
+        "--tau-m-i-bounds-ms", "3", "15",
+        "--adaptive-threshold",
+        "--adapt-tau-bounds-ms", "60", "300",
+        "--adapt-strength-init-mv", "1.25",
+        "--adapt-strength-max-mv", "12",
+    )
+    cfg = _read_config(out)
+    assert cfg["train_leak"] is True
+    assert cfg["tau_m_e_bounds_ms"] == [6.0, 40.0]
+    assert cfg["tau_m_i_bounds_ms"] == [3.0, 15.0]
+    assert cfg["adaptive_threshold"] is True
+    assert cfg["adapt_tau_bounds_ms"] == [60.0, 300.0]
+    assert cfg["adapt_strength_init_mv"] == 1.25
+    assert cfg["adapt_strength_max_mv"] == 12.0
+
+
 # ── --ei-strength / --ei-ratio (in-process, fast) ────────────────────────
 
 

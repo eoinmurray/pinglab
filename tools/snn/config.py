@@ -302,6 +302,13 @@ def build_net(
     trainable_w_ii=False,
     n_inh_per_layer=None,
     state_clamp=False,
+    train_leak=False,
+    tau_m_e_bounds_ms=None,
+    tau_m_i_bounds_ms=None,
+    adaptive_threshold=False,
+    adapt_tau_bounds_ms=None,
+    adapt_strength_init_mv=1.0,
+    adapt_strength_max_mv=None,
 ):
     """Construct a network with the given config.
 
@@ -320,6 +327,17 @@ def build_net(
     kwargs["readout_mode"] = readout_mode
     kwargs["signed_readout"] = signed_readout
     kwargs["readout_bias"] = readout_bias
+    kwargs["train_leak"] = train_leak
+    kwargs["adaptive_threshold"] = adaptive_threshold
+    kwargs["adapt_strength_init_mv"] = adapt_strength_init_mv
+    if tau_m_e_bounds_ms is not None:
+        kwargs["tau_m_e_bounds_ms"] = tuple(tau_m_e_bounds_ms)
+    if tau_m_i_bounds_ms is not None:
+        kwargs["tau_m_i_bounds_ms"] = tuple(tau_m_i_bounds_ms)
+    if adapt_tau_bounds_ms is not None:
+        kwargs["adapt_tau_bounds_ms"] = tuple(adapt_tau_bounds_ms)
+    if adapt_strength_max_mv is not None:
+        kwargs["adapt_strength_max_mv"] = float(adapt_strength_max_mv)
 
     # Set module-level hidden sizes
     if hidden_sizes is not None:

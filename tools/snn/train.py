@@ -160,6 +160,13 @@ def train(
     trainable_w_ie=False,
     trainable_w_ii=False,
     state_clamp=False,
+    train_leak=False,
+    tau_m_e_bounds_ms=None,
+    tau_m_i_bounds_ms=None,
+    adaptive_threshold=False,
+    adapt_tau_bounds_ms=None,
+    adapt_strength_init_mv=1.0,
+    adapt_strength_max_mv=None,
 ):
     """Train a model on mnist."""
     from torch.utils.data import DataLoader, TensorDataset
@@ -263,6 +270,13 @@ def train(
         trainable_w_ie=trainable_w_ie,
         trainable_w_ii=trainable_w_ii,
         state_clamp=state_clamp,
+        train_leak=train_leak,
+        tau_m_e_bounds_ms=tau_m_e_bounds_ms,
+        tau_m_i_bounds_ms=tau_m_i_bounds_ms,
+        adaptive_threshold=adaptive_threshold,
+        adapt_tau_bounds_ms=adapt_tau_bounds_ms,
+        adapt_strength_init_mv=adapt_strength_init_mv,
+        adapt_strength_max_mv=adapt_strength_max_mv,
     )
     if readout_mode != "rate":
         log.info(f"  readout_mode={readout_mode}")
@@ -336,6 +350,21 @@ def train(
         "trainable_w_ie": trainable_w_ie,
         "trainable_w_ii": trainable_w_ii,
         "state_clamp": state_clamp,
+        "train_leak": train_leak,
+        "tau_m_e_bounds_ms": list(tau_m_e_bounds_ms)
+        if tau_m_e_bounds_ms is not None
+        else list(M.TRAINABLE_TAU_M_E_BOUNDS_MS),
+        "tau_m_i_bounds_ms": list(tau_m_i_bounds_ms)
+        if tau_m_i_bounds_ms is not None
+        else list(M.TRAINABLE_TAU_M_I_BOUNDS_MS),
+        "adaptive_threshold": adaptive_threshold,
+        "adapt_tau_bounds_ms": list(adapt_tau_bounds_ms)
+        if adapt_tau_bounds_ms is not None
+        else list(M.ADAPT_TAU_BOUNDS_MS),
+        "adapt_strength_init_mv": adapt_strength_init_mv,
+        "adapt_strength_max_mv": adapt_strength_max_mv
+        if adapt_strength_max_mv is not None
+        else M.ADAPT_STRENGTH_MAX_MV,
         "seed": seed,
         "tau_gaba_ms": float(M.tau_gaba),
         # Swept / recipe-varying knobs — must be structured fields, not just
