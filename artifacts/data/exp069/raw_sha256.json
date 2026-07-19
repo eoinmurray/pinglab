@@ -1,0 +1,18 @@
+{
+  "raw/coba/checkpoint_selection.json": "290df07697395ed5129cea34562d75a5d206b1dea504d6eaa13531605b148fd1",
+  "raw/coba/config.json": "46e6fa7352f55a649a6c85437b202dd97f8f71beb190ad291e95351b3cb13d1e",
+  "raw/coba/matched_input.npz": "21a257c947a492ae09d6068124019660559efdc96818915a0abfc23b81023714",
+  "raw/coba/matched_rasters.npz": "30dfdd8cdb8c35b3dae0cbd84f35103f2916f17b1d2f80d5fe003099e3ba76c2",
+  "raw/coba/metrics.json": "cbe555b08c8367709bafebc2f7ea765f02a7742c2a16877a1607d5057c357705",
+  "raw/coba/metrics.jsonl": "dc4e7daee53e928840648860de50626f294ea150cccb5a97c4d94af0222f8ab2",
+  "raw/coba_frozen.json": "c5a3309914887c4761480b8ab640f1163487b4073a0a5cb17f4ea3fcc97c9082",
+  "raw/compute_ledger.json": "93468c781ff321bd3d054062dc4e1dd2fca85207f2db02532ac64615df18a230",
+  "raw/ping/checkpoint_selection.json": "a3c508a34d911d9ef2c105c7eca607abeac5346ce1119afb926154ead018b236",
+  "raw/ping/config.json": "13eecf7581d21af04d4ee14d50cd33ba15d850603428bfc4aa522092cc92cdd2",
+  "raw/ping/matched_input.npz": "21a257c947a492ae09d6068124019660559efdc96818915a0abfc23b81023714",
+  "raw/ping/matched_rasters.npz": "14abc8dcbf7251d8a9a564aee2b5a559caa40fa5ec344b734e6edde6932f66a8",
+  "raw/ping/metrics.json": "938d994cf32d03acefc361983883c6a922a48310fc4bb4da4afa8fc3040a4f3e",
+  "raw/ping/metrics.jsonl": "02119cadfe97d5ccd290a611f90677e672d221b6e62575d5d98f76b431327e2e",
+  "raw/ping_frozen.json": "2ed131fe48923a6fb5afff2357dc6eb0b8f872e837100f02e47de1802e8c5d80",
+  "raw/smoke_summary.json": "4ab3bede423fa38cd2dac524acff30385040f6c5f9cd9c93dac89da4cfb335e1"
+}

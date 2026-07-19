@@ -14,16 +14,43 @@
       baseline: "exp068 selected COBA epoch 25 at 40.81% and PING epoch 40 at 43.50% on the identical 816-utterance validation split. Its official-test results are context only and are not outcomes for exp069.",
       seeds: 1,
       budget: "One local plumbing smoke plus one 80-epoch full run per architecture; two concurrent pods maximum, 4 h backstop per pod, and 10 USD hard total RunPod spend.",
-      status: "queued",
+      status: "done",
       origin: "human",
     ),
   ),
 )
 
+#let r = json("/artifacts/data/exp069/numbers.json")
+#let c = r.cells.coba
+#let p = r.cells.ping
+
 #let body = [
   == Digest
 
-  _Empty until the registered experiment finishes._
+  *One registered experiment completed; none was killed or aborted.* Extending
+  the unchanged matched recipe from forty to eighty epochs raised PING's
+  selected validation accuracy to
+  #calc.round(p.selected_validation_accuracy_pct, digits: 2)%, a
+  #calc.round(r.primary.ping_change_from_exp068_pp, digits: 2)-point gain over
+  its registered 43.50% baseline. This exceeds the preregistered +3-point
+  criterion. COBA reached
+  #calc.round(c.selected_validation_accuracy_pct, digits: 2)%, leaving PING
+  #calc.round(r.primary.ping_minus_coba_validation_pp, digits: 2) points ahead
+  contemporaneously.
+
+  Both cells completed all eighty epochs with finite records, active
+  populations, no skipped/non-finite updates, identical exp068 split hashes,
+  and matched validation rasters. The official SHD test was not accessed. The
+  only operational anomaly was one transient capacity miss before PING pod
+  creation; the bounded retry succeeded without duplicate compute. Exact
+  provider-billed spend was
+  #calc.round(r.runpod.total_spend_usd, digits: 3) USD and zero pods remained.
+
+  The result supports longer training as a useful exploratory improvement for
+  this one recipe and seed. It does not establish a population-level PING
+  advantage. The late selected epochs—75 for COBA and 79 for PING—suggest
+  remaining headroom, but another duration change requires a new mandate rather
+  than a post-result extension here.
 
   == Mandate
 
@@ -120,4 +147,53 @@
   with validation-only outcomes so the already observed official test does not
   become an optimization target. The scientist approved this complete contract
   at 00:48:51 UTC. No exp069 runner, compute, result, or cost existed at approval.
+
+  === 2026-07-19 00:51 UTC: mandate anchor and night branch
+
+  The approved mandate and both reserved article identifiers were committed to
+  `main` at `3c440aa`. The dedicated night branch was created from that exact
+  anchor. At branch creation, exp069 spend remained 0 USD, no pod was active,
+  and the official SHD test remained outside the registered experiment scope.
+
+  === 2026-07-19 01:35–01:40 UTC: implementation and smoke gate
+
+  The validation-only runner was implemented without changing `tools/snn`.
+  Unlike exp068, it contains no official-test download, staging, loading, or
+  evaluation route; its matched rasters use fixed validation examples. Focused
+  Ruff, type, and compilation checks passed. The registered 128-training /
+  128-validation, two-epoch smoke passed for both cells with finite losses,
+  zero skipped or non-finite updates, active COBA E firing at 23.93 Hz, and
+  active PING E/I firing at 2.95 / 14.56 Hz. The derived development split
+  hashes exactly matched exp068. No pod had been created and spend remained
+  0 USD at the smoke gate.
+
+  === 2026-07-19 01:42–01:43 UTC: full-cell dispatch
+
+  Commit `b944ebf` pinned the passing smoke implementation before compute.
+  The dispatch dry-run resolved to exactly one COBA and one PING cell. Two
+  single-GPU pods were then created concurrently at 0.99 USD/hour each with
+  four-hour backstops. One transient capacity miss on the PING request was
+  resolved by the registered provisioning retry; no extra pod was created.
+  The verified fleet count was two, and worst-case exposure was 7.92 USD.
+
+  === 2026-07-19 04:01–05:01 UTC: completion, collection, and billing
+
+  Both registered cells completed all eighty epochs and self-terminated before
+  their four-hour backstops. PING selected epoch #p.selected_epoch at
+  #calc.round(p.selected_validation_accuracy_pct, digits: 2)% validation
+  accuracy, improving by
+  #calc.round(r.primary.ping_change_from_exp068_pp, digits: 2) points over its
+  baseline and meeting the +3-point primary criterion. COBA selected epoch
+  #c.selected_epoch at
+  #calc.round(c.selected_validation_accuracy_pct, digits: 2)%, so the matched
+  contemporaneous gap was
+  #calc.round(r.primary.ping_minus_coba_validation_pp, digits: 2) points.
+
+  Artifact integrity checks found exactly eighty finite epoch records per cell,
+  zero skipped or non-finite updates, active selected populations, exp068's
+  exact train/validation index hashes, byte-identical raster inputs, and no
+  failure marker. The official SHD test remained absent from the runner. The
+  provider billing history settled at
+  #calc.round(r.runpod.total_spend_usd, digits: 3) USD, below the 10 USD ceiling;
+  collection and a final provider query both confirmed zero active pods.
 ]
