@@ -9,6 +9,7 @@
 
 #let trace = json("/artifacts/data/ar073/messages.json")
 #let trace-two = json("/artifacts/data/ar073/messages_cp002.json")
+#let trace-three = json("/artifacts/data/ar073/messages_cp003.json")
 
 #let verbatim-prose(value) = {
   for (index, line) in value.split("\n").enumerate() {
@@ -97,4 +98,34 @@
   === Visible messages added in CP-002
 
   #for message in trace-two.messages { message-card(message, trace-two) }
+
+  == Checkpoint CP-003
+
+  *The cloud boundary now fails closed on scientific and billing integrity.*
+  This checkpoint follows smoke commit `135b82e`. Its immutable private source
+  has SHA-256 prefix `20a7b2d23008`, and its checkpoint time is
+  `2026-07-19 07:11:32.044 UTC`.
+
+  === Decision and action ledger
+
+  + The expected first-candidate plus promoted-final path is approximately 2
+    USD. The requested hard ceiling is 10 USD across the entire registered
+    ladder, with one pod per cell and two concurrent pods maximum. Authority
+    has not yet been granted, so no dispatch occurred.
+  + GitHub Actions reports the same ten repository-wide `ty` diagnostics in
+    unchanged older experiments and tests. Exp070 produces no CI diagnostic,
+    and those unrelated files remain out of scope.
+  + Two focused tests pin the first-passing promotion gate: both cells must
+    clear the accuracy and loss thresholds, and non-finite or saturated
+    activity kills the candidate.
+  + Artifact publication now refuses to proceed without finite authoritative
+    provider spend and confirmation that zero pods remain. Ruff, focused `ty`,
+    compilation, both tests, and the missing-ledger failure check pass.
+  + Pending work remains fresh paid-compute authorization, the matched
+    five-epoch pair, exact billing reconciliation, and the registered adaptive
+    decision. Spend remains 0 USD.
+
+  === Visible messages added in CP-003
+
+  #for message in trace-three.messages { message-card(message, trace-three) }
 ]
