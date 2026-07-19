@@ -259,4 +259,14 @@
   A cloud dry run found an empty fleet and exactly two candidate-2 jobs, one
   per cell; it created no pod. Paid candidate-2 dispatch remains pending this
   checkpoint and candidate-1 billing reconciliation.
+
+  === 2026-07-19 07:49 UTC: candidate-2 dispatch
+
+  From clean commit `04d5a28`, a second dry run again resolved to exactly two
+  jobs and zero existing pods. One COBA and one PING 5090 pod were then
+  dispatched at 0.99 USD per pod-hour with one-hour backstops. The verified
+  fleet contained exactly those two pods. Candidate 1's exact provider rows
+  remain delayed, but its hard exposure is at most 1.98 USD; adding candidate
+  2 leaves a cumulative hard bound of 3.96 USD under the authorized 10 USD
+  ceiling. Result and exact billing remain pending.
 ]
