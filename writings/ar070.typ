@@ -139,4 +139,13 @@
   active PING E/I firing at 2.95 / 14.56 Hz. The derived development split
   hashes exactly matched exp068. No pod had been created and spend remained
   0 USD at the smoke gate.
+
+  === 2026-07-19 01:42–01:43 UTC: full-cell dispatch
+
+  Commit `b944ebf` pinned the passing smoke implementation before compute.
+  The dispatch dry-run resolved to exactly one COBA and one PING cell. Two
+  single-GPU pods were then created concurrently at 0.99 USD/hour each with
+  four-hour backstops. One transient capacity miss on the PING request was
+  resolved by the registered provisioning retry; no extra pod was created.
+  The verified fleet count was two, and worst-case exposure was 7.92 USD.
 ]
