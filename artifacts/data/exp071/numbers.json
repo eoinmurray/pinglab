@@ -1,8 +1,8 @@
 {
-  "run_id": "r005",
-  "git_sha": "666e291",
-  "duration_s": 4.3,
-  "duration": "4s",
+  "run_id": "r006",
+  "git_sha": "33b6a97",
+  "duration_s": 4.7,
+  "duration": "5s",
   "result_status": "done",
   "stage": "final40",
   "attempt": "cumulative_baseline",
@@ -102,75 +102,89 @@
     "selection_rule": "max validation accuracy; tie lower validation cross-entropy; tie earlier epoch"
   },
   "runpod": {
-    "created_at_utc": "2026-07-19T15:50:00.000Z",
-    "exact_provider_billing": false,
-    "billing_status": "timestamp_estimate_pending_provider_reconciliation",
-    "total_spend_usd": 4.15,
+    "created_at_utc": "2026-07-19T16:18:00.000Z",
+    "exact_provider_billing": true,
+    "billing_status": "exact_provider_reconciled",
+    "total_spend_usd": 3.956481664587045,
     "active_pods_after_collection": 0,
     "currency": "USD",
-    "estimate_basis": "Manual timestamp estimate from RunPod create, stop/self-termination, and collector observation windows at 0.99 USD/hour; exact per-pod billing endpoint had not reconciled at publication time.",
+    "billing_basis": "RunPod by-pod billing rows queried after provider reconciliation; pod identifiers are intentionally omitted from the publishable ledger.",
     "attempts": {
       "cloud-coba-001": {
         "kind": "killed_monitoring_attempt",
-        "estimated_spend_usd": 0.102025
+        "provider_spend_usd": 0.08250000327825546,
+        "time_billed_ms": 300000
       },
       "cloud-coba-002": {
         "kind": "killed_startup_attempt",
-        "estimated_spend_usd": 0.047029
+        "provider_spend_usd": 0.04744839575141668,
+        "time_billed_ms": 171277
       },
       "short-cumulative_baseline-coba": {
         "kind": "completed_short_training_and_collection",
-        "estimated_spend_usd": 0.31
+        "provider_spend_usd": 0.28000413719564676,
+        "time_billed_ms": 1014409
       },
       "short-cumulative_baseline-coba-collector": {
         "kind": "completed_collection",
-        "estimated_spend_usd": 0.04
+        "provider_spend_usd": 0.049532623030245304,
+        "time_billed_ms": 178856
       },
       "short-cumulative_baseline-ping": {
         "kind": "completed_short_training_and_collection",
-        "estimated_spend_usd": 0.25
+        "provider_spend_usd": 0.24483631644397974,
+        "time_billed_ms": 886526
       },
       "short-cumulative_baseline-ping-collector": {
         "kind": "completed_collection",
-        "estimated_spend_usd": 0.02
+        "provider_spend_usd": 0.00796124991029501,
+        "time_billed_ms": 28950
       },
       "short-cumulative_256_256-coba": {
         "kind": "completed_short_training_and_collection",
-        "estimated_spend_usd": 0.5
+        "provider_spend_usd": 0.5029581561684608,
+        "time_billed_ms": 1821363
       },
       "short-cumulative_256_256-coba-collector": {
         "kind": "completed_collection",
-        "estimated_spend_usd": 0.06
+        "provider_spend_usd": 0.05093594882055186,
+        "time_billed_ms": 183959
       },
       "short-cumulative_256_256-ping": {
         "kind": "completed_short_training_and_collection",
-        "estimated_spend_usd": 0.36
+        "provider_spend_usd": 0.3488236125558615,
+        "time_billed_ms": 1263399
       },
       "short-cumulative_256_256-ping-collector": {
         "kind": "completed_collection",
-        "estimated_spend_usd": 0.07
+        "provider_spend_usd": 0.05920134857296944,
+        "time_billed_ms": 214015
       },
       "final40-cumulative_baseline-coba": {
         "kind": "completed_final40_training_and_collection",
-        "estimated_spend_usd": 1.12
+        "provider_spend_usd": 1.1224509431631304,
+        "time_billed_ms": 4063963
       },
       "final40-cumulative_baseline-coba-collector": {
         "kind": "completed_collection",
-        "estimated_spend_usd": 0.03
+        "provider_spend_usd": 0.0055998251773417,
+        "time_billed_ms": 20363
       },
       "final40-cumulative_baseline-ping": {
         "kind": "completed_final40_training_and_collection",
-        "estimated_spend_usd": 1.14
+        "provider_spend_usd": 1.1461867298930883,
+        "time_billed_ms": 4150275
       },
       "final40-cumulative_baseline-ping-collector": {
         "kind": "completed_collection",
-        "estimated_spend_usd": 0.05
+        "provider_spend_usd": 0.00804237462580204,
+        "time_billed_ms": 29245
       }
     }
   },
   "spend": {
-    "total_spend_usd": 4.15,
-    "exact_provider_billing": false,
-    "status": "timestamp_estimate_pending_provider_reconciliation"
+    "total_spend_usd": 3.956481664587045,
+    "exact_provider_billing": true,
+    "status": "exact"
   }
 }
