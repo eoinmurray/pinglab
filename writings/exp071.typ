@@ -13,6 +13,7 @@
 #let trace-three = json("/artifacts/data/exp071/activity/messages_cp003.json")
 #let trace-four = json("/artifacts/data/exp071/activity/messages_cp004.json")
 #let trace-five = json("/artifacts/data/exp071/activity/messages_cp005.json")
+#let trace-six = json("/artifacts/data/exp071/activity/messages_cp006.json")
 #let baseline-short = json("/artifacts/data/exp071/raw/short/cumulative_baseline/attempt_decision.json")
 
 #let maybe-pct(x) = {
@@ -166,12 +167,26 @@
     #v(4pt)
     #image(attempt-figure("matched_rasters.png"), width: 100%)
 
-    #if r.attempt == "cumulative_baseline" [
+    #if r.attempt == "cumulative_baseline" and r.stage == "short" [
       Candidate one clears the short-screen viability gate: both cells trained
       above chance, remained finite and active, produced matched learning
       curves and input/E/I rasters, and had no skipped or non-finite updates.
       It is not yet the forty-epoch promotion decision, because the registered
       next step is the conditional two-hidden-layer short candidate.
+    ] else if r.attempt == "cumulative_baseline" and r.stage == "final40" [
+      This final forty-epoch promotion keeps the candidate-one architecture and
+      readout. COBA selected epoch #r.cells.coba.selected_epoch at
+      #maybe-pct(r.cells.coba.selected_validation_accuracy_pct), while PING
+      selected epoch #r.cells.ping.selected_epoch at
+      #maybe-pct(r.cells.ping.selected_validation_accuracy_pct). Both final
+      cells were finite, active, clean, and produced matched rasters. In this
+      one-seed validation run PING is ahead of COBA by
+      #calc.round(
+        r.cells.ping.selected_validation_accuracy_pct -
+        r.cells.coba.selected_validation_accuracy_pct,
+        digits: 2,
+      ) percentage points; this is exploratory validation evidence, not a
+      defended multi-seed claim.
     ] else [
       The figures above show the two-hidden-layer short candidate. Matched
       input/E/I rasters were captured for the same validation examples as the
@@ -247,4 +262,17 @@
   ==== Visible messages added
 
   #for message in trace-five.messages { message-card(message, trace-five) }
+
+  === Checkpoint #trace-six.checkpoint_id
+
+  Timestamp: `#trace-six.checkpoint_time_utc`. Sanitized source hash prefix:
+  `#trace-six.sanitized_sha256_prefix`.
+
+  ==== Decisions, actions, and pending work
+
+  #for item in trace-six.ledger { [+ #item] }
+
+  ==== Visible messages added
+
+  #for message in trace-six.messages { message-card(message, trace-six) }
 ]
