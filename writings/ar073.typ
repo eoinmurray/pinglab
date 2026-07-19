@@ -17,6 +17,7 @@
 #let trace-eight = json("/artifacts/data/ar073/messages_cp008.json")
 #let trace-nine = json("/artifacts/data/ar073/messages_cp009.json")
 #let trace-ten = json("/artifacts/data/ar073/messages_cp010.json")
+#let trace-eleven = json("/artifacts/data/ar073/messages_cp011.json")
 
 #let verbatim-prose(value) = {
   for (index, line) in value.split("\n").enumerate() {
@@ -305,4 +306,26 @@
   === Visible messages added in CP-010
 
   #for message in trace-ten.messages { message-card(message, trace-ten) }
+
+  == Checkpoint CP-011
+
+  *Only the final registered short pair is dispatched.* This checkpoint follows
+  smoke commit `e9d0332`. Its immutable private source has SHA-256 prefix
+  `c49ca5689e35`, and its checkpoint time is
+  `2026-07-19 08:16:37.476 UTC`.
+
+  === Decision and action ledger
+
+  + The clean dry run found zero pods and exactly two candidate-3 jobs. The live
+    dispatch created one COBA and one PING 5090 pod at 0.99 USD/hour each.
+  + Both jobs are pinned to `e9d0332` and carry one-hour self-removal backstops.
+    The verified fleet count is exactly two.
+  + Using unreconciled one-hour maxima for all three short pairs gives a 5.94
+    USD cumulative hard bound, still below the authorized 10 USD ceiling.
+  + Infrastructure identifiers remain private. Pending work is termination,
+    collection, billing reconciliation, and the locked promotion decision.
+
+  === Visible messages added in CP-011
+
+  #for message in trace-eleven.messages { message-card(message, trace-eleven) }
 ]
