@@ -9,9 +9,12 @@ Layer primitives: exp_synapse, lif_step.
 
 from __future__ import annotations
 
+import math
+
 import numpy as np
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 
 # ── Simulation ────────────────────────────────────────────────────────────
 dt: float = 0.25  # ms — integration timestep
@@ -67,6 +70,13 @@ tau_snn = 10.0  # ms — membrane time constant
 # 60–1000 Hz. Override per-run via --readout-tau-out.
 tau_out_ms = 2.0  # ms
 thr_snn = 1.0  # spike threshold
+CUMULATIVE_READOUT_TAU_BOUNDS_MS = (5.0, 25.0)
+CUMULATIVE_READOUT_REDUCTION = "sum_softmax_potential_per_timestep"
+CUMULATIVE_READOUT_REFERENCE = (
+    "https://github.com/idiap/sparch/blob/"
+    "f8756254ab8d0e3337eb69542c684b922d6b6cbd/"
+    "sparch/models/snns.py#L730-L825"
+)
 
 # ── Architecture ──────────────────────────────────────────────────────────
 N_IN: int = 64  # input neurons (module default; overridden per-run by the dataset loader)
@@ -491,6 +501,8 @@ class COBANet(nn.Module):
         dales_law=True,
         hidden_sizes=None,
         readout_mode="rate",
+        signed_readout=False,
+        readout_bias=False,
         trainable_w_ee=False,
         trainable_w_ei=False,
         trainable_w_ie=False,
@@ -499,11 +511,18 @@ class COBANet(nn.Module):
         state_clamp=False,
     ):
         super().__init__()
-        if readout_mode not in ("rate", "mem-mean"):
+        if readout_mode not in ("rate", "mem-mean", "cumulative-potential"):
             raise ValueError(
-                f"readout_mode must be 'rate' or 'mem-mean', got {readout_mode!r}"
+                "readout_mode must be 'rate', 'mem-mean', or "
+                f"'cumulative-potential', got {readout_mode!r}"
             )
         self.readout_mode = readout_mode
+        self.signed_readout = bool(signed_readout)
+        self.readout_bias_enabled = bool(readout_bias)
+        if self.readout_bias_enabled and self.readout_mode != "cumulative-potential":
+            raise ValueError(
+                "readout_bias is supported only by the cumulative-potential readout"
+            )
         self.signed_weights = not dales_law
         # Forward-pass state clamp: floor conductances at 0 (and cap magnitude)
         # each timestep. Off by default, so every existing run is unchanged.
@@ -537,6 +556,33 @@ class COBANet(nn.Module):
             spec = w_in if idx == 0 else w_hid
             p1, p2, d, s = _parse_weight_spec(spec, dist, sparsity)
             self.W_ff.append(nn.Parameter(init_weight((n_pre, n_post), d, p1, p2, s)))
+
+        # The classifier may be an abstract signed decoder while the simulated
+        # feed-forward and recurrent synapses remain Dale-constrained.  Keep it
+        # in W_ff[-1] so legacy checkpoint shape inference continues to work,
+        # but initialise it like nn.Linear rather than as a positive
+        # conductance when signed decoding is requested.
+        if self.signed_readout:
+            nn.init.kaiming_uniform_(self.W_ff[-1], a=math.sqrt(5))
+
+        if self.readout_bias_enabled:
+            self.b_out = nn.Parameter(torch.empty(N_OUT))
+            bound = 1.0 / math.sqrt(self.hidden_sizes[-1])
+            nn.init.uniform_(self.b_out, -bound, bound)
+        else:
+            self.register_parameter("b_out", None)
+
+        # Bittar & Garner's cumulative-potential decoder uses one trainable
+        # membrane decay per class, bounded to 5--25 ms.  Store alpha directly
+        # to match the reference implementation; clamp it in the forward pass.
+        if self.readout_mode == "cumulative-potential":
+            tau_lo, tau_hi = CUMULATIVE_READOUT_TAU_BOUNDS_MS
+            alpha_lo = math.exp(-dt / tau_lo)
+            alpha_hi = math.exp(-dt / tau_hi)
+            self.readout_alpha = nn.Parameter(torch.empty(N_OUT))
+            nn.init.uniform_(self.readout_alpha, alpha_lo, alpha_hi)
+        else:
+            self.register_parameter("readout_alpha", None)
 
         # E-I weights per E-I layer. By default the recurrent circuit is fixed
         # anatomical connectivity — a substrate the readout learns to read — but
@@ -628,6 +674,8 @@ class COBANet(nn.Module):
             W_ff = list(self.W_ff)
         else:
             W_ff = [W.clamp(min=0) for W in self.W_ff]
+            if self.signed_readout:
+                W_ff[-1] = self.W_ff[-1]
         # `noise_std` is the diffusive membrane-noise amplitude (mV, on the
         # voltage), applied per-cell-independent to every E and I cell inside
         # the LIF step (see lif_step_expeuler). Zero-mean and dt-invariant —
@@ -695,6 +743,7 @@ class COBANet(nn.Module):
         hidden_accum = init_conductance(B, self.hidden_sizes[-1], device)
         v_out = torch.zeros(B, N_OUT, device=device)
         mem_sum = torch.zeros(B, N_OUT, device=device)
+        evidence_sum = torch.zeros(B, N_OUT, device=device)
 
         # Pre-allocate recording buffers on GPU
         rec_buf = None
@@ -751,6 +800,7 @@ class COBANet(nn.Module):
             "hidden_accum": hidden_accum,
             "v_out": v_out,
             "mem_sum": mem_sum,
+            "evidence_sum": evidence_sum,
         }
         # Compute dt-dependent constants locally so torch.compile specializes on dt
         decay_ampa = np.exp(-dt / tau_ampa)
@@ -770,6 +820,8 @@ class COBANet(nn.Module):
             "has_ext_g": has_ext_g,
             "has_ext_g_i": has_ext_g_i,
             "readout_mode": self.readout_mode,
+            "readout_bias": self.b_out,
+            "readout_alpha": self.readout_alpha,
             "v_noise_std": v_noise_std,
             "noise_on_inh": bool(noise_on_inh),
             "n_e0": self.hidden_sizes[0],
@@ -993,6 +1045,19 @@ class COBANet(nn.Module):
             state["mem_sum"] = state["mem_sum"] + state["v_out"]
             state["v_out"] = state["v_out"] - s_out * thr_snn
             return state["mem_sum"] / float(T_steps)
+        if cfg["readout_mode"] == "cumulative-potential":
+            drive = prev_spk @ W_ff[-1]
+            if cfg["readout_bias"] is not None:
+                drive = drive + cfg["readout_bias"]
+            tau_lo, tau_hi = CUMULATIVE_READOUT_TAU_BOUNDS_MS
+            alpha_lo = math.exp(-dt / tau_lo)
+            alpha_hi = math.exp(-dt / tau_hi)
+            alpha = cfg["readout_alpha"].clamp(min=alpha_lo, max=alpha_hi)
+            state["v_out"] = alpha * state["v_out"] + (1.0 - alpha) * drive
+            state["evidence_sum"] = state["evidence_sum"] + F.softmax(
+                state["v_out"], dim=1
+            )
+            return state["evidence_sum"]
         state["hidden_accum"] = state["hidden_accum"] + prev_spk
         return state["hidden_accum"] @ W_ff[-1]
 
@@ -1002,7 +1067,10 @@ class COBANet(nn.Module):
         Non-trainable recurrent buffers are skipped — they are init'd
         non-negative and never updated."""
         dicts = (self.W_ee, self.W_ei, self.W_ie, self.W_ii)
-        params = list(self.W_ff) + [p for d in dicts for p in d.values()]
+        feedforward = list(self.W_ff)
+        if self.signed_readout:
+            feedforward = feedforward[:-1]
+        params = feedforward + [p for d in dicts for p in d.values()]
         return [p for p in params if p.requires_grad]
 
     @torch.no_grad()

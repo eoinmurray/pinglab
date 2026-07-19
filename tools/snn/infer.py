@@ -138,6 +138,9 @@ def infer(
     perturb_mode=None,
     perturb_level=None,
     i_override_file=None,
+    readout_mode="rate",
+    signed_readout=False,
+    readout_bias=False,
 ):
     """Run inference with saved weights at a given dt.
 
@@ -183,6 +186,9 @@ def infer(
         randomize_init=True,
         dales_law=dales_law,
         hidden_sizes=hidden_sizes,
+        readout_mode=readout_mode,
+        signed_readout=signed_readout,
+        readout_bias=readout_bias,
     )
 
     # Load weights. skip_load drops matching state_dict keys (by prefix) so a
@@ -494,6 +500,9 @@ def infer_and_snapshot(
     perturb_mode=None,
     perturb_level=None,
     i_override_file=None,
+    readout_mode="rate",
+    signed_readout=False,
+    readout_bias=False,
 ):
     """Run inference on a single sample and save full spike trajectory to snapshot.npz.
 
@@ -547,6 +556,9 @@ def infer_and_snapshot(
         randomize_init=True,
         dales_law=dales_law,
         hidden_sizes=hidden_sizes,
+        readout_mode=readout_mode,
+        signed_readout=signed_readout,
+        readout_bias=readout_bias,
     )
 
     # Load weights (skip_load drops matching keys by prefix — see infer()).
@@ -791,6 +803,8 @@ def dump_weights(
     dales_law=True,
     seed=None,
     readout_mode="rate",
+    signed_readout=False,
+    readout_bias=False,
     trainable_w_ee=False,
     trainable_w_ei=False,
     trainable_w_ie=False,
@@ -836,6 +850,8 @@ def dump_weights(
         dales_law=dales_law,
         hidden_sizes=hidden_sizes,
         readout_mode=readout_mode,
+        signed_readout=signed_readout,
+        readout_bias=readout_bias,
         trainable_w_ee=trainable_w_ee,
         trainable_w_ei=trainable_w_ei,
         trainable_w_ie=trainable_w_ie,
@@ -858,6 +874,10 @@ def dump_weights(
     if hasattr(net, "W_ff"):
         for i, w in enumerate(net.W_ff):
             dump[f"W_ff_{i}_init"] = w.detach().cpu().numpy()
+    for name in ("b_out", "readout_alpha"):
+        parameter = getattr(net, name, None)
+        if parameter is not None:
+            dump[f"{name}_init"] = parameter.detach().cpu().numpy()
 
     # TRAINED weights: pulled from the saved state_dict (keys look like "W_ei.1"
     # or "W_ff.2"). W_ff entries are emitted too; the last index is W_out.
@@ -871,6 +891,9 @@ def dump_weights(
         elif name == "W_ff" and key:
             arr = sv.detach().cpu().numpy() if hasattr(sv, "detach") else np.asarray(sv)
             dump[f"W_ff_{key}_trained"] = arr
+        elif sk in ("b_out", "readout_alpha"):
+            arr = sv.detach().cpu().numpy() if hasattr(sv, "detach") else np.asarray(sv)
+            dump[f"{sk}_trained"] = arr
 
     assert out_dir is not None, "dump_weights requires out_dir"
     out_path = Path(out_dir) / "weights_dump.npz"
@@ -880,4 +903,3 @@ def dump_weights(
     log.info(f"  → {out_path}  ({len(dump)} arrays)")
 
     return {"n_arrays": len(dump), "path": str(out_path)}
-

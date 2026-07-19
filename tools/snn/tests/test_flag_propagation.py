@@ -154,15 +154,43 @@ def test_infer_with_load_config_and_weights(tmp_path):
     assert metrics.get("best_acc") is not None
 
 
-# ── --readout {rate, mem-mean} ───────────────────────────────────────────
+# ── readout configuration ────────────────────────────────────────────────
 
 
 @pytest.mark.slow
-@pytest.mark.parametrize("readout", ["rate", "mem-mean"])
+@pytest.mark.parametrize("readout", ["rate", "mem-mean", "cumulative-potential"])
 def test_readout_propagates(tmp_path, readout):
     out = tmp_path / f"readout-{readout}"
     _train_probe(out, "--readout", readout)
     assert _read_config(out)["readout_mode"] == readout
+
+
+@pytest.mark.slow
+def test_signed_cumulative_readout_round_trips_through_infer(tmp_path):
+    train_dir = tmp_path / "train"
+    _train_probe(
+        train_dir,
+        "--readout", "cumulative-potential",
+        "--signed-readout",
+        "--readout-bias",
+        "--t-ms", "20",
+        epochs=1,
+    )
+    config = _read_config(train_dir)
+    assert config["signed_readout"] is True
+    assert config["readout_bias"] is True
+
+    infer_dir = tmp_path / "infer"
+    _run_cli(
+        "sim", "--infer",
+        "--load-config", str(train_dir / "config.json"),
+        "--load-weights", str(train_dir / "weights.pth"),
+        "--max-samples", "50",
+        "--out-dir", str(infer_dir),
+        "--wipe-dir",
+    )
+    metrics = json.loads((infer_dir / "metrics.json").read_text())
+    assert metrics.get("best_acc") is not None
 
 
 def test_readout_changes_model_forward():
