@@ -1,0 +1,15 @@
+{
+  "model": "ping",
+  "started_at": "2026-07-19T01:53:05.492+00:00",
+  "frozen_at": "2026-07-19T04:01:11.461+00:00",
+  "checkpoint_sha256": "1cecdd960da14a3082d131f4563fe93f6d67005d052d2f1a4b1ae750c5df846e",
+  "selection": {
+    "accuracy_pct": 48.03921568627451,
+    "cross_entropy": 2.0286698066271267,
+    "epoch": 79,
+    "rule": "max validation accuracy; tie lower validation cross-entropy; tie earlier epoch",
+    "checkpoint": "epoch_079.pth"
+  },
+  "split_train_indices_sha256": "2fee22abaf3629ec1d10179847380b2829968d748fea60607b8f7bb2e3b1de71",
+  "split_validation_indices_sha256": "5b9f014ae3a4ab48b6586e7d014b8cdbd73b182c4c9cba2b9492ba203cd4ee3a"
+}

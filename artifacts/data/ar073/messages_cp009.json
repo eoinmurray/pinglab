@@ -1,0 +1,51 @@
+{
+  "session_id": "019f76ab-932b-72c2-b163-463ead65d8d5",
+  "checkpoint_id": "CP-009",
+  "messages": [
+    {
+      "timestamp": "2026-07-19 07:53:03.411 UTC",
+      "role": "assistant",
+      "content": "Candidate 2 remains exactly two pods at 07:52:40 UTC, roughly three minutes after dispatch. The jobs are still within normal cold-start/training time, with estimated combined exposure under $0.12 and the one-hour guards intact."
+    },
+    {
+      "timestamp": "2026-07-19 07:54:48.231 UTC",
+      "role": "assistant",
+      "content": "Both jobs remain present at 07:54:13 UTC, about four and a half minutes after dispatch. Fleet count is still exactly two, estimated combined exposure is about $0.15, and no duplicate work has appeared."
+    },
+    {
+      "timestamp": "2026-07-19 07:56:34.593 UTC",
+      "role": "assistant",
+      "content": "At 07:56:17 UTC the pair is still bounded and healthy from the fleet view, about seven minutes after dispatch. Estimated combined exposure is about $0.23; both one-hour safeguards remain active."
+    },
+    {
+      "timestamp": "2026-07-19 07:58:55.750 UTC",
+      "role": "assistant",
+      "content": "The candidate remains at exactly two pods at 07:58:21 UTC, about nine minutes after dispatch. This 1 ms run is expected to take longer than the killed 2 ms attempt; exposure is still only about $0.30 combined."
+    },
+    {
+      "timestamp": "2026-07-19 08:00:36.922 UTC",
+      "role": "assistant",
+      "content": "Both jobs remain active at 08:00:25 UTC, about eleven minutes after dispatch, with no fleet anomaly. Combined exposure is about $0.36—still far below both the attempt backstop and total authorization."
+    },
+    {
+      "timestamp": "2026-07-19 08:02:25.380 UTC",
+      "role": "assistant",
+      "content": "PING has self-terminated successfully by 08:01:57 UTC; COBA is the sole remaining pod. Fleet count is one, so spend is now accruing at only $0.99/hour while COBA finishes under its guard."
+    },
+    {
+      "timestamp": "2026-07-19 08:04:10.524 UTC",
+      "role": "assistant",
+      "content": "COBA remains the only active job at 08:04:01 UTC, roughly fifteen minutes after dispatch. This is still within the expected 1 ms five-epoch window; total candidate-2 exposure is approximately $0.48 so far."
+    },
+    {
+      "timestamp": "2026-07-19 08:05:11.543 UTC",
+      "role": "assistant",
+      "content": "COBA self-terminated by 08:05:03 UTC; the active fleet is now zero. Candidate 2 took about fifteen and a half minutes wall-clock, with estimated spend around $0.49 pending authoritative billing. I’m collecting the outputs now and will apply the locked epoch-five promotion gate before any further run."
+    },
+    {
+      "timestamp": "2026-07-19 08:06:15.306 UTC",
+      "role": "assistant",
+      "content": "Candidate 2 is also killed by the preregistered gate. At epoch five, COBA exactly matches exp069 accuracy (27.94%, +0.00 pp) while CE is 0.0168 worse; PING improves only 1.10 pp to 33.70% while CE is 0.00153 worse. Both cells are finite and active with zero skipped/non-finite updates, so this is another clean scientific failure. Candidate 3—the isolated learning-rate change—is now the only remaining registered short attempt."
+    }
+  ]
+}

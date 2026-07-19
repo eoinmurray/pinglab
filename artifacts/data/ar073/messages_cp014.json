@@ -1,0 +1,16 @@
+{
+  "session_id": "019f76ab-932b-72c2-b163-463ead65d8d5",
+  "checkpoint_id": "CP-014",
+  "messages": [
+    {
+      "timestamp": "2026-07-19 09:16:07.871 UTC",
+      "role": "assistant",
+      "content": "Good timing—the final rows have landed. Candidate 3 cost exactly $0.04449077 COBA + $0.04430542 PING = $0.08879619. Exact cumulative exp070 spend is $0.47976851, with zero active pods. I’m doing the final atomic publication and reconciliation now."
+    },
+    {
+      "timestamp": "2026-07-19 09:17:49.966 UTC",
+      "role": "assistant",
+      "content": "Final reconciliation is complete. All three attempt ledgers, raw metrics, matched inputs, rasters, curves, activity diagnostics, and the aggregate `numbers.json` are now atomically published from a clean commit state. I’m adding the final hash-linked activity checkpoint, then running the complete validation/build/push/preview gate."
+    }
+  ]
+}
