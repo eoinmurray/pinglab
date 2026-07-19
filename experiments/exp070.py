@@ -50,7 +50,8 @@ LOCAL_SPLIT_ROOT = REPO / "temp" / "experiments" / SLUG / "split"
 INSTALLED_SPLIT_ROOT = REPO / "temp" / "experiments" / SLUG / "installed_shd"
 
 EXP069_RAW = REPO / "artifacts" / "data" / "exp069" / "raw"
-EXP069_NUMBERS = REPO / "artifacts" / "data" / "exp069" / "numbers.json"
+COMMITTED_SMOKE = REPO / "artifacts" / "data" / SLUG / "smoke_summary.json"
+COMPUTE_LEDGER = SCRATCH / "compute_ledger.json"
 
 
 def configure_baseline() -> None:
@@ -110,13 +111,14 @@ def input_audit() -> dict[str, Any]:
     with h5py.File(source, "r") as handle:
         sample_count = len(handle["labels"])
         audit_indices = list(range(0, sample_count, 8))
+        audit_index_set = set(audit_indices)
         for index in range(sample_count):
             times = np.asarray(handle["spikes/times"][index])
             event_count += int(times.size)
             n_late = int(np.count_nonzero(times >= baseline.T_MS / 1000.0))
             late_event_count += n_late
             late_sample_count += int(n_late > 0)
-            if index not in audit_indices:
+            if index not in audit_index_set:
                 continue
             units = np.asarray(handle["spikes/units"][index], dtype=np.int64)
             bins = np.floor(times / (DT_MS / 1000.0)).astype(np.int64)
@@ -206,13 +208,17 @@ def attempt_decision(cells: dict[str, Any]) -> tuple[str, dict[str, Any]]:
         old = epoch_five_baseline(model)
         gain = float(row["acc"]) - old["accuracy_pct"]
         loss_change = float(row["test_loss"]) - old["cross_entropy"]
+        finite_keys = ["loss", "test_loss", "acc", "grad_norm", "test_rate_e"]
+        if model == "ping":
+            finite_keys.append("test_rate_i")
         finite = all(
             math.isfinite(float(row[key]))
-            for key in ("loss", "test_loss", "acc", "grad_norm", "test_rate_e")
+            for key in finite_keys
         )
-        active = float(row["test_rate_e"]) > 0.0
+        saturation_hz = 0.95 * (1000.0 / DT_MS)
+        active = 0.0 < float(row["test_rate_e"]) < saturation_hz
         if model == "ping":
-            active = active and float(row.get("test_rate_i") or 0.0) > 0.0
+            active = active and 0.0 < float(row.get("test_rate_i") or 0.0) < saturation_hz
         clean = (
             finite
             and active
@@ -228,6 +234,7 @@ def attempt_decision(cells: dict[str, Any]) -> tuple[str, dict[str, Any]]:
             "validation_e_rate_hz": float(row["test_rate_e"]),
             "validation_i_rate_hz": float(row.get("test_rate_i") or 0.0),
             "gradient_norm": float(row["grad_norm"]),
+            "saturation_threshold_hz": saturation_hz,
             "skipped_steps": int(row.get("skipped_steps", 0)),
             "nan_forward_batches": int(row.get("nan_forward_batches", 0)),
             "exp069_epoch_five_accuracy_pct": old["accuracy_pct"],
@@ -240,9 +247,19 @@ def attempt_decision(cells: dict[str, Any]) -> tuple[str, dict[str, Any]]:
 
 
 def publish_attempt() -> None:
+    if not COMPUTE_LEDGER.exists():
+        raise SystemExit("missing compute_ledger.json with exact observed RunPod spend")
+    compute_ledger = json.loads(COMPUTE_LEDGER.read_text())
+    if int(compute_ledger.get("active_pods_after_collection", -1)) != 0:
+        raise SystemExit("compute ledger does not confirm zero active pods")
+    if not math.isfinite(float(compute_ledger.get("total_spend_usd", math.nan))):
+        raise SystemExit("compute ledger does not contain finite total_spend_usd")
     cells = baseline.validate_collected()
     decision, diagnostics = attempt_decision(cells)
-    smoke = json.loads((SMOKE_ROOT / "smoke_summary.json").read_text())
+    smoke_path = SMOKE_ROOT / "smoke_summary.json"
+    if not smoke_path.exists():
+        smoke_path = COMMITTED_SMOKE
+    smoke = json.loads(smoke_path.read_text())
     run_id = next_run_id(SLUG)
     t0 = time.monotonic()
     with published_run(
@@ -257,7 +274,8 @@ def publish_attempt() -> None:
         baseline.plot_matched_rasters(figures / "matched_rasters.png")
         raw = figures / "raw" / ATTEMPT
         raw.mkdir(parents=True)
-        shutil.copy2(SMOKE_ROOT / "smoke_summary.json", raw / "smoke_summary.json")
+        shutil.copy2(smoke_path, raw / "smoke_summary.json")
+        shutil.copy2(COMPUTE_LEDGER, raw / "compute_ledger.json")
         for model in baseline.MODELS:
             source = CELL_ROOT / model
             destination = raw / model
@@ -289,7 +307,7 @@ def publish_attempt() -> None:
                 "matched_partitions": True,
                 "selection_rule": cells["coba"]["selection"]["rule"],
             },
-            "runpod": {"spend_usd": None, "active_pods_after_collection": None},
+            "runpod": compute_ledger,
         }
         write_numbers(figures, run_id=run_id, duration_s=time.monotonic() - t0, payload=payload)
         (figures / "reproduce.sh").write_text(

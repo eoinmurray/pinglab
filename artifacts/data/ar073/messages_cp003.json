@@ -1,0 +1,36 @@
+{
+  "session_id": "019f76ab-932b-72c2-b163-463ead65d8d5",
+  "checkpoint_id": "CP-003",
+  "messages": [
+    {
+      "timestamp": "2026-07-19 07:07:24.169 UTC",
+      "role": "assistant",
+      "content": "The local checkpoint is clean: focused Ruff, `ty`, compilation, JSON validation, sensitive-pattern scan, exact split/config assertions, and the live 40-entry Demolab rebuild all pass. I’m committing this smoke attempt now; `tools/snn` remains unchanged and RunPod spend is still exactly $0."
+    },
+    {
+      "timestamp": "2026-07-19 07:08:15.643 UTC",
+      "role": "assistant",
+      "content": "Candidate 1 is ready for cloud testing.\n\nEstimated RunPod cost:\n\n- Five-epoch 2 ms pair: about $0.40 expected\n- If promoted, forty-epoch 2 ms pair: about $1.50 expected\n- Expected combined path: about $2\n- Proposed hard ceiling across all registered candidates and final run: $10\n- Maximum concurrency: two pods, exactly one per cell\n- Backstops: one hour for short runs, two hours for final runs\n- All pods reaped immediately\n\nCurrent spend is $0. Smoke checkpoint: `135b82e`; PR #52 is updated.\n\nPlease authorize RunPod spending up to the $10 hard ceiling for exp070."
+    },
+    {
+      "timestamp": "2026-07-19 07:08:32.804 UTC",
+      "role": "assistant",
+      "content": "Paid compute remains gated pending your explicit authorization, so I won’t dispatch anything. I’ll use this continuation to harden exp070’s remaining registered paths, verify the pushed preview/checks, and ensure cost reconciliation and the eventual 40-epoch promotion cannot proceed with missing evidence."
+    },
+    {
+      "timestamp": "2026-07-19 07:08:46.471 UTC",
+      "role": "assistant",
+      "content": "PR #52 is still draft and unmerged; its preview is updating. The new lint check is red, so I’m using the GitHub CI-diagnosis workflow to verify whether exp070 introduced anything or whether this is the already-documented repository-wide type debt. I’ll only change files in scope if the logs point to exp070."
+    },
+    {
+      "timestamp": "2026-07-19 07:09:26.515 UTC",
+      "role": "assistant",
+      "content": "CI confirms exp070 adds no diagnostic: the lint failure is the same ten pre-existing `ty` errors in unchanged exp041/048/054/065 and their older tests. I’m not expanding scope to fix them. One in-scope hardening remains before dispatch: make short-result publication fail closed unless exact provider billing and zero active pods are recorded, and enforce the registered validation-rate saturation checks explicitly."
+    },
+    {
+      "timestamp": "2026-07-19 07:11:19.187 UTC",
+      "role": "assistant",
+      "content": "The hardening checks now pass: two focused promotion-gate tests verify that both cells must clear accuracy/loss criteria and that non-finite or saturated activity kills the candidate. Publication also fails immediately if the exact billing ledger or zero-pod confirmation is absent. I’m recording this CI/provenance checkpoint while the paid-compute gate remains closed."
+    }
+  ]
+}
