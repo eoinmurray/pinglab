@@ -120,4 +120,11 @@
   with validation-only outcomes so the already observed official test does not
   become an optimization target. The scientist approved this complete contract
   at 00:48:51 UTC. No exp069 runner, compute, result, or cost existed at approval.
+
+  === 2026-07-19 00:51 UTC: mandate anchor and night branch
+
+  The approved mandate and both reserved article identifiers were committed to
+  `main` at `3c440aa`. The dedicated night branch was created from that exact
+  anchor. At branch creation, exp069 spend remained 0 USD, no pod was active,
+  and the official SHD test remained outside the registered experiment scope.
 ]
