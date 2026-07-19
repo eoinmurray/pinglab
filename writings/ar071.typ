@@ -261,4 +261,230 @@ Deliverables:
 
   #message-card("assistant", "2026-07-19 01:43:23.094 UTC", "CP-004",
     [Both pods are now running at \$0.99/hour each, pinned to `b944ebf`; the first PING capacity request briefly found no stock, then the registered retry succeeded without creating an extra pod. Fleet count is exactly two, so the maximum four-hour exposure is \$7.92—inside the \$10 ceiling. I’m recording this dispatch milestone while the pods train.])
+
+  == Checkpoint CP-005
+
+  This collection-and-result checkpoint follows CP-004. Its immutable private
+  source has SHA-256 prefix `77c050cd9f2b`, and its checkpoint time is
+  `2026-07-19 04:12:10.443 UTC`. Provider identifiers, private paths, injected
+  context, tool payloads, and hidden reasoning are excluded.
+
+  === Scientific and compute ledger
+
+  + PING completed eighty epochs and selected epoch 79 at 48.04% validation
+    accuracy, +4.54 points over its registered 43.50% baseline. The +3-point
+    primary criterion is met.
+  + COBA completed eighty epochs and selected epoch 75 at 43.87%. The
+    contemporaneous PING–COBA difference is +4.17 points.
+  + Both cells have finite 80-epoch records, zero skipped/non-finite updates,
+    matched exp068 split hashes, active populations, and matched validation
+    raster inputs. The official SHD test was not accessed.
+  + Both pods self-terminated; collection verified zero active pods. Exact
+    billing reconciliation remains pending before publication.
+
+  === Visible messages added in CP-005
+
+  #message-card("assistant", "2026-07-19 01:44:46.210 UTC", "CP-005",
+    [Dispatch checkpoint `9b5007c` is pushed and PR #52 has timestamped smoke/compute comments. A small logging defect is visible in the second PR comment: its commit placeholder was posted literally because shell interpolation was intentionally suppressed; I’ll append a correction with `9b5007c` rather than edit history. The scientific run is unaffected.])
+
+  #message-card("assistant", "2026-07-19 01:46:01.047 UTC", "CP-005",
+    [Both cells remain active after provisioning and have not self-terminated early, so there is no immediate kill-condition signal. Current accrued exposure is still well below \$1; I’ll continue monitoring for independent completion and reap immediately if either backstop or failure state appears.])
+
+  #message-card("assistant", "2026-07-19 01:47:15.819 UTC", "CP-005",
+    [Exp069 is actively running.
+
+- Smoke passed for both COBA and PING.
+- Implementation/smoke commit: `b944ebf`
+- Dispatch checkpoint: `9b5007c`
+- Exactly two pods active, one per architecture.
+- Rate: \$0.99/hour each; worst-case exposure \$7.92.
+- Current spend remains below \$1.
+- Official SHD test remains inaccessible.
+- PR #52 has timestamped smoke and dispatch logs.
+
+Next: wait for completion, collect results, reap all pods, publish artifacts/reports, and finish at the review gate.])
+
+  #message-card("assistant", "2026-07-19 01:47:21.979 UTC", "CP-005",
+    [I’m resuming from the live dispatch checkpoint and checking the authoritative fleet/worktree state now. If the cells have finished, I’ll collect and reap immediately; otherwise I’ll continue bounded monitoring against the \$10 ceiling.])
+
+  #message-card("assistant", "2026-07-19 01:47:31.663 UTC", "CP-005",
+    [The worktree is clean and both registered cells are still running normally. At roughly four minutes after dispatch, accrued exposure is about \$0.13, leaving ample budget and backstop margin. I’ll monitor at sub-minute intervals; no duplicate compute will be started.])
+
+  #message-card("assistant", "2026-07-19 01:48:43.449 UTC", "CP-005",
+    [Both exp069 cells are still running normally.
+
+- Active pods: 2
+- Duplicate jobs: 0
+- Worktree: clean
+- Estimated accrued spend: approximately \$0.17
+- Hard ceiling: \$10
+- Four-hour backstops remain active
+
+Monitoring continues; collection, reaping, publication, and final validation remain pending.])
+
+  #message-card("assistant", "2026-07-19 01:48:49.611 UTC", "CP-005",
+    [I’m checking the existing monitor and provider state without starting anything new. If one cell has completed, I’ll keep the other under its registered backstop; when both are gone, collection and exact spend accounting start immediately.])
+
+  #message-card("assistant", "2026-07-19 01:49:03.227 UTC", "CP-005",
+    [Both cells remain active about six minutes after dispatch, with estimated combined exposure around \$0.20 and no early termination. Exp068’s 40-epoch cells took roughly 68 minutes each, so an 80-epoch completion near two hours is expected; the four-hour guards still leave substantial margin.])
+
+  #message-card("assistant", "2026-07-19 01:50:04.225 UTC", "CP-005",
+    [Both cells remain healthy and active.
+
+- Elapsed since dispatch: about 7 minutes
+- Estimated combined spend: about \$0.23
+- Active pods: 2
+- Worktree: clean
+- No duplicate compute or protocol change
+
+Expected runtime is roughly two hours based on exp068. Monitoring remains active under the four-hour/\$10 safeguards.])
+
+  #message-card("assistant", "2026-07-19 01:50:09.066 UTC", "CP-005",
+    [I’m querying the persistent monitor rather than creating another polling process. The current stage is expected waiting, not a blocker; safeguards remain the controlling condition.])
+
+  #message-card("assistant", "2026-07-19 01:50:52.418 UTC", "CP-005",
+    [Both registered cells remain active at 01:50:46 UTC.
+
+- Elapsed: about 8 minutes
+- Estimated combined spend: about \$0.27
+- Active pods: 2
+- Budget/backstops: intact
+- No duplicate jobs or protocol changes
+
+Collection and publication remain pending completion.])
+
+  #message-card("assistant", "2026-07-19 01:51:05.190 UTC", "CP-005",
+    [While compute runs, I’m using the wait productively: auditing the public activity trace against the immutable transcript. CP-003 currently compresses one long visible handoff prompt, which violates the explicit verbatim requirement; I’m correcting it now, with only the required private-path redaction. This does not touch the experiment.])
+
+  #message-card("assistant", "2026-07-19 01:52:31.076 UTC", "CP-005",
+    [The trace audit is corrected and pushed at `ccb8ad5`; the long handoff is now verbatim except for its explicitly marked private-path redaction, and the 37-entry build passes. Both compute cells remain active. I’m drafting the artifact-driven report structure next, leaving every result sourced from `numbers.json` once collection completes.])
+
+  #message-card("assistant", "2026-07-19 01:52:44.832 UTC", "CP-005",
+    [Progress during compute wait:
+
+- Corrected CP-003 to preserve the full visible handoff prompt verbatim, except its explicitly marked private-path redaction.
+- Rebuilt all 37 Demolab entries successfully.
+- Committed and pushed the correction as `ccb8ad5`.
+- Worktree is clean.
+- Both registered cells remain active.
+- Estimated combined spend at 01:52 UTC: about \$0.33.
+
+Collection, reaping, results, and publication remain pending cell completion.])
+
+  #message-card("assistant", "2026-07-19 01:52:49.984 UTC", "CP-005",
+    [I’m checking whether either self-terminating cell has completed. No new compute will be created; the next mutation remains collection/reaping only after the fleet changes.])
+
+  #message-card("assistant", "2026-07-19 01:53:56.517 UTC", "CP-005",
+    [Both cells remain active at 01:53:51 UTC.
+
+- Elapsed: about 11 minutes
+- Estimated combined spend: about \$0.36
+- Active pods: 2
+- Worktree: clean
+- Backstops and budget ceiling remain intact
+
+No intervention is warranted yet; collection waits for self-termination.])
+
+  #message-card("assistant", "2026-07-19 01:54:02.222 UTC", "CP-005",
+    [I’ll make one more bounded state check this cycle. The cells are still far inside their expected runtime, so absence of self-termination alone is not an anomaly.])
+
+  #message-card("assistant", "2026-07-19 01:55:04.149 UTC", "CP-005",
+    [Both cells remain active at 01:54:59 UTC.
+
+- Elapsed: about 12 minutes
+- Estimated combined spend: about \$0.40
+- Active pods: 2
+- No anomaly or intervention trigger
+- Budget and four-hour backstops remain intact
+
+Awaiting registered completion.])
+
+  #message-card("assistant", "2026-07-19 01:55:17.145 UTC", "CP-005",
+    [The run remains in its expected long-training window. I’m maintaining the existing two-pod fleet and will not infer scientific progress from billing state alone; only collected artifacts will determine success or failure.])
+
+  #message-card("assistant", "2026-07-19 01:56:18.894 UTC", "CP-005",
+    [Both cells remain active at 01:56:13 UTC.
+
+- Elapsed: about 13 minutes
+- Estimated combined spend: about \$0.44
+- Active pods: 2
+- Budget/backstops remain intact
+- No protocol intervention or duplicate compute
+
+Awaiting artifact-backed completion.])
+
+  #message-card("assistant", "2026-07-19 01:56:25.941 UTC", "CP-005",
+    [The scientific state is unchanged; I’m continuing bounded monitoring. Exact spend will be calculated from observed creation-to-termination intervals, not these interim estimates.])
+
+  #message-card("assistant", "2026-07-19 01:57:25.961 UTC", "CP-005",
+    [Both cells remain active at 01:57:21 UTC.
+
+- Elapsed: about 14 minutes
+- Estimated combined spend: about \$0.47
+- Active pods: 2
+- Safeguards remain intact
+- No scientific conclusion is being drawn before artifact collection
+
+Awaiting completion.])
+
+  #message-card("assistant", "2026-07-19 01:57:29.998 UTC", "CP-005",
+    [I’m continuing the registered wait. Since the expected duration is hours rather than minutes, interim fleet checks are only safety checks; they are not scientific evidence.])
+
+  #message-card("assistant", "2026-07-19 01:58:32.871 UTC", "CP-005",
+    [Both cells remain active at 01:58:26 UTC.
+
+- Elapsed: about 15 minutes
+- Estimated combined spend: about \$0.51
+- Active pods: 2
+- No safety or protocol trigger
+- Budget/backstops remain intact
+
+Awaiting artifact-backed completion.])
+
+  #message-card("assistant", "2026-07-19 01:58:43.328 UTC", "CP-005",
+    [I’m switching to a persistent bounded monitor so the same safe state is not re-polled manually each continuation. It will report only sanitized fleet counts, stop when zero pods remain, and never create or modify compute.])
+
+  #message-card("assistant", "2026-07-19 01:58:52.619 UTC", "CP-005",
+    [A persistent sanitized monitor is now active.
+
+- Active pods at start: 2
+- Poll interval: 50 seconds
+- Maximum monitoring window: bounded beyond the four-hour pod backstops
+- Mutations: none
+- It will stop automatically when the fleet reaches zero
+
+The next continuation can collect immediately once the monitor reports completion.])
+
+  #message-card("assistant", "2026-07-19 01:59:00.019 UTC", "CP-005",
+    [The persistent monitor is already running, so I’m reading its next update rather than issuing another provider poll.])
+
+  #message-card("assistant", "2026-07-19 02:01:12.635 UTC", "CP-005",
+    [The monitor confirms two active cells on consecutive checks. No fleet transition or safety trigger has occurred; I’m continuing the same monitor.])
+
+  #message-card("assistant", "2026-07-19 02:13:29.973 UTC", "CP-005",
+    [Ten minutes of sanitized monitoring show the fleet stable at two. This is still within expected training time and well inside the budget envelope; I’m continuing without intervention.])
+
+  #message-card("assistant", "2026-07-19 02:33:38.476 UTC", "CP-005",
+    [The fleet remains at two through roughly the first 45 minutes, matching the expected long epoch loop rather than an early failure. Estimated combined exposure is still under \$1.50.])
+
+  #message-card("assistant", "2026-07-19 02:53:50.129 UTC", "CP-005",
+    [At roughly one hour after dispatch, both cells are still active. Exp068 needed about 68 minutes for 40 epochs, so this remains consistent with the registered 80-epoch workload. No action is indicated.])
+
+  #message-card("assistant", "2026-07-19 03:24:01.077 UTC", "CP-005",
+    [The fleet remains stable through roughly 95 minutes, with estimated combined exposure around \$3.1. That is still below half the \$10 ceiling and before the expected doubled-duration completion window.])
+
+  #message-card("assistant", "2026-07-19 03:54:13.473 UTC", "CP-005",
+    [Both cells are still active near the two-hour mark. This is close to the linear runtime estimate from exp068 but not beyond the registered four-hour limit; I’m continuing without altering the run.])
+
+  #message-card("assistant", "2026-07-19 04:04:19.610 UTC", "CP-005",
+    [One cell has now self-terminated successfully enough to leave the fleet; one remains active under its original backstop. I’m not collecting early because the shared artifact set is incomplete, and I’m not inferring which scientific criterion passed until both raw outputs are collected and validated.])
+
+  #message-card("assistant", "2026-07-19 04:08:51.267 UTC", "CP-005",
+    [Both cells have now self-terminated and the active fleet is zero. I’m beginning collection immediately, then I’ll verify the raw completion/failure markers before constructing the exact cost ledger or publishing any result.])
+
+  #message-card("assistant", "2026-07-19 04:09:28.363 UTC", "CP-005",
+    [Collection contains both complete markers and no failure files. The primary result clears the registered threshold: PING selected 48.04% at epoch 79, a +4.54-point gain over 43.50%; COBA selected 43.87% at epoch 75. Both split hashes match exp068. I’m now validating all 80 epoch records and deriving the exact observed cost from lifecycle timestamps before publication.])
+
+  #message-card("assistant", "2026-07-19 04:12:10.443 UTC", "CP-005",
+    [The integrity gate passes: both cells have exactly 80 finite epoch records, zero skipped/non-finite updates, active selected populations, matched validation raster inputs, and zero active pods. I found one publication-only omission before generating artifacts—the registered diagnostics require COBA’s change from 40.81% and the contemporaneous PING–COBA gap in `numbers.json`. I’m adding those derived fields without changing any run or criterion.])
 ]

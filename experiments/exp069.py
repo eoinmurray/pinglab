@@ -69,6 +69,7 @@ RASTER_POSITIONS = (9, 39, 40)  # fixed validation indices from the registered s
 EXP068_TRAIN_HASH = "2fee22abaf3629ec1d10179847380b2829968d748fea60607b8f7bb2e3b1de71"
 EXP068_VALIDATION_HASH = "5b9f014ae3a4ab48b6586e7d014b8cdbd73b182c4c9cba2b9492ba203cd4ee3a"
 PING_BASELINE_PCT = 43.50
+COBA_BASELINE_PCT = 40.81
 PRIMARY_THRESHOLD_PP = 3.0
 SHD_DIR = Path("/tmp/shd")
 
@@ -704,6 +705,11 @@ def publish() -> None:
                 destination / "matched_rasters.npz",
             )
         delta = cells["ping"]["selection"]["accuracy_pct"] - PING_BASELINE_PCT
+        coba_delta = cells["coba"]["selection"]["accuracy_pct"] - COBA_BASELINE_PCT
+        architecture_gap = (
+            cells["ping"]["selection"]["accuracy_pct"]
+            - cells["coba"]["selection"]["accuracy_pct"]
+        )
         cell_payload: dict[str, Any] = {}
         for model in MODELS:
             training = cells[model]["training"]
@@ -731,6 +737,9 @@ def publish() -> None:
                 "baseline_accuracy_pct": PING_BASELINE_PCT,
                 "registered_threshold_pp": PRIMARY_THRESHOLD_PP,
                 "criterion_met": delta >= PRIMARY_THRESHOLD_PP,
+                "coba_change_from_exp068_pp": coba_delta,
+                "coba_baseline_accuracy_pct": COBA_BASELINE_PCT,
+                "ping_minus_coba_validation_pp": architecture_gap,
             },
             "cells": cell_payload,
             "split": {

@@ -1,0 +1,23 @@
+{
+  "active_pods_after_collection": 0,
+  "billing_method": "authoritative RunPod per-pod billing history after both self-terminated; provider amount and billed milliseconds recorded without pod identifiers",
+  "reconciled_at": "2026-07-19T05:00:58.574+00:00",
+  "cells": {
+    "coba": {
+      "gpu": "RTX 5090",
+      "hourly_rate_usd": 0.99,
+      "provider_billed_ms": 8472906,
+      "spend_usd": 2.3401185711845756,
+      "completed_at": "2026-07-19T04:08:38.797+00:00"
+    },
+    "ping": {
+      "gpu": "RTX 5090",
+      "hourly_rate_usd": 0.99,
+      "provider_billed_ms": 8282638,
+      "spend_usd": 2.2874476509168744,
+      "completed_at": "2026-07-19T04:01:12.927+00:00"
+    }
+  },
+  "currency": "USD",
+  "total_spend_usd": 4.62756622210145
+}
