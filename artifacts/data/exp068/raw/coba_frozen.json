@@ -1,0 +1,15 @@
+{
+  "model": "coba",
+  "started_at": "2026-07-18T23:16:41.341+00:00",
+  "frozen_at": "2026-07-19T00:25:09.688+00:00",
+  "checkpoint_sha256": "37e891616d2117cf9923146540aa351c55f744b3d5a5c260db34e1cd37a15b32",
+  "selection": {
+    "accuracy_pct": 40.80882352941177,
+    "cross_entropy": 2.337907864497258,
+    "epoch": 25,
+    "rule": "max validation accuracy; tie lower validation cross-entropy; tie earlier epoch",
+    "checkpoint": "epoch_025.pth"
+  },
+  "split_train_indices_sha256": "2fee22abaf3629ec1d10179847380b2829968d748fea60607b8f7bb2e3b1de71",
+  "split_validation_indices_sha256": "5b9f014ae3a4ab48b6586e7d014b8cdbd73b182c4c9cba2b9492ba203cd4ee3a"
+}
