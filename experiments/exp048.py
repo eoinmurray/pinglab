@@ -1003,7 +1003,7 @@ def plot_grid_and_rate(
         grid[i, j] = r["acc"]
 
     fig, (ax, curve_ax) = plt.subplots(
-        2, 1, figsize=(6.9, 7.1), gridspec_kw={"height_ratios": (1.15, 1)},
+        1, 2, figsize=(8.0, 3.5), gridspec_kw={"width_ratios": (1.15, 1)},
     )
     im = ax.imshow(
         grid, origin="lower", aspect="auto", cmap="magma",
@@ -1044,7 +1044,7 @@ def plot_grid_and_rate(
                      label=f"trained rate ({INPUT_RATE_HZ:g} Hz)")
     curve_ax.set(xlabel="Poisson encoding rate (Hz)", ylabel="P(correct) (%)",
                  xlim=(0, 50), ylim=(0, 101))
-    curve_ax.legend(frameon=False, ncol=2)
+    curve_ax.legend(frameon=False, fontsize=7, loc="lower right")
     ax.set_title("A   Duration–rate sweep", loc="left", fontweight="bold")
     curve_ax.set_title("B   Extended 200-ms rate slice", loc="left", fontweight="bold")
     fig.tight_layout()
