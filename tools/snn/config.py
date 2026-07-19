@@ -294,6 +294,8 @@ def build_net(
     dales_law=True,
     hidden_sizes=None,
     readout_mode="rate",
+    signed_readout=False,
+    readout_bias=False,
     trainable_w_ee=False,
     trainable_w_ei=False,
     trainable_w_ie=False,
@@ -316,6 +318,8 @@ def build_net(
     cls, base_kwargs = _MODEL_CLASSES[model_name]
     kwargs = {**base_kwargs}
     kwargs["readout_mode"] = readout_mode
+    kwargs["signed_readout"] = signed_readout
+    kwargs["readout_bias"] = readout_bias
 
     # Set module-level hidden sizes
     if hidden_sizes is not None:

@@ -214,6 +214,13 @@ def _apply_load_config(args, argv, config_to_args, dest_to_flag):
         elif isinstance(val, list):
             cfg["hidden_sizes"] = val
 
+    # Training artifacts have long stored this field as ``readout_mode`` while
+    # older simulation configs and the CLI mapping use ``readout``.  Normalise
+    # both spellings before applying the config so checkpoint replay cannot
+    # silently fall back to the argparse default (rate).
+    if "readout_mode" in cfg and "readout" not in cfg:
+        cfg["readout"] = cfg["readout_mode"]
+
     # Build set of flags explicitly passed on the CLI by the user.
     # We parse argv to find flags starting with '--' (ignore positional args, values, etc.)
     # This lets us determine which values in args came from the CLI vs. argparse defaults.
@@ -284,13 +291,40 @@ def _build_parent_parser():
     )
     net_group.add_argument(
         "--readout",
-        choices=["rate", "mem-mean"],
+        choices=["rate", "mem-mean", "cumulative-potential"],
         default="rate",
         dest="readout_mode",
         help="Output layer: 'rate' sums last-hidden spikes "
         "and projects linearly at the final timestep "
         "(default); 'mem-mean' averages a per-class output-LIF "
-        "membrane over time (the trained classification readout).",
+        "membrane over time; 'cumulative-potential' sums the per-step "
+        "softmax of a non-spiking leaky decoder membrane.",
+    )
+    net_group.add_argument(
+        "--signed-readout",
+        action="store_true",
+        default=False,
+        help="Allow signed weights only in the abstract final classifier; "
+        "the simulated input, feed-forward, and recurrent synapses remain "
+        "Dale-constrained.",
+    )
+    net_group.add_argument(
+        "--no-signed-readout",
+        dest="signed_readout",
+        action="store_false",
+        help="Keep the final classifier weights non-negative (default).",
+    )
+    net_group.add_argument(
+        "--readout-bias",
+        action="store_true",
+        default=False,
+        help="Enable a trainable signed bias in the final classifier.",
+    )
+    net_group.add_argument(
+        "--no-readout-bias",
+        dest="readout_bias",
+        action="store_false",
+        help="Disable the final classifier bias (default).",
     )
     net_group.add_argument(
         "--dales-law",
@@ -827,7 +861,8 @@ each subcommand's --help):
 
   Network        --model, --n-hidden, --ei-strength, --ei-ratio,
                  --ei-sparsity, --w-in-sparsity, --dt, --t-ms, --seed
-  Readout        --readout {rate,mem-mean}, --readout-w-out-scale,
+  Readout        --readout {rate,mem-mean,cumulative-potential},
+                 --signed-readout, --readout-bias, --readout-w-out-scale,
                  --dales-law, --no-dales-law
   Input          --input, --input-rate, --dataset, --digit, --sample
   Weights        --w-in, --w-ee, --w-ei, --w-ie, --w-ii
@@ -1297,6 +1332,8 @@ def _run_train(args, C, out_dir, log):
         seed=args.seed,
         readout_w_out_scale=args.readout_w_out_scale,
         readout_mode=args.readout_mode,
+        signed_readout=args.signed_readout,
+        readout_bias=args.readout_bias,
         tau_gaba=args.tau_gaba,
         fr_reg_upper_theta=args.fr_reg_upper_theta,
         fr_reg_upper_strength=args.fr_reg_upper_strength,
@@ -1342,6 +1379,9 @@ def _emit_infer(args, C, out_dir, log, snapshot_mode=False):
             perturb_mode=_pmode,
             perturb_level=_plevel,
             i_override_file=getattr(args, "i_override_file", None),
+            readout_mode=args.readout_mode,
+            signed_readout=args.signed_readout,
+            readout_bias=args.readout_bias,
         )
         return
 
@@ -1369,6 +1409,9 @@ def _emit_infer(args, C, out_dir, log, snapshot_mode=False):
         perturb_mode=_pmode,
         perturb_level=_plevel,
         i_override_file=getattr(args, "i_override_file", None),
+        readout_mode=args.readout_mode,
+        signed_readout=args.signed_readout,
+        readout_bias=args.readout_bias,
     )["acc"]
 
 
@@ -1395,6 +1438,8 @@ def _run_dump_weights(args, C, out_dir, log):
         dales_law=args.dales_law,
         seed=args.seed,
         readout_mode=getattr(args, "readout_mode", "rate"),
+        signed_readout=getattr(args, "signed_readout", False),
+        readout_bias=getattr(args, "readout_bias", False),
         trainable_w_ee=getattr(args, "trainable_w_ee", False),
         trainable_w_ei=getattr(args, "trainable_w_ei", False),
         trainable_w_ie=getattr(args, "trainable_w_ie", False),

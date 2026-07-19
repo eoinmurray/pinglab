@@ -1,6 +1,7 @@
 import models as M
 import pytest
 import torch
+import torch.nn.functional as F
 from config import build_net
 from torch import nn
 
@@ -140,6 +141,80 @@ class TestFeedforwardDalesClamp:
             "signed_weights=True should let negative W_ff entries change "
             "the forward output, but zero and -100 gave identical logits"
         )
+
+
+class TestCumulativePotentialReadout:
+    def _net(self, **kwargs):
+        return build_net(
+            "ping",
+            hidden_sizes=[32],
+            readout_mode="cumulative-potential",
+            signed_readout=True,
+            readout_bias=True,
+            **kwargs,
+        )
+
+    def test_matches_reference_recurrence_timestep_by_timestep(self):
+        """Recorded scores equal sum_t softmax(leaky potential_t)."""
+        M.T_steps = 4
+        M.T_ms = M.T_steps * M.dt
+        torch.manual_seed(7)
+        net = self._net()
+        net.recording = True
+        spikes = (torch.rand(M.T_steps, 2, M.N_IN) < 0.5).float()
+
+        result = net(input_spikes=spikes)
+        hidden = net.spike_record[net._hid_key(1)]
+        alpha_lo = torch.exp(torch.tensor(-M.dt / 5.0))
+        alpha_hi = torch.exp(torch.tensor(-M.dt / 25.0))
+        alpha = net.readout_alpha.clamp(min=alpha_lo, max=alpha_hi)
+        potential = torch.zeros(2, M.N_OUT)
+        evidence = torch.zeros(2, M.N_OUT)
+        expected = []
+        for t in range(M.T_steps):
+            drive = hidden[t] @ net.W_ff[-1] + net.b_out
+            potential = alpha * potential + (1.0 - alpha) * drive
+            evidence = evidence + F.softmax(potential, dim=1)
+            expected.append(evidence)
+        expected = torch.stack(expected)
+
+        assert torch.allclose(net.spike_record["out"], expected, atol=1e-6)
+        assert torch.allclose(result, expected[-1], atol=1e-6)
+        expected_mass = torch.arange(1, M.T_steps + 1, dtype=torch.float32)
+        expected_mass = expected_mass.unsqueeze(1).expand(-1, 2)
+        assert torch.allclose(expected.sum(dim=2), expected_mass, atol=1e-6)
+
+    def test_signed_decoder_is_exempt_from_dale_projection(self):
+        net = self._net()
+        with torch.no_grad():
+            net.W_ff[0].fill_(-1.0)
+            net.W_ff[-1].fill_(-1.0)
+            net.b_out.fill_(-1.0)
+        net.project_dales()
+
+        assert torch.all(net.W_ff[0] == 0)
+        assert torch.all(net.W_ff[-1] == -1)
+        assert torch.all(net.b_out == -1)
+
+    def test_decoder_parameters_receive_gradients(self):
+        M.T_steps = 4
+        M.T_ms = M.T_steps * M.dt
+        torch.manual_seed(11)
+        net = self._net()
+        logits = net(input_spikes=torch.ones(M.T_steps, 2, M.N_IN))
+        F.cross_entropy(logits, torch.tensor([0, 1])).backward()
+
+        for name, parameter in (
+            ("decoder weights", net.W_ff[-1]),
+            ("decoder bias", net.b_out),
+            ("decoder alpha", net.readout_alpha),
+        ):
+            assert parameter.grad is not None, f"missing {name} gradient"
+            assert torch.isfinite(parameter.grad).all(), f"non-finite {name} gradient"
+
+    def test_bias_rejected_for_legacy_readouts(self):
+        with pytest.raises(ValueError, match="only by the cumulative-potential"):
+            build_net("ping", hidden_sizes=[32], readout_mode="rate", readout_bias=True)
 
 
 class TestRecurrentDalesProjection:

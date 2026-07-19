@@ -150,6 +150,8 @@ def train(
     seed=None,
     readout_w_out_scale=1.0,
     readout_mode="rate",
+    signed_readout=False,
+    readout_bias=False,
     tau_gaba=None,
     fr_reg_upper_theta=0.0,
     fr_reg_upper_strength=0.0,
@@ -254,6 +256,8 @@ def train(
         dales_law=dales_law,
         hidden_sizes=hidden_sizes,
         readout_mode=readout_mode,
+        signed_readout=signed_readout,
+        readout_bias=readout_bias,
         trainable_w_ee=trainable_w_ee,
         trainable_w_ei=trainable_w_ei,
         trainable_w_ie=trainable_w_ie,
@@ -309,6 +313,23 @@ def train(
         "n_trainable": n_trainable,
         "dales_law": dales_law,
         "readout_mode": readout_mode,
+        "signed_readout": signed_readout,
+        "readout_bias": readout_bias,
+        "readout_reduction": (
+            M.CUMULATIVE_READOUT_REDUCTION
+            if readout_mode == "cumulative-potential"
+            else None
+        ),
+        "readout_tau_bounds_ms": (
+            list(M.CUMULATIVE_READOUT_TAU_BOUNDS_MS)
+            if readout_mode == "cumulative-potential"
+            else None
+        ),
+        "readout_reference": (
+            M.CUMULATIVE_READOUT_REFERENCE
+            if readout_mode == "cumulative-potential"
+            else None
+        ),
         "hidden_sizes": hidden_sizes,
         "trainable_w_ee": trainable_w_ee,
         "trainable_w_ei": trainable_w_ei,
@@ -823,6 +844,23 @@ def train(
             "fr_reg_upper_strength": fr_reg_upper_strength,
             "readout_w_out_scale": readout_w_out_scale,
             "readout_mode": readout_mode,
+            "signed_readout": signed_readout,
+            "readout_bias": readout_bias,
+            "readout_reduction": (
+                M.CUMULATIVE_READOUT_REDUCTION
+                if readout_mode == "cumulative-potential"
+                else None
+            ),
+            "readout_tau_bounds_ms": (
+                list(M.CUMULATIVE_READOUT_TAU_BOUNDS_MS)
+                if readout_mode == "cumulative-potential"
+                else None
+            ),
+            "readout_reference": (
+                M.CUMULATIVE_READOUT_REFERENCE
+                if readout_mode == "cumulative-potential"
+                else None
+            ),
             "dales_law": dales_law,
             "trainable_w_ee": trainable_w_ee,
             "trainable_w_ei": trainable_w_ei,
@@ -906,4 +944,3 @@ def train(
         warnings=wtracker.summary_lines(),
     )
     return best_acc
-
