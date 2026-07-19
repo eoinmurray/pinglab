@@ -7,6 +7,7 @@ import numpy as np
 def _load_exp049():
     path = Path(__file__).resolve().parents[1] / "exp049.py"
     spec = importlib.util.spec_from_file_location("exp049", path)
+    assert spec is not None
     module = importlib.util.module_from_spec(spec)
     assert spec.loader is not None
     spec.loader.exec_module(module)

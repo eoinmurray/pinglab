@@ -632,7 +632,7 @@ def dump_plot_cache(rows: list[dict], raster_samples: list[dict]) -> None:
         arrays[f"e{k}"] = s["e"]
         arrays[f"i{k}"] = s["i"]
         meta.append({kk: vv for kk, vv in s.items() if kk not in ("e", "i")})
-    np.savez_compressed(cdir / "raster.npz", **arrays)
+    np.savez_compressed(cdir / "raster.npz", **arrays)  # ty: ignore[invalid-argument-type]
     (cdir / "raster_meta.json").write_text(json.dumps(meta))
     print(f"[cache] wrote {cdir}/{{rows.json,raster.npz,raster_meta.json}}")
 
