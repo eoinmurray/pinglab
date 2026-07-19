@@ -1,0 +1,52 @@
+{
+  "checkpoint_id": "cp001",
+  "session_id": "exp071-continuation-redacted",
+  "checkpoint_time_utc": "2026-07-19T11:18:05.855Z",
+  "sanitized_sha256_prefix": "c122d4182c3d",
+  "predecessor_checkpoint_id": null,
+  "sanitization": {
+    "policy": "fail-closed publishable transcript: hidden reasoning and tool payloads are excluded; credentials, tokens, SSH material, IP addresses, private local paths, environment values, and sensitive infrastructure details are redacted or omitted.",
+    "private_raw_transcript": "not committed",
+    "uncertainty": "low; retained messages contain no credentials or sensitive infrastructure detail"
+  },
+  "ledger": [
+    "The experiment is registered as exp071 on branch night/spiking-heidelberg-digits/ar071 from main merge commit 9527162d7a0ef80deac0e3f606ce513b9280ba6c.",
+    "Candidate one is fixed before results as the baseline 256-cell architecture with cumulative-potential readout, signed abstract classifier weights, and readout bias.",
+    "The old membrane-readout initialisation scale of 225 is not carried into the cumulative decoder; readout scale is one for the new decoder, matched across COBA and PING.",
+    "Candidate two is conditional on candidate-one viability and keeps the same readout while using two 256-cell hidden layers.",
+    "Selection remains one-seed and validation-only on the exp069/exp070 split. The official SHD test remains unavailable to the runner.",
+    "No RunPod pod has been created in this checkpoint and spend remains 0 USD."
+  ],
+  "messages": [
+    {
+      "timestamp": "2026-07-19T11:18:05.855Z",
+      "role": "user",
+      "content": "<codex_internal_context source=\"goal\"> Continue working toward the active thread goal: design and execute the next exploratory SHD experiment on branch night/spiking-heidelberg-digits/ar071 using the newly merged cumulative-potential readout additions, with one seed, validation-only selection, local short runs before any promoted forty-epoch run, no official test use, explicit RunPod approval before spending, focused checks, artifacts under artifacts/data/exp071, writings/exp071.typ, timestamped activity checkpoints, commits, push, PR update, and no merge. </codex_internal_context>"
+    },
+    {
+      "timestamp": "2026-07-19T11:18:05.855Z",
+      "role": "assistant",
+      "content": "I’ll pick this up from the actual repo state, keep the dirty article-consolidation work isolated, and start by setting up the exp071 branch/work area cleanly. First I’m running the lab manual hook, then I’ll inspect what’s already in place."
+    },
+    {
+      "timestamp": "2026-07-19T11:18:05.855Z",
+      "role": "assistant",
+      "content": "Because this goal includes opening/updating a PR, I’m using the GitHub workflow skill now; it’ll keep the GitHub side tidy and bounded."
+    },
+    {
+      "timestamp": "2026-07-19T11:18:05.855Z",
+      "role": "assistant",
+      "content": "The main checkout has the older article-consolidation changes restored and dirty, so I’m not touching it. I’m making a separate Git worktree for night/spiking-heidelberg-digits/ar071; that gives exp071 a clean branch without risking those staged/unstaged edits."
+    },
+    {
+      "timestamp": "2026-07-19T11:18:05.855Z",
+      "role": "assistant",
+      "content": "I’ve got the design shape now: exp071 can inherit exp069’s split, selection, validation-only test seal, rasters, and RunPod plumbing, while overriding only the candidate-specific readout/hidden sizes/epochs. I’m going to add the initial scaffold plus a pre-result artifact so the report builds before paid compute."
+    },
+    {
+      "timestamp": "2026-07-19T11:18:05.855Z",
+      "role": "assistant",
+      "content": "One design decision I’m making explicit before results: candidate 1 uses the cumulative decoder with --signed-readout --readout-bias and a readout init scale of 1.0, not the old membrane-readout scale of 225. That scale was specific to the previous output-LIF membrane recipe; keeping it would be an unregistered hybrid rather than the clean new readout test. COBA/PING remain matched within each candidate."
+    }
+  ]
+}
