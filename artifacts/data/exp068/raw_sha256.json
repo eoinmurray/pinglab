@@ -1,0 +1,22 @@
+{
+  "raw/coba/checkpoint_selection.json": "1c4e5c3d2b883bf0c527d3f84ce941ce1be925030bc2648f2a8799405337c179",
+  "raw/coba/config.json": "4ed932f7c517a62feea0e316fa11f9284d79a95cebf5c231d6b183de1b3b825f",
+  "raw/coba/matched_rasters.npz": "4f0d13b78620cbaf6d8b5b7500151dc40113340cc072072268d838bedfa8516a",
+  "raw/coba/metrics.json": "f4c2d859dc8c23574595c672403868113ad1fbb3c1168e12d0a1fbcc340d892f",
+  "raw/coba/metrics.jsonl": "7a15aafe35c1626b7ac908012e967546a1a04537356dd316c59e6f22313c923c",
+  "raw/coba/official_matched_input.npz": "c89d4212144f66799f5115fea4ef7836202f15a0f1bd40deb06fdd15f939f06a",
+  "raw/coba/official_metrics.json": "55098600645de747ebbf4128f7cdfe0228f3596ffa6f8d9626117e8ad4846954",
+  "raw/coba/official_predictions.json": "252c888c0792a298a9458cc6721ac2f2fa56264c1f5dc980649cec264a2fce1b",
+  "raw/coba_frozen.json": "04d3af1ae7546f7e692ee236c0a5454dba725f999d32cc414ae414f2faff2256",
+  "raw/compute_ledger.json": "d788310797e4d9f39676cf24f58fbabcb47773aa8929722b289b7c6e1b12104e",
+  "raw/ping/checkpoint_selection.json": "ed66aa195780de3158a67c1f3a32e5c6ec67208c29063a3c11676362d0131432",
+  "raw/ping/config.json": "5f3fb3dbf4e9615fcb0018c0d1704300f4c5711b162f91900bc0ef1a038b8f11",
+  "raw/ping/matched_rasters.npz": "4525235bf31f9949b7ba091662a29511b9a3f4ef634012a3a4eb296414695487",
+  "raw/ping/metrics.json": "f32ad7df272ced2214edc5b1ae3661e3b9c0a467352737cdde5825dce7770884",
+  "raw/ping/metrics.jsonl": "a350bcf1fc9c72345dbebccd63f16b19e5e1512de058b5ae56cd44cd90d64b44",
+  "raw/ping/official_matched_input.npz": "c89d4212144f66799f5115fea4ef7836202f15a0f1bd40deb06fdd15f939f06a",
+  "raw/ping/official_metrics.json": "b53c5d19deef98aeed7a5b37cd1add49db8eaa570b243417b8509b8d270bbc81",
+  "raw/ping/official_predictions.json": "35be1a4759fd68f7baf7d6d2ea16390d4e98f3418a68063776105b94c42a0322",
+  "raw/ping_frozen.json": "f2cdf052c9c00d0cdd666535b4926b999595efb06af4b3050cd89257770cdba8",
+  "raw/smoke_summary.json": "e61c5cba73a977f44bc546298cfbd40d9389f792d734ccaf3241fdf388442cf4"
+}
