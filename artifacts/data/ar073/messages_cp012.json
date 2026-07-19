@@ -1,0 +1,15 @@
+{
+  "session_id": "019f76ab-932b-72c2-b163-463ead65d8d5",
+  "checkpoint_id": "CP-012",
+  "messages": [
+    {"timestamp": "2026-07-19 08:19:53.646 UTC", "role": "assistant", "content": "Candidate 3 remains exactly two pods at 08:19:37 UTC, about three minutes after dispatch. No duplicate work is present; estimated combined exposure is under $0.12 and the one-hour guards remain intact."},
+    {"timestamp": "2026-07-19 08:22:29.546 UTC", "role": "assistant", "content": "Both final short jobs remain active at 08:21:41 UTC, about five minutes after dispatch. The fleet is unchanged at two and combined exposure is approximately $0.18."},
+    {"timestamp": "2026-07-19 08:24:28.746 UTC", "role": "assistant", "content": "At 08:23:44 UTC the pair is still exactly two pods, about seven and a half minutes after dispatch. This remains within the expected 1 ms runtime; estimated combined exposure is about $0.25."},
+    {"timestamp": "2026-07-19 08:26:15.724 UTC", "role": "assistant", "content": "Both jobs remain active at 08:25:48 UTC, about nine and a half minutes after dispatch, with no fleet anomaly. Combined exposure is roughly $0.31."},
+    {"timestamp": "2026-07-19 08:28:00.827 UTC", "role": "assistant", "content": "PING self-terminated by 08:27:52 UTC; COBA is the only remaining pod. The fleet has dropped to one normally, so only $0.99/hour is accruing while COBA completes."},
+    {"timestamp": "2026-07-19 08:30:28.548 UTC", "role": "assistant", "content": "COBA remains the sole active job at 08:29:55 UTC, about fourteen minutes after dispatch. Total candidate-3 exposure is approximately $0.46 so far, still comfortably bounded."},
+    {"timestamp": "2026-07-19 08:31:34.627 UTC", "role": "assistant", "content": "COBA self-terminated by 08:31:28 UTC and the fleet is zero. The final short pair took about fifteen minutes wall-clock, with estimated spend around $0.50 pending billing. I’m collecting now; if either cell misses the locked gate, the ladder ends with no forty-epoch run."},
+    {"timestamp": "2026-07-19 08:32:28.480 UTC", "role": "assistant", "content": "Candidate 3 is killed, so the preregistered ladder ends and no forty-epoch run is allowed. COBA falls 1.84 pp to 26.10% with CE 0.0137 worse. PING improves 1.59 pp to 34.19% and CE improves by 0.1148, but still misses the required +3 pp; both cells had to pass. All three candidates therefore fail the shared promotion rule cleanly."},
+    {"timestamp": "2026-07-19 08:34:04.678 UTC", "role": "assistant", "content": "The ladder’s scientific outcome is now fixed: all three candidates are killed, so the forty-epoch stage is prohibited. Candidate 1’s authoritative billing has arrived at exactly $0.251047; candidates 2 and 3 are still pending provider settlement. I’ve published candidate 1’s full raw outputs and am extending the artifact layout so every killed attempt retains its own curves, activity diagnostics, and matched rasters in the final report."}
+  ]
+}

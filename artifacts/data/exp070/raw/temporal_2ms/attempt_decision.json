@@ -1,0 +1,38 @@
+{
+  "result_status": "killed",
+  "attempt": "temporal_2ms",
+  "cells": {
+    "coba": {
+      "epoch": 5,
+      "validation_accuracy_pct": 23.529411764705884,
+      "validation_cross_entropy": 2.6777606193835917,
+      "validation_e_rate_hz": 14.224446614583334,
+      "validation_i_rate_hz": 0.0,
+      "gradient_norm": 96.29752014823582,
+      "saturation_threshold_hz": 475.0,
+      "skipped_steps": 0,
+      "nan_forward_batches": 0,
+      "exp069_epoch_five_accuracy_pct": 27.941176470588236,
+      "exp069_epoch_five_cross_entropy": 2.472071592624371,
+      "accuracy_gain_pp": -4.4117647058823515,
+      "cross_entropy_change": 0.20568902675922063,
+      "clears_promotion_gate": false
+    },
+    "ping": {
+      "epoch": 5,
+      "validation_accuracy_pct": 27.69607843137255,
+      "validation_cross_entropy": 2.592463099039518,
+      "validation_e_rate_hz": 6.612462660845588,
+      "validation_i_rate_hz": 29.10665594362745,
+      "gradient_norm": 0.2127902693722559,
+      "saturation_threshold_hz": 475.0,
+      "skipped_steps": 0,
+      "nan_forward_batches": 0,
+      "exp069_epoch_five_accuracy_pct": 32.59803921568628,
+      "exp069_epoch_five_cross_entropy": 2.444715765806345,
+      "accuracy_gain_pp": -4.901960784313729,
+      "cross_entropy_change": 0.1477473332331729,
+      "clears_promotion_gate": false
+    }
+  }
+}

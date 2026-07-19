@@ -14,7 +14,7 @@
       baseline: "exp069, seed 42, on the identical 7,340-utterance development-training and 816-utterance validation partition. Comparisons use exp069 at epoch five, its selected checkpoint through epoch forty, and its final eighty-epoch selected checkpoint; the official SHD test is unavailable.",
       seeds: 1,
       budget: "One local 128-training/128-validation two-epoch smoke per implemented candidate; at most three matched five-epoch full-data candidate pairs; then at most one matched forty-epoch promoted pair. Paid compute is forbidden until a runtime and cost estimate receives fresh authorization.",
-      status: "running",
+      status: "killed",
       origin: "human",
     ),
   ),
@@ -23,7 +23,7 @@
 #let prior = json("/artifacts/data/exp069/numbers.json")
 #let prior-c = json("/artifacts/data/exp069/raw/coba/metrics.json")
 #let prior-p = json("/artifacts/data/exp069/raw/ping/metrics.json")
-#let smoke = json("/artifacts/data/exp070/smoke_summary.json")
+#let smoke = json("/artifacts/data/exp070/raw/temporal_2ms/smoke_summary.json")
 
 #let first-five(run) = run.epochs.at(4)
 #let best-through-forty(run) = run.epochs.slice(0, 40).fold(
@@ -42,12 +42,14 @@
 #let body = [
   == Digest
 
-  *The experiment is registered but has not started.* The exp069 evidence
-  indicates that adding epochs is too slow for iteration and does not identify
-  the limiting mechanism. This night therefore uses a short, ordered
-  intervention ladder. It promotes the first candidate that improves both
-  cells, freezes that configuration, and tests it for forty epochs. No official
-  SHD test data may be loaded or inspected.
+  *All three registered candidates are killed; no forty-epoch run is allowed.*
+  Temporal coarsening harms both cells. Stronger shared input improves PING by
+  only 1.10 points and does not improve COBA, with slightly worse losses. A
+  higher learning rate improves PING by 1.59 points and lowers its loss, but
+  reduces COBA by 1.84 points. No candidate clears the joint +3-point,
+  non-worse-loss gate. All runs are finite and active, the official SHD test
+  remains sealed, and exact cumulative billing awaits provider settlement for
+  the two later pairs.
 
   == Mandate
 
@@ -313,4 +315,19 @@
   those two pods. Even using the one-hour maxima for all three short pairs, the
   cumulative hard exposure is 5.94 USD under the authorized 10 USD ceiling.
   Result and exact billing remain pending.
+
+  === 2026-07-19 08:31–08:38 UTC: candidate 3 killed; ladder stops
+
+  Both pods self-terminated, the active fleet returned to zero, and the complete
+  records were collected before evaluation. COBA reached 26.10% at epoch five,
+  1.84 points below exp069, with cross-entropy 2.486 (+0.0137). PING reached
+  34.19%, 1.59 points above exp069, with cross-entropy 2.330 (-0.1148). Both
+  cells were finite and active with no skipped or non-finite updates.
+
+  PING's optimization response is directionally useful, but it misses the
+  locked +3-point threshold and COBA moves oppositely. Candidate 3 is therefore
+  killed. Since every registered short candidate is killed, the protocol stops
+  here and forbids a forty-epoch run. Candidate 1's authoritative provider
+  charge has settled at 0.251047 USD; charges for candidates 2 and 3 remain
+  pending and will be reconciled before final review.
 ]
