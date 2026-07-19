@@ -1,9 +1,10 @@
 """Registered exp070 exploratory ladder for matched COBA and PING cells.
 
 This runner reuses exp069's validated split, checkpoint-selection, training,
-diagnostic, raster, and RunPod plumbing. Candidate 1 (2 ms) was killed. The
-default is now registered candidate 2: restore 1 ms and change only the shared
-input-weight mean from 0.9 to 1.2. The official SHD test has no route here.
+diagnostic, raster, and RunPod plumbing. Candidates 1 (2 ms) and 2 (shared
+input mean 1.2) were killed. The default is now registered candidate 3:
+restore the 1 ms/input-mean-0.9 baseline and change only the matched Adam
+learning rate from 0.0004 to 0.001. The official SHD test has no route here.
 
 Default execution is the local 128/128, two-epoch smoke.  Cloud execution needs
 the explicit ``--runpod --live`` spending gate. A registered attempt can be
@@ -43,20 +44,29 @@ ATTEMPT_SPECS: dict[str, dict[str, float | str]] = {
     "temporal_2ms": {
         "dt_ms": 2.0,
         "input_weight_mean": 0.9,
+        "learning_rate": 0.0004,
         "pod_label": "2ms",
     },
     "input_scale_1p2": {
         "dt_ms": 1.0,
         "input_weight_mean": 1.2,
+        "learning_rate": 0.0004,
         "pod_label": "input-1p2",
     },
+    "learning_rate_1e3": {
+        "dt_ms": 1.0,
+        "input_weight_mean": 0.9,
+        "learning_rate": 0.001,
+        "pod_label": "lr-1e3",
+    },
 }
-ATTEMPT = os.environ.get("EXP070_ATTEMPT", "input_scale_1p2")
+ATTEMPT = os.environ.get("EXP070_ATTEMPT", "learning_rate_1e3")
 if ATTEMPT not in ATTEMPT_SPECS:
     raise RuntimeError(f"unregistered exp070 attempt: {ATTEMPT}")
 ATTEMPT_SPEC = ATTEMPT_SPECS[ATTEMPT]
 DT_MS = float(ATTEMPT_SPEC["dt_ms"])
 INPUT_SCALE = float(ATTEMPT_SPEC["input_weight_mean"])
+LEARNING_RATE = float(ATTEMPT_SPEC["learning_rate"])
 POD_LABEL = str(ATTEMPT_SPEC["pod_label"])
 
 ARTIFACTS, FIGURES = artifacts_and_figures(SLUG)
@@ -88,6 +98,7 @@ def configure_baseline() -> None:
     baseline.__dict__["EPOCHS"] = SHORT_EPOCHS
     baseline.DT_MS = DT_MS
     baseline.INPUT_SCALE = INPUT_SCALE
+    baseline.LEARNING_RATE = LEARNING_RATE
     baseline.SCALE = {
         **baseline.SCALE,
         "experiment": SLUG,
@@ -95,6 +106,7 @@ def configure_baseline() -> None:
         "epochs": SHORT_EPOCHS,
         "dt_ms": DT_MS,
         "input_weight_mean": INPUT_SCALE,
+        "learning_rate": LEARNING_RATE,
     }
     # The engine historically resolves SHD through a module-level directory.
     # Redirect it to exp070's staged development-only alias.  This prevents the
@@ -173,6 +185,7 @@ def run_smoke() -> None:
     summary["attempt"] = ATTEMPT
     summary["candidate_dt_ms"] = DT_MS
     summary["candidate_input_weight_mean"] = INPUT_SCALE
+    summary["candidate_learning_rate"] = LEARNING_RATE
     summary["input_audit"] = input_audit()
     baseline.atomic_json(summary_path, summary)
 

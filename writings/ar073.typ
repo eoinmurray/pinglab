@@ -16,6 +16,7 @@
 #let trace-seven = json("/artifacts/data/ar073/messages_cp007.json")
 #let trace-eight = json("/artifacts/data/ar073/messages_cp008.json")
 #let trace-nine = json("/artifacts/data/ar073/messages_cp009.json")
+#let trace-ten = json("/artifacts/data/ar073/messages_cp010.json")
 
 #let verbatim-prose(value) = {
   for (index, line) in value.split("\n").enumerate() {
@@ -281,4 +282,27 @@
   === Visible messages added in CP-009
 
   #for message in trace-nine.messages { message-card(message, trace-nine) }
+
+  == Checkpoint CP-010
+
+  *The final registered short candidate passes its local smoke gate.* This
+  checkpoint follows the candidate-2 kill commit `3ac37b4`. Its immutable
+  private source has SHA-256 prefix `1035934cfc77`, and its checkpoint time is
+  `2026-07-19 08:14:25.022 UTC`.
+
+  === Decision and action ledger
+
+  + Candidate 3 restores the baseline 1 ms temporal resolution and shared input
+    mean 0.9, changing only the matched Adam learning rate to 0.001.
+  + Focused Ruff, type, compile, and promotion-gate tests pass. `tools/snn` is
+    unchanged and no candidates are combined.
+  + Both 128/128 two-epoch smoke cells pass with finite activity and no skipped
+    updates. COBA ends at 26.13 Hz E; PING at 3.36 Hz E and 19.00 Hz I.
+  + Exact split hashes are retained, the staged alias has no official-test
+    file, and the cloud dry run creates no pod while resolving to one job per
+    cell. Paid dispatch remains pending this checkpoint.
+
+  === Visible messages added in CP-010
+
+  #for message in trace-ten.messages { message-card(message, trace-ten) }
 ]

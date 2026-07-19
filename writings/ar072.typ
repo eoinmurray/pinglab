@@ -290,4 +290,18 @@
   clean scientific kill. Candidate 3—the isolated matched learning-rate change
   from 0.0004 to 0.001—is the only remaining registered short attempt. Exact
   provider billing remains delayed; the publication gate stays closed.
+
+  === 2026-07-19 08:08–08:14 UTC: candidate-3 smoke gate
+
+  The final registered short candidate restores the baseline 1 ms resolution
+  and input mean 0.9, changing only the matched Adam learning rate from 0.0004
+  to 0.001. It does not combine either killed intervention. Focused Ruff, type,
+  compile, and promotion-gate tests pass without a `tools/snn` change.
+
+  The required local 128-training/128-validation, two-epoch smoke passed in
+  both cells with exact split hashes, finite losses and gradients, and no
+  skipped updates. COBA ended at 26.13 Hz E; PING ended at 3.36 Hz E and
+  19.00 Hz I. The development-only alias contained no official-test file. A
+  dry run created no pod and resolved to exactly one job per cell. Candidate-3
+  paid dispatch remains pending this checkpoint.
 ]
