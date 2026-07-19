@@ -1,0 +1,140 @@
+{
+  "result_status": "done",
+  "stage": "short",
+  "attempt": "cumulative_baseline",
+  "attempt_order": [
+    "cumulative_baseline",
+    "cumulative_256_256"
+  ],
+  "seed": 42,
+  "cells": {
+    "coba": {
+      "selected_epoch": 8,
+      "selected_validation_accuracy_pct": 60.049019607843135,
+      "selected_validation_cross_entropy": 1.5872331674282367,
+      "selected_validation_e_rate_hz": 28.346392463235293,
+      "selected_validation_i_rate_hz": 0.0,
+      "final_validation_accuracy_pct": 60.049019607843135,
+      "final_validation_cross_entropy": 1.5872331674282367,
+      "final_validation_e_rate_hz": 28.346392463235293,
+      "final_validation_i_rate_hz": 0.0,
+      "gradient_norm": 250.31386108398436,
+      "finite": true,
+      "active": true,
+      "clean": true,
+      "training_elapsed_s": 798.0612538978457,
+      "training_peak_gpu_memory_bytes": 477028864
+    },
+    "ping": {
+      "selected_epoch": 8,
+      "selected_validation_accuracy_pct": 57.96568627450981,
+      "selected_validation_cross_entropy": 1.4047367160136883,
+      "selected_validation_e_rate_hz": 7.494308172487745,
+      "selected_validation_i_rate_hz": 36.273169424019606,
+      "final_validation_accuracy_pct": 57.96568627450981,
+      "final_validation_cross_entropy": 1.4047367160136883,
+      "final_validation_e_rate_hz": 7.494308172487745,
+      "final_validation_i_rate_hz": 36.273169424019606,
+      "gradient_norm": 7.58960394030032,
+      "finite": true,
+      "active": true,
+      "clean": true,
+      "training_elapsed_s": 847.8598483029928,
+      "training_peak_gpu_memory_bytes": 477028864
+    }
+  },
+  "split": {
+    "development_train_count": 7340,
+    "validation_count": 816,
+    "train_indices_sha256": "2fee22abaf3629ec1d10179847380b2829968d748fea60607b8f7bb2e3b1de71",
+    "validation_indices_sha256": "5b9f014ae3a4ab48b6586e7d014b8cdbd73b182c4c9cba2b9492ba203cd4ee3a"
+  },
+  "config": {
+    "seed": 42,
+    "epochs": 8,
+    "validation_fraction": 0.1,
+    "models": [
+      "coba",
+      "ping"
+    ],
+    "n_hidden": 256,
+    "n_inhibitory": 64,
+    "batch_size": 32,
+    "learning_rate": 0.0004,
+    "input_weight_mean": 0.9,
+    "input_sparsity": 0.95,
+    "readout_scale": 1.0,
+    "readout": "cumulative-potential",
+    "dt_ms": 1.0,
+    "t_ms": 1000.0,
+    "raster_positions": [
+      9,
+      39,
+      40
+    ],
+    "recipes": {
+      "coba": {
+        "ei_strength": 0.0,
+        "v_grad_dampen": 1.0
+      },
+      "ping": {
+        "ei_strength": 1.0,
+        "v_grad_dampen": 1000.0
+      }
+    },
+    "experiment": "exp071",
+    "attempt": "cumulative_baseline",
+    "stage": "short",
+    "hidden_sizes": [
+      256
+    ],
+    "signed_readout": true,
+    "readout_bias": true
+  },
+  "integrity": {
+    "official_test_access": "forbidden and absent from runner",
+    "matched_partitions": true,
+    "matched_raster_inputs": true,
+    "selection_rule": "max validation accuracy; tie lower validation cross-entropy; tie earlier epoch"
+  },
+  "runpod": {
+    "created_at_utc": "2026-07-19T12:27:06.571Z",
+    "exact_provider_billing": false,
+    "billing_status": "timestamp_estimate_pending_provider_reconciliation",
+    "total_spend_usd": 0.77,
+    "active_pods_after_collection": 0,
+    "currency": "USD",
+    "estimate_basis": "Manual timestamp estimate from RunPod create/stop/self-termination observation windows at 0.99 USD/hour; exact per-pod billing endpoint returned no rows at publication time.",
+    "attempts": {
+      "cloud-coba-001": {
+        "kind": "killed_monitoring_attempt",
+        "estimated_spend_usd": 0.102025
+      },
+      "cloud-coba-002": {
+        "kind": "killed_startup_attempt",
+        "estimated_spend_usd": 0.047029
+      },
+      "cloud-coba-003": {
+        "kind": "completed_short_training_and_collection",
+        "estimated_spend_usd": 0.31
+      },
+      "collector-coba": {
+        "kind": "completed_collection",
+        "estimated_spend_usd": 0.04
+      },
+      "cloud-ping-001": {
+        "kind": "completed_short_training_and_collection",
+        "estimated_spend_usd": 0.25
+      },
+      "collector-ping": {
+        "kind": "completed_collection",
+        "estimated_spend_usd": 0.02
+      }
+    }
+  },
+  "spend": {
+    "total_spend_usd": 0.77,
+    "exact_provider_billing": false,
+    "status": "timestamp_estimate_pending_provider_reconciliation"
+  }
+}
