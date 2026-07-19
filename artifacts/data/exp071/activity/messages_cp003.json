@@ -1,0 +1,81 @@
+{
+  "checkpoint_id": "cp003",
+  "session_id": "exp071-continuation-redacted",
+  "checkpoint_time_utc": "2026-07-19T11:46:40.467Z",
+  "sanitized_sha256_prefix": "cdf7fc938e98",
+  "predecessor_checkpoint_id": "cp002",
+  "sanitization": {
+    "policy": "fail-closed publishable transcript: hidden reasoning and tool payloads are excluded; credentials, tokens, SSH material, IP addresses, private local paths, environment values, and sensitive infrastructure details are redacted or omitted.",
+    "private_raw_transcript": "not committed",
+    "uncertainty": "medium; raw provider status output contained secrets and infrastructure identifiers, so only a sanitized event ledger is published"
+  },
+  "ledger": [
+    "The scientist explicitly authorized paid RunPod compute for exp071 after the local smoke gate.",
+    "Before live dispatch, exp071 was patched to honor --only-cells so the registered one-pod-at-a-time constraint can be enforced.",
+    "Focused validation passed after that patch: Ruff, Python compilation, exp071-only ty, and a COBA-only RunPod dry-run that planned exactly one pod.",
+    "Commit 11b0cdb7a7e1dc01b8aa3d3af7a41bdfe90d1f2b was pushed before live dispatch so pods would fetch a pinned committed SHA.",
+    "Two COBA-only live cloud attempts were started and then killed as infrastructure/monitoring attempts before any artifact was collected. These are not scientific COBA training failures.",
+    "The first attempt was stopped after remaining provider-running without collected artifacts; the manual SSH probe used the wrong local key, so the attempt is recorded as a monitoring/cloud-plumbing kill.",
+    "The second attempt used the corrected monitoring assumption but the provider SSH endpoint stayed not-ready during the observation window; it was stopped and deleted as a startup kill.",
+    "The active pod list was empty after reaping.",
+    "Exact provider billing for these short pod IDs had not reconciled at checkpoint time. Timestamp-based estimated exposure is 0.149054 USD total at 0.99 USD/hour. Exact spend remains pending.",
+    "No PING pod was started, preserving one pod at a time. Pending work is to fix or work around the cloud startup/observability issue before any further live screening."
+  ],
+  "messages": [
+    {
+      "timestamp": "2026-07-19T11:46:40.467Z",
+      "role": "user",
+      "content": "you have permission"
+    },
+    {
+      "timestamp": "2026-07-19T11:46:40.467Z",
+      "role": "assistant",
+      "content": "Got it — I’ll treat that as explicit permission to start paid RunPod compute for the next registered short-screening step. I’ll still enforce the experiment’s one-pod-at-a-time constraint, so first I’m checking whether the current runner can dispatch only COBA or whether I need a tiny orchestration fix before spending."
+    },
+    {
+      "timestamp": "2026-07-19T11:46:40.467Z",
+      "role": "assistant",
+      "content": "Good catch from CI: exp071 added several ty diagnostics of its own, alongside the known old repo-wide ones. I’m fixing only the exp071-scoped issues and adding --only-cells support so live dispatch can obey the one-pod-at-a-time constraint."
+    },
+    {
+      "timestamp": "2026-07-19T11:46:40.467Z",
+      "role": "assistant",
+      "content": "Patch is in. I’m running focused validation now: ruff, py_compile, exp071-only ty, and dry-run dispatch for just COBA to prove it plans one pod."
+    },
+    {
+      "timestamp": "2026-07-19T11:46:40.467Z",
+      "role": "assistant",
+      "content": "Focused checks pass and the dry-run now plans exactly one pod for COBA. I’m committing/pushing this orchestration fix before live dispatch, because the pod will fetch from GitHub by pinned SHA."
+    },
+    {
+      "timestamp": "2026-07-19T11:46:40.467Z",
+      "role": "assistant",
+      "content": "Committed/pushed 11b0cdb. Now I’m starting the authorized live short-screening COBA pod only. After it fires, I’ll monitor/collect/reap before starting PING, preserving the one-pod rule."
+    },
+    {
+      "timestamp": "2026-07-19T11:46:40.467Z",
+      "role": "assistant",
+      "content": "COBA live pod fired at pinned SHA 11b0cdb; one pod only. I’m logging that on PR #55, then I’ll monitor until it self-terminates before collecting and moving to PING."
+    },
+    {
+      "timestamp": "2026-07-19T11:46:40.467Z",
+      "role": "assistant",
+      "content": "Pod details show it was created at 11:36 UTC and is still desired-running; I’m not going to echo the raw detail payload because it contains sensitive provider fields. The runtime/cost is still small, but I’m treating this as a watch item now rather than passive waiting."
+    },
+    {
+      "timestamp": "2026-07-19T11:46:40.467Z",
+      "role": "assistant",
+      "content": "No progress signal after the extra window, and SSH wasn’t available, so I’m stopping this COBA pod as a killed infrastructure attempt rather than burning more time/money. Then I’ll check billing and record the failed live attempt."
+    },
+    {
+      "timestamp": "2026-07-19T11:46:40.467Z",
+      "role": "assistant",
+      "content": "The pod is stopped. The stop response includes sensitive provider env fields, so I’ll sanitize it out of all publishable records. I’m deleting the stopped pod now to fully reap it."
+    },
+    {
+      "timestamp": "2026-07-19T11:46:40.467Z",
+      "role": "assistant",
+      "content": "Both pods are deleted; active pod list is empty. Estimated exposure from timestamps is about $0.15 total, but RunPod’s per-pod billing endpoint has not reconciled those pod IDs yet, so I’m recording provider exact pending rather than pretending the estimate is exact."
+    }
+  ]
+}
