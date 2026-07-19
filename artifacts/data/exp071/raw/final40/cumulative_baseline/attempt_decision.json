@@ -1,0 +1,186 @@
+{
+  "result_status": "done",
+  "stage": "final40",
+  "attempt": "cumulative_baseline",
+  "attempt_order": [
+    "cumulative_baseline",
+    "cumulative_256_256"
+  ],
+  "seed": 42,
+  "cells": {
+    "coba": {
+      "selected_epoch": 36,
+      "selected_validation_accuracy_pct": 68.38235294117646,
+      "selected_validation_cross_entropy": 1.1455509593853583,
+      "selected_validation_e_rate_hz": 30.165441176470587,
+      "selected_validation_i_rate_hz": 0.0,
+      "final_validation_accuracy_pct": 65.93137254901961,
+      "final_validation_cross_entropy": 1.1357033527814424,
+      "final_validation_e_rate_hz": 30.26322189031863,
+      "final_validation_i_rate_hz": 0.0,
+      "gradient_norm": 366.55185195259423,
+      "finite": true,
+      "active": true,
+      "clean": true,
+      "training_elapsed_s": 3834.02903517097,
+      "training_peak_gpu_memory_bytes": 477028864
+    },
+    "ping": {
+      "selected_epoch": 38,
+      "selected_validation_accuracy_pct": 69.48529411764706,
+      "selected_validation_cross_entropy": 0.9843250490151919,
+      "selected_validation_e_rate_hz": 9.563893037683824,
+      "selected_validation_i_rate_hz": 44.886220894607845,
+      "final_validation_accuracy_pct": 68.25980392156863,
+      "final_validation_cross_entropy": 0.985521885064932,
+      "final_validation_e_rate_hz": 9.711191214767156,
+      "final_validation_i_rate_hz": 45.441731770833336,
+      "gradient_norm": 6.348045570954032,
+      "finite": true,
+      "active": true,
+      "clean": true,
+      "training_elapsed_s": 3889.0695484330063,
+      "training_peak_gpu_memory_bytes": 477028864
+    }
+  },
+  "split": {
+    "development_train_count": 7340,
+    "validation_count": 816,
+    "train_indices_sha256": "2fee22abaf3629ec1d10179847380b2829968d748fea60607b8f7bb2e3b1de71",
+    "validation_indices_sha256": "5b9f014ae3a4ab48b6586e7d014b8cdbd73b182c4c9cba2b9492ba203cd4ee3a"
+  },
+  "config": {
+    "seed": 42,
+    "epochs": 40,
+    "validation_fraction": 0.1,
+    "models": [
+      "coba",
+      "ping"
+    ],
+    "n_hidden": 256,
+    "n_inhibitory": 64,
+    "batch_size": 32,
+    "learning_rate": 0.0004,
+    "input_weight_mean": 0.9,
+    "input_sparsity": 0.95,
+    "readout_scale": 1.0,
+    "readout": "cumulative-potential",
+    "dt_ms": 1.0,
+    "t_ms": 1000.0,
+    "raster_positions": [
+      9,
+      39,
+      40
+    ],
+    "recipes": {
+      "coba": {
+        "ei_strength": 0.0,
+        "v_grad_dampen": 1.0
+      },
+      "ping": {
+        "ei_strength": 1.0,
+        "v_grad_dampen": 1000.0
+      }
+    },
+    "experiment": "exp071",
+    "attempt": "cumulative_baseline",
+    "stage": "final40",
+    "hidden_sizes": [
+      256
+    ],
+    "signed_readout": true,
+    "readout_bias": true
+  },
+  "integrity": {
+    "official_test_access": "forbidden and absent from runner",
+    "matched_partitions": true,
+    "matched_raster_inputs": true,
+    "selection_rule": "max validation accuracy; tie lower validation cross-entropy; tie earlier epoch"
+  },
+  "runpod": {
+    "created_at_utc": "2026-07-19T16:18:00.000Z",
+    "exact_provider_billing": true,
+    "billing_status": "exact_provider_reconciled",
+    "total_spend_usd": 3.956481664587045,
+    "active_pods_after_collection": 0,
+    "currency": "USD",
+    "billing_basis": "RunPod by-pod billing rows queried after provider reconciliation; pod identifiers are intentionally omitted from the publishable ledger.",
+    "attempts": {
+      "cloud-coba-001": {
+        "kind": "killed_monitoring_attempt",
+        "provider_spend_usd": 0.08250000327825546,
+        "time_billed_ms": 300000
+      },
+      "cloud-coba-002": {
+        "kind": "killed_startup_attempt",
+        "provider_spend_usd": 0.04744839575141668,
+        "time_billed_ms": 171277
+      },
+      "short-cumulative_baseline-coba": {
+        "kind": "completed_short_training_and_collection",
+        "provider_spend_usd": 0.28000413719564676,
+        "time_billed_ms": 1014409
+      },
+      "short-cumulative_baseline-coba-collector": {
+        "kind": "completed_collection",
+        "provider_spend_usd": 0.049532623030245304,
+        "time_billed_ms": 178856
+      },
+      "short-cumulative_baseline-ping": {
+        "kind": "completed_short_training_and_collection",
+        "provider_spend_usd": 0.24483631644397974,
+        "time_billed_ms": 886526
+      },
+      "short-cumulative_baseline-ping-collector": {
+        "kind": "completed_collection",
+        "provider_spend_usd": 0.00796124991029501,
+        "time_billed_ms": 28950
+      },
+      "short-cumulative_256_256-coba": {
+        "kind": "completed_short_training_and_collection",
+        "provider_spend_usd": 0.5029581561684608,
+        "time_billed_ms": 1821363
+      },
+      "short-cumulative_256_256-coba-collector": {
+        "kind": "completed_collection",
+        "provider_spend_usd": 0.05093594882055186,
+        "time_billed_ms": 183959
+      },
+      "short-cumulative_256_256-ping": {
+        "kind": "completed_short_training_and_collection",
+        "provider_spend_usd": 0.3488236125558615,
+        "time_billed_ms": 1263399
+      },
+      "short-cumulative_256_256-ping-collector": {
+        "kind": "completed_collection",
+        "provider_spend_usd": 0.05920134857296944,
+        "time_billed_ms": 214015
+      },
+      "final40-cumulative_baseline-coba": {
+        "kind": "completed_final40_training_and_collection",
+        "provider_spend_usd": 1.1224509431631304,
+        "time_billed_ms": 4063963
+      },
+      "final40-cumulative_baseline-coba-collector": {
+        "kind": "completed_collection",
+        "provider_spend_usd": 0.0055998251773417,
+        "time_billed_ms": 20363
+      },
+      "final40-cumulative_baseline-ping": {
+        "kind": "completed_final40_training_and_collection",
+        "provider_spend_usd": 1.1461867298930883,
+        "time_billed_ms": 4150275
+      },
+      "final40-cumulative_baseline-ping-collector": {
+        "kind": "completed_collection",
+        "provider_spend_usd": 0.00804237462580204,
+        "time_billed_ms": 29245
+      }
+    }
+  },
+  "spend": {
+    "total_spend_usd": 3.956481664587045,
+    "exact_provider_billing": true,
+    "status": "exact"
+  }
+}

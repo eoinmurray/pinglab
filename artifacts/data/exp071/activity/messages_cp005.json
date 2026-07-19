@@ -1,0 +1,60 @@
+{
+  "checkpoint_id": "cp005",
+  "session_id": "exp071-continuation-redacted",
+  "checkpoint_time_utc": "2026-07-19T13:39:00.000Z",
+  "sanitized_sha256_prefix": "f6aa19e039d0",
+  "predecessor_checkpoint_id": "cp004",
+  "sanitization": {
+    "policy": "fail-closed publishable transcript: hidden reasoning and tool payloads are excluded; credentials, tokens, SSH material, IP addresses, private local paths, environment values, and sensitive infrastructure details are redacted or omitted.",
+    "private_raw_transcript": "not committed",
+    "uncertainty": "medium; cloud commands and provider status contained infrastructure identifiers, so this checkpoint records sanitized scientific and operational facts only"
+  },
+  "ledger": [
+    "Candidate two, cumulative_256_256, completed the 8-epoch short stage for COBA and PING with one live pod at a time and separate collector pods.",
+    "COBA selected epoch 5 with validation accuracy 32.84313725490196%, validation cross-entropy 2.159944314223069, selected E rate 71.34302236519608 Hz, no skipped steps, and no non-finite batches.",
+    "PING selected epoch 7 with validation accuracy 42.76960784313726%, validation cross-entropy 1.8651616527484014, selected E/I rates 11.079091988357844 / 39.40600107230392 Hz, no skipped steps, and no non-finite batches.",
+    "Matched validation curves, activity curves, and input/E/I rasters for candidate two were published under artifacts/data/exp071 while preserving the candidate-one artifact record.",
+    "Candidate two is finite, active, and clean, but it underperforms candidate one on both cells: candidate one selected COBA 60.049019607843135% and PING 57.96568627450981%.",
+    "The registered short-screen promotion target is therefore candidate one, cumulative_baseline, not the two-hidden-layer candidate.",
+    "The active pod list was empty after both candidate-two collections.",
+    "Exact provider billing had not reconciled at checkpoint time. The temporary cumulative timestamp-based estimate is 1.76 USD total, well below the 40 USD ceiling.",
+    "Pending work is to run the registered 40-epoch promotion for candidate one, COBA and PING one pod at a time, unless stopped by the scientist."
+  ],
+  "messages": [
+    {
+      "timestamp": "2026-07-19T13:39:00.000Z",
+      "role": "assistant",
+      "content": "COBA candidate-two artifacts are collected and the collector reaped; active pod list is empty. I’m validating the collected COBA result before deciding whether to spend on PING for this candidate."
+    },
+    {
+      "timestamp": "2026-07-19T13:39:00.000Z",
+      "role": "assistant",
+      "content": "COBA candidate two completed cleanly but weakly: best epoch 5 at 32.84% validation, E active around 71 Hz, no skipped/non-finite updates. Because the registered candidate comparison is matched COBA/PING, I’m still running PING candidate two before making the promotion decision; otherwise we’d be peeking on one cell and stopping asymmetrically."
+    },
+    {
+      "timestamp": "2026-07-19T13:39:00.000Z",
+      "role": "assistant",
+      "content": "PING is healthy and actually a bit faster: epoch 2/8 is at 26.84% validation, E/I active, clean. ETA for PING completion is roughly 14–16 minutes."
+    },
+    {
+      "timestamp": "2026-07-19T13:39:00.000Z",
+      "role": "assistant",
+      "content": "PING epoch 5/8 has reached 41.05%, clean and active. Better than COBA candidate two, still below candidate-one PING’s 57.97%. Three epochs to go."
+    },
+    {
+      "timestamp": "2026-07-19T13:39:00.000Z",
+      "role": "assistant",
+      "content": "PING self-terminated and the active pod list is empty. Collecting candidate-two artifacts now."
+    },
+    {
+      "timestamp": "2026-07-19T13:39:00.000Z",
+      "role": "assistant",
+      "content": "PING candidate two is collected and collector reaped; active pod list empty. I’m validating both candidate-two cells and then I’ll publish the short result into exp071."
+    },
+    {
+      "timestamp": "2026-07-19T13:39:00.000Z",
+      "role": "assistant",
+      "content": "Candidate two is published locally. I’m making the report compare both short candidates directly so the promotion decision is explicit rather than buried in raw JSON."
+    }
+  ]
+}

@@ -1,0 +1,39 @@
+/goal Design and execute the next exploratory SHD experiment on branch night/spiking-heidelberg-digits/ar071, using the newly merged tools/snn cumulative-potential readout additions to try to raise validation accuracy while keeping the comparison between matched Dale-constrained COBA and PING networks scientifically clean.
+
+Start from updated main at merge commit 9527162d7a0ef80deac0e3f606ce513b9280ba6c. Do not modify main. Open a new draft PR for this experiment when the first meaningful commit is ready.
+
+Scientific objective:
+Run a one-seed exploratory validation-only ladder on SHD to identify whether stronger temporal readout and modest capacity changes materially improve matched COBA/PING learning beyond exp068-exp070.
+
+Constraints:
+- Use one seed only.
+- Do not use the official SHD test set during exploratory screening.
+- Use a held-out validation split from the training set for all selection decisions.
+- Keep COBA and PING matched except for their registered cell-specific voltage-gradient dampening.
+- Preserve matched input, readout, training split, optimizer, batch, and preprocessing settings across COBA and PING within each candidate.
+- Use short runs first for iteration speed, targeting about 8-10 epochs per candidate.
+- Promote only the most promising candidate to a 40-epoch validation run.
+- Do not run multiple seeds unless a later claim is worth defending and I explicitly authorize it.
+- RunPod spending requires explicit approval before pod creation; use at most one pod at a time unless separately authorized.
+- Reap any pod when finished.
+- Do not merge the PR.
+- Avoid the full local test suite on the 4 GB Hetzner host; use focused checks and demolab build.
+
+Candidate ladder:
+1. Baseline architecture with the new signed cumulative-potential readout:
+   --readout cumulative-potential --signed-readout --readout-bias
+2. If candidate 1 is finite, active, and improves validation learning, try modest increased capacity with two hidden layers, e.g. --n-hidden 256 256, keeping the same readout.
+3. Optionally test one conservative recurrence/readout-adjacent setting if supported by existing tools/snn CLI and scientifically justified before seeing final results.
+4. Promote the best candidate, if any, to a matched 40-epoch COBA/PING validation run.
+
+Deliverables:
+- Create the next numbered experiment, likely exp071, with artifacts under artifacts/data/exp071.
+- Produce numbers.json, provenance, reproducer, training curves, firing-rate diagnostics, and matched input/E/I rasters where relevant.
+- Write writings/exp071.typ as the canonical cold-readable experiment report.
+- Include the goal prompt below the abstract and append timestamped activity-log/thread checkpoints in the experiment appendix, following the simplified SHD organization.
+- Record scientific decisions, failures, anomalies, costs, commits, results, and pending work in the experiment article.
+- Sanitize any publishable transcript/log content before committing.
+- Build and validate with focused checks plus demolab build.
+- Commit meaningful attempts, including killed attempts, with clear messages.
+- Push branch night/spiking-heidelberg-digits/ar071 and update the new PR with evidence.
+- Finish at the human review gate with a concise evidence summary, exact compute spend, validation performed, and links to the rendered exp071 file and PR.

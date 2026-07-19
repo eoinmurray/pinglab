@@ -1,0 +1,48 @@
+{
+  "updated_at_utc": "2026-07-19T11:46:40.467Z",
+  "exact_provider_billing_status": "pending",
+  "active_pods_after_reap": 0,
+  "attempts": [
+    {
+      "attempt_id": "cloud-coba-001",
+      "stage": "short",
+      "candidate": "cumulative_baseline",
+      "cell": "coba",
+      "started_at_utc": "2026-07-19T11:36:05.471Z",
+      "stopped_at_utc": "2026-07-19T11:42:16Z",
+      "deleted": true,
+      "outcome": "killed_infrastructure_monitoring_attempt",
+      "training_result": "none",
+      "reason": "Pod remained provider-running without collected artifacts; the manual SSH probe used the wrong local key, so the attempt is treated as a monitoring/cloud-plumbing kill rather than a scientific failure.",
+      "cost_per_hour_usd": 0.99,
+      "estimated_spend_usd": 0.102025,
+      "exact_spend_usd": null
+    },
+    {
+      "attempt_id": "cloud-coba-002",
+      "stage": "short",
+      "candidate": "cumulative_baseline",
+      "cell": "coba",
+      "started_at_utc": "2026-07-19T11:43:30.184Z",
+      "stopped_at_utc": "2026-07-19T11:46:21Z",
+      "deleted": true,
+      "outcome": "killed_infrastructure_startup_attempt",
+      "training_result": "none",
+      "reason": "Relaunched one-pod-only with the correct monitoring key available, but the provider SSH endpoint stayed not-ready during the observation window. No training artifact was collected.",
+      "cost_per_hour_usd": 0.99,
+      "estimated_spend_usd": 0.047029,
+      "exact_spend_usd": null
+    }
+  ],
+  "estimated_total_spend_usd": 0.149054,
+  "exact_total_spend_usd": null,
+  "sanitization": {
+    "excluded": [
+      "provider API tokens",
+      "SSH keys and fingerprints",
+      "IP addresses and ports",
+      "private local paths",
+      "raw provider environment payloads"
+    ]
+  }
+}
