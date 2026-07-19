@@ -105,4 +105,29 @@ Reply *go* to approve this mandate.])
 
   #message-card("assistant", "2026-07-19 00:49:00.457 UTC", "CP-001",
     [Mandate approved. I’m locking `ar070`, `ar071`, and `exp069` on `main` now with the 80-epoch, validation-only exploratory contract. This approval starts no compute: after the anchor is pushed, I’ll create the dedicated night branch and new draft PR from that exact commit.])
+
+  == Checkpoint CP-002
+
+  This branch-and-PR checkpoint follows CP-001. Its immutable private source has
+  SHA-256 prefix `77b86b9fea8d`, and its checkpoint time is
+  `2026-07-19 00:53:19.217 UTC`.
+
+  === Action ledger
+
+  + The approved mandate was committed and pushed to `main` at `3c440aa`.
+  + The night branch was created from that exact anchor and its first Record
+    checkpoint was committed at `8229b83`.
+  + Draft pull request 52 is open. No experiment runner, smoke, pod, result, or
+    cost exists; exp069 spend remains 0 USD.
+
+  === Visible messages added in CP-002
+
+  #message-card("assistant", "2026-07-19 00:50:48.822 UTC", "CP-002",
+    [The mandate itself builds, but the initial activity-trace rendering found an unclosed Typst delimiter in a verbatim message containing bracket and currency punctuation. I’m escaping only that transcript presentation; the approved scientific contract remains unchanged.])
+
+  #message-card("assistant", "2026-07-19 00:52:07.816 UTC", "CP-002",
+    [The mandate is now preregistered on `main` at `3c440aa`; exp069 spend is 0 USD and no compute has started. I’m creating `night/spiking-heidelberg-digits/ar070` from that exact anchor, adding the branch-start checkpoint, then pushing and opening the new draft PR.])
+
+  #message-card("assistant", "2026-07-19 00:53:19.217 UTC", "CP-002",
+    [The new draft PR is open as #52 from the exact locked anchor. I’m adding its timestamped branch/PR checkpoint to `ar071` and pushing that final setup commit; exp069 remains unrun with 0 USD spend and no active pods.])
 ]
