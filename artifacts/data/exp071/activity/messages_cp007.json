@@ -1,0 +1,78 @@
+{
+  "checkpoint_id": "cp007",
+  "session_id": "exp071-continuation-redacted",
+  "checkpoint_time_utc": "2026-07-19T17:37:43.751Z",
+  "sanitized_sha256_prefix": "fa2ceb824e8d",
+  "predecessor_checkpoint_id": "cp006",
+  "sanitization": {
+    "policy": "fail-closed publishable transcript: hidden reasoning and tool payloads are excluded; credentials, tokens, SSH material, IP addresses, private local paths, environment values, and sensitive infrastructure details are redacted or omitted.",
+    "private_raw_transcript": "temp/experiments/exp071/private/raw_cp007.txt; not committed",
+    "uncertainty": "medium; provider billing output contained infrastructure identifiers, so this checkpoint publishes exact dollar and billed-time evidence without pod identifiers"
+  },
+  "ledger": [
+    "After the previous blocked checkpoint, the scientist explicitly instructed Codex to keep going and confirmed permission to continue the review-gate work.",
+    "RunPod active-pod state was rechecked and remained empty.",
+    "RunPod by-pod billing had reconciled for all exp071 pod events. The exact provider total for the experiment is 3.956481664587045 USD.",
+    "The final40 PING training charge reconciled to 1.1461867298930883 USD over 4150275 billed milliseconds, and the final40 PING collector charge reconciled to 0.00804237462580204 USD over 29245 billed milliseconds.",
+    "The publishable compute ledger was updated from the temporary timestamp estimate to exact provider billing. Pod identifiers remain omitted from the committed ledger and article.",
+    "The final40 numbers were regenerated with exact_provider_billing=true. No scientific result values changed.",
+    "Pending work is focused validation, rebuild, commit, push, PR evidence update, and the final human-review summary."
+  ],
+  "messages": [
+    {
+      "timestamp": "2026-07-19T16:00:00.000Z",
+      "role": "assistant",
+      "content": "Blocked on the one remaining external requirement: exact RunPod spend.\n\nFresh check:\n\n- Active pods: `[]`\n- Worktree/branch: clean on `night/spiking-heidelberg-digits/ar071`\n- PR #55: open draft, green checks\n- Latest by-pod billing:\n  - final40 COBA: `$1.1224509432`\n  - final40 COBA collector: `$0.0055998252`\n  - final40 PING: `$0.4491335023` and still changing\n  - final40 PING collector: still no billing row\n  - visible by-pod subtotal: `$3.2513860624`\n\nBecause the final PING billing is still moving and its collector is missing, I can’t honestly replace the conservative committed estimate (`$4.15`, `exact_provider_billing=false`) with an exact spend. Since this same provider-reconciliation blocker has repeated across the required goal continuations, I marked the goal `blocked`.\n\nEverything scientific remains done/review-ready; the blocker is purely RunPod’s delayed billing reconciliation."
+    },
+    {
+      "timestamp": "2026-07-19T17:37:43.751Z",
+      "role": "user",
+      "content": "keep going you have permission"
+    },
+    {
+      "timestamp": "2026-07-19T17:37:43.751Z",
+      "role": "assistant",
+      "content": "Got it — I’ll resume from the billing gate and keep pushing until either RunPod reconciles or there’s another concrete in-scope move. First I’m refreshing the lab docs requirement, repo/PR state, active pods, and by-pod billing again."
+    },
+    {
+      "timestamp": "2026-07-19T17:37:43.751Z",
+      "role": "assistant",
+      "content": "Repo and PR are still clean/green. Now checking the provider billing again; if the final PING row has stopped advancing and collector appears, I’ll turn this into an exact ledger update."
+    },
+    {
+      "timestamp": "2026-07-19T17:37:43.751Z",
+      "role": "assistant",
+      "content": "Nice, the billing rows have finally landed. The exp071 by-pod total is now `$3.9564816646` with no missing rows, and no active pods. I’m going to convert the experiment ledger/report from conservative estimate to exact provider billing and add the final timestamped checkpoint."
+    },
+    {
+      "timestamp": "2026-07-19T17:37:43.751Z",
+      "role": "assistant",
+      "content": "I’ve got the exact spend source. Next I’m making the publication-side changes only: exact compute ledger, regenerated `numbers.json`, CP007 activity checkpoint, and the report wiring. No scientific result values should change."
+    },
+    {
+      "timestamp": "2026-07-19T17:37:43.751Z",
+      "role": "assistant",
+      "content": "I’m keeping pod IDs out of the committed ledger and article; the exact dollar amounts and billed milliseconds are enough provenance without publishing infrastructure identifiers."
+    },
+    {
+      "timestamp": "2026-07-19T17:37:43.751Z",
+      "role": "assistant",
+      "content": "The exact ledger publish step succeeded. I’m checking the artifact diff now because the runner republishes the current final40 view and may leave older short-screen/activity artifacts untouched or missing depending on the published-run helper."
+    },
+    {
+      "timestamp": "2026-07-19T17:37:43.751Z",
+      "role": "assistant",
+      "content": "As expected, the publish helper replaced the artifact tree with the final40-only view. I’m restoring the previously committed short-screen/activity assets, then I’ll add the new CP007 file."
+    },
+    {
+      "timestamp": "2026-07-19T17:37:43.751Z",
+      "role": "assistant",
+      "content": "I’m adding CP007 as a narrow, sanitized activity checkpoint: it records the user-visible continuation around the billing gate, the exact spend evidence, and the remaining actions. I’ll avoid publishing pod IDs/endpoints/paths."
+    },
+    {
+      "timestamp": "2026-07-19T17:37:43.751Z",
+      "role": "assistant",
+      "content": "I’m going to put the private raw checkpoint copy under `temp/`, which is not part of the publishable artifacts. Then I’ll use its SHA-256 prefix in CP007 and commit only the sanitized checkpoint."
+    }
+  ]
+}

@@ -14,6 +14,7 @@
 #let trace-four = json("/artifacts/data/exp071/activity/messages_cp004.json")
 #let trace-five = json("/artifacts/data/exp071/activity/messages_cp005.json")
 #let trace-six = json("/artifacts/data/exp071/activity/messages_cp006.json")
+#let trace-seven = json("/artifacts/data/exp071/activity/messages_cp007.json")
 #let baseline-short = json("/artifacts/data/exp071/raw/short/cumulative_baseline/attempt_decision.json")
 
 #let maybe-pct(x) = {
@@ -275,4 +276,17 @@
   ==== Visible messages added
 
   #for message in trace-six.messages { message-card(message, trace-six) }
+
+  === Checkpoint #trace-seven.checkpoint_id
+
+  Timestamp: `#trace-seven.checkpoint_time_utc`. Sanitized source hash prefix:
+  `#trace-seven.sanitized_sha256_prefix`.
+
+  ==== Decisions, actions, and pending work
+
+  #for item in trace-seven.ledger { [+ #item] }
+
+  ==== Visible messages added
+
+  #for message in trace-seven.messages { message-card(message, trace-seven) }
 ]
