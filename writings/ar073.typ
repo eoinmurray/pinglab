@@ -1,0 +1,72 @@
+#let meta = (
+  title: "Activity trace — accelerating matched SHD learning",
+  date: "2026-07-19",
+  description: "A privacy-sanitized, message-level activity record for the exp070 exploratory ladder.",
+  collection: "spiking-heidelberg-digits",
+  status: "draft",
+  order: 9,
+)
+
+#let trace = json("/artifacts/data/ar073/messages.json")
+
+#let verbatim-prose(value) = {
+  for (index, line) in value.split("\n").enumerate() {
+    if index > 0 { linebreak() }
+    text(size: 9.3pt, line)
+  }
+}
+
+#let message-card(message) = {
+  let speaker = if message.role == "user" { "User" } else { "Assistant" }
+  block(width: 100%, breakable: true, fill: luma(96%), stroke: 0.6pt + luma(82%),
+    radius: 4pt, inset: 10pt)[
+    #grid(columns: (1fr, auto), [#strong(speaker)],
+      [#text(size: 8pt, fill: luma(42%), message.timestamp)])
+    #v(3pt)
+    #text(size: 7.5pt, fill: luma(48%))[
+      Role: #message.role · Checkpoint: #trace.checkpoint_id · Session: #trace.session_id
+    ]
+    #v(7pt)
+    #verbatim-prose(message.content)
+    #if "attachment" in message {
+      v(8pt)
+      text(size: 8pt, weight: "bold", fill: luma(42%))[Attached request]
+      v(4pt)
+      verbatim-prose(message.attachment)
+    }
+  ]
+  v(8pt)
+}
+
+#let body = [
+  == Checkpoint CP-001
+
+  *The next exploratory night is registered before any exp070 training result.*
+  This checkpoint has immutable private source SHA-256 prefix
+  `5189910c09c9`. Its checkpoint time is `2026-07-19 06:49:09.368 UTC`, and
+  it has no predecessor within this night. The raw snapshot is held read-only
+  outside the repository. Hidden reasoning, tool payloads, injected environment
+  material, credentials, private paths, addresses, and infrastructure
+  identifiers are excluded. The visible attachment path is explicitly redacted;
+  the request itself is reproduced verbatim.
+
+  === Decision and action ledger
+
+  + Pull request 52 is open and draft on the requested existing branch. Main is
+    unchanged.
+  + Exp069's complete epoch histories, firing diagnostics, gradients, rasters,
+    split provenance, billing, and official-test prohibition were inspected.
+  + A development-data-only audit rejected observation-window truncation as the
+    likely bottleneck. The first registered candidate changes only the matched
+    temporal resolution from 1 ms to 2 ms.
+  + The ordered ladder, first-passing selection rule, promotion threshold,
+    forty-epoch success criterion, kill criteria, one-seed policy, locked model
+    comparison, and fresh paid-compute gate are fixed in ar072.
+  + No exp070 runner, training result, cloud job, official-test access, or spend
+    exists at this checkpoint. Pending work is the candidate-1 implementation,
+    focused checks, local smoke, cost estimate, and paid-compute authority gate.
+
+  == Privacy-sanitized visible transcript
+
+  #for message in trace.messages { message-card(message) }
+]
