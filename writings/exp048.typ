@@ -8,11 +8,17 @@
   status: "final",
 )
 
+#let r = json("/artifacts/data/exp048/numbers.json")
+#let rate-at(rate) = r.encoding_rate_psychometric.curve.filter(x => x.input_rate_hz == rate).at(0)
+#let p05 = rate-at(0.5)
+#let p2 = rate-at(2.0)
+#let p5 = rate-at(5.0)
+#let p10 = rate-at(10.0)
 
 #let body = [
   == Abstract
 
-  A PING network trained one digit at a time on 200 ms trials can classify a _stream_ of digits at a fraction of that time each, with no retraining: only the readout's integration window changes. At τ = 50 ms (≈ 2 gamma cycles) 4 of the 5 sequential MNIST digits classify correctly, the readout flipping within one cycle of each transition; a 2-D sweep over (τ, input rate) reveals a sub-cycle failure floor below ≈ 15 ms and a broad high-accuracy plateau above it, where short presentation time and weak drive trade off along iso-accuracy diagonals.
+  A PING network trained one digit at a time on 200 ms trials can classify a _stream_ of digits at a fraction of that time each, with no retraining: only the readout's integration window changes. At τ = 50 ms (≈ 2 gamma cycles) 4 of the 5 sequential MNIST digits classify correctly, the readout flipping within one cycle of each transition. A 2-D sweep over (τ, input rate) reveals a sub-cycle failure floor below ≈ 15 ms and a broad high-accuracy plateau above it. An extended 200 ms rate slice remains at chance through #p05.input_rate_hz Hz and becomes clearly informative by #p2.input_rate_hz Hz, locating the encoder's low-rate information floor.
 
   == Method
 
@@ -38,6 +44,8 @@
 
   The grid sweeps τ over 10, 15, 25, 40, 50, 75, 100, 200 ms and input rate over 5, 10, 25, 50, 100, 200 Hz per channel, giving 8 × 6 cells, each 40 streams × 10 digits × 3 seeds (1200 segments per cell). It extends down to τ = 10 ms (≈ 0.36 of a gamma cycle) to resolve the sub-cycle regime.
 
+  To resolve the encoding-rate floor below the grid, an additional 200 ms slice sweeps rates from 0.01 to 3 Hz. Each cell contains #(r.encoding_rate_psychometric.new_streams_per_seed) streams of #(r.encoding_rate_psychometric.digits_per_stream) digits across the same three trained seeds. The published 5–200 Hz points are the matching 200 ms row of the grid.
+
   == Results
 
   #figure(
@@ -54,7 +62,18 @@
 
   #figure(
     image("/artifacts/data/exp048/acc_grid_tau_rate.png", width: 100%,
-      alt: "Heatmap of per-segment accuracy over the τ × input-rate grid: a low-accuracy band below τ≈15 ms and a broad high-accuracy plateau above, with diagonal iso-accuracy contours."),
-    caption: [Per-segment accuracy over the full grid (3 seeds × 1200 segments per cell). Three things stand out. *(1) Sub-cycle failure below τ ≈ 15 ms:* at τ = 10 ms even 200 Hz input reaches only 63%, so the network cannot classify within less than one cycle regardless of drive, the cleanest evidence that the *gamma cycle is the temporal quantum* of its classification ability. *(2) Above one cycle, accuracy ≈ f(τ · rate):* iso-accuracy contours run diagonal, so τ and input rate substitute for each other, more drive compensating for shorter presentation and vice versa. *(3) The trained operating point* (200 ms, 25 Hz) sits at ≈ 93%, essentially the plateau maximum (≈ 93% grid-wide), so it is already near-optimal: extra τ or drive buys nothing.],
+      alt: "Two-panel figure combining the duration-by-input-rate accuracy heatmap with an extended 200-ms encoding-rate psychometric curve."),
+    caption: [Temporal and encoding-rate limits of the frozen PING classifier. *(A)* Per-segment accuracy over the full duration × rate grid (3 seeds × 1200 segments per cell). The sub-cycle regime fails even under strong drive, while above one cycle duration and rate trade off along diagonal iso-accuracy contours. *(B)* The 200 ms row extended below 5 Hz on a linear rate axis. Circles are the new low-rate cells; squares come from panel A. The dashed line marks ten-class chance and the dotted line the 25 Hz training rate. Accuracy remains on its empty-input floor through #p05.input_rate_hz Hz, is clearly informative by #p2.input_rate_hz Hz, and reaches #calc.round(100 * p5.accuracy, digits: 1)% at #p5.input_rate_hz Hz.],
   )
+
+  The extended slice distinguishes a nonviable encoder regime from ordinary
+  classification errors under weak evidence. In the variable-condition stream,
+  the failed 5 received #p10.input_rate_hz Hz for 200 ms, yet that condition
+  reaches #calc.round(100 * p10.accuracy, digits: 1)% across the population. Its
+  error is therefore natural trial-level variation, not evidence that
+  #p10.input_rate_hz Hz is intrinsically too low. The failed 7 at 15 Hz and 75 ms
+  is likewise above the empty-input rate floor, although its shorter window
+  supplies less total evidence. Rates below #p05.input_rate_hz Hz are not useful
+  operating points; #p2.input_rate_hz Hz is the lowest clearly informative tested
+  rate and #p5.input_rate_hz Hz is a practical lower bound for future sweeps.
 ]

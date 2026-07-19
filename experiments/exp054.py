@@ -766,7 +766,7 @@ def build_super_compound(grid, results, hopf, sweep, mf, meas, out_path):
     # G|H gutter, where it collides with panel H's y-axis label and ticks. An inset
     # keeps it within G's own footprint, in the sparse upper-left of the eigenvalue
     # scatter, so the mean-field row stays legible.
-    cax = axA.inset_axes([0.06, 0.56, 0.035, 0.38])
+    cax = axA.inset_axes((0.06, 0.56, 0.035, 0.38))
     cbar = fig.colorbar(sc, cax=cax)
     cbar.set_label("$I_\\text{ext}$ (nA)", fontsize=theme.SIZE_TICK - 2, labelpad=2)
     cbar.ax.tick_params(labelsize=theme.SIZE_TICK - 2)

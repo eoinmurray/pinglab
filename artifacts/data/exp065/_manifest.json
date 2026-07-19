@@ -1,15 +1,11 @@
 {
   "slug": "exp065",
-  "run_id": "r011",
-  "run_at": "2026-07-16T10:51:06+00:00",
-  "git_sha": "c10275c",
+  "run_id": "r012",
+  "run_at": "2026-07-19T11:10:01+00:00",
+  "git_sha": "de1bd83",
   "dirty": true,
-  "code_dirty": true,
-  "patch": {
-    "file": "_dirty.patch",
-    "sha256": "2fba000c6bae1092037fb9a64c04ce07fd9c6c1c1d48c1c87eb6d5c34d7f6fa4",
-    "lines": 727
-  },
+  "code_dirty": false,
+  "patch": null,
   "host": "local",
   "scale": {
     "dataset": "MNIST (full 70,000-sample corpus; stratified 80/20 split)",
@@ -20,9 +16,6 @@
     "seeds": 3,
     "mask_draws": 10,
     "retention_levels": 17,
-    "ping_new_rate_cells": 27,
-    "ping_digits_per_new_cell": 100,
-    "ping_reused_source": "exp048 200-ms grid",
     "matched_mask_levels": 9,
     "matched_images_per_level": 100,
     "compute": "local"
