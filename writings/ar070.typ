@@ -127,4 +127,16 @@
   `main` at `3c440aa`. The dedicated night branch was created from that exact
   anchor. At branch creation, exp069 spend remained 0 USD, no pod was active,
   and the official SHD test remained outside the registered experiment scope.
+
+  === 2026-07-19 01:35–01:40 UTC: implementation and smoke gate
+
+  The validation-only runner was implemented without changing `tools/snn`.
+  Unlike exp068, it contains no official-test download, staging, loading, or
+  evaluation route; its matched rasters use fixed validation examples. Focused
+  Ruff, type, and compilation checks passed. The registered 128-training /
+  128-validation, two-epoch smoke passed for both cells with finite losses,
+  zero skipped or non-finite updates, active COBA E firing at 23.93 Hz, and
+  active PING E/I firing at 2.95 / 14.56 Hz. The derived development split
+  hashes exactly matched exp068. No pod had been created and spend remained
+  0 USD at the smoke gate.
 ]

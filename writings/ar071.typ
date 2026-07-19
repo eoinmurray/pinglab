@@ -130,4 +130,92 @@ Reply *go* to approve this mandate.])
 
   #message-card("assistant", "2026-07-19 00:53:19.217 UTC", "CP-002",
     [The new draft PR is open as #52 from the exact locked anchor. I’m adding its timestamped branch/PR checkpoint to `ar071` and pushing that final setup commit; exp069 remains unrun with 0 USD spend and no active pods.])
+
+  == Checkpoint CP-003
+
+  This implementation-and-smoke checkpoint follows CP-002. Its immutable
+  private source has SHA-256 prefix `8b2ba5ea34fb`, and its checkpoint time is
+  `2026-07-19 01:39:56.429 UTC`. One private repository path in a visible
+  handoff prompt is redacted; injected environment/context messages, hidden
+  reasoning, and tool payloads are excluded.
+
+  === Decision and action ledger
+
+  + Exp069 was implemented through `experiments/exp069.py` without editing
+    `tools/snn`. The official-test route present in exp068 was removed rather
+    than inherited, and matched rasters were redirected to validation data.
+  + Focused Ruff, type, and compilation checks passed.
+  + The registered local smoke passed both cells. Split hashes match exp068;
+    losses and rates were finite; skipped and non-finite update counters were
+    zero; COBA E and PING E/I populations were active.
+  + No cloud compute had started and spend remained 0 USD.
+
+  === Visible messages added in CP-003
+
+  #message-card("assistant", "2026-07-19 00:54:21.949 UTC", "CP-003",
+    [Done.
+
+- PR #51 merged into `main`: `569926f`
+- Exp069 mandate locked on `main`: `3c440aa`
+- New branch: `night/spiking-heidelberg-digits/ar070`
+- New draft PR: #link("https://github.com/eoinmurray/pinglab/pull/52")[PR #52]
+- Activity checkpoint pushed: `08edd92`
+- Demolab build: 37 entries, zero stubs
+- Current RunPod spend: \$0
+- Active pods: 0
+- No experiment or official-test access has started yet.])
+
+  #message-card("user", "2026-07-19 01:14:49.989 UTC", "CP-003", [do it])
+
+  #message-card("user", "2026-07-19 01:15:12.669 UTC", "CP-003",
+    [give me the goal to give you so I can compact convo])
+
+  #message-card("assistant", "2026-07-19 01:15:30.248 UTC", "CP-003",
+    [Use this after `/compact`:
+
+`/goal Continue and complete the locked exp069 autoresearch night on PR #52.`
+
+Repository and state: work in (PRIVATE LOCAL PATH REDACTED), on branch
+`night/spiking-heidelberg-digits/ar070`; PR #51/exp068 was merged as `569926f`;
+the mandate is locked in `writings/ar070.typ` at `3c440aa`; draft PR #52 is
+#link("https://github.com/eoinmurray/pinglab/pull/52")[open]; the latest night
+checkpoint is `08edd92`; the trace is `writings/ar071.typ`; and exp069 compute
+has not started, with \$0 spend and zero active pods.
+
+Execute the registered design exactly: one seed (42), the identical deterministic
+7,340/816 exp068 split and hashes, every exp068 setting unchanged except 80
+epochs rather than 40, COBA loop off with no voltage-gradient dampening, PING
+loop on with dampening 1000, and the registered validation checkpoint rule.
+The official SHD test is forbidden. Do not tune, rescue, edit `tools/snn`, or
+change the design after results.
+
+Run the 128/128 two-epoch local smoke first. If finite, active, matched, and
+without persistent skipped updates, run one 80-epoch cell per architecture on
+at most two concurrent pods, under four-hour backstops and a \$10 hard total
+ceiling. Reap and verify zero pods. Use focused checks and `demolab build`, not
+the full local test suite.
+
+Deliver `experiments/exp069.py`, `artifacts/data/exp069`, and
+`writings/exp069.typ`; update the timestamped ar070 Record/Digest and the
+verbatim, sanitized, hash-linked ar071 trace; comment on PR #52 at milestones;
+make focused commits; build, push, and update the existing draft PR. Do not
+create another branch/PR, modify main, merge PR #52, or access the official
+test. Stop before any scientific-design change, `tools/snn` edit, budget
+overrun, or action needing new authority. Finish at the human publication gate
+with evidence, exact spend, validation, rendered links, and PR #52.])
+
+  #message-card("assistant", "2026-07-19 01:33:02.681 UTC", "CP-003",
+    [I’m resuming exp069 from the locked branch state. I’ll first verify the Demolab runbook, worktree, PR/pod state, and mandate, then implement and smoke-test before any authorized compute dispatch. I’ll also checkpoint this resumed visible thread into the sanitized activity log before publication.])
+
+  #message-card("assistant", "2026-07-19 01:33:14.646 UTC", "CP-003",
+    [The branch is clean at checkpoint `08edd92`, tracks the intended remote, and the provider reports zero active pods, so the registered \$0 starting state is intact. I’m now reading the active mandate/runbook and comparing exp068’s runner/artifacts so exp069 changes only the epoch count and test access is structurally excluded.])
+
+  #message-card("assistant", "2026-07-19 01:33:59.312 UTC", "CP-003",
+    [The reuse audit found the key safety issue: exp068 contains a post-freeze official-test path, so exp069 cannot merely change `40` to `80`. I’m deriving the runner while deleting every download/evaluation route and changing rasters to fixed validation examples; the training recipe and selection logic remain identical.])
+
+  #message-card("assistant", "2026-07-19 01:35:43.759 UTC", "CP-003",
+    [Focused Ruff, type, and compilation checks pass. The runner now pins the exact exp068 split hashes, sets only 80 epochs as the scientific change, uses a four-hour pod backstop, and has no official-test URL/import/evaluator. I’m starting the mandatory 128/128, two-epoch local smoke now; no cloud spend is involved.])
+
+  #message-card("assistant", "2026-07-19 01:39:56.429 UTC", "CP-003",
+    [The registered smoke gate passed exactly: both cells were finite, all update counters stayed clean, COBA E activity was 23.93 Hz, and PING E/I activity was 2.95/14.56 Hz. The split hashes exactly match exp068. I’m checkpointing the implementation and smoke evidence—plus the resumed visible transcript—before dispatching either pod.])
 ]
