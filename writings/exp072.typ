@@ -11,6 +11,7 @@
 #let trace = json("/artifacts/data/exp072/activity/messages_cp001.json")
 #let trace-two = json("/artifacts/data/exp072/activity/messages_cp002.json")
 #let trace-three = json("/artifacts/data/exp072/activity/messages_cp003.json")
+#let trace-four = json("/artifacts/data/exp072/activity/messages_cp004.json")
 
 #let maybe-pct(x) = {
   if type(x) == float or type(x) == int {
@@ -196,4 +197,17 @@
   ==== Visible messages added
 
   #for message in trace-three.messages { message-card(message, trace-three) }
+
+  === Checkpoint #trace-four.checkpoint_id
+
+  Timestamp: `#trace-four.checkpoint_time_utc`. Sanitized source hash prefix:
+  `#trace-four.sanitized_sha256_prefix`.
+
+  ==== Decisions, actions, and pending work
+
+  #for item in trace-four.ledger { [+ #item] }
+
+  ==== Visible messages added
+
+  #for message in trace-four.messages { message-card(message, trace-four) }
 ]
