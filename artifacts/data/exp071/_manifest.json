@@ -1,15 +1,11 @@
 {
   "slug": "exp071",
-  "run_id": "r003",
-  "run_at": "2026-07-19T12:28:41+00:00",
-  "git_sha": "7d6866a",
-  "dirty": true,
-  "code_dirty": true,
-  "patch": {
-    "file": "_dirty.patch",
-    "sha256": "39fdba7ef7486c616023d5fd8a5c8ab96620d124d346a0e23b665d526bbe0b14",
-    "lines": 25
-  },
+  "run_id": "r004",
+  "run_at": "2026-07-19T13:36:12+00:00",
+  "git_sha": "f58d93a",
+  "dirty": false,
+  "code_dirty": false,
+  "patch": null,
   "host": "local",
   "scale": {
     "seed": 42,
@@ -45,9 +41,10 @@
       }
     },
     "experiment": "exp071",
-    "attempt": "cumulative_baseline",
+    "attempt": "cumulative_256_256",
     "stage": "short",
     "hidden_sizes": [
+      256,
       256
     ],
     "signed_readout": true,
