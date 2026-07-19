@@ -538,4 +538,40 @@ The next continuation can collect immediately once the monitor reports completio
 
   #message-card("assistant", "2026-07-19 05:05:12.446 UTC", "CP-006",
     [The correction comment posted, but `gh pr edit` hit GitHub’s deprecated Projects-classic GraphQL field before changing the PR metadata. I’m recording that external tooling failure and using GitHub’s direct pull-request REST update for the same authorized title/body; the branch and experiment remain untouched.])
+
+  == Checkpoint CP-007
+
+  This rendered-preview and CI checkpoint follows `4a5f8de`. Its immutable
+  private source has SHA-256 prefix `033ebf531a5b`, and its checkpoint time is
+  `2026-07-19 05:09:50.681 UTC`.
+
+  === Review-gate ledger
+
+  + PR 52 has the completed Digest and remains draft, open, mergeable, and
+    unmerged. The preview workflow passed; ar070, ar071, and exp069 each return
+    HTTP 200 from the Pages preview.
+  + The final lint workflow is red only from ten pre-existing `ty` diagnostics
+    in unchanged older experiments and tests. Exp069 has no CI diagnostic and
+    its focused type check passes; unrelated debt was left outside scope and
+    documented on the PR.
+  + The CI test job remained in progress at this checkpoint. Local execution of
+    the repository-wide suite was intentionally omitted under the locked 4 GB
+    host constraint.
+
+  === Visible messages added in CP-007
+
+  #message-card("assistant", "2026-07-19 05:06:41.260 UTC", "CP-007",
+    [The final activity checkpoint builds successfully across all 38 entries. It records the delayed-billing safeguard, both presentation-only build failures, the GitHub metadata fallback, the full visible transcript through publication, and private source hash `afa0dba76b1b`. I’m pushing this last checkpoint and then verifying the rendered preview/check state and requirement-by-requirement completion.])
+
+  #message-card("assistant", "2026-07-19 05:07:23.862 UTC", "CP-007",
+    [PR #52 now has the final Digest via the REST fallback and remains draft/open. The final branch checkpoint is `4a5f8de`; I’m waiting for its preview workflow, then I’ll verify the three rendered pages directly and inspect any CI failure before the human-gate handoff.])
+
+  #message-card("assistant", "2026-07-19 05:08:30.732 UTC", "CP-007",
+    [The final lint check failed while preview and tests are still running. I’m applying the GitHub CI-fix workflow now: inspect the failing Actions log first and determine whether exp069 introduced a defect or the failure is the documented repository-wide type debt. I won’t broaden scope to unrelated files.])
+
+  #message-card("assistant", "2026-07-19 05:08:36.777 UTC", "CP-007",
+    [The lint failure is entirely pre-existing: 10 `ty` diagnostics in unchanged exp041/048/054/065 and older exp049/065 tests; exp069 emits none, and its focused `ty` check passes. Fixing those files would exceed this night’s scope, so I’m documenting the residual CI state on PR #52 and leaving code unchanged.])
+
+  #message-card("assistant", "2026-07-19 05:09:50.681 UTC", "CP-007",
+    [The GitHub preview is green, and all three rendered pages return HTTP 200. The only remaining external check is the already-running CI test job; I’m waiting for it so the final handoff distinguishes verified success from pending state.])
 ]
