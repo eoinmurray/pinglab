@@ -77,9 +77,16 @@
   none is promoted.
 
   #figure(
-    image("/artifacts/data/exp070/attempts/temporal_2ms/short_validation_curves.svg",
-      width: 100%, alt: "Five-epoch COBA and PING validation learning curves for the killed 2 ms candidate."),
-    caption: [Candidate 1 learning curves. The registered decision uses epoch five, not the visually best intermediate checkpoint. Candidate-specific curves for all three attempts are retained in the artifact bundle.],
+    grid(
+      columns: (1fr, 1fr), gutter: 10pt,
+      image("/artifacts/data/exp070/attempts/temporal_2ms/short_validation_curves.svg",
+        width: 100%, alt: "Validation curves for the 2 ms candidate."),
+      image("/artifacts/data/exp070/attempts/input_scale_1p2/short_validation_curves.svg",
+        width: 100%, alt: "Validation curves for the input-mean-1.2 candidate."),
+      image("/artifacts/data/exp070/attempts/learning_rate_1e3/short_validation_curves.svg",
+        width: 100%, alt: "Validation curves for the learning-rate-0.001 candidate."),
+    ),
+    caption: [Five-epoch learning curves in registered order: 2 ms, input mean 1.2, and learning rate 0.001. The decision uses epoch five, not the visually best intermediate checkpoint.],
   )
 
   === Failures are scientific, not numerical
@@ -92,9 +99,22 @@
   not silence, saturation, or broken plumbing.
 
   #figure(
-    image("/artifacts/data/exp070/attempts/temporal_2ms/matched_rasters.png",
-      width: 100%, alt: "Matched input, excitatory, and inhibitory spike rasters for COBA and PING under the 2 ms candidate."),
-    caption: [Matched validation rasters for candidate 1. Each COBA/PING column uses byte-identical binned input and fixed validation positions.],
+    grid(
+      columns: (1fr, 1fr), gutter: 10pt,
+      image("/artifacts/data/exp070/attempts/temporal_2ms/short_activity_curves.svg",
+        width: 100%, alt: "Population firing rates for the 2 ms candidate."),
+      image("/artifacts/data/exp070/attempts/input_scale_1p2/short_activity_curves.svg",
+        width: 100%, alt: "Population firing rates for the input-mean-1.2 candidate."),
+      image("/artifacts/data/exp070/attempts/learning_rate_1e3/short_activity_curves.svg",
+        width: 100%, alt: "Population firing rates for the learning-rate-0.001 candidate."),
+    ),
+    caption: [Held-out population firing rates for all three candidates. Stronger input and higher learning rate raise activity without approaching saturation.],
+  )
+
+  #figure(
+    image("/artifacts/data/exp070/attempts/learning_rate_1e3/matched_rasters.png",
+      width: 100%, alt: "Matched input, excitatory, and inhibitory spike rasters for COBA and PING under the learning-rate candidate."),
+    caption: [Matched validation rasters for the final candidate. Each COBA/PING column uses byte-identical binned input and fixed validation positions. The corresponding rasters for both earlier candidates are retained alongside their curves.],
   )
 
   == Verdict and limits
