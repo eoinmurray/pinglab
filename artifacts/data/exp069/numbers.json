@@ -1,0 +1,112 @@
+{
+  "run_id": "r001",
+  "git_sha": "ccb8ad5",
+  "duration_s": 5.5,
+  "duration": "5s",
+  "result_status": "done",
+  "seed": 42,
+  "primary": {
+    "ping_change_from_exp068_pp": 4.53921568627451,
+    "interpretation": "registered longer-training signal",
+    "baseline_accuracy_pct": 43.5,
+    "registered_threshold_pp": 3.0,
+    "criterion_met": true,
+    "coba_change_from_exp068_pp": 3.062549019607843,
+    "coba_baseline_accuracy_pct": 40.81,
+    "ping_minus_coba_validation_pp": 4.166666666666664
+  },
+  "cells": {
+    "coba": {
+      "selected_epoch": 75,
+      "selected_validation_accuracy_pct": 43.872549019607845,
+      "selected_validation_loss": 2.2162937109286966,
+      "selected_validation_e_rate_hz": 28.33670343137255,
+      "selected_validation_i_rate_hz": 0.0,
+      "training_elapsed_s": 8102.333852104843,
+      "training_peak_gpu_memory_bytes": 473444864,
+      "skipped_steps": 0,
+      "nan_forward_batches": 0
+    },
+    "ping": {
+      "selected_epoch": 79,
+      "selected_validation_accuracy_pct": 48.03921568627451,
+      "selected_validation_loss": 2.0286698066271267,
+      "selected_validation_e_rate_hz": 10.606115004595589,
+      "selected_validation_i_rate_hz": 49.02847349877451,
+      "training_elapsed_s": 7655.623284450732,
+      "training_peak_gpu_memory_bytes": 473444864,
+      "skipped_steps": 0,
+      "nan_forward_batches": 0
+    }
+  },
+  "split": {
+    "source_development_count": 8156,
+    "development_train_count": 7340,
+    "validation_count": 816,
+    "train_indices_sha256": "2fee22abaf3629ec1d10179847380b2829968d748fea60607b8f7bb2e3b1de71",
+    "validation_indices_sha256": "5b9f014ae3a4ab48b6586e7d014b8cdbd73b182c4c9cba2b9492ba203cd4ee3a"
+  },
+  "config": {
+    "seed": 42,
+    "epochs": 80,
+    "validation_fraction": 0.1,
+    "models": [
+      "coba",
+      "ping"
+    ],
+    "n_hidden": 256,
+    "n_inhibitory": 64,
+    "batch_size": 32,
+    "learning_rate": 0.0004,
+    "input_weight_mean": 0.9,
+    "input_sparsity": 0.95,
+    "readout_scale": 225.0,
+    "readout": "mem-mean",
+    "dt_ms": 1.0,
+    "t_ms": 1000.0,
+    "raster_positions": [
+      9,
+      39,
+      40
+    ],
+    "recipes": {
+      "coba": {
+        "ei_strength": 0.0,
+        "v_grad_dampen": 1.0
+      },
+      "ping": {
+        "ei_strength": 1.0,
+        "v_grad_dampen": 1000.0
+      }
+    }
+  },
+  "integrity": {
+    "checkpoint_selection_rule": "max validation accuracy; tie lower validation cross-entropy; tie earlier epoch",
+    "official_test_access": "forbidden and absent from runner",
+    "matched_partitions": true,
+    "matched_raster_inputs": true
+  },
+  "runpod": {
+    "active_pods_after_collection": 0,
+    "billing_method": "authoritative RunPod per-pod billing history after both self-terminated; provider amount and billed milliseconds recorded without pod identifiers",
+    "reconciled_at": "2026-07-19T05:00:58.574+00:00",
+    "cells": {
+      "coba": {
+        "gpu": "RTX 5090",
+        "hourly_rate_usd": 0.99,
+        "provider_billed_ms": 8472906,
+        "spend_usd": 2.3401185711845756,
+        "completed_at": "2026-07-19T04:08:38.797+00:00"
+      },
+      "ping": {
+        "gpu": "RTX 5090",
+        "hourly_rate_usd": 0.99,
+        "provider_billed_ms": 8282638,
+        "spend_usd": 2.2874476509168744,
+        "completed_at": "2026-07-19T04:01:12.927+00:00"
+      }
+    },
+    "currency": "USD",
+    "total_spend_usd": 4.62756622210145
+  }
+}
