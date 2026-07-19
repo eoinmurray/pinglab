@@ -1,0 +1,24 @@
+diff --git a/experiments/exp071.py b/experiments/exp071.py
+index a6ddcd1..0c98b87 100644
+--- a/experiments/exp071.py
++++ b/experiments/exp071.py
+@@ -446,6 +446,7 @@ def publish_attempt() -> None:
+         raise SystemExit("compute ledger does not confirm zero active pods")
+     if not math.isfinite(float(compute_ledger.get("total_spend_usd", math.nan))):
+         raise SystemExit("compute ledger does not contain finite total_spend_usd")
++    exact_billing = bool(compute_ledger.get("exact_provider_billing", True))
+     cells = baseline.validate_collected()
+     diagnostics = attempt_diagnostics(cells)
+     smoke_path = SMOKE_ROOT / "smoke_summary.json"
+@@ -495,6 +496,11 @@ def publish_attempt() -> None:
+                 "selection_rule": cells["coba"]["selection"]["rule"],
+             },
+             "runpod": compute_ledger,
++            "spend": {
++                "total_spend_usd": float(compute_ledger["total_spend_usd"]),
++                "exact_provider_billing": exact_billing,
++                "status": "exact" if exact_billing else "timestamp_estimate_pending_provider_reconciliation",
++            },
+         }
+         baseline.atomic_json(raw / "attempt_decision.json", payload)
+         write_numbers(figures, run_id=run_id, duration_s=time.monotonic() - t0, payload=payload)

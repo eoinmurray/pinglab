@@ -1,0 +1,54 @@
+{
+  "checkpoint_id": "cp002",
+  "session_id": "exp071-continuation-redacted",
+  "checkpoint_time_utc": "2026-07-19T11:28:51.466Z",
+  "sanitized_sha256_prefix": "87a36ad39eff",
+  "predecessor_checkpoint_id": "cp001",
+  "sanitization": {
+    "policy": "fail-closed publishable transcript: hidden reasoning and tool payloads are excluded; credentials, tokens, SSH material, IP addresses, private local paths, environment values, and sensitive infrastructure details are redacted or omitted.",
+    "private_raw_transcript": "not committed",
+    "uncertainty": "low; retained messages contain no credentials or sensitive infrastructure detail"
+  },
+  "ledger": [
+    "Focused Python compilation passed for experiments/exp071.py.",
+    "Focused Ruff initially caught an unused import in experiments/exp071.py; the import was removed and Ruff then passed.",
+    "RunPod dispatch was dry-run only. It planned two 5090 pods, one for COBA and one for PING, and explicitly created nothing.",
+    "The first local smoke trained both cells finite and active, but the runner failed its own added hidden-size validation because hidden_sizes is stored in config.json while metrics.config keeps only legacy n_hidden.",
+    "The validation check was fixed to read config.json for hidden_sizes, falling back to n_hidden only when needed.",
+    "The second local 128/128 two-epoch smoke passed for both cells with the cumulative-potential readout. COBA selected 5.46875% validation accuracy and ended at 24.25390625 Hz E; PING selected 10.15625% and ended at 2.9765625 Hz E / 15.046875 Hz I.",
+    "The smoke accuracies are plumbing diagnostics only, not registered screening evidence.",
+    "No paid compute has started and spend remains 0 USD."
+  ],
+  "messages": [
+    {
+      "timestamp": "2026-07-19T11:28:51.466Z",
+      "role": "assistant",
+      "content": "Pre-result artifacts published locally. I’m doing the light checks in increasing cost: Python compile, dry-run RunPod dispatch (no --live), then the local 128/128 two-epoch smoke if the cheap checks pass."
+    },
+    {
+      "timestamp": "2026-07-19T11:28:51.466Z",
+      "role": "assistant",
+      "content": "Cheap checks found one real scaffold nit—an unused import—while the RunPod path correctly dry-ran two pods and created nothing. I’m cleaning that import and then running the local smoke."
+    },
+    {
+      "timestamp": "2026-07-19T11:28:51.466Z",
+      "role": "assistant",
+      "content": "The smoke exposed a useful plumbing bug, not a science failure: both cells trained finite/active, but my extra validation looked for hidden_sizes inside metrics.config, where this engine build stores only the legacy n_hidden. I’m tightening that check against config.json instead and recording this as a killed/debugging attempt before moving on."
+    },
+    {
+      "timestamp": "2026-07-19T11:28:51.466Z",
+      "role": "assistant",
+      "content": "Ruff and compile are clean now. Starting the second local smoke; still no cloud spend."
+    },
+    {
+      "timestamp": "2026-07-19T11:28:51.466Z",
+      "role": "assistant",
+      "content": "Local smoke passed: COBA and PING were both finite and active on the 128/128, 2-epoch gate. I’m promoting that from temp into the publishable pre-result artifact and adding a second timestamped checkpoint before build/commit."
+    },
+    {
+      "timestamp": "2026-07-19T11:28:51.466Z",
+      "role": "assistant",
+      "content": "Build caught a subtle artifact-publishing issue: my pre-result publish swapped the exp071 artifact directory and dropped the activity JSON files I’d just written. The site build protected itself by stubbing exp071. I’m fixing the artifact layout by restoring those JSON logs after publish and then rebuilding."
+    }
+  ]
+}

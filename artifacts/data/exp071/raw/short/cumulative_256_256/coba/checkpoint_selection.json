@@ -1,0 +1,7 @@
+{
+  "accuracy_pct": 32.84313725490196,
+  "cross_entropy": 2.159944314223069,
+  "epoch": 5,
+  "rule": "max validation accuracy; tie lower validation cross-entropy; tie earlier epoch",
+  "checkpoint": "epoch_005.pth"
+}

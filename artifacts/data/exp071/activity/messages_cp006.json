@@ -1,0 +1,69 @@
+{
+  "checkpoint_id": "cp006",
+  "session_id": "exp071-continuation-redacted",
+  "checkpoint_time_utc": "2026-07-19T15:52:00.000Z",
+  "sanitized_sha256_prefix": "ce7e63ab2b85",
+  "predecessor_checkpoint_id": "cp005",
+  "sanitization": {
+    "policy": "fail-closed publishable transcript: hidden reasoning and tool payloads are excluded; credentials, tokens, SSH material, IP addresses, private local paths, environment values, and sensitive infrastructure details are redacted or omitted.",
+    "private_raw_transcript": "not committed",
+    "uncertainty": "medium; cloud commands and provider status contained infrastructure identifiers, so this checkpoint records sanitized scientific and operational facts only"
+  },
+  "ledger": [
+    "The scientist explicitly authorized relaxing the earlier one-pod-at-a-time operational constraint so the final40 COBA and PING cells could overlap. This did not change the registered scientific design.",
+    "Final40 candidate one, cumulative_baseline, completed for COBA and PING. COBA self-terminated before PING and was collected while PING continued; PING then self-terminated and was collected. The active pod list was empty after final collection.",
+    "COBA selected epoch 36 with validation accuracy 68.38235294117646%, validation cross-entropy 1.1455509593853583, selected E rate 30.165441176470587 Hz, no skipped steps, and no non-finite batches. Final epoch 40 accuracy was 65.93137254901961%.",
+    "PING selected epoch 38 with validation accuracy 69.48529411764706%, validation cross-entropy 0.9843250490151919, selected E/I rates 9.563893037683824 / 44.886220894607845 Hz, no skipped steps, and no non-finite batches. Final epoch 40 accuracy was 68.25980392156863%.",
+    "Both final40 cells were finite, active, clean, and produced matched validation curves, firing-rate diagnostics, and input/E/I rasters.",
+    "In this one-seed validation-only exploratory run, PING finished 1.1029411764706083 percentage points ahead of COBA on the registered selected-validation rule. This is exploratory evidence, not a defended multi-seed claim.",
+    "Exact provider billing had not reconciled at checkpoint time. The temporary cumulative timestamp-based estimate is 4.15 USD total, well below the 40 USD ceiling.",
+    "Pending work is to build, commit, push, update PR #55, and finish at the human review gate without merging."
+  ],
+  "messages": [
+    {
+      "timestamp": "2026-07-19T15:52:00.000Z",
+      "role": "user",
+      "content": "status and eta?"
+    },
+    {
+      "timestamp": "2026-07-19T15:52:00.000Z",
+      "role": "assistant",
+      "content": "Status: COBA final40 is still running cleanly, one pod only. Latest sampled metrics were epoch 32/40: best validation 66.67% at epoch 29, no skipped/non-finite updates, active E rate. ETA for COBA training finish is roughly 13–15 minutes, then collection/reap probably another 2–4 minutes. After that I’ll start PING final40, likely ~60–70 minutes plus collection based on the short PING timing."
+    },
+    {
+      "timestamp": "2026-07-19T15:52:00.000Z",
+      "role": "user",
+      "content": "why didn't you run them in parallel?"
+    },
+    {
+      "timestamp": "2026-07-19T15:52:00.000Z",
+      "role": "assistant",
+      "content": "Because the active exp071 mandate explicitly says “at most one pod at a time” / “one-pod-at-a-time constraint,” and PR comments/logs are written around that constraint. I only launched PING after COBA completion for the short candidates, and I’m doing the same for final40. If you want to change that for future runs, I’d treat it as new authority/design change and log it before launching a second pod."
+    },
+    {
+      "timestamp": "2026-07-19T15:52:00.000Z",
+      "role": "user",
+      "content": "its okay to do them in parallel you have my permission"
+    },
+    {
+      "timestamp": "2026-07-19T15:52:00.000Z",
+      "role": "assistant",
+      "content": "Got it — I’ll treat that as explicit updated authority to run COBA and PING final40 concurrently from here. That changes the operational constraint, not the scientific design, so I’ll log the authorization on PR #55 and launch PING final40 while COBA continues, keeping total spend well below the $40 ceiling."
+    },
+    {
+      "timestamp": "2026-07-19T15:52:00.000Z",
+      "role": "assistant",
+      "content": "COBA final40 is collected and valid: selected epoch 36 at 68.38%, final epoch 40 at 65.93%, clean, active, rasters present. PING is the only active pod now."
+    },
+    {
+      "timestamp": "2026-07-19T15:52:00.000Z",
+      "role": "assistant",
+      "content": "PING has now edged ahead: epoch 36 best is 69.24%, clean/active. COBA selected 68.38%, so PING is +0.86 percentage points at this moment. Three epochs left."
+    },
+    {
+      "timestamp": "2026-07-19T15:52:00.000Z",
+      "role": "assistant",
+      "content": "Final40 validation is clean and collected: COBA selected 68.38% at epoch 36; PING selected 69.49% at epoch 38. Both final runs are finite/active/clean with rasters, and active pods are empty. I’m preparing the final artifact publish/report update now."
+    }
+  ]
+}

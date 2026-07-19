@@ -1,0 +1,35 @@
+{
+  "created_at_utc": "2026-07-19T12:27:06.571Z",
+  "exact_provider_billing": false,
+  "billing_status": "timestamp_estimate_pending_provider_reconciliation",
+  "total_spend_usd": 0.77,
+  "active_pods_after_collection": 0,
+  "currency": "USD",
+  "estimate_basis": "Manual timestamp estimate from RunPod create/stop/self-termination observation windows at 0.99 USD/hour; exact per-pod billing endpoint returned no rows at publication time.",
+  "attempts": {
+    "cloud-coba-001": {
+      "kind": "killed_monitoring_attempt",
+      "estimated_spend_usd": 0.102025
+    },
+    "cloud-coba-002": {
+      "kind": "killed_startup_attempt",
+      "estimated_spend_usd": 0.047029
+    },
+    "cloud-coba-003": {
+      "kind": "completed_short_training_and_collection",
+      "estimated_spend_usd": 0.31
+    },
+    "collector-coba": {
+      "kind": "completed_collection",
+      "estimated_spend_usd": 0.04
+    },
+    "cloud-ping-001": {
+      "kind": "completed_short_training_and_collection",
+      "estimated_spend_usd": 0.25
+    },
+    "collector-ping": {
+      "kind": "completed_collection",
+      "estimated_spend_usd": 0.02
+    }
+  }
+}
