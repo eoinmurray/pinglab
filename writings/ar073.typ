@@ -15,6 +15,7 @@
 #let trace-six = json("/artifacts/data/ar073/messages_cp006.json")
 #let trace-seven = json("/artifacts/data/ar073/messages_cp007.json")
 #let trace-eight = json("/artifacts/data/ar073/messages_cp008.json")
+#let trace-nine = json("/artifacts/data/ar073/messages_cp009.json")
 
 #let verbatim-prose(value) = {
   for (index, line) in value.split("\n").enumerate() {
@@ -256,4 +257,28 @@
   === Visible messages added in CP-008
 
   #for message in trace-eight.messages { message-card(message, trace-eight) }
+
+  == Checkpoint CP-009
+
+  *Candidate 2 is killed after the locked epoch-five comparison.* This
+  checkpoint follows dispatch commit `90575b9`. Its immutable private source
+  has SHA-256 prefix `c55f4048b3c7`, and its checkpoint time is
+  `2026-07-19 08:06:39.010 UTC`.
+
+  === Decision and action ledger
+
+  + PING self-terminated first and COBA followed by 08:05:03 UTC. The fleet is
+    zero and both complete records were collected.
+  + COBA reaches 27.94% at epoch five, exactly matching exp069, while
+    cross-entropy is 0.0168 worse. PING reaches 33.70%, only 1.10 percentage
+    points above exp069, while cross-entropy is 0.00153 worse.
+  + Both cells are finite and active with no skipped or non-finite updates.
+    Candidate 2 therefore fails the efficacy gate cleanly; it is not promoted.
+  + Exact provider rows for both completed attempts remain delayed. No estimate
+    is published as exact. Candidate 3 is the sole remaining registered short
+    attempt and has not yet been implemented.
+
+  === Visible messages added in CP-009
+
+  #for message in trace-nine.messages { message-card(message, trace-nine) }
 ]
