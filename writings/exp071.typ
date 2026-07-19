@@ -12,6 +12,8 @@
 #let trace-two = json("/artifacts/data/exp071/activity/messages_cp002.json")
 #let trace-three = json("/artifacts/data/exp071/activity/messages_cp003.json")
 #let trace-four = json("/artifacts/data/exp071/activity/messages_cp004.json")
+#let trace-five = json("/artifacts/data/exp071/activity/messages_cp005.json")
+#let baseline-short = json("/artifacts/data/exp071/raw/short/cumulative_baseline/attempt_decision.json")
 
 #let maybe-pct(x) = {
   if type(x) == float or type(x) == int {
@@ -20,6 +22,8 @@
     [pending]
   }
 }
+
+#let attempt-figure(suffix) = "/artifacts/data/exp071/" + r.stage + "_" + r.attempt + "_" + suffix
 
 #let verbatim-prose(value) = {
   for (index, line) in value.split("\n").enumerate() {
@@ -132,18 +136,47 @@
       #calc.round(r.spend.total_spend_usd, digits: 3) USD
     ], with #r.runpod.active_pods_after_collection active pods after collection.
 
-    #v(8pt)
-    #image("/artifacts/data/exp071/short_cumulative_baseline_validation_curves.svg", width: 100%)
-    #v(4pt)
-    #image("/artifacts/data/exp071/short_cumulative_baseline_activity_curves.svg", width: 100%)
-    #v(4pt)
-    #image("/artifacts/data/exp071/short_cumulative_baseline_matched_rasters.png", width: 100%)
+    #if r.attempt == "cumulative_256_256" [
+      #v(8pt)
+      #table(
+        columns: (1.35fr, auto, auto, auto, auto),
+        table.header([*Short candidate*], [*COBA selected*], [*PING selected*], [*COBA epoch*], [*PING epoch*]),
+        [`cumulative_baseline`],
+        [#maybe-pct(baseline-short.cells.coba.selected_validation_accuracy_pct)],
+        [#maybe-pct(baseline-short.cells.ping.selected_validation_accuracy_pct)],
+        [#baseline-short.cells.coba.selected_epoch],
+        [#baseline-short.cells.ping.selected_epoch],
+        [`cumulative_256_256`],
+        [#maybe-pct(r.cells.coba.selected_validation_accuracy_pct)],
+        [#maybe-pct(r.cells.ping.selected_validation_accuracy_pct)],
+        [#r.cells.coba.selected_epoch],
+        [#r.cells.ping.selected_epoch],
+      )
 
-    Candidate one clears the short-screen viability gate: both cells trained
-    above chance, remained finite and active, produced matched learning curves
-    and input/E/I rasters, and had no skipped or non-finite updates. It is not
-    yet the forty-epoch promotion decision, because the registered next step is
-    the conditional two-hidden-layer short candidate.
+      Candidate two is finite, active, and clean, but it does not improve the
+      short-screen learning curve. The registered promotion target therefore
+      remains candidate one, the baseline 256-cell architecture with the signed
+      cumulative-potential readout.
+    ]
+
+    #v(8pt)
+    #image(attempt-figure("validation_curves.svg"), width: 100%)
+    #v(4pt)
+    #image(attempt-figure("activity_curves.svg"), width: 100%)
+    #v(4pt)
+    #image(attempt-figure("matched_rasters.png"), width: 100%)
+
+    #if r.attempt == "cumulative_baseline" [
+      Candidate one clears the short-screen viability gate: both cells trained
+      above chance, remained finite and active, produced matched learning
+      curves and input/E/I rasters, and had no skipped or non-finite updates.
+      It is not yet the forty-epoch promotion decision, because the registered
+      next step is the conditional two-hidden-layer short candidate.
+    ] else [
+      The figures above show the two-hidden-layer short candidate. Matched
+      input/E/I rasters were captured for the same validation examples as the
+      first candidate.
+    ]
   ]
 
   == Activity appendix
@@ -201,4 +234,17 @@
   ==== Visible messages added
 
   #for message in trace-four.messages { message-card(message, trace-four) }
+
+  === Checkpoint #trace-five.checkpoint_id
+
+  Timestamp: `#trace-five.checkpoint_time_utc`. Sanitized source hash prefix:
+  `#trace-five.sanitized_sha256_prefix`.
+
+  ==== Decisions, actions, and pending work
+
+  #for item in trace-five.ledger { [+ #item] }
+
+  ==== Visible messages added
+
+  #for message in trace-five.messages { message-card(message, trace-five) }
 ]
