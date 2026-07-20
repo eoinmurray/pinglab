@@ -1,207 +1,42 @@
 diff --git a/experiments/exp072.py b/experiments/exp072.py
-index 054496c..d189fbc 100644
+index d189fbc..3dde668 100644
 --- a/experiments/exp072.py
 +++ b/experiments/exp072.py
-@@ -493,6 +493,123 @@ def restore_activity_logs(figures: Path, logs: dict[str, str]) -> dict[str, Any]
+@@ -556,6 +556,8 @@ def collected_compute_summary() -> dict[str, Any]:
+     total = 0.0
+     exact = True
+     for path in sorted((SCRATCH / "compute_ledgers").glob("*.json")):
++        if path.name == "provider_billing_reconciliation.json":
++            continue
+         payload = json.loads(path.read_text())
+         ledgers[path.stem] = {
+             "total_spend_usd": payload.get("total_spend_usd"),
+@@ -564,16 +566,27 @@ def collected_compute_summary() -> dict[str, Any]:
+         }
+         total += float(payload.get("total_spend_usd", 0.0))
+         exact = exact and bool(payload.get("exact_provider_billing", False))
+-    return {
++    summary = {
+         "total_spend_usd": round(total, 3),
+         "exact_provider_billing": exact,
+         "status": "exact" if exact else "timestamp_estimate_pending_provider_reconciliation",
+         "ledgers": ledgers,
      }
- 
- 
-+def write_reproducer(figures: Path) -> None:
-+    (figures / "goal.txt").write_text(GOAL_PROMPT + "\n")
-+    reproducer = figures / "reproduce.sh"
-+    reproducer.write_text(
-+        "#!/usr/bin/env bash\nset -euo pipefail\n"
-+        "uv run python experiments/exp072.py --plot-only\n"
-+        "for attempt in control train_leak adaptive_threshold combined; do\n"
-+        "  EXP072_ATTEMPT=\"$attempt\" uv run python experiments/exp072.py\n"
-+        "  for cell in coba ping; do\n"
-+        "    EXP072_ATTEMPT=\"$attempt\" EXP072_STAGE=short uv run python experiments/exp072.py --runpod --only-cells \"$cell\"\n"
-+        "    # Add --live only with fresh, explicit RunPod spending authority.\n"
-+        "  done\n"
-+        "done\n"
-+        "EXP072_ATTEMPT=train_leak EXP072_STAGE=final40 uv run python experiments/exp072.py --runpod\n"
-+        "EXP072_ATTEMPT=train_leak EXP072_STAGE=final40 uv run python experiments/exp072.py --runpod --collect\n"
-+        "EXP072_ATTEMPT=train_leak EXP072_STAGE=final40 uv run python experiments/exp072.py --skip-training\n"
-+    )
-+    reproducer.chmod(0o755)
-+
-+
-+def collected_cell_summary(stage: str, attempt: str, model: str) -> dict[str, Any] | None:
-+    cell = SCRATCH / "cells" / stage / attempt / model
-+    selection = cell / "checkpoint_selection.json"
-+    run_log = cell / "run.jsonl"
-+    if not selection.exists() or not run_log.exists():
-+        return None
-+    selected = json.loads(selection.read_text())
-+    summary: dict[str, Any] = {}
-+    for line in run_log.read_text().splitlines():
-+        event = json.loads(line)
-+        if event.get("event") == "summary":
-+            summary = event
-+    return {
-+        "selected_epoch": selected.get("epoch"),
-+        "selected_validation_accuracy_pct": selected.get("accuracy_pct"),
-+        "selected_validation_cross_entropy": selected.get("cross_entropy"),
-+        "final_validation_accuracy_pct": summary.get("final_acc"),
-+        "training_elapsed_s": summary.get("runtime_s"),
-+        "dynamics": summary.get("dynamics"),
-+    }
-+
-+
-+def collected_ladder_summary() -> dict[str, Any]:
-+    summary: dict[str, Any] = {}
-+    for stage in STAGE_SPECS:
-+        stage_payload: dict[str, Any] = {}
-+        for attempt in ATTEMPT_SPECS:
-+            cells = {
-+                model: collected_cell_summary(stage, attempt, model)
-+                for model in baseline.MODELS
-+            }
-+            if any(value is not None for value in cells.values()):
-+                stage_payload[attempt] = {"cells": cells}
-+        if stage_payload:
-+            summary[stage] = stage_payload
++    reconciliation = SCRATCH / "compute_ledgers" / "provider_billing_reconciliation.json"
++    if reconciliation.exists():
++        payload = json.loads(reconciliation.read_text())
++        summary["total_spend_usd"] = float(payload["total_spend_usd"])
++        summary["exact_provider_billing"] = bool(payload.get("exact_provider_billing", True))
++        summary["status"] = payload.get("billing_status", "provider_reconciled")
++        summary["provider_reconciliation"] = payload
 +    return summary
-+
-+
-+def collected_compute_summary() -> dict[str, Any]:
-+    ledgers: dict[str, Any] = {}
-+    total = 0.0
-+    exact = True
-+    for path in sorted((SCRATCH / "compute_ledgers").glob("*.json")):
-+        payload = json.loads(path.read_text())
-+        ledgers[path.stem] = {
-+            "total_spend_usd": payload.get("total_spend_usd"),
-+            "exact_provider_billing": bool(payload.get("exact_provider_billing", False)),
-+            "billing_status": payload.get("billing_status"),
-+        }
-+        total += float(payload.get("total_spend_usd", 0.0))
-+        exact = exact and bool(payload.get("exact_provider_billing", False))
-+    return {
-+        "total_spend_usd": round(total, 3),
-+        "exact_provider_billing": exact,
-+        "status": "exact" if exact else "timestamp_estimate_pending_provider_reconciliation",
-+        "ledgers": ledgers,
-+    }
-+
-+
-+def archive_collected_attempts(raw_root: Path) -> None:
-+    baseline.atomic_json(raw_root / "collected_ladder_summary.json", collected_ladder_summary())
-+    for attempt in ATTEMPT_SPECS:
-+        smoke = REPO / "temp" / "experiments" / SLUG / "smoke" / attempt / "smoke_summary.json"
-+        if smoke.exists():
-+            destination = raw_root / "smoke" / attempt
-+            destination.mkdir(parents=True, exist_ok=True)
-+            shutil.copy2(smoke, destination / "smoke_summary.json")
-+    for stage in STAGE_SPECS:
-+        for attempt in ATTEMPT_SPECS:
-+            ledger = SCRATCH / "compute_ledgers" / f"{stage}-{attempt}.json"
-+            if ledger.exists():
-+                ledger_dest = raw_root / stage / attempt
-+                ledger_dest.mkdir(parents=True, exist_ok=True)
-+                shutil.copy2(ledger, ledger_dest / "compute_ledger.json")
-+            for model in baseline.MODELS:
-+                source = SCRATCH / "cells" / stage / attempt / model
-+                if not source.exists():
-+                    continue
-+                destination = raw_root / stage / attempt / model
-+                destination.mkdir(parents=True, exist_ok=True)
-+                for name in ("config.json", "metrics.json", "metrics.jsonl", "checkpoint_selection.json"):
-+                    candidate = source / name
-+                    if candidate.exists():
-+                        shutil.copy2(candidate, destination / name)
-+                probe = source / "validation_probe"
-+                if (probe / "matched_input.npz").exists():
-+                    shutil.copy2(probe / "matched_input.npz", destination / "matched_input.npz")
-+                rasters = probe / "matched_rasters" / "rasters.npz"
-+                if rasters.exists():
-+                    shutil.copy2(rasters, destination / "matched_rasters.npz")
-+                if (source / "weights.pth").exists():
-+                    baseline.atomic_json(
-+                        destination / "parameter_diagnostics.json",
-+                        parameter_diagnostics(source),
-+                    )
-+
-+
- def publish_pre_result() -> None:
-     run_id = next_run_id(SLUG)
-     t0 = time.monotonic()
-@@ -519,7 +636,7 @@ def publish_pre_result() -> None:
-             smoke_raw = raw / "smoke" / name
-             smoke_raw.mkdir(parents=True)
-             shutil.copy2(candidate_smoke, smoke_raw / "smoke_summary.json")
--        (figures / "goal.txt").write_text(GOAL_PROMPT + "\n")
-+        write_reproducer(figures)
-         payload = {
-             "result_status": "preregistered",
-             "stage": "local_smoke_ladder_passed" if all_smokes_passed else (
-@@ -560,19 +677,6 @@ def publish_pre_result() -> None:
-         }
-         baseline.atomic_json(raw / "pre_result_status.json", payload)
-         write_numbers(figures, run_id=run_id, duration_s=time.monotonic() - t0, payload=payload)
--        reproducer = figures / "reproduce.sh"
--        reproducer.write_text(
--            "#!/usr/bin/env bash\nset -euo pipefail\n"
--            "uv run python experiments/exp072.py --plot-only\n"
--            "EXP072_ATTEMPT=control uv run python experiments/exp072.py\n"
--            "EXP072_ATTEMPT=control EXP072_STAGE=short uv run python experiments/exp072.py --runpod\n"
--            "# Add --live only with fresh, explicit RunPod spending authority.\n"
--            "EXP072_ATTEMPT=control EXP072_STAGE=short uv run python experiments/exp072.py --runpod --live\n"
--            "EXP072_ATTEMPT=control EXP072_STAGE=short uv run python experiments/exp072.py --runpod --collect\n"
--            "EXP072_ATTEMPT=control EXP072_STAGE=short uv run python experiments/exp072.py --skip-training\n"
--        )
--        reproducer.chmod(0o755)
--
  
- def publish_attempt() -> None:
-     if not COMPUTE_LEDGER.exists():
-@@ -582,7 +686,6 @@ def publish_attempt() -> None:
-         raise SystemExit("compute ledger does not confirm zero active pods")
-     if not math.isfinite(float(compute_ledger.get("total_spend_usd", math.nan))):
-         raise SystemExit("compute ledger does not contain finite total_spend_usd")
--    exact_billing = bool(compute_ledger.get("exact_provider_billing", True))
-     cells = baseline.validate_collected()
-     diagnostics = attempt_diagnostics(cells)
-     activity_logs = existing_activity_logs()
-@@ -594,6 +697,7 @@ def publish_attempt() -> None:
-     with published_run(SLUG, run_id, make_artifacts=True, scale=baseline.SCALE,
-                        skip_training=True) as (_, figures):
-         activity_payload = restore_activity_logs(figures, activity_logs)
-+        write_reproducer(figures)
-         baseline.plot_validation_curves(cells, figures / f"{STAGE}_{ATTEMPT}_validation_curves")
-         baseline.plot_activity_curves(cells, figures / f"{STAGE}_{ATTEMPT}_activity_curves")
-         baseline.plot_matched_rasters(figures / f"{STAGE}_{ATTEMPT}_matched_rasters.png")
-@@ -614,11 +718,16 @@ def publish_attempt() -> None:
-                 destination / "matched_rasters.npz",
-             )
-             baseline.atomic_json(destination / "parameter_diagnostics.json", parameter_diagnostics(source))
-+        archive_collected_attempts(figures / "raw")
-+        ladder_summary = collected_ladder_summary()
-+        compute_summary = collected_compute_summary()
-         payload = {
-             "result_status": "done",
-             "stage": STAGE,
-             "attempt": ATTEMPT,
-             "attempt_order": list(ATTEMPT_SPECS),
-+            "screening_epochs": SHORT_EPOCHS,
-+            "promotion_epochs": FINAL_EPOCHS,
-             "seed": baseline.SEED,
-             "cells": diagnostics,
-             "parameters": {
-@@ -639,11 +748,13 @@ def publish_attempt() -> None:
-                 "selection_rule": cells["coba"]["selection"]["rule"],
-             },
-             "runpod": compute_ledger,
-+            "compute": compute_summary,
-+            "ladder": ladder_summary,
-             "activity": activity_payload,
-             "spend": {
--                "total_spend_usd": float(compute_ledger["total_spend_usd"]),
--                "exact_provider_billing": exact_billing,
--                "status": "exact" if exact_billing else "timestamp_estimate_pending_provider_reconciliation",
-+                "total_spend_usd": float(compute_summary["total_spend_usd"]),
-+                "exact_provider_billing": bool(compute_summary["exact_provider_billing"]),
-+                "status": compute_summary["status"],
-             },
-         }
-         baseline.atomic_json(raw / "attempt_decision.json", payload)
+ 
+ def archive_collected_attempts(raw_root: Path) -> None:
+     baseline.atomic_json(raw_root / "collected_ladder_summary.json", collected_ladder_summary())
++    reconciliation = SCRATCH / "compute_ledgers" / "provider_billing_reconciliation.json"
++    if reconciliation.exists():
++        shutil.copy2(reconciliation, raw_root / "provider_billing_reconciliation.json")
+     for attempt in ATTEMPT_SPECS:
+         smoke = REPO / "temp" / "experiments" / SLUG / "smoke" / attempt / "smoke_summary.json"
+         if smoke.exists():

@@ -1,14 +1,14 @@
 {
   "slug": "exp072",
-  "run_id": "r015",
-  "run_at": "2026-07-20T06:36:29+00:00",
-  "git_sha": "94944a8",
+  "run_id": "r016",
+  "run_at": "2026-07-20T06:40:33+00:00",
+  "git_sha": "b92634a",
   "dirty": true,
   "code_dirty": true,
   "patch": {
     "file": "_dirty.patch",
-    "sha256": "6eab4d817e3a26131dd1cfd3da2dcd2f24273c2ea984e4807c4f26a38d5bd7d8",
-    "lines": 208
+    "sha256": "ef974d01d6ad001f7cddb93ee8219ebfbe1c2add19c337e9ea318ebd13ee8914",
+    "lines": 43
   },
   "host": "local",
   "scale": {

@@ -556,6 +556,8 @@ def collected_compute_summary() -> dict[str, Any]:
     total = 0.0
     exact = True
     for path in sorted((SCRATCH / "compute_ledgers").glob("*.json")):
+        if path.name == "provider_billing_reconciliation.json":
+            continue
         payload = json.loads(path.read_text())
         ledgers[path.stem] = {
             "total_spend_usd": payload.get("total_spend_usd"),
@@ -564,16 +566,27 @@ def collected_compute_summary() -> dict[str, Any]:
         }
         total += float(payload.get("total_spend_usd", 0.0))
         exact = exact and bool(payload.get("exact_provider_billing", False))
-    return {
+    summary = {
         "total_spend_usd": round(total, 3),
         "exact_provider_billing": exact,
         "status": "exact" if exact else "timestamp_estimate_pending_provider_reconciliation",
         "ledgers": ledgers,
     }
+    reconciliation = SCRATCH / "compute_ledgers" / "provider_billing_reconciliation.json"
+    if reconciliation.exists():
+        payload = json.loads(reconciliation.read_text())
+        summary["total_spend_usd"] = float(payload["total_spend_usd"])
+        summary["exact_provider_billing"] = bool(payload.get("exact_provider_billing", True))
+        summary["status"] = payload.get("billing_status", "provider_reconciled")
+        summary["provider_reconciliation"] = payload
+    return summary
 
 
 def archive_collected_attempts(raw_root: Path) -> None:
     baseline.atomic_json(raw_root / "collected_ladder_summary.json", collected_ladder_summary())
+    reconciliation = SCRATCH / "compute_ledgers" / "provider_billing_reconciliation.json"
+    if reconciliation.exists():
+        shutil.copy2(reconciliation, raw_root / "provider_billing_reconciliation.json")
     for attempt in ATTEMPT_SPECS:
         smoke = REPO / "temp" / "experiments" / SLUG / "smoke" / attempt / "smoke_summary.json"
         if smoke.exists():
