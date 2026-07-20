@@ -521,6 +521,38 @@ def test_trainable_w_flags_propagate_through_cli(tmp_path):
     )
 
 
+def test_w_ee_init_and_trainable_flag_propagate_through_train_cli(tmp_path):
+    """--w-ee must reach train/build_net, not just the parser.
+
+    exp073 depends on this exact path: Dale-constrained W_EE is nonzero at
+    initialisation and trainable under --trainable-w-ee.
+    """
+    out = tmp_path / "wee"
+    _train_probe(out, "--w-ee", "0.3", "0.01", "--trainable-w-ee")
+    cfg = _read_config(out)
+    assert cfg["w_ee"] == [0.3, 0.01]
+    assert cfg["trainable_w_ee"] is True
+
+    import sys
+
+    sys.path.insert(0, "src/cli")
+    from config import build_net
+
+    torch.manual_seed(0)
+    net = build_net(
+        "ping",
+        w_in=(0.3, 0.03),
+        w_in_sparsity=0.0,
+        w_ee=(0.3, 0.01),
+        ei_strength=0.5,
+        sparsity=0.0,
+        trainable_w_ee=True,
+    )
+    w_ee = net.W_ee["1"]
+    assert w_ee.requires_grad
+    assert float(w_ee.detach().abs().mean()) > 1e-4
+
+
 def test_ei_sparsity_zeros_recurrent_entries():
     """--ei-sparsity FRAC zeros approximately *frac* of recurrent entries.
     At 0.9, ≈ 10% of W^EI entries should survive (with stochastic tolerance)."""

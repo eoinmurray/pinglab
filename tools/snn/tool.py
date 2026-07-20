@@ -1385,6 +1385,7 @@ def _run_train(args, C, out_dir, log):
         out_dir=str(out_dir),
         device_name=None,
         w_in=_resolve_w_in(args),
+        w_ee=args.w_ee,
         w_ei=args.w_ei,
         w_ie=args.w_ie,
         w_ii=args.w_ii,
