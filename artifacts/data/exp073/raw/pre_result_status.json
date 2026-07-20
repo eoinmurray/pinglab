@@ -49822,6 +49822,126 @@
       "stage": "short",
       "started_utc": "2026-07-20T16:17:22Z",
       "total_spend_usd": null
+    },
+    "cp003_ten_ping_only_startup_retries_reaped": {
+      "active_pods_after_reap": 0,
+      "attempt": "plastic_wee",
+      "attempt_count": 10,
+      "attempts": [
+        {
+          "exact_provider_billing": false,
+          "ordinal": 1,
+          "outcome": "reaped_not_started",
+          "pod_id": "2379txx016ytz4",
+          "provider_billing_status": "pending_provider_row; runpodctl billing pods --pod-id returned no row after reap",
+          "reaped_utc": "2026-07-20T16:46:49Z",
+          "started_utc": "2026-07-20T16:43:29Z",
+          "total_spend_usd": null
+        },
+        {
+          "exact_provider_billing": false,
+          "ordinal": 2,
+          "outcome": "reaped_not_started",
+          "pod_id": "mmc6b84ocakmw8",
+          "provider_billing_status": "pending_provider_row; runpodctl billing pods --pod-id returned no row after reap",
+          "reaped_utc": "2026-07-20T16:50:21Z",
+          "started_utc": "2026-07-20T16:47:02Z",
+          "total_spend_usd": null
+        },
+        {
+          "exact_provider_billing": false,
+          "ordinal": 3,
+          "outcome": "reaped_not_started",
+          "pod_id": "x2erb1f8fxw2br",
+          "provider_billing_status": "pending_provider_row; runpodctl billing pods --pod-id returned no row after reap",
+          "reaped_utc": "2026-07-20T16:53:53Z",
+          "started_utc": "2026-07-20T16:50:34Z",
+          "total_spend_usd": null
+        },
+        {
+          "exact_provider_billing": false,
+          "ordinal": 4,
+          "outcome": "reaped_not_started",
+          "pod_id": "s2p0ewiuujtujp",
+          "provider_billing_status": "pending_provider_row; runpodctl billing pods --pod-id returned no row after reap",
+          "reaped_utc": "2026-07-20T16:57:24Z",
+          "started_utc": "2026-07-20T16:54:06Z",
+          "total_spend_usd": null
+        },
+        {
+          "exact_provider_billing": false,
+          "ordinal": 5,
+          "outcome": "reaped_not_started",
+          "pod_id": "0codr1kkto7da2",
+          "provider_billing_status": "pending_provider_row; runpodctl billing pods --pod-id returned no row after reap",
+          "reaped_utc": "2026-07-20T17:00:56Z",
+          "started_utc": "2026-07-20T16:57:37Z",
+          "total_spend_usd": null
+        },
+        {
+          "exact_provider_billing": false,
+          "ordinal": 6,
+          "outcome": "reaped_not_started",
+          "pod_id": "7zhxht4tk3vgmt",
+          "provider_billing_status": "pending_provider_row; runpodctl billing pods --pod-id returned no row after reap",
+          "reaped_utc": "2026-07-20T17:04:26Z",
+          "started_utc": "2026-07-20T17:01:09Z",
+          "total_spend_usd": null
+        },
+        {
+          "exact_provider_billing": false,
+          "ordinal": 7,
+          "outcome": "reaped_not_started",
+          "pod_id": "g5i7ys7266x1z4",
+          "provider_billing_status": "pending_provider_row; runpodctl billing pods --pod-id returned no row after reap",
+          "reaped_utc": "2026-07-20T17:07:56Z",
+          "started_utc": "2026-07-20T17:04:38Z",
+          "total_spend_usd": null
+        },
+        {
+          "exact_provider_billing": false,
+          "ordinal": 8,
+          "outcome": "reaped_not_started",
+          "pod_id": "p1envv1m2bgxiv",
+          "provider_billing_status": "pending_provider_row; runpodctl billing pods --pod-id returned no row after reap",
+          "reaped_utc": "2026-07-20T17:11:27Z",
+          "started_utc": "2026-07-20T17:08:09Z",
+          "total_spend_usd": null
+        },
+        {
+          "exact_provider_billing": false,
+          "ordinal": 9,
+          "outcome": "reaped_not_started",
+          "pod_id": "ijbzc7i9lnlslh",
+          "provider_billing_status": "pending_provider_row; runpodctl billing pods --pod-id returned no row after reap",
+          "reaped_utc": "2026-07-20T17:14:57Z",
+          "started_utc": "2026-07-20T17:11:40Z",
+          "total_spend_usd": null
+        },
+        {
+          "exact_provider_billing": false,
+          "ordinal": 10,
+          "outcome": "reaped_not_started",
+          "pod_id": "jefhmed3f7q363",
+          "provider_billing_status": "pending_provider_row; runpodctl billing pods --pod-id returned no row after reap",
+          "reaped_utc": "2026-07-20T17:18:28Z",
+          "started_utc": "2026-07-20T17:15:09Z",
+          "total_spend_usd": null
+        }
+      ],
+      "cell_scope": [
+        "ping"
+      ],
+      "checkpoint_time_utc": "2026-07-20T17:18:40Z",
+      "cost_per_hour_usd": 0.99,
+      "event": "ten_more_ping_only_startup_retries_exhausted",
+      "exact_provider_billing": false,
+      "gpu": "NVIDIA GeForce RTX 5090",
+      "pinned_commit": "2d7d3809eb32ad80ce16c89b8ffe8477f2a58994",
+      "provider_billing_status": "pending_provider_rows_for_all_batch_pods",
+      "reason": "user authorized ten more single-pod attempts; each pod rented but failed to produce a useful startup/readiness signal within the short startup window and was reaped before the next attempt",
+      "stage": "short",
+      "total_spend_usd": null
     }
   },
   "runpod": {
@@ -49832,7 +49952,7 @@
   "activity": {
     "checkpoint_ids": [],
     "latest_checkpoint_id": null,
-    "latest_checkpoint_time_utc": "2026-07-20T16:21:16.026Z",
+    "latest_checkpoint_time_utc": "2026-07-20T17:19:22.957Z",
     "publishable_log": null
   }
 }
