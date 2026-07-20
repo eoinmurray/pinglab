@@ -68,6 +68,7 @@ STAGE_SPECS = {
 }
 ATTEMPT = os.environ.get("EXP073_ATTEMPT", BASELINE_ATTEMPT)
 STAGE = os.environ.get("EXP073_STAGE", "short")
+PING_ONLY = os.environ.get("EXP073_PING_ONLY") == "1"
 if ATTEMPT not in ATTEMPT_SPECS:
     raise RuntimeError(f"unregistered exp073 attempt: {ATTEMPT}")
 if STAGE not in STAGE_SPECS:
@@ -345,6 +346,7 @@ def run_via_runpod(meta: Any) -> None:
             "PINGLAB_ARTIFACTS_ROOT": f"{runpod.VOLUME_MOUNT}/{runpod.ARTIFACTS_SUBDIR}/{SLUG}",
             "EXP073_ATTEMPT": ATTEMPT,
             "EXP073_STAGE": STAGE,
+            "EXP073_PING_ONLY": "1" if PING_ONLY else "0",
         },
         max_runtime_s=14400 if STAGE == "final80" else (7200 if STAGE == "final40" else 3600),
     )
@@ -352,7 +354,7 @@ def run_via_runpod(meta: Any) -> None:
 
 def attempt_diagnostics(cells: dict[str, Any]) -> dict[str, Any]:
     diagnostics: dict[str, Any] = {}
-    for model in baseline.MODELS:
+    for model in cells:
         training = cells[model]["training"]
         selection = cells[model]["selection"]
         selected_epoch = int(selection["epoch"])
@@ -390,6 +392,131 @@ def attempt_diagnostics(cells: dict[str, Any]) -> dict[str, Any]:
             "training_peak_gpu_memory_bytes": training.get("perf", {}).get("peak_memory_bytes"),
         }
     return diagnostics
+
+
+def validate_collected_subset(models: tuple[str, ...]) -> dict[str, Any]:
+    errors: list[str] = []
+    cells: dict[str, Any] = {}
+    for model in models:
+        model_errors: list[str] = []
+        out = CELL_ROOT / model
+        frozen_path = FROZEN_ROOT / f"{model}.json"
+        if not frozen_path.exists():
+            errors.append(f"{model}: missing frozen record")
+            continue
+        frozen = baseline.load_json(frozen_path)
+        model_errors.extend(f"{model}: {error}" for error in validate_training(model, out, smoke=False))
+        for relative in (
+            "complete.json",
+            "validation_probe/matched_input.npz",
+            "validation_probe/matched_rasters/rasters.npz",
+        ):
+            if not (out / relative).exists():
+                model_errors.append(f"{model}: missing {relative}")
+        if frozen.get("split_train_indices_sha256") != baseline.EXP068_TRAIN_HASH:
+            model_errors.append(f"{model}: development-training indices differ from exp068")
+        if frozen.get("split_validation_indices_sha256") != baseline.EXP068_VALIDATION_HASH:
+            model_errors.append(f"{model}: validation indices differ from exp068")
+        if model_errors:
+            errors.extend(model_errors)
+        else:
+            cells[model] = {
+                "training": baseline.load_json(out / "metrics.json"),
+                "selection": baseline.load_json(out / "checkpoint_selection.json"),
+                "frozen": frozen,
+            }
+    if errors:
+        raise SystemExit("collected exp073 subset failed integrity checks:\n" + "\n".join(errors))
+    return cells
+
+
+def plot_ping_only_validation_curves(cells: dict[str, Any], stem: Path) -> None:
+    import matplotlib.pyplot as plt
+    from helpers.figsave import save_figure
+    from helpers import theme
+
+    theme.apply()
+    epochs = cells["ping"]["training"]["epochs"]
+    selected = cells["ping"]["selection"]
+    x = [epoch["ep"] for epoch in epochs]
+    fig, axes = plt.subplots(1, 2, figsize=(6.5, 3.25))
+    axes[0].plot(x, [epoch["loss"] for epoch in epochs], color=theme.INK_BLACK, label="PING train")
+    axes[0].plot(x, [epoch["test_loss"] for epoch in epochs], color=theme.INK_BLACK,
+                 linestyle=":", label="PING validation")
+    axes[1].plot(x, [epoch["acc"] for epoch in epochs], color=theme.INK_BLACK, marker="D",
+                 markevery=5, label="PING")
+    axes[1].scatter([selected["epoch"]], [selected["accuracy_pct"]],
+                    color=theme.INK_BLACK, marker="D", s=32, zorder=4)
+    axes[0].set(xlabel="epoch", ylabel="cross-entropy loss")
+    axes[1].set(xlabel="epoch", ylabel="validation accuracy (%)")
+    for axis in axes:
+        axis.spines[["top", "right"]].set_visible(False)
+        axis.legend(frameon=False, fontsize=7)
+    fig.tight_layout()
+    save_figure(fig, stem)
+    plt.close(fig)
+
+
+def plot_ping_only_activity_curves(cells: dict[str, Any], stem: Path) -> None:
+    import matplotlib.pyplot as plt
+    from helpers.figsave import save_figure
+    from helpers import theme
+
+    theme.apply()
+    epochs = cells["ping"]["training"]["epochs"]
+    x = [epoch["ep"] for epoch in epochs]
+    fig, axes = plt.subplots(1, 2, figsize=(6.5, 3.25), sharex=True)
+    axes[0].plot(x, [epoch.get("test_rate_e", 0.0) for epoch in epochs],
+                 color=theme.INK_BLACK, label="PING E")
+    axes[1].plot(x, [epoch.get("test_rate_i", 0.0) or 0.0 for epoch in epochs],
+                 color=theme.INK_BLACK, label="PING I")
+    axes[0].set(xlabel="epoch", ylabel="validation E rate (Hz)")
+    axes[1].set(xlabel="epoch", ylabel="validation I rate (Hz)")
+    for axis in axes:
+        axis.spines[["top", "right"]].set_visible(False)
+        axis.legend(frameon=False)
+    fig.tight_layout()
+    save_figure(fig, stem)
+    plt.close(fig)
+
+
+def plot_ping_only_matched_rasters(stem: Path) -> None:
+    import matplotlib.pyplot as plt
+    import numpy as np
+    from helpers import theme
+
+    theme.apply()
+    input_path = CELL_ROOT / "ping" / "validation_probe" / "matched_input.npz"
+    input_data = np.load(input_path)
+    input_spikes = input_data["input_spikes"]
+    data = np.load(CELL_ROOT / "ping" / "validation_probe" / "matched_rasters" / "rasters.npz")
+    fig, axes = plt.subplots(3, len(baseline.RASTER_POSITIONS), figsize=(6.5, 3.2), sharex=True)
+    e = np.zeros((int(data["T"]), int(data["n_e"])), dtype=np.uint8)
+    i = np.zeros((int(data["T"]), int(data["n_i"])), dtype=np.uint8)
+    for col, position in enumerate(baseline.RASTER_POSITIONS):
+        e.fill(0)
+        i.fill(0)
+        emask = data["e_trial"] == col
+        imask = data["i_trial"] == col
+        e[data["e_t"][emask], data["e_cell"][emask]] = 1
+        i[data["i_t"][imask], data["i_cell"][imask]] = 1
+        for row, (array, label) in enumerate(zip((input_spikes[:, col, :], e, i), ("input", "E", "I"))):
+            axis = axes[row, col]
+            timesteps, units = np.nonzero(array)
+            axis.scatter(timesteps * float(input_data["dt"]), units, s=0.25,
+                         color=theme.INK_BLACK, linewidths=0, rasterized=True)
+            if col == 0:
+                axis.set_ylabel(f"PING {label}", fontsize=7)
+            if row == 0:
+                speaker = int(input_data["speakers"][col])
+                axis.set_title(f"position {position} · speaker {speaker}", fontsize=7)
+            axis.spines[["top", "right"]].set_visible(False)
+            axis.tick_params(labelsize=6)
+    for axis in axes[-1]:
+        axis.set_xlabel("time (ms)")
+    fig.tight_layout(h_pad=0.3, w_pad=0.5)
+    fig.savefig(stem, dpi=240, bbox_inches="tight", facecolor="white")
+    plt.close(fig)
 
 
 def _summary(values: Any) -> dict[str, float]:
@@ -524,6 +651,13 @@ def write_reproducer(figures: Path) -> None:
         "#!/usr/bin/env bash\nset -euo pipefail\n"
         "uv run python experiments/exp073.py --plot-only\n"
         "EXP073_ATTEMPT=plastic_wee uv run python experiments/exp073.py\n"
+        "# The matched local gate failed for COBA. With explicit follow-up authority,\n"
+        "# continue the surviving PING cell only by setting EXP073_PING_ONLY=1.\n"
+        "EXP073_PING_ONLY=1 EXP073_ATTEMPT=plastic_wee EXP073_STAGE=short uv run python experiments/exp073.py --runpod --only-cells ping\n"
+        "EXP073_PING_ONLY=1 EXP073_ATTEMPT=plastic_wee EXP073_STAGE=short uv run python experiments/exp073.py --runpod --only-cells ping --live\n"
+        "EXP073_PING_ONLY=1 EXP073_ATTEMPT=plastic_wee EXP073_STAGE=short uv run python experiments/exp073.py --runpod --collect\n"
+        "EXP073_PING_ONLY=1 EXP073_ATTEMPT=plastic_wee EXP073_STAGE=short uv run python experiments/exp073.py --skip-training\n"
+        "# Historical matched commands retained for the original pre-pivot design:\n"
         "EXP073_ATTEMPT=plastic_wee EXP073_STAGE=short uv run python experiments/exp073.py --runpod\n"
         "EXP073_ATTEMPT=plastic_wee EXP073_STAGE=short uv run python experiments/exp073.py --runpod --collect\n"
         "EXP073_ATTEMPT=plastic_wee EXP073_STAGE=short uv run python experiments/exp073.py --skip-training\n"
@@ -832,7 +966,8 @@ def publish_attempt() -> None:
         raise SystemExit("compute ledger does not confirm zero active pods")
     if not math.isfinite(float(compute_ledger.get("total_spend_usd", math.nan))):
         raise SystemExit("compute ledger does not contain finite total_spend_usd")
-    cells = baseline.validate_collected()
+    model_scope = ("ping",) if PING_ONLY else tuple(baseline.MODELS)
+    cells = validate_collected_subset(model_scope) if PING_ONLY else baseline.validate_collected()
     diagnostics = attempt_diagnostics(cells)
     activity_logs = existing_activity_logs()
     smoke_path = SMOKE_ROOT / "smoke_summary.json"
@@ -844,15 +979,20 @@ def publish_attempt() -> None:
                        skip_training=True) as (_, figures):
         activity_payload = restore_activity_logs(figures, activity_logs)
         write_reproducer(figures)
-        baseline.plot_validation_curves(cells, figures / f"{STAGE}_{ATTEMPT}_validation_curves")
-        baseline.plot_activity_curves(cells, figures / f"{STAGE}_{ATTEMPT}_activity_curves")
-        baseline.plot_matched_rasters(figures / f"{STAGE}_{ATTEMPT}_matched_rasters.png")
+        if PING_ONLY:
+            plot_ping_only_validation_curves(cells, figures / f"{STAGE}_{ATTEMPT}_ping_only_validation_curves")
+            plot_ping_only_activity_curves(cells, figures / f"{STAGE}_{ATTEMPT}_ping_only_activity_curves")
+            plot_ping_only_matched_rasters(figures / f"{STAGE}_{ATTEMPT}_ping_only_matched_rasters.png")
+        else:
+            baseline.plot_validation_curves(cells, figures / f"{STAGE}_{ATTEMPT}_validation_curves")
+            baseline.plot_activity_curves(cells, figures / f"{STAGE}_{ATTEMPT}_activity_curves")
+            baseline.plot_matched_rasters(figures / f"{STAGE}_{ATTEMPT}_matched_rasters.png")
         raw = figures / "raw" / STAGE / ATTEMPT
         raw.mkdir(parents=True)
         if smoke_path.exists():
             shutil.copy2(smoke_path, raw / "smoke_summary.json")
         shutil.copy2(COMPUTE_LEDGER, raw / "compute_ledger.json")
-        for model in baseline.MODELS:
+        for model in model_scope:
             source = CELL_ROOT / model
             destination = raw / model
             destination.mkdir()
@@ -869,6 +1009,11 @@ def publish_attempt() -> None:
         compute_summary = collected_compute_summary()
         payload = {
             "result_status": "done",
+            "design_pivot": (
+                "ping_only_after_matched_local_gate_failure" if PING_ONLY else "matched_coba_ping"
+            ),
+            "pivot_authorized": bool(PING_ONLY),
+            "cell_scope": list(model_scope),
             "stage": STAGE,
             "attempt": ATTEMPT,
             "attempt_order": list(ATTEMPT_SPECS),
@@ -878,7 +1023,7 @@ def publish_attempt() -> None:
             "cells": diagnostics,
             "parameters": {
                 model: parameter_diagnostics(CELL_ROOT / model)
-                for model in baseline.MODELS
+                for model in model_scope
             },
             "split": {
                 "development_train_count": 7340,
@@ -890,8 +1035,13 @@ def publish_attempt() -> None:
             "integrity": {
                 "official_test_access": "forbidden and absent from runner",
                 "matched_partitions": True,
-                "matched_raster_inputs": True,
-                "selection_rule": cells["coba"]["selection"]["rule"],
+                "matched_raster_inputs": not PING_ONLY,
+                "selection_rule": cells[model_scope[0]]["selection"]["rule"],
+                "note": (
+                    "PING-only continuation after the matched local gate killed COBA"
+                    if PING_ONLY
+                    else "matched COBA/PING comparison"
+                ),
             },
             "runpod": compute_ledger,
             "compute": compute_summary,
