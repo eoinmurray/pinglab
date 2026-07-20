@@ -45,6 +45,7 @@ from helpers.run_id import next_run_id  # noqa: E402
 SLUG = "exp072"
 SHORT_EPOCHS = 8
 FINAL_EPOCHS = 40
+FOLLOWUP_EPOCHS = 80
 READOUT_MODE = "cumulative-potential"
 SIGNED_READOUT = True
 READOUT_BIAS = True
@@ -80,6 +81,7 @@ ATTEMPT_SPECS: dict[str, dict[str, Any]] = {
 STAGE_SPECS = {
     "short": {"epochs": SHORT_EPOCHS, "pod_suffix": "short"},
     "final40": {"epochs": FINAL_EPOCHS, "pod_suffix": "final40"},
+    "final80": {"epochs": FOLLOWUP_EPOCHS, "pod_suffix": "final80"},
 }
 ATTEMPT = os.environ.get("EXP072_ATTEMPT", BASELINE_ATTEMPT)
 STAGE = os.environ.get("EXP072_STAGE", "short")
@@ -368,7 +370,7 @@ def run_via_runpod(meta: Any) -> None:
             "EXP072_ATTEMPT": ATTEMPT,
             "EXP072_STAGE": STAGE,
         },
-        max_runtime_s=7200 if STAGE == "final40" else 3600,
+        max_runtime_s=14400 if STAGE == "final80" else (7200 if STAGE == "final40" else 3600),
     )
 
 
@@ -509,6 +511,9 @@ def write_reproducer(figures: Path) -> None:
         "EXP072_ATTEMPT=train_leak EXP072_STAGE=final40 uv run python experiments/exp072.py --runpod\n"
         "EXP072_ATTEMPT=train_leak EXP072_STAGE=final40 uv run python experiments/exp072.py --runpod --collect\n"
         "EXP072_ATTEMPT=train_leak EXP072_STAGE=final40 uv run python experiments/exp072.py --skip-training\n"
+        "EXP072_ATTEMPT=combined EXP072_STAGE=final80 uv run python experiments/exp072.py --runpod\n"
+        "EXP072_ATTEMPT=combined EXP072_STAGE=final80 uv run python experiments/exp072.py --runpod --collect\n"
+        "EXP072_ATTEMPT=combined EXP072_STAGE=final80 uv run python experiments/exp072.py --skip-training\n"
     )
     reproducer.chmod(0o755)
 
@@ -670,6 +675,7 @@ def publish_pre_result() -> None:
             },
             "screening_epochs": SHORT_EPOCHS,
             "promotion_epochs": FINAL_EPOCHS,
+            "followup_epochs": FOLLOWUP_EPOCHS,
             "promotion_accuracy_gain_pp": PROMOTION_ACCURACY_GAIN_PP,
             "split": {
                 "development_train_count": 7340,
@@ -741,6 +747,7 @@ def publish_attempt() -> None:
             "attempt_order": list(ATTEMPT_SPECS),
             "screening_epochs": SHORT_EPOCHS,
             "promotion_epochs": FINAL_EPOCHS,
+            "followup_epochs": FOLLOWUP_EPOCHS,
             "seed": baseline.SEED,
             "cells": diagnostics,
             "parameters": {
