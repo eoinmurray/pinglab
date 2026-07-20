@@ -1,0 +1,475 @@
+{
+  "run_id": "r018",
+  "git_sha": "7a6b69e",
+  "duration_s": 5.8,
+  "duration": "6s",
+  "result_status": "done",
+  "stage": "final80",
+  "attempt": "combined",
+  "attempt_order": [
+    "control",
+    "train_leak",
+    "adaptive_threshold",
+    "combined"
+  ],
+  "screening_epochs": 8,
+  "promotion_epochs": 40,
+  "followup_epochs": 80,
+  "seed": 42,
+  "cells": {
+    "coba": {
+      "selected_epoch": 77,
+      "selected_validation_accuracy_pct": 64.58333333333333,
+      "selected_validation_cross_entropy": 1.162477970123291,
+      "selected_validation_e_rate_hz": 34.91054878982843,
+      "selected_validation_i_rate_hz": 0.0,
+      "final_validation_accuracy_pct": 61.51960784313726,
+      "final_validation_cross_entropy": 1.1773973588760083,
+      "final_validation_e_rate_hz": 34.96871649050245,
+      "final_validation_i_rate_hz": 0.0,
+      "gradient_norm": 76.21470443062161,
+      "finite": true,
+      "active": true,
+      "clean": true,
+      "training_elapsed_s": 11762.431560333818,
+      "training_peak_gpu_memory_bytes": 509908992
+    },
+    "ping": {
+      "selected_epoch": 73,
+      "selected_validation_accuracy_pct": 71.69117647058823,
+      "selected_validation_cross_entropy": 0.8771768968838912,
+      "selected_validation_e_rate_hz": 9.952445235906863,
+      "selected_validation_i_rate_hz": 51.904028799019606,
+      "final_validation_accuracy_pct": 69.24019607843137,
+      "final_validation_cross_entropy": 0.900235293003229,
+      "final_validation_e_rate_hz": 10.08071959252451,
+      "final_validation_i_rate_hz": 52.68173636642157,
+      "gradient_norm": 6.016261552727741,
+      "finite": true,
+      "active": true,
+      "clean": true,
+      "training_elapsed_s": 8159.12676708959,
+      "training_peak_gpu_memory_bytes": 509908992
+    }
+  },
+  "parameters": {
+    "coba": {
+      "train_leak": true,
+      "adaptive_threshold": true,
+      "bounds": {
+        "tau_m_e_ms": [
+          5.0,
+          50.0
+        ],
+        "tau_m_i_ms": [
+          2.0,
+          20.0
+        ],
+        "adapt_tau_ms": [
+          50.0,
+          500.0
+        ],
+        "adapt_strength_mv": [
+          0.0,
+          20.0
+        ]
+      },
+      "layers": {
+        "1": {
+          "tau_m_e_ms": {
+            "min": 6.2358420437299085,
+            "mean": 13.44095230536226,
+            "max": 23.150275795768557
+          },
+          "tau_m_i_ms": {
+            "min": 4.999999924823045,
+            "mean": 4.999999924823045,
+            "max": 4.999999924823045
+          },
+          "adapt_tau_ms": {
+            "min": 57.26069830160176,
+            "mean": 151.84733498054163,
+            "max": 290.84336154723326
+          },
+          "adapt_strength_mv": {
+            "min": 0.04810754065622234,
+            "mean": 0.7956237723957787,
+            "max": 1.263607296794648
+          }
+        }
+      }
+    },
+    "ping": {
+      "train_leak": true,
+      "adaptive_threshold": true,
+      "bounds": {
+        "tau_m_e_ms": [
+          5.0,
+          50.0
+        ],
+        "tau_m_i_ms": [
+          2.0,
+          20.0
+        ],
+        "adapt_tau_ms": [
+          50.0,
+          500.0
+        ],
+        "adapt_strength_mv": [
+          0.0,
+          20.0
+        ]
+      },
+      "layers": {
+        "1": {
+          "tau_m_e_ms": {
+            "min": 20.818707176836238,
+            "mean": 30.265761925613937,
+            "max": 44.78557966234021
+          },
+          "tau_m_i_ms": {
+            "min": 7.804606673624943,
+            "mean": 8.629495197883344,
+            "max": 10.38862841614924
+          },
+          "adapt_tau_ms": {
+            "min": 60.449076958278425,
+            "mean": 96.60705069046561,
+            "max": 168.1850148025021
+          },
+          "adapt_strength_mv": {
+            "min": 0.1017881239521184,
+            "mean": 0.38864487943962456,
+            "max": 1.1014261104380476
+          }
+        }
+      }
+    }
+  },
+  "split": {
+    "development_train_count": 7340,
+    "validation_count": 816,
+    "train_indices_sha256": "2fee22abaf3629ec1d10179847380b2829968d748fea60607b8f7bb2e3b1de71",
+    "validation_indices_sha256": "5b9f014ae3a4ab48b6586e7d014b8cdbd73b182c4c9cba2b9492ba203cd4ee3a"
+  },
+  "config": {
+    "seed": 42,
+    "epochs": 80,
+    "validation_fraction": 0.1,
+    "models": [
+      "coba",
+      "ping"
+    ],
+    "n_hidden": 256,
+    "n_inhibitory": 64,
+    "batch_size": 32,
+    "learning_rate": 0.0004,
+    "input_weight_mean": 0.9,
+    "input_sparsity": 0.95,
+    "readout_scale": 1.0,
+    "readout": "cumulative-potential",
+    "dt_ms": 1.0,
+    "t_ms": 1000.0,
+    "raster_positions": [
+      9,
+      39,
+      40
+    ],
+    "recipes": {
+      "coba": {
+        "ei_strength": 0.0,
+        "v_grad_dampen": 1.0
+      },
+      "ping": {
+        "ei_strength": 1.0,
+        "v_grad_dampen": 1000.0
+      }
+    },
+    "experiment": "exp072",
+    "attempt": "combined",
+    "stage": "final80",
+    "hidden_sizes": [
+      256
+    ],
+    "signed_readout": true,
+    "readout_bias": true,
+    "candidate_flags": [
+      "--train-leak",
+      "--adaptive-threshold"
+    ],
+    "train_leak": true,
+    "adaptive_threshold": true
+  },
+  "integrity": {
+    "official_test_access": "forbidden and absent from runner",
+    "matched_partitions": true,
+    "matched_raster_inputs": true,
+    "selection_rule": "max validation accuracy; tie lower validation cross-entropy; tie earlier epoch"
+  },
+  "runpod": {
+    "created_at_utc": "2026-07-20T11:24:09.125Z",
+    "exact_provider_billing": false,
+    "billing_status": "timestamp_estimate_pending_provider_reconciliation",
+    "total_spend_usd": 5.6,
+    "active_pods_after_collection": 0,
+    "currency": "USD",
+    "estimate_basis": "Conservative timestamp/runtime estimate at 0.99 USD/hour for two parallel final80 pods; provider hourly billing had not posted the final hour at publication time. S3 collection did not create a live GPU pod.",
+    "attempts": {
+      "final80-combined-coba": {
+        "kind": "completed_final80_training_and_collection",
+        "observed_training_elapsed_s": 11762.432836378983,
+        "selected_validation_accuracy_pct": 64.58333333333333,
+        "estimated_spend_usd": 3.31
+      },
+      "final80-combined-ping": {
+        "kind": "completed_final80_training_and_collection",
+        "observed_training_elapsed_s": 8159.141875014175,
+        "selected_validation_accuracy_pct": 71.69117647058823,
+        "estimated_spend_usd": 2.29
+      }
+    }
+  },
+  "compute": {
+    "total_spend_usd": 10.26,
+    "exact_provider_billing": false,
+    "status": "timestamp_estimate_pending_provider_reconciliation",
+    "ledgers": {
+      "final40-train_leak": {
+        "total_spend_usd": 2.36,
+        "exact_provider_billing": false,
+        "billing_status": "timestamp_estimate_pending_provider_reconciliation"
+      },
+      "final80-combined": {
+        "total_spend_usd": 5.6,
+        "exact_provider_billing": false,
+        "billing_status": "timestamp_estimate_pending_provider_reconciliation"
+      },
+      "short-adaptive_threshold": {
+        "total_spend_usd": 0.61,
+        "exact_provider_billing": false,
+        "billing_status": "timestamp_estimate_pending_provider_reconciliation"
+      },
+      "short-combined": {
+        "total_spend_usd": 0.56,
+        "exact_provider_billing": false,
+        "billing_status": "timestamp_estimate_pending_provider_reconciliation"
+      },
+      "short-control": {
+        "total_spend_usd": 0.51,
+        "exact_provider_billing": false,
+        "billing_status": "timestamp_estimate_pending_provider_reconciliation"
+      },
+      "short-train_leak": {
+        "total_spend_usd": 0.62,
+        "exact_provider_billing": false,
+        "billing_status": "timestamp_estimate_pending_provider_reconciliation"
+      }
+    }
+  },
+  "ladder": {
+    "short": {
+      "control": {
+        "cells": {
+          "coba": {
+            "selected_epoch": 8,
+            "selected_validation_accuracy_pct": 60.17156862745098,
+            "selected_validation_cross_entropy": 1.590549606543321,
+            "final_validation_accuracy_pct": 60.17156862745098,
+            "training_elapsed_s": 771.695927969995,
+            "dynamics": {
+              "E": "33Hz",
+              "I": "\u2014",
+              "CV": "0.92",
+              "act": "100%"
+            }
+          },
+          "ping": {
+            "selected_epoch": 8,
+            "selected_validation_accuracy_pct": 56.86274509803921,
+            "selected_validation_cross_entropy": 1.4221368844692523,
+            "final_validation_accuracy_pct": 56.86274509803921,
+            "training_elapsed_s": 786.931609466963,
+            "dynamics": {
+              "E": "8Hz",
+              "I": "41Hz",
+              "CV": "2.00",
+              "act": "83%"
+            }
+          }
+        }
+      },
+      "train_leak": {
+        "cells": {
+          "coba": {
+            "selected_epoch": 6,
+            "selected_validation_accuracy_pct": 58.94607843137255,
+            "selected_validation_cross_entropy": 1.6838264373632579,
+            "final_validation_accuracy_pct": 58.57843137254902,
+            "training_elapsed_s": 867.1451594950049,
+            "dynamics": {
+              "E": "34Hz",
+              "I": "\u2014",
+              "CV": "0.94",
+              "act": "100%"
+            }
+          },
+          "ping": {
+            "selected_epoch": 8,
+            "selected_validation_accuracy_pct": 57.720588235294116,
+            "selected_validation_cross_entropy": 1.4365451381756709,
+            "final_validation_accuracy_pct": 57.720588235294116,
+            "training_elapsed_s": 864.4231397319818,
+            "dynamics": {
+              "E": "7Hz",
+              "I": "40Hz",
+              "CV": "2.08",
+              "act": "83%"
+            }
+          }
+        }
+      },
+      "adaptive_threshold": {
+        "cells": {
+          "coba": {
+            "selected_epoch": 6,
+            "selected_validation_accuracy_pct": 50.61274509803921,
+            "selected_validation_cross_entropy": 1.91091611293646,
+            "final_validation_accuracy_pct": 46.93627450980392,
+            "training_elapsed_s": 817.5981621200335,
+            "dynamics": {
+              "E": "36Hz",
+              "I": "\u2014",
+              "CV": "0.91",
+              "act": "100%"
+            }
+          },
+          "ping": {
+            "selected_epoch": 8,
+            "selected_validation_accuracy_pct": 53.6764705882353,
+            "selected_validation_cross_entropy": 1.5319835176834693,
+            "final_validation_accuracy_pct": 53.6764705882353,
+            "training_elapsed_s": 823.176660704019,
+            "dynamics": {
+              "E": "7Hz",
+              "I": "35Hz",
+              "CV": "2.13",
+              "act": "93%"
+            }
+          }
+        }
+      },
+      "combined": {
+        "cells": {
+          "coba": {
+            "selected_epoch": 6,
+            "selected_validation_accuracy_pct": 50.36764705882353,
+            "selected_validation_cross_entropy": 1.8996017942061791,
+            "final_validation_accuracy_pct": 47.67156862745098,
+            "training_elapsed_s": 845.3006251880433,
+            "dynamics": {
+              "E": "36Hz",
+              "I": "\u2014",
+              "CV": "0.92",
+              "act": "100%"
+            }
+          },
+          "ping": {
+            "selected_epoch": 8,
+            "selected_validation_accuracy_pct": 50.98039215686274,
+            "selected_validation_cross_entropy": 1.5616255448414729,
+            "final_validation_accuracy_pct": 50.98039215686274,
+            "training_elapsed_s": 838.9597817939939,
+            "dynamics": {
+              "E": "7Hz",
+              "I": "34Hz",
+              "CV": "2.28",
+              "act": "87%"
+            }
+          }
+        }
+      }
+    },
+    "final40": {
+      "train_leak": {
+        "cells": {
+          "coba": {
+            "selected_epoch": 37,
+            "selected_validation_accuracy_pct": 69.48529411764706,
+            "selected_validation_cross_entropy": 1.0635074996031249,
+            "final_validation_accuracy_pct": 68.25980392156863,
+            "training_elapsed_s": 3983.051872598997,
+            "dynamics": {
+              "E": "36Hz",
+              "I": "\u2014",
+              "CV": "0.88",
+              "act": "100%"
+            }
+          },
+          "ping": {
+            "selected_epoch": 40,
+            "selected_validation_accuracy_pct": 71.07843137254902,
+            "selected_validation_cross_entropy": 0.9496782376216009,
+            "final_validation_accuracy_pct": 71.07843137254902,
+            "training_elapsed_s": 3985.2365402458236,
+            "dynamics": {
+              "E": "9Hz",
+              "I": "53Hz",
+              "CV": "1.65",
+              "act": "91%"
+            }
+          }
+        }
+      }
+    },
+    "final80": {
+      "combined": {
+        "cells": {
+          "coba": {
+            "selected_epoch": 77,
+            "selected_validation_accuracy_pct": 64.58333333333333,
+            "selected_validation_cross_entropy": 1.162477970123291,
+            "final_validation_accuracy_pct": 61.51960784313726,
+            "training_elapsed_s": 11762.431560333818,
+            "dynamics": {
+              "E": "42Hz",
+              "I": "\u2014",
+              "CV": "0.81",
+              "act": "100%"
+            }
+          },
+          "ping": {
+            "selected_epoch": 73,
+            "selected_validation_accuracy_pct": 71.69117647058823,
+            "selected_validation_cross_entropy": 0.8771768968838912,
+            "final_validation_accuracy_pct": 69.24019607843137,
+            "training_elapsed_s": 8159.12676708959,
+            "dynamics": {
+              "E": "9Hz",
+              "I": "57Hz",
+              "CV": "1.59",
+              "act": "93%"
+            }
+          }
+        }
+      }
+    }
+  },
+  "activity": {
+    "checkpoint_ids": [
+      "cp001",
+      "cp002",
+      "cp003",
+      "cp004",
+      "cp005",
+      "cp006"
+    ],
+    "latest_checkpoint_id": "cp006",
+    "latest_checkpoint_time_utc": "2026-07-20T11:25:52.568Z",
+    "publishable_log": "artifacts/data/exp072/activity/messages_cp006.json"
+  },
+  "spend": {
+    "total_spend_usd": 10.26,
+    "exact_provider_billing": false,
+    "status": "timestamp_estimate_pending_provider_reconciliation"
+  }
+}

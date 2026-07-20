@@ -1,0 +1,47 @@
+{
+  "checkpoint_id": "cp005",
+  "session_id": "2026-07-20-exp072-codex",
+  "checkpoint_time_utc": "2026-07-20T06:33:34.862Z",
+  "raw_transcript_sha256_prefix": "unavailable-fail-closed",
+  "sanitized_sha256_prefix": "unavailable-fail-closed",
+  "sanitization": {
+    "status": "partial_fail_closed",
+    "policy": "Publishable checkpoint excludes hidden reasoning, tool payloads, credentials, tokens, SSH material, IP addresses, environment dumps, private paths, provider object identifiers, and sensitive infrastructure details.",
+    "limitation": "No raw transcript export for the current long monitoring turn was found in the workspace. To avoid inventing verbatim messages, this checkpoint records an attestable scientific ledger and only selected visible milestone messages, not a complete verbatim transcript."
+  },
+  "ledger": [
+    "2026-07-20T00:00:00.000Z — User authorized RunPod spending for the whole exp072 execution, including 40-epoch runs if needed, while preserving the one-pod-at-a-time constraint.",
+    "2026-07-20T02:20:07.957Z — Completed and published the short control rung: COBA selected 60.17% validation accuracy; PING selected 56.86%. Both were finite and active.",
+    "2026-07-20T02:59:09.000Z — Completed and published the short train_leak rung: COBA selected 58.95%; PING selected 57.72%. This was the only modified candidate that improved PING over control in the short ladder.",
+    "2026-07-20T03:36:28.000Z — Completed and published the short adaptive_threshold rung: COBA selected 50.61%; PING selected 53.68%. Both were active but weaker than control/train_leak.",
+    "2026-07-20T04:08:53.000Z — Completed and published the short combined rung: COBA selected 50.37%; PING selected 50.98%. Both were active but weaker than train_leak.",
+    "2026-07-20T04:10:00.000Z — Promoted train_leak to the matched 40-epoch stage because it was the only modification that improved PING while keeping COBA close.",
+    "2026-07-20T05:17:12.000Z — Final40 train_leak COBA completed and was collected with no active pod remaining before the next cell launched.",
+    "2026-07-20T06:29:29.000Z — Final40 train_leak PING completed, was collected, and the final40 attempt was published. No active pods remained after collection.",
+    "2026-07-20T06:30:00.000Z — Final40 train_leak selected 69.49% validation accuracy for COBA at epoch 37 and 71.08% for PING at epoch 40. PING had a small 1.59 percentage-point edge.",
+    "2026-07-20T06:33:34.862Z — Cumulative experiment spend ledgers total 4.66 USD, marked timestamp-estimated pending provider billing reconciliation."
+  ],
+  "messages": [
+    {
+      "timestamp": "2026-07-20T00:00:00.000Z",
+      "role": "user",
+      "checkpoint_id": "cp005",
+      "session_id": "2026-07-20-exp072-codex",
+      "content": "you have runpod permission for whole thing, 40 epoch runs if neeed"
+    },
+    {
+      "timestamp": "2026-07-20T04:10:00.000Z",
+      "role": "assistant",
+      "checkpoint_id": "cp005",
+      "session_id": "2026-07-20-exp072-codex",
+      "content": "Short ladder readout: control is best by paired average, but `train_leak` is the only modification that improves the target PING cell while keeping COBA close. I’m going to promote `train_leak` to 40 epochs: it’s the best scientific bet for “can trainable leak move PING upward?” rather than just re-running the control."
+    },
+    {
+      "timestamp": "2026-07-20T06:30:00.000Z",
+      "role": "assistant",
+      "checkpoint_id": "cp005",
+      "session_id": "2026-07-20-exp072-codex",
+      "content": "No active pods. Final40 result: `train_leak` COBA selected 69.49% at epoch 37; PING selected 71.08% at epoch 40. That’s a real small PING edge, but still far below SOTA territory."
+    }
+  ]
+}

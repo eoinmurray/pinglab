@@ -1,0 +1,58 @@
+{
+  "slug": "exp072",
+  "run_id": "r018",
+  "run_at": "2026-07-20T11:25:52+00:00",
+  "git_sha": "7a6b69e",
+  "dirty": true,
+  "code_dirty": false,
+  "patch": null,
+  "host": "local",
+  "scale": {
+    "seed": 42,
+    "epochs": 80,
+    "validation_fraction": 0.1,
+    "models": [
+      "coba",
+      "ping"
+    ],
+    "n_hidden": 256,
+    "n_inhibitory": 64,
+    "batch_size": 32,
+    "learning_rate": 0.0004,
+    "input_weight_mean": 0.9,
+    "input_sparsity": 0.95,
+    "readout_scale": 1.0,
+    "readout": "cumulative-potential",
+    "dt_ms": 1.0,
+    "t_ms": 1000.0,
+    "raster_positions": [
+      9,
+      39,
+      40
+    ],
+    "recipes": {
+      "coba": {
+        "ei_strength": 0.0,
+        "v_grad_dampen": 1.0
+      },
+      "ping": {
+        "ei_strength": 1.0,
+        "v_grad_dampen": 1000.0
+      }
+    },
+    "experiment": "exp072",
+    "attempt": "combined",
+    "stage": "final80",
+    "hidden_sizes": [
+      256
+    ],
+    "signed_readout": true,
+    "readout_bias": true,
+    "candidate_flags": [
+      "--train-leak",
+      "--adaptive-threshold"
+    ],
+    "train_leak": true,
+    "adaptive_threshold": true
+  }
+}

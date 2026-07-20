@@ -1,0 +1,36 @@
+{
+  "train_leak": true,
+  "adaptive_threshold": true,
+  "bounds": {
+    "tau_m_e_ms": [
+      5.0,
+      50.0
+    ],
+    "tau_m_i_ms": [
+      2.0,
+      20.0
+    ],
+    "adapt_tau_ms": [
+      50.0,
+      500.0
+    ],
+    "adapt_strength_mv": [
+      0.0,
+      20.0
+    ]
+  },
+  "layers": {
+    "1": {
+      "adapt_tau_ms": {
+        "min": 141.0253694433535,
+        "mean": 156.314973184571,
+        "max": 163.34068973351634
+      },
+      "adapt_strength_mv": {
+        "min": 0.8276381949888527,
+        "mean": 0.9768766852322228,
+        "max": 1.027132470635172
+      }
+    }
+  }
+}

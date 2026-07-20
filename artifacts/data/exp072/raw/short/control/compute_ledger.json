@@ -1,0 +1,21 @@
+{
+  "created_at_utc": "2026-07-20T02:20:07.957Z",
+  "exact_provider_billing": false,
+  "billing_status": "timestamp_estimate_pending_provider_reconciliation",
+  "total_spend_usd": 0.51,
+  "active_pods_after_collection": 0,
+  "currency": "USD",
+  "estimate_basis": "Conservative timestamp estimate from observed RunPod launch/self-termination/collection windows at 0.99 USD/hour; exact per-pod billing endpoint returned no rows at publication time. S3 collection did not create a live GPU pod.",
+  "attempts": {
+    "short-control-coba": {
+      "kind": "completed_short_training_and_collection",
+      "observed_training_elapsed_s": 781.1081054329989,
+      "estimated_spend_usd": 0.27
+    },
+    "short-control-ping": {
+      "kind": "completed_short_training_and_collection",
+      "observed_training_elapsed_s": 796.2382076270296,
+      "estimated_spend_usd": 0.24
+    }
+  }
+}

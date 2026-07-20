@@ -1,0 +1,318 @@
+{
+  "checkpoint_id": "cp002",
+  "session_id": "2026-07-19-exp072-codex",
+  "checkpoint_time_utc": "2026-07-19T23:37:57.083Z",
+  "raw_transcript_sha256_prefix": "bec9f91c83e2",
+  "sanitized_sha256_prefix": "bec9f91c83e2",
+  "sanitization": {
+    "status": "passed",
+    "policy": "Excluded hidden reasoning, tool payloads, credentials, tokens, SSH material, IP addresses, environment dumps, private paths, and sensitive infrastructure details. No such sensitive visible content was found in the publishable messages."
+  },
+  "ledger": [
+    "2026-07-19T23:16:40.000Z \u2014 Focused validation passed: python compile and Ruff for experiments/exp072.py.",
+    "2026-07-19T23:17:40.000Z \u2014 Demolab build initially stubbed exp072 because artifact regeneration removed the activity checkpoint; fixed by restoring activity after publication and recording the failure.",
+    "2026-07-19T23:18:35.000Z \u2014 Demolab build then passed with exp072 included.",
+    "2026-07-19T23:23:35.000Z \u2014 Control local smoke passed: COBA 5.47%, PING 10.16%, both finite and active.",
+    "2026-07-19T23:28:05.000Z \u2014 Trainable-leak local smoke passed: COBA 5.47%, PING 11.72%, both finite and active.",
+    "2026-07-19T23:32:55.000Z \u2014 Adaptive-threshold local smoke passed: COBA 5.47%, PING 10.94%, both finite and active.",
+    "2026-07-19T23:36:55.000Z \u2014 Combined local smoke passed: COBA 3.91%, PING 10.16%, both finite and active.",
+    "2026-07-19T23:37:35.000Z \u2014 Refreshed pre-result artifacts so numbers.json records the all-candidate smoke ladder.",
+    "2026-07-19T23:37:57.083Z \u2014 No paid compute has started; RunPod spend remains 0 USD; no pods were created."
+  ],
+  "messages": [
+    {
+      "timestamp": "2026-07-19T23:15:30.000Z",
+      "role": "assistant",
+      "checkpoint_id": "cp002",
+      "session_id": "2026-07-19-exp072-codex",
+      "content": "Private raw checkpoint copy is written outside the repo. I\u2019m hashing it now, then I\u2019ll add the sanitized JSON checkpoint under `artifacts/data/exp072/activity/` so the article can render."
+    },
+    {
+      "timestamp": "2026-07-19T23:15:45.000Z",
+      "role": "assistant",
+      "checkpoint_id": "cp002",
+      "session_id": "2026-07-19-exp072-codex",
+      "content": "Checkpoint hash prefix is `a313f4e2bed6`. I\u2019m committing only sanitized visible messages and a ledger of decisions/actions\u2014not the private raw file or any tool payloads."
+    },
+    {
+      "timestamp": "2026-07-19T23:16:10.000Z",
+      "role": "assistant",
+      "checkpoint_id": "cp002",
+      "session_id": "2026-07-19-exp072-codex",
+      "content": "Sanitized checkpoint JSON is in place. Next: focused code validation and generation of the pre-result `artifacts/data/exp072/numbers.json` so the report can build."
+    },
+    {
+      "timestamp": "2026-07-19T23:16:40.000Z",
+      "role": "assistant",
+      "checkpoint_id": "cp002",
+      "session_id": "2026-07-19-exp072-codex",
+      "content": "Python compile and Ruff passed for the new runner. I\u2019m publishing the pre-result artifact now; this is local/no paid compute."
+    },
+    {
+      "timestamp": "2026-07-19T23:17:10.000Z",
+      "role": "assistant",
+      "checkpoint_id": "cp002",
+      "session_id": "2026-07-19-exp072-codex",
+      "content": "Pre-result artifacts are published under `artifacts/data/exp072`. I\u2019m building the Demolab site/PDFs now to catch Typst/data-contract issues before the checkpoint commit."
+    },
+    {
+      "timestamp": "2026-07-19T23:17:40.000Z",
+      "role": "assistant",
+      "checkpoint_id": "cp002",
+      "session_id": "2026-07-19-exp072-codex",
+      "content": "Build found the expected snag: `publish_pre_result()` regenerated `artifacts/data/exp072` and wiped the activity file I\u2019d just added. That\u2019s useful evidence; I\u2019ll make the runner preserve/copy activity checkpoints during publication so this doesn\u2019t recur."
+    },
+    {
+      "timestamp": "2026-07-19T23:18:05.000Z",
+      "role": "assistant",
+      "checkpoint_id": "cp002",
+      "session_id": "2026-07-19-exp072-codex",
+      "content": "I\u2019m treating that as a failed validation attempt and fixing forward. The checkpoint itself stays cp001; the build failure and fix will be recorded in the next meaningful activity checkpoint after the scaffold is stable."
+    },
+    {
+      "timestamp": "2026-07-19T23:18:35.000Z",
+      "role": "assistant",
+      "checkpoint_id": "cp002",
+      "session_id": "2026-07-19-exp072-codex",
+      "content": "Activity checkpoint restored into the generated artifact. I\u2019m rebuilding now; if this passes, I\u2019ll move on to the lightweight local smoke stage."
+    },
+    {
+      "timestamp": "2026-07-19T23:19:05.000Z",
+      "role": "assistant",
+      "checkpoint_id": "cp002",
+      "session_id": "2026-07-19-exp072-codex",
+      "content": "Demolab build now passes with exp072 included. I\u2019m starting the local 128/128 two-epoch smoke ladder next, one candidate at a time and still zero paid compute."
+    },
+    {
+      "timestamp": "2026-07-19T23:19:50.000Z",
+      "role": "assistant",
+      "checkpoint_id": "cp002",
+      "session_id": "2026-07-19-exp072-codex",
+      "content": "Control smoke is running; first COBA-style cell is finite so far. I\u2019ll let this one finish before starting the adaptive candidates so any failure is easy to attribute."
+    },
+    {
+      "timestamp": "2026-07-19T23:20:20.000Z",
+      "role": "assistant",
+      "checkpoint_id": "cp002",
+      "session_id": "2026-07-19-exp072-codex",
+      "content": "Still in the first local smoke, evaluation phase. This host is predictably slow for 1000 ms SHD even at 128 samples, but we\u2019re making progress and not spending cloud money."
+    },
+    {
+      "timestamp": "2026-07-19T23:20:50.000Z",
+      "role": "assistant",
+      "checkpoint_id": "cp002",
+      "session_id": "2026-07-19-exp072-codex",
+      "content": "Control COBA-style smoke epoch 1 finished at finite loss and nonzero E activity; epoch 2 is underway. After this runner will do PING for the same candidate."
+    },
+    {
+      "timestamp": "2026-07-19T23:21:50.000Z",
+      "role": "assistant",
+      "checkpoint_id": "cp002",
+      "session_id": "2026-07-19-exp072-codex",
+      "content": "COBA-style control smoke completed cleanly in about 2 minutes with active firing. PING-style control is now training and also active at initialization."
+    },
+    {
+      "timestamp": "2026-07-19T23:22:20.000Z",
+      "role": "assistant",
+      "checkpoint_id": "cp002",
+      "session_id": "2026-07-19-exp072-codex",
+      "content": "PING control smoke is finite through epoch 1, with low-but-nonzero E and active I firing. Good enough for plumbing so far; waiting for epoch 2/rasters."
+    },
+    {
+      "timestamp": "2026-07-19T23:23:35.000Z",
+      "role": "assistant",
+      "checkpoint_id": "cp002",
+      "session_id": "2026-07-19-exp072-codex",
+      "content": "Control local smoke passed: COBA 5.47%, PING 10.16%, both finite and active. The runner printed the full split provenance noisily, but that\u2019s just stdout; committed artifacts keep the provenance in JSON. I\u2019m going to smoke the three new-control candidates too before the first PR checkpoint, because that is the best early guard against a bad ladder."
+    },
+    {
+      "timestamp": "2026-07-19T23:24:20.000Z",
+      "role": "assistant",
+      "checkpoint_id": "cp002",
+      "session_id": "2026-07-19-exp072-codex",
+      "content": "Trainable-leak smoke is underway. Parameter count increased as expected, so the flag is reaching the model."
+    },
+    {
+      "timestamp": "2026-07-19T23:25:25.000Z",
+      "role": "assistant",
+      "checkpoint_id": "cp002",
+      "session_id": "2026-07-19-exp072-codex",
+      "content": "Trainable-leak COBA-style cell is finite and active; it\u2019s near the end of epoch 2."
+    },
+    {
+      "timestamp": "2026-07-19T23:26:00.000Z",
+      "role": "assistant",
+      "checkpoint_id": "cp002",
+      "session_id": "2026-07-19-exp072-codex",
+      "content": "Trainable-leak COBA-style smoke passed. PING-style trainable-leak smoke has started, also with the expected larger parameter count."
+    },
+    {
+      "timestamp": "2026-07-19T23:26:30.000Z",
+      "role": "assistant",
+      "checkpoint_id": "cp002",
+      "session_id": "2026-07-19-exp072-codex",
+      "content": "PING trainable-leak is finite through the training batches of epoch 1; waiting on validation/epoch 2."
+    },
+    {
+      "timestamp": "2026-07-19T23:27:00.000Z",
+      "role": "assistant",
+      "checkpoint_id": "cp002",
+      "session_id": "2026-07-19-exp072-codex",
+      "content": "PING trainable-leak epoch 1 passed: finite, active E/I, no obvious smoke failure."
+    },
+    {
+      "timestamp": "2026-07-19T23:27:30.000Z",
+      "role": "assistant",
+      "checkpoint_id": "cp002",
+      "session_id": "2026-07-19-exp072-codex",
+      "content": "Trainable-leak PING is at final validation; this candidate is almost done."
+    },
+    {
+      "timestamp": "2026-07-19T23:28:05.000Z",
+      "role": "assistant",
+      "checkpoint_id": "cp002",
+      "session_id": "2026-07-19-exp072-codex",
+      "content": "Trainable-leak smoke passed too: COBA 5.47%, PING 11.72%, both finite/active. Next is adaptive-threshold smoke."
+    },
+    {
+      "timestamp": "2026-07-19T23:28:45.000Z",
+      "role": "assistant",
+      "checkpoint_id": "cp002",
+      "session_id": "2026-07-19-exp072-codex",
+      "content": "Adaptive-threshold smoke is running; parameter count increased as expected and initial E activity is a bit lower than control, which is plausible for adaptation."
+    },
+    {
+      "timestamp": "2026-07-19T23:29:15.000Z",
+      "role": "assistant",
+      "checkpoint_id": "cp002",
+      "session_id": "2026-07-19-exp072-codex",
+      "content": "Adaptive-threshold COBA-style epoch 1 is finite; validation completed, epoch summary imminent."
+    },
+    {
+      "timestamp": "2026-07-19T23:29:45.000Z",
+      "role": "assistant",
+      "checkpoint_id": "cp002",
+      "session_id": "2026-07-19-exp072-codex",
+      "content": "Adaptive-threshold COBA-style is finite/active through epoch 1, training epoch 2 now."
+    },
+    {
+      "timestamp": "2026-07-19T23:30:45.000Z",
+      "role": "assistant",
+      "checkpoint_id": "cp002",
+      "session_id": "2026-07-19-exp072-codex",
+      "content": "Adaptive-threshold COBA-style completed its epochs finite/active; waiting for the runner to finish checkpointing and start PING."
+    },
+    {
+      "timestamp": "2026-07-19T23:31:15.000Z",
+      "role": "assistant",
+      "checkpoint_id": "cp002",
+      "session_id": "2026-07-19-exp072-codex",
+      "content": "Adaptive-threshold COBA-style passed; PING-style adaptive threshold is now training and active."
+    },
+    {
+      "timestamp": "2026-07-19T23:31:45.000Z",
+      "role": "assistant",
+      "checkpoint_id": "cp002",
+      "session_id": "2026-07-19-exp072-codex",
+      "content": "Adaptive-threshold PING epoch 1 passed finite with active E/I."
+    },
+    {
+      "timestamp": "2026-07-19T23:32:15.000Z",
+      "role": "assistant",
+      "checkpoint_id": "cp002",
+      "session_id": "2026-07-19-exp072-codex",
+      "content": "Adaptive-threshold PING is in epoch 2. Still finite; no smoke kill signal."
+    },
+    {
+      "timestamp": "2026-07-19T23:32:55.000Z",
+      "role": "assistant",
+      "checkpoint_id": "cp002",
+      "session_id": "2026-07-19-exp072-codex",
+      "content": "Adaptive-threshold smoke passed: COBA 5.47%, PING 10.94%, finite/active. Last local smoke is the combined candidate."
+    },
+    {
+      "timestamp": "2026-07-19T23:33:25.000Z",
+      "role": "assistant",
+      "checkpoint_id": "cp002",
+      "session_id": "2026-07-19-exp072-codex",
+      "content": "Combined smoke started. Parameter count is higher again, matching both flag families being present."
+    },
+    {
+      "timestamp": "2026-07-19T23:33:55.000Z",
+      "role": "assistant",
+      "checkpoint_id": "cp002",
+      "session_id": "2026-07-19-exp072-codex",
+      "content": "Combined COBA-style epoch 1 is finite; validation is underway."
+    },
+    {
+      "timestamp": "2026-07-19T23:34:25.000Z",
+      "role": "assistant",
+      "checkpoint_id": "cp002",
+      "session_id": "2026-07-19-exp072-codex",
+      "content": "Combined COBA-style is active and finite through epoch 1; epoch 2 is almost through training."
+    },
+    {
+      "timestamp": "2026-07-19T23:34:55.000Z",
+      "role": "assistant",
+      "checkpoint_id": "cp002",
+      "session_id": "2026-07-19-exp072-codex",
+      "content": "Combined COBA-style completed finite/active; waiting for checkpointing and then PING."
+    },
+    {
+      "timestamp": "2026-07-19T23:35:25.000Z",
+      "role": "assistant",
+      "checkpoint_id": "cp002",
+      "session_id": "2026-07-19-exp072-codex",
+      "content": "Combined COBA-style passed; PING-style combined is now training."
+    },
+    {
+      "timestamp": "2026-07-19T23:35:55.000Z",
+      "role": "assistant",
+      "checkpoint_id": "cp002",
+      "session_id": "2026-07-19-exp072-codex",
+      "content": "Combined PING epoch 1 passed finite with active E/I; final epoch underway."
+    },
+    {
+      "timestamp": "2026-07-19T23:36:25.000Z",
+      "role": "assistant",
+      "checkpoint_id": "cp002",
+      "session_id": "2026-07-19-exp072-codex",
+      "content": "Combined PING is at final validation. After it exits I\u2019ll refresh the pre-result artifact to record the latest local smoke state and rebuild."
+    },
+    {
+      "timestamp": "2026-07-19T23:36:55.000Z",
+      "role": "assistant",
+      "checkpoint_id": "cp002",
+      "session_id": "2026-07-19-exp072-codex",
+      "content": "All four local smokes passed. I\u2019m patching the pre-result publisher to record the whole local smoke ladder, not just whichever `EXP072_ATTEMPT` was selected last."
+    },
+    {
+      "timestamp": "2026-07-19T23:37:15.000Z",
+      "role": "assistant",
+      "checkpoint_id": "cp002",
+      "session_id": "2026-07-19-exp072-codex",
+      "content": "The publisher now collects all four local smoke summaries. I\u2019m adjusting the article wording to recognize the full-ladder smoke state."
+    },
+    {
+      "timestamp": "2026-07-19T23:37:35.000Z",
+      "role": "assistant",
+      "checkpoint_id": "cp002",
+      "session_id": "2026-07-19-exp072-codex",
+      "content": "Now I\u2019ll refresh `artifacts/data/exp072` with the all-smoke pre-result state. This will regenerate the artifact directory, so I\u2019ll restore the activity checkpoint afterward before building."
+    },
+    {
+      "timestamp": "2026-07-19T23:37:50.000Z",
+      "role": "assistant",
+      "checkpoint_id": "cp002",
+      "session_id": "2026-07-19-exp072-codex",
+      "content": "Pre-result artifact refreshed. I\u2019m adding cp002 now to record the smoke-ladder milestone and the one validation hiccup/fix, then the article will include both cp001 and cp002."
+    },
+    {
+      "timestamp": "2026-07-19T23:37:57.083Z",
+      "role": "assistant",
+      "checkpoint_id": "cp002",
+      "session_id": "2026-07-19-exp072-codex",
+      "content": "Sanitization for cp002: again, no credentials/tokens/SSH material/IPs/environment dumps/private infra details in the visible text I\u2019m publishing; tool payloads stay out."
+    }
+  ]
+}
