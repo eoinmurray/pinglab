@@ -746,6 +746,30 @@ def copy_killed_scouts(raw_root: Path) -> None:
             copy_json_sanitized(source, destination / source.name)
 
 
+def killed_runpod_attempts_root() -> Path:
+    return REPO / "temp" / "experiments" / SLUG / "killed_runpod_attempts"
+
+
+def archived_killed_runpod_attempts() -> dict[str, Any]:
+    root = killed_runpod_attempts_root()
+    if not root.exists():
+        return {}
+    attempts: dict[str, Any] = {}
+    for source in sorted(root.glob("*.json")):
+        attempts[source.stem] = json.loads(source.read_text())
+    return attempts
+
+
+def copy_killed_runpod_attempts(raw_root: Path) -> None:
+    root = killed_runpod_attempts_root()
+    if not root.exists():
+        return
+    destination = raw_root / "killed_runpod_attempts"
+    destination.mkdir(parents=True, exist_ok=True)
+    for source in sorted(root.glob("*.json")):
+        copy_json_sanitized(source, destination / source.name)
+
+
 def copy_smoke_cell_artifacts(raw_root: Path) -> dict[str, Any]:
     diagnostics: dict[str, Any] = {}
     smoke_raw = raw_root / "smoke" / ATTEMPT
@@ -883,6 +907,12 @@ def publish_pre_result() -> None:
     run_id = next_run_id(SLUG)
     t0 = time.monotonic()
     activity_logs = existing_activity_logs()
+    previous_numbers = FIGURES / "numbers.json"
+    previous_smoke_diagnostics: dict[str, Any] = {}
+    if previous_numbers.exists():
+        previous_smoke_diagnostics = json.loads(previous_numbers.read_text()).get(
+            "smoke_w_ee_diagnostics", {}
+        )
     smoke_path = SMOKE_ROOT / "smoke_summary.json"
     smoke = json.loads(smoke_path.read_text()) if smoke_path.exists() else None
     smoke_ladder: dict[str, Any] = {}
@@ -906,7 +936,12 @@ def publish_pre_result() -> None:
             smoke_raw.mkdir(parents=True)
             shutil.copy2(candidate_smoke, smoke_raw / "smoke_summary.json")
         smoke_parameter_diagnostics = copy_smoke_cell_artifacts(raw)
+        smoke_parameter_diagnostics = {
+            **previous_smoke_diagnostics,
+            **smoke_parameter_diagnostics,
+        }
         copy_killed_scouts(raw)
+        copy_killed_runpod_attempts(raw)
         write_reproducer(figures)
         payload = {
             "result_status": "preregistered",
@@ -948,6 +983,7 @@ def publish_pre_result() -> None:
             "smoke_ladder": smoke_ladder,
             "smoke_w_ee_diagnostics": smoke_parameter_diagnostics,
             "killed_scouts": archived_killed_scouts(),
+            "killed_runpod_attempts": archived_killed_runpod_attempts(),
             "runpod": {
                 "total_spend_usd": 0.0,
                 "active_pods_after_collection": 0,

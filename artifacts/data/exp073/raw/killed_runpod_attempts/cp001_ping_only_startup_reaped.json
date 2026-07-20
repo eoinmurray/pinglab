@@ -1,0 +1,19 @@
+{
+  "active_pods_after_reap": 0,
+  "attempt": "plastic_wee",
+  "cell_scope": [
+    "ping"
+  ],
+  "checkpoint_time_utc": "2026-07-20T16:13:30Z",
+  "cost_per_hour_usd": 0.99,
+  "event": "killed_runpod_startup_attempt",
+  "exact_provider_billing": false,
+  "gpu": "NVIDIA GeForce RTX 5090",
+  "pinned_commit": "74dd221d9df8069bbc30b7a09978f139f999b07f",
+  "provider_billing_status": "pending_provider_row; runpodctl billing pods --pod-id returned no row immediately after reap",
+  "reaped_utc": "2026-07-20T16:13:30Z",
+  "reason": "single PING-only pod remained running without useful readiness/progress evidence after repeated short polls; reaped to protect budget",
+  "stage": "short",
+  "started_utc": "2026-07-20T16:05:44Z",
+  "total_spend_usd": null
+}
