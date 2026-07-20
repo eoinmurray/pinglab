@@ -1,8 +1,4 @@
 {
-  "run_id": "r015",
-  "git_sha": "94944a8",
-  "duration_s": 6.5,
-  "duration": "7s",
   "result_status": "done",
   "stage": "final40",
   "attempt": "train_leak",

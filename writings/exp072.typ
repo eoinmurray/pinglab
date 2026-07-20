@@ -12,6 +12,7 @@
 #let trace-two = json("/artifacts/data/exp072/activity/messages_cp002.json")
 #let trace-three = json("/artifacts/data/exp072/activity/messages_cp003.json")
 #let trace-four = json("/artifacts/data/exp072/activity/messages_cp004.json")
+#let trace-five = json("/artifacts/data/exp072/activity/messages_cp005.json")
 
 #let maybe-pct(x) = {
   if type(x) == float or type(x) == int {
@@ -95,7 +96,7 @@
   validation accuracy and cross-entropy only. Training must remain finite,
   active, non-saturated, and free of skipped or non-finite updates.
 
-  == Current evidence
+  == Results
 
   #if r.result_status == "preregistered" [
     No paid compute has started in this article state. The artifact records
@@ -136,12 +137,53 @@
     Pending work is short validation screening of the four candidates, promotion
     of one candidate to forty epochs, final artifacts, and human review.
   ] else [
-    The current published attempt is `#r.attempt` at stage `#r.stage`.
-    COBA selected #maybe-pct(r.cells.coba.selected_validation_accuracy_pct)
-    validation accuracy; PING selected
-    #maybe-pct(r.cells.ping.selected_validation_accuracy_pct). Exact spend was
-    #calc.round(r.spend.total_spend_usd, digits: 3) USD, with
-    #r.runpod.active_pods_after_collection active pods after collection.
+    The eight-epoch ladder completed for all four candidates. Control had the
+    best paired average, but trainable leak was the only modification that
+    improved the target PING cell while keeping COBA close, so `train_leak` was
+    promoted to forty epochs.
+
+    #table(
+      columns: (1.25fr, auto, auto, auto, auto),
+      table.header([*Candidate*], [*COBA acc.*], [*COBA CE*], [*PING acc.*], [*PING CE*]),
+      [control],
+      [#maybe-pct(r.ladder.short.control.cells.coba.selected_validation_accuracy_pct)],
+      [#calc.round(r.ladder.short.control.cells.coba.selected_validation_cross_entropy, digits: 4)],
+      [#maybe-pct(r.ladder.short.control.cells.ping.selected_validation_accuracy_pct)],
+      [#calc.round(r.ladder.short.control.cells.ping.selected_validation_cross_entropy, digits: 4)],
+      [train_leak],
+      [#maybe-pct(r.ladder.short.train_leak.cells.coba.selected_validation_accuracy_pct)],
+      [#calc.round(r.ladder.short.train_leak.cells.coba.selected_validation_cross_entropy, digits: 4)],
+      [#maybe-pct(r.ladder.short.train_leak.cells.ping.selected_validation_accuracy_pct)],
+      [#calc.round(r.ladder.short.train_leak.cells.ping.selected_validation_cross_entropy, digits: 4)],
+      [adaptive_threshold],
+      [#maybe-pct(r.ladder.short.adaptive_threshold.cells.coba.selected_validation_accuracy_pct)],
+      [#calc.round(r.ladder.short.adaptive_threshold.cells.coba.selected_validation_cross_entropy, digits: 4)],
+      [#maybe-pct(r.ladder.short.adaptive_threshold.cells.ping.selected_validation_accuracy_pct)],
+      [#calc.round(r.ladder.short.adaptive_threshold.cells.ping.selected_validation_cross_entropy, digits: 4)],
+      [combined],
+      [#maybe-pct(r.ladder.short.combined.cells.coba.selected_validation_accuracy_pct)],
+      [#calc.round(r.ladder.short.combined.cells.coba.selected_validation_cross_entropy, digits: 4)],
+      [#maybe-pct(r.ladder.short.combined.cells.ping.selected_validation_accuracy_pct)],
+      [#calc.round(r.ladder.short.combined.cells.ping.selected_validation_cross_entropy, digits: 4)],
+    )
+
+    The promoted forty-epoch `train_leak` run selected
+    #maybe-pct(r.cells.coba.selected_validation_accuracy_pct) for COBA at epoch
+    #r.cells.coba.selected_epoch and
+    #maybe-pct(r.cells.ping.selected_validation_accuracy_pct) for PING at epoch
+    #r.cells.ping.selected_epoch. This is a small PING edge of
+    #calc.round(
+      r.cells.ping.selected_validation_accuracy_pct -
+      r.cells.coba.selected_validation_accuracy_pct,
+      digits: 2,
+    ) percentage points, not a step change toward the canonical high-accuracy
+    SHD reports.
+
+    Cumulative RunPod spend recorded by the experiment ledgers is
+    #calc.round(r.spend.total_spend_usd, digits: 3) USD. The provider billing
+    rows had not posted at publication time, so the spend is marked
+    `#r.spend.status`; active pods after the final collection were
+    #r.runpod.active_pods_after_collection.
 
     #v(8pt)
     #image(attempt-figure("validation_curves.svg"), width: 100%)
@@ -150,9 +192,14 @@
     #v(4pt)
     #image(attempt-figure("matched_rasters.png"), width: 100%)
 
+    The learned leak diagnostics show COBA E-cell membrane time constants with
+    mean #calc.round(r.parameters.coba.layers.at("1").tau_m_e_ms.mean, digits: 2)
+    ms and PING E/I means of
+    #calc.round(r.parameters.ping.layers.at("1").tau_m_e_ms.mean, digits: 2) ms /
+    #calc.round(r.parameters.ping.layers.at("1").tau_m_i_ms.mean, digits: 2) ms.
     The run also writes per-cell parameter diagnostics under
-    `raw/#r.stage/#r.attempt/<cell>/parameter_diagnostics.json`, summarising any
-    learned membrane time constants and adaptive-threshold parameters.
+    `raw/#r.stage/#r.attempt/<cell>/parameter_diagnostics.json` and archives all
+    collected short-ladder summaries under `raw/collected_ladder_summary.json`.
   ]
 
   == Activity appendix
@@ -210,4 +257,23 @@
   ==== Visible messages added
 
   #for message in trace-four.messages { message-card(message, trace-four) }
+
+  === Checkpoint #trace-five.checkpoint_id
+
+  Timestamp: `#trace-five.checkpoint_time_utc`. Sanitized source hash prefix:
+  `#trace-five.sanitized_sha256_prefix`.
+
+  #if trace-five.sanitization.status == "partial_fail_closed" [
+    Note: this checkpoint records the scientific ledger for the long RunPod
+    monitoring turn, but does not claim a complete verbatim transcript because
+    no raw transcript export was available in the workspace.
+  ]
+
+  ==== Decisions, actions, and pending work
+
+  #for item in trace-five.ledger { [+ #item] }
+
+  ==== Visible milestone messages added
+
+  #for message in trace-five.messages { message-card(message, trace-five) }
 ]
