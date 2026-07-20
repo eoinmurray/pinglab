@@ -8180,27 +8180,27 @@
     "coba": {
       "passed": true,
       "errors": [],
-      "selected_validation_accuracy_pct": 5.46875,
-      "selected_validation_loss": 4.215624451637268,
+      "selected_validation_accuracy_pct": 3.90625,
+      "selected_validation_loss": 4.007463812828064,
       "selected_epoch": 2,
-      "final_train_loss": 4.313317179679871,
-      "final_e_rate_hz": 24.2578125,
+      "final_train_loss": 4.0040993094444275,
+      "final_e_rate_hz": 20.12890625,
       "final_i_rate_hz": 0.0
     },
     "ping": {
       "passed": true,
       "errors": [],
-      "selected_validation_accuracy_pct": 11.71875,
-      "selected_validation_loss": 3.0653194189071655,
+      "selected_validation_accuracy_pct": 10.15625,
+      "selected_validation_loss": 3.1036359071731567,
       "selected_epoch": 2,
-      "final_train_loss": 3.033733069896698,
-      "final_e_rate_hz": 2.8359375,
-      "final_i_rate_hz": 14.6875
+      "final_train_loss": 3.052051544189453,
+      "final_e_rate_hz": 3.07421875,
+      "final_i_rate_hz": 15.0
     }
   },
   "passed": true,
   "experiment": "exp072",
-  "attempt": "train_leak",
+  "attempt": "combined",
   "stage": "smoke",
   "hidden_sizes": [
     256
@@ -8210,8 +8210,9 @@
   "readout_bias": true,
   "readout_scale": 1.0,
   "flags": [
-    "--train-leak"
+    "--train-leak",
+    "--adaptive-threshold"
   ],
   "train_leak": true,
-  "adaptive_threshold": false
+  "adaptive_threshold": true
 }

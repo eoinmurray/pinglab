@@ -1,11 +1,11 @@
 {
-  "run_id": "r016",
-  "git_sha": "b92634a",
-  "duration_s": 7.0,
-  "duration": "7s",
+  "run_id": "r018",
+  "git_sha": "7a6b69e",
+  "duration_s": 5.8,
+  "duration": "6s",
   "result_status": "done",
-  "stage": "final40",
-  "attempt": "train_leak",
+  "stage": "final80",
+  "attempt": "combined",
   "attempt_order": [
     "control",
     "train_leak",
@@ -14,47 +14,48 @@
   ],
   "screening_epochs": 8,
   "promotion_epochs": 40,
+  "followup_epochs": 80,
   "seed": 42,
   "cells": {
     "coba": {
-      "selected_epoch": 37,
-      "selected_validation_accuracy_pct": 69.48529411764706,
-      "selected_validation_cross_entropy": 1.0635074996031249,
-      "selected_validation_e_rate_hz": 30.410089231004903,
+      "selected_epoch": 77,
+      "selected_validation_accuracy_pct": 64.58333333333333,
+      "selected_validation_cross_entropy": 1.162477970123291,
+      "selected_validation_e_rate_hz": 34.91054878982843,
       "selected_validation_i_rate_hz": 0.0,
-      "final_validation_accuracy_pct": 68.25980392156863,
-      "final_validation_cross_entropy": 1.0848817481444433,
-      "final_validation_e_rate_hz": 30.444168390012255,
+      "final_validation_accuracy_pct": 61.51960784313726,
+      "final_validation_cross_entropy": 1.1773973588760083,
+      "final_validation_e_rate_hz": 34.96871649050245,
       "final_validation_i_rate_hz": 0.0,
-      "gradient_norm": 213.57130959552268,
+      "gradient_norm": 76.21470443062161,
       "finite": true,
       "active": true,
       "clean": true,
-      "training_elapsed_s": 3983.051872598997,
-      "training_peak_gpu_memory_bytes": 477066240
+      "training_elapsed_s": 11762.431560333818,
+      "training_peak_gpu_memory_bytes": 509908992
     },
     "ping": {
-      "selected_epoch": 40,
-      "selected_validation_accuracy_pct": 71.07843137254902,
-      "selected_validation_cross_entropy": 0.9496782376216009,
-      "selected_validation_e_rate_hz": 9.711918849571079,
-      "selected_validation_i_rate_hz": 49.042260263480394,
-      "final_validation_accuracy_pct": 71.07843137254902,
-      "final_validation_cross_entropy": 0.9496782376216009,
-      "final_validation_e_rate_hz": 9.711918849571079,
-      "final_validation_i_rate_hz": 49.042260263480394,
-      "gradient_norm": 6.327455790146537,
+      "selected_epoch": 73,
+      "selected_validation_accuracy_pct": 71.69117647058823,
+      "selected_validation_cross_entropy": 0.8771768968838912,
+      "selected_validation_e_rate_hz": 9.952445235906863,
+      "selected_validation_i_rate_hz": 51.904028799019606,
+      "final_validation_accuracy_pct": 69.24019607843137,
+      "final_validation_cross_entropy": 0.900235293003229,
+      "final_validation_e_rate_hz": 10.08071959252451,
+      "final_validation_i_rate_hz": 52.68173636642157,
+      "gradient_norm": 6.016261552727741,
       "finite": true,
       "active": true,
       "clean": true,
-      "training_elapsed_s": 3985.2365402458236,
-      "training_peak_gpu_memory_bytes": 477066240
+      "training_elapsed_s": 8159.12676708959,
+      "training_peak_gpu_memory_bytes": 509908992
     }
   },
   "parameters": {
     "coba": {
       "train_leak": true,
-      "adaptive_threshold": false,
+      "adaptive_threshold": true,
       "bounds": {
         "tau_m_e_ms": [
           5.0,
@@ -76,21 +77,31 @@
       "layers": {
         "1": {
           "tau_m_e_ms": {
-            "min": 9.77836243563766,
-            "mean": 15.360508634217393,
-            "max": 22.606138684106302
+            "min": 6.2358420437299085,
+            "mean": 13.44095230536226,
+            "max": 23.150275795768557
           },
           "tau_m_i_ms": {
             "min": 4.999999924823045,
             "mean": 4.999999924823045,
             "max": 4.999999924823045
+          },
+          "adapt_tau_ms": {
+            "min": 57.26069830160176,
+            "mean": 151.84733498054163,
+            "max": 290.84336154723326
+          },
+          "adapt_strength_mv": {
+            "min": 0.04810754065622234,
+            "mean": 0.7956237723957787,
+            "max": 1.263607296794648
           }
         }
       }
     },
     "ping": {
       "train_leak": true,
-      "adaptive_threshold": false,
+      "adaptive_threshold": true,
       "bounds": {
         "tau_m_e_ms": [
           5.0,
@@ -112,14 +123,24 @@
       "layers": {
         "1": {
           "tau_m_e_ms": {
-            "min": 18.612086043869557,
-            "mean": 25.829645777224748,
-            "max": 36.818882972775455
+            "min": 20.818707176836238,
+            "mean": 30.265761925613937,
+            "max": 44.78557966234021
           },
           "tau_m_i_ms": {
-            "min": 6.54412471877124,
-            "mean": 6.8719573512844665,
-            "max": 7.4913938144962975
+            "min": 7.804606673624943,
+            "mean": 8.629495197883344,
+            "max": 10.38862841614924
+          },
+          "adapt_tau_ms": {
+            "min": 60.449076958278425,
+            "mean": 96.60705069046561,
+            "max": 168.1850148025021
+          },
+          "adapt_strength_mv": {
+            "min": 0.1017881239521184,
+            "mean": 0.38864487943962456,
+            "max": 1.1014261104380476
           }
         }
       }
@@ -133,7 +154,7 @@
   },
   "config": {
     "seed": 42,
-    "epochs": 40,
+    "epochs": 80,
     "validation_fraction": 0.1,
     "models": [
       "coba",
@@ -165,18 +186,19 @@
       }
     },
     "experiment": "exp072",
-    "attempt": "train_leak",
-    "stage": "final40",
+    "attempt": "combined",
+    "stage": "final80",
     "hidden_sizes": [
       256
     ],
     "signed_readout": true,
     "readout_bias": true,
     "candidate_flags": [
-      "--train-leak"
+      "--train-leak",
+      "--adaptive-threshold"
     ],
     "train_leak": true,
-    "adaptive_threshold": false
+    "adaptive_threshold": true
   },
   "integrity": {
     "official_test_access": "forbidden and absent from runner",
@@ -185,35 +207,40 @@
     "selection_rule": "max validation accuracy; tie lower validation cross-entropy; tie earlier epoch"
   },
   "runpod": {
-    "created_at_utc": "2026-07-20T06:29:16.467Z",
+    "created_at_utc": "2026-07-20T11:24:09.125Z",
     "exact_provider_billing": false,
     "billing_status": "timestamp_estimate_pending_provider_reconciliation",
-    "total_spend_usd": 2.36,
+    "total_spend_usd": 5.6,
     "active_pods_after_collection": 0,
     "currency": "USD",
-    "estimate_basis": "Conservative timestamp/runtime estimate at 0.99 USD/hour; exact per-pod billing endpoint had not posted rows during live execution. S3 collection did not create a live GPU pod.",
+    "estimate_basis": "Conservative timestamp/runtime estimate at 0.99 USD/hour for two parallel final80 pods; provider hourly billing had not posted the final hour at publication time. S3 collection did not create a live GPU pod.",
     "attempts": {
-      "final40-train_leak-coba": {
-        "kind": "completed_final40_training_and_collection",
-        "observed_training_elapsed_s": 3983.051872598997,
-        "selected_validation_accuracy_pct": 69.48529411764706,
-        "estimated_spend_usd": 1.18
+      "final80-combined-coba": {
+        "kind": "completed_final80_training_and_collection",
+        "observed_training_elapsed_s": 11762.432836378983,
+        "selected_validation_accuracy_pct": 64.58333333333333,
+        "estimated_spend_usd": 3.31
       },
-      "final40-train_leak-ping": {
-        "kind": "completed_final40_training_and_collection",
-        "observed_training_elapsed_s": 3985.2365402458236,
-        "selected_validation_accuracy_pct": 71.07843137254902,
-        "estimated_spend_usd": 1.18
+      "final80-combined-ping": {
+        "kind": "completed_final80_training_and_collection",
+        "observed_training_elapsed_s": 8159.141875014175,
+        "selected_validation_accuracy_pct": 71.69117647058823,
+        "estimated_spend_usd": 2.29
       }
     }
   },
   "compute": {
-    "total_spend_usd": 3.6545064916135743,
-    "exact_provider_billing": true,
-    "status": "provider_hourly_billing_reconciled",
+    "total_spend_usd": 10.26,
+    "exact_provider_billing": false,
+    "status": "timestamp_estimate_pending_provider_reconciliation",
     "ledgers": {
       "final40-train_leak": {
         "total_spend_usd": 2.36,
+        "exact_provider_billing": false,
+        "billing_status": "timestamp_estimate_pending_provider_reconciliation"
+      },
+      "final80-combined": {
+        "total_spend_usd": 5.6,
         "exact_provider_billing": false,
         "billing_status": "timestamp_estimate_pending_provider_reconciliation"
       },
@@ -237,18 +264,6 @@
         "exact_provider_billing": false,
         "billing_status": "timestamp_estimate_pending_provider_reconciliation"
       }
-    },
-    "provider_reconciliation": {
-      "created_at_utc": "2026-07-20T06:40:00.000Z",
-      "exact_provider_billing": true,
-      "billing_status": "provider_hourly_billing_reconciled",
-      "currency": "USD",
-      "total_spend_usd": 3.6545064916135743,
-      "billing_window_utc": {
-        "start": "2026-07-20T00:00:00Z",
-        "end": "2026-07-20T08:00:00Z"
-      },
-      "basis": "RunPod pod billing hourly buckets for the exp072 execution window. Only one pod was active at a time; no active pods remained after collection."
     }
   },
   "ladder": {
@@ -405,6 +420,38 @@
           }
         }
       }
+    },
+    "final80": {
+      "combined": {
+        "cells": {
+          "coba": {
+            "selected_epoch": 77,
+            "selected_validation_accuracy_pct": 64.58333333333333,
+            "selected_validation_cross_entropy": 1.162477970123291,
+            "final_validation_accuracy_pct": 61.51960784313726,
+            "training_elapsed_s": 11762.431560333818,
+            "dynamics": {
+              "E": "42Hz",
+              "I": "\u2014",
+              "CV": "0.81",
+              "act": "100%"
+            }
+          },
+          "ping": {
+            "selected_epoch": 73,
+            "selected_validation_accuracy_pct": 71.69117647058823,
+            "selected_validation_cross_entropy": 0.8771768968838912,
+            "final_validation_accuracy_pct": 69.24019607843137,
+            "training_elapsed_s": 8159.12676708959,
+            "dynamics": {
+              "E": "9Hz",
+              "I": "57Hz",
+              "CV": "1.59",
+              "act": "93%"
+            }
+          }
+        }
+      }
     }
   },
   "activity": {
@@ -413,15 +460,16 @@
       "cp002",
       "cp003",
       "cp004",
-      "cp005"
+      "cp005",
+      "cp006"
     ],
-    "latest_checkpoint_id": "cp005",
-    "latest_checkpoint_time_utc": "2026-07-20T06:40:33.610Z",
-    "publishable_log": "artifacts/data/exp072/activity/messages_cp005.json"
+    "latest_checkpoint_id": "cp006",
+    "latest_checkpoint_time_utc": "2026-07-20T11:25:52.568Z",
+    "publishable_log": "artifacts/data/exp072/activity/messages_cp006.json"
   },
   "spend": {
-    "total_spend_usd": 3.6545064916135743,
-    "exact_provider_billing": true,
-    "status": "provider_hourly_billing_reconciled"
+    "total_spend_usd": 10.26,
+    "exact_provider_billing": false,
+    "status": "timestamp_estimate_pending_provider_reconciliation"
   }
 }
