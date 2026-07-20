@@ -49976,6 +49976,138 @@
         }
       },
       "posted_total_spend_usd": 0.13864884991198778
+    },
+    "cp005_mixed_4090_5090_startup_retries_reaped": {
+      "active_pods_after_reap": 0,
+      "attempt": "plastic_wee",
+      "attempt_count": 10,
+      "attempts": [
+        {
+          "exact_provider_billing": false,
+          "gpu": "NVIDIA GeForce RTX 4090",
+          "ordinal": 1,
+          "outcome": "reaped_not_started",
+          "pod_id": "1cpzoznlvxxdh7",
+          "provider_billing_status": "pending_provider_row; runpodctl billing pods --pod-id returned no row after reap",
+          "reaped_utc": "2026-07-20T18:52:04Z",
+          "started_utc": "2026-07-20T18:48:41Z",
+          "total_spend_usd": null
+        },
+        {
+          "exact_provider_billing": false,
+          "gpu": "NVIDIA GeForce RTX 4090",
+          "ordinal": 2,
+          "outcome": "reaped_not_started",
+          "pod_id": "0m8aclv8m2ihs8",
+          "provider_billing_status": "pending_provider_row; runpodctl billing pods --pod-id returned no row after reap",
+          "reaped_utc": "2026-07-20T18:55:36Z",
+          "started_utc": "2026-07-20T18:52:13Z",
+          "total_spend_usd": null
+        },
+        {
+          "exact_provider_billing": false,
+          "gpu": "NVIDIA GeForce RTX 4090",
+          "ordinal": 3,
+          "outcome": "reaped_not_started",
+          "pod_id": "dia9tj2f2yab89",
+          "provider_billing_status": "pending_provider_row; runpodctl billing pods --pod-id returned no row after reap",
+          "reaped_utc": "2026-07-20T18:59:07Z",
+          "started_utc": "2026-07-20T18:55:44Z",
+          "total_spend_usd": null
+        },
+        {
+          "exact_provider_billing": false,
+          "gpu": "NVIDIA GeForce RTX 4090",
+          "ordinal": 4,
+          "outcome": "reaped_not_started",
+          "pod_id": "a0dulptqm8o6t5",
+          "provider_billing_status": "pending_provider_row; runpodctl billing pods --pod-id returned no row after reap",
+          "reaped_utc": "2026-07-20T19:02:39Z",
+          "started_utc": "2026-07-20T18:59:15Z",
+          "total_spend_usd": null
+        },
+        {
+          "exact_provider_billing": false,
+          "gpu": "NVIDIA GeForce RTX 4090",
+          "ordinal": 5,
+          "outcome": "reaped_not_started",
+          "pod_id": "d4n8vpvsd6mtzg",
+          "provider_billing_status": "pending_provider_row; runpodctl billing pods --pod-id returned no row after reap",
+          "reaped_utc": "2026-07-20T19:06:11Z",
+          "started_utc": "2026-07-20T19:02:47Z",
+          "total_spend_usd": null
+        },
+        {
+          "exact_provider_billing": false,
+          "gpu": "NVIDIA GeForce RTX 5090",
+          "ordinal": 6,
+          "outcome": "reaped_not_started",
+          "pod_id": "lz5x4o0roxa786",
+          "provider_billing_status": "pending_provider_row; runpodctl billing pods --pod-id returned no row after reap",
+          "reaped_utc": "2026-07-20T19:09:44Z",
+          "started_utc": "2026-07-20T19:06:20Z",
+          "total_spend_usd": null
+        },
+        {
+          "exact_provider_billing": false,
+          "gpu": "NVIDIA GeForce RTX 5090",
+          "ordinal": 7,
+          "outcome": "reaped_not_started",
+          "pod_id": "8ujat8jshw27l7",
+          "provider_billing_status": "pending_provider_row; runpodctl billing pods --pod-id returned no row after reap",
+          "reaped_utc": "2026-07-20T19:13:16Z",
+          "started_utc": "2026-07-20T19:09:52Z",
+          "total_spend_usd": null
+        },
+        {
+          "exact_provider_billing": false,
+          "gpu": "NVIDIA GeForce RTX 5090",
+          "ordinal": 8,
+          "outcome": "reaped_not_started",
+          "pod_id": "irs0d7uxvng9oe",
+          "provider_billing_status": "pending_provider_row; runpodctl billing pods --pod-id returned no row after reap",
+          "reaped_utc": "2026-07-20T19:16:46Z",
+          "started_utc": "2026-07-20T19:13:23Z",
+          "total_spend_usd": null
+        },
+        {
+          "exact_provider_billing": false,
+          "gpu": "NVIDIA GeForce RTX 5090",
+          "ordinal": 9,
+          "outcome": "reaped_not_started",
+          "pod_id": "f87n453eoxwuvy",
+          "provider_billing_status": "pending_provider_row; runpodctl billing pods --pod-id returned no row after reap",
+          "reaped_utc": "2026-07-20T19:20:19Z",
+          "started_utc": "2026-07-20T19:16:53Z",
+          "total_spend_usd": null
+        },
+        {
+          "exact_provider_billing": false,
+          "gpu": "NVIDIA GeForce RTX 5090",
+          "ordinal": 10,
+          "outcome": "reaped_not_started",
+          "pod_id": "wdpr8p0v0y28bn",
+          "provider_billing_status": "pending_provider_row; runpodctl billing pods --pod-id returned no row after reap",
+          "reaped_utc": "2026-07-20T19:23:52Z",
+          "started_utc": "2026-07-20T19:20:28Z",
+          "total_spend_usd": null
+        }
+      ],
+      "cell_scope": [
+        "ping"
+      ],
+      "checkpoint_time_utc": "2026-07-20T19:23:52Z",
+      "event": "mixed_4090_5090_ping_only_startup_retries_exhausted",
+      "exact_provider_billing": false,
+      "gpu_counts": {
+        "4090": 5,
+        "5090": 5
+      },
+      "pinned_commit": "0dedeeac6f6c8234841ac921aa4e4c782187fd24",
+      "provider_billing_status": "pending_provider_rows_for_all_mixed_retry_pods",
+      "reason": "user requested trying 4090s too and some later 5090s; all single-pod attempts rented but failed to produce a useful startup/readiness signal within the short startup window and were reaped before the next attempt",
+      "stage": "short",
+      "total_spend_usd": null
     }
   },
   "runpod": {
@@ -49986,7 +50118,7 @@
   "activity": {
     "checkpoint_ids": [],
     "latest_checkpoint_id": null,
-    "latest_checkpoint_time_utc": "2026-07-20T17:21:11.485Z",
+    "latest_checkpoint_time_utc": "2026-07-20T19:24:31.197Z",
     "publishable_log": null
   }
 }
