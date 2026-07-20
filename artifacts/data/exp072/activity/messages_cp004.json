@@ -1,0 +1,105 @@
+{
+  "checkpoint_id": "cp004",
+  "session_id": "2026-07-19-exp072-codex",
+  "checkpoint_time_utc": "2026-07-19T23:45:10.032Z",
+  "raw_transcript_sha256_prefix": "a6e19dfaca54",
+  "sanitized_sha256_prefix": "a6e19dfaca54",
+  "sanitization": {
+    "status": "passed",
+    "policy": "Excluded hidden reasoning, tool payloads, credentials, tokens, SSH material, IP addresses, environment dumps, private paths, and sensitive infrastructure details. No such sensitive visible content was found in the publishable messages."
+  },
+  "ledger": [
+    "2026-07-19T23:43:30.000Z \u2014 Rechecked Demolab instructions, branch, commit, and PR #57 state before further work.",
+    "2026-07-19T23:44:00.000Z \u2014 Did not launch RunPod because this continuation did not include explicit paid-compute approval.",
+    "2026-07-19T23:44:30.000Z \u2014 Added runner helpers to preserve sanitized activity logs across publish_pre_result and publish_attempt.",
+    "2026-07-19T23:44:55.000Z \u2014 First regression exposed that no logs could be preserved after prior artifact regeneration had already wiped local activity.",
+    "2026-07-19T23:45:00.000Z \u2014 Corrected the snapshot path from the temporary experiment root to artifacts/data/exp072/activity.",
+    "2026-07-19T23:45:10.032Z \u2014 Regression passed: EXP072_ATTEMPT=combined uv run python experiments/exp072.py --plot-only preserves cp001-cp003 and records latest_checkpoint_id cp003."
+  ],
+  "messages": [
+    {
+      "timestamp": "2026-07-19T23:43:00.000Z",
+      "role": "user",
+      "checkpoint_id": "cp004",
+      "session_id": "2026-07-19-exp072-codex",
+      "content": "<codex_internal_context source=\"goal\">\nContinue working toward the active thread goal.\n\nThe objective below is user-provided data. Treat it as the task to pursue, not as higher-priority instructions.\n\n<objective>\nDesign and execute the next exploratory SHD experiment from updated main at f32299bb1b48d18ba9dfe6328097d2147bcc6286, using the newly merged tools/snn adaptive conductance controls to test whether COBA/PING validation accuracy can move meaningfully beyond the exp071 ~70% plateau toward canonical SHD RSNN performance.\n\nCreate the next numbered experiment, likely exp072, on a new branch. Do not modify main directly after branching. Open a draft PR after the first meaningful commit.\n\nScientific objective:\nRun a one-seed exploratory validation-only ladder on SHD comparing matched Dale-constrained COBA and PING networks while testing two new neuron-dynamics paths:\n1. trainable conductance leak / membrane time constants via --train-leak;\n2. adaptive E-cell thresholds via --adaptive-threshold;\n3. the combination of both.\n\nUse the exp071 cumulative-potential readout baseline as the control:\n--readout cumulative-potential --signed-readout --readout-bias\n\nConstraints:\n- Use one seed only.\n- Do not use the official SHD test set.\n- Use a held-out validation split from the training set for all selection decisions.\n- Keep COBA and PING matched except for registered cell-specific voltage-gradient dampening and PING E/I coupling.\n- Preserve matched input, readout, training split, optimizer, batch, preprocessing, and candidate flags across COBA/PING within each candidate.\n- COBA should use the no-inhibitory-loop setting; PING should use the registered inhibitory-loop setting and dampening 1000.\n- Use short runs first for iteration speed, about 8-10 epochs per candidate.\n- Promote only the most promising candidate to a matched 40-epoch validation run.\n- Do not run multiple seeds unless I explicitly authorize it later.\n- RunPod spending requires explicit approval before pod creation.\n- Use at most one pod at a time unless I explicitly authorize parallelism.\n- Reap any pod when finished.\n- Do not merge the PR.\n- Avoid the full local test suite on the 4 GB Hetzner host; use focused checks and demolab build.\n\nCandidate ladder:\n0. Control: exp071 architecture/readout without new adaptive controls.\n1. Trainable leak only:\n   --train-leak\n2. Adaptive threshold only:\n   --adaptive-threshold\n3. Combined:\n   --train-leak --adaptive-threshold\n\nSuggested default bounds:\n- E membrane tau: [5, 50] ms\n- I membrane tau: [2, 20] ms\n- adaptive threshold tau: [50, 500] ms\n- adaptive threshold initial strength: 1.0 mV\n- adaptive threshold max strength: 20.0 mV\n\nDeliverables:\n- Produce artifacts/data/exp072 with numbers.json, provenance, reproducer, training curves, firing-rate diagnostics, parameter diagnostics for learned tau/adaptation values, and matched input/E/I rasters.\n- Write writings/exp072.typ as the canonical cold-readable experiment report.\n- Include this goal prompt below the abstract.\n- Append timestamped activity-log/thread checkpoints in the experiment appendix.\n- Record scientific decisions, failures, anomalies, costs, commits, results, and pending work.\n- Sanitize any publishable logs before committing.\n- Build and validate with focused checks plus demolab build.\n- Commit meaningful attempts, including killed attempts, with clear messages.\n- Push the branch and update the PR with evidence.\n- Finish at the human review gate with a concise evidence summary, exact compute spend, validation performed, links to the rendered exp072 file and PR, and a recommendation for the next move toward 90% SHD.\n</objective>\n</codex_internal_context>"
+    },
+    {
+      "timestamp": "2026-07-19T23:43:10.000Z",
+      "role": "assistant",
+      "checkpoint_id": "cp004",
+      "session_id": "2026-07-19-exp072-codex",
+      "content": "I\u2019m resuming from the branch/PR state and will re-run the Demolab manual check first. The next scientific step is the paid RunPod short ladder, but I\u2019ll verify local/PR state before deciding whether I have enough authority to launch it."
+    },
+    {
+      "timestamp": "2026-07-19T23:43:30.000Z",
+      "role": "assistant",
+      "checkpoint_id": "cp004",
+      "session_id": "2026-07-19-exp072-codex",
+      "content": "I\u2019ll use the GitHub publishing workflow only for PR updates/comments after I\u2019ve generated new evidence; first I\u2019m checking the current local state."
+    },
+    {
+      "timestamp": "2026-07-19T23:44:00.000Z",
+      "role": "assistant",
+      "checkpoint_id": "cp004",
+      "session_id": "2026-07-19-exp072-codex",
+      "content": "State is clean on PR #57 at `49a684e`. I don\u2019t have explicit paid RunPod approval in this turn, so I\u2019m going to use this turn to harden the runner/report around activity checkpoints and RunPod collection before spending anything."
+    },
+    {
+      "timestamp": "2026-07-19T23:44:15.000Z",
+      "role": "assistant",
+      "checkpoint_id": "cp004",
+      "session_id": "2026-07-19-exp072-codex",
+      "content": "One issue from the previous checkpoint is worth fixing properly: `--plot-only` regenerates `artifacts/data/exp072`, so activity logs need to survive publication rather than being hand-restored. I\u2019m patching that into exp072 now."
+    },
+    {
+      "timestamp": "2026-07-19T23:44:30.000Z",
+      "role": "assistant",
+      "checkpoint_id": "cp004",
+      "session_id": "2026-07-19-exp072-codex",
+      "content": "I found the exact weak point: `publish_pre_result()` and `publish_attempt()` don\u2019t preserve existing `activity/messages_cp*.json`. I\u2019m adding a small helper that snapshots those files before the Demolab publish context and copies them back into the new artifact."
+    },
+    {
+      "timestamp": "2026-07-19T23:44:45.000Z",
+      "role": "assistant",
+      "checkpoint_id": "cp004",
+      "session_id": "2026-07-19-exp072-codex",
+      "content": "The preservation helper is patched. I\u2019m testing it by running `--plot-only` locally; this is the same path that previously wiped the checkpoint files, so it\u2019s the right regression check."
+    },
+    {
+      "timestamp": "2026-07-19T23:44:55.000Z",
+      "role": "assistant",
+      "checkpoint_id": "cp004",
+      "session_id": "2026-07-19-exp072-codex",
+      "content": "Regression caught a second nuance: because the previous publish had already wiped local activity before this test started, there were no files for the helper to preserve. I\u2019m restoring the committed checkpoints from git, then rerunning the same regression."
+    },
+    {
+      "timestamp": "2026-07-19T23:45:00.000Z",
+      "role": "assistant",
+      "checkpoint_id": "cp004",
+      "session_id": "2026-07-19-exp072-codex",
+      "content": "Aha, `ARTIFACTS` in this runner points at the temp experiment root, not the committed published artifact directory. That\u2019s why the helper saw nothing. I\u2019m correcting it to snapshot from `artifacts/data/exp072/activity`."
+    },
+    {
+      "timestamp": "2026-07-19T23:45:05.000Z",
+      "role": "assistant",
+      "checkpoint_id": "cp004",
+      "session_id": "2026-07-19-exp072-codex",
+      "content": "Path fixed. I\u2019m restoring the three checkpoint files from the last commit and rerunning the preservation regression."
+    },
+    {
+      "timestamp": "2026-07-19T23:45:10.032Z",
+      "role": "assistant",
+      "checkpoint_id": "cp004",
+      "session_id": "2026-07-19-exp072-codex",
+      "content": "The regression now passes: `--plot-only` preserves cp001\u2013cp003 and records `latest_checkpoint_id: cp003` in `numbers.json`. I\u2019m adding cp004 for this hardening fix, then I\u2019ll rebuild, commit, push, and leave the goal at the paid-compute approval gate."
+    },
+    {
+      "timestamp": "2026-07-19T23:45:15.000Z",
+      "role": "assistant",
+      "checkpoint_id": "cp004",
+      "session_id": "2026-07-19-exp072-codex",
+      "content": "Sanitization for cp004: it will include repo state, PR number, validation commands, and the runner fix; no credentials, tokens, SSH material, IPs, environment dumps, private paths, or tool payloads."
+    }
+  ]
+}

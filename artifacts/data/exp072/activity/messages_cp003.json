@@ -1,0 +1,113 @@
+{
+  "checkpoint_id": "cp003",
+  "session_id": "2026-07-19-exp072-codex",
+  "checkpoint_time_utc": "2026-07-19T23:42:30.000Z",
+  "raw_transcript_sha256_prefix": "a8d1a801e6a1",
+  "sanitized_sha256_prefix": "a8d1a801e6a1",
+  "sanitization": {
+    "status": "passed",
+    "policy": "Excluded hidden reasoning, tool payloads, credentials, tokens, SSH material, IP addresses, environment dumps, private paths, and sensitive infrastructure details. No such sensitive visible content was found in the publishable messages."
+  },
+  "ledger": [
+    "2026-07-19T23:38:45.000Z \u2014 Rebuilt successfully after adding cp002 to the article.",
+    "2026-07-19T23:39:25.000Z \u2014 Restored tracked PDF rebuild noise and quarantined unrelated untracked generated PDFs outside the repo; retained exp072.pdf.",
+    "2026-07-19T23:41:20.000Z \u2014 Committed first exp072 checkpoint as c580b7c: Add exp072 adaptive SHD scaffold.",
+    "2026-07-19T23:41:45.000Z \u2014 Pushed branch agent/exp072-adaptive-shd to origin.",
+    "2026-07-19T23:42:00.000Z \u2014 Opened draft PR #57: https://github.com/eoinmurray/pinglab/pull/57.",
+    "2026-07-19T23:42:15.000Z \u2014 gh pr edit failed because of a deprecated Projects GraphQL field, leaving the body empty; fixed by patching the PR through the REST API.",
+    "2026-07-19T23:42:30.000Z \u2014 PR #57 body now records validation evidence, zero spend, and the next RunPod approval gate."
+  ],
+  "messages": [
+    {
+      "timestamp": "2026-07-19T23:38:20.000Z",
+      "role": "assistant",
+      "checkpoint_id": "cp003",
+      "session_id": "2026-07-19-exp072-codex",
+      "content": "cp002 is written with hash prefix `bec9f91c83e2`. I\u2019m wiring it into the article and rebuilding."
+    },
+    {
+      "timestamp": "2026-07-19T23:39:00.000Z",
+      "role": "assistant",
+      "checkpoint_id": "cp003",
+      "session_id": "2026-07-19-exp072-codex",
+      "content": "Focused validation is green: compile, Ruff, and Demolab build all pass. I\u2019m cleaning the generated PDF noise now so the first commit contains only exp072\u2019s intended files/artifacts."
+    },
+    {
+      "timestamp": "2026-07-19T23:39:25.000Z",
+      "role": "assistant",
+      "checkpoint_id": "cp003",
+      "session_id": "2026-07-19-exp072-codex",
+      "content": "The build rewrote many existing PDFs, which is normal here but not part of this PR. I\u2019m restoring tracked PDFs and keeping only the new exp072 PDF plus exp072 data/report/runner."
+    },
+    {
+      "timestamp": "2026-07-19T23:39:45.000Z",
+      "role": "assistant",
+      "checkpoint_id": "cp003",
+      "session_id": "2026-07-19-exp072-codex",
+      "content": "The shell guard blocked my explicit `rm -f` cleanup, fair enough. I\u2019ll use a safer move-to-quarantine approach for the unrelated untracked PDFs."
+    },
+    {
+      "timestamp": "2026-07-19T23:40:05.000Z",
+      "role": "assistant",
+      "checkpoint_id": "cp003",
+      "session_id": "2026-07-19-exp072-codex",
+      "content": "Tracked PDFs are restored. Now I\u2019m moving the unrelated untracked build PDFs out of the repo, leaving `exp072.pdf` intact."
+    },
+    {
+      "timestamp": "2026-07-19T23:40:30.000Z",
+      "role": "assistant",
+      "checkpoint_id": "cp003",
+      "session_id": "2026-07-19-exp072-codex",
+      "content": "Worktree scope is clean: only new exp072 runner, article, data, and PDF are untracked. I\u2019m doing a quick artifact sanity read before committing."
+    },
+    {
+      "timestamp": "2026-07-19T23:41:00.000Z",
+      "role": "assistant",
+      "checkpoint_id": "cp003",
+      "session_id": "2026-07-19-exp072-codex",
+      "content": "Artifact provenance looks sane: local host, dirty patch capturing the new exp072 scaffold, zero spend, all-smoke ladder recorded. I\u2019m staging only the exp072 files now and making the first checkpoint commit."
+    },
+    {
+      "timestamp": "2026-07-19T23:41:20.000Z",
+      "role": "assistant",
+      "checkpoint_id": "cp003",
+      "session_id": "2026-07-19-exp072-codex",
+      "content": "First checkpoint commit is in: `c580b7c` (\u201cAdd exp072 adaptive SHD scaffold\u201d). Next I\u2019m pushing the branch and opening the draft PR, per the goal."
+    },
+    {
+      "timestamp": "2026-07-19T23:41:45.000Z",
+      "role": "assistant",
+      "checkpoint_id": "cp003",
+      "session_id": "2026-07-19-exp072-codex",
+      "content": "Branch is pushed. I\u2019m opening a draft PR now with the validation evidence and zero-spend status."
+    },
+    {
+      "timestamp": "2026-07-19T23:42:00.000Z",
+      "role": "assistant",
+      "checkpoint_id": "cp003",
+      "session_id": "2026-07-19-exp072-codex",
+      "content": "Draft PR opened as #57. Minor process wart: my first body-file helper tried plain `python` (not allowed/available here), so I\u2019m checking/updating the PR body with `uv run python` now."
+    },
+    {
+      "timestamp": "2026-07-19T23:42:15.000Z",
+      "role": "assistant",
+      "checkpoint_id": "cp003",
+      "session_id": "2026-07-19-exp072-codex",
+      "content": "`gh pr edit` hit GitHub\u2019s deprecated Projects GraphQL field bug and left the PR body empty. I\u2019m switching to the REST API endpoint to patch the body directly."
+    },
+    {
+      "timestamp": "2026-07-19T23:42:30.000Z",
+      "role": "assistant",
+      "checkpoint_id": "cp003",
+      "session_id": "2026-07-19-exp072-codex",
+      "content": "PR #57 is open and has the evidence body now. Since opening/updating the PR is a meaningful milestone\u2014and there was a small GitHub tooling hiccup\u2014I\u2019m adding one more timestamped checkpoint to the article, rebuilding, committing, and pushing that log update before stopping at the RunPod approval gate."
+    },
+    {
+      "timestamp": "2026-07-19T23:42:40.000Z",
+      "role": "assistant",
+      "checkpoint_id": "cp003",
+      "session_id": "2026-07-19-exp072-codex",
+      "content": "Sanitization for cp003: the PR URL, branch, commit hash, and validation commands are safe to publish; no credentials or private infra details will be included."
+    }
+  ]
+}

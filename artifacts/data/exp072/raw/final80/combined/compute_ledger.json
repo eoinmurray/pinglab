@@ -1,0 +1,23 @@
+{
+  "created_at_utc": "2026-07-20T11:24:09.125Z",
+  "exact_provider_billing": false,
+  "billing_status": "timestamp_estimate_pending_provider_reconciliation",
+  "total_spend_usd": 5.6,
+  "active_pods_after_collection": 0,
+  "currency": "USD",
+  "estimate_basis": "Conservative timestamp/runtime estimate at 0.99 USD/hour for two parallel final80 pods; provider hourly billing had not posted the final hour at publication time. S3 collection did not create a live GPU pod.",
+  "attempts": {
+    "final80-combined-coba": {
+      "kind": "completed_final80_training_and_collection",
+      "observed_training_elapsed_s": 11762.432836378983,
+      "selected_validation_accuracy_pct": 64.58333333333333,
+      "estimated_spend_usd": 3.31
+    },
+    "final80-combined-ping": {
+      "kind": "completed_final80_training_and_collection",
+      "observed_training_elapsed_s": 8159.141875014175,
+      "selected_validation_accuracy_pct": 71.69117647058823,
+      "estimated_spend_usd": 2.29
+    }
+  }
+}

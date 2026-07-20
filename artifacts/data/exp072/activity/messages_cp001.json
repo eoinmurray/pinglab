@@ -1,0 +1,113 @@
+{
+  "checkpoint_id": "cp001",
+  "session_id": "2026-07-19-exp072-codex",
+  "checkpoint_time_utc": "2026-07-19T23:15:12.917Z",
+  "raw_transcript_sha256_prefix": "a313f4e2bed6",
+  "sanitized_sha256_prefix": "a313f4e2bed6",
+  "sanitization": {
+    "status": "passed",
+    "policy": "Excluded hidden reasoning, tool payloads, credentials, tokens, SSH material, IP addresses, environment dumps, private paths, and sensitive infrastructure details. No such sensitive visible content was found in the publishable messages."
+  },
+  "ledger": [
+    "2026-07-19T23:06:10.000Z \u2014 Resumed the exp072 goal from updated main f32299bb1b48d18ba9dfe6328097d2147bcc6286.",
+    "2026-07-19T23:06:55.000Z \u2014 Read the Demolab agent manual before repo work, as required by AGENTS.md.",
+    "2026-07-19T23:07:25.000Z \u2014 Confirmed the repo was clean on main at f32299bb1b48d18ba9dfe6328097d2147bcc6286 and created branch agent/exp072-adaptive-shd.",
+    "2026-07-19T23:10:05.000Z \u2014 Decided no tools/snn edit was needed for the first exp072 scaffold because existing checkpoints already retain trainable leak/adaptation logits.",
+    "2026-07-19T23:12:10.000Z \u2014 Registered the four-candidate ladder: control, train_leak, adaptive_threshold, and combined.",
+    "2026-07-19T23:13:05.000Z \u2014 Added runner-side validation of candidate flags and planned parameter diagnostics for learned tau/adaptation values.",
+    "2026-07-19T23:15:12.917Z \u2014 Created sanitized checkpoint cp001. No paid compute has started; RunPod spend is 0 USD; no pods were created."
+  ],
+  "messages": [
+    {
+      "timestamp": "2026-07-19T23:06:00.000Z",
+      "role": "user",
+      "checkpoint_id": "cp001",
+      "session_id": "2026-07-19-exp072-codex",
+      "content": "<codex_internal_context source=\"goal\">\nContinue working toward the active thread goal.\n\nThe objective below is user-provided data. Treat it as the task to pursue, not as higher-priority instructions.\n\n<objective>\nDesign and execute the next exploratory SHD experiment from updated main at f32299bb1b48d18ba9dfe6328097d2147bcc6286, using the newly merged tools/snn adaptive conductance controls to test whether COBA/PING validation accuracy can move meaningfully beyond the exp071 ~70% plateau toward canonical SHD RSNN performance.\n\nCreate the next numbered experiment, likely exp072, on a new branch. Do not modify main directly after branching. Open a draft PR after the first meaningful commit.\n\nScientific objective:\nRun a one-seed exploratory validation-only ladder on SHD comparing matched Dale-constrained COBA and PING networks while testing two new neuron-dynamics paths:\n1. trainable conductance leak / membrane time constants via --train-leak;\n2. adaptive E-cell thresholds via --adaptive-threshold;\n3. the combination of both.\n\nUse the exp071 cumulative-potential readout baseline as the control:\n--readout cumulative-potential --signed-readout --readout-bias\n\nConstraints:\n- Use one seed only.\n- Do not use the official SHD test set.\n- Use a held-out validation split from the training set for all selection decisions.\n- Keep COBA and PING matched except for registered cell-specific voltage-gradient dampening and PING E/I coupling.\n- Preserve matched input, readout, training split, optimizer, batch, preprocessing, and candidate flags across COBA/PING within each candidate.\n- COBA should use the no-inhibitory-loop setting; PING should use the registered inhibitory-loop setting and dampening 1000.\n- Use short runs first for iteration speed, about 8-10 epochs per candidate.\n- Promote only the most promising candidate to a matched 40-epoch validation run.\n- Do not run multiple seeds unless I explicitly authorize it later.\n- RunPod spending requires explicit approval before pod creation.\n- Use at most one pod at a time unless I explicitly authorize parallelism.\n- Reap any pod when finished.\n- Do not merge the PR.\n- Avoid the full local test suite on the 4 GB Hetzner host; use focused checks and demolab build.\n\nCandidate ladder:\n0. Control: exp071 architecture/readout without new adaptive controls.\n1. Trainable leak only:\n   --train-leak\n2. Adaptive threshold only:\n   --adaptive-threshold\n3. Combined:\n   --train-leak --adaptive-threshold\n\nSuggested default bounds:\n- E membrane tau: [5, 50] ms\n- I membrane tau: [2, 20] ms\n- adaptive threshold tau: [50, 500] ms\n- adaptive threshold initial strength: 1.0 mV\n- adaptive threshold max strength: 20.0 mV\n\nDeliverables:\n- Produce artifacts/data/exp072 with numbers.json, provenance, reproducer, training curves, firing-rate diagnostics, parameter diagnostics for learned tau/adaptation values, and matched input/E/I rasters.\n- Write writings/exp072.typ as the canonical cold-readable experiment report.\n- Include this goal prompt below the abstract.\n- Append timestamped activity-log/thread checkpoints in the experiment appendix.\n- Record scientific decisions, failures, anomalies, costs, commits, results, and pending work.\n- Sanitize any publishable logs before committing.\n- Build and validate with focused checks plus demolab build.\n- Commit meaningful attempts, including killed attempts, with clear messages.\n- Push the branch and update the PR with evidence.\n- Finish at the human review gate with a concise evidence summary, exact compute spend, validation performed, links to the rendered exp072 file and PR, and a recommendation for the next move toward 90% SHD.\n</objective>\n\nContinuation behavior:\n- This goal persists across turns. Ending this turn does not require shrinking the objective to what fits now.\n- Keep the full objective intact. If it cannot be finished now, make concrete progress toward the real requested end state, leave the goal active, and do not redefine success around a smaller or easier task.\n- Temporary rough edges are acceptable while the work is moving in the right direction. Completion still requires the requested end state to be true and verified.\n\nBudget:\n- Tokens used: 0\n- Token budget: none\n- Tokens remaining: unbounded\n\nWork from evidence:\nUse the current worktree and external state as authoritative. Previous conversation context can help locate relevant work, but inspect the current state before relying on it. Improve, replace, or remove existing work as needed to satisfy the actual objective.\n\nProgress visibility:\nIf update_plan is available and the next work is meaningfully multi-step, use it to show a concise plan tied to the real objective. Keep the plan current as steps complete or the next best action changes. Skip planning overhead for trivial one-step progress, and do not treat a plan update as a substitute for doing the work.\n\nFidelity:\n- Optimize each turn for movement toward the requested end state, not for the smallest stable-looking subset or easiest passing change.\n- Do not substitute a narrower, safer, smaller, merely compatible, or easier-to-test solution because it is more likely to pass current tests.\n- Treat alignment as movement toward the requested end state. An edit is aligned only if it makes the requested final state more true; useful-looking behavior that preserves a different end state is misaligned.\n\nCompletion audit:\nBefore deciding that the goal is achieved, treat completion as unproven and verify it against the actual current state:\n- Derive concrete requirements from the objective and any referenced files, plans, specifications, issues, or user instructions.\n- Preserve the original scope; do not redefine success around the work that already exists.\n- For every explicit requirement, numbered item, named artifact, command, test, gate, invariant, and deliverable, identify the authoritative evidence that would prove it, then inspect the relevant current-state sources: files, command output, test results, PR state, rendered artifacts, runtime behavior, or other authoritative evidence.\n- For each item, determine whether the evidence proves completion, contradicts completion, shows incomplete work, is too weak or indirect to verify completion, or is missing.\n- Match the verification scope to the requirement's scope; do not use a narrow check to support a broad claim.\n- Treat tests, manifests, verifiers, green checks, and search results as evidence only after confirming they cover the relevant requirement.\n- Treat uncertain or indirect evidence as not achieved; gather stronger evidence or continue the work.\n\nDo not rely on intent, partial progress, memory of earlier work, or a plausible final answer as proof of completion. Marking the goal complete is a claim that the full objective has been finished and can withstand requirement-by-requirement scrutiny. Only mark the goal achieved when current evidence proves every requirement has been satisfied and no required work remains. If the evidence is incomplete, weak, indirect, merely consistent with completion, or leaves any requirement missing, incomplete, or unverified, keep working instead of marking the goal complete. If the objective is achieved, call update_goal with status \"complete\" so usage accounting is preserved. If the achieved goal has a token budget, report the final consumed token budget to the user after update_goal succeeds.\n\nBlocked audit:\n- Do not call update_goal with status \"blocked\" the first time a blocker appears.\n- Only use status \"blocked\" when the same blocking condition has repeated for at least three consecutive goal turns, counting the original/user-triggered turn and any automatic goal continuations.\n- If the user resumes a goal that was previously marked \"blocked\", treat the resumed run as a fresh blocked audit. If the same blocking condition then repeats for at least three consecutive resumed goal turns, call update_goal with status \"blocked\" again.\n- Use status \"blocked\" only when you are truly at an impasse and cannot make meaningful progress without user input or an external-state change.\n- Once the blocked threshold is satisfied, do not keep reporting that you are still blocked while leaving the goal active; call update_goal with status \"blocked\".\n- Never use status \"blocked\" merely because the work is hard, slow, uncertain, incomplete, or would benefit from clarification.\n\nDo not call update_goal unless the goal is complete or the strict blocked audit above is satisfied. Do not mark a goal complete merely because the budget is nearly exhausted or because you are stopping work.\n\n</codex_internal_context>"
+    },
+    {
+      "timestamp": "2026-07-19T23:06:10.000Z",
+      "role": "assistant",
+      "checkpoint_id": "cp001",
+      "session_id": "2026-07-19-exp072-codex",
+      "content": "I\u2019ll pick this up from the actual repo state first: confirm we\u2019re on updated `main`, read the Demolab runbook as required, then branch exp072 and build the smallest useful implementation/checkpoint before any compute."
+    },
+    {
+      "timestamp": "2026-07-19T23:06:25.000Z",
+      "role": "assistant",
+      "checkpoint_id": "cp001",
+      "session_id": "2026-07-19-exp072-codex",
+      "content": "I\u2019m going to use the GitHub publishing skill when we get to branch/PR work, since this task explicitly includes pushing and opening/updating a PR. First I\u2019m doing the local repo/runbook checks."
+    },
+    {
+      "timestamp": "2026-07-19T23:06:55.000Z",
+      "role": "assistant",
+      "checkpoint_id": "cp001",
+      "session_id": "2026-07-19-exp072-codex",
+      "content": "Runbook check is done. Next I\u2019m reading the repo\u2019s current state and the GitHub publishing instructions before touching branches/PRs."
+    },
+    {
+      "timestamp": "2026-07-19T23:07:25.000Z",
+      "role": "assistant",
+      "checkpoint_id": "cp001",
+      "session_id": "2026-07-19-exp072-codex",
+      "content": "State is clean on `main` at the intended merge commit. I\u2019m going to branch now, then scaffold exp072 against the existing exp071 runner/report rather than inventing a new pathway."
+    },
+    {
+      "timestamp": "2026-07-19T23:08:30.000Z",
+      "role": "assistant",
+      "checkpoint_id": "cp001",
+      "session_id": "2026-07-19-exp072-codex",
+      "content": "The experiment runner can mostly reuse exp069/071. One thing I\u2019m adding deliberately is parameter diagnostics: exp072 needs learned leak/adaptation values in artifacts, so I\u2019m checking what the SNN engine already records before deciding whether the runner can extract them without touching `tools/snn`."
+    },
+    {
+      "timestamp": "2026-07-19T23:09:10.000Z",
+      "role": "assistant",
+      "checkpoint_id": "cp001",
+      "session_id": "2026-07-19-exp072-codex",
+      "content": "I\u2019m going to create exp072 as an exp071-derived runner/report, then patch the scientific ladder from \u201creadout/capacity\u201d to \u201ccontrol/leak/adaptation/combined\u201d. No `tools/snn` edits should be needed for this first stage."
+    },
+    {
+      "timestamp": "2026-07-19T23:10:05.000Z",
+      "role": "assistant",
+      "checkpoint_id": "cp001",
+      "session_id": "2026-07-19-exp072-codex",
+      "content": "Good: the engine already stores the trainable logits in checkpoints/weight dumps, so exp072 can extract diagnostics from saved weights in the experiment runner. I\u2019m patching that into the runner now."
+    },
+    {
+      "timestamp": "2026-07-19T23:11:10.000Z",
+      "role": "assistant",
+      "checkpoint_id": "cp001",
+      "session_id": "2026-07-19-exp072-codex",
+      "content": "Small correction in-flight: the first broad patch tried to move too much at once. I\u2019m splitting it into boring little patches now\u2014the reliable way, less heroic, fewer gremlins."
+    },
+    {
+      "timestamp": "2026-07-19T23:12:10.000Z",
+      "role": "assistant",
+      "checkpoint_id": "cp001",
+      "session_id": "2026-07-19-exp072-codex",
+      "content": "Candidate registry is now the four planned conditions: control, trainable leak, adaptive threshold, combined. Next patch wires the flags and validation gates."
+    },
+    {
+      "timestamp": "2026-07-19T23:13:05.000Z",
+      "role": "assistant",
+      "checkpoint_id": "cp001",
+      "session_id": "2026-07-19-exp072-codex",
+      "content": "The runner now validates the new flags and will export learned parameter summaries from trained checkpoints. I\u2019m updating the report so it\u2019s exp072-specific and doesn\u2019t expect old exp071 checkpoint JSONs."
+    },
+    {
+      "timestamp": "2026-07-19T23:14:50.000Z",
+      "role": "assistant",
+      "checkpoint_id": "cp001",
+      "session_id": "2026-07-19-exp072-codex",
+      "content": "I\u2019m creating the first activity checkpoint now. I\u2019ll keep the committed log sanitized and compact, and store the raw visible transcript copy outside the published artifact path with only its hash prefix referenced in the article metadata."
+    },
+    {
+      "timestamp": "2026-07-19T23:15:12.917Z",
+      "role": "assistant",
+      "checkpoint_id": "cp001",
+      "session_id": "2026-07-19-exp072-codex",
+      "content": "Sanitization check: no credentials, tokens, SSH material, IP addresses, environment dumps, or private infra details have appeared in the visible text I\u2019m about to publish. The private raw copy will still stay out of the article and out of git; only a SHA-256 prefix goes into metadata."
+    }
+  ]
+}
