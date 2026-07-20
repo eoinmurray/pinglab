@@ -1,0 +1,61 @@
+{
+  "slug": "exp073",
+  "run_id": "r004",
+  "run_at": "2026-07-20T15:01:38+00:00",
+  "git_sha": "f3dd72f",
+  "dirty": false,
+  "code_dirty": false,
+  "patch": null,
+  "host": "local",
+  "scale": {
+    "seed": 42,
+    "epochs": 8,
+    "validation_fraction": 0.1,
+    "models": [
+      "coba",
+      "ping"
+    ],
+    "n_hidden": 256,
+    "n_inhibitory": 64,
+    "batch_size": 32,
+    "learning_rate": 0.0004,
+    "input_weight_mean": 0.9,
+    "input_sparsity": 0.95,
+    "readout_scale": 1.0,
+    "readout": "cumulative-potential",
+    "dt_ms": 1.0,
+    "t_ms": 1000.0,
+    "raster_positions": [
+      9,
+      39,
+      40
+    ],
+    "recipes": {
+      "coba": {
+        "ei_strength": 0.0,
+        "v_grad_dampen": 1.0
+      },
+      "ping": {
+        "ei_strength": 1.0,
+        "v_grad_dampen": 1000.0
+      }
+    },
+    "experiment": "exp073",
+    "attempt": "plastic_wee",
+    "stage": "short",
+    "hidden_sizes": [
+      256
+    ],
+    "signed_readout": true,
+    "readout_bias": true,
+    "candidate_flags": [
+      "--trainable-w-ee"
+    ],
+    "w_ee_init": [
+      0.0003,
+      0.0001
+    ],
+    "trainable_w_ee": true,
+    "dales_law": true
+  }
+}
