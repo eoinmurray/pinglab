@@ -1,0 +1,23 @@
+{
+  "created_at_utc": "2026-07-20T03:36:12.277Z",
+  "exact_provider_billing": false,
+  "billing_status": "timestamp_estimate_pending_provider_reconciliation",
+  "total_spend_usd": 0.61,
+  "active_pods_after_collection": 0,
+  "currency": "USD",
+  "estimate_basis": "Conservative timestamp/runtime estimate at 0.99 USD/hour; exact per-pod billing endpoint had not posted rows during live execution. S3 collection did not create a live GPU pod.",
+  "attempts": {
+    "short-adaptive_threshold-coba": {
+      "kind": "completed_short_training_and_collection",
+      "observed_training_elapsed_s": 817.5981621200335,
+      "selected_validation_accuracy_pct": 50.61274509803921,
+      "estimated_spend_usd": 0.27
+    },
+    "short-adaptive_threshold-ping": {
+      "kind": "completed_short_training_and_collection",
+      "observed_training_elapsed_s": 823.176660704019,
+      "selected_validation_accuracy_pct": 53.6764705882353,
+      "estimated_spend_usd": 0.28
+    }
+  }
+}

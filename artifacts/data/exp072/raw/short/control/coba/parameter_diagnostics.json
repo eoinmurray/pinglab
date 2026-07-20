@@ -1,0 +1,25 @@
+{
+  "train_leak": true,
+  "adaptive_threshold": false,
+  "bounds": {
+    "tau_m_e_ms": [
+      5.0,
+      50.0
+    ],
+    "tau_m_i_ms": [
+      2.0,
+      20.0
+    ],
+    "adapt_tau_ms": [
+      50.0,
+      500.0
+    ],
+    "adapt_strength_mv": [
+      0.0,
+      20.0
+    ]
+  },
+  "layers": {
+    "1": {}
+  }
+}
