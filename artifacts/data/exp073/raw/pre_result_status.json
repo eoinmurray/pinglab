@@ -49942,6 +49942,40 @@
       "reason": "user authorized ten more single-pod attempts; each pod rented but failed to produce a useful startup/readiness signal within the short startup window and was reaped before the next attempt",
       "stage": "short",
       "total_spend_usd": null
+    },
+    "cp004_provider_billing_partial_reconciliation": {
+      "active_pods_after_reconciliation": 0,
+      "billing_status": "partial_provider_reconciliation; ten latest retry pod rows still absent",
+      "checkpoint_time_utc": "2026-07-20T17:22:00Z",
+      "event": "provider_billing_partial_reconciliation",
+      "exact_provider_billing": false,
+      "pending_pod_count": 10,
+      "pending_pod_ids": [
+        "2379txx016ytz4",
+        "mmc6b84ocakmw8",
+        "x2erb1f8fxw2br",
+        "s2p0ewiuujtujp",
+        "0codr1kkto7da2",
+        "7zhxht4tk3vgmt",
+        "g5i7ys7266x1z4",
+        "p1envv1m2bgxiv",
+        "ijbzc7i9lnlslh",
+        "jefhmed3f7q363"
+      ],
+      "posted_pod_count": 2,
+      "posted_rows": {
+        "05jxfwcy70140j": {
+          "amount_usd": 0.05614884663373232,
+          "disk_space_billed_gb": 60,
+          "time_billed_ms": 202915
+        },
+        "wd7kitoej8mpnt": {
+          "amount_usd": 0.08250000327825546,
+          "disk_space_billed_gb": 30,
+          "time_billed_ms": 300000
+        }
+      },
+      "posted_total_spend_usd": 0.13864884991198778
     }
   },
   "runpod": {
@@ -49952,7 +49986,7 @@
   "activity": {
     "checkpoint_ids": [],
     "latest_checkpoint_id": null,
-    "latest_checkpoint_time_utc": "2026-07-20T17:19:22.957Z",
+    "latest_checkpoint_time_utc": "2026-07-20T17:21:11.485Z",
     "publishable_log": null
   }
 }
