@@ -11,3 +11,6 @@ done
 EXP072_ATTEMPT=train_leak EXP072_STAGE=final40 uv run python experiments/exp072.py --runpod
 EXP072_ATTEMPT=train_leak EXP072_STAGE=final40 uv run python experiments/exp072.py --runpod --collect
 EXP072_ATTEMPT=train_leak EXP072_STAGE=final40 uv run python experiments/exp072.py --skip-training
+EXP072_ATTEMPT=combined EXP072_STAGE=final80 uv run python experiments/exp072.py --runpod
+EXP072_ATTEMPT=combined EXP072_STAGE=final80 uv run python experiments/exp072.py --runpod --collect
+EXP072_ATTEMPT=combined EXP072_STAGE=final80 uv run python experiments/exp072.py --skip-training

@@ -152,5 +152,37 @@
         }
       }
     }
+  },
+  "final80": {
+    "combined": {
+      "cells": {
+        "coba": {
+          "selected_epoch": 77,
+          "selected_validation_accuracy_pct": 64.58333333333333,
+          "selected_validation_cross_entropy": 1.162477970123291,
+          "final_validation_accuracy_pct": 61.51960784313726,
+          "training_elapsed_s": 11762.431560333818,
+          "dynamics": {
+            "E": "42Hz",
+            "I": "\u2014",
+            "CV": "0.81",
+            "act": "100%"
+          }
+        },
+        "ping": {
+          "selected_epoch": 73,
+          "selected_validation_accuracy_pct": 71.69117647058823,
+          "selected_validation_cross_entropy": 0.8771768968838912,
+          "final_validation_accuracy_pct": 69.24019607843137,
+          "training_elapsed_s": 8159.12676708959,
+          "dynamics": {
+            "E": "9Hz",
+            "I": "57Hz",
+            "CV": "1.59",
+            "act": "93%"
+          }
+        }
+      }
+    }
   }
 }

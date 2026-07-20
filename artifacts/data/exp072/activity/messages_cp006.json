@@ -1,0 +1,38 @@
+{
+  "checkpoint_id": "cp006",
+  "session_id": "2026-07-20-exp072-codex",
+  "checkpoint_time_utc": "2026-07-20T11:25:02.841Z",
+  "raw_transcript_sha256_prefix": "unavailable-fail-closed",
+  "sanitized_sha256_prefix": "unavailable-fail-closed",
+  "sanitization": {
+    "status": "partial_fail_closed",
+    "policy": "Publishable checkpoint excludes hidden reasoning, tool payloads, credentials, tokens, SSH material, IP addresses, environment dumps, private paths, provider object identifiers, and sensitive infrastructure details.",
+    "limitation": "No raw transcript export for the long monitoring turn was available in the workspace. This checkpoint records the scientific ledger and selected visible milestone messages only."
+  },
+  "ledger": [
+    "2026-07-20T08:01:22.000Z — Launched exp072 combined final80 COBA after adding and pushing a registered final80 stage.",
+    "2026-07-20T08:03:42.000Z — User requested COBA and PING run in parallel; stopped the local sequential monitor without stopping COBA and launched combined final80 PING as a second pod.",
+    "2026-07-20T10:22:06.000Z — PING final80 self-terminated while COBA continued.",
+    "2026-07-20T11:22:09.000Z — COBA final80 self-terminated; collection fetched both cells and no active pods remained.",
+    "2026-07-20T11:23:31.000Z — Collected final80 combined artifacts.",
+    "2026-07-20T11:24:00.000Z — Selected final80 combined results: COBA 64.58% at epoch 77; PING 71.69% at epoch 73.",
+    "2026-07-20T11:24:30.000Z — Dynamics warnings: COBA saturated/stuck; PING stuck. Combined PING only slightly exceeded train_leak final40 while taking twice the epochs; combined COBA remained worse than train_leak final40.",
+    "2026-07-20T11:25:02.841Z — Published final80 combined locally with estimated cumulative spend pending final provider billing reconciliation."
+  ],
+  "messages": [
+    {
+      "timestamp": "2026-07-20T08:02:00.000Z",
+      "role": "user",
+      "checkpoint_id": "cp006",
+      "session_id": "2026-07-20-exp072-codex",
+      "content": "do ping and coba in paralell on two pods"
+    },
+    {
+      "timestamp": "2026-07-20T11:24:00.000Z",
+      "role": "assistant",
+      "checkpoint_id": "cp006",
+      "session_id": "2026-07-20-exp072-codex",
+      "content": "Result: final80 combined selected COBA 64.58% (epoch 77) and PING 71.69% (epoch 73). PING is only +0.61 pp above leak-only final40, but with stuck warnings and twice the epochs; COBA is worse and saturated/stuck. No active pods."
+    }
+  ]
+}

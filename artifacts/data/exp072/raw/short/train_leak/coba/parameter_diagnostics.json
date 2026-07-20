@@ -1,6 +1,6 @@
 {
   "train_leak": true,
-  "adaptive_threshold": false,
+  "adaptive_threshold": true,
   "bounds": {
     "tau_m_e_ms": [
       5.0,

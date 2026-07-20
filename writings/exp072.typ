@@ -13,6 +13,7 @@
 #let trace-three = json("/artifacts/data/exp072/activity/messages_cp003.json")
 #let trace-four = json("/artifacts/data/exp072/activity/messages_cp004.json")
 #let trace-five = json("/artifacts/data/exp072/activity/messages_cp005.json")
+#let trace-six = json("/artifacts/data/exp072/activity/messages_cp006.json")
 
 #let maybe-pct(x) = {
   if type(x) == float or type(x) == int {
@@ -168,16 +169,35 @@
     )
 
     The promoted forty-epoch `train_leak` run selected
-    #maybe-pct(r.cells.coba.selected_validation_accuracy_pct) for COBA at epoch
-    #r.cells.coba.selected_epoch and
-    #maybe-pct(r.cells.ping.selected_validation_accuracy_pct) for PING at epoch
-    #r.cells.ping.selected_epoch. This is a small PING edge of
-    #calc.round(
-      r.cells.ping.selected_validation_accuracy_pct -
-      r.cells.coba.selected_validation_accuracy_pct,
-      digits: 2,
-    ) percentage points, not a step change toward the canonical high-accuracy
-    SHD reports.
+    #maybe-pct(r.ladder.final40.train_leak.cells.coba.selected_validation_accuracy_pct)
+    for COBA and
+    #maybe-pct(r.ladder.final40.train_leak.cells.ping.selected_validation_accuracy_pct)
+    for PING. As a later sensitivity check, the initially weak `combined`
+    candidate was also run for eighty epochs.
+
+    #table(
+      columns: (1.2fr, auto, auto, auto, auto),
+      table.header([*Long run*], [*COBA acc.*], [*COBA epoch*], [*PING acc.*], [*PING epoch*]),
+      [train_leak, 40 epochs],
+      [#maybe-pct(r.ladder.final40.train_leak.cells.coba.selected_validation_accuracy_pct)],
+      [#r.ladder.final40.train_leak.cells.coba.selected_epoch],
+      [#maybe-pct(r.ladder.final40.train_leak.cells.ping.selected_validation_accuracy_pct)],
+      [#r.ladder.final40.train_leak.cells.ping.selected_epoch],
+      [combined, 80 epochs],
+      [#maybe-pct(r.ladder.final80.combined.cells.coba.selected_validation_accuracy_pct)],
+      [#r.ladder.final80.combined.cells.coba.selected_epoch],
+      [#maybe-pct(r.ladder.final80.combined.cells.ping.selected_validation_accuracy_pct)],
+      [#r.ladder.final80.combined.cells.ping.selected_epoch],
+    )
+
+    The eighty-epoch combined follow-up nudged PING to
+    #maybe-pct(r.ladder.final80.combined.cells.ping.selected_validation_accuracy_pct),
+    but only after twice as many epochs and with stuck-dynamics warnings; COBA
+    remained lower at
+    #maybe-pct(r.ladder.final80.combined.cells.coba.selected_validation_accuracy_pct)
+    and showed saturated/stuck dynamics. This supports the interpretation that
+    adaptive thresholds did not provide a useful path to the canonical
+    high-accuracy SHD regime in this setup.
 
     Cumulative RunPod spend recorded by the experiment ledgers is
     #calc.round(r.spend.total_spend_usd, digits: 3) USD. The provider billing
@@ -192,7 +212,11 @@
     #v(4pt)
     #image(attempt-figure("matched_rasters.png"), width: 100%)
 
-    The learned leak diagnostics show COBA E-cell membrane time constants with
+    The current figure set below shows the latest published attempt,
+    `#r.attempt` at `#r.stage`; previous long-run and short-ladder numeric
+    summaries remain archived under `raw/collected_ladder_summary.json`.
+
+    The learned parameter diagnostics for the latest attempt show COBA E-cell membrane time constants with
     mean #calc.round(r.parameters.coba.layers.at("1").tau_m_e_ms.mean, digits: 2)
     ms and PING E/I means of
     #calc.round(r.parameters.ping.layers.at("1").tau_m_e_ms.mean, digits: 2) ms /
@@ -276,4 +300,17 @@
   ==== Visible milestone messages added
 
   #for message in trace-five.messages { message-card(message, trace-five) }
+
+  === Checkpoint #trace-six.checkpoint_id
+
+  Timestamp: `#trace-six.checkpoint_time_utc`. Sanitized source hash prefix:
+  `#trace-six.sanitized_sha256_prefix`.
+
+  ==== Decisions, actions, and pending work
+
+  #for item in trace-six.ledger { [+ #item] }
+
+  ==== Visible milestone messages added
+
+  #for message in trace-six.messages { message-card(message, trace-six) }
 ]
