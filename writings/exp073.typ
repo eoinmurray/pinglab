@@ -22,6 +22,7 @@
     [pending]
   }
 }
+#let attempt-figure(suffix) = "/artifacts/data/exp073/" + r.stage + "_" + r.attempt + "_" + suffix
 #let coba-wee = r.smoke_w_ee_diagnostics.coba.layers.at("1")
 #let ping-wee = r.smoke_w_ee_diagnostics.ping.layers.at("1")
 
@@ -142,16 +143,58 @@
     [#maybe-pct(r.killed_scouts.w_ee_0p0003.smoke_summary.cells.ping.selected_validation_accuracy_pct)],
   )
 
+  #if r.result_status == "done" [
+    == Authorized PING-only continuation
+
+    After the matched local gate failed, the user authorized a design pivot:
+    continue with the surviving PING cell only, without recasting it as a
+    matched COBA/PING result. This continuation uses the same one seed,
+    development-training/validation split, input preprocessing, cumulative
+    potential readout, nonzero trainable `W_EE`, and PING dampening 1000.
+
+    #table(
+      columns: (auto, auto, auto, auto, auto),
+      table.header([*Cell*], [*Selected acc.*], [*Epoch*], [*E rate*], [*I rate*]),
+      [PING],
+      [#maybe-pct(r.cells.ping.selected_validation_accuracy_pct)],
+      [#r.cells.ping.selected_epoch],
+      [#maybe-hz(r.cells.ping.final_validation_e_rate_hz)],
+      [#maybe-hz(r.cells.ping.final_validation_i_rate_hz)],
+    )
+
+    #image(attempt-figure("ping_only_validation_curves.svg"), width: 100%)
+    #v(4pt)
+    #image(attempt-figure("ping_only_activity_curves.svg"), width: 100%)
+    #v(4pt)
+    #image(attempt-figure("ping_only_matched_rasters.png"), width: 100%)
+
+    The PING-only `W_EE` diagnostics show selected mean
+    #calc.round(r.parameters.ping.layers.at("1").selected.mean, digits: 8)
+    and mean absolute movement from initialization
+    #calc.round(r.parameters.ping.layers.at("1").selected_delta_from_initial.mean_abs, digits: 8).
+  ]
+
   == Conclusion
 
-  The requested matched experiment cannot honestly proceed to RunPod under the
-  locked local-gate rule. Nonzero plastic recurrent excitation is not yet a safe
-  plug-in addition to the current matched COBA/PING SHD recipe: COBA's
-  no-inhibitory-loop cell develops pathological gradients before the pilot
-  stage, while PING remains well behaved. Progress from here requires a new
-  design authority decision, such as adding a stabilizer, changing COBA's
-  recurrence recipe, or giving recurrent weights their own optimizer controls.
+  #if r.result_status == "done" [
+    The locked matched experiment still failed at the local gate: COBA could not
+    be honestly promoted. The later PING-only run is therefore exploratory
+    continuation evidence for the stable PING recipe, not matched COBA/PING
+    evidence. Its interpretation should be compared against the exp071/exp072
+    historical PING regime, with the COBA pathology kept as a design warning.
 
-  Paid compute spend: #calc.round(r.runpod.total_spend_usd, digits: 3) USD.
-  Active pods after this checkpoint: #r.runpod.active_pods_after_collection.
+    Paid compute spend: #calc.round(r.spend.total_spend_usd, digits: 3) USD.
+    Active pods after this checkpoint: #r.runpod.active_pods_after_collection.
+  ] else [
+    The requested matched experiment cannot honestly proceed to RunPod under the
+    locked local-gate rule. Nonzero plastic recurrent excitation is not yet a safe
+    plug-in addition to the current matched COBA/PING SHD recipe: COBA's
+    no-inhibitory-loop cell develops pathological gradients before the pilot
+    stage, while PING remains well behaved. Progress from here requires a new
+    design authority decision, such as adding a stabilizer, changing COBA's
+    recurrence recipe, or giving recurrent weights their own optimizer controls.
+
+    Paid compute spend: #calc.round(r.runpod.total_spend_usd, digits: 3) USD.
+    Active pods after this checkpoint: #r.runpod.active_pods_after_collection.
+  ]
 ]
