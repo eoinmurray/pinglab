@@ -50146,6 +50146,89 @@
       "reason": "new-day market check showed EU-RO-1 4090 high and 5090 medium; user authorized trying. One 4090 and one 5090 pod rented but failed to produce a useful startup/readiness signal within the startup window and were reaped.",
       "stage": "short",
       "total_spend_usd": null
+    },
+    "cp007_plumbing_probe_readiness_failures": {
+      "active_pods_after_reap": 0,
+      "attempt": "plastic_wee",
+      "attempt_count": 5,
+      "attempts": [
+        {
+          "compute": "NVIDIA GeForce RTX 4090",
+          "datacenter": "EU-RO-1",
+          "exact_provider_billing": false,
+          "image": "ghcr.io/eoinmurray/pinglab:cu128",
+          "ordinal": 1,
+          "outcome": "reaped_not_ready",
+          "pod_id": "n8sum9sfxrzthx",
+          "provider_billing_status": "pending_provider_row",
+          "provider_rows": [],
+          "readiness_signature": "desiredStatus RUNNING with uptimeSeconds 0 and pod not ready/no ssh readiness throughout polling window",
+          "role": "gpu_no_network_volume"
+        },
+        {
+          "compute": "NVIDIA GeForce RTX 4090",
+          "datacenter": "EU-RO-1",
+          "exact_provider_billing": false,
+          "image": "runpod/pytorch:2.8.0-py3.11-cuda12.8.1-cudnn-devel-ubuntu22.04",
+          "ordinal": 2,
+          "outcome": "reaped_not_ready",
+          "pod_id": "rc91cgqcp1icqe",
+          "provider_billing_status": "pending_provider_row",
+          "provider_rows": [],
+          "readiness_signature": "desiredStatus RUNNING with uptimeSeconds 0 and pod not ready/no ssh readiness throughout polling window",
+          "role": "official_image_no_network_volume"
+        },
+        {
+          "compute": "NVIDIA GeForce RTX 4090",
+          "datacenter": "EU-CZ-1",
+          "exact_provider_billing": false,
+          "image": "ghcr.io/eoinmurray/pinglab:cu128",
+          "ordinal": 3,
+          "outcome": "reaped_not_ready",
+          "pod_id": "4huf3db4w61p7p",
+          "provider_billing_status": "pending_provider_row",
+          "provider_rows": [],
+          "readiness_signature": "desiredStatus RUNNING with uptimeSeconds 0 and pod not ready/no ssh readiness throughout polling window",
+          "role": "alternate_datacenter_no_network_volume"
+        },
+        {
+          "compute": "NVIDIA GeForce RTX 5090",
+          "datacenter": "US-IL-1",
+          "exact_provider_billing": false,
+          "image": "ghcr.io/eoinmurray/pinglab:cu128",
+          "ordinal": 4,
+          "outcome": "reaped_not_ready",
+          "pod_id": "yj3modfczqmz2u",
+          "provider_billing_status": "pending_provider_row",
+          "provider_rows": [],
+          "readiness_signature": "desiredStatus RUNNING with uptimeSeconds 0 and pod not ready/no ssh readiness throughout polling window",
+          "role": "us_datacenter_no_network_volume"
+        },
+        {
+          "compute": "CPU",
+          "datacenter": "unspecified",
+          "exact_provider_billing": false,
+          "image": "ubuntu:22.04",
+          "ordinal": 5,
+          "outcome": "reaped_not_ready",
+          "pod_id": "qmixaowmz1b2tb",
+          "provider_billing_status": "pending_provider_row",
+          "provider_rows": [],
+          "readiness_signature": "desiredStatus RUNNING with uptimeSeconds 0 and pod not ready/no ssh readiness throughout polling window",
+          "role": "cpu_control_no_network_volume"
+        }
+      ],
+      "cell_scope": [
+        "ping"
+      ],
+      "checkpoint_time_utc": "2026-07-21T11:03:00Z",
+      "event": "plumbing_probe_datacenter_image_cpu_readiness_failure",
+      "exact_provider_billing": false,
+      "interpretation": "provider/account/control-plane readiness issue; not explained by exp073 training, GHCR image alone, EU-RO-1 alone, network volume attachment, GPU class, or GPU stock",
+      "provider_billing_status": "pending_provider_rows",
+      "reason": "user requested tiny plumbing pods, changing datacenters if needed, to find usable RunPod pods. Probes covered the exp073 GHCR image, an official RunPod PyTorch image, alternate Europe and US datacenters, and a CPU Ubuntu control. Every probe rented but failed to become SSH-ready, then was reaped.",
+      "stage": "short",
+      "total_spend_usd": null
     }
   },
   "runpod": {
@@ -50156,7 +50239,7 @@
   "activity": {
     "checkpoint_ids": [],
     "latest_checkpoint_id": null,
-    "latest_checkpoint_time_utc": "2026-07-21T09:29:57.179Z",
+    "latest_checkpoint_time_utc": "2026-07-21T11:03:22.527Z",
     "publishable_log": null
   }
 }
