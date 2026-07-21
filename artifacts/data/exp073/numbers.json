@@ -1,6 +1,6 @@
 {
-  "run_id": "r009",
-  "git_sha": "0dedeea",
+  "run_id": "r010",
+  "git_sha": "159a4ac",
   "duration_s": 0.2,
   "duration": "0s",
   "result_status": "preregistered",
@@ -50112,6 +50112,44 @@
       "reason": "user requested trying 4090s too and some later 5090s; all single-pod attempts rented but failed to produce a useful startup/readiness signal within the short startup window and were reaped before the next attempt",
       "stage": "short",
       "total_spend_usd": null
+    },
+    "cp006_new_day_4090_5090_startup_retries_reaped": {
+      "active_pods_after_reap": 0,
+      "attempt": "plastic_wee",
+      "attempt_count": 2,
+      "attempts": [
+        {
+          "cost_per_hour_usd": 0.69,
+          "exact_provider_billing": false,
+          "gpu": "NVIDIA GeForce RTX 4090",
+          "ordinal": 1,
+          "outcome": "reaped_not_started",
+          "pod_id": "th851lpcaohkkm",
+          "provider_billing_status": "pending_provider_row",
+          "provider_rows": []
+        },
+        {
+          "cost_per_hour_usd": 0.99,
+          "exact_provider_billing": false,
+          "gpu": "NVIDIA GeForce RTX 5090",
+          "ordinal": 2,
+          "outcome": "reaped_not_started",
+          "pod_id": "nhhn568qe5io9i",
+          "provider_billing_status": "pending_provider_row",
+          "provider_rows": []
+        }
+      ],
+      "cell_scope": [
+        "ping"
+      ],
+      "checkpoint_time_utc": "2026-07-21T00:00:00Z",
+      "event": "new_day_4090_5090_startup_retry_reaped",
+      "exact_provider_billing": false,
+      "pinned_commit": "159a4ac00304e9a6e523908b42ca5412a40b86de",
+      "provider_billing_status": "pending_provider_rows",
+      "reason": "new-day market check showed EU-RO-1 4090 high and 5090 medium; user authorized trying. One 4090 and one 5090 pod rented but failed to produce a useful startup/readiness signal within the startup window and were reaped.",
+      "stage": "short",
+      "total_spend_usd": null
     }
   },
   "runpod": {
@@ -50122,7 +50160,7 @@
   "activity": {
     "checkpoint_ids": [],
     "latest_checkpoint_id": null,
-    "latest_checkpoint_time_utc": "2026-07-20T19:24:31.197Z",
+    "latest_checkpoint_time_utc": "2026-07-21T09:29:57.179Z",
     "publishable_log": null
   }
 }
