@@ -57,7 +57,7 @@ def sha256_bytes(payload: bytes) -> str:
 
 def _require_modal():
     try:
-        import modal  # type: ignore
+        import modal
     except ModuleNotFoundError as exc:
         raise SystemExit(
             "Modal backend requires the `modal` package. Run `uv sync` after this "

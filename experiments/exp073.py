@@ -245,7 +245,7 @@ def configure_baseline() -> None:
     baseline.__dict__["train_args"] = train_args
     baseline.__dict__["validate_training"] = validate_training
     baseline.__dict__["capture_matched_rasters"] = capture_matched_rasters
-    baseline.SCALE = {
+    baseline.__dict__["SCALE"] = {
         **baseline.SCALE,
         "experiment": SLUG,
         "attempt": ATTEMPT,
