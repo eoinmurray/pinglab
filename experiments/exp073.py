@@ -450,8 +450,9 @@ def validate_collected_subset(models: tuple[str, ...]) -> dict[str, Any]:
 
 def plot_ping_only_validation_curves(cells: dict[str, Any], stem: Path) -> None:
     import matplotlib.pyplot as plt
-    from helpers.figsave import save_figure
+
     from helpers import theme
+    from helpers.figsave import save_figure
 
     theme.apply()
     epochs = cells["ping"]["training"]["epochs"]
@@ -477,8 +478,9 @@ def plot_ping_only_validation_curves(cells: dict[str, Any], stem: Path) -> None:
 
 def plot_ping_only_activity_curves(cells: dict[str, Any], stem: Path) -> None:
     import matplotlib.pyplot as plt
-    from helpers.figsave import save_figure
+
     from helpers import theme
+    from helpers.figsave import save_figure
 
     theme.apply()
     epochs = cells["ping"]["training"]["epochs"]
@@ -501,6 +503,7 @@ def plot_ping_only_activity_curves(cells: dict[str, Any], stem: Path) -> None:
 def plot_ping_only_matched_rasters(stem: Path) -> None:
     import matplotlib.pyplot as plt
     import numpy as np
+
     from helpers import theme
 
     theme.apply()
