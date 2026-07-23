@@ -1,7 +1,7 @@
 {
-  "run_id": "r013",
-  "git_sha": "27c33b3",
-  "duration_s": 3.8,
+  "run_id": "r014",
+  "git_sha": "4810154",
+  "duration_s": 4.1,
   "duration": "4s",
   "result_status": "done",
   "design_pivot": "ping_only_after_matched_local_gate_failure",
@@ -9,7 +9,7 @@
   "cell_scope": [
     "ping"
   ],
-  "stage": "short",
+  "stage": "final40",
   "attempt": "plastic_wee",
   "attempt_order": [
     "plastic_wee"
@@ -19,21 +19,21 @@
   "seed": 42,
   "cells": {
     "ping": {
-      "selected_epoch": 8,
-      "selected_validation_accuracy_pct": 58.333333333333336,
-      "selected_validation_cross_entropy": 1.359125527051779,
-      "selected_validation_e_rate_hz": 13.818254059436274,
-      "selected_validation_i_rate_hz": 41.819144454656865,
-      "final_validation_accuracy_pct": 58.333333333333336,
-      "final_validation_cross_entropy": 1.359125527051779,
-      "final_validation_e_rate_hz": 13.818254059436274,
-      "final_validation_i_rate_hz": 41.819144454656865,
-      "gradient_norm": 7.888331581198651,
+      "selected_epoch": 39,
+      "selected_validation_accuracy_pct": 71.32352941176471,
+      "selected_validation_cross_entropy": 0.9142338266739478,
+      "selected_validation_e_rate_hz": 19.35546875,
+      "selected_validation_i_rate_hz": 55.44119561887255,
+      "final_validation_accuracy_pct": 68.38235294117646,
+      "final_validation_cross_entropy": 0.9418507906106802,
+      "final_validation_e_rate_hz": 19.523447074142158,
+      "final_validation_i_rate_hz": 55.5433900122549,
+      "gradient_norm": 6.8758863697881285,
       "finite": true,
       "active": true,
       "clean": true,
-      "training_elapsed_s": 2397.2622140199996,
-      "training_peak_gpu_memory_bytes": 469679104
+      "training_elapsed_s": 10202.352212262,
+      "training_peak_gpu_memory_bytes": 469683200
     }
   },
   "parameters": {
@@ -53,23 +53,23 @@
           },
           "selected": {
             "min": 0.0,
-            "mean": 0.00784372278204622,
-            "max": 0.4058109521865845
+            "mean": 0.014636107176807585,
+            "max": 0.6684237122535706
           },
           "final": {
             "min": 0.0,
-            "mean": 0.00784372278204622,
-            "max": 0.4058109521865845
+            "mean": 0.014895681865318512,
+            "max": 0.6777893900871277
           },
           "selected_delta_from_initial": {
-            "mean_abs": 0.007843140030036933,
-            "max_abs": 0.4058095675051163,
-            "l2": 4.80322193625964
+            "mean_abs": 0.014635497130572349,
+            "max_abs": 0.6684220034960617,
+            "l2": 10.69404105797285
           },
           "final_delta_from_initial": {
-            "mean_abs": 0.007843140030036933,
-            "max_abs": 0.4058095675051163,
-            "l2": 4.80322193625964
+            "mean_abs": 0.014895009178672317,
+            "max_abs": 0.6777876813296189,
+            "l2": 10.860187889603896
           },
           "selected_changed_from_initial": true,
           "final_changed_from_initial": true,
@@ -87,7 +87,7 @@
   },
   "config": {
     "seed": 42,
-    "epochs": 8,
+    "epochs": 40,
     "validation_fraction": 0.1,
     "models": [
       "coba",
@@ -120,7 +120,7 @@
     },
     "experiment": "exp073",
     "attempt": "plastic_wee",
-    "stage": "short",
+    "stage": "final40",
     "hidden_sizes": [
       256
     ],
@@ -146,35 +146,40 @@
   "runpod": {
     "provider": "modal",
     "backend": "experiments.helpers.modal_backend",
-    "started_at": "2026-07-23T10:52:20.791Z",
-    "finished_at": "2026-07-23T11:34:43.347Z",
-    "elapsed_s": 2542.555693491944,
+    "started_at": "2026-07-23T12:30:20.490Z",
+    "finished_at": "2026-07-23T15:22:25.613Z",
+    "elapsed_s": 10325.122994215984,
     "cells": [
       {
         "cell": "ping",
         "attempt": "plastic_wee",
-        "stage": "short",
-        "started_at": "2026-07-23T10:52:46.458Z",
-        "finished_at": "2026-07-23T11:34:30.347Z",
-        "elapsed_s": 2503.8882585280003,
+        "stage": "final40",
+        "started_at": "2026-07-23T12:30:31.566Z",
+        "finished_at": "2026-07-23T15:22:03.153Z",
+        "elapsed_s": 10291.587138195,
         "success": true,
         "error": null,
-        "artifact_tar_gz_sha256": "d16bbdc59838df8c4aa1aa7a57c91eb517e893be7178f7e16d789ce3dc096980"
+        "artifact_tar_gz_sha256": "b9de66d12a2cb432dee6acf8dd25793b3d89c32535e8681491be513bce35a729"
       }
     ],
     "gpu": "A10G",
     "gpu_usd_per_second": 0.000306,
-    "billable_gpu_seconds_estimate": 2503.8882585280003,
-    "total_spend_usd": 0.76619,
+    "billable_gpu_seconds_estimate": 10291.587138195,
+    "total_spend_usd": 3.149226,
     "exact_provider_billing": false,
     "billing_status": "timestamp_estimate_pending_provider_reconciliation",
     "active_pods_after_collection": 0
   },
   "compute": {
-    "total_spend_usd": 0.766,
+    "total_spend_usd": 3.915,
     "exact_provider_billing": false,
     "status": "timestamp_estimate_pending_provider_reconciliation",
     "ledgers": {
+      "final40-plastic_wee": {
+        "total_spend_usd": 3.149226,
+        "exact_provider_billing": false,
+        "billing_status": "timestamp_estimate_pending_provider_reconciliation"
+      },
       "short-plastic_wee": {
         "total_spend_usd": 0.76619,
         "exact_provider_billing": false,
@@ -202,16 +207,36 @@
           }
         }
       }
+    },
+    "final40": {
+      "plastic_wee": {
+        "cells": {
+          "coba": null,
+          "ping": {
+            "selected_epoch": 39,
+            "selected_validation_accuracy_pct": 71.32352941176471,
+            "selected_validation_cross_entropy": 0.9142338266739478,
+            "final_validation_accuracy_pct": 68.38235294117646,
+            "training_elapsed_s": 10202.352212262,
+            "dynamics": {
+              "E": "19Hz",
+              "I": "61Hz",
+              "CV": "2.14",
+              "act": "97%"
+            }
+          }
+        }
+      }
     }
   },
   "activity": {
     "checkpoint_ids": [],
     "latest_checkpoint_id": null,
-    "latest_checkpoint_time_utc": "2026-07-23T11:38:56.237Z",
+    "latest_checkpoint_time_utc": "2026-07-23T15:22:48.945Z",
     "publishable_log": null
   },
   "spend": {
-    "total_spend_usd": 0.766,
+    "total_spend_usd": 3.915,
     "exact_provider_billing": false,
     "status": "timestamp_estimate_pending_provider_reconciliation"
   }

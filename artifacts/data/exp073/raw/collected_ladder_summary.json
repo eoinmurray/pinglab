@@ -18,5 +18,25 @@
         }
       }
     }
+  },
+  "final40": {
+    "plastic_wee": {
+      "cells": {
+        "coba": null,
+        "ping": {
+          "selected_epoch": 39,
+          "selected_validation_accuracy_pct": 71.32352941176471,
+          "selected_validation_cross_entropy": 0.9142338266739478,
+          "final_validation_accuracy_pct": 68.38235294117646,
+          "training_elapsed_s": 10202.352212262,
+          "dynamics": {
+            "E": "19Hz",
+            "I": "61Hz",
+            "CV": "2.14",
+            "act": "97%"
+          }
+        }
+      }
+    }
   }
 }
