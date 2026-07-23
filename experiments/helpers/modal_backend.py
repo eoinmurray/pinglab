@@ -81,7 +81,7 @@ def _modal_auth_help() -> str:
 
 def _source_image(modal: Any):
     image = (
-        modal.Image.debian_slim(python_version="3.11")
+        modal.Image.debian_slim(python_version="3.10")
         .uv_pip_install(
             "torch",
             "numpy",
@@ -90,6 +90,14 @@ def _source_image(modal: Any):
             "h5py",
             "matplotlib",
             "snntorch",
+        )
+        .env(
+            {
+                "PYTHONPATH": (
+                    f"{REMOTE_REPO / 'experiments'}:"
+                    f"{REMOTE_REPO / 'tools' / 'snn'}"
+                )
+            }
         )
         .add_local_dir(
             str(REPO / "experiments"),
@@ -200,17 +208,7 @@ def dispatch_exp073(
         return
 
     modal = _require_modal()
-    app = modal.App("pinglab-exp073")
-    image = _source_image(modal)
-
-    @app.function(image=image, gpu=gpu, timeout=timeout_s, serialized=True)
-    def train_one(cell: str, attempt: str, stage: str, ping_only: bool) -> dict[str, Any]:
-        return _remote_train_exp073_cell(
-            cell=cell,
-            attempt=attempt,
-            stage=stage,
-            ping_only=ping_only,
-        )
+    from . import modal_exp073_app
 
     output_context = getattr(modal, "enable_output", lambda: contextlib.nullcontext())()
     events: list[dict[str, Any]] = []
@@ -218,9 +216,9 @@ def dispatch_exp073(
     started_clock = time.monotonic()
     try:
         with output_context:
-            with app.run():
+            with modal_exp073_app.app.run():
                 for cell in cells:
-                    result = train_one.remote(cell, attempt, stage, ping_only)
+                    result = modal_exp073_app.train_one.remote(cell, attempt, stage, ping_only)
                     payload = bytes(result.pop("artifact_tar_gz"))
                     expected = result["artifact_tar_gz_sha256"]
                     actual = sha256_bytes(payload)
