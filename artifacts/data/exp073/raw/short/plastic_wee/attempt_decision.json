@@ -1,0 +1,214 @@
+{
+  "result_status": "done",
+  "design_pivot": "ping_only_after_matched_local_gate_failure",
+  "pivot_authorized": true,
+  "cell_scope": [
+    "ping"
+  ],
+  "stage": "short",
+  "attempt": "plastic_wee",
+  "attempt_order": [
+    "plastic_wee"
+  ],
+  "screening_epochs": 8,
+  "promotion_epochs": 40,
+  "seed": 42,
+  "cells": {
+    "ping": {
+      "selected_epoch": 8,
+      "selected_validation_accuracy_pct": 58.333333333333336,
+      "selected_validation_cross_entropy": 1.359125527051779,
+      "selected_validation_e_rate_hz": 13.818254059436274,
+      "selected_validation_i_rate_hz": 41.819144454656865,
+      "final_validation_accuracy_pct": 58.333333333333336,
+      "final_validation_cross_entropy": 1.359125527051779,
+      "final_validation_e_rate_hz": 13.818254059436274,
+      "final_validation_i_rate_hz": 41.819144454656865,
+      "gradient_norm": 7.888331581198651,
+      "finite": true,
+      "active": true,
+      "clean": true,
+      "training_elapsed_s": 2397.2622140199996,
+      "training_peak_gpu_memory_bytes": 469679104
+    }
+  },
+  "parameters": {
+    "ping": {
+      "w_ee_init": [
+        0.0003,
+        0.0001
+      ],
+      "trainable_w_ee": true,
+      "dales_law": true,
+      "layers": {
+        "1": {
+          "initial": {
+            "min": 0.0,
+            "mean": 1.1722658898732918e-06,
+            "max": 2.744092398643261e-06
+          },
+          "selected": {
+            "min": 0.0,
+            "mean": 0.00784372278204622,
+            "max": 0.4058109521865845
+          },
+          "final": {
+            "min": 0.0,
+            "mean": 0.00784372278204622,
+            "max": 0.4058109521865845
+          },
+          "selected_delta_from_initial": {
+            "mean_abs": 0.007843140030036933,
+            "max_abs": 0.4058095675051163,
+            "l2": 4.80322193625964
+          },
+          "final_delta_from_initial": {
+            "mean_abs": 0.007843140030036933,
+            "max_abs": 0.4058095675051163,
+            "l2": 4.80322193625964
+          },
+          "selected_changed_from_initial": true,
+          "final_changed_from_initial": true,
+          "selected_nonnegative": true,
+          "final_nonnegative": true
+        }
+      }
+    }
+  },
+  "split": {
+    "development_train_count": 7340,
+    "validation_count": 816,
+    "train_indices_sha256": "2fee22abaf3629ec1d10179847380b2829968d748fea60607b8f7bb2e3b1de71",
+    "validation_indices_sha256": "5b9f014ae3a4ab48b6586e7d014b8cdbd73b182c4c9cba2b9492ba203cd4ee3a"
+  },
+  "config": {
+    "seed": 42,
+    "epochs": 8,
+    "validation_fraction": 0.1,
+    "models": [
+      "coba",
+      "ping"
+    ],
+    "n_hidden": 256,
+    "n_inhibitory": 64,
+    "batch_size": 32,
+    "learning_rate": 0.0004,
+    "input_weight_mean": 0.9,
+    "input_sparsity": 0.95,
+    "readout_scale": 1.0,
+    "readout": "cumulative-potential",
+    "dt_ms": 1.0,
+    "t_ms": 1000.0,
+    "raster_positions": [
+      9,
+      39,
+      40
+    ],
+    "recipes": {
+      "coba": {
+        "ei_strength": 0.0,
+        "v_grad_dampen": 1.0
+      },
+      "ping": {
+        "ei_strength": 1.0,
+        "v_grad_dampen": 1000.0
+      }
+    },
+    "experiment": "exp073",
+    "attempt": "plastic_wee",
+    "stage": "short",
+    "hidden_sizes": [
+      256
+    ],
+    "signed_readout": true,
+    "readout_bias": true,
+    "candidate_flags": [
+      "--trainable-w-ee"
+    ],
+    "w_ee_init": [
+      0.0003,
+      0.0001
+    ],
+    "trainable_w_ee": true,
+    "dales_law": true
+  },
+  "integrity": {
+    "official_test_access": "forbidden and absent from runner",
+    "matched_partitions": true,
+    "matched_raster_inputs": false,
+    "selection_rule": "max validation accuracy; tie lower validation cross-entropy; tie earlier epoch",
+    "note": "PING-only continuation after the matched local gate killed COBA"
+  },
+  "runpod": {
+    "provider": "modal",
+    "backend": "experiments.helpers.modal_backend",
+    "started_at": "2026-07-23T10:52:20.791Z",
+    "finished_at": "2026-07-23T11:34:43.347Z",
+    "elapsed_s": 2542.555693491944,
+    "cells": [
+      {
+        "cell": "ping",
+        "attempt": "plastic_wee",
+        "stage": "short",
+        "started_at": "2026-07-23T10:52:46.458Z",
+        "finished_at": "2026-07-23T11:34:30.347Z",
+        "elapsed_s": 2503.8882585280003,
+        "success": true,
+        "error": null,
+        "artifact_tar_gz_sha256": "d16bbdc59838df8c4aa1aa7a57c91eb517e893be7178f7e16d789ce3dc096980"
+      }
+    ],
+    "gpu": "A10G",
+    "gpu_usd_per_second": 0.000306,
+    "billable_gpu_seconds_estimate": 2503.8882585280003,
+    "total_spend_usd": 0.76619,
+    "exact_provider_billing": false,
+    "billing_status": "timestamp_estimate_pending_provider_reconciliation",
+    "active_pods_after_collection": 0
+  },
+  "compute": {
+    "total_spend_usd": 0.766,
+    "exact_provider_billing": false,
+    "status": "timestamp_estimate_pending_provider_reconciliation",
+    "ledgers": {
+      "short-plastic_wee": {
+        "total_spend_usd": 0.76619,
+        "exact_provider_billing": false,
+        "billing_status": "timestamp_estimate_pending_provider_reconciliation"
+      }
+    }
+  },
+  "ladder": {
+    "short": {
+      "plastic_wee": {
+        "cells": {
+          "coba": null,
+          "ping": {
+            "selected_epoch": 8,
+            "selected_validation_accuracy_pct": 58.333333333333336,
+            "selected_validation_cross_entropy": 1.359125527051779,
+            "final_validation_accuracy_pct": 58.333333333333336,
+            "training_elapsed_s": 2397.2622140199996,
+            "dynamics": {
+              "E": "15Hz",
+              "I": "46Hz",
+              "CV": "2.45",
+              "act": "96%"
+            }
+          }
+        }
+      }
+    }
+  },
+  "activity": {
+    "checkpoint_ids": [],
+    "latest_checkpoint_id": null,
+    "latest_checkpoint_time_utc": "2026-07-23T11:38:56.237Z",
+    "publishable_log": null
+  },
+  "spend": {
+    "total_spend_usd": 0.766,
+    "exact_provider_billing": false,
+    "status": "timestamp_estimate_pending_provider_reconciliation"
+  }
+}
