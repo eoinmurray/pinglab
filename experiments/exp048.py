@@ -1031,14 +1031,11 @@ def plot_grid_and_rate(
     curve_rates = np.array([row["input_rate_hz"] for row in visible])
     curve_acc = 100 * np.array([row["accuracy"] for row in visible])
     curve_sem = 100 * np.array([row["accuracy_sem"] for row in visible])
-    is_low = np.array([row["source"] == "exp048 low-rate sweep" for row in visible])
     curve_ax.plot(curve_rates, curve_acc, color=theme.INK_BLACK, lw=1.8)
     curve_ax.fill_between(curve_rates, curve_acc - curve_sem, curve_acc + curve_sem,
                           color=theme.INK_BLACK, alpha=0.15, linewidth=0)
-    curve_ax.scatter(curve_rates[is_low], curve_acc[is_low], color=theme.DEEP_RED,
-                     marker="o", label="extended low-rate cells", zorder=3)
-    curve_ax.scatter(curve_rates[~is_low], curve_acc[~is_low], color=theme.INK_BLACK,
-                     marker="s", label="200-ms grid cells", zorder=3)
+    curve_ax.scatter(curve_rates, curve_acc, color=theme.INK_BLACK,
+                     marker="o", zorder=3)
     curve_ax.axhline(10, color=theme.DEEP_RED, ls="--", lw=1.2, label="chance (10%)")
     curve_ax.axvline(INPUT_RATE_HZ, color=theme.GREY_MID, ls=":", lw=1.2,
                      label=f"trained rate ({INPUT_RATE_HZ:g} Hz)")
@@ -1046,7 +1043,10 @@ def plot_grid_and_rate(
                  xlim=(0, 50), ylim=(0, 101))
     curve_ax.legend(frameon=False, fontsize=7, loc="lower right")
     ax.set_title("A   Duration–rate sweep", loc="left", fontweight="bold")
-    curve_ax.set_title("B   Extended 200-ms rate slice", loc="left", fontweight="bold")
+    curve_ax.set_title(
+        "B   Fixed 200-ms presentation and readout",
+        loc="left", fontweight="bold",
+    )
     fig.tight_layout()
     stamp_figure(fig, run_id)
     out_path.parent.mkdir(parents=True, exist_ok=True)

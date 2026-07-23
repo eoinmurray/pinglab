@@ -18,7 +18,7 @@
 #let body = [
   == Abstract
 
-  A PING network trained one digit at a time on 200 ms trials can classify a _stream_ of digits at a fraction of that time each, with no retraining: only the readout's integration window changes. At τ = 50 ms (≈ 2 gamma cycles) 4 of the 5 sequential MNIST digits classify correctly, the readout flipping within one cycle of each transition. A 2-D sweep over (τ, input rate) reveals a sub-cycle failure floor below ≈ 15 ms and a broad high-accuracy plateau above it. An extended 200 ms rate slice remains at chance through #p05.input_rate_hz Hz and becomes clearly informative by #p2.input_rate_hz Hz, locating the encoder's low-rate information floor.
+  A PING network trained one digit at a time on 200 ms trials can classify a _stream_ of digits at a fraction of that time each, with no retraining: only the readout's integration window changes. At τ = 50 ms (≈ 2 gamma cycles) 4 of the 5 sequential MNIST digits classify correctly, the readout flipping within one cycle of each transition. A 2-D sweep over (τ, input rate) reveals a sub-cycle failure floor below ≈ 15 ms and a broad high-accuracy plateau above it. At fixed 200 ms presentation and readout windows, performance remains at chance through #p05.input_rate_hz Hz and becomes clearly informative by #p2.input_rate_hz Hz, locating the encoder's low-rate information floor.
 
   == Method
 
@@ -37,14 +37,19 @@
 
     $ "logits"(t) = (Delta t) / tau sum_(u=t-w+1)^(t) v_"out" (u), quad p("class", t) = "softmax"("logits"(t)), $
 
-    At training the average ran over the _whole_ trial; the trailing window is the single change.
+    Here the readout-window duration is matched exactly to the current digit's
+    presentation duration: $T_"readout" = T_"presentation" = tau$, with
+    $w = tau / Delta t$ timesteps. Thus a digit presented for 25, 50, or 200 ms
+    is read over 25, 50, or 200 ms, respectively; the readout duration is not
+    varied independently. At training the average ran over the _whole_ trial;
+    the trailing matched-duration window is the single change.
   + *Predict per segment* as $arg max_c p("class"=c, t)$, read at the end of each digit's τ-window.
 
   Here $bold(s)^E (t)$ is the excitatory spike vector, $W_"out"$ the trained readout (unchanged), and $beta_"out" = exp(-Delta t \/ tau_"out")$ the output leak with $tau_"out" = 2$ ms. The probability trace $p("class", t)$, the network's online confidence in each digit, is what the figures plot.
 
   The grid sweeps τ over 10, 15, 25, 40, 50, 75, 100, 200 ms and input rate over 5, 10, 25, 50, 100, 200 Hz per channel, giving 8 × 6 cells, each 40 streams × 10 digits × 3 seeds (1200 segments per cell). It extends down to τ = 10 ms (≈ 0.36 of a gamma cycle) to resolve the sub-cycle regime.
 
-  To resolve the encoding-rate floor below the grid, an additional 200 ms slice sweeps rates from 0.01 to 3 Hz. Each cell contains #(r.encoding_rate_psychometric.new_streams_per_seed) streams of #(r.encoding_rate_psychometric.digits_per_stream) digits across the same three trained seeds. The published 5–200 Hz points are the matching 200 ms row of the grid.
+  To resolve the encoding-rate floor below the grid, additional evaluations sweep rates from 0.01 to 3 Hz while holding both the presentation duration and readout window fixed at 200 ms. Each cell contains #(r.encoding_rate_psychometric.new_streams_per_seed) streams of #(r.encoding_rate_psychometric.digits_per_stream) digits across the same three trained seeds. The published 5–200 Hz points use the same fixed 200 ms protocol and come from the corresponding row of the grid.
 
   == Results
 
@@ -62,11 +67,11 @@
 
   #figure(
     image("/artifacts/data/exp048/acc_grid_tau_rate.png", width: 100%,
-      alt: "Two-panel figure combining the duration-by-input-rate accuracy heatmap with an extended 200-ms encoding-rate psychometric curve."),
-    caption: [Temporal and encoding-rate limits of the frozen PING classifier. *(A)* Per-segment accuracy over the full duration × rate grid (3 seeds × 1200 segments per cell). The sub-cycle regime fails even under strong drive, while above one cycle duration and rate trade off along diagonal iso-accuracy contours. *(B)* The 200 ms row extended below 5 Hz on a linear rate axis. Circles are the new low-rate cells; squares come from panel A. The dashed line marks ten-class chance and the dotted line the 25 Hz training rate. Accuracy remains on its empty-input floor through #p05.input_rate_hz Hz, is clearly informative by #p2.input_rate_hz Hz, and reaches #calc.round(100 * p5.accuracy, digits: 1)% at #p5.input_rate_hz Hz.],
+      alt: "Two-panel figure combining the duration-by-input-rate accuracy heatmap with a psychometric curve measured at fixed 200-ms presentation and readout windows."),
+    caption: [Temporal and encoding-rate limits of the frozen PING classifier. *(A)* Per-segment accuracy over the full duration × rate grid (3 seeds × 1200 segments per cell). The sub-cycle regime fails even under strong drive, while above one cycle duration and rate trade off along diagonal iso-accuracy contours. *(B)* Probability of a correct classification versus encoding rate with both presentation duration and readout window fixed at 200 ms. All points belong to the same psychometric curve. The dashed line marks ten-class chance and the dotted line the 25 Hz training rate. Accuracy remains on its empty-input floor through #p05.input_rate_hz Hz, is clearly informative by #p2.input_rate_hz Hz, and reaches #calc.round(100 * p5.accuracy, digits: 1)% at #p5.input_rate_hz Hz.],
   )
 
-  The extended slice distinguishes a nonviable encoder regime from ordinary
+  The fixed-200 ms rate curve distinguishes a nonviable encoder regime from ordinary
   classification errors under weak evidence. In the variable-condition stream,
   the failed 5 received #p10.input_rate_hz Hz for 200 ms, yet that condition
   reaches #calc.round(100 * p10.accuracy, digits: 1)% across the population. Its
