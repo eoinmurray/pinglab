@@ -3,8 +3,8 @@
 This runner reuses exp069's validation-only SHD split, checkpoint selection,
 diagnostics, matched rasters, and RunPod plumbing.  The official SHD test has no
 route here.  The default command runs a local 128/128 two-epoch smoke for the
-selected registered candidate; cloud execution still requires the explicit
-``--runpod --live`` spending gate.
+selected registered candidate; cloud execution still requires an explicit
+spending gate (``--runpod --live`` or ``--modal --live``).
 
 Select the registered candidate with ``EXP073_ATTEMPT``:
 
@@ -33,7 +33,7 @@ REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 import exp069 as baseline  # noqa: E402
-from helpers import runpod  # noqa: E402
+from helpers import modal_backend, runpod  # noqa: E402
 from helpers.cli import parse_meta  # noqa: E402
 from helpers.numbers import write_numbers  # noqa: E402
 from helpers.paths import artifacts_and_figures  # noqa: E402
@@ -352,6 +352,24 @@ def run_via_runpod(meta: Any) -> None:
     )
 
 
+def run_via_modal(meta: Any) -> None:
+    cells = meta.only_cells or list(baseline.MODELS)
+    unknown = sorted(set(cells) - set(baseline.MODELS))
+    if unknown:
+        raise SystemExit(f"unknown exp073 cells for --only-cells: {unknown}")
+    timeout_s = 14400 if STAGE == "final80" else (7200 if STAGE == "final40" else 3600)
+    modal_backend.dispatch_exp073(
+        cells=list(cells),
+        attempt=ATTEMPT,
+        stage=STAGE,
+        ping_only=PING_ONLY,
+        live=meta.live,
+        local_collect_dir=SCRATCH,
+        ledger_path=COMPUTE_LEDGER,
+        timeout_s=timeout_s,
+    )
+
+
 def attempt_diagnostics(cells: dict[str, Any]) -> dict[str, Any]:
     diagnostics: dict[str, Any] = {}
     for model in cells:
@@ -653,11 +671,15 @@ def write_reproducer(figures: Path) -> None:
         "EXP073_ATTEMPT=plastic_wee uv run python experiments/exp073.py\n"
         "# The matched local gate failed for COBA. With explicit follow-up authority,\n"
         "# continue the surviving PING cell only by setting EXP073_PING_ONLY=1.\n"
+        "# Preferred cloud path after RunPod transport stalls: Modal synchronous dispatch.\n"
+        "# Optional: choose a SKU with PINGLAB_MODAL_GPU=L40S|A10G|A100|H100.\n"
+        "EXP073_PING_ONLY=1 EXP073_ATTEMPT=plastic_wee EXP073_STAGE=short uv run python experiments/exp073.py --modal --only-cells ping\n"
+        "EXP073_PING_ONLY=1 EXP073_ATTEMPT=plastic_wee EXP073_STAGE=short uv run python experiments/exp073.py --modal --only-cells ping --live\n"
+        "EXP073_PING_ONLY=1 EXP073_ATTEMPT=plastic_wee EXP073_STAGE=short uv run python experiments/exp073.py --skip-training\n"
+        "# Historical RunPod commands retained for the original pre-pivot design:\n"
         "EXP073_PING_ONLY=1 EXP073_ATTEMPT=plastic_wee EXP073_STAGE=short uv run python experiments/exp073.py --runpod --only-cells ping\n"
         "EXP073_PING_ONLY=1 EXP073_ATTEMPT=plastic_wee EXP073_STAGE=short uv run python experiments/exp073.py --runpod --only-cells ping --live\n"
         "EXP073_PING_ONLY=1 EXP073_ATTEMPT=plastic_wee EXP073_STAGE=short uv run python experiments/exp073.py --runpod --collect\n"
-        "EXP073_PING_ONLY=1 EXP073_ATTEMPT=plastic_wee EXP073_STAGE=short uv run python experiments/exp073.py --skip-training\n"
-        "# Historical matched commands retained for the original pre-pivot design:\n"
         "EXP073_ATTEMPT=plastic_wee EXP073_STAGE=short uv run python experiments/exp073.py --runpod\n"
         "EXP073_ATTEMPT=plastic_wee EXP073_STAGE=short uv run python experiments/exp073.py --runpod --collect\n"
         "EXP073_ATTEMPT=plastic_wee EXP073_STAGE=short uv run python experiments/exp073.py --skip-training\n"
@@ -1095,6 +1117,8 @@ def publish_attempt() -> None:
 
 def main() -> None:
     meta = parse_meta(sys.argv, allow_dispatch=True)
+    if meta.runpod and meta.modal:
+        raise SystemExit("choose one cloud backend: --runpod or --modal")
     if meta.reap:
         runpod.reap_all_pods()
         return
@@ -1103,6 +1127,9 @@ def main() -> None:
         return
     if meta.runpod:
         run_via_runpod(meta)
+        return
+    if meta.modal:
+        run_via_modal(meta)
         return
     if meta.plot_only:
         publish_pre_result()

@@ -16,6 +16,7 @@ import gzip
 import os
 import shutil
 import urllib.request
+from pathlib import Path
 
 import numpy as np
 
@@ -36,22 +37,52 @@ _SHD_URLS = {
 }
 
 
+def _valid_h5(path: str) -> bool:
+    if not os.path.exists(path):
+        return False
+    try:
+        import h5py
+
+        with h5py.File(path, "r") as handle:
+            return "spikes" in handle and "labels" in handle
+    except Exception:  # noqa: BLE001 — any unreadable HDF5 is a bad cache entry
+        return False
+
+
 def _shd_h5(split: str) -> str:
     """Fetch + gunzip one SHD split to _SHD_DIR, returning the local .h5 path.
 
     Mirrors the tool-side download (tools/snn/datasets.py) rather than importing
     it — same tool↔experiment boundary the mnist path respects. Reuses the cache
-    the CLI may already have populated at /tmp/shd.
+    the CLI may already have populated at /tmp/shd.  A stale/truncated HDF5 is
+    deleted and rebuilt; this protects cloud runs from treating a partial
+    download as a valid cache hit.
     """
     os.makedirs(_SHD_DIR, exist_ok=True)
     h5_path = os.path.join(_SHD_DIR, f"shd_{split}.h5")
-    if os.path.exists(h5_path):
+    if _valid_h5(h5_path):
         return h5_path
+    if os.path.exists(h5_path):
+        os.unlink(h5_path)
     gz_path = h5_path + ".gz"
-    if not os.path.exists(gz_path):
-        urllib.request.urlretrieve(_SHD_URLS[split], gz_path)
-    with gzip.open(gz_path, "rb") as f_in, open(h5_path, "wb") as f_out:
-        shutil.copyfileobj(f_in, f_out)
+    for attempt in range(3):
+        if not os.path.exists(gz_path):
+            urllib.request.urlretrieve(_SHD_URLS[split], gz_path)
+        tmp = h5_path + ".tmp"
+        try:
+            with gzip.open(gz_path, "rb") as f_in, open(tmp, "wb") as f_out:
+                shutil.copyfileobj(f_in, f_out)
+            Path(tmp).replace(h5_path)
+            if _valid_h5(h5_path):
+                return h5_path
+        except Exception:  # noqa: BLE001 — retry after clearing partial cache
+            pass
+        for candidate in (tmp, h5_path, gz_path):
+            if os.path.exists(candidate):
+                os.unlink(candidate)
+        if attempt == 2:
+            break
+    raise RuntimeError(f"failed to download a valid SHD {split!r} split after 3 attempts")
     return h5_path
 
 
