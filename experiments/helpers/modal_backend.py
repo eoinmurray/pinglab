@@ -66,6 +66,19 @@ def _require_modal():
     return modal
 
 
+def _is_modal_auth_error(exc: BaseException) -> bool:
+    cls = exc.__class__
+    return cls.__name__ == "AuthError" and cls.__module__.startswith("modal")
+
+
+def _modal_auth_help() -> str:
+    return (
+        "Modal authentication is missing. Run `uv run modal setup` on this host, "
+        "or provide approved Modal token environment variables, then re-run with "
+        "`--modal --live`."
+    )
+
+
 def _source_image(modal: Any):
     image = (
         modal.Image.debian_slim(python_version="3.11")
@@ -203,24 +216,29 @@ def dispatch_exp073(
     events: list[dict[str, Any]] = []
     started = utc_now()
     started_clock = time.monotonic()
-    with output_context:
-        with app.run():
-            for cell in cells:
-                result = train_one.remote(cell, attempt, stage, ping_only)
-                payload = bytes(result.pop("artifact_tar_gz"))
-                expected = result["artifact_tar_gz_sha256"]
-                actual = sha256_bytes(payload)
-                if actual != expected:
-                    raise RuntimeError(f"Modal artifact hash mismatch for {cell}: {actual} != {expected}")
-                if local_collect_dir.exists():
-                    # Modal returns the whole exp073 scratch subtree.  Keep
-                    # previous cells, but replace this cell's destination before
-                    # extracting to avoid mixing stale and fresh files.
-                    stale = local_collect_dir / "cells" / stage / attempt / cell
-                    if stale.exists():
-                        shutil.rmtree(stale)
-                _extract_tree(payload, local_collect_dir)
-                events.append({**result, "artifact_tar_gz_sha256": actual})
+    try:
+        with output_context:
+            with app.run():
+                for cell in cells:
+                    result = train_one.remote(cell, attempt, stage, ping_only)
+                    payload = bytes(result.pop("artifact_tar_gz"))
+                    expected = result["artifact_tar_gz_sha256"]
+                    actual = sha256_bytes(payload)
+                    if actual != expected:
+                        raise RuntimeError(f"Modal artifact hash mismatch for {cell}: {actual} != {expected}")
+                    if local_collect_dir.exists():
+                        # Modal returns the whole exp073 scratch subtree.  Keep
+                        # previous cells, but replace this cell's destination before
+                        # extracting to avoid mixing stale and fresh files.
+                        stale = local_collect_dir / "cells" / stage / attempt / cell
+                        if stale.exists():
+                            shutil.rmtree(stale)
+                    _extract_tree(payload, local_collect_dir)
+                    events.append({**result, "artifact_tar_gz_sha256": actual})
+    except BaseException as exc:
+        if _is_modal_auth_error(exc):
+            raise SystemExit(_modal_auth_help()) from exc
+        raise
 
     elapsed = time.monotonic() - started_clock
     gpu_rate = GPU_USD_PER_SECOND.get(gpu)
