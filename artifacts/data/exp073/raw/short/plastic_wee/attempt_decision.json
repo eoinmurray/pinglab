@@ -1,8 +1,4 @@
 {
-  "run_id": "r013",
-  "git_sha": "27c33b3",
-  "duration_s": 3.8,
-  "duration": "4s",
   "result_status": "done",
   "design_pivot": "ping_only_after_matched_local_gate_failure",
   "pivot_authorized": true,

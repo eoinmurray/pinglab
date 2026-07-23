@@ -23,8 +23,6 @@
   }
 }
 #let attempt-figure(suffix) = "/artifacts/data/exp073/" + r.stage + "_" + r.attempt + "_" + suffix
-#let coba-wee = r.smoke_w_ee_diagnostics.coba.layers.at("1")
-#let ping-wee = r.smoke_w_ee_diagnostics.ping.layers.at("1")
 
 #let body = [
   == Abstract
@@ -32,13 +30,18 @@
   This exploratory experiment tested the next biologically plausible path after
   exp071/exp072: keep the cumulative-potential readout, keep the historical
   one-seed validation-only SHD split, and make recurrent E→E excitation both
-  nonzero and plastic while preserving Dale signs. The required local smoke
-  stage killed the experiment before RunPod use. PING remained finite and
-  active, but the matched COBA cell repeatedly produced skipped/non-finite
-  updates even after reducing the requested W_EE scale from `0.3 0.01` through
-  `0.03 0.01`, `0.003 0.001`, and finally `0.0003 0.0001`. No paid compute was
-  run. The result is therefore a design-gate failure, not evidence about
-  eight-epoch or forty-epoch SHD accuracy.
+  nonzero and plastic while preserving Dale signs. The original matched
+  COBA/PING design still failed at the required local smoke gate: PING remained
+  finite and active, but the matched COBA cell repeatedly produced
+  skipped/non-finite updates even after reducing the requested W_EE scale from
+  `0.3 0.01` through `0.03 0.01`, `0.003 0.001`, and finally `0.0003 0.0001`.
+  After that gate failure, an explicitly authorized PING-only continuation ran
+  the surviving cell for the eight-epoch short stage on Modal. It reached
+  #maybe-pct(r.cells.ping.selected_validation_accuracy_pct) held-out
+  validation accuracy at epoch #r.cells.ping.selected_epoch, with active E/I
+  firing and nonnegative trained W_EE. Because this is below, not meaningfully
+  above, the historical ~70% PING regime from exp071/exp072, the forty-epoch
+  promotion was not run.
 
   == Goal prompt
 
@@ -62,86 +65,20 @@
 
   During implementation, the local CLI accepted `--w-ee` but training did not
   pass it into model construction. Commit `247e186` fixed that plumbing and
-  added a focused regression test before this experiment ran.
+  added a focused regression test before this experiment ran. A later transport
+  fix moved exp073's Modal worker function to module scope and aligned its
+  Python image with the host, without changing any scientific parameter.
 
   == Local gate
 
-  The final registered local scout used `--w-ee #r.config.w_ee_init.at(0)
-  #r.config.w_ee_init.at(1)` and two smoke epochs on 128 training / 128
-  validation samples. The gate required both cells to be finite, active,
-  non-saturated, and free of skipped or non-finite updates before any RunPod
-  dispatch.
-
-  #table(
-    columns: (auto, auto, auto, auto, auto, 1.4fr),
-    table.header([*Cell*], [*Passed*], [*Selected acc.*], [*E rate*], [*I rate*], [*Errors*]),
-    [COBA],
-    [#r.smoke.cells.coba.passed],
-    [#maybe-pct(r.smoke.cells.coba.selected_validation_accuracy_pct)],
-    [#maybe-hz(r.smoke.cells.coba.final_e_rate_hz)],
-    [#maybe-hz(r.smoke.cells.coba.final_i_rate_hz)],
-    [skipped/non-finite updates],
-    [PING],
-    [#r.smoke.cells.ping.passed],
-    [#maybe-pct(r.smoke.cells.ping.selected_validation_accuracy_pct)],
-    [#maybe-hz(r.smoke.cells.ping.final_e_rate_hz)],
-    [#maybe-hz(r.smoke.cells.ping.final_i_rate_hz)],
-    [none],
-  )
-
-  COBA was active but failed the finite-update criterion. PING passed the local
-  plumbing check. Because the mandate requires both cells to clear the smoke
-  stage before cloud execution, no short RunPod stage was launched.
-
-  == W_EE diagnostics
-
-  The saved smoke checkpoints confirm that `W_EE` was nonzero, Dale-constrained,
-  and trainable enough to move from its reconstructed initialization:
-
-  #table(
-    columns: (auto, auto, auto, auto, auto),
-    table.header([*Cell*], [*Initial mean*], [*Selected mean*], [*Mean |Δ|*], [*Nonnegative*]),
-    [COBA],
-    [#calc.round(coba-wee.initial.mean, digits: 8)],
-    [#calc.round(coba-wee.selected.mean, digits: 8)],
-    [#calc.round(coba-wee.selected_delta_from_initial.mean_abs, digits: 8)],
-    [#coba-wee.selected_nonnegative],
-    [PING],
-    [#calc.round(ping-wee.initial.mean, digits: 8)],
-    [#calc.round(ping-wee.selected.mean, digits: 8)],
-    [#calc.round(ping-wee.selected_delta_from_initial.mean_abs, digits: 8)],
-    [#ping-wee.selected_nonnegative],
-  )
-
-  The killed local scouts are archived under
-  `artifacts/data/exp073/raw/killed_scouts/`. Their pattern was consistent:
-  COBA failed the skipped-update criterion at every nonzero W_EE scale tried,
-  while PING passed.
-
-  #table(
-    columns: (auto, auto, auto, auto, auto),
-    table.header([*Scout*], [*COBA passed*], [*COBA selected*], [*PING passed*], [*PING selected*]),
-    [`0.3 0.01`],
-    [#r.killed_scouts.w_ee_0p3.smoke_summary.cells.coba.passed],
-    [#maybe-pct(r.killed_scouts.w_ee_0p3.smoke_summary.cells.coba.selected_validation_accuracy_pct)],
-    [#r.killed_scouts.w_ee_0p3.smoke_summary.cells.ping.passed],
-    [#maybe-pct(r.killed_scouts.w_ee_0p3.smoke_summary.cells.ping.selected_validation_accuracy_pct)],
-    [`0.03 0.01`],
-    [#r.killed_scouts.w_ee_0p03.smoke_summary.cells.coba.passed],
-    [#maybe-pct(r.killed_scouts.w_ee_0p03.smoke_summary.cells.coba.selected_validation_accuracy_pct)],
-    [#r.killed_scouts.w_ee_0p03.smoke_summary.cells.ping.passed],
-    [#maybe-pct(r.killed_scouts.w_ee_0p03.smoke_summary.cells.ping.selected_validation_accuracy_pct)],
-    [`0.003 0.001`],
-    [#r.killed_scouts.w_ee_0p003.smoke_summary.cells.coba.passed],
-    [#maybe-pct(r.killed_scouts.w_ee_0p003.smoke_summary.cells.coba.selected_validation_accuracy_pct)],
-    [#r.killed_scouts.w_ee_0p003.smoke_summary.cells.ping.passed],
-    [#maybe-pct(r.killed_scouts.w_ee_0p003.smoke_summary.cells.ping.selected_validation_accuracy_pct)],
-    [`0.0003 0.0001`],
-    [#r.killed_scouts.w_ee_0p0003.smoke_summary.cells.coba.passed],
-    [#maybe-pct(r.killed_scouts.w_ee_0p0003.smoke_summary.cells.coba.selected_validation_accuracy_pct)],
-    [#r.killed_scouts.w_ee_0p0003.smoke_summary.cells.ping.passed],
-    [#maybe-pct(r.killed_scouts.w_ee_0p0003.smoke_summary.cells.ping.selected_validation_accuracy_pct)],
-  )
+  The final registered local scout used the same nonzero `W_EE`
+  initialization now recorded in the PING-only configuration:
+  `--w-ee #r.config.w_ee_init.at(0) #r.config.w_ee_init.at(1)`.
+  The gate required both matched cells to be finite, active, non-saturated, and
+  free of skipped or non-finite updates before any paid matched run. COBA failed
+  that finite-update criterion while PING passed, so the locked matched
+  COBA/PING result could not be promoted. The cloud result below is therefore
+  the later authorized PING-only continuation, not a matched-network claim.
 
   #if r.result_status == "done" [
     == Authorized PING-only continuation
@@ -172,6 +109,22 @@
     #calc.round(r.parameters.ping.layers.at("1").selected.mean, digits: 8)
     and mean absolute movement from initialization
     #calc.round(r.parameters.ping.layers.at("1").selected_delta_from_initial.mean_abs, digits: 8).
+
+    The short-stage run was dispatched on #r.runpod.provider with GPU
+    #r.runpod.gpu. The timestamped compute ledger records
+    #r.runpod.started_at to #r.runpod.finished_at UTC, estimated billable GPU
+    time #calc.round(r.runpod.billable_gpu_seconds_estimate, digits: 1) s, and
+    estimated spend #calc.round(r.runpod.total_spend_usd, digits: 3) USD. This
+    is a timestamp estimate pending provider-billing reconciliation, not an
+    exact invoice.
+
+    == Timestamped result checkpoint
+
+    At #r.runpod.finished_at UTC, the short-stage result was finite, active, and
+    clean, but not accurate enough to justify promotion: selected validation
+    accuracy was #maybe-pct(r.cells.ping.selected_validation_accuracy_pct),
+    below the historical ~70% PING regime. The next action recorded by this
+    article is therefore _stop before final40_, not _extend training_.
   ]
 
   == Conclusion
@@ -180,11 +133,14 @@
     The locked matched experiment still failed at the local gate: COBA could not
     be honestly promoted. The later PING-only run is therefore exploratory
     continuation evidence for the stable PING recipe, not matched COBA/PING
-    evidence. Its interpretation should be compared against the exp071/exp072
-    historical PING regime, with the COBA pathology kept as a design warning.
+    evidence. Its #maybe-pct(r.cells.ping.selected_validation_accuracy_pct)
+    selected validation accuracy does not move beyond the exp071/exp072
+    historical ~70% PING regime, so the pre-registered final40 promotion gate
+    was not met.
 
     Paid compute spend: #calc.round(r.spend.total_spend_usd, digits: 3) USD.
-    Active pods after this checkpoint: #r.runpod.active_pods_after_collection.
+    Provider billing exact: #r.spend.exact_provider_billing. Active RunPod pods
+    after this checkpoint: #r.runpod.active_pods_after_collection.
   ] else [
     The requested matched experiment cannot honestly proceed to RunPod under the
     locked local-gate rule. Nonzero plastic recurrent excitation is not yet a safe
