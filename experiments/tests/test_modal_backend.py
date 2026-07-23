@@ -44,3 +44,9 @@ def test_modal_artifact_extract_rejects_path_traversal(tmp_path):
         archive.addfile(info, io.BytesIO(content))
     with pytest.raises(RuntimeError, match="unsafe Modal artifact path"):
         modal_backend._extract_tree(payload.getvalue(), tmp_path / "dest")
+
+
+def test_modal_auth_error_is_recognized_by_name_and_module():
+    AuthError = type("AuthError", (Exception,), {"__module__": "modal.exception"})
+    assert modal_backend._is_modal_auth_error(AuthError("missing token"))
+    assert not modal_backend._is_modal_auth_error(RuntimeError("missing token"))
