@@ -1,0 +1,37 @@
+/goal Design and execute a new exploratory SHD experiment on a new branch/PR, testing whether nonzero Dale-constrained trainable recurrent excitation moves the matched COBA/PING models beyond the current ~70% regime.
+
+Use current main as the base. Build exp073 around the best surviving SHD recipe from exp071/exp072, especially the cumulative-potential readout. Do not rerun the old baseline unless needed for debugging; use exp071/exp072 as the historical baseline.
+
+Experiment:
+- run matched COBA and PING cells with nonzero W_EE initialization and --trainable-w-ee;
+- keep W_in and W_out trainable as in the current training path;
+- keep Dale signs enforced; do not use free signed recurrence;
+- start with a modest nonzero W_EE initialization, e.g. --w-ee 0.03 0.01, unless local inspection of current parameter scales suggests a safer nearby value;
+- keep input preprocessing, dataset split, readout, optimizer, batch size, and evaluation protocol matched across COBA and PING;
+- keep the comparison exploratory and single-seed unless I explicitly ask for replication.
+
+Protocol:
+- implement through experiments/exp073.py and existing tools/snn CLI capabilities if possible;
+- do not edit tools/snn unless the current CLI cannot express nonzero trainable W_EE cleanly; if a tools/snn change is required, stop and explain exactly why before editing;
+- run a local smoke/scout stage first with few epochs/samples to confirm finite loss, active spiking, and W_EE actually changes during training;
+- if both cells are finite and active, run a short RunPod exploratory stage, fewer than 40 epochs for iteration speed;
+- if accuracy looks meaningfully better than the exp071/exp072 historical ~70% regime without pathological firing or NaNs, run a 40-epoch confirmation for the promising cell(s);
+- COBA and PING may run in parallel on separate RunPod pods when useful;
+- RunPod spending is authorized up to $40 total; reap all pods when finished.
+
+Deliverables:
+- artifacts/data/exp073 with provenance, numbers.json, reproducer, training curves, firing-rate diagnostics, W_EE diagnostics, and matched rasters where relevant;
+- writings/exp073.typ as a cold-readable Demolab experiment report comparing exp073 to the historical exp071/exp072 baseline;
+- update the Spiking Heidelberg Digits collection so exp073 is the next canonical experiment;
+- build successfully;
+- commit focused implementation/results changes, push the branch, and open a new PR;
+- do not merge unless I explicitly ask.
+
+End at the review gate with:
+- best/selected COBA and PING accuracies;
+- whether trainable nonzero W_EE appears to move us beyond the ~70% regime;
+- W_EE diagnostics showing it was nonzero and trained;
+- firing-rate/pathology summary;
+- exact compute spend;
+- validation performed;
+- PR link and rendered exp073 link.
