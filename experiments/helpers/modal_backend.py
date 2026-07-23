@@ -190,7 +190,7 @@ def dispatch_exp073(
     app = modal.App("pinglab-exp073")
     image = _source_image(modal)
 
-    @app.function(image=image, gpu=gpu, timeout=timeout_s)
+    @app.function(image=image, gpu=gpu, timeout=timeout_s, serialized=True)
     def train_one(cell: str, attempt: str, stage: str, ping_only: bool) -> dict[str, Any]:
         return _remote_train_exp073_cell(
             cell=cell,
