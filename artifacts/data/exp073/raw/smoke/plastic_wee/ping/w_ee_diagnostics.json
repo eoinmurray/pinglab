@@ -1,0 +1,41 @@
+{
+  "w_ee_init": [
+    0.0003,
+    0.0001
+  ],
+  "trainable_w_ee": true,
+  "dales_law": true,
+  "layers": {
+    "1": {
+      "initial": {
+        "min": 0.0,
+        "mean": 1.1722658898732918e-06,
+        "max": 2.744092398643261e-06
+      },
+      "selected": {
+        "min": 0.0,
+        "mean": 0.0006751080847669499,
+        "max": 0.003016021568328142
+      },
+      "final": {
+        "min": 0.0,
+        "mean": 0.0006751080847669499,
+        "max": 0.003016021568328142
+      },
+      "selected_delta_from_initial": {
+        "mean_abs": 0.0006747889163721625,
+        "max_abs": 0.0030146651691893567,
+        "l2": 0.26180992418261717
+      },
+      "final_delta_from_initial": {
+        "mean_abs": 0.0006747889163721625,
+        "max_abs": 0.0030146651691893567,
+        "l2": 0.26180992418261717
+      },
+      "selected_changed_from_initial": true,
+      "final_changed_from_initial": true,
+      "selected_nonnegative": true,
+      "final_nonnegative": true
+    }
+  }
+}
