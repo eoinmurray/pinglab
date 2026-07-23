@@ -1,15 +1,15 @@
 {
   "slug": "exp073",
-  "run_id": "r013",
-  "run_at": "2026-07-23T11:38:56+00:00",
-  "git_sha": "27c33b3",
+  "run_id": "r014",
+  "run_at": "2026-07-23T15:22:48+00:00",
+  "git_sha": "4810154",
   "dirty": true,
   "code_dirty": false,
   "patch": null,
   "host": "local",
   "scale": {
     "seed": 42,
-    "epochs": 8,
+    "epochs": 40,
     "validation_fraction": 0.1,
     "models": [
       "coba",
@@ -42,7 +42,7 @@
     },
     "experiment": "exp073",
     "attempt": "plastic_wee",
-    "stage": "short",
+    "stage": "final40",
     "hidden_sizes": [
       256
     ],
