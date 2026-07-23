@@ -1,0 +1,27 @@
+{
+  "provider": "modal",
+  "backend": "experiments.helpers.modal_backend",
+  "started_at": "2026-07-23T10:52:20.791Z",
+  "finished_at": "2026-07-23T11:34:43.347Z",
+  "elapsed_s": 2542.555693491944,
+  "cells": [
+    {
+      "cell": "ping",
+      "attempt": "plastic_wee",
+      "stage": "short",
+      "started_at": "2026-07-23T10:52:46.458Z",
+      "finished_at": "2026-07-23T11:34:30.347Z",
+      "elapsed_s": 2503.8882585280003,
+      "success": true,
+      "error": null,
+      "artifact_tar_gz_sha256": "d16bbdc59838df8c4aa1aa7a57c91eb517e893be7178f7e16d789ce3dc096980"
+    }
+  ],
+  "gpu": "A10G",
+  "gpu_usd_per_second": 0.000306,
+  "billable_gpu_seconds_estimate": 2503.8882585280003,
+  "total_spend_usd": 0.76619,
+  "exact_provider_billing": false,
+  "billing_status": "timestamp_estimate_pending_provider_reconciliation",
+  "active_pods_after_collection": 0
+}
