@@ -1,0 +1,469 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>The SNN tool</title><style>/* Alignment */
+mtable.right-align mtd,
+mtable mtd.right-align,
+mtable.left-align mtd.right-align,
+mtable.aligned mtd:nth-child(odd) {
+  justify-items: end;
+  text-align: right;
+}
+mtable.cases mtd,
+mtable.left-align mtd,
+mtable mtd.left-align,
+mtable.aligned mtd:nth-child(even),
+math:is(:not([display])) > mtable.multiline-equation mtd {
+  justify-items: start;
+  text-align: left;
+}
+mtable.cases mtd,
+mtable.aligned mtd,
+mtable mtd.flushed,
+mtable mtd.left-flush {
+  padding-left: 0;
+}
+mtable.cases mtd,
+mtable.aligned mtd,
+mtable mtd.flushed,
+mtable mtd.right-flush {
+  padding-right: 0;
+}
+
+/* Tables */
+mtable {
+  math-style: inherit;
+}
+mtd {
+  math-depth: auto-add;
+  math-style: compact;
+  math-shift: compact;
+}
+
+/* Equations */
+mtable.multiline-equation mtd {
+  math-depth: inherit;
+  math-style: inherit;
+  math-shift: inherit;
+  padding: 0;
+}
+math > mtable.multiline-equation mtr:not(:last-child) mtd {
+  padding-bottom: 0.5em;
+}
+
+/* Fractions */
+mfrac {
+  padding-inline: 0;
+  margin-inline: 0.1em;
+}
+
+/* Accents */
+mover[accent="true" i] > :first-child {
+  font-feature-settings: "dtls";
+}
+mover.dotted[accent="true" i] > :first-child {
+  font-feature-settings: "dtls" 0;
+}
+
+/* Other rules for scriptlevel, displaystyle and math-shift */
+munder > :nth-child(2),
+munderover > :nth-child(2) {
+  math-shift: compact
+}
+munder[accentunder="true" i] > :not(:first-child),
+mover[accent="true" i] > :not(:first-child) {
+  math-depth: inherit;
+  math-style: inherit;
+  math-shift: inherit;
+}</style></head><body><link rel="icon" type="image/svg+xml" href="favicon.svg"><style>/* demolab web styles — injected into each HTML page by publish/lib.typ.
+   Typst HTML export ships no CSS (paged #set rules don't apply to HTML), so the
+   web look lives here. Avoid `>` / `<` in selectors: they'd be escaped inside <style>.
+   Body face is CMU Serif, the web-available Computer Modern branch closest to the PDFs'
+   New Computer Modern. The pinned web fonts keep that shared lineage without vendoring a
+   second full font family into every site; Charter/Georgia fall back when offline. */
+@font-face {
+  font-family: "Computer Modern Serif";
+  src: url("https://cdn.jsdelivr.net/gh/aaaakshat/cm-web-fonts@333f55ec19733c28cdc43567ecf72eafd6b0af61/font/Serif/cmunrm.woff") format("woff");
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Computer Modern Serif";
+  src: url("https://cdn.jsdelivr.net/gh/aaaakshat/cm-web-fonts@333f55ec19733c28cdc43567ecf72eafd6b0af61/font/Serif/cmunbx.woff") format("woff");
+  font-weight: bold;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Computer Modern Serif";
+  src: url("https://cdn.jsdelivr.net/gh/aaaakshat/cm-web-fonts@333f55ec19733c28cdc43567ecf72eafd6b0af61/font/Serif/cmunti.woff") format("woff");
+  font-weight: normal;
+  font-style: italic;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Computer Modern Serif";
+  src: url("https://cdn.jsdelivr.net/gh/aaaakshat/cm-web-fonts@333f55ec19733c28cdc43567ecf72eafd6b0af61/font/Serif/cmunbi.woff") format("woff");
+  font-weight: bold;
+  font-style: italic;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Computer Modern Typewriter";
+  src: url("https://cdn.jsdelivr.net/gh/aaaakshat/cm-web-fonts@333f55ec19733c28cdc43567ecf72eafd6b0af61/font/Typewriter/cmuntt.woff") format("woff");
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+/* A genuine mid-weight for the CM family: CMU ships only Roman + Bold, so there is no semibold to
+   step down to. Latin Modern Roman Demi (the CM-lineage demibold) fills weight 600 — used only by
+   inline citations, which want emphasis without the full punch of bold. */
+@font-face {
+  font-family: "Computer Modern Serif";
+  src: url("https://cdn.jsdelivr.net/gh/sugina-dev/latin-modern-web@1.0.1/font/lmromandemi-regular-webfont.woff") format("woff");
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+/* One deliberate scale drives the whole site:
+     - two inks:  --ink (headings, body, titles, links) and --muted (all secondary text)
+     - one body size (--fs-body) + a three-step heading scale (--fs-h1..h3)
+     - one secondary size (--fs-small) shared by every id, date, count, caption, meta line
+   Everything below composes those tokens — no one-off px or ad-hoc greys. */
+:root {
+  --ink: #1a1a1a;
+  --muted: #666;          /* every piece of secondary text, one grey */
+  --rule: #e7e5df;
+  --rule-strong: #d8d5cd;
+  --paper: #fff;
+  --paper-tint: #fafaf7;
+  --selection: #ebe9e2;
+
+  --fs-h1: 1.6rem;        /* page/entry title  (Typst level 1 → <h2>) — 28.8px */
+  --fs-h2: 1.3rem;        /* section heading   (Typst level 2 → <h3>) — 23.4px */
+  --fs-h3: 1.1rem;        /* subsection        (Typst level 3 → <h4>) — 19.8px */
+  --fs-small: 0.85rem;    /* every piece of secondary text, one size  — 15.3px */
+  --fs-label: 0.72rem;    /* uppercase mono labels — 13px */
+
+  --mono: "Computer Modern Typewriter", ui-monospace, "SF Mono", Menlo, monospace;
+}
+* { box-sizing: border-box; }
+/* rem is anchored to the 18px body so the heading scale steps cleanly off body size. */
+html { font-size: 18px; }
+body {
+  max-width: 42em;
+  margin: clamp(2rem, 7vw, 3.5rem) auto;
+  padding: 0 clamp(1rem, 4vw, 1.5rem);
+  font: 1rem/1.6 "Computer Modern Serif", Charter, Georgia, "Times New Roman", serif;
+  font-kerning: normal;
+  font-synthesis: none;
+  color: var(--ink);
+  background: var(--paper);
+  -webkit-text-size-adjust: 100%;
+}
+::selection { color: var(--ink); background: var(--selection); }
+/* Typst's HTML export reserves <h1> and renders heading level N as <h(N+1)>: an entry/
+   page title (level 1) is <h2>, a section (level 2) is <h3>, a subsection is <h4>. Style
+   the emitted tags, not the Typst levels. */
+h1, h2 {
+  margin: 0 0 .35rem;
+  font-size: var(--fs-h1);
+  line-height: 1.15;
+  font-weight: 700;
+  letter-spacing: -.012em;
+  text-wrap: balance;
+}
+h3 { font-size: var(--fs-h2); line-height: 1.25; font-weight: 700; margin: 2.4rem 0 .5rem; text-wrap: balance; }
+h4 { font-size: var(--fs-h3); line-height: 1.3; font-weight: 700; margin: 1.8rem 0 .35rem; text-wrap: balance; }
+/* Print-style links: ink with a hairline underline, not web blue. */
+a {
+  color: var(--ink);
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 2px;
+}
+a:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 3px;
+  border-radius: 1px;
+}
+/* Listing pages (home, collection, all-entries) follow pinglab: nav/index links are
+   unadorned and only underline on hover. Entry-body prose keeps the default underline. */
+.listing a { text-decoration: none; }
+.listing a:hover { text-decoration: underline; }
+/* ...except concrete destination links: the per-row pdf badge and the foot-line links
+   ("Browse all entries", "single pdf", the back arrows) stay underlined so they read as
+   links rather than nav chrome. Title/id links keep the clean hover-only treatment. */
+.listing .page-foot a,
+.entry-row .row-pdf { text-decoration: underline; }
+
+/* --- secondary text: one size (--fs-small), one colour (--muted) everywhere --- */
+.entry-meta,           /* id · date · status · collection under an entry/collection title */
+.coll-desc,            /* collection blurb on the homepage directory */
+.row-id, .row-meta, .row-pdf,  /* the aligned index-row columns */
+figcaption,
+.page-foot {           /* the "Browse all / back" line at the foot of a listing */
+  font-size: var(--fs-small);
+  color: var(--muted);
+}
+.entry-meta { margin: .2rem 0 1.75rem; }
+/* Byline under the homepage title: the lab's owner, quiet, links to contact if set. Its
+   default spacing also works when there is no description; the adjacent rule closes the
+   larger description margin only when that line actually exists. */
+.byline { font-size: var(--fs-small); color: var(--muted); margin: .2rem 0 1.5rem; }
+.entry-meta + .byline { margin-top: -.9rem; }
+.byline a { color: var(--muted); }
+.byline a:hover { color: var(--ink); }
+/* Home link at the top of an entry page: quiet, small, one step back to the directory. */
+.home-link { display: inline-block; font-size: var(--fs-small); color: var(--muted); text-decoration: none; margin: 0 0 1.1rem; }
+.home-link:hover { color: var(--ink); text-decoration: underline; }
+
+/* Citations: inline numbers stay in the text (underline on hover); the reference list is
+   secondary text, each entry's DOI a quiet link out. */
+/* A hair of space before the bracket, owned here so authors attach `#cite` directly to the
+   preceding word (`runs#cite(2)`); nowrap + no source whitespace keeps the bracket from
+   orphaning onto the next line. */
+.cite { white-space: nowrap; margin-left: 0.15em; font-weight: 600; }
+.cite a { color: inherit; text-decoration: none; }
+.cite a:hover { text-decoration: underline; }
+ol.refs { font-size: var(--fs-small); line-height: 1.55; padding-left: 1.5rem; margin: 1rem 0; }
+ol.refs li { margin: .45rem 0; }
+ol.refs li::marker { color: var(--muted); }
+ol.refs .doi { color: var(--muted); }
+ol.refs .doi:hover { color: var(--ink); }
+/* Hover popover for an inline citation (Wikipedia-style): a small card echoing the reference. */
+.cite-popover {
+  position: absolute; z-index: 50; display: none;
+  width: min(24rem, calc(100vw - 1rem)); padding: .6rem .8rem;
+  background: var(--paper); border: 1px solid var(--rule-strong); border-radius: 2px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, .1);
+  font-size: var(--fs-small); line-height: 1.5; color: var(--ink);
+}
+.cite-popover .doi { color: var(--muted); }
+.cite-popover .doi:hover { color: var(--ink); }
+
+/* Status marker (`.status`): plain text in the meta line — `final` renders nothing (RULES §6.4),
+   so no styling is needed; it inherits the meta line's look. */
+
+/* Build-error stub: an entry that failed to compile (a missing figure, a Typst error) is served as
+   a stub page with the error in this block, so the failure is visible on its own page while the
+   rest of the site is fine. */
+.build-error { border-left: 3px solid #c0392b; background: #fcf3f2; color: #7a1f16; }
+
+/* Heading anchors: every heading carries a slug id (link to page.html#slug); a quiet # permalink
+   fades in on hover to grab that URL. */
+.hx .permalink { opacity: 0; margin-left: .3em; color: var(--muted); text-decoration: none; font-weight: 400; font-size: .85em; }
+.hx:hover .permalink, .hx:focus-within .permalink { opacity: 1; }
+.hx .permalink:hover { color: var(--ink); }
+
+/* Figure placeholder (`#pending` / `#pending-figure`): a figure whose asset isn't ready yet.
+   A tinted, dashed panel that reserves the figure's footprint so the page doesn't reflow when the
+   real plot lands — a small framed-image mark over the muted reason. aspect-ratio is set inline
+   from the helper's `ratio` arg. */
+.fig-pending {
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: .7rem;
+  width: 100%; padding: 1.5rem; text-align: center;
+  background: var(--paper-tint);
+  border: 1px dashed #d6d3ca;
+  border-radius: 2px;
+}
+.fig-pending-mark { width: 1.7em; height: 1.2em; border: 1px solid #b9b6ad; border-radius: 2px; }
+.fig-pending-note { font-size: var(--fs-small); font-style: italic; color: var(--muted); }
+
+/* Entry meta strip: id · date · status · pdf, all inline. The pdf is a concrete destination, so it
+   keeps its underline (muted, darkening on hover) rather than the bare listing-nav treatment. */
+.entry-pdf { color: var(--muted); text-decoration: underline; }
+.entry-pdf:hover { color: var(--ink); }
+/* On listing pages the description sits closer to the list it heads (entry pages keep the
+   airier 1.75rem before the body). */
+.listing .entry-meta { margin-bottom: 1.25rem; }
+/* Homepage brand lockup: quieter and tighter than an article title. The tagline is more
+   important than generic metadata, but still secondary to the name. Scoping this to the
+   header keeps entry and collection hierarchy unchanged. */
+.site-head {
+  margin-bottom: 1rem;
+}
+.site-head h1, .site-head h2 {
+  font-size: 1.5rem;
+  line-height: 1.15;
+  letter-spacing: -.008em;
+}
+.site-head .entry-meta {
+  max-width: 38rem;
+  margin: .3rem 0 0;
+  font-size: 1rem;
+  line-height: 1.5;
+  color: var(--muted);
+}
+.site-head .byline { margin-bottom: 0; }
+.site-head .entry-meta + .byline { margin-top: .3rem; }
+/* Breathing room at the foot of an entry page so the last line isn't flush to the edge. */
+.entry-tail { height: 6rem; }
+
+/* Empty state: a freshly-scaffolded repo (no writings) — the homepage's only content. Warm and
+   jargon-free (the first thing a non-technical user sees), led by a confident line. */
+.empty-state { margin: 1.75rem 0; line-height: 1.65; max-width: 34rem; }
+.empty-lead { font-size: 1.2rem; color: var(--ink); margin: 0 0 .6rem; }
+.empty-state p:not(.empty-lead) { color: var(--muted); }
+
+/* Landing-page building blocks for a custom landing.typ (pitch, links, command boxes) —
+   used by the upstream demo's site/landing.typ; a lab's own landing.typ may reuse them. */
+.welcome { margin: 0 0 2.75rem; max-width: 36rem; }
+.welcome-body { margin: 0 0 1rem; }
+.welcome-links {
+  margin: 0 0 1.15rem;
+  font-size: 1rem;
+  line-height: 1.6;
+  color: var(--muted);
+}
+/* The homepage is a .listing page (links unadorned by default), so re-add the underline for
+   links in the landing hero — both the nav row and inline links in the body prose. */
+.welcome-links a, .welcome-body a { text-decoration: underline; }
+.welcome-links a { color: #444; }
+.welcome-links a:hover { color: var(--ink); }
+.welcome-kicker {
+  font-family: var(--mono); font-size: var(--fs-label); color: var(--muted);
+  text-transform: uppercase; letter-spacing: .08em; margin: 3rem 0 .65rem;
+}
+.welcome-cmd { margin: 0 0 .75rem; }
+.welcome-os {
+  font-family: var(--mono); font-size: var(--fs-label); color: var(--muted);
+  text-transform: uppercase; letter-spacing: .08em; margin-bottom: .35rem;
+}
+.welcome pre {
+  margin: 0; padding: .9rem 1rem; overflow-x: auto;
+  font-family: var(--mono); font-size: .82rem; line-height: 1.5;
+  background: var(--paper-tint); border: 1px solid var(--rule-strong); border-radius: 2px;
+}
+/* A quiet aside under a section (the "prefer to do it by hand?" line) — smaller and muted,
+   so it reads as a footnote to the block above, not the next paragraph. */
+.welcome-note { margin: 0 0 1rem; font-size: var(--fs-small); color: var(--muted); }
+.welcome-note a { color: var(--muted); text-decoration: underline; }
+.welcome-note a:hover { color: var(--ink); }
+/* The paste-into-your-agent command is a sentence, not shell — let it wrap rather than
+   clip/scroll at the .welcome column width. */
+.welcome-cmd pre { white-space: pre-wrap; }
+/* Runbook menu: NAME → what saying it does. A dl of hairline-separated rows; the name column
+   is mono (runbook names are commands) and fixed-width so descriptions align. */
+.welcome-runbooks { margin: 0 0 .75rem; }
+.welcome-runbook {
+  display: flex; gap: .75rem; padding: .45rem 0;
+  border-bottom: 1px solid var(--rule);
+}
+.welcome-runbook:last-child { border-bottom: none; }
+.welcome-runbook dt {
+  flex: 0 0 8.5rem; font-family: var(--mono); font-size: .78rem;
+  padding-top: .1rem;
+}
+.welcome-runbook dd { margin: 0; font-size: var(--fs-small); color: var(--muted); }
+/* Documentation tiers: four deliberately equal columns on wide screens, then a balanced
+   two-column grid — never an orphaned 3 + 1 arrangement at intermediate widths. */
+.welcome-docs {
+  display: grid; grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 1.25rem 1rem; margin: .15rem 0 1rem;
+}
+.welcome-docs-tier { border-top: 1px solid var(--rule-strong); padding-top: .55rem; }
+.welcome-docs-label {
+  margin: 0 0 .4rem;
+  font-family: var(--mono);
+  font-size: var(--fs-label);
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: .08em;
+}
+.welcome-docs-tier ul { list-style: none; padding-left: 0; margin: 0; }
+.welcome-docs-tier li { padding: .125rem 0; font-size: var(--fs-small); line-height: 1.4; }
+.welcome-docs-tier a { text-decoration: underline; color: var(--ink); }
+.welcome-docs-tier a:hover { color: var(--ink); }
+.welcome-foot {
+  margin: 1.75rem 0 0;
+  padding-top: .85rem;
+  border-top: 1px solid var(--rule);
+  font-size: var(--fs-small);
+  color: var(--muted);
+}
+.welcome-foot a { color: var(--muted); }
+.welcome-foot a:hover { color: var(--ink); }
+
+/* Homepage collection directory: collection-name links, description beneath. These are the
+   page's hero items, so they sit one step above body — the middle of the home hierarchy
+   (title 28.8 → collection 20.7 → description 15.3). */
+.coll-list { list-style: none; padding-left: 0; margin: 1.25rem 0; }
+.coll-row { padding: .55rem 0; }
+.coll-title { font-size: 1.15rem; }
+.coll-desc { margin: .2rem 0 0; line-height: 1.45; }
+
+/* Index rows: mono id in a left column; title + a quiet meta sub-line (date · status · pdf)
+   stacked in the main column, so long titles wrap without orphaning the meta. */
+.entry-list { list-style: none; padding-left: 0; margin: 1.25rem 0; }
+.entry-row { display: flex; align-items: baseline; gap: .6rem; padding: .5rem 0; }
+.entry-row .row-id { flex: 0 0 auto; min-width: 3em; font-family: var(--mono); }
+.row-main { flex: 1 1 auto; min-width: 0; }
+.row-main .row-title { display: block; }
+.row-main .row-meta { display: block; margin-top: .15rem; font-variant-numeric: tabular-nums; }
+
+/* Foot-of-listing nav line: quiet by default, links darken + underline on hover. */
+.page-foot { margin-top: 2rem; }
+.page-foot a { color: var(--muted); }
+.page-foot a:hover { color: var(--ink); }
+
+p { margin: 1rem 0; text-wrap: pretty; }
+img, video { max-width: 100%; height: auto; display: block; margin: 1.5rem auto; }
+figure { margin: 1.75rem 0; text-align: center; }
+figcaption { margin-top: .5rem; text-align: left; }
+table { border-collapse: collapse; margin: 1.25rem 0; font-size: var(--fs-small); }
+th, td { border: 1px solid var(--rule); padding: .35rem .75rem; text-align: left; }
+th { background: var(--paper-tint); font-weight: 600; }
+td:last-child, th:last-child { text-align: right; font-variant-numeric: tabular-nums; }
+math { font-size: 1.05em; }
+ul { padding-left: 1.25rem; }
+li { margin: .3rem 0; }
+hr { border: none; border-top: 1px solid var(--rule); margin: 2rem 0; }
+code, pre { font-family: var(--mono); }
+code { font-size: .9em; }
+pre {
+  font-size: .85em;
+  background: var(--paper-tint);
+  border: 1px solid var(--rule);
+  border-radius: 2px;
+  padding: .9rem 1.1rem;
+  line-height: 1.5;
+  overflow-x: auto;
+}
+pre code { font-size: 1em; }
+
+@media (max-width: 42rem) {
+  body { margin-top: 2rem; margin-bottom: 2.5rem; }
+  .welcome { margin-bottom: 2rem; }
+  .welcome-kicker { margin-top: 2.5rem; }
+  .welcome-docs { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .welcome-runbook { display: block; padding: .6rem 0; }
+  .welcome-runbook dt { margin-bottom: .2rem; }
+  .entry-row { align-items: flex-start; gap: .5rem; }
+}
+
+@media (max-width: 22rem) {
+  .welcome-docs { grid-template-columns: 1fr; }
+}
+</style><meta name="generator" content="demolab 2.0.1"><script src="cite-popover.js" defer></script><p><a class="home-link" href="index.html">← Home</a></p><h2 id="the-snn-tool" class="hx">The SNN tool<a class="permalink" href="#the-snn-tool" aria-label="Link to this section">#</a></h2><div class="entry-meta">ar011 · 6 July 2026 · <a class="entry-pdf" href="pdfs/ar011.pdf">pdf</a></div><p>One command-line tool, <em>tools/snn/tool.py</em>, drives every simulation, training run, and measurement in this project. Experiment runners never import the model code; they shell out to this tool, which writes data files (metrics, rasters, population traces, weight dumps) into an output directory, and then draw their own figures from those files. The tool is the engine; the plotting lives in the runners under <em>experiments/</em>.</p><p>This page is the reference for that engine. It is not a tutorial. It is the dictionary you reach for when an experiment mentions <em>–ei-strength 0.5</em> and you want to know exactly what that did.</p><p><strong>At a glance</strong></p><ul><li>Run it with <em>uv run python tools/snn/tool.py</em> (never a bare <em>python</em>; the repo convention is <em>uv</em>).</li><li>Three subcommands: <em>sim</em> (forward pass plus metrics), <em>train</em> (surrogate-gradient BPTT), <em>dump-weights</em> (emit weight matrices).</li><li>Every parameter is a flag. There is no global config file; a saved run’s <em>config.json</em> can be inherited with <em>–load-config</em>.</li><li>Every run writes <em>config.json</em>, <em>run.sh</em>, <em>output.log</em>, and <em>run.jsonl</em> for reproducibility.</li><li>The tool emits data, not figures. The runner draws the figure.</li></ul><h3 id="the-tool-and-the-experiment" class="hx">The tool and the experiment<a class="permalink" href="#the-tool-and-the-experiment" aria-label="Link to this section">#</a></h3><p>demolab draws a hard line between a <strong>tool</strong> and an <strong>experiment</strong>. A tool holds the reusable science and speaks only through files; an experiment (a runner in <em>experiments/expNNN.py</em>) chooses which tool commands to run, then reads their data files back and renders the figures. The runner reaches the tool by running its CLI as a subprocess, never by importing it. That firewall is what keeps <em>tools/snn/</em> generic and lets the same engine serve every writeup in the lab.</p><p>So a typical experiment does three things: it invokes <em>tool.py</em> (often many times, sweeping a parameter), it aggregates each run’s config plus headline metrics into a single <em>numbers.json</em>, and it draws PNG or SVG figures from the run’s data. The committed record lands in <em>artifacts/data/expNNN/</em>; the tool’s own scratch output is disposable (see <a href="#artifacts">Artifacts</a>).</p><h3 id="quick-start" class="hx">Quick start<a class="permalink" href="#quick-start" aria-label="Link to this section">#</a></h3><p>Run a metrics-only forward pass of the canonical PING network:</p><pre><code>uv run python tools/snn/tool.py sim --model ping --ei-strength 0.5</code></pre><p>Train on MNIST for 100 epochs:</p><pre><code>uv run python tools/snn/tool.py train --dataset mnist --epochs 100 --lr 0.0001</code></pre><p>Evaluate a trained run on the test set, replaying it at a coarser timestep:</p><pre><code>uv run python tools/snn/tool.py sim --infer \
+  --load-config runs/foo/config.json \
+  --load-weights runs/foo/weights.pth \
+  --dt 0.5</code></pre><blockquote>Each subcommand has its own complete <em>–help</em>, and that per-subcommand help is authoritative. The top-level dispatcher’s group summary is hand-maintained and can lag the parser. When a flag here disagrees with reality, run <em>sim –help</em> and trust that.</blockquote><h3 id="commands" class="hx">Commands<a class="permalink" href="#commands" aria-label="Link to this section">#</a></h3><h4 id="sim" class="hx">sim<a class="permalink" href="#sim" aria-label="Link to this section">#</a></h4><p>Run one forward pass and report firing-rate metrics. This is the cheapest mode (no training, no plots), used by the test suite, the dt-stability checks in <a href="/ar003/">ar003</a>, and every experiment that needs a single inference pass over a trained or fresh network.</p><pre><code>uv run python tools/snn/tool.py sim --model ping --dataset mnist --digit 3</code></pre><p>On its own it prints metrics. The flags below make it load trained weights, evaluate a test set, emit extra data artifacts, or inject perturbations. There is no <em>–image</em> or <em>–video</em>: where those retired flags once produced panels and sweep MP4s, <em>sim</em> now emits raw data (via <em>–outputs</em>) that the calling runner plots, and sweep videos are assembled runner-side from many <em>sim</em> calls.</p><table><tr><td><strong>flag</strong></td><td><strong>default</strong></td><td><strong>description</strong></td></tr><tr><td><em>–infer</em></td><td>off</td><td>Load trained weights and evaluate test-set accuracy; writes <em>results.json</em> (and <em>metrics.json</em>).</td></tr><tr><td><em>–load-config PATH</em></td><td>—</td><td>Load a saved <em>config.json</em> and inherit its model, dataset, and parameters. Explicit CLI flags override loaded values.</td></tr><tr><td><em>–load-weights PATH</em></td><td>—</td><td>Path to a <em>weights.pth</em> file for inference.</td></tr><tr><td><em>–max-samples INT</em></td><td>all</td><td>[<em>–infer</em>] Cap the evaluation set to N samples.</td></tr><tr><td><em>–outputs OUTPUT [dots.c]</em></td><td>—</td><td>[<em>–infer</em>] Extra artifacts from the single forward pass (<em>metrics.json</em> always written): <em>per_cell_rates</em> (per-cell E/I Hz to <em>per_cell_rates.npz</em>), <em>pop_traces</em> (per-trial population activity to <em>pop_traces.npz</em>, base signal for PSD / f_γ), <em>rasters</em> (sparse spike indices to <em>rasters.npz</em>, for cycle-level analysis).</td></tr><tr><td><em>–tau-gaba FLOAT</em></td><td>inherited / 9.0</td><td>[<em>–infer</em>] Override τ_GABA (ms) to replay a trained cell under specified inhibitory dynamics. Normally unset: <em>–load-config</em> inherits the trained value.</td></tr><tr><td><em>–skip-load PREFIX [dots.c]</em></td><td>—</td><td>[<em>–infer</em>] Drop <em>state_dict</em> keys with these prefixes before loading (e.g. <em>W_ei. W_ie.</em>) so a fresh sub-block survives. Transfer-load probes (<a href="/exp038/">exp038</a>).</td></tr><tr><td><em>–perturb-mode {drop, add}</em></td><td>—</td><td>[<em>–infer</em>] Hidden-spike perturbation inside the forward loop: <em>drop</em> (Bernoulli mask), <em>add</em> (Poisson Hz). The <a href="/exp037/">exp037</a> drop/add asymmetry.</td></tr><tr><td><em>–perturb-level LEVEL [dots.c]</em></td><td>—</td><td>[<em>–perturb-mode</em>] One value: probability for <em>drop</em>, Hz for <em>add</em>.</td></tr><tr><td><em>–i-override-file PATH</em></td><td>—</td><td>[<em>–infer</em>] NPZ with a sparse per-trial I-spike stream to substitute for the inhibitory spikes each timestep. Injection dual of <em>–outputs rasters</em> (<a href="/exp042/">exp042</a>).</td></tr><tr><td><em>–input-file PATH</em></td><td>—</td><td>NPZ with <em>input_spikes</em> (T, B, N_IN) to forward instead of Poisson input. Arbitrary stimulus (<a href="/exp048/">exp048</a> digit streams).</td></tr><tr><td><em>–scale-w-in / –scale-w-ei / –scale-w-ie FLOAT</em></td><td>1.0</td><td>[<em>–infer</em>] Multiply loaded input / E→I / I→E weights before the forward pass. Inference-time coupling sweeps without retraining (<a href="/exp038/">exp038</a>).</td></tr><tr><td><em>–sample-index INT</em></td><td>—</td><td>Raw test-set index for a snapshot, overriding <em>–digit</em> / <em>–sample</em>.</td></tr><tr><td><em>–n-in / –n-inh / –n-batch INT</em></td><td>784 / — / 64</td><td>[synthetic-spikes] Input channels, inhibitory pool size, Poisson trials averaged.</td></tr><tr><td><em>–w-ei-mean / –w-ie-mean FLOAT</em></td><td>from <em>–ei-strength</em></td><td>[synthetic-spikes] Explicit W_EI / W_IE mean (std = 0.1·mean).</td></tr><tr><td><em>–private-w-in</em></td><td>off</td><td>[synthetic-spikes] Identity W_in: one input channel per E cell.</td></tr></table><p>The block from <em>–skip-load</em> down is the <strong>generic-primitive family</strong>: small, experiment-agnostic hooks (perturb hidden spikes, inject an inhibitory stream, forward an arbitrary input file, scale a weight block at inference). Runners compose these instead of importing model code, and that is what keeps the tool/experiment boundary clean.</p><h4 id="train" class="hx">train<a class="permalink" href="#train" aria-label="Link to this section">#</a></h4><p>Surrogate-gradient BPTT training loop. Writes <em>weights.pth</em>, <em>metrics.json</em>, a per-step <em>metrics.jsonl</em>, and <em>test_predictions.json</em>.</p><pre><code>uv run python tools/snn/tool.py train --model ping --dataset mnist \
+  --epochs 100 --lr 0.0001 --v-grad-dampen 1000</code></pre><p><em>–epochs 0</em> runs the init snapshot only, useful as a probe.</p><table><tr><td><strong>flag</strong></td><td><strong>default</strong></td><td><strong>description</strong></td></tr><tr><td><em>–lr FLOAT</em></td><td>0.01</td><td>Adam learning rate. Biophysical models (ping) typically need 0.0001; current-based models 0.01.</td></tr><tr><td><em>–epochs INT</em></td><td>0</td><td>Number of epochs. 0 = init-snapshot probe only.</td></tr><tr><td><em>–batch-size INT</em></td><td>64</td><td>DataLoader batch size.</td></tr><tr><td><em>–max-samples INT</em></td><td>all</td><td>Cap dataset to N samples for smoke tests.</td></tr><tr><td><em>–v-grad-dampen FLOAT</em></td><td>80.0</td><td>Dampening factor <em>d</em> on the COBA membrane-voltage gradient. PING needs a much larger value (<em>d = 1000</em> in the paper) to stabilise BPTT through the E↔I loop; COBA trains at the default. Theory in <a href="/ar006/">ar006</a>.</td></tr><tr><td><em>–fr-reg-upper-theta FLOAT</em></td><td>0 (off)</td><td>Upper-bound target spike count per neuron per trial (θ_u). Adds <em>s_u · Σ relu(⟨z_i⟩ − θ_u)²</em> to the loss. Cramer et al. SHD RSNN: 100.</td></tr><tr><td><em>–fr-reg-upper-strength FLOAT</em></td><td>0</td><td>Coefficient s_u on the upper regulariser. Cramer et al.: 0.06.</td></tr><tr><td><em>–tau-gaba FLOAT</em></td><td>9.0 ms</td><td>Override τ_GABA. Default = <em>models.py</em>’s value (Börgers / Buzsáki-Wang range). <a href="/exp041/">exp041</a> sweeps this across {4.5 … 27} ms while training PING from scratch; the realised gamma frequency f_γ tracks 1/τ_GABA.</td></tr></table><h4 id="dump-weights" class="hx">dump-weights<a class="permalink" href="#dump-weights" aria-label="Link to this section">#</a></h4><p>Build the network from a config and emit its weight matrices to <em>weights_dump.npz</em>: the init state, plus (with <em>–load-weights</em>) the trained state. It runs no forward pass.</p><pre><code>uv run python tools/snn/tool.py dump-weights \
+  --load-config runs/foo/config.json \
+  --load-weights runs/foo/weights.pth \
+  --out-dir runs/foo/dump</code></pre><p>Keys follow <em>W_ff_N_init</em> / <em>W_ff_N_trained</em> (feedforward, per layer N) plus the E-I blocks <em>W_ei</em> / <em>W_ie</em>. This is how a runner recovers the trained readout matrix (W_out = the last <em>W_ff</em>) or compares init-vs-trained loop weights (the <a href="/exp049/">exp049</a> pruning analysis) without loading the model in-process. It takes the shared option groups plus <em>–load-config</em> / <em>–load-weights</em>.</p><h3 id="shared-options" class="hx">Shared options<a class="permalink" href="#shared-options" aria-label="Link to this section">#</a></h3><p>These groups are attached to every subcommand. The grouping matches what each subcommand’s <em>–help</em> prints.</p><h4 id="network" class="hx">Network<a class="permalink" href="#network" aria-label="Link to this section">#</a></h4><table><tr><td><strong>flag</strong></td><td><strong>default</strong></td><td><strong>description</strong></td></tr><tr><td><em>–model {ping}</em></td><td><em>ping</em></td><td>Architecture. <em>ping</em> is the COBANet with E↔I coupling; with <em>–ei-strength 0</em> the inhibitory loop is silenced for a no-rhythm control.</td></tr><tr><td><em>–n-hidden INT [INT dots.c]</em></td><td>dataset-dependent</td><td>Hidden layer sizes. One integer = single layer; multiple stacks layers. Default for mnist: 1024.</td></tr><tr><td><em>–readout {rate, mem-mean}</em></td><td><em>rate</em></td><td>Output stage. <em>rate</em> sums last-hidden spikes and projects linearly at the final timestep. <em>mem-mean</em> averages a per-class output-LIF membrane over time (the trained classification readout).</td></tr><tr><td><em>–dales-law</em> / <em>–no-dales-law</em></td><td>on</td><td>Enforce Dale’s law (non-negative weights) or allow signed weights. <em>–no-dales-law</em> is used for balanced-network experiments.</td></tr><tr><td><em>–ei-strength FLOAT</em></td><td>0.5</td><td>E-I coupling strength s. Sets W_EI = s and W_IE = s·ratio.</td></tr><tr><td><em>–ei-ratio FLOAT</em></td><td>2.0</td><td>W_IE / W_EI.</td></tr><tr><td><em>–w-in-sparsity FLOAT</em></td><td>0.95</td><td>Fraction of input weights zeroed at init.</td></tr><tr><td><em>–ei-sparsity FLOAT</em></td><td>0.0</td><td>Sparsity of the recurrent E↔I matrices: fraction of entries zeroed, survivors rescaled by 1/(1−s) to preserve expected drive. Use ≈ 1 − K/N for Brunel/Vreeswijk sparse random connectivity.</td></tr><tr><td><em>–exact-k</em></td><td>off</td><td>Fixed-fan-in (exact-K) recurrent connectivity: every post cell draws exactly K = round((1−ei_sparsity)·N_pre) inputs. No effect unless <em>–ei-sparsity</em> > 0.</td></tr><tr><td><em>–dt FLOAT</em></td><td>0.25</td><td>Integration timestep (ms).</td></tr><tr><td><em>–t-ms FLOAT</em></td><td>200</td><td>Total trial duration (ms). Metrics are measured over the full trace; runners strip any startup transient in post.</td></tr><tr><td><em>–readout-w-out-scale FLOAT</em></td><td>1.0</td><td>Scalar applied to the readout matrix after <em>build_net</em>, compensating for low hidden firing rate under <em>mem-mean</em>. Train-mode only.</td></tr><tr><td><em>–surrogate-slope FLOAT</em></td><td>1.0</td><td>Fast-sigmoid surrogate-gradient slope β. Larger = narrower active window. Cramer et al. use 40 for SHD RSNNs.</td></tr></table><p>The drive family below also lives in the Network group. It exists for the balanced-network (Brunel / van Vreeswijk-Sompolinsky) experiments and the Lyapunov chaos probe; canonical PING runs leave all of it off.</p><table><tr><td><strong>flag</strong></td><td><strong>default</strong></td><td><strong>description</strong></td></tr><tr><td><em>–independent-drive RATE G_PER_SPIKE</em></td><td>off</td><td>Per-E-cell independent Poisson drive (bypasses W_in): N_E uncorrelated streams at RATE Hz, each spike adding G_PER_SPIKE μS of g_E. Zero cross-cell correlation.</td></tr><tr><td><em>–independent-drive-i RATE G_PER_SPIKE</em></td><td>off</td><td>As above, targeting the I population directly. Needed for the full V&amp;S asynchronous-irregular state.</td></tr><tr><td><em>–quenched-drive MEAN STD</em></td><td>off</td><td>Per-E-cell DC conductance drawn once from N(MEAN, STD) μS and frozen for the trial. V&amp;S quenched input: no fluctuation, so it cannot pin spike times; the Lyapunov probe then measures autonomous chaos.</td></tr><tr><td><em>–quenched-drive-i MEAN STD</em></td><td>off</td><td>Per-I-cell frozen DC conductance.</td></tr><tr><td><em>–lyapunov-eps FLOAT</em></td><td>0 (off)</td><td>If > 0 (synthetic-spikes mode), rerun with all membranes ε-perturbed at t=0 and save the divergence ‖ΔV(t)‖ to <em>snapshot.npz</em>. Its growth rate is the max Lyapunov exponent: positive for the chaotic V&amp;S state, ≈ 0 for cycle-locked PING.</td></tr></table><h4 id="input" class="hx">Input<a class="permalink" href="#input" aria-label="Link to this section">#</a></h4><table><tr><td><strong>flag</strong></td><td><strong>default</strong></td><td><strong>description</strong></td></tr><tr><td><em>–input {synthetic-spikes, dataset}</em></td><td><em>synthetic-spikes</em></td><td>Stimulus regime. <em>synthetic-spikes</em> is Poisson at <em>–input-rate</em>. <em>dataset</em> draws from <em>–dataset</em>.</td></tr><tr><td><em>–input-rate FLOAT</em></td><td>25</td><td>Baseline input rate (Hz).</td></tr><tr><td><em>–digit INT</em></td><td>0</td><td>Dataset class (0–9).</td></tr><tr><td><em>–sample INT</em></td><td>0</td><td>Sample index within the class.</td></tr><tr><td><em>–sample-index INT</em></td><td>—</td><td>Raw test-set index, overriding <em>–digit</em> / <em>–sample</em>.</td></tr><tr><td><em>–dataset {mnist}</em></td><td><em>mnist</em></td><td>Dataset. <em>mnist</em> is the full 28×28 image encoded to spikes.</td></tr></table><h4 id="weights-advanced" class="hx">Weights (advanced)<a class="permalink" href="#weights-advanced" aria-label="Link to this section">#</a></h4><table><tr><td><strong>flag</strong></td><td><strong>default</strong></td><td><strong>description</strong></td></tr><tr><td><em>–w-in MEAN [STD]</em></td><td><em>0.3 0.06</em></td><td>Input fan-in init. Single value sets STD = MEAN × 0.1.</td></tr><tr><td><em>–w-ei MEAN STD</em></td><td>from <em>–ei-strength</em></td><td>Override the W_EI init.</td></tr><tr><td><em>–w-ie MEAN STD</em></td><td>from <em>–ei-strength</em> / <em>–ei-ratio</em></td><td>Override the W_IE init.</td></tr><tr><td><em>–w-ii MEAN STD</em></td><td><em>0 0</em></td><td>W_II (I→I) init. Off by default (canonical PING has no I→I). Enable for balanced-network experiments.</td></tr><tr><td><em>–w-ee MEAN STD</em></td><td><em>0 0</em></td><td>W_EE (E→E) init. Off by default. Enable for the full four-coupling balanced network, where recurrent excitation pins the E rate.</td></tr><tr><td><em>–trainable-w-ei</em></td><td>frozen</td><td>Promote E→I to gradient-carrying. Asks whether the optimiser will discover the PING-loop weights from scratch.</td></tr><tr><td><em>–trainable-w-ie</em></td><td>frozen</td><td>Promote I→E. The <a href="/exp049/">exp049</a> result <em>gradient descent dismantles PING</em> comes from flipping <em>–trainable-w-ei</em> and <em>–trainable-w-ie</em> on simultaneously.</td></tr></table><h4 id="output" class="hx">Output<a class="permalink" href="#output" aria-label="Link to this section">#</a></h4><table><tr><td><strong>flag</strong></td><td><strong>default</strong></td><td><strong>description</strong></td></tr><tr><td><em>–out-dir DIR</em></td><td><em>temp/pinglab-cli/</em></td><td>Output directory. The default is scratch (gitignored); runners always pass an explicit path.</td></tr><tr><td><em>–wipe-dir</em></td><td>off</td><td>Clear the output directory before the run.</td></tr></table><h4 id="execution" class="hx">Execution<a class="permalink" href="#execution" aria-label="Link to this section">#</a></h4><table><tr><td><strong>flag</strong></td><td><strong>default</strong></td><td><strong>description</strong></td></tr><tr><td><em>–seed INT</em></td><td>—</td><td>RNG seed. Seeds Python, NumPy, torch (CPU + CUDA + MPS) before dataset load and model init. Persisted to <em>config.json</em>.</td></tr><tr><td><em>–modal</em></td><td>off</td><td>Re-dispatch to Modal.com. Artifacts sync back to <em>–out-dir</em> after completion.</td></tr><tr><td><em>–modal-gpu {none, T4, L4, A10G, A100, H100}</em></td><td><em>T4</em></td><td>GPU type for Modal runs. <em>none</em> runs CPU-only.</td></tr></table><blockquote><em>–modal</em> costs money. The project default is local; only pass it when explicitly instructed.</blockquote><h3 id="config-inheritance" class="hx">Config inheritance<a class="permalink" href="#config-inheritance" aria-label="Link to this section">#</a></h3><p>The trick that makes the experiment chain work is <em>–load-config</em>. Every <em>train</em> run writes a <em>config.json</em> alongside its <em>weights.pth</em>; a later <em>sim</em> or <em>dump-weights</em> run inherits from it:</p><pre><code>uv run python tools/snn/tool.py sim --infer \
+  --load-config runs/foo/config.json \
+  --load-weights runs/foo/weights.pth \
+  --dt 0.5</code></pre><p>This inherits the model, hidden sizes, dataset, E-I parameters, input rate, τ_GABA, and seed, while the explicitly-passed <em>–dt 0.5</em> overrides the trained value, replaying the network at a new timestep. Precedence is: explicit CLI flag, then loaded config, then default. The parser builds the set of CLI-explicit flags from <em>sys.argv</em> before applying inheritance.</p><p>Backwards compatibility: old configs that stored <em>n_hidden</em> as a scalar are remapped to the <em>hidden_sizes</em> list, legacy model names are aliased with a one-line stderr note, and configs missing <em>dales_law</em> trigger a warning to pass it explicitly or retrain.</p><h3 id="artifacts" class="hx">Artifacts<a class="permalink" href="#artifacts" aria-label="Link to this section">#</a></h3><p>Every subcommand calls <em>save_run_artifacts</em> on entry, writing four provenance files into <em>–out-dir</em>:</p><table><tr><td><strong>file</strong></td><td><strong>contents</strong></td></tr><tr><td><em>config.json</em></td><td>The parsed argparse namespace plus a provenance block (<em>git_sha</em> with a <em>dirty</em> suffix, <em>torch_version</em>, <em>device</em>, <em>python_env_hash</em>, <em>run_id</em>, <em>started_at</em>) and the <em>mode</em>. Consumed by <em>–load-config</em> and the runner’s metadata extractors.</td></tr><tr><td><em>run.sh</em></td><td>The literal <em>sys.argv</em> joined with spaces and prefixed with a shebang. Re-running reproduces the run (modulo seeded RNG state, also in <em>config.json</em>).</td></tr><tr><td><em>output.log</em></td><td>The human run log. ANSI escapes are stripped from the file but preserved on stdout, so terminals see colour while the log stays grep-friendly.</td></tr><tr><td><em>run.jsonl</em></td><td>The machine-readable event spine: one typed JSON object per event (epoch rows, warnings, summary). This is what a runner parses when it wants structured progress, not scraped log text.</td></tr></table><p>Each command adds its own outputs: <em>train</em> writes <em>weights.pth</em>, <em>metrics.json</em>, <em>metrics.jsonl</em>, <em>test_predictions.json</em>; <em>sim –infer</em> writes <em>metrics.json</em> (and <em>results.json</em>) plus whatever <em>–outputs</em> requested; <em>dump-weights</em> writes <em>weights_dump.npz</em>.</p><p>These files are scratch. By default they land under <em>temp/pinglab-cli/</em>, which is gitignored and overwritten every run. The committed record is produced by the runner: it aggregates each command’s config plus headline metrics into one <em>artifacts/data/expNNN/numbers.json</em> and renders its figures alongside. That folder, not the ephemeral tool output, is what the publisher reads and what reaches the site.</p><h3 id="recipes" class="hx">Recipes<a class="permalink" href="#recipes" aria-label="Link to this section">#</a></h3><p><strong>Train, then measure the trained network.</strong> Train writes a run directory; <em>sim –infer</em> reads it back and emits the population traces a runner needs for a PSD:</p><pre><code>uv run python tools/snn/tool.py train --dataset mnist --epochs 100 \
+  --lr 0.0001 --v-grad-dampen 1000 --out-dir runs/ping
+
+uv run python tools/snn/tool.py sim --infer \
+  --load-config runs/ping/config.json \
+  --load-weights runs/ping/weights.pth \
+  --outputs pop_traces per_cell_rates</code></pre><p><strong>Loop-transfer at inference (<a href="/exp038/">exp038</a>).</strong> Take a network trained as COBA and scale its E→I coupling up at inference, with no retraining:</p><pre><code>uv run python tools/snn/tool.py sim --infer \
+  --load-config runs/coba/config.json \
+  --load-weights runs/coba/weights.pth \
+  --scale-w-ei 1.0 --scale-w-ie 1.0 --outputs rasters</code></pre><p><strong>Perturbation sweep (<a href="/exp037/">exp037</a>).</strong> Drop a fraction of emitted spikes, or add off-phase Poisson noise, inside the forward loop:</p><pre><code>uv run python tools/snn/tool.py sim --infer \
+  --load-config runs/ping/config.json --load-weights runs/ping/weights.pth \
+  --perturb-mode drop --perturb-level 0.8</code></pre><p><strong>Recover the trained readout matrix.</strong> Dump weights and read <em>W_ff_N_trained</em> (the last layer is W_out):</p><pre><code>uv run python tools/snn/tool.py dump-weights \
+  --load-config runs/ping/config.json \
+  --load-weights runs/ping/weights.pth --out-dir runs/ping/dump</code></pre><div class="entry-tail"></div></body></html>

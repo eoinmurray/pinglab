@@ -1,0 +1,446 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Metrics</title><style>/* Alignment */
+mtable.right-align mtd,
+mtable mtd.right-align,
+mtable.left-align mtd.right-align,
+mtable.aligned mtd:nth-child(odd) {
+  justify-items: end;
+  text-align: right;
+}
+mtable.cases mtd,
+mtable.left-align mtd,
+mtable mtd.left-align,
+mtable.aligned mtd:nth-child(even),
+math:is(:not([display])) > mtable.multiline-equation mtd {
+  justify-items: start;
+  text-align: left;
+}
+mtable.cases mtd,
+mtable.aligned mtd,
+mtable mtd.flushed,
+mtable mtd.left-flush {
+  padding-left: 0;
+}
+mtable.cases mtd,
+mtable.aligned mtd,
+mtable mtd.flushed,
+mtable mtd.right-flush {
+  padding-right: 0;
+}
+
+/* Tables */
+mtable {
+  math-style: inherit;
+}
+mtd {
+  math-depth: auto-add;
+  math-style: compact;
+  math-shift: compact;
+}
+
+/* Equations */
+mtable.multiline-equation mtd {
+  math-depth: inherit;
+  math-style: inherit;
+  math-shift: inherit;
+  padding: 0;
+}
+math > mtable.multiline-equation mtr:not(:last-child) mtd {
+  padding-bottom: 0.5em;
+}
+
+/* Fractions */
+mfrac {
+  padding-inline: 0;
+  margin-inline: 0.1em;
+}
+
+/* Accents */
+mover[accent="true" i] > :first-child {
+  font-feature-settings: "dtls";
+}
+mover.dotted[accent="true" i] > :first-child {
+  font-feature-settings: "dtls" 0;
+}
+
+/* Other rules for scriptlevel, displaystyle and math-shift */
+munder > :nth-child(2),
+munderover > :nth-child(2) {
+  math-shift: compact
+}
+munder[accentunder="true" i] > :not(:first-child),
+mover[accent="true" i] > :not(:first-child) {
+  math-depth: inherit;
+  math-style: inherit;
+  math-shift: inherit;
+}</style></head><body><link rel="icon" type="image/svg+xml" href="favicon.svg"><style>/* demolab web styles — injected into each HTML page by publish/lib.typ.
+   Typst HTML export ships no CSS (paged #set rules don't apply to HTML), so the
+   web look lives here. Avoid `>` / `<` in selectors: they'd be escaped inside <style>.
+   Body face is CMU Serif, the web-available Computer Modern branch closest to the PDFs'
+   New Computer Modern. The pinned web fonts keep that shared lineage without vendoring a
+   second full font family into every site; Charter/Georgia fall back when offline. */
+@font-face {
+  font-family: "Computer Modern Serif";
+  src: url("https://cdn.jsdelivr.net/gh/aaaakshat/cm-web-fonts@333f55ec19733c28cdc43567ecf72eafd6b0af61/font/Serif/cmunrm.woff") format("woff");
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Computer Modern Serif";
+  src: url("https://cdn.jsdelivr.net/gh/aaaakshat/cm-web-fonts@333f55ec19733c28cdc43567ecf72eafd6b0af61/font/Serif/cmunbx.woff") format("woff");
+  font-weight: bold;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Computer Modern Serif";
+  src: url("https://cdn.jsdelivr.net/gh/aaaakshat/cm-web-fonts@333f55ec19733c28cdc43567ecf72eafd6b0af61/font/Serif/cmunti.woff") format("woff");
+  font-weight: normal;
+  font-style: italic;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Computer Modern Serif";
+  src: url("https://cdn.jsdelivr.net/gh/aaaakshat/cm-web-fonts@333f55ec19733c28cdc43567ecf72eafd6b0af61/font/Serif/cmunbi.woff") format("woff");
+  font-weight: bold;
+  font-style: italic;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Computer Modern Typewriter";
+  src: url("https://cdn.jsdelivr.net/gh/aaaakshat/cm-web-fonts@333f55ec19733c28cdc43567ecf72eafd6b0af61/font/Typewriter/cmuntt.woff") format("woff");
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+/* A genuine mid-weight for the CM family: CMU ships only Roman + Bold, so there is no semibold to
+   step down to. Latin Modern Roman Demi (the CM-lineage demibold) fills weight 600 — used only by
+   inline citations, which want emphasis without the full punch of bold. */
+@font-face {
+  font-family: "Computer Modern Serif";
+  src: url("https://cdn.jsdelivr.net/gh/sugina-dev/latin-modern-web@1.0.1/font/lmromandemi-regular-webfont.woff") format("woff");
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+/* One deliberate scale drives the whole site:
+     - two inks:  --ink (headings, body, titles, links) and --muted (all secondary text)
+     - one body size (--fs-body) + a three-step heading scale (--fs-h1..h3)
+     - one secondary size (--fs-small) shared by every id, date, count, caption, meta line
+   Everything below composes those tokens — no one-off px or ad-hoc greys. */
+:root {
+  --ink: #1a1a1a;
+  --muted: #666;          /* every piece of secondary text, one grey */
+  --rule: #e7e5df;
+  --rule-strong: #d8d5cd;
+  --paper: #fff;
+  --paper-tint: #fafaf7;
+  --selection: #ebe9e2;
+
+  --fs-h1: 1.6rem;        /* page/entry title  (Typst level 1 → <h2>) — 28.8px */
+  --fs-h2: 1.3rem;        /* section heading   (Typst level 2 → <h3>) — 23.4px */
+  --fs-h3: 1.1rem;        /* subsection        (Typst level 3 → <h4>) — 19.8px */
+  --fs-small: 0.85rem;    /* every piece of secondary text, one size  — 15.3px */
+  --fs-label: 0.72rem;    /* uppercase mono labels — 13px */
+
+  --mono: "Computer Modern Typewriter", ui-monospace, "SF Mono", Menlo, monospace;
+}
+* { box-sizing: border-box; }
+/* rem is anchored to the 18px body so the heading scale steps cleanly off body size. */
+html { font-size: 18px; }
+body {
+  max-width: 42em;
+  margin: clamp(2rem, 7vw, 3.5rem) auto;
+  padding: 0 clamp(1rem, 4vw, 1.5rem);
+  font: 1rem/1.6 "Computer Modern Serif", Charter, Georgia, "Times New Roman", serif;
+  font-kerning: normal;
+  font-synthesis: none;
+  color: var(--ink);
+  background: var(--paper);
+  -webkit-text-size-adjust: 100%;
+}
+::selection { color: var(--ink); background: var(--selection); }
+/* Typst's HTML export reserves <h1> and renders heading level N as <h(N+1)>: an entry/
+   page title (level 1) is <h2>, a section (level 2) is <h3>, a subsection is <h4>. Style
+   the emitted tags, not the Typst levels. */
+h1, h2 {
+  margin: 0 0 .35rem;
+  font-size: var(--fs-h1);
+  line-height: 1.15;
+  font-weight: 700;
+  letter-spacing: -.012em;
+  text-wrap: balance;
+}
+h3 { font-size: var(--fs-h2); line-height: 1.25; font-weight: 700; margin: 2.4rem 0 .5rem; text-wrap: balance; }
+h4 { font-size: var(--fs-h3); line-height: 1.3; font-weight: 700; margin: 1.8rem 0 .35rem; text-wrap: balance; }
+/* Print-style links: ink with a hairline underline, not web blue. */
+a {
+  color: var(--ink);
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 2px;
+}
+a:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 3px;
+  border-radius: 1px;
+}
+/* Listing pages (home, collection, all-entries) follow pinglab: nav/index links are
+   unadorned and only underline on hover. Entry-body prose keeps the default underline. */
+.listing a { text-decoration: none; }
+.listing a:hover { text-decoration: underline; }
+/* ...except concrete destination links: the per-row pdf badge and the foot-line links
+   ("Browse all entries", "single pdf", the back arrows) stay underlined so they read as
+   links rather than nav chrome. Title/id links keep the clean hover-only treatment. */
+.listing .page-foot a,
+.entry-row .row-pdf { text-decoration: underline; }
+
+/* --- secondary text: one size (--fs-small), one colour (--muted) everywhere --- */
+.entry-meta,           /* id · date · status · collection under an entry/collection title */
+.coll-desc,            /* collection blurb on the homepage directory */
+.row-id, .row-meta, .row-pdf,  /* the aligned index-row columns */
+figcaption,
+.page-foot {           /* the "Browse all / back" line at the foot of a listing */
+  font-size: var(--fs-small);
+  color: var(--muted);
+}
+.entry-meta { margin: .2rem 0 1.75rem; }
+/* Byline under the homepage title: the lab's owner, quiet, links to contact if set. Its
+   default spacing also works when there is no description; the adjacent rule closes the
+   larger description margin only when that line actually exists. */
+.byline { font-size: var(--fs-small); color: var(--muted); margin: .2rem 0 1.5rem; }
+.entry-meta + .byline { margin-top: -.9rem; }
+.byline a { color: var(--muted); }
+.byline a:hover { color: var(--ink); }
+/* Home link at the top of an entry page: quiet, small, one step back to the directory. */
+.home-link { display: inline-block; font-size: var(--fs-small); color: var(--muted); text-decoration: none; margin: 0 0 1.1rem; }
+.home-link:hover { color: var(--ink); text-decoration: underline; }
+
+/* Citations: inline numbers stay in the text (underline on hover); the reference list is
+   secondary text, each entry's DOI a quiet link out. */
+/* A hair of space before the bracket, owned here so authors attach `#cite` directly to the
+   preceding word (`runs#cite(2)`); nowrap + no source whitespace keeps the bracket from
+   orphaning onto the next line. */
+.cite { white-space: nowrap; margin-left: 0.15em; font-weight: 600; }
+.cite a { color: inherit; text-decoration: none; }
+.cite a:hover { text-decoration: underline; }
+ol.refs { font-size: var(--fs-small); line-height: 1.55; padding-left: 1.5rem; margin: 1rem 0; }
+ol.refs li { margin: .45rem 0; }
+ol.refs li::marker { color: var(--muted); }
+ol.refs .doi { color: var(--muted); }
+ol.refs .doi:hover { color: var(--ink); }
+/* Hover popover for an inline citation (Wikipedia-style): a small card echoing the reference. */
+.cite-popover {
+  position: absolute; z-index: 50; display: none;
+  width: min(24rem, calc(100vw - 1rem)); padding: .6rem .8rem;
+  background: var(--paper); border: 1px solid var(--rule-strong); border-radius: 2px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, .1);
+  font-size: var(--fs-small); line-height: 1.5; color: var(--ink);
+}
+.cite-popover .doi { color: var(--muted); }
+.cite-popover .doi:hover { color: var(--ink); }
+
+/* Status marker (`.status`): plain text in the meta line — `final` renders nothing (RULES §6.4),
+   so no styling is needed; it inherits the meta line's look. */
+
+/* Build-error stub: an entry that failed to compile (a missing figure, a Typst error) is served as
+   a stub page with the error in this block, so the failure is visible on its own page while the
+   rest of the site is fine. */
+.build-error { border-left: 3px solid #c0392b; background: #fcf3f2; color: #7a1f16; }
+
+/* Heading anchors: every heading carries a slug id (link to page.html#slug); a quiet # permalink
+   fades in on hover to grab that URL. */
+.hx .permalink { opacity: 0; margin-left: .3em; color: var(--muted); text-decoration: none; font-weight: 400; font-size: .85em; }
+.hx:hover .permalink, .hx:focus-within .permalink { opacity: 1; }
+.hx .permalink:hover { color: var(--ink); }
+
+/* Figure placeholder (`#pending` / `#pending-figure`): a figure whose asset isn't ready yet.
+   A tinted, dashed panel that reserves the figure's footprint so the page doesn't reflow when the
+   real plot lands — a small framed-image mark over the muted reason. aspect-ratio is set inline
+   from the helper's `ratio` arg. */
+.fig-pending {
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: .7rem;
+  width: 100%; padding: 1.5rem; text-align: center;
+  background: var(--paper-tint);
+  border: 1px dashed #d6d3ca;
+  border-radius: 2px;
+}
+.fig-pending-mark { width: 1.7em; height: 1.2em; border: 1px solid #b9b6ad; border-radius: 2px; }
+.fig-pending-note { font-size: var(--fs-small); font-style: italic; color: var(--muted); }
+
+/* Entry meta strip: id · date · status · pdf, all inline. The pdf is a concrete destination, so it
+   keeps its underline (muted, darkening on hover) rather than the bare listing-nav treatment. */
+.entry-pdf { color: var(--muted); text-decoration: underline; }
+.entry-pdf:hover { color: var(--ink); }
+/* On listing pages the description sits closer to the list it heads (entry pages keep the
+   airier 1.75rem before the body). */
+.listing .entry-meta { margin-bottom: 1.25rem; }
+/* Homepage brand lockup: quieter and tighter than an article title. The tagline is more
+   important than generic metadata, but still secondary to the name. Scoping this to the
+   header keeps entry and collection hierarchy unchanged. */
+.site-head {
+  margin-bottom: 1rem;
+}
+.site-head h1, .site-head h2 {
+  font-size: 1.5rem;
+  line-height: 1.15;
+  letter-spacing: -.008em;
+}
+.site-head .entry-meta {
+  max-width: 38rem;
+  margin: .3rem 0 0;
+  font-size: 1rem;
+  line-height: 1.5;
+  color: var(--muted);
+}
+.site-head .byline { margin-bottom: 0; }
+.site-head .entry-meta + .byline { margin-top: .3rem; }
+/* Breathing room at the foot of an entry page so the last line isn't flush to the edge. */
+.entry-tail { height: 6rem; }
+
+/* Empty state: a freshly-scaffolded repo (no writings) — the homepage's only content. Warm and
+   jargon-free (the first thing a non-technical user sees), led by a confident line. */
+.empty-state { margin: 1.75rem 0; line-height: 1.65; max-width: 34rem; }
+.empty-lead { font-size: 1.2rem; color: var(--ink); margin: 0 0 .6rem; }
+.empty-state p:not(.empty-lead) { color: var(--muted); }
+
+/* Landing-page building blocks for a custom landing.typ (pitch, links, command boxes) —
+   used by the upstream demo's site/landing.typ; a lab's own landing.typ may reuse them. */
+.welcome { margin: 0 0 2.75rem; max-width: 36rem; }
+.welcome-body { margin: 0 0 1rem; }
+.welcome-links {
+  margin: 0 0 1.15rem;
+  font-size: 1rem;
+  line-height: 1.6;
+  color: var(--muted);
+}
+/* The homepage is a .listing page (links unadorned by default), so re-add the underline for
+   links in the landing hero — both the nav row and inline links in the body prose. */
+.welcome-links a, .welcome-body a { text-decoration: underline; }
+.welcome-links a { color: #444; }
+.welcome-links a:hover { color: var(--ink); }
+.welcome-kicker {
+  font-family: var(--mono); font-size: var(--fs-label); color: var(--muted);
+  text-transform: uppercase; letter-spacing: .08em; margin: 3rem 0 .65rem;
+}
+.welcome-cmd { margin: 0 0 .75rem; }
+.welcome-os {
+  font-family: var(--mono); font-size: var(--fs-label); color: var(--muted);
+  text-transform: uppercase; letter-spacing: .08em; margin-bottom: .35rem;
+}
+.welcome pre {
+  margin: 0; padding: .9rem 1rem; overflow-x: auto;
+  font-family: var(--mono); font-size: .82rem; line-height: 1.5;
+  background: var(--paper-tint); border: 1px solid var(--rule-strong); border-radius: 2px;
+}
+/* A quiet aside under a section (the "prefer to do it by hand?" line) — smaller and muted,
+   so it reads as a footnote to the block above, not the next paragraph. */
+.welcome-note { margin: 0 0 1rem; font-size: var(--fs-small); color: var(--muted); }
+.welcome-note a { color: var(--muted); text-decoration: underline; }
+.welcome-note a:hover { color: var(--ink); }
+/* The paste-into-your-agent command is a sentence, not shell — let it wrap rather than
+   clip/scroll at the .welcome column width. */
+.welcome-cmd pre { white-space: pre-wrap; }
+/* Runbook menu: NAME → what saying it does. A dl of hairline-separated rows; the name column
+   is mono (runbook names are commands) and fixed-width so descriptions align. */
+.welcome-runbooks { margin: 0 0 .75rem; }
+.welcome-runbook {
+  display: flex; gap: .75rem; padding: .45rem 0;
+  border-bottom: 1px solid var(--rule);
+}
+.welcome-runbook:last-child { border-bottom: none; }
+.welcome-runbook dt {
+  flex: 0 0 8.5rem; font-family: var(--mono); font-size: .78rem;
+  padding-top: .1rem;
+}
+.welcome-runbook dd { margin: 0; font-size: var(--fs-small); color: var(--muted); }
+/* Documentation tiers: four deliberately equal columns on wide screens, then a balanced
+   two-column grid — never an orphaned 3 + 1 arrangement at intermediate widths. */
+.welcome-docs {
+  display: grid; grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 1.25rem 1rem; margin: .15rem 0 1rem;
+}
+.welcome-docs-tier { border-top: 1px solid var(--rule-strong); padding-top: .55rem; }
+.welcome-docs-label {
+  margin: 0 0 .4rem;
+  font-family: var(--mono);
+  font-size: var(--fs-label);
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: .08em;
+}
+.welcome-docs-tier ul { list-style: none; padding-left: 0; margin: 0; }
+.welcome-docs-tier li { padding: .125rem 0; font-size: var(--fs-small); line-height: 1.4; }
+.welcome-docs-tier a { text-decoration: underline; color: var(--ink); }
+.welcome-docs-tier a:hover { color: var(--ink); }
+.welcome-foot {
+  margin: 1.75rem 0 0;
+  padding-top: .85rem;
+  border-top: 1px solid var(--rule);
+  font-size: var(--fs-small);
+  color: var(--muted);
+}
+.welcome-foot a { color: var(--muted); }
+.welcome-foot a:hover { color: var(--ink); }
+
+/* Homepage collection directory: collection-name links, description beneath. These are the
+   page's hero items, so they sit one step above body — the middle of the home hierarchy
+   (title 28.8 → collection 20.7 → description 15.3). */
+.coll-list { list-style: none; padding-left: 0; margin: 1.25rem 0; }
+.coll-row { padding: .55rem 0; }
+.coll-title { font-size: 1.15rem; }
+.coll-desc { margin: .2rem 0 0; line-height: 1.45; }
+
+/* Index rows: mono id in a left column; title + a quiet meta sub-line (date · status · pdf)
+   stacked in the main column, so long titles wrap without orphaning the meta. */
+.entry-list { list-style: none; padding-left: 0; margin: 1.25rem 0; }
+.entry-row { display: flex; align-items: baseline; gap: .6rem; padding: .5rem 0; }
+.entry-row .row-id { flex: 0 0 auto; min-width: 3em; font-family: var(--mono); }
+.row-main { flex: 1 1 auto; min-width: 0; }
+.row-main .row-title { display: block; }
+.row-main .row-meta { display: block; margin-top: .15rem; font-variant-numeric: tabular-nums; }
+
+/* Foot-of-listing nav line: quiet by default, links darken + underline on hover. */
+.page-foot { margin-top: 2rem; }
+.page-foot a { color: var(--muted); }
+.page-foot a:hover { color: var(--ink); }
+
+p { margin: 1rem 0; text-wrap: pretty; }
+img, video { max-width: 100%; height: auto; display: block; margin: 1.5rem auto; }
+figure { margin: 1.75rem 0; text-align: center; }
+figcaption { margin-top: .5rem; text-align: left; }
+table { border-collapse: collapse; margin: 1.25rem 0; font-size: var(--fs-small); }
+th, td { border: 1px solid var(--rule); padding: .35rem .75rem; text-align: left; }
+th { background: var(--paper-tint); font-weight: 600; }
+td:last-child, th:last-child { text-align: right; font-variant-numeric: tabular-nums; }
+math { font-size: 1.05em; }
+ul { padding-left: 1.25rem; }
+li { margin: .3rem 0; }
+hr { border: none; border-top: 1px solid var(--rule); margin: 2rem 0; }
+code, pre { font-family: var(--mono); }
+code { font-size: .9em; }
+pre {
+  font-size: .85em;
+  background: var(--paper-tint);
+  border: 1px solid var(--rule);
+  border-radius: 2px;
+  padding: .9rem 1.1rem;
+  line-height: 1.5;
+  overflow-x: auto;
+}
+pre code { font-size: 1em; }
+
+@media (max-width: 42rem) {
+  body { margin-top: 2rem; margin-bottom: 2.5rem; }
+  .welcome { margin-bottom: 2rem; }
+  .welcome-kicker { margin-top: 2.5rem; }
+  .welcome-docs { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .welcome-runbook { display: block; padding: .6rem 0; }
+  .welcome-runbook dt { margin-bottom: .2rem; }
+  .entry-row { align-items: flex-start; gap: .5rem; }
+}
+
+@media (max-width: 22rem) {
+  .welcome-docs { grid-template-columns: 1fr; }
+}
+</style><meta name="generator" content="demolab 2.0.1"><script src="cite-popover.js" defer></script><p><a class="home-link" href="index.html">← Home</a></p><h2 id="metrics" class="hx">Metrics<a class="permalink" href="#metrics" aria-label="Link to this section">#</a></h2><div class="entry-meta">ar005 · 14 May 2026 · <a class="entry-pdf" href="pdfs/ar005.pdf">pdf</a></div><p>This page is the reference for every number and every panel the scope shows. It is written to stand on its own: if this is the first page you read, you should come away understanding what the scope is showing, what each metric measures, and what a “healthy” value looks like.</p><h3 id="model" class="hx">model<a class="permalink" href="#model" aria-label="Link to this section">#</a></h3><p><em>What it is:</em> The model variant driving the run. These sit on a ladder from simplest (snnTorch, a standard feedforward LIF network) to most biophysical (PING, with excitatory and inhibitory populations coupled into a gamma-producing loop). See <a href="/ar003/">COBANet</a> for the conductance-based model.</p><p><em>How it’s calculated:</em> Read from the <em>–model</em> CLI flag. A spinner character prefixes the name on live runs so the eye can tell a frozen frame from one that’s still updating.</p><p><em>Common values:</em> <em>snnTorch</em>, <em>CUBA</em>, <em>COBA</em>, <em>PING</em>.</p><h3 id="dt" class="hx">dt<a class="permalink" href="#dt" aria-label="Link to this section">#</a></h3><p><em>What it is:</em> The integration timestep in ms — how much real time elapses per simulation step. Smaller Δt is more accurate but more expensive (more steps per trial).</p><p><em>How it’s calculated:</em> Read from <em>–dt</em>. Held fixed across a training run; can be varied at inference to probe Δt-stability.</p><p><em>Common values:</em> 0.1 ms (fine), 0.25 ms (default), 1.0 ms (coarse). PING breaks down above about 1 ms because the excitatory-inhibitory feedback loop can’t complete within a single step.</p><h3 id="n" class="hx">N<a class="permalink" href="#n" aria-label="Link to this section">#</a></h3><p><em>What it is:</em> Number of excitatory neurons in the hidden layer. For PING, the inhibitory population is sized at <math><msub><mi>𝑁</mi><mi>𝐸</mi></msub><mi>/</mi><mn>4</mn></math> (the classical 4:1 cortical ratio).</p><p><em>How it’s calculated:</em> Read from <em>–n-hidden</em>.</p><p><em>Common values:</em> 256, 512, 1024.</p><h3 id="in" class="hx">in<a class="permalink" href="#in" aria-label="Link to this section">#</a></h3><p><em>What it is:</em> The peak firing rate of the input neurons, in Hz. An MNIST pixel with intensity 1.0 fires at this rate; a dark pixel fires at zero. Controls how strongly the network is driven.</p><p><em>How it’s calculated:</em> Each input neuron emits a Bernoulli spike at each step with probability</p><math display="block"><mi>𝑝</mi><mo>=</mo><mi>𝑟</mi><mo lspace="0.2222222222222222em" rspace="0.2222222222222222em">⋅</mo><mi mathvariant="normal">Δ</mi><mi>𝑡</mi><mi>/</mi><mn>1000</mn></math><p>where <math><mi>𝑟</mi></math> is this per-pixel rate (Hz) scaled by pixel intensity. See <a href="/ar006/">Training § Input encoding</a> for the full scheme.</p><p><em>Common values:</em> 50 Hz for PING, 100 Hz for simpler models. <code>-</code> in the header when not set.</p><h3 id="e" class="hx">E<a class="permalink" href="#e" aria-label="Link to this section">#</a></h3><p><em>What it is:</em> Firing rate of the excitatory population, averaged over all E neurons and over the trial, in Hz. The single most important live readout of network activity.</p><p><em>How it’s calculated:</em> Let <math><msub><mi>𝑠</mi><mi>𝐸</mi></msub><mo>∈</mo><msup><mrow><mo>{</mo><mrow><mn>0</mn><mo>,</mo><mn>1</mn></mrow><mo>}</mo></mrow><mrow><mi>𝑇</mi><mo lspace="0em" rspace="0em">×</mo><msub><mi>𝑁</mi><mi>𝐸</mi></msub></mrow></msup></math> be the binary E spike array (<math><mi>𝑇</mi></math> timesteps, <math><msub><mi>𝑁</mi><mi>𝐸</mi></msub></math> neurons; entry is 1 if neuron <math><mi>𝑖</mi></math> spiked at step <math><mi>𝑡</mi></math>), and <math><msub><mi>𝑇</mi><mtext>sec</mtext></msub><mo>=</mo><mi>𝑇</mi><mi mathvariant="normal">Δ</mi><mi>𝑡</mi><mi>/</mi><mn>1000</mn></math> the trial length in seconds. Then</p><math display="block"><msub><mi>𝑟</mi><mi>𝐸</mi></msub><mo>=</mo><mfrac><mrow><msub><mo lspace="0em">∑</mo><mrow><mi>𝑡</mi><mo rspace="0em">,</mo><mi>𝑖</mi></mrow></msub><msub><mi>𝑠</mi><mrow><mi>𝐸</mi><mrow><mo>[</mo><mrow><mi>𝑡</mi><mo rspace="0em">,</mo><mi>𝑖</mi></mrow><mo>]</mo></mrow></mrow></msub></mrow><mrow><msub><mi>𝑁</mi><mi>𝐸</mi></msub><mo lspace="0.2222222222222222em" rspace="0.2222222222222222em">⋅</mo><msub><mi>𝑇</mi><mtext>sec</mtext></msub></mrow></mfrac></math><p><em>Common values:</em> 1–30 Hz is sparse-coding territory (healthy for snnTorch when classifying MNIST); 40–80 Hz is the gamma-locked regime (PING target); over <math><mo form="infix" lspace="0em">∼</mo><mn>150</mn></math> Hz means the network has saturated; 0 Hz means it’s silent.</p><h3 id="i" class="hx">I<a class="permalink" href="#i" aria-label="Link to this section">#</a></h3><p><em>What it is:</em> Firing rate of the inhibitory population, same definition as <em>E</em>. Only meaningful for models that have an I population (COBA, PING); shows <code>-</code> otherwise.</p><p><em>How it’s calculated:</em> Same as <em>E</em>, on the I spike array <math><msub><mi>𝑠</mi><mi>𝐼</mi></msub></math> and with <math><msub><mi>𝑁</mi><mi>𝐼</mi></msub></math> inhibitory neurons:</p><math display="block"><msub><mi>𝑟</mi><mi>𝐼</mi></msub><mo>=</mo><mfrac><mrow><msub><mo lspace="0em">∑</mo><mrow><mi>𝑡</mi><mo rspace="0em">,</mo><mi>𝑖</mi></mrow></msub><msub><mi>𝑠</mi><mrow><mi>𝐼</mi><mrow><mo>[</mo><mrow><mi>𝑡</mi><mo rspace="0em">,</mo><mi>𝑖</mi></mrow><mo>]</mo></mrow></mrow></msub></mrow><mrow><msub><mi>𝑁</mi><mi>𝐼</mi></msub><mo lspace="0.2222222222222222em" rspace="0.2222222222222222em">⋅</mo><msub><mi>𝑇</mi><mtext>sec</mtext></msub></mrow></mfrac></math><p><em>Common values:</em> Typically 2–4× the E rate under balanced PING operation — roughly 80–200 Hz.</p><h3 id="f" class="hx">f₀<a class="permalink" href="#f" aria-label="Link to this section">#</a></h3><p><em>What it is:</em> The dominant oscillation frequency of the E population, in Hz. If the network is gamma-locked the rate signal has a clear peak in its Fourier spectrum; <math><msub><mi>𝑓</mi><mn>0</mn></msub></math> is the frequency of that peak.</p><p><em>How it’s calculated:</em> The E spike raster is binned at 2 ms, the resulting time series <math><msub><mi>𝑟</mi><mi>𝐸</mi></msub><mrow><mo>(</mo><mi>𝑡</mi><mo>)</mo></mrow></math> is mean-subtracted and FFTed. A peak search runs in the 5–80 Hz band and requires the peak to be at least 3× the band median (an SNR gate). A subharmonic check follows: if there is clear power at half the peak frequency (≥ 30 % of the peak’s power), <math><msub><mi>𝑓</mi><mn>0</mn></msub></math> is set to that lower frequency instead — this catches the case where pyramidal neurons fire every second cycle.</p><p><em>Common values:</em> 0 Hz (non-oscillating; always for non-PING models, which short-circuit the calculation); 30–80 Hz (gamma, the PING target); anything below 30 Hz is sub-gamma beta. Shows <code>-</code> in the header when 0.</p><h3 id="cv" class="hx">CV<a class="permalink" href="#cv" aria-label="Link to this section">#</a></h3><p><em>What it is:</em> How bursty the E population’s firing is. Takes the total E spike count in each 2 ms bin and computes the coefficient of variation (std / mean) of those counts across bins.</p><p><em>How it’s calculated:</em> Bin <math><msub><mi>𝑠</mi><mi>𝐸</mi></msub></math> at 2 ms; let <math><msub><mi>𝑛</mi><mi>𝑏</mi></msub></math> be the total E spike count in bin <math><mi>𝑏</mi></math>. Then</p><math display="block"><mtext>CV</mtext><mo>=</mo><mfrac><mrow><mi>𝜎</mi><mrow><mo>(</mo><msub><mi>𝑛</mi><mi>𝑏</mi></msub><mo>)</mo></mrow></mrow><mrow><mo lspace="0em" rspace="0em">max</mo><mrow><mo>(</mo><mrow><mi>𝜇</mi><mrow><mo>(</mo><msub><mi>𝑛</mi><mi>𝑏</mi></msub><mo>)</mo></mrow><mo>,</mo><msup><mn>10</mn><mrow><mo>−</mo><mn>9</mn></mrow></msup></mrow><mo>)</mo></mrow></mrow></mfrac></math><p><em>Common values:</em> Around 1 for Poisson-like asynchronous firing; well above 1 (often <math><mo form="infix" lspace="0em">≳</mo><mn>2</mn></math>) for gamma-locked PING, where spikes cluster into cycle peaks and leave the troughs empty; below <math><mo form="infix" lspace="0em">∼</mo><mn>0.3</mn></math> for a clock-like or saturated network.</p><h3 id="i-e" class="hx">I/E<a class="permalink" href="#i-e" aria-label="Link to this section">#</a></h3><p><em>What it is:</em> The ratio of inhibitory to excitatory population rates. A single number that summarises E–I balance.</p><p><em>How it’s calculated:</em></p><math display="block"><mtext>I/E</mtext><mo>=</mo><mfrac><msub><mi>𝑟</mi><mi>𝐼</mi></msub><mrow><mo lspace="0em" rspace="0em">max</mo><mrow><mo>(</mo><mrow><msub><mi>𝑟</mi><mi>𝐸</mi></msub><mo>,</mo><msup><mn>10</mn><mrow><mo>−</mo><mn>9</mn></mrow></msup></mrow><mo>)</mo></mrow></mrow></mfrac></math><p><em>Common values:</em> 2–4 under balanced PING operation. Much higher means inhibition has run away; much lower means inhibition is failing or E has saturated.</p><h3 id="act" class="hx">act<a class="permalink" href="#act" aria-label="Link to this section">#</a></h3><p><em>What it is:</em> The fraction of excitatory neurons that spiked at least once during the trial. Complements the population rate: a high <em>E</em> could come from a few neurons firing a lot, or many neurons firing a little — <em>act</em> tells you which.</p><p><em>How it’s calculated:</em></p><math display="block"><mtext>act</mtext><mo>=</mo><mfrac><mrow><mi>#</mi><mrow><mo>{</mo><mrow><mi>𝑖</mi><mo lspace="0.2777777777777778em" rspace="0.2777777777777778em">:</mo><msub><mo form="prefix" lspace="0em">∑</mo><mi>𝑡</mi></msub><msub><mi>𝑠</mi><mrow><mi>𝐸</mi><mrow><mo>[</mo><mrow><mi>𝑡</mi><mo rspace="0em">,</mo><mi>𝑖</mi></mrow><mo>]</mo></mrow></mrow></msub><mo>></mo><mn>0</mn></mrow><mo>}</mo></mrow></mrow><msub><mi>𝑁</mi><mi>𝐸</mi></msub></mfrac></math><p><em>Common values:</em> 1–3 % is healthy sparse coding (a classical snnTorch regime). 80 %+ with CV near 0.4 is healthy gamma-locked PING. Persistent values below 1 % or above 95 % alongside stalled accuracy are pathological.</p><h3 id="e-raster" class="hx">e_raster<a class="permalink" href="#e-raster" aria-label="Link to this section">#</a></h3><p><em>What it is:</em> The excitatory spike raster over the trial. Each dot is one spike; the y-axis is E-neuron index, the x-axis is time. This is the primary dynamical read and occupies the largest cell in the grid.</p><p><em>How to read it:</em> Vertical bands (near-synchronous firing across the population, at regular intervals) mean gamma-locked PING. A uniformly-speckled cloud means asynchronous firing — normal for CUBA or snnTorch. An empty raster means the network is silent; a solid block means it is saturated.</p><h3 id="i-raster" class="hx">i_raster<a class="permalink" href="#i-raster" aria-label="Link to this section">#</a></h3><p><em>What it is:</em> Same idea as <em>e_raster</em> but for the inhibitory population. Empty for models without an I population.</p><p><em>How to read it:</em> Under balanced PING the I raster is denser and at higher rate than the E raster, matching the 2–4× I/E ratio.</p><h3 id="drive" class="hx">drive<a class="permalink" href="#drive" aria-label="Link to this section">#</a></h3><p><em>What it is:</em> The mean input current (conductance) reaching the membrane, overlaid with the voltage thresholds a neuron needs to reach to spike.</p><p><em>How it’s calculated:</em> The input conductance is passed through an exponential synapse with time constant <math><msub><mi>𝜏</mi><mtext>AMPA</mtext></msub></math> to get the steady-state drive</p><math display="block"><msub><mi>𝑔</mi><mtext>ss</mtext></msub><mo>=</mo><mfrac><mover accent="true"><mi>𝑔</mi><mo>̄</mo></mover><mrow><mn>1</mn><mo>−</mo><msup><mi>𝑒</mi><mrow><mo>−</mo><mi mathvariant="normal">Δ</mi><mi>𝑡</mi><mi>/</mi><msub><mi>𝜏</mi><mtext>AMPA</mtext></msub></mrow></msup></mrow></mfrac></math><p>The bare spike threshold — the drive a neuron needs in the absence of inhibition — is</p><math display="block"><msub><mi>𝑔</mi><mtext>thresh</mtext></msub><mo>=</mo><mfrac><mrow><msub><mi>𝑔</mi><mi>𝐿</mi></msub><mrow><mo>(</mo><mrow><msub><mi>𝑉</mi><mtext>th</mtext></msub><mo>−</mo><msub><mi>𝐸</mi><mi>𝐿</mi></msub></mrow><mo>)</mo></mrow></mrow><mrow><msub><mi>𝐸</mi><mi>𝑒</mi></msub><mo>−</mo><msub><mi>𝑉</mi><mtext>th</mtext></msub></mrow></mfrac></math><p>The effective threshold adds an inhibition-proportional penalty <math><msub><mi>𝑔</mi><mi>𝑖</mi></msub><mo lspace="0.2222222222222222em" rspace="0.2222222222222222em">⋅</mo><mo lspace="0em" rspace="0em">|</mo><msub><mi>𝐸</mi><mi>𝑖</mi></msub><mo>−</mo><msub><mi>𝑉</mi><mtext>th</mtext></msub><mo lspace="0em" rspace="0em">|</mo><mspace width="0.2222em"/><mi>/</mi><mrow><mo>(</mo><mrow><msub><mi>𝐸</mi><mi>𝑒</mi></msub><mo>−</mo><msub><mi>𝑉</mi><mtext>th</mtext></msub></mrow><mo>)</mo></mrow></math>.</p><p><em>How to read it:</em> The shaded region is where drive exceeds the effective threshold — that’s when E neurons can fire. If drive never crosses threshold the network is dead by construction; if drive is always above, it is saturated.</p><h3 id="weights" class="hx">weights<a class="permalink" href="#weights" aria-label="Link to this section">#</a></h3><p><em>What it is:</em> Histograms of the current weight values, one sub-histogram per weight matrix (input-to-hidden, hidden-to-output, and any recurrent E–E / E–I / I–E matrices).</p><p><em>How to read it:</em> Signed weights (standard SNN) look roughly Gaussian around zero. Dale’s-law weights are non-negative so they form a half-normal clamped at zero. A long tail means a few synapses dominate; a narrow stack at zero means many weights have died under regularisation.</p><h3 id="output" class="hx">output<a class="permalink" href="#output" aria-label="Link to this section">#</a></h3><p><em>What it is:</em> The readout logits for each output class, over the course of the trial.</p><p><em>How it’s calculated:</em> The readout accumulates hidden spikes across time and projects them through a trained linear layer:</p><math display="block"><msub><mover accent="true"><mi>𝑦</mi><mo>̂</mo></mover><mi>𝑡</mi></msub><mo>=</mo><mrow><mo>(</mo><mrow><munder><mo lspace="0em">∑</mo><mrow><mi>𝑠</mi><mo lspace="0em" rspace="0em">≤</mo><mi>𝑡</mi></mrow></munder><msubsup><mi>𝑠</mi><mi>𝑠</mi><mtext>hid</mtext></msubsup></mrow><mo>)</mo></mrow><msub><mi>𝑊</mi><mtext>out</mtext></msub><mo>+</mo><msub><mi>𝑏</mi><mtext>out</mtext></msub></math><p>The argmax at the final step is the model’s prediction. See <a href="/ar006/">Training § Readout</a>.</p><p><em>How to read it:</em> For MNIST there are ten traces; if the network has learned, one trace pulls away from the pack as the trial progresses. If all traces stay flat, or one dominates from t=0, the run is pathological.</p><h3 id="psd" class="hx">psd<a class="permalink" href="#psd" aria-label="Link to this section">#</a></h3><p><em>What it is:</em> The power spectral density (frequency content) of the E population rate <math><msub><mi>𝑟</mi><mi>𝐸</mi></msub><mrow><mo>(</mo><mi>𝑡</mi><mo>)</mo></mrow></math>. The gamma band (30–80 Hz) is shaded.</p><p><em>How it’s calculated:</em> <math><msub><mi>𝑟</mi><mi>𝐸</mi></msub><mrow><mo>(</mo><mi>𝑡</mi><mo>)</mo></mrow></math> is computed in 2 ms bins over the stimulus window, mean-centred, FFTed, and normalised:</p><math display="block"><mtext>PSD</mtext><mrow><mo>(</mo><mi>𝑓</mi><mo>)</mo></mrow><mo>=</mo><mfrac><mrow><mo stretchy="false">|</mo><mtext>FFT</mtext><mrow><mo>(</mo><mrow><msub><mi>𝑟</mi><mi>𝐸</mi></msub><mo>−</mo><msub><mover accent="true"><mi>𝑟</mi><mo>̄</mo></mover><mi>𝐸</mi></msub></mrow><mo>)</mo></mrow><mrow><mo>(</mo><mi>𝑓</mi><mo>)</mo></mrow><msup><mo stretchy="false">|</mo><mn>2</mn></msup></mrow><mrow><msub><mo lspace="0em" rspace="0em">max</mo><mi>𝑓</mi></msub><mo lspace="0em" rspace="0em">|</mo><mtext>FFT</mtext><mrow><mo>(</mo><mrow><msub><mi>𝑟</mi><mi>𝐸</mi></msub><mo>−</mo><msub><mover accent="true"><mi>𝑟</mi><mo>̄</mo></mover><mi>𝐸</mi></msub></mrow><mo>)</mo></mrow><mrow><mo>(</mo><mi>𝑓</mi><mo>)</mo></mrow><msup><mo stretchy="false">|</mo><mn>2</mn></msup></mrow></mfrac></math><p><em>How to read it:</em> A flat PSD means asynchronous firing. A peak inside the shaded band means gamma. A peak below 30 Hz means sub-gamma (beta). A peak above 80 Hz is rejected by the <math><msub><mi>𝑓</mi><mn>0</mn></msub></math> search.</p><h3 id="participation" class="hx">participation<a class="permalink" href="#participation" aria-label="Link to this section">#</a></h3><p><em>What it is:</em> The distribution of per-neuron spike counts across the E population for this trial.</p><p><em>How to read it:</em> A stack at zero indicates dead neurons; a stack at the per-neuron ceiling indicates saturated neurons. Both can be invisible from the population-level <em>E</em> token, which averages across the group.</p><h3 id="acc-curve" class="hx">acc_curve<a class="permalink" href="#acc-curve" aria-label="Link to this section">#</a></h3><p><em>What it is:</em> Test accuracy, training loss, and learning rate as a function of epoch — the standard training-progress panel. All three are normalised to their running maximum and plotted on a single 0–100 % axis. Rendered only during training runs.</p><p><em>How to read it:</em> A healthy run has accuracy climbing from <math><mo form="infix" lspace="0em">∼</mo><mn>10</mn></math> % (chance on MNIST) toward 85–98 %, and loss dropping monotonically. A flat accuracy with drifting loss usually means the readout can’t separate classes.</p><h3 id="rate-curve" class="hx">rate_curve<a class="permalink" href="#rate-curve" aria-label="Link to this section">#</a></h3><p><em>What it is:</em> The E and I firing rates as a function of training epoch. Training-only.</p><p><em>How to read it:</em> Stable rates within the healthy regime for the model (see <em>act</em> above) means the network is holding its operating point as it learns. Monotonic drift toward 0 or toward a ceiling usually means gradient pressure is pushing the network out of its regime.</p><h3 id="grad-flow" class="hx">grad_flow<a class="permalink" href="#grad-flow" aria-label="Link to this section">#</a></h3><p><em>What it is:</em> For each weight matrix, the ratio of gradient norm to weight norm — how hard each layer is being updated relative to its current size. Training-only; log y-axis.</p><p><em>How to read it:</em> The shaded band from <math><msup><mn>10</mn><mrow><mo>−</mo><mn>3</mn></mrow></msup></math> to <math><msup><mn>10</mn><mrow><mo>−</mo><mn>2</mn></mrow></msup></math> is the healthy window. Values below mean gradients are vanishing (that layer is not learning); above means they are exploding.</p><h3 id="digit-image" class="hx">digit_image<a class="permalink" href="#digit-image" aria-label="Link to this section">#</a></h3><p><em>What it is:</em> The MNIST digit currently being presented to the network. A small greyscale inset that lets you sync the readout in <em>output</em> to the actual input class.</p><h3 id="sweep" class="hx">sweep<a class="permalink" href="#sweep" aria-label="Link to this section">#</a></h3><p><em>What it is:</em> A generic progress indicator for parameter-sweep runs. Shows the full sweep range faintly and the completed prefix solidly, with a dot on the current value.</p><h3 id="sweep-rates" class="hx">sweep_rates<a class="permalink" href="#sweep-rates" aria-label="Link to this section">#</a></h3><p><em>What it is:</em> E and I firing rates accumulated across an inference sweep — one point per sweep frame, updated as the sweep progresses. Sweep-only.</p><p><em>How to read it:</em> If the trace is flat across the swept variable, the network is stable under that variable. If it fans out by one to two orders of magnitude, it is not — this is the signature read off in a Δt-stability experiment.</p><h3 id="sweep-f0" class="hx">sweep_f0<a class="permalink" href="#sweep-f0" aria-label="Link to this section">#</a></h3><p><em>What it is:</em> Peak oscillation frequency <math><msub><mi>𝑓</mi><mn>0</mn></msub></math> across the sweep, with the gamma band (30–80 Hz) shaded. Sweep-only.</p><p><em>How to read it:</em> A PING run with a robust E→I→E loop holds <math><msub><mi>𝑓</mi><mn>0</mn></msub></math> inside the shaded band across the whole sweep. Drift out of band indicates the loop is failing at that parameter value.</p><h3 id="spectral-radius" class="hx">Spectral radius<a class="permalink" href="#spectral-radius" aria-label="Link to this section">#</a></h3><p><em>What it is:</em> The largest-magnitude eigenvalue of the recurrent weight matrix <math><mi>𝐽</mi></math>. A linear stability indicator: if <math><mi>𝜌</mi><mrow><mo>(</mo><mi>𝐽</mi><mo>)</mo></mrow><mo>></mo><mn>1</mn></math>, the linearised network would explode; <math><mi>𝜌</mi><mrow><mo>(</mo><mi>𝐽</mi><mo>)</mo></mrow><mo>≈</mo><mn>1</mn></math> sits at the edge of chaos.</p><p><em>How it’s calculated:</em> The recurrent matrix is reassembled post-training with E columns kept positive and I columns flipped to negative (so Dale’s law appears as signs), then <math><mi>𝜌</mi><mrow><mo>(</mo><mi>𝐽</mi><mo>)</mo></mrow><mo>=</mo><msub><mo form="prefix" lspace="0em" rspace="0em">max</mo><mi>𝑖</mi></msub><mo lspace="0em" rspace="0em">|</mo><msub><mi>𝜆</mi><mi>𝑖</mi></msub><mo stretchy="false">|</mo></math> via an eigendecomposition.</p><p><em>Common values:</em> <math><mi>𝜌</mi><mo>&lt;</mo><mn>1</mn></math> is quiescent (no sustained oscillation); <math><mi>𝜌</mi><mo>≈</mo><mn>1</mn></math> is the gamma operating regime; <math><mi>𝜌</mi><mo>></mo><mn>1</mn></math> is linearly unstable but the spiking nonlinearity can still stabilise it.</p><h3 id="linear-prediction" class="hx">Linear <math><msub><mi>𝑓</mi><mn>0</mn></msub></math> prediction<a class="permalink" href="#linear-prediction" aria-label="Link to this section">#</a></h3><p><em>What it is:</em> A continuous-rate prediction for the oscillation frequency, derived from the eigenvalue of <math><mi>𝐽</mi></math> with the largest imaginary part.</p><p><em>How it’s calculated:</em> Pick <math><msup><mi>𝜆</mi><mo>∗</mo></msup><mo>=</mo><mi>𝑎</mi><mo>+</mo><mi>𝑏</mi><mi>𝑖</mi></math> with largest <math><mo stretchy="false">|</mo><mi>𝑏</mi><mo stretchy="false">|</mo></math>, then</p><math display="block"><msubsup><mi>𝑓</mi><mn>0</mn><mtext>lin</mtext></msubsup><mo>=</mo><mfrac><mrow><mo stretchy="false">|</mo><mi>𝑏</mi><mo stretchy="false">|</mo></mrow><mrow><mn>2</mn><mi>𝜋</mi></mrow></mfrac><mo lspace="0.2222222222222222em" rspace="0.2222222222222222em">⋅</mo><mn>1000</mn><mspace width="0.2222em"/><mtext>Hz</mtext></math><p><em>Common values:</em> Typically an upper bound on the measured <math><msub><mi>𝑓</mi><mn>0</mn></msub></math> — the linear mode ignores the spiking nonlinearity and the refractory floor.</p><h3 id="refractory-floor-prediction" class="hx">Refractory-floor prediction<a class="permalink" href="#refractory-floor-prediction" aria-label="Link to this section">#</a></h3><p><em>What it is:</em> A lower bound on the oscillation frequency set by the biology: no spiking network can cycle faster than one excitatory refractory period plus one GABA-synapse decay.</p><p><em>How it’s calculated:</em></p><math display="block"><msubsup><mi>𝑓</mi><mn>0</mn><mtext>cor</mtext></msubsup><mo>=</mo><mfrac><mn>1000</mn><mrow><msubsup><mi>𝜏</mi><mtext>ref</mtext><mi>𝐸</mi></msubsup><mo>+</mo><msub><mi>𝜏</mi><mtext>GABA</mtext></msub></mrow></mfrac><mspace width="0.2222em"/><mtext>Hz</mtext></math><p><em>Common values:</em> The measured <math><msub><mi>𝑓</mi><mn>0</mn></msub></math> typically lies between <math><msubsup><mi>𝑓</mi><mn>0</mn><mtext>cor</mtext></msubsup></math> and <math><msubsup><mi>𝑓</mi><mn>0</mn><mtext>lin</mtext></msubsup></math>.</p><h3 id="loss" class="hx">loss<a class="permalink" href="#loss" aria-label="Link to this section">#</a></h3><p><em>What it is:</em> The training-set cross-entropy at the end of each epoch — the scalar the optimiser is minimising.</p><p><em>Common values:</em> Starts near <math><mo lspace="0em" rspace="0em">ln</mo><mrow><mo>(</mo><mn>10</mn><mo>)</mo></mrow><mo>≈</mo><mn>2.3</mn></math> for chance-level classification on MNIST and drops monotonically under healthy training. A flat or climbing loss means the gradient isn’t reaching the readout.</p><h3 id="test-loss" class="hx">test_loss<a class="permalink" href="#test-loss" aria-label="Link to this section">#</a></h3><p><em>What it is:</em> Cross-entropy on the held-out test set, evaluated once per epoch.</p><p><em>Common values:</em> Tracks <em>loss</em> with a small gap. A widening gap usually means overfitting; a gap that collapses to zero often means data leakage between train and test.</p><h3 id="lr" class="hx">lr<a class="permalink" href="#lr" aria-label="Link to this section">#</a></h3><p><em>What it is:</em> The current learning rate — the multiplier on each gradient step. Varies if <em>–adaptive-lr</em> is set; constant otherwise.</p><p><em>Common values:</em> <math><msup><mn>10</mn><mrow><mo>−</mo><mn>2</mn></mrow></msup></math> for snnTorch / CUBA; <math><msup><mn>10</mn><mrow><mo>−</mo><mn>4</mn></mrow></msup></math> for COBA / PING, whose conductance-based gradients are much steeper (see <a href="/ar015/">Gradient Stabilisation</a>).</p><h3 id="grad-norm" class="hx">grad_norm<a class="permalink" href="#grad-norm" aria-label="Link to this section">#</a></h3><p><em>What it is:</em> The mean gradient norm across all parameters, taken after gradient clipping.</p><p><em>Common values:</em> Stable to within an order of magnitude across a run. A sudden jump usually precedes an NaN loss.</p><h3 id="grad-ratios" class="hx">grad_ratios<a class="permalink" href="#grad-ratios" aria-label="Link to this section">#</a></h3><p><em>What it is:</em> A dictionary mapping each weight matrix to its <math><mo stretchy="false">‖</mo><mo form="prefix">∇</mo><mo stretchy="false">‖</mo><mspace width="0.2222em"/><mi>/</mi><mspace width="0.2222em"/><mo stretchy="false">‖</mo><mi>𝑊</mi><mo stretchy="false">‖</mo></math> — the quantity plotted by <em>grad_flow</em>.</p><p><em>Common values:</em> Healthy band <math><msup><mn>10</mn><mrow><mo>−</mo><mn>3</mn></mrow></msup></math> to <math><msup><mn>10</mn><mrow><mo>−</mo><mn>2</mn></mrow></msup></math> per layer; below is vanishing, above is exploding.</p><h3 id="acc" class="hx">acc<a class="permalink" href="#acc" aria-label="Link to this section">#</a></h3><p><em>What it is:</em> Test-set accuracy (%) at the end of each epoch — the canonical “how well is the network classifying” number.</p><p><em>Common values:</em> 10 % is chance on MNIST; 85–90 % is typical at a small training tier; 95–98 % at medium or larger; anything above 98 % flags a leaked test split or a bug.</p><h3 id="best-acc" class="hx">best_acc<a class="permalink" href="#best-acc" aria-label="Link to this section">#</a></h3><p><em>What it is:</em> The maximum of <em>acc</em> over all epochs seen so far. Tracked alongside <em>best_epoch</em> (the epoch that set it) and a <em>new_best</em> flag (true on the epoch that set it).</p><p><em>Common values:</em> This is the headline number cited in notebook entries. If <em>best_epoch</em> is near the final epoch the run was still improving; if much earlier, it had plateaued.</p><p>On inference runs, <em>best_acc</em> is just the single-shot test accuracy; the raw count <em>n_correct</em> is saved alongside, and per-sample calls go to <em>test_predictions.json</em> (one row per sample, carrying <em>idx</em>, <em>true</em>, <em>pred</em>, <em>correct</em>, <em>logits</em> for confusion-matrix and calibration downstream).</p><div class="entry-tail"></div></body></html>
