@@ -744,11 +744,11 @@ def plot_headline_stream(s: dict, out_path: Path, run_id: str) -> None:
 
     # ── Panel D: readout probabilities
     ax_d = fig.add_subplot(gs[3])
-    cmap = plt.get_cmap("tab10")
-    # Plot all 10 classes lightly, then highlight the true class per segment
+    # Plot every class in grey, then identify the true-class trace with the
+    # single paper accent. Line weight, not colour alone, carries the emphasis.
     for c in range(N_CLASSES):
         ax_d.plot(
-            t_axis, probs[:, c], color=cmap(c), lw=0.6, alpha=0.5,
+            t_axis, probs[:, c], color=theme.GREY_MID, lw=0.6, alpha=0.45,
         )
     # Heavy line: true-class trace per segment
     for d in range(n_dig):
@@ -756,7 +756,7 @@ def plot_headline_stream(s: dict, out_path: Path, run_id: str) -> None:
         b = (d + 1) * tau_steps
         c = labels[d]
         ax_d.plot(
-            t_axis[a:b], probs[a:b, c], color=cmap(c), lw=2.2,
+            t_axis[a:b], probs[a:b, c], color=theme.DEEP_RED, lw=2.2,
         )
     for seg in seg_starts_ms[1:]:
         ax_d.axvline(seg, color=theme.GREY_MID, lw=0.5, ls=":", alpha=0.7)
@@ -962,17 +962,16 @@ def plot_varying_headline_stream(s: dict, out_path: Path, run_id: str) -> None:
 
     # Panel D: readout probabilities.
     ax_d = fig.add_subplot(gs[3])
-    cmap = plt.get_cmap("tab10")
     for c in range(N_CLASSES):
         ax_d.plot(
-            t_axis, probs[:, c], color=cmap(c), lw=0.6, alpha=0.5,
+            t_axis, probs[:, c], color=theme.GREY_MID, lw=0.6, alpha=0.45,
         )
     for d in range(n_dig):
         a = seg_starts_steps[d]
         b = a + segment_steps[d]
         c = labels[d]
         ax_d.plot(
-            t_axis[a:b], probs[a:b, c], color=cmap(c), lw=2.2,
+            t_axis[a:b], probs[a:b, c], color=theme.DEEP_RED, lw=2.2,
         )
     for seg in seg_starts_ms[1:]:
         ax_d.axvline(seg, color=theme.GREY_MID, lw=0.5, ls=":", alpha=0.7)
@@ -1027,10 +1026,9 @@ def plot_grid_and_rate(
             )
     cbar = fig.colorbar(im, ax=ax, shrink=0.85)
     cbar.set_label("Per-segment accuracy (%)", fontsize=theme.SIZE_LABEL)
-    visible = [row for row in rate_rows if row["input_rate_hz"] <= 50.0]
-    curve_rates = np.array([row["input_rate_hz"] for row in visible])
-    curve_acc = 100 * np.array([row["accuracy"] for row in visible])
-    curve_sem = 100 * np.array([row["accuracy_sem"] for row in visible])
+    curve_rates = np.array([row["input_rate_hz"] for row in rate_rows])
+    curve_acc = 100 * np.array([row["accuracy"] for row in rate_rows])
+    curve_sem = 100 * np.array([row["accuracy_sem"] for row in rate_rows])
     curve_ax.plot(curve_rates, curve_acc, color=theme.INK_BLACK, lw=1.8)
     curve_ax.fill_between(curve_rates, curve_acc - curve_sem, curve_acc + curve_sem,
                           color=theme.INK_BLACK, alpha=0.15, linewidth=0)
@@ -1040,13 +1038,29 @@ def plot_grid_and_rate(
     curve_ax.axvline(INPUT_RATE_HZ, color=theme.GREY_MID, ls=":", lw=1.2,
                      label=f"trained rate ({INPUT_RATE_HZ:g} Hz)")
     curve_ax.set(xlabel="Poisson encoding rate (Hz)", ylabel="P(correct) (%)",
-                 xlim=(0, 50), ylim=(0, 101))
+                 xlim=(0, max(curve_rates)), ylim=(0, 101))
     curve_ax.legend(frameon=False, fontsize=7, loc="lower right")
-    ax.set_title("A   Duration–rate sweep", loc="left", fontweight="bold")
-    curve_ax.set_title(
-        "B   Fixed 200-ms presentation and readout",
-        loc="left", fontweight="bold",
+    # Keep the complete linear-rate curve while making its informative
+    # low-rate transition readable without a logarithmic axis.
+    zoom = curve_ax.inset_axes([0.43, 0.30, 0.53, 0.48])
+    low = curve_rates <= 10
+    zoom.plot(curve_rates[low], curve_acc[low], color=theme.INK_BLACK, lw=1.2)
+    zoom.fill_between(
+        curve_rates[low],
+        curve_acc[low] - curve_sem[low],
+        curve_acc[low] + curve_sem[low],
+        color=theme.INK_BLACK, alpha=0.15, linewidth=0,
     )
+    zoom.scatter(curve_rates[low], curve_acc[low], color=theme.INK_BLACK,
+                 marker="o", s=12, zorder=3)
+    zoom.axhline(10, color=theme.DEEP_RED, ls="--", lw=0.8)
+    zoom.set(xlim=(0, 10), ylim=(0, 101))
+    zoom.set_xlabel("0–10 Hz detail", fontsize=7)
+    zoom.tick_params(labelsize=6)
+    ax.text(-0.08, 1.02, "A", transform=ax.transAxes, fontweight="bold",
+            ha="left", va="bottom")
+    curve_ax.text(-0.08, 1.02, "B", transform=curve_ax.transAxes,
+                  fontweight="bold", ha="left", va="bottom")
     fig.tight_layout()
     stamp_figure(fig, run_id)
     out_path.parent.mkdir(parents=True, exist_ok=True)
