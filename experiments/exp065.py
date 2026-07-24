@@ -6,7 +6,8 @@ outputs. It is trained on clean grayscale MNIST. Held-out images are then
 binarized and their foreground pixels independently retained with probability
 q, producing the ANN calibration curve requested in issue #46.
 
-Writing: writings/exp065.typ · record: artifacts/data/exp065/
+Spatial-analysis runner for the combined writings/exp048.typ entry.
+Record: artifacts/data/exp065/
 """
 
 from __future__ import annotations
@@ -413,8 +414,13 @@ def plot_diagnostics(rows: list[dict], stimuli: dict[float, torch.Tensor], out: 
             matrix /= np.maximum(matrix.sum(axis=1, keepdims=True), 1)
             axes[ri, ci].imshow(matrix, cmap="Greys", vmin=0, vmax=1)
             axes[ri, ci].set_title(title)
-            axes[ri, ci].set_xticks([])
-            axes[ri, ci].set_yticks([])
+            axes[ri, ci].set_xticks(range(N_CLASSES))
+            axes[ri, ci].set_yticks(range(N_CLASSES))
+            axes[ri, ci].tick_params(labelsize=5, length=1.5)
+            if ci > 1:
+                axes[ri, ci].set_yticklabels([])
+            if ri < len(DIAGNOSTIC_Q) - 1:
+                axes[ri, ci].set_xticklabels([])
             axes[ri, ci].set_ylabel("true")
             if ri == len(DIAGNOSTIC_Q) - 1:
                 axes[ri, ci].set_xlabel("predicted")
