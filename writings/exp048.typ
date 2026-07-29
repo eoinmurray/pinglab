@@ -338,22 +338,33 @@
 
   == Appendix: Proposed filter-matched variable-rate calibration
 
-  Prior ANN-to-SNN matching work establishes the pieces of this proposal without
-  answering its diagnostic question. Hunsberger and Eliasmith train an ANN
-  against variability estimated from synaptically filtered LIF spike trains,
-  and show that the filtered-response distribution changes shape with input
-  current#cite(1). Rueckauer et al. derive finite-window rate-approximation
-  errors and report that Poisson image encoding introduces enough variability
-  to impair converted networks, which they avoid by using analog input
-  currents#cite(2). Tang et al. map accumulated SNN spikes into a weight-sharing
-  ANN branch for efficient training#cite(3), but that shared branch is not an
-  independent test of whether the input remains informative. The Neural
-  Engineering Framework instead provides the relevant decoding principle:
-  filter population spikes with a postsynaptic response and fit a decoder to
-  the resulting continuous representation#cite(4). The present proposal
-  combines these ideas for a different purpose. It uses PING's exact frozen
-  feedforward filter and an independently trained decoder to locate a
-  decoder-relative information floor as encoding rate falls.
+  Prior work motivates the stochastic probe and decoder comparison without
+  answering this calibration's diagnostic question. Wolff and Lindner derive
+  time-dependent moments and autocorrelation for a passive conductance-based
+  membrane driven by filtered Poisson shot noise. They show that transient
+  voltage variability can depart substantially from an effective-time-constant
+  approximation, particularly for larger synaptic events, lower rates, and
+  slower synapses#cite(1). Brigham and Destexhe extend filtered shot-noise
+  analysis to nonstationary conductance input with a continuously varying
+  presynaptic rate, deriving voltage cumulants and showing that a Gaussian
+  approximation can miss distributional skew#cite(2). These results motivate
+  exact finite-window simulation of PING's trained feedforward projection,
+  AMPA conductance, and subthreshold excitatory-cell membrane rather than
+  replacing them with spike counts, one fixed leak factor, or additive Gaussian
+  noise.
+
+  Held-out population decoding provides an operational test of what stimulus
+  information a specified response summary and decoder can extract. Quian
+  Quiroga and Panzeri emphasize both the need to separate decoder training from
+  evaluation and the danger of treating near-chance performance from one
+  decoder as proof that the underlying response carries no information#cite(3).
+  Warland et al. directly compare optimized linear and nonlinear neural-network
+  decoders of visual population spike trains, using their agreement to test
+  whether nonlinear extraction recovers information missed by the linear
+  decoder#cite(4). The present proposal applies that logic to PING's frozen
+  input path: independent linear and nonlinear decoders locate a
+  time-averaged-voltage, decoder-relative classification floor as encoding rate
+  falls.
 
   === High-level overview
 
@@ -372,9 +383,9 @@
   over the same #scfg.matched_presentation_ms ms presentation used by PING.
   This produces one static feature per excitatory cell with the mean and
   sampling variability created by the actual input filter. Training on a
-  filtered representation follows the same broad strategy as noise-aware
-  ANN-to-SNN matching#cite(1), but the exact simulation is retained because
-  low-rate filtered responses need not have a Gaussian distribution.
+  filtered representation follows the shot-noise analyses above, but the exact
+  simulation is retained because low-rate filtered voltage need not be
+  Gaussian#cite(1)#cite(2).
 
   The probe excludes recurrent excitation, recurrent inhibition, spike
   threshold, reset, and the trained output layer. It therefore asks whether
@@ -385,9 +396,10 @@
   choose the lower rate for variable-rate PING training. A linear softmax
   decoder, whose class scores are weighted sums of the probe features, is
   trained on the same examples as a diagnostic. It tests whether the available
-  digit evidence is already linearly accessible, following the population
-  decoding logic of the Neural Engineering Framework#cite(4). The nonlinear
-  variable-rate ANN remains the model used to set the information floor.
+  digit evidence is already linearly accessible; comparison with the nonlinear
+  decoder follows established population-decoding logic#cite(3)#cite(4). The
+  nonlinear variable-rate ANN remains the model used to set the information
+  floor.
 
   This construction cannot use one fixed membrane leak factor. The quoted
   passive membrane time constant applies only when synaptic conductance is
@@ -397,17 +409,23 @@
   approximation is reserved for the complementary transfer-function and Bode
   analysis.
 
-  The proposal has three outputs:
+  The proposal has four output groups:
 
-  - The *variable-rate ANN psychometric curve* is the primary result. It
-    locates the lowest tested encoding rate at which the filter-matched
-    feedforward representation remains reliably classifiable.
-  - The *linear-decoder psychometric curve* is a diagnostic result. Agreement
-    with the variable-rate ANN indicates that the surviving evidence is
-    linearly accessible; a gap shows that nonlinear decoding is required.
+  - The *mixed-rate nonlinear psychometric curve* is the primary result. It
+    locates the lowest tested encoding rate at which one decoder trained across
+    the full rate range can classify the time-averaged, filter-matched
+    feedforward representation.
+  - Three *decoder controls* identify why that primary decoder fails. A
+    mixed-rate linear decoder tests linear accessibility; one mixed-rate coarse
+    temporal linear decoder tests whether averaging over the whole presentation
+    discards useful temporal structure; and separately trained per-rate linear
+    and nonlinear decoders distinguish loss of digit evidence from failure to
+    learn one rate-invariant decision rule.
   - The *filter and Bode analysis* is a complementary mechanistic result. It
     shows how synaptic and membrane filtering shape signal bandwidth, mean,
-    variance, and signal-to-noise ratio across encoding rates.
+    variance, autocovariance, and drive repeatability across encoding rates.
+    Small-signal simulations of the exact conductance probe validate the local
+    transfer approximation before it is interpreted.
   - The existing *foreground-retention ANN curve* in Figure 3 is a
     complementary spatial-evidence result and an implementation sanity check.
     It does not set the training range.
@@ -424,13 +442,18 @@
     inadequate surrogate. That outcome invalidates the calibration rather than
     demonstrating that PING created information.
 
-  Within the ANN control, failure of both the linear and nonlinear decoders
-  provides stronger evidence for a feedforward information floor. Success of
-  the nonlinear ANN alongside failure of the linear decoder instead means that
-  digit evidence survives but is not linearly accessible.
+  Within the decoder controls, success of the temporal linear decoder alongside
+  failure of its time-averaged counterpart means that Equation 15 discarded
+  useful temporal structure. Success of a per-rate decoder alongside failure of
+  the mixed-rate decoder means that digit evidence survives but one
+  rate-invariant readout does not exploit it. Success of the nonlinear decoder
+  alongside failure of the linear decoder means that the retained evidence is
+  not linearly accessible. Failure of all predeclared decoders provides stronger
+  evidence for a floor in this probe-and-decoder family.
 
-  This is a decoder-relative information floor, not a proof that no conceivable
-  decoder could recover information at a lower rate.
+  The primary result is therefore a *mixed-rate, time-averaged-voltage,
+  decoder-relative classification floor*, not a proof that no conceivable
+  response summary or decoder could recover information at a lower rate.
 
   === Filter-matched static signal
 
@@ -486,35 +509,71 @@
 
   $ mu_j (r, bold(x)) = E[z_j | r, bold(x)], quad sigma_j^2 (r, bold(x)) = "Var"[z_j | r, bold(x)]. quad "(16)" $
 
-  A dimensionless repeatability signal-to-noise summary is
+  A dimensionless drive-to-variability ratio is
 
-  $ "SNR"_j (r, bold(x)) = abs(mu_j (r, bold(x))) / (sigma_j (r, bold(x))). quad "(17)" $
+  $ "DVR"_j (r, bold(x)) = abs(mu_j (r, bold(x))) / (sigma_j (r, bold(x))). quad "(17)" $
 
   Here the bold x in Equation 16 denotes the complete grayscale image;
   μ#sub[j] is the mean static feature; σ#super[2]#sub[j] is its variance;
   σ#sub[j] is its standard
   deviation; E denotes an average over repeated Poisson encodings; Var denotes
-  variance over those encodings; and SNR is signal-to-noise ratio. In this
-  ratio, signal means the mean drive produced by one fixed image and noise
-  means variation across its independent Poisson encodings. It measures
-  repeatability, not separation between digit classes. The decoder
-  psychometric curves provide the population-level test of class information.
+  variance over those encodings; and DVR is the drive-to-variability ratio. It
+  measures the mean depolarizing drive of one fixed image relative to variation
+  across its independent Poisson encodings. It is not a class-discriminability
+  signal-to-noise ratio. The decoder psychometric curves provide the
+  population-level test of class information.
   Report the distribution of these quantities across cells and images rather
   than hiding their heterogeneity in one grand average.
 
+  Because Equation 15 averages a temporally correlated voltage, its variance is
+  not determined by the instantaneous voltage variance alone. Define the
+  conditional voltage autocovariance
+
+  $ C_j (t, s | r, bold(x)) = "Cov"[v_j(t), v_j(s) | r, bold(x)]. quad "(18)" $
+
+  Then the predicted variance of the averaged feature is
+
+  $ "Var"[z_j | r, bold(x)] = 1 / T^2 integral_0^T integral_0^T C_j(t, s | r, bold(x)) dif t dif s. quad "(19)" $
+
+  For the stationary characterization this reduces to
+
+  $ "Var"[z_j | r, bold(x)] = 2 / T^2 integral_0^T (T - u) C_j(u | r, bold(x)) dif u. $
+
+  Compare both covariance-based predictions with the empirical variance across
+  finite Poisson realizations. This checks the statistics of the exact feature
+  supplied to the decoders rather than only the instantaneous membrane voltage.
+
+  The coarse temporal control divides the #scfg.matched_presentation_ms ms
+  presentation into eight fixed, non-overlapping bins. Its feature for cell j
+  and bin b is
+
+  $ z_(j,b)^"bin" = 8 / T integral_((b - 1) T / 8)^(b T / 8) (v_j(t) - E_L) dif t, quad b in {1, ..., 8}. quad "(20)" $
+
+  A regularized linear softmax decoder receives the concatenated
+  #scfg.n_hidden × 8 features. This is the only temporal decoder: it is a
+  sensitivity control for information discarded by Equation 15, not a search
+  over bin counts or temporal architectures.
+
   The primary psychometric curve is
 
-  $ A_r (r) = P("correct" | r, "filter-matched features"). quad "(18)" $
+  $ A_r (r) = P("correct" | r, "mixed-rate nonlinear decoder on Equation 15"). quad "(21)" $
 
-  Its information floor is
+  Chance is estimated empirically. After decoder fitting is complete, repeatedly
+  permute held-out labels relative to the fixed predictions, using the same
+  permutation across rates. For each permutation retain the maximum null
+  accuracy over the evaluated rate grid; let U#sub[null] be the 95th percentile
+  of that maximum distribution. This gives a simultaneous permutation bound
+  across rates. The primary classification floor is
 
-  $ r_"floor" = "lowest " r in cal(R) " satisfying " L_r (r) > 1 / N_"class". quad "(19)" $
+  $ r_"floor" = "lowest " r in cal(R) " satisfying " L_r (r) > U_"null". quad "(22)" $
 
-  Here A#sub[r] is held-out variable-rate ANN accuracy. P denotes probability.
-  The calligraphic R in Equation 19 is the evaluated rate grid. L#sub[r] is the
-  lower confidence bound for A#sub[r]. N#sub[class] is the number of digit
-  classes. The result r#sub[floor] is the lowest tested rate whose lower
-  confidence bound exceeds chance.
+  Here A#sub[r] is held-out mixed-rate nonlinear-decoder accuracy and P denotes
+  probability. The calligraphic R in Equation 22 is the evaluated rate grid.
+  L#sub[r] is the lower confidence bound for A#sub[r]. The result
+  r#sub[floor] is the lowest tested rate whose lower confidence bound exceeds
+  the simultaneous permutation null. Apply the same bound and floor definition
+  to the mixed-rate linear and temporal-linear curves. Per-rate decoders are
+  diagnostic controls and receive their own permutation bounds.
 
   === Complementary transfer-function analysis
 
@@ -523,21 +582,20 @@
   rate, image, and cell. After normalizing to unit gain at zero temporal
   frequency, the synapse-membrane cascade is
 
-  $ H_j (f; r, bold(x)) = 1 / ((1 + i 2 pi f tau_"AMPA") (1 + i 2 pi f macron(tau)_"eff",j (r, bold(x)))). quad "(20)" $
+  $ H_j (f; r, bold(x)) = 1 / ((1 + i 2 pi f tau_"AMPA") (1 + i 2 pi f macron(tau)_"eff",j (r, bold(x)))). quad "(23)" $
 
   Here H#sub[j] is the local transfer function; f is temporal modulation
   frequency in hertz; i is the imaginary unit; and the overbarred effective
-  time constant in Equation 20 is Equation 14 evaluated at the mean feedforward
+  time constant in Equation 23 is Equation 14 evaluated at the mean feedforward
   conductance for the selected operating point. Encoding rate is not the
   horizontal axis of a Bode plot. It selects the operating point and therefore
   selects one member of a family of transfer curves. This explicit dependence
-  on the temporal filter is consistent with population-decoding approaches in
-  which the assumed postsynaptic response is part of the decoding
-  problem#cite(4).
+  on the temporal filter is consistent with filtered-shot-noise analyses in
+  which synaptic kinetics determine the voltage statistics#cite(1)#cite(2).
 
   The two local corner frequencies are
 
-  $ f_"AMPA" = 1 / (2 pi tau_"AMPA"), quad f_"mem",j = 1 / (2 pi macron(tau)_"eff",j). quad "(21)" $
+  $ f_"AMPA" = 1 / (2 pi tau_"AMPA"), quad f_"mem",j = 1 / (2 pi macron(tau)_"eff",j). quad "(24)" $
 
   Here f#sub[AMPA] is the AMPA corner frequency and f#sub[mem,j] is the local
   membrane corner frequency. The larger time constant produces the lower
@@ -545,20 +603,30 @@
   cells, plot median Bode magnitude with an interval across those operating
   points rather than presenting one membrane curve as universal.
 
+  Validate this local approximation by applying a 10% sinusoidal modulation to
+  all nonzero pixel rates around each representative operating point, simulating
+  the exact conductance probe after burn-in, and estimating voltage gain and
+  phase over repeated cycles. Compare empirical and predicted gain and phase at
+  every tested frequency. Report median absolute relative gain error and median
+  absolute circular phase error across cells and images. Interpret the local
+  Bode curve only over frequencies where gain error is at most 10% and phase
+  error at most 10 degrees; elsewhere show the failed validation and make no
+  mechanistic claim from the linearized curve.
+
   The finite presentation average in Equation 15 adds the boxcar magnitude
 
-  $ B_T (f) = abs(sin(pi f T) / (pi f T)). quad "(22)" $
+  $ B_T (f) = abs(sin(pi f T) / (pi f T)). quad "(25)" $
 
   Here B#sub[T] is the magnitude response of a T-second averaging window, with
   value one at zero frequency by continuity. Show both the intrinsic cascade in
-  Equation 20 and the task-level response formed by multiplying Equations 20
-  and 22. This separates cellular filtering from the additional low-pass effect
+  Equation 23 and the task-level response formed by multiplying Equations 23
+  and 25. This separates cellular filtering from the additional low-pass effect
   of averaging over the full presentation.
 
   For independent, locally linear filtered Poisson inputs, the stationary
   moments provide an analytic check:
 
-  $ E[y_j] = sum_i lambda_i integral_0^infinity h_"ij" (u) d u, quad "Var"[y_j] = sum_i lambda_i integral_0^infinity h_"ij" (u)^2 d u. quad "(23)" $
+  $ E[y_j] = sum_i lambda_i integral_0^infinity h_"ij" (u) d u, quad "Var"[y_j] = sum_i lambda_i integral_0^infinity h_"ij" (u)^2 d u. quad "(26)" $
 
   Here y#sub[j] is the locally linear filtered signal at cell j; λ#sub[i] is the
   Poisson event rate of pixel channel i; h#sub[ij] is the impulse response from
@@ -571,11 +639,13 @@
 
   === Steps
 
-  1. *Lock the three roles before implementation.* Treat A#sub[r], the
-    variable-rate ANN curve, as the primary calibration. Treat the Bode and
-    moment analysis as a complementary mechanistic result. Retain A#sub[q], the
-    existing foreground-retention curve in Figure 3, as a complementary spatial
-    result and sanity check only.
+  1. *Lock the roles before implementation.* Treat A#sub[r], the mixed-rate
+    nonlinear curve on Equation 15, as the primary calibration. Treat the
+    mixed-rate linear, coarse temporal linear, and per-rate decoder curves as
+    diagnostic controls. Treat the covariance and validated Bode analyses as
+    complementary mechanistic results. Retain A#sub[q], the existing
+    foreground-retention curve in Figure 3, as a complementary spatial result
+    and sanity check only.
   2. *Reuse the established data partitions and baselines.* Use the MNIST
     training and held-out partitions already used by the foreground-retention
     experiment. Reuse the three frozen PING baselines and their trained input
@@ -608,96 +678,107 @@
     same initial state used by PING and retain exactly the first
     #scfg.matched_presentation_ms ms. The long run estimates steady-state
     filter statistics; the finite run generates the task-matched ANN feature.
-    Do not substitute one for the other. Finite-window rate estimates converge
-    with integration time and can accumulate approximation errors through a
-    spiking network#cite(2), so the task-matched feature must include the same
-    startup transient and observation window as PING.
-  7. *Measure the equivalent static signal.* Apply Equation 15 to every finite
-    probe trace. Across repeated encodings, estimate the mean, variance, and SNR
-    in Equations 16 and 17, together with the median, interquartile range, and
-    skewness of each feature distribution. The interquartile range spans the
-    middle half of repeated encodings; skewness records distribution
-    asymmetry. Plot their distributions against encoding rate. This establishes
-    whether the low-rate regime is dominated by sparse shot-to-shot
-    fluctuations, whether an approximately Gaussian middle regime emerges, and
-    whether relative variability falls as rate increases. Do not assume that
-    absolute variance approaches zero at high rate: filtered-spike
-    distributions can change both scale and shape with drive#cite(1).
-  8. *Produce the complementary Bode analysis.* At representative low, middle,
-    and high encoding rates, compute the local effective time constants from
-    the stationary probe states. Plot the normalized magnitude of Equation 20
-    against temporal frequency on logarithmic axes, with median and interval
-    across cells and training images. Mark both corner frequencies from
-    Equation 21. Add the task-level response including Equation 22. Validate the
-    local moment prediction in Equation 23 against the exact simulation and
-    label the Bode result explicitly as a local approximation.
-  9. *Generate training features for the variable-rate ANN.* For every MNIST
+    Do not substitute one for the other. Transient voltage moments can differ
+    substantially from their stationary limits#cite(1)#cite(2), so the
+    task-matched feature must include the same startup transient and observation
+    window as PING.
+  7. *Measure the equivalent static signal and its averaging variance.* Apply
+    Equation 15 to every finite probe trace. Across repeated encodings, estimate
+    the mean, variance, and DVR in Equations 16 and 17, together with the
+    median, interquartile range, skewness, autocovariance, and correlation time
+    of the voltage. Use Equations 18 and 19 to predict the variance of the
+    averaged feature and compare it with empirical finite-window variance.
+    Plot distributions across cells and images against encoding rate. This
+    establishes whether the low-rate regime is dominated by sparse
+    shot-to-shot fluctuations, whether an approximately Gaussian middle regime
+    emerges, and whether relative variability falls as rate increases. Do not
+    assume that absolute variance approaches zero at high rate: filtered
+    conductance-driven voltage distributions can change both scale and shape
+    with drive#cite(1)#cite(2).
+  8. *Validate and then interpret the complementary Bode analysis.* At
+    representative low, middle, and high encoding rates, compute the local
+    effective time constants from stationary probe states. Plot Equation 23,
+    mark the corner frequencies from Equation 24, and add the task-level
+    response from Equation 25. Run the exact 10% sinusoidal-modulation
+    validation specified above at the same frequencies and operating points.
+    Plot predicted and empirical gain and phase together, report their errors,
+    and interpret the linearized curve only where both predeclared error
+    tolerances pass. Separately validate the local moment prediction in
+    Equation 26 against exact simulation.
+  9. *Generate mixed-rate training features.* For every MNIST
     training presentation, sample one rate uniformly from the Step 3 grid,
     generate a fresh Poisson encoding, run the exact finite-window probe, and
-    use the #scfg.n_hidden values from Equation 15 as the static input vector.
-    Do not give the sampled rate to the ANN as an extra feature. Fresh spike
-    draws on every epoch prevent memorization of particular realizations.
-  10. *Train the variable-rate ANN and linear diagnostic.* Use a conventional
-      classifier with one
-      rectified-linear hidden layer of #scfg.n_hidden units and
+    retain both the #scfg.n_hidden values from Equation 15 and the
+    #scfg.n_hidden × 8 values from Equation 20. Do not give the sampled rate to
+    any decoder as an extra feature. Fresh spike draws on every epoch prevent
+    memorization of particular realizations. Split training images into decoder
+    training and validation subsets before selecting regularization or stopping
+    epochs; held-out test images remain untouched.
+  10. *Train the mixed-rate decoders.* Use a conventional nonlinear classifier
+      with one rectified-linear hidden layer of #scfg.n_hidden units and
       #scfg.n_classes outputs. Its input dimension is #scfg.n_hidden because it
       decodes probe-cell features after W#sub[in], whereas the existing
       foreground-retention ANN receives #scfg.n_input pixel values. Pair each
       decoder with one frozen PING input projection and repeat for seeds
-      #scfg.seeds.map(str).join(", "). On the same features, also train a linear
-      softmax decoder with no hidden layer. Keep its curve diagnostic rather
-      than using it to set the training range. Unlike weight-sharing ANN-to-SNN
-      training#cite(3), neither decoder shares its learned classification
-      weights with PING.
-  11. *Generate A#sub[r] by inference only.* Freeze every variable-rate ANN and
-      linear decoder.
-      For each rate, evaluate the same fixed held-out images using fixed
-      Poisson draws shared across ANN seeds where possible, plus additional
-      independent draws to measure sampling variation. Plot both probabilities
-      of a correct classification against rate, identifying the nonlinear ANN
-      curve as A#sub[r] and the linear-decoder curve as a diagnostic. No decoder
-      weights are updated during this sweep.
-  12. *Fit A#sub[r] and determine the primary information floor.* Fit isotonic
-      regression, a monotonic best-fit curve that can only stay level or
-      increase, to A#sub[r] and to the linear-decoder curve. Bootstrap held-out
-      images, Poisson draws, and model seeds to obtain confidence intervals.
-      Apply Equation 19 to the nonlinear A#sub[r] curve and round the resulting
-      floor upward to the next tested rate. Report the linear curve and its
-      transition separately.
-  13. *Compare the primary curve with frozen PING.* Compare A#sub[r] with the
+      #scfg.seeds.map(str).join(", "). On the same Equation 15 features, train a
+      regularized linear softmax decoder. On Equation 20 features, train one
+      regularized coarse temporal linear softmax decoder. Keep both linear
+      curves diagnostic. No decoder shares learned classification weights with
+      PING.
+  11. *Train per-rate decoder controls.* At each rate in Step 3, generate fresh
+      training and validation realizations at that rate and separately fit
+      linear and nonlinear decoders on Equation 15 features, using the same
+      predeclared model families as Step 10. These controls estimate what a
+      rate-specific readout can extract; they do not set the variable-rate
+      training range and are never given the numerical rate as an input.
+  12. *Generate all psychometric curves by inference only.* Freeze every
+      decoder. At each rate, evaluate the same fixed held-out images using
+      Poisson draws shared across compatible decoders and seeds, plus additional
+      independent draws to measure sampling variation. Identify the mixed-rate
+      nonlinear curve as A#sub[r]. Plot the mixed-rate linear, coarse temporal
+      linear, and per-rate linear and nonlinear curves as diagnostics. No
+      decoder weights or hyperparameters are updated during this sweep.
+  13. *Fit curves and determine permutation-relative floors.* Fit isotonic
+      regression to every mixed-rate curve and bootstrap held-out images,
+      Poisson draws, and model seeds hierarchically. Generate the simultaneous
+      held-out label-permutation bound specified before Equation 22. Apply
+      Equation 22 to A#sub[r] and round the resulting primary floor upward to
+      the next tested rate. Apply the corresponding empirical null to each
+      diagnostic curve. Report gaps between averaged and temporal summaries,
+      mixed-rate and per-rate training, and linear and nonlinear decoders.
+  14. *Compare the primary curve with frozen PING.* Compare A#sub[r] with the
       fixed-duration PING rate curve in Figure 2 without retraining PING. Report
       both floors and the gap between them. Interpret that gap as a limitation
       downstream of the frozen input projection, not as a pure measure of
-      recurrence alone. Compare the linear and nonlinear decoder curves at the
-      same time: their gap distinguishes linearly accessible evidence from
-      evidence that requires nonlinear decoding.
-  14. *Retain foreground masking as a complementary sanity check.* Reuse
+      recurrence alone. Use the diagnostic gaps from Step 13 to state whether
+      failures arise from whole-window averaging, the requirement for one
+      rate-invariant readout, linear accessibility, or the broader
+      probe-and-decoder family.
+  15. *Retain foreground masking as a complementary sanity check.* Reuse
       A#sub[q] from Figure 3 without rerunning its ANN. It was produced by
       freezing an ANN trained on uncorrupted grayscale images and evaluating
       independently masked, binarized held-out images. Compare its transition
       region with A#sub[r] and with the event-budget bridge in Equation 9.
       An accuracy-matched diagnostic rate is
 
-      $ r_"info" (q) = A_r^(-1) (A_q (q)). quad "(24)" $
+      $ r_"info" (q) = A_r^(-1) (A_q (q)). quad "(27)" $
 
       Here A#sub[q] is the existing foreground-retention ANN curve;
       A#super[−1]#sub[r] is the inverse of the fitted variable-rate curve; and
       r#sub[info] is the lowest rate at which A#sub[r] reaches the accuracy
       observed at retention q. This lowest-rate definition handles flat
-      sections of the fitted curve. Evaluate Equation 24 at q = #m01.q and
+      sections of the fitted curve. Evaluate Equation 27 at q = #m01.q and
       compare it with the
       #q01-rate Hz equal-event prediction. This is an order-of-magnitude check,
       not a required equality: spatial deletion, temporal undersampling, input
       representation, and ANN training differ. A gross disagreement should
       trigger inspection of the encoders, weights, feature scaling, and data
       pairing; a modest disagreement is scientifically expected.
-  15. *Choose the variable-rate PING training range.* Use the rounded
-      A#sub[r] information floor from Step 12 as the lower endpoint and
+  16. *Choose the variable-rate PING training range.* Use the rounded primary
+      A#sub[r] classification floor from Step 13 as the lower endpoint and
       #scfg.matched_rate_hz Hz as the upper endpoint. Sample uniformly from the
       retained discrete rate grid so every included operating condition
       receives equal exposure.
-
-  #pagebreak()
 
   === TODO
 
@@ -711,38 +792,42 @@
   3. [ ] Implement and unit-test the uncoupled non-spiking feedforward probe in
     Steps 4 and 5 without changing the production PING engine.
   4. [ ] Run the stationary and finite-window probe characterizations in Steps
-    6 and 7, then report feature mean, variance, SNR, and distribution shape
-    against encoding rate.
-  5. [ ] Produce the local Bode and analytic-moment validation in Step 8.
-  6. [ ] Generate filter-matched training features and train the variable-rate
-    ANN and linear softmax diagnostic for seeds
+    6 and 7; report feature mean, empirical and autocovariance-predicted
+    averaging variance, DVR, correlation time, and distribution shape against
+    encoding rate.
+  5. [ ] Produce the local Bode analysis, exact small-signal gain-and-phase
+    validation, and analytic-moment validation in Step 8.
+  6. [ ] Generate time-averaged and eight-bin filter-matched training features
+    and train the three mixed-rate decoders for seeds
     #scfg.seeds.map(str).join(", ").
-  7. [ ] Freeze both decoders and run the inference-only rate sweep to generate
-    A#sub[r] and the linear-decoder curve.
-  8. [ ] Fit and bootstrap both curves, then report the nonlinear A#sub[r]
-    information floor and the linear transition.
-  9. [ ] Compare A#sub[r] with the frozen PING curve in Figure 2 and select the
+  7. [ ] Train the per-rate linear and nonlinear decoder controls in Step 11.
+  8. [ ] Freeze all decoders and run the shared inference-only rate sweep to
+    generate A#sub[r] and every diagnostic curve.
+  9. [ ] Fit and bootstrap the curves, generate the simultaneous permutation
+    null, and report the primary and diagnostic classification floors.
+  10. [ ] Compare A#sub[r] and its diagnostic controls with the frozen PING
+    curve in Figure 2 and select the
     lower endpoint for variable-rate PING training.
-  10. [ ] Compare A#sub[q] from Figure 3 with A#sub[r] and the Equation 9
+  11. [ ] Compare A#sub[q] from Figure 3 with A#sub[r] and the Equation 9
       event-budget bridge as a complementary sanity check.
-  11. [ ] After review, run the variable-rate PING training experiment over the
+  12. [ ] After review, run the variable-rate PING training experiment over the
       selected rate range.
 
   #reference-list((
     (
-      text: [Hunsberger & Eliasmith — _Training Spiking Deep Networks for Neuromorphic Hardware_. 2016.],
-      doi: "10.48550/arXiv.1611.05141",
+      text: [Wolff & Lindner — _Mean, Variance, and Autocorrelation of Subthreshold Potential Fluctuations Driven by Filtered Conductance Shot Noise_. Neural Computation, 2010.],
+      doi: "10.1162/neco.2009.02-09-958",
     ),
     (
-      text: [Rueckauer, Lungu, Hu, Pfeiffer & Liu — _Conversion of Continuous-Valued Deep Networks to Efficient Event-Driven Networks for Image Classification_. Frontiers in Neuroscience, 2017.],
-      doi: "10.3389/fnins.2017.00682",
+      text: [Brigham & Destexhe — _Nonstationary Filtered Shot-Noise Processes and Applications to Neuronal Membranes_. Physical Review E, 2015. #link("https://doi.org/10.1103/PhysRevE.91.062102")[doi:10.1103/PhysRevE.91.062102]#linebreak()],
     ),
     (
-      text: [#link("https://arxiv.org/abs/2206.09449")[Tang, Lai, Xie, Yang & Zheng — _SNN2ANN: A Fast and Memory-Efficient Training Framework for Spiking Neural Networks_]. 2022.],
+      text: [Quian Quiroga & Panzeri — _Extracting Information from Neuronal Populations: Information Theory and Decoding Approaches_. Nature Reviews Neuroscience, 2009.],
+      doi: "10.1038/nrn2578",
     ),
     (
-      text: [Bekolay, Bergstra, Hunsberger, DeWolf, Stewart, Rasmussen, Choo, Voelker & Eliasmith — _Nengo: A Python Tool for Building Large-Scale Functional Brain Models_. Frontiers in Neuroinformatics, 2014.],
-      doi: "10.3389/fninf.2013.00048",
+      text: [Warland, Reinagel & Meister — _Decoding Visual Information From a Population of Retinal Ganglion Cells_. Journal of Neurophysiology, 1997.],
+      doi: "10.1152/jn.1997.78.5.2336",
     ),
   ))
 ]
