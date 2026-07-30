@@ -342,77 +342,99 @@
 
   1. *Ask one operational question.* At fixed
     #scfg.matched_presentation_ms ms presentation, what is the lowest Poisson
-    encoding rate at which PING's frozen feedforward input stage still supports
-    useful digit classification? The answer will set the lower endpoint of a
+    encoding rate at which a filter-matched pixel representation still supports
+    useful digit classification? The answer will be used to set the lower endpoint of a
     subsequent variable-rate PING training run.
-  2. *Feature generation.* Raw per-pixel spike counts would measure the
-    information emitted by the Poisson encoder, but PING never reads those
-    accumulated counts directly. Its hidden cells receive the weighted,
-    AMPA-filtered, conductance-dependent membrane response over a finite
-    presentation. We therefore generate ANN features with the frozen
-    feedforward probe so the calibration measures the digit evidence that
-    survives PING's input stage rather than the more optimistic encoder-level
-    count representation. For each frozen PING seed, route the same Poisson
-    input through its trained input projection, AMPA conductance, and
-    #scfg.n_hidden uncoupled non-spiking excitatory membranes. Exclude
-    recurrence, threshold, reset, refractory state, adaptation, and the trained
-    output layer. For pixel i, draw
+  2. *Feature generation.* Give every image pixel its own AMPA synapse and
+    uncoupled non-spiking excitatory membrane. Raw spike counts ignore when
+    events arrive and how synaptic and membrane decay weight those events
+    within a finite presentation. The time-averaged voltage instead provides
+    one temporally filtered feature per pixel.
+
+    This is a filter-matched pixel representation, not an exact reconstruction
+    of PING's hidden state. PING combines weighted pixel conductances before
+    membrane integration, whereas this probe integrates each pixel separately
+    and combines the resulting features inside the ANN. For pixel i, draw
 
     $ S_i (t) tilde "Bernoulli"(r Delta t x_i). quad "(10)" $
 
-    Update the feedforward conductance of probe cell j according to
+    Update the pixel probe's excitatory conductance according to
 
-    $ g_j^"ff" (t) = beta_"AMPA" g_j^"ff" (t-1) + sum_i S_i (t) W_"in" (i,j). quad "(11)" $
+    $ g_i^"pix" (t) = beta_"AMPA" g_i^"pix" (t-1) + w_"probe" S_i (t). quad "(11)" $
 
     The AMPA decay factor is
 
     $ beta_"AMPA" = exp(-(Delta t) / tau_"AMPA"). quad "(12)" $
 
-    Each probe membrane follows
+    Each pixel membrane follows
 
-    $ C_E (d v_j) / (d t) = g_"L,E" (E_L - v_j) + g_j^"ff" (t) (E_e - v_j). quad "(13)" $
+    $ C_E (d v_i) / (d t) = g_"L,E" (E_L - v_i) + g_i^"pix" (t) (E_e - v_i). quad "(13)" $
 
     Its instantaneous effective time constant is
 
-    $ tau_"eff",j (t) = C_E / (g_"L,E" + g_j^"ff" (t)). quad "(14)" $
+    $ tau_"eff",i (t) = C_E / (g_"L,E" + g_i^"pix" (t)). quad "(14)" $
 
     Here S#sub[i] (t) is the input spike from pixel i at timestep t; r is the
     maximum encoding rate in spikes per second; Δt is the simulation timestep
-    in seconds; x#sub[i] is grayscale pixel intensity; g#super[ff]#sub[j] is the
-    feedforward conductance of probe cell j; W#sub[in] (i,j) is the frozen input
-    weight; β#sub[AMPA] is the conductance retained for one timestep;
-    τ#sub[AMPA] is the AMPA time constant; C#sub[E] is excitatory-cell
-    capacitance; v#sub[j] is probe voltage; g#sub[L,E] is leak conductance;
-    E#sub[L] and E#sub[e] are the leak and excitatory reversal potentials; and
-    τ#sub[eff,j] is the conductance-dependent membrane time constant. Equation
-    14 is why a single fixed membrane leak factor is not an adequate surrogate.
-    Restart the probe from the same initial state used by PING and retain
-    exactly the first #scfg.matched_presentation_ms ms. Reduce each presentation
-    to one static feature vector by computing, for every probe cell,
+    in seconds; x#sub[i] is grayscale pixel intensity; g#super[pix]#sub[i] is
+    the conductance of pixel probe i; w#sub[probe] is a fixed conductance
+    increment shared by all pixels and rates; β#sub[AMPA] is the conductance
+    retained for one timestep; τ#sub[AMPA] is the AMPA time constant; C#sub[E]
+    is excitatory-cell capacitance; v#sub[i] is pixel-probe voltage;
+    g#sub[L,E] is leak conductance; E#sub[L] and E#sub[e] are the leak and
+    excitatory reversal potentials; and τ#sub[eff,i] is the
+    conductance-dependent membrane time constant.
 
-    $ z_j = 1 / T integral_0^T (v_j (t) - E_L) dif t. quad "(15)" $
+    Set w#sub[probe] to 1.2 μS for the primary analysis. This is the mean of the
+    configured pre-training PING input-weight distribution, so it preserves the
+    model's synaptic conductance scale without importing any trained weight or
+    spatial projection. It is not a neutral normalization. The excitatory leak
+    conductance is 0.05 μS, so one event initially contributes 24 times the
+    resting leak and temporarily shortens the effective membrane time constant
+    from 20 ms to approximately 0.8 ms. The probe therefore measures
+    decodability at a specified conductance operating point, not an
+    amplitude-independent property of the Poisson encoder. Equation 14 is why
+    the ANN cannot simply absorb a different w#sub[probe] into its learned
+    weights.
 
-    Here z#sub[j] is the time-averaged baseline-subtracted voltage and T is
+    Test this dependence by repeating the complete decoder training and
+    held-out rate sweep with w#sub[probe] set to 0.6 and 2.4 μS. These
+    half-scale and double-scale controls preserve the model form while testing
+    whether the inferred lower rate is driven by the selected synaptic
+    amplitude. If the practical training floor moves by more than one adjacent
+    rate-grid point, report an operating-point-dependent range rather than a
+    single universal floor.
+
+    Restart every pixel probe from the same initial state and retain exactly the
+    first #scfg.matched_presentation_ms ms. Reduce each presentation to one
+    static feature vector by computing, for every pixel probe,
+
+    $ z_i = 1 / T integral_0^T (v_i (t) - E_L) dif t. quad "(15)" $
+
+    Here z#sub[i] is the time-averaged baseline-subtracted voltage and T is
     presentation duration. The feature is not divided by encoding rate because
     PING is not given that rate and experiences its rate-dependent change in
     mean drive.
   3. *Build the variable-rate feature dataset.* Apply the feature-generation
     recipe in Step 2 to the established MNIST training and held-out partitions,
-    using the three frozen PING seeds and their trained input matrices. Evaluate
-    0.25, 0.5, 0.75, 1, 1.5, 2, 2.5, 3, 4, 5, 10, and 25 Hz at fixed
+    using independent Poisson realizations from seeds
+    #scfg.seeds.map(str).join(", "). Evaluate 0.25, 0.5, 0.75, 1, 1.5, 2, 2.5,
+    3, 4, 5, 10, and 25 Hz at fixed
     #scfg.matched_presentation_ms ms presentation. The grid ends at 25 Hz
     because the existing PING results establish it as a high-accuracy trained
     endpoint; the denser low-rate samples are intended to locate the lower
-    decodability boundary. Generate fresh Poisson realizations during decoder
-    training. Split the training images into decoder-training and validation
-    subsets before selecting regularization or stopping epochs; leave held-out
-    test images untouched.
+    decodability boundary. During decoder training, select one listed rate point
+    with equal probability for each image presentation and generate a fresh
+    Poisson realization. Split the training images into decoder-training and
+    validation subsets before selecting regularization or stopping epochs;
+    leave held-out test images untouched.
   4. *Train only two mixed-rate decoders initially.* The primary decoder is a
     conventional ANN with one rectified-linear hidden layer of
-    #scfg.n_hidden units and #scfg.n_classes outputs. Train a regularized linear
-    softmax decoder on the same features as a diagnostic of linear
-    accessibility. Neither decoder receives the numerical rate or shares
-    learned classification weights with PING.
+    #scfg.n_hidden units and #scfg.n_classes outputs. It learns its own input
+    projection from the pixel features and its own output weights across all
+    training rates. Train a regularized linear softmax decoder on the same
+    features as a diagnostic of linear accessibility. Neither decoder receives
+    the numerical rate or shares learned weights with PING.
   5. *Generate the psychometric curves by inference only.* Freeze both
     decoders. At every rate, evaluate the same held-out images using fixed
     Poisson draws shared across compatible decoder and PING seeds, with
@@ -440,13 +462,16 @@
     useful-accuracy target; and r#sub[train] is the lower endpoint used for
     training. Use 50% correct as the provisional a#sub[use] value and lock it
     before inspecting the curve. Report r#sub[decode] descriptively, but use
-    r#sub[train] for the training decision.
+    r#sub[train] for the training decision. Report the half-scale and
+    double-scale sensitivity results from Step 2 beside the primary estimates.
   7. *Compare with the frozen PING curve.* Compare the nonlinear ANN curve with
     the fixed-duration PING rate curve in Figure 2. If both fail, neither tested
     system extracts usable digit evidence at that rate. If the ANN succeeds but
-    PING fails, the evidence reaches the input stage but the trained PING
-    network does not exploit it. If PING succeeds where the ANN fails, the probe
-    summary or decoder is inadequate.
+    PING fails, the temporally filtered pixel representation retains decodable
+    evidence that the constant-rate-trained PING network does not exploit. That
+    gap may arise from PING's trained input projection, recurrent dynamics, or
+    readout. If PING succeeds where the ANN fails, the pixel-probe summary or
+    decoder is inadequate.
   8. *Keep the existing spatial results as sanity checks.* Reuse the
     foreground-retention curve in Figure 3 and the equal-event bridge in
     Equation 9 without rerunning them. Equal-event mapping compares expected
@@ -454,9 +479,11 @@
     images while the rate curve uses grayscale inputs, treat the simple mapping
     in Equation 9 as an order-of-magnitude comparison rather than an exact
     equivalence.
-  9. *Escalate only if the primary comparison demands it.* Add a coarse
-    temporal decoder only if PING succeeds where the time-averaged ANN fails.
-    Train rate-specific decoders only if the mixed-rate decoder shows an
+  9. *Escalate only if the primary comparison demands it.* If the primary ANN
+    succeeds where PING fails, add a decoder that uses the frozen PING input
+    projection to test whether the old spatial weights explain the gap. Add a
+    coarse temporal decoder only if PING succeeds where the time-averaged ANN
+    fails. Train rate-specific decoders only if the mixed-rate decoder shows an
     unexplained failure, initially restricting them to rates around that
     transition. These are debugging controls, not prerequisites for choosing
     the first variable-rate training range.
@@ -482,7 +509,7 @@
   === Why Bode analysis is deferred
 
   A Bode analysis would describe the temporal bandwidth of a locally linearized
-  synapse–membrane cascade. It would not directly determine whether digit
+  synapse-plus-membrane cascade. It would not directly determine whether digit
   identity remains classifiable or which rate should bound variable-rate
   training. The exact finite-window probe already answers the calibration
   question without relying on a linear approximation.
@@ -495,19 +522,24 @@
 
   === TODO
 
-  1. [ ] Implement and unit-test the exact finite-window feedforward probe in
-    Step 2 without changing the production PING engine.
+  1. [ ] Implement and unit-test the finite-window per-pixel synapse and
+    non-spiking membrane probe in Step 2 without changing the production PING
+    engine.
   2. [ ] Generate time-averaged filter-matched features over the fixed rate
-    grid for seeds #scfg.seeds.map(str).join(", ").
-  3. [ ] Train the mixed-rate nonlinear ANN and linear softmax diagnostic.
+    grid using Poisson seeds #scfg.seeds.map(str).join(", ").
+  3. [ ] Train the mixed-rate nonlinear ANN with its own input and output
+    weights, together with the linear softmax diagnostic.
   4. [ ] Freeze both decoders and run the shared held-out rate sweep.
-  5. [ ] Bootstrap both curves and report r#sub[decode] and r#sub[train].
-  6. [ ] Compare the primary ANN curve with frozen PING Figure 2, Figure 3, and
+  5. [ ] Repeat decoder training and held-out evaluation at the half-scale and
+    double-scale probe conductances defined in Step 2.
+  6. [ ] Bootstrap both curves and report r#sub[decode], r#sub[train], and
+    their sensitivity to probe conductance.
+  7. [ ] Compare the primary ANN curve with frozen PING Figure 2, Figure 3, and
     the equal-event bridge in Equation 9.
-  7. [ ] Select the first variable-rate PING training range using
+  8. [ ] Select the first variable-rate PING training range using
     r#sub[train] as its lower endpoint.
-  8. [ ] Run temporal, per-rate, or Bode follow-ups only if the primary result
-    triggers the conditions in Step 9.
+  9. [ ] Run frozen-projection, temporal, per-rate, or Bode follow-ups only if
+    the primary result triggers the conditions in Step 9.
 
   #reference-list((
     (
