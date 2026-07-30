@@ -345,14 +345,18 @@
     encoding rate at which PING's frozen feedforward input stage still supports
     useful digit classification? The answer will set the lower endpoint of a
     subsequent variable-rate PING training run.
-  2. *Feature generation.* Per-pixel spike counts would discard event timing
-    and therefore omit the AMPA decay and finite-window membrane response.
-    Generate features from the frozen feedforward dynamics so the ANN instead
-    receives the filter-matched signal reaching PING's hidden layer. For each
-    frozen PING seed, route the same Poisson input through its trained input
-    projection, AMPA conductance, and #scfg.n_hidden uncoupled non-spiking
-    excitatory membranes. Exclude recurrence, threshold, reset, refractory
-    state, adaptation, and the trained output layer. For pixel i, draw
+  2. *Feature generation.* Raw per-pixel spike counts would measure the
+    information emitted by the Poisson encoder, but PING never reads those
+    accumulated counts directly. Its hidden cells receive the weighted,
+    AMPA-filtered, conductance-dependent membrane response over a finite
+    presentation. We therefore generate ANN features with the frozen
+    feedforward probe so the calibration measures the digit evidence that
+    survives PING's input stage rather than the more optimistic encoder-level
+    count representation. For each frozen PING seed, route the same Poisson
+    input through its trained input projection, AMPA conductance, and
+    #scfg.n_hidden uncoupled non-spiking excitatory membranes. Exclude
+    recurrence, threshold, reset, refractory state, adaptation, and the trained
+    output layer. For pixel i, draw
 
     $ S_i (t) tilde "Bernoulli"(r Delta t x_i). quad "(10)" $
 
