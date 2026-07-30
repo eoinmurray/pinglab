@@ -1,0 +1,226 @@
+from __future__ import annotations
+
+import json
+
+import pytest
+
+from tools import snnlang as snn
+from tools.snnlang import training
+from tools.snnlang.compiler import canonical_json, graph_dict, validate_graph
+
+
+def small_network():
+    net = snn.Network("small")
+    x = net.input("x", shape=("batch", "time", 8), signal_type="spikes", unit="spike")
+    cell = snn.components.ping(net, name="cell", n_e=12, n_i=3, source=x)
+    return net, cell
+
+
+def test_graph_shaped_authoring_and_component_expansion():
+    net, cell = small_network()
+    assert {p["id"] for p in net.populations} == {"cell_E", "cell_I"}
+    assert {p["connection"] for p in net.projections} == {"feedforward", "recurrent"}
+    assert cell.E.spikes.shape == ("batch", "time", 12)
+    assert net.groups["cell"].members
+
+
+def test_names_are_unique():
+    net = snn.Network("bad")
+    net.input("x", shape=(1,), signal_type="continuous")
+    with pytest.raises(ValueError, match="duplicate"):
+        net.input("x", shape=(1,), signal_type="continuous")
+
+
+def test_feedback_requires_delay():
+    net, cell = small_network()
+    net.connect(
+        cell.E.spikes,
+        cell.I.excitatory,
+        name="feedback",
+        synapse=snn.AMPA(),
+        connection="feedback",
+    )
+    with pytest.raises(ValueError, match="feedback"):
+        snn.compile(net)
+
+
+@pytest.mark.parametrize("kind", ["mean", "final", "count", "rate", "cumulative"])
+def test_readouts_expand_to_serialisable_ops(kind):
+    net, cell = small_network()
+    if kind == "mean":
+        value = snn.readouts.MeanVoltage(source=cell.E.spikes, classes=4, name="r")
+    elif kind == "final":
+        value = snn.readouts.FinalVoltage(source=cell.E.spikes, classes=4, name="r")
+    elif kind == "count":
+        value = snn.readouts.SpikeCount(source=cell.E.spikes, classes=4, name="r")
+    elif kind == "rate":
+        mask = net.input("valid", shape=("batch", "time"), signal_type="mask")
+        value = snn.readouts.SpikeRate(
+            source=cell.E.spikes, classes=4, name="r", mask=mask
+        )
+    else:
+        value = snn.readouts.CumulativePotential(
+            source=cell.E.spikes, classes=4, name="r"
+        )
+    net.output("scores", value)
+    bundle = snn.compile(net)
+    assert bundle.graph["operations"]
+    canonical_json(bundle.graph)
+
+
+def test_spike_rate_rejects_ambiguous_duration():
+    net, cell = small_network()
+    with pytest.raises(ValueError, match="duration"):
+        snn.readouts.SpikeRate(source=cell.E.spikes, classes=4, name="rate")
+
+
+def test_validation_rejects_invalid_rate_mask_shape():
+    net, cell = small_network()
+    mask = net.input("valid", shape=("batch", 3), signal_type="mask")
+    rate = snn.readouts.SpikeRate(
+        source=cell.E.spikes, classes=4, name="rate", mask=mask
+    )
+    net.output("rates", rate)
+    with pytest.raises(ValueError, match="valid-duration mask"):
+        snn.compile(net)
+
+
+def test_validation_rejects_operation_unit_drift():
+    net, cell = small_network()
+    bad = net.operation(
+        "reduce_sum",
+        cell.E.spikes,
+        name="bad_units",
+        shape=("batch", 12),
+        unit="mV",
+    )
+    net.output("bad_result", bad)
+    with pytest.raises(ValueError, match="incompatible"):
+        snn.compile(net)
+
+
+def test_training_selects_and_freezes_parameters():
+    net, cell = small_network()
+    scores = snn.readouts.SpikeCount(source=cell.E.spikes, classes=2, name="scores")
+    net.output("class_scores", scores)
+    ids = [p["id"] for p in net.parameters]
+    spec = snn.TrainSpec(
+        objectives=[training.CrossEntropy(prediction=scores, target="label")],
+        parameter_groups=[
+            training.ParameterGroup(ids[:1], name="selected", lr=1e-3),
+            training.ParameterGroup(ids[1:], name="frozen", lr=0, frozen=True),
+        ],
+        optimizer=training.AdamW(),
+        stop_gradients=[training.StopGradient.at(cell.E.spikes)],
+    )
+    bundle = snn.compile(net, training=spec)
+    assert bundle.training["graph_digest"] == bundle.manifest["graph_digest"]
+    assert bundle.training["parameter_groups"][1]["frozen"]
+
+
+def test_training_rejects_unknown_parameter():
+    net, cell = small_network()
+    scores = snn.readouts.SpikeCount(source=cell.E.spikes, classes=2, name="scores")
+    net.output("class_scores", scores)
+    spec = snn.TrainSpec(
+        objectives=[training.CrossEntropy(prediction=scores, target="label")],
+        parameter_groups=[training.ParameterGroup(["ghost"], name="bad", lr=1e-3)],
+        optimizer=training.AdamW(),
+    )
+    with pytest.raises(ValueError, match="unknown training parameter"):
+        snn.compile(net, training=spec)
+
+
+def test_compile_is_deterministic():
+    first, cell = small_network()
+    first.output("spikes", cell.E.spikes)
+    second, cell2 = small_network()
+    second.output("spikes", cell2.E.spikes)
+    assert canonical_json(snn.compile(first).graph) == canonical_json(
+        snn.compile(second).graph
+    )
+    assert snn.compile(first).manifest == snn.compile(second).manifest
+
+
+def test_bundle_round_trip_and_tamper_detection(tmp_path):
+    net, cell = small_network()
+    net.output("spikes", cell.E.spikes)
+    root = snn.compile(net).write(tmp_path / "bundle")
+    loaded = snn.load_bundle(root)
+    assert loaded.graph == snn.compile(net).graph
+    graph = json.loads((root / "graph.json").read_text())
+    graph["name"] = "tampered"
+    (root / "graph.json").write_text(json.dumps(graph))
+    with pytest.raises(ValueError, match="digest"):
+        snn.load_bundle(root)
+
+
+def test_assets_keep_logical_names_and_copy_physical_bytes(tmp_path):
+    net, cell = small_network()
+    net.output("spikes", cell.E.spikes)
+    net.asset("connectivity", media_type="application/octet-stream")
+    source = tmp_path / "matrix.bin"
+    source.write_bytes(b"weights")
+    root = snn.compile(net, assets={"connectivity": source}).write(tmp_path / "bundle")
+    manifest = json.loads((root / "manifest.json").read_text())
+    assert manifest["assets"][0]["id"] == "connectivity"
+    assert (root / manifest["assets"][0]["path"]).read_bytes() == b"weights"
+    assert str(tmp_path) not in (root / "graph.json").read_text()
+    copied = snn.load_bundle(root).write(tmp_path / "copied")
+    assert (copied / manifest["assets"][0]["path"]).read_bytes() == b"weights"
+
+
+def test_disconnected_population_is_warning_not_backend_failure():
+    net = snn.Network("warning")
+    net.population("lonely", size=2, neuron=snn.LIF())
+    result = validate_graph(graph_dict(net))
+    assert not result.errors
+    assert any(d.code == "W101" for d in result.warnings)
+
+
+def test_backend_capability_is_separate_from_validity():
+    net, cell = small_network()
+    custom = net.operation(
+        "future_op",
+        cell.E.spikes,
+        name="future",
+        shape=cell.E.spikes.shape,
+        unit="spike",
+    )
+    net.output("future_result", custom)
+    bundle = snn.compile(net, target="tools/snn")
+    assert any(d.code == "C101" for d in bundle.diagnostics)
+
+
+def test_visualisation_is_deterministic_and_has_stable_ids(tmp_path):
+    net, cell = small_network()
+    net.output("spikes", cell.E.spikes)
+    bundle = snn.compile(net)
+    a = bundle.visualise(tmp_path / "a.svg", view="circuit")
+    b = bundle.visualise(tmp_path / "b.svg", view="circuit")
+    assert a.read_bytes() == b.read_bytes()
+    assert "n_cell" in a.read_text()
+    assert 'class="node node component"' in a.read_text()
+    png_a = bundle.visualise(tmp_path / "a.png", view="circuit", scale=2)
+    png_b = bundle.visualise(tmp_path / "b.png", view="circuit", scale=2)
+    assert png_a.read_bytes() == png_b.read_bytes()
+
+
+def test_all_visual_views_render(tmp_path):
+    net, cell = small_network()
+    scores = snn.readouts.SpikeCount(source=cell.E.spikes, classes=2, name="scores")
+    net.output("class_scores", scores)
+    spec = snn.TrainSpec(
+        objectives=[training.CrossEntropy(prediction=scores, target="label")],
+        parameter_groups=[
+            training.ParameterGroup(
+                [p["id"] for p in net.parameters], name="all", lr=1e-3
+            )
+        ],
+        optimizer=training.AdamW(),
+    )
+    bundle = snn.compile(net, training=spec)
+    for view in ("circuit", "training", "expanded"):
+        assert (
+            bundle.visualise(tmp_path / f"{view}.svg", view=view).stat().st_size > 500
+        )
