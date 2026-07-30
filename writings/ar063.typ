@@ -402,7 +402,45 @@
     at dt=0.1 ms; the decay may be poorly resolved
   ```
 
-  === 5.3 What static analysis does not promise
+  === 5.3 Visual graph reports
+
+  _snnlang_ should optionally render a compiled bundle as a polished circuit diagram. This is a compiler report, not a simulator feature:
+
+  ```
+  bundle.visualise(
+      "network.svg",
+      view="circuit",
+  )
+  bundle.visualise(
+      "network.png",
+      view="circuit",
+      scale=2,
+  )
+  ```
+
+  The implementation should generate styled DOT from _graph.json_, use Graphviz for layout, and treat SVG as the canonical visual output. PNG and PDF are derived publication formats. Graphviz is responsible for ranks, routing, and crossing reduction; _snnlang_ remains responsible for visual meaning.
+
+  The visual grammar should be stable:
+
+  - rounded cards for populations, with size and neuron model;
+  - restrained, consistent colours for excitatory, inhibitory, input, output, and modulatory nodes;
+  - solid excitatory projections, inhibitory bar endings, and dashed modulatory paths;
+  - softly bounded clusters for layers, PING cells, and user-defined components;
+  - feedback routed separately from the primary feedforward direction;
+  - optional edge width or annotation for density, fan-in, delay, or weight summary;
+  - subtle marks for trainable parameters and stop-gradient boundaries.
+
+  One overloaded picture is not the goal. The renderer should offer at least:
+
+  - `circuit`, a paper-ready population and projection view;
+  - `training`, showing outputs, objectives, trainable groups, and gradient boundaries;
+  - `expanded`, showing lower-level operations and stateful nodes for debugging.
+
+  Components are collapsed by default and expandable on request. Parallel projections may be grouped, default parameters suppressed, and a selected path highlighted. If a graph is too dense for a legible static image, the renderer should warn and require filtering or collapsing rather than emit decorative spaghetti. Layout, colours, fonts, node ordering, and identifiers must be deterministic so an unchanged bundle produces an unchanged diagram.
+
+  The canonical SVG should retain stable object identifiers and classes. This permits tooltips or interactive inspection later without changing the graph schema. Visualisation failure must never make an otherwise valid bundle unexecutable.
+
+  === 5.4 What static analysis does not promise
 
   The early analyser does not predict whether gamma emerges, its frequency, a Hopf threshold, firing rates, accuracy, or successful optimization. Those are dynamical claims. Later restricted analysers may attach approximate semantics to supported motifs, but every result must state its assumptions and unsupported components.
 
@@ -487,7 +525,8 @@
   *Acceptance gate:*
 
   + One-layer, deeper feedforward, recurrent, and feedback topologies are representable.
-  + The compiler produces deterministic, accelerator-independent graph, training, and analysis reports without importing _tools/snn_.
+  + The compiler produces deterministic, accelerator-independent graph, training, analysis, and visual reports without importing _tools/snn_.
+  + A representative multilayer or coupled graph produces a legible `circuit.svg` and high-resolution PNG with collapsed components and distinguishable feedback.
   + Invalid shapes, references, units, parameter groups, and objectives fail before execution.
   + Backend capability failures are precise and separate from graph errors.
 
@@ -603,9 +642,12 @@
       manifest.json
       graph.json
       training.json
+      reports/
+          circuit.svg
+          circuit.png
   ```
 
-  The files contain data only. They contain no Python callables, live instances, pickled authoring objects, accelerator tensors, or _torch.compile_ products.
+  The executable files contain data only. They contain no Python callables, live instances, pickled authoring objects, accelerator tensors, or _torch.compile_ products. The optional _reports/_ directory contains derived human-readable views and may be regenerated exactly from the bundle.
 
   === A.2 Bundle contract
 
@@ -678,6 +720,10 @@
           ping-tg4p5.bundle/
           ping-tg9.bundle/
           ping-tg18.bundle/
+      reports/
+          ping-tg4p5.svg
+          ping-tg9.svg
+          ping-tg18.svg
       cells/
           ping-tg4p5-seed42/
           ping-tg4p5-seed43/
@@ -740,6 +786,10 @@
           ping-tg4p5.json
           ping-tg9.json
           ping-tg18.json
+      diagrams/
+          ping-tg4p5.svg
+          ping-tg9.svg
+          ping-tg18.svg
       training/
           train-tg4p5.json
           train-tg9.json
