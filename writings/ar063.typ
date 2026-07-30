@@ -9,9 +9,9 @@
 #let body = [
   == Abstract
 
-  Translating a circuit idea into _tools/snn_ is cumbersome. A paper may describe a small motif in a paragraph, while its implementation requires manual work across CLI flags, model construction, tensor dimensions, training choices, recordings, and artifact handling. This proposal introduces _snnlang_: a typed Python library for constructing a spiking computation graph and, when needed, a narrow training specification. One compile operation validates them and writes a portable bundle containing _graph.json_ and optional _training.json_. _tools/snn_ executes that bundle through its existing CLI process boundary.
+  Translating a circuit idea into _tools/snn_ is cumbersome. A paper may describe a small motif in a paragraph, while its implementation requires manual work across CLI flags, model construction, tensor dimensions, training choices, recordings, and artifact handling. This proposal introduces _snnlang_: a typed Python library for constructing a spiking computation graph and, when needed, a narrow training specification. One compile operation validates them and writes a portable bundle containing _graph.json_ and optional _training.json_. _tools/snn_ executes that bundle through a small Python API wrapped by its CLI.
 
-  The proposal is deliberately smaller than a language for whole experiments, but it is not restricted to the present `COBANet` architecture. Experiment runners continue to own hypotheses, condition and seed grids, custom interventions, derived analysis, figures, and publication. An audit of the current code identifies three workloads that should test the design: trained MNIST and SHD classifiers, including deeper layers; coupled untrained E/I circuits with population-level recordings; and online confidence feedback that modulates $g_L$ to trade decision speed for additional PING cycles. The implementation order is: draft the graph language, upgrade _tools/snn_ to execute it, run one real experiment through both, and then prove that the combined system is flexible enough for the confidence experiment.
+  The proposal is deliberately smaller than a language for whole experiments, but it is not restricted to the present `COBANet` architecture. Experiment runners continue to own hypotheses, condition and seed grids, custom interventions, derived analysis, figures, and publication. An audit of the current code identifies three workloads that should test the design: trained MNIST and SHD classifiers, including deeper layers; coupled untrained E/I circuits with population-level recordings; and online confidence feedback that modulates $g_L$ to trade decision speed for additional PING cycles. The bundle is the canonical reproducibility boundary, while a small importable API preserves exploratory PyTorch flexibility. _tools/snn_ lowers graphs into vectorized, compiled PyTorch rather than interpreting them. The implementation order is: draft the graph language, upgrade _tools/snn_ to execute it, run one real experiment through both, and then prove that the combined system is flexible enough for the confidence experiment.
 
   == 1. The existing separation of concerns
 
@@ -129,7 +129,7 @@
     training.json
     manifest.json
           |
-          | tools/snn CLI + data binding
+          | tools/snn API or CLI + data binding
           v
   run artifacts
   ```
@@ -193,15 +193,10 @@
       constraint=snn.NonNegative(),
   )
 
-  counts = net.reduce(
-      E.spikes,
-      operation="sum",
-      over="time",
-      name="E_spike_count",
-  )
-  logits = net.linear(
-      counts,
-      size=10,
+  logits = snn.readouts.MeanVoltage(
+      source=E.spikes,
+      classes=10,
+      tau=20 * snn.ms,
       name="classifier",
   )
 
@@ -230,17 +225,51 @@
   The same rule applies to readouts. A helper such as:
 
   ```
-  logits = snn.readouts.rate_classifier(
-      net,
+  logits = snn.readouts.SpikeRate(
       source=cell.E.spikes,
       classes=10,
       name="class_logits",
   )
   ```
 
-  expands into ordinary reduction, projection, and output operations. The first graph schema therefore has no special `head` ontology. Named outputs provide the interface needed by inference and training.
+  expands into ordinary population, projection, reduction, and output operations. Authoring functions execute while constructing the graph; the compiler serializes their result rather than the Python callable. The first graph schema therefore has no special `head` ontology. Named outputs provide the interface needed by inference and training.
 
-  === 3.2 Parameters are not intrinsically selected for this run
+  === 3.2 Readouts are concise components with precise semantics
+
+  Readout switching is routine experimental work and must be a local edit. The initial library should include:
+
+  ```
+  snn.readouts.MeanVoltage(...)
+  snn.readouts.FinalVoltage(...)
+  snn.readouts.SpikeCount(...)
+  snn.readouts.SpikeRate(...)
+  snn.readouts.CumulativePotential(...)
+  ```
+
+  `MeanVoltage` expands into a trainable projection, a non-spiking stateful layer, and a temporal mean of its membrane voltage. The non-spiking layer remains explicit in the compiled graph and checkpoint even when hidden by the concise authoring helper.
+
+  `SpikeCount` means
+
+  $ z_c = sum_t s_c(t). $
+
+  `SpikeRate` is distinct:
+
+  $ z_c = frac(sum_t s_c(t), T Delta t). $
+
+  For padded or variable-duration samples it must use the valid-time mask independently for each sample. “Rate” without a declared duration and unit is rejected as ambiguous. Common window specifications should cover the full trial, a post-transient interval, or the final duration without requiring a Python callback.
+
+  Users may define their own authoring helpers from standard operations:
+
+  ```
+  def my_readout(source, classes):
+      x = snn.ops.sum(source, over="time")
+      x = snn.ops.normalise(x)
+      return snn.ops.linear(x, size=classes)
+  ```
+
+  This remains portable because the function expands at compile time. Arbitrary PyTorch executed during the forward pass is a different extension level and is not embedded as a callable in JSON.
+
+  === 3.3 Parameters are not intrinsically selected for this run
 
   The graph distinguishes a _Parameter_ from a _Constant_ and records structural constraints such as non-negativity, sparsity masks, or tying. It does not permanently declare that every parameter must be updated.
 
@@ -266,7 +295,7 @@
       ],
       regularizers=[
           training.UpperRatePenalty(
-              signal=counts,
+              signal=E.spikes,
               threshold=1.0,
               strength=1e-4,
           ),
@@ -278,13 +307,13 @@
 
   The same graph can support readout-only training, recurrent fine-tuning, or inference without changing its structural identity.
 
-  === 3.3 Forward and backward concerns
+  === 3.4 Forward and backward concerns
 
   Anything executed during inference belongs in the graph: populations, reductions, projections, classifier parameters, and named outputs. Anything used only to calculate or apply gradients belongs in _TrainSpec_: objectives, targets, parameter groups, regularizers, surrogate choice, clipping, and backward-only stop boundaries.
 
   Checkpoints remain separate evolving state. They contain realised parameter values and, when resuming training, optimizer state. A checkpoint may initialise, resume, or partially map onto a graph, but its path is not part of the immutable graph.
 
-  === 3.4 Online feedback belongs to the combined execution system
+  === 3.5 Online feedback belongs to the combined execution system
 
   Confidence-controlled leak is not a training recipe. At each timestep it computes evidence from the current readout, derives confidence, and modulates a population parameter before a later state update. The combined _snnlang_ plus _tools/snn_ system must support that causal loop, but version one need not give confidence or $g_L$ modulation dedicated language constructs.
 
@@ -446,7 +475,24 @@
 
   == 6. Runtime and CLI boundary
 
-  Experiment runners should receive a typed helper while retaining process isolation:
+  The bundle is the canonical reproducibility boundary, not the only execution route. _tools/snn_ should expose one small request-based Python API:
+
+  ```
+  model = tools_snn.build(graph)
+  result = tools_snn.train(
+      graph,
+      training,
+      data,
+      request,
+  )
+  result = tools_snn.simulate(
+      graph,
+      data,
+      request,
+  )
+  ```
+
+  The CLI is a thin wrapper over the same functions. Ordinary experiment runners should receive a typed subprocess helper when they want process isolation:
 
   ```
   from experiments.helpers.snn import run_training
@@ -479,118 +525,60 @@
 
   Scientific graph and standard training settings live in validated files rather than long argument lists. The data binding carries resolved sources. CLI arguments carry paths, seeds, output locations, and lifecycle controls.
 
-  The process boundary remains valuable because _tools/snn_ currently uses mutable module-level configuration for sizes, timestep, and other execution state. A fresh process contains failures, accelerator memory, compiler state, and globals. A small request-based Python API may eventually sit underneath the CLI, but ordinary runners need not import the engine directly.
+  The process boundary remains valuable because a fresh process contains failures, accelerator memory, compiler state, and legacy globals. The importable API remains available for notebooks, debugging, composition into custom training code, and experiments needing deliberate runtime extensions. Runners must not obtain that flexibility by importing the CLI module, inspecting stack frames, or monkey-patching engine internals.
+
+  === 6.1 Three extension levels
+
+  The system supports increasing flexibility with decreasing portability:
+
+  + *Authoring components.* Python functions compose standard snnlang operations and expand before serialization. This is the preferred route for readouts and circuit templates.
+  + *Registered backend operations.* The graph records a versioned operation identifier and configuration; _tools/snn_ supplies its PyTorch implementation. The manifest records the required extension.
+  + *Direct Python execution.* Exploratory code uses the importable API with a custom `torch.nn.Module`, controller, or training loop. The run records its source identity, configuration, environment, and compiled graph.
+
+  Every standard experiment should replay from an archived bundle. Experimental Python extensions are allowed when recorded explicitly; they should be promoted into a portable operation only after their interface stabilizes.
+
+  === 6.2 PyTorch performance is non-negotiable
+
+  _snnlang_ is an authoring language and intermediate representation. It is not a runtime interpreter. _tools/snn_ lowers a validated graph into coarse, vectorized PyTorch modules before simulation:
+
+  ```
+  graph.json
+      -> tools_snn.build(...)
+      -> torch.nn.Module
+      -> torch.compile
+      -> CUDA, MPS, or CPU execution
+  ```
+
+  Populations are batched tensors; projections become dense, sparse, or structured tensor operations; recurrent state remains in tensors; and training uses PyTorch autograd with surrogate gradients. Compatible operations may be fused, and future Triton or custom CUDA kernels remain backend implementation choices.
+
+  The runtime must not execute a Python loop over graph nodes inside every timestep. Arbitrary Python callbacks may cause graph breaks and are an explicitly slower exploratory path. Stateful controllers intended for production execution should be PyTorch modules with fixed tensor interfaces.
+
+  Backend conformance includes performance. Each reference graph is benchmarked against its specialized legacy implementation after warm-up and compilation. The initial target is no more than approximately 5--10% steady-state overhead for an equivalent graph, with peak memory and compilation time reported separately. A pleasant API does not compensate for a materially slower simulator.
 
   Existing flag-driven experiments remain supported. The manifest path is additive:
 
   ```
-  legacy flags -> existing builder -> execution
-  graph bundle -> graph loader     -> execution
+  legacy flags -> compatibility adapter -\
+                                         +-> ExecutionSpec
+  graph bundle -> bundle loader --------/
   ```
 
-  This permits gradual adoption without rewriting the historical experiment corpus.
+  During migration, _ExecutionSpec_ may select either the legacy `COBANet` builder or the graph-native executor. The target is one graph-native PyTorch execution core with the legacy CLI retained as a compatibility frontend. This permits gradual adoption without rewriting the historical experiment corpus.
 
   == 7. Staged implementation
 
-  The implementation should follow four project steps. Existing experiments provide evidence and regression cases, but they do not define the ceiling of the language.
+  Implementation is additive and compatibility-first:
 
-  === Step 1: implement the first snnlang draft
+  + characterize selected legacy cells before structural changes;
+  + build snnlang independently of the simulator;
+  + place a small importable API beneath the unchanged legacy CLI;
+  + add bundle loading and a graph-native PyTorch executor beside `COBANet`;
+  + compare both paths on conformance cells before changing defaults;
+  + use one native experiment as an iteration-speed and performance gate;
+  + add graph-native training and the confidence controller only after forward execution is stable;
+  + retain old runners unchanged unless new scientific work justifies migration.
 
-  Implement a modest, genuinely graph-shaped Python package:
-
-  ```
-  tools/snnlang/
-      network.py
-      parameters.py
-      operations.py
-      training.py
-      data.py
-      validation.py
-      compile.py
-      backends/tools_snn.py
-  ```
-
-  Its core vocabulary should include typed inputs, named populations, projections, neuron and synapse specifications, delays, parameters and constants, named signals and observables, and ordinary readout operations. _TrainSpec_ adds objectives, parameter groups, regularizers, and standard optimization policy. A narrow data interface distinguishes dense samples from event streams.
-
-  The draft may describe more topology than _tools/snn_ can currently execute. Compilation should separate language validity from backend support:
-
-  ```
-  graph.valid             == true
-  backend.tools_snn.valid == false
-  missing_capabilities    == ["arbitrary_feedback"]
-  ```
-
-  That separation prevents the current simulator class hierarchy from becoming the language specification.
-
-  *Acceptance gate:*
-
-  + One-layer, deeper feedforward, recurrent, and feedback topologies are representable.
-  + The compiler produces deterministic, accelerator-independent graph, training, analysis, and visual reports without importing _tools/snn_.
-  + A representative multilayer or coupled graph produces a legible `circuit.svg` and high-resolution PNG with collapsed components and distinguishable feedback.
-  + Invalid shapes, references, units, parameter groups, and objectives fail before execution.
-  + Backend capability failures are precise and separate from graph errors.
-
-  === Step 2: upgrade tools/snn to execute the draft
-
-  Add graph, training, and data-binding loaders to _tools/snn_. The first implementation may lower legacy-shaped graphs into `COBANet`, but arbitrary named population graphs require a new graph executor rather than ever more constructor flags. Preserve the numerical kernels that are already useful; replace the rigid orchestration around them.
-
-  Repair the execution seams discovered by the audit at the same time: supplied datasets, event-stream evaluation, checkpoint-selection policy, named recordings, and stable runtime extension points.
-
-  *Acceptance gate:*
-
-  + Legacy CLI behaviour remains unchanged.
-  + A trained MNIST cell, a trained SHD cell, the existing two-layer SHD model, and an untrained E/I simulation preserve behaviour within declared tolerances.
-  + A runner can select “maximum validation accuracy, then minimum validation loss, then earliest epoch” declaratively.
-  + An SHD split can be supplied without copying it into a fixed temporary directory.
-  + Named populations can be connected through feedforward and feedback projections and recorded independently.
-
-  Editing _tools/snn_ requires explicit project permission. The authoring library and schemas can be developed before that integration point.
-
-  === Step 3: create the first native experiment
-
-  The first experiment should use snnlang because the graph representation materially helps, not merely to prove that old flags can be written as JSON. A strong candidate is two untrained PING or balanced E/I circuits connected by a controllable projection, because it exercises named populations, arbitrary coupling, delays, feedback, independent drives, and population recordings without simultaneously debugging autograd.
-
-  *Acceptance gate:*
-
-  + Two PING or balanced E/I components can be coupled without custom simulator code.
-  + Removing, reversing, or delaying an inter-circuit projection is a graph edit.
-  + Synthetic spike tests verify delays and feedback update order exactly.
-  + The runner can compare within-population and between-population synchrony from named outputs.
-  + The compiled bundle is retained with the experiment artifacts.
-
-  Synchrony, coherence, phase locking, and cross-correlation remain runner analyses over emitted spikes and traces. Making the first experiment untrained isolates graph execution from autograd. If a trained experiment offers more immediate scientific value when this stage begins, it can be substituted without changing the architectural gate.
-
-  === Step 4: support the confidence experiment
-
-  Make the combined system support an MNIST classifier whose online confidence controls $g_L$, slowing low-confidence dynamics to permit more PING cycles. First attempt composition from ordinary graph operations. If that makes the language contorted, implement a generic controller node or stable runtime hook in _tools/snn_. Do not add a `ConfidenceToLeak` language primitive merely because one experiment wants it.
-
-  *Acceptance gate:*
-
-  + The controller sees only evidence available up to the declared timestep.
-  + Fixed-confidence tests produce the expected bounded $g_L$ or $tau_m$ trajectory.
-  + A one-step feedback delay has an exact causal test.
-  + Runs report decision time, PING cycles before decision, confidence, accuracy, and spike-count or energetic cost.
-  + A fixed-leak control uses the same graph with the controller disabled.
-
-  Additional cycles may improve confidence, do nothing, or amplify a wrong attractor. The language makes the experiment easy to state; it cannot guarantee the desired result.
-
-  === Later: trainable coupled graphs and gamma components
-
-  Once coupled forward graphs are stable, allow _TrainSpec_ to select parameters across them and place explicit stop-gradient boundaries. This is where scoped backpropagation becomes useful rather than decorative.
-
-  PING, ING, and balanced asynchronous helpers may form a gamma component library, but they expand into explicit physical parameters. No component may assert that gamma exists solely from its label; the run must measure rhythmicity.
-
-  === Later: extension interface
-
-  Repeated demand may justify user-defined composites and backend primitives. An extension declares ports, state, parameters, constraints, differentiability, serialization, and backend support. The first implementation should not design this interface speculatively.
-
-  === Later: optional reduced semantics
-
-  A separate analysis layer may attach approximate transfer or mean-field descriptions to restricted components. Hopf and DMFT-level prediction are not acceptance criteria for the executable language.
-
-  === Horizon: general spiking-network grammar
-
-  Backend independence, simulator portability, symbolic rewrites, graphical editing, and bifurcation backends remain the horizon. They are promoted only after several _tools/snn_ experiments demonstrate that the smaller graph language is genuinely useful.
+  Appendix B defines the stages, gates, compatibility period, and retirement conditions in detail. The sequence is intentionally reversible: no stage requires deleting the working legacy path to prove the next one.
 
   == 8. Migration policy
 
@@ -875,4 +863,202 @@
   ```
 
   The final artifact directory is replaced only after compilation, execution, analysis, plotting, and summary generation all succeed. A failed run cannot publish new graph descriptions beside figures from an older run.
+
+  == Appendix B. Staged implementation and compatibility plan
+
+  === B.1 Migration invariant
+
+  Every stage keeps the existing CLI and historical runners operational. New functionality is added beside the legacy path and becomes the default only after correctness, checkpoint, artifact, and performance gates pass.
+
+  The transition begins with two frontends and, temporarily, two construction paths:
+
+  ```
+  old runner
+      -> legacy CLI flags
+      -> compatibility adapter --\
+                                  +-> ExecutionSpec
+  new runner                     /
+      -> snnlang bundle --------/
+
+  ExecutionSpec
+      -> legacy COBANet executor
+      or
+      -> graph-native executor
+  ```
+
+  The target is:
+
+  ```
+  legacy CLI flags
+      -> compatibility adapter --\
+                                  +-> ExecutionSpec
+  snnlang bundle                 /
+      -> bundle loader ---------/
+
+  ExecutionSpec
+      -> graph-native PyTorch executor
+  ```
+
+  The compatibility adapter survives after convergence. `COBANet` is retired as an execution architecture only when the adapter can express its semantics faithfully and the conformance suite demonstrates parity.
+
+  === B.2 Stage 0: characterize the legacy system
+
+  Freeze a small conformance suite before changing simulator structure:
+
+  - one trained MNIST PING cell;
+  - one trained SHD cell;
+  - the existing two-layer SHD architecture;
+  - one untrained PING simulation;
+  - one balanced asynchronous simulation;
+  - checkpoint save, reload, and partial initialization;
+  - representative recordings and common readouts.
+
+  For each case retain the resolved configuration, parameter names and shapes, trainability, seeded initialization, deterministic CPU micro-forward results, one optimizer step where applicable, artifact schemas, checkpoint compatibility, compiled steady-state runtime, compilation time, and peak memory.
+
+  Full historical retraining is neither necessary nor desirable. Small deterministic tests, short smoke runs, and cached checkpoints provide stronger compatibility evidence at far lower cost.
+
+  *Gate:* the selected cases run through the unchanged CLI, their fixtures are archived, and performance measurement is repeatable.
+
+  === B.3 Stage 1: implement snnlang independently
+
+  Build the authoring library, graph IR, training IR, asset registry, validation, deterministic serialization, reports, and visualization without importing _tools/snn_:
+
+  ```
+  tools/snnlang/
+      network.py
+      parameters.py
+      operations.py
+      readouts.py
+      training.py
+      data.py
+      assets.py
+      validation.py
+      compile.py
+      visualise.py
+      backends/tools_snn.py
+  ```
+
+  The graph vocabulary includes typed inputs, named populations, projections, delays, neuron and synapse specifications, state, constants, parameters, outputs, and observables. Concise helpers cover mean voltage from a non-spiking layer, final voltage, spike count, duration-normalized spike rate, and cumulative potential.
+
+  Language validity remains separate from backend capability:
+
+  ```
+  graph.valid             == true
+  backend.tools_snn.valid == false
+  missing_capabilities    == [
+      "arbitrary_feedback",
+  ]
+  ```
+
+  *Gate:* feedforward, recurrent, deeper, and feedback graphs compile deterministically; invalid shapes, units, references, objectives, and ambiguous readouts fail early; visual reports are legible; unsupported backend features are reported precisely.
+
+  === B.4 Stage 2: introduce the tools/snn API
+
+  Extract a small request-based API beneath the CLI:
+
+  ```
+  tools_snn.build(request)
+  tools_snn.train(request)
+  tools_snn.simulate(request)
+  tools_snn.infer(request)
+  ```
+
+  The unchanged CLI parses legacy flags into an _ExecutionSpec_ and calls this API. No graph-native execution is required yet. This stage creates an intentional import boundary for notebooks and custom experiments while preserving process-isolated execution for ordinary runners.
+
+  *Gate:* every legacy conformance case produces unchanged parameters, outputs, artifacts, and checkpoints through its original command. No historical runner imports simulator internals.
+
+  === B.5 Stage 3: load bundles through the legacy executor
+
+  Add graph, training, data, asset, and manifest loaders. For the initially supported subset, convert _ExecutionSpec_ into the existing `COBANet` builder and trainer:
+
+  ```
+  legacy flags -> ExecutionSpec -> COBANet
+  graph bundle -> ExecutionSpec -> COBANet
+  ```
+
+  This validates bundle replay, asset resolution, data bindings, checkpoint selection, named outputs, and artifact capture before the harder graph-executor work begins. It also repairs current seams: supplied SHD paths, generic event evaluation, explicit checkpoint policies, and stable recording names.
+
+  *Gate:* matched legacy and bundle descriptions initialize the same parameters, perform the same deterministic CPU forward and optimizer step, reload each other's checkpoints, and emit compatible artifacts.
+
+  === B.6 Stage 4: add the graph-native PyTorch executor
+
+  Implement arbitrary named populations and projections beside `COBANet`. Reuse proven neuron updates, conductance dynamics, surrogate gradients, initializers, constraints, and recording code. Replace rigid orchestration, not numerical kernels merely for aesthetic cleanliness.
+
+  The executor lowers the complete graph before simulation:
+
+  ```
+  graph
+      -> validated execution plan
+      -> vectorized torch.nn.Module
+      -> torch.compile
+      -> accelerator execution
+  ```
+
+  It must not interpret graph nodes in Python inside every timestep. Synthetic tests verify projection delays, recurrent timing, feedback update order, masks, and recordings exactly.
+
+  During this stage both executors remain available. Selected conformance cells run in shadow mode:
+
+  ```
+  legacy configuration -> COBANet
+  equivalent bundle    -> graph executor
+  ```
+
+  Compare structure, initialization, forward outputs, gradients, one optimizer step, short trajectories, checkpoint round trips, recordings, metrics, compiled runtime, and peak memory.
+
+  *Gate:* deterministic micro-tests agree exactly or within declared numerical tolerances; longer accelerator runs meet statistical criteria; equivalent graphs remain within approximately 5--10% steady-state runtime overhead of the specialized path; compilation time and memory are reported separately.
+
+  === B.7 Stage 5: run the first native experiment
+
+  Choose an experiment that benefits materially from the graph representation. The preferred first case is two untrained PING or balanced E/I circuits joined by a controllable projection. It exercises named populations, independent drives, arbitrary coupling, feedback, delays, recordings, visualization, and artifact replay without simultaneously debugging autograd.
+
+  Create the base condition and at least two variants, such as removing, reversing, or delaying the inter-circuit projection. Keep synchrony, coherence, phase locking, and cross-correlation in runner analysis code.
+
+  This is a go/no-go gate for the entire project. Measure:
+
+  - time to implement the base experiment;
+  - time and changed lines for each variant;
+  - simulator-internal edits required;
+  - errors caught before execution;
+  - runtime and memory against an equivalent specialized implementation;
+  - clarity of the compiled graph and diagram.
+
+  *Gate:* variants take minutes rather than hours, require no simulator-internal edits, preserve performance, and archive an understandable bundle. If those gains do not appear, stop expanding the language and identify the actual workflow bottleneck.
+
+  === B.8 Stage 6: graph-native training
+
+  Add standard objectives, parameter groups, surrogate choices, regularizers, clipping, stop-gradient boundaries, checkpoint-selection policies, and optimizer-state replay to the graph-native executor. Support dense MNIST and event-stream SHD through explicit data bindings.
+
+  Run the MNIST, SHD, and two-layer SHD conformance cells through both training paths. Compare initial state, gradients, one-step updates, short learning curves, selected checkpoints, inference, and performance. Exact long-run weight identity is not required across accelerators, but differences must remain within predetermined scientific and numerical tolerances.
+
+  *Gate:* graph-native training supports the laboratory's common trained workloads without runner workarounds and remains within the performance budget.
+
+  === B.9 Stage 7: support confidence-controlled leak
+
+  Make an MNIST classifier's online confidence modulate $g_L$, allowing low-confidence trials more PING cycles. Attempt the least specialized route in order:
+
+  + compose existing graph operations;
+  + add a generic stateful controller node;
+  + add a registered PyTorch backend operation;
+  + use the importable API as an explicitly experimental extension.
+
+  Do not add a dedicated `ConfidenceToLeak` language primitive solely for one experiment. Whatever route is used must declare causal timing, bounds, initial state, source evidence, target parameter, checkpoint behavior, and differentiability.
+
+  *Gate:* fixed-confidence tests reproduce expected $g_L$ or $tau_m$ trajectories; a one-step feedback delay has an exact causal test; the experiment compares against a matched fixed-leak control and reports accuracy, calibration, decision time, PING cycles, and spike-count or energetic cost.
+
+  === B.10 Historical experiment policy
+
+  Completed experiments remain unchanged by default. They are scientific records, not migration chores.
+
+  - Run selected old cells as regression cases through their original interface.
+  - Create separate snnlang conformance definitions rather than editing historical runners.
+  - Do not mass-retrofit the experiment corpus.
+  - Migrate an old experiment only when it is materially extended.
+  - Treat a migrated implementation as new and compare it explicitly with the archived result.
+  - Preserve the legacy CLI even after the graph executor becomes the default.
+
+  This policy avoids changing defaults, random initialization, dataset splits, checkpoint selection, or artifact meaning merely to achieve architectural uniformity. There is no scientific prize for deleting working compatibility code early.
+
+  === B.11 Retirement and later expansion
+
+  The legacy executor may be retired only when every selected conformance case passes through the compatibility adapter, historical checkpoints load or have a documented conversion, artifact contracts remain stable, and compiled performance is not materially worse.
 ]
