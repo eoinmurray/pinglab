@@ -399,7 +399,7 @@
     #scfg.matched_presentation_ms ms presentation. The grid ends at 25 Hz
     because the existing PING results establish it as a high-accuracy trained
     endpoint; the denser low-rate samples are intended to locate the lower
-    information boundary. Generate fresh Poisson realizations during decoder
+    decodability boundary. Generate fresh Poisson realizations during decoder
     training. Split the training images into decoder-training and validation
     subsets before selecting regularization or stopping epochs; leave held-out
     test images untouched.
@@ -419,28 +419,30 @@
     Here A#sub[r] is held-out nonlinear-decoder accuracy and P denotes
     probability. Plot the linear curve beside it, but do not use the linear
     decoder to set the training range.
-  6. *Report an informative edge and a practical training floor.* Bootstrap
-    held-out images, Poisson draws, and model seeds to obtain a lower confidence
-    bound L#sub[r] at every tested rate. Define the informative edge as
+  6. *Report a decoder-relative decodability edge and a practical training
+    floor.* Bootstrap held-out images, Poisson draws, and model seeds to obtain
+    a lower confidence bound L#sub[r] at every tested rate. Define the
+    decodability edge as
 
-    $ r_"edge" = "lowest " r in cal(R) " satisfying " L_r(r) > 1 / N_"class". quad "(17)" $
+    $ r_"decode" = "lowest " r in cal(R) " satisfying " L_r(r) > 1 / N_"class". quad "(17)" $
 
     Define the practical training floor as
 
     $ r_"train" = "lowest " r in cal(R) " satisfying " L_r(r) >= a_"use". quad "(18)" $
 
     Here the calligraphic R is the tested rate grid; N#sub[class] is the number
-    of digit classes; r#sub[edge] is the lowest rate reliably above chance;
-    a#sub[use] is a predeclared useful-accuracy target; and r#sub[train] is the
-    lower endpoint used for training. Use 50% correct as the provisional
-    a#sub[use] value and lock it before inspecting the curve. Report
-    r#sub[edge] descriptively, but use r#sub[train] for the training decision.
+    of digit classes; r#sub[decode] is the lowest rate at which the primary
+    nonlinear decoder is reliably above chance; a#sub[use] is a predeclared
+    useful-accuracy target; and r#sub[train] is the lower endpoint used for
+    training. Use 50% correct as the provisional a#sub[use] value and lock it
+    before inspecting the curve. Report r#sub[decode] descriptively, but use
+    r#sub[train] for the training decision.
   7. *Compare with the frozen PING curve.* Compare the nonlinear ANN curve with
-    the fixed-duration PING rate curve in Figure 2. If both fail, the tested
-    feedforward representation contains little usable evidence for either
-    decoder. If the ANN succeeds but PING fails, the evidence reaches the input
-    stage but the trained PING network does not exploit it. If PING succeeds
-    where the ANN fails, the probe summary or decoder is inadequate.
+    the fixed-duration PING rate curve in Figure 2. If both fail, neither tested
+    system extracts usable digit evidence at that rate. If the ANN succeeds but
+    PING fails, the evidence reaches the input stage but the trained PING
+    network does not exploit it. If PING succeeds where the ANN fails, the probe
+    summary or decoder is inadequate.
   8. *Keep the existing spatial results as sanity checks.* Reuse the
     foreground-retention curve in Figure 3 and the equal-event bridge in
     Equation 9 without rerunning them. Equal-event mapping compares expected
@@ -467,8 +469,9 @@
     synthetic additive ANN noise.
   - Quian Quiroga and Panzeri emphasize held-out decoder evaluation and warn
     that failure of one decoder does not prove that a neural response contains
-    no information#cite(3). This is why the reported floor is explicitly
-    decoder-relative.
+    no information#cite(3). This is why the above-chance decodability edge is
+    described as decoder-relative rather than as an absolute information
+    boundary.
   - Warland et al. compare linear and nonlinear population decoders#cite(4).
     This motivates the one linear diagnostic beside the primary nonlinear ANN.
 
@@ -494,7 +497,7 @@
     grid for seeds #scfg.seeds.map(str).join(", ").
   3. [ ] Train the mixed-rate nonlinear ANN and linear softmax diagnostic.
   4. [ ] Freeze both decoders and run the shared held-out rate sweep.
-  5. [ ] Bootstrap both curves and report r#sub[edge] and r#sub[train].
+  5. [ ] Bootstrap both curves and report r#sub[decode] and r#sub[train].
   6. [ ] Compare the primary ANN curve with frozen PING Figure 2, Figure 3, and
     the equal-event bridge in Equation 9.
   7. [ ] Select the first variable-rate PING training range using
