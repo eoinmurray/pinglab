@@ -1,4 +1,4 @@
-#import "/.demolab/lib.typ": numbers-table, provenance-footer
+#import "/.demolab/lib.typ": cite, numbers-table, provenance-footer, reference-list
 
 #let meta = (
   title: "Temporal and spatial evidence limits of trained PING",
@@ -336,178 +336,191 @@
   locations, whereas lowering Poisson rate preserves all locations in
   expectation and changes temporal sampling noise.
 
-  == Appendix: Proposed information-equivalent calibration
+  == Appendix: Neo-proposal for filter-matched variable-rate calibration
 
-  The proposal asks a simple question:
+  === Neo-proposal
 
-  #quote(block: true)[
-    At a given encoding rate, does the encoded image still contain enough
-    information to recognize the digit?
-  ]
+  1. *Ask one operational question.* At fixed
+    #scfg.matched_presentation_ms ms presentation, what is the lowest Poisson
+    encoding rate at which PING's frozen feedforward input stage still supports
+    useful digit classification? The answer will set the lower endpoint of a
+    subsequent variable-rate PING training run.
+  2. *Feature generation.* Per-pixel spike counts would discard event timing
+    and therefore omit the AMPA decay and finite-window membrane response.
+    Generate features from the frozen feedforward dynamics so the ANN instead
+    receives the filter-matched signal reaching PING's hidden layer. For each
+    frozen PING seed, route the same Poisson input through its trained input
+    projection, AMPA conductance, and #scfg.n_hidden uncoupled non-spiking
+    excitatory membranes. Exclude recurrence, threshold, reset, refractory
+    state, adaptation, and the trained output layer. For pixel i, draw
 
-  This proposal uses two distinct artificial neural networks with the same
-  architecture:
+    $ S_i (t) tilde "Bernoulli"(r Delta t x_i). quad "(10)" $
 
-  - The *foreground-retention ANN* already exists from the spatial-mask
-    experiment. It was trained on uncorrupted grayscale MNIST images, then
-    frozen and evaluated on binarized held-out images with foreground pixels
-    removed. Its foreground-retention curve is already complete and will be
-    reused without retraining; it is shown in Figure 3.
-  - The *variable-rate ANN* is new. It will be trained to classify
-    Poisson-encoded images across the proposed rate range. Spike counts are
-    converted back into noisy image estimates before classification.
+    Update the feedforward conductance of probe cell j according to
 
-  The variable-rate ANN measures information available from the encoder without
-  being affected by PING's recurrent dynamics. Here a decoder is any classifier
-  that maps an encoded input to a digit label.
+    $ g_j^"ff" (t) = beta_"AMPA" g_j^"ff" (t-1) + sum_i S_i (t) W_"in" (i,j). quad "(11)" $
 
-  Compare two psychometric curves, where a psychometric curve plots the
-  probability of a correct response against a controlled stimulus variable:
+    The AMPA decay factor is
 
-  - A#sub[q] is the existing foreground-retention ANN accuracy as foreground
-    pixels are removed, parameterized by retention q.
-  - A#sub[r] is the new variable-rate ANN accuracy as the Poisson encoding rate
-    is reduced.
+    $ beta_"AMPA" = exp(-(Delta t) / tau_"AMPA"). quad "(12)" $
 
-  The rate at which A#sub[r] matches A#sub[q] at q = #m01.q is the
-  information-equivalent rate
+    Each probe membrane follows
 
-  $ r_"info"(#m01.q). quad "(10)" $
+    $ C_E (d v_j) / (d t) = g_"L,E" (E_L - v_j) + g_j^"ff" (t) (E_e - v_j). quad "(13)" $
 
-  Here r#sub[info] is the Poisson encoding rate at which the variable-rate ANN
-  matches the foreground-retention ANN accuracy at the retention value in
-  parentheses. Use this rate as the lower bound for the first variable-rate
-  PING training run.
+    Its instantaneous effective time constant is
 
-  Interpret the comparison as follows:
+    $ tau_"eff",j (t) = C_E / (g_"L,E" + g_j^"ff" (t)). quad "(14)" $
 
-  - If the variable-rate ANN and PING both fail at a rate, the encoded image
-    lacks usable evidence for the tested decoders.
-  - If the variable-rate ANN succeeds but PING fails, the evidence exists but
-    PING cannot exploit it.
-  - If the variable-rate ANN and PING both succeed, the rate is already viable.
+    Here S#sub[i] (t) is the input spike from pixel i at timestep t; r is the
+    maximum encoding rate in spikes per second; Δt is the simulation timestep
+    in seconds; x#sub[i] is grayscale pixel intensity; g#super[ff]#sub[j] is the
+    feedforward conductance of probe cell j; W#sub[in] (i,j) is the frozen input
+    weight; β#sub[AMPA] is the conductance retained for one timestep;
+    τ#sub[AMPA] is the AMPA time constant; C#sub[E] is excitatory-cell
+    capacitance; v#sub[j] is probe voltage; g#sub[L,E] is leak conductance;
+    E#sub[L] and E#sub[e] are the leak and excitatory reversal potentials; and
+    τ#sub[eff,j] is the conductance-dependent membrane time constant. Equation
+    14 is why a single fixed membrane leak factor is not an adequate surrogate.
+    Restart the probe from the same initial state used by PING and retain
+    exactly the first #scfg.matched_presentation_ms ms. Reduce each presentation
+    to one static feature vector by computing, for every probe cell,
 
-  In short, the foreground-retention ANN supplies the reference accuracy at
-  q = #m01.q. The variable-rate ANN locates the accessible image-information
-  floor, the lowest rate at which its accuracy is reliably above chance. The
-  frozen PING curve locates this network's operating floor, the lowest rate at
-  which PING can use that evidence; the existing curve is shown in Figure 2.
-  The gap between the variable-rate ANN and PING measures the
-  limitation attributable to PING rather than the encoder.
+    $ z_j = 1 / T integral_0^T (v_j (t) - E_L) dif t. quad "(15)" $
 
-  #pagebreak()
+    Here z#sub[j] is the time-averaged baseline-subtracted voltage and T is
+    presentation duration. The feature is not divided by encoding rate because
+    PING is not given that rate and experiences its rate-dependent change in
+    mean drive.
+  3. *Build the variable-rate feature dataset.* Apply the feature-generation
+    recipe in Step 2 to the established MNIST training and held-out partitions,
+    using the three frozen PING seeds and their trained input matrices. Evaluate
+    0.25, 0.5, 0.75, 1, 1.5, 2, 2.5, 3, 4, 5, 10, and 25 Hz at fixed
+    #scfg.matched_presentation_ms ms presentation. The grid ends at 25 Hz
+    because the existing PING results establish it as a high-accuracy trained
+    endpoint; the denser low-rate samples are intended to locate the lower
+    decodability boundary. Generate fresh Poisson realizations during decoder
+    training. Split the training images into decoder-training and validation
+    subsets before selecting regularization or stopping epochs; leave held-out
+    test images untouched.
+  4. *Train only two mixed-rate decoders initially.* The primary decoder is a
+    conventional ANN with one rectified-linear hidden layer of
+    #scfg.n_hidden units and #scfg.n_classes outputs. Train a regularized linear
+    softmax decoder on the same features as a diagnostic of linear
+    accessibility. Neither decoder receives the numerical rate or shares
+    learned classification weights with PING.
+  5. *Generate the psychometric curves by inference only.* Freeze both
+    decoders. At every rate, evaluate the same held-out images using fixed
+    Poisson draws shared across compatible decoder and PING seeds, with
+    additional draws used to measure sampling variation. The primary curve is
 
-  === Steps
+    $ A_r (r) = P("correct" | r, "mixed-rate nonlinear decoder on Equation 15"). quad "(16)" $
 
-  1. *Reuse the foreground-retention experiment's setup.* The
-    foreground-retention ANN and A#sub[q] curve are already complete. Reuse
-    their MNIST training and held-out partitions, ANN architecture, and random
-    seeds for the new variable-rate ANN. Evaluate both curves on the same fixed
-    held-out images so image difficulty cannot shift the mapping. The existing
-    A#sub[q] result is Figure 3.
-  2. *Fix the temporal condition.* Use
-    T = #scfg.matched_presentation_ms ms for every rate, matching the trained
-    PING presentation and readout window.
-  3. *Sample a transition-focused rate grid.* Evaluate 0.25, 0.5, 0.75, 1,
-    1.5, 2, 2.5, 3, 4, 5, 10, and 25 Hz. These points resolve the current
-    #p2.input_rate_hz–#p3.input_rate_hz Hz PING transition while retaining the
-    #scfg.matched_rate_hz Hz trained-rate endpoint shown in Figure 2.
-  4. *Train the new variable-rate ANN.* For every training presentation, sample
-    one grid rate uniformly and draw, for every pixel,
+    Here A#sub[r] is held-out nonlinear-decoder accuracy and P denotes
+    probability. Plot the linear curve beside it, but do not use the linear
+    decoder to set the training range.
+  6. *Report a decoder-relative decodability edge and a practical training
+    floor.* Bootstrap held-out images, Poisson draws, and model seeds to obtain
+    a lower confidence bound L#sub[r] at every tested rate. Define the
+    decodability edge as
 
-    $ N_i tilde "Poisson"(r T x_i). quad "(11)" $
+    $ r_"decode" = "lowest " r in cal(R) " satisfying " L_r(r) > 1 / N_"class". quad "(17)" $
 
-    Here N#sub[i] is the spike count for pixel i; the tilde states that this
-    count is drawn from a Poisson distribution whose expected count is the
-    product in parentheses; r is encoding rate in spikes per second; T is
-    presentation duration in seconds; and x#sub[i] is the original grayscale
-    intensity of pixel i on a scale from zero to one.
+    Define the practical training floor as
 
-    Convert the counts to the normalized image
+    $ r_"train" = "lowest " r in cal(R) " satisfying " L_r(r) >= a_"use". quad "(18)" $
 
-    $ hat(x)_i = N_i / (r T). quad "(12)" $
+    Here the calligraphic R is the tested rate grid; N#sub[class] is the number
+    of digit classes; r#sub[decode] is the lowest rate at which the primary
+    nonlinear decoder is reliably above chance; a#sub[use] is a predeclared
+    useful-accuracy target; and r#sub[train] is the lower endpoint used for
+    training. Use 50% correct as the provisional a#sub[use] value and lock it
+    before inspecting the curve. Report r#sub[decode] descriptively, but use
+    r#sub[train] for the training decision.
+  7. *Compare with the frozen PING curve.* Compare the nonlinear ANN curve with
+    the fixed-duration PING rate curve in Figure 2. If both fail, neither tested
+    system extracts usable digit evidence at that rate. If the ANN succeeds but
+    PING fails, the evidence reaches the input stage but the trained PING
+    network does not exploit it. If PING succeeds where the ANN fails, the probe
+    summary or decoder is inadequate.
+  8. *Keep the existing spatial results as sanity checks.* Reuse the
+    foreground-retention curve in Figure 3 and the equal-event bridge in
+    Equation 9 without rerunning them. Equal-event mapping compares expected
+    input-spike count, not class information. Because Figure 3 uses binarized
+    images while the rate curve uses grayscale inputs, treat the simple mapping
+    in Equation 9 as an order-of-magnitude comparison rather than an exact
+    equivalence.
+  9. *Escalate only if the primary comparison demands it.* Add a coarse
+    temporal decoder only if PING succeeds where the time-averaged ANN fails.
+    Train rate-specific decoders only if the mixed-rate decoder shows an
+    unexplained failure, initially restricting them to rates around that
+    transition. These are debugging controls, not prerequisites for choosing
+    the first variable-rate training range.
 
-    The left-hand side of Equation 12 is the noisy normalized estimate of the
-    original pixel intensity.
+  === Relation to prior work
 
-    A lower encoding rate produces fewer spikes even when the image is
-    unchanged. Dividing by rate multiplied by presentation duration puts every
-    rate on the same intensity scale. On average, the normalized image equals
-    the original grayscale image. Low-rate images are still noisier and
-    sparser, so any loss in variable-rate ANN accuracy reflects degraded image
-    evidence rather than the model simply receiving smaller numerical pixel
-    values.
+  - Wolff and Lindner show that transient voltage statistics under filtered
+    conductance shot noise can depart from a fixed-effective-time-constant
+    approximation, especially at low rates#cite(1). This supports using the
+    exact finite-window conductance probe in Step 2.
+  - Brigham and Destexhe show that nonstationary filtered shot noise can produce
+    voltage distributions whose skew is missed by a Gaussian
+    approximation#cite(2). This supports fresh Poisson simulation rather than
+    synthetic additive ANN noise.
+  - Quian Quiroga and Panzeri emphasize held-out decoder evaluation and warn
+    that failure of one decoder does not prove that a neural response contains
+    no information#cite(3). This is why the above-chance decodability edge is
+    described as decoder-relative rather than as an absolute information
+    boundary.
+  - Warland et al. compare linear and nonlinear population decoders#cite(4).
+    This motivates the one linear diagnostic beside the primary nonlinear ANN.
 
-    Provide this image to the variable-rate ANN, which has the same
-    width-matched architecture as the foreground-retention ANN but separate
-    trained weights. Fresh draws on every epoch prevent memorization of
-    particular spike-count realizations.
-  5. *Replicate variable-rate ANN training across seeds.* Use the existing
-     #scfg.seeds.map(str).join(", ") initialization seeds.
-  6. *Reuse the existing foreground-retention curve A#sub[q].* No new training
-     or inference is required for this curve. It was generated by freezing the
-     foreground-retention ANN, independently retaining each foreground pixel
-     with probability q in fixed held-out images, and measuring probability of
-     correct classification across #(scfg.mask_draws) mask realizations per
-     image and #scfg.seeds.len() foreground-retention ANN seeds. The published
-     asset is Figure 3.
-  7. *Generate the variable-rate curve A#sub[r] by inference only.* After
-     training the variable-rate ANN in Steps 4 and 5, freeze its weights. For every
-     rate in the grid from Step 3, create normalized Poisson-count images using
-     Equations 11 and 12 from the same fixed held-out images. Evaluate each rate
-     using fixed Poisson draws shared across variable-rate ANN seeds and additional
-     independent draws to measure sampling variation. Plot probability of
-     correct classification against encoding rate r. This new curve is
-     A#sub[r].
-  8. *Fit the two curves.* Fit isotonic regression separately to A#sub[q] and
-     A#sub[r]. This gives monotonic best-fit curves that can stay level or
-     increase as more evidence becomes available, without allowing small
-     sampling fluctuations to make them run backward.
-  9. *Compare the curves.* Read the fitted foreground-retention ANN accuracy at
-     q = #m01.q from A#sub[q]. Find the rate at which the fitted variable-rate
-     ANN curve A#sub[r] reaches that same accuracy. That rate is the
-     information-equivalent rate r#sub[info] (#m01.q). The two curves use the
-     same ANN architecture and held-out images, but their weights come from the
-     separate training protocols described above.
-  10. *Quantify and validate the match.* Repeatedly resample the held-out images
-      and random mask or Poisson draws with replacement, refit both curves, and
-      repeat the comparison in Step 9. Report the middle 95% of the resulting
-      matched-rate estimates as the confidence interval. If the matched rate
-      changes substantially across these resamples, treat the boundary as
-      uncertain rather than as a measured information limit.
-  11. *Determine the lower bounds.* Report the *information floor*, defined as
-     the lowest evaluated rate whose lower confidence bound, the lower edge of
-     its confidence interval, exceeds
-     #(scfg.n_classes)-class chance, and the *matched-evidence rate*
-     r#sub[info] (#m01.q), the rate that matches foreground-retention ANN
-     accuracy at retention q = #m01.q, rounded upward to the next tested rate.
-  12. *Choose the variable-rate training range.* Use the matched-evidence rate as
-     the lower endpoint and #scfg.matched_rate_hz Hz as the upper endpoint.
-     Sample uniformly from the retained discrete rate grid so every operating
-     condition receives equal training exposure.
-  13. *Interpret the variable-rate ANN–PING comparison.* If both the
-    variable-rate ANN and PING remain at chance, the encoder supplies
-    insufficient accessible evidence. If the variable-rate ANN succeeds below
-    the frozen PING transition in Figure 2, the image remains
-    classifiable and the limitation belongs to PING's dynamics or training. If
-    both succeed, that rate is already viable.
+  === Why Bode analysis is deferred
 
-  This procedure measures information accessible to the variable-rate ANN. It
-  does not prove that no conceivable decoder could recover information below
-  the measured floor.
+  A Bode analysis would describe the temporal bandwidth of a locally linearized
+  synapse–membrane cascade. It would not directly determine whether digit
+  identity remains classifiable or which rate should bound variable-rate
+  training. The exact finite-window probe already answers the calibration
+  question without relying on a linear approximation.
+
+  In addition, PING's effective membrane time constant changes with conductance,
+  so there is no single universal transfer curve. A defensible Bode result would
+  require a family of operating-point-dependent curves and exact gain-and-phase
+  validation. That remains useful mechanistic and thesis material, but it is a
+  separate follow-up rather than a prerequisite for the neo-proposal.
 
   === TODO
 
-  1. [x] Reuse A#sub[q] from Figure 3 without rerunning the
-    foreground-retention ANN.
-  2. [ ] Train the variable-rate ANN across the Step 3 rate grid for seeds
-    #scfg.seeds.map(str).join(", ").
-  3. [ ] Freeze the trained variable-rate ANN and run the inference-only rate
-    sweep to generate A#sub[r].
-  4. [ ] Fit A#sub[q] and A#sub[r], bootstrap the curve matching, and report the
-    information floor and r#sub[info] (#m01.q).
-  5. [ ] Compare A#sub[r] with the frozen PING curve in Figure 2 and
-    select the lower endpoint for variable-rate PING training.
-  6. [ ] After review, run the variable-rate PING training experiment over the
-    selected rate range.
+  1. [ ] Implement and unit-test the exact finite-window feedforward probe in
+    Step 2 without changing the production PING engine.
+  2. [ ] Generate time-averaged filter-matched features over the fixed rate
+    grid for seeds #scfg.seeds.map(str).join(", ").
+  3. [ ] Train the mixed-rate nonlinear ANN and linear softmax diagnostic.
+  4. [ ] Freeze both decoders and run the shared held-out rate sweep.
+  5. [ ] Bootstrap both curves and report r#sub[decode] and r#sub[train].
+  6. [ ] Compare the primary ANN curve with frozen PING Figure 2, Figure 3, and
+    the equal-event bridge in Equation 9.
+  7. [ ] Select the first variable-rate PING training range using
+    r#sub[train] as its lower endpoint.
+  8. [ ] Run temporal, per-rate, or Bode follow-ups only if the primary result
+    triggers the conditions in Step 9.
+
+  #reference-list((
+    (
+      text: [Wolff & Lindner — _Mean, Variance, and Autocorrelation of Subthreshold Potential Fluctuations Driven by Filtered Conductance Shot Noise_. Neural Computation, 2010.],
+      doi: "10.1162/neco.2009.02-09-958",
+    ),
+    (
+      text: [Brigham & Destexhe — _Nonstationary Filtered Shot-Noise Processes and Applications to Neuronal Membranes_. Physical Review E, 2015.],
+      doi: "10.1103/PhysRevE.91.062102",
+    ),
+    (
+      text: [Quian Quiroga & Panzeri — _Extracting Information from Neuronal Populations: Information Theory and Decoding Approaches_. Nature Reviews Neuroscience, 2009.],
+      doi: "10.1038/nrn2578",
+    ),
+    (
+      text: [Warland, Reinagel & Meister — _Decoding Visual Information From a Population of Retinal Ganglion Cells_. Journal of Neurophysiology, 1997.],
+      doi: "10.1152/jn.1997.78.5.2336",
+    ),
+  ))
 ]
