@@ -1,0 +1,1 @@
+{"assets":[],"compiler":{"name":"snnlang","version":"0.1.0"},"files":[{"digest":"sha256:22ea86531342482adf9a09c6de47308c930fd6c04529bdb250b509b2b8ab30c0","path":"graph.json"}],"graph_digest":"sha256:22ea86531342482adf9a09c6de47308c930fd6c04529bdb250b509b2b8ab30c0","schema":"snnlang.bundle/v1","target":"tools/snn"}

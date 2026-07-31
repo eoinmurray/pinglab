@@ -11,7 +11,7 @@ from tools.snnlang.compiler import canonical_json, graph_dict, validate_graph
 
 def small_network():
     net = snn.Network("small")
-    x = net.input("x", shape=("batch", "time", 8), signal_type="spikes", unit="spike")
+    x = net.input("x", shape=("time", "batch", 8), signal_type="spikes", unit="spike")
     cell = snn.components.ping(net, name="cell", n_e=12, n_i=3, source=x)
     return net, cell
 
@@ -20,7 +20,7 @@ def test_graph_shaped_authoring_and_component_expansion():
     net, cell = small_network()
     assert {p["id"] for p in net.populations} == {"cell_E", "cell_I"}
     assert {p["connection"] for p in net.projections} == {"feedforward", "recurrent"}
-    assert cell.E.spikes.shape == ("batch", "time", 12)
+    assert cell.E.spikes.shape == ("time", "batch", 12)
     assert net.groups["cell"].members
 
 
@@ -54,7 +54,7 @@ def test_readouts_expand_to_serialisable_ops(kind):
     elif kind == "count":
         value = snn.readouts.SpikeCount(source=cell.E.spikes, classes=4, name="r")
     elif kind == "rate":
-        mask = net.input("valid", shape=("batch", "time"), signal_type="mask")
+        mask = net.input("valid", shape=("time", "batch"), signal_type="mask")
         value = snn.readouts.SpikeRate(
             source=cell.E.spikes, classes=4, name="r", mask=mask
         )
@@ -65,6 +65,10 @@ def test_readouts_expand_to_serialisable_ops(kind):
     net.output("scores", value)
     bundle = snn.compile(net)
     assert bundle.graph["operations"]
+    if kind in {"mean", "final", "count", "rate"}:
+        assert value.shape == ("batch", 4)
+    else:
+        assert value.shape == ("time", "batch", 4)
     canonical_json(bundle.graph)
 
 
@@ -114,6 +118,7 @@ def test_training_selects_and_freezes_parameters():
         stop_gradients=[training.StopGradient.at(cell.E.spikes)],
     )
     bundle = snn.compile(net, training=spec)
+    assert bundle.training is not None
     assert bundle.training["graph_digest"] == bundle.manifest["graph_digest"]
     assert bundle.training["parameter_groups"][1]["frozen"]
 
