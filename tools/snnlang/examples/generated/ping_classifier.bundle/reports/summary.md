@@ -2,11 +2,11 @@
 
 Populations: 3 (330 units)
 Projections: 4
-Operations: 2
-Parameters: 5 tensors / 236,132 scalars
+Operations: 1
+Parameters: 4 tensors / 236,032 scalars
 Estimated state: 330 scalars per sample and timestep
-Estimated dense projection edges: 233,572
-Trainable this recipe: 2 tensors
+Estimated dense projection edges: 236,032
+Trainable this recipe: 1 tensors
 Outputs: class_logits
 Recurrent paths: sensory_ping_E_to_I, sensory_ping_I_to_E
 Diagnostics: 0 errors, 0 warnings
@@ -17,14 +17,13 @@ Diagnostics: 0 errors, 0 warnings
 - sensory_ping_I: 64 × coba_lif (spiking)
 
 ## Projections
-- classifier_drive: classifier_projection.value → classifier_integrator.excitatory [feedforward, excitatory]
+- classifier_projection: sensory_ping_E.spikes → classifier_integrator.excitatory [feedforward, excitatory]
 - sensory_ping_E_to_I: sensory_ping_E.spikes → sensory_ping_I.excitatory [recurrent, excitatory]
 - sensory_ping_I_to_E: sensory_ping_I.spikes → sensory_ping_E.inhibitory [recurrent, inhibitory]
 - sensory_ping_input: image.value → sensory_ping_E.excitatory [feedforward, excitatory]
 
 ## Parameters
-- classifier_drive.weight: [10, 10] nS (selected)
-- classifier_projection.weight: [10, 256] 1 (selected)
+- classifier_projection.weight: [10, 256] nS (selected)
 - sensory_ping_E_to_I.weight: [64, 256] nS (frozen/unselected)
 - sensory_ping_I_to_E.weight: [256, 64] nS (frozen/unselected)
 - sensory_ping_input.weight: [256, 784] nS (frozen/unselected)

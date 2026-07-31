@@ -19,6 +19,7 @@ from pathlib import Path
 
 import models as M
 import runlog
+from bundle import BundleCompatibilityError, apply_bundle_to_args
 
 # Re-exported through cli/__init__.py for notebook runners (nb003–006).
 from config import (
@@ -273,6 +274,13 @@ def _build_parent_parser():
     # Shared parent for network/input args
     parent = argparse.ArgumentParser(add_help=False)
     net_group = parent.add_argument_group("Network")
+    net_group.add_argument(
+        "--bundle",
+        type=str,
+        default=None,
+        help="Load graph structure from an snnlang bundle. The initial adapter "
+        "supports sim with one MNIST PING layer and MeanVoltage readout.",
+    )
     net_group.add_argument(
         "--model",
         type=str,
@@ -974,6 +982,11 @@ For the underlying theory of --v-grad-dampen see /articles/ar006/.
         parser.print_help()
         sys.exit(0)
 
+    try:
+        apply_bundle_to_args(args, argv)
+    except BundleCompatibilityError as exc:
+        parser.error(str(exc))
+
     # --load-config: load training params from config.json, fill unset values
     if args.mode in ("sim", "dump-weights") and getattr(args, "load_config", None):
         config_to_args, dest_to_flag = _build_config_mapping(parent)
@@ -986,6 +999,13 @@ For the underlying theory of --v-grad-dampen see /articles/ar006/.
         config_to_args["tau_gaba_ms"] = "tau_gaba"
         dest_to_flag.setdefault("tau_gaba", "--tau-gaba")
         _apply_load_config(args, argv, config_to_args, dest_to_flag)
+        if getattr(args, "bundle", None) and not any(
+            item == "--bundle" or item.startswith("--bundle=") for item in argv
+        ):
+            parser.error(
+                "bundle paths are not inherited from --load-config; pass "
+                "--bundle explicitly without --load-config"
+            )
     if getattr(args, "infer", False) and not getattr(args, "load_weights", None):
         print("Error: sim --infer requires --load-weights")
         sys.exit(1)

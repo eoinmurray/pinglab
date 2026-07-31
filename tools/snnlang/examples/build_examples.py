@@ -15,7 +15,11 @@ def ping_classifier():
     )
     cell = snn.components.ping(net, name="sensory_ping", n_e=256, n_i=64, source=image)
     readout = snn.readouts.MeanVoltage(
-        source=cell.E.spikes, classes=10, name="classifier"
+        source=cell.E.spikes,
+        classes=10,
+        name="classifier",
+        tau=2 * snn.ms,
+        weight=snn.Normal(5.1, 3.8),
     )
     net.output("class_logits", readout)
     net.expose(cell.E.spikes, cell.I.spikes, name="cell")
