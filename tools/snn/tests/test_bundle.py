@@ -160,6 +160,13 @@ def test_unsupported_graph_fails_with_capability_error(tmp_path):
         translate_cobanet_v1(bundle.graph)
 
 
+def test_bundle_rejects_input_axis_order_that_backend_cannot_consume():
+    bundle = ping_classifier()
+    bundle.graph["inputs"][0]["shape"] = ["batch", "time", 784]
+    with pytest.raises(BundleCompatibilityError, match="time.*batch.*channels"):
+        translate_cobanet_v1(bundle.graph)
+
+
 def test_bundle_cli_smoke_preserves_artifact_contract(tmp_path):
     root = _write_bundle(tmp_path)
     out = tmp_path / "run"

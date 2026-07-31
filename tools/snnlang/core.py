@@ -241,7 +241,7 @@ class Network:
             self._signals[f"{name}.spikes"] = Signal(
                 self,
                 f"{name}.spikes",
-                ("batch", "time", size),
+                ("time", "batch", size),
                 "spike",
                 "spikes",
                 name,
@@ -250,7 +250,7 @@ class Network:
         self._signals[f"{name}.voltage"] = Signal(
             self,
             f"{name}.voltage",
-            ("batch", "time", size),
+            ("time", "batch", size),
             "mV",
             "voltage",
             name,

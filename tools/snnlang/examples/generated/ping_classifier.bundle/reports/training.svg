@@ -51,7 +51,7 @@
 <title>image</title>
 <path fill="#f5f7fa" stroke="#cbd5e1" d="M111.19,-296.59C111.19,-296.59 29.65,-296.59 29.65,-296.59 23.65,-296.59 17.65,-290.59 17.65,-284.59 17.65,-284.59 17.65,-234.56 17.65,-234.56 17.65,-228.56 23.65,-222.56 29.65,-222.56 29.65,-222.56 111.19,-222.56 111.19,-222.56 117.19,-222.56 123.19,-228.56 123.19,-234.56 123.19,-234.56 123.19,-284.59 123.19,-284.59 123.19,-290.59 117.19,-296.59 111.19,-296.59"/>
 <text xml:space="preserve" text-anchor="start" x="29.17" y="-274.7" font-family="Helvetica,sans-Serif" font-weight="bold" font-size="15.00" fill="#243044">image</text>
-<text xml:space="preserve" text-anchor="start" x="29.17" y="-257.7" font-family="Helvetica,sans-Serif" font-size="10.00" fill="#667085">batch × time × 784</text>
+<text xml:space="preserve" text-anchor="start" x="29.17" y="-257.7" font-family="Helvetica,sans-Serif" font-size="10.00" fill="#667085">time × batch × 784</text>
 <polygon fill="#e8f1fb" stroke="none" points="29.17,-231.2 29.17,-248.95 111.67,-248.95 111.67,-231.2 29.17,-231.2"/>
 <text xml:space="preserve" text-anchor="start" x="33.17" y="-236.4" font-family="Helvetica,sans-Serif" font-size="9.00" fill="#243044">SPIKES</text>
 </g>

@@ -156,12 +156,12 @@ def validate_graph(graph: Mapping[str, Any]) -> ValidationResult:
         signals[f"{row['id']}.value"] = row
     for row in graph.get("populations", []):
         signals[f"{row['id']}.voltage"] = {
-            "shape": ["batch", "time", row["size"]],
+            "shape": ["time", "batch", row["size"]],
             "unit": "mV",
         }
         if row["spiking"]:
             signals[f"{row['id']}.spikes"] = {
-                "shape": ["batch", "time", row["size"]],
+                "shape": ["time", "batch", row["size"]],
                 "unit": "spike",
             }
     for row in graph.get("operations", []):
@@ -322,7 +322,7 @@ def validate_graph(graph: Mapping[str, Any]) -> ValidationResult:
                 mask = signals.get(mask_id)
                 if mask and (
                     mask.get("signal_type") != "mask"
-                    or mask.get("shape", [])[:2] != ["batch", "time"]
+                    or mask.get("shape", [])[:2] != ["time", "batch"]
                 ):
                     out.diagnostics.append(
                         Diagnostic(
