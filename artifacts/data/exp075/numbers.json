@@ -1,0 +1,62 @@
+{
+  "run_id": "r002",
+  "git_sha": "fe549464",
+  "duration_s": 17.8,
+  "duration": "18s",
+  "purpose": "bundle-driven training integration demonstration",
+  "graph": {
+    "name": "mnist_ping_training_demo",
+    "digest": "sha256:f5dd22aa3fcc0918ee92348e209ff0ca4163c91504d92191766dd90e42053fa4",
+    "training_digest": "sha256:d565ed9a3ec3e88947b172356e59ce64b2f2a8aee9a338fb3c4491dfde62f94a"
+  },
+  "config": {
+    "dt_ms": 0.5,
+    "t_ms": 100.0,
+    "n_e": 128,
+    "n_i": 32,
+    "max_samples": 1000,
+    "batch_size": 64,
+    "epochs": 4,
+    "seed": 75,
+    "learning_rate": 0.001,
+    "weight_decay": 0.0001,
+    "train_count": 800,
+    "held_out_count": 200
+  },
+  "trajectory": {
+    "epochs": [
+      1,
+      2,
+      3,
+      4
+    ],
+    "train_loss": [
+      2.295600047478309,
+      2.2812872299781213,
+      2.2701864059154806,
+      2.2604767359220066
+    ],
+    "test_loss": [
+      2.2880454063415527,
+      2.278077006340027,
+      2.2689188718795776,
+      2.2614136338233948
+    ],
+    "accuracy_pct": [
+      62.0,
+      64.5,
+      61.5,
+      63.5
+    ],
+    "train_loss_change": -0.03512331155630255,
+    "test_loss_change": -0.02663177251815796,
+    "accuracy_change_pct_points": 1.5,
+    "best_accuracy_pct": 64.5,
+    "best_epoch": 2
+  },
+  "training": {
+    "total_elapsed_s": 14.252672874950804,
+    "weights_written": true,
+    "final_weights_written": true
+  }
+}
