@@ -3,8 +3,11 @@ name: Pinglab
 book-title: pinglab — the book
 contents-title: pinglab — contents
 
-collection-order: [gamma-gated-sparsity, spiking-heidelberg-digits, documentation, literature, miscellaneous, weekly-feed]
+collection-order: [snnlang, gamma-gated-sparsity, spiking-heidelberg-digits, documentation, literature, miscellaneous, weekly-feed]
 collections:
+  snnlang:
+    label: snnlang
+    description: A Python language for authoring, checking, visualising, and compiling spiking-network graphs for simulation.
   gamma-gated-sparsity:
     label: Gamma-gated sparsity
     description: PING E/I networks trained with surrogate gradients; what sets the rate, the rhythm, and the sparsity.

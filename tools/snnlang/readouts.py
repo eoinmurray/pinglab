@@ -59,7 +59,7 @@ def FinalVoltage(*, source: Signal, classes: int, name: str) -> Readout:
             "select_final",
             projected,
             name=f"{name}_final",
-            shape=(projected.shape[0], projected.shape[-1]),
+            shape=tuple(dimension for dimension in projected.shape if dimension != "time"),
             unit=projected.unit,
         )
     return Readout(signal)

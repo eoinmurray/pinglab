@@ -98,7 +98,7 @@
 <title>events</title>
 <path fill="#f5f7fa" stroke="#cbd5e1" d="M93.54,-140.03C93.54,-140.03 12,-140.03 12,-140.03 6,-140.03 0,-134.03 0,-128.03 0,-128.03 0,-78 0,-78 0,-72 6,-66 12,-66 12,-66 93.54,-66 93.54,-66 99.54,-66 105.54,-72 105.54,-78 105.54,-78 105.54,-128.03 105.54,-128.03 105.54,-134.03 99.54,-140.03 93.54,-140.03"/>
 <text xml:space="preserve" text-anchor="start" x="11.52" y="-118.14" font-family="Helvetica,sans-Serif" font-weight="bold" font-size="15.00" fill="#243044">events</text>
-<text xml:space="preserve" text-anchor="start" x="11.52" y="-101.14" font-family="Helvetica,sans-Serif" font-size="10.00" fill="#667085">batch × time × 700</text>
+<text xml:space="preserve" text-anchor="start" x="11.52" y="-101.14" font-family="Helvetica,sans-Serif" font-size="10.00" fill="#667085">time × batch × 700</text>
 <polygon fill="#e8f1fb" stroke="none" points="11.52,-74.64 11.52,-92.39 94.02,-92.39 94.02,-74.64 11.52,-74.64"/>
 <text xml:space="preserve" text-anchor="start" x="15.52" y="-79.84" font-family="Helvetica,sans-Serif" font-size="9.00" fill="#243044">SPIKES</text>
 </g>

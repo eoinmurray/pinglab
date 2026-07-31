@@ -1,0 +1,46 @@
+{
+  "run_id": "r004",
+  "git_sha": "289dc29",
+  "duration_s": 3.1,
+  "duration": "3s",
+  "purpose": "end-to-end integration demonstration",
+  "graph": {
+    "name": "snnlang_ping_demo",
+    "digest": "sha256:22ea86531342482adf9a09c6de47308c930fd6c04529bdb250b509b2b8ab30c0",
+    "digest_short": "sha256:22ea86531342",
+    "populations": 3,
+    "projections": 4,
+    "operations": 1,
+    "parameter_tensors": 4
+  },
+  "config": {
+    "dt_ms": 0.1,
+    "t_ms": 200.0,
+    "n_batch": 4,
+    "n_input": 784,
+    "n_e": 256,
+    "n_i": 64,
+    "input_rate_hz": 100.0,
+    "seed": 74
+  },
+  "input": {
+    "shape": [
+      2000,
+      4,
+      784
+    ],
+    "shape_text": "2000 \u00d7 4 \u00d7 784",
+    "total_spikes": 62629,
+    "realised_rate_hz": 99.85491071428571
+  },
+  "output": {
+    "rate_e_hz": 20.9228515625,
+    "rate_i_hz": 62.5,
+    "display_trial": 0,
+    "display_trial_spikes": {
+      "input": 15632,
+      "e": 1012,
+      "i": 768
+    }
+  }
+}

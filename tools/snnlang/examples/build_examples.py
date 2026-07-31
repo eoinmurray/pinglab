@@ -11,7 +11,7 @@ OUT = Path(__file__).parent / "generated"
 def ping_classifier():
     net = snn.Network("ping_classifier")
     image = net.input(
-        "image", shape=("batch", "time", 784), signal_type="spikes", unit="spike"
+        "image", shape=("time", "batch", 784), signal_type="spikes", unit="spike"
     )
     cell = snn.components.ping(net, name="sensory_ping", n_e=256, n_i=64, source=image)
     readout = snn.readouts.MeanVoltage(
@@ -43,7 +43,7 @@ def ping_classifier():
 def deep_network():
     net = snn.Network("deep_ping_hierarchy")
     events = net.input(
-        "events", shape=("batch", "time", 700), signal_type="spikes", unit="spike"
+        "events", shape=("time", "batch", 700), signal_type="spikes", unit="spike"
     )
     first = snn.components.ping(net, name="encoder", n_e=384, n_i=96, source=events)
     second = snn.components.ping(
@@ -63,7 +63,7 @@ def deep_network():
 def coupled_feedback():
     net = snn.Network("coupled_ping_feedback")
     stimulus = net.input(
-        "stimulus", shape=("batch", "time", 128), signal_type="spikes", unit="spike"
+        "stimulus", shape=("time", "batch", 128), signal_type="spikes", unit="spike"
     )
     left = snn.components.ping(net, name="object_a", n_e=192, n_i=48, source=stimulus)
     right = snn.components.ping(net, name="object_b", n_e=192, n_i=48, source=stimulus)

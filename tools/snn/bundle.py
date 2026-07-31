@@ -201,9 +201,13 @@ def translate_cobanet_v1(graph: dict[str, Any]) -> LegacySettings:
             "graph timebase must declare a positive dt in ms"
         )
     input_shape = inputs[0].get("shape", [])
-    if len(input_shape) < 1 or not isinstance(input_shape[-1], int):
+    if (
+        len(input_shape) != 3
+        or input_shape[:2] != ["time", "batch"]
+        or not isinstance(input_shape[-1], int)
+    ):
         raise BundleCompatibilityError(
-            "input shape must end in a concrete channel count"
+            "COBANet v1 input shape must be ['time', 'batch', channels]"
         )
     tau_gaba = inhibitory[0].get("synapse", {}).get("tau", {})
     if (
