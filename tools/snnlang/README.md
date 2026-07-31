@@ -52,9 +52,18 @@ uv run python tools/snn/tool.py sim \
   --bundle small_ping.bundle \
   --t-ms 200 \
   --out-dir run/
+
+uv run python tools/snn/tool.py train \
+  --bundle tools/snnlang/examples/generated/ping_classifier.bundle \
+  --max-samples 1000 \
+  --batch-size 64 \
+  --out-dir train-run/
 ```
 
 Execution choices such as duration, seed, input mode, output directory, and
 recordings remain CLI concerns. Structural flags cannot override the bundle.
+For the first training subset, `training.json` owns cross-entropy, AdamW,
+epochs, learning rate, and a trainable input/readout plus frozen recurrent
+scope; dataset cap and batch size remain execution choices.
 Unsupported graph structures fail with a capability error; legacy commands
 that omit `--bundle` retain their existing defaults and behaviour.

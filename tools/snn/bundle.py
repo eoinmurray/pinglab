@@ -30,6 +30,13 @@ class LegacySettings:
     readout_mode: str
 
 
+@dataclass(frozen=True)
+class TrainingSettings:
+    lr: float
+    weight_decay: float
+    epochs: int
+
+
 def _canonical_json(data: Any) -> bytes:
     return (
         json.dumps(data, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
@@ -70,6 +77,41 @@ def load_graph_bundle(path: str | Path) -> tuple[dict[str, Any], dict[str, Any]]
     if actual != manifest.get("graph_digest"):
         raise BundleCompatibilityError("graph.json digest does not match manifest.json")
     return manifest, graph
+
+
+def load_training_recipe(
+    path: str | Path, manifest: dict[str, Any], graph: dict[str, Any]
+) -> dict[str, Any]:
+    """Load and authenticate the optional training recipe required by train."""
+    root = Path(path)
+    if root.is_file():
+        root = root.parent
+    training_path = root / "training.json"
+    if not training_path.is_file():
+        raise BundleCompatibilityError(
+            "bundle-driven training requires training.json"
+        )
+    training = json.loads(training_path.read_text())
+    if training.get("schema") != "snnlang.training/v1":
+        raise BundleCompatibilityError(
+            f"unsupported training schema: {training.get('schema')!r}"
+        )
+    if training.get("graph_digest") != manifest.get("graph_digest"):
+        raise BundleCompatibilityError(
+            "training.json graph digest does not match graph.json"
+        )
+    declared = {
+        row.get("path"): row.get("digest") for row in manifest.get("files", [])
+    }
+    if declared.get("training.json") != _digest(training):
+        raise BundleCompatibilityError(
+            "training.json digest does not match manifest.json"
+        )
+    if training["graph_digest"] != _digest(graph):
+        raise BundleCompatibilityError(
+            "training.json graph digest does not authenticate this graph"
+        )
+    return training
 
 
 def _normal(
@@ -243,6 +285,113 @@ def translate_cobanet_v1(graph: dict[str, Any]) -> LegacySettings:
     )
 
 
+def translate_training_v1(
+    graph: dict[str, Any], training: dict[str, Any]
+) -> TrainingSettings:
+    """Recognise the first executable recipe for the COBANet v1 graph subset."""
+    graph_parameters = {row["id"] for row in graph.get("parameters", [])}
+    projections = graph.get("projections", [])
+    recurrent = {
+        parameter
+        for projection in projections
+        if projection.get("connection") == "recurrent"
+        for parameter in projection.get("parameters", [])
+    }
+    trainable_expected = graph_parameters - recurrent
+
+    selected: dict[str, bool] = {}
+    trainable_lrs: set[float] = set()
+    for group in training.get("parameter_groups", []):
+        frozen = bool(group.get("frozen"))
+        lr = float(group.get("lr", 0.0))
+        if frozen and lr != 0.0:
+            raise BundleCompatibilityError(
+                f"frozen parameter group {group.get('id')} must use lr 0"
+            )
+        if not frozen:
+            if lr <= 0:
+                raise BundleCompatibilityError(
+                    f"trainable parameter group {group.get('id')} requires lr > 0"
+                )
+            trainable_lrs.add(lr)
+        for parameter in group.get("parameters", []):
+            if parameter in selected:
+                raise BundleCompatibilityError(
+                    f"training parameter appears in multiple groups: {parameter}"
+                )
+            selected[parameter] = frozen
+
+    if set(selected) != graph_parameters:
+        missing = graph_parameters - set(selected)
+        extra = set(selected) - graph_parameters
+        detail = []
+        if missing:
+            detail.append("missing " + ", ".join(sorted(missing)))
+        if extra:
+            detail.append("unknown " + ", ".join(sorted(extra)))
+        raise BundleCompatibilityError(
+            "training parameter groups must partition graph parameters: "
+            + "; ".join(detail)
+        )
+    actual_trainable = {parameter for parameter, frozen in selected.items() if not frozen}
+    actual_frozen = {parameter for parameter, frozen in selected.items() if frozen}
+    if actual_trainable != trainable_expected or actual_frozen != recurrent:
+        raise BundleCompatibilityError(
+            "current trainer requires input/readout parameters trainable and "
+            "recurrent E/I parameters frozen"
+        )
+    if len(trainable_lrs) != 1:
+        raise BundleCompatibilityError(
+            "current trainer requires one learning rate across trainable groups"
+        )
+
+    objectives = training.get("objectives", [])
+    output_signals = {row["signal"] for row in graph.get("outputs", [])}
+    if len(objectives) != 1 or objectives[0] != {
+        "kind": "cross_entropy",
+        "prediction": next(iter(output_signals), None),
+        "target": "digit",
+        "weight": 1.0,
+    }:
+        raise BundleCompatibilityError(
+            "current trainer requires one unit-weight cross-entropy objective "
+            "from the named output to target 'digit'"
+        )
+    if (
+        training.get("regularizers")
+        or training.get("stop_gradients")
+        or training.get("surrogate") is not None
+    ):
+        raise BundleCompatibilityError(
+            "regularizers, stop-gradients, and custom surrogates are not yet supported"
+        )
+    gradient_clip = training.get("gradient_clip")
+    if gradient_clip not in (None, 1, 1.0):
+        raise BundleCompatibilityError(
+            "current trainer uses a fixed gradient clip of 1.0"
+        )
+    optimizer = training.get("optimizer", {})
+    if optimizer.get("kind") != "adamw":
+        raise BundleCompatibilityError("current trainer requires AdamW")
+    optimizer_config = optimizer.get("config", {})
+    unknown_optimizer = set(optimizer_config) - {"weight_decay"}
+    if unknown_optimizer:
+        raise BundleCompatibilityError(
+            "unsupported AdamW settings: " + ", ".join(sorted(unknown_optimizer))
+        )
+    epochs = training.get("epochs")
+    if not isinstance(epochs, int) or isinstance(epochs, bool) or epochs <= 0:
+        raise BundleCompatibilityError("training epochs must be a positive integer")
+    weight_decay = float(optimizer_config.get("weight_decay", 0.0))
+    if weight_decay < 0:
+        raise BundleCompatibilityError("weight_decay must be non-negative")
+    return TrainingSettings(
+        lr=trainable_lrs.pop(),
+        weight_decay=weight_decay,
+        epochs=epochs,
+    )
+
+
 _STRUCTURAL_FLAGS = {
     "--model",
     "--n-hidden",
@@ -261,23 +410,38 @@ _STRUCTURAL_FLAGS = {
     "--load-config",
 }
 
+_TRAINING_RECIPE_FLAGS = {
+    "--lr",
+    "--weight-decay",
+    "--epochs",
+    "--fr-reg-upper-theta",
+    "--fr-reg-upper-strength",
+    "--trainable-w-ee",
+    "--trainable-w-ei",
+    "--trainable-w-ie",
+    "--trainable-w-ii",
+}
+
 
 def apply_bundle_to_args(args, argv: list[str]):
     """Apply bundle structure while preserving execution-only CLI overrides."""
     if not getattr(args, "bundle", None):
         return args
-    if args.mode != "sim":
+    if args.mode not in {"sim", "train"}:
         raise BundleCompatibilityError(
-            "--bundle currently supports sim only; bundle-driven training is the next stage"
+            "--bundle currently supports sim and train only"
         )
     explicit = {item.split("=", 1)[0] for item in argv if item.startswith("--")}
-    conflicts = sorted(explicit & _STRUCTURAL_FLAGS)
+    owned = _STRUCTURAL_FLAGS | (
+        _TRAINING_RECIPE_FLAGS if args.mode == "train" else set()
+    )
+    conflicts = sorted(explicit & owned)
     if conflicts:
         raise BundleCompatibilityError(
             "bundle owns structural settings; remove conflicting flags: "
             + ", ".join(conflicts)
         )
-    _, graph = load_graph_bundle(args.bundle)
+    manifest, graph = load_graph_bundle(args.bundle)
     settings = translate_cobanet_v1(graph)
     if settings.output_size != 10 or settings.input_size != 784:
         raise BundleCompatibilityError(
@@ -298,4 +462,10 @@ def apply_bundle_to_args(args, argv: list[str]):
     args.w_ie = list(settings.w_ie)
     args.ei_sparsity = 0.0
     args.tau_gaba = settings.tau_gaba
+    if args.mode == "train":
+        recipe = load_training_recipe(args.bundle, manifest, graph)
+        training = translate_training_v1(graph, recipe)
+        args.lr = training.lr
+        args.weight_decay = training.weight_decay
+        args.epochs = training.epochs
     return args
