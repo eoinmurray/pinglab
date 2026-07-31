@@ -36,3 +36,18 @@ Graph validity is checked independently of a simulator backend. Passing
 `target="tools/snn"` adds capability diagnostics but never changes the graph.
 See `writings/ar063.typ` for the architectural rationale and staged backend
 integration plan.
+
+The first additive `tools/snn` backend route accepts the deliberately narrow
+single-layer MNIST PING subset:
+
+```sh
+uv run python tools/snn/tool.py sim \
+  --bundle small_ping.bundle \
+  --t-ms 200 \
+  --out-dir run/
+```
+
+Execution choices such as duration, seed, input mode, output directory, and
+recordings remain CLI concerns. Structural flags cannot override the bundle.
+Unsupported graph structures fail with a capability error; legacy commands
+that omit `--bundle` retain their existing defaults and behaviour.
