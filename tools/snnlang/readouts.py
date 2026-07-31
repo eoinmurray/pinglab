@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from . import ops
-from .core import LeakyIntegrator, Signal, ms
+from .core import LeakyIntegrator, NonNegative, Normal, Signal, Spec, ms
 
 
 @dataclass(frozen=True)
@@ -21,33 +21,35 @@ class Readout:
         return self.signal.id
 
 
-def MeanVoltage(*, source: Signal, classes: int, name: str, tau=20 * ms) -> Readout:
+def MeanVoltage(
+    *,
+    source: Signal,
+    classes: int,
+    name: str,
+    tau=20 * ms,
+    weight: Spec = Normal(1.0, 0.1),
+) -> Readout:
     net = source.network
     with net.group(name):
-        projected = ops.linear(source, size=classes, name=f"{name}_projection")
         layer = net.population(
             f"{name}_integrator",
             size=classes,
             neuron=LeakyIntegrator(tau=tau),
             spiking=False,
         )
-        drive = net.connect(
-            projected,
+        projection = net.connect(
+            source,
             layer.excitatory,
-            name=f"{name}_drive",
+            name=f"{name}_projection",
             synapse=LeakyIntegrator(tau=tau),
+            weight=weight,
+            constraint=NonNegative(),
             connection="feedforward",
         )
         mean = ops.reduce(
             layer.voltage, operation="mean", over="time", name=f"{name}_mean"
         )
-    params = tuple(
-        dict.fromkeys(
-            [p["id"] for p in net.parameters if p["id"].startswith(name)]
-            + list(drive.parameter_ids)
-        )
-    )
-    return Readout(mean, params)
+    return Readout(mean, projection.parameter_ids)
 
 
 def FinalVoltage(*, source: Signal, classes: int, name: str) -> Readout:
@@ -57,7 +59,7 @@ def FinalVoltage(*, source: Signal, classes: int, name: str) -> Readout:
             "select_final",
             projected,
             name=f"{name}_final",
-            shape=(projected.shape[0], projected.shape[-1]),
+            shape=tuple(dimension for dimension in projected.shape if dimension != "time"),
             unit=projected.unit,
         )
     return Readout(signal)

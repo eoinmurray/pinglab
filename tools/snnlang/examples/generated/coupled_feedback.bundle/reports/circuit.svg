@@ -42,7 +42,7 @@
 <title>stimulus</title>
 <path fill="#f5f7fa" stroke="#cbd5e1" d="M93.54,-75.47C93.54,-75.47 12,-75.47 12,-75.47 6,-75.47 0,-69.47 0,-63.47 0,-63.47 0,-13.44 0,-13.44 0,-7.44 6,-1.44 12,-1.44 12,-1.44 93.54,-1.44 93.54,-1.44 99.54,-1.44 105.54,-7.44 105.54,-13.44 105.54,-13.44 105.54,-63.47 105.54,-63.47 105.54,-69.47 99.54,-75.47 93.54,-75.47"/>
 <text xml:space="preserve" text-anchor="start" x="11.52" y="-53.58" font-family="Helvetica,sans-Serif" font-weight="bold" font-size="15.00" fill="#243044">stimulus</text>
-<text xml:space="preserve" text-anchor="start" x="11.52" y="-36.58" font-family="Helvetica,sans-Serif" font-size="10.00" fill="#667085">batch × time × 128</text>
+<text xml:space="preserve" text-anchor="start" x="11.52" y="-36.58" font-family="Helvetica,sans-Serif" font-size="10.00" fill="#667085">time × batch × 128</text>
 <polygon fill="#e8f1fb" stroke="none" points="11.52,-10.08 11.52,-27.83 94.02,-27.83 94.02,-10.08 11.52,-10.08"/>
 <text xml:space="preserve" text-anchor="start" x="15.52" y="-15.28" font-family="Helvetica,sans-Serif" font-size="9.00" fill="#243044">SPIKES</text>
 </g>

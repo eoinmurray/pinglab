@@ -35,14 +35,19 @@ def reduce(
     window: str = "full",
     mask: Signal | None = None,
 ) -> Signal:
-    if over != "time" or len(source.shape) < 2:
+    if over != "time" or "time" not in source.shape:
         raise ValueError("v1 reductions support only an explicit time axis")
+    time_axis = source.shape.index("time")
     sources = [source] + ([mask] if mask else [])
     return source.network.operation(
         f"reduce_{operation}",
         sources,
         name=name,
-        shape=(source.shape[0], *source.shape[2:]),
+        shape=tuple(
+            dimension
+            for index, dimension in enumerate(source.shape)
+            if index != time_axis
+        ),
         unit=source.unit,
         window=window,
         mask=mask.id if mask else None,
