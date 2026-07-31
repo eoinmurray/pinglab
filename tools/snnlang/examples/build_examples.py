@@ -23,12 +23,26 @@ def ping_classifier():
     )
     net.output("class_logits", readout)
     net.expose(cell.E.spikes, cell.I.spikes, name="cell")
+    recurrent = [
+        p["id"]
+        for p in net.parameters
+        if p["id"]
+        in {
+            "sensory_ping_E_to_I.weight",
+            "sensory_ping_I_to_E.weight",
+        }
+    ]
+    feedforward = [
+        p["id"] for p in net.parameters if p["id"] not in set(recurrent)
+    ]
     train = snn.TrainSpec(
         objectives=[training.CrossEntropy(prediction=readout, target="digit")],
         parameter_groups=[
-            training.ParameterGroup(readout.parameters, name="readout", lr=1e-3),
             training.ParameterGroup(
-                [p["id"] for p in net.parameters if p["id"].startswith("sensory_ping")],
+                feedforward, name="feedforward", lr=1e-3
+            ),
+            training.ParameterGroup(
+                recurrent,
                 name="recurrent_frozen",
                 lr=0.0,
                 frozen=True,

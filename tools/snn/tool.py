@@ -279,7 +279,8 @@ def _build_parent_parser():
         type=str,
         default=None,
         help="Load graph structure from an snnlang bundle. The initial adapter "
-        "supports sim with one MNIST PING layer and MeanVoltage readout.",
+        "supports sim or train with one MNIST PING layer and MeanVoltage "
+        "readout; train additionally requires an authenticated training.json.",
     )
     net_group.add_argument(
         "--model",

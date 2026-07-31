@@ -13,7 +13,9 @@ import torch
 from bundle import (
     BundleCompatibilityError,
     load_graph_bundle,
+    load_training_recipe,
     translate_cobanet_v1,
+    translate_training_v1,
 )
 from tool import parse_args
 
@@ -85,6 +87,56 @@ def test_bundle_translates_to_same_structural_arguments_as_legacy(tmp_path):
     assert {field: getattr(bundle, field) for field in fields} == {
         field: getattr(legacy, field) for field in fields
     }
+
+
+def test_training_bundle_applies_graph_and_recipe(tmp_path):
+    root = _write_bundle(tmp_path)
+    args = parse_args(
+        [
+            "train",
+            "--bundle",
+            str(root),
+            "--max-samples",
+            "128",
+            "--batch-size",
+            "32",
+        ]
+    )
+    assert args.model == "ping"
+    assert args.dataset == "mnist"
+    assert args.n_hidden == [256]
+    assert args.dt == pytest.approx(0.1)
+    assert args.readout_mode == "mem-mean"
+    assert args.lr == pytest.approx(1e-3)
+    assert args.weight_decay == pytest.approx(1e-4)
+    assert args.epochs == 20
+    assert args.max_samples == 128
+    assert args.batch_size == 32
+
+
+def test_training_recipe_flags_cannot_override_bundle(tmp_path):
+    root = _write_bundle(tmp_path)
+    with pytest.raises(SystemExit) as error:
+        parse_args(["train", "--bundle", str(root), "--epochs", "1"])
+    assert error.value.code == 2
+
+
+def test_training_bundle_requires_authenticated_recipe(tmp_path):
+    root = _write_bundle(tmp_path)
+    (root / "training.json").unlink()
+    with pytest.raises(SystemExit) as error:
+        parse_args(["train", "--bundle", str(root)])
+    assert error.value.code == 2
+
+
+def test_training_recipe_rejects_unsupported_parameter_scope(tmp_path):
+    root = _write_bundle(tmp_path)
+    manifest, graph = load_graph_bundle(root)
+    recipe = load_training_recipe(root, manifest, graph)
+    recipe["parameter_groups"][0]["parameters"] = ["classifier_projection.weight"]
+    recipe["parameter_groups"][1]["parameters"].append("sensory_ping_input.weight")
+    with pytest.raises(BundleCompatibilityError, match="input/readout"):
+        translate_training_v1(graph, recipe)
 
 
 def _build_from_args(args):
