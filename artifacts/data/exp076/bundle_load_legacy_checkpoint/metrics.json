@@ -1,0 +1,32 @@
+{
+  "mode": "infer",
+  "model": "ping",
+  "run_finished_at": "2026-08-02T21:14:55+00:00",
+  "config": {
+    "dt": 0.5,
+    "t_ms": 40.0,
+    "w_in": [
+      0.2,
+      0.03
+    ],
+    "w_in_sparsity": 0.0,
+    "ei_strength": 0.5,
+    "ei_ratio": 2.0,
+    "n_hidden": 64,
+    "n_inh": 16,
+    "n_in": 784,
+    "max_samples": 160,
+    "dataset": "mnist",
+    "load_weights": "/home/eoin/pinglab/temp/experiments/exp076/legacy_training/weights.pth"
+  },
+  "best_acc": 15.625,
+  "ce_loss": 2.3013134002685547,
+  "n_correct": 5,
+  "n_total": 32,
+  "rates_hz": {
+    "hid": 0.67138671875,
+    "inh": 0.0,
+    "out": 0.0
+  },
+  "hid_rate_hz": 0.67138671875
+}

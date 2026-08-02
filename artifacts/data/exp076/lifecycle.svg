@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="230" viewBox="0 0 900 230">
+<rect width="100%" height="100%" fill="#fbfaf7"/>
+<style>text{font-family:Arial,Helvetica,sans-serif;fill:#222}.title{font-size:17px;font-weight:700}.sub{font-size:12px;fill:#555}.box{fill:#fff;stroke:#222;stroke-width:1.3;rx:10}.arrow{stroke:#8f1d14;stroke-width:2;fill:none;marker-end:url(#arrow)}</style>
+<defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#8f1d14"/></marker></defs>
+<text x="35" y="35" class="title">exp076 lifecycle checked locally</text>
+<text x="35" y="55" class="sub">This validates the current MNIST PING + MeanVoltage adapter only.</text>
+<rect class="box" x="35" y="78" width="145" height="74"/>
+<text x="49" y="109" class="title">Python</text>
+<text x="49" y="130" class="sub">graph + recipe</text>
+<path class="arrow" d="M 184 115.0 L 203 115.0"/>
+<rect class="box" x="210" y="78" width="145" height="74"/>
+<text x="224" y="109" class="title">Bundle</text>
+<text x="224" y="130" class="sub">signed files</text>
+<path class="arrow" d="M 359 115.0 L 378 115.0"/>
+<rect class="box" x="385" y="78" width="145" height="74"/>
+<text x="399" y="109" class="title">Train</text>
+<text x="399" y="130" class="sub">selected + final</text>
+<path class="arrow" d="M 534 115.0 L 553 115.0"/>
+<rect class="box" x="560" y="78" width="145" height="74"/>
+<text x="574" y="109" class="title">Replay</text>
+<text x="574" y="130" class="sub">bundle + legacy</text>
+<path class="arrow" d="M 709 115.0 L 728 115.0"/>
+<rect class="box" x="735" y="78" width="145" height="74"/>
+<text x="749" y="109" class="title">Parity</text>
+<text x="749" y="130" class="sub">one-step exact</text>
+</svg>

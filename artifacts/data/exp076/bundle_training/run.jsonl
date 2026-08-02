@@ -1,0 +1,9 @@
+{"ts": "2026-08-02T21:14:06", "event": "run_start", "mode": "train", "model": "ping", "subtitle": "on mnist"}
+{"ts": "2026-08-02T21:14:06", "event": "config", "fields": {"data": "mnist \u00b7 digit 0 \u00b7 sample 0 \u00b7 \u2264160 samples", "network": "hidden 64 \u00b7 Dale's law \u00b7 E/I 0.5\u00d72.0", "sim": "dt 0.5 ms \u00b7 T 40.0 ms", "train": "2 epochs \u00b7 lr 0.001 \u00b7 batch 32 \u00b7 v-dampen 80.0", "run": "r-20260802-211406 \u00b7 git 2ec3ab0"}}
+{"ts": "2026-08-02T21:14:06", "event": "phase", "name": "loading", "detail": "mnist", "elapsed_s": null}
+{"ts": "2026-08-02T21:14:08", "event": "phase", "name": "building", "detail": "50,816 params \u00b7 128 train \u00b7 32 test", "elapsed_s": null}
+{"ts": "2026-08-02T21:14:09", "event": "metrics", "label": "init", "rate_e": 0.0, "rate_i": 0.0, "cv": 0.0, "act": 0.0, "f0": null}
+{"ts": "2026-08-02T21:14:15", "event": "epoch", "ep": 1, "total": 2, "acc": 18.75, "loss": 2.302446663379669, "rate_e": 3.90625, "rate_i": 0.0, "cv": 2.144761085510254, "act": 15.625, "elapsed_s": 6.036956760799512, "eta_s": 6.036956760799512, "new_best": true, "warnings": []}
+{"ts": "2026-08-02T21:14:17", "event": "epoch", "ep": 2, "total": 2, "acc": 50.0, "loss": 2.298285484313965, "rate_e": 7.03125, "rate_i": 25.0, "cv": 3.199150800704956, "act": 28.125, "elapsed_s": 1.9200473199598491, "eta_s": 0.0, "new_best": true, "warnings": []}
+{"ts": "2026-08-02T21:14:17", "event": "summary", "best_acc": 50.0, "final_acc": 50.0, "best_epoch": 2, "runtime_s": 8.44331762404181, "perf": {"device": {"type": "cpu"}, "torch_version": "2.11.0+cu128", "epoch1_total_s": 6.036956760799512, "epoch_warm_mean_s": 1.9200473199598491, "samples_per_sec_warm": 73.9654235301563}, "device": "cpu", "dynamics": {"E": "7Hz", "I": "25Hz", "CV": "3.20", "act": "28%"}, "warnings": []}
+{"ts": "2026-08-02T21:14:17", "event": "done", "elapsed_s": 11.867960487026721, "device": null}

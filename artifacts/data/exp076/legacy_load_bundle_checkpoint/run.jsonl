@@ -1,0 +1,3 @@
+{"ts": "2026-08-02T21:14:36", "event": "run_start", "mode": "sim", "model": "ping", "subtitle": "synthetic-spikes"}
+{"ts": "2026-08-02T21:14:36", "event": "config", "fields": {"network": "hidden 64 \u00b7 Dale's law \u00b7 E/I 0.5\u00d72.0", "sim": "dt 0.5 ms \u00b7 T 40.0 ms \u00b7 Poisson 25.0 Hz", "run": "r-20260802-211436 \u00b7 git 2ec3ab0 (dirty)"}}
+{"ts": "2026-08-02T21:14:38", "event": "done", "elapsed_s": 1.8550639131572098, "device": null}
