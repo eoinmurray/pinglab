@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import shutil
 
 import pytest
 
@@ -198,6 +199,8 @@ def test_backend_capability_is_separate_from_validity():
 
 
 def test_visualisation_is_deterministic_and_has_stable_ids(tmp_path):
+    if shutil.which("dot") is None:
+        pytest.skip("Graphviz 'dot' is required for snnlang visualisation")
     net, cell = small_network()
     net.output("spikes", cell.E.spikes)
     bundle = snn.compile(net)
@@ -212,6 +215,8 @@ def test_visualisation_is_deterministic_and_has_stable_ids(tmp_path):
 
 
 def test_all_visual_views_render(tmp_path):
+    if shutil.which("dot") is None:
+        pytest.skip("Graphviz 'dot' is required for snnlang visualisation")
     net, cell = small_network()
     scores = snn.readouts.SpikeCount(source=cell.E.spikes, classes=2, name="scores")
     net.output("class_scores", scores)
