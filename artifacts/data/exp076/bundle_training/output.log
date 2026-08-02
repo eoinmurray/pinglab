@@ -1,0 +1,30 @@
+◆ pinglab · train · ping                                      on mnist
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  data      mnist · digit 0 · sample 0 · ≤160 samples
+  network   hidden 64 · Dale's law · E/I 0.5×2.0
+  sim       dt 0.5 ms · T 40.0 ms
+  train     2 epochs · lr 0.001 · batch 32 · v-dampen 80.0
+  run       r-20260802-211406 · git 2ec3ab0
+──────────────────────────────────────────────────────────────────────
+  seed=76 (Python, NumPy, torch)
+  ▸ loading                                                      mnist
+  readout_mode=mem-mean
+  ▸ building                       50,816 params · 128 train · 32 test
+  ◈ init      E 0Hz · I 0Hz · CV 0.00 · act 0%
+      epoch   acc%     loss  │   E/Hz   I/Hz     CV   act%  │     dt      eta
+  ───────────────────────────────────────────────────────────────────────────
+        1/2           2.302  │  batch 4/4                   │     5s
+        1/2     19    2.302  │      4      0   2.14     16  │     6s       6s ↑
+        2/2     50    2.298  │      7     25   3.20     28  │     1s       0s ↑
+──────────────────────────────────────────────────────────────────────
+  ✓ best      50.0%   epoch 2/2
+  ◷ runtime   8s · 1.9s/epoch · 74 samp/s · cpu
+  ◈ end       E 7Hz · I 25Hz · CV 3.20 · act 28%
+  → output    /home/eoin/pinglab/temp/experiments/exp076/bundle_training/
+            config.json 1.4 KB · metrics.json 4.5 KB
+            metrics.jsonl 1.7 KB · output.log 1.9 KB
+            run.jsonl 1.4 KB · run.sh 258 B
+            test_predictions.json 10.8 KB · weights.pth 226.0 KB
+            weights_final.pth 226.7 KB
+──────────────────────────────────────────────────────────────────────
+  ✓ done      11s
