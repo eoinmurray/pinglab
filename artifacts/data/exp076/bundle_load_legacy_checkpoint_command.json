@@ -1,0 +1,25 @@
+{
+  "cmd": [
+    "/home/eoin/pinglab/.venv/bin/python3",
+    "/home/eoin/pinglab/tools/snn/tool.py",
+    "sim",
+    "--bundle",
+    "/home/eoin/pinglab/temp/experiments/exp076/network.bundle",
+    "--infer",
+    "--load-weights",
+    "/home/eoin/pinglab/temp/experiments/exp076/legacy_training/weights.pth",
+    "--max-samples",
+    "160",
+    "--t-ms",
+    "40.0",
+    "--seed",
+    "76",
+    "--out-dir",
+    "/home/eoin/pinglab/temp/experiments/exp076/bundle_load_legacy_checkpoint",
+    "--wipe-dir"
+  ],
+  "returncode": 0,
+  "elapsed_s": 7.240521026076749,
+  "stdout_tail": "\u25c6 pinglab \u00b7 sim \u00b7 ping                                synthetic-spikes\n\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\n  network   hidden 64 \u00b7 Dale's law \u00b7 E/I 0.5\u00d72.0\n  sim       dt 0.5 ms \u00b7 T 40.0 ms \u00b7 Poisson 25.0 Hz\n  run       r-20260802-211453 \u00b7 git 2ec3ab0 (dirty)\n\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n  seed=76 (Python, NumPy, torch)\n  loaded /home/eoin/pinglab/temp/experiments/exp076/legacy_training/weights.pth\n  dt=0.500ms  acc=15.6%  (5/32)  hid=0.7Hz\n  \u2192 /home/eoin/pinglab/temp/experiments/exp076/bundle_load_legacy_checkpoint/metrics.json\n  \u2713 done      1s\n",
+  "stderr_tail": ""
+}

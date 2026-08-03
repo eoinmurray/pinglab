@@ -1,0 +1,2 @@
+#!/bin/bash
+/home/eoin/pinglab/tools/snn/tool.py train --n-hidden 64 --readout mem-mean --dt 0.5 --w-in 0.2 0.03 --w-in-sparsity 0 --w-ei 0.5 0.05 --w-ie 1.0 0.1 --ei-strength 0.5 --ei-ratio 2.0 --ei-sparsity 0 --tau-gaba 9.0 --lr 0.001 --weight-decay 0.0001 --epochs 1 --max-samples 160 --batch-size 32 --t-ms 40.0 --seed 1076 --out-dir /home/eoin/pinglab/temp/experiments/exp076/legacy_training --wipe-dir
