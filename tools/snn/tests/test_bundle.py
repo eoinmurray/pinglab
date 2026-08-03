@@ -10,6 +10,7 @@ import config
 import models as M
 import pytest
 import torch
+import torch.nn.functional as F
 from bundle import (
     BundleCompatibilityError,
     load_graph_bundle,
@@ -26,9 +27,9 @@ def _write_bundle(tmp_path):
     return ping_classifier().write(tmp_path / "network.bundle")
 
 
-def _legacy_argv():
+def _legacy_argv(mode="sim"):
     return [
-        "sim",
+        mode,
         "--n-hidden",
         "256",
         "--readout",
@@ -141,6 +142,7 @@ def test_training_recipe_rejects_unsupported_parameter_scope(tmp_path):
 
 def _build_from_args(args):
     M.N_IN = args.n_in
+    config.set_sim_dt(args.dt, getattr(args, "t_ms", 1.2))
     return config.build_net(
         args.model,
         w_in=args.w_in,
@@ -170,6 +172,137 @@ def test_bundle_and_legacy_build_identical_cobanet(tmp_path):
     assert bundle_net.state_dict().keys() == legacy_net.state_dict().keys()
     for name, value in bundle_net.state_dict().items():
         torch.testing.assert_close(value, legacy_net.state_dict()[name], rtol=0, atol=0)
+
+
+def _named_trainable(net):
+    return {name: param for name, param in net.named_parameters() if param.requires_grad}
+
+
+def _assert_tensor_maps_equal(stage, left, right):
+    assert left.keys() == right.keys(), (
+        f"{stage}: key mismatch "
+        f"left_only={sorted(left.keys() - right.keys())} "
+        f"right_only={sorted(right.keys() - left.keys())}"
+    )
+    for name in left:
+        l_val = left[name]
+        r_val = right[name]
+        assert l_val.shape == r_val.shape, (
+            f"{stage}: shape mismatch for {name}: {l_val.shape} != {r_val.shape}"
+        )
+        assert l_val.dtype == r_val.dtype, (
+            f"{stage}: dtype mismatch for {name}: {l_val.dtype} != {r_val.dtype}"
+        )
+        torch.testing.assert_close(
+            l_val,
+            r_val,
+            rtol=0,
+            atol=0,
+            msg=lambda msg, name=name, stage=stage: (
+                f"{stage}: first divergent tensor {name}\n{msg}"
+            ),
+        )
+
+
+def test_bundle_and_legacy_one_step_training_are_exactly_equivalent(tmp_path):
+    root = _write_bundle(tmp_path)
+    bundle_args = parse_args(["train", "--bundle", str(root), "--t-ms", "1.2"])
+    legacy_args = parse_args(
+        [
+            *_legacy_argv("train"),
+            "--t-ms",
+            "1.2",
+            "--lr",
+            str(bundle_args.lr),
+            "--weight-decay",
+            str(bundle_args.weight_decay),
+        ]
+    )
+    legacy_args.n_in = 784
+
+    torch.manual_seed(123)
+    bundle_net = _build_from_args(bundle_args)
+    torch.manual_seed(123)
+    legacy_net = _build_from_args(legacy_args)
+
+    _assert_tensor_maps_equal(
+        "initial state_dict",
+        bundle_net.state_dict(),
+        legacy_net.state_dict(),
+    )
+
+    bundle_trainable = _named_trainable(bundle_net)
+    legacy_trainable = _named_trainable(legacy_net)
+    assert set(bundle_trainable) == {"W_ff.0", "W_ff.1"}
+    assert set(bundle_trainable) == set(legacy_trainable)
+    assert {
+        name for name, param in bundle_net.named_parameters() if not param.requires_grad
+    } == {
+        name for name, param in legacy_net.named_parameters() if not param.requires_grad
+    }
+
+    encoded_spikes = torch.zeros(12, 4, 784)
+    encoded_spikes[0::3, :, 0:12] = 1.0
+    encoded_spikes[1::3, :, 100:112] = 1.0
+    labels = torch.tensor([0, 1, 2, 3], dtype=torch.long)
+
+    bundle_logits = bundle_net(input_spikes=encoded_spikes)
+    legacy_logits = legacy_net(input_spikes=encoded_spikes)
+    torch.testing.assert_close(
+        bundle_logits,
+        legacy_logits,
+        rtol=0,
+        atol=0,
+        msg=lambda msg: f"forward logits diverged\n{msg}",
+    )
+
+    bundle_loss = F.cross_entropy(bundle_logits, labels)
+    legacy_loss = F.cross_entropy(legacy_logits, labels)
+    torch.testing.assert_close(
+        bundle_loss,
+        legacy_loss,
+        rtol=0,
+        atol=0,
+        msg=lambda msg: f"cross-entropy loss diverged\n{msg}",
+    )
+
+    bundle_loss.backward()
+    legacy_loss.backward()
+    _assert_tensor_maps_equal(
+        "gradients",
+        {name: param.grad for name, param in bundle_trainable.items()},
+        {name: param.grad for name, param in legacy_trainable.items()},
+    )
+
+    bundle_opt = torch.optim.AdamW(
+        bundle_trainable.values(),
+        lr=bundle_args.lr,
+        weight_decay=bundle_args.weight_decay,
+    )
+    legacy_opt = torch.optim.AdamW(
+        legacy_trainable.values(),
+        lr=legacy_args.lr,
+        weight_decay=legacy_args.weight_decay,
+    )
+    bundle_opt.step()
+    legacy_opt.step()
+
+    _assert_tensor_maps_equal(
+        "post-AdamW state_dict",
+        bundle_net.state_dict(),
+        legacy_net.state_dict(),
+    )
+
+    bundle_opt_state = bundle_opt.state_dict()
+    legacy_opt_state = legacy_opt.state_dict()
+    assert bundle_opt_state["param_groups"] == legacy_opt_state["param_groups"]
+    for param_idx, state in bundle_opt_state["state"].items():
+        other = legacy_opt_state["state"][param_idx]
+        _assert_tensor_maps_equal(
+            f"AdamW optimizer state for parameter {param_idx}",
+            state,
+            other,
+        )
 
 
 def test_bundle_digest_is_authenticated(tmp_path):
