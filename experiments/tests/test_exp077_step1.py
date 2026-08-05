@@ -111,6 +111,40 @@ def test_full_library_contract_and_chunk_streams_are_locked() -> None:
     assert not np.array_equal(first, other_chunk)
 
 
-def test_step_3_remains_a_hard_stop() -> None:
-    with pytest.raises(NotImplementedError, match="Step 3"):
-        exp077.step_3()
+def test_linear_filter_zero_drive_and_grid_convergence() -> None:
+    lambdas = np.asarray([0.0, 0.25, 3.0, 25.0])
+    probes = np.full_like(lambdas, 1.2)
+    coarse = exp077.predicted_linear_variance(
+        lambdas, probes, grid_points=2049
+    )
+    fine = exp077.predicted_linear_variance(
+        lambdas, probes, grid_points=4097
+    )
+    assert coarse[0] == fine[0] == 0.0
+    assert np.all(np.isfinite(fine))
+    assert np.all(fine[1:] > 0.0)
+    assert np.max(np.abs(coarse[1:] - fine[1:]) / fine[1:]) < 1e-4
+
+
+def test_numerical_gain_matches_registered_transfer() -> None:
+    rate_hz = 3.0
+    probe_uS = 1.2
+    frequency_hz = 10.0
+    numerical = exp077.numerical_sinusoidal_gain(rate_hz, probe_uS, frequency_hz)
+    mean_g, mean_v = exp077.linear_operating_point(rate_hz, probe_uS)
+    omega = 2.0 * np.pi * frequency_hz / 1000.0
+    analytical = abs(
+        probe_uS / (1j * omega + 1 / exp077.PARAMETERS["tau_ampa_ms"])
+        * (exp077.PARAMETERS["E_e_mV"] - mean_v)
+        / (
+            1j * omega * exp077.PARAMETERS["C_m_nF"]
+            + exp077.PARAMETERS["g_L_uS"]
+            + mean_g
+        )
+    ) / 1000.0
+    assert numerical == pytest.approx(analytical, rel=exp077.GAIN_REL_TOL)
+
+
+def test_step_4_remains_a_hard_stop() -> None:
+    with pytest.raises(NotImplementedError, match="Step 4"):
+        exp077.step_4()
