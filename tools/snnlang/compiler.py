@@ -450,6 +450,21 @@ def capability_report(graph: Mapping[str, Any], target: str | None) -> list[Diag
         "divide",
     }
     diagnostics = []
+    vocabulary = "snnlang.capabilities/v1"
+    neuron_support = {"coba_lif", "leaky_integrator"}
+    synapse_support = {"ampa", "gaba", "leaky_integrator"}
+    connection_support = {"feedforward", "recurrent", "feedback"}
+    for population in graph["populations"]:
+        kind = population["neuron"]["kind"]
+        if kind not in neuron_support:
+            diagnostics.append(Diagnostic("warning", "C102", f"{vocabulary}: {target} lacks neuron:{kind}", population["id"]))
+    for projection in graph["projections"]:
+        synapse = projection["synapse"]["kind"]
+        connection = projection["connection"]
+        if synapse not in synapse_support:
+            diagnostics.append(Diagnostic("warning", "C103", f"{vocabulary}: {target} lacks synapse:{synapse}", projection["id"]))
+        if connection not in connection_support:
+            diagnostics.append(Diagnostic("warning", "C104", f"{vocabulary}: {target} lacks connection:{connection}", projection["id"]))
     for op in graph["operations"]:
         if op["kind"] not in supported:
             diagnostics.append(

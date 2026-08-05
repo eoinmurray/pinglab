@@ -1,0 +1,303 @@
+"""Typed execution seam and graph-native forward executor.
+
+The bundle is data.  This module intentionally has no dependency on snnlang.
+Legacy requests continue to route through the existing CLI handlers; graph
+requests are planned once and execute a fixed vectorised schedule per step.
+"""
+
+from __future__ import annotations
+
+import math
+import time
+import tracemalloc
+from dataclasses import dataclass, field
+from pathlib import Path
+from typing import Any, Literal, Mapping
+
+import torch
+from torch import nn
+
+from bundle import load_graph_bundle
+import models as M
+
+ExecutorName = Literal["legacy", "graph"]
+RequestKind = Literal["build", "simulate", "train", "infer"]
+
+
+@dataclass(frozen=True)
+class ExecutionSpec:
+    kind: RequestKind
+    executor: ExecutorName = "legacy"
+    bundle: Path | None = None
+    graph: Mapping[str, Any] | None = None
+    inputs: Mapping[str, torch.Tensor] = field(default_factory=dict)
+    seed: int = 0
+    device: str = "cpu"
+    record: bool = True
+    checkpoint: Path | None = None
+    options: Mapping[str, Any] = field(default_factory=dict)
+
+
+@dataclass
+class ExecutionResult:
+    executor: ExecutorName
+    outputs: dict[str, torch.Tensor] = field(default_factory=dict)
+    recordings: dict[str, torch.Tensor] = field(default_factory=dict)
+    parameters: dict[str, torch.Tensor] = field(default_factory=dict)
+    final_state: dict[str, torch.Tensor] = field(default_factory=dict)
+    metrics: dict[str, Any] = field(default_factory=dict)
+    model: nn.Module | None = None
+
+
+@dataclass(frozen=True)
+class CapabilityIssue:
+    element: str
+    capability: str
+    message: str
+
+
+GRAPH_CAPABILITIES_V1 = {
+    "schema": "tools/snn.capabilities/v1",
+    "neurons": {"coba_lif", "leaky_integrator"},
+    "synapses": {"ampa", "gaba", "leaky_integrator"},
+    "operations": {"reduce_mean"},
+    "connections": {"feedforward", "recurrent", "feedback"},
+    "recordings": {"spikes", "voltage"},
+    "delays": "integer_steps",
+    "training": False,
+}
+
+
+def graph_capability_issues(graph: Mapping[str, Any]) -> list[CapabilityIssue]:
+    """Return precise graph-executor capability failures."""
+    issues: list[CapabilityIssue] = []
+    for pop in graph.get("populations", []):
+        kind = pop.get("neuron", {}).get("kind")
+        if kind not in GRAPH_CAPABILITIES_V1["neurons"]:
+            issues.append(CapabilityIssue(pop["id"], f"neuron:{kind}", "unsupported neuron kind"))
+    for projection in graph.get("projections", []):
+        synapse = projection.get("synapse", {}).get("kind")
+        if synapse not in GRAPH_CAPABILITIES_V1["synapses"]:
+            issues.append(CapabilityIssue(projection["id"], f"synapse:{synapse}", "unsupported synapse kind"))
+        connection = projection.get("connection")
+        if connection not in GRAPH_CAPABILITIES_V1["connections"]:
+            issues.append(CapabilityIssue(projection["id"], f"connection:{connection}", "unsupported connection kind"))
+    for operation in graph.get("operations", []):
+        kind = operation.get("kind")
+        if kind not in GRAPH_CAPABILITIES_V1["operations"]:
+            issues.append(CapabilityIssue(operation["id"], f"operation:{kind}", "unsupported operation kind"))
+    return issues
+
+
+@dataclass(frozen=True)
+class PlannedProjection:
+    id: str
+    source: str
+    target: str
+    polarity: str
+    decay: float
+    delay_steps: int
+    parameter: str
+
+
+@dataclass(frozen=True)
+class GraphPlan:
+    graph: Mapping[str, Any]
+    dt_ms: float
+    populations: tuple[Mapping[str, Any], ...]
+    projections: tuple[PlannedProjection, ...]
+    observables: tuple[Mapping[str, Any], ...]
+    outputs: tuple[Mapping[str, Any], ...]
+
+
+def plan_graph(graph: Mapping[str, Any]) -> GraphPlan:
+    issues = graph_capability_issues(graph)
+    if issues:
+        detail = "; ".join(f"{x.element} requires {x.capability}: {x.message}" for x in issues)
+        raise ValueError(f"graph executor capability failure: {detail}")
+    dt = float(graph["timebase"]["dt"]["value"])
+    if dt <= 0:
+        raise ValueError("graph timebase dt must be positive")
+    planned = []
+    for row in graph.get("projections", []):
+        delay = row.get("delay")
+        delay_ms = 0.0 if delay is None else float(delay["value"])
+        raw_steps = delay_ms / dt
+        steps = int(round(raw_steps))
+        if not math.isclose(raw_steps, steps, abs_tol=1e-9):
+            raise ValueError(f"{row['id']}: delay {delay_ms} ms is not an integer number of dt={dt} ms steps")
+        source_owner = row["source"].partition(".")[0]
+        # Population spikes are only available after their update. Even a
+        # declared zero-additional-delay edge therefore has one causal step.
+        if source_owner in {p["id"] for p in graph.get("populations", [])}:
+            steps = max(1, steps)
+        tau = float(row["synapse"]["tau"]["value"])
+        planned.append(PlannedProjection(
+            id=row["id"], source=row["source"], target=row["target"],
+            polarity=row["polarity"], decay=math.exp(-dt / tau),
+            delay_steps=steps, parameter=row["parameters"][0],
+        ))
+    return GraphPlan(
+        graph=graph, dt_ms=dt,
+        populations=tuple(graph.get("populations", [])),
+        projections=tuple(planned),
+        observables=tuple(graph.get("observables", [])),
+        outputs=tuple(graph.get("outputs", [])),
+    )
+
+
+class GraphExecutor(nn.Module):
+    """Dense graph executor whose graph topology is lowered before simulation."""
+
+    def __init__(self, plan: GraphPlan, *, seed: int = 0):
+        super().__init__()
+        self.plan = plan
+        torch.manual_seed(seed)
+        rows = {row["id"]: row for row in plan.graph.get("parameters", [])}
+        self.weights = nn.ParameterDict()
+        for projection in plan.projections:
+            row = rows[projection.parameter]
+            init = row["initializer"]
+            shape = tuple(reversed(row["shape"]))  # runtime is [source, target]
+            if init["kind"] == "normal":
+                value = torch.randn(*shape).mul_(float(init["std"])).add_(float(init["mean"])).clamp_(min=0)
+            elif init["kind"] == "constant":
+                value = torch.full(shape, float(init["value"]))
+            else:
+                raise ValueError(f"{projection.parameter}: unsupported initializer {init['kind']}")
+            value = value / shape[0]
+            self.weights[projection.parameter.replace(".", "__")] = nn.Parameter(value, requires_grad=False)
+
+    def parameter_map(self) -> dict[str, torch.Tensor]:
+        return {name.replace("__", "."): value for name, value in self.weights.items()}
+
+    def forward(self, inputs: Mapping[str, torch.Tensor], *, record: bool = True) -> ExecutionResult:
+        first = next(iter(inputs.values()))
+        if first.ndim == 2:
+            inputs = {k: v.unsqueeze(1) for k, v in inputs.items()}
+            first = next(iter(inputs.values()))
+        steps, batch = first.shape[:2]
+        device = first.device
+        populations = {p["id"]: p for p in self.plan.populations}
+        voltage = {
+            name: (
+                torch.zeros((batch, p["size"]), device=device)
+                if p["neuron"]["kind"] == "leaky_integrator"
+                else torch.full((batch, p["size"]), M.E_L, device=device)
+            )
+            for name, p in populations.items()
+        }
+        refractory = {name: torch.zeros((batch, p["size"]), dtype=torch.long, device=device) for name, p in populations.items()}
+        spikes = {name: torch.zeros((batch, p["size"]), device=device) for name, p in populations.items()}
+        conductance = {(p.id, p.polarity): torch.zeros((batch, populations[p.target.partition('.')[0]]["size"]), device=device) for p in self.plan.projections}
+        histories = {name: [torch.zeros_like(value) for _ in range(max((p.delay_steps for p in self.plan.projections if p.source.startswith(name + ".")), default=1))] for name, value in spikes.items()}
+        recordings: dict[str, list[torch.Tensor]] = {o["id"]: [] for o in self.plan.observables}
+        state_recordings: dict[str, list[torch.Tensor]] = {f"{name}.voltage": [] for name in populations}
+        projection_recordings: dict[str, list[torch.Tensor]] = {f"{p.id}.conductance": [] for p in self.plan.projections}
+        integrator_sum: dict[str, torch.Tensor] = {}
+
+        for t in range(steps):
+            incoming = {name: {"excitatory": torch.zeros_like(voltage[name]), "inhibitory": torch.zeros_like(voltage[name])} for name in populations}
+            for projection in self.plan.projections:
+                target = projection.target.partition(".")[0]
+                key = (projection.id, projection.polarity)
+                source_owner = projection.source.partition(".")[0]
+                if source_owner in populations:
+                    source = histories[source_owner][-projection.delay_steps]
+                else:
+                    source = inputs[source_owner][t]
+                drive = source @ self.weights[projection.parameter.replace(".", "__")]
+                conductance[key] = conductance[key] * projection.decay + drive
+                incoming[target][projection.polarity] += conductance[key]
+
+            new_spikes: dict[str, torch.Tensor] = {}
+            for name, pop in populations.items():
+                neuron = pop["neuron"]
+                if neuron["kind"] == "leaky_integrator":
+                    beta = math.exp(-self.plan.dt_ms / float(neuron["tau"]["value"]))
+                    voltage[name] = beta * voltage[name] + (1.0 - beta) / self.plan.dt_ms * incoming[name]["excitatory"]
+                    new_spikes[name] = torch.zeros_like(spikes[name])
+                    integrator_sum[name] = integrator_sum.get(name, torch.zeros_like(voltage[name])) + voltage[name]
+                    continue
+                tau_mem = float(neuron["tau_mem"]["value"])
+                c_m = 1.0 if tau_mem >= 15 else 0.5
+                g_l = c_m / tau_mem
+                ref_steps = max(1, int(round((M.ref_ms_E if tau_mem >= 15 else M.ref_ms_I) / self.plan.dt_ms)))
+                voltage[name], new_spikes[name], refractory[name] = M.lif_step_expeuler(
+                    voltage[name], refractory[name], incoming[name]["excitatory"],
+                    incoming[name]["inhibitory"], c_m, g_l, ref_steps,
+                    M.spike_biophysical, dt_override=self.plan.dt_ms,
+                    v_grad_dampen=M.V_GRAD_DAMPEN,
+                )
+            spikes = new_spikes
+            for name in populations:
+                histories[name].append(spikes[name])
+                histories[name].pop(0)
+            if record:
+                for observable in self.plan.observables:
+                    owner, _, port = observable["signal"].partition(".")
+                    recordings[observable["id"]].append((spikes if port == "spikes" else voltage)[owner].detach().clone())
+                for name in populations:
+                    state_recordings[f"{name}.voltage"].append(voltage[name].detach().clone())
+                for projection in self.plan.projections:
+                    projection_recordings[f"{projection.id}.conductance"].append(
+                        conductance[(projection.id, projection.polarity)].detach().clone()
+                    )
+
+        outputs: dict[str, torch.Tensor] = {}
+        operations = {o["id"]: o for o in self.plan.graph.get("operations", [])}
+        for output in self.plan.outputs:
+            op_id = output["signal"].partition(".")[0]
+            op = operations[op_id]
+            source_owner = op["sources"][0].partition(".")[0]
+            if op["kind"] == "reduce_mean":
+                outputs[output["id"]] = integrator_sum[source_owner] / steps
+        packed = {k: torch.stack(v) for k, v in recordings.items()}
+        packed.update({k: torch.stack(v) for k, v in state_recordings.items()})
+        packed.update({k: torch.stack(v) for k, v in projection_recordings.items()})
+        return ExecutionResult(
+            executor="graph", outputs=outputs, recordings=packed,
+            parameters={k: v.detach().clone() for k, v in self.parameter_map().items()},
+            final_state={f"{k}.voltage": v.detach().clone() for k, v in voltage.items()},
+            model=self,
+        )
+
+
+def build(spec: ExecutionSpec) -> ExecutionResult:
+    if spec.executor == "legacy":
+        return ExecutionResult(executor="legacy", metrics={"request": "build", "routing": "legacy"})
+    graph = spec.graph
+    if graph is None and spec.bundle is not None:
+        _, graph = load_graph_bundle(spec.bundle)
+    if graph is None:
+        raise ValueError("graph execution requires graph data or a bundle")
+    started = time.perf_counter()
+    model = GraphExecutor(plan_graph(graph), seed=spec.seed).to(spec.device)
+    return ExecutionResult(executor="graph", model=model, parameters=model.parameter_map(), metrics={"build_s": time.perf_counter() - started})
+
+
+def simulate(spec: ExecutionSpec) -> ExecutionResult:
+    if spec.executor != "graph":
+        return ExecutionResult(executor="legacy", metrics={"request": "simulate", "routing": "legacy"})
+    built = build(spec)
+    assert isinstance(built.model, GraphExecutor)
+    if spec.checkpoint:
+        built.model.load_state_dict(torch.load(spec.checkpoint, map_location=spec.device, weights_only=True))
+    tracemalloc.start()
+    started = time.perf_counter()
+    result = built.model({k: v.to(spec.device) for k, v in spec.inputs.items()}, record=spec.record)
+    elapsed = time.perf_counter() - started
+    _, peak = tracemalloc.get_traced_memory()
+    tracemalloc.stop()
+    result.metrics.update({"simulate_s": elapsed, "peak_python_bytes": peak, **built.metrics})
+    return result
+
+
+def train(spec: ExecutionSpec) -> ExecutionResult:
+    if spec.executor == "graph":
+        raise NotImplementedError("graph training requires capability training:v1 (Milestone 6)")
+    return ExecutionResult(executor="legacy", metrics={"request": "train", "routing": "legacy"})
+
+
+def infer(spec: ExecutionSpec) -> ExecutionResult:
+    return simulate(spec) if spec.executor == "graph" else ExecutionResult(executor="legacy", metrics={"request": "infer", "routing": "legacy"})
