@@ -13,6 +13,8 @@
 #let training-rates-hz = (0.25, 0.5, 0.75, 1, 1.5, 2, 2.5, 3, 4, 5, 10, 25)
 #let probe-us = (0.6, 1.2, 2.4)
 #let seeds = (42, 43, 44)
+#let r = json("/artifacts/data/exp077/numbers.json")
+#let rounded(x, digits: 3) = str(calc.round(x, digits: digits))
 #let training-rate-text = training-rates-hz.map(str).join(", ")
 #let probe-text = probe-us.map(str).join(", ")
 #let seed-text = seeds.map(str).join(", ")
@@ -40,6 +42,11 @@
   ANN accuracy against rate is the primary result; a linear transfer-function
   calculation checks the empirical feature variance. The output is a justified
   lower rate for later variable-rate PING training.
+
+  Step 1 is now complete. The local generator passed all
+  #r.validations.len() focused checks, including agreement with the shared
+  `tools/snn` cell below the registered numerical tolerance. The remaining
+  response-library, decoder, and threshold stages have not been run.
 
   == Purpose and scope
 
@@ -77,14 +84,14 @@
 
   == Methods
 
-  1. *Generate and validate filter-matched pixel features.* Every image will use
+  1. *Generated and validated filter-matched pixel features.* Every image used
     a #presentation-ms ms presentation and #dt-ms ms timestep. The tested rates
     are #training-rate-text Hz; dense sampling below 5 Hz resolves the lower
     edge, while 25 Hz is the proposed later training ceiling. Training samples
     uniformly from these points. Seeds #seed-text define independent feature,
     response-library, and ANN runs.
 
-    `protocol.json` will record the grid and deterministic MNIST train,
+    `protocol.json` records the grid and deterministic MNIST train,
     validation, and held-out indices. Pixel-intensities x remain in [0, 1]. If r
     is the encoding rate at pixel-intensity one, the expected pixel rate is r x.
 
@@ -103,7 +110,7 @@
     train, AMPA conductance, subthreshold voltage, and time-averaged feature;
     t is time and ANN is the classifier.
 
-    At each timestep, we will draw the encoded input according to
+    At each timestep, we drew the encoded input according to
 
     $ S_i (t) tilde "Bernoulli"(r Delta t x_i). quad "(2)" $
 
@@ -112,7 +119,7 @@
     Bernoulli is an independent binary draw. Configurations with probability
     above one are invalid.
 
-    We will update the AMPA conductance using
+    We updated the AMPA conductance using
 
     $ g_i^"pix" (t) = beta_"AMPA" g_i^"pix" (t-1) + w_"probe" S_i (t). quad "(3)" $
 
@@ -124,7 +131,7 @@
     probe is the target architecture's nominal mean initial pixel-to-excitatory
     conductance; 0.6 and 2.4 μS test half and double scale.
 
-    We will integrate the membrane without thresholding or resetting:
+    We integrated the membrane without thresholding or resetting:
 
     $ C_E (d v_i) / (d t) = g_"L,E" (E_L - v_i) + g_i^"pix" (t) (E_e - v_i). quad "(5)" $
 
@@ -135,8 +142,8 @@
     τ#sub[eff,i] is the instantaneous conductance-dependent time constant. Other
     symbols follow Equation 1.
 
-    We will initialize voltage at E#sub[L] and conductance at zero, simulate one
-    complete presentation, and calculate
+    We initialized voltage at E#sub[L] and conductance at zero, simulated one
+    complete presentation, and calculated
 
     $ z_i = 1 / T integral_0^T (v_i (t) - E_L) dif t. quad "(7)" $
 
@@ -144,10 +151,15 @@
     voltage. We will not divide by rate or disclose it to either decoder, so
     lower rates retain their weaker, noisier signal.
 
-    Tests will cover encoder probability, count moments, pixel independence,
+    Focused tests covered encoder probability, count moments, pixel independence,
     AMPA decay, exponential-Euler voltage updates, deterministic replay,
     agreement with one uncoupled target-PING excitatory cell, and spike-timing
-    sensitivity.
+    sensitivity. All #r.validations.len() checks passed. At the seeded count
+    validation point, the expected and observed mean counts were
+    #rounded(r.validations.spike_count_moments.expected_mean) and
+    #rounded(r.validations.spike_count_moments.empirical_mean); the largest
+    absolute inter-channel count correlation was
+    #rounded(r.validations.pixel_independence.maximum_absolute_count_correlation).
 
     The corresponding plot is defined in Results, Step 1.
 
@@ -324,19 +336,33 @@
   #block(breakable: false)[
     == Results
 
-    These are planned outputs; pending panels imply no result.
+    Step 1 is complete; pending panels in later steps imply no result.
 
     === Step 1: filter-matched feature generation
 
-    #staged-pending(
-      caption: [Finite-window probe dynamics. Panels A--C plot spikes, AMPA
-        conductance (μS), and voltage (mV) against time (ms) for no, early, and
-        late spikes; Panel D plots mean z#sub[i] (mV) against spike time. Equal
-        counts need not give equal features.],
-      note: [Pending Step 1. Planned file: `probe_dynamics.svg`.],
-      ratio: 16 / 9,
-    )
+    #image("/artifacts/data/exp077/probe_dynamics.svg", width: 100%)
+
+    _Finite-window probe dynamics._ Panels A--C show input spikes, AMPA
+    conductance, and subthreshold voltage for no-spike, early-spike, and
+    late-spike inputs. Panel D places the single spike across the presentation
+    and reports the resulting mean voltage feature. With the same one-spike
+    count, a spike at
+    #rounded(r.validations.spike_timing_sensitivity.early_spike_ms) ms produced
+    z = #rounded(r.validations.spike_timing_sensitivity.early_z_mV) mV, whereas
+    one at #rounded(r.validations.spike_timing_sensitivity.late_spike_ms) ms
+    produced #rounded(r.validations.spike_timing_sensitivity.late_z_mV) mV.
+    Earlier input therefore contributed
+    #rounded(r.validations.spike_timing_sensitivity.early_minus_late_z_mV) mV
+    more to the finite-window average.
   ]
+
+  The decay-then-add check reproduced the first two conductances with a maximum
+  absolute error of #rounded(r.validations.ampa_decay_then_add.maximum_absolute_error_uS)
+  μS. The independently calculated exponential-Euler step and the complete local
+  trajectory both matched the existing `tools/snn` uncoupled cell within their
+  registered machine-precision tolerances. This validates the Step 1 feature
+  generator only; it does not establish MNIST decodability or select a PING
+  input-rate range.
 
   === Step 2: empirical response library
 

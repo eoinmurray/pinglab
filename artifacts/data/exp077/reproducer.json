@@ -1,0 +1,10 @@
+{
+  "command": "EXP077_THROUGH_STEP=1 uv run python experiments/exp077.py",
+  "paid_compute": false,
+  "expected_outputs": [
+    "artifacts/data/exp077/numbers.json",
+    "artifacts/data/exp077/probe_dynamics.svg",
+    "artifacts/data/exp077/protocol.json",
+    "artifacts/data/exp077/provenance.json"
+  ]
+}

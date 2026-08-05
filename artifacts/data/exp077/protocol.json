@@ -1,0 +1,27 @@
+{
+  "experiment": "exp077",
+  "implemented_step": 1,
+  "presentation_ms": 200.0,
+  "dt_ms": 0.1,
+  "timesteps": 2000,
+  "training_rates_hz": [
+    0.25,
+    0.5,
+    0.75,
+    1.0,
+    1.5,
+    2.0,
+    2.5,
+    3.0,
+    4.0,
+    5.0,
+    10.0,
+    25.0
+  ],
+  "probe_uS": 1.2,
+  "seed": 42,
+  "equations": "writings/exp077.typ, Equations 2-7",
+  "update_order": "AMPA decay, spike kick, exponential-Euler membrane update",
+  "feature": "mean_t(v(t) - E_L)",
+  "later_steps": "not run"
+}
