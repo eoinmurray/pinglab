@@ -795,6 +795,9 @@ def render_figures(
     plt.close(fig)
 
     render_summary(rows, arrays, out / "summary_compound.png")
+    render_sync_emergence(
+        arrays["w0.2_intermediate"], out / "synchronization_emergence.png"
+    )
 
 
 def render_summary(
@@ -904,6 +907,106 @@ def format_sweep_axis(ax, *, show_ylabel: bool) -> None:
         ax.set_ylabel("coupling strength")
 
 
+def render_sync_emergence(rec: dict[str, np.ndarray], out: Path) -> None:
+    """Show phase capture over time in the intermediate-delay condition."""
+    theme.apply()
+    rate_a = gaussian_rate(rec["population_0"])
+    rate_b = gaussian_rate(rec["population_2"])
+    fs = 1000.0 / DT_MS
+    sos = signal.butter(4, PHASE_BAND_HZ, btype="bandpass", fs=fs, output="sos")
+    phase_a = np.angle(signal.hilbert(signal.sosfiltfilt(sos, rate_a)))
+    phase_b = np.angle(signal.hilbert(signal.sosfiltfilt(sos, rate_b)))
+    phase_vector = np.exp(1j * (phase_a - phase_b))
+    window_steps = round(100.0 / DT_MS)
+    kernel = np.ones(window_steps) / window_steps
+    rolling_vector = np.convolve(phase_vector, kernel, mode="same")
+    rolling_phase = np.angle(rolling_vector)
+    rolling_plv = np.abs(rolling_vector)
+    time_ms = np.arange(STEPS) * DT_MS
+    highlighted = phase_vector[round(800 / DT_MS) : round(1200 / DT_MS)]
+    highlighted_phase = float(np.angle(np.mean(highlighted)))
+
+    fig, (rates, phase) = plt.subplots(
+        2,
+        1,
+        figsize=(7.2, 4.8),
+        sharex=True,
+        gridspec_kw={"height_ratios": (1.05, 0.95), "hspace": 0.12},
+    )
+    rates.plot(time_ms, rate_a, color=theme.INK_BLACK, linewidth=0.9, label="circuit A")
+    rates.plot(time_ms, rate_b, color=theme.DEEP_RED, linewidth=0.9, label="circuit B")
+    rates.set_ylabel("E population rate (Hz)")
+    rates.legend(frameon=False, ncol=2, loc="upper right")
+    rates.set_title("Phase capture under continuously active reciprocal inhibition")
+
+    stride = 10
+    raw_phase = np.angle(phase_vector)
+    phase.scatter(
+        time_ms[::stride],
+        raw_phase[::stride],
+        s=1.0,
+        color="#a7a7a7",
+        alpha=0.22,
+        linewidths=0,
+        label="instantaneous phase difference",
+    )
+    phase.plot(
+        time_ms,
+        rolling_phase,
+        color=theme.DEEP_RED,
+        linewidth=1.6,
+        label="100 ms circular mean",
+    )
+    phase.fill_between(
+        time_ms,
+        rolling_phase - 0.22 * rolling_plv,
+        rolling_phase + 0.22 * rolling_plv,
+        color=theme.DEEP_RED,
+        alpha=0.12,
+        linewidth=0,
+    )
+    for ax in (rates, phase):
+        ax.axvline(
+            TRANSIENT_STEPS * DT_MS, color="#777777", linestyle="--", linewidth=0.8
+        )
+        ax.axvspan(800, 1200, color="#1b7f5a", alpha=0.07)
+    rates.text(70, rates.get_ylim()[1] * 0.9, "phase relationship forming", fontsize=7)
+    rates.text(
+        1000,
+        rates.get_ylim()[1] * 0.9,
+        "locked",
+        color="#1b7f5a",
+        ha="center",
+        fontsize=8,
+        weight="bold",
+    )
+    phase.text(
+        TRANSIENT_STEPS * DT_MS + 18,
+        2.35,
+        "analysis window begins",
+        color="#666666",
+        fontsize=7,
+    )
+    phase.annotate(
+        f"phase captures near {highlighted_phase:+.1f} rad",
+        xy=(1000, highlighted_phase),
+        xytext=(1120, -1.35),
+        arrowprops={"arrowstyle": "->", "color": theme.DEEP_RED, "lw": 0.8},
+        color=theme.DEEP_RED,
+        fontsize=8,
+    )
+    phase.set_ylim(-math.pi, math.pi)
+    phase.set_yticks(
+        (-math.pi, -math.pi / 2, 0, math.pi / 2, math.pi),
+        ("−π", "−π/2", "0", "π/2", "π"),
+    )
+    phase.set_ylabel("A − B phase")
+    phase.set_xlabel("time from simulation start (ms)")
+    phase.set_xlim(0, 1200)
+    fig.savefig(out, dpi=240, bbox_inches="tight")
+    plt.close(fig)
+
+
 def replot() -> None:
     root = REPO / "artifacts" / "data" / SLUG
     rows = json.loads((root / "sweep_table.json").read_text())
@@ -913,6 +1016,9 @@ def replot() -> None:
         with np.load(root / "variants" / f"{name}-recordings.npz") as archive:
             arrays[name] = {key: archive[key] for key in archive.files}
     render_summary(rows, arrays, root / "summary_compound.png")
+    render_sync_emergence(
+        arrays["w0.2_intermediate"], root / "synchronization_emergence.png"
+    )
 
 
 def main() -> None:

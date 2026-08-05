@@ -97,14 +97,15 @@
   == A contiguous locking region emerged
 
   #figure(
-    image("/artifacts/data/exp078/summary_compound.png", width: 100%),
-    caption: [The mechanism in one view. Matched rasters and rates show
-      uncoupled drift, active locking at strength 0.2 with short delay, and
-      one-sided suppression at strength 2 with short delay. The maps below show
-      the loss of frequency difference, rise in phase locking, contiguous
-      registered locking region, and suppression boundary. Gray cells are
-      suppressed, red cells remain active without passing every gate, and green
-      cells are locked.],
+    image("/artifacts/data/exp078/synchronization_emergence.png", width: 100%),
+    caption: [Phase capture during the first 1.2 s of the strength 0.2,
+      intermediate-delay condition. Reciprocal coupling is active from the first
+      timestep. The two population rhythms initially have an unstable relative
+      phase; their circular phase difference then concentrates near −2.8 rad.
+      This is phase locking, not zero-lag synchrony. The dashed line marks the
+      registered transient exclusion and the green band highlights the capture
+      interval. Full-window metrics and later phase slips remain included in the
+      registered analysis.],
   )
 
   #table(
@@ -129,11 +130,11 @@
 
   == Rasters and rates distinguish locking from silence
 
-  The upper rows of the compound figure use identical inputs, seed, initial
-  state, and within-circuit parameters. Their matched spike and rate views make
-  the contrast visible directly: the baseline drifts, moderate coupling produces
-  a shared rhythm with a stable offset, and excessive short-delay inhibition
-  removes circuit B rather than synchronizing it.
+  The synchronization figure shows the coupled dynamics directly. The archived
+  matched rasters and rates retain the complementary condition-level contrast:
+  the uncoupled baseline drifts, moderate coupling produces a shared rhythm with
+  a stable offset, and excessive short-delay inhibition removes circuit B rather
+  than synchronizing it.
 
   At strength #strong-short.variant.strength and short delay, circuit B has
   #hz(strong-short.metrics.populations.b.e_rate_hz) excitatory and
