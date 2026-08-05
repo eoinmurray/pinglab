@@ -14,8 +14,9 @@
 #let probe-us = (0.6, 1.2, 2.4)
 #let seeds = (42, 43, 44)
 #let r = json("/artifacts/data/exp077/numbers.json")
-#let p = r.step2.pilot
+#let p = r.step2.combined_pilot
 #let p-last = p.trajectory.last()
+#let p-extension-first = r.step2.extension_pilot.trajectory.first()
 #let rounded(x, digits: 3) = str(calc.round(x, digits: digits))
 #let training-rate-text = training-rates-hz.map(str).join(", ")
 #let probe-text = probe-us.map(str).join(", ")
@@ -47,10 +48,10 @@
 
   Step 1 is complete. The local generator passed all
   #r.validations.len() focused checks, including agreement with the shared
-  `tools/snn` cell below the registered numerical tolerance. Step 2 then stopped
-  at its locked convergence gate: none of the candidate draw counts through
-  K = #p.hard_maximum_K stabilized both empirical moments. No final response
-  library or later stage was run.
+  `tools/snn` cell below the registered numerical tolerance. The original Step 2
+  pilot stopped at K = 512; an explicitly authorized extension then stabilized
+  both empirical moments at K = #p.selected_K under the unchanged tolerances.
+  No final response library or later stage was run.
 
   == Purpose and scope
 
@@ -168,9 +169,10 @@
     The corresponding plot is defined in Results, Step 1.
 
   2. *Attempted the empirical response-library convergence gate.* Before
-    generating a final library, we locked candidate draw counts K of
-    #p.candidate_K.map(str).join(", ") and a hard maximum of
-    #p.hard_maximum_K. The deterministic pilot covered
+    generating a final library, we locked candidate draw counts K of 64, 128,
+    256, and 512. None passed. After recording that failure, the user explicitly
+    authorized an extension at K = 1,024 and 2,048 without changing the
+    convergence rule. The deterministic pilot covered
     #p.evaluation_condition_count conditions: six intensities, five rates, all
     three probe conductances, and all three registered seeds. For each candidate,
     we compared the first K draws with the next K independent draws.
@@ -181,8 +183,8 @@
     passing K would have selected the final draw count. If none passed at the
     maximum, the protocol required stopping without changing the rule.
 
-    The pilot reached that stop. We therefore did not run K independent Step 1
-    draws for the complete set of 256 grayscale levels,
+    The extension selected K = #p.selected_K. We have not yet run that many
+    independent Step 1 draws for the complete set of 256 grayscale levels,
     #training-rates-hz.len() rates, and three probe conductances.
 
     The planned final library would estimate the conditional mean
@@ -208,9 +210,9 @@
     but the ANN samples the retained empirical values because low-rate responses
     may be zero-heavy, skewed, and non-Gaussian.
 
-    Because the gate failed, the committed artifacts contain the locked pilot,
-    its complete convergence trajectory, seed recipe, and regeneration command,
-    but no response-library manifest or array. The ungenerated calibration has
+    The committed artifacts contain both locked protocols, the complete
+    convergence trajectory, seed recipe, and regeneration command, but no final
+    response-library array. The pending calibration has
     at most
     #(256 * training-rates-hz.len() * probe-us.len()) conditions.
 
@@ -354,8 +356,8 @@
   #block(breakable: false)[
     == Results
 
-    Step 1 is complete. Step 2 records a killed convergence attempt; pending
-    panels in later steps imply no result.
+    Step 1 is complete. The Step 2 convergence pilot selected K after an
+    authorized extension; the full library and all later steps remain pending.
 
     === Step 1: filter-matched feature generation
 
@@ -388,7 +390,7 @@
   #image(
     "/artifacts/data/exp077/response_library.png",
     width: 100%,
-    alt: "Two convergence plots show that neither conditional mean nor sample variance discrepancies cross both locked thresholds by the maximum draw count.",
+    alt: "Two convergence plots show conditional mean and sample variance discrepancies falling below both locked thresholds at 2048 draws.",
   )
 
   _Locked response-library convergence pilot._ Panel A shows normalized
@@ -402,13 +404,17 @@
   variance discrepancies were
   #rounded(p-last.variance_p95_normalised_error) and
   #rounded(p-last.variance_maximum_normalised_error). Neither moment passed, so
-  no K was selected and the full empirical library was not generated.
+  both moments passed, selecting K = #p.selected_K. At K =
+  #p-extension-first.K, the variance 95th percentile was
+  #rounded(p-extension-first.variance_p95_normalised_error), so that smaller
+  extension candidate did not pass. The full empirical library has not yet been
+  generated.
 
-  Zero intensity returned the resting feature exactly, but this structural check
-  could not rescue the failed convergence rule. Step 2 therefore establishes
-  only that K through #p.hard_maximum_K was insufficient under the registered
-  tolerances. It does not establish empirical response distributions, MNIST
-  decodability, a training-rate floor, or PING accuracy.
+  Zero intensity continued to return the resting feature exactly. Step 2
+  therefore establishes a converged draw count of
+  K = #p.selected_K for the registered pilot subset under the unchanged
+  tolerances. It does not yet establish the complete empirical response
+  distributions, MNIST decodability, a training-rate floor, or PING accuracy.
 
   === Step 3: linear-filter prediction
 
