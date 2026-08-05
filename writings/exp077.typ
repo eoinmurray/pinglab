@@ -148,7 +148,7 @@
     $ z_i = 1 / T integral_0^T (v_i (t) - E_L) dif t. quad "(7)" $
 
     Here T is presentation duration and z#sub[i] is mean baseline-subtracted
-    voltage. We will not divide by rate or disclose it to either decoder, so
+    voltage. We did not divide by rate or disclose it to either decoder, so
     lower rates retain their weaker, noisier signal.
 
     Focused tests covered encoder probability, count moments, pixel independence,
