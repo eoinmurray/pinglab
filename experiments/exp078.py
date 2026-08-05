@@ -288,9 +288,10 @@ def analyse(recordings: dict[str, torch.Tensor]) -> tuple[dict, dict[str, np.nda
         populations["a"]["dominant_frequency_hz"]
         - populations["b"]["dominant_frequency_hz"]
     )
+    archived_rates = {f"rate_{key}": value for key, value in rates.items()}
     return {"populations": populations, "synchrony": synchrony, "valid": valid}, {
         **arrays,
-        **rates,
+        **archived_rates,
     }
 
 
@@ -629,9 +630,13 @@ def sweep() -> None:
         )
         activity = [
             {
+                "timestamp": "2026-08-05T13:34:17Z",
+                "event": "Killed the first complete sweep publication after rate traces overwrote spike-array artifact keys and raster rendering failed; atomic staging prevented invalid evidence publication.",
+            },
+            {
                 "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
-                "event": "Completed the pre-registered local coupling sweep without simulator edits or paid compute.",
-            }
+                "event": "Completed the unchanged pre-registered local coupling sweep after an experiment-side artifact-key fix, without simulator edits or paid compute.",
+            },
         ]
         (staging / "activity_log.json").write_text(
             json.dumps(activity, indent=2) + "\n"
