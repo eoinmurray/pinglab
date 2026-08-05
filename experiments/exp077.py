@@ -1104,80 +1104,127 @@ def plot_full_library(
     library: np.ndarray,
     path: Path,
 ) -> None:
-    """Render the complete registered Step 2 compound figure."""
+    """Render an expected-count summary of the complete Step 2 evidence."""
     original = json.loads((FIGURES / "step2_pilot_outcome.json").read_text())
     extension = json.loads((FIGURES / "step2_pilot_extension_outcome.json").read_text())
     trajectory = original["trajectory"] + extension["trajectory"]
     mean = summaries["mean"]
     standard_deviation = summaries["standard_deviation"]
     zero_fraction = summaries["zero_fraction"]
-    fig = plt.figure(figsize=(6.5, 6.1), constrained_layout=True)
-    grid = fig.add_gridspec(3, 3, height_ratios=(1.0, 1.0, 1.15))
-    mean_images = []
-    std_images = []
-    extent = (-0.5, 255.5, -0.5, len(TRAINING_RATES_HZ) - 0.5)
-    for probe_index, probe in enumerate(PROBE_CONDUCTANCES_US):
-        ax_mean = fig.add_subplot(grid[0, probe_index])
-        image = ax_mean.imshow(
-            mean[probe_index],
-            aspect="auto",
-            origin="lower",
-            extent=extent,
-            cmap="viridis",
-            vmin=0.0,
-            vmax=float(mean.max()),
-        )
-        mean_images.append(image)
-        ax_mean.set_title(f"{'ABC'[probe_index]}  Mean, {probe:g} μS", fontsize=8)
-        ax_mean.set_xticks((0, 128, 255))
-        ax_mean.set_yticks((0, 5, 11), labels=("0.25", "2", "25"))
-        if probe_index == 0:
-            ax_mean.set_ylabel("Rate (Hz)")
-        else:
-            ax_mean.set_yticklabels([])
-        ax_std = fig.add_subplot(grid[1, probe_index])
-        std_image = ax_std.imshow(
-            standard_deviation[probe_index],
-            aspect="auto",
-            origin="lower",
-            extent=extent,
-            cmap="magma",
-            vmin=0.0,
-            vmax=float(standard_deviation.max()),
-        )
-        std_images.append(std_image)
-        ax_std.set_title(f"{'DEF'[probe_index]}  SD, {probe:g} μS", fontsize=8)
-        ax_std.set_xticks((0, 128, 255))
-        ax_std.set_yticks((0, 5, 11), labels=("0.25", "2", "25"))
-        ax_std.set_xlabel("Intensity")
-        if probe_index == 0:
-            ax_std.set_ylabel("Rate (Hz)")
-        else:
-            ax_std.set_yticklabels([])
-    fig.colorbar(mean_images[-1], ax=fig.axes[:3], label="Mean z (mV)", shrink=0.75)
-    fig.colorbar(std_images[-1], ax=fig.axes[3:6], label="SD z (mV)", shrink=0.75)
+    expected_count = (
+        np.asarray(TRAINING_RATES_HZ)[:, None]
+        * (INTENSITY_LEVELS.astype(np.float64)[None, :] / 255.0)
+        * (PRESENTATION_MS / 1000.0)
+    )
+    count_flat = expected_count.reshape(-1)
+    positive_edges = np.geomspace(0.002, float(expected_count.max()), 32)
+    bin_edges = np.concatenate(([-1e-12, 0.001], positive_edges))
+    bin_index = np.digitize(count_flat, bin_edges) - 1
 
-    ax_dist = fig.add_subplot(grid[2, 0])
+    def binned_median(values: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+        centers = []
+        medians = []
+        flat = values.reshape(-1)
+        for index in range(len(bin_edges) - 1):
+            selected = bin_index == index
+            if np.any(selected):
+                centers.append(float(np.median(count_flat[selected])))
+                medians.append(float(np.median(flat[selected])))
+        return np.asarray(centers), np.asarray(medians)
+
     colors = (theme.INK_BLACK, theme.DEEP_RED, theme.ELECTRIC_CYAN)
+    linestyles = ("-", "--", "-.")
+    markers = ("o", "s", "^")
+    fig, axes = plt.subplots(2, 3, figsize=(6.5, 5.0), constrained_layout=True)
+    ax_mean, ax_std, ax_zero, ax_dist, ax_convergence, ax_monotonic = axes.flat
+    for probe_index, (probe, color, linestyle, marker) in enumerate(
+        zip(PROBE_CONDUCTANCES_US, colors, linestyles, markers)
+    ):
+        for ax, values in (
+            (ax_mean, mean[probe_index]),
+            (ax_std, standard_deviation[probe_index]),
+        ):
+            ax.scatter(count_flat, values.reshape(-1), s=3, color=color, alpha=0.025)
+            centers, medians = binned_median(values)
+            ax.plot(
+                centers,
+                medians,
+                color=color,
+                linestyle=linestyle,
+                marker=marker,
+                markersize=2.8,
+                markevery=4,
+                label=f"{probe:g} μS",
+            )
+    ax_mean.set(title="A  Mean response", ylabel="Mean z (mV)")
+    ax_std.set(title="B  Response variability", ylabel="SD z (mV)")
+    for ax in (ax_mean, ax_std):
+        ax.set_xscale("symlog", linthresh=0.02)
+        ax.set_xlim(-0.002, 5.5)
+        ax.set_xticks((0, 0.01, 0.1, 1, 5), labels=("0", "0.01", "0.1", "1", "5"))
+        ax.set_xlabel("Expected input spikes")
+    ax_mean.legend(frameon=False, fontsize=7)
+
+    centers, measured_zero = binned_median(zero_fraction[1])
+    theoretical_count = np.geomspace(1e-4, float(expected_count.max()), 300)
+    theoretical_zero = (1.0 - theoretical_count / N_TIMESTEPS) ** N_TIMESTEPS
+    ax_zero.plot(
+        theoretical_count,
+        theoretical_zero,
+        color=theme.FAINT,
+        linestyle="--",
+        label="No-spike probability",
+    )
+    ax_zero.plot(
+        centers,
+        measured_zero,
+        color=theme.INK_BLACK,
+        marker="o",
+        markersize=3,
+        markevery=4,
+        label="Empirical zero feature",
+    )
+    ax_zero.set_xscale("log")
+    ax_zero.set(
+        title="C  Zero probability",
+        xlabel="Expected input spikes",
+        ylabel="Zero probability",
+        xlim=(0.002, 5.5),
+        ylim=(-0.03, 1.03),
+    )
+    ax_zero.legend(frameon=False, fontsize=6.5)
+
     for record, color in zip(distributions, colors):
         probe_index = PROBE_CONDUCTANCES_US.index(record["probe_uS"])
         rate_index = TRAINING_RATES_HZ.index(record["rate_hz"])
-        values = np.asarray(
-            library[:, probe_index, rate_index, record["intensity"], :]
-        ).reshape(-1)
-        ax_dist.hist(
-            values,
-            bins=35,
-            density=True,
-            histtype="step",
-            linewidth=1.3,
-            color=color,
-            label=f"{record['rate_hz']:g} Hz, x={record['intensity']}",
+        values = np.sort(
+            np.asarray(
+                library[:, probe_index, rate_index, record["intensity"], :]
+            ).reshape(-1)
         )
-    ax_dist.set(title="G  Distributions", xlabel="z (mV)", ylabel="Density")
-    ax_dist.legend(frameon=False, fontsize=6)
+        cumulative = np.arange(1, values.size + 1) / values.size
+        count = (
+            record["rate_hz"]
+            * (record["intensity"] / 255.0)
+            * (PRESENTATION_MS / 1000.0)
+        )
+        ax_dist.step(
+            values,
+            cumulative,
+            where="post",
+            linewidth=1.5,
+            color=color,
+            label=f"E[N]={count:.3g}, zero={record['zero_fraction']:.1%}",
+        )
+    ax_dist.set(
+        title="D  Empirical ECDFs",
+        xlabel="Voltage feature z (mV)",
+        ylabel="Cumulative probability",
+        xlim=(-0.5, 45),
+        ylim=(-0.03, 1.03),
+    )
+    ax_dist.legend(frameon=False, fontsize=6.5, loc="lower right")
 
-    ax_convergence = fig.add_subplot(grid[2, 1])
     candidate = [row["K"] for row in trajectory]
     ax_convergence.plot(
         candidate,
@@ -1200,32 +1247,57 @@ def plot_full_library(
         candidate, labels=[str(value) for value in candidate], rotation=45
     )
     ax_convergence.set(
-        title="H  Convergence", xlabel="Draws K", ylabel="Normalized error"
+        title="E  K convergence", xlabel="Draws K", ylabel="Normalized error"
     )
     ax_convergence.legend(frameon=False, fontsize=6)
 
-    ax_zero = fig.add_subplot(grid[2, 2])
-    zero_image = ax_zero.imshow(
-        zero_fraction[1],
-        aspect="auto",
-        origin="lower",
-        extent=extent,
-        cmap="cividis",
-        vmin=0.0,
-        vmax=1.0,
+    pooled_count = len(SEEDS) * LIBRARY_K
+    standard_error = standard_deviation / math.sqrt(pooled_count)
+    mean_difference = np.diff(mean, axis=2)
+    difference_se = np.sqrt(
+        standard_error[:, :, 1:] ** 2 + standard_error[:, :, :-1] ** 2
     )
-    ax_zero.set(
-        title="I  Zero mass, 1.2 μS",
-        xlabel="Intensity",
-        ylabel="Rate (Hz)",
-        xticks=(0, 128, 255),
-        yticks=(0, 5, 11),
-        yticklabels=("0.25", "2", "25"),
+    standardized = np.divide(
+        mean_difference,
+        difference_se,
+        out=np.zeros_like(mean_difference),
+        where=difference_se > 0,
     )
-    fig.colorbar(zero_image, ax=ax_zero, label="Zero fraction", shrink=0.75)
+    midpoint_count = 0.5 * (expected_count[:, 1:] + expected_count[:, :-1])
+    count_points = np.broadcast_to(midpoint_count[None, :, :], standardized.shape)
+    violations = standardized < -MONOTONIC_Z
+    ax_monotonic.scatter(
+        count_points[~violations],
+        standardized[~violations],
+        color=theme.FAINT,
+        s=3,
+        alpha=0.18,
+        rasterized=True,
+    )
+    ax_monotonic.scatter(
+        count_points[violations],
+        standardized[violations],
+        color=theme.DEEP_RED,
+        marker="x",
+        s=25,
+        linewidth=1.2,
+        label=f"{int(violations.sum())} reversals",
+    )
+    ax_monotonic.axhline(-MONOTONIC_Z, color=theme.DEEP_RED, linestyle="--")
+    ax_monotonic.axhline(0.0, color=theme.FAINT, linestyle=":")
+    ax_monotonic.set_xscale("symlog", linthresh=0.02)
+    ax_monotonic.set(
+        title="F  Monotonicity audit",
+        xlabel="Expected input spikes",
+        ylabel="Adjacent change / SE",
+        xlim=(-0.002, 5.5),
+        ylim=(-4.2, 4.2),
+    )
+    ax_monotonic.set_xticks((0, 0.01, 0.1, 1, 5), labels=("0", "0.01", "0.1", "1", "5"))
+    ax_monotonic.legend(frameon=False, fontsize=7, loc="upper left")
     for ax in fig.axes:
-        if hasattr(ax, "spines"):
-            ax.spines[["top", "right"]].set_visible(False)
+        ax.grid(alpha=0.14)
+        ax.spines[["top", "right"]].set_visible(False)
     fig.savefig(path, dpi=240, facecolor="white")
     plt.close(fig)
 
