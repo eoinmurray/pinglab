@@ -10,6 +10,7 @@ import torch
 from execution import (
     DelayBuffer,
     ExecutionSpec,
+    GraphExecutor,
     build,
     execute_request,
     execution_spec_from_args,
@@ -142,7 +143,7 @@ def test_single_ping_seeded_parameters_and_forward_match_legacy_exactly():
         hidden_sizes=[256], readout_mode="mem-mean",
     )
     graph_model = build(ExecutionSpec(kind="build", executor="graph", graph=graph, seed=17)).model
-    assert graph_model is not None
+    assert isinstance(graph_model, GraphExecutor)
     mapping = {
         "sensory_ping_input.weight": legacy.W_ff[0],
         "classifier_projection.weight": legacy.W_ff[1],
