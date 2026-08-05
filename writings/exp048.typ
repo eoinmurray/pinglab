@@ -336,9 +336,9 @@
   locations, whereas lowering Poisson rate preserves all locations in
   expectation and changes temporal sampling noise.
 
-  == Appendix: Neo-proposal for filter-matched variable-rate calibration
+  == Appendix 1
 
-  === Neo-proposal
+  === High-level overview
 
   At a high level, this experiment constructs noisy MNIST feature images by
   applying PING's AMPA and subthreshold membrane dynamics independently to each
@@ -358,99 +358,79 @@
     independent AMPA synapse and uncoupled, non-spiking excitatory membrane.
     This subthreshold probe retains the timing effects discarded by a raw spike
     count. It contains no threshold, reset, recurrence, or previously trained
-    PING weights. For pixel i, draw
+    PING weights. Apply the following substeps independently to every pixel:
 
-    $ S_i (t) tilde "Bernoulli"(r Delta t x_i). quad "(10)" $
+    + *Trace the complete path.*
 
-    Update the pixel probe's excitatory conductance according to
+      $ S_i (t) -> g_i^"pix" (t) -> v_i (t) -> z_i -> "ANN". quad "(10)" $
 
-    $ g_i^"pix" (t) = beta_"AMPA" g_i^"pix" (t-1) + w_"probe" S_i (t). quad "(11)" $
+      Here S#sub[i] is the encoded spike train; g#super[pix]#sub[i] is the
+      synaptic conductance; v#sub[i] is the subthreshold membrane voltage;
+      z#sub[i] is its time-averaged feature; and ANN is the artificial neural
+      network classifier. One execution produces one random pixel feature.
+      Repeating it produces the feature distribution measured in Step 3.
 
-    The AMPA decay factor is
+    + *Encode the pixel.* At every timestep, draw
 
-    $ beta_"AMPA" = exp(-(Delta t) / tau_"AMPA"). quad "(12)" $
+      $ S_i (t) tilde "Bernoulli"(r Delta t x_i). quad "(11)" $
 
-    Each pixel membrane follows
+    + *Update the AMPA synapse.* Add one weighted conductance increment for an
+      input spike and decay the conductance retained from the previous
+      timestep:
 
-    $ C_E (d v_i) / (d t) = g_"L,E" (E_L - v_i) + g_i^"pix" (t) (E_e - v_i). quad "(13)" $
+      $ g_i^"pix" (t) = beta_"AMPA" g_i^"pix" (t-1) + w_"probe" S_i (t). quad "(12)" $
 
-    Its instantaneous effective time constant is
+      The decay factor is
 
-    $ tau_"eff",i (t) = C_E / (g_"L,E" + g_i^"pix" (t)). quad "(14)" $
+      $ beta_"AMPA" = exp(-(Delta t) / tau_"AMPA"). quad "(13)" $
 
-    The symbols in Equations 10--14 are:
+      Use 1.2 μS for w#sub[probe], the configured pre-training input-weight
+      mean. This preserves PING's conductance scale without importing trained
+      spatial weights; Step 3 tests half and double this value.
 
-    - S#sub[i] (t): the spike emitted by pixel i at timestep t.
-    - x#sub[i]: the grayscale intensity of pixel i.
-    - r: the maximum encoding rate in spikes per second.
-    - Δt: the simulation timestep in seconds.
-    - g#super[pix]#sub[i]: the excitatory conductance of pixel probe i.
-    - w#sub[probe]: the conductance added by one input spike.
-    - β#sub[AMPA]: the fraction of conductance retained for one timestep.
-    - τ#sub[AMPA]: the AMPA synaptic time constant.
-    - C#sub[E]: the excitatory-cell capacitance.
-    - v#sub[i]: the voltage of pixel probe i.
-    - g#sub[L,E]: the excitatory leak conductance.
-    - E#sub[L] and E#sub[e]: the leak and excitatory reversal potentials.
-    - τ#sub[eff,i]: the conductance-dependent membrane time constant of probe
-      i.
+    + *Integrate the subthreshold membrane.* Update the voltage without
+      thresholding or resetting:
 
-    Initialize every pixel probe at the leak reversal potential with zero
-    synaptic conductance, then simulate exactly the first
-    #scfg.matched_presentation_ms ms. Average its baseline-subtracted voltage
-    over that window:
+      $ C_E (d v_i) / (d t) = g_"L,E" (E_L - v_i) + g_i^"pix" (t) (E_e - v_i). quad "(14)" $
 
-    $ z_i = 1 / T integral_0^T (v_i (t) - E_L) dif t. quad "(15)" $
+      The conductance sets the instantaneous effective membrane time constant:
 
-    Here z#sub[i] is the time-averaged baseline-subtracted voltage and T is
-    presentation duration. The ANN sees z#sub[i] as the feature for pixel i. It
-    is not assumed to equal the original intensity. It is also not divided by
-    encoding rate, because the ANN and PING are not given that rate.
+      $ tau_"eff",i (t) = C_E / (g_"L,E" + g_i^"pix" (t)). quad "(15)" $
 
-    Use 1.2 μS for w#sub[probe] in the primary analysis. This is the mean of
-    the configured pre-training PING input-weight distribution, not a trained
-    weight. It preserves the model's conductance scale without importing a
-    learned spatial projection. This choice is not neutral: one event is 24
-    times the resting leak conductance and temporarily reduces the effective
-    membrane time constant from 20 ms to approximately 0.8 ms. The resulting
-    calibration is therefore conditional on the selected probe conductance.
-  3. *Measure the pixel-feature distribution.* The same grayscale intensity and
-    rate produce different values of z#sub[i] on different Poisson draws. For
-    every observed grayscale level, tested rate, and probe conductance, repeat
-    Step 2 for K independent draws. Estimate the conditional mean
+    + *Average the voltage into one static feature.* Initialize the probe at the
+      leak reversal potential with zero synaptic conductance, simulate exactly
+      #scfg.matched_presentation_ms ms, and compute
 
-    $ hat(mu)_z (x, r, w_"probe") = 1 / K sum_(k=1)^K z^(k). quad "(16)" $
+      $ z_i = 1 / T integral_0^T (v_i (t) - E_L) dif t. quad "(16)" $
+
+      The ANN sees z#sub[i], the time-averaged baseline-subtracted voltage, as
+      the feature for pixel i. It is not assumed to equal the original
+      intensity and is not divided by encoding rate, because the ANN and PING
+      are not given that rate.
+
+  3. *Measure and retain the pixel-feature distribution.* For every observed
+    grayscale level, tested rate, and probe conductance, run Step 2 for K
+    independent Poisson draws. Estimate the conditional mean
+
+    $ hat(mu)_z (x, r, w_"probe") = 1 / K sum_(k=1)^K z^(k). quad "(17)" $
 
     and conditional variance
 
-    $ hat(sigma)_z^2 (x, r, w_"probe") = 1 / (K - 1) sum_(k=1)^K (z^(k) - hat(mu)_z)^2. quad "(17)" $
+    $ hat(sigma)_z^2 (x, r, w_"probe") = 1 / (K - 1) sum_(k=1)^K (z^(k) - hat(mu)_z)^2. quad "(18)" $
 
-    Retain the draws themselves as the empirical sampling distribution
+    Retain the K outputs as an empirical response library. Sample one stored
+    feature uniformly:
 
-    $ hat(p)_z (z | x, r, w_"probe") = 1 / K sum_(k=1)^K delta(z - z^(k)). quad "(18)" $
+    $ J tilde "DiscreteUniform"(1, dots.c, K), quad z_"sample" = z^(J). quad "(19)" $
 
-    Equation 16 estimates the conditional mean, Equation 17 estimates the
-    conditional variance, and Equation 18 defines the empirical conditional
-    distribution. Here K is the number of repeated probe simulations;
-    z#super[(k)] is the feature from draw k; z is a possible feature value; k is
-    the draw index; and δ denotes a point mass at one observed value. The
-    intensity x, rate r, and probe conductance w#sub[probe] retain their Step 2
-    definitions. Report the mean and variance against grayscale intensity for
-    every rate, together with representative empirical distributions at low,
-    transitional, and high rates. Choose K before ANN training using a
-    predeclared Monte Carlo precision target, and report both K and the
-    resulting uncertainty in the estimated moments.
-
-    The conditional standard deviation is the effective additive-noise
-    magnitude in voltage-feature units. It is a summary, not the primary noise
-    model. At low rates many pixels emit no spikes, producing a point mass at
-    zero and a skewed distribution. Sampling from the empirical distribution in
-    Equation 18 preserves that structure, whereas adding Gaussian noise from
-    the same variance would not.
-
-    Repeat this calibration with w#sub[probe] set to 0.6, 1.2, and 2.4 μS. The
-    half-scale and double-scale conditions test whether the inferred lower rate
-    depends materially on the selected conductance operating point.
+    Here z#super[(k)] is draw k; K is the number of draws; the estimated mean and
+    variance are the quantities in Equations 17 and 18; J is a uniform integer
+    from 1 through K; and z#sub[sample] is the sampled ANN feature. Choose K from
+    a predeclared Monte Carlo precision target. Report the moments and selected
+    distributions against intensity and rate. The standard deviation summarizes
+    effective noise, but Equation 19 remains the primary noise model because
+    low-rate responses contain many zeros and are not Gaussian. Repeat the
+    calibration at 0.6, 1.2, and 2.4 μS to test conductance-scale sensitivity.
   4. *Construct sampled feature images.* Evaluate 0.25, 0.5, 0.75, 1, 1.5, 2,
     2.5, 3, 4, 5, 10, and 25 Hz at fixed
     #scfg.matched_presentation_ms ms presentation. The grid ends at 25 Hz
@@ -458,13 +438,12 @@
     endpoint; its denser low-rate points resolve the lower transition.
 
     During ANN training, select one listed rate with equal probability for each
-    MNIST image. For every pixel, sample one feature from the empirical
-    distribution matching that pixel's grayscale intensity, the selected rate,
-    and the probe conductance. Draw fresh features on every training epoch.
-    Independent pixel-wise sampling is valid because both the Poisson input
-    channels and the pixel probes are independent. Verify the empirical sampler
-    against a smaller set of complete images generated by direct Step 2
-    simulation.
+    MNIST image. For every pixel, use Equation 19 to sample one stored feature
+    matching that pixel's grayscale intensity, the selected rate, and the probe
+    conductance. Resample the features on every training epoch. Independent
+    pixel-wise sampling is valid because both the Poisson input channels and the
+    pixel probes are independent. Verify the empirical sampler against a
+    smaller set of complete images generated by direct Step 2 simulation.
 
     Split the established MNIST training images into decoder-training and
     validation subsets before selecting regularization or stopping epochs.
@@ -482,7 +461,7 @@
     empirical feature draws, with additional draws used to estimate sampling
     variation. The primary curve is
 
-    $ A_r (r) = P("correct" | r, "mixed-rate nonlinear decoder"). quad "(19)" $
+    $ A_r (r) = P("correct" | r, "mixed-rate nonlinear decoder"). quad "(20)" $
 
     Here A#sub[r] is held-out nonlinear-decoder accuracy and P denotes
     probability. Plot the linear curve beside it, but do not use the linear
@@ -492,11 +471,11 @@
     simulations, and decoder seeds to obtain a lower confidence bound L#sub[r]
     at every tested rate. Define the decodability edge as
 
-    $ r_"decode" = "lowest " r in cal(R) " satisfying " L_r(r) > 1 / N_"class". quad "(20)" $
+    $ r_"decode" = "lowest " r in cal(R) " satisfying " L_r(r) > 1 / N_"class". quad "(21)" $
 
     Define the practical training floor as
 
-    $ r_"train" = "lowest " r in cal(R) " satisfying " L_r(r) >= a_"use". quad "(21)" $
+    $ r_"train" = "lowest " r in cal(R) " satisfying " L_r(r) >= a_"use". quad "(22)" $
 
     Here the calligraphic R is the tested rate grid; N#sub[class] is the number
     of digit classes; r#sub[decode] is the lowest rate at which the primary
@@ -552,20 +531,6 @@
   - Warland et al. compare linear and nonlinear population decoders#cite(4).
     This motivates the one linear diagnostic beside the primary nonlinear ANN.
 
-  === Why Bode analysis is deferred
-
-  A Bode analysis would describe the temporal bandwidth of a locally linearized
-  synapse-plus-membrane cascade. It would not directly determine whether digit
-  identity remains classifiable or which rate should bound variable-rate
-  training. The exact finite-window probe already answers the calibration
-  question without relying on a linear approximation.
-
-  In addition, PING's effective membrane time constant changes with conductance,
-  so there is no single universal transfer curve. A defensible Bode result would
-  require a family of operating-point-dependent curves and exact gain-and-phase
-  validation. That remains useful mechanistic and thesis material, but it is a
-  separate follow-up rather than a prerequisite for the neo-proposal.
-
   === TODO
 
   1. [ ] Implement and unit-test the finite-window per-pixel synapse and
@@ -593,8 +558,146 @@
     the equal-event bridge in Equation 9.
   11. [ ] Select the first variable-rate PING training range using
     r#sub[train] as its lower endpoint.
-  12. [ ] Run frozen-projection, temporal, per-rate, or Bode follow-ups only if
+  12. [ ] Run frozen-projection, temporal, or per-rate follow-ups only if
     the primary result triggers the conditions in Step 10.
+
+  == Appendix 2: Linear-filter prediction of pixel-feature variance
+
+  === Purpose
+
+  This supplementary analysis depends on Appendix 1. It uses the same pixel
+  probe, calibration grid, and empirical Var(z#sub[i]) estimates produced in
+  Appendix 1, Step 3. It asks whether a simple linear filter can explain that
+  measured variance. It does not replace the empirical probe or determine the
+  variable-rate training boundary. The ANN continues to train on samples from
+  Equation 19. The linear calculation instead predicts Var(z#sub[i])
+  independently and checks that prediction against the empirical result.
+
+  A filter describes how strongly a system passes temporal fluctuations at
+  different frequencies. Its transfer function gives the output amplitude and
+  phase produced by a small input fluctuation at each frequency. A Bode plot
+  displays this frequency response, making the synaptic, membrane, and
+  averaging timescales visible. This comparison follows standard filtered
+  shot-noise analysis#cite(1, 2).
+
+  === Calculation
+
+  1. *Set the input operating point.* For a pixel of intensity x at maximum
+    encoding rate r, the mean Poisson rate is
+
+    $ lambda = r x. quad "(23)" $
+
+    Here λ is the pixel's mean spike rate, r is the full-intensity encoding
+    rate, and x is grayscale intensity. The mean conductance and voltage at this
+    rate define the operating point around which the probe is linearized.
+
+  2. *Calculate the family of local synapse-plus-membrane responses.* Let
+    G#sub[λ] (ω) denote the transfer function from a small fluctuation in the
+    input spike train to the resulting membrane-voltage fluctuation. The
+    subscript λ matters because mean conductance changes the membrane's effective
+    time constant. There is therefore a family of local transfer functions, not
+    one universal response.
+
+    Calculate the local linear response analytically at every calibration
+    condition from Appendix 1, Step 3. With 256 grayscale levels, 12 rates, and
+    three probe conductances, this is at most 9,216 operating points. The
+    calculation is cheap, but plotting every curve would produce coloured
+    spaghetti rather than insight. Index the family by mean synaptic
+    conductance relative to leak conductance. Under the primary probe scale the
+    range runs from no added conductance to approximately 1.2 times leak; the
+    half-scale and double-scale controls extend the total range to approximately
+    2.4 times leak. Show five representative operating points spanning that
+    range. Validate the analytic response at selected low, middle, and high
+    operating points by applying a small sinusoidal change in input rate to the
+    numerical probe and comparing its measured gain.
+
+  3. *Include the finite readout window.* The feature z#sub[i] is the mean
+    voltage over T = #scfg.matched_presentation_ms ms, so the averaging window
+    is another filter:
+
+    $ A_T (omega) = (1 - exp(-i omega T)) / (i omega T). quad "(24)" $
+
+    Here A#sub[T] (ω) is the averaging-window transfer function; ω is angular
+    frequency; i is the imaginary unit; T is the averaging duration; and exp is
+    the exponential function. The complete response from input fluctuation to
+    z#sub[i] is
+
+    $ H_lambda (omega) = A_T (omega) G_lambda (omega). quad "(25)" $
+
+    Here H#sub[λ] (ω) is the combined synapse, membrane, and averaging-window
+    transfer function.
+
+  4. *Propagate the input noise through the filter.* After subtracting its mean,
+    an ideal unit-amplitude Poisson spike train has flat power spectral density:
+
+    $ S_"in" (omega) = lambda. quad "(26)" $
+
+    Here S#sub[in] (ω) is the input power spectral density. The synaptic event
+    amplitude w#sub[probe] is included in G#sub[λ] (ω). The predicted output
+    power spectral density is
+
+    $ S_z (omega) = abs(H_lambda (omega))^2 S_"in" (omega). quad "(27)" $
+
+    Here S#sub[z] (ω) is the power spectral density of the filtered feature
+    fluctuation, and the squared magnitude of H#sub[λ] (ω) is the fraction of
+    input noise power transmitted at each frequency.
+
+  5. *Predict the feature variance.* Add the transmitted noise power over all
+    frequencies:
+
+    $ "Var"(z) = 1 / (2 pi) integral_(-oo)^oo abs(H_lambda (omega))^2 S_"in" (omega) dif omega. quad "(28)" $
+
+    Here Var(z) is the predicted variance of the time-averaged pixel feature and
+    π is the circle constant. Compare Equation 28 with the empirical variance
+    from Equation 18 across intensity, rate, and probe conductance.
+
+  === Planned outputs
+
+  1. *Figure A1: the filter family.* Use two side-by-side panels with a shared
+    logarithmic frequency axis. Panel A shows the zero-frequency-normalized
+    magnitude of the synapse-plus-membrane response for the five representative
+    operating points. Panel B shows the corresponding complete response after
+    the #scfg.matched_presentation_ms ms averaging window is included. Plot
+    magnitude in decibels and mark the synaptic, membrane, and averaging-window
+    cutoff regions. Phase is unnecessary here because the variance calculation
+    depends on squared magnitude.
+  2. *Figure A2: predicted versus observed feature variance.* Use two
+    side-by-side panels. Panel A plots the Equation 28 prediction against the
+    empirical Equation 18 estimate for every Appendix 1 calibration condition,
+    with an identity line. Panel B plots the ratio of predicted to empirical
+    variance against expected spike count, given by mean pixel spike rate
+    multiplied by presentation duration. Use marker shape for the three probe
+    conductances and colour for expected spike count. Reuse Appendix 1's
+    low-, middle-, and high-rate empirical feature distributions rather than
+    duplicating them here.
+
+  === Interpretation and limits
+
+  Agreement would show that the measured feature noise is largely explained by
+  the temporal filtering of Poisson fluctuations. Disagreement would identify
+  conditions where the local linear approximation, stationary-noise assumption,
+  or finite-window treatment is inadequate.
+
+  The centred Poisson input has a flat spectrum at every rate. The high-rate
+  Gaussian approximation concerns the shape of the output distribution, not
+  whether the input spectrum is white. At low rates the variance prediction may
+  remain informative while the response distribution retains a large zero mass
+  and positive skew. This is why the empirical distribution remains the ANN's
+  primary input model.
+
+  === TODO
+
+  1. [ ] Calculate the analytic operating point and local transfer function for
+    every Appendix 1 calibration condition, then validate selected low-,
+    middle-, and high-drive responses with the numerical probe.
+  2. [ ] Produce Figure A1 from five representative operating points spanning
+    the complete mean-conductance range.
+  3. [ ] Use Equation 28 to predict Var(z) at every empirical calibration
+    condition.
+  4. [ ] Produce Figure A2 and report where the linear approximation succeeds
+    or fails as a function of expected spike count and probe conductance.
+  5. [ ] Keep the empirical response library as the ANN input model regardless
+    of the linear-analysis outcome.
 
   #reference-list((
     (
