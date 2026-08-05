@@ -74,6 +74,11 @@ GAIN_OPERATING_RATES_HZ = (0.25, 3.0, 25.0)
 GAIN_FREQUENCIES_HZ = (1.0, 10.0, 100.0)
 GAIN_MODULATION_FRACTION = 0.01
 GAIN_REL_TOL = 0.03
+STEP4_RATES: dict[str, float] = {"low": 0.25, "transitional": 3.0, "high": 25.0}
+STEP4_IMAGE_INDICES = tuple(range(16))
+STEP4_DIAGNOSTIC_INDICES: dict[str, int] = {"low": 0, "transitional": 1, "high": 2}
+STEP4_REPLICATES = 8
+STEP4_SEED = 42
 
 # Locked before inspecting the Step 2 pilot.  Each candidate compares two
 # independent, equally sized blocks.  The deterministic subset spans zero,
@@ -2209,8 +2214,335 @@ def step_3() -> None:
     )
 
 
+def _step4_rng(
+    stream: int, probe_index: int, rate_index: int, image_index: int, replicate: int
+) -> np.random.Generator:
+    return np.random.default_rng(
+        np.random.SeedSequence(
+            [STEP4_SEED, 77, 4, stream, probe_index, rate_index, image_index, replicate]
+        )
+    )
+
+
+def sample_library_image(
+    library: np.ndarray,
+    image_uint8: np.ndarray,
+    probe_index: int,
+    rate_index: int,
+    image_index: int,
+    replicate: int,
+) -> tuple[np.ndarray, np.ndarray]:
+    """Sample one empirical draw per row-major pixel using the locked stream."""
+    pixels = np.asarray(image_uint8, dtype=np.uint8).reshape(-1)
+    rng = _step4_rng(1, probe_index, rate_index, image_index, replicate)
+    draws = rng.integers(0, LIBRARY_K, size=pixels.size)
+    values = library[0, probe_index, rate_index, pixels, draws]
+    return np.asarray(values, dtype=np.float32), draws
+
+
+def _probe_spikes_features(spikes: np.ndarray, probe_uS: float) -> np.ndarray:
+    """Memory-bounded Step 1 probe returning features without full traces."""
+    spike_array = np.asarray(spikes, dtype=np.float64)
+    if spike_array.shape[0] != N_TIMESTEPS:
+        raise ValueError(f"expected {N_TIMESTEPS} timesteps")
+    g = np.zeros(spike_array.shape[1:], dtype=np.float64)
+    v = np.full(spike_array.shape[1:], PARAMETERS["E_L_mV"], dtype=np.float64)
+    total = np.zeros_like(v)
+    decay = math.exp(-DT_MS / PARAMETERS["tau_ampa_ms"])
+    for incoming in spike_array:
+        g = g * decay + probe_uS * incoming
+        total_g = PARAMETERS["g_L_uS"] + g
+        v_inf = (
+            PARAMETERS["g_L_uS"] * PARAMETERS["E_L_mV"]
+            + g * PARAMETERS["E_e_mV"]
+        ) / total_g
+        v = v_inf + (v - v_inf) * np.exp(
+            -DT_MS * total_g / PARAMETERS["C_m_nF"]
+        )
+        total += v - PARAMETERS["E_L_mV"]
+    return total / N_TIMESTEPS
+
+
+def direct_feature_replicates(
+    image_uint8: np.ndarray,
+    rate_hz: float,
+    probe_uS: float,
+    probe_index: int,
+    rate_index: int,
+    image_index: int,
+) -> np.ndarray:
+    """Fresh direct Step 1 simulations for all locked replicates of one image."""
+    pixels = np.asarray(image_uint8, dtype=np.uint8).reshape(-1)
+    active = np.flatnonzero(pixels)
+    output = np.zeros((STEP4_REPLICATES, pixels.size), dtype=np.float32)
+    if active.size == 0:
+        return output
+    intensities = pixels[active].astype(np.float64) / 255.0
+    spike_blocks = []
+    for replicate in range(STEP4_REPLICATES):
+        rng = _step4_rng(2, probe_index, rate_index, image_index, replicate)
+        spike_blocks.append(encode_poisson(intensities, rate_hz, rng))
+    # time x replicate x active pixel
+    spikes = np.stack(spike_blocks, axis=1)
+    features = _probe_spikes_features(spikes, probe_uS)
+    output[:, active] = features.astype(np.float32)
+    return output
+
+
+def load_locked_mnist_training() -> tuple[np.ndarray, np.ndarray, dict[str, Any]]:
+    """Load only the official MNIST training partition; never instantiate test."""
+    from torchvision.datasets import MNIST
+
+    dataset = MNIST(root="/tmp/mnist", train=True, download=True)
+    images = dataset.data.numpy().astype(np.uint8, copy=False)
+    labels = dataset.targets.numpy().astype(np.int64, copy=False)
+    if images.shape != (60000, 28, 28) or labels.shape != (60000,):
+        raise RuntimeError(f"unexpected MNIST training contract: {images.shape}")
+    raw_root = Path(dataset.raw_folder)
+    raw_hashes = {
+        path.name: sha256_file(path)
+        for path in sorted(raw_root.glob("train-*-ubyte"))
+    }
+    return images, labels, {
+        "source": "torchvision.datasets.MNIST official training partition",
+        "torchvision": __import__("torchvision").__version__,
+        "image_shape": list(images.shape),
+        "label_shape": list(labels.shape),
+        "raw_file_sha256": raw_hashes,
+        "official_test_partition_loaded": False,
+    }
+
+
+def _relative_difference(first: float, second: float, floor: float = 1e-12) -> float:
+    return abs(first - second) / max((abs(first) + abs(second)) / 2.0, floor)
+
+
+def compare_feature_condition(
+    library_values: np.ndarray, direct_values: np.ndarray, regime: str
+) -> dict[str, Any]:
+    """Apply the locked Step 4 metrics to one probe-rate condition."""
+    lib = np.asarray(library_values, dtype=np.float64)
+    direct = np.asarray(direct_values, dtype=np.float64)
+    if lib.shape != direct.shape:
+        raise ValueError("library and direct arrays must have matching shapes")
+    lib_mean = float(np.mean(lib))
+    direct_mean = float(np.mean(direct))
+    lib_variance = float(np.var(lib, ddof=1))
+    direct_variance = float(np.var(direct, ddof=1))
+    lib_image_means = np.mean(lib, axis=-1)
+    direct_image_means = np.mean(direct, axis=-1)
+    lib_image_variances = np.var(lib, axis=-1, ddof=1)
+    direct_image_variances = np.var(direct, axis=-1, ddof=1)
+    # Average the eight independent replicates before measuring spatial signal.
+    lib_spatial = np.mean(lib, axis=1).reshape(-1)
+    direct_spatial = np.mean(direct, axis=1).reshape(-1)
+    correlation = float(np.corrcoef(lib_spatial, direct_spatial)[0, 1])
+    thresholds = {
+        "pooled_mean_relative_difference": 0.1,
+        "pooled_variance_relative_difference": 0.2,
+        "zero_fraction_absolute_difference": 0.03,
+        "image_mean_relative_difference_median": 0.2,
+        "image_variance_relative_difference_median": 0.35,
+        "spatial_mean_correlation_minimum": {
+            "low": 0.2,
+            "transitional": 0.75,
+            "high": 0.9,
+        }[regime],
+    }
+    metrics = {
+        "library_pooled_mean_mV": lib_mean,
+        "direct_pooled_mean_mV": direct_mean,
+        "pooled_mean_relative_difference": _relative_difference(lib_mean, direct_mean),
+        "library_pooled_variance_mV2": lib_variance,
+        "direct_pooled_variance_mV2": direct_variance,
+        "pooled_variance_relative_difference": _relative_difference(lib_variance, direct_variance),
+        "library_zero_fraction": float(np.mean(lib == 0.0)),
+        "direct_zero_fraction": float(np.mean(direct == 0.0)),
+        "zero_fraction_absolute_difference": float(abs(np.mean(lib == 0.0) - np.mean(direct == 0.0))),
+        "paired_mean_absolute_difference_mV": float(np.mean(np.abs(lib - direct))),
+        "image_mean_relative_difference_median": float(
+            np.median(
+                np.abs(lib_image_means - direct_image_means)
+                / np.maximum((np.abs(lib_image_means) + np.abs(direct_image_means)) / 2.0, 1e-12)
+            )
+        ),
+        "image_variance_relative_difference_median": float(
+            np.median(
+                np.abs(lib_image_variances - direct_image_variances)
+                / np.maximum((np.abs(lib_image_variances) + np.abs(direct_image_variances)) / 2.0, 1e-12)
+            )
+        ),
+        "spatial_mean_correlation": correlation,
+    }
+    passed = {
+        name: metrics[name] <= limit
+        for name, limit in thresholds.items()
+        if name != "spatial_mean_correlation_minimum"
+    }
+    passed["spatial_mean_correlation_minimum"] = correlation >= thresholds[
+        "spatial_mean_correlation_minimum"
+    ]
+    return {
+        "metrics": metrics,
+        "thresholds": thresholds,
+        "checks": passed,
+        "passed": all(passed.values()),
+    }
+
+
+def plot_step4(
+    images: np.ndarray,
+    library_values: np.ndarray,
+    direct_values: np.ndarray,
+    condition_records: list[dict[str, Any]],
+    path: Path,
+) -> None:
+    """Render matched original, library, direct, and error images."""
+    theme.apply()
+    fig, axes = plt.subplots(3, 4, figsize=(9.0, 7.2))
+    nominal_probe_index = PROBE_CONDUCTANCES_US.index(1.2)
+    for row, (regime, rate) in enumerate(STEP4_RATES.items()):
+        image_index = STEP4_DIAGNOSTIC_INDICES[regime]
+        position = STEP4_IMAGE_INDICES.index(image_index)
+        library_image = library_values[nominal_probe_index, row, position, 0].reshape(28, 28)
+        direct_image = direct_values[nominal_probe_index, row, position, 0].reshape(28, 28)
+        difference = library_image - direct_image
+        axes[row, 0].imshow(images[image_index], cmap="gray", vmin=0, vmax=255)
+        axes[row, 1].imshow(library_image, cmap="magma", vmin=0, vmax=65)
+        axes[row, 2].imshow(direct_image, cmap="magma", vmin=0, vmax=65)
+        limit = max(float(np.max(np.abs(difference))), 1e-6)
+        axes[row, 3].imshow(difference, cmap="coolwarm", vmin=-limit, vmax=limit)
+        record = next(
+            item for item in condition_records
+            if item["probe_uS"] == 1.2 and item["drive_regime"] == regime
+        )
+        metrics = record["comparison"]["metrics"]
+        axes[row, 0].set_ylabel(
+            f"{regime.capitalize()}  {rate:g} Hz\nimage {image_index}, seed 42",
+            fontsize=8,
+        )
+        axes[row, 1].set_xlabel(f"zero {metrics['library_zero_fraction']:.2f}", fontsize=7)
+        axes[row, 2].set_xlabel(f"zero {metrics['direct_zero_fraction']:.2f}", fontsize=7)
+        axes[row, 3].set_xlabel(
+            f"mean Δ {metrics['pooled_mean_relative_difference']:.1%}\nr={metrics['spatial_mean_correlation']:.2f}",
+            fontsize=7,
+        )
+    for column, title in enumerate(("Original intensity", "Empirical-library sample", "Fresh direct simulation", "Library − direct")):
+        axes[0, column].set_title(title, fontsize=9)
+    for axis in axes.flat:
+        axis.set_xticks([])
+        axis.set_yticks([])
+    fig.suptitle("Sampled filter-matched MNIST features (nominal 1.2 µS probe)", fontsize=11, fontweight="bold")
+    fig.tight_layout()
+    fig.savefig(path, dpi=220, bbox_inches="tight")
+    plt.close(fig)
+
+
 def step_4() -> None:
-    _not_implemented(4)
+    started = time.perf_counter()
+    library = verify_authenticated_library()
+    images, labels, dataset_record = load_locked_mnist_training()
+    shape = (
+        len(PROBE_CONDUCTANCES_US), len(STEP4_RATES), len(STEP4_IMAGE_INDICES),
+        STEP4_REPLICATES, 784,
+    )
+    library_values = np.empty(shape, dtype=np.float32)
+    direct_values = np.empty(shape, dtype=np.float32)
+    draw_indices = np.empty(shape, dtype=np.uint16)
+    for probe_index, probe in enumerate(PROBE_CONDUCTANCES_US):
+        for rate_index, (regime, rate) in enumerate(STEP4_RATES.items()):
+            for image_position, image_index in enumerate(STEP4_IMAGE_INDICES):
+                for replicate in range(STEP4_REPLICATES):
+                    values, draws = sample_library_image(
+                        library, images[image_index], probe_index, TRAINING_RATES_HZ.index(rate),
+                        image_index, replicate,
+                    )
+                    library_values[probe_index, rate_index, image_position, replicate] = values
+                    draw_indices[probe_index, rate_index, image_position, replicate] = draws
+                direct_values[probe_index, rate_index, image_position] = direct_feature_replicates(
+                    images[image_index], rate, probe, probe_index,
+                    TRAINING_RATES_HZ.index(rate), image_index,
+                )
+                print(f"Step 4 direct: {probe:g} uS {regime} image {image_index}")
+    condition_records: list[dict[str, Any]] = []
+    for probe_index, probe in enumerate(PROBE_CONDUCTANCES_US):
+        for rate_index, (regime, rate) in enumerate(STEP4_RATES.items()):
+            comparison = compare_feature_condition(
+                library_values[probe_index, rate_index], direct_values[probe_index, rate_index], regime
+            )
+            condition_records.append(
+                {"probe_uS": probe, "drive_regime": regime, "rate_hz": rate, "comparison": comparison}
+            )
+
+    replay_values, replay_draws = sample_library_image(
+        library, images[0], 0, TRAINING_RATES_HZ.index(0.25), 0, 0
+    )
+    direct_replay = direct_feature_replicates(
+        images[0], 0.25, 0.6, 0, TRAINING_RATES_HZ.index(0.25), 0
+    )
+    validations = {
+        "all_conditions_passed": all(row["comparison"]["passed"] for row in condition_records),
+        "finite_and_bounded": bool(
+            np.all(np.isfinite(library_values)) and np.all(np.isfinite(direct_values))
+            and np.all((library_values >= 0) & (library_values <= 65))
+            and np.all((direct_values >= 0) & (direct_values <= 65))
+        ),
+        "library_deterministic_replay": bool(
+            np.array_equal(replay_values, library_values[0, 0, 0, 0])
+            and np.array_equal(replay_draws, draw_indices[0, 0, 0, 0])
+        ),
+        "direct_deterministic_replay": bool(np.array_equal(direct_replay, direct_values[0, 0, 0])),
+        "pixel_and_image_stream_independence": bool(
+            not np.array_equal(draw_indices[0, 0, 0, 0], draw_indices[0, 0, 0, 1])
+            and not np.array_equal(library_values[0, 0, 0, 0], library_values[0, 0, 1, 0])
+            and not np.array_equal(direct_values[0, 0, 0, 0], direct_values[0, 0, 0, 1])
+        ),
+        "low_rate_zero_heavy": bool(np.mean(library_values[:, 0] == 0) > 0.9),
+        "higher_rate_spatial_structure": bool(
+            min(
+                row["comparison"]["metrics"]["spatial_mean_correlation"]
+                for row in condition_records if row["drive_regime"] == "high"
+            ) >= 0.9
+        ),
+        "held_out_test_partition_sealed": True,
+    }
+    arrays_path = FIGURES / "step4_feature_comparison_arrays.npz"
+    np.savez_compressed(
+        arrays_path,
+        image_indices=np.asarray(STEP4_IMAGE_INDICES),
+        image_labels=labels[np.asarray(STEP4_IMAGE_INDICES)],
+        original_images=images[np.asarray(STEP4_IMAGE_INDICES)],
+        library_values=library_values,
+        direct_values=direct_values,
+        draw_indices=draw_indices,
+    )
+    figure_path = FIGURES / "feature_images.png"
+    plot_step4(images, library_values, direct_values, condition_records, figure_path)
+    outcome = {
+        "status": "complete" if all(validations.values()) else "validation_failed",
+        "classification": "post-hoc exploratory feature-construction validation after preserved Step 2 failure",
+        "library_sha256": LIBRARY_SHA256,
+        "amendment_sha256": sha256_file(AMENDMENT_PATH),
+        "dataset": dataset_record,
+        "decoder_train_indices": [0, 54999],
+        "validation_indices": [55000, 59999],
+        "comparison_image_indices": list(STEP4_IMAGE_INDICES),
+        "diagnostic_image_indices": STEP4_DIAGNOSTIC_INDICES,
+        "condition_records": condition_records,
+        "validations": validations,
+        "arrays_path": str(arrays_path.relative_to(REPO)),
+        "arrays_sha256": sha256_file(arrays_path),
+        "figure_path": str(figure_path.relative_to(REPO)),
+        "figure_sha256": sha256_file(figure_path),
+        "runtime_s": round(time.perf_counter() - started, 3),
+        "paid_compute_usd": 0.0,
+        "interpretation": "feature construction only; no decoder, held-out test, threshold selection, or PING run",
+    }
+    (FIGURES / "step4_outcome.json").write_text(json.dumps(outcome, indent=2) + "\n")
+    if not all(validations.values()):
+        failed = [name for name, passed in validations.items() if not passed]
+        raise RuntimeError(f"Step 4 validation failed: {', '.join(failed)}")
+    print(f"exp077 Step 4 complete: {len(condition_records)}/9 conditions passed")
 
 
 def step_5() -> None:
@@ -2235,7 +2567,7 @@ STAGE_FUNCTIONS: dict[int, Callable[[], None]] = {
     7: step_7,
 }
 
-IMPLEMENTED_STEPS: frozenset[int] = frozenset({1, 2, 3})
+IMPLEMENTED_STEPS: frozenset[int] = frozenset({1, 2, 3, 4})
 
 
 def requested_through_step() -> int:

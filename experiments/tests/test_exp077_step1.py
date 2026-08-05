@@ -145,6 +145,31 @@ def test_numerical_gain_matches_registered_transfer() -> None:
     assert numerical == pytest.approx(analytical, rel=exp077.GAIN_REL_TOL)
 
 
-def test_step_4_remains_a_hard_stop() -> None:
-    with pytest.raises(NotImplementedError, match="Step 4"):
-        exp077.step_4()
+def test_step_4_streams_replay_and_are_independent() -> None:
+    first = exp077._step4_rng(1, 0, 0, 0, 0).integers(0, 2048, size=784)
+    replay = exp077._step4_rng(1, 0, 0, 0, 0).integers(0, 2048, size=784)
+    other_pixel_stream = exp077._step4_rng(1, 0, 0, 0, 1).integers(
+        0, 2048, size=784
+    )
+    direct_stream = exp077._step4_rng(2, 0, 0, 0, 0).integers(
+        0, 2048, size=784
+    )
+    assert np.array_equal(first, replay)
+    assert not np.array_equal(first, other_pixel_stream)
+    assert not np.array_equal(first, direct_stream)
+
+
+def test_step_4_comparison_passes_identical_features() -> None:
+    rng = np.random.default_rng(42)
+    values = rng.uniform(0.0, 10.0, size=(16, 8, 784))
+    record = exp077.compare_feature_condition(values, values.copy(), "high")
+    assert record["passed"]
+    assert all(record["checks"].values())
+
+
+def test_direct_black_image_stays_at_rest() -> None:
+    features = exp077.direct_feature_replicates(
+        np.zeros((28, 28), dtype=np.uint8), 25.0, 1.2, 1, 11, 0
+    )
+    assert features.shape == (exp077.STEP4_REPLICATES, 784)
+    assert np.all(features == 0.0)
