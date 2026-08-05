@@ -18,6 +18,7 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
+from matplotlib.colors import ListedColormap
 from scipy import signal
 
 REPO = Path(__file__).resolve().parents[1]
@@ -98,7 +99,9 @@ class Variant:
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "--stage", choices=("smoke", "calibrate", "sweep"), required=True
+        "--stage",
+        choices=("smoke", "calibrate", "sweep", "replot"),
+        required=True,
     )
     return parser.parse_args()
 
@@ -791,10 +794,132 @@ def render_figures(
     fig.savefig(out / "coupling_heatmaps.png", dpi=220, bbox_inches="tight")
     plt.close(fig)
 
+    render_summary(rows, arrays, out / "summary_compound.png")
+
+
+def render_summary(
+    rows: list[dict], arrays: dict[str, dict[str, np.ndarray]], out: Path
+) -> None:
+    """Render drift, locking, suppression, and the sweep as one figure."""
+    conditions = (
+        (rows[0], "uncoupled · drift"),
+        (rows[1], "0.2 / short · locked"),
+        (rows[10], "2.0 / short · B suppressed"),
+    )
+    fig = plt.figure(figsize=(7.2, 8.0))
+    grid = fig.add_gridspec(
+        3, 3, height_ratios=(1.0, 0.85, 1.05), hspace=0.48, wspace=0.34
+    )
+    time_ms = np.arange(STEPS - TRANSIENT_STEPS) * DT_MS
+    for col, (row, title) in enumerate(conditions):
+        rec = arrays[row["variant"]["name"]]
+        raster = fig.add_subplot(grid[0, col])
+        for key, offset, color in (
+            ("population_0", 0, theme.INK_BLACK),
+            ("population_2", N_E + 3, theme.DEEP_RED),
+        ):
+            t, cell = np.nonzero(rec[key][TRANSIENT_STEPS:, 0])
+            raster.scatter(t * DT_MS, cell + offset, s=0.8, linewidths=0, color=color)
+        raster.set_title(title, fontsize=8)
+        raster.set_xlim(0, time_ms[-1])
+        raster.set_yticks((N_E / 2, N_E + 3 + N_E / 2), ("A", "B"))
+        if col == 0:
+            raster.set_ylabel("E spikes")
+
+        rate = fig.add_subplot(grid[1, col], sharex=raster)
+        rate.plot(
+            time_ms,
+            gaussian_rate(rec["population_0"][TRANSIENT_STEPS:]),
+            color=theme.INK_BLACK,
+            linewidth=0.8,
+        )
+        rate.plot(
+            time_ms,
+            gaussian_rate(rec["population_2"][TRANSIENT_STEPS:]),
+            color=theme.DEEP_RED,
+            linewidth=0.8,
+            alpha=0.85,
+        )
+        rate.set_xlabel("post-transient time (ms)")
+        if col == 0:
+            rate.set_ylabel("E rate (Hz)")
+
+    for col, (metric, title, cmap) in enumerate(
+        (
+            ("frequency_difference_hz", "frequency difference (Hz)", "magma_r"),
+            ("plv", "phase-locking value", "magma"),
+        )
+    ):
+        ax = fig.add_subplot(grid[2, col])
+        matrix = np.full((len(COUPLING_STRENGTHS), len(DELAY_LABELS)), np.nan)
+        for row in rows[1:]:
+            i = COUPLING_STRENGTHS.index(row["variant"]["strength"])
+            j = DELAY_LABELS.index(row["variant"]["delay_label"])
+            value = row["metrics"]["synchrony"][metric]
+            matrix[i, j] = np.nan if value is None else value
+        image = ax.imshow(matrix, aspect="auto", origin="lower", cmap=cmap)
+        ax.set_title(title, fontsize=8)
+        fig.colorbar(image, ax=ax, shrink=0.72)
+        format_sweep_axis(ax, show_ylabel=col == 0)
+
+    state = fig.add_subplot(grid[2, 2])
+    state_matrix = np.zeros((len(COUPLING_STRENGTHS), len(DELAY_LABELS)))
+    for row in rows[1:]:
+        i = COUPLING_STRENGTHS.index(row["variant"]["strength"])
+        j = DELAY_LABELS.index(row["variant"]["delay_label"])
+        state_matrix[i, j] = (
+            2 if row["locked"] else (1 if row["metrics"]["valid"] else 0)
+        )
+    state.imshow(
+        state_matrix,
+        aspect="auto",
+        origin="lower",
+        cmap=ListedColormap(("#d9d9d9", "#d98b8b", "#1b7f5a")),
+        vmin=0,
+        vmax=2,
+    )
+    state.set_title("registered outcome", fontsize=8)
+    format_sweep_axis(state, show_ylabel=False)
+    state.text(
+        0.5,
+        -0.44,
+        "gray suppressed · red active · green locked",
+        transform=state.transAxes,
+        ha="center",
+        fontsize=6.5,
+    )
+    fig.savefig(out, dpi=240, bbox_inches="tight")
+    plt.close(fig)
+
+
+def format_sweep_axis(ax, *, show_ylabel: bool) -> None:
+    ax.set_xticks(
+        range(len(DELAY_LABELS)),
+        ("short", "intermediate", "half period"),
+        rotation=24,
+        ha="right",
+    )
+    ax.set_yticks(range(len(COUPLING_STRENGTHS)), [str(x) for x in COUPLING_STRENGTHS])
+    if show_ylabel:
+        ax.set_ylabel("coupling strength")
+
+
+def replot() -> None:
+    root = REPO / "artifacts" / "data" / SLUG
+    rows = json.loads((root / "sweep_table.json").read_text())
+    arrays = {}
+    for row in rows:
+        name = row["variant"]["name"]
+        with np.load(root / "variants" / f"{name}-recordings.npz") as archive:
+            arrays[name] = {key: archive[key] for key in archive.files}
+    render_summary(rows, arrays, root / "summary_compound.png")
+
 
 def main() -> None:
     args = parse_args()
-    {"smoke": smoke, "calibrate": calibrate, "sweep": sweep}[args.stage]()
+    {"smoke": smoke, "calibrate": calibrate, "sweep": sweep, "replot": replot}[
+        args.stage
+    ]()
 
 
 if __name__ == "__main__":
