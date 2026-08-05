@@ -1,0 +1,173 @@
+{
+  "run_id": "r006",
+  "git_sha": "3b7a935",
+  "duration_s": 43.9,
+  "duration": "44s",
+  "purpose": "Milestones 1-3 architecture and causality validation",
+  "config": {
+    "dt_ms": 0.1,
+    "steps": 300,
+    "batch": 2,
+    "seed": 77,
+    "variants": 4
+  },
+  "variants": {
+    "uncoupled": {
+      "graph_digest": "sha256:e4e440c3f4a2cd2bb516bd35015bad19f903ac543093e7d9564330639991533b",
+      "coupling_projection_count": 0,
+      "coupling_delay_steps": [],
+      "spikes": {
+        "population_0": 54,
+        "population_1": 40,
+        "population_2": 34,
+        "population_3": 24
+      },
+      "diagnostics": {
+        "zero_lag_correlation": -0.0316597821538119,
+        "peak_lag_steps": -4.0
+      }
+    },
+    "unidirectional": {
+      "graph_digest": "sha256:a4c9c87b7ab3c8741d95c83efc0babf4bf2822c0deb17fddd6c12b51d3052d3a",
+      "coupling_projection_count": 1,
+      "coupling_delay_steps": [
+        1
+      ],
+      "spikes": {
+        "population_0": 54,
+        "population_1": 40,
+        "population_2": 0,
+        "population_3": 0
+      },
+      "diagnostics": {
+        "zero_lag_correlation": 0.0,
+        "peak_lag_steps": 0.0
+      }
+    },
+    "reciprocal_zero_additional": {
+      "graph_digest": "sha256:36f49c2dac29f8ad2d9c95dc16c536264d56c0f9722567747bd3c39e9bf6d7dd",
+      "coupling_projection_count": 2,
+      "coupling_delay_steps": [
+        1
+      ],
+      "spikes": {
+        "population_0": 54,
+        "population_1": 40,
+        "population_2": 0,
+        "population_3": 0
+      },
+      "diagnostics": {
+        "zero_lag_correlation": 0.0,
+        "peak_lag_steps": 0.0
+      }
+    },
+    "reciprocal_delayed": {
+      "graph_digest": "sha256:114d50072c912ca18b1e34d4f0044a6319240521d241894699fb8083372bd681",
+      "coupling_projection_count": 2,
+      "coupling_delay_steps": [
+        5
+      ],
+      "spikes": {
+        "population_0": 43,
+        "population_1": 32,
+        "population_2": 12,
+        "population_3": 9
+      },
+      "diagnostics": {
+        "zero_lag_correlation": -0.013811738042281408,
+        "peak_lag_steps": -4.0
+      }
+    }
+  },
+  "delay_timing": {
+    "one_step_received": [
+      0,
+      1,
+      0,
+      0
+    ],
+    "three_step_received": [
+      0,
+      0,
+      0,
+      1,
+      0
+    ],
+    "boundary_rule": "a pulse emitted at t is available to a d-step recurrent/feedback edge at t+d",
+    "zero_additional_delay_steps": 1,
+    "explicit_delay_steps": 5
+  },
+  "parity_performance": {
+    "parameter_max_abs": 0.0,
+    "output_max_abs": 0.0,
+    "spike_mismatch_count": 0,
+    "checkpoint_replay_max_abs": 0.0,
+    "legacy_median_s": 0.3133428608998656,
+    "graph_median_s": 0.2718500979244709,
+    "graph_overhead_percent": -13.24196851213868,
+    "legacy_peak_python_bytes": 199746,
+    "graph_peak_python_bytes": 9897,
+    "compile_backend": "torch.compile Inductor on CPU",
+    "compile_workload_steps": 20,
+    "compile_workload_batch": 2,
+    "compile_setup_s": 1.981069415109232,
+    "compile_first_s": 19.226203253958374,
+    "compiled_warm_median_s": 0.021628021961078048,
+    "compiled_replay_max_abs": 0.0,
+    "performance_gate_percent": 10.0,
+    "performance_gate_pass": true,
+    "compile_boundary": "torch.compile remains backend-internal; CPU Inductor compilation is measured separately from matched eager steady state because legacy intentionally disables CPU compilation"
+  },
+  "exit": {
+    "variants_graph_only": true,
+    "legacy_default_unchanged": true,
+    "milestone_4_sweep_performed": false,
+    "paid_compute_usd": 0.0
+  },
+  "activity": [
+    {
+      "timestamp": "2026-08-05T11:26:22Z",
+      "event": "Committed the typed compatibility seam as 5be1cdb."
+    },
+    {
+      "timestamp": "2026-08-05T11:34:00Z",
+      "event": "Committed the first graph-native executor as f6d1a86."
+    },
+    {
+      "timestamp": "2026-08-05T11:35:00Z",
+      "event": "Killed the first fixture attempt before simulation because Graphviz dot was absent; atomic publication retained the previous state."
+    },
+    {
+      "timestamp": "2026-08-05T11:38:00Z",
+      "event": "Installed Graphviz after explicit user approval and restored canonical snnlang diagrams."
+    },
+    {
+      "timestamp": "2026-08-05T11:39:00Z",
+      "event": "Rejected the first active parity result: 1,536 spike mismatches and 0.348 maximum output error exposed implicit refractory and readout-reset semantics."
+    },
+    {
+      "timestamp": "2026-08-05T11:42:00Z",
+      "event": "Made refractory counts, membrane constants, within-step feedforward order, and readout reset explicit; active parity became exact."
+    },
+    {
+      "timestamp": "2026-08-05T11:43:00Z",
+      "event": "Published the corrected exp077 acceptance run locally with four graph-only variants, delay evidence, named recordings, and a passing performance gate."
+    },
+    {
+      "timestamp": "2026-08-05T12:13:00Z",
+      "event": "Killed a five-minute CPU Inductor attempt on the full performance shape; retained that shape for matched eager performance and bounded compilation measurement to 20 steps by 2 samples."
+    },
+    {
+      "timestamp": "2026-08-05T12:14:00Z",
+      "event": "Completed the bounded CPU Inductor gate with exact replay; reran exp074, exp075, and exp076 successfully through historical interfaces."
+    },
+    {
+      "timestamp": "2026-08-05T12:15:33Z",
+      "event": "Committed the corrected arbitrary graph executor, explicit numerical semantics, CLI request routing, documentation, and focused tests as cf11906."
+    },
+    {
+      "timestamp": "2026-08-05T12:15:45Z",
+      "event": "Focused architecture gate passed: 43 tests, zero failures; the broader artifact-schema selection passed 49 tests, zero failures."
+    }
+  ]
+}
