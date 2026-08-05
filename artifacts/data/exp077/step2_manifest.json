@@ -14,7 +14,7 @@
   ],
   "seed_recipe": "numpy.random.SeedSequence([registered_seed, 77, 2, stream]); conditions occupy fixed probe-rate-intensity array indices",
   "pilot_outcome_sha256": "c8dd807b28732469f2f6b2985cbb9899abdf937582fb1ea70d4e8d74e2c57995",
-  "response_library_figure_sha256": "1709c712a532e8323de5d311824b251c02366cc05e9573514e17b98cc93a529b",
+  "response_library_figure_sha256": "a3f1ad23afbdb637263a4eda48da6287b893c8fe9f05b3a0674cbfb32ee9f980",
   "locked_protocol_sha256": "53f06ba17ebec26f245b73024231986982626685cc6ead9213ebd3a9123c8566",
   "regeneration_command": "EXP077_THROUGH_STEP=2 EXP077_STEP2_PILOT_ONLY=1 uv run python experiments/exp077.py"
 }

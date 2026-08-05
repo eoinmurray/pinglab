@@ -14,6 +14,8 @@
 #let probe-us = (0.6, 1.2, 2.4)
 #let seeds = (42, 43, 44)
 #let r = json("/artifacts/data/exp077/numbers.json")
+#let p = r.step2.pilot
+#let p-last = p.trajectory.last()
 #let rounded(x, digits: 3) = str(calc.round(x, digits: digits))
 #let training-rate-text = training-rates-hz.map(str).join(", ")
 #let probe-text = probe-us.map(str).join(", ")
@@ -34,19 +36,21 @@
 #let body = [
   == Abstract
 
-  This experiment will find the lowest Poisson rates that preserve MNIST class
-  evidence. An artificial neural network (ANN) will classify static features
+  This staged experiment tests which Poisson rates preserve MNIST class
+  evidence. An artificial neural network (ANN) is planned to classify static features
   formed by passing each pixel's spike train through an AMPA synapse and
   non-spiking membrane, then averaging its voltage over the presentation.
 
-  ANN accuracy against rate is the primary result; a linear transfer-function
-  calculation checks the empirical feature variance. The output is a justified
-  lower rate for later variable-rate PING training.
+  ANN accuracy against rate remains the planned primary result; a linear
+  transfer-function calculation would check the empirical feature variance. No
+  rate recommendation was reached because the response-library pilot failed.
 
-  Step 1 is now complete. The local generator passed all
+  Step 1 is complete. The local generator passed all
   #r.validations.len() focused checks, including agreement with the shared
-  `tools/snn` cell below the registered numerical tolerance. The remaining
-  response-library, decoder, and threshold stages have not been run.
+  `tools/snn` cell below the registered numerical tolerance. Step 2 then stopped
+  at its locked convergence gate: none of the candidate draw counts through
+  K = #p.hard_maximum_K stabilized both empirical moments. No final response
+  library or later stage was run.
 
   == Purpose and scope
 
@@ -163,13 +167,25 @@
 
     The corresponding plot is defined in Results, Step 1.
 
-  2. *Measure and retain the empirical pixel-feature distributions.* We will run
-    K independent Step 1 draws for all 256 grayscale levels,
-    #training-rates-hz.len() rates, and three probe conductances. A predeclared
-    pilot will choose K from convergence of the mean and variance, subject to a
-    maximum K.
+  2. *Attempted the empirical response-library convergence gate.* Before
+    generating a final library, we locked candidate draw counts K of
+    #p.candidate_K.map(str).join(", ") and a hard maximum of
+    #p.hard_maximum_K. The deterministic pilot covered
+    #p.evaluation_condition_count conditions: six intensities, five rates, all
+    three probe conductances, and all three registered seeds. For each candidate,
+    we compared the first K draws with the next K independent draws.
 
-    We will estimate the conditional mean
+    Mean and unbiased-variance discrepancies were divided by locked absolute or
+    relative tolerances, whichever was larger. Both metrics had to keep their
+    95th percentile at or below 1 and their maximum at or below 2. The smallest
+    passing K would have selected the final draw count. If none passed at the
+    maximum, the protocol required stopping without changing the rule.
+
+    The pilot reached that stop. We therefore did not run K independent Step 1
+    draws for the complete set of 256 grayscale levels,
+    #training-rates-hz.len() rates, and three probe conductances.
+
+    The planned final library would estimate the conditional mean
 
     $ hat(mu)_z (x, r, w_"probe") = 1 / K sum_(k=1)^K z^(k). quad "(8)" $
 
@@ -181,8 +197,9 @@
     z#super[(k)] is draw k; K is the draw count; and Equations 8 and 9 estimate
     the conditional mean and variance.
 
-    We will retain all K simulated values as the primary empirical response
-    library. During ANN feature generation, we will draw one value according to
+    Had the pilot passed, we would have retained all K simulated values as the
+    primary empirical response library. During later ANN feature generation, the
+    registered design would draw one value according to
 
     $ J tilde "DiscreteUniform"(1, dots.c, K), quad z_"sample" = z^(J). quad "(10)" $
 
@@ -191,9 +208,10 @@
     but the ANN samples the retained empirical values because low-rate responses
     may be zero-heavy, skewed, and non-Gaussian.
 
-    Committed artifacts will contain plot-ready moments and a manifest for the
-    scratch response library, including checksum, dimensions, seed recipe, and
-    regeneration command. The calibration has at most
+    Because the gate failed, the committed artifacts contain the locked pilot,
+    its complete convergence trajectory, seed recipe, and regeneration command,
+    but no response-library manifest or array. The ungenerated calibration has
+    at most
     #(256 * training-rates-hz.len() * probe-us.len()) conditions.
 
     The corresponding plot is defined in Results, Step 2.
@@ -336,7 +354,8 @@
   #block(breakable: false)[
     == Results
 
-    Step 1 is complete; pending panels in later steps imply no result.
+    Step 1 is complete. Step 2 records a killed convergence attempt; pending
+    panels in later steps imply no result.
 
     === Step 1: filter-matched feature generation
 
@@ -366,16 +385,30 @@
 
   === Step 2: empirical response library
 
-  #staged-pending(
-    caption: [Empirical feature distributions. Panels show the mean and standard
-      deviation of z#sub[i] (mV) across grayscale pixel-intensity x (0--1),
-      encoding rate r (Hz) at pixel-intensity one, and probe conductance w#sub[probe]
-      (μS); representative low-, transitional-, and high-rate distributions;
-      and convergence with Monte Carlo draw count K. Probe-conductance colours
-      and markers are consistent across panels.],
-    note: [Pending Step 2. Planned file: `response_library.png`.],
-    ratio: 16 / 9,
+  #image(
+    "/artifacts/data/exp077/response_library.png",
+    width: 100%,
+    alt: "Two convergence plots show that neither conditional mean nor sample variance discrepancies cross both locked thresholds by the maximum draw count.",
   )
+
+  _Locked response-library convergence pilot._ Panel A shows normalized
+  discrepancies between two independent K-draw estimates of the conditional
+  mean; panel B shows the same comparison for unbiased sample variance. Solid
+  circles report the 95th percentile and dashed squares the maximum across the
+  non-zero-intensity evaluation conditions. The horizontal rules mark the
+  locked limits of 1 and 2, respectively. At K = #p-last.K, the mean
+  discrepancies were #rounded(p-last.mean_p95_normalised_error) at the 95th
+  percentile and #rounded(p-last.mean_maximum_normalised_error) at maximum; the
+  variance discrepancies were
+  #rounded(p-last.variance_p95_normalised_error) and
+  #rounded(p-last.variance_maximum_normalised_error). Neither moment passed, so
+  no K was selected and the full empirical library was not generated.
+
+  Zero intensity returned the resting feature exactly, but this structural check
+  could not rescue the failed convergence rule. Step 2 therefore establishes
+  only that K through #p.hard_maximum_K was insufficient under the registered
+  tolerances. It does not establish empirical response distributions, MNIST
+  decodability, a training-rate floor, or PING accuracy.
 
   === Step 3: linear-filter prediction
 

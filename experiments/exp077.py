@@ -581,6 +581,7 @@ def plot_step2_pilot(pilot: dict[str, Any], path: Path) -> None:
     """Plot the locked convergence trajectory, including a failed hard stop."""
     rows = pilot["trajectory"]
     candidate = np.asarray([row["K"] for row in rows])
+    positions = np.arange(len(candidate))
     fig, axes = plt.subplots(1, 2, figsize=(6.5, 3.66), constrained_layout=True)
     series = (
         ("mean_p95_normalised_error", "95th percentile", "o", "-"),
@@ -588,7 +589,7 @@ def plot_step2_pilot(pilot: dict[str, Any], path: Path) -> None:
     )
     for key, label, marker, linestyle in series:
         axes[0].plot(
-            candidate,
+            positions,
             [row[key] for row in rows],
             color=theme.INK_BLACK,
             marker=marker,
@@ -601,7 +602,7 @@ def plot_step2_pilot(pilot: dict[str, Any], path: Path) -> None:
     )
     for key, label, marker, linestyle in variance_series:
         axes[1].plot(
-            candidate,
+            positions,
             [row[key] for row in rows],
             color=theme.DEEP_RED,
             marker=marker,
@@ -612,8 +613,7 @@ def plot_step2_pilot(pilot: dict[str, Any], path: Path) -> None:
         ax.axhline(PILOT_P95_LIMIT, color=theme.FAINT, linestyle=":", linewidth=1.4)
         ax.axhline(PILOT_WORST_LIMIT, color=theme.FAINT, linestyle="-.", linewidth=1.4)
         ax.set(
-            xscale="log",
-            xticks=candidate,
+            xticks=positions,
             xticklabels=[str(value) for value in candidate],
             xlabel="Draws per comparison block, K",
             ylabel="Normalized discrepancy",
