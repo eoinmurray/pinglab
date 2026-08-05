@@ -1,0 +1,187 @@
+{
+  "run_id": "r001",
+  "git_sha": "c2ab83e",
+  "duration_s": 716.6,
+  "duration": "11m 57s",
+  "stage": "calibration",
+  "registration": {
+    "hypothesis": "Moderate reciprocal I-to-E GABA coupling entrains two independently driven, active, 5\u201315% detuned PING circuits, whereas zero coupling permits phase drift and the largest coupling may suppress activity.",
+    "success_criterion": "At least one moderate registered condition is active and locked by every frequency, PLV, coherence, and stable-phase threshold, with a contiguous strength/delay neighbour supporting the transition.",
+    "kill_criterion": "Kill if calibration finds no valid pair, coupling only suppresses/invalidates activity, or no registered condition meets every locking threshold.",
+    "seed": 78,
+    "simulation": {
+      "dt_ms": 0.1,
+      "duration_ms": 1800.0,
+      "transient_ms": 400.0,
+      "analysis_seconds": 1.4
+    },
+    "populations": {
+      "excitatory_per_circuit": 40,
+      "inhibitory_per_circuit": 10,
+      "input_channels_per_circuit": 16
+    },
+    "independent_input_generators": [
+      179,
+      280
+    ],
+    "calibration_grid": [
+      {
+        "input_weight": 0.2,
+        "rate_a_hz": 180.0,
+        "rate_b_hz": 150.0
+      },
+      {
+        "input_weight": 0.2,
+        "rate_a_hz": 220.0,
+        "rate_b_hz": 180.0
+      },
+      {
+        "input_weight": 0.2,
+        "rate_a_hz": 260.0,
+        "rate_b_hz": 210.0
+      },
+      {
+        "input_weight": 0.3,
+        "rate_a_hz": 180.0,
+        "rate_b_hz": 150.0
+      },
+      {
+        "input_weight": 0.3,
+        "rate_a_hz": 220.0,
+        "rate_b_hz": 180.0
+      },
+      {
+        "input_weight": 0.3,
+        "rate_a_hz": 260.0,
+        "rate_b_hz": 210.0
+      },
+      {
+        "input_weight": 0.4,
+        "rate_a_hz": 180.0,
+        "rate_b_hz": 150.0
+      },
+      {
+        "input_weight": 0.4,
+        "rate_a_hz": 220.0,
+        "rate_b_hz": 180.0
+      },
+      {
+        "input_weight": 0.4,
+        "rate_a_hz": 260.0,
+        "rate_b_hz": 210.0
+      },
+      {
+        "input_weight": 0.55,
+        "rate_a_hz": 180.0,
+        "rate_b_hz": 150.0
+      },
+      {
+        "input_weight": 0.55,
+        "rate_a_hz": 220.0,
+        "rate_b_hz": 180.0
+      },
+      {
+        "input_weight": 0.55,
+        "rate_a_hz": 260.0,
+        "rate_b_hz": 210.0
+      }
+    ],
+    "calibration_selection": "Minimum registered score among valid active/spectral candidates with 5\u201315% detuning; score is |detuning-10%| + 0.01/min peak prominence; grid order breaks exact ties.",
+    "within_circuit_parameters": "snnlang PING component defaults, frozen",
+    "coupling_strengths": [
+      0.2,
+      0.5,
+      1.0,
+      2.0,
+      4.0
+    ],
+    "delay_labels": [
+      "short",
+      "intermediate",
+      "half_period"
+    ],
+    "activity_thresholds": {
+      "min_e_rate_hz": 2.0,
+      "max_e_rate_hz": 180.0,
+      "min_i_rate_hz": 2.0,
+      "max_i_rate_hz": 250.0,
+      "min_active_fraction": 0.25,
+      "max_active_fraction": 1.0,
+      "min_peak_prominence": 2.0
+    },
+    "locking_thresholds": {
+      "max_frequency_difference_fraction_of_baseline": 0.5,
+      "min_plv_gain": 0.15,
+      "min_coherence_gain": 0.1,
+      "min_half_window_plv": 0.55,
+      "max_half_window_phase_offset_difference_rad": 0.6
+    },
+    "locked_definition": "active plus <=50% baseline frequency difference, PLV gain >=0.15, coherence gain >=0.10, both half-window PLV >=0.55, and half-window phase-offset drift <=0.60 rad",
+    "contiguity_definition": "A locked condition has at least one active locked orthogonal neighbour in the registered strength x delay grid; baseline is excluded.",
+    "suppression_definition": "Either circuit violates the registered minimum E/I rates or active-cell fraction; suppression is never locking."
+  },
+  "calibration": {
+    "candidate_count": 12,
+    "valid_candidate_count": 5,
+    "selected": {
+      "index": 8,
+      "settings": {
+        "input_weight": 0.4,
+        "rate_a_hz": 260.0,
+        "rate_b_hz": 210.0
+      },
+      "metrics": {
+        "populations": {
+          "a": {
+            "e_rate_hz": 37.5,
+            "i_rate_hz": 120.42857360839844,
+            "e_active_fraction": 1.0,
+            "i_active_fraction": 1.0,
+            "dominant_frequency_hz": 42.724609375,
+            "peak_prominence": 62.96012216139774,
+            "finite": true,
+            "active": true,
+            "spectrally_valid": true,
+            "silent": false,
+            "saturated": false
+          },
+          "b": {
+            "e_rate_hz": 34.83928680419922,
+            "i_rate_hz": 110.5,
+            "e_active_fraction": 1.0,
+            "i_active_fraction": 1.0,
+            "dominant_frequency_hz": 39.0625,
+            "peak_prominence": 199.31763586788995,
+            "finite": true,
+            "active": true,
+            "spectrally_valid": true,
+            "silent": false,
+            "saturated": false
+          }
+        },
+        "synchrony": {
+          "plv": 0.09671225661449387,
+          "mean_phase_difference_rad": -2.678943598098251,
+          "half_1_plv": 0.07748011709913859,
+          "half_2_plv": 0.12045282961835799,
+          "half_phase_offset_difference_rad": 0.4383065705818696,
+          "gamma_coherence": 0.9922015433312218,
+          "cross_correlation_peak": 0.12402240572441196,
+          "cross_correlation_lag_ms": 34.2,
+          "frequency_difference_hz": 3.662109375
+        },
+        "valid": true,
+        "runtime_s": 63.60977098206058,
+        "peak_python_bytes": 20333905,
+        "graph_digest": "sha256:ffb150b0b1df7b29f0dce7b613349d9808c6450e9285513eecf64263bbf9d5dc"
+      },
+      "detuning_fraction": 0.08955223880597014,
+      "selection_score": 0.01060659188966233
+    }
+  },
+  "exit": {
+    "calibration_pass": true,
+    "sweep_performed": false,
+    "paid_compute_usd": 0.0
+  }
+}
