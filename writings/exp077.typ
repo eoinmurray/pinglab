@@ -14,9 +14,12 @@
 #let probe-us = (0.6, 1.2, 2.4)
 #let seeds = (42, 43, 44)
 #let r = json("/artifacts/data/exp077/numbers.json")
+#let m = json("/artifacts/data/exp077/step2_manifest.json")
 #let p = r.step2.combined_pilot
 #let p-last = p.trajectory.last()
 #let p-extension-first = r.step2.extension_pilot.trajectory.first()
+#let mono = r.step2.validations.monotonic_means
+#let low-dist = r.step2.representative_distributions.first()
 #let rounded(x, digits: 3) = str(calc.round(x, digits: digits))
 #let training-rate-text = training-rates-hz.map(str).join(", ")
 #let probe-text = probe-us.map(str).join(", ")
@@ -44,14 +47,18 @@
 
   ANN accuracy against rate remains the planned primary result; a linear
   transfer-function calculation would check the empirical feature variance. No
-  rate recommendation was reached because the response-library pilot failed.
+  rate recommendation was reached because the full response library failed a
+  required validation.
 
   Step 1 is complete. The local generator passed all
   #r.validations.len() focused checks, including agreement with the shared
   `tools/snn` cell below the registered numerical tolerance. The original Step 2
   pilot stopped at K = 512; an explicitly authorized extension then stabilized
   both empirical moments at K = #p.selected_K under the unchanged tolerances.
-  No final response library or later stage was run.
+  The complete empirical library was then generated, but
+  #mono.intensity_violations of #mono.intensity_comparison_count adjacent-intensity
+  comparisons exceeded the locked Monte Carlo tolerance. Step 2 therefore
+  stopped without running a later stage.
 
   == Purpose and scope
 
@@ -168,7 +175,7 @@
 
     The corresponding plot is defined in Results, Step 1.
 
-  2. *Attempted the empirical response-library convergence gate.* Before
+  2. *Generated and validated the empirical response library.* Before
     generating a final library, we locked candidate draw counts K of 64, 128,
     256, and 512. None passed. After recording that failure, the user explicitly
     authorized an extension at K = 1,024 and 2,048 without changing the
@@ -183,9 +190,13 @@
     passing K would have selected the final draw count. If none passed at the
     maximum, the protocol required stopping without changing the rule.
 
-    The extension selected K = #p.selected_K. We have not yet run that many
-    independent Step 1 draws for the complete set of 256 grayscale levels,
-    #training-rates-hz.len() rates, and three probe conductances.
+    The extension selected K = #p.selected_K. We then ran that many independent
+    Step 1 draws for every grayscale level, registered rate, probe conductance,
+    and seed. The retained float32 array has shape
+    #m.library_shape.map(str).join(" × ") in the ordered axes
+    seed, probe conductance, rate, intensity, and draw. Its payload occupies
+    #m.library_payload_bytes bytes in local scratch and is authenticated by the
+    SHA-256 digest `#m.library_sha256`.
 
     The planned final library would estimate the conditional mean
 
@@ -199,9 +210,9 @@
     z#super[(k)] is draw k; K is the draw count; and Equations 8 and 9 estimate
     the conditional mean and variance.
 
-    Had the pilot passed, we would have retained all K simulated values as the
-    primary empirical response library. During later ANN feature generation, the
-    registered design would draw one value according to
+    We retained all K simulated values as the primary empirical response
+    library. During a later ANN feature-generation stage, the registered design
+    would draw one value according to
 
     $ J tilde "DiscreteUniform"(1, dots.c, K), quad z_"sample" = z^(J). quad "(10)" $
 
@@ -210,11 +221,24 @@
     but the ANN samples the retained empirical values because low-rate responses
     may be zero-heavy, skewed, and non-Gaussian.
 
-    The committed artifacts contain both locked protocols, the complete
-    convergence trajectory, seed recipe, and regeneration command, but no final
-    response-library array. The pending calibration has
-    at most
-    #(256 * training-rates-hz.len() * probe-us.len()) conditions.
+    The generator wrote #m.chunking.total_chunks deterministic,
+    independently authenticated intensity chunks. Exact replay passed for one
+    predeclared chunk from every seed. The complete grid, finite values,
+    physical bounds, zero-intensity resting response, independent streams,
+    independently recomputed moments, fresh direct simulations, and float32
+    fidelity all passed their checks. The low-rate representative condition had
+    zero fraction #rounded(low-dist.zero_fraction), skewness
+    #rounded(low-dist.skewness), and #low-dist.distinct_float32_values distinct
+    retained values, preserving its discrete, non-Gaussian structure.
+
+    The required monotonicity check did not pass. It compared every adjacent
+    intensity and rate pair using the predeclared
+    #(mono.standard_error_multiplier)-standard-error tolerance.
+    #mono.intensity_violations of #mono.intensity_comparison_count intensity
+    pairs exceeded it, while #mono.rate_violations of
+    #mono.rate_comparison_count rate pairs did. The rule was not weakened after
+    inspection, so this completed library is a preserved killed attempt rather
+    than a validated input to Step 3.
 
     The corresponding plot is defined in Results, Step 2.
 
@@ -357,7 +381,9 @@
     == Results
 
     Step 1 is complete. The Step 2 convergence pilot selected K after an
-    authorized extension; the full library and all later steps remain pending.
+    authorized extension. The full library was generated, then Step 2 was
+    killed by its required monotonicity validation. All later steps remain
+    pending.
 
     === Step 1: filter-matched feature generation
 
@@ -390,31 +416,27 @@
   #image(
     "/artifacts/data/exp077/response_library.png",
     width: 100%,
-    alt: "Two convergence plots show conditional mean and sample variance discrepancies falling below both locked thresholds at 2048 draws.",
+    alt: "Nine panels show empirical response means, standard deviations, distributions, convergence, and zero mass across probe conductances, rates, and intensities.",
   )
 
-  _Locked response-library convergence pilot._ Panel A shows normalized
-  discrepancies between two independent K-draw estimates of the conditional
-  mean; panel B shows the same comparison for unbiased sample variance. Solid
-  circles report the 95th percentile and dashed squares the maximum across the
-  non-zero-intensity evaluation conditions. The horizontal rules mark the
-  locked limits of 1 and 2, respectively. At K = #p-last.K, the mean
-  discrepancies were #rounded(p-last.mean_p95_normalised_error) at the 95th
-  percentile and #rounded(p-last.mean_maximum_normalised_error) at maximum; the
-  variance discrepancies were
-  #rounded(p-last.variance_p95_normalised_error) and
-  #rounded(p-last.variance_maximum_normalised_error). Neither moment passed, so
-  both moments passed, selecting K = #p.selected_K. At K =
-  #p-extension-first.K, the variance 95th percentile was
-  #rounded(p-extension-first.variance_p95_normalised_error), so that smaller
-  extension candidate did not pass. The full empirical library has not yet been
-  generated.
+  _Complete empirical response library and validation evidence._ Panels A--C
+  show conditional mean feature z in millivolts across grayscale intensity and
+  encoding rate for the three probe conductances; D--F show the corresponding
+  standard deviation. Panel G overlays representative low-, transitional-, and
+  high-rate empirical distributions at the nominal probe. Panel H preserves the
+  complete K = 64--#p.selected_K convergence trajectory for conditional mean and
+  unbiased variance. Panel I shows zero mass across rate and intensity at the
+  nominal probe. The library retains the expected low-rate discreteness, but
+  #mono.intensity_violations adjacent-intensity comparisons exceeded the locked
+  Monte Carlo tolerance, so Step 2 failed and no later stage ran.
 
-  Zero intensity continued to return the resting feature exactly. Step 2
-  therefore establishes a converged draw count of
-  K = #p.selected_K for the registered pilot subset under the unchanged
-  tolerances. It does not yet establish the complete empirical response
-  distributions, MNIST decodability, a training-rate floor, or PING accuracy.
+  The array contains #m.library_value_count float32 values with shape
+  #m.library_shape.map(str).join(" × ") and a #(m.library_payload_bytes)-byte
+  payload. Zero intensity returned the resting feature exactly, direct
+  simulation agreed at every predeclared condition, and exact chunk replay
+  passed for all registered seeds. These checks establish an authenticated
+  empirical library and its failure mode only. They do not establish MNIST
+  decodability, a training-rate floor, or PING accuracy.
 
   === Step 3: linear-filter prediction
 
