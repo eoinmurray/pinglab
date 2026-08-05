@@ -60,6 +60,9 @@ REPLAY_CHUNK_INDICES = (0,)
 DIRECT_VALIDATION_INTENSITIES = (64, 128, 255)
 DIRECT_VALIDATION_RATES_HZ = (0.25, 3.0, 25.0)
 MONOTONIC_Z = 3.0
+BOOTSTRAP_CANDIDATE_K = (64, 128, 256, 512, 1024, 2048)
+BOOTSTRAP_REPETITIONS = 200
+BOOTSTRAP_PASS_FREQUENCY = 0.95
 
 # Locked before inspecting the Step 2 pilot.  Each candidate compares two
 # independent, equally sized blocks.  The deterministic subset spans zero,
@@ -868,6 +871,130 @@ def _normalised_difference(
         absolute_floor, relative * np.maximum(np.abs(first), np.abs(second))
     )
     return np.abs(first - second) / denominator
+
+
+def run_bootstrap_stability() -> dict[str, Any]:
+    """Run the locked repeated paired-resampling K-stability diagnostic."""
+    protocol_path = FIGURES / "step2_bootstrap_stability_protocol.json"
+    protocol = json.loads(protocol_path.read_text())
+    if protocol["candidate_K"] != list(BOOTSTRAP_CANDIDATE_K):
+        raise RuntimeError("bootstrap candidates differ from the locked protocol")
+    if protocol["repetitions"] != BOOTSTRAP_REPETITIONS:
+        raise RuntimeError("bootstrap repetitions differ from the locked protocol")
+    if sha256_file(LIBRARY_SCRATCH) != protocol["source_library_sha256"]:
+        raise RuntimeError("source library does not match the locked SHA-256")
+
+    library = _open_library("r")
+    rate_indices = [TRAINING_RATES_HZ.index(rate) for rate in PILOT_RATES_HZ]
+    intensity_indices = [
+        int(np.where(INTENSITY_LEVELS == intensity)[0][0])
+        for intensity in PILOT_INTENSITIES
+        if intensity > 0
+    ]
+    source = np.asarray(
+        library[:, :, rate_indices, :, :][:, :, :, intensity_indices, :]
+    )
+    trajectory: list[dict[str, Any]] = []
+    started = time.perf_counter()
+    for candidate in BOOTSTRAP_CANDIDATE_K:
+        rows = []
+        for repetition in range(BOOTSTRAP_REPETITIONS):
+            samples = []
+            for block in (0, 1):
+                rng = np.random.default_rng(
+                    np.random.SeedSequence([77, 2, 2048, repetition, candidate, block])
+                )
+                indices = rng.integers(
+                    0, LIBRARY_K, size=(*source.shape[:-1], candidate)
+                )
+                samples.append(np.take_along_axis(source, indices, axis=-1))
+            first, second = samples
+            mean_a = first.mean(axis=-1)
+            mean_b = second.mean(axis=-1)
+            variance_a = first.var(axis=-1, ddof=1)
+            variance_b = second.var(axis=-1, ddof=1)
+            mean_error = _normalised_difference(
+                mean_a,
+                mean_b,
+                PILOT_MEAN_ABS_TOL_MV,
+                PILOT_MEAN_REL_TOL,
+            )
+            variance_error = _normalised_difference(
+                variance_a,
+                variance_b,
+                PILOT_VARIANCE_ABS_TOL_MV2,
+                PILOT_VARIANCE_REL_TOL,
+            )
+            metrics = {
+                "mean_p95_normalised_error": float(np.quantile(mean_error, 0.95)),
+                "mean_maximum_normalised_error": float(mean_error.max()),
+                "variance_p95_normalised_error": float(
+                    np.quantile(variance_error, 0.95)
+                ),
+                "variance_maximum_normalised_error": float(variance_error.max()),
+            }
+            metrics["passed"] = bool(
+                metrics["mean_p95_normalised_error"] <= PILOT_P95_LIMIT
+                and metrics["mean_maximum_normalised_error"] <= PILOT_WORST_LIMIT
+                and metrics["variance_p95_normalised_error"] <= PILOT_P95_LIMIT
+                and metrics["variance_maximum_normalised_error"] <= PILOT_WORST_LIMIT
+            )
+            rows.append(metrics)
+        metric_names = [name for name in rows[0] if name != "passed"]
+        trajectory.append(
+            {
+                "K": candidate,
+                "pass_count": sum(row["passed"] for row in rows),
+                "pass_frequency": float(np.mean([row["passed"] for row in rows])),
+                "metric_distributions": {
+                    name: {
+                        "median": float(np.median([row[name] for row in rows])),
+                        "p05": float(np.quantile([row[name] for row in rows], 0.05)),
+                        "p95": float(np.quantile([row[name] for row in rows], 0.95)),
+                        "minimum": float(min(row[name] for row in rows)),
+                        "maximum": float(max(row[name] for row in rows)),
+                    }
+                    for name in metric_names
+                },
+            }
+        )
+        print(
+            f"bootstrap K={candidate}: pass frequency "
+            f"{trajectory[-1]['pass_frequency']:.3f}",
+            flush=True,
+        )
+    final_frequency = float(trajectory[-1]["pass_frequency"])
+    return {
+        "status": "complete",
+        "classification": "post-hoc diagnostic",
+        "candidate_K": list(BOOTSTRAP_CANDIDATE_K),
+        "repetitions": BOOTSTRAP_REPETITIONS,
+        "condition_seed_count": int(np.prod(source.shape[:-1])),
+        "trajectory": trajectory,
+        "K2048_pass_frequency": final_frequency,
+        "K2048_typically_stable": bool(final_frequency >= BOOTSTRAP_PASS_FREQUENCY),
+        "decision_threshold": BOOTSTRAP_PASS_FREQUENCY,
+        "run_independent_K4096": bool(final_frequency < BOOTSTRAP_PASS_FREQUENCY),
+        "duration_s": round(time.perf_counter() - started, 1),
+        "source_library_sha256": protocol["source_library_sha256"],
+        "protocol_sha256": sha256_file(protocol_path),
+        "paid_compute_usd": 0.0,
+    }
+
+
+def record_bootstrap_stability(outcome: dict[str, Any]) -> None:
+    """Write the locked post-hoc stability diagnostic outcome."""
+    path = FIGURES / "step2_bootstrap_stability_outcome.json"
+    path.write_text(json.dumps(outcome, indent=2) + "\n")
+    numbers_path = FIGURES / "numbers.json"
+    numbers = json.loads(numbers_path.read_text())
+    numbers["step2"]["bootstrap_stability"] = outcome
+    numbers_path.write_text(json.dumps(numbers, indent=2) + "\n")
+    manifest_path = FIGURES / "step2_manifest.json"
+    manifest = json.loads(manifest_path.read_text())
+    manifest["bootstrap_stability_protocol_sha256"] = outcome["protocol_sha256"]
+    manifest["bootstrap_stability_outcome_sha256"] = sha256_file(path)
+    manifest_path.write_text(json.dumps(manifest, indent=2) + "\n")
 
 
 def run_step2_pilot() -> dict[str, Any]:
