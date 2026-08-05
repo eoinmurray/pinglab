@@ -21117,6 +21117,240 @@
     },
     "failed_validations": [
       "monotonic_means"
-    ]
+    ],
+    "bootstrap_stability": {
+      "status": "complete",
+      "classification": "post-hoc diagnostic",
+      "candidate_K": [
+        64,
+        128,
+        256,
+        512,
+        1024,
+        2048
+      ],
+      "repetitions": 200,
+      "condition_seed_count": 225,
+      "trajectory": [
+        {
+          "K": 64,
+          "pass_count": 0,
+          "pass_frequency": 0.0,
+          "metric_distributions": {
+            "mean_p95_normalised_error": {
+              "median": 3.7057024240493774,
+              "p05": 3.2414690971374513,
+              "p95": 4.140743160247803,
+              "minimum": 2.8195855617523193,
+              "maximum": 4.40346097946167
+            },
+            "mean_maximum_normalised_error": {
+              "median": 6.228564977645874,
+              "p05": 5.158020997047425,
+              "p95": 7.992984008789063,
+              "minimum": 4.483977794647217,
+              "maximum": 9.409475326538086
+            },
+            "variance_p95_normalised_error": {
+              "median": 3.2035940885543823,
+              "p05": 2.817660689353943,
+              "p95": 3.7216941952705382,
+              "minimum": 2.6935219764709473,
+              "maximum": 4.0
+            },
+            "variance_maximum_normalised_error": {
+              "median": 4.0,
+              "p05": 4.0,
+              "p95": 4.0,
+              "minimum": 4.0,
+              "maximum": 4.0
+            }
+          }
+        },
+        {
+          "K": 128,
+          "pass_count": 0,
+          "pass_frequency": 0.0,
+          "metric_distributions": {
+            "mean_p95_normalised_error": {
+              "median": 2.686530828475952,
+              "p05": 2.327600526809692,
+              "p95": 3.124326157569885,
+              "minimum": 2.114750623703003,
+              "maximum": 3.245168924331665
+            },
+            "mean_maximum_normalised_error": {
+              "median": 4.640087127685547,
+              "p05": 3.8061452746391295,
+              "p95": 6.1873702764511105,
+              "minimum": 3.3510682582855225,
+              "maximum": 7.148041248321533
+            },
+            "variance_p95_normalised_error": {
+              "median": 2.4822452068328857,
+              "p05": 2.2077852845191956,
+              "p95": 2.79548761844635,
+              "minimum": 1.9043985605239868,
+              "maximum": 3.091939926147461
+            },
+            "variance_maximum_normalised_error": {
+              "median": 4.0,
+              "p05": 3.305583643913269,
+              "p95": 4.0,
+              "minimum": 2.866942882537842,
+              "maximum": 4.0
+            }
+          }
+        },
+        {
+          "K": 256,
+          "pass_count": 0,
+          "pass_frequency": 0.0,
+          "metric_distributions": {
+            "mean_p95_normalised_error": {
+              "median": 1.9313666224479675,
+              "p05": 1.6726181268692017,
+              "p95": 2.2002518892288196,
+              "minimum": 1.5340704917907715,
+              "maximum": 2.350933790206909
+            },
+            "mean_maximum_normalised_error": {
+              "median": 3.4141887426376343,
+              "p05": 2.7248927116394044,
+              "p95": 4.2379313707351685,
+              "minimum": 2.299142360687256,
+              "maximum": 5.44213342666626
+            },
+            "variance_p95_normalised_error": {
+              "median": 1.8811269998550415,
+              "p05": 1.6975295901298524,
+              "p95": 2.1664214611053465,
+              "minimum": 1.4552401304244995,
+              "maximum": 2.484510660171509
+            },
+            "variance_maximum_normalised_error": {
+              "median": 3.279684543609619,
+              "p05": 2.6949417471885684,
+              "p95": 4.0,
+              "minimum": 2.369171142578125,
+              "maximum": 4.0
+            }
+          }
+        },
+        {
+          "K": 512,
+          "pass_count": 0,
+          "pass_frequency": 0.0,
+          "metric_distributions": {
+            "mean_p95_normalised_error": {
+              "median": 1.3960540294647217,
+              "p05": 1.1955047488212585,
+              "p95": 1.5865585386753078,
+              "minimum": 1.1336170434951782,
+              "maximum": 1.717495083808899
+            },
+            "mean_maximum_normalised_error": {
+              "median": 2.446587920188904,
+              "p05": 1.9893379032611846,
+              "p95": 3.3267631173133845,
+              "minimum": 1.5920660495758057,
+              "maximum": 3.9564034938812256
+            },
+            "variance_p95_normalised_error": {
+              "median": 1.4032175540924072,
+              "p05": 1.2269976139068604,
+              "p95": 1.6222673296928405,
+              "minimum": 1.118597388267517,
+              "maximum": 1.8005406856536865
+            },
+            "variance_maximum_normalised_error": {
+              "median": 2.5310685634613037,
+              "p05": 2.0254326343536375,
+              "p95": 3.279480326175688,
+              "minimum": 1.8480011224746704,
+              "maximum": 3.887690544128418
+            }
+          }
+        },
+        {
+          "K": 1024,
+          "pass_count": 23,
+          "pass_frequency": 0.115,
+          "metric_distributions": {
+            "mean_p95_normalised_error": {
+              "median": 0.9883015751838684,
+              "p05": 0.8644657075405121,
+              "p95": 1.1227448880672453,
+              "minimum": 0.7779317498207092,
+              "maximum": 1.26673424243927
+            },
+            "mean_maximum_normalised_error": {
+              "median": 1.8506619930267334,
+              "p05": 1.4708548605442047,
+              "p95": 2.3909463882446285,
+              "minimum": 1.2461049556732178,
+              "maximum": 3.0120468139648438
+            },
+            "variance_p95_normalised_error": {
+              "median": 1.0424035787582397,
+              "p05": 0.8867784380912781,
+              "p95": 1.225677877664566,
+              "minimum": 0.7647690176963806,
+              "maximum": 1.3597995042800903
+            },
+            "variance_maximum_normalised_error": {
+              "median": 1.9322221875190735,
+              "p05": 1.4842093229293822,
+              "p95": 2.5693319559097287,
+              "minimum": 1.1750001907348633,
+              "maximum": 3.0262110233306885
+            }
+          }
+        },
+        {
+          "K": 2048,
+          "pass_count": 195,
+          "pass_frequency": 0.975,
+          "metric_distributions": {
+            "mean_p95_normalised_error": {
+              "median": 0.7074683308601379,
+              "p05": 0.6198631674051285,
+              "p95": 0.8131567269563673,
+              "minimum": 0.5607608556747437,
+              "maximum": 0.9879124760627747
+            },
+            "mean_maximum_normalised_error": {
+              "median": 1.2688373923301697,
+              "p05": 0.9946970254182815,
+              "p95": 1.6712219476699828,
+              "minimum": 0.8782323002815247,
+              "maximum": 1.9831864833831787
+            },
+            "variance_p95_normalised_error": {
+              "median": 0.7574611306190491,
+              "p05": 0.6594632536172866,
+              "p95": 0.8654765427112578,
+              "minimum": 0.5759438872337341,
+              "maximum": 0.908932626247406
+            },
+            "variance_maximum_normalised_error": {
+              "median": 1.4122616052627563,
+              "p05": 1.106331890821457,
+              "p95": 1.9421449661254884,
+              "minimum": 0.9811707735061646,
+              "maximum": 2.4705939292907715
+            }
+          }
+        }
+      ],
+      "K2048_pass_frequency": 0.975,
+      "K2048_typically_stable": true,
+      "decision_threshold": 0.95,
+      "run_independent_K4096": false,
+      "duration_s": 10.1,
+      "source_library_sha256": "5184788979b5fa7fa9a3f38936399b8e2724d63914019f1306a7171981b36783",
+      "protocol_sha256": "54a33a6d8e265d8d59c2ce10379e8cdb6ce1790412b21ebbff7e4f5432ad1dce",
+      "paid_compute_usd": 0.0
+    }
   }
 }
