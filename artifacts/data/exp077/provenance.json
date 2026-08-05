@@ -14,5 +14,20 @@
     "duration_s": 4789.4,
     "method": "filesystem birth time to final raw-library modification time"
   },
-  "validation_status": "failed"
+  "validation_status": "failed",
+  "exploratory_steps3_4": {
+    "git_sha_at_execution": "f568f4ebcac2dd5b351f12a50ec21a0ccabe6859",
+    "worktree_dirty_at_execution": true,
+    "runner_sha256": "f3ee26f15eb7ba8b598b721304e8351c350f05a8a0250c32049886fd3496536f",
+    "python": "3.10.20",
+    "numpy": "2.2.6",
+    "platform": "linux",
+    "library_sha256_verified": "5184788979b5fa7fa9a3f38936399b8e2724d63914019f1306a7171981b36783",
+    "amendment_sha256": "191c640ed969e039914603ebfc132496e91b2458ff6102fed569d50defc3f469",
+    "step3_outcome_sha256": "5eacc71e5edb77a0380790c8e723a2d15286a7c833dedb7f5b4bcc7a15ba9137",
+    "step4_outcome_sha256": "09b4bae9fb88aad455d828c33c6212ac654b3308e9540beca68027102d3d5fab",
+    "linear_filter_figure_sha256": "024b91c7c2e65bf2c6e38ed3397575072e36d887d8a4994b2c29d96d76297eea",
+    "feature_images_figure_sha256": "228c6f8c2d19b3bb66b575554909ab7489fa2765b1617f736b34985cb499c211",
+    "paid_compute_usd": 0.0
+  }
 }

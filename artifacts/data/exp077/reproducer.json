@@ -10,5 +10,19 @@
     "artifacts/data/exp077/response_library.png"
   ],
   "expected_outcome": "reproduce the authenticated library and the required monotonicity failure",
-  "failure_record": "artifacts/data/exp077/step2_library_validation_failure.json"
+  "failure_record": "artifacts/data/exp077/step2_library_validation_failure.json",
+  "exploratory_steps3_4": {
+    "step3_command": "uv run python -c 'from experiments import exp077; exp077.step_3()'",
+    "step4_command": "uv run python -c 'from experiments import exp077; exp077.step_4()'",
+    "step4_expected_outcome": "locked low-rate image-level validation failure",
+    "metadata_command": "uv run python -c 'from experiments import exp077; exp077.record_steps3_4_publication_contract()'",
+    "expected_library_sha256": "5184788979b5fa7fa9a3f38936399b8e2724d63914019f1306a7171981b36783",
+    "expected_outputs": [
+      "artifacts/data/exp077/linear_filter.svg",
+      "artifacts/data/exp077/step3_outcome.json",
+      "artifacts/data/exp077/feature_images.png",
+      "artifacts/data/exp077/step4_outcome.json"
+    ],
+    "paid_compute": false
+  }
 }

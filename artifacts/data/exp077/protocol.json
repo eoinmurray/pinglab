@@ -23,8 +23,8 @@
   "equations": "writings/exp077.typ, Equations 2-7",
   "update_order": "AMPA decay, spike kick, exponential-Euler membrane update",
   "feature": "mean_t(v(t) - E_L)",
-  "later_steps": "not run",
-  "attempted_through_step": 2,
+  "later_steps": "Steps 5-7 not run",
+  "attempted_through_step": 4,
   "step2_status": "full_library_validation_failed",
   "step2_selected_K": 2048,
   "step2_final_library_generated": true,
@@ -35,5 +35,9 @@
     256,
     2048
   ],
-  "step2_dtype": "float32"
+  "step2_dtype": "float32",
+  "steps3_4_classification": "explicitly authorized post-hoc exploratory amendment",
+  "step3_status": "complete",
+  "step4_status": "validation_failed",
+  "held_out_test_partition": "sealed"
 }
