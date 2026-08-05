@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import torch
 import config
 import models as M
@@ -12,6 +14,7 @@ from execution import (
     build,
     graph_capability_issues,
     execution_spec_from_args,
+    execute_request,
     plan_graph,
     simulate,
     train,
@@ -53,6 +56,24 @@ def test_legacy_and_bundle_cli_arguments_both_lower_to_typed_specs(tmp_path):
     root = ping_classifier().write(tmp_path / "ping.bundle")
     graph = execution_spec_from_args(parse_args(["sim", "--bundle", str(root), "--executor", "graph"]))
     assert graph.executor == "graph" and graph.bundle == root
+    called = []
+    result = execute_request(legacy, legacy=lambda: (called.append(True) or build(legacy)))
+    assert called and result.executor == "legacy"
+
+
+def test_representative_shd_checkpoint_and_recording_requests_remain_legacy():
+    shd = execution_spec_from_args(
+        parse_args(["train", "--dataset", "shd", "--max-samples", "8", "--epochs", "1"])
+    )
+    assert shd.executor == "legacy"
+    assert shd.options["dataset"] == "shd"
+    assert shd.options["max_samples"] == 8
+    checkpoint = execution_spec_from_args(
+        parse_args(["sim", "--load-weights", "checkpoint.pth", "--outputs", "rasters"])
+    )
+    assert checkpoint.executor == "legacy"
+    assert checkpoint.checkpoint == Path("checkpoint.pth")
+    assert checkpoint.options["outputs"] == ["rasters"]
 
 
 def test_arbitrary_sizes_independent_inputs_and_all_population_recordings():

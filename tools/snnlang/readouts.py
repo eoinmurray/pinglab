@@ -34,7 +34,12 @@ def MeanVoltage(
         layer = net.population(
             f"{name}_integrator",
             size=classes,
-            neuron=LeakyIntegrator(tau=tau),
+            neuron=LeakyIntegrator(
+                tau=tau,
+                soft_reset_threshold=1.0,
+                surrogate_slope=5.0,
+                initial_voltage=0.0,
+            ),
             spiking=False,
         )
         projection = net.connect(

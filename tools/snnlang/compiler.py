@@ -15,6 +15,7 @@ from .training import TrainSpec
 SCHEMA = "snnlang.graph/v1"
 BUNDLE_SCHEMA = "snnlang.bundle/v1"
 TRAINING_SCHEMA = "snnlang.training/v1"
+CAPABILITY_SCHEMA = "snnlang.capabilities/v1"
 
 
 def canonical_json(data: Any) -> bytes:
@@ -478,6 +479,31 @@ def capability_report(graph: Mapping[str, Any], target: str | None) -> list[Diag
     return diagnostics
 
 
+def capability_requirements(graph: Mapping[str, Any]) -> dict[str, Any]:
+    """Canonical element-level requirements archived with every bundle."""
+    elements = []
+    for population in graph["populations"]:
+        elements.append({"element": population["id"], "features": [f"neuron:{population['neuron']['kind']}"]})
+    for projection in graph["projections"]:
+        delay = projection.get("delay")
+        elements.append({
+            "element": projection["id"],
+            "features": [
+                f"synapse:{projection['synapse']['kind']}",
+                f"connection:{projection['connection']}",
+                "delay:none" if delay is None else "delay:explicit",
+            ],
+        })
+    for operation in graph["operations"]:
+        elements.append({"element": operation["id"], "features": [f"operation:{operation['kind']}"]})
+    for observable in graph["observables"]:
+        elements.append({"element": observable["id"], "features": [f"recording:{observable['signal'].partition('.')[2]}"]})
+    return {
+        "schema": CAPABILITY_SCHEMA,
+        "elements": sorted(elements, key=lambda row: row["element"]),
+    }
+
+
 def text_report(
     graph: Mapping[str, Any],
     training: Mapping[str, Any] | None,
@@ -639,6 +665,7 @@ def compile(
         "compiler": {"name": "snnlang", "version": "0.1.0"},
         "graph_digest": graph_digest,
         "target": target,
+        "required_capabilities": capability_requirements(graph),
         "files": files,
         "assets": manifest_assets,
     }

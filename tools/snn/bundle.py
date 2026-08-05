@@ -208,16 +208,18 @@ def translate_cobanet_v1(graph: dict[str, Any]) -> LegacySettings:
         raise BundleCompatibilityError(
             "current COBANet backend requires inhibitory size = excitatory size / 4"
         )
-    if e_pop.get("neuron") != {
-        "kind": "coba_lif",
-        "tau_mem": {"value": 20.0, "unit": "ms"},
-    } or i_pop.get("neuron") not in ({
-        "kind": "coba_lif", "tau_mem": {"value": 5.0, "unit": "ms"},
-    }, {
-        # Compatibility with bundles emitted before the graph-native audit.
-        # Their legacy route has always executed the historical 5 ms I cell.
-        "kind": "coba_lif", "tau_mem": {"value": 10.0, "unit": "ms"},
-    }):
+    e_neuron, i_neuron = e_pop.get("neuron", {}), i_pop.get("neuron", {})
+    if (
+        e_neuron.get("kind") != "coba_lif"
+        or e_neuron.get("tau_mem") != {"value": 20.0, "unit": "ms"}
+        or i_neuron.get("kind") != "coba_lif"
+        or i_neuron.get("tau_mem") not in (
+            {"value": 5.0, "unit": "ms"},
+            # Compatibility with pre-audit bundles. Their legacy route has
+            # always executed the historical 5 ms I cell.
+            {"value": 10.0, "unit": "ms"},
+        )
+    ):
         raise BundleCompatibilityError(
             "current COBANet backend requires 20 ms E and 5 ms I COBA-LIF neurons"
         )
