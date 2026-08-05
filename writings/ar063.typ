@@ -567,18 +567,23 @@
 
   == 7. Staged implementation
 
-  Implementation is additive and compatibility-first:
+  Implementation is divided into cumulative, goal-sized milestones. Each milestone
+  states separate _snnlang_ and _tools/snn_ deliverables, the legacy behaviour that
+  must remain unchanged, and executable acceptance tests. “Implement up to
+  milestone $N$” therefore means: inspect the repository's declared milestone
+  status, complete every unmet requirement through $N$, run each intervening gate,
+  and stop. It does not authorize beginning milestone $N + 1$.
 
-  + characterize selected legacy cells before structural changes;
-  + build snnlang independently of the simulator;
-  + place a small importable API beneath the unchanged legacy CLI;
-  + add bundle loading and a graph-native PyTorch executor beside `COBANet`;
-  + compare both paths on conformance cells before changing defaults;
-  + use one native experiment as an iteration-speed and performance gate;
-  + add graph-native training and the confidence controller only after forward execution is stable;
-  + retain old runners unchanged unless new scientific work justifies migration.
+  Milestone 0 records the bundle compiler, visualization, narrow legacy adapter,
+  MNIST training smoke test, and lifecycle equivalence work already demonstrated by
+  _exp074_--_exp076_. Milestones 1--3 create the execution boundary, prove one graph
+  natively, and then unlock arbitrary coupled circuits. Later milestones add a real
+  gamma-coupling experiment, graph-native training, SHD and deeper networks, and
+  online control.
 
-  Appendix B defines the stages, gates, compatibility period, and retirement conditions in detail. The sequence is intentionally reversible: no stage requires deleting the working legacy path to prove the next one.
+  Appendix B is the normative milestone ledger. The sequence is additive and
+  reversible: no milestone deletes the working legacy path, changes an old runner,
+  or changes a default in order to prove the next one.
 
   == 8. Migration policy
 
@@ -594,10 +599,13 @@
 
   == 9. Success criterion
 
-  The first implementation milestone is:
+  The first new scientific capability milestone is milestone 3:
 
   #quote(block: true)[
-    _snnlang_ independently compiles a deterministic, statically checked population graph; the upgraded _tools/snn_ executes that bundle through the CLI; and one native experiment uses the pair without importing or monkey-patching engine internals.
+    _snnlang_ compiles two independently driven PING circuits with reciprocal,
+    delayed inhibitory coupling; the graph-native _tools/snn_ executor simulates
+    them without changing the legacy executor; and named population recordings make
+    their phase relationship measurable by an experiment runner.
   ]
 
   The confidence-to-$g_L$ experiment is the next system-level acceptance test. It succeeds whether the feedback is expressed through ordinary graph operations, a generic controller extension, or a stable runtime hook. The important constraint is that it composes with a compiled graph, remains reproducible, and does not require surgery on simulator internals.
@@ -864,9 +872,29 @@
 
   The final artifact directory is replaced only after compilation, execution, analysis, plotting, and summary generation all succeed. A failed run cannot publish new graph descriptions beside figures from an older run.
 
-  == Appendix B. Staged implementation and compatibility plan
+  == Appendix B. Implementation milestone ledger
 
-  === B.1 Migration invariant
+  === B.1 How milestone goals are interpreted
+
+  A goal phrased as `Implement ar063 up to milestone N` is cumulative. The
+  implementation agent must:
+
+  + read this ledger and inspect the current code rather than assuming its status;
+  + complete unmet deliverables from milestone 0 through $N$;
+  + run every acceptance gate through $N$;
+  + update the status ledger and supporting documentation with evidence;
+  + preserve all compatibility invariants; and
+  + stop before work unique to milestone $N + 1$.
+
+  A milestone is complete only when its tests and experiment evidence are committed.
+  Merely creating types, schemas, or command-line flags does not count. If a gate
+  reveals a numerical or compatibility regression, the milestone remains incomplete.
+
+  The status labels are `demonstrated`, `partial`, and `not started`. They describe
+  evidence in the repository at the date of this proposal and must be revised as the
+  implementation advances.
+
+  === B.2 Compatibility invariants
 
   Every stage keeps the existing CLI and historical runners operational. New functionality is added beside the legacy path and becomes the default only after correctness, checkpoint, artifact, and performance gates pass.
 
@@ -899,153 +927,207 @@
       -> graph-native PyTorch executor
   ```
 
-  The compatibility adapter survives after convergence. `COBANet` is retired as an execution architecture only when the adapter can express its semantics faithfully and the conformance suite demonstrates parity.
+  The compatibility adapter survives after convergence. The legacy executor remains
+  selected for legacy CLI invocations until a later milestone explicitly changes
+  that routing. In particular:
 
-  === B.2 Stage 0: characterize the legacy system
+  - old commands, defaults, configuration files, checkpoints, parameter names,
+    recordings, and artifact schemas remain valid;
+  - no existing experiment runner is edited merely to adopt _snnlang_;
+  - `--executor graph` or an equivalent explicit bundle field selects new execution
+    during the compatibility period;
+  - graph checkpoints use their own manifest until an explicit, tested parameter map
+    permits cross-loading; and
+  - low-level numerical kernels may be shared, but the legacy `COBANet` construction
+    and update path are not refactored as a prerequisite for graph execution.
 
-  Freeze a small conformance suite before changing simulator structure:
+  === B.3 Milestone 0: established bundle baseline
 
-  - one trained MNIST PING cell;
-  - one trained SHD cell;
-  - the existing two-layer SHD architecture;
-  - one untrained PING simulation;
-  - one balanced asynchronous simulation;
-  - checkpoint save, reload, and partial initialization;
-  - representative recordings and common readouts.
+  *Status at 2026-08-05: demonstrated for the narrow MNIST COBANet slice; broader
+  legacy characterization remains partial.*
 
-  For each case retain the resolved configuration, parameter names and shapes, trainability, seeded initialization, deterministic CPU micro-forward results, one optimizer step where applicable, artifact schemas, checkpoint compatibility, compiled steady-state runtime, compilation time, and peak memory.
+  _snnlang deliverables:_ Python authoring objects; graph and training IRs; PING and
+  readout helpers; deterministic bundles and manifests; basic validation; circuit,
+  expanded, and training diagrams.
 
-  Full historical retraining is neither necessary nor desirable. Small deterministic tests, short smoke runs, and cached checkpoints provide stronger compatibility evidence at far lower cost.
+  _tools/snn deliverables:_ load a supported bundle without importing _snnlang_;
+  translate the exact one-layer PING plus mean-voltage graph into the legacy
+  executor; translate its narrow MNIST recipe into the legacy trainer.
 
-  *Gate:* the selected cases run through the unchanged CLI, their fixtures are archived, and performance measurement is repeatable.
+  _Evidence:_ _exp074_ simulates supplied spikes and records rasters; _exp075_
+  trains a small MNIST subset; _exp076_ compares seeded initialization, forward
+  values, loss, gradients, one optimizer step, checkpoint interchange, and replay.
 
-  === B.3 Stage 1: implement snnlang independently
+  *Gate:* those experiments and their focused unit tests pass through the unchanged
+  CLI. This baseline must remain green at every later milestone.
 
-  Build the authoring library, graph IR, training IR, asset registry, validation, deterministic serialization, reports, and visualization without importing _tools/snn_:
+  === B.4 Milestone 1: freeze the compatibility seam
 
-  ```
-  tools/snnlang/
-      network.py
-      parameters.py
-      operations.py
-      readouts.py
-      training.py
-      data.py
-      assets.py
-      validation.py
-      compile.py
-      visualise.py
-      backends/tools_snn.py
-  ```
+  *Purpose:* create a safe place for a second executor without changing numerical
+  behaviour. This milestone adds architecture and tests, not new circuit science.
 
-  The graph vocabulary includes typed inputs, named populations, projections, delays, neuron and synapse specifications, state, constants, parameters, outputs, and observables. Concise helpers cover mean voltage from a non-spiking layer, final voltage, spike count, duration-normalized spike rate, and cumulative potential.
+  _snnlang deliverables:_ define a versioned backend capability vocabulary and make
+  compilation report required capabilities such as neuron kinds, synapse kinds,
+  delays, feedback, operations, training, and recording modes. Capability failure
+  must identify the graph element and missing feature rather than merely saying that
+  a bundle is unsupported.
 
-  Language validity remains separate from backend capability:
+  _tools/snn deliverables:_ introduce typed `ExecutionSpec` and `ExecutionResult`
+  objects and a small internal request API for build, simulate, train, and infer.
+  Add an explicit executor selector with `legacy` as the default. The existing CLI
+  becomes a thin caller of this API, while bundle loading remains data-only and does
+  not import _snnlang_. A `graph` executor entry may initially fail with a precise
+  “not implemented” diagnostic.
 
-  ```
-  graph.valid             == true
-  backend.tools_snn.valid == false
-  missing_capabilities    == [
-      "arbitrary_feedback",
-  ]
-  ```
+  _Compatibility gate:_ run the milestone-0 suite plus representative existing
+  MNIST, SHD, untrained, checkpoint-load, and recording CLI smoke tests. Commands,
+  resolved defaults, parameter names and shapes, seeded outputs, artifacts, and exit
+  behaviour must remain unchanged. No historical runner imports the new API.
 
-  *Gate:* feedforward, recurrent, deeper, and feedback graphs compile deterministically; invalid shapes, units, references, objectives, and ambiguous readouts fail early; visual reports are legible; unsupported backend features are reported precisely.
+  *Exit criterion:* both legacy flags and bundles produce an `ExecutionSpec`; all
+  existing invocations still select the untouched legacy executor; capability
+  reports agree with what the legacy bundle adapter actually accepts.
 
-  === B.4 Stage 2: introduce the tools/snn API
+  === B.5 Milestone 2: graph-native single-PING forward execution
 
-  Extract a small request-based API beneath the CLI:
+  *Purpose:* prove the new lowering and scheduling machinery on a topology whose
+  legacy result is known.
 
-  ```
-  tools_snn.build(request)
-  tools_snn.train(request)
-  tools_snn.simulate(request)
-  tools_snn.infer(request)
-  ```
+  _snnlang deliverables:_ emit all explicit state, update-order, delay, initializer,
+  constraint, output, and observable information required to execute the existing
+  one-layer PING graph without backend guesses.
 
-  The unchanged CLI parses legacy flags into an _ExecutionSpec_ and calls this API. No graph-native execution is required yet. This stage creates an intentional import boundary for notebooks and custom experiments while preserving process-isolated execution for ordinary runners.
+  _tools/snn deliverables:_ add a graph planner and vectorized PyTorch executor for
+  COBA-LIF E/I populations, AMPA/GABA projections, dense weights, direct spike
+  inputs, non-spiking leaky-integrator populations, mean-voltage reduction, and
+  named recordings. Lower the complete graph before the timestep loop; do not
+  interpret graph nodes dynamically at every step. Keep `torch.compile` behind the
+  same internal boundary used by the legacy engine.
 
-  *Gate:* every legacy conformance case produces unchanged parameters, outputs, artifacts, and checkpoints through its original command. No historical runner imports simulator internals.
+  _Compatibility gate:_ legacy remains the default. Run the same bundle once through
+  its legacy translation and once through the graph executor. Compare parameter
+  identities and shapes, seeded initialization, short CPU state trajectories,
+  spikes, named outputs, recordings, and checkpoint round trips. Benchmark compiled
+  steady-state runtime, compilation time, and peak memory separately.
 
-  === B.5 Stage 3: load bundles through the legacy executor
+  *Exit criterion:* the graph executor matches the legacy single-PING forward path
+  within declared tolerances and is no more than approximately 5--10% slower at
+  steady state for the reference workload, unless a measured exception is recorded
+  and accepted before proceeding.
 
-  Add graph, training, data, asset, and manifest loaders. For the initially supported subset, convert _ExecutionSpec_ into the existing `COBANet` builder and trainer:
+  === B.6 Milestone 3: arbitrary coupled forward graphs
 
-  ```
-  legacy flags -> ExecutionSpec -> COBANet
-  graph bundle -> ExecutionSpec -> COBANet
-  ```
+  *Purpose:* deliver the first capability that the legacy `COBANet` architecture
+  cannot express.
 
-  This validates bundle replay, asset resolution, data bindings, checkpoint selection, named outputs, and artifact capture before the harder graph-executor work begins. It also repairs current seams: supplied SHD paths, generic event evaluation, explicit checkpoint policies, and stable recording names.
+  _snnlang deliverables:_ compile multiple independently named components,
+  feedforward/recurrent/feedback projections, explicit positive delays, arbitrary
+  E/I sizes, independent inputs, and observables from every population. Tighten
+  validation for temporal causality, projection dimensions, polarity, and delayed
+  feedback.
 
-  *Gate:* matched legacy and bundle descriptions initialize the same parameters, perform the same deterministic CPU forward and optimizer step, reload each other's checkpoints, and emit compatible artifacts.
+  _tools/snn deliverables:_ execute arbitrary named populations and projections,
+  multiple incoming conductance streams, delay buffers, deterministic recurrent and
+  feedback scheduling, and population-level recordings. Initial support may remain
+  dense; sparse and structured lowering are later optimizations.
 
-  === B.6 Stage 4: add the graph-native PyTorch executor
+  _Acceptance fixture:_ two independently driven PING circuits with reciprocal GABA
+  projections from each inhibitory population to the other excitatory population.
+  Include uncoupled, unidirectional, reciprocal, and delayed variants. Exact tests
+  establish which timestep receives each pulse; the experiment runner, not the
+  engine, computes phase locking and synchrony.
 
-  Implement arbitrary named populations and projections beside `COBANet`. Reuse proven neuron updates, conductance dynamics, surrogate gradients, initializers, constraints, and recording code. Replace rigid orchestration, not numerical kernels merely for aesthetic cleanliness.
+  *Compatibility gate:* milestone-0 and milestone-2 parity suites remain green and
+  legacy CLI routing remains unchanged.
 
-  The executor lowers the complete graph before simulation:
+  *Exit criterion:* all coupling variants require only graph changes, not simulator
+  edits, and archive their graph, manifest, diagram, recordings, and execution
+  provenance.
 
-  ```
-  graph
-      -> validated execution plan
-      -> vectorized torch.nn.Module
-      -> torch.compile
-      -> accelerator execution
-  ```
+  === B.7 Milestone 4: first native gamma-coupling experiment
 
-  It must not interpret graph nodes in Python inside every timestep. Synthetic tests verify projection delays, recurrent timing, feedback update order, masks, and recordings exactly.
+  Add a representative experiment to the _snnlang_ collection using milestone 3.
+  Measure synchrony, phase difference, coherence or phase locking, and cross-
+  correlation across coupling direction, strength, and delay. Record time to create
+  variants, changed lines, compiler errors caught, simulator edits, runtime, memory,
+  and diagram clarity.
 
-  During this stage both executors remain available. Selected conformance cells run in shadow mode:
+  *Gate:* scientifically meaningful variants take minutes rather than hours and need
+  no simulator-internal changes. This is a go/no-go review: if iteration speed has
+  not materially improved, stop language expansion and identify the real bottleneck.
 
-  ```
-  legacy configuration -> COBANet
-  equivalent bundle    -> graph executor
-  ```
+  === B.8 Milestone 5: graph-native readouts and input bindings
 
-  Compare structure, initialization, forward outputs, gradients, one optimizer step, short trajectories, checkpoint round trips, recordings, metrics, compiled runtime, and peak memory.
+  _snnlang deliverables:_ finish precise shape and unit inference for mean voltage,
+  final voltage, spike count, duration-normalized spike rate, and cumulative
+  potential. Define resolved dense and event-stream input bindings separately from
+  the graph, including masks and durations; paths live in execution data, not in the
+  reusable graph.
 
-  *Gate:* deterministic micro-tests agree exactly or within declared numerical tolerances; longer accelerator runs meet statistical criteria; equivalent graphs remain within approximately 5--10% steady-state runtime overhead of the specialized path; compilation time and memory are reported separately.
+  _tools/snn deliverables:_ execute all five readouts, supplied dense spike arrays,
+  event streams, masks, named outputs, and recordings through stable request and CLI
+  contracts. Dataset generation remains optional: callers may provide an input
+  artifact or request a reusable tool-side encoder.
 
-  === B.7 Stage 5: run the first native experiment
+  *Gate:* hand-calculated micro-fixtures verify every readout and masked-duration
+  case; existing input and artifact behaviour remains unchanged.
 
-  Choose an experiment that benefits materially from the graph representation. The preferred first case is two untrained PING or balanced E/I circuits joined by a controllable projection. It exercises named populations, independent drives, arbitrary coupling, feedback, delays, recordings, visualization, and artifact replay without simultaneously debugging autograd.
+  === B.9 Milestone 6: graph-native MNIST training
 
-  Create the base condition and at least two variants, such as removing, reversing, or delaying the inter-circuit projection. Keep synchrony, coherence, phase locking, and cross-correlation in runner analysis code.
+  _snnlang deliverables:_ validate cross-entropy objectives, complete parameter-group
+  partitions, frozen parameters, AdamW settings, gradient clipping, checkpoint
+  selection, and optimizer-state replay. Reject objectives without a differentiable
+  path to a trainable parameter.
 
-  This is a go/no-go gate for the entire project. Measure:
+  _tools/snn deliverables:_ train the milestone-2 graph natively with surrogate
+  gradients and the standard MNIST input binding. Support save, resume, selected and
+  final checkpoints, inference, and optimizer-state replay.
 
-  - time to implement the base experiment;
-  - time and changed lines for each variant;
-  - simulator-internal edits required;
-  - errors caught before execution;
-  - runtime and memory against an equivalent specialized implementation;
-  - clarity of the compiled graph and diagram.
+  *Gate:* compare the legacy and graph paths on initialization, forward values,
+  gradients, one update, short learning curves, checkpoint replay, artifacts,
+  compiled runtime, and memory. Keep bundle execution opt-in.
 
-  *Gate:* variants take minutes rather than hours, require no simulator-internal edits, preserve performance, and archive an understandable bundle. If those gains do not appear, stop expanding the language and identify the actual workflow bottleneck.
+  === B.10 Milestone 7: SHD and deeper trained graphs
 
-  === B.8 Stage 6: graph-native training
+  Extend data binding and graph-native training to event-stream SHD and multiple
+  hidden PING layers. Add named recordings from every layer and an explicit standard
+  checkpoint-selection contract. Use the existing one-layer SHD and two-layer SHD
+  cells as conformance cases rather than retrofitting their runners.
 
-  Add standard objectives, parameter groups, surrogate choices, regularizers, clipping, stop-gradient boundaries, checkpoint-selection policies, and optimizer-state replay to the graph-native executor. Support dense MNIST and event-stream SHD through explicit data bindings.
+  *Gate:* dense MNIST, one-layer SHD, and two-layer SHD train and evaluate without
+  runner access to live model internals, while the original commands and checkpoints
+  remain supported.
 
-  Run the MNIST, SHD, and two-layer SHD conformance cells through both training paths. Compare initial state, gradients, one-step updates, short learning curves, selected checkpoints, inference, and performance. Exact long-run weight identity is not required across accelerators, but differences must remain within predetermined scientific and numerical tolerances.
+  === B.11 Milestone 8: regularization and training boundaries
 
-  *Gate:* graph-native training supports the laboratory's common trained workloads without runner workarounds and remains within the performance budget.
+  Implement declared surrogate choices, rate regularizers, multiple optimizer
+  groups, constraints, stop-gradient boundaries, and differentiable-reachability
+  diagnostics. Add only features exercised by current or imminent experiments.
 
-  === B.9 Stage 7: support confidence-controlled leak
+  *Gate:* each training construct has a hand-checkable gradient or update fixture;
+  unsupported constructs fail during compilation or planning, never halfway through
+  an expensive run.
 
-  Make an MNIST classifier's online confidence modulate $g_L$, allowing low-confidence trials more PING cycles. Attempt the least specialized route in order:
+  === B.12 Milestone 9: online confidence-controlled leak
+
+  Make an MNIST classifier's online confidence modulate $g_L$, allowing low-
+  confidence trials more PING cycles. Attempt the least specialized route in order:
 
   + compose existing graph operations;
   + add a generic stateful controller node;
   + add a registered PyTorch backend operation;
   + use the importable API as an explicitly experimental extension.
 
-  Do not add a dedicated `ConfidenceToLeak` language primitive solely for one experiment. Whatever route is used must declare causal timing, bounds, initial state, source evidence, target parameter, checkpoint behavior, and differentiability.
+  Do not create a dedicated `ConfidenceToLeak` primitive solely for one experiment.
+  The chosen route declares causal timing, bounds, initial state, evidence source,
+  target parameter, checkpoint behaviour, and differentiability.
 
-  *Gate:* fixed-confidence tests reproduce expected $g_L$ or $tau_m$ trajectories; a one-step feedback delay has an exact causal test; the experiment compares against a matched fixed-leak control and reports accuracy, calibration, decision time, PING cycles, and spike-count or energetic cost.
+  *Gate:* fixed-confidence fixtures reproduce expected $g_L$ or $tau_m$
+  trajectories; a one-step feedback delay has an exact causal test; the experiment
+  compares a matched fixed-leak control and reports accuracy, calibration, decision
+  time, PING cycles, and spike-count or energetic cost.
 
-  === B.10 Historical experiment policy
+  === B.13 Historical experiment policy
 
   Completed experiments remain unchanged by default. They are scientific records, not migration chores.
 
@@ -1058,7 +1140,13 @@
 
   This policy avoids changing defaults, random initialization, dataset splits, checkpoint selection, or artifact meaning merely to achieve architectural uniformity. There is no scientific prize for deleting working compatibility code early.
 
-  === B.11 Retirement and later expansion
+  === B.14 Milestone 10: optional convergence and retirement
 
-  The legacy executor may be retired only when every selected conformance case passes through the compatibility adapter, historical checkpoints load or have a documented conversion, artifact contracts remain stable, and compiled performance is not materially worse.
+  Changing the default executor or retiring `COBANet` is a separate, optional
+  milestone, not an automatic consequence of graph-native success. It requires every
+  selected conformance case to pass through the compatibility adapter, historical
+  checkpoints to load or have a documented conversion, artifact contracts to remain
+  stable, compiled performance not to be materially worse, and an explicit decision
+  to accept the migration. The legacy CLI compatibility adapter survives retirement
+  of the legacy execution architecture.
 ]
