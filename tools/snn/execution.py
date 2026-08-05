@@ -14,11 +14,10 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Callable, Literal, Mapping
 
-import torch
-from torch import nn
-
-from bundle import load_graph_bundle
 import models as M
+import torch
+from bundle import load_graph_bundle
+from torch import nn
 
 ExecutorName = Literal["legacy", "graph"]
 RequestKind = Literal["build", "simulate", "train", "infer"]
@@ -71,20 +70,24 @@ GRAPH_CAPABILITIES_V1 = {
 def graph_capability_issues(graph: Mapping[str, Any]) -> list[CapabilityIssue]:
     """Return precise graph-executor capability failures."""
     issues: list[CapabilityIssue] = []
+    neuron_capabilities: set[str] = {"coba_lif", "leaky_integrator"}
+    synapse_capabilities: set[str] = {"ampa", "gaba", "leaky_integrator"}
+    operation_capabilities: set[str] = {"reduce_mean"}
+    connection_capabilities: set[str] = {"feedforward", "recurrent", "feedback"}
     for pop in graph.get("populations", []):
         kind = pop.get("neuron", {}).get("kind")
-        if kind not in GRAPH_CAPABILITIES_V1["neurons"]:
+        if kind not in neuron_capabilities:
             issues.append(CapabilityIssue(pop["id"], f"neuron:{kind}", "unsupported neuron kind"))
     for projection in graph.get("projections", []):
         synapse = projection.get("synapse", {}).get("kind")
-        if synapse not in GRAPH_CAPABILITIES_V1["synapses"]:
+        if synapse not in synapse_capabilities:
             issues.append(CapabilityIssue(projection["id"], f"synapse:{synapse}", "unsupported synapse kind"))
         connection = projection.get("connection")
-        if connection not in GRAPH_CAPABILITIES_V1["connections"]:
+        if connection not in connection_capabilities:
             issues.append(CapabilityIssue(projection["id"], f"connection:{connection}", "unsupported connection kind"))
     for operation in graph.get("operations", []):
         kind = operation.get("kind")
-        if kind not in GRAPH_CAPABILITIES_V1["operations"]:
+        if kind not in operation_capabilities:
             issues.append(CapabilityIssue(operation["id"], f"operation:{kind}", "unsupported operation kind"))
     return issues
 

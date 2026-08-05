@@ -1634,9 +1634,10 @@ def main(argv=None):
     request = execution_spec_from_args(args)
 
     if request.executor == "graph":
+        from dataclasses import replace
+
         import numpy as np
         import torch
-        from dataclasses import replace
 
         if not getattr(args, "input_file", None):
             raise SystemExit("graph execution requires --input-file with arrays named for graph input ports")
