@@ -361,6 +361,17 @@ def registration() -> dict:
     }
 
 
+def json_safe(value):
+    """Replace non-finite diagnostics with JSON null while retaining flags."""
+    if isinstance(value, dict):
+        return {key: json_safe(item) for key, item in value.items()}
+    if isinstance(value, list):
+        return [json_safe(item) for item in value]
+    if isinstance(value, float) and not math.isfinite(value):
+        return None
+    return value
+
+
 def smoke() -> None:
     settings = CALIBRATION_GRID[0]
     inputs = independent_inputs(settings["rate_a_hz"], settings["rate_b_hz"], steps=300)
@@ -461,7 +472,7 @@ def calibrate() -> None:
             json.dumps(registration(), indent=2) + "\n"
         )
         (staging / "calibration_candidates.json").write_text(
-            json.dumps(rows, indent=2) + "\n"
+            json.dumps(json_safe(rows), indent=2, allow_nan=False) + "\n"
         )
         (staging / "calibration_selection.json").write_text(
             json.dumps(selected, indent=2) + "\n"
@@ -497,7 +508,7 @@ def calibrate() -> None:
             staging,
             run_id=run_id,
             duration_s=time.monotonic() - started,
-            payload=payload,
+            payload=json_safe(payload),
         )
     if selected is None:
         raise SystemExit("KILLED: no registered calibration candidate passed")
@@ -623,7 +634,9 @@ def sweep() -> None:
         (staging / "calibration_selection.json").write_text(
             json.dumps(selected, indent=2) + "\n"
         )
-        (staging / "sweep_table.json").write_text(json.dumps(rows, indent=2) + "\n")
+        (staging / "sweep_table.json").write_text(
+            json.dumps(json_safe(rows), indent=2, allow_nan=False) + "\n"
+        )
         (staging / "goal.txt").write_text(GOAL_PROMPT)
         (staging / "reproduce.sh").write_text(
             "#!/bin/sh\nuv run python experiments/exp078.py --stage calibrate\nuv run python experiments/exp078.py --stage sweep\n"
@@ -666,7 +679,7 @@ def sweep() -> None:
             staging,
             run_id=run_id,
             duration_s=time.monotonic() - started,
-            payload=payload,
+            payload=json_safe(payload),
         )
 
 
