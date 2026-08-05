@@ -60,12 +60,8 @@ def test_step_2_grid_is_deterministic_and_zero_intensity_rests() -> None:
         "probes_uS": (0.6, 2.4),
         "draws": 4,
     }
-    first = exp077.simulate_condition_grid(
-        **kwargs, rng=exp077._step2_rng(42, 99)
-    )
-    second = exp077.simulate_condition_grid(
-        **kwargs, rng=exp077._step2_rng(42, 99)
-    )
+    first = exp077.simulate_condition_grid(**kwargs, rng=exp077._step2_rng(42, 99))
+    second = exp077.simulate_condition_grid(**kwargs, rng=exp077._step2_rng(42, 99))
     assert first.shape == (2, 2, 3, 4)
     assert first.dtype == np.float32
     assert np.array_equal(first, second)
@@ -92,6 +88,27 @@ def test_authorized_step_2_extension_selects_2048() -> None:
     assert record["passed"]
     assert not record["trajectory"][0]["passed"]
     assert record["trajectory"][1]["passed"]
+
+
+def test_full_library_contract_and_chunk_streams_are_locked() -> None:
+    assert exp077.LIBRARY_K == 2048
+    assert exp077.LIBRARY_SHAPE == (3, 3, 12, 256, 2048)
+    assert exp077.LIBRARY_AXIS_ORDER == (
+        "seed",
+        "probe_uS",
+        "rate_hz",
+        "intensity",
+        "draw",
+    )
+    assert exp077._library_chunks()[0] == (0, 0, 8)
+    assert exp077._library_chunks()[-1] == (31, 248, 256)
+    first = exp077._library_chunk_rng(42, 0).random(16)
+    replay = exp077._library_chunk_rng(42, 0).random(16)
+    other_seed = exp077._library_chunk_rng(43, 0).random(16)
+    other_chunk = exp077._library_chunk_rng(42, 1).random(16)
+    assert np.array_equal(first, replay)
+    assert not np.array_equal(first, other_seed)
+    assert not np.array_equal(first, other_chunk)
 
 
 def test_step_3_remains_a_hard_stop() -> None:

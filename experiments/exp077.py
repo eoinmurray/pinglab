@@ -16,7 +16,7 @@ import sys
 import time
 from collections.abc import Callable
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -43,6 +43,23 @@ SEED = 42
 SEEDS = (42, 43, 44)
 PROBE_CONDUCTANCES_US = (0.6, 1.2, 2.4)
 INTENSITY_LEVELS = np.arange(256, dtype=np.uint16)
+LIBRARY_K = 2048
+LIBRARY_SHAPE = (
+    len(SEEDS),
+    len(PROBE_CONDUCTANCES_US),
+    len(TRAINING_RATES_HZ),
+    len(INTENSITY_LEVELS),
+    LIBRARY_K,
+)
+LIBRARY_AXIS_ORDER = ("seed", "probe_uS", "rate_hz", "intensity", "draw")
+LIBRARY_CHUNK_INTENSITIES = 8
+LIBRARY_SCRATCH = REPO / "temp" / SLUG / "response_library.float32.npy"
+LIBRARY_PROGRESS = REPO / "temp" / SLUG / "response_library.progress.json"
+LIBRARY_STREAM = 1
+REPLAY_CHUNK_INDICES = (0,)
+DIRECT_VALIDATION_INTENSITIES = (64, 128, 255)
+DIRECT_VALIDATION_RATES_HZ = (0.25, 3.0, 25.0)
+MONOTONIC_Z = 3.0
 
 # Locked before inspecting the Step 2 pilot.  Each candidate compares two
 # independent, equally sized blocks.  The deterministic subset spans zero,
@@ -479,18 +496,334 @@ def simulate_condition_grid(
         g = g * ampa_decay + probe_grid * spikes
         g_total = PARAMETERS["g_L_uS"] + g
         v_inf = (
-            PARAMETERS["g_L_uS"] * PARAMETERS["E_L_mV"]
-            + g * PARAMETERS["E_e_mV"]
+            PARAMETERS["g_L_uS"] * PARAMETERS["E_L_mV"] + g * PARAMETERS["E_e_mV"]
         ) / g_total
-        v = v_inf + (v - v_inf) * np.exp(
-            -DT_MS * g_total / PARAMETERS["C_m_nF"]
-        )
+        v = v_inf + (v - v_inf) * np.exp(-DT_MS * g_total / PARAMETERS["C_m_nF"])
         v_sum += v - PARAMETERS["E_L_mV"]
     return (v_sum / N_TIMESTEPS).astype(np.float32)
 
 
 def _step2_rng(seed: int, stream: int) -> np.random.Generator:
     return np.random.default_rng(np.random.SeedSequence([seed, 77, 2, stream]))
+
+
+def _library_chunk_rng(seed: int, chunk_index: int) -> np.random.Generator:
+    """Return the independently reproducible RNG for one full-library chunk."""
+    return np.random.default_rng(
+        np.random.SeedSequence([seed, 77, 2, LIBRARY_STREAM, chunk_index])
+    )
+
+
+def _library_chunks() -> list[tuple[int, int, int]]:
+    return [
+        (index, start, min(start + LIBRARY_CHUNK_INTENSITIES, len(INTENSITY_LEVELS)))
+        for index, start in enumerate(
+            range(0, len(INTENSITY_LEVELS), LIBRARY_CHUNK_INTENSITIES)
+        )
+    ]
+
+
+def _open_library(mode: Literal["r", "r+"] = "r") -> np.memmap:
+    return np.load(LIBRARY_SCRATCH, mmap_mode=mode)
+
+
+def generate_full_library() -> dict[str, Any]:
+    """Generate the selected-K empirical library into a resumable float32 memmap."""
+    LIBRARY_SCRATCH.parent.mkdir(parents=True, exist_ok=True)
+    if LIBRARY_SCRATCH.exists():
+        library = _open_library("r+")
+        if library.shape != LIBRARY_SHAPE or library.dtype != np.float32:
+            raise RuntimeError(
+                "existing response-library scratch array has wrong metadata"
+            )
+    else:
+        library = np.lib.format.open_memmap(
+            LIBRARY_SCRATCH, mode="w+", dtype=np.float32, shape=LIBRARY_SHAPE
+        )
+    progress: dict[str, Any]
+    if LIBRARY_PROGRESS.exists():
+        progress = dict(json.loads(LIBRARY_PROGRESS.read_text()))
+    else:
+        progress = {"completed": [], "chunk_checksums": {}}
+    completed_list: list[str] = list(progress.get("completed", []))
+    chunk_checksums: dict[str, str] = dict(progress.get("chunk_checksums", {}))
+    completed = set(completed_list)
+    started = time.perf_counter()
+    for seed_index, seed in enumerate(SEEDS):
+        for chunk_index, start, stop in _library_chunks():
+            key = f"seed={seed}:intensity={start}:{stop}"
+            if key in completed:
+                continue
+            values = simulate_condition_grid(
+                INTENSITY_LEVELS[start:stop],
+                TRAINING_RATES_HZ,
+                PROBE_CONDUCTANCES_US,
+                LIBRARY_K,
+                _library_chunk_rng(seed, chunk_index),
+            )
+            library[seed_index, :, :, start:stop, :] = values
+            library.flush()
+            checksum = hashlib.sha256(values.tobytes(order="C")).hexdigest()
+            completed_list.append(key)
+            chunk_checksums[key] = checksum
+            progress["completed"] = completed_list
+            progress["chunk_checksums"] = chunk_checksums
+            progress["shape"] = list(LIBRARY_SHAPE)
+            progress["dtype"] = "float32"
+            progress["axis_order"] = list(LIBRARY_AXIS_ORDER)
+            progress["updated_at_utc"] = time.strftime(
+                "%Y-%m-%dT%H:%M:%SZ", time.gmtime()
+            )
+            LIBRARY_PROGRESS.write_text(json.dumps(progress, indent=2) + "\n")
+            print(f"completed {key}", flush=True)
+    return {
+        "duration_s": time.perf_counter() - started,
+        "completed_chunks": len(completed_list),
+        "chunk_checksums": chunk_checksums,
+    }
+
+
+def _summary_statistics(library: np.ndarray) -> dict[str, np.ndarray]:
+    values = np.asarray(library, dtype=np.float64)
+    pooled = values.transpose(1, 2, 3, 0, 4).reshape(
+        len(PROBE_CONDUCTANCES_US), len(TRAINING_RATES_HZ), 256, -1
+    )
+    return {
+        "mean": pooled.mean(axis=-1),
+        "variance": pooled.var(axis=-1, ddof=1),
+        "standard_deviation": pooled.std(axis=-1, ddof=1),
+        "zero_fraction": (pooled == 0.0).mean(axis=-1),
+        "per_seed_mean": values.mean(axis=-1),
+        "per_seed_variance": values.var(axis=-1, ddof=1),
+    }
+
+
+def _representative_distributions(library: np.ndarray) -> list[dict[str, Any]]:
+    records = []
+    probe_index = PROBE_CONDUCTANCES_US.index(1.2)
+    for label, rate, intensity in zip(
+        ("low", "transitional", "high"),
+        DIRECT_VALIDATION_RATES_HZ,
+        DIRECT_VALIDATION_INTENSITIES,
+    ):
+        rate_index = TRAINING_RATES_HZ.index(rate)
+        values = np.asarray(
+            library[:, probe_index, rate_index, intensity, :], dtype=np.float64
+        ).reshape(-1)
+        std = values.std(ddof=1)
+        skew = (
+            0.0 if std == 0.0 else float(np.mean(((values - values.mean()) / std) ** 3))
+        )
+        records.append(
+            {
+                "label": label,
+                "probe_uS": 1.2,
+                "rate_hz": rate,
+                "intensity": intensity,
+                "count": int(values.size),
+                "mean_mV": float(values.mean()),
+                "standard_deviation_mV": float(std),
+                "zero_fraction": float(np.mean(values == 0.0)),
+                "quantiles_mV": {
+                    str(q): float(np.quantile(values, q))
+                    for q in (0.0, 0.25, 0.5, 0.75, 0.95, 1.0)
+                },
+                "skewness": skew,
+                "distinct_float32_values": int(np.unique(values).size),
+            }
+        )
+    return records
+
+
+def validate_full_library(library: np.ndarray) -> dict[str, Any]:
+    """Run the predeclared full-library validation suite."""
+    validations: dict[str, Any] = {}
+    metadata_ok = bool(
+        library.shape == LIBRARY_SHAPE
+        and library.dtype == np.float32
+        and np.all(np.isfinite(library))
+    )
+    validations["grid_shape_dtype_finite"] = _validation_record(
+        metadata_ok, shape=list(library.shape), dtype=str(library.dtype)
+    )
+    minimum, maximum = float(library.min()), float(library.max())
+    validations["physical_bounds"] = _validation_record(
+        bool(minimum >= 0.0 and maximum <= 65.0),
+        minimum_mV=minimum,
+        maximum_mV=maximum,
+    )
+    zero_exact = bool(np.all(library[:, :, :, 0, :] == 0.0))
+    validations["zero_intensity_rest"] = _validation_record(zero_exact)
+
+    replay_rows = []
+    for seed_index, seed in enumerate(SEEDS):
+        for chunk_index in REPLAY_CHUNK_INDICES:
+            _, start, stop = _library_chunks()[chunk_index]
+            replay = simulate_condition_grid(
+                INTENSITY_LEVELS[start:stop],
+                TRAINING_RATES_HZ,
+                PROBE_CONDUCTANCES_US,
+                LIBRARY_K,
+                _library_chunk_rng(seed, chunk_index),
+            )
+            expected = np.asarray(library[seed_index, :, :, start:stop, :])
+            replay_rows.append(
+                {
+                    "seed": seed,
+                    "intensity_start": start,
+                    "intensity_stop": stop,
+                    "exact": bool(np.array_equal(replay, expected)),
+                }
+            )
+    validations["deterministic_chunk_replay"] = _validation_record(
+        all(row["exact"] for row in replay_rows), chunks=replay_rows
+    )
+    seed_hashes = [
+        hashlib.sha256(np.asarray(library[index]).tobytes()).hexdigest()
+        for index in range(len(SEEDS))
+    ]
+    condition_hashes = [
+        hashlib.sha256(np.asarray(library[0, 1, index, 128]).tobytes()).hexdigest()
+        for index in range(len(TRAINING_RATES_HZ))
+    ]
+    streams_unique = len(set(seed_hashes)) == len(seed_hashes) and len(
+        set(condition_hashes)
+    ) == len(condition_hashes)
+    validations["independent_streams"] = _validation_record(
+        streams_unique, seed_sha256=seed_hashes, condition_sha256=condition_hashes
+    )
+
+    summaries = _summary_statistics(library)
+    moment_rows = []
+    for probe_index, probe in enumerate(PROBE_CONDUCTANCES_US):
+        for rate, intensity in zip(
+            DIRECT_VALIDATION_RATES_HZ, DIRECT_VALIDATION_INTENSITIES
+        ):
+            rate_index = TRAINING_RATES_HZ.index(rate)
+            raw = np.asarray(
+                library[:, probe_index, rate_index, intensity, :],
+                dtype=np.float64,
+            ).reshape(-1)
+            mean_error = abs(
+                float(
+                    raw.mean() - summaries["mean"][probe_index, rate_index, intensity]
+                )
+            )
+            variance_error = abs(
+                float(
+                    raw.var(ddof=1)
+                    - summaries["variance"][probe_index, rate_index, intensity]
+                )
+            )
+            moment_rows.append(
+                {
+                    "probe_uS": probe,
+                    "rate_hz": rate,
+                    "intensity": intensity,
+                    "mean_absolute_error_mV": mean_error,
+                    "variance_absolute_error_mV2": variance_error,
+                }
+            )
+    validations["independent_moment_recomputation"] = _validation_record(
+        all(
+            row["mean_absolute_error_mV"] <= 1e-12
+            and row["variance_absolute_error_mV2"] <= 1e-12
+            for row in moment_rows
+        ),
+        conditions=moment_rows,
+        tolerance=1e-12,
+    )
+    pooled_count = len(SEEDS) * LIBRARY_K
+    mean = summaries["mean"]
+    std = summaries["standard_deviation"]
+    se = std / math.sqrt(pooled_count)
+    intensity_diff = np.diff(mean, axis=2)
+    intensity_tol = MONOTONIC_Z * np.sqrt(se[:, :, 1:] ** 2 + se[:, :, :-1] ** 2)
+    rate_diff = np.diff(mean, axis=1)
+    rate_tol = MONOTONIC_Z * np.sqrt(se[:, 1:, :] ** 2 + se[:, :-1, :] ** 2)
+    intensity_violations = int(np.sum(intensity_diff < -intensity_tol))
+    rate_violations = int(np.sum(rate_diff < -rate_tol))
+    validations["monotonic_means"] = _validation_record(
+        intensity_violations == 0 and rate_violations == 0,
+        standard_error_multiplier=MONOTONIC_Z,
+        intensity_violations=intensity_violations,
+        rate_violations=rate_violations,
+    )
+
+    direct_rows = []
+    for probe_index, probe in enumerate(PROBE_CONDUCTANCES_US):
+        direct = simulate_condition_grid(
+            DIRECT_VALIDATION_INTENSITIES,
+            DIRECT_VALIDATION_RATES_HZ,
+            (probe,),
+            LIBRARY_K,
+            _step2_rng(SEED, 700 + probe_index),
+        )[0]
+        for rate_offset, rate in enumerate(DIRECT_VALIDATION_RATES_HZ):
+            library_rate = TRAINING_RATES_HZ.index(rate)
+            for intensity_offset, intensity in enumerate(DIRECT_VALIDATION_INTENSITIES):
+                observed = np.asarray(
+                    library[:, probe_index, library_rate, intensity, :],
+                    dtype=np.float64,
+                ).reshape(-1)
+                fresh = direct[rate_offset, intensity_offset].astype(np.float64)
+                mean_delta = abs(float(observed.mean() - fresh.mean()))
+                mean_limit = 4.0 * math.sqrt(
+                    observed.var(ddof=1) / observed.size
+                    + fresh.var(ddof=1) / fresh.size
+                )
+                variance_delta = abs(float(observed.var(ddof=1) - fresh.var(ddof=1)))
+                variance_limit = max(
+                    0.25, 0.25 * max(observed.var(ddof=1), fresh.var(ddof=1))
+                )
+                direct_rows.append(
+                    {
+                        "probe_uS": probe,
+                        "rate_hz": rate,
+                        "intensity": intensity,
+                        "mean_delta_mV": mean_delta,
+                        "mean_limit_mV": mean_limit,
+                        "variance_delta_mV2": variance_delta,
+                        "variance_limit_mV2": variance_limit,
+                        "passed": mean_delta <= mean_limit
+                        and variance_delta <= variance_limit,
+                    }
+                )
+    validations["fresh_direct_simulation"] = _validation_record(
+        all(row["passed"] for row in direct_rows), conditions=direct_rows
+    )
+
+    subset64 = np.asarray(library[:, :, :, (64, 128, 255), :], dtype=np.float64)
+    subset32 = subset64.astype(np.float32).astype(np.float64)
+    mean_error = float(np.max(np.abs(subset64.mean(axis=-1) - subset32.mean(axis=-1))))
+    variance_error = float(
+        np.max(np.abs(subset64.var(axis=-1, ddof=1) - subset32.var(axis=-1, ddof=1)))
+    )
+    validations["float32_storage"] = _validation_record(
+        mean_error <= 1e-6 and variance_error <= 1e-5,
+        maximum_mean_error_mV=mean_error,
+        maximum_variance_error_mV2=variance_error,
+        mean_tolerance_mV=1e-6,
+        variance_tolerance_mV2=1e-5,
+    )
+    distributions = _representative_distributions(library)
+    low = distributions[0]
+    validations["low_rate_empirical_structure"] = _validation_record(
+        low["zero_fraction"] > 0.0
+        and low["skewness"] > 0.0
+        and low["distinct_float32_values"] > 1,
+        representative=distributions,
+    )
+    if not all(row["ok"] for row in validations.values()):
+        failed = [name for name, row in validations.items() if not row["ok"]]
+        raise RuntimeError(
+            f"Step 2 full-library validation failed: {', '.join(failed)}"
+        )
+    return {
+        "validations": validations,
+        "summaries": summaries,
+        "distributions": distributions,
+    }
 
 
 def _normalised_difference(
@@ -543,9 +876,7 @@ def run_step2_pilot() -> dict[str, Any]:
             "K": candidate,
             "mean_p95_normalised_error": float(np.quantile(mean_error, 0.95)),
             "mean_maximum_normalised_error": float(mean_error.max()),
-            "variance_p95_normalised_error": float(
-                np.quantile(variance_error, 0.95)
-            ),
+            "variance_p95_normalised_error": float(np.quantile(variance_error, 0.95)),
             "variance_maximum_normalised_error": float(variance_error.max()),
         }
         metrics["passed"] = bool(
@@ -723,17 +1054,282 @@ def record_step2_pilot(pilot: dict[str, Any], duration_s: float) -> None:
             "conditions occupy fixed probe-rate-intensity array indices"
         ),
         "pilot_outcome_sha256": sha256_file(outcome_path),
-        "response_library_figure_sha256": sha256_file(
-            FIGURES / "response_library.png"
-        ),
+        "response_library_figure_sha256": sha256_file(FIGURES / "response_library.png"),
         "locked_protocol_sha256": sha256_file(
             FIGURES / "step2_pilot_extension_protocol.json"
         ),
         "regeneration_command": reproducer["command"],
     }
-    (FIGURES / "step2_manifest.json").write_text(
-        json.dumps(manifest, indent=2) + "\n"
+    (FIGURES / "step2_manifest.json").write_text(json.dumps(manifest, indent=2) + "\n")
+
+
+def plot_full_library(
+    summaries: dict[str, np.ndarray],
+    distributions: list[dict[str, Any]],
+    library: np.ndarray,
+    path: Path,
+) -> None:
+    """Render the complete registered Step 2 compound figure."""
+    original = json.loads((FIGURES / "step2_pilot_outcome.json").read_text())
+    extension = json.loads((FIGURES / "step2_pilot_extension_outcome.json").read_text())
+    trajectory = original["trajectory"] + extension["trajectory"]
+    mean = summaries["mean"]
+    standard_deviation = summaries["standard_deviation"]
+    zero_fraction = summaries["zero_fraction"]
+    fig = plt.figure(figsize=(6.5, 6.1), constrained_layout=True)
+    grid = fig.add_gridspec(3, 3, height_ratios=(1.0, 1.0, 1.15))
+    mean_images = []
+    std_images = []
+    extent = (-0.5, 255.5, -0.5, len(TRAINING_RATES_HZ) - 0.5)
+    for probe_index, probe in enumerate(PROBE_CONDUCTANCES_US):
+        ax_mean = fig.add_subplot(grid[0, probe_index])
+        image = ax_mean.imshow(
+            mean[probe_index],
+            aspect="auto",
+            origin="lower",
+            extent=extent,
+            cmap="viridis",
+            vmin=0.0,
+            vmax=float(mean.max()),
+        )
+        mean_images.append(image)
+        ax_mean.set_title(f"{'ABC'[probe_index]}  Mean, {probe:g} μS", fontsize=8)
+        ax_mean.set_xticks((0, 128, 255))
+        ax_mean.set_yticks((0, 5, 11), labels=("0.25", "2", "25"))
+        if probe_index == 0:
+            ax_mean.set_ylabel("Rate (Hz)")
+        else:
+            ax_mean.set_yticklabels([])
+        ax_std = fig.add_subplot(grid[1, probe_index])
+        std_image = ax_std.imshow(
+            standard_deviation[probe_index],
+            aspect="auto",
+            origin="lower",
+            extent=extent,
+            cmap="magma",
+            vmin=0.0,
+            vmax=float(standard_deviation.max()),
+        )
+        std_images.append(std_image)
+        ax_std.set_title(f"{'DEF'[probe_index]}  SD, {probe:g} μS", fontsize=8)
+        ax_std.set_xticks((0, 128, 255))
+        ax_std.set_yticks((0, 5, 11), labels=("0.25", "2", "25"))
+        ax_std.set_xlabel("Intensity")
+        if probe_index == 0:
+            ax_std.set_ylabel("Rate (Hz)")
+        else:
+            ax_std.set_yticklabels([])
+    fig.colorbar(mean_images[-1], ax=fig.axes[:3], label="Mean z (mV)", shrink=0.75)
+    fig.colorbar(std_images[-1], ax=fig.axes[3:6], label="SD z (mV)", shrink=0.75)
+
+    ax_dist = fig.add_subplot(grid[2, 0])
+    colors = (theme.INK_BLACK, theme.DEEP_RED, theme.ELECTRIC_CYAN)
+    for record, color in zip(distributions, colors):
+        probe_index = PROBE_CONDUCTANCES_US.index(record["probe_uS"])
+        rate_index = TRAINING_RATES_HZ.index(record["rate_hz"])
+        values = np.asarray(
+            library[:, probe_index, rate_index, record["intensity"], :]
+        ).reshape(-1)
+        ax_dist.hist(
+            values,
+            bins=35,
+            density=True,
+            histtype="step",
+            linewidth=1.3,
+            color=color,
+            label=f"{record['rate_hz']:g} Hz, x={record['intensity']}",
+        )
+    ax_dist.set(title="G  Empirical distributions", xlabel="z (mV)", ylabel="Density")
+    ax_dist.legend(frameon=False, fontsize=6)
+
+    ax_convergence = fig.add_subplot(grid[2, 1])
+    candidate = [row["K"] for row in trajectory]
+    ax_convergence.plot(
+        candidate,
+        [row["mean_p95_normalised_error"] for row in trajectory],
+        color=theme.INK_BLACK,
+        marker="o",
+        label="Mean p95",
     )
+    ax_convergence.plot(
+        candidate,
+        [row["variance_p95_normalised_error"] for row in trajectory],
+        color=theme.DEEP_RED,
+        marker="s",
+        linestyle="--",
+        label="Variance p95",
+    )
+    ax_convergence.axhline(1.0, color=theme.FAINT, linestyle=":")
+    ax_convergence.set_xscale("log", base=2)
+    ax_convergence.set_xticks(
+        candidate, labels=[str(value) for value in candidate], rotation=45
+    )
+    ax_convergence.set(
+        title="H  Locked convergence", xlabel="Draws K", ylabel="Normalized discrepancy"
+    )
+    ax_convergence.legend(frameon=False, fontsize=6)
+
+    ax_zero = fig.add_subplot(grid[2, 2])
+    zero_image = ax_zero.imshow(
+        zero_fraction[1],
+        aspect="auto",
+        origin="lower",
+        extent=extent,
+        cmap="cividis",
+        vmin=0.0,
+        vmax=1.0,
+    )
+    ax_zero.set(
+        title="I  Zero mass, 1.2 μS",
+        xlabel="Intensity",
+        ylabel="Rate (Hz)",
+        xticks=(0, 128, 255),
+        yticks=(0, 5, 11),
+        yticklabels=("0.25", "2", "25"),
+    )
+    fig.colorbar(zero_image, ax=ax_zero, label="Zero fraction", shrink=0.75)
+    for ax in fig.axes:
+        if hasattr(ax, "spines"):
+            ax.spines[["top", "right"]].set_visible(False)
+    fig.savefig(path, dpi=240, facecolor="white")
+    plt.close(fig)
+
+
+def record_full_library(
+    generation: dict[str, Any], validation: dict[str, Any]
+) -> dict[str, Any]:
+    """Publish authenticated summaries while retaining the raw memmap in scratch."""
+    library = _open_library("r")
+    summaries = validation["summaries"]
+    distributions = validation["distributions"]
+    summary_path = FIGURES / "response_library_summary.npz"
+    np.savez_compressed(summary_path, **summaries)
+    plot_full_library(
+        summaries, distributions, library, FIGURES / "response_library.png"
+    )
+    library_sha256 = sha256_file(LIBRARY_SCRATCH)
+    progress = json.loads(LIBRARY_PROGRESS.read_text())
+    payload_bytes = int(np.prod(LIBRARY_SHAPE) * np.dtype(np.float32).itemsize)
+    manifest = {
+        "status": "complete",
+        "selected_K": LIBRARY_K,
+        "convergence_rule_changed": False,
+        "library_generated": True,
+        "library_shape": list(LIBRARY_SHAPE),
+        "library_value_count": int(np.prod(LIBRARY_SHAPE)),
+        "library_payload_bytes": payload_bytes,
+        "library_file_bytes": LIBRARY_SCRATCH.stat().st_size,
+        "dtype": "float32",
+        "ordered_axes": list(LIBRARY_AXIS_ORDER),
+        "condition_arrays": {
+            "seeds": list(SEEDS),
+            "probe_conductances_uS": list(PROBE_CONDUCTANCES_US),
+            "rates_hz": list(TRAINING_RATES_HZ),
+            "intensities": INTENSITY_LEVELS.astype(int).tolist(),
+        },
+        "seed_recipe": (
+            "numpy.random.SeedSequence([registered_seed, 77, 2, 1, "
+            "intensity_chunk_index]); fixed probe-rate-intensity-draw indices"
+        ),
+        "chunking": {
+            "intensities_per_chunk": LIBRARY_CHUNK_INTENSITIES,
+            "chunks_per_seed": len(_library_chunks()),
+            "total_chunks": len(SEEDS) * len(_library_chunks()),
+        },
+        "library_storage": str(LIBRARY_SCRATCH.relative_to(REPO)),
+        "library_sha256": library_sha256,
+        "chunk_sha256": progress["chunk_checksums"],
+        "summary_storage": str(summary_path.relative_to(REPO)),
+        "summary_sha256": sha256_file(summary_path),
+        "pilot_outcome_sha256": sha256_file(
+            FIGURES / "step2_pilot_extension_outcome.json"
+        ),
+        "locked_protocol_sha256": sha256_file(
+            FIGURES / "step2_pilot_extension_protocol.json"
+        ),
+        "generation_command": (
+            "EXP077_THROUGH_STEP=2 EXP077_STEP2_FULL=1 "
+            "uv run python experiments/exp077.py"
+        ),
+        "validation_command": (
+            "EXP077_THROUGH_STEP=2 EXP077_STEP2_VALIDATE_ONLY=1 "
+            "uv run python experiments/exp077.py"
+        ),
+        "implementation_commit": subprocess.check_output(
+            ["git", "rev-parse", "HEAD"], cwd=REPO, text=True
+        ).strip(),
+    }
+    (FIGURES / "step2_manifest.json").write_text(json.dumps(manifest, indent=2) + "\n")
+    validation_records = validation["validations"]
+    numbers = json.loads((FIGURES / "numbers.json").read_text())
+    numbers.update(
+        {
+            "step": 2,
+            "status": "step2_library_complete",
+            "scope": (
+                "Empirical response library only; no decoder, held-out test, "
+                "threshold selection, or PING run"
+            ),
+        }
+    )
+    numbers["step2"].update(
+        {
+            "status": "library_complete",
+            "final_library_generated": True,
+            "selected_K": LIBRARY_K,
+            "library_shape": list(LIBRARY_SHAPE),
+            "dtype": "float32",
+            "payload_bytes": payload_bytes,
+            "file_bytes": LIBRARY_SCRATCH.stat().st_size,
+            "library_sha256": library_sha256,
+            "generation_duration_s": round(generation["duration_s"], 1),
+            "validation_count": len(validation_records),
+            "all_validations_passed": all(
+                row["ok"] for row in validation_records.values()
+            ),
+            "validations": validation_records,
+            "representative_distributions": distributions,
+            "later_steps_run": False,
+            "paid_compute_usd": 0.0,
+        }
+    )
+    (FIGURES / "numbers.json").write_text(json.dumps(numbers, indent=2) + "\n")
+    protocol = json.loads((FIGURES / "protocol.json").read_text())
+    protocol.update(
+        {
+            "attempted_through_step": 2,
+            "step2_status": "library_complete",
+            "step2_selected_K": LIBRARY_K,
+            "step2_final_library_generated": True,
+            "step2_shape": list(LIBRARY_SHAPE),
+            "step2_dtype": "float32",
+            "later_steps": "not run",
+        }
+    )
+    (FIGURES / "protocol.json").write_text(json.dumps(protocol, indent=2) + "\n")
+    reproducer = {
+        "command": manifest["generation_command"],
+        "validation_command": manifest["validation_command"],
+        "paid_compute": False,
+        "expected_library_sha256": library_sha256,
+        "expected_outputs": [
+            "temp/exp077/response_library.float32.npy",
+            "artifacts/data/exp077/response_library_summary.npz",
+            "artifacts/data/exp077/step2_manifest.json",
+            "artifacts/data/exp077/response_library.png",
+        ],
+    }
+    (FIGURES / "reproducer.json").write_text(json.dumps(reproducer, indent=2) + "\n")
+    provenance = _git_metadata()
+    provenance.update(
+        {
+            "library_sha256": library_sha256,
+            "generation_duration_s": round(generation["duration_s"], 1),
+            "paid_compute_usd": 0.0,
+        }
+    )
+    (FIGURES / "provenance.json").write_text(json.dumps(provenance, indent=2) + "\n")
+    return manifest
 
 
 def _git_metadata() -> dict[str, Any]:
@@ -818,20 +1414,42 @@ def step_1() -> None:
 
 
 def step_2() -> None:
-    started = time.perf_counter()
     ARTIFACTS.mkdir(parents=True, exist_ok=True)
     FIGURES.mkdir(parents=True, exist_ok=True)
-    pilot = run_step2_pilot()
-    record_step2_pilot(pilot, time.perf_counter() - started)
-    if not pilot["passed"]:
-        raise RuntimeError(
-            "Step 2 draw-count pilot did not pass by the locked maximum K; "
-            "the final library was not generated"
-        )
-    print(f"exp077 Step 2 pilot selected K={pilot['selected_K']}")
     if os.environ.get("EXP077_STEP2_PILOT_ONLY") == "1":
+        started = time.perf_counter()
+        pilot = run_step2_pilot()
+        record_step2_pilot(pilot, time.perf_counter() - started)
+        if not pilot["passed"]:
+            raise RuntimeError(
+                "Step 2 draw-count pilot did not pass by the locked maximum K; "
+                "the final library was not generated"
+            )
+        print(f"exp077 Step 2 pilot selected K={pilot['selected_K']}")
         return
-    raise RuntimeError("Step 2 final-library generation is not yet enabled")
+    selected = json.loads((FIGURES / "step2_pilot_extension_outcome.json").read_text())[
+        "selected_K"
+    ]
+    if selected != LIBRARY_K:
+        raise RuntimeError(f"registered selected K is {selected}, expected {LIBRARY_K}")
+    validate_only = os.environ.get("EXP077_STEP2_VALIDATE_ONLY") == "1"
+    if not validate_only and os.environ.get("EXP077_STEP2_FULL") != "1":
+        raise RuntimeError(
+            "Step 2 full-library generation requires EXP077_STEP2_FULL=1"
+        )
+    if validate_only:
+        if not LIBRARY_SCRATCH.exists():
+            raise RuntimeError("response-library scratch array does not exist")
+        generation = {"duration_s": 0.0, "completed_chunks": None}
+    else:
+        generation = generate_full_library()
+    library = _open_library("r")
+    validation = validate_full_library(library)
+    manifest = record_full_library(generation, validation)
+    print(
+        f"exp077 Step 2 complete: {manifest['library_shape']} {manifest['dtype']} "
+        f"sha256={manifest['library_sha256']}"
+    )
 
 
 def step_3() -> None:
