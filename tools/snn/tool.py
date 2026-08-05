@@ -283,6 +283,12 @@ def _build_parent_parser():
         "readout; train additionally requires an authenticated training.json.",
     )
     net_group.add_argument(
+        "--executor",
+        choices=("legacy", "graph"),
+        default="legacy",
+        help="Execution backend (default: legacy). Graph execution is opt-in.",
+    )
+    net_group.add_argument(
         "--model",
         type=str,
         default="ping",

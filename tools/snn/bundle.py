@@ -37,6 +37,33 @@ class TrainingSettings:
     epochs: int
 
 
+@dataclass(frozen=True)
+class BackendCapability:
+    """Versioned capability requirement attached to one graph element."""
+
+    schema: str
+    element: str
+    feature: str
+
+
+def required_capabilities_v1(graph: dict[str, Any]) -> tuple[BackendCapability, ...]:
+    """Describe bundle requirements without importing the authoring package."""
+    rows: list[BackendCapability] = []
+    for pop in graph.get("populations", []):
+        rows.append(BackendCapability("tools/snn.capability/v1", pop["id"], f"neuron:{pop['neuron']['kind']}"))
+    for projection in graph.get("projections", []):
+        rows.extend((
+            BackendCapability("tools/snn.capability/v1", projection["id"], f"synapse:{projection['synapse']['kind']}"),
+            BackendCapability("tools/snn.capability/v1", projection["id"], f"connection:{projection['connection']}"),
+            BackendCapability("tools/snn.capability/v1", projection["id"], "delay:integer_steps"),
+        ))
+    for operation in graph.get("operations", []):
+        rows.append(BackendCapability("tools/snn.capability/v1", operation["id"], f"operation:{operation['kind']}"))
+    for observable in graph.get("observables", []):
+        rows.append(BackendCapability("tools/snn.capability/v1", observable["id"], f"recording:{observable['signal'].partition('.')[2]}"))
+    return tuple(rows)
+
+
 def _canonical_json(data: Any) -> bytes:
     return (
         json.dumps(data, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
