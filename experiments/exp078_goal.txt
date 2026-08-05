@@ -102,7 +102,21 @@ Implementation constraints:
 - Do not use paid compute without explicit authorization.
 
 Artifacts and writing:
-- Produce artifacts/data/exp078 containing numbers.json; provenance and exact reproducer; exact goal prompt; timestamped activity log; calibration candidates and deterministic selection record; complete registered sweep table; graph bundles, manifests, digests, and canonical diagrams; input spike realizations; named E/I/voltage/conductance recordings; firing-rate and spectral diagnostics; PLV, phase, coherence, and cross-correlation measurements; matched rasters and population-rate figures; strength x delay heatmaps; runtime and memory measurements.
+- Produce artifacts/data/exp078 containing:
+  - numbers.json;
+  - provenance and exact reproducer;
+  - exact goal prompt;
+  - timestamped activity log;
+  - calibration candidates and deterministic selection record;
+  - complete registered sweep table;
+  - graph bundles, manifests, digests, and canonical diagrams;
+  - input spike realizations;
+  - named E/I/voltage/conductance recordings;
+  - firing-rate and spectral diagnostics;
+  - PLV, phase, coherence, and cross-correlation measurements;
+  - matched rasters and population-rate figures;
+  - strength × delay heatmaps;
+  - runtime and memory measurements.
 - Write writings/exp078.typ as a cold-readable report.
 - Put the full goal prompt immediately below the abstract.
 - Include the registered design, calibration outcome, exclusions, failures, limitations, and timestamped activity-log appendix.
@@ -118,4 +132,12 @@ Git and review:
 - Add timestamped PR comments at meaningful calibration, execution, failure, and validation milestones.
 - Do not merge.
 
-Finish at the human-review gate with the scientific verdict, exact diagnostics, validation, limitations, exact compute spend, and links to the rendered evidence, artifacts, commits, and draft PR.
+Finish at the human-review gate with:
+- whether coupling-induced synchronization was demonstrated;
+- the exact calibrated frequencies and activity diagnostics;
+- the winning or negative strength/delay results;
+- frequency difference, PLV, coherence, phase lag, firing rates, and suppression evidence;
+- validation performed;
+- known limitations and remaining work;
+- exact compute spend;
+- links to rendered exp078/ar063, artifacts, commits, and the draft PR.

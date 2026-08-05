@@ -223,7 +223,9 @@ def circular_metrics(rate_a: np.ndarray, rate_b: np.ndarray) -> dict[str, float]
         "half_1_plv": float(abs(np.mean(halves[0]))),
         "half_2_plv": float(abs(np.mean(halves[1]))),
         "half_phase_offset_difference_rad": offset_delta,
-        "gamma_coherence": float(np.max(coh[coh_mask])) if np.any(coh_mask) else 0.0,
+        # Frozen after uncoupled calibration: a maximum-over-band statistic
+        # saturated at 0.992 and could not support the declared gain threshold.
+        "gamma_coherence": float(np.mean(coh[coh_mask])) if np.any(coh_mask) else 0.0,
         "cross_correlation_peak": float(corr[window][peak]),
         "cross_correlation_lag_ms": float(lags[window][peak] * DT_MS),
     }
@@ -351,7 +353,8 @@ def registration() -> dict:
         "delay_labels": list(DELAY_LABELS),
         "activity_thresholds": ACTIVITY,
         "locking_thresholds": LOCKING,
-        "locked_definition": "active plus <=50% baseline frequency difference, PLV gain >=0.15, coherence gain >=0.10, both half-window PLV >=0.55, and half-window phase-offset drift <=0.60 rad",
+        "coherence_definition": "Arithmetic mean of magnitude-squared coherence bins from 30 through 80 Hz; frozen after uncoupled calibration and before any coupling sweep because a maximum-over-band statistic saturated at 0.992.",
+        "locked_definition": "active plus <=50% baseline frequency difference, PLV gain >=0.15, mean-band coherence gain >=0.10, both half-window PLV >=0.55, and half-window phase-offset drift <=0.60 rad",
         "contiguity_definition": "A locked condition has at least one active locked orthogonal neighbour in the registered strength x delay grid; baseline is excluded.",
         "suppression_definition": "Either circuit violates the registered minimum E/I rates or active-cell fraction; suppression is never locking.",
     }
@@ -465,6 +468,15 @@ def calibrate() -> None:
         (staging / "goal.txt").write_text(GOAL_PROMPT)
         (staging / "reproduce.sh").write_text(
             "#!/bin/sh\nuv run python experiments/exp078.py --stage calibrate\n"
+        )
+        activity = [
+            {
+                "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+                "event": "Completed the bounded uncoupled calibration locally; selection used only registered input settings and no cross-coupling.",
+            }
+        ]
+        (staging / "activity_log.json").write_text(
+            json.dumps(activity, indent=2) + "\n"
         )
         payload = {
             "stage": "calibration",
