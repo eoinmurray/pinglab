@@ -1,8 +1,8 @@
-"""Experiment 077, Step 1: filter-matched pixel-feature generation.
+"""Experiment 077 through Step 2: empirical pixel-response calibration.
 
 The complete staged contract lives in ``writings/exp077.typ``.  Only Step 1 is
-implemented here: a local, non-spiking AMPA + excitatory-membrane probe and its
-focused scientific validation.  Later steps remain explicit hard stops.
+implemented here: the validated local probe and its empirical response library.
+Later steps remain explicit hard stops.
 """
 
 from __future__ import annotations
@@ -40,6 +40,27 @@ N_TIMESTEPS = int(round(PRESENTATION_MS / DT_MS))
 TRAINING_RATES_HZ = (0.25, 0.5, 0.75, 1.0, 1.5, 2.0, 2.5, 3.0, 4.0, 5.0, 10.0, 25.0)
 PROBE_US = 1.2
 SEED = 42
+SEEDS = (42, 43, 44)
+PROBE_CONDUCTANCES_US = (0.6, 1.2, 2.4)
+INTENSITY_LEVELS = np.arange(256, dtype=np.uint16)
+
+# Locked before inspecting the Step 2 pilot.  Each candidate compares two
+# independent, equally sized blocks.  The deterministic subset spans zero,
+# low, middle, and full intensity; every probe; every registered seed; and five
+# rates spanning the registered grid.  A candidate passes only when both the
+# 95th-percentile and worst normalized discrepancies pass for mean and unbiased
+# sample variance.  Absolute floors prevent near-zero conditions from making a
+# relative metric ill-conditioned.
+PILOT_CANDIDATE_K = (64, 128, 256, 512)
+PILOT_MAX_K = max(PILOT_CANDIDATE_K)
+PILOT_INTENSITIES = (0, 16, 64, 128, 192, 255)
+PILOT_RATES_HZ = (0.25, 1.0, 3.0, 10.0, 25.0)
+PILOT_MEAN_ABS_TOL_MV = 0.15
+PILOT_MEAN_REL_TOL = 0.10
+PILOT_VARIANCE_ABS_TOL_MV2 = 0.25
+PILOT_VARIANCE_REL_TOL = 0.25
+PILOT_P95_LIMIT = 1.0
+PILOT_WORST_LIMIT = 2.0
 COUNT_VALIDATION_DRAWS = 6_000
 COUNT_VALIDATION_RATE_HZ = 25.0
 COUNT_VALIDATION_INTENSITY = 0.8
@@ -88,7 +109,9 @@ def encode_poisson(
     return rng.random((N_TIMESTEPS, *values.shape)) < probability
 
 
-def probe_spikes(spikes: np.ndarray) -> dict[str, np.ndarray | float]:
+def probe_spikes(
+    spikes: np.ndarray, probe_uS: float = PROBE_US
+) -> dict[str, np.ndarray | float]:
     """Apply the registered decay-then-add AMPA and non-spiking membrane probe."""
     spike_array = np.asarray(spikes, dtype=np.float64)
     if spike_array.shape[0] != N_TIMESTEPS:
@@ -101,7 +124,7 @@ def probe_spikes(spikes: np.ndarray) -> dict[str, np.ndarray | float]:
     ampa_decay = math.exp(-DT_MS / PARAMETERS["tau_ampa_ms"])
 
     for timestep, incoming in enumerate(spike_array):
-        g = g * ampa_decay + PARAMETERS["probe_uS"] * incoming
+        g = g * ampa_decay + probe_uS * incoming
         g_total = PARAMETERS["g_L_uS"] + g
         v_inf = (
             PARAMETERS["g_L_uS"] * PARAMETERS["E_L_mV"] + g * PARAMETERS["E_e_mV"]

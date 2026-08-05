@@ -1,0 +1,23 @@
+{
+  "status": "locked_before_pilot",
+  "locked_at_utc": "2026-08-05T16:08:02Z",
+  "purpose": "Select the smallest empirical draw count K with stable conditional mean and unbiased sample variance estimates before generating the final Step 2 library.",
+  "candidate_K": [64, 128, 256, 512],
+  "hard_maximum_K": 512,
+  "comparison": "For each candidate K, compare the first K draws with the next K independent draws for every deterministic evaluation condition.",
+  "evaluation_subset": {
+    "intensity_levels": [0, 16, 64, 128, 192, 255],
+    "rates_hz": [0.25, 1.0, 3.0, 10.0, 25.0],
+    "probe_conductances_uS": [0.6, 1.2, 2.4],
+    "seeds": [42, 43, 44],
+    "condition_count": 270
+  },
+  "normalized_discrepancies": {
+    "mean": "abs(mean_A - mean_B) / max(0.15 mV, 0.10 * max(abs(mean_A), abs(mean_B)))",
+    "unbiased_sample_variance": "abs(var_A - var_B) / max(0.25 mV^2, 0.25 * max(var_A, var_B))"
+  },
+  "pass_rule": "Both mean and variance normalized discrepancies must have 95th percentile <= 1.0 and maximum <= 2.0 across the nonzero-intensity evaluation conditions. Zero-intensity conditions are checked exactly but excluded from normalized convergence summaries.",
+  "selection_rule": "Select the smallest passing candidate K. If none passes through K=512, record failure and stop without generating the final library or weakening the rule.",
+  "randomness": "Deterministic independent streams derived from the registered seed, condition indices, and block index using numpy.random.SeedSequence.",
+  "registered_equations": "writings/exp077.typ, Equations 2-9"
+}
