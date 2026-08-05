@@ -31,15 +31,27 @@ def ping(
     n_i: int,
     source: Signal | None = None,
     tau_gaba=9 * ms,
+    include_silent_recurrence: bool = False,
 ) -> PING:
     with net.group(name):
         e = net.population(f"{name}_E", size=n_e, neuron=COBA_LIF(tau_mem=20 * ms))
-        i = net.population(f"{name}_I", size=n_i, neuron=COBA_LIF(tau_mem=10 * ms))
+        i = net.population(f"{name}_I", size=n_i, neuron=COBA_LIF(tau_mem=5 * ms))
+        if include_silent_recurrence:
+            net.connect(
+                e.spikes,
+                e.excitatory,
+                name=f"{name}_E_to_E",
+                synapse=AMPA(tau=2 * ms),
+                weight=Normal(0.0, 0.0),
+                constraint=NonNegative(),
+                connection="recurrent",
+                delay=0.1 * ms,
+            )
         net.connect(
             e.spikes,
             i.excitatory,
             name=f"{name}_E_to_I",
-            synapse=AMPA(tau=5 * ms),
+            synapse=AMPA(tau=2 * ms),
             weight=Normal(0.5, 0.05),
             constraint=NonNegative(),
             connection="recurrent",
@@ -55,12 +67,23 @@ def ping(
             connection="recurrent",
             delay=0.1 * ms,
         )
+        if include_silent_recurrence:
+            net.connect(
+                i.spikes,
+                i.inhibitory,
+                name=f"{name}_I_to_I",
+                synapse=GABA(tau=tau_gaba),
+                weight=Normal(0.0, 0.0),
+                constraint=NonNegative(),
+                connection="recurrent",
+                delay=0.1 * ms,
+            )
         if source is not None:
             net.connect(
                 source,
                 e.excitatory,
                 name=f"{name}_input",
-                synapse=AMPA(tau=5 * ms),
+                synapse=AMPA(tau=2 * ms),
                 weight=Normal(0.2, 0.03),
                 constraint=NonNegative(),
             )
