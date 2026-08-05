@@ -4,24 +4,24 @@ from __future__ import annotations
 
 from pathlib import Path
 
-import torch
 import config
 import models as M
-
+import torch
 from execution import (
-    ExecutionSpec,
     DelayBuffer,
+    ExecutionSpec,
     build,
-    graph_capability_issues,
-    execution_spec_from_args,
     execute_request,
+    execution_spec_from_args,
+    graph_capability_issues,
     plan_graph,
     simulate,
     train,
 )
+from tool import parse_args
+
 from tools import snnlang as snn
 from tools.snnlang.examples.build_examples import ping_classifier
-from tool import parse_args
 
 
 def _coupled_graph(*, direction="reciprocal", delay_ms=0.1):
