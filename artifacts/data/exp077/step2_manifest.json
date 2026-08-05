@@ -430,7 +430,7 @@
     "duration_s": 4789.4,
     "method": "filesystem birth time to final raw-library modification time"
   },
-  "response_library_figure_sha256": "8d64612b01245442b5fd95e339153ca8e86a1cb7c381dced8479bcdeb8e4b3e8",
+  "response_library_figure_sha256": "5b021e18977f1f9342477fbd794bb17f450264680bf61dd0d169fe71995a1143",
   "bootstrap_stability_protocol_sha256": "54a33a6d8e265d8d59c2ce10379e8cdb6ce1790412b21ebbff7e4f5432ad1dce",
   "bootstrap_stability_outcome_sha256": "20672312e9a3b3841850ab48c41046fd1403604bb2832e3441e779324d258a2c"
 }

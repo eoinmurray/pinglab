@@ -20,6 +20,9 @@
 #let p-extension-first = r.step2.extension_pilot.trajectory.first()
 #let mono = r.step2.validations.monotonic_means
 #let low-dist = r.step2.representative_distributions.first()
+#let boot = r.step2.bootstrap_stability
+#let boot-1024 = boot.trajectory.at(4)
+#let boot-2048 = boot.trajectory.last()
 #let rounded(x, digits: 3) = str(calc.round(x, digits: digits))
 #let training-rate-text = training-rates-hz.map(str).join(", ")
 #let probe-text = probe-us.map(str).join(", ")
@@ -427,9 +430,11 @@
   marker, and line style identifying probe conductance. Panel C compares the
   empirical probability of an exactly zero feature with the analytical no-spike
   probability. Panel D shows empirical cumulative distributions at low,
-  transitional, and high drive for the nominal probe. Panel E preserves the
-  complete K = 64--#p.selected_K convergence trajectory. Panel F expresses every
-  adjacent-intensity mean change in units of its Monte Carlo standard error; the
+  transitional, and high drive for the nominal probe. Panel E reports the
+  fraction of #boot.repetitions paired bootstrap repetitions passing all four
+  unchanged stability limits at each K; its dashed line is the locked
+  #rounded(boot.decision_threshold) decision threshold. Panel F expresses every
+  adjacent-intensity mean change in units of its Monte Carlo standard error; its
   dashed line is the locked rejection boundary. The response changes smoothly
   with drive and retains its low-rate zero mass, but
   #mono.intensity_violations isolated comparisons crossed that boundary, so
@@ -442,6 +447,16 @@
   passed for all registered seeds. These checks establish an authenticated
   empirical library and its failure mode only. They do not establish MNIST
   decodability, a training-rate floor, or PING accuracy.
+
+  #block(breakable: false)[
+    The post-hoc repeated-resampling diagnostic found that K =
+    #boot-1024.K passed #boot-1024.pass_count of #boot.repetitions repetitions,
+    whereas K = #boot-2048.K passed #boot-2048.pass_count, a frequency of
+    #rounded(boot-2048.pass_frequency). This exceeded the locked escalation
+    threshold, so no independent K = 4,096 comparison was run. The diagnostic
+    supports describing K = #boot-2048.K as typically stable under the registered
+    tolerances, not as an asymptotic plateau.
+  ]
 
   === Step 3: linear-filter prediction
 
