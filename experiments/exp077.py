@@ -1,8 +1,9 @@
-"""Experiment 077 through Step 2: empirical pixel-response calibration.
+"""Experiment 077 through Step 4: empirical pixel-response calibration.
 
 The complete staged contract lives in ``writings/exp077.typ``.  Only Step 1 is
 implemented here: the validated local probe and its empirical response library.
-Later steps remain explicit hard stops.
+Steps 3--4 are an explicitly authorized exploratory continuation after the
+preserved Step 2 validation failure.  Decoder and PING stages remain hard stops.
 """
 
 from __future__ import annotations
@@ -63,6 +64,16 @@ MONOTONIC_Z = 3.0
 BOOTSTRAP_CANDIDATE_K = (64, 128, 256, 512, 1024, 2048)
 BOOTSTRAP_REPETITIONS = 200
 BOOTSTRAP_PASS_FREQUENCY = 0.95
+LIBRARY_SHA256 = "5184788979b5fa7fa9a3f38936399b8e2724d63914019f1306a7171981b36783"
+AMENDMENT_PATH = FIGURES / "step3_step4_exploratory_amendment.json"
+FREQUENCY_BOUNDS_HZ = (1e-4, 1e6)
+FREQUENCY_GRID_POINTS = (8193, 16385, 32769)
+FREQUENCY_WIDE_BOUNDS_HZ = (1e-5, 1e7)
+QUADRATURE_REL_TOL = 0.002
+GAIN_OPERATING_RATES_HZ = (0.25, 3.0, 25.0)
+GAIN_FREQUENCIES_HZ = (1.0, 10.0, 100.0)
+GAIN_MODULATION_FRACTION = 0.01
+GAIN_REL_TOL = 0.03
 
 # Locked before inspecting the Step 2 pilot.  Each candidate compares two
 # independent, equally sized blocks.  The deterministic subset spans zero,
@@ -1832,8 +1843,370 @@ def step_2() -> None:
     )
 
 
+def verify_authenticated_library() -> np.memmap:
+    """Open the locked Step 2 library only after authenticating its bytes."""
+    if not LIBRARY_SCRATCH.exists():
+        raise RuntimeError(f"authenticated library is absent: {LIBRARY_SCRATCH}")
+    observed = sha256_file(LIBRARY_SCRATCH)
+    if observed != LIBRARY_SHA256:
+        raise RuntimeError(f"library SHA-256 mismatch: {observed}")
+    library = np.load(LIBRARY_SCRATCH, mmap_mode="r")
+    if library.shape != LIBRARY_SHAPE or library.dtype != np.float32:
+        raise RuntimeError(
+            f"library contract mismatch: shape={library.shape}, dtype={library.dtype}"
+        )
+    return library
+
+
+def linear_operating_point(
+    lambda_hz: np.ndarray | float, probe_uS: np.ndarray | float
+) -> tuple[np.ndarray, np.ndarray]:
+    """Equations 11--12 in the registered uS, nF, mV, ms units."""
+    lam = np.asarray(lambda_hz, dtype=np.float64)
+    probe = np.asarray(probe_uS, dtype=np.float64)
+    mean_g = (lam / 1000.0) * probe * PARAMETERS["tau_ampa_ms"]
+    mean_v = (
+        PARAMETERS["g_L_uS"] * PARAMETERS["E_L_mV"]
+        + mean_g * PARAMETERS["E_e_mV"]
+    ) / (PARAMETERS["g_L_uS"] + mean_g)
+    return mean_g, mean_v
+
+
+def complete_transfer(
+    frequency_hz: np.ndarray,
+    lambda_hz: np.ndarray | float,
+    probe_uS: np.ndarray | float,
+) -> np.ndarray:
+    """Equations 13--15, with angular frequency expressed in rad/ms."""
+    frequency = np.asarray(frequency_hz, dtype=np.float64)
+    omega = 2.0 * np.pi * frequency / 1000.0
+    mean_g, mean_v = linear_operating_point(lambda_hz, probe_uS)
+    synapse = np.asarray(probe_uS) / (
+        1j * omega + 1.0 / PARAMETERS["tau_ampa_ms"]
+    )
+    membrane = (PARAMETERS["E_e_mV"] - mean_v) / (
+        1j * omega * PARAMETERS["C_m_nF"]
+        + PARAMETERS["g_L_uS"]
+        + mean_g
+    )
+    argument = omega * PRESENTATION_MS / 2.0
+    averaging = np.exp(-1j * argument) * np.sinc(argument / np.pi)
+    return averaging * synapse * membrane
+
+
+def predicted_linear_variance(
+    lambda_hz: np.ndarray,
+    probe_uS: np.ndarray,
+    *,
+    bounds_hz: tuple[float, float] = FREQUENCY_BOUNDS_HZ,
+    grid_points: int = FREQUENCY_GRID_POINTS[-1],
+) -> np.ndarray:
+    """Numerically integrate Equation 18 for aligned operating points."""
+    lam = np.asarray(lambda_hz, dtype=np.float64).reshape(-1)
+    probe = np.asarray(probe_uS, dtype=np.float64).reshape(-1)
+    if lam.shape != probe.shape:
+        raise ValueError("lambda_hz and probe_uS must have matching shapes")
+    result = np.zeros_like(lam)
+    positive = lam > 0.0
+    frequencies = np.geomspace(bounds_hz[0], bounds_hz[1], grid_points)
+    # Equation 18 is even.  Converting d(angular frequency in rad/ms) to
+    # frequency in Hz contributes 2*pi/1000, leaving the factor 2/1000 below.
+    for start in range(0, int(np.count_nonzero(positive)), 128):
+        indices = np.flatnonzero(positive)[start : start + 128]
+        transfer = complete_transfer(
+            frequencies[None, :], lam[indices, None], probe[indices, None]
+        )
+        integrand = np.abs(transfer) ** 2 * (lam[indices, None] / 1000.0)
+        integral = np.trapezoid(integrand, frequencies, axis=1)
+        zero_transfer = np.abs(
+            complete_transfer(
+                np.asarray([[0.0]]), lam[indices, None], probe[indices, None]
+            )[:, 0]
+        ) ** 2
+        low_tail = zero_transfer * (lam[indices] / 1000.0) * bounds_hz[0]
+        result[indices] = (2.0 / 1000.0) * (integral + low_tail)
+    return result
+
+
+def numerical_sinusoidal_gain(
+    rate_hz: float, probe_uS: float, frequency_hz: float
+) -> float:
+    """Measure the local deterministic gain of the registered numerical probe."""
+    burn_steps = int(round(2000.0 / DT_MS))
+    duration_ms = max(2000.0, 20.0 * 1000.0 / frequency_hz)
+    measure_steps = int(round(duration_ms / DT_MS))
+    total_steps = burn_steps + measure_steps
+    time_ms = np.arange(total_steps, dtype=np.float64) * DT_MS
+    phase = 2.0 * np.pi * frequency_hz * time_ms / 1000.0
+    rate_per_ms = (rate_hz / 1000.0) * (
+        1.0 + GAIN_MODULATION_FRACTION * np.sin(phase)
+    )
+    g = rate_hz / 1000.0 * probe_uS * PARAMETERS["tau_ampa_ms"]
+    _, v = linear_operating_point(rate_hz, probe_uS)
+    v_value = float(v)
+    decay = math.exp(-DT_MS / PARAMETERS["tau_ampa_ms"])
+    measured = np.empty(measure_steps, dtype=np.float64)
+    for index in range(total_steps):
+        # Exact constant-input update over dt for dg/dt=-g/tau+w*lambda(t).
+        g = g * decay + probe_uS * rate_per_ms[index] * PARAMETERS[
+            "tau_ampa_ms"
+        ] * (1.0 - decay)
+        total_g = PARAMETERS["g_L_uS"] + g
+        v_inf = (
+            PARAMETERS["g_L_uS"] * PARAMETERS["E_L_mV"]
+            + g * PARAMETERS["E_e_mV"]
+        ) / total_g
+        v_value = v_inf + (v_value - v_inf) * math.exp(
+            -DT_MS * total_g / PARAMETERS["C_m_nF"]
+        )
+        if index >= burn_steps:
+            measured[index - burn_steps] = v_value
+    fit_phase = phase[burn_steps:]
+    design = np.column_stack(
+        [np.ones(measure_steps), np.sin(fit_phase), np.cos(fit_phase)]
+    )
+    coefficients = np.linalg.lstsq(design, measured, rcond=None)[0]
+    output_amplitude = float(np.hypot(coefficients[1], coefficients[2]))
+    input_amplitude_hz = rate_hz * GAIN_MODULATION_FRACTION
+    return output_amplitude / input_amplitude_hz
+
+
+def _drive_regime(expected_spikes: float) -> str:
+    if expected_spikes < 0.1:
+        return "low"
+    if expected_spikes < 1.0:
+        return "transitional"
+    return "high"
+
+
+def calculate_step3(library: np.ndarray) -> dict[str, Any]:
+    """Calculate the complete registered Step 3 diagnostic."""
+    probes, rates, levels = np.meshgrid(
+        np.asarray(PROBE_CONDUCTANCES_US),
+        np.asarray(TRAINING_RATES_HZ),
+        np.arange(256),
+        indexing="ij",
+    )
+    intensities = levels / 255.0
+    lambdas = rates * intensities
+    flat_lambda = lambdas.reshape(-1)
+    flat_probe = probes.reshape(-1)
+    predictions: dict[int, np.ndarray] = {}
+    for points in FREQUENCY_GRID_POINTS:
+        predictions[points] = predicted_linear_variance(
+            flat_lambda, flat_probe, grid_points=points
+        ).reshape(lambdas.shape)
+    primary = predictions[FREQUENCY_GRID_POINTS[-1]]
+    previous = predictions[FREQUENCY_GRID_POINTS[-2]]
+    denominator = np.maximum(np.abs(primary), np.finfo(float).tiny)
+    refinement_relative = np.where(primary > 0, np.abs(primary - previous) / denominator, 0)
+    wide = predicted_linear_variance(
+        flat_lambda,
+        flat_probe,
+        bounds_hz=FREQUENCY_WIDE_BOUNDS_HZ,
+        grid_points=FREQUENCY_GRID_POINTS[-1],
+    ).reshape(lambdas.shape)
+    bound_relative = np.where(primary > 0, np.abs(primary - wide) / denominator, 0)
+    empirical_by_seed = np.var(np.asarray(library, dtype=np.float64), axis=-1, ddof=1)
+    empirical = np.mean(empirical_by_seed, axis=0)
+    ratio = np.divide(primary, empirical, out=np.full_like(primary, np.nan), where=empirical > 0)
+
+    gain_checks: list[dict[str, Any]] = []
+    for probe in PROBE_CONDUCTANCES_US:
+        for label, rate in zip(("low", "middle", "high"), GAIN_OPERATING_RATES_HZ):
+            for frequency in GAIN_FREQUENCIES_HZ:
+                analytical = float(
+                    np.abs(
+                        complete_transfer(
+                            np.asarray([frequency]), rate, probe
+                        )[0]
+                    )
+                )
+                # The sinusoidal check is on membrane gain before finite-window
+                # averaging, so divide H by the averaging response.
+                argument = np.pi * frequency * PRESENTATION_MS / 1000.0
+                averaging = abs(float(np.sinc(argument / np.pi)))
+                analytical_unaveraged = analytical / averaging if averaging > 1e-12 else float(
+                    np.abs(
+                        complete_transfer(np.asarray([frequency]), rate, probe)[0]
+                    )
+                )
+                if averaging <= 1e-12:
+                    mean_g, mean_v = linear_operating_point(rate, probe)
+                    omega = 2.0 * np.pi * frequency / 1000.0
+                    analytical_unaveraged = float(
+                        abs(
+                            probe / (1j * omega + 1 / PARAMETERS["tau_ampa_ms"])
+                            * (PARAMETERS["E_e_mV"] - mean_v)
+                            / (
+                                1j * omega * PARAMETERS["C_m_nF"]
+                                + PARAMETERS["g_L_uS"]
+                                + mean_g
+                            )
+                        )
+                    )
+                # Analytical input is spikes/ms; express gain per spikes/s.
+                analytical_per_hz = analytical_unaveraged / 1000.0
+                numerical = numerical_sinusoidal_gain(rate, probe, frequency)
+                relative_error = abs(numerical - analytical_per_hz) / analytical_per_hz
+                gain_checks.append(
+                    {
+                        "drive": label,
+                        "rate_hz": rate,
+                        "probe_uS": probe,
+                        "frequency_hz": frequency,
+                        "analytical_gain_mV_per_hz": analytical_per_hz,
+                        "numerical_gain_mV_per_hz": numerical,
+                        "relative_error": relative_error,
+                        "passed": relative_error <= GAIN_REL_TOL,
+                    }
+                )
+
+    summaries: list[dict[str, Any]] = []
+    expected = lambdas * PRESENTATION_MS / 1000.0
+    for probe_index, probe in enumerate(PROBE_CONDUCTANCES_US):
+        for regime in ("low", "transitional", "high"):
+            mask = np.vectorize(_drive_regime)(expected[probe_index]) == regime
+            values = ratio[probe_index][mask]
+            values = values[np.isfinite(values) & (values > 0)]
+            summaries.append(
+                {
+                    "probe_uS": probe,
+                    "drive_regime": regime,
+                    "condition_count": int(values.size),
+                    "median_predicted_empirical_ratio": float(np.median(values)),
+                    "median_absolute_log2_ratio": float(np.median(np.abs(np.log2(values)))),
+                    "fraction_in_agreement_band": float(np.mean((values >= 0.5) & (values <= 2.0))),
+                }
+            )
+    return {
+        "stationary_mean_conductance_uS": linear_operating_point(lambdas, probes)[0],
+        "stationary_mean_voltage_mV": linear_operating_point(lambdas, probes)[1],
+        "predicted_variance_mV2": primary,
+        "empirical_variance_by_seed_mV2": empirical_by_seed,
+        "empirical_variance_mV2": empirical,
+        "ratio": ratio,
+        "residual_mV2": primary - empirical,
+        "expected_spikes": expected,
+        "quadrature": {
+            "maximum_refinement_relative_change": float(np.max(refinement_relative)),
+            "maximum_bound_relative_change": float(np.max(bound_relative)),
+            "refinement_passed": bool(np.max(refinement_relative) <= QUADRATURE_REL_TOL),
+            "bound_sensitivity_passed": bool(np.max(bound_relative) <= QUADRATURE_REL_TOL),
+        },
+        "gain_checks": gain_checks,
+        "gain_checks_passed": all(row["passed"] for row in gain_checks),
+        "agreement_summaries": summaries,
+    }
+
+
+def plot_step3(record: dict[str, Any], path: Path) -> None:
+    """Render the cold-readable Step 3 compound figure."""
+    theme.apply()
+    fig, axes = plt.subplots(1, 3, figsize=(12.0, 3.7))
+    colors = (theme.INK_BLACK, theme.DEEP_RED, theme.ELECTRIC_CYAN)
+    markers = ("o", "s", "^")
+    linestyles = ("-", "--", ":")
+    frequency = np.geomspace(0.05, 2000.0, 600)
+    for probe_index, probe in enumerate(PROBE_CONDUCTANCES_US):
+        for drive_index, rate in enumerate(GAIN_OPERATING_RATES_HZ):
+            magnitude = np.abs(complete_transfer(frequency, rate, probe))
+            magnitude /= magnitude[0]
+            axes[0].semilogx(
+                frequency,
+                20 * np.log10(np.maximum(magnitude, 1e-12)),
+                color=colors[probe_index],
+                linestyle=linestyles[drive_index],
+                linewidth=1.4,
+                label=f"{probe:g} µS" if drive_index == 0 else None,
+            )
+    axes[0].set(title="A  Complete filter response", xlabel="Frequency (Hz)", ylabel="Magnitude (dB, normalized)")
+    axes[0].axhline(-3, color="0.6", linewidth=0.8)
+    for drive_index, rate in enumerate(GAIN_OPERATING_RATES_HZ):
+        axes[0].plot([], [], color="0.35", linestyle=linestyles[drive_index], label=f"{rate:g} Hz drive")
+    axes[0].legend(frameon=False, fontsize=6.5, ncol=2)
+
+    predicted = np.asarray(record["predicted_variance_mV2"])
+    empirical = np.asarray(record["empirical_variance_mV2"])
+    expected = np.asarray(record["expected_spikes"])
+    for index, probe in enumerate(PROBE_CONDUCTANCES_US):
+        mask = (empirical[index] > 0) & (predicted[index] > 0)
+        axes[1].scatter(
+            empirical[index][mask], predicted[index][mask], s=5, alpha=0.22,
+            color=colors[index], marker=markers[index], label=f"{probe:g} µS",
+            rasterized=True,
+        )
+        ratio = record["ratio"][index][mask]
+        axes[2].scatter(
+            expected[index][mask], ratio, s=5, alpha=0.2,
+            color=colors[index], marker=markers[index], label=f"{probe:g} µS",
+            rasterized=True,
+        )
+    positive_empirical = empirical[empirical > 0]
+    positive_predicted = predicted[predicted > 0]
+    limits = [
+        float(min(np.min(positive_empirical), np.min(positive_predicted)) * 0.7),
+        float(max(np.max(positive_empirical), np.max(positive_predicted)) * 1.3),
+    ]
+    axes[1].plot(limits, limits, color="0.25", linestyle="--", linewidth=1, label="identity")
+    axes[1].set(xscale="log", yscale="log", xlim=limits, ylim=limits, title="B  Variance prediction", xlabel="Empirical variance (mV²)", ylabel="Predicted variance (mV²)")
+    axes[1].legend(frameon=False, fontsize=7)
+    axes[2].axhspan(0.5, 2.0, color="0.85", alpha=0.5, label="2× agreement band")
+    axes[2].axhline(1.0, color="0.25", linestyle="--", linewidth=1)
+    axes[2].set(xscale="log", yscale="log", ylim=(0.08, 30), title="C  Approximation error by drive", xlabel="Expected input spikes / 200 ms", ylabel="Predicted / empirical variance")
+    axes[2].legend(frameon=False, fontsize=7)
+    fig.tight_layout()
+    fig.savefig(path, bbox_inches="tight")
+    plt.close(fig)
+
+
 def step_3() -> None:
-    _not_implemented(3)
+    started = time.perf_counter()
+    library = verify_authenticated_library()
+    record = calculate_step3(library)
+    if not record["quadrature"]["refinement_passed"] or not record["quadrature"]["bound_sensitivity_passed"]:
+        raise RuntimeError("Step 3 locked quadrature convergence check failed")
+    if not record["gain_checks_passed"]:
+        raise RuntimeError("Step 3 locked sinusoidal gain validation failed")
+    arrays_path = FIGURES / "step3_linear_filter_arrays.npz"
+    np.savez_compressed(
+        arrays_path,
+        stationary_mean_conductance_uS=record.pop("stationary_mean_conductance_uS"),
+        stationary_mean_voltage_mV=record.pop("stationary_mean_voltage_mV"),
+        predicted_variance_mV2=record.pop("predicted_variance_mV2"),
+        empirical_variance_by_seed_mV2=record.pop("empirical_variance_by_seed_mV2"),
+        empirical_variance_mV2=record.pop("empirical_variance_mV2"),
+        ratio=record.pop("ratio"),
+        residual_mV2=record.pop("residual_mV2"),
+        expected_spikes=record.pop("expected_spikes"),
+    )
+    with np.load(arrays_path) as arrays:
+        plot_record = {**record, **{name: arrays[name] for name in arrays.files}}
+        plot_step3(plot_record, FIGURES / "linear_filter.svg")
+    outcome = {
+        "status": "complete",
+        "classification": "post-hoc exploratory diagnostic after preserved Step 2 failure",
+        "library_sha256": LIBRARY_SHA256,
+        "amendment_sha256": sha256_file(AMENDMENT_PATH),
+        "calibration_point_count": int(np.prod((3, 12, 256))),
+        **record,
+        "arrays_path": str(arrays_path.relative_to(REPO)),
+        "arrays_sha256": sha256_file(arrays_path),
+        "figure_path": "artifacts/data/exp077/linear_filter.svg",
+        "figure_sha256": sha256_file(FIGURES / "linear_filter.svg"),
+        "runtime_s": round(time.perf_counter() - started, 3),
+        "paid_compute_usd": 0.0,
+    }
+    (FIGURES / "step3_outcome.json").write_text(json.dumps(outcome, indent=2) + "\n")
+    quadrature = record["quadrature"]
+    gain_checks = record["gain_checks"]
+    assert isinstance(quadrature, dict)
+    assert isinstance(gain_checks, list)
+    print(
+        "exp077 Step 3 complete: "
+        f"max quadrature refinement={quadrature['maximum_refinement_relative_change']:.3g}, "
+        f"gain checks={len(gain_checks)}/{len(gain_checks)}"
+    )
 
 
 def step_4() -> None:
@@ -1862,7 +2235,7 @@ STAGE_FUNCTIONS: dict[int, Callable[[], None]] = {
     7: step_7,
 }
 
-IMPLEMENTED_STEPS: frozenset[int] = frozenset({1, 2})
+IMPLEMENTED_STEPS: frozenset[int] = frozenset({1, 2, 3})
 
 
 def requested_through_step() -> int:
