@@ -416,19 +416,24 @@
   #image(
     "/artifacts/data/exp077/response_library.png",
     width: 100%,
-    alt: "Nine panels show empirical response means, standard deviations, distributions, convergence, and zero mass across probe conductances, rates, and intensities.",
+    alt: "Six panels show response mean, variability, zero probability, empirical distributions, convergence, and the monotonicity audit against expected input spikes.",
   )
 
-  _Complete empirical response library and validation evidence._ Panels A--C
-  show conditional mean feature z in millivolts across grayscale intensity and
-  encoding rate for the three probe conductances; D--F show the corresponding
-  standard deviation. Panel G overlays representative low-, transitional-, and
-  high-rate empirical distributions at the nominal probe. Panel H preserves the
-  complete K = 64--#p.selected_K convergence trajectory for conditional mean and
-  unbiased variance. Panel I shows zero mass across rate and intensity at the
-  nominal probe. The library retains the expected low-rate discreteness, but
-  #mono.intensity_violations adjacent-intensity comparisons exceeded the locked
-  Monte Carlo tolerance, so Step 2 failed and no later stage ran.
+  _Complete empirical response library and validation evidence._ Expected input
+  spikes are encoding rate times normalized grayscale intensity times the
+  #presentation-ms ms presentation. Panels A and B show conditional mean feature
+  z and its standard deviation against that common drive variable. Faint points
+  are all rate--intensity conditions; lines are binned medians, with colour,
+  marker, and line style identifying probe conductance. Panel C compares the
+  empirical probability of an exactly zero feature with the analytical no-spike
+  probability. Panel D shows empirical cumulative distributions at low,
+  transitional, and high drive for the nominal probe. Panel E preserves the
+  complete K = 64--#p.selected_K convergence trajectory. Panel F expresses every
+  adjacent-intensity mean change in units of its Monte Carlo standard error; the
+  dashed line is the locked rejection boundary. The response changes smoothly
+  with drive and retains its low-rate zero mass, but
+  #mono.intensity_violations isolated comparisons crossed that boundary, so
+  Step 2 failed and no later stage ran.
 
   The array contains #m.library_value_count float32 values with shape
   #m.library_shape.map(str).join(" × ") and a #(m.library_payload_bytes)-byte
