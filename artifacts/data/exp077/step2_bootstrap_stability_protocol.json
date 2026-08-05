@@ -1,0 +1,30 @@
+{
+  "status": "locked_before_bootstrap_inspection",
+  "registered_at_utc": "2026-08-05T20:25:15Z",
+  "classification": "post-hoc diagnostic requested after the original Step 2 validation failure",
+  "purpose": "Test whether the single K=2048 pilot pass is typical under repeated paired resampling before deciding whether an independent K=4096 comparison is needed.",
+  "source_library": "temp/exp077/response_library.float32.npy",
+  "source_library_sha256": "5184788979b5fa7fa9a3f38936399b8e2724d63914019f1306a7171981b36783",
+  "candidate_K": [64, 128, 256, 512, 1024, 2048],
+  "repetitions": 200,
+  "sampling": "For every repetition, seed, probe, rate, and non-zero pilot intensity, draw two independent K-sized bootstrap samples with replacement from that condition's retained 2048 empirical draws.",
+  "evaluation_subset": {
+    "intensity_levels": [16, 64, 128, 192, 255],
+    "rates_hz": [0.25, 1.0, 3.0, 10.0, 25.0],
+    "probe_conductances_uS": [0.6, 1.2, 2.4],
+    "seeds": [42, 43, 44],
+    "non_zero_condition_count": 225
+  },
+  "unchanged_discrepancy_tolerances": {
+    "mean_absolute_floor_mV": 0.15,
+    "mean_relative": 0.1,
+    "variance_absolute_floor_mV2": 0.25,
+    "variance_relative": 0.25,
+    "p95_normalized_limit": 1.0,
+    "maximum_normalized_limit": 2.0
+  },
+  "per_repetition_pass_rule": "Both mean and unbiased variance must satisfy both unchanged p95 and maximum normalized limits.",
+  "decision_rule": "Treat K=2048 stability as typical only if at least 95% of the 200 repetitions pass. If fewer pass, run a new independent K=4096 two-block comparison on the unchanged pilot subset. Do not retroactively alter the original Step 2 result.",
+  "rng_recipe": "numpy.random.SeedSequence([77, 2, 2048, repetition, candidate_K, block])",
+  "scope": "Diagnostic and possible K=4096 stability comparison only. Steps 3-7 remain stopped."
+}
