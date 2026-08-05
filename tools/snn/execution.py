@@ -12,7 +12,7 @@ import time
 import tracemalloc
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Literal, Mapping
+from typing import Any, Callable, Literal, Mapping
 
 import torch
 from torch import nn
@@ -144,9 +144,10 @@ def plan_graph(graph: Mapping[str, Any]) -> GraphPlan:
         if not math.isclose(raw_steps, steps, abs_tol=1e-9):
             raise ValueError(f"{row['id']}: delay {delay_ms} ms is not an integer number of dt={dt} ms steps")
         source_owner = row["source"].partition(".")[0]
-        # Population spikes are only available after their update. Even a
-        # declared zero-additional-delay edge therefore has one causal step.
-        if source_owner in {p["id"] for p in graph.get("populations", [])}:
+        # Recurrent/feedback edges are causal even when the author declares
+        # zero additional delay. Feedforward population edges may consume the
+        # current-step source after topological scheduling.
+        if source_owner in {p["id"] for p in graph.get("populations", [])} and row.get("connection") != "feedforward":
             steps = max(1, steps)
         tau = float(row["synapse"]["tau"]["value"])
         decay = 0.0 if row["synapse"]["kind"] == "leaky_integrator" else math.exp(-dt / tau)
@@ -155,9 +156,27 @@ def plan_graph(graph: Mapping[str, Any]) -> GraphPlan:
             polarity=row["polarity"], decay=decay,
             delay_steps=steps, parameter=row["parameters"][0],
         ))
+    populations = list(graph.get("populations", []))
+    population_ids = {p["id"] for p in populations}
+    zero_edges = [
+        (p.source.partition(".")[0], p.target.partition(".")[0])
+        for p in planned
+        if p.delay_steps == 0 and p.source.partition(".")[0] in population_ids
+    ]
+    ordered: list[Mapping[str, Any]] = []
+    remaining = {p["id"]: p for p in populations}
+    while remaining:
+        ready = sorted(
+            name for name in remaining
+            if not any(dst == name and src in remaining for src, dst in zero_edges)
+        )
+        if not ready:
+            raise ValueError("zero-delay population projections form an algebraic cycle")
+        for name in ready:
+            ordered.append(remaining.pop(name))
     return GraphPlan(
         graph=graph, dt_ms=dt,
-        populations=tuple(graph.get("populations", [])),
+        populations=tuple(ordered),
         projections=tuple(planned),
         observables=tuple(graph.get("observables", [])),
         outputs=tuple(graph.get("outputs", [])),
@@ -230,41 +249,51 @@ class GraphExecutor(nn.Module):
         integrator_sum: dict[str, torch.Tensor] = {}
 
         for t in range(steps):
-            incoming = {name: {"excitatory": torch.zeros_like(voltage[name]), "inhibitory": torch.zeros_like(voltage[name])} for name in populations}
-            for projection in self.plan.projections:
-                target = projection.target.partition(".")[0]
-                key = (projection.id, projection.polarity)
-                source_owner = projection.source.partition(".")[0]
-                if source_owner in populations:
-                    # Each source owns the maximum required history. Select the
-                    # exact tap for this projection without interpreting nodes.
-                    history = histories[source_owner]._values
-                    source = history[-projection.delay_steps]
-                else:
-                    source_t = t - projection.delay_steps
-                    source = inputs[source_owner][source_t] if source_t >= 0 else torch.zeros_like(inputs[source_owner][0])
-                drive = source @ self.weights[projection.parameter.replace(".", "__")]
-                conductance[key] = conductance[key] * projection.decay + drive
-                incoming[target][projection.polarity] += conductance[key]
-
             new_spikes: dict[str, torch.Tensor] = {}
-            for name, pop in populations.items():
+            for pop in self.plan.populations:
+                name = pop["id"]
+                incoming = {"excitatory": torch.zeros_like(voltage[name]), "inhibitory": torch.zeros_like(voltage[name])}
+                for projection in self.plan.projections:
+                    if projection.target.partition(".")[0] != name:
+                        continue
+                    key = (projection.id, projection.polarity)
+                    source_owner = projection.source.partition(".")[0]
+                    if source_owner in populations:
+                        if projection.delay_steps == 0:
+                            source = new_spikes[source_owner]
+                        else:
+                            history = histories[source_owner]._values
+                            source = history[-projection.delay_steps]
+                    else:
+                        source_t = t - projection.delay_steps
+                        source = inputs[source_owner][source_t] if source_t >= 0 else torch.zeros_like(inputs[source_owner][0])
+                    drive = source @ self.weights[projection.parameter.replace(".", "__")]
+                    conductance[key] = conductance[key] * projection.decay + drive
+                    incoming[projection.polarity] += conductance[key]
                 neuron = pop["neuron"]
                 if neuron["kind"] == "leaky_integrator":
                     beta = math.exp(-self.plan.dt_ms / float(neuron["tau"]["value"]))
-                    voltage[name] = beta * voltage[name] + (1.0 - beta) / self.plan.dt_ms * incoming[name]["excitatory"]
+                    voltage[name] = beta * voltage[name] + (1.0 - beta) / self.plan.dt_ms * incoming["excitatory"]
                     new_spikes[name] = torch.zeros_like(spikes[name])
                     integrator_sum[name] = integrator_sum.get(name, torch.zeros_like(voltage[name])) + voltage[name]
+                    threshold = neuron.get("soft_reset_threshold")
+                    if threshold is not None:
+                        reset = M.fast_sigmoid_spike(
+                            voltage[name] - float(threshold),
+                            float(neuron.get("surrogate_slope", M.SURROGATE_SLOPE)),
+                        )
+                        voltage[name] = voltage[name] - reset * float(threshold)
                     continue
                 tau_mem = float(neuron["tau_mem"]["value"])
-                c_m = 1.0 if tau_mem >= 15 else 0.5
-                g_l = c_m / tau_mem
-                ref_steps = max(1, int(round((M.ref_ms_E if tau_mem >= 15 else M.ref_ms_I) / self.plan.dt_ms)))
+                c_m = float(neuron.get("capacitance_nf", 1.0 if tau_mem >= 15 else 0.5))
+                g_l = float(neuron.get("leak_us", c_m / tau_mem))
+                ref_steps = int(neuron.get("refractory_steps", max(1, round((M.ref_ms_E if tau_mem >= 15 else M.ref_ms_I) / self.plan.dt_ms))))
+                dampen = float(neuron.get("voltage_grad_dampen", M.V_GRAD_DAMPEN))
                 voltage[name], new_spikes[name], refractory[name] = M.lif_step_expeuler(
-                    voltage[name], refractory[name], incoming[name]["excitatory"],
-                    incoming[name]["inhibitory"], c_m, g_l, ref_steps,
+                    voltage[name], refractory[name], incoming["excitatory"],
+                    incoming["inhibitory"], c_m, g_l, ref_steps,
                     M.spike_biophysical, dt_override=self.plan.dt_ms,
-                    v_grad_dampen=M.V_GRAD_DAMPEN,
+                    v_grad_dampen=dampen,
                 )
             spikes = new_spikes
             for name in populations:
@@ -341,8 +370,11 @@ def infer(spec: ExecutionSpec) -> ExecutionResult:
 
 def execution_spec_from_args(args: Any, *, kind: RequestKind | None = None) -> ExecutionSpec:
     """Compatibility adapter: resolved CLI arguments become one typed request."""
+    resolved_kind = kind or ("infer" if getattr(args, "infer", False) else args.mode)
+    if resolved_kind == "sim":
+        resolved_kind = "simulate"
     return ExecutionSpec(
-        kind=kind or ("infer" if getattr(args, "infer", False) else args.mode),
+        kind=resolved_kind,
         executor=getattr(args, "executor", "legacy"),
         bundle=Path(args.bundle) if getattr(args, "bundle", None) else None,
         seed=int(getattr(args, "seed", 0) or 0),
@@ -350,3 +382,17 @@ def execution_spec_from_args(args: Any, *, kind: RequestKind | None = None) -> E
         checkpoint=(Path(args.load_weights) if getattr(args, "load_weights", None) else None),
         options={key: value for key, value in vars(args).items() if key not in {"bundle", "executor"}},
     )
+
+
+def execute_request(
+    spec: ExecutionSpec,
+    *,
+    legacy: Callable[[], ExecutionResult] | None = None,
+) -> ExecutionResult:
+    """Dispatch one typed request; the CLI supplies its unchanged legacy body."""
+    if spec.executor == "legacy":
+        if legacy is None:
+            raise ValueError("legacy execution requires the registered legacy request body")
+        return legacy()
+    handlers = {"build": build, "simulate": simulate, "train": train, "infer": infer}
+    return handlers[spec.kind](spec)
