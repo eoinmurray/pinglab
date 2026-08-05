@@ -53,6 +53,37 @@ def test_equal_count_timing_changes_feature() -> None:
     assert early > late > 0.0
 
 
-def test_later_step_remains_a_hard_stop() -> None:
-    with pytest.raises(NotImplementedError, match="Step 2"):
-        exp077.step_2()
+def test_step_2_grid_is_deterministic_and_zero_intensity_rests() -> None:
+    kwargs = {
+        "intensities": (0, 128, 255),
+        "rates_hz": (0.25, 25.0),
+        "probes_uS": (0.6, 2.4),
+        "draws": 4,
+    }
+    first = exp077.simulate_condition_grid(
+        **kwargs, rng=exp077._step2_rng(42, 99)
+    )
+    second = exp077.simulate_condition_grid(
+        **kwargs, rng=exp077._step2_rng(42, 99)
+    )
+    assert first.shape == (2, 2, 3, 4)
+    assert first.dtype == np.float32
+    assert np.array_equal(first, second)
+    assert np.all(first[:, :, 0, :] == 0.0)
+    assert np.all(np.isfinite(first))
+    assert np.all((first >= 0.0) & (first <= 65.0))
+
+
+def test_locked_step_2_outcome_stops_without_a_library() -> None:
+    outcome = exp077.FIGURES / "step2_pilot_outcome.json"
+    record = __import__("json").loads(outcome.read_text())
+    assert record["candidate_K"] == [64, 128, 256, 512]
+    assert record["hard_maximum_K"] == 512
+    assert record["selected_K"] is None
+    assert not record["passed"]
+    assert all(not row["passed"] for row in record["trajectory"])
+
+
+def test_step_3_remains_a_hard_stop() -> None:
+    with pytest.raises(NotImplementedError, match="Step 3"):
+        exp077.step_3()

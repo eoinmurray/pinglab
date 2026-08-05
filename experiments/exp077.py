@@ -444,6 +444,265 @@ def plot_probe(record: dict[str, Any], path: Path) -> None:
     plt.close(fig)
 
 
+def simulate_condition_grid(
+    intensities: tuple[int, ...] | np.ndarray,
+    rates_hz: tuple[float, ...],
+    probes_uS: tuple[float, ...],
+    draws: int,
+    rng: np.random.Generator,
+) -> np.ndarray:
+    """Simulate z for a probe × rate × intensity grid without storing traces."""
+    intensity_array = np.asarray(intensities, dtype=np.float64) / 255.0
+    probabilities = (
+        np.asarray(rates_hz, dtype=np.float64)[:, None]
+        * (DT_MS / 1000.0)
+        * intensity_array[None, :]
+    )
+    if np.any((probabilities < 0.0) | (probabilities > 1.0)):
+        raise ValueError("condition grid produces an invalid Bernoulli probability")
+    probability_grid = np.broadcast_to(
+        probabilities[None, :, :, None],
+        (len(probes_uS), len(rates_hz), len(intensity_array), draws),
+    )
+    probe_grid = np.asarray(probes_uS, dtype=np.float64)[:, None, None, None]
+    g = np.zeros(probability_grid.shape, dtype=np.float64)
+    v = np.full(probability_grid.shape, PARAMETERS["E_L_mV"], dtype=np.float64)
+    v_sum = np.zeros(probability_grid.shape, dtype=np.float64)
+    ampa_decay = math.exp(-DT_MS / PARAMETERS["tau_ampa_ms"])
+    for _ in range(N_TIMESTEPS):
+        spikes = rng.random(probability_grid.shape) < probability_grid
+        g = g * ampa_decay + probe_grid * spikes
+        g_total = PARAMETERS["g_L_uS"] + g
+        v_inf = (
+            PARAMETERS["g_L_uS"] * PARAMETERS["E_L_mV"]
+            + g * PARAMETERS["E_e_mV"]
+        ) / g_total
+        v = v_inf + (v - v_inf) * np.exp(
+            -DT_MS * g_total / PARAMETERS["C_m_nF"]
+        )
+        v_sum += v - PARAMETERS["E_L_mV"]
+    return (v_sum / N_TIMESTEPS).astype(np.float32)
+
+
+def _step2_rng(seed: int, stream: int) -> np.random.Generator:
+    return np.random.default_rng(np.random.SeedSequence([seed, 77, 2, stream]))
+
+
+def _normalised_difference(
+    first: np.ndarray, second: np.ndarray, absolute_floor: float, relative: float
+) -> np.ndarray:
+    denominator = np.maximum(
+        absolute_floor, relative * np.maximum(np.abs(first), np.abs(second))
+    )
+    return np.abs(first - second) / denominator
+
+
+def run_step2_pilot() -> dict[str, Any]:
+    """Execute the locked, bounded draw-count convergence pilot."""
+    largest = 2 * PILOT_MAX_K
+    by_seed = []
+    for seed in SEEDS:
+        by_seed.append(
+            simulate_condition_grid(
+                PILOT_INTENSITIES,
+                PILOT_RATES_HZ,
+                PROBE_CONDUCTANCES_US,
+                largest,
+                _step2_rng(seed, 0),
+            )
+        )
+    values = np.stack(by_seed, axis=0)
+    nonzero = np.asarray(PILOT_INTENSITIES) > 0
+    trajectory = []
+    selected: int | None = None
+    for candidate in PILOT_CANDIDATE_K:
+        first = values[..., :candidate]
+        second = values[..., candidate : 2 * candidate]
+        mean_a = first.mean(axis=-1)
+        mean_b = second.mean(axis=-1)
+        var_a = first.var(axis=-1, ddof=1)
+        var_b = second.var(axis=-1, ddof=1)
+        mean_error = _normalised_difference(
+            mean_a[..., nonzero],
+            mean_b[..., nonzero],
+            PILOT_MEAN_ABS_TOL_MV,
+            PILOT_MEAN_REL_TOL,
+        )
+        variance_error = _normalised_difference(
+            var_a[..., nonzero],
+            var_b[..., nonzero],
+            PILOT_VARIANCE_ABS_TOL_MV2,
+            PILOT_VARIANCE_REL_TOL,
+        )
+        metrics = {
+            "K": candidate,
+            "mean_p95_normalised_error": float(np.quantile(mean_error, 0.95)),
+            "mean_maximum_normalised_error": float(mean_error.max()),
+            "variance_p95_normalised_error": float(
+                np.quantile(variance_error, 0.95)
+            ),
+            "variance_maximum_normalised_error": float(variance_error.max()),
+        }
+        metrics["passed"] = bool(
+            metrics["mean_p95_normalised_error"] <= PILOT_P95_LIMIT
+            and metrics["mean_maximum_normalised_error"] <= PILOT_WORST_LIMIT
+            and metrics["variance_p95_normalised_error"] <= PILOT_P95_LIMIT
+            and metrics["variance_maximum_normalised_error"] <= PILOT_WORST_LIMIT
+        )
+        trajectory.append(metrics)
+        if selected is None and metrics["passed"]:
+            selected = candidate
+    zero_exact = bool(np.all(values[:, :, :, 0, :] == 0.0))
+    return {
+        "candidate_K": list(PILOT_CANDIDATE_K),
+        "hard_maximum_K": PILOT_MAX_K,
+        "evaluation_condition_count": int(
+            len(SEEDS)
+            * len(PROBE_CONDUCTANCES_US)
+            * len(PILOT_RATES_HZ)
+            * len(PILOT_INTENSITIES)
+        ),
+        "trajectory": trajectory,
+        "selected_K": selected,
+        "passed": selected is not None and zero_exact,
+        "zero_intensity_exact": zero_exact,
+    }
+
+
+def sha256_file(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def plot_step2_pilot(pilot: dict[str, Any], path: Path) -> None:
+    """Plot the locked convergence trajectory, including a failed hard stop."""
+    rows = pilot["trajectory"]
+    candidate = np.asarray([row["K"] for row in rows])
+    fig, axes = plt.subplots(1, 2, figsize=(6.5, 3.66), constrained_layout=True)
+    series = (
+        ("mean_p95_normalised_error", "95th percentile", "o", "-"),
+        ("mean_maximum_normalised_error", "Maximum", "s", "--"),
+    )
+    for key, label, marker, linestyle in series:
+        axes[0].plot(
+            candidate,
+            [row[key] for row in rows],
+            color=theme.INK_BLACK,
+            marker=marker,
+            linestyle=linestyle,
+            label=label,
+        )
+    variance_series = (
+        ("variance_p95_normalised_error", "95th percentile", "o", "-"),
+        ("variance_maximum_normalised_error", "Maximum", "s", "--"),
+    )
+    for key, label, marker, linestyle in variance_series:
+        axes[1].plot(
+            candidate,
+            [row[key] for row in rows],
+            color=theme.DEEP_RED,
+            marker=marker,
+            linestyle=linestyle,
+            label=label,
+        )
+    for ax, title in zip(axes, ("A  Conditional mean", "B  Sample variance")):
+        ax.axhline(PILOT_P95_LIMIT, color=theme.FAINT, linestyle=":", linewidth=1.4)
+        ax.axhline(PILOT_WORST_LIMIT, color=theme.FAINT, linestyle="-.", linewidth=1.4)
+        ax.set(
+            xscale="log",
+            xticks=candidate,
+            xticklabels=[str(value) for value in candidate],
+            xlabel="Draws per comparison block, K",
+            ylabel="Normalized discrepancy",
+            title=title,
+        )
+        ax.grid(alpha=0.18)
+        ax.spines[["top", "right"]].set_visible(False)
+        ax.legend(frameon=False, fontsize=8)
+    fig.savefig(path, dpi=240, facecolor="white")
+    plt.close(fig)
+
+
+def record_step2_pilot(pilot: dict[str, Any], duration_s: float) -> None:
+    """Freeze the pilot outcome without erasing the completed Step 1 evidence."""
+    outcome_path = FIGURES / "step2_pilot_outcome.json"
+    outcome_path.write_text(json.dumps(pilot, indent=2) + "\n")
+    plot_step2_pilot(pilot, FIGURES / "response_library.png")
+    numbers_path = FIGURES / "numbers.json"
+    numbers = json.loads(numbers_path.read_text())
+    numbers["step"] = 2
+    numbers["status"] = "killed_at_locked_convergence_gate"
+    numbers["scope"] = (
+        "Step 1 remains complete; Step 2 stopped at its predeclared draw-count "
+        "pilot; no final library, decoder, held-out test, threshold, or PING run"
+    )
+    numbers["step2"] = {
+        "status": "failed_locked_pilot",
+        "pilot": pilot,
+        "pilot_duration_s": round(duration_s, 1),
+        "final_library_generated": False,
+        "later_steps_run": False,
+        "paid_compute_usd": 0.0,
+    }
+    numbers_path.write_text(json.dumps(numbers, indent=2) + "\n")
+    protocol_path = FIGURES / "protocol.json"
+    protocol = json.loads(protocol_path.read_text())
+    protocol.update(
+        {
+            "attempted_through_step": 2,
+            "step2_status": "failed_locked_pilot",
+            "step2_selected_K": None,
+            "step2_final_library_generated": False,
+            "later_steps": "not run",
+        }
+    )
+    protocol_path.write_text(json.dumps(protocol, indent=2) + "\n")
+    reproducer = {
+        "command": (
+            "EXP077_THROUGH_STEP=2 EXP077_STEP2_PILOT_ONLY=1 "
+            "uv run python experiments/exp077.py"
+        ),
+        "paid_compute": False,
+        "expected_outcome": "locked convergence failure; no final library",
+        "expected_outputs": [
+            "artifacts/data/exp077/step2_pilot_outcome.json",
+            "artifacts/data/exp077/response_library.png",
+            "artifacts/data/exp077/numbers.json",
+        ],
+    }
+    (FIGURES / "reproducer.json").write_text(json.dumps(reproducer, indent=2) + "\n")
+    (FIGURES / "provenance.json").write_text(
+        json.dumps(_git_metadata(), indent=2) + "\n"
+    )
+    manifest = {
+        "status": "pilot_failed_no_library",
+        "selected_K": None,
+        "library_generated": False,
+        "library_shape": None,
+        "library_storage_bytes": 0,
+        "dtype": None,
+        "ordered_axes": ["seed", "probe_uS", "rate_hz", "intensity", "draw"],
+        "seed_recipe": (
+            "numpy.random.SeedSequence([registered_seed, 77, 2, stream]); "
+            "conditions occupy fixed probe-rate-intensity array indices"
+        ),
+        "pilot_outcome_sha256": sha256_file(outcome_path),
+        "response_library_figure_sha256": sha256_file(
+            FIGURES / "response_library.png"
+        ),
+        "locked_protocol_sha256": sha256_file(
+            FIGURES / "step2_pilot_protocol.json"
+        ),
+        "regeneration_command": reproducer["command"],
+    }
+    (FIGURES / "step2_manifest.json").write_text(
+        json.dumps(manifest, indent=2) + "\n"
+    )
+
+
 def _git_metadata() -> dict[str, Any]:
     sha = subprocess.check_output(
         ["git", "rev-parse", "HEAD"], cwd=REPO, text=True
@@ -526,7 +785,20 @@ def step_1() -> None:
 
 
 def step_2() -> None:
-    _not_implemented(2)
+    started = time.perf_counter()
+    ARTIFACTS.mkdir(parents=True, exist_ok=True)
+    FIGURES.mkdir(parents=True, exist_ok=True)
+    pilot = run_step2_pilot()
+    record_step2_pilot(pilot, time.perf_counter() - started)
+    if not pilot["passed"]:
+        raise RuntimeError(
+            "Step 2 draw-count pilot did not pass by the locked maximum K; "
+            "the final library was not generated"
+        )
+    print(f"exp077 Step 2 pilot selected K={pilot['selected_K']}")
+    if os.environ.get("EXP077_STEP2_PILOT_ONLY") == "1":
+        return
+    raise RuntimeError("Step 2 final-library generation is not yet enabled")
 
 
 def step_3() -> None:
@@ -559,7 +831,7 @@ STAGE_FUNCTIONS: dict[int, Callable[[], None]] = {
     7: step_7,
 }
 
-IMPLEMENTED_STEPS: frozenset[int] = frozenset({1})
+IMPLEMENTED_STEPS: frozenset[int] = frozenset({1, 2})
 
 
 def requested_through_step() -> int:
