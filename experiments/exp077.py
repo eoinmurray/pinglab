@@ -51,8 +51,13 @@ INTENSITY_LEVELS = np.arange(256, dtype=np.uint16)
 # 95th-percentile and worst normalized discrepancies pass for mean and unbiased
 # sample variance.  Absolute floors prevent near-zero conditions from making a
 # relative metric ill-conditioned.
-PILOT_CANDIDATE_K = (64, 128, 256, 512)
+# The original predeclared pilot used (64, 128, 256, 512) and is preserved in
+# step2_pilot_outcome.json.  After that gate failed, the user explicitly
+# authorized this follow-up extension without changing any tolerances.
+PILOT_CANDIDATE_K = (1024, 2048)
 PILOT_MAX_K = max(PILOT_CANDIDATE_K)
+PILOT_OUTCOME_NAME = "step2_pilot_extension_outcome.json"
+PILOT_FIGURE_NAME = "response_library_extension.png"
 PILOT_INTENSITIES = (0, 16, 64, 128, 192, 255)
 PILOT_RATES_HZ = (0.25, 1.0, 3.0, 10.0, 25.0)
 PILOT_MEAN_ABS_TOL_MV = 0.15
@@ -628,9 +633,9 @@ def plot_step2_pilot(pilot: dict[str, Any], path: Path) -> None:
 
 def record_step2_pilot(pilot: dict[str, Any], duration_s: float) -> None:
     """Freeze the pilot outcome without erasing the completed Step 1 evidence."""
-    outcome_path = FIGURES / "step2_pilot_outcome.json"
+    outcome_path = FIGURES / PILOT_OUTCOME_NAME
     outcome_path.write_text(json.dumps(pilot, indent=2) + "\n")
-    plot_step2_pilot(pilot, FIGURES / "response_library.png")
+    plot_step2_pilot(pilot, FIGURES / PILOT_FIGURE_NAME)
     numbers_path = FIGURES / "numbers.json"
     numbers = json.loads(numbers_path.read_text())
     numbers["step"] = 2
@@ -639,9 +644,11 @@ def record_step2_pilot(pilot: dict[str, Any], duration_s: float) -> None:
         "Step 1 remains complete; Step 2 stopped at its predeclared draw-count "
         "pilot; no final library, decoder, held-out test, threshold, or PING run"
     )
+    original_pilot = json.loads((FIGURES / "step2_pilot_outcome.json").read_text())
     numbers["step2"] = {
-        "status": "failed_locked_pilot",
-        "pilot": pilot,
+        "status": "extension_pending_evaluation",
+        "original_pilot": original_pilot,
+        "extension_pilot": pilot,
         "pilot_duration_s": round(duration_s, 1),
         "final_library_generated": False,
         "later_steps_run": False,
@@ -666,10 +673,10 @@ def record_step2_pilot(pilot: dict[str, Any], duration_s: float) -> None:
             "uv run python experiments/exp077.py"
         ),
         "paid_compute": False,
-        "expected_outcome": "locked convergence failure; no final library",
+        "expected_outcome": "evaluate the authorized K=1024 and K=2048 extension",
         "expected_outputs": [
-            "artifacts/data/exp077/step2_pilot_outcome.json",
-            "artifacts/data/exp077/response_library.png",
+            f"artifacts/data/exp077/{PILOT_OUTCOME_NAME}",
+            f"artifacts/data/exp077/{PILOT_FIGURE_NAME}",
             "artifacts/data/exp077/numbers.json",
         ],
     }
@@ -691,7 +698,7 @@ def record_step2_pilot(pilot: dict[str, Any], duration_s: float) -> None:
         ),
         "pilot_outcome_sha256": sha256_file(outcome_path),
         "response_library_figure_sha256": sha256_file(
-            FIGURES / "response_library.png"
+            FIGURES / PILOT_FIGURE_NAME
         ),
         "locked_protocol_sha256": sha256_file(
             FIGURES / "step2_pilot_protocol.json"
