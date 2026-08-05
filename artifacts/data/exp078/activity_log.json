@@ -1,6 +1,10 @@
 [
   {
-    "timestamp": "2026-08-05T13:14:42Z",
-    "event": "Completed the bounded uncoupled calibration locally; selection used only registered input settings and no cross-coupling."
+    "timestamp": "2026-08-05T13:34:17Z",
+    "event": "Killed the first complete sweep publication after rate traces overwrote spike-array artifact keys and raster rendering failed; atomic staging prevented invalid evidence publication."
+  },
+  {
+    "timestamp": "2026-08-05T13:54:37Z",
+    "event": "Completed the unchanged pre-registered local coupling sweep after an experiment-side artifact-key fix, without simulator edits or paid compute."
   }
 ]

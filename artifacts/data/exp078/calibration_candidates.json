@@ -52,7 +52,7 @@
       "graph_digest": "sha256:af21e6c2a46ef7783bb810b116aacf01edebd35ce88c53e63d0a07fde9a019a5"
     },
     "detuning_fraction": 0.5294117647058824,
-    "selection_score": Infinity
+    "selection_score": null
   },
   {
     "index": 1,
@@ -107,7 +107,7 @@
       "graph_digest": "sha256:af21e6c2a46ef7783bb810b116aacf01edebd35ce88c53e63d0a07fde9a019a5"
     },
     "detuning_fraction": 0.0,
-    "selection_score": Infinity
+    "selection_score": null
   },
   {
     "index": 2,
@@ -272,7 +272,7 @@
       "graph_digest": "sha256:d55ef7844f92ec0b129d28c184305e5381cdfab355786c91a3a90cce59ed3a3a"
     },
     "detuning_fraction": 0.03508771929824561,
-    "selection_score": Infinity
+    "selection_score": null
   },
   {
     "index": 5,
@@ -327,7 +327,7 @@
       "graph_digest": "sha256:d55ef7844f92ec0b129d28c184305e5381cdfab355786c91a3a90cce59ed3a3a"
     },
     "detuning_fraction": 0.03278688524590164,
-    "selection_score": Infinity
+    "selection_score": null
   },
   {
     "index": 6,
@@ -382,7 +382,7 @@
       "graph_digest": "sha256:ffb150b0b1df7b29f0dce7b613349d9808c6450e9285513eecf64263bbf9d5dc"
     },
     "detuning_fraction": 0.03508771929824561,
-    "selection_score": Infinity
+    "selection_score": null
   },
   {
     "index": 7,
@@ -437,7 +437,7 @@
       "graph_digest": "sha256:ffb150b0b1df7b29f0dce7b613349d9808c6450e9285513eecf64263bbf9d5dc"
     },
     "detuning_fraction": 0.0,
-    "selection_score": Infinity
+    "selection_score": null
   },
   {
     "index": 8,
@@ -602,7 +602,7 @@
       "graph_digest": "sha256:bd373341395630e99f97eec61cba1f9fd3c9d50dcec3239395dd34cb6b50941c"
     },
     "detuning_fraction": 0.028985507246376812,
-    "selection_score": Infinity
+    "selection_score": null
   },
   {
     "index": 11,
