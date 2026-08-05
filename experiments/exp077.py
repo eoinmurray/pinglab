@@ -1232,9 +1232,9 @@ def plot_full_library(
     path: Path,
 ) -> None:
     """Render an expected-count summary of the complete Step 2 evidence."""
-    original = json.loads((FIGURES / "step2_pilot_outcome.json").read_text())
-    extension = json.loads((FIGURES / "step2_pilot_extension_outcome.json").read_text())
-    trajectory = original["trajectory"] + extension["trajectory"]
+    bootstrap = json.loads(
+        (FIGURES / "step2_bootstrap_stability_outcome.json").read_text()
+    )
     mean = summaries["mean"]
     standard_deviation = summaries["standard_deviation"]
     zero_fraction = summaries["zero_fraction"]
@@ -1352,29 +1352,30 @@ def plot_full_library(
     )
     ax_dist.legend(frameon=False, fontsize=6.5, loc="lower right")
 
-    candidate = [row["K"] for row in trajectory]
+    candidate = [row["K"] for row in bootstrap["trajectory"]]
+    pass_frequency = [row["pass_frequency"] for row in bootstrap["trajectory"]]
     ax_convergence.plot(
         candidate,
-        [row["mean_p95_normalised_error"] for row in trajectory],
+        pass_frequency,
         color=theme.INK_BLACK,
         marker="o",
-        label="Mean p95",
+        label=f"{bootstrap['repetitions']} paired resamples",
     )
-    ax_convergence.plot(
-        candidate,
-        [row["variance_p95_normalised_error"] for row in trajectory],
+    ax_convergence.axhline(
+        bootstrap["decision_threshold"],
         color=theme.DEEP_RED,
-        marker="s",
         linestyle="--",
-        label="Variance p95",
+        label="Escalation gate",
     )
-    ax_convergence.axhline(1.0, color=theme.FAINT, linestyle=":")
     ax_convergence.set_xscale("log", base=2)
     ax_convergence.set_xticks(
         candidate, labels=[str(value) for value in candidate], rotation=45
     )
     ax_convergence.set(
-        title="E  K convergence", xlabel="Draws K", ylabel="Normalized error"
+        title="E  Repeated K stability",
+        xlabel="Draws K",
+        ylabel="Pass frequency",
+        ylim=(-0.04, 1.04),
     )
     ax_convergence.legend(frameon=False, fontsize=6)
 
