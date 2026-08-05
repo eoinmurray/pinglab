@@ -288,12 +288,15 @@ def validate_probe() -> dict[str, dict[str, Any]]:
             observed_mV=observed_v1,
             expected_mV=expected_v1,
             absolute_error_mV=voltage_error,
+            tolerance_mV=1e-12,
         ),
         "deterministic_replay": _validation_record(replay_ok, seed=SEED),
         "tools_snn_uncoupled_cell_agreement": _validation_record(
             engine_ok,
             conductance_maximum_absolute_error_uS=engine_g_error,
             voltage_maximum_absolute_error_mV=engine_v_error,
+            conductance_tolerance_uS=1e-12,
+            voltage_tolerance_mV=1e-11,
             target_parameters_match=parameters_match,
             shared_functions=["models.exp_synapse", "models.lif_step_expeuler"],
         ),
@@ -354,6 +357,8 @@ def plot_probe(record: dict[str, Any], path: Path) -> None:
     fig, axes = plt.subplots(2, 2, figsize=(10.2, 6.8), constrained_layout=True)
     ax_spike, ax_g, ax_v, ax_timing = axes.flat
     for name, case in cases.items():
+        linestyle = ":" if name == "no_spike" else "-"
+        zorder = 4 if name == "no_spike" else 2
         spikes = np.asarray(case["spikes"])
         spike_times = time_ms[spikes > 0]
         if spike_times.size:
@@ -367,10 +372,18 @@ def plot_probe(record: dict[str, Any], path: Path) -> None:
             case["conductance_uS"],
             color=colors[name],
             lw=1.7,
+            ls=linestyle,
+            zorder=zorder,
             label=labels[name],
         )
         ax_v.plot(
-            time_ms, case["voltage_mV"], color=colors[name], lw=1.7, label=labels[name]
+            time_ms,
+            case["voltage_mV"],
+            color=colors[name],
+            lw=1.7,
+            ls=linestyle,
+            zorder=zorder,
+            label=labels[name],
         )
     ax_spike.set(title="A  Matched input counts", ylabel="Input spike")
     ax_spike.set_ylim(-0.05, 1.12)
