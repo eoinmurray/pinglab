@@ -1,0 +1,11 @@
+{
+  "timestamp": "2026-08-05T13:34:17Z",
+  "stage": "registered_sweep",
+  "status": "killed_before_publication",
+  "scientific_conditions_completed": 16,
+  "failure": "Rate traces overwrote raw population spike keys in the in-memory artifact map, causing raster rendering to index a one-dimensional array as a spike tensor.",
+  "scientific_design_changed": false,
+  "tools_snn_changed": false,
+  "paid_compute_usd": 0.0,
+  "recovery": "Atomic staging retained the prior calibration publication. Fix artifact key names only and rerun the unchanged registered sweep."
+}
