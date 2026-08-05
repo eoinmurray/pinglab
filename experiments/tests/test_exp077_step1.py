@@ -84,6 +84,16 @@ def test_locked_step_2_outcome_stops_without_a_library() -> None:
     assert all(not row["passed"] for row in record["trajectory"])
 
 
+def test_authorized_step_2_extension_selects_2048() -> None:
+    outcome = exp077.FIGURES / "step2_pilot_extension_outcome.json"
+    record = __import__("json").loads(outcome.read_text())
+    assert record["candidate_K"] == [1024, 2048]
+    assert record["selected_K"] == 2048
+    assert record["passed"]
+    assert not record["trajectory"][0]["passed"]
+    assert record["trajectory"][1]["passed"]
+
+
 def test_step_3_remains_a_hard_stop() -> None:
     with pytest.raises(NotImplementedError, match="Step 3"):
         exp077.step_3()

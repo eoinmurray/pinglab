@@ -639,16 +639,34 @@ def record_step2_pilot(pilot: dict[str, Any], duration_s: float) -> None:
     numbers_path = FIGURES / "numbers.json"
     numbers = json.loads(numbers_path.read_text())
     numbers["step"] = 2
-    numbers["status"] = "killed_at_locked_convergence_gate"
+    numbers["status"] = (
+        "extended_pilot_converged_library_pending"
+        if pilot["passed"]
+        else "killed_at_extended_convergence_gate"
+    )
     numbers["scope"] = (
-        "Step 1 remains complete; Step 2 stopped at its predeclared draw-count "
-        "pilot; no final library, decoder, held-out test, threshold, or PING run"
+        "Step 1 remains complete; the authorized Step 2 pilot extension "
+        "converged but no final library, decoder, held-out test, threshold, "
+        "or PING run was generated"
     )
     original_pilot = json.loads((FIGURES / "step2_pilot_outcome.json").read_text())
+    combined_pilot = {
+        "candidate_K": original_pilot["candidate_K"] + pilot["candidate_K"],
+        "hard_maximum_K": pilot["hard_maximum_K"],
+        "evaluation_condition_count": pilot["evaluation_condition_count"],
+        "trajectory": original_pilot["trajectory"] + pilot["trajectory"],
+        "selected_K": pilot["selected_K"],
+        "passed": pilot["passed"],
+        "zero_intensity_exact": (
+            original_pilot["zero_intensity_exact"] and pilot["zero_intensity_exact"]
+        ),
+    }
+    plot_step2_pilot(combined_pilot, FIGURES / "response_library.png")
     numbers["step2"] = {
-        "status": "extension_pending_evaluation",
+        "status": "extension_converged" if pilot["passed"] else "extension_failed",
         "original_pilot": original_pilot,
         "extension_pilot": pilot,
+        "combined_pilot": combined_pilot,
         "pilot_duration_s": round(duration_s, 1),
         "final_library_generated": False,
         "later_steps_run": False,
@@ -660,8 +678,12 @@ def record_step2_pilot(pilot: dict[str, Any], duration_s: float) -> None:
     protocol.update(
         {
             "attempted_through_step": 2,
-            "step2_status": "failed_locked_pilot",
-            "step2_selected_K": None,
+            "step2_status": (
+                "extended_pilot_converged"
+                if pilot["passed"]
+                else "extended_pilot_failed"
+            ),
+            "step2_selected_K": pilot["selected_K"],
             "step2_final_library_generated": False,
             "later_steps": "not run",
         }
@@ -685,8 +707,12 @@ def record_step2_pilot(pilot: dict[str, Any], duration_s: float) -> None:
         json.dumps(_git_metadata(), indent=2) + "\n"
     )
     manifest = {
-        "status": "pilot_failed_no_library",
-        "selected_K": None,
+        "status": (
+            "pilot_converged_library_pending"
+            if pilot["passed"]
+            else "extended_pilot_failed_no_library"
+        ),
+        "selected_K": pilot["selected_K"],
         "library_generated": False,
         "library_shape": None,
         "library_storage_bytes": 0,
@@ -698,10 +724,10 @@ def record_step2_pilot(pilot: dict[str, Any], duration_s: float) -> None:
         ),
         "pilot_outcome_sha256": sha256_file(outcome_path),
         "response_library_figure_sha256": sha256_file(
-            FIGURES / PILOT_FIGURE_NAME
+            FIGURES / "response_library.png"
         ),
         "locked_protocol_sha256": sha256_file(
-            FIGURES / "step2_pilot_protocol.json"
+            FIGURES / "step2_pilot_extension_protocol.json"
         ),
         "regeneration_command": reproducer["command"],
     }
