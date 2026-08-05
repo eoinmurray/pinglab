@@ -3,7 +3,7 @@
 #let meta = (
   title: "Filter-matched rate calibration for variable-rate PING training",
   date: "2026-08-05",
-  description: "A staged empirical and linear calibration maps Poisson-encoded MNIST pixels into subthreshold voltage features, measures their decodability with a variable-rate ANN, and selects a lower rate for subsequent PING training.",
+  description: "An exploratory continuation tests a linear variance approximation and validates empirical-library MNIST feature images after a preserved response-library gate failure.",
   collection: "gamma-gated-sparsity",
   status: "draft",
 )
@@ -23,6 +23,14 @@
 #let boot = r.step2.bootstrap_stability
 #let boot-1024 = boot.trajectory.at(4)
 #let boot-2048 = boot.trajectory.last()
+#let s3 = r.step3
+#let s4 = r.step4
+#let s3-nominal-low = s3.agreement_summaries.at(3)
+#let s3-nominal-transition = s3.agreement_summaries.at(4)
+#let s3-nominal-high = s3.agreement_summaries.at(5)
+#let s4-nominal-low = s4.condition_records.at(3).comparison
+#let s4-nominal-transition = s4.condition_records.at(4).comparison
+#let s4-nominal-high = s4.condition_records.at(5).comparison
 #let rounded(x, digits: 3) = str(calc.round(x, digits: digits))
 #let training-rate-text = training-rates-hz.map(str).join(", ")
 #let probe-text = probe-us.map(str).join(", ")
@@ -48,10 +56,10 @@
   formed by passing each pixel's spike train through an AMPA synapse and
   non-spiking membrane, then averaging its voltage over the presentation.
 
-  ANN accuracy against rate remains the planned primary result; a linear
-  transfer-function calculation would check the empirical feature variance. No
-  rate recommendation was reached because the full response library failed a
-  required validation.
+  ANN accuracy against rate remains the planned primary result, but no decoder
+  was trained here. An explicitly authorized exploratory continuation instead
+  tested a linear transfer-function prediction and constructed complete sampled
+  MNIST feature images from the preserved empirical library.
 
   Step 1 is complete. The local generator passed all
   #r.validations.len() focused checks, including agreement with the shared
@@ -61,7 +69,11 @@
   The complete empirical library was then generated, but
   #mono.intensity_violations of #mono.intensity_comparison_count adjacent-intensity
   comparisons exceeded the locked Monte Carlo tolerance. Step 2 therefore
-  stopped without running a later stage.
+  failed its original gate. That failure remains unchanged. Under the later
+  amendment, Step 3 found that the stationary linear model overpredicted
+  finite-window variance, especially at low drive and larger conductance.
+  Step 4 reproduced pooled pixel statistics and recognizable feature structure,
+  but failed its locked low-rate image-level checks. Steps 5--7 remain pending.
 
   == Purpose and scope
 
@@ -301,27 +313,31 @@
     Var#sub[linear] (z) is predicted feature variance; and π is the circle
     constant. Appendix A derives Equations 11--18.
 
-    We will evaluate every distinct calibration point, compare predicted with
-    empirical Step 2 variance, and validate low-, middle-, and high-drive gains
-    by sinusoidally modulating the numerical probe. This stationary,
+    Under a timestamped exploratory amendment, we evaluated every distinct
+    calibration point, compared predicted with empirical Step 2 variance, and
+    validated low-, middle-, and high-drive gains by sinusoidally modulating the
+    numerical probe. The amendment did not relabel the original Step 2 gate.
+    This stationary,
     continuous-time, linearized Poisson model approximates the finite, discrete
     Bernoulli simulation and remains diagnostic only.
 
     The corresponding plot is defined in Results, Step 3.
 
-  4. *Construct and validate complete feature images.* For each MNIST image, we
-    will select one of the #training-rates-hz.len() rates uniformly and
-    sample each pixel from Equation 10, resampling every training epoch. Sampling
-    is independent across pixels because each channel and probe is independent.
+  4. *Constructed and validated complete feature images.* We used only the
+    official 60,000-image MNIST training partition. Indices 0--54,999 and
+    55,000--59,999 remain the locked future decoder-training and validation
+    partitions; the official test partition was not loaded. For each uint8
+    pixel, the sampler used its exact 0--255 intensity index and selected one of
+    the K = #p.selected_K authenticated empirical draws with independent,
+    deterministic pixel and image streams.
 
-    Before fitting, the recorded MNIST training partition will be split into
-    decoder-training and validation subsets; the test set remains sealed. On
-    predeclared images at low, transitional, and high rates, the empirical
-    sampler must match direct Step 1 simulation in pixel and image moments, zero
-    fractions, and representative images.
-
-    This validation must pass before ANN training. The corresponding plot is
-    defined in Results, Step 4.
+    The direct comparison used training images 0--15, #s4.dataset.image_shape.at(1)
+    × #s4.dataset.image_shape.at(2) pixels, eight independent replicates, all
+    three conductances, and rates 0.25, 3, and 25 Hz. We compared pooled pixel
+    moments, image-level moments, zero fractions, absolute and relative
+    differences, and the spatial correlation of per-pixel means. The thresholds
+    and streams were locked before outcomes. This validation was required before
+    ANN training; its low-rate checks did not all pass, so no decoder followed.
 
   5. *Train the mixed-rate decoders.* We will train a primary ANN with 784
     inputs, one 1,024-unit rectified-linear hidden layer, and ten outputs. The
@@ -385,8 +401,10 @@
 
     Step 1 is complete. The Step 2 convergence pilot selected K after an
     authorized extension. The full library was generated, then Step 2 was
-    killed by its required monotonicity validation. All later steps remain
-    pending.
+    killed by its required monotonicity validation. A timestamped post-hoc
+    amendment subsequently authorized exploratory Steps 3--4 without changing
+    that failure. Step 3 completed; Step 4 stopped at its locked low-rate
+    image-level validation. Steps 5--7 remain pending.
 
     === Step 1: filter-matched feature generation
 
@@ -460,25 +478,67 @@
 
   === Step 3: linear-filter prediction
 
-  #staged-pending(
-    caption: [Linear response and variance prediction. A log-frequency (Hz) Bode
-      panel shows the normalized complete-response magnitude (dB), including
-      200 ms averaging, at five operating points (A). Panel B compares predicted
-      and empirical variance with an identity line; C plots their ratio against
-      expected count (shape: probe conductance; colour: count).],
-    note: [Pending Step 3. Planned file: `linear_filter.svg`.],
-    ratio: 16 / 9,
+  #image(
+    "/artifacts/data/exp077/linear_filter.svg",
+    width: 100%,
+    alt: "Three panels show the complete filter response, predicted against empirical variance, and their ratio against expected input spikes.",
   )
+
+  _Stationary linear prediction versus the finite empirical probe._ Panel A
+  shows the synapse, membrane, and #presentation-ms ms averaging response at
+  low, middle, and high drive; colour identifies probe conductance and line
+  style identifies drive. Panel B compares all nonzero calibration points with
+  identity. Panel C shows the predicted-to-empirical variance ratio against
+  expected input spikes; the shaded band marks agreement within a factor of
+  two. The approximation improves with drive but generally overpredicts the
+  empirical finite-window variance.
+
+  All #s3.gain_checks.len() numerical sinusoidal gain checks passed; the largest
+  relative error was
+  #rounded(calc.max(..s3.gain_checks.map(x => x.relative_error)), digits: 4).
+  The maximum frequency-grid refinement change was
+  #rounded(s3.quadrature.maximum_refinement_relative_change, digits: 8), and the
+  widened-bound change was
+  #rounded(s3.quadrature.maximum_bound_relative_change, digits: 8), both below
+  the locked 0.2% tolerance. At the nominal 1.2 μS probe, median predicted to
+  empirical variance ratios were
+  #rounded(s3-nominal-low.median_predicted_empirical_ratio) at low drive,
+  #rounded(s3-nominal-transition.median_predicted_empirical_ratio) at
+  transitional drive, and #rounded(s3-nominal-high.median_predicted_empirical_ratio)
+  at high drive. The linear model is therefore a useful failure diagnostic, not
+  a substitute for the empirical library.
 
   === Step 4: complete feature images
 
-  #staged-pending(
-    caption: [Feature images at representative rates. Matched originals, library
-      samples, and direct simulations are compared by pixel and image moments,
-      zero fractions, and image agreement.],
-    note: [Pending Step 4. Planned file: `feature_images.png`.],
-    ratio: 16 / 9,
+  #image(
+    "/artifacts/data/exp077/feature_images.png",
+    width: 100%,
+    alt: "Rows at low, transitional, and high rates compare original MNIST images, empirical-library samples, fresh direct simulations, and signed differences.",
   )
+
+  _Empirical-library samples versus fresh direct Step 1 simulations._ Rows show
+  0.25, 3, and 25 Hz at the nominal 1.2 μS probe. Comparable voltage images use
+  identical 0--65 mV limits. The low-rate row retains the registered zero-heavy,
+  discrete structure; transitional and high rates preserve recognizable digit
+  structure. The displayed samples are illustrative; the validation used all
+  three conductances, 16 fixed images, and eight replicates per condition.
+
+  Six of nine probe--rate conditions passed every locked comparison. At the
+  nominal probe, pooled-mean relative differences were
+  #rounded(s4-nominal-low.metrics.pooled_mean_relative_difference),
+  #rounded(s4-nominal-transition.metrics.pooled_mean_relative_difference), and
+  #rounded(s4-nominal-high.metrics.pooled_mean_relative_difference) from low to
+  high drive; spatial correlations were
+  #rounded(s4-nominal-low.metrics.spatial_mean_correlation),
+  #rounded(s4-nominal-transition.metrics.spatial_mean_correlation), and
+  #rounded(s4-nominal-high.metrics.spatial_mean_correlation).
+  All pooled pixel-moment and zero-fraction checks passed. The three low-rate
+  conditions failed image-level mean and variance tolerances; the 2.4 μS
+  low-rate condition also reached correlation
+  #rounded(s4.condition_records.at(6).comparison.metrics.spatial_mean_correlation)
+  against the locked 0.20 minimum. The thresholds and replicate count were not
+  changed after inspection. Step 4 is therefore a preserved validation failure,
+  and it establishes neither decodability nor classification accuracy.
 
   === Step 5: mixed-rate decoder training
 

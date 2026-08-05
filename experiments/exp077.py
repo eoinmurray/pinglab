@@ -2190,6 +2190,7 @@ def step_3() -> None:
         plot_step3(plot_record, FIGURES / "linear_filter.svg")
     outcome = {
         "status": "complete",
+        "completed_at_utc": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
         "classification": "post-hoc exploratory diagnostic after preserved Step 2 failure",
         "library_sha256": LIBRARY_SHA256,
         "amendment_sha256": sha256_file(AMENDMENT_PATH),
@@ -2463,7 +2464,7 @@ def step_4() -> None:
                     images[image_index], rate, probe, probe_index,
                     TRAINING_RATES_HZ.index(rate), image_index,
                 )
-                print(f"Step 4 direct: {probe:g} uS {regime} image {image_index}")
+            print(f"Step 4 direct: {probe:g} uS {regime}, 16 images complete")
     condition_records: list[dict[str, Any]] = []
     for probe_index, probe in enumerate(PROBE_CONDUCTANCES_US):
         for rate_index, (regime, rate) in enumerate(STEP4_RATES.items()):
@@ -2520,6 +2521,7 @@ def step_4() -> None:
     plot_step4(images, library_values, direct_values, condition_records, figure_path)
     outcome = {
         "status": "complete" if all(validations.values()) else "validation_failed",
+        "completed_at_utc": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
         "classification": "post-hoc exploratory feature-construction validation after preserved Step 2 failure",
         "library_sha256": LIBRARY_SHA256,
         "amendment_sha256": sha256_file(AMENDMENT_PATH),
@@ -2543,6 +2545,92 @@ def step_4() -> None:
         failed = [name for name, passed in validations.items() if not passed]
         raise RuntimeError(f"Step 4 validation failed: {', '.join(failed)}")
     print(f"exp077 Step 4 complete: {len(condition_records)}/9 conditions passed")
+
+
+def record_steps3_4_publication_contract() -> None:
+    """Extend cumulative exp077 metadata without erasing Steps 1--2 history."""
+    step3_path = FIGURES / "step3_outcome.json"
+    step4_path = FIGURES / "step4_outcome.json"
+    step3_record = json.loads(step3_path.read_text())
+    step4_record = json.loads(step4_path.read_text())
+    numbers_path = FIGURES / "numbers.json"
+    numbers = json.loads(numbers_path.read_text())
+    numbers.update(
+        {
+            "step": 4,
+            "status": "killed_at_step4_validation",
+            "scope": (
+                "Exploratory Steps 3-4 followed the preserved Step 2 failure; "
+                "Step 4 stopped at locked low-rate image-level checks"
+            ),
+            "step3": step3_record,
+            "step4": step4_record,
+            "later_steps_run": False,
+            "paid_compute_usd": 0.0,
+        }
+    )
+    numbers_path.write_text(json.dumps(numbers, indent=2) + "\n")
+
+    protocol_path = FIGURES / "protocol.json"
+    protocol = json.loads(protocol_path.read_text())
+    protocol.update(
+        {
+            "attempted_through_step": 4,
+            "step2_status": "full_library_validation_failed",
+            "steps3_4_classification": "explicitly authorized post-hoc exploratory amendment",
+            "step3_status": step3_record["status"],
+            "step4_status": step4_record["status"],
+            "later_steps": "Steps 5-7 not run",
+            "held_out_test_partition": "sealed",
+        }
+    )
+    protocol_path.write_text(json.dumps(protocol, indent=2) + "\n")
+
+    manifest_path = FIGURES / "step2_manifest.json"
+    manifest = json.loads(manifest_path.read_text())
+    manifest["exploratory_continuation"] = {
+        "original_step2_status_unchanged": manifest["status"],
+        "amendment_path": "artifacts/data/exp077/step3_step4_exploratory_amendment.json",
+        "amendment_sha256": sha256_file(AMENDMENT_PATH),
+        "step3_outcome": str(step3_path.relative_to(REPO)),
+        "step3_outcome_sha256": sha256_file(step3_path),
+        "step4_outcome": str(step4_path.relative_to(REPO)),
+        "step4_outcome_sha256": sha256_file(step4_path),
+        "steps5_7_run": False,
+    }
+    manifest_path.write_text(json.dumps(manifest, indent=2) + "\n")
+
+    provenance_path = FIGURES / "provenance.json"
+    provenance = json.loads(provenance_path.read_text())
+    provenance["exploratory_steps3_4"] = {
+        **_git_metadata(),
+        "library_sha256_verified": LIBRARY_SHA256,
+        "amendment_sha256": sha256_file(AMENDMENT_PATH),
+        "step3_outcome_sha256": sha256_file(step3_path),
+        "step4_outcome_sha256": sha256_file(step4_path),
+        "linear_filter_figure_sha256": sha256_file(FIGURES / "linear_filter.svg"),
+        "feature_images_figure_sha256": sha256_file(FIGURES / "feature_images.png"),
+        "paid_compute_usd": 0.0,
+    }
+    provenance_path.write_text(json.dumps(provenance, indent=2) + "\n")
+
+    reproducer_path = FIGURES / "reproducer.json"
+    reproducer = json.loads(reproducer_path.read_text())
+    reproducer["exploratory_steps3_4"] = {
+        "step3_command": "uv run python -c 'from experiments import exp077; exp077.step_3()'",
+        "step4_command": "uv run python -c 'from experiments import exp077; exp077.step_4()'",
+        "step4_expected_outcome": "locked low-rate image-level validation failure",
+        "metadata_command": "uv run python -c 'from experiments import exp077; exp077.record_steps3_4_publication_contract()'",
+        "expected_library_sha256": LIBRARY_SHA256,
+        "expected_outputs": [
+            "artifacts/data/exp077/linear_filter.svg",
+            "artifacts/data/exp077/step3_outcome.json",
+            "artifacts/data/exp077/feature_images.png",
+            "artifacts/data/exp077/step4_outcome.json",
+        ],
+        "paid_compute": False,
+    }
+    reproducer_path.write_text(json.dumps(reproducer, indent=2) + "\n")
 
 
 def step_5() -> None:
