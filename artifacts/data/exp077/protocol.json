@@ -25,7 +25,15 @@
   "feature": "mean_t(v(t) - E_L)",
   "later_steps": "not run",
   "attempted_through_step": 2,
-  "step2_status": "extended_pilot_converged",
+  "step2_status": "full_library_validation_failed",
   "step2_selected_K": 2048,
-  "step2_final_library_generated": false
+  "step2_final_library_generated": true,
+  "step2_shape": [
+    3,
+    3,
+    12,
+    256,
+    2048
+  ],
+  "step2_dtype": "float32"
 }

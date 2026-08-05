@@ -1,10 +1,14 @@
 {
-  "command": "EXP077_THROUGH_STEP=2 EXP077_STEP2_PILOT_ONLY=1 uv run python experiments/exp077.py",
+  "command": "EXP077_THROUGH_STEP=2 EXP077_STEP2_FULL=1 uv run python experiments/exp077.py",
+  "validation_command": "EXP077_THROUGH_STEP=2 EXP077_STEP2_VALIDATE_ONLY=1 uv run python experiments/exp077.py",
   "paid_compute": false,
-  "expected_outcome": "evaluate the authorized K=1024 and K=2048 extension",
+  "expected_library_sha256": "5184788979b5fa7fa9a3f38936399b8e2724d63914019f1306a7171981b36783",
   "expected_outputs": [
-    "artifacts/data/exp077/step2_pilot_extension_outcome.json",
-    "artifacts/data/exp077/response_library_extension.png",
-    "artifacts/data/exp077/numbers.json"
-  ]
+    "temp/exp077/response_library.float32.npy",
+    "artifacts/data/exp077/response_library_summary.npz",
+    "artifacts/data/exp077/step2_manifest.json",
+    "artifacts/data/exp077/response_library.png"
+  ],
+  "expected_outcome": "reproduce the authenticated library and the required monotonicity failure",
+  "failure_record": "artifacts/data/exp077/step2_library_validation_failure.json"
 }

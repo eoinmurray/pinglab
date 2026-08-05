@@ -743,11 +743,49 @@ def validate_full_library(library: np.ndarray) -> dict[str, Any]:
     rate_tol = MONOTONIC_Z * np.sqrt(se[:, 1:, :] ** 2 + se[:, :-1, :] ** 2)
     intensity_violations = int(np.sum(intensity_diff < -intensity_tol))
     rate_violations = int(np.sum(rate_diff < -rate_tol))
+    intensity_violation_rows = []
+    for probe_index, rate_index, lower_intensity in np.argwhere(
+        intensity_diff < -intensity_tol
+    ):
+        difference = float(intensity_diff[probe_index, rate_index, lower_intensity])
+        tolerance = float(intensity_tol[probe_index, rate_index, lower_intensity])
+        intensity_violation_rows.append(
+            {
+                "probe_uS": PROBE_CONDUCTANCES_US[int(probe_index)],
+                "rate_hz": TRAINING_RATES_HZ[int(rate_index)],
+                "lower_intensity": int(lower_intensity),
+                "higher_intensity": int(lower_intensity) + 1,
+                "difference_mV": difference,
+                "negative_tolerance_mV": -tolerance,
+                "excess_mV": -difference - tolerance,
+            }
+        )
+    intensity_violation_rows.sort(key=lambda row: row["excess_mV"], reverse=True)
+    rate_violation_rows = []
+    for probe_index, lower_rate_index, intensity in np.argwhere(rate_diff < -rate_tol):
+        difference = float(rate_diff[probe_index, lower_rate_index, intensity])
+        tolerance = float(rate_tol[probe_index, lower_rate_index, intensity])
+        rate_violation_rows.append(
+            {
+                "probe_uS": PROBE_CONDUCTANCES_US[int(probe_index)],
+                "lower_rate_hz": TRAINING_RATES_HZ[int(lower_rate_index)],
+                "higher_rate_hz": TRAINING_RATES_HZ[int(lower_rate_index) + 1],
+                "intensity": int(intensity),
+                "difference_mV": difference,
+                "negative_tolerance_mV": -tolerance,
+                "excess_mV": -difference - tolerance,
+            }
+        )
+    rate_violation_rows.sort(key=lambda row: row["excess_mV"], reverse=True)
     validations["monotonic_means"] = _validation_record(
         intensity_violations == 0 and rate_violations == 0,
         standard_error_multiplier=MONOTONIC_Z,
+        intensity_comparison_count=int(intensity_diff.size),
+        rate_comparison_count=int(rate_diff.size),
         intensity_violations=intensity_violations,
         rate_violations=rate_violations,
+        intensity_violation_conditions=intensity_violation_rows,
+        rate_violation_conditions=rate_violation_rows,
     )
 
     direct_rows = []
@@ -785,8 +823,10 @@ def validate_full_library(library: np.ndarray) -> dict[str, Any]:
                         "mean_limit_mV": mean_limit,
                         "variance_delta_mV2": variance_delta,
                         "variance_limit_mV2": variance_limit,
-                        "passed": mean_delta <= mean_limit
-                        and variance_delta <= variance_limit,
+                        "passed": bool(
+                            mean_delta <= mean_limit
+                            and variance_delta <= variance_limit
+                        ),
                     }
                 )
     validations["fresh_direct_simulation"] = _validation_record(
@@ -814,11 +854,6 @@ def validate_full_library(library: np.ndarray) -> dict[str, Any]:
         and low["distinct_float32_values"] > 1,
         representative=distributions,
     )
-    if not all(row["ok"] for row in validations.values()):
-        failed = [name for name, row in validations.items() if not row["ok"]]
-        raise RuntimeError(
-            f"Step 2 full-library validation failed: {', '.join(failed)}"
-        )
     return {
         "validations": validations,
         "summaries": summaries,
@@ -1272,7 +1307,42 @@ def record_full_library(
             ),
         }
     )
-    numbers["step2"].update(
+    original_pilot = json.loads((FIGURES / "step2_pilot_outcome.json").read_text())
+    extension_pilot = json.loads(
+        (FIGURES / "step2_pilot_extension_outcome.json").read_text()
+    )
+    combined_pilot = {
+        "candidate_K": original_pilot["candidate_K"] + extension_pilot["candidate_K"],
+        "hard_maximum_K": extension_pilot["hard_maximum_K"],
+        "evaluation_condition_count": extension_pilot["evaluation_condition_count"],
+        "trajectory": original_pilot["trajectory"] + extension_pilot["trajectory"],
+        "selected_K": extension_pilot["selected_K"],
+        "passed": extension_pilot["passed"],
+        "zero_intensity_exact": bool(
+            original_pilot["zero_intensity_exact"]
+            and extension_pilot["zero_intensity_exact"]
+        ),
+    }
+    if "step2" in numbers:
+        step2 = numbers["step2"]
+    else:
+        committed_numbers = json.loads(
+            subprocess.check_output(
+                ["git", "show", "HEAD:artifacts/data/exp077/numbers.json"],
+                cwd=REPO,
+                text=True,
+            )
+        )
+        step2 = committed_numbers.get(
+            "step2",
+            {
+                "original_pilot": original_pilot,
+                "extension_pilot": extension_pilot,
+                "combined_pilot": combined_pilot,
+            },
+        )
+        numbers["step2"] = step2
+    step2.update(
         {
             "status": "library_complete",
             "final_library_generated": True,
@@ -1330,6 +1400,91 @@ def record_full_library(
     )
     (FIGURES / "provenance.json").write_text(json.dumps(provenance, indent=2) + "\n")
     return manifest
+
+
+def _generation_timing_from_scratch() -> dict[str, Any]:
+    """Recover the completed local generation interval from filesystem metadata."""
+    birth_epoch = int(
+        subprocess.check_output(
+            ["stat", "--printf=%W", str(LIBRARY_SCRATCH)], text=True
+        ).strip()
+    )
+    modified_epoch = LIBRARY_SCRATCH.stat().st_mtime
+    if birth_epoch <= 0 or modified_epoch < birth_epoch:
+        raise RuntimeError("cannot recover full-library generation timing")
+    return {
+        "started_at_utc": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(birth_epoch)),
+        "completed_at_utc": time.strftime(
+            "%Y-%m-%dT%H:%M:%SZ", time.gmtime(modified_epoch)
+        ),
+        "duration_s": round(modified_epoch - birth_epoch, 1),
+        "method": "filesystem birth time to final raw-library modification time",
+    }
+
+
+def record_full_library_failure(
+    generation: dict[str, Any], validation: dict[str, Any]
+) -> dict[str, Any]:
+    """Record a killed full-library attempt without weakening a failed check."""
+    manifest = record_full_library(generation, validation)
+    failed = [name for name, row in validation["validations"].items() if not row["ok"]]
+    timing = _generation_timing_from_scratch()
+    failure = {
+        "status": "killed_at_required_validation",
+        "failed_validations": failed,
+        "validation_rule_changed": False,
+        "generation_timing": timing,
+        "library_sha256": manifest["library_sha256"],
+        "validations": validation["validations"],
+        "representative_distributions": validation["distributions"],
+        "paid_compute_usd": 0.0,
+        "later_steps_run": False,
+    }
+    failure_path = FIGURES / "step2_library_validation_failure.json"
+    failure_path.write_text(json.dumps(failure, indent=2) + "\n")
+    manifest.update(
+        {
+            "status": "validation_failed",
+            "validation_passed": False,
+            "failed_validations": failed,
+            "failure_record": str(failure_path.relative_to(REPO)),
+            "failure_record_sha256": sha256_file(failure_path),
+            "generation_timing": timing,
+        }
+    )
+    (FIGURES / "step2_manifest.json").write_text(json.dumps(manifest, indent=2) + "\n")
+    numbers = json.loads((FIGURES / "numbers.json").read_text())
+    numbers["status"] = "killed_at_full_library_validation"
+    numbers["scope"] = (
+        "Full empirical library generated, but Step 2 killed at its required "
+        "monotonicity validation; no later stage ran"
+    )
+    numbers["step2"].update(
+        {
+            "status": "validation_failed",
+            "generation_duration_s": timing["duration_s"],
+            "generation_timing": timing,
+            "all_validations_passed": False,
+            "failed_validations": failed,
+        }
+    )
+    (FIGURES / "numbers.json").write_text(json.dumps(numbers, indent=2) + "\n")
+    protocol = json.loads((FIGURES / "protocol.json").read_text())
+    protocol["step2_status"] = "full_library_validation_failed"
+    protocol["later_steps"] = "not run"
+    (FIGURES / "protocol.json").write_text(json.dumps(protocol, indent=2) + "\n")
+    reproducer = json.loads((FIGURES / "reproducer.json").read_text())
+    reproducer["expected_outcome"] = (
+        "reproduce the authenticated library and the required monotonicity failure"
+    )
+    reproducer["failure_record"] = str(failure_path.relative_to(REPO))
+    (FIGURES / "reproducer.json").write_text(json.dumps(reproducer, indent=2) + "\n")
+    provenance = json.loads((FIGURES / "provenance.json").read_text())
+    provenance["generation_timing"] = timing
+    provenance["generation_duration_s"] = timing["duration_s"]
+    provenance["validation_status"] = "failed"
+    (FIGURES / "provenance.json").write_text(json.dumps(provenance, indent=2) + "\n")
+    return failure
 
 
 def _git_metadata() -> dict[str, Any]:
@@ -1445,6 +1600,12 @@ def step_2() -> None:
         generation = generate_full_library()
     library = _open_library("r")
     validation = validate_full_library(library)
+    failed = [name for name, row in validation["validations"].items() if not row["ok"]]
+    if failed:
+        record_full_library_failure(generation, validation)
+        raise RuntimeError(
+            f"Step 2 full-library validation failed: {', '.join(failed)}"
+        )
     manifest = record_full_library(generation, validation)
     print(
         f"exp077 Step 2 complete: {manifest['library_shape']} {manifest['dtype']} "
