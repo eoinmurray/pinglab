@@ -429,5 +429,6 @@
     "completed_at_utc": "2026-08-05T18:53:09Z",
     "duration_s": 4789.4,
     "method": "filesystem birth time to final raw-library modification time"
-  }
+  },
+  "response_library_figure_sha256": "2ddf50718730d272d61e111279facd95a28f9c12e3fb48b1f8343ead54b6e063"
 }

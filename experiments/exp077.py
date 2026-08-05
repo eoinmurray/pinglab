@@ -1174,7 +1174,7 @@ def plot_full_library(
             color=color,
             label=f"{record['rate_hz']:g} Hz, x={record['intensity']}",
         )
-    ax_dist.set(title="G  Empirical distributions", xlabel="z (mV)", ylabel="Density")
+    ax_dist.set(title="G  Distributions", xlabel="z (mV)", ylabel="Density")
     ax_dist.legend(frameon=False, fontsize=6)
 
     ax_convergence = fig.add_subplot(grid[2, 1])
@@ -1200,7 +1200,7 @@ def plot_full_library(
         candidate, labels=[str(value) for value in candidate], rotation=45
     )
     ax_convergence.set(
-        title="H  Locked convergence", xlabel="Draws K", ylabel="Normalized discrepancy"
+        title="H  Convergence", xlabel="Draws K", ylabel="Normalized error"
     )
     ax_convergence.legend(frameon=False, fontsize=6)
 
@@ -1228,6 +1228,25 @@ def plot_full_library(
             ax.spines[["top", "right"]].set_visible(False)
     fig.savefig(path, dpi=240, facecolor="white")
     plt.close(fig)
+
+
+def refresh_full_library_figure() -> None:
+    """Replot the recorded Step 2 figure without rerunning any simulation."""
+    with np.load(FIGURES / "response_library_summary.npz") as stored:
+        summaries = {name: stored[name] for name in stored.files}
+    numbers = json.loads((FIGURES / "numbers.json").read_text())
+    plot_full_library(
+        summaries,
+        numbers["step2"]["representative_distributions"],
+        _open_library("r"),
+        FIGURES / "response_library.png",
+    )
+    manifest_path = FIGURES / "step2_manifest.json"
+    manifest = json.loads(manifest_path.read_text())
+    manifest["response_library_figure_sha256"] = sha256_file(
+        FIGURES / "response_library.png"
+    )
+    manifest_path.write_text(json.dumps(manifest, indent=2) + "\n")
 
 
 def record_full_library(
