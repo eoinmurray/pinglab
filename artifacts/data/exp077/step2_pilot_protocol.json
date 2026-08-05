@@ -18,6 +18,6 @@
   },
   "pass_rule": "Both mean and variance normalized discrepancies must have 95th percentile <= 1.0 and maximum <= 2.0 across the nonzero-intensity evaluation conditions. Zero-intensity conditions are checked exactly but excluded from normalized convergence summaries.",
   "selection_rule": "Select the smallest passing candidate K. If none passes through K=512, record failure and stop without generating the final library or weakening the rule.",
-  "randomness": "Deterministic independent streams derived from the registered seed, condition indices, and block index using numpy.random.SeedSequence.",
+  "randomness": "Deterministic independent streams derived from each registered seed and the pilot stream index using numpy.random.SeedSequence; conditions occupy fixed probe-rate-intensity array indices.",
   "registered_equations": "writings/exp077.typ, Equations 2-9"
 }

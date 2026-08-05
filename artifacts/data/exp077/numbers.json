@@ -1,11 +1,11 @@
 {
-  "run_id": "r003",
-  "git_sha": "669d56f",
-  "duration_s": 8.7,
-  "duration": "9s",
-  "step": 1,
-  "status": "complete",
-  "scope": "filter-matched feature generation only; no decoder or PING claim",
+  "run_id": "r005",
+  "git_sha": "51e7d0a",
+  "duration_s": 10.0,
+  "duration": "10s",
+  "step": 2,
+  "status": "killed_at_locked_convergence_gate",
+  "scope": "Step 1 remains complete; Step 2 stopped at its predeclared draw-count pilot; no final library, decoder, held-out test, threshold, or PING run",
   "parameters": {
     "C_m_nF": 1.0,
     "g_L_uS": 0.05,
@@ -20346,5 +20346,59 @@
   },
   "all_validations_passed": true,
   "paid_compute_usd": 0.0,
-  "reproducer": "EXP077_THROUGH_STEP=1 uv run python experiments/exp077.py"
+  "reproducer": "EXP077_THROUGH_STEP=1 uv run python experiments/exp077.py",
+  "step2": {
+    "status": "failed_locked_pilot",
+    "pilot": {
+      "candidate_K": [
+        64,
+        128,
+        256,
+        512
+      ],
+      "hard_maximum_K": 512,
+      "evaluation_condition_count": 270,
+      "trajectory": [
+        {
+          "K": 64,
+          "mean_p95_normalised_error": 3.6598103046417236,
+          "mean_maximum_normalised_error": 7.621829986572266,
+          "variance_p95_normalised_error": 3.129155158996582,
+          "variance_maximum_normalised_error": 4.0,
+          "passed": false
+        },
+        {
+          "K": 128,
+          "mean_p95_normalised_error": 2.5874526500701904,
+          "mean_maximum_normalised_error": 4.139617919921875,
+          "variance_p95_normalised_error": 2.6888160705566406,
+          "variance_maximum_normalised_error": 4.0,
+          "passed": false
+        },
+        {
+          "K": 256,
+          "mean_p95_normalised_error": 1.8481218814849854,
+          "mean_maximum_normalised_error": 3.249312162399292,
+          "variance_p95_normalised_error": 1.973731279373169,
+          "variance_maximum_normalised_error": 3.607395887374878,
+          "passed": false
+        },
+        {
+          "K": 512,
+          "mean_p95_normalised_error": 1.3555837869644165,
+          "mean_maximum_normalised_error": 2.870311975479126,
+          "variance_p95_normalised_error": 1.3765243291854858,
+          "variance_maximum_normalised_error": 2.575185775756836,
+          "passed": false
+        }
+      ],
+      "selected_K": null,
+      "passed": false,
+      "zero_intensity_exact": true
+    },
+    "pilot_duration_s": 26.8,
+    "final_library_generated": false,
+    "later_steps_run": false,
+    "paid_compute_usd": 0.0
+  }
 }
