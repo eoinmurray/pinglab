@@ -444,6 +444,7 @@ def calibrate() -> None:
         },
     ) as (_scratch, staging):
         rows = []
+        valid = []
         for index, settings in enumerate(CALIBRATION_GRID):
             metrics, _arrays, _bundle = run_condition(settings)
             fa = metrics["populations"]["a"]["dominant_frequency_hz"]
@@ -459,10 +460,12 @@ def calibrate() -> None:
                 "metrics": metrics,
                 "detuning_fraction": detuning,
             }
-            row["selection_score"] = calibration_score(row)
+            score = calibration_score(row)
+            row["selection_score"] = score
             rows.append(row)
+            if math.isfinite(score):
+                valid.append(row)
             print(index, settings, metrics["valid"], fa, fb, detuning)
-        valid = [row for row in rows if math.isfinite(row["selection_score"])]
         selected = (
             min(valid, key=lambda row: (row["selection_score"], row["index"]))
             if valid
@@ -578,7 +581,8 @@ def sweep() -> None:
             )
             bundle.write(variants_dir / f"{variant.name}.bundle", visualise=True)
             np.savez_compressed(
-                variants_dir / f"{variant.name}-recordings.npz", **arrays
+                variants_dir / f"{variant.name}-recordings.npz",
+                **arrays,  # ty: ignore[invalid-argument-type]
             )
             row = {"variant": asdict(variant), "metrics": metrics}
             rows.append(row)
@@ -642,6 +646,26 @@ def sweep() -> None:
             "#!/bin/sh\nuv run python experiments/exp078.py --stage calibrate\nuv run python experiments/exp078.py --stage sweep\n"
         )
         activity = [
+            {
+                "timestamp": "2026-08-05T12:48:57Z",
+                "event": "Registered the hypothesis, bounded calibration, deterministic selection, graph-only sweep, locking thresholds, success criterion, and kill criterion before coupling execution.",
+            },
+            {
+                "timestamp": "2026-08-05T12:50:00Z",
+                "event": "Passed the local smoke gate with finite named E/I and voltage recordings, exact replay, graph-only coupling, and exact five-step delay lowering.",
+            },
+            {
+                "timestamp": "2026-08-05T13:02:03Z",
+                "event": "Completed the bounded 12-candidate uncoupled calibration locally and selected candidate 8 deterministically; no cross-coupling was evaluated.",
+            },
+            {
+                "timestamp": "2026-08-05T13:03:12Z",
+                "event": "Replaced maximum-over-band coherence with registered 30–80 Hz mean coherence before coupling because the uncoupled maximum saturated at 0.992 and made the declared gain impossible.",
+            },
+            {
+                "timestamp": "2026-08-05T13:14:54Z",
+                "event": "Froze the selected uncoupled baseline and all numerical thresholds before the first coupling condition.",
+            },
             {
                 "timestamp": "2026-08-05T13:34:17Z",
                 "event": "Killed the first complete sweep publication after rate traces overwrote spike-array artifact keys and raster rendering failed; atomic staging prevented invalid evidence publication.",

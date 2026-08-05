@@ -6,6 +6,8 @@
   status: "draft",
 )
 
+#let exp078 = json("/artifacts/data/exp078/numbers.json")
+
 #let body = [
   == Abstract
 
@@ -1077,15 +1079,33 @@
 
   === B.7 Milestone 4: first native gamma-coupling experiment
 
-  Add a representative experiment to the _snnlang_ collection using milestone 3.
-  Measure synchrony, phase difference, coherence or phase locking, and cross-
-  correlation across coupling direction, strength, and delay. Record time to create
-  variants, changed lines, compiler errors caught, simulator edits, runtime, memory,
-  and diagram clarity.
+  *Status: complete.* #link("/exp078/")[_exp078_] uses the Milestone 3 executor
+  to compare two independently driven,
+  #calc.round(100 * exp078.calibration.selected.detuning_fraction, digits: 2)%
+  detuned PING circuits across a registered sweep of
+  #exp078.sweep.condition_count reciprocal-inhibition conditions.
+  #exp078.sweep.locked_count conditions form a
+  contiguously supported locking region: each retains active E/I populations,
+  reduces the uncoupled frequency difference, increases phase locking and
+  coherence, and retains a stable phase offset. Strong short/intermediate
+  coupling instead silences one circuit and is explicitly excluded from
+  synchronization. Delay changes the locked phase/lag regime.
 
-  *Gate:* scientifically meaningful variants take minutes rather than hours and need
-  no simulator-internal changes. This is a go/no-go review: if iteration speed has
-  not materially improved, stop language expansion and identify the real bottleneck.
+  The experiment archives synchrony, phase difference, mean-band coherence,
+  phase-locking value, cross-correlation, firing diagnostics, runtime, memory,
+  graph digests, manifests, diagrams, independent inputs, and named recordings
+  for every variant. The registered sweep required no simulator edit and used no
+  paid compute. The experiment-side implementation and failed-attempt correction
+  are linked by commits `03bfbe9` and `a781c7f`; exp077 remains unchanged as the
+  architecture/causality record.
+
+  *Gate:* pass. Individual #exp078.registration.simulation.duration_ms ms
+  biological simulations complete in about
+  #calc.round(exp078.sweep.rows.at(0).metrics.runtime_s, digits: 0) s locally and
+  all variants are graph-only. The complete sweep of
+  #exp078.sweep.condition_count cells took #exp078.duration; variant creation
+  and execution therefore remain an interactive rather
+  than overnight workflow. Milestone 5 may proceed after human review.
 
   === B.8 Milestone 5: graph-native readouts and input bindings
 
