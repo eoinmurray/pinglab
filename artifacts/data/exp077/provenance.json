@@ -1,8 +1,18 @@
 {
-  "git_sha_at_execution": "ad3fb4f8b871dd3749be04edc60840d654a2ac72",
+  "git_sha_at_execution": "62dce1ed7649b1e60a741ae58b3e6f72fc21f73e",
   "worktree_dirty_at_execution": true,
-  "runner_sha256": "7933281973a418c084a1595720007a112a93b7537be3051dda6da826d607daf6",
+  "runner_sha256": "d78f978dcc868a01fffab815a82ef4029834b1c834f48695571db39bcdb07ea1",
   "python": "3.10.20",
   "numpy": "2.2.6",
-  "platform": "linux"
+  "platform": "linux",
+  "library_sha256": "5184788979b5fa7fa9a3f38936399b8e2724d63914019f1306a7171981b36783",
+  "generation_duration_s": 4789.4,
+  "paid_compute_usd": 0.0,
+  "generation_timing": {
+    "started_at_utc": "2026-08-05T17:33:20Z",
+    "completed_at_utc": "2026-08-05T18:53:09Z",
+    "duration_s": 4789.4,
+    "method": "filesystem birth time to final raw-library modification time"
+  },
+  "validation_status": "failed"
 }
