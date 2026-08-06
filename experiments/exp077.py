@@ -2853,6 +2853,172 @@ def step_5() -> None:
     run_step5_stage(os.environ.get("EXP077_STAGE", "smoke"))
 
 
+def finalize_step5() -> dict[str, Any]:
+    """Aggregate the nine full training cells and draw the registered history."""
+    records: list[dict[str, Any]] = []
+    for probe in PROBE_CONDUCTANCES_US:
+        for seed in SEEDS:
+            directory = FIGURES / "step5" / "full" / f"probe-{probe:g}" / f"seed-{seed}"
+            training_path = directory / "training.json"
+            modal_path = directory / "modal.json"
+            checkpoint_path = directory / "decoders.pt"
+            if not all(path.exists() for path in (training_path, modal_path, checkpoint_path)):
+                raise RuntimeError(f"incomplete Step 5 cell: probe={probe:g}, seed={seed}")
+            training = json.loads(training_path.read_text())
+            modal = json.loads(modal_path.read_text())
+            records.append(
+                {
+                    "probe_uS": probe,
+                    "seed": seed,
+                    "training_path": str(training_path.relative_to(REPO)),
+                    "training_sha256": sha256_file(training_path),
+                    "checkpoint_path": str(checkpoint_path.relative_to(REPO)),
+                    "checkpoint_sha256": sha256_file(checkpoint_path),
+                    "selected_nonlinear_epoch": training["selected_nonlinear_epoch"],
+                    "selected_nonlinear_validation_accuracy": training[
+                        "selected_nonlinear_validation_accuracy"
+                    ],
+                    "selected_linear_epoch": training["selected_linear_epoch"],
+                    "selected_linear_validation_accuracy": training[
+                        "selected_linear_validation_accuracy"
+                    ],
+                    "selected_linear_weight_decay": training[
+                        "selected_linear_weight_decay"
+                    ],
+                    "history": training["history"],
+                    "runtime_s": training["runtime_s"],
+                    "modal_elapsed_s": modal["elapsed_s"],
+                    "estimated_cost_usd": modal["estimated_cost_usd"],
+                }
+            )
+    theme.apply()
+    fig, axes = plt.subplots(1, 2, figsize=(8.0, 3.2), constrained_layout=True)
+    colors = {0.6: "#4477AA", 1.2: "#222222", 2.4: "#CC6677"}
+    for probe in PROBE_CONDUCTANCES_US:
+        probe_records = [record for record in records if record["probe_uS"] == probe]
+        epochs = np.asarray([row["epoch"] for row in probe_records[0]["history"]])
+        nonlinear = np.asarray(
+            [
+                [row["nonlinear"]["validation_accuracy"] for row in record["history"]]
+                for record in probe_records
+            ]
+        )
+        linear = np.asarray(
+            [
+                [
+                    max(item["validation_accuracy"] for item in row["linear"])
+                    for row in record["history"]
+                ]
+                for record in probe_records
+            ]
+        )
+        for axis, values, title in (
+            (axes[0], nonlinear, "Nonlinear decoder"),
+            (axes[1], linear, "Linear decoder"),
+        ):
+            mean = np.mean(values, axis=0)
+            low = np.min(values, axis=0)
+            high = np.max(values, axis=0)
+            axis.plot(epochs, mean, color=colors[probe], label=f"{probe:g} μS")
+            axis.fill_between(epochs, low, high, color=colors[probe], alpha=0.16, linewidth=0)
+            axis.set_title(title)
+            axis.set_xlabel("Epoch")
+            axis.set_ylabel("Validation accuracy")
+            axis.set_ylim(0, 1)
+    axes[1].legend(frameon=False, title="Probe")
+    figure_path = FIGURES / "step5_training_history.svg"
+    savefig_atomic(fig, figure_path, bbox_inches="tight")
+    plt.close(fig)
+    killed_cost = json.loads((FIGURES / "step5" / "pilot" / "attempt-002.json").read_text())[
+        "estimated_cost_usd"
+    ]
+    pilot_cost = json.loads(
+        (FIGURES / "step5" / "pilot" / "probe-1.2" / "seed-42" / "modal.json").read_text()
+    )["estimated_cost_usd"]
+    outcome = {
+        "status": "complete",
+        "completed_at_utc": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+        "records": records,
+        "figure_path": str(figure_path.relative_to(REPO)),
+        "figure_sha256": sha256_file(figure_path),
+        "successful_step5_estimated_cost_usd": sum(
+            float(record["estimated_cost_usd"]) for record in records
+        ),
+        "killed_attempt_estimated_cost_usd": killed_cost,
+        "successful_pilot_estimated_cost_usd": pilot_cost,
+    }
+    outcome["cumulative_estimated_cost_usd"] = (
+        outcome["successful_step5_estimated_cost_usd"]
+        + outcome["killed_attempt_estimated_cost_usd"]
+        + outcome["successful_pilot_estimated_cost_usd"]
+    )
+    path = FIGURES / "step5_outcome.json"
+    path.write_text(json.dumps(outcome, indent=2) + "\n")
+    return outcome
+
+
+def write_frozen_evaluation_protocol() -> Path:
+    """Freeze all choices and hashes before any official test-set access."""
+    step5_path = FIGURES / "step5_outcome.json"
+    if not step5_path.exists():
+        raise RuntimeError("Step 5 must be finalized before freezing evaluation")
+    step5 = json.loads(step5_path.read_text())
+    models = [
+        {
+            "probe_uS": record["probe_uS"],
+            "seed": record["seed"],
+            "path": record["checkpoint_path"],
+            "sha256": record["checkpoint_sha256"],
+            "selected_nonlinear_epoch": record["selected_nonlinear_epoch"],
+            "selected_linear_epoch": record["selected_linear_epoch"],
+            "linear_weight_decay": record["selected_linear_weight_decay"],
+        }
+        for record in step5["records"]
+    ]
+    protocol = {
+        "status": "frozen_before_test_access",
+        "frozen_at_utc": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+        "git": _git_metadata(),
+        "step5_outcome_path": str(step5_path.relative_to(REPO)),
+        "step5_outcome_sha256": sha256_file(step5_path),
+        "models": models,
+        "rate_grid_hz": list(TRAINING_RATES_HZ),
+        "probe_conductances_uS": list(PROBE_CONDUCTANCES_US),
+        "decoder_seeds": list(SEEDS),
+        "direct_simulation_draws": EVALUATION_DRAWS,
+        "direct_simulation_seed_recipe": (
+            "sha256-derived 63-bit seed of [77,6,probe_index,rate_index,draw,batch_start]"
+        ),
+        "same_held_out_images_for_every_decoder_seed": True,
+        "bootstrap": {
+            "repetitions": BOOTSTRAP_REPETITIONS_HELDOUT,
+            "confidence_level": CONFIDENCE_LEVEL,
+            "bound": "one-sided lower percentile",
+            "independently_resampled_axes": [
+                "held-out images",
+                "direct-simulation draws",
+                "decoder seeds",
+            ],
+        },
+        "criteria": {
+            "chance_accuracy": CHANCE_ACCURACY,
+            "useful_accuracy": USEFUL_ACCURACY,
+            "r_decode": "lowest observed rate with lower bound strictly above chance",
+            "r_train": "lowest observed rate with lower bound at least useful accuracy",
+            "interpolation_is_observation": False,
+        },
+        "dataset": {
+            "training_indices": [0, 54_999],
+            "validation_indices": [55_000, 59_999],
+            "official_test_size": 10_000,
+            "official_test_loaded_before_freeze": False,
+        },
+    }
+    path = FIGURES / "frozen_evaluation_protocol.json"
+    path.write_text(json.dumps(protocol, indent=2) + "\n")
+    return path
+
+
 def load_held_out_mnist_test(protocol_path: Path) -> tuple[np.ndarray, np.ndarray, dict[str, Any]]:
     """Load the official test partition only after authenticating the freeze file."""
     if not protocol_path.exists():
@@ -2993,6 +3159,116 @@ def _hierarchical_lower_bound(values: np.ndarray, seed: int) -> tuple[float, flo
         estimates[repetition] = np.mean(selected)
     alpha = 1.0 - CONFIDENCE_LEVEL
     return float(np.mean(array)), float(np.quantile(estimates, alpha)), float(np.quantile(estimates, 1.0 - alpha))
+
+
+def analyze_held_out_evaluation() -> dict[str, Any]:
+    """Calculate frozen intervals, thresholds, and the concise psychometric plot."""
+    arrays_path = FIGURES / "step6" / "held_out_correctness.npz"
+    with np.load(arrays_path) as arrays:
+        nonlinear_correct = arrays["nonlinear_correct"]
+        linear_correct = arrays["linear_correct"]
+    nonlinear_rows: list[dict[str, Any]] = []
+    for probe_index, probe in enumerate(PROBE_CONDUCTANCES_US):
+        for rate_index, rate in enumerate(TRAINING_RATES_HZ):
+            mean, lower, upper = _hierarchical_lower_bound(
+                nonlinear_correct[probe_index, rate_index],
+                _decoder_seed(7, probe_index, rate_index, 1),
+            )
+            nonlinear_rows.append(
+                {
+                    "probe_uS": probe,
+                    "rate_hz": rate,
+                    "accuracy": mean,
+                    "lower_95_one_sided": lower,
+                    "upper_95": upper,
+                }
+            )
+    linear_rows: list[dict[str, Any]] = []
+    for rate_index, rate in enumerate(TRAINING_RATES_HZ):
+        mean, lower, upper = _hierarchical_lower_bound(
+            linear_correct[rate_index], _decoder_seed(7, rate_index, 2)
+        )
+        linear_rows.append(
+            {
+                "probe_uS": PROBE_US,
+                "rate_hz": rate,
+                "accuracy": mean,
+                "lower_95_one_sided": lower,
+                "upper_95": upper,
+            }
+        )
+
+    def threshold(rows: list[dict[str, Any]], criterion: float, strict: bool) -> float | None:
+        for row in rows:
+            lower = float(row["lower_95_one_sided"])
+            if (lower > criterion) if strict else (lower >= criterion):
+                return float(row["rate_hz"])
+        return None
+
+    thresholds: dict[str, Any] = {}
+    for probe in PROBE_CONDUCTANCES_US:
+        rows = [row for row in nonlinear_rows if row["probe_uS"] == probe]
+        thresholds[str(probe)] = {
+            "r_decode_hz": threshold(rows, CHANCE_ACCURACY, True),
+            "r_train_hz": threshold(rows, USEFUL_ACCURACY, False),
+        }
+    thresholds["linear_1.2"] = {
+        "r_decode_hz": threshold(linear_rows, CHANCE_ACCURACY, True),
+        "r_train_hz": threshold(linear_rows, USEFUL_ACCURACY, False),
+    }
+    theme.apply()
+    fig, axes = plt.subplots(1, 2, figsize=(8.0, 3.25), constrained_layout=True)
+    colors = {0.6: "#4477AA", 1.2: "#222222", 2.4: "#CC6677"}
+    nominal = [row for row in nonlinear_rows if row["probe_uS"] == PROBE_US]
+    for rows, label, color, linestyle in (
+        (nominal, "Nonlinear", "#222222", "-"),
+        (linear_rows, "Linear", "#999999", "--"),
+    ):
+        rates = np.asarray([row["rate_hz"] for row in rows])
+        mean = np.asarray([row["accuracy"] for row in rows])
+        low = np.asarray([row["lower_95_one_sided"] for row in rows])
+        high = np.asarray([row["upper_95"] for row in rows])
+        axes[0].plot(rates, mean, label=label, color=color, linestyle=linestyle)
+        axes[0].fill_between(rates, low, high, color=color, alpha=0.15, linewidth=0)
+    for probe in PROBE_CONDUCTANCES_US:
+        rows = [row for row in nonlinear_rows if row["probe_uS"] == probe]
+        rates = np.asarray([row["rate_hz"] for row in rows])
+        mean = np.asarray([row["accuracy"] for row in rows])
+        low = np.asarray([row["lower_95_one_sided"] for row in rows])
+        high = np.asarray([row["upper_95"] for row in rows])
+        axes[1].plot(rates, mean, label=f"{probe:g} μS", color=colors[probe])
+        axes[1].fill_between(rates, low, high, color=colors[probe], alpha=0.15, linewidth=0)
+    for axis, title in zip(axes, ("Decoder comparison at 1.2 μS", "Conductance sensitivity"), strict=True):
+        axis.axhline(CHANCE_ACCURACY, color="#777777", linewidth=0.8, linestyle=":")
+        axis.axhline(USEFUL_ACCURACY, color="#777777", linewidth=0.8, linestyle="--")
+        axis.set_xscale("log")
+        axis.set_xticks(TRAINING_RATES_HZ)
+        axis.set_xticklabels([f"{rate:g}" for rate in TRAINING_RATES_HZ], rotation=45)
+        axis.set_ylim(0, 1)
+        axis.set_xlabel("Encoding rate (Hz)")
+        axis.set_ylabel("Held-out accuracy")
+        axis.set_title(title)
+        axis.legend(frameon=False)
+    figure_path = FIGURES / "psychometric.svg"
+    savefig_atomic(fig, figure_path, bbox_inches="tight")
+    plt.close(fig)
+    outcome = {
+        "status": "complete",
+        "confidence": {
+            "level": CONFIDENCE_LEVEL,
+            "side": "one-sided lower percentile bound",
+            "bootstrap_repetitions": BOOTSTRAP_REPETITIONS_HELDOUT,
+            "resampled_axes": ["held-out images", "direct-simulation draws", "decoder seeds"],
+        },
+        "nonlinear": nonlinear_rows,
+        "linear_nominal": linear_rows,
+        "thresholds": thresholds,
+        "figure_path": str(figure_path.relative_to(REPO)),
+        "figure_sha256": sha256_file(figure_path),
+        "arrays_sha256": sha256_file(arrays_path),
+    }
+    (FIGURES / "step6_outcome.json").write_text(json.dumps(outcome, indent=2) + "\n")
+    return outcome
 
 
 def step_6() -> None:
