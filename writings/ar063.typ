@@ -1132,14 +1132,16 @@
   conductance, recurrent-delay, and delayed-input boundaries. Runtime state uses a
   graph signature that excludes weight values but rejects timestep, size, delay,
   synapse, identity, and state-layout mismatches. _exp078_ burns in the final graph
-  at zero cross-weight and branches identical mature state and future inputs into
-  coupled and uncoupled runs. After the broader weight--delay refinement, a
+  at zero cross-weight and continues the mature state and future inputs once with
+  coupling; no matched uncoupled continuation is simulated. After the broader
+  weight--delay refinement, a
   declared bounded search compares mature checkpoints on one fixed archived
   input stream and selects a trajectory that begins away from its eventual lag
   and converges across the 1.2 s
   continuation. At weight 0.20 and delay 10 ms, the coupled branch reaches its
-  sustained-250-ms capture gate after 918.9 ms, settles near a 0.052 rad phase
-  delay, and reaches late PLV 0.992 versus 0.287 in the matched uncoupled control.
+  sustained-250-ms capture gate after 918.9 ms, settles near a 0.052 rad lag, and
+  confines 95% of final-window smoothed
+  instantaneous frequency differences below 2.37 Hz.
   This is direct evidence for phase acquisition in the selected realization, not
   evidence for inevitable or biologically general locking.
 

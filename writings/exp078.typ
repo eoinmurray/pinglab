@@ -42,17 +42,17 @@
   half-window PLVs #n(best.metrics.synchrony.half_1_plv) and
   #n(best.metrics.synchrony.half_2_plv), and limits half-window phase drift to
   #n(best.metrics.synchrony.half_phase_offset_difference_rad) rad. A stronger
-  test branches a mature saved state into matched coupled and uncoupled
-  continuations. Static weight #acquired.strength coupling reaches the
+  test continues a mature saved state once with static weight #acquired.strength
+  coupling. It reaches the
   sustained-250-ms capture criterion after
   #n(acquisition-metrics.capture_time_ms, digits: 1) ms. The coupled phase is
   initially #n(acquisition-metrics.early_phase_error_rad) rad from its eventual
   lag, but its final-quarter median error falls to
-  #n(acquisition-metrics.quartile_phase_errors_rad.at(3)) rad and its late PLV is
-  #n(acquisition-metrics.late_plv), against
-  #n(acquisition-metrics.control_late_plv) in the identical-state uncoupled
-  control. This trajectory therefore shows acquisition across the observation
-  window rather than beginning already synchronized.
+  #n(acquisition-metrics.quartile_phase_errors_rad.at(3)) rad. During the final
+  250 ms, 95% of the smoothed instantaneous frequency differences are below
+  #hz(acquisition-metrics.late_frequency_difference_95_hz). This trajectory
+  therefore shows acquisition across the observation window rather than beginning
+  already synchronized.
   Strong coupling instead suppresses one circuit. This one-seed result is a
   reduced mechanism demonstration, not an estimate of biological generality.
 
@@ -134,15 +134,15 @@
     (#n(acquisition.checkpoint.time_ms, digits: 1) ms). The zero-coupling run was
     repeated exactly to that timestep and complete membrane, refractory,
     conductance, recurrent-delay, and delayed-input state was exported. The same
-    state and future input realization then initialized weight-zero control and
-    static reciprocal E→I coupling branches. After the broader weight--delay
-    refinement, a bounded search compared mature checkpoints on one fixed,
+    saved state and future input realization then initialized one static reciprocal
+    E→I coupling continuation. No uncoupled continuation was simulated. After the
+    broader weight--delay refinement, a bounded search compared mature checkpoints on one fixed,
     archived input stream at weight 0.20 and delay 10 ms. The declared gate
-    required weak early locking (PLV at most 0.70), displaced
-    early phase, delayed acquisition, late PLV at least 0.92, 95% of final-250-ms
-    circular phase errors below 0.65 rad, and a drifting matched control; the
-    passing case with the smallest late phase error was selected. Weights were not
-    part of runtime state. A 250 ms
+    required weak early locking (PLV at most 0.70), displaced early phase, delayed
+    acquisition, late PLV at least 0.92, 95% of final-250-ms circular phase errors
+    below 0.65 rad, and 95% of final-250-ms instantaneous frequency differences
+    below 2.5 Hz; the passing case with the smallest late phase error was selected.
+    Weights were not part of runtime state. A 250 ms
     pre-checkpoint recording context was used only to prevent band-pass/Hilbert
     edge bias; no spikes were shifted or replayed into the model.
 
@@ -177,18 +177,18 @@
     image(
       "/artifacts/data/exp078/acquisition/phase_acquisition.png",
       width: 88%,
-      alt: "Separate spike rasters and population-rate panels for circuits A and B, followed by circularly smoothed relative phase and rolling phase-locking value for uncoupled and coupled continuations.",
+      alt: "Separate spike rasters and population-rate panels for circuits A and B, followed by A-minus-B phase delay and instantaneous frequency difference over time.",
     ),
     caption: [One continuous coupled trajectory from an already mature checkpoint.
       Reciprocal E→I weight #acquired.strength and delay #acquired.delay_ms ms are
       enabled at 0 ms; nothing else is reset. The first two panels show
       fixed samples of 100 E and 50 I neurons from circuits A and B. The next
       two show their full-population E rates on a common scale without overlap.
-      The final two panels compare 50 ms circularly smoothed A-minus-B phase delay
-      and 150 ms trailing PLV. The coupled phase begins displaced from the dashed
-      eventual lag, wanders, and converges near that lag; the light identical-state
-      control continues drifting. Coupling crosses the sustained-250-ms capture
-      gate at #n(acquisition-metrics.capture_time_ms, digits: 1) ms.],
+      The final two panels show 50 ms circularly smoothed A-minus-B phase delay and
+      the corresponding smoothed instantaneous A-minus-B frequency difference.
+      Phase wanders over the early and middle window while frequency difference
+      changes sign. After #n(acquisition-metrics.capture_time_ms, digits: 1) ms,
+      phase approaches a fixed lag and frequency difference approaches zero.],
   )
   ]
 
@@ -226,11 +226,12 @@
   #n(acquisition-metrics.quartile_phase_errors_rad.at(0)),
   #n(acquisition-metrics.quartile_phase_errors_rad.at(1)),
   #n(acquisition-metrics.quartile_phase_errors_rad.at(2)), and
-  #n(acquisition-metrics.quartile_phase_errors_rad.at(3)) rad. Late PLV reaches
-  #n(acquisition-metrics.late_plv); the matched control reaches only
-  #n(acquisition-metrics.control_late_plv). The smoothed late-phase span is
+  #n(acquisition-metrics.quartile_phase_errors_rad.at(3)) rad. The smoothed
+  late-phase span is
   #n(acquisition-metrics.smooth_late_span_rad) rad around an eventual lag of
-  #n(acquisition-metrics.fixed_phase_delay_rad) rad. Coupling therefore changes
+  #n(acquisition-metrics.fixed_phase_delay_rad) rad, while the final-window 95th
+  percentile absolute frequency difference is
+  #hz(acquisition-metrics.late_frequency_difference_95_hz). Coupling therefore changes
   the phase dynamics over repeated cycles rather than merely selecting an already
   locked initial condition.
 
@@ -250,8 +251,8 @@
 
   The registered coarse-grid success criterion fails, but the explicitly
   exploratory refinement reveals the missed phase-locking region. Reciprocal
-  E→I excitation can arrest accumulating uncoupled phase drift over many cycles,
-  raise rolling PLV, and converge toward a stable phase lag within the observed
+  E→I excitation can reshape relative phase over many cycles and converge toward
+  a stable phase lag with near-zero frequency difference within the observed
   continuation. Excessive coupling recruits
   enough inhibition to suppress circuit B rather than synchronize it. This is
   the intended reduced mechanism: long-range excitation can synchronize PING

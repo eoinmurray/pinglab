@@ -1,5 +1,5 @@
 {
-  "protocol": "mature zero-coupling checkpoint, identical-state coupled/control continuation with independent Poisson future input",
+  "protocol": "mature zero-coupling checkpoint continued once with reciprocal E-to-I coupling and independent Poisson input",
   "checkpoint": {
     "step": 11662,
     "time_ms": 1166.2
@@ -8,7 +8,7 @@
     "strength": 0.2,
     "delay_ms": 10.0,
     "future_seed_offset": null,
-    "rule": "bounded checkpoint/weight/delay/input-seed search; require weak early locking, delayed capture, and stable late circular phase, then minimize late phase error"
+    "rule": "bounded mature-checkpoint search on one fixed archived input stream at the refined weight and delay; require weak early locking, delayed capture, and stable late circular phase"
   },
   "metrics": {
     "convergent": true,
@@ -16,7 +16,7 @@
     "late_phase_error_95_rad": 0.2893737369540646,
     "early_plv": 0.6285277239036021,
     "late_plv": 0.9915514676587446,
-    "control_late_plv": 0.28749784006786006,
+    "late_frequency_difference_95_hz": 2.370159090671252,
     "late_unwrapped_span_rad": 0.6856561001208084,
     "smooth_late_span_rad": 0.6558567504673407,
     "capture_time_ms": 918.9000000000001,
