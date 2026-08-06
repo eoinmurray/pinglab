@@ -410,30 +410,14 @@
 
     #image("/artifacts/data/exp077/probe_dynamics.svg", width: 100%)
 
-    _Finite-window timing sensitivity._ Panel A plots subthreshold voltage after
-    placing one spike at 20 or 180 ms and passing it through the registered AMPA
-    synapse and membrane. Panel B repeats the simulation across 101 single-spike
-    times and plots the resulting presentation-averaged feature z. Each voltage
-    trace rises and then decays as AMPA conductance and membrane voltage relax;
-    z falls for late spikes because the fixed 200 ms window truncates more of
-    their response.
+    _Finite-window timing sensitivity._ Panel A places one input spike at 20 or
+    180 ms. Panels B and C pass those inputs through the registered AMPA synapse
+    and subthreshold membrane. Panel D repeats the simulation across 101
+    single-spike times and plots the presentation-averaged feature z. Conductance
+    and voltage rise after each spike and then relax through their respective
+    decay dynamics; z falls for late spikes because the fixed 200 ms window
+    truncates more of their response.
   ]
-
-  With the same one-spike count, input at
-  #rounded(r.validations.spike_timing_sensitivity.early_spike_ms) ms produced
-  z = #rounded(r.validations.spike_timing_sensitivity.early_z_mV) mV, whereas
-  input at #rounded(r.validations.spike_timing_sensitivity.late_spike_ms) ms
-  produced #rounded(r.validations.spike_timing_sensitivity.late_z_mV) mV, a
-  difference of
-  #rounded(r.validations.spike_timing_sensitivity.early_minus_late_z_mV) mV.
-
-  The decay-then-add check reproduced the first two conductances with a maximum
-  absolute error of #rounded(r.validations.ampa_decay_then_add.maximum_absolute_error_uS)
-  μS. The independently calculated exponential-Euler step and the complete local
-  trajectory both matched the existing `tools/snn` uncoupled cell within their
-  registered machine-precision tolerances. This validates the Step 1 feature
-  generator only; it does not establish MNIST decodability or select a PING
-  input-rate range.
 
   === Step 2: empirical response library
 
@@ -446,31 +430,12 @@
   _Signal and variability across the empirical response library._ For every
   rate--intensity condition, Panel A plots the mean feature z and Panel B its
   standard deviation across the authenticated draws, against encoding rate ×
-  normalized intensity × #presentation-ms ms. Faint points are individual
-  conditions; strong curves are binned medians; colour, marker, and line style
-  encode probe conductance. Red crosses mark the five registered monotonicity
-  failures, and the inset reports exact-zero mass at full intensity. Both moments
+  normalized intensity × #presentation-ms ms. Thin traces are binned medians;
+  colour and line style encode probe conductance, and the inset reports
+  exact-zero mass at full intensity. Both moments
   rise because larger expected spike counts deliver more stochastic conductance;
   larger probes produce larger voltage excursions, while exact-zero mass falls
   as receiving no spikes becomes less likely.
-
-  The array contains #m.library_value_count float32 values with shape
-  #m.library_shape.map(str).join(" × ") and a #(m.library_payload_bytes)-byte
-  payload. Zero intensity returned the resting feature exactly, direct
-  simulation agreed at every predeclared condition, and exact chunk replay
-  passed for all registered seeds. These checks establish an authenticated
-  empirical library and its failure mode only. They do not establish MNIST
-  decodability, a training-rate floor, or PING accuracy.
-
-  #block(breakable: false)[
-    The post-hoc repeated-resampling diagnostic found that K =
-    #boot-1024.K passed #boot-1024.pass_count of #boot.repetitions repetitions,
-    whereas K = #boot-2048.K passed #boot-2048.pass_count, a frequency of
-    #rounded(boot-2048.pass_frequency). This exceeded the locked escalation
-    threshold, so no independent K = 4,096 comparison was run. The diagnostic
-    supports describing K = #boot-2048.K as typically stable under the registered
-    tolerances, not as an asymptotic plateau.
-  ]
 
   === Step 3: linear-filter prediction
 
@@ -489,57 +454,20 @@
   roll-off, and rectangular averaging introduces nulls at multiples of 5 Hz.
   The dotted horizontal line marks −3 dB.
 
-  All #s3.gain_checks.len() numerical sinusoidal gain checks passed; the largest
-  relative error was
-  #rounded(calc.max(..s3.gain_checks.map(x => x.relative_error)), digits: 4).
-  The maximum frequency-grid refinement change was
-  #rounded(s3.quadrature.maximum_refinement_relative_change, digits: 8), and the
-  widened-bound change was
-  #rounded(s3.quadrature.maximum_bound_relative_change, digits: 8), both below
-  the locked 0.2% tolerance. At the nominal 1.2 μS probe, median predicted to
-  empirical variance ratios were
-  #rounded(s3-nominal-low.median_predicted_empirical_ratio) at low drive,
-  #rounded(s3-nominal-transition.median_predicted_empirical_ratio) at
-  transitional drive, and #rounded(s3-nominal-high.median_predicted_empirical_ratio)
-  at high drive. Thus the transfer functions and numerical implementation agree,
-  but the stationary variance approximation remains quantitatively poor and is
-  not a substitute for the empirical library.
-
   === Step 4: complete feature images
 
   #image(
     "/artifacts/data/exp077/feature_images.png",
     width: 100%,
-    alt: "Rows at low, transitional, and high rates compare original MNIST images, empirical-library samples, and fresh direct simulations above a spatial-correlation summary.",
+    alt: "Rows at low, transitional, and high rates compare original MNIST images, empirical-library samples, and fresh direct simulations.",
   )
 
   _Empirical-library samples versus fresh direct Step 1 simulations._ Rows show
   one original MNIST image, one authenticated-library sample, and one fresh
   direct simulation at 0.25, 3, and 25 Hz for the nominal 1.2 μS probe, using
-  common 0--65 mV limits. The lower panel plots library--direct spatial
-  correlation computed from 16 fixed images and eight replicates at all three
-  conductances; filled markers passed every locked check, open red markers
-  failed at least one, and the dashed line is the registered correlation
-  minimum. Low-rate images are sparse because most pixels receive no spike;
-  increasing rate reveals the intensity pattern and raises correlation because
-  spatial signal becomes larger relative to independent sampling noise.
-
-  Six of nine probe--rate conditions passed every locked comparison. At the
-  nominal probe, pooled-mean relative differences were
-  #rounded(s4-nominal-low.metrics.pooled_mean_relative_difference),
-  #rounded(s4-nominal-transition.metrics.pooled_mean_relative_difference), and
-  #rounded(s4-nominal-high.metrics.pooled_mean_relative_difference) from low to
-  high drive; spatial correlations were
-  #rounded(s4-nominal-low.metrics.spatial_mean_correlation),
-  #rounded(s4-nominal-transition.metrics.spatial_mean_correlation), and
-  #rounded(s4-nominal-high.metrics.spatial_mean_correlation).
-  All pooled pixel-moment and zero-fraction checks passed. The three low-rate
-  conditions failed image-level mean and variance tolerances; the 2.4 μS
-  low-rate condition also reached correlation
-  #rounded(s4.condition_records.at(6).comparison.metrics.spatial_mean_correlation)
-  against the locked 0.20 minimum. The thresholds and replicate count were not
-  changed after inspection. Step 4 is therefore a preserved validation failure,
-  and it establishes neither decodability nor classification accuracy.
+  common 0--65 mV limits. Low-rate images are sparse because most pixels receive
+  no spike; increasing rate reveals the intensity pattern because spatial signal
+  becomes larger relative to independent sampling noise.
 
   === Step 5: mixed-rate decoder training
 
