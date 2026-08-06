@@ -1,11 +1,11 @@
 {
-  "elapsed_s": 950.502932487,
+  "elapsed_s": 1164.071857972,
   "success": false,
-  "error": "Traceback (most recent call last):\n  File \"/root/helpers/modal_exp077_eval_app.py\", line 49, in evaluate\n    exp077.evaluate_frozen_decoders(\n  File \"/workspace/pinglab/experiments/exp077.py\", line 3148, in evaluate_frozen_decoders\n    \"arrays_path\": str(arrays_path.relative_to(REPO)),\n  File \"/usr/local/lib/python3.10/pathlib.py\", line 818, in relative_to\n    raise ValueError(\"{!r} is not in the subpath of {!r}\"\nValueError: '/tmp/exp077-step6/held_out_correctness.npz' is not in the subpath of '/workspace/pinglab' OR one path is relative and the other is absolute.\n",
-  "artifact_sha256": "338a3620197aeb7ff59091cd02395805d283d7c08c1c0a6938945b96a7e17d60",
+  "error": "Traceback (most recent call last):\n  File \"/root/helpers/modal_exp077_eval_app.py\", line 49, in evaluate\n    exp077.evaluate_frozen_decoders(\n  File \"/workspace/pinglab/experiments/exp077.py\", line 3437, in evaluate_frozen_decoders\n    \"arrays_path\": str(arrays_path.relative_to(REPO)),\n  File \"/usr/local/lib/python3.10/pathlib.py\", line 818, in relative_to\n    raise ValueError(\"{!r} is not in the subpath of {!r}\"\nValueError: '/tmp/exp077-step6/held_out_correctness.npz' is not in the subpath of '/workspace/pinglab' OR one path is relative and the other is absolute.\n",
+  "artifact_sha256": "31a3fc0f2e09c5df336186432eff0e56e912c611e88f94e48f7464006fdde224",
   "gpu": "L40S",
   "gpu_usd_per_second": 0.000542,
-  "estimated_cost_usd": 0.515172589407954,
-  "dispatch_elapsed_s": 961.0763569080736,
+  "estimated_cost_usd": 0.630926947020824,
+  "dispatch_elapsed_s": 1226.0319562619552,
   "exact_provider_billing": false
 }
