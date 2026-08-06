@@ -1,0 +1,14 @@
+{
+  "stage": "full",
+  "probe_uS": 2.4,
+  "seed": 44,
+  "elapsed_s": 679.6179836939999,
+  "success": true,
+  "error": null,
+  "artifact_sha256": "798bc8f47ac41e2934277fb36765f24d50d60ea22edaa44d735c1f5111bf1da6",
+  "gpu": "L40S",
+  "gpu_usd_per_second": 0.000542,
+  "estimated_cost_usd": 0.3683529471621479,
+  "dispatch_elapsed_s": 696.6303125538398,
+  "exact_provider_billing": false
+}
