@@ -2044,6 +2044,157 @@ def plot_step3(record: dict[str, Any], path: Path) -> None:
     plt.close(fig)
 
 
+def calculate_step3_empirical_comparison() -> dict[str, Any]:
+    """Compare stored stationary predictions with the stored empirical table."""
+    with np.load(FIGURES / "step3_linear_filter_arrays.npz") as analytical:
+        predicted_mean = (
+            analytical["stationary_mean_voltage_mV"] - PARAMETERS["E_L_mV"]
+        )
+        predicted_sd = np.sqrt(analytical["predicted_variance_mV2"])
+    with np.load(FIGURES / "response_library_summary.npz") as empirical:
+        empirical_mean = empirical["mean"]
+        empirical_sd = empirical["standard_deviation"]
+
+    def summarize(predicted: np.ndarray, observed: np.ndarray) -> dict[str, float | int]:
+        valid = np.isfinite(predicted) & np.isfinite(observed) & (
+            (predicted > 0.0) | (observed > 0.0)
+        )
+        positive_observed = valid & (observed > 0.0)
+        return {
+            "condition_count": int(np.count_nonzero(valid)),
+            "pearson_r": float(np.corrcoef(predicted[valid], observed[valid])[0, 1]),
+            "mean_absolute_error_mV": float(
+                np.mean(np.abs(predicted[valid] - observed[valid]))
+            ),
+            "median_predicted_empirical_ratio": float(
+                np.median(predicted[positive_observed] / observed[positive_observed])
+            ),
+        }
+
+    return {
+        "comparison": "stationary analytical approximation versus finite 200 ms empirical response table",
+        "source_arrays": {
+            "analytical": "artifacts/data/exp077/step3_linear_filter_arrays.npz",
+            "empirical": "artifacts/data/exp077/response_library_summary.npz",
+        },
+        "mean": summarize(predicted_mean, empirical_mean),
+        "standard_deviation": summarize(predicted_sd, empirical_sd),
+        "predicted_mean_mV": predicted_mean,
+        "empirical_mean_mV": empirical_mean,
+        "predicted_sd_mV": predicted_sd,
+        "empirical_sd_mV": empirical_sd,
+    }
+
+
+def plot_step3_empirical_comparison(record: dict[str, Any], path: Path) -> None:
+    """Plot analytical predictions directly against stored empirical moments."""
+    theme.apply()
+    fig, axes = plt.subplots(1, 2, figsize=(8.2, 3.45), constrained_layout=True)
+    colors = (theme.INK_BLACK, theme.DEEP_RED, theme.ELECTRIC_CYAN)
+    panels = (
+        (
+            record["predicted_mean_mV"],
+            record["empirical_mean_mV"],
+            "A  Mean feature",
+        ),
+        (
+            record["predicted_sd_mV"],
+            record["empirical_sd_mV"],
+            "B  Feature SD",
+        ),
+    )
+    for axis, (predicted, observed, title) in zip(axes, panels, strict=True):
+        limit = float(max(np.max(predicted), np.max(observed))) * 1.03
+        axis.plot([0.0, limit], [0.0, limit], color="#777777", linewidth=1.0)
+        for probe_index, (probe, color) in enumerate(
+            zip(PROBE_CONDUCTANCES_US, colors, strict=True)
+        ):
+            axis.scatter(
+                predicted[probe_index].reshape(-1),
+                observed[probe_index].reshape(-1),
+                s=5,
+                alpha=0.24,
+                linewidths=0,
+                color=color,
+                label=f"{probe:g} μS",
+                rasterized=True,
+            )
+        axis.set(
+            title=title,
+            xlabel="Analytical prediction (mV)",
+            ylabel="Empirical value (mV)",
+            xlim=(0.0, limit),
+            ylim=(0.0, limit),
+            aspect="equal",
+        )
+        axis.spines[["top", "right"]].set_visible(False)
+    axes[0].legend(frameon=False, fontsize=7.5, title="Probe conductance")
+    fig.savefig(path, format="svg", metadata={"Date": None})
+    plt.close(fig)
+
+
+def refresh_step3_empirical_comparison() -> None:
+    """Create the Step 3 comparison from recorded arrays without rerunning science."""
+    record = calculate_step3_empirical_comparison()
+    figure_path = FIGURES / "linear_filter_empirical_comparison.svg"
+    plot_step3_empirical_comparison(record, figure_path)
+    outcome = {
+        key: value
+        for key, value in record.items()
+        if not isinstance(value, np.ndarray)
+    }
+    outcome.update(
+        {
+            "status": "complete",
+            "classification": "post-hoc comparison derived only from recorded Step 2 and Step 3 arrays",
+            "paid_compute_usd": 0.0,
+            "figure_path": str(figure_path.relative_to(REPO)),
+            "figure_sha256": sha256_file(figure_path),
+            "source_sha256": {
+                "analytical": sha256_file(FIGURES / "step3_linear_filter_arrays.npz"),
+                "empirical": sha256_file(FIGURES / "response_library_summary.npz"),
+            },
+        }
+    )
+    comparison_path = FIGURES / "step3_empirical_comparison.json"
+    comparison_path.write_text(json.dumps(outcome, indent=2) + "\n")
+
+    step3_path = FIGURES / "step3_outcome.json"
+    step3 = json.loads(step3_path.read_text())
+    step3["empirical_comparison"] = {
+        "path": str(comparison_path.relative_to(REPO)),
+        "sha256": sha256_file(comparison_path),
+        "figure_path": str(figure_path.relative_to(REPO)),
+        "figure_sha256": sha256_file(figure_path),
+    }
+    step3_path.write_text(json.dumps(step3, indent=2) + "\n")
+
+    manifest_path = FIGURES / "step2_manifest.json"
+    manifest = json.loads(manifest_path.read_text())
+    manifest["exploratory_continuation"]["step3_outcome_sha256"] = sha256_file(step3_path)
+    manifest_path.write_text(json.dumps(manifest, indent=2) + "\n")
+
+    provenance_path = FIGURES / "provenance.json"
+    provenance = json.loads(provenance_path.read_text())
+    provenance["step3_empirical_comparison"] = {
+        **_git_metadata(),
+        "comparison_sha256": sha256_file(comparison_path),
+        "figure_sha256": sha256_file(figure_path),
+        "paid_compute_usd": 0.0,
+    }
+    provenance_path.write_text(json.dumps(provenance, indent=2) + "\n")
+
+    reproducer_path = FIGURES / "reproducer.json"
+    reproducer = json.loads(reproducer_path.read_text())
+    reproducer["step3_empirical_comparison"] = {
+        "command": "uv run python -c 'from experiments.exp077 import refresh_step3_empirical_comparison; refresh_step3_empirical_comparison()'",
+        "uses_recorded_arrays_only": True,
+        "paid_compute": False,
+    }
+    reproducer_path.write_text(json.dumps(reproducer, indent=2) + "\n")
+    record_steps5_7_publication_contract()
+
+
 def step_3() -> None:
     started = time.perf_counter()
     library = verify_authenticated_library()

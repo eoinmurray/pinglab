@@ -34,5 +34,10 @@
     "checkpoint_count": 9,
     "expected_decision_sha256": "d16be9d0bca310e78c2ee6de2d18aaed3e3cf709536763d303f423f706da0133",
     "paid_compute": true
+  },
+  "step3_empirical_comparison": {
+    "command": "uv run python -c 'from experiments.exp077 import refresh_step3_empirical_comparison; refresh_step3_empirical_comparison()'",
+    "uses_recorded_arrays_only": true,
+    "paid_compute": false
   }
 }
