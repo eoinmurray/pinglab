@@ -438,9 +438,9 @@
     "amendment_path": "artifacts/data/exp077/step3_step4_exploratory_amendment.json",
     "amendment_sha256": "191c640ed969e039914603ebfc132496e91b2458ff6102fed569d50defc3f469",
     "step3_outcome": "artifacts/data/exp077/step3_outcome.json",
-    "step3_outcome_sha256": "973f5f1dd40de304559b1ac5c9a5cfc57ce1afd2e987f73f2fbc67ee6cb1bae3",
+    "step3_outcome_sha256": "af40c8ba78ee60c1770efb299c2962f744191083ac996405f85407e8abe3e57f",
     "step4_outcome": "artifacts/data/exp077/step4_outcome.json",
-    "step4_outcome_sha256": "25ddc71aa7ea91e4b5e1b6f16e30250fa3dbe3efa1039396bdcb0b5d0294c313",
+    "step4_outcome_sha256": "90a9241cca6263724597d53c2c63382f410e4339417e21cebd59f6babf3e4ca6",
     "steps5_7_run": false
   }
 }

@@ -3,7 +3,7 @@
 #let meta = (
   title: "Filter-matched rate calibration for variable-rate PING training",
   date: "2026-08-05",
-  description: "An exploratory continuation tests a linear variance approximation and validates empirical-library MNIST feature images after a preserved response-library gate failure.",
+  description: "An exploratory continuation tests a linear variance approximation and validates empirical response table MNIST feature images after a preserved response table gate failure.",
   collection: "gamma-gated-sparsity",
   status: "draft",
 )
@@ -59,14 +59,14 @@
   ANN accuracy against rate remains the planned primary result, but no decoder
   was trained here. An explicitly authorized exploratory continuation instead
   tested a linear transfer-function prediction and constructed complete sampled
-  MNIST feature images from the preserved empirical library.
+  MNIST feature images from the preserved empirical response table.
 
   Step 1 is complete. The local generator passed all
   #r.validations.len() focused checks, including agreement with the shared
   `tools/snn` cell below the registered numerical tolerance. The original Step 2
   pilot stopped at K = 512; an explicitly authorized extension then stabilized
   both empirical moments at K = #p.selected_K under the unchanged tolerances.
-  The complete empirical library was then generated, but
+  The complete empirical response table was then generated, but
   #mono.intensity_violations of #mono.intensity_comparison_count adjacent-intensity
   comparisons exceeded the locked Monte Carlo tolerance. Step 2 therefore
   failed its original gate. That failure remains unchanged. Under the later
@@ -116,7 +116,7 @@
     are #training-rate-text Hz; dense sampling below 5 Hz resolves the lower
     edge, while 25 Hz is the proposed later training ceiling. Training samples
     uniformly from these points. Seeds #seed-text define independent feature,
-    response-library, and ANN runs.
+    empirical response table, and ANN runs.
 
     `protocol.json` records the grid and deterministic MNIST train,
     validation, and held-out indices. Pixel-intensities x remain in [0, 1]. If r
@@ -190,8 +190,8 @@
 
     The corresponding plot is defined in Results, Step 1.
 
-  2. *Generated and validated the empirical response library.* Before
-    generating a final library, we locked candidate draw counts K of 64, 128,
+  2. *Generated and validated the empirical response table.* Before
+    generating a final response table, we locked candidate draw counts K of 64, 128,
     256, and 512. None passed. After recording that failure, the user explicitly
     authorized an extension at K = 1,024 and 2,048 without changing the
     convergence rule. The deterministic pilot covered
@@ -211,9 +211,9 @@
     #m.library_shape.map(str).join(" × ") in the ordered axes
     seed, probe conductance, rate, intensity, and draw. Its payload occupies
     #m.library_payload_bytes bytes in local scratch and is authenticated by the
-    SHA-256 digest `#m.library_sha256`.
+    SHA-256 digest #m.library_sha256.
 
-    The planned final library would estimate the conditional mean
+    The planned final response table would estimate the conditional mean
 
     $ hat(mu)_z (x, r, w_"probe") = 1 / K sum_(k=1)^K z^(k). quad "(8)" $
 
@@ -226,7 +226,7 @@
     the conditional mean and variance.
 
     We retained all K simulated values as the primary empirical response
-    library. During a later ANN feature-generation stage, the registered design
+    response table. During a later ANN feature-generation stage, the registered design
     would draw one value according to
 
     $ J tilde "DiscreteUniform"(1, dots.c, K), quad z_"sample" = z^(J). quad "(10)" $
@@ -252,7 +252,7 @@
     #mono.intensity_violations of #mono.intensity_comparison_count intensity
     pairs exceeded it, while #mono.rate_violations of
     #mono.rate_comparison_count rate pairs did. The rule was not weakened after
-    inspection, so this completed library is a preserved killed attempt rather
+    inspection, so this completed response table is a preserved killed attempt rather
     than a validated input to Step 3.
 
     The corresponding plot is defined in Results, Step 2.
@@ -367,7 +367,7 @@
     Here A#sub[r] is held-out nonlinear-ANN accuracy, P is correct-classification
     probability, and r is rate. The linear decoder is diagnostic only.
 
-    Bootstrap resampling of held-out images, probe draws, response-library
+    Bootstrap resampling of held-out images, probe draws, empirical response table
     simulations, and decoder seeds gives lower confidence bound L#sub[r]. The
     decoder-relative edge is
 
@@ -400,7 +400,7 @@
     == Results
 
     Step 1 is complete. The Step 2 convergence pilot selected K after an
-    authorized extension. The full library was generated, then Step 2 was
+    authorized extension. The full response table was generated, then Step 2 was
     killed by its required monotonicity validation. A timestamped post-hoc
     amendment subsequently authorized exploratory Steps 3--4 without changing
     that failure. Step 3 completed; Step 4 stopped at its locked low-rate
@@ -419,7 +419,7 @@
     truncates more of their response.
   ]
 
-  === Step 2: empirical response library
+  === Step 2: empirical response table
 
   #image(
     "/artifacts/data/exp077/response_library.png",
@@ -427,7 +427,7 @@
     alt: "Two panels show empirical feature mean and standard deviation against expected input spikes for three probe conductances.",
   )
 
-  _Signal and variability across the empirical response library._ For every
+  _Signal and variability across the empirical response table._ For every
   rate--intensity condition, Panel A plots the mean feature z and Panel B its
   standard deviation across the authenticated draws, against encoding rate ×
   normalized pixel intensity × #presentation-ms ms. Each point is one observed
@@ -460,11 +460,11 @@
   #image(
     "/artifacts/data/exp077/feature_images.png",
     width: 100%,
-    alt: "Rows at 0.25, 3, and 25 hertz compare original MNIST images, empirical-library samples, and fresh direct simulations.",
+    alt: "Rows at 0.25, 3, and 25 hertz compare original MNIST images, empirical response table samples, and fresh direct simulations.",
   )
 
-  _Empirical-library samples versus fresh direct Step 1 simulations._ Rows show
-  one original MNIST image, one authenticated-library sample, and one fresh
+  _Empirical response table samples versus fresh direct Step 1 simulations._ Rows show
+  one original MNIST image, one authenticated empirical response table sample, and one fresh
   direct simulation at 0.25, 3, and 25 Hz for the nominal 1.2 μS probe, using
   common 0--65 mV limits. Low-rate images are sparse because most pixels receive
   no spike; increasing rate reveals the intensity pattern because spatial signal
@@ -487,7 +487,7 @@
       caption: [Decoder-relative psychometrics at 200 ms, spanning 0.25--25 Hz
         with a 0.25--5 Hz inset. Panel A compares frozen nonlinear and linear
         decoders at 1.2 μS, with chance and both thresholds; B compares nonlinear
-        accuracy at 0.6, 1.2, and 2.4 μS. Uncertainty covers encoding and library
+        accuracy at 0.6, 1.2, and 2.4 μS. Uncertainty covers encoding and empirical response table
         draws and ANN seeds.],
       note: [Pending Step 6. Planned file: `ann_psychometric.svg`.],
       ratio: 16 / 9,
@@ -504,7 +504,7 @@
 
   Filtered conductance shot noise can violate fixed-time-constant models#cite(1),
   and Gaussian approximations can miss skewed responses#cite(2), supporting the
-  empirical response library. Decoder performance is not absolute neural
+  empirical response table. Decoder performance is not absolute neural
   information#cite(3), and linear and nonlinear decoders can differ#cite(4),
   motivating a decoder-relative edge and both decoder diagnostics.
 
