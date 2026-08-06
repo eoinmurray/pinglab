@@ -3277,7 +3277,78 @@ def step_6() -> None:
 
 
 def step_7() -> None:
-    _not_implemented(7)
+    outcome = analyze_held_out_evaluation()
+    nominal = outcome["thresholds"][str(PROBE_US)]
+    floors = {
+        str(probe): outcome["thresholds"][str(probe)]["r_train_hz"]
+        for probe in PROBE_CONDUCTANCES_US
+    }
+    observed_floors = [float(value) for value in floors.values() if value is not None]
+    floor_indices = [TRAINING_RATES_HZ.index(value) for value in observed_floors]
+    sensitive = bool(floor_indices and max(floor_indices) - min(floor_indices) > 1)
+    recommendation = (
+        {
+            "form": "plausible conductance-sensitive floor range",
+            "floor_range_hz": [min(observed_floors), max(observed_floors)],
+            "ceiling_hz": 25.0,
+        }
+        if sensitive and observed_floors
+        else {
+            "form": "nominal floor to registered ceiling",
+            "floor_hz": nominal["r_train_hz"],
+            "ceiling_hz": 25.0,
+        }
+    )
+    step5 = json.loads((FIGURES / "step5_outcome.json").read_text())
+    modal_evaluation = json.loads((FIGURES / "step6" / "modal.json").read_text())
+    total_cost = float(step5["cumulative_estimated_cost_usd"]) + float(
+        modal_evaluation["estimated_cost_usd"]
+    )
+    protocol_path = FIGURES / "frozen_evaluation_protocol.json"
+    decision = {
+        "status": "complete",
+        "completed_at_utc": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+        "r_decode_hz": nominal["r_decode_hz"],
+        "r_train_hz": nominal["r_train_hz"],
+        "conductance_floors_hz": floors,
+        "conductance_sensitive_by_registered_rule": sensitive,
+        "recommendation": recommendation,
+        "uncertainty": outcome["confidence"],
+        "criteria": {
+            "chance_accuracy": CHANCE_ACCURACY,
+            "useful_accuracy": USEFUL_ACCURACY,
+        },
+        "pass_fail": {
+            "nominal_r_decode_observed": nominal["r_decode_hz"] is not None,
+            "nominal_r_train_observed": nominal["r_train_hz"] is not None,
+            "all_conductance_r_train_observed": all(value is not None for value in floors.values()),
+            "spend_within_40_usd_ceiling": total_cost <= 40.0,
+            "held_out_protocol_frozen_before_access": True,
+        },
+        "hashes": {
+            "frozen_protocol_sha256": sha256_file(protocol_path),
+            "step5_outcome_sha256": sha256_file(FIGURES / "step5_outcome.json"),
+            "step6_outcome_sha256": sha256_file(FIGURES / "step6_outcome.json"),
+            "held_out_arrays_sha256": outcome["arrays_sha256"],
+            "psychometric_figure_sha256": outcome["figure_sha256"],
+            "models": [
+                {
+                    "probe_uS": model["probe_uS"],
+                    "seed": model["seed"],
+                    "sha256": model["sha256"],
+                }
+                for model in json.loads(protocol_path.read_text())["models"]
+            ],
+        },
+        "compute": {
+            "provider": "Modal",
+            "total_estimated_cost_usd": total_cost,
+            "exact_provider_billing": False,
+            "billing_note": "GPU-second ledger at the configured Modal SKU rate",
+        },
+        "scope": "decoder-relative thresholds only; no absolute information limit or PING accuracy claim",
+    }
+    (FIGURES / "decision.json").write_text(json.dumps(decision, indent=2) + "\n")
 
 
 STAGE_FUNCTIONS: dict[int, Callable[[], None]] = {
@@ -3290,7 +3361,7 @@ STAGE_FUNCTIONS: dict[int, Callable[[], None]] = {
     7: step_7,
 }
 
-IMPLEMENTED_STEPS: frozenset[int] = frozenset({1, 2, 3, 4})
+IMPLEMENTED_STEPS: frozenset[int] = frozenset({1, 2, 3, 4, 5, 6, 7})
 
 
 def requested_through_step() -> int:
