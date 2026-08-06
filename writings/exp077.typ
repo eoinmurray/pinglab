@@ -15,14 +15,9 @@
 #let seeds = (42, 43, 44)
 #let r = json("/artifacts/data/exp077/numbers.json")
 #let m = json("/artifacts/data/exp077/step2_manifest.json")
-#let p = r.step2.combined_pilot
-#let p-last = p.trajectory.last()
-#let p-extension-first = r.step2.extension_pilot.trajectory.first()
+#let vk = json("/artifacts/data/exp077/visual_k_selection.json")
 #let mono = r.step2.validations.monotonic_means
 #let low-dist = r.step2.representative_distributions.first()
-#let boot = r.step2.bootstrap_stability
-#let boot-1024 = boot.trajectory.at(4)
-#let boot-2048 = boot.trajectory.last()
 #let s3 = r.step3
 #let s4 = r.step4
 #let s3-nominal-low = s3.agreement_summaries.at(3)
@@ -158,24 +153,18 @@
     lower rates retain their weaker, noisier signal.
 
   2. *Generated and evaluated the empirical response table.* Before
-    generating the response table, we evaluated candidate draw counts K of 64,
-    128, 256, 512, 1,024, and 2,048. The deterministic comparison covered
-    #p.evaluation_condition_count conditions: six intensities, five rates, all
-    three probe conductances, and all three registered seeds. For each candidate,
-    we compared the first K draws with the next K independent draws.
+    generating the response table, we evaluated candidate draw counts K of 256,
+    512, 1,024, 2,048, and 4,096 by direct visual convergence. For
+    each probe conductance, we plotted the response mean and standard deviation
+    against expected input spikes. Independent seed streams were pooled in a
+    fixed round-robin order, and each K curve used the first K pooled responses
+    per condition. We selected the first K whose curves visually overlapped
+    those at 2K across all three conductances and both moments. The K = 2,048
+    curves were the first to overlap their K = 4,096 counterparts throughout;
+    smaller K retained visible low-drive differences. We therefore retained K =
+    #vk.selected_K responses per condition and seed.
 
-    For either sample statistic q, its normalized discrepancy between the two
-    blocks A and B was
-
-    $ D_q = abs(q_A - q_B) / max(t_"abs", t_"rel" max(abs(q_A), abs(q_B))). $
-
-    For the sample mean, t#sub[abs] = 0.15 mV and t#sub[rel] = 0.10; for the
-    unbiased sample variance, t#sub[abs] = 0.25 mV² and t#sub[rel] = 0.25. A
-    candidate K passed only when, for both statistics across all comparison
-    conditions, the 95th percentile of D#sub[q] was at most 1 and its maximum
-    was at most 2. The smallest passing K selected the final draw count.
-
-    This procedure selected K = #p.selected_K. We then ran that many independent
+    We then ran that many independent
     single-pixel draws for every grayscale level, registered rate, probe conductance,
     and seed. The retained float32 array has shape
     #m.library_shape.map(str).join(" × ") in the ordered axes
@@ -292,7 +281,7 @@
     55,000--59,999 were reserved for decoder training and validation,
     respectively; the official MNIST test set was held out and not loaded. For each uint8
     pixel, the sampler used its exact 0--255 intensity index and selected one of
-    the K = #p.selected_K authenticated empirical draws with independent,
+    the K = #vk.selected_K authenticated empirical draws with independent,
     deterministic pixel and image streams.
 
     The direct comparison used training images 0--15, #s4.dataset.image_shape.at(1)
@@ -327,6 +316,20 @@
   ]
 
   === Empirical response table
+
+  #image(
+    "/artifacts/data/exp077/response_table_k_convergence.png",
+    width: 100%,
+    alt: "Six panels compare response mean and standard-deviation curves for five pooled sample counts across three probe conductances.",
+  )
+
+  _Visual selection of the response-table draw count._ Columns show the three
+  probe conductances; the upper and lower rows show response mean and standard
+  deviation. Each curve is a binned median across rate--intensity conditions
+  using the first K responses in a fixed round-robin pooling of the three seed
+  streams. Low-drive standard-deviation curves still differ at smaller K,
+  whereas K = 2,048 and K = 4,096 visually overlap across all six panels; K =
+  2,048 was therefore retained.
 
   #image(
     "/artifacts/data/exp077/response_library.png",

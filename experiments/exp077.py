@@ -58,6 +58,8 @@ LIBRARY_CHUNK_INTENSITIES = 8
 LIBRARY_SCRATCH = REPO / "temp" / SLUG / "response_library.float32.npy"
 LIBRARY_PROGRESS = REPO / "temp" / SLUG / "response_library.progress.json"
 LIBRARY_STREAM = 1
+VISUAL_CONVERGENCE_K = (256, 512, 1024, 2048, 4096)
+VISUAL_SELECTED_K = 2048
 REPLAY_CHUNK_INDICES = (0,)
 DIRECT_VALIDATION_INTENSITIES = (64, 128, 255)
 DIRECT_VALIDATION_RATES_HZ = (0.25, 3.0, 25.0)
@@ -1291,6 +1293,62 @@ def plot_full_library(
     plt.close(fig)
 
 
+def plot_visual_k_convergence(library: np.ndarray, path: Path) -> None:
+    """Plot nested response curves for a direct visual choice of draw count K."""
+    pooled = np.transpose(library, (1, 2, 3, 4, 0)).reshape(
+        len(PROBE_CONDUCTANCES_US),
+        len(TRAINING_RATES_HZ),
+        len(INTENSITY_LEVELS),
+        -1,
+    )
+    if pooled.shape[-1] < max(VISUAL_CONVERGENCE_K):
+        raise ValueError("empirical response table has too few pooled draws")
+    expected_count = (
+        np.asarray(TRAINING_RATES_HZ)[:, None]
+        * (INTENSITY_LEVELS.astype(np.float64)[None, :] / 255.0)
+        * (PRESENTATION_MS / 1000.0)
+    )
+    count_flat = expected_count.reshape(-1)
+    edges = np.concatenate(([-1e-12, 0.001], np.geomspace(0.002, 5.0, 40)))
+    bin_index = np.digitize(count_flat, edges) - 1
+
+    def binned_median(values: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+        centers, medians = [], []
+        flat = values.reshape(-1)
+        for index in range(len(edges) - 1):
+            selected = bin_index == index
+            if np.any(selected):
+                centers.append(float(np.median(count_flat[selected])))
+                medians.append(float(np.median(flat[selected])))
+        return np.asarray(centers), np.asarray(medians)
+
+    colors = ("#c9c9c9", "#969696", "#636363", theme.DEEP_RED, theme.ELECTRIC_CYAN)
+    fig, axes = plt.subplots(2, 3, figsize=(8.2, 5.4), constrained_layout=True)
+    for column, probe in enumerate(PROBE_CONDUCTANCES_US):
+        for color, k in zip(colors, VISUAL_CONVERGENCE_K):
+            sample = pooled[column, ..., :k]
+            for row, values in enumerate(
+                (sample.mean(axis=-1), sample.std(axis=-1, ddof=1))
+            ):
+                x, y = binned_median(values)
+                axes[row, column].plot(x, y, color=color, linewidth=1.35, label=f"K = {k:,}")
+        axes[0, column].set_title(f"{probe:g} μS probe")
+    for column in range(3):
+        axes[0, column].set_ylabel("Mean feature z (mV)" if column == 0 else "")
+        axes[1, column].set_ylabel("Feature SD (mV)" if column == 0 else "")
+        for row in range(2):
+            axis = axes[row, column]
+            axis.set_xscale("symlog", linthresh=0.02)
+            axis.set_xlim(-0.002, 5.5)
+            axis.set_xticks((0, 0.01, 0.1, 1, 5), labels=("0", "0.01", "0.1", "1", "5"))
+            axis.set_xlabel("Expected input spikes" if row == 1 else "")
+            axis.spines[["top", "right"]].set_visible(False)
+    axes[0, 0].legend(frameon=False, fontsize=7, loc="upper left")
+    fig.suptitle("Visual convergence of empirical response curves")
+    savefig_atomic(fig, path, dpi=220, facecolor="white")
+    plt.close(fig)
+
+
 def refresh_full_library_figure() -> None:
     """Replot the recorded Step 2 figure without rerunning any simulation."""
     with np.load(FIGURES / "response_library_summary.npz") as stored:
@@ -1302,11 +1360,35 @@ def refresh_full_library_figure() -> None:
         _open_library("r"),
         FIGURES / "response_library.png",
     )
+    plot_visual_k_convergence(
+        _open_library("r"), FIGURES / "response_table_k_convergence.png"
+    )
+    visual_selection = {
+        "method": "visual doubling comparison of binned mean and standard-deviation curves",
+        "candidate_K": list(VISUAL_CONVERGENCE_K),
+        "selected_K": VISUAL_SELECTED_K,
+        "comparison_K": 2 * VISUAL_SELECTED_K,
+        "pooling": "fixed round-robin order across the three independent seed streams",
+        "scope": "all three probe conductances; response mean and standard deviation",
+        "decision": (
+            "K=2048 was the first curve set with no material visual separation "
+            "from its doubled-K counterpart across all six panels"
+        ),
+        "source_response_table_sha256": LIBRARY_SHA256,
+        "figure": "artifacts/data/exp077/response_table_k_convergence.png",
+        "figure_sha256": sha256_file(FIGURES / "response_table_k_convergence.png"),
+    }
+    visual_selection_path = FIGURES / "visual_k_selection.json"
+    visual_selection_path.write_text(json.dumps(visual_selection, indent=2) + "\n")
     manifest_path = FIGURES / "step2_manifest.json"
     manifest = json.loads(manifest_path.read_text())
     manifest["response_library_figure_sha256"] = sha256_file(
         FIGURES / "response_library.png"
     )
+    manifest["visual_k_convergence_figure_sha256"] = sha256_file(
+        FIGURES / "response_table_k_convergence.png"
+    )
+    manifest["visual_k_selection_sha256"] = sha256_file(visual_selection_path)
     manifest_path.write_text(json.dumps(manifest, indent=2) + "\n")
 
 
