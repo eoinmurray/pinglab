@@ -1,6 +1,6 @@
 {
   "status": "complete_after_post_compute_metadata_recovery",
-  "protocol_sha256": "1053c913d674678051a4efba8592f48792219551451902da93a9b4235272c325",
+  "protocol_sha256": "4cd880e94ce87b530926d2aa6a95e0e8ce8e799cc1273ec8611a7a5bc4c9ca91",
   "dataset": {
     "source": "torchvision.datasets.MNIST official held-out test partition",
     "image_shape": [
@@ -17,9 +17,9 @@
     }
   },
   "device": "cuda",
-  "runtime_s": 950.502932487,
+  "runtime_s": 1164.071857972,
   "arrays_path": "artifacts/data/exp077/step6/held_out_correctness.npz",
-  "arrays_sha256": "d6a8e2c35342ce5321d99fd18f6af8e5553c3ff965a490d22e8932b362321a29",
+  "arrays_sha256": "dccaae53fbf5466156b81d82670e10297bf42e5463386a1a3fa448b6118a62e7",
   "validation_checks": {
     "nonlinear_shape": true,
     "linear_shape": true,
@@ -32,7 +32,7 @@
   "preserved_failure": {
     "stage": "post-compute metadata formatting",
     "scientific_tensor_completed": true,
-    "remote_error": "Traceback (most recent call last):\n  File \"/root/helpers/modal_exp077_eval_app.py\", line 49, in evaluate\n    exp077.evaluate_frozen_decoders(\n  File \"/workspace/pinglab/experiments/exp077.py\", line 3148, in evaluate_frozen_decoders\n    \"arrays_path\": str(arrays_path.relative_to(REPO)),\n  File \"/usr/local/lib/python3.10/pathlib.py\", line 818, in relative_to\n    raise ValueError(\"{!r} is not in the subpath of {!r}\"\nValueError: '/tmp/exp077-step6/held_out_correctness.npz' is not in the subpath of '/workspace/pinglab' OR one path is relative and the other is absolute.\n",
-    "modal_artifact_payload_sha256": "338a3620197aeb7ff59091cd02395805d283d7c08c1c0a6938945b96a7e17d60"
+    "remote_error": "Traceback (most recent call last):\n  File \"/root/helpers/modal_exp077_eval_app.py\", line 49, in evaluate\n    exp077.evaluate_frozen_decoders(\n  File \"/workspace/pinglab/experiments/exp077.py\", line 3437, in evaluate_frozen_decoders\n    \"arrays_path\": str(arrays_path.relative_to(REPO)),\n  File \"/usr/local/lib/python3.10/pathlib.py\", line 818, in relative_to\n    raise ValueError(\"{!r} is not in the subpath of {!r}\"\nValueError: '/tmp/exp077-step6/held_out_correctness.npz' is not in the subpath of '/workspace/pinglab' OR one path is relative and the other is absolute.\n",
+    "modal_artifact_payload_sha256": "31a3fc0f2e09c5df336186432eff0e56e912c611e88f94e48f7464006fdde224"
   }
 }
