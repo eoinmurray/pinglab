@@ -1294,7 +1294,7 @@ def plot_full_library(
 
 
 def plot_visual_k_convergence(library: np.ndarray, path: Path) -> None:
-    """Plot nested response curves for a direct visual choice of draw count K."""
+    """Plot how mean and SD estimates approach the largest-K reference."""
     pooled = np.transpose(library, (1, 2, 3, 4, 0)).reshape(
         len(PROBE_CONDUCTANCES_US),
         len(TRAINING_RATES_HZ),
@@ -1303,48 +1303,43 @@ def plot_visual_k_convergence(library: np.ndarray, path: Path) -> None:
     )
     if pooled.shape[-1] < max(VISUAL_CONVERGENCE_K):
         raise ValueError("empirical response table has too few pooled draws")
-    expected_count = (
-        np.asarray(TRAINING_RATES_HZ)[:, None]
-        * (INTENSITY_LEVELS.astype(np.float64)[None, :] / 255.0)
-        * (PRESENTATION_MS / 1000.0)
-    )
-    count_flat = expected_count.reshape(-1)
-    edges = np.concatenate(([-1e-12, 0.001], np.geomspace(0.002, 5.0, 40)))
-    bin_index = np.digitize(count_flat, edges) - 1
-
-    def binned_median(values: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
-        centers, medians = [], []
-        flat = values.reshape(-1)
-        for index in range(len(edges) - 1):
-            selected = bin_index == index
-            if np.any(selected):
-                centers.append(float(np.median(count_flat[selected])))
-                medians.append(float(np.median(flat[selected])))
-        return np.asarray(centers), np.asarray(medians)
-
-    colors = ("#c9c9c9", "#969696", "#636363", theme.DEEP_RED, theme.ELECTRIC_CYAN)
-    fig, axes = plt.subplots(2, 3, figsize=(8.2, 5.4), constrained_layout=True)
-    for column, probe in enumerate(PROBE_CONDUCTANCES_US):
-        for color, k in zip(colors, VISUAL_CONVERGENCE_K):
-            sample = pooled[column, ..., :k]
-            for row, values in enumerate(
-                (sample.mean(axis=-1), sample.std(axis=-1, ddof=1))
-            ):
-                x, y = binned_median(values)
-                axes[row, column].plot(x, y, color=color, linewidth=1.35, label=f"K = {k:,}")
-        axes[0, column].set_title(f"{probe:g} μS probe")
-    for column in range(3):
-        axes[0, column].set_ylabel("Mean feature z (mV)" if column == 0 else "")
-        axes[1, column].set_ylabel("Feature SD (mV)" if column == 0 else "")
-        for row in range(2):
-            axis = axes[row, column]
-            axis.set_xscale("symlog", linthresh=0.02)
-            axis.set_xlim(-0.002, 5.5)
-            axis.set_xticks((0, 0.01, 0.1, 1, 5), labels=("0", "0.01", "0.1", "1", "5"))
-            axis.set_xlabel("Expected input spikes" if row == 1 else "")
-            axis.spines[["top", "right"]].set_visible(False)
-    axes[0, 0].legend(frameon=False, fontsize=7, loc="upper left")
-    fig.suptitle("Visual convergence of empirical response curves")
+    reference = pooled[..., : max(VISUAL_CONVERGENCE_K)]
+    reference_mean = reference.mean(axis=-1)
+    reference_sd = reference.std(axis=-1, ddof=1)
+    mean_changes, sd_changes = [], []
+    for k in VISUAL_CONVERGENCE_K:
+        sample = pooled[..., :k]
+        mean_changes.append(
+            np.mean(np.abs(sample.mean(axis=-1) - reference_mean), axis=(1, 2))
+        )
+        sd_changes.append(
+            np.mean(np.abs(sample.std(axis=-1, ddof=1) - reference_sd), axis=(1, 2))
+        )
+    mean_changes = np.asarray(mean_changes)
+    sd_changes = np.asarray(sd_changes)
+    colors = (theme.INK_BLACK, theme.DEEP_RED, theme.ELECTRIC_CYAN)
+    fig, axes = plt.subplots(1, 2, figsize=(8.2, 3.25), constrained_layout=True)
+    for probe_index, (probe, color) in enumerate(zip(PROBE_CONDUCTANCES_US, colors)):
+        for axis, changes in zip(axes, (mean_changes, sd_changes)):
+            axis.plot(
+                VISUAL_CONVERGENCE_K,
+                changes[:, probe_index],
+                color=color,
+                marker="o",
+                linewidth=1.7,
+                markersize=4,
+                label=f"{probe:g} μS",
+            )
+    axes[0].set(title="A  Mean estimate converges", ylabel="Mean absolute change (mV)")
+    axes[1].set(title="B  SD estimate converges", ylabel="Mean absolute change in SD (mV)")
+    for axis in axes:
+        axis.set_xscale("log", base=2)
+        axis.set_xticks(VISUAL_CONVERGENCE_K, labels=("256", "512", "1,024", "2,048", "4,096"))
+        axis.set_xlabel("Pooled responses per condition, K")
+        axis.set_ylim(bottom=0)
+        axis.spines[["top", "right"]].set_visible(False)
+    axes[0].legend(frameon=False, fontsize=7, title="Probe conductance")
+    fig.suptitle("Change relative to the K = 4,096 reference")
     savefig_atomic(fig, path, dpi=220, facecolor="white")
     plt.close(fig)
 
@@ -1364,15 +1359,15 @@ def refresh_full_library_figure() -> None:
         _open_library("r"), FIGURES / "response_table_k_convergence.png"
     )
     visual_selection = {
-        "method": "visual doubling comparison of binned mean and standard-deviation curves",
+        "method": "visual convergence of mean absolute changes relative to K=4096",
         "candidate_K": list(VISUAL_CONVERGENCE_K),
         "selected_K": VISUAL_SELECTED_K,
         "comparison_K": 2 * VISUAL_SELECTED_K,
         "pooling": "fixed round-robin order across the three independent seed streams",
-        "scope": "all three probe conductances; response mean and standard deviation",
+        "scope": "all rate-intensity conditions and three probe conductances; response mean and standard deviation",
         "decision": (
-            "K=2048 was the first curve set with no material visual separation "
-            "from its doubled-K counterpart across all six panels"
+            "K=2048 reduced the average absolute changes in both moments to "
+            "small residuals before the K=4096 reference"
         ),
         "source_response_table_sha256": LIBRARY_SHA256,
         "figure": "artifacts/data/exp077/response_table_k_convergence.png",
