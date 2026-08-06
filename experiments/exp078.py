@@ -19,6 +19,7 @@ import numpy as np
 import torch
 from matplotlib.colors import ListedColormap
 from scipy import signal
+from scipy.ndimage import gaussian_filter1d
 
 REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO))
@@ -1006,12 +1007,26 @@ def mature_checkpoint_candidates(
     ]
 
 
+def phase_frequency_difference_hz(vector: np.ndarray) -> np.ndarray:
+    """Estimate instantaneous A-minus-B frequency from smoothed relative phase."""
+    width = round(50.0 / DT_MS)
+    cumulative = np.concatenate(([0j], np.cumsum(vector)))
+    smooth = np.full(len(vector), np.nan + 0j)
+    smooth[width - 1 :] = (cumulative[width:] - cumulative[:-width]) / width
+    first = int(np.flatnonzero(np.isfinite(smooth))[0])
+    relative_phase = np.unwrap(np.angle(smooth[first:]))
+    frequency = np.gradient(relative_phase, DT_MS / 1000.0) / (2 * math.pi)
+    frequency = gaussian_filter1d(frequency, sigma=round(25.0 / DT_MS))
+    result = np.full(len(vector), np.nan)
+    result[first:] = frequency
+    return result
+
+
 def clean_convergence_metrics(
-    coupled: dict[str, np.ndarray], control: dict[str, np.ndarray]
+    coupled: dict[str, np.ndarray],
 ) -> dict[str, float | bool | list[float]]:
     """Require visible approach to one phase delay followed by stable residence."""
     coupled_trace = trailing_phase_metrics(coupled, discard_steps=PHASE_CONTEXT_STEPS)
-    control_trace = trailing_phase_metrics(control, discard_steps=PHASE_CONTEXT_STEPS)
     vector = coupled_trace["vector"]
     smoothing_steps = round(50.0 / DT_MS)
     cumulative = np.concatenate(([0j], np.cumsum(vector)))
@@ -1029,7 +1044,10 @@ def clean_convergence_metrics(
     late_error_95 = float(np.nanquantile(np.abs(error[late]), 0.95))
     early_plv = float(abs(np.mean(vector[early])))
     late_plv = float(abs(np.mean(vector[late])))
-    control_late_plv = float(abs(np.mean(control_trace["vector"][late])))
+    frequency_difference = phase_frequency_difference_hz(vector)
+    late_frequency_95 = float(
+        np.nanquantile(np.abs(frequency_difference[late]), 0.95)
+    )
     late_unwrapped_span = float(np.ptp(np.unwrap(np.angle(vector[late]))))
     smooth_late_span = float(np.ptp(np.unwrap(np.angle(smooth[late]))))
     edges = np.linspace(round(50 / DT_MS), len(vector), 5, dtype=int)
@@ -1051,7 +1069,7 @@ def clean_convergence_metrics(
         and early_plv <= 0.70
         and late_error_95 <= 0.65
         and late_plv >= 0.92
-        and control_late_plv <= 0.75
+        and late_frequency_95 <= 2.5
         and smooth_late_span <= 1.5
         and capture_step is not None
         and 150.0 <= capture_step * DT_MS <= 1000.0
@@ -1063,7 +1081,7 @@ def clean_convergence_metrics(
         "late_phase_error_95_rad": late_error_95,
         "early_plv": early_plv,
         "late_plv": late_plv,
-        "control_late_plv": control_late_plv,
+        "late_frequency_difference_95_hz": late_frequency_95,
         "late_unwrapped_span_rad": late_unwrapped_span,
         "smooth_late_span_rad": smooth_late_span,
         "capture_time_ms": None if capture_step is None else capture_step * DT_MS,
@@ -1108,20 +1126,6 @@ def search_clean_acquisition() -> None:
             name: value[step - PHASE_CONTEXT_STEPS : step]
             for name, value in burn_arrays.items()
         }
-        control_result = simulate(
-            ExecutionSpec(
-                kind="simulate", executor="graph", graph=zero_bundle.graph,
-                inputs=future, seed=SEED,
-            ), runtime_state=prefix.runtime_state,
-        )
-        control_arrays = {
-            name: value.detach().cpu().numpy()
-            for name, value in control_result.recordings.items()
-        }
-        phase_control = {
-            name: np.concatenate((context[name], value), axis=0)
-            for name, value in control_arrays.items()
-        }
         for strength in CLEAN_SEARCH_STRENGTHS:
             coupled_bundle = author_graph(
                 input_weight=settings["input_weight"], coupling_strength=strength,
@@ -1141,7 +1145,7 @@ def search_clean_acquisition() -> None:
                 name: np.concatenate((context[name], value), axis=0)
                 for name, value in coupled_arrays.items()
             }
-            metrics = clean_convergence_metrics(phase_coupled, phase_control)
+            metrics = clean_convergence_metrics(phase_coupled)
             row = {"checkpoint": checkpoint, "strength": strength, "delay_ms": delay_ms, "metrics": metrics}
             rows.append(row)
             print(
@@ -1197,20 +1201,6 @@ def search_clean_delays() -> None:
             name: value[checkpoint_step : checkpoint_step + CLEAN_SEARCH_STEPS]
             for name, value in inputs.items()
         }
-        control_result = simulate(
-            ExecutionSpec(
-                kind="simulate", executor="graph", graph=zero_bundle.graph,
-                inputs=future, seed=SEED,
-            ), runtime_state=prefix.runtime_state,
-        )
-        control_arrays = {
-            name: value.detach().cpu().numpy()
-            for name, value in control_result.recordings.items()
-        }
-        phase_control = {
-            name: np.concatenate((context[name], value), axis=0)
-            for name, value in control_arrays.items()
-        }
         for strength in CLEAN_DELAY_STRENGTHS:
             coupled_bundle = author_graph(
                 input_weight=settings["input_weight"], coupling_strength=strength,
@@ -1230,7 +1220,7 @@ def search_clean_delays() -> None:
                 name: np.concatenate((context[name], value), axis=0)
                 for name, value in coupled_arrays.items()
             }
-            metrics = clean_convergence_metrics(phase_coupled, phase_control)
+            metrics = clean_convergence_metrics(phase_coupled)
             row = {"checkpoint_step": checkpoint_step, "strength": strength, "delay_ms": delay_ms, "metrics": metrics}
             rows.append(row)
             print(
@@ -1286,20 +1276,6 @@ def search_clean_input_seeds() -> None:
             settings["rate_a_hz"], settings["rate_b_hz"],
             steps=CLEAN_SEARCH_STEPS, seed_offset=seed_offset,
         )
-        control_result = simulate(
-            ExecutionSpec(
-                kind="simulate", executor="graph", graph=zero_bundle.graph,
-                inputs=future, seed=SEED,
-            ), runtime_state=prefix.runtime_state,
-        )
-        control_arrays = {
-            name: value.detach().cpu().numpy()
-            for name, value in control_result.recordings.items()
-        }
-        phase_control = {
-            name: np.concatenate((context[name], value), axis=0)
-            for name, value in control_arrays.items()
-        }
         for strength in strengths:
             coupled_bundle = author_graph(
                 input_weight=settings["input_weight"], coupling_strength=strength,
@@ -1319,7 +1295,7 @@ def search_clean_input_seeds() -> None:
                 name: np.concatenate((context[name], value), axis=0)
                 for name, value in coupled_arrays.items()
             }
-            metrics = clean_convergence_metrics(phase_coupled, phase_control)
+            metrics = clean_convergence_metrics(phase_coupled)
             row = {
                 "checkpoint_step": checkpoint_step,
                 "future_seed_offset": seed_offset,
@@ -1350,62 +1326,14 @@ def search_clean_input_seeds() -> None:
     )
 
 
-def acquisition_metrics(
-    coupled: dict[str, np.ndarray], control: dict[str, np.ndarray], *, discard_steps: int = 0
-) -> dict:
-    coupled_trace = trailing_phase_metrics(coupled, discard_steps=discard_steps)
-    control_trace = trailing_phase_metrics(control, discard_steps=discard_steps)
-    early = slice(round(50 / DT_MS), round(400 / DT_MS))
-    late = slice(len(coupled_trace["vector"]) - round(600 / DT_MS), None)
-    capture_step = coupled_trace["capture_step"]
-    coupled_rate_a = coupled_trace["rate_a"]
-    coupled_rate_b = coupled_trace["rate_b"]
-    _, _, early_f_a, _ = spectrum(coupled_rate_a[early])
-    _, _, early_f_b, _ = spectrum(coupled_rate_b[early])
-    _, _, late_f_a, _ = spectrum(coupled_rate_a[late])
-    _, _, late_f_b, _ = spectrum(coupled_rate_b[late])
-    period_ms = 1000.0 / np.nanmean((late_f_a, late_f_b))
-    cycle_steps = coupled_trace["cycle_steps"]
-    cycle_error = coupled_trace["phase_error"][cycle_steps]
-    def mean_finite(values, section):
-        selected = values[section]
-        return float(np.nanmean(selected))
-    return {
-        "initial_phase_separation_rad": float(abs(np.angle(coupled_trace["vector"][round(50 / DT_MS)]))),
-        "final_phase_separation_rad": float(abs(np.angle(np.mean(coupled_trace["vector"][late])))),
-        "capture_time_ms": None if capture_step is None else float(capture_step * DT_MS),
-        "capture_cycles": None if capture_step is None else float(capture_step * DT_MS / period_ms),
-        "rolling_plv_early": mean_finite(coupled_trace["rolling_plv"], early),
-        "rolling_plv_late": mean_finite(coupled_trace["rolling_plv"], late),
-        "control_rolling_plv_late": mean_finite(control_trace["rolling_plv"], late),
-        "frequency_difference_early_hz": float(abs(early_f_a - early_f_b)),
-        "frequency_difference_late_hz": float(abs(late_f_a - late_f_b)),
-        "control_phase_span_late_rad": float(np.ptp(control_trace["unwrapped_phase"][late])),
-        "coupled_phase_span_late_rad": float(np.ptp(coupled_trace["unwrapped_phase"][late])),
-        "late_phase_slips": int(np.floor(np.ptp(coupled_trace["unwrapped_phase"][late]) / (2 * math.pi))),
-        "cycle_steps": cycle_steps.tolist(),
-        "cycle_phase_error_rad": cycle_error.tolist(),
-        "visible_acquisition": bool(
-            capture_step is not None
-            and mean_finite(coupled_trace["rolling_plv"], early) <= 0.70
-            and mean_finite(coupled_trace["rolling_plv"], late) >= 0.80
-            and mean_finite(control_trace["rolling_plv"], late) <= 0.75
-            and np.ptp(coupled_trace["unwrapped_phase"][late])
-            < np.ptp(control_trace["unwrapped_phase"][late])
-        ),
-    }
-
-
 def render_acquisition(
-    coupled: dict[str, np.ndarray], control: dict[str, np.ndarray], metrics: dict, path: Path,
+    coupled: dict[str, np.ndarray], path: Path,
     *, phase_coupled: dict[str, np.ndarray] | None = None,
-    phase_control: dict[str, np.ndarray] | None = None,
     discard_steps: int = 0,
 ) -> None:
     """Render one continuous mature-state phase-acquisition trajectory."""
     theme.apply()
     trace = trailing_phase_metrics(phase_coupled or coupled, discard_steps=discard_steps)
-    baseline = trailing_phase_metrics(phase_control or control, discard_steps=discard_steps)
     time_ms = np.arange(len(trace["vector"])) * DT_MS
     fig, axes = plt.subplots(6, 1, figsize=(7.2, 10.0), sharex=True)
     raster_specs = (
@@ -1429,33 +1357,24 @@ def render_acquisition(
         ax.plot(time_ms, values, color=color, linewidth=0.8)
         ax.set_ylim(0, rate_max)
         ax.set_ylabel(label)
-    phase_reference = float(metrics["fixed_phase_delay_rad"])
-    def smoothed_delay(arrays):
+    def smoothed_delay(arrays: dict[str, np.ndarray]) -> tuple[np.ndarray, np.ndarray]:
         _, _, vector = phase_trace(arrays)
         width = round(50.0 / DT_MS)
         cumulative = np.concatenate(([0j], np.cumsum(vector)))
         smooth = np.full(len(vector), np.nan + 0j)
         smooth[width - 1 :] = (cumulative[width:] - cumulative[:-width]) / width
         smooth = smooth[discard_steps:]
-        return phase_reference + np.angle(smooth * np.exp(-1j * phase_reference))
-    coupled_phase = smoothed_delay(phase_coupled or coupled)
-    control_phase = smoothed_delay(phase_control or control)
-    axes[4].plot(time_ms, control_phase, color=theme.GREY_MID, linewidth=0.8, label="matched uncoupled")
-    axes[4].plot(time_ms, coupled_phase, color=theme.INK_BLACK, linewidth=1.1, label="coupled")
-    axes[4].axhline(
-        phase_reference, color=theme.DEEP_RED, linewidth=0.8, linestyle="--",
-        label="final phase delay",
-    )
-    axes[4].set_ylim(phase_reference - math.pi, phase_reference + math.pi)
+        return np.angle(smooth), phase_frequency_difference_hz(vector)[discard_steps:]
+
+    coupled_phase, frequency_difference = smoothed_delay(phase_coupled or coupled)
+    axes[4].plot(time_ms, coupled_phase, color=theme.INK_BLACK, linewidth=1.1)
+    axes[4].set_ylim(-math.pi, math.pi)
     axes[4].set_ylabel("A − B phase\ndelay (rad)")
-    axes[4].legend(frameon=False, ncol=2, loc="upper left")
-    axes[5].plot(time_ms, baseline["rolling_plv"], color=theme.GREY_MID, linewidth=0.8)
-    axes[5].plot(time_ms, trace["rolling_plv"], color=theme.INK_BLACK, linewidth=1.0)
-    axes[5].axhline(0.8, color=theme.DEEP_RED, linewidth=0.7, linestyle="--")
-    if metrics["capture_time_ms"] is not None:
-        axes[5].axvline(metrics["capture_time_ms"], color=theme.DEEP_RED, linewidth=0.8)
-    axes[5].set_ylim(0, 1.02)
-    axes[5].set_ylabel("trailing\nPLV")
+    frequency_limit = max(2.0, float(np.nanquantile(np.abs(frequency_difference), 0.98)))
+    axes[5].plot(time_ms, frequency_difference, color=theme.INK_BLACK, linewidth=1.0)
+    axes[5].axhline(0, color=theme.GREY_MID, linewidth=0.6)
+    axes[5].set_ylim(-frequency_limit, frequency_limit)
+    axes[5].set_ylabel("A − B frequency\n(Hz)")
     axes[5].set_xlabel("time since coupling enabled (ms)")
     for ax in axes:
         ax.axvline(0, color=theme.DEEP_RED, linewidth=0.7)
@@ -1507,37 +1426,20 @@ def acquire() -> None:
             inputs=continuation_inputs, seed=SEED,
         ), runtime_state=prefix.runtime_state,
     )
-    control_result = simulate(
-        ExecutionSpec(
-            kind="simulate", executor="graph", graph=zero_bundle.graph,
-            inputs=continuation_inputs, seed=SEED,
-        ), runtime_state=prefix.runtime_state,
-    )
     coupled_arrays = {
         name: value.detach().cpu().numpy() for name, value in coupled_result.recordings.items()
-    }
-    control_arrays = {
-        name: value.detach().cpu().numpy() for name, value in control_result.recordings.items()
     }
     phase_coupled = {
         name: np.concatenate((phase_context[name], value), axis=0)
         for name, value in coupled_arrays.items()
     }
-    phase_control = {
-        name: np.concatenate((phase_context[name], value), axis=0)
-        for name, value in control_arrays.items()
-    }
-    diagnostics = clean_convergence_metrics(phase_coupled, phase_control)
+    diagnostics = clean_convergence_metrics(phase_coupled)
     if not diagnostics["convergent"]:
         raise RuntimeError(f"selected acquisition no longer converges: {diagnostics}")
     publication_keys = tuple(f"population_{index}" for index in range(4))
     np.savez_compressed(
         destination / "coupled-recordings.npz",
         **{name: coupled_arrays[name] for name in publication_keys},
-    )
-    np.savez_compressed(
-        destination / "control-recordings.npz",
-        **{name: control_arrays[name] for name in publication_keys},
     )
     np.savez_compressed(
         destination / "phase-context.npz",
@@ -1554,12 +1456,11 @@ def acquire() -> None:
     zero_bundle.write(destination / "zero-coupling.bundle", visualise=True)
     save_runtime_state(destination / "checkpoint.runtime-state", prefix.runtime_state)
     render_acquisition(
-        coupled_arrays, control_arrays, diagnostics, destination / "phase_acquisition.png",
-        phase_coupled=phase_coupled, phase_control=phase_control,
-        discard_steps=PHASE_CONTEXT_STEPS,
+        coupled_arrays, destination / "phase_acquisition.png",
+        phase_coupled=phase_coupled, discard_steps=PHASE_CONTEXT_STEPS,
     )
     payload = {
-        "protocol": "mature zero-coupling checkpoint, identical-state coupled/control continuation with independent Poisson future input",
+        "protocol": "mature zero-coupling checkpoint continued once with reciprocal E-to-I coupling and independent Poisson input",
         "checkpoint": {"step": checkpoint_step, "time_ms": checkpoint_step * DT_MS},
         "selection": {
             "strength": strength, "delay_ms": delay_ms,
