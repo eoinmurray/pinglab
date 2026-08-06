@@ -431,35 +431,36 @@
   rate--intensity condition, Panel A plots the mean feature z and Panel B its
   standard deviation across the authenticated draws, against encoding rate ×
   normalized pixel intensity × #presentation-ms ms. Each point is one observed
-  rate--intensity condition; colour encodes probe conductance, and the inset
-  reports exact-zero mass at full intensity. Both moments
+  rate--intensity condition, and colour encodes probe conductance. Both moments
   rise because larger expected spike counts deliver more stochastic conductance;
-  larger probes produce larger voltage excursions, while exact-zero mass falls
-  as receiving no spikes becomes less likely.
+  larger probes produce larger voltage excursions.
 
   === Step 3: linear-filter prediction
 
   #image(
     "/artifacts/data/exp077/linear_filter.svg",
     width: 100%,
-    alt: "Two Bode magnitude panels show the synapse-plus-membrane response and the complete response after 200 millisecond averaging at low, transitional, and high drive.",
+    alt: "Two analytically calculated Bode magnitude panels show the synapse-plus-membrane response and the complete response after 200 millisecond averaging at three mean input rates.",
   )
 
-  _Linearized frequency response at the nominal 1.2 μS probe._ Panel A plots
-  the magnitude of the analytical synapse-plus-membrane transfer function at
-  0.25, 3, and 25 Hz operating points. Panel B multiplies those curves by the
-  analytical #presentation-ms ms rectangular-window averaging response. Gain is
-  referenced to the low-drive DC value. Mean conductance lowers and shifts the
-  membrane response, the AMPA and membrane terms produce the smooth low-pass
-  roll-off, and rectangular averaging introduces nulls at multiples of 5 Hz.
-  The dotted horizontal line marks −3 dB.
+  _Analytically calculated linearized frequency response at the nominal 1.2 μS
+  probe._ The plotted functions take modulation frequency, mean input spike rate,
+  and probe conductance as inputs; no simulated traces are plotted. Frequency
+  here is the frequency of a small sinusoidal modulation of the input spike rate,
+  about mean operating rates of 0.25, 3, or 25 Hz. Panel A evaluates the
+  synapse-plus-membrane transfer function on a 0.1--200 Hz frequency grid. Panel
+  B multiplies it by the analytical #presentation-ms ms rectangular-window
+  averaging response. Gain is referenced to the low-drive DC value. Mean
+  conductance lowers and shifts the membrane response, the AMPA and membrane
+  terms produce the smooth low-pass roll-off, and rectangular averaging
+  introduces nulls at multiples of 5 Hz.
 
   === Step 4: complete feature images
 
   #image(
     "/artifacts/data/exp077/feature_images.png",
     width: 100%,
-    alt: "Rows at low, transitional, and high rates compare original MNIST images, empirical-library samples, and fresh direct simulations.",
+    alt: "Rows at 0.25, 3, and 25 hertz compare original MNIST images, empirical-library samples, and fresh direct simulations.",
   )
 
   _Empirical-library samples versus fresh direct Step 1 simulations._ Rows show

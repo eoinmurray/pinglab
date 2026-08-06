@@ -21716,7 +21716,7 @@
     "arrays_path": "artifacts/data/exp077/step3_linear_filter_arrays.npz",
     "arrays_sha256": "1e6dff93eddd86d8b9525d7040f9fe1145af29330de9624ab63e39bb6f2a3d68",
     "figure_path": "artifacts/data/exp077/linear_filter.svg",
-    "figure_sha256": "806d73ec69a91a423f5bf5b82a54dd6cfebc8ded2cbe1de23c9000f23c6654bf",
+    "figure_sha256": "bd5281fae324240228598be8c07dad76d062a349387397475a98ffeb3662e2d5",
     "runtime_s": 62.557,
     "paid_compute_usd": 0.0
   },
@@ -22140,7 +22140,7 @@
     "arrays_path": "artifacts/data/exp077/step4_feature_comparison_arrays.npz",
     "arrays_sha256": "31c9ddaec4e34564e89384251ecc2bda3c0d00145ac0cc41838c4c1db5ee49c7",
     "figure_path": "artifacts/data/exp077/feature_images.png",
-    "figure_sha256": "a5257191a8f0bf933a547b82295dc3341e4af7dcbc0b7f04245de77bf0bfe590",
+    "figure_sha256": "34f45c067787e22b4887027fbf54ff5c80f84569ab33ebbdbf7e4dce5f10d05e",
     "runtime_s": 20.703,
     "paid_compute_usd": 0.0,
     "interpretation": "feature construction only; no decoder, held-out test, threshold selection, or PING run"
