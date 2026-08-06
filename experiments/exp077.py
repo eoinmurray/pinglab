@@ -3297,8 +3297,9 @@ def analyze_held_out_evaluation() -> dict[str, Any]:
         axis.axhline(CHANCE_ACCURACY, color="#777777", linewidth=0.8, linestyle=":")
         axis.axhline(USEFUL_ACCURACY, color="#777777", linewidth=0.8, linestyle="--")
         axis.set_xscale("log")
-        axis.set_xticks(TRAINING_RATES_HZ)
-        axis.set_xticklabels([f"{rate:g}" for rate in TRAINING_RATES_HZ], rotation=45)
+        display_ticks = (0.25, 0.5, 1.0, 2.0, 5.0, 10.0, 25.0)
+        axis.set_xticks(display_ticks)
+        axis.set_xticklabels([f"{rate:g}" for rate in display_ticks])
         axis.set_ylim(0, 1)
         axis.set_xlabel("Encoding rate (Hz)")
         axis.set_ylabel("Held-out accuracy")
@@ -3332,7 +3333,12 @@ def step_6() -> None:
 
 
 def step_7() -> None:
-    outcome = analyze_held_out_evaluation()
+    step6_path = FIGURES / "step6_outcome.json"
+    outcome = (
+        json.loads(step6_path.read_text())
+        if step6_path.exists()
+        else analyze_held_out_evaluation()
+    )
     nominal = outcome["thresholds"][str(PROBE_US)]
     floors = {
         str(probe): outcome["thresholds"][str(probe)]["r_train_hz"]
@@ -3449,6 +3455,92 @@ def capture_modal_billing() -> Path:
     path = FIGURES / "modal_billing.json"
     path.write_text(json.dumps(relevant, indent=2) + "\n")
     return path
+
+
+def record_steps5_7_publication_contract() -> None:
+    """Extend cumulative metadata with the completed frozen decoder study."""
+    step5_path = FIGURES / "step5_outcome.json"
+    step6_path = FIGURES / "step6_outcome.json"
+    decision_path = FIGURES / "decision.json"
+    freeze_path = FIGURES / "frozen_evaluation_protocol.json"
+    step5 = json.loads(step5_path.read_text())
+    step6 = json.loads(step6_path.read_text())
+    decision = json.loads(decision_path.read_text())
+
+    numbers_path = FIGURES / "numbers.json"
+    numbers = json.loads(numbers_path.read_text())
+    numbers.update(
+        {
+            "step": 7,
+            "status": "complete",
+            "scope": "filter-matched decoder-relative MNIST rate thresholds",
+            "step5": step5,
+            "step6": step6,
+            "step7": decision,
+            "later_steps_run": True,
+            "paid_compute_usd": decision["compute"]["total_exact_cost_usd"],
+        }
+    )
+    numbers_path.write_text(json.dumps(numbers, indent=2) + "\n")
+
+    protocol_path = FIGURES / "protocol.json"
+    protocol = json.loads(protocol_path.read_text())
+    protocol.update(
+        {
+            "attempted_through_step": 7,
+            "steps5_7_classification": "explicitly authorized continuation with Step 4 failure preserved",
+            "step5_status": step5["status"],
+            "step6_status": step6["status"],
+            "step7_status": decision["status"],
+            "held_out_test_partition": "accessed only after committed frozen protocol",
+            "frozen_evaluation_protocol_sha256": sha256_file(freeze_path),
+        }
+    )
+    protocol_path.write_text(json.dumps(protocol, indent=2) + "\n")
+
+    manifest_path = FIGURES / "step2_manifest.json"
+    manifest = json.loads(manifest_path.read_text())
+    manifest["exploratory_continuation"]["steps5_7_run"] = True
+    manifest["exploratory_continuation"].update(
+        {
+            "step5_outcome": str(step5_path.relative_to(REPO)),
+            "step5_outcome_sha256": sha256_file(step5_path),
+            "frozen_evaluation_protocol": str(freeze_path.relative_to(REPO)),
+            "frozen_evaluation_protocol_sha256": sha256_file(freeze_path),
+            "step6_outcome": str(step6_path.relative_to(REPO)),
+            "step6_outcome_sha256": sha256_file(step6_path),
+            "decision": str(decision_path.relative_to(REPO)),
+            "decision_sha256": sha256_file(decision_path),
+        }
+    )
+    manifest_path.write_text(json.dumps(manifest, indent=2) + "\n")
+
+    provenance_path = FIGURES / "provenance.json"
+    provenance = json.loads(provenance_path.read_text())
+    provenance["steps5_7"] = {
+        **_git_metadata(),
+        "step5_outcome_sha256": sha256_file(step5_path),
+        "frozen_evaluation_protocol_sha256": sha256_file(freeze_path),
+        "held_out_correctness_sha256": sha256_file(FIGURES / "step6" / "held_out_correctness.npz"),
+        "step6_outcome_sha256": sha256_file(step6_path),
+        "decision_sha256": sha256_file(decision_path),
+        "paid_compute_usd": decision["compute"]["total_exact_cost_usd"],
+    }
+    provenance_path.write_text(json.dumps(provenance, indent=2) + "\n")
+
+    reproducer_path = FIGURES / "reproducer.json"
+    reproducer = json.loads(reproducer_path.read_text())
+    reproducer["steps5_7"] = {
+        "smoke_command": "EXP077_STAGE=smoke uv run python -c 'from experiments.exp077 import step_5; step_5()'",
+        "modal_training_command": "uv run python experiments/exp077_modal.py --stage full --probe <probe> --seed <seed> --live",
+        "freeze_command": "uv run python -c 'from experiments.exp077 import write_frozen_evaluation_protocol; write_frozen_evaluation_protocol()'",
+        "modal_evaluation_command": "uv run python experiments/exp077_evaluate_modal.py --live",
+        "analysis_command": "uv run python -c 'from experiments.exp077 import analyze_held_out_evaluation, step_7; analyze_held_out_evaluation(); step_7()'",
+        "checkpoint_count": len(step5["records"]),
+        "expected_decision_sha256": sha256_file(decision_path),
+        "paid_compute": True,
+    }
+    reproducer_path.write_text(json.dumps(reproducer, indent=2) + "\n")
 
 
 STAGE_FUNCTIONS: dict[int, Callable[[], None]] = {

@@ -1,6 +1,6 @@
 {
   "status": "complete",
-  "completed_at_utc": "2026-08-06T12:21:54Z",
+  "completed_at_utc": "2026-08-06T12:29:41Z",
   "r_decode_hz": 0.25,
   "r_train_hz": 0.5,
   "conductance_floors_hz": {
@@ -38,9 +38,9 @@
   "hashes": {
     "frozen_protocol_sha256": "1053c913d674678051a4efba8592f48792219551451902da93a9b4235272c325",
     "step5_outcome_sha256": "1bbac31e60732bf04cca64ddfafd369791953be932886ed1a89bf68b51b744d2",
-    "step6_outcome_sha256": "ba235ecb7708ea7000d38f30992a9394b9c3128c2c01bb6c262508cb1e5e8955",
+    "step6_outcome_sha256": "ca5ddf8ef12063e14c1fa5a724f2b83bb34b6a5e4830bbce8e362a6391d80945",
     "held_out_arrays_sha256": "d6a8e2c35342ce5321d99fd18f6af8e5553c3ff965a490d22e8932b362321a29",
-    "psychometric_figure_sha256": "5a15fea77790476f7dc0e88bbfb3c9538525438f2b3fabb21ad5b69dd5394db3",
+    "psychometric_figure_sha256": "e5675549b37f5e265b3d76a2b3e3283257270e76b865df20ed52be20733fbc52",
     "models": [
       {
         "probe_uS": 0.6,
