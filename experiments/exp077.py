@@ -1,7 +1,7 @@
 """Experiment 077 through Step 4: empirical pixel-response calibration.
 
 The complete staged contract lives in ``writings/exp077.typ``.  Only Step 1 is
-implemented here: the validated local probe and its empirical response library.
+implemented here: the validated local probe and its empirical response table.
 Steps 3--4 are an explicitly authorized exploratory continuation after the
 preserved Step 2 validation failure.  Decoder and PING stages remain hard stops.
 """
@@ -135,7 +135,7 @@ PARAMETERS = {
 
 STAGE_NAMES: dict[int, str] = {
     1: "generate and validate filter-matched pixel features",
-    2: "generate the empirical pixel-response library",
+    2: "generate the empirical pixel-response table",
     3: "calculate and test the dependent linear-filter prediction",
     4: "construct and validate complete sampled feature images",
     5: "train the mixed-rate nonlinear and linear decoders",
@@ -528,7 +528,7 @@ def _step2_rng(seed: int, stream: int) -> np.random.Generator:
 
 
 def _library_chunk_rng(seed: int, chunk_index: int) -> np.random.Generator:
-    """Return the independently reproducible RNG for one full-library chunk."""
+    """Return the independently reproducible RNG for one full-table chunk."""
     return np.random.default_rng(
         np.random.SeedSequence([seed, 77, 2, LIBRARY_STREAM, chunk_index])
     )
@@ -548,13 +548,13 @@ def _open_library(mode: Literal["r", "r+"] = "r") -> np.memmap:
 
 
 def generate_full_library() -> dict[str, Any]:
-    """Generate the selected-K empirical library into a resumable float32 memmap."""
+    """Generate the selected-K empirical response table into a resumable float32 memmap."""
     LIBRARY_SCRATCH.parent.mkdir(parents=True, exist_ok=True)
     if LIBRARY_SCRATCH.exists():
         library = _open_library("r+")
         if library.shape != LIBRARY_SHAPE or library.dtype != np.float32:
             raise RuntimeError(
-                "existing response-library scratch array has wrong metadata"
+                "existing response-table scratch array has wrong metadata"
             )
     else:
         library = np.lib.format.open_memmap(
@@ -656,7 +656,7 @@ def _representative_distributions(library: np.ndarray) -> list[dict[str, Any]]:
 
 
 def validate_full_library(library: np.ndarray) -> dict[str, Any]:
-    """Run the predeclared full-library validation suite."""
+    """Run the predeclared full-response-table validation suite."""
     validations: dict[str, Any] = {}
     metadata_ok = bool(
         library.shape == LIBRARY_SHAPE
@@ -899,7 +899,7 @@ def run_bootstrap_stability() -> dict[str, Any]:
     if protocol["repetitions"] != BOOTSTRAP_REPETITIONS:
         raise RuntimeError("bootstrap repetitions differ from the locked protocol")
     if sha256_file(LIBRARY_SCRATCH) != protocol["source_library_sha256"]:
-        raise RuntimeError("source library does not match the locked SHA-256")
+        raise RuntimeError("source empirical response table does not match the locked SHA-256")
 
     library = _open_library("r")
     rate_indices = [TRAINING_RATES_HZ.index(rate) for rate in PILOT_RATES_HZ]
@@ -1156,7 +1156,7 @@ def record_step2_pilot(pilot: dict[str, Any], duration_s: float) -> None:
     )
     numbers["scope"] = (
         "Step 1 remains complete; the authorized Step 2 pilot extension "
-        "converged but no final library, decoder, held-out test, threshold, "
+        "converged but no final empirical response table, decoder, held-out test, threshold, "
         "or PING run was generated"
     )
     original_pilot = json.loads((FIGURES / "step2_pilot_outcome.json").read_text())
@@ -1382,7 +1382,7 @@ def record_full_library(
             "step": 2,
             "status": "step2_library_complete",
             "scope": (
-                "Empirical response library only; no decoder, held-out test, "
+        "Empirical response table only; no decoder, held-out test, "
                 "threshold selection, or PING run"
             ),
         }
@@ -1491,21 +1491,21 @@ def _generation_timing_from_scratch() -> dict[str, Any]:
     )
     modified_epoch = LIBRARY_SCRATCH.stat().st_mtime
     if birth_epoch <= 0 or modified_epoch < birth_epoch:
-        raise RuntimeError("cannot recover full-library generation timing")
+        raise RuntimeError("cannot recover full-response-table generation timing")
     return {
         "started_at_utc": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(birth_epoch)),
         "completed_at_utc": time.strftime(
             "%Y-%m-%dT%H:%M:%SZ", time.gmtime(modified_epoch)
         ),
         "duration_s": round(modified_epoch - birth_epoch, 1),
-        "method": "filesystem birth time to final raw-library modification time",
+        "method": "filesystem birth time to final raw-response-table modification time",
     }
 
 
 def record_full_library_failure(
     generation: dict[str, Any], validation: dict[str, Any]
 ) -> dict[str, Any]:
-    """Record a killed full-library attempt without weakening a failed check."""
+    """Record a killed full-response-table attempt without weakening a failed check."""
     manifest = record_full_library(generation, validation)
     failed = [name for name, row in validation["validations"].items() if not row["ok"]]
     timing = _generation_timing_from_scratch()
@@ -1536,7 +1536,7 @@ def record_full_library_failure(
     numbers = json.loads((FIGURES / "numbers.json").read_text())
     numbers["status"] = "killed_at_full_library_validation"
     numbers["scope"] = (
-        "Full empirical library generated, but Step 2 killed at its required "
+        "Full empirical response table generated, but Step 2 killed at its required "
         "monotonicity validation; no later stage ran"
     )
     numbers["step2"].update(
@@ -1555,7 +1555,7 @@ def record_full_library_failure(
     (FIGURES / "protocol.json").write_text(json.dumps(protocol, indent=2) + "\n")
     reproducer = json.loads((FIGURES / "reproducer.json").read_text())
     reproducer["expected_outcome"] = (
-        "reproduce the authenticated library and the required monotonicity failure"
+        "reproduce the authenticated empirical response table and the required monotonicity failure"
     )
     reproducer["failure_record"] = str(failure_path.relative_to(REPO))
     (FIGURES / "reproducer.json").write_text(json.dumps(reproducer, indent=2) + "\n")
@@ -1658,7 +1658,7 @@ def step_2() -> None:
         if not pilot["passed"]:
             raise RuntimeError(
                 "Step 2 draw-count pilot did not pass by the locked maximum K; "
-                "the final library was not generated"
+                "the final empirical response table was not generated"
             )
         print(f"exp077 Step 2 pilot selected K={pilot['selected_K']}")
         return
@@ -1670,11 +1670,11 @@ def step_2() -> None:
     validate_only = os.environ.get("EXP077_STEP2_VALIDATE_ONLY") == "1"
     if not validate_only and os.environ.get("EXP077_STEP2_FULL") != "1":
         raise RuntimeError(
-            "Step 2 full-library generation requires EXP077_STEP2_FULL=1"
+            "Step 2 full-response-table generation requires EXP077_STEP2_FULL=1"
         )
     if validate_only:
         if not LIBRARY_SCRATCH.exists():
-            raise RuntimeError("response-library scratch array does not exist")
+            raise RuntimeError("response-table scratch array does not exist")
         generation = {"duration_s": 0.0, "completed_chunks": None}
     else:
         generation = generate_full_library()
@@ -1684,7 +1684,7 @@ def step_2() -> None:
     if failed:
         record_full_library_failure(generation, validation)
         raise RuntimeError(
-            f"Step 2 full-library validation failed: {', '.join(failed)}"
+            f"Step 2 full-response-table validation failed: {', '.join(failed)}"
         )
     manifest = record_full_library(generation, validation)
     print(
@@ -1694,16 +1694,16 @@ def step_2() -> None:
 
 
 def verify_authenticated_library() -> np.memmap:
-    """Open the locked Step 2 library only after authenticating its bytes."""
+    """Open the locked Step 2 response table only after authenticating its bytes."""
     if not LIBRARY_SCRATCH.exists():
-        raise RuntimeError(f"authenticated library is absent: {LIBRARY_SCRATCH}")
+        raise RuntimeError(f"authenticated response table is absent: {LIBRARY_SCRATCH}")
     observed = sha256_file(LIBRARY_SCRATCH)
     if observed != LIBRARY_SHA256:
-        raise RuntimeError(f"library SHA-256 mismatch: {observed}")
+        raise RuntimeError(f"response-table SHA-256 mismatch: {observed}")
     library = np.load(LIBRARY_SCRATCH, mmap_mode="r")
     if library.shape != LIBRARY_SHAPE or library.dtype != np.float32:
         raise RuntimeError(
-            f"library contract mismatch: shape={library.shape}, dtype={library.dtype}"
+            f"response-table contract mismatch: shape={library.shape}, dtype={library.dtype}"
         )
     return library
 
@@ -2170,7 +2170,7 @@ def compare_feature_condition(
     lib = np.asarray(library_values, dtype=np.float64)
     direct = np.asarray(direct_values, dtype=np.float64)
     if lib.shape != direct.shape:
-        raise ValueError("library and direct arrays must have matching shapes")
+        raise ValueError("response-table and direct arrays must have matching shapes")
     lib_mean = float(np.mean(lib))
     direct_mean = float(np.mean(direct))
     lib_variance = float(np.var(lib, ddof=1))
@@ -2242,7 +2242,7 @@ def plot_step4(
     direct_values: np.ndarray,
     path: Path,
 ) -> None:
-    """Show intuitive library and direct feature-image examples only."""
+    """Show intuitive response-table and direct feature-image examples only."""
     theme.apply()
     fig, axes = plt.subplots(3, 3, figsize=(8.0, 5.8), constrained_layout=True)
     nominal_probe_index = PROBE_CONDUCTANCES_US.index(1.2)
@@ -2262,12 +2262,12 @@ def plot_step4(
             va="center",
             labelpad=18,
         )
-    for column, title in enumerate(("Original intensity", "Empirical-library sample", "Fresh direct simulation")):
+    for column, title in enumerate(("Original intensity", "Empirical response table", "Fresh direct simulation")):
         axes[0, column].set_title(title, fontsize=9)
     for axis in axes.flat:
         axis.set_xticks([])
         axis.set_yticks([])
-    fig.suptitle("Empirical-library features versus fresh direct simulation", fontsize=11, fontweight="bold")
+    fig.suptitle("Empirical response table versus fresh direct simulation", fontsize=11, fontweight="bold")
     savefig_atomic(fig, path, dpi=220, bbox_inches="tight")
     plt.close(fig)
 
