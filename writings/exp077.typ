@@ -23,14 +23,18 @@
 #let s5 = json("/artifacts/data/exp077/step5_outcome.json")
 #let s6 = json("/artifacts/data/exp077/step6_outcome.json")
 #let decision = json("/artifacts/data/exp077/decision.json")
+#let expanded = json("/artifacts/data/exp077/expanded_rate_outcome.json")
 #let s3-nominal-low = s3.agreement_summaries.at(3)
 #let s3-nominal-transition = s3.agreement_summaries.at(4)
 #let s3-nominal-high = s3.agreement_summaries.at(5)
 #let s4-nominal-low = s4.condition_records.at(3).comparison
 #let s4-nominal-transition = s4.condition_records.at(4).comparison
 #let s4-nominal-high = s4.condition_records.at(5).comparison
-#let nominal-quarter = s6.nonlinear.at(12)
-#let nominal-half = s6.nonlinear.at(13)
+#let nominal-hundredth = expanded.held_out_evaluation.nominal_added_rate_rows.at(0)
+#let nominal-twentieth = expanded.held_out_evaluation.nominal_added_rate_rows.at(1)
+#let nominal-tenth = expanded.held_out_evaluation.nominal_added_rate_rows.at(2)
+#let nominal-quarter = s6.nonlinear.at(18)
+#let nominal-half = s6.nonlinear.at(19)
 #let rounded(x, digits: 3) = str(calc.round(x, digits: digits))
 #let pct(x) = rounded(100 * x, digits: 2) + "%"
 #let calibration-rate-text = calibration-rates-hz.map(str).join(", ")
@@ -46,9 +50,9 @@
   pixel spike trains through the target AMPA and subthreshold membrane dynamics,
   characterized their empirical responses, and derived a corresponding linear
   filter model. Nonlinear and linear decoders were then trained on fresh direct
-  simulations across the registered rate grid. Held-out nonlinear-decoder
-  accuracy was reliably above chance at 0.25 Hz and reliably exceeded 50% from
-  0.5 Hz. This practical floor was unchanged across 0.6, 1.2, and 2.4 μS probes,
+  simulations across a 0.01--25 Hz grid. Held-out nonlinear-decoder accuracy was
+  reliably above chance from 0.01 Hz and reliably exceeded 50% from 0.5 Hz.
+  This practical floor was unchanged across 0.6, 1.2, and 2.4 μS probes,
   supporting 0.5--25 Hz for subsequent variable-rate PING training.
 
   == Purpose and scope
@@ -463,10 +467,12 @@
 
   _Mixed-rate validation histories._ Each panel plots mean validation accuracy
   across decoder seeds, with the seed range shaded, for models trained from
-  fresh direct simulations at uniformly sampled registered rates. Curves rise
-  rapidly and then flatten because most learnable class structure is acquired
-  in the first several epochs; the three conductances overlap because scaling
-  the subthreshold response preserves nearly the same spatial evidence.
+  fresh direct simulations with equal sampling of all 15 rates from 0.01--25
+  Hz. Curves rise rapidly and then flatten because most learnable class
+  structure is acquired in the first several epochs; conductances overlap
+  because response scaling preserves nearly the same spatial evidence. Mean
+  mixed-rate accuracy is lower than in the 12-rate predecessor because one fifth
+  of presentations now use the extremely sparse 0.01, 0.05, or 0.1 Hz inputs.
 
   At the nominal probe, validation selected nonlinear epochs
   #s5.records.at(3).selected_nonlinear_epoch,
@@ -496,6 +502,15 @@
   near-overlap across probe conductances shows that the trained nonlinear
   decoder compensates for their response-scale difference.
 
+  At the nominal probe, accuracy was #pct(nominal-hundredth.accuracy) at 0.01
+  Hz, #pct(nominal-twentieth.accuracy) at 0.05 Hz, and
+  #pct(nominal-tenth.accuracy) at 0.1 Hz. Their one-sided lower bounds were
+  #pct(nominal-hundredth.lower_95_one_sided),
+  #pct(nominal-twentieth.lower_95_one_sided), and
+  #pct(nominal-tenth.lower_95_one_sided), respectively, so even the lowest
+  tested rate remained reliably above 10% chance. Accuracy nevertheless stayed
+  below the 50% practical criterion throughout this ultra-sparse range.
+
   At 0.25 Hz, nominal nonlinear accuracy was #pct(nominal-quarter.accuracy),
   with a #pct(nominal-quarter.lower_95_one_sided) one-sided lower bound. At 0.5
   Hz it was #pct(nominal-half.accuracy), with a
@@ -515,6 +530,10 @@
   #decision.recommendation.ceiling_hz Hz for later variable-rate PING training.
   This is a decoder-relative practical
   range, not an absolute information limit or a PING accuracy result.
+  The expanded retraining and evaluation cost
+  #rounded(expanded.compute.expansion_exact_cost_usd) USD on Modal, bringing
+  cumulative exp077 compute to
+  #rounded(expanded.compute.cumulative_exact_cost_usd) USD.
 
   == Relation to prior work
 

@@ -51,6 +51,7 @@ DECODER_RATES_HZ = (
 EXPANDED_RATE_PROTOCOL_SHA256 = (
     "07e083cfe6d44bd172c18da2be8fe36cafc321025a86f3a567813f8916bb67aa"
 )
+PRE_EXPANSION_EXACT_MODAL_COST_USD = 4.2940396
 PROBE_US = 1.2
 SEED = 42
 SEEDS = (42, 43, 44)
@@ -3028,6 +3029,7 @@ def write_expanded_rate_training_protocol() -> Path:
 def verify_expanded_rate_training_protocol() -> dict[str, Any]:
     """Fail closed unless the committed sparse-rate training design matches code."""
     path = FIGURES / "expanded_rate_training_protocol.json"
+    protocol: dict[str, Any]
     if path.exists():
         if sha256_file(path) != EXPANDED_RATE_PROTOCOL_SHA256:
             raise RuntimeError("expanded-rate training protocol hash mismatch")
@@ -3539,7 +3541,7 @@ def analyze_held_out_evaluation() -> dict[str, Any]:
         axis.axhline(CHANCE_ACCURACY, color="#777777", linewidth=0.8, linestyle=":")
         axis.axhline(USEFUL_ACCURACY, color="#777777", linewidth=0.8, linestyle="--")
         axis.set_xscale("log")
-        display_ticks = (0.01, 0.05, 0.1, 0.25, 0.5, 1.0, 5.0, 25.0)
+        display_ticks = (0.01, 0.1, 0.5, 1.0, 5.0, 25.0)
         axis.set_xticks(display_ticks)
         axis.set_xticklabels([f"{rate:g}" for rate in display_ticks])
         axis.set_ylim(0, 1)
@@ -3699,6 +3701,77 @@ def capture_modal_billing() -> Path:
     return path
 
 
+def record_expanded_rate_outcome() -> Path:
+    """Summarize the completed sparse-rate extension from recorded artifacts."""
+    step5 = json.loads((FIGURES / "step5_outcome.json").read_text())
+    step6 = json.loads((FIGURES / "step6_outcome.json").read_text())
+    decision = json.loads((FIGURES / "decision.json").read_text())
+    billing = json.loads((FIGURES / "modal_billing.json").read_text())
+    total_exact = sum(float(row["cost"]) for row in billing)
+    nominal_rows = [
+        row
+        for row in step6["nonlinear"]
+        if row["probe_uS"] == PROBE_US and row["rate_hz"] in (0.01, 0.05, 0.1)
+    ]
+    outcome = {
+        "status": "complete",
+        "completed_at_utc": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+        "training_protocol_path": "artifacts/data/exp077/expanded_rate_training_protocol.json",
+        "training_protocol_sha256": sha256_file(
+            FIGURES / "expanded_rate_training_protocol.json"
+        ),
+        "added_rates_hz": [0.01, 0.05, 0.1],
+        "complete_decoder_rate_grid_hz": list(DECODER_RATES_HZ),
+        "equal_training_probability_per_rate": 1.0 / len(DECODER_RATES_HZ),
+        "training": {
+            "cell_count": len(step5["records"]),
+            "parallel_wall_time_s": max(
+                float(
+                    json.loads((REPO / record["training_path"]).with_name("modal.json").read_text())[
+                        "parallel_dispatch_elapsed_s"
+                    ]
+                )
+                for record in step5["records"]
+            ),
+            "aggregate_gpu_time_s": sum(
+                float(record["modal_elapsed_s"]) for record in step5["records"]
+            ),
+            "selected_nonlinear_validation_accuracy_range": [
+                min(
+                    float(record["selected_nonlinear_validation_accuracy"])
+                    for record in step5["records"]
+                ),
+                max(
+                    float(record["selected_nonlinear_validation_accuracy"])
+                    for record in step5["records"]
+                ),
+            ],
+        },
+        "held_out_evaluation": {
+            "runtime_s": json.loads((FIGURES / "step6" / "evaluation.json").read_text())[
+                "runtime_s"
+            ],
+            "nominal_added_rate_rows": nominal_rows,
+            "r_decode_hz": decision["r_decode_hz"],
+            "r_train_hz": decision["r_train_hz"],
+            "conductance_floors_hz": decision["conductance_floors_hz"],
+        },
+        "compute": {
+            "provider": "Modal",
+            "pre_expansion_exact_cost_usd": PRE_EXPANSION_EXACT_MODAL_COST_USD,
+            "cumulative_exact_cost_usd": total_exact,
+            "expansion_exact_cost_usd": total_exact - PRE_EXPANSION_EXACT_MODAL_COST_USD,
+            "provider_billing_path": "artifacts/data/exp077/modal_billing.json",
+            "provider_billing_sha256": sha256_file(FIGURES / "modal_billing.json"),
+        },
+        "preserved_infrastructure_failures_before_training": 3,
+        "scope": "decoder-relative exploratory extension; no PING accuracy claim",
+    }
+    path = FIGURES / "expanded_rate_outcome.json"
+    path.write_text(json.dumps(outcome, indent=2) + "\n")
+    return path
+
+
 def record_steps5_7_publication_contract() -> None:
     """Extend cumulative metadata with the completed frozen decoder study."""
     step5_path = FIGURES / "step5_outcome.json"
@@ -3708,6 +3781,8 @@ def record_steps5_7_publication_contract() -> None:
     step5 = json.loads(step5_path.read_text())
     step6 = json.loads(step6_path.read_text())
     decision = json.loads(decision_path.read_text())
+    expanded_path = FIGURES / "expanded_rate_outcome.json"
+    expanded = json.loads(expanded_path.read_text()) if expanded_path.exists() else None
 
     numbers_path = FIGURES / "numbers.json"
     numbers = json.loads(numbers_path.read_text())
@@ -3721,6 +3796,7 @@ def record_steps5_7_publication_contract() -> None:
             "step7": decision,
             "later_steps_run": True,
             "paid_compute_usd": decision["compute"]["total_exact_cost_usd"],
+            "expanded_rate_extension": expanded,
         }
     )
     numbers_path.write_text(json.dumps(numbers, indent=2) + "\n")
@@ -3736,6 +3812,7 @@ def record_steps5_7_publication_contract() -> None:
             "step7_status": decision["status"],
             "held_out_test_partition": "accessed only after committed frozen protocol",
             "frozen_evaluation_protocol_sha256": sha256_file(freeze_path),
+            "expanded_rate_training_protocol_sha256": EXPANDED_RATE_PROTOCOL_SHA256,
         }
     )
     protocol_path.write_text(json.dumps(protocol, indent=2) + "\n")
@@ -3753,6 +3830,8 @@ def record_steps5_7_publication_contract() -> None:
             "step6_outcome_sha256": sha256_file(step6_path),
             "decision": str(decision_path.relative_to(REPO)),
             "decision_sha256": sha256_file(decision_path),
+            "expanded_rate_outcome": str(expanded_path.relative_to(REPO)),
+            "expanded_rate_outcome_sha256": sha256_file(expanded_path),
         }
     )
     manifest_path.write_text(json.dumps(manifest, indent=2) + "\n")
@@ -3767,6 +3846,7 @@ def record_steps5_7_publication_contract() -> None:
         "step6_outcome_sha256": sha256_file(step6_path),
         "decision_sha256": sha256_file(decision_path),
         "paid_compute_usd": decision["compute"]["total_exact_cost_usd"],
+        "expanded_rate_outcome_sha256": sha256_file(expanded_path),
     }
     provenance_path.write_text(json.dumps(provenance, indent=2) + "\n")
 
@@ -3781,6 +3861,7 @@ def record_steps5_7_publication_contract() -> None:
         "checkpoint_count": len(step5["records"]),
         "expected_decision_sha256": sha256_file(decision_path),
         "paid_compute": True,
+        "expanded_rate_outcome_command": "uv run python -c 'from experiments.exp077 import record_expanded_rate_outcome; record_expanded_rate_outcome()'",
     }
     reproducer_path.write_text(json.dumps(reproducer, indent=2) + "\n")
 

@@ -32,8 +32,9 @@
     "modal_evaluation_command": "uv run python experiments/exp077_evaluate_modal.py --live",
     "analysis_command": "uv run python -c 'from experiments.exp077 import analyze_held_out_evaluation, step_7; analyze_held_out_evaluation(); step_7()'",
     "checkpoint_count": 9,
-    "expected_decision_sha256": "d16be9d0bca310e78c2ee6de2d18aaed3e3cf709536763d303f423f706da0133",
-    "paid_compute": true
+    "expected_decision_sha256": "25de6c9c15076a93fcc2f489b6625a2d94bc9920c2fa660cd3c2f02eb9fd76ee",
+    "paid_compute": true,
+    "expanded_rate_outcome_command": "uv run python -c 'from experiments.exp077 import record_expanded_rate_outcome; record_expanded_rate_outcome()'"
   },
   "step3_empirical_comparison": {
     "command": "uv run python -c 'from experiments.exp077 import refresh_step3_empirical_comparison; refresh_step3_empirical_comparison()'",

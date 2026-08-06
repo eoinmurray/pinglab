@@ -44,5 +44,6 @@
   "step5_status": "complete",
   "step6_status": "complete",
   "step7_status": "complete",
-  "frozen_evaluation_protocol_sha256": "1053c913d674678051a4efba8592f48792219551451902da93a9b4235272c325"
+  "frozen_evaluation_protocol_sha256": "4cd880e94ce87b530926d2aa6a95e0e8ce8e799cc1273ec8611a7a5bc4c9ca91",
+  "expanded_rate_training_protocol_sha256": "07e083cfe6d44bd172c18da2be8fe36cafc321025a86f3a567813f8916bb67aa"
 }

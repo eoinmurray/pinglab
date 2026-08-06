@@ -1,0 +1,81 @@
+{
+  "status": "complete",
+  "completed_at_utc": "2026-08-06T16:27:58Z",
+  "training_protocol_path": "artifacts/data/exp077/expanded_rate_training_protocol.json",
+  "training_protocol_sha256": "07e083cfe6d44bd172c18da2be8fe36cafc321025a86f3a567813f8916bb67aa",
+  "added_rates_hz": [
+    0.01,
+    0.05,
+    0.1
+  ],
+  "complete_decoder_rate_grid_hz": [
+    0.01,
+    0.05,
+    0.1,
+    0.25,
+    0.5,
+    0.75,
+    1.0,
+    1.5,
+    2.0,
+    2.5,
+    3.0,
+    4.0,
+    5.0,
+    10.0,
+    25.0
+  ],
+  "equal_training_probability_per_rate": 0.06666666666666667,
+  "training": {
+    "cell_count": 9,
+    "parallel_wall_time_s": 1660.8184888048563,
+    "aggregate_gpu_time_s": 7382.041563792999,
+    "selected_nonlinear_validation_accuracy_range": [
+      0.731,
+      0.742
+    ]
+  },
+  "held_out_evaluation": {
+    "runtime_s": 1164.071857972,
+    "nominal_added_rate_rows": [
+      {
+        "probe_uS": 1.2,
+        "rate_hz": 0.01,
+        "accuracy": 0.1377,
+        "lower_95_one_sided": 0.13214444444444445,
+        "upper_95": 0.14301111111111112
+      },
+      {
+        "probe_uS": 1.2,
+        "rate_hz": 0.05,
+        "accuracy": 0.21744444444444444,
+        "lower_95_one_sided": 0.21141611111111114,
+        "upper_95": 0.2233788888888889
+      },
+      {
+        "probe_uS": 1.2,
+        "rate_hz": 0.1,
+        "accuracy": 0.2956,
+        "lower_95_one_sided": 0.28916444444444445,
+        "upper_95": 0.30204444444444445
+      }
+    ],
+    "r_decode_hz": 0.01,
+    "r_train_hz": 0.5,
+    "conductance_floors_hz": {
+      "0.6": 0.5,
+      "1.2": 0.5,
+      "2.4": 0.5
+    }
+  },
+  "compute": {
+    "provider": "Modal",
+    "pre_expansion_exact_cost_usd": 4.2940396,
+    "cumulative_exact_cost_usd": 9.430388729999997,
+    "expansion_exact_cost_usd": 5.1363491299999975,
+    "provider_billing_path": "artifacts/data/exp077/modal_billing.json",
+    "provider_billing_sha256": "4e6e7c457e623671fe31cc1162c7e60ee98e058904fe592afc70a573ca1ae6c5"
+  },
+  "preserved_infrastructure_failures_before_training": 3,
+  "scope": "decoder-relative exploratory extension; no PING accuracy claim"
+}
