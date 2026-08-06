@@ -154,15 +154,14 @@
 
   2. *Generated and evaluated the empirical response table.* Before
     generating the response table, we evaluated candidate draw counts K of 256,
-    512, 1,024, 2,048, and 4,096 by direct visual convergence. For
-    each probe conductance, we plotted the response mean and standard deviation
-    against expected input spikes. Independent seed streams were pooled in a
-    fixed round-robin order, and each K curve used the first K pooled responses
-    per condition. We selected the first K whose curves visually overlapped
-    those at 2K across all three conductances and both moments. The K = 2,048
-    curves were the first to overlap their K = 4,096 counterparts throughout;
-    smaller K retained visible low-drive differences. We therefore retained K =
-    #vk.selected_K responses per condition and seed.
+    512, 1,024, 2,048, and 4,096 by direct visual convergence. Independent seed
+    streams were pooled in a fixed round-robin order. At each K, we calculated
+    every rate--intensity condition's mean and standard deviation, subtracted
+    the corresponding K = 4,096 estimate, took the absolute difference, and
+    averaged those differences within each probe conductance. We plotted these
+    two average changes against K. Both approached zero, with only small
+    residual changes by K = 2,048, so we retained #vk.selected_K responses per
+    condition and seed.
 
     We then ran that many independent
     single-pixel draws for every grayscale level, registered rate, probe conductance,
@@ -320,16 +319,14 @@
   #image(
     "/artifacts/data/exp077/response_table_k_convergence.png",
     width: 100%,
-    alt: "Six panels compare response mean and standard-deviation curves for five pooled sample counts across three probe conductances.",
+    alt: "Two panels show average absolute changes in condition-wise response mean and standard deviation against pooled sample count for three probe conductances.",
   )
 
-  _Visual selection of the response-table draw count._ Columns show the three
-  probe conductances; the upper and lower rows show response mean and standard
-  deviation. Each curve is a binned median across rate--intensity conditions
-  using the first K responses in a fixed round-robin pooling of the three seed
-  streams. Low-drive standard-deviation curves still differ at smaller K,
-  whereas K = 2,048 and K = 4,096 visually overlap across all six panels; K =
-  2,048 was therefore retained.
+  _Visual selection of the response-table draw count._ Panel A plots the average
+  absolute change in each condition's mean relative to K = 4,096; Panel B does
+  the same for standard deviation. Lines distinguish probe conductance. Both
+  changes decreased steadily with K and were small by K = 2,048, showing
+  directly why additional responses had little effect on the estimated moments.
 
   #image(
     "/artifacts/data/exp077/response_library.png",

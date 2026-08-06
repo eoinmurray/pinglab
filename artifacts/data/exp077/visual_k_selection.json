@@ -1,5 +1,5 @@
 {
-  "method": "visual doubling comparison of binned mean and standard-deviation curves",
+  "method": "visual convergence of mean absolute changes relative to K=4096",
   "candidate_K": [
     256,
     512,
@@ -10,9 +10,9 @@
   "selected_K": 2048,
   "comparison_K": 4096,
   "pooling": "fixed round-robin order across the three independent seed streams",
-  "scope": "all three probe conductances; response mean and standard deviation",
-  "decision": "K=2048 was the first curve set with no material visual separation from its doubled-K counterpart across all six panels",
+  "scope": "all rate-intensity conditions and three probe conductances; response mean and standard deviation",
+  "decision": "K=2048 reduced the average absolute changes in both moments to small residuals before the K=4096 reference",
   "source_response_table_sha256": "5184788979b5fa7fa9a3f38936399b8e2724d63914019f1306a7171981b36783",
   "figure": "artifacts/data/exp077/response_table_k_convergence.png",
-  "figure_sha256": "4c539f3609cdec5347ca1051e48be07c31cb2b1a08b5fcb458275639658c4001"
+  "figure_sha256": "09570830a105bfd2b208864cf58e39fd622a1f96488ddcd09f1edbdfe1013df0"
 }
