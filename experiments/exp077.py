@@ -3419,6 +3419,38 @@ def step_7() -> None:
     (FIGURES / "decision.json").write_text(json.dumps(decision, indent=2) + "\n")
 
 
+def capture_modal_billing() -> Path:
+    """Capture the provider's exact per-app resource charges for this experiment."""
+    modal_executable = Path(sys.executable).with_name("modal")
+    completed = subprocess.run(
+        [
+            str(modal_executable),
+            "billing",
+            "report",
+            "--for",
+            "today",
+            "--resolution",
+            "h",
+            "--show-resources",
+            "--json",
+        ],
+        check=True,
+        text=True,
+        capture_output=True,
+    )
+    rows = json.loads(completed.stdout)
+    relevant = [
+        row
+        for row in rows
+        if row.get("description") in {"pinglab-exp077", "pinglab-exp077-evaluation"}
+    ]
+    if not relevant:
+        raise RuntimeError("Modal billing report contained no exp077 rows")
+    path = FIGURES / "modal_billing.json"
+    path.write_text(json.dumps(relevant, indent=2) + "\n")
+    return path
+
+
 STAGE_FUNCTIONS: dict[int, Callable[[], None]] = {
     1: step_1,
     2: step_2,
