@@ -41,9 +41,10 @@
   structure before learning begins. We developed a filter-matched calibration
   of MNIST inputs by propagating pixel spike trains through the target AMPA and
   subthreshold membrane dynamics, measuring the resulting empirical response
-  distributions, and comparing them with a linear transfer-function model. The
-  empirical response table preserved non-Gaussian finite-window effects that
-  the stationary approximation did not capture accurately. Sampled feature
+  distributions, and deriving the corresponding linear transfer-function model.
+  The empirical response table preserved non-Gaussian finite-window effects,
+  while the analytical model described the frequency filtering imposed by the
+  synapse, membrane, and averaging window. Sampled feature
   images recovered recognizable digit structure as rate increased, whereas the
   lowest-rate images remained sparse and did not satisfy all image-level
   validation tolerances. These results established an empirical basis for
@@ -167,8 +168,8 @@
     z#super[(k)] is draw k; K is the draw count; and Equations 8 and 9 estimate
     the conditional mean and variance.
 
-    The table was used only to plot these moments and to compare empirical and
-    analytical descriptions. It was not used as a sampling distribution for ANN
+    The table was used only to plot these moments and support consistency checks.
+    It was not used as a sampling distribution for ANN
     inputs. For every future image presentation n, the ANN input will instead be
     generated directly by drawing a fresh Poisson spike train and rerunning the
     synapse and membrane equations:
@@ -182,9 +183,9 @@
     response, independent streams, recomputed moments, fresh direct simulations,
     and float32 fidelity were checked.
 
-  3. *Compared empirical variance with a linear-filter prediction.* We tested
-    whether a local linear approximation explained the measured feature
-    variance. This diagnostic was not used to select a training range.
+  3. *Derived the analytical linear-filter response.* We calculated a local
+    linear approximation to the synapse, membrane, and finite averaging window.
+    This diagnostic was not used to select a training range.
 
     For mean spike rate λ, stationary mean conductance is
 
@@ -240,9 +241,9 @@
     Var#sub[linear] (z) is predicted feature variance; and π is the circle
     constant. Appendix A derives Equations 11--18.
 
-    We evaluated every distinct calibration point, compared predicted with
-    empirical variance, and validated low-, middle-, and high-drive gains by
-    sinusoidally modulating the numerical probe. This stationary,
+    We evaluated the transfer functions at every distinct calibration point and
+    validated low-, middle-, and high-drive gains by sinusoidally modulating the
+    numerical probe. This stationary,
     continuous-time, linearized Poisson model approximates the finite, discrete
     Bernoulli simulation and remains diagnostic only.
 
@@ -303,7 +304,7 @@
   counts deliver more stochastic conductance; larger probes produce larger
   voltage excursions.
 
-  === Linear-filter prediction
+  === Analytical linear-filter response
 
   #image(
     "/artifacts/data/exp077/linear_filter.svg",
@@ -772,6 +773,6 @@
   Here Var#sub[linear] (z) is predicted feature variance and π is the circle
   constant; the remaining symbols follow Equations A11--A14. This result is
   exact for the stated linear stationary model, but only approximate for the
-  finite, discrete, conductance-dependent probe. Step 3 therefore compares it
-  with empirical variance rather than assuming agreement.
+  finite, discrete, conductance-dependent probe. It is retained as an analytical
+  diagnostic rather than as the generator of ANN inputs.
 ]
