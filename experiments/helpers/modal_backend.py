@@ -118,7 +118,36 @@ def _source_image(modal: Any):
 
 def _source_image_exp077(modal: Any):
     """Source image for exp077's direct MNIST feature simulation."""
-    return _source_image(modal).uv_pip_install("torchvision")
+    return (
+        modal.Image.debian_slim(python_version="3.10")
+        .uv_pip_install(
+            "torch",
+            "torchvision",
+            "numpy",
+            "matplotlib",
+        )
+        .env(
+            {
+                "PYTHONPATH": (
+                    f"{REMOTE_REPO}:"
+                    f"{REMOTE_REPO / 'experiments'}:"
+                    f"{REMOTE_REPO / 'tools' / 'snn'}"
+                )
+            }
+        )
+        .add_local_dir(
+            str(REPO / "experiments"),
+            str(REMOTE_REPO / "experiments"),
+            ignore=["__pycache__", ".pytest_cache", "*.staging", "*.old-*"],
+        )
+        .add_local_dir(
+            str(REPO / "tools"), str(REMOTE_REPO / "tools"), ignore=["__pycache__"]
+        )
+        .add_local_file(str(REPO / "README.md"), str(REMOTE_REPO / "README.md"))
+        .add_local_file(
+            str(REPO / "pyproject.toml"), str(REMOTE_REPO / "pyproject.toml")
+        )
+    )
 
 
 def _tar_tree(root: Path) -> bytes:
