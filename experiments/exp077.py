@@ -1251,7 +1251,7 @@ def plot_full_library(
     library: np.ndarray,
     path: Path,
 ) -> None:
-    """Render an expected-count summary of the complete Step 2 evidence."""
+    """Render every rate-intensity observation in the complete Step 2 evidence."""
     mean = summaries["mean"]
     standard_deviation = summaries["standard_deviation"]
     zero_fraction = summaries["zero_fraction"]
@@ -1261,40 +1261,22 @@ def plot_full_library(
         * (PRESENTATION_MS / 1000.0)
     )
     count_flat = expected_count.reshape(-1)
-    positive_edges = np.geomspace(0.002, float(expected_count.max()), 32)
-    bin_edges = np.concatenate(([-1e-12, 0.001], positive_edges))
-    bin_index = np.digitize(count_flat, bin_edges) - 1
-
-    def binned_median(values: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
-        centers = []
-        medians = []
-        flat = values.reshape(-1)
-        for index in range(len(bin_edges) - 1):
-            selected = bin_index == index
-            if np.any(selected):
-                centers.append(float(np.median(count_flat[selected])))
-                medians.append(float(np.median(flat[selected])))
-        return np.asarray(centers), np.asarray(medians)
-
     colors = (theme.INK_BLACK, theme.DEEP_RED, theme.ELECTRIC_CYAN)
-    linestyles = ("-", "--", "-.")
     fig, (ax_mean, ax_std) = plt.subplots(
         1, 2, figsize=(8.2, 3.25), constrained_layout=True
     )
-    for probe_index, (probe, color, linestyle) in enumerate(
-        zip(PROBE_CONDUCTANCES_US, colors, linestyles)
-    ):
+    for probe_index, (probe, color) in enumerate(zip(PROBE_CONDUCTANCES_US, colors)):
         for ax, values in (
             (ax_mean, mean[probe_index]),
             (ax_std, standard_deviation[probe_index]),
         ):
-            centers, medians = binned_median(values)
-            ax.plot(
-                centers,
-                medians,
+            ax.scatter(
+                count_flat,
+                values.reshape(-1),
                 color=color,
-                linestyle=linestyle,
-                linewidth=1.25,
+                s=5,
+                alpha=0.18,
+                edgecolors="none",
                 label=f"{probe:g} μS",
             )
     ax_mean.set(title="A  Signal grows with input drive", ylabel="Mean feature z (mV)")

@@ -430,9 +430,9 @@
   _Signal and variability across the empirical response library._ For every
   rate--intensity condition, Panel A plots the mean feature z and Panel B its
   standard deviation across the authenticated draws, against encoding rate ×
-  normalized intensity × #presentation-ms ms. Thin traces are binned medians;
-  colour and line style encode probe conductance, and the inset reports
-  exact-zero mass at full intensity. Both moments
+  normalized intensity × #presentation-ms ms. Each point is one observed
+  rate--intensity condition; colour encodes probe conductance, and the inset
+  reports exact-zero mass at full intensity. Both moments
   rise because larger expected spike counts deliver more stochastic conductance;
   larger probes produce larger voltage excursions, while exact-zero mass falls
   as receiving no spikes becomes less likely.
