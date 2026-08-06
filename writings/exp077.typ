@@ -410,18 +410,22 @@
 
     #image("/artifacts/data/exp077/probe_dynamics.svg", width: 100%)
 
-    _Finite-window timing sensitivity._ Panel A compares the subthreshold
-    response to one early and one late spike. Panel B places that single spike
-    across the presentation and reports the resulting mean voltage feature.
-    With the same one-spike count, a spike at
-    #rounded(r.validations.spike_timing_sensitivity.early_spike_ms) ms produced
-    z = #rounded(r.validations.spike_timing_sensitivity.early_z_mV) mV, whereas
-    one at #rounded(r.validations.spike_timing_sensitivity.late_spike_ms) ms
-    produced #rounded(r.validations.spike_timing_sensitivity.late_z_mV) mV.
-    Earlier input therefore contributed
-    #rounded(r.validations.spike_timing_sensitivity.early_minus_late_z_mV) mV
-    more to the finite-window average.
+    _Finite-window timing sensitivity._ Panel A plots subthreshold voltage after
+    placing one spike at 20 or 180 ms and passing it through the registered AMPA
+    synapse and membrane. Panel B repeats the simulation across 101 single-spike
+    times and plots the resulting presentation-averaged feature z. Each voltage
+    trace rises and then decays as AMPA conductance and membrane voltage relax;
+    z falls for late spikes because the fixed 200 ms window truncates more of
+    their response.
   ]
+
+  With the same one-spike count, input at
+  #rounded(r.validations.spike_timing_sensitivity.early_spike_ms) ms produced
+  z = #rounded(r.validations.spike_timing_sensitivity.early_z_mV) mV, whereas
+  input at #rounded(r.validations.spike_timing_sensitivity.late_spike_ms) ms
+  produced #rounded(r.validations.spike_timing_sensitivity.late_z_mV) mV, a
+  difference of
+  #rounded(r.validations.spike_timing_sensitivity.early_minus_late_z_mV) mV.
 
   The decay-then-add check reproduced the first two conductances with a maximum
   absolute error of #rounded(r.validations.ampa_decay_then_add.maximum_absolute_error_uS)
@@ -436,19 +440,19 @@
   #image(
     "/artifacts/data/exp077/response_library.png",
     width: 100%,
-    alt: "Six panels show response mean, variability, zero probability, empirical distributions, convergence, and the monotonicity audit against expected input spikes.",
+    alt: "Two panels show empirical feature mean and standard deviation against expected input spikes for three probe conductances.",
   )
 
-  _Signal and variability across the complete empirical response library._
-  Expected input spikes are encoding rate times normalized grayscale intensity
-  times the #presentation-ms ms presentation. Panel A shows conditional mean
-  feature z; Panel B shows its standard deviation in the same voltage units.
-  Faint points are all rate--intensity conditions and strong curves are binned
-  medians. Colour, marker, and line style identify probe conductance. The red
-  crosses locate the #mono.intensity_violations isolated comparisons that failed
-  the locked monotonicity rule. The small annotation reports how exact-zero mass
-  falls across the registered full-intensity range; detailed distribution,
-  replay, and K-stability audits remain in the recorded artifacts.
+  _Signal and variability across the empirical response library._ For every
+  rate--intensity condition, Panel A plots the mean feature z and Panel B its
+  standard deviation across the authenticated draws, against encoding rate ×
+  normalized intensity × #presentation-ms ms. Faint points are individual
+  conditions; strong curves are binned medians; colour, marker, and line style
+  encode probe conductance. Red crosses mark the five registered monotonicity
+  failures, and the inset reports exact-zero mass at full intensity. Both moments
+  rise because larger expected spike counts deliver more stochastic conductance;
+  larger probes produce larger voltage excursions, while exact-zero mass falls
+  as receiving no spikes becomes less likely.
 
   The array contains #m.library_value_count float32 values with shape
   #m.library_shape.map(str).join(" × ") and a #(m.library_payload_bytes)-byte
@@ -476,13 +480,14 @@
     alt: "Two Bode magnitude panels show the synapse-plus-membrane response and the complete response after 200 millisecond averaging at low, transitional, and high drive.",
   )
 
-  _Linearized frequency response at the nominal 1.2 μS probe._ Panel A shows
-  the synapse-plus-membrane transfer magnitude for low, transitional, and high
-  drive. Panel B applies the #presentation-ms ms finite-window averaging
-  response to the same curves. Gain is expressed relative to the low-drive DC
-  response, so vertical separation shows how mean conductance changes local
-  gain while the additional roll-off and spectral nulls show what window
-  averaging removes. The dotted horizontal line marks −3 dB.
+  _Linearized frequency response at the nominal 1.2 μS probe._ Panel A plots
+  the magnitude of the analytical synapse-plus-membrane transfer function at
+  0.25, 3, and 25 Hz operating points. Panel B multiplies those curves by the
+  analytical #presentation-ms ms rectangular-window averaging response. Gain is
+  referenced to the low-drive DC value. Mean conductance lowers and shifts the
+  membrane response, the AMPA and membrane terms produce the smooth low-pass
+  roll-off, and rectangular averaging introduces nulls at multiples of 5 Hz.
+  The dotted horizontal line marks −3 dB.
 
   All #s3.gain_checks.len() numerical sinusoidal gain checks passed; the largest
   relative error was
@@ -505,19 +510,19 @@
   #image(
     "/artifacts/data/exp077/feature_images.png",
     width: 100%,
-    alt: "Rows at low, transitional, and high rates compare original MNIST images, empirical-library samples, fresh direct simulations, and signed differences.",
+    alt: "Rows at low, transitional, and high rates compare original MNIST images, empirical-library samples, and fresh direct simulations above a spatial-correlation summary.",
   )
 
-  _Empirical-library samples versus fresh direct Step 1 simulations._ The image
-  rows show 0.25, 3, and 25 Hz at the nominal 1.2 μS probe; comparable voltage
-  images use identical 0--65 mV limits. The low-rate row retains the registered
-  zero-heavy, discrete structure, while transitional and high rates preserve
-  recognizable digit structure. The summary beneath reports spatial
-  library--direct agreement for all three conductances. Filled markers passed
-  every locked check; open red markers failed at least one. The dashed line is
-  the rate-specific spatial-correlation minimum. The displayed samples are
-  illustrative; validation used all three conductances, 16 fixed images, and
-  eight replicates per condition.
+  _Empirical-library samples versus fresh direct Step 1 simulations._ Rows show
+  one original MNIST image, one authenticated-library sample, and one fresh
+  direct simulation at 0.25, 3, and 25 Hz for the nominal 1.2 μS probe, using
+  common 0--65 mV limits. The lower panel plots library--direct spatial
+  correlation computed from 16 fixed images and eight replicates at all three
+  conductances; filled markers passed every locked check, open red markers
+  failed at least one, and the dashed line is the registered correlation
+  minimum. Low-rate images are sparse because most pixels receive no spike;
+  increasing rate reveals the intensity pattern and raises correlation because
+  spatial signal becomes larger relative to independent sampling noise.
 
   Six of nine probe--rate conditions passed every locked comparison. At the
   nominal probe, pooled-mean relative differences were
