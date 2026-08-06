@@ -33,6 +33,10 @@ def main() -> None:
     )
     if not args.live:
         return
+    if args.stage == "full":
+        from exp077 import verify_expanded_rate_training_protocol
+
+        verify_expanded_rate_training_protocol()
     modal = modal_backend._require_modal()
     output = getattr(modal, "enable_output", lambda: contextlib.nullcontext())()
     started = time.monotonic()

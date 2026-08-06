@@ -201,9 +201,35 @@ def test_decoder_partitions_are_disjoint() -> None:
 
 
 def test_registered_rate_sampler_can_reach_every_rate() -> None:
+    assert exp077.DECODER_RATES_HZ == (
+        0.01,
+        0.05,
+        0.1,
+        0.25,
+        0.5,
+        0.75,
+        1.0,
+        1.5,
+        2.0,
+        2.5,
+        3.0,
+        4.0,
+        5.0,
+        10.0,
+        25.0,
+    )
+    assert exp077.TRAINING_RATES_HZ == exp077.DECODER_RATES_HZ[3:]
     rng = np.random.default_rng(exp077._decoder_seed(42, 1, 2))
-    positions = rng.integers(0, len(exp077.TRAINING_RATES_HZ), 10_000)
-    assert set(positions) == set(range(len(exp077.TRAINING_RATES_HZ)))
+    positions = rng.integers(0, len(exp077.DECODER_RATES_HZ), 10_000)
+    assert set(positions) == set(range(len(exp077.DECODER_RATES_HZ)))
+
+
+def test_expanded_rate_protocol_matches_decoder_grid() -> None:
+    protocol = exp077.verify_expanded_rate_training_protocol()
+    assert protocol["decoder_rate_grid_hz"] == list(exp077.DECODER_RATES_HZ)
+    assert protocol["training_rate_distribution"]["probability_per_rate"] == pytest.approx(
+        1.0 / len(exp077.DECODER_RATES_HZ)
+    )
 
 
 def test_held_out_loader_fails_closed_without_protocol(tmp_path) -> None:

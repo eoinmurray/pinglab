@@ -1,0 +1,93 @@
+{
+  "status": "frozen_before_expanded_rate_retraining",
+  "frozen_at_utc": "2026-08-06T15:15:02Z",
+  "git": {
+    "git_sha_at_execution": "8d0ccede9b837dbd8399578973251348a293758b",
+    "worktree_dirty_at_execution": true,
+    "runner_sha256": "efc8c8f979093f5c9bf9488cb7015f720e4d572b5612773751ba5a57d2e5144a",
+    "python": "3.10.20",
+    "numpy": "2.2.6",
+    "platform": "linux"
+  },
+  "purpose": "give 0.01, 0.05, and 0.1 Hz equal training and evaluation status",
+  "predecessor_rate_grid_hz": [
+    0.25,
+    0.5,
+    0.75,
+    1.0,
+    1.5,
+    2.0,
+    2.5,
+    3.0,
+    4.0,
+    5.0,
+    10.0,
+    25.0
+  ],
+  "added_rates_hz": [
+    0.01,
+    0.05,
+    0.1
+  ],
+  "decoder_rate_grid_hz": [
+    0.01,
+    0.05,
+    0.1,
+    0.25,
+    0.5,
+    0.75,
+    1.0,
+    1.5,
+    2.0,
+    2.5,
+    3.0,
+    4.0,
+    5.0,
+    10.0,
+    25.0
+  ],
+  "training_rate_distribution": {
+    "form": "uniform categorical per image presentation",
+    "probability_per_rate": 0.06666666666666667
+  },
+  "unchanged_design": {
+    "training_indices": [
+      0,
+      54999
+    ],
+    "validation_indices": [
+      55000,
+      59999
+    ],
+    "probe_conductances_uS": [
+      0.6,
+      1.2,
+      2.4
+    ],
+    "decoder_seeds": [
+      42,
+      43,
+      44
+    ],
+    "epochs": 15,
+    "batch_size": 256,
+    "learning_rate": 0.001,
+    "hidden_units": 1024,
+    "linear_weight_decays": [
+      1e-05,
+      0.0001,
+      0.001
+    ],
+    "fresh_direct_simulation_per_presentation": true,
+    "validation_selects_checkpoint_and_linear_weight_decay": true
+  },
+  "evaluation": {
+    "same_rate_grid_as_training": true,
+    "direct_simulation_draws": 3,
+    "bootstrap_repetitions": 2000,
+    "chance_accuracy": 0.1,
+    "useful_accuracy": 0.5,
+    "threshold_rules_unchanged": true
+  },
+  "scope": "Steps 1-4 retain the authenticated 0.25-25 Hz empirical calibration; all decoder inputs use fresh direct simulation"
+}

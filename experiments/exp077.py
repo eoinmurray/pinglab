@@ -39,6 +39,15 @@ PRESENTATION_MS = 200.0
 DT_MS = 0.1
 N_TIMESTEPS = int(round(PRESENTATION_MS / DT_MS))
 TRAINING_RATES_HZ = (0.25, 0.5, 0.75, 1.0, 1.5, 2.0, 2.5, 3.0, 4.0, 5.0, 10.0, 25.0)
+# Steps 1--4 retain their authenticated calibration table on TRAINING_RATES_HZ.
+# Decoder training and held-out evaluation give the added sparse rates exactly
+# the same sampling status as every previously registered rate.
+DECODER_RATES_HZ = (
+    0.01,
+    0.05,
+    0.1,
+    *TRAINING_RATES_HZ,
+)
 PROBE_US = 1.2
 SEED = 42
 SEEDS = (42, 43, 44)
@@ -2804,7 +2813,7 @@ def train_decoder_condition(
     best_nonlinear = (-math.inf, 0, None)
     best_linear = [(-math.inf, 0, None) for _ in linear_models]
     started = time.perf_counter()
-    sampled_counts = {str(rate): 0 for rate in TRAINING_RATES_HZ}
+    sampled_counts = {str(rate): 0 for rate in DECODER_RATES_HZ}
 
     for epoch in range(1, epochs + 1):
         nonlinear.train()
@@ -2821,8 +2830,8 @@ def train_decoder_condition(
         rate_rng = np.random.default_rng(_decoder_seed(seed, epoch, 2))
         feature_generator.manual_seed(_decoder_seed(seed, epoch, 3))
         for batch_indices in batches:
-            rate_positions = rate_rng.integers(0, len(TRAINING_RATES_HZ), len(batch_indices))
-            sampled_rates = np.asarray(TRAINING_RATES_HZ)[rate_positions]
+            rate_positions = rate_rng.integers(0, len(DECODER_RATES_HZ), len(batch_indices))
+            sampled_rates = np.asarray(DECODER_RATES_HZ)[rate_positions]
             for rate in sampled_rates:
                 sampled_counts[str(float(rate))] += 1
             batch_images = torch.as_tensor(images[batch_indices], device=device)
@@ -2865,9 +2874,9 @@ def train_decoder_condition(
                 validation_indices, batch_size, _decoder_seed(seed, epoch, 6), False
             ):
                 rate_positions = validation_rate_rng.integers(
-                    0, len(TRAINING_RATES_HZ), len(batch_indices)
+                    0, len(DECODER_RATES_HZ), len(batch_indices)
                 )
-                sampled_rates = np.asarray(TRAINING_RATES_HZ)[rate_positions]
+                sampled_rates = np.asarray(DECODER_RATES_HZ)[rate_positions]
                 batch_images = torch.as_tensor(images[batch_indices], device=device)
                 batch_labels = torch.as_tensor(labels[batch_indices], device=device)
                 features = direct_feature_batch_torch(
@@ -2942,7 +2951,7 @@ def train_decoder_condition(
                 "hidden": DECODER_HIDDEN,
                 "learning_rate": DECODER_LEARNING_RATE,
                 "batch_size": batch_size,
-                "rate_grid_hz": TRAINING_RATES_HZ,
+                "rate_grid_hz": DECODER_RATES_HZ,
                 "linear_weight_decay": LINEAR_WEIGHT_DECAYS[selected_linear_index],
             },
         },
@@ -2968,6 +2977,70 @@ def train_decoder_condition(
     return result
 
 
+def write_expanded_rate_training_protocol() -> Path:
+    """Freeze the sparse-rate retraining design before any new training outcomes."""
+    protocol = {
+        "status": "frozen_before_expanded_rate_retraining",
+        "frozen_at_utc": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+        "git": _git_metadata(),
+        "purpose": "give 0.01, 0.05, and 0.1 Hz equal training and evaluation status",
+        "predecessor_rate_grid_hz": list(TRAINING_RATES_HZ),
+        "added_rates_hz": [0.01, 0.05, 0.1],
+        "decoder_rate_grid_hz": list(DECODER_RATES_HZ),
+        "training_rate_distribution": {
+            "form": "uniform categorical per image presentation",
+            "probability_per_rate": 1.0 / len(DECODER_RATES_HZ),
+        },
+        "unchanged_design": {
+            "training_indices": [0, 54_999],
+            "validation_indices": [55_000, 59_999],
+            "probe_conductances_uS": list(PROBE_CONDUCTANCES_US),
+            "decoder_seeds": list(SEEDS),
+            "epochs": DECODER_MAX_EPOCHS,
+            "batch_size": DECODER_BATCH_SIZE,
+            "learning_rate": DECODER_LEARNING_RATE,
+            "hidden_units": DECODER_HIDDEN,
+            "linear_weight_decays": list(LINEAR_WEIGHT_DECAYS),
+            "fresh_direct_simulation_per_presentation": True,
+            "validation_selects_checkpoint_and_linear_weight_decay": True,
+        },
+        "evaluation": {
+            "same_rate_grid_as_training": True,
+            "direct_simulation_draws": EVALUATION_DRAWS,
+            "bootstrap_repetitions": BOOTSTRAP_REPETITIONS_HELDOUT,
+            "chance_accuracy": CHANCE_ACCURACY,
+            "useful_accuracy": USEFUL_ACCURACY,
+            "threshold_rules_unchanged": True,
+        },
+        "scope": (
+            "Steps 1-4 retain the authenticated 0.25-25 Hz empirical calibration; "
+            "all decoder inputs use fresh direct simulation"
+        ),
+    }
+    path = FIGURES / "expanded_rate_training_protocol.json"
+    path.write_text(json.dumps(protocol, indent=2) + "\n")
+    return path
+
+
+def verify_expanded_rate_training_protocol() -> dict[str, Any]:
+    """Fail closed unless the committed sparse-rate training design matches code."""
+    path = FIGURES / "expanded_rate_training_protocol.json"
+    if not path.exists():
+        raise RuntimeError("expanded-rate training requires a frozen training protocol")
+    protocol = json.loads(path.read_text())
+    checks = {
+        "status": protocol.get("status") == "frozen_before_expanded_rate_retraining",
+        "rate_grid": protocol.get("decoder_rate_grid_hz") == list(DECODER_RATES_HZ),
+        "uniform_probability": protocol.get("training_rate_distribution", {}).get(
+            "probability_per_rate"
+        )
+        == 1.0 / len(DECODER_RATES_HZ),
+    }
+    if not all(checks.values()):
+        raise RuntimeError(f"expanded-rate training protocol mismatch: {checks}")
+    return protocol
+
+
 def run_step5_stage(stage: str) -> None:
     """Run a local smoke or one remote training cell without accessing test data."""
     images, labels, dataset = load_locked_mnist_training()
@@ -2978,6 +3051,8 @@ def run_step5_stage(stage: str) -> None:
     }
     if stage not in stage_settings:
         raise ValueError(f"unknown Step 5 stage: {stage}")
+    if stage == "full":
+        verify_expanded_rate_training_protocol()
     train_count, validation_count, epochs = stage_settings[stage]
     probe = float(os.environ.get("EXP077_PROBE_US", str(PROBE_US)))
     seed = int(os.environ.get("EXP077_SEED", str(SEED)))
@@ -3129,9 +3204,10 @@ def recover_step6_metadata() -> dict[str, Any]:
     with np.load(arrays_path) as arrays:
         checks = {
             "nonlinear_shape": arrays["nonlinear_correct"].shape
-            == (3, 12, 3, 3, 10_000),
-            "linear_shape": arrays["linear_correct"].shape == (12, 3, 3, 10_000),
-            "rate_grid": np.array_equal(arrays["rates_hz"], TRAINING_RATES_HZ),
+            == (3, len(DECODER_RATES_HZ), 3, 3, 10_000),
+            "linear_shape": arrays["linear_correct"].shape
+            == (len(DECODER_RATES_HZ), 3, 3, 10_000),
+            "rate_grid": np.array_equal(arrays["rates_hz"], DECODER_RATES_HZ),
             "probe_grid": np.array_equal(arrays["probes_uS"], PROBE_CONDUCTANCES_US),
             "decoder_seeds": np.array_equal(arrays["decoder_seeds"], SEEDS),
             "labels": np.array_equal(arrays["labels"], labels),
@@ -3188,7 +3264,7 @@ def write_frozen_evaluation_protocol() -> Path:
         "step5_outcome_path": str(step5_path.relative_to(REPO)),
         "step5_outcome_sha256": sha256_file(step5_path),
         "models": models,
-        "rate_grid_hz": list(TRAINING_RATES_HZ),
+        "rate_grid_hz": list(DECODER_RATES_HZ),
         "probe_conductances_uS": list(PROBE_CONDUCTANCES_US),
         "decoder_seeds": list(SEEDS),
         "direct_simulation_draws": EVALUATION_DRAWS,
@@ -3282,7 +3358,7 @@ def evaluate_frozen_decoders(protocol_path: Path, output_dir: Path) -> dict[str,
     nonlinear_correct = np.empty(
         (
             len(PROBE_CONDUCTANCES_US),
-            len(TRAINING_RATES_HZ),
+            len(DECODER_RATES_HZ),
             EVALUATION_DRAWS,
             len(SEEDS),
             len(labels),
@@ -3290,13 +3366,13 @@ def evaluate_frozen_decoders(protocol_path: Path, output_dir: Path) -> dict[str,
         dtype=np.bool_,
     )
     linear_correct = np.empty(
-        (len(TRAINING_RATES_HZ), EVALUATION_DRAWS, len(SEEDS), len(labels)),
+        (len(DECODER_RATES_HZ), EVALUATION_DRAWS, len(SEEDS), len(labels)),
         dtype=np.bool_,
     )
     started = time.perf_counter()
     label_tensor = torch.as_tensor(labels, device=device)
     for probe_index, probe in enumerate(PROBE_CONDUCTANCES_US):
-        for rate_index, rate in enumerate(TRAINING_RATES_HZ):
+        for rate_index, rate in enumerate(DECODER_RATES_HZ):
             for draw in range(EVALUATION_DRAWS):
                 for start in range(0, len(labels), DECODER_BATCH_SIZE):
                     stop = min(start + DECODER_BATCH_SIZE, len(labels))
@@ -3332,7 +3408,7 @@ def evaluate_frozen_decoders(protocol_path: Path, output_dir: Path) -> dict[str,
         arrays_path,
         nonlinear_correct=nonlinear_correct,
         linear_correct=linear_correct,
-        rates_hz=np.asarray(TRAINING_RATES_HZ),
+        rates_hz=np.asarray(DECODER_RATES_HZ),
         probes_uS=np.asarray(PROBE_CONDUCTANCES_US),
         decoder_seeds=np.asarray(SEEDS),
         labels=labels,
@@ -3375,7 +3451,7 @@ def analyze_held_out_evaluation() -> dict[str, Any]:
         linear_correct = arrays["linear_correct"]
     nonlinear_rows: list[dict[str, Any]] = []
     for probe_index, probe in enumerate(PROBE_CONDUCTANCES_US):
-        for rate_index, rate in enumerate(TRAINING_RATES_HZ):
+        for rate_index, rate in enumerate(DECODER_RATES_HZ):
             mean, lower, upper = _hierarchical_lower_bound(
                 nonlinear_correct[probe_index, rate_index],
                 _decoder_seed(7, probe_index, rate_index, 1),
@@ -3390,7 +3466,7 @@ def analyze_held_out_evaluation() -> dict[str, Any]:
                 }
             )
     linear_rows: list[dict[str, Any]] = []
-    for rate_index, rate in enumerate(TRAINING_RATES_HZ):
+    for rate_index, rate in enumerate(DECODER_RATES_HZ):
         mean, lower, upper = _hierarchical_lower_bound(
             linear_correct[rate_index], _decoder_seed(7, rate_index, 2)
         )
@@ -3448,7 +3524,7 @@ def analyze_held_out_evaluation() -> dict[str, Any]:
         axis.axhline(CHANCE_ACCURACY, color="#777777", linewidth=0.8, linestyle=":")
         axis.axhline(USEFUL_ACCURACY, color="#777777", linewidth=0.8, linestyle="--")
         axis.set_xscale("log")
-        display_ticks = (0.25, 0.5, 1.0, 2.0, 5.0, 10.0, 25.0)
+        display_ticks = (0.01, 0.05, 0.1, 0.25, 0.5, 1.0, 5.0, 25.0)
         axis.set_xticks(display_ticks)
         axis.set_xticklabels([f"{rate:g}" for rate in display_ticks])
         axis.set_ylim(0, 1)
@@ -3496,7 +3572,7 @@ def step_7() -> None:
         for probe in PROBE_CONDUCTANCES_US
     }
     observed_floors = [float(value) for value in floors.values() if value is not None]
-    floor_indices = [TRAINING_RATES_HZ.index(value) for value in observed_floors]
+    floor_indices = [DECODER_RATES_HZ.index(value) for value in observed_floors]
     sensitive = bool(floor_indices and max(floor_indices) - min(floor_indices) > 1)
     recommendation = (
         {
