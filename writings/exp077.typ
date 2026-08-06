@@ -263,6 +263,63 @@
     and streams were locked before outcomes. This validation was required before
     ANN training; its low-rate checks did not all pass, so no decoder followed.
 
+  5. *Planned mixed-rate decoder training.* The primary ANN will have 784
+    inputs, one 1,024-unit rectified-linear hidden layer, and ten outputs, and
+    will learn both weight matrices from voltage features. A regularized linear
+    softmax decoder trained on the same features will test linear accessibility.
+    Neither model will receive the encoding rate or pretrained weights.
+
+    Every image presentation will sample a rate uniformly from the registered
+    grid. Each pixel will then receive a fresh Poisson spike train, which will be
+    propagated directly through Equations 3--7 to produce z#sub[i]. The empirical
+    response table will not generate decoder inputs. Seeds #seed-text will use
+    Adam, learning rate 0.001, batch size 256, and initially at most 15 epochs.
+    Validation alone will control model selection, regularization, early
+    stopping, and any epoch extension. The official MNIST test set will remain
+    held out until Method 6. Each configuration, selected epoch, and training
+    history will be recorded.
+
+    The primary ensemble will use the 1.2 μS probe; separate 0.6 and 2.4 μS runs
+    will test conductance sensitivity. Conductance conditions will not be pooled
+    or supplied to either decoder.
+
+  6. *Planned inference-only psychometric evaluation.* All decoders will be
+    frozen before the held-out MNIST test set is accessed. At each tested rate,
+    decoder seeds will use the same held-out images and reproducible fresh
+    direct-simulation draws; additional direct draws will measure encoding
+    variability. The primary curve will be
+
+    $ A_r (r) = P("correct" | r, "mixed-rate nonlinear decoder"). quad "(19)" $
+
+    Here A#sub[r] is held-out nonlinear-ANN accuracy, P is correct-classification
+    probability, and r is rate. The linear decoder will remain diagnostic.
+
+    Bootstrap resampling of held-out images, direct-simulation draws, and decoder
+    seeds will give lower confidence bound L#sub[r]. The decoder-relative edge
+    will be
+
+    $ r_"decode" = "lowest " r in cal(R) " satisfying " L_r (r) > 1 / N_"class". quad "(20)" $
+
+    The practical training floor will be
+
+    $ r_"train" = "lowest " r in cal(R) " satisfying " L_r (r) >= a_"use". quad "(21)" $
+
+    Here $cal(R)$ is the tested grid; N#sub[class] is the number of classes;
+    r#sub[decode] is the lowest rate reliably above chance; a#sub[use] is the 50%
+    useful-accuracy target; and r#sub[train] is the lowest rate whose lower
+    confidence bound reaches it. Primary thresholds will use the 1.2 μS
+    nonlinear ANN. The linear decoder and 0.6 and 2.4 μS runs will show
+    sensitivity to decoder capacity and conductance. Interpolated rates will not
+    be treated as observations.
+
+  7. *Planned training-range decision.* The final `decision.json` will report
+    r#sub[decode], r#sub[train], their uncertainty, probe-conductance sensitivity,
+    decoder and artifact hashes, and all rule outcomes. The recommended later
+    PING range will be r#sub[train]--25 Hz. If the floor shifts by more than one
+    adjacent grid point across conductances, the result will report plausible
+    floors rather than one value. A separate experiment will train and test PING
+    over the resulting range.
+
   #block(breakable: false)[
     == Results
 
