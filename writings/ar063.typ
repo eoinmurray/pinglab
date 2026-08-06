@@ -1132,12 +1132,16 @@
   conductance, recurrent-delay, and delayed-input boundaries. Runtime state uses a
   graph signature that excludes weight values but rejects timestep, size, delay,
   synapse, identity, and state-layout mismatches. _exp078_ burns in the final graph
-  at zero cross-weight, deterministically selects a mature phase-separated state,
-  and branches identical state and future inputs into coupled and uncoupled runs.
-  The coupled branch reaches its 250 ms capture gate after about 29 gamma cycles
-  and substantially raises trailing PLV, but later incurs a phase slip. This is
-  direct evidence for metastable phase acquisition, not evidence for inevitable or
-  permanent locking.
+  at zero cross-weight and branches identical mature state and future inputs into
+  coupled and uncoupled runs. After the broader weight--delay refinement, a
+  declared bounded search compares mature checkpoints on one fixed archived
+  input stream and selects a trajectory that begins away from its eventual lag
+  and converges across the 1.2 s
+  continuation. At weight 0.20 and delay 10 ms, the coupled branch reaches its
+  sustained-250-ms capture gate after 918.9 ms, settles near a 0.052 rad phase
+  delay, and reaches late PLV 0.992 versus 0.287 in the matched uncoupled control.
+  This is direct evidence for phase acquisition in the selected realization, not
+  evidence for inevitable or biologically general locking.
 
   === B.8 Milestone 5: graph-native readouts and input bindings
 

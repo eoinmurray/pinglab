@@ -1,0 +1,150 @@
+{
+  "strengths": [
+    0.2
+  ],
+  "delay_ms": 10.0,
+  "duration_ms": 1200.0,
+  "checkpoints": [
+    {
+      "step": 7162,
+      "time_ms": 716.2,
+      "phase_separation_rad": 2.4819023080862674,
+      "rate_a_hz": 44.80963114786019,
+      "rate_b_hz": 55.842070359596164
+    },
+    {
+      "step": 10003,
+      "time_ms": 1000.3000000000001,
+      "phase_separation_rad": 2.079491834620153,
+      "rate_a_hz": 47.53987333146671,
+      "rate_b_hz": 64.9225143363609
+    },
+    {
+      "step": 11662,
+      "time_ms": 1166.2,
+      "phase_separation_rad": 3.0006529483703264,
+      "rate_a_hz": 37.582007174590565,
+      "rate_b_hz": 32.21418723893361
+    }
+  ],
+  "rows": [
+    {
+      "checkpoint": {
+        "step": 7162,
+        "time_ms": 716.2,
+        "phase_separation_rad": 2.4819023080862674,
+        "rate_a_hz": 44.80963114786019,
+        "rate_b_hz": 55.842070359596164
+      },
+      "strength": 0.2,
+      "delay_ms": 10.0,
+      "metrics": {
+        "convergent": false,
+        "early_phase_error_rad": 0.2746063625390791,
+        "late_phase_error_95_rad": 1.8763417512506735,
+        "early_plv": 0.8891173328530121,
+        "late_plv": 0.7334592288951777,
+        "control_late_plv": 0.38284601214947556,
+        "late_unwrapped_span_rad": 9.269048091048358,
+        "smooth_late_span_rad": 3.1957696071674384,
+        "capture_time_ms": 100.0,
+        "fixed_phase_delay_rad": 0.7332783285700669,
+        "quartile_phase_errors_rad": [
+          0.3587798976047148,
+          0.4840797816480124,
+          1.3699393005100147,
+          0.2587070641731384
+        ]
+      }
+    },
+    {
+      "checkpoint": {
+        "step": 10003,
+        "time_ms": 1000.3000000000001,
+        "phase_separation_rad": 2.079491834620153,
+        "rate_a_hz": 47.53987333146671,
+        "rate_b_hz": 64.9225143363609
+      },
+      "strength": 0.2,
+      "delay_ms": 10.0,
+      "metrics": {
+        "convergent": false,
+        "early_phase_error_rad": 0.5414042854256953,
+        "late_phase_error_95_rad": 0.751964850877684,
+        "early_plv": 0.841956350980701,
+        "late_plv": 0.8315469006945292,
+        "control_late_plv": 0.23230358216106414,
+        "late_unwrapped_span_rad": 2.711758773019066,
+        "smooth_late_span_rad": 1.5145124942306218,
+        "capture_time_ms": 517.3000000000001,
+        "fixed_phase_delay_rad": 0.6679985554765124,
+        "quartile_phase_errors_rad": [
+          0.5304637925316819,
+          0.7537753857936874,
+          0.17336407604531454,
+          0.36356659679185455
+        ]
+      }
+    },
+    {
+      "checkpoint": {
+        "step": 11662,
+        "time_ms": 1166.2,
+        "phase_separation_rad": 3.0006529483703264,
+        "rate_a_hz": 37.582007174590565,
+        "rate_b_hz": 32.21418723893361
+      },
+      "strength": 0.2,
+      "delay_ms": 10.0,
+      "metrics": {
+        "convergent": true,
+        "early_phase_error_rad": 0.8467311118121226,
+        "late_phase_error_95_rad": 0.2893737369540646,
+        "early_plv": 0.6285277239036021,
+        "late_plv": 0.9915514676587446,
+        "control_late_plv": 0.28749784006786006,
+        "late_unwrapped_span_rad": 0.6856561001208084,
+        "smooth_late_span_rad": 0.6558567504673407,
+        "capture_time_ms": 918.9000000000001,
+        "fixed_phase_delay_rad": 0.051815037726111575,
+        "quartile_phase_errors_rad": [
+          0.7887451570762675,
+          0.7175528077016909,
+          0.7123107373964694,
+          0.05711714144486986
+        ]
+      }
+    }
+  ],
+  "passing": [
+    {
+      "checkpoint": {
+        "step": 11662,
+        "time_ms": 1166.2,
+        "phase_separation_rad": 3.0006529483703264,
+        "rate_a_hz": 37.582007174590565,
+        "rate_b_hz": 32.21418723893361
+      },
+      "strength": 0.2,
+      "delay_ms": 10.0,
+      "metrics": {
+        "convergent": true,
+        "early_phase_error_rad": 0.8467311118121226,
+        "late_phase_error_95_rad": 0.2893737369540646,
+        "early_plv": 0.6285277239036021,
+        "late_plv": 0.9915514676587446,
+        "control_late_plv": 0.28749784006786006,
+        "late_unwrapped_span_rad": 0.6856561001208084,
+        "smooth_late_span_rad": 0.6558567504673407,
+        "capture_time_ms": 918.9000000000001,
+        "fixed_phase_delay_rad": 0.051815037726111575,
+        "quartile_phase_errors_rad": [
+          0.7887451570762675,
+          0.7175528077016909,
+          0.7123107373964694,
+          0.05711714144486986
+        ]
+      }
+    }
+  ]
+}

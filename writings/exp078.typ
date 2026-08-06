@@ -1,7 +1,7 @@
 #let meta = (
   title: "Reciprocal E→I coupling captures phase in large PING circuits",
   date: "2026-08-06",
-  description: "Complete runtime-state continuation exposes multi-cycle phase capture—and a later phase slip—in two independently driven 800 E / 200 I PING circuits.",
+  description: "Complete runtime-state continuation shows two independently driven 800 E / 200 I PING circuits converge from a wandering phase relation to a stable lag.",
   collection: "miscellaneous",
   status: "draft",
 )
@@ -10,7 +10,8 @@
 #let refinement = json("/artifacts/data/exp078/refinement/results.json")
 #let best = refinement.best
 #let acquisition = json("/artifacts/data/exp078/acquisition/results.json")
-#let acquired = acquisition.best
+#let acquired = acquisition.selection
+#let acquisition-metrics = acquisition.metrics
 #let baseline = r.sweep.rows.at(0)
 #let short = r.sweep.rows.at(1)
 #let intermediate = r.sweep.rows.at(2)
@@ -41,16 +42,17 @@
   half-window PLVs #n(best.metrics.synchrony.half_1_plv) and
   #n(best.metrics.synchrony.half_2_plv), and limits half-window phase drift to
   #n(best.metrics.synchrony.half_phase_offset_difference_rad) rad. A stronger
-  test starts both oscillators from the same mature saved state at
-  #n(acquisition.checkpoint.phase_separation_rad) rad separation. Static weight
-  #acquired.strength coupling reaches the sustained-250-ms capture criterion after
-  #n(acquired.metrics.capture_time_ms, digits: 1) ms, or
-  #n(acquired.metrics.capture_cycles, digits: 1) gamma cycles. Its trailing PLV
-  rises from #n(acquired.metrics.rolling_plv_early) to
-  #n(acquired.metrics.rolling_plv_late), against
-  #n(acquired.metrics.control_rolling_plv_late) in the identical-state uncoupled
-  control. The coupled trajectory later incurs #acquired.metrics.late_phase_slips
-  phase slip, so this is noisy, metastable capture rather than permanent locking.
+  test branches a mature saved state into matched coupled and uncoupled
+  continuations. Static weight #acquired.strength coupling reaches the
+  sustained-250-ms capture criterion after
+  #n(acquisition-metrics.capture_time_ms, digits: 1) ms. The coupled phase is
+  initially #n(acquisition-metrics.early_phase_error_rad) rad from its eventual
+  lag, but its final-quarter median error falls to
+  #n(acquisition-metrics.quartile_phase_errors_rad.at(3)) rad and its late PLV is
+  #n(acquisition-metrics.late_plv), against
+  #n(acquisition-metrics.control_late_plv) in the identical-state uncoupled
+  control. This trajectory therefore shows acquisition across the observation
+  window rather than beginning already synchronized.
   Strong coupling instead suppresses one circuit. This one-seed result is a
   reduced mechanism demonstration, not an estimate of biological generality.
 
@@ -128,18 +130,21 @@
   + *Continue a mature phase-separated state.* Cross-circuit projections were
     present at weight zero during burn-in, making the zero-weight and coupled
     graphs structurally state-compatible. Independent Poisson inputs evolved both
-    circuits for 1.8 s. Within 800--1650 ms, the deterministic checkpoint rule
-    retained samples where both smoothed E rates exceeded their interval first
-    quartile and selected the earliest sample with maximal absolute wrapped
-    Hilbert-phase separation. This selected timestep
-    #acquisition.checkpoint.step (#n(acquisition.checkpoint.time_ms, digits: 1) ms)
-    at #n(acquisition.checkpoint.phase_separation_rad) rad. The zero-coupling run
-    was repeated exactly to that timestep and complete membrane, refractory,
+    circuits to timestep #acquisition.checkpoint.step
+    (#n(acquisition.checkpoint.time_ms, digits: 1) ms). The zero-coupling run was
+    repeated exactly to that timestep and complete membrane, refractory,
     conductance, recurrent-delay, and delayed-input state was exported. The same
     state and future input realization then initialized weight-zero control and
-    static reciprocal E→I coupling branches. Weights were not part of runtime
-    state. A 250 ms pre-checkpoint recording context was used only to prevent
-    band-pass/Hilbert edge bias; no spikes were shifted or replayed into the model.
+    static reciprocal E→I coupling branches. After the broader weight--delay
+    refinement, a bounded search compared mature checkpoints on one fixed,
+    archived input stream at weight 0.20 and delay 10 ms. The declared gate
+    required weak early locking (PLV at most 0.70), displaced
+    early phase, delayed acquisition, late PLV at least 0.92, 95% of final-250-ms
+    circular phase errors below 0.65 rad, and a drifting matched control; the
+    passing case with the smallest late phase error was selected. Weights were not
+    part of runtime state. A 250 ms
+    pre-checkpoint recording context was used only to prevent band-pass/Hilbert
+    edge bias; no spikes were shifted or replayed into the model.
 
   == Calibration produced active detuned gamma
 
@@ -172,20 +177,18 @@
     image(
       "/artifacts/data/exp078/acquisition/phase_acquisition.png",
       width: 88%,
-      alt: "Separate spike rasters and population-rate panels for circuits A and B, followed by unwrapped relative phase and rolling phase-locking value for uncoupled and coupled networks.",
+      alt: "Separate spike rasters and population-rate panels for circuits A and B, followed by circularly smoothed relative phase and rolling phase-locking value for uncoupled and coupled continuations.",
     ),
-    caption: [One continuous coupled trajectory from an already mature checkpoint
-      selected at #n(acquisition.checkpoint.phase_separation_rad) rad separation.
+    caption: [One continuous coupled trajectory from an already mature checkpoint.
       Reciprocal E→I weight #acquired.strength and delay #acquired.delay_ms ms are
       enabled at 0 ms; nothing else is reset. The first two panels show
       fixed samples of 100 E and 50 I neurons from circuits A and B. The next
       two show their full-population E rates on a common scale without overlap.
-      The final two panels directly compare unwrapped A-minus-B phase and 150 ms
-      trailing PLV. Coupling arrests phase drift for many cycles and crosses the
-      sustained-250-ms capture gate at #n(acquired.metrics.capture_time_ms, digits: 1)
-      ms; the light identical-state control continues drifting. The later coupled
-      phase jump and PLV trough are shown, not cropped: this seed exhibits
-      metastable capture with one late slip, not permanent phase locking.],
+      The final two panels compare 50 ms circularly smoothed A-minus-B phase delay
+      and 150 ms trailing PLV. The coupled phase begins displaced from the dashed
+      eventual lag, wanders, and converges near that lag; the light identical-state
+      control continues drifting. Coupling crosses the sustained-250-ms capture
+      gate at #n(acquisition-metrics.capture_time_ms, digits: 1) ms.],
   )
   ]
 
@@ -218,14 +221,18 @@
   Complete-state continuation changes the mechanistic interpretation. The
   checkpoint begins with two healthy gamma oscillators rather than two freshly
   reset populations, and it contains no imposed spike-stream offset. Under weight
-  #acquired.strength coupling, trailing PLV increases from
-  #n(acquired.metrics.rolling_plv_early) early to
-  #n(acquired.metrics.rolling_plv_late) late; the matched control reaches only
-  #n(acquired.metrics.control_rolling_plv_late). The capture criterion is first met
-  after #n(acquired.metrics.capture_cycles, digits: 1) cycles. Coupling therefore
-  changes the phase dynamics over repeated cycles rather than merely selecting an
-  already locked initial condition. It does not guarantee an absorbing locked
-  state: one late phase slip remains in this noisy realization.
+  #acquired.strength coupling, median phase error across the four successive
+  analysis quarters is
+  #n(acquisition-metrics.quartile_phase_errors_rad.at(0)),
+  #n(acquisition-metrics.quartile_phase_errors_rad.at(1)),
+  #n(acquisition-metrics.quartile_phase_errors_rad.at(2)), and
+  #n(acquisition-metrics.quartile_phase_errors_rad.at(3)) rad. Late PLV reaches
+  #n(acquisition-metrics.late_plv); the matched control reaches only
+  #n(acquisition-metrics.control_late_plv). The smoothed late-phase span is
+  #n(acquisition-metrics.smooth_late_span_rad) rad around an eventual lag of
+  #n(acquisition-metrics.fixed_phase_delay_rad) rad. Coupling therefore changes
+  the phase dynamics over repeated cycles rather than merely selecting an already
+  locked initial condition.
 
   == Strong coupling suppresses one circuit
 
@@ -244,8 +251,8 @@
   The registered coarse-grid success criterion fails, but the explicitly
   exploratory refinement reveals the missed phase-locking region. Reciprocal
   E→I excitation can arrest accumulating uncoupled phase drift over many cycles,
-  raise rolling PLV, and produce a sustained capture episode. It does not abolish
-  stochastic phase slips in this realization. Excessive coupling recruits
+  raise rolling PLV, and converge toward a stable phase lag within the observed
+  continuation. Excessive coupling recruits
   enough inhibition to suppress circuit B rather than synchronize it. This is
   the intended reduced mechanism: long-range excitation can synchronize PING
   circuits by recruiting the other circuit's local inhibition.
