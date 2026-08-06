@@ -147,6 +147,22 @@ def _source_image_exp077(modal: Any):
         .add_local_file(
             str(REPO / "pyproject.toml"), str(REMOTE_REPO / "pyproject.toml")
         )
+        .add_local_file(
+            str(
+                REPO
+                / "artifacts"
+                / "data"
+                / "exp077"
+                / "expanded_rate_training_protocol.json"
+            ),
+            str(
+                REMOTE_REPO
+                / "artifacts"
+                / "data"
+                / "exp077"
+                / "expanded_rate_training_protocol.json"
+            ),
+        )
     )
 
 
