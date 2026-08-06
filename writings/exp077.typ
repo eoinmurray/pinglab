@@ -17,6 +17,7 @@
 #let m = json("/artifacts/data/exp077/step2_manifest.json")
 #let diagnostic-k = m.diagnostic_draws_per_condition_per_seed
 #let s3 = r.step3
+#let s3-comparison = json("/artifacts/data/exp077/step3_empirical_comparison.json")
 #let s4 = r.step4
 #let s5 = json("/artifacts/data/exp077/step5_outcome.json")
 #let s6 = json("/artifacts/data/exp077/step6_outcome.json")
@@ -37,29 +38,16 @@
 #let body = [
   == Abstract
 
-  Poisson rate coding provides a simple interface between static images and
-  spiking neural networks, but the encoding rate does not by itself determine
-  the signal available to a downstream circuit. Synaptic decay,
-  conductance-dependent membrane integration, and finite observation windows
-  reshape both the strength and variability of the representation. This makes
-  input-rate selection especially important for sparse conductance-based PING
-  networks, where low rate regimes that are computationally efficient may also erase class
-  structure before learning begins. We developed a filter-matched calibration
-  of MNIST inputs by propagating pixel spike trains through the target AMPA and
-  subthreshold membrane dynamics, measuring the resulting empirical response
-  distributions, and deriving the corresponding linear transfer-function model.
-  The empirical response table preserved non-Gaussian finite-window effects,
-  while the analytical model described the frequency filtering imposed by the
-  synapse, membrane, and averaging window. Sampled feature
-  images recovered recognizable digit structure as rate increased, whereas the
-  lowest-rate images remained sparse and did not satisfy all image-level
-  validation tolerances. Mixed-rate nonlinear and linear decoders trained on
-  fresh direct simulations nevertheless recovered held-out class information
-  throughout the registered rate grid. The nonlinear decoder was reliably
-  above chance at 0.25 Hz, and its one-sided 95% lower accuracy bound first
-  exceeded 50% at 0.5 Hz. This practical floor was unchanged across 0.6, 1.2,
-  and 2.4 μS probes, supporting 0.5--25 Hz as the input range for subsequent
-  variable-rate PING training.
+  Selecting a Poisson input rate for conductance-based spiking networks requires
+  accounting for the filtering and variability introduced by synapses,
+  membrane integration, and finite observation windows. We propagated MNIST
+  pixel spike trains through the target AMPA and subthreshold membrane dynamics,
+  characterized their empirical responses, and derived a corresponding linear
+  filter model. Nonlinear and linear decoders were then trained on fresh direct
+  simulations across the registered rate grid. Held-out nonlinear-decoder
+  accuracy was reliably above chance at 0.25 Hz and reliably exceeded 50% from
+  0.5 Hz. This practical floor was unchanged across 0.6, 1.2, and 2.4 μS probes,
+  supporting 0.5--25 Hz for subsequent variable-rate PING training.
 
   == Purpose and scope
 
@@ -73,43 +61,28 @@
   features, without trained input, recurrent, or output weights. The ANN thus
   measures filtered-input decodability independently of a trained PING network.
 
-  The study was organized to:
-
-  #enum(
-    [Convert 0.25--25 Hz Poisson inputs into static, filter-matched features.],
-    [Measure their distributions and test a linear variance prediction.],
-    [Construct complete MNIST feature images and train mixed-rate decoders from fresh direct simulations.],
-    [Evaluate frozen decoders on the held-out MNIST test set and select a later PING rate range.],
-  )
-
-  #list(
-    [Nonlinear ANN above chance: this decoder can access class evidence.],
-    [Nonlinear ANN at chance: this representation and decoder cannot extract
-      reliable evidence.],
-    [Nonlinear ANN succeeds but linear decoder fails: the evidence is not
-      linearly accessible.],
-  )
-
-  The resulting thresholds are decoder-relative decodability edges, not
-  absolute information boundaries or predictions of PING accuracy.
+  We characterized these features empirically and analytically, trained matched
+  nonlinear and linear decoders on fresh simulations, and evaluated frozen
+  models on held-out images. The resulting thresholds measure decoder-relative
+  accessibility, not an absolute information boundary or PING accuracy.
 
   == Methods
 
   1. *Generated and validated filter-matched pixel features.* Every image used
     a #presentation-ms ms presentation and #dt-ms ms timestep. The tested rates
-    were #training-rate-text Hz, with dense sampling below 5 Hz and an upper
-    bound of 25 Hz, which has previously been show to have good performance in trained PING networks. Seeds #seed-text defined independent feature and empirical
-    response table runs.
+    were #training-rate-text Hz, sampled densely below 5 Hz and capped at 25 Hz,
+    a range previously effective in trained PING networks. Seeds #seed-text
+    defined independent feature and empirical-response runs.
 
     The rate grid and deterministic MNIST training and validation indices were
     recorded before analysis; the official MNIST test set was held out and not
     loaded. Pixel intensities x lay in [0, 1]. If r was
     the encoding rate at pixel intensity one, the expected pixel rate was r x.
 
-    Each pixel drove an independent AMPA synapse and uncoupled, non-spiking
-    excitatory membrane, capturing AMPA decay, conductance-dependent integration,
-    and within-window timing that raw Poisson encoded spike counts would omit. This probe has no threshold,
-    reset, recurrence, or trained weights.
+    Each pixel drove an independent AMPA synapse and uncoupled non-spiking
+    excitatory membrane. This captured synaptic decay, conductance-dependent
+    integration, and within-window timing, but included no threshold, reset,
+    recurrence, or trained weights.
 
     The complete feature path is
 
@@ -150,15 +123,13 @@
     τ#sub[eff,i] is the instantaneous conductance-dependent time constant. Other
     symbols follow Equation 1.
 
-    We initialized voltage at E#sub[L] and conductance at zero, simulated one
-    complete presentation, and calculated
+    Voltage began at E#sub[L] and conductance at zero. After one presentation,
 
     $ z_i = 1 / T integral_0^T (v_i (t) - E_L) dif t. quad "(7)" $
 
-    Here T is presentation duration and z#sub[i] is mean baseline-subtracted
-    voltage. The feature definition did not divide by rate, and future decoder
-    inputs will not include rate, so lower rates retain their weaker, noisier
-    signal.
+    where T is presentation duration and z#sub[i] is mean baseline-subtracted
+    voltage. Neither the feature nor the decoder input included rate, so sparse
+    inputs retained their weaker, noisier signal.
 
   2. *Characterized the empirical response moments.* For visualization and
     consistency checks, we used #diagnostic-k independent simulations per
@@ -176,16 +147,14 @@
     z#super[(k)] is draw k; K is the draw count; and Equations 8 and 9 estimate
     the conditional mean and variance.
 
-    The table was used only to plot these moments and support consistency checks.
-    It was not used as a sampling distribution for ANN
-    inputs. For every future image presentation n, the ANN input will instead be
-    generated directly by drawing a fresh Poisson spike train and rerunning the
-    synapse and membrane equations:
+    The table served only to plot moments and check consistency. Decoder inputs
+    instead used a fresh spike train and direct synapse--membrane simulation on
+    every presentation n:
 
     $ S_i^(n)(t) -> g_i^"pix,n"(t) -> v_i^(n)(t) -> z_i^(n) -> "ANN". quad "(10)" $
 
-    Repeated presentations therefore sample the full conditional distribution
-    of z#sub[i] without fitting or resampling an intermediate noise model.
+    Repetition therefore sampled the full conditional distribution of z#sub[i]
+    without an intermediate noise model.
 
     Exact replay, finite values, physical bounds, zero-intensity resting
     response, independent streams, recomputed moments, fresh direct simulations,
@@ -255,6 +224,13 @@
     continuous-time, linearized Poisson model approximates the finite, discrete
     Bernoulli simulation and remains diagnostic only.
 
+    Without new simulation, we compared these predictions with the Step 2 table
+    at every rate, intensity, and conductance. Analytical mean was Equation 12
+    minus resting voltage; analytical SD was the square root of Equation 18.
+    Predicted-versus-empirical plots used an identity line, Pearson correlation,
+    mean absolute error, and median prediction/empirical ratio. Summary
+    statistics excluded conditions where both responses were zero.
+
   4. *Constructed and compared complete feature images.* We used only the
     official 60,000-image MNIST training partition. Indices 0--54,999 and
     55,000--59,999 were reserved for decoder training and validation,
@@ -263,29 +239,59 @@
     selected an authenticated empirical draw with independent, deterministic
     pixel and image streams. A fresh direct simulation provided the comparison.
 
-    The direct comparison used training images 0--15, #s4.dataset.image_shape.at(1)
-    × #s4.dataset.image_shape.at(2) pixels, eight independent replicates, all
-    three conductances, and rates 0.25, 3, and 25 Hz. We compared pooled pixel
-    moments, image-level moments, zero fractions, absolute and relative
-    differences, and the spatial correlation of per-pixel means. The thresholds
-    and streams were locked before outcomes. This validation was required before
-    ANN training; its low-rate checks did not all pass, so no decoder followed.
+    The comparison covered training images 0--15, all
+    #s4.dataset.image_shape.at(1) × #s4.dataset.image_shape.at(2) pixels, eight
+    replicates, three conductances, and 0.25, 3, and 25 Hz. Tests covered pooled
+    and image-level moments, zero fractions, absolute and relative differences,
+    and spatial correlation of per-pixel means. The low-rate image-level checks
+    failed; this limitation was retained, while subsequent decoders used fresh
+    direct simulation rather than the table.
 
-  5. *Trained mixed-rate decoders.* The primary ANN had 784 inputs, one
-    1,024-unit rectified-linear hidden layer, and ten outputs, and learned both
-    weight matrices from voltage features. A regularized linear softmax decoder
-    trained on the same features tested linear accessibility. Neither model
-    received the encoding rate or pretrained weights.
+  5. *Trained mixed-rate decoders.* Each simulated image produced a feature
+    vector $bold(z) in RR^784$, containing one time-averaged membrane-voltage
+    displacement per pixel. The primary ANN transformed this vector through a
+    fully connected 1,024-unit hidden layer,
 
-    Every image presentation sampled a rate uniformly from the registered grid.
-    Each pixel then received a fresh Poisson spike train propagated directly
-    through Equations 3--7 to produce z#sub[i]; the empirical response table did
-    not generate decoder inputs. Seeds #seed-text used Adam, learning rate 0.001,
-    batch size 256, and 15 epochs. Validation alone selected epochs and the
-    linear weight decay from 10#super[-5], 10#super[-4], and 10#super[-3]. The
-    official MNIST test set remained held out. The primary ensemble used the
-    1.2 μS probe, and separate 0.6 and 2.4 μS ensembles measured conductance
-    sensitivity without pooling conditions.
+    $
+      bold(h) = "ReLU"(W_h bold(z) + bold(b)_h), quad
+      bold(s) = W_o bold(h) + bold(b)_o,
+    $
+
+    where $bold(h)$ is hidden activation, $bold(s) in RR^10$ contains one logit
+    per digit, and elementwise $"ReLU"(x) = max(0, x)$ retains positive inputs
+    and zeros negative ones. Both weight matrices and bias vectors were
+    trainable; prediction used $arg max_c s_c$. The 784--1,024--10 network had
+    no convolution, recurrence, normalization, dropout, or pretrained weights.
+
+    The matched linear decoder omitted the hidden layer and computed
+
+    $ bold(s) = W_"lin" bold(z) + bold(b)_"lin". $
+
+    Its 784 × 10 weights and ten biases were trainable. “Linear” described the
+    feature-to-logit map, not fitting: both models used backpropagation. Linear
+    performance measured directly accessible digit evidence; the ANN advantage
+    measured the benefit of its nonlinear representation. Neither received rate.
+
+    Both models were fitted with ten-class cross-entropy. For logits
+    $bold(s)$ and true digit label $y$, the loss for one image was
+
+    $
+      cal(L)_"CE"(bold(s), y)
+      = -log(exp(s_y) / sum_(c=0)^9 exp(s_c)).
+    $
+
+    This penalized low probability for the correct digit; backpropagation trained
+    each decoder's weights and biases.
+
+    Each presentation sampled the registered rates uniformly, then generated
+    z#sub[i] from a fresh spike train through Equations 3--7. Both decoders saw
+    the same feature batch. Adam used learning rate 0.001, batch size 256, and 15
+    epochs. The ANN used no weight decay; three linear candidates used L2 weight
+    decays 10#super[-5], 10#super[-4], and 10#super[-3]; validation accuracy
+    selected the decay and, independently for each decoder, the retained epoch.
+    Seeds #seed-text initialized parameters and sampling streams. The MNIST test
+    set remained held out through fitting and selection. The primary 1.2 μS
+    ensemble and separate 0.6 and 2.4 μS ensembles were not pooled.
 
   6. *Evaluated frozen held-out psychometric curves.* All decoders, selected
     epochs, hyperparameters, checkpoint hashes, rates, direct-simulation seeds,
@@ -297,11 +303,11 @@
     $ A_r (r) = P("correct" | r, "mixed-rate nonlinear decoder"). quad "(19)" $
 
     Here A#sub[r] is held-out nonlinear-ANN accuracy, P is correct-classification
-    probability, and r is rate. The linear decoder will remain diagnostic.
+    probability, and r is rate. The linear decoder was diagnostic.
 
-    Two thousand bootstrap repetitions independently resampled held-out images,
-    direct-simulation draws, and decoder seeds to give the one-sided 95% lower
-    confidence bound L#sub[r]. The decoder-relative edge was
+    Two thousand bootstrap repetitions resampled images, simulation draws, and
+    decoder seeds to give the one-sided 95% lower bound L#sub[r]. The
+    decoder-relative edge was
 
     $ r_"decode" = "lowest " r in cal(R) " satisfying " L_r (r) > 1 / N_"class". quad "(20)" $
 
@@ -309,13 +315,11 @@
 
     $ r_"train" = "lowest " r in cal(R) " satisfying " L_r (r) >= a_"use". quad "(21)" $
 
-    Here $cal(R)$ is the tested grid; N#sub[class] is the number of classes;
-    r#sub[decode] is the lowest rate reliably above chance; a#sub[use] is the 50%
-    useful-accuracy target; and r#sub[train] is the lowest rate whose lower
-    confidence bound reaches it. Primary thresholds used the 1.2 μS nonlinear
-    ANN. The nominal linear decoder and nonlinear 0.6 and 2.4 μS ensembles
-    measured decoder and conductance sensitivity. Interpolated rates were not
-    treated as observations.
+    Here $cal(R)$ is the tested grid, N#sub[class] the class count,
+    r#sub[decode] the lowest rate reliably above chance, a#sub[use] the 50%
+    useful-accuracy target, and r#sub[train] its first reliable crossing. Primary
+    thresholds used the 1.2 μS ANN; the linear decoder and other conductances
+    measured sensitivity. Interpolated rates were not observations.
 
   7. *Selected the training range.* The decision reported r#sub[decode],
     r#sub[train], uncertainty, conductance sensitivity, model and artifact
@@ -326,14 +330,6 @@
 
   #block(breakable: false)[
     == Results
-
-    We characterized the filter-matched pixel response, empirical
-    response table, linear approximation, complete feature images, mixed-rate
-    decoder training, and frozen held-out psychometrics. The response table was
-    used only for characterization and consistency checks; all decoder inputs
-    came from fresh direct simulations. The Step 4 low-rate image-level failure
-    remained unchanged and did not prevent the explicitly continued decoder
-    analysis.
 
     === Filter-matched feature generation
 
@@ -374,16 +370,69 @@
   )
 
   _Analytically calculated linearized frequency response at the nominal 1.2 μS
-  probe._ The plotted functions take modulation frequency, mean input spike rate,
-  and probe conductance as inputs; no simulated traces are plotted. Frequency
-  here is the frequency of a small sinusoidal modulation of the input spike rate,
-  about mean operating rates of 0.25, 3, or 25 Hz. Panel A evaluates the
-  synapse-plus-membrane transfer function on a 0.1--200 Hz frequency grid. Panel
-  B multiplies it by the analytical #presentation-ms ms rectangular-window
-  averaging response. Gain is referenced to the low-drive DC value. Mean
-  conductance lowers and shifts the membrane response, the AMPA and membrane
-  terms produce the smooth low-pass roll-off, and rectangular averaging
-  introduces nulls at multiples of 5 Hz.
+  probe._ These analytical functions take modulation frequency, mean input rate,
+  and probe conductance; they contain no simulated traces. Frequency is a small
+  sinusoidal rate modulation around 0.25, 3, or 25 Hz. Panel A evaluates the
+  magnitude of Equation 13 from 0.1--200 Hz, with $omega = 2 pi f$. Gain is
+
+  $
+    20 log_10 (abs(G_lambda(2 pi f)) / abs(G_(lambda_"low")(0))),
+  $
+
+  relative to the 0.25 Hz DC response. Thus the black curve begins near 0 dB;
+  higher mean conductance lowers the red and cyan DC gains. Panel B plots
+  Equation 15, $H_lambda = A_T G_lambda$, after the analytical #presentation-ms
+  ms rectangular-window average.
+
+  Panel A combines an AMPA low-pass pole at $1 / tau_"AMPA"$ with a membrane pole
+  set by effective conductance and capacitance, smoothly suppressing fast
+  modulation. Greater drive both shunts the membrane and depolarizes it toward
+  $E_e$, reducing excitatory driving force and separating the curves.
+
+  Panel B adds the averaging magnitude
+  $abs(A_T(2 pi f)) = abs(sin(pi f T) / (pi f T))$. It is one at zero frequency
+  and zero at $f = n / T$ for nonzero integer n. With $T =
+  #presentation-ms / 1000$ s, integer cycles cancel at 5, 10, 15 Hz, and so on.
+  Magnitude folds alternating sinc signs into positive lobes; the two low-pass
+  terms attenuate successive lobes to form the falling envelope.
+
+  #image(
+    "/artifacts/data/exp077/linear_filter_empirical_comparison.svg",
+    width: 100%,
+    alt: "Two predicted-versus-empirical plots compare analytical and simulated feature means and standard deviations at three probe conductances.",
+  )
+
+  _Stationary analytical predictions versus the empirical response table._ Each
+  point is one recorded rate--intensity condition; colour denotes probe
+  conductance. Panel A compares the stationary mean displacement from Equation
+  12 with the empirical 200 ms feature mean. Panel B compares the square root of
+  the Equation 18 variance with empirical feature SD. The diagonal denotes exact
+  agreement. The analytical model preserved the broad ordering of the mean
+  responses (Pearson $r = #rounded(s3-comparison.mean.pearson_r)$) but predicted
+  a median #rounded(s3-comparison.mean.median_predicted_empirical_ratio)-fold
+  larger mean. SD agreement was weaker ($r =
+  #rounded(s3-comparison.standard_deviation.pearson_r)$), with a median
+  #rounded(s3-comparison.standard_deviation.median_predicted_empirical_ratio)-fold
+  overprediction. Points therefore lie mainly below the identity line because
+  the stationary, locally linear model omits the start-from-rest transient,
+  finite-window nonstationarity, discrete Bernoulli input, and nonlinear
+  conductance fluctuations present in the empirical simulations.
+
+  Panel A bends upward because Equation 12 evaluates voltage at stationary mean
+  conductance, whereas empirical trajectories begin at rest and average only
+  #presentation-ms ms. Sparse presentations often contain no event or a late
+  one; with greater drive, earlier and more consistent events let the empirical
+  mean approach stationarity. Probe curves separate because a mean conductance
+  can comprise many small events or fewer large ones. Larger jumps amplify
+  fluctuations, and voltage saturation gives approximately $E[v(g)] < v(E[g])$.
+
+  Panel B hooks because variability rises from zero as spike counts and timings
+  diversify, then falls when averaging suppresses relative count fluctuations
+  and shunting and saturation limit voltage excursions. Equation 18 likewise
+  balances rising Poisson noise against falling local gain, but places the
+  maximum elsewhere. Plotting these displaced maxima against each other creates
+  the arches and backward branches; larger, less linear probe events enlarge
+  them.
 
   === Complete feature images
 
