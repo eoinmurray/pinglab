@@ -10,7 +10,8 @@
 
 #let presentation-ms = 200
 #let dt-ms = 0.1
-#let training-rates-hz = (0.25, 0.5, 0.75, 1, 1.5, 2, 2.5, 3, 4, 5, 10, 25)
+#let calibration-rates-hz = (0.25, 0.5, 0.75, 1, 1.5, 2, 2.5, 3, 4, 5, 10, 25)
+#let decoder-rates-hz = (0.01, 0.05, 0.1, ..calibration-rates-hz)
 #let probe-us = (0.6, 1.2, 2.4)
 #let seeds = (42, 43, 44)
 #let r = json("/artifacts/data/exp077/numbers.json")
@@ -32,7 +33,8 @@
 #let nominal-half = s6.nonlinear.at(13)
 #let rounded(x, digits: 3) = str(calc.round(x, digits: digits))
 #let pct(x) = rounded(100 * x, digits: 2) + "%"
-#let training-rate-text = training-rates-hz.map(str).join(", ")
+#let calibration-rate-text = calibration-rates-hz.map(str).join(", ")
+#let decoder-rate-text = decoder-rates-hz.map(str).join(", ")
 #let probe-text = probe-us.map(str).join(", ")
 #let seed-text = seeds.map(str).join(", ")
 #let body = [
@@ -69,10 +71,12 @@
   == Methods
 
   1. *Generated and validated filter-matched pixel features.* Every image used
-    a #presentation-ms ms presentation and #dt-ms ms timestep. The tested rates
-    were #training-rate-text Hz, sampled densely below 5 Hz and capped at 25 Hz,
-    a range previously effective in trained PING networks. Seeds #seed-text
-    defined independent feature and empirical-response runs.
+    a #presentation-ms ms presentation and #dt-ms ms timestep. Decoder training
+    and evaluation treated #decoder-rate-text Hz as a uniform categorical grid.
+    The authenticated empirical response table retained its original
+    #calibration-rate-text Hz grid; it served only characterization, while every
+    decoder input used fresh direct simulation. Seeds #seed-text defined
+    independent feature and empirical-response runs.
 
     The rate grid and deterministic MNIST training and validation indices were
     recorded before analysis; the official MNIST test set was held out and not

@@ -7,89 +7,92 @@
   "selected_nonlinear_epoch": 2,
   "selected_nonlinear_validation_accuracy": 0.453125,
   "selected_linear_epoch": 2,
-  "selected_linear_validation_accuracy": 0.25,
+  "selected_linear_validation_accuracy": 0.203125,
   "selected_linear_weight_decay": 0.0001,
   "rate_sample_counts": {
+    "0.01": 13,
+    "0.05": 15,
+    "0.1": 17,
     "0.25": 15,
-    "0.5": 25,
-    "0.75": 16,
-    "1.0": 20,
-    "1.5": 29,
-    "2.0": 21,
-    "2.5": 24,
+    "0.5": 16,
+    "0.75": 23,
+    "1.0": 19,
+    "1.5": 21,
+    "2.0": 13,
+    "2.5": 18,
     "3.0": 20,
-    "4.0": 24,
-    "5.0": 23,
-    "10.0": 21,
-    "25.0": 18
+    "4.0": 16,
+    "5.0": 22,
+    "10.0": 13,
+    "25.0": 15
   },
   "history": [
     {
       "epoch": 1,
       "nonlinear": {
-        "train_loss": 2.4223616123199463,
-        "train_accuracy": 0.1484375,
-        "validation_loss": 2.297593355178833,
-        "validation_accuracy": 0.40625
+        "train_loss": 2.405242681503296,
+        "train_accuracy": 0.1171875,
+        "validation_loss": 2.283743381500244,
+        "validation_accuracy": 0.328125
       },
       "linear": [
         {
           "weight_decay": 1e-05,
-          "train_loss": 2.8691837787628174,
-          "train_accuracy": 0.1015625,
-          "validation_loss": 3.107626438140869,
-          "validation_accuracy": 0.046875
+          "train_loss": 2.7865102291107178,
+          "train_accuracy": 0.078125,
+          "validation_loss": 2.827500581741333,
+          "validation_accuracy": 0.078125
         },
         {
           "weight_decay": 0.0001,
-          "train_loss": 3.0156257152557373,
-          "train_accuracy": 0.109375,
-          "validation_loss": 2.8966174125671387,
-          "validation_accuracy": 0.140625
+          "train_loss": 2.8591127395629883,
+          "train_accuracy": 0.078125,
+          "validation_loss": 2.6599924564361572,
+          "validation_accuracy": 0.15625
         },
         {
           "weight_decay": 0.001,
-          "train_loss": 3.0487611293792725,
-          "train_accuracy": 0.1171875,
-          "validation_loss": 2.7969515323638916,
-          "validation_accuracy": 0.125
+          "train_loss": 2.89998459815979,
+          "train_accuracy": 0.0859375,
+          "validation_loss": 2.7012205123901367,
+          "validation_accuracy": 0.09375
         }
       ]
     },
     {
       "epoch": 2,
       "nonlinear": {
-        "train_loss": 2.1276748180389404,
-        "train_accuracy": 0.3828125,
-        "validation_loss": 1.8868677616119385,
+        "train_loss": 2.256770372390747,
+        "train_accuracy": 0.3359375,
+        "validation_loss": 1.9791933298110962,
         "validation_accuracy": 0.453125
       },
       "linear": [
         {
           "weight_decay": 1e-05,
-          "train_loss": 3.1135575771331787,
-          "train_accuracy": 0.109375,
-          "validation_loss": 2.838832378387451,
+          "train_loss": 3.031278371810913,
+          "train_accuracy": 0.09375,
+          "validation_loss": 2.7932095527648926,
           "validation_accuracy": 0.046875
         },
         {
           "weight_decay": 0.0001,
-          "train_loss": 2.715104579925537,
-          "train_accuracy": 0.15625,
-          "validation_loss": 2.352782964706421,
-          "validation_accuracy": 0.25
+          "train_loss": 2.6630871295928955,
+          "train_accuracy": 0.1484375,
+          "validation_loss": 2.304457664489746,
+          "validation_accuracy": 0.203125
         },
         {
           "weight_decay": 0.001,
-          "train_loss": 2.718258857727051,
-          "train_accuracy": 0.1328125,
-          "validation_loss": 2.479522228240967,
-          "validation_accuracy": 0.1875
+          "train_loss": 2.6890926361083984,
+          "train_accuracy": 0.1015625,
+          "validation_loss": 2.4808883666992188,
+          "validation_accuracy": 0.140625
         }
       ]
     }
   ],
-  "runtime_s": 15.997102299006656,
+  "runtime_s": 13.071469567948952,
   "checkpoint": "decoders.pt",
   "dataset": {
     "source": "torchvision.datasets.MNIST official training partition",
