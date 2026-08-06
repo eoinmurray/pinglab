@@ -1048,7 +1048,8 @@
   Each variant differs only in graph data and retains its authenticated graph,
   manifest, canonical diagram, named input/E/I recordings, delay evidence, and
   execution provenance. The fixture computes only compact recording
-  diagnostics; Milestone 4 remains unstarted.
+  diagnostics; the scientific coupling sweep is performed separately by
+  Milestone 4 in #link("/exp078/")[_exp078_].
 
   *Purpose:* deliver the first capability that the legacy `COBANet` architecture
   cannot express.
