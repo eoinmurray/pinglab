@@ -1137,13 +1137,16 @@
   weight--delay refinement, a
   declared bounded search compares mature checkpoints on one fixed archived
   input stream and selects a trajectory that begins away from its eventual lag
-  and converges across the 1.2 s
-  continuation. At weight 0.20 and delay 10 ms, the coupled branch reaches its
-  sustained-250-ms capture gate after 918.9 ms, settles near a 0.052 rad lag, and
+  and evolves across a 2 s continuation. At weight 0.22 and delay 10 ms, the
+  coupled branch reaches its sustained-250-ms capture gate after 922.5 ms, settles
+  near a 0.207 rad lag, and
   confines 95% of final-window smoothed
-  instantaneous frequency differences below 2.37 Hz.
-  This is direct evidence for phase acquisition in the selected realization, not
-  evidence for inevitable or biologically general locking.
+  instantaneous frequency differences below 1.58 Hz.
+  Across the whole post-capture interval, PLV is 0.883 and the 95th-percentile
+  phase error is 1.164 rad, so the longer run supports bounded noisy
+  synchronization rather than an absorbing fixed-phase state. This is direct
+  evidence for phase acquisition in the selected realization, not evidence for
+  inevitable or biologically general locking.
 
   === B.8 Milestone 5: graph-native readouts and input bindings
 
