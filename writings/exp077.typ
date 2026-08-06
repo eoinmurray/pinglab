@@ -157,23 +157,23 @@
     voltage. We did not divide by rate or disclose it to either decoder, so
     lower rates retain their weaker, noisier signal.
 
-    Focused tests covered per-timestep spike probability, count moments, pixel independence,
-    AMPA decay, exponential-Euler voltage updates, deterministic replay,
-    agreement with one uncoupled target-PING excitatory cell, and spike-timing
-    sensitivity.
-
   2. *Generated and evaluated the empirical response table.* Before
     generating the response table, we evaluated candidate draw counts K of 64,
-    128, 256, 512, 1,024, and 2,048 using a fixed convergence rule. The
-    deterministic comparison covered
+    128, 256, 512, 1,024, and 2,048. The deterministic comparison covered
     #p.evaluation_condition_count conditions: six intensities, five rates, all
     three probe conductances, and all three registered seeds. For each candidate,
     we compared the first K draws with the next K independent draws.
 
-    Mean and unbiased-variance discrepancies were divided by locked absolute or
-    relative tolerances, whichever was larger. Both metrics had to keep their
-    95th percentile at or below 1 and their maximum at or below 2. The smallest
-    passing K selected the final draw count.
+    For either sample statistic q, its normalized discrepancy between the two
+    blocks A and B was
+
+    $ D_q = abs(q_A - q_B) / max(t_"abs", t_"rel" max(abs(q_A), abs(q_B))). $
+
+    For the sample mean, t#sub[abs] = 0.15 mV and t#sub[rel] = 0.10; for the
+    unbiased sample variance, t#sub[abs] = 0.25 mV² and t#sub[rel] = 0.25. A
+    candidate K passed only when, for both statistics across all comparison
+    conditions, the 95th percentile of D#sub[q] was at most 1 and its maximum
+    was at most 2. The smallest passing K selected the final draw count.
 
     This procedure selected K = #p.selected_K. We then ran that many independent
     single-pixel draws for every grayscale level, registered rate, probe conductance,
