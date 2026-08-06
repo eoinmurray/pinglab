@@ -1,59 +1,59 @@
 {
   "status": "frozen_before_test_access",
-  "frozen_at_utc": "2026-08-06T11:58:21Z",
+  "frozen_at_utc": "2026-08-06T15:53:26Z",
   "git": {
-    "git_sha_at_execution": "92a15d89115d9f937be1b37bd3d0afd00335eaf5",
+    "git_sha_at_execution": "b425e79d1b0a8e87ac86d4815b466473a496de5f",
     "worktree_dirty_at_execution": true,
-    "runner_sha256": "a705e351b47a663ddb3487ea9a8f6bd600c83de9ef322c9ba10a12dcca206d5c",
+    "runner_sha256": "ceb7edf120f1b9cbf4b3d6d0940d79a9503f188840745ab7bd046177d5a45710",
     "python": "3.10.20",
     "numpy": "2.2.6",
     "platform": "linux"
   },
   "step5_outcome_path": "artifacts/data/exp077/step5_outcome.json",
-  "step5_outcome_sha256": "1bbac31e60732bf04cca64ddfafd369791953be932886ed1a89bf68b51b744d2",
+  "step5_outcome_sha256": "71f3d64cd4c807d79349c59cc8cdd6070955026815358c0302f89adc547b5c28",
   "models": [
     {
       "probe_uS": 0.6,
       "seed": 42,
       "path": "artifacts/data/exp077/step5/full/probe-0.6/seed-42/decoders.pt",
-      "sha256": "582b725f5e716d1bb96d16ff9b340c5ece040d2862b4ea03534e4d1398e719cc",
-      "selected_nonlinear_epoch": 11,
-      "selected_linear_epoch": 4,
-      "linear_weight_decay": 0.0001
+      "sha256": "7530bdd07d6414965145bd993546594ebe39f493d47f94df7576c9423ff58931",
+      "selected_nonlinear_epoch": 14,
+      "selected_linear_epoch": 7,
+      "linear_weight_decay": 1e-05
     },
     {
       "probe_uS": 0.6,
       "seed": 43,
       "path": "artifacts/data/exp077/step5/full/probe-0.6/seed-43/decoders.pt",
-      "sha256": "4f09a7e8665448350c2b9ae595781f0a90e370ae835a2abd3be4105fce6748df",
-      "selected_nonlinear_epoch": 15,
-      "selected_linear_epoch": 13,
+      "sha256": "0cb092bb4681fac9b77abc388dd6b6e6ed79711342d397feab3ab59add89f923",
+      "selected_nonlinear_epoch": 13,
+      "selected_linear_epoch": 5,
       "linear_weight_decay": 0.0001
     },
     {
       "probe_uS": 0.6,
       "seed": 44,
       "path": "artifacts/data/exp077/step5/full/probe-0.6/seed-44/decoders.pt",
-      "sha256": "de97dde953f389d714a5e3bc5abd6cae9cb1427652b1b13cb36cbcbacc0093f6",
-      "selected_nonlinear_epoch": 15,
-      "selected_linear_epoch": 13,
-      "linear_weight_decay": 1e-05
+      "sha256": "5b5a80238eae60edd94b281f859dcdf463884c8370123e7d0db4848d075b4d96",
+      "selected_nonlinear_epoch": 13,
+      "selected_linear_epoch": 2,
+      "linear_weight_decay": 0.0001
     },
     {
       "probe_uS": 1.2,
       "seed": 42,
       "path": "artifacts/data/exp077/step5/full/probe-1.2/seed-42/decoders.pt",
-      "sha256": "7b90efca1ed14728636d8cbfa9a03214d99a5619724272ec7299d6d83cfe9ee6",
-      "selected_nonlinear_epoch": 10,
-      "selected_linear_epoch": 4,
+      "sha256": "4cbb7be46c4a013a78ca521ecba721cba61f01cd98d2ebc5c195d41dc5015dab",
+      "selected_nonlinear_epoch": 15,
+      "selected_linear_epoch": 2,
       "linear_weight_decay": 0.0001
     },
     {
       "probe_uS": 1.2,
       "seed": 43,
       "path": "artifacts/data/exp077/step5/full/probe-1.2/seed-43/decoders.pt",
-      "sha256": "98df1fa1ee5749d7c5f8c1ad916cea9d924204162355f4fea7d32c2fcb42fd6a",
-      "selected_nonlinear_epoch": 12,
+      "sha256": "b33ff368e96741fc703f380620c419a8473346aef84f24737ec703f3ffd80db2",
+      "selected_nonlinear_epoch": 13,
       "selected_linear_epoch": 5,
       "linear_weight_decay": 1e-05
     },
@@ -61,40 +61,43 @@
       "probe_uS": 1.2,
       "seed": 44,
       "path": "artifacts/data/exp077/step5/full/probe-1.2/seed-44/decoders.pt",
-      "sha256": "07ad485a668e1038f985cb9a3ab606aa27e4f63be296f6fb5fe77821f137c8f6",
-      "selected_nonlinear_epoch": 15,
-      "selected_linear_epoch": 13,
-      "linear_weight_decay": 0.001
+      "sha256": "6d534a8d101c9b7f11572dd33bda97194a73ecbd3d4427e306f9574848d730b0",
+      "selected_nonlinear_epoch": 8,
+      "selected_linear_epoch": 2,
+      "linear_weight_decay": 0.0001
     },
     {
       "probe_uS": 2.4,
       "seed": 42,
       "path": "artifacts/data/exp077/step5/full/probe-2.4/seed-42/decoders.pt",
-      "sha256": "e5b1c4148dc3fd81e2fb2ae30edab7d4d6374318e5bd73290177e0e1068c57dc",
-      "selected_nonlinear_epoch": 13,
-      "selected_linear_epoch": 4,
+      "sha256": "ee1f9d905944620fd6e6f4e1ebe230ca7c58017b2ec0d5ca733b0570b24d90fd",
+      "selected_nonlinear_epoch": 14,
+      "selected_linear_epoch": 2,
       "linear_weight_decay": 0.0001
     },
     {
       "probe_uS": 2.4,
       "seed": 43,
       "path": "artifacts/data/exp077/step5/full/probe-2.4/seed-43/decoders.pt",
-      "sha256": "88b0b8b10b9b6a08b005c30365f9078e1c115c03b270d02a71658efd34edb1cf",
-      "selected_nonlinear_epoch": 15,
-      "selected_linear_epoch": 14,
-      "linear_weight_decay": 1e-05
+      "sha256": "7716b0bbc69b11500eb3d0d655a628bdfb0217b033c5e8b6eadbef3a8c45438d",
+      "selected_nonlinear_epoch": 5,
+      "selected_linear_epoch": 5,
+      "linear_weight_decay": 0.0001
     },
     {
       "probe_uS": 2.4,
       "seed": 44,
       "path": "artifacts/data/exp077/step5/full/probe-2.4/seed-44/decoders.pt",
-      "sha256": "48168c7ad64017e16c349d8e2ecc6e9b32641c7bf72402693d51dbf13bdc10e8",
-      "selected_nonlinear_epoch": 9,
-      "selected_linear_epoch": 13,
-      "linear_weight_decay": 1e-05
+      "sha256": "d1a48f888a6a384270a4e928b67ca4f6a18bfb4add944ce326cf391d30047dee",
+      "selected_nonlinear_epoch": 13,
+      "selected_linear_epoch": 2,
+      "linear_weight_decay": 0.0001
     }
   ],
   "rate_grid_hz": [
+    0.01,
+    0.05,
+    0.1,
     0.25,
     0.5,
     0.75,
