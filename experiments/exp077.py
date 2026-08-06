@@ -423,7 +423,9 @@ def make_plot_record() -> dict[str, Any]:
 def plot_probe(record: dict[str, Any], path: Path) -> None:
     time_ms = np.asarray(record["time_ms"])
     cases = record["cases"]
-    fig, axes = plt.subplots(2, 2, figsize=(8.2, 5.9), constrained_layout=True)
+    fig, axes = plt.subplots(
+        2, 2, figsize=(8.2, 5.9), constrained_layout=True, sharex=True
+    )
     ax_spikes, ax_g, ax_v, ax_timing = axes.flat
     for name, color, label in (
         ("early_spike", theme.INK_BLACK, "Spike at 20 ms"),
@@ -476,14 +478,9 @@ def plot_probe(record: dict[str, Any], path: Path) -> None:
         xlabel="Single-spike time (ms)",
         ylabel="Mean voltage feature z (mV)",
     )
-    ax_timing.annotate(
-        f"Δz = {cases['early_spike']['z_mV'] - cases['late_spike']['z_mV']:.2f} mV",
-        xy=(110, np.interp(110, timing["spike_time_ms"], timing["z_mV"])),
-        xytext=(72, max(timing["z_mV"]) * 0.72),
-        arrowprops={"arrowstyle": "->", "color": theme.DIM},
-        fontsize=8,
-    )
     for ax in axes.flat:
+        ax.set_xlim(0, PRESENTATION_MS)
+        ax.tick_params(axis="x", labelbottom=True)
         ax.spines[["top", "right"]].set_visible(False)
     fig.savefig(path, format="svg", metadata={"Date": None})
     plt.close(fig)
@@ -1254,7 +1251,6 @@ def plot_full_library(
     """Render every rate-intensity observation in the complete Step 2 evidence."""
     mean = summaries["mean"]
     standard_deviation = summaries["standard_deviation"]
-    zero_fraction = summaries["zero_fraction"]
     expected_count = (
         np.asarray(TRAINING_RATES_HZ)[:, None]
         * (INTENSITY_LEVELS.astype(np.float64)[None, :] / 255.0)
@@ -1287,20 +1283,6 @@ def plot_full_library(
         ax.set_xticks((0, 0.01, 0.1, 1, 5), labels=("0", "0.01", "0.1", "1", "5"))
         ax.set_xlabel("Expected input spikes")
     ax_mean.legend(frameon=False, fontsize=7, title="Probe conductance")
-    nominal_zero_low = float(zero_fraction[1, 0, -1])
-    nominal_zero_high = float(zero_fraction[1, -1, -1])
-    ax_std.text(
-        0.97,
-        0.06,
-        f"Exact-zero mass (1.2 μS, full intensity)\n"
-        f"0.25 Hz: {nominal_zero_low:.1%}   →   25 Hz: {nominal_zero_high:.1%}",
-        transform=ax_std.transAxes,
-        ha="right",
-        va="bottom",
-        fontsize=7,
-        color=theme.DIM,
-        bbox={"facecolor": "white", "edgecolor": theme.RULE, "pad": 3},
-    )
     ax_mean.legend(frameon=False, fontsize=7, loc="upper left")
     for ax in (ax_mean, ax_std):
         ax.grid(alpha=0.14)
@@ -1991,18 +1973,17 @@ def plot_step3(record: dict[str, Any], path: Path) -> None:
         np.abs(synapse_membrane_transfer(np.asarray([0.0]), 0.25, probe)[0])
     )
     styles = (
-        (theme.INK_BLACK, "-", "0.25 Hz drive"),
-        (theme.DEEP_RED, "--", "3 Hz drive"),
-        (theme.ELECTRIC_CYAN, "-.", "25 Hz drive"),
+        (theme.INK_BLACK, "0.25 Hz drive"),
+        (theme.DEEP_RED, "3 Hz drive"),
+        (theme.ELECTRIC_CYAN, "25 Hz drive"),
     )
-    for rate, (color, linestyle, label) in zip(GAIN_OPERATING_RATES_HZ, styles):
+    for rate, (color, label) in zip(GAIN_OPERATING_RATES_HZ, styles):
         g_magnitude = np.abs(synapse_membrane_transfer(frequency, rate, probe))
         h_magnitude = np.abs(complete_transfer(frequency, rate, probe))
         ax_g.semilogx(
             frequency,
             20.0 * np.log10(np.maximum(g_magnitude / reference, 1e-8)),
             color=color,
-            linestyle=linestyle,
             linewidth=1.8,
             label=label,
         )
@@ -2010,7 +1991,6 @@ def plot_step3(record: dict[str, Any], path: Path) -> None:
             frequency,
             20.0 * np.log10(np.maximum(h_magnitude / reference, 1e-8)),
             color=color,
-            linestyle=linestyle,
             linewidth=1.8,
         )
     ax_g.set(
@@ -2025,7 +2005,6 @@ def plot_step3(record: dict[str, Any], path: Path) -> None:
     )
     ax_g.legend(frameon=False, fontsize=7.5, title="Nominal 1.2 μS probe")
     for axis in (ax_g, ax_h):
-        axis.axhline(-3.0, color=theme.GREY_LIGHT, linewidth=0.8, linestyle=":")
         axis.spines[["top", "right"]].set_visible(False)
     fig.savefig(path, format="svg", metadata={"Date": None})
     plt.close(fig)
@@ -2275,14 +2254,14 @@ def plot_step4(
         axes[row, 0].imshow(images[image_index], cmap="gray", vmin=0, vmax=255)
         axes[row, 1].imshow(library_image, cmap="magma", vmin=0, vmax=65)
         axes[row, 2].imshow(direct_image, cmap="magma", vmin=0, vmax=65)
-        library_zero = float(np.mean(library_values[nominal_probe_index, row] == 0))
-        direct_zero = float(np.mean(direct_values[nominal_probe_index, row] == 0))
         axes[row, 0].set_ylabel(
-            f"{regime.capitalize()}  {rate:g} Hz\nimage {image_index}, seed 42",
-            fontsize=8,
+            f"{rate:g} Hz",
+            fontsize=10,
+            rotation=0,
+            ha="right",
+            va="center",
+            labelpad=18,
         )
-        axes[row, 1].set_xlabel(f"zero fraction {library_zero:.2f}", fontsize=7)
-        axes[row, 2].set_xlabel(f"zero fraction {direct_zero:.2f}", fontsize=7)
     for column, title in enumerate(("Original intensity", "Empirical-library sample", "Fresh direct simulation")):
         axes[0, column].set_title(title, fontsize=9)
     for axis in axes.flat:
