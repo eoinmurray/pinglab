@@ -1,0 +1,20 @@
+{
+  "attempt": 2,
+  "started_at_utc": "2026-08-06T11:22:31Z",
+  "finished_at_utc": "2026-08-06T11:23:24Z",
+  "stage": "pilot",
+  "probe_uS": 1.2,
+  "seed": 42,
+  "provider": "modal",
+  "gpu": "L40S",
+  "status": "artifact_collection_failed",
+  "scientific_work_completed": true,
+  "publishable_result": false,
+  "failure": "dispatcher archived a static workspace path rather than the imported runner's artifact path",
+  "held_out_test_loaded": false,
+  "billable_gpu_seconds_estimate": 13.630914821,
+  "gpu_usd_per_second": 0.000542,
+  "estimated_cost_usd": 0.007387955832981999,
+  "exact_provider_billing": false,
+  "resolution_commit": null
+}

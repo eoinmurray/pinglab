@@ -39,6 +39,7 @@ def train_cell(stage: str, probe_uS: float, seed: int) -> dict[str, Any]:
     sys.path.insert(0, str(repo / "experiments"))
     started = time.monotonic()
     error = None
+    artifact_root = repo / "artifacts" / "data" / "exp077" / "step5"
     try:
         os.environ.update(
             {
@@ -47,13 +48,13 @@ def train_cell(stage: str, probe_uS: float, seed: int) -> dict[str, Any]:
                 "EXP077_SEED": str(seed),
             }
         )
-        from experiments.exp077 import step_5
+        from experiments import exp077
 
-        step_5()
+        exp077.step_5()
+        artifact_root = exp077.FIGURES / "step5"
     except BaseException:  # noqa: BLE001 - return remote traceback and artifacts
         error = traceback.format_exc()
-    root = repo / "artifacts" / "data" / "exp077" / "step5"
-    payload = _archive(root)
+    payload = _archive(artifact_root)
     return {
         "stage": stage,
         "probe_uS": probe_uS,
