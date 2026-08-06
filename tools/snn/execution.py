@@ -7,7 +7,11 @@ requests are planned once and execute a fixed vectorised schedule per step.
 
 from __future__ import annotations
 
+import hashlib
+import json
 import math
+import os
+import tempfile
 import time
 import tracemalloc
 from dataclasses import dataclass, field
@@ -15,6 +19,7 @@ from pathlib import Path
 from typing import Any, Callable, Literal, Mapping
 
 import models as M
+import numpy as np
 import torch
 from bundle import load_graph_bundle
 from torch import nn
@@ -34,6 +39,7 @@ class ExecutionSpec:
     device: str = "cpu"
     record: bool = True
     checkpoint: Path | None = None
+    runtime_state: GraphRuntimeState | None = None
     options: Mapping[str, Any] = field(default_factory=dict)
 
 
@@ -44,6 +50,7 @@ class ExecutionResult:
     recordings: dict[str, torch.Tensor] = field(default_factory=dict)
     parameters: dict[str, torch.Tensor] = field(default_factory=dict)
     final_state: dict[str, torch.Tensor] = field(default_factory=dict)
+    runtime_state: GraphRuntimeState | None = None
     metrics: dict[str, Any] = field(default_factory=dict)
     model: nn.Module | None = None
 
@@ -113,6 +120,211 @@ class GraphPlan:
     outputs: tuple[Mapping[str, Any], ...]
 
 
+RUNTIME_STATE_SCHEMA = "tools/snn.graph-runtime-state/v1"
+
+
+@dataclass
+class GraphRuntimeState:
+    """Complete dynamic state required to continue one graph trajectory.
+
+    Static parameters are deliberately excluded: weight checkpoints and runtime
+    state are orthogonal, allowing a mature state to branch across compatible
+    parameterisations of the same graph structure.
+    """
+
+    signature: str
+    compatibility: dict[str, Any]
+    completed_steps: int
+    voltages: dict[str, torch.Tensor]
+    refractory: dict[str, torch.Tensor]
+    conductances: dict[str, torch.Tensor]
+    population_histories: dict[str, torch.Tensor]
+    input_histories: dict[str, torch.Tensor]
+
+    def detached(self, *, device: str | torch.device = "cpu") -> GraphRuntimeState:
+        def moved(values: Mapping[str, torch.Tensor]) -> dict[str, torch.Tensor]:
+            return {name: value.detach().to(device).clone() for name, value in values.items()}
+
+        return GraphRuntimeState(
+            signature=self.signature,
+            compatibility=self.compatibility,
+            completed_steps=self.completed_steps,
+            voltages=moved(self.voltages),
+            refractory=moved(self.refractory),
+            conductances=moved(self.conductances),
+            population_histories=moved(self.population_histories),
+            input_histories=moved(self.input_histories),
+        )
+
+
+def runtime_state_compatibility(plan: GraphPlan) -> dict[str, Any]:
+    """Describe state-layout and dynamical semantics, excluding parameter values."""
+    parameters = {row["id"]: row for row in plan.graph.get("parameters", [])}
+    return {
+        "schema": RUNTIME_STATE_SCHEMA,
+        "dt_ms": plan.dt_ms,
+        "populations": [
+            {"id": row["id"], "size": row["size"], "neuron": row["neuron"]}
+            for row in plan.populations
+        ],
+        "inputs": [
+            {"id": row["id"], "shape": row["shape"], "signal_type": row.get("signal_type")}
+            for row in plan.graph.get("inputs", [])
+        ],
+        "projections": [
+            {
+                "id": row.id,
+                "source": row.source,
+                "target": row.target,
+                "polarity": row.polarity,
+                "synapse": next(
+                    item["synapse"] for item in plan.graph.get("projections", []) if item["id"] == row.id
+                ),
+                "delay_steps": row.delay_steps,
+                "parameter": row.parameter,
+                "parameter_shape": parameters[row.parameter]["shape"],
+            }
+            for row in plan.projections
+        ],
+    }
+
+
+def runtime_state_signature(plan: GraphPlan) -> str:
+    payload = runtime_state_compatibility(plan)
+    encoded = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode()
+    return "sha256:" + hashlib.sha256(encoded).hexdigest()
+
+
+def _compatibility_mismatch(expected: Any, actual: Any, path: str = "graph") -> str | None:
+    if type(expected) is not type(actual):
+        return f"{path} expected {expected!r}, got {actual!r}"
+    if isinstance(expected, dict):
+        if set(expected) != set(actual):
+            return f"{path} keys expected {sorted(expected)}, got {sorted(actual)}"
+        for key in expected:
+            mismatch = _compatibility_mismatch(expected[key], actual[key], f"{path}.{key}")
+            if mismatch:
+                return mismatch
+    elif isinstance(expected, list):
+        if len(expected) != len(actual):
+            return f"{path} length expected {len(expected)}, got {len(actual)}"
+        for index, (left, right) in enumerate(zip(expected, actual)):
+            mismatch = _compatibility_mismatch(left, right, f"{path}[{index}]")
+            if mismatch:
+                return mismatch
+    elif expected != actual:
+        return f"{path} expected {expected!r}, got {actual!r}"
+    return None
+
+
+def _file_digest(path: Path) -> str:
+    return "sha256:" + hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def save_runtime_state(path: str | Path, state: GraphRuntimeState) -> Path:
+    """Atomically publish a portable JSON/NPZ graph-runtime state directory."""
+    root = Path(path)
+    root.mkdir(parents=True, exist_ok=True)
+    groups = {
+        "voltages": state.voltages,
+        "refractory": state.refractory,
+        "conductances": state.conductances,
+        "population_histories": state.population_histories,
+        "input_histories": state.input_histories,
+    }
+    arrays: dict[str, np.ndarray] = {}
+    tensors: list[dict[str, Any]] = []
+    for group_name, values in groups.items():
+        for name in sorted(values):
+            key = f"tensor_{len(arrays):04d}"
+            value = values[name].detach().cpu().contiguous()
+            arrays[key] = value.numpy()
+            tensors.append({
+                "group": group_name,
+                "name": name,
+                "key": key,
+                "shape": list(value.shape),
+                "dtype": str(value.dtype).removeprefix("torch."),
+            })
+    fd, temporary_name = tempfile.mkstemp(prefix=".tensors-", suffix=".npz", dir=root)
+    os.close(fd)
+    temporary_tensors = Path(temporary_name)
+    try:
+        np.savez_compressed(temporary_tensors, **arrays)
+        tensors_digest = _file_digest(temporary_tensors)
+        os.replace(temporary_tensors, root / "tensors.npz")
+    finally:
+        temporary_tensors.unlink(missing_ok=True)
+    manifest = {
+        "schema": RUNTIME_STATE_SCHEMA,
+        "schema_version": 1,
+        "signature": state.signature,
+        "compatibility": state.compatibility,
+        "completed_steps": state.completed_steps,
+        "tensors_file": "tensors.npz",
+        "tensors_digest": tensors_digest,
+        "tensors": tensors,
+    }
+    fd, temporary_name = tempfile.mkstemp(prefix=".manifest-", suffix=".json", dir=root)
+    temporary_manifest = Path(temporary_name)
+    try:
+        with os.fdopen(fd, "w") as handle:
+            json.dump(manifest, handle, sort_keys=True, separators=(",", ":"))
+            handle.write("\n")
+        os.replace(temporary_manifest, root / "manifest.json")
+    finally:
+        temporary_manifest.unlink(missing_ok=True)
+    return root
+
+
+def load_runtime_state(
+    path: str | Path,
+    *,
+    device: str | torch.device = "cpu",
+) -> GraphRuntimeState:
+    """Load and authenticate a portable graph-runtime state artifact."""
+    root = Path(path)
+    manifest = json.loads((root / "manifest.json").read_text())
+    if manifest.get("schema") != RUNTIME_STATE_SCHEMA or manifest.get("schema_version") != 1:
+        raise ValueError(f"unsupported runtime-state schema: {manifest.get('schema')}")
+    tensors_path = root / manifest.get("tensors_file", "tensors.npz")
+    actual_digest = _file_digest(tensors_path)
+    if actual_digest != manifest.get("tensors_digest"):
+        raise ValueError(
+            f"runtime-state tensors digest expected {manifest.get('tensors_digest')}, got {actual_digest}"
+        )
+    groups: dict[str, dict[str, torch.Tensor]] = {
+        "voltages": {},
+        "refractory": {},
+        "conductances": {},
+        "population_histories": {},
+        "input_histories": {},
+    }
+    with np.load(tensors_path, allow_pickle=False) as archive:
+        expected_keys = {row["key"] for row in manifest["tensors"]}
+        if set(archive.files) != expected_keys:
+            raise ValueError(
+                f"runtime-state tensor keys expected {sorted(expected_keys)}, got {sorted(archive.files)}"
+            )
+        for row in manifest["tensors"]:
+            array = archive[row["key"]]
+            if list(array.shape) != row["shape"] or str(array.dtype) != row["dtype"]:
+                raise ValueError(
+                    f"runtime-state tensor {row['group']}.{row['name']} metadata does not match tensors.npz"
+                )
+            groups[row["group"]][row["name"]] = torch.from_numpy(array.copy()).to(device)
+    return GraphRuntimeState(
+        signature=manifest["signature"],
+        compatibility=manifest["compatibility"],
+        completed_steps=int(manifest["completed_steps"]),
+        voltages=groups["voltages"],
+        refractory=groups["refractory"],
+        conductances=groups["conductances"],
+        population_histories=groups["population_histories"],
+        input_histories=groups["input_histories"],
+    )
+
+
 class DelayBuffer:
     """Fixed causal delay used by recurrent and feedback projections."""
 
@@ -128,6 +340,17 @@ class DelayBuffer:
     def push(self, value: torch.Tensor) -> None:
         self._values.append(value)
         self._values.pop(0)
+
+    def export(self) -> torch.Tensor:
+        return torch.stack([value.detach().clone() for value in self._values])
+
+    @classmethod
+    def restore(cls, values: torch.Tensor) -> DelayBuffer:
+        if values.ndim < 2 or values.shape[0] < 1:
+            raise ValueError("delay history must have shape [delay, batch, ...]")
+        result = cls(int(values.shape[0]), values[0])
+        result._values = [value.detach().clone() for value in values.unbind(0)]
+        return result
 
 
 def plan_graph(graph: Mapping[str, Any]) -> GraphPlan:
@@ -226,26 +449,155 @@ class GraphExecutor(nn.Module):
     def parameter_map(self) -> dict[str, torch.Tensor]:
         return {name.replace("__", "."): value for name, value in self.weights.items()}
 
-    def forward(self, inputs: Mapping[str, torch.Tensor], *, record: bool = True) -> ExecutionResult:
+    def forward(
+        self,
+        inputs: Mapping[str, torch.Tensor],
+        *,
+        record: bool = True,
+        runtime_state: GraphRuntimeState | None = None,
+    ) -> ExecutionResult:
+        if not inputs:
+            raise ValueError("graph execution requires at least one input tensor")
         first = next(iter(inputs.values()))
         if first.ndim == 2:
             inputs = {k: v.unsqueeze(1) for k, v in inputs.items()}
             first = next(iter(inputs.values()))
         steps, batch = first.shape[:2]
         device = first.device
+        parameter_dtype = next(iter(self.weights.values())).dtype
+        for name, value in inputs.items():
+            if value.shape[:2] != (steps, batch):
+                raise ValueError(
+                    f"input {name} leading shape expected {(steps, batch)}, got {tuple(value.shape[:2])}"
+                )
+            if value.device != device:
+                raise ValueError(f"input {name} device expected {device}, got {value.device}")
+            if value.dtype != parameter_dtype:
+                raise ValueError(f"input {name} dtype expected {parameter_dtype}, got {value.dtype}")
         populations = {p["id"]: p for p in self.plan.populations}
-        voltage = {
-            name: (
-                torch.zeros((batch, p["size"]), device=device)
-                if p["neuron"]["kind"] == "leaky_integrator"
-                else torch.full((batch, p["size"]), M.E_L, device=device)
-            )
-            for name, p in populations.items()
+        population_history_lengths = {
+            name: max((p.delay_steps for p in self.plan.projections if p.source.startswith(name + ".")), default=1)
+            for name in populations
         }
-        refractory = {name: torch.zeros((batch, p["size"]), dtype=torch.long, device=device) for name, p in populations.items()}
-        spikes = {name: torch.zeros((batch, p["size"]), device=device) for name, p in populations.items()}
-        conductance = {(p.id, p.polarity): torch.zeros((batch, populations[p.target.partition('.')[0]]["size"]), device=device) for p in self.plan.projections}
-        histories = {name: DelayBuffer(max((p.delay_steps for p in self.plan.projections if p.source.startswith(name + ".")), default=1), value) for name, value in spikes.items()}
+        input_history_lengths = {
+            row["id"]: max(
+                (p.delay_steps for p in self.plan.projections if p.source.partition(".")[0] == row["id"]),
+                default=0,
+            )
+            for row in self.plan.graph.get("inputs", [])
+        }
+        expected_compatibility = runtime_state_compatibility(self.plan)
+        expected_signature = runtime_state_signature(self.plan)
+        if runtime_state is None:
+            voltage = {
+                name: (
+                    torch.zeros((batch, p["size"]), device=device)
+                    if p["neuron"]["kind"] == "leaky_integrator"
+                    else torch.full((batch, p["size"]), M.E_L, device=device)
+                )
+                for name, p in populations.items()
+            }
+            refractory = {
+                name: torch.zeros((batch, p["size"]), dtype=torch.long, device=device)
+                for name, p in populations.items()
+            }
+            spikes = {name: torch.zeros((batch, p["size"]), device=device) for name, p in populations.items()}
+            conductance = {
+                (p.id, p.polarity): torch.zeros(
+                    (batch, populations[p.target.partition('.')[0]]["size"]), device=device
+                )
+                for p in self.plan.projections
+            }
+            histories = {
+                name: DelayBuffer(population_history_lengths[name], value) for name, value in spikes.items()
+            }
+            input_histories = {
+                name: torch.zeros((length, *inputs[name].shape[1:]), device=device, dtype=inputs[name].dtype)
+                for name, length in input_history_lengths.items() if length > 0
+            }
+            completed_steps = 0
+        else:
+            if runtime_state.signature != expected_signature:
+                detail = _compatibility_mismatch(expected_compatibility, runtime_state.compatibility)
+                raise ValueError(
+                    "runtime state is incompatible with graph plan: "
+                    + (detail or f"signature expected {expected_signature}, got {runtime_state.signature}")
+                )
+            def restore_group(
+                label: str,
+                values: Mapping[str, torch.Tensor],
+                shapes: Mapping[str, tuple[int, ...]],
+            ) -> dict[str, torch.Tensor]:
+                if set(values) != set(shapes):
+                    raise ValueError(
+                        f"runtime state {label} keys expected {sorted(shapes)}, got {sorted(values)}"
+                    )
+                restored = {}
+                for name, expected_shape in shapes.items():
+                    value = values[name]
+                    if tuple(value.shape) != expected_shape:
+                        raise ValueError(
+                            f"runtime state {label}.{name} shape expected {expected_shape}, got {tuple(value.shape)}"
+                        )
+                    restored[name] = value.detach().to(device).clone()
+                return restored
+
+            pop_shapes = {name: (batch, int(row["size"])) for name, row in populations.items()}
+            voltage = restore_group("voltages", runtime_state.voltages, pop_shapes)
+            for name, value in voltage.items():
+                if value.dtype != parameter_dtype:
+                    raise ValueError(
+                        f"runtime state voltages.{name} dtype expected {parameter_dtype}, got {value.dtype}"
+                    )
+            refractory = restore_group("refractory", runtime_state.refractory, pop_shapes)
+            for name, value in refractory.items():
+                if value.dtype != torch.long:
+                    raise ValueError(f"runtime state refractory.{name} dtype expected torch.int64, got {value.dtype}")
+            conductance_by_id = restore_group(
+                "conductances",
+                runtime_state.conductances,
+                {
+                    p.id: (batch, int(populations[p.target.partition('.')[0]]["size"]))
+                    for p in self.plan.projections
+                },
+            )
+            conductance = {(p.id, p.polarity): conductance_by_id[p.id] for p in self.plan.projections}
+            for name, value in conductance_by_id.items():
+                if value.dtype != parameter_dtype:
+                    raise ValueError(
+                        f"runtime state conductances.{name} dtype expected {parameter_dtype}, got {value.dtype}"
+                    )
+            population_history_values = restore_group(
+                "population_histories",
+                runtime_state.population_histories,
+                {
+                    name: (population_history_lengths[name], batch, int(row["size"]))
+                    for name, row in populations.items()
+                },
+            )
+            histories = {
+                name: DelayBuffer.restore(value) for name, value in population_history_values.items()
+            }
+            for name, value in population_history_values.items():
+                if value.dtype != parameter_dtype:
+                    raise ValueError(
+                        f"runtime state population_histories.{name} dtype expected {parameter_dtype}, got {value.dtype}"
+                    )
+            spikes = {name: histories[name]._values[-1].clone() for name in populations}
+            input_histories = restore_group(
+                "input_histories",
+                runtime_state.input_histories,
+                {
+                    name: (length, *inputs[name].shape[1:])
+                    for name, length in input_history_lengths.items() if length > 0
+                },
+            )
+            for name, value in input_histories.items():
+                if value.dtype != inputs[name].dtype:
+                    raise ValueError(
+                        f"runtime state input_histories.{name} dtype expected {inputs[name].dtype}, got {value.dtype}"
+                    )
+            completed_steps = int(runtime_state.completed_steps)
         recordings: dict[str, list[torch.Tensor]] = {o["id"]: [] for o in self.plan.observables}
         state_recordings: dict[str, list[torch.Tensor]] = {f"{name}.voltage": [] for name in populations}
         projection_recordings: dict[str, list[torch.Tensor]] = {f"{p.id}.conductance": [] for p in self.plan.projections}
@@ -269,7 +621,11 @@ class GraphExecutor(nn.Module):
                             source = history[-projection.delay_steps]
                     else:
                         source_t = t - projection.delay_steps
-                        source = inputs[source_owner][source_t] if source_t >= 0 else torch.zeros_like(inputs[source_owner][0])
+                        source = (
+                            inputs[source_owner][source_t]
+                            if source_t >= 0
+                            else input_histories[source_owner][source_t]
+                        )
                     drive = source @ self.weights[projection.parameter.replace(".", "__")]
                     conductance[key] = conductance[key] * projection.decay + drive
                     incoming[projection.polarity] += conductance[key]
@@ -323,10 +679,25 @@ class GraphExecutor(nn.Module):
         packed = {k: torch.stack(v) for k, v in recordings.items() if v}
         packed.update({k: torch.stack(v) for k, v in state_recordings.items() if v})
         packed.update({k: torch.stack(v) for k, v in projection_recordings.items() if v})
+        next_input_histories = {
+            name: torch.cat((history, inputs[name]), dim=0)[-history.shape[0]:].detach().clone()
+            for name, history in input_histories.items()
+        }
+        next_runtime_state = GraphRuntimeState(
+            signature=expected_signature,
+            compatibility=expected_compatibility,
+            completed_steps=completed_steps + steps,
+            voltages={name: value.detach().clone() for name, value in voltage.items()},
+            refractory={name: value.detach().clone() for name, value in refractory.items()},
+            conductances={p.id: conductance[(p.id, p.polarity)].detach().clone() for p in self.plan.projections},
+            population_histories={name: history.export() for name, history in histories.items()},
+            input_histories=next_input_histories,
+        )
         return ExecutionResult(
             executor="graph", outputs=outputs, recordings=packed,
             parameters={k: v.detach().clone() for k, v in self.parameter_map().items()},
             final_state={f"{k}.voltage": v.detach().clone() for k, v in voltage.items()},
+            runtime_state=next_runtime_state,
             model=self,
         )
 
@@ -344,7 +715,7 @@ def build(spec: ExecutionSpec) -> ExecutionResult:
     return ExecutionResult(executor="graph", model=model, parameters=model.parameter_map(), metrics={"build_s": time.perf_counter() - started})
 
 
-def simulate(spec: ExecutionSpec) -> ExecutionResult:
+def simulate(spec: ExecutionSpec, *, runtime_state: GraphRuntimeState | None = None) -> ExecutionResult:
     if spec.executor != "graph":
         return ExecutionResult(executor="legacy", metrics={"request": "simulate", "routing": "legacy"})
     built = build(spec)
@@ -353,11 +724,21 @@ def simulate(spec: ExecutionSpec) -> ExecutionResult:
         built.model.load_state_dict(torch.load(spec.checkpoint, map_location=spec.device, weights_only=True))
     tracemalloc.start()
     started = time.perf_counter()
-    result = built.model({k: v.to(spec.device) for k, v in spec.inputs.items()}, record=spec.record)
+    result = built.model(
+        {k: v.to(spec.device) for k, v in spec.inputs.items()},
+        record=spec.record,
+        runtime_state=runtime_state if runtime_state is not None else spec.runtime_state,
+    )
     elapsed = time.perf_counter() - started
     _, peak = tracemalloc.get_traced_memory()
     tracemalloc.stop()
     result.metrics.update({"simulate_s": elapsed, "peak_python_bytes": peak, **built.metrics})
+    if result.runtime_state is not None:
+        result.metrics.update({
+            "runtime_state_schema": RUNTIME_STATE_SCHEMA,
+            "runtime_state_signature": result.runtime_state.signature,
+            "completed_steps": result.runtime_state.completed_steps,
+        })
     return result
 
 
