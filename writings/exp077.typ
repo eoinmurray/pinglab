@@ -96,7 +96,7 @@
   1. *Generated and validated filter-matched pixel features.* Every image used
     a #presentation-ms ms presentation and #dt-ms ms timestep. The tested rates
     were #training-rate-text Hz, with dense sampling below 5 Hz and an upper
-    bound of 25 Hz. Seeds #seed-text defined independent feature and empirical
+    bound of 25 Hz, which has previously been show to have good performance in trained PING networks. Seeds #seed-text defined independent feature and empirical
     response table runs.
 
     The rate grid and deterministic MNIST training and validation indices were
@@ -106,9 +106,8 @@
 
     Each pixel drove an independent AMPA synapse and uncoupled, non-spiking
     excitatory membrane, capturing AMPA decay, conductance-dependent integration,
-    and within-window timing that raw counts omit. This probe has no threshold,
-    reset, recurrence, or trained weights. It used the target PING cell's
-    decay-then-add synapse and exponential-Euler membrane update.
+    and within-window timing that raw Poisson encoded spike counts would omit. This probe has no threshold,
+    reset, recurrence, or trained weights.
 
     The complete feature path is
 
@@ -124,8 +123,7 @@
 
     Here x#sub[i] is grayscale pixel-intensity, r is the encoding rate in spikes
     per second at pixel-intensity one, Δt is the timestep in seconds, and
-    Bernoulli is an independent binary draw. Configurations with probability
-    above one are invalid.
+    Bernoulli is an independent binary draw.
 
     We updated the AMPA conductance using
 
@@ -137,7 +135,7 @@
     decay time, w#sub[probe] is conductance added per spike, and exp is the
     exponential function. Other symbols follow Equation 2. The primary 1.2 μS
     probe is the target architecture's nominal mean initial pixel-to-excitatory
-    conductance; 0.6 and 2.4 μS test half and double scale.
+    conductance; 0.6 and 2.4 μS test half and double scale for comparison.
 
     We integrated the membrane without thresholding or resetting:
 
@@ -159,15 +157,10 @@
     voltage. We did not divide by rate or disclose it to either decoder, so
     lower rates retain their weaker, noisier signal.
 
-    Focused tests covered encoder probability, count moments, pixel independence,
+    Focused tests covered per-timestep spike probability, count moments, pixel independence,
     AMPA decay, exponential-Euler voltage updates, deterministic replay,
     agreement with one uncoupled target-PING excitatory cell, and spike-timing
-    sensitivity. All #r.validations.len() checks passed. At the seeded count
-    validation point, the expected and observed mean counts were
-    #rounded(r.validations.spike_count_moments.expected_mean) and
-    #rounded(r.validations.spike_count_moments.empirical_mean); the largest
-    absolute inter-channel count correlation was
-    #rounded(r.validations.pixel_independence.maximum_absolute_count_correlation).
+    sensitivity.
 
   2. *Generated and evaluated the empirical response table.* Before
     generating the response table, we evaluated candidate draw counts K of 64,

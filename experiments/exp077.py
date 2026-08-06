@@ -161,7 +161,7 @@ def encode_poisson(
         raise ValueError("pixel intensities must lie in [0, 1]")
     probability = rate_hz * (DT_MS / 1000.0) * values
     if np.any((probability < 0.0) | (probability > 1.0)):
-        raise ValueError("Bernoulli encoder probability must lie in [0, 1]")
+        raise ValueError("per-timestep spike probability must lie in [0, 1]")
     return rng.random((N_TIMESTEPS, *values.shape)) < probability
 
 
