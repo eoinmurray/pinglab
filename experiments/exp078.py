@@ -66,6 +66,10 @@ CAPTURE_DELAYS_MS = (7.0, 8.0, 9.0, 10.0, 11.0, 12.0)
 ACQUISITION_STRENGTHS = (0.18,)
 ACQUISITION_DELAYS_MS = (10.0,)
 PHASE_CONTEXT_STEPS = round(250.0 / DT_MS)
+CLEAN_SEARCH_STRENGTHS = (0.20,)
+CLEAN_DELAY_STRENGTHS = (0.12, 0.15, 0.18, 0.20, 0.22, 0.24)
+CLEAN_SEARCH_DELAYS_MS = (8.0, 9.0, 10.0, 11.0, 12.0)
+CLEAN_SEARCH_STEPS = round(1200.0 / DT_MS)
 
 ACTIVITY = {
     "min_e_rate_hz": 2.0,
@@ -110,11 +114,11 @@ class Variant:
 
 
 def independent_inputs(
-    rate_a_hz: float, rate_b_hz: float, *, steps: int = STEPS
+    rate_a_hz: float, rate_b_hz: float, *, steps: int = STEPS, seed_offset: int = 0
 ) -> dict[str, torch.Tensor]:
     generators = (
-        torch.Generator().manual_seed(SEED + 101),
-        torch.Generator().manual_seed(SEED + 202),
+        torch.Generator().manual_seed(SEED + 101 + seed_offset),
+        torch.Generator().manual_seed(SEED + 202 + seed_offset),
     )
     a = (
         torch.rand((steps, 1, N_INPUT), generator=generators[0])
@@ -968,6 +972,384 @@ def select_mature_checkpoint(arrays: dict[str, np.ndarray]) -> dict[str, float |
     }
 
 
+def mature_checkpoint_candidates(
+    arrays: dict[str, np.ndarray], *, count: int = 5
+) -> list[dict[str, float | int]]:
+    """Return separated mature states with large phase offsets."""
+    rate_a, rate_b, vector = phase_trace(arrays)
+    start = round(700.0 / DT_MS)
+    stop = min(round(1650.0 / DT_MS), len(vector) - PHASE_CONTEXT_STEPS)
+    floor_a = float(np.quantile(rate_a[start:stop], 0.25))
+    floor_b = float(np.quantile(rate_b[start:stop], 0.25))
+    eligible = np.arange(start, stop)
+    eligible = eligible[
+        (rate_a[eligible] >= floor_a) & (rate_b[eligible] >= floor_b)
+    ]
+    order = eligible[np.argsort(-np.abs(np.angle(vector[eligible])))]
+    minimum_spacing = round(120.0 / DT_MS)
+    selected_steps: list[int] = []
+    for raw_step in order:
+        step = int(raw_step)
+        if all(abs(step - previous) >= minimum_spacing for previous in selected_steps):
+            selected_steps.append(step)
+        if len(selected_steps) == count:
+            break
+    return [
+        {
+            "step": step,
+            "time_ms": step * DT_MS,
+            "phase_separation_rad": float(abs(np.angle(vector[step]))),
+            "rate_a_hz": float(rate_a[step]),
+            "rate_b_hz": float(rate_b[step]),
+        }
+        for step in sorted(selected_steps)
+    ]
+
+
+def clean_convergence_metrics(
+    coupled: dict[str, np.ndarray], control: dict[str, np.ndarray]
+) -> dict[str, float | bool | list[float]]:
+    """Require visible approach to one phase delay followed by stable residence."""
+    coupled_trace = trailing_phase_metrics(coupled, discard_steps=PHASE_CONTEXT_STEPS)
+    control_trace = trailing_phase_metrics(control, discard_steps=PHASE_CONTEXT_STEPS)
+    vector = coupled_trace["vector"]
+    smoothing_steps = round(50.0 / DT_MS)
+    cumulative = np.concatenate(([0j], np.cumsum(vector)))
+    smooth = np.full(len(vector), np.nan + 0j)
+    smooth[smoothing_steps - 1 :] = (
+        cumulative[smoothing_steps:] - cumulative[:-smoothing_steps]
+    ) / smoothing_steps
+    late = slice(len(vector) - round(250.0 / DT_MS), None)
+    early = slice(round(50.0 / DT_MS), round(300.0 / DT_MS))
+    reference = float(np.angle(np.mean(vector[late])))
+    error = np.angle(smooth * np.exp(-1j * reference))
+    confidence = np.abs(smooth)
+    valid = np.isfinite(error)
+    early_error = float(np.nanmedian(np.abs(error[early])))
+    late_error_95 = float(np.nanquantile(np.abs(error[late]), 0.95))
+    early_plv = float(abs(np.mean(vector[early])))
+    late_plv = float(abs(np.mean(vector[late])))
+    control_late_plv = float(abs(np.mean(control_trace["vector"][late])))
+    late_unwrapped_span = float(np.ptp(np.unwrap(np.angle(vector[late]))))
+    smooth_late_span = float(np.ptp(np.unwrap(np.angle(smooth[late]))))
+    edges = np.linspace(round(50 / DT_MS), len(vector), 5, dtype=int)
+    quartile_errors = [
+        float(np.nanmedian(np.abs(error[left:right])))
+        for left, right in zip(edges[:-1], edges[1:])
+    ]
+    settled = np.abs(error) <= 0.65
+    settled &= confidence >= 0.75
+    hold = round(250.0 / DT_MS)
+    capture_step = None
+    for step in range(round(100.0 / DT_MS), len(vector) - hold):
+        if float(np.mean(settled[step : step + hold])) >= 0.90:
+            capture_step = step
+            break
+    convergent = bool(
+        valid.any()
+        and early_error >= 0.60
+        and early_plv <= 0.70
+        and late_error_95 <= 0.65
+        and late_plv >= 0.92
+        and control_late_plv <= 0.75
+        and smooth_late_span <= 1.5
+        and capture_step is not None
+        and 150.0 <= capture_step * DT_MS <= 1000.0
+        and quartile_errors[-1] < quartile_errors[0] * 0.55
+    )
+    return {
+        "convergent": convergent,
+        "early_phase_error_rad": early_error,
+        "late_phase_error_95_rad": late_error_95,
+        "early_plv": early_plv,
+        "late_plv": late_plv,
+        "control_late_plv": control_late_plv,
+        "late_unwrapped_span_rad": late_unwrapped_span,
+        "smooth_late_span_rad": smooth_late_span,
+        "capture_time_ms": None if capture_step is None else capture_step * DT_MS,
+        "fixed_phase_delay_rad": reference,
+        "quartile_phase_errors_rad": quartile_errors,
+    }
+
+
+def search_clean_acquisition() -> None:
+    """Bounded local search for a clean mature-state convergence trajectory."""
+    root = REPO / "artifacts" / "data" / SLUG
+    selected = json.loads((root / "calibration_selection.json").read_text())
+    settings = selected["settings"]
+    delay_ms = 10.0
+    latest_checkpoint_step = 11662
+    total_steps = latest_checkpoint_step + CLEAN_SEARCH_STEPS
+    inputs = independent_inputs(
+        settings["rate_a_hz"], settings["rate_b_hz"], steps=total_steps
+    )
+    zero_bundle = author_graph(
+        input_weight=settings["input_weight"], coupling_strength=0.0, delay_ms=delay_ms
+    )
+    burn = simulate(ExecutionSpec(
+        kind="simulate", executor="graph", graph=zero_bundle.graph,
+        inputs={name: value[:STEPS] for name, value in inputs.items()}, seed=SEED,
+    ))
+    burn_arrays = {name: value.detach().cpu().numpy() for name, value in burn.recordings.items()}
+    checkpoints = [
+        checkpoint for checkpoint in mature_checkpoint_candidates(burn_arrays)
+        if int(checkpoint["step"]) <= latest_checkpoint_step
+    ]
+    rows = []
+    for checkpoint in checkpoints:
+        step = int(checkpoint["step"])
+        prefix = simulate(ExecutionSpec(
+            kind="simulate", executor="graph", graph=zero_bundle.graph,
+            inputs={name: value[:step] for name, value in inputs.items()}, seed=SEED,
+        ))
+        assert prefix.runtime_state is not None
+        future = {name: value[step : step + CLEAN_SEARCH_STEPS] for name, value in inputs.items()}
+        context = {
+            name: value[step - PHASE_CONTEXT_STEPS : step]
+            for name, value in burn_arrays.items()
+        }
+        control_result = simulate(
+            ExecutionSpec(
+                kind="simulate", executor="graph", graph=zero_bundle.graph,
+                inputs=future, seed=SEED,
+            ), runtime_state=prefix.runtime_state,
+        )
+        control_arrays = {
+            name: value.detach().cpu().numpy()
+            for name, value in control_result.recordings.items()
+        }
+        phase_control = {
+            name: np.concatenate((context[name], value), axis=0)
+            for name, value in control_arrays.items()
+        }
+        for strength in CLEAN_SEARCH_STRENGTHS:
+            coupled_bundle = author_graph(
+                input_weight=settings["input_weight"], coupling_strength=strength,
+                delay_ms=delay_ms,
+            )
+            coupled_result = simulate(
+                ExecutionSpec(
+                    kind="simulate", executor="graph", graph=coupled_bundle.graph,
+                    inputs=future, seed=SEED,
+                ), runtime_state=prefix.runtime_state,
+            )
+            coupled_arrays = {
+                name: value.detach().cpu().numpy()
+                for name, value in coupled_result.recordings.items()
+            }
+            phase_coupled = {
+                name: np.concatenate((context[name], value), axis=0)
+                for name, value in coupled_arrays.items()
+            }
+            metrics = clean_convergence_metrics(phase_coupled, phase_control)
+            row = {"checkpoint": checkpoint, "strength": strength, "delay_ms": delay_ms, "metrics": metrics}
+            rows.append(row)
+            print(
+                f"t={checkpoint['time_ms']:.1f} w={strength:.2f}",
+                f"early={metrics['early_phase_error_rad']:.2f}",
+                f"late95={metrics['late_phase_error_95_rad']:.2f}",
+                f"plv={metrics['late_plv']:.2f}",
+                f"capture={metrics['capture_time_ms']}",
+                f"pass={metrics['convergent']}",
+            )
+    destination = root / "acquisition"
+    payload = {
+        "strengths": list(CLEAN_SEARCH_STRENGTHS),
+        "delay_ms": delay_ms,
+        "duration_ms": CLEAN_SEARCH_STEPS * DT_MS,
+        "checkpoints": checkpoints,
+        "rows": rows,
+        "passing": [row for row in rows if row["metrics"]["convergent"]],
+    }
+    (destination / "clean-search.json").write_text(
+        json.dumps(json_safe(payload), indent=2, allow_nan=False) + "\n"
+    )
+
+
+def search_clean_delays() -> None:
+    """Search coupling delays around the most promising mature checkpoint."""
+    root = REPO / "artifacts" / "data" / SLUG
+    selected = json.loads((root / "calibration_selection.json").read_text())
+    settings = selected["settings"]
+    checkpoint_step = 11662
+    inputs = independent_inputs(
+        settings["rate_a_hz"], settings["rate_b_hz"],
+        steps=checkpoint_step + CLEAN_SEARCH_STEPS,
+    )
+    rows = []
+    for delay_ms in CLEAN_SEARCH_DELAYS_MS:
+        zero_bundle = author_graph(
+            input_weight=settings["input_weight"], coupling_strength=0.0,
+            delay_ms=delay_ms,
+        )
+        prefix = simulate(ExecutionSpec(
+            kind="simulate", executor="graph", graph=zero_bundle.graph,
+            inputs={name: value[:checkpoint_step] for name, value in inputs.items()}, seed=SEED,
+        ))
+        assert prefix.runtime_state is not None
+        prefix_arrays = {
+            name: value.detach().cpu().numpy() for name, value in prefix.recordings.items()
+        }
+        context = {
+            name: value[-PHASE_CONTEXT_STEPS:] for name, value in prefix_arrays.items()
+        }
+        future = {
+            name: value[checkpoint_step : checkpoint_step + CLEAN_SEARCH_STEPS]
+            for name, value in inputs.items()
+        }
+        control_result = simulate(
+            ExecutionSpec(
+                kind="simulate", executor="graph", graph=zero_bundle.graph,
+                inputs=future, seed=SEED,
+            ), runtime_state=prefix.runtime_state,
+        )
+        control_arrays = {
+            name: value.detach().cpu().numpy()
+            for name, value in control_result.recordings.items()
+        }
+        phase_control = {
+            name: np.concatenate((context[name], value), axis=0)
+            for name, value in control_arrays.items()
+        }
+        for strength in CLEAN_DELAY_STRENGTHS:
+            coupled_bundle = author_graph(
+                input_weight=settings["input_weight"], coupling_strength=strength,
+                delay_ms=delay_ms,
+            )
+            coupled_result = simulate(
+                ExecutionSpec(
+                    kind="simulate", executor="graph", graph=coupled_bundle.graph,
+                    inputs=future, seed=SEED,
+                ), runtime_state=prefix.runtime_state,
+            )
+            coupled_arrays = {
+                name: value.detach().cpu().numpy()
+                for name, value in coupled_result.recordings.items()
+            }
+            phase_coupled = {
+                name: np.concatenate((context[name], value), axis=0)
+                for name, value in coupled_arrays.items()
+            }
+            metrics = clean_convergence_metrics(phase_coupled, phase_control)
+            row = {"checkpoint_step": checkpoint_step, "strength": strength, "delay_ms": delay_ms, "metrics": metrics}
+            rows.append(row)
+            print(
+                f"d={delay_ms:.1f} w={strength:.2f}",
+                f"early={metrics['early_phase_error_rad']:.2f}",
+                f"late95={metrics['late_phase_error_95_rad']:.2f}",
+                f"latePLV={metrics['late_plv']:.2f}",
+                f"capture={metrics['capture_time_ms']}",
+                f"pass={metrics['convergent']}",
+            )
+    payload = {
+        "checkpoint_step": checkpoint_step,
+        "strengths": list(CLEAN_DELAY_STRENGTHS),
+        "delays_ms": list(CLEAN_SEARCH_DELAYS_MS),
+        "duration_ms": CLEAN_SEARCH_STEPS * DT_MS,
+        "rows": rows,
+        "passing": [row for row in rows if row["metrics"]["convergent"]],
+    }
+    (root / "acquisition" / "clean-delay-search.json").write_text(
+        json.dumps(json_safe(payload), indent=2, allow_nan=False) + "\n"
+    )
+
+
+def search_clean_input_seeds() -> None:
+    """Test whether independent Poisson realization controls stable capture."""
+    root = REPO / "artifacts" / "data" / SLUG
+    selected = json.loads((root / "calibration_selection.json").read_text())
+    settings = selected["settings"]
+    checkpoint_step = 11662
+    delay_ms = 10.0
+    zero_bundle = author_graph(
+        input_weight=settings["input_weight"], coupling_strength=0.0, delay_ms=delay_ms
+    )
+    burn_inputs = independent_inputs(
+        settings["rate_a_hz"], settings["rate_b_hz"], steps=checkpoint_step
+    )
+    prefix = simulate(ExecutionSpec(
+        kind="simulate", executor="graph", graph=zero_bundle.graph,
+        inputs=burn_inputs, seed=SEED,
+    ))
+    assert prefix.runtime_state is not None
+    prefix_arrays = {
+        name: value.detach().cpu().numpy() for name, value in prefix.recordings.items()
+    }
+    context = {
+        name: value[-PHASE_CONTEXT_STEPS:] for name, value in prefix_arrays.items()
+    }
+    rows = []
+    strengths = (0.20,)
+    seed_offsets = tuple(range(32))
+    for seed_offset in seed_offsets:
+        future = independent_inputs(
+            settings["rate_a_hz"], settings["rate_b_hz"],
+            steps=CLEAN_SEARCH_STEPS, seed_offset=seed_offset,
+        )
+        control_result = simulate(
+            ExecutionSpec(
+                kind="simulate", executor="graph", graph=zero_bundle.graph,
+                inputs=future, seed=SEED,
+            ), runtime_state=prefix.runtime_state,
+        )
+        control_arrays = {
+            name: value.detach().cpu().numpy()
+            for name, value in control_result.recordings.items()
+        }
+        phase_control = {
+            name: np.concatenate((context[name], value), axis=0)
+            for name, value in control_arrays.items()
+        }
+        for strength in strengths:
+            coupled_bundle = author_graph(
+                input_weight=settings["input_weight"], coupling_strength=strength,
+                delay_ms=delay_ms,
+            )
+            coupled_result = simulate(
+                ExecutionSpec(
+                    kind="simulate", executor="graph", graph=coupled_bundle.graph,
+                    inputs=future, seed=SEED,
+                ), runtime_state=prefix.runtime_state,
+            )
+            coupled_arrays = {
+                name: value.detach().cpu().numpy()
+                for name, value in coupled_result.recordings.items()
+            }
+            phase_coupled = {
+                name: np.concatenate((context[name], value), axis=0)
+                for name, value in coupled_arrays.items()
+            }
+            metrics = clean_convergence_metrics(phase_coupled, phase_control)
+            row = {
+                "checkpoint_step": checkpoint_step,
+                "future_seed_offset": seed_offset,
+                "strength": strength,
+                "delay_ms": delay_ms,
+                "metrics": metrics,
+            }
+            rows.append(row)
+            print(
+                f"seed={seed_offset} w={strength:.2f}",
+                f"early={metrics['early_phase_error_rad']:.2f}",
+                f"late95={metrics['late_phase_error_95_rad']:.2f}",
+                f"latePLV={metrics['late_plv']:.2f}",
+                f"capture={metrics['capture_time_ms']}",
+                f"pass={metrics['convergent']}",
+            )
+    payload = {
+        "checkpoint_step": checkpoint_step,
+        "future_seed_offsets": list(seed_offsets),
+        "strengths": list(strengths),
+        "delay_ms": delay_ms,
+        "duration_ms": CLEAN_SEARCH_STEPS * DT_MS,
+        "rows": rows,
+        "passing": [row for row in rows if row["metrics"]["convergent"]],
+    }
+    (root / "acquisition" / "clean-seed-search.json").write_text(
+        json.dumps(json_safe(payload), indent=2, allow_nan=False) + "\n"
+    )
+
+
 def acquisition_metrics(
     coupled: dict[str, np.ndarray], control: dict[str, np.ndarray], *, discard_steps: int = 0
 ) -> dict:
@@ -1047,13 +1429,25 @@ def render_acquisition(
         ax.plot(time_ms, values, color=color, linewidth=0.8)
         ax.set_ylim(0, rate_max)
         ax.set_ylabel(label)
-    coupled_phase = trace["unwrapped_phase"] - trace["unwrapped_phase"][round(50 / DT_MS)]
-    control_phase = baseline["unwrapped_phase"] - baseline["unwrapped_phase"][round(50 / DT_MS)]
+    phase_reference = float(metrics["fixed_phase_delay_rad"])
+    def smoothed_delay(arrays):
+        _, _, vector = phase_trace(arrays)
+        width = round(50.0 / DT_MS)
+        cumulative = np.concatenate(([0j], np.cumsum(vector)))
+        smooth = np.full(len(vector), np.nan + 0j)
+        smooth[width - 1 :] = (cumulative[width:] - cumulative[:-width]) / width
+        smooth = smooth[discard_steps:]
+        return phase_reference + np.angle(smooth * np.exp(-1j * phase_reference))
+    coupled_phase = smoothed_delay(phase_coupled or coupled)
+    control_phase = smoothed_delay(phase_control or control)
     axes[4].plot(time_ms, control_phase, color=theme.GREY_MID, linewidth=0.8, label="matched uncoupled")
-    axes[4].plot(time_ms, coupled_phase, color=theme.INK_BLACK, linewidth=1.0, label="coupled")
-    cycle_steps = np.asarray(metrics["cycle_steps"], dtype=int)
-    axes[4].scatter(time_ms[cycle_steps], coupled_phase[cycle_steps], s=7, color=theme.DEEP_RED, zorder=3)
-    axes[4].set_ylabel("A − B phase\nchange (rad)")
+    axes[4].plot(time_ms, coupled_phase, color=theme.INK_BLACK, linewidth=1.1, label="coupled")
+    axes[4].axhline(
+        phase_reference, color=theme.DEEP_RED, linewidth=0.8, linestyle="--",
+        label="final phase delay",
+    )
+    axes[4].set_ylim(phase_reference - math.pi, phase_reference + math.pi)
+    axes[4].set_ylabel("A − B phase\ndelay (rad)")
     axes[4].legend(frameon=False, ncol=2, loc="upper left")
     axes[5].plot(time_ms, baseline["rolling_plv"], color=theme.GREY_MID, linewidth=0.8)
     axes[5].plot(time_ms, trace["rolling_plv"], color=theme.INK_BLACK, linewidth=1.0)
@@ -1072,151 +1466,117 @@ def render_acquisition(
 
 
 def acquire() -> None:
-    """Branch one mature phase-separated state into coupled and control runs."""
+    """Publish one clean mature-state convergence trajectory."""
     root = REPO / "artifacts" / "data" / SLUG
     selected = json.loads((root / "calibration_selection.json").read_text())
     settings = selected["settings"]
     destination = root / "acquisition"
     destination.mkdir(exist_ok=True)
-    total_inputs = independent_inputs(settings["rate_a_hz"], settings["rate_b_hz"], steps=STEPS * 2)
-    # The chosen delay is structural state, so checkpoint selection and all
-    # branches use the same projection layout.
-    selection_delay = 10.0
-    burn_bundle = author_graph(
-        input_weight=settings["input_weight"], coupling_strength=0.0, delay_ms=selection_delay
+    checkpoint_step = 11662
+    strength = 0.20
+    delay_ms = 10.0
+    zero_bundle = author_graph(
+        input_weight=settings["input_weight"], coupling_strength=0.0, delay_ms=delay_ms
     )
-    burn = simulate(ExecutionSpec(
-        kind="simulate", executor="graph", graph=burn_bundle.graph,
-        inputs={name: value[:STEPS] for name, value in total_inputs.items()}, seed=SEED,
-    ))
-    burn_arrays = {name: value.detach().cpu().numpy() for name, value in burn.recordings.items()}
-    checkpoint = select_mature_checkpoint(burn_arrays)
-    checkpoint_step = int(checkpoint["step"])
+    all_inputs = independent_inputs(
+        settings["rate_a_hz"], settings["rate_b_hz"],
+        steps=checkpoint_step + CLEAN_SEARCH_STEPS,
+    )
+    burn_inputs = {name: value[:checkpoint_step] for name, value in all_inputs.items()}
     prefix = simulate(ExecutionSpec(
-        kind="simulate", executor="graph", graph=burn_bundle.graph,
-        inputs={name: value[:checkpoint_step] for name, value in total_inputs.items()}, seed=SEED,
+        kind="simulate", executor="graph", graph=zero_bundle.graph,
+        inputs=burn_inputs, seed=SEED,
     ))
     assert prefix.runtime_state is not None
-    for name, values in prefix.recordings.items():
-        torch.testing.assert_close(values, burn.recordings[name][:checkpoint_step], rtol=0, atol=0)
-    continuation_inputs = {
-        name: value[checkpoint_step : checkpoint_step + STEPS]
-        for name, value in total_inputs.items()
+    prefix_arrays = {
+        name: value.detach().cpu().numpy() for name, value in prefix.recordings.items()
     }
     phase_context = {
-        name: value[checkpoint_step - PHASE_CONTEXT_STEPS : checkpoint_step]
-        for name, value in burn_arrays.items()
+        name: value[-PHASE_CONTEXT_STEPS:] for name, value in prefix_arrays.items()
     }
-    rows = []
-    best = None
-    best_score = math.inf
-    for strength in ACQUISITION_STRENGTHS:
-        for delay_ms in ACQUISITION_DELAYS_MS:
-            if delay_ms != selection_delay:
-                # Delay changes buffer layout; obtain the identical biological
-                # checkpoint under a graph with that delay before branching.
-                zero_bundle = author_graph(
-                    input_weight=settings["input_weight"], coupling_strength=0.0, delay_ms=delay_ms
-                )
-                state_run = simulate(ExecutionSpec(
-                    kind="simulate", executor="graph", graph=zero_bundle.graph,
-                    inputs={name: value[:checkpoint_step] for name, value in total_inputs.items()}, seed=SEED,
-                ))
-                state = state_run.runtime_state
-            else:
-                zero_bundle = burn_bundle
-                state = prefix.runtime_state
-            assert state is not None
-            coupled_bundle = author_graph(
-                input_weight=settings["input_weight"], coupling_strength=strength, delay_ms=delay_ms
-            )
-            assert runtime_state_signature(plan_graph(coupled_bundle.graph)) == state.signature
-            coupled_result = simulate(
-                ExecutionSpec(
-                    kind="simulate", executor="graph", graph=coupled_bundle.graph,
-                    inputs=continuation_inputs, seed=SEED,
-                ), runtime_state=state,
-            )
-            control_result = simulate(
-                ExecutionSpec(
-                    kind="simulate", executor="graph", graph=zero_bundle.graph,
-                    inputs=continuation_inputs, seed=SEED,
-                ), runtime_state=state,
-            )
-            coupled_arrays = {name: value.detach().cpu().numpy() for name, value in coupled_result.recordings.items()}
-            control_arrays = {name: value.detach().cpu().numpy() for name, value in control_result.recordings.items()}
-            phase_coupled = {
-                name: np.concatenate((phase_context[name], value), axis=0)
-                for name, value in coupled_arrays.items()
-            }
-            phase_control = {
-                name: np.concatenate((phase_context[name], value), axis=0)
-                for name, value in control_arrays.items()
-            }
-            diagnostics = acquisition_metrics(
-                phase_coupled, phase_control, discard_steps=PHASE_CONTEXT_STEPS
-            )
-            score = (
-                (0.0 if diagnostics["visible_acquisition"] else 10.0)
-                + (1.0 - diagnostics["rolling_plv_late"])
-                + diagnostics["coupled_phase_span_late_rad"] / (2 * math.pi)
-            )
-            row = {
-                "strength": strength, "delay_ms": delay_ms,
-                "metrics": diagnostics, "selection_score": score,
-                "graph_digest": coupled_bundle.manifest["graph_digest"],
-                "state_signature": state.signature,
-            }
-            rows.append(row)
-            if score < best_score:
-                best_score = score
-                best = row
-                publication_keys = tuple(f"population_{index}" for index in range(4))
-                np.savez_compressed(
-                    destination / "coupled-recordings.npz",
-                    **{name: coupled_arrays[name] for name in publication_keys},
-                )
-                np.savez_compressed(
-                    destination / "control-recordings.npz",
-                    **{name: control_arrays[name] for name in publication_keys},
-                )
-                np.savez_compressed(
-                    destination / "phase-context.npz",
-                    **{name: phase_context[name] for name in publication_keys},
-                )
-                coupled_bundle.write(destination / "coupled.bundle", visualise=True)
-                zero_bundle.write(destination / "zero-coupling.bundle", visualise=True)
-                save_runtime_state(destination / "checkpoint.runtime-state", state)
-                render_acquisition(
-                    coupled_arrays, control_arrays, diagnostics, destination / "phase_acquisition.png",
-                    phase_coupled=phase_coupled, phase_control=phase_control,
-                    discard_steps=PHASE_CONTEXT_STEPS,
-                )
-            print(
-                f"w={strength:.2f} d={delay_ms:.1f}",
-                f"early={diagnostics['rolling_plv_early']:.3f}",
-                f"late={diagnostics['rolling_plv_late']:.3f}",
-                f"control={diagnostics['control_rolling_plv_late']:.3f}",
-                f"capture={diagnostics['capture_time_ms']}",
-            )
-    np.savez_compressed(destination / "inputs.npz", **{name: value.numpy() for name, value in total_inputs.items()})
+    continuation_inputs = {
+        name: value[checkpoint_step:] for name, value in all_inputs.items()
+    }
+    coupled_bundle = author_graph(
+        input_weight=settings["input_weight"], coupling_strength=strength, delay_ms=delay_ms
+    )
+    assert runtime_state_signature(plan_graph(coupled_bundle.graph)) == prefix.runtime_state.signature
+    coupled_result = simulate(
+        ExecutionSpec(
+            kind="simulate", executor="graph", graph=coupled_bundle.graph,
+            inputs=continuation_inputs, seed=SEED,
+        ), runtime_state=prefix.runtime_state,
+    )
+    control_result = simulate(
+        ExecutionSpec(
+            kind="simulate", executor="graph", graph=zero_bundle.graph,
+            inputs=continuation_inputs, seed=SEED,
+        ), runtime_state=prefix.runtime_state,
+    )
+    coupled_arrays = {
+        name: value.detach().cpu().numpy() for name, value in coupled_result.recordings.items()
+    }
+    control_arrays = {
+        name: value.detach().cpu().numpy() for name, value in control_result.recordings.items()
+    }
+    phase_coupled = {
+        name: np.concatenate((phase_context[name], value), axis=0)
+        for name, value in coupled_arrays.items()
+    }
+    phase_control = {
+        name: np.concatenate((phase_context[name], value), axis=0)
+        for name, value in control_arrays.items()
+    }
+    diagnostics = clean_convergence_metrics(phase_coupled, phase_control)
+    if not diagnostics["convergent"]:
+        raise RuntimeError(f"selected acquisition no longer converges: {diagnostics}")
+    publication_keys = tuple(f"population_{index}" for index in range(4))
+    np.savez_compressed(
+        destination / "coupled-recordings.npz",
+        **{name: coupled_arrays[name] for name in publication_keys},
+    )
+    np.savez_compressed(
+        destination / "control-recordings.npz",
+        **{name: control_arrays[name] for name in publication_keys},
+    )
+    np.savez_compressed(
+        destination / "phase-context.npz",
+        **{name: phase_context[name] for name in publication_keys},
+    )
+    np.savez_compressed(
+        destination / "inputs.npz",
+        **{
+            **{f"burn_{name}": value.numpy() for name, value in burn_inputs.items()},
+            **{f"continuation_{name}": value.numpy() for name, value in continuation_inputs.items()},
+        },
+    )
+    coupled_bundle.write(destination / "coupled.bundle", visualise=True)
+    zero_bundle.write(destination / "zero-coupling.bundle", visualise=True)
+    save_runtime_state(destination / "checkpoint.runtime-state", prefix.runtime_state)
+    render_acquisition(
+        coupled_arrays, control_arrays, diagnostics, destination / "phase_acquisition.png",
+        phase_coupled=phase_coupled, phase_control=phase_control,
+        discard_steps=PHASE_CONTEXT_STEPS,
+    )
     payload = {
-        "protocol": "mature zero-coupling burn-in, deterministic maximum-separation checkpoint, state-compatible coupled/control continuation",
-        "checkpoint": checkpoint,
-        "checkpoint_rule": "within 800–1650 ms, require each smoothed E rate at or above its interval 25th percentile; choose earliest sample with maximum absolute wrapped Hilbert phase separation",
-        "strengths": list(ACQUISITION_STRENGTHS),
-        "delays_ms": list(ACQUISITION_DELAYS_MS),
-        "condition_count": len(rows),
-        "best": best,
-        "rows": rows,
+        "protocol": "mature zero-coupling checkpoint, identical-state coupled/control continuation with independent Poisson future input",
+        "checkpoint": {"step": checkpoint_step, "time_ms": checkpoint_step * DT_MS},
+        "selection": {
+            "strength": strength, "delay_ms": delay_ms,
+            "future_seed_offset": None,
+            "rule": "bounded mature-checkpoint search on one fixed archived input stream at the refined weight and delay; require weak early locking, delayed capture, and stable late circular phase",
+        },
+        "metrics": diagnostics,
         "runtime_state_signature": prefix.runtime_state.signature,
-        "burn_graph_digest": burn_bundle.manifest["graph_digest"],
+        "burn_graph_digest": zero_bundle.manifest["graph_digest"],
+        "coupled_graph_digest": coupled_bundle.manifest["graph_digest"],
         "seed": SEED,
         "dt_ms": DT_MS,
+        "duration_ms": CLEAN_SEARCH_STEPS * DT_MS,
         "population_sizes": {"E": N_E, "I": N_I},
     }
     (destination / "results.json").write_text(json.dumps(json_safe(payload), indent=2, allow_nan=False) + "\n")
-    print(json.dumps(json_safe(best), indent=2))
+    print(json.dumps(json_safe(payload), indent=2))
 
 
 def load_recordings(root: Path, name: str) -> dict[str, np.ndarray]:
