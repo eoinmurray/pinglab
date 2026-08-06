@@ -2,13 +2,13 @@
   "stage": "pilot",
   "probe_uS": 1.2,
   "seed": 42,
-  "elapsed_s": 13.630914821,
+  "elapsed_s": 11.908601792999999,
   "success": true,
   "error": null,
-  "artifact_sha256": "5efbbdd929ec8509cf2d748e247b4612cc06b6a51da82b5911b1a66ae2a8e0bc",
+  "artifact_sha256": "9c7b075f75ea862d133c89300a525fad80ae3384ef797776a05ca43e6011c886",
   "gpu": "L40S",
   "gpu_usd_per_second": 0.000542,
-  "estimated_cost_usd": 0.007387955832981999,
-  "dispatch_elapsed_s": 53.90853668306954,
+  "estimated_cost_usd": 0.0064544621718059985,
+  "dispatch_elapsed_s": 27.37053624703549,
   "exact_provider_billing": false
 }
