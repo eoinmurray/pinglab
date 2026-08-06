@@ -430,7 +430,7 @@
   _Signal and variability across the empirical response library._ For every
   rate--intensity condition, Panel A plots the mean feature z and Panel B its
   standard deviation across the authenticated draws, against encoding rate ×
-  normalized intensity × #presentation-ms ms. Each point is one observed
+  normalized pixel intensity × #presentation-ms ms. Each point is one observed
   rate--intensity condition; colour encodes probe conductance, and the inset
   reports exact-zero mass at full intensity. Both moments
   rise because larger expected spike counts deliver more stochastic conductance;
