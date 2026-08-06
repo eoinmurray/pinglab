@@ -2885,6 +2885,7 @@ def finalize_step5() -> dict[str, Any]:
                     "selected_linear_weight_decay": training[
                         "selected_linear_weight_decay"
                     ],
+                    "rate_sample_counts": training["rate_sample_counts"],
                     "history": training["history"],
                     "runtime_s": training["runtime_s"],
                     "modal_elapsed_s": modal["elapsed_s"],
@@ -2939,6 +2940,13 @@ def finalize_step5() -> dict[str, Any]:
         "status": "complete",
         "completed_at_utc": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
         "records": records,
+        "input_diagnostics": {
+            "rate_sampling": "uniform categorical over the registered grid for every presentation",
+            "per_cell_rate_sample_counts_recorded": True,
+            "fresh_direct_features": True,
+            "feature_bounds_mV": [0.0, 65.0],
+            "firing_rate": "not applicable: the registered pixel probe is explicitly subthreshold and non-spiking",
+        },
         "figure_path": str(figure_path.relative_to(REPO)),
         "figure_sha256": sha256_file(figure_path),
         "successful_step5_estimated_cost_usd": sum(
@@ -3301,9 +3309,19 @@ def step_7() -> None:
     )
     step5 = json.loads((FIGURES / "step5_outcome.json").read_text())
     modal_evaluation = json.loads((FIGURES / "step6" / "modal.json").read_text())
-    total_cost = float(step5["cumulative_estimated_cost_usd"]) + float(
+    estimated_total_cost = float(step5["cumulative_estimated_cost_usd"]) + float(
         modal_evaluation["estimated_cost_usd"]
     )
+    billing_path = FIGURES / "modal_billing.json"
+    if not billing_path.exists():
+        raise RuntimeError("provider billing report must be captured before Step 7")
+    billing_rows = json.loads(billing_path.read_text())
+    relevant_billing = [
+        row
+        for row in billing_rows
+        if row.get("description") in {"pinglab-exp077", "pinglab-exp077-evaluation"}
+    ]
+    exact_total_cost = sum(float(row["cost"]) for row in relevant_billing)
     protocol_path = FIGURES / "frozen_evaluation_protocol.json"
     decision = {
         "status": "complete",
@@ -3322,7 +3340,7 @@ def step_7() -> None:
             "nominal_r_decode_observed": nominal["r_decode_hz"] is not None,
             "nominal_r_train_observed": nominal["r_train_hz"] is not None,
             "all_conductance_r_train_observed": all(value is not None for value in floors.values()),
-            "spend_within_40_usd_ceiling": total_cost <= 40.0,
+            "spend_within_40_usd_ceiling": exact_total_cost <= 40.0,
             "held_out_protocol_frozen_before_access": True,
         },
         "hashes": {
@@ -3342,9 +3360,12 @@ def step_7() -> None:
         },
         "compute": {
             "provider": "Modal",
-            "total_estimated_cost_usd": total_cost,
-            "exact_provider_billing": False,
-            "billing_note": "GPU-second ledger at the configured Modal SKU rate",
+            "total_exact_cost_usd": exact_total_cost,
+            "total_estimated_cost_usd": estimated_total_cost,
+            "exact_provider_billing": True,
+            "billing_report_path": str(billing_path.relative_to(REPO)),
+            "billing_report_sha256": sha256_file(billing_path),
+            "resource_rows": relevant_billing,
         },
         "scope": "decoder-relative thresholds only; no absolute information limit or PING accuracy claim",
     }
