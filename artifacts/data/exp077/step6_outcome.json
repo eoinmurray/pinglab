@@ -1,0 +1,374 @@
+{
+  "status": "complete",
+  "confidence": {
+    "level": 0.95,
+    "side": "one-sided lower percentile bound",
+    "bootstrap_repetitions": 2000,
+    "resampled_axes": [
+      "held-out images",
+      "direct-simulation draws",
+      "decoder seeds"
+    ]
+  },
+  "nonlinear": [
+    {
+      "probe_uS": 0.6,
+      "rate_hz": 0.25,
+      "accuracy": 0.4893,
+      "lower_95_one_sided": 0.4824877777777778,
+      "upper_95": 0.49605611111111114
+    },
+    {
+      "probe_uS": 0.6,
+      "rate_hz": 0.5,
+      "accuracy": 0.6726333333333333,
+      "lower_95_one_sided": 0.6664438888888888,
+      "upper_95": 0.679045
+    },
+    {
+      "probe_uS": 0.6,
+      "rate_hz": 0.75,
+      "accuracy": 0.7693555555555556,
+      "lower_95_one_sided": 0.7627333333333334,
+      "upper_95": 0.7762583333333334
+    },
+    {
+      "probe_uS": 0.6,
+      "rate_hz": 1.0,
+      "accuracy": 0.8259444444444445,
+      "lower_95_one_sided": 0.8192994444444445,
+      "upper_95": 0.8320683333333333
+    },
+    {
+      "probe_uS": 0.6,
+      "rate_hz": 1.5,
+      "accuracy": 0.8865222222222222,
+      "lower_95_one_sided": 0.8812666666666666,
+      "upper_95": 0.8918666666666667
+    },
+    {
+      "probe_uS": 0.6,
+      "rate_hz": 2.0,
+      "accuracy": 0.9143111111111111,
+      "lower_95_one_sided": 0.9097422222222222,
+      "upper_95": 0.9191005555555556
+    },
+    {
+      "probe_uS": 0.6,
+      "rate_hz": 2.5,
+      "accuracy": 0.9310888888888889,
+      "lower_95_one_sided": 0.9270322222222223,
+      "upper_95": 0.9352894444444444
+    },
+    {
+      "probe_uS": 0.6,
+      "rate_hz": 3.0,
+      "accuracy": 0.9401,
+      "lower_95_one_sided": 0.9359,
+      "upper_95": 0.9440111111111111
+    },
+    {
+      "probe_uS": 0.6,
+      "rate_hz": 4.0,
+      "accuracy": 0.9518777777777778,
+      "lower_95_one_sided": 0.9483433333333333,
+      "upper_95": 0.9553455555555556
+    },
+    {
+      "probe_uS": 0.6,
+      "rate_hz": 5.0,
+      "accuracy": 0.9586888888888889,
+      "lower_95_one_sided": 0.9549327777777777,
+      "upper_95": 0.9622
+    },
+    {
+      "probe_uS": 0.6,
+      "rate_hz": 10.0,
+      "accuracy": 0.9698111111111111,
+      "lower_95_one_sided": 0.9670772222222223,
+      "upper_95": 0.9724777777777778
+    },
+    {
+      "probe_uS": 0.6,
+      "rate_hz": 25.0,
+      "accuracy": 0.9747444444444444,
+      "lower_95_one_sided": 0.9720438888888889,
+      "upper_95": 0.9772783333333334
+    },
+    {
+      "probe_uS": 1.2,
+      "rate_hz": 0.25,
+      "accuracy": 0.4889,
+      "lower_95_one_sided": 0.48216611111111113,
+      "upper_95": 0.49607944444444446
+    },
+    {
+      "probe_uS": 1.2,
+      "rate_hz": 0.5,
+      "accuracy": 0.6669444444444445,
+      "lower_95_one_sided": 0.660865,
+      "upper_95": 0.6729444444444445
+    },
+    {
+      "probe_uS": 1.2,
+      "rate_hz": 0.75,
+      "accuracy": 0.7671333333333333,
+      "lower_95_one_sided": 0.7601661111111111,
+      "upper_95": 0.773835
+    },
+    {
+      "probe_uS": 1.2,
+      "rate_hz": 1.0,
+      "accuracy": 0.8235555555555556,
+      "lower_95_one_sided": 0.8181,
+      "upper_95": 0.82869
+    },
+    {
+      "probe_uS": 1.2,
+      "rate_hz": 1.5,
+      "accuracy": 0.8837555555555555,
+      "lower_95_one_sided": 0.879065,
+      "upper_95": 0.8884672222222222
+    },
+    {
+      "probe_uS": 1.2,
+      "rate_hz": 2.0,
+      "accuracy": 0.9138666666666667,
+      "lower_95_one_sided": 0.9093,
+      "upper_95": 0.9180333333333334
+    },
+    {
+      "probe_uS": 1.2,
+      "rate_hz": 2.5,
+      "accuracy": 0.9304888888888889,
+      "lower_95_one_sided": 0.9270322222222223,
+      "upper_95": 0.9342
+    },
+    {
+      "probe_uS": 1.2,
+      "rate_hz": 3.0,
+      "accuracy": 0.9398777777777778,
+      "lower_95_one_sided": 0.9357655555555555,
+      "upper_95": 0.9436
+    },
+    {
+      "probe_uS": 1.2,
+      "rate_hz": 4.0,
+      "accuracy": 0.9525,
+      "lower_95_one_sided": 0.9492216666666666,
+      "upper_95": 0.9557777777777777
+    },
+    {
+      "probe_uS": 1.2,
+      "rate_hz": 5.0,
+      "accuracy": 0.9591666666666666,
+      "lower_95_one_sided": 0.9554111111111111,
+      "upper_95": 0.9628561111111111
+    },
+    {
+      "probe_uS": 1.2,
+      "rate_hz": 10.0,
+      "accuracy": 0.9697222222222223,
+      "lower_95_one_sided": 0.9668105555555555,
+      "upper_95": 0.9723338888888889
+    },
+    {
+      "probe_uS": 1.2,
+      "rate_hz": 25.0,
+      "accuracy": 0.9745555555555555,
+      "lower_95_one_sided": 0.9720544444444444,
+      "upper_95": 0.9768444444444444
+    },
+    {
+      "probe_uS": 2.4,
+      "rate_hz": 0.25,
+      "accuracy": 0.48513333333333336,
+      "lower_95_one_sided": 0.4782438888888889,
+      "upper_95": 0.49211222222222223
+    },
+    {
+      "probe_uS": 2.4,
+      "rate_hz": 0.5,
+      "accuracy": 0.6641555555555556,
+      "lower_95_one_sided": 0.6577888888888889,
+      "upper_95": 0.6706444444444445
+    },
+    {
+      "probe_uS": 2.4,
+      "rate_hz": 0.75,
+      "accuracy": 0.7644444444444445,
+      "lower_95_one_sided": 0.7579316666666667,
+      "upper_95": 0.771
+    },
+    {
+      "probe_uS": 2.4,
+      "rate_hz": 1.0,
+      "accuracy": 0.8222444444444444,
+      "lower_95_one_sided": 0.8160772222222222,
+      "upper_95": 0.8287683333333333
+    },
+    {
+      "probe_uS": 2.4,
+      "rate_hz": 1.5,
+      "accuracy": 0.8839,
+      "lower_95_one_sided": 0.8785316666666667,
+      "upper_95": 0.8888022222222223
+    },
+    {
+      "probe_uS": 2.4,
+      "rate_hz": 2.0,
+      "accuracy": 0.9131777777777778,
+      "lower_95_one_sided": 0.9086205555555555,
+      "upper_95": 0.9177666666666666
+    },
+    {
+      "probe_uS": 2.4,
+      "rate_hz": 2.5,
+      "accuracy": 0.9308,
+      "lower_95_one_sided": 0.9256666666666666,
+      "upper_95": 0.9354666666666667
+    },
+    {
+      "probe_uS": 2.4,
+      "rate_hz": 3.0,
+      "accuracy": 0.9400222222222222,
+      "lower_95_one_sided": 0.9354983333333333,
+      "upper_95": 0.9443333333333334
+    },
+    {
+      "probe_uS": 2.4,
+      "rate_hz": 4.0,
+      "accuracy": 0.9526555555555556,
+      "lower_95_one_sided": 0.9484555555555556,
+      "upper_95": 0.956735
+    },
+    {
+      "probe_uS": 2.4,
+      "rate_hz": 5.0,
+      "accuracy": 0.9589222222222222,
+      "lower_95_one_sided": 0.9552438888888889,
+      "upper_95": 0.9624783333333333
+    },
+    {
+      "probe_uS": 2.4,
+      "rate_hz": 10.0,
+      "accuracy": 0.9701666666666666,
+      "lower_95_one_sided": 0.9673,
+      "upper_95": 0.9731672222222222
+    },
+    {
+      "probe_uS": 2.4,
+      "rate_hz": 25.0,
+      "accuracy": 0.9743333333333334,
+      "lower_95_one_sided": 0.9712,
+      "upper_95": 0.9771666666666666
+    }
+  ],
+  "linear_nominal": [
+    {
+      "probe_uS": 1.2,
+      "rate_hz": 0.25,
+      "accuracy": 0.3926,
+      "lower_95_one_sided": 0.38225333333333333,
+      "upper_95": 0.4023
+    },
+    {
+      "probe_uS": 1.2,
+      "rate_hz": 0.5,
+      "accuracy": 0.5476,
+      "lower_95_one_sided": 0.5407422222222222,
+      "upper_95": 0.5546894444444445
+    },
+    {
+      "probe_uS": 1.2,
+      "rate_hz": 0.75,
+      "accuracy": 0.6382,
+      "lower_95_one_sided": 0.6315655555555556,
+      "upper_95": 0.6447366666666667
+    },
+    {
+      "probe_uS": 1.2,
+      "rate_hz": 1.0,
+      "accuracy": 0.6921777777777778,
+      "lower_95_one_sided": 0.6862661111111111,
+      "upper_95": 0.6981338888888889
+    },
+    {
+      "probe_uS": 1.2,
+      "rate_hz": 1.5,
+      "accuracy": 0.7607777777777778,
+      "lower_95_one_sided": 0.7542777777777778,
+      "upper_95": 0.7668338888888889
+    },
+    {
+      "probe_uS": 1.2,
+      "rate_hz": 2.0,
+      "accuracy": 0.8008222222222222,
+      "lower_95_one_sided": 0.7951211111111111,
+      "upper_95": 0.806678888888889
+    },
+    {
+      "probe_uS": 1.2,
+      "rate_hz": 2.5,
+      "accuracy": 0.8224,
+      "lower_95_one_sided": 0.8169438888888889,
+      "upper_95": 0.8275672222222222
+    },
+    {
+      "probe_uS": 1.2,
+      "rate_hz": 3.0,
+      "accuracy": 0.8396,
+      "lower_95_one_sided": 0.8342666666666667,
+      "upper_95": 0.8447572222222223
+    },
+    {
+      "probe_uS": 1.2,
+      "rate_hz": 4.0,
+      "accuracy": 0.8616555555555555,
+      "lower_95_one_sided": 0.8566105555555555,
+      "upper_95": 0.8665561111111111
+    },
+    {
+      "probe_uS": 1.2,
+      "rate_hz": 5.0,
+      "accuracy": 0.8711444444444445,
+      "lower_95_one_sided": 0.8664333333333334,
+      "upper_95": 0.8760777777777777
+    },
+    {
+      "probe_uS": 1.2,
+      "rate_hz": 10.0,
+      "accuracy": 0.8944555555555556,
+      "lower_95_one_sided": 0.8898666666666667,
+      "upper_95": 0.8992227777777778
+    },
+    {
+      "probe_uS": 1.2,
+      "rate_hz": 25.0,
+      "accuracy": 0.9062,
+      "lower_95_one_sided": 0.9014322222222222,
+      "upper_95": 0.9107227777777778
+    }
+  ],
+  "thresholds": {
+    "0.6": {
+      "r_decode_hz": 0.25,
+      "r_train_hz": 0.5
+    },
+    "1.2": {
+      "r_decode_hz": 0.25,
+      "r_train_hz": 0.5
+    },
+    "2.4": {
+      "r_decode_hz": 0.25,
+      "r_train_hz": 0.5
+    },
+    "linear_1.2": {
+      "r_decode_hz": 0.25,
+      "r_train_hz": 0.5
+    }
+  },
+  "figure_path": "artifacts/data/exp077/psychometric.svg",
+  "figure_sha256": "5a15fea77790476f7dc0e88bbfb3c9538525438f2b3fabb21ad5b69dd5394db3",
+  "arrays_sha256": "d6a8e2c35342ce5321d99fd18f6af8e5553c3ff965a490d22e8932b362321a29"
+}
