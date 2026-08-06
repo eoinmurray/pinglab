@@ -2075,7 +2075,11 @@ def step_3() -> None:
         "amendment_sha256": sha256_file(AMENDMENT_PATH),
         "calibration_point_count": int(np.prod((3, 12, 256))),
         **record,
-        "arrays_path": str(arrays_path.relative_to(REPO)),
+        "arrays_path": (
+            str(arrays_path.relative_to(REPO))
+            if arrays_path.is_relative_to(REPO)
+            else arrays_path.name
+        ),
         "arrays_sha256": sha256_file(arrays_path),
         "figure_path": "artifacts/data/exp077/linear_filter.svg",
         "figure_sha256": sha256_file(FIGURES / "linear_filter.svg"),
@@ -2962,6 +2966,49 @@ def finalize_step5() -> dict[str, Any]:
     )
     path = FIGURES / "step5_outcome.json"
     path.write_text(json.dumps(outcome, indent=2) + "\n")
+    return outcome
+
+
+def recover_step6_metadata() -> dict[str, Any]:
+    """Validate a complete returned tensor after the post-write path failure."""
+    protocol_path = FIGURES / "frozen_evaluation_protocol.json"
+    arrays_path = FIGURES / "step6" / "held_out_correctness.npz"
+    modal_path = FIGURES / "step6" / "modal.json"
+    _, labels, dataset = load_held_out_mnist_test(protocol_path)
+    with np.load(arrays_path) as arrays:
+        checks = {
+            "nonlinear_shape": arrays["nonlinear_correct"].shape
+            == (3, 12, 3, 3, 10_000),
+            "linear_shape": arrays["linear_correct"].shape == (12, 3, 3, 10_000),
+            "rate_grid": np.array_equal(arrays["rates_hz"], TRAINING_RATES_HZ),
+            "probe_grid": np.array_equal(arrays["probes_uS"], PROBE_CONDUCTANCES_US),
+            "decoder_seeds": np.array_equal(arrays["decoder_seeds"], SEEDS),
+            "labels": np.array_equal(arrays["labels"], labels),
+            "boolean_correctness": (
+                arrays["nonlinear_correct"].dtype == np.bool_
+                and arrays["linear_correct"].dtype == np.bool_
+            ),
+        }
+    if not all(checks.values()):
+        raise RuntimeError(f"returned Step 6 tensor validation failed: {checks}")
+    modal_record = json.loads(modal_path.read_text())
+    outcome = {
+        "status": "complete_after_post_compute_metadata_recovery",
+        "protocol_sha256": sha256_file(protocol_path),
+        "dataset": dataset,
+        "device": "cuda",
+        "runtime_s": modal_record["elapsed_s"],
+        "arrays_path": str(arrays_path.relative_to(REPO)),
+        "arrays_sha256": sha256_file(arrays_path),
+        "validation_checks": checks,
+        "preserved_failure": {
+            "stage": "post-compute metadata formatting",
+            "scientific_tensor_completed": True,
+            "remote_error": modal_record["error"],
+            "modal_artifact_payload_sha256": modal_record["artifact_sha256"],
+        },
+    }
+    (FIGURES / "step6" / "evaluation.json").write_text(json.dumps(outcome, indent=2) + "\n")
     return outcome
 
 
