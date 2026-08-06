@@ -232,6 +232,15 @@ def test_expanded_rate_protocol_matches_decoder_grid() -> None:
     )
 
 
+def test_expanded_rate_protocol_remote_payload(monkeypatch, tmp_path) -> None:
+    protocol = (exp077.FIGURES / "expanded_rate_training_protocol.json").read_text()
+    monkeypatch.setattr(exp077, "FIGURES", tmp_path)
+    monkeypatch.setenv("EXP077_FROZEN_TRAINING_PROTOCOL_JSON", protocol)
+    assert exp077.verify_expanded_rate_training_protocol()["decoder_rate_grid_hz"] == list(
+        exp077.DECODER_RATES_HZ
+    )
+
+
 def test_held_out_loader_fails_closed_without_protocol(tmp_path) -> None:
     with pytest.raises(RuntimeError, match="frozen evaluation protocol"):
         exp077.load_held_out_mnist_test(tmp_path / "absent.json")
