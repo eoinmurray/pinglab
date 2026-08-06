@@ -6,7 +6,6 @@
   status: "draft",
 )
 
-#let exp078 = json("/artifacts/data/exp078/numbers.json")
 
 #let body = [
   == Abstract
@@ -1090,63 +1089,20 @@
 
   === B.7 Milestone 4: first native gamma-coupling experiment
 
-  *Status: implementation complete; registered gate failed, exploratory phase capture demonstrated.*
-  #link("/exp078/")[_exp078_] uses the Milestone 3 executor to compare two independently driven,
-  #calc.round(100 * exp078.calibration.selected.detuning_fraction, digits: 2)%
-  detuned #exp078.registration.populations.excitatory_per_circuit E /
-  #exp078.registration.populations.inhibitory_per_circuit I PING circuits across a registered sweep of
-  #exp078.sweep.condition_count conditions. Reciprocal long-range excitation
-  connects each E population to the other circuit's I population, which then
-  inhibits its local E population. No condition passes the full joint locking
-  gate. Half-period coupling at strength 0.2 produces zero frequency difference,
-  higher phase locking, and stable phase but decreases mean-band coherence;
-  other cells improve coherence or phase locking without sufficient frequency
-  convergence. Strong coupling instead silences one circuit or exceeds the
-  registered inhibitory-rate ceiling and is explicitly excluded from synchronization.
+  *Status: executor capability complete; scientific experiment planned.* Exact
+  split-run tests cover refractory state, live conductances, recurrent delays, and
+  delayed inputs. Runtime-state compatibility excludes parameter values but rejects
+  changes to timestep, population size, projection identity, delay, synapse, and
+  state layout. This is sufficient to burn in a structurally complete graph with
+  reciprocal E-to-I weights at zero and continue the same causal trajectory with
+  nonzero weights. General time-dependent weights are not required.
 
-  The experiment archives synchrony, phase difference, mean-band coherence,
-  phase-locking value, cross-correlation, firing diagnostics, runtime, memory,
-  graph digests, manifests, diagrams, independent inputs, and named recordings
-  for every variant. The registered sweep required no simulator edit and used no
-  paid compute. The experiment-side implementation and failed-attempt correction
-  are linked by commits `03bfbe9` and `a781c7f`; exp077 remains unchanged as the
-  architecture/causality record.
-
-  *Engineering gate:* pass. Individual #exp078.registration.simulation.duration_ms ms
-  simulations complete in about
-  #calc.round(exp078.sweep.rows.at(0).metrics.runtime_s, digits: 0) s locally and
-  all variants are graph-only. The complete sweep of
-  #exp078.sweep.condition_count cells took #exp078.duration; variant creation
-  and execution therefore remain an interactive rather than overnight workflow.
-  *Scientific gate:* fail. The anatomically corrected sweep does not establish a
-  registered locking condition. A subsequent declared 36-cell refinement finds
-  a contiguous phase-locking neighborhood: the strongest cell has equal dominant
-  frequencies, PLV 0.899, half-window PLVs 0.919 and 0.880, and bounded unwrapped
-  relative phase while the uncoupled control accumulates slips. It still misses
-  the original broad-band coherence-gain gate. Milestone 5 may proceed on
-  engineering grounds; exp078 supports the reduced phase-synchronization
-  mechanism but not biological generality.
-
-  A backward-compatible continuation extension then tests acquisition rather than
-  comparing fresh-start trajectories. Exact split-run tests cover refractory,
-  conductance, recurrent-delay, and delayed-input boundaries. Runtime state uses a
-  graph signature that excludes weight values but rejects timestep, size, delay,
-  synapse, identity, and state-layout mismatches. _exp078_ burns in the final graph
-  at zero cross-weight and continues the mature state and future inputs once with
-  coupling; no matched uncoupled continuation is simulated. After the broader
-  weight--delay refinement, a
-  declared bounded search compares mature checkpoints on one fixed archived
-  input stream and selects a trajectory that begins away from its eventual lag
-  and evolves across a 2 s continuation. At weight 0.22 and delay 10 ms, the
-  coupled branch reaches its sustained-250-ms capture gate after 922.5 ms, settles
-  near a 0.207 rad lag, and
-  confines 95% of final-window smoothed
-  instantaneous frequency differences below 1.58 Hz.
-  Across the whole post-capture interval, PLV is 0.883 and the 95th-percentile
-  phase error is 1.164 rad, so the longer run supports bounded noisy
-  synchronization rather than an absorbing fixed-phase state. This is direct
-  evidence for phase acquisition in the selected realization, not evidence for
-  inevitable or biologically general locking.
+  #link("/exp078/")[_exp078_] defines the staged Methods plan. It will first
+  measure the macroscopic E-to-I phase-response curve, use it to predict a stable
+  coupled phase relationship, and only then test acquisition in two 800 E / 200 I
+  circuits. Milestone 4 is complete only when the experiment predicts and then
+  observes the phase lag and convergence timescale across declared seeds and
+  controls.
 
   === B.8 Milestone 5: graph-native readouts and input bindings
 
