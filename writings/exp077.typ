@@ -38,22 +38,24 @@
 #let body = [
   == Abstract
 
-  We evaluated how Poisson encoding rate affected MNIST features produced by an
-  AMPA synapse and a non-spiking conductance-based membrane over a 200 ms
-  presentation. A validated single-pixel simulator generated an empirical
-  response table spanning 12 rates, 256 pixel intensities, three probe
-  conductances, and three random seeds, with #p.selected_K draws per condition.
-  We then compared the measured response variance with a stationary linear
-  transfer-function approximation and constructed complete sampled MNIST
-  feature images. All #r.validations.len() single-pixel validation checks passed.
-  The response table retained finite, bounded, non-Gaussian responses, although
-  #mono.intensity_violations of #mono.intensity_comparison_count adjacent-intensity
-  comparisons exceeded the Monte Carlo monotonicity tolerance. The stationary
-  linear model overpredicted finite-window variance, particularly at low drive
-  and larger conductance. Empirical response table sampling reproduced pooled pixel
-  statistics and recognizable spatial structure, but the low-rate image-level
-  comparisons did not meet all validation tolerances. Decoder training and
-  classification-rate thresholds were not yet evaluated.
+  Poisson rate coding provides a simple interface between static images and
+  spiking neural networks, but the encoding rate does not by itself determine
+  the signal available to a downstream circuit. Synaptic decay,
+  conductance-dependent membrane integration, and finite observation windows
+  reshape both the strength and variability of the representation. This makes
+  input-rate selection especially important for sparse conductance-based PING
+  networks, where rates that are computationally efficient may also erase class
+  structure before learning begins. We developed a filter-matched calibration
+  of MNIST inputs by propagating pixel spike trains through the target AMPA and
+  subthreshold membrane dynamics, measuring the resulting empirical response
+  distributions, and comparing them with a linear transfer-function model. The
+  empirical response table preserved non-Gaussian finite-window effects that
+  the stationary approximation did not capture accurately. Sampled feature
+  images recovered recognizable digit structure as rate increased, whereas the
+  lowest-rate images remained sparse and did not satisfy all image-level
+  validation tolerances. These results established an empirical basis for
+  selecting candidate input rates before decoder or recurrent-network training;
+  classification thresholds remain to be measured.
 
   == Purpose and scope
 
