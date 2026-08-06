@@ -16,18 +16,18 @@
   },
   "validation_status": "failed",
   "exploratory_steps3_4": {
-    "git_sha_at_execution": "f568f4ebcac2dd5b351f12a50ec21a0ccabe6859",
+    "git_sha_at_execution": "feee5cbf3bb8b4f4244ad6f1333d1e70303a5813",
     "worktree_dirty_at_execution": true,
-    "runner_sha256": "f3ee26f15eb7ba8b598b721304e8351c350f05a8a0250c32049886fd3496536f",
+    "runner_sha256": "6eb67f75397520d26ae2a2b022363a86a6012eba13f8507dc3e4d969a5fe0980",
     "python": "3.10.20",
     "numpy": "2.2.6",
     "platform": "linux",
     "library_sha256_verified": "5184788979b5fa7fa9a3f38936399b8e2724d63914019f1306a7171981b36783",
     "amendment_sha256": "191c640ed969e039914603ebfc132496e91b2458ff6102fed569d50defc3f469",
-    "step3_outcome_sha256": "5eacc71e5edb77a0380790c8e723a2d15286a7c833dedb7f5b4bcc7a15ba9137",
-    "step4_outcome_sha256": "09b4bae9fb88aad455d828c33c6212ac654b3308e9540beca68027102d3d5fab",
-    "linear_filter_figure_sha256": "024b91c7c2e65bf2c6e38ed3397575072e36d887d8a4994b2c29d96d76297eea",
-    "feature_images_figure_sha256": "228c6f8c2d19b3bb66b575554909ab7489fa2765b1617f736b34985cb499c211",
+    "step3_outcome_sha256": "517b0cc5055de4b120ab195bea8d24c82919cd19cd81238c13c51d8238c2d5e3",
+    "step4_outcome_sha256": "aa2fc9f3337e86de05d69383521a00947f95e67c9b95c0aec85a41df7322c43a",
+    "linear_filter_figure_sha256": "6eb7126191a5f3754d5224d3287d6ac541615260fd1a1475d85dcc2a1b2fa3b2",
+    "feature_images_figure_sha256": "0d31afc4c68ee2159f20a7501e741937df45675d3af9d9b56d576c7fe4ef6b8a",
     "paid_compute_usd": 0.0
   }
 }
