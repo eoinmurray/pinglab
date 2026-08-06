@@ -204,3 +204,19 @@ def test_registered_rate_sampler_can_reach_every_rate() -> None:
     rng = np.random.default_rng(exp077._decoder_seed(42, 1, 2))
     positions = rng.integers(0, len(exp077.TRAINING_RATES_HZ), 10_000)
     assert set(positions) == set(range(len(exp077.TRAINING_RATES_HZ)))
+
+
+def test_held_out_loader_fails_closed_without_protocol(tmp_path) -> None:
+    with pytest.raises(RuntimeError, match="frozen evaluation protocol"):
+        exp077.load_held_out_mnist_test(tmp_path / "absent.json")
+
+
+def test_hierarchical_interval_is_deterministic(monkeypatch) -> None:
+    monkeypatch.setattr(exp077, "BOOTSTRAP_REPETITIONS_HELDOUT", 20)
+    values = np.zeros((3, 3, 40), dtype=np.bool_)
+    values[:, :, :30] = True
+    first = exp077._hierarchical_lower_bound(values, 123)
+    replay = exp077._hierarchical_lower_bound(values, 123)
+    assert first == replay
+    assert first[0] == 0.75
+    assert first[1] <= first[0] <= first[2]
