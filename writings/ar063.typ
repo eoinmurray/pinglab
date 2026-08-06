@@ -708,6 +708,16 @@
 
   A checkpoint contains evolving parameter values and optional optimizer state. Initializing, resuming, fine-tuning, and inference are invocation choices rather than changes to _graph.json_.
 
+  Graph-runtime state is a separate artifact again. It contains membrane
+  voltages, refractory counters, per-projection conductances, recurrent delay
+  histories, delayed-input context, completed steps, and a structural
+  compatibility signature—but no weights. The initial portable representation is
+  an authenticated `manifest.json` plus `tensors.npz`. This separation permits a
+  mature zero-weight graph to branch into a state-compatible non-zero-weight graph
+  without confusing dynamic continuation with parameter checkpointing. _snnlang_
+  continues to author topology only; _tools/snn_ owns state validation and I/O,
+  while the experiment runner owns checkpoint selection and branching.
+
   === A.4 Scratch layout
 
   Each experiment uses regenerable scratch separately from its committed publication record:
@@ -1080,17 +1090,19 @@
 
   === B.7 Milestone 4: first native gamma-coupling experiment
 
-  *Status: complete.* #link("/exp078/")[_exp078_] uses the Milestone 3 executor
-  to compare two independently driven,
+  *Status: implementation complete; registered gate failed, exploratory phase capture demonstrated.*
+  #link("/exp078/")[_exp078_] uses the Milestone 3 executor to compare two independently driven,
   #calc.round(100 * exp078.calibration.selected.detuning_fraction, digits: 2)%
-  detuned PING circuits across a registered sweep of
-  #exp078.sweep.condition_count reciprocal-inhibition conditions.
-  #exp078.sweep.locked_count conditions form a
-  contiguously supported locking region: each retains active E/I populations,
-  reduces the uncoupled frequency difference, increases phase locking and
-  coherence, and retains a stable phase offset. Strong short/intermediate
-  coupling instead silences one circuit and is explicitly excluded from
-  synchronization. Delay changes the locked phase/lag regime.
+  detuned #exp078.registration.populations.excitatory_per_circuit E /
+  #exp078.registration.populations.inhibitory_per_circuit I PING circuits across a registered sweep of
+  #exp078.sweep.condition_count conditions. Reciprocal long-range excitation
+  connects each E population to the other circuit's I population, which then
+  inhibits its local E population. No condition passes the full joint locking
+  gate. Half-period coupling at strength 0.2 produces zero frequency difference,
+  higher phase locking, and stable phase but decreases mean-band coherence;
+  other cells improve coherence or phase locking without sufficient frequency
+  convergence. Strong coupling instead silences one circuit or exceeds the
+  registered inhibitory-rate ceiling and is explicitly excluded from synchronization.
 
   The experiment archives synchrony, phase difference, mean-band coherence,
   phase-locking value, cross-correlation, firing diagnostics, runtime, memory,
@@ -1100,13 +1112,32 @@
   are linked by commits `03bfbe9` and `a781c7f`; exp077 remains unchanged as the
   architecture/causality record.
 
-  *Gate:* pass. Individual #exp078.registration.simulation.duration_ms ms
-  biological simulations complete in about
+  *Engineering gate:* pass. Individual #exp078.registration.simulation.duration_ms ms
+  simulations complete in about
   #calc.round(exp078.sweep.rows.at(0).metrics.runtime_s, digits: 0) s locally and
   all variants are graph-only. The complete sweep of
   #exp078.sweep.condition_count cells took #exp078.duration; variant creation
-  and execution therefore remain an interactive rather
-  than overnight workflow. Milestone 5 may proceed after human review.
+  and execution therefore remain an interactive rather than overnight workflow.
+  *Scientific gate:* fail. The anatomically corrected sweep does not establish a
+  registered locking condition. A subsequent declared 36-cell refinement finds
+  a contiguous phase-locking neighborhood: the strongest cell has equal dominant
+  frequencies, PLV 0.899, half-window PLVs 0.919 and 0.880, and bounded unwrapped
+  relative phase while the uncoupled control accumulates slips. It still misses
+  the original broad-band coherence-gain gate. Milestone 5 may proceed on
+  engineering grounds; exp078 supports the reduced phase-synchronization
+  mechanism but not biological generality.
+
+  A backward-compatible continuation extension then tests acquisition rather than
+  comparing fresh-start trajectories. Exact split-run tests cover refractory,
+  conductance, recurrent-delay, and delayed-input boundaries. Runtime state uses a
+  graph signature that excludes weight values but rejects timestep, size, delay,
+  synapse, identity, and state-layout mismatches. _exp078_ burns in the final graph
+  at zero cross-weight, deterministically selects a mature phase-separated state,
+  and branches identical state and future inputs into coupled and uncoupled runs.
+  The coupled branch reaches its 250 ms capture gate after about 29 gamma cycles
+  and substantially raises trailing PLV, but later incurs a phase slip. This is
+  direct evidence for metastable phase acquisition, not evidence for inevitable or
+  permanent locking.
 
   === B.8 Milestone 5: graph-native readouts and input bindings
 

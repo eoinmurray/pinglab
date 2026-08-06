@@ -1,0 +1,1948 @@
+{
+  "exploratory": true,
+  "selection_rule": "minimize frequency_difference/baseline + (1-PLV) + (1-min_half_PLV) + half_phase_drift/pi among valid conditions",
+  "strengths": [
+    0.1,
+    0.15,
+    0.2,
+    0.25,
+    0.3,
+    0.35
+  ],
+  "delays_ms": [
+    8.0,
+    10.0,
+    11.5,
+    12.5,
+    13.5,
+    15.0
+  ],
+  "condition_count": 36,
+  "best": {
+    "strength": 0.25,
+    "delay_ms": 10.0,
+    "metrics": {
+      "populations": {
+        "a": {
+          "e_rate_hz": 27.975893020629883,
+          "i_rate_hz": 142.14285278320312,
+          "e_active_fraction": 1.0,
+          "i_active_fraction": 1.0,
+          "dominant_frequency_hz": 30.517578125,
+          "peak_prominence": 83.28050162861453,
+          "finite": true,
+          "active": true,
+          "spectrally_valid": true,
+          "silent": false,
+          "saturated": false
+        },
+        "b": {
+          "e_rate_hz": 28.749107360839844,
+          "i_rate_hz": 145.0,
+          "e_active_fraction": 1.0,
+          "i_active_fraction": 1.0,
+          "dominant_frequency_hz": 30.517578125,
+          "peak_prominence": 61.063361107756265,
+          "finite": true,
+          "active": true,
+          "spectrally_valid": true,
+          "silent": false,
+          "saturated": false
+        }
+      },
+      "synchrony": {
+        "plv": 0.898537782984134,
+        "mean_phase_difference_rad": 0.18127671067427895,
+        "half_1_plv": 0.9187402463187387,
+        "half_2_plv": 0.8799257923162602,
+        "half_phase_offset_difference_rad": 0.08413293553128506,
+        "gamma_coherence": 0.589065386111761,
+        "cross_correlation_peak": 0.8388673047313212,
+        "cross_correlation_lag_ms": 33.300000000000004,
+        "frequency_difference_hz": 0.0
+      },
+      "valid": true,
+      "runtime_s": 6.268776625045575,
+      "peak_python_bytes": 23251451,
+      "graph_digest": "sha256:afdb84a3cc0fad07bd9668ebbe21ce1ffedf145bbf0f1a7da382d89879609717"
+    },
+    "registered_gate_pass": false,
+    "exploratory_score": 0.24831676983287732,
+    "graph_digest": "sha256:afdb84a3cc0fad07bd9668ebbe21ce1ffedf145bbf0f1a7da382d89879609717"
+  },
+  "registered_gate_pass_count": 0,
+  "rows": [
+    {
+      "strength": 0.1,
+      "delay_ms": 8.0,
+      "metrics": {
+        "populations": {
+          "a": {
+            "e_rate_hz": 35.58303451538086,
+            "i_rate_hz": 126.53571319580078,
+            "e_active_fraction": 1.0,
+            "i_active_fraction": 1.0,
+            "dominant_frequency_hz": 39.0625,
+            "peak_prominence": 74.37378082486336,
+            "finite": true,
+            "active": true,
+            "spectrally_valid": true,
+            "silent": false,
+            "saturated": false
+          },
+          "b": {
+            "e_rate_hz": 31.08035659790039,
+            "i_rate_hz": 118.6500015258789,
+            "e_active_fraction": 1.0,
+            "i_active_fraction": 1.0,
+            "dominant_frequency_hz": 36.62109375,
+            "peak_prominence": 96.12006507603574,
+            "finite": true,
+            "active": true,
+            "spectrally_valid": true,
+            "silent": false,
+            "saturated": false
+          }
+        },
+        "synchrony": {
+          "plv": 0.24208428839635385,
+          "mean_phase_difference_rad": 1.4695811710460844,
+          "half_1_plv": 0.20420373083335658,
+          "half_2_plv": 0.28650324942941663,
+          "half_phase_offset_difference_rad": 0.33159299353624894,
+          "gamma_coherence": 0.5129129299569115,
+          "cross_correlation_peak": 0.401676297939949,
+          "cross_correlation_lag_ms": -36.300000000000004,
+          "frequency_difference_hz": 2.44140625
+        },
+        "valid": true,
+        "runtime_s": 6.421362458029762,
+        "peak_python_bytes": 23252488,
+        "graph_digest": "sha256:d9f915be8f9f2b012af159446f1b0119f747bd3cf7cebe88b5ec6bac0dfea7f2"
+      },
+      "registered_gate_pass": false,
+      "exploratory_score": 2.3259279754688222,
+      "graph_digest": "sha256:d9f915be8f9f2b012af159446f1b0119f747bd3cf7cebe88b5ec6bac0dfea7f2"
+    },
+    {
+      "strength": 0.1,
+      "delay_ms": 10.0,
+      "metrics": {
+        "populations": {
+          "a": {
+            "e_rate_hz": 34.53839111328125,
+            "i_rate_hz": 127.05714416503906,
+            "e_active_fraction": 1.0,
+            "i_active_fraction": 1.0,
+            "dominant_frequency_hz": 37.841796875,
+            "peak_prominence": 105.29989078298,
+            "finite": true,
+            "active": true,
+            "spectrally_valid": true,
+            "silent": false,
+            "saturated": false
+          },
+          "b": {
+            "e_rate_hz": 32.72321319580078,
+            "i_rate_hz": 118.37142944335938,
+            "e_active_fraction": 1.0,
+            "i_active_fraction": 1.0,
+            "dominant_frequency_hz": 39.0625,
+            "peak_prominence": 109.90195594500814,
+            "finite": true,
+            "active": true,
+            "spectrally_valid": true,
+            "silent": false,
+            "saturated": false
+          }
+        },
+        "synchrony": {
+          "plv": 0.5720008509203545,
+          "mean_phase_difference_rad": -3.0596619923179635,
+          "half_1_plv": 0.533770553693534,
+          "half_2_plv": 0.6198457080308452,
+          "half_phase_offset_difference_rad": 0.25911955012990373,
+          "gamma_coherence": 0.5673201088289326,
+          "cross_correlation_peak": 0.5916754327440568,
+          "cross_correlation_lag_ms": 39.1,
+          "frequency_difference_hz": 1.220703125
+        },
+        "valid": true,
+        "runtime_s": 6.664940000046045,
+        "peak_python_bytes": 23249706,
+        "graph_digest": "sha256:66e79286876da8e6d216890a8eb7bded161bf69ef133df8232a34462a0e8b33e"
+      },
+      "registered_gate_pass": false,
+      "exploratory_score": 1.3100422432292895,
+      "graph_digest": "sha256:66e79286876da8e6d216890a8eb7bded161bf69ef133df8232a34462a0e8b33e"
+    },
+    {
+      "strength": 0.1,
+      "delay_ms": 11.5,
+      "metrics": {
+        "populations": {
+          "a": {
+            "e_rate_hz": 35.5821418762207,
+            "i_rate_hz": 134.22857666015625,
+            "e_active_fraction": 1.0,
+            "i_active_fraction": 1.0,
+            "dominant_frequency_hz": 36.62109375,
+            "peak_prominence": 92.55964001315243,
+            "finite": true,
+            "active": true,
+            "spectrally_valid": true,
+            "silent": false,
+            "saturated": false
+          },
+          "b": {
+            "e_rate_hz": 31.70089340209961,
+            "i_rate_hz": 117.62142944335938,
+            "e_active_fraction": 1.0,
+            "i_active_fraction": 1.0,
+            "dominant_frequency_hz": 36.62109375,
+            "peak_prominence": 69.7754785917507,
+            "finite": true,
+            "active": true,
+            "spectrally_valid": true,
+            "silent": false,
+            "saturated": false
+          }
+        },
+        "synchrony": {
+          "plv": 0.5184333935099307,
+          "mean_phase_difference_rad": -2.682700219101153,
+          "half_1_plv": 0.38158055244250544,
+          "half_2_plv": 0.65930710700457,
+          "half_phase_offset_difference_rad": 0.18248325369038507,
+          "gamma_coherence": 0.5788779255413118,
+          "cross_correlation_peak": 0.5123301273484875,
+          "cross_correlation_lag_ms": 39.0,
+          "frequency_difference_hz": 0.0
+        },
+        "valid": true,
+        "runtime_s": 6.535133958910592,
+        "peak_python_bytes": 23254842,
+        "graph_digest": "sha256:b363acace13d879b350e241467cd4fd7616de91e81ca57b296647ee238b9f563"
+      },
+      "registered_gate_pass": false,
+      "exploratory_score": 1.1580722777601982,
+      "graph_digest": "sha256:b363acace13d879b350e241467cd4fd7616de91e81ca57b296647ee238b9f563"
+    },
+    {
+      "strength": 0.1,
+      "delay_ms": 12.5,
+      "metrics": {
+        "populations": {
+          "a": {
+            "e_rate_hz": 34.39553451538086,
+            "i_rate_hz": 134.221435546875,
+            "e_active_fraction": 1.0,
+            "i_active_fraction": 1.0,
+            "dominant_frequency_hz": 37.841796875,
+            "peak_prominence": 82.47077549664756,
+            "finite": true,
+            "active": true,
+            "spectrally_valid": true,
+            "silent": false,
+            "saturated": false
+          },
+          "b": {
+            "e_rate_hz": 33.39374923706055,
+            "i_rate_hz": 118.90357208251953,
+            "e_active_fraction": 1.0,
+            "i_active_fraction": 1.0,
+            "dominant_frequency_hz": 37.841796875,
+            "peak_prominence": 80.34427849196597,
+            "finite": true,
+            "active": true,
+            "spectrally_valid": true,
+            "silent": false,
+            "saturated": false
+          }
+        },
+        "synchrony": {
+          "plv": 0.4566661124282368,
+          "mean_phase_difference_rad": -2.3448103287510795,
+          "half_1_plv": 0.4971528931046824,
+          "half_2_plv": 0.4549336522804824,
+          "half_phase_offset_difference_rad": 0.573179451214707,
+          "gamma_coherence": 0.5313431709035069,
+          "cross_correlation_peak": 0.47726525395185937,
+          "cross_correlation_lag_ms": -43.7,
+          "frequency_difference_hz": 0.0
+        },
+        "valid": true,
+        "runtime_s": 6.580971791991033,
+        "peak_python_bytes": 23256724,
+        "graph_digest": "sha256:8ad8241ea766ddfab58984a1c7d3a95cf752287113033305415907d1de667740"
+      },
+      "registered_gate_pass": false,
+      "exploratory_score": 1.270848921170322,
+      "graph_digest": "sha256:8ad8241ea766ddfab58984a1c7d3a95cf752287113033305415907d1de667740"
+    },
+    {
+      "strength": 0.1,
+      "delay_ms": 13.5,
+      "metrics": {
+        "populations": {
+          "a": {
+            "e_rate_hz": 34.07321548461914,
+            "i_rate_hz": 132.14285278320312,
+            "e_active_fraction": 1.0,
+            "i_active_fraction": 1.0,
+            "dominant_frequency_hz": 36.62109375,
+            "peak_prominence": 126.44304442645497,
+            "finite": true,
+            "active": true,
+            "spectrally_valid": true,
+            "silent": false,
+            "saturated": false
+          },
+          "b": {
+            "e_rate_hz": 33.46071243286133,
+            "i_rate_hz": 123.80357360839844,
+            "e_active_fraction": 1.0,
+            "i_active_fraction": 1.0,
+            "dominant_frequency_hz": 34.1796875,
+            "peak_prominence": 66.84430898263447,
+            "finite": true,
+            "active": true,
+            "spectrally_valid": true,
+            "silent": false,
+            "saturated": false
+          }
+        },
+        "synchrony": {
+          "plv": 0.5008280846207043,
+          "mean_phase_difference_rad": -2.5594074009004144,
+          "half_1_plv": 0.5000360083575729,
+          "half_2_plv": 0.5455753093957788,
+          "half_phase_offset_difference_rad": 0.582535416395602,
+          "gamma_coherence": 0.6251141152913274,
+          "cross_correlation_peak": 0.5866142971184841,
+          "cross_correlation_lag_ms": 39.400000000000006,
+          "frequency_difference_hz": 2.44140625
+        },
+        "valid": true,
+        "runtime_s": 6.192696208017878,
+        "peak_python_bytes": 23258315,
+        "graph_digest": "sha256:758ae03811a6e4b82c666f3f321a2c68ef00da07a9b3c83a588f84143119f9aa"
+      },
+      "registered_gate_pass": false,
+      "exploratory_score": 1.8512293557793007,
+      "graph_digest": "sha256:758ae03811a6e4b82c666f3f321a2c68ef00da07a9b3c83a588f84143119f9aa"
+    },
+    {
+      "strength": 0.1,
+      "delay_ms": 15.0,
+      "metrics": {
+        "populations": {
+          "a": {
+            "e_rate_hz": 34.993751525878906,
+            "i_rate_hz": 131.3892822265625,
+            "e_active_fraction": 1.0,
+            "i_active_fraction": 1.0,
+            "dominant_frequency_hz": 35.400390625,
+            "peak_prominence": 106.19379210076224,
+            "finite": true,
+            "active": true,
+            "spectrally_valid": true,
+            "silent": false,
+            "saturated": false
+          },
+          "b": {
+            "e_rate_hz": 33.6446418762207,
+            "i_rate_hz": 124.11428833007812,
+            "e_active_fraction": 1.0,
+            "i_active_fraction": 1.0,
+            "dominant_frequency_hz": 36.62109375,
+            "peak_prominence": 98.87872412940044,
+            "finite": true,
+            "active": true,
+            "spectrally_valid": true,
+            "silent": false,
+            "saturated": false
+          }
+        },
+        "synchrony": {
+          "plv": 0.3326130135573153,
+          "mean_phase_difference_rad": -2.6700440085303785,
+          "half_1_plv": 0.15247077933710848,
+          "half_2_plv": 0.5635261900599996,
+          "half_phase_offset_difference_rad": 0.9373609095079296,
+          "gamma_coherence": 0.5553432782497417,
+          "cross_correlation_peak": 0.40991552678376336,
+          "cross_correlation_lag_ms": -42.900000000000006,
+          "frequency_difference_hz": 1.220703125
+        },
+        "valid": true,
+        "runtime_s": 6.159497166983783,
+        "peak_python_bytes": 23260406,
+        "graph_digest": "sha256:7adffa45721fc67d2737afd476cf34d0f4aad3a8bf643dacfdc6891ef302229d"
+      },
+      "registered_gate_pass": false,
+      "exploratory_score": 2.146620784857513,
+      "graph_digest": "sha256:7adffa45721fc67d2737afd476cf34d0f4aad3a8bf643dacfdc6891ef302229d"
+    },
+    {
+      "strength": 0.15,
+      "delay_ms": 8.0,
+      "metrics": {
+        "populations": {
+          "a": {
+            "e_rate_hz": 32.079463958740234,
+            "i_rate_hz": 130.0142822265625,
+            "e_active_fraction": 1.0,
+            "i_active_fraction": 1.0,
+            "dominant_frequency_hz": 31.73828125,
+            "peak_prominence": 79.53488994288548,
+            "finite": true,
+            "active": true,
+            "spectrally_valid": true,
+            "silent": false,
+            "saturated": false
+          },
+          "b": {
+            "e_rate_hz": 29.73660659790039,
+            "i_rate_hz": 129.2857208251953,
+            "e_active_fraction": 1.0,
+            "i_active_fraction": 1.0,
+            "dominant_frequency_hz": 31.73828125,
+            "peak_prominence": 155.89548611654652,
+            "finite": true,
+            "active": true,
+            "spectrally_valid": true,
+            "silent": false,
+            "saturated": false
+          }
+        },
+        "synchrony": {
+          "plv": 0.7385561703568108,
+          "mean_phase_difference_rad": 0.2890693216392775,
+          "half_1_plv": 0.7710675884081039,
+          "half_2_plv": 0.7067506425532858,
+          "half_phase_offset_difference_rad": 0.06187741873740371,
+          "gamma_coherence": 0.5954240707474658,
+          "cross_correlation_peak": 0.6608159897629672,
+          "cross_correlation_lag_ms": 29.8,
+          "frequency_difference_hz": 0.0
+        },
+        "valid": true,
+        "runtime_s": 6.180888292030431,
+        "peak_python_bytes": 23249424,
+        "graph_digest": "sha256:2a83d25882fdce293fa4acc98a9d2e2e481519c3bebd38c702fd5d2e69c26f36"
+      },
+      "registered_gate_pass": false,
+      "exploratory_score": 0.5743893812055532,
+      "graph_digest": "sha256:2a83d25882fdce293fa4acc98a9d2e2e481519c3bebd38c702fd5d2e69c26f36"
+    },
+    {
+      "strength": 0.15,
+      "delay_ms": 10.0,
+      "metrics": {
+        "populations": {
+          "a": {
+            "e_rate_hz": 30.420536041259766,
+            "i_rate_hz": 124.46785736083984,
+            "e_active_fraction": 1.0,
+            "i_active_fraction": 1.0,
+            "dominant_frequency_hz": 32.958984375,
+            "peak_prominence": 134.1893574673918,
+            "finite": true,
+            "active": true,
+            "spectrally_valid": true,
+            "silent": false,
+            "saturated": false
+          },
+          "b": {
+            "e_rate_hz": 28.693750381469727,
+            "i_rate_hz": 123.40357208251953,
+            "e_active_fraction": 1.0,
+            "i_active_fraction": 1.0,
+            "dominant_frequency_hz": 32.958984375,
+            "peak_prominence": 116.19766633090306,
+            "finite": true,
+            "active": true,
+            "spectrally_valid": true,
+            "silent": false,
+            "saturated": false
+          }
+        },
+        "synchrony": {
+          "plv": 0.8076761328914434,
+          "mean_phase_difference_rad": 0.3435905764417911,
+          "half_1_plv": 0.795549739018292,
+          "half_2_plv": 0.8581722597568923,
+          "half_phase_offset_difference_rad": 0.4319843093502719,
+          "gamma_coherence": 0.5668277802443454,
+          "cross_correlation_peak": 0.7034139848490649,
+          "cross_correlation_lag_ms": -32.4,
+          "frequency_difference_hz": 0.0
+        },
+        "valid": true,
+        "runtime_s": 6.583824249915779,
+        "peak_python_bytes": 23251759,
+        "graph_digest": "sha256:308fa5224122a450a6c20781d512645c41774ae0b9a06a5bab3605e410418bb2"
+      },
+      "registered_gate_pass": false,
+      "exploratory_score": 0.5342790044327331,
+      "graph_digest": "sha256:308fa5224122a450a6c20781d512645c41774ae0b9a06a5bab3605e410418bb2"
+    },
+    {
+      "strength": 0.15,
+      "delay_ms": 11.5,
+      "metrics": {
+        "populations": {
+          "a": {
+            "e_rate_hz": 31.452678680419922,
+            "i_rate_hz": 127.24642944335938,
+            "e_active_fraction": 1.0,
+            "i_active_fraction": 1.0,
+            "dominant_frequency_hz": 31.73828125,
+            "peak_prominence": 46.496213474675855,
+            "finite": true,
+            "active": true,
+            "spectrally_valid": true,
+            "silent": false,
+            "saturated": false
+          },
+          "b": {
+            "e_rate_hz": 29.28125,
+            "i_rate_hz": 125.92500305175781,
+            "e_active_fraction": 1.0,
+            "i_active_fraction": 1.0,
+            "dominant_frequency_hz": 31.73828125,
+            "peak_prominence": 58.69029681512859,
+            "finite": true,
+            "active": true,
+            "spectrally_valid": true,
+            "silent": false,
+            "saturated": false
+          }
+        },
+        "synchrony": {
+          "plv": 0.6033015005322724,
+          "mean_phase_difference_rad": 0.43776640036657605,
+          "half_1_plv": 0.48756789578346105,
+          "half_2_plv": 0.7198676806582165,
+          "half_phase_offset_difference_rad": 0.07569090056117284,
+          "gamma_coherence": 0.6475615520170965,
+          "cross_correlation_peak": 0.5684522440572108,
+          "cross_correlation_lag_ms": 29.5,
+          "frequency_difference_hz": 0.0
+        },
+        "valid": true,
+        "runtime_s": 6.972777249990031,
+        "peak_python_bytes": 23254593,
+        "graph_digest": "sha256:616f40b01bac764a238a272f1774184dc742a75834a29889eae34ce0a32e376e"
+      },
+      "registered_gate_pass": false,
+      "exploratory_score": 0.9332237656270421,
+      "graph_digest": "sha256:616f40b01bac764a238a272f1774184dc742a75834a29889eae34ce0a32e376e"
+    },
+    {
+      "strength": 0.15,
+      "delay_ms": 12.5,
+      "metrics": {
+        "populations": {
+          "a": {
+            "e_rate_hz": 31.211606979370117,
+            "i_rate_hz": 122.14286041259766,
+            "e_active_fraction": 1.0,
+            "i_active_fraction": 1.0,
+            "dominant_frequency_hz": 30.517578125,
+            "peak_prominence": 63.26986647467678,
+            "finite": true,
+            "active": true,
+            "spectrally_valid": true,
+            "silent": false,
+            "saturated": false
+          },
+          "b": {
+            "e_rate_hz": 27.506250381469727,
+            "i_rate_hz": 118.5392837524414,
+            "e_active_fraction": 1.0,
+            "i_active_fraction": 1.0,
+            "dominant_frequency_hz": 30.517578125,
+            "peak_prominence": 84.35256149617894,
+            "finite": true,
+            "active": true,
+            "spectrally_valid": true,
+            "silent": false,
+            "saturated": false
+          }
+        },
+        "synchrony": {
+          "plv": 0.6686937279258378,
+          "mean_phase_difference_rad": 0.27332889448836517,
+          "half_1_plv": 0.8071139930857957,
+          "half_2_plv": 0.5368226928957541,
+          "half_phase_offset_difference_rad": 0.20166153260487926,
+          "gamma_coherence": 0.5977857521013924,
+          "cross_correlation_peak": 0.682148743030804,
+          "cross_correlation_lag_ms": 31.8,
+          "frequency_difference_hz": 0.0
+        },
+        "valid": true,
+        "runtime_s": 6.416866083047353,
+        "peak_python_bytes": 23256362,
+        "graph_digest": "sha256:bb686f269eb2f59fedc433d7ab75a2a984e6b30d5f39eb57d9bf453078119632"
+      },
+      "registered_gate_pass": false,
+      "exploratory_score": 0.858674438669516,
+      "graph_digest": "sha256:bb686f269eb2f59fedc433d7ab75a2a984e6b30d5f39eb57d9bf453078119632"
+    },
+    {
+      "strength": 0.15,
+      "delay_ms": 13.5,
+      "metrics": {
+        "populations": {
+          "a": {
+            "e_rate_hz": 30.129465103149414,
+            "i_rate_hz": 121.4749984741211,
+            "e_active_fraction": 1.0,
+            "i_active_fraction": 1.0,
+            "dominant_frequency_hz": 30.517578125,
+            "peak_prominence": 112.27101733348911,
+            "finite": true,
+            "active": true,
+            "spectrally_valid": true,
+            "silent": false,
+            "saturated": false
+          },
+          "b": {
+            "e_rate_hz": 28.640178680419922,
+            "i_rate_hz": 118.61785888671875,
+            "e_active_fraction": 1.0,
+            "i_active_fraction": 1.0,
+            "dominant_frequency_hz": 30.517578125,
+            "peak_prominence": 52.930673654173596,
+            "finite": true,
+            "active": true,
+            "spectrally_valid": true,
+            "silent": false,
+            "saturated": false
+          }
+        },
+        "synchrony": {
+          "plv": 0.6397193409875179,
+          "mean_phase_difference_rad": 0.19041290759816942,
+          "half_1_plv": 0.8011166592624898,
+          "half_2_plv": 0.5633702955697547,
+          "half_phase_offset_difference_rad": 0.7213910266598295,
+          "gamma_coherence": 0.4565501212248097,
+          "cross_correlation_peak": 0.6122903310225805,
+          "cross_correlation_lag_ms": -34.6,
+          "frequency_difference_hz": 0.0
+        },
+        "valid": true,
+        "runtime_s": 6.143157499958761,
+        "peak_python_bytes": 23258323,
+        "graph_digest": "sha256:dd9a2ffeb8faa071d0a7505233cc86b78b68b811dcc0959232b2fe4f4deb46c7"
+      },
+      "registered_gate_pass": false,
+      "exploratory_score": 1.0265362590328255,
+      "graph_digest": "sha256:dd9a2ffeb8faa071d0a7505233cc86b78b68b811dcc0959232b2fe4f4deb46c7"
+    },
+    {
+      "strength": 0.15,
+      "delay_ms": 15.0,
+      "metrics": {
+        "populations": {
+          "a": {
+            "e_rate_hz": 29.99017906188965,
+            "i_rate_hz": 122.85713958740234,
+            "e_active_fraction": 1.0,
+            "i_active_fraction": 1.0,
+            "dominant_frequency_hz": 37.841796875,
+            "peak_prominence": 21.236835363331533,
+            "finite": true,
+            "active": true,
+            "spectrally_valid": true,
+            "silent": false,
+            "saturated": false
+          },
+          "b": {
+            "e_rate_hz": 28.102678298950195,
+            "i_rate_hz": 119.9607162475586,
+            "e_active_fraction": 1.0,
+            "i_active_fraction": 1.0,
+            "dominant_frequency_hz": 30.517578125,
+            "peak_prominence": 96.94279831041604,
+            "finite": true,
+            "active": true,
+            "spectrally_valid": true,
+            "silent": false,
+            "saturated": false
+          }
+        },
+        "synchrony": {
+          "plv": 0.21512865831216066,
+          "mean_phase_difference_rad": 0.32988367074553765,
+          "half_1_plv": 0.5461253819811479,
+          "half_2_plv": 0.18309737684735475,
+          "half_phase_offset_difference_rad": 2.3939948736882983,
+          "gamma_coherence": 0.5460706625388428,
+          "cross_correlation_peak": 0.5233401941118003,
+          "cross_correlation_lag_ms": -36.800000000000004,
+          "frequency_difference_hz": 7.32421875
+        },
+        "valid": true,
+        "runtime_s": 6.209381750086322,
+        "peak_python_bytes": 23259373,
+        "graph_digest": "sha256:f5bf1dd8b278811ed985d6e9aa5799a5f4392f3297ac451126d48208c062cc62"
+      },
+      "registered_gate_pass": false,
+      "exploratory_score": 4.363806200608785,
+      "graph_digest": "sha256:f5bf1dd8b278811ed985d6e9aa5799a5f4392f3297ac451126d48208c062cc62"
+    },
+    {
+      "strength": 0.2,
+      "delay_ms": 8.0,
+      "metrics": {
+        "populations": {
+          "a": {
+            "e_rate_hz": 30.40625,
+            "i_rate_hz": 137.85714721679688,
+            "e_active_fraction": 1.0,
+            "i_active_fraction": 1.0,
+            "dominant_frequency_hz": 31.73828125,
+            "peak_prominence": 136.2090801925211,
+            "finite": true,
+            "active": true,
+            "spectrally_valid": true,
+            "silent": false,
+            "saturated": false
+          },
+          "b": {
+            "e_rate_hz": 28.66964340209961,
+            "i_rate_hz": 136.7857208251953,
+            "e_active_fraction": 1.0,
+            "i_active_fraction": 1.0,
+            "dominant_frequency_hz": 31.73828125,
+            "peak_prominence": 71.17767564158002,
+            "finite": true,
+            "active": true,
+            "spectrally_valid": true,
+            "silent": false,
+            "saturated": false
+          }
+        },
+        "synchrony": {
+          "plv": 0.7783008895199013,
+          "mean_phase_difference_rad": 0.23253346481989778,
+          "half_1_plv": 0.7413544185717037,
+          "half_2_plv": 0.817450937015157,
+          "half_phase_offset_difference_rad": 0.10648364008495634,
+          "gamma_coherence": 0.4958826659123939,
+          "cross_correlation_peak": 0.6380786485869245,
+          "cross_correlation_lag_ms": -1.2000000000000002,
+          "frequency_difference_hz": 0.0
+        },
+        "valid": true,
+        "runtime_s": 6.18787358305417,
+        "peak_python_bytes": 23248304,
+        "graph_digest": "sha256:b0885918c6633a3a0fe807b73882b57ef429537e39ebef752ea6e03ecf294023"
+      },
+      "registered_gate_pass": false,
+      "exploratory_score": 0.5142394872642732,
+      "graph_digest": "sha256:b0885918c6633a3a0fe807b73882b57ef429537e39ebef752ea6e03ecf294023"
+    },
+    {
+      "strength": 0.2,
+      "delay_ms": 10.0,
+      "metrics": {
+        "populations": {
+          "a": {
+            "e_rate_hz": 29.800893783569336,
+            "i_rate_hz": 125.7357177734375,
+            "e_active_fraction": 1.0,
+            "i_active_fraction": 1.0,
+            "dominant_frequency_hz": 30.517578125,
+            "peak_prominence": 175.30601667297896,
+            "finite": true,
+            "active": true,
+            "spectrally_valid": true,
+            "silent": false,
+            "saturated": false
+          },
+          "b": {
+            "e_rate_hz": 27.82053565979004,
+            "i_rate_hz": 133.57142639160156,
+            "e_active_fraction": 1.0,
+            "i_active_fraction": 1.0,
+            "dominant_frequency_hz": 30.517578125,
+            "peak_prominence": 122.0320216223496,
+            "finite": true,
+            "active": true,
+            "spectrally_valid": true,
+            "silent": false,
+            "saturated": false
+          }
+        },
+        "synchrony": {
+          "plv": 0.7287935956648893,
+          "mean_phase_difference_rad": 0.5528113851396403,
+          "half_1_plv": 0.7379423578049312,
+          "half_2_plv": 0.7196593893304812,
+          "half_phase_offset_difference_rad": 0.008938779116699378,
+          "gamma_coherence": 0.57537093718421,
+          "cross_correlation_peak": 0.6617394855613815,
+          "cross_correlation_lag_ms": 29.5,
+          "frequency_difference_hz": 0.0
+        },
+        "valid": true,
+        "runtime_s": 6.53459745796863,
+        "peak_python_bytes": 23251948,
+        "graph_digest": "sha256:71bfbdddc7c8d4a74edd73060eca7f35eda97617e79cddb9c38d90d9308fe667"
+      },
+      "registered_gate_pass": false,
+      "exploratory_score": 0.554392316767888,
+      "graph_digest": "sha256:71bfbdddc7c8d4a74edd73060eca7f35eda97617e79cddb9c38d90d9308fe667"
+    },
+    {
+      "strength": 0.2,
+      "delay_ms": 11.5,
+      "metrics": {
+        "populations": {
+          "a": {
+            "e_rate_hz": 30.518749237060547,
+            "i_rate_hz": 124.08214569091797,
+            "e_active_fraction": 1.0,
+            "i_active_fraction": 1.0,
+            "dominant_frequency_hz": 30.517578125,
+            "peak_prominence": 111.12477850478064,
+            "finite": true,
+            "active": true,
+            "spectrally_valid": true,
+            "silent": false,
+            "saturated": false
+          },
+          "b": {
+            "e_rate_hz": 27.36517906188965,
+            "i_rate_hz": 135.46070861816406,
+            "e_active_fraction": 1.0,
+            "i_active_fraction": 1.0,
+            "dominant_frequency_hz": 30.517578125,
+            "peak_prominence": 136.70226327786378,
+            "finite": true,
+            "active": true,
+            "spectrally_valid": true,
+            "silent": false,
+            "saturated": false
+          }
+        },
+        "synchrony": {
+          "plv": 0.742313189015764,
+          "mean_phase_difference_rad": 0.7332416809728759,
+          "half_1_plv": 0.6402359694032101,
+          "half_2_plv": 0.8452992162667099,
+          "half_phase_offset_difference_rad": 0.07063843194065088,
+          "gamma_coherence": 0.5246769934039622,
+          "cross_correlation_peak": 0.6652006472609817,
+          "cross_correlation_lag_ms": -4.2,
+          "frequency_difference_hz": 0.0
+        },
+        "valid": true,
+        "runtime_s": 6.077956082997844,
+        "peak_python_bytes": 23254715,
+        "graph_digest": "sha256:d40973c0a2ace2daa20981f4db85b2f35fdc31e14f534ff9a4ce47202070929a"
+      },
+      "registered_gate_pass": false,
+      "exploratory_score": 0.6399357528122558,
+      "graph_digest": "sha256:d40973c0a2ace2daa20981f4db85b2f35fdc31e14f534ff9a4ce47202070929a"
+    },
+    {
+      "strength": 0.2,
+      "delay_ms": 12.5,
+      "metrics": {
+        "populations": {
+          "a": {
+            "e_rate_hz": 28.32053565979004,
+            "i_rate_hz": 120.57499694824219,
+            "e_active_fraction": 1.0,
+            "i_active_fraction": 1.0,
+            "dominant_frequency_hz": 30.517578125,
+            "peak_prominence": 103.33880957314621,
+            "finite": true,
+            "active": true,
+            "spectrally_valid": true,
+            "silent": false,
+            "saturated": false
+          },
+          "b": {
+            "e_rate_hz": 29.574106216430664,
+            "i_rate_hz": 138.57142639160156,
+            "e_active_fraction": 1.0,
+            "i_active_fraction": 1.0,
+            "dominant_frequency_hz": 30.517578125,
+            "peak_prominence": 123.43436950273869,
+            "finite": true,
+            "active": true,
+            "spectrally_valid": true,
+            "silent": false,
+            "saturated": false
+          }
+        },
+        "synchrony": {
+          "plv": 0.8368330152342481,
+          "mean_phase_difference_rad": 0.6594282853241967,
+          "half_1_plv": 0.7734996682177415,
+          "half_2_plv": 0.9012390362803117,
+          "half_phase_offset_difference_rad": 0.07179530959522762,
+          "gamma_coherence": 0.5492046424556765,
+          "cross_correlation_peak": 0.7839834954943777,
+          "cross_correlation_lag_ms": 29.900000000000002,
+          "frequency_difference_hz": 0.0
+        },
+        "valid": true,
+        "runtime_s": 6.142336042015813,
+        "peak_python_bytes": 23255067,
+        "graph_digest": "sha256:67b8bd1493475725800bb30608d60d39a16e0594971ac74d5cbd164aac70baec"
+      },
+      "registered_gate_pass": false,
+      "exploratory_score": 0.41252047337379727,
+      "graph_digest": "sha256:67b8bd1493475725800bb30608d60d39a16e0594971ac74d5cbd164aac70baec"
+    },
+    {
+      "strength": 0.2,
+      "delay_ms": 13.5,
+      "metrics": {
+        "populations": {
+          "a": {
+            "e_rate_hz": 29.63035774230957,
+            "i_rate_hz": 123.57142639160156,
+            "e_active_fraction": 1.0,
+            "i_active_fraction": 1.0,
+            "dominant_frequency_hz": 30.517578125,
+            "peak_prominence": 47.70847937381655,
+            "finite": true,
+            "active": true,
+            "spectrally_valid": true,
+            "silent": false,
+            "saturated": false
+          },
+          "b": {
+            "e_rate_hz": 28.24196434020996,
+            "i_rate_hz": 128.5749969482422,
+            "e_active_fraction": 1.0,
+            "i_active_fraction": 1.0,
+            "dominant_frequency_hz": 30.517578125,
+            "peak_prominence": 73.24439702364226,
+            "finite": true,
+            "active": true,
+            "spectrally_valid": true,
+            "silent": false,
+            "saturated": false
+          }
+        },
+        "synchrony": {
+          "plv": 0.651673795296843,
+          "mean_phase_difference_rad": 0.4890975302686216,
+          "half_1_plv": 0.7493003233264582,
+          "half_2_plv": 0.5546082677830909,
+          "half_phase_offset_difference_rad": 0.059335699283645515,
+          "gamma_coherence": 0.5671503797430028,
+          "cross_correlation_peak": 0.6798298351336801,
+          "cross_correlation_lag_ms": 32.0,
+          "frequency_difference_hz": 0.0
+        },
+        "valid": true,
+        "runtime_s": 6.663850708049722,
+        "peak_python_bytes": 23257231,
+        "graph_digest": "sha256:d18a6be970bec6c26694dc4d26f3c92c80a1b22027201e12415c36ee3b2f1f47"
+      },
+      "registered_gate_pass": false,
+      "exploratory_score": 0.8126050766056789,
+      "graph_digest": "sha256:d18a6be970bec6c26694dc4d26f3c92c80a1b22027201e12415c36ee3b2f1f47"
+    },
+    {
+      "strength": 0.2,
+      "delay_ms": 15.0,
+      "metrics": {
+        "populations": {
+          "a": {
+            "e_rate_hz": 28.560714721679688,
+            "i_rate_hz": 119.28571319580078,
+            "e_active_fraction": 1.0,
+            "i_active_fraction": 1.0,
+            "dominant_frequency_hz": 30.517578125,
+            "peak_prominence": 107.69364536592136,
+            "finite": true,
+            "active": true,
+            "spectrally_valid": true,
+            "silent": false,
+            "saturated": false
+          },
+          "b": {
+            "e_rate_hz": 28.105356216430664,
+            "i_rate_hz": 119.22142791748047,
+            "e_active_fraction": 1.0,
+            "i_active_fraction": 1.0,
+            "dominant_frequency_hz": 30.517578125,
+            "peak_prominence": 100.23779915660532,
+            "finite": true,
+            "active": true,
+            "spectrally_valid": true,
+            "silent": false,
+            "saturated": false
+          }
+        },
+        "synchrony": {
+          "plv": 0.7581220814151761,
+          "mean_phase_difference_rad": 0.2901970214814901,
+          "half_1_plv": 0.8433241366711676,
+          "half_2_plv": 0.6833932404874346,
+          "half_phase_offset_difference_rad": 0.2357009803394251,
+          "gamma_coherence": 0.602321511576247,
+          "cross_correlation_peak": 0.75142796086638,
+          "cross_correlation_lag_ms": -1.6,
+          "frequency_difference_hz": 0.0
+        },
+        "valid": true,
+        "runtime_s": 6.213833832996897,
+        "peak_python_bytes": 23259701,
+        "graph_digest": "sha256:3e70c8725994c62cc09eb76123cecdafb23401cf02ec7f4b04a2c5e00265c08c"
+      },
+      "registered_gate_pass": false,
+      "exploratory_score": 0.6335106303226397,
+      "graph_digest": "sha256:3e70c8725994c62cc09eb76123cecdafb23401cf02ec7f4b04a2c5e00265c08c"
+    },
+    {
+      "strength": 0.25,
+      "delay_ms": 8.0,
+      "metrics": {
+        "populations": {
+          "a": {
+            "e_rate_hz": 28.368749618530273,
+            "i_rate_hz": 144.2857208251953,
+            "e_active_fraction": 1.0,
+            "i_active_fraction": 1.0,
+            "dominant_frequency_hz": 31.73828125,
+            "peak_prominence": 25.55100924635147,
+            "finite": true,
+            "active": true,
+            "spectrally_valid": true,
+            "silent": false,
+            "saturated": false
+          },
+          "b": {
+            "e_rate_hz": 28.288393020629883,
+            "i_rate_hz": 144.2857208251953,
+            "e_active_fraction": 1.0,
+            "i_active_fraction": 1.0,
+            "dominant_frequency_hz": 30.517578125,
+            "peak_prominence": 29.083206952569597,
+            "finite": true,
+            "active": true,
+            "spectrally_valid": true,
+            "silent": false,
+            "saturated": false
+          }
+        },
+        "synchrony": {
+          "plv": 0.8310685387689073,
+          "mean_phase_difference_rad": 0.18788992929122103,
+          "half_1_plv": 0.8301914865342698,
+          "half_2_plv": 0.8334692862978279,
+          "half_phase_offset_difference_rad": 0.0856043164475909,
+          "gamma_coherence": 0.5786022488078741,
+          "cross_correlation_peak": 0.7235925302370451,
+          "cross_correlation_lag_ms": -34.7,
+          "frequency_difference_hz": 1.220703125
+        },
+        "valid": true,
+        "runtime_s": 6.152047459036112,
+        "peak_python_bytes": 23248751,
+        "graph_digest": "sha256:e8e8e27b78402c99686bd66bc9db0b4a78473d9cf3b5c95e076601b859fb256a"
+      },
+      "registered_gate_pass": false,
+      "exploratory_score": 0.6993220082554301,
+      "graph_digest": "sha256:e8e8e27b78402c99686bd66bc9db0b4a78473d9cf3b5c95e076601b859fb256a"
+    },
+    {
+      "strength": 0.25,
+      "delay_ms": 10.0,
+      "metrics": {
+        "populations": {
+          "a": {
+            "e_rate_hz": 27.975893020629883,
+            "i_rate_hz": 142.14285278320312,
+            "e_active_fraction": 1.0,
+            "i_active_fraction": 1.0,
+            "dominant_frequency_hz": 30.517578125,
+            "peak_prominence": 83.28050162861453,
+            "finite": true,
+            "active": true,
+            "spectrally_valid": true,
+            "silent": false,
+            "saturated": false
+          },
+          "b": {
+            "e_rate_hz": 28.749107360839844,
+            "i_rate_hz": 145.0,
+            "e_active_fraction": 1.0,
+            "i_active_fraction": 1.0,
+            "dominant_frequency_hz": 30.517578125,
+            "peak_prominence": 61.063361107756265,
+            "finite": true,
+            "active": true,
+            "spectrally_valid": true,
+            "silent": false,
+            "saturated": false
+          }
+        },
+        "synchrony": {
+          "plv": 0.898537782984134,
+          "mean_phase_difference_rad": 0.18127671067427895,
+          "half_1_plv": 0.9187402463187387,
+          "half_2_plv": 0.8799257923162602,
+          "half_phase_offset_difference_rad": 0.08413293553128506,
+          "gamma_coherence": 0.589065386111761,
+          "cross_correlation_peak": 0.8388673047313212,
+          "cross_correlation_lag_ms": 33.300000000000004,
+          "frequency_difference_hz": 0.0
+        },
+        "valid": true,
+        "runtime_s": 6.268776625045575,
+        "peak_python_bytes": 23251451,
+        "graph_digest": "sha256:afdb84a3cc0fad07bd9668ebbe21ce1ffedf145bbf0f1a7da382d89879609717"
+      },
+      "registered_gate_pass": false,
+      "exploratory_score": 0.24831676983287732,
+      "graph_digest": "sha256:afdb84a3cc0fad07bd9668ebbe21ce1ffedf145bbf0f1a7da382d89879609717"
+    },
+    {
+      "strength": 0.25,
+      "delay_ms": 11.5,
+      "metrics": {
+        "populations": {
+          "a": {
+            "e_rate_hz": 26.739286422729492,
+            "i_rate_hz": 136.43214416503906,
+            "e_active_fraction": 1.0,
+            "i_active_fraction": 1.0,
+            "dominant_frequency_hz": 30.517578125,
+            "peak_prominence": 17.134917738417258,
+            "finite": true,
+            "active": true,
+            "spectrally_valid": true,
+            "silent": false,
+            "saturated": false
+          },
+          "b": {
+            "e_rate_hz": 27.99464225769043,
+            "i_rate_hz": 137.22857666015625,
+            "e_active_fraction": 1.0,
+            "i_active_fraction": 1.0,
+            "dominant_frequency_hz": 30.517578125,
+            "peak_prominence": 17.656908771460014,
+            "finite": true,
+            "active": true,
+            "spectrally_valid": true,
+            "silent": false,
+            "saturated": false
+          }
+        },
+        "synchrony": {
+          "plv": 0.8512409343091486,
+          "mean_phase_difference_rad": 0.037219607379844775,
+          "half_1_plv": 0.9104156476125674,
+          "half_2_plv": 0.793709568399044,
+          "half_phase_offset_difference_rad": 0.08804715747909587,
+          "gamma_coherence": 0.6205485306310492,
+          "cross_correlation_peak": 0.844322270945538,
+          "cross_correlation_lag_ms": 34.800000000000004,
+          "frequency_difference_hz": 0.0
+        },
+        "valid": true,
+        "runtime_s": 6.682537791901268,
+        "peak_python_bytes": 23254627,
+        "graph_digest": "sha256:c603161e92e5525969026eb21f3fdf7b83bee5150c7d2f2f02863eb60c18632a"
+      },
+      "registered_gate_pass": false,
+      "exploratory_score": 0.38307577796778464,
+      "graph_digest": "sha256:c603161e92e5525969026eb21f3fdf7b83bee5150c7d2f2f02863eb60c18632a"
+    },
+    {
+      "strength": 0.25,
+      "delay_ms": 12.5,
+      "metrics": {
+        "populations": {
+          "a": {
+            "e_rate_hz": 26.540178298950195,
+            "i_rate_hz": 134.2857208251953,
+            "e_active_fraction": 1.0,
+            "i_active_fraction": 1.0,
+            "dominant_frequency_hz": 30.517578125,
+            "peak_prominence": 12.056451548675865,
+            "finite": true,
+            "active": true,
+            "spectrally_valid": true,
+            "silent": false,
+            "saturated": false
+          },
+          "b": {
+            "e_rate_hz": 25.988393783569336,
+            "i_rate_hz": 133.44285583496094,
+            "e_active_fraction": 1.0,
+            "i_active_fraction": 1.0,
+            "dominant_frequency_hz": 56.15234375,
+            "peak_prominence": 8.240132113462398,
+            "finite": true,
+            "active": true,
+            "spectrally_valid": true,
+            "silent": false,
+            "saturated": false
+          }
+        },
+        "synchrony": {
+          "plv": 0.8190676770455635,
+          "mean_phase_difference_rad": 0.29831768590357466,
+          "half_1_plv": 0.7662478430167384,
+          "half_2_plv": 0.8750309398155178,
+          "half_phase_offset_difference_rad": 0.12407440828736668,
+          "gamma_coherence": 0.5441102038931694,
+          "cross_correlation_peak": 0.8138947488564393,
+          "cross_correlation_lag_ms": -38.300000000000004,
+          "frequency_difference_hz": 25.634765625
+        },
+        "valid": true,
+        "runtime_s": 6.093694583047181,
+        "peak_python_bytes": 23255513,
+        "graph_digest": "sha256:c4aa85ed63152cee026017736775fb4ca2fd215135c9067d3f642f1fed0eca01"
+      },
+      "registered_gate_pass": false,
+      "exploratory_score": 7.454178590717971,
+      "graph_digest": "sha256:c4aa85ed63152cee026017736775fb4ca2fd215135c9067d3f642f1fed0eca01"
+    },
+    {
+      "strength": 0.25,
+      "delay_ms": 13.5,
+      "metrics": {
+        "populations": {
+          "a": {
+            "e_rate_hz": 27.60178565979004,
+            "i_rate_hz": 133.57142639160156,
+            "e_active_fraction": 1.0,
+            "i_active_fraction": 1.0,
+            "dominant_frequency_hz": 30.517578125,
+            "peak_prominence": 10.438881237347461,
+            "finite": true,
+            "active": true,
+            "spectrally_valid": true,
+            "silent": false,
+            "saturated": false
+          },
+          "b": {
+            "e_rate_hz": 24.52857208251953,
+            "i_rate_hz": 132.14285278320312,
+            "e_active_fraction": 1.0,
+            "i_active_fraction": 1.0,
+            "dominant_frequency_hz": 30.517578125,
+            "peak_prominence": 16.823978933717992,
+            "finite": true,
+            "active": true,
+            "spectrally_valid": true,
+            "silent": false,
+            "saturated": false
+          }
+        },
+        "synchrony": {
+          "plv": 0.583674686572768,
+          "mean_phase_difference_rad": 0.11975920375815138,
+          "half_1_plv": 0.6331897980886878,
+          "half_2_plv": 0.5362713677758268,
+          "half_phase_offset_difference_rad": 0.12062615117629519,
+          "gamma_coherence": 0.692930388600323,
+          "cross_correlation_peak": 0.7575258273742205,
+          "cross_correlation_lag_ms": -38.2,
+          "frequency_difference_hz": 0.0
+        },
+        "valid": true,
+        "runtime_s": 6.123166042030789,
+        "peak_python_bytes": 23257611,
+        "graph_digest": "sha256:b0e98ac3887f02506e8b4a8448950867134440871dd89a34c3befea9a8d1b3ef"
+      },
+      "registered_gate_pass": false,
+      "exploratory_score": 0.9184504421031204,
+      "graph_digest": "sha256:b0e98ac3887f02506e8b4a8448950867134440871dd89a34c3befea9a8d1b3ef"
+    },
+    {
+      "strength": 0.25,
+      "delay_ms": 15.0,
+      "metrics": {
+        "populations": {
+          "a": {
+            "e_rate_hz": 27.58839225769043,
+            "i_rate_hz": 130.7142791748047,
+            "e_active_fraction": 1.0,
+            "i_active_fraction": 1.0,
+            "dominant_frequency_hz": 35.400390625,
+            "peak_prominence": 16.651275147252765,
+            "finite": true,
+            "active": true,
+            "spectrally_valid": true,
+            "silent": false,
+            "saturated": false
+          },
+          "b": {
+            "e_rate_hz": 23.208036422729492,
+            "i_rate_hz": 125.0,
+            "e_active_fraction": 1.0,
+            "i_active_fraction": 1.0,
+            "dominant_frequency_hz": 52.490234375,
+            "peak_prominence": 17.19557160731305,
+            "finite": true,
+            "active": true,
+            "spectrally_valid": true,
+            "silent": false,
+            "saturated": false
+          }
+        },
+        "synchrony": {
+          "plv": 0.4469176988481061,
+          "mean_phase_difference_rad": 0.03475437631643515,
+          "half_1_plv": 0.5911866723745075,
+          "half_2_plv": 0.321057640030468,
+          "half_phase_offset_difference_rad": 0.4216486175556513,
+          "gamma_coherence": 0.6335000990987727,
+          "cross_correlation_peak": 0.6925340751937273,
+          "cross_correlation_lag_ms": 38.6,
+          "frequency_difference_hz": 17.08984375
+        },
+        "valid": true,
+        "runtime_s": 6.23439879110083,
+        "peak_python_bytes": 23260402,
+        "graph_digest": "sha256:818d23063d9a337b75c11535040c1367953a93d5cc9ea840adf777218e84805a"
+      },
+      "registered_gate_pass": false,
+      "exploratory_score": 6.032906251251784,
+      "graph_digest": "sha256:818d23063d9a337b75c11535040c1367953a93d5cc9ea840adf777218e84805a"
+    },
+    {
+      "strength": 0.3,
+      "delay_ms": 8.0,
+      "metrics": {
+        "populations": {
+          "a": {
+            "e_rate_hz": 28.620534896850586,
+            "i_rate_hz": 144.55714416503906,
+            "e_active_fraction": 1.0,
+            "i_active_fraction": 1.0,
+            "dominant_frequency_hz": 30.517578125,
+            "peak_prominence": 69.1434448063889,
+            "finite": true,
+            "active": true,
+            "spectrally_valid": true,
+            "silent": false,
+            "saturated": false
+          },
+          "b": {
+            "e_rate_hz": 27.12232208251953,
+            "i_rate_hz": 145.8428497314453,
+            "e_active_fraction": 1.0,
+            "i_active_fraction": 1.0,
+            "dominant_frequency_hz": 30.517578125,
+            "peak_prominence": 78.43867879184371,
+            "finite": true,
+            "active": true,
+            "spectrally_valid": true,
+            "silent": false,
+            "saturated": false
+          }
+        },
+        "synchrony": {
+          "plv": 0.838757551969826,
+          "mean_phase_difference_rad": 0.09651960607746726,
+          "half_1_plv": 0.838208793509321,
+          "half_2_plv": 0.8394779583356741,
+          "half_phase_offset_difference_rad": 0.02860965607921742,
+          "gamma_coherence": 0.550599556652157,
+          "cross_correlation_peak": 0.6698211972368628,
+          "cross_correlation_lag_ms": 32.9,
+          "frequency_difference_hz": 0.0
+        },
+        "valid": true,
+        "runtime_s": 6.2362539999885485,
+        "peak_python_bytes": 23248545,
+        "graph_digest": "sha256:cb455ec450ba2777d2cbf6ea4249889ad527e9b94599249d3b1fa3ff2c291e0d"
+      },
+      "registered_gate_pass": false,
+      "exploratory_score": 0.3321403908911861,
+      "graph_digest": "sha256:cb455ec450ba2777d2cbf6ea4249889ad527e9b94599249d3b1fa3ff2c291e0d"
+    },
+    {
+      "strength": 0.3,
+      "delay_ms": 10.0,
+      "metrics": {
+        "populations": {
+          "a": {
+            "e_rate_hz": 27.958036422729492,
+            "i_rate_hz": 141.51785278320312,
+            "e_active_fraction": 1.0,
+            "i_active_fraction": 1.0,
+            "dominant_frequency_hz": 30.517578125,
+            "peak_prominence": 51.02017298284813,
+            "finite": true,
+            "active": true,
+            "spectrally_valid": true,
+            "silent": false,
+            "saturated": false
+          },
+          "b": {
+            "e_rate_hz": 26.316965103149414,
+            "i_rate_hz": 143.73214721679688,
+            "e_active_fraction": 1.0,
+            "i_active_fraction": 1.0,
+            "dominant_frequency_hz": 30.517578125,
+            "peak_prominence": 41.71992704735434,
+            "finite": true,
+            "active": true,
+            "spectrally_valid": true,
+            "silent": false,
+            "saturated": false
+          }
+        },
+        "synchrony": {
+          "plv": 0.8614634597487169,
+          "mean_phase_difference_rad": 0.28424133806572094,
+          "half_1_plv": 0.882308020437059,
+          "half_2_plv": 0.8411620021219129,
+          "half_phase_offset_difference_rad": 0.05022494675223105,
+          "gamma_coherence": 0.47855652233670604,
+          "cross_correlation_peak": 0.7843409285762976,
+          "cross_correlation_lag_ms": 33.2,
+          "frequency_difference_hz": 0.0
+        },
+        "valid": true,
+        "runtime_s": 6.328479917021468,
+        "peak_python_bytes": 23251469,
+        "graph_digest": "sha256:1d20f6c10a432a2dea4c5994a1534aeff0f52a7d7175c0f7bb3a26013fc17cc0"
+      },
+      "registered_gate_pass": false,
+      "exploratory_score": 0.31336163521365984,
+      "graph_digest": "sha256:1d20f6c10a432a2dea4c5994a1534aeff0f52a7d7175c0f7bb3a26013fc17cc0"
+    },
+    {
+      "strength": 0.3,
+      "delay_ms": 11.5,
+      "metrics": {
+        "populations": {
+          "a": {
+            "e_rate_hz": 26.230356216430664,
+            "i_rate_hz": 137.11785888671875,
+            "e_active_fraction": 1.0,
+            "i_active_fraction": 1.0,
+            "dominant_frequency_hz": 30.517578125,
+            "peak_prominence": 43.82823831505349,
+            "finite": true,
+            "active": true,
+            "spectrally_valid": true,
+            "silent": false,
+            "saturated": false
+          },
+          "b": {
+            "e_rate_hz": 26.15089225769043,
+            "i_rate_hz": 137.14285278320312,
+            "e_active_fraction": 1.0,
+            "i_active_fraction": 1.0,
+            "dominant_frequency_hz": 30.517578125,
+            "peak_prominence": 23.47009420350567,
+            "finite": true,
+            "active": true,
+            "spectrally_valid": true,
+            "silent": false,
+            "saturated": false
+          }
+        },
+        "synchrony": {
+          "plv": 0.7354970271824881,
+          "mean_phase_difference_rad": 0.25299079663649315,
+          "half_1_plv": 0.711568192938396,
+          "half_2_plv": 0.7601639326810553,
+          "half_phase_offset_difference_rad": 0.06337746525204346,
+          "gamma_coherence": 0.5445718747037271,
+          "cross_correlation_peak": 0.7168514061849971,
+          "cross_correlation_lag_ms": -36.800000000000004,
+          "frequency_difference_hz": 0.0
+        },
+        "valid": true,
+        "runtime_s": 6.16580795799382,
+        "peak_python_bytes": 23254101,
+        "graph_digest": "sha256:715c8652824917b1e7aedb6ed82b2786293a66be8f596841f66fde5ddd458125"
+      },
+      "registered_gate_pass": false,
+      "exploratory_score": 0.573108453630111,
+      "graph_digest": "sha256:715c8652824917b1e7aedb6ed82b2786293a66be8f596841f66fde5ddd458125"
+    },
+    {
+      "strength": 0.3,
+      "delay_ms": 12.5,
+      "metrics": {
+        "populations": {
+          "a": {
+            "e_rate_hz": 26.102678298950195,
+            "i_rate_hz": 134.2857208251953,
+            "e_active_fraction": 1.0,
+            "i_active_fraction": 1.0,
+            "dominant_frequency_hz": 53.7109375,
+            "peak_prominence": 4.959081728965418,
+            "finite": true,
+            "active": true,
+            "spectrally_valid": true,
+            "silent": false,
+            "saturated": false
+          },
+          "b": {
+            "e_rate_hz": 26.03125,
+            "i_rate_hz": 137.77499389648438,
+            "e_active_fraction": 1.0,
+            "i_active_fraction": 1.0,
+            "dominant_frequency_hz": 36.62109375,
+            "peak_prominence": 7.505532731194486,
+            "finite": true,
+            "active": true,
+            "spectrally_valid": true,
+            "silent": false,
+            "saturated": false
+          }
+        },
+        "synchrony": {
+          "plv": 0.6152048241556561,
+          "mean_phase_difference_rad": 0.29027930020736736,
+          "half_1_plv": 0.7480848310372787,
+          "half_2_plv": 0.5003143168881437,
+          "half_phase_offset_difference_rad": 0.3469078044328686,
+          "gamma_coherence": 0.6203386764018379,
+          "cross_correlation_peak": 0.8048767427937449,
+          "cross_correlation_lag_ms": 35.4,
+          "frequency_difference_hz": 17.08984375
+        },
+        "valid": true,
+        "runtime_s": 6.012432457995601,
+        "peak_python_bytes": 23255614,
+        "graph_digest": "sha256:1678b87fd6b305cf7bf57cc04a748e2b80d527191818ee106d0cddf7a723c875"
+      },
+      "registered_gate_pass": false,
+      "exploratory_score": 5.661571709368163,
+      "graph_digest": "sha256:1678b87fd6b305cf7bf57cc04a748e2b80d527191818ee106d0cddf7a723c875"
+    },
+    {
+      "strength": 0.3,
+      "delay_ms": 13.5,
+      "metrics": {
+        "populations": {
+          "a": {
+            "e_rate_hz": 27.34910774230957,
+            "i_rate_hz": 133.57142639160156,
+            "e_active_fraction": 1.0,
+            "i_active_fraction": 1.0,
+            "dominant_frequency_hz": 40.283203125,
+            "peak_prominence": 16.41925049484865,
+            "finite": true,
+            "active": true,
+            "spectrally_valid": true,
+            "silent": false,
+            "saturated": false
+          },
+          "b": {
+            "e_rate_hz": 24.341964721679688,
+            "i_rate_hz": 132.85714721679688,
+            "e_active_fraction": 1.0,
+            "i_active_fraction": 1.0,
+            "dominant_frequency_hz": 30.517578125,
+            "peak_prominence": 9.98597722619599,
+            "finite": true,
+            "active": true,
+            "spectrally_valid": true,
+            "silent": false,
+            "saturated": false
+          }
+        },
+        "synchrony": {
+          "plv": 0.6168272384524646,
+          "mean_phase_difference_rad": 0.2644227625352367,
+          "half_1_plv": 0.7551277200325638,
+          "half_2_plv": 0.4793957556302043,
+          "half_phase_offset_difference_rad": 0.07699238733051277,
+          "gamma_coherence": 0.6607775001083107,
+          "cross_correlation_peak": 0.7699075602925589,
+          "cross_correlation_lag_ms": 36.5,
+          "frequency_difference_hz": 9.765625
+        },
+        "valid": true,
+        "runtime_s": 6.165756875067018,
+        "peak_python_bytes": 23257089,
+        "graph_digest": "sha256:dafaa6b87cb1cfc0f827ab896b8684ab7b26454c182bb618f5e93ba48109b7ec"
+      },
+      "registered_gate_pass": false,
+      "exploratory_score": 3.5949511106321914,
+      "graph_digest": "sha256:dafaa6b87cb1cfc0f827ab896b8684ab7b26454c182bb618f5e93ba48109b7ec"
+    },
+    {
+      "strength": 0.3,
+      "delay_ms": 15.0,
+      "metrics": {
+        "populations": {
+          "a": {
+            "e_rate_hz": 25.370534896850586,
+            "i_rate_hz": 130.7142791748047,
+            "e_active_fraction": 1.0,
+            "i_active_fraction": 1.0,
+            "dominant_frequency_hz": 51.26953125,
+            "peak_prominence": 24.362485254380413,
+            "finite": true,
+            "active": true,
+            "spectrally_valid": true,
+            "silent": false,
+            "saturated": false
+          },
+          "b": {
+            "e_rate_hz": 25.78928565979004,
+            "i_rate_hz": 131.42857360839844,
+            "e_active_fraction": 1.0,
+            "i_active_fraction": 1.0,
+            "dominant_frequency_hz": 51.26953125,
+            "peak_prominence": 47.16430664197,
+            "finite": true,
+            "active": true,
+            "spectrally_valid": true,
+            "silent": false,
+            "saturated": false
+          }
+        },
+        "synchrony": {
+          "plv": 0.7535941052838231,
+          "mean_phase_difference_rad": 0.12849955153274123,
+          "half_1_plv": 0.6357019862336837,
+          "half_2_plv": 0.8715032853542476,
+          "half_phase_offset_difference_rad": 0.009634803284245055,
+          "gamma_coherence": 0.6444177800365898,
+          "cross_correlation_peak": 0.8400776591545174,
+          "cross_correlation_lag_ms": 37.5,
+          "frequency_difference_hz": 0.0
+        },
+        "valid": true,
+        "runtime_s": 6.265045208041556,
+        "peak_python_bytes": 23260381,
+        "graph_digest": "sha256:2524d5ea45338fa9c7e06ffcb8e5eab74f4b296038e6ed1971a8f4faa0b6878a"
+      },
+      "registered_gate_pass": false,
+      "exploratory_score": 0.6137707616193044,
+      "graph_digest": "sha256:2524d5ea45338fa9c7e06ffcb8e5eab74f4b296038e6ed1971a8f4faa0b6878a"
+    },
+    {
+      "strength": 0.35,
+      "delay_ms": 8.0,
+      "metrics": {
+        "populations": {
+          "a": {
+            "e_rate_hz": 27.086606979370117,
+            "i_rate_hz": 156.3607177734375,
+            "e_active_fraction": 1.0,
+            "i_active_fraction": 1.0,
+            "dominant_frequency_hz": 30.517578125,
+            "peak_prominence": 92.34138516435347,
+            "finite": true,
+            "active": true,
+            "spectrally_valid": true,
+            "silent": false,
+            "saturated": false
+          },
+          "b": {
+            "e_rate_hz": 27.006250381469727,
+            "i_rate_hz": 156.7035675048828,
+            "e_active_fraction": 1.0,
+            "i_active_fraction": 1.0,
+            "dominant_frequency_hz": 30.517578125,
+            "peak_prominence": 51.06089942836587,
+            "finite": true,
+            "active": true,
+            "spectrally_valid": true,
+            "silent": false,
+            "saturated": false
+          }
+        },
+        "synchrony": {
+          "plv": 0.8408498786567791,
+          "mean_phase_difference_rad": 0.21604342717648808,
+          "half_1_plv": 0.7719372432307486,
+          "half_2_plv": 0.9119470360574689,
+          "half_phase_offset_difference_rad": 0.1022402243984139,
+          "gamma_coherence": 0.5435034038535752,
+          "cross_correlation_peak": 0.6909318823077752,
+          "cross_correlation_lag_ms": -1.2000000000000002,
+          "frequency_difference_hz": 0.0
+        },
+        "valid": true,
+        "runtime_s": 6.279141415958293,
+        "peak_python_bytes": 23248504,
+        "graph_digest": "sha256:12f55cfd79e8807266818e3bfca63f4d180903b88dcfeab16fba33b2a9d61255"
+      },
+      "registered_gate_pass": false,
+      "exploratory_score": 0.4197569523041366,
+      "graph_digest": "sha256:12f55cfd79e8807266818e3bfca63f4d180903b88dcfeab16fba33b2a9d61255"
+    },
+    {
+      "strength": 0.35,
+      "delay_ms": 10.0,
+      "metrics": {
+        "populations": {
+          "a": {
+            "e_rate_hz": 26.29107093811035,
+            "i_rate_hz": 147.74642944335938,
+            "e_active_fraction": 1.0,
+            "i_active_fraction": 1.0,
+            "dominant_frequency_hz": 54.931640625,
+            "peak_prominence": 12.58716907587076,
+            "finite": true,
+            "active": true,
+            "spectrally_valid": true,
+            "silent": false,
+            "saturated": false
+          },
+          "b": {
+            "e_rate_hz": 26.27589225769043,
+            "i_rate_hz": 150.85357666015625,
+            "e_active_fraction": 1.0,
+            "i_active_fraction": 1.0,
+            "dominant_frequency_hz": 31.73828125,
+            "peak_prominence": 17.17389419268986,
+            "finite": true,
+            "active": true,
+            "spectrally_valid": true,
+            "silent": false,
+            "saturated": false
+          }
+        },
+        "synchrony": {
+          "plv": 0.7744537843439796,
+          "mean_phase_difference_rad": 0.28267180361081473,
+          "half_1_plv": 0.7391837079740933,
+          "half_2_plv": 0.8319142813102206,
+          "half_phase_offset_difference_rad": 0.33713486225567724,
+          "gamma_coherence": 0.5463293105253794,
+          "cross_correlation_peak": 0.7283128736767942,
+          "cross_correlation_lag_ms": -38.400000000000006,
+          "frequency_difference_hz": 23.193359375
+        },
+        "valid": true,
+        "runtime_s": 6.222078250022605,
+        "peak_python_bytes": 23251261,
+        "graph_digest": "sha256:f2a7889aa1aea4a86e86720401062c28601763f8820bb959eeaf65b44bbf77bb"
+      },
+      "registered_gate_pass": false,
+      "exploratory_score": 6.927009200648453,
+      "graph_digest": "sha256:f2a7889aa1aea4a86e86720401062c28601763f8820bb959eeaf65b44bbf77bb"
+    },
+    {
+      "strength": 0.35,
+      "delay_ms": 11.5,
+      "metrics": {
+        "populations": {
+          "a": {
+            "e_rate_hz": 26.58035659790039,
+            "i_rate_hz": 140.51785278320312,
+            "e_active_fraction": 1.0,
+            "i_active_fraction": 1.0,
+            "dominant_frequency_hz": 39.0625,
+            "peak_prominence": 6.427846245336566,
+            "finite": true,
+            "active": true,
+            "spectrally_valid": true,
+            "silent": false,
+            "saturated": false
+          },
+          "b": {
+            "e_rate_hz": 26.001785278320312,
+            "i_rate_hz": 145.7035675048828,
+            "e_active_fraction": 1.0,
+            "i_active_fraction": 1.0,
+            "dominant_frequency_hz": 35.400390625,
+            "peak_prominence": 7.307679053735645,
+            "finite": true,
+            "active": true,
+            "spectrally_valid": true,
+            "silent": false,
+            "saturated": false
+          }
+        },
+        "synchrony": {
+          "plv": 0.732906658372287,
+          "mean_phase_difference_rad": 0.3210867157495166,
+          "half_1_plv": 0.7691102192154938,
+          "half_2_plv": 0.6974111938903943,
+          "half_phase_offset_difference_rad": 0.062227775944987684,
+          "gamma_coherence": 0.49578747772961496,
+          "cross_correlation_peak": 0.7934402021008274,
+          "cross_correlation_lag_ms": -38.800000000000004,
+          "frequency_difference_hz": 3.662109375
+        },
+        "valid": true,
+        "runtime_s": 6.051052708062343,
+        "peak_python_bytes": 23253634,
+        "graph_digest": "sha256:4f7cda481a2a320634cacccb052c52162718e958d01bcefb865754c5436a92ac"
+      },
+      "registered_gate_pass": false,
+      "exploratory_score": 1.5894898640158381,
+      "graph_digest": "sha256:4f7cda481a2a320634cacccb052c52162718e958d01bcefb865754c5436a92ac"
+    },
+    {
+      "strength": 0.35,
+      "delay_ms": 12.5,
+      "metrics": {
+        "populations": {
+          "a": {
+            "e_rate_hz": 26.472320556640625,
+            "i_rate_hz": 137.0500030517578,
+            "e_active_fraction": 1.0,
+            "i_active_fraction": 1.0,
+            "dominant_frequency_hz": 52.490234375,
+            "peak_prominence": 17.365444669211,
+            "finite": true,
+            "active": true,
+            "spectrally_valid": true,
+            "silent": false,
+            "saturated": false
+          },
+          "b": {
+            "e_rate_hz": 24.939285278320312,
+            "i_rate_hz": 146.6892852783203,
+            "e_active_fraction": 1.0,
+            "i_active_fraction": 1.0,
+            "dominant_frequency_hz": 52.490234375,
+            "peak_prominence": 9.14165588973228,
+            "finite": true,
+            "active": true,
+            "spectrally_valid": true,
+            "silent": false,
+            "saturated": false
+          }
+        },
+        "synchrony": {
+          "plv": 0.6917951091165373,
+          "mean_phase_difference_rad": 0.3812562897239805,
+          "half_1_plv": 0.6076592331668426,
+          "half_2_plv": 0.8011703402548614,
+          "half_phase_offset_difference_rad": 0.382817820879378,
+          "gamma_coherence": 0.6006028164942128,
+          "cross_correlation_peak": 0.7771753406364951,
+          "cross_correlation_lag_ms": 35.7,
+          "frequency_difference_hz": 0.0
+        },
+        "valid": true,
+        "runtime_s": 6.228077290928923,
+        "peak_python_bytes": 23254583,
+        "graph_digest": "sha256:a318a77ffac7cf5e61ff92b2117ff479c65e399d023563a7098836036e71cc38"
+      },
+      "registered_gate_pass": false,
+      "exploratory_score": 0.8224003547098617,
+      "graph_digest": "sha256:a318a77ffac7cf5e61ff92b2117ff479c65e399d023563a7098836036e71cc38"
+    },
+    {
+      "strength": 0.35,
+      "delay_ms": 13.5,
+      "metrics": {
+        "populations": {
+          "a": {
+            "e_rate_hz": 26.21607208251953,
+            "i_rate_hz": 135.7142791748047,
+            "e_active_fraction": 1.0,
+            "i_active_fraction": 1.0,
+            "dominant_frequency_hz": 34.1796875,
+            "peak_prominence": 7.57911958140012,
+            "finite": true,
+            "active": true,
+            "spectrally_valid": true,
+            "silent": false,
+            "saturated": false
+          },
+          "b": {
+            "e_rate_hz": 24.79464340209961,
+            "i_rate_hz": 142.85714721679688,
+            "e_active_fraction": 1.0,
+            "i_active_fraction": 1.0,
+            "dominant_frequency_hz": 52.490234375,
+            "peak_prominence": 13.705071179406094,
+            "finite": true,
+            "active": true,
+            "spectrally_valid": true,
+            "silent": false,
+            "saturated": false
+          }
+        },
+        "synchrony": {
+          "plv": 0.5956579136815254,
+          "mean_phase_difference_rad": 0.4124822965658127,
+          "half_1_plv": 0.4593931694456773,
+          "half_2_plv": 0.7507212461991511,
+          "half_phase_offset_difference_rad": 0.3638007615534219,
+          "gamma_coherence": 0.6077643209511248,
+          "cross_correlation_peak": 0.715958126570263,
+          "cross_correlation_lag_ms": 35.9,
+          "frequency_difference_hz": 18.310546875
+        },
+        "valid": true,
+        "runtime_s": 6.254962207982317,
+        "peak_python_bytes": 23256644,
+        "graph_digest": "sha256:1af16873336ab34b07b4d1d7fd4161d57de921e3628a773225d620a14e2efb49"
+      },
+      "registered_gate_pass": false,
+      "exploratory_score": 6.060750295876444,
+      "graph_digest": "sha256:1af16873336ab34b07b4d1d7fd4161d57de921e3628a773225d620a14e2efb49"
+    },
+    {
+      "strength": 0.35,
+      "delay_ms": 15.0,
+      "metrics": {
+        "populations": {
+          "a": {
+            "e_rate_hz": 25.245534896850586,
+            "i_rate_hz": 132.85714721679688,
+            "e_active_fraction": 1.0,
+            "i_active_fraction": 1.0,
+            "dominant_frequency_hz": 51.26953125,
+            "peak_prominence": 25.706267931782932,
+            "finite": true,
+            "active": true,
+            "spectrally_valid": true,
+            "silent": false,
+            "saturated": false
+          },
+          "b": {
+            "e_rate_hz": 25.38839340209961,
+            "i_rate_hz": 134.2857208251953,
+            "e_active_fraction": 1.0,
+            "i_active_fraction": 1.0,
+            "dominant_frequency_hz": 52.490234375,
+            "peak_prominence": 21.318991801970743,
+            "finite": true,
+            "active": true,
+            "spectrally_valid": true,
+            "silent": false,
+            "saturated": false
+          }
+        },
+        "synchrony": {
+          "plv": 0.7719352205969777,
+          "mean_phase_difference_rad": 0.2625811727409391,
+          "half_1_plv": 0.8086158444799942,
+          "half_2_plv": 0.7637784462220434,
+          "half_phase_offset_difference_rad": 0.3816856785776238,
+          "gamma_coherence": 0.5866331956744867,
+          "cross_correlation_peak": 0.803145286742942,
+          "cross_correlation_lag_ms": -1.4000000000000001,
+          "frequency_difference_hz": 1.220703125
+        },
+        "valid": true,
+        "runtime_s": 6.3207913329824805,
+        "peak_python_bytes": 23259344,
+        "graph_digest": "sha256:b40183d0e7e385988a4b689336a8911846a227da039b970889a7d6ba3568a4dd"
+      },
+      "registered_gate_pass": false,
+      "exploratory_score": 0.9191139914203386,
+      "graph_digest": "sha256:b40183d0e7e385988a4b689336a8911846a227da039b970889a7d6ba3568a4dd"
+    }
+  ]
+}

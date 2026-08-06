@@ -6,7 +6,6 @@ below are registered before execution. Coupling variants differ only in graph da
 
 from __future__ import annotations
 
-import argparse
 import json
 import math
 import shutil
@@ -26,7 +25,13 @@ sys.path.insert(0, str(REPO))
 sys.path.insert(0, str(REPO / "tools" / "snn"))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from execution import ExecutionSpec, plan_graph, simulate  # noqa: E402
+from execution import (  # noqa: E402
+    ExecutionSpec,
+    plan_graph,
+    runtime_state_signature,
+    save_runtime_state,
+    simulate,
+)
 from tools import snnlang as snn  # noqa: E402, TID251
 
 from helpers import theme  # noqa: E402
@@ -37,7 +42,7 @@ from helpers.run_id import next_run_id  # noqa: E402
 SLUG = "exp078"
 SEED = 78
 DT_MS = 0.1
-N_E, N_I, N_INPUT = 40, 10, 16
+N_E, N_I, N_INPUT = 800, 200, 16
 STEPS = 18_000
 TRANSIENT_STEPS = 4_000
 ANALYSIS_SECONDS = (STEPS - TRANSIENT_STEPS) * DT_MS / 1000.0
@@ -54,6 +59,13 @@ CALIBRATION_GRID = tuple(
 )
 COUPLING_STRENGTHS = (0.20, 0.50, 1.00, 2.00, 4.00)
 DELAY_LABELS = ("short", "intermediate", "half_period")
+REFINEMENT_STRENGTHS = (0.10, 0.15, 0.20, 0.25, 0.30, 0.35)
+REFINEMENT_DELAYS_MS = (8.0, 10.0, 11.5, 12.5, 13.5, 15.0)
+CAPTURE_STRENGTHS = (0.12, 0.14, 0.16, 0.18, 0.20, 0.22)
+CAPTURE_DELAYS_MS = (7.0, 8.0, 9.0, 10.0, 11.0, 12.0)
+ACQUISITION_STRENGTHS = (0.18,)
+ACQUISITION_DELAYS_MS = (10.0,)
+PHASE_CONTEXT_STEPS = round(250.0 / DT_MS)
 
 ACTIVITY = {
     "min_e_rate_hz": 2.0,
@@ -72,9 +84,10 @@ LOCKING = {
     "max_half_window_phase_offset_difference_rad": 0.60,
 }
 HYPOTHESIS = (
-    "Moderate reciprocal I-to-E GABA coupling entrains two independently driven, "
-    "active, 5–15% detuned PING circuits, whereas zero coupling permits phase drift "
-    "and the largest coupling may suppress activity."
+    "Moderate reciprocal long-range E-to-I AMPA coupling entrains two independently "
+    "driven, active, 5–15% detuned PING circuits by recruiting inhibition in the "
+    "other circuit, whereas zero coupling permits phase drift and the largest "
+    "coupling may suppress activity."
 )
 SUCCESS = (
     "At least one moderate registered condition is active and locked by every "
@@ -94,16 +107,6 @@ class Variant:
     strength: float
     delay_label: str
     delay_ms: float
-
-
-def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "--stage",
-        choices=("smoke", "calibrate", "sweep", "replot"),
-        required=True,
-    )
-    return parser.parse_args()
 
 
 def independent_inputs(
@@ -149,18 +152,19 @@ def author_graph(
             constraint=snn.NonNegative(),
         )
         cells[name] = cell
-    if coupling_strength > 0:
-        for source, target in (("a", "b"), ("b", "a")):
-            net.connect(
-                cells[source].I.spikes,
-                cells[target].E.inhibitory,
-                name=f"{source}_I_to_{target}_E",
-                synapse=snn.GABA(tau=9 * snn.ms),
-                weight=snn.Constant(coupling_strength),
-                constraint=snn.NonNegative(),
-                connection="feedback",
-                delay=delay_ms * snn.ms,
-            )
+    # Keep long-range projections structurally present even at weight zero so a
+    # mature uncoupled runtime state can branch into the coupled graph safely.
+    for source, target in (("a", "b"), ("b", "a")):
+        net.connect(
+            cells[source].E.spikes,
+            cells[target].I.excitatory,
+            name=f"{source}_E_to_{target}_I",
+            synapse=snn.AMPA(tau=2 * snn.ms),
+            weight=snn.Constant(coupling_strength),
+            constraint=snn.NonNegative(),
+            connection="feedback",
+            delay=delay_ms * snn.ms,
+        )
     net.expose(
         cells["a"].E.spikes,
         cells["a"].I.spikes,
@@ -353,6 +357,7 @@ def registration() -> dict:
         "calibration_grid": list(CALIBRATION_GRID),
         "calibration_selection": "Minimum registered score among valid active/spectral candidates with 5–15% detuning; score is |detuning-10%| + 0.01/min peak prominence; grid order breaks exact ties.",
         "within_circuit_parameters": "snnlang PING component defaults, frozen",
+        "cross_circuit_pathway": "Reciprocal long-range E-to-I AMPA projections; each receiving I population inhibits its local E population through the unchanged within-circuit PING loop.",
         "coupling_strengths": list(COUPLING_STRENGTHS),
         "delay_labels": list(DELAY_LABELS),
         "activity_thresholds": ACTIVITY,
@@ -416,7 +421,7 @@ def smoke() -> None:
         input_weight=settings["input_weight"], coupling_strength=1.0, delay_ms=0.5
     )
     plan = plan_graph(coupled.graph)
-    cross = [p for p in plan.projections if p.id in {"a_I_to_b_E", "b_I_to_a_E"}]
+    cross = [p for p in plan.projections if p.id in {"a_E_to_b_I", "b_E_to_a_I"}]
     assert len(cross) == 2 and {p.delay_steps for p in cross} == {5}
     print(
         json.dumps(
@@ -485,7 +490,7 @@ def calibrate() -> None:
         )
         (staging / "goal.txt").write_text(GOAL_PROMPT)
         (staging / "reproduce.sh").write_text(
-            "#!/bin/sh\nuv run python experiments/exp078.py --stage calibrate\n"
+            "#!/bin/sh\nuv run python experiments/exp078.py\n"
         )
         activity = [
             {
@@ -575,7 +580,7 @@ def sweep() -> None:
     ) as (_scratch, staging):
         variants_dir = staging / "variants"
         variants_dir.mkdir()
-        rows, arrays_by_name = [], {}
+        rows = []
         for variant in sweep_variants:
             metrics, arrays, bundle = run_condition(
                 settings,
@@ -589,7 +594,6 @@ def sweep() -> None:
             )
             row = {"variant": asdict(variant), "metrics": metrics}
             rows.append(row)
-            arrays_by_name[variant.name] = arrays
             print(variant.name, metrics["valid"], metrics["synchrony"])
         baseline = rows[0]["metrics"]
         for row in rows:
@@ -618,9 +622,9 @@ def sweep() -> None:
             and row["variant"]["strength"] < max(COUPLING_STRENGTHS)
         ]
         success = bool(winners)
-        render_figures(rows, arrays_by_name, staging)
+        render_figures(rows, staging)
         shutil.copy2(
-            variants_dir / "w1_intermediate.bundle/reports/circuit.svg",
+            variants_dir / "w0.2_half_period.bundle/reports/expanded.svg",
             staging / "representative_graph.svg",
         )
         np.savez_compressed(
@@ -646,7 +650,7 @@ def sweep() -> None:
         )
         (staging / "goal.txt").write_text(GOAL_PROMPT)
         (staging / "reproduce.sh").write_text(
-            "#!/bin/sh\nuv run python experiments/exp078.py --stage calibrate\nuv run python experiments/exp078.py --stage sweep\n"
+            "#!/bin/sh\nuv run python experiments/exp078.py\n"
         )
         activity = [
             {
@@ -675,7 +679,11 @@ def sweep() -> None:
             },
             {
                 "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
-                "event": "Completed the unchanged pre-registered local coupling sweep after an experiment-side artifact-key fix, without simulator edits or paid compute.",
+                "event": "Amended the cross-circuit anatomy before rerunning: replaced direct long-range I-to-E GABA projections with reciprocal long-range E-to-I AMPA projections while retaining the frozen uncoupled calibration, sweep grid, inputs, delays, and locking gates.",
+            },
+            {
+                "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+                "event": "After a scale amendment, recalibrated 800 E / 200 I circuits and completed the full biologically faithful E-to-I coupling sweep locally without simulator edits or paid compute; preliminary 40 E / 10 I measurements were superseded.",
             },
         ]
         (staging / "activity_log.json").write_text(
@@ -710,9 +718,513 @@ def sweep() -> None:
         )
 
 
-def render_figures(
-    rows: list[dict], arrays: dict[str, dict[str, np.ndarray]], out: Path
+def refinement_score(metrics: dict, baseline: dict) -> float:
+    """Rank phase capture without pretending this exploratory scan was registered."""
+    if not metrics["valid"]:
+        return math.inf
+    sync = metrics["synchrony"]
+    base_df = baseline["synchrony"]["frequency_difference_hz"]
+    return float(
+        sync["frequency_difference_hz"] / base_df
+        + (1.0 - sync["plv"])
+        + (1.0 - min(sync["half_1_plv"], sync["half_2_plv"]))
+        + sync["half_phase_offset_difference_rad"] / math.pi
+    )
+
+
+def refine() -> None:
+    """Explore the narrow Arnold-tongue neighborhood exposed by the registered sweep."""
+    root = REPO / "artifacts" / "data" / SLUG
+    selected = json.loads((root / "calibration_selection.json").read_text())
+    baseline = json.loads((root / "sweep_table.json").read_text())[0]["metrics"]
+    destination = root / "refinement"
+    destination.mkdir(exist_ok=True)
+    rows: list[dict] = []
+    best_score = math.inf
+    for strength in REFINEMENT_STRENGTHS:
+        for delay_ms in REFINEMENT_DELAYS_MS:
+            metrics, arrays, bundle = run_condition(
+                selected["settings"],
+                coupling_strength=strength,
+                delay_ms=delay_ms,
+            )
+            score = refinement_score(metrics, baseline)
+            row = {
+                "strength": strength,
+                "delay_ms": delay_ms,
+                "metrics": metrics,
+                "registered_gate_pass": locked(metrics, baseline),
+                "exploratory_score": score,
+                "graph_digest": bundle.manifest["graph_digest"],
+            }
+            rows.append(row)
+            if score < best_score:
+                best_score = score
+                np.savez_compressed(destination / "best-recordings.npz", **arrays)
+                bundle.write(destination / "best.bundle", visualise=True)
+            print(
+                f"w={strength:.2f} d={delay_ms:.1f}",
+                f"valid={metrics['valid']}",
+                f"df={metrics['synchrony']['frequency_difference_hz']:.3f}",
+                f"plv={metrics['synchrony']['plv']:.3f}",
+                f"score={score:.3f}",
+            )
+    finite_rows = [row for row in rows if math.isfinite(row["exploratory_score"])]
+    best = min(finite_rows, key=lambda row: row["exploratory_score"])
+    payload = {
+        "exploratory": True,
+        "selection_rule": "minimize frequency_difference/baseline + (1-PLV) + (1-min_half_PLV) + half_phase_drift/pi among valid conditions",
+        "strengths": list(REFINEMENT_STRENGTHS),
+        "delays_ms": list(REFINEMENT_DELAYS_MS),
+        "condition_count": len(rows),
+        "best": best,
+        "registered_gate_pass_count": sum(row["registered_gate_pass"] for row in rows),
+        "rows": rows,
+    }
+    (destination / "results.json").write_text(
+        json.dumps(json_safe(payload), indent=2, allow_nan=False) + "\n"
+    )
+    print(json.dumps(json_safe(payload["best"]), indent=2))
+
+
+def capture_diagnostics(arrays: dict[str, np.ndarray]) -> dict[str, float]:
+    """Measure whether one static-coupling trajectory visibly captures over time."""
+    _, _, vector = phase_trace(arrays)
+    window_steps = round(150.0 / DT_MS)
+    kernel = np.ones(window_steps) / window_steps
+    normalizer = np.convolve(np.ones(len(vector)), kernel, mode="same")
+    rolling_plv = np.abs(np.convolve(vector, kernel, mode="same") / normalizer)
+    early = slice(round(100 / DT_MS), round(400 / DT_MS))
+    late = slice(round(1100 / DT_MS), round(1700 / DT_MS))
+    early_plv = float(np.mean(rolling_plv[early]))
+    late_plv = float(np.mean(rolling_plv[late]))
+    threshold = 0.75
+    hold_steps = round(250.0 / DT_MS)
+    capture_step = None
+    for step in range(round(250 / DT_MS), round(1450 / DT_MS)):
+        if float(np.mean(rolling_plv[step : step + hold_steps])) >= threshold:
+            capture_step = step
+            break
+    unwrapped = np.unwrap(np.angle(vector))
+    late_phase_span = float(np.ptp(unwrapped[late]))
+    visible = bool(
+        capture_step is not None
+        and early_plv <= 0.65
+        and late_plv >= 0.80
+        and 300.0 <= capture_step * DT_MS <= 1300.0
+        and late_phase_span <= 2.5
+    )
+    score = (
+        early_plv
+        + (1.0 - late_plv)
+        + late_phase_span / (2 * math.pi)
+        + (0.0 if capture_step is not None else 10.0)
+    )
+    return {
+        "early_rolling_plv": early_plv,
+        "late_rolling_plv": late_plv,
+        "capture_time_ms": None if capture_step is None else capture_step * DT_MS,
+        "late_unwrapped_phase_span_rad": late_phase_span,
+        "visible_capture": visible,
+        "selection_score": score,
+    }
+
+
+def capture() -> None:
+    """Search for delayed spontaneous capture under static E-to-I coupling."""
+    root = REPO / "artifacts" / "data" / SLUG
+    selected = json.loads((root / "calibration_selection.json").read_text())
+    destination = root / "capture"
+    destination.mkdir(exist_ok=True)
+    rows: list[dict] = []
+    best_score = math.inf
+    for strength in CAPTURE_STRENGTHS:
+        for delay_ms in CAPTURE_DELAYS_MS:
+            metrics, arrays, bundle = run_condition(
+                selected["settings"], coupling_strength=strength, delay_ms=delay_ms
+            )
+            diagnostics = capture_diagnostics(arrays)
+            row = {
+                "strength": strength,
+                "delay_ms": delay_ms,
+                "metrics": metrics,
+                "capture": diagnostics,
+                "graph_digest": bundle.manifest["graph_digest"],
+            }
+            rows.append(row)
+            eligible_score = (
+                diagnostics["selection_score"]
+                if metrics["valid"] and diagnostics["visible_capture"]
+                else math.inf
+            )
+            if eligible_score < best_score:
+                best_score = eligible_score
+                np.savez_compressed(destination / "best-recordings.npz", **arrays)
+                bundle.write(destination / "best.bundle", visualise=True)
+            print(
+                f"w={strength:.2f} d={delay_ms:.1f}",
+                f"early={diagnostics['early_rolling_plv']:.3f}",
+                f"late={diagnostics['late_rolling_plv']:.3f}",
+                f"capture={diagnostics['capture_time_ms']}",
+                f"visible={diagnostics['visible_capture']}",
+            )
+    visible = [row for row in rows if row["capture"]["visible_capture"]]
+    best = (
+        min(visible, key=lambda row: row["capture"]["selection_score"])
+        if visible
+        else None
+    )
+    payload = {
+        "exploratory": True,
+        "purpose": "Select one static-coupling trajectory with visible transition from phase drift to sustained phase locking.",
+        "strengths": list(CAPTURE_STRENGTHS),
+        "delays_ms": list(CAPTURE_DELAYS_MS),
+        "condition_count": len(rows),
+        "visible_capture_count": len(visible),
+        "best": best,
+        "rows": rows,
+    }
+    (destination / "results.json").write_text(
+        json.dumps(json_safe(payload), indent=2, allow_nan=False) + "\n"
+    )
+    if best is None:
+        raise SystemExit("No visible delayed-capture trajectory found")
+    print(json.dumps(json_safe(best), indent=2))
+
+
+def trailing_phase_metrics(
+    arrays: dict[str, np.ndarray], *, discard_steps: int = 0
+) -> dict[str, np.ndarray | float | None]:
+    """Causal phase diagnostics for one already-mature continuation."""
+    rate_a, rate_b, vector = phase_trace(arrays)
+    window_steps = round(150.0 / DT_MS)
+    rolling = np.full(len(vector), np.nan)
+    cumulative = np.concatenate(([0j], np.cumsum(vector)))
+    rolling[window_steps - 1 :] = np.abs(
+        (cumulative[window_steps:] - cumulative[:-window_steps]) / window_steps
+    )
+    unwrapped = np.unwrap(np.angle(vector))
+    reference = float(np.angle(np.mean(vector[-round(500 / DT_MS) :])))
+    phase_error = np.angle(vector * np.exp(-1j * reference))
+    hold_steps = round(250.0 / DT_MS)
+    capture_step = None
+    for step in range(window_steps - 1, len(vector) - hold_steps):
+        if np.all(rolling[step : step + hold_steps] >= 0.80):
+            capture_step = step
+            break
+    peaks, _ = signal.find_peaks(rate_a, distance=round(10.0 / DT_MS), prominence=2.0)
+    if discard_steps:
+        rate_a = rate_a[discard_steps:]
+        rate_b = rate_b[discard_steps:]
+        vector = vector[discard_steps:]
+        rolling = rolling[discard_steps:]
+        unwrapped = unwrapped[discard_steps:]
+        phase_error = phase_error[discard_steps:]
+        peaks = peaks[peaks >= discard_steps] - discard_steps
+        capture_step = None
+        for step in range(0, len(vector) - hold_steps):
+            if np.all(rolling[step : step + hold_steps] >= 0.80):
+                capture_step = step
+                break
+    peaks = peaks[(peaks >= round(25 / DT_MS)) & (peaks < len(vector) - round(25 / DT_MS))]
+    return {
+        "rate_a": rate_a,
+        "rate_b": rate_b,
+        "vector": vector,
+        "rolling_plv": rolling,
+        "unwrapped_phase": unwrapped,
+        "phase_error": phase_error,
+        "cycle_steps": peaks,
+        "capture_step": capture_step,
+        "locked_reference_rad": reference,
+    }
+
+
+def select_mature_checkpoint(arrays: dict[str, np.ndarray]) -> dict[str, float | int]:
+    """Select the earliest maximum-separation healthy state by a frozen rule."""
+    rate_a, rate_b, vector = phase_trace(arrays)
+    start = round(800.0 / DT_MS)
+    stop = min(round(1650.0 / DT_MS), len(vector) - round(100.0 / DT_MS))
+    threshold_a = float(np.quantile(rate_a[start:stop], 0.25))
+    threshold_b = float(np.quantile(rate_b[start:stop], 0.25))
+    candidates = np.arange(start, stop)
+    candidates = candidates[
+        (rate_a[candidates] >= threshold_a) & (rate_b[candidates] >= threshold_b)
+    ]
+    if not len(candidates):
+        raise RuntimeError("no healthy mature checkpoint candidate")
+    separations = np.abs(np.angle(vector[candidates]))
+    step = int(candidates[int(np.argmax(separations))])
+    return {
+        "step": step,
+        "time_ms": step * DT_MS,
+        "phase_separation_rad": float(np.abs(np.angle(vector[step]))),
+        "rate_a_hz": float(rate_a[step]),
+        "rate_b_hz": float(rate_b[step]),
+        "selection_start_ms": start * DT_MS,
+        "selection_stop_ms": stop * DT_MS,
+        "rate_floor_a_hz": threshold_a,
+        "rate_floor_b_hz": threshold_b,
+    }
+
+
+def acquisition_metrics(
+    coupled: dict[str, np.ndarray], control: dict[str, np.ndarray], *, discard_steps: int = 0
+) -> dict:
+    coupled_trace = trailing_phase_metrics(coupled, discard_steps=discard_steps)
+    control_trace = trailing_phase_metrics(control, discard_steps=discard_steps)
+    early = slice(round(50 / DT_MS), round(400 / DT_MS))
+    late = slice(len(coupled_trace["vector"]) - round(600 / DT_MS), None)
+    capture_step = coupled_trace["capture_step"]
+    coupled_rate_a = coupled_trace["rate_a"]
+    coupled_rate_b = coupled_trace["rate_b"]
+    _, _, early_f_a, _ = spectrum(coupled_rate_a[early])
+    _, _, early_f_b, _ = spectrum(coupled_rate_b[early])
+    _, _, late_f_a, _ = spectrum(coupled_rate_a[late])
+    _, _, late_f_b, _ = spectrum(coupled_rate_b[late])
+    period_ms = 1000.0 / np.nanmean((late_f_a, late_f_b))
+    cycle_steps = coupled_trace["cycle_steps"]
+    cycle_error = coupled_trace["phase_error"][cycle_steps]
+    def mean_finite(values, section):
+        selected = values[section]
+        return float(np.nanmean(selected))
+    return {
+        "initial_phase_separation_rad": float(abs(np.angle(coupled_trace["vector"][round(50 / DT_MS)]))),
+        "final_phase_separation_rad": float(abs(np.angle(np.mean(coupled_trace["vector"][late])))),
+        "capture_time_ms": None if capture_step is None else float(capture_step * DT_MS),
+        "capture_cycles": None if capture_step is None else float(capture_step * DT_MS / period_ms),
+        "rolling_plv_early": mean_finite(coupled_trace["rolling_plv"], early),
+        "rolling_plv_late": mean_finite(coupled_trace["rolling_plv"], late),
+        "control_rolling_plv_late": mean_finite(control_trace["rolling_plv"], late),
+        "frequency_difference_early_hz": float(abs(early_f_a - early_f_b)),
+        "frequency_difference_late_hz": float(abs(late_f_a - late_f_b)),
+        "control_phase_span_late_rad": float(np.ptp(control_trace["unwrapped_phase"][late])),
+        "coupled_phase_span_late_rad": float(np.ptp(coupled_trace["unwrapped_phase"][late])),
+        "late_phase_slips": int(np.floor(np.ptp(coupled_trace["unwrapped_phase"][late]) / (2 * math.pi))),
+        "cycle_steps": cycle_steps.tolist(),
+        "cycle_phase_error_rad": cycle_error.tolist(),
+        "visible_acquisition": bool(
+            capture_step is not None
+            and mean_finite(coupled_trace["rolling_plv"], early) <= 0.70
+            and mean_finite(coupled_trace["rolling_plv"], late) >= 0.80
+            and mean_finite(control_trace["rolling_plv"], late) <= 0.75
+            and np.ptp(coupled_trace["unwrapped_phase"][late])
+            < np.ptp(control_trace["unwrapped_phase"][late])
+        ),
+    }
+
+
+def render_acquisition(
+    coupled: dict[str, np.ndarray], control: dict[str, np.ndarray], metrics: dict, path: Path,
+    *, phase_coupled: dict[str, np.ndarray] | None = None,
+    phase_control: dict[str, np.ndarray] | None = None,
+    discard_steps: int = 0,
 ) -> None:
+    """Render one continuous mature-state phase-acquisition trajectory."""
+    theme.apply()
+    trace = trailing_phase_metrics(phase_coupled or coupled, discard_steps=discard_steps)
+    baseline = trailing_phase_metrics(phase_control or control, discard_steps=discard_steps)
+    time_ms = np.arange(len(trace["vector"])) * DT_MS
+    fig, axes = plt.subplots(6, 1, figsize=(7.2, 10.0), sharex=True)
+    raster_specs = (
+        (axes[0], "population_0", "population_1", "circuit A"),
+        (axes[1], "population_2", "population_3", "circuit B"),
+    )
+    for ax, e_key, i_key, label in raster_specs:
+        for key, count, offset, color in (
+            (e_key, 100, 0, theme.INK_BLACK),
+            (i_key, 50, 105, theme.DEEP_RED),
+        ):
+            t, cell = np.nonzero(coupled[key][:, 0, :count])
+            ax.scatter(t * DT_MS, cell + offset, s=0.65, linewidths=0, color=color)
+        ax.set_ylabel(label + "\ncell")
+        ax.set_yticks((50, 130), ("E", "I"))
+    rate_max = 1.05 * max(np.max(trace["rate_a"]), np.max(trace["rate_b"]))
+    for ax, values, label, color in (
+        (axes[2], trace["rate_a"], "A E rate (Hz)", theme.INK_BLACK),
+        (axes[3], trace["rate_b"], "B E rate (Hz)", theme.DEEP_RED),
+    ):
+        ax.plot(time_ms, values, color=color, linewidth=0.8)
+        ax.set_ylim(0, rate_max)
+        ax.set_ylabel(label)
+    coupled_phase = trace["unwrapped_phase"] - trace["unwrapped_phase"][round(50 / DT_MS)]
+    control_phase = baseline["unwrapped_phase"] - baseline["unwrapped_phase"][round(50 / DT_MS)]
+    axes[4].plot(time_ms, control_phase, color=theme.GREY_MID, linewidth=0.8, label="matched uncoupled")
+    axes[4].plot(time_ms, coupled_phase, color=theme.INK_BLACK, linewidth=1.0, label="coupled")
+    cycle_steps = np.asarray(metrics["cycle_steps"], dtype=int)
+    axes[4].scatter(time_ms[cycle_steps], coupled_phase[cycle_steps], s=7, color=theme.DEEP_RED, zorder=3)
+    axes[4].set_ylabel("A − B phase\nchange (rad)")
+    axes[4].legend(frameon=False, ncol=2, loc="upper left")
+    axes[5].plot(time_ms, baseline["rolling_plv"], color=theme.GREY_MID, linewidth=0.8)
+    axes[5].plot(time_ms, trace["rolling_plv"], color=theme.INK_BLACK, linewidth=1.0)
+    axes[5].axhline(0.8, color=theme.DEEP_RED, linewidth=0.7, linestyle="--")
+    if metrics["capture_time_ms"] is not None:
+        axes[5].axvline(metrics["capture_time_ms"], color=theme.DEEP_RED, linewidth=0.8)
+    axes[5].set_ylim(0, 1.02)
+    axes[5].set_ylabel("trailing\nPLV")
+    axes[5].set_xlabel("time since coupling enabled (ms)")
+    for ax in axes:
+        ax.axvline(0, color=theme.DEEP_RED, linewidth=0.7)
+        ax.grid(axis="x", color=theme.GREY_LIGHT, linewidth=0.35)
+    fig.tight_layout(h_pad=0.35)
+    fig.savefig(path, dpi=240, bbox_inches="tight")
+    plt.close(fig)
+
+
+def acquire() -> None:
+    """Branch one mature phase-separated state into coupled and control runs."""
+    root = REPO / "artifacts" / "data" / SLUG
+    selected = json.loads((root / "calibration_selection.json").read_text())
+    settings = selected["settings"]
+    destination = root / "acquisition"
+    destination.mkdir(exist_ok=True)
+    total_inputs = independent_inputs(settings["rate_a_hz"], settings["rate_b_hz"], steps=STEPS * 2)
+    # The chosen delay is structural state, so checkpoint selection and all
+    # branches use the same projection layout.
+    selection_delay = 10.0
+    burn_bundle = author_graph(
+        input_weight=settings["input_weight"], coupling_strength=0.0, delay_ms=selection_delay
+    )
+    burn = simulate(ExecutionSpec(
+        kind="simulate", executor="graph", graph=burn_bundle.graph,
+        inputs={name: value[:STEPS] for name, value in total_inputs.items()}, seed=SEED,
+    ))
+    burn_arrays = {name: value.detach().cpu().numpy() for name, value in burn.recordings.items()}
+    checkpoint = select_mature_checkpoint(burn_arrays)
+    checkpoint_step = int(checkpoint["step"])
+    prefix = simulate(ExecutionSpec(
+        kind="simulate", executor="graph", graph=burn_bundle.graph,
+        inputs={name: value[:checkpoint_step] for name, value in total_inputs.items()}, seed=SEED,
+    ))
+    assert prefix.runtime_state is not None
+    for name, values in prefix.recordings.items():
+        torch.testing.assert_close(values, burn.recordings[name][:checkpoint_step], rtol=0, atol=0)
+    continuation_inputs = {
+        name: value[checkpoint_step : checkpoint_step + STEPS]
+        for name, value in total_inputs.items()
+    }
+    phase_context = {
+        name: value[checkpoint_step - PHASE_CONTEXT_STEPS : checkpoint_step]
+        for name, value in burn_arrays.items()
+    }
+    rows = []
+    best = None
+    best_score = math.inf
+    for strength in ACQUISITION_STRENGTHS:
+        for delay_ms in ACQUISITION_DELAYS_MS:
+            if delay_ms != selection_delay:
+                # Delay changes buffer layout; obtain the identical biological
+                # checkpoint under a graph with that delay before branching.
+                zero_bundle = author_graph(
+                    input_weight=settings["input_weight"], coupling_strength=0.0, delay_ms=delay_ms
+                )
+                state_run = simulate(ExecutionSpec(
+                    kind="simulate", executor="graph", graph=zero_bundle.graph,
+                    inputs={name: value[:checkpoint_step] for name, value in total_inputs.items()}, seed=SEED,
+                ))
+                state = state_run.runtime_state
+            else:
+                zero_bundle = burn_bundle
+                state = prefix.runtime_state
+            assert state is not None
+            coupled_bundle = author_graph(
+                input_weight=settings["input_weight"], coupling_strength=strength, delay_ms=delay_ms
+            )
+            assert runtime_state_signature(plan_graph(coupled_bundle.graph)) == state.signature
+            coupled_result = simulate(
+                ExecutionSpec(
+                    kind="simulate", executor="graph", graph=coupled_bundle.graph,
+                    inputs=continuation_inputs, seed=SEED,
+                ), runtime_state=state,
+            )
+            control_result = simulate(
+                ExecutionSpec(
+                    kind="simulate", executor="graph", graph=zero_bundle.graph,
+                    inputs=continuation_inputs, seed=SEED,
+                ), runtime_state=state,
+            )
+            coupled_arrays = {name: value.detach().cpu().numpy() for name, value in coupled_result.recordings.items()}
+            control_arrays = {name: value.detach().cpu().numpy() for name, value in control_result.recordings.items()}
+            phase_coupled = {
+                name: np.concatenate((phase_context[name], value), axis=0)
+                for name, value in coupled_arrays.items()
+            }
+            phase_control = {
+                name: np.concatenate((phase_context[name], value), axis=0)
+                for name, value in control_arrays.items()
+            }
+            diagnostics = acquisition_metrics(
+                phase_coupled, phase_control, discard_steps=PHASE_CONTEXT_STEPS
+            )
+            score = (
+                (0.0 if diagnostics["visible_acquisition"] else 10.0)
+                + (1.0 - diagnostics["rolling_plv_late"])
+                + diagnostics["coupled_phase_span_late_rad"] / (2 * math.pi)
+            )
+            row = {
+                "strength": strength, "delay_ms": delay_ms,
+                "metrics": diagnostics, "selection_score": score,
+                "graph_digest": coupled_bundle.manifest["graph_digest"],
+                "state_signature": state.signature,
+            }
+            rows.append(row)
+            if score < best_score:
+                best_score = score
+                best = row
+                publication_keys = tuple(f"population_{index}" for index in range(4))
+                np.savez_compressed(
+                    destination / "coupled-recordings.npz",
+                    **{name: coupled_arrays[name] for name in publication_keys},
+                )
+                np.savez_compressed(
+                    destination / "control-recordings.npz",
+                    **{name: control_arrays[name] for name in publication_keys},
+                )
+                np.savez_compressed(
+                    destination / "phase-context.npz",
+                    **{name: phase_context[name] for name in publication_keys},
+                )
+                coupled_bundle.write(destination / "coupled.bundle", visualise=True)
+                zero_bundle.write(destination / "zero-coupling.bundle", visualise=True)
+                save_runtime_state(destination / "checkpoint.runtime-state", state)
+                render_acquisition(
+                    coupled_arrays, control_arrays, diagnostics, destination / "phase_acquisition.png",
+                    phase_coupled=phase_coupled, phase_control=phase_control,
+                    discard_steps=PHASE_CONTEXT_STEPS,
+                )
+            print(
+                f"w={strength:.2f} d={delay_ms:.1f}",
+                f"early={diagnostics['rolling_plv_early']:.3f}",
+                f"late={diagnostics['rolling_plv_late']:.3f}",
+                f"control={diagnostics['control_rolling_plv_late']:.3f}",
+                f"capture={diagnostics['capture_time_ms']}",
+            )
+    np.savez_compressed(destination / "inputs.npz", **{name: value.numpy() for name, value in total_inputs.items()})
+    payload = {
+        "protocol": "mature zero-coupling burn-in, deterministic maximum-separation checkpoint, state-compatible coupled/control continuation",
+        "checkpoint": checkpoint,
+        "checkpoint_rule": "within 800–1650 ms, require each smoothed E rate at or above its interval 25th percentile; choose earliest sample with maximum absolute wrapped Hilbert phase separation",
+        "strengths": list(ACQUISITION_STRENGTHS),
+        "delays_ms": list(ACQUISITION_DELAYS_MS),
+        "condition_count": len(rows),
+        "best": best,
+        "rows": rows,
+        "runtime_state_signature": prefix.runtime_state.signature,
+        "burn_graph_digest": burn_bundle.manifest["graph_digest"],
+        "seed": SEED,
+        "dt_ms": DT_MS,
+        "population_sizes": {"E": N_E, "I": N_I},
+    }
+    (destination / "results.json").write_text(json.dumps(json_safe(payload), indent=2, allow_nan=False) + "\n")
+    print(json.dumps(json_safe(best), indent=2))
+
+
+def load_recordings(root: Path, name: str) -> dict[str, np.ndarray]:
+    with np.load(root / "variants" / f"{name}-recordings.npz") as archive:
+        return {key: archive[key] for key in archive.files}
+
+
+def render_figures(rows: list[dict], out: Path) -> None:
     theme.apply()
     representative = [rows[0]]
     locked_rows = [row for row in rows[1:] if row["locked"]]
@@ -721,7 +1233,7 @@ def render_figures(
     fig, axes = plt.subplots(3, 2, figsize=(7.2, 7.2), sharex=True)
     for row_i, row in enumerate(representative):
         name = row["variant"]["name"]
-        rec = arrays[name]
+        rec = load_recordings(out, name)
         for col, key in enumerate(("population_0", "population_2")):
             sample = rec[key][TRANSIENT_STEPS:]
             t, cell = np.nonzero(sample[:, 0])
@@ -743,7 +1255,7 @@ def render_figures(
 
     fig, axes = plt.subplots(3, 1, figsize=(7.2, 6.0), sharex=True)
     for ax, row in zip(axes, representative):
-        rec = arrays[row["variant"]["name"]]
+        rec = load_recordings(out, row["variant"]["name"])
         ax.plot(
             np.arange(len(rec["population_0"]) - TRANSIENT_STEPS) * DT_MS,
             gaussian_rate(rec["population_0"][TRANSIENT_STEPS:]),
@@ -794,15 +1306,15 @@ def render_figures(
     fig.savefig(out / "coupling_heatmaps.png", dpi=220, bbox_inches="tight")
     plt.close(fig)
 
-    render_summary(rows, arrays, out / "summary_compound.png")
+    render_summary(rows, out / "summary_compound.png", out)
     render_sync_emergence(
-        arrays["w0.2_intermediate"], out / "synchronization_emergence.png"
+        load_recordings(out, "uncoupled"),
+        load_recordings(out, "w0.2_half_period"),
+        out / "synchronization_emergence.svg",
     )
 
 
-def render_summary(
-    rows: list[dict], arrays: dict[str, dict[str, np.ndarray]], out: Path
-) -> None:
+def render_summary(rows: list[dict], out: Path, root: Path) -> None:
     """Render drift, locking, suppression, and the sweep as one figure."""
     conditions = (
         (rows[0], "uncoupled · drift"),
@@ -815,7 +1327,7 @@ def render_summary(
     )
     time_ms = np.arange(STEPS - TRANSIENT_STEPS) * DT_MS
     for col, (row, title) in enumerate(conditions):
-        rec = arrays[row["variant"]["name"]]
+        rec = load_recordings(root, row["variant"]["name"])
         raster = fig.add_subplot(grid[0, col])
         for key, offset, color in (
             ("population_0", 0, theme.INK_BLACK),
@@ -907,125 +1419,147 @@ def format_sweep_axis(ax, *, show_ylabel: bool) -> None:
         ax.set_ylabel("coupling strength")
 
 
-def render_sync_emergence(rec: dict[str, np.ndarray], out: Path) -> None:
-    """Show phase capture over time in the intermediate-delay condition."""
-    theme.apply()
+def phase_trace(rec: dict[str, np.ndarray]) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     rate_a = gaussian_rate(rec["population_0"])
     rate_b = gaussian_rate(rec["population_2"])
     fs = 1000.0 / DT_MS
     sos = signal.butter(4, PHASE_BAND_HZ, btype="bandpass", fs=fs, output="sos")
     phase_a = np.angle(signal.hilbert(signal.sosfiltfilt(sos, rate_a)))
     phase_b = np.angle(signal.hilbert(signal.sosfiltfilt(sos, rate_b)))
-    phase_vector = np.exp(1j * (phase_a - phase_b))
-    window_steps = round(100.0 / DT_MS)
+    return rate_a, rate_b, np.exp(1j * (phase_a - phase_b))
+
+
+def render_sync_emergence(
+    baseline_rec: dict[str, np.ndarray],
+    coupled_rec: dict[str, np.ndarray],
+    out: Path,
+) -> None:
+    """Show spikes/rates and directly contrast uncoupled drift with phase locking."""
+    theme.apply()
+    rate_a, rate_b, phase_vector = phase_trace(coupled_rec)
+    _, _, baseline_phase_vector = phase_trace(baseline_rec)
+    window_steps = round(200.0 / DT_MS)
     kernel = np.ones(window_steps) / window_steps
-    rolling_vector = np.convolve(phase_vector, kernel, mode="same")
-    rolling_phase = np.angle(rolling_vector)
+    edge_normalizer = np.convolve(np.ones(len(phase_vector)), kernel, mode="same")
+    rolling_vector = np.convolve(phase_vector, kernel, mode="same") / edge_normalizer
     rolling_plv = np.abs(rolling_vector)
-    time_ms = np.arange(STEPS) * DT_MS
-    highlighted = phase_vector[round(800 / DT_MS) : round(1200 / DT_MS)]
-    highlighted_phase = float(np.angle(np.mean(highlighted)))
-
-    fig, (rates, phase) = plt.subplots(
-        2,
-        1,
-        figsize=(7.2, 4.8),
-        sharex=True,
-        gridspec_kw={"height_ratios": (1.05, 0.95), "hspace": 0.12},
+    baseline_rolling_plv = np.abs(
+        np.convolve(baseline_phase_vector, kernel, mode="same") / edge_normalizer
     )
-    rates.plot(time_ms, rate_a, color=theme.INK_BLACK, linewidth=0.9, label="circuit A")
-    rates.plot(time_ms, rate_b, color=theme.DEEP_RED, linewidth=0.9, label="circuit B")
-    rates.set_ylabel("E population rate (Hz)")
-    rates.legend(frameon=False, ncol=2, loc="upper right")
-    rates.set_title("Phase capture under continuously active reciprocal inhibition")
+    time_ms = np.arange(STEPS) * DT_MS
 
-    stride = 10
-    raw_phase = np.angle(phase_vector)
-    phase.scatter(
-        time_ms[::stride],
-        raw_phase[::stride],
-        s=1.0,
-        color="#a7a7a7",
-        alpha=0.22,
-        linewidths=0,
-        label="instantaneous phase difference",
+    fig, axes = plt.subplots(
+        6,
+        1,
+        figsize=(6.5, 7.4),
+        gridspec_kw={
+            "height_ratios": (0.9, 0.9, 0.65, 0.65, 0.9, 0.75),
+            "hspace": 0.22,
+        },
+    )
+    raster_a, raster_b, rate_ax_a, rate_ax_b, phase, plv_ax = axes
+    raster_window = (600.0, 1000.0)
+    raster_slice = slice(round(raster_window[0] / DT_MS), round(raster_window[1] / DT_MS))
+    raster_time = time_ms[raster_slice]
+    for ax, circuit, e_key, i_key, color in (
+        (raster_a, "A", "population_0", "population_1", theme.INK_BLACK),
+        (raster_b, "B", "population_2", "population_3", theme.DEEP_RED),
+    ):
+        # A fixed subset keeps the vector figure legible while population rates
+        # and all quantitative analyses continue to use every neuron.
+        for key, count, offset in ((e_key, 100, 0), (i_key, 40, 105)):
+            sample = coupled_rec[key][raster_slice, 0, :count]
+            t, cell = np.nonzero(sample)
+            ax.scatter(
+                raster_time[t], cell + offset, s=2.0, linewidths=0,
+                color=color, rasterized=True,
+            )
+        ax.axhline(102, color=theme.GREY_LIGHT, linewidth=0.6)
+        ax.set_xlim(*raster_window)
+        ax.set_ylim(-2, 147)
+        ax.set_yticks((49.5, 124.5), ("E", "I"))
+        ax.set_ylabel(f"circuit {circuit}\ncell")
+    raster_a.tick_params(labelbottom=False)
+    raster_b.set_xlabel("time from simulation start (ms)")
+
+    for ax, values, circuit, color in (
+        (rate_ax_a, rate_a, "A", theme.INK_BLACK),
+        (rate_ax_b, rate_b, "B", theme.DEEP_RED),
+    ):
+        ax.plot(time_ms, values, color=color, linewidth=0.9)
+        ax.set_ylabel(f"{circuit} E rate\n(Hz)")
+        ax.set_xlim(0, 1200)
+    common_rate_max = max(float(np.max(rate_a[: round(1200 / DT_MS)])), float(np.max(rate_b[: round(1200 / DT_MS)])))
+    rate_ax_a.set_ylim(0, common_rate_max * 1.04)
+    rate_ax_b.set_ylim(0, common_rate_max * 1.04)
+    rate_ax_a.tick_params(labelbottom=False)
+    rate_ax_b.set_xlabel("time from simulation start (ms)")
+
+    analysis = slice(TRANSIENT_STEPS, None)
+    phase_time = time_ms[analysis]
+    baseline_unwrapped = np.unwrap(np.angle(baseline_phase_vector))[analysis]
+    coupled_unwrapped = np.unwrap(np.angle(phase_vector))[analysis]
+    baseline_unwrapped -= baseline_unwrapped[0]
+    coupled_unwrapped -= coupled_unwrapped[0]
+    phase.plot(
+        phase_time,
+        baseline_unwrapped,
+        color=theme.GREY_MID,
+        linewidth=1.0,
+        label="uncoupled",
     )
     phase.plot(
-        time_ms,
-        rolling_phase,
+        phase_time,
+        coupled_unwrapped,
         color=theme.DEEP_RED,
-        linewidth=1.6,
-        label="100 ms circular mean",
+        linewidth=1.3,
+        label="coupled · w=0.25, d=10 ms",
     )
-    phase.fill_between(
-        time_ms,
-        rolling_phase - 0.22 * rolling_plv,
-        rolling_phase + 0.22 * rolling_plv,
+    phase.axhline(0, color=theme.GREY_LIGHT, linewidth=0.6)
+    phase.set_ylabel("A − B phase\nchange (rad)")
+    phase.legend(frameon=False, ncol=2, loc="upper left")
+    phase.tick_params(labelbottom=False)
+
+    plv_ax.plot(
+        phase_time,
+        baseline_rolling_plv[analysis],
+        color=theme.GREY_MID,
+        linewidth=1.0,
+        label="uncoupled",
+    )
+    plv_ax.plot(
+        phase_time,
+        rolling_plv[analysis],
         color=theme.DEEP_RED,
-        alpha=0.12,
-        linewidth=0,
+        linewidth=1.3,
+        label="coupled",
     )
-    for ax in (rates, phase):
-        ax.axvline(
-            TRANSIENT_STEPS * DT_MS, color="#777777", linestyle="--", linewidth=0.8
-        )
-        ax.axvspan(800, 1200, color="#1b7f5a", alpha=0.07)
-    rates.text(70, rates.get_ylim()[1] * 0.9, "phase relationship forming", fontsize=7)
-    rates.text(
-        1000,
-        rates.get_ylim()[1] * 0.9,
-        "locked",
-        color="#1b7f5a",
-        ha="center",
-        fontsize=8,
-        weight="bold",
-    )
-    phase.text(
-        TRANSIENT_STEPS * DT_MS + 18,
-        2.35,
-        "analysis window begins",
-        color="#666666",
-        fontsize=7,
-    )
-    phase.annotate(
-        f"phase captures near {highlighted_phase:+.1f} rad",
-        xy=(1000, highlighted_phase),
-        xytext=(1120, -1.35),
-        arrowprops={"arrowstyle": "->", "color": theme.DEEP_RED, "lw": 0.8},
-        color=theme.DEEP_RED,
-        fontsize=8,
-    )
-    phase.set_ylim(-math.pi, math.pi)
-    phase.set_yticks(
-        (-math.pi, -math.pi / 2, 0, math.pi / 2, math.pi),
-        ("−π", "−π/2", "0", "π/2", "π"),
-    )
-    phase.set_ylabel("A − B phase")
-    phase.set_xlabel("time from simulation start (ms)")
-    phase.set_xlim(0, 1200)
-    fig.savefig(out, dpi=240, bbox_inches="tight")
+    plv_ax.axhline(0.8, color=theme.INK_BLACK, linestyle="--", linewidth=0.7)
+    plv_ax.set_ylim(0, 1.02)
+    plv_ax.set_ylabel("rolling PLV\n(200 ms)")
+    plv_ax.set_xlabel("time from simulation start (ms)")
+    for ax in (phase, plv_ax):
+        ax.set_xlim(TRANSIENT_STEPS * DT_MS, STEPS * DT_MS)
+        ax.grid(True, alpha=0.12)
+    fig.savefig(out, bbox_inches="tight", facecolor="white")
     plt.close(fig)
 
 
 def replot() -> None:
     root = REPO / "artifacts" / "data" / SLUG
     rows = json.loads((root / "sweep_table.json").read_text())
-    arrays = {}
-    for row in rows:
-        name = row["variant"]["name"]
-        with np.load(root / "variants" / f"{name}-recordings.npz") as archive:
-            arrays[name] = {key: archive[key] for key in archive.files}
-    render_summary(rows, arrays, root / "summary_compound.png")
+    render_summary(rows, root / "summary_compound.png", root)
+    refinement = root / "refinement" / "best-recordings.npz"
+    with np.load(refinement) as archive:
+        best = {key: archive[key] for key in archive.files}
     render_sync_emergence(
-        arrays["w0.2_intermediate"], root / "synchronization_emergence.png"
+        load_recordings(root, "uncoupled"), best,
+        root / "synchronization_emergence.svg",
     )
 
 
 def main() -> None:
-    args = parse_args()
-    {"smoke": smoke, "calibrate": calibrate, "sweep": sweep, "replot": replot}[
-        args.stage
-    ]()
+    acquire()
 
 
 if __name__ == "__main__":

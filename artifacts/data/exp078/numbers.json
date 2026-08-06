@@ -1,11 +1,11 @@
 {
-  "run_id": "r003",
-  "git_sha": "a781c7f",
-  "duration_s": 1112.2,
-  "duration": "18m 32s",
+  "run_id": "r006",
+  "git_sha": "f0592336",
+  "duration_s": 314.8,
+  "duration": "5m 15s",
   "stage": "registered_sweep",
   "registration": {
-    "hypothesis": "Moderate reciprocal I-to-E GABA coupling entrains two independently driven, active, 5\u201315% detuned PING circuits, whereas zero coupling permits phase drift and the largest coupling may suppress activity.",
+    "hypothesis": "Moderate reciprocal long-range E-to-I AMPA coupling entrains two independently driven, active, 5\u201315% detuned PING circuits by recruiting inhibition in the other circuit, whereas zero coupling permits phase drift and the largest coupling may suppress activity.",
     "success_criterion": "At least one moderate registered condition is active and locked by every frequency, PLV, coherence, and stable-phase threshold, with a contiguous strength/delay neighbour supporting the transition.",
     "kill_criterion": "Kill if calibration finds no valid pair, coupling only suppresses/invalidates activity, or no registered condition meets every locking threshold.",
     "seed": 78,
@@ -16,8 +16,8 @@
       "analysis_seconds": 1.4
     },
     "populations": {
-      "excitatory_per_circuit": 40,
-      "inhibitory_per_circuit": 10,
+      "excitatory_per_circuit": 800,
+      "inhibitory_per_circuit": 200,
       "input_channels_per_circuit": 16
     },
     "independent_input_generators": [
@@ -88,6 +88,7 @@
     ],
     "calibration_selection": "Minimum registered score among valid active/spectral candidates with 5\u201315% detuning; score is |detuning-10%| + 0.01/min peak prominence; grid order breaks exact ties.",
     "within_circuit_parameters": "snnlang PING component defaults, frozen",
+    "cross_circuit_pathway": "Reciprocal long-range E-to-I AMPA projections; each receiving I population inhibits its local E population through the unchanged within-circuit PING loop.",
     "coupling_strengths": [
       0.2,
       0.5,
@@ -123,21 +124,21 @@
   },
   "calibration": {
     "selected": {
-      "index": 8,
+      "index": 9,
       "settings": {
-        "input_weight": 0.4,
-        "rate_a_hz": 260.0,
-        "rate_b_hz": 210.0
+        "input_weight": 0.55,
+        "rate_a_hz": 180.0,
+        "rate_b_hz": 150.0
       },
       "metrics": {
         "populations": {
           "a": {
-            "e_rate_hz": 37.5,
-            "i_rate_hz": 120.42857360839844,
+            "e_rate_hz": 38.052677154541016,
+            "i_rate_hz": 116.42857360839844,
             "e_active_fraction": 1.0,
             "i_active_fraction": 1.0,
-            "dominant_frequency_hz": 42.724609375,
-            "peak_prominence": 62.96012216139774,
+            "dominant_frequency_hz": 41.50390625,
+            "peak_prominence": 206.46649625740417,
             "finite": true,
             "active": true,
             "spectrally_valid": true,
@@ -145,12 +146,12 @@
             "saturated": false
           },
           "b": {
-            "e_rate_hz": 34.83928680419922,
-            "i_rate_hz": 110.5,
+            "e_rate_hz": 35.62232208251953,
+            "i_rate_hz": 110.70357513427734,
             "e_active_fraction": 1.0,
             "i_active_fraction": 1.0,
-            "dominant_frequency_hz": 39.0625,
-            "peak_prominence": 199.31763586788995,
+            "dominant_frequency_hz": 37.841796875,
+            "peak_prominence": 207.84355211851474,
             "finite": true,
             "active": true,
             "spectrally_valid": true,
@@ -159,23 +160,23 @@
           }
         },
         "synchrony": {
-          "plv": 0.09671225661449387,
-          "mean_phase_difference_rad": -2.678943598098251,
-          "half_1_plv": 0.07748011709913859,
-          "half_2_plv": 0.12045282961835799,
-          "half_phase_offset_difference_rad": 0.4383065705818696,
-          "gamma_coherence": 0.46490683781740866,
-          "cross_correlation_peak": 0.12402240572441196,
-          "cross_correlation_lag_ms": 34.2,
+          "plv": 0.24802712401640029,
+          "mean_phase_difference_rad": -1.3414831820384332,
+          "half_1_plv": 0.513680988067504,
+          "half_2_plv": 0.3049784607952294,
+          "half_phase_offset_difference_rad": 1.9322784228789223,
+          "gamma_coherence": 0.5776331077703174,
+          "cross_correlation_peak": 0.2575514880679502,
+          "cross_correlation_lag_ms": 5.5,
           "frequency_difference_hz": 3.662109375
         },
         "valid": true,
-        "runtime_s": 55.72197889396921,
-        "peak_python_bytes": 20334995,
-        "graph_digest": "sha256:ffb150b0b1df7b29f0dce7b613349d9808c6450e9285513eecf64263bbf9d5dc"
+        "runtime_s": 5.915569375036284,
+        "peak_python_bytes": 20333772,
+        "graph_digest": "sha256:3279a1bb7c7c05fc3da669f778c027c835d98a0de6a915c63b5f110b895ef959"
       },
-      "detuning_fraction": 0.08955223880597014,
-      "selection_score": 0.01060659188966233
+      "detuning_fraction": 0.09230769230769231,
+      "selection_score": 0.007740741700639644
     }
   },
   "sweep": {
@@ -191,12 +192,12 @@
         "metrics": {
           "populations": {
             "a": {
-              "e_rate_hz": 37.5,
-              "i_rate_hz": 120.42857360839844,
+              "e_rate_hz": 38.052677154541016,
+              "i_rate_hz": 116.42857360839844,
               "e_active_fraction": 1.0,
               "i_active_fraction": 1.0,
-              "dominant_frequency_hz": 42.724609375,
-              "peak_prominence": 62.96012216139774,
+              "dominant_frequency_hz": 41.50390625,
+              "peak_prominence": 206.46649625740417,
               "finite": true,
               "active": true,
               "spectrally_valid": true,
@@ -204,12 +205,12 @@
               "saturated": false
             },
             "b": {
-              "e_rate_hz": 34.83928680419922,
-              "i_rate_hz": 110.5,
+              "e_rate_hz": 35.62232208251953,
+              "i_rate_hz": 110.70357513427734,
               "e_active_fraction": 1.0,
               "i_active_fraction": 1.0,
-              "dominant_frequency_hz": 39.0625,
-              "peak_prominence": 199.31763586788995,
+              "dominant_frequency_hz": 37.841796875,
+              "peak_prominence": 207.84355211851474,
               "finite": true,
               "active": true,
               "spectrally_valid": true,
@@ -218,20 +219,20 @@
             }
           },
           "synchrony": {
-            "plv": 0.09671225661449387,
-            "mean_phase_difference_rad": -2.678943598098251,
-            "half_1_plv": 0.07748011709913859,
-            "half_2_plv": 0.12045282961835799,
-            "half_phase_offset_difference_rad": 0.4383065705818696,
-            "gamma_coherence": 0.46490683781740866,
-            "cross_correlation_peak": 0.12402240572441196,
-            "cross_correlation_lag_ms": 34.2,
+            "plv": 0.24802712401640029,
+            "mean_phase_difference_rad": -1.3414831820384332,
+            "half_1_plv": 0.513680988067504,
+            "half_2_plv": 0.3049784607952294,
+            "half_phase_offset_difference_rad": 1.9322784228789223,
+            "gamma_coherence": 0.5776331077703174,
+            "cross_correlation_peak": 0.2575514880679502,
+            "cross_correlation_lag_ms": 5.5,
             "frequency_difference_hz": 3.662109375
           },
           "valid": true,
-          "runtime_s": 60.42310067685321,
-          "peak_python_bytes": 20344866,
-          "graph_digest": "sha256:ffb150b0b1df7b29f0dce7b613349d9808c6450e9285513eecf64263bbf9d5dc"
+          "runtime_s": 6.266057583037764,
+          "peak_python_bytes": 20337735,
+          "graph_digest": "sha256:3279a1bb7c7c05fc3da669f778c027c835d98a0de6a915c63b5f110b895ef959"
         },
         "locked": false
       },
@@ -245,12 +246,12 @@
         "metrics": {
           "populations": {
             "a": {
-              "e_rate_hz": 30.160715103149414,
-              "i_rate_hz": 94.64286041259766,
+              "e_rate_hz": 29.96607208251953,
+              "i_rate_hz": 117.85713958740234,
               "e_active_fraction": 1.0,
               "i_active_fraction": 1.0,
-              "dominant_frequency_hz": 30.517578125,
-              "peak_prominence": 73.8632854671587,
+              "dominant_frequency_hz": 32.958984375,
+              "peak_prominence": 13.844541441955856,
               "finite": true,
               "active": true,
               "spectrally_valid": true,
@@ -258,12 +259,12 @@
               "saturated": false
             },
             "b": {
-              "e_rate_hz": 29.446428298950195,
-              "i_rate_hz": 91.42857360839844,
+              "e_rate_hz": 25.993749618530273,
+              "i_rate_hz": 112.14286041259766,
               "e_active_fraction": 1.0,
               "i_active_fraction": 1.0,
               "dominant_frequency_hz": 30.517578125,
-              "peak_prominence": 127.63637709255593,
+              "peak_prominence": 37.350515407475996,
               "finite": true,
               "active": true,
               "spectrally_valid": true,
@@ -272,23 +273,23 @@
             }
           },
           "synchrony": {
-            "plv": 0.8175697868441983,
-            "mean_phase_difference_rad": -2.8263664421103702,
-            "half_1_plv": 0.8101156265576939,
-            "half_2_plv": 0.84243753618998,
-            "half_phase_offset_difference_rad": 0.29065459509380887,
-            "gamma_coherence": 0.611765319682179,
-            "cross_correlation_peak": 0.8044570559770032,
-            "cross_correlation_lag_ms": -17.5,
-            "frequency_difference_hz": 0.0
+            "plv": 0.6533233675113982,
+            "mean_phase_difference_rad": -2.873688726772274,
+            "half_1_plv": 0.7245648778124141,
+            "half_2_plv": 0.5868679566519405,
+            "half_phase_offset_difference_rad": 0.17187318485680028,
+            "gamma_coherence": 0.597793324116034,
+            "cross_correlation_peak": 0.7460163222251379,
+            "cross_correlation_lag_ms": -18.2,
+            "frequency_difference_hz": 2.44140625
           },
           "valid": true,
-          "runtime_s": 66.09755518310703,
-          "peak_python_bytes": 23236471,
-          "graph_digest": "sha256:ec29ea492a7eaf4628197004a9360c2d9cbc6cb58fa0c9d5f8847c931d6670bc"
+          "runtime_s": 6.816631167079322,
+          "peak_python_bytes": 23237028,
+          "graph_digest": "sha256:41a9b2097660b213d30d012665bbafaace0814d765e6028d897d2d41ab576473"
         },
-        "locked": true,
-        "contiguous_support": true
+        "locked": false,
+        "contiguous_support": false
       },
       {
         "variant": {
@@ -300,12 +301,12 @@
         "metrics": {
           "populations": {
             "a": {
-              "e_rate_hz": 30.51785659790039,
-              "i_rate_hz": 94.28571319580078,
+              "e_rate_hz": 30.11160659790039,
+              "i_rate_hz": 123.57857513427734,
               "e_active_fraction": 1.0,
               "i_active_fraction": 1.0,
-              "dominant_frequency_hz": 30.517578125,
-              "peak_prominence": 34.841647641966574,
+              "dominant_frequency_hz": 31.73828125,
+              "peak_prominence": 18.662759980162015,
               "finite": true,
               "active": true,
               "spectrally_valid": true,
@@ -313,12 +314,12 @@
               "saturated": false
             },
             "b": {
-              "e_rate_hz": 28.25,
-              "i_rate_hz": 88.64286041259766,
+              "e_rate_hz": 24.86517906188965,
+              "i_rate_hz": 114.95357513427734,
               "e_active_fraction": 1.0,
               "i_active_fraction": 1.0,
-              "dominant_frequency_hz": 30.517578125,
-              "peak_prominence": 86.30461114740754,
+              "dominant_frequency_hz": 34.1796875,
+              "peak_prominence": 27.317890634861982,
               "finite": true,
               "active": true,
               "spectrally_valid": true,
@@ -327,40 +328,40 @@
             }
           },
           "synchrony": {
-            "plv": 0.5975339114543429,
-            "mean_phase_difference_rad": -2.8055772336923557,
-            "half_1_plv": 0.5903514764830736,
-            "half_2_plv": 0.6047367862207988,
-            "half_phase_offset_difference_rad": 0.011698100736286854,
-            "gamma_coherence": 0.7585385101479369,
-            "cross_correlation_peak": 0.6757924747752366,
-            "cross_correlation_lag_ms": -18.0,
-            "frequency_difference_hz": 0.0
+            "plv": 0.2292542733927455,
+            "mean_phase_difference_rad": -1.609715891791781,
+            "half_1_plv": 0.2817679485201161,
+            "half_2_plv": 0.31847641868402216,
+            "half_phase_offset_difference_rad": 1.4061869695788987,
+            "gamma_coherence": 0.6553594014087718,
+            "cross_correlation_peak": 0.5410269473190092,
+            "cross_correlation_lag_ms": -21.200000000000003,
+            "frequency_difference_hz": 2.44140625
           },
           "valid": true,
-          "runtime_s": 69.67958699516021,
-          "peak_python_bytes": 23241114,
-          "graph_digest": "sha256:b0bd4e7d9979c3131d89e1abc85cc71f3a86ace6768d32ac6d651ff972fc0159"
+          "runtime_s": 6.450725625036284,
+          "peak_python_bytes": 23238983,
+          "graph_digest": "sha256:5f0c3bb25a13de08b7e5e5f5c2703090b0839f56bf266ee4f3523898004051c6"
         },
-        "locked": true,
-        "contiguous_support": true
+        "locked": false,
+        "contiguous_support": false
       },
       {
         "variant": {
           "name": "w0.2_half_period",
           "strength": 0.2,
           "delay_label": "half_period",
-          "delay_ms": 12.200000000000001
+          "delay_ms": 12.600000000000001
         },
         "metrics": {
           "populations": {
             "a": {
-              "e_rate_hz": 30.660715103149414,
-              "i_rate_hz": 96.35713958740234,
+              "e_rate_hz": 29.20892906188965,
+              "i_rate_hz": 123.57142639160156,
               "e_active_fraction": 1.0,
               "i_active_fraction": 1.0,
-              "dominant_frequency_hz": 32.958984375,
-              "peak_prominence": 163.7276454752399,
+              "dominant_frequency_hz": 30.517578125,
+              "peak_prominence": 82.47793449955329,
               "finite": true,
               "active": true,
               "spectrally_valid": true,
@@ -368,12 +369,12 @@
               "saturated": false
             },
             "b": {
-              "e_rate_hz": 32.0,
-              "i_rate_hz": 98.71428680419922,
+              "e_rate_hz": 28.100000381469727,
+              "i_rate_hz": 130.0,
               "e_active_fraction": 1.0,
               "i_active_fraction": 1.0,
-              "dominant_frequency_hz": 34.1796875,
-              "peak_prominence": 94.72633169235206,
+              "dominant_frequency_hz": 30.517578125,
+              "peak_prominence": 75.01014501914177,
               "finite": true,
               "active": true,
               "spectrally_valid": true,
@@ -382,20 +383,20 @@
             }
           },
           "synchrony": {
-            "plv": 0.8727612047221105,
-            "mean_phase_difference_rad": 0.5441223244874699,
-            "half_1_plv": 0.9140092830644467,
-            "half_2_plv": 0.8338338805526097,
-            "half_phase_offset_difference_rad": 0.10318443664884709,
-            "gamma_coherence": 0.5445204515632469,
-            "cross_correlation_peak": 0.789953794354934,
-            "cross_correlation_lag_ms": 27.400000000000002,
-            "frequency_difference_hz": 1.220703125
+            "plv": 0.6977213719384024,
+            "mean_phase_difference_rad": 0.42014054259253797,
+            "half_1_plv": 0.7668371010227955,
+            "half_2_plv": 0.6286722672168875,
+            "half_phase_offset_difference_rad": 0.019639751892266633,
+            "gamma_coherence": 0.5272634339004019,
+            "cross_correlation_peak": 0.6583653949807874,
+            "cross_correlation_lag_ms": 31.700000000000003,
+            "frequency_difference_hz": 0.0
           },
           "valid": true,
-          "runtime_s": 76.20278734294698,
-          "peak_python_bytes": 23255914,
-          "graph_digest": "sha256:186f0d780d51dd7ab2506a46146e5a0f3fde867ada282a8c811a862f0a99ff4b"
+          "runtime_s": 6.404127125046216,
+          "peak_python_bytes": 23255787,
+          "graph_digest": "sha256:d96b59ade3e9ea966147d854096d4dea3b4f459e7cbe360c1437b54999014510"
         },
         "locked": false,
         "contiguous_support": false
@@ -410,12 +411,12 @@
         "metrics": {
           "populations": {
             "a": {
-              "e_rate_hz": 27.51785659790039,
-              "i_rate_hz": 85.28571319580078,
+              "e_rate_hz": 26.049999237060547,
+              "i_rate_hz": 128.57142639160156,
               "e_active_fraction": 1.0,
               "i_active_fraction": 1.0,
-              "dominant_frequency_hz": 31.73828125,
-              "peak_prominence": 17.86539547664861,
+              "dominant_frequency_hz": 39.0625,
+              "peak_prominence": 33.178556045624674,
               "finite": true,
               "active": true,
               "spectrally_valid": true,
@@ -423,12 +424,12 @@
               "saturated": false
             },
             "b": {
-              "e_rate_hz": 20.428571701049805,
-              "i_rate_hz": 62.07143020629883,
+              "e_rate_hz": 15.616071701049805,
+              "i_rate_hz": 128.57142639160156,
               "e_active_fraction": 1.0,
               "i_active_fraction": 1.0,
-              "dominant_frequency_hz": 30.517578125,
-              "peak_prominence": 9.364463038252357,
+              "dominant_frequency_hz": 43.9453125,
+              "peak_prominence": 30.076940279152364,
               "finite": true,
               "active": true,
               "spectrally_valid": true,
@@ -437,20 +438,20 @@
             }
           },
           "synchrony": {
-            "plv": 0.4078663318349794,
-            "mean_phase_difference_rad": -2.886961769769923,
-            "half_1_plv": 0.5606358632910584,
-            "half_2_plv": 0.26850578921887985,
-            "half_phase_offset_difference_rad": 0.3851543504432611,
-            "gamma_coherence": 0.5962821625056282,
-            "cross_correlation_peak": 0.7348315521487344,
-            "cross_correlation_lag_ms": -20.6,
-            "frequency_difference_hz": 1.220703125
+            "plv": 0.333421333651111,
+            "mean_phase_difference_rad": -0.21677863972351918,
+            "half_1_plv": 0.46577530267002926,
+            "half_2_plv": 0.2532401010457901,
+            "half_phase_offset_difference_rad": 0.8044536364199625,
+            "gamma_coherence": 0.635873088985024,
+            "cross_correlation_peak": 0.306264458283429,
+            "cross_correlation_lag_ms": -24.5,
+            "frequency_difference_hz": 4.8828125
           },
           "valid": true,
-          "runtime_s": 70.57205707579851,
-          "peak_python_bytes": 23237214,
-          "graph_digest": "sha256:f2ae3772a7d7ea6ebdced93792b3ce37c2095af9723755c52e34852090a1828f"
+          "runtime_s": 6.351360458997078,
+          "peak_python_bytes": 23236378,
+          "graph_digest": "sha256:42d58d2c1730a6e4734758ebfb0684809f31ae874cff650a28a8527a71125762"
         },
         "locked": false,
         "contiguous_support": false
@@ -465,12 +466,12 @@
         "metrics": {
           "populations": {
             "a": {
-              "e_rate_hz": 29.964284896850586,
-              "i_rate_hz": 95.5,
+              "e_rate_hz": 30.23660659790039,
+              "i_rate_hz": 160.05357360839844,
               "e_active_fraction": 1.0,
               "i_active_fraction": 1.0,
-              "dominant_frequency_hz": 35.400390625,
-              "peak_prominence": 35.37934431982793,
+              "dominant_frequency_hz": 37.841796875,
+              "peak_prominence": 78.15088543219048,
               "finite": true,
               "active": true,
               "spectrally_valid": true,
@@ -478,12 +479,12 @@
               "saturated": false
             },
             "b": {
-              "e_rate_hz": 23.160715103149414,
-              "i_rate_hz": 74.07142639160156,
+              "e_rate_hz": 20.74732208251953,
+              "i_rate_hz": 154.12857055664062,
               "e_active_fraction": 1.0,
               "i_active_fraction": 1.0,
-              "dominant_frequency_hz": 35.400390625,
-              "peak_prominence": 26.96472514064002,
+              "dominant_frequency_hz": 32.958984375,
+              "peak_prominence": 48.84262388559791,
               "finite": true,
               "active": true,
               "spectrally_valid": true,
@@ -492,20 +493,20 @@
             }
           },
           "synchrony": {
-            "plv": 0.5085994394631912,
-            "mean_phase_difference_rad": -0.14289718153495373,
-            "half_1_plv": 0.3753308021920601,
-            "half_2_plv": 0.651612601816811,
-            "half_phase_offset_difference_rad": 0.2863643798712984,
-            "gamma_coherence": 0.7134205493565698,
-            "cross_correlation_peak": 0.5089489354985927,
-            "cross_correlation_lag_ms": -24.700000000000003,
-            "frequency_difference_hz": 0.0
+            "plv": 0.7867929183132354,
+            "mean_phase_difference_rad": -0.004648679089082467,
+            "half_1_plv": 0.9270602609671021,
+            "half_2_plv": 0.6467314946781498,
+            "half_phase_offset_difference_rad": 0.03287957756103671,
+            "gamma_coherence": 0.6381551160337671,
+            "cross_correlation_peak": 0.3521650612399139,
+            "cross_correlation_lag_ms": -29.700000000000003,
+            "frequency_difference_hz": 4.8828125
           },
           "valid": true,
-          "runtime_s": 71.3395030698739,
-          "peak_python_bytes": 23239768,
-          "graph_digest": "sha256:9f31516923e6e0869c720780f3fea08a55ec5721af06372cd5e29122924b9d94"
+          "runtime_s": 6.292153290938586,
+          "peak_python_bytes": 23238930,
+          "graph_digest": "sha256:1480d3184b3e1d7c0e911b0ef5fdffd9b6e64eff5a0ca4df201f0eeda8a7a4d5"
         },
         "locked": false,
         "contiguous_support": false
@@ -515,17 +516,17 @@
           "name": "w0.5_half_period",
           "strength": 0.5,
           "delay_label": "half_period",
-          "delay_ms": 12.200000000000001
+          "delay_ms": 12.600000000000001
         },
         "metrics": {
           "populations": {
             "a": {
-              "e_rate_hz": 27.51785659790039,
-              "i_rate_hz": 84.78571319580078,
+              "e_rate_hz": 25.366071701049805,
+              "i_rate_hz": 149.2857208251953,
               "e_active_fraction": 1.0,
               "i_active_fraction": 1.0,
-              "dominant_frequency_hz": 30.517578125,
-              "peak_prominence": 118.99452976583399,
+              "dominant_frequency_hz": 51.26953125,
+              "peak_prominence": 10.77766540152427,
               "finite": true,
               "active": true,
               "spectrally_valid": true,
@@ -533,12 +534,12 @@
               "saturated": false
             },
             "b": {
-              "e_rate_hz": 27.535715103149414,
-              "i_rate_hz": 85.0,
+              "e_rate_hz": 22.901784896850586,
+              "i_rate_hz": 153.50357055664062,
               "e_active_fraction": 1.0,
               "i_active_fraction": 1.0,
-              "dominant_frequency_hz": 30.517578125,
-              "peak_prominence": 106.61690282120104,
+              "dominant_frequency_hz": 51.26953125,
+              "peak_prominence": 19.31336207096395,
               "finite": true,
               "active": true,
               "spectrally_valid": true,
@@ -547,23 +548,23 @@
             }
           },
           "synchrony": {
-            "plv": 0.8171467195619272,
-            "mean_phase_difference_rad": 0.28970524413998244,
-            "half_1_plv": 0.8779832215740752,
-            "half_2_plv": 0.7565017266469752,
-            "half_phase_offset_difference_rad": 0.030701276274373468,
-            "gamma_coherence": 0.6701706556620237,
-            "cross_correlation_peak": 0.7799794072106983,
-            "cross_correlation_lag_ms": 32.2,
+            "plv": 0.5617535667088167,
+            "mean_phase_difference_rad": 0.3255962605474741,
+            "half_1_plv": 0.6094496182502437,
+            "half_2_plv": 0.5143577393280376,
+            "half_phase_offset_difference_rad": 0.04639724107588433,
+            "gamma_coherence": 0.6512400366001917,
+            "cross_correlation_peak": 0.7994699515614814,
+            "cross_correlation_lag_ms": 37.9,
             "frequency_difference_hz": 0.0
           },
           "valid": true,
-          "runtime_s": 66.06643194402568,
-          "peak_python_bytes": 23256144,
-          "graph_digest": "sha256:70291dd263e004273167b80d86114058cc237fd7f5f8ef41019e96b8c62102ea"
+          "runtime_s": 6.395533666014671,
+          "peak_python_bytes": 23255898,
+          "graph_digest": "sha256:493d9663c41ceb987b309e621e66d9aa378c25028aec9442ec43c851ec721b7f"
         },
-        "locked": true,
-        "contiguous_support": true
+        "locked": false,
+        "contiguous_support": false
       },
       {
         "variant": {
@@ -575,12 +576,12 @@
         "metrics": {
           "populations": {
             "a": {
-              "e_rate_hz": 27.071428298950195,
-              "i_rate_hz": 84.35713958740234,
+              "e_rate_hz": 34.22768020629883,
+              "i_rate_hz": 125.0,
               "e_active_fraction": 1.0,
               "i_active_fraction": 1.0,
-              "dominant_frequency_hz": 42.724609375,
-              "peak_prominence": 45.29548913626176,
+              "dominant_frequency_hz": 40.283203125,
+              "peak_prominence": 162.1317910518651,
               "finite": true,
               "active": true,
               "spectrally_valid": true,
@@ -588,12 +589,12 @@
               "saturated": false
             },
             "b": {
-              "e_rate_hz": 13.75,
-              "i_rate_hz": 43.0,
+              "e_rate_hz": 3.6133928298950195,
+              "i_rate_hz": 190.7142791748047,
               "e_active_fraction": 1.0,
               "i_active_fraction": 1.0,
-              "dominant_frequency_hz": 42.724609375,
-              "peak_prominence": 19.44077737587259,
+              "dominant_frequency_hz": 31.73828125,
+              "peak_prominence": 31.664963700224575,
               "finite": true,
               "active": true,
               "spectrally_valid": true,
@@ -602,20 +603,20 @@
             }
           },
           "synchrony": {
-            "plv": 0.3347341703340704,
-            "mean_phase_difference_rad": 0.23351887968435775,
-            "half_1_plv": 0.37679523490330186,
-            "half_2_plv": 0.29704238960023616,
-            "half_phase_offset_difference_rad": 0.22950080333666675,
-            "gamma_coherence": 0.543619817512681,
-            "cross_correlation_peak": 0.3063215381513764,
-            "cross_correlation_lag_ms": -25.5,
-            "frequency_difference_hz": 0.0
+            "plv": 0.07606949713473626,
+            "mean_phase_difference_rad": -0.7822640682891713,
+            "half_1_plv": 0.10120611882999475,
+            "half_2_plv": 0.06358627441522396,
+            "half_phase_offset_difference_rad": 0.8114906098367043,
+            "gamma_coherence": 0.5023733689201967,
+            "cross_correlation_peak": -0.02691923813078911,
+            "cross_correlation_lag_ms": 50.0,
+            "frequency_difference_hz": 8.544921875
           },
           "valid": true,
-          "runtime_s": 64.63294163695537,
-          "peak_python_bytes": 23236188,
-          "graph_digest": "sha256:46e371672c3addb5bbb4cd301b983eb212b7dea340f4c4b769eecaa855bb9023"
+          "runtime_s": 6.4569247079780325,
+          "peak_python_bytes": 23236070,
+          "graph_digest": "sha256:77fdda964644bb471b2b2bb8e3bac39b97057bf022c58cb9a206172063dafdc9"
         },
         "locked": false,
         "contiguous_support": false
@@ -630,12 +631,12 @@
         "metrics": {
           "populations": {
             "a": {
-              "e_rate_hz": 33.98214340209961,
-              "i_rate_hz": 109.07142639160156,
+              "e_rate_hz": 38.1366081237793,
+              "i_rate_hz": 131.3142852783203,
               "e_active_fraction": 1.0,
               "i_active_fraction": 1.0,
-              "dominant_frequency_hz": 35.400390625,
-              "peak_prominence": 65.22036210416012,
+              "dominant_frequency_hz": 40.283203125,
+              "peak_prominence": 90.59867208567053,
               "finite": true,
               "active": true,
               "spectrally_valid": true,
@@ -643,12 +644,12 @@
               "saturated": false
             },
             "b": {
-              "e_rate_hz": 10.767857551574707,
-              "i_rate_hz": 32.71428680419922,
+              "e_rate_hz": 2.817857027053833,
+              "i_rate_hz": 201.42857360839844,
               "e_active_fraction": 1.0,
               "i_active_fraction": 1.0,
               "dominant_frequency_hz": 35.400390625,
-              "peak_prominence": 78.90203392552445,
+              "peak_prominence": 13.786537139011523,
               "finite": true,
               "active": true,
               "spectrally_valid": true,
@@ -657,20 +658,20 @@
             }
           },
           "synchrony": {
-            "plv": 0.5031227920617659,
-            "mean_phase_difference_rad": 0.10508313157040312,
-            "half_1_plv": 0.631933709388267,
-            "half_2_plv": 0.4038903302944643,
-            "half_phase_offset_difference_rad": 0.49139863941063466,
-            "gamma_coherence": 0.671183069779086,
-            "cross_correlation_peak": 0.29182863948517335,
-            "cross_correlation_lag_ms": -0.8,
-            "frequency_difference_hz": 0.0
+            "plv": 0.21746525467490704,
+            "mean_phase_difference_rad": -0.1474011228206075,
+            "half_1_plv": 0.24307852387560053,
+            "half_2_plv": 0.20150509528998325,
+            "half_phase_offset_difference_rad": 0.41939796683350833,
+            "gamma_coherence": 0.5917613442146258,
+            "cross_correlation_peak": 0.16449221813844056,
+            "cross_correlation_lag_ms": -0.6000000000000001,
+            "frequency_difference_hz": 4.8828125
           },
           "valid": true,
-          "runtime_s": 64.44212627713569,
-          "peak_python_bytes": 23239338,
-          "graph_digest": "sha256:14627013b19c1021e96e2bfe6b8d6b18117b890d87a29cc0eda92eb8e3de77a4"
+          "runtime_s": 6.2828593329759315,
+          "peak_python_bytes": 23238676,
+          "graph_digest": "sha256:2f5d5d5d98b18f36c8ce67422b37e329b51ddcdc0a4b2613b24a434c29e2da30"
         },
         "locked": false,
         "contiguous_support": false
@@ -680,17 +681,17 @@
           "name": "w1_half_period",
           "strength": 1.0,
           "delay_label": "half_period",
-          "delay_ms": 12.200000000000001
+          "delay_ms": 12.600000000000001
         },
         "metrics": {
           "populations": {
             "a": {
-              "e_rate_hz": 24.928571701049805,
-              "i_rate_hz": 77.14286041259766,
+              "e_rate_hz": 32.157142639160156,
+              "i_rate_hz": 150.0,
               "e_active_fraction": 1.0,
               "i_active_fraction": 1.0,
-              "dominant_frequency_hz": 51.26953125,
-              "peak_prominence": 19.13182548232343,
+              "dominant_frequency_hz": 40.283203125,
+              "peak_prominence": 52.15385602460977,
               "finite": true,
               "active": true,
               "spectrally_valid": true,
@@ -698,12 +699,12 @@
               "saturated": false
             },
             "b": {
-              "e_rate_hz": 24.76785659790039,
-              "i_rate_hz": 76.5,
+              "e_rate_hz": 9.903571128845215,
+              "i_rate_hz": 195.7142791748047,
               "e_active_fraction": 1.0,
               "i_active_fraction": 1.0,
-              "dominant_frequency_hz": 51.26953125,
-              "peak_prominence": 24.073764973052626,
+              "dominant_frequency_hz": 46.38671875,
+              "peak_prominence": 42.06605147718604,
               "finite": true,
               "active": true,
               "spectrally_valid": true,
@@ -712,23 +713,23 @@
             }
           },
           "synchrony": {
-            "plv": 0.6643380706123247,
-            "mean_phase_difference_rad": 0.1945358070584933,
-            "half_1_plv": 0.7105975400285343,
-            "half_2_plv": 0.6239340538032684,
-            "half_phase_offset_difference_rad": 0.18781924554345375,
-            "gamma_coherence": 0.6771906983104471,
-            "cross_correlation_peak": 0.8066948078132639,
-            "cross_correlation_lag_ms": 37.7,
-            "frequency_difference_hz": 0.0
+            "plv": 0.0712195466739401,
+            "mean_phase_difference_rad": 0.10756289006775419,
+            "half_1_plv": 0.05242235899705143,
+            "half_2_plv": 0.105339585901371,
+            "half_phase_offset_difference_rad": 0.9477628957706175,
+            "gamma_coherence": 0.5334753552724031,
+            "cross_correlation_peak": 0.30605571465874504,
+            "cross_correlation_lag_ms": 43.6,
+            "frequency_difference_hz": 6.103515625
           },
           "valid": true,
-          "runtime_s": 60.94995540799573,
-          "peak_python_bytes": 23255606,
-          "graph_digest": "sha256:cabee366ed36fbed18b61edb7b73527733599f4da34e6ce4d2a20e84b5b8c7c0"
+          "runtime_s": 6.418622750090435,
+          "peak_python_bytes": 23255584,
+          "graph_digest": "sha256:cd5a0ba0212d0e29de5aae5f4949979986c6d13891d2371bc0f92b19e362feea"
         },
-        "locked": true,
-        "contiguous_support": true
+        "locked": false,
+        "contiguous_support": false
       },
       {
         "variant": {
@@ -740,12 +741,12 @@
         "metrics": {
           "populations": {
             "a": {
-              "e_rate_hz": 37.5,
-              "i_rate_hz": 120.42857360839844,
+              "e_rate_hz": 38.052677154541016,
+              "i_rate_hz": 116.42857360839844,
               "e_active_fraction": 1.0,
               "i_active_fraction": 1.0,
-              "dominant_frequency_hz": 42.724609375,
-              "peak_prominence": 62.96012216139774,
+              "dominant_frequency_hz": 41.50390625,
+              "peak_prominence": 206.46649625740417,
               "finite": true,
               "active": true,
               "spectrally_valid": true,
@@ -754,33 +755,33 @@
             },
             "b": {
               "e_rate_hz": 0.0,
-              "i_rate_hz": 0.0,
+              "i_rate_hz": 296.4285583496094,
               "e_active_fraction": 0.0,
-              "i_active_fraction": 0.0,
+              "i_active_fraction": 1.0,
               "dominant_frequency_hz": null,
               "peak_prominence": 0.0,
               "finite": true,
               "active": false,
               "spectrally_valid": false,
               "silent": true,
-              "saturated": false
+              "saturated": true
             }
           },
           "synchrony": {
-            "plv": 0.03380390886803701,
-            "mean_phase_difference_rad": -2.8141277580300748,
-            "half_1_plv": 0.03476528935534565,
-            "half_2_plv": 0.03287300475178483,
-            "half_phase_offset_difference_rad": 0.060064336083623715,
+            "plv": 0.05282728894316022,
+            "mean_phase_difference_rad": -3.134936184283123,
+            "half_1_plv": 0.05590322867072735,
+            "half_2_plv": 0.05042549378610001,
+            "half_phase_offset_difference_rad": 0.22563448434512015,
             "gamma_coherence": null,
             "cross_correlation_peak": 0.0,
             "cross_correlation_lag_ms": -50.0,
             "frequency_difference_hz": null
           },
           "valid": false,
-          "runtime_s": 64.01963074412197,
-          "peak_python_bytes": 23235677,
-          "graph_digest": "sha256:44220fc2b65d5fac96e03c47dae90fe18b3d83fb956e12b710a9c89884b667fe"
+          "runtime_s": 6.818884334061295,
+          "peak_python_bytes": 23236259,
+          "graph_digest": "sha256:7113b521d6ffce98a1d8eb14d1a835e489a129601077156ef0be65d275c7ef30"
         },
         "locked": false,
         "contiguous_support": false
@@ -795,12 +796,12 @@
         "metrics": {
           "populations": {
             "a": {
-              "e_rate_hz": 37.26785659790039,
-              "i_rate_hz": 120.28571319580078,
+              "e_rate_hz": 38.61160659790039,
+              "i_rate_hz": 118.60356903076172,
               "e_active_fraction": 1.0,
               "i_active_fraction": 1.0,
-              "dominant_frequency_hz": 42.724609375,
-              "peak_prominence": 87.08968657518963,
+              "dominant_frequency_hz": 41.50390625,
+              "peak_prominence": 181.1666858377665,
               "finite": true,
               "active": true,
               "spectrally_valid": true,
@@ -809,33 +810,33 @@
             },
             "b": {
               "e_rate_hz": 0.0,
-              "i_rate_hz": 0.0,
+              "i_rate_hz": 303.5714416503906,
               "e_active_fraction": 0.0,
-              "i_active_fraction": 0.0,
+              "i_active_fraction": 1.0,
               "dominant_frequency_hz": null,
               "peak_prominence": 0.0,
               "finite": true,
               "active": false,
               "spectrally_valid": false,
               "silent": true,
-              "saturated": false
+              "saturated": true
             }
           },
           "synchrony": {
-            "plv": 0.03870273443870231,
-            "mean_phase_difference_rad": -2.7641229123367514,
-            "half_1_plv": 0.04488895597024372,
-            "half_2_plv": 0.03273281378392185,
-            "half_phase_offset_difference_rad": 0.1512117564497708,
+            "plv": 0.04343954002802987,
+            "mean_phase_difference_rad": -2.8173148905701866,
+            "half_1_plv": 0.03818347129479131,
+            "half_2_plv": 0.04873243192006686,
+            "half_phase_offset_difference_rad": 0.05865359649680979,
             "gamma_coherence": null,
             "cross_correlation_peak": 0.0,
             "cross_correlation_lag_ms": -50.0,
             "frequency_difference_hz": null
           },
           "valid": false,
-          "runtime_s": 65.55240008002147,
-          "peak_python_bytes": 23238825,
-          "graph_digest": "sha256:31c83836dc6a20a58905e26367511fb2117bdf44fa83c0c9c516d678af3e86ff"
+          "runtime_s": 6.655569292022847,
+          "peak_python_bytes": 23238253,
+          "graph_digest": "sha256:988363ca47c07f9704b61029a89dabc650d50c112aae24b4755a5d9a069dd76d"
         },
         "locked": false,
         "contiguous_support": false
@@ -845,17 +846,17 @@
           "name": "w2_half_period",
           "strength": 2.0,
           "delay_label": "half_period",
-          "delay_ms": 12.200000000000001
+          "delay_ms": 12.600000000000001
         },
         "metrics": {
           "populations": {
             "a": {
-              "e_rate_hz": 25.625,
-              "i_rate_hz": 83.28571319580078,
+              "e_rate_hz": 36.65446472167969,
+              "i_rate_hz": 126.42857360839844,
               "e_active_fraction": 1.0,
               "i_active_fraction": 1.0,
-              "dominant_frequency_hz": 39.0625,
-              "peak_prominence": 44.43543613786155,
+              "dominant_frequency_hz": 41.50390625,
+              "peak_prominence": 218.5856928120719,
               "finite": true,
               "active": true,
               "spectrally_valid": true,
@@ -863,34 +864,34 @@
               "saturated": false
             },
             "b": {
-              "e_rate_hz": 15.107142448425293,
-              "i_rate_hz": 46.92856979370117,
-              "e_active_fraction": 1.0,
+              "e_rate_hz": 0.9660714268684387,
+              "i_rate_hz": 292.1428527832031,
+              "e_active_fraction": 0.80375,
               "i_active_fraction": 1.0,
-              "dominant_frequency_hz": 46.38671875,
-              "peak_prominence": 22.03076149285511,
+              "dominant_frequency_hz": 30.517578125,
+              "peak_prominence": 9.668819140692353,
               "finite": true,
-              "active": true,
+              "active": false,
               "spectrally_valid": true,
-              "silent": false,
-              "saturated": false
+              "silent": true,
+              "saturated": true
             }
           },
           "synchrony": {
-            "plv": 0.16554988032638776,
-            "mean_phase_difference_rad": 2.234242550508899,
-            "half_1_plv": 0.2546999144755119,
-            "half_2_plv": 0.1830101712415827,
-            "half_phase_offset_difference_rad": 1.449693450018435,
-            "gamma_coherence": 0.5258481808806413,
-            "cross_correlation_peak": 0.5463943263827041,
-            "cross_correlation_lag_ms": 42.900000000000006,
-            "frequency_difference_hz": 7.32421875
+            "plv": 0.06342014639538196,
+            "mean_phase_difference_rad": -0.626154283231633,
+            "half_1_plv": 0.09691345415064431,
+            "half_2_plv": 0.051761368227097065,
+            "half_phase_offset_difference_rad": 1.1588547996532381,
+            "gamma_coherence": 0.5573124584832817,
+            "cross_correlation_peak": 0.08944174318144314,
+            "cross_correlation_lag_ms": 46.5,
+            "frequency_difference_hz": 10.986328125
           },
-          "valid": true,
-          "runtime_s": 69.13644703105092,
-          "peak_python_bytes": 23255184,
-          "graph_digest": "sha256:1dbd7f4e2548ca1c633c0c9fb4cd31de640a3d2165f3084eb98409eefe62522b"
+          "valid": false,
+          "runtime_s": 6.767310415976681,
+          "peak_python_bytes": 23255559,
+          "graph_digest": "sha256:95769a49eef10724274eadfe2fb24fce9f2fc1cf634a88c4e80eafc5ae7431db"
         },
         "locked": false,
         "contiguous_support": false
@@ -905,12 +906,12 @@
         "metrics": {
           "populations": {
             "a": {
-              "e_rate_hz": 37.5,
-              "i_rate_hz": 120.42857360839844,
+              "e_rate_hz": 38.61160659790039,
+              "i_rate_hz": 118.60356903076172,
               "e_active_fraction": 1.0,
               "i_active_fraction": 1.0,
-              "dominant_frequency_hz": 42.724609375,
-              "peak_prominence": 62.96012216139774,
+              "dominant_frequency_hz": 41.50390625,
+              "peak_prominence": 181.16431241128458,
               "finite": true,
               "active": true,
               "spectrally_valid": true,
@@ -919,33 +920,33 @@
             },
             "b": {
               "e_rate_hz": 0.0,
-              "i_rate_hz": 0.0,
+              "i_rate_hz": 408.5714416503906,
               "e_active_fraction": 0.0,
-              "i_active_fraction": 0.0,
+              "i_active_fraction": 1.0,
               "dominant_frequency_hz": null,
               "peak_prominence": 0.0,
               "finite": true,
               "active": false,
               "spectrally_valid": false,
               "silent": true,
-              "saturated": false
+              "saturated": true
             }
           },
           "synchrony": {
-            "plv": 0.03380390886803701,
-            "mean_phase_difference_rad": -2.8141277580300748,
-            "half_1_plv": 0.03476528935534565,
-            "half_2_plv": 0.03287300475178483,
-            "half_phase_offset_difference_rad": 0.060064336083623715,
+            "plv": 0.04343197210995962,
+            "mean_phase_difference_rad": -2.817548850786578,
+            "half_1_plv": 0.03816749569717666,
+            "half_2_plv": 0.048730991622179434,
+            "half_phase_offset_difference_rad": 0.05681559396961112,
             "gamma_coherence": null,
             "cross_correlation_peak": 0.0,
             "cross_correlation_lag_ms": -50.0,
             "frequency_difference_hz": null
           },
           "valid": false,
-          "runtime_s": 69.23185746395029,
-          "peak_python_bytes": 23236229,
-          "graph_digest": "sha256:c294a3d134b4b1deae85732b9b7b019e4b2b7e6c330a8e7d61934f1db82a84dc"
+          "runtime_s": 6.655145625001751,
+          "peak_python_bytes": 23236017,
+          "graph_digest": "sha256:5c5a3eb83a1676e78b23f901d2d4799600e0ea20cb6f8c8b11fe6485b6b2dbe1"
         },
         "locked": false,
         "contiguous_support": false
@@ -960,12 +961,12 @@
         "metrics": {
           "populations": {
             "a": {
-              "e_rate_hz": 37.5,
-              "i_rate_hz": 120.42857360839844,
+              "e_rate_hz": 38.61160659790039,
+              "i_rate_hz": 118.60356903076172,
               "e_active_fraction": 1.0,
               "i_active_fraction": 1.0,
-              "dominant_frequency_hz": 42.724609375,
-              "peak_prominence": 62.96012216139774,
+              "dominant_frequency_hz": 41.50390625,
+              "peak_prominence": 181.1666858377665,
               "finite": true,
               "active": true,
               "spectrally_valid": true,
@@ -974,33 +975,33 @@
             },
             "b": {
               "e_rate_hz": 0.0,
-              "i_rate_hz": 0.0,
+              "i_rate_hz": 408.5714416503906,
               "e_active_fraction": 0.0,
-              "i_active_fraction": 0.0,
+              "i_active_fraction": 1.0,
               "dominant_frequency_hz": null,
               "peak_prominence": 0.0,
               "finite": true,
               "active": false,
               "spectrally_valid": false,
               "silent": true,
-              "saturated": false
+              "saturated": true
             }
           },
           "synchrony": {
-            "plv": 0.03380390886803701,
-            "mean_phase_difference_rad": -2.8141277580300748,
-            "half_1_plv": 0.03476528935534565,
-            "half_2_plv": 0.03287300475178483,
-            "half_phase_offset_difference_rad": 0.060064336083623715,
+            "plv": 0.04343954002802987,
+            "mean_phase_difference_rad": -2.8173148905701866,
+            "half_1_plv": 0.03818347129479131,
+            "half_2_plv": 0.04873243192006686,
+            "half_phase_offset_difference_rad": 0.05865359649680979,
             "gamma_coherence": null,
             "cross_correlation_peak": 0.0,
             "cross_correlation_lag_ms": -50.0,
             "frequency_difference_hz": null
           },
           "valid": false,
-          "runtime_s": 65.85940437112004,
-          "peak_python_bytes": 23239526,
-          "graph_digest": "sha256:0fdb4bc62493684aa5dc1a1cdb40b4b831428a3f061b7e5b85cd96fc4045e46e"
+          "runtime_s": 6.6135112919146195,
+          "peak_python_bytes": 23238491,
+          "graph_digest": "sha256:7b74083faa32e5197db8a183d069b96fec9cf0d1e915825aea62cd162e516ff1"
         },
         "locked": false,
         "contiguous_support": false
@@ -1010,285 +1011,64 @@
           "name": "w4_half_period",
           "strength": 4.0,
           "delay_label": "half_period",
-          "delay_ms": 12.200000000000001
+          "delay_ms": 12.600000000000001
         },
         "metrics": {
           "populations": {
             "a": {
-              "e_rate_hz": 19.64285659790039,
-              "i_rate_hz": 60.57143020629883,
+              "e_rate_hz": 18.992856979370117,
+              "i_rate_hz": 255.0,
               "e_active_fraction": 1.0,
               "i_active_fraction": 1.0,
-              "dominant_frequency_hz": 40.283203125,
-              "peak_prominence": 49.52649608943012,
+              "dominant_frequency_hz": 39.0625,
+              "peak_prominence": 33.76236970066916,
               "finite": true,
-              "active": true,
+              "active": false,
               "spectrally_valid": true,
               "silent": false,
-              "saturated": false
+              "saturated": true
             },
             "b": {
-              "e_rate_hz": 19.23214340209961,
-              "i_rate_hz": 60.0,
+              "e_rate_hz": 18.977678298950195,
+              "i_rate_hz": 252.85000610351562,
               "e_active_fraction": 1.0,
               "i_active_fraction": 1.0,
-              "dominant_frequency_hz": 40.283203125,
-              "peak_prominence": 64.3655956500127,
+              "dominant_frequency_hz": 39.0625,
+              "peak_prominence": 56.83795085206178,
               "finite": true,
-              "active": true,
+              "active": false,
               "spectrally_valid": true,
               "silent": false,
-              "saturated": false
+              "saturated": true
             }
           },
           "synchrony": {
-            "plv": 0.5490923345230337,
-            "mean_phase_difference_rad": 0.3711638794732374,
-            "half_1_plv": 0.8308415921545012,
-            "half_2_plv": 0.27176587579032824,
-            "half_phase_offset_difference_rad": 0.20800065775541615,
-            "gamma_coherence": 0.7163677424686281,
-            "cross_correlation_peak": 0.8545765073292195,
-            "cross_correlation_lag_ms": 48.2,
+            "plv": 0.29764692286966704,
+            "mean_phase_difference_rad": 0.35526012974743426,
+            "half_1_plv": 0.11239571067364741,
+            "half_2_plv": 0.6378399932996907,
+            "half_phase_offset_difference_rad": 2.042068859993875,
+            "gamma_coherence": 0.7112114081700875,
+            "cross_correlation_peak": 0.883100403613986,
+            "cross_correlation_lag_ms": 50.0,
             "frequency_difference_hz": 0.0
           },
-          "valid": true,
-          "runtime_s": 67.20603434485383,
-          "peak_python_bytes": 23255693,
-          "graph_digest": "sha256:86c1795823a05313e67b54ba5d2565c18eb8a88ec4448fe235cbd489e62a6848"
+          "valid": false,
+          "runtime_s": 6.748379041906446,
+          "peak_python_bytes": 23255371,
+          "graph_digest": "sha256:026c636c7f5b320e895edb309e69b14c099c1cdc406c4b7d7c8639b5f1114e66"
         },
         "locked": false,
         "contiguous_support": false
       }
     ],
-    "locked_count": 4,
-    "contiguously_supported_count": 4,
-    "winning_conditions": [
-      {
-        "variant": {
-          "name": "w0.2_short",
-          "strength": 0.2,
-          "delay_label": "short",
-          "delay_ms": 0.1
-        },
-        "metrics": {
-          "populations": {
-            "a": {
-              "e_rate_hz": 30.160715103149414,
-              "i_rate_hz": 94.64286041259766,
-              "e_active_fraction": 1.0,
-              "i_active_fraction": 1.0,
-              "dominant_frequency_hz": 30.517578125,
-              "peak_prominence": 73.8632854671587,
-              "finite": true,
-              "active": true,
-              "spectrally_valid": true,
-              "silent": false,
-              "saturated": false
-            },
-            "b": {
-              "e_rate_hz": 29.446428298950195,
-              "i_rate_hz": 91.42857360839844,
-              "e_active_fraction": 1.0,
-              "i_active_fraction": 1.0,
-              "dominant_frequency_hz": 30.517578125,
-              "peak_prominence": 127.63637709255593,
-              "finite": true,
-              "active": true,
-              "spectrally_valid": true,
-              "silent": false,
-              "saturated": false
-            }
-          },
-          "synchrony": {
-            "plv": 0.8175697868441983,
-            "mean_phase_difference_rad": -2.8263664421103702,
-            "half_1_plv": 0.8101156265576939,
-            "half_2_plv": 0.84243753618998,
-            "half_phase_offset_difference_rad": 0.29065459509380887,
-            "gamma_coherence": 0.611765319682179,
-            "cross_correlation_peak": 0.8044570559770032,
-            "cross_correlation_lag_ms": -17.5,
-            "frequency_difference_hz": 0.0
-          },
-          "valid": true,
-          "runtime_s": 66.09755518310703,
-          "peak_python_bytes": 23236471,
-          "graph_digest": "sha256:ec29ea492a7eaf4628197004a9360c2d9cbc6cb58fa0c9d5f8847c931d6670bc"
-        },
-        "locked": true,
-        "contiguous_support": true
-      },
-      {
-        "variant": {
-          "name": "w0.2_intermediate",
-          "strength": 0.2,
-          "delay_label": "intermediate",
-          "delay_ms": 2.0
-        },
-        "metrics": {
-          "populations": {
-            "a": {
-              "e_rate_hz": 30.51785659790039,
-              "i_rate_hz": 94.28571319580078,
-              "e_active_fraction": 1.0,
-              "i_active_fraction": 1.0,
-              "dominant_frequency_hz": 30.517578125,
-              "peak_prominence": 34.841647641966574,
-              "finite": true,
-              "active": true,
-              "spectrally_valid": true,
-              "silent": false,
-              "saturated": false
-            },
-            "b": {
-              "e_rate_hz": 28.25,
-              "i_rate_hz": 88.64286041259766,
-              "e_active_fraction": 1.0,
-              "i_active_fraction": 1.0,
-              "dominant_frequency_hz": 30.517578125,
-              "peak_prominence": 86.30461114740754,
-              "finite": true,
-              "active": true,
-              "spectrally_valid": true,
-              "silent": false,
-              "saturated": false
-            }
-          },
-          "synchrony": {
-            "plv": 0.5975339114543429,
-            "mean_phase_difference_rad": -2.8055772336923557,
-            "half_1_plv": 0.5903514764830736,
-            "half_2_plv": 0.6047367862207988,
-            "half_phase_offset_difference_rad": 0.011698100736286854,
-            "gamma_coherence": 0.7585385101479369,
-            "cross_correlation_peak": 0.6757924747752366,
-            "cross_correlation_lag_ms": -18.0,
-            "frequency_difference_hz": 0.0
-          },
-          "valid": true,
-          "runtime_s": 69.67958699516021,
-          "peak_python_bytes": 23241114,
-          "graph_digest": "sha256:b0bd4e7d9979c3131d89e1abc85cc71f3a86ace6768d32ac6d651ff972fc0159"
-        },
-        "locked": true,
-        "contiguous_support": true
-      },
-      {
-        "variant": {
-          "name": "w0.5_half_period",
-          "strength": 0.5,
-          "delay_label": "half_period",
-          "delay_ms": 12.200000000000001
-        },
-        "metrics": {
-          "populations": {
-            "a": {
-              "e_rate_hz": 27.51785659790039,
-              "i_rate_hz": 84.78571319580078,
-              "e_active_fraction": 1.0,
-              "i_active_fraction": 1.0,
-              "dominant_frequency_hz": 30.517578125,
-              "peak_prominence": 118.99452976583399,
-              "finite": true,
-              "active": true,
-              "spectrally_valid": true,
-              "silent": false,
-              "saturated": false
-            },
-            "b": {
-              "e_rate_hz": 27.535715103149414,
-              "i_rate_hz": 85.0,
-              "e_active_fraction": 1.0,
-              "i_active_fraction": 1.0,
-              "dominant_frequency_hz": 30.517578125,
-              "peak_prominence": 106.61690282120104,
-              "finite": true,
-              "active": true,
-              "spectrally_valid": true,
-              "silent": false,
-              "saturated": false
-            }
-          },
-          "synchrony": {
-            "plv": 0.8171467195619272,
-            "mean_phase_difference_rad": 0.28970524413998244,
-            "half_1_plv": 0.8779832215740752,
-            "half_2_plv": 0.7565017266469752,
-            "half_phase_offset_difference_rad": 0.030701276274373468,
-            "gamma_coherence": 0.6701706556620237,
-            "cross_correlation_peak": 0.7799794072106983,
-            "cross_correlation_lag_ms": 32.2,
-            "frequency_difference_hz": 0.0
-          },
-          "valid": true,
-          "runtime_s": 66.06643194402568,
-          "peak_python_bytes": 23256144,
-          "graph_digest": "sha256:70291dd263e004273167b80d86114058cc237fd7f5f8ef41019e96b8c62102ea"
-        },
-        "locked": true,
-        "contiguous_support": true
-      },
-      {
-        "variant": {
-          "name": "w1_half_period",
-          "strength": 1.0,
-          "delay_label": "half_period",
-          "delay_ms": 12.200000000000001
-        },
-        "metrics": {
-          "populations": {
-            "a": {
-              "e_rate_hz": 24.928571701049805,
-              "i_rate_hz": 77.14286041259766,
-              "e_active_fraction": 1.0,
-              "i_active_fraction": 1.0,
-              "dominant_frequency_hz": 51.26953125,
-              "peak_prominence": 19.13182548232343,
-              "finite": true,
-              "active": true,
-              "spectrally_valid": true,
-              "silent": false,
-              "saturated": false
-            },
-            "b": {
-              "e_rate_hz": 24.76785659790039,
-              "i_rate_hz": 76.5,
-              "e_active_fraction": 1.0,
-              "i_active_fraction": 1.0,
-              "dominant_frequency_hz": 51.26953125,
-              "peak_prominence": 24.073764973052626,
-              "finite": true,
-              "active": true,
-              "spectrally_valid": true,
-              "silent": false,
-              "saturated": false
-            }
-          },
-          "synchrony": {
-            "plv": 0.6643380706123247,
-            "mean_phase_difference_rad": 0.1945358070584933,
-            "half_1_plv": 0.7105975400285343,
-            "half_2_plv": 0.6239340538032684,
-            "half_phase_offset_difference_rad": 0.18781924554345375,
-            "gamma_coherence": 0.6771906983104471,
-            "cross_correlation_peak": 0.8066948078132639,
-            "cross_correlation_lag_ms": 37.7,
-            "frequency_difference_hz": 0.0
-          },
-          "valid": true,
-          "runtime_s": 60.94995540799573,
-          "peak_python_bytes": 23255606,
-          "graph_digest": "sha256:cabee366ed36fbed18b61edb7b73527733599f4da34e6ce4d2a20e84b5b8c7c0"
-        },
-        "locked": true,
-        "contiguous_support": true
-      }
-    ]
+    "locked_count": 0,
+    "contiguously_supported_count": 0,
+    "winning_conditions": []
   },
   "exit": {
-    "success": true,
-    "kill_fired": false,
+    "success": false,
+    "kill_fired": true,
     "simulator_edits": 0,
     "paid_compute_usd": 0.0
   },
@@ -1307,7 +1087,7 @@
     },
     {
       "timestamp": "2026-08-05T13:03:12Z",
-      "event": "Replaced maximum-over-band coherence with registered 30–80 Hz mean coherence before coupling because the uncoupled maximum saturated at 0.992 and made the declared gain impossible."
+      "event": "Replaced maximum-over-band coherence with registered 30\u201380 Hz mean coherence before coupling because the uncoupled maximum saturated at 0.992 and made the declared gain impossible."
     },
     {
       "timestamp": "2026-08-05T13:14:54Z",
@@ -1318,8 +1098,12 @@
       "event": "Killed the first complete sweep publication after rate traces overwrote spike-array artifact keys and raster rendering failed; atomic staging prevented invalid evidence publication."
     },
     {
-      "timestamp": "2026-08-05T13:54:37Z",
-      "event": "Completed the unchanged pre-registered local coupling sweep after an experiment-side artifact-key fix, without simulator edits or paid compute."
+      "timestamp": "2026-08-06T09:00:19Z",
+      "event": "Amended the cross-circuit anatomy before rerunning: replaced direct long-range I-to-E GABA projections with reciprocal long-range E-to-I AMPA projections while retaining the frozen uncoupled calibration, sweep grid, inputs, delays, and locking gates."
+    },
+    {
+      "timestamp": "2026-08-06T09:00:19Z",
+      "event": "After a scale amendment, recalibrated 800 E / 200 I circuits and completed the full biologically faithful E-to-I coupling sweep locally without simulator edits or paid compute; preliminary 40 E / 10 I measurements were superseded."
     }
   ]
 }

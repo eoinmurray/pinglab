@@ -1,5 +1,5 @@
 {
-  "hypothesis": "Moderate reciprocal I-to-E GABA coupling entrains two independently driven, active, 5\u201315% detuned PING circuits, whereas zero coupling permits phase drift and the largest coupling may suppress activity.",
+  "hypothesis": "Moderate reciprocal long-range E-to-I AMPA coupling entrains two independently driven, active, 5\u201315% detuned PING circuits by recruiting inhibition in the other circuit, whereas zero coupling permits phase drift and the largest coupling may suppress activity.",
   "success_criterion": "At least one moderate registered condition is active and locked by every frequency, PLV, coherence, and stable-phase threshold, with a contiguous strength/delay neighbour supporting the transition.",
   "kill_criterion": "Kill if calibration finds no valid pair, coupling only suppresses/invalidates activity, or no registered condition meets every locking threshold.",
   "seed": 78,
@@ -10,8 +10,8 @@
     "analysis_seconds": 1.4
   },
   "populations": {
-    "excitatory_per_circuit": 40,
-    "inhibitory_per_circuit": 10,
+    "excitatory_per_circuit": 800,
+    "inhibitory_per_circuit": 200,
     "input_channels_per_circuit": 16
   },
   "independent_input_generators": [
@@ -82,6 +82,7 @@
   ],
   "calibration_selection": "Minimum registered score among valid active/spectral candidates with 5\u201315% detuning; score is |detuning-10%| + 0.01/min peak prominence; grid order breaks exact ties.",
   "within_circuit_parameters": "snnlang PING component defaults, frozen",
+  "cross_circuit_pathway": "Reciprocal long-range E-to-I AMPA projections; each receiving I population inhibits its local E population through the unchanged within-circuit PING loop.",
   "coupling_strengths": [
     0.2,
     0.5,

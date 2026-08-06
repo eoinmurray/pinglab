@@ -1,5 +1,16 @@
 /goal Design and execute exp078 as the first graph-native gamma-coupling experiment, building directly on the two-circuit executor validated by exp077 and ar063 Milestone 3.
 
+Protocol amendment, 2026-08-06:
+- The original direct cross-circuit I-to-E GABA projection was anatomically wrong for the intended long-range pathway.
+- Replace it with reciprocal excitatory E_A-to-I_B and E_B-to-I_A AMPA projections. The receiving inhibitory population then suppresses its own local excitatory population through the unchanged PING loop.
+- This amendment precedes the replacement sweep. Keep the uncoupled calibration, input realization, strength grid, delay grid, initial conditions, analysis, and acceptance thresholds fixed.
+- The amended pathway is the only cross-circuit mechanism tested; the superseded direct-inhibition result is not evidence for the intended biological circuit.
+
+Scale and presentation amendment, 2026-08-06:
+- Replace the preliminary 40 E / 10 I circuits with 800 E / 200 I circuits.
+- Re-run calibration and the complete registered sweep at the new scale; preliminary small-network results are not evidence for the scaled experiment.
+- Put the circuit diagram at the start of Methods. For the representative condition, show a separate E/I raster for each circuit, separate population-rate panels on a common scale, and phase difference over time.
+
 Outcome:
 Demonstrate whether reciprocal inhibitory coupling can entrain two independently driven, slightly detuned PING circuits. Establish a scientifically interpretable transition from uncoupled phase drift, through stable frequency/phase locking, to excessive-coupling suppression where present.
 
@@ -15,12 +26,12 @@ Scientific design:
 - One exploratory seed only.
 - Run locally unless paid compute is later explicitly authorized.
 - Use two independently named PING circuits constructed through snnlang and executed by the graph-native tools/snn executor.
-- Use approximately 40 excitatory and 10 inhibitory neurons per circuit, unless a nearby size is materially better supported by existing reusable components.
+- Use 800 excitatory and 200 inhibitory neurons per circuit.
 - Give the circuits independent stochastic or tonic spike drives. Do not use shared input.
 - Slightly detune their uncoupled natural gamma frequencies.
 - Simulate long enough to resolve phase and frequency reliably: target 1.5–2.0 seconds, discarding the first 300–500 ms as transient.
 - Keep initial state and input realizations matched across coupling variants.
-- Couple each inhibitory population to the other circuit’s excitatory population with reciprocal GABA projections.
+- Couple each excitatory population to the other circuit’s inhibitory population with reciprocal AMPA projections.
 - All sweep variants must differ only through graph data; simulator-specific edits invalidate the experiment.
 
 Staged protocol:
