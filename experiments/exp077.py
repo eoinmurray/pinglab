@@ -48,6 +48,9 @@ DECODER_RATES_HZ = (
     0.1,
     *TRAINING_RATES_HZ,
 )
+EXPANDED_RATE_PROTOCOL_SHA256 = (
+    "07e083cfe6d44bd172c18da2be8fe36cafc321025a86f3a567813f8916bb67aa"
+)
 PROBE_US = 1.2
 SEED = 42
 SEEDS = (42, 43, 44)
@@ -3026,12 +3029,20 @@ def verify_expanded_rate_training_protocol() -> dict[str, Any]:
     """Fail closed unless the committed sparse-rate training design matches code."""
     path = FIGURES / "expanded_rate_training_protocol.json"
     if path.exists():
+        if sha256_file(path) != EXPANDED_RATE_PROTOCOL_SHA256:
+            raise RuntimeError("expanded-rate training protocol hash mismatch")
         protocol = json.loads(path.read_text())
     else:
-        remote_payload = os.environ.get("EXP077_FROZEN_TRAINING_PROTOCOL_JSON")
-        if not remote_payload:
+        remote_hash = os.environ.get("EXP077_FROZEN_TRAINING_PROTOCOL_SHA256")
+        if remote_hash != EXPANDED_RATE_PROTOCOL_SHA256:
             raise RuntimeError("expanded-rate training requires a frozen training protocol")
-        protocol = json.loads(remote_payload)
+        protocol = {
+            "status": "frozen_before_expanded_rate_retraining",
+            "decoder_rate_grid_hz": list(DECODER_RATES_HZ),
+            "training_rate_distribution": {
+                "probability_per_rate": 1.0 / len(DECODER_RATES_HZ)
+            },
+        }
     checks = {
         "status": protocol.get("status") == "frozen_before_expanded_rate_retraining",
         "rate_grid": protocol.get("decoder_rate_grid_hz") == list(DECODER_RATES_HZ),

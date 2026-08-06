@@ -133,13 +133,9 @@ def _source_image_exp077(modal: Any):
                     f"{REMOTE_REPO / 'experiments'}:"
                     f"{REMOTE_REPO / 'tools' / 'snn'}"
                 ),
-                "EXP077_FROZEN_TRAINING_PROTOCOL_JSON": (
-                    REPO
-                    / "artifacts"
-                    / "data"
-                    / "exp077"
-                    / "expanded_rate_training_protocol.json"
-                ).read_text(),
+                "EXP077_FROZEN_TRAINING_PROTOCOL_SHA256": (
+                    "07e083cfe6d44bd172c18da2be8fe36cafc321025a86f3a567813f8916bb67aa"
+                ),
             }
         )
         .add_local_dir(

@@ -24,6 +24,7 @@ def main() -> None:
     modal = modal_backend._require_modal()
     output = getattr(modal, "enable_output", lambda: contextlib.nullcontext())()
     started = time.monotonic()
+    results = []
     with output:
         with app.run():
             futures = [train_cell.spawn(*cell) for cell in cells]

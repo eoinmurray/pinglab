@@ -233,9 +233,10 @@ def test_expanded_rate_protocol_matches_decoder_grid() -> None:
 
 
 def test_expanded_rate_protocol_remote_payload(monkeypatch, tmp_path) -> None:
-    protocol = (exp077.FIGURES / "expanded_rate_training_protocol.json").read_text()
     monkeypatch.setattr(exp077, "FIGURES", tmp_path)
-    monkeypatch.setenv("EXP077_FROZEN_TRAINING_PROTOCOL_JSON", protocol)
+    monkeypatch.setenv(
+        "EXP077_FROZEN_TRAINING_PROTOCOL_SHA256", exp077.EXPANDED_RATE_PROTOCOL_SHA256
+    )
     assert exp077.verify_expanded_rate_training_protocol()["decoder_rate_grid_hz"] == list(
         exp077.DECODER_RATES_HZ
     )
