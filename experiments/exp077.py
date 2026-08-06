@@ -2853,8 +2853,151 @@ def step_5() -> None:
     run_step5_stage(os.environ.get("EXP077_STAGE", "smoke"))
 
 
+def load_held_out_mnist_test(protocol_path: Path) -> tuple[np.ndarray, np.ndarray, dict[str, Any]]:
+    """Load the official test partition only after authenticating the freeze file."""
+    if not protocol_path.exists():
+        raise RuntimeError("held-out test access requires a frozen evaluation protocol")
+    protocol = json.loads(protocol_path.read_text())
+    if protocol.get("status") != "frozen_before_test_access":
+        raise RuntimeError("evaluation protocol is not frozen")
+    for model in protocol["models"]:
+        path = REPO / model["path"]
+        if not path.exists() or sha256_file(path) != model["sha256"]:
+            raise RuntimeError(f"frozen decoder hash mismatch: {path}")
+    from torchvision.datasets import MNIST
+
+    dataset = MNIST(root="/tmp/mnist", train=False, download=True)
+    images = dataset.data.numpy().astype(np.uint8, copy=False)
+    labels = dataset.targets.numpy().astype(np.int64, copy=False)
+    if images.shape != (10_000, 28, 28) or labels.shape != (10_000,):
+        raise RuntimeError(f"unexpected MNIST held-out contract: {images.shape}")
+    raw_hashes = {
+        path.name: sha256_file(path)
+        for path in sorted(Path(dataset.raw_folder).glob("t10k-*-ubyte"))
+    }
+    return images, labels, {
+        "source": "torchvision.datasets.MNIST official held-out test partition",
+        "image_shape": list(images.shape),
+        "label_shape": list(labels.shape),
+        "raw_file_sha256": raw_hashes,
+    }
+
+
+def _load_frozen_models(protocol: dict[str, Any], device: Any) -> dict[tuple[float, int], tuple[Any, Any]]:
+    import torch
+
+    models: dict[tuple[float, int], tuple[Any, Any]] = {}
+    for record in protocol["models"]:
+        checkpoint = torch.load(REPO / record["path"], map_location=device, weights_only=True)
+        nonlinear, linear_candidates = _make_decoders(device, record["seed"])
+        nonlinear.load_state_dict(checkpoint["nonlinear"])
+        linear = linear_candidates[0]
+        linear.load_state_dict(checkpoint["linear"])
+        nonlinear.eval()
+        linear.eval()
+        models[(float(record["probe_uS"]), int(record["seed"]))] = (nonlinear, linear)
+    return models
+
+
+def evaluate_frozen_decoders(protocol_path: Path, output_dir: Path) -> dict[str, Any]:
+    """Evaluate frozen models with shared fresh direct draws on held-out MNIST."""
+    import torch
+
+    protocol = json.loads(protocol_path.read_text())
+    images, labels, dataset = load_held_out_mnist_test(protocol_path)
+    device = _torch_device()
+    models = _load_frozen_models(protocol, device)
+    nonlinear_correct = np.empty(
+        (
+            len(PROBE_CONDUCTANCES_US),
+            len(TRAINING_RATES_HZ),
+            EVALUATION_DRAWS,
+            len(SEEDS),
+            len(labels),
+        ),
+        dtype=np.bool_,
+    )
+    linear_correct = np.empty(
+        (len(TRAINING_RATES_HZ), EVALUATION_DRAWS, len(SEEDS), len(labels)),
+        dtype=np.bool_,
+    )
+    started = time.perf_counter()
+    label_tensor = torch.as_tensor(labels, device=device)
+    for probe_index, probe in enumerate(PROBE_CONDUCTANCES_US):
+        for rate_index, rate in enumerate(TRAINING_RATES_HZ):
+            for draw in range(EVALUATION_DRAWS):
+                for start in range(0, len(labels), DECODER_BATCH_SIZE):
+                    stop = min(start + DECODER_BATCH_SIZE, len(labels))
+                    generator = torch.Generator(device=device).manual_seed(
+                        _decoder_seed(6, probe_index, rate_index, draw, start)
+                    )
+                    batch_images = torch.as_tensor(images[start:stop], device=device)
+                    batch_rates = torch.full((stop - start,), rate, device=device)
+                    features = direct_feature_batch_torch(
+                        batch_images, batch_rates, probe, generator
+                    )
+                    for seed_index, seed in enumerate(SEEDS):
+                        nonlinear, linear = models[(probe, seed)]
+                        with torch.no_grad():
+                            nonlinear_prediction = nonlinear(features).argmax(dim=1)
+                            nonlinear_correct[
+                                probe_index, rate_index, draw, seed_index, start:stop
+                            ] = (
+                                nonlinear_prediction == label_tensor[start:stop]
+                            ).cpu().numpy()
+                            if probe == PROBE_US:
+                                linear_prediction = linear(features).argmax(dim=1)
+                                linear_correct[rate_index, draw, seed_index, start:stop] = (
+                                    linear_prediction == label_tensor[start:stop]
+                                ).cpu().numpy()
+                print(
+                    f"held-out probe={probe:g} rate={rate:g} draw={draw + 1}/{EVALUATION_DRAWS}",
+                    flush=True,
+                )
+    output_dir.mkdir(parents=True, exist_ok=True)
+    arrays_path = output_dir / "held_out_correctness.npz"
+    np.savez_compressed(
+        arrays_path,
+        nonlinear_correct=nonlinear_correct,
+        linear_correct=linear_correct,
+        rates_hz=np.asarray(TRAINING_RATES_HZ),
+        probes_uS=np.asarray(PROBE_CONDUCTANCES_US),
+        decoder_seeds=np.asarray(SEEDS),
+        labels=labels,
+    )
+    outcome = {
+        "status": "complete",
+        "protocol_sha256": sha256_file(protocol_path),
+        "dataset": dataset,
+        "device": str(device),
+        "runtime_s": time.perf_counter() - started,
+        "arrays_path": str(arrays_path.relative_to(REPO)),
+        "arrays_sha256": sha256_file(arrays_path),
+    }
+    (output_dir / "evaluation.json").write_text(json.dumps(outcome, indent=2) + "\n")
+    return outcome
+
+
+def _hierarchical_lower_bound(values: np.ndarray, seed: int) -> tuple[float, float, float]:
+    """Bootstrap images, direct draws, and decoder seeds independently."""
+    array = np.asarray(values, dtype=np.float64)
+    if array.ndim != 3:
+        raise ValueError("correctness array must have draw x seed x image axes")
+    rng = np.random.default_rng(seed)
+    estimates = np.empty(BOOTSTRAP_REPETITIONS_HELDOUT, dtype=np.float64)
+    for repetition in range(BOOTSTRAP_REPETITIONS_HELDOUT):
+        draws = rng.integers(0, array.shape[0], array.shape[0])
+        seeds = rng.integers(0, array.shape[1], array.shape[1])
+        image_indices = rng.integers(0, array.shape[2], array.shape[2])
+        selected = array[np.ix_(draws, seeds, image_indices)]
+        estimates[repetition] = np.mean(selected)
+    alpha = 1.0 - CONFIDENCE_LEVEL
+    return float(np.mean(array)), float(np.quantile(estimates, alpha)), float(np.quantile(estimates, 1.0 - alpha))
+
+
 def step_6() -> None:
-    _not_implemented(6)
+    protocol_path = FIGURES / "frozen_evaluation_protocol.json"
+    evaluate_frozen_decoders(protocol_path, FIGURES / "step6")
 
 
 def step_7() -> None:
