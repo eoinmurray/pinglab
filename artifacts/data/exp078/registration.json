@@ -1,0 +1,117 @@
+{
+  "hypothesis": "Moderate reciprocal I-to-E GABA coupling entrains two independently driven, active, 5\u201315% detuned PING circuits, whereas zero coupling permits phase drift and the largest coupling may suppress activity.",
+  "success_criterion": "At least one moderate registered condition is active and locked by every frequency, PLV, coherence, and stable-phase threshold, with a contiguous strength/delay neighbour supporting the transition.",
+  "kill_criterion": "Kill if calibration finds no valid pair, coupling only suppresses/invalidates activity, or no registered condition meets every locking threshold.",
+  "seed": 78,
+  "simulation": {
+    "dt_ms": 0.1,
+    "duration_ms": 1800.0,
+    "transient_ms": 400.0,
+    "analysis_seconds": 1.4
+  },
+  "populations": {
+    "excitatory_per_circuit": 40,
+    "inhibitory_per_circuit": 10,
+    "input_channels_per_circuit": 16
+  },
+  "independent_input_generators": [
+    179,
+    280
+  ],
+  "calibration_grid": [
+    {
+      "input_weight": 0.2,
+      "rate_a_hz": 180.0,
+      "rate_b_hz": 150.0
+    },
+    {
+      "input_weight": 0.2,
+      "rate_a_hz": 220.0,
+      "rate_b_hz": 180.0
+    },
+    {
+      "input_weight": 0.2,
+      "rate_a_hz": 260.0,
+      "rate_b_hz": 210.0
+    },
+    {
+      "input_weight": 0.3,
+      "rate_a_hz": 180.0,
+      "rate_b_hz": 150.0
+    },
+    {
+      "input_weight": 0.3,
+      "rate_a_hz": 220.0,
+      "rate_b_hz": 180.0
+    },
+    {
+      "input_weight": 0.3,
+      "rate_a_hz": 260.0,
+      "rate_b_hz": 210.0
+    },
+    {
+      "input_weight": 0.4,
+      "rate_a_hz": 180.0,
+      "rate_b_hz": 150.0
+    },
+    {
+      "input_weight": 0.4,
+      "rate_a_hz": 220.0,
+      "rate_b_hz": 180.0
+    },
+    {
+      "input_weight": 0.4,
+      "rate_a_hz": 260.0,
+      "rate_b_hz": 210.0
+    },
+    {
+      "input_weight": 0.55,
+      "rate_a_hz": 180.0,
+      "rate_b_hz": 150.0
+    },
+    {
+      "input_weight": 0.55,
+      "rate_a_hz": 220.0,
+      "rate_b_hz": 180.0
+    },
+    {
+      "input_weight": 0.55,
+      "rate_a_hz": 260.0,
+      "rate_b_hz": 210.0
+    }
+  ],
+  "calibration_selection": "Minimum registered score among valid active/spectral candidates with 5\u201315% detuning; score is |detuning-10%| + 0.01/min peak prominence; grid order breaks exact ties.",
+  "within_circuit_parameters": "snnlang PING component defaults, frozen",
+  "coupling_strengths": [
+    0.2,
+    0.5,
+    1.0,
+    2.0,
+    4.0
+  ],
+  "delay_labels": [
+    "short",
+    "intermediate",
+    "half_period"
+  ],
+  "activity_thresholds": {
+    "min_e_rate_hz": 2.0,
+    "max_e_rate_hz": 180.0,
+    "min_i_rate_hz": 2.0,
+    "max_i_rate_hz": 250.0,
+    "min_active_fraction": 0.25,
+    "max_active_fraction": 1.0,
+    "min_peak_prominence": 2.0
+  },
+  "locking_thresholds": {
+    "max_frequency_difference_fraction_of_baseline": 0.5,
+    "min_plv_gain": 0.15,
+    "min_coherence_gain": 0.1,
+    "min_half_window_plv": 0.55,
+    "max_half_window_phase_offset_difference_rad": 0.6
+  },
+  "coherence_definition": "Arithmetic mean of magnitude-squared coherence bins from 30 through 80 Hz; frozen after uncoupled calibration and before any coupling sweep because a maximum-over-band statistic saturated at 0.992.",
+  "locked_definition": "active plus <=50% baseline frequency difference, PLV gain >=0.15, mean-band coherence gain >=0.10, both half-window PLV >=0.55, and half-window phase-offset drift <=0.60 rad",
+  "contiguity_definition": "A locked condition has at least one active locked orthogonal neighbour in the registered strength x delay grid; baseline is excluded.",
+  "suppression_definition": "Either circuit violates the registered minimum E/I rates or active-cell fraction; suppression is never locking."
+}

@@ -37,6 +37,33 @@ class TrainingSettings:
     epochs: int
 
 
+@dataclass(frozen=True)
+class BackendCapability:
+    """Versioned capability requirement attached to one graph element."""
+
+    schema: str
+    element: str
+    feature: str
+
+
+def required_capabilities_v1(graph: dict[str, Any]) -> tuple[BackendCapability, ...]:
+    """Describe bundle requirements without importing the authoring package."""
+    rows: list[BackendCapability] = []
+    for pop in graph.get("populations", []):
+        rows.append(BackendCapability("tools/snn.capability/v1", pop["id"], f"neuron:{pop['neuron']['kind']}"))
+    for projection in graph.get("projections", []):
+        rows.extend((
+            BackendCapability("tools/snn.capability/v1", projection["id"], f"synapse:{projection['synapse']['kind']}"),
+            BackendCapability("tools/snn.capability/v1", projection["id"], f"connection:{projection['connection']}"),
+            BackendCapability("tools/snn.capability/v1", projection["id"], "delay:integer_steps"),
+        ))
+    for operation in graph.get("operations", []):
+        rows.append(BackendCapability("tools/snn.capability/v1", operation["id"], f"operation:{operation['kind']}"))
+    for observable in graph.get("observables", []):
+        rows.append(BackendCapability("tools/snn.capability/v1", observable["id"], f"recording:{observable['signal'].partition('.')[2]}"))
+    return tuple(rows)
+
+
 def _canonical_json(data: Any) -> bytes:
     return (
         json.dumps(data, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
@@ -151,11 +178,19 @@ def translate_cobanet_v1(graph: dict[str, Any]) -> LegacySettings:
             "COBANet v1 requires exactly one input and one named output"
         )
 
-    inhibitory = [row for row in projections if row.get("polarity") == "inhibitory"]
+    inhibitory = [
+        row for row in projections
+        if row.get("polarity") == "inhibitory"
+        and row.get("source", "").partition(".")[0]
+        != row.get("target", "").partition(".")[0]
+    ]
     recurrent_exc = [
         row
         for row in projections
-        if row.get("connection") == "recurrent" and row.get("polarity") == "excitatory"
+        if row.get("connection") == "recurrent"
+        and row.get("polarity") == "excitatory"
+        and row.get("source", "").partition(".")[0]
+        != row.get("target", "").partition(".")[0]
     ]
     if len(inhibitory) != 1 or len(recurrent_exc) != 1:
         raise BundleCompatibilityError(
@@ -173,15 +208,20 @@ def translate_cobanet_v1(graph: dict[str, Any]) -> LegacySettings:
         raise BundleCompatibilityError(
             "current COBANet backend requires inhibitory size = excitatory size / 4"
         )
-    if e_pop.get("neuron") != {
-        "kind": "coba_lif",
-        "tau_mem": {"value": 20.0, "unit": "ms"},
-    } or i_pop.get("neuron") != {
-        "kind": "coba_lif",
-        "tau_mem": {"value": 10.0, "unit": "ms"},
-    }:
+    e_neuron, i_neuron = e_pop.get("neuron", {}), i_pop.get("neuron", {})
+    if (
+        e_neuron.get("kind") != "coba_lif"
+        or e_neuron.get("tau_mem") != {"value": 20.0, "unit": "ms"}
+        or i_neuron.get("kind") != "coba_lif"
+        or i_neuron.get("tau_mem") not in (
+            {"value": 5.0, "unit": "ms"},
+            # Compatibility with pre-audit bundles. Their legacy route has
+            # always executed the historical 5 ms I cell.
+            {"value": 10.0, "unit": "ms"},
+        )
+    ):
         raise BundleCompatibilityError(
-            "current COBANet backend requires 20 ms E and 10 ms I COBA-LIF neurons"
+            "current COBANet backend requires 20 ms E and 5 ms I COBA-LIF neurons"
         )
 
     input_id = inputs[0]["id"]
@@ -202,13 +242,17 @@ def translate_cobanet_v1(graph: dict[str, Any]) -> LegacySettings:
         raise BundleCompatibilityError(
             "COBANet v1 requires direct input→E and E→readout projections"
         )
-    ampa = {"kind": "ampa", "tau": {"value": 5.0, "unit": "ms"}}
+    supported_ampa = (
+        {"kind": "ampa", "tau": {"value": 2.0, "unit": "ms"}},
+        # Pre-audit bundles declared 5 ms while the legacy kernel used 2 ms.
+        {"kind": "ampa", "tau": {"value": 5.0, "unit": "ms"}},
+    )
     if (
-        input_projection[0].get("synapse") != ampa
-        or recurrent_exc[0].get("synapse") != ampa
+        input_projection[0].get("synapse") not in supported_ampa
+        or recurrent_exc[0].get("synapse") not in supported_ampa
     ):
         raise BundleCompatibilityError(
-            "current COBANet backend requires 5 ms AMPA input and E→I synapses"
+            "current COBANet backend requires 2 ms AMPA input and E→I synapses"
         )
     supported_projection_ids = {
         input_projection[0]["id"],
@@ -216,6 +260,16 @@ def translate_cobanet_v1(graph: dict[str, Any]) -> LegacySettings:
         recurrent_exc[0]["id"],
         inhibitory[0]["id"],
     }
+    same_population = [
+        row for row in projections
+        if row["source"].partition(".")[0] == row["target"].partition(".")[0]
+    ]
+    for row in same_population:
+        if _normal(row, parameters) != (0.0, 0.0):
+            raise BundleCompatibilityError(
+                f"current COBANet adapter requires zero {row['id']} recurrence"
+            )
+        supported_projection_ids.add(row["id"])
     extras = {row["id"] for row in projections} - supported_projection_ids
     if extras:
         raise BundleCompatibilityError(
@@ -426,6 +480,14 @@ _TRAINING_RECIPE_FLAGS = {
 def apply_bundle_to_args(args, argv: list[str]):
     """Apply bundle structure while preserving execution-only CLI overrides."""
     if not getattr(args, "bundle", None):
+        return args
+    if getattr(args, "executor", "legacy") == "graph":
+        if args.mode == "train":
+            raise BundleCompatibilityError(
+                "graph executor lacks training:v1; use legacy or wait for Milestone 6"
+            )
+        # Authenticate data now; graph capability checks happen in planning.
+        load_graph_bundle(args.bundle)
         return args
     if args.mode not in {"sim", "train"}:
         raise BundleCompatibilityError(

@@ -1,0 +1,15 @@
+{
+  "slug": "exp078",
+  "run_id": "r003",
+  "run_at": "2026-08-05T13:36:05+00:00",
+  "git_sha": "a781c7f",
+  "dirty": true,
+  "code_dirty": false,
+  "patch": null,
+  "host": "local",
+  "scale": {
+    "stage": "registered_sweep",
+    "variants": 16,
+    "seed": 78
+  }
+}

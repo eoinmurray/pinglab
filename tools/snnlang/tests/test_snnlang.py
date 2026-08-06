@@ -198,6 +198,18 @@ def test_backend_capability_is_separate_from_validity():
     assert any(d.code == "C101" for d in bundle.diagnostics)
 
 
+def test_manifest_archives_versioned_element_capabilities():
+    net, cell = small_network()
+    net.expose(cell.E.spikes, name="e_spikes")
+    bundle = snn.compile(net)
+    required = bundle.manifest["required_capabilities"]
+    assert required["schema"] == "snnlang.capabilities/v1"
+    by_element = {row["element"]: row["features"] for row in required["elements"]}
+    assert "neuron:coba_lif" in by_element["cell_E"]
+    assert "connection:recurrent" in by_element["cell_I_to_E"]
+    assert "recording:spikes" in by_element["e_spikes"]
+
+
 def test_visualisation_is_deterministic_and_has_stable_ids(tmp_path):
     if shutil.which("dot") is None:
         pytest.skip("Graphviz 'dot' is required for snnlang visualisation")
