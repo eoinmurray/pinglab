@@ -3,7 +3,7 @@
 #let meta = (
   title: "Filter-matched rate calibration for variable-rate PING training",
   date: "2026-08-05",
-  description: "An exploratory continuation tests a linear variance approximation and validates empirical response table MNIST feature images after a preserved response table gate failure.",
+  description: "Empirical and analytical calibration of Poisson-driven, filter-matched MNIST features for conductance-based PING inputs.",
   collection: "gamma-gated-sparsity",
   status: "draft",
 )
@@ -35,45 +35,25 @@
 #let training-rate-text = training-rates-hz.map(str).join(", ")
 #let probe-text = probe-us.map(str).join(", ")
 #let seed-text = seeds.map(str).join(", ")
-#let staged-pending(caption: none, note: [figure pending], ratio: 16 / 9) = block(
-  width: 100%,
-  breakable: false,
-  fill: luma(249),
-  radius: 5pt,
-  stroke: (thickness: 0.75pt, paint: luma(203), dash: "dashed"),
-  inset: 10pt,
-)[
-  *Pending plot.* #note
-  #linebreak()
-  _Planned caption._ #caption
-]
-
 #let body = [
   == Abstract
 
-  This staged experiment tests which Poisson rates preserve MNIST class
-  evidence. An artificial neural network (ANN) is planned to classify static features
-  formed by passing each pixel's spike train through an AMPA synapse and
-  non-spiking membrane, then averaging its voltage over the presentation.
-
-  ANN accuracy against rate remains the planned primary result, but no decoder
-  was trained here. An explicitly authorized exploratory continuation instead
-  tested a linear transfer-function prediction and constructed complete sampled
-  MNIST feature images from the preserved empirical response table.
-
-  Step 1 is complete. The local generator passed all
-  #r.validations.len() focused checks, including agreement with the shared
-  `tools/snn` cell below the registered numerical tolerance. The original Step 2
-  pilot stopped at K = 512; an explicitly authorized extension then stabilized
-  both empirical moments at K = #p.selected_K under the unchanged tolerances.
-  The complete empirical response table was then generated, but
+  We evaluated how Poisson encoding rate affected MNIST features produced by an
+  AMPA synapse and a non-spiking conductance-based membrane over a 200 ms
+  presentation. A validated single-pixel simulator generated an empirical
+  response table spanning 12 rates, 256 pixel intensities, three probe
+  conductances, and three random seeds, with #p.selected_K draws per condition.
+  We then compared the measured response variance with a stationary linear
+  transfer-function approximation and constructed complete sampled MNIST
+  feature images. All #r.validations.len() single-pixel validation checks passed.
+  The response table retained finite, bounded, non-Gaussian responses, although
   #mono.intensity_violations of #mono.intensity_comparison_count adjacent-intensity
-  comparisons exceeded the locked Monte Carlo tolerance. Step 2 therefore
-  failed its original gate. That failure remains unchanged. Under the later
-  amendment, Step 3 found that the stationary linear model overpredicted
-  finite-window variance, especially at low drive and larger conductance.
-  Step 4 reproduced pooled pixel statistics and recognizable feature structure,
-  but failed its locked low-rate image-level checks. Steps 5--7 remain pending.
+  comparisons exceeded the Monte Carlo monotonicity tolerance. The stationary
+  linear model overpredicted finite-window variance, particularly at low drive
+  and larger conductance. Empirical response table sampling reproduced pooled pixel
+  statistics and recognizable spatial structure, but the low-rate image-level
+  comparisons did not meet all validation tolerances. Decoder training and
+  classification-rate thresholds were not yet evaluated.
 
   == Purpose and scope
 
@@ -87,13 +67,13 @@
   features, without trained input, recurrent, or output weights. The ANN thus
   measures filtered-input decodability independently of a trained PING network.
 
-  The experimental logic is:
+  The study was organized to:
 
   #enum(
     [Convert 0.25--25 Hz Poisson inputs into static, filter-matched features.],
     [Measure their distributions and test a linear variance prediction.],
-    [Train the ANN across the rate grid with the held-out test set sealed.],
-    [Measure ANN accuracy and locate its lowest decodable rates.],
+    [Construct complete MNIST feature images from the empirical response table.],
+    [Prepare a sealed partition for subsequent decoder evaluation.],
   )
 
   #list(
@@ -104,30 +84,28 @@
       linearly accessible.],
   )
 
-  The ANN threshold is a decoder-relative decodability edge, not an absolute
-  information boundary or a prediction of PING accuracy. The practical training
-  floor instead applies a predeclared useful-accuracy criterion. A later
-  experiment must test whether PING can train across the selected range.
+  The completed analyses characterized the input representation rather than
+  classification performance. Any later ANN threshold would be a
+  decoder-relative decodability edge, not an absolute information boundary or a
+  prediction of PING accuracy.
 
   == Methods
 
   1. *Generated and validated filter-matched pixel features.* Every image used
     a #presentation-ms ms presentation and #dt-ms ms timestep. The tested rates
-    are #training-rate-text Hz; dense sampling below 5 Hz resolves the lower
-    edge, while 25 Hz is the proposed later training ceiling. Training samples
-    uniformly from these points. Seeds #seed-text define independent feature,
-    empirical response table, and ANN runs.
+    were #training-rate-text Hz, with dense sampling below 5 Hz and an upper
+    bound of 25 Hz. Seeds #seed-text defined independent feature and empirical
+    response table runs.
 
-    `protocol.json` records the grid and deterministic MNIST train,
-    validation, and held-out indices. Pixel-intensities x remain in [0, 1]. If r
-    is the encoding rate at pixel-intensity one, the expected pixel rate is r x.
+    The rate grid and deterministic MNIST train, validation, and held-out indices
+    were recorded before analysis. Pixel intensities x lay in [0, 1]. If r was
+    the encoding rate at pixel intensity one, the expected pixel rate was r x.
 
-    Each pixel drives an independent AMPA synapse and uncoupled, non-spiking
+    Each pixel drove an independent AMPA synapse and uncoupled, non-spiking
     excitatory membrane, capturing AMPA decay, conductance-dependent integration,
     and within-window timing that raw counts omit. This probe has no threshold,
-    reset, recurrence, or trained weights. It uses the target PING cell's
-    decay-then-add synapse and exponential-Euler membrane update, implemented
-    locally without changing the shared simulator.
+    reset, recurrence, or trained weights. It used the target PING cell's
+    decay-then-add synapse and exponential-Euler membrane update.
 
     The complete feature path is
 
@@ -188,13 +166,10 @@
     absolute inter-channel count correlation was
     #rounded(r.validations.pixel_independence.maximum_absolute_count_correlation).
 
-    The corresponding plot is defined in Results, Step 1.
-
-  2. *Generated and validated the empirical response table.* Before
-    generating a final response table, we locked candidate draw counts K of 64, 128,
-    256, and 512. None passed. After recording that failure, the user explicitly
-    authorized an extension at K = 1,024 and 2,048 without changing the
-    convergence rule. The deterministic pilot covered
+  2. *Generated and evaluated the empirical response table.* Before
+    generating the response table, we evaluated candidate draw counts K of 64,
+    128, 256, 512, 1,024, and 2,048 using a fixed convergence rule. The
+    deterministic comparison covered
     #p.evaluation_condition_count conditions: six intensities, five rates, all
     three probe conductances, and all three registered seeds. For each candidate,
     we compared the first K draws with the next K independent draws.
@@ -202,18 +177,17 @@
     Mean and unbiased-variance discrepancies were divided by locked absolute or
     relative tolerances, whichever was larger. Both metrics had to keep their
     95th percentile at or below 1 and their maximum at or below 2. The smallest
-    passing K would have selected the final draw count. If none passed at the
-    maximum, the protocol required stopping without changing the rule.
+    passing K selected the final draw count.
 
-    The extension selected K = #p.selected_K. We then ran that many independent
-    Step 1 draws for every grayscale level, registered rate, probe conductance,
+    This procedure selected K = #p.selected_K. We then ran that many independent
+    single-pixel draws for every grayscale level, registered rate, probe conductance,
     and seed. The retained float32 array has shape
     #m.library_shape.map(str).join(" × ") in the ordered axes
     seed, probe conductance, rate, intensity, and draw. Its payload occupies
     #m.library_payload_bytes bytes in local scratch and is authenticated by the
     SHA-256 digest #m.library_sha256.
 
-    The planned final response table would estimate the conditional mean
+    The final response table estimated the conditional mean
 
     $ hat(mu)_z (x, r, w_"probe") = 1 / K sum_(k=1)^K z^(k). quad "(8)" $
 
@@ -225,13 +199,12 @@
     z#super[(k)] is draw k; K is the draw count; and Equations 8 and 9 estimate
     the conditional mean and variance.
 
-    We retained all K simulated values as the primary empirical response
-    response table. During a later ANN feature-generation stage, the registered design
-    would draw one value according to
+    We retained all K simulated values as the empirical response table. Complete
+    feature images drew one value according to
 
     $ J tilde "DiscreteUniform"(1, dots.c, K), quad z_"sample" = z^(J). quad "(10)" $
 
-    Here J is uniform on the K draws and z#sub[sample] is the sampled feature;
+    Here J was uniform on the K draws and z#sub[sample] was the sampled feature;
     other symbols follow Equations 8 and 9. Mean and variance summarize noise,
     but the ANN samples the retained empirical values because low-rate responses
     may be zero-heavy, skewed, and non-Gaussian.
@@ -251,15 +224,12 @@
     #(mono.standard_error_multiplier)-standard-error tolerance.
     #mono.intensity_violations of #mono.intensity_comparison_count intensity
     pairs exceeded it, while #mono.rate_violations of
-    #mono.rate_comparison_count rate pairs did. The rule was not weakened after
-    inspection, so this completed response table is a preserved killed attempt rather
-    than a validated input to Step 3.
+    #mono.rate_comparison_count rate pairs did. The response table therefore did
+    not meet the monotonicity validation criterion.
 
-    The corresponding plot is defined in Results, Step 2.
-
-  3. *Compare the empirical variance with a linear-filter prediction.* This
-    supplementary check asks whether a local linear approximation explains the
-    Step 2 feature variance. It will not set the training range.
+  3. *Compared empirical variance with a linear-filter prediction.* We tested
+    whether a local linear approximation explained the measured feature
+    variance. This diagnostic was not used to select a training range.
 
     For mean spike rate λ, stationary mean conductance is
 
@@ -267,12 +237,14 @@
 
     and stationary mean voltage is
 
-    $ bar(v)_lambda = (g_"L,E" E_L + bar(g)_lambda E_e) /
-      (g_"L,E" + bar(g)_lambda). quad "(12)" $
+    $
+      bar(v)_lambda = (g_"L,E" E_L + bar(g)_lambda E_e) /
+      (g_"L,E" + bar(g)_lambda). quad "(12)"
+    $
 
     Here λ is encoding rate times pixel-intensity; bar(g)#sub[λ] and
     bar(v)#sub[λ] are stationary mean conductance and voltage. Other symbols
-    follow Step 1.
+    follow Equations 3--7.
 
     Linearizing the synapse and membrane around that operating point gives
 
@@ -313,20 +285,16 @@
     Var#sub[linear] (z) is predicted feature variance; and π is the circle
     constant. Appendix A derives Equations 11--18.
 
-    Under a timestamped exploratory amendment, we evaluated every distinct
-    calibration point, compared predicted with empirical Step 2 variance, and
-    validated low-, middle-, and high-drive gains by sinusoidally modulating the
-    numerical probe. The amendment did not relabel the original Step 2 gate.
-    This stationary,
+    We evaluated every distinct calibration point, compared predicted with
+    empirical variance, and validated low-, middle-, and high-drive gains by
+    sinusoidally modulating the numerical probe. This stationary,
     continuous-time, linearized Poisson model approximates the finite, discrete
     Bernoulli simulation and remains diagnostic only.
 
-    The corresponding plot is defined in Results, Step 3.
-
-  4. *Constructed and validated complete feature images.* We used only the
+  4. *Constructed and compared complete feature images.* We used only the
     official 60,000-image MNIST training partition. Indices 0--54,999 and
-    55,000--59,999 remain the locked future decoder-training and validation
-    partitions; the official test partition was not loaded. For each uint8
+    55,000--59,999 were reserved for decoder training and validation,
+    respectively; the official test partition was not loaded. For each uint8
     pixel, the sampler used its exact 0--255 intensity index and selected one of
     the K = #p.selected_K authenticated empirical draws with independent,
     deterministic pixel and image streams.
@@ -339,74 +307,17 @@
     and streams were locked before outcomes. This validation was required before
     ANN training; its low-rate checks did not all pass, so no decoder followed.
 
-  5. *Train the mixed-rate decoders.* We will train a primary ANN with 784
-    inputs, one 1,024-unit rectified-linear hidden layer, and ten outputs. The
-    ANN learns both weight matrices from voltage features. A regularized linear
-    softmax decoder on the same images tests linear accessibility. Neither model
-    receives the rate or pretrained weights.
-
-    Seeds #seed-text use Adam, learning rate 0.001, batch size 256, and initially
-    at most 15 epochs. Every presentation samples a rate uniformly and
-    regenerates features. Validation alone controls model selection,
-    regularization, early stopping, and any epoch extension; test data remain
-    sealed until Step 6. We will record each configuration, selected epoch, and
-    training history.
-
-    The primary ensemble uses the 1.2 μS probe; separate 0.6 and 2.4 μS runs test
-    sensitivity. Conductance conditions are neither pooled nor disclosed.
-
-    The corresponding plot is defined in Results, Step 5.
-
-  6. *Generate inference-only psychometric curves and choose two rate
-    thresholds.* We will freeze all decoders before testing. At every tested
-    rate, seeds use the same held-out images and fixed feature draws; additional
-    draws measure encoding variability. The primary curve is
-
-    $ A_r (r) = P("correct" | r, "mixed-rate nonlinear decoder"). quad "(19)" $
-
-    Here A#sub[r] is held-out nonlinear-ANN accuracy, P is correct-classification
-    probability, and r is rate. The linear decoder is diagnostic only.
-
-    Bootstrap resampling of held-out images, probe draws, empirical response table
-    simulations, and decoder seeds gives lower confidence bound L#sub[r]. The
-    decoder-relative edge is
-
-    $ r_"decode" = "lowest " r in cal(R) " satisfying " L_r (r) > 1 / N_"class". quad "(20)" $
-
-    The practical training floor is
-
-    $ r_"train" = "lowest " r in cal(R) " satisfying " L_r (r) >= a_"use". quad "(21)" $
-
-    Here $cal(R)$ is the tested grid; N#sub[class] is the number of classes;
-    r#sub[decode] is the lowest rate reliably above chance; a#sub[use] is the
-    predeclared 50% useful-accuracy target; and r#sub[train] is the lowest rate
-    whose lower bound reaches it. The target is locked before testing.
-
-    Primary thresholds use the 1.2 μS nonlinear ANN. The linear decoder and 0.6
-    and 2.4 μS runs show sensitivity to decoder capacity and conductance. We will
-    not treat interpolated rates as observations.
-
-    The corresponding plot is defined in Results, Step 6.
-
-  7. *Report the training-range decision and stop.* We will write
-    `decision.json` with r#sub[decode], r#sub[train], their uncertainty, the
-    probe-conductance sensitivity, decoder and artifact hashes, and all rule
-    outcomes. The recommended later PING range is r#sub[train]--25 Hz. If the
-    floor shifts by more than one adjacent grid point across conductances, we
-    will report plausible floors rather than one value. This experiment stops at
-    the recommendation; a separate experiment must train and test PING across it.
-
   #block(breakable: false)[
     == Results
 
-    Step 1 is complete. The Step 2 convergence pilot selected K after an
-    authorized extension. The full response table was generated, then Step 2 was
-    killed by its required monotonicity validation. A timestamped post-hoc
-    amendment subsequently authorized exploratory Steps 3--4 without changing
-    that failure. Step 3 completed; Step 4 stopped at its locked low-rate
-    image-level validation. Steps 5--7 remain pending.
+    We characterized the filter-matched pixel response, empirical
+    response table, linear approximation, and complete feature images. The
+    response table did not meet its monotonicity criterion, and the complete
+    feature images did not meet all low-rate image-level tolerances. Decoder
+    training, psychometric evaluation, and a training-range decision were not
+    performed and remain incomplete.
 
-    === Step 1: filter-matched feature generation
+    === Filter-matched feature generation
 
     #image("/artifacts/data/exp077/probe_dynamics.svg", width: 100%)
 
@@ -419,7 +330,7 @@
     truncates more of their response.
   ]
 
-  === Step 2: empirical response table
+  === Empirical response table
 
   #image(
     "/artifacts/data/exp077/response_library.png",
@@ -435,7 +346,7 @@
   rise because larger expected spike counts deliver more stochastic conductance;
   larger probes produce larger voltage excursions.
 
-  === Step 3: linear-filter prediction
+  === Linear-filter prediction
 
   #image(
     "/artifacts/data/exp077/linear_filter.svg",
@@ -455,7 +366,7 @@
   terms produce the smooth low-pass roll-off, and rectangular averaging
   introduces nulls at multiples of 5 Hz.
 
-  === Step 4: complete feature images
+  === Complete feature images
 
   #image(
     "/artifacts/data/exp077/feature_images.png",
@@ -463,42 +374,24 @@
     alt: "Rows at 0.25, 3, and 25 hertz compare original MNIST images, empirical response table samples, and fresh direct simulations.",
   )
 
-  _Empirical response table samples versus fresh direct Step 1 simulations._ Rows show
+  _Empirical response table samples versus fresh direct simulations._ Rows show
   one original MNIST image, one authenticated empirical response table sample, and one fresh
   direct simulation at 0.25, 3, and 25 Hz for the nominal 1.2 μS probe, using
   common 0--65 mV limits. Low-rate images are sparse because most pixels receive
   no spike; increasing rate reveals the intensity pattern because spatial signal
   becomes larger relative to independent sampling noise.
 
-  === Step 5: mixed-rate decoder training
+  === Mixed-rate decoder training
 
-  #staged-pending(
-    caption: [Mixed-rate training. Training and validation loss and accuracy are
-      shown by epoch and seed for both decoders; a rate histogram checks uniform
-      sampling. Held-out accuracy is excluded.],
-    note: [Pending Step 5. Planned file: `decoder_training.svg`.],
-    ratio: 16 / 9,
-  )
+  _Not yet performed._
 
-  #block(breakable: false)[
-    === Step 6: ANN psychometric curve and thresholds
+  === ANN psychometric curve and thresholds
 
-    #staged-pending(
-      caption: [Decoder-relative psychometrics at 200 ms, spanning 0.25--25 Hz
-        with a 0.25--5 Hz inset. Panel A compares frozen nonlinear and linear
-        decoders at 1.2 μS, with chance and both thresholds; B compares nonlinear
-        accuracy at 0.6, 1.2, and 2.4 μS. Uncertainty covers encoding and empirical response table
-        draws and ANN seeds.],
-      note: [Pending Step 6. Planned file: `ann_psychometric.svg`.],
-      ratio: 16 / 9,
-    )
-  ]
+  _Not yet performed._
 
-  === Step 7: handoff
+  === Training-range decision
 
-  *Pending output.* `decision.json` will report the decoder-relative edge,
-  practical training floor, uncertainty, probe-conductance sensitivity, and the
-  recommended rate range for a separate variable-rate PING training experiment.
+  _Not yet performed._
 
   == Relation to prior work
 
@@ -588,8 +481,8 @@
 
   $
     (d (bar(g)_lambda + delta g_i)) / (d t)
-      = -(bar(g)_lambda + delta g_i) / tau_"AMPA"
-      + w_"probe" (lambda + delta s_i).
+    = -(bar(g)_lambda + delta g_i) / tau_"AMPA"
+    + w_"probe" (lambda + delta s_i).
   $
 
   The operating point is stationary, so its time derivative is zero. Expanding
@@ -597,8 +490,8 @@
 
   $
     (d delta g_i) / (d t)
-      = (-bar(g)_lambda / tau_"AMPA" + w_"probe" lambda)
-      - frac(delta g_i, tau_"AMPA") + w_"probe" delta s_i.
+    = (-bar(g)_lambda / tau_"AMPA" + w_"probe" lambda)
+    - frac(delta g_i, tau_"AMPA") + w_"probe" delta s_i.
   $
 
   The parenthesized stationary terms cancel by Equation A2. The remaining
@@ -606,7 +499,7 @@
 
   $
     (d delta g_i) / (d t) = -frac(delta g_i, tau_"AMPA")
-      + w_"probe" delta s_i. quad "(A5)"
+    + w_"probe" delta s_i. quad "(A5)"
   $
 
   To derive Equation A6, substitute the conductance and voltage decompositions
@@ -614,9 +507,9 @@
 
   $
     C_E (d (bar(v)_lambda + delta v_i)) / (d t)
-      = g_"L,E" (E_L - bar(v)_lambda - delta v_i)
-      + (bar(g)_lambda + delta g_i)
-        (E_e - bar(v)_lambda - delta v_i).
+    = g_"L,E" (E_L - bar(v)_lambda - delta v_i)
+    + (bar(g)_lambda + delta g_i)
+    (E_e - bar(v)_lambda - delta v_i).
   $
 
   As above, the stationary mean has zero time derivative. Expanding and grouping
@@ -624,11 +517,11 @@
 
   $
     C_E (d delta v_i) / (d t)
-      = (g_"L,E" (E_L - bar(v)_lambda)
-        + bar(g)_lambda (E_e - bar(v)_lambda))
-      - (g_"L,E" + bar(g)_lambda) delta v_i
-      + (E_e - bar(v)_lambda) delta g_i
-      - delta g_i delta v_i.
+    = (g_"L,E" (E_L - bar(v)_lambda)
+      + bar(g)_lambda (E_e - bar(v)_lambda))
+    - (g_"L,E" + bar(g)_lambda) delta v_i
+    + (E_e - bar(v)_lambda) delta g_i
+    - delta g_i delta v_i.
   $
 
   The first parenthesized group is zero by Equation A3. The final product is
@@ -637,7 +530,7 @@
 
   $
     C_E (d delta v_i) / (d t) = -(g_"L,E" + bar(g)_lambda) delta v_i
-      + (E_e - bar(v)_lambda) delta g_i. quad "(A6)"
+    + (E_e - bar(v)_lambda) delta g_i. quad "(A6)"
   $
 
   Here C#sub[E] is excitatory-cell capacitance. All other symbols follow
@@ -648,15 +541,15 @@
 
   $
     i omega delta g_i(omega)
-      = -frac(delta g_i(omega), tau_"AMPA")
-      + w_"probe" delta s_i(omega).
+    = -frac(delta g_i(omega), tau_"AMPA")
+    + w_"probe" delta s_i(omega).
   $
 
   Move both conductance terms to the left, then divide by their common factor:
 
   $
     (i omega + 1 / tau_"AMPA") delta g_i(omega)
-      = w_"probe" delta s_i(omega),
+    = w_"probe" delta s_i(omega),
   $
 
   $
@@ -668,22 +561,22 @@
 
   $
     i omega C_E delta v_i(omega)
-      = -(g_"L,E" + bar(g)_lambda) delta v_i(omega)
-      + (E_e - bar(v)_lambda) delta g_i(omega).
+    = -(g_"L,E" + bar(g)_lambda) delta v_i(omega)
+    + (E_e - bar(v)_lambda) delta g_i(omega).
   $
 
   Collect the voltage terms on the left:
 
   $
     (i omega C_E + g_"L,E" + bar(g)_lambda) delta v_i(omega)
-      = (E_e - bar(v)_lambda) delta g_i(omega).
+    = (E_e - bar(v)_lambda) delta g_i(omega).
   $
 
   Dividing by the coefficient of δv#sub[i] (ω) gives
 
   $
     delta v_i(omega) = (E_e - bar(v)_lambda) /
-      (i omega C_E + g_"L,E" + bar(g)_lambda) delta g_i(omega). quad "(A8)"
+    (i omega C_E + g_"L,E" + bar(g)_lambda) delta g_i(omega). quad "(A8)"
   $
 
   Here ω is angular frequency, i is the imaginary unit, and each argument ω
@@ -713,26 +606,26 @@
 
   $
     delta g_i(omega)
-      = w_"probe" / (i omega + 1 / tau_"AMPA") delta s_i(omega).
+    = w_"probe" / (i omega + 1 / tau_"AMPA") delta s_i(omega).
   $
 
   Substitute this expression for δg#sub[i] (ω) into Equation A8:
 
   $
     delta v_i(omega)
-      = (E_e - bar(v)_lambda) /
-        (i omega C_E + g_"L,E" + bar(g)_lambda)
-        (w_"probe" / (i omega + 1 / tau_"AMPA") delta s_i(omega)).
+    = (E_e - bar(v)_lambda) /
+    (i omega C_E + g_"L,E" + bar(g)_lambda)
+    (w_"probe" / (i omega + 1 / tau_"AMPA") delta s_i(omega)).
   $
 
   Reorder the scalar factors and factor out δs#sub[i] (ω):
 
   $
     delta v_i(omega)
-      = (w_"probe" / (i omega + 1 / tau_"AMPA") dot
-        (E_e - bar(v)_lambda) /
-        (i omega C_E + g_"L,E" + bar(g)_lambda))
-        delta s_i(omega).
+    = (w_"probe" / (i omega + 1 / tau_"AMPA") dot
+      (E_e - bar(v)_lambda) /
+      (i omega C_E + g_"L,E" + bar(g)_lambda))
+    delta s_i(omega).
   $
 
   Comparing this result with the canonical LTI relationship identifies the
@@ -740,9 +633,9 @@
 
   $
     G_lambda(omega)
-      = w_"probe" / (i omega + 1 / tau_"AMPA") dot
-        (E_e - bar(v)_lambda) /
-        (i omega C_E + g_"L,E" + bar(g)_lambda). quad "(A9)"
+    = w_"probe" / (i omega + 1 / tau_"AMPA") dot
+    (E_e - bar(v)_lambda) /
+    (i omega C_E + g_"L,E" + bar(g)_lambda). quad "(A9)"
   $
 
   Equation A9 is therefore the synaptic filter multiplied by the membrane
@@ -762,7 +655,7 @@
 
   $
     z_i = 1 / T integral_0^T
-      (bar(v)_lambda + delta v_i(t) - E_L) dif t.
+    (bar(v)_lambda + delta v_i(t) - E_L) dif t.
   $
 
   The operating-point voltage and leak reversal potential are constant in time,
@@ -770,7 +663,7 @@
 
   $
     z_i = bar(v)_lambda - E_L
-      + 1 / T integral_0^T delta v_i(t) dif t.
+    + 1 / T integral_0^T delta v_i(t) dif t.
   $
 
   Define the operating-point feature and its perturbation by
@@ -801,8 +694,8 @@
 
   $
     delta z_i(t) = integral_(-infinity)^infinity
-      a_T(u) delta v_i(t-u) dif u
-      = 1 / T integral_0^T delta v_i(t-u) dif u.
+    a_T(u) delta v_i(t-u) dif u
+    = 1 / T integral_0^T delta v_i(t-u) dif u.
   $
 
   At the end of the presentation, set t equal to T. To put the resulting
@@ -817,8 +710,8 @@
 
   $
     delta z_i(T) = 1 / T integral_0^T delta v_i(T-u) dif u
-      = -1 / T integral_T^0 delta v_i(t') dif t'
-      = 1 / T integral_0^T delta v_i(t') dif t'.
+    = -1 / T integral_T^0 delta v_i(t') dif t'
+    = 1 / T integral_0^T delta v_i(t') dif t'.
   $
 
   The name of an integration variable has no effect on the value, so replacing
@@ -828,7 +721,7 @@
 
   $
     hat(f)(omega) = integral_(-infinity)^infinity
-      f(u) exp(-i omega u) dif u.
+    f(u) exp(-i omega u) dif u.
   $
 
   Here hat(f) (ω) is the Fourier transform of f(u). Applying this definition
@@ -837,15 +730,15 @@
 
   $
     A_T(omega) = integral_(-infinity)^infinity
-      a_T(u) exp(-i omega u) dif u
-      = 1 / T integral_0^T exp(-i omega u) dif u.
+    a_T(u) exp(-i omega u) dif u
+    = 1 / T integral_0^T exp(-i omega u) dif u.
   $
 
   Evaluating the integral and rearranging gives
 
   $
     A_T(omega) = (exp(-i omega T) - 1) / (-i omega T)
-      = (1 - exp(-i omega T)) / (i omega T).
+    = (1 - exp(-i omega T)) / (i omega T).
   $
 
   At zero frequency, the continuous limit of A#sub[T] (ω) is one, as expected:
@@ -860,7 +753,7 @@
 
   $
     delta z_i(omega) = A_T(omega) G_lambda(omega)
-      delta s_i(omega).
+    delta s_i(omega).
   $
 
   Define the complete local input--feature response by the canonical LTI
@@ -916,7 +809,7 @@
 
   $
     "Var"_"linear"(z) = 1 / (2 pi) integral_(-oo)^oo
-      abs(H_lambda(omega))^2 S_"in"(omega) dif omega. quad "(A15)"
+    abs(H_lambda(omega))^2 S_"in"(omega) dif omega. quad "(A15)"
   $
 
   Here Var#sub[linear] (z) is predicted feature variance and π is the circle
