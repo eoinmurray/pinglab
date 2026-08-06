@@ -410,11 +410,10 @@
 
     #image("/artifacts/data/exp077/probe_dynamics.svg", width: 100%)
 
-    _Finite-window probe dynamics._ Panels A--C show input spikes, AMPA
-    conductance, and subthreshold voltage for no-spike, early-spike, and
-    late-spike inputs. Panel D places the single spike across the presentation
-    and reports the resulting mean voltage feature. With the same one-spike
-    count, a spike at
+    _Finite-window timing sensitivity._ Panel A compares the subthreshold
+    response to one early and one late spike. Panel B places that single spike
+    across the presentation and reports the resulting mean voltage feature.
+    With the same one-spike count, a spike at
     #rounded(r.validations.spike_timing_sensitivity.early_spike_ms) ms produced
     z = #rounded(r.validations.spike_timing_sensitivity.early_z_mV) mV, whereas
     one at #rounded(r.validations.spike_timing_sensitivity.late_spike_ms) ms
@@ -440,23 +439,16 @@
     alt: "Six panels show response mean, variability, zero probability, empirical distributions, convergence, and the monotonicity audit against expected input spikes.",
   )
 
-  _Complete empirical response library and validation evidence._ Expected input
-  spikes are encoding rate times normalized grayscale intensity times the
-  #presentation-ms ms presentation. Panels A and B show conditional mean feature
-  z and its standard deviation against that common drive variable. Faint points
-  are all rate--intensity conditions; lines are binned medians, with colour,
-  marker, and line style identifying probe conductance. Panel C compares the
-  empirical probability of an exactly zero feature with the analytical no-spike
-  probability. Panel D shows empirical cumulative distributions at low,
-  transitional, and high drive for the nominal probe. Panel E reports the
-  fraction of #boot.repetitions paired bootstrap repetitions passing all four
-  unchanged stability limits at each K; its dashed line is the locked
-  #rounded(boot.decision_threshold) decision threshold. Panel F expresses every
-  adjacent-intensity mean change in units of its Monte Carlo standard error; its
-  dashed line is the locked rejection boundary. The response changes smoothly
-  with drive and retains its low-rate zero mass, but
-  #mono.intensity_violations isolated comparisons crossed that boundary, so
-  Step 2 failed and no later stage ran.
+  _Signal and variability across the complete empirical response library._
+  Expected input spikes are encoding rate times normalized grayscale intensity
+  times the #presentation-ms ms presentation. Panel A shows conditional mean
+  feature z; Panel B shows its standard deviation in the same voltage units.
+  Faint points are all rate--intensity conditions and strong curves are binned
+  medians. Colour, marker, and line style identify probe conductance. The red
+  crosses locate the #mono.intensity_violations isolated comparisons that failed
+  the locked monotonicity rule. The small annotation reports how exact-zero mass
+  falls across the registered full-intensity range; detailed distribution,
+  replay, and K-stability audits remain in the recorded artifacts.
 
   The array contains #m.library_value_count float32 values with shape
   #m.library_shape.map(str).join(" × ") and a #(m.library_payload_bytes)-byte
@@ -484,14 +476,13 @@
     alt: "Three panels show the complete filter response, predicted against empirical variance, and their ratio against expected input spikes.",
   )
 
-  _Stationary linear prediction versus the finite empirical probe._ Panel A
-  shows the synapse, membrane, and #presentation-ms ms averaging response at
-  low, middle, and high drive; colour identifies probe conductance and line
-  style identifies drive. Panel B compares all nonzero calibration points with
-  identity. Panel C shows the predicted-to-empirical variance ratio against
-  expected input spikes; the shaded band marks agreement within a factor of
-  two. The approximation improves with drive but generally overpredicts the
-  empirical finite-window variance.
+  _Where the stationary approximation succeeds and fails._ Each cell reports
+  the median log-ratio of predicted to empirical variance at one conductance and
+  expected-drive bin. Neutral colour denotes agreement; increasingly warm
+  colours denote overprediction. The white contour marks exact agreement and
+  dark contours mark one-half and twice the empirical variance. The
+  approximation improves with drive but strongly overpredicts sparse-drive
+  variance, especially at larger conductance.
 
   All #s3.gain_checks.len() numerical sinusoidal gain checks passed; the largest
   relative error was
@@ -516,12 +507,16 @@
     alt: "Rows at low, transitional, and high rates compare original MNIST images, empirical-library samples, fresh direct simulations, and signed differences.",
   )
 
-  _Empirical-library samples versus fresh direct Step 1 simulations._ Rows show
-  0.25, 3, and 25 Hz at the nominal 1.2 μS probe. Comparable voltage images use
-  identical 0--65 mV limits. The low-rate row retains the registered zero-heavy,
-  discrete structure; transitional and high rates preserve recognizable digit
-  structure. The displayed samples are illustrative; the validation used all
-  three conductances, 16 fixed images, and eight replicates per condition.
+  _Empirical-library samples versus fresh direct Step 1 simulations._ The image
+  rows show 0.25, 3, and 25 Hz at the nominal 1.2 μS probe; comparable voltage
+  images use identical 0--65 mV limits. The low-rate row retains the registered
+  zero-heavy, discrete structure, while transitional and high rates preserve
+  recognizable digit structure. The summary beneath reports spatial
+  library--direct agreement for all three conductances. Filled markers passed
+  every locked check; open red markers failed at least one. The dashed line is
+  the rate-specific spatial-correlation minimum. The displayed samples are
+  illustrative; validation used all three conductances, 16 fixed images, and
+  eight replicates per condition.
 
   Six of nine probe--rate conditions passed every locked comparison. At the
   nominal probe, pooled-mean relative differences were

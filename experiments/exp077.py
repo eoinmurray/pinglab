@@ -21,6 +21,7 @@ from typing import Any, Literal
 
 import matplotlib.pyplot as plt
 import numpy as np
+from matplotlib.colors import TwoSlopeNorm
 
 REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO))
@@ -408,55 +409,23 @@ def make_plot_record() -> dict[str, Any]:
 def plot_probe(record: dict[str, Any], path: Path) -> None:
     time_ms = np.asarray(record["time_ms"])
     cases = record["cases"]
-    colors = {
-        "no_spike": theme.FAINT,
-        "early_spike": theme.INK_BLACK,
-        "late_spike": theme.DEEP_RED,
-    }
-    labels = {
-        "no_spike": "No spike",
-        "early_spike": "Early: 20 ms",
-        "late_spike": "Late: 180 ms",
-    }
-    fig, axes = plt.subplots(2, 2, figsize=(10.2, 6.8), constrained_layout=True)
-    ax_spike, ax_g, ax_v, ax_timing = axes.flat
-    for name, case in cases.items():
-        linestyle = ":" if name == "no_spike" else "-"
-        zorder = 4 if name == "no_spike" else 2
-        spikes = np.asarray(case["spikes"])
-        spike_times = time_ms[spikes > 0]
-        if spike_times.size:
-            ax_spike.vlines(
-                spike_times, 0.0, 1.0, color=colors[name], lw=2.2, label=labels[name]
-            )
-        elif name == "no_spike":
-            ax_spike.plot([], [], color=colors[name], lw=2.2, label=labels[name])
-        ax_g.plot(
-            time_ms,
-            case["conductance_uS"],
-            color=colors[name],
-            lw=1.7,
-            ls=linestyle,
-            zorder=zorder,
-            label=labels[name],
-        )
-        ax_v.plot(
-            time_ms,
-            case["voltage_mV"],
-            color=colors[name],
-            lw=1.7,
-            ls=linestyle,
-            zorder=zorder,
-            label=labels[name],
-        )
-    ax_spike.set(title="A  Matched input counts", ylabel="Input spike")
-    ax_spike.set_ylim(-0.05, 1.12)
-    ax_spike.set_yticks([0, 1])
-    ax_spike.legend(frameon=False, ncol=3, fontsize=8, loc="upper center")
-    ax_g.set(title="B  AMPA filter", ylabel="Conductance (μS)")
-    ax_v.set(
-        title="C  Subthreshold membrane", xlabel="Time (ms)", ylabel="Voltage (mV)"
+    fig, (ax_v, ax_timing) = plt.subplots(
+        1, 2, figsize=(8.2, 3.15), constrained_layout=True
     )
+    for name, color, label in (
+        ("early_spike", theme.INK_BLACK, "Spike at 20 ms"),
+        ("late_spike", theme.DEEP_RED, "Spike at 180 ms"),
+    ):
+        ax_v.plot(time_ms, cases[name]["voltage_mV"], color=color, lw=2, label=label)
+        spike_time = EARLY_SPIKE_MS if name == "early_spike" else LATE_SPIKE_MS
+        ax_v.axvline(spike_time, color=color, lw=0.8, alpha=0.45)
+    ax_v.axhline(PARAMETERS["E_L_mV"], color=theme.FAINT, lw=0.8)
+    ax_v.set(
+        title="A  Same spike count, different response",
+        xlabel="Time (ms)",
+        ylabel="Membrane voltage (mV)",
+    )
+    ax_v.legend(frameon=False, fontsize=8)
     timing = record["timing_curve"]
     ax_timing.plot(
         timing["spike_time_ms"], timing["z_mV"], color=theme.INK_BLACK, lw=2.2
@@ -468,19 +437,20 @@ def plot_probe(record: dict[str, Any], path: Path) -> None:
         zorder=3,
     )
     ax_timing.set(
-        title="D  Equal count, different feature",
+        title="B  Timing survives window averaging",
         xlabel="Single-spike time (ms)",
         ylabel="Mean voltage feature z (mV)",
     )
-    for ax in axes.flat:
+    ax_timing.annotate(
+        f"Δz = {cases['early_spike']['z_mV'] - cases['late_spike']['z_mV']:.2f} mV",
+        xy=(110, np.interp(110, timing["spike_time_ms"], timing["z_mV"])),
+        xytext=(72, max(timing["z_mV"]) * 0.72),
+        arrowprops={"arrowstyle": "->", "color": theme.DIM},
+        fontsize=8,
+    )
+    for ax in (ax_v, ax_timing):
         ax.grid(alpha=0.18)
         ax.spines[["top", "right"]].set_visible(False)
-    ax_g.set_xlabel("Time (ms)")
-    fig.suptitle(
-        "Finite-window timing survives AMPA and membrane filtering",
-        fontsize=14,
-        fontweight="bold",
-    )
     fig.savefig(path, format="svg", metadata={"Date": None})
     plt.close(fig)
 
@@ -1248,9 +1218,6 @@ def plot_full_library(
     path: Path,
 ) -> None:
     """Render an expected-count summary of the complete Step 2 evidence."""
-    bootstrap = json.loads(
-        (FIGURES / "step2_bootstrap_stability_outcome.json").read_text()
-    )
     mean = summaries["mean"]
     standard_deviation = summaries["standard_deviation"]
     zero_fraction = summaries["zero_fraction"]
@@ -1278,8 +1245,9 @@ def plot_full_library(
     colors = (theme.INK_BLACK, theme.DEEP_RED, theme.ELECTRIC_CYAN)
     linestyles = ("-", "--", "-.")
     markers = ("o", "s", "^")
-    fig, axes = plt.subplots(2, 3, figsize=(6.5, 5.0), constrained_layout=True)
-    ax_mean, ax_std, ax_zero, ax_dist, ax_convergence, ax_monotonic = axes.flat
+    fig, (ax_mean, ax_std) = plt.subplots(
+        1, 2, figsize=(8.2, 3.25), constrained_layout=True
+    )
     for probe_index, (probe, color, linestyle, marker) in enumerate(
         zip(PROBE_CONDUCTANCES_US, colors, linestyles, markers)
     ):
@@ -1299,102 +1267,14 @@ def plot_full_library(
                 markevery=4,
                 label=f"{probe:g} μS",
             )
-    ax_mean.set(title="A  Mean response", ylabel="Mean z (mV)")
-    ax_std.set(title="B  Response variability", ylabel="SD z (mV)")
+    ax_mean.set(title="A  Signal grows with input drive", ylabel="Mean feature z (mV)")
+    ax_std.set(title="B  Trial-to-trial variability", ylabel="Feature SD (mV)")
     for ax in (ax_mean, ax_std):
         ax.set_xscale("symlog", linthresh=0.02)
         ax.set_xlim(-0.002, 5.5)
         ax.set_xticks((0, 0.01, 0.1, 1, 5), labels=("0", "0.01", "0.1", "1", "5"))
         ax.set_xlabel("Expected input spikes")
-    ax_mean.legend(frameon=False, fontsize=7)
-
-    centers, measured_zero = binned_median(zero_fraction[1])
-    theoretical_count = np.geomspace(1e-4, float(expected_count.max()), 300)
-    theoretical_zero = (1.0 - theoretical_count / N_TIMESTEPS) ** N_TIMESTEPS
-    ax_zero.plot(
-        theoretical_count,
-        theoretical_zero,
-        color=theme.FAINT,
-        linestyle="--",
-        label="No-spike probability",
-    )
-    ax_zero.plot(
-        centers,
-        measured_zero,
-        color=theme.INK_BLACK,
-        marker="o",
-        markersize=3,
-        markevery=4,
-        label="Empirical zero feature",
-    )
-    ax_zero.set_xscale("log")
-    ax_zero.set(
-        title="C  Zero probability",
-        xlabel="Expected input spikes",
-        ylabel="Zero probability",
-        xlim=(0.002, 5.5),
-        ylim=(-0.03, 1.03),
-    )
-    ax_zero.legend(frameon=False, fontsize=6.5)
-
-    for record, color in zip(distributions, colors):
-        probe_index = PROBE_CONDUCTANCES_US.index(record["probe_uS"])
-        rate_index = TRAINING_RATES_HZ.index(record["rate_hz"])
-        values = np.sort(
-            np.asarray(
-                library[:, probe_index, rate_index, record["intensity"], :]
-            ).reshape(-1)
-        )
-        cumulative = np.arange(1, values.size + 1) / values.size
-        count = (
-            record["rate_hz"]
-            * (record["intensity"] / 255.0)
-            * (PRESENTATION_MS / 1000.0)
-        )
-        ax_dist.step(
-            values,
-            cumulative,
-            where="post",
-            linewidth=1.5,
-            color=color,
-            label=f"E[N]={count:.3g}, zero={record['zero_fraction']:.1%}",
-        )
-    ax_dist.set(
-        title="D  Empirical ECDFs",
-        xlabel="Voltage feature z (mV)",
-        ylabel="Cumulative probability",
-        xlim=(-0.5, 45),
-        ylim=(-0.03, 1.03),
-    )
-    ax_dist.legend(frameon=False, fontsize=6.5, loc="lower right")
-
-    candidate = [row["K"] for row in bootstrap["trajectory"]]
-    pass_frequency = [row["pass_frequency"] for row in bootstrap["trajectory"]]
-    ax_convergence.plot(
-        candidate,
-        pass_frequency,
-        color=theme.INK_BLACK,
-        marker="o",
-        label=f"{bootstrap['repetitions']} paired resamples",
-    )
-    ax_convergence.axhline(
-        bootstrap["decision_threshold"],
-        color=theme.DEEP_RED,
-        linestyle="--",
-        label="Escalation gate",
-    )
-    ax_convergence.set_xscale("log", base=2)
-    ax_convergence.set_xticks(
-        candidate, labels=[str(value) for value in candidate], rotation=45
-    )
-    ax_convergence.set(
-        title="E  Repeated K stability",
-        xlabel="Draws K",
-        ylabel="Pass frequency",
-        ylim=(-0.04, 1.04),
-    )
-    ax_convergence.legend(frameon=False, fontsize=6)
-
+    ax_mean.legend(frameon=False, fontsize=7, title="Probe conductance")
     pooled_count = len(SEEDS) * LIBRARY_K
     standard_error = standard_deviation / math.sqrt(pooled_count)
     mean_difference = np.diff(mean, axis=2)
@@ -1410,36 +1290,33 @@ def plot_full_library(
     midpoint_count = 0.5 * (expected_count[:, 1:] + expected_count[:, :-1])
     count_points = np.broadcast_to(midpoint_count[None, :, :], standardized.shape)
     violations = standardized < -MONOTONIC_Z
-    ax_monotonic.scatter(
-        count_points[~violations],
-        standardized[~violations],
-        color=theme.FAINT,
-        s=3,
-        alpha=0.18,
-        rasterized=True,
-    )
-    ax_monotonic.scatter(
+    violation_y = mean[:, :, 1:][violations]
+    ax_mean.scatter(
         count_points[violations],
-        standardized[violations],
+        violation_y,
         color=theme.DEEP_RED,
         marker="x",
-        s=25,
-        linewidth=1.2,
-        label=f"{int(violations.sum())} reversals",
+        s=34,
+        linewidth=1.4,
+        label=f"{int(violations.sum())} locked monotonicity failures",
+        zorder=6,
     )
-    ax_monotonic.axhline(-MONOTONIC_Z, color=theme.DEEP_RED, linestyle="--")
-    ax_monotonic.axhline(0.0, color=theme.FAINT, linestyle=":")
-    ax_monotonic.set_xscale("symlog", linthresh=0.02)
-    ax_monotonic.set(
-        title="F  Monotonicity audit",
-        xlabel="Expected input spikes",
-        ylabel="Adjacent change / SE",
-        xlim=(-0.002, 5.5),
-        ylim=(-4.2, 4.2),
+    nominal_zero_low = float(zero_fraction[1, 0, -1])
+    nominal_zero_high = float(zero_fraction[1, -1, -1])
+    ax_std.text(
+        0.97,
+        0.06,
+        f"Exact-zero mass (1.2 μS, full intensity)\n"
+        f"0.25 Hz: {nominal_zero_low:.1%}   →   25 Hz: {nominal_zero_high:.1%}",
+        transform=ax_std.transAxes,
+        ha="right",
+        va="bottom",
+        fontsize=7,
+        color=theme.DIM,
+        bbox={"facecolor": "white", "edgecolor": theme.RULE, "pad": 3},
     )
-    ax_monotonic.set_xticks((0, 0.01, 0.1, 1, 5), labels=("0", "0.01", "0.1", "1", "5"))
-    ax_monotonic.legend(frameon=False, fontsize=7, loc="upper left")
-    for ax in fig.axes:
+    ax_mean.legend(frameon=False, fontsize=6.5, loc="upper left")
+    for ax in (ax_mean, ax_std):
         ax.grid(alpha=0.14)
         ax.spines[["top", "right"]].set_visible(False)
     fig.savefig(path, dpi=240, facecolor="white")
@@ -2106,62 +1983,65 @@ def calculate_step3(library: np.ndarray) -> dict[str, Any]:
 
 
 def plot_step3(record: dict[str, Any], path: Path) -> None:
-    """Render the cold-readable Step 3 compound figure."""
+    """Show directly where the linear variance approximation agrees or fails."""
     theme.apply()
-    fig, axes = plt.subplots(1, 3, figsize=(12.0, 3.7))
-    colors = (theme.INK_BLACK, theme.DEEP_RED, theme.ELECTRIC_CYAN)
-    markers = ("o", "s", "^")
-    linestyles = ("-", "--", ":")
-    frequency = np.geomspace(0.05, 2000.0, 600)
-    for probe_index, probe in enumerate(PROBE_CONDUCTANCES_US):
-        for drive_index, rate in enumerate(GAIN_OPERATING_RATES_HZ):
-            magnitude = np.abs(complete_transfer(frequency, rate, probe))
-            magnitude /= magnitude[0]
-            axes[0].semilogx(
-                frequency,
-                20 * np.log10(np.maximum(magnitude, 1e-12)),
-                color=colors[probe_index],
-                linestyle=linestyles[drive_index],
-                linewidth=1.4,
-                label=f"{probe:g} µS" if drive_index == 0 else None,
-            )
-    axes[0].set(title="A  Complete filter response", xlabel="Frequency (Hz)", ylabel="Magnitude (dB, normalized)")
-    axes[0].axhline(-3, color="0.6", linewidth=0.8)
-    for drive_index, rate in enumerate(GAIN_OPERATING_RATES_HZ):
-        axes[0].plot([], [], color="0.35", linestyle=linestyles[drive_index], label=f"{rate:g} Hz drive")
-    axes[0].legend(frameon=False, fontsize=6.5, ncol=2)
-
-    predicted = np.asarray(record["predicted_variance_mV2"])
-    empirical = np.asarray(record["empirical_variance_mV2"])
+    fig, ax = plt.subplots(figsize=(8.2, 3.55), constrained_layout=True)
     expected = np.asarray(record["expected_spikes"])
-    for index, probe in enumerate(PROBE_CONDUCTANCES_US):
-        mask = (empirical[index] > 0) & (predicted[index] > 0)
-        axes[1].scatter(
-            empirical[index][mask], predicted[index][mask], s=5, alpha=0.22,
-            color=colors[index], marker=markers[index], label=f"{probe:g} µS",
-            rasterized=True,
-        )
-        ratio = record["ratio"][index][mask]
-        axes[2].scatter(
-            expected[index][mask], ratio, s=5, alpha=0.2,
-            color=colors[index], marker=markers[index], label=f"{probe:g} µS",
-            rasterized=True,
-        )
-    positive_empirical = empirical[empirical > 0]
-    positive_predicted = predicted[predicted > 0]
-    limits = [
-        float(min(np.min(positive_empirical), np.min(positive_predicted)) * 0.7),
-        float(max(np.max(positive_empirical), np.max(positive_predicted)) * 1.3),
-    ]
-    axes[1].plot(limits, limits, color="0.25", linestyle="--", linewidth=1, label="identity")
-    axes[1].set(xscale="log", yscale="log", xlim=limits, ylim=limits, title="B  Variance prediction", xlabel="Empirical variance (mV²)", ylabel="Predicted variance (mV²)")
-    axes[1].legend(frameon=False, fontsize=7)
-    axes[2].axhspan(0.5, 2.0, color="0.85", alpha=0.5, label="2× agreement band")
-    axes[2].axhline(1.0, color="0.25", linestyle="--", linewidth=1)
-    axes[2].set(xscale="log", yscale="log", ylim=(0.08, 30), title="C  Approximation error by drive", xlabel="Expected input spikes / 200 ms", ylabel="Predicted / empirical variance")
-    axes[2].legend(frameon=False, fontsize=7)
-    fig.tight_layout()
-    fig.savefig(path, bbox_inches="tight")
+    ratio = np.asarray(record["ratio"])
+    positive = expected[expected > 0]
+    edges = np.geomspace(float(np.min(positive)), float(np.max(positive)), 39)
+    centers = np.sqrt(edges[:-1] * edges[1:])
+    binned = np.full((len(PROBE_CONDUCTANCES_US), len(centers)), np.nan)
+    for probe_index in range(len(PROBE_CONDUCTANCES_US)):
+        for bin_index in range(len(centers)):
+            selected = (
+                (expected[probe_index] >= edges[bin_index])
+                & (expected[probe_index] < edges[bin_index + 1])
+                & np.isfinite(ratio[probe_index])
+                & (ratio[probe_index] > 0)
+            )
+            if np.any(selected):
+                binned[probe_index, bin_index] = np.median(
+                    np.log2(ratio[probe_index][selected])
+                )
+    y_edges = np.arange(len(PROBE_CONDUCTANCES_US) + 1) - 0.5
+    mesh = ax.pcolormesh(
+        edges,
+        y_edges,
+        binned,
+        cmap="coolwarm",
+        norm=TwoSlopeNorm(vmin=-1.0, vcenter=0.0, vmax=4.2),
+        shading="flat",
+    )
+    contour_values = np.ma.masked_invalid(binned)
+    ax.contour(
+        centers,
+        np.arange(len(PROBE_CONDUCTANCES_US)),
+        contour_values,
+        levels=(-1.0, 0.0, 1.0),
+        colors=("0.25", "white", "0.25"),
+        linewidths=(0.8, 1.4, 0.8),
+    )
+    colorbar = fig.colorbar(mesh, ax=ax, pad=0.025)
+    colorbar.set_label("log₂(predicted / empirical variance)")
+    colorbar.set_ticks((-1, 0, 1, 2, 3, 4), labels=("½×", "1×", "2×", "4×", "8×", "16×"))
+    ax.set_xscale("log")
+    ax.set_yticks(range(len(PROBE_CONDUCTANCES_US)), labels=[f"{probe:g} μS" for probe in PROBE_CONDUCTANCES_US])
+    ax.set(
+        title="Where the stationary linear approximation works—and where it fails",
+        xlabel="Expected input spikes per 200 ms presentation",
+        ylabel="Probe conductance",
+    )
+    ax.text(
+        0.02,
+        0.04,
+        "27/27 numerical gain checks passed\nwhite contour: exact agreement; dark contours: ½× and 2×",
+        transform=ax.transAxes,
+        fontsize=7.5,
+        color=theme.INK,
+        bbox={"facecolor": "white", "edgecolor": theme.RULE, "alpha": 0.9, "pad": 3},
+    )
+    fig.savefig(path, format="svg", metadata={"Date": None})
     plt.close(fig)
 
 
@@ -2398,21 +2278,23 @@ def plot_step4(
     condition_records: list[dict[str, Any]],
     path: Path,
 ) -> None:
-    """Render matched original, library, direct, and error images."""
+    """Pair intuitive examples with the complete locked validation outcome."""
     theme.apply()
-    fig, axes = plt.subplots(3, 4, figsize=(9.0, 7.2))
+    fig = plt.figure(figsize=(8.4, 7.1), constrained_layout=True)
+    grid = fig.add_gridspec(4, 3, height_ratios=(1, 1, 1, 1.25))
+    axes = np.asarray(
+        [[fig.add_subplot(grid[row, column]) for column in range(3)] for row in range(3)]
+    )
+    ax_summary = fig.add_subplot(grid[3, :])
     nominal_probe_index = PROBE_CONDUCTANCES_US.index(1.2)
     for row, (regime, rate) in enumerate(STEP4_RATES.items()):
         image_index = STEP4_DIAGNOSTIC_INDICES[regime]
         position = STEP4_IMAGE_INDICES.index(image_index)
         library_image = library_values[nominal_probe_index, row, position, 0].reshape(28, 28)
         direct_image = direct_values[nominal_probe_index, row, position, 0].reshape(28, 28)
-        difference = library_image - direct_image
         axes[row, 0].imshow(images[image_index], cmap="gray", vmin=0, vmax=255)
         axes[row, 1].imshow(library_image, cmap="magma", vmin=0, vmax=65)
         axes[row, 2].imshow(direct_image, cmap="magma", vmin=0, vmax=65)
-        limit = max(float(np.max(np.abs(difference))), 1e-6)
-        axes[row, 3].imshow(difference, cmap="coolwarm", vmin=-limit, vmax=limit)
         record = next(
             item for item in condition_records
             if item["probe_uS"] == 1.2 and item["drive_regime"] == regime
@@ -2422,19 +2304,69 @@ def plot_step4(
             f"{regime.capitalize()}  {rate:g} Hz\nimage {image_index}, seed 42",
             fontsize=8,
         )
-        axes[row, 1].set_xlabel(f"zero {metrics['library_zero_fraction']:.2f}", fontsize=7)
-        axes[row, 2].set_xlabel(f"zero {metrics['direct_zero_fraction']:.2f}", fontsize=7)
-        axes[row, 3].set_xlabel(
-            f"mean Δ {metrics['pooled_mean_relative_difference']:.1%}\nr={metrics['spatial_mean_correlation']:.2f}",
-            fontsize=7,
-        )
-    for column, title in enumerate(("Original intensity", "Empirical-library sample", "Fresh direct simulation", "Library − direct")):
+        axes[row, 1].set_xlabel(f"zero fraction {metrics['library_zero_fraction']:.2f}", fontsize=7)
+        axes[row, 2].set_xlabel(f"zero fraction {metrics['direct_zero_fraction']:.2f}", fontsize=7)
+    for column, title in enumerate(("Original intensity", "Empirical-library sample", "Fresh direct simulation")):
         axes[0, column].set_title(title, fontsize=9)
     for axis in axes.flat:
         axis.set_xticks([])
         axis.set_yticks([])
-    fig.suptitle("Sampled filter-matched MNIST features (nominal 1.2 µS probe)", fontsize=11, fontweight="bold")
-    fig.tight_layout()
+    colors = (theme.INK_BLACK, theme.DEEP_RED, theme.ELECTRIC_CYAN)
+    markers = ("o", "s", "^")
+    rate_positions = list(STEP4_RATES.values())
+    threshold_values = [0.2, 0.75, 0.9]
+    ax_summary.plot(
+        rate_positions,
+        threshold_values,
+        color=theme.GREY_MID,
+        linestyle="--",
+        marker="_",
+        label="Locked correlation minimum",
+    )
+    offsets = (0.92, 1.0, 1.08)
+    for probe, color, marker, offset in zip(
+        PROBE_CONDUCTANCES_US, colors, markers, offsets
+    ):
+        probe_records = [row for row in condition_records if row["probe_uS"] == probe]
+        correlations = [row["comparison"]["metrics"]["spatial_mean_correlation"] for row in probe_records]
+        displayed_rates = [rate * offset for rate in rate_positions]
+        ax_summary.plot(displayed_rates, correlations, color=color, lw=1.2, alpha=0.55)
+        for rate, correlation, row in zip(displayed_rates, correlations, probe_records):
+            passed = row["comparison"]["passed"]
+            ax_summary.scatter(
+                rate,
+                correlation,
+                s=58,
+                marker=marker,
+                facecolor=color if passed else "white",
+                edgecolor=color if passed else theme.DEEP_RED,
+                linewidth=1.5,
+                zorder=4,
+            )
+        ax_summary.scatter(
+            [], [], s=52, marker=marker, facecolor=color, edgecolor=color,
+            label=f"{probe:g} μS",
+        )
+    ax_summary.set_xscale("log")
+    ax_summary.set_xticks(rate_positions, labels=[f"{rate:g}" for rate in rate_positions])
+    ax_summary.set(
+        title="Validation resolves structure at 3–25 Hz, but not at 0.25 Hz",
+        xlabel="Encoding rate (Hz)",
+        ylabel="Spatial correlation",
+        ylim=(0.1, 1.03),
+    )
+    ax_summary.text(
+        0.02,
+        0.76,
+        "filled = all locked checks passed\nopen red = at least one check failed",
+        transform=ax_summary.transAxes,
+        fontsize=7.5,
+        va="top",
+    )
+    ax_summary.legend(frameon=False, fontsize=7, ncol=4, loc="lower right")
+    ax_summary.grid(alpha=0.15)
+    ax_summary.spines[["top", "right"]].set_visible(False)
+    fig.suptitle("Empirical-library features versus fresh direct simulation", fontsize=11, fontweight="bold")
     fig.savefig(path, dpi=220, bbox_inches="tight")
     plt.close(fig)
 
@@ -2631,6 +2563,37 @@ def record_steps3_4_publication_contract() -> None:
         "paid_compute": False,
     }
     reproducer_path.write_text(json.dumps(reproducer, indent=2) + "\n")
+
+
+def refresh_primary_result_figures() -> None:
+    """Redraw the four primary figures from authenticated recorded artifacts."""
+    numbers = json.loads((FIGURES / "numbers.json").read_text())
+    plot_probe(numbers["plot_data"], FIGURES / "probe_dynamics.svg")
+    refresh_full_library_figure()
+
+    step3_path = FIGURES / "step3_outcome.json"
+    step3_record = json.loads(step3_path.read_text())
+    with np.load(FIGURES / "step3_linear_filter_arrays.npz") as arrays:
+        plot_step3(
+            {**step3_record, **{name: arrays[name] for name in arrays.files}},
+            FIGURES / "linear_filter.svg",
+        )
+    step3_record["figure_sha256"] = sha256_file(FIGURES / "linear_filter.svg")
+    step3_path.write_text(json.dumps(step3_record, indent=2) + "\n")
+
+    step4_path = FIGURES / "step4_outcome.json"
+    step4_record = json.loads(step4_path.read_text())
+    with np.load(FIGURES / "step4_feature_comparison_arrays.npz") as arrays:
+        plot_step4(
+            arrays["original_images"],
+            arrays["library_values"],
+            arrays["direct_values"],
+            step4_record["condition_records"],
+            FIGURES / "feature_images.png",
+        )
+    step4_record["figure_sha256"] = sha256_file(FIGURES / "feature_images.png")
+    step4_path.write_text(json.dumps(step4_record, indent=2) + "\n")
+    record_steps3_4_publication_contract()
 
 
 def step_5() -> None:
