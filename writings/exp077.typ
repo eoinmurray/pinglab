@@ -44,7 +44,7 @@
   conductance-dependent membrane integration, and finite observation windows
   reshape both the strength and variability of the representation. This makes
   input-rate selection especially important for sparse conductance-based PING
-  networks, where rates that are computationally efficient may also erase class
+  networks, where low rate regimes that are computationally efficient may also erase class
   structure before learning begins. We developed a filter-matched calibration
   of MNIST inputs by propagating pixel spike trains through the target AMPA and
   subthreshold membrane dynamics, measuring the resulting empirical response
@@ -75,7 +75,7 @@
     [Convert 0.25--25 Hz Poisson inputs into static, filter-matched features.],
     [Measure their distributions and test a linear variance prediction.],
     [Construct complete MNIST feature images from the empirical response table.],
-    [Prepare a sealed partition for subsequent decoder evaluation.],
+    [Keep the official MNIST test set held out for subsequent decoder evaluation.],
   )
 
   #list(
@@ -99,8 +99,9 @@
     bound of 25 Hz. Seeds #seed-text defined independent feature and empirical
     response table runs.
 
-    The rate grid and deterministic MNIST train, validation, and held-out indices
-    were recorded before analysis. Pixel intensities x lay in [0, 1]. If r was
+    The rate grid and deterministic MNIST training and validation indices were
+    recorded before analysis; the official MNIST test set was held out and not
+    loaded. Pixel intensities x lay in [0, 1]. If r was
     the encoding rate at pixel intensity one, the expected pixel rate was r x.
 
     Each pixel drove an independent AMPA synapse and uncoupled, non-spiking
@@ -296,7 +297,7 @@
   4. *Constructed and compared complete feature images.* We used only the
     official 60,000-image MNIST training partition. Indices 0--54,999 and
     55,000--59,999 were reserved for decoder training and validation,
-    respectively; the official test partition was not loaded. For each uint8
+    respectively; the official MNIST test set was held out and not loaded. For each uint8
     pixel, the sampler used its exact 0--255 intensity index and selected one of
     the K = #p.selected_K authenticated empirical draws with independent,
     deterministic pixel and image streams.
