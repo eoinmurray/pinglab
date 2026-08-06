@@ -1,9 +1,8 @@
-"""Experiment 077 through Step 4: empirical pixel-response calibration.
+"""Experiment 077: filter-matched MNIST calibration and decoding.
 
-The complete staged contract lives in ``writings/exp077.typ``.  Only Step 1 is
-implemented here: the validated local probe and its empirical response table.
-Steps 3--4 are an explicitly authorized exploratory continuation after the
-preserved Step 2 validation failure.  Decoder and PING stages remain hard stops.
+The complete staged contract lives in ``writings/exp077.typ``. Steps 1--4
+calibrate and validate the feature generator. Steps 5--7 train frozen decoders,
+evaluate held-out psychometric curves, and select the later PING rate range.
 """
 
 from __future__ import annotations
@@ -81,6 +80,19 @@ STEP4_IMAGE_INDICES = tuple(range(16))
 STEP4_DIAGNOSTIC_INDICES: dict[str, int] = {"low": 0, "transitional": 1, "high": 2}
 STEP4_REPLICATES = 8
 STEP4_SEED = 42
+
+TRAIN_INDICES = (0, 55_000)
+VALIDATION_INDICES = (55_000, 60_000)
+DECODER_BATCH_SIZE = 256
+DECODER_LEARNING_RATE = 0.001
+DECODER_MAX_EPOCHS = 15
+DECODER_HIDDEN = 1024
+LINEAR_WEIGHT_DECAYS = (1e-5, 1e-4, 1e-3)
+CHANCE_ACCURACY = 0.10
+USEFUL_ACCURACY = 0.50
+EVALUATION_DRAWS = 3
+BOOTSTRAP_REPETITIONS_HELDOUT = 2000
+CONFIDENCE_LEVEL = 0.95
 
 
 def savefig_atomic(fig: Any, path: Path, **kwargs: Any) -> None:
@@ -2518,8 +2530,327 @@ def refresh_primary_result_figures() -> None:
     record_steps3_4_publication_contract()
 
 
+def _decoder_seed(*parts: int) -> int:
+    """Stable 63-bit seed derived from the registered experimental coordinates."""
+    digest = hashlib.sha256(
+        ":".join(str(part) for part in (77, *parts)).encode()
+    ).digest()
+    return int.from_bytes(digest[:8], "little") & ((1 << 63) - 1)
+
+
+def _torch_device() -> Any:
+    import torch
+
+    return torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+
+def direct_feature_batch_torch(
+    images_uint8: Any,
+    rates_hz: Any,
+    probe_uS: float,
+    generator: Any,
+) -> Any:
+    """Generate exact fresh features without storing the Bernoulli spike train.
+
+    This is the registered decay-then-add synapse and exponential-Euler membrane
+    update, evaluated for all pixels in a batch. Random draws are fresh for every
+    call and deterministic for a fixed generator state.
+    """
+    import torch
+
+    images = images_uint8.to(dtype=torch.float32).reshape(-1, 784) / 255.0
+    rates = rates_hz.to(device=images.device, dtype=torch.float32).reshape(-1, 1)
+    probability = images * rates * (DT_MS / 1000.0)
+    g = torch.zeros_like(images)
+    v = torch.full_like(images, PARAMETERS["E_L_mV"])
+    total = torch.zeros_like(images)
+    decay = math.exp(-DT_MS / PARAMETERS["tau_ampa_ms"])
+    for _ in range(N_TIMESTEPS):
+        incoming = torch.rand(
+            images.shape,
+            device=images.device,
+            dtype=images.dtype,
+            generator=generator,
+        ) < probability
+        g = g * decay + probe_uS * incoming
+        total_g = PARAMETERS["g_L_uS"] + g
+        v_inf = (
+            PARAMETERS["g_L_uS"] * PARAMETERS["E_L_mV"]
+            + g * PARAMETERS["E_e_mV"]
+        ) / total_g
+        v = v_inf + (v - v_inf) * torch.exp(
+            -DT_MS * total_g / PARAMETERS["C_m_nF"]
+        )
+        total += v - PARAMETERS["E_L_mV"]
+    return total / N_TIMESTEPS
+
+
+def _make_decoders(device: Any, seed: int) -> tuple[Any, list[Any]]:
+    import torch
+
+    torch.manual_seed(seed)
+    if device.type == "cuda":
+        torch.cuda.manual_seed_all(seed)
+    nonlinear = torch.nn.Sequential(
+        torch.nn.Linear(784, DECODER_HIDDEN),
+        torch.nn.ReLU(),
+        torch.nn.Linear(DECODER_HIDDEN, 10),
+    ).to(device)
+    linear = [torch.nn.Linear(784, 10).to(device) for _ in LINEAR_WEIGHT_DECAYS]
+    return nonlinear, linear
+
+
+def _classification_metrics(logits: Any, labels: Any) -> tuple[Any, int]:
+    import torch
+
+    loss = torch.nn.functional.cross_entropy(logits, labels)
+    correct = int((logits.argmax(dim=1) == labels).sum().item())
+    return loss, correct
+
+
+def _dataset_batches(
+    indices: np.ndarray,
+    batch_size: int,
+    seed: int,
+    shuffle: bool,
+) -> list[np.ndarray]:
+    ordered = np.asarray(indices, dtype=np.int64).copy()
+    if shuffle:
+        np.random.default_rng(seed).shuffle(ordered)
+    return [ordered[start : start + batch_size] for start in range(0, len(ordered), batch_size)]
+
+
+def train_decoder_condition(
+    *,
+    images: np.ndarray,
+    labels: np.ndarray,
+    probe_uS: float,
+    seed: int,
+    epochs: int,
+    train_indices: np.ndarray,
+    validation_indices: np.ndarray,
+    batch_size: int = DECODER_BATCH_SIZE,
+    output_dir: Path,
+) -> dict[str, Any]:
+    """Train the nonlinear decoder and matched regularized linear candidates."""
+    import torch
+
+    device = _torch_device()
+    nonlinear, linear_models = _make_decoders(device, seed)
+    nonlinear_optimizer = torch.optim.Adam(
+        nonlinear.parameters(), lr=DECODER_LEARNING_RATE
+    )
+    linear_optimizers = [
+        torch.optim.Adam(model.parameters(), lr=DECODER_LEARNING_RATE, weight_decay=decay)
+        for model, decay in zip(linear_models, LINEAR_WEIGHT_DECAYS, strict=True)
+    ]
+    feature_generator = torch.Generator(device=device)
+    history: list[dict[str, Any]] = []
+    best_nonlinear = (-math.inf, 0, None)
+    best_linear = [(-math.inf, 0, None) for _ in linear_models]
+    started = time.perf_counter()
+    sampled_counts = {str(rate): 0 for rate in TRAINING_RATES_HZ}
+
+    for epoch in range(1, epochs + 1):
+        nonlinear.train()
+        for model in linear_models:
+            model.train()
+        train_loss = 0.0
+        train_correct = 0
+        linear_train_loss = [0.0 for _ in linear_models]
+        linear_train_correct = [0 for _ in linear_models]
+        seen = 0
+        batches = _dataset_batches(
+            train_indices, batch_size, _decoder_seed(seed, epoch, 1), True
+        )
+        rate_rng = np.random.default_rng(_decoder_seed(seed, epoch, 2))
+        feature_generator.manual_seed(_decoder_seed(seed, epoch, 3))
+        for batch_indices in batches:
+            rate_positions = rate_rng.integers(0, len(TRAINING_RATES_HZ), len(batch_indices))
+            sampled_rates = np.asarray(TRAINING_RATES_HZ)[rate_positions]
+            for rate in sampled_rates:
+                sampled_counts[str(float(rate))] += 1
+            batch_images = torch.as_tensor(images[batch_indices], device=device)
+            batch_labels = torch.as_tensor(labels[batch_indices], device=device)
+            rate_tensor = torch.as_tensor(sampled_rates, device=device)
+            features = direct_feature_batch_torch(
+                batch_images, rate_tensor, probe_uS, feature_generator
+            )
+            nonlinear_optimizer.zero_grad(set_to_none=True)
+            nonlinear_logits = nonlinear(features)
+            loss, correct = _classification_metrics(nonlinear_logits, batch_labels)
+            loss.backward()
+            nonlinear_optimizer.step()
+            train_loss += float(loss.item()) * len(batch_indices)
+            train_correct += correct
+            for position, (model, optimizer) in enumerate(
+                zip(linear_models, linear_optimizers, strict=True)
+            ):
+                optimizer.zero_grad(set_to_none=True)
+                logits = model(features.detach())
+                linear_loss, linear_correct = _classification_metrics(logits, batch_labels)
+                linear_loss.backward()
+                optimizer.step()
+                linear_train_loss[position] += float(linear_loss.item()) * len(batch_indices)
+                linear_train_correct[position] += linear_correct
+            seen += len(batch_indices)
+
+        nonlinear.eval()
+        for model in linear_models:
+            model.eval()
+        validation_loss = 0.0
+        validation_correct = 0
+        linear_validation_loss = [0.0 for _ in linear_models]
+        linear_validation_correct = [0 for _ in linear_models]
+        validation_seen = 0
+        feature_generator.manual_seed(_decoder_seed(seed, epoch, 4))
+        validation_rate_rng = np.random.default_rng(_decoder_seed(seed, epoch, 5))
+        with torch.no_grad():
+            for batch_indices in _dataset_batches(
+                validation_indices, batch_size, _decoder_seed(seed, epoch, 6), False
+            ):
+                rate_positions = validation_rate_rng.integers(
+                    0, len(TRAINING_RATES_HZ), len(batch_indices)
+                )
+                sampled_rates = np.asarray(TRAINING_RATES_HZ)[rate_positions]
+                batch_images = torch.as_tensor(images[batch_indices], device=device)
+                batch_labels = torch.as_tensor(labels[batch_indices], device=device)
+                features = direct_feature_batch_torch(
+                    batch_images,
+                    torch.as_tensor(sampled_rates, device=device),
+                    probe_uS,
+                    feature_generator,
+                )
+                logits = nonlinear(features)
+                loss, correct = _classification_metrics(logits, batch_labels)
+                validation_loss += float(loss.item()) * len(batch_indices)
+                validation_correct += correct
+                for position, model in enumerate(linear_models):
+                    linear_loss, linear_correct = _classification_metrics(
+                        model(features), batch_labels
+                    )
+                    linear_validation_loss[position] += float(linear_loss.item()) * len(batch_indices)
+                    linear_validation_correct[position] += linear_correct
+                validation_seen += len(batch_indices)
+        nonlinear_accuracy = validation_correct / validation_seen
+        if nonlinear_accuracy > best_nonlinear[0]:
+            best_nonlinear = (
+                nonlinear_accuracy,
+                epoch,
+                {name: value.detach().cpu() for name, value in nonlinear.state_dict().items()},
+            )
+        for position, model in enumerate(linear_models):
+            accuracy = linear_validation_correct[position] / validation_seen
+            if accuracy > best_linear[position][0]:
+                best_linear[position] = (
+                    accuracy,
+                    epoch,
+                    {name: value.detach().cpu() for name, value in model.state_dict().items()},
+                )
+        row = {
+            "epoch": epoch,
+            "nonlinear": {
+                "train_loss": train_loss / seen,
+                "train_accuracy": train_correct / seen,
+                "validation_loss": validation_loss / validation_seen,
+                "validation_accuracy": nonlinear_accuracy,
+            },
+            "linear": [
+                {
+                    "weight_decay": decay,
+                    "train_loss": linear_train_loss[position] / seen,
+                    "train_accuracy": linear_train_correct[position] / seen,
+                    "validation_loss": linear_validation_loss[position] / validation_seen,
+                    "validation_accuracy": linear_validation_correct[position] / validation_seen,
+                }
+                for position, decay in enumerate(LINEAR_WEIGHT_DECAYS)
+            ],
+        }
+        history.append(row)
+        print(
+            f"probe={probe_uS:g} seed={seed} epoch={epoch}/{epochs} "
+            f"nonlinear_val={nonlinear_accuracy:.4f} "
+            f"linear_val={max(item['validation_accuracy'] for item in row['linear']):.4f}",
+            flush=True,
+        )
+
+    selected_linear_index = int(np.argmax([record[0] for record in best_linear]))
+    output_dir.mkdir(parents=True, exist_ok=True)
+    checkpoint = output_dir / "decoders.pt"
+    torch.save(
+        {
+            "nonlinear": best_nonlinear[2],
+            "linear": best_linear[selected_linear_index][2],
+            "configuration": {
+                "probe_uS": probe_uS,
+                "seed": seed,
+                "hidden": DECODER_HIDDEN,
+                "learning_rate": DECODER_LEARNING_RATE,
+                "batch_size": batch_size,
+                "rate_grid_hz": TRAINING_RATES_HZ,
+                "linear_weight_decay": LINEAR_WEIGHT_DECAYS[selected_linear_index],
+            },
+        },
+        checkpoint,
+    )
+    result = {
+        "status": "complete",
+        "probe_uS": probe_uS,
+        "seed": seed,
+        "device": str(device),
+        "epochs_run": epochs,
+        "selected_nonlinear_epoch": best_nonlinear[1],
+        "selected_nonlinear_validation_accuracy": best_nonlinear[0],
+        "selected_linear_epoch": best_linear[selected_linear_index][1],
+        "selected_linear_validation_accuracy": best_linear[selected_linear_index][0],
+        "selected_linear_weight_decay": LINEAR_WEIGHT_DECAYS[selected_linear_index],
+        "rate_sample_counts": sampled_counts,
+        "history": history,
+        "runtime_s": time.perf_counter() - started,
+        "checkpoint": checkpoint.name,
+    }
+    (output_dir / "training.json").write_text(json.dumps(result, indent=2) + "\n")
+    return result
+
+
+def run_step5_stage(stage: str) -> None:
+    """Run a local smoke or one remote training cell without accessing test data."""
+    images, labels, dataset = load_locked_mnist_training()
+    stage_settings = {
+        "smoke": (128, 64, 2),
+        "pilot": (1000, 500, 2),
+        "full": (55_000, 5_000, DECODER_MAX_EPOCHS),
+    }
+    if stage not in stage_settings:
+        raise ValueError(f"unknown Step 5 stage: {stage}")
+    train_count, validation_count, epochs = stage_settings[stage]
+    probe = float(os.environ.get("EXP077_PROBE_US", str(PROBE_US)))
+    seed = int(os.environ.get("EXP077_SEED", str(SEED)))
+    output_dir = FIGURES / "step5" / stage / f"probe-{probe:g}" / f"seed-{seed}"
+    result = train_decoder_condition(
+        images=images,
+        labels=labels,
+        probe_uS=probe,
+        seed=seed,
+        epochs=epochs,
+        train_indices=np.arange(TRAIN_INDICES[0], TRAIN_INDICES[0] + train_count),
+        validation_indices=np.arange(
+            VALIDATION_INDICES[0], VALIDATION_INDICES[0] + validation_count
+        ),
+        batch_size=min(DECODER_BATCH_SIZE, train_count),
+        output_dir=output_dir,
+    )
+    result["dataset"] = dataset
+    result["train_indices"] = [TRAIN_INDICES[0], TRAIN_INDICES[0] + train_count - 1]
+    result["validation_indices"] = [
+        VALIDATION_INDICES[0],
+        VALIDATION_INDICES[0] + validation_count - 1,
+    ]
+    (output_dir / "training.json").write_text(json.dumps(result, indent=2) + "\n")
+
+
 def step_5() -> None:
-    _not_implemented(5)
+    run_step5_stage(os.environ.get("EXP077_STAGE", "smoke"))
 
 
 def step_6() -> None:
