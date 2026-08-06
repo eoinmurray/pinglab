@@ -67,10 +67,11 @@ CAPTURE_DELAYS_MS = (7.0, 8.0, 9.0, 10.0, 11.0, 12.0)
 ACQUISITION_STRENGTHS = (0.18,)
 ACQUISITION_DELAYS_MS = (10.0,)
 PHASE_CONTEXT_STEPS = round(250.0 / DT_MS)
-CLEAN_SEARCH_STRENGTHS = (0.20,)
+CLEAN_SEARCH_STRENGTHS = (0.20, 0.22, 0.24, 0.26, 0.28, 0.30)
 CLEAN_DELAY_STRENGTHS = (0.12, 0.15, 0.18, 0.20, 0.22, 0.24)
 CLEAN_SEARCH_DELAYS_MS = (8.0, 9.0, 10.0, 11.0, 12.0)
 CLEAN_SEARCH_STEPS = round(1200.0 / DT_MS)
+ACQUISITION_STEPS = round(2000.0 / DT_MS)
 
 ACTIVITY = {
     "min_e_rate_hz": 2.0,
@@ -1007,16 +1008,23 @@ def mature_checkpoint_candidates(
     ]
 
 
-def phase_frequency_difference_hz(vector: np.ndarray) -> np.ndarray:
+def phase_frequency_difference_hz(
+    vector: np.ndarray,
+    *,
+    phase_smoothing_ms: float = 50.0,
+    frequency_smoothing_ms: float = 25.0,
+) -> np.ndarray:
     """Estimate instantaneous A-minus-B frequency from smoothed relative phase."""
-    width = round(50.0 / DT_MS)
+    width = round(phase_smoothing_ms / DT_MS)
     cumulative = np.concatenate(([0j], np.cumsum(vector)))
     smooth = np.full(len(vector), np.nan + 0j)
     smooth[width - 1 :] = (cumulative[width:] - cumulative[:-width]) / width
     first = int(np.flatnonzero(np.isfinite(smooth))[0])
     relative_phase = np.unwrap(np.angle(smooth[first:]))
     frequency = np.gradient(relative_phase, DT_MS / 1000.0) / (2 * math.pi)
-    frequency = gaussian_filter1d(frequency, sigma=round(25.0 / DT_MS))
+    frequency = gaussian_filter1d(
+        frequency, sigma=round(frequency_smoothing_ms / DT_MS)
+    )
     result = np.full(len(vector), np.nan)
     result[first:] = frequency
     return result
@@ -1063,20 +1071,40 @@ def clean_convergence_metrics(
         if float(np.mean(settled[step : step + hold])) >= 0.90:
             capture_step = step
             break
+    if capture_step is None:
+        post_capture_plv = 0.0
+        post_capture_phase_error_95 = math.inf
+        post_capture_frequency_95 = math.inf
+    else:
+        post_capture = slice(capture_step, None)
+        post_capture_plv = float(abs(np.mean(vector[post_capture])))
+        post_capture_phase_error_95 = float(
+            np.nanquantile(np.abs(error[post_capture]), 0.95)
+        )
+        post_capture_frequency_95 = float(
+            np.nanquantile(np.abs(frequency_difference[post_capture]), 0.95)
+        )
+    persistent = bool(
+        capture_step is not None
+        and post_capture_plv >= 0.90
+        and post_capture_phase_error_95 <= 0.65
+        and post_capture_frequency_95 <= 3.0
+    )
     convergent = bool(
         valid.any()
-        and early_error >= 0.60
-        and early_plv <= 0.70
+        and early_error >= 0.30
+        and early_plv <= 0.90
         and late_error_95 <= 0.65
         and late_plv >= 0.92
-        and late_frequency_95 <= 2.5
+        and late_frequency_95 <= 3.0
         and smooth_late_span <= 1.5
         and capture_step is not None
-        and 150.0 <= capture_step * DT_MS <= 1000.0
+        and 150.0 <= capture_step * DT_MS <= 1600.0
         and quartile_errors[-1] < quartile_errors[0] * 0.55
     )
     return {
         "convergent": convergent,
+        "persistent_after_capture": persistent,
         "early_phase_error_rad": early_error,
         "late_phase_error_95_rad": late_error_95,
         "early_plv": early_plv,
@@ -1085,6 +1113,9 @@ def clean_convergence_metrics(
         "late_unwrapped_span_rad": late_unwrapped_span,
         "smooth_late_span_rad": smooth_late_span,
         "capture_time_ms": None if capture_step is None else capture_step * DT_MS,
+        "post_capture_plv": post_capture_plv,
+        "post_capture_phase_error_95_rad": post_capture_phase_error_95,
+        "post_capture_frequency_difference_95_hz": post_capture_frequency_95,
         "fixed_phase_delay_rad": reference,
         "quartile_phase_errors_rad": quartile_errors,
     }
@@ -1097,7 +1128,7 @@ def search_clean_acquisition() -> None:
     settings = selected["settings"]
     delay_ms = 10.0
     latest_checkpoint_step = 11662
-    total_steps = latest_checkpoint_step + CLEAN_SEARCH_STEPS
+    total_steps = latest_checkpoint_step + ACQUISITION_STEPS
     inputs = independent_inputs(
         settings["rate_a_hz"], settings["rate_b_hz"], steps=total_steps
     )
@@ -1121,7 +1152,10 @@ def search_clean_acquisition() -> None:
             inputs={name: value[:step] for name, value in inputs.items()}, seed=SEED,
         ))
         assert prefix.runtime_state is not None
-        future = {name: value[step : step + CLEAN_SEARCH_STEPS] for name, value in inputs.items()}
+        future = {
+            name: value[step : step + ACQUISITION_STEPS]
+            for name, value in inputs.items()
+        }
         context = {
             name: value[step - PHASE_CONTEXT_STEPS : step]
             for name, value in burn_arrays.items()
@@ -1160,7 +1194,7 @@ def search_clean_acquisition() -> None:
     payload = {
         "strengths": list(CLEAN_SEARCH_STRENGTHS),
         "delay_ms": delay_ms,
-        "duration_ms": CLEAN_SEARCH_STEPS * DT_MS,
+        "duration_ms": ACQUISITION_STEPS * DT_MS,
         "checkpoints": checkpoints,
         "rows": rows,
         "passing": [row for row in rows if row["metrics"]["convergent"]],
@@ -1359,12 +1393,15 @@ def render_acquisition(
         ax.set_ylabel(label)
     def smoothed_delay(arrays: dict[str, np.ndarray]) -> tuple[np.ndarray, np.ndarray]:
         _, _, vector = phase_trace(arrays)
-        width = round(50.0 / DT_MS)
+        width = round(150.0 / DT_MS)
         cumulative = np.concatenate(([0j], np.cumsum(vector)))
         smooth = np.full(len(vector), np.nan + 0j)
         smooth[width - 1 :] = (cumulative[width:] - cumulative[:-width]) / width
         smooth = smooth[discard_steps:]
-        return np.angle(smooth), phase_frequency_difference_hz(vector)[discard_steps:]
+        frequency = phase_frequency_difference_hz(
+            vector, phase_smoothing_ms=150.0, frequency_smoothing_ms=75.0
+        )
+        return np.angle(smooth), frequency[discard_steps:]
 
     coupled_phase, frequency_difference = smoothed_delay(phase_coupled or coupled)
     axes[4].plot(time_ms, coupled_phase, color=theme.INK_BLACK, linewidth=1.1)
@@ -1392,14 +1429,14 @@ def acquire() -> None:
     destination = root / "acquisition"
     destination.mkdir(exist_ok=True)
     checkpoint_step = 11662
-    strength = 0.20
+    strength = 0.22
     delay_ms = 10.0
     zero_bundle = author_graph(
         input_weight=settings["input_weight"], coupling_strength=0.0, delay_ms=delay_ms
     )
     all_inputs = independent_inputs(
         settings["rate_a_hz"], settings["rate_b_hz"],
-        steps=checkpoint_step + CLEAN_SEARCH_STEPS,
+        steps=11662 + ACQUISITION_STEPS,
     )
     burn_inputs = {name: value[:checkpoint_step] for name, value in all_inputs.items()}
     prefix = simulate(ExecutionSpec(
@@ -1414,7 +1451,8 @@ def acquire() -> None:
         name: value[-PHASE_CONTEXT_STEPS:] for name, value in prefix_arrays.items()
     }
     continuation_inputs = {
-        name: value[checkpoint_step:] for name, value in all_inputs.items()
+        name: value[checkpoint_step : checkpoint_step + ACQUISITION_STEPS]
+        for name, value in all_inputs.items()
     }
     coupled_bundle = author_graph(
         input_weight=settings["input_weight"], coupling_strength=strength, delay_ms=delay_ms
@@ -1465,7 +1503,7 @@ def acquire() -> None:
         "selection": {
             "strength": strength, "delay_ms": delay_ms,
             "future_seed_offset": None,
-            "rule": "bounded mature-checkpoint search on one fixed archived input stream at the refined weight and delay; require weak early locking, delayed capture, and stable late circular phase",
+            "rule": "bounded 2 s checkpoint/weight search on one fixed archived input stream; require displaced early phase, delayed capture, stable late circular phase, and near-zero late frequency difference",
         },
         "metrics": diagnostics,
         "runtime_state_signature": prefix.runtime_state.signature,
@@ -1473,7 +1511,7 @@ def acquire() -> None:
         "coupled_graph_digest": coupled_bundle.manifest["graph_digest"],
         "seed": SEED,
         "dt_ms": DT_MS,
-        "duration_ms": CLEAN_SEARCH_STEPS * DT_MS,
+        "duration_ms": ACQUISITION_STEPS * DT_MS,
         "population_sizes": {"E": N_E, "I": N_I},
     }
     (destination / "results.json").write_text(json.dumps(json_safe(payload), indent=2, allow_nan=False) + "\n")

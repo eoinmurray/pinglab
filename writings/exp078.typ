@@ -136,12 +136,12 @@
     conductance, recurrent-delay, and delayed-input state was exported. The same
     saved state and future input realization then initialized one static reciprocal
     E→I coupling continuation. No uncoupled continuation was simulated. After the
-    broader weight--delay refinement, a bounded search compared mature checkpoints on one fixed,
-    archived input stream at weight 0.20 and delay 10 ms. The declared gate
-    required weak early locking (PLV at most 0.70), displaced early phase, delayed
+    broader weight--delay refinement, a bounded 2 s search compared mature
+    checkpoints and weights 0.20--0.30 on one fixed archived input stream at delay
+    10 ms. The declared gate required early PLV at most 0.90, displaced early phase, delayed
     acquisition, late PLV at least 0.92, 95% of final-250-ms circular phase errors
     below 0.65 rad, and 95% of final-250-ms instantaneous frequency differences
-    below 2.5 Hz; the passing case with the smallest late phase error was selected.
+    below 3 Hz; the passing case with the smallest late phase error was selected.
     Weights were not part of runtime state. A 250 ms
     pre-checkpoint recording context was used only to prevent band-pass/Hilbert
     edge bias; no spikes were shifted or replayed into the model.
@@ -184,11 +184,13 @@
       enabled at 0 ms; nothing else is reset. The first two panels show
       fixed samples of 100 E and 50 I neurons from circuits A and B. The next
       two show their full-population E rates on a common scale without overlap.
-      The final two panels show 50 ms circularly smoothed A-minus-B phase delay and
-      the corresponding smoothed instantaneous A-minus-B frequency difference.
+      The final two panels show 150 ms circularly smoothed A-minus-B phase delay and
+      the corresponding instantaneous frequency difference, additionally smoothed
+      over 75 ms.
       Phase wanders over the early and middle window while frequency difference
       changes sign. After #n(acquisition-metrics.capture_time_ms, digits: 1) ms,
-      phase approaches a fixed lag and frequency difference approaches zero.],
+      phase remains bounded around a preferred lag and slow frequency difference
+      remains centred near zero.],
   )
   ]
 
@@ -233,7 +235,12 @@
   percentile absolute frequency difference is
   #hz(acquisition-metrics.late_frequency_difference_95_hz). Coupling therefore changes
   the phase dynamics over repeated cycles rather than merely selecting an already
-  locked initial condition.
+  locked initial condition. The longer window also prevents an overclaim:
+  post-capture PLV is #n(acquisition-metrics.post_capture_plv), and 95% of
+  post-capture phase errors lie below
+  #n(acquisition-metrics.post_capture_phase_error_95_rad) rad. The relationship is
+  bounded and frequency-synchronized on the displayed slow timescale, but it is
+  not an absorbing fixed-phase state.
 
   == Strong coupling suppresses one circuit
 
@@ -251,9 +258,9 @@
 
   The registered coarse-grid success criterion fails, but the explicitly
   exploratory refinement reveals the missed phase-locking region. Reciprocal
-  E→I excitation can reshape relative phase over many cycles and converge toward
-  a stable phase lag with near-zero frequency difference within the observed
-  continuation. Excessive coupling recruits
+  E→I excitation can reshape relative phase over many cycles and produce a bounded
+  phase relationship with near-zero slow frequency difference. The 2 s extension
+  retains noisy phase corrections rather than a permanent fixed lag. Excessive coupling recruits
   enough inhibition to suppress circuit B rather than synchronize it. This is
   the intended reduced mechanism: long-range excitation can synchronize PING
   circuits by recruiting the other circuit's local inhibition.

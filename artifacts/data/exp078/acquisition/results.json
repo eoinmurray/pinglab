@@ -5,35 +5,39 @@
     "time_ms": 1166.2
   },
   "selection": {
-    "strength": 0.2,
+    "strength": 0.22,
     "delay_ms": 10.0,
     "future_seed_offset": null,
     "rule": "bounded mature-checkpoint search on one fixed archived input stream at the refined weight and delay; require weak early locking, delayed capture, and stable late circular phase"
   },
   "metrics": {
     "convergent": true,
-    "early_phase_error_rad": 0.8467311118121226,
-    "late_phase_error_95_rad": 0.2893737369540646,
-    "early_plv": 0.6285277239036021,
-    "late_plv": 0.9915514676587446,
-    "late_frequency_difference_95_hz": 2.370159090671252,
-    "late_unwrapped_span_rad": 0.6856561001208084,
-    "smooth_late_span_rad": 0.6558567504673407,
-    "capture_time_ms": 918.9000000000001,
-    "fixed_phase_delay_rad": 0.051815037726111575,
+    "persistent_after_capture": false,
+    "early_phase_error_rad": 0.379976268851551,
+    "late_phase_error_95_rad": 0.26234050790766655,
+    "early_plv": 0.8184738633586047,
+    "late_plv": 0.9451439215002017,
+    "late_frequency_difference_95_hz": 1.5801761064768916,
+    "late_unwrapped_span_rad": 1.7150395042419178,
+    "smooth_late_span_rad": 0.5364231249996201,
+    "capture_time_ms": 922.5,
+    "post_capture_plv": 0.8833687408691682,
+    "post_capture_phase_error_95_rad": 1.1638727231452446,
+    "post_capture_frequency_difference_95_hz": 2.397914638239911,
+    "fixed_phase_delay_rad": 0.2068902450888754,
     "quartile_phase_errors_rad": [
-      0.7887451570762675,
-      0.7175528077016909,
-      0.7123107373964694,
-      0.05711714144486986
+      0.587696943185885,
+      0.46229320381374867,
+      0.2343015776939606,
+      0.20478607576200156
     ]
   },
   "runtime_state_signature": "sha256:4adbca2e154d8fc5c30c86c4ef1bfb6c12ea9de4c556079eb54b06d159c51477",
   "burn_graph_digest": "sha256:ba6217a15dd50029c5ba0ac7a291ba81e9fb1e48109b536d2aa9ac163f3db46e",
-  "coupled_graph_digest": "sha256:71bfbdddc7c8d4a74edd73060eca7f35eda97617e79cddb9c38d90d9308fe667",
+  "coupled_graph_digest": "sha256:c5138b0aea07530522bc3f5790864581868c2424e62b8cabb591a70cdd5888a5",
   "seed": 78,
   "dt_ms": 0.1,
-  "duration_ms": 1200.0,
+  "duration_ms": 2000.0,
   "population_sizes": {
     "E": 800,
     "I": 200
