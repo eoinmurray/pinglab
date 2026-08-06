@@ -3025,9 +3025,13 @@ def write_expanded_rate_training_protocol() -> Path:
 def verify_expanded_rate_training_protocol() -> dict[str, Any]:
     """Fail closed unless the committed sparse-rate training design matches code."""
     path = FIGURES / "expanded_rate_training_protocol.json"
-    if not path.exists():
-        raise RuntimeError("expanded-rate training requires a frozen training protocol")
-    protocol = json.loads(path.read_text())
+    if path.exists():
+        protocol = json.loads(path.read_text())
+    else:
+        remote_payload = os.environ.get("EXP077_FROZEN_TRAINING_PROTOCOL_JSON")
+        if not remote_payload:
+            raise RuntimeError("expanded-rate training requires a frozen training protocol")
+        protocol = json.loads(remote_payload)
     checks = {
         "status": protocol.get("status") == "frozen_before_expanded_rate_retraining",
         "rate_grid": protocol.get("decoder_rate_grid_hz") == list(DECODER_RATES_HZ),

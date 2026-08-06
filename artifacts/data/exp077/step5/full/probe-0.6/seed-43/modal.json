@@ -2,13 +2,13 @@
   "stage": "full",
   "probe_uS": 0.6,
   "seed": 43,
-  "elapsed_s": 0.07068739500000021,
+  "elapsed_s": 0.06835928599999974,
   "success": false,
   "error": "Traceback (most recent call last):\n  File \"/root/helpers/modal_exp077_app.py\", line 53, in train_cell\n    exp077.step_5()\n  File \"/workspace/pinglab/experiments/exp077.py\", line 3083, in step_5\n    run_step5_stage(os.environ.get(\"EXP077_STAGE\", \"smoke\"))\n  File \"/workspace/pinglab/experiments/exp077.py\", line 3055, in run_step5_stage\n    verify_expanded_rate_training_protocol()\n  File \"/workspace/pinglab/experiments/exp077.py\", line 3029, in verify_expanded_rate_training_protocol\n    raise RuntimeError(\"expanded-rate training requires a frozen training protocol\")\nRuntimeError: expanded-rate training requires a frozen training protocol\n",
-  "artifact_sha256": "0627e51a620080b6742d7ce24e93a86321a9371b415807aa7de749fafbd008d6",
+  "artifact_sha256": "55eed6c87a9081335fa9a0d56c5196a5a022b10fe4e0c19c51e87592d5eaa268",
   "gpu": "L40S",
   "gpu_usd_per_second": 0.000542,
-  "estimated_cost_usd": 3.831256809000011e-05,
-  "parallel_dispatch_elapsed_s": 68.55080545810051,
+  "estimated_cost_usd": 3.705073301199986e-05,
+  "parallel_dispatch_elapsed_s": 102.43013268103823,
   "exact_provider_billing": false
 }

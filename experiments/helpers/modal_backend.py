@@ -132,7 +132,14 @@ def _source_image_exp077(modal: Any):
                     f"{REMOTE_REPO}:"
                     f"{REMOTE_REPO / 'experiments'}:"
                     f"{REMOTE_REPO / 'tools' / 'snn'}"
-                )
+                ),
+                "EXP077_FROZEN_TRAINING_PROTOCOL_JSON": (
+                    REPO
+                    / "artifacts"
+                    / "data"
+                    / "exp077"
+                    / "expanded_rate_training_protocol.json"
+                ).read_text(),
             }
         )
         .add_local_dir(
@@ -146,22 +153,6 @@ def _source_image_exp077(modal: Any):
         .add_local_file(str(REPO / "README.md"), str(REMOTE_REPO / "README.md"))
         .add_local_file(
             str(REPO / "pyproject.toml"), str(REMOTE_REPO / "pyproject.toml")
-        )
-        .add_local_file(
-            str(
-                REPO
-                / "artifacts"
-                / "data"
-                / "exp077"
-                / "expanded_rate_training_protocol.json"
-            ),
-            str(
-                REMOTE_REPO
-                / "artifacts"
-                / "data"
-                / "exp077"
-                / "expanded_rate_training_protocol.json"
-            ),
         )
     )
 
