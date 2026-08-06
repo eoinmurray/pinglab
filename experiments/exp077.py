@@ -14,6 +14,7 @@ import math
 import os
 import subprocess
 import sys
+import tempfile
 import time
 from collections.abc import Callable
 from pathlib import Path
@@ -79,6 +80,20 @@ STEP4_IMAGE_INDICES = tuple(range(16))
 STEP4_DIAGNOSTIC_INDICES: dict[str, int] = {"low": 0, "transitional": 1, "high": 2}
 STEP4_REPLICATES = 8
 STEP4_SEED = 42
+
+
+def savefig_atomic(fig: Any, path: Path, **kwargs: Any) -> None:
+    """Write a figure atomically so the live site builder never sees a partial file."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with tempfile.NamedTemporaryFile(
+        dir=path.parent, prefix=f".{path.stem}.", suffix=path.suffix, delete=False
+    ) as handle:
+        temporary_path = Path(handle.name)
+    try:
+        fig.savefig(temporary_path, **kwargs)
+        os.replace(temporary_path, path)
+    finally:
+        temporary_path.unlink(missing_ok=True)
 
 # Locked before inspecting the Step 2 pilot.  Each candidate compares two
 # independent, equally sized blocks.  The deterministic subset spans zero,
@@ -1125,7 +1140,7 @@ def plot_step2_pilot(pilot: dict[str, Any], path: Path) -> None:
         ax.grid(alpha=0.18)
         ax.spines[["top", "right"]].set_visible(False)
         ax.legend(frameon=False, fontsize=8)
-    fig.savefig(path, dpi=240, facecolor="white")
+    savefig_atomic(fig, path, dpi=240, facecolor="white")
     plt.close(fig)
 
 
@@ -1308,7 +1323,7 @@ def plot_full_library(
     for ax in (ax_mean, ax_std):
         ax.grid(alpha=0.14)
         ax.spines[["top", "right"]].set_visible(False)
-    fig.savefig(path, dpi=240, facecolor="white")
+    savefig_atomic(fig, path, dpi=240, facecolor="white")
     plt.close(fig)
 
 
@@ -2292,7 +2307,7 @@ def plot_step4(
         axis.set_xticks([])
         axis.set_yticks([])
     fig.suptitle("Empirical-library features versus fresh direct simulation", fontsize=11, fontweight="bold")
-    fig.savefig(path, dpi=220, bbox_inches="tight")
+    savefig_atomic(fig, path, dpi=220, bbox_inches="tight")
     plt.close(fig)
 
 
