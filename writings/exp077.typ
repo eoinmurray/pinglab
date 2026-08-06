@@ -18,13 +18,19 @@
 #let diagnostic-k = m.diagnostic_draws_per_condition_per_seed
 #let s3 = r.step3
 #let s4 = r.step4
+#let s5 = json("/artifacts/data/exp077/step5_outcome.json")
+#let s6 = json("/artifacts/data/exp077/step6_outcome.json")
+#let decision = json("/artifacts/data/exp077/decision.json")
 #let s3-nominal-low = s3.agreement_summaries.at(3)
 #let s3-nominal-transition = s3.agreement_summaries.at(4)
 #let s3-nominal-high = s3.agreement_summaries.at(5)
 #let s4-nominal-low = s4.condition_records.at(3).comparison
 #let s4-nominal-transition = s4.condition_records.at(4).comparison
 #let s4-nominal-high = s4.condition_records.at(5).comparison
+#let nominal-quarter = s6.nonlinear.at(12)
+#let nominal-half = s6.nonlinear.at(13)
 #let rounded(x, digits: 3) = str(calc.round(x, digits: digits))
+#let pct(x) = rounded(100 * x, digits: 2) + "%"
 #let training-rate-text = training-rates-hz.map(str).join(", ")
 #let probe-text = probe-us.map(str).join(", ")
 #let seed-text = seeds.map(str).join(", ")
@@ -47,9 +53,13 @@
   synapse, membrane, and averaging window. Sampled feature
   images recovered recognizable digit structure as rate increased, whereas the
   lowest-rate images remained sparse and did not satisfy all image-level
-  validation tolerances. These results established an empirical basis for
-  selecting candidate input rates before decoder or recurrent-network training;
-  classification thresholds remain to be measured.
+  validation tolerances. Mixed-rate nonlinear and linear decoders trained on
+  fresh direct simulations nevertheless recovered held-out class information
+  throughout the registered rate grid. The nonlinear decoder was reliably
+  above chance at 0.25 Hz, and its one-sided 95% lower accuracy bound first
+  exceeded 50% at 0.5 Hz. This practical floor was unchanged across 0.6, 1.2,
+  and 2.4 μS probes, supporting 0.5--25 Hz as the input range for subsequent
+  variable-rate PING training.
 
   == Purpose and scope
 
@@ -68,8 +78,8 @@
   #enum(
     [Convert 0.25--25 Hz Poisson inputs into static, filter-matched features.],
     [Measure their distributions and test a linear variance prediction.],
-    [Construct complete MNIST feature images from the empirical response table.],
-    [Keep the official MNIST test set held out for subsequent decoder evaluation.],
+    [Construct complete MNIST feature images and train mixed-rate decoders from fresh direct simulations.],
+    [Evaluate frozen decoders on the held-out MNIST test set and select a later PING rate range.],
   )
 
   #list(
@@ -80,10 +90,8 @@
       linearly accessible.],
   )
 
-  The completed analyses characterized the input representation rather than
-  classification performance. Any later ANN threshold would be a
-  decoder-relative decodability edge, not an absolute information boundary or a
-  prediction of PING accuracy.
+  The resulting thresholds are decoder-relative decodability edges, not
+  absolute information boundaries or predictions of PING accuracy.
 
   == Methods
 
@@ -263,73 +271,69 @@
     and streams were locked before outcomes. This validation was required before
     ANN training; its low-rate checks did not all pass, so no decoder followed.
 
-  5. *Planned mixed-rate decoder training.* The primary ANN will have 784
-    inputs, one 1,024-unit rectified-linear hidden layer, and ten outputs, and
-    will learn both weight matrices from voltage features. A regularized linear
-    softmax decoder trained on the same features will test linear accessibility.
-    Neither model will receive the encoding rate or pretrained weights.
+  5. *Trained mixed-rate decoders.* The primary ANN had 784 inputs, one
+    1,024-unit rectified-linear hidden layer, and ten outputs, and learned both
+    weight matrices from voltage features. A regularized linear softmax decoder
+    trained on the same features tested linear accessibility. Neither model
+    received the encoding rate or pretrained weights.
 
-    Every image presentation will sample a rate uniformly from the registered
-    grid. Each pixel will then receive a fresh Poisson spike train, which will be
-    propagated directly through Equations 3--7 to produce z#sub[i]. The empirical
-    response table will not generate decoder inputs. Seeds #seed-text will use
-    Adam, learning rate 0.001, batch size 256, and initially at most 15 epochs.
-    Validation alone will control model selection, regularization, early
-    stopping, and any epoch extension. The official MNIST test set will remain
-    held out until Method 6. Each configuration, selected epoch, and training
-    history will be recorded.
+    Every image presentation sampled a rate uniformly from the registered grid.
+    Each pixel then received a fresh Poisson spike train propagated directly
+    through Equations 3--7 to produce z#sub[i]; the empirical response table did
+    not generate decoder inputs. Seeds #seed-text used Adam, learning rate 0.001,
+    batch size 256, and 15 epochs. Validation alone selected epochs and the
+    linear weight decay from 10#super[-5], 10#super[-4], and 10#super[-3]. The
+    official MNIST test set remained held out. The primary ensemble used the
+    1.2 μS probe, and separate 0.6 and 2.4 μS ensembles measured conductance
+    sensitivity without pooling conditions.
 
-    The primary ensemble will use the 1.2 μS probe; separate 0.6 and 2.4 μS runs
-    will test conductance sensitivity. Conductance conditions will not be pooled
-    or supplied to either decoder.
-
-  6. *Planned inference-only psychometric evaluation.* All decoders will be
-    frozen before the held-out MNIST test set is accessed. At each tested rate,
-    decoder seeds will use the same held-out images and reproducible fresh
-    direct-simulation draws; additional direct draws will measure encoding
-    variability. The primary curve will be
+  6. *Evaluated frozen held-out psychometric curves.* All decoders, selected
+    epochs, hyperparameters, checkpoint hashes, rates, direct-simulation seeds,
+    and uncertainty rules were committed before the held-out MNIST test set was
+    accessed. At each rate, every decoder seed received the same 10,000 held-out
+    images and three reproducible fresh direct-simulation draws. The primary
+    curve was
 
     $ A_r (r) = P("correct" | r, "mixed-rate nonlinear decoder"). quad "(19)" $
 
     Here A#sub[r] is held-out nonlinear-ANN accuracy, P is correct-classification
     probability, and r is rate. The linear decoder will remain diagnostic.
 
-    Bootstrap resampling of held-out images, direct-simulation draws, and decoder
-    seeds will give lower confidence bound L#sub[r]. The decoder-relative edge
-    will be
+    Two thousand bootstrap repetitions independently resampled held-out images,
+    direct-simulation draws, and decoder seeds to give the one-sided 95% lower
+    confidence bound L#sub[r]. The decoder-relative edge was
 
     $ r_"decode" = "lowest " r in cal(R) " satisfying " L_r (r) > 1 / N_"class". quad "(20)" $
 
-    The practical training floor will be
+    The practical training floor was
 
     $ r_"train" = "lowest " r in cal(R) " satisfying " L_r (r) >= a_"use". quad "(21)" $
 
     Here $cal(R)$ is the tested grid; N#sub[class] is the number of classes;
     r#sub[decode] is the lowest rate reliably above chance; a#sub[use] is the 50%
     useful-accuracy target; and r#sub[train] is the lowest rate whose lower
-    confidence bound reaches it. Primary thresholds will use the 1.2 μS
-    nonlinear ANN. The linear decoder and 0.6 and 2.4 μS runs will show
-    sensitivity to decoder capacity and conductance. Interpolated rates will not
-    be treated as observations.
+    confidence bound reaches it. Primary thresholds used the 1.2 μS nonlinear
+    ANN. The nominal linear decoder and nonlinear 0.6 and 2.4 μS ensembles
+    measured decoder and conductance sensitivity. Interpolated rates were not
+    treated as observations.
 
-  7. *Planned training-range decision.* The final `decision.json` will report
-    r#sub[decode], r#sub[train], their uncertainty, probe-conductance sensitivity,
-    decoder and artifact hashes, and all rule outcomes. The recommended later
-    PING range will be r#sub[train]--25 Hz. If the floor shifts by more than one
-    adjacent grid point across conductances, the result will report plausible
-    floors rather than one value. A separate experiment will train and test PING
-    over the resulting range.
+  7. *Selected the training range.* The decision reported r#sub[decode],
+    r#sub[train], uncertainty, conductance sensitivity, model and artifact
+    hashes, and every registered rule outcome. The later PING range began at
+    r#sub[train] and ended at the registered 25 Hz ceiling. The rule would have
+    reported a range of plausible floors if conductance shifted the practical
+    floor by more than one adjacent grid point.
 
   #block(breakable: false)[
     == Results
 
     We characterized the filter-matched pixel response, empirical
-    response table, linear approximation, and complete feature images. The
-    response table was used only for characterization and consistency checks;
-    the complete feature images did not meet all low-rate image-level
-    tolerances. Decoder
-    training, psychometric evaluation, and a training-range decision were not
-    performed and remain incomplete.
+    response table, linear approximation, complete feature images, mixed-rate
+    decoder training, and frozen held-out psychometrics. The response table was
+    used only for characterization and consistency checks; all decoder inputs
+    came from fresh direct simulations. The Step 4 low-rate image-level failure
+    remained unchanged and did not prevent the explicitly continued decoder
+    analysis.
 
     === Filter-matched feature generation
 
@@ -398,15 +402,66 @@
 
   === Mixed-rate decoder training
 
-  _Not yet performed._
+  #image(
+    "/artifacts/data/exp077/step5_training_history.svg",
+    width: 100%,
+    alt: "Validation accuracy across fifteen epochs for nonlinear and linear decoders at three probe conductances.",
+  )
+
+  _Mixed-rate validation histories._ Each panel plots mean validation accuracy
+  across decoder seeds, with the seed range shaded, for models trained from
+  fresh direct simulations at uniformly sampled registered rates. Curves rise
+  rapidly and then flatten because most learnable class structure is acquired
+  in the first several epochs; the three conductances overlap because scaling
+  the subthreshold response preserves nearly the same spatial evidence.
+
+  At the nominal probe, validation selected nonlinear epochs
+  #s5.records.at(3).selected_nonlinear_epoch,
+  #s5.records.at(4).selected_nonlinear_epoch, and
+  #s5.records.at(5).selected_nonlinear_epoch, with accuracies
+  #pct(s5.records.at(3).selected_nonlinear_validation_accuracy),
+  #pct(s5.records.at(4).selected_nonlinear_validation_accuracy), and
+  #pct(s5.records.at(5).selected_nonlinear_validation_accuracy). The matched
+  linear decoders reached
+  #pct(s5.records.at(3).selected_linear_validation_accuracy),
+  #pct(s5.records.at(4).selected_linear_validation_accuracy), and
+  #pct(s5.records.at(5).selected_linear_validation_accuracy).
 
   === ANN psychometric curve and thresholds
 
-  _Not yet performed._
+  #image(
+    "/artifacts/data/exp077/psychometric.svg",
+    width: 100%,
+    alt: "Held-out accuracy against encoding rate, comparing nonlinear and linear decoders and three probe conductances with uncertainty bands.",
+  )
+
+  _Frozen held-out psychometrics._ Curves show accuracy on the same 10,000
+  held-out MNIST images from three direct-simulation draws and three decoder
+  seeds; bands show the registered hierarchical 95% interval. The dotted and
+  dashed horizontal rules mark 10% chance and 50% useful accuracy. Accuracy
+  rises with rate because more pixels receive spikes within 200 ms, while the
+  near-overlap across probe conductances shows that the trained nonlinear
+  decoder compensates for their response-scale difference.
+
+  At 0.25 Hz, nominal nonlinear accuracy was #pct(nominal-quarter.accuracy),
+  with a #pct(nominal-quarter.lower_95_one_sided) one-sided lower bound. At 0.5
+  Hz it was #pct(nominal-half.accuracy), with a
+  #pct(nominal-half.lower_95_one_sided) lower bound. The nominal linear decoder
+  also first crossed the 50% lower-bound criterion at
+  #s6.thresholds.at("linear_1.2").r_train_hz Hz.
 
   === Training-range decision
 
-  _Not yet performed._
+  The nonlinear decoder was reliably above chance from
+  #decision.r_decode_hz Hz, and its practical floor was
+  #decision.r_train_hz Hz. The practical floor remained
+  #decision.conductance_floors_hz.at("0.6") Hz at 0.6 μS,
+  #decision.conductance_floors_hz.at("1.2") Hz at 1.2 μS, and
+  #decision.conductance_floors_hz.at("2.4") Hz at 2.4 μS. We therefore
+  recommend rates from #decision.recommendation.floor_hz Hz to
+  #decision.recommendation.ceiling_hz Hz for later variable-rate PING training.
+  This is a decoder-relative practical
+  range, not an absolute information limit or a PING accuracy result.
 
   == Relation to prior work
 

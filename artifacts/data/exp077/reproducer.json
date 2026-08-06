@@ -24,5 +24,15 @@
       "artifacts/data/exp077/step4_outcome.json"
     ],
     "paid_compute": false
+  },
+  "steps5_7": {
+    "smoke_command": "EXP077_STAGE=smoke uv run python -c 'from experiments.exp077 import step_5; step_5()'",
+    "modal_training_command": "uv run python experiments/exp077_modal.py --stage full --probe <probe> --seed <seed> --live",
+    "freeze_command": "uv run python -c 'from experiments.exp077 import write_frozen_evaluation_protocol; write_frozen_evaluation_protocol()'",
+    "modal_evaluation_command": "uv run python experiments/exp077_evaluate_modal.py --live",
+    "analysis_command": "uv run python -c 'from experiments.exp077 import analyze_held_out_evaluation, step_7; analyze_held_out_evaluation(); step_7()'",
+    "checkpoint_count": 9,
+    "expected_decision_sha256": "d16be9d0bca310e78c2ee6de2d18aaed3e3cf709536763d303f423f706da0133",
+    "paid_compute": true
   }
 }
