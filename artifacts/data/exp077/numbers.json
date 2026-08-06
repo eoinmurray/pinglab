@@ -21716,7 +21716,7 @@
     "arrays_path": "artifacts/data/exp077/step3_linear_filter_arrays.npz",
     "arrays_sha256": "1e6dff93eddd86d8b9525d7040f9fe1145af29330de9624ab63e39bb6f2a3d68",
     "figure_path": "artifacts/data/exp077/linear_filter.svg",
-    "figure_sha256": "6eb7126191a5f3754d5224d3287d6ac541615260fd1a1475d85dcc2a1b2fa3b2",
+    "figure_sha256": "eba5f6baa8c7d8ed9ddf635d08d788723969c3bb4c448a2fffceed4166176b06",
     "runtime_s": 62.557,
     "paid_compute_usd": 0.0
   },

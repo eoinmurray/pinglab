@@ -473,16 +473,16 @@
   #image(
     "/artifacts/data/exp077/linear_filter.svg",
     width: 100%,
-    alt: "Three panels show the complete filter response, predicted against empirical variance, and their ratio against expected input spikes.",
+    alt: "Two Bode magnitude panels show the synapse-plus-membrane response and the complete response after 200 millisecond averaging at low, transitional, and high drive.",
   )
 
-  _Where the stationary approximation succeeds and fails._ Each cell reports
-  the median log-ratio of predicted to empirical variance at one conductance and
-  expected-drive bin. Neutral colour denotes agreement; increasingly warm
-  colours denote overprediction. The white contour marks exact agreement and
-  dark contours mark one-half and twice the empirical variance. The
-  approximation improves with drive but strongly overpredicts sparse-drive
-  variance, especially at larger conductance.
+  _Linearized frequency response at the nominal 1.2 μS probe._ Panel A shows
+  the synapse-plus-membrane transfer magnitude for low, transitional, and high
+  drive. Panel B applies the #presentation-ms ms finite-window averaging
+  response to the same curves. Gain is expressed relative to the low-drive DC
+  response, so vertical separation shows how mean conductance changes local
+  gain while the additional roll-off and spectral nulls show what window
+  averaging removes. The dotted horizontal line marks −3 dB.
 
   All #s3.gain_checks.len() numerical sinusoidal gain checks passed; the largest
   relative error was
@@ -496,8 +496,9 @@
   #rounded(s3-nominal-low.median_predicted_empirical_ratio) at low drive,
   #rounded(s3-nominal-transition.median_predicted_empirical_ratio) at
   transitional drive, and #rounded(s3-nominal-high.median_predicted_empirical_ratio)
-  at high drive. The linear model is therefore a useful failure diagnostic, not
-  a substitute for the empirical library.
+  at high drive. Thus the transfer functions and numerical implementation agree,
+  but the stationary variance approximation remains quantitatively poor and is
+  not a substitute for the empirical library.
 
   === Step 4: complete feature images
 

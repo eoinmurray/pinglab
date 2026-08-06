@@ -21,7 +21,6 @@ from typing import Any, Literal
 
 import matplotlib.pyplot as plt
 import numpy as np
-from matplotlib.colors import TwoSlopeNorm
 
 REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO))
@@ -1762,6 +1761,19 @@ def complete_transfer(
     """Equations 13--15, with angular frequency expressed in rad/ms."""
     frequency = np.asarray(frequency_hz, dtype=np.float64)
     omega = 2.0 * np.pi * frequency / 1000.0
+    argument = omega * PRESENTATION_MS / 2.0
+    averaging = np.exp(-1j * argument) * np.sinc(argument / np.pi)
+    return averaging * synapse_membrane_transfer(frequency_hz, lambda_hz, probe_uS)
+
+
+def synapse_membrane_transfer(
+    frequency_hz: np.ndarray,
+    lambda_hz: np.ndarray | float,
+    probe_uS: np.ndarray | float,
+) -> np.ndarray:
+    """Equation 13 before applying the finite presentation-window average."""
+    frequency = np.asarray(frequency_hz, dtype=np.float64)
+    omega = 2.0 * np.pi * frequency / 1000.0
     mean_g, mean_v = linear_operating_point(lambda_hz, probe_uS)
     synapse = np.asarray(probe_uS) / (
         1j * omega + 1.0 / PARAMETERS["tau_ampa_ms"]
@@ -1771,9 +1783,7 @@ def complete_transfer(
         + PARAMETERS["g_L_uS"]
         + mean_g
     )
-    argument = omega * PRESENTATION_MS / 2.0
-    averaging = np.exp(-1j * argument) * np.sinc(argument / np.pi)
-    return averaging * synapse * membrane
+    return synapse * membrane
 
 
 def predicted_linear_variance(
@@ -1983,64 +1993,54 @@ def calculate_step3(library: np.ndarray) -> dict[str, Any]:
 
 
 def plot_step3(record: dict[str, Any], path: Path) -> None:
-    """Show directly where the linear variance approximation agrees or fails."""
+    """Show the registered linear system as a minimal pair of Bode plots."""
     theme.apply()
-    fig, ax = plt.subplots(figsize=(8.2, 3.55), constrained_layout=True)
-    expected = np.asarray(record["expected_spikes"])
-    ratio = np.asarray(record["ratio"])
-    positive = expected[expected > 0]
-    edges = np.geomspace(float(np.min(positive)), float(np.max(positive)), 39)
-    centers = np.sqrt(edges[:-1] * edges[1:])
-    binned = np.full((len(PROBE_CONDUCTANCES_US), len(centers)), np.nan)
-    for probe_index in range(len(PROBE_CONDUCTANCES_US)):
-        for bin_index in range(len(centers)):
-            selected = (
-                (expected[probe_index] >= edges[bin_index])
-                & (expected[probe_index] < edges[bin_index + 1])
-                & np.isfinite(ratio[probe_index])
-                & (ratio[probe_index] > 0)
-            )
-            if np.any(selected):
-                binned[probe_index, bin_index] = np.median(
-                    np.log2(ratio[probe_index][selected])
-                )
-    y_edges = np.arange(len(PROBE_CONDUCTANCES_US) + 1) - 0.5
-    mesh = ax.pcolormesh(
-        edges,
-        y_edges,
-        binned,
-        cmap="coolwarm",
-        norm=TwoSlopeNorm(vmin=-1.0, vcenter=0.0, vmax=4.2),
-        shading="flat",
+    fig, (ax_g, ax_h) = plt.subplots(
+        1, 2, figsize=(8.2, 3.25), constrained_layout=True, sharey=True
     )
-    contour_values = np.ma.masked_invalid(binned)
-    ax.contour(
-        centers,
-        np.arange(len(PROBE_CONDUCTANCES_US)),
-        contour_values,
-        levels=(-1.0, 0.0, 1.0),
-        colors=("0.25", "white", "0.25"),
-        linewidths=(0.8, 1.4, 0.8),
+    frequency = np.geomspace(0.1, 200.0, 1400)
+    probe = 1.2
+    reference = float(
+        np.abs(synapse_membrane_transfer(np.asarray([0.0]), 0.25, probe)[0])
     )
-    colorbar = fig.colorbar(mesh, ax=ax, pad=0.025)
-    colorbar.set_label("log₂(predicted / empirical variance)")
-    colorbar.set_ticks((-1, 0, 1, 2, 3, 4), labels=("½×", "1×", "2×", "4×", "8×", "16×"))
-    ax.set_xscale("log")
-    ax.set_yticks(range(len(PROBE_CONDUCTANCES_US)), labels=[f"{probe:g} μS" for probe in PROBE_CONDUCTANCES_US])
-    ax.set(
-        title="Where the stationary linear approximation works—and where it fails",
-        xlabel="Expected input spikes per 200 ms presentation",
-        ylabel="Probe conductance",
+    styles = (
+        (theme.INK_BLACK, "-", "0.25 Hz drive"),
+        (theme.DEEP_RED, "--", "3 Hz drive"),
+        (theme.ELECTRIC_CYAN, "-.", "25 Hz drive"),
     )
-    ax.text(
-        0.02,
-        0.04,
-        "27/27 numerical gain checks passed\nwhite contour: exact agreement; dark contours: ½× and 2×",
-        transform=ax.transAxes,
-        fontsize=7.5,
-        color=theme.INK,
-        bbox={"facecolor": "white", "edgecolor": theme.RULE, "alpha": 0.9, "pad": 3},
+    for rate, (color, linestyle, label) in zip(GAIN_OPERATING_RATES_HZ, styles):
+        g_magnitude = np.abs(synapse_membrane_transfer(frequency, rate, probe))
+        h_magnitude = np.abs(complete_transfer(frequency, rate, probe))
+        ax_g.semilogx(
+            frequency,
+            20.0 * np.log10(np.maximum(g_magnitude / reference, 1e-8)),
+            color=color,
+            linestyle=linestyle,
+            linewidth=1.8,
+            label=label,
+        )
+        ax_h.semilogx(
+            frequency,
+            20.0 * np.log10(np.maximum(h_magnitude / reference, 1e-8)),
+            color=color,
+            linestyle=linestyle,
+            linewidth=1.8,
+        )
+    ax_g.set(
+        title="A  Synapse + membrane, |Gλ(f)|",
+        xlabel="Frequency (Hz)",
+        ylabel="Gain relative to low-drive DC (dB)",
+        ylim=(-90, 4),
     )
+    ax_h.set(
+        title="B  After 200 ms averaging, |Hλ(f)|",
+        xlabel="Frequency (Hz)",
+    )
+    ax_g.legend(frameon=False, fontsize=7.5, title="Nominal 1.2 μS probe")
+    for axis in (ax_g, ax_h):
+        axis.axhline(-3.0, color=theme.GREY_LIGHT, linewidth=0.8, linestyle=":")
+        axis.grid(alpha=0.15, which="both")
+        axis.spines[["top", "right"]].set_visible(False)
     fig.savefig(path, format="svg", metadata={"Date": None})
     plt.close(fig)
 
