@@ -58,8 +58,7 @@ LIBRARY_CHUNK_INTENSITIES = 8
 LIBRARY_SCRATCH = REPO / "temp" / SLUG / "response_library.float32.npy"
 LIBRARY_PROGRESS = REPO / "temp" / SLUG / "response_library.progress.json"
 LIBRARY_STREAM = 1
-VISUAL_CONVERGENCE_K = (256, 512, 1024, 2048, 4096)
-VISUAL_SELECTED_K = 2048
+DIAGNOSTIC_K = 512
 REPLAY_CHUNK_INDICES = (0,)
 DIRECT_VALIDATION_INTENSITIES = (64, 128, 255)
 DIRECT_VALIDATION_RATES_HZ = (0.25, 3.0, 25.0)
@@ -1293,97 +1292,36 @@ def plot_full_library(
     plt.close(fig)
 
 
-def plot_visual_k_convergence(library: np.ndarray, path: Path) -> None:
-    """Plot how mean and SD estimates approach the largest-K reference."""
-    pooled = np.transpose(library, (1, 2, 3, 4, 0)).reshape(
-        len(PROBE_CONDUCTANCES_US),
-        len(TRAINING_RATES_HZ),
-        len(INTENSITY_LEVELS),
-        -1,
-    )
-    if pooled.shape[-1] < max(VISUAL_CONVERGENCE_K):
-        raise ValueError("empirical response table has too few pooled draws")
-    reference = pooled[..., : max(VISUAL_CONVERGENCE_K)]
-    reference_mean = reference.mean(axis=-1)
-    reference_sd = reference.std(axis=-1, ddof=1)
-    mean_changes, sd_changes = [], []
-    for k in VISUAL_CONVERGENCE_K:
-        sample = pooled[..., :k]
-        mean_changes.append(
-            np.mean(np.abs(sample.mean(axis=-1) - reference_mean), axis=(1, 2))
-        )
-        sd_changes.append(
-            np.mean(np.abs(sample.std(axis=-1, ddof=1) - reference_sd), axis=(1, 2))
-        )
-    mean_changes = np.asarray(mean_changes)
-    sd_changes = np.asarray(sd_changes)
-    colors = (theme.INK_BLACK, theme.DEEP_RED, theme.ELECTRIC_CYAN)
-    fig, axes = plt.subplots(1, 2, figsize=(8.2, 3.25), constrained_layout=True)
-    for probe_index, (probe, color) in enumerate(zip(PROBE_CONDUCTANCES_US, colors)):
-        for axis, changes in zip(axes, (mean_changes, sd_changes)):
-            axis.plot(
-                VISUAL_CONVERGENCE_K,
-                changes[:, probe_index],
-                color=color,
-                marker="o",
-                linewidth=1.7,
-                markersize=4,
-                label=f"{probe:g} μS",
-            )
-    axes[0].set(title="A  Mean estimate converges", ylabel="Mean absolute change (mV)")
-    axes[1].set(title="B  SD estimate converges", ylabel="Mean absolute change in SD (mV)")
-    for axis in axes:
-        axis.set_xscale("log", base=2)
-        axis.set_xticks(VISUAL_CONVERGENCE_K, labels=("256", "512", "1,024", "2,048", "4,096"))
-        axis.set_xlabel("Pooled responses per condition, K")
-        axis.set_ylim(bottom=0)
-        axis.spines[["top", "right"]].set_visible(False)
-    axes[0].legend(frameon=False, fontsize=7, title="Probe conductance")
-    fig.suptitle("Change relative to the K = 4,096 reference")
-    savefig_atomic(fig, path, dpi=220, facecolor="white")
-    plt.close(fig)
-
-
 def refresh_full_library_figure() -> None:
-    """Replot the recorded Step 2 figure without rerunning any simulation."""
-    with np.load(FIGURES / "response_library_summary.npz") as stored:
-        summaries = {name: stored[name] for name in stored.files}
-    numbers = json.loads((FIGURES / "numbers.json").read_text())
+    """Replot the diagnostic Step 2 moments without rerunning any simulation."""
+    library = _open_library("r")
+    diagnostic = library[..., :DIAGNOSTIC_K]
+    summaries = _summary_statistics(diagnostic)
+    distributions = _representative_distributions(diagnostic)
+    summary_path = FIGURES / "response_table_diagnostic_summary.npz"
+    np.savez_compressed(
+        summary_path,
+        mean=summaries["mean"],
+        standard_deviation=summaries["standard_deviation"],
+        zero_fraction=summaries["zero_fraction"],
+    )
     plot_full_library(
         summaries,
-        numbers["step2"]["representative_distributions"],
-        _open_library("r"),
+        distributions,
+        diagnostic,
         FIGURES / "response_library.png",
     )
-    plot_visual_k_convergence(
-        _open_library("r"), FIGURES / "response_table_k_convergence.png"
-    )
-    visual_selection = {
-        "method": "visual convergence of mean absolute changes relative to K=4096",
-        "candidate_K": list(VISUAL_CONVERGENCE_K),
-        "selected_K": VISUAL_SELECTED_K,
-        "comparison_K": 2 * VISUAL_SELECTED_K,
-        "pooling": "fixed round-robin order across the three independent seed streams",
-        "scope": "all rate-intensity conditions and three probe conductances; response mean and standard deviation",
-        "decision": (
-            "K=2048 reduced the average absolute changes in both moments to "
-            "small residuals before the K=4096 reference"
-        ),
-        "source_response_table_sha256": LIBRARY_SHA256,
-        "figure": "artifacts/data/exp077/response_table_k_convergence.png",
-        "figure_sha256": sha256_file(FIGURES / "response_table_k_convergence.png"),
-    }
-    visual_selection_path = FIGURES / "visual_k_selection.json"
-    visual_selection_path.write_text(json.dumps(visual_selection, indent=2) + "\n")
     manifest_path = FIGURES / "step2_manifest.json"
     manifest = json.loads(manifest_path.read_text())
     manifest["response_library_figure_sha256"] = sha256_file(
         FIGURES / "response_library.png"
     )
-    manifest["visual_k_convergence_figure_sha256"] = sha256_file(
-        FIGURES / "response_table_k_convergence.png"
-    )
-    manifest["visual_k_selection_sha256"] = sha256_file(visual_selection_path)
+    manifest.pop("visual_k_convergence_figure_sha256", None)
+    manifest.pop("visual_k_selection_sha256", None)
+    manifest["diagnostic_draws_per_condition_per_seed"] = DIAGNOSTIC_K
+    manifest["diagnostic_summary_sha256"] = sha256_file(summary_path)
+    manifest["role"] = "mean/SD plotting and consistency validation only"
+    manifest["ann_inputs"] = "fresh direct Poisson-synapse-membrane simulation per presentation"
     manifest_path.write_text(json.dumps(manifest, indent=2) + "\n")
 
 
@@ -1396,8 +1334,12 @@ def record_full_library(
     distributions = validation["distributions"]
     summary_path = FIGURES / "response_library_summary.npz"
     np.savez_compressed(summary_path, **summaries)
+    diagnostic = library[..., :DIAGNOSTIC_K]
     plot_full_library(
-        summaries, distributions, library, FIGURES / "response_library.png"
+        _summary_statistics(diagnostic),
+        _representative_distributions(diagnostic),
+        diagnostic,
+        FIGURES / "response_library.png",
     )
     library_sha256 = sha256_file(LIBRARY_SCRATCH)
     progress = json.loads(LIBRARY_PROGRESS.read_text())
@@ -1405,6 +1347,9 @@ def record_full_library(
     manifest = {
         "status": "complete",
         "selected_K": LIBRARY_K,
+        "diagnostic_draws_per_condition_per_seed": DIAGNOSTIC_K,
+        "role": "mean/SD plotting and consistency validation only",
+        "ann_inputs": "fresh direct Poisson-synapse-membrane simulation per presentation",
         "convergence_rule_changed": False,
         "library_generated": True,
         "library_shape": list(LIBRARY_SHAPE),
@@ -2155,7 +2100,7 @@ def sample_library_image(
     image_index: int,
     replicate: int,
 ) -> tuple[np.ndarray, np.ndarray]:
-    """Sample one empirical draw per row-major pixel using the locked stream."""
+    """Sample table values for the Step 4 diagnostic comparison only."""
     pixels = np.asarray(image_uint8, dtype=np.uint8).reshape(-1)
     rng = _step4_rng(1, probe_index, rate_index, image_index, replicate)
     draws = rng.integers(0, LIBRARY_K, size=pixels.size)

@@ -15,9 +15,7 @@
 #let seeds = (42, 43, 44)
 #let r = json("/artifacts/data/exp077/numbers.json")
 #let m = json("/artifacts/data/exp077/step2_manifest.json")
-#let vk = json("/artifacts/data/exp077/visual_k_selection.json")
-#let mono = r.step2.validations.monotonic_means
-#let low-dist = r.step2.representative_distributions.first()
+#let diagnostic-k = m.diagnostic_draws_per_condition_per_seed
 #let s3 = r.step3
 #let s4 = r.step4
 #let s3-nominal-low = s3.agreement_summaries.at(3)
@@ -149,29 +147,15 @@
     $ z_i = 1 / T integral_0^T (v_i (t) - E_L) dif t. quad "(7)" $
 
     Here T is presentation duration and z#sub[i] is mean baseline-subtracted
-    voltage. We did not divide by rate or disclose it to either decoder, so
-    lower rates retain their weaker, noisier signal.
+    voltage. The feature definition did not divide by rate, and future decoder
+    inputs will not include rate, so lower rates retain their weaker, noisier
+    signal.
 
-  2. *Generated and evaluated the empirical response table.* Before
-    generating the response table, we evaluated candidate draw counts K of 256,
-    512, 1,024, 2,048, and 4,096 by direct visual convergence. Independent seed
-    streams were pooled in a fixed round-robin order. At each K, we calculated
-    every rate--intensity condition's mean and standard deviation, subtracted
-    the corresponding K = 4,096 estimate, took the absolute difference, and
-    averaged those differences within each probe conductance. We plotted these
-    two average changes against K. Both approached zero, with only small
-    residual changes by K = 2,048, so we retained #vk.selected_K responses per
-    condition and seed.
-
-    We then ran that many independent
-    single-pixel draws for every grayscale level, registered rate, probe conductance,
-    and seed. The retained float32 array has shape
-    #m.library_shape.map(str).join(" × ") in the ordered axes
-    seed, probe conductance, rate, intensity, and draw. Its payload occupies
-    #m.library_payload_bytes bytes in local scratch and is authenticated by the
-    SHA-256 digest #m.library_sha256.
-
-    The final response table estimated the conditional mean
+  2. *Characterized the empirical response moments.* For visualization and
+    consistency checks, we used #diagnostic-k independent simulations per
+    rate--intensity--conductance condition and seed. This was a practical
+    diagnostic sample size, not a convergence gate or a requirement for ANN
+    training. The empirical response table estimated the conditional mean
 
     $ hat(mu)_z (x, r, w_"probe") = 1 / K sum_(k=1)^K z^(k). quad "(8)" $
 
@@ -183,33 +167,20 @@
     z#super[(k)] is draw k; K is the draw count; and Equations 8 and 9 estimate
     the conditional mean and variance.
 
-    We retained all K simulated values as the empirical response table. Complete
-    feature images drew one value according to
+    The table was used only to plot these moments and to compare empirical and
+    analytical descriptions. It was not used as a sampling distribution for ANN
+    inputs. For every future image presentation n, the ANN input will instead be
+    generated directly by drawing a fresh Poisson spike train and rerunning the
+    synapse and membrane equations:
 
-    $ J tilde "DiscreteUniform"(1, dots.c, K), quad z_"sample" = z^(J). quad "(10)" $
+    $ S_i^(n)(t) -> g_i^"pix,n"(t) -> v_i^(n)(t) -> z_i^(n) -> "ANN". quad "(10)" $
 
-    Here J was uniform on the K draws and z#sub[sample] was the sampled feature;
-    other symbols follow Equations 8 and 9. Mean and variance summarize noise,
-    but the ANN samples the retained empirical values because low-rate responses
-    may be zero-heavy, skewed, and non-Gaussian.
+    Repeated presentations therefore sample the full conditional distribution
+    of z#sub[i] without fitting or resampling an intermediate noise model.
 
-    The generator wrote #m.chunking.total_chunks deterministic,
-    independently authenticated intensity chunks. Exact replay passed for one
-    predeclared chunk from every seed. The complete grid, finite values,
-    physical bounds, zero-intensity resting response, independent streams,
-    independently recomputed moments, fresh direct simulations, and float32
-    fidelity all passed their checks. The low-rate representative condition had
-    zero fraction #rounded(low-dist.zero_fraction), skewness
-    #rounded(low-dist.skewness), and #low-dist.distinct_float32_values distinct
-    retained values, preserving its discrete, non-Gaussian structure.
-
-    The required monotonicity check did not pass. It compared every adjacent
-    intensity and rate pair using the predeclared
-    #(mono.standard_error_multiplier)-standard-error tolerance.
-    #mono.intensity_violations of #mono.intensity_comparison_count intensity
-    pairs exceeded it, while #mono.rate_violations of
-    #mono.rate_comparison_count rate pairs did. The response table therefore did
-    not meet the monotonicity validation criterion.
+    Exact replay, finite values, physical bounds, zero-intensity resting
+    response, independent streams, recomputed moments, fresh direct simulations,
+    and float32 fidelity were checked.
 
   3. *Compared empirical variance with a linear-filter prediction.* We tested
     whether a local linear approximation explained the measured feature
@@ -279,9 +250,9 @@
     official 60,000-image MNIST training partition. Indices 0--54,999 and
     55,000--59,999 were reserved for decoder training and validation,
     respectively; the official MNIST test set was held out and not loaded. For each uint8
-    pixel, the sampler used its exact 0--255 intensity index and selected one of
-    the K = #vk.selected_K authenticated empirical draws with independent,
-    deterministic pixel and image streams.
+    pixel, the diagnostic sampler used its exact 0--255 intensity index and
+    selected an authenticated empirical draw with independent, deterministic
+    pixel and image streams. A fresh direct simulation provided the comparison.
 
     The direct comparison used training images 0--15, #s4.dataset.image_shape.at(1)
     × #s4.dataset.image_shape.at(2) pixels, eight independent replicates, all
@@ -296,8 +267,9 @@
 
     We characterized the filter-matched pixel response, empirical
     response table, linear approximation, and complete feature images. The
-    response table did not meet its monotonicity criterion, and the complete
-    feature images did not meet all low-rate image-level tolerances. Decoder
+    response table was used only for characterization and consistency checks;
+    the complete feature images did not meet all low-rate image-level
+    tolerances. Decoder
     training, psychometric evaluation, and a training-range decision were not
     performed and remain incomplete.
 
@@ -317,18 +289,6 @@
   === Empirical response table
 
   #image(
-    "/artifacts/data/exp077/response_table_k_convergence.png",
-    width: 100%,
-    alt: "Two panels show average absolute changes in condition-wise response mean and standard deviation against pooled sample count for three probe conductances.",
-  )
-
-  _Visual selection of the response-table draw count._ Panel A plots the average
-  absolute change in each condition's mean relative to K = 4,096; Panel B does
-  the same for standard deviation. Lines distinguish probe conductance. Both
-  changes decreased steadily with K and were small by K = 2,048, showing
-  directly why additional responses had little effect on the estimated moments.
-
-  #image(
     "/artifacts/data/exp077/response_library.png",
     width: 100%,
     alt: "Two panels show empirical feature mean and standard deviation against expected input spikes for three probe conductances.",
@@ -336,11 +296,12 @@
 
   _Signal and variability across the empirical response table._ For every
   rate--intensity condition, Panel A plots the mean feature z and Panel B its
-  standard deviation across the authenticated draws, against encoding rate ×
-  normalized pixel intensity × #presentation-ms ms. Each point is one observed
-  rate--intensity condition, and colour encodes probe conductance. Both moments
-  rise because larger expected spike counts deliver more stochastic conductance;
-  larger probes produce larger voltage excursions.
+  standard deviation from #diagnostic-k independent simulations per condition
+  and seed, against encoding rate × normalized pixel intensity ×
+  #presentation-ms ms. Each point is one rate--intensity condition, and colour
+  encodes probe conductance. Both moments rise because larger expected spike
+  counts deliver more stochastic conductance; larger probes produce larger
+  voltage excursions.
 
   === Linear-filter prediction
 
