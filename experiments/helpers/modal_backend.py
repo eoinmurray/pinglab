@@ -116,6 +116,11 @@ def _source_image(modal: Any):
     return image
 
 
+def _source_image_exp077(modal: Any):
+    """Source image for exp077's direct MNIST feature simulation."""
+    return _source_image(modal).uv_pip_install("torchvision")
+
+
 def _tar_tree(root: Path) -> bytes:
     buffer = io.BytesIO()
     with tarfile.open(fileobj=buffer, mode="w:gz") as archive:

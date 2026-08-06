@@ -173,3 +173,34 @@ def test_direct_black_image_stays_at_rest() -> None:
     )
     assert features.shape == (exp077.STEP4_REPLICATES, 784)
     assert np.all(features == 0.0)
+
+
+def test_torch_direct_features_replay_and_fresh_draw() -> None:
+    import torch
+
+    images = torch.full((2, 28, 28), 255, dtype=torch.uint8)
+    rates = torch.tensor([3.0, 25.0])
+    first_generator = torch.Generator().manual_seed(123)
+    replay_generator = torch.Generator().manual_seed(123)
+    fresh_generator = torch.Generator().manual_seed(124)
+    first = exp077.direct_feature_batch_torch(images, rates, 1.2, first_generator)
+    replay = exp077.direct_feature_batch_torch(images, rates, 1.2, replay_generator)
+    fresh = exp077.direct_feature_batch_torch(images, rates, 1.2, fresh_generator)
+    assert torch.equal(first, replay)
+    assert not torch.equal(first, fresh)
+    assert torch.isfinite(first).all()
+    assert torch.all((first >= 0.0) & (first <= 65.0))
+
+
+def test_decoder_partitions_are_disjoint() -> None:
+    train = set(range(*exp077.TRAIN_INDICES))
+    validation = set(range(*exp077.VALIDATION_INDICES))
+    assert train.isdisjoint(validation)
+    assert len(train) == 55_000
+    assert len(validation) == 5_000
+
+
+def test_registered_rate_sampler_can_reach_every_rate() -> None:
+    rng = np.random.default_rng(exp077._decoder_seed(42, 1, 2))
+    positions = rng.integers(0, len(exp077.TRAINING_RATES_HZ), 10_000)
+    assert set(positions) == set(range(len(exp077.TRAINING_RATES_HZ)))
