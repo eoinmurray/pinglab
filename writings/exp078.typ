@@ -83,10 +83,10 @@
     where $L$ is the binary locking label, $bold(1)[dot]$ is an indicator,
     $f_A$ and $f_B$ are coupled gamma frequencies, $epsilon_f$ is the frozen
     frequency-difference tolerance, $a_phi$ is the fitted slope of
-    Eq. (2), $epsilon_phi$ is its tolerance,
+    Equation 2, $epsilon_phi$ is its tolerance,
     $N_"slip"$ is the complete phase-slip count, and $epsilon_"slip"$ is its
-    tolerance. PLV from Eq. (3) is descriptive, not part
-    of $L$. Figures 3 and 4 apply Eq. (4) without post hoc threshold changes.
+    tolerance. PLV from Equation 3 is descriptive, not part
+    of $L$. Figures 3 and 4 apply Equation 4 without post hoc threshold changes.
     <method-locking>],
 
     [*Execute the frozen primary grid.* Thirteen target detunings cross eleven
@@ -101,7 +101,7 @@
     is contiguous, centred near zero detuning, and widens across at least three
     successive nonzero coupling levels. Every grid cell must contain a valid
     trial. In every locked nonzero-detuning cell, the circuit with greater
-    natural frequency in Eq. (1) must lead in phase under Eq. (2). The verdict
+    natural frequency in Equation 1 must lead in phase under Equation 2. The verdict
     subsection applies these clauses
     literally. <method-verdict>],
 
@@ -151,7 +151,7 @@
   Method 2 yields a stable monotonic interval from
   #r.registration.calibrated_rate_interval_hz.at(0) to
   #r.registration.calibrated_rate_interval_hz.at(1) Hz per input channel. This
-  interval supplies the rate pairs used to evaluate Eq. (1) throughout
+  interval supplies the rate pairs used to evaluate Equation 1 throughout
   the primary map.
 
   #figure(
@@ -164,13 +164,13 @@
     is on the horizontal axis; median uncoupled gamma peak frequency in hertz is
     on the vertical axis; bars show half the within-rate interquartile range.
     The shaded #r.registration.calibrated_rate_interval_hz.at(0)--#r.registration.calibrated_rate_interval_hz.at(1)
-    Hz interval supplies Eq. (1). The lowest-rate point exceeds the
+    Hz interval supplies Equation 1. The lowest-rate point exceeds the
     registered within-rate IQR ceiling. At the highest rate, the estimator hops
     between two separated spectral modes across seeds, producing the large bar.
     Both boundary conditions are excluded.],
   ) <fig-calibration>
 
-  The frozen thresholds used in Eq. (4) are
+  The frozen thresholds used in Equation 4 are
   #calc.round(r.registration.locking_tolerances.frequency_difference_hz, digits: 2)
   Hz for frequency difference,
   #calc.round(r.registration.locking_tolerances.absolute_phase_slope_rad_s, digits: 2)
@@ -180,7 +180,7 @@
 
   === Coupling produces a widening Arnold tongue
 
-  Applying Eq. (4) to the frozen grid from Method 5 produces
+  Applying Equation 4 to the frozen grid from Method 5 produces
   a contiguous locked region centred near zero detuning. Its width reaches
   #calc.round(r.conclusion.centred_locked_widths_hz.last(), digits: 2) Hz at the
   largest coupling and increases across
@@ -193,9 +193,9 @@
       alt: "Heatmap of locked-trial fraction over measured natural-frequency detuning and coupling.",
     ),
     caption: [Primary Arnold tongue. Measured natural detuning $Delta f_0$ from
-    Eq. (1) is on the horizontal axis in hertz; reciprocal coupling
+    Equation 1 is on the horizontal axis in hertz; reciprocal coupling
     $K$ is on the vertical axis; colour is the fraction of valid trials that
-    satisfy Eq. (4). The centred locked region widens with coupling,
+    satisfy Equation 4. The centred locked region widens with coupling,
     satisfying the registered geometric clause.],
   ) <fig-tongue>
 
@@ -213,7 +213,7 @@
     caption: [Component estimators on the primary grid. All panels share
     measured natural detuning in hertz horizontally and coupling $K$ vertically.
     Panels report coupled frequency difference in hertz, fitted slope of
-    Eq. (2) in radians per second, complete phase slips, PLV $R$ from Eq. (3),
+    Equation 2 in radians per second, complete phase slips, PLV $R$ from Equation 3,
     circular mean phase in radians,
     and valid-trial fraction. Validity
     is #pct(r.valid_trial_fraction)% across the grid, while low frequency
@@ -234,7 +234,7 @@
     maximum coupling, the first locked positive-detuning condition, and the
     same detuning at the immediately preceding coupling. Columns show E rasters,
     5 ms-smoothed E rates in hertz, unwrapped relative phase $phi(t)$ from
-    Eq. (2) in radians, and instantaneous frequency difference in hertz.
+    Equation 2 in radians, and instantaneous frequency difference in hertz.
     Relative phase is bounded inside the registered tongue and drifts
     immediately outside it.],
   ) <fig-traces>
@@ -252,9 +252,9 @@
   === The 800 E / 200 I confirmation resolves the exception
 
   The focused confirmation passes: all #fs.conclusion.valid_coupled_trials
-  coupled trials are valid and locked under Eq. (4), and all
+  coupled trials are valid and locked under Equation 4, and all
   #fs.conclusion.phase_sign_correct_trials have the phase sign required by
-  Eq. (1) and Method 6. At the disputed negative-detuning
+  Equation 1 and Method 6. At the disputed negative-detuning
   cell, all #fs.conclusion.disputed_negative_cell.phase_sign_correct_trials
   seeds have the correct sign with mean phase
   #calc.round(fs.conclusion.disputed_negative_cell.mean_phase_rad, digits: 3)
@@ -270,7 +270,7 @@
     ),
     caption: [Focused 800 E / 200 I finite-size confirmation. Top panels show
     locked fraction, circular mean relative phase in radians, and PLV $R$ from
-    Eq. (3) over coupling $K$ for mirrored natural detunings; error bars are
+    Equation 3 over coupling $K$ for mirrored natural detunings; error bars are
     one standard deviation across #fs.config.trials_per_cell paired seeds. The
     lower-left panel isolates phase at the disputed coupling. The remaining
     panels show post-burn E-population rates in hertz (circuit A black, circuit B
