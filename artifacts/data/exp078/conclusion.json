@@ -1,0 +1,564 @@
+{
+  "centred_locked_widths_hz": [
+    1.0399999999999978,
+    1.199999999999997,
+    1.199999999999997,
+    2.799999999999996,
+    3.680000000000001,
+    5.7600000000000025,
+    7.6800000000000015,
+    7.6800000000000015,
+    6.960000000000003,
+    9.76,
+    11.919999999999998
+  ],
+  "criteria": {
+    "contiguous_centred_width_increases_across_three_successive_nonzero_levels": true,
+    "every_grid_cell_has_a_valid_trial": true,
+    "faster_circuit_leads_in_every_locked_nonzero_detuning_cell": false
+  },
+  "longest_successive_increase_run": 4,
+  "passed": false,
+  "phase_cells": [
+    {
+      "circular_mean_phase_rad": -0.5224839600187869,
+      "coupling": 0.07200000000000001,
+      "detuning_index": 0,
+      "faster_circuit_leads": true,
+      "measured_detuning_hz": -5.76
+    },
+    {
+      "circular_mean_phase_rad": -0.506418579328535,
+      "coupling": 0.08,
+      "detuning_index": 0,
+      "faster_circuit_leads": true,
+      "measured_detuning_hz": -5.76
+    },
+    {
+      "circular_mean_phase_rad": -0.5329798782865313,
+      "coupling": 0.048,
+      "detuning_index": 1,
+      "faster_circuit_leads": true,
+      "measured_detuning_hz": -3.680000000000001
+    },
+    {
+      "circular_mean_phase_rad": -0.4271462969398532,
+      "coupling": 0.056,
+      "detuning_index": 1,
+      "faster_circuit_leads": true,
+      "measured_detuning_hz": -3.680000000000001
+    },
+    {
+      "circular_mean_phase_rad": -0.3790016731767408,
+      "coupling": 0.064,
+      "detuning_index": 1,
+      "faster_circuit_leads": true,
+      "measured_detuning_hz": -3.680000000000001
+    },
+    {
+      "circular_mean_phase_rad": -0.3533417083706333,
+      "coupling": 0.07200000000000001,
+      "detuning_index": 1,
+      "faster_circuit_leads": true,
+      "measured_detuning_hz": -3.680000000000001
+    },
+    {
+      "circular_mean_phase_rad": -0.3204671064455624,
+      "coupling": 0.08,
+      "detuning_index": 1,
+      "faster_circuit_leads": true,
+      "measured_detuning_hz": -3.680000000000001
+    },
+    {
+      "circular_mean_phase_rad": -0.4779322597089612,
+      "coupling": 0.04,
+      "detuning_index": 2,
+      "faster_circuit_leads": true,
+      "measured_detuning_hz": -2.4800000000000013
+    },
+    {
+      "circular_mean_phase_rad": -0.3349500244596587,
+      "coupling": 0.048,
+      "detuning_index": 2,
+      "faster_circuit_leads": true,
+      "measured_detuning_hz": -2.4800000000000013
+    },
+    {
+      "circular_mean_phase_rad": -0.3153370502948543,
+      "coupling": 0.056,
+      "detuning_index": 2,
+      "faster_circuit_leads": true,
+      "measured_detuning_hz": -2.4800000000000013
+    },
+    {
+      "circular_mean_phase_rad": -0.30057880223273165,
+      "coupling": 0.064,
+      "detuning_index": 2,
+      "faster_circuit_leads": true,
+      "measured_detuning_hz": -2.4800000000000013
+    },
+    {
+      "circular_mean_phase_rad": -0.2303135442921068,
+      "coupling": 0.07200000000000001,
+      "detuning_index": 2,
+      "faster_circuit_leads": true,
+      "measured_detuning_hz": -2.4800000000000013
+    },
+    {
+      "circular_mean_phase_rad": -0.2250868023874934,
+      "coupling": 0.08,
+      "detuning_index": 2,
+      "faster_circuit_leads": true,
+      "measured_detuning_hz": -2.4800000000000013
+    },
+    {
+      "circular_mean_phase_rad": -0.9434496803043264,
+      "coupling": 0.024,
+      "detuning_index": 3,
+      "faster_circuit_leads": true,
+      "measured_detuning_hz": -1.6
+    },
+    {
+      "circular_mean_phase_rad": -0.46098523679730913,
+      "coupling": 0.032,
+      "detuning_index": 3,
+      "faster_circuit_leads": true,
+      "measured_detuning_hz": -1.6
+    },
+    {
+      "circular_mean_phase_rad": -0.3079391419090623,
+      "coupling": 0.04,
+      "detuning_index": 3,
+      "faster_circuit_leads": true,
+      "measured_detuning_hz": -1.6
+    },
+    {
+      "circular_mean_phase_rad": -0.2738467247311682,
+      "coupling": 0.048,
+      "detuning_index": 3,
+      "faster_circuit_leads": true,
+      "measured_detuning_hz": -1.6
+    },
+    {
+      "circular_mean_phase_rad": -0.22657893114831903,
+      "coupling": 0.056,
+      "detuning_index": 3,
+      "faster_circuit_leads": true,
+      "measured_detuning_hz": -1.6
+    },
+    {
+      "circular_mean_phase_rad": -0.19846078539798956,
+      "coupling": 0.064,
+      "detuning_index": 3,
+      "faster_circuit_leads": true,
+      "measured_detuning_hz": -1.6
+    },
+    {
+      "circular_mean_phase_rad": -0.1892868454240959,
+      "coupling": 0.07200000000000001,
+      "detuning_index": 3,
+      "faster_circuit_leads": true,
+      "measured_detuning_hz": -1.6
+    },
+    {
+      "circular_mean_phase_rad": -0.17196628722026044,
+      "coupling": 0.08,
+      "detuning_index": 3,
+      "faster_circuit_leads": true,
+      "measured_detuning_hz": -1.6
+    },
+    {
+      "circular_mean_phase_rad": 0.20885766413702256,
+      "coupling": 0.016,
+      "detuning_index": 4,
+      "faster_circuit_leads": false,
+      "measured_detuning_hz": -0.7199999999999989
+    },
+    {
+      "circular_mean_phase_rad": -0.40623097715438433,
+      "coupling": 0.024,
+      "detuning_index": 4,
+      "faster_circuit_leads": true,
+      "measured_detuning_hz": -0.7199999999999989
+    },
+    {
+      "circular_mean_phase_rad": -0.227465468533453,
+      "coupling": 0.032,
+      "detuning_index": 4,
+      "faster_circuit_leads": true,
+      "measured_detuning_hz": -0.7199999999999989
+    },
+    {
+      "circular_mean_phase_rad": -0.1655990126390655,
+      "coupling": 0.04,
+      "detuning_index": 4,
+      "faster_circuit_leads": true,
+      "measured_detuning_hz": -0.7199999999999989
+    },
+    {
+      "circular_mean_phase_rad": -0.13999456757796103,
+      "coupling": 0.048,
+      "detuning_index": 4,
+      "faster_circuit_leads": true,
+      "measured_detuning_hz": -0.7199999999999989
+    },
+    {
+      "circular_mean_phase_rad": -0.09677361408700884,
+      "coupling": 0.056,
+      "detuning_index": 4,
+      "faster_circuit_leads": true,
+      "measured_detuning_hz": -0.7199999999999989
+    },
+    {
+      "circular_mean_phase_rad": -0.09868704519414014,
+      "coupling": 0.064,
+      "detuning_index": 4,
+      "faster_circuit_leads": true,
+      "measured_detuning_hz": -0.7199999999999989
+    },
+    {
+      "circular_mean_phase_rad": -0.0939731944085718,
+      "coupling": 0.07200000000000001,
+      "detuning_index": 4,
+      "faster_circuit_leads": true,
+      "measured_detuning_hz": -0.7199999999999989
+    },
+    {
+      "circular_mean_phase_rad": -0.07893430414068589,
+      "coupling": 0.08,
+      "detuning_index": 4,
+      "faster_circuit_leads": true,
+      "measured_detuning_hz": -0.7199999999999989
+    },
+    {
+      "circular_mean_phase_rad": -0.4775538093000089,
+      "coupling": 0.008,
+      "detuning_index": 5,
+      "faster_circuit_leads": true,
+      "measured_detuning_hz": -0.7199999999999989
+    },
+    {
+      "circular_mean_phase_rad": -0.06438543280156696,
+      "coupling": 0.016,
+      "detuning_index": 5,
+      "faster_circuit_leads": true,
+      "measured_detuning_hz": -0.7199999999999989
+    },
+    {
+      "circular_mean_phase_rad": -0.18947155979572838,
+      "coupling": 0.024,
+      "detuning_index": 5,
+      "faster_circuit_leads": true,
+      "measured_detuning_hz": -0.7199999999999989
+    },
+    {
+      "circular_mean_phase_rad": -0.11314563964972837,
+      "coupling": 0.032,
+      "detuning_index": 5,
+      "faster_circuit_leads": true,
+      "measured_detuning_hz": -0.7199999999999989
+    },
+    {
+      "circular_mean_phase_rad": -0.08563655346588384,
+      "coupling": 0.04,
+      "detuning_index": 5,
+      "faster_circuit_leads": true,
+      "measured_detuning_hz": -0.7199999999999989
+    },
+    {
+      "circular_mean_phase_rad": -0.07585373343672712,
+      "coupling": 0.048,
+      "detuning_index": 5,
+      "faster_circuit_leads": true,
+      "measured_detuning_hz": -0.7199999999999989
+    },
+    {
+      "circular_mean_phase_rad": -0.07091606411883825,
+      "coupling": 0.056,
+      "detuning_index": 5,
+      "faster_circuit_leads": true,
+      "measured_detuning_hz": -0.7199999999999989
+    },
+    {
+      "circular_mean_phase_rad": -0.06984396881914849,
+      "coupling": 0.064,
+      "detuning_index": 5,
+      "faster_circuit_leads": true,
+      "measured_detuning_hz": -0.7199999999999989
+    },
+    {
+      "circular_mean_phase_rad": -0.040278053895765484,
+      "coupling": 0.07200000000000001,
+      "detuning_index": 5,
+      "faster_circuit_leads": true,
+      "measured_detuning_hz": -0.7199999999999989
+    },
+    {
+      "circular_mean_phase_rad": -0.04191829211483715,
+      "coupling": 0.08,
+      "detuning_index": 5,
+      "faster_circuit_leads": true,
+      "measured_detuning_hz": -0.7199999999999989
+    },
+    {
+      "circular_mean_phase_rad": 0.02867380817170323,
+      "coupling": 0.008,
+      "detuning_index": 7,
+      "faster_circuit_leads": true,
+      "measured_detuning_hz": 0.4799999999999983
+    },
+    {
+      "circular_mean_phase_rad": 0.043879698394280894,
+      "coupling": 0.016,
+      "detuning_index": 7,
+      "faster_circuit_leads": true,
+      "measured_detuning_hz": 0.4799999999999983
+    },
+    {
+      "circular_mean_phase_rad": 0.19776003471216533,
+      "coupling": 0.024,
+      "detuning_index": 7,
+      "faster_circuit_leads": true,
+      "measured_detuning_hz": 0.4799999999999983
+    },
+    {
+      "circular_mean_phase_rad": 0.1451328454046082,
+      "coupling": 0.032,
+      "detuning_index": 7,
+      "faster_circuit_leads": true,
+      "measured_detuning_hz": 0.4799999999999983
+    },
+    {
+      "circular_mean_phase_rad": 0.07403238193889058,
+      "coupling": 0.04,
+      "detuning_index": 7,
+      "faster_circuit_leads": true,
+      "measured_detuning_hz": 0.4799999999999983
+    },
+    {
+      "circular_mean_phase_rad": 0.06776144150687521,
+      "coupling": 0.048,
+      "detuning_index": 7,
+      "faster_circuit_leads": true,
+      "measured_detuning_hz": 0.4799999999999983
+    },
+    {
+      "circular_mean_phase_rad": 0.04015862804506832,
+      "coupling": 0.056,
+      "detuning_index": 7,
+      "faster_circuit_leads": true,
+      "measured_detuning_hz": 0.4799999999999983
+    },
+    {
+      "circular_mean_phase_rad": 0.053851799024080466,
+      "coupling": 0.064,
+      "detuning_index": 7,
+      "faster_circuit_leads": true,
+      "measured_detuning_hz": 0.4799999999999983
+    },
+    {
+      "circular_mean_phase_rad": 0.05390052868307132,
+      "coupling": 0.07200000000000001,
+      "detuning_index": 7,
+      "faster_circuit_leads": true,
+      "measured_detuning_hz": 0.4799999999999983
+    },
+    {
+      "circular_mean_phase_rad": 0.03617320766543711,
+      "coupling": 0.08,
+      "detuning_index": 7,
+      "faster_circuit_leads": true,
+      "measured_detuning_hz": 0.4799999999999983
+    },
+    {
+      "circular_mean_phase_rad": 0.40216575175630237,
+      "coupling": 0.024,
+      "detuning_index": 8,
+      "faster_circuit_leads": true,
+      "measured_detuning_hz": 1.1999999999999957
+    },
+    {
+      "circular_mean_phase_rad": 0.27115975831336764,
+      "coupling": 0.032,
+      "detuning_index": 8,
+      "faster_circuit_leads": true,
+      "measured_detuning_hz": 1.1999999999999957
+    },
+    {
+      "circular_mean_phase_rad": 0.17195056723694055,
+      "coupling": 0.04,
+      "detuning_index": 8,
+      "faster_circuit_leads": true,
+      "measured_detuning_hz": 1.1999999999999957
+    },
+    {
+      "circular_mean_phase_rad": 0.09704358898970414,
+      "coupling": 0.048,
+      "detuning_index": 8,
+      "faster_circuit_leads": true,
+      "measured_detuning_hz": 1.1999999999999957
+    },
+    {
+      "circular_mean_phase_rad": 0.08791720588124013,
+      "coupling": 0.056,
+      "detuning_index": 8,
+      "faster_circuit_leads": true,
+      "measured_detuning_hz": 1.1999999999999957
+    },
+    {
+      "circular_mean_phase_rad": 0.10272816913142112,
+      "coupling": 0.064,
+      "detuning_index": 8,
+      "faster_circuit_leads": true,
+      "measured_detuning_hz": 1.1999999999999957
+    },
+    {
+      "circular_mean_phase_rad": 0.1073673445378206,
+      "coupling": 0.07200000000000001,
+      "detuning_index": 8,
+      "faster_circuit_leads": true,
+      "measured_detuning_hz": 1.1999999999999957
+    },
+    {
+      "circular_mean_phase_rad": 0.11979465956463499,
+      "coupling": 0.08,
+      "detuning_index": 8,
+      "faster_circuit_leads": true,
+      "measured_detuning_hz": 1.1999999999999957
+    },
+    {
+      "circular_mean_phase_rad": 0.5404238046751487,
+      "coupling": 0.032,
+      "detuning_index": 9,
+      "faster_circuit_leads": true,
+      "measured_detuning_hz": 2.080000000000001
+    },
+    {
+      "circular_mean_phase_rad": 0.2979813018908264,
+      "coupling": 0.04,
+      "detuning_index": 9,
+      "faster_circuit_leads": true,
+      "measured_detuning_hz": 2.080000000000001
+    },
+    {
+      "circular_mean_phase_rad": 0.24674213993416233,
+      "coupling": 0.048,
+      "detuning_index": 9,
+      "faster_circuit_leads": true,
+      "measured_detuning_hz": 2.080000000000001
+    },
+    {
+      "circular_mean_phase_rad": 0.20655001399801443,
+      "coupling": 0.056,
+      "detuning_index": 9,
+      "faster_circuit_leads": true,
+      "measured_detuning_hz": 2.080000000000001
+    },
+    {
+      "circular_mean_phase_rad": 0.2293412762167482,
+      "coupling": 0.064,
+      "detuning_index": 9,
+      "faster_circuit_leads": true,
+      "measured_detuning_hz": 2.080000000000001
+    },
+    {
+      "circular_mean_phase_rad": 0.2049695026196506,
+      "coupling": 0.07200000000000001,
+      "detuning_index": 9,
+      "faster_circuit_leads": true,
+      "measured_detuning_hz": 2.080000000000001
+    },
+    {
+      "circular_mean_phase_rad": 0.20505343122083872,
+      "coupling": 0.08,
+      "detuning_index": 9,
+      "faster_circuit_leads": true,
+      "measured_detuning_hz": 2.080000000000001
+    },
+    {
+      "circular_mean_phase_rad": 0.4899184604462708,
+      "coupling": 0.04,
+      "detuning_index": 10,
+      "faster_circuit_leads": true,
+      "measured_detuning_hz": 3.280000000000001
+    },
+    {
+      "circular_mean_phase_rad": 0.4885257405504711,
+      "coupling": 0.048,
+      "detuning_index": 10,
+      "faster_circuit_leads": true,
+      "measured_detuning_hz": 3.280000000000001
+    },
+    {
+      "circular_mean_phase_rad": 0.3269938739621724,
+      "coupling": 0.056,
+      "detuning_index": 10,
+      "faster_circuit_leads": true,
+      "measured_detuning_hz": 3.280000000000001
+    },
+    {
+      "circular_mean_phase_rad": 0.33324122146706686,
+      "coupling": 0.064,
+      "detuning_index": 10,
+      "faster_circuit_leads": true,
+      "measured_detuning_hz": 3.280000000000001
+    },
+    {
+      "circular_mean_phase_rad": 0.32472258225372125,
+      "coupling": 0.07200000000000001,
+      "detuning_index": 10,
+      "faster_circuit_leads": true,
+      "measured_detuning_hz": 3.280000000000001
+    },
+    {
+      "circular_mean_phase_rad": 0.28199545446842333,
+      "coupling": 0.08,
+      "detuning_index": 10,
+      "faster_circuit_leads": true,
+      "measured_detuning_hz": 3.280000000000001
+    },
+    {
+      "circular_mean_phase_rad": 0.5639421693907962,
+      "coupling": 0.048,
+      "detuning_index": 11,
+      "faster_circuit_leads": true,
+      "measured_detuning_hz": 4.0
+    },
+    {
+      "circular_mean_phase_rad": 0.4614603917437179,
+      "coupling": 0.056,
+      "detuning_index": 11,
+      "faster_circuit_leads": true,
+      "measured_detuning_hz": 4.0
+    },
+    {
+      "circular_mean_phase_rad": 0.40976864228468135,
+      "coupling": 0.07200000000000001,
+      "detuning_index": 11,
+      "faster_circuit_leads": true,
+      "measured_detuning_hz": 4.0
+    },
+    {
+      "circular_mean_phase_rad": 0.3532545347699004,
+      "coupling": 0.08,
+      "detuning_index": 11,
+      "faster_circuit_leads": true,
+      "measured_detuning_hz": 4.0
+    },
+    {
+      "circular_mean_phase_rad": 0.6084220273946042,
+      "coupling": 0.064,
+      "detuning_index": 12,
+      "faster_circuit_leads": true,
+      "measured_detuning_hz": 6.159999999999998
+    },
+    {
+      "circular_mean_phase_rad": 0.5665881545924079,
+      "coupling": 0.08,
+      "detuning_index": 12,
+      "faster_circuit_leads": true,
+      "measured_detuning_hz": 6.159999999999998
+    }
+  ],
+  "phase_lead_fraction": 0.987012987012987
+}

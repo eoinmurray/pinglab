@@ -1,0 +1,527 @@
+{
+  "network_seed": 78000,
+  "pairing_rule": "each detuning/trial input pair is reused across all coupling levels",
+  "rows": [
+    {
+      "detuning_index": 0,
+      "drive_a_rate_hz": 81.81818181818181,
+      "drive_a_seed": 78000000,
+      "drive_b_rate_hz": 111.00000000000001,
+      "drive_b_seed": 78000001,
+      "trial": 0
+    },
+    {
+      "detuning_index": 0,
+      "drive_a_rate_hz": 81.81818181818181,
+      "drive_a_seed": 78000010,
+      "drive_b_rate_hz": 111.00000000000001,
+      "drive_b_seed": 78000011,
+      "trial": 1
+    },
+    {
+      "detuning_index": 0,
+      "drive_a_rate_hz": 81.81818181818181,
+      "drive_a_seed": 78000020,
+      "drive_b_rate_hz": 111.00000000000001,
+      "drive_b_seed": 78000021,
+      "trial": 2
+    },
+    {
+      "detuning_index": 0,
+      "drive_a_rate_hz": 81.81818181818181,
+      "drive_a_seed": 78000030,
+      "drive_b_rate_hz": 111.00000000000001,
+      "drive_b_seed": 78000031,
+      "trial": 3
+    },
+    {
+      "detuning_index": 0,
+      "drive_a_rate_hz": 81.81818181818181,
+      "drive_a_seed": 78000040,
+      "drive_b_rate_hz": 111.00000000000001,
+      "drive_b_seed": 78000041,
+      "trial": 4
+    },
+    {
+      "detuning_index": 1,
+      "drive_a_rate_hz": 86.36363636363637,
+      "drive_a_seed": 78010000,
+      "drive_b_rate_hz": 106.00000000000001,
+      "drive_b_seed": 78010001,
+      "trial": 0
+    },
+    {
+      "detuning_index": 1,
+      "drive_a_rate_hz": 86.36363636363637,
+      "drive_a_seed": 78010010,
+      "drive_b_rate_hz": 106.00000000000001,
+      "drive_b_seed": 78010011,
+      "trial": 1
+    },
+    {
+      "detuning_index": 1,
+      "drive_a_rate_hz": 86.36363636363637,
+      "drive_a_seed": 78010020,
+      "drive_b_rate_hz": 106.00000000000001,
+      "drive_b_seed": 78010021,
+      "trial": 2
+    },
+    {
+      "detuning_index": 1,
+      "drive_a_rate_hz": 86.36363636363637,
+      "drive_a_seed": 78010030,
+      "drive_b_rate_hz": 106.00000000000001,
+      "drive_b_seed": 78010031,
+      "trial": 3
+    },
+    {
+      "detuning_index": 1,
+      "drive_a_rate_hz": 86.36363636363637,
+      "drive_a_seed": 78010040,
+      "drive_b_rate_hz": 106.00000000000001,
+      "drive_b_seed": 78010041,
+      "trial": 4
+    },
+    {
+      "detuning_index": 2,
+      "drive_a_rate_hz": 88.63636363636364,
+      "drive_a_seed": 78020000,
+      "drive_b_rate_hz": 103.50000000000001,
+      "drive_b_seed": 78020001,
+      "trial": 0
+    },
+    {
+      "detuning_index": 2,
+      "drive_a_rate_hz": 88.63636363636364,
+      "drive_a_seed": 78020010,
+      "drive_b_rate_hz": 103.50000000000001,
+      "drive_b_seed": 78020011,
+      "trial": 1
+    },
+    {
+      "detuning_index": 2,
+      "drive_a_rate_hz": 88.63636363636364,
+      "drive_a_seed": 78020020,
+      "drive_b_rate_hz": 103.50000000000001,
+      "drive_b_seed": 78020021,
+      "trial": 2
+    },
+    {
+      "detuning_index": 2,
+      "drive_a_rate_hz": 88.63636363636364,
+      "drive_a_seed": 78020030,
+      "drive_b_rate_hz": 103.50000000000001,
+      "drive_b_seed": 78020031,
+      "trial": 3
+    },
+    {
+      "detuning_index": 2,
+      "drive_a_rate_hz": 88.63636363636364,
+      "drive_a_seed": 78020040,
+      "drive_b_rate_hz": 103.50000000000001,
+      "drive_b_seed": 78020041,
+      "trial": 4
+    },
+    {
+      "detuning_index": 3,
+      "drive_a_rate_hz": 91.00000000000001,
+      "drive_a_seed": 78030000,
+      "drive_b_rate_hz": 101.00000000000001,
+      "drive_b_seed": 78030001,
+      "trial": 0
+    },
+    {
+      "detuning_index": 3,
+      "drive_a_rate_hz": 91.00000000000001,
+      "drive_a_seed": 78030010,
+      "drive_b_rate_hz": 101.00000000000001,
+      "drive_b_seed": 78030011,
+      "trial": 1
+    },
+    {
+      "detuning_index": 3,
+      "drive_a_rate_hz": 91.00000000000001,
+      "drive_a_seed": 78030020,
+      "drive_b_rate_hz": 101.00000000000001,
+      "drive_b_seed": 78030021,
+      "trial": 2
+    },
+    {
+      "detuning_index": 3,
+      "drive_a_rate_hz": 91.00000000000001,
+      "drive_a_seed": 78030030,
+      "drive_b_rate_hz": 101.00000000000001,
+      "drive_b_seed": 78030031,
+      "trial": 3
+    },
+    {
+      "detuning_index": 3,
+      "drive_a_rate_hz": 91.00000000000001,
+      "drive_a_seed": 78030040,
+      "drive_b_rate_hz": 101.00000000000001,
+      "drive_b_seed": 78030041,
+      "trial": 4
+    },
+    {
+      "detuning_index": 4,
+      "drive_a_rate_hz": 93.50000000000001,
+      "drive_a_seed": 78040000,
+      "drive_b_rate_hz": 98.50000000000001,
+      "drive_b_seed": 78040001,
+      "trial": 0
+    },
+    {
+      "detuning_index": 4,
+      "drive_a_rate_hz": 93.50000000000001,
+      "drive_a_seed": 78040010,
+      "drive_b_rate_hz": 98.50000000000001,
+      "drive_b_seed": 78040011,
+      "trial": 1
+    },
+    {
+      "detuning_index": 4,
+      "drive_a_rate_hz": 93.50000000000001,
+      "drive_a_seed": 78040020,
+      "drive_b_rate_hz": 98.50000000000001,
+      "drive_b_seed": 78040021,
+      "trial": 2
+    },
+    {
+      "detuning_index": 4,
+      "drive_a_rate_hz": 93.50000000000001,
+      "drive_a_seed": 78040030,
+      "drive_b_rate_hz": 98.50000000000001,
+      "drive_b_seed": 78040031,
+      "trial": 3
+    },
+    {
+      "detuning_index": 4,
+      "drive_a_rate_hz": 93.50000000000001,
+      "drive_a_seed": 78040040,
+      "drive_b_rate_hz": 98.50000000000001,
+      "drive_b_seed": 78040041,
+      "trial": 4
+    },
+    {
+      "detuning_index": 5,
+      "drive_a_rate_hz": 94.75000000000001,
+      "drive_a_seed": 78050000,
+      "drive_b_rate_hz": 97.25000000000001,
+      "drive_b_seed": 78050001,
+      "trial": 0
+    },
+    {
+      "detuning_index": 5,
+      "drive_a_rate_hz": 94.75000000000001,
+      "drive_a_seed": 78050010,
+      "drive_b_rate_hz": 97.25000000000001,
+      "drive_b_seed": 78050011,
+      "trial": 1
+    },
+    {
+      "detuning_index": 5,
+      "drive_a_rate_hz": 94.75000000000001,
+      "drive_a_seed": 78050020,
+      "drive_b_rate_hz": 97.25000000000001,
+      "drive_b_seed": 78050021,
+      "trial": 2
+    },
+    {
+      "detuning_index": 5,
+      "drive_a_rate_hz": 94.75000000000001,
+      "drive_a_seed": 78050030,
+      "drive_b_rate_hz": 97.25000000000001,
+      "drive_b_seed": 78050031,
+      "trial": 3
+    },
+    {
+      "detuning_index": 5,
+      "drive_a_rate_hz": 94.75000000000001,
+      "drive_a_seed": 78050040,
+      "drive_b_rate_hz": 97.25000000000001,
+      "drive_b_seed": 78050041,
+      "trial": 4
+    },
+    {
+      "detuning_index": 6,
+      "drive_a_rate_hz": 96.00000000000001,
+      "drive_a_seed": 78060000,
+      "drive_b_rate_hz": 96.00000000000001,
+      "drive_b_seed": 78060001,
+      "trial": 0
+    },
+    {
+      "detuning_index": 6,
+      "drive_a_rate_hz": 96.00000000000001,
+      "drive_a_seed": 78060010,
+      "drive_b_rate_hz": 96.00000000000001,
+      "drive_b_seed": 78060011,
+      "trial": 1
+    },
+    {
+      "detuning_index": 6,
+      "drive_a_rate_hz": 96.00000000000001,
+      "drive_a_seed": 78060020,
+      "drive_b_rate_hz": 96.00000000000001,
+      "drive_b_seed": 78060021,
+      "trial": 2
+    },
+    {
+      "detuning_index": 6,
+      "drive_a_rate_hz": 96.00000000000001,
+      "drive_a_seed": 78060030,
+      "drive_b_rate_hz": 96.00000000000001,
+      "drive_b_seed": 78060031,
+      "trial": 3
+    },
+    {
+      "detuning_index": 6,
+      "drive_a_rate_hz": 96.00000000000001,
+      "drive_a_seed": 78060040,
+      "drive_b_rate_hz": 96.00000000000001,
+      "drive_b_seed": 78060041,
+      "trial": 4
+    },
+    {
+      "detuning_index": 7,
+      "drive_a_rate_hz": 97.25000000000001,
+      "drive_a_seed": 78070000,
+      "drive_b_rate_hz": 94.75000000000001,
+      "drive_b_seed": 78070001,
+      "trial": 0
+    },
+    {
+      "detuning_index": 7,
+      "drive_a_rate_hz": 97.25000000000001,
+      "drive_a_seed": 78070010,
+      "drive_b_rate_hz": 94.75000000000001,
+      "drive_b_seed": 78070011,
+      "trial": 1
+    },
+    {
+      "detuning_index": 7,
+      "drive_a_rate_hz": 97.25000000000001,
+      "drive_a_seed": 78070020,
+      "drive_b_rate_hz": 94.75000000000001,
+      "drive_b_seed": 78070021,
+      "trial": 2
+    },
+    {
+      "detuning_index": 7,
+      "drive_a_rate_hz": 97.25000000000001,
+      "drive_a_seed": 78070030,
+      "drive_b_rate_hz": 94.75000000000001,
+      "drive_b_seed": 78070031,
+      "trial": 3
+    },
+    {
+      "detuning_index": 7,
+      "drive_a_rate_hz": 97.25000000000001,
+      "drive_a_seed": 78070040,
+      "drive_b_rate_hz": 94.75000000000001,
+      "drive_b_seed": 78070041,
+      "trial": 4
+    },
+    {
+      "detuning_index": 8,
+      "drive_a_rate_hz": 98.50000000000001,
+      "drive_a_seed": 78080000,
+      "drive_b_rate_hz": 93.50000000000001,
+      "drive_b_seed": 78080001,
+      "trial": 0
+    },
+    {
+      "detuning_index": 8,
+      "drive_a_rate_hz": 98.50000000000001,
+      "drive_a_seed": 78080010,
+      "drive_b_rate_hz": 93.50000000000001,
+      "drive_b_seed": 78080011,
+      "trial": 1
+    },
+    {
+      "detuning_index": 8,
+      "drive_a_rate_hz": 98.50000000000001,
+      "drive_a_seed": 78080020,
+      "drive_b_rate_hz": 93.50000000000001,
+      "drive_b_seed": 78080021,
+      "trial": 2
+    },
+    {
+      "detuning_index": 8,
+      "drive_a_rate_hz": 98.50000000000001,
+      "drive_a_seed": 78080030,
+      "drive_b_rate_hz": 93.50000000000001,
+      "drive_b_seed": 78080031,
+      "trial": 3
+    },
+    {
+      "detuning_index": 8,
+      "drive_a_rate_hz": 98.50000000000001,
+      "drive_a_seed": 78080040,
+      "drive_b_rate_hz": 93.50000000000001,
+      "drive_b_seed": 78080041,
+      "trial": 4
+    },
+    {
+      "detuning_index": 9,
+      "drive_a_rate_hz": 101.00000000000001,
+      "drive_a_seed": 78090000,
+      "drive_b_rate_hz": 91.00000000000001,
+      "drive_b_seed": 78090001,
+      "trial": 0
+    },
+    {
+      "detuning_index": 9,
+      "drive_a_rate_hz": 101.00000000000001,
+      "drive_a_seed": 78090010,
+      "drive_b_rate_hz": 91.00000000000001,
+      "drive_b_seed": 78090011,
+      "trial": 1
+    },
+    {
+      "detuning_index": 9,
+      "drive_a_rate_hz": 101.00000000000001,
+      "drive_a_seed": 78090020,
+      "drive_b_rate_hz": 91.00000000000001,
+      "drive_b_seed": 78090021,
+      "trial": 2
+    },
+    {
+      "detuning_index": 9,
+      "drive_a_rate_hz": 101.00000000000001,
+      "drive_a_seed": 78090030,
+      "drive_b_rate_hz": 91.00000000000001,
+      "drive_b_seed": 78090031,
+      "trial": 3
+    },
+    {
+      "detuning_index": 9,
+      "drive_a_rate_hz": 101.00000000000001,
+      "drive_a_seed": 78090040,
+      "drive_b_rate_hz": 91.00000000000001,
+      "drive_b_seed": 78090041,
+      "trial": 4
+    },
+    {
+      "detuning_index": 10,
+      "drive_a_rate_hz": 103.50000000000001,
+      "drive_a_seed": 78100000,
+      "drive_b_rate_hz": 88.63636363636364,
+      "drive_b_seed": 78100001,
+      "trial": 0
+    },
+    {
+      "detuning_index": 10,
+      "drive_a_rate_hz": 103.50000000000001,
+      "drive_a_seed": 78100010,
+      "drive_b_rate_hz": 88.63636363636364,
+      "drive_b_seed": 78100011,
+      "trial": 1
+    },
+    {
+      "detuning_index": 10,
+      "drive_a_rate_hz": 103.50000000000001,
+      "drive_a_seed": 78100020,
+      "drive_b_rate_hz": 88.63636363636364,
+      "drive_b_seed": 78100021,
+      "trial": 2
+    },
+    {
+      "detuning_index": 10,
+      "drive_a_rate_hz": 103.50000000000001,
+      "drive_a_seed": 78100030,
+      "drive_b_rate_hz": 88.63636363636364,
+      "drive_b_seed": 78100031,
+      "trial": 3
+    },
+    {
+      "detuning_index": 10,
+      "drive_a_rate_hz": 103.50000000000001,
+      "drive_a_seed": 78100040,
+      "drive_b_rate_hz": 88.63636363636364,
+      "drive_b_seed": 78100041,
+      "trial": 4
+    },
+    {
+      "detuning_index": 11,
+      "drive_a_rate_hz": 106.00000000000001,
+      "drive_a_seed": 78110000,
+      "drive_b_rate_hz": 86.36363636363637,
+      "drive_b_seed": 78110001,
+      "trial": 0
+    },
+    {
+      "detuning_index": 11,
+      "drive_a_rate_hz": 106.00000000000001,
+      "drive_a_seed": 78110010,
+      "drive_b_rate_hz": 86.36363636363637,
+      "drive_b_seed": 78110011,
+      "trial": 1
+    },
+    {
+      "detuning_index": 11,
+      "drive_a_rate_hz": 106.00000000000001,
+      "drive_a_seed": 78110020,
+      "drive_b_rate_hz": 86.36363636363637,
+      "drive_b_seed": 78110021,
+      "trial": 2
+    },
+    {
+      "detuning_index": 11,
+      "drive_a_rate_hz": 106.00000000000001,
+      "drive_a_seed": 78110030,
+      "drive_b_rate_hz": 86.36363636363637,
+      "drive_b_seed": 78110031,
+      "trial": 3
+    },
+    {
+      "detuning_index": 11,
+      "drive_a_rate_hz": 106.00000000000001,
+      "drive_a_seed": 78110040,
+      "drive_b_rate_hz": 86.36363636363637,
+      "drive_b_seed": 78110041,
+      "trial": 4
+    },
+    {
+      "detuning_index": 12,
+      "drive_a_rate_hz": 111.00000000000001,
+      "drive_a_seed": 78120000,
+      "drive_b_rate_hz": 81.81818181818181,
+      "drive_b_seed": 78120001,
+      "trial": 0
+    },
+    {
+      "detuning_index": 12,
+      "drive_a_rate_hz": 111.00000000000001,
+      "drive_a_seed": 78120010,
+      "drive_b_rate_hz": 81.81818181818181,
+      "drive_b_seed": 78120011,
+      "trial": 1
+    },
+    {
+      "detuning_index": 12,
+      "drive_a_rate_hz": 111.00000000000001,
+      "drive_a_seed": 78120020,
+      "drive_b_rate_hz": 81.81818181818181,
+      "drive_b_seed": 78120021,
+      "trial": 2
+    },
+    {
+      "detuning_index": 12,
+      "drive_a_rate_hz": 111.00000000000001,
+      "drive_a_seed": 78120030,
+      "drive_b_rate_hz": 81.81818181818181,
+      "drive_b_seed": 78120031,
+      "trial": 3
+    },
+    {
+      "detuning_index": 12,
+      "drive_a_rate_hz": 111.00000000000001,
+      "drive_a_seed": 78120040,
+      "drive_b_rate_hz": 81.81818181818181,
+      "drive_b_seed": 78120041,
+      "trial": 4
+    }
+  ],
+  "schema": "pinglab.exp078.seed-ledger/v1"
+}

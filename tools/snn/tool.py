@@ -289,6 +289,17 @@ def _build_parent_parser():
         help="Execution backend (default: legacy). Graph execution is opt-in.",
     )
     net_group.add_argument(
+        "--device",
+        default="auto",
+        help="Graph execution device: auto, cpu, cuda, cuda:N, or mps (default: auto).",
+    )
+    net_group.add_argument(
+        "--recording",
+        choices=("full", "observables", "none"),
+        default="full",
+        help="Graph recording profile: declared observables only, full dynamic traces, or none (default: full).",
+    )
+    net_group.add_argument(
         "--load-runtime-state",
         type=str,
         default=None,
@@ -1688,6 +1699,7 @@ def main(argv=None):
         out_dir.mkdir(parents=True, exist_ok=True)
         np.savez_compressed(out_dir / "recordings.npz", **{k: v.detach().cpu().numpy() for k, v in result.recordings.items()})
         np.savez_compressed(out_dir / "outputs.npz", **{k: v.detach().cpu().numpy() for k, v in result.outputs.items()})
+        np.savez_compressed(out_dir / "parameters.npz", **{k: v.detach().cpu().numpy() for k, v in result.parameters.items()})
         (out_dir / "metrics.json").write_text(json.dumps(result.metrics, indent=2) + "\n")
         if getattr(args, "save_runtime_state", None):
             assert result.runtime_state is not None
