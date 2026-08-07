@@ -121,6 +121,7 @@ def savefig_atomic(fig: Any, path: Path, **kwargs: Any) -> None:
     finally:
         temporary_path.unlink(missing_ok=True)
 
+
 # Locked before inspecting the Step 2 pilot.  Each candidate compares two
 # independent, equally sized blocks.  The deterministic subset spans zero,
 # low, middle, and full intensity; every probe; every registered seed; and five
@@ -644,6 +645,109 @@ def _summary_statistics(library: np.ndarray) -> dict[str, np.ndarray]:
     }
 
 
+def plot_response_distributions(path: Path) -> dict[str, Any]:
+    """Plot recorded low-to-high-rate feature distributions at one condition."""
+    library = np.load(LIBRARY_SCRATCH, mmap_mode="r")
+    probe_uS = 1.2
+    intensity = 255
+    rates_hz = (0.25, 3.0, 25.0)
+    probe_index = PROBE_CONDUCTANCES_US.index(probe_uS)
+
+    theme.apply()
+    fig, axes = plt.subplots(1, 3, figsize=(9.2, 3.0), constrained_layout=True)
+    records: list[dict[str, Any]] = []
+    panel_labels = ("A", "B", "C")
+    for axis, panel, rate_hz in zip(axes, panel_labels, rates_hz):
+        rate_index = TRAINING_RATES_HZ.index(rate_hz)
+        values = np.asarray(
+            library[:, probe_index, rate_index, intensity, :], dtype=np.float64
+        ).reshape(-1)
+        mean = float(values.mean())
+        sd = float(values.std(ddof=1))
+        zero_fraction = float(np.mean(values == 0.0))
+        upper = float(values.max())
+        bins = np.linspace(0.0, upper * 1.001, 61)
+        axis.hist(
+            values,
+            bins=bins,
+            weights=np.full(values.size, 1.0 / values.size),
+            color=theme.INK_BLACK,
+            alpha=0.62,
+        )
+        x = np.linspace(0.0, upper * 1.001, 600)
+        bin_width = float(bins[1] - bins[0])
+        gaussian = (
+            bin_width
+            * np.exp(-0.5 * ((x - mean) / sd) ** 2)
+            / (sd * math.sqrt(2.0 * math.pi))
+        )
+        axis.plot(
+            x,
+            gaussian,
+            color=theme.DEEP_RED,
+            linestyle="--",
+        )
+        axis.set_yscale("log")
+        axis.set_title(
+            f"{panel}  {rate_hz:g} Hz  (E[N]={rate_hz * PRESENTATION_MS / 1000.0:g})\n"
+            f"No-spike fraction: {zero_fraction:.3f}"
+        )
+        axis.set_xlabel("Feature z (mV)")
+        axis.spines[["top", "right"]].set_visible(False)
+        records.append(
+            {
+                "rate_hz": rate_hz,
+                "expected_spikes": rate_hz * PRESENTATION_MS / 1000.0,
+                "sample_count": int(values.size),
+                "mean_mV": mean,
+                "standard_deviation_mV": sd,
+                "zero_fraction": zero_fraction,
+                "skewness": float(np.mean(((values - mean) / sd) ** 3)),
+            }
+        )
+    axes[0].set_ylabel("Probability per bin (log scale)")
+    savefig_atomic(fig, path, format=path.suffix.lstrip("."), metadata={"Date": None})
+    plt.close(fig)
+    return {
+        "status": "complete",
+        "source": str(LIBRARY_SCRATCH.relative_to(REPO)),
+        "uses_recorded_samples_only": True,
+        "probe_uS": probe_uS,
+        "intensity": intensity,
+        "records": records,
+        "figure_path": str(path.relative_to(REPO)),
+        "figure_sha256": sha256_file(path),
+        "paid_compute_usd": 0.0,
+    }
+
+
+def refresh_response_distributions() -> None:
+    """Regenerate the response-distribution diagnostic from recorded samples."""
+    figure_path = FIGURES / "response_distributions.svg"
+    outcome = plot_response_distributions(figure_path)
+    outcome_path = FIGURES / "response_distributions.json"
+    outcome_path.write_text(json.dumps(outcome, indent=2) + "\n")
+
+    provenance_path = FIGURES / "provenance.json"
+    provenance = json.loads(provenance_path.read_text())
+    provenance["response_distributions"] = {
+        **_git_metadata(),
+        "outcome_sha256": sha256_file(outcome_path),
+        "figure_sha256": sha256_file(figure_path),
+        "paid_compute_usd": 0.0,
+    }
+    provenance_path.write_text(json.dumps(provenance, indent=2) + "\n")
+
+    reproducer_path = FIGURES / "reproducer.json"
+    reproducer = json.loads(reproducer_path.read_text())
+    reproducer["response_distributions"] = {
+        "command": "uv run python -c 'from experiments.exp077 import refresh_response_distributions; refresh_response_distributions()'",
+        "uses_recorded_arrays_only": True,
+        "paid_compute": False,
+    }
+    reproducer_path.write_text(json.dumps(reproducer, indent=2) + "\n")
+
+
 def _representative_distributions(library: np.ndarray) -> list[dict[str, Any]]:
     records = []
     probe_index = PROBE_CONDUCTANCES_US.index(1.2)
@@ -925,7 +1029,9 @@ def run_bootstrap_stability() -> dict[str, Any]:
     if protocol["repetitions"] != BOOTSTRAP_REPETITIONS:
         raise RuntimeError("bootstrap repetitions differ from the locked protocol")
     if sha256_file(LIBRARY_SCRATCH) != protocol["source_library_sha256"]:
-        raise RuntimeError("source empirical response table does not match the locked SHA-256")
+        raise RuntimeError(
+            "source empirical response table does not match the locked SHA-256"
+        )
 
     library = _open_library("r")
     rate_indices = [TRAINING_RATES_HZ.index(rate) for rate in PILOT_RATES_HZ]
@@ -1346,7 +1452,9 @@ def refresh_full_library_figure() -> None:
     manifest["diagnostic_draws_per_condition_per_seed"] = DIAGNOSTIC_K
     manifest["diagnostic_summary_sha256"] = sha256_file(summary_path)
     manifest["role"] = "mean/SD plotting and consistency validation only"
-    manifest["ann_inputs"] = "fresh direct Poisson-synapse-membrane simulation per presentation"
+    manifest["ann_inputs"] = (
+        "fresh direct Poisson-synapse-membrane simulation per presentation"
+    )
     manifest_path.write_text(json.dumps(manifest, indent=2) + "\n")
 
 
@@ -1429,7 +1537,7 @@ def record_full_library(
             "step": 2,
             "status": "step2_library_complete",
             "scope": (
-        "Empirical response table only; no decoder, held-out test, "
+                "Empirical response table only; no decoder, held-out test, "
                 "threshold selection, or PING run"
             ),
         }
@@ -1763,8 +1871,7 @@ def linear_operating_point(
     probe = np.asarray(probe_uS, dtype=np.float64)
     mean_g = (lam / 1000.0) * probe * PARAMETERS["tau_ampa_ms"]
     mean_v = (
-        PARAMETERS["g_L_uS"] * PARAMETERS["E_L_mV"]
-        + mean_g * PARAMETERS["E_e_mV"]
+        PARAMETERS["g_L_uS"] * PARAMETERS["E_L_mV"] + mean_g * PARAMETERS["E_e_mV"]
     ) / (PARAMETERS["g_L_uS"] + mean_g)
     return mean_g, mean_v
 
@@ -1791,13 +1898,9 @@ def synapse_membrane_transfer(
     frequency = np.asarray(frequency_hz, dtype=np.float64)
     omega = 2.0 * np.pi * frequency / 1000.0
     mean_g, mean_v = linear_operating_point(lambda_hz, probe_uS)
-    synapse = np.asarray(probe_uS) / (
-        1j * omega + 1.0 / PARAMETERS["tau_ampa_ms"]
-    )
+    synapse = np.asarray(probe_uS) / (1j * omega + 1.0 / PARAMETERS["tau_ampa_ms"])
     membrane = (PARAMETERS["E_e_mV"] - mean_v) / (
-        1j * omega * PARAMETERS["C_m_nF"]
-        + PARAMETERS["g_L_uS"]
-        + mean_g
+        1j * omega * PARAMETERS["C_m_nF"] + PARAMETERS["g_L_uS"] + mean_g
     )
     return synapse * membrane
 
@@ -1826,11 +1929,14 @@ def predicted_linear_variance(
         )
         integrand = np.abs(transfer) ** 2 * (lam[indices, None] / 1000.0)
         integral = np.trapezoid(integrand, frequencies, axis=1)
-        zero_transfer = np.abs(
-            complete_transfer(
-                np.asarray([[0.0]]), lam[indices, None], probe[indices, None]
-            )[:, 0]
-        ) ** 2
+        zero_transfer = (
+            np.abs(
+                complete_transfer(
+                    np.asarray([[0.0]]), lam[indices, None], probe[indices, None]
+                )[:, 0]
+            )
+            ** 2
+        )
         low_tail = zero_transfer * (lam[indices] / 1000.0) * bounds_hz[0]
         result[indices] = (2.0 / 1000.0) * (integral + low_tail)
     return result
@@ -1846,9 +1952,7 @@ def numerical_sinusoidal_gain(
     total_steps = burn_steps + measure_steps
     time_ms = np.arange(total_steps, dtype=np.float64) * DT_MS
     phase = 2.0 * np.pi * frequency_hz * time_ms / 1000.0
-    rate_per_ms = (rate_hz / 1000.0) * (
-        1.0 + GAIN_MODULATION_FRACTION * np.sin(phase)
-    )
+    rate_per_ms = (rate_hz / 1000.0) * (1.0 + GAIN_MODULATION_FRACTION * np.sin(phase))
     g = rate_hz / 1000.0 * probe_uS * PARAMETERS["tau_ampa_ms"]
     _, v = linear_operating_point(rate_hz, probe_uS)
     v_value = float(v)
@@ -1856,13 +1960,12 @@ def numerical_sinusoidal_gain(
     measured = np.empty(measure_steps, dtype=np.float64)
     for index in range(total_steps):
         # Exact constant-input update over dt for dg/dt=-g/tau+w*lambda(t).
-        g = g * decay + probe_uS * rate_per_ms[index] * PARAMETERS[
-            "tau_ampa_ms"
-        ] * (1.0 - decay)
+        g = g * decay + probe_uS * rate_per_ms[index] * PARAMETERS["tau_ampa_ms"] * (
+            1.0 - decay
+        )
         total_g = PARAMETERS["g_L_uS"] + g
         v_inf = (
-            PARAMETERS["g_L_uS"] * PARAMETERS["E_L_mV"]
-            + g * PARAMETERS["E_e_mV"]
+            PARAMETERS["g_L_uS"] * PARAMETERS["E_L_mV"] + g * PARAMETERS["E_e_mV"]
         ) / total_g
         v_value = v_inf + (v_value - v_inf) * math.exp(
             -DT_MS * total_g / PARAMETERS["C_m_nF"]
@@ -1907,7 +2010,9 @@ def calculate_step3(library: np.ndarray) -> dict[str, Any]:
     primary = predictions[FREQUENCY_GRID_POINTS[-1]]
     previous = predictions[FREQUENCY_GRID_POINTS[-2]]
     denominator = np.maximum(np.abs(primary), np.finfo(float).tiny)
-    refinement_relative = np.where(primary > 0, np.abs(primary - previous) / denominator, 0)
+    refinement_relative = np.where(
+        primary > 0, np.abs(primary - previous) / denominator, 0
+    )
     wide = predicted_linear_variance(
         flat_lambda,
         flat_probe,
@@ -1917,26 +2022,28 @@ def calculate_step3(library: np.ndarray) -> dict[str, Any]:
     bound_relative = np.where(primary > 0, np.abs(primary - wide) / denominator, 0)
     empirical_by_seed = np.var(np.asarray(library, dtype=np.float64), axis=-1, ddof=1)
     empirical = np.mean(empirical_by_seed, axis=0)
-    ratio = np.divide(primary, empirical, out=np.full_like(primary, np.nan), where=empirical > 0)
+    ratio = np.divide(
+        primary, empirical, out=np.full_like(primary, np.nan), where=empirical > 0
+    )
 
     gain_checks: list[dict[str, Any]] = []
     for probe in PROBE_CONDUCTANCES_US:
         for label, rate in zip(("low", "middle", "high"), GAIN_OPERATING_RATES_HZ):
             for frequency in GAIN_FREQUENCIES_HZ:
                 analytical = float(
-                    np.abs(
-                        complete_transfer(
-                            np.asarray([frequency]), rate, probe
-                        )[0]
-                    )
+                    np.abs(complete_transfer(np.asarray([frequency]), rate, probe)[0])
                 )
                 # The sinusoidal check is on membrane gain before finite-window
                 # averaging, so divide H by the averaging response.
                 argument = np.pi * frequency * PRESENTATION_MS / 1000.0
                 averaging = abs(float(np.sinc(argument / np.pi)))
-                analytical_unaveraged = analytical / averaging if averaging > 1e-12 else float(
-                    np.abs(
-                        complete_transfer(np.asarray([frequency]), rate, probe)[0]
+                analytical_unaveraged = (
+                    analytical / averaging
+                    if averaging > 1e-12
+                    else float(
+                        np.abs(
+                            complete_transfer(np.asarray([frequency]), rate, probe)[0]
+                        )
                     )
                 )
                 if averaging <= 1e-12:
@@ -1944,7 +2051,8 @@ def calculate_step3(library: np.ndarray) -> dict[str, Any]:
                     omega = 2.0 * np.pi * frequency / 1000.0
                     analytical_unaveraged = float(
                         abs(
-                            probe / (1j * omega + 1 / PARAMETERS["tau_ampa_ms"])
+                            probe
+                            / (1j * omega + 1 / PARAMETERS["tau_ampa_ms"])
                             * (PARAMETERS["E_e_mV"] - mean_v)
                             / (
                                 1j * omega * PARAMETERS["C_m_nF"]
@@ -1983,8 +2091,12 @@ def calculate_step3(library: np.ndarray) -> dict[str, Any]:
                     "drive_regime": regime,
                     "condition_count": int(values.size),
                     "median_predicted_empirical_ratio": float(np.median(values)),
-                    "median_absolute_log2_ratio": float(np.median(np.abs(np.log2(values)))),
-                    "fraction_in_agreement_band": float(np.mean((values >= 0.5) & (values <= 2.0))),
+                    "median_absolute_log2_ratio": float(
+                        np.median(np.abs(np.log2(values)))
+                    ),
+                    "fraction_in_agreement_band": float(
+                        np.mean((values >= 0.5) & (values <= 2.0))
+                    ),
                 }
             )
     return {
@@ -1999,8 +2111,12 @@ def calculate_step3(library: np.ndarray) -> dict[str, Any]:
         "quadrature": {
             "maximum_refinement_relative_change": float(np.max(refinement_relative)),
             "maximum_bound_relative_change": float(np.max(bound_relative)),
-            "refinement_passed": bool(np.max(refinement_relative) <= QUADRATURE_REL_TOL),
-            "bound_sensitivity_passed": bool(np.max(bound_relative) <= QUADRATURE_REL_TOL),
+            "refinement_passed": bool(
+                np.max(refinement_relative) <= QUADRATURE_REL_TOL
+            ),
+            "bound_sensitivity_passed": bool(
+                np.max(bound_relative) <= QUADRATURE_REL_TOL
+            ),
         },
         "gain_checks": gain_checks,
         "gain_checks_passed": all(row["passed"] for row in gain_checks),
@@ -2060,17 +2176,19 @@ def plot_step3(record: dict[str, Any], path: Path) -> None:
 def calculate_step3_empirical_comparison() -> dict[str, Any]:
     """Compare stored stationary predictions with the stored empirical table."""
     with np.load(FIGURES / "step3_linear_filter_arrays.npz") as analytical:
-        predicted_mean = (
-            analytical["stationary_mean_voltage_mV"] - PARAMETERS["E_L_mV"]
-        )
+        predicted_mean = analytical["stationary_mean_voltage_mV"] - PARAMETERS["E_L_mV"]
         predicted_sd = np.sqrt(analytical["predicted_variance_mV2"])
     with np.load(FIGURES / "response_library_summary.npz") as empirical:
         empirical_mean = empirical["mean"]
         empirical_sd = empirical["standard_deviation"]
 
-    def summarize(predicted: np.ndarray, observed: np.ndarray) -> dict[str, float | int]:
-        valid = np.isfinite(predicted) & np.isfinite(observed) & (
-            (predicted > 0.0) | (observed > 0.0)
+    def summarize(
+        predicted: np.ndarray, observed: np.ndarray
+    ) -> dict[str, float | int]:
+        valid = (
+            np.isfinite(predicted)
+            & np.isfinite(observed)
+            & ((predicted > 0.0) | (observed > 0.0))
         )
         positive_observed = valid & (observed > 0.0)
         return {
@@ -2152,9 +2270,7 @@ def refresh_step3_empirical_comparison() -> None:
     figure_path = FIGURES / "linear_filter_empirical_comparison.svg"
     plot_step3_empirical_comparison(record, figure_path)
     outcome = {
-        key: value
-        for key, value in record.items()
-        if not isinstance(value, np.ndarray)
+        key: value for key, value in record.items() if not isinstance(value, np.ndarray)
     }
     outcome.update(
         {
@@ -2184,7 +2300,9 @@ def refresh_step3_empirical_comparison() -> None:
 
     manifest_path = FIGURES / "step2_manifest.json"
     manifest = json.loads(manifest_path.read_text())
-    manifest["exploratory_continuation"]["step3_outcome_sha256"] = sha256_file(step3_path)
+    manifest["exploratory_continuation"]["step3_outcome_sha256"] = sha256_file(
+        step3_path
+    )
     manifest_path.write_text(json.dumps(manifest, indent=2) + "\n")
 
     provenance_path = FIGURES / "provenance.json"
@@ -2212,7 +2330,10 @@ def step_3() -> None:
     started = time.perf_counter()
     library = verify_authenticated_library()
     record = calculate_step3(library)
-    if not record["quadrature"]["refinement_passed"] or not record["quadrature"]["bound_sensitivity_passed"]:
+    if (
+        not record["quadrature"]["refinement_passed"]
+        or not record["quadrature"]["bound_sensitivity_passed"]
+    ):
         raise RuntimeError("Step 3 locked quadrature convergence check failed")
     if not record["gain_checks_passed"]:
         raise RuntimeError("Step 3 locked sinusoidal gain validation failed")
@@ -2301,12 +2422,9 @@ def _probe_spikes_features(spikes: np.ndarray, probe_uS: float) -> np.ndarray:
         g = g * decay + probe_uS * incoming
         total_g = PARAMETERS["g_L_uS"] + g
         v_inf = (
-            PARAMETERS["g_L_uS"] * PARAMETERS["E_L_mV"]
-            + g * PARAMETERS["E_e_mV"]
+            PARAMETERS["g_L_uS"] * PARAMETERS["E_L_mV"] + g * PARAMETERS["E_e_mV"]
         ) / total_g
-        v = v_inf + (v - v_inf) * np.exp(
-            -DT_MS * total_g / PARAMETERS["C_m_nF"]
-        )
+        v = v_inf + (v - v_inf) * np.exp(-DT_MS * total_g / PARAMETERS["C_m_nF"])
         total += v - PARAMETERS["E_L_mV"]
     return total / N_TIMESTEPS
 
@@ -2348,17 +2466,20 @@ def load_locked_mnist_training() -> tuple[np.ndarray, np.ndarray, dict[str, Any]
         raise RuntimeError(f"unexpected MNIST training contract: {images.shape}")
     raw_root = Path(dataset.raw_folder)
     raw_hashes = {
-        path.name: sha256_file(path)
-        for path in sorted(raw_root.glob("train-*-ubyte"))
+        path.name: sha256_file(path) for path in sorted(raw_root.glob("train-*-ubyte"))
     }
-    return images, labels, {
-        "source": "torchvision.datasets.MNIST official training partition",
-        "torchvision": __import__("torchvision").__version__,
-        "image_shape": list(images.shape),
-        "label_shape": list(labels.shape),
-        "raw_file_sha256": raw_hashes,
-        "official_test_partition_loaded": False,
-    }
+    return (
+        images,
+        labels,
+        {
+            "source": "torchvision.datasets.MNIST official training partition",
+            "torchvision": __import__("torchvision").__version__,
+            "image_shape": list(images.shape),
+            "label_shape": list(labels.shape),
+            "raw_file_sha256": raw_hashes,
+            "official_test_partition_loaded": False,
+        },
+    )
 
 
 def _relative_difference(first: float, second: float, floor: float = 1e-12) -> float:
@@ -2403,21 +2524,31 @@ def compare_feature_condition(
         "pooled_mean_relative_difference": _relative_difference(lib_mean, direct_mean),
         "library_pooled_variance_mV2": lib_variance,
         "direct_pooled_variance_mV2": direct_variance,
-        "pooled_variance_relative_difference": _relative_difference(lib_variance, direct_variance),
+        "pooled_variance_relative_difference": _relative_difference(
+            lib_variance, direct_variance
+        ),
         "library_zero_fraction": float(np.mean(lib == 0.0)),
         "direct_zero_fraction": float(np.mean(direct == 0.0)),
-        "zero_fraction_absolute_difference": float(abs(np.mean(lib == 0.0) - np.mean(direct == 0.0))),
+        "zero_fraction_absolute_difference": float(
+            abs(np.mean(lib == 0.0) - np.mean(direct == 0.0))
+        ),
         "paired_mean_absolute_difference_mV": float(np.mean(np.abs(lib - direct))),
         "image_mean_relative_difference_median": float(
             np.median(
                 np.abs(lib_image_means - direct_image_means)
-                / np.maximum((np.abs(lib_image_means) + np.abs(direct_image_means)) / 2.0, 1e-12)
+                / np.maximum(
+                    (np.abs(lib_image_means) + np.abs(direct_image_means)) / 2.0, 1e-12
+                )
             )
         ),
         "image_variance_relative_difference_median": float(
             np.median(
                 np.abs(lib_image_variances - direct_image_variances)
-                / np.maximum((np.abs(lib_image_variances) + np.abs(direct_image_variances)) / 2.0, 1e-12)
+                / np.maximum(
+                    (np.abs(lib_image_variances) + np.abs(direct_image_variances))
+                    / 2.0,
+                    1e-12,
+                )
             )
         ),
         "spatial_mean_correlation": correlation,
@@ -2427,9 +2558,9 @@ def compare_feature_condition(
         for name, limit in thresholds.items()
         if name != "spatial_mean_correlation_minimum"
     }
-    passed["spatial_mean_correlation_minimum"] = correlation >= thresholds[
-        "spatial_mean_correlation_minimum"
-    ]
+    passed["spatial_mean_correlation_minimum"] = (
+        correlation >= thresholds["spatial_mean_correlation_minimum"]
+    )
     return {
         "metrics": metrics,
         "thresholds": thresholds,
@@ -2451,8 +2582,12 @@ def plot_step4(
     for row, (regime, rate) in enumerate(STEP4_RATES.items()):
         image_index = STEP4_DIAGNOSTIC_INDICES[regime]
         position = STEP4_IMAGE_INDICES.index(image_index)
-        library_image = library_values[nominal_probe_index, row, position, 0].reshape(28, 28)
-        direct_image = direct_values[nominal_probe_index, row, position, 0].reshape(28, 28)
+        library_image = library_values[nominal_probe_index, row, position, 0].reshape(
+            28, 28
+        )
+        direct_image = direct_values[nominal_probe_index, row, position, 0].reshape(
+            28, 28
+        )
         axes[row, 0].imshow(images[image_index], cmap="gray", vmin=0, vmax=255)
         axes[row, 1].imshow(library_image, cmap="magma", vmin=0, vmax=65)
         axes[row, 2].imshow(direct_image, cmap="magma", vmin=0, vmax=65)
@@ -2464,12 +2599,18 @@ def plot_step4(
             va="center",
             labelpad=18,
         )
-    for column, title in enumerate(("Original intensity", "Empirical response table", "Fresh direct simulation")):
+    for column, title in enumerate(
+        ("Original intensity", "Empirical response table", "Fresh direct simulation")
+    ):
         axes[0, column].set_title(title, fontsize=9)
     for axis in axes.flat:
         axis.set_xticks([])
         axis.set_yticks([])
-    fig.suptitle("Empirical response table versus fresh direct simulation", fontsize=11, fontweight="bold")
+    fig.suptitle(
+        "Empirical response table versus fresh direct simulation",
+        fontsize=11,
+        fontweight="bold",
+    )
     savefig_atomic(fig, path, dpi=220, bbox_inches="tight")
     plt.close(fig)
 
@@ -2479,8 +2620,11 @@ def step_4() -> None:
     library = verify_authenticated_library()
     images, labels, dataset_record = load_locked_mnist_training()
     shape = (
-        len(PROBE_CONDUCTANCES_US), len(STEP4_RATES), len(STEP4_IMAGE_INDICES),
-        STEP4_REPLICATES, 784,
+        len(PROBE_CONDUCTANCES_US),
+        len(STEP4_RATES),
+        len(STEP4_IMAGE_INDICES),
+        STEP4_REPLICATES,
+        784,
     )
     library_values = np.empty(shape, dtype=np.float32)
     direct_values = np.empty(shape, dtype=np.float32)
@@ -2490,24 +2634,45 @@ def step_4() -> None:
             for image_position, image_index in enumerate(STEP4_IMAGE_INDICES):
                 for replicate in range(STEP4_REPLICATES):
                     values, draws = sample_library_image(
-                        library, images[image_index], probe_index, TRAINING_RATES_HZ.index(rate),
-                        image_index, replicate,
+                        library,
+                        images[image_index],
+                        probe_index,
+                        TRAINING_RATES_HZ.index(rate),
+                        image_index,
+                        replicate,
                     )
-                    library_values[probe_index, rate_index, image_position, replicate] = values
-                    draw_indices[probe_index, rate_index, image_position, replicate] = draws
-                direct_values[probe_index, rate_index, image_position] = direct_feature_replicates(
-                    images[image_index], rate, probe, probe_index,
-                    TRAINING_RATES_HZ.index(rate), image_index,
+                    library_values[
+                        probe_index, rate_index, image_position, replicate
+                    ] = values
+                    draw_indices[probe_index, rate_index, image_position, replicate] = (
+                        draws
+                    )
+                direct_values[probe_index, rate_index, image_position] = (
+                    direct_feature_replicates(
+                        images[image_index],
+                        rate,
+                        probe,
+                        probe_index,
+                        TRAINING_RATES_HZ.index(rate),
+                        image_index,
+                    )
                 )
             print(f"Step 4 direct: {probe:g} uS {regime}, 16 images complete")
     condition_records: list[dict[str, Any]] = []
     for probe_index, probe in enumerate(PROBE_CONDUCTANCES_US):
         for rate_index, (regime, rate) in enumerate(STEP4_RATES.items()):
             comparison = compare_feature_condition(
-                library_values[probe_index, rate_index], direct_values[probe_index, rate_index], regime
+                library_values[probe_index, rate_index],
+                direct_values[probe_index, rate_index],
+                regime,
             )
             condition_records.append(
-                {"probe_uS": probe, "drive_regime": regime, "rate_hz": rate, "comparison": comparison}
+                {
+                    "probe_uS": probe,
+                    "drive_regime": regime,
+                    "rate_hz": rate,
+                    "comparison": comparison,
+                }
             )
 
     replay_values, replay_draws = sample_library_image(
@@ -2517,9 +2682,12 @@ def step_4() -> None:
         images[0], 0.25, 0.6, 0, TRAINING_RATES_HZ.index(0.25), 0
     )
     validations = {
-        "all_conditions_passed": all(row["comparison"]["passed"] for row in condition_records),
+        "all_conditions_passed": all(
+            row["comparison"]["passed"] for row in condition_records
+        ),
         "finite_and_bounded": bool(
-            np.all(np.isfinite(library_values)) and np.all(np.isfinite(direct_values))
+            np.all(np.isfinite(library_values))
+            and np.all(np.isfinite(direct_values))
             and np.all((library_values >= 0) & (library_values <= 65))
             and np.all((direct_values >= 0) & (direct_values <= 65))
         ),
@@ -2527,18 +2695,24 @@ def step_4() -> None:
             np.array_equal(replay_values, library_values[0, 0, 0, 0])
             and np.array_equal(replay_draws, draw_indices[0, 0, 0, 0])
         ),
-        "direct_deterministic_replay": bool(np.array_equal(direct_replay, direct_values[0, 0, 0])),
+        "direct_deterministic_replay": bool(
+            np.array_equal(direct_replay, direct_values[0, 0, 0])
+        ),
         "pixel_and_image_stream_independence": bool(
             not np.array_equal(draw_indices[0, 0, 0, 0], draw_indices[0, 0, 0, 1])
-            and not np.array_equal(library_values[0, 0, 0, 0], library_values[0, 0, 1, 0])
+            and not np.array_equal(
+                library_values[0, 0, 0, 0], library_values[0, 0, 1, 0]
+            )
             and not np.array_equal(direct_values[0, 0, 0, 0], direct_values[0, 0, 0, 1])
         ),
         "low_rate_zero_heavy": bool(np.mean(library_values[:, 0] == 0) > 0.9),
         "higher_rate_spatial_structure": bool(
             min(
                 row["comparison"]["metrics"]["spatial_mean_correlation"]
-                for row in condition_records if row["drive_regime"] == "high"
-            ) >= 0.9
+                for row in condition_records
+                if row["drive_regime"] == "high"
+            )
+            >= 0.9
         ),
         "held_out_test_partition_sealed": True,
     }
@@ -2734,21 +2908,21 @@ def direct_feature_batch_torch(
     total = torch.zeros_like(images)
     decay = math.exp(-DT_MS / PARAMETERS["tau_ampa_ms"])
     for _ in range(N_TIMESTEPS):
-        incoming = torch.rand(
-            images.shape,
-            device=images.device,
-            dtype=images.dtype,
-            generator=generator,
-        ) < probability
+        incoming = (
+            torch.rand(
+                images.shape,
+                device=images.device,
+                dtype=images.dtype,
+                generator=generator,
+            )
+            < probability
+        )
         g = g * decay + probe_uS * incoming
         total_g = PARAMETERS["g_L_uS"] + g
         v_inf = (
-            PARAMETERS["g_L_uS"] * PARAMETERS["E_L_mV"]
-            + g * PARAMETERS["E_e_mV"]
+            PARAMETERS["g_L_uS"] * PARAMETERS["E_L_mV"] + g * PARAMETERS["E_e_mV"]
         ) / total_g
-        v = v_inf + (v - v_inf) * torch.exp(
-            -DT_MS * total_g / PARAMETERS["C_m_nF"]
-        )
+        v = v_inf + (v - v_inf) * torch.exp(-DT_MS * total_g / PARAMETERS["C_m_nF"])
         total += v - PARAMETERS["E_L_mV"]
     return total / N_TIMESTEPS
 
@@ -2785,7 +2959,10 @@ def _dataset_batches(
     ordered = np.asarray(indices, dtype=np.int64).copy()
     if shuffle:
         np.random.default_rng(seed).shuffle(ordered)
-    return [ordered[start : start + batch_size] for start in range(0, len(ordered), batch_size)]
+    return [
+        ordered[start : start + batch_size]
+        for start in range(0, len(ordered), batch_size)
+    ]
 
 
 def train_decoder_condition(
@@ -2809,7 +2986,9 @@ def train_decoder_condition(
         nonlinear.parameters(), lr=DECODER_LEARNING_RATE
     )
     linear_optimizers = [
-        torch.optim.Adam(model.parameters(), lr=DECODER_LEARNING_RATE, weight_decay=decay)
+        torch.optim.Adam(
+            model.parameters(), lr=DECODER_LEARNING_RATE, weight_decay=decay
+        )
         for model, decay in zip(linear_models, LINEAR_WEIGHT_DECAYS, strict=True)
     ]
     feature_generator = torch.Generator(device=device)
@@ -2834,7 +3013,9 @@ def train_decoder_condition(
         rate_rng = np.random.default_rng(_decoder_seed(seed, epoch, 2))
         feature_generator.manual_seed(_decoder_seed(seed, epoch, 3))
         for batch_indices in batches:
-            rate_positions = rate_rng.integers(0, len(DECODER_RATES_HZ), len(batch_indices))
+            rate_positions = rate_rng.integers(
+                0, len(DECODER_RATES_HZ), len(batch_indices)
+            )
             sampled_rates = np.asarray(DECODER_RATES_HZ)[rate_positions]
             for rate in sampled_rates:
                 sampled_counts[str(float(rate))] += 1
@@ -2856,10 +3037,14 @@ def train_decoder_condition(
             ):
                 optimizer.zero_grad(set_to_none=True)
                 logits = model(features.detach())
-                linear_loss, linear_correct = _classification_metrics(logits, batch_labels)
+                linear_loss, linear_correct = _classification_metrics(
+                    logits, batch_labels
+                )
                 linear_loss.backward()
                 optimizer.step()
-                linear_train_loss[position] += float(linear_loss.item()) * len(batch_indices)
+                linear_train_loss[position] += float(linear_loss.item()) * len(
+                    batch_indices
+                )
                 linear_train_correct[position] += linear_correct
             seen += len(batch_indices)
 
@@ -2897,7 +3082,9 @@ def train_decoder_condition(
                     linear_loss, linear_correct = _classification_metrics(
                         model(features), batch_labels
                     )
-                    linear_validation_loss[position] += float(linear_loss.item()) * len(batch_indices)
+                    linear_validation_loss[position] += float(linear_loss.item()) * len(
+                        batch_indices
+                    )
                     linear_validation_correct[position] += linear_correct
                 validation_seen += len(batch_indices)
         nonlinear_accuracy = validation_correct / validation_seen
@@ -2905,7 +3092,10 @@ def train_decoder_condition(
             best_nonlinear = (
                 nonlinear_accuracy,
                 epoch,
-                {name: value.detach().cpu() for name, value in nonlinear.state_dict().items()},
+                {
+                    name: value.detach().cpu()
+                    for name, value in nonlinear.state_dict().items()
+                },
             )
         for position, model in enumerate(linear_models):
             accuracy = linear_validation_correct[position] / validation_seen
@@ -2913,7 +3103,10 @@ def train_decoder_condition(
                 best_linear[position] = (
                     accuracy,
                     epoch,
-                    {name: value.detach().cpu() for name, value in model.state_dict().items()},
+                    {
+                        name: value.detach().cpu()
+                        for name, value in model.state_dict().items()
+                    },
                 )
         row = {
             "epoch": epoch,
@@ -2928,8 +3121,10 @@ def train_decoder_condition(
                     "weight_decay": decay,
                     "train_loss": linear_train_loss[position] / seen,
                     "train_accuracy": linear_train_correct[position] / seen,
-                    "validation_loss": linear_validation_loss[position] / validation_seen,
-                    "validation_accuracy": linear_validation_correct[position] / validation_seen,
+                    "validation_loss": linear_validation_loss[position]
+                    / validation_seen,
+                    "validation_accuracy": linear_validation_correct[position]
+                    / validation_seen,
                 }
                 for position, decay in enumerate(LINEAR_WEIGHT_DECAYS)
             ],
@@ -3037,7 +3232,9 @@ def verify_expanded_rate_training_protocol() -> dict[str, Any]:
     else:
         remote_hash = os.environ.get("EXP077_FROZEN_TRAINING_PROTOCOL_SHA256")
         if remote_hash != EXPANDED_RATE_PROTOCOL_SHA256:
-            raise RuntimeError("expanded-rate training requires a frozen training protocol")
+            raise RuntimeError(
+                "expanded-rate training requires a frozen training protocol"
+            )
         protocol = {
             "status": "frozen_before_expanded_rate_retraining",
             "decoder_rate_grid_hz": list(DECODER_RATES_HZ),
@@ -3109,8 +3306,12 @@ def finalize_step5() -> dict[str, Any]:
             training_path = directory / "training.json"
             modal_path = directory / "modal.json"
             checkpoint_path = directory / "decoders.pt"
-            if not all(path.exists() for path in (training_path, modal_path, checkpoint_path)):
-                raise RuntimeError(f"incomplete Step 5 cell: probe={probe:g}, seed={seed}")
+            if not all(
+                path.exists() for path in (training_path, modal_path, checkpoint_path)
+            ):
+                raise RuntimeError(
+                    f"incomplete Step 5 cell: probe={probe:g}, seed={seed}"
+                )
             training = json.loads(training_path.read_text())
             modal = json.loads(modal_path.read_text())
             records.append(
@@ -3168,7 +3369,9 @@ def finalize_step5() -> dict[str, Any]:
             low = np.min(values, axis=0)
             high = np.max(values, axis=0)
             axis.plot(epochs, mean, color=colors[probe], label=f"{probe:g} μS")
-            axis.fill_between(epochs, low, high, color=colors[probe], alpha=0.16, linewidth=0)
+            axis.fill_between(
+                epochs, low, high, color=colors[probe], alpha=0.16, linewidth=0
+            )
             axis.set_title(title)
             axis.set_xlabel("Epoch")
             axis.set_ylabel("Validation accuracy")
@@ -3177,11 +3380,13 @@ def finalize_step5() -> dict[str, Any]:
     figure_path = FIGURES / "step5_training_history.svg"
     savefig_atomic(fig, figure_path, bbox_inches="tight")
     plt.close(fig)
-    killed_cost = json.loads((FIGURES / "step5" / "pilot" / "attempt-002.json").read_text())[
-        "estimated_cost_usd"
-    ]
+    killed_cost = json.loads(
+        (FIGURES / "step5" / "pilot" / "attempt-002.json").read_text()
+    )["estimated_cost_usd"]
     pilot_cost = json.loads(
-        (FIGURES / "step5" / "pilot" / "probe-1.2" / "seed-42" / "modal.json").read_text()
+        (
+            FIGURES / "step5" / "pilot" / "probe-1.2" / "seed-42" / "modal.json"
+        ).read_text()
     )["estimated_cost_usd"]
     outcome = {
         "status": "complete",
@@ -3252,7 +3457,9 @@ def recover_step6_metadata() -> dict[str, Any]:
             "modal_artifact_payload_sha256": modal_record["artifact_sha256"],
         },
     }
-    (FIGURES / "step6" / "evaluation.json").write_text(json.dumps(outcome, indent=2) + "\n")
+    (FIGURES / "step6" / "evaluation.json").write_text(
+        json.dumps(outcome, indent=2) + "\n"
+    )
     return outcome
 
 
@@ -3318,7 +3525,9 @@ def write_frozen_evaluation_protocol() -> Path:
     return path
 
 
-def load_held_out_mnist_test(protocol_path: Path) -> tuple[np.ndarray, np.ndarray, dict[str, Any]]:
+def load_held_out_mnist_test(
+    protocol_path: Path,
+) -> tuple[np.ndarray, np.ndarray, dict[str, Any]]:
     """Load the official test partition only after authenticating the freeze file."""
     if not protocol_path.exists():
         raise RuntimeError("held-out test access requires a frozen evaluation protocol")
@@ -3340,20 +3549,28 @@ def load_held_out_mnist_test(protocol_path: Path) -> tuple[np.ndarray, np.ndarra
         path.name: sha256_file(path)
         for path in sorted(Path(dataset.raw_folder).glob("t10k-*-ubyte"))
     }
-    return images, labels, {
-        "source": "torchvision.datasets.MNIST official held-out test partition",
-        "image_shape": list(images.shape),
-        "label_shape": list(labels.shape),
-        "raw_file_sha256": raw_hashes,
-    }
+    return (
+        images,
+        labels,
+        {
+            "source": "torchvision.datasets.MNIST official held-out test partition",
+            "image_shape": list(images.shape),
+            "label_shape": list(labels.shape),
+            "raw_file_sha256": raw_hashes,
+        },
+    )
 
 
-def _load_frozen_models(protocol: dict[str, Any], device: Any) -> dict[tuple[float, int], tuple[Any, Any]]:
+def _load_frozen_models(
+    protocol: dict[str, Any], device: Any
+) -> dict[tuple[float, int], tuple[Any, Any]]:
     import torch
 
     models: dict[tuple[float, int], tuple[Any, Any]] = {}
     for record in protocol["models"]:
-        checkpoint = torch.load(REPO / record["path"], map_location=device, weights_only=True)
+        checkpoint = torch.load(
+            REPO / record["path"], map_location=device, weights_only=True
+        )
         nonlinear, linear_candidates = _make_decoders(device, record["seed"])
         nonlinear.load_state_dict(checkpoint["nonlinear"])
         linear = linear_candidates[0]
@@ -3408,13 +3625,19 @@ def evaluate_frozen_decoders(protocol_path: Path, output_dir: Path) -> dict[str,
                             nonlinear_correct[
                                 probe_index, rate_index, draw, seed_index, start:stop
                             ] = (
-                                nonlinear_prediction == label_tensor[start:stop]
-                            ).cpu().numpy()
+                                (nonlinear_prediction == label_tensor[start:stop])
+                                .cpu()
+                                .numpy()
+                            )
                             if probe == PROBE_US:
                                 linear_prediction = linear(features).argmax(dim=1)
-                                linear_correct[rate_index, draw, seed_index, start:stop] = (
-                                    linear_prediction == label_tensor[start:stop]
-                                ).cpu().numpy()
+                                linear_correct[
+                                    rate_index, draw, seed_index, start:stop
+                                ] = (
+                                    (linear_prediction == label_tensor[start:stop])
+                                    .cpu()
+                                    .numpy()
+                                )
                 print(
                     f"held-out probe={probe:g} rate={rate:g} draw={draw + 1}/{EVALUATION_DRAWS}",
                     flush=True,
@@ -3443,7 +3666,9 @@ def evaluate_frozen_decoders(protocol_path: Path, output_dir: Path) -> dict[str,
     return outcome
 
 
-def _hierarchical_lower_bound(values: np.ndarray, seed: int) -> tuple[float, float, float]:
+def _hierarchical_lower_bound(
+    values: np.ndarray, seed: int
+) -> tuple[float, float, float]:
     """Bootstrap images, direct draws, and decoder seeds independently."""
     array = np.asarray(values, dtype=np.float64)
     if array.ndim != 3:
@@ -3457,7 +3682,11 @@ def _hierarchical_lower_bound(values: np.ndarray, seed: int) -> tuple[float, flo
         selected = array[np.ix_(draws, seeds, image_indices)]
         estimates[repetition] = np.mean(selected)
     alpha = 1.0 - CONFIDENCE_LEVEL
-    return float(np.mean(array)), float(np.quantile(estimates, alpha)), float(np.quantile(estimates, 1.0 - alpha))
+    return (
+        float(np.mean(array)),
+        float(np.quantile(estimates, alpha)),
+        float(np.quantile(estimates, 1.0 - alpha)),
+    )
 
 
 def analyze_held_out_evaluation() -> dict[str, Any]:
@@ -3497,7 +3726,9 @@ def analyze_held_out_evaluation() -> dict[str, Any]:
             }
         )
 
-    def threshold(rows: list[dict[str, Any]], criterion: float, strict: bool) -> float | None:
+    def threshold(
+        rows: list[dict[str, Any]], criterion: float, strict: bool
+    ) -> float | None:
         for row in rows:
             lower = float(row["lower_95_one_sided"])
             if (lower > criterion) if strict else (lower >= criterion):
@@ -3536,8 +3767,12 @@ def analyze_held_out_evaluation() -> dict[str, Any]:
         low = np.asarray([row["lower_95_one_sided"] for row in rows])
         high = np.asarray([row["upper_95"] for row in rows])
         axes[1].plot(rates, mean, label=f"{probe:g} μS", color=colors[probe])
-        axes[1].fill_between(rates, low, high, color=colors[probe], alpha=0.15, linewidth=0)
-    for axis, title in zip(axes, ("Decoder comparison at 1.2 μS", "Conductance sensitivity"), strict=True):
+        axes[1].fill_between(
+            rates, low, high, color=colors[probe], alpha=0.15, linewidth=0
+        )
+    for axis, title in zip(
+        axes, ("Decoder comparison at 1.2 μS", "Conductance sensitivity"), strict=True
+    ):
         axis.axhline(CHANCE_ACCURACY, color="#777777", linewidth=0.8, linestyle=":")
         axis.axhline(USEFUL_ACCURACY, color="#777777", linewidth=0.8, linestyle="--")
         axis.set_xscale("log")
@@ -3558,7 +3793,11 @@ def analyze_held_out_evaluation() -> dict[str, Any]:
             "level": CONFIDENCE_LEVEL,
             "side": "one-sided lower percentile bound",
             "bootstrap_repetitions": BOOTSTRAP_REPETITIONS_HELDOUT,
-            "resampled_axes": ["held-out images", "direct-simulation draws", "decoder seeds"],
+            "resampled_axes": [
+                "held-out images",
+                "direct-simulation draws",
+                "decoder seeds",
+            ],
         },
         "nonlinear": nonlinear_rows,
         "linear_nominal": linear_rows,
@@ -3636,7 +3875,9 @@ def step_7() -> None:
         "pass_fail": {
             "nominal_r_decode_observed": nominal["r_decode_hz"] is not None,
             "nominal_r_train_observed": nominal["r_train_hz"] is not None,
-            "all_conductance_r_train_observed": all(value is not None for value in floors.values()),
+            "all_conductance_r_train_observed": all(
+                value is not None for value in floors.values()
+            ),
             "spend_within_40_usd_ceiling": exact_total_cost <= 40.0,
             "held_out_protocol_frozen_before_access": True,
         },
@@ -3727,9 +3968,11 @@ def record_expanded_rate_outcome() -> Path:
             "cell_count": len(step5["records"]),
             "parallel_wall_time_s": max(
                 float(
-                    json.loads((REPO / record["training_path"]).with_name("modal.json").read_text())[
-                        "parallel_dispatch_elapsed_s"
-                    ]
+                    json.loads(
+                        (REPO / record["training_path"])
+                        .with_name("modal.json")
+                        .read_text()
+                    )["parallel_dispatch_elapsed_s"]
                 )
                 for record in step5["records"]
             ),
@@ -3748,9 +3991,9 @@ def record_expanded_rate_outcome() -> Path:
             ],
         },
         "held_out_evaluation": {
-            "runtime_s": json.loads((FIGURES / "step6" / "evaluation.json").read_text())[
-                "runtime_s"
-            ],
+            "runtime_s": json.loads(
+                (FIGURES / "step6" / "evaluation.json").read_text()
+            )["runtime_s"],
             "nominal_added_rate_rows": nominal_rows,
             "r_decode_hz": decision["r_decode_hz"],
             "r_train_hz": decision["r_train_hz"],
@@ -3760,7 +4003,8 @@ def record_expanded_rate_outcome() -> Path:
             "provider": "Modal",
             "pre_expansion_exact_cost_usd": PRE_EXPANSION_EXACT_MODAL_COST_USD,
             "cumulative_exact_cost_usd": total_exact,
-            "expansion_exact_cost_usd": total_exact - PRE_EXPANSION_EXACT_MODAL_COST_USD,
+            "expansion_exact_cost_usd": total_exact
+            - PRE_EXPANSION_EXACT_MODAL_COST_USD,
             "provider_billing_path": "artifacts/data/exp077/modal_billing.json",
             "provider_billing_sha256": sha256_file(FIGURES / "modal_billing.json"),
         },
@@ -3842,7 +4086,9 @@ def record_steps5_7_publication_contract() -> None:
         **_git_metadata(),
         "step5_outcome_sha256": sha256_file(step5_path),
         "frozen_evaluation_protocol_sha256": sha256_file(freeze_path),
-        "held_out_correctness_sha256": sha256_file(FIGURES / "step6" / "held_out_correctness.npz"),
+        "held_out_correctness_sha256": sha256_file(
+            FIGURES / "step6" / "held_out_correctness.npz"
+        ),
         "step6_outcome_sha256": sha256_file(step6_path),
         "decision_sha256": sha256_file(decision_path),
         "paid_compute_usd": decision["compute"]["total_exact_cost_usd"],
