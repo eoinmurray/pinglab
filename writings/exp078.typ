@@ -49,12 +49,18 @@
     each rate measure how uncoupled gamma frequency changes with drive. The
     longest interval that is fully valid, monotonic, and has a within-rate
     frequency interquartile range (IQR) no greater than 0.8 Hz is retained.
-    Second, the median
-    frequency-versus-rate curve is inverted to choose 13 pairs of input rates,
-    $(r_A, r_B)$. Within each pair, the rates generally differ so that circuit A
-    and circuit B are expected to oscillate at a prescribed frequency
-    difference. Third, each input-rate pair is run with $K=0$ using five matched
-    seeds. For each seed, the measured natural detuning is
+    The retained curve maps an input rate to its median uncoupled gamma
+    frequency. Second, this mapping is used in reverse to construct the drive
+    for each of 13 requested signed frequency differences $d$. The midpoint of
+    the retained output-frequency range is $f_c=40.8$ Hz. For each $d$, circuit
+    A is assigned the desired frequency $f_A^*=f_c+d/2$, while circuit B is
+    assigned $f_B^*=f_c-d/2$. Linear interpolation on the measured curve then
+    gives the input rates $r_A$ and $r_B$ expected to produce those two
+    frequencies. For example, $d=+4$ Hz requests $f_A^*=42.8$ Hz and
+    $f_B^*=38.8$ Hz, which map to $r_A=106.0$ and $r_B=86.36$ Hz per channel.
+    Those two rates form one A/B input-rate pair. Third, each pair is run with
+    $K=0$ using five matched seeds. For each seed, the measured natural detuning
+    is
 
     $ Delta f_0 = f_A^0 - f_B^0, quad "(1)" $ <eq-detuning>
 
@@ -179,9 +185,12 @@
     Hz interval is retained because its frequency response is valid, stable,
     and monotonic. The 60 Hz condition is rejected for excessive within-rate
     spread; the 140 Hz condition is rejected because the frequency estimator
-    switches between two spectral modes across seeds. (B) The retained curve is
-    inverted to select 13 unequal A/B input-rate pairs, which are then run with
-    $K=0$. The horizontal axis shows the applied input-rate difference
+    switches between two spectral modes across seeds. (B) For each requested
+    frequency difference, two desired frequencies are placed symmetrically
+    around the 40.8 Hz centre of the retained range. Interpolation on Panel A
+    converts each desired frequency into a drive rate, producing 13 A/B
+    input-rate pairs. These pairs are then run with $K=0$. The horizontal axis
+    shows the applied input-rate difference
     $r_A-r_B$. The vertical axis shows the median measured natural detuning
     $Delta f_0=f_A^0-f_B^0$ from Equation 1; bars span the interquartile range
     across five matched seeds. These measured values, rather than the input-rate
