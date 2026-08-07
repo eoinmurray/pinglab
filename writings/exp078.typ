@@ -49,6 +49,7 @@
     each rate measure how uncoupled gamma frequency changes with drive. The
     longest interval that is fully valid, monotonic, and has a within-rate
     frequency interquartile range (IQR) no greater than 0.8 Hz is retained.
+
     The retained curve maps an input rate to its median uncoupled gamma
     frequency. Second, this mapping is used in reverse to construct the drive
     for each of 13 requested signed frequency differences $d$. The midpoint of
@@ -58,9 +59,10 @@
     gives the input rates $r_A$ and $r_B$ expected to produce those two
     frequencies. For example, $d=+4$ Hz requests $f_A^*=42.8$ Hz and
     $f_B^*=38.8$ Hz, which map to $r_A=106.0$ and $r_B=86.36$ Hz per channel.
-    Those two rates form one A/B input-rate pair. Third, each pair is run with
-    $K=0$ using five matched seeds. For each seed, the measured natural detuning
-    is
+    Those two rates form one A/B input-rate pair.
+
+    Third, each pair is run with $K=0$ using five matched seeds. For each seed,
+    the measured natural detuning is
 
     $ Delta f_0 = f_A^0 - f_B^0, quad "(1)" $ <eq-detuning>
 
