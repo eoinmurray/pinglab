@@ -152,13 +152,13 @@
   #r.registration.calibrated_rate_interval_hz.at(0) to
   #r.registration.calibrated_rate_interval_hz.at(1) Hz per input channel. This
   interval supplies the rate pairs used to evaluate Equation 1 throughout the
-  primary map; their measured natural detunings closely track their targets.
+  primary map; unequal A/B drive produces the signed natural-detuning axis.
 
   #figure(
     image(
       "/artifacts/data/exp078/calibration.png",
       width: 100%,
-      alt: "Two-panel calibration showing combined uncoupled gamma frequency versus equal A/B input rate and measured natural detuning versus its target.",
+      alt: "Two-panel calibration showing combined uncoupled gamma frequency versus equal A/B input rate and measured natural detuning versus A-minus-B input-rate difference.",
     ),
     caption: [Calibration of frequency and natural detuning. (A) Circuits A and
     B receive the same input rate. Each point is the median of 10 gamma-peak
@@ -168,10 +168,11 @@
     Hz interval supplies the rate pairs used in Equation 1. The lowest-rate point exceeds the
     registered within-rate IQR ceiling. At the highest rate, the estimator hops
     between two separated spectral modes across seeds, producing the large bar.
-    Both boundary conditions are excluded. (B) Equation 1 defines the measured
-    uncoupled natural detuning. Each point compares its median across five paired
-    seeds with the target; bars span the interquartile range, and the dashed
-    identity line marks exact realization.],
+    Both boundary conditions are excluded. (B) The circuits remain uncoupled
+    but receive unequal input rates. The horizontal axis is the A-minus-B
+    input-rate difference; the vertical axis is the median natural detuning from
+    Equation 1 across five paired seeds. Bars span the interquartile range;
+    dashed lines mark zero drive difference and zero detuning.],
   ) <fig-calibration>
 
   The frozen thresholds used in Equation 4 are
