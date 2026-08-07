@@ -283,6 +283,35 @@ def _build_parent_parser():
         "readout; train additionally requires an authenticated training.json.",
     )
     net_group.add_argument(
+        "--executor",
+        choices=("legacy", "graph"),
+        default="legacy",
+        help="Execution backend (default: legacy). Graph execution is opt-in.",
+    )
+    net_group.add_argument(
+        "--device",
+        default="auto",
+        help="Graph execution device: auto, cpu, cuda, cuda:N, or mps (default: auto).",
+    )
+    net_group.add_argument(
+        "--recording",
+        choices=("full", "observables", "none"),
+        default="full",
+        help="Graph recording profile: declared observables only, full dynamic traces, or none (default: full).",
+    )
+    net_group.add_argument(
+        "--load-runtime-state",
+        type=str,
+        default=None,
+        help="Restore complete graph-executor dynamic state from a runtime-state directory.",
+    )
+    net_group.add_argument(
+        "--save-runtime-state",
+        type=str,
+        default=None,
+        help="Save complete graph-executor dynamic state to a runtime-state directory.",
+    )
+    net_group.add_argument(
         "--model",
         type=str,
         default="ping",
@@ -1620,6 +1649,63 @@ def main(argv=None):
     args = parse_args(argv)
     mode = args.mode
 
+    # Every invocation crosses the typed seam. The legacy callback below is
+    # deliberately the unchanged handler body; graph requests use the data-only
+    # bundle and stable request API directly.
+    from execution import ExecutionResult, execute_request, execution_spec_from_args
+
+    request = execution_spec_from_args(args)
+
+    if request.executor == "legacy" and (
+        getattr(args, "load_runtime_state", None) or getattr(args, "save_runtime_state", None)
+    ):
+        raise SystemExit("--load-runtime-state/--save-runtime-state require --executor graph")
+
+    if request.executor == "graph":
+        from dataclasses import replace
+
+        import numpy as np
+        import torch
+
+        if not getattr(args, "input_file", None):
+            raise SystemExit("graph execution requires --input-file with arrays named for graph input ports")
+        loaded = np.load(args.input_file)
+        if isinstance(loaded, np.ndarray):
+            from bundle import load_graph_bundle
+            _, graph = load_graph_bundle(args.bundle)
+            input_rows = graph.get("inputs", [])
+            if len(input_rows) != 1:
+                raise SystemExit("a multi-input graph requires an NPZ with one array per input id")
+            input_arrays = {input_rows[0]["id"]: loaded}
+        else:
+            input_arrays = {key: loaded[key] for key in loaded.files}
+            if set(input_arrays) == {"input_spikes"}:
+                from bundle import load_graph_bundle
+                _, graph = load_graph_bundle(args.bundle)
+                input_arrays = {graph["inputs"][0]["id"]: input_arrays["input_spikes"]}
+        from execution import load_runtime_state, save_runtime_state
+        runtime_state = (
+            load_runtime_state(args.load_runtime_state, device=request.device)
+            if getattr(args, "load_runtime_state", None)
+            else None
+        )
+        request = replace(
+            request,
+            inputs={key: torch.as_tensor(value, dtype=torch.float32) for key, value in input_arrays.items()},
+            runtime_state=runtime_state,
+        )
+        result = execute_request(request)
+        out_dir = Path(args.out_dir or DEFAULT_ARTIFACT_ROOT)
+        out_dir.mkdir(parents=True, exist_ok=True)
+        np.savez_compressed(out_dir / "recordings.npz", **{k: v.detach().cpu().numpy() for k, v in result.recordings.items()})
+        np.savez_compressed(out_dir / "outputs.npz", **{k: v.detach().cpu().numpy() for k, v in result.outputs.items()})
+        np.savez_compressed(out_dir / "parameters.npz", **{k: v.detach().cpu().numpy() for k, v in result.parameters.items()})
+        (out_dir / "metrics.json").write_text(json.dumps(result.metrics, indent=2) + "\n")
+        if getattr(args, "save_runtime_state", None):
+            assert result.runtime_state is not None
+            save_runtime_state(args.save_runtime_state, result.runtime_state)
+        return 0
+
     # Build config for non-train modes (build_config syncs the module aliases).
     if mode != "train":
         build_config(args)
@@ -1641,7 +1727,11 @@ def main(argv=None):
     if args._input_auto:
         runlog.phase(log, "input", "auto → dataset (from --dataset/--digit/--sample)")
 
-    _MODE_HANDLERS[mode](args, C, out_dir, log)
+    def _legacy_request():
+        _MODE_HANDLERS[mode](args, C, out_dir, log)
+        return ExecutionResult(executor="legacy", metrics={"request": request.kind, "routing": "legacy"})
+
+    execute_request(request, legacy=_legacy_request)
 
     _elapsed = _time.monotonic() - _t0
     # No device here: it would be a guess. train's summary reports the device it

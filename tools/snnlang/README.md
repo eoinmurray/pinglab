@@ -65,5 +65,38 @@ recordings remain CLI concerns. Structural flags cannot override the bundle.
 For the first training subset, `training.json` owns cross-entropy, AdamW,
 epochs, learning rate, and a trainable input/readout plus frozen recurrent
 scope; dataset cap and batch size remain execution choices.
-Unsupported graph structures fail with a capability error; legacy commands
-that omit `--bundle` retain their existing defaults and behaviour.
+Unsupported graph structures fail with an element-level capability error;
+legacy commands that omit `--bundle` retain their existing defaults and
+behaviour.
+
+## Graph-native forward execution
+
+The opt-in graph backend is exposed through typed requests. Bundle loading is
+still data-only and does not import this authoring package.
+
+```python
+import torch
+from tools.snn.execution import ExecutionSpec, simulate
+
+result = simulate(ExecutionSpec(
+    kind="simulate",
+    executor="graph",
+    bundle="small_ping.bundle",
+    inputs={"events": torch.zeros(100, 1, 128)},
+))
+```
+
+The planner lowers the complete dense topology before stepping. It supports
+arbitrarily named COBA-LIF and leaky-integrator populations, independent spike
+inputs, AMPA and GABA projections, feedforward/recurrent/feedback paths,
+integral delay buffers, mean-voltage outputs, and recordings from every named
+population. Zero-delay feedforward edges follow a deterministic topological
+order. Recurrent and feedback spikes are causal, so zero additional delay means
+one simulation step. Positive delays must be exact integer multiples of the
+declared timestep. Zero-delay cycles, dimension errors, polarity mismatches,
+and missing backend capabilities fail before simulation.
+
+Graph-native training is deliberately not enabled at this milestone. A graph
+training request fails with the explicit future `training:v1` capability rather
+than silently routing through the legacy trainer. The legacy CLI and bundle
+adapter remain the default and retain their historical numerical contract.

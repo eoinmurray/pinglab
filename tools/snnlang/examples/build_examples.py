@@ -13,7 +13,10 @@ def ping_classifier():
     image = net.input(
         "image", shape=("time", "batch", 784), signal_type="spikes", unit="spike"
     )
-    cell = snn.components.ping(net, name="sensory_ping", n_e=256, n_i=64, source=image)
+    cell = snn.components.ping(
+        net, name="sensory_ping", n_e=256, n_i=64, source=image,
+        include_silent_recurrence=True,
+    )
     readout = snn.readouts.MeanVoltage(
         source=cell.E.spikes,
         classes=10,
@@ -23,15 +26,12 @@ def ping_classifier():
     )
     net.output("class_logits", readout)
     net.expose(cell.E.spikes, cell.I.spikes, name="cell")
-    recurrent = [
-        p["id"]
-        for p in net.parameters
-        if p["id"]
-        in {
-            "sensory_ping_E_to_I.weight",
-            "sensory_ping_I_to_E.weight",
-        }
-    ]
+    recurrent_projection_ids = {
+        projection["parameters"][0]
+        for projection in net.projections
+        if projection["connection"] == "recurrent"
+    }
+    recurrent = [p["id"] for p in net.parameters if p["id"] in recurrent_projection_ids]
     feedforward = [
         p["id"] for p in net.parameters if p["id"] not in set(recurrent)
     ]

@@ -1,0 +1,18 @@
+{
+  "one_step_received": [
+    0,
+    1,
+    0,
+    0
+  ],
+  "three_step_received": [
+    0,
+    0,
+    0,
+    1,
+    0
+  ],
+  "boundary_rule": "a pulse emitted at t is available to a d-step recurrent/feedback edge at t+d",
+  "zero_additional_delay_steps": 1,
+  "explicit_delay_steps": 5
+}

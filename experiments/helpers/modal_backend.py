@@ -1,8 +1,8 @@
-"""Minimal Modal backend for experiment cell jobs.
+"""Generic Modal backend for experiment jobs.
 
-This is deliberately narrower than helpers/runpod.py.  RunPod remains the
-historical fleet backend; Modal is introduced first as a synchronous, one-runner
-escape hatch for exp073 after RunPod image/data transport became the bottleneck.
+This mirrors the runner-owned contract in helpers/runpod.py: the backend owns
+cloud execution and artifact transport, while each runner owns job ids, its
+completion predicate, its one-job action, and all scientific parameters.
 
 Design constraints:
   * no scientific parameters are accepted here;
@@ -19,7 +19,6 @@ import hashlib
 import io
 import json
 import os
-import shutil
 import tarfile
 import time
 from datetime import datetime, timezone
@@ -29,7 +28,8 @@ from typing import Any
 from .paths import REPO
 
 REMOTE_REPO = Path("/workspace/pinglab")
-REMOTE_ARTIFACTS = Path("/tmp/pinglab-artifacts/exp073")
+REMOTE_ARTIFACTS_ROOT = Path("/tmp/pinglab-artifacts")
+MAX_RUNTIME_S = 54000
 
 # Modal's public pricing is per second for GPU time; CPU/memory are billed
 # separately.  These are enough for a conservative experiment ledger, but not
@@ -173,79 +173,125 @@ def _extract_tree(payload: bytes, destination: Path) -> None:
         archive.extractall(destination)
 
 
-def _remote_train_exp073_cell(
+def _load_runner_hooks(
     *,
-    cell: str,
-    attempt: str,
-    stage: str,
-    ping_only: bool,
+    runner: str,
+    is_done_name: str,
+    run_job_name: str,
+) -> tuple[Any, Any]:
+    """Import a runner and resolve its declared generic job hooks."""
+    import importlib
+    import sys
+
+    if not runner.isidentifier() or not runner.startswith("exp"):
+        raise ValueError(f"invalid experiment runner: {runner!r}")
+    # Modal may reuse a warm container. Runner recipes commonly resolve their
+    # registered stage from the environment at import time, so never retain a
+    # previous job's module globals across calls.
+    sys.modules.pop(runner, None)
+    importlib.invalidate_caches()
+    module = importlib.import_module(runner)
+    is_done = getattr(module, is_done_name)
+    run_job = getattr(module, run_job_name)
+    if not callable(is_done) or not callable(run_job):
+        raise TypeError(f"runner hooks must be callable: {is_done_name}, {run_job_name}")
+    return is_done, run_job
+
+
+def _remote_run_job(
+    *,
+    slug: str,
+    runner: str,
+    job_id: str,
+    env: dict[str, str],
+    is_done_name: str,
+    run_job_name: str,
 ) -> dict[str, Any]:
-    """Executed inside Modal. Kept top-level so Modal can serialize it cleanly."""
+    """Execute one runner-owned job inside Modal and return its artifact tree."""
     import sys
     import traceback
 
     os.chdir(REMOTE_REPO)
     sys.path.insert(0, str(REMOTE_REPO / "experiments"))
     sys.path.insert(0, str(REMOTE_REPO / "tools" / "snn"))
+    artifacts_root = REMOTE_ARTIFACTS_ROOT / slug
     os.environ.update(
         {
-            "CELLS": cell,
-            "EXP073_ATTEMPT": attempt,
-            "EXP073_STAGE": stage,
-            "EXP073_PING_ONLY": "1" if ping_only else "0",
-            "PINGLAB_ARTIFACTS_ROOT": str(REMOTE_ARTIFACTS),
+            **env,
+            "PINGLAB_ARTIFACTS_ROOT": str(artifacts_root),
             "PYTHONUNBUFFERED": "1",
         }
     )
     started_wall = time.monotonic()
     started_at = utc_now()
     error = None
+    skipped = False
     try:
-        import exp073
-
-        exp073.pod_run()
+        is_done, run_job = _load_runner_hooks(
+            runner=runner,
+            is_done_name=is_done_name,
+            run_job_name=run_job_name,
+        )
+        if is_done(job_id):
+            skipped = True
+        else:
+            run_job(job_id)
+            if not is_done(job_id):
+                raise RuntimeError(
+                    f"runner {runner} job {job_id!r} returned without satisfying "
+                    f"{is_done_name}"
+                )
     except BaseException:  # noqa: BLE001 — serialize failure into the ledger
         error = traceback.format_exc()
-    artifact_payload = _tar_tree(REMOTE_ARTIFACTS)
+    artifact_payload = _tar_tree(artifacts_root)
     elapsed_s = time.monotonic() - started_wall
-    cell_root = REMOTE_ARTIFACTS / "cells" / stage / attempt / cell
-    success = error is None and (cell_root / "checkpoint_selection.json").exists()
+    success = error is None
     return {
-        "cell": cell,
-        "attempt": attempt,
-        "stage": stage,
+        "runner": runner,
+        "job_id": job_id,
         "started_at": started_at,
         "finished_at": utc_now(),
         "elapsed_s": elapsed_s,
         "success": success,
+        "skipped": skipped,
         "error": error,
         "artifact_tar_gz": artifact_payload,
         "artifact_tar_gz_sha256": sha256_bytes(artifact_payload),
     }
 
 
-def dispatch_exp073(
+def dispatch(
     *,
-    cells: list[str],
-    attempt: str,
-    stage: str,
-    ping_only: bool,
+    slug: str,
+    runner: str,
+    job_ids: list[str],
     live: bool,
     local_collect_dir: Path,
     ledger_path: Path,
     timeout_s: int,
+    extra_env: dict[str, str] | None = None,
+    is_done_name: str = "cell_done",
+    run_job_name: str = "run_full_cell",
 ) -> None:
-    """Run exp073 cells on Modal and collect artifacts synchronously."""
+    """Fan out arbitrary runner-owned jobs on Modal and collect artifacts."""
+    if not slug or Path(slug).name != slug:
+        raise ValueError(f"invalid experiment slug: {slug!r}")
+    if not runner.isidentifier() or not runner.startswith("exp"):
+        raise ValueError(f"invalid experiment runner: {runner!r}")
+    if not job_ids or len(set(job_ids)) != len(job_ids):
+        raise ValueError("job_ids must be non-empty and unique")
+    if timeout_s <= 0 or timeout_s > MAX_RUNTIME_S:
+        raise ValueError(f"timeout_s must be in 1..{MAX_RUNTIME_S}")
     gpu = os.environ.get("PINGLAB_MODAL_GPU", "L40S")
-    print(f"{'LIVE' if live else 'DRY-RUN'}  runner=exp073  backend=modal  gpu={gpu}")
-    print(f"jobs: {' '.join(cells)}")
+    print(f"{'LIVE' if live else 'DRY-RUN'}  runner={runner}  backend=modal  gpu={gpu}")
+    print(f"jobs: {' '.join(job_ids)}")
     print("set PINGLAB_MODAL_GPU to choose a different Modal GPU SKU")
     if not live:
         print("\n(dry-run — nothing created. Re-run with --live to spend.)")
         return
 
     modal = _require_modal()
-    from . import modal_exp073_app
+    from . import modal_app
 
     output_context = getattr(modal, "enable_output", lambda: contextlib.nullcontext())()
     events: list[dict[str, Any]] = []
@@ -253,21 +299,29 @@ def dispatch_exp073(
     started_clock = time.monotonic()
     try:
         with output_context:
-            with modal_exp073_app.app.run():
-                for cell in cells:
-                    result = modal_exp073_app.train_one.remote(cell, attempt, stage, ping_only)
+            with modal_app.app.run():
+                remote = modal_app.run_job.with_options(timeout=timeout_s)
+                calls = [
+                    (
+                        job_id,
+                        remote.spawn(
+                            slug,
+                            runner,
+                            job_id,
+                            dict(extra_env or {}),
+                            is_done_name,
+                            run_job_name,
+                        ),
+                    )
+                    for job_id in job_ids
+                ]
+                for job_id, call in calls:
+                    result = call.get()
                     payload = bytes(result.pop("artifact_tar_gz"))
                     expected = result["artifact_tar_gz_sha256"]
                     actual = sha256_bytes(payload)
                     if actual != expected:
-                        raise RuntimeError(f"Modal artifact hash mismatch for {cell}: {actual} != {expected}")
-                    if local_collect_dir.exists():
-                        # Modal returns the whole exp073 scratch subtree.  Keep
-                        # previous cells, but replace this cell's destination before
-                        # extracting to avoid mixing stale and fresh files.
-                        stale = local_collect_dir / "cells" / stage / attempt / cell
-                        if stale.exists():
-                            shutil.rmtree(stale)
+                        raise RuntimeError(f"Modal artifact hash mismatch for {job_id}: {actual} != {expected}")
                     _extract_tree(payload, local_collect_dir)
                     events.append({**result, "artifact_tar_gz_sha256": actual})
     except BaseException as exc:
@@ -285,7 +339,9 @@ def dispatch_exp073(
         "started_at": started,
         "finished_at": utc_now(),
         "elapsed_s": elapsed,
-        "cells": events,
+        "slug": slug,
+        "runner": runner,
+        "jobs": events,
         "gpu": gpu,
         "gpu_usd_per_second": gpu_rate,
         "billable_gpu_seconds_estimate": billable_gpu_s,
@@ -298,7 +354,7 @@ def dispatch_exp073(
     ledger_path.write_text(json.dumps(ledger, indent=2) + "\n")
     failed = [event for event in events if not event.get("success")]
     if failed:
-        names = ", ".join(event["cell"] for event in failed)
-        raise SystemExit(f"Modal exp073 job(s) failed: {names}; artifacts were collected for post-mortem")
+        names = ", ".join(event["job_id"] for event in failed)
+        raise SystemExit(f"Modal {runner} job(s) failed: {names}; artifacts were collected for post-mortem")
     print(f"collected Modal artifacts into {local_collect_dir}")
     print(f"wrote Modal compute ledger {ledger_path}")

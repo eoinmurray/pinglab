@@ -6,6 +6,7 @@
   status: "draft",
 )
 
+
 #let body = [
   == Abstract
 
@@ -706,6 +707,16 @@
 
   A checkpoint contains evolving parameter values and optional optimizer state. Initializing, resuming, fine-tuning, and inference are invocation choices rather than changes to _graph.json_.
 
+  Graph-runtime state is a separate artifact again. It contains membrane
+  voltages, refractory counters, per-projection conductances, recurrent delay
+  histories, delayed-input context, completed steps, and a structural
+  compatibility signature—but no weights. The initial portable representation is
+  an authenticated `manifest.json` plus `tensors.npz`. This separation permits a
+  mature zero-weight graph to branch into a state-compatible non-zero-weight graph
+  without confusing dynamic continuation with parameter checkpointing. _snnlang_
+  continues to author topology only; _tools/snn_ owns state validation and I/O,
+  while the experiment runner owns checkpoint selection and branching.
+
   === A.4 Scratch layout
 
   Each experiment uses regenerable scratch separately from its committed publication record:
@@ -963,6 +974,14 @@
 
   === B.4 Milestone 1: freeze the compatibility seam
 
+  *Status at 2026-08-05: demonstrated.* The typed request seam, legacy-default
+  selector, versioned element-level capability vocabulary, and data-only bundle
+  boundary are implemented in commits `5be1cdb` and `cf11906`. Focused tests
+  lower legacy MNIST, SHD, checkpoint, recording, and bundle invocations into
+  the same request type while retaining legacy routing. _exp074_--_exp076_
+  reran successfully through their historical interfaces; the validation
+  evidence and anomalies are recorded in #link("/exp077/")[_exp077_].
+
   *Purpose:* create a safe place for a second executor without changing numerical
   behaviour. This milestone adds architecture and tests, not new circuit science.
 
@@ -990,6 +1009,17 @@
 
   === B.5 Milestone 2: graph-native single-PING forward execution
 
+  *Status at 2026-08-05: demonstrated.* Commit `cf11906` makes the existing
+  PING state, refractory counts, membrane constants, update order, silent
+  recurrence, readout reset, delays, initialisers, constraints, outputs, and
+  observables explicit. _exp077_ records zero parameter error, zero E/I spike
+  mismatches, zero named-output error, and zero checkpoint-replay error on an
+  active matched CPU fixture. The graph path is faster than the legacy path on
+  the matched steady-state workload, so the overhead gate passes without an
+  exception. CPU Inductor compilation time, warm runtime, replay error, and
+  traced peak memory are reported separately. A larger CPU compile attempt was
+  killed after five minutes; accelerator compilation remains unmeasured.
+
   *Purpose:* prove the new lowering and scheduling machinery on a topology whose
   legacy result is known.
 
@@ -1016,6 +1046,19 @@
   and accepted before proceeding.
 
   === B.6 Milestone 3: arbitrary coupled forward graphs
+
+  *Status at 2026-08-05: demonstrated.* Commit `cf11906` adds deterministic
+  topological scheduling, arbitrary named population sizes, independent inputs,
+  dense feedforward/recurrent/feedback projections, multiple incoming
+  conductance streams, integral delay buffers, and all-population recordings.
+  #link("/exp077/")[_exp077_] (fixture commit `3b7a935`, evidence commit
+  `fdfb19f`) archives uncoupled, unidirectional, reciprocal
+  zero-additional-delay, and reciprocal explicitly delayed two-PING graphs.
+  Each variant differs only in graph data and retains its authenticated graph,
+  manifest, canonical diagram, named input/E/I recordings, delay evidence, and
+  execution provenance. The fixture computes only compact recording
+  diagnostics; the scientific coupling sweep is performed separately by
+  Milestone 4 in #link("/exp078/")[_exp078_].
 
   *Purpose:* deliver the first capability that the legacy `COBANet` architecture
   cannot express.
@@ -1046,15 +1089,22 @@
 
   === B.7 Milestone 4: first native gamma-coupling experiment
 
-  Add a representative experiment to the _snnlang_ collection using milestone 3.
-  Measure synchrony, phase difference, coherence or phase locking, and cross-
-  correlation across coupling direction, strength, and delay. Record time to create
-  variants, changed lines, compiler errors caught, simulator edits, runtime, memory,
-  and diagram clarity.
+  *Status: executor capability complete; scientific experiment planned.* Exact
+  split-run tests cover refractory state, live conductances, recurrent delays, and
+  delayed inputs. Runtime-state compatibility excludes parameter values but rejects
+  changes to timestep, population size, projection identity, delay, synapse, and
+  state layout. This is sufficient to burn in a structurally complete graph with
+  reciprocal E-to-I weights at zero and continue the same causal trajectory with
+  nonzero weights. General time-dependent weights are not required.
 
-  *Gate:* scientifically meaningful variants take minutes rather than hours and need
-  no simulator-internal changes. This is a go/no-go review: if iteration speed has
-  not materially improved, stop language expansion and identify the real bottleneck.
+  #link("/exp078/")[_exp078_] executes the registered graph-native Arnold-tongue
+  test in two 80 E / 20 I circuits. It calibrates uncoupled gamma frequency,
+  freezes locking tolerances and a bounded coupling pilot, then crosses measured
+  natural-frequency detuning with reciprocal coupling. The 80/20 result recovers
+  the widening tongue but narrowly fails the strict phase-lead clause. A reduced
+  800 E / 200 I confirmation near that phase-sign boundary is the appropriate
+  finite-size follow-up; the full sweep is not silently redefined at tenfold
+  scale.
 
   === B.8 Milestone 5: graph-native readouts and input bindings
 
