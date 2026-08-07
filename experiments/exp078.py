@@ -1274,7 +1274,9 @@ def plot_calibration(calibration: dict, results: list[dict], out_path: Path) -> 
         (row for row in results if row["coupling"] == 0.0),
         key=lambda row: row["target_detuning_hz"],
     )
-    target = np.array([row["target_detuning_hz"] for row in uncoupled])
+    drive_difference = np.array([
+        row["rate_a_hz"] - row["rate_b_hz"] for row in uncoupled
+    ])
     detuning_samples = [
         np.array([trial["natural_detuning_hz"] for trial in row["trials"]])
         for row in uncoupled
@@ -1282,10 +1284,10 @@ def plot_calibration(calibration: dict, results: list[dict], out_path: Path) -> 
     measured = np.array([np.median(values) for values in detuning_samples])
     quartiles = np.array([np.percentile(values, [25, 75]) for values in detuning_samples])
     detuning_error = np.vstack((measured - quartiles[:, 0], quartiles[:, 1] - measured))
-    limits = np.array([target.min(), target.max()])
-    axes[1].plot(limits, limits, linestyle="--", color=theme.GREY_DARK, label="identity")
+    axes[1].axhline(0.0, linestyle="--", color=theme.GREY_MID, linewidth=1.0)
+    axes[1].axvline(0.0, linestyle="--", color=theme.GREY_MID, linewidth=1.0)
     axes[1].errorbar(
-        target,
+        drive_difference,
         measured,
         yerr=detuning_error,
         marker="o",
@@ -1293,12 +1295,9 @@ def plot_calibration(calibration: dict, results: list[dict], out_path: Path) -> 
         capsize=3,
     )
     axes[1].set(
-        xlabel="target natural detuning (Hz)",
+        xlabel="input-rate difference, A - B (Hz per channel)",
         ylabel="measured natural detuning (Hz)",
-        xlim=(limits[0] - 0.5, limits[1] + 0.5),
-        ylim=(limits[0] - 0.5, limits[1] + 0.5),
     )
-    axes[1].legend(frameon=False)
     axes[1].text(-0.12, 1.03, "B", transform=axes[1].transAxes, fontweight="bold")
     fig.tight_layout()
     fig.savefig(out_path, dpi=220, bbox_inches="tight")
