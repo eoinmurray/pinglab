@@ -20346,7 +20346,7 @@
   },
   "all_validations_passed": true,
   "paid_compute_usd": 9.430388729999997,
-  "reproducer": "EXP077_THROUGH_STEP=1 uv run python experiments/exp080.py",
+  "reproducer": "EXP080_THROUGH_STEP=1 uv run python experiments/exp080.py",
   "step2": {
     "status": "validation_failed",
     "original_pilot": {

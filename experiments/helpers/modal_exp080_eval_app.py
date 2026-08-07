@@ -1,4 +1,4 @@
-"""Modal application for exp077's frozen held-out evaluation."""
+"""Modal application for exp080's frozen held-out evaluation."""
 
 from __future__ import annotations
 
@@ -15,12 +15,12 @@ import modal
 from . import modal_backend
 
 repo = modal_backend.REMOTE_REPO
-image = modal_backend._source_image_exp077(modal).add_local_dir(
-    str(modal_backend.REPO / "artifacts" / "data" / "exp077"),
-    str(repo / "artifacts" / "data" / "exp077"),
+image = modal_backend._source_image_exp080(modal).add_local_dir(
+    str(modal_backend.REPO / "artifacts" / "data" / "exp080"),
+    str(repo / "artifacts" / "data" / "exp080"),
     ignore=["step2_response_library.float32.npy"],
 )
-app = modal.App("pinglab-exp077-evaluation")
+app = modal.App("pinglab-exp080-evaluation")
 gpu = os.environ.get("PINGLAB_MODAL_GPU", "L40S")
 
 
@@ -40,14 +40,14 @@ def evaluate() -> dict[str, Any]:
     os.chdir(repo)
     sys.path.insert(0, str(repo))
     sys.path.insert(0, str(repo / "experiments"))
-    output = Path("/tmp/exp077-step6")
+    output = Path("/tmp/exp080-step6")
     started = time.monotonic()
     error = None
     try:
-        from experiments import exp077
+        from experiments import exp080
 
-        exp077.evaluate_frozen_decoders(
-            repo / "artifacts" / "data" / "exp077" / "frozen_evaluation_protocol.json",
+        exp080.evaluate_frozen_decoders(
+            repo / "artifacts" / "data" / "exp080" / "frozen_evaluation_protocol.json",
             output,
         )
     except BaseException:  # noqa: BLE001 - return traceback for the ledger

@@ -1,4 +1,4 @@
-"""Modal application for one exp077 Step 5 training cell."""
+"""Modal application for one exp080 Step 5 training cell."""
 
 from __future__ import annotations
 
@@ -14,8 +14,8 @@ import modal
 
 from . import modal_backend
 
-app = modal.App("pinglab-exp077")
-image = modal_backend._source_image_exp077(modal)
+app = modal.App("pinglab-exp080")
+image = modal_backend._source_image_exp080(modal)
 gpu = os.environ.get("PINGLAB_MODAL_GPU", "L40S")
 
 
@@ -39,19 +39,19 @@ def train_cell(stage: str, probe_uS: float, seed: int) -> dict[str, Any]:
     sys.path.insert(0, str(repo / "experiments"))
     started = time.monotonic()
     error = None
-    artifact_root = repo / "artifacts" / "data" / "exp077" / "step5"
+    artifact_root = repo / "artifacts" / "data" / "exp080" / "step5"
     try:
         os.environ.update(
             {
-                "EXP077_STAGE": stage,
-                "EXP077_PROBE_US": str(probe_uS),
-                "EXP077_SEED": str(seed),
+                "EXP080_STAGE": stage,
+                "EXP080_PROBE_US": str(probe_uS),
+                "EXP080_SEED": str(seed),
             }
         )
-        from experiments import exp077
+        from experiments import exp080
 
-        exp077.step_5()
-        artifact_root = exp077.FIGURES / "step5"
+        exp080.step_5()
+        artifact_root = exp080.FIGURES / "step5"
     except BaseException:  # noqa: BLE001 - return remote traceback and artifacts
         error = traceback.format_exc()
     payload = _archive(artifact_root)

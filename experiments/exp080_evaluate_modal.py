@@ -1,4 +1,4 @@
-"""Authorized Modal dispatcher for exp077's frozen held-out evaluation."""
+"""Authorized Modal dispatcher for exp080's frozen held-out evaluation."""
 
 from __future__ import annotations
 
@@ -10,10 +10,10 @@ import time
 from pathlib import Path
 
 from helpers import modal_backend
-from helpers.modal_exp077_eval_app import app, evaluate
+from helpers.modal_exp080_eval_app import app, evaluate
 
 REPO = Path(__file__).resolve().parents[1]
-DESTINATION = REPO / "artifacts" / "data" / "exp077" / "step6"
+DESTINATION = REPO / "artifacts" / "data" / "exp080" / "step6"
 
 
 def main() -> None:
@@ -21,7 +21,7 @@ def main() -> None:
     parser.add_argument("--live", action="store_true")
     args = parser.parse_args()
     gpu = os.environ.get("PINGLAB_MODAL_GPU", "L40S")
-    print(f"{'LIVE' if args.live else 'DRY-RUN'} exp077 frozen evaluation gpu={gpu}")
+    print(f"{'LIVE' if args.live else 'DRY-RUN'} exp080 frozen evaluation gpu={gpu}")
     if not args.live:
         return
     modal = modal_backend._require_modal()

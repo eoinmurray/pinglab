@@ -116,8 +116,8 @@ def _source_image(modal: Any):
     return image
 
 
-def _source_image_exp077(modal: Any):
-    """Source image for exp077's direct MNIST feature simulation."""
+def _source_image_exp080(modal: Any):
+    """Source image for exp080's direct MNIST feature simulation."""
     return (
         modal.Image.debian_slim(python_version="3.10")
         .uv_pip_install(
@@ -133,7 +133,7 @@ def _source_image_exp077(modal: Any):
                     f"{REMOTE_REPO / 'experiments'}:"
                     f"{REMOTE_REPO / 'tools' / 'snn'}"
                 ),
-                "EXP077_FROZEN_TRAINING_PROTOCOL_SHA256": (
+                "EXP080_FROZEN_TRAINING_PROTOCOL_SHA256": (
                     "07e083cfe6d44bd172c18da2be8fe36cafc321025a86f3a567813f8916bb67aa"
                 ),
             }

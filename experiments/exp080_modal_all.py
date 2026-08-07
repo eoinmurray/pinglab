@@ -1,4 +1,4 @@
-"""Authorized parallel Modal dispatcher for all exp077 full-training cells."""
+"""Authorized parallel Modal dispatcher for all exp080 full-training cells."""
 
 from __future__ import annotations
 
@@ -8,19 +8,19 @@ import os
 import time
 from pathlib import Path
 
-from exp077 import PROBE_CONDUCTANCES_US, SEEDS, verify_expanded_rate_training_protocol
+from exp080 import PROBE_CONDUCTANCES_US, SEEDS, verify_expanded_rate_training_protocol
 from helpers import modal_backend
-from helpers.modal_exp077_app import app, train_cell
+from helpers.modal_exp080_app import app, train_cell
 
 REPO = Path(__file__).resolve().parents[1]
-DESTINATION = REPO / "artifacts" / "data" / "exp077" / "step5"
+DESTINATION = REPO / "artifacts" / "data" / "exp080" / "step5"
 
 
 def main() -> None:
     verify_expanded_rate_training_protocol()
     gpu = os.environ.get("PINGLAB_MODAL_GPU", "L40S")
     cells = [("full", probe, seed) for probe in PROBE_CONDUCTANCES_US for seed in SEEDS]
-    print(f"LIVE exp077 parallel full training: {len(cells)} cells on {gpu}")
+    print(f"LIVE exp080 parallel full training: {len(cells)} cells on {gpu}")
     modal = modal_backend._require_modal()
     output = getattr(modal, "enable_output", lambda: contextlib.nullcontext())()
     started = time.monotonic()
