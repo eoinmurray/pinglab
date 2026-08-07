@@ -430,7 +430,7 @@
     "duration_s": 4789.4,
     "method": "filesystem birth time to final raw-library modification time"
   },
-  "response_library_figure_sha256": "d0fccfb1f794c7851b30d2058f50f240b677fbd9527a2ff523534d37f42f3988",
+  "response_library_figure_sha256": "37973fbfb73bfc702b419b95d11cdc5c12ad48d8268f3b157c93494f6adea255",
   "bootstrap_stability_protocol_sha256": "54a33a6d8e265d8d59c2ce10379e8cdb6ce1790412b21ebbff7e4f5432ad1dce",
   "bootstrap_stability_outcome_sha256": "20672312e9a3b3841850ab48c41046fd1403604bb2832e3441e779324d258a2c",
   "exploratory_continuation": {
@@ -438,7 +438,7 @@
     "amendment_path": "artifacts/data/exp080/step3_step4_exploratory_amendment.json",
     "amendment_sha256": "191c640ed969e039914603ebfc132496e91b2458ff6102fed569d50defc3f469",
     "step3_outcome": "artifacts/data/exp080/step3_outcome.json",
-    "step3_outcome_sha256": "0069df1a9d77205c95d146ab8f9f20d15951073ef476268259cef93b4b151a51",
+    "step3_outcome_sha256": "893e1e58139d7fc620683a144e14671ad0fc5073dfb3fbe06c0bd7e9a05ae4c7",
     "step4_outcome": "artifacts/data/exp080/step4_outcome.json",
     "step4_outcome_sha256": "90a9241cca6263724597d53c2c63382f410e4339417e21cebd59f6babf3e4ca6",
     "steps5_7_run": true,

@@ -1412,7 +1412,8 @@ def plot_full_library(
     for ax in (ax_mean, ax_std):
         ax.set_xscale("symlog", linthresh=0.02)
         ax.set_xlim(-0.002, 5.5)
-        ax.set_xticks((0, 0.01, 0.1, 1, 5), labels=("0", "0.01", "0.1", "1", "5"))
+        ax.set_xticks((0.1, 1, 5), labels=("0.1", "1", "5"))
+        ax.tick_params(axis="x", pad=6)
         ax.set_xlabel("Expected input spikes")
     ax_mean.legend(frameon=False, fontsize=7, title="Probe conductance")
     ax_mean.legend(frameon=False, fontsize=7, loc="upper left")
@@ -2178,6 +2179,7 @@ def calculate_step3_empirical_comparison() -> dict[str, Any]:
     with np.load(FIGURES / "step3_linear_filter_arrays.npz") as analytical:
         predicted_mean = analytical["stationary_mean_voltage_mV"] - PARAMETERS["E_L_mV"]
         predicted_sd = np.sqrt(analytical["predicted_variance_mV2"])
+        expected_spikes = analytical["expected_spikes"]
     with np.load(FIGURES / "response_library_summary.npz") as empirical:
         empirical_mean = empirical["mean"]
         empirical_sd = empirical["standard_deviation"]
@@ -2214,7 +2216,70 @@ def calculate_step3_empirical_comparison() -> dict[str, Any]:
         "empirical_mean_mV": empirical_mean,
         "predicted_sd_mV": predicted_sd,
         "empirical_sd_mV": empirical_sd,
+        "expected_spikes": expected_spikes,
     }
+
+
+def plot_step3_analytical_by_drive(record: dict[str, Any], path: Path) -> None:
+    """Plot analytical response moments over drive with empirical overlays."""
+    theme.apply()
+    fig, axes = plt.subplots(1, 2, figsize=(8.2, 3.25), constrained_layout=True)
+    colors = (theme.INK_BLACK, theme.DEEP_RED, theme.ELECTRIC_CYAN)
+    panels = (
+        (
+            record["predicted_mean_mV"],
+            record["empirical_mean_mV"],
+            "A  Mean feature",
+            "Mean feature z (mV)",
+        ),
+        (
+            record["predicted_sd_mV"],
+            record["empirical_sd_mV"],
+            "B  Feature SD",
+            "Feature SD (mV)",
+        ),
+    )
+    for axis, (predicted, observed, title, ylabel) in zip(axes, panels, strict=True):
+        for probe_index, (probe, color) in enumerate(
+            zip(PROBE_CONDUCTANCES_US, colors, strict=True)
+        ):
+            drive = record["expected_spikes"][probe_index].reshape(-1)
+            analytical = predicted[probe_index].reshape(-1)
+            empirical = observed[probe_index].reshape(-1)
+            order = np.argsort(drive, kind="stable")
+            sorted_drive = drive[order]
+            sorted_analytical = analytical[order]
+            unique_drive, unique_indices = np.unique(sorted_drive, return_index=True)
+            axis.scatter(
+                drive,
+                empirical,
+                color=color,
+                s=5,
+                alpha=0.10,
+                edgecolors="none",
+                rasterized=True,
+            )
+            axis.plot(
+                unique_drive,
+                sorted_analytical[unique_indices],
+                color=color,
+                linewidth=1.6,
+                label=f"{probe:g} μS",
+            )
+        axis.set(
+            title=title,
+            xlabel="Expected input spikes",
+            ylabel=ylabel,
+            xscale="symlog",
+            xlim=(-0.002, 5.5),
+        )
+        axis.set_xticks((0.1, 1, 5), labels=("0.1", "1", "5"))
+        axis.tick_params(axis="x", pad=6)
+        axis.grid(alpha=0.14)
+        axis.spines[["top", "right"]].set_visible(False)
+    axes[0].legend(frameon=False, fontsize=7, loc="upper left")
+    fig.savefig(path, format="svg", metadata={"Date": None})
+    plt.close(fig)
 
 
 def plot_step3_empirical_comparison(record: dict[str, Any], path: Path) -> None:
@@ -2267,6 +2332,8 @@ def plot_step3_empirical_comparison(record: dict[str, Any], path: Path) -> None:
 def refresh_step3_empirical_comparison() -> None:
     """Create the Step 3 comparison from recorded arrays without rerunning science."""
     record = calculate_step3_empirical_comparison()
+    drive_figure_path = FIGURES / "linear_filter_drive_response.svg"
+    plot_step3_analytical_by_drive(record, drive_figure_path)
     figure_path = FIGURES / "linear_filter_empirical_comparison.svg"
     plot_step3_empirical_comparison(record, figure_path)
     outcome = {
@@ -2279,6 +2346,8 @@ def refresh_step3_empirical_comparison() -> None:
             "paid_compute_usd": 0.0,
             "figure_path": str(figure_path.relative_to(REPO)),
             "figure_sha256": sha256_file(figure_path),
+            "drive_figure_path": str(drive_figure_path.relative_to(REPO)),
+            "drive_figure_sha256": sha256_file(drive_figure_path),
             "source_sha256": {
                 "analytical": sha256_file(FIGURES / "step3_linear_filter_arrays.npz"),
                 "empirical": sha256_file(FIGURES / "response_library_summary.npz"),
@@ -2295,6 +2364,8 @@ def refresh_step3_empirical_comparison() -> None:
         "sha256": sha256_file(comparison_path),
         "figure_path": str(figure_path.relative_to(REPO)),
         "figure_sha256": sha256_file(figure_path),
+        "drive_figure_path": str(drive_figure_path.relative_to(REPO)),
+        "drive_figure_sha256": sha256_file(drive_figure_path),
     }
     step3_path.write_text(json.dumps(step3, indent=2) + "\n")
 
@@ -2311,6 +2382,7 @@ def refresh_step3_empirical_comparison() -> None:
         **_git_metadata(),
         "comparison_sha256": sha256_file(comparison_path),
         "figure_sha256": sha256_file(figure_path),
+        "drive_figure_sha256": sha256_file(drive_figure_path),
         "paid_compute_usd": 0.0,
     }
     provenance_path.write_text(json.dumps(provenance, indent=2) + "\n")
@@ -2323,7 +2395,6 @@ def refresh_step3_empirical_comparison() -> None:
         "paid_compute": False,
     }
     reproducer_path.write_text(json.dumps(reproducer, indent=2) + "\n")
-    record_steps5_7_publication_contract()
 
 
 def step_3() -> None:
@@ -2833,6 +2904,8 @@ def record_steps3_4_publication_contract() -> None:
         "expected_library_sha256": LIBRARY_SHA256,
         "expected_outputs": [
             "artifacts/data/exp080/linear_filter.svg",
+            "artifacts/data/exp080/linear_filter_drive_response.svg",
+            "artifacts/data/exp080/linear_filter_empirical_comparison.svg",
             "artifacts/data/exp080/step3_outcome.json",
             "artifacts/data/exp080/feature_images.png",
             "artifacts/data/exp080/step4_outcome.json",
@@ -2855,6 +2928,15 @@ def refresh_primary_result_figures() -> None:
             {**step3_record, **{name: arrays[name] for name in arrays.files}},
             FIGURES / "linear_filter.svg",
         )
+    comparison_record = calculate_step3_empirical_comparison()
+    plot_step3_analytical_by_drive(
+        comparison_record,
+        FIGURES / "linear_filter_drive_response.svg",
+    )
+    plot_step3_empirical_comparison(
+        comparison_record,
+        FIGURES / "linear_filter_empirical_comparison.svg",
+    )
     step3_record["figure_sha256"] = sha256_file(FIGURES / "linear_filter.svg")
     step3_path.write_text(json.dumps(step3_record, indent=2) + "\n")
 

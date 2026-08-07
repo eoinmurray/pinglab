@@ -204,8 +204,8 @@
 
   4. *Derived the analytical linear-filter response.*
 
-    Figures 4 and 5 show the analytical transfer functions and their comparison
-    with stochastic simulation, respectively.
+    Figures 4--6 show the analytical transfer functions, the analytical moments
+    over input drive, and their direct comparison with stochastic simulation.
 
     We calculated a local linear approximation to the synapse, membrane, and finite averaging window.
     This diagnostic was not used to select a training range. Appendix A derives the equations in this section.
@@ -300,12 +300,13 @@
     from -1 to 1 and measures linear association. Summary statistics excluded
     conditions where both responses were zero.
 
-    Figure 5 compares the analytical mean and SD predictions with the empirical
-    response-table estimates across all evaluated conditions.
+    Figure 5 plots the analytical mean and SD over the same expected-input-spike
+    axis as Figure 2, with the empirical values overlaid. Figure 6 then compares
+    analytical and empirical moments condition by condition.
 
   5. *Constructed and compared complete MNIST feature images.*
 
-    Figure 6 compares the resulting complete feature images.
+    Figure 7 compares the resulting complete feature images.
 
     For each uint8 pixel, the diagnostic sampler used its exact 0--255 intensity index and an
     empirical draw with independent deterministic pixel and image
@@ -315,12 +316,12 @@
     replicates, three conductances, and representative sparse, intermediate,
     and upper-grid conditions at 0.25, 3, and 25 Hz.
 
-    Figure 6 places the original MNIST image, an empirical-table sample, and a
+    Figure 7 places the original MNIST image, an empirical-table sample, and a
     fresh direct simulation side by side.
 
   6. *Trained mixed-rate decoders.*
 
-    Figure 7 shows the validation histories used for epoch selection.
+    Figure 8 shows the validation histories used for epoch selection.
 
     Each simulated image produced a feature vector $bold(z) in RR^784$, containing one time-averaged membrane-voltage
     displacement per pixel. The primary ANN transformed this vector through a
@@ -378,13 +379,13 @@
     Every conductance and seed had a separate decoder; runs were not pooled
     during training.
 
-    Figure 7 plots the validation histories from which the best epochs were
+    Figure 8 plots the validation histories from which the best epochs were
     selected.
 
   7. *Evaluated frozen official-test psychometric curves and selected the rate
     range.*
 
-    Figure 8 shows the official-test psychometric curves and derived thresholds.
+    Figure 9 shows the official-test psychometric curves and derived thresholds.
 
     After validation had fixed the best epochs and linear weight decay, we loaded the same official 10,000 MNIST test images for every condition. At
     each rate and conductance, we encoded every image three times with newly
@@ -433,7 +434,7 @@
     a pragmatic screen for substantial digit information, not a theoretical
     information boundary.
 
-    Figure 8 plots the official-test psychometric curves and the thresholds
+    Figure 9 plots the official-test psychometric curves and the thresholds
     obtained from this procedure.
 
   #block(breakable: false)[
@@ -576,9 +577,34 @@
       low-pass terms attenuate successive lobes into the falling envelope.],
   )
 
-  ==== Analytical predictions against stochastic simulation
+  ==== Analytical moments over input drive
 
-  Finally, we evaluated whether the stationary approximation reproduced the
+  We next plotted the analytical moments over the same expected-input-spike
+  coordinate as the empirical response in Figure 2. This exposes the predicted
+  scale and curvature before collapsing each condition into a predicted-versus-
+  empirical point.
+
+  #figure(
+    image(
+      "/artifacts/data/exp080/linear_filter_drive_response.svg",
+      width: 100%,
+      alt: "Analytical and empirical feature means and standard deviations versus expected input spikes for three probe conductances.",
+    ),
+    caption: [Analytical response moments over input drive. The horizontal axis
+      matches Figure 2: expected input spikes are $lambda T / 1000 = r x T /
+      1000$. Panel A shows the analytical mean feature
+      $mu_"linear"(z)$ from Equation 12a; Panel B shows the analytical SD
+      $sqrt("Var"_"linear"(z))$ from Equation 18. Solid curves are analytical
+      predictions; faint points are the corresponding empirical values from
+      Figure 2. Black, red, and cyan denote probe conductances 0.6, 1.2, and 2.4
+      μS. The shared drive coordinate reveals mean overprediction directly and
+      shows that the analytical and empirical SD maxima occur at different
+      input drives.],
+  )
+
+  ==== Direct analytical--empirical comparison
+
+  We then evaluated whether the stationary approximation reproduced the
   stochastic finite-window features. Equation 12a ($mu_"linear"(z)$) predicted
   the mean of z and Equation 18 ($"Var"_"linear"(z)$) predicted its variance at
   every response-table condition; these values were compared directly with the

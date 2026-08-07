@@ -366,8 +366,10 @@
   "paid_compute_usd": 0.0,
   "empirical_comparison": {
     "path": "artifacts/data/exp080/step3_empirical_comparison.json",
-    "sha256": "7a5b30c504338bea0e42a7103adce3eeb107f2d137b84dacdd7a9881b5749b97",
+    "sha256": "af86d659100312c3da287c62214a2bffb5bbc842e2935ec48e303e2c918f9f84",
     "figure_path": "artifacts/data/exp080/linear_filter_empirical_comparison.svg",
-    "figure_sha256": "76d5c8b3183de601e9d46f7e0726ec63b2c59da4894ef18a51365939504526d7"
+    "figure_sha256": "8c5866d9324c7259225da17ce86bb21e31e55ae08c6382ab99995e290cf8752c",
+    "drive_figure_path": "artifacts/data/exp080/linear_filter_drive_response.svg",
+    "drive_figure_sha256": "423ca6927bbbb94be43773ae150378bcc91a3cd9bd8240b9ee06056329f09fb4"
   }
 }

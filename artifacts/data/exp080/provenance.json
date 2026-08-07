@@ -46,14 +46,15 @@
     "expanded_rate_outcome_sha256": "123ef32dee74527b42702ac90a6fe555dcd6ee5d479662172578cb9fad5e442b"
   },
   "step3_empirical_comparison": {
-    "git_sha_at_execution": "67ebc78a75f9cc2d69d6ab7792c423fcc8832cf4",
+    "git_sha_at_execution": "6440bb77614fe234243e5000b8ceb3bd9c2f458b",
     "worktree_dirty_at_execution": true,
-    "runner_sha256": "340a6f511bba9260279609320f2ef3a72c1873eb5769df05de42f3def5296d75",
-    "python": "3.10.20",
+    "runner_sha256": "c20d0beba9853da08aab48df3283ba016872152cd31de546f6ba295194a17f42",
+    "python": "3.10.19",
     "numpy": "2.2.6",
-    "platform": "linux",
-    "comparison_sha256": "7a5b30c504338bea0e42a7103adce3eeb107f2d137b84dacdd7a9881b5749b97",
-    "figure_sha256": "76d5c8b3183de601e9d46f7e0726ec63b2c59da4894ef18a51365939504526d7",
+    "platform": "darwin",
+    "comparison_sha256": "af86d659100312c3da287c62214a2bffb5bbc842e2935ec48e303e2c918f9f84",
+    "figure_sha256": "8c5866d9324c7259225da17ce86bb21e31e55ae08c6382ab99995e290cf8752c",
+    "drive_figure_sha256": "423ca6927bbbb94be43773ae150378bcc91a3cd9bd8240b9ee06056329f09fb4",
     "paid_compute_usd": 0.0
   },
   "response_distributions": {
