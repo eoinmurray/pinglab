@@ -21,7 +21,6 @@ from typing import Any, Literal
 
 import matplotlib.pyplot as plt
 import numpy as np
-from matplotlib.lines import Line2D
 
 REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO))
@@ -1943,99 +1942,6 @@ def predicted_linear_variance(
     return result
 
 
-def transient_linear_moments(
-    lambda_hz: np.ndarray | float,
-    probe_uS: np.ndarray | float,
-) -> tuple[np.ndarray, np.ndarray]:
-    """Propagate start-from-rest mean and linearized covariance for feature z."""
-    lam, probe = np.broadcast_arrays(
-        np.asarray(lambda_hz, dtype=np.float64),
-        np.asarray(probe_uS, dtype=np.float64),
-    )
-    original_shape = lam.shape
-    lam = lam.reshape(-1)
-    probe = probe.reshape(-1)
-    spike_probability = lam * DT_MS / 1000.0
-    if np.any((spike_probability < 0.0) | (spike_probability > 1.0)):
-        raise ValueError("transient moment model requires Bernoulli probability in [0, 1]")
-
-    decay = math.exp(-DT_MS / PARAMETERS["tau_ampa_ms"])
-    g_l = PARAMETERS["g_L_uS"]
-    e_l = PARAMETERS["E_L_mV"]
-    e_e = PARAMETERS["E_e_mV"]
-    capacitance = PARAMETERS["C_m_nF"]
-    input_variance = spike_probability * (1.0 - spike_probability)
-
-    mean_g = np.zeros_like(lam)
-    mean_v = np.full_like(lam, e_l)
-    mean_sum = np.zeros_like(lam)
-    covariance_gg = np.zeros_like(lam)
-    covariance_gv = np.zeros_like(lam)
-    covariance_gy = np.zeros_like(lam)
-    covariance_vv = np.zeros_like(lam)
-    covariance_vy = np.zeros_like(lam)
-    covariance_yy = np.zeros_like(lam)
-
-    for _ in range(N_TIMESTEPS):
-        mean_g = decay * mean_g + probe * spike_probability
-        total_g = g_l + mean_g
-        equilibrium_v = (g_l * e_l + mean_g * e_e) / total_g
-        voltage_decay = np.exp(-DT_MS * total_g / capacitance)
-        next_mean_v = equilibrium_v + (mean_v - equilibrium_v) * voltage_decay
-
-        equilibrium_sensitivity = g_l * (e_e - e_l) / total_g**2
-        voltage_sensitivity = (
-            equilibrium_sensitivity * (1.0 - voltage_decay)
-            - (mean_v - equilibrium_v)
-            * voltage_decay
-            * DT_MS
-            / capacitance
-        )
-        conductance_to_voltage = voltage_sensitivity * decay
-        spike_to_voltage = voltage_sensitivity * probe
-
-        old_gg = covariance_gg
-        old_gv = covariance_gv
-        old_gy = covariance_gy
-        old_vv = covariance_vv
-        old_vy = covariance_vy
-        old_yy = covariance_yy
-
-        covariance_gg = (
-            decay**2 * old_gg + probe**2 * input_variance
-        )
-        covariance_gv = (
-            decay
-            * (conductance_to_voltage * old_gg + voltage_decay * old_gv)
-            + probe * spike_to_voltage * input_variance
-        )
-        covariance_vv = (
-            conductance_to_voltage**2 * old_gg
-            + voltage_decay**2 * old_vv
-            + 2.0 * conductance_to_voltage * voltage_decay * old_gv
-            + spike_to_voltage**2 * input_variance
-        )
-        covariance_gy = decay * old_gy + covariance_gv
-        covariance_vy = (
-            conductance_to_voltage * old_gy
-            + voltage_decay * old_vy
-            + covariance_vv
-        )
-        covariance_yy = (
-            old_yy
-            + covariance_vv
-            + 2.0
-            * (conductance_to_voltage * old_gy + voltage_decay * old_vy)
-        )
-
-        mean_v = next_mean_v
-        mean_sum += mean_v - e_l
-
-    mean_feature = mean_sum / N_TIMESTEPS
-    feature_sd = np.sqrt(np.maximum(covariance_yy, 0.0)) / N_TIMESTEPS
-    return mean_feature.reshape(original_shape), feature_sd.reshape(original_shape)
-
-
 def numerical_sinusoidal_gain(
     rate_hz: float, probe_uS: float, frequency_hz: float
 ) -> float:
@@ -2276,16 +2182,6 @@ def calculate_step3_empirical_comparison() -> dict[str, Any]:
     with np.load(FIGURES / "response_library_summary.npz") as empirical:
         empirical_mean = empirical["mean"]
         empirical_sd = empirical["standard_deviation"]
-    probes, _, _ = np.meshgrid(
-        np.asarray(PROBE_CONDUCTANCES_US),
-        np.asarray(TRAINING_RATES_HZ),
-        np.arange(256),
-        indexing="ij",
-    )
-    transient_mean, transient_sd = transient_linear_moments(
-        expected_spikes * 1000.0 / PRESENTATION_MS,
-        probes,
-    )
 
     def summarize(
         predicted: np.ndarray, observed: np.ndarray
@@ -2308,21 +2204,17 @@ def calculate_step3_empirical_comparison() -> dict[str, Any]:
         }
 
     return {
-        "comparison": "transient and stationary analytical approximations versus finite 200 ms empirical response table",
+        "comparison": "stationary analytical approximation versus finite 200 ms empirical response table",
         "source_arrays": {
             "analytical": "artifacts/data/exp080/step3_linear_filter_arrays.npz",
             "empirical": "artifacts/data/exp080/response_library_summary.npz",
         },
         "mean": summarize(predicted_mean, empirical_mean),
         "standard_deviation": summarize(predicted_sd, empirical_sd),
-        "transient_mean": summarize(transient_mean, empirical_mean),
-        "transient_standard_deviation": summarize(transient_sd, empirical_sd),
         "predicted_mean_mV": predicted_mean,
         "empirical_mean_mV": empirical_mean,
         "predicted_sd_mV": predicted_sd,
         "empirical_sd_mV": empirical_sd,
-        "transient_mean_mV": transient_mean,
-        "transient_sd_mV": transient_sd,
         "expected_spikes": expected_spikes,
     }
 
@@ -2334,55 +2226,41 @@ def plot_step3_analytical_by_drive(record: dict[str, Any], path: Path) -> None:
     colors = (theme.INK_BLACK, theme.DEEP_RED, theme.ELECTRIC_CYAN)
     panels = (
         (
-            record["transient_mean_mV"],
             record["predicted_mean_mV"],
             record["empirical_mean_mV"],
             "A  Mean feature",
             "Mean feature z (mV)",
         ),
         (
-            record["transient_sd_mV"],
             record["predicted_sd_mV"],
             record["empirical_sd_mV"],
             "B  Feature SD",
             "Feature SD (mV)",
         ),
     )
-    for axis, (transient, stationary, observed, title, ylabel) in zip(
-        axes, panels, strict=True
-    ):
+    for axis, (predicted, observed, title, ylabel) in zip(axes, panels, strict=True):
         for probe_index, (probe, color) in enumerate(
             zip(PROBE_CONDUCTANCES_US, colors, strict=True)
         ):
             drive = record["expected_spikes"][probe_index].reshape(-1)
-            transient_values = transient[probe_index].reshape(-1)
-            stationary_values = stationary[probe_index].reshape(-1)
+            analytical = predicted[probe_index].reshape(-1)
             empirical = observed[probe_index].reshape(-1)
             order = np.argsort(drive, kind="stable")
             sorted_drive = drive[order]
-            sorted_transient = transient_values[order]
-            sorted_stationary = stationary_values[order]
+            sorted_analytical = analytical[order]
             unique_drive, unique_indices = np.unique(sorted_drive, return_index=True)
             axis.scatter(
                 drive,
                 empirical,
                 color=color,
                 s=5,
-                alpha=0.13,
+                alpha=0.10,
                 edgecolors="none",
                 rasterized=True,
             )
             axis.plot(
                 unique_drive,
-                sorted_stationary[unique_indices],
-                color=color,
-                linewidth=1.1,
-                linestyle="--",
-                alpha=0.72,
-            )
-            axis.plot(
-                unique_drive,
-                sorted_transient[unique_indices],
+                sorted_analytical[unique_indices],
                 color=color,
                 linewidth=1.6,
                 label=f"{probe:g} μS",
@@ -2398,32 +2276,6 @@ def plot_step3_analytical_by_drive(record: dict[str, Any], path: Path) -> None:
         axis.grid(alpha=0.14)
         axis.spines[["top", "right"]].set_visible(False)
     axes[0].legend(frameon=False, fontsize=7, loc="upper left")
-    axes[1].legend(
-        handles=[
-            Line2D([0], [0], color=theme.INK_BLACK, linewidth=1.6, label="Transient"),
-            Line2D(
-                [0],
-                [0],
-                color=theme.INK_BLACK,
-                linewidth=1.1,
-                linestyle="--",
-                label="Stationary",
-            ),
-            Line2D(
-                [0],
-                [0],
-                color=theme.INK_BLACK,
-                marker="o",
-                linestyle="none",
-                markersize=3,
-                alpha=0.35,
-                label="Empirical",
-            ),
-        ],
-        frameon=False,
-        fontsize=7,
-        loc="upper right",
-    )
     fig.savefig(path, format="svg", metadata={"Date": None})
     plt.close(fig)
 
