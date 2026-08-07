@@ -1,0 +1,122 @@
+{
+  "status": "complete",
+  "probe_uS": 1.2,
+  "seed": 42,
+  "device": "cpu",
+  "epochs_run": 2,
+  "selected_nonlinear_epoch": 2,
+  "selected_nonlinear_validation_accuracy": 0.453125,
+  "selected_linear_epoch": 2,
+  "selected_linear_validation_accuracy": 0.203125,
+  "selected_linear_weight_decay": 0.0001,
+  "rate_sample_counts": {
+    "0.01": 13,
+    "0.05": 15,
+    "0.1": 17,
+    "0.25": 15,
+    "0.5": 16,
+    "0.75": 23,
+    "1.0": 19,
+    "1.5": 21,
+    "2.0": 13,
+    "2.5": 18,
+    "3.0": 20,
+    "4.0": 16,
+    "5.0": 22,
+    "10.0": 13,
+    "25.0": 15
+  },
+  "history": [
+    {
+      "epoch": 1,
+      "nonlinear": {
+        "train_loss": 2.405242681503296,
+        "train_accuracy": 0.1171875,
+        "validation_loss": 2.283743381500244,
+        "validation_accuracy": 0.328125
+      },
+      "linear": [
+        {
+          "weight_decay": 1e-05,
+          "train_loss": 2.7865102291107178,
+          "train_accuracy": 0.078125,
+          "validation_loss": 2.827500581741333,
+          "validation_accuracy": 0.078125
+        },
+        {
+          "weight_decay": 0.0001,
+          "train_loss": 2.8591127395629883,
+          "train_accuracy": 0.078125,
+          "validation_loss": 2.6599924564361572,
+          "validation_accuracy": 0.15625
+        },
+        {
+          "weight_decay": 0.001,
+          "train_loss": 2.89998459815979,
+          "train_accuracy": 0.0859375,
+          "validation_loss": 2.7012205123901367,
+          "validation_accuracy": 0.09375
+        }
+      ]
+    },
+    {
+      "epoch": 2,
+      "nonlinear": {
+        "train_loss": 2.256770372390747,
+        "train_accuracy": 0.3359375,
+        "validation_loss": 1.9791933298110962,
+        "validation_accuracy": 0.453125
+      },
+      "linear": [
+        {
+          "weight_decay": 1e-05,
+          "train_loss": 3.031278371810913,
+          "train_accuracy": 0.09375,
+          "validation_loss": 2.7932095527648926,
+          "validation_accuracy": 0.046875
+        },
+        {
+          "weight_decay": 0.0001,
+          "train_loss": 2.6630871295928955,
+          "train_accuracy": 0.1484375,
+          "validation_loss": 2.304457664489746,
+          "validation_accuracy": 0.203125
+        },
+        {
+          "weight_decay": 0.001,
+          "train_loss": 2.6890926361083984,
+          "train_accuracy": 0.1015625,
+          "validation_loss": 2.4808883666992188,
+          "validation_accuracy": 0.140625
+        }
+      ]
+    }
+  ],
+  "runtime_s": 13.071469567948952,
+  "checkpoint": "decoders.pt",
+  "dataset": {
+    "source": "torchvision.datasets.MNIST official training partition",
+    "torchvision": "0.26.0+cu128",
+    "image_shape": [
+      60000,
+      28,
+      28
+    ],
+    "label_shape": [
+      60000
+    ],
+    "raw_file_sha256": {
+      "train-images-idx3-ubyte": "ba891046e6505d7aadcbbe25680a0738ad16aec93bde7f9b65e87a2fc25776db",
+      "train-labels-idx1-ubyte": "65a50cbbf4e906d70832878ad85ccda5333a97f0f4c3dd2ef09a8a9eef7101c5"
+    },
+    "official_test_partition_loaded": false
+  },
+  "train_indices": [
+    0,
+    127
+  ],
+  "validation_indices": [
+    55000,
+    55063
+  ]
+}

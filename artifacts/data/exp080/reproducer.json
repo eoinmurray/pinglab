@@ -1,0 +1,49 @@
+{
+  "command": "EXP080_THROUGH_STEP=2 EXP080_STEP2_FULL=1 uv run python experiments/exp080.py",
+  "validation_command": "EXP080_THROUGH_STEP=2 EXP080_STEP2_VALIDATE_ONLY=1 uv run python experiments/exp080.py",
+  "paid_compute": false,
+  "expected_library_sha256": "5184788979b5fa7fa9a3f38936399b8e2724d63914019f1306a7171981b36783",
+  "expected_outputs": [
+    "temp/exp080/response_library.float32.npy",
+    "artifacts/data/exp080/response_library_summary.npz",
+    "artifacts/data/exp080/step2_manifest.json",
+    "artifacts/data/exp080/response_library.png"
+  ],
+  "expected_outcome": "reproduce the authenticated library and the required monotonicity failure",
+  "failure_record": "artifacts/data/exp080/step2_library_validation_failure.json",
+  "exploratory_steps3_4": {
+    "step3_command": "uv run python -c 'from experiments import exp080; exp080.step_3()'",
+    "step4_command": "uv run python -c 'from experiments import exp080; exp080.step_4()'",
+    "step4_expected_outcome": "locked low-rate image-level validation failure",
+    "metadata_command": "uv run python -c 'from experiments import exp080; exp080.record_steps3_4_publication_contract()'",
+    "expected_library_sha256": "5184788979b5fa7fa9a3f38936399b8e2724d63914019f1306a7171981b36783",
+    "expected_outputs": [
+      "artifacts/data/exp080/linear_filter.svg",
+      "artifacts/data/exp080/step3_outcome.json",
+      "artifacts/data/exp080/feature_images.png",
+      "artifacts/data/exp080/step4_outcome.json"
+    ],
+    "paid_compute": false
+  },
+  "steps5_7": {
+    "smoke_command": "EXP080_STAGE=smoke uv run python -c 'from experiments.exp080 import step_5; step_5()'",
+    "modal_training_command": "uv run python experiments/exp080_modal.py --stage full --probe <probe> --seed <seed> --live",
+    "freeze_command": "uv run python -c 'from experiments.exp080 import write_frozen_evaluation_protocol; write_frozen_evaluation_protocol()'",
+    "modal_evaluation_command": "uv run python experiments/exp080_evaluate_modal.py --live",
+    "analysis_command": "uv run python -c 'from experiments.exp080 import analyze_held_out_evaluation, step_7; analyze_held_out_evaluation(); step_7()'",
+    "checkpoint_count": 9,
+    "expected_decision_sha256": "25de6c9c15076a93fcc2f489b6625a2d94bc9920c2fa660cd3c2f02eb9fd76ee",
+    "paid_compute": true,
+    "expanded_rate_outcome_command": "uv run python -c 'from experiments.exp080 import record_expanded_rate_outcome; record_expanded_rate_outcome()'"
+  },
+  "step3_empirical_comparison": {
+    "command": "uv run python -c 'from experiments.exp080 import refresh_step3_empirical_comparison; refresh_step3_empirical_comparison()'",
+    "uses_recorded_arrays_only": true,
+    "paid_compute": false
+  },
+  "response_distributions": {
+    "command": "uv run python -c 'from experiments.exp080 import refresh_response_distributions; refresh_response_distributions()'",
+    "uses_recorded_arrays_only": true,
+    "paid_compute": false
+  }
+}

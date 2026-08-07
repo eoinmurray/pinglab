@@ -1,0 +1,12 @@
+{
+  "experiment": "exp080",
+  "step": 3,
+  "registered_at_utc": "2026-08-05T20:43:58Z",
+  "classification": "post-hoc exploratory diagnostic after the preserved Step 2 failure",
+  "locked_protocol": "artifacts/data/exp080/step3_step4_exploratory_amendment.json#step3",
+  "locked_amendment_sha256": "191c640ed969e039914603ebfc132496e91b2458ff6102fed569d50defc3f469",
+  "authenticated_input_sha256": "5184788979b5fa7fa9a3f38936399b8e2724d63914019f1306a7171981b36783",
+  "equations": "writings/exp080.typ Equations 11-18",
+  "outcome_inspected_before_registration": false,
+  "paid_compute_authorized": false
+}

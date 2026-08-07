@@ -116,6 +116,43 @@ def _source_image(modal: Any):
     return image
 
 
+def _source_image_exp080(modal: Any):
+    """Source image for exp080's direct MNIST feature simulation."""
+    return (
+        modal.Image.debian_slim(python_version="3.10")
+        .uv_pip_install(
+            "torch",
+            "torchvision",
+            "numpy",
+            "matplotlib",
+        )
+        .env(
+            {
+                "PYTHONPATH": (
+                    f"{REMOTE_REPO}:"
+                    f"{REMOTE_REPO / 'experiments'}:"
+                    f"{REMOTE_REPO / 'tools' / 'snn'}"
+                ),
+                "EXP080_FROZEN_TRAINING_PROTOCOL_SHA256": (
+                    "07e083cfe6d44bd172c18da2be8fe36cafc321025a86f3a567813f8916bb67aa"
+                ),
+            }
+        )
+        .add_local_dir(
+            str(REPO / "experiments"),
+            str(REMOTE_REPO / "experiments"),
+            ignore=["__pycache__", ".pytest_cache", "*.staging", "*.old-*"],
+        )
+        .add_local_dir(
+            str(REPO / "tools"), str(REMOTE_REPO / "tools"), ignore=["__pycache__"]
+        )
+        .add_local_file(str(REPO / "README.md"), str(REMOTE_REPO / "README.md"))
+        .add_local_file(
+            str(REPO / "pyproject.toml"), str(REMOTE_REPO / "pyproject.toml")
+        )
+    )
+
+
 def _tar_tree(root: Path) -> bytes:
     buffer = io.BytesIO()
     with tarfile.open(fileobj=buffer, mode="w:gz") as archive:
