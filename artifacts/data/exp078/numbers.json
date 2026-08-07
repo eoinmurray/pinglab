@@ -1,0 +1,25 @@
+{
+  "run_id": "r007",
+  "git_sha": "87c2f67d",
+  "duration_s": 0.7,
+  "duration": "1s",
+  "stage": "graph definition and visualisation only",
+  "graph": {
+    "name": "lowet_two_ping",
+    "digest": "sha256:d15d0fac3dda503e69af7e1f3b53a0c5c4231e6c604390bafa622ff0f0f9f212",
+    "populations": 4,
+    "projections": 10,
+    "observables": 4
+  },
+  "config": {
+    "stage": "graph definition and visualisation only",
+    "dt_ms": 0.1,
+    "n_input_per_circuit": 80,
+    "n_e_per_circuit": 80,
+    "n_i_per_circuit": 20,
+    "input_weight": 0.2,
+    "coupling_reference": 1.0,
+    "delay_ms": 0.1
+  },
+  "simulation_executed": false
+}

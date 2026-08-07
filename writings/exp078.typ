@@ -1,108 +1,159 @@
+#import "/.demolab/lib.typ": cite, reference-list
+
 #let meta = (
-  title: "Predicting phase acquisition between coupled PING circuits",
-  date: "2026-08-06",
-  description: "A planned phase-response experiment will predict when reciprocal E-to-I coupling should transform drifting gamma phases into a bounded relationship, then test that prediction in a continuous switch-on trial.",
+  title: "Arnold tongue of two coupled PING circuits",
+  date: "2026-08-07",
+  description: "A graph-native reproduction of the detuning-by-coupling Arnold tongue reported for two reciprocally coupled PING circuits.",
   collection: "miscellaneous",
-  status: "draft",
+  status: "planned",
 )
 
 #let body = [
   == Abstract
 
-  This planned experiment asks whether reciprocal excitation from each PING
-  circuit's excitatory population to the other circuit's inhibitory population
-  can acquire gamma synchrony over several cycles. The protocol will first measure
-  how one mature PING rhythm responds to an E-to-I pulse. It will use that response
-  to predict the existence, phase lag, and convergence rate of a stable coupled
-  state before running two circuits. The decisive trial must visibly separate an
-  unsynchronized baseline, progressive acquisition, and a synchronized state.
+  This experiment will attempt to reproduce a subset of Lowet et al.#cite(1):
+  the Arnold tongue formed by two reciprocally coupled PING circuits as their
+  natural-frequency detuning and coupling strength are varied. An Arnold tongue
+  is the region in which coupled oscillators adopt a common frequency despite
+  having different uncoupled natural frequencies. The result has two control
+  axes—uncoupled natural-frequency detuning $Delta f_0$ and coupling strength
+  $K$—and one measured response axis, the fraction of valid trials classified as
+  frequency- and phase-locked. The reproduction is restricted to the paper's
+  two-circuit synchronization result. It does not test the spatially extended
+  network, natural-image reconstruction, or proposed phase and frequency codes.
+  Two independently driven PING circuits will be simulated across the two
+  control axes. A successful reproduction will recover a contiguous locked
+  region centred near zero detuning that widens as coupling increases, with the
+  intrinsically faster circuit leading in phase inside that region.
 
   == Methods
 
-  1. *Calibrate two independent mature PING oscillators.* Construct two 800 E /
-    200 I circuits with independent Poisson drive and zero cross-circuit weight.
-    Select fixed intrinsic and drive parameters that produce sustained gamma while
-    retaining enough natural-frequency detuning to generate visible phase drift.
-    Report E and I firing rates, natural frequency, cycle variability, and
-    uncoupled phase drift over a small calibration seed set. Reject silent,
-    saturated, intermittent, or already phase-stationary pairs, then freeze the
-    parameters and reserve separate mature states and future-input seeds for
-    validation.
+  #enum(
+    [*Construct two independently driven PING circuits.* Circuits A and B will
+  each contain 80 conductance-based leaky integrate-and-fire excitatory neurons
+  and 20 inhibitory neurons. Within each circuit,
+  excitatory neurons will project to inhibitory neurons through AMPA synapses,
+  and inhibitory neurons will project to excitatory neurons through GABA-A
+  synapses. The circuits will use identical neuron, synapse, connectivity, and
+  within-circuit weight parameters.
 
-  2. *Measure the macroscopic E-to-I phase-response curve.* Give the graph a
-    dedicated spike input connected to I using the same declared connection rule,
-    weight, AMPA kinetics, and axonal delay intended for cross-circuit coupling.
-    Replay E-volley spike patterns measured during Step 1, preserving their size
-    and temporal dispersion rather than synchronously stimulating every I neuron.
-    At evenly spaced phases of a mature E cycle, compare a sender-equivalent volley
-    with an identical-state, identical-input silent continuation. Define the
-    response as the phase displacement after the rhythm has recovered; retain the
-    one-cycle displacement only as a transient diagnostic. Record changes in volley
-    size, additional or merged I volleys, and suppressed or skipped E volleys. This
-    establishes both the phase response and the amplitude-changing boundary beyond
-    which a phase-only description is inadequate.
+  Independent Poisson spike populations will drive the two excitatory
+  populations. Input spikes will be independently sampled between circuits and
+  trials; no input spikes will be shared. The network parameter seed will remain
+  fixed across the primary sweep so that detuning and coupling are not
+  confounded with different weight realizations.
 
-  3. *Predict the coupled phase dynamics.* Combine the measured phase-response
-    curve, sender-volley waveform, and candidate delays to estimate the interaction
-    function for two reciprocally coupled rhythms. Restrict prediction to strengths
-    that primarily shift phase and preserve the PING cycle. Predeclare one condition
-    predicted to lock, one predicted not to lock, the stable lag, the common mean
-    frequency, and a convergence-time range. Extra volleys, skipped cycles,
-    suppression, or a regime transition are phase-model violations rather than
-    failed simulations.
+  Reciprocal coupling will match the two-circuit configuration of Lowet et
+  al.#cite(1):
 
-  4. *Test predicted synchronization acquisition.* Compile structurally identical
-    zero-weight and coupled graphs containing both reciprocal E-to-I projections.
-    Run the zero-weight graph through burn-in and at least 500 ms of recorded
-    pre-switch activity, then continue its complete runtime state in the coupled
-    graph using the next segment of the same pre-generated inputs. Exact split-run
-    parity and first-effect timing are engineering acceptance tests for this
-    protocol. The two executor calls must form one causal trajectory; no spike train
-    may be shifted or selected using its post-switch outcome.
+  $ E_A -> E_B, quad E_A -> I_B, quad E_B -> E_A, quad E_B -> I_A. $
 
-    Run both predeclared conditions for at least three predicted convergence times
-    after the switch, with a minimum post-switch duration of 2000 ms. Use
-    E-population volley times as the primary phase diagnostic. Plot sampled rasters
-    for circuits A and B, separate A and B E-rate panels on a common grid, and
-    cycle-by-cycle A-minus-B phase. Report mean-frequency convergence as a summary
-    statistic rather than differentiating the noisy phase trace into another
-    primary plot. A successful locking trajectory must show pre-switch drift,
-    progressive phase correction, and preregistered residence around the predicted
-    lag. Compare observed lag and convergence time with the Step 3 prediction and
-    report later slips or amplitude disruptions without cropping them.
+  All four cross-circuit projections will use AMPA synapses. Cross-circuit
+  E-to-E and E-to-I weights will be controlled by the same coupling parameter
+  $K$ and varied together. The uncoupled graph will retain all four projections
+  with zero-valued weights, preserving graph topology across conditions.
 
-  5. *Replicate the prediction test.* Repeat the locking and non-locking conditions
-    across the reserved mature states and future-input seeds. Apply the same
-    analysis to every run. Report acquisition probability, convergence-time
-    distribution, phase-lag error, post-acquisition residence, phase slips, mean
-    frequency difference, and population health. A representative raster may
-    illustrate the mechanism, but the verdict comes from the complete held-out set.
-    Reciprocal E-to-I coupling explains acquisition only if the sender-equivalent
-    phase response predicts the observed lag, stability, common frequency, and
-    convergence timescale without materially changing cycle amplitude. Treat
-    E-to-I as an isolated effective motif; E-to-E and mixed coupling are future
-    experiments.
+  #figure(
+    image(
+      "/artifacts/data/exp078/network.svg",
+      width: 100%,
+      alt: "Two independently driven PING circuits with reciprocal excitatory-to-excitatory and excitatory-to-inhibitory cross-circuit coupling.",
+    ),
+    caption: [Network graph for the reproduction. Each independent input drives
+      one local E↔I PING loop. Dashed projections are the four reciprocal
+      cross-circuit AMPA pathways varied together by $K$. Red bar-headed
+      projections are local GABA-A inhibition.],
+  )],
 
-  === Implementation boundary
+    [*Calibrate drive against uncoupled gamma frequency.* One uncoupled PING
+  circuit will be simulated across a bounded input-rate grid. The operating
+  range will be the contiguous valid interval in which gamma peak frequency
+  increases monotonically with input rate. The calibration will be completed
+  before coupled conditions are inspected.
 
-  The first implementation requires no general time-dependent-weight feature.
-  _snnlang_ can already declare independent spike inputs, fixed AMPA and GABA
-  projections, reciprocal feedback paths, delays, and the two otherwise identical
-  zero-weight and coupled graphs. _tools/snn_ can already continue complete runtime
-  state across those graphs because its compatibility signature excludes parameter
-  values while retaining structural checks. The runner must own input generation,
-  phase-target selection, branching, response-curve estimation, phase-model
-  fitting, condition grids, and every plot.
+  Pairs of input rates will be selected to sample signed target detunings of
+  approximately
 
-  The present system cannot change a weight or trigger an intervention from an
-  online phase estimate within one executor call. It also has no arbitrary analog
-  conductance-input primitive. Those capabilities are not prerequisites here: a
-  declared spike volley through a fixed AMPA projection supplies the phase probe,
-  and exact split-run continuation supplies the coupling switch. Add a schedule or
-  event-controller abstraction only if a later experiment genuinely requires
-  continuously varying parameters or closed-loop intervention.
+  $ Delta f_0 in { -6, -4, -3, -2, -1, -0.5, 0, 0.5, 1, 2, 3, 4, 6 } " Hz". $
 
-  == Results
+  For every input pair and trial seed, the two circuits will first run with
+  $K=0$. Their measured post-transient frequencies will define natural-
+  frequency detuning:
 
-  This experiment is planned and has no results yet.
+  $ Delta f_0 = f_A^0 - f_B^0. $
+
+  This measurement, rather than input-rate difference or coupled frequency
+  difference, will determine the horizontal coordinate of every coupled result.],
+
+    [*Register and execute the detuning-by-coupling sweep.* A bounded pilot at
+  zero detuning and at the largest positive and negative target detunings will
+  locate a coupling interval containing uncoupled, partially locked, and locked
+  behaviour without silencing or saturating either circuit. The pilot will set
+  only the limits of $K$ and will not enter the primary analysis.
+
+  The primary grid will contain $K=0$ and ten equally spaced nonzero values over
+  the selected interval. Every measured detuning will be crossed with every
+  coupling value and at least five independently generated pairs of input spike
+  trains. No grid point will be added or removed after inspecting the primary
+  locking map.
+
+  Simulations will use a 0.1 ms timestep and run for 3 s. The first 500 ms will
+  be excluded from analysis. Population spikes, membrane voltages, and
+  projection conductances will be retained with the compiled graph, generated
+  inputs, parameter tensors, run configuration, and seed ledger.
+
+  A trial will be invalid if any recorded state is non-finite, either mean
+  excitatory or inhibitory firing rate is below 1 Hz, or either excitatory
+  population has no spectral peak between 25 and 80 Hz. The same validity rule
+  will be applied to every sweep cell.],
+
+    [*Measure frequency and relative phase.* Excitatory population spikes will
+  be converted to population rates by Gaussian smoothing with a 5 ms standard
+  deviation. Gamma peak frequency will be estimated from the post-transient
+  rate spectrum. Instantaneous phase will be calculated from the analytic
+  signal after zero-phase band-pass filtering from 25 to 90 Hz. The filter will
+  remain fixed across conditions.
+
+  Relative phase will be
+
+  $ phi(t) = "unwrap"(theta_A(t) - theta_B(t)). $
+
+  Each trial will report the two emergent frequencies, their absolute
+  difference, the linear slope of $phi(t)$, the number of complete $2 pi$ phase
+  slips, phase-locking value, and circular mean phase difference.],
+
+    [*Classify locking without using phase-locking value alone.* Frequency,
+  drift, and phase-slip tolerances will be fixed from estimator variability in
+  repeated zero-detuning and uncoupled calibration trials before the primary
+  sweep. A valid trial will be classified as locked only if its emergent
+  frequency difference, absolute relative-phase slope, and phase-slip count all
+  fall within their registered tolerances. Phase-locking value will describe
+  locking strength but will not independently determine the classification.],
+
+    [*Reconstruct and test the Arnold tongue.* The primary result will be the
+  fraction of valid trials classified as locked at each measured $Delta f_0$
+  and $K$. Supporting maps will show emergent frequency difference, relative-
+  phase slope, phase-slip rate, phase-locking value, and circular mean phase
+  difference on the same grid.
+
+  The reproduction will pass if the locking map contains a contiguous region
+  centred near zero detuning whose width increases across at least three
+  successive nonzero coupling levels. Within locked nonzero-detuning
+  conditions, the circuit with the greater uncoupled natural frequency must
+  lead in phase. It will fail if locking is absent, confined to zero detuning,
+  does not widen with coupling, or occurs only in invalid conditions.
+
+  Representative traces will be selected by fixed grid location: zero
+  detuning, one nonzero-detuning condition inside the locking region, and the
+  same detuning immediately outside it. Each trace will show both excitatory
+  rasters, both excitatory population rates, unwrapped relative phase, and
+  sliding-window frequency difference.],
+  )
+
+  #reference-list((
+    (
+      text: [Lowet, Roberts, Hadjipapas, Peter, van der Eerden & De Weerd: _Input-Dependent Frequency Modulation of Cortical Gamma Oscillations Shapes Spatial Synchronization and Enables Phase Coding_. PLOS Computational Biology, 2015.],
+      doi: "10.1371/journal.pcbi.1004072",
+    ),
+  ))
 ]

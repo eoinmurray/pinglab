@@ -1,3 +1,0 @@
-Implement the numbered scientific plan in writings/exp078.typ one stage at a
-time. Validate each completed stage and its publication artifacts before adding
-the stage number to IMPLEMENTED_STEPS in experiments/exp078.py.
