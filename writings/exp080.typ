@@ -279,45 +279,13 @@
     spectral densities; |H#sub[λ] (ω)|#super[2] is transmitted noise power,
     and Var#sub[linear] (z) is predicted feature variance.
 
-    We also calculated finite-presentation moments from the same initial state as
-    the empirical simulations: $g_0 = 0$, $v_0 = E_L$, and a zero accumulated
-    feature. The deterministic conductance and voltage means were advanced for
-    all #presentation-ms ms with the same discrete decay-then-add synapse and
-    exponential membrane updates as Equations 3 and 4. Their time average gives
-    the transient mean $mu_"trans"(z)$.
-
-    For variability, we linearized each discrete update along that
-    time-dependent deterministic trajectory. With state
-    $bold(x)_k = (g_k, v_k, y_k)$, where $y_k$ accumulates $v_k - E_L$, its
-    start-from-rest covariance obeys
-
-    $
-      P_(k+1) = J_k P_k J_k^T + p(1-p) bold(b)_k bold(b)_k^T,
-      quad P_0 = bold(0). quad "(18a)"
-    $
-
-    Here $J_k$ is the Jacobian of the decay-then-add synapse, exponential
-    membrane, and accumulator update; $bold(b)_k$ is that update's sensitivity
-    to one input event; and $p = lambda Delta t / 1000$ is the exact Bernoulli
-    event probability per timestep. The finite-window moments are
-
-    $
-      mu_"trans"(z) = 1/N sum_(k=1)^N (overline(v)_k - E_L),
-      quad sigma_"trans"(z) = sqrt((P_N)_(y y)) / N. quad "(18b)"
-    $
-
-    Equation 18a therefore includes the quiet initial condition, synaptic and
-    membrane settling, event-count variance, event timing, and the finite
-    accumulator. It remains a local covariance approximation because the
-    conductance-dependent membrane update is linearized around the transient
-    mean trajectory.
-
     At every rate, intensity, and conductance, we set $lambda = r x$, selected
-    the corresponding transient and stationary models, and compared their
-    predictions with the empirical response table without new stochastic
-    simulation. Figure 5 plots the transient mean and SD from Equations 18a and
-    18b as solid curves, and retains the stationary mean from Equation 12a and
-    stationary SD from Equation 18 as dashed references.
+    the corresponding operating-point model, and compared its predictions with
+    the empirical response table without new simulation. Analytical mean was
+    Equation 12a ($mu_"linear"(z)$); analytical SD was the square root of
+    Equation 18 ($"Var"_"linear"(z)$).
+    Figure 5 plots the analytical mean and SD over the same expected-input-spike
+    axis as Figure 2, with the empirical values overlaid.
 
   5. *Constructed and compared complete MNIST feature images.*
 
@@ -605,30 +573,34 @@
       width: 100%,
       alt: "Analytical and empirical feature means and standard deviations versus expected input spikes for three probe conductances.",
     ),
-    caption: [Transient and stationary analytical response moments over input drive. The horizontal axis
+    caption: [Analytical response moments over input drive. The horizontal axis
       matches Figure 2: expected input spikes are $lambda T / 1000 = r x T /
-      1000$. Panel A shows mean feature; Panel B shows feature SD. Solid curves
-      are the start-from-rest transient predictions from Equations 18a and 18b;
-      dashed curves are the stationary references from Equations 12a and 18;
-      faint points are the corresponding empirical values from Figure 2.
-      Black, red, and cyan denote probe conductances 0.6, 1.2, and 2.4 μS.],
+      1000$. Panel A shows the analytical mean feature
+      $mu_"linear"(z)$ from Equation 12a; Panel B shows the analytical SD
+      $sqrt("Var"_"linear"(z))$ from Equation 18. Solid curves are analytical
+      predictions; faint points are the corresponding empirical values from
+      Figure 2. Black, red, and cyan denote probe conductances 0.6, 1.2, and 2.4
+      μS. The shared drive coordinate reveals mean overprediction directly and
+      shows that the analytical and empirical SD maxima occur at different
+      input drives.],
   )
 
-  In Panel A, starting the deterministic trajectory from rest lowers the solid
-  transient prediction relative to the dashed stationary operating point. The
-  remaining overprediction is expected: replacing random conductance by its
-  mean ignores the concavity caused by voltage saturation, so approximately
-  $E[v(g)] < v(E[g])$. The gap grows with event size, which is why equal
-  expected spike counts do not collapse the three probe curves.
+  In Panel A, Equation 12a ($mu_"linear"(z)$) derives the mean feature from the
+  deterministic mean-conductance operating point, whereas
+  empirical trajectories begin at rest and average only
+  #presentation-ms ms. Sparse presentations often contain no event or a late
+  one; with greater drive, earlier and more consistent events let the empirical
+  mean approach stationarity. Probe curves separate because a mean conductance
+  can comprise many small events or fewer large ones. Larger jumps amplify
+  fluctuations, and voltage saturation gives approximately $E[v(g)] < v(E[g])$.
 
-  In Panel B, the start-from-rest covariance modestly changes the curve but does
-  not recover the empirical shape. Both analytical variants propagate only
-  local, small conductance fluctuations around a deterministic trajectory.
-  Sparse large synaptic jumps instead produce a strongly non-Gaussian mixture
-  of no-event, early-event, and late-event responses; shunting and saturation
-  then act separately on those paths. A first-order covariance cannot represent
-  that mixture, so its variance maximum remains displaced even after the finite
-  initial condition is handled correctly.
+  In Panel B, variability rises from zero as spike counts and timings diversify,
+  then falls when averaging suppresses relative count fluctuations and shunting
+  and saturation limit voltage excursions. Equation 18
+  ($"Var"_"linear"(z)$) likewise balances rising Poisson noise against falling local gain, but places the
+  maximum elsewhere. The displaced maxima show where the stationary
+  small-fluctuation approximation departs most strongly from the finite-window
+  simulation.
 
   === Complete feature images
 
