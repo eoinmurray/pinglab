@@ -96,3 +96,33 @@ def test_finite_size_followup_is_the_registered_mirrored_boundary_panel():
     assert {row["target_detuning_hz"] for row in panel.values()} == {-1.0, 1.0}
     assert {row["coupling"] for row in panel.values()} == {0.0, 0.016, 0.024}
     assert exp078.FOLLOWUP_JOBS["benchmark"] == panel["m1_k016"]
+
+
+def test_condition_cache_rejects_a_rate_mismatch(tmp_path, monkeypatch):
+    key = exp078._condition_key("calibration", 100, 0.0)
+    condition = tmp_path / "conditions" / key
+    condition.mkdir(parents=True)
+    exp078._json_dump(condition / "summary.json", {
+        "stage": "calibration",
+        "detuning_index": 100,
+        "rates_hz": {"a": 100.0, "b": 100.0},
+        "coupling": 0.0,
+        "trials": [{} for _ in range(exp078.TRIALS)],
+    })
+    called = []
+    monkeypatch.setattr(exp078, "make_inputs", lambda *args, **kwargs: (
+        {"drive_a": np.zeros((1, exp078.TRIALS, 1), dtype=np.uint8), "drive_b": np.zeros((1, exp078.TRIALS, 1), dtype=np.uint8)}, []
+    ))
+    monkeypatch.setattr(exp078, "_bundle_dir", lambda *args: tmp_path / "bundle")
+    def fake_run(*args):
+        called.append(True)
+        raise RuntimeError("cache miss reached execution")
+    monkeypatch.setattr(exp078, "_run_graph_cli", fake_run)
+    try:
+        exp078.run_condition(
+            tmp_path, stage="calibration", detuning_index=100,
+            rate_a_hz=60.0, rate_b_hz=60.0, coupling=0.0, keep_archive=False,
+        )
+    except RuntimeError as exc:
+        assert str(exc) == "cache miss reached execution"
+    assert called

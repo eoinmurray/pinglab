@@ -448,7 +448,43 @@ def run_condition(
     summary_path = condition / "summary.json"
     archive_path = condition / "compact.npz"
     if summary_path.exists() and (not keep_archive or archive_path.exists()):
-        return _json_load(summary_path)
+        cached = _json_load(summary_path)
+        expected = {
+            "stage": stage,
+            "detuning_index": detuning_index,
+            "rate_a_hz": rate_a_hz,
+            "rate_b_hz": rate_b_hz,
+            "coupling": coupling,
+            "trials": TRIALS,
+        }
+        actual = {
+            "stage": cached.get("stage"),
+            "detuning_index": cached.get("detuning_index"),
+            "rate_a_hz": cached.get("rates_hz", {}).get("a"),
+            "rate_b_hz": cached.get("rates_hz", {}).get("b"),
+            "coupling": cached.get("coupling"),
+            "trials": len(cached.get("trials", [])),
+        }
+        numeric = ("rate_a_hz", "rate_b_hz", "coupling")
+        matches = all(actual[name] == expected[name] for name in expected if name not in numeric)
+        matches = matches and all(
+            actual[name] is not None and np.isclose(actual[name], expected[name])
+            for name in numeric
+        )
+        contract = cached.get("simulation_contract")
+        if contract is not None:
+            matches = matches and contract == {
+                "dt_ms": DT_MS,
+                "t_ms": T_MS,
+                "n_input": N_INPUT,
+                "n_e": N_E,
+                "n_i": N_I,
+                "network_seed": NETWORK_SEED,
+                "recording": "observables" if FOLLOWUP_MODE else "full",
+            }
+        if matches:
+            return cached
+        print(f"[cache invalid] {key}: expected {expected}, found {actual}")
 
     condition.mkdir(parents=True, exist_ok=True)
     inputs, seed_rows = make_inputs(
@@ -473,6 +509,15 @@ def run_condition(
         "rates_hz": {"a": rate_a_hz, "b": rate_b_hz},
         "coupling": coupling,
         "network_seed": NETWORK_SEED,
+        "simulation_contract": {
+            "dt_ms": DT_MS,
+            "t_ms": T_MS,
+            "n_input": N_INPUT,
+            "n_e": N_E,
+            "n_i": N_I,
+            "network_seed": NETWORK_SEED,
+            "recording": "observables" if FOLLOWUP_MODE else "full",
+        },
         "input_sha256": _sha256_bytes(inputs["drive_a"], inputs["drive_b"]),
         "seed_ledger": seed_rows,
         "runtime_s": runtime_s,

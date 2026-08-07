@@ -124,7 +124,9 @@
     on the horizontal axis and median gamma peak frequency in hertz is on the
     vertical axis; bars show half the within-rate interquartile range. The shaded
     #r.registration.calibrated_rate_interval_hz.at(0)--#r.registration.calibrated_rate_interval_hz.at(1)
-    Hz interval is frozen before coupled trials are inspected.],
+    Hz interval is frozen before coupled trials are inspected. The 60 Hz point
+    is monotonic but exceeds the registered 0.8 Hz within-rate IQR ceiling; the
+    140 Hz point is excluded for much stronger peak variability.],
   )
 
   The zero-coupling calibration registers a frequency-difference tolerance of

@@ -64,8 +64,8 @@
   "rows": [
     {
       "condition_key": "calibration_d100_kp000d000",
-      "frequency_iqr_hz": 0.29999999999999716,
-      "median_frequency_hz": 42.0,
+      "frequency_iqr_hz": 0.9999999999999929,
+      "median_frequency_hz": 31.8,
       "rate_hz": 60.0,
       "total_trials": 5,
       "valid_trials": 5
