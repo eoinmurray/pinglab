@@ -86,8 +86,8 @@
     $ R = abs(1 / T sum_(t=1)^T exp(i phi(t))), quad "(3)" $ <eq-plv>
 
     where $R$ is phase-locking value (PLV), $T$ is the number of analysed time
-    samples, and $i$ is the imaginary unit. Figure 4 maps these
-    estimators; Figure 5 shows their time-domain behaviour.
+    samples, and $i$ is the imaginary unit. Figure 3 shows their time-domain
+    behaviour; Figure 4 maps them across the primary grid.
     <method-measurement>],
 
     [*Freeze the locking rule.* Repeated uncoupled equal-drive trials set the
@@ -104,7 +104,8 @@
     Equation 2, $epsilon_phi$ is its tolerance,
     $N_"slip"$ is the complete phase-slip count, and $epsilon_"slip"$ is its
     tolerance. PLV from Equation 3 is descriptive, not part
-    of $L$. Figures 3 and 4 apply Equation 4 without post hoc threshold changes.
+    of $L$. Figure 4 reports the component estimators, and Figure 5 applies
+    Equation 4 without post hoc threshold changes.
     <method-locking>],
 
     [*Execute the frozen primary grid.* Thirteen target detunings cross eleven
@@ -197,7 +198,7 @@
     $Delta f_0=f_A^0-f_B^0$ from Equation 1; bars span the interquartile range
     across five matched seeds. These measured values, rather than the input-rate
     differences or requested targets, become the detuning coordinates in
-    Figures 3 and 4. Dashed lines mark zero.],
+    Figures 4 and 5. Dashed lines mark zero.],
   ) <fig-calibration>
 
   The frozen thresholds used in Equation 4 are
@@ -208,10 +209,54 @@
   #r.registration.locking_tolerances.phase_slips complete slips. The grid is
   identified by checksum #(r.registration.primary_grid_sha256).
 
+  === Representative trajectories distinguish locking from drift
+
+  Conditions selected before inspection show the transition in time: relative
+  phase remains bounded after locking and drifts at the immediately preceding
+  coupling.
+
+  #figure(
+    image(
+      "/artifacts/data/exp078/representative_traces.png",
+      width: 100%,
+      alt: "Representative rasters, population rates, relative phase, and instantaneous frequency difference at zero detuning and either side of the plus-four-hertz locking boundary.",
+    ),
+    caption: [Predetermined time-domain checks. Rows show zero detuning at
+    maximum coupling, the first locked positive-detuning condition, and the
+    same detuning at the immediately preceding coupling. Columns show E rasters,
+    5 ms-smoothed E rates in hertz, unwrapped relative phase $phi(t)$ from
+    Equation 2 in radians, and instantaneous frequency difference in hertz.
+    Relative phase is bounded in the locked conditions and drifts immediately
+    outside the boundary.],
+  ) <fig-traces>
+
+  === Component estimators localize the locking transition
+
+  All #r.benchmark.completed_trials primary trials are valid. Across the grid,
+  low coupled-frequency difference, low relative-phase drift, few phase slips,
+  and high phase concentration emerge together as coupling increases.
+
+  #figure(
+    image(
+      "/artifacts/data/exp078/supporting_maps.png",
+      width: 100%,
+      alt: "Six supporting heatmaps for frequency difference, phase slope, slips, phase-locking value, circular phase, and validity.",
+    ),
+    caption: [Component estimators on the primary grid. All panels share
+    measured natural detuning in hertz horizontally and coupling $K$ vertically.
+    Panels report coupled frequency difference in hertz, fitted slope of
+    Equation 2 in radians per second, complete phase slips, PLV $R$ from Equation 3,
+    circular mean phase in radians,
+    and valid-trial fraction. Validity
+    is #pct(r.valid_trial_fraction)% across the grid, while low frequency
+    difference, low phase drift, few slips, and high PLV coincide in the region
+    subsequently classified as locked in Figure 5.],
+  ) <fig-supporting>
+
   === Coupling produces a widening Arnold tongue
 
-  Applying Equation 4 to the frozen grid from Method 5 produces
-  a contiguous locked region centred near zero detuning. Its width reaches
+  Applying Equation 4 to the component estimators produces a contiguous locked
+  region centred near zero detuning. Its width reaches
   #calc.round(r.conclusion.centred_locked_widths_hz.last(), digits: 2) Hz at the
   largest coupling and increases across
   #r.conclusion.longest_successive_increase_run successive coupling steps.
@@ -228,46 +273,6 @@
     satisfy Equation 4. The centred locked region widens with coupling,
     satisfying the registered geometric clause.],
   ) <fig-tongue>
-
-  The tongue is not an artefact of invalid or silent trials. All
-  #r.benchmark.completed_trials primary trials are valid, and the component
-  estimators from Methods 3 and 4 change
-  coherently across the same grid.
-
-  #figure(
-    image(
-      "/artifacts/data/exp078/supporting_maps.png",
-      width: 100%,
-      alt: "Six supporting heatmaps for frequency difference, phase slope, slips, phase-locking value, circular phase, and validity.",
-    ),
-    caption: [Component estimators on the primary grid. All panels share
-    measured natural detuning in hertz horizontally and coupling $K$ vertically.
-    Panels report coupled frequency difference in hertz, fitted slope of
-    Equation 2 in radians per second, complete phase slips, PLV $R$ from Equation 3,
-    circular mean phase in radians,
-    and valid-trial fraction. Validity
-    is #pct(r.valid_trial_fraction)% across the grid, while low frequency
-    difference and phase drift coincide inside the Arnold tongue.],
-  ) <fig-supporting>
-
-  Representative conditions selected before inspection show the same
-  transition in time: phase remains bounded inside the tongue and drifts at the
-  immediately preceding coupling.
-
-  #figure(
-    image(
-      "/artifacts/data/exp078/representative_traces.png",
-      width: 100%,
-      alt: "Representative rasters, population rates, relative phase, and instantaneous frequency difference at zero detuning and either side of the plus-four-hertz locking boundary.",
-    ),
-    caption: [Predetermined time-domain checks. Rows show zero detuning at
-    maximum coupling, the first locked positive-detuning condition, and the
-    same detuning at the immediately preceding coupling. Columns show E rasters,
-    5 ms-smoothed E rates in hertz, unwrapped relative phase $phi(t)$ from
-    Equation 2 in radians, and instantaneous frequency difference in hertz.
-    Relative phase is bounded inside the registered tongue and drifts
-    immediately outside it.],
-  ) <fig-traces>
 
   === The strict 80 E / 20 I verdict fails one phase-sign cell <result-verdict>
 
