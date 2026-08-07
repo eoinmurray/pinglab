@@ -13,9 +13,9 @@ PALETTE = {
     "ink": "#243044",
     "muted": "#667085",
     "line": "#CBD5E1",
-    "input": "#E8F1FB",
-    "exc": "#E8F5EE",
-    "inh": "#FDECEC",
+    "input": "#F5F7FA",
+    "exc": "#F5F7FA",
+    "inh": "#F5F7FA",
     "neutral": "#F5F7FA",
     "output": "#FFF4D6",
     "mod": "#F1EAFE",
@@ -132,13 +132,9 @@ def _dot(bundle: Bundle, view: str) -> str:
         if source == target or source not in rendered or target not in rendered:
             continue
         polarity = projection["polarity"]
-        color = (
-            "#31845B"
-            if polarity == "excitatory"
-            else "#C44A55"
-            if polarity == "inhibitory"
-            else "#7A5DC7"
-        )
+        # Circuit diagrams follow the lab's ink-plus-one-accent figure palette:
+        # ordinary signal flow is ink and inhibition earns the red accent.
+        color = "#C44A55" if polarity == "inhibitory" else PALETTE["ink"]
         arrow = (
             "normal"
             if polarity == "excitatory"
@@ -150,7 +146,9 @@ def _dot(bundle: Bundle, view: str) -> str:
         connection = projection["connection"]
         if connection == "feedback":
             style = "dashed"
-        label = projection["id"] if view != "circuit" else connection
+        # Direction, arrowhead and line style carry connection semantics in the
+        # collapsed view. Repeating "feedback" makes reciprocal labels collide.
+        label = projection["id"] if view != "circuit" else ""
         key = (source, target, polarity)
         if key in emitted_edges and view == "circuit":
             continue

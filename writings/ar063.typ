@@ -6,7 +6,6 @@
   status: "draft",
 )
 
-#let exp078 = json("/artifacts/data/exp078/numbers.json")
 
 #let body = [
   == Abstract
@@ -708,6 +707,16 @@
 
   A checkpoint contains evolving parameter values and optional optimizer state. Initializing, resuming, fine-tuning, and inference are invocation choices rather than changes to _graph.json_.
 
+  Graph-runtime state is a separate artifact again. It contains membrane
+  voltages, refractory counters, per-projection conductances, recurrent delay
+  histories, delayed-input context, completed steps, and a structural
+  compatibility signature—but no weights. The initial portable representation is
+  an authenticated `manifest.json` plus `tensors.npz`. This separation permits a
+  mature zero-weight graph to branch into a state-compatible non-zero-weight graph
+  without confusing dynamic continuation with parameter checkpointing. _snnlang_
+  continues to author topology only; _tools/snn_ owns state validation and I/O,
+  while the experiment runner owns checkpoint selection and branching.
+
   === A.4 Scratch layout
 
   Each experiment uses regenerable scratch separately from its committed publication record:
@@ -1080,33 +1089,20 @@
 
   === B.7 Milestone 4: first native gamma-coupling experiment
 
-  *Status: complete.* #link("/exp078/")[_exp078_] uses the Milestone 3 executor
-  to compare two independently driven,
-  #calc.round(100 * exp078.calibration.selected.detuning_fraction, digits: 2)%
-  detuned PING circuits across a registered sweep of
-  #exp078.sweep.condition_count reciprocal-inhibition conditions.
-  #exp078.sweep.locked_count conditions form a
-  contiguously supported locking region: each retains active E/I populations,
-  reduces the uncoupled frequency difference, increases phase locking and
-  coherence, and retains a stable phase offset. Strong short/intermediate
-  coupling instead silences one circuit and is explicitly excluded from
-  synchronization. Delay changes the locked phase/lag regime.
+  *Status: executor capability complete; scientific experiment planned.* Exact
+  split-run tests cover refractory state, live conductances, recurrent delays, and
+  delayed inputs. Runtime-state compatibility excludes parameter values but rejects
+  changes to timestep, population size, projection identity, delay, synapse, and
+  state layout. This is sufficient to burn in a structurally complete graph with
+  reciprocal E-to-I weights at zero and continue the same causal trajectory with
+  nonzero weights. General time-dependent weights are not required.
 
-  The experiment archives synchrony, phase difference, mean-band coherence,
-  phase-locking value, cross-correlation, firing diagnostics, runtime, memory,
-  graph digests, manifests, diagrams, independent inputs, and named recordings
-  for every variant. The registered sweep required no simulator edit and used no
-  paid compute. The experiment-side implementation and failed-attempt correction
-  are linked by commits `03bfbe9` and `a781c7f`; exp077 remains unchanged as the
-  architecture/causality record.
-
-  *Gate:* pass. Individual #exp078.registration.simulation.duration_ms ms
-  biological simulations complete in about
-  #calc.round(exp078.sweep.rows.at(0).metrics.runtime_s, digits: 0) s locally and
-  all variants are graph-only. The complete sweep of
-  #exp078.sweep.condition_count cells took #exp078.duration; variant creation
-  and execution therefore remain an interactive rather
-  than overnight workflow. Milestone 5 may proceed after human review.
+  #link("/exp078/")[_exp078_] defines the staged Methods plan. It will first
+  measure the macroscopic E-to-I phase-response curve, use it to predict a stable
+  coupled phase relationship, and only then test acquisition in two 800 E / 200 I
+  circuits. Milestone 4 is complete only when the experiment predicts and then
+  observes the phase lag and convergence timescale across declared seeds and
+  controls.
 
   === B.8 Milestone 5: graph-native readouts and input bindings
 

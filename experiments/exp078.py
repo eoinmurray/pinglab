@@ -1,133 +1,53 @@
-"""Experiment 078 — graph-native reciprocal gamma coupling.
+"""Experiment 078 — authored graph for a two-PING Arnold-tongue reproduction.
 
-The calibration grid, deterministic selection, sweep, and acceptance thresholds
-below are registered before execution. Coupling variants differ only in graph data.
+This first stage compiles and visualises the fixed network topology only. It
+does not generate inputs, execute the simulator, or report scientific results.
 """
 
 from __future__ import annotations
 
-import argparse
-import json
-import math
 import shutil
 import sys
 import time
-from dataclasses import asdict, dataclass
 from pathlib import Path
 
 import matplotlib.pyplot as plt
-import numpy as np
-import torch
-from matplotlib.colors import ListedColormap
-from scipy import signal
+from matplotlib.patches import FancyArrowPatch, FancyBboxPatch
+from matplotlib.path import Path as MplPath
 
 REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO))
-sys.path.insert(0, str(REPO / "tools" / "snn"))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from execution import ExecutionSpec, plan_graph, simulate  # noqa: E402
 from tools import snnlang as snn  # noqa: E402, TID251
 
 from helpers import theme  # noqa: E402
+from helpers.cli import parse_meta  # noqa: E402
 from helpers.numbers import write_numbers  # noqa: E402
 from helpers.run_dirs import published_run  # noqa: E402
 from helpers.run_id import next_run_id  # noqa: E402
 
 SLUG = "exp078"
-SEED = 78
 DT_MS = 0.1
-N_E, N_I, N_INPUT = 40, 10, 16
-STEPS = 18_000
-TRANSIENT_STEPS = 4_000
-ANALYSIS_SECONDS = (STEPS - TRANSIENT_STEPS) * DT_MS / 1000.0
-GAMMA_BAND_HZ = (30.0, 80.0)
-PHASE_BAND_HZ = (25.0, 90.0)
-SMOOTH_MS = 5.0
+N_INPUT = 80
+N_E = 80
+N_I = 20
+INPUT_WEIGHT = 0.2
+COUPLING_REFERENCE = 1.0
+DELAY_MS = 0.1
 
-# Registered bounded calibration: input settings only; within-circuit weights
-# remain the reusable component defaults. Candidate order breaks score ties.
-CALIBRATION_GRID = tuple(
-    {"input_weight": weight, "rate_a_hz": rate_a, "rate_b_hz": rate_b}
-    for weight in (0.20, 0.30, 0.40, 0.55)
-    for rate_a, rate_b in ((180.0, 150.0), (220.0, 180.0), (260.0, 210.0))
-)
-COUPLING_STRENGTHS = (0.20, 0.50, 1.00, 2.00, 4.00)
-DELAY_LABELS = ("short", "intermediate", "half_period")
-
-ACTIVITY = {
-    "min_e_rate_hz": 2.0,
-    "max_e_rate_hz": 180.0,
-    "min_i_rate_hz": 2.0,
-    "max_i_rate_hz": 250.0,
-    "min_active_fraction": 0.25,
-    "max_active_fraction": 1.0,
-    "min_peak_prominence": 2.0,
+SCALE = {
+    "stage": "graph definition and visualisation only",
+    "dt_ms": DT_MS,
+    "n_input_per_circuit": N_INPUT,
+    "n_e_per_circuit": N_E,
+    "n_i_per_circuit": N_I,
 }
-LOCKING = {
-    "max_frequency_difference_fraction_of_baseline": 0.50,
-    "min_plv_gain": 0.15,
-    "min_coherence_gain": 0.10,
-    "min_half_window_plv": 0.55,
-    "max_half_window_phase_offset_difference_rad": 0.60,
-}
-HYPOTHESIS = (
-    "Moderate reciprocal I-to-E GABA coupling entrains two independently driven, "
-    "active, 5–15% detuned PING circuits, whereas zero coupling permits phase drift "
-    "and the largest coupling may suppress activity."
-)
-SUCCESS = (
-    "At least one moderate registered condition is active and locked by every "
-    "frequency, PLV, coherence, and stable-phase threshold, with a contiguous "
-    "strength/delay neighbour supporting the transition."
-)
-KILL = (
-    "Kill if calibration finds no valid pair, coupling only suppresses/invalidates "
-    "activity, or no registered condition meets every locking threshold."
-)
-GOAL_PROMPT = (REPO / "experiments" / "exp078_goal.txt").read_text()
 
 
-@dataclass(frozen=True)
-class Variant:
-    name: str
-    strength: float
-    delay_label: str
-    delay_ms: float
-
-
-def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "--stage",
-        choices=("smoke", "calibrate", "sweep", "replot"),
-        required=True,
-    )
-    return parser.parse_args()
-
-
-def independent_inputs(
-    rate_a_hz: float, rate_b_hz: float, *, steps: int = STEPS
-) -> dict[str, torch.Tensor]:
-    generators = (
-        torch.Generator().manual_seed(SEED + 101),
-        torch.Generator().manual_seed(SEED + 202),
-    )
-    a = (
-        torch.rand((steps, 1, N_INPUT), generator=generators[0])
-        < rate_a_hz * DT_MS / 1000.0
-    ).float()
-    b = (
-        torch.rand((steps, 1, N_INPUT), generator=generators[1])
-        < rate_b_hz * DT_MS / 1000.0
-    ).float()
-    return {"drive_a": a, "drive_b": b}
-
-
-def author_graph(
-    *, input_weight: float, coupling_strength: float = 0.0, delay_ms: float = 0.1
-) -> snn.Bundle:
-    net = snn.Network("two_ping_gamma_coupling", dt=DT_MS * snn.ms)
+def author_network(*, coupling: float = COUPLING_REFERENCE) -> snn.Bundle:
+    """Compile the fixed Lowet-style two-circuit topology."""
+    net = snn.Network("lowet_two_ping", dt=DT_MS * snn.ms)
     drives = {
         name: net.input(
             f"drive_{name}",
@@ -137,895 +57,217 @@ def author_graph(
         )
         for name in ("a", "b")
     }
-    cells = {}
+    circuits = {}
     for name in ("a", "b"):
-        cell = snn.components.ping(net, name=name, n_e=N_E, n_i=N_I, source=None)
+        circuit = snn.components.ping(
+            net,
+            name=name,
+            n_e=N_E,
+            n_i=N_I,
+            source=None,
+        )
         net.connect(
             drives[name],
-            cell.E.excitatory,
-            name=f"{name}_input",
+            circuit.E.excitatory,
+            name=f"drive_{name}_to_{name}_E",
             synapse=snn.AMPA(tau=2 * snn.ms),
-            weight=snn.Normal(input_weight, 0.03),
+            weight=snn.Constant(INPUT_WEIGHT),
             constraint=snn.NonNegative(),
+            delay=DELAY_MS * snn.ms,
         )
-        cells[name] = cell
-    if coupling_strength > 0:
-        for source, target in (("a", "b"), ("b", "a")):
-            net.connect(
-                cells[source].I.spikes,
-                cells[target].E.inhibitory,
-                name=f"{source}_I_to_{target}_E",
-                synapse=snn.GABA(tau=9 * snn.ms),
-                weight=snn.Constant(coupling_strength),
-                constraint=snn.NonNegative(),
-                connection="feedback",
-                delay=delay_ms * snn.ms,
-            )
+        circuits[name] = circuit
+
+    for source, target in (("a", "b"), ("b", "a")):
+        net.connect(
+            circuits[source].E.spikes,
+            circuits[target].E.excitatory,
+            name=f"{source}_E_to_{target}_E",
+            synapse=snn.AMPA(tau=2 * snn.ms),
+            weight=snn.Constant(coupling),
+            constraint=snn.NonNegative(),
+            connection="feedback",
+            delay=DELAY_MS * snn.ms,
+        )
+        net.connect(
+            circuits[source].E.spikes,
+            circuits[target].I.excitatory,
+            name=f"{source}_E_to_{target}_I",
+            synapse=snn.AMPA(tau=2 * snn.ms),
+            weight=snn.Constant(coupling),
+            constraint=snn.NonNegative(),
+            connection="feedback",
+            delay=DELAY_MS * snn.ms,
+        )
+
     net.expose(
-        cells["a"].E.spikes,
-        cells["a"].I.spikes,
-        cells["b"].E.spikes,
-        cells["b"].I.spikes,
+        circuits["a"].E.spikes,
+        circuits["a"].I.spikes,
+        circuits["b"].E.spikes,
+        circuits["b"].I.spikes,
         name="population",
     )
     return snn.compile(net, target="tools/snn")
 
 
-def gaussian_rate(spikes: np.ndarray) -> np.ndarray:
-    population_hz = spikes.mean(axis=(1, 2)) * 1000.0 / DT_MS
-    sigma = SMOOTH_MS / DT_MS
-    width = int(6 * sigma) | 1
-    kernel = signal.windows.gaussian(width, sigma)
-    kernel /= kernel.sum()
-    return np.convolve(population_hz, kernel, mode="same")
-
-
-def spectrum(rate: np.ndarray) -> tuple[np.ndarray, np.ndarray, float, float]:
-    fs = 1000.0 / DT_MS
-    frequency, power = signal.welch(
-        rate, fs=fs, nperseg=min(8192, len(rate)), noverlap=min(4096, len(rate) // 2)
-    )
-    mask = (frequency >= GAMMA_BAND_HZ[0]) & (frequency <= GAMMA_BAND_HZ[1])
-    band_power = power[mask]
-    if not np.any(mask) or band_power.size == 0 or float(np.median(band_power)) <= 0:
-        return frequency, power, math.nan, 0.0
-    peak_i = int(np.argmax(band_power))
-    return (
-        frequency,
-        power,
-        float(frequency[mask][peak_i]),
-        float(band_power[peak_i] / np.median(band_power)),
-    )
-
-
-def circular_metrics(rate_a: np.ndarray, rate_b: np.ndarray) -> dict[str, float]:
-    fs = 1000.0 / DT_MS
-    sos = signal.butter(4, PHASE_BAND_HZ, btype="bandpass", fs=fs, output="sos")
-    filtered_a = signal.sosfiltfilt(sos, rate_a)
-    filtered_b = signal.sosfiltfilt(sos, rate_b)
-    phase = np.angle(signal.hilbert(filtered_a)) - np.angle(signal.hilbert(filtered_b))
-    vector = np.exp(1j * phase)
-    midpoint = len(phase) // 2
-    halves = [vector[:midpoint], vector[midpoint:]]
-    half_offsets = [float(np.angle(np.mean(x))) for x in halves]
-    offset_delta = float(
-        abs(np.angle(np.exp(1j * (half_offsets[0] - half_offsets[1]))))
-    )
-    f_coh, coh = signal.coherence(rate_a, rate_b, fs=fs, nperseg=min(8192, len(rate_a)))
-    coh_mask = (f_coh >= GAMMA_BAND_HZ[0]) & (f_coh <= GAMMA_BAND_HZ[1])
-    centered_a, centered_b = rate_a - rate_a.mean(), rate_b - rate_b.mean()
-    corr = signal.correlate(centered_a, centered_b, mode="full", method="fft")
-    denom = np.linalg.norm(centered_a) * np.linalg.norm(centered_b)
-    corr = corr / denom if denom else np.zeros_like(corr)
-    lags = signal.correlation_lags(len(centered_a), len(centered_b), mode="full")
-    window = abs(lags * DT_MS) <= 50.0
-    peak = int(np.argmax(corr[window]))
-    return {
-        "plv": float(abs(np.mean(vector))),
-        "mean_phase_difference_rad": float(np.angle(np.mean(vector))),
-        "half_1_plv": float(abs(np.mean(halves[0]))),
-        "half_2_plv": float(abs(np.mean(halves[1]))),
-        "half_phase_offset_difference_rad": offset_delta,
-        # Frozen after uncoupled calibration: a maximum-over-band statistic
-        # saturated at 0.992 and could not support the declared gain threshold.
-        "gamma_coherence": float(np.mean(coh[coh_mask])) if np.any(coh_mask) else 0.0,
-        "cross_correlation_peak": float(corr[window][peak]),
-        "cross_correlation_lag_ms": float(lags[window][peak] * DT_MS),
+def render_network_diagram(bundle: snn.Bundle, svg_path: Path, png_path: Path) -> None:
+    """Render the authored graph as a legible two-circuit scientific schematic."""
+    graph = bundle.graph
+    population_sizes = {row["id"]: row["size"] for row in graph["populations"]}
+    projection_ids = {row["id"] for row in graph["projections"]}
+    expected = {
+        "a_E_to_I", "a_I_to_E", "b_E_to_I", "b_I_to_E",
+        "a_E_to_b_E", "a_E_to_b_I", "b_E_to_a_E", "b_E_to_a_I",
     }
+    if not expected <= projection_ids:
+        raise ValueError(f"diagram graph is missing projections: {sorted(expected - projection_ids)}")
 
-
-def analyse(recordings: dict[str, torch.Tensor]) -> tuple[dict, dict[str, np.ndarray]]:
-    arrays = {key: value.detach().cpu().numpy() for key, value in recordings.items()}
-    post = {
-        key: arrays[key][TRANSIENT_STEPS:]
-        for key in ("population_0", "population_1", "population_2", "population_3")
-    }
-    rates = {key: gaussian_rate(value) for key, value in post.items()}
-    populations = {}
-    valid = True
-    for circuit, e_key, i_key in (
-        ("a", "population_0", "population_1"),
-        ("b", "population_2", "population_3"),
-    ):
-        freq, power, peak_hz, prominence = spectrum(rates[e_key])
-        e_rate = float(post[e_key].sum() / (N_E * ANALYSIS_SECONDS))
-        i_rate = float(post[i_key].sum() / (N_I * ANALYSIS_SECONDS))
-        e_active = float(np.mean(post[e_key].sum(axis=(0, 1)) > 0))
-        i_active = float(np.mean(post[i_key].sum(axis=(0, 1)) > 0))
-        finite = bool(
-            np.isfinite(arrays[f"{circuit}_E.voltage"]).all()
-            and np.isfinite(arrays[f"{circuit}_I.voltage"]).all()
-        )
-        active = bool(
-            finite
-            and ACTIVITY["min_e_rate_hz"] <= e_rate <= ACTIVITY["max_e_rate_hz"]
-            and ACTIVITY["min_i_rate_hz"] <= i_rate <= ACTIVITY["max_i_rate_hz"]
-            and e_active >= ACTIVITY["min_active_fraction"]
-            and i_active >= ACTIVITY["min_active_fraction"]
-        )
-        spectral = bool(
-            np.isfinite(peak_hz)
-            and GAMMA_BAND_HZ[0] <= peak_hz <= GAMMA_BAND_HZ[1]
-            and prominence >= ACTIVITY["min_peak_prominence"]
-        )
-        valid &= active and spectral
-        populations[circuit] = {
-            "e_rate_hz": e_rate,
-            "i_rate_hz": i_rate,
-            "e_active_fraction": e_active,
-            "i_active_fraction": i_active,
-            "dominant_frequency_hz": peak_hz,
-            "peak_prominence": prominence,
-            "finite": finite,
-            "active": active,
-            "spectrally_valid": spectral,
-            "silent": e_rate < ACTIVITY["min_e_rate_hz"]
-            or i_rate < ACTIVITY["min_i_rate_hz"],
-            "saturated": e_rate > ACTIVITY["max_e_rate_hz"]
-            or i_rate > ACTIVITY["max_i_rate_hz"],
-        }
-        rates[f"{circuit}_spectrum_frequency"] = freq
-        rates[f"{circuit}_spectrum_power"] = power
-    synchrony = circular_metrics(rates["population_0"], rates["population_2"])
-    synchrony["frequency_difference_hz"] = abs(
-        populations["a"]["dominant_frequency_hz"]
-        - populations["b"]["dominant_frequency_hz"]
-    )
-    archived_rates = {f"rate_{key}": value for key, value in rates.items()}
-    return {"populations": populations, "synchrony": synchrony, "valid": valid}, {
-        **arrays,
-        **archived_rates,
-    }
-
-
-def run_condition(
-    settings: dict, *, coupling_strength: float = 0.0, delay_ms: float = 0.1
-) -> tuple[dict, dict[str, np.ndarray], snn.Bundle]:
-    inputs = independent_inputs(settings["rate_a_hz"], settings["rate_b_hz"])
-    bundle = author_graph(
-        input_weight=settings["input_weight"],
-        coupling_strength=coupling_strength,
-        delay_ms=delay_ms,
-    )
-    result = simulate(
-        ExecutionSpec(
-            kind="simulate",
-            executor="graph",
-            graph=bundle.graph,
-            inputs=inputs,
-            seed=SEED,
-        )
-    )
-    metrics, arrays = analyse(result.recordings)
-    metrics["runtime_s"] = result.metrics["simulate_s"]
-    metrics["peak_python_bytes"] = result.metrics["peak_python_bytes"]
-    metrics["graph_digest"] = bundle.manifest["graph_digest"]
-    return metrics, arrays, bundle
-
-
-def calibration_score(row: dict) -> float:
-    if not row["metrics"]["valid"] or not 0.05 <= row["detuning_fraction"] <= 0.15:
-        return math.inf
-    pops = row["metrics"]["populations"]
-    return abs(row["detuning_fraction"] - 0.10) + 0.01 / min(
-        pops["a"]["peak_prominence"], pops["b"]["peak_prominence"]
-    )
-
-
-def registration() -> dict:
-    return {
-        "hypothesis": HYPOTHESIS,
-        "success_criterion": SUCCESS,
-        "kill_criterion": KILL,
-        "seed": SEED,
-        "simulation": {
-            "dt_ms": DT_MS,
-            "duration_ms": STEPS * DT_MS,
-            "transient_ms": TRANSIENT_STEPS * DT_MS,
-            "analysis_seconds": ANALYSIS_SECONDS,
-        },
-        "populations": {
-            "excitatory_per_circuit": N_E,
-            "inhibitory_per_circuit": N_I,
-            "input_channels_per_circuit": N_INPUT,
-        },
-        "independent_input_generators": [SEED + 101, SEED + 202],
-        "calibration_grid": list(CALIBRATION_GRID),
-        "calibration_selection": "Minimum registered score among valid active/spectral candidates with 5–15% detuning; score is |detuning-10%| + 0.01/min peak prominence; grid order breaks exact ties.",
-        "within_circuit_parameters": "snnlang PING component defaults, frozen",
-        "coupling_strengths": list(COUPLING_STRENGTHS),
-        "delay_labels": list(DELAY_LABELS),
-        "activity_thresholds": ACTIVITY,
-        "locking_thresholds": LOCKING,
-        "coherence_definition": "Arithmetic mean of magnitude-squared coherence bins from 30 through 80 Hz; frozen after uncoupled calibration and before any coupling sweep because a maximum-over-band statistic saturated at 0.992.",
-        "locked_definition": "active plus <=50% baseline frequency difference, PLV gain >=0.15, mean-band coherence gain >=0.10, both half-window PLV >=0.55, and half-window phase-offset drift <=0.60 rad",
-        "contiguity_definition": "A locked condition has at least one active locked orthogonal neighbour in the registered strength x delay grid; baseline is excluded.",
-        "suppression_definition": "Either circuit violates the registered minimum E/I rates or active-cell fraction; suppression is never locking.",
-    }
-
-
-def json_safe(value):
-    """Replace non-finite diagnostics with JSON null while retaining flags."""
-    if isinstance(value, dict):
-        return {key: json_safe(item) for key, item in value.items()}
-    if isinstance(value, list):
-        return [json_safe(item) for item in value]
-    if isinstance(value, float) and not math.isfinite(value):
-        return None
-    return value
-
-
-def smoke() -> None:
-    settings = CALIBRATION_GRID[0]
-    inputs = independent_inputs(settings["rate_a_hz"], settings["rate_b_hz"], steps=300)
-    bundle = author_graph(input_weight=settings["input_weight"])
-    first = simulate(
-        ExecutionSpec(
-            kind="simulate",
-            executor="graph",
-            graph=bundle.graph,
-            inputs=inputs,
-            seed=SEED,
-        )
-    )
-    second = simulate(
-        ExecutionSpec(
-            kind="simulate",
-            executor="graph",
-            graph=bundle.graph,
-            inputs=inputs,
-            seed=SEED,
-        )
-    )
-    keys = {
-        "population_0",
-        "population_1",
-        "population_2",
-        "population_3",
-        "a_E.voltage",
-        "a_I.voltage",
-        "b_E.voltage",
-        "b_I.voltage",
-    }
-    assert keys <= first.recordings.keys()
-    assert all(
-        torch.equal(first.recordings[key], second.recordings[key])
-        for key in first.recordings
-    )
-    coupled = author_graph(
-        input_weight=settings["input_weight"], coupling_strength=1.0, delay_ms=0.5
-    )
-    plan = plan_graph(coupled.graph)
-    cross = [p for p in plan.projections if p.id in {"a_I_to_b_E", "b_I_to_a_E"}]
-    assert len(cross) == 2 and {p.delay_steps for p in cross} == {5}
-    print(
-        json.dumps(
-            {
-                "finite": all(
-                    torch.isfinite(x).all() for x in first.recordings.values()
-                ),
-                "recordings": sorted(keys),
-                "reproducible": True,
-                "coupling_graph_only": True,
-                "delay_steps": 5,
-            },
-            indent=2,
-        )
-    )
-
-
-def calibrate() -> None:
-    started = time.monotonic()
-    run_id = next_run_id(SLUG)
-    with published_run(
-        SLUG,
-        run_id,
-        scale={
-            "stage": "calibration",
-            "candidates": len(CALIBRATION_GRID),
-            "seed": SEED,
-        },
-    ) as (_scratch, staging):
-        rows = []
-        valid = []
-        for index, settings in enumerate(CALIBRATION_GRID):
-            metrics, _arrays, _bundle = run_condition(settings)
-            fa = metrics["populations"]["a"]["dominant_frequency_hz"]
-            fb = metrics["populations"]["b"]["dominant_frequency_hz"]
-            detuning = (
-                abs(fa - fb) / ((fa + fb) / 2)
-                if np.isfinite(fa + fb) and fa + fb
-                else math.inf
-            )
-            row = {
-                "index": index,
-                "settings": settings,
-                "metrics": metrics,
-                "detuning_fraction": detuning,
-            }
-            score = calibration_score(row)
-            row["selection_score"] = score
-            rows.append(row)
-            if math.isfinite(score):
-                valid.append(row)
-            print(index, settings, metrics["valid"], fa, fb, detuning)
-        selected = (
-            min(valid, key=lambda row: (row["selection_score"], row["index"]))
-            if valid
-            else None
-        )
-        (staging / "registration.json").write_text(
-            json.dumps(registration(), indent=2) + "\n"
-        )
-        (staging / "calibration_candidates.json").write_text(
-            json.dumps(json_safe(rows), indent=2, allow_nan=False) + "\n"
-        )
-        (staging / "calibration_selection.json").write_text(
-            json.dumps(selected, indent=2) + "\n"
-        )
-        (staging / "goal.txt").write_text(GOAL_PROMPT)
-        (staging / "reproduce.sh").write_text(
-            "#!/bin/sh\nuv run python experiments/exp078.py --stage calibrate\n"
-        )
-        activity = [
-            {
-                "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
-                "event": "Completed the bounded uncoupled calibration locally; selection used only registered input settings and no cross-coupling.",
-            }
-        ]
-        (staging / "activity_log.json").write_text(
-            json.dumps(activity, indent=2) + "\n"
-        )
-        payload = {
-            "stage": "calibration",
-            "registration": registration(),
-            "calibration": {
-                "candidate_count": len(rows),
-                "valid_candidate_count": len(valid),
-                "selected": selected,
-            },
-            "exit": {
-                "calibration_pass": selected is not None,
-                "sweep_performed": False,
-                "paid_compute_usd": 0.0,
-            },
-        }
-        write_numbers(
-            staging,
-            run_id=run_id,
-            duration_s=time.monotonic() - started,
-            payload=json_safe(payload),
-        )
-    if selected is None:
-        raise SystemExit("KILLED: no registered calibration candidate passed")
-
-
-def variants(selected: dict) -> list[Variant]:
-    mean_frequency = np.mean(
-        [
-            selected["metrics"]["populations"][c]["dominant_frequency_hz"]
-            for c in ("a", "b")
-        ]
-    )
-    half_period = round((500.0 / mean_frequency) / DT_MS) * DT_MS
-    delays = {"short": 0.1, "intermediate": 2.0, "half_period": half_period}
-    return [Variant("uncoupled", 0.0, "none", 0.0)] + [
-        Variant(f"w{strength:g}_{label}", strength, label, delays[label])
-        for strength in COUPLING_STRENGTHS
-        for label in DELAY_LABELS
-    ]
-
-
-def locked(metrics: dict, baseline: dict) -> bool:
-    sync, base = metrics["synchrony"], baseline["synchrony"]
-    return bool(
-        metrics["valid"]
-        and sync["frequency_difference_hz"]
-        <= LOCKING["max_frequency_difference_fraction_of_baseline"]
-        * base["frequency_difference_hz"]
-        and sync["plv"] - base["plv"] >= LOCKING["min_plv_gain"]
-        and sync["gamma_coherence"] - base["gamma_coherence"]
-        >= LOCKING["min_coherence_gain"]
-        and min(sync["half_1_plv"], sync["half_2_plv"])
-        >= LOCKING["min_half_window_plv"]
-        and sync["half_phase_offset_difference_rad"]
-        <= LOCKING["max_half_window_phase_offset_difference_rad"]
-    )
-
-
-def sweep() -> None:
-    source = REPO / "artifacts" / "data" / SLUG / "calibration_selection.json"
-    if not source.exists():
-        raise SystemExit("run registered calibration first")
-    selected = json.loads(source.read_text())
-    if selected is None:
-        raise SystemExit("KILLED: registered calibration did not pass")
-    settings = selected["settings"]
-    started = time.monotonic()
-    run_id = next_run_id(SLUG)
-    sweep_variants = variants(selected)
-    with published_run(
-        SLUG,
-        run_id,
-        scale={
-            "stage": "registered_sweep",
-            "variants": len(sweep_variants),
-            "seed": SEED,
-        },
-    ) as (_scratch, staging):
-        variants_dir = staging / "variants"
-        variants_dir.mkdir()
-        rows, arrays_by_name = [], {}
-        for variant in sweep_variants:
-            metrics, arrays, bundle = run_condition(
-                settings,
-                coupling_strength=variant.strength,
-                delay_ms=max(variant.delay_ms, DT_MS),
-            )
-            bundle.write(variants_dir / f"{variant.name}.bundle", visualise=True)
-            np.savez_compressed(
-                variants_dir / f"{variant.name}-recordings.npz",
-                **arrays,  # ty: ignore[invalid-argument-type]
-            )
-            row = {"variant": asdict(variant), "metrics": metrics}
-            rows.append(row)
-            arrays_by_name[variant.name] = arrays
-            print(variant.name, metrics["valid"], metrics["synchrony"])
-        baseline = rows[0]["metrics"]
-        for row in rows:
-            row["locked"] = (
-                False if row is rows[0] else locked(row["metrics"], baseline)
-            )
-        grid = {
-            (row["variant"]["strength"], row["variant"]["delay_label"]): row
-            for row in rows[1:]
-        }
-        for row in rows[1:]:
-            strength, label = row["variant"]["strength"], row["variant"]["delay_label"]
-            si, di = COUPLING_STRENGTHS.index(strength), DELAY_LABELS.index(label)
-            neighbours = []
-            for sj, dj in ((si - 1, di), (si + 1, di), (si, di - 1), (si, di + 1)):
-                if 0 <= sj < len(COUPLING_STRENGTHS) and 0 <= dj < len(DELAY_LABELS):
-                    neighbours.append(grid[(COUPLING_STRENGTHS[sj], DELAY_LABELS[dj])])
-            row["contiguous_support"] = bool(
-                row["locked"] and any(n["locked"] for n in neighbours)
-            )
-        winners = [
-            row
-            for row in rows[1:]
-            if row["locked"]
-            and row["contiguous_support"]
-            and row["variant"]["strength"] < max(COUPLING_STRENGTHS)
-        ]
-        success = bool(winners)
-        render_figures(rows, arrays_by_name, staging)
-        shutil.copy2(
-            variants_dir / "w1_intermediate.bundle/reports/circuit.svg",
-            staging / "representative_graph.svg",
-        )
-        np.savez_compressed(
-            staging / "inputs.npz",
-            **{
-                k: v.numpy()
-                for k, v in independent_inputs(
-                    settings["rate_a_hz"], settings["rate_b_hz"]
-                ).items()
-            },
-        )
-        (staging / "registration.json").write_text(
-            json.dumps(registration(), indent=2) + "\n"
-        )
-        (staging / "calibration_candidates.json").write_text(
-            (REPO / "artifacts/data/exp078/calibration_candidates.json").read_text()
-        )
-        (staging / "calibration_selection.json").write_text(
-            json.dumps(selected, indent=2) + "\n"
-        )
-        (staging / "sweep_table.json").write_text(
-            json.dumps(json_safe(rows), indent=2, allow_nan=False) + "\n"
-        )
-        (staging / "goal.txt").write_text(GOAL_PROMPT)
-        (staging / "reproduce.sh").write_text(
-            "#!/bin/sh\nuv run python experiments/exp078.py --stage calibrate\nuv run python experiments/exp078.py --stage sweep\n"
-        )
-        activity = [
-            {
-                "timestamp": "2026-08-05T12:48:57Z",
-                "event": "Registered the hypothesis, bounded calibration, deterministic selection, graph-only sweep, locking thresholds, success criterion, and kill criterion before coupling execution.",
-            },
-            {
-                "timestamp": "2026-08-05T12:50:00Z",
-                "event": "Passed the local smoke gate with finite named E/I and voltage recordings, exact replay, graph-only coupling, and exact five-step delay lowering.",
-            },
-            {
-                "timestamp": "2026-08-05T13:02:03Z",
-                "event": "Completed the bounded 12-candidate uncoupled calibration locally and selected candidate 8 deterministically; no cross-coupling was evaluated.",
-            },
-            {
-                "timestamp": "2026-08-05T13:03:12Z",
-                "event": "Replaced maximum-over-band coherence with registered 30–80 Hz mean coherence before coupling because the uncoupled maximum saturated at 0.992 and made the declared gain impossible.",
-            },
-            {
-                "timestamp": "2026-08-05T13:14:54Z",
-                "event": "Froze the selected uncoupled baseline and all numerical thresholds before the first coupling condition.",
-            },
-            {
-                "timestamp": "2026-08-05T13:34:17Z",
-                "event": "Killed the first complete sweep publication after rate traces overwrote spike-array artifact keys and raster rendering failed; atomic staging prevented invalid evidence publication.",
-            },
-            {
-                "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
-                "event": "Completed the unchanged pre-registered local coupling sweep after an experiment-side artifact-key fix, without simulator edits or paid compute.",
-            },
-        ]
-        (staging / "activity_log.json").write_text(
-            json.dumps(activity, indent=2) + "\n"
-        )
-        payload = {
-            "stage": "registered_sweep",
-            "registration": registration(),
-            "calibration": {"selected": selected},
-            "sweep": {
-                "condition_count": len(rows),
-                "rows": rows,
-                "locked_count": sum(row["locked"] for row in rows),
-                "contiguously_supported_count": sum(
-                    row.get("contiguous_support", False) for row in rows
-                ),
-                "winning_conditions": winners,
-            },
-            "exit": {
-                "success": success,
-                "kill_fired": not success,
-                "simulator_edits": 0,
-                "paid_compute_usd": 0.0,
-            },
-            "activity": activity,
-        }
-        write_numbers(
-            staging,
-            run_id=run_id,
-            duration_s=time.monotonic() - started,
-            payload=json_safe(payload),
-        )
-
-
-def render_figures(
-    rows: list[dict], arrays: dict[str, dict[str, np.ndarray]], out: Path
-) -> None:
     theme.apply()
-    representative = [rows[0]]
-    locked_rows = [row for row in rows[1:] if row["locked"]]
-    representative.append(locked_rows[0] if locked_rows else rows[len(rows) // 2])
-    representative.append(rows[-1])
-    fig, axes = plt.subplots(3, 2, figsize=(7.2, 7.2), sharex=True)
-    for row_i, row in enumerate(representative):
-        name = row["variant"]["name"]
-        rec = arrays[name]
-        for col, key in enumerate(("population_0", "population_2")):
-            sample = rec[key][TRANSIENT_STEPS:]
-            t, cell = np.nonzero(sample[:, 0])
-            axes[row_i, col].scatter(
-                t * DT_MS,
-                cell,
-                s=1.5,
-                linewidths=0,
-                color=theme.INK_BLACK if col == 0 else theme.DEEP_RED,
-            )
-            axes[row_i, col].set_ylabel(name.replace("_", " "), fontsize=7)
-    axes[0, 0].set_title("circuit A · E")
-    axes[0, 1].set_title("circuit B · E")
-    for ax in axes[-1]:
-        ax.set_xlabel("post-transient time (ms)")
-    fig.tight_layout()
-    fig.savefig(out / "matched_rasters.png", dpi=220, bbox_inches="tight")
+    fig, ax = plt.subplots(figsize=(9.2, 5.0))
+    ax.set_xlim(0, 10)
+    ax.set_ylim(-0.5, 6)
+    ax.axis("off")
+
+    ink = theme.INK_BLACK
+    red = theme.DEEP_RED
+    muted = theme.GREY_MID
+    border = "#B9C3CF"
+    panel = "#F7F8FA"
+    coupling = "#53657D"
+    positions = {
+        "drive_a": (2.25, 5.15), "a_I": (1.15, 2.65), "a_E": (3.35, 2.65),
+        "drive_b": (7.75, 5.15), "b_E": (6.65, 2.65), "b_I": (8.85, 2.65),
+    }
+
+    def card(name: str, title: str, subtitle: str, *, width: float = 1.45) -> None:
+        x, y = positions[name]
+        box = FancyBboxPatch(
+            (x - width / 2, y - 0.55), width, 1.1,
+            boxstyle="round,pad=0.08,rounding_size=0.12",
+            facecolor="white", edgecolor=border, linewidth=1.5, zorder=4,
+        )
+        ax.add_patch(box)
+        ax.text(x, y + 0.13, title, ha="center", va="center", fontsize=10.5,
+                fontweight="semibold", color=ink, zorder=5)
+        ax.text(x, y - 0.22, subtitle, ha="center", va="center", fontsize=7.5,
+                color=muted, zorder=5)
+
+    for center, label in ((2.25, "CIRCUIT A"), (7.75, "CIRCUIT B")):
+        ax.add_patch(FancyBboxPatch(
+            (center - 2.05, 1.15), 4.1, 3.0,
+            boxstyle="round,pad=0.1,rounding_size=0.16",
+            facecolor=panel, edgecolor="#D8DEE7", linewidth=1.0, zorder=0,
+        ))
+        ax.text(center, 3.88, label, ha="center", va="center", fontsize=9,
+                fontweight="bold", color=muted)
+
+    card("drive_a", "drive A", "independent Poisson\n80 channels", width=2.25)
+    card("drive_b", "drive B", "independent Poisson\n80 channels", width=2.25)
+    for name, label in (("a_E", "E_A"), ("a_I", "I_A"), ("b_E", "E_B"), ("b_I", "I_B")):
+        card(
+            name,
+            f"${label}$",
+            f"{population_sizes[name]} neurons",
+            width=1.55,
+        )
+
+    def arrow(start, end, *, color=ink, style="-", rad=0.0, heads="-|>", width=1.8, z=2):
+        patch = FancyArrowPatch(
+            start, end, arrowstyle=heads, mutation_scale=13,
+            connectionstyle=f"arc3,rad={rad}", color=color, linewidth=width,
+            linestyle=style, shrinkA=5, shrinkB=5, zorder=z,
+        )
+        ax.add_patch(patch)
+
+    def routed_arrow(points, *, color=coupling, style="--", width=1.8):
+        path = MplPath(
+            points,
+            [MplPath.MOVETO] + [MplPath.LINETO] * (len(points) - 1),
+        )
+        ax.add_patch(FancyArrowPatch(
+            path=path, arrowstyle="-|>", mutation_scale=13, color=color,
+            linewidth=width, linestyle=style, shrinkA=4, shrinkB=4, zorder=1,
+            joinstyle="round",
+        ))
+
+    # Independent input and local PING loops.
+    arrow((2.25, 4.58), (3.15, 3.23), width=1.6)
+    arrow((7.75, 4.58), (6.85, 3.23), width=1.6)
+    arrow((2.50, 2.91), (2.00, 2.91), width=2.0)
+    arrow((2.00, 2.39), (2.50, 2.39), color=red, heads="-[", width=2.2)
+    arrow((7.50, 2.91), (8.00, 2.91), width=2.0)
+    arrow((8.00, 2.39), (7.50, 2.39), color=red, heads="-[", width=2.2)
+
+    # Lowet-style reciprocal cross-circuit excitation.
+    arrow((4.15, 2.95), (5.85, 2.95), color=coupling, style="--",
+          heads="<|-|>", width=2.0)
+    ax.text(5.0, 3.13, "reciprocal E→E", ha="center", va="bottom",
+            fontsize=8.5, color=coupling)
+    routed_arrow([(3.35, 2.02), (3.35, 0.72), (8.85, 0.72), (8.85, 2.02)])
+    routed_arrow([(6.65, 2.02), (6.65, 0.22), (1.15, 0.22), (1.15, 2.02)])
+    ax.text(6.1, 0.88, "$E_A$ → $I_B$", ha="center", va="bottom",
+            fontsize=8.0, color=coupling)
+    ax.text(3.9, 0.38, "$E_B$ → $I_A$", ha="center", va="bottom",
+            fontsize=8.0, color=coupling)
+
+    ax.plot([], [], color=ink, linewidth=2, label="excitatory")
+    ax.plot([], [], color=red, linewidth=2.2, label="inhibitory")
+    ax.plot([], [], color=coupling, linewidth=2, linestyle="--", label="cross-circuit")
+    ax.legend(loc="lower center", bbox_to_anchor=(0.5, -0.13), ncol=3,
+              frameon=False, fontsize=8.5, handlelength=2.4)
+
+    fig.savefig(svg_path, bbox_inches="tight")
+    fig.savefig(png_path, dpi=220, bbox_inches="tight")
     plt.close(fig)
-
-    fig, axes = plt.subplots(3, 1, figsize=(7.2, 6.0), sharex=True)
-    for ax, row in zip(axes, representative):
-        rec = arrays[row["variant"]["name"]]
-        ax.plot(
-            np.arange(len(rec["population_0"]) - TRANSIENT_STEPS) * DT_MS,
-            gaussian_rate(rec["population_0"][TRANSIENT_STEPS:]),
-            label="A",
-            color=theme.INK_BLACK,
-        )
-        ax.plot(
-            np.arange(len(rec["population_2"]) - TRANSIENT_STEPS) * DT_MS,
-            gaussian_rate(rec["population_2"][TRANSIENT_STEPS:]),
-            label="B",
-            color=theme.DEEP_RED,
-            alpha=0.8,
-        )
-        ax.set_ylabel(row["variant"]["name"].replace("_", " "), fontsize=7)
-    axes[0].legend(frameon=False, ncol=2)
-    axes[-1].set_xlabel("post-transient time (ms)")
-    fig.tight_layout()
-    fig.savefig(out / "population_rates.png", dpi=220, bbox_inches="tight")
-    plt.close(fig)
-
-    metrics = (
-        ("frequency_difference_hz", "frequency difference (Hz)"),
-        ("plv", "phase-locking value"),
-        ("gamma_coherence", "gamma coherence"),
-        ("mean_phase_difference_rad", "phase offset (rad)"),
-    )
-    fig, axes = plt.subplots(2, 2, figsize=(7.2, 5.4))
-    for ax, (metric, label) in zip(axes.flat, metrics):
-        matrix = np.full((len(COUPLING_STRENGTHS), len(DELAY_LABELS)), np.nan)
-        for row in rows[1:]:
-            i = COUPLING_STRENGTHS.index(row["variant"]["strength"])
-            j = DELAY_LABELS.index(row["variant"]["delay_label"])
-            matrix[i, j] = row["metrics"]["synchrony"][metric]
-        image = ax.imshow(matrix, aspect="auto", origin="lower")
-        ax.set_xticks(
-            range(len(DELAY_LABELS)),
-            ["short", "intermediate", "half period"],
-            rotation=20,
-            ha="right",
-        )
-        ax.set_yticks(
-            range(len(COUPLING_STRENGTHS)), [str(x) for x in COUPLING_STRENGTHS]
-        )
-        ax.set_ylabel("coupling strength")
-        ax.set_title(label)
-        fig.colorbar(image, ax=ax, shrink=0.8)
-    fig.tight_layout()
-    fig.savefig(out / "coupling_heatmaps.png", dpi=220, bbox_inches="tight")
-    plt.close(fig)
-
-    render_summary(rows, arrays, out / "summary_compound.png")
-    render_sync_emergence(
-        arrays["w0.2_intermediate"], out / "synchronization_emergence.png"
-    )
-
-
-def render_summary(
-    rows: list[dict], arrays: dict[str, dict[str, np.ndarray]], out: Path
-) -> None:
-    """Render drift, locking, suppression, and the sweep as one figure."""
-    conditions = (
-        (rows[0], "uncoupled · drift"),
-        (rows[1], "0.2 / short · locked"),
-        (rows[10], "2.0 / short · B suppressed"),
-    )
-    fig = plt.figure(figsize=(7.2, 8.0))
-    grid = fig.add_gridspec(
-        3, 3, height_ratios=(1.0, 0.85, 1.05), hspace=0.48, wspace=0.34
-    )
-    time_ms = np.arange(STEPS - TRANSIENT_STEPS) * DT_MS
-    for col, (row, title) in enumerate(conditions):
-        rec = arrays[row["variant"]["name"]]
-        raster = fig.add_subplot(grid[0, col])
-        for key, offset, color in (
-            ("population_0", 0, theme.INK_BLACK),
-            ("population_2", N_E + 3, theme.DEEP_RED),
-        ):
-            t, cell = np.nonzero(rec[key][TRANSIENT_STEPS:, 0])
-            raster.scatter(t * DT_MS, cell + offset, s=0.8, linewidths=0, color=color)
-        raster.set_title(title, fontsize=8)
-        raster.set_xlim(0, time_ms[-1])
-        raster.set_yticks((N_E / 2, N_E + 3 + N_E / 2), ("A", "B"))
-        if col == 0:
-            raster.set_ylabel("E spikes")
-
-        rate = fig.add_subplot(grid[1, col], sharex=raster)
-        rate.plot(
-            time_ms,
-            gaussian_rate(rec["population_0"][TRANSIENT_STEPS:]),
-            color=theme.INK_BLACK,
-            linewidth=0.8,
-        )
-        rate.plot(
-            time_ms,
-            gaussian_rate(rec["population_2"][TRANSIENT_STEPS:]),
-            color=theme.DEEP_RED,
-            linewidth=0.8,
-            alpha=0.85,
-        )
-        rate.set_xlabel("post-transient time (ms)")
-        if col == 0:
-            rate.set_ylabel("E rate (Hz)")
-
-    for col, (metric, title, cmap) in enumerate(
-        (
-            ("frequency_difference_hz", "frequency difference (Hz)", "magma_r"),
-            ("plv", "phase-locking value", "magma"),
-        )
-    ):
-        ax = fig.add_subplot(grid[2, col])
-        matrix = np.full((len(COUPLING_STRENGTHS), len(DELAY_LABELS)), np.nan)
-        for row in rows[1:]:
-            i = COUPLING_STRENGTHS.index(row["variant"]["strength"])
-            j = DELAY_LABELS.index(row["variant"]["delay_label"])
-            value = row["metrics"]["synchrony"][metric]
-            matrix[i, j] = np.nan if value is None else value
-        image = ax.imshow(matrix, aspect="auto", origin="lower", cmap=cmap)
-        ax.set_title(title, fontsize=8)
-        fig.colorbar(image, ax=ax, shrink=0.72)
-        format_sweep_axis(ax, show_ylabel=col == 0)
-
-    state = fig.add_subplot(grid[2, 2])
-    state_matrix = np.zeros((len(COUPLING_STRENGTHS), len(DELAY_LABELS)))
-    for row in rows[1:]:
-        i = COUPLING_STRENGTHS.index(row["variant"]["strength"])
-        j = DELAY_LABELS.index(row["variant"]["delay_label"])
-        state_matrix[i, j] = (
-            2 if row["locked"] else (1 if row["metrics"]["valid"] else 0)
-        )
-    state.imshow(
-        state_matrix,
-        aspect="auto",
-        origin="lower",
-        cmap=ListedColormap(("#d9d9d9", "#d98b8b", "#1b7f5a")),
-        vmin=0,
-        vmax=2,
-    )
-    state.set_title("registered outcome", fontsize=8)
-    format_sweep_axis(state, show_ylabel=False)
-    state.text(
-        0.5,
-        -0.44,
-        "gray suppressed · red active · green locked",
-        transform=state.transAxes,
-        ha="center",
-        fontsize=6.5,
-    )
-    fig.savefig(out, dpi=240, bbox_inches="tight")
-    plt.close(fig)
-
-
-def format_sweep_axis(ax, *, show_ylabel: bool) -> None:
-    ax.set_xticks(
-        range(len(DELAY_LABELS)),
-        ("short", "intermediate", "half period"),
-        rotation=24,
-        ha="right",
-    )
-    ax.set_yticks(range(len(COUPLING_STRENGTHS)), [str(x) for x in COUPLING_STRENGTHS])
-    if show_ylabel:
-        ax.set_ylabel("coupling strength")
-
-
-def render_sync_emergence(rec: dict[str, np.ndarray], out: Path) -> None:
-    """Show phase capture over time in the intermediate-delay condition."""
-    theme.apply()
-    rate_a = gaussian_rate(rec["population_0"])
-    rate_b = gaussian_rate(rec["population_2"])
-    fs = 1000.0 / DT_MS
-    sos = signal.butter(4, PHASE_BAND_HZ, btype="bandpass", fs=fs, output="sos")
-    phase_a = np.angle(signal.hilbert(signal.sosfiltfilt(sos, rate_a)))
-    phase_b = np.angle(signal.hilbert(signal.sosfiltfilt(sos, rate_b)))
-    phase_vector = np.exp(1j * (phase_a - phase_b))
-    window_steps = round(100.0 / DT_MS)
-    kernel = np.ones(window_steps) / window_steps
-    rolling_vector = np.convolve(phase_vector, kernel, mode="same")
-    rolling_phase = np.angle(rolling_vector)
-    rolling_plv = np.abs(rolling_vector)
-    time_ms = np.arange(STEPS) * DT_MS
-    highlighted = phase_vector[round(800 / DT_MS) : round(1200 / DT_MS)]
-    highlighted_phase = float(np.angle(np.mean(highlighted)))
-
-    fig, (rates, phase) = plt.subplots(
-        2,
-        1,
-        figsize=(7.2, 4.8),
-        sharex=True,
-        gridspec_kw={"height_ratios": (1.05, 0.95), "hspace": 0.12},
-    )
-    rates.plot(time_ms, rate_a, color=theme.INK_BLACK, linewidth=0.9, label="circuit A")
-    rates.plot(time_ms, rate_b, color=theme.DEEP_RED, linewidth=0.9, label="circuit B")
-    rates.set_ylabel("E population rate (Hz)")
-    rates.legend(frameon=False, ncol=2, loc="upper right")
-    rates.set_title("Phase capture under continuously active reciprocal inhibition")
-
-    stride = 10
-    raw_phase = np.angle(phase_vector)
-    phase.scatter(
-        time_ms[::stride],
-        raw_phase[::stride],
-        s=1.0,
-        color="#a7a7a7",
-        alpha=0.22,
-        linewidths=0,
-        label="instantaneous phase difference",
-    )
-    phase.plot(
-        time_ms,
-        rolling_phase,
-        color=theme.DEEP_RED,
-        linewidth=1.6,
-        label="100 ms circular mean",
-    )
-    phase.fill_between(
-        time_ms,
-        rolling_phase - 0.22 * rolling_plv,
-        rolling_phase + 0.22 * rolling_plv,
-        color=theme.DEEP_RED,
-        alpha=0.12,
-        linewidth=0,
-    )
-    for ax in (rates, phase):
-        ax.axvline(
-            TRANSIENT_STEPS * DT_MS, color="#777777", linestyle="--", linewidth=0.8
-        )
-        ax.axvspan(800, 1200, color="#1b7f5a", alpha=0.07)
-    rates.text(70, rates.get_ylim()[1] * 0.9, "phase relationship forming", fontsize=7)
-    rates.text(
-        1000,
-        rates.get_ylim()[1] * 0.9,
-        "locked",
-        color="#1b7f5a",
-        ha="center",
-        fontsize=8,
-        weight="bold",
-    )
-    phase.text(
-        TRANSIENT_STEPS * DT_MS + 18,
-        2.35,
-        "analysis window begins",
-        color="#666666",
-        fontsize=7,
-    )
-    phase.annotate(
-        f"phase captures near {highlighted_phase:+.1f} rad",
-        xy=(1000, highlighted_phase),
-        xytext=(1120, -1.35),
-        arrowprops={"arrowstyle": "->", "color": theme.DEEP_RED, "lw": 0.8},
-        color=theme.DEEP_RED,
-        fontsize=8,
-    )
-    phase.set_ylim(-math.pi, math.pi)
-    phase.set_yticks(
-        (-math.pi, -math.pi / 2, 0, math.pi / 2, math.pi),
-        ("−π", "−π/2", "0", "π/2", "π"),
-    )
-    phase.set_ylabel("A − B phase")
-    phase.set_xlabel("time from simulation start (ms)")
-    phase.set_xlim(0, 1200)
-    fig.savefig(out, dpi=240, bbox_inches="tight")
-    plt.close(fig)
-
-
-def replot() -> None:
-    root = REPO / "artifacts" / "data" / SLUG
-    rows = json.loads((root / "sweep_table.json").read_text())
-    arrays = {}
-    for row in rows:
-        name = row["variant"]["name"]
-        with np.load(root / "variants" / f"{name}-recordings.npz") as archive:
-            arrays[name] = {key: archive[key] for key in archive.files}
-    render_summary(rows, arrays, root / "summary_compound.png")
-    render_sync_emergence(
-        arrays["w0.2_intermediate"], root / "synchronization_emergence.png"
-    )
 
 
 def main() -> None:
-    args = parse_args()
-    {"smoke": smoke, "calibrate": calibrate, "sweep": sweep, "replot": replot}[
-        args.stage
-    ]()
+    meta = parse_meta(sys.argv)
+    started = time.monotonic()
+    run_id = next_run_id(SLUG)
+    print(f"notebook_run_id = {run_id}")
+
+    with published_run(
+        SLUG,
+        run_id,
+        scale=SCALE,
+        plot_only=meta.plot_only,
+    ) as (scratch, staging):
+        bundle = author_network()
+        scratch_bundle = scratch / "network.bundle"
+        if scratch_bundle.exists():
+            shutil.rmtree(scratch_bundle)
+        bundle.write(scratch_bundle, visualise=True)
+
+        shutil.copytree(scratch_bundle, staging / "network.bundle")
+        render_network_diagram(
+            bundle,
+            staging / "network.svg",
+            staging / "network.png",
+        )
+
+        graph = bundle.graph
+        write_numbers(
+            staging,
+            run_id=run_id,
+            duration_s=time.monotonic() - started,
+            payload={
+                "stage": "graph definition and visualisation only",
+                "graph": {
+                    "name": graph["name"],
+                    "digest": bundle.manifest["graph_digest"],
+                    "populations": len(graph["populations"]),
+                    "projections": len(graph["projections"]),
+                    "observables": len(graph["observables"]),
+                },
+                "config": {
+                    **SCALE,
+                    "input_weight": INPUT_WEIGHT,
+                    "coupling_reference": COUPLING_REFERENCE,
+                    "delay_ms": DELAY_MS,
+                },
+                "simulation_executed": False,
+            },
+        )
 
 
 if __name__ == "__main__":
