@@ -44,16 +44,26 @@
     shows the intervention; the evidence-scale result verifies the realized
     parameter tensors. <method-network>],
 
-    [*Calibrate natural frequency before coupling.* Equal-drive, $K=0$ trials
-    identify a stable monotonic input-rate interval. For each paired seed, the
-    horizontal coordinate is the measured natural-frequency difference
+    [*Construct and measure the natural-detuning axis before coupling.* First,
+    both circuits receive the same Poisson input rate with $K=0$. Five trials at
+    each rate measure how uncoupled gamma frequency changes with drive. The
+    longest interval that is fully valid, monotonic, and has a within-rate
+    frequency interquartile range (IQR) no greater than 0.8 Hz is retained.
+    Second, the median
+    frequency-versus-rate curve is inverted to choose 13 pairs of input rates,
+    $(r_A, r_B)$. Within each pair, the rates generally differ so that circuit A
+    and circuit B are expected to oscillate at a prescribed frequency
+    difference. Third, each input-rate pair is run with $K=0$ using five matched
+    seeds. For each seed, the measured natural detuning is
 
     $ Delta f_0 = f_A^0 - f_B^0, quad "(1)" $ <eq-detuning>
 
-    where $Delta f_0$ is natural detuning, and $f_A^0$ and $f_B^0$ are the
-    uncoupled gamma peak frequencies of circuits A and B. Input-rate difference
-    is not used as a substitute. Figure 2 reports the accepted
-    interval and its rejected boundary conditions. <method-calibration>],
+    where $f_A^0$ and $f_B^0$ are the gamma peak frequencies measured under the
+    unequal drives while the circuits remain uncoupled. This seed-specific
+    measured value, not $r_A-r_B$ and not the requested target, is the natural-
+    detuning coordinate assigned to the corresponding coupled trial. Figure 2
+    shows both the equal-drive calibration and the resulting unequal-drive
+    detuning measurements. <method-calibration>],
 
     [*Measure phase and concentration.* Excitatory spikes are converted to
     population rates with a fixed 5 ms Gaussian kernel. Gamma frequency comes
@@ -151,8 +161,9 @@
   Method 2 yields a stable monotonic interval from
   #r.registration.calibrated_rate_interval_hz.at(0) to
   #r.registration.calibrated_rate_interval_hz.at(1) Hz per input channel. This
-  interval supplies the rate pairs used to evaluate Equation 1 throughout the
-  primary map; unequal A/B drive produces the signed natural-detuning axis.
+  interval supplies 13 paired A/B input-rate conditions. Measuring those
+  conditions without coupling produces the natural-detuning coordinate used in
+  the primary map.
 
   #figure(
     image(
@@ -160,19 +171,22 @@
       width: 100%,
       alt: "Two-panel calibration showing combined uncoupled gamma frequency versus equal A/B input rate and measured natural detuning versus A-minus-B input-rate difference.",
     ),
-    caption: [Calibration of frequency and natural detuning. (A) Circuits A and
-    B receive the same input rate. Each point is the median of 10 gamma-peak
-    estimates: both circuits from each of five trials. Bars show half the
-    interquartile range of the combined estimates. The shaded
+    caption: [Construction of the natural-detuning axis before coupling. (A)
+    Both circuits receive the same input rate with $K=0$. Each point is the
+    median of 10 gamma-frequency measurements: circuits A and B in each of five
+    trials. Bars show half their interquartile range. The shaded
     #r.registration.calibrated_rate_interval_hz.at(0)--#r.registration.calibrated_rate_interval_hz.at(1)
-    Hz interval supplies the rate pairs used in Equation 1. The lowest-rate point exceeds the
-    registered within-rate IQR ceiling. At the highest rate, the estimator hops
-    between two separated spectral modes across seeds, producing the large bar.
-    Both boundary conditions are excluded. (B) The circuits remain uncoupled
-    but receive unequal input rates. The horizontal axis is the A-minus-B
-    input-rate difference; the vertical axis is the median natural detuning from
-    Equation 1 across five paired seeds. Bars span the interquartile range;
-    dashed lines mark zero drive difference and zero detuning.],
+    Hz interval is retained because its frequency response is valid, stable,
+    and monotonic. The 60 Hz condition is rejected for excessive within-rate
+    spread; the 140 Hz condition is rejected because the frequency estimator
+    switches between two spectral modes across seeds. (B) The retained curve is
+    inverted to select 13 unequal A/B input-rate pairs, which are then run with
+    $K=0$. The horizontal axis shows the applied input-rate difference
+    $r_A-r_B$. The vertical axis shows the median measured natural detuning
+    $Delta f_0=f_A^0-f_B^0$ from Equation 1; bars span the interquartile range
+    across five matched seeds. These measured values, rather than the input-rate
+    differences or requested targets, become the detuning coordinates in
+    Figures 3 and 4. Dashed lines mark zero.],
   ) <fig-calibration>
 
   The frozen thresholds used in Equation 4 are
