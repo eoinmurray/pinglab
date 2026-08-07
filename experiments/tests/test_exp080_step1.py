@@ -126,6 +126,22 @@ def test_linear_filter_zero_drive_and_grid_convergence() -> None:
     assert np.max(np.abs(coarse[1:] - fine[1:]) / fine[1:]) < 1e-4
 
 
+def test_transient_moments_start_from_rest_and_are_finite() -> None:
+    lambdas = np.asarray([0.0, 0.25, 3.0, 25.0])
+    probes = np.full_like(lambdas, 1.2)
+    transient_mean, transient_sd = exp080.transient_linear_moments(lambdas, probes)
+    stationary_mean = (
+        exp080.linear_operating_point(lambdas, probes)[1]
+        - exp080.PARAMETERS["E_L_mV"]
+    )
+    assert transient_mean[0] == transient_sd[0] == 0.0
+    assert np.all(np.isfinite(transient_mean))
+    assert np.all(np.isfinite(transient_sd))
+    assert np.all(transient_mean[1:] > 0.0)
+    assert np.all(transient_sd[1:] > 0.0)
+    assert np.all(transient_mean[1:] < stationary_mean[1:])
+
+
 def test_numerical_gain_matches_registered_transfer() -> None:
     rate_hz = 3.0
     probe_uS = 1.2
