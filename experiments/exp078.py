@@ -1259,7 +1259,7 @@ def plot_calibration(calibration: dict, out_path: Path) -> None:
     ax.errorbar(x, y, yerr=error, marker="o", color=theme.INK_BLACK, capsize=3)
     ax.set(
         xlabel="equal input rate to A and B (Hz per channel)",
-        ylabel="pooled A/B uncoupled gamma peak (Hz)",
+        ylabel="combined A/B median gamma peak (Hz)",
     )
     ax.legend(frameon=False)
     fig.savefig(out_path, dpi=220, bbox_inches="tight")
