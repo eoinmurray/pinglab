@@ -18,7 +18,6 @@
 #let m = json("/artifacts/data/exp080/step2_manifest.json")
 #let diagnostic-k = m.diagnostic_draws_per_condition_per_seed
 #let s3 = r.step3
-#let s3-comparison = json("/artifacts/data/exp080/step3_empirical_comparison.json")
 #let response-distributions = json("/artifacts/data/exp080/response_distributions.json")
 #let s4 = r.step4
 #let s5 = json("/artifacts/data/exp080/step5_outcome.json")
@@ -204,8 +203,8 @@
 
   4. *Derived the analytical linear-filter response.*
 
-    Figures 4--6 show the analytical transfer functions, the analytical moments
-    over input drive, and their direct comparison with stochastic simulation.
+    Figures 4 and 5 show the analytical transfer functions and the analytical
+    moments over input drive, respectively.
 
     We calculated a local linear approximation to the synapse, membrane, and finite averaging window.
     This diagnostic was not used to select a training range. Appendix A derives the equations in this section.
@@ -285,28 +284,12 @@
     the empirical response table without new simulation. Analytical mean was
     Equation 12a ($mu_"linear"(z)$); analytical SD was the square root of
     Equation 18 ($"Var"_"linear"(z)$).
-    Predicted-versus-empirical plots used an identity line, Pearson correlation,
-    mean absolute error, and median prediction/empirical ratio. For analytical
-    predictions a#sub[j] and empirical values e#sub[j] across conditions j,
-    Pearson's correlation was
-
-    $
-      r_P =
-      (sum_j (a_j - overline(a)) (e_j - overline(e))) /
-      sqrt(sum_j (a_j - overline(a))^2 sum_j (e_j - overline(e))^2).
-    $
-
-    Here $overline(a)$ and $overline(e)$ are the means across conditions, and r#sub[P] ranges
-    from -1 to 1 and measures linear association. Summary statistics excluded
-    conditions where both responses were zero.
-
     Figure 5 plots the analytical mean and SD over the same expected-input-spike
-    axis as Figure 2, with the empirical values overlaid. Figure 6 then compares
-    analytical and empirical moments condition by condition.
+    axis as Figure 2, with the empirical values overlaid.
 
   5. *Constructed and compared complete MNIST feature images.*
 
-    Figure 7 compares the resulting complete feature images.
+    Figure 6 compares the resulting complete feature images.
 
     For each uint8 pixel, the diagnostic sampler used its exact 0--255 intensity index and an
     empirical draw with independent deterministic pixel and image
@@ -316,12 +299,12 @@
     replicates, three conductances, and representative sparse, intermediate,
     and upper-grid conditions at 0.25, 3, and 25 Hz.
 
-    Figure 7 places the original MNIST image, an empirical-table sample, and a
+    Figure 6 places the original MNIST image, an empirical-table sample, and a
     fresh direct simulation side by side.
 
   6. *Trained mixed-rate decoders.*
 
-    Figure 8 shows the validation histories used for epoch selection.
+    Figure 7 shows the validation histories used for epoch selection.
 
     Each simulated image produced a feature vector $bold(z) in RR^784$, containing one time-averaged membrane-voltage
     displacement per pixel. The primary ANN transformed this vector through a
@@ -379,13 +362,13 @@
     Every conductance and seed had a separate decoder; runs were not pooled
     during training.
 
-    Figure 8 plots the validation histories from which the best epochs were
+    Figure 7 plots the validation histories from which the best epochs were
     selected.
 
   7. *Evaluated frozen official-test psychometric curves and selected the rate
     range.*
 
-    Figure 9 shows the official-test psychometric curves and derived thresholds.
+    Figure 8 shows the official-test psychometric curves and derived thresholds.
 
     After validation had fixed the best epochs and linear weight decay, we loaded the same official 10,000 MNIST test images for every condition. At
     each rate and conductance, we encoded every image three times with newly
@@ -434,7 +417,7 @@
     a pragmatic screen for substantial digit information, not a theoretical
     information boundary.
 
-    Figure 9 plots the official-test psychometric curves and the thresholds
+    Figure 8 plots the official-test psychometric curves and the thresholds
     obtained from this procedure.
 
   #block(breakable: false)[
@@ -602,39 +585,8 @@
       input drives.],
   )
 
-  ==== Direct analytical--empirical comparison
-
-  We then evaluated whether the stationary approximation reproduced the
-  stochastic finite-window features. Equation 12a ($mu_"linear"(z)$) predicted
-  the mean of z and Equation 18 ($"Var"_"linear"(z)$) predicted its variance at
-  every response-table condition; these values were compared directly with the
-  corresponding simulated mean and SD of z.
-
-  #figure(
-    image(
-      "/artifacts/data/exp080/linear_filter_empirical_comparison.svg",
-      width: 100%,
-      alt: "Predicted-versus-empirical feature means and standard deviations at three probe conductances.",
-    ),
-    caption: [Operating-point linearized predictions versus empirical response
-      moments. Each point is one rate--intensity condition; colour denotes probe
-      conductance, and empirical moments pool draws across three seeds. Panel A
-      compares the predicted mean of z from Equation 12a ($mu_"linear"(z)$)
-      with the empirical mean of z. Panel B compares the predicted SD of z,
-      $sqrt("Var"_"linear"(z))$ from Equation 18, with the empirical SD of z. The
-      diagonal marks equality. Mean ordering is preserved (Pearson $r =
-      #rounded(s3-comparison.mean.pearson_r)$), but the median prediction is
-      #rounded(s3-comparison.mean.median_predicted_empirical_ratio)-fold larger.
-      SD agreement is weaker ($r =
-      #rounded(s3-comparison.standard_deviation.pearson_r)$), with median
-      #rounded(s3-comparison.standard_deviation.median_predicted_empirical_ratio)-fold
-      overprediction. Points lie mainly below equality because the stationary
-      linearization omits the start-from-rest transient, finite-window
-      nonstationarity, discrete input, and conductance fluctuations.],
-  )
-
-  Panel A bends upward because Equation 12a ($mu_"linear"(z)$) derives the mean
-  feature from the deterministic mean-conductance operating point, whereas
+  In Panel A, Equation 12a ($mu_"linear"(z)$) derives the mean feature from the
+  deterministic mean-conductance operating point, whereas
   empirical trajectories begin at rest and average only
   #presentation-ms ms. Sparse presentations often contain no event or a late
   one; with greater drive, earlier and more consistent events let the empirical
@@ -642,13 +594,13 @@
   can comprise many small events or fewer large ones. Larger jumps amplify
   fluctuations, and voltage saturation gives approximately $E[v(g)] < v(E[g])$.
 
-  Panel B hooks because variability rises from zero as spike counts and timings
-  diversify, then falls when averaging suppresses relative count fluctuations
-  and shunting and saturation limit voltage excursions. Equation 18
+  In Panel B, variability rises from zero as spike counts and timings diversify,
+  then falls when averaging suppresses relative count fluctuations and shunting
+  and saturation limit voltage excursions. Equation 18
   ($"Var"_"linear"(z)$) likewise balances rising Poisson noise against falling local gain, but places the
-  maximum elsewhere. Plotting these displaced maxima against each other creates
-  the arches and backward branches; larger, less linear probe events enlarge
-  them.
+  maximum elsewhere. The displaced maxima show where the stationary
+  small-fluctuation approximation departs most strongly from the finite-window
+  simulation.
 
   === Complete feature images
 
