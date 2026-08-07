@@ -639,6 +639,58 @@ def publish_followup(
     return result
 
 
+def plot_followup(destination: Path) -> Path:
+    """Render the focused 800E/200I result and mirrored representative traces."""
+    theme.apply()
+    result = _json_load(destination / "finite_size_followup.json")
+    cells = result["cells"]
+    fig, axes = plt.subplots(2, 3, figsize=(10.4, 6.2), constrained_layout=True)
+    colours = {-1.0: theme.DEEP_RED, 1.0: theme.INK_BLACK}
+    labels = {-1.0: r"$\Delta f_0=-1$ Hz", 1.0: r"$\Delta f_0=+1$ Hz"}
+    for target in (-1.0, 1.0):
+        rows = sorted((row for row in cells if row["target_detuning_hz"] == target), key=lambda row: row["coupling"])
+        x = np.array([row["coupling"] for row in rows])
+        axes[0, 0].plot(x, [row["locked_trials"] / 10 for row in rows], "o-", color=colours[target], label=labels[target])
+        phases = [[trial["circular_mean_phase_rad"] for trial in row["trials"]] for row in rows]
+        axes[0, 1].errorbar(x, [np.mean(v) for v in phases], yerr=[np.std(v, ddof=1) for v in phases], marker="o", capsize=3, color=colours[target])
+        plv = [[trial["phase_locking_value"] for trial in row["trials"]] for row in rows]
+        axes[0, 2].errorbar(x, [np.mean(v) for v in plv], yerr=[np.std(v, ddof=1) for v in plv], marker="o", capsize=3, color=colours[target])
+    axes[0, 0].set(title="Locked fraction", ylabel="fraction", xlabel="coupling K", ylim=(-0.04, 1.04))
+    axes[0, 0].legend(frameon=False, fontsize=8)
+    axes[0, 1].axhline(0, color=theme.GREY_MID, lw=0.8)
+    axes[0, 1].set(title="Relative phase", ylabel="circular mean (rad)", xlabel="coupling K")
+    axes[0, 2].set(title="Phase concentration", ylabel="PLV", xlabel="coupling K", ylim=(0, 1.04))
+
+    disputed = {row["job_id"]: row for row in cells if row["job_id"] in {"m1_k016", "p1_k016"}}
+    bins = np.linspace(-0.75, 0.75, 17)
+    for job_id, colour in (("m1_k016", theme.DEEP_RED), ("p1_k016", theme.INK_BLACK)):
+        row = disputed[job_id]
+        axes[1, 0].hist([trial["circular_mean_phase_rad"] for trial in row["trials"]], bins=bins, alpha=0.6, color=colour, label=labels[row["target_detuning_hz"]])
+    axes[1, 0].axvline(0, color=theme.GREY_MID, lw=0.8)
+    axes[1, 0].set(title=r"Phase at $K=0.016$", xlabel="circular mean (rad)", ylabel="seeds")
+    axes[1, 0].legend(frameon=False, fontsize=8)
+
+    for axis, job_id in zip(axes[1, 1:], ("m1_k016", "p1_k016")):
+        archive = destination / "finite_size_archives" / f"{job_id}.npz"
+        with np.load(archive) as packed:
+            steps = int(packed["event_steps"])
+            a = np.unpackbits(packed["a_e_spikes_packed"][:, 0], axis=0, count=steps)
+            b = np.unpackbits(packed["b_e_spikes_packed"][:, 0], axis=0, count=steps)
+        rate_a = gaussian_filter1d(a.mean(axis=1) * 1000.0 / DT_MS, SMOOTH_SIGMA_MS / DT_MS)
+        rate_b = gaussian_filter1d(b.mean(axis=1) * 1000.0 / DT_MS, SMOOTH_SIGMA_MS / DT_MS)
+        start = round(BURN_MS / DT_MS)
+        stop = start + round(1000.0 / DT_MS)
+        t = np.arange(stop - start) * DT_MS / 1000.0
+        axis.plot(t, rate_a[start:stop], color=theme.INK_BLACK, lw=0.75, label="circuit A")
+        axis.plot(t, rate_b[start:stop], color=theme.DEEP_RED, lw=0.75, label="circuit B")
+        target = disputed[job_id]["target_detuning_hz"]
+        axis.set(title=labels[target] + r", $K=0.016$", xlabel="post-burn time (s)", ylabel="E rate (Hz)")
+    out = destination / "finite_size_followup.png"
+    fig.savefig(out, dpi=220, bbox_inches="tight")
+    plt.close(fig)
+    return out
+
+
 def materialize_parameter_tensors(scratch: Path, couplings: list[float]) -> dict:
     """Retain the exact graph-executor tensors once per frozen coupling level."""
     root = scratch / "parameter_tensors"
