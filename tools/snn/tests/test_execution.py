@@ -8,6 +8,7 @@ from pathlib import Path
 import config
 import models as M
 import numpy as np
+import pytest
 import torch
 from execution import (
     DelayBuffer,
@@ -20,6 +21,7 @@ from execution import (
     graph_capability_issues,
     load_runtime_state,
     plan_graph,
+    resolve_device,
     runtime_state_signature,
     save_runtime_state,
     simulate,
@@ -48,6 +50,7 @@ def _coupled_graph(*, direction="reciprocal", delay_ms=0.1):
 def test_typed_request_defaults_to_legacy_and_graph_training_is_explicitly_gated():
     request = ExecutionSpec(kind="build")
     assert request.executor == "legacy"
+    assert request.device == "auto"
     assert build(request).metrics["routing"] == "legacy"
     try:
         train(ExecutionSpec(kind="train", executor="graph", graph=_coupled_graph()))
@@ -66,6 +69,72 @@ def test_legacy_and_bundle_cli_arguments_both_lower_to_typed_specs(tmp_path):
     called = []
     result = execute_request(legacy, legacy=lambda: (called.append(True) or build(legacy)))
     assert called and result.executor == "legacy"
+
+
+def test_graph_cli_resolves_explicit_device_and_recording_profile(tmp_path, monkeypatch):
+    root = ping_classifier().write(tmp_path / "ping.bundle")
+    graph = execution_spec_from_args(parse_args([
+        "sim", "--bundle", str(root), "--executor", "graph",
+        "--device", "cpu", "--recording", "observables",
+    ]))
+    assert graph.device == "cpu"
+    assert graph.recording == "observables"
+    assert resolve_device("cpu") == "cpu"
+    monkeypatch.setenv("PINGLAB_DEVICE", "cpu")
+    assert resolve_device("auto") == "cpu"
+
+
+def test_recording_profiles_select_full_observable_or_no_traces():
+    graph = _coupled_graph()
+    inputs = {"drive_a": torch.zeros(4, 1, 3), "drive_b": torch.zeros(4, 1, 2)}
+    full = simulate(ExecutionSpec(
+        kind="simulate", executor="graph", graph=graph, inputs=inputs, recording="full",
+    ))
+    observables = simulate(ExecutionSpec(
+        kind="simulate", executor="graph", graph=graph, inputs=inputs, recording="observables",
+    ))
+    none = simulate(ExecutionSpec(
+        kind="simulate", executor="graph", graph=graph, inputs=inputs, recording="none",
+    ))
+    observable_names = {row["id"] for row in graph["observables"]}
+    assert observable_names < set(full.recordings)
+    assert set(observables.recordings) == observable_names
+    assert not none.recordings
+    assert full.metrics["recording"] == "full"
+    assert observables.metrics["recording"] == "observables"
+
+
+def _state_tensors(state: GraphRuntimeState):
+    for group in (
+        state.voltages, state.refractory, state.conductances,
+        state.population_histories, state.input_histories,
+    ):
+        yield from group.values()
+
+
+@pytest.mark.skipif(not torch.backends.mps.is_available(), reason="MPS is unavailable")
+def test_graph_cpu_mps_parity_and_all_result_state_follows_device():
+    graph = _coupled_graph()
+    inputs = {"drive_a": torch.zeros(12, 1, 3), "drive_b": torch.zeros(12, 1, 2)}
+    inputs["drive_a"][0, 0, 0] = 1.0
+    cpu = simulate(ExecutionSpec(
+        kind="simulate", executor="graph", graph=graph, inputs=inputs,
+        seed=23, device="cpu", recording="observables",
+    ))
+    mps = simulate(ExecutionSpec(
+        kind="simulate", executor="graph", graph=graph, inputs=inputs,
+        seed=23, device="mps", recording="observables",
+    ))
+    assert mps.runtime_state is not None
+    assert all(value.device.type == "mps" for value in mps.parameters.values())
+    assert all(value.device.type == "mps" for value in mps.recordings.values())
+    assert all(value.device.type == "mps" for value in mps.outputs.values())
+    assert all(value.device.type == "mps" for value in _state_tensors(mps.runtime_state))
+    for name in cpu.recordings:
+        torch.testing.assert_close(
+            mps.recordings[name].cpu(), cpu.recordings[name], rtol=1e-5, atol=1e-6,
+        )
+    assert mps.metrics["device"] == "mps"
 
 
 def test_representative_shd_checkpoint_and_recording_requests_remain_legacy():
@@ -358,6 +427,11 @@ def test_graph_cli_runtime_state_round_trip_and_legacy_rejection(tmp_path):
         "--input-file", str(first_inputs), "--out-dir", str(tmp_path / "first-out"),
         "--save-runtime-state", str(state_one),
     ]) == 0
+    with np.load(tmp_path / "first-out" / "parameters.npz") as parameters:
+        expected = {row["id"] for row in graph["parameters"]}
+        assert set(parameters.files) == expected
+        for row in graph["parameters"]:
+            assert parameters[row["id"]].size == int(np.prod(row["shape"]))
     assert main([
         "sim", "--executor", "graph", "--bundle", str(bundle),
         "--input-file", str(second_inputs), "--out-dir", str(tmp_path / "second-out"),

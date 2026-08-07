@@ -1097,12 +1097,14 @@
   reciprocal E-to-I weights at zero and continue the same causal trajectory with
   nonzero weights. General time-dependent weights are not required.
 
-  #link("/exp078/")[_exp078_] defines the staged Methods plan. It will first
-  measure the macroscopic E-to-I phase-response curve, use it to predict a stable
-  coupled phase relationship, and only then test acquisition in two 800 E / 200 I
-  circuits. Milestone 4 is complete only when the experiment predicts and then
-  observes the phase lag and convergence timescale across declared seeds and
-  controls.
+  #link("/exp078/")[_exp078_] executes the registered graph-native Arnold-tongue
+  test in two 80 E / 20 I circuits. It calibrates uncoupled gamma frequency,
+  freezes locking tolerances and a bounded coupling pilot, then crosses measured
+  natural-frequency detuning with reciprocal coupling. The 80/20 result recovers
+  the widening tongue but narrowly fails the strict phase-lead clause. A reduced
+  800 E / 200 I confirmation near that phase-sign boundary is the appropriate
+  finite-size follow-up; the full sweep is not silently redefined at tenfold
+  scale.
 
   === B.8 Milestone 5: graph-native readouts and input bindings
 

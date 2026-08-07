@@ -26,6 +26,7 @@ from torch import nn
 
 ExecutorName = Literal["legacy", "graph"]
 RequestKind = Literal["build", "simulate", "train", "infer"]
+RecordingProfile = Literal["full", "observables", "none"]
 
 
 @dataclass(frozen=True)
@@ -36,8 +37,8 @@ class ExecutionSpec:
     graph: Mapping[str, Any] | None = None
     inputs: Mapping[str, torch.Tensor] = field(default_factory=dict)
     seed: int = 0
-    device: str = "cpu"
-    record: bool = True
+    device: str = "auto"
+    recording: RecordingProfile = "full"
     checkpoint: Path | None = None
     runtime_state: GraphRuntimeState | None = None
     options: Mapping[str, Any] = field(default_factory=dict)
@@ -453,9 +454,14 @@ class GraphExecutor(nn.Module):
         self,
         inputs: Mapping[str, torch.Tensor],
         *,
-        record: bool = True,
+        record: bool | RecordingProfile = True,
         runtime_state: GraphRuntimeState | None = None,
     ) -> ExecutionResult:
+        recording: RecordingProfile = (
+            "full" if record is True else "none" if record is False else record
+        )
+        if recording not in {"full", "observables", "none"}:
+            raise ValueError(f"recording profile expected full, observables, or none; got {recording!r}")
         if not inputs:
             raise ValueError("graph execution requires at least one input tensor")
         first = next(iter(inputs.values()))
@@ -657,10 +663,11 @@ class GraphExecutor(nn.Module):
             spikes = new_spikes
             for name in populations:
                 histories[name].push(spikes[name])
-            if record:
+            if recording != "none":
                 for observable in self.plan.observables:
                     owner, _, port = observable["signal"].partition(".")
                     recordings[observable["id"]].append((spikes if port == "spikes" else voltage)[owner].detach().clone())
+            if recording == "full":
                 for name in populations:
                     state_recordings[f"{name}.voltage"].append(voltage[name].detach().clone())
                 for projection in self.plan.projections:
@@ -710,8 +717,9 @@ def build(spec: ExecutionSpec) -> ExecutionResult:
         _, graph = load_graph_bundle(spec.bundle)
     if graph is None:
         raise ValueError("graph execution requires graph data or a bundle")
+    device = resolve_device(spec.device)
     started = time.perf_counter()
-    model = GraphExecutor(plan_graph(graph), seed=spec.seed).to(spec.device)
+    model = GraphExecutor(plan_graph(graph), seed=spec.seed).to(device)
     return ExecutionResult(executor="graph", model=model, parameters=model.parameter_map(), metrics={"build_s": time.perf_counter() - started})
 
 
@@ -720,19 +728,26 @@ def simulate(spec: ExecutionSpec, *, runtime_state: GraphRuntimeState | None = N
         return ExecutionResult(executor="legacy", metrics={"request": "simulate", "routing": "legacy"})
     built = build(spec)
     assert isinstance(built.model, GraphExecutor)
+    device = resolve_device(spec.device)
     if spec.checkpoint:
-        built.model.load_state_dict(torch.load(spec.checkpoint, map_location=spec.device, weights_only=True))
+        built.model.load_state_dict(torch.load(spec.checkpoint, map_location=device, weights_only=True))
     tracemalloc.start()
     started = time.perf_counter()
     result = built.model(
-        {k: v.to(spec.device) for k, v in spec.inputs.items()},
-        record=spec.record,
+        {k: v.to(device) for k, v in spec.inputs.items()},
+        record=spec.recording,
         runtime_state=runtime_state if runtime_state is not None else spec.runtime_state,
     )
     elapsed = time.perf_counter() - started
     _, peak = tracemalloc.get_traced_memory()
     tracemalloc.stop()
-    result.metrics.update({"simulate_s": elapsed, "peak_python_bytes": peak, **built.metrics})
+    result.metrics.update({
+        "simulate_s": elapsed,
+        "peak_python_bytes": peak,
+        "device": device,
+        "recording": spec.recording,
+        **built.metrics,
+    })
     if result.runtime_state is not None:
         result.metrics.update({
             "runtime_state_schema": RUNTIME_STATE_SCHEMA,
@@ -762,10 +777,35 @@ def execution_spec_from_args(args: Any, *, kind: RequestKind | None = None) -> E
         executor=getattr(args, "executor", "legacy"),
         bundle=Path(args.bundle) if getattr(args, "bundle", None) else None,
         seed=int(getattr(args, "seed", 0) or 0),
-        device="cpu",
+        device=resolve_device(getattr(args, "device", "auto")),
+        recording=getattr(args, "recording", "full"),
         checkpoint=(Path(args.load_weights) if getattr(args, "load_weights", None) else None),
         options={key: value for key, value in vars(args).items() if key not in {"bundle", "executor"}},
     )
+
+
+def resolve_device(requested: str | torch.device = "auto") -> str:
+    """Resolve an explicit device or select the fastest available accelerator."""
+    name = str(requested).lower()
+    if name == "auto":
+        forced = os.environ.get("PINGLAB_DEVICE")
+        if forced:
+            return resolve_device(forced)
+        if torch.cuda.is_available():
+            return "cuda"
+        # Graph execution launches several small kernels from Python per timestep.
+        # On the representative 800E/200I graph MPS is slower than CPU, so keep it
+        # available explicitly without selecting it automatically.
+        return "cpu"
+    if name == "cuda" and not torch.cuda.is_available():
+        raise ValueError("CUDA was requested but torch.cuda.is_available() is false")
+    if name == "mps" and not torch.backends.mps.is_available():
+        raise ValueError("MPS was requested but torch.backends.mps.is_available() is false")
+    if name != "cpu" and name != "cuda" and name != "mps" and not name.startswith("cuda:"):
+        raise ValueError(f"device expected auto, cpu, cuda, cuda:N, or mps; got {requested!r}")
+    if name.startswith("cuda:") and not torch.cuda.is_available():
+        raise ValueError(f"{name} was requested but torch.cuda.is_available() is false")
+    return name
 
 
 def execute_request(

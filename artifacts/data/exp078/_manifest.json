@@ -1,21 +1,52 @@
 {
   "slug": "exp078",
-  "run_id": "r007",
-  "run_at": "2026-08-07T09:05:32+00:00",
-  "git_sha": "87c2f67d",
+  "run_id": "r011",
+  "run_at": "2026-08-07T12:06:21+00:00",
+  "git_sha": "f7da4dbb",
   "dirty": true,
   "code_dirty": true,
   "patch": {
     "file": "_dirty.patch",
-    "sha256": "3a9e0fc129030ebbb8e2e23f1c745530c16ab34e1d8755edd44c73d8ce9d8d81",
-    "lines": 552
+    "sha256": "8cc682c0b1d48e978ff964f239df0f08d86969e6a07bade9b45479161ea97e40",
+    "lines": 1332
   },
   "host": "local",
   "scale": {
-    "stage": "graph definition and visualisation only",
+    "stage": "complete gated Arnold-tongue sweep",
     "dt_ms": 0.1,
+    "t_ms": 3000.0,
+    "burn_ms": 500.0,
     "n_input_per_circuit": 80,
     "n_e_per_circuit": 80,
-    "n_i_per_circuit": 20
+    "n_i_per_circuit": 20,
+    "calibration_rates_hz": [
+      60.0,
+      70.0,
+      80.0,
+      90.0,
+      100.0,
+      110.0,
+      120.0,
+      130.0,
+      140.0
+    ],
+    "target_detunings_hz": [
+      -6.0,
+      -4.0,
+      -3.0,
+      -2.0,
+      -1.0,
+      -0.5,
+      0.0,
+      0.5,
+      1.0,
+      2.0,
+      3.0,
+      4.0,
+      6.0
+    ],
+    "trials_per_cell": 5,
+    "primary_coupling_levels": 11,
+    "execution_host": "local"
   }
 }

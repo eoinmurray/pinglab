@@ -3,156 +3,210 @@
 #let meta = (
   title: "Arnold tongue of two coupled PING circuits",
   date: "2026-08-07",
-  description: "A graph-native reproduction of the detuning-by-coupling Arnold tongue reported for two reciprocally coupled PING circuits.",
+  description: "An 80 E / 20 I graph-native reproduction recovers the widening Arnold tongue but narrowly fails the strict phase-lead criterion.",
   collection: "miscellaneous",
-  status: "planned",
+  status: "final",
 )
+
+#let r = json("/artifacts/data/exp078/numbers.json")
+#let verdict = if r.conclusion.passed { "passed" } else { "failed" }
 
 #let body = [
   == Abstract
 
-  This experiment will attempt to reproduce a subset of Lowet et al.#cite(1):
-  the Arnold tongue formed by two reciprocally coupled PING circuits as their
-  natural-frequency detuning and coupling strength are varied. An Arnold tongue
-  is the region in which coupled oscillators adopt a common frequency despite
-  having different uncoupled natural frequencies. The result has two control
-  axes—uncoupled natural-frequency detuning $Delta f_0$ and coupling strength
-  $K$—and one measured response axis, the fraction of valid trials classified as
-  frequency- and phase-locked. The reproduction is restricted to the paper's
-  two-circuit synchronization result. It does not test the spatially extended
-  network, natural-image reconstruction, or proposed phase and frequency codes.
-  Two independently driven PING circuits will be simulated across the two
-  control axes. A successful reproduction will recover a contiguous locked
-  region centred near zero detuning that widens as coupling increases, with the
-  intrinsically faster circuit leading in phase inside that region.
+  Two independently driven PING circuits were crossed over measured natural-
+  frequency detuning and reciprocal coupling to reproduce the synchronization
+  result of Lowet et al.#cite(1). The locking map forms a contiguous region
+  around zero detuning and widens across
+  #r.conclusion.longest_successive_increase_run successive coupling steps. All
+  #r.benchmark.completed_trials primary trials are valid. The faster circuit
+  leads in #calc.round(r.conclusion.phase_lead_fraction * 100, digits: 1)% of
+  qualifying locked cells, but the registered rule requires the correct sign
+  in every such cell. The reproduction therefore #verdict: its Arnold-tongue
+  geometry succeeds, while one near-resolution phase cell prevents an overall
+  pass.
 
   == Methods
 
   #enum(
-    [*Construct two independently driven PING circuits.* Circuits A and B will
-  each contain 80 conductance-based leaky integrate-and-fire excitatory neurons
-  and 20 inhibitory neurons. Within each circuit,
-  excitatory neurons will project to inhibitory neurons through AMPA synapses,
-  and inhibitory neurons will project to excitatory neurons through GABA-A
-  synapses. The circuits will use identical neuron, synapse, connectivity, and
-  within-circuit weight parameters.
+    [*Author the fixed graph.* Each circuit contains
+    #r.config.n_e_per_circuit conductance-based excitatory neurons and
+    #r.config.n_i_per_circuit inhibitory neurons. Independent
+    #(r.config.n_input_per_circuit)-channel Poisson populations drive the two
+    excitatory populations. Local E-to-I AMPA and I-to-E GABA-A projections
+    generate PING activity. Four reciprocal AMPA projections couple
+    $E_A$ to $E_B$ and $I_B$, and $E_B$ to $E_A$ and $I_A$. Their common weight
+    is $K$. The graph and network seed remain fixed across the sweep.],
 
-  Independent Poisson spike populations will drive the two excitatory
-  populations. Input spikes will be independently sampled between circuits and
-  trials; no input spikes will be shared. The network parameter seed will remain
-  fixed across the primary sweep so that detuning and coupling are not
-  confounded with different weight realizations.
+    [*Calibrate uncoupled frequency.* Equal-rate, zero-coupling trials determine
+    a monotonic operating interval from
+    #r.registration.calibrated_rate_interval_hz.at(0) to
+    #r.registration.calibrated_rate_interval_hz.at(1) Hz per input channel.
+    Input-rate pairs target thirteen signed detunings. For each seed, the
+    measured zero-coupling frequencies define
 
-  Reciprocal coupling will match the two-circuit configuration of Lowet et
-  al.#cite(1):
+    $ Delta f_0 = f_A^0 - f_B^0. $
 
-  $ E_A -> E_B, quad E_A -> I_B, quad E_B -> E_A, quad E_B -> I_A. $
+    Here $f_A^0$ and $f_B^0$ are the uncoupled gamma peak frequencies of
+    circuits A and B. $Delta f_0$, not input-rate difference or coupled
+    frequency difference, is the horizontal coordinate.],
 
-  All four cross-circuit projections will use AMPA synapses. Cross-circuit
-  E-to-E and E-to-I weights will be controlled by the same coupling parameter
-  $K$ and varied together. The uncoupled graph will retain all four projections
-  with zero-valued weights, preserving graph topology across conditions.
+    [*Register locking before the primary sweep.* Repeated uncoupled equal-drive
+    trials fix the admissible emergent frequency difference, absolute relative-
+    phase slope, and phase-slip count. A valid trial is locked only when all
+    three estimators fall within their frozen tolerances. Phase-locking value is
+    descriptive and does not determine the label. A bounded pilot at the two
+    extreme detunings and zero detuning selects the coupling ceiling
+    $K=#r.registration.pilot_maximum_coupling$ before the primary map is viewed.],
+
+    [*Execute the frozen grid.* The primary design crosses thirteen target
+    detunings with eleven coupling levels and #r.config.trials_per_cell
+    independently generated input pairs per cell. Each trajectory lasts
+    #r.config.t_ms ms at a #r.config.dt_ms ms timestep; the first
+    #r.config.burn_ms ms are discarded. A trial is invalid if any recorded state
+    is non-finite, any E or I firing rate is below 1 Hz, or either E population
+    lacks a resolved 25--80 Hz spectral peak.],
+
+    [*Measure frequency and phase.* Excitatory spikes are converted to population
+    rates with a fixed 5 ms Gaussian kernel. Gamma frequency comes from the
+    post-transient spectrum. A zero-phase 25--90 Hz band-pass filter followed by
+    the analytic signal gives relative phase
+
+    $ phi(t) = "unwrap"(theta_A(t) - theta_B(t)). $
+
+    $theta_A$ and $theta_B$ are the instantaneous phases of circuits A and B,
+    and $phi$ is their unwrapped difference. Each trial reports both frequencies,
+    absolute frequency difference, the linear slope of $phi$, complete phase
+    slips, phase-locking value, and circular mean phase.],
+
+    [*Retain reproducible evidence without dense-state bloat.* Exact input and
+    population-spike tensors are bit-packed for every primary cell. Population-
+    mean voltage and projection conductance are retained at 1 ms resolution,
+    together with the compiled bundles, frozen grid, input hashes, and seed
+    ledger. The realized runtime parameter tensors are retained once for each of
+    the #r.registration.realized_parameter_tensor_sets coupling levels, with
+    hashes verifying that all non-coupling tensors remain identical across
+    levels. The simulator records dense neuron state for analysis, but the
+    archive keeps the compact sufficient evidence rather than tens of gigabytes
+    of redundant dense zeros.],
+
+    [*Apply the registered verdict.* The geometric criterion requires a
+    contiguous locked region centred near zero whose width increases across at
+    least three successive nonzero coupling levels. Every grid cell must contain
+    a valid trial. In every locked nonzero-detuning cell, the circuit with the
+    greater $f^0$ must lead in phase. The final criterion is deliberately strict:
+    a high fraction is not substituted for the word “every”.],
+  )
 
   #figure(
     image(
       "/artifacts/data/exp078/network.svg",
       width: 100%,
-      alt: "Two independently driven PING circuits with reciprocal excitatory-to-excitatory and excitatory-to-inhibitory cross-circuit coupling.",
+      alt: "Two independently driven PING circuits with four reciprocal cross-circuit excitatory projections.",
     ),
-    caption: [Network graph for the reproduction. Each independent input drives
-      one local E↔I PING loop. Dashed projections are the four reciprocal
-      cross-circuit AMPA pathways varied together by $K$. Red bar-headed
-      projections are local GABA-A inhibition.],
-  )],
-
-    [*Calibrate drive against uncoupled gamma frequency.* One uncoupled PING
-  circuit will be simulated across a bounded input-rate grid. The operating
-  range will be the contiguous valid interval in which gamma peak frequency
-  increases monotonically with input rate. The calibration will be completed
-  before coupled conditions are inspected.
-
-  Pairs of input rates will be selected to sample signed target detunings of
-  approximately
-
-  $ Delta f_0 in { -6, -4, -3, -2, -1, -0.5, 0, 0.5, 1, 2, 3, 4, 6 } " Hz". $
-
-  For every input pair and trial seed, the two circuits will first run with
-  $K=0$. Their measured post-transient frequencies will define natural-
-  frequency detuning:
-
-  $ Delta f_0 = f_A^0 - f_B^0. $
-
-  This measurement, rather than input-rate difference or coupled frequency
-  difference, will determine the horizontal coordinate of every coupled result.],
-
-    [*Register and execute the detuning-by-coupling sweep.* A bounded pilot at
-  zero detuning and at the largest positive and negative target detunings will
-  locate a coupling interval containing uncoupled, partially locked, and locked
-  behaviour without silencing or saturating either circuit. The pilot will set
-  only the limits of $K$ and will not enter the primary analysis.
-
-  The primary grid will contain $K=0$ and ten equally spaced nonzero values over
-  the selected interval. Every measured detuning will be crossed with every
-  coupling value and at least five independently generated pairs of input spike
-  trains. No grid point will be added or removed after inspecting the primary
-  locking map.
-
-  Simulations will use a 0.1 ms timestep and run for 3 s. The first 500 ms will
-  be excluded from analysis. Population spikes, membrane voltages, and
-  projection conductances will be retained with the compiled graph, generated
-  inputs, parameter tensors, run configuration, and seed ledger.
-
-  A trial will be invalid if any recorded state is non-finite, either mean
-  excitatory or inhibitory firing rate is below 1 Hz, or either excitatory
-  population has no spectral peak between 25 and 80 Hz. The same validity rule
-  will be applied to every sweep cell.],
-
-    [*Measure frequency and relative phase.* Excitatory population spikes will
-  be converted to population rates by Gaussian smoothing with a 5 ms standard
-  deviation. Gamma peak frequency will be estimated from the post-transient
-  rate spectrum. Instantaneous phase will be calculated from the analytic
-  signal after zero-phase band-pass filtering from 25 to 90 Hz. The filter will
-  remain fixed across conditions.
-
-  Relative phase will be
-
-  $ phi(t) = "unwrap"(theta_A(t) - theta_B(t)). $
-
-  Each trial will report the two emergent frequencies, their absolute
-  difference, the linear slope of $phi(t)$, the number of complete $2 pi$ phase
-  slips, phase-locking value, and circular mean phase difference.],
-
-    [*Classify locking without using phase-locking value alone.* Frequency,
-  drift, and phase-slip tolerances will be fixed from estimator variability in
-  repeated zero-detuning and uncoupled calibration trials before the primary
-  sweep. A valid trial will be classified as locked only if its emergent
-  frequency difference, absolute relative-phase slope, and phase-slip count all
-  fall within their registered tolerances. Phase-locking value will describe
-  locking strength but will not independently determine the classification.],
-
-    [*Reconstruct and test the Arnold tongue.* The primary result will be the
-  fraction of valid trials classified as locked at each measured $Delta f_0$
-  and $K$. Supporting maps will show emergent frequency difference, relative-
-  phase slope, phase-slip rate, phase-locking value, and circular mean phase
-  difference on the same grid.
-
-  The reproduction will pass if the locking map contains a contiguous region
-  centred near zero detuning whose width increases across at least three
-  successive nonzero coupling levels. Within locked nonzero-detuning
-  conditions, the circuit with the greater uncoupled natural frequency must
-  lead in phase. It will fail if locking is absent, confined to zero detuning,
-  does not widen with coupling, or occurs only in invalid conditions.
-
-  Representative traces will be selected by fixed grid location: zero
-  detuning, one nonzero-detuning condition inside the locking region, and the
-  same detuning immediately outside it. Each trace will show both excitatory
-  rasters, both excitatory population rates, unwrapped relative phase, and
-  sliding-window frequency difference.],
+    caption: [Authored two-circuit network. Each private Poisson input drives a
+    local E-to-I-to-E PING loop. Dashed arrows are the four reciprocal AMPA
+    pathways varied together by $K$; red bar-headed arrows are local GABA-A
+    inhibition. The same compiled graph topology is used at every condition.],
   )
+
+  == Calibration and registration
+
+  #figure(
+    image(
+      "/artifacts/data/exp078/calibration.png",
+      width: 100%,
+      alt: "Gamma peak frequency versus Poisson input rate with the frozen monotonic interval shaded.",
+    ),
+    caption: [Uncoupled input-rate calibration. Input rate in hertz per channel is
+    on the horizontal axis and median gamma peak frequency in hertz is on the
+    vertical axis; bars show half the within-rate interquartile range. The shaded
+    #r.registration.calibrated_rate_interval_hz.at(0)--#r.registration.calibrated_rate_interval_hz.at(1)
+    Hz interval is frozen before coupled trials are inspected.],
+  )
+
+  The zero-coupling calibration registers a frequency-difference tolerance of
+  #calc.round(r.registration.locking_tolerances.frequency_difference_hz, digits: 2)
+  Hz, an absolute phase-slope tolerance of
+  #calc.round(r.registration.locking_tolerances.absolute_phase_slope_rad_s, digits: 2)
+  rad/s, and at most #r.registration.locking_tolerances.phase_slips complete
+  slips. The primary-grid checksum is
+  #(r.registration.primary_grid_sha256).
+
+  == Results
+
+  #figure(
+    image(
+      "/artifacts/data/exp078/locking_map.png",
+      width: 100%,
+      alt: "Heatmap of locked-trial fraction over measured natural-frequency detuning and coupling.",
+    ),
+    caption: [Primary Arnold-tongue map. Measured uncoupled detuning
+    $Delta f_0=f_A^0-f_B^0$ in hertz is on the horizontal axis and reciprocal
+    coupling $K$ is on the vertical axis. Colour gives the fraction of valid
+    trials satisfying the registered frequency, phase-drift, and phase-slip
+    tolerances. The centred locked width reaches
+    #calc.round(r.conclusion.centred_locked_widths_hz.last(), digits: 2) Hz at
+    the largest registered coupling and widens across
+    #r.conclusion.longest_successive_increase_run successive steps.],
+  )
+
+  #figure(
+    image(
+      "/artifacts/data/exp078/supporting_maps.png",
+      width: 100%,
+      alt: "Six supporting heatmaps for frequency difference, phase slope, slips, phase-locking value, circular phase, and validity.",
+    ),
+    caption: [Supporting maps on the same measured-detuning by coupling grid.
+    Panels show emergent absolute frequency difference in hertz, relative-phase
+    slope in radians per second, complete phase slips, phase-locking value,
+    circular mean phase in radians, and valid-trial fraction. Validity is
+    #calc.round(r.valid_trial_fraction * 100, digits: 1)% across the primary
+    trials, so the tongue is not produced by silent or numerically invalid
+    conditions.],
+  )
+
+  #figure(
+    image(
+      "/artifacts/data/exp078/representative_traces.png",
+      width: 100%,
+      alt: "Representative rasters, population rates, relative phase, and instantaneous frequency difference at zero detuning and either side of the plus-four-hertz locking boundary.",
+    ),
+    caption: [Predetermined representative traces. Rows show the target-zero
+    condition at maximum coupling, the first locked +4 Hz target condition, and
+    the same detuning at the immediately preceding coupling. Columns show both E
+    rasters, 5 ms-smoothed E rates, unwrapped relative phase, and instantaneous
+    frequency difference. The paired locations illustrate stable phase at the
+    registered inside cell and drift immediately outside it.],
+  )
+
+  == Verdict and scale decision
+
+  The Arnold-tongue geometry passes: the locked region is centred near zero and
+  its width increases for #r.conclusion.longest_successive_increase_run
+  successive coupling transitions. Trial validity also passes. The phase-lead
+  clause fails in one qualifying cell, leaving a lead-sign agreement of
+  #calc.round(r.conclusion.phase_lead_fraction * 100, digits: 1)%. Because the
+  protocol requires agreement in every cell, the overall 80 E / 20 I
+  reproduction #verdict.
+
+  The narrow failure occurs where measured detuning is close to the estimator's
+  registered resolution, while the remaining qualifying cells show the expected
+  sign. This is evidence for a reduced 800 E / 200 I confirmation around the
+  phase-sign boundary, not for repeating the full grid at tenfold size. Such a
+  confirmation has not been run.
+
+  Dense retention would occupy
+  #calc.round(r.benchmark.projected_dense_recording_bytes / 1e9, digits: 2) GB.
+  The published exact-event and state-summary archive occupies
+  #calc.round(r.benchmark.published_compact_archive_bytes / 1e6, digits: 1) MB,
+  a #calc.round(r.benchmark.compression_ratio, digits: 1)-fold reduction. The
+  #r.benchmark.completed_cells primary cells required a median
+  #calc.round(r.benchmark.median_cell_runtime_s, digits: 2) s each locally.
 
   #reference-list((
     (
-      text: [Lowet, Roberts, Hadjipapas, Peter, van der Eerden & De Weerd: _Input-Dependent Frequency Modulation of Cortical Gamma Oscillations Shapes Spatial Synchronization and Enables Phase Coding_. PLOS Computational Biology, 2015.],
+      text: [Lowet, Roberts, Hadjipapas, Peter, van der Eerden & De Weerd (2015): _Input-Dependent Frequency Modulation of Cortical Gamma Oscillations Shapes Spatial Synchronization and Enables Phase Coding_. PLOS Computational Biology.],
       doi: "10.1371/journal.pcbi.1004072",
     ),
   ))
