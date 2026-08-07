@@ -1410,9 +1410,8 @@ def plot_full_library(
     ax_mean.set(title="A  Signal grows with input drive", ylabel="Mean feature z (mV)")
     ax_std.set(title="B  Trial-to-trial variability", ylabel="Feature SD (mV)")
     for ax in (ax_mean, ax_std):
-        ax.set_xscale("symlog", linthresh=0.02)
-        ax.set_xlim(-0.002, 5.5)
-        ax.set_xticks((0.1, 1, 5), labels=("0.1", "1", "5"))
+        ax.set_xlim(-0.05, 5.25)
+        ax.set_xticks((0, 1, 2, 3, 4, 5))
         ax.tick_params(axis="x", pad=6)
         ax.set_xlabel("Expected input spikes")
     ax_mean.legend(frameon=False, fontsize=7, title="Probe conductance")
@@ -2270,10 +2269,9 @@ def plot_step3_analytical_by_drive(record: dict[str, Any], path: Path) -> None:
             title=title,
             xlabel="Expected input spikes",
             ylabel=ylabel,
-            xscale="symlog",
-            xlim=(-0.002, 5.5),
+            xlim=(-0.05, 5.25),
         )
-        axis.set_xticks((0.1, 1, 5), labels=("0.1", "1", "5"))
+        axis.set_xticks((0, 1, 2, 3, 4, 5))
         axis.tick_params(axis="x", pad=6)
         axis.grid(alpha=0.14)
         axis.spines[["top", "right"]].set_visible(False)
