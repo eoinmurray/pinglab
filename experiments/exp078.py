@@ -1247,21 +1247,60 @@ def _axis_edges(values: np.ndarray) -> np.ndarray:
     ))
 
 
-def plot_calibration(calibration: dict, out_path: Path) -> None:
+def plot_calibration(calibration: dict, results: list[dict], out_path: Path) -> None:
     theme.apply()
     rows = calibration["rows"]
     x = np.array([row["rate_hz"] for row in rows])
     y = np.array([row["median_frequency_hz"] for row in rows])
     error = np.array([row["frequency_iqr_hz"] for row in rows]) / 2.0
     lo, hi = calibration["operating_interval_hz"]
-    fig, ax = plt.subplots(figsize=(6.5, 3.8))
-    ax.axvspan(lo, hi, color=theme.GREY_LIGHT, alpha=0.7, label="frozen operating interval")
-    ax.errorbar(x, y, yerr=error, marker="o", color=theme.INK_BLACK, capsize=3)
-    ax.set(
+    fig, axes = plt.subplots(1, 2, figsize=(10.5, 3.8))
+    axes[0].axvspan(
+        lo,
+        hi,
+        color=theme.GREY_LIGHT,
+        alpha=0.7,
+        label="frozen operating interval",
+    )
+    axes[0].errorbar(x, y, yerr=error, marker="o", color=theme.INK_BLACK, capsize=3)
+    axes[0].set(
         xlabel="equal input rate to A and B (Hz per channel)",
         ylabel="combined A/B median gamma peak (Hz)",
     )
-    ax.legend(frameon=False)
+    axes[0].legend(frameon=False)
+    axes[0].text(-0.12, 1.03, "A", transform=axes[0].transAxes, fontweight="bold")
+
+    uncoupled = sorted(
+        (row for row in results if row["coupling"] == 0.0),
+        key=lambda row: row["target_detuning_hz"],
+    )
+    target = np.array([row["target_detuning_hz"] for row in uncoupled])
+    detuning_samples = [
+        np.array([trial["natural_detuning_hz"] for trial in row["trials"]])
+        for row in uncoupled
+    ]
+    measured = np.array([np.median(values) for values in detuning_samples])
+    quartiles = np.array([np.percentile(values, [25, 75]) for values in detuning_samples])
+    detuning_error = np.vstack((measured - quartiles[:, 0], quartiles[:, 1] - measured))
+    limits = np.array([target.min(), target.max()])
+    axes[1].plot(limits, limits, linestyle="--", color=theme.GREY_DARK, label="identity")
+    axes[1].errorbar(
+        target,
+        measured,
+        yerr=detuning_error,
+        marker="o",
+        color=theme.INK_BLACK,
+        capsize=3,
+    )
+    axes[1].set(
+        xlabel="target natural detuning (Hz)",
+        ylabel="measured natural detuning (Hz)",
+        xlim=(limits[0] - 0.5, limits[1] + 0.5),
+        ylim=(limits[0] - 0.5, limits[1] + 0.5),
+    )
+    axes[1].legend(frameon=False)
+    axes[1].text(-0.12, 1.03, "B", transform=axes[1].transAxes, fontweight="bold")
+    fig.tight_layout()
     fig.savefig(out_path, dpi=220, bbox_inches="tight")
     plt.close(fig)
 
@@ -1554,7 +1593,7 @@ def main() -> None:
             staging / "network.png",
         )
 
-        plot_calibration(calibration, staging / "calibration.png")
+        plot_calibration(calibration, results, staging / "calibration.png")
         plot_locking_map(results, couplings, staging / "locking_map.png")
         plot_supporting_maps(results, couplings, staging / "supporting_maps.png")
         plot_representative_traces(scratch, selected, staging / "representative_traces.png")
