@@ -415,8 +415,8 @@
   "summary_sha256": "ee262840ad31f738a7a27fe0dabc1ecbe580f58f431399350db17d8797c7d962",
   "pilot_outcome_sha256": "b5a580984ca4b928df6be01eafc430e957e7895aa65eb7373c361cdf4edadce1",
   "locked_protocol_sha256": "38b291d69fd3149868f23d3dc3fb6f6db3d8d7aec784d60f3701b39537373aa6",
-  "generation_command": "EXP077_THROUGH_STEP=2 EXP077_STEP2_FULL=1 uv run python experiments/exp080.py",
-  "validation_command": "EXP077_THROUGH_STEP=2 EXP077_STEP2_VALIDATE_ONLY=1 uv run python experiments/exp080.py",
+  "generation_command": "EXP080_THROUGH_STEP=2 EXP080_STEP2_FULL=1 uv run python experiments/exp080.py",
+  "validation_command": "EXP080_THROUGH_STEP=2 EXP080_STEP2_VALIDATE_ONLY=1 uv run python experiments/exp080.py",
   "implementation_commit": "62dce1ed7649b1e60a741ae58b3e6f72fc21f73e",
   "validation_passed": false,
   "failed_validations": [

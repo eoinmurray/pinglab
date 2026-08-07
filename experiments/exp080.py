@@ -1333,7 +1333,7 @@ def record_step2_pilot(pilot: dict[str, Any], duration_s: float) -> None:
     protocol_path.write_text(json.dumps(protocol, indent=2) + "\n")
     reproducer = {
         "command": (
-            "EXP077_THROUGH_STEP=2 EXP077_STEP2_PILOT_ONLY=1 "
+            "EXP080_THROUGH_STEP=2 EXP080_STEP2_PILOT_ONLY=1 "
             "uv run python experiments/exp080.py"
         ),
         "paid_compute": False,
@@ -1518,11 +1518,11 @@ def record_full_library(
             FIGURES / "step2_pilot_extension_protocol.json"
         ),
         "generation_command": (
-            "EXP077_THROUGH_STEP=2 EXP077_STEP2_FULL=1 "
+            "EXP080_THROUGH_STEP=2 EXP080_STEP2_FULL=1 "
             "uv run python experiments/exp080.py"
         ),
         "validation_command": (
-            "EXP077_THROUGH_STEP=2 EXP077_STEP2_VALIDATE_ONLY=1 "
+            "EXP080_THROUGH_STEP=2 EXP080_STEP2_VALIDATE_ONLY=1 "
             "uv run python experiments/exp080.py"
         ),
         "implementation_commit": subprocess.check_output(
@@ -1766,7 +1766,7 @@ def step_1() -> None:
     }
     provenance = _git_metadata()
     reproducer = {
-        "command": "EXP077_THROUGH_STEP=1 uv run python experiments/exp080.py",
+        "command": "EXP080_THROUGH_STEP=1 uv run python experiments/exp080.py",
         "paid_compute": False,
         "expected_outputs": [
             "artifacts/data/exp080/numbers.json",
@@ -1806,7 +1806,7 @@ def step_1() -> None:
 def step_2() -> None:
     ARTIFACTS.mkdir(parents=True, exist_ok=True)
     FIGURES.mkdir(parents=True, exist_ok=True)
-    if os.environ.get("EXP077_STEP2_PILOT_ONLY") == "1":
+    if os.environ.get("EXP080_STEP2_PILOT_ONLY") == "1":
         started = time.perf_counter()
         pilot = run_step2_pilot()
         record_step2_pilot(pilot, time.perf_counter() - started)
@@ -1822,10 +1822,10 @@ def step_2() -> None:
     ]
     if selected != LIBRARY_K:
         raise RuntimeError(f"registered selected K is {selected}, expected {LIBRARY_K}")
-    validate_only = os.environ.get("EXP077_STEP2_VALIDATE_ONLY") == "1"
-    if not validate_only and os.environ.get("EXP077_STEP2_FULL") != "1":
+    validate_only = os.environ.get("EXP080_STEP2_VALIDATE_ONLY") == "1"
+    if not validate_only and os.environ.get("EXP080_STEP2_FULL") != "1":
         raise RuntimeError(
-            "Step 2 full-response-table generation requires EXP077_STEP2_FULL=1"
+            "Step 2 full-response-table generation requires EXP080_STEP2_FULL=1"
         )
     if validate_only:
         if not LIBRARY_SCRATCH.exists():
@@ -3230,7 +3230,7 @@ def verify_expanded_rate_training_protocol() -> dict[str, Any]:
             raise RuntimeError("expanded-rate training protocol hash mismatch")
         protocol = json.loads(path.read_text())
     else:
-        remote_hash = os.environ.get("EXP077_FROZEN_TRAINING_PROTOCOL_SHA256")
+        remote_hash = os.environ.get("EXP080_FROZEN_TRAINING_PROTOCOL_SHA256")
         if remote_hash != EXPANDED_RATE_PROTOCOL_SHA256:
             raise RuntimeError(
                 "expanded-rate training requires a frozen training protocol"
@@ -3268,8 +3268,8 @@ def run_step5_stage(stage: str) -> None:
     if stage == "full":
         verify_expanded_rate_training_protocol()
     train_count, validation_count, epochs = stage_settings[stage]
-    probe = float(os.environ.get("EXP077_PROBE_US", str(PROBE_US)))
-    seed = int(os.environ.get("EXP077_SEED", str(SEED)))
+    probe = float(os.environ.get("EXP080_PROBE_US", str(PROBE_US)))
+    seed = int(os.environ.get("EXP080_SEED", str(SEED)))
     output_dir = FIGURES / "step5" / stage / f"probe-{probe:g}" / f"seed-{seed}"
     result = train_decoder_condition(
         images=images,
@@ -3294,7 +3294,7 @@ def run_step5_stage(stage: str) -> None:
 
 
 def step_5() -> None:
-    run_step5_stage(os.environ.get("EXP077_STAGE", "smoke"))
+    run_step5_stage(os.environ.get("EXP080_STAGE", "smoke"))
 
 
 def finalize_step5() -> dict[str, Any]:
@@ -4099,7 +4099,7 @@ def record_steps5_7_publication_contract() -> None:
     reproducer_path = FIGURES / "reproducer.json"
     reproducer = json.loads(reproducer_path.read_text())
     reproducer["steps5_7"] = {
-        "smoke_command": "EXP077_STAGE=smoke uv run python -c 'from experiments.exp080 import step_5; step_5()'",
+        "smoke_command": "EXP080_STAGE=smoke uv run python -c 'from experiments.exp080 import step_5; step_5()'",
         "modal_training_command": "uv run python experiments/exp080_modal.py --stage full --probe <probe> --seed <seed> --live",
         "freeze_command": "uv run python -c 'from experiments.exp080 import write_frozen_evaluation_protocol; write_frozen_evaluation_protocol()'",
         "modal_evaluation_command": "uv run python experiments/exp080_evaluate_modal.py --live",
@@ -4126,15 +4126,15 @@ IMPLEMENTED_STEPS: frozenset[int] = frozenset({1, 2, 3, 4, 5, 6, 7})
 
 
 def requested_through_step() -> int:
-    raw = os.environ.get("EXP077_THROUGH_STEP", str(N_STEPS))
+    raw = os.environ.get("EXP080_THROUGH_STEP", str(N_STEPS))
     try:
         step = int(raw)
     except ValueError as exc:
         raise SystemExit(
-            "EXP077_THROUGH_STEP must be an integer from 1 through 7"
+            "EXP080_THROUGH_STEP must be an integer from 1 through 7"
         ) from exc
     if step not in STAGE_NAMES:
-        raise SystemExit("EXP077_THROUGH_STEP must be an integer from 1 through 7")
+        raise SystemExit("EXP080_THROUGH_STEP must be an integer from 1 through 7")
     return step
 
 

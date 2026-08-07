@@ -1,4 +1,4 @@
-"""Authorized synchronous Modal dispatcher for exp077 Step 5 cells."""
+"""Authorized synchronous Modal dispatcher for exp080 Step 5 cells."""
 
 from __future__ import annotations
 
@@ -9,10 +9,10 @@ import time
 from pathlib import Path
 
 from helpers import modal_backend
-from helpers.modal_exp077_app import app, train_cell
+from helpers.modal_exp080_app import app, train_cell
 
 REPO = Path(__file__).resolve().parents[1]
-DESTINATION = REPO / "artifacts" / "data" / "exp077"
+DESTINATION = REPO / "artifacts" / "data" / "exp080"
 
 
 def parse_args() -> argparse.Namespace:
@@ -28,13 +28,13 @@ def main() -> None:
     args = parse_args()
     gpu = __import__("os").environ.get("PINGLAB_MODAL_GPU", "L40S")
     print(
-        f"{'LIVE' if args.live else 'DRY-RUN'} exp077 stage={args.stage} "
+        f"{'LIVE' if args.live else 'DRY-RUN'} exp080 stage={args.stage} "
         f"probe={args.probe:g} seed={args.seed} gpu={gpu}"
     )
     if not args.live:
         return
     if args.stage == "full":
-        from exp077 import verify_expanded_rate_training_protocol
+        from exp080 import verify_expanded_rate_training_protocol
 
         verify_expanded_rate_training_protocol()
     modal = modal_backend._require_modal()
