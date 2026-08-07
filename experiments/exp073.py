@@ -358,15 +358,19 @@ def run_via_modal(meta: Any) -> None:
     if unknown:
         raise SystemExit(f"unknown exp073 cells for --only-cells: {unknown}")
     timeout_s = 14400 if STAGE == "final80" else (7200 if STAGE == "final40" else 3600)
-    modal_backend.dispatch_exp073(
-        cells=list(cells),
-        attempt=ATTEMPT,
-        stage=STAGE,
-        ping_only=PING_ONLY,
+    modal_backend.dispatch(
+        slug=SLUG,
+        runner=SLUG,
+        job_ids=list(cells),
         live=meta.live,
         local_collect_dir=SCRATCH,
         ledger_path=COMPUTE_LEDGER,
         timeout_s=timeout_s,
+        extra_env={
+            "EXP073_ATTEMPT": ATTEMPT,
+            "EXP073_STAGE": STAGE,
+            "EXP073_PING_ONLY": "1" if PING_ONLY else "0",
+        },
     )
 
 

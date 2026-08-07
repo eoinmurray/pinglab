@@ -18,21 +18,49 @@ def test_modal_meta_flag_parses_for_dispatch_runner():
     assert meta.only_cells == ["ping"]
 
 
-def test_exp073_modal_dry_run_does_not_import_modal(tmp_path, capsys):
-    modal_backend.dispatch_exp073(
-        cells=["ping"],
-        attempt="plastic_wee",
-        stage="short",
-        ping_only=True,
+def test_generic_modal_dry_run_does_not_import_modal(tmp_path, capsys):
+    modal_backend.dispatch(
+        slug="exp999",
+        runner="exp999",
+        job_ids=["first", "second"],
         live=False,
         local_collect_dir=tmp_path / "scratch",
         ledger_path=tmp_path / "ledger.json",
         timeout_s=60,
+        extra_env={"EXP999_STAGE": "short"},
     )
     out = capsys.readouterr().out
     assert "DRY-RUN" in out
     assert "backend=modal" in out
+    assert "runner=exp999" in out
+    assert "jobs: first second" in out
     assert not (tmp_path / "ledger.json").exists()
+
+
+def test_generic_modal_dispatch_validates_timeout(tmp_path):
+    with pytest.raises(ValueError, match="timeout_s"):
+        modal_backend.dispatch(
+            slug="exp999",
+            runner="exp999",
+            job_ids=["first"],
+            live=False,
+            local_collect_dir=tmp_path / "scratch",
+            ledger_path=tmp_path / "ledger.json",
+            timeout_s=modal_backend.MAX_RUNTIME_S + 1,
+        )
+
+
+def test_generic_modal_dispatch_rejects_duplicate_jobs(tmp_path):
+    with pytest.raises(ValueError, match="non-empty and unique"):
+        modal_backend.dispatch(
+            slug="exp999",
+            runner="exp999",
+            job_ids=["same", "same"],
+            live=False,
+            local_collect_dir=tmp_path / "scratch",
+            ledger_path=tmp_path / "ledger.json",
+            timeout_s=60,
+        )
 
 
 def test_modal_artifact_extract_rejects_path_traversal(tmp_path):
