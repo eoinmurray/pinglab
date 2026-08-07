@@ -15,9 +15,6 @@
 #let pct(x) = calc.round(x * 100, digits: 1)
 
 #let body = [
-  #set math.equation(numbering: "(1)")
-  #counter(math.equation).update(0)
-
   == Abstract
 
   Reciprocal excitation should synchronize two PING circuits over a wider
@@ -51,7 +48,7 @@
     identify a stable monotonic input-rate interval. For each paired seed, the
     horizontal coordinate is the measured natural-frequency difference
 
-    $ Delta f_0 = f_A^0 - f_B^0, $ <eq-detuning>
+    $ Delta f_0 = f_A^0 - f_B^0, quad "(1)" $ <eq-detuning>
 
     where $Delta f_0$ is natural detuning, and $f_A^0$ and $f_B^0$ are the
     uncoupled gamma peak frequencies of circuits A and B. Input-rate difference
@@ -63,12 +60,12 @@
     from the post-transient spectrum. A zero-phase 25--90 Hz band-pass filter
     and analytic signal define relative phase
 
-    $ phi(t) = "unwrap"(theta_A(t) - theta_B(t)), $ <eq-phase>
+    $ phi(t) = "unwrap"(theta_A(t) - theta_B(t)), quad "(2)" $ <eq-phase>
 
     where $phi(t)$ is unwrapped relative phase at time $t$, and $theta_A(t)$
     and $theta_B(t)$ are instantaneous phases. Phase concentration is
 
-    $ R = abs(1 / T sum_(t=1)^T exp(i phi(t))), $ <eq-plv>
+    $ R = abs(1 / T sum_(t=1)^T exp(i phi(t))), quad "(3)" $ <eq-plv>
 
     where $R$ is phase-locking value (PLV), $T$ is the number of analysed time
     samples, and $i$ is the imaginary unit. Figure 4 maps these
@@ -81,7 +78,7 @@
 
     $ L = bold(1)[abs(f_A - f_B) <= epsilon_f]
         bold(1)[abs(a_phi) <= epsilon_phi]
-        bold(1)[N_"slip" <= epsilon_"slip"], $ <eq-locking>
+        bold(1)[N_"slip" <= epsilon_"slip"], quad "(4)" $ <eq-locking>
 
     where $L$ is the binary locking label, $bold(1)[dot]$ is an indicator,
     $f_A$ and $f_B$ are coupled gamma frequencies, $epsilon_f$ is the frozen
