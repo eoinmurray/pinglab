@@ -1,5 +1,5 @@
 {
-  "comparison": "stationary analytical approximation versus finite 200 ms empirical response table",
+  "comparison": "transient and stationary analytical approximations versus finite 200 ms empirical response table",
   "source_arrays": {
     "analytical": "artifacts/data/exp080/step3_linear_filter_arrays.npz",
     "empirical": "artifacts/data/exp080/response_library_summary.npz"
@@ -16,13 +16,25 @@
     "mean_absolute_error_mV": 3.4318921482957676,
     "median_predicted_empirical_ratio": 2.244515386517239
   },
+  "transient_mean": {
+    "condition_count": 9180,
+    "pearson_r": 0.9523426704687075,
+    "mean_absolute_error_mV": 3.0116539565377423,
+    "median_predicted_empirical_ratio": 2.315489901664461
+  },
+  "transient_standard_deviation": {
+    "condition_count": 9180,
+    "pearson_r": 0.7556784237855129,
+    "mean_absolute_error_mV": 3.4573383609856347,
+    "median_predicted_empirical_ratio": 2.239838469005957
+  },
   "status": "complete",
   "classification": "post-hoc comparison derived only from recorded Step 2 and Step 3 arrays",
   "paid_compute_usd": 0.0,
   "figure_path": "artifacts/data/exp080/linear_filter_empirical_comparison.svg",
-  "figure_sha256": "3e17b4b5a3d9e3e0c73f534442e5dfb27d703a1451be5eaa6debc588554ef010",
+  "figure_sha256": "3058c7f96222c49aa7ba5d708a0aa9fe0c704b98128f9ae85ecc7dc36b83a869",
   "drive_figure_path": "artifacts/data/exp080/linear_filter_drive_response.svg",
-  "drive_figure_sha256": "84427d2c82e35fcd0751b94fd2c1966e3cdd739a6a7a1ad7bbb8ac5d37f5364a",
+  "drive_figure_sha256": "b93d933ad3243407bbfa962b54e6bac7361592f2a9c5de69fbf084266afa0a7a",
   "source_sha256": {
     "analytical": "1e6dff93eddd86d8b9525d7040f9fe1145af29330de9624ab63e39bb6f2a3d68",
     "empirical": "ee262840ad31f738a7a27fe0dabc1ecbe580f58f431399350db17d8797c7d962"
