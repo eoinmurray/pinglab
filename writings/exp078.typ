@@ -158,13 +158,13 @@
     image(
       "/artifacts/data/exp078/calibration.png",
       width: 100%,
-      alt: "Pooled uncoupled gamma frequencies from circuits A and B versus their equal Poisson input rate, with the frozen monotonic interval shaded.",
+      alt: "Combined uncoupled gamma frequencies from circuits A and B versus their equal Poisson input rate, with the frozen monotonic interval shaded.",
     ),
     caption: [Uncoupled input-rate calibration. Circuits A and B receive the
     same input rate, shown in hertz per channel on the horizontal axis. At each
     rate, the vertical coordinate is the median of 10 gamma-peak estimates:
     both circuits from each of five trials. Bars show half the interquartile
-    range of those pooled A/B estimates, spanning the middle half of the data.
+    range of the combined A and B estimates, spanning the middle half of the data.
     The shaded #r.registration.calibrated_rate_interval_hz.at(0)--#r.registration.calibrated_rate_interval_hz.at(1)
     Hz interval supplies Equation 1. The lowest-rate point exceeds the
     registered within-rate IQR ceiling. At the highest rate, the estimator hops
