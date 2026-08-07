@@ -3,12 +3,13 @@
 #let meta = (
   title: "Arnold tongue of two coupled PING circuits",
   date: "2026-08-07",
-  description: "An 80 E / 20 I graph-native reproduction recovers the widening Arnold tongue but narrowly fails the strict phase-lead criterion.",
+  description: "An 80 E / 20 I graph-native reproduction recovers the widening Arnold tongue; a focused 800 E / 200 I confirmation resolves its lone phase-sign failure.",
   collection: "miscellaneous",
   status: "final",
 )
 
 #let r = json("/artifacts/data/exp078/numbers.json")
+#let fs = json("/artifacts/data/exp078/finite_size_followup.json")
 #let verdict = if r.conclusion.passed { "passed" } else { "failed" }
 
 #let body = [
@@ -24,7 +25,8 @@
   qualifying locked cells, but the registered rule requires the correct sign
   in every such cell. The reproduction therefore #verdict: its Arnold-tongue
   geometry succeeds, while one near-resolution phase cell prevents an overall
-  pass.
+  pass at 80 E / 20 I. A preregistered finite-size confirmation at 800 E / 200 I
+  subsequently passes all #fs.conclusion.coupled_trials coupled trials.
 
   == Methods
 
@@ -192,9 +194,19 @@
 
   The narrow failure occurs where measured detuning is close to the estimator's
   registered resolution, while the remaining qualifying cells show the expected
-  sign. This is evidence for a reduced 800 E / 200 I confirmation around the
-  phase-sign boundary, not for repeating the full grid at tenfold size. Such a
-  confirmation has not been run.
+  sign. The reduced 800 E / 200 I confirmation therefore tests only target
+  detunings $-1$ and $+1$ Hz at $K=0$, $0.016$, and $0.024$, with ten seeds and
+  a 5 s post-transient window. All #fs.conclusion.valid_coupled_trials coupled
+  trials are valid and locked, and all #fs.conclusion.phase_sign_correct_trials
+  have the expected phase sign. At the previously disputed negative-detuning
+  cell, all #fs.conclusion.disputed_negative_cell.phase_sign_correct_trials
+  seeds have the correct sign with mean phase
+  #calc.round(fs.conclusion.disputed_negative_cell.mean_phase_rad, digits: 3) rad;
+  the mirrored positive condition gives
+  #calc.round(fs.conclusion.mirrored_positive_cell.mean_phase_rad, digits: 3) rad.
+  The focused confirmation therefore passes and supports finite-size/resolution
+  noise, rather than a systematic contradiction, as the cause of the lone
+  80 E / 20 I failure.
 
   Dense retention would occupy
   #calc.round(r.benchmark.projected_dense_recording_bytes / 1e9, digits: 2) GB.

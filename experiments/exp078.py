@@ -542,6 +542,103 @@ def run_followup_via_modal(meta: object) -> None:
     )
 
 
+def publish_followup(
+    panel_root: Path,
+    destination: Path,
+    *,
+    modal_ledger: Path | None = None,
+) -> dict:
+    """Publish the registered finite-size panel from completed condition jobs."""
+    tolerances = _json_load(REPO / "artifacts/data/exp078/locking_tolerances.json")
+    cells = []
+    coupled_trials = []
+    archive_dir = destination / "finite_size_archives"
+    archive_dir.mkdir(parents=True, exist_ok=True)
+    for job_id, spec in sorted(FOLLOWUP_JOBS.items()):
+        if job_id == "benchmark":
+            continue
+        key = _condition_key("finite_size", spec["detuning_index"], spec["coupling"])
+        condition = panel_root / "conditions" / key
+        summary = _json_load(condition / "summary.json")
+        trials = []
+        for trial in summary["trials"]:
+            row = {**trial, "locked": classify_trial(trial, tolerances)}
+            if spec["coupling"] > 0:
+                row["phase_sign_correct"] = bool(
+                    np.sign(trial["circular_mean_phase_rad"])
+                    == np.sign(spec["target_detuning_hz"])
+                )
+                coupled_trials.append(row)
+            trials.append(row)
+        archive_name = f"{job_id}.npz"
+        shutil.copy2(condition / "compact.npz", archive_dir / archive_name)
+        cells.append({
+            "job_id": job_id,
+            **spec,
+            "runtime_s": summary["runtime_s"],
+            "execution_metrics": summary["execution_metrics"],
+            "valid_trials": sum(row["valid"] for row in trials),
+            "locked_trials": sum(row["locked"] for row in trials),
+            "phase_sign_correct_trials": (
+                sum(row["phase_sign_correct"] for row in trials)
+                if spec["coupling"] > 0 else None
+            ),
+            "mean_phase_rad": float(np.mean([row["circular_mean_phase_rad"] for row in trials])),
+            "mean_plv": float(np.mean([row["phase_locking_value"] for row in trials])),
+            "archive": archive_name,
+            "trials": trials,
+        })
+    negative = next(row for row in cells if row["job_id"] == "m1_k016")
+    positive = next(row for row in cells if row["job_id"] == "p1_k016")
+    result = {
+        "schema": "pinglab.exp078.finite-size-followup/v1",
+        "status": "complete",
+        "config": {
+            "n_input_per_circuit": 800,
+            "n_e_per_circuit": 800,
+            "n_i_per_circuit": 200,
+            "dt_ms": 0.1,
+            "t_ms": 5500.0,
+            "burn_ms": 500.0,
+            "trials_per_cell": 10,
+            "target_detunings_hz": [-1.0, 1.0],
+            "couplings": [0.0, 0.016, 0.024],
+            "recording": "observables",
+            "execution_host": "local CPU after L40S benchmark rejection",
+        },
+        "locking_tolerances_inherited_from_exp078": tolerances,
+        "cells": cells,
+        "conclusion": {
+            "passed": bool(
+                len(coupled_trials) == 40
+                and all(row["valid"] and row["locked"] and row["phase_sign_correct"] for row in coupled_trials)
+            ),
+            "coupled_trials": len(coupled_trials),
+            "valid_coupled_trials": sum(row["valid"] for row in coupled_trials),
+            "locked_coupled_trials": sum(row["locked"] for row in coupled_trials),
+            "phase_sign_correct_trials": sum(row["phase_sign_correct"] for row in coupled_trials),
+            "disputed_negative_cell": {
+                "locked_trials": negative["locked_trials"],
+                "phase_sign_correct_trials": negative["phase_sign_correct_trials"],
+                "mean_phase_rad": negative["mean_phase_rad"],
+                "mean_plv": negative["mean_plv"],
+            },
+            "mirrored_positive_cell": {
+                "locked_trials": positive["locked_trials"],
+                "phase_sign_correct_trials": positive["phase_sign_correct_trials"],
+                "mean_phase_rad": positive["mean_phase_rad"],
+                "mean_plv": positive["mean_plv"],
+            },
+        },
+        "runtime": {
+            "total_local_cell_s": float(sum(row["runtime_s"] for row in cells)),
+            "modal_benchmark": _json_load(modal_ledger) if modal_ledger and modal_ledger.exists() else None,
+        },
+    }
+    _json_dump(destination / "finite_size_followup.json", result)
+    return result
+
+
 def materialize_parameter_tensors(scratch: Path, couplings: list[float]) -> dict:
     """Retain the exact graph-executor tensors once per frozen coupling level."""
     root = scratch / "parameter_tensors"
