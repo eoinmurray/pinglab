@@ -126,7 +126,9 @@
     #r.registration.calibrated_rate_interval_hz.at(0)--#r.registration.calibrated_rate_interval_hz.at(1)
     Hz interval is frozen before coupled trials are inspected. The 60 Hz point
     is monotonic but exceeds the registered 0.8 Hz within-rate IQR ceiling; the
-    140 Hz point is excluded for much stronger peak variability.],
+    140 Hz point is excluded because the frequency estimator hops between
+    approximately 25 and 48 Hz spectral modes across seeds, producing the large
+    error bar.],
   )
 
   The zero-coupling calibration registers a frequency-difference tolerance of
