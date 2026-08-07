@@ -1,0 +1,47 @@
+{
+  "candidate_K": [
+    64,
+    128,
+    256,
+    512
+  ],
+  "hard_maximum_K": 512,
+  "evaluation_condition_count": 270,
+  "trajectory": [
+    {
+      "K": 64,
+      "mean_p95_normalised_error": 3.6598103046417236,
+      "mean_maximum_normalised_error": 7.621829986572266,
+      "variance_p95_normalised_error": 3.129155158996582,
+      "variance_maximum_normalised_error": 4.0,
+      "passed": false
+    },
+    {
+      "K": 128,
+      "mean_p95_normalised_error": 2.5874526500701904,
+      "mean_maximum_normalised_error": 4.139617919921875,
+      "variance_p95_normalised_error": 2.6888160705566406,
+      "variance_maximum_normalised_error": 4.0,
+      "passed": false
+    },
+    {
+      "K": 256,
+      "mean_p95_normalised_error": 1.8481218814849854,
+      "mean_maximum_normalised_error": 3.249312162399292,
+      "variance_p95_normalised_error": 1.973731279373169,
+      "variance_maximum_normalised_error": 3.607395887374878,
+      "passed": false
+    },
+    {
+      "K": 512,
+      "mean_p95_normalised_error": 1.3555837869644165,
+      "mean_maximum_normalised_error": 2.870311975479126,
+      "variance_p95_normalised_error": 1.3765243291854858,
+      "variance_maximum_normalised_error": 2.575185775756836,
+      "passed": false
+    }
+  ],
+  "selected_K": null,
+  "passed": false,
+  "zero_intensity_exact": true
+}

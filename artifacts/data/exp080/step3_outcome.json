@@ -1,0 +1,373 @@
+{
+  "status": "complete",
+  "completed_at_utc": "2026-08-05T21:04:20Z",
+  "classification": "post-hoc exploratory diagnostic after preserved Step 2 failure",
+  "library_sha256": "5184788979b5fa7fa9a3f38936399b8e2724d63914019f1306a7171981b36783",
+  "amendment_sha256": "191c640ed969e039914603ebfc132496e91b2458ff6102fed569d50defc3f469",
+  "calibration_point_count": 9216,
+  "quadrature": {
+    "maximum_refinement_relative_change": 2.468888734461038e-07,
+    "maximum_bound_relative_change": 3.621034740328712e-08,
+    "refinement_passed": true,
+    "bound_sensitivity_passed": true
+  },
+  "gain_checks": [
+    {
+      "drive": "low",
+      "rate_hz": 0.25,
+      "probe_uS": 0.6,
+      "frequency_hz": 1.0,
+      "analytical_gain_mV_per_hz": 1.5294392851858272,
+      "numerical_gain_mV_per_hz": 1.5294393394015817,
+      "relative_error": 3.544812473275618e-08,
+      "passed": true
+    },
+    {
+      "drive": "low",
+      "rate_hz": 0.25,
+      "probe_uS": 0.6,
+      "frequency_hz": 10.0,
+      "analytical_gain_mV_per_hz": 0.9558201434118991,
+      "numerical_gain_mV_per_hz": 0.9558232883044002,
+      "relative_error": 3.2902555180072877e-06,
+      "passed": true
+    },
+    {
+      "drive": "low",
+      "rate_hz": 0.25,
+      "probe_uS": 0.6,
+      "frequency_hz": 100.0,
+      "analytical_gain_mV_per_hz": 0.07659357864984004,
+      "numerical_gain_mV_per_hz": 0.07661878031080316,
+      "relative_error": 0.0003290309893774976,
+      "passed": true
+    },
+    {
+      "drive": "middle",
+      "rate_hz": 3.0,
+      "probe_uS": 0.6,
+      "frequency_hz": 1.0,
+      "analytical_gain_mV_per_hz": 1.3481467030160936,
+      "numerical_gain_mV_per_hz": 1.348147185507249,
+      "relative_error": 3.5789217478636446e-07,
+      "passed": true
+    },
+    {
+      "drive": "middle",
+      "rate_hz": 3.0,
+      "probe_uS": 0.6,
+      "frequency_hz": 10.0,
+      "analytical_gain_mV_per_hz": 0.874137687675266,
+      "numerical_gain_mV_per_hz": 0.8741406340516633,
+      "relative_error": 3.37060904574616e-06,
+      "passed": true
+    },
+    {
+      "drive": "middle",
+      "rate_hz": 3.0,
+      "probe_uS": 0.6,
+      "frequency_hz": 100.0,
+      "analytical_gain_mV_per_hz": 0.07184693505499508,
+      "numerical_gain_mV_per_hz": 0.0718705749550113,
+      "relative_error": 0.00032903143325633963,
+      "passed": true
+    },
+    {
+      "drive": "high",
+      "rate_hz": 25.0,
+      "probe_uS": 0.6,
+      "frequency_hz": 1.0,
+      "analytical_gain_mV_per_hz": 0.6074562240508121,
+      "numerical_gain_mV_per_hz": 0.6074625339345987,
+      "relative_error": 1.038738848456311e-05,
+      "passed": true
+    },
+    {
+      "drive": "high",
+      "rate_hz": 25.0,
+      "probe_uS": 0.6,
+      "frequency_hz": 10.0,
+      "analytical_gain_mV_per_hz": 0.4754966612466411,
+      "numerical_gain_mV_per_hz": 0.47550019254945125,
+      "relative_error": 7.426556478669359e-06,
+      "passed": true
+    },
+    {
+      "drive": "high",
+      "rate_hz": 25.0,
+      "probe_uS": 0.6,
+      "frequency_hz": 100.0,
+      "analytical_gain_mV_per_hz": 0.04792537741347698,
+      "numerical_gain_mV_per_hz": 0.047941147902777745,
+      "relative_error": 0.00032906343469566655,
+      "passed": true
+    },
+    {
+      "drive": "low",
+      "rate_hz": 0.25,
+      "probe_uS": 1.2,
+      "frequency_hz": 1.0,
+      "analytical_gain_mV_per_hz": 3.0229893665669283,
+      "numerical_gain_mV_per_hz": 3.022989496489177,
+      "relative_error": 4.2978069970091967e-08,
+      "passed": true
+    },
+    {
+      "drive": "low",
+      "rate_hz": 0.25,
+      "probe_uS": 1.2,
+      "frequency_hz": 10.0,
+      "analytical_gain_mV_per_hz": 1.8958820863680785,
+      "numerical_gain_mV_per_hz": 1.895888327611322,
+      "relative_error": 3.2919996915581577e-06,
+      "passed": true
+    },
+    {
+      "drive": "low",
+      "rate_hz": 0.25,
+      "probe_uS": 1.2,
+      "frequency_hz": 100.0,
+      "analytical_gain_mV_per_hz": 0.1522731325756906,
+      "numerical_gain_mV_per_hz": 0.1523232351589077,
+      "relative_error": 0.0003290310140049,
+      "passed": true
+    },
+    {
+      "drive": "middle",
+      "rate_hz": 3.0,
+      "probe_uS": 1.2,
+      "frequency_hz": 1.0,
+      "analytical_gain_mV_per_hz": 2.3695387416280784,
+      "numerical_gain_mV_per_hz": 2.369541537307692,
+      "relative_error": 1.1798412764784067e-06,
+      "passed": true
+    },
+    {
+      "drive": "middle",
+      "rate_hz": 3.0,
+      "probe_uS": 1.2,
+      "frequency_hz": 10.0,
+      "analytical_gain_mV_per_hz": 1.5923454375180577,
+      "numerical_gain_mV_per_hz": 1.592351170346846,
+      "relative_error": 3.600241915653295e-06,
+      "passed": true
+    },
+    {
+      "drive": "middle",
+      "rate_hz": 3.0,
+      "probe_uS": 1.2,
+      "frequency_hz": 100.0,
+      "analytical_gain_mV_per_hz": 0.13458271858941276,
+      "numerical_gain_mV_per_hz": 0.1346270007211999,
+      "relative_error": 0.0003290328227225074,
+      "passed": true
+    },
+    {
+      "drive": "high",
+      "rate_hz": 25.0,
+      "probe_uS": 1.2,
+      "frequency_hz": 1.0,
+      "analytical_gain_mV_per_hz": 0.6435282492153716,
+      "numerical_gain_mV_per_hz": 0.6435424893131105,
+      "relative_error": 2.21281626041198e-05,
+      "passed": true
+    },
+    {
+      "drive": "high",
+      "rate_hz": 25.0,
+      "probe_uS": 1.2,
+      "frequency_hz": 10.0,
+      "analytical_gain_mV_per_hz": 0.5553814142826731,
+      "numerical_gain_mV_per_hz": 0.5553898361782148,
+      "relative_error": 1.5164165247787819e-05,
+      "passed": true
+    },
+    {
+      "drive": "high",
+      "rate_hz": 25.0,
+      "probe_uS": 1.2,
+      "frequency_hz": 100.0,
+      "analytical_gain_mV_per_hz": 0.06921964002191096,
+      "numerical_gain_mV_per_hz": 0.06924242435107188,
+      "relative_error": 0.0003291598909457843,
+      "passed": true
+    },
+    {
+      "drive": "low",
+      "rate_hz": 0.25,
+      "probe_uS": 2.4,
+      "frequency_hz": 1.0,
+      "analytical_gain_mV_per_hz": 5.9061513212701025,
+      "numerical_gain_mV_per_hz": 5.906151748433804,
+      "relative_error": 7.232522136802159e-08,
+      "passed": true
+    },
+    {
+      "drive": "low",
+      "rate_hz": 0.25,
+      "probe_uS": 2.4,
+      "frequency_hz": 10.0,
+      "analytical_gain_mV_per_hz": 3.7298677551774078,
+      "numerical_gain_mV_per_hz": 3.7298800596774884,
+      "relative_error": 3.2989105481090496e-06,
+      "passed": true
+    },
+    {
+      "drive": "low",
+      "rate_hz": 0.25,
+      "probe_uS": 2.4,
+      "frequency_hz": 100.0,
+      "analytical_gain_mV_per_hz": 0.30095423307820557,
+      "numerical_gain_mV_per_hz": 0.30105325635930713,
+      "relative_error": 0.0003290310293652865,
+      "passed": true
+    },
+    {
+      "drive": "middle",
+      "rate_hz": 3.0,
+      "probe_uS": 2.4,
+      "frequency_hz": 1.0,
+      "analytical_gain_mV_per_hz": 3.7433578242859546,
+      "numerical_gain_mV_per_hz": 3.74337159501524,
+      "relative_error": 3.6787103802852786e-06,
+      "passed": true
+    },
+    {
+      "drive": "middle",
+      "rate_hz": 3.0,
+      "probe_uS": 2.4,
+      "frequency_hz": 10.0,
+      "analytical_gain_mV_per_hz": 2.6712998117978137,
+      "numerical_gain_mV_per_hz": 2.6713116510173704,
+      "relative_error": 4.432007034340224e-06,
+      "passed": true
+    },
+    {
+      "drive": "middle",
+      "rate_hz": 3.0,
+      "probe_uS": 2.4,
+      "frequency_hz": 100.0,
+      "analytical_gain_mV_per_hz": 0.23880992124075653,
+      "numerical_gain_mV_per_hz": 0.23888849888310718,
+      "relative_error": 0.0003290384333380483,
+      "passed": true
+    },
+    {
+      "drive": "high",
+      "rate_hz": 25.0,
+      "probe_uS": 2.4,
+      "frequency_hz": 1.0,
+      "analytical_gain_mV_per_hz": 0.5393814909656655,
+      "numerical_gain_mV_per_hz": 0.5394015809899305,
+      "relative_error": 3.724641019678854e-05,
+      "passed": true
+    },
+    {
+      "drive": "high",
+      "rate_hz": 25.0,
+      "probe_uS": 2.4,
+      "frequency_hz": 10.0,
+      "analytical_gain_mV_per_hz": 0.5023657217747075,
+      "numerical_gain_mV_per_hz": 0.5023807624525461,
+      "relative_error": 2.993969768778424e-05,
+      "passed": true
+    },
+    {
+      "drive": "high",
+      "rate_hz": 25.0,
+      "probe_uS": 2.4,
+      "frequency_hz": 100.0,
+      "analytical_gain_mV_per_hz": 0.08778440582495921,
+      "numerical_gain_mV_per_hz": 0.0878133336087338,
+      "relative_error": 0.0003295321475693574,
+      "passed": true
+    }
+  ],
+  "gain_checks_passed": true,
+  "agreement_summaries": [
+    {
+      "probe_uS": 0.6,
+      "drive_regime": "low",
+      "condition_count": 1117,
+      "median_predicted_empirical_ratio": 2.729703719690432,
+      "median_absolute_log2_ratio": 1.4487443704383012,
+      "fraction_in_agreement_band": 0.004476275738585497
+    },
+    {
+      "probe_uS": 0.6,
+      "drive_regime": "transitional",
+      "condition_count": 1609,
+      "median_predicted_empirical_ratio": 2.5566170242997264,
+      "median_absolute_log2_ratio": 1.3542360641679716,
+      "fraction_in_agreement_band": 0.0
+    },
+    {
+      "probe_uS": 0.6,
+      "drive_regime": "high",
+      "condition_count": 334,
+      "median_predicted_empirical_ratio": 1.8598975304775243,
+      "median_absolute_log2_ratio": 0.895223129753457,
+      "fraction_in_agreement_band": 0.7035928143712575
+    },
+    {
+      "probe_uS": 1.2,
+      "drive_regime": "low",
+      "condition_count": 1117,
+      "median_predicted_empirical_ratio": 5.779946395521186,
+      "median_absolute_log2_ratio": 2.5310561129207008,
+      "fraction_in_agreement_band": 0.0
+    },
+    {
+      "probe_uS": 1.2,
+      "drive_regime": "transitional",
+      "condition_count": 1609,
+      "median_predicted_empirical_ratio": 5.014408924514163,
+      "median_absolute_log2_ratio": 2.3260796525964054,
+      "fraction_in_agreement_band": 0.0
+    },
+    {
+      "probe_uS": 1.2,
+      "drive_regime": "high",
+      "condition_count": 334,
+      "median_predicted_empirical_ratio": 2.3066100035437382,
+      "median_absolute_log2_ratio": 1.2057740909440282,
+      "fraction_in_agreement_band": 0.41317365269461076
+    },
+    {
+      "probe_uS": 2.4,
+      "drive_regime": "low",
+      "condition_count": 1116,
+      "median_predicted_empirical_ratio": 16.565699641470154,
+      "median_absolute_log2_ratio": 4.050127230234067,
+      "fraction_in_agreement_band": 0.0
+    },
+    {
+      "probe_uS": 2.4,
+      "drive_regime": "transitional",
+      "condition_count": 1609,
+      "median_predicted_empirical_ratio": 11.81305009392496,
+      "median_absolute_log2_ratio": 3.5623096072305307,
+      "fraction_in_agreement_band": 0.0
+    },
+    {
+      "probe_uS": 2.4,
+      "drive_regime": "high",
+      "condition_count": 334,
+      "median_predicted_empirical_ratio": 2.4226897100906464,
+      "median_absolute_log2_ratio": 1.2766093652206034,
+      "fraction_in_agreement_band": 0.4251497005988024
+    }
+  ],
+  "arrays_path": "artifacts/data/exp080/step3_linear_filter_arrays.npz",
+  "arrays_sha256": "1e6dff93eddd86d8b9525d7040f9fe1145af29330de9624ab63e39bb6f2a3d68",
+  "figure_path": "artifacts/data/exp080/linear_filter.svg",
+  "figure_sha256": "b65df80465cc3b7cd9f6889e97e646d7001ba74b8f9f4b778d170b8d8bafb75d",
+  "runtime_s": 62.557,
+  "paid_compute_usd": 0.0,
+  "empirical_comparison": {
+    "path": "artifacts/data/exp080/step3_empirical_comparison.json",
+    "sha256": "7a5b30c504338bea0e42a7103adce3eeb107f2d137b84dacdd7a9881b5749b97",
+    "figure_path": "artifacts/data/exp080/linear_filter_empirical_comparison.svg",
+    "figure_sha256": "76d5c8b3183de601e9d46f7e0726ec63b2c59da4894ef18a51365939504526d7"
+  }
+}

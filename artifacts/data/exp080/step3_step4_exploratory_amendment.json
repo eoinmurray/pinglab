@@ -1,0 +1,92 @@
+{
+  "experiment": "exp080",
+  "registered_at_utc": "2026-08-05T20:43:58Z",
+  "classification": "explicitly authorized post-hoc exploratory amendment",
+  "scope": "Steps 3 and 4 only",
+  "scientific_history": {
+    "original_step2_gate": "failed required monotonicity validation",
+    "original_gate_relabelled": false,
+    "post_hoc_bootstrap_stability": "K=2048 passed 195/200 repetitions (97.5%); no K=4096 escalation required under the locked 95% rule",
+    "continuation_basis": "Use the preserved authenticated empirical library for diagnostic follow-up despite the unchanged Step 2 failure."
+  },
+  "authenticated_input": {
+    "path": "temp/exp080/response_library.float32.npy",
+    "sha256": "5184788979b5fa7fa9a3f38936399b8e2724d63914019f1306a7171981b36783",
+    "shape": [3, 3, 12, 256, 2048],
+    "dtype": "float32",
+    "ordered_axes": ["seed", "probe_uS", "rate_hz", "intensity", "draw"]
+  },
+  "step3": {
+    "equations": "writings/exp080.typ Equations 11-18",
+    "calibration_points": "all 3 probes x 12 rates x 256 intensity levels; zero-drive points are retained with exactly zero predicted and empirical variance",
+    "spectral_quadrature": {
+      "variable": "positive frequency in Hz; exploit even integrand",
+      "bounds_hz": [0.0001, 1000000.0],
+      "primary_log_grid_points": 32769,
+      "refinement_grid_points": [8193, 16385, 32769],
+      "method": "composite trapezoidal integration on a base-10 logarithmic grid, with the omitted [0, f_min] interval added from the zero-frequency integrand",
+      "convergence_tolerance": "maximum relative change from 16,385 to 32,769 points <= 0.2% for every nonzero calibration point",
+      "bound_sensitivity": "repeat with [1e-5, 1e7] Hz at 32,769 points; maximum relative change <= 0.2%"
+    },
+    "gain_validation": {
+      "operating_points": [
+        {"rate_hz": 0.25, "intensity": 1.0, "label": "low"},
+        {"rate_hz": 3.0, "intensity": 1.0, "label": "middle"},
+        {"rate_hz": 25.0, "intensity": 1.0, "label": "high"}
+      ],
+      "probe_conductances_uS": [0.6, 1.2, 2.4],
+      "frequencies_hz": [1.0, 10.0, 100.0],
+      "modulation_fraction": 0.01,
+      "numerical_method": "deterministic conductance/membrane integration at dt=0.1 ms after a 2 s burn-in, followed by 20 cycles or at least 2 s; least-squares sine/cosine amplitude fit",
+      "pass_tolerance": "analytical-versus-numerical gain relative error <= 3% at every nonzero check"
+    },
+    "empirical_comparison": {
+      "variance_estimator": "unbiased sample variance over all K=2048 authenticated draws, separately for every seed",
+      "drive_regimes_expected_spikes": {"low": [0.0, 0.1], "transitional": [0.1, 1.0], "high": [1.0, 5.0]},
+      "agreement_band_ratio": [0.5, 2.0],
+      "summary": "report median ratio, median absolute log2 ratio, and fraction in band by probe and drive regime",
+      "interpretation": "descriptive diagnostic, not a gate on the empirical library or Step 4; disagreement is reported rather than used to alter the protocol"
+    },
+    "randomness": "none for the analytical calculation or deterministic sinusoidal gain checks"
+  },
+  "step4": {
+    "mnist": {
+      "source": "torchvision.datasets.MNIST official training partition, torchvision 0.26.0+cu128, root /tmp/mnist",
+      "version": "original MNIST train-images-idx3-ubyte and train-labels-idx1-ubyte as distributed by torchvision",
+      "decoder_train_indices": [0, 54999],
+      "validation_indices": [55000, 59999],
+      "index_notation": "inclusive contiguous ranges in the official 60,000-image training partition",
+      "held_out_test": "official 10,000-image MNIST test partition remains sealed and must not be loaded",
+      "comparison_train_indices": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15],
+      "diagnostic_image_indices": {"low": 0, "transitional": 1, "high": 2}
+    },
+    "rates_hz": {"low": 0.25, "transitional": 3.0, "high": 25.0},
+    "probe_conductances_uS": [0.6, 1.2, 2.4],
+    "sampling": "one authenticated empirical draw per pixel, with intensity indexed by the exact uint8 MNIST grayscale value",
+    "comparison": {
+      "replicates_per_image_condition": 8,
+      "conditions": "16 predeclared training images x 3 rates x 3 probes, separately for library and fresh direct Step 1 simulation",
+      "pooling": "metrics pool pixels and the 8 matched-index replicates within each probe-rate condition; image-level metrics retain each image-replicate",
+      "metrics": ["pixel pooled mean and unbiased variance", "image mean and unbiased spatial variance", "zero fraction", "mean absolute difference", "relative mean and variance difference", "Pearson spatial correlation of per-pixel means", "deterministic replay", "stream independence", "finite values and physical bounds"],
+      "pass_thresholds": {
+        "pooled_mean_relative_difference": 0.1,
+        "pooled_variance_relative_difference": 0.2,
+        "zero_fraction_absolute_difference": 0.03,
+        "image_mean_relative_difference_median": 0.2,
+        "image_variance_relative_difference_median": 0.35,
+        "spatial_mean_correlation_minimum": {"low": 0.2, "transitional": 0.75, "high": 0.9},
+        "bounds_mV": [0.0, 65.0]
+      }
+    },
+    "random_streams": {
+      "library": "numpy.random.SeedSequence([registered_seed, 77, 4, 1, probe_index, rate_index, image_index, replicate_index]); one integer draw index per pixel",
+      "direct": "numpy.random.SeedSequence([registered_seed, 77, 4, 2, probe_index, rate_index, image_index, replicate_index]); independent Bernoulli streams over ordered flattened pixels",
+      "registered_seed": 42,
+      "ordering": "probe, rate, official training-image index, replicate, flattened row-major pixel"
+    },
+    "figure": "Display the nominal 1.2 uS probe for diagnostic images 0, 1, and 2 at low, transitional, and high rates; columns are original grayscale, library sample, fresh direct sample, and signed difference. Comparable feature panels share 0-65 mV limits; differences use symmetric limits. All-probe quantitative validation remains in the artifact.",
+    "interpretation": "feature-construction validation only; no classification, decodability, rate-threshold, or PING claim"
+  },
+  "hard_stop": "Stop after Step 4. Steps 5-7 remain pending.",
+  "paid_compute_authorized": false
+}

@@ -1,0 +1,29 @@
+{
+  "candidate_K": [
+    1024,
+    2048
+  ],
+  "hard_maximum_K": 2048,
+  "evaluation_condition_count": 270,
+  "trajectory": [
+    {
+      "K": 1024,
+      "mean_p95_normalised_error": 0.8140249848365784,
+      "mean_maximum_normalised_error": 1.6853300333023071,
+      "variance_p95_normalised_error": 1.2542372941970825,
+      "variance_maximum_normalised_error": 1.8849736452102661,
+      "passed": false
+    },
+    {
+      "K": 2048,
+      "mean_p95_normalised_error": 0.6970368027687073,
+      "mean_maximum_normalised_error": 1.0969372987747192,
+      "variance_p95_normalised_error": 0.7885578274726868,
+      "variance_maximum_normalised_error": 1.679288625717163,
+      "passed": true
+    }
+  ],
+  "selected_K": 2048,
+  "passed": true,
+  "zero_intensity_exact": true
+}
