@@ -151,25 +151,27 @@
   Method 2 yields a stable monotonic interval from
   #r.registration.calibrated_rate_interval_hz.at(0) to
   #r.registration.calibrated_rate_interval_hz.at(1) Hz per input channel. This
-  interval supplies the rate pairs used to evaluate Equation 1 throughout
-  the primary map.
+  interval supplies the rate pairs used to evaluate Equation 1 throughout the
+  primary map; their measured natural detunings closely track their targets.
 
   #figure(
     image(
       "/artifacts/data/exp078/calibration.png",
       width: 100%,
-      alt: "Combined uncoupled gamma frequencies from circuits A and B versus their equal Poisson input rate, with the frozen monotonic interval shaded.",
+      alt: "Two-panel calibration showing combined uncoupled gamma frequency versus equal A/B input rate and measured natural detuning versus its target.",
     ),
-    caption: [Uncoupled input-rate calibration. Circuits A and B receive the
-    same input rate, shown in hertz per channel on the horizontal axis. At each
-    rate, the vertical coordinate is the median of 10 gamma-peak estimates:
-    both circuits from each of five trials. Bars show half the interquartile
-    range of the combined A and B estimates, spanning the middle half of the data.
-    The shaded #r.registration.calibrated_rate_interval_hz.at(0)--#r.registration.calibrated_rate_interval_hz.at(1)
-    Hz interval supplies Equation 1. The lowest-rate point exceeds the
+    caption: [Calibration of frequency and natural detuning. (A) Circuits A and
+    B receive the same input rate. Each point is the median of 10 gamma-peak
+    estimates: both circuits from each of five trials. Bars show half the
+    interquartile range of the combined estimates. The shaded
+    #r.registration.calibrated_rate_interval_hz.at(0)--#r.registration.calibrated_rate_interval_hz.at(1)
+    Hz interval supplies the rate pairs used in Equation 1. The lowest-rate point exceeds the
     registered within-rate IQR ceiling. At the highest rate, the estimator hops
     between two separated spectral modes across seeds, producing the large bar.
-    Both boundary conditions are excluded.],
+    Both boundary conditions are excluded. (B) Equation 1 defines the measured
+    uncoupled natural detuning. Each point compares its median across five paired
+    seeds with the target; bars span the interquartile range, and the dashed
+    identity line marks exact realization.],
   ) <fig-calibration>
 
   The frozen thresholds used in Equation 4 are
