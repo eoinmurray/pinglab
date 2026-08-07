@@ -1,6 +1,6 @@
 {
   "status": "complete",
-  "source": "temp/exp077/response_library.float32.npy",
+  "source": "temp/exp080/response_library.float32.npy",
   "uses_recorded_samples_only": true,
   "probe_uS": 1.2,
   "intensity": 255,
@@ -33,7 +33,7 @@
       "skewness": -0.17422179534383883
     }
   ],
-  "figure_path": "artifacts/data/exp077/response_distributions.svg",
+  "figure_path": "artifacts/data/exp080/response_distributions.svg",
   "figure_sha256": "a14d62f5b3728c8ed3bcf04ae6c89a01a50047da9926fb3ae4dd4aeb4fb1f17d",
   "paid_compute_usd": 0.0
 }

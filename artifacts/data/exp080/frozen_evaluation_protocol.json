@@ -9,13 +9,13 @@
     "numpy": "2.2.6",
     "platform": "linux"
   },
-  "step5_outcome_path": "artifacts/data/exp077/step5_outcome.json",
+  "step5_outcome_path": "artifacts/data/exp080/step5_outcome.json",
   "step5_outcome_sha256": "71f3d64cd4c807d79349c59cc8cdd6070955026815358c0302f89adc547b5c28",
   "models": [
     {
       "probe_uS": 0.6,
       "seed": 42,
-      "path": "artifacts/data/exp077/step5/full/probe-0.6/seed-42/decoders.pt",
+      "path": "artifacts/data/exp080/step5/full/probe-0.6/seed-42/decoders.pt",
       "sha256": "7530bdd07d6414965145bd993546594ebe39f493d47f94df7576c9423ff58931",
       "selected_nonlinear_epoch": 14,
       "selected_linear_epoch": 7,
@@ -24,7 +24,7 @@
     {
       "probe_uS": 0.6,
       "seed": 43,
-      "path": "artifacts/data/exp077/step5/full/probe-0.6/seed-43/decoders.pt",
+      "path": "artifacts/data/exp080/step5/full/probe-0.6/seed-43/decoders.pt",
       "sha256": "0cb092bb4681fac9b77abc388dd6b6e6ed79711342d397feab3ab59add89f923",
       "selected_nonlinear_epoch": 13,
       "selected_linear_epoch": 5,
@@ -33,7 +33,7 @@
     {
       "probe_uS": 0.6,
       "seed": 44,
-      "path": "artifacts/data/exp077/step5/full/probe-0.6/seed-44/decoders.pt",
+      "path": "artifacts/data/exp080/step5/full/probe-0.6/seed-44/decoders.pt",
       "sha256": "5b5a80238eae60edd94b281f859dcdf463884c8370123e7d0db4848d075b4d96",
       "selected_nonlinear_epoch": 13,
       "selected_linear_epoch": 2,
@@ -42,7 +42,7 @@
     {
       "probe_uS": 1.2,
       "seed": 42,
-      "path": "artifacts/data/exp077/step5/full/probe-1.2/seed-42/decoders.pt",
+      "path": "artifacts/data/exp080/step5/full/probe-1.2/seed-42/decoders.pt",
       "sha256": "4cbb7be46c4a013a78ca521ecba721cba61f01cd98d2ebc5c195d41dc5015dab",
       "selected_nonlinear_epoch": 15,
       "selected_linear_epoch": 2,
@@ -51,7 +51,7 @@
     {
       "probe_uS": 1.2,
       "seed": 43,
-      "path": "artifacts/data/exp077/step5/full/probe-1.2/seed-43/decoders.pt",
+      "path": "artifacts/data/exp080/step5/full/probe-1.2/seed-43/decoders.pt",
       "sha256": "b33ff368e96741fc703f380620c419a8473346aef84f24737ec703f3ffd80db2",
       "selected_nonlinear_epoch": 13,
       "selected_linear_epoch": 5,
@@ -60,7 +60,7 @@
     {
       "probe_uS": 1.2,
       "seed": 44,
-      "path": "artifacts/data/exp077/step5/full/probe-1.2/seed-44/decoders.pt",
+      "path": "artifacts/data/exp080/step5/full/probe-1.2/seed-44/decoders.pt",
       "sha256": "6d534a8d101c9b7f11572dd33bda97194a73ecbd3d4427e306f9574848d730b0",
       "selected_nonlinear_epoch": 8,
       "selected_linear_epoch": 2,
@@ -69,7 +69,7 @@
     {
       "probe_uS": 2.4,
       "seed": 42,
-      "path": "artifacts/data/exp077/step5/full/probe-2.4/seed-42/decoders.pt",
+      "path": "artifacts/data/exp080/step5/full/probe-2.4/seed-42/decoders.pt",
       "sha256": "ee1f9d905944620fd6e6f4e1ebe230ca7c58017b2ec0d5ca733b0570b24d90fd",
       "selected_nonlinear_epoch": 14,
       "selected_linear_epoch": 2,
@@ -78,7 +78,7 @@
     {
       "probe_uS": 2.4,
       "seed": 43,
-      "path": "artifacts/data/exp077/step5/full/probe-2.4/seed-43/decoders.pt",
+      "path": "artifacts/data/exp080/step5/full/probe-2.4/seed-43/decoders.pt",
       "sha256": "7716b0bbc69b11500eb3d0d655a628bdfb0217b033c5e8b6eadbef3a8c45438d",
       "selected_nonlinear_epoch": 5,
       "selected_linear_epoch": 5,
@@ -87,7 +87,7 @@
     {
       "probe_uS": 2.4,
       "seed": 44,
-      "path": "artifacts/data/exp077/step5/full/probe-2.4/seed-44/decoders.pt",
+      "path": "artifacts/data/exp080/step5/full/probe-2.4/seed-44/decoders.pt",
       "sha256": "d1a48f888a6a384270a4e928b67ca4f6a18bfb4add944ce326cf391d30047dee",
       "selected_nonlinear_epoch": 13,
       "selected_linear_epoch": 2,

@@ -18,7 +18,7 @@
   },
   "device": "cuda",
   "runtime_s": 1164.071857972,
-  "arrays_path": "artifacts/data/exp077/step6/held_out_correctness.npz",
+  "arrays_path": "artifacts/data/exp080/step6/held_out_correctness.npz",
   "arrays_sha256": "dccaae53fbf5466156b81d82670e10297bf42e5463386a1a3fa448b6118a62e7",
   "validation_checks": {
     "nonlinear_shape": true,
@@ -32,7 +32,7 @@
   "preserved_failure": {
     "stage": "post-compute metadata formatting",
     "scientific_tensor_completed": true,
-    "remote_error": "Traceback (most recent call last):\n  File \"/root/helpers/modal_exp077_eval_app.py\", line 49, in evaluate\n    exp077.evaluate_frozen_decoders(\n  File \"/workspace/pinglab/experiments/exp077.py\", line 3437, in evaluate_frozen_decoders\n    \"arrays_path\": str(arrays_path.relative_to(REPO)),\n  File \"/usr/local/lib/python3.10/pathlib.py\", line 818, in relative_to\n    raise ValueError(\"{!r} is not in the subpath of {!r}\"\nValueError: '/tmp/exp077-step6/held_out_correctness.npz' is not in the subpath of '/workspace/pinglab' OR one path is relative and the other is absolute.\n",
+    "remote_error": "Traceback (most recent call last):\n  File \"/root/helpers/modal_exp080_eval_app.py\", line 49, in evaluate\n    exp080.evaluate_frozen_decoders(\n  File \"/workspace/pinglab/experiments/exp080.py\", line 3437, in evaluate_frozen_decoders\n    \"arrays_path\": str(arrays_path.relative_to(REPO)),\n  File \"/usr/local/lib/python3.10/pathlib.py\", line 818, in relative_to\n    raise ValueError(\"{!r} is not in the subpath of {!r}\"\nValueError: '/tmp/exp080-step6/held_out_correctness.npz' is not in the subpath of '/workspace/pinglab' OR one path is relative and the other is absolute.\n",
     "modal_artifact_payload_sha256": "31a3fc0f2e09c5df336186432eff0e56e912c611e88f94e48f7464006fdde224"
   }
 }

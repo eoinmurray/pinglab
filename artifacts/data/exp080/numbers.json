@@ -15,7 +15,7 @@
     "probe_uS": 1.2
   },
   "protocol": {
-    "experiment": "exp077",
+    "experiment": "exp080",
     "implemented_step": 1,
     "presentation_ms": 200.0,
     "dt_ms": 0.1,
@@ -36,7 +36,7 @@
     ],
     "probe_uS": 1.2,
     "seed": 42,
-    "equations": "writings/exp077.typ, Equations 2-7",
+    "equations": "writings/exp080.typ, Equations 2-7",
     "update_order": "AMPA decay, spike kick, exponential-Euler membrane update",
     "feature": "mean_t(v(t) - E_L)",
     "later_steps": "not run"
@@ -20346,7 +20346,7 @@
   },
   "all_validations_passed": true,
   "paid_compute_usd": 9.430388729999997,
-  "reproducer": "EXP077_THROUGH_STEP=1 uv run python experiments/exp077.py",
+  "reproducer": "EXP077_THROUGH_STEP=1 uv run python experiments/exp080.py",
   "step2": {
     "status": "validation_failed",
     "original_pilot": {
@@ -21713,9 +21713,9 @@
         "fraction_in_agreement_band": 0.4251497005988024
       }
     ],
-    "arrays_path": "artifacts/data/exp077/step3_linear_filter_arrays.npz",
+    "arrays_path": "artifacts/data/exp080/step3_linear_filter_arrays.npz",
     "arrays_sha256": "1e6dff93eddd86d8b9525d7040f9fe1145af29330de9624ab63e39bb6f2a3d68",
-    "figure_path": "artifacts/data/exp077/linear_filter.svg",
+    "figure_path": "artifacts/data/exp080/linear_filter.svg",
     "figure_sha256": "b65df80465cc3b7cd9f6889e97e646d7001ba74b8f9f4b778d170b8d8bafb75d",
     "runtime_s": 62.557,
     "paid_compute_usd": 0.0
@@ -22137,9 +22137,9 @@
       "higher_rate_spatial_structure": true,
       "held_out_test_partition_sealed": true
     },
-    "arrays_path": "artifacts/data/exp077/step4_feature_comparison_arrays.npz",
+    "arrays_path": "artifacts/data/exp080/step4_feature_comparison_arrays.npz",
     "arrays_sha256": "31c9ddaec4e34564e89384251ecc2bda3c0d00145ac0cc41838c4c1db5ee49c7",
-    "figure_path": "artifacts/data/exp077/feature_images.png",
+    "figure_path": "artifacts/data/exp080/feature_images.png",
     "figure_sha256": "9251e8eaaf95f04e2a22494e07f49444cb4eec53afa0cdeb7b4d53cb878467bc",
     "runtime_s": 20.703,
     "paid_compute_usd": 0.0,
@@ -22153,9 +22153,9 @@
       {
         "probe_uS": 0.6,
         "seed": 42,
-        "training_path": "artifacts/data/exp077/step5/full/probe-0.6/seed-42/training.json",
+        "training_path": "artifacts/data/exp080/step5/full/probe-0.6/seed-42/training.json",
         "training_sha256": "0e9917693e33f8020e2268492683aded6686c8e4cd220954dfbf4f2fd28e0d56",
-        "checkpoint_path": "artifacts/data/exp077/step5/full/probe-0.6/seed-42/decoders.pt",
+        "checkpoint_path": "artifacts/data/exp080/step5/full/probe-0.6/seed-42/decoders.pt",
         "checkpoint_sha256": "7530bdd07d6414965145bd993546594ebe39f493d47f94df7576c9423ff58931",
         "selected_nonlinear_epoch": 14,
         "selected_nonlinear_validation_accuracy": 0.741,
@@ -22668,9 +22668,9 @@
       {
         "probe_uS": 0.6,
         "seed": 43,
-        "training_path": "artifacts/data/exp077/step5/full/probe-0.6/seed-43/training.json",
+        "training_path": "artifacts/data/exp080/step5/full/probe-0.6/seed-43/training.json",
         "training_sha256": "ce7c8e98c3ea3494f6b2f5dd4473a9da66f4c12c90f32027a94a12dba1e33b4b",
-        "checkpoint_path": "artifacts/data/exp077/step5/full/probe-0.6/seed-43/decoders.pt",
+        "checkpoint_path": "artifacts/data/exp080/step5/full/probe-0.6/seed-43/decoders.pt",
         "checkpoint_sha256": "0cb092bb4681fac9b77abc388dd6b6e6ed79711342d397feab3ab59add89f923",
         "selected_nonlinear_epoch": 13,
         "selected_nonlinear_validation_accuracy": 0.7322,
@@ -23183,9 +23183,9 @@
       {
         "probe_uS": 0.6,
         "seed": 44,
-        "training_path": "artifacts/data/exp077/step5/full/probe-0.6/seed-44/training.json",
+        "training_path": "artifacts/data/exp080/step5/full/probe-0.6/seed-44/training.json",
         "training_sha256": "2b0111b9b6cd5258a827cf6e61704790c8ff0e5f7f2ff06f4cb81049bdb75fe4",
-        "checkpoint_path": "artifacts/data/exp077/step5/full/probe-0.6/seed-44/decoders.pt",
+        "checkpoint_path": "artifacts/data/exp080/step5/full/probe-0.6/seed-44/decoders.pt",
         "checkpoint_sha256": "5b5a80238eae60edd94b281f859dcdf463884c8370123e7d0db4848d075b4d96",
         "selected_nonlinear_epoch": 13,
         "selected_nonlinear_validation_accuracy": 0.7418,
@@ -23698,9 +23698,9 @@
       {
         "probe_uS": 1.2,
         "seed": 42,
-        "training_path": "artifacts/data/exp077/step5/full/probe-1.2/seed-42/training.json",
+        "training_path": "artifacts/data/exp080/step5/full/probe-1.2/seed-42/training.json",
         "training_sha256": "94a6bee3146221c5e355900a01c1387f9bd06bc4375288938c2150c3fd9fe362",
-        "checkpoint_path": "artifacts/data/exp077/step5/full/probe-1.2/seed-42/decoders.pt",
+        "checkpoint_path": "artifacts/data/exp080/step5/full/probe-1.2/seed-42/decoders.pt",
         "checkpoint_sha256": "4cbb7be46c4a013a78ca521ecba721cba61f01cd98d2ebc5c195d41dc5015dab",
         "selected_nonlinear_epoch": 15,
         "selected_nonlinear_validation_accuracy": 0.739,
@@ -24213,9 +24213,9 @@
       {
         "probe_uS": 1.2,
         "seed": 43,
-        "training_path": "artifacts/data/exp077/step5/full/probe-1.2/seed-43/training.json",
+        "training_path": "artifacts/data/exp080/step5/full/probe-1.2/seed-43/training.json",
         "training_sha256": "cd6912b7a4364b29dd113e6627903abfb2dfacc807f41b4b103c5f916bfab349",
-        "checkpoint_path": "artifacts/data/exp077/step5/full/probe-1.2/seed-43/decoders.pt",
+        "checkpoint_path": "artifacts/data/exp080/step5/full/probe-1.2/seed-43/decoders.pt",
         "checkpoint_sha256": "b33ff368e96741fc703f380620c419a8473346aef84f24737ec703f3ffd80db2",
         "selected_nonlinear_epoch": 13,
         "selected_nonlinear_validation_accuracy": 0.7362,
@@ -24728,9 +24728,9 @@
       {
         "probe_uS": 1.2,
         "seed": 44,
-        "training_path": "artifacts/data/exp077/step5/full/probe-1.2/seed-44/training.json",
+        "training_path": "artifacts/data/exp080/step5/full/probe-1.2/seed-44/training.json",
         "training_sha256": "f79fea80a50eae74f103ff7a88b96ed2577c2ac2bb8f0f522564096d0d84a6bb",
-        "checkpoint_path": "artifacts/data/exp077/step5/full/probe-1.2/seed-44/decoders.pt",
+        "checkpoint_path": "artifacts/data/exp080/step5/full/probe-1.2/seed-44/decoders.pt",
         "checkpoint_sha256": "6d534a8d101c9b7f11572dd33bda97194a73ecbd3d4427e306f9574848d730b0",
         "selected_nonlinear_epoch": 8,
         "selected_nonlinear_validation_accuracy": 0.7404,
@@ -25243,9 +25243,9 @@
       {
         "probe_uS": 2.4,
         "seed": 42,
-        "training_path": "artifacts/data/exp077/step5/full/probe-2.4/seed-42/training.json",
+        "training_path": "artifacts/data/exp080/step5/full/probe-2.4/seed-42/training.json",
         "training_sha256": "20202bf5202d7c0e2094f34095094d866f9abb978bd42cae0d38c749f0e76050",
-        "checkpoint_path": "artifacts/data/exp077/step5/full/probe-2.4/seed-42/decoders.pt",
+        "checkpoint_path": "artifacts/data/exp080/step5/full/probe-2.4/seed-42/decoders.pt",
         "checkpoint_sha256": "ee1f9d905944620fd6e6f4e1ebe230ca7c58017b2ec0d5ca733b0570b24d90fd",
         "selected_nonlinear_epoch": 14,
         "selected_nonlinear_validation_accuracy": 0.7374,
@@ -25758,9 +25758,9 @@
       {
         "probe_uS": 2.4,
         "seed": 43,
-        "training_path": "artifacts/data/exp077/step5/full/probe-2.4/seed-43/training.json",
+        "training_path": "artifacts/data/exp080/step5/full/probe-2.4/seed-43/training.json",
         "training_sha256": "6ec6005158889f96b318680be6baa17f776448426bff78297dc019fc342acf3f",
-        "checkpoint_path": "artifacts/data/exp077/step5/full/probe-2.4/seed-43/decoders.pt",
+        "checkpoint_path": "artifacts/data/exp080/step5/full/probe-2.4/seed-43/decoders.pt",
         "checkpoint_sha256": "7716b0bbc69b11500eb3d0d655a628bdfb0217b033c5e8b6eadbef3a8c45438d",
         "selected_nonlinear_epoch": 5,
         "selected_nonlinear_validation_accuracy": 0.731,
@@ -26273,9 +26273,9 @@
       {
         "probe_uS": 2.4,
         "seed": 44,
-        "training_path": "artifacts/data/exp077/step5/full/probe-2.4/seed-44/training.json",
+        "training_path": "artifacts/data/exp080/step5/full/probe-2.4/seed-44/training.json",
         "training_sha256": "fd79e734705656aa65a0ec192f4e97031f2dec8cde693182ed1ecdfefe213325",
-        "checkpoint_path": "artifacts/data/exp077/step5/full/probe-2.4/seed-44/decoders.pt",
+        "checkpoint_path": "artifacts/data/exp080/step5/full/probe-2.4/seed-44/decoders.pt",
         "checkpoint_sha256": "d1a48f888a6a384270a4e928b67ca4f6a18bfb4add944ce326cf391d30047dee",
         "selected_nonlinear_epoch": 13,
         "selected_nonlinear_validation_accuracy": 0.742,
@@ -26796,7 +26796,7 @@
       ],
       "firing_rate": "not applicable: the registered pixel probe is explicitly subthreshold and non-spiking"
     },
-    "figure_path": "artifacts/data/exp077/step5_training_history.svg",
+    "figure_path": "artifacts/data/exp080/step5_training_history.svg",
     "figure_sha256": "05cde87860532d82011862320c7ebb744305141eb148423b7546327e84dc3df6",
     "successful_step5_estimated_cost_usd": 4.001066527575806,
     "killed_attempt_estimated_cost_usd": 0.007387955832981999,
@@ -27257,7 +27257,7 @@
         "r_train_hz": 0.5
       }
     },
-    "figure_path": "artifacts/data/exp077/psychometric.svg",
+    "figure_path": "artifacts/data/exp080/psychometric.svg",
     "figure_sha256": "d79ca692f941a1006ed53cc9e3feb607c6f09f23c20e1a000b5b09980c053de4",
     "arrays_sha256": "dccaae53fbf5466156b81d82670e10297bf42e5463386a1a3fa448b6118a62e7"
   },
@@ -27357,12 +27357,12 @@
       "total_exact_cost_usd": 9.430388729999997,
       "total_estimated_cost_usd": 4.6458358926014185,
       "exact_provider_billing": true,
-      "billing_report_path": "artifacts/data/exp077/modal_billing.json",
+      "billing_report_path": "artifacts/data/exp080/modal_billing.json",
       "billing_report_sha256": "4e6e7c457e623671fe31cc1162c7e60ee98e058904fe592afc70a573ca1ae6c5",
       "resource_rows": [
         {
           "object_id": "ap-2b2Jd23L3MAiUONbeuU4wp",
-          "description": "pinglab-exp077",
+          "description": "pinglab-exp080",
           "environment": "main",
           "interval_start": "2026-08-06T15:00:00",
           "resource": "L40S",
@@ -27370,7 +27370,7 @@
         },
         {
           "object_id": "ap-2b2Jd23L3MAiUONbeuU4wp",
-          "description": "pinglab-exp077",
+          "description": "pinglab-exp080",
           "environment": "main",
           "interval_start": "2026-08-06T15:00:00",
           "resource": "CPU",
@@ -27378,7 +27378,7 @@
         },
         {
           "object_id": "ap-2b2Jd23L3MAiUONbeuU4wp",
-          "description": "pinglab-exp077",
+          "description": "pinglab-exp080",
           "environment": "main",
           "interval_start": "2026-08-06T15:00:00",
           "resource": "Memory",
@@ -27386,7 +27386,7 @@
         },
         {
           "object_id": "ap-E6kbME7lvQvOh2ih5ny9Ru",
-          "description": "pinglab-exp077",
+          "description": "pinglab-exp080",
           "environment": "main",
           "interval_start": "2026-08-06T11:00:00",
           "resource": "L40S",
@@ -27394,7 +27394,7 @@
         },
         {
           "object_id": "ap-E6kbME7lvQvOh2ih5ny9Ru",
-          "description": "pinglab-exp077",
+          "description": "pinglab-exp080",
           "environment": "main",
           "interval_start": "2026-08-06T11:00:00",
           "resource": "CPU",
@@ -27402,7 +27402,7 @@
         },
         {
           "object_id": "ap-E6kbME7lvQvOh2ih5ny9Ru",
-          "description": "pinglab-exp077",
+          "description": "pinglab-exp080",
           "environment": "main",
           "interval_start": "2026-08-06T11:00:00",
           "resource": "Memory",
@@ -27410,7 +27410,7 @@
         },
         {
           "object_id": "ap-GPbPczAzNn7wNVDjHQvy41",
-          "description": "pinglab-exp077",
+          "description": "pinglab-exp080",
           "environment": "main",
           "interval_start": "2026-08-06T11:00:00",
           "resource": "L40S",
@@ -27418,7 +27418,7 @@
         },
         {
           "object_id": "ap-GPbPczAzNn7wNVDjHQvy41",
-          "description": "pinglab-exp077",
+          "description": "pinglab-exp080",
           "environment": "main",
           "interval_start": "2026-08-06T11:00:00",
           "resource": "CPU",
@@ -27426,7 +27426,7 @@
         },
         {
           "object_id": "ap-GPbPczAzNn7wNVDjHQvy41",
-          "description": "pinglab-exp077",
+          "description": "pinglab-exp080",
           "environment": "main",
           "interval_start": "2026-08-06T11:00:00",
           "resource": "Memory",
@@ -27434,7 +27434,7 @@
         },
         {
           "object_id": "ap-JKfkSrcPYPzTBc9NX39saE",
-          "description": "pinglab-exp077-evaluation",
+          "description": "pinglab-exp080-evaluation",
           "environment": "main",
           "interval_start": "2026-08-06T11:00:00",
           "resource": "L40S",
@@ -27442,7 +27442,7 @@
         },
         {
           "object_id": "ap-JKfkSrcPYPzTBc9NX39saE",
-          "description": "pinglab-exp077-evaluation",
+          "description": "pinglab-exp080-evaluation",
           "environment": "main",
           "interval_start": "2026-08-06T11:00:00",
           "resource": "CPU",
@@ -27450,7 +27450,7 @@
         },
         {
           "object_id": "ap-JKfkSrcPYPzTBc9NX39saE",
-          "description": "pinglab-exp077-evaluation",
+          "description": "pinglab-exp080-evaluation",
           "environment": "main",
           "interval_start": "2026-08-06T11:00:00",
           "resource": "Memory",
@@ -27458,7 +27458,7 @@
         },
         {
           "object_id": "ap-JKfkSrcPYPzTBc9NX39saE",
-          "description": "pinglab-exp077-evaluation",
+          "description": "pinglab-exp080-evaluation",
           "environment": "main",
           "interval_start": "2026-08-06T12:00:00",
           "resource": "L40S",
@@ -27466,7 +27466,7 @@
         },
         {
           "object_id": "ap-JKfkSrcPYPzTBc9NX39saE",
-          "description": "pinglab-exp077-evaluation",
+          "description": "pinglab-exp080-evaluation",
           "environment": "main",
           "interval_start": "2026-08-06T12:00:00",
           "resource": "CPU",
@@ -27474,7 +27474,7 @@
         },
         {
           "object_id": "ap-JKfkSrcPYPzTBc9NX39saE",
-          "description": "pinglab-exp077-evaluation",
+          "description": "pinglab-exp080-evaluation",
           "environment": "main",
           "interval_start": "2026-08-06T12:00:00",
           "resource": "Memory",
@@ -27482,7 +27482,7 @@
         },
         {
           "object_id": "ap-JL1V1SVW0ng3g9UDVJhJ3h",
-          "description": "pinglab-exp077",
+          "description": "pinglab-exp080",
           "environment": "main",
           "interval_start": "2026-08-06T11:00:00",
           "resource": "L40S",
@@ -27490,7 +27490,7 @@
         },
         {
           "object_id": "ap-JL1V1SVW0ng3g9UDVJhJ3h",
-          "description": "pinglab-exp077",
+          "description": "pinglab-exp080",
           "environment": "main",
           "interval_start": "2026-08-06T11:00:00",
           "resource": "CPU",
@@ -27498,7 +27498,7 @@
         },
         {
           "object_id": "ap-JL1V1SVW0ng3g9UDVJhJ3h",
-          "description": "pinglab-exp077",
+          "description": "pinglab-exp080",
           "environment": "main",
           "interval_start": "2026-08-06T11:00:00",
           "resource": "Memory",
@@ -27506,7 +27506,7 @@
         },
         {
           "object_id": "ap-PmeZzvG38OWwsVvnUgHUDd",
-          "description": "pinglab-exp077",
+          "description": "pinglab-exp080",
           "environment": "main",
           "interval_start": "2026-08-06T11:00:00",
           "resource": "L40S",
@@ -27514,7 +27514,7 @@
         },
         {
           "object_id": "ap-PmeZzvG38OWwsVvnUgHUDd",
-          "description": "pinglab-exp077",
+          "description": "pinglab-exp080",
           "environment": "main",
           "interval_start": "2026-08-06T11:00:00",
           "resource": "CPU",
@@ -27522,7 +27522,7 @@
         },
         {
           "object_id": "ap-PmeZzvG38OWwsVvnUgHUDd",
-          "description": "pinglab-exp077",
+          "description": "pinglab-exp080",
           "environment": "main",
           "interval_start": "2026-08-06T11:00:00",
           "resource": "Memory",
@@ -27530,7 +27530,7 @@
         },
         {
           "object_id": "ap-XHNGlXQlGt7EQwMSr9rG8K",
-          "description": "pinglab-exp077",
+          "description": "pinglab-exp080",
           "environment": "main",
           "interval_start": "2026-08-06T11:00:00",
           "resource": "L40S",
@@ -27538,7 +27538,7 @@
         },
         {
           "object_id": "ap-XHNGlXQlGt7EQwMSr9rG8K",
-          "description": "pinglab-exp077",
+          "description": "pinglab-exp080",
           "environment": "main",
           "interval_start": "2026-08-06T11:00:00",
           "resource": "CPU",
@@ -27546,7 +27546,7 @@
         },
         {
           "object_id": "ap-XHNGlXQlGt7EQwMSr9rG8K",
-          "description": "pinglab-exp077",
+          "description": "pinglab-exp080",
           "environment": "main",
           "interval_start": "2026-08-06T11:00:00",
           "resource": "Memory",
@@ -27554,7 +27554,7 @@
         },
         {
           "object_id": "ap-ZAZ8YRV7ZTnKzP82EOj2R6",
-          "description": "pinglab-exp077",
+          "description": "pinglab-exp080",
           "environment": "main",
           "interval_start": "2026-08-06T11:00:00",
           "resource": "L40S",
@@ -27562,7 +27562,7 @@
         },
         {
           "object_id": "ap-ZAZ8YRV7ZTnKzP82EOj2R6",
-          "description": "pinglab-exp077",
+          "description": "pinglab-exp080",
           "environment": "main",
           "interval_start": "2026-08-06T11:00:00",
           "resource": "CPU",
@@ -27570,7 +27570,7 @@
         },
         {
           "object_id": "ap-ZAZ8YRV7ZTnKzP82EOj2R6",
-          "description": "pinglab-exp077",
+          "description": "pinglab-exp080",
           "environment": "main",
           "interval_start": "2026-08-06T11:00:00",
           "resource": "Memory",
@@ -27578,7 +27578,7 @@
         },
         {
           "object_id": "ap-ZgkCVDoC67js46EyL0VmCg",
-          "description": "pinglab-exp077",
+          "description": "pinglab-exp080",
           "environment": "main",
           "interval_start": "2026-08-06T11:00:00",
           "resource": "L40S",
@@ -27586,7 +27586,7 @@
         },
         {
           "object_id": "ap-ZgkCVDoC67js46EyL0VmCg",
-          "description": "pinglab-exp077",
+          "description": "pinglab-exp080",
           "environment": "main",
           "interval_start": "2026-08-06T11:00:00",
           "resource": "CPU",
@@ -27594,7 +27594,7 @@
         },
         {
           "object_id": "ap-ZgkCVDoC67js46EyL0VmCg",
-          "description": "pinglab-exp077",
+          "description": "pinglab-exp080",
           "environment": "main",
           "interval_start": "2026-08-06T11:00:00",
           "resource": "Memory",
@@ -27602,7 +27602,7 @@
         },
         {
           "object_id": "ap-gzG35599aNXCn9WfIzUEtb",
-          "description": "pinglab-exp077",
+          "description": "pinglab-exp080",
           "environment": "main",
           "interval_start": "2026-08-06T11:00:00",
           "resource": "L40S",
@@ -27610,7 +27610,7 @@
         },
         {
           "object_id": "ap-gzG35599aNXCn9WfIzUEtb",
-          "description": "pinglab-exp077",
+          "description": "pinglab-exp080",
           "environment": "main",
           "interval_start": "2026-08-06T11:00:00",
           "resource": "CPU",
@@ -27618,7 +27618,7 @@
         },
         {
           "object_id": "ap-gzG35599aNXCn9WfIzUEtb",
-          "description": "pinglab-exp077",
+          "description": "pinglab-exp080",
           "environment": "main",
           "interval_start": "2026-08-06T11:00:00",
           "resource": "Memory",
@@ -27626,7 +27626,7 @@
         },
         {
           "object_id": "ap-jKhq01wOaWX73C5yMIR5WC",
-          "description": "pinglab-exp077",
+          "description": "pinglab-exp080",
           "environment": "main",
           "interval_start": "2026-08-06T11:00:00",
           "resource": "L40S",
@@ -27634,7 +27634,7 @@
         },
         {
           "object_id": "ap-jKhq01wOaWX73C5yMIR5WC",
-          "description": "pinglab-exp077",
+          "description": "pinglab-exp080",
           "environment": "main",
           "interval_start": "2026-08-06T11:00:00",
           "resource": "CPU",
@@ -27642,7 +27642,7 @@
         },
         {
           "object_id": "ap-jKhq01wOaWX73C5yMIR5WC",
-          "description": "pinglab-exp077",
+          "description": "pinglab-exp080",
           "environment": "main",
           "interval_start": "2026-08-06T11:00:00",
           "resource": "Memory",
@@ -27650,7 +27650,7 @@
         },
         {
           "object_id": "ap-k5LHl5hmDOoSOIh6lksoC1",
-          "description": "pinglab-exp077-evaluation",
+          "description": "pinglab-exp080-evaluation",
           "environment": "main",
           "interval_start": "2026-08-06T15:00:00",
           "resource": "L40S",
@@ -27658,7 +27658,7 @@
         },
         {
           "object_id": "ap-k5LHl5hmDOoSOIh6lksoC1",
-          "description": "pinglab-exp077-evaluation",
+          "description": "pinglab-exp080-evaluation",
           "environment": "main",
           "interval_start": "2026-08-06T15:00:00",
           "resource": "CPU",
@@ -27666,7 +27666,7 @@
         },
         {
           "object_id": "ap-k5LHl5hmDOoSOIh6lksoC1",
-          "description": "pinglab-exp077-evaluation",
+          "description": "pinglab-exp080-evaluation",
           "environment": "main",
           "interval_start": "2026-08-06T15:00:00",
           "resource": "Memory",
@@ -27674,7 +27674,7 @@
         },
         {
           "object_id": "ap-k5LHl5hmDOoSOIh6lksoC1",
-          "description": "pinglab-exp077-evaluation",
+          "description": "pinglab-exp080-evaluation",
           "environment": "main",
           "interval_start": "2026-08-06T16:00:00",
           "resource": "L40S",
@@ -27682,7 +27682,7 @@
         },
         {
           "object_id": "ap-k5LHl5hmDOoSOIh6lksoC1",
-          "description": "pinglab-exp077-evaluation",
+          "description": "pinglab-exp080-evaluation",
           "environment": "main",
           "interval_start": "2026-08-06T16:00:00",
           "resource": "CPU",
@@ -27690,7 +27690,7 @@
         },
         {
           "object_id": "ap-k5LHl5hmDOoSOIh6lksoC1",
-          "description": "pinglab-exp077-evaluation",
+          "description": "pinglab-exp080-evaluation",
           "environment": "main",
           "interval_start": "2026-08-06T16:00:00",
           "resource": "Memory",
@@ -27698,7 +27698,7 @@
         },
         {
           "object_id": "ap-kOWhR92o7rdmd5TgDIrhNy",
-          "description": "pinglab-exp077",
+          "description": "pinglab-exp080",
           "environment": "main",
           "interval_start": "2026-08-06T11:00:00",
           "resource": "L40S",
@@ -27706,7 +27706,7 @@
         },
         {
           "object_id": "ap-kOWhR92o7rdmd5TgDIrhNy",
-          "description": "pinglab-exp077",
+          "description": "pinglab-exp080",
           "environment": "main",
           "interval_start": "2026-08-06T11:00:00",
           "resource": "CPU",
@@ -27714,7 +27714,7 @@
         },
         {
           "object_id": "ap-kOWhR92o7rdmd5TgDIrhNy",
-          "description": "pinglab-exp077",
+          "description": "pinglab-exp080",
           "environment": "main",
           "interval_start": "2026-08-06T11:00:00",
           "resource": "Memory",
@@ -27722,7 +27722,7 @@
         },
         {
           "object_id": "ap-mJvWUmBCZCHsrUzKtWbDrC",
-          "description": "pinglab-exp077",
+          "description": "pinglab-exp080",
           "environment": "main",
           "interval_start": "2026-08-06T15:00:00",
           "resource": "L40S",
@@ -27730,7 +27730,7 @@
         },
         {
           "object_id": "ap-mJvWUmBCZCHsrUzKtWbDrC",
-          "description": "pinglab-exp077",
+          "description": "pinglab-exp080",
           "environment": "main",
           "interval_start": "2026-08-06T15:00:00",
           "resource": "CPU",
@@ -27738,7 +27738,7 @@
         },
         {
           "object_id": "ap-mJvWUmBCZCHsrUzKtWbDrC",
-          "description": "pinglab-exp077",
+          "description": "pinglab-exp080",
           "environment": "main",
           "interval_start": "2026-08-06T15:00:00",
           "resource": "Memory",
@@ -27746,7 +27746,7 @@
         },
         {
           "object_id": "ap-xiPGRJF9VE37r2xewI7guQ",
-          "description": "pinglab-exp077",
+          "description": "pinglab-exp080",
           "environment": "main",
           "interval_start": "2026-08-06T15:00:00",
           "resource": "L40S",
@@ -27754,7 +27754,7 @@
         },
         {
           "object_id": "ap-xiPGRJF9VE37r2xewI7guQ",
-          "description": "pinglab-exp077",
+          "description": "pinglab-exp080",
           "environment": "main",
           "interval_start": "2026-08-06T15:00:00",
           "resource": "CPU",
@@ -27762,7 +27762,7 @@
         },
         {
           "object_id": "ap-xiPGRJF9VE37r2xewI7guQ",
-          "description": "pinglab-exp077",
+          "description": "pinglab-exp080",
           "environment": "main",
           "interval_start": "2026-08-06T15:00:00",
           "resource": "Memory",
@@ -27770,7 +27770,7 @@
         },
         {
           "object_id": "ap-zxZ1BVLU2RXvxYIbo7h0FU",
-          "description": "pinglab-exp077",
+          "description": "pinglab-exp080",
           "environment": "main",
           "interval_start": "2026-08-06T11:00:00",
           "resource": "L40S",
@@ -27778,7 +27778,7 @@
         },
         {
           "object_id": "ap-zxZ1BVLU2RXvxYIbo7h0FU",
-          "description": "pinglab-exp077",
+          "description": "pinglab-exp080",
           "environment": "main",
           "interval_start": "2026-08-06T11:00:00",
           "resource": "CPU",
@@ -27786,7 +27786,7 @@
         },
         {
           "object_id": "ap-zxZ1BVLU2RXvxYIbo7h0FU",
-          "description": "pinglab-exp077",
+          "description": "pinglab-exp080",
           "environment": "main",
           "interval_start": "2026-08-06T11:00:00",
           "resource": "Memory",
@@ -27799,7 +27799,7 @@
   "expanded_rate_extension": {
     "status": "complete",
     "completed_at_utc": "2026-08-06T16:27:58Z",
-    "training_protocol_path": "artifacts/data/exp077/expanded_rate_training_protocol.json",
+    "training_protocol_path": "artifacts/data/exp080/expanded_rate_training_protocol.json",
     "training_protocol_sha256": "07e083cfe6d44bd172c18da2be8fe36cafc321025a86f3a567813f8916bb67aa",
     "added_rates_hz": [
       0.01,
@@ -27871,7 +27871,7 @@
       "pre_expansion_exact_cost_usd": 4.2940396,
       "cumulative_exact_cost_usd": 9.430388729999997,
       "expansion_exact_cost_usd": 5.1363491299999975,
-      "provider_billing_path": "artifacts/data/exp077/modal_billing.json",
+      "provider_billing_path": "artifacts/data/exp080/modal_billing.json",
       "provider_billing_sha256": "4e6e7c457e623671fe31cc1162c7e60ee98e058904fe592afc70a573ca1ae6c5"
     },
     "preserved_infrastructure_failures_before_training": 3,
