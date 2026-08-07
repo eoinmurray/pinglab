@@ -585,22 +585,55 @@
       input drives.],
   )
 
-  In Panel A, Equation 12a ($mu_"linear"(z)$) derives the mean feature from the
-  deterministic mean-conductance operating point, whereas
-  empirical trajectories begin at rest and average only
-  #presentation-ms ms. Sparse presentations often contain no event or a late
-  one; with greater drive, earlier and more consistent events let the empirical
-  mean approach stationarity. Probe curves separate because a mean conductance
-  can comprise many small events or fewer large ones. Larger jumps amplify
-  fluctuations, and voltage saturation gives approximately $E[v(g)] < v(E[g])$.
+  The curves differ because the analytical model describes small, continuous
+  fluctuations around a stationary mean conductance, whereas the empirical
+  presentations contain only approximately 0--5 discrete input spikes. In this
+  sparse regime, individual spike counts and times dominate: there is no
+  densely sampled mean state around which the dynamics fluctuate weakly.
 
-  In Panel B, variability rises from zero as spike counts and timings diversify,
-  then falls when averaging suppresses relative count fluctuations and shunting
-  and saturation limit voltage excursions. Equation 18
-  ($"Var"_"linear"(z)$) likewise balances rising Poisson noise against falling local gain, but places the
-  maximum elsewhere. The displaced maxima show where the stationary
-  small-fluctuation approximation departs most strongly from the finite-window
-  simulation.
+  In Panel A, Equation 12a effectively evaluates the feature at the mean
+  conductance, $z(E[g])$, while the empirical curve estimates the mean feature
+  over random conductance paths, $E[z(g)]$. These differ because the
+  conductance-to-voltage response is nonlinear and saturating, giving
+  approximately
+
+  $ E[z(g)] < z(E[g]). $
+
+  For example, one expected spike describes a mixture of presentations with
+  zero, one, two, or more spikes, not one continuously distributed input. A late
+  spike contributes little to the #presentation-ms ms feature average, whereas
+  the stationary model spreads the mean input across the entire presentation.
+  These effects make the analytical mean systematically too high. The
+  discrepancy grows with probe conductance because each 2.4 μS event is a
+  larger nonlinear perturbation, making the local approximation least credible
+  for the cyan curve.
+
+  In Panel B, Equation 18 propagates ideal Poisson noise through the local
+  linear filter in Equation 15. The empirical feature distribution is instead
+  a discrete spike-count and spike-time mixture,
+
+  $
+    P(z) = sum_n P(N = n) P(z | N = n),
+  $
+
+  where $N$ is the spike count during one presentation. Within each count,
+  different spike times produce another distribution of responses. At low
+  drive, transitions between zero and one large spike give the analytical
+  model a very large local response, especially at 2.4 μS, so its SD rises
+  sharply and peaks early. The empirical membrane instead saturates during
+  large jumps; zero-spike trials remain exactly at rest; and late spikes
+  contribute only partially. This strongly non-Gaussian mixture cannot be
+  represented by a single power spectrum and local gain.
+
+  With increasing drive, relative count variability decreases, timing
+  differences average out, conductance shunts the membrane, and depolarization
+  reduces the excitatory driving force. The analytical SD therefore falls after
+  its early maximum. The empirical SD rises more gradually because it moves
+  through successive spike-count mixtures rather than fluctuating around one
+  operating point. Thus the mean mismatch primarily reflects
+  $E[z(g)] != z(E[g])$ plus spike timing, while the displaced SD maximum reflects
+  a sparse count-and-timing mixture being approximated as stationary Gaussian
+  noise.
 
   === Complete feature images
 
