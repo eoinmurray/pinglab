@@ -208,6 +208,23 @@
   noise, rather than a systematic contradiction, as the cause of the lone
   80 E / 20 I failure.
 
+  #figure(
+    image(
+      "/artifacts/data/exp078/finite_size_followup.png",
+      width: 100%,
+      alt: "Focused 800 E / 200 I confirmation showing locking, phase, phase-locking value, mirrored phase distributions, and synchronized population-rate traces.",
+    ),
+    caption: [Focused 800 E / 200 I finite-size confirmation. Top panels show
+    locked fraction, circular mean relative phase, and phase-locking value over
+    coupling for mirrored natural-frequency detunings; error bars are one
+    standard deviation across ten paired seeds. The lower-left panel isolates
+    the phase distributions at the formerly disputed $K=0.016$ condition. The
+    remaining panels show one second of representative post-burn excitatory
+    population rates for the negative and positive detuning conditions (circuit
+    A black, circuit B red). Both signs lock tightly and exhibit the expected
+    mirrored phase ordering.],
+  )
+
   Dense retention would occupy
   #calc.round(r.benchmark.projected_dense_recording_bytes / 1e9, digits: 2) GB.
   The published exact-event and state-summary archive occupies
