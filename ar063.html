@@ -1,0 +1,771 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>A Python graph language for the SNN tool</title><style>/* Alignment */
+mtable.right-align mtd,
+mtable mtd.right-align,
+mtable.left-align mtd.right-align,
+mtable.aligned mtd:nth-child(odd) {
+  justify-items: end;
+  text-align: right;
+}
+mtable.cases mtd,
+mtable.left-align mtd,
+mtable mtd.left-align,
+mtable.aligned mtd:nth-child(even),
+math:is(:not([display])) > mtable.multiline-equation mtd {
+  justify-items: start;
+  text-align: left;
+}
+mtable.cases mtd,
+mtable.aligned mtd,
+mtable mtd.flushed,
+mtable mtd.left-flush {
+  padding-left: 0;
+}
+mtable.cases mtd,
+mtable.aligned mtd,
+mtable mtd.flushed,
+mtable mtd.right-flush {
+  padding-right: 0;
+}
+
+/* Tables */
+mtable {
+  math-style: inherit;
+}
+mtd {
+  math-depth: auto-add;
+  math-style: compact;
+  math-shift: compact;
+}
+
+/* Equations */
+mtable.multiline-equation mtd {
+  math-depth: inherit;
+  math-style: inherit;
+  math-shift: inherit;
+  padding: 0;
+}
+math > mtable.multiline-equation mtr:not(:last-child) mtd {
+  padding-bottom: 0.5em;
+}
+
+/* Fractions */
+mfrac {
+  padding-inline: 0;
+  margin-inline: 0.1em;
+}
+
+/* Accents */
+mover[accent="true" i] > :first-child {
+  font-feature-settings: "dtls";
+}
+mover.dotted[accent="true" i] > :first-child {
+  font-feature-settings: "dtls" 0;
+}
+
+/* Other rules for scriptlevel, displaystyle and math-shift */
+munder > :nth-child(2),
+munderover > :nth-child(2) {
+  math-shift: compact
+}
+munder[accentunder="true" i] > :not(:first-child),
+mover[accent="true" i] > :not(:first-child) {
+  math-depth: inherit;
+  math-style: inherit;
+  math-shift: inherit;
+}</style></head><body><link rel="icon" type="image/svg+xml" href="favicon.svg"><style>/* demolab web styles — injected into each HTML page by publish/lib.typ.
+   Typst HTML export ships no CSS (paged #set rules don't apply to HTML), so the
+   web look lives here. Avoid `>` / `<` in selectors: they'd be escaped inside <style>.
+   Body face is CMU Serif, the web-available Computer Modern branch closest to the PDFs'
+   New Computer Modern. The pinned web fonts keep that shared lineage without vendoring a
+   second full font family into every site; Charter/Georgia fall back when offline. */
+@font-face {
+  font-family: "Computer Modern Serif";
+  src: url("https://cdn.jsdelivr.net/gh/aaaakshat/cm-web-fonts@333f55ec19733c28cdc43567ecf72eafd6b0af61/font/Serif/cmunrm.woff") format("woff");
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Computer Modern Serif";
+  src: url("https://cdn.jsdelivr.net/gh/aaaakshat/cm-web-fonts@333f55ec19733c28cdc43567ecf72eafd6b0af61/font/Serif/cmunbx.woff") format("woff");
+  font-weight: bold;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Computer Modern Serif";
+  src: url("https://cdn.jsdelivr.net/gh/aaaakshat/cm-web-fonts@333f55ec19733c28cdc43567ecf72eafd6b0af61/font/Serif/cmunti.woff") format("woff");
+  font-weight: normal;
+  font-style: italic;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Computer Modern Serif";
+  src: url("https://cdn.jsdelivr.net/gh/aaaakshat/cm-web-fonts@333f55ec19733c28cdc43567ecf72eafd6b0af61/font/Serif/cmunbi.woff") format("woff");
+  font-weight: bold;
+  font-style: italic;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Computer Modern Typewriter";
+  src: url("https://cdn.jsdelivr.net/gh/aaaakshat/cm-web-fonts@333f55ec19733c28cdc43567ecf72eafd6b0af61/font/Typewriter/cmuntt.woff") format("woff");
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+/* A genuine mid-weight for the CM family: CMU ships only Roman + Bold, so there is no semibold to
+   step down to. Latin Modern Roman Demi (the CM-lineage demibold) fills weight 600 — used only by
+   inline citations, which want emphasis without the full punch of bold. */
+@font-face {
+  font-family: "Computer Modern Serif";
+  src: url("https://cdn.jsdelivr.net/gh/sugina-dev/latin-modern-web@1.0.1/font/lmromandemi-regular-webfont.woff") format("woff");
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+/* One deliberate scale drives the whole site:
+     - two inks:  --ink (headings, body, titles, links) and --muted (all secondary text)
+     - one body size (--fs-body) + a three-step heading scale (--fs-h1..h3)
+     - one secondary size (--fs-small) shared by every id, date, count, caption, meta line
+   Everything below composes those tokens — no one-off px or ad-hoc greys. */
+:root {
+  --ink: #1a1a1a;
+  --muted: #666;          /* every piece of secondary text, one grey */
+  --rule: #e7e5df;
+  --rule-strong: #d8d5cd;
+  --paper: #fff;
+  --paper-tint: #fafaf7;
+  --selection: #ebe9e2;
+
+  --fs-h1: 1.6rem;        /* page/entry title  (Typst level 1 → <h2>) — 28.8px */
+  --fs-h2: 1.3rem;        /* section heading   (Typst level 2 → <h3>) — 23.4px */
+  --fs-h3: 1.1rem;        /* subsection        (Typst level 3 → <h4>) — 19.8px */
+  --fs-small: 0.85rem;    /* every piece of secondary text, one size  — 15.3px */
+  --fs-label: 0.72rem;    /* uppercase mono labels — 13px */
+
+  --mono: "Computer Modern Typewriter", ui-monospace, "SF Mono", Menlo, monospace;
+}
+* { box-sizing: border-box; }
+/* rem is anchored to the 18px body so the heading scale steps cleanly off body size. */
+html { font-size: 18px; }
+body {
+  max-width: 42em;
+  margin: clamp(2rem, 7vw, 3.5rem) auto;
+  padding: 0 clamp(1rem, 4vw, 1.5rem);
+  font: 1rem/1.6 "Computer Modern Serif", Charter, Georgia, "Times New Roman", serif;
+  font-kerning: normal;
+  font-synthesis: none;
+  color: var(--ink);
+  background: var(--paper);
+  -webkit-text-size-adjust: 100%;
+}
+::selection { color: var(--ink); background: var(--selection); }
+/* Typst's HTML export reserves <h1> and renders heading level N as <h(N+1)>: an entry/
+   page title (level 1) is <h2>, a section (level 2) is <h3>, a subsection is <h4>. Style
+   the emitted tags, not the Typst levels. */
+h1, h2 {
+  margin: 0 0 .35rem;
+  font-size: var(--fs-h1);
+  line-height: 1.15;
+  font-weight: 700;
+  letter-spacing: -.012em;
+  text-wrap: balance;
+}
+h3 { font-size: var(--fs-h2); line-height: 1.25; font-weight: 700; margin: 2.4rem 0 .5rem; text-wrap: balance; }
+h4 { font-size: var(--fs-h3); line-height: 1.3; font-weight: 700; margin: 1.8rem 0 .35rem; text-wrap: balance; }
+/* Print-style links: ink with a hairline underline, not web blue. */
+a {
+  color: var(--ink);
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 2px;
+}
+a:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 3px;
+  border-radius: 1px;
+}
+/* Listing pages (home, collection, all-entries) follow pinglab: nav/index links are
+   unadorned and only underline on hover. Entry-body prose keeps the default underline. */
+.listing a { text-decoration: none; }
+.listing a:hover { text-decoration: underline; }
+/* ...except concrete destination links: the per-row pdf badge and the foot-line links
+   ("Browse all entries", "single pdf", the back arrows) stay underlined so they read as
+   links rather than nav chrome. Title/id links keep the clean hover-only treatment. */
+.listing .page-foot a,
+.entry-row .row-pdf { text-decoration: underline; }
+
+/* --- secondary text: one size (--fs-small), one colour (--muted) everywhere --- */
+.entry-meta,           /* id · date · status · collection under an entry/collection title */
+.coll-desc,            /* collection blurb on the homepage directory */
+.row-id, .row-meta, .row-pdf,  /* the aligned index-row columns */
+figcaption,
+.page-foot {           /* the "Browse all / back" line at the foot of a listing */
+  font-size: var(--fs-small);
+  color: var(--muted);
+}
+.entry-meta { margin: .2rem 0 1.75rem; }
+/* Byline under the homepage title: the lab's owner, quiet, links to contact if set. Its
+   default spacing also works when there is no description; the adjacent rule closes the
+   larger description margin only when that line actually exists. */
+.byline { font-size: var(--fs-small); color: var(--muted); margin: .2rem 0 1.5rem; }
+.entry-meta + .byline { margin-top: -.9rem; }
+.byline a { color: var(--muted); }
+.byline a:hover { color: var(--ink); }
+/* Home link at the top of an entry page: quiet, small, one step back to the directory. */
+.home-link { display: inline-block; font-size: var(--fs-small); color: var(--muted); text-decoration: none; margin: 0 0 1.1rem; }
+.home-link:hover { color: var(--ink); text-decoration: underline; }
+
+/* Citations: inline numbers stay in the text (underline on hover); the reference list is
+   secondary text, each entry's DOI a quiet link out. */
+/* A hair of space before the bracket, owned here so authors attach `#cite` directly to the
+   preceding word (`runs#cite(2)`); nowrap + no source whitespace keeps the bracket from
+   orphaning onto the next line. */
+.cite { white-space: nowrap; margin-left: 0.15em; font-weight: 600; }
+.cite a { color: inherit; text-decoration: none; }
+.cite a:hover { text-decoration: underline; }
+ol.refs { font-size: var(--fs-small); line-height: 1.55; padding-left: 1.5rem; margin: 1rem 0; }
+ol.refs li { margin: .45rem 0; }
+ol.refs li::marker { color: var(--muted); }
+ol.refs .doi { color: var(--muted); }
+ol.refs .doi:hover { color: var(--ink); }
+/* Hover popover for an inline citation (Wikipedia-style): a small card echoing the reference. */
+.cite-popover {
+  position: absolute; z-index: 50; display: none;
+  width: min(24rem, calc(100vw - 1rem)); padding: .6rem .8rem;
+  background: var(--paper); border: 1px solid var(--rule-strong); border-radius: 2px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, .1);
+  font-size: var(--fs-small); line-height: 1.5; color: var(--ink);
+}
+.cite-popover .doi { color: var(--muted); }
+.cite-popover .doi:hover { color: var(--ink); }
+
+/* Status marker (`.status`): plain text in the meta line — `final` renders nothing (RULES §6.4),
+   so no styling is needed; it inherits the meta line's look. */
+
+/* Build-error stub: an entry that failed to compile (a missing figure, a Typst error) is served as
+   a stub page with the error in this block, so the failure is visible on its own page while the
+   rest of the site is fine. */
+.build-error { border-left: 3px solid #c0392b; background: #fcf3f2; color: #7a1f16; }
+
+/* Heading anchors: every heading carries a slug id (link to page.html#slug); a quiet # permalink
+   fades in on hover to grab that URL. */
+.hx .permalink { opacity: 0; margin-left: .3em; color: var(--muted); text-decoration: none; font-weight: 400; font-size: .85em; }
+.hx:hover .permalink, .hx:focus-within .permalink { opacity: 1; }
+.hx .permalink:hover { color: var(--ink); }
+
+/* Figure placeholder (`#pending` / `#pending-figure`): a figure whose asset isn't ready yet.
+   A tinted, dashed panel that reserves the figure's footprint so the page doesn't reflow when the
+   real plot lands — a small framed-image mark over the muted reason. aspect-ratio is set inline
+   from the helper's `ratio` arg. */
+.fig-pending {
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: .7rem;
+  width: 100%; padding: 1.5rem; text-align: center;
+  background: var(--paper-tint);
+  border: 1px dashed #d6d3ca;
+  border-radius: 2px;
+}
+.fig-pending-mark { width: 1.7em; height: 1.2em; border: 1px solid #b9b6ad; border-radius: 2px; }
+.fig-pending-note { font-size: var(--fs-small); font-style: italic; color: var(--muted); }
+
+/* Entry meta strip: id · date · status · pdf, all inline. The pdf is a concrete destination, so it
+   keeps its underline (muted, darkening on hover) rather than the bare listing-nav treatment. */
+.entry-pdf { color: var(--muted); text-decoration: underline; }
+.entry-pdf:hover { color: var(--ink); }
+/* On listing pages the description sits closer to the list it heads (entry pages keep the
+   airier 1.75rem before the body). */
+.listing .entry-meta { margin-bottom: 1.25rem; }
+/* Homepage brand lockup: quieter and tighter than an article title. The tagline is more
+   important than generic metadata, but still secondary to the name. Scoping this to the
+   header keeps entry and collection hierarchy unchanged. */
+.site-head {
+  margin-bottom: 1rem;
+}
+.site-head h1, .site-head h2 {
+  font-size: 1.5rem;
+  line-height: 1.15;
+  letter-spacing: -.008em;
+}
+.site-head .entry-meta {
+  max-width: 38rem;
+  margin: .3rem 0 0;
+  font-size: 1rem;
+  line-height: 1.5;
+  color: var(--muted);
+}
+.site-head .byline { margin-bottom: 0; }
+.site-head .entry-meta + .byline { margin-top: .3rem; }
+/* Breathing room at the foot of an entry page so the last line isn't flush to the edge. */
+.entry-tail { height: 6rem; }
+
+/* Empty state: a freshly-scaffolded repo (no writings) — the homepage's only content. Warm and
+   jargon-free (the first thing a non-technical user sees), led by a confident line. */
+.empty-state { margin: 1.75rem 0; line-height: 1.65; max-width: 34rem; }
+.empty-lead { font-size: 1.2rem; color: var(--ink); margin: 0 0 .6rem; }
+.empty-state p:not(.empty-lead) { color: var(--muted); }
+
+/* Landing-page building blocks for a custom landing.typ (pitch, links, command boxes) —
+   used by the upstream demo's site/landing.typ; a lab's own landing.typ may reuse them. */
+.welcome { margin: 0 0 2.75rem; max-width: 36rem; }
+.welcome-body { margin: 0 0 1rem; }
+.welcome-links {
+  margin: 0 0 1.15rem;
+  font-size: 1rem;
+  line-height: 1.6;
+  color: var(--muted);
+}
+/* The homepage is a .listing page (links unadorned by default), so re-add the underline for
+   links in the landing hero — both the nav row and inline links in the body prose. */
+.welcome-links a, .welcome-body a { text-decoration: underline; }
+.welcome-links a { color: #444; }
+.welcome-links a:hover { color: var(--ink); }
+.welcome-kicker {
+  font-family: var(--mono); font-size: var(--fs-label); color: var(--muted);
+  text-transform: uppercase; letter-spacing: .08em; margin: 3rem 0 .65rem;
+}
+.welcome-cmd { margin: 0 0 .75rem; }
+.welcome-os {
+  font-family: var(--mono); font-size: var(--fs-label); color: var(--muted);
+  text-transform: uppercase; letter-spacing: .08em; margin-bottom: .35rem;
+}
+.welcome pre {
+  margin: 0; padding: .9rem 1rem; overflow-x: auto;
+  font-family: var(--mono); font-size: .82rem; line-height: 1.5;
+  background: var(--paper-tint); border: 1px solid var(--rule-strong); border-radius: 2px;
+}
+/* A quiet aside under a section (the "prefer to do it by hand?" line) — smaller and muted,
+   so it reads as a footnote to the block above, not the next paragraph. */
+.welcome-note { margin: 0 0 1rem; font-size: var(--fs-small); color: var(--muted); }
+.welcome-note a { color: var(--muted); text-decoration: underline; }
+.welcome-note a:hover { color: var(--ink); }
+/* The paste-into-your-agent command is a sentence, not shell — let it wrap rather than
+   clip/scroll at the .welcome column width. */
+.welcome-cmd pre { white-space: pre-wrap; }
+/* Runbook menu: NAME → what saying it does. A dl of hairline-separated rows; the name column
+   is mono (runbook names are commands) and fixed-width so descriptions align. */
+.welcome-runbooks { margin: 0 0 .75rem; }
+.welcome-runbook {
+  display: flex; gap: .75rem; padding: .45rem 0;
+  border-bottom: 1px solid var(--rule);
+}
+.welcome-runbook:last-child { border-bottom: none; }
+.welcome-runbook dt {
+  flex: 0 0 8.5rem; font-family: var(--mono); font-size: .78rem;
+  padding-top: .1rem;
+}
+.welcome-runbook dd { margin: 0; font-size: var(--fs-small); color: var(--muted); }
+/* Documentation tiers: four deliberately equal columns on wide screens, then a balanced
+   two-column grid — never an orphaned 3 + 1 arrangement at intermediate widths. */
+.welcome-docs {
+  display: grid; grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 1.25rem 1rem; margin: .15rem 0 1rem;
+}
+.welcome-docs-tier { border-top: 1px solid var(--rule-strong); padding-top: .55rem; }
+.welcome-docs-label {
+  margin: 0 0 .4rem;
+  font-family: var(--mono);
+  font-size: var(--fs-label);
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: .08em;
+}
+.welcome-docs-tier ul { list-style: none; padding-left: 0; margin: 0; }
+.welcome-docs-tier li { padding: .125rem 0; font-size: var(--fs-small); line-height: 1.4; }
+.welcome-docs-tier a { text-decoration: underline; color: var(--ink); }
+.welcome-docs-tier a:hover { color: var(--ink); }
+.welcome-foot {
+  margin: 1.75rem 0 0;
+  padding-top: .85rem;
+  border-top: 1px solid var(--rule);
+  font-size: var(--fs-small);
+  color: var(--muted);
+}
+.welcome-foot a { color: var(--muted); }
+.welcome-foot a:hover { color: var(--ink); }
+
+/* Homepage collection directory: collection-name links, description beneath. These are the
+   page's hero items, so they sit one step above body — the middle of the home hierarchy
+   (title 28.8 → collection 20.7 → description 15.3). */
+.coll-list { list-style: none; padding-left: 0; margin: 1.25rem 0; }
+.coll-row { padding: .55rem 0; }
+.coll-title { font-size: 1.15rem; }
+.coll-desc { margin: .2rem 0 0; line-height: 1.45; }
+
+/* Index rows: mono id in a left column; title + a quiet meta sub-line (date · status · pdf)
+   stacked in the main column, so long titles wrap without orphaning the meta. */
+.entry-list { list-style: none; padding-left: 0; margin: 1.25rem 0; }
+.entry-row { display: flex; align-items: baseline; gap: .6rem; padding: .5rem 0; }
+.entry-row .row-id { flex: 0 0 auto; min-width: 3em; font-family: var(--mono); }
+.row-main { flex: 1 1 auto; min-width: 0; }
+.row-main .row-title { display: block; }
+.row-main .row-meta { display: block; margin-top: .15rem; font-variant-numeric: tabular-nums; }
+
+/* Foot-of-listing nav line: quiet by default, links darken + underline on hover. */
+.page-foot { margin-top: 2rem; }
+.page-foot a { color: var(--muted); }
+.page-foot a:hover { color: var(--ink); }
+
+p { margin: 1rem 0; text-wrap: pretty; }
+img, video { max-width: 100%; height: auto; display: block; margin: 1.5rem auto; }
+figure { margin: 1.75rem 0; text-align: center; }
+figcaption { margin-top: .5rem; text-align: left; }
+table { border-collapse: collapse; margin: 1.25rem 0; font-size: var(--fs-small); }
+th, td { border: 1px solid var(--rule); padding: .35rem .75rem; text-align: left; }
+th { background: var(--paper-tint); font-weight: 600; }
+td:last-child, th:last-child { text-align: right; font-variant-numeric: tabular-nums; }
+math { font-size: 1.05em; }
+ul { padding-left: 1.25rem; }
+li { margin: .3rem 0; }
+hr { border: none; border-top: 1px solid var(--rule); margin: 2rem 0; }
+code, pre { font-family: var(--mono); }
+code { font-size: .9em; }
+pre {
+  font-size: .85em;
+  background: var(--paper-tint);
+  border: 1px solid var(--rule);
+  border-radius: 2px;
+  padding: .9rem 1.1rem;
+  line-height: 1.5;
+  overflow-x: auto;
+}
+pre code { font-size: 1em; }
+
+@media (max-width: 42rem) {
+  body { margin-top: 2rem; margin-bottom: 2.5rem; }
+  .welcome { margin-bottom: 2rem; }
+  .welcome-kicker { margin-top: 2.5rem; }
+  .welcome-docs { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .welcome-runbook { display: block; padding: .6rem 0; }
+  .welcome-runbook dt { margin-bottom: .2rem; }
+  .entry-row { align-items: flex-start; gap: .5rem; }
+}
+
+@media (max-width: 22rem) {
+  .welcome-docs { grid-template-columns: 1fr; }
+}
+</style><meta name="generator" content="demolab 2.3.0"><script src="cite-popover.js" defer></script><script src="https://hypothes.is/embed.js" async></script><p><a class="home-link" href="index.html">← Home</a></p><h2 id="a-python-graph-language-for-the-snn-tool" class="hx">A Python graph language for the SNN tool<a class="permalink" href="#a-python-graph-language-for-the-snn-tool" aria-label="Link to this section">#</a></h2><div class="entry-meta">ar063 · 30 July 2026 · <span class="status">Draft</span> · <a class="entry-pdf" href="pdfs/ar063.pdf">pdf</a></div><h3 id="abstract" class="hx">Abstract<a class="permalink" href="#abstract" aria-label="Link to this section">#</a></h3><p>Translating a circuit idea into <em>tools/snn</em> is cumbersome. A paper may describe a small motif in a paragraph, while its implementation requires manual work across CLI flags, model construction, tensor dimensions, training choices, recordings, and artifact handling. This proposal introduces <em>snnlang</em>: a typed Python library for constructing a spiking computation graph and, when needed, a narrow training specification. One compile operation validates them and writes a portable bundle containing <em>graph.json</em> and optional <em>training.json</em>. <em>tools/snn</em> executes that bundle through a small Python API wrapped by its CLI.</p><p>The proposal is deliberately smaller than a language for whole experiments, but it is not restricted to the present <code>COBANet</code> architecture. Experiment runners continue to own hypotheses, condition and seed grids, custom interventions, derived analysis, figures, and publication. An audit of the current code identifies three workloads that should test the design: trained MNIST and SHD classifiers, including deeper layers; coupled untrained E/I circuits with population-level recordings; and online confidence feedback that modulates <math><msub><mi>𝑔</mi><mi>𝐿</mi></msub></math> to trade decision speed for additional PING cycles. The bundle is the canonical reproducibility boundary, while a small importable API preserves exploratory PyTorch flexibility. <em>tools/snn</em> lowers graphs into vectorized, compiled PyTorch rather than interpreting them. The implementation order is: draft the graph language, upgrade <em>tools/snn</em> to execute it, run one real experiment through both, and then prove that the combined system is flexible enough for the confidence experiment.</p><h3 id="1-the-existing-separation-of-concerns" class="hx">1. The existing separation of concerns<a class="permalink" href="#1-the-existing-separation-of-concerns" aria-label="Link to this section">#</a></h3><p>The repository intends to contain two different layers. <em>tools/snn</em>, documented in <a href="/ar011/">ar011</a>, is the reusable simulation and training engine. Files under <em>experiments/</em> are scientific runners. The desired boundary is subprocesses and files, but the present code does not consistently maintain it.</p><pre><code>experiment runner
+      |
+      | CLI invocation
+      v
+tools/snn/tool.py
+      |
+      | config, metrics, traces, weights
+      v
+experiment runner
+      |
+      | analysis, figures, numbers.json
+      v
+writings/expNNN.typ</code></pre><p>This firewall is useful when it exists. It keeps reusable model science out of paper-specific code and prevents the simulator from accumulating every protocol ever used in the lab. The leaks are diagnostic: they identify missing reusable execution contracts more clearly than an abstract architecture exercise can.</p><h4 id="1-1-what-tools-snn-owns" class="hx">1.1 What tools/snn owns<a class="permalink" href="#1-1-what-tools-snn-owns" aria-label="Link to this section">#</a></h4><p><em>tools/snn</em> owns operations that remain meaningful across experiments:</p><ul><li>neuron and synapse dynamics;</li><li>graph execution and numerical integration;</li><li>the standard training loop and surrogate-gradient implementation;</li><li>checkpoint loading and saving;</li><li>reusable input, recording, and perturbation primitives;</li><li>generic rates, accuracy, and run metrics;</li><li>deterministic seeding and run provenance;</li><li>stable machine-readable outputs.</li></ul><p>Its current use of <em>torch.compile</em> remains an internal execution detail. <em>snnlang</em> does not manage compilation caches or accelerator-specific artifacts.</p><h4 id="1-2-what-experiment-runners-own" class="hx">1.2 What experiment runners own<a class="permalink" href="#1-2-what-experiment-runners-own" aria-label="Link to this section">#</a></h4><p>A runner owns decisions whose meaning comes from one scientific question:</p><ul><li>the hypothesis and condition labels;</li><li>parameter and seed grids;</li><li>job ordering, caching, resumption, and dispatch;</li><li>paper-specific data preparation;</li><li>custom intervention streams built from earlier outputs;</li><li>derived statistics and success criteria;</li><li>figure design and <em>numbers.json</em>;</li><li>staging and atomic publication.</li></ul><p>Substantial runner code is not automatically a failure of abstraction. Code should move into a reusable tool only after a second use demonstrates a stable operation.</p><h4 id="1-3-what-the-runners-reveal" class="hx">1.3 What the runners reveal<a class="permalink" href="#1-3-what-the-runners-reveal" aria-label="Link to this section">#</a></h4><p>Existing runners make the boundary concrete. <em>exp022</em> defines a canonical family of trained MNIST cells. <em>exp041</em> computes spectra, gamma peaks, fits, and figures from tool outputs. <em>exp042</em> constructs experiment-specific inhibitory override streams from a reusable simulator primitive. <em>exp054</em> and <em>exp058</em> use untrained networks to study connectivity, synchrony, rhythmicity, and perturbation growth.</p><p>The newer SHD runners also expose failures in the current boundary. They import the CLI module in-process, replace the dataset directory, and construct networks directly for evaluation. <em>exp069</em> temporarily replaces <code>MetricsJsonl.write</code>, inspects its caller’s local variables to obtain the live network, and saves a validation-selected checkpoint. This is ingenious in the same sense that opening a tin with a screwdriver is ingenious: it works, but it is evidence that the correct tool is missing.</p><p>The audit therefore identifies four engine seams needed before a general graph executor:</p><ul><li>an explicit data binding for dense samples and event streams, instead of fixed dataset paths;</li><li>a standard checkpoint-selection policy or stable epoch event contract;</li><li>evaluation of supplied event datasets without direct model construction;</li><li>named recordings from every layer and population, rather than a privileged “primary” hidden layer.</li></ul><p>These cases support one rule:</p><blockquote>The tool should understand one graph execution. The runner should understand why several executions constitute an experiment.</blockquote><h4 id="1-4-what-the-current-model-actually-is" class="hx">1.4 What the current model actually is<a class="permalink" href="#1-4-what-the-current-model-actually-is" aria-label="Link to this section">#</a></h4><p>The present <code>COBANet</code> is a useful but narrow execution model:</p><ul><li>it builds a feedforward list of hidden E/I layers;</li><li>E spikes alone feed the next hidden layer;</li><li>each layer owns <math><msub><mi>𝑊</mi><mtext>EE</mtext></msub></math>, <math><msub><mi>𝑊</mi><mtext>EI</mtext></msub></math>, <math><msub><mi>𝑊</mi><mtext>IE</mtext></msub></math>, and <math><msub><mi>𝑊</mi><mtext>II</mtext></msub></math> recurrence;</li><li>rate, mean-membrane, and cumulative-potential readouts are hard-coded modes;</li><li>two hidden layers are already exercised by <em>exp071</em>;</li><li><code>train_leak</code> learns a static bounded leak per neuron, not an online feedback law;</li><li>recording can capture all layers, although several consumers select only the deepest layer.</li></ul><p>This means “support deeper networks” is not a distant grammar problem. The first graph schema should represent the existing sequential stack, but its ontology should be named populations and projections rather than <code>COBANet</code> constructor arguments. Coupling two independently named circuits is a genuinely new backend capability, even when neither circuit is trained. It is acceptable for the first compiler to emit graphs that the current backend reports as unsupported; the language and engine capability levels must be explicit rather than artificially identical.</p><h4 id="1-5-data-is-an-execution-binding-not-graph-structure" class="hx">1.5 Data is an execution binding, not graph structure<a class="permalink" href="#1-5-data-is-an-execution-binding-not-graph-structure" aria-label="Link to this section">#</a></h4><p>The standard trainer currently knows MNIST and SHD. MNIST is dense and Poisson encoded; SHD is an event stream binned lazily. The generic inference path still assumes 784 dense inputs, so SHD experiments work around it.</p><p><em>graph.json</em> should declare typed input ports and output dimensions. <em>TrainSpec</em> should declare the target interface and encoder class. A runner should supply a small resolved data binding that maps actual train, validation, or evaluation sources onto those ports. Dataset splitting, sealing, and scientific cohort selection remain runner responsibilities. This avoids both extremes: hard-coding MNIST and SHD into the graph, or inventing a universal dataset language.</p><h3 id="2-the-proposed-boundary" class="hx">2. The proposed boundary<a class="permalink" href="#2-the-proposed-boundary" aria-label="Link to this section">#</a></h3><p>The proposal introduces one Python package with two related authoring objects:</p><pre><code>snnlang.Network
+snnlang.TrainSpec</code></pre><p><em>Network</em> describes forward computation. <em>TrainSpec</em> is an optional, narrow configuration for the standard trainer. It refers to parameters and outputs in a particular <em>Network</em>, but it is not part of that network and is not a second independent language.</p><p>One compile operation produces a bundle:</p><pre><code>Python authoring
+  Network
+  optional TrainSpec
+        |
+        | snnlang.compile(...)
+        v
+ping.bundle/
+  graph.json
+  training.json
+  manifest.json
+        |
+        | tools/snn API or CLI + data binding
+        v
+run artifacts</code></pre><p><em>graph.json</em> is the resolved executable graph. <em>training.json</em> records standard training policy and the digest of the exact graph against which it was validated. <em>manifest.json</em> binds the files into one convenient invocation unit.</p><p>A separate, resolved <em>data.json</em> is supplied when training or evaluating. It contains paths and representation metadata, not dataset contents. It belongs to an execution and may be replaced while the graph remains unchanged.</p><p><em>tools/snn</em> depends on the versioned graph and training schemas, not on the <em>snnlang</em> Python package. Given an archived bundle, it must be possible to replay the run without installing the compiler that originally authored it.</p><h4 id="2-1-same-repository-separate-libraries" class="hx">2.1 Same repository, separate libraries<a class="permalink" href="#2-1-same-repository-separate-libraries" aria-label="Link to this section">#</a></h4><p><em>snnlang</em> should begin in the same repository and Python environment as <em>tools/snn</em>, but as a sibling library:</p><pre><code>tools/
+    snn/
+    snnlang/
+schemas/
+    snn-graph-v1.schema.json
+    snn-training-v1.schema.json</code></pre><p>Keeping both sides together makes early schema changes cheap. Keeping their package boundaries separate prevents the authoring library from becoming simulator internals. A separate repository or published project is justified only after another repository, simulator, or release cadence actually needs it.</p><h3 id="3-the-smallest-useful-authoring-model" class="hx">3. The smallest useful authoring model<a class="permalink" href="#3-the-smallest-useful-authoring-model" aria-label="Link to this section">#</a></h3><p>The first authoring surface is Python, not a custom textual grammar. Python already supplies composition, functions, loops, autocomplete, testing, and debugging.</p><pre><code>import snnlang as snn
+from snnlang import training
+
+net = snn.Network("ping_classifier")
+
+E = net.population(
+    "E",
+    size=1024,
+    neuron=snn.COBA_LIF(...),
+)
+I = net.population(
+    "I",
+    size=256,
+    neuron=snn.COBA_LIF(...),
+)
+
+ei = net.connect(
+    E.spikes,
+    I.excitatory,
+    name="E_to_I",
+    synapse=snn.AMPA(tau=...),
+    weight=snn.Normal(0.5, 0.05),
+    constraint=snn.NonNegative(),
+)
+ie = net.connect(
+    I.spikes,
+    E.inhibitory,
+    name="I_to_E",
+    synapse=snn.GABA(tau=9 * snn.ms),
+    weight=snn.Normal(1.0, 0.1),
+    constraint=snn.NonNegative(),
+)
+
+logits = snn.readouts.MeanVoltage(
+    source=E.spikes,
+    classes=10,
+    tau=20 * snn.ms,
+    name="classifier",
+)
+
+net.output("class_logits", logits)
+net.expose(E.spikes, I.spikes)</code></pre><p>The graph contains populations, projections, ordinary transformations, parameters, outputs, and observables. It does not contain experiment conditions, sweeps, losses, optimizers, or figures.</p><h4 id="3-1-components-and-layers-are-authoring-conveniences" class="hx">3.1 Components and layers are authoring conveniences<a class="permalink" href="#3-1-components-and-layers-are-authoring-conveniences" aria-label="Link to this section">#</a></h4><p>A reusable component may shorten construction:</p><pre><code>cell = snn.components.ping(
+    net,
+    name="cell",
+    n_e=1024,
+    n_i=256,
+    tau_gaba=9 * snn.ms,
+)</code></pre><p>Components and layers expand into the same small graph vocabulary. The serialized graph may retain group metadata for reports, but it need not introduce a special executable <code>layer</code> primitive.</p><p>The same rule applies to readouts. A helper such as:</p><pre><code>logits = snn.readouts.SpikeRate(
+    source=cell.E.spikes,
+    classes=10,
+    name="class_logits",
+)</code></pre><p>expands into ordinary population, projection, reduction, and output operations. Authoring functions execute while constructing the graph; the compiler serializes their result rather than the Python callable. The first graph schema therefore has no special <code>head</code> ontology. Named outputs provide the interface needed by inference and training.</p><h4 id="3-2-readouts-are-concise-components-with-precise-semantics" class="hx">3.2 Readouts are concise components with precise semantics<a class="permalink" href="#3-2-readouts-are-concise-components-with-precise-semantics" aria-label="Link to this section">#</a></h4><p>Readout switching is routine experimental work and must be a local edit. The initial library should include:</p><pre><code>snn.readouts.MeanVoltage(...)
+snn.readouts.FinalVoltage(...)
+snn.readouts.SpikeCount(...)
+snn.readouts.SpikeRate(...)
+snn.readouts.CumulativePotential(...)</code></pre><p><code>MeanVoltage</code> expands into a trainable projection, a non-spiking stateful layer, and a temporal mean of its membrane voltage. The non-spiking layer remains explicit in the compiled graph and checkpoint even when hidden by the concise authoring helper.</p><p><code>SpikeCount</code> means</p><math display="block"><msub><mi>𝑧</mi><mi>𝑐</mi></msub><mo>=</mo><munder><mo form="prefix" lspace="0em">∑</mo><mi>𝑡</mi></munder><msub><mi>𝑠</mi><mrow><mi>𝑐</mi><mrow><mo>(</mo><mi>𝑡</mi><mo>)</mo></mrow></mrow></msub><mi>.</mi></math><p><code>SpikeRate</code> is distinct:</p><math display="block"><msub><mi>𝑧</mi><mi>𝑐</mi></msub><mo>=</mo><mfrac><mrow><msub><mo lspace="0em">∑</mo><mi>𝑡</mi></msub><msub><mi>𝑠</mi><mrow><mi>𝑐</mi><mrow><mo>(</mo><mi>𝑡</mi><mo>)</mo></mrow></mrow></msub></mrow><mrow><mi>𝑇</mi><mi mathvariant="normal">Δ</mi><mi>𝑡</mi></mrow></mfrac><mi>.</mi></math><p>For padded or variable-duration samples it must use the valid-time mask independently for each sample. “Rate” without a declared duration and unit is rejected as ambiguous. Common window specifications should cover the full trial, a post-transient interval, or the final duration without requiring a Python callback.</p><p>Users may define their own authoring helpers from standard operations:</p><pre><code>def my_readout(source, classes):
+    x = snn.ops.sum(source, over="time")
+    x = snn.ops.normalise(x)
+    return snn.ops.linear(x, size=classes)</code></pre><p>This remains portable because the function expands at compile time. Arbitrary PyTorch executed during the forward pass is a different extension level and is not embedded as a callable in JSON.</p><h4 id="3-3-parameters-are-not-intrinsically-selected-for-this-run" class="hx">3.3 Parameters are not intrinsically selected for this run<a class="permalink" href="#3-3-parameters-are-not-intrinsically-selected-for-this-run" aria-label="Link to this section">#</a></h4><p>The graph distinguishes a <em>Parameter</em> from a <em>Constant</em> and records structural constraints such as non-negativity, sparsity masks, or tying. It does not permanently declare that every parameter must be updated.</p><p>Selection belongs to a particular training specification:</p><pre><code>train = snn.TrainSpec(
+    objectives=[
+        training.CrossEntropy(
+            prediction=net.outputs["class_logits"],
+            target="digit",
+        ),
+    ],
+    parameter_groups=[
+        training.ParameterGroup(
+            [ei.weight, ie.weight],
+            lr=1e-4,
+        ),
+        training.ParameterGroup(
+            logits.parameters,
+            lr=1e-3,
+        ),
+    ],
+    regularizers=[
+        training.UpperRatePenalty(
+            signal=E.spikes,
+            threshold=1.0,
+            strength=1e-4,
+        ),
+    ],
+    optimizer=training.AdamW(),
+    epochs=50,
+)</code></pre><p>The same graph can support readout-only training, recurrent fine-tuning, or inference without changing its structural identity.</p><h4 id="3-4-forward-and-backward-concerns" class="hx">3.4 Forward and backward concerns<a class="permalink" href="#3-4-forward-and-backward-concerns" aria-label="Link to this section">#</a></h4><p>Anything executed during inference belongs in the graph: populations, reductions, projections, classifier parameters, and named outputs. Anything used only to calculate or apply gradients belongs in <em>TrainSpec</em>: objectives, targets, parameter groups, regularizers, surrogate choice, clipping, and backward-only stop boundaries.</p><p>Checkpoints remain separate evolving state. They contain realised parameter values and, when resuming training, optimizer state. A checkpoint may initialise, resume, or partially map onto a graph, but its path is not part of the immutable graph.</p><h4 id="3-5-online-feedback-belongs-to-the-combined-execution-system" class="hx">3.5 Online feedback belongs to the combined execution system<a class="permalink" href="#3-5-online-feedback-belongs-to-the-combined-execution-system" aria-label="Link to this section">#</a></h4><p>Confidence-controlled leak is not a training recipe. At each timestep it computes evidence from the current readout, derives confidence, and modulates a population parameter before a later state update. The combined <em>snnlang</em> plus <em>tools/snn</em> system must support that causal loop, but version one need not give confidence or <math><msub><mi>𝑔</mi><mi>𝐿</mi></msub></math> modulation dedicated language constructs.</p><p>One eventual declarative spelling could be:</p><pre><code>evidence = snn.readouts.cumulative(cell.E.spikes)
+confidence = snn.signals.max_probability(evidence)
+
+snn.controls.bounded_leak(
+    source=confidence,
+    target=cell.E,
+    low_confidence_tau=30 * snn.ms,
+    high_confidence_tau=10 * snn.ms,
+    delay=1 * snn.step,
+)</code></pre><p>The spelling is provisional and is not a version-one requirement. Three implementation routes are legitimate:</p><ul><li>ordinary graph operations, if the initial vocabulary can express the loop cleanly;</li><li>a generic stateful controller or modulatory-node extension implemented by <em>tools/snn</em>;</li><li>custom experiment code using a small, stable runtime hook around a compiled graph.</li></ul><p>Whichever route is chosen must state the source signal, transform, target, bounds, initial state, and whether the effect is immediate or delayed. A next-timestep default avoids an implicit algebraic loop. If controller parameters later become trainable, <em>TrainSpec</em> can select them like any other parameter.</p><p>The third route does not mean reaching into model locals or monkey-patching the training loop. It means an intentional engine extension point. The graph and checkpoint remain portable; the run manifest records the controller implementation and configuration. If the same controller pattern recurs, it can then be promoted into snnlang.</p><h3 id="4-what-remains-outside-snnlang" class="hx">4. What remains outside snnlang<a class="permalink" href="#4-what-remains-outside-snnlang" aria-label="Link to this section">#</a></h3><p>Neither <em>Network</em> nor <em>TrainSpec</em> should initially describe:</p><ul><li>experimental conditions or hypothesis labels;</li><li>parameter and seed sweeps;</li><li>matched-control searches;</li><li>multi-stage curricula or alternating optimizers;</li><li>arbitrary Python callbacks;</li><li>experiment-specific adaptive interventions driven by intermediate results;</li><li>paper-specific metrics;</li><li>figures and publication;</li><li>RunPod or Modal orchestration;</li><li>automatic prose or claim generation.</li></ul><p>A custom experiment may use <em>graph.json</em> with custom Python training code and omit <em>training.json</em>. A feature enters <em>TrainSpec</em> only when the standard <em>tools/snn</em> trainer supports it and repeated experiments share it.</p><p>A paper-specific rule that decides which condition to run next remains in the runner. A within-trial control loop must execute inside the simulator runtime, whether authored directly in the graph or attached through a stable extension point.</p><h3 id="5-compilation-and-static-analysis" class="hx">5. Compilation and static analysis<a class="permalink" href="#5-compilation-and-static-analysis" aria-label="Link to this section">#</a></h3><p>Compilation is pure and deterministic:</p><pre><code>bundle = snn.compile(
+    net,
+    training=train,
+    target="tools/snn",
+)
+bundle.write("ping.bundle")</code></pre><p>It performs no simulation, accelerator allocation, realised random initialization, or mutation of <em>tools/snn</em> globals. Python object references become stable graph identifiers at serialization.</p><h4 id="5-1-hard-validation" class="hx">5.1 Hard validation<a class="permalink" href="#5-1-hard-validation" aria-label="Link to this section">#</a></h4><p>The early compiler can provide substantial value before execution:</p><ul><li>schema and version validation;</li><li>unique names and resolved references;</li><li>tensor and projection shapes;</li><li>physical units;</li><li>port compatibility;</li><li>graph reachability from inputs to outputs;</li><li>disconnected populations and unused projections;</li><li>Dale and sign-constraint compatibility;</li><li>parameter inventory and optimizer-group membership;</li><li>objective and target compatibility;</li><li>differentiable reachability from each objective;</li><li>surrogate-gradient coverage on objective paths;</li><li>feedback-cycle delays and a deterministic within-step update order;</li><li>controller output units, target compatibility, and declared bounds;</li><li>checkpoint names and shapes;</li><li>backend capability checks;</li><li>deterministic canonical serialization.</li></ul><p>Example diagnostics should identify the object and failed relation:</p><pre><code>error E203: projection "E_to_I" has shape [800, 200]
+  expected [1024, 256] from E.spikes -> I.excitatory
+
+error E501: selected parameter "I_to_E.weight"
+  has no differentiable path to objective "classification"</code></pre><h4 id="5-2-reports-and-estimates" class="hx">5.2 Reports and estimates<a class="permalink" href="#5-2-reports-and-estimates" aria-label="Link to this section">#</a></h4><p>The analyser can also report:</p><ul><li>population and projection tables;</li><li>strongly connected components and recurrent motifs;</li><li>feedforward, recurrent, and modulatory paths between named populations;</li><li>parameter counts and selected versus frozen parameters;</li><li>expected sparse edge counts and fan-in;</li><li>approximate parameter, optimizer, state, recording, and BPTT memory;</li><li>semantic differences between two bundles;</li><li>whether two runs share a graph but differ in training policy;</li><li>whether a bundle contains unresolved environment-dependent defaults.</li></ul><p>Numerical risk checks should be warnings rather than proofs:</p><pre><code>warning W311: tau_gaba=0.2 ms is only two timesteps
+  at dt=0.1 ms; the decay may be poorly resolved</code></pre><h4 id="5-3-visual-graph-reports" class="hx">5.3 Visual graph reports<a class="permalink" href="#5-3-visual-graph-reports" aria-label="Link to this section">#</a></h4><p><em>snnlang</em> should optionally render a compiled bundle as a polished circuit diagram. This is a compiler report, not a simulator feature:</p><pre><code>bundle.visualise(
+    "network.svg",
+    view="circuit",
+)
+bundle.visualise(
+    "network.png",
+    view="circuit",
+    scale=2,
+)</code></pre><p>The implementation should generate styled DOT from <em>graph.json</em>, use Graphviz for layout, and treat SVG as the canonical visual output. PNG and PDF are derived publication formats. Graphviz is responsible for ranks, routing, and crossing reduction; <em>snnlang</em> remains responsible for visual meaning.</p><p>The visual grammar should be stable:</p><ul><li>rounded cards for populations, with size and neuron model;</li><li>restrained, consistent colours for excitatory, inhibitory, input, output, and modulatory nodes;</li><li>solid excitatory projections, inhibitory bar endings, and dashed modulatory paths;</li><li>softly bounded clusters for layers, PING cells, and user-defined components;</li><li>feedback routed separately from the primary feedforward direction;</li><li>optional edge width or annotation for density, fan-in, delay, or weight summary;</li><li>subtle marks for trainable parameters and stop-gradient boundaries.</li></ul><p>One overloaded picture is not the goal. The renderer should offer at least:</p><ul><li><code>circuit</code>, a paper-ready population and projection view;</li><li><code>training</code>, showing outputs, objectives, trainable groups, and gradient boundaries;</li><li><code>expanded</code>, showing lower-level operations and stateful nodes for debugging.</li></ul><p>Components are collapsed by default and expandable on request. Parallel projections may be grouped, default parameters suppressed, and a selected path highlighted. If a graph is too dense for a legible static image, the renderer should warn and require filtering or collapsing rather than emit decorative spaghetti. Layout, colours, fonts, node ordering, and identifiers must be deterministic so an unchanged bundle produces an unchanged diagram.</p><p>The canonical SVG should retain stable object identifiers and classes. This permits tooltips or interactive inspection later without changing the graph schema. Visualisation failure must never make an otherwise valid bundle unexecutable.</p><h4 id="5-4-what-static-analysis-does-not-promise" class="hx">5.4 What static analysis does not promise<a class="permalink" href="#5-4-what-static-analysis-does-not-promise" aria-label="Link to this section">#</a></h4><p>The early analyser does not predict whether gamma emerges, its frequency, a Hopf threshold, firing rates, accuracy, or successful optimization. Those are dynamical claims. Later restricted analysers may attach approximate semantics to supported motifs, but every result must state its assumptions and unsupported components.</p><h3 id="6-runtime-and-cli-boundary" class="hx">6. Runtime and CLI boundary<a class="permalink" href="#6-runtime-and-cli-boundary" aria-label="Link to this section">#</a></h3><p>The bundle is the canonical reproducibility boundary, not the only execution route. <em>tools/snn</em> should expose one small request-based Python API:</p><pre><code>model = tools_snn.build(graph)
+result = tools_snn.train(
+    graph,
+    training,
+    data,
+    request,
+)
+result = tools_snn.simulate(
+    graph,
+    data,
+    request,
+)</code></pre><p>The CLI is a thin wrapper over the same functions. Ordinary experiment runners should receive a typed subprocess helper when they want process isolation:</p><pre><code>from experiments.helpers.snn import run_training
+
+run_training(
+    bundle=bundle_path,
+    seed=seed,
+    out_dir=cell_dir,
+)</code></pre><p>The helper invokes:</p><pre><code>uv run python tools/snn/tool.py train \
+  --bundle ping.bundle \
+  --data data.json \
+  --seed 42 \
+  --out-dir cell/</code></pre><p>Inference needs only the graph and optional checkpoint:</p><pre><code>uv run python tools/snn/tool.py sim \
+  --graph ping.bundle/graph.json \
+  --weights weights.pth \
+  --out-dir inference/</code></pre><p>Scientific graph and standard training settings live in validated files rather than long argument lists. The data binding carries resolved sources. CLI arguments carry paths, seeds, output locations, and lifecycle controls.</p><p>The process boundary remains valuable because a fresh process contains failures, accelerator memory, compiler state, and legacy globals. The importable API remains available for notebooks, debugging, composition into custom training code, and experiments needing deliberate runtime extensions. Runners must not obtain that flexibility by importing the CLI module, inspecting stack frames, or monkey-patching engine internals.</p><h4 id="6-1-three-extension-levels" class="hx">6.1 Three extension levels<a class="permalink" href="#6-1-three-extension-levels" aria-label="Link to this section">#</a></h4><p>The system supports increasing flexibility with decreasing portability:</p><ol><li><strong>Authoring components.</strong> Python functions compose standard snnlang operations and expand before serialization. This is the preferred route for readouts and circuit templates.</li><li><strong>Registered backend operations.</strong> The graph records a versioned operation identifier and configuration; <em>tools/snn</em> supplies its PyTorch implementation. The manifest records the required extension.</li><li><strong>Direct Python execution.</strong> Exploratory code uses the importable API with a custom <code>torch.nn.Module</code>, controller, or training loop. The run records its source identity, configuration, environment, and compiled graph.</li></ol><p>Every standard experiment should replay from an archived bundle. Experimental Python extensions are allowed when recorded explicitly; they should be promoted into a portable operation only after their interface stabilizes.</p><h4 id="6-2-pytorch-performance-is-non-negotiable" class="hx">6.2 PyTorch performance is non-negotiable<a class="permalink" href="#6-2-pytorch-performance-is-non-negotiable" aria-label="Link to this section">#</a></h4><p><em>snnlang</em> is an authoring language and intermediate representation. It is not a runtime interpreter. <em>tools/snn</em> lowers a validated graph into coarse, vectorized PyTorch modules before simulation:</p><pre><code>graph.json
+    -> tools_snn.build(...)
+    -> torch.nn.Module
+    -> torch.compile
+    -> CUDA, MPS, or CPU execution</code></pre><p>Populations are batched tensors; projections become dense, sparse, or structured tensor operations; recurrent state remains in tensors; and training uses PyTorch autograd with surrogate gradients. Compatible operations may be fused, and future Triton or custom CUDA kernels remain backend implementation choices.</p><p>The runtime must not execute a Python loop over graph nodes inside every timestep. Arbitrary Python callbacks may cause graph breaks and are an explicitly slower exploratory path. Stateful controllers intended for production execution should be PyTorch modules with fixed tensor interfaces.</p><p>Backend conformance includes performance. Each reference graph is benchmarked against its specialized legacy implementation after warm-up and compilation. The initial target is no more than approximately 5–10% steady-state overhead for an equivalent graph, with peak memory and compilation time reported separately. A pleasant API does not compensate for a materially slower simulator.</p><p>Existing flag-driven experiments remain supported. The manifest path is additive:</p><pre><code>legacy flags -> compatibility adapter -\
+                                       +-> ExecutionSpec
+graph bundle -> bundle loader --------/</code></pre><p>During migration, <em>ExecutionSpec</em> may select either the legacy <code>COBANet</code> builder or the graph-native executor. The target is one graph-native PyTorch execution core with the legacy CLI retained as a compatibility frontend. This permits gradual adoption without rewriting the historical experiment corpus.</p><h3 id="7-staged-implementation" class="hx">7. Staged implementation<a class="permalink" href="#7-staged-implementation" aria-label="Link to this section">#</a></h3><p>Implementation is divided into cumulative, goal-sized milestones. Each milestone states separate <em>snnlang</em> and <em>tools/snn</em> deliverables, the legacy behaviour that must remain unchanged, and executable acceptance tests. “Implement up to milestone <math><mi>𝑁</mi></math>” therefore means: inspect the repository’s declared milestone status, complete every unmet requirement through <math><mi>𝑁</mi></math>, run each intervening gate, and stop. It does not authorize beginning milestone <math><mi>𝑁</mi><mo>+</mo><mn>1</mn></math>.</p><p>Milestone 0 records the bundle compiler, visualization, narrow legacy adapter, MNIST training smoke test, and lifecycle equivalence work already demonstrated by <em>exp074</em>–<em>exp076</em>. Milestones 1–3 create the execution boundary, prove one graph natively, and then unlock arbitrary coupled circuits. Later milestones add a real gamma-coupling experiment, graph-native training, SHD and deeper networks, and online control.</p><p>Appendix B is the normative milestone ledger. The sequence is additive and reversible: no milestone deletes the working legacy path, changes an old runner, or changes a default in order to prove the next one.</p><h3 id="8-migration-policy" class="hx">8. Migration policy<a class="permalink" href="#8-migration-policy" aria-label="Link to this section">#</a></h3><p>Completed experiments are scientific records, not merely old application code. They should remain executable through their existing runners.</p><ul><li>New experiments use <em>snnlang</em> once the needed feature set exists.</li><li>A small MNIST, SHD, and untrained simulation suite becomes the conformance set.</li><li>An old experiment migrates when it is materially extended.</li><li>A migrated version is treated as a new implementation and compared explicitly.</li><li>Custom training or intervention code remains acceptable when it is genuinely experiment-specific.</li></ul><p>Mass retrofitting would risk changing defaults, seed handling, initialization, or simulator configuration while producing reassuringly similar figures. Architectural purity is not worth damaged provenance.</p><h3 id="9-success-criterion" class="hx">9. Success criterion<a class="permalink" href="#9-success-criterion" aria-label="Link to this section">#</a></h3><p>The first new scientific capability milestone is milestone 3:</p><blockquote><em>snnlang</em> compiles two independently driven PING circuits with reciprocal, delayed inhibitory coupling; the graph-native <em>tools/snn</em> executor simulates them without changing the legacy executor; and named population recordings make their phase relationship measurable by an experiment runner.</blockquote><p>The confidence-to-<math><msub><mi>𝑔</mi><mi>𝐿</mi></msub></math> experiment is the next system-level acceptance test. It succeeds whether the feedback is expressed through ordinary graph operations, a generic controller extension, or a stable runtime hook. The important constraint is that it composes with a compiled graph, remains reproducible, and does not require surgery on simulator internals.</p><h3 id="appendix-a-bundle-and-artifact-lifecycle" class="hx">Appendix A. Bundle and artifact lifecycle<a class="permalink" href="#appendix-a-bundle-and-artifact-lifecycle" aria-label="Link to this section">#</a></h3><h4 id="a-1-construction-and-compilation" class="hx">A.1 Construction and compilation<a class="permalink" href="#a-1-construction-and-compilation" aria-label="Link to this section">#</a></h4><p>An experiment-specific definition may begin inside its runner:</p><pre><code>def make_bundle(tau_gaba_ms: float):
+    net = make_ping_classifier(
+        tau_gaba_ms=tau_gaba_ms,
+    )
+    train = make_standard_training(net)
+    return snnlang.compile(
+        net,
+        training=train,
+        target="tools/snn",
+    )</code></pre><p>The first use remains local. A repeated component may later move into a reusable circuit module. Reuse must be observed rather than predicted.</p><p>Compilation writes:</p><pre><code>ping-tg9.bundle/
+    manifest.json
+    graph.json
+    training.json
+    reports/
+        circuit.svg
+        circuit.png</code></pre><p>The executable files contain data only. They contain no Python callables, live instances, pickled authoring objects, accelerator tensors, or <em>torch.compile</em> products. The optional <em>reports/</em> directory contains derived human-readable views and may be regenerated exactly from the bundle.</p><h4 id="a-2-bundle-contract" class="hx">A.2 Bundle contract<a class="permalink" href="#a-2-bundle-contract" aria-label="Link to this section">#</a></h4><p><em>graph.json</em> contains:</p><ul><li>populations, operations, ports, and projections;</li><li>dynamics and structural parameters;</li><li>initializer specifications;</li><li>constants and optimizable parameters;</li><li>constraints, masks, and ties;</li><li>named outputs and exposed observables;</li><li>grouping metadata for source-level components.</li></ul><p><em>training.json</em> contains:</p><ul><li>the exact graph digest;</li><li>the expected data interface and encoder supported by the standard trainer;</li><li>objectives, targets, and regularizers;</li><li>optimizer parameter groups;</li><li>surrogate-gradient and clipping settings;</li><li>epochs and an explicit standard checkpoint-selection policy.</li></ul><p>A resolved <em>data.json</em> contains:</p><ul><li>the input representation, such as dense samples or timestamped events;</li><li>train, validation, or evaluation source paths;</li><li>the mapping from source fields to graph inputs and training targets;</li><li>shape, class-vocabulary, split, and content digests needed for validation and provenance.</li></ul><p>It does not decide how a scientific split was created. That remains runner code.</p><p><em>manifest.json</em> binds the files:</p><pre><code>{
+  "schema": "snnlang.bundle/v1",
+  "graph": {
+    "path": "graph.json",
+    "sha256": "..."
+  },
+  "training": {
+    "path": "training.json",
+    "sha256": "...",
+    "graph_sha256": "..."
+  }
+}</code></pre><p>A simulation-only bundle may omit <em>training.json</em>. <em>tools/snn</em> rejects missing files, unsupported schema versions, digest mismatches, or backend capabilities absent from the graph.</p><h4 id="a-3-run-state" class="hx">A.3 Run state<a class="permalink" href="#a-3-run-state" aria-label="Link to this section">#</a></h4><p><em>config.json</em>, written by <em>tools/snn</em>, records the resolved execution:</p><ul><li>execution mode, seed, device, timestep, and duration;</li><li>graph and training schema versions and digests;</li><li>data-binding, input, and checkpoint paths and digests;</li><li>requested outputs;</li><li>code and environment provenance.</li></ul><p>A checkpoint contains evolving parameter values and optional optimizer state. Initializing, resuming, fine-tuning, and inference are invocation choices rather than changes to <em>graph.json</em>.</p><p>Graph-runtime state is a separate artifact again. It contains membrane voltages, refractory counters, per-projection conductances, recurrent delay histories, delayed-input context, completed steps, and a structural compatibility signature—but no weights. The initial portable representation is an authenticated <code>manifest.json</code> plus <code>tensors.npz</code>. This separation permits a mature zero-weight graph to branch into a state-compatible non-zero-weight graph without confusing dynamic continuation with parameter checkpointing. <em>snnlang</em> continues to author topology only; <em>tools/snn</em> owns state validation and I/O, while the experiment runner owns checkpoint selection and branching.</p><h4 id="a-4-scratch-layout" class="hx">A.4 Scratch layout<a class="permalink" href="#a-4-scratch-layout" aria-label="Link to this section">#</a></h4><p>Each experiment uses regenerable scratch separately from its committed publication record:</p><pre><code>temp/experiments/expNNN/
+    bundles/
+        ping-tg4p5.bundle/
+        ping-tg9.bundle/
+        ping-tg18.bundle/
+    reports/
+        ping-tg4p5.svg
+        ping-tg9.svg
+        ping-tg18.svg
+    cells/
+        ping-tg4p5-seed42/
+        ping-tg4p5-seed43/
+        ping-tg9-seed42/
+
+artifacts/data/expNNN/</code></pre><p>A runner compiles once per unique graph and training policy, not once per seed. It may reuse that bundle with different validated data bindings.</p><h4 id="a-5-execution" class="hx">A.5 Execution<a class="permalink" href="#a-5-execution" aria-label="Link to this section">#</a></h4><p>The runner uses a typed subprocess helper:</p><pre><code>run_training(
+    bundle=bundles[condition],
+    data=data_binding,
+    seed=seed,
+    out_dir=cell_dir(condition, seed),
+)</code></pre><p>At the shell boundary:</p><pre><code>tools/snn train \
+  --bundle ping-tg9.bundle \
+  --data data.json \
+  --seed 42 \
+  --out-dir cells/ping-tg9-seed42</code></pre><p>The tool copies the exact files it executed into the run directory:</p><pre><code>cells/ping-tg9-seed42/
+    graph.json
+    training.json
+    data.json
+    config.json
+    metrics.json
+    weights.pth
+    output.log
+    run.jsonl
+    run.sh</code></pre><p>Copying prevents later edits to a source bundle from changing the apparent meaning of existing weights and metrics.</p><h4 id="a-6-publication" class="hx">A.6 Publication<a class="permalink" href="#a-6-publication" aria-label="Link to this section">#</a></h4><p>The committed experiment record deduplicates descriptions while retaining the mapping from every reported cell:</p><pre><code>artifacts/data/expNNN/
+    numbers.json
+    bundle_manifest.json
+    graphs/
+        ping-tg4p5.json
+        ping-tg9.json
+        ping-tg18.json
+    diagrams/
+        ping-tg4p5.svg
+        ping-tg9.svg
+        ping-tg18.svg
+    training/
+        train-tg4p5.json
+        train-tg9.json
+        train-tg18.json
+    figure.svg
+    raster.png</code></pre><p>The manifest maps each cell to graph and training digests:</p><pre><code>{
+  "cells": [
+    {
+      "condition": "tg9",
+      "seed": 42,
+      "graph": "ping-tg9",
+      "training": "train-tg9"
+    }
+  ]
+}</code></pre><p>Compiler caches and accelerator-specific products are disposable implementation state and are not published scientific artifacts.</p><h4 id="a-7-atomic-runner-lifecycle" class="hx">A.7 Atomic runner lifecycle<a class="permalink" href="#a-7-atomic-runner-lifecycle" aria-label="Link to this section">#</a></h4><pre><code>def main():
+    run_id = next_run_id(SLUG)
+
+    with published_run(
+        SLUG,
+        run_id,
+        scale=SCALE,
+    ) as (scratch, staging):
+
+        bundles = {}
+
+        for condition in CONDITIONS:
+            bundle = make_bundle(condition)
+            path = (
+                scratch
+                / "bundles"
+                / f"{condition}.bundle"
+            )
+            bundle.write(path)
+            bundles[condition] = path
+
+        for condition in CONDITIONS:
+            for seed in SEEDS:
+                run_training(
+                    bundle=bundles[condition],
+                    data=data_binding(condition),
+                    seed=seed,
+                    out_dir=cell_dir(
+                        condition,
+                        seed,
+                    ),
+                )
+
+        rows = analyse_cells(
+            CONDITIONS,
+            SEEDS,
+        )
+        render_figures(rows, staging)
+        publish_descriptions(
+            bundles,
+            staging,
+        )
+        write_bundle_manifest(
+            bundles,
+            CONDITIONS,
+            SEEDS,
+            staging,
+        )
+        write_numbers(
+            staging,
+            run_id=run_id,
+            duration_s=duration,
+            payload=summarise(rows),
+        )</code></pre><p>The final artifact directory is replaced only after compilation, execution, analysis, plotting, and summary generation all succeed. A failed run cannot publish new graph descriptions beside figures from an older run.</p><h3 id="appendix-b-implementation-milestone-ledger" class="hx">Appendix B. Implementation milestone ledger<a class="permalink" href="#appendix-b-implementation-milestone-ledger" aria-label="Link to this section">#</a></h3><h4 id="b-1-how-milestone-goals-are-interpreted" class="hx">B.1 How milestone goals are interpreted<a class="permalink" href="#b-1-how-milestone-goals-are-interpreted" aria-label="Link to this section">#</a></h4><p>A goal phrased as <code>Implement ar063 up to milestone N</code> is cumulative. The implementation agent must:</p><ol><li>read this ledger and inspect the current code rather than assuming its status;</li><li>complete unmet deliverables from milestone 0 through <math><mi>𝑁</mi></math>;</li><li>run every acceptance gate through <math><mi>𝑁</mi></math>;</li><li>update the status ledger and supporting documentation with evidence;</li><li>preserve all compatibility invariants; and</li><li>stop before work unique to milestone <math><mi>𝑁</mi><mo>+</mo><mn>1</mn></math>.</li></ol><p>A milestone is complete only when its tests and experiment evidence are committed. Merely creating types, schemas, or command-line flags does not count. If a gate reveals a numerical or compatibility regression, the milestone remains incomplete.</p><p>The status labels are <code>demonstrated</code>, <code>partial</code>, and <code>not started</code>. They describe evidence in the repository at the date of this proposal and must be revised as the implementation advances.</p><h4 id="b-2-compatibility-invariants" class="hx">B.2 Compatibility invariants<a class="permalink" href="#b-2-compatibility-invariants" aria-label="Link to this section">#</a></h4><p>Every stage keeps the existing CLI and historical runners operational. New functionality is added beside the legacy path and becomes the default only after correctness, checkpoint, artifact, and performance gates pass.</p><p>The transition begins with two frontends and, temporarily, two construction paths:</p><pre><code>old runner
+    -> legacy CLI flags
+    -> compatibility adapter --\
+                                +-> ExecutionSpec
+new runner                     /
+    -> snnlang bundle --------/
+
+ExecutionSpec
+    -> legacy COBANet executor
+    or
+    -> graph-native executor</code></pre><p>The target is:</p><pre><code>legacy CLI flags
+    -> compatibility adapter --\
+                                +-> ExecutionSpec
+snnlang bundle                 /
+    -> bundle loader ---------/
+
+ExecutionSpec
+    -> graph-native PyTorch executor</code></pre><p>The compatibility adapter survives after convergence. The legacy executor remains selected for legacy CLI invocations until a later milestone explicitly changes that routing. In particular:</p><ul><li>old commands, defaults, configuration files, checkpoints, parameter names, recordings, and artifact schemas remain valid;</li><li>no existing experiment runner is edited merely to adopt <em>snnlang</em>;</li><li><code>--executor graph</code> or an equivalent explicit bundle field selects new execution during the compatibility period;</li><li>graph checkpoints use their own manifest until an explicit, tested parameter map permits cross-loading; and</li><li>low-level numerical kernels may be shared, but the legacy <code>COBANet</code> construction and update path are not refactored as a prerequisite for graph execution.</li></ul><h4 id="b-3-milestone-0-established-bundle-baseline" class="hx">B.3 Milestone 0: established bundle baseline<a class="permalink" href="#b-3-milestone-0-established-bundle-baseline" aria-label="Link to this section">#</a></h4><p><strong>Status at 2026-08-05: demonstrated for the narrow MNIST COBANet slice; broader legacy characterization remains partial.</strong></p><p><em>snnlang deliverables:</em> Python authoring objects; graph and training IRs; PING and readout helpers; deterministic bundles and manifests; basic validation; circuit, expanded, and training diagrams.</p><p><em>tools/snn deliverables:</em> load a supported bundle without importing <em>snnlang</em>; translate the exact one-layer PING plus mean-voltage graph into the legacy executor; translate its narrow MNIST recipe into the legacy trainer.</p><p><em>Evidence:</em> <em>exp074</em> simulates supplied spikes and records rasters; <em>exp075</em> trains a small MNIST subset; <em>exp076</em> compares seeded initialization, forward values, loss, gradients, one optimizer step, checkpoint interchange, and replay.</p><p><strong>Gate:</strong> those experiments and their focused unit tests pass through the unchanged CLI. This baseline must remain green at every later milestone.</p><h4 id="b-4-milestone-1-freeze-the-compatibility-seam" class="hx">B.4 Milestone 1: freeze the compatibility seam<a class="permalink" href="#b-4-milestone-1-freeze-the-compatibility-seam" aria-label="Link to this section">#</a></h4><p><strong>Status at 2026-08-05: demonstrated.</strong> The typed request seam, legacy-default selector, versioned element-level capability vocabulary, and data-only bundle boundary are implemented in commits <code>5be1cdb</code> and <code>cf11906</code>. Focused tests lower legacy MNIST, SHD, checkpoint, recording, and bundle invocations into the same request type while retaining legacy routing. <em>exp074</em>–<em>exp076</em> reran successfully through their historical interfaces; the validation evidence and anomalies are recorded in <a href="/exp077/"><em>exp077</em></a>.</p><p><strong>Purpose:</strong> create a safe place for a second executor without changing numerical behaviour. This milestone adds architecture and tests, not new circuit science.</p><p><em>snnlang deliverables:</em> define a versioned backend capability vocabulary and make compilation report required capabilities such as neuron kinds, synapse kinds, delays, feedback, operations, training, and recording modes. Capability failure must identify the graph element and missing feature rather than merely saying that a bundle is unsupported.</p><p><em>tools/snn deliverables:</em> introduce typed <code>ExecutionSpec</code> and <code>ExecutionResult</code> objects and a small internal request API for build, simulate, train, and infer. Add an explicit executor selector with <code>legacy</code> as the default. The existing CLI becomes a thin caller of this API, while bundle loading remains data-only and does not import <em>snnlang</em>. A <code>graph</code> executor entry may initially fail with a precise “not implemented” diagnostic.</p><p><em>Compatibility gate:</em> run the milestone-0 suite plus representative existing MNIST, SHD, untrained, checkpoint-load, and recording CLI smoke tests. Commands, resolved defaults, parameter names and shapes, seeded outputs, artifacts, and exit behaviour must remain unchanged. No historical runner imports the new API.</p><p><strong>Exit criterion:</strong> both legacy flags and bundles produce an <code>ExecutionSpec</code>; all existing invocations still select the untouched legacy executor; capability reports agree with what the legacy bundle adapter actually accepts.</p><h4 id="b-5-milestone-2-graph-native-single-ping-forward-execution" class="hx">B.5 Milestone 2: graph-native single-PING forward execution<a class="permalink" href="#b-5-milestone-2-graph-native-single-ping-forward-execution" aria-label="Link to this section">#</a></h4><p><strong>Status at 2026-08-05: demonstrated.</strong> Commit <code>cf11906</code> makes the existing PING state, refractory counts, membrane constants, update order, silent recurrence, readout reset, delays, initialisers, constraints, outputs, and observables explicit. <em>exp077</em> records zero parameter error, zero E/I spike mismatches, zero named-output error, and zero checkpoint-replay error on an active matched CPU fixture. The graph path is faster than the legacy path on the matched steady-state workload, so the overhead gate passes without an exception. CPU Inductor compilation time, warm runtime, replay error, and traced peak memory are reported separately. A larger CPU compile attempt was killed after five minutes; accelerator compilation remains unmeasured.</p><p><strong>Purpose:</strong> prove the new lowering and scheduling machinery on a topology whose legacy result is known.</p><p><em>snnlang deliverables:</em> emit all explicit state, update-order, delay, initializer, constraint, output, and observable information required to execute the existing one-layer PING graph without backend guesses.</p><p><em>tools/snn deliverables:</em> add a graph planner and vectorized PyTorch executor for COBA-LIF E/I populations, AMPA/GABA projections, dense weights, direct spike inputs, non-spiking leaky-integrator populations, mean-voltage reduction, and named recordings. Lower the complete graph before the timestep loop; do not interpret graph nodes dynamically at every step. Keep <code>torch.compile</code> behind the same internal boundary used by the legacy engine.</p><p><em>Compatibility gate:</em> legacy remains the default. Run the same bundle once through its legacy translation and once through the graph executor. Compare parameter identities and shapes, seeded initialization, short CPU state trajectories, spikes, named outputs, recordings, and checkpoint round trips. Benchmark compiled steady-state runtime, compilation time, and peak memory separately.</p><p><strong>Exit criterion:</strong> the graph executor matches the legacy single-PING forward path within declared tolerances and is no more than approximately 5–10% slower at steady state for the reference workload, unless a measured exception is recorded and accepted before proceeding.</p><h4 id="b-6-milestone-3-arbitrary-coupled-forward-graphs" class="hx">B.6 Milestone 3: arbitrary coupled forward graphs<a class="permalink" href="#b-6-milestone-3-arbitrary-coupled-forward-graphs" aria-label="Link to this section">#</a></h4><p><strong>Status at 2026-08-05: demonstrated.</strong> Commit <code>cf11906</code> adds deterministic topological scheduling, arbitrary named population sizes, independent inputs, dense feedforward/recurrent/feedback projections, multiple incoming conductance streams, integral delay buffers, and all-population recordings. <a href="/exp077/"><em>exp077</em></a> (fixture commit <code>3b7a935</code>, evidence commit <code>fdfb19f</code>) archives uncoupled, unidirectional, reciprocal zero-additional-delay, and reciprocal explicitly delayed two-PING graphs. Each variant differs only in graph data and retains its authenticated graph, manifest, canonical diagram, named input/E/I recordings, delay evidence, and execution provenance. The fixture computes only compact recording diagnostics; the scientific coupling sweep is performed separately by Milestone 4 in <a href="/exp078/"><em>exp078</em></a>.</p><p><strong>Purpose:</strong> deliver the first capability that the legacy <code>COBANet</code> architecture cannot express.</p><p><em>snnlang deliverables:</em> compile multiple independently named components, feedforward/recurrent/feedback projections, explicit positive delays, arbitrary E/I sizes, independent inputs, and observables from every population. Tighten validation for temporal causality, projection dimensions, polarity, and delayed feedback.</p><p><em>tools/snn deliverables:</em> execute arbitrary named populations and projections, multiple incoming conductance streams, delay buffers, deterministic recurrent and feedback scheduling, and population-level recordings. Initial support may remain dense; sparse and structured lowering are later optimizations.</p><p><em>Acceptance fixture:</em> two independently driven PING circuits with reciprocal GABA projections from each inhibitory population to the other excitatory population. Include uncoupled, unidirectional, reciprocal, and delayed variants. Exact tests establish which timestep receives each pulse; the experiment runner, not the engine, computes phase locking and synchrony.</p><p><strong>Compatibility gate:</strong> milestone-0 and milestone-2 parity suites remain green and legacy CLI routing remains unchanged.</p><p><strong>Exit criterion:</strong> all coupling variants require only graph changes, not simulator edits, and archive their graph, manifest, diagram, recordings, and execution provenance.</p><h4 id="b-7-milestone-4-first-native-gamma-coupling-experiment" class="hx">B.7 Milestone 4: first native gamma-coupling experiment<a class="permalink" href="#b-7-milestone-4-first-native-gamma-coupling-experiment" aria-label="Link to this section">#</a></h4><p><strong>Status: executor capability complete; scientific experiment planned.</strong> Exact split-run tests cover refractory state, live conductances, recurrent delays, and delayed inputs. Runtime-state compatibility excludes parameter values but rejects changes to timestep, population size, projection identity, delay, synapse, and state layout. This is sufficient to burn in a structurally complete graph with reciprocal E-to-I weights at zero and continue the same causal trajectory with nonzero weights. General time-dependent weights are not required.</p><p><a href="/exp078/"><em>exp078</em></a> executes the registered graph-native Arnold-tongue test in two 80 E / 20 I circuits. It calibrates uncoupled gamma frequency, freezes locking tolerances and a bounded coupling pilot, then crosses measured natural-frequency detuning with reciprocal coupling. The 80/20 result recovers the widening tongue but narrowly fails the strict phase-lead clause. A reduced 800 E / 200 I confirmation near that phase-sign boundary is the appropriate finite-size follow-up; the full sweep is not silently redefined at tenfold scale.</p><h4 id="b-8-milestone-5-graph-native-readouts-and-input-bindings" class="hx">B.8 Milestone 5: graph-native readouts and input bindings<a class="permalink" href="#b-8-milestone-5-graph-native-readouts-and-input-bindings" aria-label="Link to this section">#</a></h4><p><em>snnlang deliverables:</em> finish precise shape and unit inference for mean voltage, final voltage, spike count, duration-normalized spike rate, and cumulative potential. Define resolved dense and event-stream input bindings separately from the graph, including masks and durations; paths live in execution data, not in the reusable graph.</p><p><em>tools/snn deliverables:</em> execute all five readouts, supplied dense spike arrays, event streams, masks, named outputs, and recordings through stable request and CLI contracts. Dataset generation remains optional: callers may provide an input artifact or request a reusable tool-side encoder.</p><p><strong>Gate:</strong> hand-calculated micro-fixtures verify every readout and masked-duration case; existing input and artifact behaviour remains unchanged.</p><h4 id="b-9-milestone-6-graph-native-mnist-training" class="hx">B.9 Milestone 6: graph-native MNIST training<a class="permalink" href="#b-9-milestone-6-graph-native-mnist-training" aria-label="Link to this section">#</a></h4><p><em>snnlang deliverables:</em> validate cross-entropy objectives, complete parameter-group partitions, frozen parameters, AdamW settings, gradient clipping, checkpoint selection, and optimizer-state replay. Reject objectives without a differentiable path to a trainable parameter.</p><p><em>tools/snn deliverables:</em> train the milestone-2 graph natively with surrogate gradients and the standard MNIST input binding. Support save, resume, selected and final checkpoints, inference, and optimizer-state replay.</p><p><strong>Gate:</strong> compare the legacy and graph paths on initialization, forward values, gradients, one update, short learning curves, checkpoint replay, artifacts, compiled runtime, and memory. Keep bundle execution opt-in.</p><h4 id="b-10-milestone-7-shd-and-deeper-trained-graphs" class="hx">B.10 Milestone 7: SHD and deeper trained graphs<a class="permalink" href="#b-10-milestone-7-shd-and-deeper-trained-graphs" aria-label="Link to this section">#</a></h4><p>Extend data binding and graph-native training to event-stream SHD and multiple hidden PING layers. Add named recordings from every layer and an explicit standard checkpoint-selection contract. Use the existing one-layer SHD and two-layer SHD cells as conformance cases rather than retrofitting their runners.</p><p><strong>Gate:</strong> dense MNIST, one-layer SHD, and two-layer SHD train and evaluate without runner access to live model internals, while the original commands and checkpoints remain supported.</p><h4 id="b-11-milestone-8-regularization-and-training-boundaries" class="hx">B.11 Milestone 8: regularization and training boundaries<a class="permalink" href="#b-11-milestone-8-regularization-and-training-boundaries" aria-label="Link to this section">#</a></h4><p>Implement declared surrogate choices, rate regularizers, multiple optimizer groups, constraints, stop-gradient boundaries, and differentiable-reachability diagnostics. Add only features exercised by current or imminent experiments.</p><p><strong>Gate:</strong> each training construct has a hand-checkable gradient or update fixture; unsupported constructs fail during compilation or planning, never halfway through an expensive run.</p><h4 id="b-12-milestone-9-online-confidence-controlled-leak" class="hx">B.12 Milestone 9: online confidence-controlled leak<a class="permalink" href="#b-12-milestone-9-online-confidence-controlled-leak" aria-label="Link to this section">#</a></h4><p>Make an MNIST classifier’s online confidence modulate <math><msub><mi>𝑔</mi><mi>𝐿</mi></msub></math>, allowing low- confidence trials more PING cycles. Attempt the least specialized route in order:</p><ol><li>compose existing graph operations;</li><li>add a generic stateful controller node;</li><li>add a registered PyTorch backend operation;</li><li>use the importable API as an explicitly experimental extension.</li></ol><p>Do not create a dedicated <code>ConfidenceToLeak</code> primitive solely for one experiment. The chosen route declares causal timing, bounds, initial state, evidence source, target parameter, checkpoint behaviour, and differentiability.</p><p><strong>Gate:</strong> fixed-confidence fixtures reproduce expected <math><msub><mi>𝑔</mi><mi>𝐿</mi></msub></math> or <math><msub><mi>𝜏</mi><mi>𝑚</mi></msub></math> trajectories; a one-step feedback delay has an exact causal test; the experiment compares a matched fixed-leak control and reports accuracy, calibration, decision time, PING cycles, and spike-count or energetic cost.</p><h4 id="b-13-historical-experiment-policy" class="hx">B.13 Historical experiment policy<a class="permalink" href="#b-13-historical-experiment-policy" aria-label="Link to this section">#</a></h4><p>Completed experiments remain unchanged by default. They are scientific records, not migration chores.</p><ul><li>Run selected old cells as regression cases through their original interface.</li><li>Create separate snnlang conformance definitions rather than editing historical runners.</li><li>Do not mass-retrofit the experiment corpus.</li><li>Migrate an old experiment only when it is materially extended.</li><li>Treat a migrated implementation as new and compare it explicitly with the archived result.</li><li>Preserve the legacy CLI even after the graph executor becomes the default.</li></ul><p>This policy avoids changing defaults, random initialization, dataset splits, checkpoint selection, or artifact meaning merely to achieve architectural uniformity. There is no scientific prize for deleting working compatibility code early.</p><h4 id="b-14-milestone-10-optional-convergence-and-retirement" class="hx">B.14 Milestone 10: optional convergence and retirement<a class="permalink" href="#b-14-milestone-10-optional-convergence-and-retirement" aria-label="Link to this section">#</a></h4><p>Changing the default executor or retiring <code>COBANet</code> is a separate, optional milestone, not an automatic consequence of graph-native success. It requires every selected conformance case to pass through the compatibility adapter, historical checkpoints to load or have a documented conversion, artifact contracts to remain stable, compiled performance not to be materially worse, and an explicit decision to accept the migration. The legacy CLI compatibility adapter survives retirement of the legacy execution architecture.</p><div class="entry-tail"></div></body></html>
