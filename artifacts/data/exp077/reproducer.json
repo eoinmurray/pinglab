@@ -40,5 +40,10 @@
     "command": "uv run python -c 'from experiments.exp077 import refresh_step3_empirical_comparison; refresh_step3_empirical_comparison()'",
     "uses_recorded_arrays_only": true,
     "paid_compute": false
+  },
+  "response_distributions": {
+    "command": "uv run python -c 'from experiments.exp077 import refresh_response_distributions; refresh_response_distributions()'",
+    "uses_recorded_arrays_only": true,
+    "paid_compute": false
   }
 }

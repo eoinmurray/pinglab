@@ -1,0 +1,39 @@
+{
+  "status": "complete",
+  "source": "temp/exp077/response_library.float32.npy",
+  "uses_recorded_samples_only": true,
+  "probe_uS": 1.2,
+  "intensity": 255,
+  "records": [
+    {
+      "rate_hz": 0.25,
+      "expected_spikes": 0.05,
+      "sample_count": 6144,
+      "mean_mV": 0.30001997882451786,
+      "standard_deviation_mV": 1.3787130331785076,
+      "zero_fraction": 0.95068359375,
+      "skewness": 4.733850874892453
+    },
+    {
+      "rate_hz": 3.0,
+      "expected_spikes": 0.6,
+      "sample_count": 6144,
+      "mean_mV": 3.368899376795715,
+      "standard_deviation_mV": 4.285250251929811,
+      "zero_fraction": 0.546875,
+      "skewness": 1.0746500305901199
+    },
+    {
+      "rate_hz": 25.0,
+      "expected_spikes": 5.0,
+      "sample_count": 6144,
+      "mean_mV": 20.966454053632333,
+      "standard_deviation_mV": 7.108056086267098,
+      "zero_fraction": 0.0037434895833333335,
+      "skewness": -0.17422179534383883
+    }
+  ],
+  "figure_path": "artifacts/data/exp077/response_distributions.svg",
+  "figure_sha256": "a14d62f5b3728c8ed3bcf04ae6c89a01a50047da9926fb3ae4dd4aeb4fb1f17d",
+  "paid_compute_usd": 0.0
+}
