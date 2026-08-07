@@ -1257,7 +1257,10 @@ def plot_calibration(calibration: dict, out_path: Path) -> None:
     fig, ax = plt.subplots(figsize=(6.5, 3.8))
     ax.axvspan(lo, hi, color=theme.GREY_LIGHT, alpha=0.7, label="frozen operating interval")
     ax.errorbar(x, y, yerr=error, marker="o", color=theme.INK_BLACK, capsize=3)
-    ax.set(xlabel="input rate (Hz per channel)", ylabel="uncoupled gamma peak (Hz)")
+    ax.set(
+        xlabel="equal input rate to A and B (Hz per channel)",
+        ylabel="pooled A/B uncoupled gamma peak (Hz)",
+    )
     ax.legend(frameon=False)
     fig.savefig(out_path, dpi=220, bbox_inches="tight")
     plt.close(fig)
