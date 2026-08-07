@@ -1,7 +1,7 @@
 {
   "status": "complete",
   "completed_at_utc": "2026-08-06T16:27:58Z",
-  "training_protocol_path": "artifacts/data/exp077/expanded_rate_training_protocol.json",
+  "training_protocol_path": "artifacts/data/exp080/expanded_rate_training_protocol.json",
   "training_protocol_sha256": "07e083cfe6d44bd172c18da2be8fe36cafc321025a86f3a567813f8916bb67aa",
   "added_rates_hz": [
     0.01,
@@ -73,7 +73,7 @@
     "pre_expansion_exact_cost_usd": 4.2940396,
     "cumulative_exact_cost_usd": 9.430388729999997,
     "expansion_exact_cost_usd": 5.1363491299999975,
-    "provider_billing_path": "artifacts/data/exp077/modal_billing.json",
+    "provider_billing_path": "artifacts/data/exp080/modal_billing.json",
     "provider_billing_sha256": "4e6e7c457e623671fe31cc1162c7e60ee98e058904fe592afc70a573ca1ae6c5"
   },
   "preserved_infrastructure_failures_before_training": 3,

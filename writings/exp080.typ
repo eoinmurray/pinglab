@@ -14,17 +14,17 @@
 #let decoder-rates-hz = (0.01, 0.05, 0.1, ..calibration-rates-hz)
 #let probe-us = (0.6, 1.2, 2.4)
 #let seeds = (42, 43, 44)
-#let r = json("/artifacts/data/exp077/numbers.json")
-#let m = json("/artifacts/data/exp077/step2_manifest.json")
+#let r = json("/artifacts/data/exp080/numbers.json")
+#let m = json("/artifacts/data/exp080/step2_manifest.json")
 #let diagnostic-k = m.diagnostic_draws_per_condition_per_seed
 #let s3 = r.step3
-#let s3-comparison = json("/artifacts/data/exp077/step3_empirical_comparison.json")
-#let response-distributions = json("/artifacts/data/exp077/response_distributions.json")
+#let s3-comparison = json("/artifacts/data/exp080/step3_empirical_comparison.json")
+#let response-distributions = json("/artifacts/data/exp080/response_distributions.json")
 #let s4 = r.step4
-#let s5 = json("/artifacts/data/exp077/step5_outcome.json")
-#let s6 = json("/artifacts/data/exp077/step6_outcome.json")
-#let decision = json("/artifacts/data/exp077/decision.json")
-#let expanded = json("/artifacts/data/exp077/expanded_rate_outcome.json")
+#let s5 = json("/artifacts/data/exp080/step5_outcome.json")
+#let s6 = json("/artifacts/data/exp080/step6_outcome.json")
+#let decision = json("/artifacts/data/exp080/decision.json")
+#let expanded = json("/artifacts/data/exp080/expanded_rate_outcome.json")
 #let s3-nominal-low = s3.agreement_summaries.at(3)
 #let s3-nominal-transition = s3.agreement_summaries.at(4)
 #let s3-nominal-high = s3.agreement_summaries.at(5)
@@ -449,7 +449,7 @@
 
     #figure(
       image(
-        "/artifacts/data/exp077/probe_dynamics.svg",
+        "/artifacts/data/exp080/probe_dynamics.svg",
         width: 100%,
         alt: "Input spikes, AMPA conductance, membrane voltage, and presentation-averaged feature across spike times.",
       ),
@@ -475,7 +475,7 @@
 
   #figure(
     image(
-      "/artifacts/data/exp077/response_library.png",
+      "/artifacts/data/exp080/response_library.png",
       width: 100%,
       alt: "Empirical feature mean and standard deviation against expected input spikes for three probe conductances.",
     ),
@@ -507,7 +507,7 @@
 
   #figure(
     image(
-      "/artifacts/data/exp077/response_distributions.svg",
+      "/artifacts/data/exp080/response_distributions.svg",
       width: 100%,
       alt: "Feature distributions at low, intermediate, and high input rates compared with Gaussians having the same means and standard deviations.",
     ),
@@ -538,7 +538,7 @@
 
   #figure(
     image(
-      "/artifacts/data/exp077/linear_filter.svg",
+      "/artifacts/data/exp080/linear_filter.svg",
       width: 100%,
       alt: "Analytical Bode magnitudes for the synapse-plus-membrane response and the response after 200 millisecond averaging at three input rates.",
     ),
@@ -586,7 +586,7 @@
 
   #figure(
     image(
-      "/artifacts/data/exp077/linear_filter_empirical_comparison.svg",
+      "/artifacts/data/exp080/linear_filter_empirical_comparison.svg",
       width: 100%,
       alt: "Predicted-versus-empirical feature means and standard deviations at three probe conductances.",
     ),
@@ -634,7 +634,7 @@
 
   #figure(
     image(
-      "/artifacts/data/exp077/feature_images.png",
+      "/artifacts/data/exp080/feature_images.png",
       width: 100%,
       alt: "At three rates, rows compare an MNIST training image, an empirical response-table sample, and a fresh direct simulation.",
     ),
@@ -694,7 +694,7 @@
 
   #figure(
     image(
-      "/artifacts/data/exp077/step5_training_history.svg",
+      "/artifacts/data/exp080/step5_training_history.svg",
       width: 100%,
       alt: "Validation accuracy across fifteen epochs for nonlinear and linear decoders at three probe conductances.",
     ),
@@ -727,7 +727,7 @@
 
   #figure(
     image(
-      "/artifacts/data/exp077/psychometric.svg",
+      "/artifacts/data/exp080/psychometric.svg",
       width: 100%,
       alt: "Official-test accuracy against encoding rate for linear and nonlinear decoders and three probe conductances.",
     ),
@@ -778,7 +778,7 @@
   This decoder-relative range is neither an absolute information limit nor a
   PING accuracy result. Expanded retraining and evaluation cost
   #rounded(expanded.compute.expansion_exact_cost_usd) USD on Modal, bringing
-  cumulative exp077 compute to
+  cumulative exp080 compute to
   #rounded(expanded.compute.cumulative_exact_cost_usd) USD.
 
   == Limitations
@@ -1241,7 +1241,7 @@
   A no-spike bin therefore has $delta S_n = -p$, while a spike bin has
   $delta S_n = 1 - p$; centring does not leave the no-spike bins at zero. For
   example, at λ = 200 spikes/s with 1 ms bins, p = 0.2 and the centred values
-  are −0.2 and 0.8. With exp077's 0.1 ms timestep, p = 0.02 and they are −0.02
+  are −0.2 and 0.8. With exp080's 0.1 ms timestep, p = 0.02 and they are −0.02
   and 0.98. In both cases their probability-weighted mean is zero.
 
   Autocovariance measures whether these deviations from the mean tend to

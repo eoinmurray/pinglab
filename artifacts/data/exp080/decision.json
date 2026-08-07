@@ -94,12 +94,12 @@
     "total_exact_cost_usd": 9.430388729999997,
     "total_estimated_cost_usd": 4.6458358926014185,
     "exact_provider_billing": true,
-    "billing_report_path": "artifacts/data/exp077/modal_billing.json",
+    "billing_report_path": "artifacts/data/exp080/modal_billing.json",
     "billing_report_sha256": "4e6e7c457e623671fe31cc1162c7e60ee98e058904fe592afc70a573ca1ae6c5",
     "resource_rows": [
       {
         "object_id": "ap-2b2Jd23L3MAiUONbeuU4wp",
-        "description": "pinglab-exp077",
+        "description": "pinglab-exp080",
         "environment": "main",
         "interval_start": "2026-08-06T15:00:00",
         "resource": "L40S",
@@ -107,7 +107,7 @@
       },
       {
         "object_id": "ap-2b2Jd23L3MAiUONbeuU4wp",
-        "description": "pinglab-exp077",
+        "description": "pinglab-exp080",
         "environment": "main",
         "interval_start": "2026-08-06T15:00:00",
         "resource": "CPU",
@@ -115,7 +115,7 @@
       },
       {
         "object_id": "ap-2b2Jd23L3MAiUONbeuU4wp",
-        "description": "pinglab-exp077",
+        "description": "pinglab-exp080",
         "environment": "main",
         "interval_start": "2026-08-06T15:00:00",
         "resource": "Memory",
@@ -123,7 +123,7 @@
       },
       {
         "object_id": "ap-E6kbME7lvQvOh2ih5ny9Ru",
-        "description": "pinglab-exp077",
+        "description": "pinglab-exp080",
         "environment": "main",
         "interval_start": "2026-08-06T11:00:00",
         "resource": "L40S",
@@ -131,7 +131,7 @@
       },
       {
         "object_id": "ap-E6kbME7lvQvOh2ih5ny9Ru",
-        "description": "pinglab-exp077",
+        "description": "pinglab-exp080",
         "environment": "main",
         "interval_start": "2026-08-06T11:00:00",
         "resource": "CPU",
@@ -139,7 +139,7 @@
       },
       {
         "object_id": "ap-E6kbME7lvQvOh2ih5ny9Ru",
-        "description": "pinglab-exp077",
+        "description": "pinglab-exp080",
         "environment": "main",
         "interval_start": "2026-08-06T11:00:00",
         "resource": "Memory",
@@ -147,7 +147,7 @@
       },
       {
         "object_id": "ap-GPbPczAzNn7wNVDjHQvy41",
-        "description": "pinglab-exp077",
+        "description": "pinglab-exp080",
         "environment": "main",
         "interval_start": "2026-08-06T11:00:00",
         "resource": "L40S",
@@ -155,7 +155,7 @@
       },
       {
         "object_id": "ap-GPbPczAzNn7wNVDjHQvy41",
-        "description": "pinglab-exp077",
+        "description": "pinglab-exp080",
         "environment": "main",
         "interval_start": "2026-08-06T11:00:00",
         "resource": "CPU",
@@ -163,7 +163,7 @@
       },
       {
         "object_id": "ap-GPbPczAzNn7wNVDjHQvy41",
-        "description": "pinglab-exp077",
+        "description": "pinglab-exp080",
         "environment": "main",
         "interval_start": "2026-08-06T11:00:00",
         "resource": "Memory",
@@ -171,7 +171,7 @@
       },
       {
         "object_id": "ap-JKfkSrcPYPzTBc9NX39saE",
-        "description": "pinglab-exp077-evaluation",
+        "description": "pinglab-exp080-evaluation",
         "environment": "main",
         "interval_start": "2026-08-06T11:00:00",
         "resource": "L40S",
@@ -179,7 +179,7 @@
       },
       {
         "object_id": "ap-JKfkSrcPYPzTBc9NX39saE",
-        "description": "pinglab-exp077-evaluation",
+        "description": "pinglab-exp080-evaluation",
         "environment": "main",
         "interval_start": "2026-08-06T11:00:00",
         "resource": "CPU",
@@ -187,7 +187,7 @@
       },
       {
         "object_id": "ap-JKfkSrcPYPzTBc9NX39saE",
-        "description": "pinglab-exp077-evaluation",
+        "description": "pinglab-exp080-evaluation",
         "environment": "main",
         "interval_start": "2026-08-06T11:00:00",
         "resource": "Memory",
@@ -195,7 +195,7 @@
       },
       {
         "object_id": "ap-JKfkSrcPYPzTBc9NX39saE",
-        "description": "pinglab-exp077-evaluation",
+        "description": "pinglab-exp080-evaluation",
         "environment": "main",
         "interval_start": "2026-08-06T12:00:00",
         "resource": "L40S",
@@ -203,7 +203,7 @@
       },
       {
         "object_id": "ap-JKfkSrcPYPzTBc9NX39saE",
-        "description": "pinglab-exp077-evaluation",
+        "description": "pinglab-exp080-evaluation",
         "environment": "main",
         "interval_start": "2026-08-06T12:00:00",
         "resource": "CPU",
@@ -211,7 +211,7 @@
       },
       {
         "object_id": "ap-JKfkSrcPYPzTBc9NX39saE",
-        "description": "pinglab-exp077-evaluation",
+        "description": "pinglab-exp080-evaluation",
         "environment": "main",
         "interval_start": "2026-08-06T12:00:00",
         "resource": "Memory",
@@ -219,7 +219,7 @@
       },
       {
         "object_id": "ap-JL1V1SVW0ng3g9UDVJhJ3h",
-        "description": "pinglab-exp077",
+        "description": "pinglab-exp080",
         "environment": "main",
         "interval_start": "2026-08-06T11:00:00",
         "resource": "L40S",
@@ -227,7 +227,7 @@
       },
       {
         "object_id": "ap-JL1V1SVW0ng3g9UDVJhJ3h",
-        "description": "pinglab-exp077",
+        "description": "pinglab-exp080",
         "environment": "main",
         "interval_start": "2026-08-06T11:00:00",
         "resource": "CPU",
@@ -235,7 +235,7 @@
       },
       {
         "object_id": "ap-JL1V1SVW0ng3g9UDVJhJ3h",
-        "description": "pinglab-exp077",
+        "description": "pinglab-exp080",
         "environment": "main",
         "interval_start": "2026-08-06T11:00:00",
         "resource": "Memory",
@@ -243,7 +243,7 @@
       },
       {
         "object_id": "ap-PmeZzvG38OWwsVvnUgHUDd",
-        "description": "pinglab-exp077",
+        "description": "pinglab-exp080",
         "environment": "main",
         "interval_start": "2026-08-06T11:00:00",
         "resource": "L40S",
@@ -251,7 +251,7 @@
       },
       {
         "object_id": "ap-PmeZzvG38OWwsVvnUgHUDd",
-        "description": "pinglab-exp077",
+        "description": "pinglab-exp080",
         "environment": "main",
         "interval_start": "2026-08-06T11:00:00",
         "resource": "CPU",
@@ -259,7 +259,7 @@
       },
       {
         "object_id": "ap-PmeZzvG38OWwsVvnUgHUDd",
-        "description": "pinglab-exp077",
+        "description": "pinglab-exp080",
         "environment": "main",
         "interval_start": "2026-08-06T11:00:00",
         "resource": "Memory",
@@ -267,7 +267,7 @@
       },
       {
         "object_id": "ap-XHNGlXQlGt7EQwMSr9rG8K",
-        "description": "pinglab-exp077",
+        "description": "pinglab-exp080",
         "environment": "main",
         "interval_start": "2026-08-06T11:00:00",
         "resource": "L40S",
@@ -275,7 +275,7 @@
       },
       {
         "object_id": "ap-XHNGlXQlGt7EQwMSr9rG8K",
-        "description": "pinglab-exp077",
+        "description": "pinglab-exp080",
         "environment": "main",
         "interval_start": "2026-08-06T11:00:00",
         "resource": "CPU",
@@ -283,7 +283,7 @@
       },
       {
         "object_id": "ap-XHNGlXQlGt7EQwMSr9rG8K",
-        "description": "pinglab-exp077",
+        "description": "pinglab-exp080",
         "environment": "main",
         "interval_start": "2026-08-06T11:00:00",
         "resource": "Memory",
@@ -291,7 +291,7 @@
       },
       {
         "object_id": "ap-ZAZ8YRV7ZTnKzP82EOj2R6",
-        "description": "pinglab-exp077",
+        "description": "pinglab-exp080",
         "environment": "main",
         "interval_start": "2026-08-06T11:00:00",
         "resource": "L40S",
@@ -299,7 +299,7 @@
       },
       {
         "object_id": "ap-ZAZ8YRV7ZTnKzP82EOj2R6",
-        "description": "pinglab-exp077",
+        "description": "pinglab-exp080",
         "environment": "main",
         "interval_start": "2026-08-06T11:00:00",
         "resource": "CPU",
@@ -307,7 +307,7 @@
       },
       {
         "object_id": "ap-ZAZ8YRV7ZTnKzP82EOj2R6",
-        "description": "pinglab-exp077",
+        "description": "pinglab-exp080",
         "environment": "main",
         "interval_start": "2026-08-06T11:00:00",
         "resource": "Memory",
@@ -315,7 +315,7 @@
       },
       {
         "object_id": "ap-ZgkCVDoC67js46EyL0VmCg",
-        "description": "pinglab-exp077",
+        "description": "pinglab-exp080",
         "environment": "main",
         "interval_start": "2026-08-06T11:00:00",
         "resource": "L40S",
@@ -323,7 +323,7 @@
       },
       {
         "object_id": "ap-ZgkCVDoC67js46EyL0VmCg",
-        "description": "pinglab-exp077",
+        "description": "pinglab-exp080",
         "environment": "main",
         "interval_start": "2026-08-06T11:00:00",
         "resource": "CPU",
@@ -331,7 +331,7 @@
       },
       {
         "object_id": "ap-ZgkCVDoC67js46EyL0VmCg",
-        "description": "pinglab-exp077",
+        "description": "pinglab-exp080",
         "environment": "main",
         "interval_start": "2026-08-06T11:00:00",
         "resource": "Memory",
@@ -339,7 +339,7 @@
       },
       {
         "object_id": "ap-gzG35599aNXCn9WfIzUEtb",
-        "description": "pinglab-exp077",
+        "description": "pinglab-exp080",
         "environment": "main",
         "interval_start": "2026-08-06T11:00:00",
         "resource": "L40S",
@@ -347,7 +347,7 @@
       },
       {
         "object_id": "ap-gzG35599aNXCn9WfIzUEtb",
-        "description": "pinglab-exp077",
+        "description": "pinglab-exp080",
         "environment": "main",
         "interval_start": "2026-08-06T11:00:00",
         "resource": "CPU",
@@ -355,7 +355,7 @@
       },
       {
         "object_id": "ap-gzG35599aNXCn9WfIzUEtb",
-        "description": "pinglab-exp077",
+        "description": "pinglab-exp080",
         "environment": "main",
         "interval_start": "2026-08-06T11:00:00",
         "resource": "Memory",
@@ -363,7 +363,7 @@
       },
       {
         "object_id": "ap-jKhq01wOaWX73C5yMIR5WC",
-        "description": "pinglab-exp077",
+        "description": "pinglab-exp080",
         "environment": "main",
         "interval_start": "2026-08-06T11:00:00",
         "resource": "L40S",
@@ -371,7 +371,7 @@
       },
       {
         "object_id": "ap-jKhq01wOaWX73C5yMIR5WC",
-        "description": "pinglab-exp077",
+        "description": "pinglab-exp080",
         "environment": "main",
         "interval_start": "2026-08-06T11:00:00",
         "resource": "CPU",
@@ -379,7 +379,7 @@
       },
       {
         "object_id": "ap-jKhq01wOaWX73C5yMIR5WC",
-        "description": "pinglab-exp077",
+        "description": "pinglab-exp080",
         "environment": "main",
         "interval_start": "2026-08-06T11:00:00",
         "resource": "Memory",
@@ -387,7 +387,7 @@
       },
       {
         "object_id": "ap-k5LHl5hmDOoSOIh6lksoC1",
-        "description": "pinglab-exp077-evaluation",
+        "description": "pinglab-exp080-evaluation",
         "environment": "main",
         "interval_start": "2026-08-06T15:00:00",
         "resource": "L40S",
@@ -395,7 +395,7 @@
       },
       {
         "object_id": "ap-k5LHl5hmDOoSOIh6lksoC1",
-        "description": "pinglab-exp077-evaluation",
+        "description": "pinglab-exp080-evaluation",
         "environment": "main",
         "interval_start": "2026-08-06T15:00:00",
         "resource": "CPU",
@@ -403,7 +403,7 @@
       },
       {
         "object_id": "ap-k5LHl5hmDOoSOIh6lksoC1",
-        "description": "pinglab-exp077-evaluation",
+        "description": "pinglab-exp080-evaluation",
         "environment": "main",
         "interval_start": "2026-08-06T15:00:00",
         "resource": "Memory",
@@ -411,7 +411,7 @@
       },
       {
         "object_id": "ap-k5LHl5hmDOoSOIh6lksoC1",
-        "description": "pinglab-exp077-evaluation",
+        "description": "pinglab-exp080-evaluation",
         "environment": "main",
         "interval_start": "2026-08-06T16:00:00",
         "resource": "L40S",
@@ -419,7 +419,7 @@
       },
       {
         "object_id": "ap-k5LHl5hmDOoSOIh6lksoC1",
-        "description": "pinglab-exp077-evaluation",
+        "description": "pinglab-exp080-evaluation",
         "environment": "main",
         "interval_start": "2026-08-06T16:00:00",
         "resource": "CPU",
@@ -427,7 +427,7 @@
       },
       {
         "object_id": "ap-k5LHl5hmDOoSOIh6lksoC1",
-        "description": "pinglab-exp077-evaluation",
+        "description": "pinglab-exp080-evaluation",
         "environment": "main",
         "interval_start": "2026-08-06T16:00:00",
         "resource": "Memory",
@@ -435,7 +435,7 @@
       },
       {
         "object_id": "ap-kOWhR92o7rdmd5TgDIrhNy",
-        "description": "pinglab-exp077",
+        "description": "pinglab-exp080",
         "environment": "main",
         "interval_start": "2026-08-06T11:00:00",
         "resource": "L40S",
@@ -443,7 +443,7 @@
       },
       {
         "object_id": "ap-kOWhR92o7rdmd5TgDIrhNy",
-        "description": "pinglab-exp077",
+        "description": "pinglab-exp080",
         "environment": "main",
         "interval_start": "2026-08-06T11:00:00",
         "resource": "CPU",
@@ -451,7 +451,7 @@
       },
       {
         "object_id": "ap-kOWhR92o7rdmd5TgDIrhNy",
-        "description": "pinglab-exp077",
+        "description": "pinglab-exp080",
         "environment": "main",
         "interval_start": "2026-08-06T11:00:00",
         "resource": "Memory",
@@ -459,7 +459,7 @@
       },
       {
         "object_id": "ap-mJvWUmBCZCHsrUzKtWbDrC",
-        "description": "pinglab-exp077",
+        "description": "pinglab-exp080",
         "environment": "main",
         "interval_start": "2026-08-06T15:00:00",
         "resource": "L40S",
@@ -467,7 +467,7 @@
       },
       {
         "object_id": "ap-mJvWUmBCZCHsrUzKtWbDrC",
-        "description": "pinglab-exp077",
+        "description": "pinglab-exp080",
         "environment": "main",
         "interval_start": "2026-08-06T15:00:00",
         "resource": "CPU",
@@ -475,7 +475,7 @@
       },
       {
         "object_id": "ap-mJvWUmBCZCHsrUzKtWbDrC",
-        "description": "pinglab-exp077",
+        "description": "pinglab-exp080",
         "environment": "main",
         "interval_start": "2026-08-06T15:00:00",
         "resource": "Memory",
@@ -483,7 +483,7 @@
       },
       {
         "object_id": "ap-xiPGRJF9VE37r2xewI7guQ",
-        "description": "pinglab-exp077",
+        "description": "pinglab-exp080",
         "environment": "main",
         "interval_start": "2026-08-06T15:00:00",
         "resource": "L40S",
@@ -491,7 +491,7 @@
       },
       {
         "object_id": "ap-xiPGRJF9VE37r2xewI7guQ",
-        "description": "pinglab-exp077",
+        "description": "pinglab-exp080",
         "environment": "main",
         "interval_start": "2026-08-06T15:00:00",
         "resource": "CPU",
@@ -499,7 +499,7 @@
       },
       {
         "object_id": "ap-xiPGRJF9VE37r2xewI7guQ",
-        "description": "pinglab-exp077",
+        "description": "pinglab-exp080",
         "environment": "main",
         "interval_start": "2026-08-06T15:00:00",
         "resource": "Memory",
@@ -507,7 +507,7 @@
       },
       {
         "object_id": "ap-zxZ1BVLU2RXvxYIbo7h0FU",
-        "description": "pinglab-exp077",
+        "description": "pinglab-exp080",
         "environment": "main",
         "interval_start": "2026-08-06T11:00:00",
         "resource": "L40S",
@@ -515,7 +515,7 @@
       },
       {
         "object_id": "ap-zxZ1BVLU2RXvxYIbo7h0FU",
-        "description": "pinglab-exp077",
+        "description": "pinglab-exp080",
         "environment": "main",
         "interval_start": "2026-08-06T11:00:00",
         "resource": "CPU",
@@ -523,7 +523,7 @@
       },
       {
         "object_id": "ap-zxZ1BVLU2RXvxYIbo7h0FU",
-        "description": "pinglab-exp077",
+        "description": "pinglab-exp080",
         "environment": "main",
         "interval_start": "2026-08-06T11:00:00",
         "resource": "Memory",

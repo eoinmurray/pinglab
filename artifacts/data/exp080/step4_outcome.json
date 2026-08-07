@@ -415,9 +415,9 @@
     "higher_rate_spatial_structure": true,
     "held_out_test_partition_sealed": true
   },
-  "arrays_path": "artifacts/data/exp077/step4_feature_comparison_arrays.npz",
+  "arrays_path": "artifacts/data/exp080/step4_feature_comparison_arrays.npz",
   "arrays_sha256": "31c9ddaec4e34564e89384251ecc2bda3c0d00145ac0cc41838c4c1db5ee49c7",
-  "figure_path": "artifacts/data/exp077/feature_images.png",
+  "figure_path": "artifacts/data/exp080/feature_images.png",
   "figure_sha256": "9251e8eaaf95f04e2a22494e07f49444cb4eec53afa0cdeb7b4d53cb878467bc",
   "runtime_s": 20.703,
   "paid_compute_usd": 0.0,

@@ -3,7 +3,7 @@
   "registered_at_utc": "2026-08-05T20:25:15Z",
   "classification": "post-hoc diagnostic requested after the original Step 2 validation failure",
   "purpose": "Test whether the single K=2048 pilot pass is typical under repeated paired resampling before deciding whether an independent K=4096 comparison is needed.",
-  "source_library": "temp/exp077/response_library.float32.npy",
+  "source_library": "temp/exp080/response_library.float32.npy",
   "source_library_sha256": "5184788979b5fa7fa9a3f38936399b8e2724d63914019f1306a7171981b36783",
   "candidate_K": [64, 128, 256, 512, 1024, 2048],
   "repetitions": 200,

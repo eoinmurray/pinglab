@@ -1,6 +1,6 @@
-"""Experiment 077: filter-matched MNIST calibration and decoding.
+"""Experiment 080: filter-matched MNIST calibration and decoding.
 
-The complete staged contract lives in ``writings/exp077.typ``. Steps 1--4
+The complete staged contract lives in ``writings/exp080.typ``. Steps 1--4
 calibrate and validate the feature generator. Steps 5--7 train frozen decoders,
 evaluate held-out psychometric curves, and select the later PING rate range.
 """
@@ -31,7 +31,7 @@ from helpers.numbers import write_numbers  # noqa: E402
 from helpers.paths import artifacts_and_figures  # noqa: E402
 from helpers.run_id import next_run_id, persist  # noqa: E402
 
-SLUG = "exp077"
+SLUG = "exp080"
 N_STEPS = 7
 ARTIFACTS, FIGURES = artifacts_and_figures(SLUG)
 
@@ -173,8 +173,8 @@ STAGE_NAMES: dict[int, str] = {
 
 def _not_implemented(step: int) -> None:
     raise NotImplementedError(
-        f"exp077 Step {step} is specified but not implemented: "
-        f"{STAGE_NAMES[step]}. Follow writings/exp077.typ and register the "
+        f"exp080 Step {step} is specified but not implemented: "
+        f"{STAGE_NAMES[step]}. Follow writings/exp080.typ and register the "
         "completed stage in IMPLEMENTED_STEPS."
     )
 
@@ -741,7 +741,7 @@ def refresh_response_distributions() -> None:
     reproducer_path = FIGURES / "reproducer.json"
     reproducer = json.loads(reproducer_path.read_text())
     reproducer["response_distributions"] = {
-        "command": "uv run python -c 'from experiments.exp077 import refresh_response_distributions; refresh_response_distributions()'",
+        "command": "uv run python -c 'from experiments.exp080 import refresh_response_distributions; refresh_response_distributions()'",
         "uses_recorded_arrays_only": True,
         "paid_compute": False,
     }
@@ -1334,14 +1334,14 @@ def record_step2_pilot(pilot: dict[str, Any], duration_s: float) -> None:
     reproducer = {
         "command": (
             "EXP077_THROUGH_STEP=2 EXP077_STEP2_PILOT_ONLY=1 "
-            "uv run python experiments/exp077.py"
+            "uv run python experiments/exp080.py"
         ),
         "paid_compute": False,
         "expected_outcome": "evaluate the authorized K=1024 and K=2048 extension",
         "expected_outputs": [
-            f"artifacts/data/exp077/{PILOT_OUTCOME_NAME}",
-            f"artifacts/data/exp077/{PILOT_FIGURE_NAME}",
-            "artifacts/data/exp077/numbers.json",
+            f"artifacts/data/exp080/{PILOT_OUTCOME_NAME}",
+            f"artifacts/data/exp080/{PILOT_FIGURE_NAME}",
+            "artifacts/data/exp080/numbers.json",
         ],
     }
     (FIGURES / "reproducer.json").write_text(json.dumps(reproducer, indent=2) + "\n")
@@ -1519,11 +1519,11 @@ def record_full_library(
         ),
         "generation_command": (
             "EXP077_THROUGH_STEP=2 EXP077_STEP2_FULL=1 "
-            "uv run python experiments/exp077.py"
+            "uv run python experiments/exp080.py"
         ),
         "validation_command": (
             "EXP077_THROUGH_STEP=2 EXP077_STEP2_VALIDATE_ONLY=1 "
-            "uv run python experiments/exp077.py"
+            "uv run python experiments/exp080.py"
         ),
         "implementation_commit": subprocess.check_output(
             ["git", "rev-parse", "HEAD"], cwd=REPO, text=True
@@ -1563,7 +1563,7 @@ def record_full_library(
     else:
         committed_numbers = json.loads(
             subprocess.check_output(
-                ["git", "show", "HEAD:artifacts/data/exp077/numbers.json"],
+                ["git", "show", "HEAD:artifacts/data/exp080/numbers.json"],
                 cwd=REPO,
                 text=True,
             )
@@ -1618,10 +1618,10 @@ def record_full_library(
         "paid_compute": False,
         "expected_library_sha256": library_sha256,
         "expected_outputs": [
-            "temp/exp077/response_library.float32.npy",
-            "artifacts/data/exp077/response_library_summary.npz",
-            "artifacts/data/exp077/step2_manifest.json",
-            "artifacts/data/exp077/response_library.png",
+            "temp/exp080/response_library.float32.npy",
+            "artifacts/data/exp080/response_library_summary.npz",
+            "artifacts/data/exp080/step2_manifest.json",
+            "artifacts/data/exp080/response_library.png",
         ],
     }
     (FIGURES / "reproducer.json").write_text(json.dumps(reproducer, indent=2) + "\n")
@@ -1759,20 +1759,20 @@ def step_1() -> None:
         "training_rates_hz": list(TRAINING_RATES_HZ),
         "probe_uS": PROBE_US,
         "seed": SEED,
-        "equations": "writings/exp077.typ, Equations 2-7",
+        "equations": "writings/exp080.typ, Equations 2-7",
         "update_order": "AMPA decay, spike kick, exponential-Euler membrane update",
         "feature": "mean_t(v(t) - E_L)",
         "later_steps": "not run",
     }
     provenance = _git_metadata()
     reproducer = {
-        "command": "EXP077_THROUGH_STEP=1 uv run python experiments/exp077.py",
+        "command": "EXP077_THROUGH_STEP=1 uv run python experiments/exp080.py",
         "paid_compute": False,
         "expected_outputs": [
-            "artifacts/data/exp077/numbers.json",
-            "artifacts/data/exp077/probe_dynamics.svg",
-            "artifacts/data/exp077/protocol.json",
-            "artifacts/data/exp077/provenance.json",
+            "artifacts/data/exp080/numbers.json",
+            "artifacts/data/exp080/probe_dynamics.svg",
+            "artifacts/data/exp080/protocol.json",
+            "artifacts/data/exp080/provenance.json",
         ],
     }
     (FIGURES / "protocol.json").write_text(json.dumps(protocol, indent=2) + "\n")
@@ -1798,7 +1798,7 @@ def step_1() -> None:
     )
     persist(SLUG, run_id)
     print(
-        f"exp077 Step 1 complete: {len(validations)}/{len(validations)} validations passed"
+        f"exp080 Step 1 complete: {len(validations)}/{len(validations)} validations passed"
     )
     print(f"Artifacts: {FIGURES.relative_to(REPO)}")
 
@@ -1815,7 +1815,7 @@ def step_2() -> None:
                 "Step 2 draw-count pilot did not pass by the locked maximum K; "
                 "the final empirical response table was not generated"
             )
-        print(f"exp077 Step 2 pilot selected K={pilot['selected_K']}")
+        print(f"exp080 Step 2 pilot selected K={pilot['selected_K']}")
         return
     selected = json.loads((FIGURES / "step2_pilot_extension_outcome.json").read_text())[
         "selected_K"
@@ -1843,7 +1843,7 @@ def step_2() -> None:
         )
     manifest = record_full_library(generation, validation)
     print(
-        f"exp077 Step 2 complete: {manifest['library_shape']} {manifest['dtype']} "
+        f"exp080 Step 2 complete: {manifest['library_shape']} {manifest['dtype']} "
         f"sha256={manifest['library_sha256']}"
     )
 
@@ -2205,8 +2205,8 @@ def calculate_step3_empirical_comparison() -> dict[str, Any]:
     return {
         "comparison": "stationary analytical approximation versus finite 200 ms empirical response table",
         "source_arrays": {
-            "analytical": "artifacts/data/exp077/step3_linear_filter_arrays.npz",
-            "empirical": "artifacts/data/exp077/response_library_summary.npz",
+            "analytical": "artifacts/data/exp080/step3_linear_filter_arrays.npz",
+            "empirical": "artifacts/data/exp080/response_library_summary.npz",
         },
         "mean": summarize(predicted_mean, empirical_mean),
         "standard_deviation": summarize(predicted_sd, empirical_sd),
@@ -2318,7 +2318,7 @@ def refresh_step3_empirical_comparison() -> None:
     reproducer_path = FIGURES / "reproducer.json"
     reproducer = json.loads(reproducer_path.read_text())
     reproducer["step3_empirical_comparison"] = {
-        "command": "uv run python -c 'from experiments.exp077 import refresh_step3_empirical_comparison; refresh_step3_empirical_comparison()'",
+        "command": "uv run python -c 'from experiments.exp080 import refresh_step3_empirical_comparison; refresh_step3_empirical_comparison()'",
         "uses_recorded_arrays_only": True,
         "paid_compute": False,
     }
@@ -2366,7 +2366,7 @@ def step_3() -> None:
             else arrays_path.name
         ),
         "arrays_sha256": sha256_file(arrays_path),
-        "figure_path": "artifacts/data/exp077/linear_filter.svg",
+        "figure_path": "artifacts/data/exp080/linear_filter.svg",
         "figure_sha256": sha256_file(FIGURES / "linear_filter.svg"),
         "runtime_s": round(time.perf_counter() - started, 3),
         "paid_compute_usd": 0.0,
@@ -2377,7 +2377,7 @@ def step_3() -> None:
     assert isinstance(quadrature, dict)
     assert isinstance(gain_checks, list)
     print(
-        "exp077 Step 3 complete: "
+        "exp080 Step 3 complete: "
         f"max quadrature refinement={quadrature['maximum_refinement_relative_change']:.3g}, "
         f"gain checks={len(gain_checks)}/{len(gain_checks)}"
     )
@@ -2753,11 +2753,11 @@ def step_4() -> None:
     if not all(validations.values()):
         failed = [name for name, passed in validations.items() if not passed]
         raise RuntimeError(f"Step 4 validation failed: {', '.join(failed)}")
-    print(f"exp077 Step 4 complete: {len(condition_records)}/9 conditions passed")
+    print(f"exp080 Step 4 complete: {len(condition_records)}/9 conditions passed")
 
 
 def record_steps3_4_publication_contract() -> None:
-    """Extend cumulative exp077 metadata without erasing Steps 1--2 history."""
+    """Extend cumulative exp080 metadata without erasing Steps 1--2 history."""
     step3_path = FIGURES / "step3_outcome.json"
     step4_path = FIGURES / "step4_outcome.json"
     step3_record = json.loads(step3_path.read_text())
@@ -2799,7 +2799,7 @@ def record_steps3_4_publication_contract() -> None:
     manifest = json.loads(manifest_path.read_text())
     manifest["exploratory_continuation"] = {
         "original_step2_status_unchanged": manifest["status"],
-        "amendment_path": "artifacts/data/exp077/step3_step4_exploratory_amendment.json",
+        "amendment_path": "artifacts/data/exp080/step3_step4_exploratory_amendment.json",
         "amendment_sha256": sha256_file(AMENDMENT_PATH),
         "step3_outcome": str(step3_path.relative_to(REPO)),
         "step3_outcome_sha256": sha256_file(step3_path),
@@ -2826,16 +2826,16 @@ def record_steps3_4_publication_contract() -> None:
     reproducer_path = FIGURES / "reproducer.json"
     reproducer = json.loads(reproducer_path.read_text())
     reproducer["exploratory_steps3_4"] = {
-        "step3_command": "uv run python -c 'from experiments import exp077; exp077.step_3()'",
-        "step4_command": "uv run python -c 'from experiments import exp077; exp077.step_4()'",
+        "step3_command": "uv run python -c 'from experiments import exp080; exp080.step_3()'",
+        "step4_command": "uv run python -c 'from experiments import exp080; exp080.step_4()'",
         "step4_expected_outcome": "locked low-rate image-level validation failure",
-        "metadata_command": "uv run python -c 'from experiments import exp077; exp077.record_steps3_4_publication_contract()'",
+        "metadata_command": "uv run python -c 'from experiments import exp080; exp080.record_steps3_4_publication_contract()'",
         "expected_library_sha256": LIBRARY_SHA256,
         "expected_outputs": [
-            "artifacts/data/exp077/linear_filter.svg",
-            "artifacts/data/exp077/step3_outcome.json",
-            "artifacts/data/exp077/feature_images.png",
-            "artifacts/data/exp077/step4_outcome.json",
+            "artifacts/data/exp080/linear_filter.svg",
+            "artifacts/data/exp080/step3_outcome.json",
+            "artifacts/data/exp080/feature_images.png",
+            "artifacts/data/exp080/step4_outcome.json",
         ],
         "paid_compute": False,
     }
@@ -3855,7 +3855,7 @@ def step_7() -> None:
     relevant_billing = [
         row
         for row in billing_rows
-        if row.get("description") in {"pinglab-exp077", "pinglab-exp077-evaluation"}
+        if row.get("description") in {"pinglab-exp080", "pinglab-exp080-evaluation"}
     ]
     exact_total_cost = sum(float(row["cost"]) for row in relevant_billing)
     protocol_path = FIGURES / "frozen_evaluation_protocol.json"
@@ -3933,10 +3933,10 @@ def capture_modal_billing() -> Path:
     relevant = [
         row
         for row in rows
-        if row.get("description") in {"pinglab-exp077", "pinglab-exp077-evaluation"}
+        if row.get("description") in {"pinglab-exp080", "pinglab-exp080-evaluation"}
     ]
     if not relevant:
-        raise RuntimeError("Modal billing report contained no exp077 rows")
+        raise RuntimeError("Modal billing report contained no exp080 rows")
     path = FIGURES / "modal_billing.json"
     path.write_text(json.dumps(relevant, indent=2) + "\n")
     return path
@@ -3957,7 +3957,7 @@ def record_expanded_rate_outcome() -> Path:
     outcome = {
         "status": "complete",
         "completed_at_utc": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
-        "training_protocol_path": "artifacts/data/exp077/expanded_rate_training_protocol.json",
+        "training_protocol_path": "artifacts/data/exp080/expanded_rate_training_protocol.json",
         "training_protocol_sha256": sha256_file(
             FIGURES / "expanded_rate_training_protocol.json"
         ),
@@ -4005,7 +4005,7 @@ def record_expanded_rate_outcome() -> Path:
             "cumulative_exact_cost_usd": total_exact,
             "expansion_exact_cost_usd": total_exact
             - PRE_EXPANSION_EXACT_MODAL_COST_USD,
-            "provider_billing_path": "artifacts/data/exp077/modal_billing.json",
+            "provider_billing_path": "artifacts/data/exp080/modal_billing.json",
             "provider_billing_sha256": sha256_file(FIGURES / "modal_billing.json"),
         },
         "preserved_infrastructure_failures_before_training": 3,
@@ -4099,15 +4099,15 @@ def record_steps5_7_publication_contract() -> None:
     reproducer_path = FIGURES / "reproducer.json"
     reproducer = json.loads(reproducer_path.read_text())
     reproducer["steps5_7"] = {
-        "smoke_command": "EXP077_STAGE=smoke uv run python -c 'from experiments.exp077 import step_5; step_5()'",
-        "modal_training_command": "uv run python experiments/exp077_modal.py --stage full --probe <probe> --seed <seed> --live",
-        "freeze_command": "uv run python -c 'from experiments.exp077 import write_frozen_evaluation_protocol; write_frozen_evaluation_protocol()'",
-        "modal_evaluation_command": "uv run python experiments/exp077_evaluate_modal.py --live",
-        "analysis_command": "uv run python -c 'from experiments.exp077 import analyze_held_out_evaluation, step_7; analyze_held_out_evaluation(); step_7()'",
+        "smoke_command": "EXP077_STAGE=smoke uv run python -c 'from experiments.exp080 import step_5; step_5()'",
+        "modal_training_command": "uv run python experiments/exp080_modal.py --stage full --probe <probe> --seed <seed> --live",
+        "freeze_command": "uv run python -c 'from experiments.exp080 import write_frozen_evaluation_protocol; write_frozen_evaluation_protocol()'",
+        "modal_evaluation_command": "uv run python experiments/exp080_evaluate_modal.py --live",
+        "analysis_command": "uv run python -c 'from experiments.exp080 import analyze_held_out_evaluation, step_7; analyze_held_out_evaluation(); step_7()'",
         "checkpoint_count": len(step5["records"]),
         "expected_decision_sha256": sha256_file(decision_path),
         "paid_compute": True,
-        "expanded_rate_outcome_command": "uv run python -c 'from experiments.exp077 import record_expanded_rate_outcome; record_expanded_rate_outcome()'",
+        "expanded_rate_outcome_command": "uv run python -c 'from experiments.exp080 import record_expanded_rate_outcome; record_expanded_rate_outcome()'",
     }
     reproducer_path.write_text(json.dumps(reproducer, indent=2) + "\n")
 

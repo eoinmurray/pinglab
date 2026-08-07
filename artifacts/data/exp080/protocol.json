@@ -1,5 +1,5 @@
 {
-  "experiment": "exp077",
+  "experiment": "exp080",
   "implemented_step": 1,
   "presentation_ms": 200.0,
   "dt_ms": 0.1,
@@ -20,7 +20,7 @@
   ],
   "probe_uS": 1.2,
   "seed": 42,
-  "equations": "writings/exp077.typ, Equations 2-7",
+  "equations": "writings/exp080.typ, Equations 2-7",
   "update_order": "AMPA decay, spike kick, exponential-Euler membrane update",
   "feature": "mean_t(v(t) - E_L)",
   "later_steps": "Steps 5-7 not run",
