@@ -34,24 +34,25 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from tools import snnlang as snn  # noqa: E402, TID251
 
-from helpers import theme  # noqa: E402
+from helpers import modal_backend, theme  # noqa: E402
 from helpers.cli import parse_meta  # noqa: E402
 from helpers.numbers import write_numbers  # noqa: E402
 from helpers.run_dirs import published_run  # noqa: E402
 from helpers.run_id import next_run_id  # noqa: E402
 
 SLUG = "exp078"
+FOLLOWUP_MODE = os.environ.get("EXP078_FOLLOWUP_MODE", "")
 DT_MS = 0.1
-T_MS = 3_000.0
+T_MS = 5_500.0 if FOLLOWUP_MODE == "panel" else 3_000.0
 BURN_MS = 500.0
-N_INPUT = 80
-N_E = 80
-N_I = 20
+N_INPUT = 800 if FOLLOWUP_MODE else 80
+N_E = 800 if FOLLOWUP_MODE else 80
+N_I = 200 if FOLLOWUP_MODE else 20
 INPUT_WEIGHT = 0.2
 COUPLING_REFERENCE = 1.0
 DELAY_MS = 0.1
 NETWORK_SEED = 78_000
-TRIALS = 5
+TRIALS = 10 if FOLLOWUP_MODE == "panel" else (1 if FOLLOWUP_MODE == "benchmark" else 5)
 RATE_GRID_HZ = (60.0, 70.0, 80.0, 90.0, 100.0, 110.0, 120.0, 130.0, 140.0)
 TARGET_DETUNINGS_HZ = (-6.0, -4.0, -3.0, -2.0, -1.0, -0.5, 0.0, 0.5, 1.0, 2.0, 3.0, 4.0, 6.0)
 PILOT_COUPLINGS = (0.0, 0.01, 0.02, 0.04, 0.06, 0.08, 0.10, 0.125)
@@ -60,6 +61,27 @@ SMOOTH_SIGMA_MS = 5.0
 BAND_HZ = (25.0, 90.0)
 PEAK_BAND_HZ = (25.0, 80.0)
 STATE_DECIMATE_MS = 1.0
+FOLLOWUP_JOBS = {
+    f"{'m1' if detuning < 0 else 'p1'}_k{int(round(coupling * 1000)):03d}": {
+        "detuning_index": 4 if detuning < 0 else 8,
+        "target_detuning_hz": detuning,
+        "rate_a_hz": 93.5 if detuning < 0 else 98.5,
+        "rate_b_hz": 98.5 if detuning < 0 else 93.5,
+        "coupling": coupling,
+    }
+    for detuning in (-1.0, 1.0)
+    for coupling in (0.0, 0.016, 0.024)
+}
+FOLLOWUP_JOBS["benchmark"] = {
+    "detuning_index": 4,
+    "target_detuning_hz": -1.0,
+    "rate_a_hz": 93.5,
+    "rate_b_hz": 98.5,
+    "coupling": 0.016,
+}
+FOLLOWUP_SCRATCH = Path(os.environ.get(
+    "PINGLAB_ARTIFACTS_ROOT", str(REPO / "temp" / "experiments" / "exp078-followup")
+))
 
 SCALE = {
     "stage": "complete gated Arnold-tongue sweep",
@@ -250,6 +272,10 @@ def _run_graph_cli(
         str(bundle_dir),
         "--executor",
         "graph",
+        "--device",
+        "auto",
+        "--recording",
+        "observables" if FOLLOWUP_MODE else "full",
         "--input-file",
         str(input_path),
         "--t-ms",
@@ -434,6 +460,7 @@ def run_condition(
     if sim_dir.exists():
         shutil.rmtree(sim_dir)
     runtime_s = _run_graph_cli(_bundle_dir(scratch, coupling), input_path, sim_dir)
+    execution_metrics = _json_load(sim_dir / "metrics.json")
     recording_path = sim_dir / "recordings.npz"
     trials, trace_cache = analyse_recordings(recording_path)
     np.savez_compressed(condition / "traces.npz", **trace_cache)
@@ -449,6 +476,7 @@ def run_condition(
         "input_sha256": _sha256_bytes(inputs["drive_a"], inputs["drive_b"]),
         "seed_ledger": seed_rows,
         "runtime_s": runtime_s,
+        "execution_metrics": execution_metrics,
         "dense_recording_bytes": dense_bytes,
         "archive": archive,
         "trials": [trial.as_dict() for trial in trials],
@@ -459,6 +487,59 @@ def run_condition(
     shutil.rmtree(sim_dir)
     input_path.unlink()
     return summary
+
+
+def followup_cell_done(job_id: str) -> bool:
+    if job_id not in FOLLOWUP_JOBS:
+        return False
+    spec = FOLLOWUP_JOBS[job_id]
+    key = _condition_key("finite_size", spec["detuning_index"], spec["coupling"])
+    return (FOLLOWUP_SCRATCH / "conditions" / key / "summary.json").exists()
+
+
+def run_followup_cell(job_id: str) -> None:
+    if not FOLLOWUP_MODE:
+        raise RuntimeError("finite-size jobs require EXP078_FOLLOWUP_MODE")
+    try:
+        spec = FOLLOWUP_JOBS[job_id]
+    except KeyError as exc:
+        raise ValueError(f"unknown exp078 finite-size job: {job_id!r}") from exc
+    summary = run_condition(
+        FOLLOWUP_SCRATCH,
+        stage="finite_size",
+        detuning_index=spec["detuning_index"],
+        rate_a_hz=spec["rate_a_hz"],
+        rate_b_hz=spec["rate_b_hz"],
+        coupling=spec["coupling"],
+        keep_archive=True,
+    )
+    summary["target_detuning_hz"] = spec["target_detuning_hz"]
+    summary["followup_mode"] = FOLLOWUP_MODE
+    _json_dump(
+        FOLLOWUP_SCRATCH / "conditions" / summary["key"] / "summary.json",
+        summary,
+    )
+
+
+def run_followup_via_modal(meta: object) -> None:
+    jobs = meta.only_cells or sorted(name for name in FOLLOWUP_JOBS if name != "benchmark")
+    unknown = sorted(set(jobs) - set(FOLLOWUP_JOBS))
+    if unknown:
+        raise SystemExit(f"unknown exp078 finite-size jobs: {unknown}")
+    benchmark_only = jobs == ["benchmark"]
+    mode = "benchmark" if benchmark_only else "panel"
+    modal_backend.dispatch(
+        slug="exp078-followup",
+        runner=SLUG,
+        job_ids=jobs,
+        live=meta.live,
+        local_collect_dir=FOLLOWUP_SCRATCH,
+        ledger_path=FOLLOWUP_SCRATCH / "compute_ledgers" / f"{mode}.json",
+        timeout_s=1800 if benchmark_only else 7200,
+        extra_env={"EXP078_FOLLOWUP_MODE": mode},
+        is_done_name="followup_cell_done",
+        run_job_name="run_followup_cell",
+    )
 
 
 def materialize_parameter_tensors(scratch: Path, couplings: list[float]) -> dict:
@@ -1217,7 +1298,12 @@ def render_network_diagram(bundle: snn.Bundle, svg_path: Path, png_path: Path) -
 
 
 def main() -> None:
-    meta = parse_meta(sys.argv)
+    meta = parse_meta(sys.argv, allow_dispatch=True)
+    if meta.modal:
+        run_followup_via_modal(meta)
+        return
+    if meta.runpod:
+        raise SystemExit("exp078 finite-size follow-up currently supports Modal, not RunPod")
     started = time.monotonic()
     run_id = next_run_id(SLUG)
     print(f"notebook_run_id = {run_id}")

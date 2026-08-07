@@ -82,3 +82,17 @@ def test_authored_graph_retains_all_cross_circuit_projections_at_zero_weight():
     parameters = {row["id"]: row for row in bundle.graph["parameters"]}
     for projection in ("a_E_to_b_E", "a_E_to_b_I", "b_E_to_a_E", "b_E_to_a_I"):
         assert parameters[f"{projection}.weight"]["initializer"]["value"] == 0.0
+
+
+def test_finite_size_followup_is_the_registered_mirrored_boundary_panel():
+    panel = {
+        name: row for name, row in exp078.FOLLOWUP_JOBS.items()
+        if name != "benchmark"
+    }
+    assert set(panel) == {
+        "m1_k000", "m1_k016", "m1_k024",
+        "p1_k000", "p1_k016", "p1_k024",
+    }
+    assert {row["target_detuning_hz"] for row in panel.values()} == {-1.0, 1.0}
+    assert {row["coupling"] for row in panel.values()} == {0.0, 0.016, 0.024}
+    assert exp078.FOLLOWUP_JOBS["benchmark"] == panel["m1_k016"]
