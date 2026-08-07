@@ -1,15 +1,21 @@
 {
   "slug": "exp078",
-  "run_id": "r003",
-  "run_at": "2026-08-05T13:36:05+00:00",
-  "git_sha": "a781c7f",
+  "run_id": "r007",
+  "run_at": "2026-08-07T09:05:32+00:00",
+  "git_sha": "87c2f67d",
   "dirty": true,
-  "code_dirty": false,
-  "patch": null,
+  "code_dirty": true,
+  "patch": {
+    "file": "_dirty.patch",
+    "sha256": "3a9e0fc129030ebbb8e2e23f1c745530c16ab34e1d8755edd44c73d8ce9d8d81",
+    "lines": 552
+  },
   "host": "local",
   "scale": {
-    "stage": "registered_sweep",
-    "variants": 16,
-    "seed": 78
+    "stage": "graph definition and visualisation only",
+    "dt_ms": 0.1,
+    "n_input_per_circuit": 80,
+    "n_e_per_circuit": 80,
+    "n_i_per_circuit": 20
   }
 }

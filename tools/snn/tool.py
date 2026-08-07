@@ -289,6 +289,18 @@ def _build_parent_parser():
         help="Execution backend (default: legacy). Graph execution is opt-in.",
     )
     net_group.add_argument(
+        "--load-runtime-state",
+        type=str,
+        default=None,
+        help="Restore complete graph-executor dynamic state from a runtime-state directory.",
+    )
+    net_group.add_argument(
+        "--save-runtime-state",
+        type=str,
+        default=None,
+        help="Save complete graph-executor dynamic state to a runtime-state directory.",
+    )
+    net_group.add_argument(
         "--model",
         type=str,
         default="ping",
@@ -1633,6 +1645,11 @@ def main(argv=None):
 
     request = execution_spec_from_args(args)
 
+    if request.executor == "legacy" and (
+        getattr(args, "load_runtime_state", None) or getattr(args, "save_runtime_state", None)
+    ):
+        raise SystemExit("--load-runtime-state/--save-runtime-state require --executor graph")
+
     if request.executor == "graph":
         from dataclasses import replace
 
@@ -1655,13 +1672,26 @@ def main(argv=None):
                 from bundle import load_graph_bundle
                 _, graph = load_graph_bundle(args.bundle)
                 input_arrays = {graph["inputs"][0]["id"]: input_arrays["input_spikes"]}
-        request = replace(request, inputs={key: torch.as_tensor(value, dtype=torch.float32) for key, value in input_arrays.items()})
+        from execution import load_runtime_state, save_runtime_state
+        runtime_state = (
+            load_runtime_state(args.load_runtime_state, device=request.device)
+            if getattr(args, "load_runtime_state", None)
+            else None
+        )
+        request = replace(
+            request,
+            inputs={key: torch.as_tensor(value, dtype=torch.float32) for key, value in input_arrays.items()},
+            runtime_state=runtime_state,
+        )
         result = execute_request(request)
         out_dir = Path(args.out_dir or DEFAULT_ARTIFACT_ROOT)
         out_dir.mkdir(parents=True, exist_ok=True)
         np.savez_compressed(out_dir / "recordings.npz", **{k: v.detach().cpu().numpy() for k, v in result.recordings.items()})
         np.savez_compressed(out_dir / "outputs.npz", **{k: v.detach().cpu().numpy() for k, v in result.outputs.items()})
         (out_dir / "metrics.json").write_text(json.dumps(result.metrics, indent=2) + "\n")
+        if getattr(args, "save_runtime_state", None):
+            assert result.runtime_state is not None
+            save_runtime_state(args.save_runtime_state, result.runtime_state)
         return 0
 
     # Build config for non-train modes (build_config syncs the module aliases).
