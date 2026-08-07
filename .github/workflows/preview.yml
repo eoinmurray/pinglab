@@ -1,8 +1,8 @@
 # Opt-in Pages workflow — per-PR previews. Copied alongside deploy.yml by `demolab deploy-setup`.
 # Every pull request gets its own built copy of the site under pr-preview/pr-<N>/ on the
 # gh-pages branch, a sticky comment on the PR linking to it, and an automatic teardown when the
-# PR closes or merges. This is what makes a night-shift PR readable — the whole doc set (plan,
-# log, writeups, PDFs) renders at a URL instead of a raw diff. See AUTORESEARCH-RULES §5.
+# PR closes or merges. This is what makes an autoresearch PR readable — the night document,
+# experiment writeups, and PDFs render at a URL instead of a raw diff. See AUTORESEARCH-RULES §5.
 #
 # Requires deploy.yml's branch-based flow (both write gh-pages) and the same one-time settings
 # change: Settings → Pages → Source: "Deploy from a branch" → `gh-pages` / `(root)`.
