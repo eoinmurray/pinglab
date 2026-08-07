@@ -1,0 +1,989 @@
+{
+  "coupling_parameter_names": [
+    "a_E_to_b_E.weight",
+    "a_E_to_b_I.weight",
+    "b_E_to_a_E.weight",
+    "b_E_to_a_I.weight"
+  ],
+  "invariant_parameter_names": [
+    "a_E_to_I.weight",
+    "a_I_to_E.weight",
+    "b_E_to_I.weight",
+    "b_I_to_E.weight",
+    "drive_a_to_a_E.weight",
+    "drive_b_to_b_E.weight"
+  ],
+  "network_seed": 78000,
+  "rows": [
+    {
+      "bytes": 24101,
+      "coupling": 0.0,
+      "file": "k_p000d000.npz",
+      "parameters": {
+        "a_E_to_I.weight": {
+          "dtype": "float32",
+          "sha256": "8e34da64a0dda9611a8649d1beaf65ca43b2c026f57e888c84c9f196e9306107",
+          "shape": [
+            80,
+            20
+          ]
+        },
+        "a_E_to_b_E.weight": {
+          "dtype": "float32",
+          "sha256": "c65206769723a13afe80c0d925531639ceef9c2eb97eee3b1b542739ec40597f",
+          "shape": [
+            80,
+            80
+          ]
+        },
+        "a_E_to_b_I.weight": {
+          "dtype": "float32",
+          "sha256": "56a43ef88ddfcd0f56f7dd973312c0e73d62f59655c01d7b4e59aaa3be8b3fb6",
+          "shape": [
+            80,
+            20
+          ]
+        },
+        "a_I_to_E.weight": {
+          "dtype": "float32",
+          "sha256": "2e3c592b6e1f503602e3b2b962e3f72a08ec9bdd591e71a203afa08a90d1a3ec",
+          "shape": [
+            20,
+            80
+          ]
+        },
+        "b_E_to_I.weight": {
+          "dtype": "float32",
+          "sha256": "28f6cfb416de062c69b30492d99c32ba9fdd27f0705766a0d99c51ed828dd5eb",
+          "shape": [
+            80,
+            20
+          ]
+        },
+        "b_E_to_a_E.weight": {
+          "dtype": "float32",
+          "sha256": "c65206769723a13afe80c0d925531639ceef9c2eb97eee3b1b542739ec40597f",
+          "shape": [
+            80,
+            80
+          ]
+        },
+        "b_E_to_a_I.weight": {
+          "dtype": "float32",
+          "sha256": "56a43ef88ddfcd0f56f7dd973312c0e73d62f59655c01d7b4e59aaa3be8b3fb6",
+          "shape": [
+            80,
+            20
+          ]
+        },
+        "b_I_to_E.weight": {
+          "dtype": "float32",
+          "sha256": "95d36a9866af52e4d41961c57cb901307c8f838abfa81b700b8f9641a7afc039",
+          "shape": [
+            20,
+            80
+          ]
+        },
+        "drive_a_to_a_E.weight": {
+          "dtype": "float32",
+          "sha256": "02f425a0ec162ccbacdce760e7cd36eed69de482a4c8a63b8586aef2bedf9bef",
+          "shape": [
+            80,
+            80
+          ]
+        },
+        "drive_b_to_b_E.weight": {
+          "dtype": "float32",
+          "sha256": "02f425a0ec162ccbacdce760e7cd36eed69de482a4c8a63b8586aef2bedf9bef",
+          "shape": [
+            80,
+            80
+          ]
+        }
+      },
+      "sha256": "0743072dc3c11e2ea9d8ec92ac62a876e60751a4d0651191c3ff7b46b87f283a"
+    },
+    {
+      "bytes": 24139,
+      "coupling": 0.008,
+      "file": "k_p000d008.npz",
+      "parameters": {
+        "a_E_to_I.weight": {
+          "dtype": "float32",
+          "sha256": "8e34da64a0dda9611a8649d1beaf65ca43b2c026f57e888c84c9f196e9306107",
+          "shape": [
+            80,
+            20
+          ]
+        },
+        "a_E_to_b_E.weight": {
+          "dtype": "float32",
+          "sha256": "2b83d49f1d785b2accf209b16720b28f8cae59c11055ebdd5bb79d130d3b9d49",
+          "shape": [
+            80,
+            80
+          ]
+        },
+        "a_E_to_b_I.weight": {
+          "dtype": "float32",
+          "sha256": "b14ee53d4f300a5e277155c744eb01efbc3253d9ff934608c5a1ff29a62f6f25",
+          "shape": [
+            80,
+            20
+          ]
+        },
+        "a_I_to_E.weight": {
+          "dtype": "float32",
+          "sha256": "2e3c592b6e1f503602e3b2b962e3f72a08ec9bdd591e71a203afa08a90d1a3ec",
+          "shape": [
+            20,
+            80
+          ]
+        },
+        "b_E_to_I.weight": {
+          "dtype": "float32",
+          "sha256": "28f6cfb416de062c69b30492d99c32ba9fdd27f0705766a0d99c51ed828dd5eb",
+          "shape": [
+            80,
+            20
+          ]
+        },
+        "b_E_to_a_E.weight": {
+          "dtype": "float32",
+          "sha256": "2b83d49f1d785b2accf209b16720b28f8cae59c11055ebdd5bb79d130d3b9d49",
+          "shape": [
+            80,
+            80
+          ]
+        },
+        "b_E_to_a_I.weight": {
+          "dtype": "float32",
+          "sha256": "b14ee53d4f300a5e277155c744eb01efbc3253d9ff934608c5a1ff29a62f6f25",
+          "shape": [
+            80,
+            20
+          ]
+        },
+        "b_I_to_E.weight": {
+          "dtype": "float32",
+          "sha256": "95d36a9866af52e4d41961c57cb901307c8f838abfa81b700b8f9641a7afc039",
+          "shape": [
+            20,
+            80
+          ]
+        },
+        "drive_a_to_a_E.weight": {
+          "dtype": "float32",
+          "sha256": "02f425a0ec162ccbacdce760e7cd36eed69de482a4c8a63b8586aef2bedf9bef",
+          "shape": [
+            80,
+            80
+          ]
+        },
+        "drive_b_to_b_E.weight": {
+          "dtype": "float32",
+          "sha256": "02f425a0ec162ccbacdce760e7cd36eed69de482a4c8a63b8586aef2bedf9bef",
+          "shape": [
+            80,
+            80
+          ]
+        }
+      },
+      "sha256": "e15d2c5b0e7026db1787b7e4e3bedda7343a9db7c372e2f49866ff7b2856a25c"
+    },
+    {
+      "bytes": 24133,
+      "coupling": 0.016,
+      "file": "k_p000d016.npz",
+      "parameters": {
+        "a_E_to_I.weight": {
+          "dtype": "float32",
+          "sha256": "8e34da64a0dda9611a8649d1beaf65ca43b2c026f57e888c84c9f196e9306107",
+          "shape": [
+            80,
+            20
+          ]
+        },
+        "a_E_to_b_E.weight": {
+          "dtype": "float32",
+          "sha256": "9015077fe298f259991dbde0562432f5a8aa9a2767ed35f7d73875d671cd30a2",
+          "shape": [
+            80,
+            80
+          ]
+        },
+        "a_E_to_b_I.weight": {
+          "dtype": "float32",
+          "sha256": "57786262a1662d7c405c816edcd6ecfe0e1aa3fd466bd7d06a5f7f07cf4fd55b",
+          "shape": [
+            80,
+            20
+          ]
+        },
+        "a_I_to_E.weight": {
+          "dtype": "float32",
+          "sha256": "2e3c592b6e1f503602e3b2b962e3f72a08ec9bdd591e71a203afa08a90d1a3ec",
+          "shape": [
+            20,
+            80
+          ]
+        },
+        "b_E_to_I.weight": {
+          "dtype": "float32",
+          "sha256": "28f6cfb416de062c69b30492d99c32ba9fdd27f0705766a0d99c51ed828dd5eb",
+          "shape": [
+            80,
+            20
+          ]
+        },
+        "b_E_to_a_E.weight": {
+          "dtype": "float32",
+          "sha256": "9015077fe298f259991dbde0562432f5a8aa9a2767ed35f7d73875d671cd30a2",
+          "shape": [
+            80,
+            80
+          ]
+        },
+        "b_E_to_a_I.weight": {
+          "dtype": "float32",
+          "sha256": "57786262a1662d7c405c816edcd6ecfe0e1aa3fd466bd7d06a5f7f07cf4fd55b",
+          "shape": [
+            80,
+            20
+          ]
+        },
+        "b_I_to_E.weight": {
+          "dtype": "float32",
+          "sha256": "95d36a9866af52e4d41961c57cb901307c8f838abfa81b700b8f9641a7afc039",
+          "shape": [
+            20,
+            80
+          ]
+        },
+        "drive_a_to_a_E.weight": {
+          "dtype": "float32",
+          "sha256": "02f425a0ec162ccbacdce760e7cd36eed69de482a4c8a63b8586aef2bedf9bef",
+          "shape": [
+            80,
+            80
+          ]
+        },
+        "drive_b_to_b_E.weight": {
+          "dtype": "float32",
+          "sha256": "02f425a0ec162ccbacdce760e7cd36eed69de482a4c8a63b8586aef2bedf9bef",
+          "shape": [
+            80,
+            80
+          ]
+        }
+      },
+      "sha256": "0d9dd0ff6acd7ddeeeae0aaa7ffca60e32873eef79bed874b03c2c9c7c4ac4f3"
+    },
+    {
+      "bytes": 24131,
+      "coupling": 0.024,
+      "file": "k_p000d024.npz",
+      "parameters": {
+        "a_E_to_I.weight": {
+          "dtype": "float32",
+          "sha256": "8e34da64a0dda9611a8649d1beaf65ca43b2c026f57e888c84c9f196e9306107",
+          "shape": [
+            80,
+            20
+          ]
+        },
+        "a_E_to_b_E.weight": {
+          "dtype": "float32",
+          "sha256": "59c3fc5b6ab16f26001627696bb57ccf839c867bd630bbdcbce63a09efc976f1",
+          "shape": [
+            80,
+            80
+          ]
+        },
+        "a_E_to_b_I.weight": {
+          "dtype": "float32",
+          "sha256": "71b80ec78219f2a84000bc909ccb371da9244796f51041419fb4797288a722e6",
+          "shape": [
+            80,
+            20
+          ]
+        },
+        "a_I_to_E.weight": {
+          "dtype": "float32",
+          "sha256": "2e3c592b6e1f503602e3b2b962e3f72a08ec9bdd591e71a203afa08a90d1a3ec",
+          "shape": [
+            20,
+            80
+          ]
+        },
+        "b_E_to_I.weight": {
+          "dtype": "float32",
+          "sha256": "28f6cfb416de062c69b30492d99c32ba9fdd27f0705766a0d99c51ed828dd5eb",
+          "shape": [
+            80,
+            20
+          ]
+        },
+        "b_E_to_a_E.weight": {
+          "dtype": "float32",
+          "sha256": "59c3fc5b6ab16f26001627696bb57ccf839c867bd630bbdcbce63a09efc976f1",
+          "shape": [
+            80,
+            80
+          ]
+        },
+        "b_E_to_a_I.weight": {
+          "dtype": "float32",
+          "sha256": "71b80ec78219f2a84000bc909ccb371da9244796f51041419fb4797288a722e6",
+          "shape": [
+            80,
+            20
+          ]
+        },
+        "b_I_to_E.weight": {
+          "dtype": "float32",
+          "sha256": "95d36a9866af52e4d41961c57cb901307c8f838abfa81b700b8f9641a7afc039",
+          "shape": [
+            20,
+            80
+          ]
+        },
+        "drive_a_to_a_E.weight": {
+          "dtype": "float32",
+          "sha256": "02f425a0ec162ccbacdce760e7cd36eed69de482a4c8a63b8586aef2bedf9bef",
+          "shape": [
+            80,
+            80
+          ]
+        },
+        "drive_b_to_b_E.weight": {
+          "dtype": "float32",
+          "sha256": "02f425a0ec162ccbacdce760e7cd36eed69de482a4c8a63b8586aef2bedf9bef",
+          "shape": [
+            80,
+            80
+          ]
+        }
+      },
+      "sha256": "e91a39383ea01bd04d0f1034b352727da7c31b64a4e6b67fc2a4db7b79fd5fc2"
+    },
+    {
+      "bytes": 24139,
+      "coupling": 0.032,
+      "file": "k_p000d032.npz",
+      "parameters": {
+        "a_E_to_I.weight": {
+          "dtype": "float32",
+          "sha256": "8e34da64a0dda9611a8649d1beaf65ca43b2c026f57e888c84c9f196e9306107",
+          "shape": [
+            80,
+            20
+          ]
+        },
+        "a_E_to_b_E.weight": {
+          "dtype": "float32",
+          "sha256": "fb777e7d90cbb7156541c1335d14994329648c3ac5b5beed9922225a33a7b903",
+          "shape": [
+            80,
+            80
+          ]
+        },
+        "a_E_to_b_I.weight": {
+          "dtype": "float32",
+          "sha256": "0e27f00cb88d7fdb80777e94d26e6e5cd5a2bba976ee66bd02f529c8b9262db9",
+          "shape": [
+            80,
+            20
+          ]
+        },
+        "a_I_to_E.weight": {
+          "dtype": "float32",
+          "sha256": "2e3c592b6e1f503602e3b2b962e3f72a08ec9bdd591e71a203afa08a90d1a3ec",
+          "shape": [
+            20,
+            80
+          ]
+        },
+        "b_E_to_I.weight": {
+          "dtype": "float32",
+          "sha256": "28f6cfb416de062c69b30492d99c32ba9fdd27f0705766a0d99c51ed828dd5eb",
+          "shape": [
+            80,
+            20
+          ]
+        },
+        "b_E_to_a_E.weight": {
+          "dtype": "float32",
+          "sha256": "fb777e7d90cbb7156541c1335d14994329648c3ac5b5beed9922225a33a7b903",
+          "shape": [
+            80,
+            80
+          ]
+        },
+        "b_E_to_a_I.weight": {
+          "dtype": "float32",
+          "sha256": "0e27f00cb88d7fdb80777e94d26e6e5cd5a2bba976ee66bd02f529c8b9262db9",
+          "shape": [
+            80,
+            20
+          ]
+        },
+        "b_I_to_E.weight": {
+          "dtype": "float32",
+          "sha256": "95d36a9866af52e4d41961c57cb901307c8f838abfa81b700b8f9641a7afc039",
+          "shape": [
+            20,
+            80
+          ]
+        },
+        "drive_a_to_a_E.weight": {
+          "dtype": "float32",
+          "sha256": "02f425a0ec162ccbacdce760e7cd36eed69de482a4c8a63b8586aef2bedf9bef",
+          "shape": [
+            80,
+            80
+          ]
+        },
+        "drive_b_to_b_E.weight": {
+          "dtype": "float32",
+          "sha256": "02f425a0ec162ccbacdce760e7cd36eed69de482a4c8a63b8586aef2bedf9bef",
+          "shape": [
+            80,
+            80
+          ]
+        }
+      },
+      "sha256": "22e2d3fb91ba9d4913001ea66291b06854a80cf9772f06b8160eb4714c4f92a5"
+    },
+    {
+      "bytes": 24127,
+      "coupling": 0.04,
+      "file": "k_p000d040.npz",
+      "parameters": {
+        "a_E_to_I.weight": {
+          "dtype": "float32",
+          "sha256": "8e34da64a0dda9611a8649d1beaf65ca43b2c026f57e888c84c9f196e9306107",
+          "shape": [
+            80,
+            20
+          ]
+        },
+        "a_E_to_b_E.weight": {
+          "dtype": "float32",
+          "sha256": "3be71e810716c0c8acc82327655450498cc090b01bbf50f4bc66a7b41f1d7dc1",
+          "shape": [
+            80,
+            80
+          ]
+        },
+        "a_E_to_b_I.weight": {
+          "dtype": "float32",
+          "sha256": "7d087934b34bf9f64c19cb5c7ff9acd28e29915604fe600a9c7c5637445453e0",
+          "shape": [
+            80,
+            20
+          ]
+        },
+        "a_I_to_E.weight": {
+          "dtype": "float32",
+          "sha256": "2e3c592b6e1f503602e3b2b962e3f72a08ec9bdd591e71a203afa08a90d1a3ec",
+          "shape": [
+            20,
+            80
+          ]
+        },
+        "b_E_to_I.weight": {
+          "dtype": "float32",
+          "sha256": "28f6cfb416de062c69b30492d99c32ba9fdd27f0705766a0d99c51ed828dd5eb",
+          "shape": [
+            80,
+            20
+          ]
+        },
+        "b_E_to_a_E.weight": {
+          "dtype": "float32",
+          "sha256": "3be71e810716c0c8acc82327655450498cc090b01bbf50f4bc66a7b41f1d7dc1",
+          "shape": [
+            80,
+            80
+          ]
+        },
+        "b_E_to_a_I.weight": {
+          "dtype": "float32",
+          "sha256": "7d087934b34bf9f64c19cb5c7ff9acd28e29915604fe600a9c7c5637445453e0",
+          "shape": [
+            80,
+            20
+          ]
+        },
+        "b_I_to_E.weight": {
+          "dtype": "float32",
+          "sha256": "95d36a9866af52e4d41961c57cb901307c8f838abfa81b700b8f9641a7afc039",
+          "shape": [
+            20,
+            80
+          ]
+        },
+        "drive_a_to_a_E.weight": {
+          "dtype": "float32",
+          "sha256": "02f425a0ec162ccbacdce760e7cd36eed69de482a4c8a63b8586aef2bedf9bef",
+          "shape": [
+            80,
+            80
+          ]
+        },
+        "drive_b_to_b_E.weight": {
+          "dtype": "float32",
+          "sha256": "02f425a0ec162ccbacdce760e7cd36eed69de482a4c8a63b8586aef2bedf9bef",
+          "shape": [
+            80,
+            80
+          ]
+        }
+      },
+      "sha256": "decc31cb9602a3bb3aa1b41400aac8632f5f22bc687290cdb6e0f7c2de9fc7de"
+    },
+    {
+      "bytes": 24127,
+      "coupling": 0.048,
+      "file": "k_p000d048.npz",
+      "parameters": {
+        "a_E_to_I.weight": {
+          "dtype": "float32",
+          "sha256": "8e34da64a0dda9611a8649d1beaf65ca43b2c026f57e888c84c9f196e9306107",
+          "shape": [
+            80,
+            20
+          ]
+        },
+        "a_E_to_b_E.weight": {
+          "dtype": "float32",
+          "sha256": "c9a61ff3e3481f9aac92520be6aa202f126f8a9551c823dbf40afec4fc6cd4ba",
+          "shape": [
+            80,
+            80
+          ]
+        },
+        "a_E_to_b_I.weight": {
+          "dtype": "float32",
+          "sha256": "927c55b87f9f7c5135ccb35bb8e5e1a39132ee99c43f80011372d752be2c7172",
+          "shape": [
+            80,
+            20
+          ]
+        },
+        "a_I_to_E.weight": {
+          "dtype": "float32",
+          "sha256": "2e3c592b6e1f503602e3b2b962e3f72a08ec9bdd591e71a203afa08a90d1a3ec",
+          "shape": [
+            20,
+            80
+          ]
+        },
+        "b_E_to_I.weight": {
+          "dtype": "float32",
+          "sha256": "28f6cfb416de062c69b30492d99c32ba9fdd27f0705766a0d99c51ed828dd5eb",
+          "shape": [
+            80,
+            20
+          ]
+        },
+        "b_E_to_a_E.weight": {
+          "dtype": "float32",
+          "sha256": "c9a61ff3e3481f9aac92520be6aa202f126f8a9551c823dbf40afec4fc6cd4ba",
+          "shape": [
+            80,
+            80
+          ]
+        },
+        "b_E_to_a_I.weight": {
+          "dtype": "float32",
+          "sha256": "927c55b87f9f7c5135ccb35bb8e5e1a39132ee99c43f80011372d752be2c7172",
+          "shape": [
+            80,
+            20
+          ]
+        },
+        "b_I_to_E.weight": {
+          "dtype": "float32",
+          "sha256": "95d36a9866af52e4d41961c57cb901307c8f838abfa81b700b8f9641a7afc039",
+          "shape": [
+            20,
+            80
+          ]
+        },
+        "drive_a_to_a_E.weight": {
+          "dtype": "float32",
+          "sha256": "02f425a0ec162ccbacdce760e7cd36eed69de482a4c8a63b8586aef2bedf9bef",
+          "shape": [
+            80,
+            80
+          ]
+        },
+        "drive_b_to_b_E.weight": {
+          "dtype": "float32",
+          "sha256": "02f425a0ec162ccbacdce760e7cd36eed69de482a4c8a63b8586aef2bedf9bef",
+          "shape": [
+            80,
+            80
+          ]
+        }
+      },
+      "sha256": "532a66909be742e2ed39f67654652230b384523956e191745cdb47a58caced8f"
+    },
+    {
+      "bytes": 24123,
+      "coupling": 0.056,
+      "file": "k_p000d056.npz",
+      "parameters": {
+        "a_E_to_I.weight": {
+          "dtype": "float32",
+          "sha256": "8e34da64a0dda9611a8649d1beaf65ca43b2c026f57e888c84c9f196e9306107",
+          "shape": [
+            80,
+            20
+          ]
+        },
+        "a_E_to_b_E.weight": {
+          "dtype": "float32",
+          "sha256": "4258e2e3ecc8cfdd968715c57736303e3a4d53cd34e7fc6b10c0aed7ed42cdf4",
+          "shape": [
+            80,
+            80
+          ]
+        },
+        "a_E_to_b_I.weight": {
+          "dtype": "float32",
+          "sha256": "8445bf26355cca690191daf469a6a605d24313eb41b62efca7423ccfe71810b2",
+          "shape": [
+            80,
+            20
+          ]
+        },
+        "a_I_to_E.weight": {
+          "dtype": "float32",
+          "sha256": "2e3c592b6e1f503602e3b2b962e3f72a08ec9bdd591e71a203afa08a90d1a3ec",
+          "shape": [
+            20,
+            80
+          ]
+        },
+        "b_E_to_I.weight": {
+          "dtype": "float32",
+          "sha256": "28f6cfb416de062c69b30492d99c32ba9fdd27f0705766a0d99c51ed828dd5eb",
+          "shape": [
+            80,
+            20
+          ]
+        },
+        "b_E_to_a_E.weight": {
+          "dtype": "float32",
+          "sha256": "4258e2e3ecc8cfdd968715c57736303e3a4d53cd34e7fc6b10c0aed7ed42cdf4",
+          "shape": [
+            80,
+            80
+          ]
+        },
+        "b_E_to_a_I.weight": {
+          "dtype": "float32",
+          "sha256": "8445bf26355cca690191daf469a6a605d24313eb41b62efca7423ccfe71810b2",
+          "shape": [
+            80,
+            20
+          ]
+        },
+        "b_I_to_E.weight": {
+          "dtype": "float32",
+          "sha256": "95d36a9866af52e4d41961c57cb901307c8f838abfa81b700b8f9641a7afc039",
+          "shape": [
+            20,
+            80
+          ]
+        },
+        "drive_a_to_a_E.weight": {
+          "dtype": "float32",
+          "sha256": "02f425a0ec162ccbacdce760e7cd36eed69de482a4c8a63b8586aef2bedf9bef",
+          "shape": [
+            80,
+            80
+          ]
+        },
+        "drive_b_to_b_E.weight": {
+          "dtype": "float32",
+          "sha256": "02f425a0ec162ccbacdce760e7cd36eed69de482a4c8a63b8586aef2bedf9bef",
+          "shape": [
+            80,
+            80
+          ]
+        }
+      },
+      "sha256": "1db7a8e4a5dc0ad5ec414d39e43777862a673d121aea8b5394309bb81d542df4"
+    },
+    {
+      "bytes": 24131,
+      "coupling": 0.064,
+      "file": "k_p000d064.npz",
+      "parameters": {
+        "a_E_to_I.weight": {
+          "dtype": "float32",
+          "sha256": "8e34da64a0dda9611a8649d1beaf65ca43b2c026f57e888c84c9f196e9306107",
+          "shape": [
+            80,
+            20
+          ]
+        },
+        "a_E_to_b_E.weight": {
+          "dtype": "float32",
+          "sha256": "7791a3fd85c7660269732b36719a5ad0a1ab4b37daa5b62d5d0b2f9d7261cc35",
+          "shape": [
+            80,
+            80
+          ]
+        },
+        "a_E_to_b_I.weight": {
+          "dtype": "float32",
+          "sha256": "2d269e94c6440b994d2807afa996e1ecdc61faeee70a40df5c48cda7868dc327",
+          "shape": [
+            80,
+            20
+          ]
+        },
+        "a_I_to_E.weight": {
+          "dtype": "float32",
+          "sha256": "2e3c592b6e1f503602e3b2b962e3f72a08ec9bdd591e71a203afa08a90d1a3ec",
+          "shape": [
+            20,
+            80
+          ]
+        },
+        "b_E_to_I.weight": {
+          "dtype": "float32",
+          "sha256": "28f6cfb416de062c69b30492d99c32ba9fdd27f0705766a0d99c51ed828dd5eb",
+          "shape": [
+            80,
+            20
+          ]
+        },
+        "b_E_to_a_E.weight": {
+          "dtype": "float32",
+          "sha256": "7791a3fd85c7660269732b36719a5ad0a1ab4b37daa5b62d5d0b2f9d7261cc35",
+          "shape": [
+            80,
+            80
+          ]
+        },
+        "b_E_to_a_I.weight": {
+          "dtype": "float32",
+          "sha256": "2d269e94c6440b994d2807afa996e1ecdc61faeee70a40df5c48cda7868dc327",
+          "shape": [
+            80,
+            20
+          ]
+        },
+        "b_I_to_E.weight": {
+          "dtype": "float32",
+          "sha256": "95d36a9866af52e4d41961c57cb901307c8f838abfa81b700b8f9641a7afc039",
+          "shape": [
+            20,
+            80
+          ]
+        },
+        "drive_a_to_a_E.weight": {
+          "dtype": "float32",
+          "sha256": "02f425a0ec162ccbacdce760e7cd36eed69de482a4c8a63b8586aef2bedf9bef",
+          "shape": [
+            80,
+            80
+          ]
+        },
+        "drive_b_to_b_E.weight": {
+          "dtype": "float32",
+          "sha256": "02f425a0ec162ccbacdce760e7cd36eed69de482a4c8a63b8586aef2bedf9bef",
+          "shape": [
+            80,
+            80
+          ]
+        }
+      },
+      "sha256": "91bca17277005d0c5989bb4ea0db58699abbc9a3d598d9371234377970e06afc"
+    },
+    {
+      "bytes": 24131,
+      "coupling": 0.07200000000000001,
+      "file": "k_p000d072.npz",
+      "parameters": {
+        "a_E_to_I.weight": {
+          "dtype": "float32",
+          "sha256": "8e34da64a0dda9611a8649d1beaf65ca43b2c026f57e888c84c9f196e9306107",
+          "shape": [
+            80,
+            20
+          ]
+        },
+        "a_E_to_b_E.weight": {
+          "dtype": "float32",
+          "sha256": "7e34e83f1667e5a1669e08454a4061786634f0cd2eafc5ff0b87438949deb8bc",
+          "shape": [
+            80,
+            80
+          ]
+        },
+        "a_E_to_b_I.weight": {
+          "dtype": "float32",
+          "sha256": "c670d638737dd65730c03941b5d75f2a35c24064dbb956a83aabff38df850149",
+          "shape": [
+            80,
+            20
+          ]
+        },
+        "a_I_to_E.weight": {
+          "dtype": "float32",
+          "sha256": "2e3c592b6e1f503602e3b2b962e3f72a08ec9bdd591e71a203afa08a90d1a3ec",
+          "shape": [
+            20,
+            80
+          ]
+        },
+        "b_E_to_I.weight": {
+          "dtype": "float32",
+          "sha256": "28f6cfb416de062c69b30492d99c32ba9fdd27f0705766a0d99c51ed828dd5eb",
+          "shape": [
+            80,
+            20
+          ]
+        },
+        "b_E_to_a_E.weight": {
+          "dtype": "float32",
+          "sha256": "7e34e83f1667e5a1669e08454a4061786634f0cd2eafc5ff0b87438949deb8bc",
+          "shape": [
+            80,
+            80
+          ]
+        },
+        "b_E_to_a_I.weight": {
+          "dtype": "float32",
+          "sha256": "c670d638737dd65730c03941b5d75f2a35c24064dbb956a83aabff38df850149",
+          "shape": [
+            80,
+            20
+          ]
+        },
+        "b_I_to_E.weight": {
+          "dtype": "float32",
+          "sha256": "95d36a9866af52e4d41961c57cb901307c8f838abfa81b700b8f9641a7afc039",
+          "shape": [
+            20,
+            80
+          ]
+        },
+        "drive_a_to_a_E.weight": {
+          "dtype": "float32",
+          "sha256": "02f425a0ec162ccbacdce760e7cd36eed69de482a4c8a63b8586aef2bedf9bef",
+          "shape": [
+            80,
+            80
+          ]
+        },
+        "drive_b_to_b_E.weight": {
+          "dtype": "float32",
+          "sha256": "02f425a0ec162ccbacdce760e7cd36eed69de482a4c8a63b8586aef2bedf9bef",
+          "shape": [
+            80,
+            80
+          ]
+        }
+      },
+      "sha256": "bdc8a3845400cd04857b6c7f3a739bf1d9c3e46334f0ae91616408f183f4fcad"
+    },
+    {
+      "bytes": 24127,
+      "coupling": 0.08,
+      "file": "k_p000d080.npz",
+      "parameters": {
+        "a_E_to_I.weight": {
+          "dtype": "float32",
+          "sha256": "8e34da64a0dda9611a8649d1beaf65ca43b2c026f57e888c84c9f196e9306107",
+          "shape": [
+            80,
+            20
+          ]
+        },
+        "a_E_to_b_E.weight": {
+          "dtype": "float32",
+          "sha256": "ddef577f2f36932d719f8dd280506a9f5e6423fda09cd98ec44cb14b9825dced",
+          "shape": [
+            80,
+            80
+          ]
+        },
+        "a_E_to_b_I.weight": {
+          "dtype": "float32",
+          "sha256": "7ca65ac35cf31f059a33840af01b92d0e2491cd996f05578076b1882cff83355",
+          "shape": [
+            80,
+            20
+          ]
+        },
+        "a_I_to_E.weight": {
+          "dtype": "float32",
+          "sha256": "2e3c592b6e1f503602e3b2b962e3f72a08ec9bdd591e71a203afa08a90d1a3ec",
+          "shape": [
+            20,
+            80
+          ]
+        },
+        "b_E_to_I.weight": {
+          "dtype": "float32",
+          "sha256": "28f6cfb416de062c69b30492d99c32ba9fdd27f0705766a0d99c51ed828dd5eb",
+          "shape": [
+            80,
+            20
+          ]
+        },
+        "b_E_to_a_E.weight": {
+          "dtype": "float32",
+          "sha256": "ddef577f2f36932d719f8dd280506a9f5e6423fda09cd98ec44cb14b9825dced",
+          "shape": [
+            80,
+            80
+          ]
+        },
+        "b_E_to_a_I.weight": {
+          "dtype": "float32",
+          "sha256": "7ca65ac35cf31f059a33840af01b92d0e2491cd996f05578076b1882cff83355",
+          "shape": [
+            80,
+            20
+          ]
+        },
+        "b_I_to_E.weight": {
+          "dtype": "float32",
+          "sha256": "95d36a9866af52e4d41961c57cb901307c8f838abfa81b700b8f9641a7afc039",
+          "shape": [
+            20,
+            80
+          ]
+        },
+        "drive_a_to_a_E.weight": {
+          "dtype": "float32",
+          "sha256": "02f425a0ec162ccbacdce760e7cd36eed69de482a4c8a63b8586aef2bedf9bef",
+          "shape": [
+            80,
+            80
+          ]
+        },
+        "drive_b_to_b_E.weight": {
+          "dtype": "float32",
+          "sha256": "02f425a0ec162ccbacdce760e7cd36eed69de482a4c8a63b8586aef2bedf9bef",
+          "shape": [
+            80,
+            80
+          ]
+        }
+      },
+      "sha256": "baadea2ae34edcbb8d0cfba8be134441bad15613a5eb5cfeeecb4e50123cfc72"
+    }
+  ],
+  "schema": "pinglab.exp078.parameter-tensors/v1",
+  "verified_invariant_across_couplings": true
+}

@@ -15,6 +15,7 @@ from .training import TrainSpec
 SCHEMA = "snnlang.graph/v1"
 BUNDLE_SCHEMA = "snnlang.bundle/v1"
 TRAINING_SCHEMA = "snnlang.training/v1"
+CAPABILITY_SCHEMA = "snnlang.capabilities/v1"
 
 
 def canonical_json(data: Any) -> bytes:
@@ -450,6 +451,21 @@ def capability_report(graph: Mapping[str, Any], target: str | None) -> list[Diag
         "divide",
     }
     diagnostics = []
+    vocabulary = "snnlang.capabilities/v1"
+    neuron_support = {"coba_lif", "leaky_integrator"}
+    synapse_support = {"ampa", "gaba", "leaky_integrator"}
+    connection_support = {"feedforward", "recurrent", "feedback"}
+    for population in graph["populations"]:
+        kind = population["neuron"]["kind"]
+        if kind not in neuron_support:
+            diagnostics.append(Diagnostic("warning", "C102", f"{vocabulary}: {target} lacks neuron:{kind}", population["id"]))
+    for projection in graph["projections"]:
+        synapse = projection["synapse"]["kind"]
+        connection = projection["connection"]
+        if synapse not in synapse_support:
+            diagnostics.append(Diagnostic("warning", "C103", f"{vocabulary}: {target} lacks synapse:{synapse}", projection["id"]))
+        if connection not in connection_support:
+            diagnostics.append(Diagnostic("warning", "C104", f"{vocabulary}: {target} lacks connection:{connection}", projection["id"]))
     for op in graph["operations"]:
         if op["kind"] not in supported:
             diagnostics.append(
@@ -461,6 +477,31 @@ def capability_report(graph: Mapping[str, Any], target: str | None) -> list[Diag
                 )
             )
     return diagnostics
+
+
+def capability_requirements(graph: Mapping[str, Any]) -> dict[str, Any]:
+    """Canonical element-level requirements archived with every bundle."""
+    elements = []
+    for population in graph["populations"]:
+        elements.append({"element": population["id"], "features": [f"neuron:{population['neuron']['kind']}"]})
+    for projection in graph["projections"]:
+        delay = projection.get("delay")
+        elements.append({
+            "element": projection["id"],
+            "features": [
+                f"synapse:{projection['synapse']['kind']}",
+                f"connection:{projection['connection']}",
+                "delay:none" if delay is None else "delay:explicit",
+            ],
+        })
+    for operation in graph["operations"]:
+        elements.append({"element": operation["id"], "features": [f"operation:{operation['kind']}"]})
+    for observable in graph["observables"]:
+        elements.append({"element": observable["id"], "features": [f"recording:{observable['signal'].partition('.')[2]}"]})
+    return {
+        "schema": CAPABILITY_SCHEMA,
+        "elements": sorted(elements, key=lambda row: row["element"]),
+    }
 
 
 def text_report(
@@ -624,6 +665,7 @@ def compile(
         "compiler": {"name": "snnlang", "version": "0.1.0"},
         "graph_digest": graph_digest,
         "target": target,
+        "required_capabilities": capability_requirements(graph),
         "files": files,
         "assets": manifest_assets,
     }
