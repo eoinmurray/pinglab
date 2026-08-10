@@ -57,7 +57,7 @@
 
   *Note, planned variable-rate bank.* Exp080 selects the interval 0.5–25 Hz for later PING training. The proposed cells sample uniformly from the discrete set 0.5, 1, 2, 5, 10, and 25 Hz, independently per presentation, and use the summed-spiking `rate` readout. This training changes both the input distribution and readout relative to the existing `ping__off__seed*` cells. It is therefore a new training type, not another point in the spike-budget sweep.
 
-  *Note, required engine work.* `tools/snn` currently accepts one fixed `--input-rate` for an entire training run. Before the planned cells can enter the registry, it needs a reproducible variable-rate option, configuration serialization for the rate set and sampling rule, checkpoint-replay support, and tests proving deterministic sampling and fixed-rate backward compatibility. These changes are pending and this entry does not report variable-rate results.
+  *Note, engine support.* `tools/snn` accepts the categorical rate set through `--input-rates`, samples it reproducibly per presentation, serializes both the values and sampling rule, and restores them through `--load-config`. The three cells are registered for the Cambridge job array. This entry still does not report their results because the full training jobs have not run.
 
   === 3. Cambridge HPC compute plan
 
@@ -163,7 +163,7 @@
 
   === 6. Variable-rate streaming training
 
-  *Note, awaiting training.* No learning curve or raster exists yet. Once the `tools/snn` work described in Methods §2 is complete, this section will show the three mixed-rate learning curves, fixed-rate held-out accuracy across 0.5–25 Hz, and matched rasters at low, intermediate, and high rates. It will compare the new `rate`-readout cells with the existing fixed-25-Hz `mem-mean` cells. The planned checkpoints are the training source for #link("/exp082/")[exp082], which supersedes exp048 for variable-rate streaming inference.
+  *Note, awaiting training.* No learning curve or raster exists yet. After the registered Cambridge jobs complete, this section will show the three mixed-rate learning curves, fixed-rate held-out accuracy across 0.5–25 Hz, and matched rasters at low, intermediate, and high rates. It will compare the new `rate`-readout cells with the existing fixed-25-Hz `mem-mean` cells. The checkpoints are the training source for #link("/exp082/")[exp082], which supersedes exp048 for variable-rate streaming inference.
 
   === 7. Training data and spike density
 

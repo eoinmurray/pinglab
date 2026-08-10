@@ -153,6 +153,7 @@ def train(
     readout_mode="rate",
     signed_readout=False,
     readout_bias=False,
+    input_rates=None,
     tau_gaba=None,
     fr_reg_upper_theta=0.0,
     fr_reg_upper_strength=0.0,
@@ -169,7 +170,7 @@ def train(
     adapt_strength_init_mv=1.0,
     adapt_strength_max_mv=None,
 ):
-    """Train a model on mnist."""
+    """Train a model on a supported dataset."""
     from torch.utils.data import DataLoader, TensorDataset
 
 
@@ -214,6 +215,22 @@ def train(
         M.BATCH_SIZE = batch_size
 
     device = torch.device(device_name) if device_name else _auto_device()
+    if input_rates is not None:
+        if dataset not in IMAGE_DATASETS:
+            raise ValueError("variable input rates are supported only for image datasets")
+        input_rates = tuple(float(rate) for rate in input_rates)
+        if not input_rates or any(rate < 0 for rate in input_rates):
+            raise ValueError("input_rates must contain non-negative rates")
+    rate_values = torch.tensor(input_rates, dtype=torch.float32) if input_rates else None
+    train_rate_gen = torch.Generator().manual_seed((seed or 0) + 82_001)
+    eval_rate_gen = torch.Generator().manual_seed((seed or 0) + 82_002)
+    prediction_rate_gen = torch.Generator().manual_seed((seed or 0) + 82_003)
+
+    def sample_input_rates(batch_size, generator):
+        if rate_values is None:
+            return None
+        chosen = torch.randint(len(rate_values), (batch_size,), generator=generator)
+        return rate_values[chosen].to(device)
 
     if out_dir is None:
         out_dir = Path(__file__).parent.parent / "artifacts" / "training" / model_name
@@ -322,6 +339,8 @@ def train(
         "ei_ratio": ei_ratio,
         "w_in_sparsity": w_in_sparsity,
         "input_rate": M.max_rate_hz,
+        "input_rates": list(input_rates) if input_rates else None,
+        "input_rate_sampling": "uniform_categorical_per_presentation" if input_rates else "fixed",
         "v_grad_dampen": v_grad_dampen,
         "batch_size": bs,
         "grad_clip": GRAD_CLIP,
@@ -539,7 +558,10 @@ def train(
         hb = runlog.Heartbeat()
         for batch_idx, (X_b, y_b) in enumerate(train_loader):
             X_b, y_b = X_b.to(device), y_b.to(device)
-            spk = encode_batch(X_b, dt)
+            spk = encode_batch(
+                X_b, dt,
+                max_rate_hz=sample_input_rates(len(X_b), train_rate_gen),
+            )
             logits = net(input_spikes=spk)
             if torch.isnan(logits).any():
                 opt.zero_grad()
@@ -622,7 +644,10 @@ def train(
         with torch.no_grad():
             for X_b, y_b in test_loader:
                 X_b, y_b = X_b.to(device), y_b.to(device)
-                spk = encode_batch(X_b, dt, generator=eval_gen)
+                spk = encode_batch(
+                    X_b, dt, generator=eval_gen,
+                    max_rate_hz=sample_input_rates(len(X_b), eval_rate_gen),
+                )
                 logits_t = net(input_spikes=spk)
                 test_loss_sum += loss_fn(logits_t, y_b).item()
                 test_batches += 1
@@ -864,6 +889,8 @@ def train(
             "lr": lr,
             "weight_decay": weight_decay,
             "input_rate": M.max_rate_hz,
+            "input_rates": list(input_rates) if input_rates else None,
+            "input_rate_sampling": "uniform_categorical_per_presentation" if input_rates else "fixed",
             "w_in": list(w_in) if w_in else None,
             "w_ee": list(w_ee) if w_ee else None,
             "w_in_sparsity": w_in_sparsity,
@@ -934,7 +961,10 @@ def train(
     with torch.no_grad():
         for X_b, y_b in test_loader:
             X_b, y_b = X_b.to(device), y_b.to(device)
-            spk = encode_batch(X_b, dt)
+            spk = encode_batch(
+                X_b, dt,
+                max_rate_hz=sample_input_rates(len(X_b), prediction_rate_gen),
+            )
             logits_t = net(input_spikes=spk)
             p = logits_t.argmax(1)
             for i in range(y_b.size(0)):
