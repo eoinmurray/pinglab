@@ -1,0 +1,61 @@
+{
+  "seed": 44,
+  "device": "mps",
+  "runtime_s": 282.7999807080487,
+  "selected_epoch": 6,
+  "selected_validation_accuracy": 0.7444,
+  "history": [
+    {
+      "epoch": 1,
+      "train_accuracy": 0.5963,
+      "validation_accuracy": 0.6606
+    },
+    {
+      "epoch": 2,
+      "train_accuracy": 0.67285,
+      "validation_accuracy": 0.6798
+    },
+    {
+      "epoch": 3,
+      "train_accuracy": 0.696,
+      "validation_accuracy": 0.686
+    },
+    {
+      "epoch": 4,
+      "train_accuracy": 0.707,
+      "validation_accuracy": 0.7012
+    },
+    {
+      "epoch": 5,
+      "train_accuracy": 0.72315,
+      "validation_accuracy": 0.72
+    },
+    {
+      "epoch": 6,
+      "train_accuracy": 0.72795,
+      "validation_accuracy": 0.7444
+    },
+    {
+      "epoch": 7,
+      "train_accuracy": 0.7338,
+      "validation_accuracy": 0.71
+    },
+    {
+      "epoch": 8,
+      "train_accuracy": 0.73665,
+      "validation_accuracy": 0.7336
+    },
+    {
+      "epoch": 9,
+      "train_accuracy": 0.7418,
+      "validation_accuracy": 0.7394
+    },
+    {
+      "epoch": 10,
+      "train_accuracy": 0.7422,
+      "validation_accuracy": 0.733
+    }
+  ],
+  "checkpoint": "artifacts/data/exp080/models/seed-44/decoder.pt",
+  "checkpoint_sha256": "a77a7e66d3dcac3485ce61a3499d70d6f272ada3343e09d2f7ca4e88473bc201"
+}
