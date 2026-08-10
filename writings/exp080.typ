@@ -147,7 +147,7 @@
     caption: [An MNIST input image and its directly simulated filtered features.
       The left panel shows the normalized input. The remaining panels show
       independent spike realizations at maximum-pixel encoding rates of
-      #r.parameters.rates_hz.at(1) Hz, #r.parameters.rates_hz.at(2) Hz, and
+      #r.parameters.rates_hz.at(2) Hz, #r.parameters.rates_hz.at(5) Hz, and
       #r.parameters.rates_hz.last() Hz. Each simulation uses a
       #r.parameters.probe_uS μS synaptic conductance and a
       #r.parameters.presentation_ms ms presentation. Greater input rate

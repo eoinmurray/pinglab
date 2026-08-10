@@ -36,9 +36,12 @@ PRESENTATION_MS = 200.0
 DT_MS = 0.1
 N_TIMESTEPS = int(round(PRESENTATION_MS / DT_MS))
 PROBES_US = (0.6, 1.2, 2.4)
-EXPECTED_SPIKES = np.linspace(0.0, 5.0, 101)
+INPUT_RATES_HZ = np.linspace(0.0, 25.0, 101)
 MOMENT_DRAWS = 512
-DISTRIBUTION_EXPECTED_SPIKES = (0.05, 0.6, 5.0)
+DISTRIBUTION_RATES_HZ = (0.25, 3.0, 25.0)
+FREQUENCY_RESPONSE_RATES_HZ = (0.25, 3.0, 25.0)
+NOMINAL_PROBE_US = 1.2
+FREQUENCY_PLOT_BOUNDS_HZ = (0.1, 200.0)
 DISTRIBUTION_DRAWS = 4096
 SEED = 81
 FREQUENCY_BOUNDS_HZ = (1e-4, 1e6)
@@ -82,7 +85,7 @@ def torch_device() -> Any:
 
 
 def simulate_features(
-    expected_spikes: np.ndarray,
+    input_rates_hz: np.ndarray,
     probes_uS: np.ndarray,
     draws: int,
     seed: int,
@@ -90,14 +93,14 @@ def simulate_features(
     """Generate fresh finite-window features for aligned drive/probe conditions."""
     import torch
 
-    expected, probes = np.broadcast_arrays(
-        np.asarray(expected_spikes, dtype=np.float32),
+    rates, probes = np.broadcast_arrays(
+        np.asarray(input_rates_hz, dtype=np.float32),
         np.asarray(probes_uS, dtype=np.float32),
     )
     device = torch_device()
-    probability = torch.as_tensor(expected.reshape(-1, 1) / N_TIMESTEPS, device=device)
+    probability = torch.as_tensor(rates.reshape(-1, 1) * DT_MS / 1000.0, device=device)
     probe = torch.as_tensor(probes.reshape(-1, 1), device=device)
-    shape = (expected.size, draws)
+    shape = (rates.size, draws)
     conductance = torch.zeros(shape, device=device)
     voltage = torch.full(shape, PARAMETERS["E_L_mV"], device=device)
     feature_sum = torch.zeros(shape, device=device)
@@ -116,16 +119,16 @@ def simulate_features(
         )
         feature_sum += voltage - PARAMETERS["E_L_mV"]
     output = (feature_sum / N_TIMESTEPS).cpu().numpy()
-    return output.reshape(*expected.shape, draws)
+    return output.reshape(*rates.shape, draws)
 
 
 def linear_operating_point(
-    lambda_hz: np.ndarray | float,
+    input_rate_hz: np.ndarray | float,
     probe_uS: np.ndarray | float,
 ) -> tuple[np.ndarray, np.ndarray]:
-    lam = np.asarray(lambda_hz, dtype=np.float64)
+    rate = np.asarray(input_rate_hz, dtype=np.float64)
     probe = np.asarray(probe_uS, dtype=np.float64)
-    mean_g = lam * probe * PARAMETERS["tau_ampa_ms"] / 1000.0
+    mean_g = rate * probe * PARAMETERS["tau_ampa_ms"] / 1000.0
     mean_v = (
         PARAMETERS["g_L_uS"] * PARAMETERS["E_L_mV"] + mean_g * PARAMETERS["E_e_mV"]
     ) / (PARAMETERS["g_L_uS"] + mean_g)
@@ -134,12 +137,12 @@ def linear_operating_point(
 
 def synapse_membrane_transfer(
     frequency_hz: np.ndarray,
-    lambda_hz: np.ndarray | float,
+    input_rate_hz: np.ndarray | float,
     probe_uS: np.ndarray | float,
 ) -> np.ndarray:
     frequency = np.asarray(frequency_hz, dtype=np.float64)
     omega = 2.0 * np.pi * frequency / 1000.0
-    mean_g, mean_v = linear_operating_point(lambda_hz, probe_uS)
+    mean_g, mean_v = linear_operating_point(input_rate_hz, probe_uS)
     synapse = np.asarray(probe_uS) / (1j * omega + 1.0 / PARAMETERS["tau_ampa_ms"])
     membrane = (PARAMETERS["E_e_mV"] - mean_v) / (
         1j * omega * PARAMETERS["C_m_nF"] + PARAMETERS["g_L_uS"] + mean_g
@@ -149,47 +152,49 @@ def synapse_membrane_transfer(
 
 def complete_transfer(
     frequency_hz: np.ndarray,
-    lambda_hz: np.ndarray | float,
+    input_rate_hz: np.ndarray | float,
     probe_uS: np.ndarray | float,
 ) -> np.ndarray:
     frequency = np.asarray(frequency_hz, dtype=np.float64)
     omega = 2.0 * np.pi * frequency / 1000.0
     argument = omega * PRESENTATION_MS / 2.0
     averaging = np.exp(-1j * argument) * np.sinc(argument / np.pi)
-    return averaging * synapse_membrane_transfer(frequency_hz, lambda_hz, probe_uS)
+    return averaging * synapse_membrane_transfer(frequency_hz, input_rate_hz, probe_uS)
 
 
 def predicted_variance(
-    lambda_hz: np.ndarray,
+    input_rates_hz: np.ndarray,
     probe_uS: np.ndarray,
     *,
     grid_points: int = FREQUENCY_GRID_POINTS,
 ) -> np.ndarray:
-    lam = np.asarray(lambda_hz, dtype=np.float64).reshape(-1)
+    rates = np.asarray(input_rates_hz, dtype=np.float64).reshape(-1)
     probe = np.asarray(probe_uS, dtype=np.float64).reshape(-1)
-    if lam.shape != probe.shape:
-        raise ValueError("lambda_hz and probe_uS must have matching shapes")
-    result = np.zeros_like(lam)
+    if rates.shape != probe.shape:
+        raise ValueError("input_rates_hz and probe_uS must have matching shapes")
+    result = np.zeros_like(rates)
     frequencies = np.geomspace(*FREQUENCY_BOUNDS_HZ, grid_points)
-    for start in range(0, lam.size, 128):
-        indices = np.arange(start, min(start + 128, lam.size))
-        positive = indices[lam[indices] > 0]
+    for start in range(0, rates.size, 128):
+        indices = np.arange(start, min(start + 128, rates.size))
+        positive = indices[rates[indices] > 0]
         if positive.size == 0:
             continue
         transfer = complete_transfer(
-            frequencies[None, :], lam[positive, None], probe[positive, None]
+            frequencies[None, :], rates[positive, None], probe[positive, None]
         )
-        integrand = np.abs(transfer) ** 2 * lam[positive, None] / 1000.0
+        integrand = np.abs(transfer) ** 2 * rates[positive, None] / 1000.0
         integral = np.trapezoid(integrand, frequencies, axis=1)
         dc = (
             np.abs(
                 complete_transfer(
-                    np.asarray([[0.0]]), lam[positive, None], probe[positive, None]
+                    np.asarray([[0.0]]),
+                    rates[positive, None],
+                    probe[positive, None],
                 )[:, 0]
             )
             ** 2
         )
-        low_tail = dc * lam[positive] / 1000.0 * FREQUENCY_BOUNDS_HZ[0]
+        low_tail = dc * rates[positive] / 1000.0 * FREQUENCY_BOUNDS_HZ[0]
         result[positive] = 2.0 / 1000.0 * (integral + low_tail)
     return result
 
@@ -200,19 +205,19 @@ def plot_moments(
 ) -> None:
     theme.apply()
     colors = (theme.INK_BLACK, theme.DEEP_RED, theme.ELECTRIC_CYAN)
-    fig, axes = plt.subplots(1, 2, figsize=(8.2, 3.25), constrained_layout=True)
+    fig, axes = plt.subplots(1, 2, figsize=(6.5, 3.25), constrained_layout=True)
     for index, (probe, color) in enumerate(zip(PROBES_US, colors, strict=True)):
         axes[0].plot(
-            EXPECTED_SPIKES,
+            INPUT_RATES_HZ,
             empirical_mean[index],
             color=color,
             label=f"{probe:g} μS",
         )
-        axes[1].plot(EXPECTED_SPIKES, empirical_sd[index], color=color)
+        axes[1].plot(INPUT_RATES_HZ, empirical_sd[index], color=color)
     axes[0].set(title="A  Mean feature", ylabel="Mean feature z (mV)")
     axes[1].set(title="B  Feature SD", ylabel="Feature SD (mV)")
     for axis in axes:
-        axis.set(xlabel="Expected input spikes", xlim=(0, 5))
+        axis.set(xlabel="Input rate (Hz)", xlim=(0, 25))
         axis.spines[["top", "right"]].set_visible(False)
         axis.grid(alpha=0.14)
     axes[0].legend(frameon=False)
@@ -223,13 +228,11 @@ def plot_moments(
 def plot_distributions(samples: np.ndarray) -> None:
     theme.apply()
     fig, axes = plt.subplots(
-        1, 3, figsize=(8.2, 2.75), constrained_layout=True, sharex=True, sharey=True
+        1, 3, figsize=(6.5, 2.75), constrained_layout=True, sharex=True, sharey=True
     )
     upper = float(np.ceil(np.max(samples) / 5.0) * 5.0)
     bins = np.linspace(0.0, upper, 61)
-    for axis, expected, values in zip(
-        axes, DISTRIBUTION_EXPECTED_SPIKES, samples, strict=True
-    ):
+    for axis, rate, values in zip(axes, DISTRIBUTION_RATES_HZ, samples, strict=True):
         axis.hist(
             values,
             bins=bins,
@@ -237,7 +240,7 @@ def plot_distributions(samples: np.ndarray) -> None:
             color=theme.INK_BLACK,
             alpha=0.72,
         )
-        axis.set_title(f"E[N] = {expected:g}")
+        axis.set_title(f"{rate:g} Hz")
         axis.set_xlabel("Feature z (mV)")
         axis.set_yscale("log")
         axis.set_ylim(0.5 / values.size, 1.0)
@@ -249,16 +252,20 @@ def plot_distributions(samples: np.ndarray) -> None:
 
 def plot_frequency_response() -> None:
     theme.apply()
-    frequency = np.geomspace(0.1, 200.0, 1400)
-    rates = (0.25, 3.0, 25.0)
+    frequency = np.geomspace(*FREQUENCY_PLOT_BOUNDS_HZ, 1400)
+    rates = FREQUENCY_RESPONSE_RATES_HZ
     colors = (theme.INK_BLACK, theme.DEEP_RED, theme.ELECTRIC_CYAN)
-    reference = abs(synapse_membrane_transfer(np.asarray([0.0]), 0.25, 1.2)[0])
+    reference = abs(
+        synapse_membrane_transfer(np.asarray([0.0]), rates[0], NOMINAL_PROBE_US)[0]
+    )
     fig, axes = plt.subplots(
-        1, 2, figsize=(8.2, 3.25), constrained_layout=True, sharey=True
+        1, 2, figsize=(6.5, 3.25), constrained_layout=True, sharey=True
     )
     for rate, color in zip(rates, colors, strict=True):
-        unaveraged = np.abs(synapse_membrane_transfer(frequency, rate, 1.2))
-        averaged = np.abs(complete_transfer(frequency, rate, 1.2))
+        unaveraged = np.abs(
+            synapse_membrane_transfer(frequency, rate, NOMINAL_PROBE_US)
+        )
+        averaged = np.abs(complete_transfer(frequency, rate, NOMINAL_PROBE_US))
         axes[0].semilogx(
             frequency,
             20 * np.log10(np.maximum(unaveraged / reference, 1e-8)),
@@ -271,7 +278,8 @@ def plot_frequency_response() -> None:
             color=color,
         )
     axes[0].set(
-        title="A  Synapse + membrane", ylabel="Gain relative to low-drive DC (dB)"
+        title="A  Synapse + membrane",
+        ylabel="Magnitude relative to low-drive DC (dB)",
     )
     axes[1].set(title="B  After 200 ms averaging")
     for axis in axes:
@@ -290,22 +298,25 @@ def plot_comparison(
 ) -> None:
     theme.apply()
     colors = (theme.INK_BLACK, theme.DEEP_RED, theme.ELECTRIC_CYAN)
-    fig, axes = plt.subplots(1, 2, figsize=(8.2, 3.25), constrained_layout=True)
+    fig, axes = plt.subplots(1, 2, figsize=(6.5, 3.25), constrained_layout=True)
     for index, (probe, color) in enumerate(zip(PROBES_US, colors, strict=True)):
         axes[0].plot(
-            EXPECTED_SPIKES, analytical_mean[index], color=color, label=f"{probe:g} μS"
+            INPUT_RATES_HZ,
+            analytical_mean[index],
+            color=color,
+            label=f"{probe:g} μS",
         )
         axes[0].scatter(
-            EXPECTED_SPIKES,
+            INPUT_RATES_HZ,
             empirical_mean[index],
             s=7,
             color=color,
             alpha=0.28,
             edgecolors="none",
         )
-        axes[1].plot(EXPECTED_SPIKES, analytical_sd[index], color=color)
+        axes[1].plot(INPUT_RATES_HZ, analytical_sd[index], color=color)
         axes[1].scatter(
-            EXPECTED_SPIKES,
+            INPUT_RATES_HZ,
             empirical_sd[index],
             s=7,
             color=color,
@@ -315,7 +326,7 @@ def plot_comparison(
     axes[0].set(title="A  Mean feature", ylabel="Mean feature z (mV)")
     axes[1].set(title="B  Feature SD", ylabel="Feature SD (mV)")
     for axis in axes:
-        axis.set(xlabel="Expected input spikes", xlim=(0, 5))
+        axis.set(xlabel="Input rate (Hz)", xlim=(0, 25))
         axis.spines[["top", "right"]].set_visible(False)
         axis.grid(alpha=0.14)
     axes[0].legend(frameon=False)
@@ -340,26 +351,25 @@ def summarize(predicted: np.ndarray, empirical: np.ndarray) -> dict[str, float]:
 def main() -> None:
     started = time.perf_counter()
     FIGURES.mkdir(parents=True, exist_ok=True)
-    expected, probes = np.meshgrid(EXPECTED_SPIKES, np.asarray(PROBES_US))
-    features = simulate_features(expected, probes, MOMENT_DRAWS, stable_seed(1))
+    rates_hz, probes = np.meshgrid(INPUT_RATES_HZ, np.asarray(PROBES_US))
+    features = simulate_features(rates_hz, probes, MOMENT_DRAWS, stable_seed(1))
     empirical_mean = features.mean(axis=-1)
     empirical_sd = features.std(axis=-1, ddof=1)
     distribution_samples = simulate_features(
-        np.asarray(DISTRIBUTION_EXPECTED_SPIKES),
-        np.full(len(DISTRIBUTION_EXPECTED_SPIKES), 1.2),
+        np.asarray(DISTRIBUTION_RATES_HZ),
+        np.full(len(DISTRIBUTION_RATES_HZ), NOMINAL_PROBE_US),
         DISTRIBUTION_DRAWS,
         stable_seed(2),
     )
-    lambda_hz = expected * 1000.0 / PRESENTATION_MS
-    _, stationary_voltage = linear_operating_point(lambda_hz, probes)
+    _, stationary_voltage = linear_operating_point(rates_hz, probes)
     analytical_mean = stationary_voltage - PARAMETERS["E_L_mV"]
     analytical_variance = predicted_variance(
-        lambda_hz.reshape(-1), probes.reshape(-1)
-    ).reshape(expected.shape)
+        rates_hz.reshape(-1), probes.reshape(-1)
+    ).reshape(rates_hz.shape)
     analytical_sd = np.sqrt(analytical_variance)
     coarse = predicted_variance(
-        lambda_hz.reshape(-1), probes.reshape(-1), grid_points=8193
-    ).reshape(expected.shape)
+        rates_hz.reshape(-1), probes.reshape(-1), grid_points=8193
+    ).reshape(rates_hz.shape)
     relative = np.divide(
         np.abs(analytical_variance - coarse),
         analytical_variance,
@@ -368,7 +378,7 @@ def main() -> None:
     )
     np.savez_compressed(
         FIGURES / "moments.npz",
-        expected_spikes=expected,
+        input_rates_hz=rates_hz,
         probes_uS=probes,
         empirical_mean_mV=empirical_mean,
         empirical_sd_mV=empirical_sd,
@@ -377,7 +387,7 @@ def main() -> None:
     )
     np.savez_compressed(
         FIGURES / "distribution_samples.npz",
-        expected_spikes=np.asarray(DISTRIBUTION_EXPECTED_SPIKES),
+        input_rates_hz=np.asarray(DISTRIBUTION_RATES_HZ),
         samples_mV=distribution_samples,
     )
     plot_moments(empirical_mean, empirical_sd)
@@ -391,7 +401,12 @@ def main() -> None:
             "presentation_ms": PRESENTATION_MS,
             "dt_ms": DT_MS,
             "probes_uS": list(PROBES_US),
-            "expected_spike_grid": EXPECTED_SPIKES.tolist(),
+            "pixel_intensity": 1.0,
+            "input_rate_grid_hz": INPUT_RATES_HZ.tolist(),
+            "distribution_rates_hz": list(DISTRIBUTION_RATES_HZ),
+            "frequency_response_rates_hz": list(FREQUENCY_RESPONSE_RATES_HZ),
+            "frequency_plot_bounds_hz": list(FREQUENCY_PLOT_BOUNDS_HZ),
+            "nominal_probe_uS": NOMINAL_PROBE_US,
             "moment_draws": MOMENT_DRAWS,
             "distribution_draws": DISTRIBUTION_DRAWS,
         },

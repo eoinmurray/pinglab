@@ -19,10 +19,10 @@ def test_finite_window_has_first_zero_at_five_hz() -> None:
 
 
 def test_empirical_simulator_replays_and_zero_drive_rests() -> None:
-    expected = np.asarray([0.0, 0.5])
+    rates_hz = np.asarray([0.0, 2.5])
     probes = np.asarray([1.2, 1.2])
-    first = exp081.simulate_features(expected, probes, 8, 123)
-    replay = exp081.simulate_features(expected, probes, 8, 123)
+    first = exp081.simulate_features(rates_hz, probes, 8, 123)
+    replay = exp081.simulate_features(rates_hz, probes, 8, 123)
     assert np.array_equal(first, replay)
     assert np.all(first[0] == 0.0)
     assert np.all(first[1] >= 0.0)
