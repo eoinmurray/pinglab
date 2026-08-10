@@ -75,6 +75,8 @@ EPOCHS_STANDARD = 50           # standard depth (halved from 100 — see exp022.
 DT_MS = 0.1
 T_MS = 200.0
 SEEDS_BASELINE = [42, 43, 44]
+VARIABLE_RATE_TRAINING_RATES_HZ = (0.5, 1.0, 2.0, 5.0, 10.0, 25.0)
+VARIABLE_RATE_CONSUMER = "exp082"
 THETA_U_GRID: list[float | None] = [None, 5.0, 2.0, 1.0, 0.5, 0.2]
 FR_STRENGTH_UPPER = 1e-3
 TAU_AMPA_MS = 2.0          # AMPA decay — fixed across the collection (no CLI knob)
@@ -262,8 +264,37 @@ def _init_cells() -> list[dict]:
     return cells
 
 
+def _planned_variable_rate_cells() -> list[dict]:
+    """Future exp082 training bank.
+
+    Kept outside CANONICAL_CELLS until tools/snn can serialize and replay a
+    per-presentation categorical rate sampler.  Registering these prematurely
+    would make the Cambridge job array launch invalid fixed-rate jobs.
+    """
+    return [
+        {
+            "name": f"ping__variable_rate__seed{s}",
+            "model": "ping",
+            "family": "variable_rate",
+            "tag": "categorical 0.5–25 Hz · summed spikes",
+            "seed": s,
+            "dt_ms": DT_MS,
+            "tau_gaba": TAU_GABA_GAMMA,
+            "max_samples": SUBSET_MAX_SAMPLES,
+            "readout": "rate",
+            "input_rates_hz": list(VARIABLE_RATE_TRAINING_RATES_HZ),
+            "rate_sampling": "uniform categorical per presentation",
+            "consumer": VARIABLE_RATE_CONSUMER,
+            "extra": [],
+            "status": "planned_tools_snn_change_required",
+        }
+        for s in SEEDS_BASELINE
+    ]
+
+
 CANONICAL_CELLS = (_canonical_cells() + _theta_u_cells() + _tau_gaba_cells()
                    + _dt_cells() + _init_cells())
+PLANNED_VARIABLE_RATE_CELLS = _planned_variable_rate_cells()
 
 # Same five scientific families and cell names as the calibrated bank, but a
 # distinct root and a frozen shared-scale recipe.  Consumers do not switch to

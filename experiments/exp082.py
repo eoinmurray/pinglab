@@ -1,0 +1,429 @@
+"""EXP082: streaming inference with variable-rate-trained PING weights.
+
+This is the successor to exp048.  It consumes the planned exp022 PING cells
+trained with per-presentation variable input rates and the summed-spiking
+(`rate`) readout.  It evaluates four protocols:
+
+1. a matched 200-ms presentation/readout stream;
+2. a stream whose presentation duration and input rate both vary;
+3. a 200-ms input-rate psychometric curve; and
+4. a presentation-duration by input-rate accuracy map.
+
+The runner is intentionally executable only after exp022 has produced all
+three variable-rate checkpoints.  Until then it fails before creating a run.
+"""
+
+from __future__ import annotations
+
+import json
+import subprocess
+import sys
+import time
+from pathlib import Path
+from typing import Any
+
+import matplotlib.pyplot as plt
+import numpy as np
+import torch
+
+REPO = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+
+from helpers import theme  # noqa: E402
+from helpers.datasets import load_mnist_split  # noqa: E402
+from helpers.paths import artifacts_and_figures  # noqa: E402
+from helpers.run_dirs import prepare as prepare_run_dirs  # noqa: E402
+from helpers.run_id import next_run_id  # noqa: E402
+from helpers.stamp import stamp_figure  # noqa: E402
+
+SLUG = "exp082"
+ARTIFACTS, FIGURES = artifacts_and_figures(SLUG)
+SNN_TOOL = REPO / "tools" / "snn" / "tool.py"
+TRAINING_ROOT = REPO / "temp" / "experiments" / "exp022"
+
+SEEDS = (42, 43, 44)
+TRAINING_RATES_HZ = (0.5, 1.0, 2.0, 5.0, 10.0, 25.0)
+PSYCHOMETRIC_RATES_HZ = TRAINING_RATES_HZ
+DURATIONS_MS = (25.0, 50.0, 100.0, 200.0)
+MATCHED_DURATION_MS = 200.0
+MATCHED_RATE_HZ = 5.0
+N_CLASSES = 10
+N_INPUT = 784
+N_HEADLINE_DIGITS = 5
+STREAMS_PER_CELL = 20
+DIGITS_PER_STREAM = 10
+DT_MS = 0.1
+
+VARIABLE_STREAM = (
+    (200.0, 0.5),
+    (50.0, 25.0),
+    (100.0, 2.0),
+    (25.0, 10.0),
+    (200.0, 5.0),
+)
+
+SCALE = {
+    "dataset": "mnist",
+    "t_ms": MATCHED_DURATION_MS,
+    "dt_ms": DT_MS,
+    "seeds": len(SEEDS),
+    "cells": len(DURATIONS_MS) * len(PSYCHOMETRIC_RATES_HZ),
+    "grid": f"{len(DURATIONS_MS)} duration × {len(PSYCHOMETRIC_RATES_HZ)} rate",
+}
+
+
+def training_cell_name(seed: int) -> str:
+    return f"ping__variable_rate__seed{seed}"
+
+
+def training_dir(seed: int) -> Path:
+    return TRAINING_ROOT / training_cell_name(seed)
+
+
+def require_training_bank() -> None:
+    missing = []
+    for seed in SEEDS:
+        directory = training_dir(seed)
+        for filename in ("config.json", "weights.pth"):
+            if not (directory / filename).exists():
+                missing.append(str(directory / filename))
+    if missing:
+        joined = "\n  ".join(missing)
+        raise SystemExit(
+            "exp082 requires the exp022 variable-rate training bank:\n  " + joined
+        )
+
+
+def load_eval(seed: int) -> tuple[Path, dict[str, Any], np.ndarray, np.ndarray]:
+    directory = training_dir(seed)
+    config = json.loads((directory / "config.json").read_text())
+    readout = config.get("readout_mode", config.get("readout"))
+    if readout != "rate":
+        raise SystemExit(
+            f"{directory} has readout {readout!r}; exp082 requires summed-spiking 'rate'"
+        )
+    _, x_test, _, y_test = load_mnist_split(max_samples=int(config["max_samples"]))
+    return directory, config, x_test, y_test
+
+
+def encode_segment(
+    pixels: np.ndarray,
+    duration_ms: float,
+    rate_hz: float,
+    generator: torch.Generator,
+) -> torch.Tensor:
+    steps = int(round(duration_ms / DT_MS))
+    images = torch.as_tensor(pixels, dtype=torch.float32).reshape(-1, N_INPUT)
+    probability = images * rate_hz * DT_MS / 1000.0
+    return (
+        torch.rand(steps, len(images), N_INPUT, generator=generator)
+        < probability.unsqueeze(0)
+    ).to(torch.float32)
+
+
+def encode_stream(
+    pixels: np.ndarray,
+    conditions: tuple[tuple[float, float], ...],
+    generator: torch.Generator,
+) -> torch.Tensor:
+    if len(pixels) != len(conditions):
+        raise ValueError("one (duration, rate) condition is required per digit")
+    return torch.cat(
+        [
+            encode_segment(pixels[i : i + 1], duration, rate, generator)
+            for i, (duration, rate) in enumerate(conditions)
+        ],
+        dim=0,
+    )
+
+
+def run_spikes(directory: Path, input_spikes: torch.Tensor, tag: str) -> tuple[np.ndarray, np.ndarray]:
+    out_dir = (ARTIFACTS / "stream" / directory.name / tag).resolve()
+    out_dir.mkdir(parents=True, exist_ok=True)
+    input_path = out_dir / "input.npz"
+    np.savez_compressed(input_path, input_spikes=input_spikes.cpu().numpy())
+    subprocess.run(
+        [
+            "uv", "run", "python", str(SNN_TOOL), "sim",
+            "--load-config", str((directory / "config.json").resolve()),
+            "--load-weights", str((directory / "weights.pth").resolve()),
+            "--n-in", str(N_INPUT),
+            "--input-file", str(input_path),
+            "--outputs", "rasters",
+            "--out-dir", str(out_dir),
+        ],
+        cwd=REPO,
+        check=True,
+    )
+    raster = np.load(out_dir / "rasters.npz")
+    total_steps = int(raster["T"])
+
+    def dense(prefix: str, width: int) -> np.ndarray:
+        keep = raster[f"{prefix}_trial"] == 0
+        values = np.zeros((total_steps, width), dtype=np.int8)
+        values[raster[f"{prefix}_t"][keep], raster[f"{prefix}_cell"][keep]] = 1
+        return values
+
+    return dense("e", int(raster["n_e"])), dense("i", int(raster["n_i"]))
+
+
+_READOUT_CACHE: dict[str, np.ndarray] = {}
+
+
+def load_readout(directory: Path) -> np.ndarray:
+    key = str(directory)
+    if key not in _READOUT_CACHE:
+        out_dir = (ARTIFACTS / "readout" / directory.name).resolve()
+        out_dir.mkdir(parents=True, exist_ok=True)
+        subprocess.run(
+            [
+                "uv", "run", "python", str(SNN_TOOL), "dump-weights",
+                "--load-config", str((directory / "config.json").resolve()),
+                "--load-weights", str((directory / "weights.pth").resolve()),
+                "--out-dir", str(out_dir),
+            ],
+            cwd=REPO,
+            check=True,
+        )
+        weights = np.load(out_dir / "weights_dump.npz")
+        names = sorted(
+            (name for name in weights.files if name.startswith("W_ff_") and name.endswith("_trained")),
+            key=lambda name: int(name.split("_")[2]),
+        )
+        _READOUT_CACHE[key] = weights[names[-1]]
+    return _READOUT_CACHE[key]
+
+
+def summed_logits(spikes_e: np.ndarray, readout: np.ndarray, start: int, stop: int) -> np.ndarray:
+    """Sum E spikes over exactly [start, stop), then apply trained W_out."""
+    return spikes_e[start:stop].sum(axis=0) @ readout
+
+
+def softmax(values: np.ndarray) -> np.ndarray:
+    shifted = values - np.max(values)
+    exp = np.exp(shifted)
+    return exp / exp.sum()
+
+
+def pick_digits(x_test: np.ndarray, y_test: np.ndarray, n: int, seed: int) -> tuple[np.ndarray, np.ndarray]:
+    rng = np.random.default_rng(seed)
+    classes = rng.permutation(N_CLASSES)[:n]
+    indices = [int(rng.choice(np.flatnonzero(y_test == label))) for label in classes]
+    return x_test[indices], y_test[indices]
+
+
+def evaluate_stream(
+    directory: Path,
+    x_test: np.ndarray,
+    y_test: np.ndarray,
+    conditions: tuple[tuple[float, float], ...],
+    seed: int,
+    tag: str,
+) -> dict[str, Any]:
+    pixels, labels = pick_digits(x_test, y_test, len(conditions), seed)
+    encoded = encode_stream(pixels, conditions, torch.Generator().manual_seed(seed + 1))
+    spikes_e, spikes_i = run_spikes(directory, encoded, tag)
+    readout = load_readout(directory)
+    probabilities = np.zeros((len(spikes_e), N_CLASSES), dtype=np.float32)
+    predictions = []
+    correct = []
+    boundaries = [0]
+    cursor = 0
+    for label, (duration, _) in zip(labels, conditions, strict=True):
+        steps = int(round(duration / DT_MS))
+        stop = cursor + steps
+        for timestep in range(cursor, stop):
+            probabilities[timestep] = softmax(
+                summed_logits(spikes_e, readout, cursor, timestep + 1)
+            )
+        prediction = int(np.argmax(summed_logits(spikes_e, readout, cursor, stop)))
+        predictions.append(prediction)
+        correct.append(int(prediction == label))
+        cursor = stop
+        boundaries.append(cursor)
+    return {
+        "conditions": [list(item) for item in conditions],
+        "labels": labels.tolist(),
+        "predictions": predictions,
+        "correct": correct,
+        "boundaries": boundaries,
+        "spikes_e": spikes_e,
+        "spikes_i": spikes_i,
+        "probabilities": probabilities,
+    }
+
+
+def evaluate_cell(seed: int, duration_ms: float, rate_hz: float) -> dict[str, Any]:
+    directory, _, x_test, y_test = load_eval(seed)
+    rng = np.random.default_rng(82_000 + seed + int(duration_ms * 10) + int(rate_hz * 100))
+    n_correct = 0
+    n_total = 0
+    readout = load_readout(directory)
+    for stream_index in range(STREAMS_PER_CELL):
+        indices = rng.choice(len(y_test), DIGITS_PER_STREAM, replace=False)
+        conditions = tuple(
+            (duration_ms, rate_hz) for _ in range(DIGITS_PER_STREAM)
+        )
+        spikes = encode_stream(
+            x_test[indices], conditions,
+            torch.Generator().manual_seed(82_000 + seed * 100 + stream_index),
+        )
+        spikes_e, _ = run_spikes(
+            directory, spikes, f"cell_d{duration_ms:g}_r{rate_hz:g}_s{stream_index}",
+        )
+        segment_steps = int(round(duration_ms / DT_MS))
+        for digit_index, label in enumerate(y_test[indices]):
+            start = digit_index * segment_steps
+            stop = start + segment_steps
+            logits = summed_logits(spikes_e, readout, start, stop)
+            n_correct += int(np.argmax(logits) == label)
+            n_total += 1
+    return {
+        "seed": seed,
+        "duration_ms": duration_ms,
+        "rate_hz": rate_hz,
+        "n_correct": n_correct,
+        "n_total": n_total,
+        "accuracy": n_correct / n_total,
+    }
+
+
+def plot_stream(result: dict[str, Any], path: Path, run_id: str) -> None:
+    theme.apply()
+    spikes_e = result["spikes_e"]
+    spikes_i = result["spikes_i"]
+    probabilities = result["probabilities"]
+    time_ms = np.arange(len(spikes_e)) * DT_MS
+    fig, axes = plt.subplots(3, 1, figsize=(6.5, 5.4), sharex=True, constrained_layout=True)
+    e_t, e_n = np.nonzero(spikes_e[:, :200])
+    i_t, i_n = np.nonzero(spikes_i[:, :64])
+    axes[0].scatter(e_t * DT_MS, e_n, s=1, color=theme.INK_BLACK)
+    axes[1].scatter(i_t * DT_MS, i_n, s=2, color=theme.DEEP_RED)
+    for label in range(N_CLASSES):
+        axes[2].plot(time_ms, probabilities[:, label], lw=0.9, label=str(label))
+    for boundary in result["boundaries"][1:-1]:
+        for axis in axes:
+            axis.axvline(boundary * DT_MS, color=theme.GREY_MID, lw=0.7, ls=":")
+    axes[0].set_ylabel("E neuron")
+    axes[1].set_ylabel("I neuron")
+    axes[2].set(xlabel="time (ms)", ylabel="class probability", ylim=(0, 1))
+    axes[2].legend(ncol=5, frameon=False, fontsize=7)
+    stamp_figure(fig, run_id)
+    fig.savefig(path, dpi=240, facecolor="white")
+    plt.close(fig)
+
+
+def plot_psychometric(rows: list[dict[str, Any]], path: Path, run_id: str) -> None:
+    theme.apply()
+    rates = sorted({row["rate_hz"] for row in rows})
+    means = []
+    sems = []
+    for rate in rates:
+        values = np.asarray([row["accuracy"] for row in rows if row["rate_hz"] == rate])
+        means.append(float(values.mean()))
+        sems.append(float(values.std(ddof=1) / np.sqrt(len(values))))
+    fig, axis = plt.subplots(figsize=(6.5, 3.66), constrained_layout=True)
+    axis.errorbar(rates, means, yerr=sems, color=theme.INK_BLACK, marker="o", capsize=3)
+    axis.set_xscale("log")
+    axis.set_xticks(rates)
+    axis.set_xticklabels([f"{rate:g}" for rate in rates])
+    axis.set(xlabel="maximum-pixel input rate (Hz)", ylabel="accuracy", ylim=(0, 1))
+    axis.spines[["top", "right"]].set_visible(False)
+    stamp_figure(fig, run_id)
+    fig.savefig(path, metadata={"Date": None})
+    plt.close(fig)
+
+
+def plot_duration_rate_summary(
+    rows: list[dict[str, Any]], path: Path, run_id: str,
+) -> None:
+    """Exp048-Figure-2-style duration×rate map plus the 200-ms psychometric."""
+    theme.apply()
+    durations = list(DURATIONS_MS)
+    rates = list(PSYCHOMETRIC_RATES_HZ)
+    grid = np.zeros((len(rates), len(durations)), dtype=np.float32)
+    sem = np.zeros(len(rates), dtype=np.float32)
+    for rate_index, rate in enumerate(rates):
+        for duration_index, duration in enumerate(durations):
+            values = np.asarray([
+                row["accuracy"] for row in rows
+                if row["rate_hz"] == rate and row["duration_ms"] == duration
+            ])
+            grid[rate_index, duration_index] = values.mean()
+            if duration == MATCHED_DURATION_MS:
+                sem[rate_index] = values.std(ddof=1) / np.sqrt(len(values))
+    fig, (map_axis, curve_axis) = plt.subplots(
+        1, 2, figsize=(6.5, 3.25), constrained_layout=True,
+        gridspec_kw={"width_ratios": (1.15, 1)},
+    )
+    image = map_axis.imshow(grid, origin="lower", aspect="auto", vmin=0, vmax=1, cmap="viridis")
+    map_axis.set_xticks(range(len(durations)), [f"{value:g}" for value in durations])
+    map_axis.set_yticks(range(len(rates)), [f"{value:g}" for value in rates])
+    map_axis.set(xlabel="presentation = readout (ms)", ylabel="input rate (Hz)")
+    fig.colorbar(image, ax=map_axis, label="accuracy")
+    curve_axis.errorbar(rates, grid[:, -1], yerr=sem, color=theme.INK_BLACK, marker="o", capsize=3)
+    curve_axis.set_xscale("log")
+    curve_axis.set_xticks(rates, [f"{value:g}" for value in rates])
+    curve_axis.set(xlabel="input rate (Hz)", ylabel="accuracy at 200 ms", ylim=(0, 1))
+    curve_axis.spines[["top", "right"]].set_visible(False)
+    stamp_figure(fig, run_id)
+    fig.savefig(path, dpi=240, facecolor="white")
+    plt.close(fig)
+
+
+def main() -> None:
+    require_training_bank()
+    run_id = next_run_id(SLUG)
+    prepare_run_dirs(SLUG, run_id, wipe=False, make_artifacts=True, scale=SCALE, host="local")
+    started = time.monotonic()
+    directory, config, x_test, y_test = load_eval(SEEDS[0])
+
+    matched_conditions = tuple(
+        (MATCHED_DURATION_MS, MATCHED_RATE_HZ) for _ in range(N_HEADLINE_DIGITS)
+    )
+    matched = evaluate_stream(directory, x_test, y_test, matched_conditions, 82, "matched")
+    variable = evaluate_stream(directory, x_test, y_test, VARIABLE_STREAM, 83, "variable")
+    plot_stream(matched, FIGURES / "matched_stream.png", run_id)
+    plot_stream(variable, FIGURES / "variable_stream.png", run_id)
+
+    # Pending tools/snn support is deliberately encountered here, after the two
+    # single-stream figures prove checkpoint and readout compatibility.
+    rows = [
+        evaluate_cell(seed, duration, rate)
+        for duration in DURATIONS_MS
+        for rate in PSYCHOMETRIC_RATES_HZ
+        for seed in SEEDS
+    ]
+    psychometric = [row for row in rows if row["duration_ms"] == MATCHED_DURATION_MS]
+    plot_psychometric(psychometric, FIGURES / "psychometric_200ms.svg", run_id)
+    plot_duration_rate_summary(rows, FIGURES / "duration_rate_summary.png", run_id)
+
+    payload = {
+        "status": "complete",
+        "training_source": "exp022 variable-rate streaming training",
+        "training_cells": [training_cell_name(seed) for seed in SEEDS],
+        "readout": {
+            "mode": "rate",
+            "definition": "sum E spikes over the matched presentation window, then multiply by W_out",
+        },
+        "config": {
+            "seeds": list(SEEDS),
+            "training_rates_hz": list(TRAINING_RATES_HZ),
+            "psychometric_rates_hz": list(PSYCHOMETRIC_RATES_HZ),
+            "durations_ms": list(DURATIONS_MS),
+            "matched_duration_ms": MATCHED_DURATION_MS,
+            "matched_rate_hz": MATCHED_RATE_HZ,
+            "dt_ms": float(config["dt"]),
+        },
+        "matched_stream": {key: value for key, value in matched.items() if not isinstance(value, np.ndarray)},
+        "variable_stream": {key: value for key, value in variable.items() if not isinstance(value, np.ndarray)},
+        "grid_per_seed": rows,
+        "duration_200ms_psychometric": psychometric,
+        "duration_s": time.monotonic() - started,
+    }
+    (FIGURES / "numbers.json").write_text(json.dumps(payload, indent=2) + "\n")
+    print(f"exp082 complete: {run_id}")
+
+
+if __name__ == "__main__":
+    main()
