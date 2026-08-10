@@ -68,14 +68,14 @@
       the exponential AMPA decay in Equation 2. These conductance pulses alter both
       the voltage toward which the membrane moves and the speed at which it moves
       there. The effect of a spike therefore depends on the voltage and conductance
-      left by earlier spikes, rather than adding a fixed voltage increment#cite(1).
+      left by earlier spikes, rather than adding a fixed voltage increment.
 
       Direct simulation is particularly important at low input rates. A finite
       presentation may contain no spikes, one spike, or a few spikes arriving at
       different times. The response statistics can consequently change during the
       presentation (_nonstationary_) and the distribution across presentations can
       be asymmetric or concentrated around a few distinct outcomes
-      (_non-Gaussian_)#cite(2). Evaluating Equations 1--4 for each presentation
+      (_non-Gaussian_)#cite(1). Evaluating Equations 1--4 for each presentation
       preserves these effects instead of replacing them with a steady, bell-shaped
       approximation.
 
@@ -92,13 +92,6 @@
       #r.parameters.seeds.map(str).join(", ") defined independent initializations,
       rate assignments, and spike trains. Validation accuracy selected one
       checkpoint per seed.
-
-      #figure(
-        image("/artifacts/data/exp080/training_history.svg", width: 72%),
-        caption: [Mixed-rate validation histories for the three independently
-          trained nonlinear decoders. Every epoch used fresh direct feature
-          simulations.],
-      )
 
     ],
 
@@ -140,10 +133,25 @@
 
   == Results
 
+  === Decoder training
+
+  Validation accuracy improved across training for all three decoder seeds.
+
+  #figure(
+    image("/artifacts/data/exp080/training_history.svg", width: 72%,
+      alt: "Three validation-accuracy curves rise over ten training epochs."),
+    caption: [Mixed-rate validation accuracy across training. The horizontal
+      axis is epoch and the vertical axis is validation accuracy. Each curve is
+      one independently trained nonlinear decoder, and every epoch uses fresh
+      direct feature simulations. All three decoders improve before checkpoint
+      selection.],
+  )
+
   === What the decoder saw
 
   #figure(
-    image("/artifacts/data/exp080/feature_images.png"),
+    image("/artifacts/data/exp080/feature_images.png",
+      alt: "One MNIST input image followed by filtered feature images at increasing input rates."),
     caption: [An MNIST input image and its directly simulated filtered features.
       The left panel shows the normalized input. The remaining panels show
       independent spike realizations at maximum-pixel encoding rates of
@@ -161,7 +169,8 @@
   === Empirical rate selection
 
   #figure(
-    image("/artifacts/data/exp080/psychometric.svg", width: 72%),
+    image("/artifacts/data/exp080/psychometric.svg", width: 72%,
+      alt: "Held-out decoder accuracy rises with maximum-pixel encoding rate and crosses the practical criterion at the selected floor."),
     caption: [Held-out nonlinear-decoder accuracy against maximum-pixel encoding
       rate. Points average the official test images and three independently
       trained decoders. The band spans the lowest and highest decoder accuracy
@@ -178,22 +187,27 @@
   We therefore select #d.recommendation.floor_hz to #d.recommendation.ceiling_hz Hz
   for later variable-rate PING training.
 
+  == Conclusion
+
+  The filtered MNIST representation retained usable digit information from
+  #d.recommendation.floor_hz Hz upward. All three independently trained decoders
+  met the #pct(r.parameters.useful_accuracy) held-out accuracy criterion at the
+  selected lower bound, and performance continued to improve across the tested
+  range. We therefore carry #d.recommendation.floor_hz to
+  #d.recommendation.ceiling_hz Hz forward as the empirical input-rate interval.
+  This is a decoder-based calibration, not a measurement of PING-network
+  performance, so the interval must still be checked in the network for which
+  it was selected.
+
   == Relation to prior work
 
   Neural decoding measures information accessible to a specified readout, not
   an absolute information content or a mechanistic account of the encoded
-  population#cite(3). We therefore interpret the ANN psychometric curve only as
-  a decoder-relative calibration. Prior visual-population work likewise used
-  held-out decoding performance to quantify recoverable stimulus information
-  from noisy neural responses#cite(4), motivating the empirical
-  accuracy-versus-rate design used here. The filtered-shot-noise literature
-  motivates direct simulation of the conductance and membrane dynamics#cite(1, 2).
+  population#cite(2). We therefore interpret the ANN psychometric curve only as
+  a decoder-relative calibration. Nonstationary filtered-shot-noise theory
+  motivates direct simulation of the conductance and membrane dynamics#cite(1).
 
   #reference-list((
-    (
-      text: [Wolff & Lindner: _Mean, Variance, and Autocorrelation of Subthreshold Potential Fluctuations Driven by Filtered Conductance Shot Noise_. Neural Computation, 2010.],
-      doi: "10.1162/neco.2009.02-09-958",
-    ),
     (
       text: [Brigham & Destexhe: _Nonstationary Filtered Shot-Noise Processes and Applications to Neuronal Membranes_. Physical Review E, 2015.],
       doi: "10.1103/PhysRevE.91.062102",
@@ -201,10 +215,6 @@
     (
       text: [Quian Quiroga & Panzeri: _Extracting Information from Neuronal Populations: Information Theory and Decoding Approaches_. Nature Reviews Neuroscience, 2009.],
       doi: "10.1038/nrn2578",
-    ),
-    (
-      text: [Warland, Reinagel & Meister: _Decoding Visual Information From a Population of Retinal Ganglion Cells_. Journal of Neurophysiology, 1997.],
-      doi: "10.1152/jn.1997.78.5.2336",
     ),
   ))
 ]
