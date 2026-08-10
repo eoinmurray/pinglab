@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import numpy as np
-
 from experiments import exp022, exp082
 
 
@@ -18,6 +17,15 @@ def test_exp022_planned_bank_targets_exp082() -> None:
         tuple(cell["input_rates_hz"]) == exp082.TRAINING_RATES_HZ
         for cell in cells
     )
+    assert all(cell in exp022.CANONICAL_CELLS for cell in cells)
+
+
+def test_exp022_variable_rate_args() -> None:
+    cell = exp022.PLANNED_VARIABLE_RATE_CELLS[0]
+    args = exp022.build_train_args(cell, exp082.training_dir(42), 7000, 50)
+    assert args[args.index("--readout") + 1] == "rate"
+    start = args.index("--input-rates") + 1
+    assert tuple(map(float, args[start : start + 6])) == exp082.TRAINING_RATES_HZ
 
 
 def test_summed_logits_use_only_matched_window() -> None:
