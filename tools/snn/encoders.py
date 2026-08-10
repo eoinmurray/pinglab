@@ -20,8 +20,17 @@ def encode_images_poisson(images, T_steps, dt, max_rate_hz, generator=None):
     and max_rate produce the same spike train regardless of mode.
     """
     pixels = images.clamp(0, 1)
-    p = max_rate_hz * dt / 1000.0
     B, n_in = pixels.shape
+    rates = torch.as_tensor(max_rate_hz, dtype=pixels.dtype, device=pixels.device)
+    if rates.ndim == 0:
+        rates = rates.expand(B)
+    if rates.shape != (B,):
+        raise ValueError(f"max_rate_hz must be scalar or shape ({B},), got {tuple(rates.shape)}")
+    if torch.any(rates < 0):
+        raise ValueError("input rates must be non-negative")
+    p = rates.reshape(1, B, 1) * dt / 1000.0
+    if torch.any(p > 1):
+        raise ValueError("input rate and dt produce Bernoulli probability above one")
     if generator is not None:
         # Generator dictates device (usually CPU); generate there then move.
         rand = torch.rand(
@@ -32,7 +41,7 @@ def encode_images_poisson(images, T_steps, dt, max_rate_hz, generator=None):
     return (rand < pixels.unsqueeze(0) * p).float()
 
 
-def encode_batch(X_b, dt, generator=None):
+def encode_batch(X_b, dt, generator=None, max_rate_hz=None):
     """Encode a pre-moved pixel batch as spikes using the canonical scheme.
 
     Shared by train, infer, and calibration loops so the three paths can't
@@ -45,4 +54,5 @@ def encode_batch(X_b, dt, generator=None):
     if X_b.ndim == 3:
         # (B, T, N_in) pre-spiked → (T, B, N_in); ignore dt/generator.
         return X_b.permute(1, 0, 2).contiguous()
-    return encode_images_poisson(X_b, M.T_steps, dt, M.max_rate_hz, generator=generator)
+    rate = M.max_rate_hz if max_rate_hz is None else max_rate_hz
+    return encode_images_poisson(X_b, M.T_steps, dt, rate, generator=generator)

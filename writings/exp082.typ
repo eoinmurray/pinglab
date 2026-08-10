@@ -17,7 +17,7 @@
 
   The experiment loads `ping__variable_rate__seed42`, `ping__variable_rate__seed43`, and `ping__variable_rate__seed44` from exp022. Each PING network is trained by sampling one maximum-pixel Poisson rate independently per image presentation from 0.5, 1, 2, 5, 10, and 25 Hz. The recurrent weights and classifier are frozen throughout this experiment.
 
-  *Note.* The exp022 cells and the required `tools/snn` variable-rate training interface are not implemented yet. This entry is their downstream target and must fail loudly rather than fall back to fixed-rate weights.
+  *Note.* The exp022 cells are registered and `tools/snn` implements their variable-rate training interface, but the full Cambridge jobs have not run yet. This entry remains their downstream target and fails loudly rather than falling back to fixed-rate weights.
 
   === 2. Summed-spiking readout
 

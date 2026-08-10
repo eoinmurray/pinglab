@@ -265,12 +265,7 @@ def _init_cells() -> list[dict]:
 
 
 def _planned_variable_rate_cells() -> list[dict]:
-    """Future exp082 training bank.
-
-    Kept outside CANONICAL_CELLS until tools/snn can serialize and replay a
-    per-presentation categorical rate sampler.  Registering these prematurely
-    would make the Cambridge job array launch invalid fixed-rate jobs.
-    """
+    """Variable-rate, summed-readout PING bank consumed by exp082."""
     return [
         {
             "name": f"ping__variable_rate__seed{s}",
@@ -286,22 +281,23 @@ def _planned_variable_rate_cells() -> list[dict]:
             "rate_sampling": "uniform categorical per presentation",
             "consumer": VARIABLE_RATE_CONSUMER,
             "extra": [],
-            "status": "planned_tools_snn_change_required",
+            "status": "ready_to_train",
         }
         for s in SEEDS_BASELINE
     ]
 
 
-CANONICAL_CELLS = (_canonical_cells() + _theta_u_cells() + _tau_gaba_cells()
-                   + _dt_cells() + _init_cells())
 PLANNED_VARIABLE_RATE_CELLS = _planned_variable_rate_cells()
+BASE_CELLS = (_canonical_cells() + _theta_u_cells() + _tau_gaba_cells()
+              + _dt_cells() + _init_cells())
+CANONICAL_CELLS = BASE_CELLS + PLANNED_VARIABLE_RATE_CELLS
 
 # Same five scientific families and cell names as the calibrated bank, but a
 # distinct root and a frozen shared-scale recipe.  Consumers do not switch to
 # this generation until the complete rerun and downstream audit pass.
 MATCHED_CELLS = [
     {**cell, "generation": MATCHED_GENERATION, "recipe_family": "matched_mid"}
-    for cell in CANONICAL_CELLS
+    for cell in BASE_CELLS
 ]
 
 
@@ -356,7 +352,9 @@ def build_train_args(spec: dict, out_dir: Path,
                      max_samples: int, epochs: int,
                      recipes: dict[str, dict] | None = None) -> list[str]:
     """CLI `train` args for one registry cell, across all families."""
-    recipe = (recipes or MODEL_RECIPES)[spec["model"]]
+    recipe = dict((recipes or MODEL_RECIPES)[spec["model"]])
+    if spec.get("readout") is not None:
+        recipe["--readout"] = spec["readout"]
     ms = spec.get("max_samples") or max_samples   # canonical cells override
     args = [
         "train",
@@ -379,6 +377,8 @@ def build_train_args(spec: dict, out_dir: Path,
         elif v is not None:
             args += [k, v]
     args += spec["extra"]
+    if spec.get("input_rates_hz"):
+        args += ["--input-rates", *[str(rate) for rate in spec["input_rates_hz"]]]
     return args
 
 
