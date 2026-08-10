@@ -1,80 +1,75 @@
 #let meta = (
-  title: "Training",
+  title: "Shared training catalogue",
   date: "2026-06-28",
-  description: "The gamma-gated-sparsity collection's single training hub: every cell is trained once to a shared root and the analysis notebooks load those weights instead of retraining.",
+  description: "The registered training types, architectures, compute requirements, diagnostics, and reusable checkpoints for the gamma-gated-sparsity collection.",
   collection: "gamma-gated-sparsity",
-  status: "final",
+  status: "draft",
 )
+
+#let r = json("/artifacts/data/exp022/numbers.json")
 
 #let body = [
   == Abstract
 
-  This is the gamma-gated-sparsity collection's training hub: 87 networks trained once to a shared root that every downstream analysis loads instead of retraining (train-once / reuse-many). We trained all 87 to the gamma operating point in a single fan-out run, three seeds each. The sweeps carry the collection's headline results: under a tightening per-neuron spike budget PING degrades gracefully while COBA collapses, a gap widening to ≈ 26 accuracy points; the loop's gamma frequency tracks the inhibitory time constant across the τ_GABA ladder; and only the built-in E/I loop keeps its rhythm when the recurrent weights are left free to train.
+  This entry is the gamma-gated-sparsity collection's training catalogue. It defines each type of training, records the resulting learning curves and activity diagnostics, and exposes one shared checkpoint bank to downstream experiments. The completed bank contains #r.n_cells independently trained cells across the canonical, spike-budget, inhibitory-timescale, timestep, and recurrent-initialization studies. A sixth training type is planned for streaming inference: PING trained with a variable Poisson input rate and a summed-spiking readout. That extension is specified here but is not counted among the completed cells.
 
   == Methods
 
-  === 1. The compute cost
+  === 1. Shared architecture and training contract
 
-  Each trial is surrogate-gradient backprop-through-time: 2000 timesteps ($T = 200$ ms at $Delta t = 0.1$ ms) over a 1280-neuron conductance network. What makes it costly:
+  #enum(
+    [*Encode the stimulus.* Each MNIST image supplies 784 independent Poisson input channels. Completed training types use a fixed maximum-pixel rate of 25 Hz. The planned streaming bank instead samples one rate independently for each image presentation.],
+    [*Simulate the network.* A trial lasts #r.standard.t_ms ms. The standard timestep is #r.standard.dt_ms ms, giving 2000 recurrent updates per presentation. PING contains 1024 excitatory and 256 inhibitory neurons; COBA retains the excitatory pathway but disables recurrent E/I coupling.],
+    [*Form the readout.* Completed cells use `mem-mean`: a 1024-to-10 projection drives ten output LIF membranes and the class logits are their time-averaged voltages. The planned variable-rate cells use `rate`: the 1024 excitatory spike trains are summed through time and projected once through a 1024-to-10 linear readout.],
+    [*Train and retain.* Every registered configuration trains seeds 42, 43, and 44 for #r.standard.epochs epochs. The canonical reference sees #r.standard.max_samples_canonical pooled MNIST samples; sweep cells see #r.standard.max_samples_sweeps. Each cell retains its configuration, weights, epoch metrics, and a representative held-out raster.],
+  )
 
-  - *Fine timestep.* COBA synapses inject $g (V - E)$, stiffening the membrane so $Delta t = 0.1$ ms, 10× finer than a current-based model, and non-optional: the gamma rhythm lives there.
-  - *Sequential.* The 2000 steps are a dependency chain no hardware parallelises, so the job is *bandwidth-bound*: a GPU beats a CPU only ≈ 10×, not the 50–100× of large matmuls.
-  - *Memory-heavy.* The backward pass stores every step's activations, ≈ 12 GB at batch 256.
-  - *Scale.* 87 cells × 50 epochs ≈ *185 A100-GPU-hours* (≈ 49M sample-forwards), ≈ 159 days on CPU, so every cell trains on a GPU.
+  #table(
+    columns: 3,
+    align: (left, left, left),
+    table.header([*Component*], [*Shape*], [*Role*]),
+    [Poisson input], [$T times B times 784$], [one event stream per image pixel],
+    [input projection $W_"in"$], [$784 times 1024$], [pixels to excitatory population],
+    [excitatory population], [$B times 1024$], [trained stimulus representation],
+    [inhibitory population], [$B times 256$], [PING feedback population],
+    [E→I projection $W_"EI"$], [$1024 times 256$], [excitatory recruitment of inhibition],
+    [I→E projection $W_"IE"$], [$256 times 1024$], [inhibitory feedback],
+    [class readout $W_"out"$], [$1024 times 10$], [excitatory activity to digit logits],
+  )
 
-  === 2. Gold star trainings
+  Here $T$ is the number of timesteps and $B$ is the minibatch size. Matrix shapes use the stored source-to-destination orientation.
 
-  87 cells across five families, each fixing its time constants, timestep, and MNIST fraction (re-split 80/20). The standard is $tau_"AMPA" = 2$ ms, $tau_"GABA" = 6$ ms (loop in gamma, ≈ 44 Hz); the sweeps each vary one axis: spike budget, τ_GABA, timestep (#link("/exp044/")[exp044]), or init.
+  === 2. Registered training types
+
+  The registry is organised by scientific training type. A type may contain several parameter variants, and every variant contains three independent seed cells.
 
   #table(
     columns: 7,
-    align: (left, right, right, right, left, right, right),
-    table.header([*Family*], [$tau_"GABA"$ (ms)], [$Delta t$ (ms)], [Epochs], [MNIST], [Cells], [Trained]),
-    [canonical (no budget)], [6], [0.1], [50], [all (70k)], [6], [6 / 6],
-    [spike-budget sweep], [6], [0.1], [50], [10%], [36], [36 / 36],
-    [τ_GABA ladder], [4.5 – 27], [0.1], [50], [10%], [18], [18 / 18],
-    [Δt sweep], [6], [0.05 – 1.0], [50], [10%], [15], [15 / 15],
-    [init variants], [6], [0.1], [50], [10%], [12], [12 / 12],
-    [*total*], [], [], [], [], [*87*], [*87 / 87*],
+    align: (left, left, left, left, right, right, left),
+    table.header([*Training type*], [*Models*], [*Varied parameter*], [*MNIST*], [*Cells*], [*Trained*], [*Primary use*]),
+    [full-data reference], [COBA, PING], [none], [all], [6], [6], [canonical accuracy],
+    [spike-budget training], [COBA, PING], [$theta_u in {"off", 5, 2, 1, 0.5, 0.2}$], [10%], [36], [36], [accuracy–sparsity frontier],
+    [inhibitory-timescale training], [PING], [$tau_"GABA" in {4.5, 6, 9, 12, 18, 27}$ ms], [10%], [18], [18], [rhythm timescale],
+    [timestep training], [PING], [$Delta t in {0.05, 0.1, 0.25, 0.5, 1}$ ms], [10%], [15], [15], [numerical stability],
+    [recurrent-initialization training], [PING], [loop initialization and trainability], [10%], [12], [12], [built-in versus learned recurrence],
+    [variable-rate streaming training], [PING], [input-rate distribution and readout], [10% initially], [3], [0], [exp082 streaming inference],
   )
 
-  The *canonical* family (coba, ping with no spike budget) is the full-MNIST reference the sweeps are read against. Every cell was retrained fresh to the gamma standard, replacing the older notebook cells (which had run at 2.9–5% MNIST and $tau_"GABA" = 9$ ms), so all 87 are drawn at one consistent operating point.
+  *Note, planned variable-rate bank.* Exp080 selects the interval 0.5–25 Hz for later PING training. The proposed cells sample uniformly from the discrete set 0.5, 1, 2, 5, 10, and 25 Hz, independently per presentation, and use the summed-spiking `rate` readout. This training changes both the input distribution and readout relative to the existing `ping__off__seed*` cells. It is therefore a new training type, not another point in the spike-budget sweep.
 
-  Choices behind the table:
+  *Note, required engine work.* `tools/snn` currently accepts one fixed `--input-rate` for an entire training run. Before the planned cells can enter the registry, it needs a reproducible variable-rate option, configuration serialization for the rate set and sampling rule, checkpoint-replay support, and tests proving deterministic sampling and fixed-rate backward compatibility. These changes are pending and this entry does not report variable-rate results.
 
-  - *50 epochs, halved from 100.* Accuracy plateaus by ≈ 15–20 epochs (#link("/exp024/")[exp024]); 50 keeps a ≈ 30-epoch tail for the post-convergence _dynamics_ the collection studies (rate drift, confidence inflation) while nearly halving the run.
-  - *3 seeds throughout.* Every cell, canonical and every sweep, trains three seeds (42, 43, 44), so each point on each frontier carries a cross-seed band and the headline effects (PING's rate attractor) read as robust, not one-run luck. The spike-budget interior used to be single-seed; it no longer is.
-  - *Full MNIST vs 10%.* The canonical reference carries the headline numbers, so it sees all 70k; the sweeps need only the trend across their parameter, so 10% suffices and cuts their cost tenfold.
+  === 3. Cambridge HPC compute plan
 
-  === 3. Compute options
+  Surrogate-gradient backpropagation stores state across every timestep. A standard presentation therefore traverses 2000 sequential recurrent steps, and the backward pass is both memory-heavy and bandwidth-sensitive. The completed registry represents approximately 185 A100-GPU-hours and 49 million sample-forwards. The $Delta t = 0.05$ ms cells are the exceptional memory case, previously requiring approximately 31 GB.
 
-  Bandwidth is the main driver but not the whole story: the RTX 4090 below has half the A100's bandwidth yet measured _faster_. Costs and wall-clocks cover the full 50-epoch registry; measured where the card was to hand, projected for the 5090:
-
-  #table(
-    columns: 5,
-    align: (left, left, right, right, left),
-    table.header([*Option*], [GPU (bandwidth)], [Samples/s], [Full-run cost], [Wall-clock]),
-    [Modal], [A100 (2.0 TB/s)], [74], [≈ \$615], [≈ half a day (fans out)],
-    [RunPod / Vast.ai],
-    [RTX 4090 fleet (1.0 TB/s)],
-    [100 (meas.)],
-    [≈ \$47 – 95],
-    [≈ 10 hr on ≈ 15 pods (≈ 5.7 d serial)],
-
-    [Cambridge Wilkes3], [A100], [74], [≈ £102], [offline through 2026],
-    [benjy (CUED, shared)], [A6000 (768 GB/s)], [26.5], [£0], [≈ 22 days],
-    [Owned workstation], [RTX 5090 (1.8 TB/s)], [≈ 150 (proj.)], [≈ £4,700 once], [≈ 3.8 days],
-  )
-
-  The 4090 (≈ 100 samples/s, measured) beats both its bandwidth projection (≈ 37) and the A100, so the 5090 is scaled from it (≈ 1.5×). Wilkes3 is cheapest-and-fast but offline through 2026; benjy is one shared GPU forcing an older PyTorch.
-
-  ==== How we ran it
-
-  The run fanned out across RunPod *RTX 4090s* in one datacenter (EU-RO-1), split by stakes: the 6 heavy canonical cells (≈ 9.7 hr each) on *secure on-demand* pods, one cell each; the 81 light sweep cells packed onto cheaper *community*-priced pods. A pre-baked cu128 Docker image let each pod boot ready to train, check out a pinned commit, train its cells to a shared network volume, and self-terminate, so the laptop was needed only to fire the fleet and collect the results afterwards. All 87 cells trained cleanly in ≈ 8 hours of wall-clock for ≈ \$70, against Modal's ≈ \$615; the wall-clock is floored by a single canonical cell, which cannot be split, so more pods would not help. The three $Delta t = 0.05$ ms cells needed ≈ 31 GB and finished on a 5090 rather than the 24 GB 4090. The owned *5090* remains the long-term answer for routine iteration.
+  The Cambridge run should use one independently resumable job-array element per cell. Each element writes only its own cell directory, validates the emitted configuration before treating an existing checkpoint as complete, and records the scheduler job identifier with the run provenance. Canonical full-data cells should not share an allocation with sweep cells because their runtime is substantially longer. The final array layout, GPU type, memory request, concurrency cap, and wall-time request remain notes until the available Cambridge partition is confirmed.
 
   == Results
 
-  === 1. Canonical reference (no spike budget, all MNIST)
+  Each completed training type is reported in the same order: definition, learning curve, representative seed-42 raster, and outcome. The complete raster gallery remains in the appendix.
+
+  === 1. Full-data reference
 
   coba and ping with no spike budget, all 70k images, seeds 42/43/44 (6 cells), the full-data baseline. Unconstrained, the two architectures are essentially tied: coba reaches ≈ 95.5 % and ping ≈ 94.0 %, with near-zero across-seed spread. This is the reference point from which the spike-budget sweep pulls them apart.
 
@@ -87,7 +82,12 @@
     caption: [Test accuracy over epochs, canonical full-MNIST cells (coba dashed, ping solid; three seeds each). The two loops reach parity when no spike budget is imposed.],
   )
 
-  === 2. Spike-budget sweep
+  #figure(
+    image("/artifacts/data/exp022/rasters/ping__canonical__seed42.png", width: 100%, alt: "Seed-42 spike raster and population-rate diagnostic for the canonical PING training."),
+    caption: [Representative activity after full-data PING training. The raster shows excitatory and inhibitory spikes for the common held-out digit-0 probe; the lower panel shows the population-rate diagnostic.],
+  )
+
+  === 2. Spike-budget training
 
   coba and ping across spike budgets ∈ off, 5, 2, 1, 0.5, 0.2, three seeds each (36 cells), so the accuracy–rate frontier carries error bars at every point. The spike budget is a per-neuron cap on firing (spikes/trial); lower is tighter. This is the headline result: as the budget tightens, ping degrades gracefully (91.6 → 86.5 %) while coba collapses (90.7 → 60.1 %), a gap that widens monotonically from ≈ 0 to ≈ 26 points. ping's γ-rhythm gates sparsity; coba's bare feedforward code cannot pay the budget without shedding accuracy.
 
@@ -100,9 +100,14 @@
     caption: [Test accuracy over epochs across the spike-budget sweep. Tighter budgets plateau lower (the spike-economy trade-off), and coba falls far faster than ping.],
   )
 
-  *Scope.* This frontier is a 10%-MNIST result: the whole sweep trains on the subset (§2 of Methods), and we have not re-run it at full data. The comparison is nonetheless internally clean: every cell here shares the same data fraction, so the coba-vs-ping gap is a budget effect, not a data-fraction artifact. And the direction of the density difference (§6) makes 10% the *conservative* regime for this claim: at full MNIST the no-budget baseline fires ≈ 2× harder, so a tight per-neuron cap would have further to pull coba down, widening the gap rather than closing it. We therefore read the ≈ 26-point separation as a floor, and do not claim the absolute numbers transfer unchanged to full MNIST.
+  #figure(
+    image("/artifacts/data/exp022/rasters/ping__off__seed42.png", width: 100%, alt: "Seed-42 spike raster and population-rate diagnostic for PING trained without a spike budget on the ten-percent MNIST subset."),
+    caption: [Representative activity for the spike-budget training type at the no-budget endpoint. The raster uses seed 42 and the common held-out digit-0 probe. The appendix shows every budget for both architectures.],
+  )
 
-  === 3. τ_GABA ladder
+  *Scope.* This frontier is a 10%-MNIST result: the whole sweep trains on the subset (§2 of Methods), and we have not re-run it at full data. The comparison is nonetheless internally clean: every cell here shares the same data fraction, so the coba-vs-ping gap is a budget effect, not a data-fraction artifact. And the direction of the density difference (§7) makes 10% the *conservative* regime for this claim: at full MNIST the no-budget baseline fires ≈ 2× harder, so a tight per-neuron cap would have further to pull coba down, widening the gap rather than closing it. We therefore read the ≈ 26-point separation as a floor, and do not claim the absolute numbers transfer unchanged to full MNIST.
+
+  === 3. Inhibitory-timescale training
 
   ping across τ_GABA ∈ 4.5, 6, 9, 12, 18, 27 ms, three seeds each (18 cells). Accuracy is largely insensitive to inhibitory decay (≈ 88–92 % across the ladder), but the *rhythm* is not: measured from the trained networks, the γ-frequency falls monotonically with τ_GABA (≈ 50 Hz at 4.5 ms → ≈ 19 Hz at 27 ms), sitting at ≈ 45 Hz at the canonical τ_GABA = 6 ms, matching the operating point (Appendix).
 
@@ -115,7 +120,12 @@
     caption: [Test accuracy over epochs across the τ_GABA ladder; cells converge to similar accuracy regardless of inhibitory decay.],
   )
 
-  === 4. Δt sweep
+  #figure(
+    image("/artifacts/data/exp022/rasters/ping__tg6__seed42.png", width: 100%, alt: "Seed-42 spike raster and population-rate diagnostic for PING at the standard inhibitory time constant."),
+    caption: [Representative activity for inhibitory-timescale training at the standard $tau_"GABA"$. The raster uses seed 42 and the common held-out digit-0 probe; the appendix shows the complete ladder.],
+  )
+
+  === 4. Timestep training
 
   ping across Δt ∈ 0.05, 0.1, 0.25, 0.5, 1.0 ms (physical T fixed), three seeds each (15 cells), the documented timestep exception. Accuracy is flat across the sweep (≈ 90.4–91.4 %): the integrator is robust to timestep from 0.1 to 1.0 ms, and the 0.05 ms cells (which need ≈ 31 GB and so ran on a 5090) agree.
 
@@ -128,7 +138,12 @@
     caption: [Test accuracy over epochs across the integration-timestep sweep; accuracy is insensitive to Δt over the tested range.],
   )
 
-  === 5. Init variants
+  #figure(
+    image("/artifacts/data/exp022/rasters/ping__dt0p1__seed42.png", width: 100%, alt: "Seed-42 spike raster and population-rate diagnostic for PING at the standard integration timestep."),
+    caption: [Representative activity for timestep training at the standard $Delta t$. The raster uses seed 42 and the common held-out digit-0 probe; the appendix shows all timestep variants.],
+  )
+
+  === 5. Recurrent-initialization training
 
   ping with four recurrent-loop inits (frozen PING, trainable from PING / zero / small seed), three seeds each (12 cells). All reach ≈ 89–91 %, but only the frozen-PING control keeps the true E/I regime (E ≈ 10 Hz, I ≈ 62 Hz): the trainable-loop cells drift toward a feedforward code (high E, low or zero I): the zero-init cells never engage inhibition at all (I ≈ 0 Hz). Comparable accuracy, but the rhythm is not learned when it is not built in.
 
@@ -141,7 +156,16 @@
     caption: [Test accuracy over epochs across the recurrent-loop inits; trainable-loop cells learn noisier curves than the frozen control.],
   )
 
-  === 6. Training data and spike density
+  #figure(
+    image("/artifacts/data/exp022/rasters/frozen_ping__seed42.png", width: 100%, alt: "Seed-42 spike raster and population-rate diagnostic for the frozen recurrent PING control."),
+    caption: [Representative activity for recurrent-initialization training. This seed-42 control keeps the recurrent PING loop frozen; the appendix shows all four initialization and trainability conditions.],
+  )
+
+  === 6. Variable-rate streaming training
+
+  *Note, awaiting training.* No learning curve or raster exists yet. Once the `tools/snn` work described in Methods §2 is complete, this section will show the three mixed-rate learning curves, fixed-rate held-out accuracy across 0.5–25 Hz, and matched rasters at low, intermediate, and high rates. It will compare the new `rate`-readout cells with the existing fixed-25-Hz `mem-mean` cells. The planned checkpoints are the training source for #link("/exp082/")[exp082], which supersedes exp048 for variable-rate streaming inference.
+
+  === 7. Training data and spike density
 
   The appendix rasters split cleanly along one axis that is easy to miss: the *canonical* cells see all 70k MNIST images, but every sweep (including the no-budget spike-budget = off cell, which is otherwise identical to canonical) trains on 10%. That difference deserves its own read, because it changes how *busy* the trained network is before any sweep parameter enters.
 
@@ -165,7 +189,7 @@
 
   The practical consequence is a caveat on the appendix as a whole: *absolute* firing rates are not comparable across the canonical-vs-sweep boundary, because the 10% cells sit at a systematically lower density for reasons that have nothing to do with the swept parameter. This is exactly why the canonical reference (§1) carries the headline rates and the sweeps are read as *trends within a family* (the spike-budget frontier, the τ_GABA-to-γ scaling) rather than as absolute numbers set against the full-data baseline.
 
-  === 7. Why more data drives a denser code
+  === 8. Why more data drives a denser code
 
   The figure measures the density gap; it does not prove its cause. But only two things change between a row's two cells (the number of training images and, downstream of that, the number of weight updates), and both push firing *up*. Neither is specific to the E/I loop, which is why coba and ping move together rather than one architecture reacting and the other not.
 
