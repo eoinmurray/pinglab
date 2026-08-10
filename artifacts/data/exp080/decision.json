@@ -1,535 +1,97 @@
 {
-  "status": "complete",
-  "completed_at_utc": "2026-08-06T16:27:58Z",
-  "r_decode_hz": 0.01,
   "r_train_hz": 0.5,
-  "conductance_floors_hz": {
-    "0.6": 0.5,
-    "1.2": 0.5,
-    "2.4": 0.5
-  },
-  "conductance_sensitive_by_registered_rule": false,
   "recommendation": {
-    "form": "nominal floor to registered ceiling",
     "floor_hz": 0.5,
     "ceiling_hz": 25.0
   },
-  "uncertainty": {
-    "level": 0.95,
-    "side": "one-sided lower percentile bound",
-    "bootstrap_repetitions": 2000,
-    "resampled_axes": [
-      "held-out images",
-      "direct-simulation draws",
-      "decoder seeds"
-    ]
-  },
-  "criteria": {
-    "chance_accuracy": 0.1,
-    "useful_accuracy": 0.5
-  },
-  "pass_fail": {
-    "nominal_r_decode_observed": true,
-    "nominal_r_train_observed": true,
-    "all_conductance_r_train_observed": true,
-    "spend_within_40_usd_ceiling": true,
-    "held_out_protocol_frozen_before_access": true
-  },
-  "hashes": {
-    "frozen_protocol_sha256": "4cd880e94ce87b530926d2aa6a95e0e8ce8e799cc1273ec8611a7a5bc4c9ca91",
-    "step5_outcome_sha256": "71f3d64cd4c807d79349c59cc8cdd6070955026815358c0302f89adc547b5c28",
-    "step6_outcome_sha256": "9542f6eab8d4fb8d72a7da86b57995315a675714445014e400bd285f714f3548",
-    "held_out_arrays_sha256": "dccaae53fbf5466156b81d82670e10297bf42e5463386a1a3fa448b6118a62e7",
-    "psychometric_figure_sha256": "d79ca692f941a1006ed53cc9e3feb607c6f09f23c20e1a000b5b09980c053de4",
-    "models": [
-      {
-        "probe_uS": 0.6,
-        "seed": 42,
-        "sha256": "7530bdd07d6414965145bd993546594ebe39f493d47f94df7576c9423ff58931"
-      },
-      {
-        "probe_uS": 0.6,
-        "seed": 43,
-        "sha256": "0cb092bb4681fac9b77abc388dd6b6e6ed79711342d397feab3ab59add89f923"
-      },
-      {
-        "probe_uS": 0.6,
-        "seed": 44,
-        "sha256": "5b5a80238eae60edd94b281f859dcdf463884c8370123e7d0db4848d075b4d96"
-      },
-      {
-        "probe_uS": 1.2,
-        "seed": 42,
-        "sha256": "4cbb7be46c4a013a78ca521ecba721cba61f01cd98d2ebc5c195d41dc5015dab"
-      },
-      {
-        "probe_uS": 1.2,
-        "seed": 43,
-        "sha256": "b33ff368e96741fc703f380620c419a8473346aef84f24737ec703f3ffd80db2"
-      },
-      {
-        "probe_uS": 1.2,
-        "seed": 44,
-        "sha256": "6d534a8d101c9b7f11572dd33bda97194a73ecbd3d4427e306f9574848d730b0"
-      },
-      {
-        "probe_uS": 2.4,
-        "seed": 42,
-        "sha256": "ee1f9d905944620fd6e6f4e1ebe230ca7c58017b2ec0d5ca733b0570b24d90fd"
-      },
-      {
-        "probe_uS": 2.4,
-        "seed": 43,
-        "sha256": "7716b0bbc69b11500eb3d0d655a628bdfb0217b033c5e8b6eadbef3a8c45438d"
-      },
-      {
-        "probe_uS": 2.4,
-        "seed": 44,
-        "sha256": "d1a48f888a6a384270a4e928b67ca4f6a18bfb4add944ce326cf391d30047dee"
-      }
-    ]
-  },
-  "compute": {
-    "provider": "Modal",
-    "total_exact_cost_usd": 9.430388729999997,
-    "total_estimated_cost_usd": 4.6458358926014185,
-    "exact_provider_billing": true,
-    "billing_report_path": "artifacts/data/exp080/modal_billing.json",
-    "billing_report_sha256": "4e6e7c457e623671fe31cc1162c7e60ee98e058904fe592afc70a573ca1ae6c5",
-    "resource_rows": [
-      {
-        "object_id": "ap-2b2Jd23L3MAiUONbeuU4wp",
-        "description": "pinglab-exp080",
-        "environment": "main",
-        "interval_start": "2026-08-06T15:00:00",
-        "resource": "L40S",
-        "cost": "0.00758375"
-      },
-      {
-        "object_id": "ap-2b2Jd23L3MAiUONbeuU4wp",
-        "description": "pinglab-exp080",
-        "environment": "main",
-        "interval_start": "2026-08-06T15:00:00",
-        "resource": "CPU",
-        "cost": "0.00007414"
-      },
-      {
-        "object_id": "ap-2b2Jd23L3MAiUONbeuU4wp",
-        "description": "pinglab-exp080",
-        "environment": "main",
-        "interval_start": "2026-08-06T15:00:00",
-        "resource": "Memory",
-        "cost": "0.00001233"
-      },
-      {
-        "object_id": "ap-E6kbME7lvQvOh2ih5ny9Ru",
-        "description": "pinglab-exp080",
-        "environment": "main",
-        "interval_start": "2026-08-06T11:00:00",
-        "resource": "L40S",
-        "cost": "0.00758328"
-      },
-      {
-        "object_id": "ap-E6kbME7lvQvOh2ih5ny9Ru",
-        "description": "pinglab-exp080",
-        "environment": "main",
-        "interval_start": "2026-08-06T11:00:00",
-        "resource": "CPU",
-        "cost": "0.00205402"
-      },
-      {
-        "object_id": "ap-E6kbME7lvQvOh2ih5ny9Ru",
-        "description": "pinglab-exp080",
-        "environment": "main",
-        "interval_start": "2026-08-06T11:00:00",
-        "resource": "Memory",
-        "cost": "0.00004791"
-      },
-      {
-        "object_id": "ap-GPbPczAzNn7wNVDjHQvy41",
-        "description": "pinglab-exp080",
-        "environment": "main",
-        "interval_start": "2026-08-06T11:00:00",
-        "resource": "L40S",
-        "cost": "0.40733310"
-      },
-      {
-        "object_id": "ap-GPbPczAzNn7wNVDjHQvy41",
-        "description": "pinglab-exp080",
-        "environment": "main",
-        "interval_start": "2026-08-06T11:00:00",
-        "resource": "CPU",
-        "cost": "0.01003091"
-      },
-      {
-        "object_id": "ap-GPbPczAzNn7wNVDjHQvy41",
-        "description": "pinglab-exp080",
-        "environment": "main",
-        "interval_start": "2026-08-06T11:00:00",
-        "resource": "Memory",
-        "cost": "0.00161145"
-      },
-      {
-        "object_id": "ap-JKfkSrcPYPzTBc9NX39saE",
-        "description": "pinglab-exp080-evaluation",
-        "environment": "main",
-        "interval_start": "2026-08-06T11:00:00",
-        "resource": "L40S",
-        "cost": "0.02383343"
-      },
-      {
-        "object_id": "ap-JKfkSrcPYPzTBc9NX39saE",
-        "description": "pinglab-exp080-evaluation",
-        "environment": "main",
-        "interval_start": "2026-08-06T11:00:00",
-        "resource": "CPU",
-        "cost": "0.00057082"
-      },
-      {
-        "object_id": "ap-JKfkSrcPYPzTBc9NX39saE",
-        "description": "pinglab-exp080-evaluation",
-        "environment": "main",
-        "interval_start": "2026-08-06T11:00:00",
-        "resource": "Memory",
-        "cost": "0.00006500"
-      },
-      {
-        "object_id": "ap-JKfkSrcPYPzTBc9NX39saE",
-        "description": "pinglab-exp080-evaluation",
-        "environment": "main",
-        "interval_start": "2026-08-06T12:00:00",
-        "resource": "L40S",
-        "cost": "0.49183329"
-      },
-      {
-        "object_id": "ap-JKfkSrcPYPzTBc9NX39saE",
-        "description": "pinglab-exp080-evaluation",
-        "environment": "main",
-        "interval_start": "2026-08-06T12:00:00",
-        "resource": "CPU",
-        "cost": "0.01210502"
-      },
-      {
-        "object_id": "ap-JKfkSrcPYPzTBc9NX39saE",
-        "description": "pinglab-exp080-evaluation",
-        "environment": "main",
-        "interval_start": "2026-08-06T12:00:00",
-        "resource": "Memory",
-        "cost": "0.00145792"
-      },
-      {
-        "object_id": "ap-JL1V1SVW0ng3g9UDVJhJ3h",
-        "description": "pinglab-exp080",
-        "environment": "main",
-        "interval_start": "2026-08-06T11:00:00",
-        "resource": "L40S",
-        "cost": "0.34016654"
-      },
-      {
-        "object_id": "ap-JL1V1SVW0ng3g9UDVJhJ3h",
-        "description": "pinglab-exp080",
-        "environment": "main",
-        "interval_start": "2026-08-06T11:00:00",
-        "resource": "CPU",
-        "cost": "0.00826850"
-      },
-      {
-        "object_id": "ap-JL1V1SVW0ng3g9UDVJhJ3h",
-        "description": "pinglab-exp080",
-        "environment": "main",
-        "interval_start": "2026-08-06T11:00:00",
-        "resource": "Memory",
-        "cost": "0.00133676"
-      },
-      {
-        "object_id": "ap-PmeZzvG38OWwsVvnUgHUDd",
-        "description": "pinglab-exp080",
-        "environment": "main",
-        "interval_start": "2026-08-06T11:00:00",
-        "resource": "L40S",
-        "cost": "0.41058378"
-      },
-      {
-        "object_id": "ap-PmeZzvG38OWwsVvnUgHUDd",
-        "description": "pinglab-exp080",
-        "environment": "main",
-        "interval_start": "2026-08-06T11:00:00",
-        "resource": "CPU",
-        "cost": "0.01011118"
-      },
-      {
-        "object_id": "ap-PmeZzvG38OWwsVvnUgHUDd",
-        "description": "pinglab-exp080",
-        "environment": "main",
-        "interval_start": "2026-08-06T11:00:00",
-        "resource": "Memory",
-        "cost": "0.00162856"
-      },
-      {
-        "object_id": "ap-XHNGlXQlGt7EQwMSr9rG8K",
-        "description": "pinglab-exp080",
-        "environment": "main",
-        "interval_start": "2026-08-06T11:00:00",
-        "resource": "L40S",
-        "cost": "0.36941716"
-      },
-      {
-        "object_id": "ap-XHNGlXQlGt7EQwMSr9rG8K",
-        "description": "pinglab-exp080",
-        "environment": "main",
-        "interval_start": "2026-08-06T11:00:00",
-        "resource": "CPU",
-        "cost": "0.00898494"
-      },
-      {
-        "object_id": "ap-XHNGlXQlGt7EQwMSr9rG8K",
-        "description": "pinglab-exp080",
-        "environment": "main",
-        "interval_start": "2026-08-06T11:00:00",
-        "resource": "Memory",
-        "cost": "0.00145590"
-      },
-      {
-        "object_id": "ap-ZAZ8YRV7ZTnKzP82EOj2R6",
-        "description": "pinglab-exp080",
-        "environment": "main",
-        "interval_start": "2026-08-06T11:00:00",
-        "resource": "L40S",
-        "cost": "0.39975011"
-      },
-      {
-        "object_id": "ap-ZAZ8YRV7ZTnKzP82EOj2R6",
-        "description": "pinglab-exp080",
-        "environment": "main",
-        "interval_start": "2026-08-06T11:00:00",
-        "resource": "CPU",
-        "cost": "0.00982722"
-      },
-      {
-        "object_id": "ap-ZAZ8YRV7ZTnKzP82EOj2R6",
-        "description": "pinglab-exp080",
-        "environment": "main",
-        "interval_start": "2026-08-06T11:00:00",
-        "resource": "Memory",
-        "cost": "0.00158020"
-      },
-      {
-        "object_id": "ap-ZgkCVDoC67js46EyL0VmCg",
-        "description": "pinglab-exp080",
-        "environment": "main",
-        "interval_start": "2026-08-06T11:00:00",
-        "resource": "L40S",
-        "cost": "0.42683343"
-      },
-      {
-        "object_id": "ap-ZgkCVDoC67js46EyL0VmCg",
-        "description": "pinglab-exp080",
-        "environment": "main",
-        "interval_start": "2026-08-06T11:00:00",
-        "resource": "CPU",
-        "cost": "0.01050415"
-      },
-      {
-        "object_id": "ap-ZgkCVDoC67js46EyL0VmCg",
-        "description": "pinglab-exp080",
-        "environment": "main",
-        "interval_start": "2026-08-06T11:00:00",
-        "resource": "Memory",
-        "cost": "0.00169114"
-      },
-      {
-        "object_id": "ap-gzG35599aNXCn9WfIzUEtb",
-        "description": "pinglab-exp080",
-        "environment": "main",
-        "interval_start": "2026-08-06T11:00:00",
-        "resource": "L40S",
-        "cost": "0.33908281"
-      },
-      {
-        "object_id": "ap-gzG35599aNXCn9WfIzUEtb",
-        "description": "pinglab-exp080",
-        "environment": "main",
-        "interval_start": "2026-08-06T11:00:00",
-        "resource": "CPU",
-        "cost": "0.00827718"
-      },
-      {
-        "object_id": "ap-gzG35599aNXCn9WfIzUEtb",
-        "description": "pinglab-exp080",
-        "environment": "main",
-        "interval_start": "2026-08-06T11:00:00",
-        "resource": "Memory",
-        "cost": "0.00132961"
-      },
-      {
-        "object_id": "ap-jKhq01wOaWX73C5yMIR5WC",
-        "description": "pinglab-exp080",
-        "environment": "main",
-        "interval_start": "2026-08-06T11:00:00",
-        "resource": "L40S",
-        "cost": "0.00758353"
-      },
-      {
-        "object_id": "ap-jKhq01wOaWX73C5yMIR5WC",
-        "description": "pinglab-exp080",
-        "environment": "main",
-        "interval_start": "2026-08-06T11:00:00",
-        "resource": "CPU",
-        "cost": "0.00011527"
-      },
-      {
-        "object_id": "ap-jKhq01wOaWX73C5yMIR5WC",
-        "description": "pinglab-exp080",
-        "environment": "main",
-        "interval_start": "2026-08-06T11:00:00",
-        "resource": "Memory",
-        "cost": "0.00001706"
-      },
-      {
-        "object_id": "ap-k5LHl5hmDOoSOIh6lksoC1",
-        "description": "pinglab-exp080-evaluation",
-        "environment": "main",
-        "interval_start": "2026-08-06T15:00:00",
-        "resource": "L40S",
-        "cost": "0.15708284"
-      },
-      {
-        "object_id": "ap-k5LHl5hmDOoSOIh6lksoC1",
-        "description": "pinglab-exp080-evaluation",
-        "environment": "main",
-        "interval_start": "2026-08-06T15:00:00",
-        "resource": "CPU",
-        "cost": "0.00386061"
-      },
-      {
-        "object_id": "ap-k5LHl5hmDOoSOIh6lksoC1",
-        "description": "pinglab-exp080-evaluation",
-        "environment": "main",
-        "interval_start": "2026-08-06T15:00:00",
-        "resource": "Memory",
-        "cost": "0.00045817"
-      },
-      {
-        "object_id": "ap-k5LHl5hmDOoSOIh6lksoC1",
-        "description": "pinglab-exp080-evaluation",
-        "environment": "main",
-        "interval_start": "2026-08-06T16:00:00",
-        "resource": "L40S",
-        "cost": "0.47450051"
-      },
-      {
-        "object_id": "ap-k5LHl5hmDOoSOIh6lksoC1",
-        "description": "pinglab-exp080-evaluation",
-        "environment": "main",
-        "interval_start": "2026-08-06T16:00:00",
-        "resource": "CPU",
-        "cost": "0.01168113"
-      },
-      {
-        "object_id": "ap-k5LHl5hmDOoSOIh6lksoC1",
-        "description": "pinglab-exp080-evaluation",
-        "environment": "main",
-        "interval_start": "2026-08-06T16:00:00",
-        "resource": "Memory",
-        "cost": "0.00140787"
-      },
-      {
-        "object_id": "ap-kOWhR92o7rdmd5TgDIrhNy",
-        "description": "pinglab-exp080",
-        "environment": "main",
-        "interval_start": "2026-08-06T11:00:00",
-        "resource": "L40S",
-        "cost": "0.35641695"
-      },
-      {
-        "object_id": "ap-kOWhR92o7rdmd5TgDIrhNy",
-        "description": "pinglab-exp080",
-        "environment": "main",
-        "interval_start": "2026-08-06T11:00:00",
-        "resource": "CPU",
-        "cost": "0.00864636"
-      },
-      {
-        "object_id": "ap-kOWhR92o7rdmd5TgDIrhNy",
-        "description": "pinglab-exp080",
-        "environment": "main",
-        "interval_start": "2026-08-06T11:00:00",
-        "resource": "Memory",
-        "cost": "0.00139159"
-      },
-      {
-        "object_id": "ap-mJvWUmBCZCHsrUzKtWbDrC",
-        "description": "pinglab-exp080",
-        "environment": "main",
-        "interval_start": "2026-08-06T15:00:00",
-        "resource": "L40S",
-        "cost": "0.00433358"
-      },
-      {
-        "object_id": "ap-mJvWUmBCZCHsrUzKtWbDrC",
-        "description": "pinglab-exp080",
-        "environment": "main",
-        "interval_start": "2026-08-06T15:00:00",
-        "resource": "CPU",
-        "cost": "0.00008938"
-      },
-      {
-        "object_id": "ap-mJvWUmBCZCHsrUzKtWbDrC",
-        "description": "pinglab-exp080",
-        "environment": "main",
-        "interval_start": "2026-08-06T15:00:00",
-        "resource": "Memory",
-        "cost": "0.00000617"
-      },
-      {
-        "object_id": "ap-xiPGRJF9VE37r2xewI7guQ",
-        "description": "pinglab-exp080",
-        "environment": "main",
-        "interval_start": "2026-08-06T15:00:00",
-        "resource": "L40S",
-        "cost": "4.35825005"
-      },
-      {
-        "object_id": "ap-xiPGRJF9VE37r2xewI7guQ",
-        "description": "pinglab-exp080",
-        "environment": "main",
-        "interval_start": "2026-08-06T15:00:00",
-        "resource": "CPU",
-        "cost": "0.09983005"
-      },
-      {
-        "object_id": "ap-xiPGRJF9VE37r2xewI7guQ",
-        "description": "pinglab-exp080",
-        "environment": "main",
-        "interval_start": "2026-08-06T15:00:00",
-        "resource": "Memory",
-        "cost": "0.01717855"
-      },
-      {
-        "object_id": "ap-zxZ1BVLU2RXvxYIbo7h0FU",
-        "description": "pinglab-exp080",
-        "environment": "main",
-        "interval_start": "2026-08-06T11:00:00",
-        "resource": "L40S",
-        "cost": "0.59366650"
-      },
-      {
-        "object_id": "ap-zxZ1BVLU2RXvxYIbo7h0FU",
-        "description": "pinglab-exp080",
-        "environment": "main",
-        "interval_start": "2026-08-06T11:00:00",
-        "resource": "CPU",
-        "cost": "0.01452809"
-      },
-      {
-        "object_id": "ap-zxZ1BVLU2RXvxYIbo7h0FU",
-        "description": "pinglab-exp080",
-        "environment": "main",
-        "interval_start": "2026-08-06T11:00:00",
-        "resource": "Memory",
-        "cost": "0.00231893"
-      }
-    ]
-  },
-  "scope": "decoder-relative thresholds only; no absolute information limit or PING accuracy claim"
+  "rows": [
+    {
+      "rate_hz": 0.1,
+      "accuracy": 0.2804,
+      "minimum_seed_accuracy": 0.2738,
+      "maximum_seed_accuracy": 0.287,
+      "per_seed_accuracy": [
+        0.287,
+        0.2804,
+        0.2738
+      ]
+    },
+    {
+      "rate_hz": 0.25,
+      "accuracy": 0.4406666666666667,
+      "minimum_seed_accuracy": 0.4314,
+      "maximum_seed_accuracy": 0.449,
+      "per_seed_accuracy": [
+        0.449,
+        0.4416,
+        0.4314
+      ]
+    },
+    {
+      "rate_hz": 0.5,
+      "accuracy": 0.589,
+      "minimum_seed_accuracy": 0.5778,
+      "maximum_seed_accuracy": 0.5978,
+      "per_seed_accuracy": [
+        0.5978,
+        0.5914,
+        0.5778
+      ]
+    },
+    {
+      "rate_hz": 1.0,
+      "accuracy": 0.7385333333333334,
+      "minimum_seed_accuracy": 0.7332,
+      "maximum_seed_accuracy": 0.749,
+      "per_seed_accuracy": [
+        0.749,
+        0.7332,
+        0.7334
+      ]
+    },
+    {
+      "rate_hz": 2.0,
+      "accuracy": 0.8419333333333334,
+      "minimum_seed_accuracy": 0.8344,
+      "maximum_seed_accuracy": 0.8504,
+      "per_seed_accuracy": [
+        0.8504,
+        0.841,
+        0.8344
+      ]
+    },
+    {
+      "rate_hz": 5.0,
+      "accuracy": 0.9124666666666666,
+      "minimum_seed_accuracy": 0.9056,
+      "maximum_seed_accuracy": 0.9212,
+      "per_seed_accuracy": [
+        0.9212,
+        0.9106,
+        0.9056
+      ]
+    },
+    {
+      "rate_hz": 10.0,
+      "accuracy": 0.9329999999999999,
+      "minimum_seed_accuracy": 0.9288,
+      "maximum_seed_accuracy": 0.9394,
+      "per_seed_accuracy": [
+        0.9394,
+        0.9308,
+        0.9288
+      ]
+    },
+    {
+      "rate_hz": 25.0,
+      "accuracy": 0.9448666666666666,
+      "minimum_seed_accuracy": 0.9404,
+      "maximum_seed_accuracy": 0.9488,
+      "per_seed_accuracy": [
+        0.9488,
+        0.9454,
+        0.9404
+      ]
+    }
+  ]
 }

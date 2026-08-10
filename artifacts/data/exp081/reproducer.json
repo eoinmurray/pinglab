@@ -1,0 +1,3 @@
+{
+  "command": "uv run python experiments/exp081.py"
+}
