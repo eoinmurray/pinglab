@@ -473,7 +473,7 @@ def plot_feature_images(images: np.ndarray) -> None:
     import torch
 
     device = torch_device()
-    rates = (0.25, 0.5, 25.0)
+    rates = (0.5, 5.0, 25.0)
     generator = torch.Generator(device=device).manual_seed(stable_seed(11))
     selected = torch.as_tensor(
         np.repeat(images[[0]], len(rates), axis=0), device=device
