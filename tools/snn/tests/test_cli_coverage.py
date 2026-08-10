@@ -313,6 +313,10 @@ class TestApplyLoadConfig:
 
 
 class TestConfigureModels:
+    def test_parses_variable_training_rates(self):
+        args = parse_args(["train", "--input-rates", "0.5", "1", "25"])
+        assert args.input_rates == [0.5, 1.0, 25.0]
+
     def test_sets_globals_from_args(self):
         args = parse_args(
             [

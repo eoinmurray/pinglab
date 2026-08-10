@@ -597,6 +597,14 @@ def _build_parent_parser():
         help="Baseline input rate in Hz (default: 25)",
     )
     inp_group.add_argument(
+        "--input-rates",
+        type=float,
+        nargs="+",
+        default=None,
+        help="Training-only categorical maximum-pixel rates in Hz. One rate is "
+        "sampled uniformly and independently per image presentation.",
+    )
+    inp_group.add_argument(
         "--digit", type=int, default=0, help="Digit class for dataset input (0-9)"
     )
     inp_group.add_argument(
@@ -1456,6 +1464,7 @@ def _run_train(args, C, out_dir, log):
         readout_mode=args.readout_mode,
         signed_readout=args.signed_readout,
         readout_bias=args.readout_bias,
+        input_rates=args.input_rates,
         tau_gaba=args.tau_gaba,
         fr_reg_upper_theta=args.fr_reg_upper_theta,
         fr_reg_upper_strength=args.fr_reg_upper_strength,

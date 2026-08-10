@@ -48,6 +48,13 @@ class TestEncodeImagesPoisson:
         )
         assert torch.equal(a, b)
 
+    def test_per_presentation_rates(self):
+        images = torch.ones((2, 4))
+        rates = torch.tensor([0.0, 1000.0])
+        out = encode_images_poisson(images, T_steps=3, dt=1.0, max_rate_hz=rates)
+        assert out[:, 0].sum().item() == 0
+        assert out[:, 1].sum().item() == 12
+
     def test_clamps_above_one(self):
         # Pixels > 1 should be clamped, not throw or produce p > 1 weirdness.
         images = torch.full((1, 4), 5.0)
@@ -129,4 +136,3 @@ class TestParseArgs:
         args = parse_args()
         assert args.lr == 0.01
         assert args.epochs == 0
-
