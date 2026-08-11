@@ -26,9 +26,9 @@ REQUIRED_CELL_FILES = ("config.json", "metrics.json", "metrics.jsonl", "weights.
 
 
 def python_executable() -> str:
-    """Return a stable interpreter shim without resolving out of its venv."""
+    """Return a stable venv shim across aliases such as /tmp and /private/tmp."""
     executable = Path(sys.executable)
-    canonical = executable.with_name("python")
+    canonical = executable.parent.resolve() / "python"
     return str(canonical if canonical.is_file() else executable)
 
 

@@ -29,6 +29,19 @@ def test_campaign_python_identity_stays_inside_environment(monkeypatch, tmp_path
     assert campaign.python_executable() == str(python)
 
 
+def test_campaign_python_identity_normalizes_parent_alias(monkeypatch, tmp_path: Path) -> None:
+    real_bin = tmp_path / "real" / "venv" / "bin"
+    real_bin.mkdir(parents=True)
+    python = real_bin / "python"
+    python.write_text("")
+    alias = tmp_path / "alias"
+    alias.symlink_to(tmp_path / "real", target_is_directory=True)
+    monkeypatch.setattr(
+        campaign.sys, "executable", str(alias / "venv" / "bin" / "python3")
+    )
+    assert campaign.python_executable() == str(python)
+
+
 @pytest.mark.parametrize("family,run_id", exp022.TRAINING_RUN_IDS.items())
 def test_registry_training_run_identity(family: str, run_id: str) -> None:
     cells = [cell for cell in exp022.CANONICAL_CELLS if cell["family"] == family]
