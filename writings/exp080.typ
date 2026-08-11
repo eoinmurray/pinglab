@@ -5,7 +5,7 @@
   date: "2026-08-10",
   description: "Direct-simulation decoder calibration of the input-rate range for later variable-rate PING training.",
   collection: "gamma-gated-sparsity",
-  status: "draft",
+  status: "final",
 )
 
 #let r = json("/artifacts/data/exp080/numbers.json")

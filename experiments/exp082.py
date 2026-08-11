@@ -42,7 +42,9 @@ SNN_TOOL = REPO / "tools" / "snn" / "tool.py"
 TRAINING_ROOT = REPO / "temp" / "experiments" / "exp022"
 
 SEEDS = (42, 43, 44)
-TRAINING_RATES_HZ = (0.5, 1.0, 2.0, 5.0, 10.0, 25.0)
+TRAINING_RATES_HZ = (
+    0.5, 0.75, 1.0, 1.5, 2.0, 3.0, 5.0, 7.5, 10.0, 15.0, 25.0,
+)
 PSYCHOMETRIC_RATES_HZ = TRAINING_RATES_HZ
 DURATIONS_MS = (25.0, 50.0, 100.0, 200.0)
 MATCHED_DURATION_MS = 200.0
