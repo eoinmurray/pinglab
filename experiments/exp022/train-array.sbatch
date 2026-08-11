@@ -8,8 +8,8 @@
 
 set -euo pipefail
 
-: "${PINGLAB_ROOT:?submit through hpc/exp022/submit-tier.sh}"
-: "${EXP022_TIER:?submit through hpc/exp022/submit-tier.sh}"
+: "${PINGLAB_ROOT:?submit through experiments/exp022/submit-tier.sh}"
+: "${EXP022_TIER:?submit through experiments/exp022/submit-tier.sh}"
 
 module purge
 module load rhel8/default-amp

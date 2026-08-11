@@ -36,4 +36,4 @@ sbatch \
   --time="$walltime" \
   --array="0-${last_index}%${concurrency}" \
   --export="ALL,PINGLAB_ROOT=$repo_root,EXP022_TIER=$tier" \
-  hpc/exp022/train-array.sbatch
+  experiments/exp022/train-array.sbatch

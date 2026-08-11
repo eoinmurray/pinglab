@@ -30,11 +30,11 @@ measurements, submit each tier:
 
 ```bash
 export EXP022_SLURM_ACCOUNT=<PROJECT-GPU>
-bash hpc/exp022/submit-tier.sh standard
-bash hpc/exp022/submit-tier.sh fine_dt
-bash hpc/exp022/submit-tier.sh canonical_coba
-bash hpc/exp022/submit-tier.sh canonical_ping
-bash hpc/exp022/submit-tier.sh variable_rate
+bash experiments/exp022/submit-tier.sh standard
+bash experiments/exp022/submit-tier.sh fine_dt
+bash experiments/exp022/submit-tier.sh canonical_coba
+bash experiments/exp022/submit-tier.sh canonical_ping
+bash experiments/exp022/submit-tier.sh variable_rate
 ```
 
 Each array task trains exactly one cell into
