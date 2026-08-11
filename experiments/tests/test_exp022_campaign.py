@@ -76,7 +76,7 @@ def _write_valid_cell(row: dict) -> Path:
     (directory / "config.json").write_text(json.dumps({**expected, **identity}))
     (directory / "metrics.json").write_text(json.dumps({**identity, "config": expected}))
     epochs = row["parameters"]["epochs"]
-    samples = row["parameters"]["max_samples"]
+    samples = round(row["parameters"]["max_samples"] * 0.8)
     (directory / "metrics.jsonl").write_text("\n".join(
         json.dumps({"ep": epoch, "samples": samples, "acc": 10.0})
         for epoch in range(1, epochs + 1)

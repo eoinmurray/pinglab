@@ -257,8 +257,14 @@ def validate_cell(cell: dict[str, Any], *, load_checkpoint: bool = True) -> dict
     if len(history) < epochs or int(history[-1].get("ep", -1)) < epochs:
         reasons.append(f"history did not reach epoch {epochs}")
     observed_samples = [row.get("samples") for row in history if row.get("samples") is not None]
-    if observed_samples and max(int(value) for value in observed_samples) < samples:
-        reasons.append(f"history did not reach {samples} samples")
+    expected_train_samples = round(samples * 0.8)  # fixed stratified MNIST split
+    if len(observed_samples) < epochs or any(
+        int(value) != expected_train_samples for value in observed_samples[:epochs]
+    ):
+        reasons.append(
+            f"history does not record {expected_train_samples} training samples "
+            f"for each of {epochs} epochs"
+        )
     if load_checkpoint:
         try:
             import torch
