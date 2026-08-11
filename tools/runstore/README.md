@@ -165,6 +165,11 @@ runstore verify
 runstore restore
 ```
 
+`runstore inspect <run-root> --write-inventory` writes `inventory.json`
+atomically after hashing the payload. It requires a valid `run.json` and refuses
+to replace an existing inventory; regeneration therefore requires a deliberate
+manual review/removal of the previous manifest.
+
 The archive commands default to the existing `r2:pinglab/campaigns` rclone
 root. `--store /path/to/store` selects the filesystem backend used for local
 tests and rehearsals; `PINGLAB_RUNSTORE_STORE` provides the same override.

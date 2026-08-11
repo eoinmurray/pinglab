@@ -89,3 +89,29 @@ def test_inspect_rejects_stale_inventory(tmp_path: Path) -> None:
     (tmp_path / "payload.bin").write_bytes(b"changed")
     with pytest.raises(ContractError, match="payload does not match"):
         inspect(tmp_path)
+
+
+def test_inspect_writes_inventory_for_managed_run(tmp_path: Path) -> None:
+    run = json.loads((EXAMPLE / "run.json").read_text())
+    (tmp_path / "run.json").write_text(json.dumps(run))
+    (tmp_path / "state.bin").write_bytes(b"payload")
+    assert inspect(tmp_path, write_inventory=True) == 0
+    inventory = validate_inventory(load_json(tmp_path / "inventory.json"))
+    assert inventory["run_id"] == run["run_id"]
+    verify_payload(tmp_path, inventory)
+
+
+def test_inspect_write_requires_run_manifest(tmp_path: Path) -> None:
+    (tmp_path / "legacy.bin").write_bytes(b"legacy")
+    with pytest.raises(ContractError, match="requires a valid run.json"):
+        inspect(tmp_path, write_inventory=True)
+    assert not (tmp_path / "inventory.json").exists()
+
+
+def test_inspect_refuses_to_replace_inventory(tmp_path: Path) -> None:
+    run = json.loads((EXAMPLE / "run.json").read_text())
+    (tmp_path / "run.json").write_text(json.dumps(run))
+    (tmp_path / "state.bin").write_bytes(b"payload")
+    assert inspect(tmp_path, write_inventory=True) == 0
+    with pytest.raises(ContractError, match="already exists"):
+        inspect(tmp_path, write_inventory=True)

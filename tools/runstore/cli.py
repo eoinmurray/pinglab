@@ -16,6 +16,7 @@ from .contract import (
     validate_inventory,
     validate_run_manifest,
     verify_payload,
+    write_json_atomic,
 )
 from .storage import build_store
 
@@ -32,7 +33,7 @@ def _human_size(value: int) -> str:
     return f"{size:.1f} TiB"
 
 
-def inspect(root: Path, *, as_json: bool = False) -> int:
+def inspect(root: Path, *, as_json: bool = False, write_inventory: bool = False) -> int:
     root = root.resolve()
     if not root.is_dir():
         raise ContractError(f"run root is not a directory: {root}")
@@ -45,11 +46,20 @@ def inspect(root: Path, *, as_json: bool = False) -> int:
     inventory_path = root / "inventory.json"
     inventory_state = "absent"
     if inventory_path.exists():
+        if write_inventory:
+            raise ContractError(
+                "inventory.json already exists; inspect validates but does not replace it"
+            )
         existing = validate_inventory(load_json(inventory_path))
         if existing["run_id"] != run_id:
             raise ContractError("run.json and inventory.json use different run IDs")
         verify_payload(root, existing)
         inventory_state = "valid"
+    elif write_inventory:
+        if run is None:
+            raise ContractError("--write-inventory requires a valid run.json")
+        write_json_atomic(inventory_path, actual)
+        inventory_state = "written"
 
     result = {
         "root": str(root),
@@ -85,6 +95,11 @@ def build_parser() -> argparse.ArgumentParser:
     )
     inspect_parser.add_argument("root", type=Path)
     inspect_parser.add_argument("--json", action="store_true", dest="as_json")
+    inspect_parser.add_argument(
+        "--write-inventory",
+        action="store_true",
+        help="atomically write inventory.json; requires run.json and refuses replacement",
+    )
 
     def add_store_arguments(command_parser: argparse.ArgumentParser) -> None:
         command_parser.add_argument(
@@ -136,7 +151,13 @@ def main(argv: list[str] | None = None) -> None:
     args = build_parser().parse_args(argv)
     try:
         if args.command == "inspect":
-            raise SystemExit(inspect(args.root, as_json=args.as_json))
+            raise SystemExit(
+                inspect(
+                    args.root,
+                    as_json=args.as_json,
+                    write_inventory=args.write_inventory,
+                )
+            )
         store = build_store(args.store, logical_base_uri=args.logical_base_uri)
         if args.command == "archive":
             result = archive_run(args.root, args.archive_id, store)

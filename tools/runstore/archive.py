@@ -4,9 +4,7 @@ from __future__ import annotations
 
 import copy
 import json
-import os
 import re
-import tempfile
 from pathlib import Path
 
 from .contract import (
@@ -15,6 +13,7 @@ from .contract import (
     validate_inventory,
     validate_run_manifest,
     verify_payload,
+    write_json_atomic,
 )
 from .storage import Store, StoredObject
 
@@ -32,23 +31,6 @@ def validate_archive_id(archive_id: str) -> str:
 
 def _json_bytes(value: dict) -> bytes:
     return (json.dumps(value, indent=2) + "\n").encode()
-
-
-def _atomic_json(path: Path, value: dict) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    descriptor, temporary_name = tempfile.mkstemp(
-        dir=path.parent, prefix=f".{path.name}.", suffix=".tmp"
-    )
-    temporary = Path(temporary_name)
-    try:
-        with os.fdopen(descriptor, "w") as handle:
-            json.dump(value, handle, indent=2)
-            handle.write("\n")
-            handle.flush()
-            os.fsync(handle.fileno())
-        os.replace(temporary, path)
-    finally:
-        temporary.unlink(missing_ok=True)
 
 
 def _load_local(root: Path) -> tuple[dict, dict]:
@@ -83,7 +65,7 @@ def archive_run(root: Path, archive_id: str, store: Store) -> dict:
         _json_bytes(inventory),
     )
     verify_archive(store, archive_id)
-    _atomic_json(root / "run.json", archived_run)
+    write_json_atomic(root / "run.json", archived_run)
     return archived_run
 
 
