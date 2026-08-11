@@ -1,8 +1,10 @@
 import models as M
+import numpy as np
 import pytest
 import torch
 import torch.nn.functional as F
 from config import build_net
+from infer import probe
 from torch import nn
 
 
@@ -215,6 +217,109 @@ class TestCumulativePotentialReadout:
     def test_bias_rejected_for_legacy_readouts(self):
         with pytest.raises(ValueError, match="only by the cumulative-potential"):
             build_net("ping", hidden_sizes=[32], readout_mode="rate", readout_bias=True)
+
+
+class TestSpikeRateReadout:
+    def _always_driven_net(self):
+        net = build_net("ping", hidden_sizes=[32], readout_mode="spike-rate")
+        with torch.no_grad():
+            net.W_ff[-1].fill_(100.0)
+
+        def force_hidden_spikes(s_e, s_i, _layer):
+            return torch.ones_like(s_e), s_i
+
+        net._hidden_perturb_fn = force_hidden_spikes
+        return net
+
+    def test_logits_are_recorded_output_spikes_per_second(self):
+        M.T_steps = 8
+        M.T_ms = M.T_steps * M.dt
+        net = self._always_driven_net()
+        net.recording = True
+
+        logits = net(input_spikes=torch.zeros(M.T_steps, 2, M.N_IN))
+        recorded = net.spike_record["out_spikes"]
+        expected = recorded.sum(dim=0) / (M.T_steps * M.dt / 1000.0)
+
+        assert torch.equal(recorded, recorded.bool().float())
+        assert torch.allclose(logits, expected)
+        assert net.spike_record["v_out"].shape == recorded.shape
+        expected_population_rate = recorded.detach().mean().item() * 1000.0 / M.dt
+        assert net.rates["out"] == pytest.approx(expected_population_rate)
+
+    def test_duration_normalization_keeps_constant_output_rate_constant(self):
+        rates = []
+        for steps in (4, 12):
+            M.T_steps = steps
+            M.T_ms = steps * M.dt
+            net = self._always_driven_net()
+            rates.append(net(input_spikes=torch.zeros(steps, 1, M.N_IN)))
+
+        assert torch.allclose(rates[0], rates[1])
+
+    def test_surrogate_spikes_propagate_gradient_to_output_weights(self):
+        M.T_steps = 6
+        M.T_ms = M.T_steps * M.dt
+        net = build_net("ping", hidden_sizes=[32], readout_mode="spike-rate")
+        logits = net(input_spikes=torch.ones(M.T_steps, 2, M.N_IN))
+        F.cross_entropy(logits, torch.tensor([0, 1])).backward()
+
+        assert net.W_ff[-1].grad is not None
+        assert torch.isfinite(net.W_ff[-1].grad).all()
+
+    def test_boundary_reset_restarts_only_output_lif(self):
+        M.T_steps = 8
+        M.T_ms = M.T_steps * M.dt
+        torch.manual_seed(19)
+        baseline = build_net("ping", hidden_sizes=[32], readout_mode="spike-rate")
+        reset_net = build_net("ping", hidden_sizes=[32], readout_mode="spike-rate")
+        reset_net.load_state_dict(baseline.state_dict())
+        baseline.recording = reset_net.recording = True
+        spikes = torch.ones(M.T_steps, 1, M.N_IN)
+
+        baseline(input_spikes=spikes)
+        reset_mask = torch.zeros(M.T_steps, dtype=torch.bool)
+        reset_mask[4] = True
+        reset_net(input_spikes=spikes, readout_reset_mask=reset_mask)
+
+        assert torch.equal(
+            baseline.spike_record["hid"], reset_net.spike_record["hid"]
+        )
+        assert torch.equal(
+            baseline.spike_record["inh"], reset_net.spike_record["inh"]
+        )
+        assert torch.all(reset_net.spike_record["v_out"][4] <= 1.0)
+
+    def test_input_file_probe_restores_mode_and_emits_output_raster(self, tmp_path):
+        M.N_IN = 8
+        M.T_steps = 6
+        M.T_ms = M.T_steps * M.dt
+        net = build_net("ping", hidden_sizes=[16], readout_mode="spike-rate")
+        weights = tmp_path / "weights.pth"
+        torch.save(net.state_dict(), weights)
+        input_file = tmp_path / "input.npz"
+        np.savez(
+            input_file,
+            input_spikes=np.ones((6, 1, 8), dtype=np.float32),
+            readout_reset=np.asarray([True, False, False, True, False, False]),
+        )
+
+        probe(
+            model_name="ping",
+            dt=M.dt,
+            t_ms=M.T_ms,
+            hidden_sizes=[16],
+            n_in=8,
+            load_weights=weights,
+            input_file=input_file,
+            out_dir=tmp_path,
+            outputs={"rasters"},
+            readout_mode="spike-rate",
+        )
+
+        raster = np.load(tmp_path / "rasters.npz")
+        assert {"out_trial", "out_t", "out_cell"} <= set(raster.files)
+        assert int(raster["T"]) == 6
 
 
 class TestRecurrentDalesProjection:

@@ -1,5 +1,5 @@
 #let meta = (
-  title: "Variable-rate streaming with a summed-spiking readout",
+  title: "Variable-rate streaming with a spike-rate readout",
   date: "2026-08-10",
   description: "Successor to exp048 using the variable-rate PING training bank and a readout matched to each presentation window.",
   collection: "gamma-gated-sparsity",
@@ -9,7 +9,7 @@
 #let body = [
   == Abstract
 
-  This experiment will test whether PING networks trained across input rates can classify continuous MNIST streams without the fixed-rate and output-membrane mismatch inherited by exp048. The trained readout sums excitatory spikes, and inference uses exactly the same operation over a window equal to the current digit's presentation duration. The planned results comprise matched-condition streaming, variable-rate and variable-duration streaming, a 200 ms rate psychometric, and a duration-by-rate accuracy map. Results remain pending until exp022 produces all three variable-rate checkpoints.
+  This experiment will test whether PING networks trained across input rates can classify continuous MNIST streams without the fixed-rate and mean-membrane mismatch inherited by exp048. Excitatory spikes drive ten spiking output LIF neurons, and each class logit is the corresponding output neuron's firing rate over a window equal to the current digit's presentation duration. The planned results comprise matched-condition streaming, variable-rate and variable-duration streaming, a 200 ms rate psychometric, and a duration-by-rate accuracy map. Results remain pending until exp022 produces all three variable-rate checkpoints.
 
   == Methods
 
@@ -17,15 +17,15 @@
 
   The experiment loads `ping__variable_rate__seed42`, `ping__variable_rate__seed43`, and `ping__variable_rate__seed44` from exp022. Each PING network is trained by sampling one maximum-pixel Poisson rate independently per image presentation from 0.5, 1, 2, 5, 10, and 25 Hz. The recurrent weights and classifier are frozen throughout this experiment.
 
-  *Note.* The exp022 cells are registered and `tools/snn` implements their variable-rate training interface, but the full Cambridge jobs have not run yet. This entry remains their downstream target and fails loudly rather than falling back to fixed-rate weights.
+  *Note.* The exp022 cells are registered and `tools/snn` implements the required output-LIF `spike-rate` training, restore, and output-raster path. Presentation boundaries reset only the output LIF and its counter; the hidden PING state remains continuous. This entry still fails loudly if the variable-rate checkpoint bank is absent or uses another readout.
 
-  === 2. Summed-spiking readout
+  === 2. Spike-rate readout
 
-  For a presentation beginning at timestep $a$ and ending before timestep $b$, class evidence is
+  At each timestep, the 1024-element excitatory spike vector $bold(s)^E(t)$ drives a trained 1024-by-10 projection $W_"out"$ into ten output LIF neurons. For a presentation beginning at timestep $a$ and ending before timestep $b$, class evidence is
 
-  $ bold(z) = (sum_(t=a)^(b-1) bold(s)^E(t)) W_"out". quad "(1)" $
+  $ z_c = 1 / T sum_(t=a)^(b-1) s_c^"out"(t), quad c in {0, dots, 9}, quad T = (b-a) Delta t / 1000. quad "(1)" $
 
-  Here $bold(s)^E(t)$ is the 1024-element excitatory spike vector at timestep $t$, $W_"out"$ is the trained 1024-by-10 readout matrix, and $bold(z)$ contains the ten class logits. The predicted digit is the index of the largest logit. This is the trained `rate` readout: no output LIF membrane, leak constant, or post-hoc `mem-mean` reconstruction is introduced.
+  Here $s_c^"out"(t)$ is the spike emitted by output LIF neuron $c$ at timestep $t$, $T$ is the matched presentation duration in seconds, and $bold(z)$ contains the ten output firing-rate logits in Hz. The predicted digit is the index of the largest rate. The output neurons therefore have membrane state, leak, threshold, spikes, and reset; unlike `mem-mean`, their membrane voltages are not the logits.
 
   === 3. Matched inference
 
@@ -47,7 +47,7 @@
 
   === 1. Matched-condition stream
 
-  *TODO.* Reproduce the structure of exp048's streaming figure: excitatory and inhibitory rasters, digit boundaries, and the ten online class-evidence traces. Unlike exp048, every trace will be formed by accumulating spikes from the start of the current digit.
+  *TODO.* Reproduce the structure of exp048's streaming figure: excitatory, inhibitory, and output rasters; digit boundaries; and the ten online class-evidence traces. Unlike exp048, every trace will be the cumulative output-spike rate from the start of the current digit: spikes observed so far divided by elapsed time in the matched window.
 
   === 2. Variable conditions
 
@@ -55,5 +55,5 @@
 
   === 3. Comparison with exp048
 
-  *TODO.* Compare the completed results with exp048. The comparison must be interpretive rather than a silent replacement. Exp048 uses fixed-25-Hz training and reconstructs a sliding `mem-mean` output. This experiment uses mixed-rate training and the trained summed-spiking readout. Any accuracy difference therefore reflects the combined training-distribution and readout correction, not a single isolated intervention.
+  *TODO.* Compare the completed results with exp048. The comparison must be interpretive rather than a silent replacement. Exp048 uses fixed-25-Hz training and reconstructs a sliding `mem-mean` output. This experiment uses mixed-rate training and the trained `spike-rate` readout. Any accuracy difference therefore reflects the combined training-distribution and readout correction, not a single isolated intervention.
 ]

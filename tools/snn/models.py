@@ -67,7 +67,7 @@ max_rate_hz = (
 
 # ── snnTorch ──────────────────────────────────────────────────────────────
 tau_snn = 10.0  # ms — membrane time constant
-# Output-LIF time constant for the spike-count readout. Smaller than
+# Output-LIF time constant for the spiking readouts. Smaller than
 # tau_snn means faster leak: the output membrane decays before saturating
 # under high-rate hidden drive, which is what was breaking the spike-count
 # readout for snnTorch-family models at coarse dt where hidden rates run
@@ -558,9 +558,11 @@ class COBANet(nn.Module):
         adapt_strength_max_mv=ADAPT_STRENGTH_MAX_MV,
     ):
         super().__init__()
-        if readout_mode not in ("rate", "mem-mean", "cumulative-potential"):
+        if readout_mode not in (
+            "rate", "mem-mean", "spike-rate", "cumulative-potential"
+        ):
             raise ValueError(
-                "readout_mode must be 'rate', 'mem-mean', or "
+                "readout_mode must be 'rate', 'mem-mean', 'spike-rate', or "
                 f"'cumulative-potential', got {readout_mode!r}"
             )
         self.readout_mode = readout_mode
@@ -759,6 +761,7 @@ class COBANet(nn.Module):
         ext_g_i=None,
         drive_sigma=0.0,
         input_spikes=None,
+        readout_reset_mask=None,
         v_perturb_eps=0.0,
         v_perturb_seed=0,
         noise_on_inh=True,
@@ -766,6 +769,7 @@ class COBANet(nn.Module):
         has_ext_g = ext_g is not None
         has_ext_g_i = ext_g_i is not None
         has_input_spikes = input_spikes is not None
+        has_readout_reset = readout_reset_mask is not None
 
         if has_ext_g and ext_g.dim() == 3:
             B, device = ext_g.shape[1], ext_g.device
@@ -854,17 +858,25 @@ class COBANet(nn.Module):
                     )
                     v_i[k] = v_i[k] + dvi
 
-        # Output: cumulative last-hidden-layer spikes → linear decoder
-        # (no output spiking neurons — a clean linear decode at the output).
+        # Output state. ``rate`` uses hidden_accum directly; the spiking
+        # readouts share v_out and differ in how the output-LIF trajectory is
+        # reduced to class logits.
         hidden_accum = init_conductance(B, self.hidden_sizes[-1], device)
         v_out = torch.zeros(B, N_OUT, device=device)
         mem_sum = torch.zeros(B, N_OUT, device=device)
+        out_spike_count = torch.zeros(B, N_OUT, device=device)
+        s_out = torch.zeros(B, N_OUT, device=device)
         evidence_sum = torch.zeros(B, N_OUT, device=device)
 
         # Pre-allocate recording buffers on GPU
         rec_buf = None
         if self.recording:
             rec_buf = {"out": torch.zeros(T_steps, B, N_OUT, device=device)}
+            if self.readout_mode == "spike-rate":
+                rec_buf["out_spikes"] = torch.zeros(
+                    T_steps, B, N_OUT, device=device
+                )
+                rec_buf["v_out"] = torch.zeros(T_steps, B, N_OUT, device=device)
             if has_input_spikes:
                 rec_buf["input"] = torch.zeros(T_steps, B, N_IN, device=device)
             for i in range(1, self.n_layers + 1):
@@ -917,6 +929,8 @@ class COBANet(nn.Module):
             "hidden_accum": hidden_accum,
             "v_out": v_out,
             "mem_sum": mem_sum,
+            "out_spike_count": out_spike_count,
+            "s_out": s_out,
             "evidence_sum": evidence_sum,
         }
         # Compute dt-dependent constants locally so torch.compile specializes on dt
@@ -940,6 +954,7 @@ class COBANet(nn.Module):
             "has_input_spikes": has_input_spikes,
             "has_ext_g": has_ext_g,
             "has_ext_g_i": has_ext_g_i,
+            "has_readout_reset": has_readout_reset,
             "readout_mode": self.readout_mode,
             "readout_bias": self.b_out,
             "readout_alpha": self.readout_alpha,
@@ -1001,6 +1016,11 @@ class COBANet(nn.Module):
                     if has_ext_g_i and ext_g_i.dim() == 2
                     else (ext_g_i[t] if has_ext_g_i else None)
                 ),
+                "readout_reset_t": (
+                    readout_reset_mask[t]
+                    if has_readout_reset
+                    else None
+                ),
             }
             logits_t = step(slc, cfg, state)
             # Accumulate per-neuron E spike counts for fr-reg (grad-attached).
@@ -1021,6 +1041,9 @@ class COBANet(nn.Module):
                         rec_buf[f"ge_i_{i}"][t] = state["ge_i"][k]
                         rec_buf[f"gi_i_{i}"][t] = state["gi_i"][k]
                 rec_buf["out"][t] = logits_t
+                if "out_spikes" in rec_buf:
+                    rec_buf["out_spikes"][t] = state["s_out"]
+                    rec_buf["v_out"][t] = state["v_out"]
 
         sizes = {}
         for i in range(1, self.n_layers + 1):
@@ -1173,7 +1196,25 @@ class COBANet(nn.Module):
                 ik = self._inh_key(i)
                 n_spk_tensors[ik] += state["s_i"][k].detach().sum()
 
-        if cfg["readout_mode"] == "mem-mean":
+        if cfg["readout_mode"] in ("mem-mean", "spike-rate"):
+            if cfg["has_readout_reset"]:
+                reset = slc["readout_reset_t"].to(
+                    device=state["v_out"].device, dtype=torch.bool
+                )
+                if reset.ndim == 0:
+                    reset = reset.expand(state["v_out"].shape[0])
+                reset = reset.reshape(-1, 1)
+                state["v_out"] = torch.where(
+                    reset, torch.zeros_like(state["v_out"]), state["v_out"]
+                )
+                state["mem_sum"] = torch.where(
+                    reset, torch.zeros_like(state["mem_sum"]), state["mem_sum"]
+                )
+                state["out_spike_count"] = torch.where(
+                    reset,
+                    torch.zeros_like(state["out_spike_count"]),
+                    state["out_spike_count"],
+                )
             # Exp-Euler ZOH on output LIF + subtract reset. COBANet's W_ff has
             # no bias term — bias scaling is moot here.
             one_minus_beta = 1.0 - cfg["beta_out"]
@@ -1181,8 +1222,16 @@ class COBANet(nn.Module):
             I_out = spike_scale * (prev_spk @ W_ff[-1])
             state["v_out"] = cfg["beta_out"] * state["v_out"] + I_out
             s_out = fast_sigmoid_spike(state["v_out"] - thr_snn, SURROGATE_SLOPE)
-            state["mem_sum"] = state["mem_sum"] + state["v_out"]
+            state["s_out"] = s_out
+            n_spk_tensors["out"] += s_out.detach().sum()
+            if cfg["readout_mode"] == "spike-rate":
+                state["out_spike_count"] = state["out_spike_count"] + s_out
+            else:
+                state["mem_sum"] = state["mem_sum"] + state["v_out"]
             state["v_out"] = state["v_out"] - s_out * thr_snn
+            if cfg["readout_mode"] == "spike-rate":
+                duration_s = float(T_steps) * dt / 1000.0
+                return state["out_spike_count"] / duration_s
             return state["mem_sum"] / float(T_steps)
         if cfg["readout_mode"] == "cumulative-potential":
             drive = prev_spk @ W_ff[-1]

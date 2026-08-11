@@ -269,9 +269,11 @@ def infer(
     per_cell_i = None  # running (N_I,) spike-count sum across the test set
     pop_e_rows: list = []  # per-trial (T,) mean-over-E-cells activity
     pop_i_rows: list = []  # per-trial (T,) mean-over-I-cells activity
-    # rasters: flat COO lists (trial index, timestep, cell index) for E and I.
+    # rasters: flat COO lists (trial index, timestep, cell index) for E, I,
+    # and the output LIF population when the selected readout emits spikes.
     rast_e = {"trial": [], "t": [], "cell": []}
     rast_i = {"trial": [], "t": [], "cell": []}
+    rast_out = {"trial": [], "t": [], "cell": []}
     rast_trial = 0  # running global trial counter across batches
     rast_T = 0  # timesteps (set from the recorded raster)
 
@@ -380,6 +382,7 @@ def infer(
                 if emit_rasters:
                     nb_e, rast_T = _accum_rasters(rec, hk, rast_e, rast_trial)
                     _accum_rasters(rec, ik, rast_i, rast_trial)
+                    _accum_rasters(rec, "out_spikes", rast_out, rast_trial)
                     rast_trial += nb_e
 
     acc = 100.0 * correct / total
@@ -475,6 +478,7 @@ def infer(
 
         e_tr, e_t, e_c = _cat(rast_e)
         i_tr, i_t, i_c = _cat(rast_i)
+        out_tr, out_t, out_c = _cat(rast_out)
         out_npz = out_dir_path / "rasters.npz"
         np.savez(
             out_npz,
@@ -485,9 +489,13 @@ def infer(
             n_i=np.int32(M.N_INH),
             e_trial=e_tr, e_t=e_t, e_cell=e_c,
             i_trial=i_tr, i_t=i_t, i_cell=i_c,
+            out_trial=out_tr, out_t=out_t, out_cell=out_c,
         )
         mb = out_npz.stat().st_size / 1e6
-        log.info(f"  → {out_npz}  ({rast_trial} trials, {e_tr.size + i_tr.size} spikes, {mb:.1f} MB)")
+        log.info(
+            f"  → {out_npz}  ({rast_trial} trials, "
+            f"{e_tr.size + i_tr.size + out_tr.size} spikes, {mb:.1f} MB)"
+        )
 
     return {"acc": acc, "ce_loss": ce_loss, "rates_hz": rates_hz, "hid_rate_hz": hid_rate_hz}
 
@@ -675,6 +683,9 @@ def probe(
     adapt_tau_bounds_ms=None,
     adapt_strength_init_mv=1.0,
     adapt_strength_max_mv=None,
+    readout_mode="rate",
+    signed_readout=False,
+    readout_bias=False,
 ):
     """Drive a net with uniform homogeneous Poisson input; emit E/I rates.
 
@@ -712,6 +723,9 @@ def probe(
         randomize_init=True,
         dales_law=dales_law,
         hidden_sizes=hidden_sizes,
+        readout_mode=readout_mode,
+        signed_readout=signed_readout,
+        readout_bias=readout_bias,
         n_inh_per_layer=n_inh_per_layer,
         train_leak=train_leak,
         tau_m_e_bounds_ms=tau_m_e_bounds_ms,
@@ -751,25 +765,33 @@ def probe(
     # "run the net on this exact input" primitive — dual of --outputs rasters) or a
     # single uniform-Poisson draw of shape (T, n_batch, N_IN) at input_rate_hz.
     if input_file is not None:
-        arr = np.load(input_file)["input_spikes"]
+        loaded_input = np.load(input_file)
+        arr = loaded_input["input_spikes"]
+        readout_reset = (
+            torch.from_numpy(loaded_input["readout_reset"]).to(device)
+            if "readout_reset" in loaded_input.files
+            else None
+        )
         spk_in = torch.from_numpy(arr).float()
         if spk_in.ndim == 2:  # (T, N_IN) → (T, 1, N_IN)
             spk_in = spk_in.unsqueeze(1)
         spk_in = spk_in.to(device)
         T_steps, n_batch = spk_in.shape[0], spk_in.shape[1]
         M.T_steps = T_steps
+        M.T_ms = T_steps * dt
         log.info(f"  input-file: {input_file}  shape={tuple(spk_in.shape)}")
     else:
         T_steps = int(t_ms / dt)
         p_step = input_rate_hz * dt / 1000.0
         gen = torch.Generator().manual_seed((seed or 0) + 1)
         spk_in = (torch.rand(T_steps, int(n_batch), M.N_IN, generator=gen) < p_step).float().to(device)
+        readout_reset = None
     with torch.no_grad():
-        net(input_spikes=spk_in)
+        net(input_spikes=spk_in, readout_reset_mask=readout_reset)
 
     rec = net.spike_record
     hk, ik = primary_hid_key(rec), primary_inh_key(rec)
-    t_sec = t_ms / 1000.0
+    t_sec = T_steps * dt / 1000.0
     n_e = M.N_HID
     n_i = M.N_INH or 1
     e_sum = float(rec[hk].sum().item()) if hk else 0.0
@@ -818,14 +840,19 @@ def probe(
                 return bb.astype("int32"), tt.astype("int32"), cc.astype("int32")
             e_tr, e_t, e_c = _coo(hk)
             i_tr, i_t, i_c = _coo(ik)
+            out_tr, out_t, out_c = _coo("out_spikes")
             np.savez(
                 out_dir_path / "rasters.npz",
                 dt=np.float32(dt), n_trials=np.int32(n_batch), T=np.int32(T_steps),
                 n_e=np.int32(n_e), n_i=np.int32(n_i),
                 e_trial=e_tr, e_t=e_t, e_cell=e_c,
                 i_trial=i_tr, i_t=i_t, i_cell=i_c,
+                out_trial=out_tr, out_t=out_t, out_cell=out_c,
             )
-            log.info(f"  → {out_dir_path / 'rasters.npz'}  ({e_tr.size + i_tr.size} spikes)")
+            log.info(
+                f"  → {out_dir_path / 'rasters.npz'}  "
+                f"({e_tr.size + i_tr.size + out_tr.size} spikes)"
+            )
 
     return {"rate_e_hz": r_e, "rate_i_hz": r_i}
 
