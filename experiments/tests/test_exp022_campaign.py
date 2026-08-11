@@ -357,9 +357,9 @@ def test_external_aggregation_dispatches_external_training_root(tmp_path: Path, 
     ])
     assert observed["PINGLAB_TRAINING_ROOT"] == str(tmp_path / "cells")
     assert exp022.training_root_provenance(tmp_path)["location"] == "external"
-    assert [command[-1] for command in commands[1:]] == [
-        "appendix-rasters",
-        "comparison-rasters",
+    assert [command[-2:] for command in commands[1:]] == [
+        ["--plot-only", "appendix-rasters"],
+        ["--plot-only", "comparison-rasters"],
     ]
 
 
