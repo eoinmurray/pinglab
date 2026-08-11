@@ -732,10 +732,6 @@ def test_lyapunov_eps_writes_divergence_to_npz(tmp_path):
         "--out-dir", str(out),
     )
     npz = out / "snapshot.npz"
-    if not npz.exists():
-        # synthetic-spikes mode writes to the pinglab-cli artifact dir by
-        # default; fall back to the repo-standard location.
-        npz = Path("src/artifacts/pinglab-cli/snapshot.npz")
     data = np.load(npz)
     assert "lyap_dist" in data, "lyap_dist missing from snapshot.npz"
     assert "lyap_t_ms" in data

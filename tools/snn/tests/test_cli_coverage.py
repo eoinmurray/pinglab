@@ -444,6 +444,10 @@ def trained(tmp_path_factory):
 
 
 class TestDispatchRuns:
+    def test_artifact_writing_requires_explicit_out_dir(self):
+        with pytest.raises(SystemExit, match="requires an explicit --out-dir"):
+            cli.main(["sim"])
+
     def test_run_sim_metrics_snapshot(self, tmp_path):
         # Metrics-only synthetic-spikes sim → snapshot.npz (the _run_sim tail).
         out = tmp_path / "sim"

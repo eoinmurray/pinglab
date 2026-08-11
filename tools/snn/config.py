@@ -18,12 +18,6 @@ from inputs import (
 from models import COBANet
 from torch import nn
 
-# Default output directory when no --out-dir is given: where the pinglab-cli
-# snapshot figures land. Defined once and reused by cfg, build_config, and the
-# CLI entrypoint so the path lives in exactly one place.
-DEFAULT_ARTIFACT_ROOT = Path(__file__).resolve().parents[2] / "temp" / "pinglab-cli"
-
-
 # =============================================================================
 # Config
 # =============================================================================
@@ -59,7 +53,7 @@ class Config:
         return torch.device(self.device)
 
 
-cfg = Config(artifact_root=str(DEFAULT_ARTIFACT_ROOT))
+cfg = Config()
 
 
 def setup_model_globals(hidden_sizes):
@@ -590,8 +584,6 @@ def build_config(args):
     c = Config()
     if hasattr(args, "out_dir") and args.out_dir is not None:
         c.artifact_root = args.out_dir
-    else:
-        c.artifact_root = str(DEFAULT_ARTIFACT_ROOT)
     if hasattr(args, "n_hidden") and args.n_hidden is not None:
         # args.n_hidden may be an int or a list (multi-layer). For legacy Config,
         # use the last hidden size (the E-I / output-feeding layer).
