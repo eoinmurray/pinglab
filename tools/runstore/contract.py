@@ -4,7 +4,9 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import re
+import tempfile
 from datetime import datetime, timezone
 from pathlib import Path, PurePosixPath
 from typing import Any
@@ -58,6 +60,24 @@ def load_json(path: Path) -> dict[str, Any]:
     except json.JSONDecodeError as exc:
         raise ContractError(f"invalid JSON in {path}: {exc}") from exc
     return _require_mapping(value, str(path))
+
+
+def write_json_atomic(path: Path, value: dict[str, Any]) -> None:
+    """Write one JSON document without exposing a partial destination file."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    descriptor, temporary_name = tempfile.mkstemp(
+        dir=path.parent, prefix=f".{path.name}.", suffix=".tmp"
+    )
+    temporary = Path(temporary_name)
+    try:
+        with os.fdopen(descriptor, "w") as handle:
+            json.dump(value, handle, indent=2)
+            handle.write("\n")
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(temporary, path)
+    finally:
+        temporary.unlink(missing_ok=True)
 
 
 def validate_run_manifest(value: dict[str, Any]) -> dict[str, Any]:
