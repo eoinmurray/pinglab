@@ -64,7 +64,7 @@ and submit the diagnostic script with explicit paths:
 ```bash
 mybalance
 sbatch --account=<SL2-GPU-account> --output=<diagnostic-root>/diagnostic-%j.out \
-  --export=NONE,PINGLAB_ROOT="$PINGLAB_REPO",EXP022_DIAGNOSTIC_ROOT=<diagnostic-root>,PINGLAB_DATA_ROOT="$PINGLAB_MNIST_CACHE",EXP022_UV="$EXP022_UV" \
+  --export=PINGLAB_ROOT="$PINGLAB_REPO",EXP022_DIAGNOSTIC_ROOT=<diagnostic-root>,PINGLAB_DATA_ROOT="$PINGLAB_MNIST_CACHE",EXP022_UV="$EXP022_UV" \
   experiments/exp022/diagnostic.sbatch
 ```
 

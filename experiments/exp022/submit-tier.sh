@@ -63,7 +63,7 @@ sbatch_args=(
   --array="$array"
   --output="$campaign_root/logs/%A_%a.out"
   --error="$campaign_root/logs/%A_%a.err"
-  --export="NONE,PINGLAB_ROOT=$repo_root,EXP022_MANIFEST=$manifest,EXP022_TIER=$tier,EXP022_SELECTION=$selection,EXP022_UV=$uv_bin,PINGLAB_DATA_ROOT=$mnist_cache"
+  --export="PINGLAB_ROOT=$repo_root,EXP022_MANIFEST=$manifest,EXP022_TIER=$tier,EXP022_SELECTION=$selection,EXP022_UV=$uv_bin,PINGLAB_DATA_ROOT=$mnist_cache"
 )
 echo "command: sbatch ${sbatch_args[*]} experiments/exp022/train-array.sbatch"
 if [[ "$mode" == "--dry-run" ]]; then exit 0; fi
