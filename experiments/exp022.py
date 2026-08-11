@@ -998,7 +998,7 @@ def _checked_manifest(path: Path, *, allow_generated_dirty: bool = False) -> dic
                             if manifest.get("plumbing") else spec)
             train_args = build_train_args(command_spec, root / "cells" / spec["name"], samples, epochs)
             resolved = campaign.resolved_parameters(spec, train_args, samples, epochs)
-            command = [sys.executable, str(SNN_TOOL), *train_args]
+            command = [str(Path(sys.executable).resolve()), str(SNN_TOOL), *train_args]
             output_directory = (root / "cells" / spec["name"]).resolve()
             expected = {
                 "name": spec["name"],
