@@ -73,7 +73,7 @@ def test_init_composes_runstore_and_exp022_manifests(
             (root / "derived" / "artifacts").mkdir(parents=True)
             (root / "logs").mkdir()
             execution.write_json_atomic(root / "run.json", {"source": source})
-        elif "exp022.py" in " ".join(command):
+        elif "experiments.exp022" in command:
             exp022 = root / "exp022"
             exp022.mkdir()
             (exp022 / "campaign.json").write_text("{}")

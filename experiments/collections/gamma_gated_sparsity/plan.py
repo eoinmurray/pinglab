@@ -29,7 +29,8 @@ RUNNER_ARGUMENTS: dict[str, tuple[str, ...]] = {
 def runner_command(slug: str) -> list[str]:
     return [
         sys.executable,
-        str(REPO / "experiments" / f"{slug}.py"),
+        "-m",
+        f"experiments.{slug}",
         *RUNNER_ARGUMENTS[slug],
     ]
 

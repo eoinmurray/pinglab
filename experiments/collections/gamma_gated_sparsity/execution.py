@@ -111,7 +111,8 @@ def initialize_campaign(root: Path, campaign_id: str, *, smoke: bool) -> dict[st
     exp022_root.rmdir()
     manifest_command = [
         sys.executable,
-        str(REPO / "experiments" / "exp022.py"),
+        "-m",
+        "experiments.exp022",
         "--campaign-manifest",
         str(exp022_root),
         "--campaign-id",
@@ -188,7 +189,8 @@ def _run_exp022(plan: dict[str, Any], row: dict[str, Any]) -> None:
     list_result = subprocess.run(
         [
             sys.executable,
-            str(REPO / "experiments" / "exp022.py"),
+            "-m",
+            "experiments.exp022",
             "--campaign-list",
             str(manifest),
             "--retry-only",
@@ -205,7 +207,8 @@ def _run_exp022(plan: dict[str, Any], row: dict[str, Any]) -> None:
         subprocess.run(
             [
                 sys.executable,
-                str(REPO / "experiments" / "exp022.py"),
+                "-m",
+                "experiments.exp022",
                 "--campaign-train-cell",
                 cell,
                 "--campaign",
@@ -218,7 +221,8 @@ def _run_exp022(plan: dict[str, Any], row: dict[str, Any]) -> None:
     subprocess.run(
         [
             sys.executable,
-            str(REPO / "experiments" / "exp022.py"),
+            "-m",
+            "experiments.exp022",
             "--campaign-aggregate",
             str(manifest),
         ],
