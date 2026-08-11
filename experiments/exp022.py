@@ -1211,7 +1211,6 @@ def _handle_campaign_cli(argv: list[str]) -> bool:
                     sys.executable,
                     str(Path(__file__).resolve()),
                     "--plot-only",
-                    "--plot-fig",
                     figure,
                 ],
                 cwd=REPO,
