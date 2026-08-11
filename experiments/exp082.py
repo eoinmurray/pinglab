@@ -16,6 +16,7 @@ three variable-rate checkpoints.  Until then it fails before creating a run.
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 import sys
 import time
@@ -31,15 +32,22 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from helpers import theme  # noqa: E402
 from helpers.datasets import load_mnist_split  # noqa: E402
-from helpers.paths import artifacts_and_figures  # noqa: E402
+from helpers.paths import (  # noqa: E402
+    artifacts_and_figures,
+    log_runner_event,
+    runner_paths,
+)
 from helpers.run_dirs import prepare as prepare_run_dirs  # noqa: E402
 from helpers.run_id import next_run_id  # noqa: E402
 from helpers.stamp import stamp_figure  # noqa: E402
 
 SLUG = "exp082"
+RUN_PATHS = runner_paths(SLUG)
 ARTIFACTS, FIGURES = artifacts_and_figures(SLUG)
 SNN_TOOL = REPO / "tools" / "snn" / "tool.py"
-TRAINING_ROOT = REPO / "temp" / "experiments" / "exp022"
+TRAINING_ROOT = Path(
+    os.environ.get("PINGLAB_TRAINING_ROOT", REPO / "temp" / "experiments" / "exp022")
+)
 
 SEEDS = (42, 43, 44)
 TRAINING_RATES_HZ = (
@@ -83,6 +91,8 @@ def training_dir(seed: int) -> Path:
 
 
 def require_training_bank() -> None:
+    if RUN_PATHS.isolated and not os.environ.get("PINGLAB_TRAINING_ROOT"):
+        raise RuntimeError("isolated exp082 requires explicit PINGLAB_TRAINING_ROOT")
     missing = []
     for seed in SEEDS:
         directory = training_dir(seed)
@@ -393,6 +403,7 @@ def plot_duration_rate_summary(
 def main() -> None:
     require_training_bank()
     run_id = next_run_id(SLUG)
+    log_runner_event(SLUG, "started", run_id=run_id)
     prepare_run_dirs(SLUG, run_id, wipe=False, make_artifacts=True, scale=SCALE, host="local")
     started = time.monotonic()
     directory, config, x_test, y_test = load_eval(SEEDS[0])
@@ -441,6 +452,7 @@ def main() -> None:
         "duration_s": time.monotonic() - started,
     }
     (FIGURES / "numbers.json").write_text(json.dumps(payload, indent=2) + "\n")
+    log_runner_event(SLUG, "completed", run_id=run_id, quantitative_rows=len(rows))
     print(f"exp082 complete: {run_id}")
 
 

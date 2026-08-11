@@ -26,6 +26,7 @@ Writing: writings/exp049.typ · figures + numbers.json: artifacts/data/exp049/
 from __future__ import annotations
 
 import json
+import os
 import sys
 import time
 from pathlib import Path
@@ -40,13 +41,18 @@ from helpers import theme  # noqa: E402
 from helpers.cli import parse_meta  # noqa: E402
 from helpers.figsave import save_figure  # noqa: E402
 from helpers.numbers import write_numbers  # noqa: E402
-from helpers.paths import artifacts_and_figures  # noqa: E402
+from helpers.paths import (  # noqa: E402
+    artifacts_and_figures,
+    log_runner_event,
+    runner_paths,
+)
 from helpers.run_cli import run_cli  # noqa: E402
 from helpers.run_dirs import published_run  # noqa: E402
 from helpers.run_id import next_run_id  # noqa: E402
 from helpers.stamp import stamp_figure  # noqa: E402
 
 SLUG = "exp049"
+RUN_PATHS = runner_paths(SLUG)
 ARTIFACTS, FIGURES = artifacts_and_figures(SLUG)
 
 # The exp022 init-family cells this entry reads are trained 50 epochs on the 10%
@@ -135,6 +141,8 @@ SCALE = {
 def cell_dir(condition: str, seed: int) -> Path:
     """Trained cell — now the shared exp022 cell (train-once / reuse-many)."""
     from exp022 import cell_dir as shared_cell_dir
+    if RUN_PATHS.isolated and not os.environ.get("PINGLAB_TRAINING_ROOT"):
+        raise RuntimeError("isolated exp049 requires explicit PINGLAB_TRAINING_ROOT")
     return shared_cell_dir(f"{condition}__seed{seed}")
 
 
@@ -1410,6 +1418,7 @@ def main() -> None:
         return
 
     run_id = next_run_id(SLUG)
+    log_runner_event(SLUG, "started", run_id=run_id)
     with published_run(
         SLUG, run_id, make_artifacts=True, scale=SCALE, plot_only=meta.plot_only,
     ) as (_artifacts, figures):
@@ -1504,6 +1513,9 @@ def main() -> None:
             }),
         )
         print(f"wrote {figures / 'numbers.json'}")
+    log_runner_event(
+        SLUG, "completed", run_id=run_id, quantitative_rows=len(summary_rows)
+    )
 
 
 if __name__ == "__main__":

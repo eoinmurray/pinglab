@@ -19,6 +19,7 @@ Writing: writings/exp041.typ · figures + numbers.json: artifacts/data/exp041/
 from __future__ import annotations
 
 import json
+import os
 import sys
 import time
 from pathlib import Path
@@ -39,13 +40,18 @@ from helpers.operating_point import (  # noqa: E402
     MODELS_DEFAULT_TAU_GABA_MS,
     TAU_GABA_GAMMA_MS,
 )
-from helpers.paths import artifacts_and_figures  # noqa: E402
+from helpers.paths import (  # noqa: E402
+    artifacts_and_figures,
+    log_runner_event,
+    runner_paths,
+)
 from helpers.run_cli import run_cli  # noqa: E402
 from helpers.run_dirs import published_run  # noqa: E402
 from helpers.run_id import next_run_id  # noqa: E402
 from helpers.stamp import stamp_figure  # noqa: E402
 
 SLUG = "exp041"
+RUN_PATHS = runner_paths(SLUG)
 ARTIFACTS, FIGURES = artifacts_and_figures(SLUG)
 
 T_MS = 200.0
@@ -114,6 +120,8 @@ def tau_label(tau_ms: float) -> str:
 def cell_dir(tau_ms: float, seed: int) -> Path:
     """Trained cell — now the shared exp022 cell (train-once / reuse-many)."""
     from exp022 import cell_dir as shared_cell_dir
+    if RUN_PATHS.isolated and not os.environ.get("PINGLAB_TRAINING_ROOT"):
+        raise RuntimeError("isolated exp041 requires explicit PINGLAB_TRAINING_ROOT")
     return shared_cell_dir(f"ping__{tau_label(tau_ms)}__seed{seed}")
 
 
@@ -675,7 +683,6 @@ def render_figures(
         f"(affine: a={fit['a_affine']:.2f}, p={fit['p_affine']:.3f}, "
         f"R²={fit['r2_affine']:.3f})"
     )
-
     if rows and all(r.get("freqs_hz") for r in rows):
         plot_psd_panel(rows, FIGURES / "psds", run_id)
         print(f"wrote {FIGURES / 'psds'}.{{svg,pdf}}")
@@ -771,6 +778,7 @@ def main() -> None:
         f"notebook_run_id = {run_id} cells={n_cells}"
         + ("  [skip-training]" if meta.skip_training else "")
     )
+    log_runner_event(SLUG, "started", run_id=run_id)
 
     # Training lives in exp022 now (train-once / reuse-many): the τ_GABA ladder
     # is a registry family there. This notebook only consumes the cells. Atomic
@@ -815,6 +823,7 @@ def main() -> None:
         fit = render_figures(rows, raster_samples, run_id)
         write_numbers(rows, fit, run_id, time.monotonic() - t_start)
     print(f"  total duration: {format_duration(time.monotonic() - t_start)}")
+    log_runner_event(SLUG, "completed", run_id=run_id, quantitative_rows=len(rows))
 
 
 

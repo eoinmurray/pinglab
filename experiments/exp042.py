@@ -54,15 +54,22 @@ from helpers.operating_point import (  # noqa: E402
     F_GAMMA_HZ,
     MODELS_DEFAULT_TAU_GABA_MS,
 )
-from helpers.paths import artifacts_and_figures  # noqa: E402
+from helpers.paths import (  # noqa: E402
+    artifacts_and_figures,
+    log_runner_event,
+    runner_paths,
+)
 from helpers.run_cli import run_cli  # noqa: E402
 from helpers.run_dirs import prepare as prepare_run_dirs  # noqa: E402
 from helpers.run_id import next_run_id  # noqa: E402
 from helpers.stamp import stamp_figure  # noqa: E402
 
 SLUG = "exp042"
+RUN_PATHS = runner_paths(SLUG)
 _ARTIFACTS_DEFAULT, FIGURES = artifacts_and_figures(SLUG)
-ARTIFACTS = runpod.artifacts_scratch(SLUG)
+ARTIFACTS = (
+    RUN_PATHS.state if RUN_PATHS.isolated else runpod.artifacts_scratch(SLUG)
+)
 SNN_TOOL = REPO / "tools" / "snn" / "tool.py"
 EVAL_SEED = 20260415  # mirror cli.encoders.EVAL_SEED (kept in sync by hand)
 
@@ -106,10 +113,7 @@ MIX_K_GRID: tuple[float, ...] = (0.25, 0.5, 1.0, 2.0, 4.0)
 # cell's own 1/f_γ. Outputs xtau_raw_sweeps, xtau_dimensional_collapse,
 # xtau_inflection_vs_period.
 NB041_ARTIFACTS = TRAINING_ROOT
-NB041_NUMBERS = (
-    REPO / "artifacts" / "data" / "exp041"
-    / "numbers.json"
-)
+NB041_NUMBERS = FIGURES.parent / "exp041" / "numbers.json"
 XTAU_TAU_GABAS_MS: tuple[float, ...] = (4.5, 6.0, 9.0, 12.0, 18.0, 27.0)
 XTAU_SEEDS: tuple[int, ...] = (42, 43, 44)
 XTAU_SIGMAS_MS: tuple[float, ...] = (
@@ -1838,9 +1842,13 @@ def main() -> None:
         run_via_runpod(meta)
         return
 
+    if RUN_PATHS.isolated and not os.environ.get("PINGLAB_TRAINING_ROOT"):
+        raise RuntimeError("isolated exp042 requires explicit PINGLAB_TRAINING_ROOT")
+
     t_start = time.monotonic()
     notebook_run_id = next_run_id(SLUG)
     print(f"notebook_run_id = {notebook_run_id} seeds={SEEDS}")
+    log_runner_event(SLUG, "started", run_id=notebook_run_id)
 
     prepare_run_dirs(
         SLUG, notebook_run_id, wipe=not meta.skip_training, make_artifacts=True,
@@ -1855,7 +1863,7 @@ def main() -> None:
                 f"missing exp025 trained PING checkpoint at {train_dir} — "
                 "train exp025 baselines first"
             )
-        print(f"[eval] seed={seed} from {train_dir.relative_to(REPO)}")
+        print(f"[eval] seed={seed} from {train_dir}")
         for cond in CONDITIONS:
             t0 = time.monotonic()
             res = evaluate_condition(
@@ -2072,7 +2080,7 @@ def main() -> None:
             for seed in XTAU_SEEDS:
                 train_dir = _xtau_exp041_cell_dir(tau, seed)
                 if not (train_dir / "weights.pth").exists():
-                    print(f"    [skip] missing {train_dir.relative_to(REPO)}")
+                    print(f"    [skip] missing {train_dir}")
                     continue
                 f_gamma = f_gamma_map.get((tau, seed))
                 if f_gamma is None or f_gamma <= 0:
@@ -2145,6 +2153,7 @@ def main() -> None:
     (FIGURES / "numbers.json").write_text(json.dumps(summary, indent=2) + "\n")
     print(f"wrote {FIGURES / 'numbers.json'}")
     print(f"  total duration: {summary['duration']}")
+    log_runner_event(SLUG, "completed", run_id=notebook_run_id)
 
 
 

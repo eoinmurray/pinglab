@@ -159,14 +159,17 @@ def test_exp038_quantitative_inference_pins_full_mnist_pool(
     assert result["n_total"] == 14000
 
 
-def test_exp037_and_exp038_honor_isolated_runner_paths(tmp_path: Path) -> None:
+def test_downstream_runners_honor_isolated_runner_paths(tmp_path: Path) -> None:
     active = REPO / "artifacts"
     before = {
         path.relative_to(active): (path.stat().st_size, path.stat().st_mtime_ns)
         for path in active.rglob("*")
         if path.is_file()
     }
-    for slug in ("exp037", "exp038"):
+    for slug in (
+        "exp025", "exp033", "exp037", "exp038", "exp041", "exp042",
+        "exp044", "exp046", "exp049", "exp082",
+    ):
         root = tmp_path / slug
         env = {
             **os.environ,
@@ -178,7 +181,7 @@ def test_exp037_and_exp038_honor_isolated_runner_paths(tmp_path: Path) -> None:
         }
         code = (
             f"from experiments import {slug} as m; import json; "
-            "print(json.dumps({'state': str(m.ARTIFACTS), "
+            "print(json.dumps({'state': str(m.RUN_PATHS.state), "
             "'derived': str(m.FIGURES), 'logs': str(m.RUN_PATHS.logs)}))"
         )
         result = subprocess.run(

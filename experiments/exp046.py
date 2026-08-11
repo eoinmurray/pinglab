@@ -23,6 +23,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import subprocess
 import sys
 import time
@@ -37,22 +38,26 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from helpers import theme  # noqa: E402
 from helpers.figsave import save_figure  # noqa: E402
 from helpers.operating_point import MODELS_DEFAULT_TAU_GABA_MS  # noqa: E402
-from helpers.paths import artifacts_and_figures  # noqa: E402
+from helpers.paths import (  # noqa: E402
+    artifacts_and_figures,
+    log_runner_event,
+    runner_paths,
+)
 from helpers.run_dirs import prepare as prepare_run_dirs  # noqa: E402
 from helpers.run_id import next_run_id  # noqa: E402
 from helpers.stamp import stamp_figure  # noqa: E402
 
 SLUG = "exp046"
+RUN_PATHS = runner_paths(SLUG)
 ARTIFACTS, FIGURES = artifacts_and_figures(SLUG)
 SNN_TOOL = REPO / "tools" / "snn" / "tool.py"
 
 # τ_GABA sweep cells now live in the shared training root (exp022
 # train-once / reuse-many), not the retired per-notebook exp041 dir.
-NB041_ARTIFACTS = REPO / "temp" / "experiments" / "exp022"
-NB041_NUMBERS = (
-    REPO / "artifacts" / "data" / "exp041"
-    / "numbers.json"
+NB041_ARTIFACTS = Path(
+    os.environ.get("PINGLAB_TRAINING_ROOT", REPO / "temp" / "experiments" / "exp022")
 )
+NB041_NUMBERS = FIGURES.parent / "exp041" / "numbers.json"
 
 TAU_GABA_SWEEP_MS: tuple[float, ...] = (4.5, 6.0, 9.0, 12.0, 18.0, 27.0)
 SEEDS: tuple[int, ...] = (42, 43, 44)
@@ -373,10 +378,14 @@ def main() -> None:
     # vector, emitted as both SVG (docs) and PDF (manuscript) by save_figure.
     theme.set_paper_mode(True)
 
+    if RUN_PATHS.isolated and not os.environ.get("PINGLAB_TRAINING_ROOT"):
+        raise RuntimeError("isolated exp046 requires explicit PINGLAB_TRAINING_ROOT")
+
     print("notebook_run_id = (allocating)")
 
     t_start = time.monotonic()
     notebook_run_id = next_run_id(SLUG)
+    log_runner_event(SLUG, "started", run_id=notebook_run_id)
     print(f"notebook_run_id = {notebook_run_id}")
     print(f"  τ_GABAs: {TAU_GABA_SWEEP_MS}")
     print(f"  seeds:   {SEEDS}")
@@ -394,7 +403,7 @@ def main() -> None:
         for seed in SEEDS:
             train_dir = exp041_cell_dir(tau, seed)
             if not (train_dir / "weights.pth").exists():
-                print(f"[skip] missing {train_dir.relative_to(REPO)}")
+                print(f"[skip] missing {train_dir}")
                 continue
             f_gamma = f_gamma_map.get((tau, seed))
             if f_gamma is None or f_gamma <= 0:
@@ -468,6 +477,7 @@ def main() -> None:
         f"(n = {g_total:,} cell·cycle pairs)"
     )
     print(f"\nTotal runtime: {numbers['duration']}")
+    log_runner_event(SLUG, "completed", run_id=notebook_run_id)
 
 
 if __name__ == "__main__":

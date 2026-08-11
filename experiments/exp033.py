@@ -40,10 +40,15 @@ REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from helpers import theme  # noqa: E402
 from helpers.operating_point import TAU_GABA_GAMMA_MS  # noqa: E402
-from helpers.paths import artifacts_and_figures  # noqa: E402
+from helpers.paths import (  # noqa: E402
+    artifacts_and_figures,
+    log_runner_event,
+    runner_paths,
+)
 from helpers.stamp import stamp_figure  # noqa: E402
 
 SLUG = "exp033"
+RUN_PATHS = runner_paths(SLUG)
 _, FIGURES = artifacts_and_figures(SLUG)
 
 # ── Timescales (ms) ───────────────────────────────────────────────────
@@ -741,6 +746,7 @@ def fig_bifurcation_compound(results, hopf, sweep, mf, meas, out_path, run_id):
 def main() -> None:
     FIGURES.mkdir(parents=True, exist_ok=True)
     run_id = "exp033-numerics"
+    log_runner_event(SLUG, "started", run_id=run_id)
 
     print(f"[{SLUG}] sweeping I_ext (nA) for the calibrated 4D reduction "
           f"(σ_V = {SIGMA_V_MV} mV)")
@@ -895,6 +901,7 @@ def main() -> None:
     }
     (FIGURES / "numbers.json").write_text(json.dumps(summary, indent=2) + "\n")
     print(f"  wrote {FIGURES / 'numbers.json'}")
+    log_runner_event(SLUG, "completed", run_id=run_id)
 
 
 if __name__ == "__main__":

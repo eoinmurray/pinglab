@@ -16,6 +16,7 @@ Writing: writings/exp044.typ · figures + numbers.json: artifacts/data/exp044/
 from __future__ import annotations
 
 import json
+import os
 import sys
 import time
 from pathlib import Path
@@ -30,13 +31,18 @@ from helpers import theme  # noqa: E402
 from helpers.cli import parse_meta  # noqa: E402
 from helpers.figsave import save_figure  # noqa: E402
 from helpers.numbers import write_numbers  # noqa: E402
-from helpers.paths import artifacts_and_figures  # noqa: E402
+from helpers.paths import (  # noqa: E402
+    artifacts_and_figures,
+    log_runner_event,
+    runner_paths,
+)
 from helpers.run_cli import run_cli  # noqa: E402
 from helpers.run_dirs import published_run  # noqa: E402
 from helpers.run_id import next_run_id  # noqa: E402
 from helpers.stamp import stamp_figure  # noqa: E402
 
 SLUG = "exp044"
+RUN_PATHS = runner_paths(SLUG)
 ARTIFACTS, FIGURES = artifacts_and_figures(SLUG)
 
 T_MS = 200.0
@@ -88,6 +94,8 @@ def dt_label(dt_ms: float) -> str:
 def cell_dir(dt_ms: float, seed: int) -> Path:
     """Trained cell — now the shared exp022 cell (train-once / reuse-many)."""
     from exp022 import cell_dir as shared_cell_dir
+    if RUN_PATHS.isolated and not os.environ.get("PINGLAB_TRAINING_ROOT"):
+        raise RuntimeError("isolated exp044 requires explicit PINGLAB_TRAINING_ROOT")
     return shared_cell_dir(f"ping__{dt_label(dt_ms)}__seed{seed}")
 
 
@@ -337,6 +345,7 @@ def main() -> None:
         f"notebook_run_id = {run_id} cells={n_cells}"
         + ("  [skip-training]" if meta.skip_training else "")
     )
+    log_runner_event(SLUG, "started", run_id=run_id)
 
     # Training lives in exp022 now (train-once / reuse-many): the dt sweep is a
     # registry family there (the documented dt exception). This notebook only
@@ -400,6 +409,7 @@ def main() -> None:
             },
         )
         print(f"wrote {figures / 'numbers.json'}")
+    log_runner_event(SLUG, "completed", run_id=run_id, quantitative_rows=len(rows))
 
 
 
