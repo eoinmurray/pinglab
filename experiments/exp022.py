@@ -56,6 +56,13 @@ from helpers.stamp import stamp_figure  # noqa: E402
 SLUG = "exp022"
 ARTIFACTS, FIGURES = artifacts_and_figures(SLUG)
 
+
+def _display_path(path: Path) -> Path:
+    try:
+        return path.relative_to(REPO)
+    except ValueError:
+        return path
+
 # ── Canonical training registry (the hub the collection reuses) ──────
 # Analysis notebooks import `load_cell` / `cell_dir` from this module rather
 # than retraining; this entry is the single producer of the shared cells.
@@ -351,7 +358,7 @@ def load_cell(name: str) -> Path:
     d = cell_dir(name)
     if not (d / "weights.pth").exists():
         raise SystemExit(
-            f"missing trained cell '{name}' at {d.relative_to(REPO)}; "
+            f"missing trained cell '{name}' at {_display_path(d)}; "
             "run exp022 (Training) first to produce the shared cells."
         )
     return d
@@ -813,8 +820,8 @@ def appendix_rasters() -> None:
     # Snapshots are pure throwaway (only needed to plot each PNG). Keep them under
     # the temp/experiments/ namespace and wipe the whole scratch tree at the end,
     # so temp stays minimal — the PNGs in artifacts/ are the durable output.
-    scratch_root = REPO / "temp" / "experiments" / f"{SLUG}_appendix_scratch"
-    print(f"appendix: {len(cells)} rasters (seed 42) → {rdir.relative_to(REPO)}")
+    scratch_root = ARTIFACTS / "appendix-scratch"
+    print(f"appendix: {len(cells)} rasters (seed 42) → {_display_path(rdir)}")
     try:
         for c in cells:
             d = cell_dir(c["name"])
@@ -884,12 +891,14 @@ def comparison_rasters() -> None:
         ("PING", "ping__canonical__seed42", "ping__off__seed42"),
     ]
     col_titles = ["100% MNIST (canonical)", "10% MNIST (off)"]
-    scratch_root = REPO / "temp" / "experiments" / f"{SLUG}_comparison_scratch"
+    scratch_root = ARTIFACTS / "comparison-scratch"
     theme.apply()
     fig, axes = plt.subplots(2, 2, figsize=(9, 5.06),   # H11–H12: 16:9
                              gridspec_kw={"hspace": 0.30, "wspace": 0.14})
-    print(f"comparison: 4 rasters (seed 42) → "
-          f"{(FIGURES / 'comparison__data_fraction.png').relative_to(REPO)}")
+    print(
+        "comparison: 4 rasters (seed 42) → "
+        f"{_display_path(FIGURES / 'comparison__data_fraction.png')}"
+    )
     try:
         for r, (label, full_cell, sub_cell) in enumerate(grid):
             for cc, name in enumerate((full_cell, sub_cell)):
@@ -925,7 +934,7 @@ def comparison_rasters() -> None:
         out.parent.mkdir(parents=True, exist_ok=True)
         fig.savefig(out)   # PNG (dense raster, H10); dpi 240 from theme (H11)
         plt.close(fig)
-        print(f"  wrote {out.relative_to(REPO)}")
+        print(f"  wrote {_display_path(out)}")
     finally:
         shutil.rmtree(scratch_root, ignore_errors=True)
 
