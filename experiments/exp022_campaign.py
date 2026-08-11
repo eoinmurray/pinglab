@@ -25,6 +25,13 @@ SCHEMA_VERSION = 1
 REQUIRED_CELL_FILES = ("config.json", "metrics.json", "metrics.jsonl", "weights.pth")
 
 
+def python_executable() -> str:
+    """Return a stable interpreter shim without resolving out of its venv."""
+    executable = Path(sys.executable)
+    canonical = executable.with_name("python")
+    return str(canonical if canonical.is_file() else executable)
+
+
 def utc_now() -> str:
     return datetime.now(timezone.utc).isoformat(timespec="seconds")
 
@@ -125,11 +132,7 @@ def create_manifest(
                 if plumbing else cell)
         out = root / "cells" / cell["name"]
         args = build_args(spec, out, max_samples, epochs)
-        command = [
-            str(Path(sys.executable).resolve()),
-            str(repo / "tools" / "snn" / "tool.py"),
-            *args,
-        ]
+        command = [python_executable(), str(repo / "tools" / "snn" / "tool.py"), *args]
         rows.append({
             "name": cell["name"],
             "training_run_id": cell["training_run_id"],
