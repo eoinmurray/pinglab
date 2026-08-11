@@ -35,6 +35,15 @@ def test_all_resolved_commands_keep_family_contract(tmp_path: Path) -> None:
         assert args[args.index("--seed") + 1] == str(cell["seed"])
         assert args[args.index("--dt") + 1] == str(cell["dt_ms"])
         assert args[args.index("--tau-gaba") + 1] == str(cell["tau_gaba"])
+        assert args[args.index("--w-in") + 1] == "0.9"
+        assert args[args.index("--readout-w-out-scale") + 1] == "225"
+        if cell["model"] == "coba":
+            assert args[args.index("--ei-strength") + 1] == "0"
+            assert args[args.index("--v-grad-dampen") + 1] == "1"
+        else:
+            assert args[args.index("--v-grad-dampen") + 1] == "1000"
+            if cell["model"] == "ping":
+                assert args[args.index("--ei-strength") + 1] == "1"
         if cell["family"] == "canonical":
             assert args[args.index("--max-samples") + 1] == "70000"
         else:

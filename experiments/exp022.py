@@ -81,8 +81,12 @@ TAU_AMPA_MS = 2.0          # AMPA decay — fixed across the collection (no CLI 
 # family except the τ_GABA sweep. Single source of truth in helpers so the
 # whole collection moves together (see helpers/operating_point.py).
 TAU_GABA_GAMMA = TAU_GABA_GAMMA_MS
+SHARED_W_IN_MEAN = "0.9"
+SHARED_READOUT_W_OUT_SCALE = "225"
 
-# Canonical recipe (from exp025 — the reference training).
+# Production recipe for the next exp022 bank. COBA and PING share the input and
+# readout initialization scales selected by the matched-midpoint gate. They
+# differ only in loop engagement and the loop-specific backward stabilizer.
 # Gradient dampening (--v-grad-dampen) is loop-specific. Sweeping a dampening
 # ladder {1, 10, 100, 1000} across both architectures shows PING needs it: its
 # BPTT gradient explodes through the recurrent E→I→E loop at dampening 1 and the
@@ -96,11 +100,11 @@ MODEL_RECIPES: dict[str, dict] = {
         "__build_as": "ping",
         "--ei-strength": "0",
         "--v-grad-dampen": "1",
-        "--w-in": "0.3",
+        "--w-in": SHARED_W_IN_MEAN,
         "--w-in-sparsity": "0.95",
         "--readout": "mem-mean",
         "--surrogate-slope": "1",
-        "--readout-w-out-scale": "100",
+        "--readout-w-out-scale": SHARED_READOUT_W_OUT_SCALE,
         "--lr": "0.0004",
         "--batch-size": "256",
     },
@@ -108,11 +112,11 @@ MODEL_RECIPES: dict[str, dict] = {
         "__build_as": "ping",
         "--ei-strength": "1",
         "--v-grad-dampen": "1000",
-        "--w-in": "1.2",
+        "--w-in": SHARED_W_IN_MEAN,
         "--w-in-sparsity": "0.95",
         "--readout": "mem-mean",
         "--surrogate-slope": "1",
-        "--readout-w-out-scale": "500",
+        "--readout-w-out-scale": SHARED_READOUT_W_OUT_SCALE,
         "--lr": "0.0004",
         "--batch-size": "256",
     },
