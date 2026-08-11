@@ -11,13 +11,14 @@ from __future__ import annotations
 
 from pathlib import Path
 
-REPO = Path(__file__).resolve().parents[2]
-FIGURES_ROOT = REPO / "artifacts" / "data"
+from .paths import artifacts_and_figures
+
 COUNTER_FILE = "_run.txt"
 
 
 def _counter_path(slug: str) -> Path:
-    return FIGURES_ROOT / slug / COUNTER_FILE
+    _state, derived = artifacts_and_figures(slug)
+    return derived / COUNTER_FILE
 
 
 def _read_current(slug: str) -> int:

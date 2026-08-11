@@ -4,8 +4,7 @@
 artifacts, and durable R2 archives. It is deliberately small: the filesystem is
 the database, JSON records provenance, and SHA-256 records identity.
 
-This document defines contract version `runstore/v1`. The implementation will
-follow after this contract has been reviewed against the legacy data.
+This document defines and documents contract version `runstore/v1`.
 
 ## Ownership
 
@@ -13,7 +12,7 @@ follow after this contract has been reviewed against the legacy data.
 | --- | --- | --- |
 | `runs/` | Local run/campaign state and derived outputs | No |
 | `artifacts/` | Selected publication view for Demolab and GitHub Pages | Yes, except the built site |
-| R2 `campaigns/<archive-id>/` | Verified durable archives | No |
+| R2 `campaigns/<namespace>/<archive-id>/` | Verified durable archives | No |
 
 An isolated run directory is the source of truth. Running an experiment must
 not update `artifacts/` as a side effect. Promotion is a separate reviewed
@@ -101,14 +100,24 @@ payload inventory, and compares every size and hash.
 
 ## Archive identity and R2
 
-An accepted production archive uses a caller-selected immutable identity:
+Production archives are separated by purpose:
 
 ```text
-r2://pinglab/campaigns/<archive-id>/
+r2://pinglab/campaigns/
+├── legacy/<archive-id>/
+├── adhoc/<archive-id>/
+└── gold-star/<campaign-id>/
 ```
 
-This is the logical archive URI. A local rclone remote name is configuration,
-not part of the durable identity.
+`legacy` contains historical data migrated into the contract. `adhoc` contains
+accepted one-off experiment runs worth retaining. `gold-star` contains complete
+collection campaigns executed from a frozen commit. Smoke runs remain local
+unless there is a specific reason to retain one.
+
+The caller selects the namespace through `--store` and
+`--logical-base-uri`; the archive ID is immutable within that namespace. The
+logical R2 URI is durable provenance. A local rclone remote name is merely
+machine configuration.
 
 Filesystem rehearsals use `file://<absolute-path>/<archive-id>`. They exercise
 the same manifests and verification rules but are not durable R2 archives.
@@ -152,9 +161,9 @@ Every promoted experiment directory contains `_provenance.json` with:
 The reverse link is metadata, not a symlink. Local absolute paths and literal
 restore commands are excluded because they become stale.
 
-## Version-1 tool boundary
+## Commands and operator sequence
 
-The planned CLI has six operations:
+The CLI has six operations:
 
 ```text
 runstore init
@@ -164,6 +173,31 @@ runstore archive
 runstore verify
 runstore restore
 ```
+
+Create a unique run root before executing science. Existing destinations are
+always refused. `init` captures the current Git commit, dirty-tree state, and
+`uv.lock` digest:
+
+```bash
+runstore init runs/adhoc/exp082/<run-id> \
+  --run-id <run-id> \
+  --kind adhoc \
+  --experiment exp082 \
+  --command uv run python experiments/exp082.py --out-dir <run-root>
+```
+
+For a collection campaign, use `--kind campaign --collection
+gamma-gated-sparsity`. Once all required outputs exist, the collection
+orchestrator finalizes the run. This changes `planned` or `running` to
+`complete` and freezes the immutable inventory; no manifest hand-edit is
+needed:
+
+```bash
+runstore inspect <run-root> --finalize
+```
+
+`--write-inventory` remains available for complete or honestly labelled legacy
+runs whose manifest already has its final status.
 
 `runstore inspect <run-root> --write-inventory` writes `inventory.json`
 atomically after hashing the payload. It requires a valid `run.json` and refuses
@@ -180,9 +214,42 @@ runstore verify <id> [--store <root>]
 runstore restore <id> <new-destination> [--store <root>]
 ```
 
+Production calls select the appropriate namespace explicitly. For example:
+
+```bash
+runstore archive <run-root> \
+  --archive-id <campaign-id> \
+  --store r2:pinglab/campaigns/gold-star \
+  --logical-base-uri r2://pinglab/campaigns/gold-star
+```
+
 Remote verification streams every archived payload object and recomputes its
 SHA-256. This is intentionally stronger than treating a successful transfer as
 proof of durable contents.
+
+Promotion is a separate acceptance action and is allowed only for runs marked
+`complete` or `legacy` with a valid inventory:
+
+```bash
+runstore promote <run-root> exp082
+```
+
+The source must contain `numbers.json` and at least one PDF, PNG, or SVG below
+`derived/artifacts/data/<experiment>/`. Promotion verifies the entire source
+inventory, copies into a sibling staging directory, verifies every copied file,
+adds `_provenance.json`, and then swaps the accepted directory into
+`artifacts/data/`. The source run is never modified. An existing publication
+view is replaced only after the staged replacement has passed validation; Git
+retains its previous version.
+
+`_provenance.json` records:
+
+- contract version, run ID, and campaign ID where applicable;
+- generating Git commit and stable archive identity where available;
+- source directory and source inventory payload digest;
+- promotion timestamp;
+- each displayed file's publication-relative path, source-relative path, size,
+  and SHA-256.
 
 `runstore` does not execute experiments, encode scientific dependencies, submit
 Slurm jobs, judge scientific results, or automatically delete data. The
@@ -194,3 +261,39 @@ will not duplicate the storage contract.
 [`examples/minimal-run`](examples/minimal-run) is a complete tiny ad-hoc run.
 Its single payload is a derived `numbers.json`; its inventory size, file hash,
 and aggregate payload digest are real and should validate unchanged.
+
+## Interface for collection orchestration
+
+An isolated experiment subprocess receives this all-or-none environment
+contract:
+
+```text
+PINGLAB_REQUIRE_ISOLATED=1
+PINGLAB_RUN_STATE_DIR=<campaign-root>/downstream/<experiment>
+PINGLAB_RUN_DERIVED_DIR=<campaign-root>/derived/artifacts/data/<experiment>
+PINGLAB_RUN_LOG_DIR=<campaign-root>/logs/<experiment>
+```
+
+All three directories must be absolute and distinct. With
+`PINGLAB_REQUIRE_ISOLATED=1`, missing paths are fatal. An isolated derived path
+under the repository's active `artifacts/` tree is rejected. Experiment-specific
+upstream roots remain explicit alongside this generic output contract; for
+example, exp024 receives `PINGLAB_TRAINING_ROOT=<campaign-root>/exp022/cells`.
+
+exp024 is the version-1 representative integration. Its focused test invokes
+the runner as a real subprocess, proves the active publication view is
+unchanged, then finalizes, archives, restores, and promotes the isolated result
+through the `runstore` CLI. #70 adopts the remaining collection runners through
+the same interface as they enter the checked-in dependency graph.
+
+The gamma-gated-sparsity orchestrator may depend only on this sequence:
+
+1. `runstore init` creates a new campaign root and `run.json`.
+2. Experiments write state, logs, and derived artifact candidates beneath it.
+3. `runstore inspect --finalize` marks the successful campaign `complete` and
+   freezes its payload identity.
+4. `runstore archive`, `verify`, and `restore` establish durable recoverability.
+5. `runstore promote` explicitly updates selected UI-visible experiment data.
+
+The orchestrator must not implement its own archive layout, provenance format,
+promotion copy, or R2 verification logic.
