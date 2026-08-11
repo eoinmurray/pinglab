@@ -125,7 +125,11 @@ def create_manifest(
                 if plumbing else cell)
         out = root / "cells" / cell["name"]
         args = build_args(spec, out, max_samples, epochs)
-        command = [sys.executable, str(repo / "tools" / "snn" / "tool.py"), *args]
+        command = [
+            str(Path(sys.executable).resolve()),
+            str(repo / "tools" / "snn" / "tool.py"),
+            *args,
+        ]
         rows.append({
             "name": cell["name"],
             "training_run_id": cell["training_run_id"],
