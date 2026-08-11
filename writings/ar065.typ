@@ -37,9 +37,9 @@
 
   - #task(true, "H1.3", [TR-06 defines three variable-rate PING cells using the `spike-rate` output-LIF readout required by exp082.])
 
-  - #task(false, "H1.4", [Add a concise campaign manifest command that records the git commit, complete cell list, TR IDs, parameters, resource tiers, and output root.])
+  - #task(true, "H1.4", [Add a concise campaign manifest command that records the git commit, complete cell list, TR IDs, parameters, resource tiers, and output root.])
 
-  - #task(false, "H1.5", [Add tests that cell names are unique, all cells have one resource tier, and generated commands contain the expected scientific parameters.])
+  - #task(true, "H1.5", [Add tests that cell names are unique, all cells have one resource tier, and generated commands contain the expected scientific parameters.])
 
   *Exit criterion.* We can print and review the exact cells and commands that Wilkes3 will execute.
 
@@ -47,15 +47,15 @@
 
   == Stage 2: keep runs separate and recoverable
 
-  - #task(false, "H2.1", [Require an explicit output directory for HPC training. Put each smoke test or production campaign in its own named directory.])
+  - #task(true, "H2.1", [Require an explicit output directory for HPC training. Put each smoke test or production campaign in its own named directory.])
 
-  - #task(false, "H2.2", [Refuse to overwrite a completed cell by default. A repeated submission should skip valid cells and rerun only missing or failed ones.])
+  - #task(true, "H2.2", [Refuse to overwrite a completed cell by default. A repeated submission should skip valid cells and rerun only missing or failed ones.])
 
-  - #task(false, "H2.3", [Define a simple completion check: required configuration, metrics history, and loadable checkpoint must all exist and match the requested cell.])
+  - #task(true, "H2.3", [Define a simple completion check: required configuration, metrics history, and loadable checkpoint must all exist and match the requested cell.])
 
-  - #task(false, "H2.4", [Write the git commit, command, Slurm job and task IDs, host, and GPU into each cell's run record.])
+  - #task(true, "H2.4", [Write the git commit, command, Slurm job and task IDs, host, and GPU into each cell's run record.])
 
-  - #task(false, "H2.5", [Keep partial failed output distinguishable from completed output. Restarting a cell from scratch is acceptable; epoch-level resume is not required.])
+  - #task(true, "H2.5", [Keep partial failed output distinguishable from completed output. Restarting a cell from scratch is acceptable; epoch-level resume is not required.])
 
   *Exit criterion.* A smoke test cannot overwrite production data, and resubmitting the campaign safely fills gaps.
 
@@ -95,11 +95,11 @@
 
   - #task(true, "H5.1", [The current Slurm scaffold maps one array task to one registry cell and requests one Ampere GPU per task.])
 
-  - #task(false, "H5.2", [Update the submission wrapper to require the account, campaign output directory, and tier. Print the resolved cells, wall time, concurrency, and destination before submission.])
+  - #task(true, "H5.2", [Update the submission wrapper to require the account, campaign output directory, and tier. Print the resolved cells, wall time, concurrency, and destination before submission.])
 
   - #task(false, "H5.3", [Run `sbatch --test-only`, check the SL2 balance and queue, then submit the measured tiers. Record returned job IDs with the campaign.])
 
-  - #task(false, "H5.4", [Provide a compact status command or script showing completed, running, failed, and missing cells. Slurm completion alone does not count as a valid trained cell.])
+  - #task(true, "H5.4", [Provide a compact status command or script showing completed, running, failed, and missing cells. Slurm completion alone does not count as a valid trained cell.])
 
   - #task(false, "H5.5", [Retry only failed or missing cells after checking the cause. Do not change scientific parameters within the same campaign.])
 
@@ -126,4 +126,20 @@
   == Ready to launch
 
   The production arrays are ready when Stages 1--4 are complete. Stages 5 and 6 then guide the live campaign and its handoff to downstream experiments. The essential safeguards are simple: reviewed commands, explicit output paths, non-overwriting retries, a tested Wilkes3 environment, measured resource requests, loadable checkpoints, and an R2 backup.
+
+  #divider()
+
+  == Timestamped evidence
+
+  *2026-08-11T15:34:36Z — implementation checkpoint.* Commit `cdd17980` introduced the registry-backed manifest, explicit campaign layout, cell validator, non-overwriting retry path, atomic per-cell attempt records, status output, hardened Slurm wrappers, Wilkes3 diagnostic, and operator runbook. Focused registry, validator, retry, and exp082 compatibility checks passed: 20 tests.
+
+  *2026-08-11T15:26:47Z — local manifest rehearsal.* A clean-commit disposable TR-06 plumbing manifest validated its hash and registry identity. Status reported three missing cells. The dry-run wrapper printed the exact three-cell retry set, destination, tier, wall time, concurrency, account placeholder, partition, array range, and `sbatch` command without submitting work.
+
+  *2026-08-11T15:30:11Z — preserved host-limit failure.* The registered 100-sample, two-epoch variable-rate PING plumbing cell reached model construction and compilation, then the 4 GB host killed it with exit code -9. The campaign retained its configuration, empty history, logs, and sanitized attempt record and classified the cell as failed rather than complete. No scientific parameter was changed.
+
+  *2026-08-11T15:31:08Z — retry rehearsal.* Retrying the failed cell first moved the prior partial directory into the campaign's timestamped `failed/` area. The replacement attempt was deliberately interrupted and recorded as failed. A focused test separately confirmed that the same retry entry point does not launch training or alter the checkpoint when a cell validates as complete.
+
+  *2026-08-11T16:07:30Z — safety-review remediation.* #link("https://github.com/eoinmurray/pinglab/commit/8038bffd")[Commit `8038bffd`] added atomic per-cell ownership, authoritative running status, retry exclusion for active and stale attempts, explicit stale recovery after a positive inactivity check, and collision-safe failed-output preservation. Manifest validation now reconstructs and checks the complete cell selection, command, shell rendering, output path, required files, registry parameters, tool path, lockfile, and campaign-root relationship before executing a freshly reconstructed command. External campaign roots are recorded explicitly, post-aggregation checks permit only exp022's generated artifacts, and aggregation still requires every cell to validate. The R2 path now selects the exact verified campaign bank and records campaign and per-file hash provenance; restore requires a separate destination. The MNIST link helper tolerates concurrent creation while rejecting a different target. Ruff, focused type checking, shell syntax, and 36 focused campaign/exp082 tests passed. No training, Slurm diagnostic, canary, production array, aggregation, or R2 transfer was run in this remediation, so Stages 3, 4, and 6 remain operationally incomplete.
+
+  *Operational boundary.* This host has no configured Wilkes3 login, `sbatch`, or `mybalance`. Stages 3 and 4 therefore remain operationally incomplete; no diagnostic, Slurm plumbing job, canary, or production array has been submitted.
 ]
