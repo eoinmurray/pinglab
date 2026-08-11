@@ -27,7 +27,8 @@ def test_exp022_variable_rate_args() -> None:
     args = exp022.build_train_args(cell, exp082.training_dir(42), 7000, 50)
     assert args[args.index("--readout") + 1] == "spike-rate"
     start = args.index("--input-rates") + 1
-    assert tuple(map(float, args[start : start + 6])) == exp082.TRAINING_RATES_HZ
+    stop = start + len(exp082.TRAINING_RATES_HZ)
+    assert tuple(map(float, args[start:stop])) == exp082.TRAINING_RATES_HZ
 
 
 def test_exp022_wilkes_resource_tiers_partition_registry() -> None:

@@ -65,7 +65,9 @@ EPOCHS_STANDARD = 50           # standard depth (halved from 100 — see exp022.
 DT_MS = 0.1
 T_MS = 200.0
 SEEDS_BASELINE = [42, 43, 44]
-VARIABLE_RATE_TRAINING_RATES_HZ = (0.5, 1.0, 2.0, 5.0, 10.0, 25.0)
+VARIABLE_RATE_TRAINING_RATES_HZ = (
+    0.5, 0.75, 1.0, 1.5, 2.0, 3.0, 5.0, 7.5, 10.0, 15.0, 25.0,
+)
 VARIABLE_RATE_CONSUMER = "exp082"
 THETA_U_GRID: list[float | None] = [None, 5.0, 2.0, 1.0, 0.5, 0.2]
 FR_STRENGTH_UPPER = 1e-3
@@ -466,7 +468,7 @@ FAMILY_ORDER = ["canonical", "theta_u", "theta_u_3seed", "tau_gaba", "dt", "init
 FAMILY_LABELS = {
     "canonical": "Canonical reference",
     "theta_u": "θ_u spike-budget sweep",
-    "theta_u_3seed": "θ_u spike-budget sweep (3-seed, ar010 item 3)",
+    "theta_u_3seed": "θ_u spike-budget sweep (3-seed)",
     "tau_gaba": "τ_GABA ladder",
     "dt": "Δt sweep",
     "init": "Init variants",
