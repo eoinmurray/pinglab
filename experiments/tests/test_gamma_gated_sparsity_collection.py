@@ -4,7 +4,7 @@ from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
-from experiments.collections.gamma_gated_sparsity import execution
+from experiments.collections.gamma_gated_sparsity import execution, slurm
 from experiments.collections.gamma_gated_sparsity.graph import (
     EXPERIMENTS,
     Experiment,
@@ -19,7 +19,9 @@ def test_graph_orders_dependencies_and_replaces_exp048_with_exp082() -> None:
     assert "exp048" not in positions
     assert positions["exp022"] < positions["exp082"]
     assert positions["exp041"] < positions["exp033"]
-    exp082 = next(experiment for experiment in EXPERIMENTS if experiment.slug == "exp082")
+    exp082 = next(
+        experiment for experiment in EXPERIMENTS if experiment.slug == "exp082"
+    )
     assert exp082.training_run == "TR-06"
 
 
@@ -53,7 +55,8 @@ def test_plan_paths_are_isolated_and_all_runners_are_integrated(tmp_path: Path) 
 
 
 def test_init_composes_runstore_and_exp022_manifests(
-    tmp_path: Path, monkeypatch,
+    tmp_path: Path,
+    monkeypatch,
 ) -> None:
     root = tmp_path / "campaign"
     source = {
@@ -108,46 +111,56 @@ def test_local_resume_runs_in_dependency_order(tmp_path: Path, monkeypatch) -> N
             path.parent.mkdir(parents=True, exist_ok=True)
             path.write_text("{}")
 
-    monkeypatch.setattr(
-        execution, "_run_exp022", lambda _plan, row: complete(row)
-    )
+    monkeypatch.setattr(execution, "_run_exp022", lambda _plan, row: complete(row))
+
     def resume_downstream(_plan, row):
         if not execution._outputs_valid(row):
             complete(row)
 
-    monkeypatch.setattr(
-        execution, "_run_downstream", resume_downstream
-    )
+    monkeypatch.setattr(execution, "_run_downstream", resume_downstream)
     execution.run_local(root)
     assert seen == [row["slug"] for row in execution.rows_in_order(plan)]
     execution.run_local(root)
     assert seen == [row["slug"] for row in execution.rows_in_order(plan)]
     assert not [
-        row for row in execution.validate_campaign(root)["experiments"]
+        row
+        for row in execution.validate_campaign(root)["experiments"]
         if not row["outputs_valid"]
     ]
 
 
 def test_finalize_delegates_to_runstore_after_validation(
-    tmp_path: Path, monkeypatch,
+    tmp_path: Path,
+    monkeypatch,
 ) -> None:
     root = tmp_path / "campaign"
     root.mkdir()
-    execution.write_json_atomic(root / "run.json", {
-        "run_id": "smoke", "status": "running",
-    })
+    execution.write_json_atomic(
+        root / "run.json",
+        {
+            "run_id": "smoke",
+            "status": "running",
+        },
+    )
     monkeypatch.setattr(execution, "validate_campaign", lambda _root: {})
 
     def fake_run(command, **_kwargs):
         assert command[-2:] == [str(root), "--finalize"]
-        execution.write_json_atomic(root / "run.json", {
-            "run_id": "smoke", "status": "complete",
-        })
-        execution.write_json_atomic(root / "inventory.json", {
-            "file_count": 3,
-            "total_size_bytes": 42,
-            "payload_digest": "a" * 64,
-        })
+        execution.write_json_atomic(
+            root / "run.json",
+            {
+                "run_id": "smoke",
+                "status": "complete",
+            },
+        )
+        execution.write_json_atomic(
+            root / "inventory.json",
+            {
+                "file_count": 3,
+                "total_size_bytes": 42,
+                "payload_digest": "a" * 64,
+            },
+        )
         return SimpleNamespace(returncode=0)
 
     monkeypatch.setattr(execution.subprocess, "run", fake_run)
@@ -161,16 +174,21 @@ def test_finalize_delegates_to_runstore_after_validation(
 
 
 def test_publication_build_runs_promotion_from_separate_checkout(
-    tmp_path: Path, monkeypatch,
+    tmp_path: Path,
+    monkeypatch,
 ) -> None:
     root = tmp_path / "campaign"
     checkout = tmp_path / "publication"
     root.mkdir()
     checkout.mkdir()
     (root / "inventory.json").write_text("{}")
-    execution.write_json_atomic(root / "run.json", {
-        "run_id": "smoke", "status": "complete",
-    })
+    execution.write_json_atomic(
+        root / "run.json",
+        {
+            "run_id": "smoke",
+            "status": "complete",
+        },
+    )
     plan = build_plan(root, "smoke")
     plan["profile"] = "smoke"
     plan["source"] = {"git_commit": "a" * 40, "git_clean": True, "lockfile": None}
@@ -187,9 +205,7 @@ def test_publication_build_runs_promotion_from_separate_checkout(
 
     monkeypatch.setattr(execution.subprocess, "run", fake_run)
     result = execution.build_publication(root, checkout)
-    assert result["promoted"] == [
-        row["slug"] for row in execution.rows_in_order(plan)
-    ]
+    assert result["promoted"] == [row["slug"] for row in execution.rows_in_order(plan)]
     assert all(call[1]["cwd"] == checkout for call in calls)
     assert all(str(checkout) in call[0] for call in calls)
 
@@ -200,9 +216,13 @@ def test_publication_build_rejects_stubbed_entries(tmp_path: Path, monkeypatch) 
     root.mkdir()
     checkout.mkdir()
     (root / "inventory.json").write_text("{}")
-    execution.write_json_atomic(root / "run.json", {
-        "run_id": "smoke", "status": "complete",
-    })
+    execution.write_json_atomic(
+        root / "run.json",
+        {
+            "run_id": "smoke",
+            "status": "complete",
+        },
+    )
     plan = build_plan(root, "smoke")
     plan["source"] = {"git_commit": "a" * 40, "git_clean": True, "lockfile": None}
     monkeypatch.setattr(execution, "load_plan", lambda _root: plan)
@@ -217,3 +237,66 @@ def test_publication_build_rejects_stubbed_entries(tmp_path: Path, monkeypatch) 
     monkeypatch.setattr(execution.subprocess, "run", fake_run)
     with pytest.raises(execution.CollectionError, match="stubbed"):
         execution.build_publication(root, checkout)
+
+
+def _slurm_resources(tmp_path: Path) -> dict:
+    return {
+        "account": "SL2-test",
+        "partition": "ampere",
+        "mnist_cache": str(tmp_path / "mnist"),
+        "uv": "/usr/bin/uv",
+        "exp022": {
+            tier: {"time": "01:00:00", "concurrency": 2} for tier in slurm.TIERS
+        },
+        "jobs": {
+            kind: {"time": "00:30:00", "cpus": 2, "memory_gb": 8, "gpus": 0}
+            for kind in ("aggregate", "downstream", "finalize")
+        },
+    }
+
+
+def test_slurm_resources_require_every_measured_tier(tmp_path: Path) -> None:
+    resources = _slurm_resources(tmp_path)
+    resources["exp022"].pop("variable_rate")
+    path = tmp_path / "resources.json"
+    execution.write_json_atomic(path, resources)
+    with pytest.raises(execution.CollectionError, match="variable_rate"):
+        slurm.load_resources(path)
+
+
+def test_slurm_dry_run_preserves_collection_dependencies(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    root = tmp_path / "campaign"
+    root.mkdir()
+    plan = build_plan(root, "production-test")
+    plan["profile"] = "production"
+    plan["exp022_manifest"] = str(root / "exp022" / "campaign.json")
+    resources_path = tmp_path / "resources.json"
+    execution.write_json_atomic(resources_path, _slurm_resources(tmp_path))
+    monkeypatch.setattr(slurm, "load_plan", lambda _root: plan)
+    monkeypatch.setattr(slurm, "_exp022_cells", lambda *_args: ["cell-a"])
+
+    payload = slurm.submit_campaign(root, resources_path)
+    jobs = {job["name"]: job for job in payload["jobs"]}
+    aggregate = jobs["ggs-exp022-aggregate"]
+    assert any(
+        argument.startswith("--dependency=afterok:<standard-job-id>")
+        for argument in aggregate["command"]
+    )
+    exp033 = jobs["ggs-exp033"]
+    assert any("<ggs-exp041-job-id>" in argument for argument in exp033["command"])
+    final = jobs["ggs-finalize"]
+    dependency = next(
+        argument for argument in final["command"] if argument.startswith("--dependency")
+    )
+    assert "<ggs-exp033-job-id>" in dependency
+    assert "<ggs-exp042-job-id>" in dependency
+    assert "<ggs-exp046-job-id>" in dependency
+    final_outputs = [
+        argument for argument in final["command"] if argument.startswith("--output=")
+    ]
+    assert str(root / "logs") not in final_outputs[0]
+    assert ".scheduler-logs" in final_outputs[0]
+    assert not (root / "submissions").exists()

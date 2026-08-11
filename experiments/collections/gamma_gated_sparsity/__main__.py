@@ -7,14 +7,17 @@ import json
 from pathlib import Path
 
 from .execution import (
+    aggregate_exp022,
     build_publication,
     campaign_status,
     finalize_campaign,
     initialize_campaign,
+    run_experiment,
     run_local,
     validate_campaign,
 )
 from .plan import build_plan
+from .slurm import resume_campaign, slurm_status, submit_campaign
 
 
 def parser() -> argparse.ArgumentParser:
@@ -30,6 +33,15 @@ def parser() -> argparse.ArgumentParser:
     init.add_argument("--smoke", action="store_true")
     run = commands.add_parser("run", help="run or resume locally in dependency order")
     run.add_argument("--campaign-root", type=Path, required=True)
+    aggregate = commands.add_parser(
+        "aggregate-exp022", help="run the scheduler's exp022 aggregation step"
+    )
+    aggregate.add_argument("--campaign-root", type=Path, required=True)
+    experiment = commands.add_parser(
+        "run-experiment", help="run one scheduler-managed downstream step"
+    )
+    experiment.add_argument("--campaign-root", type=Path, required=True)
+    experiment.add_argument("--slug", required=True)
     status = commands.add_parser("status", help="report validated campaign state")
     status.add_argument("--campaign-root", type=Path, required=True)
     status.add_argument("--json", action="store_true")
@@ -44,6 +56,18 @@ def parser() -> argparse.ArgumentParser:
     )
     build.add_argument("--campaign-root", type=Path, required=True)
     build.add_argument("--checkout", type=Path, required=True)
+    submit = commands.add_parser(
+        "submit", help="plan or submit the production campaign to Slurm"
+    )
+    submit.add_argument("--campaign-root", type=Path, required=True)
+    submit.add_argument("--resources", type=Path, required=True)
+    submit.add_argument("--live", action="store_true")
+    resume = commands.add_parser("resume", help="plan or submit missing Slurm work")
+    resume.add_argument("--campaign-root", type=Path, required=True)
+    resume.add_argument("--resources", type=Path, required=True)
+    resume.add_argument("--live", action="store_true")
+    scheduler = commands.add_parser("slurm-status", help="report jobs and outputs")
+    scheduler.add_argument("--campaign-root", type=Path, required=True)
     return root
 
 
@@ -58,15 +82,38 @@ def main(argv: list[str] | None = None) -> None:
     if args.command == "run":
         run_local(args.campaign_root)
         return
+    if args.command == "aggregate-exp022":
+        aggregate_exp022(args.campaign_root)
+        return
+    if args.command == "run-experiment":
+        run_experiment(args.campaign_root, args.slug)
+        return
     if args.command == "finalize":
-        print(json.dumps(finalize_campaign(args.campaign_root), indent=2, sort_keys=True))
+        print(
+            json.dumps(finalize_campaign(args.campaign_root), indent=2, sort_keys=True)
+        )
         return
     if args.command == "build":
-        print(json.dumps(
-            build_publication(args.campaign_root, args.checkout),
-            indent=2,
-            sort_keys=True,
-        ))
+        print(
+            json.dumps(
+                build_publication(args.campaign_root, args.checkout),
+                indent=2,
+                sort_keys=True,
+            )
+        )
+        return
+    if args.command in {"submit", "resume"}:
+        function = resume_campaign if args.command == "resume" else submit_campaign
+        print(
+            json.dumps(
+                function(args.campaign_root, args.resources, submit=args.live),
+                indent=2,
+                sort_keys=True,
+            )
+        )
+        return
+    if args.command == "slurm-status":
+        print(json.dumps(slurm_status(args.campaign_root), indent=2, sort_keys=True))
         return
     if args.command in {"status", "validate"}:
         payload = (
