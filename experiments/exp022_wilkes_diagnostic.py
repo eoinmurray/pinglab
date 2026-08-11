@@ -6,12 +6,14 @@ import argparse
 import json
 import os
 import platform
+import socket
 import subprocess
 from datetime import datetime, timezone
 from pathlib import Path
 
 import torch
 from torchvision.datasets import MNIST
+from experiments import exp022
 
 
 REPO = Path(__file__).resolve().parents[1]
@@ -37,16 +39,28 @@ def main() -> None:
         "torch_cuda": torch.version.cuda,
         "cuda_available": torch.cuda.is_available(),
         "gpu_name": torch.cuda.get_device_name(0) if torch.cuda.is_available() else None,
+        "gpu_compute_capability": list(torch.cuda.get_device_capability(0)) if torch.cuda.is_available() else None,
         "gpu_memory_bytes": torch.cuda.get_device_properties(0).total_memory if torch.cuda.is_available() else None,
         "mnist_train_samples": len(dataset),
+        "exp022_registered_cells": len(exp022.CANONICAL_CELLS),
         "slurm_job_id": os.environ.get("SLURM_JOB_ID"),
-        "hostname_recorded": True,
+        "hostname": socket.gethostname(),
     }
+    payload["checks_passed"] = bool(
+        not dirty
+        and payload["cuda_available"]
+        and payload["gpu_compute_capability"]
+        and payload["gpu_compute_capability"][0] == 8
+        and payload["mnist_train_samples"] == 60000
+        and payload["exp022_registered_cells"] == 90
+    )
     args.output.parent.mkdir(parents=True, exist_ok=True)
     temporary = args.output.with_suffix(args.output.suffix + ".tmp")
     temporary.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n")
     temporary.replace(args.output)
     print(json.dumps(payload, indent=2, sort_keys=True))
+    if not payload["checks_passed"]:
+        raise SystemExit("Wilkes3 diagnostic checks failed; inspect the JSON record")
 
 
 if __name__ == "__main__":

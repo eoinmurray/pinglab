@@ -1019,6 +1019,7 @@ def _campaign_train(manifest_path: Path, name: str) -> int:
     directory.parent.mkdir(parents=True, exist_ok=True)
     command = [sys.executable, str(SNN_TOOL), *row["command"][2:]]
     exit_code = 1
+    attempt_started = time.monotonic()
     try:
         completed = subprocess.run(command, cwd=REPO)
         exit_code = completed.returncode
@@ -1033,10 +1034,15 @@ def _campaign_train(manifest_path: Path, name: str) -> int:
                 globals()["TRAINING_ROOT"] = old_root
             _stamp_campaign_identity(directory, manifest, row)
         validation = campaign.validate_cell(row)
+        metrics_payload = load_metrics(directory)
         record.update({
             "ended_at_utc": campaign.utc_now(), "exit_code": exit_code,
+            "elapsed_seconds": round(time.monotonic() - attempt_started, 3),
             "state": "complete" if exit_code == 0 and validation["valid"] else "failed",
             "validation": validation,
+            "gpu_after": _gpu_metadata(),
+            "training_performance": metrics_payload.get("perf"),
+            "output_bytes": sum(path.stat().st_size for path in directory.rglob("*") if path.is_file()),
         })
         directory.mkdir(parents=True, exist_ok=True)
         campaign.atomic_json(directory / "attempt.json", record)
@@ -1045,6 +1051,7 @@ def _campaign_train(manifest_path: Path, name: str) -> int:
     except BaseException as exc:
         record.update({
             "ended_at_utc": campaign.utc_now(), "exit_code": exit_code,
+            "elapsed_seconds": round(time.monotonic() - attempt_started, 3),
             "state": "failed", "error": f"{type(exc).__name__}: {exc}",
         })
         directory.mkdir(parents=True, exist_ok=True)
