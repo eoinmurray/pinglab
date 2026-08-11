@@ -31,6 +31,8 @@ from helpers.run_id import next_run_id, persist  # noqa: E402
 
 SLUG = "exp080"
 ARTIFACTS, FIGURES = artifacts_and_figures(SLUG)
+SMOKE = os.environ.get("PINGLAB_SMOKE") == "1"
+MNIST_ROOT = Path(os.environ.get("PINGLAB_DATA_ROOT", "/tmp/mnist"))
 
 PRESENTATION_MS = 200.0
 DT_MS = 0.1
@@ -38,10 +40,10 @@ N_TIMESTEPS = int(round(PRESENTATION_MS / DT_MS))
 PROBE_US = 1.2
 RATES_HZ = (0.1, 0.25, 0.5, 1.0, 2.0, 5.0, 10.0, 25.0)
 SEEDS = (42, 43, 44)
-TRAIN_COUNT = 20_000
-VALIDATION_COUNT = 5_000
-TEST_COUNT = 5_000
-EPOCHS = 10
+TRAIN_COUNT = 100 if SMOKE else 20_000
+VALIDATION_COUNT = 50 if SMOKE else 5_000
+TEST_COUNT = 50 if SMOKE else 5_000
+EPOCHS = 2 if SMOKE else 10
 BATCH_SIZE = 256
 HIDDEN_UNITS = 1024
 LEARNING_RATE = 0.001
@@ -88,7 +90,7 @@ def torch_device() -> Any:
 def load_mnist_training() -> tuple[np.ndarray, np.ndarray, dict[str, Any]]:
     from torchvision.datasets import MNIST
 
-    dataset = MNIST(root="/tmp/mnist", train=True, download=True)
+    dataset = MNIST(root=MNIST_ROOT, train=True, download=True)
     images = dataset.data.numpy().astype(np.uint8, copy=False)
     labels = dataset.targets.numpy().astype(np.int64, copy=False)
     if images.shape != (60_000, 28, 28) or labels.shape != (60_000,):
@@ -111,7 +113,7 @@ def load_mnist_training() -> tuple[np.ndarray, np.ndarray, dict[str, Any]]:
 def load_mnist_test() -> tuple[np.ndarray, np.ndarray, dict[str, Any]]:
     from torchvision.datasets import MNIST
 
-    dataset = MNIST(root="/tmp/mnist", train=False, download=True)
+    dataset = MNIST(root=MNIST_ROOT, train=False, download=True)
     images = dataset.data.numpy().astype(np.uint8, copy=False)[:TEST_COUNT]
     labels = dataset.targets.numpy().astype(np.int64, copy=False)[:TEST_COUNT]
     return (
@@ -317,7 +319,7 @@ def train_seed(images: np.ndarray, labels: np.ndarray, seed: int) -> dict[str, A
         "selected_epoch": best_epoch,
         "selected_validation_accuracy": best_accuracy,
         "history": history,
-        "checkpoint": str(checkpoint.relative_to(REPO)),
+        "checkpoint": str(checkpoint.relative_to(FIGURES)),
         "checkpoint_sha256": sha256_file(checkpoint),
     }
     (directory / "training.json").write_text(json.dumps(record, indent=2) + "\n")
@@ -345,7 +347,7 @@ def load_models(records: list[dict[str, Any]], device: Any) -> list[Any]:
 
     models = []
     for item in records:
-        path = REPO / item["checkpoint"]
+        path = FIGURES / item["checkpoint"]
         if sha256_file(path) != item["checkpoint_sha256"]:
             raise RuntimeError(f"checkpoint hash mismatch: {path}")
         model = make_model(device, int(item["seed"]))

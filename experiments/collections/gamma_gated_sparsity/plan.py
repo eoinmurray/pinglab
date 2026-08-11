@@ -12,6 +12,7 @@ REPO = Path(__file__).resolve().parents[3]
 
 RUNNER_ARGUMENTS: dict[str, tuple[str, ...]] = {
     "exp022": (),
+    "exp023": (),
     "exp024": ("--skip-training",),
     "exp025": ("--only-missing",),
     "exp033": (),
@@ -21,7 +22,11 @@ RUNNER_ARGUMENTS: dict[str, tuple[str, ...]] = {
     "exp042": ("--skip-training",),
     "exp044": ("--skip-training",),
     "exp046": (),
+    "exp047": (),
     "exp049": (),
+    "exp054": (),
+    "exp080": (),
+    "exp081": (),
     "exp082": (),
 }
 

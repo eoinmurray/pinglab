@@ -23,6 +23,7 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import os
 import sys
 import time
 from pathlib import Path
@@ -50,6 +51,7 @@ from helpers.run_id import next_run_id  # noqa: E402
 
 SLUG = "exp054"
 ARTIFACTS, FIGURES = artifacts_and_figures(SLUG)
+SMOKE = os.environ.get("PINGLAB_SMOKE") == "1"
 
 # ─── recipe (hardcoded literals; the notebook IS the recipe) ────────────
 DT_MS = 0.25
@@ -69,15 +71,18 @@ SHARED_N_IN = 200
 SHARED_W_IN = 0.2
 SHARED_W_IN_SP = 0.95
 
-# Independent 2-D sweep of the recurrent weight means (W_EI vs W_IE), 11×11 = 121.
-WEI_MEAN_GRID = [round(v, 3) for v in np.linspace(0.0, 3.0, 11)]   # step 0.3
-WIE_MEAN_GRID = [round(v, 3) for v in np.linspace(0.0, 6.0, 11)]   # step 0.6
+# Independent 2-D sweep of the recurrent weight means (W_EI vs W_IE). The smoke
+# profile retains the full range and diagonal while reducing the grid from 121
+# to 36 networks.
+GRID_POINTS = 6 if SMOKE else 11
+WEI_MEAN_GRID = [round(v, 3) for v in np.linspace(0.0, 3.0, GRID_POINTS)]
+WIE_MEAN_GRID = [round(v, 3) for v in np.linspace(0.0, 6.0, GRID_POINTS)]
 GRID_WIN_MS = 200.0      # raster display window
 GRID_E_SHOW = 160        # E cells drawn per raster panel
 GRID_I_SHOW = 48         # I cells drawn per raster panel
 # The heatmaps show all 100 cells; the per-cell raster/autocorr grids would be
 # unreadable at 100 panels, so they display every other cell (a 5×5 subset).
-GRID_DISPLAY_STRIDE = 2
+GRID_DISPLAY_STRIDE = 1 if SMOKE else 2
 
 
 def _display_idx(n):
@@ -90,7 +95,8 @@ SHARED_NULL_INPUT_HZ = [8.0, 12.0, 16.0, 20.0, 28.0, 40.0, 60.0, 100.0]
 
 # Simulation length (more spikes ⇒ cleaner autocorrelogram); this is what the
 # frozen figures use (the retired "medium" tier).
-SIM_MS = 1000.0
+# Smoke still needs more than burn + max lag to produce a meaningful contrast.
+SIM_MS = 400.0 if SMOKE else 1000.0
 
 # Run scale — stamped into the manifest by run_dirs.prepare and rendered as
 # the Methods table via RunScale; the mdx never restates these numbers.
@@ -374,8 +380,8 @@ def _panel_letter(ax, letter):
 # mark, and the strong-coupling corner — a single line through the turn-on.
 TURNON_POINTS = [
     ("A", 0, 0),    # loop off: W_EI = W_IE = 0, neither loop engaged
-    ("B", 2, 2),    # weak coupling on the diagonal, contrast < 0.5
-    ("C", 10, 10),  # strong coupling corner, sharp volleys
+    ("B", 1 if SMOKE else 2, 1 if SMOKE else 2),
+    ("C", GRID_POINTS - 1, GRID_POINTS - 1),
 ]
 
 

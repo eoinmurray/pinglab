@@ -26,6 +26,7 @@ Writing: writings/exp033.typ · figures + numbers.json: artifacts/data/exp033/
 from __future__ import annotations
 
 import json
+import os
 import sys
 from pathlib import Path
 
@@ -364,7 +365,9 @@ def plot_limit_cycle(hopf, out_path, run_id, offset=0.4):
 
 
 def load_exp041_fgamma():
-    p = FIGURES.parent / "exp041" / "numbers.json"
+    collection_root = os.environ.get("PINGLAB_COLLECTION_DERIVED_ROOT")
+    root = Path(collection_root) if collection_root else FIGURES.parent
+    p = root / "exp041" / "numbers.json"
     if not p.exists():
         return {}
     d = json.loads(p.read_text())

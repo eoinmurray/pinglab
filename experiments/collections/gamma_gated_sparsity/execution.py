@@ -177,6 +177,9 @@ def _runner_environment(plan: dict[str, Any], row: dict[str, Any]) -> dict[str, 
         "PINGLAB_RUN_STATE_DIR": paths["state"],
         "PINGLAB_RUN_DERIVED_DIR": paths["derived"],
         "PINGLAB_RUN_LOG_DIR": paths["logs"],
+        "PINGLAB_COLLECTION_DERIVED_ROOT": str(
+            Path(plan["campaign_root"]) / "derived" / "artifacts" / "data"
+        ),
         "PINGLAB_TRAINING_ROOT": str(Path(plan["exp022_manifest"]).parent / "cells"),
         "PINGLAB_CAMPAIGN_ID": plan["campaign_id"],
     }

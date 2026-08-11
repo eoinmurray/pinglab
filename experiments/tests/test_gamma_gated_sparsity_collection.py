@@ -19,6 +19,8 @@ def test_graph_orders_dependencies_and_replaces_exp048_with_exp082() -> None:
     assert "exp048" not in positions
     assert positions["exp022"] < positions["exp082"]
     assert positions["exp041"] < positions["exp033"]
+    assert positions["exp041"] < positions["exp054"]
+    assert {"exp023", "exp047", "exp080", "exp081"} <= positions.keys()
     exp082 = next(
         experiment for experiment in EXPERIMENTS if experiment.slug == "exp082"
     )
@@ -52,6 +54,18 @@ def test_plan_paths_are_isolated_and_all_runners_are_integrated(tmp_path: Path) 
     assert payload["blocking_issues"] == [69, 47]
     assert all(row["command"] for row in rows)
     assert all(row["required_outputs"] for row in rows)
+
+
+def test_runner_environment_exposes_shared_derived_root(tmp_path: Path) -> None:
+    payload = build_plan(tmp_path / "campaign", "smoke")
+    payload["profile"] = "smoke"
+    payload["exp022_manifest"] = str(tmp_path / "campaign/exp022/campaign.json")
+    row = next(row for row in execution.rows_in_order(payload) if row["slug"] == "exp054")
+    environment = execution._runner_environment(payload, row)
+    assert environment["PINGLAB_COLLECTION_DERIVED_ROOT"] == str(
+        (tmp_path / "campaign/derived/artifacts/data").resolve()
+    )
+    assert environment["PINGLAB_SMOKE"] == "1"
 
 
 def test_init_composes_runstore_and_exp022_manifests(
@@ -291,7 +305,7 @@ def test_slurm_dry_run_preserves_collection_dependencies(
     dependency = next(
         argument for argument in final["command"] if argument.startswith("--dependency")
     )
-    assert "<ggs-exp033-job-id>" in dependency
+    assert "<ggs-exp054-job-id>" in dependency
     assert "<ggs-exp042-job-id>" in dependency
     assert "<ggs-exp046-job-id>" in dependency
     final_outputs = [
