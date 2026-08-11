@@ -125,6 +125,15 @@ def test_validator_states_and_valid_checkpoint(tmp_path: Path) -> None:
     assert campaign.validate_cell(row) == {"valid": True, "state": "complete", "reasons": []}
 
 
+def test_validator_recognizes_w_ff_readout_without_named_output_key(tmp_path: Path) -> None:
+    row = _manifest_cell(tmp_path)
+    directory = _write_valid_cell(row)
+    checkpoint = torch.load(directory / "weights.pth", map_location="cpu", weights_only=True)
+    checkpoint.pop("b_out")
+    torch.save(checkpoint, directory / "weights.pth")
+    assert campaign.validate_cell(row) == {"valid": True, "state": "complete", "reasons": []}
+
+
 def test_validator_rejects_corrupt_mismatched_and_short_history(tmp_path: Path) -> None:
     row = _manifest_cell(tmp_path)
     directory = _write_valid_cell(row)

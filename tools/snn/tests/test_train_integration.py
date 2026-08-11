@@ -31,7 +31,8 @@ def _reset_model_globals():
     # Store original values before test
     old = (
         M.N_IN, M.N_HID, M.N_INH, M.N_OUT, M.HIDDEN_SIZES,
-        M.T_ms, M.T_steps, M.dt, M.V_GRAD_DAMPEN, M.BATCH_SIZE
+        M.T_ms, M.T_steps, M.dt, M.V_GRAD_DAMPEN, M.BATCH_SIZE,
+        M.SURROGATE_SLOPE,
     )
     # Reset to module defaults before test
     M.N_IN = 64
@@ -43,11 +44,13 @@ def _reset_model_globals():
     M.T_steps = int(M.T_ms / M.dt)
     M.V_GRAD_DAMPEN = 80.0
     M.BATCH_SIZE = 64
+    M.SURROGATE_SLOPE = 5.0
     # Run test
     yield
     # Restore to original values after test
     (M.N_IN, M.N_HID, M.N_INH, M.N_OUT, M.HIDDEN_SIZES,
-     M.T_ms, M.T_steps, M.dt, M.V_GRAD_DAMPEN, M.BATCH_SIZE) = old
+     M.T_ms, M.T_steps, M.dt, M.V_GRAD_DAMPEN, M.BATCH_SIZE,
+     M.SURROGATE_SLOPE) = old
 
 
 class TestTrainParameterPropagation:
@@ -68,6 +71,20 @@ class TestTrainParameterPropagation:
         with open(tmp_output_dir / "config.json") as f:
             config = json.load(f)
         assert config["dt"] == dt_value
+
+    def test_resolved_surrogate_slope_saved_in_config(self, tmp_output_dir):
+        M.SURROGATE_SLOPE = 1.25
+        train(
+            model_name="ping",
+            dt=1.0,
+            t_ms=5.0,
+            epochs=0,
+            dataset="mnist",
+            max_samples=50,
+            out_dir=tmp_output_dir,
+        )
+        config = json.loads((tmp_output_dir / "config.json").read_text())
+        assert config["surrogate_slope"] == 1.25
 
     def test_direct_readout_initializer_and_realized_stats_are_saved(
         self, tmp_output_dir

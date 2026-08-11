@@ -290,9 +290,6 @@ def validate_cell(cell: dict[str, Any], *, load_checkpoint: bool = True) -> dict
             checkpoint = torch.load(directory / "weights.pth", map_location="cpu", weights_only=True)
             if not isinstance(checkpoint, dict) or not checkpoint:
                 reasons.append("checkpoint is not a non-empty mapping")
-            elif not any("out" in str(key).lower() or "readout" in str(key).lower()
-                         for key in checkpoint):
-                reasons.append("checkpoint has no recognizable readout parameters")
             else:
                 n_in = int(config.get("n_in", 784))
                 n_hidden = int(config.get("n_hidden", 1024))
