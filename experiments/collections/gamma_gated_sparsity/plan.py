@@ -2,12 +2,36 @@
 
 from __future__ import annotations
 
+import sys
 from pathlib import Path
 from typing import Any
 
 from .graph import COLLECTION, PENDING_ROOT_DECISIONS, ordered_experiments
 
 REPO = Path(__file__).resolve().parents[3]
+
+RUNNER_ARGUMENTS: dict[str, tuple[str, ...]] = {
+    "exp022": (),
+    "exp024": ("--skip-training",),
+    "exp025": ("--only-missing",),
+    "exp033": (),
+    "exp037": ("--skip-training",),
+    "exp038": ("--skip-training",),
+    "exp041": ("--skip-training",),
+    "exp042": ("--skip-training",),
+    "exp044": ("--skip-training",),
+    "exp046": (),
+    "exp049": (),
+    "exp082": (),
+}
+
+
+def runner_command(slug: str) -> list[str]:
+    return [
+        sys.executable,
+        str(REPO / "experiments" / f"{slug}.py"),
+        *RUNNER_ARGUMENTS[slug],
+    ]
 
 
 def validate_campaign_root(root: Path) -> Path:
@@ -46,6 +70,17 @@ def build_plan(root: Path, campaign_id: str) -> dict[str, Any]:
                     ),
                     "logs": str(resolved / "logs" / experiment.slug),
                 },
+                "command": runner_command(experiment.slug),
+                "required_outputs": [
+                    str(
+                        resolved
+                        / "derived"
+                        / "artifacts"
+                        / "data"
+                        / experiment.slug
+                        / "numbers.json"
+                    )
+                ],
             }
         )
     return {

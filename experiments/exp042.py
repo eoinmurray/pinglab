@@ -133,6 +133,17 @@ RASTER_SAMPLE_IDX: int = 0
 RASTER_N_E_PLOT: int = 200
 RASTER_N_I_PLOT: int = 64
 
+SMOKE = os.environ.get("PINGLAB_SMOKE") == "1"
+if SMOKE:
+    JITTER_SIGMAS_MS = (0.0, 14.0)
+    CELL_JITTER_SIGMAS_MS = (0.0, 14.0)
+    CELL_JITTER_RASTER_SIGMAS_MS = (0.0, 14.0)
+    MIX_ALPHA_GRID = (0.0, 1.0)
+    MIX_K_GRID = (0.5, 1.0)
+    XTAU_TAU_GABAS_MS = (6.0, 12.0)
+    XTAU_SEEDS = (42,)
+    XTAU_SIGMAS_MS = (0.0, 14.0)
+
 # Run scale — stamped into the manifest by run_dirs.prepare and rendered as
 # the Methods table via RunScale; the mdx never restates these numbers.
 # exp042 is inference-only against the trained exp025 PING baseline, so the

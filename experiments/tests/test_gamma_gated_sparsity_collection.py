@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
+from experiments.collections.gamma_gated_sparsity import execution
 from experiments.collections.gamma_gated_sparsity.graph import (
     EXPERIMENTS,
     Experiment,
@@ -46,3 +48,81 @@ def test_plan_paths_are_isolated_and_all_runners_are_integrated(tmp_path: Path) 
     assert all(row["integrated"] or row["slug"] == "exp022" for row in rows)
     assert payload["excluded"] == ["exp048"]
     assert payload["blocking_issues"] == [69, 47]
+    assert all(row["command"] for row in rows)
+    assert all(row["required_outputs"] for row in rows)
+
+
+def test_init_composes_runstore_and_exp022_manifests(
+    tmp_path: Path, monkeypatch,
+) -> None:
+    root = tmp_path / "campaign"
+    source = {
+        "git_commit": "a" * 40,
+        "git_clean": True,
+        "lockfile": {"path": "uv.lock", "sha256": "b" * 64},
+    }
+    monkeypatch.setattr(execution, "_require_clean_source", lambda: None)
+
+    calls = []
+
+    def fake_run(command, **_kwargs):
+        calls.append(command)
+        if "tools.runstore" in command:
+            (root / "exp022").mkdir(parents=True)
+            (root / "downstream").mkdir()
+            (root / "derived" / "artifacts").mkdir(parents=True)
+            (root / "logs").mkdir()
+            execution.write_json_atomic(root / "run.json", {"source": source})
+        elif "exp022.py" in " ".join(command):
+            exp022 = root / "exp022"
+            exp022.mkdir()
+            (exp022 / "campaign.json").write_text("{}")
+        return SimpleNamespace(returncode=0)
+
+    monkeypatch.setattr(execution.subprocess, "run", fake_run)
+    plan = execution.initialize_campaign(root, "smoke-test", smoke=True)
+    assert plan["profile"] == "smoke"
+    assert (root / "run.json").is_file()
+    assert (root / "exp022" / "campaign.json").is_file()
+    assert (root / execution.PLAN_NAME).is_file()
+    assert any("--plumbing" in call for call in calls)
+
+
+def test_local_resume_runs_in_dependency_order(tmp_path: Path, monkeypatch) -> None:
+    root = tmp_path / "campaign"
+    plan = build_plan(root, "resume-test")
+    plan["profile"] = "smoke"
+    plan["source"] = {"git_clean": True}
+    plan["exp022_manifest"] = str(root / "exp022" / "campaign.json")
+    root.mkdir()
+    (root / execution.STATUS_DIR).mkdir()
+    execution.write_json_atomic(root / execution.PLAN_NAME, plan)
+    monkeypatch.setattr(execution, "source_provenance", lambda: plan["source"])
+
+    seen = []
+
+    def complete(row):
+        seen.append(row["slug"])
+        for output in row["required_outputs"]:
+            path = Path(output)
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text("{}")
+
+    monkeypatch.setattr(
+        execution, "_run_exp022", lambda _plan, row: complete(row)
+    )
+    def resume_downstream(_plan, row):
+        if not execution._outputs_valid(row):
+            complete(row)
+
+    monkeypatch.setattr(
+        execution, "_run_downstream", resume_downstream
+    )
+    execution.run_local(root)
+    assert seen == [row["slug"] for row in execution.rows_in_order(plan)]
+    execution.run_local(root)
+    assert seen == [row["slug"] for row in execution.rows_in_order(plan)]
+    assert not [
+        row for row in execution.validate_campaign(root)["experiments"]
+        if not row["outputs_valid"]
+    ]

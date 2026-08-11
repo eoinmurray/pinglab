@@ -46,7 +46,8 @@ RUN_PATHS = runner_paths(SLUG)
 ARTIFACTS, FIGURES = artifacts_and_figures(SLUG)
 
 MAX_SAMPLES = 7000  # exp022 sweep-cell scale (10% of MNIST); reporting only
-EVAL_MAX_SAMPLES = 70000
+SMOKE = os.environ.get("PINGLAB_SMOKE") == "1"
+EVAL_MAX_SAMPLES = 100 if SMOKE else 70000
 T_MS = 200.0
 DT_TRAIN = 0.1
 BASELINE_EPOCHS: int = 50  # baseline cell training horizon (in exp022 now)
@@ -81,6 +82,9 @@ EI_RASTER: list[float] = [0.0, 0.2, 0.4, 0.6, 0.8, 1.0]
 EI_RASTER_SAMPLE_IDX: int = 0
 EI_RASTER_N_E_PLOT: int = 200
 EI_RASTER_N_I_PLOT: int = 64
+if SMOKE:
+    EI_SWEEP = [0.0, 0.5, 1.0]
+    EI_RASTER = [0.0, 1.0]
 
 # θ_u sweep grid in spikes-per-trial. None = no penalty (baseline).
 # At T = 200 ms, spikes/trial × 5 = Hz. The grid spans from no
@@ -353,6 +357,10 @@ FI_UNIFORM_RATES_HZ: list[float] = [
 ]
 FI_UNIFORM_ZOOM_RATES_HZ: list[float] = [round(r, 2) for r in np.linspace(0.0, 10.0, 101)]
 FI_UNIFORM_BATCH: int = 32  # batch of uniform-1 inputs per rate; average over.
+if SMOKE:
+    FI_UNIFORM_RATES_HZ = [0.0, 10.0, 100.0]
+    FI_UNIFORM_ZOOM_RATES_HZ = [0.0, 5.0, 10.0]
+    FI_UNIFORM_BATCH = 2
 
 
 def run_fi_sweep_uniform(notebook_run_id: str, rates: list[float] | None = None) -> list[dict]:
@@ -922,7 +930,10 @@ def main() -> None:
 
         # Stacked raster snapshot at the first 10 frames of the rate sweep —
         # same panel style as the ei-sweep rasters so the two read as a pair.
-        rate_grid = np.linspace(0.0, 100.0, 40)[:10]
+        rate_grid = (
+            np.asarray([0.0, 10.0, 100.0])
+            if SMOKE else np.linspace(0.0, 100.0, 40)[:10]
+        )
         print(f"[rate-rasters] capturing rates {[round(r, 2) for r in rate_grid]}")
         rate_samples = [
             capture_rate_raster(baseline_dir("ping"), float(r), sample_idx=0)

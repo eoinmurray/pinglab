@@ -60,8 +60,9 @@ SLUG = "exp025"
 RUN_PATHS = runner_paths(SLUG)
 ARTIFACTS, FIGURES = artifacts_and_figures(SLUG)
 
-MAX_SAMPLES = 500
-EPOCHS = 10
+SMOKE = os.environ.get("PINGLAB_SMOKE") == "1"
+MAX_SAMPLES = 100 if SMOKE else 500
+EPOCHS = 2 if SMOKE else 10
 T_MS = 200.0
 DT_TRAIN = 0.1
 
@@ -871,6 +872,8 @@ def plot_theta_p_fgamma(
 # PING? Three w_in inits straddle f* (0.1 sub, 0.3 sub, 1.2 standard).
 
 LOW_W_IN_VALUES: list[float] = [0.05, 0.1, 0.3, 1.2]  # 1.2 matches standard ping init
+if SMOKE:
+    LOW_W_IN_VALUES = [0.1, 1.2]
 LOW_W_IN_THETA_U: float = 0.2                   # heaviest from frontier sweep
 LOW_W_IN_SEED: int = SEED_SWEEP
 
@@ -990,6 +993,8 @@ W_IN_SCALE_VALUES: list[float] = [
     0.55, 0.60, 0.65, 0.70, 0.80, 0.90, 1.00, 1.15, 1.30, 1.50,
     1.75, 2.00, 2.50, 3.00,
 ]
+if SMOKE:
+    W_IN_SCALE_VALUES = [0.5, 1.0]
 
 
 def run_w_in_scale_sweep(notebook_run_id: str) -> list[dict]:
