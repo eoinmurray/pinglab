@@ -26,6 +26,7 @@ from __future__ import annotations
 
 import json
 import os
+import argparse
 import subprocess
 import sys
 import time
@@ -47,6 +48,7 @@ from helpers.paths import artifacts_and_figures  # noqa: E402
 from helpers.run_dirs import prepare as prepare_run_dirs  # noqa: E402
 from helpers.run_id import next_run_id  # noqa: E402
 from helpers.stamp import stamp_figure  # noqa: E402
+import exp022_campaign as campaign  # noqa: E402
 
 SLUG = "exp022"
 ARTIFACTS, FIGURES = artifacts_and_figures(SLUG)
@@ -443,6 +445,7 @@ FAMILY_COLORS = {
     "tau_gaba": theme.DEEP_RED,
     "dt": theme.ELECTRIC_CYAN,
     "init": theme.AMBER,
+    "variable_rate": theme.ELECTRIC_CYAN,
 }
 
 
@@ -462,7 +465,7 @@ def training_curve(d: Path) -> tuple[list[int], list[float]]:
     return eps, accs
 
 
-FAMILY_ORDER = ["canonical", "theta_u", "theta_u_3seed", "tau_gaba", "dt", "init"]
+FAMILY_ORDER = ["canonical", "theta_u", "tau_gaba", "dt", "init", "variable_rate"]
 FAMILY_LABELS = {
     "canonical": "Canonical reference",
     "theta_u": "θ_u spike-budget sweep",
@@ -470,6 +473,7 @@ FAMILY_LABELS = {
     "tau_gaba": "τ_GABA ladder",
     "dt": "Δt sweep",
     "init": "Init variants",
+    "variable_rate": "Variable-rate streaming bank",
 }
 
 
@@ -899,7 +903,179 @@ def comparison_rasters() -> None:
         shutil.rmtree(scratch_root, ignore_errors=True)
 
 
+def _campaign_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(add_help=False)
+    group = parser.add_mutually_exclusive_group()
+    group.add_argument("--campaign-manifest", type=Path, metavar="ROOT")
+    group.add_argument("--campaign-status", type=Path, metavar="MANIFEST")
+    group.add_argument("--campaign-list", type=Path, metavar="MANIFEST")
+    group.add_argument("--campaign-train-cell", metavar="NAME")
+    group.add_argument("--campaign-validate", type=Path, metavar="MANIFEST")
+    parser.add_argument("--campaign", type=Path, metavar="MANIFEST")
+    parser.add_argument("--campaign-id")
+    parser.add_argument("--tier", default="all")
+    parser.add_argument("--json", action="store_true")
+    parser.add_argument("--retry-only", action="store_true")
+    parser.add_argument("--plumbing", action="store_true")
+    return parser
+
+
+def _checked_manifest(path: Path) -> dict:
+    manifest = campaign.load_manifest(path.resolve())
+    commit, dirty = campaign.git_identity(REPO)
+    if dirty:
+        raise SystemExit("campaign execution requires a clean worktree")
+    if manifest["repository"] != {"commit": commit, "dirty": False}:
+        raise SystemExit(
+            "campaign manifest does not match the clean checked-out commit: "
+            f"manifest={manifest['repository']['commit']} checkout={commit}"
+        )
+    expected_names = {cell["name"] for cell in CANONICAL_CELLS}
+    manifest_names = {cell["name"] for cell in manifest["cells"]}
+    if not manifest_names <= expected_names:
+        raise SystemExit(f"campaign contains unknown cells: {sorted(manifest_names - expected_names)}")
+    return manifest
+
+
+def _stamp_campaign_identity(directory: Path, manifest: dict, row: dict) -> None:
+    for filename in ("config.json", "metrics.json"):
+        path = directory / filename
+        payload = json.loads(path.read_text())
+        payload.update({
+            "campaign_id": manifest["campaign_id"],
+            "campaign_manifest_sha256": manifest["manifest_sha256"],
+            "resource_tier": row["resource_tier"],
+        })
+        nested = payload.get("config")
+        if isinstance(nested, dict):
+            nested.update({
+                "campaign_id": manifest["campaign_id"],
+                "campaign_manifest_sha256": manifest["manifest_sha256"],
+                "resource_tier": row["resource_tier"],
+            })
+        campaign.atomic_json(path, payload)
+
+
+def _gpu_metadata() -> dict:
+    try:
+        query = subprocess.run(
+            ["nvidia-smi", "--query-gpu=name,memory.total,memory.used", "--format=csv,noheader,nounits"],
+            capture_output=True, text=True,
+        )
+    except FileNotFoundError:
+        return {"available": False}
+    if query.returncode != 0:
+        return {"available": False}
+    return {"available": True, "devices": [line.strip() for line in query.stdout.splitlines()]}
+
+
+def _campaign_train(manifest_path: Path, name: str) -> int:
+    manifest = _checked_manifest(manifest_path)
+    row = campaign.manifest_cell(manifest, name)
+    directory = Path(row["output_directory"])
+    existing = campaign.validate_cell(row)
+    if existing["valid"]:
+        print(f"[skip-valid] {name} is complete and will not be touched")
+        return 0
+    preserved = campaign.preserve_partial(directory)
+    if preserved:
+        print(f"[preserve-partial] {directory} -> {preserved}")
+    record = campaign.run_record_base(manifest, row)
+    record["gpu"] = _gpu_metadata()
+    status_path = Path(manifest["campaign_root"]) / "status" / f"{name}.json"
+    campaign.atomic_json(status_path, record)
+    directory.parent.mkdir(parents=True, exist_ok=True)
+    command = [sys.executable, str(SNN_TOOL), *row["command"][2:]]
+    exit_code = 1
+    try:
+        completed = subprocess.run(command, cwd=REPO)
+        exit_code = completed.returncode
+        if exit_code == 0:
+            spec = _cell_by_name(name)
+            assert spec is not None
+            old_root = globals()["TRAINING_ROOT"]
+            try:
+                globals()["TRAINING_ROOT"] = Path(manifest["campaign_root"]) / "cells"
+                _stamp_training_run_identity(spec)
+            finally:
+                globals()["TRAINING_ROOT"] = old_root
+            _stamp_campaign_identity(directory, manifest, row)
+        validation = campaign.validate_cell(row)
+        record.update({
+            "ended_at_utc": campaign.utc_now(), "exit_code": exit_code,
+            "state": "complete" if exit_code == 0 and validation["valid"] else "failed",
+            "validation": validation,
+        })
+        directory.mkdir(parents=True, exist_ok=True)
+        campaign.atomic_json(directory / "attempt.json", record)
+        campaign.atomic_json(status_path, record)
+        return 0 if record["state"] == "complete" else 1
+    except BaseException as exc:
+        record.update({
+            "ended_at_utc": campaign.utc_now(), "exit_code": exit_code,
+            "state": "failed", "error": f"{type(exc).__name__}: {exc}",
+        })
+        directory.mkdir(parents=True, exist_ok=True)
+        campaign.atomic_json(directory / "attempt.json", record)
+        campaign.atomic_json(status_path, record)
+        raise
+
+
+def _handle_campaign_cli(argv: list[str]) -> bool:
+    if not any(flag in argv for flag in (
+        "--campaign-manifest", "--campaign-status", "--campaign-list",
+        "--campaign-train-cell", "--campaign-validate",
+    )):
+        return False
+    args = _campaign_parser().parse_args(argv[1:])
+    if args.campaign_manifest:
+        if not args.campaign_id:
+            raise SystemExit("--campaign-id is required")
+        try:
+            selected = cells_in_resource_tier(args.tier)
+        except ValueError as exc:
+            raise SystemExit(str(exc)) from exc
+        if args.plumbing:
+            os.environ["PINGLAB_NB022_PLUMBING"] = "1"
+        root = args.campaign_manifest.resolve()
+        manifest = campaign.create_manifest(
+            repo=REPO, campaign_root=root, campaign_id=args.campaign_id,
+            cells=selected, tier_for=cell_resource_tier,
+            samples_epochs=cell_samples_epochs, build_args=build_train_args,
+            plumbing=args.plumbing,
+        )
+        root.mkdir(parents=True, exist_ok=True)
+        for child in ("cells", "logs", "status", "submissions"):
+            (root / child).mkdir(exist_ok=True)
+        campaign.write_manifest(root / "campaign.json", manifest)
+        print(root / "campaign.json")
+        return True
+    manifest_path = args.campaign or args.campaign_status or args.campaign_list or args.campaign_validate
+    if manifest_path is None:
+        raise SystemExit("--campaign MANIFEST is required")
+    manifest = _checked_manifest(manifest_path)
+    if args.campaign_train_cell:
+        raise SystemExit(_campaign_train(manifest_path, args.campaign_train_cell))
+    if args.campaign_validate:
+        print(f"valid manifest {manifest['campaign_id']} {manifest['manifest_sha256']}")
+        return True
+    status = campaign.summarize_status(manifest)
+    if args.campaign_list:
+        cells = [cell for cell in manifest["cells"] if args.tier == "all" or cell["resource_tier"] == args.tier]
+        if args.retry_only:
+            retry = set(status["retry_cells"])
+            cells = [cell for cell in cells if cell["name"] in retry]
+        print("\n".join(cell["name"] for cell in cells))
+    elif args.json:
+        print(json.dumps(status, indent=2, sort_keys=True))
+    else:
+        campaign.print_status(status)
+    return True
+
+
 def main() -> None:
+    if _handle_campaign_cli(sys.argv):
+        return
     meta = parse_meta(sys.argv, allow_dispatch=True)
 
     if meta.list_cells is not None:
