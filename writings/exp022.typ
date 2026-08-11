@@ -50,7 +50,7 @@
   == Contents
 
   + #link("#abstract")[Abstract]
-  + #link("#shared-parameters")[Shared parameters]
+  + #link("#summary")[Summary]
   + #link("#training-run-guide")[Training-run guide]
     + #link("#tr-01-canonical-full-data-reference")[TR-01 — Canonical full-data reference]
     + #link("#tr-02-spike-budget-sweep")[TR-02 — Spike-budget sweep]
@@ -74,7 +74,9 @@
 
   #major-divider()
 
-  == Shared parameters
+  == Summary
+
+  All runs map Poisson-encoded pixels through 1,024 excitatory neurons to ten spiking output LIF neurons. COBA disables recurrent E/I coupling; PING adds a $1024 arrow 256 arrow 1024$ E/I feedback loop.
 
   Unless a run-specific table says otherwise, every cell uses the following contract.
 
@@ -106,7 +108,7 @@
 
   === TR-01 — Canonical full-data reference
 
-  Establish the highest-data, unconstrained COBA and PING reference. These checkpoints anchor accuracy and activity comparisons; they are not interchangeable with the 10%-MNIST no-budget cells. This training run is used by #run-links(("exp022",)).
+  The full-data COBA and PING cells are used for headline accuracy. They train on all pooled MNIST with no spike-budget penalty, so the comparison is not affected by the smaller dataset or regularization used in the sweeps. This experiment uses these cells directly.
 
   #table(
     columns: (1.2fr, 1.4fr, 2fr),
@@ -119,13 +121,11 @@
     [Readout shape], [$1024 arrow 10$ spiking LIF outputs], [`mem-mean`: mean membrane voltage supplies the logits],
   )
 
-  *Parameter rationale.* Full data is the defining deviation. Keeping the spike budget off prevents regularization from confounding the architecture baseline.
-
   #divider()
 
   === TR-02 — Spike-budget sweep
 
-  Measure the accuracy–activity trade-off and test whether recurrent gamma gating preserves classification as the allowed spike count tightens. This training run is used by #run-links(("exp024", "exp025", "exp037", "exp038")).
+  This run measures the trade-off between accuracy and firing rate as the spike budget is tightened. It uses a smaller training pool to keep the multi-seed sweep manageable; only the spike cap and its penalty change across conditions. Its absolute rates should therefore not be compared directly with the full-data cells. The resulting checkpoints are used by #run-links(("exp024", "exp025", "exp037", "exp038")).
 
   #table(
     columns: (1.2fr, 1.5fr, 2fr),
@@ -138,13 +138,11 @@
     [Readout shape], [$1024 arrow 10$ spiking LIF outputs], [`mem-mean`: mean membrane voltage supplies the logits],
   )
 
-  *Parameter rationale.* Only the spike cap and its penalty are swept. The smaller pool is a compute decision, so absolute rates must not be compared directly with the canonical full-data cells.
-
   #divider()
 
   === TR-03 — Inhibitory-timescale sweep
 
-  Separate task accuracy from the timescale of the E/I rhythm and measure how inhibitory decay controls gamma frequency. This training run is used by #run-links(("exp041", "exp042", "exp046")).
+  This run changes $tau_"GABA"$ to test how the inhibitory timescale affects gamma frequency, firing rate, and accuracy. All other scientific settings are held fixed, with 6 ms as the standard condition. The resulting checkpoints are used by #run-links(("exp041", "exp042", "exp046")).
 
   #table(
     columns: (1.2fr, 1.5fr, 2fr),
@@ -156,13 +154,11 @@
     [Readout shape], [$1024 arrow 10$ spiking LIF outputs], [`mem-mean`: mean membrane voltage supplies the logits],
   )
 
-  *Parameter rationale.* $tau_"GABA"$ is the only scientific variable. The 6 ms cell is the internal standard operating point.
-
   #divider()
 
   === TR-04 — Integration-timestep sweep
 
-  Test numerical stability at fixed physical presentation duration and expose the accuracy–compute trade-off of finer integration. This training run is used by #run-links(("exp044",)).
+  This run changes the integration timestep while keeping each presentation at 200 ms. It tests whether the observed dynamics depend on numerical resolution and measures the extra compute required by finer timesteps. The 0.05 ms cells need the large-memory Cambridge request. The resulting checkpoints are used by #run-links(("exp044",)).
 
   #table(
     columns: (1.2fr, 1.5fr, 2fr),
@@ -175,13 +171,11 @@
     [Readout shape], [$1024 arrow 10$ spiking LIF outputs], [`mem-mean`: mean membrane voltage supplies the logits],
   )
 
-  *Parameter rationale.* Physical duration does not change. The 0.05 ms cells are the memory exception and require the large-memory Cambridge request.
-
   #divider()
 
   === TR-05 — Recurrent-initialization sweep
 
-  Determine whether the recurrent E/I regime is learned from generic initialization or must be built into the network before supervised training. This training run is used by #run-links(("exp049",)).
+  This run tests whether training preserves the PING loop or learns a useful loop from weaker initial conditions. Recurrent initialization and trainability change together, while the feedforward network and classifier remain fixed to the PING recipe. The resulting checkpoints are used by #run-links(("exp049",)).
 
   #table(
     columns: (1.2fr, 1.65fr, 2fr),
@@ -194,27 +188,23 @@
     [Readout shape], [$1024 arrow 10$ spiking LIF outputs], [`mem-mean`: mean membrane voltage supplies the logits],
   )
 
-  *Parameter rationale.* Recurrent initialization and trainability move together by design. All feedforward and classifier settings remain on the PING recipe.
-
   #divider()
 
   === TR-06 — Variable-rate streaming bank
 
-  Train a PING classifier whose input distribution and output decision rule match variable-rate streaming inference. The resulting checkpoint bank supports inference across input rates and presentation durations. This training run is used by #run-links(("exp082",)).
+  This run trains PING across the input rates used by exp082. One rate is sampled uniformly for each presentation, and the ten output LIF neurons produce class logits from their firing rates rather than their mean membrane voltages. Expressing the logits in hertz makes them comparable across presentation durations. During streaming inference, the output neurons reset at digit boundaries while the hidden PING state continues. The resulting checkpoints are used by #run-links(("exp082",)).
 
   #table(
     columns: (1.2fr, 1.65fr, 2fr),
     table.header([*Key parameter*], [*Value*], [*Why it differs*]),
     [Architecture], [PING], [Target model for streaming inference],
     [Training pool], [7,000 samples], [Uses the shared sweep-scale training set],
-    [Input-rate set], [0.5, 1, 2, 5, 10, 25 Hz], [Range selected by exp080],
+    [Input-rate set], [0.5, 0.75, 1, 1.5, 2, 3, 5, 7.5, 10, 15, 25 Hz], [Denser sampling within the interval selected by exp080],
     [Sampling rule], [Uniform categorical, independently per presentation], [Makes rate variation part of the training distribution],
     [Readout], [`spike-rate`], [Hidden E spikes drive ten spiking LIF class neurons; each logit is that class neuron's spike count divided by presentation duration in seconds],
     [Readout shape], [$1024 arrow 10$ spiking LIF outputs], [Ten class neurons emit and reset throughout the presentation],
     [Cells], [1 recipe × 3 seeds = 3], [Checkpoint bank expected by exp082],
   )
-
-  *Parameter rationale.* Uniform categorical sampling gives each input rate equal representation during training. The `spike-rate` reduction expresses every class logit in hertz, making the readout comparable across presentation durations. During streaming inference, digit boundaries reset the output LIF state while the hidden PING state remains continuous.
 
   #major-divider()
 
