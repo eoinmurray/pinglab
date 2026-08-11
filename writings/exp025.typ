@@ -188,7 +188,7 @@
       and I (red) firing rates. Recruitment is $W_"in"$-ordered: at $W_"in" = 0.05$
       and $0.1$ the I population stays silent for the first ≈ 8 epochs and engages
       only weakly in the final one or two; at $W_"in" = 0.3$ the loop recruits by
-      epoch 7; at $W_"in" = 1.2$ it is active from epoch 1. The lower the input drive,
+      epoch 7; at $W_"in" = 0.9$ it is active from epoch 1. The lower the input drive,
       the later the loop crosses the recruitment threshold. Final accuracies:
       #low_accs.at(0)% / #low_accs.at(1)% / #low_accs.at(2)% / #low_accs.at(3)%;
       final I rates: #low_is.at(0) / #low_is.at(1) / #low_is.at(2) / #low_is.at(3) Hz.
