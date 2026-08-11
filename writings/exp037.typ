@@ -10,6 +10,8 @@
 // numbers.json, never hand-typed, so a re-run updates the prose automatically.
 #let run = json("/artifacts/data/exp037/numbers.json")
 #let cfg = run.config
+#let eval_n = cfg.at("evaluation_samples_per_seed", default: (14000,)).first()
+#let eval_pool = cfg.at("evaluation_pool_samples", default: 70000)
 #let mean(a) = a.sum() / a.len()
 
 // Trained-baseline hidden E rates + accuracy (θ_u off, averaged over seeds).
@@ -21,7 +23,7 @@
 #let rate_ratio = calc.round(coba_base_rate / ping_base_rate)
 
 // Perturbation sweep points (drop = fraction of emitted spikes; add = Hz/neuron).
-#let pert = run.perturbation
+#let pert = run.at("perturbation_summary", default: run.perturbation)
 #let at(model, mode, level) = pert.filter(r => r.model == model and r.mode == mode and calc.abs(r.level - level) < 0.001).first().acc
 #let ping_drop80 = calc.round(at("ping", "drop", 0.8))
 #let ping_drop_full = calc.round(at("ping", "drop", 1.0))
@@ -58,7 +60,8 @@
     [Parameter], [Value],
     [Integration timestep $Delta t$], [#cfg.dt ms],
     [Trial duration $T$], [#cfg.t_ms ms],
-    [Held-out MNIST test samples], [#cfg.max_samples],
+    [Evaluation corpus], [#eval_pool MNIST samples, split 80/20],
+    [Evaluated held-out samples per seed], [#eval_n],
     [Baseline training epochs (in #link("/exp022/")[exp022])], [#cfg.epochs],
   )
 
@@ -71,7 +74,8 @@
   *The perturbation.* A per-step callback on the COBANet's _\_hidden_perturb_fn_
   slot fires every timestep of every trial, with no warm-up, schedule, or exclusion.
   Trials are $T = #cfg.t_ms$ ms at $Delta t = #cfg.dt$ ms → 2000 fires per trial,
-  applied across the held-out test set against the same trained network. At each
+  applied across the held-out test set for independently trained seeds 42, 43,
+  and 44. At each
   timestep $t$:
 
   + _update conductances_ from the previous step's spikes:
@@ -116,7 +120,11 @@
   COBA, so the right panel of Figure 1 expresses the added rate as a percentage of
   each model's own baseline E rate (the architecture-fair view). The per-step RNG is
   seeded separately from the input encoder, so the Poisson input stream matches the
-  unperturbed baseline. Total: 2 models × (11 drop + 21 add) = 64 forward passes.
+  unperturbed baseline. Every seed uses the same 11-point drop and 21-point add
+  grids and the same held-out sample count: 2 models × 3 seeds × (11 + 21) = 192
+  quantitative forward passes. Curves report the across-seed mean and shaded sample
+  SD. Rasters are illustrative seed-42 trials and are not treated as replicated
+  quantitative evidence.
 
   == Results
 
@@ -124,7 +132,7 @@
     image(
       "/artifacts/data/exp037/perturbation_curves.svg",
       width: 100%,
-      alt: "Two panels of test accuracy versus perturbation level for COBA (red) and PING (black), both x-axes in percent. Left: accuracy versus percent of emitted spikes dropped. Right: accuracy versus added Poisson noise as a percent of each model's own baseline rate. PING falls steeply on the right and reaches chance; COBA's sweep spans only a small percent of its high baseline and stays flat.",
+      alt: "Two panels of across-seed mean test accuracy with shaded standard deviation versus perturbation level for COBA (red) and PING (black).",
     ),
     caption: [
       *Left (drop):* Bernoulli mask, percent of emitted spikes dropped. *Right (add):*
@@ -133,7 +141,8 @@
       accuracy to ≈ #ping_drop80% at 80% drop but collapses once added noise passes
       ≈ #ping_add_knee_pct% of its baseline, while COBA (red) stays at #coba_add_max%
       across its whole sweep, which reaches only ≈ #coba_add_max_pct% of its far higher
-      baseline. The dashed line marks chance.
+      baseline. Lines are means across independently trained seeds 42–44; shaded
+      bands show sample SD. The dashed line marks chance.
     ],
   )
 
@@ -144,7 +153,7 @@
       alt: "Three stacked single-trial rasters of trained PING at drop levels 0, 50, and 100 percent; E spikes in black above I spikes in red. The gamma banding is preserved at 0 and 50 percent and silent at 100 percent.",
     ),
     caption: [
-      Trained PING replayed on the same MNIST digit 0 trial across three drop levels
+      Illustrative seed-42 PING replayed on the same MNIST digit 0 trial across three drop levels
       (0, 50, 100%); E (black) above I (red). The gamma cadence persists as spikes are
       thinned and only vanishes at total drop: dropping spikes thins the train without
       injecting phase-incoherent activity.
@@ -158,7 +167,7 @@
       alt: "Three stacked single-trial rasters of trained PING at added Poisson rates of 0, 20, and 40 Hz; E spikes in black above I spikes in red. The gamma banding dissolves into asynchronous firing as the added rate rises.",
     ),
     caption: [
-      Trained PING replayed across three added-noise levels (0, 20, 40 Hz per neuron).
+      Illustrative seed-42 PING replayed across three added-noise levels (0, 20, 40 Hz per neuron).
       The gamma banding dissolves into asynchronous firing as the added rate rises,
       matching the accuracy cliff in the previous figure.
     ],
@@ -171,7 +180,7 @@
       alt: "Three stacked single-trial rasters of trained COBA at drop levels 0, 50, and 100 percent; dense asynchronous E firing that thins uniformly with drop and is silent at 100 percent.",
     ),
     caption: [
-      Trained COBA replayed across the same drop sweep. With no cycle to preserve,
+      Illustrative seed-42 COBA replayed across the same drop sweep. With no cycle to preserve,
       dropping spikes just thins a uniform asynchronous mean.
     ],
   )
@@ -183,7 +192,7 @@
       alt: "Three stacked single-trial rasters of trained COBA at added Poisson rates of 0, 20, and 40 Hz; dense asynchronous firing whose mean rate rises but whose structure is unchanged.",
     ),
     caption: [
-      Trained COBA replayed across the same add sweep. Added spikes blend into COBA's
+      Illustrative seed-42 COBA replayed across the same add sweep. Added spikes blend into COBA's
       asynchronous mean: no temporal structure to corrupt, just a higher mean rate.
     ],
   )

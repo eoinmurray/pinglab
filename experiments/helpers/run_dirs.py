@@ -34,6 +34,13 @@ from .run_id import COUNTER_FILE
 from .run_id import persist as persist_run_id
 
 
+def _display_path(path):
+    try:
+        return path.relative_to(REPO)
+    except ValueError:
+        return path
+
+
 def prepare(
     slug: str,
     run_id: str,
@@ -57,10 +64,10 @@ def prepare(
         # expensive to rebuild) are preserved, so a figure refresh never silently
         # nukes them.
         if not skip_training and artifacts.exists():
-            print(f"[wipe] {artifacts.relative_to(REPO)}")
+            print(f"[wipe] {_display_path(artifacts)}")
             shutil.rmtree(artifacts)
         if figures.exists():
-            print(f"[wipe] {figures.relative_to(REPO)} (top-level files; subdirs kept)")
+            print(f"[wipe] {_display_path(figures)} (top-level files; subdirs kept)")
             for p in figures.iterdir():
                 if p.is_file():
                     p.unlink()

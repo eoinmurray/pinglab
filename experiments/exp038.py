@@ -1,9 +1,7 @@
 """Notebook runner for entry 038 — functional probes of trained
 PING vs COBA.
 
-Standalone runner with no cross-notebook helpers. Trains coba / ping
-baselines, then runs three inference-only probes on the trained
-networks:
+Consumes COBA/PING checkpoints from exp022, then runs inference-only probes:
 - input-rate sweep: per-cell f-I curve on MNIST digit 0 + uniform
   Poisson input;
 - COBA → PING I-loop transfer: replay trained COBA at eval-time
@@ -20,6 +18,7 @@ Writing: writings/exp038.typ · figures + numbers.json: artifacts/data/exp038/
 from __future__ import annotations
 
 import json
+import os
 import sys
 import time
 from pathlib import Path
@@ -36,16 +35,18 @@ from helpers import theme  # noqa: E402
 from helpers.cli import parse_meta, replot_target  # noqa: E402
 from helpers.figsave import save_figure  # noqa: E402
 from helpers.numbers import write_numbers  # noqa: E402
-from helpers.paths import artifacts_and_figures  # noqa: E402
+from helpers.paths import artifacts_and_figures, runner_paths  # noqa: E402
 from helpers.run_cli import run_cli  # noqa: E402
 from helpers.run_dirs import published_run  # noqa: E402
 from helpers.run_id import next_run_id  # noqa: E402
 from helpers.stamp import stamp_figure  # noqa: E402
 
 SLUG = "exp038"
+RUN_PATHS = runner_paths(SLUG)
 ARTIFACTS, FIGURES = artifacts_and_figures(SLUG)
 
 MAX_SAMPLES = 7000  # exp022 sweep-cell scale (10% of MNIST); reporting only
+EVAL_MAX_SAMPLES = 70000
 T_MS = 200.0
 DT_TRAIN = 0.1
 BASELINE_EPOCHS: int = 50  # baseline cell training horizon (in exp022 now)
@@ -60,8 +61,8 @@ SCALE = {
     "dt_ms": DT_TRAIN,
     "batch_size": 256,
     "seeds": 3,  # SEEDS_BASELINE
-    "cells": 12,  # len(MODELS) * len(THETA_U_GRID)
-    "grid": "2 models × 6 θ_u values",
+    "cells": 16,
+    "grid": "2 models × (3 baseline seeds + 5 single-seed regularized cells)",
 }
 
 # Baseline (θ_u = off) cells are trained at multiple seeds so the
@@ -71,7 +72,7 @@ SCALE = {
 SEEDS_BASELINE: list[int] = [42, 43, 44]
 SEED_SWEEP: int = 42
 
-# Inference-time ei_strength sweep on the coba__off__seed42 baseline.
+# Inference-time ei_strength sweep on all three COBA baselines.
 # Subsumes the now-retired nb019 — trains nothing new; just runs the
 # already-trained coba weights forward through the test set with a
 # fresh ping-arch I-loop at progressively higher ei_strength.
@@ -127,7 +128,16 @@ def seeds_for(theta_u: float | None) -> list[int]:
 def cell_dir(model: str, theta_u: float | None, seed: int) -> Path:
     """Trained cell — now the shared exp022 cell (train-once / reuse-many).
     exp022 owns the θ_u sweep; this notebook only consumes it."""
+    if RUN_PATHS.isolated and not os.environ.get("PINGLAB_TRAINING_ROOT"):
+        raise RuntimeError("isolated exp038 requires explicit PINGLAB_TRAINING_ROOT")
     return shared_cell_dir(cell_name(model, theta_u, seed))
+
+
+def _log_event(event: str, **fields: object) -> None:
+    RUN_PATHS.logs.mkdir(parents=True, exist_ok=True)
+    record = {"event": event, "experiment": SLUG, **fields}
+    with (RUN_PATHS.logs / f"{SLUG}.jsonl").open("a") as handle:
+        handle.write(json.dumps(record, sort_keys=True) + "\n")
 
 
 def baseline_dir(model: str, seed: int = SEEDS_BASELINE[0]) -> Path:
@@ -150,8 +160,9 @@ def load_config(run_dir: Path) -> dict:
 # ── COBA→PING ei_strength sweep (subsumes nb019) ──────────────────────
 
 
-def _ei_sweep_dir() -> Path:
-    return ARTIFACTS / "ei_sweep"
+def _ei_sweep_dir(seed: int | None = None) -> Path:
+    root = ARTIFACTS / "ei_sweep"
+    return root if seed is None else root / f"seed{seed}"
 
 
 def run_inproc_infer(train_dir: Path, ei_strength: float, out_dir: Path) -> dict:
@@ -168,6 +179,7 @@ def run_inproc_infer(train_dir: Path, ei_strength: float, out_dir: Path) -> dict
             "--load-weights", str((train_dir / "weights.pth").resolve()),
             "--ei-strength", str(ei_strength),
             "--skip-load", "W_ei.", "W_ie.",
+            "--max-samples", str(EVAL_MAX_SAMPLES),
             "--out-dir", str(out_dir.resolve()),
         ]
     )
@@ -190,12 +202,19 @@ def run_inproc_infer(train_dir: Path, ei_strength: float, out_dir: Path) -> dict
     return metrics
 
 
-def capture_ei_raster(train_dir: Path, ei_strength: float, sample_idx: int) -> dict:
+def capture_ei_raster(
+    train_dir: Path, ei_strength: float, sample_idx: int, *, seed: int
+) -> dict:
     """Single-trial raster: fresh ping at ei_strength with W_ei/W_ie skipped on load
     (same transfer-load as run_inproc_infer), via `sim --infer --skip-load ...
     --sample-index`. Reads spk_e/spk_i + label from snapshot.npz."""
     cfg = json.loads((train_dir / "config.json").read_text())
-    out_dir = (ARTIFACTS / "ei_raster" / f"ei{ei_strength:g}_s{sample_idx}").resolve()
+    out_dir = (
+        ARTIFACTS
+        / "ei_raster"
+        / f"seed{seed}"
+        / f"ei{ei_strength:g}_s{sample_idx}"
+    ).resolve()
     out_dir.mkdir(parents=True, exist_ok=True)
     run_cli(
         [
@@ -204,6 +223,7 @@ def capture_ei_raster(train_dir: Path, ei_strength: float, sample_idx: int) -> d
             "--load-weights", str((train_dir / "weights.pth").resolve()),
             "--ei-strength", str(ei_strength),
             "--skip-load", "W_ei.", "W_ie.",
+            "--max-samples", str(EVAL_MAX_SAMPLES),
             "--sample-index", str(sample_idx),
             "--out-dir", str(out_dir),
         ]
@@ -218,6 +238,7 @@ def capture_ei_raster(train_dir: Path, ei_strength: float, sample_idx: int) -> d
     e_idx = np.sort(rng.choice(e_full.shape[1], EI_RASTER_N_E_PLOT, replace=False))
     i_idx = np.sort(rng.choice(i_full.shape[1], EI_RASTER_N_I_PLOT, replace=False))
     return {
+        "seed": seed,
         "ei_strength": float(ei_strength),
         "label": int(d["label"]),
         "e": e_full[:, e_idx].astype(bool),
@@ -590,36 +611,40 @@ def plot_ei_rates_sweep(points: list[dict], out_path: Path, run_id: str) -> None
 
 
 def run_ei_sweep(notebook_run_id: str) -> list[dict]:
-    """In-process inference sweep on the coba__off__seed42 baseline.
-    Generates acc_sweep.png, rates_sweep.png, ei_rasters.png and returns
-    the per-ei result rows."""
-    train_dir = baseline_dir("coba")
-    if not (train_dir / "weights.pth").exists():
-        raise SystemExit(
-            f"ei-sweep needs trained coba weights at {train_dir}; "
-            "run training first or check baseline_dir naming."
-        )
-    sweep_root = _ei_sweep_dir()
-    sweep_root.mkdir(parents=True, exist_ok=True)
-
+    """Run the inference E→I sweep across all trained COBA seeds."""
     points: list[dict] = []
-    for ei in EI_SWEEP:
-        out = sweep_root / f"infer_ei{ei:g}"
-        print(f"[ei-sweep] ei={ei} → {out.relative_to(REPO)}")
-        m = run_inproc_infer(train_dir, ei, out)
-        points.append(
-            {
-                "ei_strength": ei,
-                "acc": m["best_acc"],
-                "hid_rate_hz": m.get("hid_rate_hz"),
-                "inh_rate_hz": m.get("inh_rate_hz"),
-                "n_total": m.get("n_total"),
-            }
-        )
+    for seed in SEEDS_BASELINE:
+        train_dir = baseline_dir("coba", seed)
+        if not (train_dir / "weights.pth").exists():
+            raise SystemExit(f"ei-sweep needs trained COBA weights at {train_dir}")
+        sweep_root = _ei_sweep_dir(seed)
+        sweep_root.mkdir(parents=True, exist_ok=True)
+        for ei in EI_SWEEP:
+            out = sweep_root / f"infer_ei{ei:g}"
+            print(f"[ei-sweep] seed={seed} ei={ei} → {out}")
+            m = run_inproc_infer(train_dir, ei, out)
+            points.append(
+                {
+                    "seed": seed,
+                    "ei_strength": ei,
+                    "acc": m["best_acc"],
+                    "hid_rate_hz": m.get("hid_rate_hz"),
+                    "inh_rate_hz": m.get("inh_rate_hz"),
+                    "n_total": m.get("n_total"),
+                }
+            )
 
-    print(f"[ei-sweep] capturing single-trial rasters for ei ∈ {EI_RASTER}")
+    illustrative_seed = SEEDS_BASELINE[0]
+    train_dir = baseline_dir("coba", illustrative_seed)
+    print(
+        f"[ei-sweep] capturing seed-{illustrative_seed} illustrative rasters "
+        f"for ei ∈ {EI_RASTER}"
+    )
     raster_samples = [
-        capture_ei_raster(train_dir, ei, EI_RASTER_SAMPLE_IDX) for ei in EI_RASTER
+        capture_ei_raster(
+            train_dir, ei, EI_RASTER_SAMPLE_IDX, seed=illustrative_seed
+        )
+        for ei in EI_RASTER
     ]
 
     plot_ei_rasters(raster_samples, FIGURES / "ei_rasters", notebook_run_id)
@@ -646,6 +671,24 @@ TAU_GABA_VALUES: list[float] = [4.5, 6.0, 9.0, 12.0, 18.0, 27.0]  # ms; default 
 def _despine(ax):
     for sp in ("top", "right"):
         ax.spines[sp].set_visible(False)
+
+
+def summarize_ei_points(points: list[dict]) -> list[dict]:
+    """Aggregate the E→I sweep across independently trained seeds."""
+    summary = []
+    for ei in sorted({float(point["ei_strength"]) for point in points}):
+        rows = [point for point in points if float(point["ei_strength"]) == ei]
+        row = {"ei_strength": ei}
+        for field in ("acc", "hid_rate_hz", "inh_rate_hz"):
+            values = np.asarray(
+                [float(point.get(field) or 0.0) for point in rows], dtype=float
+            )
+            row[field] = float(values.mean())
+            row[f"{field}_sd"] = (
+                float(values.std(ddof=1)) if len(values) > 1 else 0.0
+            )
+        summary.append(row)
+    return summary
 
 
 def fig_loop_transfer_compound(points, raster_lo, raster_hi, out_path, run_id):
@@ -680,23 +723,34 @@ def fig_loop_transfer_compound(points, raster_lo, raster_hi, out_path, run_id):
         ax.set_title(f"ei = {s['ei_strength']:g}  —  {tag}", loc="left", fontweight="semibold")
         _despine(ax)
 
-    eis = [p["ei_strength"] for p in points]
+    summary = summarize_ei_points(points)
+
+    eis = np.asarray([p["ei_strength"] for p in summary])
     ax_r = fig.add_subplot(gs[1, 0])
-    hid = [p.get("hid_rate_hz") or 0.0 for p in points]
-    inh = [p.get("inh_rate_hz") or 0.0 for p in points]
+    hid = np.asarray([p["hid_rate_hz"] for p in summary])
+    inh = np.asarray([p["inh_rate_hz"] for p in summary])
+    hid_sd = np.asarray([p["hid_rate_hz_sd"] for p in summary])
+    inh_sd = np.asarray([p["inh_rate_hz_sd"] for p in summary])
     ax_r.plot(eis, hid, marker="o", ms=3, color=theme.INK_BLACK, label="E (hidden)")
     ax_r.plot(eis, inh, marker="s", ms=3, color=theme.DEEP_RED, label="I")
+    ax_r.fill_between(eis, hid - hid_sd, hid + hid_sd,
+                      color=theme.INK_BLACK, alpha=0.15, linewidth=0)
+    ax_r.fill_between(eis, inh - inh_sd, inh + inh_sd,
+                      color=theme.DEEP_RED, alpha=0.15, linewidth=0)
     ax_r.set_xlabel("inference E→I strength")
     ax_r.set_ylabel("rate (Hz)")
     ax_r.legend(fontsize=theme.SIZE_LEGEND, frameon=False)
     _despine(ax_r)
 
     ax_a = fig.add_subplot(gs[1, 1])
-    accs = [p["acc"] for p in points]
-    base_acc = points[0]["acc"]
+    accs = np.asarray([p["acc"] for p in summary])
+    acc_sds = np.asarray([p["acc_sd"] for p in summary])
+    base_acc = summary[0]["acc"]
     ax_a.axhline(base_acc, color=theme.LABEL, lw=1.0, ls="--",
                  label=f"COBA baseline {base_acc:.0f}%")
     ax_a.plot(eis, accs, marker="o", ms=3, color=theme.DEEP_RED, label="transfer")
+    ax_a.fill_between(eis, accs - acc_sds, accs + acc_sds,
+                      color=theme.DEEP_RED, alpha=0.15, linewidth=0)
     ax_a.set_ylim(0, 100)
     ax_a.set_xlabel("inference E→I strength")
     ax_a.set_ylabel("test accuracy (%)")
@@ -712,34 +766,44 @@ def fig_loop_transfer_compound(points, raster_lo, raster_hi, out_path, run_id):
 def _load_cached_ei_points() -> list[dict]:
     """Read the ei-sweep results from the previous run's cached metrics.json —
     no inference. Raises with a clear message if the cache is absent."""
-    sweep_root = _ei_sweep_dir()
     points: list[dict] = []
-    for ei in EI_SWEEP:
-        mfile = sweep_root / f"infer_ei{ei:g}" / "metrics.json"
-        if not mfile.exists():
-            raise SystemExit(
-                f"--replot needs cached ei-sweep data at {mfile.parent}; "
-                "run the notebook once without --replot first."
-            )
-        m = json.loads(mfile.read_text())
-        rates_hz = m.get("rates_hz", {})
-        hid = next((k for k in rates_hz if k.startswith("hid")), None)
-        inh = next((k for k in rates_hz if k.startswith("inh")), None)
-        points.append({
-            "ei_strength": ei,
-            "acc": float(m["best_acc"]),
-            "hid_rate_hz": rates_hz.get(hid) if hid else None,
-            "inh_rate_hz": rates_hz.get(inh) if inh else None,
-            "n_total": int(m.get("n_total", 0)),
-        })
+    for seed in SEEDS_BASELINE:
+        sweep_root = _ei_sweep_dir(seed)
+        for ei in EI_SWEEP:
+            mfile = sweep_root / f"infer_ei{ei:g}" / "metrics.json"
+            if not mfile.exists():
+                raise SystemExit(
+                    f"--replot needs cached ei-sweep data at {mfile.parent}; "
+                    "run the notebook once without --replot first."
+                )
+            m = json.loads(mfile.read_text())
+            rates_hz = m.get("rates_hz", {})
+            hid = next((k for k in rates_hz if k.startswith("hid")), None)
+            inh = next((k for k in rates_hz if k.startswith("inh")), None)
+            points.append({
+                "seed": seed,
+                "ei_strength": ei,
+                "acc": float(m["best_acc"]),
+                "hid_rate_hz": rates_hz.get(hid) if hid else None,
+                "inh_rate_hz": rates_hz.get(inh) if inh else None,
+                "n_total": int(m.get("n_total", 0)),
+            })
     return points
 
 
-def _load_cached_ei_raster(ei_strength: float, sample_idx: int) -> dict:
+def _load_cached_ei_raster(
+    ei_strength: float, sample_idx: int, *, seed: int
+) -> dict:
     """Read a single-trial raster from the previous run's cached snapshot.npz —
     no inference. Mirrors capture_ei_raster's parsing without the sim call."""
-    cfg = json.loads((baseline_dir("coba") / "config.json").read_text())
-    snap = ARTIFACTS / "ei_raster" / f"ei{ei_strength:g}_s{sample_idx}" / "snapshot.npz"
+    cfg = json.loads((baseline_dir("coba", seed) / "config.json").read_text())
+    snap = (
+        ARTIFACTS
+        / "ei_raster"
+        / f"seed{seed}"
+        / f"ei{ei_strength:g}_s{sample_idx}"
+        / "snapshot.npz"
+    )
     if not snap.exists():
         raise SystemExit(
             f"--replot needs cached raster at {snap}; "
@@ -755,6 +819,7 @@ def _load_cached_ei_raster(ei_strength: float, sample_idx: int) -> dict:
     e_idx = np.sort(rng.choice(e_full.shape[1], EI_RASTER_N_E_PLOT, replace=False))
     i_idx = np.sort(rng.choice(i_full.shape[1], EI_RASTER_N_I_PLOT, replace=False))
     return {
+        "seed": seed,
         "ei_strength": float(ei_strength),
         "label": int(d["label"]),
         "e": e_full[:, e_idx].astype(bool),
@@ -770,8 +835,12 @@ def replot_figures(run_id: str = "replot") -> None:
     Use when only the figure rendering changed (labels, style, layout); a full run
     is only needed when the underlying numbers change."""
     points = _load_cached_ei_points()
+    illustrative_seed = SEEDS_BASELINE[0]
     raster_samples = [
-        _load_cached_ei_raster(ei, EI_RASTER_SAMPLE_IDX) for ei in EI_RASTER
+        _load_cached_ei_raster(
+            ei, EI_RASTER_SAMPLE_IDX, seed=illustrative_seed
+        )
+        for ei in EI_RASTER
     ]
     FIGURES.mkdir(parents=True, exist_ok=True)
     plot_ei_rasters(raster_samples, FIGURES / "ei_rasters", run_id)
@@ -802,6 +871,7 @@ def main() -> None:
         f"notebook_run_id = {run_id} cells={n_cells}"
         + ("  [skip-training]" if meta.skip_training else "")
     )
+    _log_event("started", run_id=run_id)
 
     # Training lives in exp022 now (train-once / reuse-many). This notebook
     # consumes the shared cells via cell_dir → exp022.load_cell. Atomic publish:
@@ -891,19 +961,27 @@ def main() -> None:
                         theta_hz(t) for t in THETA_U_GRID if t is not None
                     ],
                     "max_samples": MAX_SAMPLES,
+                    "evaluation_pool_samples": EVAL_MAX_SAMPLES,
                     "epochs": BASELINE_EPOCHS,
                     "t_ms": T_MS,
                     "dt": DT_TRAIN,
                     "seeds_baseline": SEEDS_BASELINE,
+                    "quantitative_inference_seeds": SEEDS_BASELINE,
+                    "illustrative_raster_seed": SEEDS_BASELINE[0],
+                    "evaluation_samples_per_seed": sorted(
+                        {int(point["n_total"]) for point in ei_points}
+                    ),
                     "seed_sweep": SEED_SWEEP,
                     "fr_strength_upper": FR_STRENGTH_UPPER,
                 },
                 "baseline_results": rows,
                 "ei_sweep": ei_points,
+                "ei_sweep_summary": summarize_ei_points(ei_points),
                 "fi_sweep_uniform": fi_rows,
             },
         )
         print(f"wrote {figures / 'numbers.json'}")
+        _log_event("completed", run_id=run_id, quantitative_rows=len(ei_points))
 
 
 

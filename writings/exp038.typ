@@ -6,6 +6,21 @@
   status: "final",
 )
 
+#let run = json("/artifacts/data/exp038/numbers.json")
+#let cfg = run.config
+#let eval_n = cfg.at("evaluation_samples_per_seed", default: (14000,)).first()
+#let eval_pool = cfg.at("evaluation_pool_samples", default: 70000)
+#let ei = run.at("ei_sweep_summary", default: run.ei_sweep)
+#let at(strength) = ei.filter(r => calc.abs(r.ei_strength - strength) < 0.001).first()
+#let loop_off = at(0.0)
+#let loop_on = at(1.0)
+#let rate_off = calc.round(loop_off.hid_rate_hz)
+#let rate_on = calc.round(loop_on.hid_rate_hz)
+#let inhibition_on = calc.round(loop_on.inh_rate_hz)
+#let rate_ratio = calc.round(loop_off.hid_rate_hz / loop_on.hid_rate_hz)
+#let acc_off = calc.round(loop_off.acc)
+#let acc_on = calc.round(loop_on.acc)
+#let acc_cost = calc.round(loop_off.acc - loop_on.acc)
 
 #let body = [
   The trained networks this entry uses are produced once in the shared training
@@ -14,9 +29,10 @@
   == Abstract
 
   Loads a trained COBA network and switches the I-loop on at inference by sweeping
-  _ei_strength_ from 0 to 1. The same feedforward weights that fire at ≈ 133 Hz
-  without the loop fire at ≈ 9 Hz with it engaged, a ≈ 15× drop with no weight
-  update. Accuracy, though, falls ≈ 36 pp (from ≈ 90% to ≈ 55%) as the loop engages,
+  _ei_strength_ from 0 to 1. Across independently trained seeds 42–44, the same
+  feedforward weights that fire at ≈ #rate_off Hz without the loop fire at ≈
+  #rate_on Hz with it engaged, a ≈ #rate_ratio× drop with no weight update.
+  Accuracy, though, falls ≈ #acc_cost pp (from ≈ #acc_off% to ≈ #acc_on%) as the loop engages,
   because the readout was never trained with it. PING gating is a post-hoc sparsity
   knob: the architecture, not the training, supplies the gamma dynamics, but using
   it well still needs training _with_ the loop.
@@ -28,8 +44,8 @@
     [Parameter], [Value],
     [Integration timestep $Delta t$], [0.1 ms],
     [Trial duration $T$], [200 ms],
-    [MNIST samples (80/20 stratified split of 7000)],
-    [5600 train / 1400 test (≈ 10% of the 70k-sample MNIST corpus)],
+    [Evaluation corpus], [#eval_pool MNIST samples, split 80/20],
+    [Evaluated held-out samples per seed], [#eval_n],
     [Epochs], [50],
   )
 
@@ -39,11 +55,15 @@
   that previously lived here has moved to #link("/exp023/")[exp023], the natural home
   for "architectural response to drive".)
 
-  *Inference-time probe.* The trained COBA baseline (seed 42, $theta_u =$ off) is
+  *Inference-time probe.* The trained COBA baselines (seeds 42–44,
+  $theta_u =$ off) are
   loaded and _ei_strength_ (the I-loop gain) is overridden at eval time across 11
-  values from 0 to 1. $W_"in"$ and $W_"out"$ load from the COBA checkpoint;
+  values from 0 to 1. Each seed uses the same grid and held-out sample count.
+  $W_"in"$ and $W_"out"$ load from its COBA checkpoint;
   $W^(E I)$ and $W^(I E)$ are freshly initialised (the COBA checkpoint stores these
-  at zero, so skipping the load leaves a functional I-loop). No retraining.
+  at zero, so skipping the load leaves a functional I-loop). No retraining. The
+  quantitative curves report the across-seed mean and shaded sample SD. The raster
+  panels show seed 42 as an explicitly illustrative example.
 
   == Results
 
@@ -56,10 +76,12 @@
       stores them at zero). *Top*: the same feedforward weights fire densely and
       asynchronously at _ei = 0_ (COBA) and in gamma bands at _ei = 1_ (PING); the
       gamma dynamics come from the inhibitory architecture, not from training.
-      *Bottom left*: E rate falls ≈ 15× (≈ 133 → 9 Hz) as the loop engages while I
-      rises to ≈ 51 Hz; the suppression is continuous in loop strength. *Bottom
-      right*: accuracy _degrades_ without retraining, from the ≈ 90% COBA baseline
-      to ≈ 55% at full strength (a ≈ 36 pp cost). So the architecture supplies the
+      *Bottom left*: across-seed mean E rate falls ≈ #rate_ratio× (≈ #rate_off →
+      #rate_on Hz) as the loop engages while I rises to ≈ #inhibition_on Hz; the
+      suppression is continuous in loop strength. *Bottom right*: mean accuracy
+      _degrades_ without retraining, from the ≈ #acc_off% COBA baseline to ≈
+      #acc_on% at full strength (a ≈ #acc_cost pp cost). Shaded bands show sample
+      SD across seeds 42–44. So the architecture supplies the
       rate-gating for free, but using it well needs training _with_ the loop
       (#link("/exp025/")[exp025]): the sparsity is architectural, the accuracy is
       learned.
@@ -70,7 +92,7 @@
     image("/artifacts/data/exp038/ei_rasters.png", width: 100%,
       alt: "Six stacked E/I spike rasters of the same trial replayed at ei_strength 0, 0.2, 0.4, 0.6, 0.8, 1, showing dense asynchronous firing giving way to gamma bands as the loop strengthens."),
     caption: [
-      The full transition: trained COBA replayed at six inference-time _ei_strength_
+      The illustrative seed-42 transition: trained COBA replayed at six inference-time _ei_strength_
       values (same trial, same feedforward weights, a fresh I-loop each row). At
       _ei = 0_ the asynchronous-dense COBA pattern persists; by _ei ≈ 0.4_ the same
       weights produce gamma cycles, sharpening toward _ei = 1_. The rhythm appears

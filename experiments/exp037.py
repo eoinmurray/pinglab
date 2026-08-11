@@ -1,8 +1,7 @@
 """Notebook runner for entry 037 — spike-stream perturbations of
 trained PING.
 
-Standalone runner with no cross-notebook helpers. Trains coba / ping
-baseline cells (θ_u = off, three seeds), then runs:
+Consumes COBA/PING baseline checkpoints from exp022 and runs:
 - hidden-spike perturbation sweep (drop + Poisson add) against the
   trained baselines; and
 - τ_GABA sweep (inference-time mutation of the inhibitory decay
@@ -17,6 +16,7 @@ Writing: writings/exp037.typ · figures + numbers.json: artifacts/data/exp037/
 from __future__ import annotations
 
 import json
+import os
 import sys
 import time
 from pathlib import Path
@@ -37,18 +37,22 @@ from helpers import (
 from helpers.cli import Meta, parse_meta  # noqa: E402
 from helpers.figsave import save_figure  # noqa: E402
 from helpers.fmt import format_duration  # noqa: E402
-from helpers.paths import artifacts_and_figures  # noqa: E402
+from helpers.paths import artifacts_and_figures, runner_paths  # noqa: E402
 from helpers.run_cli import run_cli  # noqa: E402
 from helpers.run_dirs import prepare as prepare_run_dirs  # noqa: E402
 from helpers.run_id import next_run_id  # noqa: E402
 from helpers.stamp import stamp_figure  # noqa: E402
 
 SLUG = "exp037"
+RUN_PATHS = runner_paths(SLUG)
 _ARTIFACTS_DEFAULT, FIGURES = artifacts_and_figures(SLUG)
-ARTIFACTS = runpod.artifacts_scratch(SLUG)
+ARTIFACTS = (
+    RUN_PATHS.state if RUN_PATHS.isolated else runpod.artifacts_scratch(SLUG)
+)
 SNN_TOOL = REPO / "tools" / "snn" / "tool.py"
 
-MAX_SAMPLES = 500
+MAX_SAMPLES = 7000
+EVAL_MAX_SAMPLES = 70000
 T_MS = 200.0
 DT_TRAIN = 0.1
 
@@ -58,7 +62,7 @@ DT_TRAIN = 0.1
 # the regulariser, not the seed.
 SEEDS_BASELINE: list[int] = [42, 43, 44]
 SEED_SWEEP: int = 42
-BASELINE_EPOCHS: int = 30  # overrides the baked epochs for baseline cells
+BASELINE_EPOCHS: int = 50
 
 # Inference-time ei_strength sweep on the coba__off__seed42 baseline.
 # Subsumes the now-retired nb019 — trains nothing new; just runs the
@@ -105,8 +109,8 @@ SCALE = {
     "dt_ms": DT_TRAIN,
     "batch_size": 256,
     "seeds": len(SEEDS_BASELINE),
-    "cells": len(MODELS) * len(THETA_U_GRID),
-    "grid": "2 models × 6 θ_u values",
+    "cells": 16,
+    "grid": "2 models × (3 baseline seeds + 5 single-seed regularized cells)",
 }
 
 def _level_tag(level) -> str:
@@ -115,12 +119,12 @@ def _level_tag(level) -> str:
     return f"{float(level):g}".replace(".", "p")
 
 
-def _parse_job(job_id: str) -> tuple[str, str, str, str]:
-    """Return (kind, model, mode, level_tag). kind is 'sweep' or 'raster'."""
+def _parse_job(job_id: str) -> tuple[str, str, int, str, str]:
+    """Return (kind, model, seed, mode, level_tag)."""
     parts = job_id.split("__")
-    if len(parts) != 4:
+    if len(parts) != 5 or not parts[2].startswith("seed"):
         raise ValueError(f"bad job id {job_id!r}")
-    return parts[0], parts[1], parts[2], parts[3]
+    return parts[0], parts[1], int(parts[2].removeprefix("seed")), parts[3], parts[4]
 
 
 def _level_from_tag(tag: str):
@@ -130,32 +134,41 @@ def _level_from_tag(tag: str):
 def infer_jobs() -> list[str]:
     jobs: list[str] = []
     for model in MODELS:
-        for mode, levels in (
-            ("drop", PERTURB_DROP_LEVELS),
-            ("add", PERTURB_ADD_LEVELS),
-        ):
-            for level in levels:
-                jobs.append(f"sweep__{model}__{mode}__{_level_tag(level)}")
+        for seed in SEEDS_BASELINE:
+            for mode, levels in (
+                ("drop", PERTURB_DROP_LEVELS),
+                ("add", PERTURB_ADD_LEVELS),
+            ):
+                for level in levels:
+                    jobs.append(
+                        f"sweep__{model}__seed{seed}__{mode}__{_level_tag(level)}"
+                    )
+        seed = SEEDS_BASELINE[0]
         for mode, levels in (
             ("drop", PERTURB_RASTER_DROP_LEVELS),
             ("add", PERTURB_RASTER_ADD_LEVELS),
         ):
             for level in levels:
-                jobs.append(f"raster__{model}__{mode}__{_level_tag(level)}")
+                jobs.append(
+                    f"raster__{model}__seed{seed}__{mode}__{_level_tag(level)}"
+                )
     return jobs
 
 
-PLUMBING_JOBS = ["sweep__ping__drop__0p0", "raster__ping__drop__0p0"]
+PLUMBING_JOBS = [
+    "sweep__ping__seed42__drop__0p0",
+    "raster__ping__seed42__drop__0p0",
+]
 
 
 def job_is_done(job_id: str) -> bool:
-    kind, model, mode, tag = _parse_job(job_id)
+    kind, model, seed, mode, tag = _parse_job(job_id)
     level = _level_from_tag(tag)
-    train_dir = baseline_dir(model)
+    train_dir = baseline_dir(model, seed)
     if kind == "sweep":
         out = _perturb_out_dir(train_dir, mode, level) / "metrics.json"
     elif kind == "raster":
-        out = ARTIFACTS / "perturb_raster" / f"{mode}_{level}_s0" / "snapshot.npz"
+        out = _perturb_raster_out_dir(model, seed, mode, level, 0) / "snapshot.npz"
     else:
         return False
     if not out.exists():
@@ -169,13 +182,13 @@ def job_is_done(job_id: str) -> bool:
 
 
 def run_infer_job(job_id: str) -> None:
-    kind, model, mode, tag = _parse_job(job_id)
+    kind, model, seed, mode, tag = _parse_job(job_id)
     level = _level_from_tag(tag)
-    train_dir = baseline_dir(model)
+    train_dir = baseline_dir(model, seed)
     if kind == "sweep":
         run_perturbation_sweep(train_dir, mode, level, reuse=True)
     elif kind == "raster":
-        capture_perturbation_raster(train_dir, mode, level, 0)
+        capture_perturbation_raster(train_dir, model, seed, mode, level, 0)
     else:
         raise ValueError(f"unknown job kind in {job_id!r}")
 
@@ -234,7 +247,16 @@ def seeds_for(theta_u: float | None) -> list[int]:
 def cell_dir(model: str, theta_u: float | None, seed: int) -> Path:
     """Trained cell — now the shared exp022 cell (train-once / reuse-many).
     exp022 owns the θ_u sweep; this notebook only consumes it."""
+    if RUN_PATHS.isolated and not os.environ.get("PINGLAB_TRAINING_ROOT"):
+        raise RuntimeError("isolated exp037 requires explicit PINGLAB_TRAINING_ROOT")
     return shared_cell_dir(cell_name(model, theta_u, seed))
+
+
+def _log_event(event: str, **fields: object) -> None:
+    RUN_PATHS.logs.mkdir(parents=True, exist_ok=True)
+    record = {"event": event, "experiment": SLUG, **fields}
+    with (RUN_PATHS.logs / f"{SLUG}.jsonl").open("a") as handle:
+        handle.write(json.dumps(record, sort_keys=True) + "\n")
 
 
 def baseline_dir(model: str, seed: int = SEEDS_BASELINE[0]) -> Path:
@@ -250,14 +272,33 @@ def load_config(run_dir: Path) -> dict:
 
 
 
+def _perturb_raster_out_dir(
+    model: str, seed: int, mode: str, level, sample_idx: int
+) -> Path:
+    lvl = list(level) if isinstance(level, (list, tuple)) else [level]
+    level_tag = "_".join(_level_tag(x) for x in lvl)
+    return (
+        ARTIFACTS
+        / "perturb_raster"
+        / model
+        / f"seed{seed}"
+        / f"{mode}_{level_tag}_s{sample_idx}"
+    ).resolve()
+
+
 def capture_perturbation_raster(
-    train_dir: Path, mode: str, level, sample_idx: int = 0
+    train_dir: Path,
+    model: str,
+    seed: int,
+    mode: str,
+    level,
+    sample_idx: int = 0,
 ) -> dict:
     """Single-trial raster with the hidden-spike perturbation active, via the CLI
     snapshot (`sim --infer --perturb-mode M --perturb-level L --sample-index N`)."""
     cfg = json.loads((train_dir / "config.json").read_text())
     lvl = list(level) if isinstance(level, (list, tuple)) else [level]
-    out_dir = (ARTIFACTS / "perturb_raster" / f"{mode}_{'_'.join(str(x) for x in lvl)}_s{sample_idx}").resolve()
+    out_dir = _perturb_raster_out_dir(model, seed, mode, level, sample_idx)
     out_dir.mkdir(parents=True, exist_ok=True)
     run_cli(
         [
@@ -266,6 +307,7 @@ def capture_perturbation_raster(
             "--load-weights", str((train_dir / "weights.pth").resolve()),
             "--perturb-mode", mode,
             "--perturb-level", *[str(x) for x in lvl],
+            "--max-samples", str(EVAL_MAX_SAMPLES),
             "--sample-index", str(sample_idx),
             "--out-dir", str(out_dir),
         ]
@@ -282,6 +324,8 @@ def capture_perturbation_raster(
     e_idx = np.sort(rng.choice(e_full.shape[1], EI_RASTER_N_E_PLOT, replace=False))
     i_idx = np.sort(rng.choice(i_full.shape[1], EI_RASTER_N_I_PLOT, replace=False))
     return {
+        "model": model,
+        "seed": seed,
         "mode": mode,
         "level": (list(float(x) for x in level) if isinstance(level, (list, tuple)) else float(level)),
         "e_rate_hz": e_rate_hz,
@@ -378,6 +422,7 @@ def run_perturbation_sweep(train_dir: Path, mode: str, level, *, reuse: bool = F
                 "--load-weights", str((train_dir / "weights.pth").resolve()),
                 "--perturb-mode", mode,
                 "--perturb-level", *[str(x) for x in lvl],
+                "--max-samples", str(EVAL_MAX_SAMPLES),
                 "--out-dir", str(out_dir),
             ]
         )
@@ -391,6 +436,45 @@ def run_perturbation_sweep(train_dir: Path, mode: str, level, *, reuse: bool = F
         "e_rate_hz": float(rates.get(hid, 0.0)) if hid else 0.0,
         "n_total": int(m.get("n_total", 0)),
     }
+
+
+def summarize_accuracy(rows: list[dict], x_key: str) -> tuple[np.ndarray, ...]:
+    """Return x, across-seed mean accuracy, and sample SD for a curve."""
+    xs = sorted({float(row[x_key]) for row in rows})
+    means = []
+    sds = []
+    for x in xs:
+        values = [float(row["acc"]) for row in rows if float(row[x_key]) == x]
+        means.append(float(np.mean(values)))
+        sds.append(float(np.std(values, ddof=1)) if len(values) > 1 else 0.0)
+    return np.asarray(xs), np.asarray(means), np.asarray(sds)
+
+
+def summarize_perturbation_rows(rows: list[dict]) -> list[dict]:
+    """Create publication rows from the per-seed perturbation measurements."""
+    summary = []
+    keys = sorted({(row["model"], row["mode"], float(row["level"])) for row in rows})
+    for model, mode, level in keys:
+        selected = [
+            row for row in rows
+            if row["model"] == model
+            and row["mode"] == mode
+            and float(row["level"]) == level
+        ]
+        acc = np.asarray([float(row["acc"]) for row in selected])
+        rate = np.asarray([float(row["e_rate_hz"]) for row in selected])
+        summary.append({
+            "model": model,
+            "mode": mode,
+            "level": level,
+            "acc": float(acc.mean()),
+            "acc_sd": float(acc.std(ddof=1)) if len(acc) > 1 else 0.0,
+            "e_rate_hz": float(rate.mean()),
+            "e_rate_hz_sd": float(rate.std(ddof=1)) if len(rate) > 1 else 0.0,
+            "seeds": [int(row["seed"]) for row in selected],
+            "n_total_per_seed": [int(row["n_total"]) for row in selected],
+        })
+    return summary
 
 
 def plot_perturbation_curves(
@@ -414,11 +498,16 @@ def plot_perturbation_curves(
         rows = [
             p for p in points if p["model"] == model and p["mode"] == "drop"
         ]
-        rows.sort(key=lambda p: p["level"])
+        xs, means, sds = summarize_accuracy(rows, "level")
+        xs = xs * 100
         ax_drop.plot(
-            [p["level"] * 100 for p in rows], [p["acc"] for p in rows],
+            xs, means,
             marker=MODEL_MARKERS[model], markersize=5, linewidth=1.4,
             color=MODEL_COLORS[model], label=model,
+        )
+        ax_drop.fill_between(
+            xs, means - sds, means + sds,
+            color=MODEL_COLORS[model], alpha=0.15, linewidth=0,
         )
     ax_drop.set_xlabel("Spikes dropped (% of emitted)",
                        fontsize=theme.SIZE_LABEL)
@@ -435,14 +524,17 @@ def plot_perturbation_curves(
     ax_add = axes[1]
     if use_pct:
         for model in MODELS:
-            rows = sorted(
-                [r for r in add_pct_rows if r["model"] == model],
-                key=lambda r: r["pct"],
-            )
+            rows = [r for r in add_pct_rows if r["model"] == model]
+            xs, means, sds = summarize_accuracy(rows, "pct")
+            xs = xs * 100
             ax_add.plot(
-                [r["pct"] * 100 for r in rows], [r["acc"] for r in rows],
+                xs, means,
                 marker=MODEL_MARKERS[model], markersize=5, linewidth=1.4,
                 color=MODEL_COLORS[model], label=model,
+            )
+            ax_add.fill_between(
+                xs, means - sds, means + sds,
+                color=MODEL_COLORS[model], alpha=0.15, linewidth=0,
             )
         ax_add.set_xlabel(
             "Added Poisson noise (% of baseline rate)",
@@ -457,15 +549,19 @@ def plot_perturbation_curves(
         ax_add.set_xlim(-4, 150)
     else:
         for model in MODELS:
-            rows = sorted(
-                [p for p in points
-                 if p["model"] == model and p["mode"] == "add"],
-                key=lambda p: p["level"],
-            )
+            rows = [
+                p for p in points
+                if p["model"] == model and p["mode"] == "add"
+            ]
+            xs, means, sds = summarize_accuracy(rows, "level")
             ax_add.plot(
-                [p["level"] for p in rows], [p["acc"] for p in rows],
+                xs, means,
                 marker=MODEL_MARKERS[model], markersize=5, linewidth=1.4,
                 color=MODEL_COLORS[model], label=model,
+            )
+            ax_add.fill_between(
+                xs, means - sds, means + sds,
+                color=MODEL_COLORS[model], alpha=0.15, linewidth=0,
             )
         ax_add.set_xlabel("Poisson rate (Hz / neuron)",
                           fontsize=theme.SIZE_LABEL)
@@ -519,6 +615,7 @@ def main() -> None:
         f"notebook_run_id = {notebook_run_id} cells={n_cells}"
         + ("  [skip-training]" if skip_training else "")
     )
+    _log_event("started", run_id=notebook_run_id)
 
     prepare_run_dirs(
         SLUG, notebook_run_id, wipe=wipe_dir, skip_training=skip_training,
@@ -572,19 +669,23 @@ def main() -> None:
     print("[perturb] hidden-spike drop + add sweep (coba, ping)")
     perturb_rows: list[dict] = []
     for model in MODELS:
-        train_dir = baseline_dir(model)
-        for mode, levels in (
-            ("drop", PERTURB_DROP_LEVELS),
-            ("add", PERTURB_ADD_LEVELS),
-        ):
-            for level in levels:
-                res = run_perturbation_sweep(train_dir, mode, level, reuse=skip_training)
-                res["model"] = model
-                perturb_rows.append(res)
-                print(
-                    f"  {model:<5} {mode:<4} level={level:>5.2f}  "
-                    f"acc={res['acc']:5.2f}%  E={res['e_rate_hz']:6.2f} Hz"
-                )
+        for seed in SEEDS_BASELINE:
+            train_dir = baseline_dir(model, seed)
+            for mode, levels in (
+                ("drop", PERTURB_DROP_LEVELS),
+                ("add", PERTURB_ADD_LEVELS),
+            ):
+                for level in levels:
+                    res = run_perturbation_sweep(
+                        train_dir, mode, level, reuse=skip_training
+                    )
+                    res.update(model=model, seed=seed)
+                    perturb_rows.append(res)
+                    print(
+                        f"  {model:<5} seed={seed} {mode:<4} "
+                        f"level={level:>5.2f} acc={res['acc']:5.2f}% "
+                        f"E={res['e_rate_hz']:6.2f} Hz"
+                    )
     # Right panel as % of each model's own baseline E rate (the architecture-fair
     # view): a fixed added rate is a far larger relative insult to PING (low
     # baseline) than to COBA, so both perturbation panels read in %.
@@ -608,9 +709,12 @@ def main() -> None:
     # sample 0 as the other rasters so the panels read against the
     # unperturbed baselines (Figures 4-5).
     for model in MODELS:
-        train_dir = baseline_dir(model)
+        seed = SEEDS_BASELINE[0]
+        train_dir = baseline_dir(model, seed)
         drop_samples = [
-            capture_perturbation_raster(train_dir, "drop", lvl, 0)
+            capture_perturbation_raster(
+                train_dir, model, seed, "drop", lvl, 0
+            )
             for lvl in PERTURB_RASTER_DROP_LEVELS
         ]
         plot_perturbation_rasters(
@@ -625,7 +729,9 @@ def main() -> None:
         )
         print(f"wrote {FIGURES / f'perturb_rasters__drop__{model}'}.{{png,pdf}}")
         add_samples = [
-            capture_perturbation_raster(train_dir, "add", lvl, 0)
+            capture_perturbation_raster(
+                train_dir, model, seed, "add", lvl, 0
+            )
             for lvl in PERTURB_RASTER_ADD_LEVELS
         ]
         plot_perturbation_rasters(
@@ -655,19 +761,30 @@ def main() -> None:
                 theta_hz(t) for t in THETA_U_GRID if t is not None
             ],
             "max_samples": MAX_SAMPLES,
+            "evaluation_pool_samples": EVAL_MAX_SAMPLES,
             "epochs": BASELINE_EPOCHS,
             "t_ms": T_MS,
             "dt": DT_TRAIN,
             "seeds_baseline": SEEDS_BASELINE,
+            "quantitative_inference_seeds": SEEDS_BASELINE,
+            "illustrative_raster_seed": SEEDS_BASELINE[0],
+            "evaluation_samples_per_seed": sorted(
+                {int(row["n_total"]) for row in perturb_rows}
+            ),
             "seed_sweep": SEED_SWEEP,
             "fr_strength_upper": FR_STRENGTH_UPPER,
         },
         "baseline_results": rows,
         "perturbation": perturb_rows,
+        "perturbation_summary": summarize_perturbation_rows(perturb_rows),
     }
     (FIGURES / "numbers.json").write_text(json.dumps(summary, indent=2) + "\n")
     print(f"wrote {FIGURES / 'numbers.json'}")
     print(f"  total duration: {summary['duration']}")
+    _log_event(
+        "completed", run_id=notebook_run_id,
+        quantitative_rows=len(perturb_rows),
+    )
 
 
 
