@@ -2,7 +2,7 @@
   title: "A compiled graph learns",
   date: "2026-07-31",
   description: "A deliberately small MNIST run checks that an snnlang graph and training recipe can drive the existing tools/snn trainer without legacy structural flags.",
-  collection: "snnlang",
+  collection: "documentation",
   status: "draft",
   order: 2,
 )

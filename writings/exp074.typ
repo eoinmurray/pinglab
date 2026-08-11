@@ -2,7 +2,7 @@
   title: "From Python graph to spikes",
   date: "2026-07-31",
   description: "The first snnlang vertical slice: author a PING network in Python, compile a portable bundle, execute it through tools/snn, and retain both the graph and its spike rasters.",
-  collection: "snnlang",
+  collection: "documentation",
   status: "draft",
   order: 1,
 )
