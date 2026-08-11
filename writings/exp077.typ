@@ -2,7 +2,7 @@
   title: "Arbitrary coupled graphs execute natively",
   date: "2026-08-05",
   description: "A cumulative snnlang validation establishes the typed execution seam, exact single-PING parity, and graph-only construction of two independently driven PING circuits with delayed reciprocal inhibition.",
-  collection: "snnlang",
+  collection: "documentation",
   status: "draft",
   order: 4,
 )

@@ -2,7 +2,7 @@
   title: "A bundle checkpoint replays",
   date: "2026-08-02",
   description: "A small deterministic MNIST gate checks that snnlang bundle checkpoints replay through tools/snn and that the current bundle adapter is numerically equivalent to the matching legacy route.",
-  collection: "snnlang",
+  collection: "documentation",
   status: "draft",
   order: 3,
 )
