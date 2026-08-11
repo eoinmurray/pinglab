@@ -203,7 +203,10 @@ class TestInferEmitters:
         rz = tmp_out / "rasters.npz"
         assert rz.exists()
         d = np.load(rz)
-        for k in ("e_trial", "e_t", "e_cell", "i_trial", "i_t", "i_cell"):
+        for k in (
+            "e_trial", "e_t", "e_cell", "i_trial", "i_t", "i_cell",
+            "out_trial", "out_t", "out_cell",
+        ):
             assert k in d.files
         assert int(d["n_e"]) == 32
         # rasters counts the same trials the pop traces recorded

@@ -329,13 +329,14 @@ def _build_parent_parser():
     )
     net_group.add_argument(
         "--readout",
-        choices=["rate", "mem-mean", "cumulative-potential"],
+        choices=["rate", "mem-mean", "spike-rate", "cumulative-potential"],
         default="rate",
         dest="readout_mode",
         help="Output layer: 'rate' sums last-hidden spikes "
         "and projects linearly at the final timestep "
         "(default); 'mem-mean' averages a per-class output-LIF "
-        "membrane over time; 'cumulative-potential' sums the per-step "
+        "membrane over time; 'spike-rate' divides each output-LIF spike "
+        "count by presentation duration in seconds; 'cumulative-potential' sums the per-step "
         "softmax of a non-spiking leaky decoder membrane.",
     )
     net_group.add_argument(
@@ -566,7 +567,7 @@ def _build_parent_parser():
         "bias b_ff[-1] if present) by this scalar "
         "after build_net. Use to compensate for low "
         "hidden firing rate under mem-mean / "
-        "spike-count readouts: bumping W_out up "
+        "spike-rate readouts: bumping W_out up "
         "equalises the trial-level drive into the "
         "output LIF and recovers gradient signal. "
         "Train-mode only. Default 1.0.",
@@ -978,7 +979,7 @@ each subcommand's --help):
   Network        --model, --n-hidden, --ei-strength, --ei-ratio,
                  --ei-sparsity, --w-in-sparsity, --dt, --t-ms, --seed
   Dynamics       --train-leak, --adaptive-threshold
-  Readout        --readout {rate,mem-mean,cumulative-potential},
+  Readout        --readout {rate,mem-mean,spike-rate,cumulative-potential},
                  --signed-readout, --readout-bias, --readout-w-out-scale,
                  --dales-law, --no-dales-law
   Input          --input, --input-rate, --dataset, --digit, --sample
@@ -1640,6 +1641,9 @@ def _emit_probe(args, C, out_dir, log):
         adapt_tau_bounds_ms=getattr(args, "adapt_tau_bounds_ms", None),
         adapt_strength_init_mv=getattr(args, "adapt_strength_init_mv", 1.0),
         adapt_strength_max_mv=getattr(args, "adapt_strength_max_mv", None),
+        readout_mode=getattr(args, "readout_mode", "rate"),
+        signed_readout=getattr(args, "signed_readout", False),
+        readout_bias=getattr(args, "readout_bias", False),
     )
 
 

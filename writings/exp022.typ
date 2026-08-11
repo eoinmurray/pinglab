@@ -1,482 +1,322 @@
 #let meta = (
-  title: "Shared training catalogue",
-  date: "2026-06-28",
-  description: "The registered training types, architectures, compute requirements, diagnostics, and reusable checkpoints for the gamma-gated-sparsity collection.",
+  title: "Training-run guide",
+  date: "2026-08-11",
+  description: "A guide to the shared training runs, their parameters, outputs, and downstream consumers.",
   collection: "gamma-gated-sparsity",
   status: "draft",
 )
 
 #let r = json("/artifacts/data/exp022/numbers.json")
 
+#let run-links(items) = {
+  if items.len() == 0 { [None yet.] } else {
+    for (index, item) in items.enumerate() {
+      if index > 0 { [, ] }
+      link(item + ".html")[#item]
+    }
+  }
+}
+
+#let result-figure(path, alt, caption) = figure(
+  image(path, width: 100%, alt: alt),
+  caption: caption,
+)
+
+#let divider() = context {
+  if target() == "html" {
+    html.elem("hr", attrs: (style: "margin: 2.75rem 0;"))
+  } else {
+    v(1.1em)
+    line(length: 100%, stroke: 0.6pt + luma(72%))
+    v(1.1em)
+  }
+}
+
+#let major-divider() = context {
+  if target() == "html" {
+    html.elem("hr", attrs: (style: "margin: 3.75rem 0; border-top-width: 2px;"))
+  } else {
+    v(1.8em)
+    line(length: 100%, stroke: 1pt + luma(55%))
+    v(1.8em)
+  }
+}
+
+#let callout(body) = quote(block: true, body)
+
 #let body = [
+  // Keep this manual TOC local: demolab suppresses entry headings from the
+  // collection-wide outline.
+  == Contents
+
+  + #link("#abstract")[Abstract]
+  + #link("#shared-parameters")[Shared parameters]
+  + #link("#training-run-guide")[Training-run guide]
+    + #link("#tr-01-canonical-full-data-reference")[TR-01 — Canonical full-data reference]
+    + #link("#tr-02-spike-budget-sweep")[TR-02 — Spike-budget sweep]
+    + #link("#tr-03-inhibitory-timescale-sweep")[TR-03 — Inhibitory-timescale sweep]
+    + #link("#tr-04-integration-timestep-sweep")[TR-04 — Integration-timestep sweep]
+    + #link("#tr-05-recurrent-initialization-sweep")[TR-05 — Recurrent-initialization sweep]
+    + #link("#tr-06-variable-rate-streaming-bank")[TR-06 — Variable-rate streaming bank]
+  + #link("#results-by-training-run")[Results by training run]
+    + #link("#tr-01-results-canonical-full-data-reference")[TR-01 — Canonical full-data reference]
+    + #link("#tr-02-results-spike-budget-sweep")[TR-02 — Spike-budget sweep]
+    + #link("#tr-03-results-inhibitory-timescale-sweep")[TR-03 — Inhibitory-timescale sweep]
+    + #link("#tr-04-results-integration-timestep-sweep")[TR-04 — Integration-timestep sweep]
+    + #link("#tr-05-results-recurrent-initialization-sweep")[TR-05 — Recurrent-initialization sweep]
+    + #link("#tr-06-results-variable-rate-streaming-bank")[TR-06 — Variable-rate streaming bank]
+
+  #major-divider()
+
   == Abstract
 
-  This entry is the gamma-gated-sparsity collection's training catalogue. It defines each type of training, records the resulting learning curves and activity diagnostics, and exposes one shared checkpoint bank to downstream experiments. The completed bank contains #r.n_cells independently trained cells across the canonical, spike-budget, inhibitory-timescale, timestep, and recurrent-initialization studies. A sixth training type is planned for streaming inference: PING trained with a variable Poisson input rate and a summed-spiking readout. That extension is specified here but is not counted among the completed cells.
+  Exp022 defines the collection's shared training runs and checkpoint bank. It specifies the motivation, parameterization, output-layer shape, and downstream consumers for six training-run types. Five run types comprise #r.n_cells trained cells spanning reference models and controlled sweeps over spike budget, inhibitory timescale, integration timestep, and recurrent initialization. TR-06 adds three PING cells trained across variable input rates with ten spiking output LIF neurons; each class logit is the corresponding neuron's output firing rate. Together, these runs provide the checkpoints used by the collection's training-dependent experiments.
 
-  == Methods
+  #major-divider()
 
-  === 1. Shared architecture and training contract
+  == Shared parameters
 
-  #enum(
-    [*Encode the stimulus.* Each MNIST image supplies 784 independent Poisson input channels. Completed training types use a fixed maximum-pixel rate of 25 Hz. The planned streaming bank instead samples one rate independently for each image presentation.],
-    [*Simulate the network.* A trial lasts #r.standard.t_ms ms. The standard timestep is #r.standard.dt_ms ms, giving 2000 recurrent updates per presentation. PING contains 1024 excitatory and 256 inhibitory neurons; COBA retains the excitatory pathway but disables recurrent E/I coupling.],
-    [*Form the readout.* Completed cells use `mem-mean`: a 1024-to-10 projection drives ten output LIF membranes and the class logits are their time-averaged voltages. The planned variable-rate cells use `rate`: the 1024 excitatory spike trains are summed through time and projected once through a 1024-to-10 linear readout.],
-    [*Train and retain.* Every registered configuration trains seeds 42, 43, and 44 for #r.standard.epochs epochs. The canonical reference sees #r.standard.max_samples_canonical pooled MNIST samples; sweep cells see #r.standard.max_samples_sweeps. Each cell retains its configuration, weights, epoch metrics, and a representative held-out raster.],
-  )
+  Unless a run-specific table says otherwise, every cell uses the following contract.
 
   #table(
-    columns: 3,
+    columns: (1.25fr, 1.3fr, 2.2fr),
     align: (left, left, left),
-    table.header([*Component*], [*Shape*], [*Role*]),
-    [Poisson input], [$T times B times 784$], [one event stream per image pixel],
-    [input projection $W_"in"$], [$784 times 1024$], [pixels to excitatory population],
-    [excitatory population], [$B times 1024$], [trained stimulus representation],
-    [inhibitory population], [$B times 256$], [PING feedback population],
-    [E→I projection $W_"EI"$], [$1024 times 256$], [excitatory recruitment of inhibition],
-    [I→E projection $W_"IE"$], [$256 times 1024$], [inhibitory feedback],
-    [class readout $W_"out"$], [$1024 times 10$], [excitatory activity to digit logits],
+    table.header([*Parameter*], [*Default*], [*Meaning*]),
+    [Dataset], [MNIST], [784 normalized pixels encoded as independent Poisson channels],
+    [Presentation duration], [200 ms], [One static digit per training presentation],
+    [Integration timestep], [0.1 ms], [2,000 recurrent updates per presentation],
+    [Epochs], [50], [Training horizon for every production cell],
+    [Seeds], [42, 43, 44], [Three independently initialized cells per configuration],
+    [Minibatch], [256], [Presentations per optimization step],
+    [Optimizer learning rate], [$4 times 10^(-4)$], [Shared learning rate],
+    [Input population], [784], [One channel per image pixel],
+    [Excitatory population], [1,024], [Learned stimulus representation],
+    [Inhibitory population], [256], [PING feedback population; silent when E/I coupling is disabled],
+    [$tau_"AMPA"$], [2 ms], [Fixed excitatory synaptic decay],
+    [$tau_"GABA"$], [6 ms], [Default inhibitory decay at the gamma operating point],
+    [Input sparsity], [0.95], [Sparsity of the input projection],
+    [Surrogate slope], [1], [Spike-gradient surrogate parameter],
+    [Default readout], [`mem-mean`], [A *spiking* $1024 arrow 10$ output-LIF layer. Its neurons emit spikes and reset, but classification logits are their membrane voltages averaged over time—not their spike counts],
+    [Stored projection shapes], [$784 times 1024$; $1024 times 256$; $256 times 1024$; $1024 times 10$], [Input→E, E→I, I→E, and E→class, in source-to-destination orientation],
   )
 
-  Here $T$ is the number of timesteps and $B$ is the minibatch size. Matrix shapes use the stored source-to-destination orientation.
+  #major-divider()
 
-  === 2. Registered training types
+  == Training-run guide
 
-  The registry is organised by scientific training type. A type may contain several parameter variants, and every variant contains three independent seed cells.
+  === TR-01 — Canonical full-data reference
+
+  Establish the highest-data, unconstrained COBA and PING reference. These checkpoints anchor accuracy and activity comparisons; they are not interchangeable with the 10%-MNIST no-budget cells. This training run is used by #run-links(("exp022",)).
 
   #table(
-    columns: 7,
-    align: (left, left, left, left, right, right, left),
-    table.header([*Training type*], [*Models*], [*Varied parameter*], [*MNIST*], [*Cells*], [*Trained*], [*Primary use*]),
-    [full-data reference], [COBA, PING], [none], [all], [6], [6], [canonical accuracy],
-    [spike-budget training], [COBA, PING], [$theta_u in {"off", 5, 2, 1, 0.5, 0.2}$], [10%], [36], [36], [accuracy–sparsity frontier],
-    [inhibitory-timescale training], [PING], [$tau_"GABA" in {4.5, 6, 9, 12, 18, 27}$ ms], [10%], [18], [18], [rhythm timescale],
-    [timestep training], [PING], [$Delta t in {0.05, 0.1, 0.25, 0.5, 1}$ ms], [10%], [15], [15], [numerical stability],
-    [recurrent-initialization training], [PING], [loop initialization and trainability], [10%], [12], [12], [built-in versus learned recurrence],
-    [variable-rate streaming training], [PING], [input-rate distribution and readout], [10% initially], [3], [0], [exp082 streaming inference],
+    columns: (1.2fr, 1.4fr, 2fr),
+    table.header([*Key parameter*], [*Value*], [*Why it differs*]),
+    [Architectures], [COBA and PING], [Provides a feedforward control and recurrent E/I model],
+    [Training pool], [70,000 samples], [Uses all pooled MNIST rather than the sweep default of 7,000],
+    [Input rate], [25 Hz maximum-pixel rate], [Fixed-rate collection baseline],
+    [Spike budget], [Off], [Measures unconstrained capacity],
+    [Cells], [2 architectures × 3 seeds = 6], [Across-seed comparison for both models],
+    [Readout shape], [$1024 arrow 10$ spiking LIF outputs], [`mem-mean`: mean membrane voltage supplies the logits],
   )
 
-  *Note, planned variable-rate bank.* Exp080 selects the interval 0.5–25 Hz for later PING training. The proposed cells sample uniformly from the discrete set 0.5, 1, 2, 5, 10, and 25 Hz, independently per presentation, and use the summed-spiking `rate` readout. This training changes both the input distribution and readout relative to the existing `ping__off__seed*` cells. It is therefore a new training type, not another point in the spike-budget sweep.
+  *Parameter rationale.* Full data is the defining deviation. Keeping the spike budget off prevents regularization from confounding the architecture baseline.
 
-  *Note, engine support.* `tools/snn` accepts the categorical rate set through `--input-rates`, samples it reproducibly per presentation, serializes both the values and sampling rule, and restores them through `--load-config`. The three cells are registered for the Cambridge job array. This entry still does not report their results because the full training jobs have not run.
+  #divider()
 
-  === 3. Cambridge HPC compute plan
+  === TR-02 — Spike-budget sweep
 
-  Surrogate-gradient backpropagation stores state across every timestep. A standard presentation therefore traverses 2000 sequential recurrent steps, and the backward pass is both memory-heavy and bandwidth-sensitive. The completed registry represents approximately 185 A100-GPU-hours and 49 million sample-forwards. The $Delta t = 0.05$ ms cells are the exceptional memory case, previously requiring approximately 31 GB.
+  Measure the accuracy–activity trade-off and test whether recurrent gamma gating preserves classification as the allowed spike count tightens. This training run is used by #run-links(("exp024", "exp025", "exp037", "exp038")).
 
-  The Cambridge run should use one independently resumable job-array element per cell. Each element writes only its own cell directory, validates the emitted configuration before treating an existing checkpoint as complete, and records the scheduler job identifier with the run provenance. Canonical full-data cells should not share an allocation with sweep cells because their runtime is substantially longer. The final array layout, GPU type, memory request, concurrency cap, and wall-time request remain notes until the available Cambridge partition is confirmed.
-
-  == Results
-
-  Each completed training type is reported in the same order: definition, learning curve, representative seed-42 raster, and outcome. The complete raster gallery remains in the appendix.
-
-  === 1. Full-data reference
-
-  coba and ping with no spike budget, all 70k images, seeds 42/43/44 (6 cells), the full-data baseline. Unconstrained, the two architectures are essentially tied: coba reaches ≈ 95.5 % and ping ≈ 94.0 %, with near-zero across-seed spread. This is the reference point from which the spike-budget sweep pulls them apart.
-
-  #figure(
-    image(
-      "/artifacts/data/exp022/curves__canonical.svg",
-      width: 100%,
-      alt: "Test-accuracy learning curves over epochs, canonical reference.",
-    ),
-    caption: [Test accuracy over epochs, canonical full-MNIST cells (coba dashed, ping solid; three seeds each). The two loops reach parity when no spike budget is imposed.],
+  #table(
+    columns: (1.2fr, 1.5fr, 2fr),
+    table.header([*Key parameter*], [*Value*], [*Why it differs*]),
+    [Architectures], [COBA and PING], [Direct architecture comparison],
+    [Training pool], [7,000 samples], [Keeps the 36-cell sweep tractable],
+    [Spike budget $theta_u$], [off, 5, 2, 1, 0.5, 0.2 spikes/neuron/trial], [Spans unconstrained through severe sparsity],
+    [Penalty strength], [$10^(-3)$ when enabled], [Applies the upper-rate regularizer],
+    [Cells], [2 × 6 settings × 3 seeds = 36], [Error bars at every frontier point],
+    [Readout shape], [$1024 arrow 10$ spiking LIF outputs], [`mem-mean`: mean membrane voltage supplies the logits],
   )
 
-  #figure(
-    image("/artifacts/data/exp022/rasters/ping__canonical__seed42.png", width: 100%, alt: "Seed-42 spike raster and population-rate diagnostic for the canonical PING training."),
-    caption: [Representative activity after full-data PING training. The raster shows excitatory and inhibitory spikes for the common held-out digit-0 probe; the lower panel shows the population-rate diagnostic.],
+  *Parameter rationale.* Only the spike cap and its penalty are swept. The smaller pool is a compute decision, so absolute rates must not be compared directly with the canonical full-data cells.
+
+  #divider()
+
+  === TR-03 — Inhibitory-timescale sweep
+
+  Separate task accuracy from the timescale of the E/I rhythm and measure how inhibitory decay controls gamma frequency. This training run is used by #run-links(("exp041", "exp042", "exp046")).
+
+  #table(
+    columns: (1.2fr, 1.5fr, 2fr),
+    table.header([*Key parameter*], [*Value*], [*Why it differs*]),
+    [Architecture], [PING], [The manipulated quantity belongs to the recurrent inhibitory loop],
+    [Training pool], [7,000 samples], [Sweep-scale default],
+    [$tau_"GABA"$], [4.5, 6, 9, 12, 18, 27 ms], [Moves the inhibitory rhythm across a broad timescale range],
+    [Cells], [6 settings × 3 seeds = 18], [Across-seed estimate at each decay],
+    [Readout shape], [$1024 arrow 10$ spiking LIF outputs], [`mem-mean`: mean membrane voltage supplies the logits],
   )
 
-  === 2. Spike-budget training
+  *Parameter rationale.* $tau_"GABA"$ is the only scientific variable. The 6 ms cell is the internal standard operating point.
 
-  coba and ping across spike budgets ∈ off, 5, 2, 1, 0.5, 0.2, three seeds each (36 cells), so the accuracy–rate frontier carries error bars at every point. The spike budget is a per-neuron cap on firing (spikes/trial); lower is tighter. This is the headline result: as the budget tightens, ping degrades gracefully (91.6 → 86.5 %) while coba collapses (90.7 → 60.1 %), a gap that widens monotonically from ≈ 0 to ≈ 26 points. ping's γ-rhythm gates sparsity; coba's bare feedforward code cannot pay the budget without shedding accuracy.
+  #divider()
 
-  #figure(
-    image(
-      "/artifacts/data/exp022/curves__theta_u.svg",
-      width: 100%,
-      alt: "Test-accuracy learning curves over epochs, spike-budget sweep.",
-    ),
-    caption: [Test accuracy over epochs across the spike-budget sweep. Tighter budgets plateau lower (the spike-economy trade-off), and coba falls far faster than ping.],
+  === TR-04 — Integration-timestep sweep
+
+  Test numerical stability at fixed physical presentation duration and expose the accuracy–compute trade-off of finer integration. This training run is used by #run-links(("exp044",)).
+
+  #table(
+    columns: (1.2fr, 1.5fr, 2fr),
+    table.header([*Key parameter*], [*Value*], [*Why it differs*]),
+    [Architecture], [PING], [Tests the recurrent reference model],
+    [Training pool], [7,000 samples], [Sweep-scale default],
+    [$Delta t$], [0.05, 0.1, 0.25, 0.5, 1 ms], [Changes numerical resolution while holding 200 ms physical time fixed],
+    [Steps/presentation], [4,000; 2,000; 800; 400; 200], [Compute and activation memory scale inversely with $Delta t$],
+    [Cells], [5 settings × 3 seeds = 15], [Across-seed stability check],
+    [Readout shape], [$1024 arrow 10$ spiking LIF outputs], [`mem-mean`: mean membrane voltage supplies the logits],
   )
 
-  #figure(
-    image("/artifacts/data/exp022/rasters/ping__off__seed42.png", width: 100%, alt: "Seed-42 spike raster and population-rate diagnostic for PING trained without a spike budget on the ten-percent MNIST subset."),
-    caption: [Representative activity for the spike-budget training type at the no-budget endpoint. The raster uses seed 42 and the common held-out digit-0 probe. The appendix shows every budget for both architectures.],
+  *Parameter rationale.* Physical duration does not change. The 0.05 ms cells are the memory exception and require the large-memory Cambridge request.
+
+  #divider()
+
+  === TR-05 — Recurrent-initialization sweep
+
+  Determine whether the recurrent E/I regime is learned from generic initialization or must be built into the network before supervised training. This training run is used by #run-links(("exp049",)).
+
+  #table(
+    columns: (1.2fr, 1.65fr, 2fr),
+    table.header([*Key parameter*], [*Value*], [*Why it differs*]),
+    [Architecture], [PING], [Manipulates the recurrent loop directly],
+    [Training pool], [7,000 samples], [Sweep-scale default],
+    [Loop conditions], [frozen PING; trainable PING init; trainable zero init; trainable 0.1 init], [Separates built-in dynamics from recurrence learned during task training],
+    [Trainable projections], [$W_"EI"$ and $W_"IE"$ only in trainable conditions], [The frozen condition is the mechanistic control],
+    [Cells], [4 conditions × 3 seeds = 12], [Across-seed comparison],
+    [Readout shape], [$1024 arrow 10$ spiking LIF outputs], [`mem-mean`: mean membrane voltage supplies the logits],
   )
 
-  *Scope.* This frontier is a 10%-MNIST result: the whole sweep trains on the subset (§2 of Methods), and we have not re-run it at full data. The comparison is nonetheless internally clean: every cell here shares the same data fraction, so the coba-vs-ping gap is a budget effect, not a data-fraction artifact. And the direction of the density difference (§7) makes 10% the *conservative* regime for this claim: at full MNIST the no-budget baseline fires ≈ 2× harder, so a tight per-neuron cap would have further to pull coba down, widening the gap rather than closing it. We therefore read the ≈ 26-point separation as a floor, and do not claim the absolute numbers transfer unchanged to full MNIST.
+  *Parameter rationale.* Recurrent initialization and trainability move together by design. All feedforward and classifier settings remain on the PING recipe.
 
-  === 3. Inhibitory-timescale training
+  #divider()
 
-  ping across τ_GABA ∈ 4.5, 6, 9, 12, 18, 27 ms, three seeds each (18 cells). Accuracy is largely insensitive to inhibitory decay (≈ 88–92 % across the ladder), but the *rhythm* is not: measured from the trained networks, the γ-frequency falls monotonically with τ_GABA (≈ 50 Hz at 4.5 ms → ≈ 19 Hz at 27 ms), sitting at ≈ 45 Hz at the canonical τ_GABA = 6 ms, matching the operating point (Appendix).
+  === TR-06 — Variable-rate streaming bank
 
-  #figure(
-    image(
-      "/artifacts/data/exp022/curves__tau_gaba.svg",
-      width: 100%,
-      alt: "Test-accuracy learning curves over epochs, τ_GABA ladder.",
-    ),
-    caption: [Test accuracy over epochs across the τ_GABA ladder; cells converge to similar accuracy regardless of inhibitory decay.],
+  Train a PING classifier whose input distribution and output decision rule match variable-rate streaming inference. The resulting checkpoint bank supports inference across input rates and presentation durations. This training run is used by #run-links(("exp082",)).
+
+  #table(
+    columns: (1.2fr, 1.65fr, 2fr),
+    table.header([*Key parameter*], [*Value*], [*Why it differs*]),
+    [Architecture], [PING], [Target model for streaming inference],
+    [Training pool], [7,000 samples], [Uses the shared sweep-scale training set],
+    [Input-rate set], [0.5, 1, 2, 5, 10, 25 Hz], [Range selected by exp080],
+    [Sampling rule], [Uniform categorical, independently per presentation], [Makes rate variation part of the training distribution],
+    [Readout], [`spike-rate`], [Hidden E spikes drive ten spiking LIF class neurons; each logit is that class neuron's spike count divided by presentation duration in seconds],
+    [Readout shape], [$1024 arrow 10$ spiking LIF outputs], [Ten class neurons emit and reset throughout the presentation],
+    [Cells], [1 recipe × 3 seeds = 3], [Checkpoint bank expected by exp082],
   )
 
-  #figure(
-    image("/artifacts/data/exp022/rasters/ping__tg6__seed42.png", width: 100%, alt: "Seed-42 spike raster and population-rate diagnostic for PING at the standard inhibitory time constant."),
-    caption: [Representative activity for inhibitory-timescale training at the standard $tau_"GABA"$. The raster uses seed 42 and the common held-out digit-0 probe; the appendix shows the complete ladder.],
+  *Parameter rationale.* Uniform categorical sampling gives each input rate equal representation during training. The `spike-rate` reduction expresses every class logit in hertz, making the readout comparable across presentation durations. During streaming inference, digit boundaries reset the output LIF state while the hidden PING state remains continuous.
+
+  #major-divider()
+
+  == Results by training run
+
+  Each completed run reports one training-curve figure and one representative seed-42 raster. The figures summarize all configurations and seeds; the raster is a diagnostic example, not an across-seed statistic.
+
+  === TR-01 results — Canonical full-data reference
+
+  *Run status:* complete · 6/6 cells represented
+
+  #result-figure(
+    "/artifacts/data/exp022/curves__canonical.svg",
+    "Test-accuracy learning curves for the canonical COBA and PING cells.",
+    [Training curves for the six full-data reference cells.],
   )
 
-  === 4. Timestep training
-
-  ping across Δt ∈ 0.05, 0.1, 0.25, 0.5, 1.0 ms (physical T fixed), three seeds each (15 cells), the documented timestep exception. Accuracy is flat across the sweep (≈ 90.4–91.4 %): the integrator is robust to timestep from 0.1 to 1.0 ms, and the 0.05 ms cells (which need ≈ 31 GB and so ran on a 5090) agree.
-
-  #figure(
-    image(
-      "/artifacts/data/exp022/curves__dt.svg",
-      width: 100%,
-      alt: "Test-accuracy learning curves over epochs, Δt sweep.",
-    ),
-    caption: [Test accuracy over epochs across the integration-timestep sweep; accuracy is insensitive to Δt over the tested range.],
+  #result-figure(
+    "/artifacts/data/exp022/rasters/ping__canonical__seed42.png",
+    "Seed-42 raster and population-rate diagnostic for canonical PING.",
+    [Sample raster: canonical PING, seed 42, held-out digit-0 probe.],
   )
 
-  #figure(
-    image("/artifacts/data/exp022/rasters/ping__dt0p1__seed42.png", width: 100%, alt: "Seed-42 spike raster and population-rate diagnostic for PING at the standard integration timestep."),
-    caption: [Representative activity for timestep training at the standard $Delta t$. The raster uses seed 42 and the common held-out digit-0 probe; the appendix shows all timestep variants.],
+  #divider()
+
+  === TR-02 results — Spike-budget sweep
+
+  *Run status:* complete · 36/36 cells represented
+
+  #result-figure(
+    "/artifacts/data/exp022/curves__theta_u.svg",
+    "Test-accuracy learning curves across the spike-budget sweep.",
+    [Training curves across both architectures, six spike budgets, and three seeds.],
   )
 
-  === 5. Recurrent-initialization training
-
-  ping with four recurrent-loop inits (frozen PING, trainable from PING / zero / small seed), three seeds each (12 cells). All reach ≈ 89–91 %, but only the frozen-PING control keeps the true E/I regime (E ≈ 10 Hz, I ≈ 62 Hz): the trainable-loop cells drift toward a feedforward code (high E, low or zero I): the zero-init cells never engage inhibition at all (I ≈ 0 Hz). Comparable accuracy, but the rhythm is not learned when it is not built in.
-
-  #figure(
-    image(
-      "/artifacts/data/exp022/curves__init.svg",
-      width: 100%,
-      alt: "Test-accuracy learning curves over epochs, init variants.",
-    ),
-    caption: [Test accuracy over epochs across the recurrent-loop inits; trainable-loop cells learn noisier curves than the frozen control.],
+  #result-figure(
+    "/artifacts/data/exp022/rasters/ping__off__seed42.png",
+    "Seed-42 raster for the no-budget PING endpoint in the spike-budget sweep.",
+    [Sample raster: PING with spike budget off, seed 42.],
   )
 
-  #figure(
-    image("/artifacts/data/exp022/rasters/frozen_ping__seed42.png", width: 100%, alt: "Seed-42 spike raster and population-rate diagnostic for the frozen recurrent PING control."),
-    caption: [Representative activity for recurrent-initialization training. This seed-42 control keeps the recurrent PING loop frozen; the appendix shows all four initialization and trainability conditions.],
+  #divider()
+
+  === TR-03 results — Inhibitory-timescale sweep
+
+  *Run status:* complete · 18/18 cells represented
+
+  #result-figure(
+    "/artifacts/data/exp022/curves__tau_gaba.svg",
+    "Test-accuracy learning curves across the inhibitory-timescale sweep.",
+    [Training curves across six $tau_"GABA"$ values and three seeds.],
   )
 
-  === 6. Variable-rate streaming training
-
-  *Note, awaiting training.* No learning curve or raster exists yet. After the registered Cambridge jobs complete, this section will show the three mixed-rate learning curves, fixed-rate held-out accuracy across 0.5–25 Hz, and matched rasters at low, intermediate, and high rates. It will compare the new `rate`-readout cells with the existing fixed-25-Hz `mem-mean` cells. The checkpoints are the training source for #link("/exp082/")[exp082], which supersedes exp048 for variable-rate streaming inference.
-
-  === 7. Training data and spike density
-
-  The appendix rasters split cleanly along one axis that is easy to miss: the *canonical* cells see all 70k MNIST images, but every sweep (including the no-budget spike-budget = off cell, which is otherwise identical to canonical) trains on 10%. That difference deserves its own read, because it changes how *busy* the trained network is before any sweep parameter enters.
-
-  We isolate it by sending the *same* fixed digit-0 image through the no-budget coba and ping networks at each fraction (seed 42). Same architecture, same operating point ($tau_"AMPA" = 2$ ms, $tau_"GABA" = 6$ ms), same spike budget (none): the only difference is 10× the training images, so any gap in the rasters is the data's doing alone.
-
-  #figure(
-    image(
-      "/artifacts/data/exp022/comparison__data_fraction.png",
-      width: 100%,
-      alt: "Two-by-two grid of spike rasters: COBA and PING trained on 100% versus 10% of MNIST, same digit-0 input.",
-    ),
-    caption: [The same digit-0 image through the no-budget coba (top) and ping (bottom) networks, trained on all of MNIST (left) versus 10% (right); E cells black below the divider, I cells red above, per-panel mean rates annotated. More training data yields a visibly denser code in both architectures.],
+  #result-figure(
+    "/artifacts/data/exp022/rasters/ping__tg6__seed42.png",
+    "Seed-42 raster for PING at tau GABA 6 milliseconds.",
+    [Sample raster: PING at $tau_"GABA"=6$ ms, seed 42.],
   )
 
-  More data buys a denser code. In both loops the full-MNIST network fires roughly twice as hard:
+  #divider()
 
-  - *coba* excitatory rate ≈ 420 Hz on all of MNIST against ≈ 212 Hz on 10%;
-  - *ping* inhibitory rate ≈ 140 Hz against ≈ 63 Hz (excitatory ≈ 19 vs ≈ 11 Hz).
+  === TR-04 results — Integration-timestep sweep
 
-  where the *mean rate* is a population's total spikes divided by its neuron count and the 200 ms window. The canonical rasters are visibly busier: the extra spikes are the network recruiting capacity to separate the fuller set of class variations, which the 10% subset never forces it to. ping keeps its γ rhythm at both fractions, and the sparser 10% network even reads as a *cleaner* gamma (Appendix A.2); coba stays asynchronous throughout (I silent, no loop). The density shift is a change of degree, not regime.
+  *Run status:* complete · 15/15 cells represented
 
-  The practical consequence is a caveat on the appendix as a whole: *absolute* firing rates are not comparable across the canonical-vs-sweep boundary, because the 10% cells sit at a systematically lower density for reasons that have nothing to do with the swept parameter. This is exactly why the canonical reference (§1) carries the headline rates and the sweeps are read as *trends within a family* (the spike-budget frontier, the τ_GABA-to-γ scaling) rather than as absolute numbers set against the full-data baseline.
-
-  === 8. Why more data drives a denser code
-
-  The figure measures the density gap; it does not prove its cause. But only two things change between a row's two cells (the number of training images and, downstream of that, the number of weight updates), and both push firing *up*. Neither is specific to the E/I loop, which is why coba and ping move together rather than one architecture reacting and the other not.
-
-  - *More to separate.* The 70k-image set carries far more within-class variation than its 10% subset. To keep the ten digit classes separable at the readout (a linear map from per-neuron spike counts to class scores), the network must partition a higher-dimensional representation, and it pays for that resolution in spikes: more neurons recruited, each firing more. The smaller subset is an easier separation problem that a sparser code already fits, so the network never has to spend the extra spikes.
-  - *More weight updates.* Epochs are fixed at 50 for both, but an epoch over 70k images is ≈ 10× the mini-batches of an epoch over 10%, so the canonical cells take ≈ 10× as many gradient steps. These are the *no-budget* cells, so nothing opposes the drift: each update is free to grow the input and recurrent weights that set the drive $g (V - E)$, and more updates compound into a higher operating point.
-
-  where the terms are:
-
-  - $g$ — the synaptic conductance a presynaptic spike opens (larger weights → larger $g$);
-  - $V$ — the postsynaptic membrane voltage;
-  - $E$ — the synapse's reversal potential, so $g (V - E)$ is the current a spike injects.
-
-  The spike budget is precisely the counter-pressure to both levers: the sweep's tightening $theta_u$ (the per-neuron cap on spikes/trial) caps the rate growth described here, which is why the budgeted cells sit far below their no-budget siblings. The canonical–off pair simply removes that cap, leaving data fraction as the only lever. A clean way to separate the two mechanisms would be to train a 10% cell for ≈ 10× the epochs, matching the update count at the smaller set: if the rate closes most of the gap the growth is update-driven, and if it does not the residual is the genuine cost of the harder separation. We have not run that control; the two levers are offered as the mechanism the rasters are consistent with, not as a decomposition we have measured.
-
-  == Appendix — per-config spike rasters (digit 0)
-
-  The same fixed MNIST image (digit 0, sample 0) sent through each trained network (seed 42 as the per-config representative), so every raster is directly comparable. E cells sit below the divider, I cells above; the lower panel is the 1 ms population rate. These are the visual counterpart to the firing-rate and rhythm numbers above: sparse γ-rhythmic PING versus dense asynchronous COBA, and how each regime deforms under the sweeps.
-
-  === A.1 Canonical reference
-
-  #figure(
-    image(
-      "/artifacts/data/exp022/rasters/coba__canonical__seed42.png",
-      width: 100%,
-      alt: "Spike raster of E and I populations with the I-population power spectrum, coba canonical, seed 42.",
-    ),
-    caption: [COBA, canonical (no spike budget, all MNIST).],
+  #result-figure(
+    "/artifacts/data/exp022/curves__dt.svg",
+    "Test-accuracy learning curves across the integration-timestep sweep.",
+    [Training curves across five integration timesteps and three seeds.],
   )
 
-  #figure(
-    image(
-      "/artifacts/data/exp022/rasters/ping__canonical__seed42.png",
-      width: 100%,
-      alt: "Spike raster of E and I populations with the I-population power spectrum, ping canonical, seed 42.",
-    ),
-    caption: [PING, canonical (no spike budget, all MNIST).],
+  #result-figure(
+    "/artifacts/data/exp022/rasters/ping__dt0p1__seed42.png",
+    "Seed-42 raster for PING at the standard 0.1 millisecond timestep.",
+    [Sample raster: PING at $Delta t=0.1$ ms, seed 42.],
   )
 
-  === A.2 Spike-budget sweep
+  #divider()
 
-  #figure(
-    image(
-      "/artifacts/data/exp022/rasters/coba__off__seed42.png",
-      width: 100%,
-      alt: "Spike raster of E and I populations with the I-population power spectrum, coba off, seed 42.",
-    ),
-    caption: [COBA, spike budget = off.],
+  === TR-05 results — Recurrent-initialization sweep
+
+  *Run status:* complete · 12/12 cells represented
+
+  #result-figure(
+    "/artifacts/data/exp022/curves__init.svg",
+    "Test-accuracy learning curves across recurrent initialization conditions.",
+    [Training curves across four recurrent-loop conditions and three seeds.],
   )
 
-  #figure(
-    image(
-      "/artifacts/data/exp022/rasters/coba__tu5__seed42.png",
-      width: 100%,
-      alt: "Spike raster of E and I populations with the I-population power spectrum, coba tu5, seed 42.",
-    ),
-    caption: [COBA, spike budget = 5.],
+  #result-figure(
+    "/artifacts/data/exp022/rasters/frozen_ping__seed42.png",
+    "Seed-42 raster for the frozen recurrent PING control.",
+    [Sample raster: frozen PING recurrent loop, seed 42.],
   )
 
-  #figure(
-    image(
-      "/artifacts/data/exp022/rasters/coba__tu2__seed42.png",
-      width: 100%,
-      alt: "Spike raster of E and I populations with the I-population power spectrum, coba tu2, seed 42.",
-    ),
-    caption: [COBA, spike budget = 2.],
-  )
+  #divider()
 
-  #figure(
-    image(
-      "/artifacts/data/exp022/rasters/coba__tu1__seed42.png",
-      width: 100%,
-      alt: "Spike raster of E and I populations with the I-population power spectrum, coba tu1, seed 42.",
-    ),
-    caption: [COBA, spike budget = 1.],
-  )
+  === TR-06 results — Variable-rate streaming bank
 
-  #figure(
-    image(
-      "/artifacts/data/exp022/rasters/coba__tu0p5__seed42.png",
-      width: 100%,
-      alt: "Spike raster of E and I populations with the I-population power spectrum, coba tu0p5, seed 42.",
-    ),
-    caption: [COBA, spike budget = 0.5.],
-  )
+  *Run status:* pending · 0/3 cells trained
 
-  #figure(
-    image(
-      "/artifacts/data/exp022/rasters/coba__tu0p2__seed42.png",
-      width: 100%,
-      alt: "Spike raster of E and I populations with the I-population power spectrum, coba tu0p2, seed 42.",
-    ),
-    caption: [COBA, spike budget = 0.2.],
-  )
+  *TODO — training curves.* Add the three variable-rate learning curves after the Cambridge jobs complete.
 
-  #figure(
-    image(
-      "/artifacts/data/exp022/rasters/ping__off__seed42.png",
-      width: 100%,
-      alt: "Spike raster of E and I populations with the I-population power spectrum, ping off, seed 42.",
-    ),
-    caption: [PING, spike budget = off.],
-  )
-
-  #figure(
-    image(
-      "/artifacts/data/exp022/rasters/ping__tu5__seed42.png",
-      width: 100%,
-      alt: "Spike raster of E and I populations with the I-population power spectrum, ping tu5, seed 42.",
-    ),
-    caption: [PING, spike budget = 5.],
-  )
-
-  #figure(
-    image(
-      "/artifacts/data/exp022/rasters/ping__tu2__seed42.png",
-      width: 100%,
-      alt: "Spike raster of E and I populations with the I-population power spectrum, ping tu2, seed 42.",
-    ),
-    caption: [PING, spike budget = 2.],
-  )
-
-  #figure(
-    image(
-      "/artifacts/data/exp022/rasters/ping__tu1__seed42.png",
-      width: 100%,
-      alt: "Spike raster of E and I populations with the I-population power spectrum, ping tu1, seed 42.",
-    ),
-    caption: [PING, spike budget = 1.],
-  )
-
-  #figure(
-    image(
-      "/artifacts/data/exp022/rasters/ping__tu0p5__seed42.png",
-      width: 100%,
-      alt: "Spike raster of E and I populations with the I-population power spectrum, ping tu0p5, seed 42.",
-    ),
-    caption: [PING, spike budget = 0.5.],
-  )
-
-  #figure(
-    image(
-      "/artifacts/data/exp022/rasters/ping__tu0p2__seed42.png",
-      width: 100%,
-      alt: "Spike raster of E and I populations with the I-population power spectrum, ping tu0p2, seed 42.",
-    ),
-    caption: [PING, spike budget = 0.2.],
-  )
-
-  === A.3 τ_GABA ladder
-
-  #figure(
-    image(
-      "/artifacts/data/exp022/rasters/ping__tg4p5__seed42.png",
-      width: 100%,
-      alt: "Spike raster of E and I populations with the I-population power spectrum, ping tg4p5, seed 42.",
-    ),
-    caption: [PING, τ_GABA = 4.5 ms.],
-  )
-
-  #figure(
-    image(
-      "/artifacts/data/exp022/rasters/ping__tg6__seed42.png",
-      width: 100%,
-      alt: "Spike raster of E and I populations with the I-population power spectrum, ping tg6, seed 42.",
-    ),
-    caption: [PING, τ_GABA = 6 ms.],
-  )
-
-  #figure(
-    image(
-      "/artifacts/data/exp022/rasters/ping__tg9__seed42.png",
-      width: 100%,
-      alt: "Spike raster of E and I populations with the I-population power spectrum, ping tg9, seed 42.",
-    ),
-    caption: [PING, τ_GABA = 9 ms.],
-  )
-
-  #figure(
-    image(
-      "/artifacts/data/exp022/rasters/ping__tg12__seed42.png",
-      width: 100%,
-      alt: "Spike raster of E and I populations with the I-population power spectrum, ping tg12, seed 42.",
-    ),
-    caption: [PING, τ_GABA = 12 ms.],
-  )
-
-  #figure(
-    image(
-      "/artifacts/data/exp022/rasters/ping__tg18__seed42.png",
-      width: 100%,
-      alt: "Spike raster of E and I populations with the I-population power spectrum, ping tg18, seed 42.",
-    ),
-    caption: [PING, τ_GABA = 18 ms.],
-  )
-
-  #figure(
-    image(
-      "/artifacts/data/exp022/rasters/ping__tg27__seed42.png",
-      width: 100%,
-      alt: "Spike raster of E and I populations with the I-population power spectrum, ping tg27, seed 42.",
-    ),
-    caption: [PING, τ_GABA = 27 ms.],
-  )
-
-  === A.4 Δt sweep
-
-  #figure(
-    image(
-      "/artifacts/data/exp022/rasters/ping__dt0p05__seed42.png",
-      width: 100%,
-      alt: "Spike raster of E and I populations with the I-population power spectrum, ping dt0p05, seed 42.",
-    ),
-    caption: [PING, Δt = 0.05 ms.],
-  )
-
-  #figure(
-    image(
-      "/artifacts/data/exp022/rasters/ping__dt0p1__seed42.png",
-      width: 100%,
-      alt: "Spike raster of E and I populations with the I-population power spectrum, ping dt0p1, seed 42.",
-    ),
-    caption: [PING, Δt = 0.1 ms.],
-  )
-
-  #figure(
-    image(
-      "/artifacts/data/exp022/rasters/ping__dt0p25__seed42.png",
-      width: 100%,
-      alt: "Spike raster of E and I populations with the I-population power spectrum, ping dt0p25, seed 42.",
-    ),
-    caption: [PING, Δt = 0.25 ms.],
-  )
-
-  #figure(
-    image(
-      "/artifacts/data/exp022/rasters/ping__dt0p5__seed42.png",
-      width: 100%,
-      alt: "Spike raster of E and I populations with the I-population power spectrum, ping dt0p5, seed 42.",
-    ),
-    caption: [PING, Δt = 0.5 ms.],
-  )
-
-  #figure(
-    image(
-      "/artifacts/data/exp022/rasters/ping__dt1__seed42.png",
-      width: 100%,
-      alt: "Spike raster of E and I populations with the I-population power spectrum, ping dt1, seed 42.",
-    ),
-    caption: [PING, Δt = 1 ms.],
-  )
-
-  === A.5 Init variants
-
-  #figure(
-    image(
-      "/artifacts/data/exp022/rasters/frozen_ping__seed42.png",
-      width: 100%,
-      alt: "Spike raster of E and I populations with the I-population power spectrum, frozen_ping, seed 42.",
-    ),
-    caption: [PING, frozen loop (control).],
-  )
-
-  #figure(
-    image(
-      "/artifacts/data/exp022/rasters/trainable_ping_init__seed42.png",
-      width: 100%,
-      alt: "Spike raster of E and I populations with the I-population power spectrum, trainable_ping_init, seed 42.",
-    ),
-    caption: [PING, trainable loop, PING init.],
-  )
-
-  #figure(
-    image(
-      "/artifacts/data/exp022/rasters/trainable_zero_init__seed42.png",
-      width: 100%,
-      alt: "Spike raster of E and I populations with the I-population power spectrum, trainable_zero_init, seed 42.",
-    ),
-    caption: [PING, trainable loop, zero init.],
-  )
-
-  #figure(
-    image(
-      "/artifacts/data/exp022/rasters/trainable_small_init__seed42.png",
-      width: 100%,
-      alt: "Spike raster of E and I populations with the I-population power spectrum, trainable_small_init, seed 42.",
-    ),
-    caption: [PING, trainable loop, small init.],
-  )
-
+  *TODO — sample raster.* Add a seed-42 E/I/output raster at a declared held-out rate, plus low- and high-rate diagnostics if one raster hides a rate-dependent failure.
 ]

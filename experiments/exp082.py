@@ -1,8 +1,8 @@
 """EXP082: streaming inference with variable-rate-trained PING weights.
 
 This is the successor to exp048.  It consumes the planned exp022 PING cells
-trained with per-presentation variable input rates and the summed-spiking
-(`rate`) readout.  It evaluates four protocols:
+trained with per-presentation variable input rates and the output-LIF
+`spike-rate` readout.  It evaluates four protocols:
 
 1. a matched 200-ms presentation/readout stream;
 2. a stream whose presentation duration and input rate both vary;
@@ -98,9 +98,9 @@ def load_eval(seed: int) -> tuple[Path, dict[str, Any], np.ndarray, np.ndarray]:
     directory = training_dir(seed)
     config = json.loads((directory / "config.json").read_text())
     readout = config.get("readout_mode", config.get("readout"))
-    if readout != "rate":
+    if readout != "spike-rate":
         raise SystemExit(
-            f"{directory} has readout {readout!r}; exp082 requires summed-spiking 'rate'"
+            f"{directory} has readout {readout!r}; exp082 requires output-LIF 'spike-rate'"
         )
     _, x_test, _, y_test = load_mnist_split(max_samples=int(config["max_samples"]))
     return directory, config, x_test, y_test
@@ -137,11 +137,26 @@ def encode_stream(
     )
 
 
-def run_spikes(directory: Path, input_spikes: torch.Tensor, tag: str) -> tuple[np.ndarray, np.ndarray]:
+def run_spikes(
+    directory: Path,
+    input_spikes: torch.Tensor,
+    tag: str,
+    *,
+    reset_steps: tuple[int, ...] = (),
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     out_dir = (ARTIFACTS / "stream" / directory.name / tag).resolve()
     out_dir.mkdir(parents=True, exist_ok=True)
     input_path = out_dir / "input.npz"
-    np.savez_compressed(input_path, input_spikes=input_spikes.cpu().numpy())
+    readout_reset = np.zeros(len(input_spikes), dtype=np.bool_)
+    for step in reset_steps:
+        if not 0 <= step < len(readout_reset):
+            raise ValueError(f"readout reset step {step} is outside the input stream")
+        readout_reset[step] = True
+    np.savez_compressed(
+        input_path,
+        input_spikes=input_spikes.cpu().numpy(),
+        readout_reset=readout_reset,
+    )
     subprocess.run(
         [
             "uv", "run", "python", str(SNN_TOOL), "sim",
@@ -164,39 +179,32 @@ def run_spikes(directory: Path, input_spikes: torch.Tensor, tag: str) -> tuple[n
         values[raster[f"{prefix}_t"][keep], raster[f"{prefix}_cell"][keep]] = 1
         return values
 
-    return dense("e", int(raster["n_e"])), dense("i", int(raster["n_i"]))
-
-
-_READOUT_CACHE: dict[str, np.ndarray] = {}
-
-
-def load_readout(directory: Path) -> np.ndarray:
-    key = str(directory)
-    if key not in _READOUT_CACHE:
-        out_dir = (ARTIFACTS / "readout" / directory.name).resolve()
-        out_dir.mkdir(parents=True, exist_ok=True)
-        subprocess.run(
-            [
-                "uv", "run", "python", str(SNN_TOOL), "dump-weights",
-                "--load-config", str((directory / "config.json").resolve()),
-                "--load-weights", str((directory / "weights.pth").resolve()),
-                "--out-dir", str(out_dir),
-            ],
-            cwd=REPO,
-            check=True,
+    required = {"out_trial", "out_t", "out_cell"}
+    missing = sorted(required - set(raster.files))
+    if missing:
+        raise RuntimeError(
+            "exp082 requires tools/snn spike-rate output-spike rasters; "
+            f"missing {missing} in {out_dir / 'rasters.npz'}"
         )
-        weights = np.load(out_dir / "weights_dump.npz")
-        names = sorted(
-            (name for name in weights.files if name.startswith("W_ff_") and name.endswith("_trained")),
-            key=lambda name: int(name.split("_")[2]),
-        )
-        _READOUT_CACHE[key] = weights[names[-1]]
-    return _READOUT_CACHE[key]
+    return (
+        dense("e", int(raster["n_e"])),
+        dense("i", int(raster["n_i"])),
+        dense("out", N_CLASSES),
+    )
 
 
-def summed_logits(spikes_e: np.ndarray, readout: np.ndarray, start: int, stop: int) -> np.ndarray:
-    """Sum E spikes over exactly [start, stop), then apply trained W_out."""
-    return spikes_e[start:stop].sum(axis=0) @ readout
+def spike_rate_logits(
+    spikes_out: np.ndarray,
+    start: int,
+    stop: int,
+    *,
+    dt_ms: float = DT_MS,
+) -> np.ndarray:
+    """Output-LIF spike rate in Hz over exactly ``[start, stop)``."""
+    duration_s = (stop - start) * dt_ms / 1000.0
+    if duration_s <= 0:
+        raise ValueError("spike-rate window must contain at least one timestep")
+    return spikes_out[start:stop].sum(axis=0) / duration_s
 
 
 def softmax(values: np.ndarray) -> np.ndarray:
@@ -222,8 +230,11 @@ def evaluate_stream(
 ) -> dict[str, Any]:
     pixels, labels = pick_digits(x_test, y_test, len(conditions), seed)
     encoded = encode_stream(pixels, conditions, torch.Generator().manual_seed(seed + 1))
-    spikes_e, spikes_i = run_spikes(directory, encoded, tag)
-    readout = load_readout(directory)
+    segment_steps = [int(round(duration / DT_MS)) for duration, _ in conditions]
+    reset_steps = tuple(np.cumsum([0, *segment_steps[:-1]]).tolist())
+    spikes_e, spikes_i, spikes_out = run_spikes(
+        directory, encoded, tag, reset_steps=reset_steps
+    )
     probabilities = np.zeros((len(spikes_e), N_CLASSES), dtype=np.float32)
     predictions = []
     correct = []
@@ -234,9 +245,9 @@ def evaluate_stream(
         stop = cursor + steps
         for timestep in range(cursor, stop):
             probabilities[timestep] = softmax(
-                summed_logits(spikes_e, readout, cursor, timestep + 1)
+                spike_rate_logits(spikes_out, cursor, timestep + 1)
             )
-        prediction = int(np.argmax(summed_logits(spikes_e, readout, cursor, stop)))
+        prediction = int(np.argmax(spike_rate_logits(spikes_out, cursor, stop)))
         predictions.append(prediction)
         correct.append(int(prediction == label))
         cursor = stop
@@ -249,6 +260,7 @@ def evaluate_stream(
         "boundaries": boundaries,
         "spikes_e": spikes_e,
         "spikes_i": spikes_i,
+        "spikes_out": spikes_out,
         "probabilities": probabilities,
     }
 
@@ -258,7 +270,6 @@ def evaluate_cell(seed: int, duration_ms: float, rate_hz: float) -> dict[str, An
     rng = np.random.default_rng(82_000 + seed + int(duration_ms * 10) + int(rate_hz * 100))
     n_correct = 0
     n_total = 0
-    readout = load_readout(directory)
     for stream_index in range(STREAMS_PER_CELL):
         indices = rng.choice(len(y_test), DIGITS_PER_STREAM, replace=False)
         conditions = tuple(
@@ -268,14 +279,20 @@ def evaluate_cell(seed: int, duration_ms: float, rate_hz: float) -> dict[str, An
             x_test[indices], conditions,
             torch.Generator().manual_seed(82_000 + seed * 100 + stream_index),
         )
-        spikes_e, _ = run_spikes(
-            directory, spikes, f"cell_d{duration_ms:g}_r{rate_hz:g}_s{stream_index}",
+        _, _, spikes_out = run_spikes(
+            directory,
+            spikes,
+            f"cell_d{duration_ms:g}_r{rate_hz:g}_s{stream_index}",
+            reset_steps=tuple(
+                digit_index * int(round(duration_ms / DT_MS))
+                for digit_index in range(DIGITS_PER_STREAM)
+            ),
         )
         segment_steps = int(round(duration_ms / DT_MS))
         for digit_index, label in enumerate(y_test[indices]):
             start = digit_index * segment_steps
             stop = start + segment_steps
-            logits = summed_logits(spikes_e, readout, start, stop)
+            logits = spike_rate_logits(spikes_out, start, stop)
             n_correct += int(np.argmax(logits) == label)
             n_total += 1
     return {
@@ -403,8 +420,8 @@ def main() -> None:
         "training_source": "exp022 variable-rate streaming training",
         "training_cells": [training_cell_name(seed) for seed in SEEDS],
         "readout": {
-            "mode": "rate",
-            "definition": "sum E spikes over the matched presentation window, then multiply by W_out",
+            "mode": "spike-rate",
+            "definition": "output-LIF spikes over the matched presentation window divided by its duration in seconds",
         },
         "config": {
             "seeds": list(SEEDS),

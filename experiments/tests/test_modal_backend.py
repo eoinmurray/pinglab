@@ -18,6 +18,20 @@ def test_modal_meta_flag_parses_for_dispatch_runner():
     assert meta.only_cells == ["ping"]
 
 
+def test_scheduler_cell_meta_flags_parse_for_dispatch_runner():
+    meta = parse_meta(
+        ["exp022.py", "--train-cell", "ping__off__seed42"],
+        allow_dispatch=True,
+    )
+    assert meta.train_cell == "ping__off__seed42"
+
+    listing = parse_meta(
+        ["exp022.py", "--list-cells", "variable_rate"],
+        allow_dispatch=True,
+    )
+    assert listing.list_cells == "variable_rate"
+
+
 def test_generic_modal_dry_run_does_not_import_modal(tmp_path, capsys):
     modal_backend.dispatch(
         slug="exp999",

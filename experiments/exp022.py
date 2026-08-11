@@ -136,6 +136,15 @@ MODELS = ["coba", "ping"]
 MODEL_COLORS = {"coba": theme.DEEP_RED, "ping": theme.INK_BLACK}
 MODEL_MARKERS = {"coba": "s", "ping": "D"}
 
+TRAINING_RUN_IDS = {
+    "canonical": "TR-01",
+    "theta_u": "TR-02",
+    "tau_gaba": "TR-03",
+    "dt": "TR-04",
+    "init": "TR-05",
+    "variable_rate": "TR-06",
+}
+
 # ping recipe without the fixed --ei-strength, for the init family (exp049),
 # whose whole point is to vary ei-strength + recurrent trainability per cell.
 MODEL_RECIPES["ping_init"] = {
@@ -265,18 +274,18 @@ def _init_cells() -> list[dict]:
 
 
 def _planned_variable_rate_cells() -> list[dict]:
-    """Variable-rate, summed-readout PING bank consumed by exp082."""
+    """Variable-rate, output-LIF spike-rate PING bank consumed by exp082."""
     return [
         {
             "name": f"ping__variable_rate__seed{s}",
             "model": "ping",
             "family": "variable_rate",
-            "tag": "categorical 0.5–25 Hz · summed spikes",
+            "tag": "categorical 0.5–25 Hz · output spike rate",
             "seed": s,
             "dt_ms": DT_MS,
             "tau_gaba": TAU_GABA_GAMMA,
             "max_samples": SUBSET_MAX_SAMPLES,
-            "readout": "rate",
+            "readout": "spike-rate",
             "input_rates_hz": list(VARIABLE_RATE_TRAINING_RATES_HZ),
             "rate_sampling": "uniform categorical per presentation",
             "consumer": VARIABLE_RATE_CONSUMER,
@@ -291,6 +300,39 @@ PLANNED_VARIABLE_RATE_CELLS = _planned_variable_rate_cells()
 BASE_CELLS = (_canonical_cells() + _theta_u_cells() + _tau_gaba_cells()
               + _dt_cells() + _init_cells())
 CANONICAL_CELLS = BASE_CELLS + PLANNED_VARIABLE_RATE_CELLS
+for _cell in CANONICAL_CELLS:
+    _cell["training_run_id"] = TRAINING_RUN_IDS[_cell["family"]]
+
+RESOURCE_TIERS = (
+    "standard",
+    "fine_dt",
+    "canonical_coba",
+    "canonical_ping",
+    "variable_rate",
+    "all",
+)
+
+
+def cell_resource_tier(cell: dict) -> str:
+    """Wilkes3 scheduling tier for one scientific registry cell."""
+    if cell["family"] == "canonical":
+        return f"canonical_{cell['model']}"
+    if cell["family"] == "variable_rate":
+        return "variable_rate"
+    if cell["family"] == "dt" and cell["dt_ms"] == min(DT_SWEEP_MS):
+        return "fine_dt"
+    return "standard"
+
+
+def cells_in_resource_tier(tier: str) -> list[dict]:
+    """Registry-backed cell list consumed by scheduler wrappers."""
+    if tier not in RESOURCE_TIERS:
+        raise ValueError(
+            f"unknown resource tier {tier!r}; choose from {RESOURCE_TIERS}"
+        )
+    if tier == "all":
+        return list(CANONICAL_CELLS)
+    return [cell for cell in CANONICAL_CELLS if cell_resource_tier(cell) == tier]
 
 # Same five scientific families and cell names as the calibrated bank, but a
 # distinct root and a frozen shared-scale recipe.  Consumers do not switch to
@@ -724,8 +766,29 @@ def _train_one_cell(cell: dict, plumbing: bool) -> None:
         # ms=100 takes — and so runpod_is_done agrees with what was trained.
         spec = {k: v for k, v in cell.items() if k != "max_samples"}
     args = build_train_args(spec, cell_dir(cell["name"]), ms, ep)
-    print(f"[train-cell] {cell['name']} (n={ms}, {ep} ep) → {cell_dir(cell['name'])}")
+    print(
+        f"[train-cell] {cell['training_run_id']} / {cell['name']} "
+        f"(n={ms}, {ep} ep) → {cell_dir(cell['name'])}"
+    )
     subprocess.run([sys.executable, str(SNN_TOOL), *args], cwd=REPO, check=True)
+    _stamp_training_run_identity(cell)
+
+
+def _stamp_training_run_identity(cell: dict) -> None:
+    """Attach the public training-run ID to one completed cell's artifacts."""
+    directory = cell_dir(cell["name"])
+    for filename in ("config.json", "metrics.json"):
+        path = directory / filename
+        if not path.exists():
+            raise RuntimeError(f"completed cell is missing {path}")
+        payload = json.loads(path.read_text())
+        payload["training_run_id"] = cell["training_run_id"]
+        payload["training_cell_name"] = cell["name"]
+        nested_config = payload.get("config")
+        if isinstance(nested_config, dict):
+            nested_config["training_run_id"] = cell["training_run_id"]
+            nested_config["training_cell_name"] = cell["name"]
+        path.write_text(json.dumps(payload, indent=2) + "\n")
 
 
 def _cell_by_name(name: str) -> dict | None:
@@ -1037,6 +1100,21 @@ def comparison_rasters() -> None:
 def main() -> None:
     meta = parse_meta(sys.argv, allow_dispatch=True)
 
+    if meta.list_cells is not None:
+        try:
+            cells = cells_in_resource_tier(meta.list_cells)
+        except ValueError as exc:
+            raise SystemExit(str(exc)) from exc
+        print("\n".join(cell["name"] for cell in cells))
+        return
+
+    if meta.train_cell is not None:
+        cell = _cell_by_name(meta.train_cell)
+        if cell is None:
+            raise SystemExit(f"unknown cell: {meta.train_cell!r}")
+        _train_one_cell(cell, plumbing=meta.plumbing)
+        return
+
     # Alternate render modes (visual-inspection rasters) select via --plot-only,
     # exactly like every other figure re-render — no bespoke flags. See exp042's
     # `--plot-only compound` for the same pattern.
@@ -1079,20 +1157,17 @@ def main() -> None:
             if only_missing and (out / "metrics.json").exists():
                 print(f"[skip] {c['name']} already trained")
                 continue
-            ms, ep = cell_samples_epochs(c)
-            print(f"[train] {c['name']} (n={ms}, {ep} ep) → {out.relative_to(REPO)}")
-            subprocess.run(
-                [sys.executable, str(SNN_TOOL), *build_train_args(c, out, ms, ep)],
-                cwd=REPO, check=True,
-            )
+            _train_one_cell(c, plumbing=False)
 
     rows = []
     for c in CANONICAL_CELLS:
         d = cell_dir(c["name"])
+        _stamp_training_run_identity(c)
         m = load_metrics(d)
         re, ri = final_rates(d)
         rows.append({
             "name": c["name"], "model": c["model"], "family": c["family"],
+            "training_run_id": c["training_run_id"],
             "tag": c["tag"], "seed": c["seed"],
             "acc": float(m.get("best_acc", float("nan"))),
             "best_epoch": m.get("best_epoch"), "rate_e": re, "rate_i": ri,
@@ -1132,6 +1207,7 @@ def main() -> None:
                      "max_samples_sweeps": SUBSET_MAX_SAMPLES},
         "training_root": str(TRAINING_ROOT.relative_to(REPO)),
         "families": FAMILY_ORDER,
+        "training_run_ids": TRAINING_RUN_IDS,
         "family_status": family_status,
         "n_cells": len(CANONICAL_CELLS),
         "cells": rows,

@@ -34,7 +34,9 @@ LIFECYCLE_FLAGS = (*LIFECYCLE_BOOL, *LIFECYCLE_OPTVALUE)
 
 # ── Dispatch flags (opt-in, fan-out runners only) ─────────────────────────
 DISPATCH_BOOL = ("--runpod", "--modal", "--live", "--collect", "--reap", "--pod-run", "--plumbing")
-DISPATCH_VALUE = ("--gpu", "--cells-per-pod")   # required single value
+DISPATCH_VALUE = (
+    "--gpu", "--cells-per-pod", "--train-cell", "--list-cells",
+)  # required single value
 DISPATCH_MULTIVALUE = ("--only-cells",)         # consumes tokens until the next --flag
 DISPATCH_FLAGS = (*DISPATCH_BOOL, *DISPATCH_VALUE, *DISPATCH_MULTIVALUE)
 
@@ -69,6 +71,8 @@ class Meta:
     gpu: str = "5090"
     cells_per_pod: int = 9
     only_cells: list[str] = field(default_factory=list)
+    train_cell: str | None = None
+    list_cells: str | None = None
 
     @property
     def start_stage(self) -> str:
@@ -105,6 +109,8 @@ def _usage(prog: str, *, allow_dispatch: bool) -> str:
             "  --gpu {4090,5090}  GPU to provision",
             "  --cells-per-pod N  sweep cells packed per pod",
             "  --only-cells A B   restrict to named cells",
+            "  --train-cell NAME  train one registered cell (scheduler entrypoint)",
+            "  --list-cells TIER  print registered cells in one resource tier",
             "  --plumbing         tiny wiring-test scale (cheap pod smoke)",
             "  --pod-run          internal pod-side entrypoint",
         ]
@@ -176,6 +182,14 @@ def parse_meta(argv: list[str], *, allow_dispatch: bool = False) -> Meta:
                 meta.cells_per_pod = int(toks[i])
             except ValueError:
                 raise SystemExit(f"{prog}: --cells-per-pod must be an integer, got {toks[i]!r}") from None
+        elif tok in ("--train-cell", "--list-cells"):
+            i += 1
+            if i >= len(toks):
+                raise SystemExit(f"{prog}: {tok} requires a value")
+            if tok == "--train-cell":
+                meta.train_cell = toks[i]
+            else:
+                meta.list_cells = toks[i]
         elif tok == "--only-cells":
             # consume tokens until the next --flag.
             j = i + 1

@@ -144,6 +144,26 @@ class TestTrainParameterPropagation:
         assert config["readout_tau_bounds_ms"] == [5.0, 25.0]
         assert "f8756254ab8d0e3337eb69542c684b922d6b6cbd" in config["readout_reference"]
 
+    def test_spike_rate_reduction_and_units_in_config(self, tmp_output_dir):
+        train(
+            model_name="ping",
+            dt=1.0,
+            t_ms=20.0,
+            epochs=0,
+            dataset="mnist",
+            max_samples=50,
+            hidden_sizes=[32],
+            readout_mode="spike-rate",
+            out_dir=tmp_output_dir,
+        )
+        with open(tmp_output_dir / "config.json") as f:
+            config = json.load(f)
+        assert config["readout_mode"] == "spike-rate"
+        assert config["readout_reduction"] == (
+            "output_spike_count_divided_by_duration_seconds"
+        )
+        assert config["readout_units"] == "Hz"
+
     def test_dales_law_in_config(self, tmp_output_dir):
         """dales_law flag should be saved to config.json."""
         train(
