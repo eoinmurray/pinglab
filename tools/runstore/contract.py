@@ -228,7 +228,9 @@ def inventory_payload(
     if not root.is_dir():
         raise ContractError(f"run root is not a directory: {root}")
     files: list[dict[str, Any]] = []
-    for item in sorted(root.rglob("*")):
+    for item in sorted(
+        root.rglob("*"), key=lambda path: path.relative_to(root).as_posix()
+    ):
         if item.is_symlink():
             raise ContractError(f"payload symlinks are not supported in v1: {item}")
         if not item.is_file() or item.relative_to(root).as_posix() in MANIFEST_NAMES:
