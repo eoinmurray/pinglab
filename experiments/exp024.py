@@ -17,6 +17,7 @@ Writing: writings/exp024.typ · figures + numbers.json: artifacts/data/exp024/
 from __future__ import annotations
 
 import json
+import os
 import sys
 import time
 from pathlib import Path
@@ -30,12 +31,13 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from helpers import theme  # noqa: E402
 from helpers.cli import parse_meta  # noqa: E402
 from helpers.numbers import write_numbers  # noqa: E402
-from helpers.paths import artifacts_and_figures  # noqa: E402
+from helpers.paths import artifacts_and_figures, runner_paths  # noqa: E402
 from helpers.run_dirs import published_run  # noqa: E402
 from helpers.run_id import next_run_id  # noqa: E402
 from helpers.stamp import stamp_figure  # noqa: E402
 
 SLUG = "exp024"
+RUN_PATHS = runner_paths(SLUG)
 ARTIFACTS, FIGURES = artifacts_and_figures(SLUG)
 
 T_MS = 200.0
@@ -104,23 +106,41 @@ PARAM_LABELS = {"W_ff.0": "W_in", "W_ff.1": "W_out"}
 def cell_dir(model: str, seed: int) -> Path:
     """Trained cell — now the shared exp022 θ_u=off baseline (train-once /
     reuse-many). exp022 owns the training; exp024 only audits convergence."""
+    if RUN_PATHS.isolated and not os.environ.get("PINGLAB_TRAINING_ROOT"):
+        raise RuntimeError("isolated exp024 requires explicit PINGLAB_TRAINING_ROOT")
     from exp022 import cell_dir as shared_cell_dir
     from exp022 import cell_name
+
     return shared_cell_dir(cell_name(model, None, seed))
+
+
+def _log_event(event: str, **fields: object) -> None:
+    RUN_PATHS.logs.mkdir(parents=True, exist_ok=True)
+    record = {"event": event, "experiment": SLUG, **fields}
+    with (RUN_PATHS.logs / f"{SLUG}.jsonl").open("a") as handle:
+        handle.write(json.dumps(record, sort_keys=True) + "\n")
 
 
 def build_train_args(model: str, seed: int, out_dir: Path) -> list[str]:
     recipe = MODEL_RECIPES[model]
     args = [
         "train",
-        "--model", recipe["__build_as"],
-        "--dataset", "mnist",
-        "--max-samples", str(MAX_SAMPLES),
-        "--epochs", str(EPOCHS),
-        "--t-ms", str(T_MS),
-        "--dt", str(DT_TRAIN),
-        "--seed", str(seed),
-        "--out-dir", str(out_dir),
+        "--model",
+        recipe["__build_as"],
+        "--dataset",
+        "mnist",
+        "--max-samples",
+        str(MAX_SAMPLES),
+        "--epochs",
+        str(EPOCHS),
+        "--t-ms",
+        str(T_MS),
+        "--dt",
+        str(DT_TRAIN),
+        "--seed",
+        str(seed),
+        "--out-dir",
+        str(out_dir),
         "--wipe-dir",
     ]
     for k, v in recipe.items():
@@ -159,9 +179,19 @@ def plot_training_curves(out_path: Path, run_id: str) -> None:
     theme.apply()
     cells = _gather_cells()
     fig, axes = plt.subplots(
-        3, 2, figsize=(13.0, 9.0), dpi=150, sharex=True,
-        gridspec_kw={"hspace": 0.28, "wspace": 0.30,
-                     "left": 0.08, "right": 0.985, "top": 0.93, "bottom": 0.07},
+        3,
+        2,
+        figsize=(13.0, 9.0),
+        dpi=150,
+        sharex=True,
+        gridspec_kw={
+            "hspace": 0.28,
+            "wspace": 0.30,
+            "left": 0.08,
+            "right": 0.985,
+            "top": 0.93,
+            "bottom": 0.07,
+        },
     )
     ax_acc, ax_loss = axes[0]
     ax_e, ax_i = axes[1]
@@ -192,12 +222,17 @@ def plot_training_curves(out_path: Path, run_id: str) -> None:
     ax_loss.set_yscale("log")
     # Differentiate train vs test in the legend rather than the y-label.
     from matplotlib.lines import Line2D
+
     loss_legend = [
         Line2D([0], [0], color="grey", lw=1.0, ls="-", label="train"),
         Line2D([0], [0], color="grey", lw=1.0, ls="--", label="test"),
     ]
-    ax_loss.legend(handles=loss_legend, fontsize=theme.SIZE_LEGEND,
-                   frameon=False, loc="upper right")
+    ax_loss.legend(
+        handles=loss_legend,
+        fontsize=theme.SIZE_LEGEND,
+        frameon=False,
+        loc="upper right",
+    )
     ax_e.set_ylabel("Test E rate (Hz)", fontsize=theme.SIZE_LABEL)
     ax_i.set_ylabel("Test I rate (Hz)", fontsize=theme.SIZE_LABEL)
     ax_act.set_ylabel("Activity fraction", fontsize=theme.SIZE_LABEL)
@@ -230,8 +265,18 @@ def plot_acc_rate_vs_epoch(out_path: Path, run_id: str) -> None:
     theme.apply()
     cells = _gather_cells()
     fig, (ax_acc, ax_e) = plt.subplots(
-        2, 1, figsize=(8.0, 6.0), dpi=150, sharex=True,
-        gridspec_kw={"hspace": 0.12, "left": 0.11, "right": 0.97, "top": 0.93, "bottom": 0.09},
+        2,
+        1,
+        figsize=(8.0, 6.0),
+        dpi=150,
+        sharex=True,
+        gridspec_kw={
+            "hspace": 0.12,
+            "left": 0.11,
+            "right": 0.97,
+            "top": 0.93,
+            "bottom": 0.09,
+        },
     )
     for (model, seed), m in cells.items():
         color = MODEL_COLORS[model]
@@ -251,8 +296,10 @@ def plot_acc_rate_vs_epoch(out_path: Path, run_id: str) -> None:
         ax.spines["right"].set_visible(False)
         ax.grid(True, alpha=0.15, lw=0.4)
         ax.tick_params(labelsize=theme.SIZE_TICK)
-    fig.suptitle("Accuracy converges for both; only PING's rate settles",
-                 fontsize=theme.SIZE_TITLE)
+    fig.suptitle(
+        "Accuracy converges for both; only PING's rate settles",
+        fontsize=theme.SIZE_TITLE,
+    )
     stamp_figure(fig, run_id)
     out_path.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(out_path, dpi=150)
@@ -270,8 +317,12 @@ def plot_weight_dynamics(out_path: Path, run_id: str) -> None:
     cells = _gather_cells()
     params = list(PARAM_LABELS.keys())
     fig, axes = plt.subplots(
-        len(params), 2, figsize=(10.0, 2.5 * len(params) + 1.5), dpi=150,
-        sharex=True, gridspec_kw={"hspace": 0.18, "wspace": 0.22},
+        len(params),
+        2,
+        figsize=(10.0, 2.5 * len(params) + 1.5),
+        dpi=150,
+        sharex=True,
+        gridspec_kw={"hspace": 0.18, "wspace": 0.22},
     )
     if len(params) == 1:
         axes = np.array([axes])
@@ -281,20 +332,19 @@ def plot_weight_dynamics(out_path: Path, run_id: str) -> None:
         for (model, seed), m in cells.items():
             color = MODEL_COLORS[model]
             eps = np.array([e["ep"] for e in m["epochs"]])
-            norms = np.array([
-                (e.get("weight_norms") or {}).get(pname, np.nan)
-                for e in m["epochs"]
-            ])
-            ratios = np.array([
-                (e.get("grad_ratios") or {}).get(pname, np.nan)
-                for e in m["epochs"]
-            ])
+            norms = np.array(
+                [(e.get("weight_norms") or {}).get(pname, np.nan) for e in m["epochs"]]
+            )
+            ratios = np.array(
+                [(e.get("grad_ratios") or {}).get(pname, np.nan) for e in m["epochs"]]
+            )
             label = model if (seed == SEEDS[0] and row == 0) else None
             ax_norm.plot(eps, norms, color=color, lw=1.0, alpha=0.85, label=label)
             ax_ratio.plot(eps, ratios, color=color, lw=1.0, alpha=0.85)
         ax_norm.set_ylabel(f"||{PARAM_LABELS[pname]}||_F", fontsize=theme.SIZE_LABEL)
-        ax_ratio.set_ylabel(f"grad/{PARAM_LABELS[pname]} ratio",
-                            fontsize=theme.SIZE_LABEL)
+        ax_ratio.set_ylabel(
+            f"grad/{PARAM_LABELS[pname]} ratio", fontsize=theme.SIZE_LABEL
+        )
         ax_ratio.set_yscale("log")
         if row == 0:
             ax_norm.legend(fontsize=theme.SIZE_LEGEND, frameon=False, loc="lower right")
@@ -332,8 +382,11 @@ def plot_rates_vs_epoch(out_path: Path, run_id: str) -> None:
         i_rates = np.array([e.get("test_rate_i", 0) for e in m["epochs"]])
         color = MODEL_COLORS[model]
         if model == "coba":
-            label = ("COBA total (E only — I silent)"
-                     if "COBA total" not in seen_labels else None)
+            label = (
+                "COBA total (E only — I silent)"
+                if "COBA total" not in seen_labels
+                else None
+            )
             seen_labels.add("COBA total")
             ax.plot(eps, e_rates, color=color, lw=1.4, alpha=0.85, label=label)
         else:  # ping — E and I shown separately (no combined total)
@@ -342,8 +395,9 @@ def plot_rates_vs_epoch(out_path: Path, run_id: str) -> None:
             ax.plot(eps, e_rates, color=color, lw=1.4, alpha=0.85, label=e_label)
             i_label = "PING I" if "PING I" not in seen_labels else None
             seen_labels.add("PING I")
-            ax.plot(eps, i_rates, color=color, lw=1.2, ls="--", alpha=0.85,
-                    label=i_label)
+            ax.plot(
+                eps, i_rates, color=color, lw=1.2, ls="--", alpha=0.85, label=i_label
+            )
     ax.set_xlabel("Epoch", fontsize=theme.SIZE_LABEL)
     ax.set_ylabel("Hidden firing rate (Hz)", fontsize=theme.SIZE_LABEL)
     ax.spines["top"].set_visible(False)
@@ -374,14 +428,28 @@ def plot_rate_acc_trajectory(out_path: Path, run_id: str) -> None:
         rates = [e.get("test_rate_e", 0) for e in m["epochs"]]
         color = MODEL_COLORS[model]
         ax.plot(rates, accs, color=color, lw=0.7, alpha=0.5)
-        ax.scatter(rates, accs, c=range(len(rates)), cmap="viridis",
-                   s=8, marker=MODEL_MARKERS[model], edgecolors="none",
-                   alpha=0.85)
+        ax.scatter(
+            rates,
+            accs,
+            c=range(len(rates)),
+            cmap="viridis",
+            s=8,
+            marker=MODEL_MARKERS[model],
+            edgecolors="none",
+            alpha=0.85,
+        )
         # Annotate start and end of each trajectory.
-        ax.scatter(rates[0], accs[0], color=color, s=40,
-                   marker="o", facecolors="none", lw=1.2, zorder=5)
-        ax.scatter(rates[-1], accs[-1], color=color, s=60,
-                   marker="*", zorder=5)
+        ax.scatter(
+            rates[0],
+            accs[0],
+            color=color,
+            s=40,
+            marker="o",
+            facecolors="none",
+            lw=1.2,
+            zorder=5,
+        )
+        ax.scatter(rates[-1], accs[-1], color=color, s=60, marker="*", zorder=5)
     ax.set_xlabel("Test E rate (Hz)", fontsize=theme.SIZE_LABEL)
     ax.set_ylabel("Test accuracy (%)", fontsize=theme.SIZE_LABEL)
     ax.set_ylim(0, 100)
@@ -390,20 +458,53 @@ def plot_rate_acc_trajectory(out_path: Path, run_id: str) -> None:
     ax.grid(True, alpha=0.15, lw=0.4)
     # Manual legend.
     from matplotlib.lines import Line2D
+
     legend_elems = [
-        Line2D([0], [0], color=MODEL_COLORS["coba"], marker="s",
-               markersize=6, lw=1.0, label="coba"),
-        Line2D([0], [0], color=MODEL_COLORS["ping"], marker="D",
-               markersize=6, lw=1.0, label="ping"),
-        Line2D([0], [0], marker="o", markersize=8, lw=0,
-               markerfacecolor="none", markeredgecolor="grey",
-               label="epoch 1"),
-        Line2D([0], [0], marker="*", markersize=10, lw=0,
-               markerfacecolor="grey", markeredgecolor="grey",
-               label="final epoch"),
+        Line2D(
+            [0],
+            [0],
+            color=MODEL_COLORS["coba"],
+            marker="s",
+            markersize=6,
+            lw=1.0,
+            label="coba",
+        ),
+        Line2D(
+            [0],
+            [0],
+            color=MODEL_COLORS["ping"],
+            marker="D",
+            markersize=6,
+            lw=1.0,
+            label="ping",
+        ),
+        Line2D(
+            [0],
+            [0],
+            marker="o",
+            markersize=8,
+            lw=0,
+            markerfacecolor="none",
+            markeredgecolor="grey",
+            label="epoch 1",
+        ),
+        Line2D(
+            [0],
+            [0],
+            marker="*",
+            markersize=10,
+            lw=0,
+            markerfacecolor="grey",
+            markeredgecolor="grey",
+            label="final epoch",
+        ),
     ]
-    ax.legend(handles=legend_elems, fontsize=theme.SIZE_LEGEND,
-              frameon=False, loc="lower right")
+    ax.legend(
+        handles=legend_elems,
+        fontsize=theme.SIZE_LEGEND,
+        frameon=False,
+        loc="lower right",
+    )
     fig.suptitle(
         "Parametric (E rate, accuracy) trajectory — coloured by epoch",
         fontsize=theme.SIZE_TITLE,
@@ -419,12 +520,22 @@ def plot_rate_acc_trajectory(out_path: Path, run_id: str) -> None:
 
 
 WEI_WIE_GRID_VALUES: tuple[float, ...] = (
-    0.0, 0.25, 0.5, 1.0, 2.0, 4.0, 6.0, 8.0, 10.0,
+    0.0,
+    0.25,
+    0.5,
+    1.0,
+    2.0,
+    4.0,
+    6.0,
+    8.0,
+    10.0,
 )
 
 
 def plot_wei_wie_total_rate(
-    rows: list[dict], out_path: Path, run_id: str,
+    rows: list[dict],
+    out_path: Path,
+    run_id: str,
 ) -> None:
     """Heatmap of total network firing rate (E + I) vs (s_ei, s_ie).
     Annotates each cell with the total rate. Star at (1, 1) marks the
@@ -444,8 +555,12 @@ def plot_wei_wie_total_rate(
 
     fig, ax = plt.subplots(figsize=(8.5, 6.5), dpi=150)
     im = ax.imshow(
-        rate_grid, origin="lower", aspect="equal",
-        cmap="magma", vmin=0, vmax=150,
+        rate_grid,
+        origin="lower",
+        aspect="equal",
+        cmap="magma",
+        vmin=0,
+        vmax=150,
     )
     ax.set_xticks(range(len(s_ie_vals)))
     ax.set_yticks(range(len(s_ei_vals)))
@@ -461,20 +576,30 @@ def plot_wei_wie_total_rate(
             # Choose text colour based on cell value.
             txt_color = "white" if v < 0.55 * np.nanmax(rate_grid) else "black"
             ax.text(
-                ie, ei,
-                f"{v:.1f}\n({e_grid[ei,ie]:.1f}|{i_grid[ei,ie]:.1f})",
-                ha="center", va="center", fontsize=theme.SIZE_ANNOTATION - 1,
+                ie,
+                ei,
+                f"{v:.1f}\n({e_grid[ei, ie]:.1f}|{i_grid[ei, ie]:.1f})",
+                ha="center",
+                va="center",
+                fontsize=theme.SIZE_ANNOTATION - 1,
                 color=txt_color,
             )
     # Mark the trained operating point at (1, 1).
     if 1.0 in s_ei_vals and 1.0 in s_ie_vals:
         ei_idx = s_ei_vals.index(1.0)
         ie_idx = s_ie_vals.index(1.0)
-        ax.scatter(ie_idx, ei_idx, marker="*", s=300,
-                   facecolors="none", edgecolors="white", lw=1.8, zorder=5)
+        ax.scatter(
+            ie_idx,
+            ei_idx,
+            marker="*",
+            s=300,
+            facecolors="none",
+            edgecolors="white",
+            lw=1.8,
+            zorder=5,
+        )
     cbar = fig.colorbar(im, ax=ax, shrink=0.85)
-    cbar.set_label("Total network rate E + I (Hz)",
-                   fontsize=theme.SIZE_LABEL)
+    cbar.set_label("Total network rate E + I (Hz)", fontsize=theme.SIZE_LABEL)
     fig.suptitle(
         "Inference-time (W^EI × W^IE) sweep on trained PING — "
         "total firing rate (E + I)\n"
@@ -490,7 +615,9 @@ def plot_wei_wie_total_rate(
 
 
 def plot_wei_wie_diagonal_total_rate(
-    rows: list[dict], out_path: Path, run_id: str,
+    rows: list[dict],
+    out_path: Path,
+    run_id: str,
 ) -> None:
     """Diagonal slice through the (W^EI × W^IE) sweep — total rate vs s
     where W^EI = W^IE = s. Total, E, and I rates on a single panel,
@@ -509,12 +636,37 @@ def plot_wei_wie_diagonal_total_rate(
     accs = [r["acc"] for r in diag]
 
     fig, ax_rate = plt.subplots(figsize=(9.0, 5.0), dpi=150)
-    ax_rate.plot(scales, totals, marker="D", markersize=7, lw=1.6,
-                 color=theme.INK_BLACK, label="total (E + I)")
-    ax_rate.plot(scales, es, marker="o", markersize=5, lw=1.0, ls=":",
-                 color=theme.INK_BLACK, alpha=0.7, label="E only")
-    ax_rate.plot(scales, is_, marker="^", markersize=5, lw=1.0, ls="--",
-                 color=theme.INK_BLACK, alpha=0.7, label="I only")
+    ax_rate.plot(
+        scales,
+        totals,
+        marker="D",
+        markersize=7,
+        lw=1.6,
+        color=theme.INK_BLACK,
+        label="total (E + I)",
+    )
+    ax_rate.plot(
+        scales,
+        es,
+        marker="o",
+        markersize=5,
+        lw=1.0,
+        ls=":",
+        color=theme.INK_BLACK,
+        alpha=0.7,
+        label="E only",
+    )
+    ax_rate.plot(
+        scales,
+        is_,
+        marker="^",
+        markersize=5,
+        lw=1.0,
+        ls="--",
+        color=theme.INK_BLACK,
+        alpha=0.7,
+        label="I only",
+    )
     ax_rate.set_xlabel(
         "Diagonal coupling scale  s  (with $W^{EI} = W^{IE} = s$ × trained)",
         fontsize=theme.SIZE_LABEL,
@@ -526,16 +678,22 @@ def plot_wei_wie_diagonal_total_rate(
     # Vertical marker at the trained baseline (s = 1).
     ax_rate.axvline(1.0, color=theme.GREY_MID, lw=0.7, ls=":", alpha=0.7)
     ax_rate.text(
-        1.0, ax_rate.get_ylim()[1] * 0.95, " trained baseline (s = 1)",
-        fontsize=theme.SIZE_ANNOTATION, color=theme.MUTED,
-        ha="left", va="top",
+        1.0,
+        ax_rate.get_ylim()[1] * 0.95,
+        " trained baseline (s = 1)",
+        fontsize=theme.SIZE_ANNOTATION,
+        color=theme.MUTED,
+        ha="left",
+        va="top",
     )
 
     ax_acc = ax_rate.twinx()
-    ax_acc.plot(scales, accs, marker="s", markersize=5, lw=1.0,
-                color=theme.DEEP_RED, alpha=0.75)
-    ax_acc.set_ylabel("Test accuracy (%)",
-                      fontsize=theme.SIZE_LABEL, color=theme.DEEP_RED)
+    ax_acc.plot(
+        scales, accs, marker="s", markersize=5, lw=1.0, color=theme.DEEP_RED, alpha=0.75
+    )
+    ax_acc.set_ylabel(
+        "Test accuracy (%)", fontsize=theme.SIZE_LABEL, color=theme.DEEP_RED
+    )
     ax_acc.tick_params(axis="y", labelcolor=theme.DEEP_RED)
     ax_acc.set_ylim(0, 100)
     ax_acc.axhline(10.0, color=theme.DEEP_RED, lw=0.5, ls=":", alpha=0.4)
@@ -562,7 +720,11 @@ def plot_rate_distributions(rates_by_cell: dict, out_path: Path, run_id: str) ->
     cross-seed mean histogram is overlaid in solid colour."""
     theme.apply()
     fig, axes = plt.subplots(
-        1, 2, figsize=(11.0, 4.5), dpi=150, sharey=True,
+        1,
+        2,
+        figsize=(11.0, 4.5),
+        dpi=150,
+        sharey=True,
         gridspec_kw={"wspace": 0.15},
     )
     # Determine a common bin range so PING and COBA are comparable.
@@ -580,9 +742,14 @@ def plot_rate_distributions(rates_by_cell: dict, out_path: Path, run_id: str) ->
             key = (model, seed)
             if key not in rates_by_cell:
                 continue
-            ax.hist(rates_by_cell[key], bins=bins,
-                    color=MODEL_COLORS[model], alpha=0.25,
-                    histtype="step", lw=1.0)
+            ax.hist(
+                rates_by_cell[key],
+                bins=bins,
+                color=MODEL_COLORS[model],
+                alpha=0.25,
+                histtype="step",
+                lw=1.0,
+            )
         ax.set_title(model, fontsize=theme.SIZE_LABEL)
         ax.set_xlabel("Per-cell E rate (Hz)", fontsize=theme.SIZE_LABEL)
         if col == 0:
@@ -590,17 +757,20 @@ def plot_rate_distributions(rates_by_cell: dict, out_path: Path, run_id: str) ->
         ax.spines["top"].set_visible(False)
         ax.spines["right"].set_visible(False)
         # Annotate mean / median / max as text.
-        per_model = np.concatenate([
-            rates_by_cell[(model, s)] for s in SEEDS
-            if (model, s) in rates_by_cell
-        ])
+        per_model = np.concatenate(
+            [rates_by_cell[(model, s)] for s in SEEDS if (model, s) in rates_by_cell]
+        )
         ax.text(
-            0.97, 0.95,
+            0.97,
+            0.95,
             f"mean = {per_model.mean():.2f} Hz\n"
             f"median = {np.median(per_model):.2f} Hz\n"
             f"max = {per_model.max():.2f} Hz",
-            transform=ax.transAxes, ha="right", va="top",
-            fontsize=theme.SIZE_ANNOTATION, color=theme.MUTED,
+            transform=ax.transAxes,
+            ha="right",
+            va="top",
+            fontsize=theme.SIZE_ANNOTATION,
+            color=theme.MUTED,
         )
     fig.suptitle(
         "Per-cell E rate distribution at final trained state — three seeds overlaid",
@@ -619,7 +789,7 @@ def plot_rate_distributions(rates_by_cell: dict, out_path: Path, run_id: str) ->
 def slope_last_n(values: list[float], n: int = 10) -> float:
     if len(values) < 2:
         return float("nan")
-    tail = values[-min(n, len(values)):]
+    tail = values[-min(n, len(values)) :]
     if len(tail) < 2:
         return float("nan")
     return float((tail[-1] - tail[0]) / (len(tail) - 1))
@@ -654,7 +824,10 @@ def per_cell_diagnostics(rates_by_cell: dict) -> list[dict]:
                         else None
                     ),
                     "slope_last10": slope_last_n(
-                        [(e.get("weight_norms") or {}).get(pname, 0) for e in m["epochs"]],
+                        [
+                            (e.get("weight_norms") or {}).get(pname, 0)
+                            for e in m["epochs"]
+                        ],
                         10,
                     ),
                 }
@@ -687,6 +860,7 @@ def per_cell_diagnostics(rates_by_cell: dict) -> list[dict]:
             summary.append(cell_summary)
     return summary
 
+
 def plot_model_curves(model: str, out_path: Path, run_id: str) -> None:
     """Three panels for one model — loss, test accuracy, and firing rate vs
     epoch — three seeds overlaid. COBA shows E only (I is silent); PING shows
@@ -702,31 +876,68 @@ def plot_model_curves(model: str, out_path: Path, run_id: str) -> None:
     fig, (axL, axA, axR) = plt.subplots(1, 3, figsize=(6.9, 2.5), dpi=150)
     for (_, seed), met in sorted(cells.items()):
         eps = np.array([e["ep"] for e in met["epochs"]])
-        axL.plot(eps, [e.get("loss", 0) for e in met["epochs"]],
-                 color=color, lw=1.2, alpha=0.8)
-        axL.plot(eps, [e.get("test_loss", 0) for e in met["epochs"]],
-                 color=color, lw=1.0, ls="--", alpha=0.6)
-        axA.plot(eps, [e.get("acc", 0) for e in met["epochs"]],
-                 color=color, lw=1.2, alpha=0.85)
-        axR.plot(eps, [e.get("test_rate_e", 0) for e in met["epochs"]],
-                 color=color, lw=1.2, alpha=0.85)
+        axL.plot(
+            eps,
+            [e.get("loss", 0) for e in met["epochs"]],
+            color=color,
+            lw=1.2,
+            alpha=0.8,
+        )
+        axL.plot(
+            eps,
+            [e.get("test_loss", 0) for e in met["epochs"]],
+            color=color,
+            lw=1.0,
+            ls="--",
+            alpha=0.6,
+        )
+        axA.plot(
+            eps,
+            [e.get("acc", 0) for e in met["epochs"]],
+            color=color,
+            lw=1.2,
+            alpha=0.85,
+        )
+        axR.plot(
+            eps,
+            [e.get("test_rate_e", 0) for e in met["epochs"]],
+            color=color,
+            lw=1.2,
+            alpha=0.85,
+        )
         if model == "ping":
-            axR.plot(eps, [e.get("test_rate_i", 0) for e in met["epochs"]],
-                     color=color, lw=1.0, ls="--", alpha=0.85)
+            axR.plot(
+                eps,
+                [e.get("test_rate_i", 0) for e in met["epochs"]],
+                color=color,
+                lw=1.0,
+                ls="--",
+                alpha=0.85,
+            )
     axL.set_title("loss", loc="left", fontweight="semibold")
     axL.set_ylabel("loss")
-    axL.legend(handles=[Line2D([0], [0], color=color, lw=2, label="train"),
-                        Line2D([0], [0], color=color, lw=2, ls="--", label="test")],
-               frameon=False, fontsize=theme.SIZE_LEGEND)
+    axL.legend(
+        handles=[
+            Line2D([0], [0], color=color, lw=2, label="train"),
+            Line2D([0], [0], color=color, lw=2, ls="--", label="test"),
+        ],
+        frameon=False,
+        fontsize=theme.SIZE_LEGEND,
+    )
     axA.set_title("test accuracy", loc="left", fontweight="semibold")
     axA.set_ylabel("accuracy (%)")
     axA.set_ylim(0, 100)
     axR.set_title("firing rate", loc="left", fontweight="semibold")
     axR.set_ylabel("rate (Hz)")
     if model == "ping":
-        axR.legend(handles=[Line2D([0], [0], color=color, lw=2, label="E"),
-                            Line2D([0], [0], color=color, lw=2, ls="--", label="I")],
-                   frameon=False, fontsize=theme.SIZE_LEGEND)
+        axR.legend(
+            handles=[
+                Line2D([0], [0], color=color, lw=2, label="E"),
+                Line2D([0], [0], color=color, lw=2, ls="--", label="I"),
+            ],
+            frameon=False,
+            fontsize=theme.SIZE_LEGEND,
+        )
     for ax in (axL, axA, axR):
         ax.set_xlabel("epoch")
         for sp in ("top", "right"):
@@ -784,12 +995,30 @@ def plot_confidence_inflation(out_path: Path, run_id: str) -> None:
         color = MODEL_COLORS[model]
         eps = np.array([e["ep"] for e in m["epochs"]])
         label = model.upper() if seed == SEEDS[0] else None
-        axA.plot(eps, [e.get("acc", 0) for e in m["epochs"]],
-                 color=color, lw=1.2, alpha=0.85, label=label)
-        axL.plot(eps, [e.get("test_loss", 0) for e in m["epochs"]],
-                 color=color, lw=1.2, alpha=0.85, label=label)
-        axR.plot(eps, [e.get("test_rate_e", 0) for e in m["epochs"]],
-                 color=color, lw=1.2, alpha=0.85, label=label)
+        axA.plot(
+            eps,
+            [e.get("acc", 0) for e in m["epochs"]],
+            color=color,
+            lw=1.2,
+            alpha=0.85,
+            label=label,
+        )
+        axL.plot(
+            eps,
+            [e.get("test_loss", 0) for e in m["epochs"]],
+            color=color,
+            lw=1.2,
+            alpha=0.85,
+            label=label,
+        )
+        axR.plot(
+            eps,
+            [e.get("test_rate_e", 0) for e in m["epochs"]],
+            color=color,
+            lw=1.2,
+            alpha=0.85,
+            label=label,
+        )
 
     for model, ce in conv_ep.items():
         for ax in (axA, axL, axR):
@@ -823,8 +1052,15 @@ def main() -> None:
     n_cells = len(MODELS) * len(SEEDS)
     print(
         f"notebook_run_id = {run_id} epochs={EPOCHS} "
-        f"cells={n_cells}"
-        + ("  [skip-training]" if meta.skip_training else "")
+        f"cells={n_cells}" + ("  [skip-training]" if meta.skip_training else "")
+    )
+    _log_event(
+        "started",
+        run_id=run_id,
+        isolated=RUN_PATHS.isolated,
+        state_dir=str(RUN_PATHS.state),
+        derived_dir=str(RUN_PATHS.derived),
+        upstream_exp022_root=os.environ.get("PINGLAB_TRAINING_ROOT"),
     )
 
     # Training lives in exp022 now (train-once / reuse-many): the θ_u=off
@@ -833,8 +1069,12 @@ def main() -> None:
     # standard train command for every cell. Atomic publish: everything lands
     # in `figures` (a staging dir) and swaps into place only if the run completes.
     with published_run(
-        SLUG, run_id, skip_training=meta.skip_training, make_artifacts=False,
-        scale=SCALE, plot_only=meta.plot_only,
+        SLUG,
+        run_id,
+        skip_training=meta.skip_training,
+        make_artifacts=False,
+        scale=SCALE,
+        plot_only=meta.plot_only,
     ) as (_artifacts, figures):
         # Two figures, one per model, read straight from the shared cells'
         # per-epoch training history (no inference needed). Line plots → SVG (H10).
@@ -842,32 +1082,40 @@ def main() -> None:
         print(f"wrote {figures / 'coba_curves.svg'}")
         plot_model_curves("ping", figures / "ping_curves.svg", run_id)
         print(f"wrote {figures / 'ping_curves.svg'}")
-        plot_confidence_inflation(
-            figures / "confidence_inflation.svg", run_id)
+        plot_confidence_inflation(figures / "confidence_inflation.svg", run_id)
         print(f"wrote {figures / 'confidence_inflation.svg'}")
 
         finals = {}
         for (model, seed), met in _gather_cells().items():
             last = met["epochs"][-1]
             finals[f"{model}__seed{seed}"] = {
-                "acc": last.get("acc"), "rate_e": last.get("test_rate_e"),
+                "acc": last.get("acc"),
+                "rate_e": last.get("test_rate_e"),
                 "rate_i": last.get("test_rate_i"),
             }
 
         duration_s = time.monotonic() - t_start
         train_cfg = load_config(cell_dir(MODELS[0], SEEDS[0]))
         write_numbers(
-            figures, run_id=run_id, duration_s=duration_s,
+            figures,
+            run_id=run_id,
+            duration_s=duration_s,
             payload={
                 "git_sha_train": train_cfg.get("git_sha"),
-                "config": {"dataset": "mnist", "models": MODELS,
-                           "seeds": list(SEEDS), "epochs": EPOCHS,
-                           "t_ms": T_MS, "dt": DT_TRAIN},
+                "config": {
+                    "dataset": "mnist",
+                    "models": MODELS,
+                    "seeds": list(SEEDS),
+                    "epochs": EPOCHS,
+                    "t_ms": T_MS,
+                    "dt": DT_TRAIN,
+                },
                 "final": finals,
             },
         )
         print(f"wrote {figures / 'numbers.json'}")
 
+    _log_event("completed", run_id=run_id, duration_s=duration_s)
 
 
 if __name__ == "__main__":

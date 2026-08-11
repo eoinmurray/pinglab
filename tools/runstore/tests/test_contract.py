@@ -131,3 +131,23 @@ def test_inspect_refuses_to_replace_inventory(tmp_path: Path) -> None:
     assert inspect(tmp_path, write_inventory=True) == 0
     with pytest.raises(ContractError, match="already exists"):
         inspect(tmp_path, write_inventory=True)
+
+
+def test_inspect_finalize_completes_run_and_writes_inventory(tmp_path: Path) -> None:
+    run = json.loads((EXAMPLE / "run.json").read_text())
+    run["status"] = "running"
+    (tmp_path / "run.json").write_text(json.dumps(run))
+    (tmp_path / "state.bin").write_bytes(b"payload")
+
+    assert inspect(tmp_path, finalize=True) == 0
+
+    assert load_json(tmp_path / "run.json")["status"] == "complete"
+    inventory = validate_inventory(load_json(tmp_path / "inventory.json"))
+    verify_payload(tmp_path, inventory)
+
+
+def test_inspect_finalize_refuses_complete_run(tmp_path: Path) -> None:
+    run = json.loads((EXAMPLE / "run.json").read_text())
+    (tmp_path / "run.json").write_text(json.dumps(run))
+    with pytest.raises(ContractError, match="planned or running"):
+        inspect(tmp_path, finalize=True)
