@@ -598,6 +598,7 @@ def _eval_scaled(
         train_dir,
         ["--scale-w-in", str(scale_w_in), "--outputs", "per_cell_rates"],
         out_name=f"win_scale/s{scale_w_in:g}",
+        max_samples=MAX_SAMPLES if SMOKE else None,
     )
     m = json.loads((out_dir / "metrics.json").read_text())
     rates = m.get("rates_hz", {})
@@ -627,7 +628,7 @@ def _eval_scaled(
 # fixed). When p hits the floor, accuracy collapses.
 
 F_GAMMA_BAND_HZ: tuple[float, float] = (5.0, 150.0)
-PFG_MAX_TRIALS: int = 256  # plenty for stable p and PSD peak
+PFG_MAX_TRIALS: int = 20 if SMOKE else 256
 
 
 def _f_gamma_from_population(
