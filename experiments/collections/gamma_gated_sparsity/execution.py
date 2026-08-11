@@ -216,10 +216,12 @@ def _run_exp022(plan: dict[str, Any], row: dict[str, Any]) -> None:
         ],
         cwd=REPO,
         env=environment,
-        check=True,
         capture_output=True,
         text=True,
     )
+    if list_result.returncode != 0:
+        detail = list_result.stderr.strip() or list_result.stdout.strip()
+        raise CollectionError(f"exp022 campaign preflight failed: {detail}")
     cells = [line for line in list_result.stdout.splitlines() if line]
     _write_status(root, "exp022", state="running", started_at_utc=utc_now())
     for cell in cells:
