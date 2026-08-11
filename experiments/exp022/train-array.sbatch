@@ -10,13 +10,23 @@ set -euo pipefail
 : "${EXP022_MANIFEST:?submit through experiments/exp022/submit-tier.sh}"
 : "${EXP022_TIER:?submit through experiments/exp022/submit-tier.sh}"
 : "${EXP022_SELECTION:?submit through experiments/exp022/submit-tier.sh}"
+: "${EXP022_UV:?submit through experiments/exp022/submit-tier.sh}"
+: "${PINGLAB_DATA_ROOT:?submit through experiments/exp022/submit-tier.sh}"
 : "${SLURM_ARRAY_TASK_ID:?this script must run as an array job}"
 
 module purge
 module load rhel8/default-amp
 
 cd "$PINGLAB_ROOT"
-uv run python experiments/exp022.py --campaign-validate "$EXP022_MANIFEST"
+if [[ -e /tmp/mnist || -L /tmp/mnist ]]; then
+  [[ "$(readlink -f /tmp/mnist)" == "$(readlink -f "$PINGLAB_DATA_ROOT")" ]] || {
+    echo "/tmp/mnist exists but does not resolve to the reviewed persistent cache" >&2
+    exit 2
+  }
+else
+  ln -s "$PINGLAB_DATA_ROOT" /tmp/mnist
+fi
+"$EXP022_UV" run python experiments/exp022.py --campaign-validate "$EXP022_MANIFEST"
 mapfile -t cells < "$EXP022_SELECTION"
 if (( SLURM_ARRAY_TASK_ID >= ${#cells[@]} )); then
   echo "array task $SLURM_ARRAY_TASK_ID exceeds current retry list (${#cells[@]} cells)" >&2
@@ -26,4 +36,4 @@ cell="${cells[$SLURM_ARRAY_TASK_ID]}"
 
 echo "job=$SLURM_JOB_ID task=$SLURM_ARRAY_TASK_ID tier=$EXP022_TIER cell=$cell"
 nvidia-smi --query-gpu=name,memory.total,memory.used --format=csv,noheader
-uv run python experiments/exp022.py --campaign-train-cell "$cell" --campaign "$EXP022_MANIFEST"
+"$EXP022_UV" run python experiments/exp022.py --campaign-train-cell "$cell" --campaign "$EXP022_MANIFEST"
