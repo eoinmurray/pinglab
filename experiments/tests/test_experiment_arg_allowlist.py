@@ -14,6 +14,7 @@ or (if genuinely meta) added to ALLOWED with justification.
 Scope note: only canonical runners exp<digits>.py are governed; helper/dispatch
 scripts (e.g. exp022_runpod.py) are excluded by the filename pattern.
 """
+
 import re
 from pathlib import Path
 
@@ -26,8 +27,29 @@ from experiments.helpers.cli import ALL_META_FLAGS
 # Synced with helpers/cli.py — the closed meta vocabulary (+ legacy wipe/replot).
 ALLOWED_EXACT = set(ALL_META_FLAGS) | {"--no-wipe-dir", "--wipe-dir", "--replot"}
 
+# exp022 is also the collection's scheduler-facing checkpoint registry. These
+# flags select committed cells, lifecycle actions, or output formatting; none
+# overrides a scientific parameter. Keep the exception local so ordinary
+# experiment runners cannot acquire campaign controls accidentally.
+EXP022_CAMPAIGN_META = {
+    "--campaign",
+    "--campaign-aggregate",
+    "--campaign-id",
+    "--campaign-list",
+    "--campaign-manifest",
+    "--campaign-status",
+    "--campaign-train-cell",
+    "--campaign-validate",
+    "--json",
+    "--recover-stale",
+    "--retry-only",
+    "--tier",
+}
+
 # Canonical runners only — exp<digits>.py, so exp022_runpod.py et al. are skipped.
-RUNNERS = sorted(p for p in EXPERIMENTS.glob("exp*.py") if re.fullmatch(r"exp\d+\.py", p.name))
+RUNNERS = sorted(
+    p for p in EXPERIMENTS.glob("exp*.py") if re.fullmatch(r"exp\d+\.py", p.name)
+)
 
 
 def _is_meta(flag: str) -> bool:
@@ -47,7 +69,12 @@ def test_runners_exist():
 
 @pytest.mark.parametrize("runner", RUNNERS, ids=lambda p: p.name)
 def test_runner_accepts_only_meta_flags(runner):
-    offenders = sorted(f for f in _accepted_flags(runner.read_text()) if not _is_meta(f))
+    allowed = ALLOWED_EXACT | (
+        EXP022_CAMPAIGN_META if runner.name == "exp022.py" else set()
+    )
+    offenders = sorted(
+        f for f in _accepted_flags(runner.read_text()) if f not in allowed
+    )
     assert not offenders, (
         f"{runner.name} exposes non-meta CLI flag(s) {offenders} — the runner is the "
         f"recipe, so science parameters must be hardcoded, not accepted as flags. "

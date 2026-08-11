@@ -50,25 +50,32 @@ def _sha256(path: Path) -> str:
 
 def source_provenance() -> dict[str, Any]:
     commit = subprocess.run(
-        ["git", "rev-parse", "HEAD"], cwd=REPO, check=True,
-        capture_output=True, text=True,
+        ["git", "rev-parse", "HEAD"],
+        cwd=REPO,
+        check=True,
+        capture_output=True,
+        text=True,
     ).stdout.strip()
     clean = not subprocess.run(
-        ["git", "status", "--porcelain"], cwd=REPO, check=True,
-        capture_output=True, text=True,
+        ["git", "status", "--porcelain"],
+        cwd=REPO,
+        check=True,
+        capture_output=True,
+        text=True,
     ).stdout.strip()
     lock = REPO / "uv.lock"
     return {
         "git_commit": commit,
         "git_clean": clean,
         "lockfile": {"path": "uv.lock", "sha256": _sha256(lock)}
-        if lock.is_file() else None,
+        if lock.is_file()
+        else None,
     }
 
 
 def utc_now() -> str:
-    return datetime.now(timezone.utc).isoformat(timespec="seconds").replace(
-        "+00:00", "Z"
+    return (
+        datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
     )
 
 
@@ -98,12 +105,21 @@ def initialize_campaign(root: Path, campaign_id: str, *, smoke: bool) -> dict[st
     ]
     subprocess.run(
         [
-            sys.executable, "-m", "tools.runstore", "init", str(root),
-            "--run-id", campaign_id, "--kind", "campaign",
-            "--collection", COLLECTION,
+            sys.executable,
+            "-m",
+            "tools.runstore",
+            "init",
+            str(root),
+            "--run-id",
+            campaign_id,
+            "--kind",
+            "campaign",
+            "--collection",
+            COLLECTION,
             "--provenance-notes",
             "isolated smoke campaign" if smoke else "publication campaign",
-            "--command", *command,
+            "--command",
+            *command,
         ],
         cwd=REPO,
         check=True,
@@ -141,7 +157,9 @@ def load_plan(root: Path) -> dict[str, Any]:
         raise CollectionError("campaign plan root does not match its location")
     source = source_provenance()
     if source != plan.get("source"):
-        raise CollectionError("campaign source commit or lockfile differs from checkout")
+        raise CollectionError(
+            "campaign source commit or lockfile differs from checkout"
+        )
     if source.get("git_clean") is not True:
         raise CollectionError("campaign execution requires a clean Git checkout")
     return plan
@@ -219,6 +237,19 @@ def _run_exp022(plan: dict[str, Any], row: dict[str, Any]) -> None:
             env=environment,
             check=True,
         )
+    _aggregate_exp022(plan, row, environment=environment)
+
+
+def _aggregate_exp022(
+    plan: dict[str, Any],
+    row: dict[str, Any],
+    *,
+    environment: dict[str, str] | None = None,
+) -> None:
+    root = Path(plan["campaign_root"])
+    manifest = Path(plan["exp022_manifest"])
+    environment = environment or _runner_environment(plan, row)
+    _write_status(root, "exp022", state="aggregating", started_at_utc=utc_now())
     subprocess.run(
         [
             sys.executable,
@@ -277,17 +308,41 @@ def run_local(root: Path) -> None:
             _run_downstream(plan, row)
 
 
+def aggregate_exp022(root: Path) -> None:
+    """Aggregate an already-complete exp022 bank without training cells."""
+    plan = load_plan(root)
+    row = next(item for item in rows_in_order(plan) if item["slug"] == "exp022")
+    _aggregate_exp022(plan, row)
+
+
+def run_experiment(root: Path, slug: str) -> None:
+    """Run one downstream node after validating its declared dependencies."""
+    plan = load_plan(root)
+    rows = {row["slug"]: row for row in rows_in_order(plan)}
+    if slug not in rows or slug == "exp022":
+        raise CollectionError(f"unknown downstream experiment: {slug}")
+    row = rows[slug]
+    for dependency in row["dependencies"]:
+        if not _outputs_valid(rows[dependency]):
+            raise CollectionError(f"{slug} dependency {dependency} is incomplete")
+    _run_downstream(plan, row)
+
+
 def campaign_status(root: Path) -> dict[str, Any]:
     plan = load_plan(root)
     rows = []
     for row in rows_in_order(plan):
         status_path = _status_path(Path(plan["campaign_root"]), row["slug"])
-        status = load_json(status_path) if status_path.exists() else {"state": "pending"}
-        rows.append({
-            "experiment": row["slug"],
-            "state": status.get("state", "pending"),
-            "outputs_valid": _outputs_valid(row),
-        })
+        status = (
+            load_json(status_path) if status_path.exists() else {"state": "pending"}
+        )
+        rows.append(
+            {
+                "experiment": row["slug"],
+                "state": status.get("state", "pending"),
+                "outputs_valid": _outputs_valid(row),
+            }
+        )
     return {"campaign_id": plan["campaign_id"], "experiments": rows}
 
 
@@ -337,23 +392,32 @@ def finalize_campaign(root: Path) -> dict[str, Any]:
 def _checkout_source(checkout: Path) -> dict[str, Any]:
     checkout = checkout.resolve()
     if checkout == REPO.resolve():
-        raise CollectionError("publication build requires a separate disposable checkout")
+        raise CollectionError(
+            "publication build requires a separate disposable checkout"
+        )
     if not (checkout / ".git").exists():
         raise CollectionError(f"publication checkout is not a Git worktree: {checkout}")
     commit = subprocess.run(
-        ["git", "rev-parse", "HEAD"], cwd=checkout, check=True,
-        capture_output=True, text=True,
+        ["git", "rev-parse", "HEAD"],
+        cwd=checkout,
+        check=True,
+        capture_output=True,
+        text=True,
     ).stdout.strip()
     clean = not subprocess.run(
-        ["git", "status", "--porcelain"], cwd=checkout, check=True,
-        capture_output=True, text=True,
+        ["git", "status", "--porcelain"],
+        cwd=checkout,
+        check=True,
+        capture_output=True,
+        text=True,
     ).stdout.strip()
     lock = checkout / "uv.lock"
     return {
         "git_commit": commit,
         "git_clean": clean,
         "lockfile": {"path": "uv.lock", "sha256": _sha256(lock)}
-        if lock.is_file() else None,
+        if lock.is_file()
+        else None,
     }
 
 

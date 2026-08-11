@@ -1,0 +1,18 @@
+{
+  "account": "SL2_PROJECT_FROM_MYBALANCE",
+  "partition": "ampere",
+  "mnist_cache": "/absolute/path/to/persistent/torch-data",
+  "uv": "/absolute/path/to/uv",
+  "exp022": {
+    "standard": {"time": "00:00:00", "concurrency": 1},
+    "fine_dt": {"time": "00:00:00", "concurrency": 1},
+    "canonical_coba": {"time": "00:00:00", "concurrency": 1},
+    "canonical_ping": {"time": "00:00:00", "concurrency": 1},
+    "variable_rate": {"time": "00:00:00", "concurrency": 1}
+  },
+  "jobs": {
+    "aggregate": {"time": "00:00:00", "cpus": 1, "memory_gb": 1, "gpus": 0},
+    "downstream": {"time": "00:00:00", "cpus": 1, "memory_gb": 1, "gpus": 1},
+    "finalize": {"time": "00:00:00", "cpus": 1, "memory_gb": 1, "gpus": 0}
+  }
+}
