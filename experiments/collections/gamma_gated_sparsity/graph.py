@@ -23,6 +23,10 @@ class Experiment:
 # dependencies and the exp022 training-run identity consumed downstream.
 EXPERIMENTS: tuple[Experiment, ...] = (
     Experiment("exp022", note="collection checkpoint bank"),
+    Experiment("exp023", integrated=True, note="untrained PING fundamentals"),
+    Experiment("exp047", integrated=True, note="inhibitory pool-size control"),
+    Experiment("exp080", integrated=True, note="variable-rate calibration"),
+    Experiment("exp081", integrated=True, note="filtered-response theory"),
     Experiment("exp024", ("exp022",), "TR-02", integrated=True),
     Experiment("exp025", ("exp022",), "TR-02", integrated=True),
     Experiment("exp037", ("exp022",), "TR-02", integrated=True),
@@ -34,17 +38,12 @@ EXPERIMENTS: tuple[Experiment, ...] = (
     Experiment("exp033", ("exp041",), integrated=True),
     Experiment("exp042", ("exp041",), integrated=True),
     Experiment("exp046", ("exp041",), integrated=True),
+    Experiment("exp054", ("exp041",), integrated=True),
 )
 
-# These roots are deliberately not in the executable graph until the Stage 1
-# shared-code audit records rerun or reuse for each one.
-PENDING_ROOT_DECISIONS: tuple[str, ...] = (
-    "exp023",
-    "exp047",
-    "exp054",
-    "exp080",
-    "exp081",
-)
+# All collection roots have an explicit rerun decision and are represented in
+# the executable graph.
+PENDING_ROOT_DECISIONS: tuple[str, ...] = ()
 
 
 def ordered_experiments(

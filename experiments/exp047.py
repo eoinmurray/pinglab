@@ -14,6 +14,7 @@ Inference only.  The runner uses the public snn CLI and does not modify it.
 from __future__ import annotations
 
 import json
+import os
 import sys
 import time
 from pathlib import Path
@@ -36,15 +37,16 @@ from helpers.stamp import stamp_figure  # noqa: E402
 
 SLUG = "exp047"
 ARTIFACTS, FIGURES = artifacts_and_figures(SLUG)
+SMOKE = os.environ.get("PINGLAB_SMOKE") == "1"
 
 N_E = 1024
 N_IN = 784
 N_I_SWEEP = [16, 64, 256]
 N_I_REFERENCE = 256
-T_MS = 500.0
+T_MS = 200.0 if SMOKE else 500.0
 DT = 0.1
-N_BATCH = 8
-SEEDS = [40, 41, 42]
+N_BATCH = 2 if SMOKE else 8
+SEEDS = [40, 41] if SMOKE else [40, 41, 42]
 
 W_IN_MEAN = 1.2
 W_IN_SPARSITY = 0.95

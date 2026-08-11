@@ -15,6 +15,7 @@ Writing: writings/exp023.typ · figures + numbers.json: artifacts/data/exp023/
 
 from __future__ import annotations
 
+import os
 import sys
 import time
 from pathlib import Path
@@ -37,8 +38,7 @@ from helpers.run_id import next_run_id  # noqa: E402
 
 SLUG = "exp023"
 ARTIFACTS, FIGURES = artifacts_and_figures(SLUG)
-SCOPE_OUT_PNG = REPO / "temp" / "pinglab-cli" / "snapshot.png"
-SCOPE_OUT_NPZ = REPO / "temp" / "pinglab-cli" / "snapshot.npz"
+SMOKE = os.environ.get("PINGLAB_SMOKE") == "1"
 
 DT_MS = 0.1  # canonical timestep (was the 0.25 pinglab-cli default)
 N_E, N_I, N_IN = 1024, 256, 1024  # net geometry (pinglab-cli mnist default)
@@ -66,7 +66,7 @@ COMMON_ARGS = [
     "--n-in", str(N_IN),
     "--w-in", "1.5", "0.3",
     "--w-in-sparsity", "0.95",
-    "--t-ms", "400",
+    "--t-ms", "200" if SMOKE else "400",
     "--dt", str(DT_MS),
 ]
 CELLS: dict[str, dict] = {
@@ -266,7 +266,7 @@ def _despine(ax):
 
 FI_RATES_HZ = [2, 5, 10, 20, 40, 70, 100]  # uniform Poisson input rates (Hz)
 FI_EI = {"coba": "0", "ping": "1.5"}  # ei-strength per condition
-FI_T_MS = 400
+FI_T_MS = 200 if SMOKE else 400
 
 
 def fi_sweep(bar: nblog.ProgressBar | None = None) -> dict:
@@ -824,16 +824,21 @@ def main() -> None:
 
         snaps: dict[str, dict] = {}
         for cell, spec in CELLS.items():
-            for p in (SCOPE_OUT_PNG, SCOPE_OUT_NPZ):
-                if p.exists():
-                    p.unlink()
-            scope_argv = [*COMMON_ARGS, *spec["args"]]
+            scope_dir = ARTIFACTS / "scope" / cell
+            scope_npz = scope_dir / "snapshot.npz"
+            scope_argv = [
+                *COMMON_ARGS,
+                *spec["args"],
+                "--out-dir",
+                str(scope_dir),
+                "--wipe-dir",
+            ]
             log.phase(f"sim · {cell}", " ".join(spec["args"]))
             run_cli([*scope_argv])
-            if not SCOPE_OUT_NPZ.exists():
-                raise SystemExit(f"pinglab-cli did not produce {SCOPE_OUT_NPZ}")
+            if not scope_npz.exists():
+                raise SystemExit(f"pinglab-cli did not produce {scope_npz}")
 
-            data = np.load(SCOPE_OUT_NPZ)
+            data = np.load(scope_npz)
             snaps[cell] = {
                 "spk_e": np.array(data["spk_e"]),
                 "spk_i": np.array(data["spk_i"]),
@@ -843,7 +848,7 @@ def main() -> None:
             traces_dst = figures / f"traces__{cell}"
             # Short label for the per-panel titles (the full recipe is in the mdx
             # caption); the long spec["title"] squished the small trace tiles.
-            panel_paths = plot_traces(SCOPE_OUT_NPZ, traces_dst, cell.upper())
+            panel_paths = plot_traces(scope_npz, traces_dst, cell.upper())
             for p in panel_paths:
                 fig_paths[p.stem] = p
                 log.wrote(p, "svg,pdf")

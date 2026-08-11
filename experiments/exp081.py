@@ -31,21 +31,23 @@ from helpers.run_id import next_run_id, persist  # noqa: E402
 
 SLUG = "exp081"
 ARTIFACTS, FIGURES = artifacts_and_figures(SLUG)
+SMOKE = os.environ.get("PINGLAB_SMOKE") == "1"
 
 PRESENTATION_MS = 200.0
 DT_MS = 0.1
 N_TIMESTEPS = int(round(PRESENTATION_MS / DT_MS))
 PROBES_US = (0.6, 1.2, 2.4)
 INPUT_RATES_HZ = np.linspace(0.0, 25.0, 101)
-MOMENT_DRAWS = 512
+MOMENT_DRAWS = 32 if SMOKE else 512
 DISTRIBUTION_RATES_HZ = (0.25, 3.0, 25.0)
 FREQUENCY_RESPONSE_RATES_HZ = (0.25, 3.0, 25.0)
 NOMINAL_PROBE_US = 1.2
 FREQUENCY_PLOT_BOUNDS_HZ = (0.1, 200.0)
-DISTRIBUTION_DRAWS = 4096
+DISTRIBUTION_DRAWS = 128 if SMOKE else 4096
 SEED = 81
 FREQUENCY_BOUNDS_HZ = (1e-4, 1e6)
-FREQUENCY_GRID_POINTS = 16385
+FREQUENCY_GRID_POINTS = 1025 if SMOKE else 16385
+COARSE_GRID_POINTS = 513 if SMOKE else 8193
 
 PARAMETERS = {
     "C_m_nF": 1.0,
@@ -368,7 +370,7 @@ def main() -> None:
     ).reshape(rates_hz.shape)
     analytical_sd = np.sqrt(analytical_variance)
     coarse = predicted_variance(
-        rates_hz.reshape(-1), probes.reshape(-1), grid_points=8193
+        rates_hz.reshape(-1), probes.reshape(-1), grid_points=COARSE_GRID_POINTS
     ).reshape(rates_hz.shape)
     relative = np.divide(
         np.abs(analytical_variance - coarse),
@@ -417,7 +419,7 @@ def main() -> None:
         "quadrature": {
             "maximum_relative_refinement_change": float(relative.max()),
             "fine_grid_points": FREQUENCY_GRID_POINTS,
-            "coarse_grid_points": 8193,
+            "coarse_grid_points": COARSE_GRID_POINTS,
         },
         "runtime_s": time.perf_counter() - started,
         "environment": {
