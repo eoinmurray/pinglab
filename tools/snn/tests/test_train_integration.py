@@ -69,6 +69,36 @@ class TestTrainParameterPropagation:
             config = json.load(f)
         assert config["dt"] == dt_value
 
+    def test_direct_readout_initializer_and_realized_stats_are_saved(
+        self, tmp_output_dir
+    ):
+        train(
+            model_name="ping",
+            dt=1.0,
+            t_ms=5.0,
+            epochs=0,
+            dataset="mnist",
+            max_samples=50,
+            out_dir=tmp_output_dir,
+            readout_w_init_mean=1.25,
+            readout_w_init_std=0.0,
+        )
+        config = json.loads((tmp_output_dir / "config.json").read_text())
+        assert config["readout_w_out_scale"] is None
+        assert config["readout_w_init"] == {
+            "distribution": "normal_clamped_nonnegative",
+            "units": "stored_weight",
+            "mean": 1.25,
+            "std": 0.0,
+        }
+        assert config["readout_w_init_realized"] == {
+            "mean": 1.25,
+            "std": 0.0,
+            "min": 1.25,
+            "max": 1.25,
+            "zero_fraction": 0.0,
+        }
+
     def test_t_ms_propagates_to_m_module(self, tmp_output_dir):
         """--t-ms should set M.T_ms."""
         t_ms_value = 150.0

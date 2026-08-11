@@ -290,6 +290,7 @@ def build_net(
     readout_mode="rate",
     signed_readout=False,
     readout_bias=False,
+    readout_w_init=None,
     trainable_w_ee=False,
     trainable_w_ei=False,
     trainable_w_ie=False,
@@ -321,6 +322,7 @@ def build_net(
     kwargs["readout_mode"] = readout_mode
     kwargs["signed_readout"] = signed_readout
     kwargs["readout_bias"] = readout_bias
+    kwargs["readout_w_init"] = readout_w_init
     kwargs["train_leak"] = train_leak
     kwargs["adaptive_threshold"] = adaptive_threshold
     kwargs["adapt_strength_init_mv"] = adapt_strength_init_mv

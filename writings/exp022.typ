@@ -76,7 +76,7 @@
 
   == Summary
 
-  All runs map Poisson-encoded pixels through 1,024 excitatory neurons to ten spiking output LIF neurons. COBA and PING use the same input-weight mean and readout initialization scale. COBA disables recurrent E/I coupling; PING adds a $1024 arrow 256 arrow 1024$ E/I feedback loop and uses stronger backward-pass gradient damping to stabilize training through that recurrent path.
+  All runs map Poisson-encoded pixels through 1,024 excitatory neurons to ten spiking output LIF neurons. COBA and PING use the same input-weight and readout-weight initialization distributions. COBA disables recurrent E/I coupling; PING adds a $1024 arrow 256 arrow 1024$ E/I feedback loop and uses stronger backward-pass gradient damping to stabilize training through that recurrent path.
 
   Unless a run-specific table says otherwise, every cell uses the following contract.
 
@@ -98,7 +98,7 @@
     [$tau_"GABA"$], [6 ms], [Default inhibitory decay at the gamma operating point],
     [Input sparsity], [0.95], [Sparsity of the input projection],
     [Input-weight mean], [0.9], [Shared by COBA and PING so input initialization is not an architecture-specific factor],
-    [Readout initialization scale], [225], [Shared by COBA and PING so the initial classifier scale is matched],
+    [Readout-weight initialization], [$max(0, cal(N)(1.1206, 0.8350^2))$], [The stored $1024 times 10$ weights are sampled directly from this distribution; COBA and PING use the same initializer],
     [E/I loop strength], [COBA: 0; PING: 1], [The forward architectural difference under comparison],
     [Gradient damping], [COBA: 1; PING: 1,000], [Backward-pass stabilization for the recurrent PING loop; it does not change forward dynamics],
     [Surrogate slope], [1], [Spike-gradient surrogate parameter],

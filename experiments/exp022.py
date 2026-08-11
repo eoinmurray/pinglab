@@ -82,10 +82,13 @@ TAU_AMPA_MS = 2.0          # AMPA decay — fixed across the collection (no CLI 
 # whole collection moves together (see helpers/operating_point.py).
 TAU_GABA_GAMMA = TAU_GABA_GAMMA_MS
 SHARED_W_IN_MEAN = "0.9"
-SHARED_READOUT_W_OUT_SCALE = "225"
+# Stored-weight parameters exactly corresponding to the accepted legacy
+# Normal(5.1, 3.8) / 1024 × 225 recipe, now expressed directly.
+SHARED_READOUT_W_INIT_MEAN = "1.12060546875"
+SHARED_READOUT_W_INIT_STD = "0.8349609375"
 
 # Production recipe for the next exp022 bank. COBA and PING share the input and
-# readout initialization scales selected by the matched-midpoint gate. They
+# readout initialization distributions selected by the matched-midpoint gate. They
 # differ only in loop engagement and the loop-specific backward stabilizer.
 # Gradient dampening (--v-grad-dampen) is loop-specific. Sweeping a dampening
 # ladder {1, 10, 100, 1000} across both architectures shows PING needs it: its
@@ -104,7 +107,8 @@ MODEL_RECIPES: dict[str, dict] = {
         "--w-in-sparsity": "0.95",
         "--readout": "mem-mean",
         "--surrogate-slope": "1",
-        "--readout-w-out-scale": SHARED_READOUT_W_OUT_SCALE,
+        "--readout-w-init-mean": SHARED_READOUT_W_INIT_MEAN,
+        "--readout-w-init-std": SHARED_READOUT_W_INIT_STD,
         "--lr": "0.0004",
         "--batch-size": "256",
     },
@@ -116,7 +120,8 @@ MODEL_RECIPES: dict[str, dict] = {
         "--w-in-sparsity": "0.95",
         "--readout": "mem-mean",
         "--surrogate-slope": "1",
-        "--readout-w-out-scale": SHARED_READOUT_W_OUT_SCALE,
+        "--readout-w-init-mean": SHARED_READOUT_W_INIT_MEAN,
+        "--readout-w-init-std": SHARED_READOUT_W_INIT_STD,
         "--lr": "0.0004",
         "--batch-size": "256",
     },

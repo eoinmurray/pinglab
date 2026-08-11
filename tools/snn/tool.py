@@ -561,14 +561,31 @@ def _build_parent_parser():
         "--readout-w-out-scale",
         type=float,
         default=1.0,
-        help="Multiply the readout matrix W_ff[-1] (and "
+        help="Deprecated: multiply the readout matrix W_ff[-1] (and "
         "bias b_ff[-1] if present) by this scalar "
         "after build_net. Use to compensate for low "
         "hidden firing rate under mem-mean / "
         "spike-rate readouts: bumping W_out up "
         "equalises the trial-level drive into the "
         "output LIF and recovers gradient signal. "
+        "Cannot be combined with --readout-w-init-mean/std. "
         "Train-mode only. Default 1.0.",
+    )
+    net_group.add_argument(
+        "--readout-w-init-mean",
+        type=float,
+        default=None,
+        help="Mean of the normal distribution used to initialize the stored "
+        "W_ff[-1] values directly, before clamping at zero. Must be used "
+        "with --readout-w-init-std. Train-mode only.",
+    )
+    net_group.add_argument(
+        "--readout-w-init-std",
+        type=float,
+        default=None,
+        help="Standard deviation of the normal distribution used to "
+        "initialize stored W_ff[-1] values directly, before clamping at "
+        "zero. Must be used with --readout-w-init-mean. Train-mode only.",
     )
     net_group.add_argument(
         "--surrogate-slope",
@@ -978,7 +995,8 @@ each subcommand's --help):
                  --ei-sparsity, --w-in-sparsity, --dt, --t-ms, --seed
   Dynamics       --train-leak, --adaptive-threshold
   Readout        --readout {rate,mem-mean,spike-rate,cumulative-potential},
-                 --signed-readout, --readout-bias, --readout-w-out-scale,
+                 --signed-readout, --readout-bias, --readout-w-init-mean,
+                 --readout-w-init-std, --readout-w-out-scale,
                  --dales-law, --no-dales-law
   Input          --input, --input-rate, --dataset, --digit, --sample
   Weights        --w-in, --w-ee, --w-ei, --w-ie, --w-ii
@@ -1460,6 +1478,8 @@ def _run_train(args, C, out_dir, log):
         batch_size=args.batch_size,
         seed=args.seed,
         readout_w_out_scale=args.readout_w_out_scale,
+        readout_w_init_mean=args.readout_w_init_mean,
+        readout_w_init_std=args.readout_w_init_std,
         readout_mode=args.readout_mode,
         signed_readout=args.signed_readout,
         readout_bias=args.readout_bias,
