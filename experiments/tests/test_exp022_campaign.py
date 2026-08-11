@@ -334,11 +334,55 @@ def test_post_aggregation_check_allows_only_generated_exp022_artifacts(
         exp022._checked_manifest(manifest_path, allow_generated_dirty=True)
 
 
+@pytest.mark.parametrize("occupied", ["empty", "manifest", "cell", "status", "arbitrary"])
+def test_campaign_creation_refuses_existing_destination(
+    tmp_path: Path, monkeypatch, occupied: str,
+) -> None:
+    root = tmp_path / "campaign"
+    root.mkdir()
+    if occupied == "manifest":
+        (root / "campaign.json").write_text("original manifest")
+    elif occupied == "cell":
+        cell = root / "cells" / "existing"
+        cell.mkdir(parents=True)
+        (cell / "weights.pth").write_text("expensive checkpoint")
+    elif occupied == "status":
+        status = root / "status"
+        status.mkdir()
+        (status / "cell.json").write_text("running")
+    elif occupied == "arbitrary":
+        (root / "notes.txt").write_text("keep me")
+    before = {
+        path.relative_to(root).as_posix(): path.read_bytes()
+        for path in root.rglob("*") if path.is_file()
+    }
+    monkeypatch.setattr(
+        campaign, "create_manifest",
+        lambda **_kwargs: {"campaign_id": "must-not-overwrite"},
+    )
+    with pytest.raises(SystemExit, match="already exists and will not be modified"):
+        exp022._handle_campaign_cli([
+            "exp022.py", "--campaign-manifest", str(root),
+            "--campaign-id", "must-not-overwrite", "--tier", "variable_rate",
+        ])
+    after = {
+        path.relative_to(root).as_posix(): path.read_bytes()
+        for path in root.rglob("*") if path.is_file()
+    }
+    assert after == before
+
+
 def test_verified_archive_source_is_manifest_cells_not_legacy(tmp_path: Path, monkeypatch) -> None:
     row = _manifest_cell(tmp_path)
     manifest = _attempt_manifest(tmp_path, row)
     manifest["cells"] = [{} for _ in exp022.CANONICAL_CELLS]
-    monkeypatch.setattr(exp022, "_checked_manifest", lambda _path: manifest)
+    checked = {}
+
+    def fake_checked_manifest(_path, *, allow_generated_dirty=False):
+        checked["allow_generated_dirty"] = allow_generated_dirty
+        return manifest
+
+    monkeypatch.setattr(exp022, "_checked_manifest", fake_checked_manifest)
     monkeypatch.setattr(campaign, "summarize_status", lambda _manifest: {
         "retry_cells": [], "recoverable_cells": [],
         "cells": [{"state": "complete"} for _ in exp022.CANONICAL_CELLS],
@@ -347,6 +391,7 @@ def test_verified_archive_source_is_manifest_cells_not_legacy(tmp_path: Path, mo
     assert selected is manifest
     assert source == (tmp_path / "cells").resolve()
     assert source != (archive.ARTIFACTS_ROOT / "exp022").resolve()
+    assert checked["allow_generated_dirty"] is True
 
 
 def test_mnist_link_helper_accepts_existing_and_concurrent_creation(tmp_path: Path) -> None:
