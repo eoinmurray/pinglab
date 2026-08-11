@@ -41,3 +41,11 @@ def test_smoke_scaled_inference_caps_dataset(monkeypatch, tmp_path: Path) -> Non
     assert observed["extra_args"] == [
         "--scale-w-in", "0.5", "--outputs", "per_cell_rates",
     ]
+
+
+def test_low_w_in_training_uses_direct_readout_initializer(tmp_path: Path) -> None:
+    args = exp025.build_low_w_in_args(0.9, tmp_path / "cell")
+    assert "--readout-w-out-scale" not in args
+    assert args[args.index("--readout-w-init-mean") + 1] == "1.12060546875"
+    assert args[args.index("--readout-w-init-std") + 1] == "0.8349609375"
+    assert exp025.LOW_W_IN_VALUES == [0.05, 0.1, 0.3, 0.9]

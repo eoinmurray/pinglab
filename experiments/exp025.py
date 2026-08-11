@@ -40,8 +40,12 @@ import numpy as np
 REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
+from exp022 import (
+    SHARED_READOUT_W_INIT_MEAN,  # noqa: E402
+    SHARED_READOUT_W_INIT_STD,  # noqa: E402
+    cell_name,  # noqa: E402
+)
 from exp022 import cell_dir as shared_cell_dir  # noqa: E402
-from exp022 import cell_name  # noqa: E402
 from helpers import theme  # noqa: E402
 from helpers.cli import parse_meta  # noqa: E402
 from helpers.figsave import save_figure  # noqa: E402
@@ -107,31 +111,16 @@ SCALE = {
     "grid": "θ_u ∈ {off, 5, 2, 1, 0.5, 0.2} spikes/trial; baselines 100 epochs",
 }
 
-MODEL_RECIPES: dict[str, dict] = {
-    "coba": {
-        "__build_as": "ping",
-        "--ei-strength": "0",
-        "--v-grad-dampen": "1000",
-        "--w-in": "0.3",
-        "--w-in-sparsity": "0.95",
-        "--readout": "mem-mean",
-        "--surrogate-slope": "1",
-        "--readout-w-out-scale": "100",
-        "--lr": "0.0004",
-        "--batch-size": "256",
-    },
-    "ping": {
-        "__build_as": "ping",
-        "--ei-strength": "1",
-        "--v-grad-dampen": "1000",
-        "--w-in": "1.2",
-        "--w-in-sparsity": "0.95",
-        "--readout": "mem-mean",
-        "--surrogate-slope": "1",
-        "--readout-w-out-scale": "500",
-        "--lr": "0.0004",
-        "--batch-size": "256",
-    },
+LOW_W_IN_RECIPE: dict[str, str] = {
+    "--ei-strength": "1",
+    "--v-grad-dampen": "1000",
+    "--w-in-sparsity": "0.95",
+    "--readout": "mem-mean",
+    "--surrogate-slope": "1",
+    "--readout-w-init-mean": SHARED_READOUT_W_INIT_MEAN,
+    "--readout-w-init-std": SHARED_READOUT_W_INIT_STD,
+    "--lr": "0.0004",
+    "--batch-size": "256",
 }
 
 MODEL_COLORS = {
@@ -870,11 +859,9 @@ def plot_theta_p_fgamma(
 # Tests the path-dependent-barrier claim: if the network starts with
 # W_in too small to recruit the I-loop and θ_u is on from epoch 0, can
 # training land in the sub-f* COBA-like basin instead of locking into
-# PING? Three w_in inits straddle f* (0.1 sub, 0.3 sub, 1.2 standard).
+# PING? The w_in initializations straddle f*, with 0.9 as the shared standard.
 
-LOW_W_IN_VALUES: list[float] = [0.05, 0.1, 0.3, 1.2]  # 1.2 matches standard ping init
-if SMOKE:
-    LOW_W_IN_VALUES = [0.1, 1.2]
+LOW_W_IN_VALUES: list[float] = [0.05, 0.1, 0.3, 0.9]
 LOW_W_IN_THETA_U: float = 0.2                   # heaviest from frontier sweep
 LOW_W_IN_SEED: int = SEED_SWEEP
 
@@ -887,11 +874,11 @@ def low_w_in_cell_dir(w_in: float) -> Path:
 def build_low_w_in_args(w_in: float, out_dir: Path) -> list[str]:
     """Train args for the low-w_in alternate-schedule sweep:
     PING recipe with --w-in overridden and θ_u = 0.2 on from epoch 0."""
-    recipe = dict(MODEL_RECIPES["ping"])
+    recipe = dict(LOW_W_IN_RECIPE)
     recipe["--w-in"] = f"{w_in:g}"
     args = [
         "train",
-        "--model", recipe["__build_as"],
+        "--model", "ping",
         "--dataset", "mnist",
         "--max-samples", str(MAX_SAMPLES),
         "--epochs", str(EPOCHS),
@@ -902,8 +889,6 @@ def build_low_w_in_args(w_in: float, out_dir: Path) -> list[str]:
         "--wipe-dir",
     ]
     for k, v in recipe.items():
-        if k.startswith("__"):
-            continue
         if v is True:
             args.append(k)
         elif v is not None:
