@@ -331,8 +331,10 @@ def test_external_aggregation_dispatches_external_training_root(tmp_path: Path, 
         "cells": [{"name": "cell", "valid": True}],
     })
     observed = {}
+    commands = []
 
-    def fake_run(_command, **kwargs):
+    def fake_run(command, **kwargs):
+        commands.append(command)
         observed.update(kwargs["env"])
         return subprocess.CompletedProcess([], 0)
 
@@ -342,6 +344,10 @@ def test_external_aggregation_dispatches_external_training_root(tmp_path: Path, 
     ])
     assert observed["PINGLAB_TRAINING_ROOT"] == str(tmp_path / "cells")
     assert exp022.training_root_provenance(tmp_path)["location"] == "external"
+    assert [command[-1] for command in commands[1:]] == [
+        "appendix-rasters",
+        "comparison-rasters",
+    ]
 
 
 def test_post_aggregation_check_allows_only_generated_exp022_artifacts(

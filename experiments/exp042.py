@@ -136,8 +136,10 @@ RASTER_N_I_PLOT: int = 64
 SMOKE = os.environ.get("PINGLAB_SMOKE") == "1"
 SMOKE_MAX_SAMPLES = 100
 if SMOKE:
-    JITTER_SIGMAS_MS = (0.0, 14.0)
-    CELL_JITTER_SIGMAS_MS = (0.0, 14.0)
+    # Keep every anchor interpolated by the entry/manuscript while dropping the
+    # dense production-only points between them.
+    JITTER_SIGMAS_MS = (0.0, 14.0, 100.0)
+    CELL_JITTER_SIGMAS_MS = (0.0, 0.5, 1.0, 2.0, 5.0, 9.0, 14.0)
     CELL_JITTER_RASTER_SIGMAS_MS = (0.0, 14.0)
     MIX_ALPHA_GRID = (0.0, 1.0)
     MIX_K_GRID = (0.5, 1.0)
@@ -162,6 +164,17 @@ SCALE = {
         f"xtau τ×σ = {len(XTAU_TAU_GABAS_MS)}×{len(XTAU_SIGMAS_MS)}"
     ),
 }
+
+
+def _json_safe(value):
+    """Return strict-JSON data, representing undefined fit statistics as null."""
+    if isinstance(value, float):
+        return value if np.isfinite(value) else None
+    if isinstance(value, dict):
+        return {key: _json_safe(item) for key, item in value.items()}
+    if isinstance(value, list):
+        return [_json_safe(item) for item in value]
+    return value
 
 
 # ─── trained-network loading (mirrors exp037 helper) ─────────────────
@@ -2166,7 +2179,9 @@ def main() -> None:
             "results": xtau_rows,
         },
     }
-    (FIGURES / "numbers.json").write_text(json.dumps(summary, indent=2) + "\n")
+    (FIGURES / "numbers.json").write_text(
+        json.dumps(_json_safe(summary), indent=2, allow_nan=False) + "\n"
+    )
     print(f"wrote {FIGURES / 'numbers.json'}")
     print(f"  total duration: {summary['duration']}")
     log_runner_event(SLUG, "completed", run_id=notebook_run_id)

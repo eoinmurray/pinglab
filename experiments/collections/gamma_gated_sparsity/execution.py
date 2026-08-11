@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import shutil
 import subprocess
 import sys
 from datetime import datetime, timezone
@@ -299,3 +300,113 @@ def validate_campaign(root: Path) -> dict[str, Any]:
             + ", ".join(row["experiment"] for row in invalid)
         )
     return status
+
+
+def finalize_campaign(root: Path) -> dict[str, Any]:
+    """Validate every planned output, then freeze the runstore inventory."""
+    root = validate_campaign_root(root)
+    validate_campaign(root)
+    run = load_json(root / "run.json")
+    inventory_path = root / "inventory.json"
+    if run.get("status") != "complete" or not inventory_path.is_file():
+        subprocess.run(
+            [
+                sys.executable,
+                "-m",
+                "tools.runstore",
+                "inspect",
+                str(root),
+                "--finalize",
+            ],
+            cwd=REPO,
+            check=True,
+        )
+        run = load_json(root / "run.json")
+    if run.get("status") != "complete" or not inventory_path.is_file():
+        raise CollectionError("runstore did not finalize the campaign inventory")
+    inventory = load_json(inventory_path)
+    return {
+        "campaign_id": run["run_id"],
+        "status": run["status"],
+        "file_count": inventory["file_count"],
+        "total_size_bytes": inventory["total_size_bytes"],
+        "payload_digest": inventory["payload_digest"],
+    }
+
+
+def _checkout_source(checkout: Path) -> dict[str, Any]:
+    checkout = checkout.resolve()
+    if checkout == REPO.resolve():
+        raise CollectionError("publication build requires a separate disposable checkout")
+    if not (checkout / ".git").exists():
+        raise CollectionError(f"publication checkout is not a Git worktree: {checkout}")
+    commit = subprocess.run(
+        ["git", "rev-parse", "HEAD"], cwd=checkout, check=True,
+        capture_output=True, text=True,
+    ).stdout.strip()
+    clean = not subprocess.run(
+        ["git", "status", "--porcelain"], cwd=checkout, check=True,
+        capture_output=True, text=True,
+    ).stdout.strip()
+    lock = checkout / "uv.lock"
+    return {
+        "git_commit": commit,
+        "git_clean": clean,
+        "lockfile": {"path": "uv.lock", "sha256": _sha256(lock)}
+        if lock.is_file() else None,
+    }
+
+
+def build_publication(root: Path, checkout: Path) -> dict[str, Any]:
+    """Promote a finalized campaign into a separate checkout and build it."""
+    root = validate_campaign_root(root)
+    plan = load_plan(root)
+    validate_campaign(root)
+    run = load_json(root / "run.json")
+    if run.get("status") != "complete" or not (root / "inventory.json").is_file():
+        raise CollectionError("campaign must be finalized before publication build")
+    checkout = checkout.resolve()
+    target_source = _checkout_source(checkout)
+    if target_source != plan["source"]:
+        raise CollectionError(
+            "publication checkout must be clean and match the campaign commit and lockfile"
+        )
+    uv = shutil.which("uv")
+    if uv is None:
+        raise CollectionError("uv is required for publication build")
+    promoted = []
+    for row in rows_in_order(plan):
+        subprocess.run(
+            [
+                uv,
+                "run",
+                "--frozen",
+                "--project",
+                str(checkout),
+                "python",
+                "-m",
+                "tools.runstore",
+                "promote",
+                str(root),
+                row["slug"],
+            ],
+            cwd=checkout,
+            check=True,
+        )
+        promoted.append(row["slug"])
+    built = subprocess.run(
+        [uv, "run", "--frozen", "--project", str(checkout), "demolab", "build"],
+        cwd=checkout,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    output = built.stdout + built.stderr
+    if "stubbed:" in output or "failed to build" in output:
+        raise CollectionError("Demolab build produced stubbed entries:\n" + output)
+    return {
+        "campaign_id": plan["campaign_id"],
+        "checkout": str(checkout),
+        "promoted": promoted,
+        "site": str(checkout / "artifacts" / "site"),
+    }

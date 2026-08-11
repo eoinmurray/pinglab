@@ -7,7 +7,9 @@ import json
 from pathlib import Path
 
 from .execution import (
+    build_publication,
     campaign_status,
+    finalize_campaign,
     initialize_campaign,
     run_local,
     validate_campaign,
@@ -33,6 +35,15 @@ def parser() -> argparse.ArgumentParser:
     status.add_argument("--json", action="store_true")
     validate = commands.add_parser("validate", help="require all planned outputs")
     validate.add_argument("--campaign-root", type=Path, required=True)
+    finalize = commands.add_parser(
+        "finalize", help="validate outputs and freeze the runstore inventory"
+    )
+    finalize.add_argument("--campaign-root", type=Path, required=True)
+    build = commands.add_parser(
+        "build", help="promote into a separate checkout and build the publication"
+    )
+    build.add_argument("--campaign-root", type=Path, required=True)
+    build.add_argument("--checkout", type=Path, required=True)
     return root
 
 
@@ -46,6 +57,16 @@ def main(argv: list[str] | None = None) -> None:
         return
     if args.command == "run":
         run_local(args.campaign_root)
+        return
+    if args.command == "finalize":
+        print(json.dumps(finalize_campaign(args.campaign_root), indent=2, sort_keys=True))
+        return
+    if args.command == "build":
+        print(json.dumps(
+            build_publication(args.campaign_root, args.checkout),
+            indent=2,
+            sort_keys=True,
+        ))
         return
     if args.command in {"status", "validate"}:
         payload = (

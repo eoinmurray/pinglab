@@ -5,7 +5,7 @@ from pathlib import Path
 
 import numpy as np
 import pytest
-from experiments import exp041, exp042, exp044, exp049
+from experiments import exp025, exp037, exp041, exp042, exp044, exp049
 
 
 @pytest.mark.parametrize("module", [exp041, exp044, exp049])
@@ -67,3 +67,17 @@ def test_exp042_baseline_inference_is_capped_in_smoke(
     exp042._run_baseline(train_dir)
 
     assert observed[observed.index("--max-samples") + 1] == "100"
+
+
+def test_smoke_grids_retain_every_writeup_anchor() -> None:
+    assert {1.0, 3.0} <= set(exp025.W_IN_SCALE_VALUES)
+    assert {0.0, 0.8, 1.0} <= set(exp037.PERTURB_DROP_LEVELS)
+    assert {0.0, 14.0, 100.0} <= set(exp042.JITTER_SIGMAS_MS)
+    assert {0.0, 0.5, 1.0, 2.0, 5.0, 9.0, 14.0} <= set(
+        exp042.CELL_JITTER_SIGMAS_MS
+    )
+
+
+def test_exp042_json_output_replaces_nonfinite_fit_values() -> None:
+    value = exp042._json_safe({"r2": float("nan"), "nested": [float("inf"), 1.0]})
+    assert value == {"r2": None, "nested": [None, 1.0]}

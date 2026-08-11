@@ -995,7 +995,9 @@ W_IN_SCALE_VALUES: list[float] = [
     1.75, 2.00, 2.50, 3.00,
 ]
 if SMOKE:
-    W_IN_SCALE_VALUES = [0.5, 1.0]
+    # Preserve the trained point and the high-drive endpoint consumed by the
+    # write-up while keeping the production sweep compact.
+    W_IN_SCALE_VALUES = [0.5, 1.0, 3.0]
 
 
 def run_w_in_scale_sweep(notebook_run_id: str) -> list[dict]:
