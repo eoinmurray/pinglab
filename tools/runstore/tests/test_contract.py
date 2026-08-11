@@ -43,6 +43,22 @@ def test_inventory_is_deterministic(tmp_path: Path) -> None:
     ]
 
 
+def test_inventory_uses_posix_string_order_not_path_component_order(
+    tmp_path: Path,
+) -> None:
+    (tmp_path / "state" / "s1").mkdir(parents=True)
+    (tmp_path / "state" / "s1.15").mkdir(parents=True)
+    (tmp_path / "state" / "s1" / "value.json").write_text("{}\n")
+    (tmp_path / "state" / "s1.15" / "value.json").write_text("{}\n")
+
+    inventory = inventory_payload(tmp_path, run_id="fixture")
+
+    assert [row["path"] for row in inventory["files"]] == [
+        "state/s1.15/value.json",
+        "state/s1/value.json",
+    ]
+
+
 def test_verify_detects_modified_payload(tmp_path: Path) -> None:
     payload = tmp_path / "state.bin"
     payload.write_bytes(b"before")
