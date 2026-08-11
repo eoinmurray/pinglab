@@ -24,9 +24,10 @@ Writing: writings/exp022.typ · figures + numbers.json: artifacts/data/exp022/
 
 from __future__ import annotations
 
+import argparse
 import json
 import os
-import argparse
+import shlex
 import subprocess
 import sys
 import time
@@ -35,7 +36,10 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 
 REPO = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(REPO))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+
+from experiments import exp022_campaign as campaign  # noqa: E402
 
 from helpers import (
     runpod,  # noqa: E402
@@ -48,7 +52,6 @@ from helpers.paths import artifacts_and_figures  # noqa: E402
 from helpers.run_dirs import prepare as prepare_run_dirs  # noqa: E402
 from helpers.run_id import next_run_id  # noqa: E402
 from helpers.stamp import stamp_figure  # noqa: E402
-import exp022_campaign as campaign  # noqa: E402
 
 SLUG = "exp022"
 ARTIFACTS, FIGURES = artifacts_and_figures(SLUG)
@@ -425,6 +428,14 @@ def load_config(d: Path) -> dict:
     manifest reads provenance from here."""
     p = d / "config.json"
     return json.loads(p.read_text()) if p.exists() else {}
+
+
+def training_root_provenance(root: Path) -> dict[str, str]:
+    resolved = root.resolve()
+    try:
+        return {"location": "repository", "path": str(resolved.relative_to(REPO))}
+    except ValueError:
+        return {"location": "external", "path": str(resolved)}
 
 
 def final_rates(d: Path) -> tuple[float, float]:
@@ -924,31 +935,52 @@ def _campaign_parser() -> argparse.ArgumentParser:
     parser.add_argument("--tier", default="all")
     parser.add_argument("--json", action="store_true")
     parser.add_argument("--retry-only", action="store_true")
+    parser.add_argument("--recover-stale", action="store_true")
     parser.add_argument("--plumbing", action="store_true")
     return parser
 
 
-def _checked_manifest(path: Path) -> dict:
-    manifest = campaign.load_manifest(path.resolve())
+def _checked_manifest(path: Path, *, allow_generated_dirty: bool = False) -> dict:
+    manifest_path = path.resolve()
+    manifest = campaign.load_manifest(manifest_path)
+    root = Path(manifest["campaign_root"])
+    if not root.is_absolute() or root.resolve() != root:
+        raise SystemExit("campaign root must be an absolute resolved path")
+    if manifest_path != root / "campaign.json":
+        raise SystemExit("campaign manifest must be <campaign-root>/campaign.json")
     commit, dirty = campaign.git_identity(REPO)
     if dirty:
-        raise SystemExit("campaign execution requires a clean worktree")
+        dirty_paths = campaign.git_dirty_paths(REPO)
+        allowed_prefixes = ("artifacts/data/exp022/", "artifacts/pdfs/exp022.pdf")
+        if not allow_generated_dirty or any(
+            not path.startswith(allowed_prefixes) for path in dirty_paths
+        ):
+            raise SystemExit("campaign execution requires a clean source worktree")
     if manifest["repository"] != {"commit": commit, "dirty": False}:
         raise SystemExit(
             "campaign manifest does not match the clean checked-out commit: "
             f"manifest={manifest['repository']['commit']} checkout={commit}"
         )
-    expected_names = {cell["name"] for cell in CANONICAL_CELLS}
-    manifest_names = {cell["name"] for cell in manifest["cells"]}
-    if not manifest_names <= expected_names:
-        raise SystemExit(f"campaign contains unknown cells: {sorted(manifest_names - expected_names)}")
+    if manifest.get("environment", {}).get("lockfile") != campaign.lock_identity(REPO):
+        raise SystemExit("campaign lockfile identity does not match the checkout")
+    tier = manifest.get("selection", {}).get("tier")
+    try:
+        selected_cells = cells_in_resource_tier(tier)
+    except ValueError as exc:
+        raise SystemExit(str(exc)) from exc
+    manifest_names_list = [row.get("name") for row in manifest.get("cells", [])]
+    if len(manifest_names_list) != len(set(manifest_names_list)):
+        raise SystemExit("campaign contains duplicate cell names")
+    expected_names_list = [cell["name"] for cell in selected_cells]
+    if manifest_names_list != expected_names_list:
+        raise SystemExit("campaign cell list does not exactly match its declared selection")
     previous_plumbing = os.environ.get("PINGLAB_NB022_PLUMBING")
+    runtime_commands = {}
     try:
         if manifest.get("plumbing"):
             os.environ["PINGLAB_NB022_PLUMBING"] = "1"
         else:
             os.environ.pop("PINGLAB_NB022_PLUMBING", None)
-        root = Path(manifest["campaign_root"])
         for row in manifest["cells"]:
             spec = _cell_by_name(row["name"])
             assert spec is not None
@@ -957,13 +989,30 @@ def _checked_manifest(path: Path) -> dict:
                             if manifest.get("plumbing") else spec)
             train_args = build_train_args(command_spec, root / "cells" / spec["name"], samples, epochs)
             resolved = campaign.resolved_parameters(spec, train_args, samples, epochs)
-            if row["resource_tier"] != cell_resource_tier(spec) or row["parameters"] != resolved:
+            command = [sys.executable, str(SNN_TOOL), *train_args]
+            output_directory = (root / "cells" / spec["name"]).resolve()
+            expected = {
+                "name": spec["name"],
+                "training_run_id": spec["training_run_id"],
+                "family": spec["family"],
+                "resource_tier": cell_resource_tier(spec),
+                "parameters": resolved,
+                "command": command,
+                "command_shell": shlex.join(command),
+                "output_directory": str(output_directory),
+                "required_outputs": list(campaign.REQUIRED_CELL_FILES),
+            }
+            if row != expected:
                 raise SystemExit(f"campaign manifest registry drift for {row['name']}")
+            if output_directory.parent != (root / "cells").resolve():
+                raise SystemExit(f"campaign output path escapes the cells root: {row['name']}")
+            runtime_commands[row["name"]] = command
     finally:
         if previous_plumbing is None:
             os.environ.pop("PINGLAB_NB022_PLUMBING", None)
         else:
             os.environ["PINGLAB_NB022_PLUMBING"] = previous_plumbing
+    manifest["_runtime_commands"] = runtime_commands
     return manifest
 
 
@@ -1003,7 +1052,7 @@ def _gpu_metadata() -> dict:
     return {"available": True, "devices": [line.strip() for line in query.stdout.splitlines()]}
 
 
-def _campaign_train(manifest_path: Path, name: str) -> int:
+def _campaign_train(manifest_path: Path, name: str, *, recover_stale: bool = False) -> int:
     manifest = _checked_manifest(manifest_path)
     row = campaign.manifest_cell(manifest, name)
     directory = Path(row["output_directory"])
@@ -1011,18 +1060,31 @@ def _campaign_train(manifest_path: Path, name: str) -> int:
     if existing["valid"]:
         print(f"[skip-valid] {name} is complete and will not be touched")
         return 0
-    preserved = campaign.preserve_partial(directory)
-    if preserved:
-        print(f"[preserve-partial] {directory} -> {preserved}")
-    record = campaign.run_record_base(manifest, row)
-    record["gpu"] = _gpu_metadata()
-    status_path = Path(manifest["campaign_root"]) / "status" / f"{name}.json"
-    campaign.atomic_json(status_path, record)
-    directory.parent.mkdir(parents=True, exist_ok=True)
-    command = [sys.executable, str(SNN_TOOL), *row["command"][2:]]
+    record, attempt_lock = campaign.acquire_attempt(
+        manifest, row, recover_stale=recover_stale,
+    )
+    status_path = campaign.status_path(manifest, name)
     exit_code = 1
     attempt_started = time.monotonic()
     try:
+        existing = campaign.validate_cell(row)
+        if existing["valid"]:
+            record.update({
+                "ended_at_utc": campaign.utc_now(), "exit_code": 0,
+                "elapsed_seconds": round(time.monotonic() - attempt_started, 3),
+                "state": "complete", "validation": existing,
+                "note": "became valid before training ownership was acquired",
+            })
+            campaign.atomic_json(status_path, record)
+            print(f"[skip-valid] {name} became complete and will not be touched")
+            return 0
+        preserved = campaign.preserve_partial(directory)
+        if preserved:
+            print(f"[preserve-partial] {directory} -> {preserved}")
+        record["gpu"] = _gpu_metadata()
+        campaign.atomic_json(status_path, record)
+        directory.parent.mkdir(parents=True, exist_ok=True)
+        command = manifest["_runtime_commands"][name]
         completed = subprocess.run(command, cwd=REPO)
         exit_code = completed.returncode
         if exit_code == 0:
@@ -1036,7 +1098,10 @@ def _campaign_train(manifest_path: Path, name: str) -> int:
                 globals()["TRAINING_ROOT"] = old_root
             _stamp_campaign_identity(directory, manifest, row)
         validation = campaign.validate_cell(row)
-        metrics_payload = load_metrics(directory)
+        try:
+            metrics_payload = load_metrics(directory)
+        except (OSError, ValueError, json.JSONDecodeError):
+            metrics_payload = {}
         record.update({
             "ended_at_utc": campaign.utc_now(), "exit_code": exit_code,
             "elapsed_seconds": round(time.monotonic() - attempt_started, 3),
@@ -1060,6 +1125,8 @@ def _campaign_train(manifest_path: Path, name: str) -> int:
         campaign.atomic_json(directory / "attempt.json", record)
         campaign.atomic_json(status_path, record)
         raise
+    finally:
+        campaign.release_attempt(attempt_lock, record["attempt_id"])
 
 
 def _handle_campaign_cli(argv: list[str]) -> bool:
@@ -1084,6 +1151,7 @@ def _handle_campaign_cli(argv: list[str]) -> bool:
             cells=selected, tier_for=cell_resource_tier,
             samples_epochs=cell_samples_epochs, build_args=build_train_args,
             plumbing=args.plumbing,
+            selection_tier=args.tier,
         )
         root.mkdir(parents=True, exist_ok=True)
         for child in ("cells", "logs", "status", "submissions"):
@@ -1097,7 +1165,10 @@ def _handle_campaign_cli(argv: list[str]) -> bool:
         raise SystemExit("--campaign MANIFEST is required")
     manifest = _checked_manifest(manifest_path)
     if args.campaign_train_cell:
-        raise SystemExit(_campaign_train(manifest_path, args.campaign_train_cell))
+        raise SystemExit(_campaign_train(
+            manifest_path, args.campaign_train_cell,
+            recover_stale=args.recover_stale,
+        ))
     if args.campaign_validate:
         print(f"valid manifest {manifest['campaign_id']} {manifest['manifest_sha256']}")
         return True
@@ -1105,9 +1176,10 @@ def _handle_campaign_cli(argv: list[str]) -> bool:
     if args.campaign_aggregate:
         if len(manifest["cells"]) != len(CANONICAL_CELLS):
             raise SystemExit("aggregation requires the complete 90-cell registry")
-        if status["retry_cells"]:
+        incomplete = [row["name"] for row in status["cells"] if not row["valid"]]
+        if incomplete:
             raise SystemExit(
-                f"aggregation refused: {len(status['retry_cells'])} cells are not valid"
+                f"aggregation refused: {len(incomplete)} cells are not valid"
             )
         environment = os.environ.copy()
         environment["PINGLAB_TRAINING_ROOT"] = str(Path(manifest["campaign_root"]) / "cells")
@@ -1116,8 +1188,9 @@ def _handle_campaign_cli(argv: list[str]) -> bool:
             [sys.executable, str(Path(__file__).resolve()), "--skip-training"],
             cwd=REPO, env=environment, check=True,
         )
-        final = campaign.summarize_status(_checked_manifest(manifest_path))
-        if final["retry_cells"]:
+        final_manifest = _checked_manifest(manifest_path, allow_generated_dirty=True)
+        final = campaign.summarize_status(final_manifest)
+        if any(not row["valid"] for row in final["cells"]):
             raise SystemExit("campaign changed during aggregation")
         return True
     if args.campaign_list:
@@ -1243,7 +1316,7 @@ def main() -> None:
                      "dataset": "mnist",
                      "max_samples_canonical": CANONICAL_MAX_SAMPLES,
                      "max_samples_sweeps": SUBSET_MAX_SAMPLES},
-        "training_root": str(TRAINING_ROOT.relative_to(REPO)),
+        "training_root": training_root_provenance(TRAINING_ROOT),
         "families": FAMILY_ORDER,
         "training_run_ids": TRAINING_RUN_IDS,
         "family_status": family_status,

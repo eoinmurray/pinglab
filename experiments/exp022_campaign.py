@@ -15,10 +15,10 @@ import shlex
 import socket
 import subprocess
 import sys
+import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable
-
 
 SCHEMA = "pinglab.exp022.campaign"
 SCHEMA_VERSION = 1
@@ -54,6 +54,14 @@ def git_identity(repo: Path) -> tuple[str, bool]:
         capture_output=True, text=True,
     ).stdout.strip())
     return commit, dirty
+
+
+def git_dirty_paths(repo: Path) -> list[str]:
+    output = subprocess.run(
+        ["git", "status", "--porcelain"], cwd=repo, check=True,
+        capture_output=True, text=True,
+    ).stdout
+    return [line[3:] for line in output.splitlines() if len(line) > 3]
 
 
 def lock_identity(repo: Path) -> dict[str, Any]:
@@ -102,7 +110,7 @@ def create_manifest(
     cells: list[dict[str, Any]], tier_for: Callable[[dict[str, Any]], str],
     samples_epochs: Callable[[dict[str, Any]], tuple[int, int]],
     build_args: Callable[[dict[str, Any], Path, int, int], list[str]],
-    plumbing: bool = False,
+    plumbing: bool = False, selection_tier: str = "all",
 ) -> dict[str, Any]:
     root = campaign_root.resolve()
     if root == repo.resolve():
@@ -141,6 +149,7 @@ def create_manifest(
         },
         "campaign_root": str(root),
         "plumbing": plumbing,
+        "selection": {"tier": selection_tier},
         "cells": rows,
     }
 
@@ -298,6 +307,10 @@ def preserve_partial(directory: Path) -> Path | None:
         return None
     failed_root = directory.parents[1] / "failed" / directory.name
     destination = failed_root / utc_now().replace(":", "-")
+    suffix = 0
+    while destination.exists():
+        suffix += 1
+        destination = failed_root / f"{utc_now().replace(':', '-')}-{suffix}"
     destination.parent.mkdir(parents=True, exist_ok=True)
     directory.replace(destination)
     return destination
@@ -314,45 +327,183 @@ def run_record_base(manifest: dict[str, Any], cell: dict[str, Any]) -> dict[str,
         "cell_name": cell["name"],
         "training_run_id": cell["training_run_id"],
         "resource_tier": cell["resource_tier"],
-        "command": cell["command"],
+        "command": manifest.get("_runtime_commands", {}).get(
+            cell["name"], cell.get("command"),
+        ),
         "hostname": socket.gethostname(),
         "slurm_job_id": os.environ.get("SLURM_JOB_ID"),
         "slurm_array_task_id": os.environ.get("SLURM_ARRAY_TASK_ID"),
+        "pid": os.getpid(),
         "gpu": {"cuda_visible_devices": gpu} if gpu is not None else {},
         "started_at_utc": utc_now(),
         "state": "running",
     }
 
 
+def status_path(manifest: dict[str, Any], cell_name: str) -> Path:
+    return Path(manifest["campaign_root"]) / "status" / f"{cell_name}.json"
+
+
+def lock_path(manifest: dict[str, Any], cell_name: str) -> Path:
+    return Path(manifest["campaign_root"]) / "status" / f"{cell_name}.lock"
+
+
+def attempt_is_active(record: dict[str, Any]) -> bool | None:
+    """Return True/False when activity is provable, otherwise None."""
+    if record.get("state") != "running":
+        return False
+    job_id = record.get("slurm_job_id")
+    if job_id:
+        try:
+            query = subprocess.run(
+                ["squeue", "--noheader", "--jobs", str(job_id), "--format", "%A"],
+                capture_output=True, text=True,
+            )
+        except FileNotFoundError:
+            return None
+        if query.returncode != 0:
+            return None
+        return str(job_id) in query.stdout.split()
+    if record.get("hostname") != socket.gethostname():
+        return None
+    pid = record.get("pid")
+    if not isinstance(pid, int):
+        return None
+    try:
+        os.kill(pid, 0)
+    except ProcessLookupError:
+        return False
+    except PermissionError:
+        return True
+    return True
+
+
+def acquire_attempt(
+    manifest: dict[str, Any], cell: dict[str, Any], *, recover_stale: bool = False,
+) -> tuple[dict[str, Any], Path]:
+    """Atomically claim a cell, refusing active or unconfirmed stale owners."""
+    lock = lock_path(manifest, cell["name"])
+    lock.parent.mkdir(parents=True, exist_ok=True)
+    record_file = status_path(manifest, cell["name"])
+    for _ in range(2):
+        attempt_id = str(uuid.uuid4())
+        record = run_record_base(manifest, cell)
+        record["attempt_id"] = attempt_id
+        try:
+            descriptor = os.open(lock, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+        except FileExistsError:
+            prior = _json(record_file) if record_file.exists() else {}
+            active = attempt_is_active(prior)
+            if active is True:
+                raise RuntimeError(f"cell {cell['name']} is owned by an active attempt")
+            if not recover_stale:
+                state = "stale" if active is False else "unconfirmed"
+                raise RuntimeError(
+                    f"cell {cell['name']} has a {state} attempt lock; "
+                    "use --recover-stale only after confirming its job is inactive"
+                )
+            if active is not False:
+                raise RuntimeError(
+                    f"cannot confirm that the prior attempt for {cell['name']} is inactive"
+                )
+            recovery = lock.with_suffix(".recovery")
+            try:
+                recovery_fd = os.open(
+                    recovery, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600,
+                )
+            except FileExistsError as exc:
+                raise RuntimeError(
+                    f"stale recovery is already in progress for {cell['name']}"
+                ) from exc
+            os.close(recovery_fd)
+            try:
+                current = _json(record_file) if record_file.exists() else {}
+                if attempt_is_active(current) is not False:
+                    raise RuntimeError(
+                        f"prior attempt for {cell['name']} changed during stale recovery"
+                    )
+                lock.unlink()
+                descriptor = os.open(
+                    lock, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600,
+                )
+                with os.fdopen(descriptor, "w") as handle:
+                    json.dump({"attempt_id": attempt_id, "cell_name": cell["name"]}, handle)
+                    handle.write("\n")
+                atomic_json(record_file, record)
+                return record, lock
+            finally:
+                recovery.unlink(missing_ok=True)
+        with os.fdopen(descriptor, "w") as handle:
+            json.dump({"attempt_id": attempt_id, "cell_name": cell["name"]}, handle)
+            handle.write("\n")
+        atomic_json(record_file, record)
+        return record, lock
+    raise RuntimeError(f"could not acquire attempt lock for {cell['name']}")
+
+
+def release_attempt(lock: Path, attempt_id: str) -> None:
+    try:
+        owner = _json(lock)
+    except (OSError, ValueError, json.JSONDecodeError):
+        return
+    if owner.get("attempt_id") == attempt_id:
+        lock.unlink(missing_ok=True)
+
+
 def summarize_status(manifest: dict[str, Any], *, load_checkpoint: bool = True) -> dict[str, Any]:
     rows = []
     for cell in manifest["cells"]:
         result = validate_cell(cell, load_checkpoint=load_checkpoint)
-        record_path = Path(cell["output_directory"]) / "attempt.json"
-        if not result["valid"] and record_path.exists():
+        record_paths = (
+            status_path(manifest, cell["name"]),
+            Path(cell["output_directory"]) / "attempt.json",
+        )
+        record_path = next((path for path in record_paths if path.exists()), None)
+        active = False
+        stale = False
+        owned = lock_path(manifest, cell["name"]).exists()
+        if not result["valid"] and owned and record_path is None:
+            result["state"] = "running"
+            active = True
+        elif not result["valid"] and record_path is not None:
             try:
                 attempt = _json(record_path)
                 if attempt.get("state") == "running":
-                    result["state"] = "running"
+                    activity = attempt_is_active(attempt)
+                    if activity is True:
+                        result["state"] = "running"
+                        active = True
+                    else:
+                        result["state"] = "stale"
+                        stale = True
                 elif attempt.get("state") == "failed" and result["state"] != "invalid":
                     result["state"] = "failed"
             except Exception:  # noqa: BLE001
                 pass
         rows.append({
             "name": cell["name"], "training_run_id": cell["training_run_id"],
-            "resource_tier": cell["resource_tier"], **result,
+            "resource_tier": cell["resource_tier"], "active": active,
+            "stale": stale, **result,
         })
     counts: dict[str, int] = {}
     by_tier: dict[str, dict[str, int]] = {}
     by_tr: dict[str, dict[str, int]] = {}
     for row in rows:
-        counts[row["state"]] = counts.get(row["state"], 0) + 1
-        for grouping, key in ((by_tier, row["resource_tier"]), (by_tr, row["training_run_id"])):
-            grouping.setdefault(key, {})[row["state"]] = grouping.setdefault(key, {}).get(row["state"], 0) + 1
+        state = str(row["state"])
+        counts[state] = counts.get(state, 0) + 1
+        tier = str(row["resource_tier"])
+        training_run_id = str(row["training_run_id"])
+        for grouping, key in ((by_tier, tier), (by_tr, training_run_id)):
+            bucket = grouping.setdefault(key, {})
+            bucket[state] = bucket.get(state, 0) + 1
     return {
         "campaign_id": manifest["campaign_id"], "counts": counts,
         "by_tier": by_tier, "by_training_run_id": by_tr,
-        "retry_cells": [row["name"] for row in rows if not row["valid"]],
+        "retry_cells": [
+            row["name"] for row in rows
+            if not row["valid"] and not row["active"] and not row["stale"]
+        ],
+        "recoverable_cells": [row["name"] for row in rows if row["stale"]],
         "cells": rows,
     }
 
