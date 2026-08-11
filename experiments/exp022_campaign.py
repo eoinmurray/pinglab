@@ -199,7 +199,7 @@ ARG_TO_CONFIG = {
     "--readout-w-out-scale": "readout_w_out_scale", "--lr": "lr",
     "--batch-size": "batch_size", "--fr-reg-upper-theta": "fr_reg_upper_theta",
     "--fr-reg-upper-strength": "fr_reg_upper_strength",
-    "--input-rates": "input_rates_hz",
+    "--input-rates": "input_rates",
 }
 FLOAT_CONFIG = {
     "dt", "t_ms", "tau_gaba_ms", "ei_strength", "v_grad_dampen",
@@ -219,7 +219,7 @@ def _expected_config(cell: dict[str, Any]) -> dict[str, Any]:
             result[key] = float(raw)
         elif key in INT_CONFIG:
             result[key] = int(raw)
-        elif key == "input_rates_hz":
+        elif key == "input_rates":
             result[key] = [float(value) for value in raw]
         else:
             result[key] = raw
@@ -244,6 +244,8 @@ def validate_cell(cell: dict[str, Any], *, load_checkpoint: bool = True) -> dict
             reasons.append(f"{label} cell name mismatch")
         if payload.get("training_run_id") != cell["training_run_id"]:
             reasons.append(f"{label} TR ID mismatch")
+        if payload.get("campaign_resolved_parameters") != cell["parameters"]:
+            reasons.append(f"{label} resolved scientific parameters mismatch")
     nested = metrics.get("config", {})
     expected = _expected_config(cell)
     for key, wanted in expected.items():
@@ -266,6 +268,20 @@ def validate_cell(cell: dict[str, Any], *, load_checkpoint: bool = True) -> dict
             elif not any("out" in str(key).lower() or "readout" in str(key).lower()
                          for key in checkpoint):
                 reasons.append("checkpoint has no recognizable readout parameters")
+            else:
+                n_in = int(config.get("n_in", 784))
+                n_hidden = int(config.get("n_hidden", 1024))
+                n_inh = int(config.get("n_inh", 256))
+                expected_shapes = {
+                    "W_ff.0": (n_in, n_hidden),
+                    "W_ff.1": (n_hidden, 10),
+                    "W_ei.1": (n_hidden, n_inh),
+                    "W_ie.1": (n_inh, n_hidden),
+                }
+                for key, shape in expected_shapes.items():
+                    value = checkpoint.get(key)
+                    if value is None or tuple(value.shape) != shape:
+                        reasons.append(f"checkpoint {key} shape mismatch")
         except Exception as exc:  # noqa: BLE001 - corrupt checkpoints must classify, not crash
             reasons.append(f"checkpoint load failed: {type(exc).__name__}: {exc}")
     return {"valid": not reasons, "state": "complete" if not reasons else "invalid", "reasons": reasons}

@@ -68,7 +68,11 @@ def _write_valid_cell(row: dict) -> Path:
     directory = Path(row["output_directory"])
     directory.mkdir(parents=True, exist_ok=True)
     expected = campaign._expected_config(row)
-    identity = {"training_cell_name": row["name"], "training_run_id": row["training_run_id"]}
+    identity = {
+        "training_cell_name": row["name"],
+        "training_run_id": row["training_run_id"],
+        "campaign_resolved_parameters": row["parameters"],
+    }
     (directory / "config.json").write_text(json.dumps({**expected, **identity}))
     (directory / "metrics.json").write_text(json.dumps({**identity, "config": expected}))
     epochs = row["parameters"]["epochs"]
@@ -77,7 +81,13 @@ def _write_valid_cell(row: dict) -> Path:
         json.dumps({"ep": epoch, "samples": samples, "acc": 10.0})
         for epoch in range(1, epochs + 1)
     ) + "\n")
-    torch.save({"readout.weight": torch.ones(10, 2)}, directory / "weights.pth")
+    torch.save({
+        "b_out": torch.ones(10),
+        "W_ff.0": torch.ones(784, 1024),
+        "W_ff.1": torch.ones(1024, 10),
+        "W_ei.1": torch.ones(1024, 256),
+        "W_ie.1": torch.ones(256, 1024),
+    }, directory / "weights.pth")
     return directory
 
 
@@ -126,3 +136,21 @@ def test_status_identifies_retry_cells(tmp_path: Path) -> None:
     status = campaign.summarize_status({"campaign_id": "test", "cells": [complete, missing]})
     assert status["counts"] == {"complete": 1, "missing": 1}
     assert status["retry_cells"] == ["missing"]
+
+
+def test_campaign_train_does_not_touch_valid_cell(tmp_path: Path, monkeypatch) -> None:
+    row = _manifest_cell(tmp_path)
+    directory = _write_valid_cell(row)
+    before = campaign.sha256_file(directory / "weights.pth")
+    manifest = {
+        "campaign_id": "test", "manifest_sha256": "abc",
+        "repository": {"commit": "deadbeef", "dirty": False},
+        "campaign_root": str(tmp_path), "cells": [row],
+    }
+    monkeypatch.setattr(exp022, "_checked_manifest", lambda _path: manifest)
+    monkeypatch.setattr(
+        exp022.subprocess, "run",
+        lambda *_args, **_kwargs: pytest.fail("valid cell must not launch training"),
+    )
+    assert exp022._campaign_train(tmp_path / "campaign.json", row["name"]) == 0
+    assert campaign.sha256_file(directory / "weights.pth") == before
