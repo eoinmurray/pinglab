@@ -44,6 +44,8 @@ from helpers.stamp import stamp_figure  # noqa: E402
 SLUG = "exp044"
 RUN_PATHS = runner_paths(SLUG)
 ARTIFACTS, FIGURES = artifacts_and_figures(SLUG)
+SMOKE = os.environ.get("PINGLAB_SMOKE") == "1"
+SMOKE_MAX_SAMPLES = 100
 
 T_MS = 200.0
 
@@ -119,15 +121,16 @@ def _infer_cell(train_dir: Path, extra_args: list[str], out_name: str) -> Path:
     """
     out_dir = (ARTIFACTS / out_name / train_dir.name).resolve()
     out_dir.mkdir(parents=True, exist_ok=True)
-    run_cli(
-        [
+    cmd = [
             "sim", "--infer",
             "--load-config", str((train_dir / "config.json").resolve()),
             "--load-weights", str((train_dir / "weights.pth").resolve()),
             "--out-dir", str(out_dir),
             *extra_args,
-        ]
-    )
+    ]
+    if SMOKE and "--sample-index" not in extra_args:
+        cmd += ["--max-samples", str(SMOKE_MAX_SAMPLES)]
+    run_cli(cmd)
     return out_dir
 
 

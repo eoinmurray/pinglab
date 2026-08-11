@@ -134,6 +134,7 @@ RASTER_N_E_PLOT: int = 200
 RASTER_N_I_PLOT: int = 64
 
 SMOKE = os.environ.get("PINGLAB_SMOKE") == "1"
+SMOKE_MAX_SAMPLES = 100
 if SMOKE:
     JITTER_SIGMAS_MS = (0.0, 14.0)
     CELL_JITTER_SIGMAS_MS = (0.0, 14.0)
@@ -226,6 +227,8 @@ def _run_baseline(train_dir: Path, tau_gaba=None):
                 ]
                 if tau_gaba is not None:
                     cmd += ["--tau-gaba", str(tau_gaba)]
+                if SMOKE:
+                    cmd += ["--max-samples", str(SMOKE_MAX_SAMPLES)]
                 run_cli(cmd)
                 # Publish atomically; metrics last so _baseline_complete only
                 # passes once both files are live.
@@ -280,6 +283,8 @@ def _run_with_override(train_dir: Path, override_path: Path, tau_gaba=None) -> d
     ]
     if tau_gaba is not None:
         cmd += ["--tau-gaba", str(tau_gaba)]
+    if SMOKE:
+        cmd += ["--max-samples", str(SMOKE_MAX_SAMPLES)]
     run_cli(cmd)
     return json.loads((out_dir / "metrics.json").read_text())
 

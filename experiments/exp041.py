@@ -53,6 +53,8 @@ from helpers.stamp import stamp_figure  # noqa: E402
 SLUG = "exp041"
 RUN_PATHS = runner_paths(SLUG)
 ARTIFACTS, FIGURES = artifacts_and_figures(SLUG)
+SMOKE = os.environ.get("PINGLAB_SMOKE") == "1"
+SMOKE_MAX_SAMPLES = 100
 
 T_MS = 200.0
 DT_TRAIN = 0.1
@@ -160,16 +162,17 @@ def _infer_cell(train_dir: Path, extra_args: list[str], out_name: str) -> Path:
     expected = "pop_traces.npz" if any("pop_traces" in a for a in extra_args) else "snapshot.npz"
     if (out_dir / expected).exists() and (out_dir / "metrics.json").exists():
         return out_dir
-    run_cli(
-        [
+    cmd = [
             "sim", "--infer",
             "--load-config", str(train_dir / "config.json"),
             "--load-weights", str(train_dir / "weights.pth"),
             "--tau-gaba", str(_cell_tau_gaba(cfg)),
             "--out-dir", str(out_dir),
             *extra_args,
-        ]
-    )
+    ]
+    if SMOKE and "--sample-index" not in extra_args:
+        cmd += ["--max-samples", str(SMOKE_MAX_SAMPLES)]
+    run_cli(cmd)
     return out_dir
 
 
