@@ -379,6 +379,10 @@ def train(
         "input_rates": list(input_rates) if input_rates else None,
         "input_rate_sampling": "uniform_categorical_per_presentation" if input_rates else "fixed",
         "v_grad_dampen": v_grad_dampen,
+        # The CLI applies this process-wide model constant before dispatching
+        # into train().  Record the resolved value alongside the other
+        # scientific parameters so a campaign can validate and replay it.
+        "surrogate_slope": M.SURROGATE_SLOPE,
         "batch_size": bs,
         "grad_clip": GRAD_CLIP,
         "max_samples": max_samples,
