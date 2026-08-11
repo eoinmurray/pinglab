@@ -160,7 +160,9 @@ def verified_campaign_source(manifest_path: Path) -> tuple[dict, Path]:
         sys.path.insert(0, str(REPO))
     from experiments import exp022, exp022_campaign
 
-    manifest = exp022._checked_manifest(manifest_path)
+    manifest = exp022._checked_manifest(
+        manifest_path, allow_generated_dirty=True,
+    )
     source = (Path(manifest["campaign_root"]) / "cells").resolve()
     if source == (ARTIFACTS_ROOT / "exp022").resolve():
         raise SystemExit("campaign archive source must not fall back to the legacy local bank")

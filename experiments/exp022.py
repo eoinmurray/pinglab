@@ -1153,9 +1153,14 @@ def _handle_campaign_cli(argv: list[str]) -> bool:
             plumbing=args.plumbing,
             selection_tier=args.tier,
         )
-        root.mkdir(parents=True, exist_ok=True)
+        try:
+            root.mkdir(parents=True, exist_ok=False)
+        except FileExistsError as exc:
+            raise SystemExit(
+                f"campaign destination already exists and will not be modified: {root}"
+            ) from exc
         for child in ("cells", "logs", "status", "submissions"):
-            (root / child).mkdir(exist_ok=True)
+            (root / child).mkdir()
         campaign.write_manifest(root / "campaign.json", manifest)
         print(root / "campaign.json")
         return True
