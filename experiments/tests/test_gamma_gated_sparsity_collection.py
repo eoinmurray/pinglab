@@ -37,11 +37,12 @@ def test_plan_requires_external_absolute_root(tmp_path: Path) -> None:
     assert payload["campaign_root"] == str((tmp_path / "campaign").resolve())
 
 
-def test_plan_paths_are_isolated_and_reports_integration_gate(tmp_path: Path) -> None:
+def test_plan_paths_are_isolated_and_all_runners_are_integrated(tmp_path: Path) -> None:
     payload = build_plan(tmp_path / "campaign", "smoke")
     rows = [row for stage in payload["stages"] for row in stage["experiments"]]
     paths = [path for row in rows for path in row["paths"].values()]
     assert all(str(tmp_path.resolve()) in path for path in paths)
-    assert not payload["executable"]
+    assert payload["executable"]
+    assert all(row["integrated"] or row["slug"] == "exp022" for row in rows)
     assert payload["excluded"] == ["exp048"]
     assert payload["blocking_issues"] == [69, 47]

@@ -24,16 +24,16 @@ class Experiment:
 EXPERIMENTS: tuple[Experiment, ...] = (
     Experiment("exp022", note="collection checkpoint bank"),
     Experiment("exp024", ("exp022",), "TR-02", integrated=True),
-    Experiment("exp025", ("exp022",), "TR-02"),
+    Experiment("exp025", ("exp022",), "TR-02", integrated=True),
     Experiment("exp037", ("exp022",), "TR-02", integrated=True),
     Experiment("exp038", ("exp022",), "TR-02", integrated=True),
-    Experiment("exp041", ("exp022",), "TR-03"),
-    Experiment("exp044", ("exp022",), "TR-04"),
-    Experiment("exp049", ("exp022",), "TR-05"),
-    Experiment("exp082", ("exp022",), "TR-06"),
-    Experiment("exp033", ("exp041",)),
-    Experiment("exp042", ("exp041",)),
-    Experiment("exp046", ("exp041",)),
+    Experiment("exp041", ("exp022",), "TR-03", integrated=True),
+    Experiment("exp044", ("exp022",), "TR-04", integrated=True),
+    Experiment("exp049", ("exp022",), "TR-05", integrated=True),
+    Experiment("exp082", ("exp022",), "TR-06", integrated=True),
+    Experiment("exp033", ("exp041",), integrated=True),
+    Experiment("exp042", ("exp041",), integrated=True),
+    Experiment("exp046", ("exp041",), integrated=True),
 )
 
 # These roots are deliberately not in the executable graph until the Stage 1

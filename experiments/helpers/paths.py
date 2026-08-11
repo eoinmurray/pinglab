@@ -12,6 +12,7 @@ it moved to `artifacts/data/` when the site migrated to Typst.)
 
 from __future__ import annotations
 
+import json
 import os
 from dataclasses import dataclass
 from pathlib import Path
@@ -101,3 +102,12 @@ def artifacts_and_figures(slug: str) -> tuple[Path, Path]:
     """Return (artifacts_dir, figures_dir) for a notebook slug (e.g. "nb024")."""
     paths = runner_paths(slug)
     return paths.state, paths.derived
+
+
+def log_runner_event(slug: str, event: str, **fields: object) -> None:
+    """Append a compact lifecycle event beneath the runner's explicit log root."""
+    paths = runner_paths(slug)
+    paths.logs.mkdir(parents=True, exist_ok=True)
+    record = {"event": event, "experiment": slug, **fields}
+    with (paths.logs / f"{slug}.jsonl").open("a") as handle:
+        handle.write(json.dumps(record, sort_keys=True) + "\n")

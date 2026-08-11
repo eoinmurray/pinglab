@@ -29,6 +29,7 @@ Writing: writings/exp025.typ · figures + numbers.json: artifacts/data/exp025/
 from __future__ import annotations
 
 import json
+import os
 import sys
 import time
 from pathlib import Path
@@ -45,13 +46,18 @@ from helpers import theme  # noqa: E402
 from helpers.cli import parse_meta  # noqa: E402
 from helpers.figsave import save_figure  # noqa: E402
 from helpers.numbers import write_numbers  # noqa: E402
-from helpers.paths import artifacts_and_figures  # noqa: E402
+from helpers.paths import (  # noqa: E402
+    artifacts_and_figures,
+    log_runner_event,
+    runner_paths,
+)
 from helpers.run_cli import run_cli  # noqa: E402
 from helpers.run_dirs import published_run  # noqa: E402
 from helpers.run_id import next_run_id  # noqa: E402
 from helpers.stamp import stamp_figure  # noqa: E402
 
 SLUG = "exp025"
+RUN_PATHS = runner_paths(SLUG)
 ARTIFACTS, FIGURES = artifacts_and_figures(SLUG)
 
 MAX_SAMPLES = 500
@@ -169,6 +175,8 @@ def cell_dir(model: str, theta_u: float | None, seed: int) -> Path:
     """
     # θ_u cell — now the shared exp022 cell (train-once / reuse-many). exp022
     # owns the θ_u sweep; exp025 keeps only its low_w_in cells locally.
+    if RUN_PATHS.isolated and not os.environ.get("PINGLAB_TRAINING_ROOT"):
+        raise RuntimeError("isolated exp025 requires explicit PINGLAB_TRAINING_ROOT")
     return shared_cell_dir(cell_name(model, theta_u, seed))
 
 
@@ -1386,12 +1394,14 @@ def main() -> None:
         f"notebook_run_id = {run_id} cells={n_cells}"
         + ("  [skip-training]" if meta.skip_training else "")
     )
+    log_runner_event(SLUG, "started", run_id=run_id)
 
     with published_run(
         SLUG, run_id, skip_training=meta.skip_training, make_artifacts=False,
         scale=SCALE, plot_only=meta.plot_only,
     ) as (_artifacts, figures):
         _run(meta, run_id, figures, t_start)
+    log_runner_event(SLUG, "completed", run_id=run_id)
 
 
 def _run(meta, run_id: str, figures: Path, t_start: float) -> None:
@@ -1403,10 +1413,10 @@ def _run(meta, run_id: str, figures: Path, t_start: float) -> None:
             if meta.only_missing and (out / "metrics.json").exists():
                 print(
                     f"[skip] low_w_in/w_in={w_in} already trained → "
-                    f"{out.relative_to(REPO)}"
+                    f"{out}"
                 )
                 continue
-            print(f"[train] low_w_in/w_in={w_in} → {out.relative_to(REPO)}")
+            print(f"[train] low_w_in/w_in={w_in} → {out}")
             run_cli(build_low_w_in_args(w_in, out))
 
     rows: list[dict] = []
