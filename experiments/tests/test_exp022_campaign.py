@@ -361,6 +361,25 @@ def test_mnist_link_helper_accepts_existing_and_concurrent_creation(tmp_path: Pa
     assert link.resolve() == cache.resolve()
 
 
+def test_wilkes_modules_load_in_sanitized_environment(tmp_path: Path) -> None:
+    calls = tmp_path / "module-calls.txt"
+    initializer = tmp_path / "modules.sh"
+    initializer.write_text(
+        'module() { printf "%s\\n" "$*" >> "$EXP022_MODULE_CALLS"; }\n'
+    )
+    helper = exp022.REPO / "experiments" / "exp022" / "load-wilkes-modules.sh"
+    subprocess.run(
+        [
+            "env", "-i", f"PATH={Path('/usr/bin')}:/bin",
+            f"EXP022_MODULES_INIT={initializer}",
+            f"EXP022_MODULE_CALLS={calls}",
+            "/bin/bash", "-c", f"source {helper}",
+        ],
+        check=True,
+    )
+    assert calls.read_text().splitlines() == ["purge", "load rhel8/default-amp"]
+
+
 def test_submission_selection_is_frozen_read_only() -> None:
     submit = (exp022.REPO / "experiments" / "exp022" / "submit-tier.sh").read_text()
     array = (exp022.REPO / "experiments" / "exp022" / "train-array.sbatch").read_text()
