@@ -1,0 +1,16 @@
+{
+  "contract_version": "runstore/v1",
+  "run_id": "exp000-example-20260811T000000Z",
+  "generated_at_utc": "2026-08-11T00:00:01Z",
+  "file_count": 1,
+  "total_size_bytes": 36,
+  "payload_digest": "af274d9202078a1b38b7286de79f33bd68b52bfd64fa430a4dc65f3f99e4e61f",
+  "files": [
+    {
+      "path": "derived/artifacts/data/exp000/numbers.json",
+      "size_bytes": 36,
+      "sha256": "c1f970df4b9b677b6400cfffbc52a0be6e304340e1a73b1cd09ff8ca4b07c0c7",
+      "role": "derived"
+    }
+  ]
+}
