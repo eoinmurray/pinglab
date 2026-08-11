@@ -85,19 +85,7 @@ RASTER_T_WINDOW_MS: float = 100.0
 MAX_SAMPLES = 7000
 EPOCHS = 50
 
-# Match exp025 PING recipe — same network, same optimiser,
-# same readout; only τ_GABA varies.
-PING_RECIPE: dict[str, str] = {
-    "--ei-strength": "1",
-    "--v-grad-dampen": "1000",
-    "--w-in": "1.2",
-    "--w-in-sparsity": "0.95",
-    "--readout": "mem-mean",
-    "--surrogate-slope": "1",
-    "--readout-w-out-scale": "500",
-    "--lr": "0.0004",
-    "--batch-size": "256",
-}
+BATCH_SIZE = 256
 
 # Run scale — stamped into the manifest by run_dirs.prepare and rendered as
 # the Methods table via RunScale; the mdx never restates these numbers.
@@ -107,7 +95,7 @@ SCALE = {
     "epochs": EPOCHS,
     "t_ms": T_MS,
     "dt_ms": DT_TRAIN,
-    "batch_size": int(PING_RECIPE["--batch-size"]),
+    "batch_size": BATCH_SIZE,
     "seeds": len(SEEDS),
     "cells": len(TAU_GABA_SWEEP) * len(SEEDS),
     "grid": f"{len(TAU_GABA_SWEEP)} τ_GABA × {len(SEEDS)} seeds",

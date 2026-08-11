@@ -35,7 +35,7 @@
 #let ping_off_pfg = run.theta_p_fgamma.filter(r => r.model == "ping" and r.theta_u_hz == none).first()
 #let ping_cadence = calc.round(1000 / ping_off_pfg.f_gamma)
 
-// Low-W_in recruitment sweep (Figure 3), columns ordered 0.05 / 0.1 / 0.3 / 1.2.
+// Low-W_in recruitment sweep (Figure 3), columns ordered 0.05 / 0.1 / 0.3 / 0.9.
 #let low_accs = run.low_w_in_sweep.map(r => calc.round(r.final_acc, digits: 1))
 #let low_is = run.low_w_in_sweep.map(r => calc.round(r.rate_i, digits: 1))
 
@@ -97,13 +97,13 @@
 
   *Training.* Adam, lr = $4 times 10^(-4)$, batch size 256, gradient norm clipped to
   1.0. Cross-entropy loss on 10-class MNIST (definition in #link("/ar006/")[ar006]).
-  Gradient stabiliser: _--v-grad-dampen 1000_ (uniform scaling of per-step voltage
-  gradients). Three seeds (42, 43, 44) for baselines, one seed (42) for sweep cells.
+  The voltage-gradient damping is 1 for COBA and 1000 for PING, where recurrent
+  backpropagation requires stabilisation. Three seeds (42, 43, 44) for baselines,
+  one seed (42) for sweep cells.
 
-  *Recipe difference.* The only parameter that differs between COBA and PING besides
-  _--ei-strength_ is the $W_"in"$ initialisation: COBA uses mean 0.3 (std 0.03), PING
-  uses mean 1.2 (std 0.12). PING needs stronger input drive to reliably recruit the
-  I-loop at init.
+  *Recipe difference.* COBA and PING share $W_"in" tilde cal(N)(0.9, 0.09)$ at 95%
+  sparsity and the same directly specified readout initializer. COBA disables the
+  recurrent loop; PING enables it and uses the loop-specific gradient damping.
 
   *Spike-budget regulariser.* To probe the rate axis, the training loss adds a soft
   upper bound on per-trial spike count. For each E cell $n$ with mean per-trial spike
@@ -125,7 +125,7 @@
   #link("/exp046/")[exp046]).
 
   *Basin and landscape probes.* To test basin attractivity, four PING networks are
-  trained with $W_"in"$ initialised at 0.05, 0.1, 0.3, and 1.2 ($theta_u = 0.2$ from
+  trained with $W_"in"$ initialised at 0.05, 0.1, 0.3, and 0.9 ($theta_u = 0.2$ from
   epoch 0; Figure 3). To map the loss landscape around the operating point, each
   network trained at the heaviest penalty ($theta_u = 0.2$) has its $W_"in"$ scaled
   by a common scalar $s in [0.05, 3]$ at inference with all other weights frozen,

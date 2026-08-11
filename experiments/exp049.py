@@ -102,11 +102,12 @@ COND_ORDER = list(CONDITIONS.keys())
 # tests the structural change (trainability of the recurrent loop).
 COMMON_RECIPE: dict[str, str] = {
     "--v-grad-dampen": "1000",
-    "--w-in": "1.2",
+    "--w-in": "0.9",
     "--w-in-sparsity": "0.95",
     "--readout": "mem-mean",
     "--surrogate-slope": "1",
-    "--readout-w-out-scale": "500",
+    "--readout-w-init-mean": "1.12060546875",
+    "--readout-w-init-std": "0.8349609375",
     "--lr": "0.0004",
     "--batch-size": "256",
 }
