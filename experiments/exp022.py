@@ -800,12 +800,17 @@ def appendix_rasters() -> None:
                 print(f"[skip] {c['name']} — no weights")
                 continue
             scratch = scratch_root / c["name"]
+            inference_args = [
+                sys.executable, str(SNN_TOOL), "sim", "--infer",
+                "--load-config", str(d / "config.json"),
+                "--load-weights", str(d / "weights.pth"),
+                "--digit", "0", "--sample", "0",
+                "--out-dir", str(scratch), "--wipe-dir",
+            ]
+            if c["family"] == "variable_rate":
+                inference_args += ["--input-rate", "5"]
             subprocess.run(
-                [sys.executable, str(SNN_TOOL), "sim", "--infer",
-                 "--load-config", str(d / "config.json"),
-                 "--load-weights", str(d / "weights.pth"),
-                 "--digit", "0", "--sample", "0",
-                 "--out-dir", str(scratch), "--wipe-dir"],
+                inference_args,
                 cwd=REPO, check=True, capture_output=True)
             _plot_snapshot_raster(scratch / "snapshot.npz", rdir / f"{c['name']}.png")
             print(f"  {c['name']}.png")
@@ -911,6 +916,7 @@ def _campaign_parser() -> argparse.ArgumentParser:
     group.add_argument("--campaign-list", type=Path, metavar="MANIFEST")
     group.add_argument("--campaign-train-cell", metavar="NAME")
     group.add_argument("--campaign-validate", type=Path, metavar="MANIFEST")
+    group.add_argument("--campaign-aggregate", type=Path, metavar="MANIFEST")
     parser.add_argument("--campaign", type=Path, metavar="MANIFEST")
     parser.add_argument("--campaign-id")
     parser.add_argument("--tier", default="all")
@@ -934,6 +940,28 @@ def _checked_manifest(path: Path) -> dict:
     manifest_names = {cell["name"] for cell in manifest["cells"]}
     if not manifest_names <= expected_names:
         raise SystemExit(f"campaign contains unknown cells: {sorted(manifest_names - expected_names)}")
+    previous_plumbing = os.environ.get("PINGLAB_NB022_PLUMBING")
+    try:
+        if manifest.get("plumbing"):
+            os.environ["PINGLAB_NB022_PLUMBING"] = "1"
+        else:
+            os.environ.pop("PINGLAB_NB022_PLUMBING", None)
+        root = Path(manifest["campaign_root"])
+        for row in manifest["cells"]:
+            spec = _cell_by_name(row["name"])
+            assert spec is not None
+            samples, epochs = cell_samples_epochs(spec)
+            command_spec = ({k: v for k, v in spec.items() if k != "max_samples"}
+                            if manifest.get("plumbing") else spec)
+            train_args = build_train_args(command_spec, root / "cells" / spec["name"], samples, epochs)
+            resolved = campaign.resolved_parameters(spec, train_args, samples, epochs)
+            if row["resource_tier"] != cell_resource_tier(spec) or row["parameters"] != resolved:
+                raise SystemExit(f"campaign manifest registry drift for {row['name']}")
+    finally:
+        if previous_plumbing is None:
+            os.environ.pop("PINGLAB_NB022_PLUMBING", None)
+        else:
+            os.environ["PINGLAB_NB022_PLUMBING"] = previous_plumbing
     return manifest
 
 
@@ -945,6 +973,8 @@ def _stamp_campaign_identity(directory: Path, manifest: dict, row: dict) -> None
             "campaign_id": manifest["campaign_id"],
             "campaign_manifest_sha256": manifest["manifest_sha256"],
             "resource_tier": row["resource_tier"],
+            "campaign_repository_commit": manifest["repository"]["commit"],
+            "campaign_resolved_parameters": row["parameters"],
         })
         nested = payload.get("config")
         if isinstance(nested, dict):
@@ -952,6 +982,8 @@ def _stamp_campaign_identity(directory: Path, manifest: dict, row: dict) -> None
                 "campaign_id": manifest["campaign_id"],
                 "campaign_manifest_sha256": manifest["manifest_sha256"],
                 "resource_tier": row["resource_tier"],
+                "campaign_repository_commit": manifest["repository"]["commit"],
+                "campaign_resolved_parameters": row["parameters"],
             })
         campaign.atomic_json(path, payload)
 
@@ -1024,7 +1056,7 @@ def _campaign_train(manifest_path: Path, name: str) -> int:
 def _handle_campaign_cli(argv: list[str]) -> bool:
     if not any(flag in argv for flag in (
         "--campaign-manifest", "--campaign-status", "--campaign-list",
-        "--campaign-train-cell", "--campaign-validate",
+        "--campaign-train-cell", "--campaign-validate", "--campaign-aggregate",
     )):
         return False
     args = _campaign_parser().parse_args(argv[1:])
@@ -1050,7 +1082,8 @@ def _handle_campaign_cli(argv: list[str]) -> bool:
         campaign.write_manifest(root / "campaign.json", manifest)
         print(root / "campaign.json")
         return True
-    manifest_path = args.campaign or args.campaign_status or args.campaign_list or args.campaign_validate
+    manifest_path = (args.campaign or args.campaign_status or args.campaign_list
+                     or args.campaign_validate or args.campaign_aggregate)
     if manifest_path is None:
         raise SystemExit("--campaign MANIFEST is required")
     manifest = _checked_manifest(manifest_path)
@@ -1060,6 +1093,24 @@ def _handle_campaign_cli(argv: list[str]) -> bool:
         print(f"valid manifest {manifest['campaign_id']} {manifest['manifest_sha256']}")
         return True
     status = campaign.summarize_status(manifest)
+    if args.campaign_aggregate:
+        if len(manifest["cells"]) != len(CANONICAL_CELLS):
+            raise SystemExit("aggregation requires the complete 90-cell registry")
+        if status["retry_cells"]:
+            raise SystemExit(
+                f"aggregation refused: {len(status['retry_cells'])} cells are not valid"
+            )
+        environment = os.environ.copy()
+        environment["PINGLAB_TRAINING_ROOT"] = str(Path(manifest["campaign_root"]) / "cells")
+        environment["EXP022_VERIFIED_CAMPAIGN"] = str(manifest_path.resolve())
+        subprocess.run(
+            [sys.executable, str(Path(__file__).resolve()), "--skip-training"],
+            cwd=REPO, env=environment, check=True,
+        )
+        final = campaign.summarize_status(_checked_manifest(manifest_path))
+        if final["retry_cells"]:
+            raise SystemExit("campaign changed during aggregation")
+        return True
     if args.campaign_list:
         cells = [cell for cell in manifest["cells"] if args.tier == "all" or cell["resource_tier"] == args.tier]
         if args.retry_only:
@@ -1190,6 +1241,15 @@ def main() -> None:
         "n_cells": len(CANONICAL_CELLS),
         "cells": rows,
     }
+    verified_campaign = os.environ.get("EXP022_VERIFIED_CAMPAIGN")
+    if verified_campaign:
+        source = campaign.load_manifest(Path(verified_campaign))
+        summary["campaign"] = {
+            "campaign_id": source["campaign_id"],
+            "manifest_sha256": source["manifest_sha256"],
+            "repository_commit": source["repository"]["commit"],
+            "campaign_root": source["campaign_root"],
+        }
     (FIGURES / "numbers.json").write_text(
         json.dumps(_json_safe(summary), indent=2) + "\n")
     print(f"wrote {FIGURES / 'numbers.json'}")
