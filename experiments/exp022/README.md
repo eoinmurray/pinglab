@@ -52,6 +52,7 @@ download MNIST.
 ```bash
 export PINGLAB_DATA_ROOT="$PINGLAB_MNIST_CACHE"
 uv run python -c 'from torchvision.datasets import MNIST; import sys; MNIST(sys.argv[1], train=True, download=True); MNIST(sys.argv[1], train=False, download=True)' "$PINGLAB_MNIST_CACHE"
+experiments/exp022/ensure-mnist-link.sh "$PINGLAB_MNIST_CACHE"
 uv run python experiments/exp022_wilkes_diagnostic.py --data-root "$PINGLAB_MNIST_CACHE" --output <diagnostic-root>/local.json
 ```
 
@@ -101,6 +102,17 @@ uv run python experiments/exp022.py --campaign-train-cell <cell> --campaign <roo
 For the disposable rehearsal, interrupt or corrupt one plumbing cell, rerun the
 same command, and verify the partial directory moved under `failed/<cell>/`.
 Rerun a valid cell and verify it prints `skip-valid` without changing hashes.
+An atomic status lock excludes active cells from `--retry-only`; a second owner
+is refused before it can move output. A stale record is listed separately under
+`recoverable_cells`. After `squeue` confirms its Slurm job is absent, recover it
+explicitly with:
+
+```bash
+uv run python experiments/exp022.py --campaign-train-cell <cell> \
+  --campaign <root>/campaign.json --recover-stale
+```
+
+If Slurm activity cannot be checked, stale recovery fails closed.
 
 ## 6. Slurm plumbing and canaries
 
@@ -138,14 +150,16 @@ Scientific completion is determined by the validator, not Slurm state.
 After all 90 cells validate, aggregate from that one campaign only. The
 aggregator must refuse incomplete or mixed banks, render TR-01--TR-06 curves and
 rasters, and then run focused exp082 compatibility checks. Archive only the
-verified source bank using the configured R2 workflow:
+exact verified campaign bank named by its manifest:
 
 ```bash
-uv run python experiments/helpers/archive.py archive exp022
+uv run python experiments/helpers/archive.py archive-campaign <campaign-root>/campaign.json
 uv run python experiments/helpers/archive.py list exp022
-uv run python experiments/helpers/archive.py restore exp022 <producing-sha>
+uv run python experiments/helpers/archive.py restore-campaign exp022 <snapshot-id> --destination <separate-empty-directory>
 ```
 
-Use `rclone check` as described by the archive helper and perform a
-non-destructive restore into a separate location. Never use `sync`, delete a
-good snapshot, or publish credentials and sensitive configuration.
+The campaign archive refuses an incomplete bank, records the campaign ID,
+manifest hash, producing commit, and per-file SHA-256 inventory, then runs a
+downloaded `rclone check`. Restore requires a separate absent or empty
+destination and verifies it against R2. Never use `sync`, delete a good
+snapshot, or publish credentials and sensitive configuration.

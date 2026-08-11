@@ -43,6 +43,7 @@ mkdir -p "$campaign_root/logs" "$campaign_root/submissions"
 submission_stamp="$(date -u +%Y%m%dT%H%M%SZ)"
 selection="$campaign_root/submissions/${tier}__${submission_stamp}.cells"
 printf '%s\n' "${cells[@]}" > "$selection"
+chmod 0444 "$selection"
 last_index=$((${#cells[@]} - 1))
 array="0-${last_index}%${EXP022_CONCURRENCY}"
 

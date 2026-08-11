@@ -12,9 +12,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 import torch
-from torchvision.datasets import MNIST
 from experiments import exp022
-
+from torchvision.datasets import MNIST
 
 REPO = Path(__file__).resolve().parents[1]
 

@@ -18,14 +18,7 @@ module purge
 module load rhel8/default-amp
 
 cd "$PINGLAB_ROOT"
-if [[ -e /tmp/mnist || -L /tmp/mnist ]]; then
-  [[ "$(readlink -f /tmp/mnist)" == "$(readlink -f "$PINGLAB_DATA_ROOT")" ]] || {
-    echo "/tmp/mnist exists but does not resolve to the reviewed persistent cache" >&2
-    exit 2
-  }
-else
-  ln -s "$PINGLAB_DATA_ROOT" /tmp/mnist
-fi
+experiments/exp022/ensure-mnist-link.sh "$PINGLAB_DATA_ROOT"
 "$EXP022_UV" run python experiments/exp022.py --campaign-validate "$EXP022_MANIFEST"
 mapfile -t cells < "$EXP022_SELECTION"
 if (( SLURM_ARRAY_TASK_ID >= ${#cells[@]} )); then
