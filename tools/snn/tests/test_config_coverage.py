@@ -360,7 +360,7 @@ class TestBuildConfig:
     def test_defaults_without_optional_attrs(self):
         # Bare args: only the getattr-with-default branches fire.
         c = C.build_config(_Args())
-        assert c.artifact_root == str(C.DEFAULT_ARTIFACT_ROOT)
+        assert c.artifact_root == ""
         # _sync_globals_from_cfg installed this Config as the module cfg.
         assert C.cfg is c
 

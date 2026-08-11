@@ -439,7 +439,10 @@ def test_graph_cli_runtime_state_round_trip_and_legacy_rejection(tmp_path):
     ]) == 0
     assert load_runtime_state(state_two).completed_steps == 1000
     try:
-        main(["sim", "--load-runtime-state", str(state_one)])
+        main([
+            "sim", "--load-runtime-state", str(state_one),
+            "--out-dir", str(tmp_path / "legacy-out"),
+        ])
     except SystemExit as exc:
         assert "require --executor graph" in str(exc)
     else:

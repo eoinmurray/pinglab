@@ -3,10 +3,9 @@
 Subcommands: sim, train.
 
 Usage:
-    uv run python tools/snn/tool.py                             # sim only (metrics)
-    uv run python tools/snn/tool.py sim --image                 # snapshot
-    uv run python tools/snn/tool.py sim --infer --load-weights weights.pth  # evaluate trained net
-    uv run python tools/snn/tool.py train --epochs 10           # train on mnist
+    uv run python tools/snn/tool.py sim --out-dir temp/my-sim
+    uv run python tools/snn/tool.py sim --infer --load-weights weights.pth --out-dir temp/my-infer
+    uv run python tools/snn/tool.py train --epochs 10 --out-dir temp/my-train
 """
 
 from __future__ import annotations
@@ -24,7 +23,6 @@ from bundle import BundleCompatibilityError, apply_bundle_to_args
 # Re-exported through cli/__init__.py for notebook runners (nb003–006).
 from config import (
     _MODEL_CLASSES,
-    DEFAULT_ARTIFACT_ROOT,
     _extract_records,  # noqa: F401
     build_config,
     run_sim,
@@ -1662,6 +1660,11 @@ def main(argv=None):
     args = parse_args(argv)
     mode = args.mode
 
+    if args.out_dir is None:
+        raise SystemExit(
+            f"{mode} writes run artifacts and requires an explicit --out-dir"
+        )
+
     # Every invocation crosses the typed seam. The legacy callback below is
     # deliberately the unchanged handler body; graph requests use the data-only
     # bundle and stable request API directly.
@@ -1708,7 +1711,7 @@ def main(argv=None):
             runtime_state=runtime_state,
         )
         result = execute_request(request)
-        out_dir = Path(args.out_dir or DEFAULT_ARTIFACT_ROOT)
+        out_dir = Path(args.out_dir)
         out_dir.mkdir(parents=True, exist_ok=True)
         np.savez_compressed(out_dir / "recordings.npz", **{k: v.detach().cpu().numpy() for k, v in result.recordings.items()})
         np.savez_compressed(out_dir / "outputs.npz", **{k: v.detach().cpu().numpy() for k, v in result.outputs.items()})
@@ -1729,10 +1732,7 @@ def main(argv=None):
     import config as C
 
     # Determine output directory
-    out_dir = args.out_dir
-    if out_dir is None:
-        out_dir = str(DEFAULT_ARTIFACT_ROOT)
-    out_dir = Path(out_dir)
+    out_dir = Path(args.out_dir)
 
     # Save run artifacts for all modes
     log = save_run_artifacts(out_dir, args, mode)
