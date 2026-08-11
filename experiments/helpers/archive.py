@@ -21,9 +21,11 @@ properties close the footgun that let a gutted bank clobber good data.
 Usage (always via uv, never bare python):
 
     uv run python experiments/helpers/archive.py archive exp022
+    uv run python experiments/helpers/archive.py archive-campaign <campaign>/campaign.json
     uv run python experiments/helpers/archive.py list    exp022
     uv run python experiments/helpers/archive.py restore exp022            # latest snapshot
     uv run python experiments/helpers/archive.py restore exp022 cc36be1    # a specific sha
+    uv run python experiments/helpers/archive.py restore-campaign exp022 <snapshot> --destination <empty-dir>
 
 Config via env (defaults match the existing rclone remote + bucket):
     PINGLAB_R2_REMOTE  rclone remote name           (default "r2")
@@ -35,6 +37,7 @@ Requires `rclone` on PATH with the remote already configured (`rclone listremote
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 import subprocess
@@ -135,6 +138,44 @@ def _local_stats(path: Path) -> tuple[int, int]:
     return n, total
 
 
+def _file_inventory(path: Path) -> tuple[list[dict], str]:
+    files = []
+    for source in sorted(item for item in path.rglob("*") if item.is_file()):
+        hasher = hashlib.sha256()
+        with source.open("rb") as handle:
+            for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+                hasher.update(chunk)
+        files.append({
+            "path": source.relative_to(path).as_posix(),
+            "size_bytes": source.stat().st_size,
+            "sha256": hasher.hexdigest(),
+        })
+    canonical = json.dumps(files, sort_keys=True, separators=(",", ":"))
+    return files, hashlib.sha256(canonical.encode()).hexdigest()
+
+
+def verified_campaign_source(manifest_path: Path) -> tuple[dict, Path]:
+    """Return exactly the complete external cell bank named by an exp022 manifest."""
+    if str(REPO) not in sys.path:
+        sys.path.insert(0, str(REPO))
+    from experiments import exp022, exp022_campaign
+
+    manifest = exp022._checked_manifest(
+        manifest_path, allow_generated_dirty=True,
+    )
+    source = (Path(manifest["campaign_root"]) / "cells").resolve()
+    if source == (ARTIFACTS_ROOT / "exp022").resolve():
+        raise SystemExit("campaign archive source must not fall back to the legacy local bank")
+    if len(manifest["cells"]) != len(exp022.CANONICAL_CELLS):
+        raise SystemExit("campaign archive requires the complete exp022 registry")
+    status = exp022_campaign.summarize_status(manifest)
+    if status["retry_cells"] or status["recoverable_cells"] or any(
+        row["state"] != "complete" for row in status["cells"]
+    ):
+        raise SystemExit("campaign archive refused: every cell must be complete and valid")
+    return manifest, source
+
+
 def _human(n: int) -> str:
     x = float(n)
     for unit in ("B", "KiB", "MiB", "GiB", "TiB"):
@@ -187,6 +228,48 @@ def cmd_archive(slug: str) -> None:
     _rclone(["check", str(src), dest, "--exclude", MANIFEST])
     print(f"\n✓ archived {slug} @ {sha} → {dest}")
     print(f"  restore: uv run python experiments/helpers/archive.py restore {slug} {sha}")
+
+
+def cmd_archive_campaign(manifest_path: Path) -> None:
+    manifest, src = verified_campaign_source(manifest_path.resolve())
+    sha = manifest["repository"]["commit"]
+    snapshot_id = f"{sha}-{manifest['manifest_sha256'][:12]}"
+    dest = _dest("exp022", snapshot_id)
+    files, tree_sha = _file_inventory(src)
+    size = sum(item["size_bytes"] for item in files)
+    print(f"archiving verified campaign {manifest['campaign_id']} ({len(files)} files · {_human(size)})")
+    print(f"       → {dest}  [producing sha {sha}]")
+    if _remote_dir_exists(dest):
+        raise SystemExit(f"immutable campaign snapshot already exists: {dest}")
+    snapshot = {
+        "archive": "pinglab exp022 campaign snapshot",
+        "slug": "exp022",
+        "snapshot_id": snapshot_id,
+        "campaign_id": manifest["campaign_id"],
+        "campaign_manifest_sha256": manifest["manifest_sha256"],
+        "producing_git_sha": sha,
+        "snapshot_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        "n_files": len(files),
+        "size_bytes": size,
+        "size_human": _human(size),
+        "source": str(src),
+        "tree_sha256": tree_sha,
+        "files": files,
+        "restore": (
+            "uv run python experiments/helpers/archive.py restore-campaign "
+            f"exp022 {snapshot_id} --destination <separate-empty-directory>"
+        ),
+    }
+    mpath = Path(manifest["campaign_root"]) / "submissions" / f"archive-{snapshot_id}.json"
+    mpath.write_text(json.dumps(snapshot, indent=2) + "\n")
+    _rclone(["copy", str(src), dest, "--transfers", "16", "--checkers", "16",
+             "--stats", "30s", "--stats-one-line"])
+    _rclone(["copyto", str(mpath), f"{dest}/{MANIFEST}"])
+    _rclone(["check", str(src), dest, "--exclude", MANIFEST, "--download"])
+    remote = _read_remote_manifest("exp022", snapshot_id)
+    if remote.get("tree_sha256") != tree_sha:
+        raise SystemExit("remote campaign snapshot manifest hash does not match local inventory")
+    print(f"\n✓ archived exp022 campaign {manifest['campaign_id']} → {dest}")
 
 
 def _snapshots(slug: str) -> list[str]:
@@ -243,26 +326,51 @@ def cmd_restore(slug: str, sha: str | None) -> None:
     print(f"\n✓ restored {slug} @ {sha} → {local.relative_to(REPO)}")
 
 
+def cmd_restore_campaign(slug: str, snapshot_id: str, destination: Path) -> None:
+    dest = _dest(slug, snapshot_id)
+    if not _remote_dir_exists(dest):
+        raise SystemExit(f"no snapshot at {dest}")
+    local = destination.resolve()
+    if local.exists() and any(local.iterdir()):
+        raise SystemExit(f"restore destination must be absent or empty: {local}")
+    local.mkdir(parents=True, exist_ok=True)
+    _rclone(["copy", dest, str(local), "--exclude", MANIFEST,
+             "--transfers", "16", "--checkers", "16", "--stats", "30s",
+             "--stats-one-line"])
+    _rclone(["check", str(local), dest, "--exclude", MANIFEST, "--download"])
+    print(f"\n✓ restored {slug} campaign snapshot {snapshot_id} → {local}")
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(
         description="Ad-hoc provenance-keyed backup of a run's scratch to R2.")
     sub = ap.add_subparsers(dest="cmd", required=True)
     a = sub.add_parser("archive", help="back up temp/experiments/<slug> to R2")
     a.add_argument("slug")
+    ac = sub.add_parser("archive-campaign", help="archive the exact verified exp022 campaign bank")
+    ac.add_argument("manifest", type=Path)
     ls = sub.add_parser("list", help="list a slug's snapshots on R2")
     ls.add_argument("slug")
     r = sub.add_parser("restore", help="pull a snapshot back to temp/experiments/<slug>")
     r.add_argument("slug")
     r.add_argument("sha", nargs="?", default=None, help="snapshot sha (default: latest)")
+    rc = sub.add_parser("restore-campaign", help="restore a campaign snapshot separately")
+    rc.add_argument("slug")
+    rc.add_argument("snapshot_id")
+    rc.add_argument("--destination", required=True, type=Path)
     args = ap.parse_args()
 
     _ensure_rclone_remote()
     if args.cmd == "archive":
         cmd_archive(args.slug)
+    elif args.cmd == "archive-campaign":
+        cmd_archive_campaign(args.manifest)
     elif args.cmd == "list":
         cmd_list(args.slug)
     elif args.cmd == "restore":
         cmd_restore(args.slug, args.sha)
+    elif args.cmd == "restore-campaign":
+        cmd_restore_campaign(args.slug, args.snapshot_id, args.destination)
 
 
 if __name__ == "__main__":

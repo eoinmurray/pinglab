@@ -24,8 +24,10 @@ Writing: writings/exp022.typ · figures + numbers.json: artifacts/data/exp022/
 
 from __future__ import annotations
 
+import argparse
 import json
 import os
+import shlex
 import subprocess
 import sys
 import time
@@ -34,7 +36,10 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 
 REPO = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(REPO))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+
+from experiments import exp022_campaign as campaign  # noqa: E402
 
 from helpers import (
     runpod,  # noqa: E402
@@ -425,6 +430,14 @@ def load_config(d: Path) -> dict:
     return json.loads(p.read_text()) if p.exists() else {}
 
 
+def training_root_provenance(root: Path) -> dict[str, str]:
+    resolved = root.resolve()
+    try:
+        return {"location": "repository", "path": str(resolved.relative_to(REPO))}
+    except ValueError:
+        return {"location": "external", "path": str(resolved)}
+
+
 def final_rates(d: Path) -> tuple[float, float]:
     """Last-epoch E / I rate (Hz) from metrics.jsonl, if present."""
     p = d / "metrics.jsonl"
@@ -445,6 +458,7 @@ FAMILY_COLORS = {
     "tau_gaba": theme.DEEP_RED,
     "dt": theme.ELECTRIC_CYAN,
     "init": theme.AMBER,
+    "variable_rate": theme.ELECTRIC_CYAN,
 }
 
 
@@ -464,7 +478,7 @@ def training_curve(d: Path) -> tuple[list[int], list[float]]:
     return eps, accs
 
 
-FAMILY_ORDER = ["canonical", "theta_u", "theta_u_3seed", "tau_gaba", "dt", "init"]
+FAMILY_ORDER = ["canonical", "theta_u", "tau_gaba", "dt", "init", "variable_rate"]
 FAMILY_LABELS = {
     "canonical": "Canonical reference",
     "theta_u": "θ_u spike-budget sweep",
@@ -472,6 +486,7 @@ FAMILY_LABELS = {
     "tau_gaba": "τ_GABA ladder",
     "dt": "Δt sweep",
     "init": "Init variants",
+    "variable_rate": "Variable-rate streaming bank",
 }
 
 
@@ -798,12 +813,17 @@ def appendix_rasters() -> None:
                 print(f"[skip] {c['name']} — no weights")
                 continue
             scratch = scratch_root / c["name"]
+            inference_args = [
+                sys.executable, str(SNN_TOOL), "sim", "--infer",
+                "--load-config", str(d / "config.json"),
+                "--load-weights", str(d / "weights.pth"),
+                "--digit", "0", "--sample", "0",
+                "--out-dir", str(scratch), "--wipe-dir",
+            ]
+            if c["family"] == "variable_rate":
+                inference_args += ["--input-rate", "5"]
             subprocess.run(
-                [sys.executable, str(SNN_TOOL), "sim", "--infer",
-                 "--load-config", str(d / "config.json"),
-                 "--load-weights", str(d / "weights.pth"),
-                 "--digit", "0", "--sample", "0",
-                 "--out-dir", str(scratch), "--wipe-dir"],
+                inference_args,
                 cwd=REPO, check=True, capture_output=True)
             _plot_snapshot_raster(scratch / "snapshot.npz", rdir / f"{c['name']}.png")
             print(f"  {c['name']}.png")
@@ -901,7 +921,299 @@ def comparison_rasters() -> None:
         shutil.rmtree(scratch_root, ignore_errors=True)
 
 
+def _campaign_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(add_help=False)
+    group = parser.add_mutually_exclusive_group()
+    group.add_argument("--campaign-manifest", type=Path, metavar="ROOT")
+    group.add_argument("--campaign-status", type=Path, metavar="MANIFEST")
+    group.add_argument("--campaign-list", type=Path, metavar="MANIFEST")
+    group.add_argument("--campaign-train-cell", metavar="NAME")
+    group.add_argument("--campaign-validate", type=Path, metavar="MANIFEST")
+    group.add_argument("--campaign-aggregate", type=Path, metavar="MANIFEST")
+    parser.add_argument("--campaign", type=Path, metavar="MANIFEST")
+    parser.add_argument("--campaign-id")
+    parser.add_argument("--tier", default="all")
+    parser.add_argument("--json", action="store_true")
+    parser.add_argument("--retry-only", action="store_true")
+    parser.add_argument("--recover-stale", action="store_true")
+    parser.add_argument("--plumbing", action="store_true")
+    return parser
+
+
+def _checked_manifest(path: Path, *, allow_generated_dirty: bool = False) -> dict:
+    manifest_path = path.resolve()
+    manifest = campaign.load_manifest(manifest_path)
+    root = Path(manifest["campaign_root"])
+    if not root.is_absolute() or root.resolve() != root:
+        raise SystemExit("campaign root must be an absolute resolved path")
+    if manifest_path != root / "campaign.json":
+        raise SystemExit("campaign manifest must be <campaign-root>/campaign.json")
+    commit, dirty = campaign.git_identity(REPO)
+    if dirty:
+        dirty_paths = campaign.git_dirty_paths(REPO)
+        allowed_prefixes = ("artifacts/data/exp022/", "artifacts/pdfs/exp022.pdf")
+        if not allow_generated_dirty or any(
+            not path.startswith(allowed_prefixes) for path in dirty_paths
+        ):
+            raise SystemExit("campaign execution requires a clean source worktree")
+    if manifest["repository"] != {"commit": commit, "dirty": False}:
+        raise SystemExit(
+            "campaign manifest does not match the clean checked-out commit: "
+            f"manifest={manifest['repository']['commit']} checkout={commit}"
+        )
+    if manifest.get("environment", {}).get("lockfile") != campaign.lock_identity(REPO):
+        raise SystemExit("campaign lockfile identity does not match the checkout")
+    tier = manifest.get("selection", {}).get("tier")
+    try:
+        selected_cells = cells_in_resource_tier(tier)
+    except ValueError as exc:
+        raise SystemExit(str(exc)) from exc
+    manifest_names_list = [row.get("name") for row in manifest.get("cells", [])]
+    if len(manifest_names_list) != len(set(manifest_names_list)):
+        raise SystemExit("campaign contains duplicate cell names")
+    expected_names_list = [cell["name"] for cell in selected_cells]
+    if manifest_names_list != expected_names_list:
+        raise SystemExit("campaign cell list does not exactly match its declared selection")
+    previous_plumbing = os.environ.get("PINGLAB_NB022_PLUMBING")
+    runtime_commands = {}
+    try:
+        if manifest.get("plumbing"):
+            os.environ["PINGLAB_NB022_PLUMBING"] = "1"
+        else:
+            os.environ.pop("PINGLAB_NB022_PLUMBING", None)
+        for row in manifest["cells"]:
+            spec = _cell_by_name(row["name"])
+            assert spec is not None
+            samples, epochs = cell_samples_epochs(spec)
+            command_spec = ({k: v for k, v in spec.items() if k != "max_samples"}
+                            if manifest.get("plumbing") else spec)
+            train_args = build_train_args(command_spec, root / "cells" / spec["name"], samples, epochs)
+            resolved = campaign.resolved_parameters(spec, train_args, samples, epochs)
+            command = [sys.executable, str(SNN_TOOL), *train_args]
+            output_directory = (root / "cells" / spec["name"]).resolve()
+            expected = {
+                "name": spec["name"],
+                "training_run_id": spec["training_run_id"],
+                "family": spec["family"],
+                "resource_tier": cell_resource_tier(spec),
+                "parameters": resolved,
+                "command": command,
+                "command_shell": shlex.join(command),
+                "output_directory": str(output_directory),
+                "required_outputs": list(campaign.REQUIRED_CELL_FILES),
+            }
+            if row != expected:
+                raise SystemExit(f"campaign manifest registry drift for {row['name']}")
+            if output_directory.parent != (root / "cells").resolve():
+                raise SystemExit(f"campaign output path escapes the cells root: {row['name']}")
+            runtime_commands[row["name"]] = command
+    finally:
+        if previous_plumbing is None:
+            os.environ.pop("PINGLAB_NB022_PLUMBING", None)
+        else:
+            os.environ["PINGLAB_NB022_PLUMBING"] = previous_plumbing
+    manifest["_runtime_commands"] = runtime_commands
+    return manifest
+
+
+def _stamp_campaign_identity(directory: Path, manifest: dict, row: dict) -> None:
+    for filename in ("config.json", "metrics.json"):
+        path = directory / filename
+        payload = json.loads(path.read_text())
+        payload.update({
+            "campaign_id": manifest["campaign_id"],
+            "campaign_manifest_sha256": manifest["manifest_sha256"],
+            "resource_tier": row["resource_tier"],
+            "campaign_repository_commit": manifest["repository"]["commit"],
+            "campaign_resolved_parameters": row["parameters"],
+        })
+        nested = payload.get("config")
+        if isinstance(nested, dict):
+            nested.update({
+                "campaign_id": manifest["campaign_id"],
+                "campaign_manifest_sha256": manifest["manifest_sha256"],
+                "resource_tier": row["resource_tier"],
+                "campaign_repository_commit": manifest["repository"]["commit"],
+                "campaign_resolved_parameters": row["parameters"],
+            })
+        campaign.atomic_json(path, payload)
+
+
+def _gpu_metadata() -> dict:
+    try:
+        query = subprocess.run(
+            ["nvidia-smi", "--query-gpu=name,memory.total,memory.used", "--format=csv,noheader,nounits"],
+            capture_output=True, text=True,
+        )
+    except FileNotFoundError:
+        return {"available": False}
+    if query.returncode != 0:
+        return {"available": False}
+    return {"available": True, "devices": [line.strip() for line in query.stdout.splitlines()]}
+
+
+def _campaign_train(manifest_path: Path, name: str, *, recover_stale: bool = False) -> int:
+    manifest = _checked_manifest(manifest_path)
+    row = campaign.manifest_cell(manifest, name)
+    directory = Path(row["output_directory"])
+    existing = campaign.validate_cell(row)
+    if existing["valid"]:
+        print(f"[skip-valid] {name} is complete and will not be touched")
+        return 0
+    record, attempt_lock = campaign.acquire_attempt(
+        manifest, row, recover_stale=recover_stale,
+    )
+    status_path = campaign.status_path(manifest, name)
+    exit_code = 1
+    attempt_started = time.monotonic()
+    try:
+        existing = campaign.validate_cell(row)
+        if existing["valid"]:
+            record.update({
+                "ended_at_utc": campaign.utc_now(), "exit_code": 0,
+                "elapsed_seconds": round(time.monotonic() - attempt_started, 3),
+                "state": "complete", "validation": existing,
+                "note": "became valid before training ownership was acquired",
+            })
+            campaign.atomic_json(status_path, record)
+            print(f"[skip-valid] {name} became complete and will not be touched")
+            return 0
+        preserved = campaign.preserve_partial(directory)
+        if preserved:
+            print(f"[preserve-partial] {directory} -> {preserved}")
+        record["gpu"] = _gpu_metadata()
+        campaign.atomic_json(status_path, record)
+        directory.parent.mkdir(parents=True, exist_ok=True)
+        command = manifest["_runtime_commands"][name]
+        completed = subprocess.run(command, cwd=REPO)
+        exit_code = completed.returncode
+        if exit_code == 0:
+            spec = _cell_by_name(name)
+            assert spec is not None
+            old_root = globals()["TRAINING_ROOT"]
+            try:
+                globals()["TRAINING_ROOT"] = Path(manifest["campaign_root"]) / "cells"
+                _stamp_training_run_identity(spec)
+            finally:
+                globals()["TRAINING_ROOT"] = old_root
+            _stamp_campaign_identity(directory, manifest, row)
+        validation = campaign.validate_cell(row)
+        try:
+            metrics_payload = load_metrics(directory)
+        except (OSError, ValueError, json.JSONDecodeError):
+            metrics_payload = {}
+        record.update({
+            "ended_at_utc": campaign.utc_now(), "exit_code": exit_code,
+            "elapsed_seconds": round(time.monotonic() - attempt_started, 3),
+            "state": "complete" if exit_code == 0 and validation["valid"] else "failed",
+            "validation": validation,
+            "gpu_after": _gpu_metadata(),
+            "training_performance": metrics_payload.get("perf"),
+            "output_bytes": sum(path.stat().st_size for path in directory.rglob("*") if path.is_file()),
+        })
+        directory.mkdir(parents=True, exist_ok=True)
+        campaign.atomic_json(directory / "attempt.json", record)
+        campaign.atomic_json(status_path, record)
+        return 0 if record["state"] == "complete" else 1
+    except BaseException as exc:
+        record.update({
+            "ended_at_utc": campaign.utc_now(), "exit_code": exit_code,
+            "elapsed_seconds": round(time.monotonic() - attempt_started, 3),
+            "state": "failed", "error": f"{type(exc).__name__}: {exc}",
+        })
+        directory.mkdir(parents=True, exist_ok=True)
+        campaign.atomic_json(directory / "attempt.json", record)
+        campaign.atomic_json(status_path, record)
+        raise
+    finally:
+        campaign.release_attempt(attempt_lock, record["attempt_id"])
+
+
+def _handle_campaign_cli(argv: list[str]) -> bool:
+    if not any(flag in argv for flag in (
+        "--campaign-manifest", "--campaign-status", "--campaign-list",
+        "--campaign-train-cell", "--campaign-validate", "--campaign-aggregate",
+    )):
+        return False
+    args = _campaign_parser().parse_args(argv[1:])
+    if args.campaign_manifest:
+        if not args.campaign_id:
+            raise SystemExit("--campaign-id is required")
+        try:
+            selected = cells_in_resource_tier(args.tier)
+        except ValueError as exc:
+            raise SystemExit(str(exc)) from exc
+        if args.plumbing:
+            os.environ["PINGLAB_NB022_PLUMBING"] = "1"
+        root = args.campaign_manifest.resolve()
+        manifest = campaign.create_manifest(
+            repo=REPO, campaign_root=root, campaign_id=args.campaign_id,
+            cells=selected, tier_for=cell_resource_tier,
+            samples_epochs=cell_samples_epochs, build_args=build_train_args,
+            plumbing=args.plumbing,
+            selection_tier=args.tier,
+        )
+        try:
+            root.mkdir(parents=True, exist_ok=False)
+        except FileExistsError as exc:
+            raise SystemExit(
+                f"campaign destination already exists and will not be modified: {root}"
+            ) from exc
+        for child in ("cells", "logs", "status", "submissions"):
+            (root / child).mkdir()
+        campaign.write_manifest(root / "campaign.json", manifest)
+        print(root / "campaign.json")
+        return True
+    manifest_path = (args.campaign or args.campaign_status or args.campaign_list
+                     or args.campaign_validate or args.campaign_aggregate)
+    if manifest_path is None:
+        raise SystemExit("--campaign MANIFEST is required")
+    manifest = _checked_manifest(manifest_path)
+    if args.campaign_train_cell:
+        raise SystemExit(_campaign_train(
+            manifest_path, args.campaign_train_cell,
+            recover_stale=args.recover_stale,
+        ))
+    if args.campaign_validate:
+        print(f"valid manifest {manifest['campaign_id']} {manifest['manifest_sha256']}")
+        return True
+    status = campaign.summarize_status(manifest)
+    if args.campaign_aggregate:
+        if len(manifest["cells"]) != len(CANONICAL_CELLS):
+            raise SystemExit("aggregation requires the complete 90-cell registry")
+        incomplete = [row["name"] for row in status["cells"] if not row["valid"]]
+        if incomplete:
+            raise SystemExit(
+                f"aggregation refused: {len(incomplete)} cells are not valid"
+            )
+        environment = os.environ.copy()
+        environment["PINGLAB_TRAINING_ROOT"] = str(Path(manifest["campaign_root"]) / "cells")
+        environment["EXP022_VERIFIED_CAMPAIGN"] = str(manifest_path.resolve())
+        subprocess.run(
+            [sys.executable, str(Path(__file__).resolve()), "--skip-training"],
+            cwd=REPO, env=environment, check=True,
+        )
+        final_manifest = _checked_manifest(manifest_path, allow_generated_dirty=True)
+        final = campaign.summarize_status(final_manifest)
+        if any(not row["valid"] for row in final["cells"]):
+            raise SystemExit("campaign changed during aggregation")
+        return True
+    if args.campaign_list:
+        cells = [cell for cell in manifest["cells"] if args.tier == "all" or cell["resource_tier"] == args.tier]
+        if args.retry_only:
+            retry = set(status["retry_cells"])
+            cells = [cell for cell in cells if cell["name"] in retry]
+        print("\n".join(cell["name"] for cell in cells))
+    elif args.json:
+        print(json.dumps(status, indent=2, sort_keys=True))
+    else:
+        campaign.print_status(status)
+    return True
+
+
 def main() -> None:
+    if _handle_campaign_cli(sys.argv):
+        return
     meta = parse_meta(sys.argv, allow_dispatch=True)
 
     if meta.list_cells is not None:
@@ -1009,13 +1321,22 @@ def main() -> None:
                      "dataset": "mnist",
                      "max_samples_canonical": CANONICAL_MAX_SAMPLES,
                      "max_samples_sweeps": SUBSET_MAX_SAMPLES},
-        "training_root": str(TRAINING_ROOT.relative_to(REPO)),
+        "training_root": training_root_provenance(TRAINING_ROOT),
         "families": FAMILY_ORDER,
         "training_run_ids": TRAINING_RUN_IDS,
         "family_status": family_status,
         "n_cells": len(CANONICAL_CELLS),
         "cells": rows,
     }
+    verified_campaign = os.environ.get("EXP022_VERIFIED_CAMPAIGN")
+    if verified_campaign:
+        source = campaign.load_manifest(Path(verified_campaign))
+        summary["campaign"] = {
+            "campaign_id": source["campaign_id"],
+            "manifest_sha256": source["manifest_sha256"],
+            "repository_commit": source["repository"]["commit"],
+            "campaign_root": source["campaign_root"],
+        }
     (FIGURES / "numbers.json").write_text(
         json.dumps(_json_safe(summary), indent=2) + "\n")
     print(f"wrote {FIGURES / 'numbers.json'}")
