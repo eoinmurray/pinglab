@@ -20,6 +20,15 @@ def test_registry_has_90_unique_cells_partitioned_once() -> None:
     assert sorted(tiered) == sorted(names)
 
 
+def test_campaign_python_identity_stays_inside_environment(monkeypatch, tmp_path: Path) -> None:
+    bin_dir = tmp_path / "venv" / "bin"
+    bin_dir.mkdir(parents=True)
+    python = bin_dir / "python"
+    python.write_text("")
+    monkeypatch.setattr(campaign.sys, "executable", str(bin_dir / "python3"))
+    assert campaign.python_executable() == str(python)
+
+
 @pytest.mark.parametrize("family,run_id", exp022.TRAINING_RUN_IDS.items())
 def test_registry_training_run_identity(family: str, run_id: str) -> None:
     cells = [cell for cell in exp022.CANONICAL_CELLS if cell["family"] == family]
