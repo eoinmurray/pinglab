@@ -11,9 +11,8 @@ set -euo pipefail
 : "${PINGLAB_DATA_ROOT:?set the prepopulated persistent MNIST cache}"
 : "${EXP022_UV:?set the reviewed uv executable}"
 
-module purge
-module load rhel8/default-amp
 cd "$PINGLAB_ROOT"
+source experiments/exp022/load-wilkes-modules.sh
 mkdir -p "$EXP022_DIAGNOSTIC_ROOT"
 experiments/exp022/ensure-mnist-link.sh "$PINGLAB_DATA_ROOT"
 "$EXP022_UV" run python experiments/exp022_wilkes_diagnostic.py \
