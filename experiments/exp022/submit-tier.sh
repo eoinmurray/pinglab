@@ -11,6 +11,11 @@ if [[ $# -lt 2 || $# -gt 3 ]]; then usage; exit 2; fi
 : "${EXP022_SLURM_ACCOUNT:?set the GPU project reported by mybalance}"
 : "${EXP022_WALLTIME:?set a canary-measured wall time with margin}"
 : "${EXP022_CONCURRENCY:?set the reviewed campaign concurrency}"
+: "${EXP022_MNIST_CACHE:?set the prepopulated persistent MNIST cache}"
+uv_bin="${EXP022_UV:-$(command -v uv)}"
+[[ -x "$uv_bin" ]] || { echo "uv executable is not usable: $uv_bin" >&2; exit 2; }
+mnist_cache="$(realpath "$EXP022_MNIST_CACHE")"
+[[ -d "$mnist_cache/MNIST" ]] || { echo "prepopulated MNIST/MNIST directory missing under: $mnist_cache" >&2; exit 2; }
 
 manifest="$(realpath "$1")"
 tier="$2"
@@ -25,15 +30,15 @@ case "$mode" in submit|--dry-run|--test-only) ;; *) usage; exit 2 ;; esac
 
 repo_root="$(cd "$(dirname "$0")/../.." && pwd)"
 cd "$repo_root"
-uv run python experiments/exp022.py --campaign-validate "$manifest"
-mapfile -t cells < <(uv run python experiments/exp022.py --campaign-list "$manifest" --tier "$tier" --retry-only)
+"$uv_bin" run python experiments/exp022.py --campaign-validate "$manifest"
+mapfile -t cells < <("$uv_bin" run python experiments/exp022.py --campaign-list "$manifest" --tier "$tier" --retry-only)
 if [[ ${#cells[@]} -eq 0 ]]; then
   echo "tier $tier has no missing or invalid cells"
   exit 0
 fi
 
-campaign_root="$(uv run python -c 'import json,sys; print(json.load(open(sys.argv[1]))["campaign_root"])' "$manifest")"
-campaign_id="$(uv run python -c 'import json,sys; print(json.load(open(sys.argv[1]))["campaign_id"])' "$manifest")"
+campaign_root="$("$uv_bin" run python -c 'import json,sys; print(json.load(open(sys.argv[1]))["campaign_root"])' "$manifest")"
+campaign_id="$("$uv_bin" run python -c 'import json,sys; print(json.load(open(sys.argv[1]))["campaign_id"])' "$manifest")"
 mkdir -p "$campaign_root/logs" "$campaign_root/submissions"
 submission_stamp="$(date -u +%Y%m%dT%H%M%SZ)"
 selection="$campaign_root/submissions/${tier}__${submission_stamp}.cells"
@@ -58,7 +63,7 @@ sbatch_args=(
   --array="$array"
   --output="$campaign_root/logs/%A_%a.out"
   --error="$campaign_root/logs/%A_%a.err"
-  --export="NONE,PINGLAB_ROOT=$repo_root,EXP022_MANIFEST=$manifest,EXP022_TIER=$tier,EXP022_SELECTION=$selection"
+  --export="NONE,PINGLAB_ROOT=$repo_root,EXP022_MANIFEST=$manifest,EXP022_TIER=$tier,EXP022_SELECTION=$selection,EXP022_UV=$uv_bin,PINGLAB_DATA_ROOT=$mnist_cache"
 )
 echo "command: sbatch ${sbatch_args[*]} experiments/exp022/train-array.sbatch"
 if [[ "$mode" == "--dry-run" ]]; then exit 0; fi

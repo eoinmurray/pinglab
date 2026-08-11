@@ -14,6 +14,7 @@ export PINGLAB_REPO=<persistent-repository>
 export PINGLAB_UV_CACHE=<persistent-uv-cache>
 export PINGLAB_MNIST_CACHE=<persistent-mnist-cache>
 export EXP022_CAMPAIGNS=<persistent-campaign-root>
+export EXP022_UV="$(command -v uv)"
 cd "$PINGLAB_REPO"
 git fetch origin
 git checkout --detach <reviewed-commit>
@@ -41,19 +42,18 @@ Do not reuse an environment produced from a different lockfile.
 
 ## 2. Prepopulate MNIST once
 
-Point the project at the persistent cache using the dataset-cache environment
-supported by the SNN CLI, then run one short, non-competing preload on a compute
-node. Confirm the files exist and are readable from a second non-interactive
-job before arrays start. Never let many array workers race to download MNIST.
+The current SNN loader reads `/tmp/mnist`. Prepopulate `MNIST/` once under the
+persistent cache, then let the diagnostic and array scripts create a guarded
+node-local `/tmp/mnist` symlink to that cache. They refuse an existing path that
+resolves elsewhere. Confirm the files are readable from a second
+non-interactive job before arrays start. Never let array workers race to
+download MNIST.
 
 ```bash
 export PINGLAB_DATA_ROOT="$PINGLAB_MNIST_CACHE"
+uv run python -c 'from torchvision.datasets import MNIST; import sys; MNIST(sys.argv[1], train=True, download=True); MNIST(sys.argv[1], train=False, download=True)' "$PINGLAB_MNIST_CACHE"
 uv run python experiments/exp022_wilkes_diagnostic.py --data-root "$PINGLAB_MNIST_CACHE" --output <diagnostic-root>/local.json
 ```
-
-If the diagnostic reports that the current CLI ignores this cache setting,
-stop and resolve the cache interface before production. Do not edit
-`tools/snn` without separate permission.
 
 ## 3. Account and diagnostic job
 
@@ -64,7 +64,7 @@ and submit the diagnostic script with explicit paths:
 ```bash
 mybalance
 sbatch --account=<SL2-GPU-account> --output=<diagnostic-root>/diagnostic-%j.out \
-  --export=NONE,PINGLAB_ROOT="$PINGLAB_REPO",EXP022_DIAGNOSTIC_ROOT=<diagnostic-root>,PINGLAB_DATA_ROOT="$PINGLAB_MNIST_CACHE" \
+  --export=NONE,PINGLAB_ROOT="$PINGLAB_REPO",EXP022_DIAGNOSTIC_ROOT=<diagnostic-root>,PINGLAB_DATA_ROOT="$PINGLAB_MNIST_CACHE",EXP022_UV="$EXP022_UV" \
   experiments/exp022/diagnostic.sbatch
 ```
 
@@ -112,6 +112,7 @@ five canaries and must be replaced with measured margins.
 export EXP022_SLURM_ACCOUNT=<SL2-GPU-account>
 export EXP022_WALLTIME=<HH:MM:SS>
 export EXP022_CONCURRENCY=<N>
+export EXP022_MNIST_CACHE="$PINGLAB_MNIST_CACHE"
 bash experiments/exp022/submit-tier.sh <manifest> standard --dry-run
 bash experiments/exp022/submit-tier.sh <manifest> standard --test-only
 ```

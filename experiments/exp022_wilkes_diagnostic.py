@@ -24,7 +24,10 @@ def main() -> None:
     args = parser.parse_args()
     commit = subprocess.run(["git", "rev-parse", "HEAD"], cwd=REPO, check=True, capture_output=True, text=True).stdout.strip()
     dirty = bool(subprocess.run(["git", "status", "--porcelain"], cwd=REPO, check=True, capture_output=True, text=True).stdout.strip())
-    dataset = MNIST(root=args.data_root, train=True, download=False)
+    cli_root = Path("/tmp/mnist")
+    if cli_root.resolve() != args.data_root.resolve():
+        raise SystemExit("/tmp/mnist does not resolve to the reviewed persistent cache")
+    dataset = MNIST(root=cli_root, train=True, download=False)
     payload = {
         "timestamp_utc": datetime.now(timezone.utc).isoformat(timespec="seconds"),
         "repository_commit": commit,
