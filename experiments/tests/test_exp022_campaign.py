@@ -42,6 +42,11 @@ def test_campaign_python_identity_normalizes_parent_alias(monkeypatch, tmp_path:
     assert campaign.python_executable() == str(python)
 
 
+def test_exp022_display_path_accepts_external_campaign_root(tmp_path: Path) -> None:
+    external = tmp_path / "campaign" / "derived"
+    assert exp022._display_path(external) == external
+
+
 @pytest.mark.parametrize("family,run_id", exp022.TRAINING_RUN_IDS.items())
 def test_registry_training_run_identity(family: str, run_id: str) -> None:
     cells = [cell for cell in exp022.CANONICAL_CELLS if cell["family"] == family]
