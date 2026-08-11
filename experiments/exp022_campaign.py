@@ -205,14 +205,17 @@ ARG_TO_CONFIG = {
     "--tau-gaba": "tau_gaba_ms", "--seed": "seed", "--ei-strength": "ei_strength",
     "--v-grad-dampen": "v_grad_dampen", "--w-in-sparsity": "w_in_sparsity",
     "--readout": "readout_mode", "--surrogate-slope": "surrogate_slope",
-    "--readout-w-out-scale": "readout_w_out_scale", "--lr": "lr",
+    "--readout-w-out-scale": "readout_w_out_scale",
+    "--readout-w-init-mean": "readout_w_init_mean",
+    "--readout-w-init-std": "readout_w_init_std", "--lr": "lr",
     "--batch-size": "batch_size", "--fr-reg-upper-theta": "fr_reg_upper_theta",
     "--fr-reg-upper-strength": "fr_reg_upper_strength",
     "--input-rates": "input_rates",
 }
 FLOAT_CONFIG = {
     "dt", "t_ms", "tau_gaba_ms", "ei_strength", "v_grad_dampen",
-    "w_in_sparsity", "surrogate_slope", "readout_w_out_scale", "lr",
+    "w_in_sparsity", "surrogate_slope", "readout_w_out_scale",
+    "readout_w_init_mean", "readout_w_init_std", "lr",
     "fr_reg_upper_theta", "fr_reg_upper_strength",
 }
 INT_CONFIG = {"max_samples", "epochs", "seed", "batch_size"}

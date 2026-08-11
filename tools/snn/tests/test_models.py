@@ -80,6 +80,51 @@ class TestSeedReproducibility:
             assert torch.equal(pa, pb)
 
 
+class TestReadoutInitialization:
+    def test_direct_stored_initializer_matches_accepted_legacy_recipe(self):
+        shape = (1024, 10)
+        torch.manual_seed(42)
+        legacy = M.init_weight(shape, "normal", 5.1, 3.8) * 225
+        torch.manual_seed(42)
+        direct = M.init_readout_weight(
+            shape,
+            mean=5.1 * 225 / 1024,
+            std=3.8 * 225 / 1024,
+        )
+        torch.testing.assert_close(direct, legacy)
+
+    def test_direct_initializer_preserves_full_model_seed_equivalence(self):
+        torch.manual_seed(42)
+        legacy = build_net("ping", hidden_sizes=[32])
+        legacy_readout = legacy.W_ff[-1].detach() * 225
+        torch.manual_seed(42)
+        direct = build_net(
+            "ping",
+            hidden_sizes=[32],
+            readout_w_init=(5.1 * 225 / 32, 3.8 * 225 / 32),
+        )
+        torch.testing.assert_close(direct.W_ff[-1], legacy_readout)
+
+    def test_direct_initializer_is_applied_to_stored_readout_only(self):
+        torch.manual_seed(42)
+        net = build_net(
+            "ping",
+            hidden_sizes=[32],
+            readout_w_init=(1.25, 0.0),
+        )
+        assert torch.all(net.W_ff[-1] == 1.25)
+        assert not torch.all(net.W_ff[0] == 1.25)
+
+    def test_direct_initializer_rejects_signed_readout(self):
+        with pytest.raises(ValueError, match="cannot be combined"):
+            build_net(
+                "ping",
+                hidden_sizes=[32],
+                signed_readout=True,
+                readout_w_init=(1.25, 0.1),
+            )
+
+
 class TestFeedforwardDalesClamp:
     """The forward clamp applies specifically to feedforward ``W_ff``.
 

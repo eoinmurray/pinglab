@@ -36,7 +36,9 @@ def test_all_resolved_commands_keep_family_contract(tmp_path: Path) -> None:
         assert args[args.index("--dt") + 1] == str(cell["dt_ms"])
         assert args[args.index("--tau-gaba") + 1] == str(cell["tau_gaba"])
         assert args[args.index("--w-in") + 1] == "0.9"
-        assert args[args.index("--readout-w-out-scale") + 1] == "225"
+        assert args[args.index("--readout-w-init-mean") + 1] == exp022.SHARED_READOUT_W_INIT_MEAN
+        assert args[args.index("--readout-w-init-std") + 1] == exp022.SHARED_READOUT_W_INIT_STD
+        assert "--readout-w-out-scale" not in args
         if cell["model"] == "coba":
             assert args[args.index("--ei-strength") + 1] == "0"
             assert args[args.index("--v-grad-dampen") + 1] == "1"

@@ -420,6 +420,11 @@ def init_weight(shape, dist="normal", p1=0.0, p2=0.1, sparsity=0.0):
     return w
 
 
+def init_readout_weight(shape, mean, std):
+    """Initialize stored readout weights directly from a clamped normal."""
+    return torch.randn(*shape).mul_(std).add_(mean).clamp_(min=0)
+
+
 # ── E-step and I-step composites ─────────────────────────────────────────
 
 COBA_INTEGRATOR = "expeuler"  # "expeuler" | "fwd"  — parity toggle for COBA integration
@@ -543,6 +548,7 @@ class COBANet(nn.Module):
         readout_mode="rate",
         signed_readout=False,
         readout_bias=False,
+        readout_w_init=None,
         trainable_w_ee=False,
         trainable_w_ei=False,
         trainable_w_ie=False,
@@ -568,6 +574,7 @@ class COBANet(nn.Module):
         self.readout_mode = readout_mode
         self.signed_readout = bool(signed_readout)
         self.readout_bias_enabled = bool(readout_bias)
+        self.readout_w_init = readout_w_init
         if self.readout_bias_enabled and self.readout_mode != "cumulative-potential":
             raise ValueError(
                 "readout_bias is supported only by the cumulative-potential readout"
@@ -611,7 +618,13 @@ class COBANet(nn.Module):
         for idx, (n_pre, n_post) in enumerate(zip(all_sizes[:-1], all_sizes[1:])):
             spec = w_in if idx == 0 else w_hid
             p1, p2, d, s = _parse_weight_spec(spec, dist, sparsity)
-            self.W_ff.append(nn.Parameter(init_weight((n_pre, n_post), d, p1, p2, s)))
+            is_readout = idx == len(all_sizes) - 2
+            if is_readout and self.readout_w_init is not None:
+                mean, std = self.readout_w_init
+                weight = init_readout_weight((n_pre, n_post), mean, std)
+            else:
+                weight = init_weight((n_pre, n_post), d, p1, p2, s)
+            self.W_ff.append(nn.Parameter(weight))
 
         # The classifier may be an abstract signed decoder while the simulated
         # feed-forward and recurrent synapses remain Dale-constrained.  Keep it
@@ -619,6 +632,10 @@ class COBANet(nn.Module):
         # but initialise it like nn.Linear rather than as a positive
         # conductance when signed decoding is requested.
         if self.signed_readout:
+            if self.readout_w_init is not None:
+                raise ValueError(
+                    "readout_w_init cannot be combined with signed_readout"
+                )
             nn.init.kaiming_uniform_(self.W_ff[-1], a=math.sqrt(5))
 
         if self.readout_bias_enabled:

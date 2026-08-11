@@ -150,6 +150,8 @@ def train(
     batch_size=None,
     seed=None,
     readout_w_out_scale=1.0,
+    readout_w_init_mean=None,
+    readout_w_init_std=None,
     readout_mode="rate",
     signed_readout=False,
     readout_bias=False,
@@ -267,6 +269,24 @@ def train(
     # heterogeneous per-neuron tuning, so scattering mem phases is redundant.
     # Uniform randomize_init across all models — symmetry breaking matters
     # for all architectures. Only skip when kaiming (already heterogeneous).
+    if (readout_w_init_mean is None) != (readout_w_init_std is None):
+        raise ValueError(
+            "readout_w_init_mean and readout_w_init_std must be specified together"
+        )
+    if readout_w_init_std is not None and readout_w_init_std < 0:
+        raise ValueError("readout_w_init_std must be non-negative")
+    if readout_w_init_mean is not None and readout_w_out_scale != 1.0:
+        raise ValueError(
+            "direct readout initialization cannot be combined with "
+            "readout_w_out_scale"
+        )
+    if readout_w_init_mean is not None:
+        assert readout_w_init_std is not None
+    readout_w_init = (
+        (readout_w_init_mean, readout_w_init_std)
+        if readout_w_init_mean is not None
+        else None
+    )
     net = build_net(
         model_name,
         w_in=w_in,
@@ -284,6 +304,7 @@ def train(
         readout_mode=readout_mode,
         signed_readout=signed_readout,
         readout_bias=readout_bias,
+        readout_w_init=readout_w_init,
         trainable_w_ee=trainable_w_ee,
         trainable_w_ei=trainable_w_ei,
         trainable_w_ie=trainable_w_ie,
@@ -308,6 +329,22 @@ def train(
             f"  readout_w_out_scale={readout_w_out_scale:g} "
             f"(W_ff[-1] and b_ff[-1] scaled at init)"
         )
+    readout_init = net.W_ff[-1].detach()
+    readout_init_stats = {
+        "mean": float(readout_init.mean()),
+        "std": float(readout_init.std(unbiased=False)),
+        "min": float(readout_init.min()),
+        "max": float(readout_init.max()),
+        "zero_fraction": float((readout_init == 0).float().mean()),
+    }
+    log.info(
+        "  readout_w_init_realized="
+        f"mean={readout_init_stats['mean']:.6g}, "
+        f"std={readout_init_stats['std']:.6g}, "
+        f"min={readout_init_stats['min']:.6g}, "
+        f"max={readout_init_stats['max']:.6g}, "
+        f"zero_fraction={readout_init_stats['zero_fraction']:.6g}"
+    )
     if not dales_law:
         log.info("  dales_law=False (signed weights, no clamp)")
     n_params = sum(p.numel() for p in net.parameters())
@@ -351,6 +388,15 @@ def train(
         "readout_mode": readout_mode,
         "signed_readout": signed_readout,
         "readout_bias": readout_bias,
+        "readout_w_init": {
+            "distribution": "normal_clamped_nonnegative",
+            "units": "stored_weight",
+            "mean": readout_w_init_mean,
+            "std": readout_w_init_std,
+        } if readout_w_init is not None else None,
+        "readout_w_init_mean": readout_w_init_mean,
+        "readout_w_init_std": readout_w_init_std,
+        "readout_w_init_realized": readout_init_stats,
         "readout_reduction": (
             M.CUMULATIVE_READOUT_REDUCTION
             if readout_mode == "cumulative-potential"
@@ -394,10 +440,13 @@ def train(
         "tau_gaba_ms": float(M.tau_gaba),
         # Swept / recipe-varying knobs — must be structured fields, not just
         # buried in run.sh: fr_reg_upper_theta (θ_u) is the independent variable
-        # of the spike-budget frontier, and readout_w_out_scale differs by model.
+        # of the spike-budget frontier. The legacy multiplier remains recorded
+        # for older recipes; publication runs use readout_w_init above.
         "fr_reg_upper_theta": fr_reg_upper_theta,
         "fr_reg_upper_strength": fr_reg_upper_strength,
-        "readout_w_out_scale": readout_w_out_scale,
+        "readout_w_out_scale": (
+            readout_w_out_scale if readout_w_init is None else None
+        ),
         # Provenance (git SHA, run_id, started_at, device, torch version,
         # python env hash) — keeps train-mode config.json at parity with
         # sim/image modes.
@@ -905,7 +954,13 @@ def train(
             "tau_gaba_ms": float(M.tau_gaba),
             "fr_reg_upper_theta": fr_reg_upper_theta,
             "fr_reg_upper_strength": fr_reg_upper_strength,
-            "readout_w_out_scale": readout_w_out_scale,
+            "readout_w_out_scale": (
+                readout_w_out_scale if readout_w_init is None else None
+            ),
+            "readout_w_init": config["readout_w_init"],
+            "readout_w_init_mean": readout_w_init_mean,
+            "readout_w_init_std": readout_w_init_std,
+            "readout_w_init_realized": readout_init_stats,
             "readout_mode": readout_mode,
             "signed_readout": signed_readout,
             "readout_bias": readout_bias,
