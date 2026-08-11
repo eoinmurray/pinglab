@@ -1202,6 +1202,22 @@ def _handle_campaign_cli(argv: list[str]) -> bool:
             [sys.executable, str(Path(__file__).resolve()), "--skip-training"],
             cwd=REPO, env=environment, check=True,
         )
+        # The guide embeds representative rasters as required results, not as
+        # optional local decorations.  Generate them from the verified bank as
+        # part of campaign aggregation so a promoted campaign is self-contained.
+        for figure in ("appendix-rasters", "comparison-rasters"):
+            subprocess.run(
+                [
+                    sys.executable,
+                    str(Path(__file__).resolve()),
+                    "--plot-only",
+                    "--plot-fig",
+                    figure,
+                ],
+                cwd=REPO,
+                env=environment,
+                check=True,
+            )
         final_manifest = _checked_manifest(manifest_path, allow_generated_dirty=True)
         final = campaign.summarize_status(final_manifest)
         if any(not row["valid"] for row in final["cells"]):

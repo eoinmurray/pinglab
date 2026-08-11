@@ -84,7 +84,9 @@ PERTURB_ADD_LEVELS: list[float] = [float(2 * i) for i in range(21)]        # 0.0
 PERTURB_RASTER_DROP_LEVELS: list[float] = [0.0, 0.5, 1.0]
 PERTURB_RASTER_ADD_LEVELS: list[float] = [0.0, 20.0, 40.0]
 if SMOKE:
-    PERTURB_DROP_LEVELS = [0.0, 0.5, 1.0]
+    # Include the 80% deletion point used in both the experiment prose and the
+    # manuscript, plus the endpoints needed to exercise the full curve.
+    PERTURB_DROP_LEVELS = [0.0, 0.5, 0.8, 1.0]
     PERTURB_ADD_LEVELS = [0.0, 20.0, 40.0]
 
 # θ_u sweep grid in spikes-per-trial. None = no penalty (baseline).

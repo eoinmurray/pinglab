@@ -126,3 +126,94 @@ def test_local_resume_runs_in_dependency_order(tmp_path: Path, monkeypatch) -> N
         row for row in execution.validate_campaign(root)["experiments"]
         if not row["outputs_valid"]
     ]
+
+
+def test_finalize_delegates_to_runstore_after_validation(
+    tmp_path: Path, monkeypatch,
+) -> None:
+    root = tmp_path / "campaign"
+    root.mkdir()
+    execution.write_json_atomic(root / "run.json", {
+        "run_id": "smoke", "status": "running",
+    })
+    monkeypatch.setattr(execution, "validate_campaign", lambda _root: {})
+
+    def fake_run(command, **_kwargs):
+        assert command[-2:] == [str(root), "--finalize"]
+        execution.write_json_atomic(root / "run.json", {
+            "run_id": "smoke", "status": "complete",
+        })
+        execution.write_json_atomic(root / "inventory.json", {
+            "file_count": 3,
+            "total_size_bytes": 42,
+            "payload_digest": "a" * 64,
+        })
+        return SimpleNamespace(returncode=0)
+
+    monkeypatch.setattr(execution.subprocess, "run", fake_run)
+    assert execution.finalize_campaign(root) == {
+        "campaign_id": "smoke",
+        "status": "complete",
+        "file_count": 3,
+        "total_size_bytes": 42,
+        "payload_digest": "a" * 64,
+    }
+
+
+def test_publication_build_runs_promotion_from_separate_checkout(
+    tmp_path: Path, monkeypatch,
+) -> None:
+    root = tmp_path / "campaign"
+    checkout = tmp_path / "publication"
+    root.mkdir()
+    checkout.mkdir()
+    (root / "inventory.json").write_text("{}")
+    execution.write_json_atomic(root / "run.json", {
+        "run_id": "smoke", "status": "complete",
+    })
+    plan = build_plan(root, "smoke")
+    plan["profile"] = "smoke"
+    plan["source"] = {"git_commit": "a" * 40, "git_clean": True, "lockfile": None}
+    calls = []
+
+    monkeypatch.setattr(execution, "load_plan", lambda _root: plan)
+    monkeypatch.setattr(execution, "validate_campaign", lambda _root: {})
+    monkeypatch.setattr(execution, "_checkout_source", lambda _path: plan["source"])
+    monkeypatch.setattr(execution.shutil, "which", lambda _name: "/usr/bin/uv")
+
+    def fake_run(command, **kwargs):
+        calls.append((command, kwargs))
+        return SimpleNamespace(returncode=0, stdout="built 1 entry", stderr="")
+
+    monkeypatch.setattr(execution.subprocess, "run", fake_run)
+    result = execution.build_publication(root, checkout)
+    assert result["promoted"] == [
+        row["slug"] for row in execution.rows_in_order(plan)
+    ]
+    assert all(call[1]["cwd"] == checkout for call in calls)
+    assert all(str(checkout) in call[0] for call in calls)
+
+
+def test_publication_build_rejects_stubbed_entries(tmp_path: Path, monkeypatch) -> None:
+    root = tmp_path / "campaign"
+    checkout = tmp_path / "publication"
+    root.mkdir()
+    checkout.mkdir()
+    (root / "inventory.json").write_text("{}")
+    execution.write_json_atomic(root / "run.json", {
+        "run_id": "smoke", "status": "complete",
+    })
+    plan = build_plan(root, "smoke")
+    plan["source"] = {"git_commit": "a" * 40, "git_clean": True, "lockfile": None}
+    monkeypatch.setattr(execution, "load_plan", lambda _root: plan)
+    monkeypatch.setattr(execution, "validate_campaign", lambda _root: {})
+    monkeypatch.setattr(execution, "_checkout_source", lambda _path: plan["source"])
+    monkeypatch.setattr(execution.shutil, "which", lambda _name: "/usr/bin/uv")
+
+    def fake_run(command, **_kwargs):
+        output = "built 37 entries, 1 stubbed: exp022" if "demolab" in command else ""
+        return SimpleNamespace(returncode=0, stdout=output, stderr="")
+
+    monkeypatch.setattr(execution.subprocess, "run", fake_run)
+    with pytest.raises(execution.CollectionError, match="stubbed"):
+        execution.build_publication(root, checkout)
