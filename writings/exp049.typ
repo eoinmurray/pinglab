@@ -25,7 +25,7 @@
 
   == Method
 
-  *Architecture.* $N_E = 1024$ excitatory, $N_I = 256$ inhibitory, mem-mean readout, Dale's law enforced. Hyperparameters match the #link("/exp025/")[exp025] PING baseline: Adam at lr $4 times 10^(-4)$, batch 256, surrogate slope 1, $W_"in" tilde cal(N)(1.2, 0.12)$ at 95% sparsity, gradient norm clipped to 1.0, $Delta t = 0.1$ ms, $T = 200$ ms, no firing-rate regulariser.
+  *Architecture.* $N_E = 1024$ excitatory, $N_I = 256$ inhibitory, mem-mean readout, Dale's law enforced. Hyperparameters match the shared #link("/exp022/")[exp022] PING recipe: Adam at lr $4 times 10^(-4)$, batch 256, surrogate slope 1, $W_"in" tilde cal(N)(0.9, 0.09)$ at 95% sparsity, directly specified readout initialization, gradient norm clipped to 1.0, $Delta t = 0.1$ ms, $T = 200$ ms, no firing-rate regulariser.
 
   Both recurrent matrices are non-negative conductance magnitudes. After each optimiser step they are projected onto the non-negative cone. Their physiological sign is supplied by the pathway reversal potential: I→E contributes $g_I (E_I - V)$ with $E_I = -80$ mV and is therefore inhibitory despite $W^(I E) >= 0$.
 

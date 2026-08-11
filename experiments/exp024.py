@@ -68,32 +68,6 @@ SCALE = {
 }
 
 MODELS = ["coba", "ping"]
-MODEL_RECIPES: dict[str, dict] = {
-    "coba": {
-        "__build_as": "ping",
-        "--ei-strength": "0",
-        "--v-grad-dampen": "1000",
-        "--w-in": "0.3",
-        "--w-in-sparsity": "0.95",
-        "--readout": "mem-mean",
-        "--surrogate-slope": "1",
-        "--readout-w-out-scale": "100",
-        "--lr": "0.0004",
-        "--batch-size": "256",
-    },
-    "ping": {
-        "__build_as": "ping",
-        "--ei-strength": "1",
-        "--v-grad-dampen": "1000",
-        "--w-in": "1.2",
-        "--w-in-sparsity": "0.95",
-        "--readout": "mem-mean",
-        "--surrogate-slope": "1",
-        "--readout-w-out-scale": "500",
-        "--lr": "0.0004",
-        "--batch-size": "256",
-    },
-}
 
 MODEL_COLORS = {"coba": theme.DEEP_RED, "ping": theme.INK_BLACK}
 MODEL_MARKERS = {"coba": "s", "ping": "D"}
@@ -119,35 +93,6 @@ def _log_event(event: str, **fields: object) -> None:
     record = {"event": event, "experiment": SLUG, **fields}
     with (RUN_PATHS.logs / f"{SLUG}.jsonl").open("a") as handle:
         handle.write(json.dumps(record, sort_keys=True) + "\n")
-
-
-def build_train_args(model: str, seed: int, out_dir: Path) -> list[str]:
-    recipe = MODEL_RECIPES[model]
-    args = [
-        "train",
-        "--model",
-        recipe["__build_as"],
-        "--dataset",
-        "mnist",
-        "--max-samples",
-        str(MAX_SAMPLES),
-        "--epochs",
-        str(EPOCHS),
-        "--t-ms",
-        str(T_MS),
-        "--dt",
-        str(DT_TRAIN),
-        "--seed",
-        str(seed),
-        "--out-dir",
-        str(out_dir),
-        "--wipe-dir",
-    ]
-    for k, v in recipe.items():
-        if k.startswith("__"):
-            continue
-        args += [k, v]
-    return args
 
 
 def load_metrics(run_dir: Path) -> dict:
