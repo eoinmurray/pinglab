@@ -21,7 +21,13 @@ uv run python -m experiments.collections.gamma_gated_sparsity submit \
   --resources /absolute/private/path/resources.json
 ```
 
-Only the same command with `--live` calls `sbatch`. It submits the five exp022
+The review payload includes the frozen source and lockfile, exp022 manifest
+hash, resource-file hash, tier cell lists, exact commands and dependencies, and
+expected outputs. On Wilkes3, add `--test-only` to ask Slurm to validate every
+job shape without creating jobs. `--test-only` and `--live` are mutually
+exclusive.
+
+Only the same command with `--live` creates jobs. It submits the five exp022
 arrays, aggregation, downstream experiments in dependency order, and finalization.
 Use `slurm-status` to combine scheduler and output state. After a failed campaign,
 `resume` prints the missing-work plan and `resume --live` submits it. Publication is

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import re
 import subprocess
 from pathlib import Path
@@ -57,6 +58,9 @@ def load_resources(path: Path) -> dict[str, Any]:
         if not isinstance(row, dict) or not _valid_time(row.get("time")):
             raise CollectionError(f"Slurm exp022.{tier} requires time")
         _positive_int(row.get("concurrency"), f"exp022.{tier}.concurrency")
+        _positive_int(row.get("cpus"), f"exp022.{tier}.cpus")
+        _positive_int(row.get("memory_gb"), f"exp022.{tier}.memory_gb")
+        _positive_int(row.get("gpus"), f"exp022.{tier}.gpus")
     jobs = config.get("jobs")
     if not isinstance(jobs, dict):
         raise CollectionError("Slurm resources require jobs")
@@ -76,12 +80,19 @@ def load_resources(path: Path) -> dict[str, Any]:
     return config
 
 
-def _run(command: list[str], *, submit: bool, dry_id: str) -> str:
-    if not submit:
+def _run(
+    command: list[str], *, submit: bool, test_only: bool, dry_id: str
+) -> str:
+    if not submit and not test_only:
         return dry_id
+    actual = [*command]
+    if test_only:
+        actual.insert(1, "--test-only")
     result = subprocess.run(
-        command, cwd=REPO, check=True, capture_output=True, text=True
+        actual, cwd=REPO, check=True, capture_output=True, text=True
     )
+    if test_only:
+        return "<test-only>"
     job_id = result.stdout.strip().split(";", 1)[0]
     if not job_id.isdigit():
         raise CollectionError(
@@ -138,6 +149,7 @@ def _submit_exp022_tier(
     *,
     attempt: str,
     submit: bool,
+    test_only: bool,
 ) -> dict[str, Any] | None:
     manifest = Path(plan["exp022_manifest"])
     cells = _exp022_cells(manifest, tier, resources["uv"])
@@ -171,6 +183,9 @@ def _submit_exp022_tier(
         f"--account={resources['account']}",
         f"--partition={resources['partition']}",
         f"--time={tier_resources['time']}",
+        f"--cpus-per-task={tier_resources['cpus']}",
+        f"--mem={tier_resources['memory_gb']}G",
+        f"--gres=gpu:{tier_resources['gpus']}",
         f"--array={array}",
         f"--output={logs}/%A_%a.out",
         f"--error={logs}/%A_%a.err",
@@ -179,7 +194,12 @@ def _submit_exp022_tier(
     ]
     return {
         "name": f"exp022-{tier}",
-        "job_id": _run(command, submit=submit, dry_id=f"<{tier}-job-id>"),
+        "job_id": _run(
+            command,
+            submit=submit,
+            test_only=test_only,
+            dry_id=f"<{tier}-job-id>",
+        ),
         "cells": cells,
         "command": command,
     }
@@ -194,6 +214,7 @@ def _submit_job(
     kind: str,
     dependencies: list[str],
     submit: bool,
+    test_only: bool,
     slug: str | None = None,
 ) -> dict[str, Any]:
     root = Path(plan["campaign_root"])
@@ -208,7 +229,7 @@ def _submit_job(
         "sbatch",
         "--parsable",
         *_job_args(resources, kind),
-        *_dependency(dependencies),
+        *(_dependency(dependencies) if not test_only else []),
         f"--job-name={name}",
         f"--output={logs}/%x_%j.out",
         f"--error={logs}/%x_%j.err",
@@ -228,18 +249,29 @@ def _submit_job(
         command.append(slug)
     return {
         "name": name,
-        "job_id": _run(command, submit=submit, dry_id=f"<{name}-job-id>"),
+        "job_id": _run(
+            command,
+            submit=submit,
+            test_only=test_only,
+            dry_id=f"<{name}-job-id>",
+        ),
         "command": command,
     }
 
 
 def submit_campaign(
-    root: Path, resources_path: Path, *, submit: bool = False
+    root: Path,
+    resources_path: Path,
+    *,
+    submit: bool = False,
+    test_only: bool = False,
 ) -> dict[str, Any]:
     """Submit missing work with afterok dependencies, or print an exact dry run."""
     root = validate_campaign_root(root)
     plan = load_plan(root)
     resources = load_resources(resources_path)
+    if submit and test_only:
+        raise CollectionError("live submission and test-only are mutually exclusive")
     if plan.get("profile") != "production":
         raise CollectionError("Slurm submission is restricted to production campaigns")
     existing_path = root / "submissions" / SUBMISSION_NAME
@@ -251,9 +283,19 @@ def submit_campaign(
     payload = {
         "campaign_id": plan["campaign_id"],
         "created_at_utc": utc_now(),
-        "mode": "submitting" if submit else "dry-run",
+        "mode": "submitting" if submit else "test-only" if test_only else "dry-run",
         "resources_path": str(resources_path.resolve()),
         "resources": resources,
+        "source": plan["source"],
+        "exp022_manifest_sha256": load_json(Path(plan["exp022_manifest"]))[
+            "manifest_sha256"
+        ],
+        "resource_file_sha256": hashlib.sha256(
+            resources_path.resolve().read_bytes()
+        ).hexdigest(),
+        "expected_outputs": [
+            output for row in rows_in_order(plan) for output in row["required_outputs"]
+        ],
         "jobs": jobs,
     }
 
@@ -267,7 +309,12 @@ def submit_campaign(
     if not _outputs_valid(rows["exp022"]):
         for tier in TIERS:
             job = _submit_exp022_tier(
-                plan, resources, tier, attempt=attempt, submit=submit
+                plan,
+                resources,
+                tier,
+                attempt=attempt,
+                submit=submit,
+                test_only=test_only,
             )
             if job is not None:
                 record(job)
@@ -280,6 +327,7 @@ def submit_campaign(
             kind="aggregate",
             dependencies=list(by_name.values()),
             submit=submit,
+            test_only=test_only,
         )
         record(aggregate)
         by_name["exp022"] = aggregate["job_id"]
@@ -297,6 +345,7 @@ def submit_campaign(
             kind="downstream",
             dependencies=dependency_ids,
             submit=submit,
+            test_only=test_only,
             slug=slug,
         )
         record(job)
@@ -317,6 +366,7 @@ def submit_campaign(
             kind="finalize",
             dependencies=leaf_ids or list(by_name.values()),
             submit=submit,
+            test_only=test_only,
         )
         record(final)
     if submit:
@@ -326,7 +376,11 @@ def submit_campaign(
 
 
 def resume_campaign(
-    root: Path, resources_path: Path, *, submit: bool = False
+    root: Path,
+    resources_path: Path,
+    *,
+    submit: bool = False,
+    test_only: bool = False,
 ) -> dict[str, Any]:
     """Submit only work whose required outputs still fail validation."""
     root = validate_campaign_root(root)
@@ -339,7 +393,9 @@ def resume_campaign(
     if submit:
         previous.replace(archived)
     try:
-        return submit_campaign(root, resources_path, submit=submit)
+        return submit_campaign(
+            root, resources_path, submit=submit, test_only=test_only
+        )
     except BaseException:
         if submit and archived.exists() and not previous.exists():
             archived.replace(previous)
