@@ -85,19 +85,34 @@ def _to_np(v):
     return torch.stack(v).numpy()
 
 
-def _firing_rate_penalty(spike_counts, theta, strength):
-    """Quadratic per-neuron firing-rate regularizer summed over per-layer
-    spike counts. Penalises each neuron's mean spike count ABOVE theta (the
-    upper bound); the per-neuron form concentrates pressure on the highest-
-    firing cells (Cramer recipe).
+def _firing_rate_penalty(
+    spike_counts,
+    target_hz: float,
+    strength: float,
+    presentation_s: float,
+):
+    """One-sided sample-wise population-rate penalty for hidden E layers.
+
+    Each ``spike_counts`` tensor has shape ``(batch, neurons)``.  We first
+    calculate one population-mean rate in Hz for every presentation and layer,
+    apply the quadratic ceiling independently, then average over presentations
+    and layers.  Consequently the loss is invariant to batch size, population
+    width, presentation duration (for equivalent rates), and hidden-layer count.
     """
-    reg = 0.0
-    for sc in spike_counts:
-        value = sc.mean(dim=0)
-        excess = value - theta
-        term = strength * (torch.relu(excess) ** 2)
-        reg = reg + term.sum()
-    return reg
+    if presentation_s <= 0 or not math.isfinite(presentation_s):
+        raise ValueError("presentation_s must be positive and finite")
+    if target_hz < 0 or not math.isfinite(target_hz):
+        raise ValueError("fr_reg_upper_target_hz must be non-negative and finite")
+    if strength < 0 or not math.isfinite(strength):
+        raise ValueError("fr_reg_upper_strength must be non-negative and finite")
+    if not spike_counts:
+        return torch.tensor(0.0)
+
+    per_layer = []
+    for counts in spike_counts:
+        sample_rates_hz = counts.mean(dim=1) / presentation_s
+        per_layer.append(torch.relu(sample_rates_hz - target_hz).square())
+    return strength * torch.stack(per_layer).mean()
 
 
 # Datasets whose samples are static images (Poisson-encoded per batch). Anything
@@ -175,7 +190,7 @@ def train(
     readout_bias=False,
     input_rates=None,
     tau_gaba=None,
-    fr_reg_upper_theta=0.0,
+    fr_reg_upper_target_hz=0.0,
     fr_reg_upper_strength=0.0,
     trainable_w_ee=False,
     trainable_w_ei=False,
@@ -194,6 +209,11 @@ def train(
     from torch.utils.data import DataLoader, TensorDataset
 
     seed_everything(seed)
+
+    if fr_reg_upper_target_hz < 0 or not math.isfinite(fr_reg_upper_target_hz):
+        raise ValueError("fr_reg_upper_target_hz must be non-negative and finite")
+    if fr_reg_upper_strength < 0 or not math.isfinite(fr_reg_upper_strength):
+        raise ValueError("fr_reg_upper_strength must be non-negative and finite")
 
     # Setup dt and all derived constants
     # ─────────────────────────────────────────────────────────────────────────
@@ -518,11 +538,17 @@ def train(
         "seed": seed,
         "tau_gaba_ms": float(M.tau_gaba),
         # Swept / recipe-varying knobs — must be structured fields, not just
-        # buried in run.sh: fr_reg_upper_theta (θ_u) is the independent variable
-        # of the spike-budget frontier. The legacy multiplier remains recorded
-        # for older recipes; publication runs use readout_w_init above.
-        "fr_reg_upper_theta": fr_reg_upper_theta,
+        # buried in run.sh: the firing-rate target is the independent variable
+        # of the activity frontier.
+        "fr_reg_upper_target_hz": fr_reg_upper_target_hz,
         "fr_reg_upper_strength": fr_reg_upper_strength,
+        "fr_reg_contract": {
+            "aggregation": "sample-wise-population-mean",
+            "population": "hidden-excitatory",
+            "units": "hz",
+            "penalty": "one-sided-quadratic",
+            "normalization": ["batch", "population-width", "duration", "hidden-layers"],
+        },
         "readout_w_out_scale": (
             readout_w_out_scale if readout_w_init is None else None
         ),
@@ -706,8 +732,9 @@ def train(
                 if fr_reg_upper_strength > 0:
                     loss = loss + _firing_rate_penalty(
                         spike_counts,
-                        fr_reg_upper_theta,
+                        fr_reg_upper_target_hz,
                         fr_reg_upper_strength,
+                        M.T_ms / 1000.0,
                     )
             opt.zero_grad()
             loss.backward()
@@ -1091,8 +1118,9 @@ def train(
             # self-sufficient for the frontier/ladder analyses without opening the
             # co-located config.json — every knob that shapes the loss landscape.
             "tau_gaba_ms": float(M.tau_gaba),
-            "fr_reg_upper_theta": fr_reg_upper_theta,
+            "fr_reg_upper_target_hz": fr_reg_upper_target_hz,
             "fr_reg_upper_strength": fr_reg_upper_strength,
+            "fr_reg_contract": config["fr_reg_contract"],
             "readout_w_out_scale": (
                 readout_w_out_scale if readout_w_init is None else None
             ),

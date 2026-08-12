@@ -61,11 +61,12 @@
 
   == Firing-rate regularisation
 
-  Many recipes penalise too much or too little hidden firing via `--fr-reg-upper-theta`, `--fr-reg-upper-strength`, and the matching `lower` pair:
+  Hidden activity can be limited with `--fr-reg-upper-target-hz` and `--fr-reg-upper-strength`:
 
-  $ cal(L)_"fr" = s_u dot "ReLU"(macron(r) - theta_u) + s_l dot "ReLU"(theta_l - macron(r)) $
+  $ r_b = 1 / (N_E T) sum_(n in E) z_(b n), quad
+    cal(L)_"fr" = s_u / B sum_b "ReLU"(r_b - r_"max")^2 $
 
-  where $macron(r)$ is the per-layer mean firing rate (per-neuron or population, set by `--fr-reg-mode`). This is the mechanism behind the $theta_u$ sweeps in #link("/exp025/")[exp025] and the rate-floor framing in #link("/ar009/")[ar009].
+  The ceiling is applied separately to each presentation's population-mean hidden-E rate before averaging across the minibatch. The loss is normalised over neurons, presentation duration, samples, and hidden layers. This is the mechanism behind the activity sweep in #link("/exp025/")[exp025] and the rate-floor framing in #link("/ar009/")[ar009].
 
   == Weight init
 

@@ -190,7 +190,7 @@ def validate_config(metrics: dict, model: str, *, smoke: bool) -> list[str]:
         "v_grad_dampen": RECIPES[model]["v_grad_dampen"],
         "w_in_initial_zero_fraction": 0.95, "readout_w_out_scale": 225.0,
         "readout_mode": "mem-mean", "dales_law": True,
-        "fr_reg_upper_theta": 0.0, "fr_reg_upper_strength": 0.0,
+        "fr_reg_upper_target_hz": 0.0, "fr_reg_upper_strength": 0.0,
     }
     errors: list[str] = []
     for key, expected in want.items():

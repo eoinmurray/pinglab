@@ -64,8 +64,8 @@ EVAL_CORPUS_SAMPLES = 10000
 T_MS = 200.0
 DT_TRAIN = 0.1
 
-# Baseline (θ_u = off) cells are trained at multiple seeds so the
-# headline bar chart and learning curves can show mean ± SEM. The θ_u
+# Baseline (rate target = off) cells are trained at multiple seeds so the
+# headline bar chart and learning curves can show mean ± SEM. The rate target
 # sweep cells stay single-seed — the frontier *shape* is dominated by
 # the regulariser, not the seed.
 SEEDS_BASELINE: list[int] = [42, 43, 44]
@@ -96,12 +96,11 @@ if SMOKE:
     PERTURB_DROP_LEVELS = [0.0, 0.5, 0.8, 1.0]
     PERTURB_ADD_LEVELS = [0.0, 20.0, 40.0]
 
-# θ_u sweep grid in spikes-per-trial. None = no penalty (baseline).
-# At T = 200 ms, spikes/trial × 5 = Hz. The grid spans from no
+# Hidden-E population-rate targets in Hz. None = no penalty (baseline).
 # pressure (off → ~80 Hz coba baseline) down to 1 Hz —
 # below ping's natural 5 Hz and into the regime where every model
 # loses accuracy.
-THETA_U_GRID: list[float | None] = [None, 5.0, 2.0, 1.0, 0.5, 0.2]
+RATE_TARGET_GRID_HZ: list[float | None] = [None, 25.0, 10.0, 5.0, 2.5, 1.0]
 FR_STRENGTH_UPPER = 1e-3
 
 MODELS = ["coba", "ping"]
@@ -231,38 +230,38 @@ def run_via_runpod(meta: Meta) -> None:
     )
 
 
-def theta_label(theta_u: float | None) -> str:
+def rate_target_label(rate_target_hz: float | None) -> str:
     """Filesystem-safe label for an out-dir."""
-    if theta_u is None:
+    if rate_target_hz is None:
         return "off"
-    s = f"{theta_u:g}".replace(".", "p")
+    s = f"{rate_target_hz:g}".replace(".", "p")
     return f"tu{s}"
 
 
-def theta_display(theta_u: float | None) -> str:
+def rate_target_display(rate_target_hz: float | None) -> str:
     """Human label for plots / numbers.json."""
-    if theta_u is None:
+    if rate_target_hz is None:
         return "off"
-    return f"{theta_u:g}"
+    return f"{rate_target_hz:g}"
 
 
-def theta_hz(theta_u: float | None) -> float | None:
-    if theta_u is None:
+def rate_target_hz_value(rate_target_hz: float | None) -> float | None:
+    if rate_target_hz is None:
         return None
-    return theta_u * (1000.0 / T_MS)
+    return rate_target_hz
 
 
-def seeds_for(theta_u: float | None) -> list[int]:
+def seeds_for(rate_target_hz: float | None) -> list[int]:
     """Baseline cells run all seeds; sweep cells stay single-seed."""
-    return list(SEEDS_BASELINE) if theta_u is None else [SEED_SWEEP]
+    return list(SEEDS_BASELINE) if rate_target_hz is None else [SEED_SWEEP]
 
 
-def cell_dir(model: str, theta_u: float | None, seed: int) -> Path:
+def cell_dir(model: str, rate_target_hz: float | None, seed: int) -> Path:
     """Trained cell — now the shared exp022 cell (train-once / reuse-many).
-    exp022 owns the θ_u sweep; this notebook only consumes it."""
+    exp022 owns the rate target sweep; this notebook only consumes it."""
     if RUN_PATHS.isolated and not os.environ.get("PINGLAB_TRAINING_ROOT"):
         raise RuntimeError("isolated exp037 requires explicit PINGLAB_TRAINING_ROOT")
-    return shared_cell_dir(cell_name(model, theta_u, seed))
+    return shared_cell_dir(cell_name(model, rate_target_hz, seed))
 
 
 def _log_event(event: str, **fields: object) -> None:
@@ -629,7 +628,7 @@ def main() -> None:
 
     t_start = time.monotonic()
     notebook_run_id = next_run_id(SLUG)
-    n_cells = len(MODELS) * len(THETA_U_GRID)
+    n_cells = len(MODELS) * len(RATE_TARGET_GRID_HZ)
     print(
         f"notebook_run_id = {notebook_run_id} cells={n_cells}"
         + ("  [skip-training]" if skip_training else "")
@@ -648,9 +647,9 @@ def main() -> None:
 
     rows: list[dict] = []
     for model in MODELS:
-        for theta_u in THETA_U_GRID:
-            for seed in seeds_for(theta_u):
-                run_dir = cell_dir(model, theta_u, seed)
+        for rate_target_hz in RATE_TARGET_GRID_HZ:
+            for seed in seeds_for(rate_target_hz):
+                run_dir = cell_dir(model, rate_target_hz, seed)
                 if not (run_dir / "metrics.json").exists():
                     raise SystemExit(f"missing metrics: {run_dir / 'metrics.json'}")
                 metrics = load_metrics(run_dir)
@@ -658,9 +657,8 @@ def main() -> None:
                 rows.append(
                     {
                         "model": model,
-                        "theta_u": theta_u,
-                        "theta_display": theta_display(theta_u),
-                        "theta_u_hz": theta_hz(theta_u),
+                        "rate_target_display": rate_target_display(rate_target_hz),
+                        "rate_target_hz": rate_target_hz,
                         "seed": seed,
                         "best_acc": float(metrics["best_acc"]),
                         "best_epoch": int(metrics["best_epoch"]),
@@ -672,9 +670,9 @@ def main() -> None:
     print("  results:")
     for r in rows:
         theta_str = (
-            f"θ_u={r['theta_display']:>4} ({r['theta_u_hz']:>4.1f} Hz)"
-            if r["theta_u"] is not None
-            else "θ_u= off"
+            f"rate target={r['rate_target_display']:>4} ({r['rate_target_hz']:>4.1f} Hz)"
+            if r["rate_target_hz"] is not None
+            else "rate target= off"
         )
         print(
             f"    {r['model']:<5}  {theta_str}  "
@@ -710,7 +708,7 @@ def main() -> None:
     # baseline) than to COBA, so both perturbation panels read in %.
     base_e = {}
     for model in MODELS:
-        rs = [r["rate_e"] for r in rows if r["model"] == model and r["theta_u"] is None]
+        rs = [r["rate_e"] for r in rows if r["model"] == model and r["rate_target_hz"] is None]
         base_e[model] = sum(rs) / len(rs) if rs else 0.0
     add_pct_rows = [
         {"model": r["model"], "pct": r["level"] / base_e[r["model"]], "acc": r["acc"]}
@@ -779,9 +777,8 @@ def main() -> None:
         "config": {
             "dataset": "mnist",
             "models": MODELS,
-            "theta_u_grid_spikes": [t for t in THETA_U_GRID if t is not None],
-            "theta_u_grid_hz": [
-                theta_hz(t) for t in THETA_U_GRID if t is not None
+            "rate_target_grid_hz": [
+                rate_target_hz_value(t) for t in RATE_TARGET_GRID_HZ if t is not None
             ],
             "max_samples": MAX_SAMPLES,
             "evaluation_pool_samples": EVAL_CORPUS_SAMPLES,

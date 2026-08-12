@@ -277,6 +277,7 @@ def infer(
         net.recording = True
     per_cell_e = None  # running (N_E,) spike-count sum across the test set
     per_cell_i = None  # running (N_I,) spike-count sum across the test set
+    per_sample_e_rates: list = []  # one hidden-E population-mean rate per trial
     pop_e_rows: list = []  # per-trial (T,) mean-over-E-cells activity
     pop_i_rows: list = []  # per-trial (T,) mean-over-I-cells activity
     # rasters: flat COO lists (trial index, timestep, cell index) for E, I,
@@ -311,6 +312,17 @@ def infer(
         cnt = r.sum(dim=(0, 1)) if r.ndim == 3 else r.sum(dim=0)
         cnt = cnt.detach().cpu().numpy()
         return cnt if acc is None else acc + cnt
+
+    def _accum_per_sample_rates(rec, key, rows):
+        """Append population-mean firing rates (Hz), one value per trial."""
+        r = rec.get(key) if key else None
+        if r is None:
+            return
+        if r.ndim == 3:  # (T, B, N) -> (B,)
+            counts = r.sum(dim=0).mean(dim=1)
+        else:  # (T, N) -> scalar batch of one
+            counts = r.sum(dim=0).mean().unsqueeze(0)
+        rows.extend((counts / (float(M.T_ms) / 1000.0)).detach().cpu().tolist())
 
     def _pop_rows(rec, key, rows):
         """Append per-trial population activity: mean over cells at each timestep."""
@@ -386,6 +398,7 @@ def infer(
                 if emit_per_cell_rates:
                     per_cell_e = _accum_per_cell(rec, hk, per_cell_e)
                     per_cell_i = _accum_per_cell(rec, ik, per_cell_i)
+                    _accum_per_sample_rates(rec, hk, per_sample_e_rates)
                 if emit_pop_traces:
                     _pop_rows(rec, hk, pop_e_rows)
                     _pop_rows(rec, ik, pop_i_rows)
@@ -451,6 +464,10 @@ def infer(
             dump["rate_e_per_cell"] = (per_cell_e / denom).astype(np.float32)
         if per_cell_i is not None:
             dump["rate_i_per_cell"] = (per_cell_i / denom).astype(np.float32)
+        if per_sample_e_rates:
+            dump["rate_e_per_sample"] = np.asarray(
+                per_sample_e_rates, dtype=np.float32
+            )
         out_npz = out_dir_path / "per_cell_rates.npz"
         np.savez(out_npz, **dump)
         log.info(f"  → {out_npz}  ({len(dump)} arrays)")

@@ -58,7 +58,7 @@
   for "architectural response to drive".)
 
   *Inference-time probe.* The trained COBA baselines (seeds 42–44,
-  $theta_u =$ off) are
+  activity regulariser off) are
   loaded and _ei_strength_ (the I-loop gain) is overridden at eval time across 11
   values from 0 to 1. Each seed uses the same grid and held-out sample count.
   $W_"in"$ and $W_"out"$ load from its COBA checkpoint;

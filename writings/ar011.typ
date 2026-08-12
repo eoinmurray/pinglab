@@ -107,7 +107,7 @@
     [_--batch-size INT_], [64], [DataLoader batch size.],
     [_--max-samples INT_], [all], [Cap dataset to N samples for smoke tests.],
     [_--v-grad-dampen FLOAT_], [80.0], [Dampening factor _d_ on the COBA membrane-voltage gradient. PING needs a much larger value (_d = 1000_ in the paper) to stabilise BPTT through the E↔I loop; COBA trains at the default. Theory in #link("/ar006/")[ar006].],
-    [_--fr-reg-upper-theta FLOAT_], [0 (off)], [Upper-bound target spike count per neuron per trial (θ_u). Adds _s_u · Σ relu(⟨z_i⟩ − θ_u)²_ to the loss. Cramer et al. SHD RSNN: 100.],
+    [_--fr-reg-upper-target-hz FLOAT_], [0], [Population-mean hidden-E firing-rate ceiling per presentation, in Hz. The one-sided squared overshoot is averaged over presentations and hidden layers; active only when the strength is positive.],
     [_--fr-reg-upper-strength FLOAT_], [0], [Coefficient s_u on the upper regulariser. Cramer et al.: 0.06.],
     [_--tau-gaba FLOAT_], [9.0 ms], [Override τ_GABA. Default = _models.py_'s value (Börgers / Buzsáki-Wang range). #link("/exp041/")[exp041] sweeps this across {4.5 … 27} ms while training PING from scratch; the realised gamma frequency f_γ tracks 1/τ_GABA.],
   )

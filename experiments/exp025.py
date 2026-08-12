@@ -3,11 +3,10 @@
 Standalone runner with no cross-notebook helpers. Inlines everything
 it needs (constants, baseline training, plot fns, sweeps).
 
-For each rung of the biophysical ladder (coba, ping), trains the
-canonical recipe at six values of the upper-bound spike budget θ_u:
-off (no penalty) plus θ_u ∈ {5, 2, 1, 0.5, 0.2} spikes/trial =
-{25, 10, 5, 2.5, 1} Hz. Same recipe in every other respect — only the
-regulariser flag changes — so each (model, θ_u) cell is one point on
+For each rung of the biophysical ladder (coba, ping), reads the shared exp022
+cells at six hidden-E population-rate ceilings: off (no penalty) plus
+{25, 10, 5, 2.5, 1} Hz. The recipe is otherwise fixed, so each
+regulariser flag changes — so each (model, rate target) cell is one point on
 that model's accuracy / rate Pareto frontier. The unpenalised "off"
 cell of each model feeds the foundation figures (acc-vs-rate bar,
 learning curves, post-training rasters).
@@ -17,7 +16,7 @@ Then runs:
   initialised across the recruitment cliff) showing all four converge
   to PING; and
 - the inference-time W_in scale sweep on the heaviest-budget cells
-  (ping@θ_u=0.2, coba@θ_u=0.2) projecting the cliff into the loss
+  (PING and COBA at the 1 Hz target) projecting the cliff into the loss
   landscape.
 
 All figures land in /figures/notebooks/exp025/ and the success-criteria
@@ -92,12 +91,12 @@ EI_RASTER_SAMPLE_IDX: int = 0
 EI_RASTER_N_E_PLOT: int = 200
 EI_RASTER_N_I_PLOT: int = 64
 
-# θ_u sweep grid in spikes-per-trial. None = no penalty (baseline).
-# At T = 200 ms, spikes/trial × 5 = Hz. The grid spans from no
+# Hidden-E population-rate ceiling in Hz. None = no penalty (baseline).
+# The grid spans from no
 # pressure (off → ~80 Hz coba baseline) down to 1 Hz —
 # below ping's natural 5 Hz and into the regime where every model
 # loses accuracy.
-THETA_U_GRID: list[float | None] = [None, 5.0, 2.0, 1.0, 0.5, 0.2]
+RATE_TARGET_GRID_HZ: list[float | None] = [None, 25.0, 10.0, 5.0, 2.5, 1.0]
 FR_STRENGTH_UPPER = 1e-3
 
 MODELS = ["coba", "ping"]
@@ -112,8 +111,8 @@ SCALE = {
     "dt_ms": DT_TRAIN,
     "batch_size": 256,
     "seeds": len(SEEDS),
-    "cells": len(MODELS) * len(THETA_U_GRID) * len(SEEDS),
-    "grid": "θ_u ∈ {off, 5, 2, 1, 0.5, 0.2} spikes/trial; baselines 100 epochs",
+    "cells": len(MODELS) * len(RATE_TARGET_GRID_HZ) * len(SEEDS),
+    "grid": "rate target ∈ {off, 25, 10, 5, 2.5, 1} Hz",
 }
 
 LOW_W_IN_RECIPE: dict[str, str] = {
@@ -135,42 +134,40 @@ MODEL_COLORS = {
 MODEL_MARKERS = {"coba": "s", "ping": "D"}
 
 
-def theta_label(theta_u: float | None) -> str:
+def rate_target_label(rate_target_hz: float | None) -> str:
     """Filesystem-safe label for an out-dir."""
-    if theta_u is None:
+    if rate_target_hz is None:
         return "off"
-    s = f"{theta_u:g}".replace(".", "p")
-    return f"tu{s}"
+    s = f"{rate_target_hz:g}".replace(".", "p")
+    return f"rt{s}hz"
 
 
-def theta_display(theta_u: float | None) -> str:
+def rate_target_display(rate_target_hz: float | None) -> str:
     """Human label for plots / numbers.json."""
-    if theta_u is None:
+    if rate_target_hz is None:
         return "off"
-    return f"{theta_u:g}"
+    return f"{rate_target_hz:g}"
 
 
-def theta_hz(theta_u: float | None) -> float | None:
-    if theta_u is None:
-        return None
-    return theta_u * (1000.0 / T_MS)
+def rate_target_hz_value(rate_target_hz: float | None) -> float | None:
+    return rate_target_hz
 
 
-def seeds_for(theta_u: float | None) -> list[int]:
+def seeds_for(rate_target_hz: float | None) -> list[int]:
     """Return the independent seeds contributing to every frontier point."""
     return list(SEEDS)
 
 
-def cell_dir(model: str, theta_u: float | None, seed: int) -> Path:
+def cell_dir(model: str, rate_target_hz: float | None, seed: int) -> Path:
     """Per-cell artifact directory.
 
     All cells are seed-suffixed by the shared exp022 registry.
     """
-    # θ_u cell — now the shared exp022 cell (train-once / reuse-many). exp022
-    # owns the θ_u sweep; exp025 keeps only its low_w_in cells locally.
+    # rate target cell — now the shared exp022 cell (train-once / reuse-many). exp022
+    # owns the rate target sweep; exp025 keeps only its low_w_in cells locally.
     if RUN_PATHS.isolated and not os.environ.get("PINGLAB_TRAINING_ROOT"):
         raise RuntimeError("isolated exp025 requires explicit PINGLAB_TRAINING_ROOT")
-    return shared_cell_dir(cell_name(model, theta_u, seed))
+    return shared_cell_dir(cell_name(model, rate_target_hz, seed))
 
 
 def baseline_dir(model: str, seed: int = SEEDS[0]) -> Path:
@@ -187,10 +184,10 @@ def load_config(run_dir: Path) -> dict:
 
 def _baseline_seed_stats(rows: list[dict], model: str) -> tuple[float, float, float, float, int]:
     """Mean/SEM of final-epoch accuracy and rate_e across all seeds for
-    one model's θ_u = off cells. Returns (acc_mean, acc_sem, rate_mean,
+    one model's rate target = off cells. Returns (acc_mean, acc_sem, rate_mean,
     rate_sem, n_seeds). With n=1, SEM is reported as 0 (no error bar)."""
     baseline_rows = [
-        r for r in rows if r["model"] == model and r["theta_u"] is None
+        r for r in rows if r["model"] == model and r["rate_target_hz"] is None
     ]
     accs = np.array([r["final_acc"] for r in baseline_rows], dtype=float)
     rates = np.array([r["rate_e"] for r in baseline_rows], dtype=float)
@@ -201,7 +198,7 @@ def _baseline_seed_stats(rows: list[dict], model: str) -> tuple[float, float, fl
 
 
 def _draw_acc_rate_bars(ax_acc, rows, *, compact: bool = False):
-    """Draw the twin-y accuracy/rate bars (θ_u = off) into ax_acc and return the
+    """Draw the twin-y accuracy/rate bars (rate target = off) into ax_acc and return the
     twin rate axis. Shared by the standalone Figure 2 and the results compound so
     they look identical: coba grey / ping red, accuracy solid + rate hatched."""
     ax_rate = ax_acc.twinx()
@@ -253,20 +250,20 @@ def _draw_acc_rate_bars(ax_acc, rows, *, compact: bool = False):
     if compact:
         ax_acc.set_ylabel("test acc (%)")
         ax_rate.set_ylabel("E rate (Hz)")
-        ax_acc.set_title("Accuracy vs rate (θ_u = off)", loc="left", fontsize=theme.SIZE_LABEL)
+        ax_acc.set_title("Accuracy vs rate (rate target = off)", loc="left", fontsize=theme.SIZE_LABEL)
     else:
         ax_acc.set_ylabel("test accuracy (%, final epoch)")
         ax_rate.set_ylabel("hidden-E firing rate (Hz, final epoch)")
         title_suffix = (
-            f" — accuracy vs firing rate (θ_u = off, n={n_seeds} seeds, mean ± SEM)"
-            if n_seeds > 1 else " — accuracy vs firing rate (θ_u = off)"
+            f" — accuracy vs firing rate (rate target = off, n={n_seeds} seeds, mean ± SEM)"
+            if n_seeds > 1 else " — accuracy vs firing rate (rate target = off)"
         )
         ax_acc.set_title("coba / ping" + title_suffix)
     return ax_rate
 
 
 def plot_acc_rate_bars(rows: list[dict], out_path: Path, run_id: str) -> None:
-    """Twin-y bar chart on the baseline (θ_u = off) cells: per model,
+    """Twin-y bar chart on the baseline (rate target = off) cells: per model,
     side-by-side bars for accuracy (left y-axis) and mean hidden-E rate
     (right y-axis). Error bars are ±SEM across baseline seeds."""
     theme.apply()
@@ -281,7 +278,7 @@ def plot_acc_rate_bars(rows: list[dict], out_path: Path, run_id: str) -> None:
 
 def plot_learning_curves(out_path: Path, run_id: str) -> None:
     """Train loss + test accuracy per epoch, one curve per model
-    (θ_u = off). With multiple seeds, plot mean and shade ±SEM."""
+    (rate target = off). With multiple seeds, plot mean and shade ±SEM."""
     theme.apply()
     fig, (ax_loss, ax_acc) = plt.subplots(1, 2, figsize=(6.9, 3.881))
     n_seeds = len(SEEDS)
@@ -448,7 +445,7 @@ def render_baseline_rasters_combined(
 
 
 def generate_raster(model: str, out_path: Path) -> None:
-    """Replay the trained baseline (θ_u = off) network on MNIST digit 0
+    """Replay the trained baseline (rate target = off) network on MNIST digit 0
     for 400 ms and render its raster figure."""
     infer_dir = baseline_dir(model) / "infer"
     infer_dir.mkdir(parents=True, exist_ok=True)
@@ -481,10 +478,10 @@ def aggregate_frontier(rows: list[dict]) -> list[dict]:
     """Summarise each model/budget point across independent seeds."""
     aggregates: list[dict] = []
     for model in MODELS:
-        for theta_u in THETA_U_GRID:
+        for rate_target_hz in RATE_TARGET_GRID_HZ:
             cell_rows = [
                 row for row in rows
-                if row["model"] == model and row["theta_u"] == theta_u
+                if row["model"] == model and row["rate_target_hz"] == rate_target_hz
             ]
             if not cell_rows:
                 continue
@@ -493,8 +490,8 @@ def aggregate_frontier(rows: list[dict]) -> list[dict]:
             n = len(cell_rows)
             aggregates.append({
                 "model": model,
-                "theta_u": theta_u,
-                "theta_display": cell_rows[0]["theta_display"],
+                "rate_target_hz": rate_target_hz,
+                "rate_target_display": cell_rows[0]["rate_target_display"],
                 "statistic": "mean_across_independent_seeds",
                 "uncertainty": "sem_across_independent_seeds",
                 "n_seeds": n,
@@ -529,7 +526,7 @@ def plot_frontier(rows: list[dict], out_path: Path, run_id: str) -> None:
         )
         for p in agg_pts:
             ax.annotate(
-                p["theta_display"],
+                p["rate_target_display"],
                 (p["rate_mean"], p["acc_mean"]),
                 xytext=(5, 5), textcoords="offset points",
                 fontsize=theme.SIZE_ANNOTATION, color=theme.MUTED,
@@ -581,18 +578,16 @@ def _infer_cell(
 def _eval_scaled(
     train_dir: Path,
     scale_w_in: float = 1.0,
-    fr_upper_theta: float = 0.0,
+    fr_upper_target_hz: float = 0.0,
     fr_upper_strength: float = 0.0,
 ) -> tuple[float, float, float, float, float]:
     """Evaluate a trained cell with W_in scaling; return
     (acc, ce_loss, penalty, e_rate, i_rate).
 
     acc / ce_loss / rates come from metrics.json. The firing-rate-upper penalty is
-    recomputed locally from per_cell_rates.npz — the same objective the trainer
-    applies: strength * sum_neurons ReLU(mean_per_neuron_count - theta)^2, with the
-    mean spike count per neuron = rate_hz * t_sec. Zero when strength or theta is 0.
+    recomputed from the emitted per-presentation hidden-E population rates using
+    the same sample-wise mean squared overshoot as the trainer.
     """
-    cfg = json.loads((train_dir / "config.json").read_text())
     out_dir = _infer_cell(
         train_dir,
         ["--scale-w-in", str(scale_w_in), "--outputs", "per_cell_rates"],
@@ -604,11 +599,10 @@ def _eval_scaled(
     penalty = 0.0
     if fr_upper_strength > 0:
         pc = np.load(out_dir / "per_cell_rates.npz")
-        t_sec = float(cfg["t_ms"]) / 1000.0
-        mean_count = pc["rate_e_per_cell"] * t_sec
+        sample_rates = pc["rate_e_per_sample"]
         penalty = float(
             fr_upper_strength
-            * (np.maximum(mean_count - fr_upper_theta, 0.0) ** 2).sum()
+            * (np.maximum(sample_rates - fr_upper_target_hz, 0.0) ** 2).mean()
         )
     return (
         float(m["best_acc"]),
@@ -619,10 +613,10 @@ def _eval_scaled(
     )
 
 
-# ── per-cycle participation p and gamma frequency f_γ vs θ_u ────────
+# ── per-cycle participation p and gamma frequency f_γ vs rate target ────────
 #
 # Decomposes the rate floor into its two factors: rate ≈ p · f_γ. As
-# θ_u tightens, where does the optimiser act? The hypothesis is that p
+# rate target tightens, where does the optimiser act? The hypothesis is that p
 # slides toward a viability minimum while f_γ stays put (biophysics
 # fixed). When p hits the floor, accuracy collapses.
 
@@ -792,19 +786,19 @@ def _count_e_spikes_per_cycle(
     return counts
 
 
-def plot_theta_p_fgamma(
+def plot_rate_target_p_fgamma(
     rows: list[dict], out_path: Path, run_id: str,
 ) -> None:
-    """4-panel decomposition vs θ_u (Hz):
-      (top-left)  p vs θ_u (PING only) — the per-cycle participation gate
-      (top-right) f_γ vs θ_u (PING only) — biophysics, untouched by θ_u
-      (bottom-left)  E rate vs θ_u (both architectures); overlay p · f_γ
-      (bottom-right) accuracy vs θ_u (both architectures)"""
+    """4-panel decomposition vs rate target (Hz):
+      (top-left)  p vs rate target (PING only) — the per-cycle participation gate
+      (top-right) f_γ vs rate target (PING only) — biophysics, untouched by rate target
+      (bottom-left)  E rate vs rate target (both architectures); overlay p · f_γ
+      (bottom-right) accuracy vs rate target (both architectures)"""
     theme.apply()
 
     def by_model(model: str) -> list[dict]:
-        sub = [r for r in rows if r["model"] == model and r["theta_u_hz"] is not None]
-        sub.sort(key=lambda r: r["theta_u_hz"])
+        sub = [r for r in rows if r["model"] == model and r["rate_target_hz"] is not None]
+        sub.sort(key=lambda r: r["rate_target_hz"])
         return sub
 
     ping = by_model("ping")
@@ -815,12 +809,12 @@ def plot_theta_p_fgamma(
 
     if ping:
         ping_pf = [r for r in ping if r.get("p") is not None and r.get("f_gamma") is not None]
-        xs = [r["theta_u_hz"] for r in ping_pf]
+        xs = [r["rate_target_hz"] for r in ping_pf]
         ax_p.plot(xs, [r["p"] for r in ping_pf],
                   marker="o", color=theme.INK_BLACK, lw=1.5)
         ax_fg.plot(xs, [r["f_gamma"] for r in ping_pf],
                    marker="s", color=theme.DEEP_RED, lw=1.5)
-        xs_all = [r["theta_u_hz"] for r in ping]
+        xs_all = [r["rate_target_hz"] for r in ping]
         ax_r.plot(xs_all, [r["e_rate"] for r in ping],
                   marker="o", color=theme.INK_BLACK, lw=1.5, label="PING E (measured)")
         # Predicted overlay stays greyscale-safe: near-black ink is reserved for the
@@ -833,27 +827,27 @@ def plot_theta_p_fgamma(
                   marker="o", color=theme.INK_BLACK, lw=1.5, label="PING")
 
     if coba:
-        xs = [r["theta_u_hz"] for r in coba]
+        xs = [r["rate_target_hz"] for r in coba]
         ax_r.plot(xs, [r["e_rate"] for r in coba],
                   marker="s", color=theme.DEEP_RED, lw=1.5, label="COBA E")
         ax_a.plot(xs, [r["acc"] for r in coba],
                   marker="s", color=theme.DEEP_RED, lw=1.5, label="COBA")
 
     for ax in (ax_p, ax_fg, ax_r, ax_a):
-        ax.set_xlabel("θ_u (Hz)", fontsize=theme.SIZE_LABEL)
+        ax.set_xlabel("rate target (Hz)", fontsize=theme.SIZE_LABEL)
         ax.invert_xaxis()  # tightest penalty on the right read left → right
     ax_p.set_ylabel("p (per-cycle participation)", fontsize=theme.SIZE_LABEL)
-    ax_p.set_title("Participation gate vs θ_u (PING)", fontsize=theme.SIZE_TITLE)
+    ax_p.set_title("Participation gate vs rate target (PING)", fontsize=theme.SIZE_TITLE)
     ax_p.set_ylim(bottom=0)
     ax_fg.set_ylabel("f_γ (Hz)", fontsize=theme.SIZE_LABEL)
-    ax_fg.set_title("Gamma frequency vs θ_u (PING)", fontsize=theme.SIZE_TITLE)
+    ax_fg.set_title("Gamma frequency vs rate target (PING)", fontsize=theme.SIZE_TITLE)
     ax_fg.set_ylim(bottom=0)
     ax_r.set_ylabel("E firing rate (Hz)", fontsize=theme.SIZE_LABEL)
-    ax_r.set_title("E rate vs θ_u — measured vs p · f_γ", fontsize=theme.SIZE_TITLE)
+    ax_r.set_title("E rate vs rate target — measured vs p · f_γ", fontsize=theme.SIZE_TITLE)
     ax_r.set_ylim(bottom=0)
     ax_r.legend(fontsize=theme.SIZE_LABEL, frameon=False, loc="upper left")
     ax_a.set_ylabel("Test accuracy (%)", fontsize=theme.SIZE_LABEL)
-    ax_a.set_title("Accuracy vs θ_u", fontsize=theme.SIZE_TITLE)
+    ax_a.set_title("Accuracy vs rate target", fontsize=theme.SIZE_TITLE)
     ax_a.set_ylim(0, 100)
     ax_a.legend(fontsize=theme.SIZE_LABEL, frameon=False, loc="lower left")
 
@@ -864,15 +858,15 @@ def plot_theta_p_fgamma(
     plt.close(fig)
 
 
-# ── low-w_in alternate-schedule sweep (PING under heavy θ_u) ────────
+# ── low-w_in alternate-schedule sweep (PING under heavy rate target) ────────
 #
 # Tests the path-dependent-barrier claim: if the network starts with
-# W_in too small to recruit the I-loop and θ_u is on from epoch 0, can
+# W_in too small to recruit the I-loop and rate target is on from epoch 0, can
 # training land in the sub-f* COBA-like basin instead of locking into
 # PING? The w_in initializations straddle f*, with 0.9 as the shared standard.
 
 LOW_W_IN_VALUES: list[float] = [0.05, 0.1, 0.3, 0.9]
-LOW_W_IN_THETA_U: float = 0.2                   # heaviest from frontier sweep
+LOW_W_IN_RATE_TARGET_HZ: float = 1.0                   # tightest target from frontier sweep
 LOW_W_IN_SEED: int = REPRESENTATIVE_SEED
 
 
@@ -883,7 +877,7 @@ def low_w_in_cell_dir(w_in: float) -> Path:
 
 def build_low_w_in_args(w_in: float, out_dir: Path) -> list[str]:
     """Train args for the low-w_in alternate-schedule sweep:
-    PING recipe with --w-in overridden and θ_u = 0.2 on from epoch 0."""
+    PING recipe with --w-in overridden and the 1 Hz target on from epoch 0."""
     recipe = dict(LOW_W_IN_RECIPE)
     recipe["--w-in"] = f"{w_in:g}"
     args = [
@@ -904,7 +898,7 @@ def build_low_w_in_args(w_in: float, out_dir: Path) -> list[str]:
         elif v is not None:
             args += [k, v]
     args += [
-        "--fr-reg-upper-theta", str(LOW_W_IN_THETA_U),
+        "--fr-reg-upper-target-hz", str(LOW_W_IN_RATE_TARGET_HZ),
         "--fr-reg-upper-strength", str(FR_STRENGTH_UPPER),
     ]
     return args
@@ -998,18 +992,18 @@ if SMOKE:
 def run_w_in_scale_sweep(notebook_run_id: str) -> list[dict]:
     """Inference-only sweep multiplying each trained net's W_in by every value in
     W_IN_SCALE_VALUES, via the CLI, recording (cell, scale, loss, penalty, acc,
-    rate_e, rate_i). Cells: PING and COBA at θ_u = 0.2.
+    rate_e, rate_i). Cells: PING and COBA at the 1 Hz target.
 
     Each point is one `sim --infer --scale-w-in s --outputs per_cell_rates`; acc /
     ce_loss / rates come from metrics.json and the firing-rate penalty is recomputed
     locally from per_cell_rates.npz (see _eval_scaled).
     """
     cells = [
-        ("ping@tu0.2", cell_dir("ping", 0.2, REPRESENTATIVE_SEED), 0.2),
-        ("coba@tu0.2", cell_dir("coba", 0.2, REPRESENTATIVE_SEED), 0.2),
+        ("ping@rt1hz", cell_dir("ping", 1.0, REPRESENTATIVE_SEED), 1.0),
+        ("coba@rt1hz", cell_dir("coba", 1.0, REPRESENTATIVE_SEED), 1.0),
     ]
     rows: list[dict] = []
-    for label, train_dir, theta_u in cells:
+    for label, train_dir, target_hz in cells:
         if not (train_dir / "weights_final.pth").exists():
             raise SystemExit(
                 f"w_in-scale-sweep: missing weights for {label} at {train_dir}"
@@ -1018,7 +1012,7 @@ def run_w_in_scale_sweep(notebook_run_id: str) -> list[dict]:
             acc, ce_loss, penalty, e_rate, i_rate = _eval_scaled(
                 train_dir,
                 scale_w_in=float(scale),
-                fr_upper_theta=theta_u,
+                fr_upper_target_hz=target_hz,
                 fr_upper_strength=FR_STRENGTH_UPPER,
             )
             total_loss = ce_loss + penalty
@@ -1043,21 +1037,21 @@ def run_w_in_scale_sweep(notebook_run_id: str) -> list[dict]:
 
 def plot_w_in_scale_sweep(rows: list[dict], out_path: Path, run_id: str) -> None:
     """Six-panel: CE loss, penalty, total loss, accuracy, E rate, I rate
-    vs W_in scale. One curve per (model, theta_u) cell."""
+    vs W_in scale. One curve per (model, rate_target_hz) cell."""
     theme.apply()
     fig, axes_2d = plt.subplots(2, 3, figsize=(6.9, 4.6), dpi=150)
     axes = axes_2d.flatten()
     styles = {
-        "coba@tu0.2":  ("COBA ($\\theta_u = 0.2$)",
+        "coba@rt1hz":  ("COBA (1 Hz target)",
                         theme.DEEP_RED, "s", "-"),
-        "ping@tu0.2":  ("PING ($\\theta_u = 0.2$)",
+        "ping@rt1hz":  ("PING (1 Hz target)",
                         theme.INK_BLACK, "o", "-"),
     }
     # f* proxy on PING: the W_in scale where the I-population first
     # fires. Linear-interpolate between the largest s with I≈0 and the
     # smallest s with measurable I to estimate the crossing.
     ping_sorted = sorted(
-        (r for r in rows if r["cell"] == "ping@tu0.2"),
+        (r for r in rows if r["cell"] == "ping@rt1hz"),
         key=lambda r: r["scale"],
     )
     f_star_s = None
@@ -1132,9 +1126,9 @@ def plot_w_in_scale_sweep_vs_rate(
     fig, axes_2d = plt.subplots(2, 3, figsize=(6.9, 4.6), dpi=150)
     axes = axes_2d.flatten()
     styles = {
-        "coba@tu0.2":  ("COBA ($\\theta_u = 0.2$)",
+        "coba@rt1hz":  ("COBA (1 Hz target)",
                         theme.DEEP_RED, "s", "-"),
-        "ping@tu0.2":  ("PING ($\\theta_u = 0.2$)",
+        "ping@rt1hz":  ("PING (1 Hz target)",
                         theme.INK_BLACK, "o", "-"),
     }
     for ax in axes:
@@ -1292,7 +1286,7 @@ def fig_results_compound(rows, npz_coba, npz_ping, out_path, run_id):
     for m in MODELS:
         pts = [point for point in frontier_stats if point["model"] == m]
         pts.sort(key=lambda point: point["rate_mean"])
-        base_point = next((point for point in pts if point["theta_u"] is None), None)
+        base_point = next((point for point in pts if point["rate_target_hz"] is None), None)
         base = (
             (base_point["rate_mean"], base_point["acc_mean"])
             if base_point is not None else None
@@ -1350,17 +1344,17 @@ def build_results_compound(figures: Path, run_id: str) -> None:
     no training, no inference reruns."""
     rows: list[dict] = []
     for model in MODELS:
-        for theta_u in THETA_U_GRID:
-            for seed in seeds_for(theta_u):
-                run_dir = cell_dir(model, theta_u, seed)
+        for rate_target_hz in RATE_TARGET_GRID_HZ:
+            for seed in seeds_for(rate_target_hz):
+                run_dir = cell_dir(model, rate_target_hz, seed)
                 if not (run_dir / "metrics.json").exists():
                     continue
                 last = load_metrics(run_dir)["epochs"][-1]
                 rows.append({
-                    "cell_name": cell_name(model, theta_u, seed),
+                    "cell_name": cell_name(model, rate_target_hz, seed),
                     "model": model,
-                    "theta_u": theta_u,
-                    "theta_display": theta_display(theta_u),
+                    "rate_target_hz": rate_target_hz,
+                    "rate_target_display": rate_target_display(rate_target_hz),
                     "seed": seed,
                     "final_acc": float(last["acc"]),
                     "rate_e": float(last.get("rate_e") or 0.0),
@@ -1396,7 +1390,7 @@ def main() -> None:
 
     t_start = time.monotonic()
     run_id = next_run_id(SLUG)
-    n_cells = len(MODELS) * len(THETA_U_GRID) * len(SEEDS)
+    n_cells = len(MODELS) * len(RATE_TARGET_GRID_HZ) * len(SEEDS)
     print(
         f"notebook_run_id = {run_id} cells={n_cells}"
         + ("  [skip-training]" if meta.skip_training else "")
@@ -1413,7 +1407,7 @@ def main() -> None:
 
 def _run(meta, run_id: str, figures: Path, t_start: float) -> None:
     if not meta.skip_training:
-        # θ_u sweep training moved to exp022 (train-once / reuse-many); exp025
+        # rate target sweep training moved to exp022 (train-once / reuse-many); exp025
         # reads those cells via cell_dir and trains only its low_w_in sweep.
         for w_in in LOW_W_IN_VALUES:
             out = low_w_in_cell_dir(w_in)
@@ -1428,20 +1422,19 @@ def _run(meta, run_id: str, figures: Path, t_start: float) -> None:
 
     rows: list[dict] = []
     for model in MODELS:
-        for theta_u in THETA_U_GRID:
-            for seed in seeds_for(theta_u):
-                run_dir = cell_dir(model, theta_u, seed)
+        for rate_target_hz in RATE_TARGET_GRID_HZ:
+            for seed in seeds_for(rate_target_hz):
+                run_dir = cell_dir(model, rate_target_hz, seed)
                 if not (run_dir / "metrics.json").exists():
                     raise SystemExit(f"missing metrics: {run_dir / 'metrics.json'}")
                 metrics = load_metrics(run_dir)
                 last = metrics["epochs"][-1]
                 rows.append(
                     {
-                        "cell_name": cell_name(model, theta_u, seed),
+                        "cell_name": cell_name(model, rate_target_hz, seed),
                         "model": model,
-                        "theta_u": theta_u,
-                        "theta_display": theta_display(theta_u),
-                        "theta_u_hz": theta_hz(theta_u),
+                        "rate_target_display": rate_target_display(rate_target_hz),
+                        "rate_target_hz": rate_target_hz,
                         "seed": seed,
                         "best_acc": float(metrics["best_acc"]),
                         "best_epoch": int(metrics["best_epoch"]),
@@ -1453,9 +1446,9 @@ def _run(meta, run_id: str, figures: Path, t_start: float) -> None:
     print("  results:")
     for r in rows:
         theta_str = (
-            f"θ_u={r['theta_display']:>4} ({r['theta_u_hz']:>4.1f} Hz)"
-            if r["theta_u"] is not None
-            else "θ_u= off"
+            f"rate target={r['rate_target_display']:>4} ({r['rate_target_hz']:>4.1f} Hz)"
+            if r["rate_target_hz"] is not None
+            else "rate target= off"
         )
         print(
             f"    {r['model']:<5}  {theta_str}  "
@@ -1463,30 +1456,29 @@ def _run(meta, run_id: str, figures: Path, t_start: float) -> None:
             f"rate_e={r['rate_e']:6.1f} Hz"
         )
 
-    # θ_u vs (p, f_γ) decomposition — mechanism behind the frontier floor.
-    print("[theta-pfg] measuring p and f_γ per (model, θ_u) cell")
+    # rate target vs (p, f_γ) decomposition — mechanism behind the frontier floor.
+    print("[rate-target-pfg] measuring p and f_γ per (model, rate target) cell")
     pfg_rows: list[dict] = []
     for model in MODELS:
         is_ping = (model == "ping")
-        for theta_u in THETA_U_GRID:
+        for rate_target_hz in RATE_TARGET_GRID_HZ:
             seed = REPRESENTATIVE_SEED
-            train_dir = cell_dir(model, theta_u, seed)
+            train_dir = cell_dir(model, rate_target_hz, seed)
             if not (train_dir / "weights_final.pth").exists():
-                print(f"  skip {model} θ_u={theta_label(theta_u)} (no weights)")
+                print(f"  skip {model} rate target={rate_target_label(rate_target_hz)} (no weights)")
                 continue
             m = measure_p_fgamma(train_dir, is_ping=is_ping)
             row = {
                 "model": model,
-                "theta_u": theta_u,
-                "theta_u_hz": theta_hz(theta_u),
+                "rate_target_hz": rate_target_hz,
                 "seed": seed,
                 "selection": "representative_seed",
                 **m,
             }
             pfg_rows.append(row)
             theta_str = (
-                f"θ_u={theta_display(theta_u):>4} ({theta_hz(theta_u):>4.1f} Hz)"
-                if theta_u is not None else "θ_u= off"
+                f"rate target={rate_target_display(rate_target_hz):>4} ({rate_target_hz_value(rate_target_hz):>4.1f} Hz)"
+                if rate_target_hz is not None else "rate target= off"
             )
             # f_γ and p are None for COBA (no loop → no gamma cycles to bin).
             fg = f"{m['f_gamma']:5.2f}" if m["f_gamma"] is not None else "   --"
@@ -1496,7 +1488,7 @@ def _run(meta, run_id: str, figures: Path, t_start: float) -> None:
                 f"acc={m['acc']:5.2f}%  E={m['e_rate']:5.2f} Hz  "
                 f"f_γ={fg} Hz  p={pp}"
             )
-    plot_theta_p_fgamma(
+    plot_rate_target_p_fgamma(
         pfg_rows, figures / "theta_p_fgamma", run_id,
     )
     print(f"wrote {figures / 'theta_p_fgamma'}.{{svg,pdf}}")
@@ -1564,15 +1556,14 @@ def _run(meta, run_id: str, figures: Path, t_start: float) -> None:
             "git_sha_train": train_cfg.get("git_sha"),
             "checkpoint_provenance": checkpoint_provenance(
                 [cell_dir(model, theta, seed) for model in MODELS
-                 for theta in THETA_U_GRID for seed in SEEDS],
+                 for theta in RATE_TARGET_GRID_HZ for seed in SEEDS],
                 CHECKPOINT_ROLE,
             ),
             "config": {
                 "dataset": "mnist",
                 "models": MODELS,
-                "theta_u_grid_spikes": [t for t in THETA_U_GRID if t is not None],
-                "theta_u_grid_hz": [
-                    theta_hz(t) for t in THETA_U_GRID if t is not None
+                "rate_target_grid_hz": [
+                    rate_target_hz_value(t) for t in RATE_TARGET_GRID_HZ if t is not None
                 ],
                 "max_samples": MAX_SAMPLES,
                 "epochs": EPOCHS,
@@ -1584,7 +1575,7 @@ def _run(meta, run_id: str, figures: Path, t_start: float) -> None:
             },
             "results": rows,
             "frontier_statistics": frontier_statistics,
-            "theta_p_fgamma": pfg_rows,
+            "rate_target_p_fgamma": pfg_rows,
             "low_w_in_sweep": low_w_in_rows,
             "w_in_scale_sweep": w_in_scale_rows,
         },

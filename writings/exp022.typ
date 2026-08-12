@@ -53,14 +53,14 @@
   + #link("#summary")[Summary]
   + #link("#training-run-guide")[Training-run guide]
     + #link("#tr-01-canonical-full-data-reference")[TR-01 — Canonical full-data reference]
-    + #link("#tr-02-spike-budget-sweep")[TR-02 — Spike-budget sweep]
+    + #link("#tr-02-activity-ceiling-sweep")[TR-02 — Activity-ceiling sweep]
     + #link("#tr-03-inhibitory-timescale-sweep")[TR-03 — Inhibitory-timescale sweep]
     + #link("#tr-04-integration-timestep-sweep")[TR-04 — Integration-timestep sweep]
     + #link("#tr-05-recurrent-initialization-sweep")[TR-05 — Recurrent-initialization sweep]
     + #link("#tr-06-variable-rate-streaming-bank")[TR-06 — Variable-rate streaming bank]
   + #link("#results-by-training-run")[Results by training run]
     + #link("#tr-01-results-canonical-full-data-reference")[TR-01 — Canonical full-data reference]
-    + #link("#tr-02-results-spike-budget-sweep")[TR-02 — Spike-budget sweep]
+    + #link("#tr-02-results-activity-ceiling-sweep")[TR-02 — Activity-ceiling sweep]
     + #link("#tr-03-results-inhibitory-timescale-sweep")[TR-03 — Inhibitory-timescale sweep]
     + #link("#tr-04-results-integration-timestep-sweep")[TR-04 — Integration-timestep sweep]
     + #link("#tr-05-results-recurrent-initialization-sweep")[TR-05 — Recurrent-initialization sweep]
@@ -129,16 +129,16 @@
 
   #divider()
 
-  === TR-02 — Spike-budget sweep
+  === TR-02 — Activity-ceiling sweep
 
-  This run measures the trade-off between accuracy and firing rate as the spike budget is tightened. It uses a smaller training pool to keep the multi-seed sweep manageable; only the spike cap and its penalty change across conditions. Its absolute rates should therefore not be compared directly with the full-data cells. The resulting checkpoints are used by #run-links(("exp024", "exp025", "exp037", "exp038")).
+  This run measures the trade-off between accuracy and firing rate as the activity ceiling is tightened. For each presentation, the loss computes the population-mean hidden-E firing rate, applies a one-sided quadratic penalty above the target, then averages the penalties across the minibatch. Quiet presentations therefore cannot offset active presentations. Expressing the target in hertz and normalising over samples, neurons, duration, and hidden layers makes the intervention comparable across those dimensions. A smaller training pool keeps the multi-seed sweep manageable; only the activity target changes across conditions. Its absolute rates should therefore not be compared directly with the full-data cells. The resulting checkpoints are used by #run-links(("exp024", "exp025", "exp037", "exp038")).
 
   #table(
     columns: (1.2fr, 1.5fr, 2fr),
     table.header([*Key parameter*], [*Value*], [*Why it differs*]),
     [Architectures], [COBA and PING], [Direct architecture comparison],
     [Training pool], [7,000 official training samples], [6,300 optimizer-training and 700 validation samples],
-    [Spike budget $theta_u$], [off, 5, 2, 1, 0.5, 0.2 spikes/neuron/trial], [Spans unconstrained through severe sparsity],
+    [Hidden-E rate target $r_"max"$], [off, 25, 10, 5, 2.5, 1 Hz], [Spans unconstrained through severe sparsity],
     [Penalty strength], [$10^(-3)$ when enabled], [Applies the upper-rate regularizer],
     [Cells], [2 × 6 settings × 3 seeds = 36], [Error bars at every frontier point],
     [Readout shape], [$1024 arrow 10$ spiking LIF outputs], [`mem-mean`: mean membrane voltage supplies the logits],
@@ -236,7 +236,7 @@
 
   #divider()
 
-  === TR-02 results — Spike-budget sweep
+  === TR-02 results — Activity-ceiling sweep
 
   *Run status:* complete · 36/36 cells represented
 

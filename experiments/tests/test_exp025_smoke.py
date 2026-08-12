@@ -9,17 +9,17 @@ from experiments import exp025
 def _frontier_rows() -> list[dict]:
     return [
         {
-            "cell_name": exp025.cell_name(model, theta_u, seed),
+            "cell_name": exp025.cell_name(model, rate_target_hz, seed),
             "model": model,
-            "theta_u": theta_u,
-            "theta_display": exp025.theta_display(theta_u),
+            "rate_target_hz": rate_target_hz,
+            "rate_target_display": exp025.rate_target_display(rate_target_hz),
             "seed": seed,
             "final_acc": 80.0 + seed / 100.0,
             "rate_e": 10.0 + seed / 100.0,
         }
         for model in exp025.MODELS
-        for theta_u in exp025.THETA_U_GRID
-        for seed in exp025.seeds_for(theta_u)
+        for rate_target_hz in exp025.RATE_TARGET_GRID_HZ
+        for seed in exp025.seeds_for(rate_target_hz)
     ]
 
 

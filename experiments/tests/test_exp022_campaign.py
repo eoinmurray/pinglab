@@ -20,6 +20,23 @@ def test_registry_has_90_unique_cells_partitioned_once() -> None:
     assert sorted(tiered) == sorted(names)
 
 
+def test_tr02_registry_uses_explicit_hz_targets() -> None:
+    cells = [
+        cell for cell in exp022.CANONICAL_CELLS
+        if cell["training_run_id"] == "TR-02"
+    ]
+    assert {cell["rate_target_hz"] for cell in cells} == {
+        None, 25.0, 10.0, 5.0, 2.5, 1.0,
+    }
+    for cell in cells:
+        args = cell["extra"]
+        if cell["rate_target_hz"] is None:
+            assert "--fr-reg-upper-target-hz" not in args
+        else:
+            assert "--fr-reg-upper-target-hz" in args
+            assert "--fr-reg-upper-strength" in args
+
+
 def test_campaign_python_identity_stays_inside_environment(monkeypatch, tmp_path: Path) -> None:
     bin_dir = tmp_path / "venv" / "bin"
     bin_dir.mkdir(parents=True)

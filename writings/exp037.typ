@@ -13,13 +13,14 @@
 #let eval_n = cfg.at("evaluation_samples_per_seed", default: (14000,)).first()
 #let eval_pool = cfg.at("evaluation_pool_samples", default: 10000)
 #let mean(a) = a.sum() / a.len()
+#let rate-target(r) = if r.keys().contains("rate_target_hz") { r.rate_target_hz } else { r.theta_u }
 
 // Trained-baseline hidden E rates + accuracy (θ_u off, averaged over seeds).
 #let base = run.baseline_results
-#let coba_base_rate = calc.round(mean(base.filter(r => r.model == "coba" and r.theta_u == none).map(r => r.rate_e)))
-#let ping_base_rate = calc.round(mean(base.filter(r => r.model == "ping" and r.theta_u == none).map(r => r.rate_e)))
-#let coba_base_acc = calc.round(mean(base.filter(r => r.model == "coba" and r.theta_u == none).map(r => r.final_acc)))
-#let ping_base_acc = calc.round(mean(base.filter(r => r.model == "ping" and r.theta_u == none).map(r => r.final_acc)))
+#let coba_base_rate = calc.round(mean(base.filter(r => r.model == "coba" and rate-target(r) == none).map(r => r.rate_e)))
+#let ping_base_rate = calc.round(mean(base.filter(r => r.model == "ping" and rate-target(r) == none).map(r => r.rate_e)))
+#let coba_base_acc = calc.round(mean(base.filter(r => r.model == "coba" and rate-target(r) == none).map(r => r.final_acc)))
+#let ping_base_acc = calc.round(mean(base.filter(r => r.model == "ping" and rate-target(r) == none).map(r => r.final_acc)))
 #let rate_ratio = calc.round(coba_base_rate / ping_base_rate)
 
 // Perturbation sweep points (drop = fraction of emitted spikes; add = Hz/neuron).
@@ -32,8 +33,8 @@
 // PING add "knee": the lowest added rate at which test accuracy first drops below 80%.
 #let ping_add_knee = calc.round(pert.filter(r => r.model == "ping" and r.mode == "add" and r.acc < 80).sorted(key: r => r.level).first().level)
 // The add panel reads as a percentage of each model's own baseline E rate.
-#let ping_base_exact = mean(base.filter(r => r.model == "ping" and r.theta_u == none).map(r => r.rate_e))
-#let coba_base_exact = mean(base.filter(r => r.model == "coba" and r.theta_u == none).map(r => r.rate_e))
+#let ping_base_exact = mean(base.filter(r => r.model == "ping" and rate-target(r) == none).map(r => r.rate_e))
+#let coba_base_exact = mean(base.filter(r => r.model == "coba" and rate-target(r) == none).map(r => r.rate_e))
 #let ping_add_knee_pct = calc.round(ping_add_knee / ping_base_exact * 100)
 #let coba_add_max_pct = calc.round(add_max / coba_base_exact * 100)
 
