@@ -4,7 +4,7 @@ book-title: pinglab — the book
 contents-title: pinglab — contents
 annotations: hypothesis
 
-collection-order: [gamma-gated-sparsity, spiking-heidelberg-digits, documentation, literature, miscellaneous, weekly-feed, ephemeral]
+collection-order: [gamma-gated-sparsity, spiking-heidelberg-digits, documentation, literature, miscellaneous, weekly-feed]
 collections:
   gamma-gated-sparsity:
     label: Gamma-gated sparsity
@@ -15,9 +15,6 @@ collections:
   documentation:
     label: Documentation
     description: Model derivations, conventions, and how the toolkit works.
-  ephemeral:
-    label: Ephemeral
-    description: Operational notes for temporary compute, remote machines, schedulers, and cloud capacity.
   miscellaneous:
     label: Miscellaneous
     description: Odds and ends.

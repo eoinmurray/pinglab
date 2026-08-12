@@ -2,7 +2,7 @@
   title: "Compute options",
   date: "2026-08-11",
   description: "A practical inventory of pinglab compute: when each machine or provider is appropriate, how access works, and the commands used to launch and monitor work.",
-  collection: "ephemeral",
+  collection: "documentation",
   status: "final",
 )
 
@@ -185,24 +185,7 @@
 
   Modal is not a drop-in flag for every experiment. If a runner does not expose `--modal`, adding a backend is implementation work rather than a command-line choice.
 
-  == 8. C3 Cloud
-
-  *When to use.* Consider C3 Cloud when UK-hosted commercial GPU capacity or institutional procurement matters, or when RunPod and Modal are unsuitable. Treat it as a fallback until pinglab has a tested deployment path.
-
-  *Provider overview.* C3 Cloud offers on-demand NVIDIA GPU machines, including A100, H100, and L40-class hardware. Provisioning is VM-oriented and can include a cold-start delay. Pinglab currently has no C3 dispatcher, network-volume contract, automated teardown, or capacity smoke test.
-
-  *How to use.* Authenticate through the C3 dashboard, provision a machine with an SSH public key, record the assigned hostname, and connect using the corresponding private key. Do not upload or share the private key. The exact command is supplied by the provisioned instance:
-
-  ```sh
-  ssh -i ~/.ssh/<c3-key> <user>@<assigned-host>
-
-  # On the instance, verify the accelerator before installing or launching work.
-  nvidia-smi
-  ```
-
-  Before a real experiment, C3 still needs a documented image or bootstrap procedure, artifact collection, a spending ceiling, and verified teardown. Until those exist, it is available infrastructure rather than an operational pinglab backend.
-
   == Decision order
 
-  Use the smallest adequate option. Develop locally; orchestrate from Hetzner; use an idle Olorin GPU for opportunistic free work; submit planned production to Wilkes3 SL2; use RunPod for urgent overflow; choose Modal when managed reliability is worth the premium; leave SL3 for work that can wait; and treat C3 as an integration candidate.
+  Use the smallest adequate option. Develop locally; orchestrate from Hetzner; use an idle Olorin GPU for opportunistic free work; submit planned production to Wilkes3 SL2; use RunPod for urgent overflow; choose Modal when managed reliability is worth the premium; and leave SL3 for work that can wait.
 ]
