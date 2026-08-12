@@ -340,6 +340,27 @@ def test_slurm_dry_run_preserves_collection_dependencies(
     assert not (root / "submissions").exists()
 
 
+def test_slurm_accepts_smoke_profile(tmp_path: Path, monkeypatch) -> None:
+    root = tmp_path / "campaign"
+    root.mkdir()
+    plan = build_plan(root, "slurm-smoke")
+    plan["profile"] = "smoke"
+    plan["source"] = {"git_clean": True}
+    plan["exp022_manifest"] = str(root / "exp022" / "campaign.json")
+    Path(plan["exp022_manifest"]).parent.mkdir()
+    execution.write_json_atomic(
+        Path(plan["exp022_manifest"]), {"manifest_sha256": "c" * 64}
+    )
+    resources_path = tmp_path / "resources.json"
+    execution.write_json_atomic(resources_path, _slurm_resources(tmp_path))
+    monkeypatch.setattr(slurm, "load_plan", lambda _root: plan)
+    monkeypatch.setattr(slurm, "_exp022_cells", lambda *_args: ["cell-a"])
+
+    payload = slurm.submit_campaign(root, resources_path)
+    assert payload["mode"] == "dry-run"
+    assert len(payload["jobs"]) == 23
+
+
 def test_slurm_test_only_calls_sbatch_without_submitting(monkeypatch) -> None:
     seen = []
 
