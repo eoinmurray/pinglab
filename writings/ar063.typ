@@ -1,5 +1,5 @@
 #let meta = (
-  title: "A Python graph language for the SNN tool",
+  title: "Snnlang",
   date: "2026-07-30",
   description: "A staged proposal for a Python network-construction library that emits validated graph and training descriptions for tools/snn, while experiment runners retain protocols, analysis, figures, and publication.",
   collection: "documentation",

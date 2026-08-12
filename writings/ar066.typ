@@ -2,7 +2,7 @@
   title: "Cloudflare R2 archive",
   date: "2026-08-11",
   description: "How to access pinglab's Cloudflare R2 bucket and archive or restore provenance-keyed experiment scratch.",
-  collection: "ephemeral",
+  collection: "documentation",
   status: "final",
 )
 
