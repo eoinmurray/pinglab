@@ -62,6 +62,10 @@ def test_all_resolved_commands_keep_family_contract(tmp_path: Path) -> None:
         assert args[args.index("--seed") + 1] == str(cell["seed"])
         assert args[args.index("--dt") + 1] == str(cell["dt_ms"])
         assert args[args.index("--tau-gaba") + 1] == str(cell["tau_gaba"])
+        assert args[args.index("--n-hidden") + 1] == "1024"
+        assert args[args.index("--input-rate") + 1] == "25.0"
+        assert args[args.index("--weight-decay") + 1] == "0.0"
+        assert "--dales-law" in args
         assert args[args.index("--w-in") + 1] == "0.9"
         assert args[args.index("--readout-w-init-mean") + 1] == exp022.SHARED_READOUT_W_INIT_MEAN
         assert args[args.index("--readout-w-init-std") + 1] == exp022.SHARED_READOUT_W_INIT_STD
@@ -82,6 +86,42 @@ def test_all_resolved_commands_keep_family_contract(tmp_path: Path) -> None:
             assert tuple(map(float, args[args.index("--input-rates") + 1:])) == (
                 exp022.VARIABLE_RATE_TRAINING_RATES_HZ
             )
+
+
+def test_all_resolved_cells_have_complete_scientific_contract(tmp_path: Path) -> None:
+    contracts = []
+    for cell in exp022.CANONICAL_CELLS:
+        samples, epochs = exp022.cell_samples_epochs(cell)
+        args = exp022.build_train_args(cell, tmp_path / cell["name"], samples, epochs)
+        resolved = campaign.resolved_parameters(
+            cell, args, samples, epochs,
+            scientific_contract=exp022.scientific_contract(cell, samples, epochs),
+        )
+        contract = resolved["scientific_contract"]
+        contracts.append(contract)
+        assert contract["input"]["channels"] == 784
+        assert contract["topology"] == {
+            "excitatory_neurons": 1024,
+            "inhibitory_neurons": 256,
+            "output_neurons": 10,
+            "output_population": "spiking_lif",
+            "ei_loop_enabled": cell["model"] != "coba",
+        }
+        assert contract["dynamics"]["tau_ampa_ms"] == 2.0
+        assert contract["constraints"]["dales_law"] is True
+        assert contract["optimizer"]["weight_decay"] == 0.0
+        assert contract["optimizer"]["gradient_clip_norm"] == 1.0
+        assert contract["dataset"]["optimizer_train_samples"] == round(samples * 0.8)
+        if cell["family"] == "variable_rate":
+            assert contract["input"]["rate_hz"] is None
+            assert contract["input"]["rate_distribution_hz"] == list(
+                exp022.VARIABLE_RATE_TRAINING_RATES_HZ
+            )
+        else:
+            assert contract["input"]["rate_hz"] == 25.0
+            assert contract["input"]["rate_distribution_hz"] is None
+
+    assert len(contracts) == 90
 
 
 def _manifest_cell(tmp_path: Path, *, epochs: int = 2, samples: int = 100) -> dict:
@@ -304,6 +344,7 @@ def _write_checked_manifest(tmp_path: Path, monkeypatch, tier: str = "variable_r
         repo=exp022.REPO, campaign_root=tmp_path, campaign_id="checked",
         cells=cells, tier_for=exp022.cell_resource_tier,
         samples_epochs=exp022.cell_samples_epochs, build_args=exp022.build_train_args,
+        scientific_contract_for=exp022.scientific_contract,
         selection_tier=tier,
     )
     path = tmp_path / "campaign.json"

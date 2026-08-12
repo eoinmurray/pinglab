@@ -81,6 +81,7 @@ def lock_identity(repo: Path) -> dict[str, Any]:
 
 def resolved_parameters(
     cell: dict[str, Any], args: list[str], max_samples: int, epochs: int,
+    scientific_contract: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Cold-readable scientific contract, including the exact CLI argument map."""
     values: dict[str, Any] = {}
@@ -101,7 +102,7 @@ def resolved_parameters(
             index += 1
         values[token] = following[0] if len(following) == 1 else following
     values.pop("--wipe-dir", None)
-    return {
+    result = {
         "training_run_id": cell["training_run_id"],
         "family": cell["family"],
         "model_recipe": cell["model"],
@@ -110,6 +111,9 @@ def resolved_parameters(
         "epochs": epochs,
         "arguments": values,
     }
+    if scientific_contract is not None:
+        result["scientific_contract"] = scientific_contract
+    return result
 
 
 def create_manifest(
@@ -117,6 +121,9 @@ def create_manifest(
     cells: list[dict[str, Any]], tier_for: Callable[[dict[str, Any]], str],
     samples_epochs: Callable[[dict[str, Any]], tuple[int, int]],
     build_args: Callable[[dict[str, Any], Path, int, int], list[str]],
+    scientific_contract_for: Callable[
+        [dict[str, Any], int, int], dict[str, Any]
+    ] | None = None,
     plumbing: bool = False, selection_tier: str = "all",
 ) -> dict[str, Any]:
     root = campaign_root.resolve()
@@ -138,7 +145,13 @@ def create_manifest(
             "training_run_id": cell["training_run_id"],
             "family": cell["family"],
             "resource_tier": tier_for(cell),
-            "parameters": resolved_parameters(cell, args, max_samples, epochs),
+            "parameters": resolved_parameters(
+                cell, args, max_samples, epochs,
+                scientific_contract=(
+                    scientific_contract_for(cell, max_samples, epochs)
+                    if scientific_contract_for else None
+                ),
+            ),
             "command": command,
             "command_shell": shlex.join(command),
             "output_directory": str(out),

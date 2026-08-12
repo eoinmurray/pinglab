@@ -84,6 +84,14 @@ VARIABLE_RATE_CONSUMER = "exp082"
 THETA_U_GRID: list[float | None] = [None, 5.0, 2.0, 1.0, 0.5, 0.2]
 FR_STRENGTH_UPPER = 1e-3
 TAU_AMPA_MS = 2.0          # AMPA decay — fixed across the collection (no CLI knob)
+INPUT_RATE_HZ = 25.0
+N_INPUT = 784
+N_EXCITATORY = 1024
+N_INHIBITORY = 256
+N_OUTPUT = 10
+WEIGHT_DECAY = 0.0
+GRAD_CLIP_NORM = 1.0
+DALES_LAW = True
 # GABA decay that puts the loop in gamma (≈ 44 Hz); the standard for every
 # family except the τ_GABA sweep. Single source of truth in helpers so the
 # whole collection moves together (see helpers/operating_point.py).
@@ -300,6 +308,59 @@ CANONICAL_CELLS = BASE_CELLS + PLANNED_VARIABLE_RATE_CELLS
 for _cell in CANONICAL_CELLS:
     _cell["training_run_id"] = TRAINING_RUN_IDS[_cell["family"]]
 
+
+def scientific_contract(cell: dict, max_samples: int, epochs: int) -> dict:
+    """Cold-readable scientific fields that must not hide behind CLI defaults."""
+    input_rates = cell.get("input_rates_hz")
+    return {
+        "dataset": {
+            "name": "mnist",
+            "pool_size": int(max_samples),
+            "split": "stratified_80_20",
+            "split_seed": 42,
+            "optimizer_train_samples": round(max_samples * 0.8),
+            "checkpoint_holdout_samples": max_samples - round(max_samples * 0.8),
+        },
+        "input": {
+            "encoding": "poisson_max_pixel_rate",
+            "channels": N_INPUT,
+            "rate_hz": None if input_rates else INPUT_RATE_HZ,
+            "rate_distribution_hz": list(input_rates) if input_rates else None,
+            "rate_sampling": (
+                "uniform_categorical_per_presentation" if input_rates else "fixed"
+            ),
+        },
+        "topology": {
+            "excitatory_neurons": N_EXCITATORY,
+            "inhibitory_neurons": N_INHIBITORY,
+            "output_neurons": N_OUTPUT,
+            "output_population": "spiking_lif",
+            "ei_loop_enabled": cell["model"] != "coba",
+        },
+        "dynamics": {
+            "presentation_duration_ms": T_MS,
+            "dt_ms": float(cell["dt_ms"]),
+            "tau_ampa_ms": TAU_AMPA_MS,
+            "tau_gaba_ms": float(cell["tau_gaba"]),
+        },
+        "constraints": {"dales_law": DALES_LAW},
+        "optimizer": {
+            "name": "adamw",
+            "learning_rate": float(MODEL_RECIPES[cell["model"]]["--lr"]),
+            "weight_decay": WEIGHT_DECAY,
+            "gradient_clip_norm": GRAD_CLIP_NORM,
+            "batch_size": BATCH_SIZE,
+            "epochs": int(epochs),
+        },
+        "readout": {
+            "mode": cell.get(
+                "readout", MODEL_RECIPES[cell["model"]]["--readout"]
+            ),
+            "shape": [N_EXCITATORY, N_OUTPUT],
+        },
+        "seed": int(cell["seed"]),
+    }
+
 RESOURCE_TIERS = (
     "standard",
     "fine_dt",
@@ -376,12 +437,16 @@ def build_train_args(spec: dict, out_dir: Path,
         "train",
         "--model", recipe["__build_as"],
         "--dataset", "mnist",
+        "--n-hidden", str(N_EXCITATORY),
+        "--input-rate", str(INPUT_RATE_HZ),
         "--max-samples", str(ms),
         "--epochs", str(epochs),
         "--t-ms", str(T_MS),
         "--dt", str(spec["dt_ms"]),
         "--tau-gaba", str(spec["tau_gaba"]),
         "--seed", str(spec["seed"]),
+        "--weight-decay", str(WEIGHT_DECAY),
+        "--dales-law",
         "--out-dir", str(out_dir),
         "--wipe-dir",
     ]
@@ -1006,7 +1071,10 @@ def _checked_manifest(path: Path, *, allow_generated_dirty: bool = False) -> dic
             command_spec = ({k: v for k, v in spec.items() if k != "max_samples"}
                             if manifest.get("plumbing") else spec)
             train_args = build_train_args(command_spec, root / "cells" / spec["name"], samples, epochs)
-            resolved = campaign.resolved_parameters(spec, train_args, samples, epochs)
+            resolved = campaign.resolved_parameters(
+                spec, train_args, samples, epochs,
+                scientific_contract=scientific_contract(spec, samples, epochs),
+            )
             command = [campaign.python_executable(), str(SNN_TOOL), *train_args]
             output_directory = (root / "cells" / spec["name"]).resolve()
             expected = {
@@ -1168,6 +1236,7 @@ def _handle_campaign_cli(argv: list[str]) -> bool:
             repo=REPO, campaign_root=root, campaign_id=args.campaign_id,
             cells=selected, tier_for=cell_resource_tier,
             samples_epochs=cell_samples_epochs, build_args=build_train_args,
+            scientific_contract_for=scientific_contract,
             plumbing=args.plumbing,
             selection_tier=args.tier,
         )
