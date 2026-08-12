@@ -37,12 +37,12 @@ class Config:
     w_ie: tuple = (1.0, 0.1)
     w_ee: tuple = (0.0, 0.0)
     w_ii: tuple = (0.0, 0.0)
-    sparsity: float = 0.2
+    recurrent_initial_zero_fraction: float = 0.2
     noise_sigma: float = 0.001
     noise_tau: float = 3.0
     spike_rate_base: float = 10.0
     w_in_spikes: tuple = (0.3, 0.06)
-    w_in_sparsity: float = 0.95
+    w_in_initial_zero_fraction: float = 0.95
     bias: float = 0.0002
     ei_ratio: float = 2.0
     device: str = "cpu"
@@ -116,7 +116,18 @@ def set_sim_dt(dt, t_ms):
     M.T_steps = int(t_ms / dt)
 
 
-def save_snapshot_npz(out_path, rec, dt, n_e, n_i, display=None, primary_hid_key_fn=None, primary_inh_key_fn=None, label=None, extra=None):
+def save_snapshot_npz(
+    out_path,
+    rec,
+    dt,
+    n_e,
+    n_i,
+    display=None,
+    primary_hid_key_fn=None,
+    primary_inh_key_fn=None,
+    label=None,
+    extra=None,
+):
     """Save spike recording and metadata to NPZ file for notebook analysis.
 
     SINGLE SOURCE OF TRUTH: All snapshot saving across train/infer/sim paths must
@@ -249,22 +260,35 @@ def _build_sim_net(model_name, spike_input=False, **kwargs):
     W_in: the conductance-drive path injects current directly onto E cells
     (ext_g), bypassing input synapses, so W_in is zeroed. When spike_input is
     True (synthetic-spikes: uniform Poisson fed THROUGH W_in), build real input
-    synapses from cfg.w_in_spikes / cfg.w_in_sparsity — otherwise the spikes hit
+    synapses from cfg.w_in_spikes / cfg.w_in_initial_zero_fraction — otherwise the spikes hit
     a zero matrix and the network stays silent.
     """
     cls, base_kwargs = _MODEL_CLASSES[model_name]
     kwargs = {**base_kwargs, **kwargs}
     if model_name == "ping":
         w_in = (
-            (*cfg.w_in_spikes, "normal", cfg.w_in_sparsity)
-            if spike_input else (0, 0)
+            (*cfg.w_in_spikes, "lower_clamped_normal", cfg.w_in_initial_zero_fraction)
+            if spike_input
+            else (0, 0)
         )
         kwargs.update(
             w_in=w_in,
             w_hid=(5.1, 3.8),
-            w_ee=(*cfg.w_ee, "normal", cfg.sparsity),
-            w_ei=(*cfg.w_ei, "normal", cfg.sparsity),
-            w_ie=(*cfg.w_ie, "normal", cfg.sparsity),
+            w_ee=(
+                *cfg.w_ee,
+                "lower_clamped_normal",
+                cfg.recurrent_initial_zero_fraction,
+            ),
+            w_ei=(
+                *cfg.w_ei,
+                "lower_clamped_normal",
+                cfg.recurrent_initial_zero_fraction,
+            ),
+            w_ie=(
+                *cfg.w_ie,
+                "lower_clamped_normal",
+                cfg.recurrent_initial_zero_fraction,
+            ),
         )
     return cls(**kwargs)
 
@@ -275,14 +299,14 @@ LEGACY_MODEL_ALIASES: dict[str, str] = {}
 def build_net(
     model_name,
     w_in=None,
-    w_in_sparsity=0.0,
+    w_in_initial_zero_fraction=0.0,
     w_ee=None,
     w_ei=None,
     w_ie=None,
     w_ii=None,
     ei_strength=None,
     ei_ratio=2.0,
-    sparsity=0.0,
+    recurrent_initial_zero_fraction=0.0,
     device=None,
     randomize_init=False,
     dales_law=True,
@@ -352,23 +376,54 @@ def build_net(
     if trainable_w_ii:
         kwargs["trainable_w_ii"] = True
     if w_in is not None:
-        kwargs["w_in"] = (*w_in, "normal", w_in_sparsity)
+        kwargs["w_in"] = (*w_in, "lower_clamped_normal", w_in_initial_zero_fraction)
     if w_ee is not None:
-        kwargs["w_ee"] = (*w_ee, "normal", sparsity)
+        kwargs["w_ee"] = (
+            *w_ee,
+            "lower_clamped_normal",
+            recurrent_initial_zero_fraction,
+        )
     if w_ei is not None:
-        kwargs["w_ei"] = (*w_ei, "normal", sparsity)
+        kwargs["w_ei"] = (
+            *w_ei,
+            "lower_clamped_normal",
+            recurrent_initial_zero_fraction,
+        )
     elif ei_strength is not None:
         s = ei_strength
-        kwargs["w_ei"] = (s, s * 0.1, "normal", sparsity)
+        kwargs["w_ei"] = (
+            s,
+            s * 0.1,
+            "lower_clamped_normal",
+            recurrent_initial_zero_fraction,
+        )
     if w_ie is not None:
-        kwargs["w_ie"] = (*w_ie, "normal", sparsity)
+        kwargs["w_ie"] = (
+            *w_ie,
+            "lower_clamped_normal",
+            recurrent_initial_zero_fraction,
+        )
     elif ei_strength is not None:
         s = ei_strength
-        kwargs["w_ie"] = (s * ei_ratio, s * ei_ratio * 0.1, "normal", sparsity)
+        kwargs["w_ie"] = (
+            s * ei_ratio,
+            s * ei_ratio * 0.1,
+            "lower_clamped_normal",
+            recurrent_initial_zero_fraction,
+        )
     if w_ii is not None:
-        kwargs["w_ii"] = (*w_ii, "normal", sparsity)
-    if w_ei is None and w_ie is None and ei_strength is None and sparsity > 0:
-        kwargs.setdefault("sparsity", sparsity)
+        kwargs["w_ii"] = (
+            *w_ii,
+            "lower_clamped_normal",
+            recurrent_initial_zero_fraction,
+        )
+    if (
+        w_ei is None
+        and w_ie is None
+        and ei_strength is None
+        and recurrent_initial_zero_fraction > 0
+    ):
+        kwargs.setdefault("initial_zero_fraction", recurrent_initial_zero_fraction)
     if n_inh_per_layer is not None:
         kwargs["n_inh_per_layer"] = dict(n_inh_per_layer)
     net = cls(**kwargs)
@@ -384,18 +439,9 @@ def build_net(
 # =============================================================================
 
 
-
-
-
-
-
-
-
 # =============================================================================
 # Device
 # =============================================================================
-
-
 
 
 # =============================================================================
@@ -538,7 +584,9 @@ def run_sim(
 
     torch.manual_seed(cfg.seed)
     net = _build_sim_net(
-        model_name, spike_input=input_spikes is not None, hidden_sizes=[M.N_HID],
+        model_name,
+        spike_input=input_spikes is not None,
+        hidden_sizes=[M.N_HID],
     )
     net.to(cfg.torch_device)
     net.recording = True
@@ -616,12 +664,14 @@ def build_config(args):
         M.N_IN = args.n_input
     elif input_mode == "synthetic-spikes":
         M.N_IN = c.n_e
-    sparsity = getattr(args, "sparsity", None)
-    if sparsity is not None:
-        c.sparsity = sparsity
-    w_in_sparsity = getattr(args, "w_in_sparsity", None)
-    if w_in_sparsity is not None:
-        c.w_in_sparsity = w_in_sparsity
+    recurrent_initial_zero_fraction = getattr(
+        args, "recurrent_initial_zero_fraction", None
+    )
+    if recurrent_initial_zero_fraction is not None:
+        c.recurrent_initial_zero_fraction = recurrent_initial_zero_fraction
+    w_in_initial_zero_fraction = getattr(args, "w_in_initial_zero_fraction", None)
+    if w_in_initial_zero_fraction is not None:
+        c.w_in_initial_zero_fraction = w_in_initial_zero_fraction
     bias = getattr(args, "bias", None)
     if bias is not None:
         c.bias = bias
@@ -646,6 +696,8 @@ def _sync_globals_from_cfg(c):
     """
     global cfg
     cfg = c
+
+
 # Every config alias (C.N_E, C.W_EI, C.STEP_ON_MS, …) resolves to the live
 # Config — one source of truth, no mirror globals, no sync step.
 _CFG_ALIASES = {
@@ -660,13 +712,13 @@ _CFG_ALIASES = {
     "STEP_OFF_MS": "step_off_ms",
     "STEP_ON_MS": "step_on_ms",
     "T_E_ASYNC_DEFAULT": "t_e_async",
-    "W_IN_SPARSITY": "w_in_sparsity",
+    "W_IN_INITIAL_ZERO_FRACTION": "w_in_initial_zero_fraction",
     "W_IN_SPIKES": "w_in_spikes",
     "N_E": "n_e",
     "N_I": "n_i",
     "W_EI": "w_ei",
     "W_IE": "w_ie",
-    "SPARSITY": "sparsity",
+    "RECURRENT_INITIAL_ZERO_FRACTION": "recurrent_initial_zero_fraction",
     "BIAS": "bias",
 }
 

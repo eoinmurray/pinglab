@@ -233,7 +233,21 @@ def _write_valid_cell(row: dict) -> Path:
         "training_run_id": row["training_run_id"],
         "campaign_resolved_parameters": row["parameters"],
     }
-    (directory / "config.json").write_text(json.dumps({**expected, **identity}))
+    roles = ("W_in", "W_out", "W_EE_1", "W_EI_1", "W_IE_1", "W_II_1")
+    initialization = {
+        role: {
+            "distribution": "lower_clamped_normal",
+            "zeros_remain_trainable": True,
+            "requested_initial_zero_fraction": (
+                expected.get("w_in_initial_zero_fraction", 0.0)
+                if role == "W_in" else 0.0
+            ),
+            "statistics": {"n_parameters": 1},
+        }
+        for role in roles
+    }
+    config = {**expected, **identity, "weight_initialization": initialization}
+    (directory / "config.json").write_text(json.dumps(config))
     epochs = row["parameters"]["epochs"]
     samples = round(row["parameters"]["max_samples"] * 0.9)
     (directory / "metrics.jsonl").write_text("\n".join(
@@ -263,9 +277,10 @@ def _write_valid_cell(row: dict) -> Path:
     }
     (directory / "metrics.json").write_text(json.dumps({
         **identity,
-        "config": expected,
+        "config": {**expected, "weight_initialization": initialization},
         "best_epoch": 1,
         "checkpoints": checkpoints,
+        "weight_final": {role: {"zero_fraction": 0.0} for role in roles},
     }))
     return directory
 

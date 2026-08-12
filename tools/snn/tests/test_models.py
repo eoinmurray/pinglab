@@ -125,6 +125,96 @@ class TestReadoutInitialization:
             )
 
 
+class TestWeightInitializationContract:
+    @pytest.mark.parametrize("fraction", [-0.1, 1.0, 1.1])
+    def test_initial_zero_fraction_rejects_invalid_values(self, fraction):
+        with pytest.raises(ValueError, match="0 <= fraction < 1"):
+            M.init_weight((4, 2), initial_zero_fraction=fraction)
+
+    @pytest.mark.parametrize("exact_k", [False, True])
+    def test_renamed_initializer_is_bit_identical_to_previous_recipe(self, exact_k):
+        shape = (64, 8)
+        fraction = 0.75
+
+        def previous_recipe():
+            n_pre, n_post = shape
+            weight = torch.randn(*shape).mul_(0.2).add_(0.9).clamp_(min=0)
+            if exact_k:
+                k = max(1, int(round((1.0 - fraction) * n_pre)))
+                mask = torch.zeros(n_pre, n_post)
+                for column in range(n_post):
+                    indices = torch.randperm(n_pre)[:k]
+                    mask[indices, column] = 1.0
+                weight = weight * mask * (n_pre / k)
+            else:
+                weight = weight * (torch.rand(*shape) > fraction).float()
+                weight = weight / (1.0 - fraction)
+            return weight / n_pre
+
+        try:
+            M.EXACT_K_INITIALIZATION = exact_k
+            torch.manual_seed(29)
+            expected = previous_recipe()
+            torch.manual_seed(29)
+            actual = M.init_weight(shape, "lower_clamped_normal", 0.9, 0.2, fraction)
+        finally:
+            M.EXACT_K_INITIALIZATION = False
+        assert torch.equal(actual, expected)
+
+    def test_lower_clamped_normal_and_initial_zeroing_are_separate(self):
+        M.EXACT_K_INITIALIZATION = False
+        torch.manual_seed(7)
+        weight, provenance = M.init_weight(
+            (20_000, 2),
+            "lower_clamped_normal",
+            0.0,
+            1.0,
+            0.25,
+            return_provenance=True,
+        )
+        stats = provenance["statistics"]
+        assert provenance["zeros_remain_trainable"] is True
+        assert provenance["distribution"] == "lower_clamped_normal"
+        assert stats["explicit_zero_fraction"] == pytest.approx(0.25, abs=0.01)
+        assert stats["lower_clamp_zero_fraction_of_unzeroed"] == pytest.approx(
+            0.5, abs=0.01
+        )
+        assert stats["initialization_zero_fraction"] > 0.5
+        assert weight.shape == (20_000, 2)
+
+    @pytest.mark.parametrize("zero_source", ["lower_clamp", "explicit_zeroing"])
+    def test_every_initialization_zero_can_regrow(self, zero_source):
+        torch.manual_seed(11)
+        if zero_source == "lower_clamp":
+            weight = M.init_weight((64, 4), "lower_clamped_normal", 0.0, 1.0)
+        else:
+            weight = M.init_weight((64, 4), "lower_clamped_normal", 5.0, 0.0, 0.5)
+        parameter = nn.Parameter(weight)
+        initial_zeros = parameter.detach() == 0
+        assert initial_zeros.any()
+        optimizer = torch.optim.SGD([parameter], lr=0.1)
+        parameter.grad = torch.full_like(parameter, -1.0)
+        optimizer.step()
+        assert torch.all(parameter.detach()[initial_zeros] > 0)
+
+    def test_provenance_matches_tensor_and_expected_summed_coupling(self):
+        torch.manual_seed(3)
+        weight, provenance = M.init_weight(
+            (10_000, 3),
+            "lower_clamped_normal",
+            0.9,
+            0.09,
+            0.95,
+            return_provenance=True,
+        )
+        stats = provenance["statistics"]
+        assert stats["all_entries"]["mean"] == pytest.approx(float(weight.mean()))
+        assert stats["initialization_zero_count"] == int((weight == 0).sum())
+        assert stats["realized_column_sum"]["mean"] == pytest.approx(
+            provenance["expected_summed_coupling_after_clamp"], rel=0.03
+        )
+
+
 class TestFeedforwardDalesClamp:
     """The forward clamp applies specifically to feedforward ``W_ff``.
 
@@ -347,12 +437,8 @@ class TestSpikeCountReadout:
         reset_mask[4] = True
         reset_net(input_spikes=spikes, readout_reset_mask=reset_mask)
 
-        assert torch.equal(
-            baseline.spike_record["hid"], reset_net.spike_record["hid"]
-        )
-        assert torch.equal(
-            baseline.spike_record["inh"], reset_net.spike_record["inh"]
-        )
+        assert torch.equal(baseline.spike_record["hid"], reset_net.spike_record["hid"])
+        assert torch.equal(baseline.spike_record["inh"], reset_net.spike_record["inh"])
         assert torch.all(reset_net.spike_record["v_out"][4] <= 1.0)
 
     def test_input_file_probe_restores_mode_and_emits_output_raster(self, tmp_path):
@@ -390,9 +476,13 @@ class TestSpikeCountReadout:
 class TestRecurrentDalesProjection:
     def _trainable_net(self, *, dales_law=True):
         return build_net(
-            "ping", hidden_sizes=[32], dales_law=dales_law,
-            trainable_w_ee=True, trainable_w_ei=True,
-            trainable_w_ie=True, trainable_w_ii=True,
+            "ping",
+            hidden_sizes=[32],
+            dales_law=dales_law,
+            trainable_w_ee=True,
+            trainable_w_ei=True,
+            trainable_w_ie=True,
+            trainable_w_ii=True,
         )
 
     def test_project_dales_projects_every_constrained_matrix(self):

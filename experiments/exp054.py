@@ -143,7 +143,7 @@ def ping_spikes(wei, wie, rate_hz, sim_ms, dt, private=True):
     if private:
         cmd += ["--private-w-in", "--w-in", str(PRIVATE_W_IN)]
     else:
-        cmd += ["--w-in", str(SHARED_W_IN), "--w-in-sparsity", str(SHARED_W_IN_SP)]
+        cmd += ["--w-in", str(SHARED_W_IN), "--w-in-initial-zero-fraction", str(SHARED_W_IN_SP)]
     run_cli(cmd)
 
     R = np.load(out_dir / "rasters.npz")

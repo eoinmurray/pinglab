@@ -53,7 +53,7 @@ COMMON_ARGS = [
 # Canonical Brunel/Vreeswijk asynchronous-irregular state, full four-coupling
 # architecture (W^EE, W^EI, W^IE, W^II all present). The knobs that land it on
 # textbook CV ≈ 1 for both populations:
-#   - --ei-sparsity 0.99 + --exact-k → fixed fan-in K ≈ 10 per post cell
+#   - --recurrent-initial-zero-fraction 0.99 + --exact-k-initialization → fixed fan-in K ≈ 10 per post cell
 #     (Brunel/V&S convention; removes the binomial fan-in variance that
 #     otherwise broadens the rate distribution)
 #   - --independent-drive 8 2.10 — rare, large per-spike kicks on E so the
@@ -75,8 +75,8 @@ CANONICAL_ARGS = [
     "--w-ie", "3.0", "0.9",
     "--w-ii", "0.4", "0.12",
     "--w-ee", "0.4", "0.12",
-    "--ei-sparsity", "0.99",
-    "--exact-k",
+    "--recurrent-initial-zero-fraction", "0.99",
+    "--exact-k-initialization",
     "--independent-drive", "8", "2.10",
     "--independent-drive-i", "8", "0.25",
 ]
@@ -431,7 +431,7 @@ def _ksweep_args(k: int, scale_coupling: bool, seed: int) -> list[str]:
         # cells need a longer window to accumulate enough ISIs for an
         # unbiased CV (at K=160, 5 Hz → ~5 spikes/1000 ms biases CV low).
         "--t-ms", str(K_SWEEP_T_MS),
-        "--ei-sparsity", f"{s:.6f}", "--exact-k",
+        "--recurrent-initial-zero-fraction", f"{s:.6f}", "--exact-k-initialization",
         "--input-rate", "1", "--w-in", "0.01", "0.001",
         "--seed", str(seed),
     ]
@@ -548,7 +548,7 @@ def _chaos_args(variant: dict, seed: int) -> list[str]:
     """Quenched-DC config for one chaos-test variant: fixed fan-in, no Poisson
     drive (frozen per-cell DC instead), recurrent weights per variant."""
     return [
-        "--ei-sparsity", "0.99", "--exact-k",
+        "--recurrent-initial-zero-fraction", "0.99", "--exact-k-initialization",
         "--input-rate", "1", "--w-in", "0.01", "0.001",
         *variant["w"], *variant["quench"],
         "--seed", str(seed),

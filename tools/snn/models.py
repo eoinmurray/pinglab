@@ -83,16 +83,20 @@ CUMULATIVE_READOUT_REFERENCE = (
 )
 
 # ── Architecture ──────────────────────────────────────────────────────────
-N_IN: int = 64  # input neurons (module default; overridden per-run by the dataset loader)
+N_IN: int = (
+    64  # input neurons (module default; overridden per-run by the dataset loader)
+)
 N_HID: int = 64  # hidden excitatory neurons (last layer size for compat)
 N_INH: int = 16  # inhibitory neurons (PING only, per E-I layer)
 N_OUT: int = 10  # output neurons (one per digit class)
 HIDDEN_SIZES: list[int] = [64]  # hidden layer sizes (N_HID is always last entry)
 
 # ── Weight init ───────────────────────────────────────────────────────────
-# Weight init — p1/p2 are pre-fan-in values (init_weight divides by N_pre)
-W_FF_MEAN = 5.1  # uS — feedforward init mean (pre-fan-in)
-W_FF_STD = 3.8  # uS — feedforward init std (pre-fan-in)
+# Parent Gaussian parameters for the nominal summed coupling. init_weight
+# lower-clamps the draw, applies optional initialization zeroing, then divides
+# by fan-in. These are not per-edge moments.
+W_FF_MEAN = 5.1
+W_FF_STD = 3.8
 W_IN_MEAN = W_FF_MEAN  # alias
 W_IN_STD = W_FF_STD  # alias
 W_HID_MEAN = W_FF_MEAN  # alias
@@ -114,7 +118,6 @@ BATCH_SIZE = 64
 # up to gn 1e10+ even with the global-norm gradient clip at 100.
 SURROGATE_SLOPE = 5.0
 V_GRAD_DAMPEN = 80.0
-
 
 
 # Refractory-step defaults for the non-compiled utility functions (e_step_coba,
@@ -364,33 +367,99 @@ def init_conductance(B, N, device):
     return torch.zeros(B, N, device=device)
 
 
-def _parse_weight_spec(w, default_dist, default_sparsity):
-    """Parse a weight spec tuple: (p1, p2), (p1, p2, dist), or (p1, p2, dist, sparsity)."""
+def _parse_weight_spec(w, default_dist, default_initial_zero_fraction):
+    """Parse a weight spec tuple: (p1, p2), (p1, p2, dist), or (p1, p2, dist, initial_zero_fraction)."""
     if len(w) >= 4:
         return w[0], w[1], w[2], w[3]
     elif len(w) == 3:
-        return w[0], w[1], w[2], default_sparsity
-    return w[0], w[1], default_dist, default_sparsity
+        return w[0], w[1], w[2], default_initial_zero_fraction
+    return w[0], w[1], default_dist, default_initial_zero_fraction
 
 
 # Connectivity mode for the sparsifier in init_weight:
 #   False (default) — per-entry Bernoulli: each entry zeroed independently
-#     with probability `sparsity`. Fan-in per post cell is binomial, so it
+#     with probability `initial_zero_fraction`. Fan-in per post cell is binomial, so it
 #     varies cell to cell.
 #   True            — fixed fan-in (exact-K): every post cell (column) keeps
-#     exactly K = round((1-sparsity)·N_pre) random presynaptic inputs.
+#     exactly K = round((1-initial_zero_fraction)·N_pre) random presynaptic inputs.
 #     Removes the binomial fan-in variance — the Brunel/Vreeswijk convention.
-# Set via the --exact-k CLI flag (M.EXACT_K_CONNECTIVITY = True). Annotated bool
+# Set via the --exact-k-initialization CLI flag (M.EXACT_K_INITIALIZATION = True). Annotated bool
 # (not the inferred Literal[False]) so entry points can flip it to True.
-EXACT_K_CONNECTIVITY: bool = False
+EXACT_K_INITIALIZATION: bool = False
 
 
-def init_weight(shape, dist="normal", p1=0.0, p2=0.1, sparsity=0.0):
-    """Initialise a weight tensor with fan-in normalization."""
+def _weight_statistics(weight, *, clamp_zero_mask, explicit_zero_mask):
+    """Return JSON-safe initialization statistics with zero sources separated."""
+    flat = weight.detach().reshape(-1)
+    active = ~explicit_zero_mask.reshape(-1)
+    initially_nonzero = flat != 0
+
+    def moments(values):
+        if values.numel() == 0:
+            return {"mean": None, "std": None, "min": None, "max": None}
+        return {
+            "mean": float(values.mean()),
+            "std": float(values.std(unbiased=False)),
+            "min": float(values.min()),
+            "max": float(values.max()),
+        }
+
+    column_sums = weight.detach().sum(dim=0) if weight.ndim == 2 else flat.sum()[None]
+    return {
+        "n_parameters": flat.numel(),
+        "initialization_zero_count": int((flat == 0).sum()),
+        "initialization_zero_fraction": float((flat == 0).float().mean()),
+        "lower_clamp_zero_count": int((clamp_zero_mask.reshape(-1) & active).sum()),
+        "lower_clamp_zero_fraction_of_unzeroed": float(
+            (clamp_zero_mask.reshape(-1)[active]).float().mean()
+        )
+        if active.any()
+        else 0.0,
+        "explicit_zero_count": int(explicit_zero_mask.sum()),
+        "explicit_zero_fraction": float(explicit_zero_mask.float().mean()),
+        "all_entries": moments(flat),
+        "initially_nonzero_entries": moments(flat[initially_nonzero]),
+        "realized_column_sum": moments(column_sums),
+    }
+
+
+def _lower_clamped_normal_mean(mean, std):
+    """E[max(0, X)] for X ~ Normal(mean, std**2)."""
+    if std == 0:
+        return max(0.0, float(mean))
+    z = float(mean) / float(std)
+    phi = math.exp(-0.5 * z * z) / math.sqrt(2.0 * math.pi)
+    Phi = 0.5 * (1.0 + math.erf(z / math.sqrt(2.0)))
+    return float(std) * phi + float(mean) * Phi
+
+
+def _lower_clamp_zero_probability(mean, std):
+    if std == 0:
+        return 1.0 if mean <= 0 else 0.0
+    z = -float(mean) / float(std)
+    return 0.5 * (1.0 + math.erf(z / math.sqrt(2.0)))
+
+
+def init_weight(
+    shape,
+    dist="lower_clamped_normal",
+    p1=0.0,
+    p2=0.1,
+    initial_zero_fraction=0.0,
+    *,
+    return_provenance=False,
+):
+    """Initialize a fan-in-normalized trainable matrix.
+
+    ``initial_zero_fraction`` controls epoch-zero values only. Its zeros are
+    ordinary trainable parameters, not a persistent connectivity mask.
+    """
+    if not 0.0 <= initial_zero_fraction < 1.0:
+        raise ValueError("initial_zero_fraction must satisfy 0 <= fraction < 1")
     n_pre = shape[0]
     if dist == "signed_normal":
         w = torch.randn(*shape).mul_(p2).add_(p1)
-    elif dist == "normal":
+    elif dist in ("normal", "lower_clamped_normal"):
         w = torch.randn(*shape).mul_(p2).add_(p1).clamp_(min=0)
     elif dist == "uniform":
         w = torch.rand(*shape).mul_(p2 - p1).add_(p1)
@@ -400,29 +469,89 @@ def init_weight(shape, dist="normal", p1=0.0, p2=0.1, sparsity=0.0):
         w = torch.zeros(*shape)
     else:
         raise ValueError(f"Unknown dist: {dist!r}")
-    if sparsity > 0:
-        if EXACT_K_CONNECTIVITY and len(shape) == 2:
+    clamp_zero_mask = w == 0
+    explicit_zero_mask = torch.zeros(shape, dtype=torch.bool, device=w.device)
+    if initial_zero_fraction > 0:
+        if EXACT_K_INITIALIZATION and len(shape) == 2:
             # Fixed fan-in: each column keeps exactly K random rows.
             n_post = shape[1]
-            k = max(1, int(round((1.0 - sparsity) * n_pre)))
+            k = max(1, int(round((1.0 - initial_zero_fraction) * n_pre)))
             mask = torch.zeros(n_pre, n_post)
             for j in range(n_post):
                 idx = torch.randperm(n_pre)[:k]
                 mask[idx, j] = 1.0
+            explicit_zero_mask = mask == 0
             w = w * mask
             # Rescale by exact fan-in so per-column expected drive is
-            # preserved (matches the Bernoulli path's 1/(1-sparsity)).
+            # preserved (matches the Bernoulli path's 1/(1-initial_zero_fraction)).
             w = w * (n_pre / k)
         else:
-            w = w * (torch.rand(*shape) > sparsity).float()
-            w = w / (1.0 - sparsity)
+            mask = torch.rand(*shape) > initial_zero_fraction
+            explicit_zero_mask = ~mask
+            w = w * mask.float()
+            w = w / (1.0 - initial_zero_fraction)
     w = w / n_pre
-    return w
+    if not return_provenance:
+        return w
+    law = "lower_clamped_normal" if dist == "normal" else dist
+    expected_unscaled = (
+        _lower_clamped_normal_mean(p1, p2)
+        if law == "lower_clamped_normal"
+        else float(p1)
+    )
+    provenance = {
+        "distribution": law,
+        "parent_parameters": {"mean": float(p1), "std": float(p2)},
+        "fan_in": int(n_pre),
+        "scaling_convention": "fan_in_normalized_expected_summed_coupling",
+        "requested_initial_zero_fraction": float(initial_zero_fraction),
+        "initial_zeroing": (
+            "exact_k"
+            if EXACT_K_INITIALIZATION and initial_zero_fraction > 0
+            else "bernoulli"
+            if initial_zero_fraction > 0
+            else "none"
+        ),
+        "expected_summed_coupling_after_clamp": expected_unscaled,
+        "theoretical_lower_clamp_zero_fraction": (
+            _lower_clamp_zero_probability(p1, p2)
+            if law == "lower_clamped_normal"
+            else None
+        ),
+        "zeros_remain_trainable": True,
+        "statistics": _weight_statistics(
+            w,
+            clamp_zero_mask=clamp_zero_mask,
+            explicit_zero_mask=explicit_zero_mask,
+        ),
+    }
+    return w, provenance
 
 
-def init_readout_weight(shape, mean, std):
-    """Initialize stored readout weights directly from a clamped normal."""
-    return torch.randn(*shape).mul_(std).add_(mean).clamp_(min=0)
+def init_readout_weight(shape, mean, std, *, return_provenance=False):
+    """Initialize directly stored readout weights from a lower-clamped normal."""
+    weight = torch.randn(*shape).mul_(std).add_(mean).clamp_(min=0)
+    if not return_provenance:
+        return weight
+    zeros = weight == 0
+    return weight, {
+        "distribution": "lower_clamped_normal",
+        "parent_parameters": {"mean": float(mean), "std": float(std)},
+        "fan_in": int(shape[0]),
+        "scaling_convention": "direct_stored_weight",
+        "requested_initial_zero_fraction": 0.0,
+        "initial_zeroing": "none",
+        "expected_summed_coupling_after_clamp": None,
+        "theoretical_lower_clamp_zero_fraction": (
+            _lower_clamp_zero_probability(mean, std)
+        ),
+        "zeros_remain_trainable": True,
+        "statistics": _weight_statistics(
+            weight,
+            clamp_zero_mask=zeros,
+            explicit_zero_mask=torch.zeros_like(zeros),
+        ),
+    }
 
 
 # ── E-step and I-step composites ─────────────────────────────────────────
@@ -541,8 +670,8 @@ class COBANet(nn.Module):
         w_ei=(W_EI_MEAN, W_EI_STD),
         w_ie=(W_IE_MEAN, W_IE_STD),
         w_ii=(W_II_MEAN, W_II_STD),
-        dist="normal",
-        sparsity=0.0,
+        dist="lower_clamped_normal",
+        initial_zero_fraction=0.0,
         dales_law=True,
         hidden_sizes=None,
         readout_mode="rate",
@@ -565,7 +694,10 @@ class COBANet(nn.Module):
     ):
         super().__init__()
         if readout_mode not in (
-            "rate", "mem-mean", "spike-count", "spike-rate",
+            "rate",
+            "mem-mean",
+            "spike-count",
+            "spike-rate",
             "cumulative-potential",
         ):
             raise ValueError(
@@ -605,6 +737,7 @@ class COBANet(nn.Module):
         self.n_layers = len(sizes)
         all_sizes = [N_IN] + list(sizes) + [N_OUT]
         self.all_sizes = all_sizes
+        self.weight_initialization = {}
 
         # Every hidden layer gets E-I structure (1-indexed).
         self.ei_layers = set(range(1, self.n_layers + 1))
@@ -618,14 +751,21 @@ class COBANet(nn.Module):
         self.W_ff = nn.ParameterList()
         for idx, (n_pre, n_post) in enumerate(zip(all_sizes[:-1], all_sizes[1:])):
             spec = w_in if idx == 0 else w_hid
-            p1, p2, d, s = _parse_weight_spec(spec, dist, sparsity)
+            p1, p2, d, s = _parse_weight_spec(spec, dist, initial_zero_fraction)
             is_readout = idx == len(all_sizes) - 2
             if is_readout and self.readout_w_init is not None:
                 mean, std = self.readout_w_init
-                weight = init_readout_weight((n_pre, n_post), mean, std)
+                weight, init_meta = init_readout_weight(
+                    (n_pre, n_post), mean, std, return_provenance=True
+                )
             else:
-                weight = init_weight((n_pre, n_post), d, p1, p2, s)
+                weight, init_meta = init_weight(
+                    (n_pre, n_post), d, p1, p2, s, return_provenance=True
+                )
             self.W_ff.append(nn.Parameter(weight))
+            role = "W_in" if idx == 0 else "W_out" if is_readout else f"W_ff_{idx}"
+            init_meta.update({"role": role, "shape": [n_pre, n_post]})
+            self.weight_initialization[role] = init_meta
 
         # The classifier may be an abstract signed decoder while the simulated
         # feed-forward and recurrent synapses remain Dale-constrained.  Keep it
@@ -638,6 +778,23 @@ class COBANet(nn.Module):
                     "readout_w_init cannot be combined with signed_readout"
                 )
             nn.init.kaiming_uniform_(self.W_ff[-1], a=math.sqrt(5))
+            weight = self.W_ff[-1].detach()
+            zeros = torch.zeros_like(weight, dtype=torch.bool)
+            self.weight_initialization["W_out"] = {
+                "role": "W_out",
+                "shape": list(weight.shape),
+                "distribution": "kaiming_uniform_signed",
+                "parent_parameters": None,
+                "fan_in": int(weight.shape[0]),
+                "scaling_convention": "torch_kaiming_uniform",
+                "requested_initial_zero_fraction": 0.0,
+                "initial_zeroing": "none",
+                "expected_summed_coupling_after_clamp": None,
+                "zeros_remain_trainable": True,
+                "statistics": _weight_statistics(
+                    weight, clamp_zero_mask=zeros, explicit_zero_mask=zeros
+                ),
+            }
 
         if self.readout_bias_enabled:
             self.b_out = nn.Parameter(torch.empty(N_OUT))
@@ -675,30 +832,74 @@ class COBANet(nn.Module):
             n_e = sizes[i - 1]
             n_i = self.n_inh_per_layer.get(i, n_e // 4)
             k = str(i)
-            p1, p2, d, s = _parse_weight_spec(w_ee, dist, sparsity)
+            p1, p2, d, s = _parse_weight_spec(w_ee, dist, initial_zero_fraction)
+            w_ee_init, w_ee_meta = init_weight(
+                (n_e, n_e), d, p1, p2, s, return_provenance=True
+            )
             w_ee_t = nn.Parameter(
-                init_weight((n_e, n_e), d, p1, p2, s),
+                w_ee_init,
                 requires_grad=trainable_w_ee,
             )
-            p1, p2, d, s = _parse_weight_spec(w_ei, dist, sparsity)
+            p1, p2, d, s = _parse_weight_spec(w_ei, dist, initial_zero_fraction)
+            w_ei_init, w_ei_meta = init_weight(
+                (n_e, n_i), d, p1, p2, s, return_provenance=True
+            )
             w_ei_t = nn.Parameter(
-                init_weight((n_e, n_i), d, p1, p2, s),
+                w_ei_init,
                 requires_grad=trainable_w_ei,
             )
-            p1, p2, d, s = _parse_weight_spec(w_ie, dist, sparsity)
+            p1, p2, d, s = _parse_weight_spec(w_ie, dist, initial_zero_fraction)
+            w_ie_init, w_ie_meta = init_weight(
+                (n_i, n_e), d, p1, p2, s, return_provenance=True
+            )
             w_ie_t = nn.Parameter(
-                init_weight((n_i, n_e), d, p1, p2, s),
+                w_ie_init,
                 requires_grad=trainable_w_ie,
             )
-            p1, p2, d, s = _parse_weight_spec(w_ii, dist, sparsity)
+            p1, p2, d, s = _parse_weight_spec(w_ii, dist, initial_zero_fraction)
+            w_ii_init, w_ii_meta = init_weight(
+                (n_i, n_i), d, p1, p2, s, return_provenance=True
+            )
             w_ii_t = nn.Parameter(
-                init_weight((n_i, n_i), d, p1, p2, s),
+                w_ii_init,
                 requires_grad=trainable_w_ii,
             )
             self.W_ee[k] = w_ee_t
             self.W_ei[k] = w_ei_t
             self.W_ie[k] = w_ie_t
             self.W_ii[k] = w_ii_t
+            for role, meta, trainable in (
+                (f"W_EE_{k}", w_ee_meta, trainable_w_ee),
+                (f"W_EI_{k}", w_ei_meta, trainable_w_ei),
+                (f"W_IE_{k}", w_ie_meta, trainable_w_ie),
+                (f"W_II_{k}", w_ii_meta, trainable_w_ii),
+            ):
+                tensor = {
+                    f"W_EE_{k}": w_ee_t,
+                    f"W_EI_{k}": w_ei_t,
+                    f"W_IE_{k}": w_ie_t,
+                    f"W_II_{k}": w_ii_t,
+                }[role]
+                meta.update(
+                    {
+                        "role": role,
+                        "shape": list(tensor.shape),
+                        "trainable": bool(trainable),
+                    }
+                )
+                self.weight_initialization[role] = meta
+
+        for idx, parameter in enumerate(self.W_ff):
+            role = (
+                "W_in"
+                if idx == 0
+                else "W_out"
+                if idx == len(self.W_ff) - 1
+                else f"W_ff_{idx}"
+            )
+            self.weight_initialization[role]["trainable"] = bool(
+                parameter.requires_grad
+            )
 
         self.tau_m_e_logit = nn.ParameterDict()
         self.tau_m_i_logit = nn.ParameterDict()
@@ -720,7 +921,9 @@ class COBANet(nn.Module):
             tau_lo, tau_hi = self.adapt_tau_bounds_ms
             tau_init = _bounded_logit((tau_lo * tau_hi) ** 0.5, tau_lo, tau_hi)
             strength_lo, strength_hi = 0.0, self.adapt_strength_max_mv
-            strength_init = min(max(self.adapt_strength_init_mv, 1e-6), strength_hi - 1e-6)
+            strength_init = min(
+                max(self.adapt_strength_init_mv, 1e-6), strength_hi - 1e-6
+            )
             strength_logit = _bounded_logit(strength_init, strength_lo, strength_hi)
             for i in self.ei_layers:
                 n_e = sizes[i - 1]
@@ -863,16 +1066,13 @@ class COBANet(nn.Module):
             for i in range(1, self.n_layers + 1):
                 k = str(i)
                 dv = (
-                    torch.randn(
-                        v_e[k].shape, generator=pgen
-                    ).to(device) * v_perturb_eps
+                    torch.randn(v_e[k].shape, generator=pgen).to(device) * v_perturb_eps
                 )
                 v_e[k] = v_e[k] + dv
                 if k in v_i:
                     dvi = (
-                        torch.randn(
-                            v_i[k].shape, generator=pgen
-                        ).to(device) * v_perturb_eps
+                        torch.randn(v_i[k].shape, generator=pgen).to(device)
+                        * v_perturb_eps
                     )
                     v_i[k] = v_i[k] + dvi
 
@@ -891,9 +1091,7 @@ class COBANet(nn.Module):
         if self.recording:
             rec_buf = {"out": torch.zeros(T_steps, B, N_OUT, device=device)}
             if self.readout_mode in ("spike-count", "spike-rate"):
-                rec_buf["out_spikes"] = torch.zeros(
-                    T_steps, B, N_OUT, device=device
-                )
+                rec_buf["out_spikes"] = torch.zeros(T_steps, B, N_OUT, device=device)
                 rec_buf["v_out"] = torch.zeros(T_steps, B, N_OUT, device=device)
             if has_input_spikes:
                 rec_buf["input"] = torch.zeros(T_steps, B, N_IN, device=device)
@@ -924,9 +1122,7 @@ class COBANet(nn.Module):
         # Per-layer (B, n_e) spike-count accumulator for the firing-rate
         # regulariser — must keep gradient attached, so it sums state["s_e"]
         # post-step.
-        rate_counts = [
-            torch.zeros(B, n, device=device) for n in self.hidden_sizes
-        ]
+        rate_counts = [torch.zeros(B, n, device=device) for n in self.hidden_sizes]
 
         # Bundle mutating state and per-call config so _step_body can be
         # compiled per-timestep. The Python
@@ -958,7 +1154,9 @@ class COBANet(nn.Module):
         ref_steps_I = max(1, int(round(ref_ms_I / dt)))
         beta_snn = np.exp(-dt / tau_snn)
         beta_out = np.exp(-dt / tau_out_ms)
-        leak_params = {str(i): self.leak_params(str(i)) for i in range(1, self.n_layers + 1)}
+        leak_params = {
+            str(i): self.leak_params(str(i)) for i in range(1, self.n_layers + 1)
+        }
         adapt_params = {
             str(i): self.adapt_params(str(i)) for i in range(1, self.n_layers + 1)
         }
@@ -1035,9 +1233,7 @@ class COBANet(nn.Module):
                     else (ext_g_i[t] if has_ext_g_i else None)
                 ),
                 "readout_reset_t": (
-                    readout_reset_mask[t]
-                    if has_readout_reset
-                    else None
+                    readout_reset_mask[t] if has_readout_reset else None
                 ),
             }
             logits_t = step(slc, cfg, state)
@@ -1125,10 +1321,12 @@ class COBANet(nn.Module):
                     ei_drive = ei_drive + slc["ext_t_i"]
                 state["ge_i"][k] = state["ge_i"][k] * cfg["decay_ampa"] + ei_drive
                 state["gi_e"][k] = (
-                    state["gi_e"][k] * cfg["decay_gaba"] + state["s_i"][k] @ self.W_ie[k]
+                    state["gi_e"][k] * cfg["decay_gaba"]
+                    + state["s_i"][k] @ self.W_ie[k]
                 )
                 state["gi_i"][k] = (
-                    state["gi_i"][k] * cfg["decay_gaba"] + state["s_i"][k] @ self.W_ii[k]
+                    state["gi_i"][k] * cfg["decay_gaba"]
+                    + state["s_i"][k] @ self.W_ii[k]
                 )
             else:
                 state["ge_e"][k] = state["ge_e"][k] * cfg["decay_ampa"]
@@ -1177,14 +1375,19 @@ class COBANet(nn.Module):
                     g_L=g_l_e,
                 )
                 state["v_i"][k], state["s_i"][k], state["ref_i"][k] = i_step_coba(
-                    state["v_i"][k], state["ref_i"][k], g_e_for_i, g_i_for_i,
+                    state["v_i"][k],
+                    state["ref_i"][k],
+                    g_e_for_i,
+                    g_i_for_i,
                     v_noise_std=v_noise_i,
                     C_m=c_m_i,
                     g_L=g_l_i,
                 )
             else:
                 state["v_e"][k], state["s_e"][k], state["ref_e"][k] = e_step_coba(
-                    state["v_e"][k], state["ref_e"][k], g_e_for_step,
+                    state["v_e"][k],
+                    state["ref_e"][k],
+                    g_e_for_step,
                     threshold_offset=threshold_e,
                     v_noise_std=v_noise,
                     C_m=c_m_e,
@@ -1280,6 +1483,54 @@ class COBANet(nn.Module):
             feedforward = feedforward[:-1]
         params = feedforward + [p for d in dicts for p in d.values()]
         return [p for p in params if p.requires_grad]
+
+    def weight_final_statistics(self):
+        """Summarize trained tensors so initialization-zero regrowth is visible."""
+        tensors = {}
+        for idx, parameter in enumerate(self.W_ff):
+            role = (
+                "W_in"
+                if idx == 0
+                else "W_out"
+                if idx == len(self.W_ff) - 1
+                else f"W_ff_{idx}"
+            )
+            tensors[role] = parameter.detach()
+        for prefix, parameter_dict in (
+            ("W_EE", self.W_ee),
+            ("W_EI", self.W_ei),
+            ("W_IE", self.W_ie),
+            ("W_II", self.W_ii),
+        ):
+            for layer, parameter in parameter_dict.items():
+                tensors[f"{prefix}_{layer}"] = parameter.detach()
+
+        result = {}
+        for role, weight in tensors.items():
+            flat = weight.reshape(-1)
+            column_sums = weight.sum(dim=0)
+            result[role] = {
+                "zero_count": int((flat == 0).sum()),
+                "zero_fraction": float((flat == 0).float().mean()),
+                "effective_nonzero_fan_in": {
+                    "mean": float((weight != 0).sum(dim=0).float().mean()),
+                    "min": int((weight != 0).sum(dim=0).min()),
+                    "max": int((weight != 0).sum(dim=0).max()),
+                },
+                "all_entries": {
+                    "mean": float(flat.mean()),
+                    "std": float(flat.std(unbiased=False)),
+                    "min": float(flat.min()),
+                    "max": float(flat.max()),
+                },
+                "realized_column_sum": {
+                    "mean": float(column_sums.mean()),
+                    "std": float(column_sums.std(unbiased=False)),
+                    "min": float(column_sums.min()),
+                    "max": float(column_sums.max()),
+                },
+            }
+        return result
 
     @torch.no_grad()
     def project_dales(self) -> None:

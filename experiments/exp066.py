@@ -54,7 +54,7 @@ COMMON = {
     "dataset": "shd", "max_samples": 1000, "epochs": 20,
     "t_ms": T_MS, "dt_ms": DT_MS, "n_input": N_INPUT, "n_classes": 20, "n_hidden": 256,
     "n_inhibitory": 64, "batch_size": 32, "learning_rate": 0.0004,
-    "input_weight_mean": INPUT_SCALE, "input_sparsity": 0.95,
+    "input_summed_coupling_parent_mean": INPUT_SCALE, "input_initial_zero_fraction": 0.95,
     "readout_scale": 225.0, "readout": READOUT_MODE, "seed": SEED,
     "firing_rate_regularizer": False, "dales_law": True,
 }
@@ -80,7 +80,7 @@ def train_args(model: str, out: Path, *, smoke: bool) -> list[str]:
         "--lr", str(COMMON["learning_rate"]), "--seed", str(SEED),
         "--ei-strength", str(recipe["ei_strength"]),
         "--v-grad-dampen", str(recipe["v_grad_dampen"]),
-        "--w-in", str(INPUT_SCALE), "--w-in-sparsity", str(COMMON["input_sparsity"]),
+        "--w-in", str(INPUT_SCALE), "--w-in-initial-zero-fraction", str(COMMON["input_initial_zero_fraction"]),
         "--readout", READOUT_MODE,
         "--readout-w-out-scale", str(COMMON["readout_scale"]),
         "--out-dir", str(out), "--wipe-dir",
@@ -188,7 +188,7 @@ def validate_config(metrics: dict, model: str, *, smoke: bool) -> list[str]:
         "t_ms": 1000.0, "n_hidden": 256, "n_inh": 64, "batch_size": 32,
         "lr": 0.0004, "ei_strength": RECIPES[model]["ei_strength"],
         "v_grad_dampen": RECIPES[model]["v_grad_dampen"],
-        "w_in_sparsity": 0.95, "readout_w_out_scale": 225.0,
+        "w_in_initial_zero_fraction": 0.95, "readout_w_out_scale": 225.0,
         "readout_mode": "mem-mean", "dales_law": True,
         "fr_reg_upper_theta": 0.0, "fr_reg_upper_strength": 0.0,
     }

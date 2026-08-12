@@ -25,7 +25,7 @@ import pytest
 _MUTABLE_GLOBALS = (
     "dt", "T_ms", "T_steps",
     "N_IN", "N_HID", "N_INH", "N_OUT", "HIDDEN_SIZES",
-    "BATCH_SIZE", "EXACT_K_CONNECTIVITY", "V_GRAD_DAMPEN",
+    "BATCH_SIZE", "EXACT_K_INITIALIZATION", "V_GRAD_DAMPEN",
     "tau_ampa", "tau_gaba",
     "max_rate_hz",
 )

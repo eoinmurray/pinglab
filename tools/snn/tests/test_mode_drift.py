@@ -29,19 +29,19 @@ def test_build_net_deterministic_ping():
     a = build_net(
         "ping",
         w_in=(0.3, 0.03),
-        w_in_sparsity=0.95,
+        w_in_initial_zero_fraction=0.95,
         ei_strength=0.5,
         ei_ratio=2.0,
-        sparsity=0.2,
+        recurrent_initial_zero_fraction=0.2,
     )
     torch.manual_seed(0)
     b = build_net(
         "ping",
         w_in=(0.3, 0.03),
-        w_in_sparsity=0.95,
+        w_in_initial_zero_fraction=0.95,
         ei_strength=0.5,
         ei_ratio=2.0,
-        sparsity=0.2,
+        recurrent_initial_zero_fraction=0.2,
     )
     assert _equal_state_dicts(a, b)
 
@@ -110,7 +110,7 @@ def _train_probe(tmp_dir, **extra):
         "0.25",
         "--w-in",
         "10",
-        "--w-in-sparsity",
+        "--w-in-initial-zero-fraction",
         "0",
         "--out-dir",
         str(tmp_dir),
@@ -163,7 +163,7 @@ def test_train_selects_on_validation_then_infer_uses_official_test(tmp_path):
         "0.25",
         "--w-in",
         "10",
-        "--w-in-sparsity",
+        "--w-in-initial-zero-fraction",
         "0",
         "--ei-strength",
         "0",
@@ -193,7 +193,7 @@ def test_train_selects_on_validation_then_infer_uses_official_test(tmp_path):
         "0.25",
         "--w-in",
         "10",
-        "--w-in-sparsity",
+        "--w-in-initial-zero-fraction",
         "0",
         "--ei-strength",
         "0",

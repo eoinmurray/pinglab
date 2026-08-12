@@ -64,7 +64,7 @@ N_HIDDEN = 256
 N_INHIBITORY = 64
 BATCH_SIZE = 32
 LEARNING_RATE = 0.0004
-INPUT_SPARSITY = 0.95
+INPUT_INITIAL_ZERO_FRACTION = 0.95
 READOUT_SCALE = 225.0
 READOUT_MODE = "mem-mean"
 OFFICIAL_TEST_SIZE = 2264
@@ -86,8 +86,8 @@ SCALE = {
     "n_inhibitory": N_INHIBITORY,
     "batch_size": BATCH_SIZE,
     "learning_rate": LEARNING_RATE,
-    "input_weight_mean": INPUT_SCALE,
-    "input_sparsity": INPUT_SPARSITY,
+    "input_summed_coupling_parent_mean": INPUT_SCALE,
+    "input_initial_zero_fraction": INPUT_INITIAL_ZERO_FRACTION,
     "readout_scale": READOUT_SCALE,
     "readout": READOUT_MODE,
     "dt_ms": DT_MS,
@@ -239,7 +239,7 @@ def train_args(model: str, out: Path, *, smoke: bool) -> list[str]:
         "--lr", str(LEARNING_RATE), "--seed", str(SEED),
         "--ei-strength", str(recipe["ei_strength"]),
         "--v-grad-dampen", str(recipe["v_grad_dampen"]),
-        "--w-in", str(INPUT_SCALE), "--w-in-sparsity", str(INPUT_SPARSITY),
+        "--w-in", str(INPUT_SCALE), "--w-in-initial-zero-fraction", str(INPUT_INITIAL_ZERO_FRACTION),
         "--readout", READOUT_MODE,
         "--readout-w-out-scale", str(READOUT_SCALE),
         "--out-dir", str(out), "--wipe-dir",
@@ -354,7 +354,7 @@ def validate_training(model: str, out: Path, *, smoke: bool) -> list[str]:
         "lr": LEARNING_RATE,
         "ei_strength": RECIPES[model]["ei_strength"],
         "v_grad_dampen": RECIPES[model]["v_grad_dampen"],
-        "w_in_sparsity": INPUT_SPARSITY,
+        "w_in_initial_zero_fraction": INPUT_INITIAL_ZERO_FRACTION,
         "readout_w_out_scale": READOUT_SCALE,
         "readout_mode": READOUT_MODE,
         "dales_law": True,
@@ -365,7 +365,7 @@ def validate_training(model: str, out: Path, *, smoke: bool) -> list[str]:
         if cfg.get(key) != want:
             errors.append(f"{key}: got {cfg.get(key)!r}, want {want!r}")
     if not cfg.get("w_in") or float(cfg["w_in"][0]) != INPUT_SCALE:
-        errors.append("input weight mean mismatch")
+        errors.append("input summed-coupling parent mean mismatch")
     epochs = metrics.get("epochs", [])
     if len(epochs) != expected["epochs"]:
         errors.append(f"got {len(epochs)} epoch records")
@@ -473,7 +473,7 @@ def evaluate_official_test(model: str, train_out: Path, official_test: Path) -> 
     net = snn_config.build_net(
         "ping",
         w_in=tuple(config["w_in"]),
-        w_in_sparsity=INPUT_SPARSITY,
+        w_in_initial_zero_fraction=INPUT_INITIAL_ZERO_FRACTION,
         ei_strength=RECIPES[model]["ei_strength"],
         ei_ratio=config["ei_ratio"],
         device=device,

@@ -84,7 +84,7 @@ def test_trainable_leak_and_adaptive_threshold_forward_backward(ei_strength):
     net = build_net(
         "ping",
         w_in=(10.0, 1.0),
-        w_in_sparsity=0.0,
+        w_in_initial_zero_fraction=0.0,
         ei_strength=ei_strength,
         hidden_sizes=[16],
         train_leak=True,

@@ -98,7 +98,7 @@ DALES_LAW = True
 # family except the τ_GABA sweep. Single source of truth in helpers so the
 # whole collection moves together (see helpers/operating_point.py).
 TAU_GABA_GAMMA = TAU_GABA_GAMMA_MS
-SHARED_W_IN_MEAN = "0.9"
+SHARED_W_IN_SUMMED_PARENT_MEAN = "0.9"
 # Stored-weight parameters exactly corresponding to the accepted legacy
 # Normal(5.1, 3.8) / 1024 × 225 recipe, now expressed directly.
 SHARED_READOUT_W_INIT_MEAN = "1.12060546875"
@@ -120,8 +120,8 @@ MODEL_RECIPES: dict[str, dict] = {
         "__build_as": "ping",
         "--ei-strength": "0",
         "--v-grad-dampen": "1",
-        "--w-in": SHARED_W_IN_MEAN,
-        "--w-in-sparsity": "0.95",
+        "--w-in": SHARED_W_IN_SUMMED_PARENT_MEAN,
+        "--w-in-initial-zero-fraction": "0.95",
         "--readout": "mem-mean",
         "--surrogate-slope": "1",
         "--readout-w-init-mean": SHARED_READOUT_W_INIT_MEAN,
@@ -133,8 +133,8 @@ MODEL_RECIPES: dict[str, dict] = {
         "__build_as": "ping",
         "--ei-strength": "1",
         "--v-grad-dampen": "1000",
-        "--w-in": SHARED_W_IN_MEAN,
-        "--w-in-sparsity": "0.95",
+        "--w-in": SHARED_W_IN_SUMMED_PARENT_MEAN,
+        "--w-in-initial-zero-fraction": "0.95",
         "--readout": "mem-mean",
         "--surrogate-slope": "1",
         "--readout-w-init-mean": SHARED_READOUT_W_INIT_MEAN,

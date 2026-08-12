@@ -157,7 +157,7 @@ def train_args(model: str, out: Path, *, smoke: bool) -> list[str]:
         "--ei-strength", str(recipe["ei_strength"]),
         "--v-grad-dampen", str(recipe["v_grad_dampen"]),
         "--w-in", str(baseline.INPUT_SCALE),
-        "--w-in-sparsity", str(baseline.INPUT_SPARSITY),
+        "--w-in-initial-zero-fraction", str(baseline.INPUT_INITIAL_ZERO_FRACTION),
         "--readout", READOUT_MODE,
         "--readout-w-out-scale", str(READOUT_SCALE),
         "--out-dir", str(out), "--wipe-dir",

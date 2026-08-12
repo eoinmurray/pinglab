@@ -87,7 +87,7 @@ def measure_one(n_inh: int, g_ie: float, seed: int) -> dict:
         "--ei-strength", str(W_EI_TOTAL),
         "--ei-ratio", str(g_ie / W_EI_TOTAL),
         "--w-in", str(W_IN_MEAN),
-        "--w-in-sparsity", str(W_IN_SPARSITY),
+        "--w-in-initial-zero-fraction", str(W_IN_SPARSITY),
         "--input-rate", str(INPUT_RATE_HZ),
         "--n-batch", str(N_BATCH),
         "--t-ms", str(T_MS),

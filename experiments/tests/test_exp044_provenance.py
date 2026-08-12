@@ -14,7 +14,7 @@ def _common_config() -> dict:
         "tau_gaba_ms": 6.0, "input_rate": 25.0,
         "input_rate_sampling": "fixed", "hidden_sizes": [1024],
         "n_in": 784, "n_hidden": 1024, "n_inh": 256, "n_out": 10,
-        "ei_strength": 1.0, "w_in": [0.9, 0.09], "w_in_sparsity": 0.95,
+        "ei_strength": 1.0, "w_in": [0.9, 0.09], "w_in_initial_zero_fraction": 0.95,
         "readout_mode": "mem-mean", "readout_w_init_mean": 1.12060546875,
         "readout_w_init_std": 0.8349609375, "surrogate_slope": 1.0,
         "lr": 0.0004, "batch_size": 256, "weight_decay": 0.0,

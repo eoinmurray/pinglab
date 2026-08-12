@@ -134,7 +134,7 @@
 
   _What it is:_ Histograms of the current weight values, one sub-histogram per weight matrix (input-to-hidden, hidden-to-output, and any recurrent E–E / E–I / I–E matrices).
 
-  _How to read it:_ Signed weights (standard SNN) look roughly Gaussian around zero. Dale's-law weights are non-negative so they form a half-normal clamped at zero. A long tail means a few synapses dominate; a narrow stack at zero means many weights have died under regularisation.
+  _How to read it:_ Signed weights can span zero. Dale-constrained weights are initialized by lower-clamping a Gaussian and are projected back to the non-negative domain after updates. The initial histogram therefore has a point mass at zero from clamping and optional explicit zero initialization; those entries remain trainable. A later stack at zero may reflect the optimization boundary, so initial and final zero fractions must be compared before interpreting it as pruning.
 
   == output
 
@@ -238,7 +238,7 @@
 
   == test_loss
 
-  _What it is:_ Cross-entropy on the validation split, evaluated once per epoch. The _test__ prefix is a legacy artifact-field name; no official MNIST test images are used during training.
+  _What it is:_ Cross-entropy on the validation split, evaluated once per epoch. The `test_` prefix is a legacy artifact-field name; no official MNIST test images are used during training.
 
   _Common values:_ Tracks _loss_ with a small gap. A widening gap usually means overfitting; a gap that collapses to zero often means data leakage between train and test.
 

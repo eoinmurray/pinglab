@@ -69,11 +69,15 @@
 
   == Weight init
 
-  Feedforward weights are sampled fan-in-normalised, either half-normal (Dale's law) or normal (signed):
+  Dale-constrained magnitudes use a lower-clamped Gaussian, not a half-normal or truncated normal:
 
-  $ W tilde cal(N)(mu, sigma^2), quad W <- W \/ N_"pre" $
+  $ X_(i j) tilde cal(N)(mu, sigma^2), quad U_(i j) = max(0, X_(i j)). $
 
-  with optional sparsity $s in [0, 1)$: a fraction $s$ of entries are zeroed and the survivors rescaled by $1\/(1-s)$, so the expected synaptic input per post-neuron is preserved.
+  The configured $mu$ and $sigma$ are parent-Gaussian parameters on the summed-coupling scale, not moments of one stored edge. With initial-zero fraction $s in [0, 1)$ and Bernoulli indicator $B_(i j)$, the stored initialization is
+
+  $ W_(i j)^(0) = B_(i j) U_(i j) \/ ((1-s) N_"pre"). $
+
+  The compensation keeps the expected column sum independent of $s$; lower clamping means that expected sum is $cal(E)[max(0, X)]$, which is recorded alongside the configured parent parameters. Both lower-clamp zeros and explicitly zeroed entries remain trainable and may become positive. This is sparse initialization of a dense trainable matrix, not structural sparsity.
 
   == Dale's law under Adam
 

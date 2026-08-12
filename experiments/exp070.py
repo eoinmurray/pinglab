@@ -43,19 +43,19 @@ PROMOTION_ACCURACY_GAIN_PP = 3.0
 ATTEMPT_SPECS: dict[str, dict[str, float | str]] = {
     "temporal_2ms": {
         "dt_ms": 2.0,
-        "input_weight_mean": 0.9,
+        "input_summed_coupling_parent_mean": 0.9,
         "learning_rate": 0.0004,
         "pod_label": "2ms",
     },
     "input_scale_1p2": {
         "dt_ms": 1.0,
-        "input_weight_mean": 1.2,
+        "input_summed_coupling_parent_mean": 1.2,
         "learning_rate": 0.0004,
         "pod_label": "input-1p2",
     },
     "learning_rate_1e3": {
         "dt_ms": 1.0,
-        "input_weight_mean": 0.9,
+        "input_summed_coupling_parent_mean": 0.9,
         "learning_rate": 0.001,
         "pod_label": "lr-1e3",
     },
@@ -65,7 +65,7 @@ if ATTEMPT not in ATTEMPT_SPECS:
     raise RuntimeError(f"unregistered exp070 attempt: {ATTEMPT}")
 ATTEMPT_SPEC = ATTEMPT_SPECS[ATTEMPT]
 DT_MS = float(ATTEMPT_SPEC["dt_ms"])
-INPUT_SCALE = float(ATTEMPT_SPEC["input_weight_mean"])
+INPUT_SCALE = float(ATTEMPT_SPEC["input_summed_coupling_parent_mean"])
 LEARNING_RATE = float(ATTEMPT_SPEC["learning_rate"])
 POD_LABEL = str(ATTEMPT_SPEC["pod_label"])
 
@@ -105,7 +105,7 @@ def configure_baseline() -> None:
         "attempt": ATTEMPT,
         "epochs": SHORT_EPOCHS,
         "dt_ms": DT_MS,
-        "input_weight_mean": INPUT_SCALE,
+        "input_summed_coupling_parent_mean": INPUT_SCALE,
         "learning_rate": LEARNING_RATE,
     }
     # The engine historically resolves SHD through a module-level directory.
@@ -184,7 +184,7 @@ def run_smoke() -> None:
     summary = json.loads(summary_path.read_text())
     summary["attempt"] = ATTEMPT
     summary["candidate_dt_ms"] = DT_MS
-    summary["candidate_input_weight_mean"] = INPUT_SCALE
+    summary["candidate_input_summed_coupling_parent_mean"] = INPUT_SCALE
     summary["candidate_learning_rate"] = LEARNING_RATE
     summary["input_audit"] = input_audit()
     baseline.atomic_json(summary_path, summary)

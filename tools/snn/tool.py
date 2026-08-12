@@ -467,20 +467,20 @@ def _build_parent_parser():
         "--ei-ratio", type=float, default=2.0, help="W_IE/W_EI ratio (default: 2.0)"
     )
     net_group.add_argument(
-        "--w-in-sparsity",
+        "--w-in-initial-zero-fraction",
         type=float,
         default=None,
-        help="W_in sparsity (default: 0.95)",
+        help="Fraction of W_in parameters set to zero only at initialization. "
+        "All entries remain trainable and may regrow. Survivors are rescaled "
+        "by 1/(1-fraction). Default: 0.95.",
     )
     net_group.add_argument(
-        "--ei-sparsity",
+        "--recurrent-initial-zero-fraction",
         type=float,
         default=0.0,
-        help="Sparsity of the recurrent E↔I matrices (W_EE / W_EI / W_IE / "
-        "W_II). Fraction of entries zeroed independently; surviving entries "
-        "rescaled by 1/(1-s) to preserve total expected drive. Default 0 "
-        "(dense). Use ≈ 1 - K/N for Brunel/Vreeswijk-style sparse random "
-        "connectivity where each post-cell draws ≈ K presynaptic inputs.",
+        help="Fraction of recurrent W_EE/W_EI/W_IE/W_II parameters set to "
+        "zero only at initialization. Trainable entries may regrow. Survivors "
+        "are rescaled by 1/(1-fraction). Default: 0.",
     )
     net_group.add_argument(
         "--independent-drive",
@@ -529,13 +529,12 @@ def _build_parent_parser():
         "--quenched-drive but targets the I population.",
     )
     net_group.add_argument(
-        "--exact-k",
+        "--exact-k-initialization",
         action="store_true",
-        help="Use fixed-fan-in (exact-K) recurrent connectivity instead of "
-        "per-entry Bernoulli sparsity: every post cell draws exactly "
-        "K = round((1−ei_sparsity)·N_pre) presynaptic inputs. Removes the "
-        "binomial cell-to-cell fan-in variance — the Brunel/Vreeswijk "
-        "convention. No effect unless --ei-sparsity > 0.",
+        help="Choose exactly K initially non-zero recurrent entries per post "
+        "cell instead of Bernoulli zeroing, where K=round((1-f)N_pre). This "
+        "does not impose a persistent mask. No effect unless the recurrent "
+        "initial-zero fraction is greater than zero.",
     )
     net_group.add_argument(
         "--lyapunov-eps",
@@ -579,17 +578,17 @@ def _build_parent_parser():
         "--readout-w-init-mean",
         type=float,
         default=None,
-        help="Mean of the normal distribution used to initialize the stored "
-        "W_ff[-1] values directly, before clamping at zero. Must be used "
+        help="Parent mean of the lower-clamped Gaussian used to initialize "
+        "stored W_ff[-1] directly. Zero-valued draws remain trainable. Must be used "
         "with --readout-w-init-std. Train-mode only.",
     )
     net_group.add_argument(
         "--readout-w-init-std",
         type=float,
         default=None,
-        help="Standard deviation of the normal distribution used to "
-        "initialize stored W_ff[-1] values directly, before clamping at "
-        "zero. Must be used with --readout-w-init-mean. Train-mode only.",
+        help="Parent standard deviation of the lower-clamped Gaussian used "
+        "to initialize stored W_ff[-1] directly. Must be used with "
+        "--readout-w-init-mean. Train-mode only.",
     )
     net_group.add_argument(
         "--surrogate-slope",
@@ -652,32 +651,33 @@ def _build_parent_parser():
         type=float,
         nargs="+",
         default=None,
-        metavar=("MEAN", "STD"),
-        help="W_in init mean std (default: 0.3 0.06; standard-snn needs ~10 2 dense)",
+        metavar=("SUMMED_PARENT_MEAN", "SUMMED_PARENT_STD"),
+        help="W_in parent Gaussian parameters on the fan-in-normalized "
+        "summed-coupling scale, not per-edge moments.",
     )
     wt_group.add_argument(
         "--w-ei",
         type=float,
         nargs=2,
         default=None,
-        metavar=("MEAN", "STD"),
-        help="W_EI init (mean std)",
+        metavar=("SUMMED_PARENT_MEAN", "SUMMED_PARENT_STD"),
+        help="W_EI parent Gaussian parameters on the summed-coupling scale.",
     )
     wt_group.add_argument(
         "--w-ie",
         type=float,
         nargs=2,
         default=None,
-        metavar=("MEAN", "STD"),
-        help="W_IE init (mean std)",
+        metavar=("SUMMED_PARENT_MEAN", "SUMMED_PARENT_STD"),
+        help="W_IE parent Gaussian parameters on the summed-coupling scale.",
     )
     wt_group.add_argument(
         "--w-ii",
         type=float,
         nargs=2,
         default=None,
-        metavar=("MEAN", "STD"),
-        help="W_II (I→I) init (mean std). Default: 0 0 (no I→I, canonical "
+        metavar=("SUMMED_PARENT_MEAN", "SUMMED_PARENT_STD"),
+        help="W_II parent Gaussian parameters on the summed-coupling scale. Default: 0 0 (no I→I, canonical "
         "PING). Enable for Brunel/Vreeswijk balanced-network experiments.",
     )
     wt_group.add_argument(
@@ -685,8 +685,8 @@ def _build_parent_parser():
         type=float,
         nargs=2,
         default=None,
-        metavar=("MEAN", "STD"),
-        help="W_EE (E→E) init (mean std). Default: 0 0 (no E→E, canonical "
+        metavar=("SUMMED_PARENT_MEAN", "SUMMED_PARENT_STD"),
+        help="W_EE parent Gaussian parameters on the summed-coupling scale. Default: 0 0 (no E→E, canonical "
         "PING). Enable for the full four-coupling Brunel/Vreeswijk balanced "
         "network (recurrent excitation pins the E rate).",
     )
@@ -996,7 +996,7 @@ The flags fall into the following groups (every group is documented in
 each subcommand's --help):
 
   Network        --model, --n-hidden, --ei-strength, --ei-ratio,
-                 --ei-sparsity, --w-in-sparsity, --dt, --t-ms, --seed
+                 --recurrent-initial-zero-fraction, --w-in-initial-zero-fraction, --dt, --t-ms, --seed
   Dynamics       --train-leak, --adaptive-threshold
   Readout        --readout {rate,mem-mean,spike-count,spike-rate,cumulative-potential},
                  --signed-readout, --readout-bias, --readout-w-init-mean,
@@ -1126,8 +1126,9 @@ def configure_models(args):
         if val is not None:
             setattr(M, attr, cast(val))
     # Special case: a bare flag.
-    if getattr(args, "exact_k", False):
-        M.EXACT_K_CONNECTIVITY = True
+    M.EXACT_K_INITIALIZATION = bool(
+        getattr(args, "exact_k_initialization", False)
+    )
     # Input Poisson rate and trial duration — single source of truth. Every
     # code path reads M.max_rate_hz / M.T_ms, so setting them here once means
     # all dispatch branches (sim/train × all input types) respect
@@ -1476,7 +1477,8 @@ def _run_train(args, C, out_dir, log):
         w_ii=args.w_ii,
         ei_strength=args.ei_strength,
         ei_ratio=args.ei_ratio,
-        w_in_sparsity=args.w_in_sparsity or 0.0,
+        w_in_initial_zero_fraction=args.w_in_initial_zero_fraction or 0.0,
+        recurrent_initial_zero_fraction=args.recurrent_initial_zero_fraction,
         dataset=args.dataset,
         snapshot_init=True,
         snapshot_end=True,
@@ -1534,7 +1536,8 @@ def _emit_infer(args, C, out_dir, log, snapshot_mode=False):
             w_in=w_in,
             ei_strength=args.ei_strength,
             ei_ratio=args.ei_ratio,
-            w_in_sparsity=args.w_in_sparsity or 0.0,
+            w_in_initial_zero_fraction=args.w_in_initial_zero_fraction or 0.0,
+            recurrent_initial_zero_fraction=args.recurrent_initial_zero_fraction,
             hidden_sizes=args.n_hidden,
             dales_law=args.dales_law,
             seed=args.seed,
@@ -1570,7 +1573,8 @@ def _emit_infer(args, C, out_dir, log, snapshot_mode=False):
         w_in=w_in,
         ei_strength=args.ei_strength,
         ei_ratio=args.ei_ratio,
-        w_in_sparsity=args.w_in_sparsity or 0.0,
+        w_in_initial_zero_fraction=args.w_in_initial_zero_fraction or 0.0,
+        recurrent_initial_zero_fraction=args.recurrent_initial_zero_fraction,
         hidden_sizes=args.n_hidden,
         dales_law=args.dales_law,
         seed=args.seed,
@@ -1614,7 +1618,8 @@ def _run_dump_weights(args, C, out_dir, log):
         w_in=w_in,
         ei_strength=args.ei_strength,
         ei_ratio=args.ei_ratio,
-        w_in_sparsity=args.w_in_sparsity or 0.0,
+        w_in_initial_zero_fraction=args.w_in_initial_zero_fraction or 0.0,
+        recurrent_initial_zero_fraction=args.recurrent_initial_zero_fraction,
         hidden_sizes=args.n_hidden,
         dales_law=args.dales_law,
         seed=args.seed,
@@ -1651,7 +1656,8 @@ def _emit_probe(args, C, out_dir, log):
         w_ei_mean=getattr(args, "w_ei_mean", None),
         w_ie_mean=getattr(args, "w_ie_mean", None),
         w_in=_resolve_w_in(args),
-        w_in_sparsity=args.w_in_sparsity or 0.0,
+        w_in_initial_zero_fraction=args.w_in_initial_zero_fraction or 0.0,
+        recurrent_initial_zero_fraction=args.recurrent_initial_zero_fraction,
         dales_law=args.dales_law,
         seed=args.seed,
         load_weights=getattr(args, "load_weights", None),

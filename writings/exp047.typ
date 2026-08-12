@@ -40,11 +40,11 @@
 #let body = [
   == Abstract
 
-  The apparent invariance of pyramidal–interneuron network gamma (PING) firing rate to inhibitory-pool size is a consequence of the simulator's fan-in normalization, not independence from interneuron count. Excitatory cells are denoted E and inhibitory cells I. The nominal I→E parameter $G_(I E)$ is divided by the presynaptic pool size, so the realised mean synaptic conductance is $j_(I E) = G_(I E) / N_I$. We vary $N_I$ under paired controls. Rates remain flat when $G_(I E)$ is fixed and $j_(I E) prop 1 / N_I$; when the realised synapse $j_(I E)$ is fixed, rates change strongly with $N_I$. Pool-size invariance therefore requires compensatory inverse scaling of individual synapses.
+  The apparent invariance of pyramidal–interneuron network gamma (PING) firing rate to inhibitory-pool size is a consequence of the simulator's fan-in normalization, not independence from interneuron count. Excitatory cells are denoted E and inhibitory cells I. Let $G_(I E)$ denote the expected summed I→E coupling after lower clamping. Dividing by the presynaptic pool size gives realised mean synaptic conductance $j_(I E) = G_(I E) / N_I$. We vary $N_I$ under paired controls. Rates remain flat when $G_(I E)$ is fixed and $j_(I E) prop 1 / N_I$; when the realised synapse $j_(I E)$ is fixed, rates change strongly with $N_I$. Pool-size invariance therefore requires compensatory inverse scaling of individual synapses.
 
   == Methods
 
-  *1. Weight convention.* For a dense I→E matrix with shape $N_I times N_E$, the simulator draws a non-negative weight with nominal mean $G_(I E)$ and then divides every entry by its presynaptic fan-in $N_I$. Thus
+  *1. Weight convention.* For a dense I→E matrix with shape $N_I times N_E$, the simulator draws $X tilde cal(N)(mu, sigma^2)$, lower-clamps it as $U = max(0, X)$, and divides by $N_I$. The CLI values are the parent-Gaussian parameters on the summed-coupling scale; the expected summed coupling is $G_(I E) = cal(E)[U]$. Thus
 
   $ cal(E)[W_(k j)^(I E)] approx j_(I E) = G_(I E) / N_I, quad cal(E)[sum_(k=1)^(N_I) W_(k j)^(I E)] approx G_(I E). quad (1) $
 
