@@ -1049,6 +1049,12 @@ For the underlying theory of --v-grad-dampen see /articles/ar006/.
     # --load-config: load training params from config.json, fill unset values
     if args.mode in ("sim", "dump-weights") and getattr(args, "load_config", None):
         config_to_args, dest_to_flag = _build_config_mapping(parent)
+        if args.mode == "sim":
+            # A training config's max_samples caps its training partition. In
+            # simulation, --max-samples instead caps evaluation and must be an
+            # explicit choice; otherwise inference uses the full official test
+            # partition.
+            config_to_args.pop("max_samples", None)
         # --tau-gaba lives on the sim subparser, not the parent parser that
         # _build_config_mapping walks, so it isn't auto-mapped. Register it here so a
         # loaded cell replays at its TRAINED τ_GABA (config key tau_gaba_ms), not the

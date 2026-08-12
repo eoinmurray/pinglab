@@ -53,7 +53,8 @@ SNN_TOOL = REPO / "tools" / "snn" / "tool.py"
 
 MAX_SAMPLES = 7000
 SMOKE = os.environ.get("PINGLAB_SMOKE") == "1"
-EVAL_MAX_SAMPLES = 100 if SMOKE else 70000
+EVAL_MAX_SAMPLES = 100 if SMOKE else 60000
+EVAL_CORPUS_SAMPLES = 10000
 T_MS = 200.0
 DT_TRAIN = 0.1
 
@@ -767,7 +768,7 @@ def main() -> None:
                 theta_hz(t) for t in THETA_U_GRID if t is not None
             ],
             "max_samples": MAX_SAMPLES,
-            "evaluation_pool_samples": EVAL_MAX_SAMPLES,
+            "evaluation_pool_samples": EVAL_CORPUS_SAMPLES,
             "epochs": BASELINE_EPOCHS,
             "t_ms": T_MS,
             "dt": DT_TRAIN,

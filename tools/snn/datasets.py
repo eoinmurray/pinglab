@@ -40,6 +40,9 @@ DATASET_N_HIDDEN_DEFAULTS = {
     "shd": 256,  # n_in = 700; Cramer et al. RSNNs use ~128-256 recurrent units
 }
 
+MNIST_SPLIT_SEED = 42
+MNIST_VALIDATION_FRACTION = 0.1
+
 
 def _download_shd(split):
     """Fetch + gunzip one SHD split to _SHD_DIR, returning the local .h5 path.
@@ -91,15 +94,25 @@ def _subsample(events, labels, max_samples):
     return events[idx], labels[idx]
 
 
-def load_dataset(name, max_samples=None, split=False, dt_ms=None, t_ms=None):
+def load_dataset(
+    name,
+    max_samples=None,
+    split=False,
+    dt_ms=None,
+    t_ms=None,
+    evaluation_split="validation",
+):
     """Load full dataset as (X, y) numpy arrays in [0, 1] / int64.
 
     Args:
         name: "mnist" (dense pixel rows) or "shd" (object array of events)
-        max_samples: optional cap; deterministic random subset (seed 42)
-        split: if True, return (X_tr, X_te, y_tr, y_te). MNIST uses a stratified
-               80/20 train_test_split(seed 42); SHD uses its official split.
-               If False, return (X, y).
+        max_samples: optional cap on the official training partition; the
+               official MNIST test partition is never subsampled through this
+               argument
+        split: if True, return (X_train, X_eval, y_train, y_eval)
+        evaluation_split: for MNIST, select either the deterministic validation
+               split used during training or the untouched official test split.
+               SHD retains its official train/test contract.
         dt_ms, t_ms: currently unused; kept for call-site compatibility
 
     Single canonical loader used by train, infer, and image paths so
@@ -120,22 +133,14 @@ def load_dataset(name, max_samples=None, split=False, dt_ms=None, t_ms=None):
             download=True,
             transform=transforms.ToTensor(),
         )
-        X = np.concatenate(
-            [
-                mnist_train.data.numpy().reshape(-1, 784).astype(np.float32) / 255.0,
-                mnist_test.data.numpy().reshape(-1, 784).astype(np.float32) / 255.0,
-            ]
-        )
-        y = np.concatenate(
-            [
-                mnist_train.targets.numpy(),
-                mnist_test.targets.numpy(),
-            ]
-        ).astype(np.int64)
+        X = mnist_train.data.numpy().reshape(-1, 784).astype(np.float32) / 255.0
+        y = mnist_train.targets.numpy().astype(np.int64)
+        X_test = mnist_test.data.numpy().reshape(-1, 784).astype(np.float32) / 255.0
+        y_test = mnist_test.targets.numpy().astype(np.int64)
     elif name == "shd":
         # Event data. Keep SHD's OFFICIAL train/test split — it holds out two
         # speakers unseen in training, and every published SHD number is reported
-        # on that test set, so concat-and-resplit (the MNIST recipe) would break
+        # on that test set, so resplitting would break
         # comparability. Returns object arrays of per-sample (units, times); the
         # caller bins them to spikes lazily at the run's dt.
         X_tr, y_tr = _read_shd_split("train")
@@ -149,13 +154,33 @@ def load_dataset(name, max_samples=None, split=False, dt_ms=None, t_ms=None):
         raise ValueError(f"Unknown dataset: {name}")
 
     if max_samples is not None and max_samples < len(X):
-        idx = np.random.RandomState(42).choice(len(X), max_samples, replace=False)
+        idx = np.random.RandomState(MNIST_SPLIT_SEED).choice(
+            len(X), max_samples, replace=False
+        )
         X, y = X[idx], y[idx]
 
     if split:
+        if evaluation_split == "test":
+            return X, X_test, y, y_test
         from sklearn.model_selection import train_test_split
 
-        return train_test_split(X, y, test_size=0.2, random_state=42, stratify=y)
+        validation_size = max(
+            int(np.ceil(len(y) * MNIST_VALIDATION_FRACTION)),
+            len(np.unique(y)),
+        )
+        X_train, X_validation, y_train, y_validation = train_test_split(
+            X,
+            y,
+            test_size=validation_size,
+            random_state=MNIST_SPLIT_SEED,
+            stratify=y,
+        )
+        if evaluation_split == "validation":
+            return X_train, X_validation, y_train, y_validation
+        raise ValueError(
+            "MNIST evaluation_split must be 'validation' or 'test', "
+            f"got {evaluation_split!r}"
+        )
     return X, y
 
 

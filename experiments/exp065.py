@@ -59,7 +59,7 @@ MATCHED_RATE_HZ = 25.0
 DIAGNOSTIC_Q = (1.0, 0.1, 0.02, 0.005, 0.0)
 
 SCALE = {
-    "dataset": "MNIST (full 70,000-sample corpus; stratified 80/20 split)",
+    "dataset": "MNIST (official 60,000-image train and 10,000-image test partitions)",
     "model": "vanilla ANN, 784→1024→10",
     "hidden_units": N_HIDDEN,
     "epochs": EPOCHS,

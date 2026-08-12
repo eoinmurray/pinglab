@@ -9,7 +9,7 @@
 #let run = json("/artifacts/data/exp038/numbers.json")
 #let cfg = run.config
 #let eval_n = cfg.at("evaluation_samples_per_seed", default: (14000,)).first()
-#let eval_pool = cfg.at("evaluation_pool_samples", default: 70000)
+#let eval_pool = cfg.at("evaluation_pool_samples", default: 10000)
 #let ei = run.at("ei_sweep_summary", default: run.ei_sweep)
 #let at(strength) = ei.filter(r => calc.abs(r.ei_strength - strength) < 0.001).first()
 #let loop_off = at(0.0)
@@ -44,7 +44,7 @@
     [Parameter], [Value],
     [Integration timestep $Delta t$], [0.1 ms],
     [Trial duration $T$], [200 ms],
-    [Evaluation corpus], [#eval_pool MNIST samples, split 80/20],
+    [Evaluation corpus], [Official MNIST test partition (#eval_pool samples)],
     [Evaluated held-out samples per seed], [#eval_n],
     [Epochs], [50],
   )

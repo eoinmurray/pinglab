@@ -78,7 +78,7 @@ def test_all_resolved_commands_keep_family_contract(tmp_path: Path) -> None:
             if cell["model"] == "ping":
                 assert args[args.index("--ei-strength") + 1] == "1"
         if cell["family"] == "canonical":
-            assert args[args.index("--max-samples") + 1] == "70000"
+            assert args[args.index("--max-samples") + 1] == "60000"
         else:
             assert args[args.index("--max-samples") + 1] == "7000"
         if cell["family"] == "variable_rate":
@@ -111,7 +111,10 @@ def test_all_resolved_cells_have_complete_scientific_contract(tmp_path: Path) ->
         assert contract["constraints"]["dales_law"] is True
         assert contract["optimizer"]["weight_decay"] == 0.0
         assert contract["optimizer"]["gradient_clip_norm"] == 1.0
-        assert contract["dataset"]["optimizer_train_samples"] == round(samples * 0.8)
+        assert contract["dataset"]["optimizer_train_samples"] == round(samples * 0.9)
+        assert contract["dataset"]["validation_samples"] == samples - round(samples * 0.9)
+        assert contract["dataset"]["official_test_samples"] == 10000
+        assert contract["dataset"]["official_test_used_during_training"] is False
         if cell["family"] == "variable_rate":
             assert contract["input"]["rate_hz"] is None
             assert contract["input"]["rate_distribution_hz"] == list(
@@ -233,7 +236,7 @@ def _write_valid_cell(row: dict) -> Path:
     (directory / "config.json").write_text(json.dumps({**expected, **identity}))
     (directory / "metrics.json").write_text(json.dumps({**identity, "config": expected}))
     epochs = row["parameters"]["epochs"]
-    samples = round(row["parameters"]["max_samples"] * 0.8)
+    samples = round(row["parameters"]["max_samples"] * 0.9)
     (directory / "metrics.jsonl").write_text("\n".join(
         json.dumps({"ep": epoch, "samples": samples, "acc": 10.0})
         for epoch in range(1, epochs + 1)

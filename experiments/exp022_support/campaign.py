@@ -332,7 +332,7 @@ def validate_cell(cell: dict[str, Any], *, load_checkpoint: bool = True) -> dict
     if len(history) < epochs or int(history[-1].get("ep", -1)) < epochs:
         reasons.append(f"history did not reach epoch {epochs}")
     observed_samples = [row.get("samples") for row in history if row.get("samples") is not None]
-    expected_train_samples = round(samples * 0.8)  # fixed stratified MNIST split
+    expected_train_samples = round(samples * 0.9)  # fixed MNIST validation split
     if len(observed_samples) < epochs or any(
         int(value) != expected_train_samples for value in observed_samples[:epochs]
     ):

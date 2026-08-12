@@ -112,13 +112,13 @@
 
   === TR-01 — Canonical full-data reference
 
-  The full-data COBA and PING cells are used for headline accuracy. They train on all pooled MNIST with no spike-budget penalty, so the comparison is not affected by the smaller dataset or regularization used in the sweeps. This experiment uses these cells directly.
+  The full-data COBA and PING cells are used for headline accuracy. They use the official MNIST training partition with no spike-budget penalty, so the comparison is not affected by the smaller dataset or regularization used in the sweeps. Ten percent of that partition is reserved for checkpoint selection; the official test partition remains untouched during training. This experiment uses these cells directly.
 
   #table(
     columns: (1.2fr, 1.4fr, 2fr),
     table.header([*Key parameter*], [*Value*], [*Why it differs*]),
     [Architectures], [COBA and PING], [Provides a feedforward control and recurrent E/I model],
-    [Training pool], [70,000 samples], [Uses all pooled MNIST rather than the sweep default of 7,000],
+    [Training pool], [60,000 official training samples], [54,000 optimizer-training and 6,000 validation samples],
     [Input rate], [25 Hz maximum-pixel rate], [Fixed-rate collection baseline],
     [Spike budget], [Off], [Measures unconstrained capacity],
     [Cells], [2 architectures × 3 seeds = 6], [Across-seed comparison for both models],
@@ -135,7 +135,7 @@
     columns: (1.2fr, 1.5fr, 2fr),
     table.header([*Key parameter*], [*Value*], [*Why it differs*]),
     [Architectures], [COBA and PING], [Direct architecture comparison],
-    [Training pool], [7,000 samples], [Keeps the 36-cell sweep tractable],
+    [Training pool], [7,000 official training samples], [6,300 optimizer-training and 700 validation samples],
     [Spike budget $theta_u$], [off, 5, 2, 1, 0.5, 0.2 spikes/neuron/trial], [Spans unconstrained through severe sparsity],
     [Penalty strength], [$10^(-3)$ when enabled], [Applies the upper-rate regularizer],
     [Cells], [2 × 6 settings × 3 seeds = 36], [Error bars at every frontier point],
