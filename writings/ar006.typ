@@ -53,11 +53,11 @@
   The readout collapses the last hidden layer's activity into class logits; `--readout` picks how. Four modes:
 
   - `spike-count` — sum last-hidden spikes over the trial and project linearly, $hat(y) = (sum_t s^"hid"_t) W_"out" + b_"out"$. Equivalent to spike-rate up to a constant.
-  - `mem-mean` — pass spikes through a final non-resetting LIF and average its membrane potential over the trial. Default for the COBA/PING recipes; used by #link("/exp025/")[exp025] and the streaming entries.
+  - `mem-mean` — pass spikes through a final spiking LIF with subtractive reset. At each timestep, the pre-reset output voltage is added to the trial accumulator; any output spike then subtracts the threshold before the next timestep. The class logit is the temporal mean of those pre-reset voltages. This is the default for the COBA/PING recipes and is used by #link("/exp025/")[exp025].
   - `li` — leaky integrator: a non-spiking LIF whose final-step membrane potential is the logit.
   - `rate` — softmax over per-trial spike rates.
 
-  The choice matters because it sets where the gradient enters the network: `mem-mean` lets it flow through the output LIF's membrane at every timestep, while `spike-count` only sees the aggregate.
+  The choice matters because it sets where the gradient enters the network: `mem-mean` lets it flow through the output LIF's pre-reset voltage at every timestep, while `spike-count` only sees the aggregate. Although the reset is applied after the current voltage is accumulated, it changes the output state—and therefore the voltage statistic—at later timesteps.
 
   == Firing-rate regularisation
 

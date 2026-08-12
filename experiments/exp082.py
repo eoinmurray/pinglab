@@ -2,7 +2,7 @@
 
 This is the successor to exp048.  It consumes the planned exp022 PING cells
 trained with per-presentation variable input rates and the output-LIF
-`spike-rate` readout.  It evaluates four protocols:
+`spike-count` readout.  It evaluates four protocols:
 
 1. a matched 200-ms presentation/readout stream;
 2. a stream whose presentation duration and input rate both vary;
@@ -113,9 +113,9 @@ def load_eval(seed: int) -> tuple[Path, dict[str, Any], np.ndarray, np.ndarray]:
     directory = training_dir(seed)
     config = json.loads((directory / "config.json").read_text())
     readout = config.get("readout_mode", config.get("readout"))
-    if readout != "spike-rate":
+    if readout != "spike-count":
         raise SystemExit(
-            f"{directory} has readout {readout!r}; exp082 requires output-LIF 'spike-rate'"
+            f"{directory} has readout {readout!r}; exp082 requires output-LIF 'spike-count'"
         )
     _, x_test, _, y_test = load_mnist_split(max_samples=int(config["max_samples"]))
     return directory, config, x_test, y_test
@@ -198,7 +198,7 @@ def run_spikes(
     missing = sorted(required - set(raster.files))
     if missing:
         raise RuntimeError(
-            "exp082 requires tools/snn spike-rate output-spike rasters; "
+            "exp082 requires tools/snn spike-count output-spike rasters; "
             f"missing {missing} in {out_dir / 'rasters.npz'}"
         )
     return (
@@ -208,18 +208,15 @@ def run_spikes(
     )
 
 
-def spike_rate_logits(
+def spike_count_logits(
     spikes_out: np.ndarray,
     start: int,
     stop: int,
-    *,
-    dt_ms: float = DT_MS,
 ) -> np.ndarray:
-    """Output-LIF spike rate in Hz over exactly ``[start, stop)``."""
-    duration_s = (stop - start) * dt_ms / 1000.0
-    if duration_s <= 0:
-        raise ValueError("spike-rate window must contain at least one timestep")
-    return spikes_out[start:stop].sum(axis=0) / duration_s
+    """Output-LIF spike counts over exactly ``[start, stop)``."""
+    if stop <= start:
+        raise ValueError("spike-count window must contain at least one timestep")
+    return spikes_out[start:stop].sum(axis=0)
 
 
 def softmax(values: np.ndarray) -> np.ndarray:
@@ -260,9 +257,9 @@ def evaluate_stream(
         stop = cursor + steps
         for timestep in range(cursor, stop):
             probabilities[timestep] = softmax(
-                spike_rate_logits(spikes_out, cursor, timestep + 1)
+                spike_count_logits(spikes_out, cursor, timestep + 1)
             )
-        prediction = int(np.argmax(spike_rate_logits(spikes_out, cursor, stop)))
+        prediction = int(np.argmax(spike_count_logits(spikes_out, cursor, stop)))
         predictions.append(prediction)
         correct.append(int(prediction == label))
         cursor = stop
@@ -307,7 +304,7 @@ def evaluate_cell(seed: int, duration_ms: float, rate_hz: float) -> dict[str, An
         for digit_index, label in enumerate(y_test[indices]):
             start = digit_index * segment_steps
             stop = start + segment_steps
-            logits = spike_rate_logits(spikes_out, start, stop)
+            logits = spike_count_logits(spikes_out, start, stop)
             n_correct += int(np.argmax(logits) == label)
             n_total += 1
     return {
@@ -436,8 +433,9 @@ def main() -> None:
         "training_source": "exp022 variable-rate streaming training",
         "training_cells": [training_cell_name(seed) for seed in SEEDS],
         "readout": {
-            "mode": "spike-rate",
-            "definition": "output-LIF spikes over the matched presentation window divided by its duration in seconds",
+            "mode": "spike-count",
+            "definition": "total output-LIF spikes over the matched presentation window",
+            "reported_activity": "output spike rate in Hz may be derived as count divided by window duration in seconds",
         },
         "config": {
             "seeds": list(SEEDS),

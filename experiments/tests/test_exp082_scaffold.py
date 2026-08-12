@@ -12,7 +12,7 @@ def test_exp022_planned_bank_targets_exp082() -> None:
         "ping__variable_rate__seed44",
     ]
     assert all(cell["consumer"] == "exp082" for cell in cells)
-    assert all(cell["readout"] == "spike-rate" for cell in cells)
+    assert all(cell["readout"] == "spike-count" for cell in cells)
     assert all(cell["status"] == "ready_to_train" for cell in cells)
     assert all(cell["training_run_id"] == "TR-06" for cell in cells)
     assert all(
@@ -25,7 +25,7 @@ def test_exp022_planned_bank_targets_exp082() -> None:
 def test_exp022_variable_rate_args() -> None:
     cell = exp022.PLANNED_VARIABLE_RATE_CELLS[0]
     args = exp022.build_train_args(cell, exp082.training_dir(42), 7000, 50)
-    assert args[args.index("--readout") + 1] == "spike-rate"
+    assert args[args.index("--readout") + 1] == "spike-count"
     start = args.index("--input-rates") + 1
     stop = start + len(exp082.TRAINING_RATES_HZ)
     assert tuple(map(float, args[start:stop])) == exp082.TRAINING_RATES_HZ
@@ -83,7 +83,7 @@ def test_completed_cell_artifacts_are_stamped_with_training_run_id(
     assert metrics["config"]["training_run_id"] == "TR-06"
 
 
-def test_spike_rate_logits_use_only_matched_window_and_duration() -> None:
+def test_spike_count_logits_use_only_matched_window() -> None:
     spikes = np.asarray(
         [
             [1, 0],
@@ -93,8 +93,8 @@ def test_spike_rate_logits_use_only_matched_window_and_duration() -> None:
         ],
         dtype=np.float32,
     )
-    logits = exp082.spike_rate_logits(spikes, start=1, stop=3, dt_ms=100.0)
-    np.testing.assert_array_equal(logits, np.asarray([5, 10], dtype=np.float32))
+    logits = exp082.spike_count_logits(spikes, start=1, stop=3)
+    np.testing.assert_array_equal(logits, np.asarray([1, 2], dtype=np.float32))
 
 
 def test_psychometric_is_fixed_at_training_duration() -> None:

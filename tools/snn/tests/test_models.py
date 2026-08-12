@@ -302,6 +302,26 @@ class TestSpikeRateReadout:
 
         assert torch.allclose(rates[0], rates[1])
 
+
+class TestSpikeCountReadout:
+    def test_logits_are_recorded_output_spike_counts(self):
+        M.T_steps = 8
+        M.T_ms = M.T_steps * M.dt
+        net = build_net("ping", hidden_sizes=[32], readout_mode="spike-count")
+        with torch.no_grad():
+            net.W_ff[-1].fill_(100.0)
+
+        def force_hidden_spikes(s_e, s_i, _layer):
+            return torch.ones_like(s_e), s_i
+
+        net._hidden_perturb_fn = force_hidden_spikes
+        net.recording = True
+        logits = net(input_spikes=torch.zeros(M.T_steps, 2, M.N_IN))
+        recorded = net.spike_record["out_spikes"]
+
+        assert torch.equal(logits, recorded.sum(dim=0))
+        assert net.spike_record["v_out"].shape == recorded.shape
+
     def test_surrogate_spikes_propagate_gradient_to_output_weights(self):
         M.T_steps = 6
         M.T_ms = M.T_steps * M.dt

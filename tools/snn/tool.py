@@ -327,14 +327,18 @@ def _build_parent_parser():
     )
     net_group.add_argument(
         "--readout",
-        choices=["rate", "mem-mean", "spike-rate", "cumulative-potential"],
+        choices=[
+            "rate", "mem-mean", "spike-count", "spike-rate",
+            "cumulative-potential",
+        ],
         default="rate",
         dest="readout_mode",
         help="Output layer: 'rate' sums last-hidden spikes "
         "and projects linearly at the final timestep "
         "(default); 'mem-mean' averages a per-class output-LIF "
-        "membrane over time; 'spike-rate' divides each output-LIF spike "
-        "count by presentation duration in seconds; 'cumulative-potential' sums the per-step "
+        "membrane over time; 'spike-count' sums each output-LIF neuron's "
+        "spikes over the presentation; 'spike-rate' divides those counts "
+        "by presentation duration in seconds; 'cumulative-potential' sums the per-step "
         "softmax of a non-spiking leaky decoder membrane.",
     )
     net_group.add_argument(
@@ -565,7 +569,7 @@ def _build_parent_parser():
         "bias b_ff[-1] if present) by this scalar "
         "after build_net. Use to compensate for low "
         "hidden firing rate under mem-mean / "
-        "spike-rate readouts: bumping W_out up "
+        "spiking output-LIF readouts: bumping W_out up "
         "equalises the trial-level drive into the "
         "output LIF and recovers gradient signal. "
         "Cannot be combined with --readout-w-init-mean/std. "
@@ -994,7 +998,7 @@ each subcommand's --help):
   Network        --model, --n-hidden, --ei-strength, --ei-ratio,
                  --ei-sparsity, --w-in-sparsity, --dt, --t-ms, --seed
   Dynamics       --train-leak, --adaptive-threshold
-  Readout        --readout {rate,mem-mean,spike-rate,cumulative-potential},
+  Readout        --readout {rate,mem-mean,spike-count,spike-rate,cumulative-potential},
                  --signed-readout, --readout-bias, --readout-w-init-mean,
                  --readout-w-init-std, --readout-w-out-scale,
                  --dales-law, --no-dales-law
