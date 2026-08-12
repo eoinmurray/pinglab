@@ -31,6 +31,11 @@ REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from helpers import theme  # noqa: E402
+from helpers.checkpoints import (  # noqa: E402
+    cache_tag,
+    checkpoint_provenance,
+    resolve_checkpoint,
+)
 from helpers.datasets import load_mnist_split  # noqa: E402
 from helpers.paths import (  # noqa: E402
     artifacts_and_figures,
@@ -42,6 +47,7 @@ from helpers.run_id import next_run_id  # noqa: E402
 from helpers.stamp import stamp_figure  # noqa: E402
 
 SLUG = "exp082"
+CHECKPOINT_ROLE = "best_validation"
 RUN_PATHS = runner_paths(SLUG)
 ARTIFACTS, FIGURES = artifacts_and_figures(SLUG)
 SNN_TOOL = REPO / "tools" / "snn" / "tool.py"
@@ -99,9 +105,13 @@ def require_training_bank() -> None:
     missing = []
     for seed in SEEDS:
         directory = training_dir(seed)
-        for filename in ("config.json", "weights.pth"):
+        cell_missing = []
+        for filename in ("config.json", "metrics.json", "weights.pth", "weights_final.pth"):
             if not (directory / filename).exists():
-                missing.append(str(directory / filename))
+                cell_missing.append(str(directory / filename))
+        missing.extend(cell_missing)
+        if not cell_missing:
+            resolve_checkpoint(directory, CHECKPOINT_ROLE)
     if missing:
         joined = "\n  ".join(missing)
         raise SystemExit(
@@ -159,7 +169,8 @@ def run_spikes(
     *,
     reset_steps: tuple[int, ...] = (),
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-    out_dir = (ARTIFACTS / "stream" / directory.name / tag).resolve()
+    checkpoint = resolve_checkpoint(directory, CHECKPOINT_ROLE)
+    out_dir = (ARTIFACTS / "stream" / f"{directory.name}__{cache_tag(checkpoint)}" / tag).resolve()
     out_dir.mkdir(parents=True, exist_ok=True)
     input_path = out_dir / "input.npz"
     readout_reset = np.zeros(len(input_spikes), dtype=np.bool_)
@@ -176,7 +187,7 @@ def run_spikes(
         [
             "uv", "run", "python", str(SNN_TOOL), "sim",
             "--load-config", str((directory / "config.json").resolve()),
-            "--load-weights", str((directory / "weights.pth").resolve()),
+            "--load-weights", str(checkpoint["path"]),
             "--n-in", str(N_INPUT),
             "--input-file", str(input_path),
             "--outputs", "rasters",
@@ -432,6 +443,9 @@ def main() -> None:
         "status": "complete",
         "training_source": "exp022 variable-rate streaming training",
         "training_cells": [training_cell_name(seed) for seed in SEEDS],
+        "checkpoint_provenance": checkpoint_provenance(
+            [training_dir(seed) for seed in SEEDS], CHECKPOINT_ROLE
+        ),
         "readout": {
             "mode": "spike-count",
             "definition": "total output-LIF spikes over the matched presentation window",

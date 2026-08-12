@@ -46,6 +46,11 @@ from helpers import (
     runpod,  # noqa: E402
     theme,  # noqa: E402
 )
+from helpers.checkpoints import (  # noqa: E402
+    cache_tag,
+    checkpoint_provenance,
+    resolve_checkpoint,
+)
 from helpers.cli import Meta, parse_meta  # noqa: E402
 from helpers.datasets import load_mnist_split  # noqa: E402
 from helpers.figsave import save_figure  # noqa: E402
@@ -71,6 +76,7 @@ ARTIFACTS = (
     RUN_PATHS.state if RUN_PATHS.isolated else runpod.artifacts_scratch(SLUG)
 )
 SNN_TOOL = REPO / "tools" / "snn" / "tool.py"
+CHECKPOINT_ROLE = "final_epoch"
 EVAL_SEED = 20260415  # mirror cli.encoders.EVAL_SEED (kept in sync by hand)
 
 TRAINING_ROOT = runpod.training_root()
@@ -190,6 +196,10 @@ def _load_eval(train_dir: Path):
     return cfg, X_te, y_te
 
 
+def checkpoint_path(train_dir: Path) -> Path:
+    return resolve_checkpoint(train_dir, CHECKPOINT_ROLE)["path"]
+
+
 _BASE_CACHE: dict = {}
 
 
@@ -219,9 +229,10 @@ def _run_baseline(train_dir: Path, tau_gaba=None):
     and concurrently clobber the same file. The compute writes to a private temp
     dir and is published with os.replace (atomic on one filesystem), so a
     concurrent reader never sees a half-written raster."""
-    key = f"{train_dir}|{tau_gaba}"
+    checkpoint = resolve_checkpoint(train_dir, CHECKPOINT_ROLE)
+    key = f"{train_dir}|{tau_gaba}|{cache_tag(checkpoint)}"
     if key not in _BASE_CACHE:
-        out_dir = (ARTIFACTS / "baseline" / train_dir.name).resolve()
+        out_dir = (ARTIFACTS / "baseline" / train_dir.name / cache_tag(checkpoint)).resolve()
         rasters_path = out_dir / "rasters.npz"
         metrics_path = out_dir / "metrics.json"
         if not _baseline_complete(rasters_path, metrics_path):
@@ -235,7 +246,7 @@ def _run_baseline(train_dir: Path, tau_gaba=None):
                 cmd = [
                     "sim", "--infer",
                     "--load-config", str((train_dir / "config.json").resolve()),
-                    "--load-weights", str((train_dir / "weights.pth").resolve()),
+                    "--load-weights", str(checkpoint_path(train_dir)),
                     "--outputs", "rasters", "--out-dir", str(tmp),
                 ]
                 if tau_gaba is not None:
@@ -286,12 +297,16 @@ def _build_override_file(R, condition, gen, dt_ms, out_path, cycle_period_ms=Non
 
 def _run_with_override(train_dir: Path, override_path: Path, tau_gaba=None) -> dict:
     """Pass B via `sim --infer --i-override-file`; return metrics."""
-    out_dir = (ARTIFACTS / "ovrun" / f"{train_dir.name}__{override_path.stem}").resolve()
+    checkpoint = resolve_checkpoint(train_dir, CHECKPOINT_ROLE)
+    out_dir = (
+        ARTIFACTS / "ovrun" / f"{train_dir.name}__{override_path.stem}"
+        / cache_tag(checkpoint)
+    ).resolve()
     out_dir.mkdir(parents=True, exist_ok=True)
     cmd = [
         "sim", "--infer",
         "--load-config", str((train_dir / "config.json").resolve()),
-        "--load-weights", str((train_dir / "weights.pth").resolve()),
+        "--load-weights", str(checkpoint_path(train_dir)),
         "--i-override-file", str(override_path), "--out-dir", str(out_dir),
     ]
     if tau_gaba is not None:
@@ -314,11 +329,12 @@ def _cached_condition_metrics(train_dir: Path, condition: str, seed_offset: int)
         (evaluate_condition's ov_path.stem fed to _run_with_override; identical to
         _job_metrics_path's ov_stem).
     """
+    tag = cache_tag(resolve_checkpoint(train_dir, CHECKPOINT_ROLE))
     if condition == "baseline":
-        path = ARTIFACTS / "baseline" / train_dir.name / "metrics.json"
+        path = ARTIFACTS / "baseline" / train_dir.name / tag / "metrics.json"
     else:
         ov_stem = f"{train_dir.name}_{condition}_{seed_offset}"
-        path = ARTIFACTS / "ovrun" / f"{train_dir.name}__{ov_stem}" / "metrics.json"
+        path = ARTIFACTS / "ovrun" / f"{train_dir.name}__{ov_stem}" / tag / "metrics.json"
     try:
         return json.loads(path.read_text())
     except (OSError, json.JSONDecodeError):
@@ -579,7 +595,11 @@ def _snapshot(train_dir: Path, sample_idx: int, name: str, i_override=None, reus
     reuse=True: read the already-collected snapshot.npz from the same out_dir the
     compute path writes to, WITHOUT running the sim. Returns None on a cache miss
     so callers can fall through to compute."""
-    out_dir = (ARTIFACTS / "condraster" / f"{train_dir.name}_{name}").resolve()
+    checkpoint = resolve_checkpoint(train_dir, CHECKPOINT_ROLE)
+    out_dir = (
+        ARTIFACTS / "condraster" / f"{train_dir.name}_{name}"
+        / cache_tag(checkpoint)
+    ).resolve()
     if reuse:
         try:
             return np.load(out_dir / "snapshot.npz")
@@ -589,7 +609,7 @@ def _snapshot(train_dir: Path, sample_idx: int, name: str, i_override=None, reus
     cmd = [
         "uv", "run", "python", str(SNN_TOOL), "sim", "--infer",
         "--load-config", str((train_dir / "config.json").resolve()),
-        "--load-weights", str((train_dir / "weights.pth").resolve()),
+        "--load-weights", str(checkpoint_path(train_dir)),
         "--sample-index", str(sample_idx), "--out-dir", str(out_dir),
     ]
     if i_override is not None:
@@ -1755,7 +1775,7 @@ def _job_catalog() -> list[dict]:
     for tau in XTAU_TAU_GABAS_MS:
         for seed in XTAU_SEEDS:
             train_dir = _xtau_exp041_cell_dir(tau, seed)
-            if not (train_dir / "weights.pth").exists():
+            if not (train_dir / "weights_final.pth").exists():
                 continue
             f_gamma = f_gamma_map.get((tau, seed))
             if not f_gamma or f_gamma <= 0:
@@ -1887,7 +1907,7 @@ def main() -> None:
     rows: list[dict] = []
     for seed in SEEDS:
         train_dir = NB035_ARTIFACTS / f"ping__off__seed{seed}"
-        if not (train_dir / "weights.pth").exists():
+        if not (train_dir / "weights_final.pth").exists():
             raise SystemExit(
                 f"missing exp025 trained PING checkpoint at {train_dir} — "
                 "train exp025 baselines first"
@@ -2108,7 +2128,7 @@ def main() -> None:
         for tau in XTAU_TAU_GABAS_MS:
             for seed in XTAU_SEEDS:
                 train_dir = _xtau_exp041_cell_dir(tau, seed)
-                if not (train_dir / "weights.pth").exists():
+                if not (train_dir / "weights_final.pth").exists():
                     print(f"    [skip] missing {train_dir}")
                     continue
                 f_gamma = f_gamma_map.get((tau, seed))
@@ -2155,6 +2175,12 @@ def main() -> None:
         "notebook_run_id": notebook_run_id,
         "duration_s": round(duration_s, 1),
         "duration": format_duration(duration_s),
+        "checkpoint_provenance": checkpoint_provenance(
+            [NB035_ARTIFACTS / f"ping__off__seed{seed}" for seed in SEEDS]
+            + [_xtau_exp041_cell_dir(tau, seed) for tau in XTAU_TAU_GABAS_MS
+               for seed in XTAU_SEEDS],
+            CHECKPOINT_ROLE,
+        ),
         "config": {
             "seeds": list(SEEDS),
             "conditions": list(CONDITIONS),

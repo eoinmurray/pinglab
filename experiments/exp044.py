@@ -28,6 +28,11 @@ REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from helpers import theme  # noqa: E402
+from helpers.checkpoints import (  # noqa: E402
+    cache_tag,
+    checkpoint_provenance,
+    resolve_checkpoint,
+)
 from helpers.cli import parse_meta  # noqa: E402
 from helpers.figsave import save_figure  # noqa: E402
 from helpers.numbers import write_numbers  # noqa: E402
@@ -42,6 +47,7 @@ from helpers.run_id import next_run_id  # noqa: E402
 from helpers.stamp import stamp_figure  # noqa: E402
 
 SLUG = "exp044"
+CHECKPOINT_ROLE = "final_epoch"
 RUN_PATHS = runner_paths(SLUG)
 ARTIFACTS, FIGURES = artifacts_and_figures(SLUG)
 SMOKE = os.environ.get("PINGLAB_SMOKE") == "1"
@@ -168,12 +174,13 @@ def _infer_cell(train_dir: Path, extra_args: list[str], out_name: str) -> Path:
     CLI — this notebook only runs it and reads the artifacts it writes. extra_args
     tacks on mode-specific flags (e.g. --sample-index for a snapshot).
     """
-    out_dir = (ARTIFACTS / out_name / train_dir.name).resolve()
+    checkpoint = resolve_checkpoint(train_dir, CHECKPOINT_ROLE)
+    out_dir = (ARTIFACTS / out_name / f"{train_dir.name}__{cache_tag(checkpoint)}").resolve()
     out_dir.mkdir(parents=True, exist_ok=True)
     cmd = [
             "sim", "--infer",
             "--load-config", str((train_dir / "config.json").resolve()),
-            "--load-weights", str((train_dir / "weights.pth").resolve()),
+            "--load-weights", str(checkpoint["path"]),
             "--out-dir", str(out_dir),
             *extra_args,
     ]
@@ -419,8 +426,8 @@ def main() -> None:
         for dt_ms in DT_SWEEP_MS:
             for seed in SEEDS:
                 run_dir = cell_dir(dt_ms, seed)
-                if not (run_dir / "weights.pth").exists():
-                    raise SystemExit(f"missing weights: {run_dir / 'weights.pth'}")
+                if not (run_dir / "weights_final.pth").exists():
+                    raise SystemExit(f"missing weights: {run_dir / 'weights_final.pth'}")
                 t0 = time.monotonic()
                 res = measure_rate_acc(run_dir)
                 res["seed"] = seed
@@ -456,6 +463,10 @@ def main() -> None:
             figures, run_id=run_id, duration_s=duration_s,
             payload={
                 "git_sha_train": train_cfg.get("git_sha"),
+                "checkpoint_provenance": checkpoint_provenance(
+                    [cell_dir(dt_ms, seed) for dt_ms in DT_SWEEP_MS for seed in SEEDS],
+                    CHECKPOINT_ROLE,
+                ),
                 "config": {
                     "dataset": "mnist",
                     "dt_sweep_ms": list(DT_SWEEP_MS),

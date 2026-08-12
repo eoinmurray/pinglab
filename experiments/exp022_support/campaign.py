@@ -22,7 +22,13 @@ from typing import Any, Callable
 
 SCHEMA = "pinglab.exp022.campaign"
 SCHEMA_VERSION = 1
-REQUIRED_CELL_FILES = ("config.json", "metrics.json", "metrics.jsonl", "weights.pth")
+REQUIRED_CELL_FILES = (
+    "config.json",
+    "metrics.json",
+    "metrics.jsonl",
+    "weights.pth",
+    "weights_final.pth",
+)
 
 
 def python_executable() -> str:
@@ -341,12 +347,30 @@ def validate_cell(cell: dict[str, Any], *, load_checkpoint: bool = True) -> dict
             f"for each of {epochs} epochs"
         )
     if load_checkpoint:
-        try:
-            import torch
-            checkpoint = torch.load(directory / "weights.pth", map_location="cpu", weights_only=True)
-            if not isinstance(checkpoint, dict) or not checkpoint:
-                reasons.append("checkpoint is not a non-empty mapping")
-            else:
+        import torch
+
+        checkpoint_specs = {
+            "best_validation": ("weights.pth", metrics.get("best_epoch")),
+            "final_epoch": ("weights_final.pth", epochs),
+        }
+        recorded_checkpoints = metrics.get("checkpoints", {})
+        for role, (filename, expected_epoch) in checkpoint_specs.items():
+            record = recorded_checkpoints.get(role)
+            if not isinstance(record, dict):
+                reasons.append(f"missing {role} checkpoint metadata")
+                continue
+            if record.get("filename") != filename:
+                reasons.append(f"{role} checkpoint filename mismatch")
+            if record.get("epoch") != expected_epoch:
+                reasons.append(f"{role} checkpoint epoch mismatch")
+            path = directory / filename
+            if record.get("sha256") != sha256_file(path):
+                reasons.append(f"{role} checkpoint hash mismatch")
+            try:
+                checkpoint = torch.load(path, map_location="cpu", weights_only=True)
+                if not isinstance(checkpoint, dict) or not checkpoint:
+                    reasons.append(f"{role} checkpoint is not a non-empty mapping")
+                    continue
                 n_in = int(config.get("n_in", 784))
                 n_hidden = int(config.get("n_hidden", 1024))
                 n_inh = int(config.get("n_inh", 256))
@@ -359,9 +383,11 @@ def validate_cell(cell: dict[str, Any], *, load_checkpoint: bool = True) -> dict
                 for key, shape in expected_shapes.items():
                     value = checkpoint.get(key)
                     if value is None or tuple(value.shape) != shape:
-                        reasons.append(f"checkpoint {key} shape mismatch")
-        except Exception as exc:  # noqa: BLE001 - corrupt checkpoints must classify, not crash
-            reasons.append(f"checkpoint load failed: {type(exc).__name__}: {exc}")
+                        reasons.append(f"{role} checkpoint {key} shape mismatch")
+            except Exception as exc:  # noqa: BLE001
+                reasons.append(
+                    f"{role} checkpoint load failed: {type(exc).__name__}: {exc}"
+                )
     return {"valid": not reasons, "state": "complete" if not reasons else "invalid", "reasons": reasons}
 
 

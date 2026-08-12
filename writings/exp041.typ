@@ -73,7 +73,7 @@
   We fit this across the 18 cells.
 
   *Convergence.* Accuracy plateaus by ≈ epoch 15 while the E rate keeps climbing
-  through training (Figure 1), so the fit uses the final-epoch rates. Fitting
+  through training (Figure 1), so the fit uses the explicitly recorded final-epoch checkpoints and rates. Fitting
   $r_E = a + p dot f_gamma$ across the 18 cells is tight, and forcing the intercept
   through zero barely loosens it, so the law is not an artefact of the free intercept:
 

@@ -36,6 +36,11 @@ REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from helpers import theme  # noqa: E402
+from helpers.checkpoints import (  # noqa: E402
+    cache_tag,
+    checkpoint_provenance,
+    resolve_checkpoint,
+)
 from helpers.figsave import save_figure  # noqa: E402
 from helpers.operating_point import MODELS_DEFAULT_TAU_GABA_MS  # noqa: E402
 from helpers.paths import (  # noqa: E402
@@ -51,6 +56,7 @@ SLUG = "exp046"
 RUN_PATHS = runner_paths(SLUG)
 ARTIFACTS, FIGURES = artifacts_and_figures(SLUG)
 SNN_TOOL = REPO / "tools" / "snn" / "tool.py"
+CHECKPOINT_ROLE = "final_epoch"
 
 # τ_GABA sweep cells now live in the shared training root (exp022
 # train-once / reuse-many), not the retired per-notebook exp041 dir.
@@ -157,13 +163,14 @@ def _infer_cell(train_dir: Path, extra_args: list[str], max_samples: int) -> Pat
     train_dir = train_dir.resolve()
     cfg = json.loads((train_dir / "config.json").read_text())
     tau_gaba_ms = float(cfg.get("tau_gaba_ms") or MODELS_DEFAULT_TAU_GABA_MS)
-    out_dir = (ARTIFACTS / "infer" / train_dir.name).resolve()
+    checkpoint = resolve_checkpoint(train_dir, CHECKPOINT_ROLE)
+    out_dir = (ARTIFACTS / "infer" / train_dir.name / cache_tag(checkpoint)).resolve()
     out_dir.mkdir(parents=True, exist_ok=True)
     subprocess.run(
         [
             "uv", "run", "python", str(SNN_TOOL), "sim", "--infer",
             "--load-config", str(train_dir / "config.json"),
-            "--load-weights", str(train_dir / "weights.pth"),
+            "--load-weights", str(checkpoint["path"]),
             "--tau-gaba", str(tau_gaba_ms),
             "--max-samples", str(max_samples),
             "--out-dir", str(out_dir),
@@ -402,7 +409,7 @@ def main() -> None:
     for tau in TAU_GABA_SWEEP_MS:
         for seed in SEEDS:
             train_dir = exp041_cell_dir(tau, seed)
-            if not (train_dir / "weights.pth").exists():
+            if not (train_dir / "weights_final.pth").exists():
                 print(f"[skip] missing {train_dir}")
                 continue
             f_gamma = f_gamma_map.get((tau, seed))
@@ -455,6 +462,10 @@ def main() -> None:
         "notebook_run_id": notebook_run_id,
         "duration_s": duration_s,
         "duration": f"{int(duration_s // 60)}m {int(duration_s % 60):02d}s",
+        "checkpoint_provenance": checkpoint_provenance(
+            [exp041_cell_dir(tau, seed) for tau in TAU_GABA_SWEEP_MS for seed in SEEDS],
+            CHECKPOINT_ROLE,
+        ),
         "config": {
             "tau_gabas_ms": list(TAU_GABA_SWEEP_MS),
             "seeds": list(SEEDS),

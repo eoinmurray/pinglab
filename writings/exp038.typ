@@ -39,6 +39,8 @@
 
   == Method
 
+  Each inference intervention starts from the checkpoint selected by validation accuracy. The recurrent-loop replacements and input-rate sweeps therefore probe the selected classifier, not the final-epoch training state.
+
   #table(
     columns: 2,
     [Parameter], [Value],

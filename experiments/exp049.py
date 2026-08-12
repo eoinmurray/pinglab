@@ -38,6 +38,11 @@ REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from helpers import theme  # noqa: E402
+from helpers.checkpoints import (  # noqa: E402
+    cache_tag,
+    checkpoint_provenance,
+    resolve_checkpoint,
+)
 from helpers.cli import parse_meta  # noqa: E402
 from helpers.figsave import save_figure  # noqa: E402
 from helpers.numbers import write_numbers  # noqa: E402
@@ -52,6 +57,7 @@ from helpers.run_id import next_run_id  # noqa: E402
 from helpers.stamp import stamp_figure  # noqa: E402
 
 SLUG = "exp049"
+CHECKPOINT_ROLE = "final_epoch"
 RUN_PATHS = runner_paths(SLUG)
 ARTIFACTS, FIGURES = artifacts_and_figures(SLUG)
 SMOKE = os.environ.get("PINGLAB_SMOKE") == "1"
@@ -166,12 +172,13 @@ def _infer_cell(train_dir: Path, extra_args: list[str], out_name: str) -> Path:
     (e.g. --outputs pop_traces for PSD, --sample-index for a snapshot raster).
     """
     train_dir = train_dir.resolve()
-    out_dir = (ARTIFACTS / out_name / train_dir.name).resolve()
+    checkpoint = resolve_checkpoint(train_dir, CHECKPOINT_ROLE)
+    out_dir = (ARTIFACTS / out_name / f"{train_dir.name}__{cache_tag(checkpoint)}").resolve()
     out_dir.mkdir(parents=True, exist_ok=True)
     cmd = [
             "sim", "--infer",
             "--load-config", str(train_dir / "config.json"),
-            "--load-weights", str(train_dir / "weights.pth"),
+            "--load-weights", str(checkpoint["path"]),
             "--out-dir", str(out_dir),
             *extra_args,
     ]
@@ -195,13 +202,14 @@ def load_init_and_trained_weights(train_dir: Path):
     # Resolve to absolute paths: the subprocess runs with cwd=REPO, so any
     # relative train_dir would otherwise be interpreted against the wrong root.
     train_dir = train_dir.resolve()
-    out_dir = (ARTIFACTS / "weights_dump" / train_dir.name).resolve()
+    checkpoint = resolve_checkpoint(train_dir, CHECKPOINT_ROLE)
+    out_dir = (ARTIFACTS / "weights_dump" / f"{train_dir.name}__{cache_tag(checkpoint)}").resolve()
     out_dir.mkdir(parents=True, exist_ok=True)
     run_cli(
         [
             "dump-weights",
             "--load-config", str(train_dir / "config.json"),
-            "--load-weights", str(train_dir / "weights.pth"),
+            "--load-weights", str(checkpoint["path"]),
             "--out-dir", str(out_dir),
         ]
     )
@@ -1397,7 +1405,7 @@ def main() -> None:
                 for cond in COND_ORDER:
                     seed_to_dir = {
                         seed: cell_dir(cond, seed) for seed in SEEDS
-                        if (cell_dir(cond, seed) / "weights.pth").exists()
+                        if (cell_dir(cond, seed) / "weights_final.pth").exists()
                     }
                     for seed, train_dir in seed_to_dir.items():
                         w_ei_init, w_ei_trained, w_ie_init, w_ie_trained = (
@@ -1482,7 +1490,7 @@ def main() -> None:
             print(f"wrote {out}.{{png,pdf}}")
             seed_to_dir = {
                 s: cell_dir(cond, s) for s in SEEDS
-                if (cell_dir(cond, s) / "weights.pth").exists()
+                if (cell_dir(cond, s) / "weights_final.pth").exists()
             }
             if seed_to_dir:
                 w_out = figures / f"weights__{cond}"
@@ -1505,6 +1513,10 @@ def main() -> None:
         write_numbers(
             figures, run_id=run_id, duration_s=duration_s,
             payload=_clean({
+                "checkpoint_provenance": checkpoint_provenance(
+                    [cell_dir(cond, seed) for cond in COND_ORDER for seed in SEEDS],
+                    CHECKPOINT_ROLE,
+                ),
                 "config": {
                     "epochs": EPOCHS,
                     "max_samples": MAX_SAMPLES,

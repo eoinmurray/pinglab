@@ -121,7 +121,7 @@
   *Rate-floor decomposition.* The affine law $r_E = p dot f_gamma$
   (#link("/exp041/")[exp041], #link("/exp046/")[exp046]) factors the E rate into
   per-cycle participation $p$ and gamma frequency $f_gamma$. Both are measured at
-  one explicitly representative checkpoint (seed 42) per condition: $f_gamma$ from
+  one explicitly representative final-epoch checkpoint (seed 42) per condition: $f_gamma$ from
   the Welch PSD peak of the E-population trace, $p$ via
   I-burst peak detection and per-(cell, cycle) spike counting (style of
   #link("/exp046/")[exp046]).

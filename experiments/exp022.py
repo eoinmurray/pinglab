@@ -45,6 +45,7 @@ from helpers import (
     runpod,  # noqa: E402
     theme,  # noqa: E402
 )
+from helpers.checkpoints import checkpoint_provenance, resolve_checkpoint  # noqa: E402
 from helpers.cli import parse_meta  # noqa: E402
 from helpers.fmt import format_duration  # noqa: E402
 from helpers.operating_point import TAU_GABA_GAMMA_MS  # noqa: E402
@@ -54,6 +55,7 @@ from helpers.run_id import next_run_id  # noqa: E402
 from helpers.stamp import stamp_figure  # noqa: E402
 
 SLUG = "exp022"
+RESULT_CHECKPOINT_ROLE = "final_epoch"
 ARTIFACTS, FIGURES = artifacts_and_figures(SLUG)
 
 
@@ -423,7 +425,7 @@ def load_cell(name: str) -> Path:
     """Return a trained cell's directory, or fail loudly if this notebook has
     not been run. Analysis notebooks call this instead of training."""
     d = cell_dir(name)
-    if not (d / "weights.pth").exists():
+    if not (d / "weights.pth").exists() or not (d / "weights_final.pth").exists():
         raise SystemExit(
             f"missing trained cell '{name}' at {_display_path(d)}; "
             "run exp022 (Training) first to produce the shared cells."
@@ -896,14 +898,15 @@ def appendix_rasters() -> None:
     try:
         for c in cells:
             d = cell_dir(c["name"])
-            if not (d / "weights.pth").exists():
+            if not (d / "weights_final.pth").exists():
                 print(f"[skip] {c['name']} — no weights")
                 continue
+            checkpoint = resolve_checkpoint(d, RESULT_CHECKPOINT_ROLE)
             scratch = scratch_root / c["name"]
             inference_args = [
                 sys.executable, str(SNN_TOOL), "sim", "--infer",
                 "--load-config", str(d / "config.json"),
-                "--load-weights", str(d / "weights.pth"),
+                "--load-weights", str(checkpoint["path"]),
                 "--digit", "0", "--sample", "0",
                 "--out-dir", str(scratch), "--wipe-dir",
             ]
@@ -976,16 +979,17 @@ def comparison_rasters() -> None:
             for cc, name in enumerate((full_cell, sub_cell)):
                 ax = axes[r][cc]
                 d = cell_dir(name)
-                if not (d / "weights.pth").exists():
+                if not (d / "weights_final.pth").exists():
                     ax.text(0.5, 0.5, f"{name}\n(no weights)", ha="center",
                             va="center", transform=ax.transAxes,
                             fontsize=theme.SIZE_ANNOTATION, color=theme.MUTED)
                     continue
+                checkpoint = resolve_checkpoint(d, RESULT_CHECKPOINT_ROLE)
                 scratch = scratch_root / name
                 subprocess.run(
                     [sys.executable, str(SNN_TOOL), "sim", "--infer",
                      "--load-config", str(d / "config.json"),
-                     "--load-weights", str(d / "weights.pth"),
+                     "--load-weights", str(checkpoint["path"]),
                      "--digit", "0", "--sample", "0",
                      "--out-dir", str(scratch), "--wipe-dir"],
                     cwd=REPO, check=True, capture_output=True)
@@ -1431,6 +1435,10 @@ def main() -> None:
                      "max_samples_canonical": CANONICAL_MAX_SAMPLES,
                      "max_samples_sweeps": SUBSET_MAX_SAMPLES},
         "training_root": training_root_provenance(TRAINING_ROOT),
+        "result_checkpoint_provenance": checkpoint_provenance(
+            [cell_dir(c["name"]) for c in CANONICAL_CELLS],
+            RESULT_CHECKPOINT_ROLE,
+        ),
         "families": FAMILY_ORDER,
         "training_run_ids": TRAINING_RUN_IDS,
         "family_status": family_status,

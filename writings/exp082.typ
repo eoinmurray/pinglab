@@ -19,6 +19,8 @@
 
   *Note.* The exp022 cells are registered and `tools/snn` implements the required output-LIF `spike-count` training, restore, and output-raster path. Presentation boundaries reset only the output LIF and its counter; the hidden PING state remains continuous. This entry still fails loudly if the variable-rate checkpoint bank is absent or uses another readout.
 
+  Streaming inference uses each seed's checkpoint selected by validation accuracy, because this is a deployment evaluation of the selected classifier rather than an analysis of final-epoch drift.
+
   === 2. Spike-count readout
 
   At each timestep, the 1024-element excitatory spike vector $bold(s)^E(t)$ drives a trained 1024-by-10 projection $W_"out"$ into ten output LIF neurons. For a presentation beginning at timestep $a$ and ending before timestep $b$, class evidence is

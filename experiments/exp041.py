@@ -32,6 +32,11 @@ REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from helpers import theme  # noqa: E402
+from helpers.checkpoints import (  # noqa: E402
+    cache_tag,
+    checkpoint_provenance,
+    resolve_checkpoint,
+)
 from helpers.cli import parse_meta  # noqa: E402
 from helpers.figsave import save_figure  # noqa: E402
 from helpers.fmt import format_duration  # noqa: E402
@@ -51,6 +56,7 @@ from helpers.run_id import next_run_id  # noqa: E402
 from helpers.stamp import stamp_figure  # noqa: E402
 
 SLUG = "exp041"
+CHECKPOINT_ROLE = "final_epoch"
 RUN_PATHS = runner_paths(SLUG)
 ARTIFACTS, FIGURES = artifacts_and_figures(SLUG)
 SMOKE = os.environ.get("PINGLAB_SMOKE") == "1"
@@ -140,8 +146,9 @@ def _infer_cell(train_dir: Path, extra_args: list[str], out_name: str) -> Path:
     (--outputs pop_traces for PSD, --sample-index for a snapshot raster).
     """
     train_dir = train_dir.resolve()
+    checkpoint = resolve_checkpoint(train_dir, CHECKPOINT_ROLE)
     cfg = json.loads((train_dir / "config.json").read_text())
-    out_dir = (ARTIFACTS / out_name / train_dir.name).resolve()
+    out_dir = (ARTIFACTS / out_name / f"{train_dir.name}__{cache_tag(checkpoint)}").resolve()
     out_dir.mkdir(parents=True, exist_ok=True)
     # Reuse cached inference when present. The sim forward is the expensive step
     # and is deterministic for a fixed (cell, mode), so skip it if the expected
@@ -153,7 +160,7 @@ def _infer_cell(train_dir: Path, extra_args: list[str], out_name: str) -> Path:
     cmd = [
             "sim", "--infer",
             "--load-config", str(train_dir / "config.json"),
-            "--load-weights", str(train_dir / "weights.pth"),
+            "--load-weights", str(checkpoint["path"]),
             "--tau-gaba", str(_cell_tau_gaba(cfg)),
             "--out-dir", str(out_dir),
             *extra_args,
@@ -704,6 +711,10 @@ def write_numbers(
         FIGURES, run_id=run_id, duration_s=duration_s,
         payload={
             "git_sha_train": train_cfg.get("git_sha"),
+            "checkpoint_provenance": checkpoint_provenance(
+                [cell_dir(tau, seed) for tau in TAU_GABA_SWEEP for seed in SEEDS],
+                CHECKPOINT_ROLE,
+            ),
             "config": {
                 "dataset": "mnist",
                 "tau_gaba_sweep_ms": list(TAU_GABA_SWEEP),
@@ -786,8 +797,8 @@ def main() -> None:
         for tau in TAU_GABA_SWEEP:
             for seed in SEEDS:
                 run_dir = cell_dir(tau, seed)
-                if not (run_dir / "weights.pth").exists():
-                    raise SystemExit(f"missing weights: {run_dir / 'weights.pth'}")
+                if not (run_dir / "weights_final.pth").exists():
+                    raise SystemExit(f"missing weights: {run_dir / 'weights_final.pth'}")
                 t0 = time.monotonic()
                 res = measure_rate_and_psd(run_dir)
                 res["seed"] = seed

@@ -34,6 +34,11 @@ from helpers import (
     runpod,  # noqa: E402
     theme,  # noqa: E402
 )
+from helpers.checkpoints import (  # noqa: E402
+    cache_tag,
+    checkpoint_provenance,
+    resolve_checkpoint,
+)
 from helpers.cli import Meta, parse_meta  # noqa: E402
 from helpers.figsave import save_figure  # noqa: E402
 from helpers.fmt import format_duration  # noqa: E402
@@ -50,6 +55,7 @@ ARTIFACTS = (
     RUN_PATHS.state if RUN_PATHS.isolated else runpod.artifacts_scratch(SLUG)
 )
 SNN_TOOL = REPO / "tools" / "snn" / "tool.py"
+CHECKPOINT_ROLE = "best_validation"
 
 MAX_SAMPLES = 7000
 SMOKE = os.environ.get("PINGLAB_SMOKE") == "1"
@@ -270,6 +276,10 @@ def baseline_dir(model: str, seed: int = SEEDS_BASELINE[0]) -> Path:
     return cell_dir(model, None, seed)
 
 
+def checkpoint_path(train_dir: Path) -> Path:
+    return resolve_checkpoint(train_dir, CHECKPOINT_ROLE)["path"]
+
+
 def load_metrics(run_dir: Path) -> dict:
     return json.loads((run_dir / "metrics.json").read_text())
 
@@ -305,13 +315,14 @@ def capture_perturbation_raster(
     snapshot (`sim --infer --perturb-mode M --perturb-level L --sample-index N`)."""
     cfg = json.loads((train_dir / "config.json").read_text())
     lvl = list(level) if isinstance(level, (list, tuple)) else [level]
-    out_dir = _perturb_raster_out_dir(model, seed, mode, level, sample_idx)
+    checkpoint = resolve_checkpoint(train_dir, CHECKPOINT_ROLE)
+    out_dir = _perturb_raster_out_dir(model, seed, mode, level, sample_idx) / cache_tag(checkpoint)
     out_dir.mkdir(parents=True, exist_ok=True)
     run_cli(
         [
             "sim", "--infer",
             "--load-config", str((train_dir / "config.json").resolve()),
-            "--load-weights", str((train_dir / "weights.pth").resolve()),
+            "--load-weights", str(checkpoint_path(train_dir)),
             "--perturb-mode", mode,
             "--perturb-level", *[str(x) for x in lvl],
             "--max-samples", str(EVAL_MAX_SAMPLES),
@@ -411,7 +422,8 @@ def run_perturbation_sweep(train_dir: Path, mode: str, level, *, reuse: bool = F
     come from metrics.json.
     """
     lvl = list(level) if isinstance(level, (list, tuple)) else [level]
-    out_dir = _perturb_out_dir(train_dir, mode, level)
+    checkpoint = resolve_checkpoint(train_dir, CHECKPOINT_ROLE)
+    out_dir = _perturb_out_dir(train_dir, mode, level) / cache_tag(checkpoint)
     out_dir.mkdir(parents=True, exist_ok=True)
     mfile = out_dir / "metrics.json"
     m = None
@@ -426,7 +438,7 @@ def run_perturbation_sweep(train_dir: Path, mode: str, level, *, reuse: bool = F
             [
                 "sim", "--infer",
                 "--load-config", str((train_dir / "config.json").resolve()),
-                "--load-weights", str((train_dir / "weights.pth").resolve()),
+                "--load-weights", str(checkpoint_path(train_dir)),
                 "--perturb-mode", mode,
                 "--perturb-level", *[str(x) for x in lvl],
                 "--max-samples", str(EVAL_MAX_SAMPLES),
@@ -758,6 +770,10 @@ def main() -> None:
     summary = {
         "notebook_run_id": notebook_run_id,
         "git_sha": train_cfg.get("git_sha"),
+        "checkpoint_provenance": checkpoint_provenance(
+            [baseline_dir(model, seed) for model in MODELS for seed in SEEDS_BASELINE],
+            CHECKPOINT_ROLE,
+        ),
         "duration_s": round(duration_s, 1),
         "duration": format_duration(duration_s),
         "config": {

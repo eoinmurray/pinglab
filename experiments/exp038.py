@@ -32,6 +32,11 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from exp022 import cell_dir as shared_cell_dir  # noqa: E402
 from exp022 import cell_name  # noqa: E402
 from helpers import theme  # noqa: E402
+from helpers.checkpoints import (  # noqa: E402
+    cache_tag,
+    checkpoint_provenance,
+    resolve_checkpoint,
+)
 from helpers.cli import parse_meta, replot_target  # noqa: E402
 from helpers.figsave import save_figure  # noqa: E402
 from helpers.numbers import write_numbers  # noqa: E402
@@ -42,6 +47,7 @@ from helpers.run_id import next_run_id  # noqa: E402
 from helpers.stamp import stamp_figure  # noqa: E402
 
 SLUG = "exp038"
+CHECKPOINT_ROLE = "best_validation"
 RUN_PATHS = runner_paths(SLUG)
 ARTIFACTS, FIGURES = artifacts_and_figures(SLUG)
 
@@ -149,6 +155,10 @@ def baseline_dir(model: str, seed: int = SEEDS_BASELINE[0]) -> Path:
     return cell_dir(model, None, seed)
 
 
+def checkpoint_path(train_dir: Path) -> Path:
+    return resolve_checkpoint(train_dir, CHECKPOINT_ROLE)["path"]
+
+
 def load_metrics(run_dir: Path) -> dict:
     return json.loads((run_dir / "metrics.json").read_text())
 
@@ -175,13 +185,13 @@ def run_inproc_infer(train_dir: Path, ei_strength: float, out_dir: Path) -> dict
     net at the requested ei_strength (skip W_ei/W_ie so the fresh I-loop survives),
     evaluate accuracy + mean E/I rate. Runs `sim --infer --skip-load W_ei. W_ie.`.
     """
-    out_dir = Path(out_dir)
+    out_dir = Path(out_dir) / cache_tag(resolve_checkpoint(train_dir, CHECKPOINT_ROLE))
     out_dir.mkdir(parents=True, exist_ok=True)
     run_cli(
         [
             "sim", "--infer",
             "--load-config", str((train_dir / "config.json").resolve()),
-            "--load-weights", str((train_dir / "weights.pth").resolve()),
+            "--load-weights", str(checkpoint_path(train_dir)),
             "--ei-strength", str(ei_strength),
             "--skip-load", "W_ei.", "W_ie.",
             "--max-samples", str(EVAL_MAX_SAMPLES),
@@ -219,13 +229,14 @@ def capture_ei_raster(
         / "ei_raster"
         / f"seed{seed}"
         / f"ei{ei_strength:g}_s{sample_idx}"
+        / cache_tag(resolve_checkpoint(train_dir, CHECKPOINT_ROLE))
     ).resolve()
     out_dir.mkdir(parents=True, exist_ok=True)
     run_cli(
         [
             "sim", "--infer",
             "--load-config", str((train_dir / "config.json").resolve()),
-            "--load-weights", str((train_dir / "weights.pth").resolve()),
+            "--load-weights", str(checkpoint_path(train_dir)),
             "--ei-strength", str(ei_strength),
             "--skip-load", "W_ei.", "W_ie.",
             "--max-samples", str(EVAL_MAX_SAMPLES),
@@ -258,13 +269,16 @@ def capture_rate_raster(train_dir: Path, spike_rate: float, sample_idx: int) -> 
     `sim --infer --input-rate R --sample-index N` (input-rate sets M.max_rate_hz).
     Reads spk_e/spk_i + label from snapshot.npz."""
     cfg = json.loads((train_dir / "config.json").read_text())
-    out_dir = (ARTIFACTS / "rate_raster" / f"r{spike_rate:g}_s{sample_idx}").resolve()
+    out_dir = (
+        ARTIFACTS / "rate_raster" / f"r{spike_rate:g}_s{sample_idx}"
+        / cache_tag(resolve_checkpoint(train_dir, CHECKPOINT_ROLE))
+    ).resolve()
     out_dir.mkdir(parents=True, exist_ok=True)
     run_cli(
         [
             "sim", "--infer",
             "--load-config", str((train_dir / "config.json").resolve()),
-            "--load-weights", str((train_dir / "weights.pth").resolve()),
+            "--load-weights", str(checkpoint_path(train_dir)),
             "--input-rate", str(spike_rate),
             "--sample-index", str(sample_idx),
             "--out-dir", str(out_dir),
@@ -384,7 +398,7 @@ def run_fi_sweep_uniform(notebook_run_id: str, rates: list[float] | None = None)
                     "sim",
                     "--input", "synthetic-spikes",
                     "--load-config", str((train_dir / "config.json").resolve()),
-                    "--load-weights", str((train_dir / "weights.pth").resolve()),
+                    "--load-weights", str(checkpoint_path(train_dir)),
                     "--n-in", "784",
                     "--input-rate", str(rate),
                     "--n-batch", str(FI_UNIFORM_BATCH),
@@ -965,6 +979,11 @@ def main() -> None:
             figures, run_id=run_id, duration_s=duration_s,
             payload={
                 "git_sha_train": train_cfg.get("git_sha"),
+                "checkpoint_provenance": checkpoint_provenance(
+                    [baseline_dir(model, seed) for model in MODELS
+                     for seed in SEEDS_BASELINE],
+                    CHECKPOINT_ROLE,
+                ),
                 "config": {
                     "dataset": "mnist",
                     "models": MODELS,

@@ -4,6 +4,7 @@ Tests parameter propagation, M module globals setup, output artifacts,
 config round-trip, edge cases, and backwards compatibility.
 """
 
+import hashlib
 import json
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -12,6 +13,10 @@ import models as M
 import pytest
 import torch
 from train import train
+
+
+def _sha256(path: Path) -> str:
+    return hashlib.sha256(path.read_bytes()).hexdigest()
 
 # Whole file trains real (tiny) torch models — minutes of wall-clock. Marked slow
 # so `pytest -m "not slow"` is a true fast lane.
@@ -402,6 +407,19 @@ class TestOutputArtifacts:
         assert "best_acc" in metrics
         assert "epochs" in metrics
         assert len(metrics["epochs"]) == 2
+        assert metrics["checkpoints"] == {
+            "final_epoch": {
+                "filename": "weights_final.pth",
+                "epoch": 2,
+                "sha256": _sha256(tmp_output_dir / "weights_final.pth"),
+            },
+            "best_validation": {
+                "filename": "weights.pth",
+                "epoch": metrics["best_epoch"],
+                "sha256": _sha256(tmp_output_dir / "weights.pth"),
+                "selection_metric": "validation_accuracy_pct",
+            },
+        }
 
     def test_run_sh_created(self, tmp_output_dir):
         """run.sh should be created as a command log."""

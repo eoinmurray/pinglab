@@ -77,6 +77,8 @@
 
   == Methods
 
+  The interventions use final-epoch checkpoints because they test the endpoint dynamics characterized by exp041, rather than deployment performance of the validation-selected classifier.
+
   Pure inference on the trained #link("/exp025/")[exp025] PING baseline (seed 42,
   $theta_u =$ off). For each batch the I-population spike tensor
   $bold(s)^I_"base" in {0,1}^(T times B times N_I)$ is recorded from a baseline
