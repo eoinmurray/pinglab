@@ -565,11 +565,12 @@ class COBANet(nn.Module):
     ):
         super().__init__()
         if readout_mode not in (
-            "rate", "mem-mean", "spike-rate", "cumulative-potential"
+            "rate", "mem-mean", "spike-count", "spike-rate",
+            "cumulative-potential",
         ):
             raise ValueError(
-                "readout_mode must be 'rate', 'mem-mean', 'spike-rate', or "
-                f"'cumulative-potential', got {readout_mode!r}"
+                "readout_mode must be 'rate', 'mem-mean', 'spike-count', "
+                f"'spike-rate', or 'cumulative-potential', got {readout_mode!r}"
             )
         self.readout_mode = readout_mode
         self.signed_readout = bool(signed_readout)
@@ -889,7 +890,7 @@ class COBANet(nn.Module):
         rec_buf = None
         if self.recording:
             rec_buf = {"out": torch.zeros(T_steps, B, N_OUT, device=device)}
-            if self.readout_mode == "spike-rate":
+            if self.readout_mode in ("spike-count", "spike-rate"):
                 rec_buf["out_spikes"] = torch.zeros(
                     T_steps, B, N_OUT, device=device
                 )
@@ -1213,7 +1214,7 @@ class COBANet(nn.Module):
                 ik = self._inh_key(i)
                 n_spk_tensors[ik] += state["s_i"][k].detach().sum()
 
-        if cfg["readout_mode"] in ("mem-mean", "spike-rate"):
+        if cfg["readout_mode"] in ("mem-mean", "spike-count", "spike-rate"):
             if cfg["has_readout_reset"]:
                 reset = slc["readout_reset_t"].to(
                     device=state["v_out"].device, dtype=torch.bool
@@ -1241,11 +1242,13 @@ class COBANet(nn.Module):
             s_out = fast_sigmoid_spike(state["v_out"] - thr_snn, SURROGATE_SLOPE)
             state["s_out"] = s_out
             n_spk_tensors["out"] += s_out.detach().sum()
-            if cfg["readout_mode"] == "spike-rate":
+            if cfg["readout_mode"] in ("spike-count", "spike-rate"):
                 state["out_spike_count"] = state["out_spike_count"] + s_out
             else:
                 state["mem_sum"] = state["mem_sum"] + state["v_out"]
             state["v_out"] = state["v_out"] - s_out * thr_snn
+            if cfg["readout_mode"] == "spike-count":
+                return state["out_spike_count"]
             if cfg["readout_mode"] == "spike-rate":
                 duration_s = float(T_steps) * dt / 1000.0
                 return state["out_spike_count"] / duration_s

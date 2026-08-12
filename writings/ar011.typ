@@ -137,7 +137,7 @@
     [*flag*], [*default*], [*description*],
     [_--model {ping}_], [_ping_], [Architecture. _ping_ is the COBANet with E↔I coupling; with _--ei-strength 0_ the inhibitory loop is silenced for a no-rhythm control.],
     [_--n-hidden INT [INT dots.c]_], [dataset-dependent], [Hidden layer sizes. One integer = single layer; multiple stacks layers. Default for mnist: 1024.],
-    [_--readout {rate, mem-mean}_], [_rate_], [Output stage. _rate_ sums last-hidden spikes and projects linearly at the final timestep. _mem-mean_ averages a per-class output-LIF membrane over time (the trained classification readout).],
+    [_--readout {rate, mem-mean}_], [_rate_], [Output stage. _rate_ sums last-hidden spikes and projects linearly at the final timestep. _mem-mean_ averages the pre-reset voltage of a spiking, subtractively resetting output LIF over time (the trained classification readout).],
     [_--dales-law_ / _--no-dales-law_], [on], [Enforce Dale's law (non-negative weights) or allow signed weights. _--no-dales-law_ is used for balanced-network experiments.],
     [_--ei-strength FLOAT_], [0.5], [E-I coupling strength s. Sets W_EI = s and W_IE = s·ratio.],
     [_--ei-ratio FLOAT_], [2.0], [W_IE / W_EI.],

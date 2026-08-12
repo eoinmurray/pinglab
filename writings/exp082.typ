@@ -1,5 +1,5 @@
 #let meta = (
-  title: "Variable-rate streaming with a spike-rate readout",
+  title: "Variable-rate streaming with a spike-count readout",
   date: "2026-08-10",
   description: "Successor to exp048 using the variable-rate PING training bank and a readout matched to each presentation window.",
   collection: "gamma-gated-sparsity",
@@ -9,7 +9,7 @@
 #let body = [
   == Abstract
 
-  This experiment will test whether PING networks trained across input rates can classify continuous MNIST streams without the fixed-rate and mean-membrane mismatch inherited by exp048. Excitatory spikes drive ten spiking output LIF neurons, and each class logit is the corresponding output neuron's firing rate over a window equal to the current digit's presentation duration. The planned results comprise matched-condition streaming, variable-rate and variable-duration streaming, a 200 ms rate psychometric, and a duration-by-rate accuracy map. Results remain pending until exp022 produces all three variable-rate checkpoints.
+  This experiment will test whether PING networks trained across input rates can classify continuous MNIST streams without the fixed-rate and mean-membrane mismatch inherited by exp048. Excitatory spikes drive ten spiking output LIF neurons, and each class logit is the corresponding output neuron's total spikes over the current digit's presentation window. The planned results comprise matched-condition streaming, variable-rate and variable-duration streaming, a 200 ms rate psychometric, and a duration-by-rate accuracy map. Results remain pending until exp022 produces all three variable-rate checkpoints.
 
   == Methods
 
@@ -17,15 +17,15 @@
 
   The experiment loads `ping__variable_rate__seed42`, `ping__variable_rate__seed43`, and `ping__variable_rate__seed44` from exp022. Each PING network is trained by sampling one maximum-pixel Poisson rate independently per image presentation from 0.5, 0.75, 1, 1.5, 2, 3, 5, 7.5, 10, 15, and 25 Hz. The recurrent weights and classifier are frozen throughout this experiment.
 
-  *Note.* The exp022 cells are registered and `tools/snn` implements the required output-LIF `spike-rate` training, restore, and output-raster path. Presentation boundaries reset only the output LIF and its counter; the hidden PING state remains continuous. This entry still fails loudly if the variable-rate checkpoint bank is absent or uses another readout.
+  *Note.* The exp022 cells are registered and `tools/snn` implements the required output-LIF `spike-count` training, restore, and output-raster path. Presentation boundaries reset only the output LIF and its counter; the hidden PING state remains continuous. This entry still fails loudly if the variable-rate checkpoint bank is absent or uses another readout.
 
-  === 2. Spike-rate readout
+  === 2. Spike-count readout
 
   At each timestep, the 1024-element excitatory spike vector $bold(s)^E(t)$ drives a trained 1024-by-10 projection $W_"out"$ into ten output LIF neurons. For a presentation beginning at timestep $a$ and ending before timestep $b$, class evidence is
 
-  $ z_c = 1 / T sum_(t=a)^(b-1) s_c^"out"(t), quad c in {0, dots, 9}, quad T = (b-a) Delta t / 1000. quad "(1)" $
+  $ z_c = sum_(t=a)^(b-1) s_c^"out"(t), quad c in {0, dots, 9}. quad "(1)" $
 
-  Here $s_c^"out"(t)$ is the spike emitted by output LIF neuron $c$ at timestep $t$, $T$ is the matched presentation duration in seconds, and $bold(z)$ contains the ten output firing-rate logits in Hz. The predicted digit is the index of the largest rate. The output neurons therefore have membrane state, leak, threshold, spikes, and reset; unlike `mem-mean`, their membrane voltages are not the logits.
+  Here $s_c^"out"(t)$ is the spike emitted by output LIF neuron $c$ at timestep $t$, and $bold(z)$ contains the ten dimensionless output spike-count logits. The predicted digit is the index of the largest count. Dividing counts by the common presentation duration gives firing rates for reporting and leaves this argmax unchanged, but rates are not passed to cross-entropy as logits. The output neurons therefore have membrane state, leak, threshold, spikes, and reset; unlike `mem-mean`, their membrane voltages are not the logits.
 
   === 3. Matched inference
 
@@ -55,5 +55,5 @@
 
   === 3. Comparison with exp048
 
-  *TODO.* Compare the completed results with exp048. The comparison must be interpretive rather than a silent replacement. Exp048 uses fixed-25-Hz training and reconstructs a sliding `mem-mean` output. This experiment uses mixed-rate training and the trained `spike-rate` readout. Any accuracy difference therefore reflects the combined training-distribution and readout correction, not a single isolated intervention.
+  *TODO.* Compare the completed results with exp048. The comparison must be interpretive rather than a silent replacement. Exp048 uses fixed-25-Hz training and reconstructs a sliding `mem-mean` output. This experiment uses mixed-rate training and the trained `spike-count` readout. Any accuracy difference therefore reflects the combined training-distribution and readout correction, not a single isolated intervention.
 ]

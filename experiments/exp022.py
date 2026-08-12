@@ -271,18 +271,18 @@ def _init_cells() -> list[dict]:
 
 
 def _planned_variable_rate_cells() -> list[dict]:
-    """Variable-rate, output-LIF spike-rate PING bank consumed by exp082."""
+    """Variable-rate, output-LIF spike-count PING bank consumed by exp082."""
     return [
         {
             "name": f"ping__variable_rate__seed{s}",
             "model": "ping",
             "family": "variable_rate",
-            "tag": "categorical 0.5–25 Hz · output spike rate",
+            "tag": "categorical 0.5–25 Hz · output spike count",
             "seed": s,
             "dt_ms": DT_MS,
             "tau_gaba": TAU_GABA_GAMMA,
             "max_samples": SUBSET_MAX_SAMPLES,
-            "readout": "spike-rate",
+            "readout": "spike-count",
             "input_rates_hz": list(VARIABLE_RATE_TRAINING_RATES_HZ),
             "rate_sampling": "uniform categorical per presentation",
             "consumer": VARIABLE_RATE_CONSUMER,

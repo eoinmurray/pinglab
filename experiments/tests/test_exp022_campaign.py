@@ -78,7 +78,7 @@ def test_all_resolved_commands_keep_family_contract(tmp_path: Path) -> None:
         else:
             assert args[args.index("--max-samples") + 1] == "7000"
         if cell["family"] == "variable_rate":
-            assert args[args.index("--readout") + 1] == "spike-rate"
+            assert args[args.index("--readout") + 1] == "spike-count"
             assert tuple(map(float, args[args.index("--input-rates") + 1:])) == (
                 exp022.VARIABLE_RATE_TRAINING_RATES_HZ
             )
@@ -97,7 +97,7 @@ def _manifest_cell(tmp_path: Path, *, epochs: int = 2, samples: int = 100) -> di
             "arguments": {
                 "--model": "ping", "--dataset": "mnist", "--epochs": str(epochs),
                 "--max-samples": str(samples), "--dt": "0.1", "--t-ms": "200.0",
-                "--tau-gaba": "6.0", "--seed": "42", "--readout": "spike-rate",
+                "--tau-gaba": "6.0", "--seed": "42", "--readout": "spike-count",
                 "--input-rates": ["0.5", "1.0", "2.0", "5.0", "10.0", "25.0"],
             },
         },

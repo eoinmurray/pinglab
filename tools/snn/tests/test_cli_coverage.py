@@ -106,8 +106,8 @@ class TestParseArgsSubcommands:
         assert args.dales_law is False
         args2 = parse_args(["train", "--readout", "rate"])
         assert args2.dales_law is True  # default
-        args3 = parse_args(["train", "--readout", "spike-rate"])
-        assert args3.readout_mode == "spike-rate"
+        args3 = parse_args(["train", "--readout", "spike-count"])
+        assert args3.readout_mode == "spike-count"
 
     def test_cumulative_signed_readout_flags(self):
         args = parse_args([

@@ -70,7 +70,7 @@
 
   == Abstract
 
-  Exp022 defines the collection's shared training runs and checkpoint bank. It specifies the motivation, parameterization, output-layer shape, and downstream consumers for six training-run types. Five run types comprise #r.n_cells trained cells spanning reference models and controlled sweeps over spike budget, inhibitory timescale, integration timestep, and recurrent initialization. TR-06 adds three PING cells trained across variable input rates with ten spiking output LIF neurons; each class logit is the corresponding neuron's output firing rate. Together, these runs provide the checkpoints used by the collection's training-dependent experiments.
+  Exp022 defines the collection's shared training runs and checkpoint bank. It specifies the motivation, parameterization, output-layer shape, and downstream consumers for six training-run types. Five run types comprise #r.n_cells trained cells spanning reference models and controlled sweeps over spike budget, inhibitory timescale, integration timestep, and recurrent initialization. TR-06 adds three PING cells trained across variable input rates with ten spiking output LIF neurons; each class logit is the corresponding neuron's total spike count over the presentation. Together, these runs provide the checkpoints used by the collection's training-dependent experiments.
 
   #major-divider()
 
@@ -102,7 +102,7 @@
     [E/I loop strength], [COBA: 0; PING: 1], [The forward architectural difference under comparison],
     [Gradient damping], [COBA: 1; PING: 1,000], [Backward-pass stabilization for the recurrent PING loop; it does not change forward dynamics],
     [Surrogate slope], [1], [Spike-gradient surrogate parameter],
-    [Default readout], [`mem-mean`], [A *spiking* $1024 arrow 10$ output-LIF layer. Its neurons emit spikes and reset, but classification logits are their membrane voltages averaged over time—not their spike counts],
+    [Default readout], [`mem-mean`], [A *spiking* $1024 arrow 10$ output-LIF layer. At each timestep its pre-reset voltages enter the temporal mean, then emitted spikes subtract the threshold before the next update. These mean voltages—not spike counts—are the logits],
     [Stored projection shapes], [$784 times 1024$; $1024 times 256$; $256 times 1024$; $1024 times 10$], [Input→E, E→I, I→E, and E→class, in source-to-destination orientation],
   )
 
@@ -196,7 +196,7 @@
 
   === TR-06 — Variable-rate streaming bank
 
-  This run trains PING across the input rates used by exp082. One rate is sampled uniformly for each presentation, and the ten output LIF neurons produce class logits from their firing rates rather than their mean membrane voltages. Expressing the logits in hertz makes them comparable across presentation durations. During streaming inference, the output neurons reset at digit boundaries while the hidden PING state continues. The resulting checkpoints are used by #run-links(("exp082",)).
+  This run trains PING across the input rates used by exp082. One rate is sampled uniformly for each presentation, and the ten output LIF neurons produce class logits from their total spike counts rather than their mean membrane voltages. This keeps the cross-entropy logits dimensionless and gives one additional output spike the same logit increment. Output firing rates may still be reported as activity measurements. During streaming inference, the output neurons reset at digit boundaries while the hidden PING state continues. The resulting checkpoints are used by #run-links(("exp082",)).
 
   #table(
     columns: (1.2fr, 1.65fr, 2fr),
@@ -205,7 +205,7 @@
     [Training pool], [7,000 samples], [Uses the shared sweep-scale training set],
     [Input-rate set], [0.5, 0.75, 1, 1.5, 2, 3, 5, 7.5, 10, 15, 25 Hz], [Denser sampling within the interval selected by exp080],
     [Sampling rule], [Uniform categorical, independently per presentation], [Makes rate variation part of the training distribution],
-    [Readout], [`spike-rate`], [Hidden E spikes drive ten spiking LIF class neurons; each logit is that class neuron's spike count divided by presentation duration in seconds],
+    [Readout], [`spike-count`], [Hidden E spikes drive ten spiking LIF class neurons; each logit is that class neuron's total spikes over the presentation],
     [Readout shape], [$1024 arrow 10$ spiking LIF outputs], [Ten class neurons emit and reset throughout the presentation],
     [Cells], [1 recipe × 3 seeds = 3], [Checkpoint bank expected by exp082],
   )

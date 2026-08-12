@@ -404,11 +404,17 @@ def train(
         "readout_reduction": (
             M.CUMULATIVE_READOUT_REDUCTION
             if readout_mode == "cumulative-potential"
+            else "output_spike_count"
+            if readout_mode == "spike-count"
             else "output_spike_count_divided_by_duration_seconds"
             if readout_mode == "spike-rate"
             else None
         ),
-        "readout_units": "Hz" if readout_mode == "spike-rate" else None,
+        "readout_units": (
+            "spikes" if readout_mode == "spike-count"
+            else "Hz" if readout_mode == "spike-rate"
+            else None
+        ),
         "readout_tau_bounds_ms": (
             list(M.CUMULATIVE_READOUT_TAU_BOUNDS_MS)
             if readout_mode == "cumulative-potential"
@@ -971,11 +977,17 @@ def train(
             "readout_reduction": (
                 M.CUMULATIVE_READOUT_REDUCTION
                 if readout_mode == "cumulative-potential"
+                else "output_spike_count"
+                if readout_mode == "spike-count"
                 else "output_spike_count_divided_by_duration_seconds"
                 if readout_mode == "spike-rate"
                 else None
             ),
-            "readout_units": "Hz" if readout_mode == "spike-rate" else None,
+            "readout_units": (
+                "spikes" if readout_mode == "spike-count"
+                else "Hz" if readout_mode == "spike-rate"
+                else None
+            ),
             "readout_tau_bounds_ms": (
                 list(M.CUMULATIVE_READOUT_TAU_BOUNDS_MS)
                 if readout_mode == "cumulative-potential"
