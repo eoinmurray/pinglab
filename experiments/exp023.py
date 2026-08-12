@@ -3,8 +3,9 @@
 Runs the pinglab-cli in *image* mode twice — once with the recurrent
 loop disabled (*--ei-strength 0*, "coba") and once with it active
 (*--ei-strength 1.5*, "ping") — and renders dedicated per-cell raster
-plots from the saved spike arrays. Everything else is held fixed
-(MNIST digit 0 sample 0, --input-rate 50, --t-ms 400, --w-in 1.5 0.3).
+plots from the saved spike arrays. Both use uniform synthetic Poisson spikes
+through W_in; the representative raster rates are 5 Hz for COBA and 45 Hz for
+PING, with --t-ms 400 and --w-in 1.5 0.3 in a production run.
 
 Per cell, two PNGs are written: raster__<cell>.png (population spike
 raster) and traces__<cell>.png (membrane voltage + conductances for a
@@ -269,6 +270,58 @@ FI_EI = {"coba": "0", "ping": "1.5"}  # ei-strength per condition
 FI_T_MS = 200 if SMOKE else 400
 
 
+def raster_args(cell: str, out_dir: Path | None = None) -> list[str]:
+    args = [*COMMON_ARGS, *CELLS[cell]["args"]]
+    if out_dir is not None:
+        args.extend(["--out-dir", str(out_dir), "--wipe-dir"])
+    return args
+
+
+def fi_args(cell: str, rate_hz: int, out_dir: Path | None = None) -> list[str]:
+    args = [
+        "sim", "--model", "ping", "--input", "synthetic-spikes",
+        "--n-hidden", str(N_E), "--n-inh", str(N_I),
+        "--ei-strength", FI_EI[cell], "--w-in", "1.5", "0.3",
+        "--w-in-sparsity", "0.95", "--input-rate", str(rate_hz),
+        "--t-ms", str(FI_T_MS), "--dt", str(DT_MS),
+    ]
+    if out_dir is not None:
+        args.extend(["--out-dir", str(out_dir)])
+    return args
+
+
+def _arg(args: list[str], flag: str) -> str:
+    return args[args.index(flag) + 1]
+
+
+def drive_provenance() -> dict:
+    """Describe the stimuli from the same argument builders execution uses."""
+    raster_points = {}
+    for cell in CELLS:
+        args = raster_args(cell)
+        raster_points[cell] = {
+            "input": _arg(args, "--input"),
+            "input_rate_hz": float(_arg(args, "--input-rate")),
+            "ei_strength": float(_arg(args, "--ei-strength")),
+            "t_ms": float(_arg(args, "--t-ms")),
+            "dt_ms": float(_arg(args, "--dt")),
+            "scientific_args": args,
+        }
+    reference_fi = fi_args(next(iter(FI_EI)), FI_RATES_HZ[0])
+    return {
+        "raster_operating_points": raster_points,
+        "fi_sweep": {
+            "input": _arg(reference_fi, "--input"),
+            "input_rates_hz": list(FI_RATES_HZ),
+            "ei_strength_by_cell": {
+                cell: float(ei_strength) for cell, ei_strength in FI_EI.items()
+            },
+            "t_ms": float(_arg(reference_fi, "--t-ms")),
+            "dt_ms": float(_arg(reference_fi, "--dt")),
+        },
+    }
+
+
 def fi_sweep(bar: nblog.ProgressBar | None = None) -> dict:
     """Free-running f–I curves under uniform Poisson input: mean per-cell E and
     I firing rate vs input rate, for COBA (loop off) and PING (loop on). No
@@ -281,36 +334,11 @@ def fi_sweep(bar: nblog.ProgressBar | None = None) -> dict:
     notebook, not the CLI. Same architecture as the raster/PSD (pinglab-cli
     mnist default, 1024 E / 256 I)."""
     out = {c: {"in": [], "e": [], "i": []} for c in FI_EI}
-    for cell, ei in FI_EI.items():
+    for cell in FI_EI:
         for rate in FI_RATES_HZ:
             out_dir = (ARTIFACTS / "fi" / f"{cell}__r{rate}").resolve()
             out_dir.mkdir(parents=True, exist_ok=True)
-            argv = [
-                "sim",
-                "--model",
-                "ping",
-                "--input",
-                "synthetic-spikes",
-                "--n-hidden",
-                "1024",
-                "--n-inh",
-                "256",
-                "--ei-strength",
-                ei,
-                "--w-in",
-                "1.5",
-                "0.3",
-                "--w-in-sparsity",
-                "0.95",
-                "--input-rate",
-                str(rate),
-                "--t-ms",
-                str(FI_T_MS),
-                "--dt",
-                str(DT_MS),
-                "--out-dir",
-                str(out_dir),
-            ]
+            argv = fi_args(cell, rate, out_dir)
             run_cli([*argv])
             # Single-trial snapshot (no --outputs/--n-batch): read the spikes and
             # compute the mean per-cell rate here.
@@ -826,13 +854,7 @@ def main() -> None:
         for cell, spec in CELLS.items():
             scope_dir = ARTIFACTS / "scope" / cell
             scope_npz = scope_dir / "snapshot.npz"
-            scope_argv = [
-                *COMMON_ARGS,
-                *spec["args"],
-                "--out-dir",
-                str(scope_dir),
-                "--wipe-dir",
-            ]
+            scope_argv = raster_args(cell, scope_dir)
             log.phase(f"sim · {cell}", " ".join(spec["args"]))
             run_cli([*scope_argv])
             if not scope_npz.exists():
@@ -887,11 +909,8 @@ def main() -> None:
             payload={
                 "config": {
                     "model": "ping",
-                    "input": "mnist d0 s0",
                     "cells": list(CELLS),
-                    "t_ms": 400,
-                    "dt_ms": DT_MS,
-                    "input_rate_hz": 50,
+                    "drive": drive_provenance(),
                 },
                 # f_γ measured from each shown raster's E-population PSD (None = no
                 # recurrent rhythm, i.e. COBA loop off). The mdx reads these rather
