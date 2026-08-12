@@ -186,6 +186,7 @@ class TestInferEmitters:
         d = np.load(pcr)
         assert "rate_e_per_cell" in d.files
         assert d["rate_e_per_cell"].shape[0] == 32  # N_E
+        assert "rate_e_per_sample" in d.files
 
         # pop_traces.npz. The stratified test split keeps only a fraction of
         # max_samples, so assert on structure (>0 trials, correct T) not the

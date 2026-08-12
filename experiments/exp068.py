@@ -358,7 +358,7 @@ def validate_training(model: str, out: Path, *, smoke: bool) -> list[str]:
         "readout_w_out_scale": READOUT_SCALE,
         "readout_mode": READOUT_MODE,
         "dales_law": True,
-        "fr_reg_upper_theta": 0.0,
+        "fr_reg_upper_target_hz": 0.0,
         "fr_reg_upper_strength": 0.0,
     }
     for key, want in expected.items():

@@ -468,7 +468,7 @@ _TRAINING_RECIPE_FLAGS = {
     "--lr",
     "--weight-decay",
     "--epochs",
-    "--fr-reg-upper-theta",
+    "--fr-reg-upper-target-hz",
     "--fr-reg-upper-strength",
     "--trainable-w-ee",
     "--trainable-w-ei",

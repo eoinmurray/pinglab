@@ -7,10 +7,10 @@ weights with `load_cell` (imported from this module) instead of retraining
 their own. This replaces the collection's older "standalone runner, no
 cross-notebook helpers" rule with a train-once / reuse-many policy (see ar016).
 
-87 cells across five families (canonical, θ_u, τ_GABA, Δt, init) that exp025
+87 cells across five families (canonical, rate target, τ_GABA, Δt, init) that exp025
 defines and that exp024 / exp037 / exp038 each used to retrain
 independently. Standard: 50 epochs, dt = 0.1 ms, T = 200 ms, and THREE seeds
-(42/43/44) for every cell — including the θ_u interior, so the accuracy–rate
+(42/43/44) for every cell — including the rate target interior, so the accuracy–rate
 frontier carries error bars (it was single-seed; no longer). Canonical sees all
 of MNIST, the sweeps 10%. (exp044's Δt sweep is the documented exception that
 varies dt.)
@@ -83,7 +83,7 @@ VARIABLE_RATE_TRAINING_RATES_HZ = (
     0.5, 0.75, 1.0, 1.5, 2.0, 3.0, 5.0, 7.5, 10.0, 15.0, 25.0,
 )
 VARIABLE_RATE_CONSUMER = "exp082"
-THETA_U_GRID: list[float | None] = [None, 5.0, 2.0, 1.0, 0.5, 0.2]
+RATE_TARGET_GRID_HZ: list[float | None] = [None, 25.0, 10.0, 5.0, 2.5, 1.0]
 FR_STRENGTH_UPPER = 1e-3
 TAU_AMPA_MS = 2.0          # AMPA decay — fixed across the collection (no CLI knob)
 INPUT_RATE_HZ = 25.0
@@ -150,7 +150,7 @@ MODEL_MARKERS = {"coba": "s", "ping": "D"}
 
 TRAINING_RUN_IDS = {
     "canonical": "TR-01",
-    "theta_u": "TR-02",
+    "activity_frontier": "TR-02",
     "tau_gaba": "TR-03",
     "dt": "TR-04",
     "init": "TR-05",
@@ -182,30 +182,28 @@ EPOCHS = 2                                            # plumbing depth on every 
 BATCH_SIZE = 256                                      # fixed across every recipe
 
 
-def theta_label(theta_u: float | None) -> str:
-    if theta_u is None:
+def rate_target_label(target_hz: float | None) -> str:
+    if target_hz is None:
         return "off"
-    return "tu" + f"{theta_u:g}".replace(".", "p")
+    return "rt" + f"{target_hz:g}".replace(".", "p") + "hz"
 
 
-def theta_display(theta_u: float | None) -> str:
-    return "off" if theta_u is None else f"{theta_u:g}"
+def rate_target_display(target_hz: float | None) -> str:
+    return "off" if target_hz is None else f"{target_hz:g} Hz"
 
 
-def seeds_for(theta_u: float | None) -> list[int]:
-    """Every θ_u value — baseline and interior — runs all three seeds, so the
+def seeds_for(target_hz: float | None) -> list[int]:
+    """Every target — baseline and interior — runs all three seeds, so the
     accuracy–rate frontier carries across-seed error bars. The interior used to
     be single-seed (a limitation ar009 §2.3 disclosed); this removes it."""
     return list(SEEDS_BASELINE)
 
 
-def cell_name(model: str, theta_u: float | None, seed: int) -> str:
-    """θ_u cell name — always seed-suffixed now the interior is 3-seed too (was
-    `{model}__{tu}` with no seed for the single-seed interior). Consumers that
-    read these cells must iterate seeds_for() rather than assume a single seed."""
-    if theta_u is None:
+def cell_name(model: str, target_hz: float | None, seed: int) -> str:
+    """Activity-frontier cell name, including its rate target and seed."""
+    if target_hz is None:
         return f"{model}__off__seed{seed}"
-    return f"{model}__{theta_label(theta_u)}__seed{seed}"
+    return f"{model}__{rate_target_label(target_hz)}__seed{seed}"
 
 
 def _label(x: float) -> str:
@@ -218,18 +216,19 @@ def _label(x: float) -> str:
 # per-notebook artifacts, so folding the already-trained cells in is a move,
 # not a retrain.
 
-def _theta_u_cells() -> list[dict]:
+def _activity_frontier_cells() -> list[dict]:
     cells = []
     for m in MODELS:
-        for tu in THETA_U_GRID:
-            extra = ([] if tu is None else
-                     ["--fr-reg-upper-theta", str(tu),
+        for target_hz in RATE_TARGET_GRID_HZ:
+            extra = ([] if target_hz is None else
+                     ["--fr-reg-upper-target-hz", str(target_hz),
                       "--fr-reg-upper-strength", str(FR_STRENGTH_UPPER)])
-            for s in seeds_for(tu):
+            for s in seeds_for(target_hz):
                 cells.append({
-                    "name": cell_name(m, tu, s), "model": m, "family": "theta_u",
-                    "tag": theta_display(tu), "seed": s, "dt_ms": DT_MS,
-                    "tau_gaba": TAU_GABA_GAMMA, "theta_u": tu, "extra": extra,
+                    "name": cell_name(m, target_hz, s), "model": m, "family": "activity_frontier",
+                    "tag": rate_target_display(target_hz), "seed": s, "dt_ms": DT_MS,
+                    "tau_gaba": TAU_GABA_GAMMA,
+                    "rate_target_hz": target_hz, "extra": extra,
                 })
     return cells
 
@@ -254,7 +253,7 @@ def _dt_cells() -> list[dict]:
 
 
 def _canonical_cells() -> list[dict]:
-    # The canonical reference: θ_u = off, trained on ALL of MNIST (not the
+    # The canonical reference: rate target = off, trained on ALL of MNIST (not the
     # subset the other families use) once the full standard is restored.
     return [
         {"name": f"{m}__canonical__seed{s}", "model": m, "family": "canonical",
@@ -305,7 +304,7 @@ def _planned_variable_rate_cells() -> list[dict]:
 
 
 PLANNED_VARIABLE_RATE_CELLS = _planned_variable_rate_cells()
-BASE_CELLS = (_canonical_cells() + _theta_u_cells() + _tau_gaba_cells()
+BASE_CELLS = (_canonical_cells() + _activity_frontier_cells() + _tau_gaba_cells()
               + _dt_cells() + _init_cells())
 CANONICAL_CELLS = BASE_CELLS + PLANNED_VARIABLE_RATE_CELLS
 for _cell in CANONICAL_CELLS:
@@ -542,8 +541,8 @@ def final_rates(d: Path) -> tuple[float, float]:
 
 FAMILY_COLORS = {
     "canonical": theme.GREY_DARK,
-    "theta_u": theme.INK_BLACK,
-    "theta_u_3seed": theme.INK_BLACK,
+    "activity_frontier": theme.INK_BLACK,
+    "activity_frontier_3seed": theme.INK_BLACK,
     "tau_gaba": theme.DEEP_RED,
     "dt": theme.ELECTRIC_CYAN,
     "init": theme.AMBER,
@@ -567,16 +566,17 @@ def training_curve(d: Path) -> tuple[list[int], list[float]]:
     return eps, accs
 
 
-FAMILY_ORDER = ["canonical", "theta_u", "tau_gaba", "dt", "init", "variable_rate"]
+FAMILY_ORDER = ["canonical", "activity_frontier", "tau_gaba", "dt", "init", "variable_rate"]
 FAMILY_LABELS = {
     "canonical": "Canonical reference",
-    "theta_u": "θ_u spike-budget sweep",
-    "theta_u_3seed": "θ_u spike-budget sweep (3-seed)",
+    "activity_frontier": "Hidden-E activity-ceiling sweep",
+    "activity_frontier_3seed": "Hidden-E activity-ceiling sweep (3-seed)",
     "tau_gaba": "τ_GABA ladder",
     "dt": "Δt sweep",
     "init": "Init variants",
     "variable_rate": "Variable-rate streaming bank",
 }
+FAMILY_ARTIFACT_SLUGS = {"activity_frontier": "theta_u"}
 
 
 def plot_family_curves(family: str, cells: list[dict],
@@ -593,7 +593,7 @@ def plot_family_curves(family: str, cells: list[dict],
     colours = {t: cm.viridis(i / max(1, len(tags) - 1))  # ty: ignore[unresolved-attribute]
                for i, t in enumerate(tags)}
     # ping (and ping-init) solid, coba dashed — distinguishes the two models
-    # in families that train both (θ_u, canonical).
+    # in families that train both (rate target, canonical).
     linestyle = {"coba": "--", "ping": "-", "ping_init": "-"}
     models = list(dict.fromkeys(c["model"] for c in cells))
 
@@ -1412,7 +1412,8 @@ def main() -> None:
         n_trained = sum(1 for c in fcells
                         if (cell_dir(c["name"]) / "metrics.jsonl").exists())
         family_status[fam] = {"cells": len(fcells), "trained": n_trained}
-        out = FIGURES / f"curves__{fam}.svg"   # H10: line plots → SVG
+        artifact_slug = FAMILY_ARTIFACT_SLUGS.get(fam, fam)
+        out = FIGURES / f"curves__{artifact_slug}.svg"   # H10: line plots → SVG
         if n_trained:
             plot_family_curves(fam, fcells, out, run_id)
             print(f"wrote {out}")

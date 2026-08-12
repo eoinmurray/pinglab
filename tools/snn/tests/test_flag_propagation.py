@@ -365,8 +365,8 @@ def test_fr_reg_upper_pulls_rate_down(tmp_path):
     baseline = _rate(tmp_path / "fr-base")
     regd = _rate(
         tmp_path / "fr-upper",
-        "--fr-reg-upper-theta",
-        "1",
+        "--fr-reg-upper-target-hz",
+        "5",
         "--fr-reg-upper-strength",
         "10",
     )

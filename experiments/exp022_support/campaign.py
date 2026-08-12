@@ -239,7 +239,8 @@ ARG_TO_CONFIG = {
     "--readout-w-out-scale": "readout_w_out_scale",
     "--readout-w-init-mean": "readout_w_init_mean",
     "--readout-w-init-std": "readout_w_init_std", "--lr": "lr",
-    "--batch-size": "batch_size", "--fr-reg-upper-theta": "fr_reg_upper_theta",
+    "--batch-size": "batch_size",
+    "--fr-reg-upper-target-hz": "fr_reg_upper_target_hz",
     "--fr-reg-upper-strength": "fr_reg_upper_strength",
     "--input-rates": "input_rates",
     "--input-rate": "input_rate", "--n-hidden": "hidden_sizes",
@@ -252,7 +253,7 @@ FLOAT_CONFIG = {
     "dt", "t_ms", "tau_gaba_ms", "ei_strength", "v_grad_dampen",
     "w_in_initial_zero_fraction", "surrogate_slope", "readout_w_out_scale",
     "readout_w_init_mean", "readout_w_init_std", "lr",
-    "fr_reg_upper_theta", "fr_reg_upper_strength",
+    "fr_reg_upper_target_hz", "fr_reg_upper_strength",
     "input_rate", "weight_decay",
 }
 INT_CONFIG = {"max_samples", "epochs", "seed", "batch_size"}

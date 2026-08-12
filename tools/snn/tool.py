@@ -949,14 +949,12 @@ def _build_subparsers(parser, parent):
         help="Gradient dampening for COBA membrane",
     )
     train_parser.add_argument(
-        "--fr-reg-upper-theta",
+        "--fr-reg-upper-target-hz",
         type=float,
         default=0.0,
-        help="Firing-rate reg: upper-bound target spike "
-        "count per neuron per trial (θ_u). "
-        "Penalty s_u · Σ relu(<z_i> − θ_u)² is "
-        "added to the loss. Default 0 = off. "
-        "Cramer et al. SHD RSNN: 100.",
+        help="Hidden-E activity regulariser: population-mean firing-rate ceiling "
+        "for each presentation, in Hz. The one-sided squared penalty is averaged "
+        "over samples and hidden layers. Default: 0 Hz (only active when strength > 0).",
     )
     train_parser.add_argument(
         "--fr-reg-upper-strength",
@@ -1006,7 +1004,7 @@ each subcommand's --help):
   Weights        --w-in, --w-ee, --w-ei, --w-ie, --w-ii
   Gradient       --v-grad-dampen, --surrogate-slope
   Train (train)  --lr, --epochs, --batch-size, --max-samples,
-                 --fr-reg-upper-theta, --fr-reg-upper-strength
+                 --fr-reg-upper-target-hz, --fr-reg-upper-strength
   Sim (sim)      --infer, --load-config, --load-weights, --max-samples
   Output / exec  --out-dir, --wipe-dir
 
@@ -1497,7 +1495,7 @@ def _run_train(args, C, out_dir, log):
         readout_bias=args.readout_bias,
         input_rates=args.input_rates,
         tau_gaba=args.tau_gaba,
-        fr_reg_upper_theta=args.fr_reg_upper_theta,
+        fr_reg_upper_target_hz=args.fr_reg_upper_target_hz,
         fr_reg_upper_strength=args.fr_reg_upper_strength,
         trainable_w_ee=args.trainable_w_ee,
         trainable_w_ei=args.trainable_w_ei,
