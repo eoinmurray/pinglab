@@ -275,7 +275,7 @@ def false_alarms() -> list[dict[str, Any]]:
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--capture-root", type=Path, required=True)
+    parser.add_argument("capture_root", type=Path)
     args = parser.parse_args()
     plan, manifest, submission = load_capture(args.capture_root.resolve())
     sanitized = {
@@ -360,7 +360,7 @@ def main() -> None:
             "uv run python -m experiments.collections.gamma_gated_sparsity init --campaign-root <EXTERNAL_CAPTURE>/campaign --campaign-id issue72-audit-production",
             "uv run python -m experiments.collections.gamma_gated_sparsity submit --campaign-root <EXTERNAL_CAPTURE>/campaign --resources <PRIVATE_RESOURCES_JSON>",
             "git switch audit/issue-72-scientific-contract",
-            "uv run python experiments/exp083.py --capture-root <EXTERNAL_CAPTURE>",
+            "uv run python experiments/exp083.py <EXTERNAL_CAPTURE>",
         ],
         "note": "The submit command intentionally omits --live and --test-only. It emits a dry plan and creates no scheduler jobs. Its resource file needs nonzero placeholder walltimes and a working uv executable because retry-only cell resolution runs locally.",
     }
