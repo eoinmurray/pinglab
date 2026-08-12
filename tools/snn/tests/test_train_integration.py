@@ -417,9 +417,49 @@ class TestOutputArtifacts:
                 "filename": "weights.pth",
                 "epoch": metrics["best_epoch"],
                 "sha256": _sha256(tmp_output_dir / "weights.pth"),
-                "selection_metric": "validation_accuracy_pct",
+                "selection_metric": (
+                    "validation_cross_entropy_mean_over_encoder_draws"
+                ),
+                "tie_breaker": "validation_accuracy_pct_mean_over_encoder_draws",
+                "validation_draw_count": 3,
             },
         }
+        validation_contract = metrics["config"]["validation_encoder_draws"]
+        assert validation_contract == {
+            "count": 3,
+            "encoder_seeds": [20260415, 20260416, 20260417],
+            "input_rate_seeds": [20270415, 20270416, 20270417],
+            "aggregation_unit": "validation_sample_then_encoder_draw",
+            "checkpoint_selection": (
+                "minimum_mean_cross_entropy; tie maximum_mean_accuracy; "
+                "tie earliest_epoch"
+            ),
+        }
+        for epoch in metrics["epochs"]:
+            assert len(epoch["validation_draws"]) == 3
+            assert [draw["encoder_seed"] for draw in epoch["validation_draws"]] == [
+                20260415,
+                20260416,
+                20260417,
+            ]
+            assert [draw["input_rate_seed"] for draw in epoch["validation_draws"]] == [
+                20270415,
+                20270416,
+                20270417,
+            ]
+            assert epoch["test_loss"] == pytest.approx(
+                sum(draw["cross_entropy"] for draw in epoch["validation_draws"]) / 3
+            )
+            assert epoch["acc"] == pytest.approx(
+                sum(draw["accuracy_pct"] for draw in epoch["validation_draws"]) / 3
+            )
+        selected = min(
+            metrics["epochs"],
+            key=lambda epoch: (epoch["test_loss"], -epoch["acc"], epoch["ep"]),
+        )
+        assert metrics["best_epoch"] == selected["ep"]
+        assert metrics["best_validation_loss"] == selected["test_loss"]
+        assert metrics["best_acc"] == selected["acc"]
 
     def test_run_sh_created(self, tmp_output_dir):
         """run.sh should be created as a command log."""
