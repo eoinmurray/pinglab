@@ -52,8 +52,8 @@ download MNIST.
 ```bash
 export PINGLAB_DATA_ROOT="$PINGLAB_MNIST_CACHE"
 uv run python -c 'from torchvision.datasets import MNIST; import sys; MNIST(sys.argv[1], train=True, download=True); MNIST(sys.argv[1], train=False, download=True)' "$PINGLAB_MNIST_CACHE"
-experiments/exp022/ensure-mnist-link.sh "$PINGLAB_MNIST_CACHE"
-uv run python experiments/exp022_wilkes_diagnostic.py --data-root "$PINGLAB_MNIST_CACHE" --output <diagnostic-root>/local.json
+experiments/exp022_support/ensure-mnist-link.sh "$PINGLAB_MNIST_CACHE"
+uv run python experiments/exp022_support/wilkes_diagnostic.py --data-root "$PINGLAB_MNIST_CACHE" --output <diagnostic-root>/local.json
 ```
 
 ## 3. Account and diagnostic job
@@ -66,7 +66,7 @@ and submit the diagnostic script with explicit paths:
 mybalance
 sbatch --account=<SL2-GPU-account> --output=<diagnostic-root>/diagnostic-%j.out \
   --export=PINGLAB_ROOT="$PINGLAB_REPO",EXP022_DIAGNOSTIC_ROOT=<diagnostic-root>,PINGLAB_DATA_ROOT="$PINGLAB_MNIST_CACHE",EXP022_UV="$EXP022_UV" \
-  experiments/exp022/diagnostic.sbatch
+  experiments/exp022_support/diagnostic.sbatch
 ```
 
 The JSON result must show the reviewed commit, a clean checkout, PyTorch/CUDA,
@@ -125,8 +125,8 @@ export EXP022_SLURM_ACCOUNT=<SL2-GPU-account>
 export EXP022_WALLTIME=<HH:MM:SS>
 export EXP022_CONCURRENCY=<N>
 export EXP022_MNIST_CACHE="$PINGLAB_MNIST_CACHE"
-bash experiments/exp022/submit-tier.sh <manifest> standard --dry-run
-bash experiments/exp022/submit-tier.sh <manifest> standard --test-only
+bash experiments/exp022_support/submit-tier.sh <manifest> standard --dry-run
+bash experiments/exp022_support/submit-tier.sh <manifest> standard --test-only
 ```
 
 Run one representative cell from each shape: standard, fine timestep,

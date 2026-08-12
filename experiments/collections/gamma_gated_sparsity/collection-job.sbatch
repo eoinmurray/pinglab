@@ -16,8 +16,8 @@ experiment="${5:-}"
 repo_root="$(cd "$(dirname "$0")/../../.." && pwd)"
 
 cd "$repo_root"
-source experiments/exp022/load-wilkes-modules.sh
-experiments/exp022/ensure-mnist-link.sh "$mnist_cache"
+source experiments/exp022_support/load-wilkes-modules.sh
+experiments/exp022_support/ensure-mnist-link.sh "$mnist_cache"
 
 echo "job=$SLURM_JOB_ID host=$(hostname) action=$action experiment=${experiment:-none}"
 if command -v nvidia-smi >/dev/null 2>&1; then
