@@ -377,3 +377,35 @@ def test_slurm_test_only_calls_sbatch_without_submitting(monkeypatch) -> None:
     )
     assert result == "<test-only>"
     assert seen == [["sbatch", "--test-only", "--parsable", "job.sbatch"]]
+
+
+def test_production_canaries_select_one_missing_cell_per_tier(
+    tmp_path: Path, monkeypatch
+) -> None:
+    root = tmp_path / "campaign"
+    root.mkdir()
+    plan = build_plan(root, "production-canaries")
+    plan["profile"] = "production"
+    plan["source"] = {"git_commit": "a" * 40, "git_clean": True}
+    plan["exp022_manifest"] = str(root / "exp022" / "campaign.json")
+    Path(plan["exp022_manifest"]).parent.mkdir()
+    execution.write_json_atomic(
+        Path(plan["exp022_manifest"]), {"manifest_sha256": "c" * 64}
+    )
+    resources_path = tmp_path / "resources.json"
+    execution.write_json_atomic(resources_path, _slurm_resources(tmp_path))
+    monkeypatch.setattr(slurm, "load_plan", lambda _root: plan)
+    monkeypatch.setattr(
+        slurm, "_exp022_cells", lambda _manifest, tier, _uv: [f"{tier}-a", f"{tier}-b"]
+    )
+
+    payload = slurm.submit_canaries(root, resources_path)
+    assert payload["purpose"] == "production-resource-canaries"
+    assert [job["name"] for job in payload["jobs"]] == [
+        f"exp022-canary-{tier}" for tier in slurm.TIERS
+    ]
+    assert [job["cells"] for job in payload["jobs"]] == [
+        [f"{tier}-a"] for tier in slurm.TIERS
+    ]
+    assert all("--array=0-0%2" in job["command"] for job in payload["jobs"])
+    assert not (root / "submissions").exists()

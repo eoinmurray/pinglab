@@ -22,6 +22,7 @@ from .plan import REPO, validate_campaign_root
 
 TIERS = ("standard", "fine_dt", "canonical_coba", "canonical_ping", "variable_rate")
 SUBMISSION_NAME = "collection-submission.json"
+CANARY_SUBMISSION_PREFIX = "canary-submission"
 SLURM_TIME = re.compile(r"^[0-9]{1,3}:[0-5][0-9]:[0-5][0-9]$")
 
 
@@ -150,9 +151,15 @@ def _submit_exp022_tier(
     attempt: str,
     submit: bool,
     test_only: bool,
+    cells_override: list[str] | None = None,
+    job_prefix: str = "exp022",
 ) -> dict[str, Any] | None:
     manifest = Path(plan["exp022_manifest"])
-    cells = _exp022_cells(manifest, tier, resources["uv"])
+    cells = (
+        cells_override
+        if cells_override is not None
+        else _exp022_cells(manifest, tier, resources["uv"])
+    )
     if not cells:
         return None
     selection = (
@@ -193,7 +200,7 @@ def _submit_exp022_tier(
         str(REPO / "experiments" / "exp022" / "train-array.sbatch"),
     ]
     return {
-        "name": f"exp022-{tier}",
+        "name": f"{job_prefix}-{tier}",
         "job_id": _run(
             command,
             submit=submit,
@@ -203,6 +210,66 @@ def _submit_exp022_tier(
         "cells": cells,
         "command": command,
     }
+
+
+def submit_canaries(
+    root: Path,
+    resources_path: Path,
+    *,
+    submit: bool = False,
+    test_only: bool = False,
+) -> dict[str, Any]:
+    """Plan or submit one still-missing production cell from every exp022 tier."""
+    root = validate_campaign_root(root)
+    plan = load_plan(root)
+    resources = load_resources(resources_path)
+    if submit and test_only:
+        raise CollectionError("live submission and test-only are mutually exclusive")
+    if plan.get("profile") != "production":
+        raise CollectionError("resource canaries require a production campaign")
+
+    manifest = Path(plan["exp022_manifest"])
+    attempt = utc_now().replace(":", "").replace("-", "")
+    jobs = []
+    payload = {
+        "campaign_id": plan["campaign_id"],
+        "created_at_utc": utc_now(),
+        "mode": "submitting" if submit else "test-only" if test_only else "dry-run",
+        "purpose": "production-resource-canaries",
+        "source": plan["source"],
+        "exp022_manifest_sha256": load_json(manifest)["manifest_sha256"],
+        "resource_file_sha256": hashlib.sha256(
+            resources_path.resolve().read_bytes()
+        ).hexdigest(),
+        "resources_path": str(resources_path.resolve()),
+        "resources": resources,
+        "jobs": jobs,
+    }
+    record_path = (
+        root / "submissions" / f"{CANARY_SUBMISSION_PREFIX}-{attempt}.json"
+    )
+    for tier in TIERS:
+        missing = _exp022_cells(manifest, tier, resources["uv"])
+        if not missing:
+            continue
+        job = _submit_exp022_tier(
+            plan,
+            resources,
+            tier,
+            attempt=f"canary-{attempt}",
+            submit=submit,
+            test_only=test_only,
+            cells_override=[missing[0]],
+            job_prefix="exp022-canary",
+        )
+        assert job is not None
+        jobs.append(job)
+        if submit:
+            write_json_atomic(record_path, payload)
+    if submit:
+        payload["mode"] = "submitted"
+        write_json_atomic(record_path, payload)
+    return payload
 
 
 def _submit_job(

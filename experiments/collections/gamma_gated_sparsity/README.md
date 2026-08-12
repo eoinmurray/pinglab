@@ -38,3 +38,10 @@ Use the identical commands with a campaign initialized using `--smoke` for the
 Slurm rehearsal. Smoke and production require separate unique campaign roots and
 resource files; the smoke campaign exercises every registered tier and downstream
 dependency with reduced experiment-owned workloads.
+
+Before the production arrays, use `canaries` with the production campaign and
+provisional resource file. It selects one still-missing cell from each of the
+five exp022 tiers. Review it dry, run it with `--test-only`, and use `--live`
+only after approval. Successful canary cells belong to the production bank and
+are skipped by the later full submission. Replace provisional requests with
+the measured wall time, host memory, and GPU memory plus reviewed margins.
