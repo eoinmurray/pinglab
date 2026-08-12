@@ -11,7 +11,7 @@
 #let run = json("/artifacts/data/exp025/numbers.json")
 #let mean(a) = a.sum() / a.len()
 
-// θ_u-off baselines, averaged over seeds (the frontier's starred operating points).
+// Frontier points are averaged over the three independent TR-02 seeds.
 #let res = run.results
 #let coba_off_rate = calc.round(mean(res.filter(r => r.model == "coba" and r.theta_u == none).map(r => r.rate_e)))
 #let ping_off_rate = calc.round(mean(res.filter(r => r.model == "ping" and r.theta_u == none).map(r => r.rate_e)))
@@ -98,8 +98,9 @@
   *Training.* Adam, lr = $4 times 10^(-4)$, batch size 256, gradient norm clipped to
   1.0. Cross-entropy loss on 10-class MNIST (definition in #link("/ar006/")[ar006]).
   The voltage-gradient damping is 1 for COBA and 1000 for PING, where recurrent
-  backpropagation requires stabilisation. Three seeds (42, 43, 44) for baselines,
-  one seed (42) for sweep cells.
+  backpropagation requires stabilisation. Every frontier condition is trained with
+  three independent seeds (42, 43, 44); plotted points are across-seed means with
+  standard errors.
 
   *Recipe difference.* COBA and PING share $W_"in" tilde cal(N)(0.9, 0.09)$ at 95%
   sparsity and the same directly specified readout initializer. COBA disables the
@@ -115,12 +116,13 @@
   cells over budget contribute, cells under it are free, and the total loss is
   cross-entropy plus $L_"rate"$. We sweep six budgets (off, 5, 2, 1, 0.5, 0.2
   spikes/trial; at $T = 200$ ms this is no penalty, 25, 10, 5, 2.5, 1 Hz), giving
-  twelve $("model", theta_u)$ cells.
+  twelve $("model", theta_u)$ conditions and 36 trained cells across seeds.
 
   *Rate-floor decomposition.* The affine law $r_E = p dot f_gamma$
   (#link("/exp041/")[exp041], #link("/exp046/")[exp046]) factors the E rate into
   per-cycle participation $p$ and gamma frequency $f_gamma$. Both are measured at
-  every cell: $f_gamma$ from the Welch PSD peak of the E-population trace, $p$ via
+  one explicitly representative checkpoint (seed 42) per condition: $f_gamma$ from
+  the Welch PSD peak of the E-population trace, $p$ via
   I-burst peak detection and per-(cell, cycle) spike counting (style of
   #link("/exp046/")[exp046]).
 
@@ -150,7 +152,8 @@
       PING's recurrent E↔I matrices non-zero. *Bottom left:* test accuracy per epoch
       (mean over three seeds); both reach ≈ #ping_off_acc%, so both learn the task.
       *Bottom right:* the accuracy–rate frontier across the spike-budget penalty
-      $theta_u$. PING sits up-and-left of COBA, the same accuracy at a fraction of
+      $theta_u$ (mean ± SEM across three seeds at every point). PING sits
+      up-and-left of COBA, the same accuracy at a fraction of
       the hidden-E rate, with the $theta_u$-off operating points starred and labelled
       (PING #ping_off_acc% at ≈ #ping_off_rate Hz, COBA #coba_off_acc% at
       ≈ #coba_off_rate Hz). COBA red, PING black; E black and I red in the rasters.
@@ -166,7 +169,8 @@
       alt: "PING participation fraction p and gamma frequency f_gamma across the spike-budget sweep, with the p·f_gamma product overlaid on the measured E rate.",
     ),
     caption: [
-      Five $("PING", theta_u)$ sweep cells, 256 test trials each. *$p$ stays in
+      Five representative seed-42 $("PING", theta_u)$ sweep checkpoints, 256 test
+      trials each. *$p$ stays in
       #p_lo–#p_hi* across the entire sweep (the architecture protects the
       participation gate), while *$f_gamma$ slides from ≈ #fg_hi Hz to ≈ #fg_lo Hz*
       as the penalty tightens. The grey dashed $p dot f_gamma$ curve overlays the
