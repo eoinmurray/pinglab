@@ -196,6 +196,48 @@ def _outputs_valid(row: dict[str, Any]) -> bool:
     return all(Path(path).is_file() for path in row["required_outputs"])
 
 
+def _collection_provenance(
+    plan: dict[str, Any], row: dict[str, Any]
+) -> dict[str, Any]:
+    source = plan["source"]
+    exp022 = load_json(Path(plan["exp022_manifest"]))
+    return {
+        "campaign_id": plan["campaign_id"],
+        "collection": plan["collection"],
+        "experiment": row["slug"],
+        "source_git_commit": source["git_commit"],
+        "lockfile_sha256": (source.get("lockfile") or {}).get("sha256"),
+        "exp022_manifest_sha256": exp022["manifest_sha256"],
+        "dependencies": list(row["dependencies"]),
+        "training_run": row.get("training_run"),
+    }
+
+
+def _outputs_valid_for_plan(plan: dict[str, Any], row: dict[str, Any]) -> bool:
+    if not _outputs_valid(row):
+        return False
+    try:
+        document = load_json(Path(row["required_outputs"][0]))
+        return document.get("collection_provenance") == _collection_provenance(
+            plan, row
+        )
+    except CollectionError:
+        return False
+
+
+def _stamp_collection_provenance(plan: dict[str, Any], row: dict[str, Any]) -> None:
+    """Bind one experiment's scientific payload to the immutable campaign."""
+    output = Path(row["required_outputs"][0])
+    document = load_json(output)
+    provenance = _collection_provenance(plan, row)
+    existing = document.get("collection_provenance")
+    if existing is not None and existing != provenance:
+        raise CollectionError(
+            f"{row['slug']} numbers.json belongs to a different campaign"
+        )
+    write_json_atomic(output, {**document, "collection_provenance": provenance})
+
+
 def _write_status(root: Path, slug: str, **fields: object) -> None:
     current = {}
     path = _status_path(root, slug)
@@ -269,13 +311,14 @@ def _aggregate_exp022(
     )
     if not _outputs_valid(row):
         raise CollectionError("exp022 aggregation did not produce numbers.json")
+    _stamp_collection_provenance(plan, row)
     _write_status(root, "exp022", state="complete", ended_at_utc=utc_now())
 
 
 def _run_downstream(plan: dict[str, Any], row: dict[str, Any]) -> None:
     root = Path(plan["campaign_root"])
     slug = row["slug"]
-    if _outputs_valid(row):
+    if _outputs_valid_for_plan(plan, row):
         _write_status(root, slug, state="complete", resumed=True)
         return
     _write_status(root, slug, state="running", started_at_utc=utc_now())
@@ -292,6 +335,7 @@ def _run_downstream(plan: dict[str, Any], row: dict[str, Any]) -> None:
     if not _outputs_valid(row):
         _write_status(root, slug, state="failed", ended_at_utc=utc_now())
         raise CollectionError(f"{slug} completed without required outputs")
+    _stamp_collection_provenance(plan, row)
     _write_status(root, slug, state="complete", ended_at_utc=utc_now())
 
 
@@ -299,14 +343,14 @@ def run_local(root: Path) -> None:
     plan = load_plan(root)
     for row in rows_in_order(plan):
         if row["slug"] == "exp022":
-            if not _outputs_valid(row):
+            if not _outputs_valid_for_plan(plan, row):
                 _run_exp022(plan, row)
         else:
             for dependency in row["dependencies"]:
                 dependency_row = next(
                     item for item in rows_in_order(plan) if item["slug"] == dependency
                 )
-                if not _outputs_valid(dependency_row):
+                if not _outputs_valid_for_plan(plan, dependency_row):
                     raise CollectionError(
                         f"{row['slug']} dependency {dependency} is incomplete"
                     )
@@ -328,7 +372,7 @@ def run_experiment(root: Path, slug: str) -> None:
         raise CollectionError(f"unknown downstream experiment: {slug}")
     row = rows[slug]
     for dependency in row["dependencies"]:
-        if not _outputs_valid(rows[dependency]):
+        if not _outputs_valid_for_plan(plan, rows[dependency]):
             raise CollectionError(f"{slug} dependency {dependency} is incomplete")
     _run_downstream(plan, row)
 
@@ -345,7 +389,7 @@ def campaign_status(root: Path) -> dict[str, Any]:
             {
                 "experiment": row["slug"],
                 "state": status.get("state", "pending"),
-                "outputs_valid": _outputs_valid(row),
+                "outputs_valid": _outputs_valid_for_plan(plan, row),
             }
         )
     return {"campaign_id": plan["campaign_id"], "experiments": rows}

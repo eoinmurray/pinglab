@@ -10,7 +10,7 @@ from typing import Any
 
 from .execution import (
     CollectionError,
-    _outputs_valid,
+    _outputs_valid_for_plan,
     campaign_status,
     load_json,
     load_plan,
@@ -373,7 +373,7 @@ def submit_campaign(
 
     by_name: dict[str, str] = {}
     rows = {row["slug"]: row for row in rows_in_order(plan)}
-    if not _outputs_valid(rows["exp022"]):
+    if not _outputs_valid_for_plan(plan, rows["exp022"]):
         for tier in TIERS:
             job = _submit_exp022_tier(
                 plan,
@@ -401,7 +401,7 @@ def submit_campaign(
 
     for row in rows_in_order(plan):
         slug = row["slug"]
-        if slug == "exp022" or _outputs_valid(row):
+        if slug == "exp022" or _outputs_valid_for_plan(plan, row):
             continue
         dependency_ids = [by_name[d] for d in row["dependencies"] if d in by_name]
         job = _submit_job(
