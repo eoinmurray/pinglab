@@ -66,9 +66,9 @@ sbatch_args=(
   --error="$campaign_root/logs/%A_%a.err"
   --export="PINGLAB_ROOT=$repo_root,EXP022_MANIFEST=$manifest,EXP022_TIER=$tier,EXP022_SELECTION=$selection,EXP022_UV=$uv_bin,PINGLAB_DATA_ROOT=$mnist_cache"
 )
-echo "command: sbatch ${sbatch_args[*]} experiments/exp022/train-array.sbatch"
+echo "command: sbatch ${sbatch_args[*]} experiments/exp022_support/train-array.sbatch"
 if [[ "$mode" == "--dry-run" ]]; then exit 0; fi
 if [[ "$mode" == "--test-only" ]]; then sbatch_args+=(--test-only); fi
-submission="$(sbatch "${sbatch_args[@]}" experiments/exp022/train-array.sbatch)"
+submission="$(sbatch "${sbatch_args[@]}" experiments/exp022_support/train-array.sbatch)"
 echo "$submission"
 printf '%s\n' "$submission" > "$campaign_root/submissions/${tier}__${submission_stamp}.txt"

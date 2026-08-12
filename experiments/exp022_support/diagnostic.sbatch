@@ -12,9 +12,9 @@ set -euo pipefail
 : "${EXP022_UV:?set the reviewed uv executable}"
 
 cd "$PINGLAB_ROOT"
-source experiments/exp022/load-wilkes-modules.sh
+source experiments/exp022_support/load-wilkes-modules.sh
 mkdir -p "$EXP022_DIAGNOSTIC_ROOT"
-experiments/exp022/ensure-mnist-link.sh "$PINGLAB_DATA_ROOT"
-"$EXP022_UV" run python experiments/exp022_wilkes_diagnostic.py \
+experiments/exp022_support/ensure-mnist-link.sh "$PINGLAB_DATA_ROOT"
+"$EXP022_UV" run python experiments/exp022_support/wilkes_diagnostic.py \
   --data-root "$PINGLAB_DATA_ROOT" \
   --output "$EXP022_DIAGNOSTIC_ROOT/diagnostic-${SLURM_JOB_ID}.json"

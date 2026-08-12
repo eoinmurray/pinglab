@@ -7,7 +7,7 @@ from pathlib import Path
 import pytest
 import torch
 from experiments import exp022
-from experiments import exp022_campaign as campaign
+from experiments.exp022_support import campaign
 from experiments.helpers import archive
 
 CONCRETE_TIERS = ("standard", "fine_dt", "canonical_coba", "canonical_ping", "variable_rate")
@@ -451,7 +451,7 @@ def test_mnist_link_helper_accepts_existing_and_concurrent_creation(tmp_path: Pa
     cache = tmp_path / "cache"
     (cache / "MNIST").mkdir(parents=True)
     link = tmp_path / "mnist"
-    helper = exp022.REPO / "experiments" / "exp022" / "ensure-mnist-link.sh"
+    helper = exp022.REPO / "experiments" / "exp022_support" / "ensure-mnist-link.sh"
     commands = [[str(helper), str(cache), str(link)] for _ in range(2)]
     processes = [subprocess.Popen(command) for command in commands]
     assert [process.wait() for process in processes] == [0, 0]
@@ -465,7 +465,7 @@ def test_wilkes_modules_load_in_sanitized_environment(tmp_path: Path) -> None:
     initializer.write_text(
         'module() { printf "%s\\n" "$*" >> "$EXP022_MODULE_CALLS"; }\n'
     )
-    helper = exp022.REPO / "experiments" / "exp022" / "load-wilkes-modules.sh"
+    helper = exp022.REPO / "experiments" / "exp022_support" / "load-wilkes-modules.sh"
     subprocess.run(
         [
             "env", "-i", f"PATH={Path('/usr/bin')}:/bin",
@@ -479,8 +479,12 @@ def test_wilkes_modules_load_in_sanitized_environment(tmp_path: Path) -> None:
 
 
 def test_submission_selection_is_frozen_read_only() -> None:
-    submit = (exp022.REPO / "experiments" / "exp022" / "submit-tier.sh").read_text()
-    array = (exp022.REPO / "experiments" / "exp022" / "train-array.sbatch").read_text()
+    submit = (
+        exp022.REPO / "experiments" / "exp022_support" / "submit-tier.sh"
+    ).read_text()
+    array = (
+        exp022.REPO / "experiments" / "exp022_support" / "train-array.sbatch"
+    ).read_text()
     assert 'chmod 0444 "$selection"' in submit
     assert 'mapfile -t cells < "$EXP022_SELECTION"' in array
     assert "--campaign-list" not in array

@@ -158,7 +158,8 @@ def verified_campaign_source(manifest_path: Path) -> tuple[dict, Path]:
     """Return exactly the complete external cell bank named by an exp022 manifest."""
     if str(REPO) not in sys.path:
         sys.path.insert(0, str(REPO))
-    from experiments import exp022, exp022_campaign
+    from experiments import exp022
+    from experiments.exp022_support import campaign
 
     manifest = exp022._checked_manifest(
         manifest_path, allow_generated_dirty=True,
@@ -168,7 +169,7 @@ def verified_campaign_source(manifest_path: Path) -> tuple[dict, Path]:
         raise SystemExit("campaign archive source must not fall back to the legacy local bank")
     if len(manifest["cells"]) != len(exp022.CANONICAL_CELLS):
         raise SystemExit("campaign archive requires the complete exp022 registry")
-    status = exp022_campaign.summarize_status(manifest)
+    status = campaign.summarize_status(manifest)
     if status["retry_cells"] or status["recoverable_cells"] or any(
         row["state"] != "complete" for row in status["cells"]
     ):
