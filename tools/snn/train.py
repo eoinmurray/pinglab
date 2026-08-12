@@ -41,6 +41,13 @@ log = logging.getLogger("cli")
 
 BATCH_SIZE = 64
 GRAD_CLIP = 1.0
+VALIDATION_DRAW_COUNT = 3
+VALIDATION_ENCODER_SEEDS = tuple(
+    EVAL_SEED + draw_index for draw_index in range(VALIDATION_DRAW_COUNT)
+)
+VALIDATION_RATE_SEEDS = tuple(
+    EVAL_SEED + 10_000 + draw_index for draw_index in range(VALIDATION_DRAW_COUNT)
+)
 
 
 def _sha256_file(path: Path) -> str:
@@ -233,8 +240,12 @@ def train(
         if not input_rates or any(rate < 0 for rate in input_rates):
             raise ValueError("input_rates must contain non-negative rates")
     rate_values = torch.tensor(input_rates, dtype=torch.float32) if input_rates else None
+    validation_draw_count = (
+        VALIDATION_DRAW_COUNT if dataset in IMAGE_DATASETS else 1
+    )
+    validation_encoder_seeds = VALIDATION_ENCODER_SEEDS[:validation_draw_count]
+    validation_rate_seeds = VALIDATION_RATE_SEEDS[:validation_draw_count]
     train_rate_gen = torch.Generator().manual_seed((seed or 0) + 82_001)
-    eval_rate_gen = torch.Generator().manual_seed((seed or 0) + 82_002)
     prediction_rate_gen = torch.Generator().manual_seed((seed or 0) + 82_003)
 
     def sample_input_rates(batch_size, generator):
@@ -412,6 +423,16 @@ def train(
             if dataset == "mnist"
             else {"contract": "official_shd_train_test"}
         ),
+        "validation_encoder_draws": {
+            "count": validation_draw_count,
+            "encoder_seeds": list(validation_encoder_seeds),
+            "input_rate_seeds": list(validation_rate_seeds),
+            "aggregation_unit": "validation_sample_then_encoder_draw",
+            "checkpoint_selection": (
+                "minimum_mean_cross_entropy; tie maximum_mean_accuracy; "
+                "tie earliest_epoch"
+            ),
+        },
         "n_params": n_params,
         "n_trainable": n_trainable,
         "dales_law": dales_law,
@@ -601,6 +622,7 @@ def train(
     # Training loop
 
     best_acc = 0.0
+    best_validation_loss = float("inf")
     best_state = None
     no_improve = 0
     t_start = _time.perf_counter()
@@ -709,7 +731,10 @@ def train(
         grad_ratios = {n: s / max(n_grad, 1) for n, s in layer_ratio_sum.items()}
         grad_norms = {n: s / max(n_grad, 1) for n, s in grad_norm_sum.items()}
 
-        # Eval — deterministic Poisson encoding so this matches infer()
+        # Validation uses a fixed panel of independent Poisson draws. Reusing
+        # the same panel each epoch keeps checkpoint comparisons paired and
+        # reproducible while estimating performance over encoder noise rather
+        # than over one privileged realization.
         t_eval = _time.perf_counter()
         net.eval()
         correct = total = 0
@@ -727,63 +752,89 @@ def train(
         margin_sum = 0.0       # mean (z_true - z_runner_up), the decision margin
         conf_sum = 0.0         # mean softmax prob of the true class
         logit_scale_sum = 0.0  # mean |logit|, the raw logit magnitude
-        eval_gen = torch.Generator().manual_seed(EVAL_SEED)
         n_test_batches = len(test_loader)
+        validation_draws = []
         with torch.no_grad():
-            for X_b, y_b in test_loader:
-                X_b, y_b = X_b.to(device), y_b.to(device)
-                spk = encode_batch(
-                    X_b, dt, generator=eval_gen,
-                    max_rate_hz=sample_input_rates(len(X_b), eval_rate_gen),
-                )
-                logits_t = net(input_spikes=spk)
-                test_loss_sum += loss_fn(logits_t, y_b).item()
-                test_batches += 1
-                correct += (logits_t.argmax(1) == y_b).sum().item()
-                B = y_b.size(0)
-                total += B
-                # Per-sample margin, confidence and logit scale.
-                z_true = logits_t.gather(1, y_b.unsqueeze(1)).squeeze(1)
-                z_other = logits_t.clone()
-                z_other.scatter_(1, y_b.unsqueeze(1), float("-inf"))
-                z_runner = z_other.max(1).values
-                margin_sum += float((z_true - z_runner).sum().item())
-                conf_sum += float(
-                    torch.softmax(logits_t, dim=1)
-                    .gather(1, y_b.unsqueeze(1)).sum().item()
-                )
-                logit_scale_sum += float(logits_t.abs().mean(1).sum().item())
-                # net.rates is set by _set_meta after every forward pass;
-                # values are already per-cell Hz averaged over the batch.
-                batch_rates = getattr(net, "rates", None) or {}
-                for k, v in batch_rates.items():
-                    if k.startswith("hid"):
-                        test_rate_e_sum += float(v) * B
-                    elif k.startswith("inh"):
-                        test_rate_i_sum += float(v) * B
-                hb.beat(
-                    log,
-                    runlog.epoch_progress(
-                        epoch + 1, epochs,
-                        f"eval {test_batches}/{n_test_batches}",
-                        _time.perf_counter() - t_eval,
-                    ),
-                )
+            for draw_index, (encoder_seed, rate_seed) in enumerate(
+                zip(validation_encoder_seeds, validation_rate_seeds, strict=True)
+            ):
+                eval_gen = torch.Generator().manual_seed(encoder_seed)
+                draw_rate_gen = torch.Generator().manual_seed(rate_seed)
+                draw_correct = draw_total = 0
+                draw_loss_sum = 0.0
+                for X_b, y_b in test_loader:
+                    X_b, y_b = X_b.to(device), y_b.to(device)
+                    spk = encode_batch(
+                        X_b, dt, generator=eval_gen,
+                        max_rate_hz=sample_input_rates(len(X_b), draw_rate_gen),
+                    )
+                    logits_t = net(input_spikes=spk)
+                    B = y_b.size(0)
+                    batch_loss_sum = loss_fn(logits_t, y_b).item() * B
+                    draw_loss_sum += batch_loss_sum
+                    test_loss_sum += batch_loss_sum
+                    test_batches += 1
+                    batch_correct = (logits_t.argmax(1) == y_b).sum().item()
+                    draw_correct += batch_correct
+                    correct += batch_correct
+                    draw_total += B
+                    total += B
+                    # Per-sample margin, confidence and logit scale.
+                    z_true = logits_t.gather(1, y_b.unsqueeze(1)).squeeze(1)
+                    z_other = logits_t.clone()
+                    z_other.scatter_(1, y_b.unsqueeze(1), float("-inf"))
+                    z_runner = z_other.max(1).values
+                    margin_sum += float((z_true - z_runner).sum().item())
+                    conf_sum += float(
+                        torch.softmax(logits_t, dim=1)
+                        .gather(1, y_b.unsqueeze(1)).sum().item()
+                    )
+                    logit_scale_sum += float(logits_t.abs().mean(1).sum().item())
+                    # net.rates is set by _set_meta after every forward pass;
+                    # values are already per-cell Hz averaged over the batch.
+                    batch_rates = getattr(net, "rates", None) or {}
+                    for k, v in batch_rates.items():
+                        if k.startswith("hid"):
+                            test_rate_e_sum += float(v) * B
+                        elif k.startswith("inh"):
+                            test_rate_i_sum += float(v) * B
+                    hb.beat(
+                        log,
+                        runlog.epoch_progress(
+                            epoch + 1, epochs,
+                            f"eval draw {draw_index + 1}/{validation_draw_count} "
+                            f"batch {(test_batches - 1) % n_test_batches + 1}/"
+                            f"{n_test_batches}",
+                            _time.perf_counter() - t_eval,
+                        ),
+                    )
+                validation_draws.append({
+                    "draw": draw_index + 1,
+                    "encoder_seed": encoder_seed,
+                    "input_rate_seed": rate_seed,
+                    "n_samples": draw_total,
+                    "accuracy_pct": 100.0 * draw_correct / draw_total,
+                    "cross_entropy": draw_loss_sum / draw_total,
+                })
 
         eval_s = _time.perf_counter() - t_eval
         hb.clear()  # erase the live progress line; the finished row prints in its place
 
         acc = 100.0 * correct / total
         avg_train = total_loss / max(n_batches, 1)
-        avg_test = test_loss_sum / max(test_batches, 1)
+        avg_test = test_loss_sum / max(total, 1)
         test_rate_e = test_rate_e_sum / total if total else 0.0
         test_rate_i = test_rate_i_sum / total if total else 0.0
         test_margin = margin_sum / total if total else 0.0
         test_confidence = conf_sum / total if total else 0.0
         test_logit_scale = logit_scale_sum / total if total else 0.0
 
-        new_best = acc > best_acc
+        new_best = (
+            avg_test < best_validation_loss
+            or (avg_test == best_validation_loss and acc > best_acc)
+        )
         if new_best:
+            best_validation_loss = avg_test
             best_acc = acc
             best_epoch = epoch + 1
             best_state = {k: v.cpu().clone() for k, v in net.state_dict().items()}
@@ -838,6 +889,7 @@ def train(
             "test_margin": test_margin,
             "test_confidence": test_confidence,
             "test_logit_scale": test_logit_scale,
+            "validation_draws": validation_draws,
             "lr": cur_lr,
             "elapsed_s": elapsed,
             "train_compute_s": train_compute_s,
@@ -865,7 +917,9 @@ def train(
         # round-trip via metrics.json).
         jsonl.write(**{
             k: v for k, v in record.items()
-            if k not in ("grad_ratios", "grad_norms", "weight_norms")
+            if k not in (
+                "grad_ratios", "grad_norms", "weight_norms", "validation_draws"
+            )
         })
 
         # Structured progress line + warning tracker
@@ -969,7 +1023,9 @@ def train(
             "filename": "weights.pth",
             "epoch": int(best_epoch),
             "sha256": _sha256_file(out_dir / "weights.pth"),
-            "selection_metric": "validation_accuracy_pct",
+            "selection_metric": "validation_cross_entropy_mean_over_encoder_draws",
+            "tie_breaker": "validation_accuracy_pct_mean_over_encoder_draws",
+            "validation_draw_count": validation_draw_count,
         }
 
     # Write structured metrics for tests/analysis (parallels output.log).
@@ -1053,6 +1109,7 @@ def train(
             "max_samples": max_samples,
             "dataset": dataset,
             "dataset_split": config["dataset_split"],
+            "validation_encoder_draws": config["validation_encoder_draws"],
             "v_grad_dampen": v_grad_dampen,
             "batch_size": bs,
             "grad_clip": GRAD_CLIP,
@@ -1063,6 +1120,7 @@ def train(
         "epochs": epoch_records,
         "end": end_state,
         "best_acc": best_acc,
+        "best_validation_loss": best_validation_loss,
         "best_epoch": best_epoch,
         "checkpoints": checkpoints,
         "total_elapsed_s": total_time,
