@@ -1,0 +1,814 @@
+{
+  "accepted_limitations": [
+    "No production checkpoints or outputs existed, so validation was assessed against manifest construction, validator behavior, focused synthetic tests, and current committed historical artifacts rather than a completed 90-cell bank.",
+    "The pooled-MNIST internal holdout remains the campaign evaluation partition; the audit requires accurate naming and counts but does not redesign the registered dataset split.",
+    "The dry planner requires a working uv executable even when it creates no scheduler jobs."
+  ],
+  "audit_branch": "audit/issue-72-scientific-contract",
+  "audit_issue": 72,
+  "audited_commit": "339c164c3e553b5888e36be30a539ff566cadc0d",
+  "false_alarms": [
+    {
+      "contract": "COBA/PING matched initialization",
+      "disposition": "false alarm",
+      "evidence": "Both recipes use the same --w-in, sparsity, readout mode, readout initializer, learning rate, batch size, duration, timestep, and seeds. Registered differences are --ei-strength and --v-grad-dampen."
+    },
+    {
+      "contract": "Smoke/production separation",
+      "disposition": "false alarm",
+      "evidence": "Initialization records profile=smoke only when --smoke is supplied, uses --plumbing only for that profile, and requires a unique external campaign root."
+    },
+    {
+      "contract": "Source and cache identity",
+      "disposition": "false alarm",
+      "evidence": "The collection plan binds commit and lockfile; exp022 cells bind the manifest hash; downstream numbers bind campaign, commit, lockfile, manifest, dependencies, and training-run ID."
+    },
+    {
+      "contract": "Stochastic operations",
+      "disposition": "false alarm",
+      "evidence": "All reviewed runner-local NumPy and PyTorch stochastic operations use explicit constants, cell seeds, or stable derived seeds. Training seeds Python, NumPy, and PyTorch before model and loader construction."
+    },
+    {
+      "contract": "Dataset split symmetry",
+      "disposition": "false alarm",
+      "evidence": "Every exp022 cell uses the same seed-42 subsample and stratified 80/20 split; COBA and PING therefore see identical image identities within a scale."
+    },
+    {
+      "contract": "Collection output isolation",
+      "disposition": "false alarm",
+      "evidence": "The scheduler supplies distinct absolute state, derived, and log roots and PINGLAB_REQUIRE_ISOLATED=1; helpers reject partial or repository-artifact destinations."
+    }
+  ],
+  "finding_counts": {
+    "blocker": 2,
+    "important": 5,
+    "minor": 1
+  },
+  "findings": [
+    {
+      "affected": [
+        "exp041",
+        "exp044",
+        "exp049"
+      ],
+      "evidence": [
+        {
+          "line": 926,
+          "path": "tools/snn/train.py",
+          "symbol": "train"
+        },
+        {
+          "line": 927,
+          "path": "tools/snn/train.py",
+          "symbol": "train"
+        },
+        {
+          "line": 156,
+          "path": "experiments/exp041.py",
+          "symbol": "_infer_cell"
+        },
+        {
+          "line": 76,
+          "path": "writings/exp041.typ",
+          "symbol": "Convergence"
+        },
+        {
+          "line": 127,
+          "path": "experiments/exp044.py",
+          "symbol": "_infer_cell"
+        }
+      ],
+      "expected": "Every reported quantity identifies and loads the checkpoint epoch its prose claims.",
+      "id": "F01",
+      "issue": 74,
+      "observed": "Training saves weights.pth at the best internal-holdout epoch and weights_final.pth at the last epoch. Headline downstream inference reloads weights.pth while methods or captions describe epoch-50 dynamics.",
+      "resolution": "Issue #74 defines and tests explicit best-versus-final checkpoint roles and downstream checkpoint provenance.",
+      "risk": "Firing rates and recurrent weights can continue changing after accuracy plateaus, so the reported dynamical state can be from the wrong epoch.",
+      "severity": "blocker",
+      "title": "Best-accuracy checkpoints are reported as final-epoch dynamics"
+    },
+    {
+      "affected": [
+        "exp022",
+        "TR-01",
+        "TR-02",
+        "TR-03",
+        "TR-04",
+        "TR-05",
+        "TR-06"
+      ],
+      "evidence": [
+        {
+          "line": 209,
+          "path": "experiments/exp022_support/campaign.py",
+          "symbol": "ARG_TO_CONFIG"
+        },
+        {
+          "line": 233,
+          "path": "experiments/exp022_support/campaign.py",
+          "symbol": "_expected_config"
+        },
+        {
+          "line": 113,
+          "path": "experiments/exp022.py",
+          "symbol": "MODEL_RECIPES"
+        },
+        {
+          "line": 261,
+          "path": "experiments/exp022.py",
+          "symbol": "_init_cells"
+        }
+      ],
+      "expected": "Every scientific manifest argument is validated against its resolved saved value, or validation fails closed.",
+      "id": "F02",
+      "issue": 75,
+      "observed": "The manifest records --w-in and the recurrent trainability flags, but ARG_TO_CONFIG maps none of them, so validate_cell never compares them with saved config.",
+      "resolution": "Issue #75 adds complete argument coverage and fail-closed tests.",
+      "risk": "A wrong input distribution or wrong TR-05 trainability intervention can be accepted into the production bank.",
+      "severity": "blocker",
+      "title": "Cell validation omits scientific manifest arguments"
+    },
+    {
+      "affected": [
+        "exp025",
+        "TR-02"
+      ],
+      "evidence": [
+        {
+          "line": 188,
+          "path": "experiments/exp022.py",
+          "symbol": "seeds_for"
+        },
+        {
+          "line": 156,
+          "path": "experiments/exp025.py",
+          "symbol": "seeds_for"
+        },
+        {
+          "line": 141,
+          "path": "writings/exp022.typ",
+          "symbol": "TR-02 table"
+        }
+      ],
+      "expected": "The published frontier aggregates all three registered cells per condition, with representative single-seed diagnostics labeled separately.",
+      "id": "F03",
+      "issue": 76,
+      "observed": "TR-02 registers three seeds at every theta-u value, but exp025 returns only seed 42 for each regularized condition.",
+      "resolution": "Issue #76 updates consumers, metadata, and aggregation tests.",
+      "risk": "The primary frontier uses a different aggregation unit and less replication than exp022 promises.",
+      "severity": "important",
+      "title": "exp025 discards two registered theta-u seeds"
+    },
+    {
+      "affected": [
+        "exp044",
+        "TR-04"
+      ],
+      "evidence": [
+        {
+          "line": 120,
+          "path": "experiments/exp022.py",
+          "symbol": "MODEL_RECIPES"
+        },
+        {
+          "line": 63,
+          "path": "experiments/exp044.py",
+          "symbol": "BATCH_SIZE"
+        },
+        {
+          "line": 39,
+          "path": "writings/exp044.typ",
+          "symbol": "Methods"
+        }
+      ],
+      "expected": "A consumer derives training metadata from the checkpoint manifest rather than a retired local training constant.",
+      "id": "F04",
+      "issue": 77,
+      "observed": "TR-04 cells inherit --batch-size 256 from exp022, while exp044 records and publishes batch size 64.",
+      "resolution": "Issue #77 derives and verifies exp044 training provenance from consumed cells.",
+      "risk": "All 15 timestep-sweep cells have a materially misstated optimization method.",
+      "severity": "important",
+      "title": "exp044 reports the wrong training batch size"
+    },
+    {
+      "affected": [
+        "exp023"
+      ],
+      "evidence": [
+        {
+          "line": 52,
+          "path": "experiments/exp023.py",
+          "symbol": "COBA_INPUT_RATE_HZ"
+        },
+        {
+          "line": 53,
+          "path": "experiments/exp023.py",
+          "symbol": "PING_INPUT_RATE_HZ"
+        },
+        {
+          "line": 890,
+          "path": "experiments/exp023.py",
+          "symbol": "main payload"
+        },
+        {
+          "line": 894,
+          "path": "experiments/exp023.py",
+          "symbol": "main payload"
+        }
+      ],
+      "expected": "Saved provenance distinguishes each raster operating point and the f-I sweep grid.",
+      "id": "F05",
+      "issue": 78,
+      "observed": "The runner executes synthetic-spikes at 5 Hz for COBA and 45 Hz for PING, but numbers.json is assembled with an MNIST sample label and one 50 Hz value.",
+      "resolution": "Issue #78 makes saved drive provenance derive from executed arguments.",
+      "risk": "The displayed untrained operating conditions cannot be reconstructed from the published data contract.",
+      "severity": "important",
+      "title": "exp023 machine-readable drive provenance contradicts execution"
+    },
+    {
+      "affected": [
+        "exp022",
+        "exp024",
+        "exp025",
+        "exp037",
+        "exp038",
+        "exp041",
+        "exp044",
+        "exp049",
+        "exp082"
+      ],
+      "evidence": [
+        {
+          "line": 123,
+          "path": "tools/snn/datasets.py",
+          "symbol": "load_dataset"
+        },
+        {
+          "line": 158,
+          "path": "tools/snn/datasets.py",
+          "symbol": "load_dataset"
+        },
+        {
+          "line": 753,
+          "path": "tools/snn/train.py",
+          "symbol": "train"
+        },
+        {
+          "line": 121,
+          "path": "writings/exp022.typ",
+          "symbol": "TR-01 table"
+        }
+      ],
+      "expected": "Publication text calls this an internal pooled-MNIST holdout used for checkpoint selection, not an untouched or official test set, and reports 56,000/14,000 or 5,600/1,400 train/holdout counts.",
+      "id": "F06",
+      "issue": null,
+      "observed": "The loader concatenates the official 60,000-image training and 10,000-image test partitions, optionally subsamples, then creates a fixed stratified 80/20 split. That 20% split is evaluated every epoch and selects weights.pth.",
+      "resolution": "Documented resolution: treat the split as an internal holdout throughout this campaign, state that the official partitions were pooled, and reserve final-test language for a future untouched evaluation. No scientific rerun is implied by this naming correction.",
+      "risk": "Readers can interpret repeatedly consulted checkpoint-selection data as a final held-out test set and can read 70,000 or 7,000 as the number of optimizer-training images.",
+      "severity": "important",
+      "title": "The pooled MNIST holdout is called test data without a checkpoint-selection contract"
+    },
+    {
+      "affected": [
+        "collection scheduler"
+      ],
+      "evidence": [
+        {
+          "line": 123,
+          "path": "experiments/collections/gamma_gated_sparsity/slurm.py",
+          "symbol": "_exp022_cells"
+        }
+      ],
+      "expected": "The runbook states that dry planning still requires a working local uv environment, or planning derives cell lists without launching the configured remote executable.",
+      "id": "F07",
+      "issue": null,
+      "observed": "A dry submission invokes the configured uv executable to ask exp022 for retry-only cell lists; a placeholder executable prevents plan generation even though no scheduler submission is requested.",
+      "resolution": "Accepted limitation for this campaign and recorded in the reproducer.",
+      "risk": "Operational surprise only; no result or production job is changed.",
+      "severity": "minor",
+      "title": "Dry-run submission requires the configured uv executable"
+    },
+    {
+      "affected": [
+        "exp022",
+        "TR-01",
+        "TR-02",
+        "TR-03",
+        "TR-04",
+        "TR-05",
+        "TR-06"
+      ],
+      "evidence": [
+        {
+          "line": 367,
+          "path": "experiments/exp022.py",
+          "symbol": "build_train_args"
+        },
+        {
+          "line": 207,
+          "path": "tools/snn/train.py",
+          "symbol": "train"
+        },
+        {
+          "line": 42,
+          "path": "tools/snn/train.py",
+          "symbol": "GRAD_CLIP"
+        },
+        {
+          "line": 122,
+          "path": "writings/exp022.typ",
+          "symbol": "TR-01 table"
+        }
+      ],
+      "expected": "The pre-run manifest states every scientific setting with physical meaning and units, including inherited values.",
+      "id": "F08",
+      "issue": 79,
+      "observed": "Cell commands omit the fixed input rate, topology, Dale constraint, weight decay, gradient clip, and AMPA decay; those values are inherited from shared CLI or model defaults and are absent from the manifest's resolved parameter block.",
+      "resolution": "Issue #79 defines a complete resolved scientific schema and cross-cell difference check.",
+      "risk": "The frozen source preserves reproducibility, but the plan is not cold-readable and a shared default change can alter a regenerated campaign without a registry-level parameter diff.",
+      "severity": "important",
+      "title": "The production manifest leaves scientific defaults unresolved"
+    }
+  ],
+  "inventory": [
+    {
+      "dependencies": [],
+      "experiment": "exp022",
+      "required_output": "artifacts/data/exp022/numbers.json",
+      "runner_arguments": [],
+      "source": "experiments/exp022.py",
+      "training_run": null,
+      "writing": "writings/exp022.typ"
+    },
+    {
+      "dependencies": [],
+      "experiment": "exp023",
+      "required_output": "artifacts/data/exp023/numbers.json",
+      "runner_arguments": [],
+      "source": "experiments/exp023.py",
+      "training_run": null,
+      "writing": "writings/exp023.typ"
+    },
+    {
+      "dependencies": [],
+      "experiment": "exp047",
+      "required_output": "artifacts/data/exp047/numbers.json",
+      "runner_arguments": [],
+      "source": "experiments/exp047.py",
+      "training_run": null,
+      "writing": "writings/exp047.typ"
+    },
+    {
+      "dependencies": [],
+      "experiment": "exp080",
+      "required_output": "artifacts/data/exp080/numbers.json",
+      "runner_arguments": [],
+      "source": "experiments/exp080.py",
+      "training_run": null,
+      "writing": "writings/exp080.typ"
+    },
+    {
+      "dependencies": [],
+      "experiment": "exp081",
+      "required_output": "artifacts/data/exp081/numbers.json",
+      "runner_arguments": [],
+      "source": "experiments/exp081.py",
+      "training_run": null,
+      "writing": "writings/exp081.typ"
+    },
+    {
+      "dependencies": [
+        "exp022"
+      ],
+      "experiment": "exp024",
+      "required_output": "artifacts/data/exp024/numbers.json",
+      "runner_arguments": [
+        "--skip-training"
+      ],
+      "source": "experiments/exp024.py",
+      "training_run": "TR-02",
+      "writing": "writings/exp024.typ"
+    },
+    {
+      "dependencies": [
+        "exp022"
+      ],
+      "experiment": "exp025",
+      "required_output": "artifacts/data/exp025/numbers.json",
+      "runner_arguments": [
+        "--only-missing"
+      ],
+      "source": "experiments/exp025.py",
+      "training_run": "TR-02",
+      "writing": "writings/exp025.typ"
+    },
+    {
+      "dependencies": [
+        "exp022"
+      ],
+      "experiment": "exp037",
+      "required_output": "artifacts/data/exp037/numbers.json",
+      "runner_arguments": [
+        "--skip-training"
+      ],
+      "source": "experiments/exp037.py",
+      "training_run": "TR-02",
+      "writing": "writings/exp037.typ"
+    },
+    {
+      "dependencies": [
+        "exp022"
+      ],
+      "experiment": "exp038",
+      "required_output": "artifacts/data/exp038/numbers.json",
+      "runner_arguments": [
+        "--skip-training"
+      ],
+      "source": "experiments/exp038.py",
+      "training_run": "TR-02",
+      "writing": "writings/exp038.typ"
+    },
+    {
+      "dependencies": [
+        "exp022"
+      ],
+      "experiment": "exp041",
+      "required_output": "artifacts/data/exp041/numbers.json",
+      "runner_arguments": [
+        "--skip-training"
+      ],
+      "source": "experiments/exp041.py",
+      "training_run": "TR-03",
+      "writing": "writings/exp041.typ"
+    },
+    {
+      "dependencies": [
+        "exp022"
+      ],
+      "experiment": "exp044",
+      "required_output": "artifacts/data/exp044/numbers.json",
+      "runner_arguments": [
+        "--skip-training"
+      ],
+      "source": "experiments/exp044.py",
+      "training_run": "TR-04",
+      "writing": "writings/exp044.typ"
+    },
+    {
+      "dependencies": [
+        "exp022"
+      ],
+      "experiment": "exp049",
+      "required_output": "artifacts/data/exp049/numbers.json",
+      "runner_arguments": [],
+      "source": "experiments/exp049.py",
+      "training_run": "TR-05",
+      "writing": "writings/exp049.typ"
+    },
+    {
+      "dependencies": [
+        "exp022"
+      ],
+      "experiment": "exp082",
+      "required_output": "artifacts/data/exp082/numbers.json",
+      "runner_arguments": [],
+      "source": "experiments/exp082.py",
+      "training_run": "TR-06",
+      "writing": "writings/exp082.typ"
+    },
+    {
+      "dependencies": [
+        "exp041"
+      ],
+      "experiment": "exp033",
+      "required_output": "artifacts/data/exp033/numbers.json",
+      "runner_arguments": [],
+      "source": "experiments/exp033.py",
+      "training_run": null,
+      "writing": "writings/exp033.typ"
+    },
+    {
+      "dependencies": [
+        "exp041"
+      ],
+      "experiment": "exp042",
+      "required_output": "artifacts/data/exp042/numbers.json",
+      "runner_arguments": [
+        "--skip-training"
+      ],
+      "source": "experiments/exp042.py",
+      "training_run": null,
+      "writing": "writings/exp042.typ"
+    },
+    {
+      "dependencies": [
+        "exp041"
+      ],
+      "experiment": "exp046",
+      "required_output": "artifacts/data/exp046/numbers.json",
+      "runner_arguments": [],
+      "source": "experiments/exp046.py",
+      "training_run": null,
+      "writing": "writings/exp046.typ"
+    },
+    {
+      "dependencies": [
+        "exp041"
+      ],
+      "experiment": "exp054",
+      "required_output": "artifacts/data/exp054/numbers.json",
+      "runner_arguments": [],
+      "source": "experiments/exp054.py",
+      "training_run": null,
+      "writing": "writings/exp054.typ"
+    }
+  ],
+  "production_plan": {
+    "campaign_id": "issue72-audit-production",
+    "job_names": [
+      "exp022-standard",
+      "exp022-fine_dt",
+      "exp022-canonical_coba",
+      "exp022-canonical_ping",
+      "exp022-variable_rate",
+      "ggs-exp022-aggregate",
+      "ggs-exp023",
+      "ggs-exp047",
+      "ggs-exp080",
+      "ggs-exp081",
+      "ggs-exp024",
+      "ggs-exp025",
+      "ggs-exp037",
+      "ggs-exp038",
+      "ggs-exp041",
+      "ggs-exp044",
+      "ggs-exp049",
+      "ggs-exp082",
+      "ggs-exp033",
+      "ggs-exp042",
+      "ggs-exp046",
+      "ggs-exp054",
+      "ggs-finalize"
+    ],
+    "lockfile_sha256": "3cff13f5acb6936321676126dc0a49600be15b91567efdc3c45d5300c28152ee",
+    "manifest_sha256": "c9551a5f19b19c9fe08601e89ab843f265ca3d71a8fa95b39f17bec7c6a9ec73",
+    "profile": "production",
+    "resource_file_sha256": "ec8e48adaf3f884948108ed4f83bcae2377a014e96a7aa765e94745e8a762274",
+    "source_commit": "339c164c3e553b5888e36be30a539ff566cadc0d",
+    "tiers": {
+      "canonical_coba": 3,
+      "canonical_ping": 3,
+      "fine_dt": 3,
+      "standard": 78,
+      "variable_rate": 3
+    },
+    "training_runs": {
+      "TR-01": 6,
+      "TR-02": 36,
+      "TR-03": 18,
+      "TR-04": 15,
+      "TR-05": 12,
+      "TR-06": 3
+    }
+  },
+  "production_readiness": {
+    "blockers": [
+      74,
+      75
+    ],
+    "decision": "not ready",
+    "important_follow_ups": [
+      76,
+      77,
+      78,
+      79
+    ],
+    "reason": "Two unresolved blockers can admit a scientifically wrong cell or report a checkpoint from a different epoch than claimed."
+  },
+  "resolved_argument_values": {
+    "--batch-size": [
+      "256"
+    ],
+    "--dataset": [
+      "mnist"
+    ],
+    "--dt": [
+      "0.05",
+      "0.1",
+      "0.25",
+      "0.5",
+      "1.0"
+    ],
+    "--ei-strength": [
+      "0",
+      "0.1",
+      "1"
+    ],
+    "--epochs": [
+      "50"
+    ],
+    "--fr-reg-upper-strength": [
+      "0.001"
+    ],
+    "--fr-reg-upper-theta": [
+      "0.2",
+      "0.5",
+      "1.0",
+      "2.0",
+      "5.0"
+    ],
+    "--input-rates": [
+      [
+        "0.5",
+        "0.75",
+        "1.0",
+        "1.5",
+        "2.0",
+        "3.0",
+        "5.0",
+        "7.5",
+        "10.0",
+        "15.0",
+        "25.0"
+      ]
+    ],
+    "--lr": [
+      "0.0004"
+    ],
+    "--max-samples": [
+      "7000",
+      "70000"
+    ],
+    "--model": [
+      "ping"
+    ],
+    "--out-dir": [
+      "/audit/campaigns/issue72-production/exp022/cells/coba__canonical__seed42",
+      "/audit/campaigns/issue72-production/exp022/cells/coba__canonical__seed43",
+      "/audit/campaigns/issue72-production/exp022/cells/coba__canonical__seed44",
+      "/audit/campaigns/issue72-production/exp022/cells/coba__off__seed42",
+      "/audit/campaigns/issue72-production/exp022/cells/coba__off__seed43",
+      "/audit/campaigns/issue72-production/exp022/cells/coba__off__seed44",
+      "/audit/campaigns/issue72-production/exp022/cells/coba__tu0p2__seed42",
+      "/audit/campaigns/issue72-production/exp022/cells/coba__tu0p2__seed43",
+      "/audit/campaigns/issue72-production/exp022/cells/coba__tu0p2__seed44",
+      "/audit/campaigns/issue72-production/exp022/cells/coba__tu0p5__seed42",
+      "/audit/campaigns/issue72-production/exp022/cells/coba__tu0p5__seed43",
+      "/audit/campaigns/issue72-production/exp022/cells/coba__tu0p5__seed44",
+      "/audit/campaigns/issue72-production/exp022/cells/coba__tu1__seed42",
+      "/audit/campaigns/issue72-production/exp022/cells/coba__tu1__seed43",
+      "/audit/campaigns/issue72-production/exp022/cells/coba__tu1__seed44",
+      "/audit/campaigns/issue72-production/exp022/cells/coba__tu2__seed42",
+      "/audit/campaigns/issue72-production/exp022/cells/coba__tu2__seed43",
+      "/audit/campaigns/issue72-production/exp022/cells/coba__tu2__seed44",
+      "/audit/campaigns/issue72-production/exp022/cells/coba__tu5__seed42",
+      "/audit/campaigns/issue72-production/exp022/cells/coba__tu5__seed43",
+      "/audit/campaigns/issue72-production/exp022/cells/coba__tu5__seed44",
+      "/audit/campaigns/issue72-production/exp022/cells/frozen_ping__seed42",
+      "/audit/campaigns/issue72-production/exp022/cells/frozen_ping__seed43",
+      "/audit/campaigns/issue72-production/exp022/cells/frozen_ping__seed44",
+      "/audit/campaigns/issue72-production/exp022/cells/ping__canonical__seed42",
+      "/audit/campaigns/issue72-production/exp022/cells/ping__canonical__seed43",
+      "/audit/campaigns/issue72-production/exp022/cells/ping__canonical__seed44",
+      "/audit/campaigns/issue72-production/exp022/cells/ping__dt0p05__seed42",
+      "/audit/campaigns/issue72-production/exp022/cells/ping__dt0p05__seed43",
+      "/audit/campaigns/issue72-production/exp022/cells/ping__dt0p05__seed44",
+      "/audit/campaigns/issue72-production/exp022/cells/ping__dt0p1__seed42",
+      "/audit/campaigns/issue72-production/exp022/cells/ping__dt0p1__seed43",
+      "/audit/campaigns/issue72-production/exp022/cells/ping__dt0p1__seed44",
+      "/audit/campaigns/issue72-production/exp022/cells/ping__dt0p25__seed42",
+      "/audit/campaigns/issue72-production/exp022/cells/ping__dt0p25__seed43",
+      "/audit/campaigns/issue72-production/exp022/cells/ping__dt0p25__seed44",
+      "/audit/campaigns/issue72-production/exp022/cells/ping__dt0p5__seed42",
+      "/audit/campaigns/issue72-production/exp022/cells/ping__dt0p5__seed43",
+      "/audit/campaigns/issue72-production/exp022/cells/ping__dt0p5__seed44",
+      "/audit/campaigns/issue72-production/exp022/cells/ping__dt1__seed42",
+      "/audit/campaigns/issue72-production/exp022/cells/ping__dt1__seed43",
+      "/audit/campaigns/issue72-production/exp022/cells/ping__dt1__seed44",
+      "/audit/campaigns/issue72-production/exp022/cells/ping__off__seed42",
+      "/audit/campaigns/issue72-production/exp022/cells/ping__off__seed43",
+      "/audit/campaigns/issue72-production/exp022/cells/ping__off__seed44",
+      "/audit/campaigns/issue72-production/exp022/cells/ping__tg12__seed42",
+      "/audit/campaigns/issue72-production/exp022/cells/ping__tg12__seed43",
+      "/audit/campaigns/issue72-production/exp022/cells/ping__tg12__seed44",
+      "/audit/campaigns/issue72-production/exp022/cells/ping__tg18__seed42",
+      "/audit/campaigns/issue72-production/exp022/cells/ping__tg18__seed43",
+      "/audit/campaigns/issue72-production/exp022/cells/ping__tg18__seed44",
+      "/audit/campaigns/issue72-production/exp022/cells/ping__tg27__seed42",
+      "/audit/campaigns/issue72-production/exp022/cells/ping__tg27__seed43",
+      "/audit/campaigns/issue72-production/exp022/cells/ping__tg27__seed44",
+      "/audit/campaigns/issue72-production/exp022/cells/ping__tg4p5__seed42",
+      "/audit/campaigns/issue72-production/exp022/cells/ping__tg4p5__seed43",
+      "/audit/campaigns/issue72-production/exp022/cells/ping__tg4p5__seed44",
+      "/audit/campaigns/issue72-production/exp022/cells/ping__tg6__seed42",
+      "/audit/campaigns/issue72-production/exp022/cells/ping__tg6__seed43",
+      "/audit/campaigns/issue72-production/exp022/cells/ping__tg6__seed44",
+      "/audit/campaigns/issue72-production/exp022/cells/ping__tg9__seed42",
+      "/audit/campaigns/issue72-production/exp022/cells/ping__tg9__seed43",
+      "/audit/campaigns/issue72-production/exp022/cells/ping__tg9__seed44",
+      "/audit/campaigns/issue72-production/exp022/cells/ping__tu0p2__seed42",
+      "/audit/campaigns/issue72-production/exp022/cells/ping__tu0p2__seed43",
+      "/audit/campaigns/issue72-production/exp022/cells/ping__tu0p2__seed44",
+      "/audit/campaigns/issue72-production/exp022/cells/ping__tu0p5__seed42",
+      "/audit/campaigns/issue72-production/exp022/cells/ping__tu0p5__seed43",
+      "/audit/campaigns/issue72-production/exp022/cells/ping__tu0p5__seed44",
+      "/audit/campaigns/issue72-production/exp022/cells/ping__tu1__seed42",
+      "/audit/campaigns/issue72-production/exp022/cells/ping__tu1__seed43",
+      "/audit/campaigns/issue72-production/exp022/cells/ping__tu1__seed44",
+      "/audit/campaigns/issue72-production/exp022/cells/ping__tu2__seed42",
+      "/audit/campaigns/issue72-production/exp022/cells/ping__tu2__seed43",
+      "/audit/campaigns/issue72-production/exp022/cells/ping__tu2__seed44",
+      "/audit/campaigns/issue72-production/exp022/cells/ping__tu5__seed42",
+      "/audit/campaigns/issue72-production/exp022/cells/ping__tu5__seed43",
+      "/audit/campaigns/issue72-production/exp022/cells/ping__tu5__seed44",
+      "/audit/campaigns/issue72-production/exp022/cells/ping__variable_rate__seed42",
+      "/audit/campaigns/issue72-production/exp022/cells/ping__variable_rate__seed43",
+      "/audit/campaigns/issue72-production/exp022/cells/ping__variable_rate__seed44",
+      "/audit/campaigns/issue72-production/exp022/cells/trainable_ping_init__seed42",
+      "/audit/campaigns/issue72-production/exp022/cells/trainable_ping_init__seed43",
+      "/audit/campaigns/issue72-production/exp022/cells/trainable_ping_init__seed44",
+      "/audit/campaigns/issue72-production/exp022/cells/trainable_small_init__seed42",
+      "/audit/campaigns/issue72-production/exp022/cells/trainable_small_init__seed43",
+      "/audit/campaigns/issue72-production/exp022/cells/trainable_small_init__seed44",
+      "/audit/campaigns/issue72-production/exp022/cells/trainable_zero_init__seed42",
+      "/audit/campaigns/issue72-production/exp022/cells/trainable_zero_init__seed43",
+      "/audit/campaigns/issue72-production/exp022/cells/trainable_zero_init__seed44"
+    ],
+    "--readout": [
+      "mem-mean",
+      "spike-rate"
+    ],
+    "--readout-w-init-mean": [
+      "1.12060546875"
+    ],
+    "--readout-w-init-std": [
+      "0.8349609375"
+    ],
+    "--seed": [
+      "42",
+      "43",
+      "44"
+    ],
+    "--surrogate-slope": [
+      "1"
+    ],
+    "--t-ms": [
+      "200.0"
+    ],
+    "--tau-gaba": [
+      "12.0",
+      "18.0",
+      "27.0",
+      "4.5",
+      "6.0",
+      "9.0"
+    ],
+    "--trainable-w-ei": [
+      true
+    ],
+    "--trainable-w-ie": [
+      true
+    ],
+    "--v-grad-dampen": [
+      "1",
+      "1000"
+    ],
+    "--w-in": [
+      "0.9"
+    ],
+    "--w-in-sparsity": [
+      "0.95"
+    ]
+  },
+  "scope": {
+    "exp022_cell_count": 90,
+    "experiment_count": 17,
+    "experiments": [
+      "exp022",
+      "exp023",
+      "exp047",
+      "exp080",
+      "exp081",
+      "exp024",
+      "exp025",
+      "exp037",
+      "exp038",
+      "exp041",
+      "exp044",
+      "exp049",
+      "exp082",
+      "exp033",
+      "exp042",
+      "exp046",
+      "exp054"
+    ],
+    "paid_compute_jobs_created": 0,
+    "planned_job_count": 23
+  },
+  "status": "complete",
+  "validation": {
+    "focused_test_command": "uv run pytest -q experiments/tests/test_exp022_campaign.py experiments/tests/test_gamma_gated_sparsity_collection.py experiments/tests/test_experiment_arg_allowlist.py experiments/tests/test_runner_isolation.py experiments/tests/test_downstream_smoke_caps.py",
+    "focused_tests": "101 passed",
+    "production_or_paid_compute_run": false
+  }
+}
