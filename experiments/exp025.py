@@ -70,12 +70,10 @@ EPOCHS = 2 if SMOKE else 10
 T_MS = 200.0
 DT_TRAIN = 0.1
 
-# Baseline (θ_u = off) cells are trained at multiple seeds so the
-# headline bar chart and learning curves can show mean ± SEM. The θ_u
-# sweep cells stay single-seed — the frontier *shape* is dominated by
-# the regulariser, not the seed.
-SEEDS_BASELINE: list[int] = [42, 43, 44]
-SEED_SWEEP: int = 42
+# Every quantitative frontier point uses the three independent TR-02 seeds.
+# Mechanism-only diagnostics use one explicitly representative checkpoint.
+SEEDS: list[int] = [42, 43, 44]
+REPRESENTATIVE_SEED: int = 42
 
 # Inference-time ei_strength sweep on the coba__off__seed42 baseline.
 # Subsumes the now-retired nb019 — trains nothing new; just runs the
@@ -106,8 +104,8 @@ SCALE = {
     "t_ms": T_MS,
     "dt_ms": DT_TRAIN,
     "batch_size": 256,
-    "seeds": len(SEEDS_BASELINE),
-    "cells": len(MODELS) * len(THETA_U_GRID),
+    "seeds": len(SEEDS),
+    "cells": len(MODELS) * len(THETA_U_GRID) * len(SEEDS),
     "grid": "θ_u ∈ {off, 5, 2, 1, 0.5, 0.2} spikes/trial; baselines 100 epochs",
 }
 
@@ -152,16 +150,14 @@ def theta_hz(theta_u: float | None) -> float | None:
 
 
 def seeds_for(theta_u: float | None) -> list[int]:
-    """Baseline cells run all seeds; sweep cells stay single-seed."""
-    return list(SEEDS_BASELINE) if theta_u is None else [SEED_SWEEP]
+    """Return the independent seeds contributing to every frontier point."""
+    return list(SEEDS)
 
 
 def cell_dir(model: str, theta_u: float | None, seed: int) -> Path:
     """Per-cell artifact directory.
 
-    Baseline cells get a `__seed{N}` suffix so multiple seeds coexist.
-    Sweep cells run only at SEED_SWEEP and skip the suffix to keep
-    paths short — they live alongside the baseline ones.
+    All cells are seed-suffixed by the shared exp022 registry.
     """
     # θ_u cell — now the shared exp022 cell (train-once / reuse-many). exp022
     # owns the θ_u sweep; exp025 keeps only its low_w_in cells locally.
@@ -170,7 +166,7 @@ def cell_dir(model: str, theta_u: float | None, seed: int) -> Path:
     return shared_cell_dir(cell_name(model, theta_u, seed))
 
 
-def baseline_dir(model: str, seed: int = SEEDS_BASELINE[0]) -> Path:
+def baseline_dir(model: str, seed: int = SEEDS[0]) -> Path:
     return cell_dir(model, None, seed)
 
 
@@ -281,12 +277,12 @@ def plot_learning_curves(out_path: Path, run_id: str) -> None:
     (θ_u = off). With multiple seeds, plot mean and shade ±SEM."""
     theme.apply()
     fig, (ax_loss, ax_acc) = plt.subplots(1, 2, figsize=(6.9, 3.881))
-    n_seeds = len(SEEDS_BASELINE)
+    n_seeds = len(SEEDS)
     for m in MODELS:
         per_seed_loss: list[list[float]] = []
         per_seed_acc: list[list[float]] = []
         epochs_ref: list[int] = []
-        for seed in SEEDS_BASELINE:
+        for seed in SEEDS:
             metrics_path = baseline_dir(m, seed) / "metrics.json"
             if not metrics_path.exists():
                 continue
@@ -473,40 +469,45 @@ def generate_raster(model: str, out_path: Path) -> None:
 
 
 
-def plot_frontier(rows: list[dict], out_path: Path, run_id: str) -> None:
-    """Pareto-style frontier: one line per model, baseline → tightest
-    penalty. Both axes are final-epoch state. Baseline (θ_u = off)
-    points show ±SEM error bars across baseline seeds; sweep points
-    are single-seed and unbarred."""
-    theme.apply()
-    fig, ax = plt.subplots(figsize=(5.6, 3.15))
+def aggregate_frontier(rows: list[dict]) -> list[dict]:
+    """Summarise each model/budget point across independent seeds."""
+    aggregates: list[dict] = []
     for model in MODELS:
-        # Aggregate per (model, θ_u): for the baseline, mean ± SEM
-        # across seeds. For sweep cells, just the single seed.
-        agg_pts: list[dict] = []
         for theta_u in THETA_U_GRID:
             cell_rows = [
-                r for r in rows
-                if r["model"] == model and r["theta_u"] == theta_u
+                row for row in rows
+                if row["model"] == model and row["theta_u"] == theta_u
             ]
             if not cell_rows:
                 continue
-            accs = np.array([r["final_acc"] for r in cell_rows], dtype=float)
-            rates = np.array([r["rate_e"] for r in cell_rows], dtype=float)
+            accs = np.asarray([row["final_acc"] for row in cell_rows], dtype=float)
+            rates = np.asarray([row["rate_e"] for row in cell_rows], dtype=float)
             n = len(cell_rows)
-            agg_pts.append(
-                {
-                    "theta_display": cell_rows[0]["theta_display"],
-                    "acc_mean": float(accs.mean()),
-                    "rate_mean": float(rates.mean()),
-                    "acc_sem": (
-                        float(accs.std(ddof=1) / np.sqrt(n)) if n > 1 else 0.0
-                    ),
-                    "rate_sem": (
-                        float(rates.std(ddof=1) / np.sqrt(n)) if n > 1 else 0.0
-                    ),
-                }
-            )
+            aggregates.append({
+                "model": model,
+                "theta_u": theta_u,
+                "theta_display": cell_rows[0]["theta_display"],
+                "statistic": "mean_across_independent_seeds",
+                "uncertainty": "sem_across_independent_seeds",
+                "n_seeds": n,
+                "seeds": [int(row["seed"]) for row in cell_rows],
+                "cell_names": [row["cell_name"] for row in cell_rows],
+                "acc_mean": float(accs.mean()),
+                "rate_mean": float(rates.mean()),
+                "acc_sem": float(accs.std(ddof=1) / np.sqrt(n)) if n > 1 else 0.0,
+                "rate_sem": float(rates.std(ddof=1) / np.sqrt(n)) if n > 1 else 0.0,
+            })
+    return aggregates
+
+
+def plot_frontier(rows: list[dict], out_path: Path, run_id: str) -> None:
+    """Pareto-style frontier: one line per model, baseline → tightest
+    penalty. Both axes are final-epoch means ± SEM across three seeds."""
+    theme.apply()
+    fig, ax = plt.subplots(figsize=(5.6, 3.15))
+    aggregates = aggregate_frontier(rows)
+    for model in MODELS:
+        agg_pts = [point for point in aggregates if point["model"] == model]
         agg_pts.sort(key=lambda p: p["rate_mean"])
         xs = [p["rate_mean"] for p in agg_pts]
         ys = [p["acc_mean"] for p in agg_pts]
@@ -863,7 +864,7 @@ def plot_theta_p_fgamma(
 
 LOW_W_IN_VALUES: list[float] = [0.05, 0.1, 0.3, 0.9]
 LOW_W_IN_THETA_U: float = 0.2                   # heaviest from frontier sweep
-LOW_W_IN_SEED: int = SEED_SWEEP
+LOW_W_IN_SEED: int = REPRESENTATIVE_SEED
 
 
 def low_w_in_cell_dir(w_in: float) -> Path:
@@ -995,8 +996,8 @@ def run_w_in_scale_sweep(notebook_run_id: str) -> list[dict]:
     locally from per_cell_rates.npz (see _eval_scaled).
     """
     cells = [
-        ("ping@tu0.2", cell_dir("ping", 0.2, SEED_SWEEP), 0.2),
-        ("coba@tu0.2", cell_dir("coba", 0.2, SEED_SWEEP), 0.2),
+        ("ping@tu0.2", cell_dir("ping", 0.2, REPRESENTATIVE_SEED), 0.2),
+        ("coba@tu0.2", cell_dir("coba", 0.2, REPRESENTATIVE_SEED), 0.2),
     ]
     rows: list[dict] = []
     for label, train_dir, theta_u in cells:
@@ -1253,7 +1254,7 @@ def fig_results_compound(rows, npz_coba, npz_ping, out_path, run_id):
     ax_acc = fig.add_subplot(gs[1, 0])
     for m in MODELS:
         accs, eps = [], []
-        for seed in SEEDS_BASELINE:
+        for seed in SEEDS:
             if not (baseline_dir(m, seed) / "metrics.json").exists():
                 continue
             md = load_metrics(baseline_dir(m, seed))
@@ -1278,29 +1279,31 @@ def fig_results_compound(rows, npz_coba, npz_ping, out_path, run_id):
     ax_fr = fig.add_subplot(gs[1, 1])
     model_curves = {}
     xmax = 1.0
+    frontier_stats = aggregate_frontier(rows)
     for m in MODELS:
-        pts, base = [], None
-        for tu in THETA_U_GRID:
-            cr = [r for r in rows if r["model"] == m and r["theta_u"] == tu]
-            if not cr:
-                continue
-            rate = float(np.mean([r["rate_e"] for r in cr]))
-            acc = float(np.mean([r["final_acc"] for r in cr]))
-            pts.append((rate, acc))
-            if tu is None:
-                base = (rate, acc)
-        pts.sort()
+        pts = [point for point in frontier_stats if point["model"] == m]
+        pts.sort(key=lambda point: point["rate_mean"])
+        base_point = next((point for point in pts if point["theta_u"] is None), None)
+        base = (
+            (base_point["rate_mean"], base_point["acc_mean"])
+            if base_point is not None else None
+        )
         model_curves[m] = (pts, base)
         if pts:
-            xmax = max(xmax, max(p[0] for p in pts))
+            xmax = max(xmax, max(point["rate_mean"] for point in pts))
     ax_fr.set_xlim(-xmax * 0.03, xmax * 1.12)  # left margin so near-zero points read; right headroom for the COBA label
     ax_fr.set_ylim(40, 100)  # all points ≥ 54%; crop dead space to grow the frontier
     for m in MODELS:
         pts, base = model_curves[m]
         if pts:
-            ax_fr.plot([p[0] for p in pts], [p[1] for p in pts],
-                       marker=MODEL_MARKERS[m], ms=4, lw=1.4,
-                       color=MODEL_COLORS[m], label=m.upper())
+            ax_fr.errorbar(
+                [point["rate_mean"] for point in pts],
+                [point["acc_mean"] for point in pts],
+                xerr=[point["rate_sem"] for point in pts],
+                yerr=[point["acc_sem"] for point in pts],
+                marker=MODEL_MARKERS[m], ms=4, lw=1.4, capsize=2,
+                color=MODEL_COLORS[m], label=m.upper(),
+            )
     for m in MODELS:
         base = model_curves[m][1]
         if base is None:
@@ -1345,9 +1348,11 @@ def build_results_compound(figures: Path, run_id: str) -> None:
                     continue
                 last = load_metrics(run_dir)["epochs"][-1]
                 rows.append({
+                    "cell_name": cell_name(model, theta_u, seed),
                     "model": model,
                     "theta_u": theta_u,
                     "theta_display": theta_display(theta_u),
+                    "seed": seed,
                     "final_acc": float(last["acc"]),
                     "rate_e": float(last.get("rate_e") or 0.0),
                 })
@@ -1382,7 +1387,7 @@ def main() -> None:
 
     t_start = time.monotonic()
     run_id = next_run_id(SLUG)
-    n_cells = len(MODELS) * len(THETA_U_GRID)
+    n_cells = len(MODELS) * len(THETA_U_GRID) * len(SEEDS)
     print(
         f"notebook_run_id = {run_id} cells={n_cells}"
         + ("  [skip-training]" if meta.skip_training else "")
@@ -1423,6 +1428,7 @@ def _run(meta, run_id: str, figures: Path, t_start: float) -> None:
                 last = metrics["epochs"][-1]
                 rows.append(
                     {
+                        "cell_name": cell_name(model, theta_u, seed),
                         "model": model,
                         "theta_u": theta_u,
                         "theta_display": theta_display(theta_u),
@@ -1454,7 +1460,7 @@ def _run(meta, run_id: str, figures: Path, t_start: float) -> None:
     for model in MODELS:
         is_ping = (model == "ping")
         for theta_u in THETA_U_GRID:
-            seed = seeds_for(theta_u)[0]
+            seed = REPRESENTATIVE_SEED
             train_dir = cell_dir(model, theta_u, seed)
             if not (train_dir / "weights.pth").exists():
                 print(f"  skip {model} θ_u={theta_label(theta_u)} (no weights)")
@@ -1465,6 +1471,7 @@ def _run(meta, run_id: str, figures: Path, t_start: float) -> None:
                 "theta_u": theta_u,
                 "theta_u_hz": theta_hz(theta_u),
                 "seed": seed,
+                "selection": "representative_seed",
                 **m,
             }
             pfg_rows.append(row)
@@ -1541,6 +1548,7 @@ def _run(meta, run_id: str, figures: Path, t_start: float) -> None:
 
     duration_s = time.monotonic() - t_start
     train_cfg = load_config(baseline_dir(MODELS[0]))
+    frontier_statistics = aggregate_frontier(rows)
     write_numbers(
         figures, run_id=run_id, duration_s=duration_s,
         payload={
@@ -1556,11 +1564,12 @@ def _run(meta, run_id: str, figures: Path, t_start: float) -> None:
                 "epochs": EPOCHS,
                 "t_ms": T_MS,
                 "dt": DT_TRAIN,
-                "seeds_baseline": SEEDS_BASELINE,
-                "seed_sweep": SEED_SWEEP,
+                "frontier_seeds": SEEDS,
+                "representative_seed": REPRESENTATIVE_SEED,
                 "fr_strength_upper": FR_STRENGTH_UPPER,
             },
             "results": rows,
+            "frontier_statistics": frontier_statistics,
             "theta_p_fgamma": pfg_rows,
             "low_w_in_sweep": low_w_in_rows,
             "w_in_scale_sweep": w_in_scale_rows,

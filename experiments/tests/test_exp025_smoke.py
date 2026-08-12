@@ -6,6 +6,41 @@ from pathlib import Path
 from experiments import exp025
 
 
+def _frontier_rows() -> list[dict]:
+    return [
+        {
+            "cell_name": exp025.cell_name(model, theta_u, seed),
+            "model": model,
+            "theta_u": theta_u,
+            "theta_display": exp025.theta_display(theta_u),
+            "seed": seed,
+            "final_acc": 80.0 + seed / 100.0,
+            "rate_e": 10.0 + seed / 100.0,
+        }
+        for model in exp025.MODELS
+        for theta_u in exp025.THETA_U_GRID
+        for seed in exp025.seeds_for(theta_u)
+    ]
+
+
+def test_frontier_consumes_all_36_registered_tr02_cells() -> None:
+    rows = _frontier_rows()
+    assert len(rows) == 36
+    assert len({row["cell_name"] for row in rows}) == 36
+    assert {row["seed"] for row in rows} == {42, 43, 44}
+
+
+def test_frontier_statistics_record_three_seed_provenance_per_point() -> None:
+    stats = exp025.aggregate_frontier(_frontier_rows())
+    assert len(stats) == 12
+    for point in stats:
+        assert point["statistic"] == "mean_across_independent_seeds"
+        assert point["uncertainty"] == "sem_across_independent_seeds"
+        assert point["n_seeds"] == 3
+        assert point["seeds"] == [42, 43, 44]
+        assert len(point["cell_names"]) == 3
+
+
 def test_smoke_scaled_inference_caps_dataset(monkeypatch, tmp_path: Path) -> None:
     train_dir = tmp_path / "train"
     train_dir.mkdir()
