@@ -33,3 +33,8 @@ Use `slurm-status` to combine scheduler and output state. After a failed campaig
 `resume` prints the missing-work plan and `resume --live` submits it. Publication is
 a separate `build` command and requires a clean disposable worktree at the campaign
 commit.
+
+Use the identical commands with a campaign initialized using `--smoke` for the
+Slurm rehearsal. Smoke and production require separate unique campaign roots and
+resource files; the smoke campaign exercises every registered tier and downstream
+dependency with reduced experiment-owned workloads.

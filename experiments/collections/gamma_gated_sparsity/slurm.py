@@ -272,8 +272,8 @@ def submit_campaign(
     resources = load_resources(resources_path)
     if submit and test_only:
         raise CollectionError("live submission and test-only are mutually exclusive")
-    if plan.get("profile") != "production":
-        raise CollectionError("Slurm submission is restricted to production campaigns")
+    if plan.get("profile") not in {"smoke", "production"}:
+        raise CollectionError("Slurm submission requires a smoke or production campaign")
     existing_path = root / "submissions" / SUBMISSION_NAME
     if submit and existing_path.exists():
         raise CollectionError("a Slurm submission record already exists; use resume")
