@@ -17,7 +17,7 @@ from .execution import (
     validate_campaign,
 )
 from .plan import build_plan
-from .slurm import resume_campaign, slurm_status, submit_campaign
+from .slurm import resume_campaign, slurm_status, submit_campaign, submit_canaries
 
 
 def parser() -> argparse.ArgumentParser:
@@ -64,6 +64,14 @@ def parser() -> argparse.ArgumentParser:
     submit_mode = submit.add_mutually_exclusive_group()
     submit_mode.add_argument("--live", action="store_true")
     submit_mode.add_argument("--test-only", action="store_true")
+    canaries = commands.add_parser(
+        "canaries", help="plan or submit one production cell per resource tier"
+    )
+    canaries.add_argument("--campaign-root", type=Path, required=True)
+    canaries.add_argument("--resources", type=Path, required=True)
+    canary_mode = canaries.add_mutually_exclusive_group()
+    canary_mode.add_argument("--live", action="store_true")
+    canary_mode.add_argument("--test-only", action="store_true")
     resume = commands.add_parser("resume", help="plan or submit missing Slurm work")
     resume.add_argument("--campaign-root", type=Path, required=True)
     resume.add_argument("--resources", type=Path, required=True)
@@ -111,6 +119,20 @@ def main(argv: list[str] | None = None) -> None:
         print(
             json.dumps(
                 function(
+                    args.campaign_root,
+                    args.resources,
+                    submit=args.live,
+                    test_only=args.test_only,
+                ),
+                indent=2,
+                sort_keys=True,
+            )
+        )
+        return
+    if args.command == "canaries":
+        print(
+            json.dumps(
+                submit_canaries(
                     args.campaign_root,
                     args.resources,
                     submit=args.live,
