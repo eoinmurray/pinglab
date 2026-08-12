@@ -61,11 +61,15 @@ def parser() -> argparse.ArgumentParser:
     )
     submit.add_argument("--campaign-root", type=Path, required=True)
     submit.add_argument("--resources", type=Path, required=True)
-    submit.add_argument("--live", action="store_true")
+    submit_mode = submit.add_mutually_exclusive_group()
+    submit_mode.add_argument("--live", action="store_true")
+    submit_mode.add_argument("--test-only", action="store_true")
     resume = commands.add_parser("resume", help="plan or submit missing Slurm work")
     resume.add_argument("--campaign-root", type=Path, required=True)
     resume.add_argument("--resources", type=Path, required=True)
-    resume.add_argument("--live", action="store_true")
+    resume_mode = resume.add_mutually_exclusive_group()
+    resume_mode.add_argument("--live", action="store_true")
+    resume_mode.add_argument("--test-only", action="store_true")
     scheduler = commands.add_parser("slurm-status", help="report jobs and outputs")
     scheduler.add_argument("--campaign-root", type=Path, required=True)
     return root
@@ -106,7 +110,12 @@ def main(argv: list[str] | None = None) -> None:
         function = resume_campaign if args.command == "resume" else submit_campaign
         print(
             json.dumps(
-                function(args.campaign_root, args.resources, submit=args.live),
+                function(
+                    args.campaign_root,
+                    args.resources,
+                    submit=args.live,
+                    test_only=args.test_only,
+                ),
                 indent=2,
                 sort_keys=True,
             )

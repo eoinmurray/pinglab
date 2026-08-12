@@ -51,7 +51,8 @@ def test_plan_paths_are_isolated_and_all_runners_are_integrated(tmp_path: Path) 
     assert payload["executable"]
     assert all(row["integrated"] or row["slug"] == "exp022" for row in rows)
     assert payload["excluded"] == ["exp048"]
-    assert payload["blocking_issues"] == [69, 47]
+    assert payload["blocking_issues"] == []
+    assert payload["acceptance_issues"] == [47]
     assert all(row["command"] for row in rows)
     assert all(row["required_outputs"] for row in rows)
 
@@ -260,7 +261,14 @@ def _slurm_resources(tmp_path: Path) -> dict:
         "mnist_cache": str(tmp_path / "mnist"),
         "uv": "/usr/bin/uv",
         "exp022": {
-            tier: {"time": "01:00:00", "concurrency": 2} for tier in slurm.TIERS
+            tier: {
+                "time": "01:00:00",
+                "cpus": 4,
+                "memory_gb": 16,
+                "gpus": 1,
+                "concurrency": 2,
+            }
+            for tier in slurm.TIERS
         },
         "jobs": {
             kind: {"time": "00:30:00", "cpus": 2, "memory_gb": 8, "gpus": 0}
@@ -286,14 +294,30 @@ def test_slurm_dry_run_preserves_collection_dependencies(
     root.mkdir()
     plan = build_plan(root, "production-test")
     plan["profile"] = "production"
+    plan["source"] = {
+        "git_commit": "a" * 40,
+        "git_clean": True,
+        "lockfile": {"path": "uv.lock", "sha256": "b" * 64},
+    }
     plan["exp022_manifest"] = str(root / "exp022" / "campaign.json")
+    Path(plan["exp022_manifest"]).parent.mkdir()
+    execution.write_json_atomic(
+        Path(plan["exp022_manifest"]), {"manifest_sha256": "c" * 64}
+    )
     resources_path = tmp_path / "resources.json"
     execution.write_json_atomic(resources_path, _slurm_resources(tmp_path))
     monkeypatch.setattr(slurm, "load_plan", lambda _root: plan)
     monkeypatch.setattr(slurm, "_exp022_cells", lambda *_args: ["cell-a"])
 
     payload = slurm.submit_campaign(root, resources_path)
+    assert payload["source"] == plan["source"]
+    assert payload["exp022_manifest_sha256"] == "c" * 64
+    assert len(payload["expected_outputs"]) == len(execution.rows_in_order(plan))
     jobs = {job["name"]: job for job in payload["jobs"]}
+    standard = jobs["exp022-standard"]
+    assert "--cpus-per-task=4" in standard["command"]
+    assert "--mem=16G" in standard["command"]
+    assert "--gres=gpu:1" in standard["command"]
     aggregate = jobs["ggs-exp022-aggregate"]
     assert any(
         argument.startswith("--dependency=afterok:<standard-job-id>")
@@ -314,3 +338,21 @@ def test_slurm_dry_run_preserves_collection_dependencies(
     assert str(root / "logs") not in final_outputs[0]
     assert ".scheduler-logs" in final_outputs[0]
     assert not (root / "submissions").exists()
+
+
+def test_slurm_test_only_calls_sbatch_without_submitting(monkeypatch) -> None:
+    seen = []
+
+    def fake_run(command, **_kwargs):
+        seen.append(command)
+        return SimpleNamespace(returncode=0, stdout="admission accepted", stderr="")
+
+    monkeypatch.setattr(slurm.subprocess, "run", fake_run)
+    result = slurm._run(
+        ["sbatch", "--parsable", "job.sbatch"],
+        submit=False,
+        test_only=True,
+        dry_id="<dry>",
+    )
+    assert result == "<test-only>"
+    assert seen == [["sbatch", "--test-only", "--parsable", "job.sbatch"]]
