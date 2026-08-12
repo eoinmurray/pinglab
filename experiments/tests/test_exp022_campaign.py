@@ -124,6 +124,83 @@ def test_all_resolved_cells_have_complete_scientific_contract(tmp_path: Path) ->
     assert len(contracts) == 90
 
 
+def test_every_production_argument_is_mapped_or_operational(tmp_path: Path) -> None:
+    for cell in exp022.CANONICAL_CELLS:
+        samples, epochs = exp022.cell_samples_epochs(cell)
+        args = exp022.build_train_args(cell, tmp_path / cell["name"], samples, epochs)
+        parameters = campaign.resolved_parameters(
+            cell, args, samples, epochs,
+            scientific_contract=exp022.scientific_contract(cell, samples, epochs),
+        )
+        row = {"parameters": parameters}
+        expected = campaign._expected_config(row)
+        assert expected
+
+
+def test_unmapped_manifest_argument_fails_closed(tmp_path: Path) -> None:
+    row = _manifest_cell(tmp_path)
+    row["parameters"]["arguments"]["--future-scientific-knob"] = "1"
+    result = campaign.validate_cell(row, load_checkpoint=False)
+    assert result["state"] == "missing" or not result["valid"]
+    row["output_directory"] = str(_write_valid_cell(_manifest_cell(tmp_path)))
+    result = campaign.validate_cell(row, load_checkpoint=False)
+    assert not result["valid"]
+    assert "no saved-config mapping" in result["reasons"][0]
+
+
+@pytest.mark.parametrize(
+    ("flag", "raw", "key", "expected"),
+    [
+        ("--w-in", "0.9", "w_in", [0.9, 0.09]),
+        ("--trainable-w-ei", True, "trainable_w_ei", True),
+        ("--trainable-w-ie", True, "trainable_w_ie", True),
+        ("--n-hidden", "1024", "hidden_sizes", [1024]),
+        ("--dales-law", True, "dales_law", True),
+    ],
+)
+def test_scientific_argument_saved_config_transform(
+    flag: str, raw: object, key: str, expected: object,
+) -> None:
+    row = {"parameters": {"arguments": {flag: raw}}}
+    assert campaign._same(campaign._expected_config(row)[key], expected)
+
+
+def test_validator_rejects_each_resolved_scientific_config_mismatch(
+    tmp_path: Path,
+) -> None:
+    cell = exp022.PLANNED_VARIABLE_RATE_CELLS[0]
+    samples, epochs = 100, 2
+    args = exp022.build_train_args(cell, tmp_path / "cells" / cell["name"], samples, epochs)
+    row = {
+        "name": cell["name"],
+        "training_run_id": cell["training_run_id"],
+        "resource_tier": "variable_rate",
+        "output_directory": str(tmp_path / "cells" / cell["name"]),
+        "parameters": campaign.resolved_parameters(
+            cell, args, samples, epochs,
+            scientific_contract=exp022.scientific_contract(cell, samples, epochs),
+        ),
+    }
+    directory = _write_valid_cell(row)
+    expected = campaign._expected_config(row)
+    original = json.loads((directory / "config.json").read_text())
+    for key, value in expected.items():
+        mutated = dict(original)
+        if isinstance(value, bool):
+            mutated[key] = not value
+        elif isinstance(value, (int, float)):
+            mutated[key] = value + 1
+        elif isinstance(value, list):
+            mutated[key] = [*value, "mismatch"]
+        else:
+            mutated[key] = f"{value}-mismatch"
+        (directory / "config.json").write_text(json.dumps(mutated))
+        result = campaign.validate_cell(row, load_checkpoint=False)
+        assert not result["valid"], key
+        assert any(f"config {key} mismatch" in reason for reason in result["reasons"])
+        (directory / "config.json").write_text(json.dumps(original))
+
+
 def _manifest_cell(tmp_path: Path, *, epochs: int = 2, samples: int = 100) -> dict:
     directory = tmp_path / "cells" / "ping__variable_rate__seed42"
     return {

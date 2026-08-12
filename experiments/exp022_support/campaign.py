@@ -216,6 +216,11 @@ def _same(actual: Any, expected: Any) -> bool:
         return abs(float(actual) - float(expected)) <= 1e-9
     if isinstance(actual, tuple):
         actual = list(actual)
+    if isinstance(actual, list) and isinstance(expected, list):
+        return len(actual) == len(expected) and all(
+            _same(observed, wanted)
+            for observed, wanted in zip(actual, expected, strict=True)
+        )
     return actual == expected
 
 
@@ -231,14 +236,21 @@ ARG_TO_CONFIG = {
     "--batch-size": "batch_size", "--fr-reg-upper-theta": "fr_reg_upper_theta",
     "--fr-reg-upper-strength": "fr_reg_upper_strength",
     "--input-rates": "input_rates",
+    "--input-rate": "input_rate", "--n-hidden": "hidden_sizes",
+    "--weight-decay": "weight_decay", "--dales-law": "dales_law",
+    "--w-in": "w_in", "--trainable-w-ei": "trainable_w_ei",
+    "--trainable-w-ie": "trainable_w_ie",
 }
+OPERATIONAL_ARGUMENTS = {"--out-dir"}
 FLOAT_CONFIG = {
     "dt", "t_ms", "tau_gaba_ms", "ei_strength", "v_grad_dampen",
     "w_in_sparsity", "surrogate_slope", "readout_w_out_scale",
     "readout_w_init_mean", "readout_w_init_std", "lr",
     "fr_reg_upper_theta", "fr_reg_upper_strength",
+    "input_rate", "weight_decay",
 }
 INT_CONFIG = {"max_samples", "epochs", "seed", "batch_size"}
+BOOL_CONFIG = {"dales_law", "trainable_w_ei", "trainable_w_ie"}
 
 
 def _expected_config(cell: dict[str, Any]) -> dict[str, Any]:
@@ -246,15 +258,39 @@ def _expected_config(cell: dict[str, Any]) -> dict[str, Any]:
     for flag, raw in cell["parameters"]["arguments"].items():
         key = ARG_TO_CONFIG.get(flag)
         if key is None:
-            continue
+            if flag in OPERATIONAL_ARGUMENTS:
+                continue
+            raise ValueError(
+                f"manifest argument {flag!r} has no saved-config mapping or "
+                "operational exemption"
+            )
         if key in FLOAT_CONFIG:
             result[key] = float(raw)
         elif key in INT_CONFIG:
             result[key] = int(raw)
         elif key == "input_rates":
             result[key] = [float(value) for value in raw]
+        elif key == "hidden_sizes":
+            values = raw if isinstance(raw, list) else [raw]
+            result[key] = [int(value) for value in values]
+        elif key == "w_in":
+            mean = float(raw)
+            result[key] = [mean, mean * 0.1]
+        elif key in BOOL_CONFIG:
+            result[key] = bool(raw)
         else:
             result[key] = raw
+    contract = cell["parameters"].get("scientific_contract")
+    if contract is not None:
+        result.update({
+            "n_in": int(contract["input"]["channels"]),
+            "n_hidden": int(contract["topology"]["excitatory_neurons"]),
+            "n_inh": int(contract["topology"]["inhibitory_neurons"]),
+            "n_out": int(contract["topology"]["output_neurons"]),
+            "tau_ampa_ms": float(contract["dynamics"]["tau_ampa_ms"]),
+            "grad_clip": float(contract["optimizer"]["gradient_clip_norm"]),
+            "input_rate_sampling": contract["input"]["rate_sampling"],
+        })
     return result
 
 
@@ -279,7 +315,14 @@ def validate_cell(cell: dict[str, Any], *, load_checkpoint: bool = True) -> dict
         if payload.get("campaign_resolved_parameters") != cell["parameters"]:
             reasons.append(f"{label} resolved scientific parameters mismatch")
     nested = metrics.get("config", {})
-    expected = _expected_config(cell)
+    try:
+        expected = _expected_config(cell)
+    except (KeyError, TypeError, ValueError) as exc:
+        return {
+            "valid": False,
+            "state": "invalid",
+            "reasons": [f"unresolved manifest contract: {exc}"],
+        }
     for key, wanted in expected.items():
         actual = config.get(key, nested.get(key))
         if not _same(actual, wanted):
