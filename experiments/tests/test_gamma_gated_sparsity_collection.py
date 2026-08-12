@@ -110,9 +110,17 @@ def test_local_resume_runs_in_dependency_order(tmp_path: Path, monkeypatch) -> N
     root = tmp_path / "campaign"
     plan = build_plan(root, "resume-test")
     plan["profile"] = "smoke"
-    plan["source"] = {"git_clean": True}
+    plan["source"] = {
+        "git_commit": "a" * 40,
+        "git_clean": True,
+        "lockfile": {"path": "uv.lock", "sha256": "b" * 64},
+    }
     plan["exp022_manifest"] = str(root / "exp022" / "campaign.json")
     root.mkdir()
+    Path(plan["exp022_manifest"]).parent.mkdir()
+    execution.write_json_atomic(
+        Path(plan["exp022_manifest"]), {"manifest_sha256": "c" * 64}
+    )
     (root / execution.STATUS_DIR).mkdir()
     execution.write_json_atomic(root / execution.PLAN_NAME, plan)
     monkeypatch.setattr(execution, "source_provenance", lambda: plan["source"])
@@ -125,11 +133,12 @@ def test_local_resume_runs_in_dependency_order(tmp_path: Path, monkeypatch) -> N
             path = Path(output)
             path.parent.mkdir(parents=True, exist_ok=True)
             path.write_text("{}")
+        execution._stamp_collection_provenance(plan, row)
 
     monkeypatch.setattr(execution, "_run_exp022", lambda _plan, row: complete(row))
 
     def resume_downstream(_plan, row):
-        if not execution._outputs_valid(row):
+        if not execution._outputs_valid_for_plan(plan, row):
             complete(row)
 
     monkeypatch.setattr(execution, "_run_downstream", resume_downstream)
@@ -142,6 +151,31 @@ def test_local_resume_runs_in_dependency_order(tmp_path: Path, monkeypatch) -> N
         for row in execution.validate_campaign(root)["experiments"]
         if not row["outputs_valid"]
     ]
+
+
+def test_collection_provenance_rejects_cross_campaign_output(tmp_path: Path) -> None:
+    root = tmp_path / "campaign"
+    plan = build_plan(root, "campaign-a")
+    plan["source"] = {
+        "git_commit": "a" * 40,
+        "git_clean": True,
+        "lockfile": {"path": "uv.lock", "sha256": "b" * 64},
+    }
+    plan["exp022_manifest"] = str(root / "exp022" / "campaign.json")
+    Path(plan["exp022_manifest"]).parent.mkdir(parents=True)
+    execution.write_json_atomic(
+        Path(plan["exp022_manifest"]), {"manifest_sha256": "c" * 64}
+    )
+    row = execution.rows_in_order(plan)[0]
+    output = Path(row["required_outputs"][0])
+    output.parent.mkdir(parents=True)
+    execution.write_json_atomic(
+        output, {"collection_provenance": {"campaign_id": "campaign-b"}}
+    )
+
+    assert not execution._outputs_valid_for_plan(plan, row)
+    with pytest.raises(execution.CollectionError, match="different campaign"):
+        execution._stamp_collection_provenance(plan, row)
 
 
 def test_finalize_delegates_to_runstore_after_validation(
