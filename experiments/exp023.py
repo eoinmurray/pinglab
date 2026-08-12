@@ -66,7 +66,7 @@ COMMON_ARGS = [
     "--n-inh", str(N_I),
     "--n-in", str(N_IN),
     "--w-in", "1.5", "0.3",
-    "--w-in-sparsity", "0.95",
+    "--w-in-initial-zero-fraction", "0.95",
     "--t-ms", "200" if SMOKE else "400",
     "--dt", str(DT_MS),
 ]
@@ -282,7 +282,7 @@ def fi_args(cell: str, rate_hz: int, out_dir: Path | None = None) -> list[str]:
         "sim", "--model", "ping", "--input", "synthetic-spikes",
         "--n-hidden", str(N_E), "--n-inh", str(N_I),
         "--ei-strength", FI_EI[cell], "--w-in", "1.5", "0.3",
-        "--w-in-sparsity", "0.95", "--input-rate", str(rate_hz),
+        "--w-in-initial-zero-fraction", "0.95", "--input-rate", str(rate_hz),
         "--t-ms", str(FI_T_MS), "--dt", str(DT_MS),
     ]
     if out_dir is not None:

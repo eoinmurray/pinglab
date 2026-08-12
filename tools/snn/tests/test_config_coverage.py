@@ -195,12 +195,12 @@ class TestBuildNet:
             "ping",
             hidden_sizes=[16],
             w_in=(0.3, 0.06),
-            w_in_sparsity=0.5,
+            w_in_initial_zero_fraction=0.5,
             w_ee=(0.1, 0.01),
             w_ii=(0.2, 0.02),
             ei_strength=1.0,
             ei_ratio=2.0,
-            sparsity=0.2,
+            recurrent_initial_zero_fraction=0.2,
             trainable_w_ei=True,
             trainable_w_ie=True,
             trainable_w_ii=True,
@@ -212,7 +212,7 @@ class TestBuildNet:
 
     def test_sparsity_only_branch(self):
         # No explicit E-I specs and no ei_strength but sparsity>0 -> setdefault.
-        net = build_net("ping", hidden_sizes=[16], sparsity=0.3)
+        net = build_net("ping", hidden_sizes=[16], recurrent_initial_zero_fraction=0.3)
         assert len(net.W_ff) == 2
 
     def test_device_and_n_inh_per_layer(self):
@@ -377,8 +377,8 @@ class TestBuildConfig:
             w_ee=[0.1, 0.01],
             w_in=[0.3],  # single value -> std derived as 10%
             input="synthetic-spikes",
-            sparsity=0.25,
-            w_in_sparsity=0.9,
+            recurrent_initial_zero_fraction=0.25,
+            w_in_initial_zero_fraction=0.9,
             bias=0.0005,
             t_ms=150.0,
         )
@@ -395,8 +395,8 @@ class TestBuildConfig:
         assert c.w_ee == (0.1, 0.01)
         # Single-value w_in -> (mean, 10% mean).
         assert c.w_in_spikes == (0.3, pytest.approx(0.03))
-        assert c.sparsity == pytest.approx(0.25)
-        assert c.w_in_sparsity == pytest.approx(0.9)
+        assert c.recurrent_initial_zero_fraction == pytest.approx(0.25)
+        assert c.w_in_initial_zero_fraction == pytest.approx(0.9)
         assert c.bias == pytest.approx(0.0005)
         assert c.sim_ms == pytest.approx(150.0)
         # synthetic-spikes without n_input -> N_IN mirrors n_e.

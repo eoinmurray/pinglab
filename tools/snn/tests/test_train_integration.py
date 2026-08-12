@@ -18,6 +18,7 @@ from train import train
 def _sha256(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
+
 # Whole file trains real (tiny) torch models — minutes of wall-clock. Marked slow
 # so `pytest -m "not slow"` is a true fast lane.
 pytestmark = pytest.mark.slow
@@ -35,8 +36,16 @@ def _reset_model_globals():
     """Reset M module globals before and after each test to known defaults."""
     # Store original values before test
     old = (
-        M.N_IN, M.N_HID, M.N_INH, M.N_OUT, M.HIDDEN_SIZES,
-        M.T_ms, M.T_steps, M.dt, M.V_GRAD_DAMPEN, M.BATCH_SIZE,
+        M.N_IN,
+        M.N_HID,
+        M.N_INH,
+        M.N_OUT,
+        M.HIDDEN_SIZES,
+        M.T_ms,
+        M.T_steps,
+        M.dt,
+        M.V_GRAD_DAMPEN,
+        M.BATCH_SIZE,
         M.SURROGATE_SLOPE,
     )
     # Reset to module defaults before test
@@ -53,9 +62,19 @@ def _reset_model_globals():
     # Run test
     yield
     # Restore to original values after test
-    (M.N_IN, M.N_HID, M.N_INH, M.N_OUT, M.HIDDEN_SIZES,
-     M.T_ms, M.T_steps, M.dt, M.V_GRAD_DAMPEN, M.BATCH_SIZE,
-     M.SURROGATE_SLOPE) = old
+    (
+        M.N_IN,
+        M.N_HID,
+        M.N_INH,
+        M.N_OUT,
+        M.HIDDEN_SIZES,
+        M.T_ms,
+        M.T_steps,
+        M.dt,
+        M.V_GRAD_DAMPEN,
+        M.BATCH_SIZE,
+        M.SURROGATE_SLOPE,
+    ) = old
 
 
 class TestTrainParameterPropagation:
@@ -108,7 +127,7 @@ class TestTrainParameterPropagation:
         config = json.loads((tmp_output_dir / "config.json").read_text())
         assert config["readout_w_out_scale"] is None
         assert config["readout_w_init"] == {
-            "distribution": "normal_clamped_nonnegative",
+            "distribution": "lower_clamped_normal",
             "units": "stored_weight",
             "mean": 1.25,
             "std": 0.0,
@@ -377,9 +396,18 @@ class TestOutputArtifacts:
 
         # Check essential keys
         required_keys = {
-            "model", "dt", "t_ms", "epochs", "dataset",
-            "n_hidden", "n_inh", "n_in", "n_params", "n_trainable",
-            "dales_law", "readout_mode"
+            "model",
+            "dt",
+            "t_ms",
+            "epochs",
+            "dataset",
+            "n_hidden",
+            "n_inh",
+            "n_in",
+            "n_params",
+            "n_trainable",
+            "dales_law",
+            "readout_mode",
         }
         for key in required_keys:
             assert key in config, f"config.json missing required key: {key}"
@@ -407,6 +435,20 @@ class TestOutputArtifacts:
         assert "best_acc" in metrics
         assert "epochs" in metrics
         assert len(metrics["epochs"]) == 2
+        initialization = metrics["config"]["weight_initialization"]
+        assert {"W_in", "W_out", "W_EE_1", "W_EI_1", "W_IE_1", "W_II_1"} <= set(
+            initialization
+        )
+        assert initialization["W_in"]["distribution"] == "lower_clamped_normal"
+        assert initialization["W_in"]["zeros_remain_trainable"] is True
+        assert initialization["W_in"]["requested_initial_zero_fraction"] == 0.0
+        final_weights = metrics["weight_final"]
+        assert set(initialization) == set(final_weights)
+        for role, summary in final_weights.items():
+            assert summary["zero_fraction"] == pytest.approx(
+                summary["zero_count"]
+                / initialization[role]["statistics"]["n_parameters"]
+            )
         assert metrics["checkpoints"] == {
             "final_epoch": {
                 "filename": "weights_final.pth",

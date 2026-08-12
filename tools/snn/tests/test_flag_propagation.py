@@ -48,7 +48,7 @@ def _train_probe(out_dir, *extra, epochs=0):
         "0.25",
         "--w-in",
         "10",
-        "--w-in-sparsity",
+        "--w-in-initial-zero-fraction",
         "0",
         "--out-dir",
         str(out_dir),
@@ -127,7 +127,7 @@ def test_infer_with_load_config_and_weights(tmp_path):
         "0.25",
         "--w-in",
         "10",
-        "--w-in-sparsity",
+        "--w-in-initial-zero-fraction",
         "0",
         "--out-dir",
         str(train_dir),
@@ -205,7 +205,7 @@ def test_readout_changes_model_forward():
     net_rate = build_net(
         "ping",
         w_in=(10.0, 1.0),
-        w_in_sparsity=0.0,
+        w_in_initial_zero_fraction=0.0,
         hidden_sizes=[64],
         readout_mode="rate",
     )
@@ -213,7 +213,7 @@ def test_readout_changes_model_forward():
     net_mm = build_net(
         "ping",
         w_in=(10.0, 1.0),
-        w_in_sparsity=0.0,
+        w_in_initial_zero_fraction=0.0,
         hidden_sizes=[64],
         readout_mode="mem-mean",
     )
@@ -272,10 +272,10 @@ def test_ei_ratio_scales_only_wie():
         net = build_net(
             "ping",
             w_in=(0.3, 0.03),
-            w_in_sparsity=0.0,
+            w_in_initial_zero_fraction=0.0,
             ei_strength=0.5,
             ei_ratio=ratio,
-            sparsity=0.0,
+            recurrent_initial_zero_fraction=0.0,
         )
         p = dict(net.named_parameters())
         return (float(p["W_ei.1"].detach().mean()), float(p["W_ie.1"].detach().mean()))
@@ -298,10 +298,10 @@ def test_ei_strength_scales_weights():
         net = build_net(
             "ping",
             w_in=(0.3, 0.03),
-            w_in_sparsity=0.0,
+            w_in_initial_zero_fraction=0.0,
             ei_strength=s,
             ei_ratio=2.0,
-            sparsity=0.0,
+            recurrent_initial_zero_fraction=0.0,
         )
         p = dict(net.named_parameters())
         return (float(p["W_ei.1"].detach().mean()), float(p["W_ie.1"].detach().mean()))
@@ -353,7 +353,7 @@ def test_fr_reg_upper_pulls_rate_down(tmp_path):
             "0.25",
             "--w-in",
             "10",
-            "--w-in-sparsity",
+            "--w-in-initial-zero-fraction",
             "0",
             "--out-dir",
             str(out_dir),
@@ -431,7 +431,7 @@ def test_no_wipe_dir_preserves_existing(tmp_path):
         "0.25",
         "--w-in",
         "10",
-        "--w-in-sparsity",
+        "--w-in-initial-zero-fraction",
         "0",
         "--out-dir",
         str(out),
@@ -478,13 +478,13 @@ def test_trainable_w_flags_make_recurrent_matrices_gradient_carrying():
     ]:
         torch.manual_seed(0)
         net_default = build_net(
-            "ping", w_in=(0.3, 0.03), w_in_sparsity=0.0,
-            ei_strength=0.5, sparsity=0.0,
+            "ping", w_in=(0.3, 0.03), w_in_initial_zero_fraction=0.0,
+            ei_strength=0.5, recurrent_initial_zero_fraction=0.0,
         )
         torch.manual_seed(0)
         net_trainable = build_net(
-            "ping", w_in=(0.3, 0.03), w_in_sparsity=0.0,
-            ei_strength=0.5, sparsity=0.0, w_ii=(0.5, 0.1),
+            "ping", w_in=(0.3, 0.03), w_in_initial_zero_fraction=0.0,
+            ei_strength=0.5, recurrent_initial_zero_fraction=0.0, w_ii=(0.5, 0.1),
             **{flag: True},
         )
         W_default = getattr(net_default, attr)["1"]
@@ -542,10 +542,10 @@ def test_w_ee_init_and_trainable_flag_propagate_through_train_cli(tmp_path):
     net = build_net(
         "ping",
         w_in=(0.3, 0.03),
-        w_in_sparsity=0.0,
+        w_in_initial_zero_fraction=0.0,
         w_ee=(0.3, 0.01),
         ei_strength=0.5,
-        sparsity=0.0,
+        recurrent_initial_zero_fraction=0.0,
         trainable_w_ee=True,
     )
     w_ee = net.W_ee["1"]
@@ -554,7 +554,7 @@ def test_w_ee_init_and_trainable_flag_propagate_through_train_cli(tmp_path):
 
 
 def test_ei_sparsity_zeros_recurrent_entries():
-    """--ei-sparsity FRAC zeros approximately *frac* of recurrent entries.
+    """--recurrent-initial-zero-fraction FRAC zeros approximately *frac* of recurrent entries.
     At 0.9, ≈ 10% of W^EI entries should survive (with stochastic tolerance)."""
     import sys
 
@@ -564,8 +564,8 @@ def test_ei_sparsity_zeros_recurrent_entries():
     torch.manual_seed(0)
     net = build_net(
         "ping",
-        w_in=(0.3, 0.03), w_in_sparsity=0.0,
-        ei_strength=1.0, sparsity=0.9,
+        w_in=(0.3, 0.03), w_in_initial_zero_fraction=0.0,
+        ei_strength=1.0, recurrent_initial_zero_fraction=0.9,
     )
     W = net.W_ei["1"].detach()
     nonzero_frac = float((W > 0).float().mean())
@@ -595,8 +595,8 @@ def test_w_ii_changes_i_cell_membrane():
         def _i_rate(w_ii):
             torch.manual_seed(0)
             net = build_net(
-                "ping", w_in=(2.0, 0.4), w_in_sparsity=0.0,
-                ei_strength=1.0, sparsity=0.0,
+                "ping", w_in=(2.0, 0.4), w_in_initial_zero_fraction=0.0,
+                ei_strength=1.0, recurrent_initial_zero_fraction=0.0,
                 w_ii=(w_ii, w_ii * 0.1) if w_ii > 0 else None,
             )
             net.recording = True
@@ -683,7 +683,7 @@ def test_independent_drive_i_raises_i_rate():
 
 
 def test_exact_k_gives_uniform_fan_in():
-    """--exact-k connectivity makes every post cell draw exactly K
+    """--exact-k-initialization connectivity makes every post cell draw exactly K
     presynaptic inputs (zero fan-in variance), vs the binomial spread of
     the per-entry Bernoulli sparsifier."""
     import sys
@@ -695,17 +695,17 @@ def test_exact_k_gives_uniform_fan_in():
     sparsity = 0.99  # K ≈ 10
 
     try:
-        M.EXACT_K_CONNECTIVITY = False
+        M.EXACT_K_INITIALIZATION = False
         torch.manual_seed(0)
         w_b = M.init_weight(shape, "normal", 1.0, 0.1, sparsity)
         fan_b = (w_b != 0).sum(dim=0).float()
 
-        M.EXACT_K_CONNECTIVITY = True
+        M.EXACT_K_INITIALIZATION = True
         torch.manual_seed(0)
         w_k = M.init_weight(shape, "normal", 1.0, 0.1, sparsity)
         fan_k = (w_k != 0).sum(dim=0).float()
     finally:
-        M.EXACT_K_CONNECTIVITY = False
+        M.EXACT_K_INITIALIZATION = False
 
     # Bernoulli: binomial fan-in, nonzero variance.
     assert fan_b.std() > 1.0, "Bernoulli fan-in should vary cell to cell"

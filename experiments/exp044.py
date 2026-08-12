@@ -122,7 +122,7 @@ TRAINING_COMMON_FIELDS: tuple[str, ...] = (
     "model", "dataset", "max_samples", "epochs", "t_ms", "tau_ampa_ms",
     "tau_gaba_ms", "input_rate", "input_rate_sampling", "hidden_sizes",
     "n_in", "n_hidden", "n_inh", "n_out", "ei_strength", "w_in",
-    "w_in_sparsity", "readout_mode", "readout_w_init_mean",
+    "w_in_initial_zero_fraction", "readout_mode", "readout_w_init_mean",
     "readout_w_init_std", "surrogate_slope", "lr", "batch_size",
     "weight_decay", "grad_clip", "v_grad_dampen", "dales_law",
     "trainable_w_ei", "trainable_w_ie",

@@ -109,7 +109,7 @@ COND_ORDER = list(CONDITIONS.keys())
 COMMON_RECIPE: dict[str, str] = {
     "--v-grad-dampen": "1000",
     "--w-in": "0.9",
-    "--w-in-sparsity": "0.95",
+    "--w-in-initial-zero-fraction": "0.95",
     "--readout": "mem-mean",
     "--surrogate-slope": "1",
     "--readout-w-init-mean": "1.12060546875",

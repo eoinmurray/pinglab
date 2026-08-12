@@ -326,15 +326,15 @@ class TestConfigureModels:
                 "--surrogate-slope", "40",
                 "--input-rate", "33",
                 "--t-ms", "77",
-                "--exact-k",
-                "--ei-sparsity", "0.5",
+                "--exact-k-initialization",
+                "--recurrent-initial-zero-fraction", "0.5",
             ]
         )
         configure_models(args)
         assert M.SURROGATE_SLOPE == pytest.approx(40.0)
         assert M.max_rate_hz == pytest.approx(33.0)
         assert M.T_ms == pytest.approx(77.0)
-        assert M.EXACT_K_CONNECTIVITY is True
+        assert M.EXACT_K_INITIALIZATION is True
 
     def test_none_valued_args_left_alone(self):
         # No surrogate override → the slope global keeps its module default; only
@@ -431,7 +431,7 @@ def trained(tmp_path_factory):
             "--max-samples", "60",
             "--epochs", "1",
             "--w-in", "10",
-            "--w-in-sparsity", "0",
+            "--w-in-initial-zero-fraction", "0",
             "--out-dir", str(out),
             "--wipe-dir",
             *_FAST,
@@ -495,7 +495,7 @@ class TestDispatchRuns:
                 "--max-samples", "50",
                 "--epochs", "0",
                 "--w-in", "10",
-                "--w-in-sparsity", "0",
+                "--w-in-initial-zero-fraction", "0",
                 "--out-dir", str(out),
                 "--wipe-dir",
                 *_FAST,

@@ -119,7 +119,7 @@ SCALE = {
 LOW_W_IN_RECIPE: dict[str, str] = {
     "--ei-strength": "1",
     "--v-grad-dampen": "1000",
-    "--w-in-sparsity": "0.95",
+    "--w-in-initial-zero-fraction": "0.95",
     "--readout": "mem-mean",
     "--surrogate-slope": "1",
     "--readout-w-init-mean": SHARED_READOUT_W_INIT_MEAN,

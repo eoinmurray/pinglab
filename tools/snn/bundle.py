@@ -446,18 +446,18 @@ def translate_training_v1(
     )
 
 
-_STRUCTURAL_FLAGS = {
+_MODEL_SPEC_FLAGS = {
     "--model",
     "--n-hidden",
     "--readout",
     "--dt",
     "--w-in",
-    "--w-in-sparsity",
+    "--w-in-initial-zero-fraction",
     "--ei-strength",
     "--ei-ratio",
     "--w-ei",
     "--w-ie",
-    "--ei-sparsity",
+    "--recurrent-initial-zero-fraction",
     "--tau-gaba",
     "--n-in",
     "--dataset",
@@ -494,13 +494,13 @@ def apply_bundle_to_args(args, argv: list[str]):
             "--bundle currently supports sim and train only"
         )
     explicit = {item.split("=", 1)[0] for item in argv if item.startswith("--")}
-    owned = _STRUCTURAL_FLAGS | (
+    owned = _MODEL_SPEC_FLAGS | (
         _TRAINING_RECIPE_FLAGS if args.mode == "train" else set()
     )
     conflicts = sorted(explicit & owned)
     if conflicts:
         raise BundleCompatibilityError(
-            "bundle owns structural settings; remove conflicting flags: "
+            "bundle owns model settings; remove conflicting flags: "
             + ", ".join(conflicts)
         )
     manifest, graph = load_graph_bundle(args.bundle)
@@ -517,12 +517,12 @@ def apply_bundle_to_args(args, argv: list[str]):
     args.dt = settings.dt
     args.readout_mode = settings.readout_mode
     args.w_in = list(settings.w_in)
-    args.w_in_sparsity = 0.0
+    args.w_in_initial_zero_fraction = 0.0
     args.ei_strength = settings.w_ei[0]
     args.ei_ratio = settings.w_ie[0] / settings.w_ei[0]
     args.w_ei = list(settings.w_ei)
     args.w_ie = list(settings.w_ie)
-    args.ei_sparsity = 0.0
+    args.recurrent_initial_zero_fraction = 0.0
     args.tau_gaba = settings.tau_gaba
     if args.mode == "train":
         recipe = load_training_recipe(args.bundle, manifest, graph)

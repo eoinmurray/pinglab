@@ -57,6 +57,7 @@ def _sha256_file(path: Path) -> str:
             digest.update(chunk)
     return digest.hexdigest()
 
+
 # DATASET_N_HIDDEN_DEFAULTS lives in datasets.py — re-imported above.
 
 
@@ -154,7 +155,8 @@ def train(
     w_ii=None,
     ei_strength=None,
     ei_ratio=2.0,
-    w_in_sparsity=0.0,
+    w_in_initial_zero_fraction=0.0,
+    recurrent_initial_zero_fraction=0.0,
     dataset="mnist",
     snapshot_init=True,
     snapshot_end=True,
@@ -190,7 +192,6 @@ def train(
 ):
     """Train a model on a supported dataset."""
     from torch.utils.data import DataLoader, TensorDataset
-
 
     seed_everything(seed)
 
@@ -235,14 +236,16 @@ def train(
     device = torch.device(device_name) if device_name else _auto_device()
     if input_rates is not None:
         if dataset not in IMAGE_DATASETS:
-            raise ValueError("variable input rates are supported only for image datasets")
+            raise ValueError(
+                "variable input rates are supported only for image datasets"
+            )
         input_rates = tuple(float(rate) for rate in input_rates)
         if not input_rates or any(rate < 0 for rate in input_rates):
             raise ValueError("input_rates must contain non-negative rates")
-    rate_values = torch.tensor(input_rates, dtype=torch.float32) if input_rates else None
-    validation_draw_count = (
-        VALIDATION_DRAW_COUNT if dataset in IMAGE_DATASETS else 1
+    rate_values = (
+        torch.tensor(input_rates, dtype=torch.float32) if input_rates else None
     )
+    validation_draw_count = VALIDATION_DRAW_COUNT if dataset in IMAGE_DATASETS else 1
     validation_encoder_seeds = VALIDATION_ENCODER_SEEDS[:validation_draw_count]
     validation_rate_seeds = VALIDATION_RATE_SEEDS[:validation_draw_count]
     train_rate_gen = torch.Generator().manual_seed((seed or 0) + 82_001)
@@ -262,9 +265,7 @@ def train(
 
     # Data — single canonical loader.
     runlog.phase(log, "loading", dataset)
-    X_tr, X_te, y_tr, y_te = load_dataset(
-        dataset, max_samples=max_samples, split=True
-    )
+    X_tr, X_te, y_tr, y_te = load_dataset(dataset, max_samples=max_samples, split=True)
     # Output classes are a property of the labels, not a hardcode. Set the module
     # global so build_net sizes W_ff[-1] correctly (mnist=10, shd=20).
     M.N_OUT = int(max(int(y_tr.max()), int(y_te.max()))) + 1
@@ -297,8 +298,7 @@ def train(
         raise ValueError("readout_w_init_std must be non-negative")
     if readout_w_init_mean is not None and readout_w_out_scale != 1.0:
         raise ValueError(
-            "direct readout initialization cannot be combined with "
-            "readout_w_out_scale"
+            "direct readout initialization cannot be combined with readout_w_out_scale"
         )
     if readout_w_init_mean is not None:
         assert readout_w_init_std is not None
@@ -310,13 +310,14 @@ def train(
     net = build_net(
         model_name,
         w_in=w_in,
-        w_in_sparsity=w_in_sparsity,
+        w_in_initial_zero_fraction=w_in_initial_zero_fraction,
         w_ee=w_ee,
         w_ei=w_ei,
         w_ie=w_ie,
         w_ii=w_ii,
         ei_strength=ei_strength,
         ei_ratio=ei_ratio,
+        recurrent_initial_zero_fraction=recurrent_initial_zero_fraction,
         device=device,
         randomize_init=True,
         dales_law=dales_law,
@@ -349,6 +350,18 @@ def train(
             f"  readout_w_out_scale={readout_w_out_scale:g} "
             f"(W_ff[-1] and b_ff[-1] scaled at init)"
         )
+        # Scaling is part of initialization, so provenance must describe the
+        # tensor actually handed to the optimizer rather than the pre-scale draw.
+        current = net.weight_final_statistics()["W_out"]
+        recorded = net.weight_initialization["W_out"]
+        recorded["scaling_convention"] = "fan_in_normalized_then_scaled"
+        recorded["post_initialization_scale"] = float(readout_w_out_scale)
+        recorded["statistics"]["initialization_zero_count"] = current["zero_count"]
+        recorded["statistics"]["initialization_zero_fraction"] = current[
+            "zero_fraction"
+        ]
+        recorded["statistics"]["all_entries"] = current["all_entries"]
+        recorded["statistics"]["realized_column_sum"] = current["realized_column_sum"]
     readout_init = net.W_ff[-1].detach()
     readout_init_stats = {
         "mean": float(readout_init.mean()),
@@ -371,7 +384,8 @@ def train(
     n_trainable = sum(p.numel() for p in net.parameters() if p.requires_grad)
 
     runlog.phase(
-        log, "building",
+        log,
+        "building",
         f"{n_trainable:,} params · {len(X_tr)} train · {len(X_te)} test",
     )
 
@@ -396,10 +410,13 @@ def train(
         "w_ee": list(w_ee) if w_ee else None,
         "ei_strength": ei_strength,
         "ei_ratio": ei_ratio,
-        "w_in_sparsity": w_in_sparsity,
+        "w_in_initial_zero_fraction": w_in_initial_zero_fraction,
+        "recurrent_initial_zero_fraction": recurrent_initial_zero_fraction,
         "input_rate": M.max_rate_hz,
         "input_rates": list(input_rates) if input_rates else None,
-        "input_rate_sampling": "uniform_categorical_per_presentation" if input_rates else "fixed",
+        "input_rate_sampling": "uniform_categorical_per_presentation"
+        if input_rates
+        else "fixed",
         "v_grad_dampen": v_grad_dampen,
         # The CLI applies this process-wide model constant before dispatching
         # into train().  Record the resolved value alongside the other
@@ -440,14 +457,17 @@ def train(
         "signed_readout": signed_readout,
         "readout_bias": readout_bias,
         "readout_w_init": {
-            "distribution": "normal_clamped_nonnegative",
+            "distribution": "lower_clamped_normal",
             "units": "stored_weight",
             "mean": readout_w_init_mean,
             "std": readout_w_init_std,
-        } if readout_w_init is not None else None,
+        }
+        if readout_w_init is not None
+        else None,
         "readout_w_init_mean": readout_w_init_mean,
         "readout_w_init_std": readout_w_init_std,
         "readout_w_init_realized": readout_init_stats,
+        "weight_initialization": net.weight_initialization,
         "readout_reduction": (
             M.CUMULATIVE_READOUT_REDUCTION
             if readout_mode == "cumulative-potential"
@@ -458,8 +478,10 @@ def train(
             else None
         ),
         "readout_units": (
-            "spikes" if readout_mode == "spike-count"
-            else "Hz" if readout_mode == "spike-rate"
+            "spikes"
+            if readout_mode == "spike-count"
+            else "Hz"
+            if readout_mode == "spike-rate"
             else None
         ),
         "readout_tau_bounds_ms": (
@@ -539,7 +561,6 @@ def train(
         ref_spikes = test_ds[0][0].to(device)
 
     if snapshot_init:
-
         C.cfg.n_e = M.N_HID
         C.cfg.n_i = M.N_INH
         net.recording = True
@@ -577,7 +598,8 @@ def train(
                 "lr": lr,
                 "input_rate": M.max_rate_hz,
                 "w_in": list(w_in) if w_in else None,
-                "w_in_sparsity": w_in_sparsity,
+                "w_in_initial_zero_fraction": w_in_initial_zero_fraction,
+                "recurrent_initial_zero_fraction": recurrent_initial_zero_fraction,
                 "ei_strength": ei_strength,
                 "ei_ratio": ei_ratio,
                 "n_hidden": M.N_HID,
@@ -600,7 +622,6 @@ def train(
             json.dump(metrics_blob, f, indent=2, default=float)
         log.info(f"  done (probe only) \u2192 {out_dir}")
         return 0.0
-
 
     # AdamW (decoupled weight decay); identical to Adam when weight_decay=0, so
     # the default leaves every existing run unchanged. Weight decay bounds the
@@ -669,7 +690,8 @@ def train(
         for batch_idx, (X_b, y_b) in enumerate(train_loader):
             X_b, y_b = X_b.to(device), y_b.to(device)
             spk = encode_batch(
-                X_b, dt,
+                X_b,
+                dt,
                 max_rate_hz=sample_input_rates(len(X_b), train_rate_gen),
             )
             logits = net(input_spikes=spk)
@@ -718,7 +740,8 @@ def train(
             hb.beat(
                 log,
                 runlog.epoch_progress(
-                    epoch + 1, epochs,
+                    epoch + 1,
+                    epochs,
                     f"batch {batch_idx + 1}/{n_train_batches}",
                     _time.perf_counter() - t_train_compute,
                     loss=running_loss,
@@ -765,7 +788,9 @@ def train(
                 for X_b, y_b in test_loader:
                     X_b, y_b = X_b.to(device), y_b.to(device)
                     spk = encode_batch(
-                        X_b, dt, generator=eval_gen,
+                        X_b,
+                        dt,
+                        generator=eval_gen,
                         max_rate_hz=sample_input_rates(len(X_b), draw_rate_gen),
                     )
                     logits_t = net(input_spikes=spk)
@@ -787,7 +812,9 @@ def train(
                     margin_sum += float((z_true - z_runner).sum().item())
                     conf_sum += float(
                         torch.softmax(logits_t, dim=1)
-                        .gather(1, y_b.unsqueeze(1)).sum().item()
+                        .gather(1, y_b.unsqueeze(1))
+                        .sum()
+                        .item()
                     )
                     logit_scale_sum += float(logits_t.abs().mean(1).sum().item())
                     # net.rates is set by _set_meta after every forward pass;
@@ -801,21 +828,24 @@ def train(
                     hb.beat(
                         log,
                         runlog.epoch_progress(
-                            epoch + 1, epochs,
+                            epoch + 1,
+                            epochs,
                             f"eval draw {draw_index + 1}/{validation_draw_count} "
                             f"batch {(test_batches - 1) % n_test_batches + 1}/"
                             f"{n_test_batches}",
                             _time.perf_counter() - t_eval,
                         ),
                     )
-                validation_draws.append({
+                validation_draws.append(
+                    {
                     "draw": draw_index + 1,
                     "encoder_seed": encoder_seed,
                     "input_rate_seed": rate_seed,
                     "n_samples": draw_total,
                     "accuracy_pct": 100.0 * draw_correct / draw_total,
                     "cross_entropy": draw_loss_sum / draw_total,
-                })
+                    }
+                )
 
         eval_s = _time.perf_counter() - t_eval
         hb.clear()  # erase the live progress line; the finished row prints in its place
@@ -829,9 +859,8 @@ def train(
         test_confidence = conf_sum / total if total else 0.0
         test_logit_scale = logit_scale_sum / total if total else 0.0
 
-        new_best = (
-            avg_test < best_validation_loss
-            or (avg_test == best_validation_loss and acc > best_acc)
+        new_best = avg_test < best_validation_loss or (
+            avg_test == best_validation_loss and acc > best_acc
         )
         if new_best:
             best_validation_loss = avg_test
@@ -915,12 +944,14 @@ def train(
 
         # jsonl sidecar — one line per epoch (skip dict fields, they
         # round-trip via metrics.json).
-        jsonl.write(**{
-            k: v for k, v in record.items()
-            if k not in (
-                "grad_ratios", "grad_norms", "weight_norms", "validation_draws"
+        jsonl.write(
+            **{
+                k: v
+                for k, v in record.items()
+                if k
+                not in ("grad_ratios", "grad_norms", "weight_norms", "validation_draws")
+            }
             )
-        })
 
         # Structured progress line + warning tracker
         e_rate = epoch_metrics.get("rate_e", 0.0) if epoch_metrics else 0.0
@@ -985,7 +1016,6 @@ def train(
     # Snapshot end state
     end_state = None
     if snapshot_end:
-
         C.cfg.n_e = M.N_HID
         C.cfg.n_i = M.N_INH
         net.recording = True
@@ -1048,10 +1078,13 @@ def train(
             "weight_decay": weight_decay,
             "input_rate": M.max_rate_hz,
             "input_rates": list(input_rates) if input_rates else None,
-            "input_rate_sampling": "uniform_categorical_per_presentation" if input_rates else "fixed",
+            "input_rate_sampling": "uniform_categorical_per_presentation"
+            if input_rates
+            else "fixed",
             "w_in": list(w_in) if w_in else None,
             "w_ee": list(w_ee) if w_ee else None,
-            "w_in_sparsity": w_in_sparsity,
+            "w_in_initial_zero_fraction": w_in_initial_zero_fraction,
+            "recurrent_initial_zero_fraction": recurrent_initial_zero_fraction,
             "ei_strength": ei_strength,
             "ei_ratio": ei_ratio,
             # Full training-dynamics config carried here too, so metrics.json is
@@ -1067,6 +1100,7 @@ def train(
             "readout_w_init_mean": readout_w_init_mean,
             "readout_w_init_std": readout_w_init_std,
             "readout_w_init_realized": readout_init_stats,
+            "weight_initialization": net.weight_initialization,
             "readout_mode": readout_mode,
             "signed_readout": signed_readout,
             "readout_bias": readout_bias,
@@ -1080,8 +1114,10 @@ def train(
                 else None
             ),
             "readout_units": (
-                "spikes" if readout_mode == "spike-count"
-                else "Hz" if readout_mode == "spike-rate"
+                "spikes"
+                if readout_mode == "spike-count"
+                else "Hz"
+                if readout_mode == "spike-rate"
                 else None
             ),
             "readout_tau_bounds_ms": (
@@ -1119,6 +1155,7 @@ def train(
         "init": snapshot_init_state,
         "epochs": epoch_records,
         "end": end_state,
+        "weight_final": net.weight_final_statistics(),
         "best_acc": best_acc,
         "best_validation_loss": best_validation_loss,
         "best_epoch": best_epoch,
@@ -1142,7 +1179,8 @@ def train(
         for X_b, y_b in test_loader:
             X_b, y_b = X_b.to(device), y_b.to(device)
             spk = encode_batch(
-                X_b, dt,
+                X_b,
+                dt,
                 max_rate_hz=sample_input_rates(len(X_b), prediction_rate_gen),
             )
             logits_t = net(input_spikes=spk)

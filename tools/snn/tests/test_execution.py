@@ -212,9 +212,9 @@ def test_single_ping_seeded_parameters_and_forward_match_legacy_exactly():
     config.set_sim_dt(0.1, 1.2)
     M.T_steps = 12
     legacy = config.build_net(
-        "ping", w_in=(0.2, 0.03), w_in_sparsity=0.0,
+        "ping", w_in=(0.2, 0.03), w_in_initial_zero_fraction=0.0,
         w_ei=(0.5, 0.05), w_ie=(1.0, 0.1),
-        ei_strength=0.5, ei_ratio=2.0, sparsity=0.0,
+        ei_strength=0.5, ei_ratio=2.0, recurrent_initial_zero_fraction=0.0,
         hidden_sizes=[256], readout_mode="mem-mean",
     )
     graph_model = build(ExecutionSpec(kind="build", executor="graph", graph=graph, seed=17)).model

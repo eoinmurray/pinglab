@@ -156,7 +156,7 @@ def train_args(model: str, out: Path, *, smoke: bool) -> list[str]:
         "--ei-strength", str(recipe["ei_strength"]),
         "--v-grad-dampen", str(recipe["v_grad_dampen"]),
         "--w-in", str(baseline.INPUT_SCALE),
-        "--w-in-sparsity", str(baseline.INPUT_SPARSITY),
+        "--w-in-initial-zero-fraction", str(baseline.INPUT_INITIAL_ZERO_FRACTION),
         "--w-ee", str(W_EE_INIT[0]), str(W_EE_INIT[1]),
         "--readout", READOUT_MODE,
         "--readout-w-out-scale", str(READOUT_SCALE),
@@ -579,7 +579,7 @@ def reconstructed_initial_w_ee(train_out: Path) -> dict[str, Any]:
     net = snn_config.build_net(
         cfg["model"],
         w_in=tuple(cfg["w_in"]) if cfg.get("w_in") else None,
-        w_in_sparsity=float(cfg["w_in_sparsity"]),
+        w_in_initial_zero_fraction=float(cfg["w_in_initial_zero_fraction"]),
         w_ee=tuple(cfg["w_ee"]) if cfg.get("w_ee") else None,
         ei_strength=cfg.get("ei_strength"),
         ei_ratio=float(cfg["ei_ratio"]),

@@ -116,7 +116,7 @@ def parity_and_performance() -> dict:
     config.set_sim_dt(0.1, 10.0)
     M.T_steps = 100
     torch.manual_seed(17)
-    legacy = config.build_net("ping", w_in=(0.2, 0.03), w_in_sparsity=0.0, w_ei=(0.5, 0.05), w_ie=(1.0, 0.1), hidden_sizes=[256], readout_mode="mem-mean")
+    legacy = config.build_net("ping", w_in=(0.2, 0.03), w_in_initial_zero_fraction=0.0, w_ei=(0.5, 0.05), w_ie=(1.0, 0.1), hidden_sizes=[256], readout_mode="mem-mean")
     native = build(ExecutionSpec(kind="build", executor="graph", graph=graph, seed=17)).model
     assert isinstance(native, GraphExecutor)
     x = (torch.rand(100, 8, 784) < 0.02).float()

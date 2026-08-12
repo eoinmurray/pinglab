@@ -234,7 +234,7 @@ ARG_TO_CONFIG = {
     "--model": "model", "--dataset": "dataset", "--max-samples": "max_samples",
     "--epochs": "epochs", "--t-ms": "t_ms", "--dt": "dt",
     "--tau-gaba": "tau_gaba_ms", "--seed": "seed", "--ei-strength": "ei_strength",
-    "--v-grad-dampen": "v_grad_dampen", "--w-in-sparsity": "w_in_sparsity",
+    "--v-grad-dampen": "v_grad_dampen", "--w-in-initial-zero-fraction": "w_in_initial_zero_fraction",
     "--readout": "readout_mode", "--surrogate-slope": "surrogate_slope",
     "--readout-w-out-scale": "readout_w_out_scale",
     "--readout-w-init-mean": "readout_w_init_mean",
@@ -250,7 +250,7 @@ ARG_TO_CONFIG = {
 OPERATIONAL_ARGUMENTS = {"--out-dir"}
 FLOAT_CONFIG = {
     "dt", "t_ms", "tau_gaba_ms", "ei_strength", "v_grad_dampen",
-    "w_in_sparsity", "surrogate_slope", "readout_w_out_scale",
+    "w_in_initial_zero_fraction", "surrogate_slope", "readout_w_out_scale",
     "readout_w_init_mean", "readout_w_init_std", "lr",
     "fr_reg_upper_theta", "fr_reg_upper_strength",
     "input_rate", "weight_decay",
@@ -333,6 +333,32 @@ def validate_cell(cell: dict[str, Any], *, load_checkpoint: bool = True) -> dict
         actual = config.get(key, nested.get(key))
         if not _same(actual, wanted):
             reasons.append(f"config {key} mismatch: {actual!r} != {wanted!r}")
+    initialization = config.get("weight_initialization")
+    metrics_initialization = nested.get("weight_initialization")
+    required_roles = {"W_in", "W_out", "W_EE_1", "W_EI_1", "W_IE_1", "W_II_1"}
+    if not isinstance(initialization, dict) or not required_roles <= set(initialization):
+        reasons.append("config missing complete weight initialization provenance")
+    elif initialization != metrics_initialization:
+        reasons.append("config/metrics weight initialization provenance mismatch")
+    else:
+        for role, record in initialization.items():
+            if record.get("zeros_remain_trainable") is not True:
+                reasons.append(f"{role} does not declare trainable initialization zeros")
+            if record.get("distribution") not in {
+                "lower_clamped_normal", "signed_normal", "kaiming_uniform_signed",
+                "uniform", "constant", "zeros",
+            }:
+                reasons.append(f"{role} has unknown initialization distribution")
+            if not isinstance(record.get("statistics"), dict):
+                reasons.append(f"{role} missing initialization statistics")
+        if not _same(
+            initialization["W_in"].get("requested_initial_zero_fraction"),
+            expected.get("w_in_initial_zero_fraction", 0.0),
+        ):
+            reasons.append("W_in initial-zero fraction mismatch")
+    final_weights = metrics.get("weight_final")
+    if not isinstance(final_weights, dict) or not required_roles <= set(final_weights):
+        reasons.append("metrics missing final weight/regrowth provenance")
     epochs = int(cell["parameters"]["epochs"])
     samples = int(cell["parameters"]["max_samples"])
     if len(history) < epochs or int(history[-1].get("ep", -1)) < epochs:

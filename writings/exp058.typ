@@ -16,7 +16,7 @@
 
   == Methods
 
-  + *Network and the $K$–$J$ mapping.* #link("/ar003/")[COBANet], $N_E = 1024$, $N_I = 256$, $Delta t = 0.25$ ms, $T = 1000$ ms. *Fixed fan-in* (exact-$K$, sparsity $s = 0.99$): every cell draws exactly $K$ inputs. *Four recurrent matrices* $W^(E I) = cal(N)(0.6, 0.18)$, $W^(I E) = cal(N)(3.0, 0.9)$, $W^(I I) = cal(N)(0.4, 0.12)$, $W^(E E) = cal(N)(0.4, 0.12)$ μS ($W^(E E)$ for completeness: the fixed-$K$ balance sets the rates, not it). *Per-cell independent Poisson drive*, uncorrelated (E: 8 Hz × 2.10 μS, I: 8 Hz × 0.25 μS). The simulator is set by sparsity $s$ and weight $w$; the theory's fan-in $K$ and coupling $J$ are derived,
+  + *Network and the $K$–$J$ mapping.* #link("/ar003/")[COBANet], $N_E = 1024$, $N_I = 256$, $Delta t = 0.25$ ms, $T = 1000$ ms. *Exact-$K$ initialization* ($s = 0.99$): every cell begins with exactly $K$ non-zero recurrent entries. These matrices are frozen in this experiment, so the initial pattern also remains the effective connectivity; the engine does not impose a persistent mask when such matrices are trainable. *Four recurrent matrices* use lower-clamped-Gaussian parent parameters $(0.6, 0.18)$, $(3.0, 0.9)$, $(0.4, 0.12)$, and $(0.4, 0.12)$ on the summed-coupling scale. *Per-cell independent Poisson drive* is uncorrelated (E: 8 Hz × 2.10 μS, I: 8 Hz × 0.25 μS). The initialization fraction $s$, fan-in $K$, and coupling $J$ obey
 
     $ K = (1 - s) N_"pre" quad (1) $
 
@@ -26,9 +26,9 @@
 
     - $K$, the *fan-in*: how many presynaptic cells each neuron receives input from (the size of its "crowd");
     - $J$, the *coupling*: the $O(1)$ synaptic strength held _fixed_ as $K$ grows. The $J \/ sqrt(K)$ scaling is the load-bearing V&S choice, keeping the mean recurrent input $O(sqrt(K))$ (large, cancels) while the fluctuation stays $O(1)$ (survives);
-    - $s$, connection *sparsity* (the _--ei-sparsity_ flag); $1-s$ is the probability any given pair is wired;
+    - $s$, the recurrent initial-zero fraction (_--recurrent-initial-zero-fraction_); $1-s$ is the initially active fraction;
     - $N_"pre"$, size of the presynaptic pool a cell draws from ($N_E$ or $N_I$);
-    - $w$, mean of the recurrent weight matrix in μS (the value passed to _--w-ei_ etc.).
+    - $w$, the parent-Gaussian summed-coupling parameter passed to _--w-ei_ and related flags, not a per-edge mean.
 
     Exact-$K$ divides each synapse by its fan-in, so the total a cell receives, $K dot (w \/ K) = w$, is $K$-independent, giving (2). At $s = 0.99$:
 
