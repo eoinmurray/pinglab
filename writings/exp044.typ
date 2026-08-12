@@ -6,6 +6,10 @@
   status: "final",
 )
 
+#let run = json("/artifacts/data/exp044/numbers.json")
+#let batch-size = run.config.at("training_contract", default: (:))
+  .at("common", default: (:)).at("batch_size", default: 256)
+
 
 #let body = [
   The trained networks this entry uses are produced once in the shared training
@@ -35,11 +39,10 @@
 
   The #link("/exp022/")[exp022] hub trains one PING per $Delta t in {0.05, 0.1, 0.25, 0.5, 1.0}$ ms ×
   seed $in {42, 43, 44}$ = 15 cells; this entry loads them and evaluates. Total
-  physical time $T = 200$ ms is held constant (step count varies 4000 → 200). Batch
-  size 64 throughout, smaller than #link("/exp025/")[exp025]'s 256 but matched
-  across the sweep so per-step compute and memory stay comparable, and the Δt = 0.05
-  cells (4000 timesteps × $N_E$ × $N_I$) fit in a single A100. All other PING recipe
-  parameters held to #link("/exp025/")[exp025].
+  physical time $T = 200$ ms is held constant (step count varies 4000 → 200).
+  Batch size #batch-size is read from and verified across the consumed checkpoint
+  configs. All other PING training parameters are likewise checked for equality;
+  only integration timestep and seed may differ between cells.
 
   Run inference on the test set; report mean E rate (Hz), accuracy, and a
   single-trial raster from seed 42 per Δt for visual cycle-period inspection.

@@ -56,12 +56,6 @@ T_MS = 200.0
 DT_SWEEP_MS: tuple[float, ...] = (0.05, 0.1, 0.25, 0.5, 1.0)
 SEEDS: tuple[int, ...] = (42, 43, 44)
 
-# Batch size is held at 64 across all Δt so per-step compute and memory
-# stay comparable, and the Δt = 0.05 cells (4000 timesteps × N_E × N_I)
-# fit in a single A100. exp025 used 256; smaller batches are slower but
-# the recipe still trains.
-BATCH_SIZE: int = 64
-
 # Single-trial raster capture — same convention as exp025 / exp042.
 RASTER_SAMPLE_IDX: int = 0
 RASTER_N_E_PLOT: int = 200
@@ -82,7 +76,6 @@ SCALE = {
     "max_samples": MAX_SAMPLES,
     "epochs": EPOCHS,
     "t_ms": T_MS,
-    "batch_size": BATCH_SIZE,
     "seeds": len(SEEDS),
     "cells": len(DT_SWEEP_MS) * len(SEEDS),
     "grid": "5 Δt × 3 seeds (Δt ∈ {0.05, 0.1, 0.25, 0.5, 1.0} ms)",
@@ -107,6 +100,62 @@ def load_metrics(run_dir: Path) -> dict:
 
 def load_config(run_dir: Path) -> dict:
     return json.loads((run_dir / "config.json").read_text())
+
+
+def _same(actual, expected) -> bool:
+    if isinstance(actual, (int, float)) and isinstance(expected, (int, float)):
+        return bool(np.isclose(actual, expected))
+    if isinstance(actual, list) and isinstance(expected, list):
+        return len(actual) == len(expected) and all(
+            _same(a, b) for a, b in zip(actual, expected, strict=True)
+        )
+    return actual == expected
+
+
+TRAINING_COMMON_FIELDS: tuple[str, ...] = (
+    "model", "dataset", "max_samples", "epochs", "t_ms", "tau_ampa_ms",
+    "tau_gaba_ms", "input_rate", "input_rate_sampling", "hidden_sizes",
+    "n_in", "n_hidden", "n_inh", "n_out", "ei_strength", "w_in",
+    "w_in_sparsity", "readout_mode", "readout_w_init_mean",
+    "readout_w_init_std", "surrogate_slope", "lr", "batch_size",
+    "weight_decay", "grad_clip", "v_grad_dampen", "dales_law",
+    "trainable_w_ei", "trainable_w_ie",
+)
+
+
+def resolve_training_contract() -> dict:
+    """Verify the actual TR-04 configs differ only in registered Δt and seed."""
+    cells: list[dict] = []
+    common: dict | None = None
+    for dt_ms in DT_SWEEP_MS:
+        for seed in SEEDS:
+            name = f"ping__{dt_label(dt_ms)}__seed{seed}"
+            config = load_config(cell_dir(dt_ms, seed))
+            if not np.isclose(float(config.get("dt", float("nan"))), dt_ms):
+                raise ValueError(f"{name}: config dt does not match registered {dt_ms}")
+            if config.get("seed") != seed:
+                raise ValueError(f"{name}: config seed does not match registered {seed}")
+            try:
+                selected = {field: config[field] for field in TRAINING_COMMON_FIELDS}
+            except KeyError as exc:
+                raise ValueError(f"{name}: missing training config field {exc.args[0]}") from exc
+            if common is None:
+                common = selected
+            else:
+                for field, expected in common.items():
+                    actual = selected[field]
+                    if not _same(actual, expected):
+                        raise ValueError(
+                            f"{name}: config {field}={actual!r} disagrees with "
+                            f"verified common value {expected!r}"
+                        )
+            cells.append({"cell_name": name, "dt_ms": dt_ms, "seed": seed})
+    assert common is not None
+    return {
+        "common": common,
+        "registered_differences": {"dt_ms": list(DT_SWEEP_MS), "seeds": list(SEEDS)},
+        "cells": cells,
+    }
 
 
 # ─── inference: rate, accuracy, raster ──────────────────────────────
@@ -349,6 +398,14 @@ def main() -> None:
         + ("  [skip-training]" if meta.skip_training else "")
     )
     log_runner_event(SLUG, "started", run_id=run_id)
+    training_contract = resolve_training_contract()
+    run_scale = {
+        **SCALE,
+        "batch_size": training_contract["common"]["batch_size"],
+        "max_samples": training_contract["common"]["max_samples"],
+        "epochs": training_contract["common"]["epochs"],
+        "t_ms": training_contract["common"]["t_ms"],
+    }
 
     # Training lives in exp022 now (train-once / reuse-many): the dt sweep is a
     # registry family there (the documented dt exception). This notebook only
@@ -356,7 +413,7 @@ def main() -> None:
     # dir) and swaps into place only if the run completes.
     with published_run(
         SLUG, run_id, skip_training=meta.skip_training, make_artifacts=False,
-        scale=SCALE, plot_only=meta.plot_only,
+        scale=run_scale, plot_only=meta.plot_only,
     ) as (_artifacts, figures):
         rows: list[dict] = []
         for dt_ms in DT_SWEEP_MS:
@@ -403,10 +460,10 @@ def main() -> None:
                     "dataset": "mnist",
                     "dt_sweep_ms": list(DT_SWEEP_MS),
                     "seeds": list(SEEDS),
-                    "batch_size": BATCH_SIZE,
-                    "max_samples": MAX_SAMPLES,
-                    "epochs": EPOCHS,
-                    "t_ms": T_MS,
+                    "max_samples": training_contract["common"]["max_samples"],
+                    "epochs": training_contract["common"]["epochs"],
+                    "t_ms": training_contract["common"]["t_ms"],
+                    "training_contract": training_contract,
                 },
                 "results": rows,
             },
