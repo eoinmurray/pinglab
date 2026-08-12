@@ -6,6 +6,23 @@ from pathlib import Path
 import numpy as np
 import pytest
 from experiments import exp025, exp037, exp041, exp042, exp044, exp049
+from experiments.helpers.checkpoints import sha256_file
+
+
+def _write_final_checkpoint(train_dir: Path, config: dict) -> None:
+    (train_dir / "config.json").write_text(json.dumps(config))
+    checkpoint = train_dir / "weights_final.pth"
+    checkpoint.write_bytes(b"final")
+    (train_dir / "metrics.json").write_text(json.dumps({
+        "config": {"epochs": 50},
+        "checkpoints": {
+            "final_epoch": {
+                "filename": checkpoint.name,
+                "epoch": 50,
+                "sha256": sha256_file(checkpoint),
+            }
+        },
+    }))
 
 
 @pytest.mark.parametrize("module", [exp041, exp044, exp049])
@@ -14,8 +31,7 @@ def test_quantitative_inference_is_capped_in_smoke(
 ) -> None:
     train_dir = tmp_path / "train"
     train_dir.mkdir()
-    (train_dir / "config.json").write_text(json.dumps({"tau_gaba_ms": 6.0}))
-    (train_dir / "weights.pth").touch()
+    _write_final_checkpoint(train_dir, {"tau_gaba_ms": 6.0})
     observed: list[str] = []
 
     monkeypatch.setattr(module, "ARTIFACTS", tmp_path / "derived")
@@ -32,8 +48,7 @@ def test_single_sample_inference_does_not_restrict_sample_index(
 ) -> None:
     train_dir = tmp_path / "train"
     train_dir.mkdir()
-    (train_dir / "config.json").write_text(json.dumps({"tau_gaba_ms": 6.0}))
-    (train_dir / "weights.pth").touch()
+    _write_final_checkpoint(train_dir, {"tau_gaba_ms": 6.0})
     observed: list[str] = []
 
     monkeypatch.setattr(module, "ARTIFACTS", tmp_path / "derived")
@@ -49,8 +64,7 @@ def test_exp042_baseline_inference_is_capped_in_smoke(
 ) -> None:
     train_dir = tmp_path / "train"
     train_dir.mkdir()
-    (train_dir / "config.json").write_text("{}")
-    (train_dir / "weights.pth").touch()
+    _write_final_checkpoint(train_dir, {})
     observed: list[str] = []
 
     def fake_run(cmd: list[str]) -> None:

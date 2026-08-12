@@ -6,8 +6,25 @@ from pathlib import Path
 
 import numpy as np
 from experiments import exp037, exp038
+from experiments.helpers.checkpoints import sha256_file
 
 REPO = Path(__file__).resolve().parents[2]
+
+
+def _write_selected_checkpoint(train_dir: Path) -> None:
+    path = train_dir / "weights.pth"
+    path.write_bytes(b"checkpoint")
+    (train_dir / "metrics.json").write_text(json.dumps({
+        "best_epoch": 7,
+        "config": {"epochs": 50},
+        "checkpoints": {
+            "best_validation": {
+                "filename": "weights.pth",
+                "epoch": 7,
+                "sha256": sha256_file(path),
+            }
+        },
+    }))
 
 
 def test_exp037_jobs_cover_every_quantitative_seed() -> None:
@@ -88,7 +105,7 @@ def test_exp037_quantitative_inference_pins_full_mnist_pool(
     train_dir = tmp_path / "coba__off__seed42"
     train_dir.mkdir()
     (train_dir / "config.json").write_text("{}")
-    (train_dir / "weights.pth").write_bytes(b"checkpoint")
+    _write_selected_checkpoint(train_dir)
     commands = []
 
     def fake_run_cli(command):
@@ -139,7 +156,7 @@ def test_exp038_quantitative_inference_pins_full_mnist_pool(
     train_dir = tmp_path / "coba__off__seed42"
     train_dir.mkdir()
     (train_dir / "config.json").write_text("{}")
-    (train_dir / "weights.pth").write_bytes(b"checkpoint")
+    _write_selected_checkpoint(train_dir)
     commands = []
 
     def fake_run_cli(command):

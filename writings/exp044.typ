@@ -27,6 +27,8 @@
 
   == Method
 
+  Checkpoint-backed rates and rasters use the final-epoch checkpoint, matching the epoch-50 endpoint shown in the training histories.
+
   #table(
     columns: 2,
     [Parameter], [Value],

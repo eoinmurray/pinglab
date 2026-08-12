@@ -6,6 +6,7 @@ on MNIST with a configurable readout, gradient stabilizer, and optimizer.
 
 from __future__ import annotations
 
+import hashlib
 import json
 import logging
 import math
@@ -40,6 +41,14 @@ log = logging.getLogger("cli")
 
 BATCH_SIZE = 64
 GRAD_CLIP = 1.0
+
+
+def _sha256_file(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
 
 # DATASET_N_HIDDEN_DEFAULTS lives in datasets.py — re-imported above.
 
@@ -948,6 +957,20 @@ def train(
     if best_state is not None:
         torch.save(best_state, out_dir / "weights.pth")
     torch.save(net.state_dict(), out_dir / "weights_final.pth")
+    checkpoints = {
+        "final_epoch": {
+            "filename": "weights_final.pth",
+            "epoch": int(epochs),
+            "sha256": _sha256_file(out_dir / "weights_final.pth"),
+        },
+    }
+    if best_state is not None:
+        checkpoints["best_validation"] = {
+            "filename": "weights.pth",
+            "epoch": int(best_epoch),
+            "sha256": _sha256_file(out_dir / "weights.pth"),
+            "selection_metric": "validation_accuracy_pct",
+        }
 
     # Write structured metrics for tests/analysis (parallels output.log).
     # run_finished_at is the canonical "when did this run actually produce
@@ -1041,6 +1064,7 @@ def train(
         "end": end_state,
         "best_acc": best_acc,
         "best_epoch": best_epoch,
+        "checkpoints": checkpoints,
         "total_elapsed_s": total_time,
         "perf": perf_block,
     }

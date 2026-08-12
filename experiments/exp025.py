@@ -47,6 +47,11 @@ from exp022 import (
 )
 from exp022 import cell_dir as shared_cell_dir  # noqa: E402
 from helpers import theme  # noqa: E402
+from helpers.checkpoints import (  # noqa: E402
+    cache_tag,
+    checkpoint_provenance,
+    resolve_checkpoint,
+)
 from helpers.cli import parse_meta  # noqa: E402
 from helpers.figsave import save_figure  # noqa: E402
 from helpers.numbers import write_numbers  # noqa: E402
@@ -59,6 +64,8 @@ from helpers.run_cli import run_cli  # noqa: E402
 from helpers.run_dirs import published_run  # noqa: E402
 from helpers.run_id import next_run_id  # noqa: E402
 from helpers.stamp import stamp_figure  # noqa: E402
+
+CHECKPOINT_ROLE = "final_epoch"
 
 SLUG = "exp025"
 RUN_PATHS = runner_paths(SLUG)
@@ -449,11 +456,12 @@ def generate_raster(model: str, out_path: Path) -> None:
     if npz_path.exists():
         npz_path.unlink()
     baseline = baseline_dir(model)
+    checkpoint = resolve_checkpoint(baseline, CHECKPOINT_ROLE)
     argv = [
         "sim",
         "--infer",
         "--load-config", str(baseline / "config.json"),
-        "--load-weights", str(baseline / "weights.pth"),
+        "--load-weights", str(checkpoint["path"]),
         "--input", "dataset",
         "--dataset", "mnist",
         "--digit", "0",
@@ -554,12 +562,13 @@ def _infer_cell(
     --outputs, ...); max_samples caps the evaluation set.
     """
     train_dir = train_dir.resolve()
-    out_dir = (ARTIFACTS / out_name / train_dir.name).resolve()
+    checkpoint = resolve_checkpoint(train_dir, CHECKPOINT_ROLE)
+    out_dir = (ARTIFACTS / out_name / f"{train_dir.name}__{cache_tag(checkpoint)}").resolve()
     out_dir.mkdir(parents=True, exist_ok=True)
     cmd = [
         "sim", "--infer",
         "--load-config", str(train_dir / "config.json"),
-        "--load-weights", str(train_dir / "weights.pth"),
+        "--load-weights", str(checkpoint["path"]),
         "--out-dir", str(out_dir),
     ]
     if max_samples is not None:
@@ -1001,7 +1010,7 @@ def run_w_in_scale_sweep(notebook_run_id: str) -> list[dict]:
     ]
     rows: list[dict] = []
     for label, train_dir, theta_u in cells:
-        if not (train_dir / "weights.pth").exists():
+        if not (train_dir / "weights_final.pth").exists():
             raise SystemExit(
                 f"w_in-scale-sweep: missing weights for {label} at {train_dir}"
             )
@@ -1462,7 +1471,7 @@ def _run(meta, run_id: str, figures: Path, t_start: float) -> None:
         for theta_u in THETA_U_GRID:
             seed = REPRESENTATIVE_SEED
             train_dir = cell_dir(model, theta_u, seed)
-            if not (train_dir / "weights.pth").exists():
+            if not (train_dir / "weights_final.pth").exists():
                 print(f"  skip {model} θ_u={theta_label(theta_u)} (no weights)")
                 continue
             m = measure_p_fgamma(train_dir, is_ping=is_ping)
@@ -1553,6 +1562,11 @@ def _run(meta, run_id: str, figures: Path, t_start: float) -> None:
         figures, run_id=run_id, duration_s=duration_s,
         payload={
             "git_sha_train": train_cfg.get("git_sha"),
+            "checkpoint_provenance": checkpoint_provenance(
+                [cell_dir(model, theta, seed) for model in MODELS
+                 for theta in THETA_U_GRID for seed in SEEDS],
+                CHECKPOINT_ROLE,
+            ),
             "config": {
                 "dataset": "mnist",
                 "models": MODELS,

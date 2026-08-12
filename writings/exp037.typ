@@ -55,6 +55,8 @@
 
   == Method
 
+  All perturbations are applied to the checkpoint selected by validation accuracy. This measures robustness of the selected classifier rather than the final dynamical state reached at epoch 50.
+
   #table(
     columns: 2,
     [Parameter], [Value],

@@ -234,20 +234,39 @@ def _write_valid_cell(row: dict) -> Path:
         "campaign_resolved_parameters": row["parameters"],
     }
     (directory / "config.json").write_text(json.dumps({**expected, **identity}))
-    (directory / "metrics.json").write_text(json.dumps({**identity, "config": expected}))
     epochs = row["parameters"]["epochs"]
     samples = round(row["parameters"]["max_samples"] * 0.9)
     (directory / "metrics.jsonl").write_text("\n".join(
         json.dumps({"ep": epoch, "samples": samples, "acc": 10.0})
         for epoch in range(1, epochs + 1)
     ) + "\n")
-    torch.save({
+    state = {
         "b_out": torch.ones(10),
         "W_ff.0": torch.ones(784, 1024),
         "W_ff.1": torch.ones(1024, 10),
         "W_ei.1": torch.ones(1024, 256),
         "W_ie.1": torch.ones(256, 1024),
-    }, directory / "weights.pth")
+    }
+    torch.save(state, directory / "weights.pth")
+    torch.save({**state, "b_out": torch.full((10,), 2.0)}, directory / "weights_final.pth")
+    checkpoints = {
+        "best_validation": {
+            "filename": "weights.pth",
+            "epoch": 1,
+            "sha256": campaign.sha256_file(directory / "weights.pth"),
+        },
+        "final_epoch": {
+            "filename": "weights_final.pth",
+            "epoch": epochs,
+            "sha256": campaign.sha256_file(directory / "weights_final.pth"),
+        },
+    }
+    (directory / "metrics.json").write_text(json.dumps({
+        **identity,
+        "config": expected,
+        "best_epoch": 1,
+        "checkpoints": checkpoints,
+    }))
     return directory
 
 
@@ -269,6 +288,11 @@ def test_validator_recognizes_w_ff_readout_without_named_output_key(tmp_path: Pa
     checkpoint = torch.load(directory / "weights.pth", map_location="cpu", weights_only=True)
     checkpoint.pop("b_out")
     torch.save(checkpoint, directory / "weights.pth")
+    metrics = json.loads((directory / "metrics.json").read_text())
+    metrics["checkpoints"]["best_validation"]["sha256"] = campaign.sha256_file(
+        directory / "weights.pth"
+    )
+    (directory / "metrics.json").write_text(json.dumps(metrics))
     assert campaign.validate_cell(row) == {"valid": True, "state": "complete", "reasons": []}
 
 

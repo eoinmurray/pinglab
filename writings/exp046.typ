@@ -16,6 +16,8 @@
 
   == Methods
 
+  Cycle statistics are evaluated from the final-epoch checkpoints used by exp041, so this experiment audits the same endpoint gamma dynamics.
+
   For each of exp041's 18 trained cells (6 $tau_"GABA"$ × 3 seeds):
 
   + Run inference on the MNIST test set; capture per-trial $(T, B, N_E)$ and $(T, B, N_I)$ spike tensors.
