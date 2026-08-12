@@ -686,7 +686,7 @@ def measure_p_fgamma(train_dir: Path, is_ping: bool) -> dict:
         train_dir,
         ["--outputs", "pop_traces", "rasters"],
         out_name="pfg",
-        max_samples=PFG_MAX_TRIALS * 5,  # 80/20 split -> ~PFG_MAX_TRIALS test trials
+        max_samples=PFG_MAX_TRIALS * 5,
     )
     m = json.loads((out_dir / "metrics.json").read_text())
     rates = m.get("rates_hz", {})

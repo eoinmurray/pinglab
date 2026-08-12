@@ -388,6 +388,21 @@ def train(
         "batch_size": bs,
         "grad_clip": GRAD_CLIP,
         "max_samples": max_samples,
+        "dataset_split": (
+            {
+                "source_train_partition": "official_mnist_train",
+                "source_test_partition": "official_mnist_test",
+                "validation_fraction": 0.1,
+                "split_seed": 42,
+                "optimizer_train_samples": len(y_tr),
+                "validation_samples": len(y_te),
+                "official_test_samples": 10000,
+                "checkpoint_selection_partition": "validation",
+                "official_test_used_during_training": False,
+            }
+            if dataset == "mnist"
+            else {"contract": "official_shd_train_test"}
+        ),
         "n_params": n_params,
         "n_trainable": n_trainable,
         "dales_law": dales_law,
@@ -691,8 +706,8 @@ def train(
         correct = total = 0
         test_loss_sum = 0.0
         test_batches = 0
-        # Accumulate per-cell rate (Hz) over the full test set so the
-        # per-epoch metrics record reflects test-set means rather than
+        # Accumulate per-cell rate (Hz) over the validation set so the
+        # per-epoch metrics record reflects validation means rather than
         # only the single-trial observation rate.
         test_rate_e_sum = 0.0
         test_rate_i_sum = 0.0
@@ -1014,6 +1029,7 @@ def train(
             "tau_ampa_ms": float(M.tau_ampa),
             "max_samples": max_samples,
             "dataset": dataset,
+            "dataset_split": config["dataset_split"],
             "v_grad_dampen": v_grad_dampen,
             "batch_size": bs,
             "grad_clip": GRAD_CLIP,
@@ -1033,7 +1049,8 @@ def train(
 
     jsonl.close()
 
-    # test_predictions.json — per-sample inference on test set using best state
+    # Historical filename retained for artifact compatibility; these are
+    # validation predictions used during checkpoint selection, not test data.
     if best_state is not None:
         net.load_state_dict(best_state, strict=False)
     net.eval()

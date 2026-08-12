@@ -11,6 +11,7 @@ import logging
 from pathlib import Path
 
 import models as M
+import numpy as np
 import torch
 from config import build_net, save_snapshot_npz, set_sim_dt, setup_model_globals
 from datasets import DATASET_N_HIDDEN_DEFAULTS, load_dataset
@@ -169,9 +170,16 @@ def infer(
     )
     device = _auto_device()
 
-    # Data — same canonical loader and split as train, so the test set is
-    # the same physical samples the training never saw
-    _, X_te, _, y_te = load_dataset(dataset, max_samples=max_samples, split=True)
+    # MNIST inference reports the untouched official test partition. Training
+    # uses a validation split drawn only from the official training partition.
+    _, X_te, _, y_te = load_dataset(
+        dataset, max_samples=None, split=True, evaluation_split="test"
+    )
+    if max_samples is not None and max_samples < len(y_te):
+        eval_idx = np.random.RandomState(42).choice(
+            len(y_te), max_samples, replace=False
+        )
+        X_te, y_te = X_te[eval_idx], y_te[eval_idx]
     M.N_IN = 784
 
     from torch.utils.data import DataLoader, TensorDataset
@@ -414,6 +422,10 @@ def infer(
                 "n_in": M.N_IN,
                 "max_samples": max_samples,
                 "dataset": dataset,
+                "evaluation_partition": (
+                    "official_mnist_test" if dataset == "mnist" else "official_shd_test"
+                ),
+                "evaluation_samples": total,
                 "load_weights": str(load_weights),
             },
             "best_acc": acc,
@@ -430,8 +442,6 @@ def infer(
     # E1: write per-cell rate arrays if requested. rate = total spikes per cell
     # over the test set / (n_trials × physical trial time in seconds) → Hz.
     if emit_per_cell_rates and out_dir_path and out_dir_path.exists():
-        import numpy as np
-
         t_sec = float(M.T_ms) / 1000.0
         denom = total * t_sec if total else 1.0
         dump = {}
@@ -446,8 +456,6 @@ def infer(
     # E2: write per-trial population activity traces (base signal for PSD/f_gamma).
     # Each row is one test trial's per-timestep mean spike activity over cells.
     if emit_pop_traces and out_dir_path and out_dir_path.exists():
-        import numpy as np
-
         dump = {"dt": np.float32(dt)}
         if pop_e_rows:
             dump["pop_e"] = np.stack(pop_e_rows)  # (n_samples, T)
@@ -465,8 +473,6 @@ def infer(
     # per trial. Spikes are sparse so this stays small (tens of MB) vs the dense
     # (n_trials × T × N) arrays it represents.
     if emit_rasters and out_dir_path and out_dir_path.exists():
-        import numpy as np
-
         def _cat(store):
             if not store["trial"]:
                 return (np.zeros(0, np.int32),) * 3
@@ -550,7 +556,9 @@ def infer_and_snapshot(
     device = _auto_device()
 
     # Load dataset
-    _, X_te, _, y_te = load_dataset(dataset, max_samples=None, split=True)
+    _, X_te, _, y_te = load_dataset(
+        dataset, max_samples=None, split=True, evaluation_split="test"
+    )
     M.N_IN = 784
 
     # Select single sample. A raw sample_index overrides digit-class selection for

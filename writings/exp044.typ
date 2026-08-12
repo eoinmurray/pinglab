@@ -32,8 +32,8 @@
     [Parameter], [Value],
     [Integration timestep $Delta t$], [0.05–1.0 ms (swept)],
     [Trial duration $T$], [200 ms],
-    [MNIST samples (80/20 stratified split of 7000)],
-    [5600 train / 1400 test (≈ 10% of the 70k-sample MNIST corpus)],
+    [MNIST training pool (7,000 official-training samples)],
+    [6,300 optimizer-training / 700 validation; evaluation uses the official 10,000-image test partition],
     [Epochs], [50],
   )
 

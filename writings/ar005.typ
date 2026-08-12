@@ -238,7 +238,7 @@
 
   == test_loss
 
-  _What it is:_ Cross-entropy on the held-out test set, evaluated once per epoch.
+  _What it is:_ Cross-entropy on the validation split, evaluated once per epoch. The _test__ prefix is a legacy artifact-field name; no official MNIST test images are used during training.
 
   _Common values:_ Tracks _loss_ with a small gap. A widening gap usually means overfitting; a gap that collapses to zero often means data leakage between train and test.
 
@@ -262,7 +262,7 @@
 
   == acc
 
-  _What it is:_ Test-set accuracy (%) at the end of each epoch — the canonical "how well is the network classifying" number.
+  _What it is:_ Validation accuracy (%) at the end of each epoch. It selects the checkpoint but is not the final reported test accuracy.
 
   _Common values:_ 10 % is chance on MNIST; 85–90 % is typical at a small training tier; 95–98 % at medium or larger; anything above 98 % flags a leaked test split or a bug.
 
@@ -270,7 +270,7 @@
 
   _What it is:_ The maximum of _acc_ over all epochs seen so far. Tracked alongside _best_epoch_ (the epoch that set it) and a _new_best_ flag (true on the epoch that set it).
 
-  _Common values:_ This is the headline number cited in notebook entries. If _best_epoch_ is near the final epoch the run was still improving; if much earlier, it had plateaued.
+  _Common values:_ This is the checkpoint-selection value. If _best_epoch_ is near the final epoch the run was still improving; if much earlier, it had plateaued.
 
   On inference runs, _best_acc_ is just the single-shot test accuracy; the raw count _n_correct_ is saved alongside, and per-sample calls go to _test_predictions.json_ (one row per sample, carrying _idx_, _true_, _pred_, _correct_, _logits_ for confusion-matrix and calibration downstream).
 ]

@@ -72,13 +72,18 @@ def test_load_dataset_deterministic_mnist():
     assert np.array_equal(ay_te, by_te)
 
 
-def test_train_and_infer_share_test_split_mnist():
+def test_validation_and_official_test_are_distinct_mnist():
     from tool import load_dataset
 
-    _, train_X_te, _, train_y_te = load_dataset("mnist", max_samples=500, split=True)
-    _, infer_X_te, _, infer_y_te = load_dataset("mnist", max_samples=500, split=True)
-    assert np.array_equal(train_X_te, infer_X_te)
-    assert np.array_equal(train_y_te, infer_y_te)
+    _, validation_x, _, validation_y = load_dataset(
+        "mnist", max_samples=500, split=True, evaluation_split="validation"
+    )
+    _, test_x, _, test_y = load_dataset(
+        "mnist", max_samples=500, split=True, evaluation_split="test"
+    )
+    assert len(validation_y) == 50
+    assert len(test_y) == 10_000
+    assert not np.array_equal(validation_x, test_x)
 
 
 # ── CLI propagation (slow) ───────────────────────────────────────────────
@@ -141,8 +146,8 @@ def test_t_ms_propagates_train(tmp_path):
 
 
 @pytest.mark.slow
-def test_train_then_infer_match(tmp_path):
-    """infer accuracy on a freshly trained checkpoint == train's last-epoch eval."""
+def test_train_selects_on_validation_then_infer_uses_official_test(tmp_path):
+    """Training and inference use validation and official-test data respectively."""
     train_dir = tmp_path / "match-train"
     rc, _, _ = _run_cli(
         "train",
@@ -168,10 +173,11 @@ def test_train_then_infer_match(tmp_path):
     )
     assert rc == 0
     train_metrics = json.loads((train_dir / "metrics.json").read_text())
-    # weights.pth holds the BEST-epoch state_dict, not the last one, so we
-    # compare infer's fresh eval against train's best_acc.
-    train_best_acc = train_metrics["best_acc"]
-    assert train_best_acc is not None
+    assert train_metrics["best_acc"] is not None
+    split = train_metrics["config"]["dataset_split"]
+    assert split["optimizer_train_samples"] == 180
+    assert split["validation_samples"] == 20
+    assert split["official_test_used_during_training"] is False
 
     infer_dir = tmp_path / "match-infer"
     rc, _, _ = _run_cli(
@@ -198,7 +204,6 @@ def test_train_then_infer_match(tmp_path):
         "--wipe-dir",
     )
     assert rc == 0
-    infer_acc = json.loads((infer_dir / "metrics.json").read_text())["best_acc"]
-    assert abs(infer_acc - train_best_acc) < 0.01, (
-        f"train best={train_best_acc}% infer={infer_acc}%"
-    )
+    infer_metrics = json.loads((infer_dir / "metrics.json").read_text())
+    assert infer_metrics["n_total"] == 200
+    assert infer_metrics["config"]["evaluation_partition"] == "official_mnist_test"

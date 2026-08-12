@@ -171,9 +171,10 @@ INIT_CONDITIONS: dict[str, tuple] = {
 
 TAU_GABA_SWEEP = (4.5, 6.0, 9.0, 12.0, 18.0, 27.0)   # exp041
 DT_SWEEP_MS = (0.05, 0.1, 0.25, 0.5, 1.0)             # exp044 (the dt exception)
-MNIST_POOL = 70000                                   # 60k train + 10k test pool
-CANONICAL_MAX_SAMPLES = MNIST_POOL                    # the canonical run sees all of it
-SUBSET_MAX_SAMPLES = MNIST_POOL // 10                 # 10% of MNIST for the sweeps
+MNIST_TRAIN_SAMPLES = 60000                           # official training partition
+MNIST_TEST_SAMPLES = 10000                            # untouched official test partition
+CANONICAL_MAX_SAMPLES = MNIST_TRAIN_SAMPLES           # all official training data
+SUBSET_MAX_SAMPLES = 7000                             # reduced sweep training pool
 MAX_SAMPLES = 100                                     # plumbing cap on every cell
 EPOCHS = 2                                            # plumbing depth on every cell
 BATCH_SIZE = 256                                      # fixed across every recipe
@@ -315,11 +316,16 @@ def scientific_contract(cell: dict, max_samples: int, epochs: int) -> dict:
     return {
         "dataset": {
             "name": "mnist",
-            "pool_size": int(max_samples),
-            "split": "stratified_80_20",
+            "source_train_partition": "official_mnist_train",
+            "source_test_partition": "official_mnist_test",
+            "training_pool_size": int(max_samples),
+            "split": "stratified_90_10_within_official_train",
             "split_seed": 42,
-            "optimizer_train_samples": round(max_samples * 0.8),
-            "checkpoint_holdout_samples": max_samples - round(max_samples * 0.8),
+            "optimizer_train_samples": round(max_samples * 0.9),
+            "validation_samples": max_samples - round(max_samples * 0.9),
+            "official_test_samples": MNIST_TEST_SAMPLES,
+            "checkpoint_selection_partition": "validation",
+            "official_test_used_during_training": False,
         },
         "input": {
             "encoding": "poisson_max_pixel_rate",
@@ -661,7 +667,7 @@ def _train_one_cell(cell: dict, plumbing: bool) -> None:
     ms, ep = cell_samples_epochs(cell)  # honours PINGLAB_NB022_PLUMBING
     spec = cell
     if plumbing:
-        # build_train_args re-applies a canonical cell's own max_samples (70000),
+        # build_train_args re-applies a canonical cell's own max_samples (60000),
         # which would defeat the tiny plumbing scale. Strip it so the plumbing
         # ms=100 takes — and so runpod_is_done agrees with what was trained.
         spec = {k: v for k, v in cell.items() if k != "max_samples"}
@@ -913,8 +919,9 @@ def appendix_rasters() -> None:
 
 
 # ── Results: the data-fraction contrast (100% vs 10% MNIST) ──────────
-# The canonical cells train on all 70k images; every sweep (including the
-# no-budget `off` cell) trains on 10%. Weights differ ONLY in that fraction, so
+# The canonical cells use all 60k official training images; every sweep
+# (including the no-budget `off` cell) uses a 7k subset. Weights differ ONLY in
+# that training-pool size, so
 # the raster density gap between coba/ping canonical and off is attributable to
 # the training data alone — the visual counterpart to the ≈ 2× firing-rate gap.
 

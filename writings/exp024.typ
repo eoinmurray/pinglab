@@ -90,11 +90,11 @@
 
   Accuracy needs only the _sign_ of $m$; cross-entropy keeps shrinking with the
   _size_ of the gaps. So past the convergence line the argmax is fixed but the loss
-  still falls by widening margins, which means scaling logits up. With a mem-mean
+  still falls on validation data by widening margins, which means scaling logits up. With a mem-mean
   readout, $z approx W_"out" dot ("E activity")$, so wider margins cost either
   weight or spikes. COBA takes the spike route (rate ≈ 45 → 143 Hz, still climbing);
   PING sharpens its readout through the loop and holds ≈ 10 Hz. The loop buys
-  confidence for free; without it, confidence costs spikes.
+  confidence without the same activity increase; without it, confidence costs spikes.
 
   So the rate doesn't fail to converge: it tracks a loss that never stops
   rewarding margin. Each cell's per-epoch metrics already record _test_margin_,
@@ -104,7 +104,7 @@
   == Next steps
 
   Figure 3 infers confidence from the rate. The margin, confidence and logit scale
-  that exp022 already logs per epoch let us measure it directly:
+  that exp022 already logs on the validation split per epoch let us measure it directly:
 
   - Plot per-epoch *margin $⟨m⟩$*, *confidence $⟨p_y⟩$* and *logit scale* vs
     epoch, COBA vs PING: the direct version of Figure 3's middle panel.
