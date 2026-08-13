@@ -8,6 +8,12 @@ import os
 from pathlib import Path
 
 from .archive import archive_run, restore_archive, verify_archive
+from .campaigns import (
+    activate_campaign,
+    catalogue,
+    current_view,
+    resolve_local_campaign,
+)
 from .contract import (
     ContractError,
     inventory_payload,
@@ -24,6 +30,13 @@ from .storage import build_store
 
 DEFAULT_STORE = "r2:pinglab/campaigns"
 DEFAULT_LOGICAL_URI = "r2://pinglab/campaigns"
+
+
+def _default_local_roots() -> list[Path]:
+    configured = os.environ.get("PINGLAB_RUNSTORE_LOCAL_ROOTS")
+    if configured:
+        return [Path(value) for value in configured.split(os.pathsep) if value]
+    return [Path("runs/campaigns"), Path("runs/restored")]
 
 
 def _human_size(value: int) -> str:
@@ -200,6 +213,37 @@ def build_parser() -> argparse.ArgumentParser:
     restore_parser.add_argument("destination", type=Path)
     restore_parser.add_argument("--json", action="store_true", dest="as_json")
     add_store_arguments(restore_parser)
+
+    campaigns_parser = commands.add_parser(
+        "campaigns", help="list local and archived collection campaigns"
+    )
+    campaigns_parser.add_argument("--local-root", type=Path, action="append")
+    campaigns_parser.add_argument("--local-only", action="store_true")
+    campaigns_parser.add_argument("--json", action="store_true", dest="as_json")
+    campaigns_parser.add_argument(
+        "--artifacts-root", type=Path, default=Path("artifacts/data")
+    )
+    add_store_arguments(campaigns_parser)
+
+    activate_parser = commands.add_parser(
+        "activate", help="atomically make one local campaign UI-visible"
+    )
+    activate_parser.add_argument(
+        "campaign", help="local path, campaign ID, or archive ID"
+    )
+    activate_parser.add_argument("--local-root", type=Path, action="append")
+    activate_parser.add_argument(
+        "--artifacts-root", type=Path, default=Path("artifacts/data")
+    )
+
+    current_parser = commands.add_parser(
+        "current", help="show and verify the campaign visible in artifacts"
+    )
+    current_parser.add_argument(
+        "--artifacts-root", type=Path, default=Path("artifacts/data")
+    )
+    current_parser.add_argument("--no-verify-files", action="store_true")
+    current_parser.add_argument("--json", action="store_true", dest="as_json")
     return parser
 
 
@@ -253,8 +297,8 @@ def main(argv: list[str] | None = None) -> None:
                 )
             )
             raise SystemExit(0)
-        store = build_store(args.store, logical_base_uri=args.logical_base_uri)
         if args.command == "archive":
+            store = build_store(args.store, logical_base_uri=args.logical_base_uri)
             result = archive_run(args.root, args.archive_id, store)
             _print_result(
                 {
@@ -265,13 +309,61 @@ def main(argv: list[str] | None = None) -> None:
             )
             raise SystemExit(0)
         if args.command == "verify":
+            store = build_store(args.store, logical_base_uri=args.logical_base_uri)
             _print_result(verify_archive(store, args.archive_id), as_json=args.as_json)
             raise SystemExit(0)
         if args.command == "restore":
+            store = build_store(args.store, logical_base_uri=args.logical_base_uri)
             _print_result(
                 restore_archive(store, args.archive_id, args.destination),
                 as_json=args.as_json,
             )
+            raise SystemExit(0)
+        if args.command == "campaigns":
+            roots = args.local_root or _default_local_roots()
+            store = (
+                None
+                if args.local_only
+                else build_store(args.store, logical_base_uri=args.logical_base_uri)
+            )
+            active_id = None
+            try:
+                active_id = current_view(args.artifacts_root, verify_files=False)[
+                    "campaign_id"
+                ]
+            except ContractError:
+                pass
+            rows = catalogue(roots, store, active_campaign_id=active_id)
+            if args.as_json:
+                print(json.dumps(rows, indent=2))
+            elif not rows:
+                print("No campaigns found.")
+            else:
+                print(
+                    f"{'CAMPAIGN':<32} {'LOCATION':<10} {'STATUS':<10} "
+                    f"{'PROFILE':<11} {'UI':<7} COMMIT"
+                )
+                for row in rows:
+                    commit = row["git_commit"][:8] if row["git_commit"] else "—"
+                    print(
+                        f"{row['campaign_id']:<32} "
+                        f"{'+'.join(row['locations']):<10} {row['status']:<10} "
+                        f"{(row['profile'] or '—'):<11} "
+                        f"{('current' if row['active'] else '—'):<7} {commit}"
+                    )
+            raise SystemExit(0)
+        if args.command == "activate":
+            roots = args.local_root or _default_local_roots()
+            root = resolve_local_campaign(args.campaign, roots)
+            _print_result(activate_campaign(root, artifacts_root=args.artifacts_root))
+            raise SystemExit(0)
+        if args.command == "current":
+            result = current_view(
+                args.artifacts_root, verify_files=not args.no_verify_files
+            )
+            _print_result(result, as_json=args.as_json)
+            if not result["valid"]:
+                raise SystemExit(1)
             raise SystemExit(0)
     except ContractError as exc:
         raise SystemExit(f"runstore: {exc}") from exc

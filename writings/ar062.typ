@@ -1,89 +1,153 @@
+#import "/.demolab/lib.typ": cite, reference-list
+
 #let meta = (
-  title: "Bayesian Fundamentals",
+  title: "Bayesian and sampling-based cortical computation",
   date: "2026-06-28",
-  description: "A short primer fixing the notation and vocabulary the neural-Bayesian reading list leans on: Bayes' rule, marginalisation, conjugacy, VI/MCMC, KL, and posterior summaries.",
+  description: "A project-oriented reading guide to Bayesian population codes, neural sampling, recurrent E/I dynamics, and the background needed to read the core papers.",
   collection: "miscellaneous",
 )
 
+#let refs = (
+  (text: [Pouget, Dayan & Zemel (2003), _Inference and computation with population codes_], doi: "10.1146/annurev.neuro.26.041002.131112"),
+  (text: [Ma, Beck, Latham & Pouget (2006), _Bayesian inference with probabilistic population codes_], doi: "10.1038/nn1790"),
+  (text: [Fiser, Berkes, Orbán & Lengyel (2010), _Statistically optimal perception and learning: from behavior to neural representations_], doi: "10.1016/j.tics.2010.01.003"),
+  (text: [Aitchison & Lengyel (2016), _The Hamiltonian brain: efficient probabilistic inference with excitation-inhibition networks_], doi: "10.1371/journal.pcbi.1005186"),
+  (text: [Orbán, Berkes, Fiser & Lengyel (2016), _Neural variability and sampling-based probabilistic representations in the visual cortex_], doi: "10.1016/j.neuron.2016.09.038"),
+  (text: [Echeveste, Aitchison, Hennequin & Lengyel (2020), _Cortical-like dynamics in recurrent circuits optimized for sampling-based probabilistic inference_], doi: "10.1038/s41593-020-0671-1"),
+  (text: [Padamsey, Katsanevaki, Dupuy & Rochefort (2022), _Neocortex saves energy by reducing coding precision during food scarcity_], doi: "10.1016/j.neuron.2021.10.024"),
+)
+
 #let body = [
-  A short primer for the vocabulary the neural-Bayesian papers in the #link("/ar007/")[Bayesian Literature Review] lean on without redefining. The aim is not to teach Bayesian statistics from scratch — it is to fix notation, name the moves, and flag where the hard parts are, so a reader recognises each term on contact when they hit it in Ma, Fiser, Lengyel, or Echeveste.
+  This guide connects the neural-Bayesian literature to our PING project. The central question is not merely whether cortical behaviour can look Bayesian. It is whether recurrent excitatory/inhibitory (E/I) dynamics can represent uncertainty by sampling, and whether the oscillatory and transient regimes we measure are computationally useful rather than incidental.
 
-  == The core equation
+  == 1. Papers and their relation to the project
 
-  Given a generative model — a forward story for how unobserved causes $theta$ produce observations $x$ — Bayes' rule inverts the story:
+  + *Pouget, Dayan & Zemel (2003), population-code foundations.* A broad account of inference with population activity#cite(1). It supplies the coding language needed to distinguish a distribution represented by a population from a single decoded estimate. For this project, it is the conceptual baseline: before asking whether PING dynamics sample a posterior, we need to state what information the population activity carries and what a downstream readout could recover.
 
-  $ p(theta | x) = (p(x | theta) p(theta))/(p(x)) prop p(x | theta) p(theta) quad (1) $
+  + *Ma, Beck, Latham & Pouget (2006), probabilistic population codes.* This is the canonical parametric alternative to neural sampling#cite(2). Instantaneous population rates encode the parameters of an exponential-family distribution, and cue combination becomes addition of population activity. It gives us a competing hypothesis: uncertainty may be encoded in population gain rather than in temporal variability. Any sampling claim from our network should make predictions that separate these accounts.
 
-  - $theta$ — the latent (unobserved) cause to be inferred (a tilt angle, a phoneme, a depth);
-  - $x$ — the observation (the retinal image, the cochlear input);
-  - $p(theta)$ — the *prior*, what was believed about $theta$ before seeing $x$;
-  - $p(x | theta)$ — the *likelihood*, how probable this $x$ would be if $theta$ were the cause;
-  - $p(theta | x)$ — the *posterior*, the updated belief about $theta$ after seeing $x$;
-  - $p(x) = integral p(x | theta) p(theta) dif theta$ — the *evidence* (or marginal likelihood), the normaliser.
+  + *Fiser, Berkes, Orbán & Lengyel (2010), the sampling hypothesis.* This review develops the proposal that spontaneous and evoked cortical activity are samples from an internal generative model#cite(3). It connects trial-to-trial variability to probabilistic representation. For our project, it motivates treating fluctuations as signal-bearing dynamics and asking whether the stationary activity distribution, rather than only the mean firing rate or oscillation frequency, matches a target distribution.
 
-  The proportionality at the right is doing most of the work in practice: every algorithm in the rest of this article exists to avoid computing $p(x)$ exactly.
+  + *Aitchison & Lengyel (2016), E/I circuits as Hamiltonian samplers.* This paper is the closest theoretical bridge to our model#cite(4). It assigns different computational roles to excitatory and inhibitory populations and argues that their coupled dynamics can accelerate sampling. It should inform which E/I variables we analyse, how phase-lagged activity might act like position and momentum, and why balanced oscillatory dynamics could improve exploration rather than simply stabilize the circuit.
 
-  == Generative model vs recognition
+  + *Orbán, Berkes, Fiser & Lengyel (2016), neural variability as sampling evidence.* This paper tests sampling-based predictions in visual cortex#cite(5). It is useful for translating the theory into empirical diagnostics, especially the relation between stimulus-dependent uncertainty, response variability, and the distribution of population activity. Our analogue is to test whether trained PING networks change their variability in the way the represented posterior requires.
 
-  A *generative model* is the brain's (or the modeller's) story about how the world produces the data: causes $->$ observations. *Recognition* (or *inference*) is the reverse — recover $p(theta | x)$ from $x$. These are different computations and the brain need not implement them the same way; a sensory area can run a fast amortised recognition map even if the underlying generative model is much richer. When neural-Bayesian papers say "the cortex represents the posterior", they mean the recognition output.
+  + *Echeveste, Aitchison, Hennequin & Lengyel (2020), optimized recurrent samplers.* Recurrent networks optimized for sampling develop cortical-like transients and variability#cite(6). This is the most direct precedent for training a recurrent circuit toward a sampling objective. It motivates comparing task performance with mixing, autocorrelation, transient amplification, and stability, including our Δt-stability diagnostics. A network that fits the task but mixes poorly is not yet a convincing sampler.
 
-  == Marginalisation, and why it's the hard part
+  + *Padamsey, Katsanevaki, Dupuy & Rochefort (2022), precision under metabolic constraint.* Food scarcity reduces cortical coding precision and energy use#cite(7). This adds a cost axis to the project. If spike rate, inhibitory recruitment, or oscillatory precision has a metabolic price, the best circuit may trade posterior precision against energy rather than maximize accuracy without constraint.
 
-  Anything you don't care about you must integrate out:
+  == 2. Reading order and guide
 
-  $ p(theta_1 | x) = integral p(theta_1, theta_2 | x) dif theta_2 quad (2) $
+  Read the papers in four passes. The order below moves from representation, through the sampling hypothesis, to circuit implementation and finally energetic constraint.
 
-  - $theta_1$ — the quantity of interest (the depth of a surface);
-  - $theta_2$ — the nuisance variables (lighting, surface reflectance) you marginalise over.
+  + *Establish the representational alternatives: Pouget et al. (2003), then Ma et al. (2006).* Ask what object neural activity represents, how uncertainty is encoded, and what operations a downstream circuit can perform. Keep the distinction between _encoding a distribution's parameters_ and _producing samples from a distribution_ explicit.
 
-  For high-dimensional $theta$ this integral is intractable. Every approximate-inference algorithm below is, at heart, a different way to dodge it.
+  + *Learn the sampling claim: Fiser et al. (2010), then Orbán et al. (2016).* Ask what counts as a neural sample, over what time or trial ensemble the distribution is defined, and which observations distinguish meaningful sampling variability from ordinary noise.
 
-  == Conjugacy and the exponential family
+  + *Study the E/I mechanism: Aitchison & Lengyel (2016), then Echeveste et al. (2020).* Track the mapping from mathematical sampler variables to excitatory and inhibitory activity. Then look for measurable consequences in our networks: phase relations, autocorrelation time, mixing, transient amplification, stationary distributions, and sensitivity to the integration step $Delta t$.
 
-  A likelihood–prior pair is *conjugate* if the posterior has the same parametric form as the prior. Conjugate pairs (Gaussian–Gaussian, beta–Bernoulli, Dirichlet–multinomial) give closed-form posterior updates and are the only place Bayes is genuinely cheap. They live inside the *exponential family*:
+  + *Add the resource constraint: Padamsey et al. (2022).* Ask whether coding precision, firing cost, and inhibitory stabilization can be treated as a joint objective. This paper is best read last because it changes the optimization question from “what is the most accurate code?” to “what precision is worth its metabolic cost?”
 
-  $ p(x | eta) = h(x) exp(eta^top T(x) - A(eta)) quad (3) $
+  On a first pass, read abstracts, figures, and discussion. On a second pass, reconstruct the representation and objective in equations. On a third pass, extract one table with four columns for each paper: represented quantity, circuit mechanism, observable prediction, and corresponding diagnostic in our PING model.
 
-  - $eta$ — the *natural parameters*;
-  - $T(x)$ — the *sufficient statistics* (the only function of $x$ the posterior cares about);
-  - $A(eta)$ — the *log-partition* (normaliser), whose derivatives give the moments of $T$;
-  - $h(x)$ — a base measure.
+  == 3. Terms and background to know
 
-  This matters for cortex because the Probabilistic Population Code framework (Ma et al. 2006, in #link("/ar007/")[ar007]) writes posteriors as exponential families whose natural parameters are population firing rates: $eta eq.triple bold(r)$. Multiplying two PPCs (combining cues) becomes adding their firing rates — the framework's central, very pretty claim.
+  === Bayesian fundamentals
 
-  == Three flavours of approximate inference
+  A *generative model* is a forward account of how an unobserved cause $theta$ produces an observation $x$. *Recognition* or *inference* reverses that account and estimates the cause from the observation. Bayes' rule is
 
-  When the posterior is not conjugate, you approximate. Three families dominate; the neural-Bayesian papers each pick one:
+  $ p(theta | x) = (p(x | theta) p(theta))/(p(x)) prop p(x | theta) p(theta). $
 
-  - *Laplace approximation.* Find the posterior mode $hat(theta)$, fit a Gaussian whose covariance is $(-nabla^2 log p(theta | x))^(-1)$ at the mode. Cheap, local, breaks down when the posterior is multimodal.
-  - *Variational inference (VI).* Pick a tractable family $q_phi (theta)$ and minimise $"KL"(q_phi (theta) || p(theta | x))$ in $phi$. Turns inference into optimisation. Fast, scalable, but biased — the bias is whatever $p$ has that $q$ cannot represent.
-  - *Markov chain Monte Carlo (MCMC).* Construct a Markov chain whose stationary distribution _is_ the posterior, then run it. Unbiased in the limit, slow to converge. Variants: Metropolis–Hastings, Gibbs sampling, Langevin dynamics (gradient + noise), Hamiltonian Monte Carlo (gradient + momentum). The Lengyel-group "sampling cortex" papers in #link("/ar007/")[ar007] argue that cortical dynamics are a biological MCMC chain — Aitchison & Lengyel cast E/I circuits as a Hamiltonian sampler, with the inhibitory population playing the momentum role.
+  - $theta$ is the latent or unobserved cause.
+  - $x$ is the observation.
+  - $p(theta)$ is the *prior*, the distribution before observing $x$.
+  - $p(x | theta)$ is the *likelihood*, the probability of $x$ under a proposed cause.
+  - $p(theta | x)$ is the *posterior*, the updated distribution over causes.
+  - $p(x) = integral p(x | theta) p(theta) dif theta$ is the *evidence* or marginal likelihood, which normalizes the posterior.
 
-  == KL divergence
+  *Marginalisation* integrates out variables that are not of interest. For a target $theta_1$ and nuisance variable $theta_2$,
 
-  The asymmetric "distance" between two distributions:
+  $ p(theta_1 | x) = integral p(theta_1, theta_2 | x) dif theta_2. $
 
-  $ "KL"(q || p) = integral q(theta) log (q(theta))/(p(theta)) dif theta >= 0, quad "with equality iff " q = p. quad (4) $
+  - $theta_1$ is the quantity to retain.
+  - $theta_2$ is the nuisance variable to integrate out.
+  - $x$ is the observation.
 
-  Asymmetric because $"KL"(q || p) != "KL"(p || q)$ in general. VI minimises $"KL"(q || p)$ (forward KL) which makes $q$ _mode-seeking_ (it concentrates on a single mode rather than averaging across modes); some methods minimise $"KL"(p || q)$ (reverse KL) which makes $q$ _mass-covering_. The choice shows up in what the approximate posterior looks like.
+  High-dimensional marginalisation is usually intractable, which is why approximate inference is needed.
 
-  == Posterior summaries (the things a brain might actually read out)
+  === Probability representations
 
-  A posterior is a distribution; downstream computation usually wants a number or two. The standard summaries:
+  - *Probabilistic population code (PPC).* Population firing rates encode parameters of a probability distribution. In an exponential-family PPC,
 
-  - *MAP estimate.* The mode: $theta_"MAP" = arg max_theta p(theta | x)$. A single best guess.
-  - *Posterior mean.* $bb(E)[theta | x]$. The Bayes-optimal point estimate under squared-error loss.
-  - *Posterior variance / credible interval.* The width — how _uncertain_ the inference is. The whole point of being Bayesian rather than maximum-likelihood; if downstream computation needs to know "should I bet on this?" it needs the spread, not just the mean.
+    $ p(theta | x) prop exp(bold(h)(theta)^top bold(r)). $
 
-  The neural-Bayesian split is partly about how the cortex represents this last one — as a population gain (PPC) or as trial-to-trial variability (sampling).
+    Here $theta$ is the latent variable, $x$ is the observation, $bold(h)(theta)$ is a vector of basis functions or sufficient statistics, and $bold(r)$ is the population response. Posterior uncertainty is commonly expressed through population gain.
 
-  == How this lands in the cortex
+  - *Sampling-based code.* Instantaneous activity is treated as a draw from a distribution,
 
-  Three claims recur in the reading list, in roughly this order of strength:
+    $ bold(r)(t) tilde p(bold(r) | x). $
 
-  + *Cortical responses look Bayesian behaviourally.* Cue integration, prior-weighted perception, multisensory fusion — all match Bayes-optimal predictions in many tasks. The papers in #link("/ar007/")[ar007] take this as given.
-  + *The cortical _representation_ of probability is one of two flavours.* Either parametric (firing rates encode posterior parameters — PPC) or sample-based (instantaneous activity is itself a sample). These are different empirical predictions about neural variability, and the camps disagree.
-  + *The cortical _dynamics_ implement the inference algorithm.* The sampling camp claims recurrent E/I circuits run Langevin or HMC; the PPC camp claims linear combinations of population activity perform the algebra. Echeveste et al. 2020 is the cleanest version of the dynamical claim.
+    Here $bold(r)(t)$ is population activity at time $t$, $x$ is the observation, and $p(bold(r) | x)$ is the target activity distribution. Uncertainty is expressed by variability across time or trials. A decoder estimates expectations from multiple samples rather than reading distribution parameters from a single activity vector.
 
-  This article stops short of those claims — see #link("/ar007/")[ar007] for the reading list that develops them.
+  - *Variational inference (VI).* A tractable distribution $q_phi(theta)$ is fitted to the posterior by optimizing parameters $phi$. VI turns inference into optimization and is usually fast, but its approximation is limited by the chosen family for $q_phi$.
+
+  === Exponential families and approximate inference
+
+  An exponential-family distribution has the form
+
+  $ p(x | eta) = h(x) exp(eta^top T(x) - A(eta)). $
+
+  - $x$ is the random variable.
+  - $eta$ is the vector of *natural parameters*.
+  - $T(x)$ is the vector of *sufficient statistics*.
+  - $A(eta)$ is the log-partition function.
+  - $h(x)$ is the base measure.
+
+  A prior and likelihood are *conjugate* when the posterior belongs to the same parametric family as the prior. Conjugacy makes some Bayesian updates analytic. PPCs use exponential-family structure because multiplying compatible distributions can become addition of their natural parameters.
+
+  Three common approximation families are:
+
+  - *Laplace approximation.* Fit a Gaussian around the posterior mode using local curvature. It is cheap but poor for strongly non-Gaussian or multimodal posteriors.
+  - *Variational inference.* Optimize a tractable $q_phi(theta)$ to approximate the posterior.
+  - *Markov chain Monte Carlo (MCMC).* Construct a Markov chain whose stationary distribution is the posterior. It can be asymptotically exact, but finite runs can be biased by burn-in and autocorrelation.
+
+  The *Kullback–Leibler (KL) divergence* compares distributions:
+
+  $ "KL"(q || p) = integral q(theta) log (q(theta))/(p(theta)) dif theta >= 0. $
+
+  - $p(theta)$ is the target distribution.
+  - $q(theta)$ is the approximation.
+  - $theta$ is the variable being integrated over.
+
+  The divergence is asymmetric. Minimizing $"KL"(q || p)$ is usually mode-seeking, while minimizing $"KL"(p || q)$ is usually mass-covering.
+
+  === Population coding and information
+
+  - *Tuning curve.* The mean response $f_i(theta)$ of neuron $i$ as a function of stimulus $theta$.
+  - *Fisher information.* A measure of how precisely responses identify $theta$. Under regularity conditions, an unbiased estimator obeys the Cramér–Rao bound, $"Var"(hat(theta)) >= 1 / I_F(theta)$, where $hat(theta)$ is the estimator and $I_F(theta)$ is Fisher information.
+  - *Linear Fisher information.* The information accessible to a linear decoder, which is a useful proxy for what a downstream neuron can extract through weighted synaptic input.
+  - *Noise correlations.* Trial-to-trial covariance between neurons at fixed stimulus. Correlations aligned with the tuning gradient can cap information even as the population grows.
+  - *Poisson variability.* A count model in which spike-count variance equals its mean. It is a common baseline rather than a universal biological law.
+
+  === Sampling dynamics and E/I circuits
+
+  - *Stationary distribution.* The distribution approached by a Markov process at long times. A neural-sampling claim requires the circuit's stationary distribution to match the intended posterior, not merely to display irregular activity.
+  - *Langevin dynamics.* Noisy gradient dynamics designed to approach a target stationary distribution. They provide the simplest bridge from a log-posterior landscape to recurrent stochastic dynamics.
+  - *Hamiltonian Monte Carlo (HMC).* A sampler that augments the represented variable with momentum, allowing longer, less diffusive moves through the target distribution. The Hamiltonian-brain account associates excitatory and inhibitory populations with complementary state variables.
+  - *Inhibition-stabilized network (ISN).* A recurrent E/I network whose excitatory subnetwork is unstable in isolation and stabilized by feedback inhibition.
+  - *Mixing time.* The time required for a chain to lose dependence on its initial state and explore the target distribution.
+  - *Autocorrelation time.* The time over which successive samples remain correlated. Shorter autocorrelation generally means more effective samples per unit time.
+  - *Transient amplification.* Temporary growth of selected activity patterns in an asymptotically stable recurrent network. It can accelerate movement through state space without requiring sustained instability.
+  - *Δt-stability.* In this project, robustness of the simulated or trained dynamics to the numerical integration step $Delta t$. A purported computational regime that disappears under a smaller step may be a discretization artefact rather than a property of the continuous-time circuit.
+
+  === Posterior readouts and metabolic cost
+
+  - *Maximum a posteriori (MAP) estimate.* The posterior mode, $theta_"MAP" = arg max_theta p(theta | x)$.
+  - *Posterior mean.* $bb(E)[theta | x]$, the Bayes-optimal point estimate under squared-error loss.
+  - *Posterior variance or credible interval.* The width of the posterior, representing uncertainty rather than only a best estimate.
+  - *Bits per spike.* Mutual information between stimulus and response divided by spike count, used as a measure of coding efficiency.
+  - *Coding precision.* The inverse width of the represented distribution. A system can reduce precision to save energy while retaining a similar posterior mean.
+  - *Metabolic cost of a spike.* The energetic cost, largely paid by ion pumps, of restoring ionic gradients after an action potential.
+
+  #reference-list(refs)
 ]
