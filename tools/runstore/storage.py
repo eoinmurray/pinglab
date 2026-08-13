@@ -21,6 +21,8 @@ class StoredObject:
 
 
 class Store(Protocol):
+    def archive_ids(self) -> list[str]: ...
+
     def exists(self, archive_id: str) -> bool: ...
 
     def put_archive(
@@ -50,6 +52,15 @@ class LocalStore:
 
     def _archive(self, archive_id: str) -> Path:
         return self.root / archive_id
+
+    def archive_ids(self) -> list[str]:
+        if not self.root.is_dir():
+            return []
+        return sorted(
+            path.parent.relative_to(self.root).as_posix()
+            for path in self.root.rglob("run.json")
+            if path.is_file()
+        )
 
     def exists(self, archive_id: str) -> bool:
         archive = self._archive(archive_id)
@@ -123,6 +134,16 @@ class RcloneStore:
     def _remote(self, archive_id: str, relative: str | None = None) -> str:
         result = f"{self.root}/{archive_id}"
         return f"{result}/{relative}" if relative else result
+
+    def archive_ids(self) -> list[str]:
+        result = self._run(
+            ["lsf", self.root, "--recursive", "--files-only"], capture=True
+        )
+        return sorted(
+            path.removesuffix("/run.json")
+            for path in result.stdout.splitlines()
+            if path.endswith("/run.json")
+        )
 
     @staticmethod
     def _run(args: list[str], *, capture: bool = False) -> subprocess.CompletedProcess:

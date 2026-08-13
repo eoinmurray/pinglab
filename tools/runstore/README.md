@@ -163,7 +163,7 @@ restore commands are excluded because they become stale.
 
 ## Commands and operator sequence
 
-The CLI has six operations:
+The core lifecycle CLI has six operations:
 
 ```text
 runstore init
@@ -173,6 +173,32 @@ runstore archive
 runstore verify
 runstore restore
 ```
+
+Campaign discovery and the local publication view add three operator commands:
+
+```bash
+runstore campaigns
+runstore activate <local-path-or-campaign-id>
+runstore current
+```
+
+`campaigns` scans only the configured local roots (`runs/campaigns` and
+`runs/restored` by default) and the selected archive store. Repeat
+`--local-root` to use explicit roots, set `PINGLAB_RUNSTORE_LOCAL_ROOTS` to an
+OS-path-separated list, or pass `--local-only` when R2 is unavailable. It does
+not crawl the filesystem. R2-only campaigns are listed but must be restored
+before activation.
+
+`activate` accepts a complete local collection campaign, stages a copy of the
+existing `artifacts/data` tree, replaces every experiment supplied by that
+campaign, writes reverse provenance and `.runstore-view.json`, then swaps the
+whole data tree into place. Unrelated experiment directories are preserved. A
+failed activation restores the previous tree. Run `demolab build` afterwards
+to regenerate PDFs and the local/GitHub Pages site from the selected data.
+
+`current` verifies that every experiment named by `.runstore-view.json` belongs
+to the active campaign and, by default, re-hashes every promoted file. Use
+`--no-verify-files` only for a quick metadata check.
 
 Create a unique run root before executing science. Existing destinations are
 always refused. `init` captures the current Git commit, dirty-tree state, and
