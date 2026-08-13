@@ -300,6 +300,7 @@ def _submit_job(
         f"--job-name={name}",
         f"--output={logs}/%x_%j.out",
         f"--error={logs}/%x_%j.err",
+        f"--export=ALL,PINGLAB_ROOT={REPO}",
         str(
             REPO
             / "experiments"

@@ -356,6 +356,7 @@ def test_slurm_dry_run_preserves_collection_dependencies(
         "experiments/exp022_support/train-array.sbatch"
     )
     aggregate = jobs["ggs-exp022-aggregate"]
+    assert f"--export=ALL,PINGLAB_ROOT={slurm.REPO}" in aggregate["command"]
     assert any(
         argument.startswith("--dependency=afterok:<standard-job-id>")
         for argument in aggregate["command"]
@@ -375,6 +376,19 @@ def test_slurm_dry_run_preserves_collection_dependencies(
     assert str(root / "logs") not in final_outputs[0]
     assert ".scheduler-logs" in final_outputs[0]
     assert not (root / "submissions").exists()
+
+
+def test_collection_job_uses_explicit_repository_root() -> None:
+    wrapper = (
+        slurm.REPO
+        / "experiments"
+        / "collections"
+        / "gamma_gated_sparsity"
+        / "collection-job.sbatch"
+    ).read_text()
+    assert '${PINGLAB_ROOT:?' in wrapper
+    assert 'cd "$PINGLAB_ROOT"' in wrapper
+    assert 'dirname "$0"' not in wrapper
 
 
 def test_slurm_accepts_smoke_profile(tmp_path: Path, monkeypatch) -> None:

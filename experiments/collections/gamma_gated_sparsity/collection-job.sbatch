@@ -3,6 +3,8 @@
 
 set -euo pipefail
 
+: "${PINGLAB_ROOT:?submit through the collection campaign scheduler}"
+
 if [[ $# -lt 4 || $# -gt 5 ]]; then
   echo "usage: $0 ACTION CAMPAIGN_ROOT UV MNIST_CACHE [EXPERIMENT]" >&2
   exit 2
@@ -13,9 +15,7 @@ campaign_root="$2"
 uv_bin="$3"
 mnist_cache="$4"
 experiment="${5:-}"
-repo_root="$(cd "$(dirname "$0")/../../.." && pwd)"
-
-cd "$repo_root"
+cd "$PINGLAB_ROOT"
 source experiments/exp022_support/load-wilkes-modules.sh
 experiments/exp022_support/ensure-mnist-link.sh "$mnist_cache"
 
