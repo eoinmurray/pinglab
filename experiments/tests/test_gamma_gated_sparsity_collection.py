@@ -352,6 +352,9 @@ def test_slurm_dry_run_preserves_collection_dependencies(
     assert "--cpus-per-task=4" in standard["command"]
     assert "--mem=16G" in standard["command"]
     assert "--gres=gpu:1" in standard["command"]
+    assert standard["command"][-1].endswith(
+        "experiments/exp022_support/train-array.sbatch"
+    )
     aggregate = jobs["ggs-exp022-aggregate"]
     assert any(
         argument.startswith("--dependency=afterok:<standard-job-id>")

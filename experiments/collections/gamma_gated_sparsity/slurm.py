@@ -197,7 +197,7 @@ def _submit_exp022_tier(
         f"--output={logs}/%A_%a.out",
         f"--error={logs}/%A_%a.err",
         f"--export={exports}",
-        str(REPO / "experiments" / "exp022" / "train-array.sbatch"),
+        str(REPO / "experiments" / "exp022_support" / "train-array.sbatch"),
     ]
     return {
         "name": f"{job_prefix}-{tier}",
