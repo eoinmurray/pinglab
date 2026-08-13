@@ -10,6 +10,7 @@
 
 #let r = json("/artifacts/data/exp080/numbers.json")
 #let d = r.decision
+#let criterion-crossed = d.at("criterion_crossed", default: true)
 #let pct(x) = str(calc.round(100 * x, digits: 1)) + "%"
 #let body = [
   == Abstract
@@ -18,12 +19,13 @@
   information after synaptic and membrane filtering to justify using it in a
   variable-rate PING training run. We trained a nonlinear decoder on freshly
   simulated MNIST features spanning eight rates, then evaluated the frozen
-  decoder on held-out images at each rate. The selected interval is
-  #d.recommendation.floor_hz to #d.recommendation.ceiling_hz Hz. Its lower edge
-  is the first tested rate at which all three decoders meet or exceed
-  #pct(r.parameters.useful_accuracy) held-out accuracy. The result calibrates
-  this feature representation and decoder; it does not measure PING-network
-  accuracy.
+  decoder on held-out images at each rate. #if criterion-crossed [The selected
+  interval is #d.recommendation.floor_hz to #d.recommendation.ceiling_hz Hz. Its
+  lower edge is the first tested rate at which all three decoders meet or exceed
+  #pct(r.parameters.useful_accuracy) held-out accuracy.] else [If no tested rate
+  meets the criterion for every decoder, the result is reported as censored
+  rather than treated as a selected interval.] The result calibrates this
+  feature representation and decoder; it does not measure PING-network accuracy.
 
   == Methods
 
@@ -170,31 +172,43 @@
 
   #figure(
     image("/artifacts/data/exp080/psychometric.svg", width: 72%,
-      alt: "Held-out decoder accuracy rises with maximum-pixel encoding rate and crosses the practical criterion at the selected floor."),
+      alt: "Held-out decoder accuracy against maximum-pixel encoding rate, with the practical criterion and any selected floor marked."),
     caption: [Held-out nonlinear-decoder accuracy against maximum-pixel encoding
       rate. Points average the official test images and three independently
       trained decoders. The band spans the lowest and highest decoder accuracy
       at each rate. Horizontal rules mark chance and the
       #pct(r.parameters.useful_accuracy) practical criterion. The red vertical
-      rule marks the first tested rate at which all three decoders meet that
-      criterion, which defines the selected floor.],
+      rule, when present, marks the first tested rate at which all three
+      decoders meet that criterion.],
   )
 
-  All three decoders first met the practical
-  #pct(r.parameters.useful_accuracy) criterion at #d.r_train_hz Hz. Mean
-  accuracy at that condition was
-  #pct(d.rows.filter(row => row.rate_hz == d.r_train_hz).first().accuracy).
-  We therefore select #d.recommendation.floor_hz to #d.recommendation.ceiling_hz Hz
-  for later variable-rate PING training.
+  #if criterion-crossed [
+    All three decoders first met the practical
+    #pct(r.parameters.useful_accuracy) criterion at #d.r_train_hz Hz. Mean
+    accuracy at that condition was
+    #pct(d.rows.filter(row => row.rate_hz == d.r_train_hz).first().accuracy).
+    We therefore select #d.recommendation.floor_hz to
+    #d.recommendation.ceiling_hz Hz for later variable-rate PING training.
+  ] else [
+    No tested rate met the practical #pct(r.parameters.useful_accuracy)
+    criterion for every decoder. The result is therefore right-censored at
+    #d.recommendation.ceiling_hz Hz and does not define a training-rate floor.
+  ]
 
   == Conclusion
 
-  The filtered MNIST representation retained usable digit information from
-  #d.recommendation.floor_hz Hz upward. All three independently trained decoders
-  met the #pct(r.parameters.useful_accuracy) held-out accuracy criterion at the
-  selected lower bound, and performance continued to improve across the tested
-  range. We therefore carry #d.recommendation.floor_hz to
-  #d.recommendation.ceiling_hz Hz forward as the empirical input-rate interval.
+  #if criterion-crossed [
+    The filtered MNIST representation retained usable digit information from
+    #d.recommendation.floor_hz Hz upward. All three independently trained
+    decoders met the #pct(r.parameters.useful_accuracy) held-out accuracy
+    criterion at the selected lower bound. We therefore carry
+    #d.recommendation.floor_hz to #d.recommendation.ceiling_hz Hz forward as the
+    empirical input-rate interval.
+  ] else [
+    The tested range did not establish an empirical lower bound because no rate
+    met the held-out criterion for every decoder. A larger or better-trained
+    calibration run is required before selecting an input-rate interval.
+  ]
   This is a decoder-based calibration, not a measurement of PING-network
   performance, so the interval must still be checked in the network for which
   it was selected.

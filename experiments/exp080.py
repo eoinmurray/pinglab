@@ -424,9 +424,8 @@ def analyze(correctness: np.ndarray) -> dict[str, Any]:
         ),
         None,
     )
-    if floor is None:
-        raise RuntimeError("no tested rate crossed the practical criterion")
     decision = {
+        "criterion_crossed": floor is not None,
         "r_train_hz": floor,
         "recommendation": {"floor_hz": floor, "ceiling_hz": max(RATES_HZ)},
         "rows": rows,
@@ -451,12 +450,13 @@ def plot_psychometric(decision: dict[str, Any]) -> None:
     axis.axhline(
         USEFUL_ACCURACY, color="#777777", linestyle="--", label="Practical criterion"
     )
-    axis.axvline(
-        decision["r_train_hz"],
-        color=theme.DEEP_RED,
-        linewidth=1.0,
-        label="Selected floor",
-    )
+    if decision["criterion_crossed"]:
+        axis.axvline(
+            decision["r_train_hz"],
+            color=theme.DEEP_RED,
+            linewidth=1.0,
+            label="Selected floor",
+        )
     axis.set_xscale("log")
     axis.set_xticks(RATES_HZ)
     axis.set_xticklabels([f"{rate:g}" for rate in RATES_HZ])
@@ -552,10 +552,11 @@ def main() -> None:
         json.dumps({"command": "uv run python experiments/exp080.py"}, indent=2) + "\n"
     )
     persist(SLUG, run_id)
-    print(
-        f"exp080 complete: selected {decision['r_train_hz']:g}--{max(RATES_HZ):g} Hz",
-        flush=True,
-    )
+    if decision["criterion_crossed"]:
+        summary = f"selected {decision['r_train_hz']:g}--{max(RATES_HZ):g} Hz"
+    else:
+        summary = "practical criterion not crossed within tested rates"
+    print(f"exp080 complete: {summary}", flush=True)
 
 
 if __name__ == "__main__":
