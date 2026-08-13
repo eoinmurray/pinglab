@@ -906,10 +906,13 @@ def main():
         exp033 = _load_runner("exp033")
         print("exp033 numerics: 4D mean-field sweep, Hopf, hysteresis, frequency …")
         I_grid = np.linspace(0.0, 4.0, 401)
-        results = exp033.sweep(I_grid)
-        hopf = exp033.find_hopf(results)
-        criticality = exp033.hysteresis_sweep(hopf["I_ext_star"])
-        mf_freq = exp033.frequency_vs_tau_gaba([4.5, 6.0, 9.0, 12.0, 18.0, 27.0], I_grid)
+        sigma = exp033.SIGMA_V_MV
+        results = exp033.sweep(I_grid, sigma=sigma)
+        hopf = exp033.find_hopf(results, sigma=sigma)
+        criticality = exp033.hysteresis_sweep(hopf["I_ext_star"], sigma=sigma)
+        mf_freq = exp033.frequency_vs_tau_gaba(
+            [4.5, 6.0, 9.0, 12.0, 18.0, 27.0], I_grid, sigma=sigma
+        )
         meas_fgamma = exp033.load_exp041_fgamma()
         build_super_compound(grid, results, hopf, criticality, mf_freq, meas_fgamma,
                              figures / "onset_super_compound")
