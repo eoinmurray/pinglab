@@ -1,7 +1,7 @@
 #let meta = (
   title: "DMFT model",
   date: "2026-05-28",
-  description: "A 4D conductance mean-field account of exp025's recruitment cliff: it is a supercritical Hopf bifurcation of the silent fixed point, located from COBANet's own f-I curve with no fitted scale.",
+  description: "A 4D conductance mean-field account of exp025's recruitment cliff, with the free effective membrane-noise scale tested explicitly.",
   collection: "gamma-gated-sparsity",
   status: "final",
 )
@@ -25,6 +25,13 @@
 #let fstar3 = calc.round(d3.freq_star_Hz, digits: 0)
 #let tg = calc.round(cfg.tau_GABA_ms, digits: 0)
 #let fspk = calc.round(run.results.frequency_vs_tau_gaba.spiking_exp041.at("6.0"), digits: 1)
+#let sens = run.results.sigma_sensitivity
+#let sens-first = sens.rows.first()
+#let sens-last = sens.rows.last()
+#let sens-i-lo = calc.round(calc.min(..sens.rows.map(r => r.hopf.I_ext_star)), digits: 2)
+#let sens-i-hi = calc.round(calc.max(..sens.rows.map(r => r.hopf.I_ext_star)), digits: 2)
+#let sens-a-hi = calc.round(sens-first.limit_cycle.e_peak_to_peak * 1000, digits: 1)
+#let sens-a-lo = calc.round(sens-last.limit_cycle.e_peak_to_peak * 1000, digits: 1)
 
 
 #let body = [
@@ -32,8 +39,9 @@
 
   A mean-field account of #link("/exp025/")[exp025]'s recruitment cliff. In the 4D
   conductance DMFT the cliff is a Hopf bifurcation of the silent fixed point. With
-  COBANet's own LIF f-I curve as the population gain and couplings read off the
-  biophysics (no fitted scale), the Jacobian eigenvalues place the threshold at
+  COBANet's cellular and synaptic parameters define the population gain and
+  couplings, while the effective membrane-noise scale is treated as a free
+  sensitivity parameter. At the 4 mV reference value, the Jacobian eigenvalues place the threshold at
   $I_"ext"^* = #istar$ nA, the crossing pair's imaginary part gives a gamma rhythm at
   $f^* approx #fstar$ Hz set by the synaptic timescales, and a hysteresis sweep shows
   the onset is supercritical: continuous and reversible.
@@ -292,7 +300,7 @@
 
   ==== 2.2 Gain and couplings from COBANet
 
-  The gain $Phi$ and the couplings come from COBANet, not from a fit. For $Phi$ we
+  The cellular parameters and couplings come from COBANet. For $Phi$ we
   use the LIF f-I curve: a cell under white-noise input of mean $mu$ and standard
   deviation $sigma_V$ fires at the Siegert rate
 
@@ -307,10 +315,11 @@
   $W^(I E) = w^(I E) N_I Delta V_"inh"$ (eqs 14, 25): the fan-in normalisation
   ($w |-> w \/ N$) makes $w^(E I) N_E, w^(I E) N_I$ the ei-strength values $s$ and
   $r s$ (≈ 1 and 2 µS), times the driving forces (17). With $Phi$ in physical units
-  $I_"ext"$ is a current in nanoamps: the absolute scale is fixed by the biophysics,
-  not chosen. The membrane-noise std $sigma_V$ is the one free parameter, set to
-  #cfg.sigma_V_mV mV; the located Hopf is insensitive to it ($f^*$ moves under 1 Hz over
-  $sigma_V in [3, 6]$ mV).
+  $I_"ext"$ is a current in nanoamps. The effective membrane-noise standard
+  deviation $sigma_V$ is not derived from the spiking model and is therefore a
+  free sensitivity parameter; #cfg.sigma_V_mV mV is the reference value. We rerun
+  the fixed-point, Jacobian, criticality, and relative-onset amplitude analyses at
+  $sigma_V in {3, 4, 5, 6}$ mV rather than treating that reference as calibrated.
 
   === 3. Calculating its frequency
 
@@ -359,8 +368,9 @@
       supercritical and reversible, the up/down branches coinciding (Figure 4). *C*,
       the predicted frequency falls with $tau_"GABA"$, tracking the spiking
       measurement (Figure 3). #link("/exp025/")[exp025]'s recruitment cliff is a
-      supercritical Hopf, set by the synaptic time constants, derived below from
-      COBANet's f-I curve and biophysical couplings with no fitted scale.
+      supercritical Hopf, set by the synaptic time constants, in a reduction whose
+      inherited cellular and coupling parameters are biophysically grounded and
+      whose free effective-noise scale is sensitivity-tested below.
     ],
   )
 
@@ -373,11 +383,27 @@
     f^* = omega^* / (2 pi) approx #fstar "Hz",
   $
 
-  in the PING gamma band, from COBANet's f-I curve and biophysical couplings with no
-  fitted scale. One complex pair crosses the imaginary axis while the others stay
+  in the PING gamma band at the 4 mV reference value. One complex pair crosses the imaginary axis while the others stay
   damped, a simple Hopf (Figure 2). The predictive content is the _dependence_ on
   the synaptic timescales: across a $tau_"GABA"$ sweep $f^*$ tracks the spiking
   network's gamma qualitatively, not quantitatively (Figure 3).
+
+  #figure(
+    image(
+      "/artifacts/data/exp033/sigma_sensitivity.svg",
+      width: 100%,
+      alt: "Four-panel sensitivity analysis across effective membrane-noise scales from 3 to 6 mV, showing the Hopf threshold, invariant crossing frequency, onset fixed-point rates, and declining relative-onset amplitude.",
+    ),
+    caption: [
+      *The topology is robust, but its quantitative operating point depends on the
+      free effective-noise scale.* Across $sigma_V in {3, 4, 5, 6}$ mV, a Hopf is
+      found and classified as supercritical at every value. The crossing frequency
+      remains $approx #fstar$ Hz, while $I_"ext"^*$ spans #sens-i-lo–#sens-i-hi nA,
+      the onset fixed point shifts, and the E peak-to-peak amplitude measured at
+      $I_"ext"^* + 0.4$ nA falls from #sens-a-hi to #sens-a-lo Hz. The vertical
+      dotted line marks the 4 mV reference analysis used by the detailed figures.
+    ],
+  )
 
   #figure(
     image(
@@ -408,11 +434,11 @@
     image(
       "/artifacts/data/exp033/freq_vs_tau_gaba.svg",
       width: 100%,
-      alt: "Gamma frequency versus tau_GABA. Both the calibrated mean-field f-star and the exp041 spiking f-gamma fall monotonically as tau_GABA increases; the mean-field curve runs below the spiking curve across the sweep, the gap largest at short tau_GABA and narrowing at long tau_GABA.",
+      alt: "Gamma frequency versus tau_GABA. Both the reference mean-field f-star and the exp041 spiking f-gamma fall monotonically as tau_GABA increases; the mean-field curve runs below the spiking curve across the sweep, the gap largest at short tau_GABA and narrowing at long tau_GABA.",
     ),
     caption: [
       Both fall monotonically with $tau_"GABA"$: the inhibitory decay is the clock in
-      both. The match is qualitative, not quantitative. The calibrated mean-field is
+      both. The match is qualitative, not quantitative. The reference mean-field is
       _flatter_ and runs below the spiking network across the sweep, the gap largest at
       short $tau_"GABA"$ ($#fstar$ vs $#fspk$ Hz at the canonical $#tg$ ms) and
       narrowing as $tau_"GABA"$ grows. The reduction captures the mechanism but not the

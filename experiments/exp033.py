@@ -1,4 +1,4 @@
-"""033 — Mean-field PING: the 4D conductance Hopf, calibrated to the LIF f-I.
+r"""033 — Mean-field PING: the 4D conductance Hopf with a LIF population gain.
 
 Numerics for the theory in src/docs/src/pages/notebooks/exp033.mdx.
 
@@ -6,7 +6,7 @@ One analysis on one model. The 4D reduction in state $(E, I, g_e^I, g_i^E)$
 uses COBANet's own leaky-integrate-and-fire f-I curve (Ricciardi/Siegert)
 as the population gain, with the recurrent couplings read off the
 biophysics (the ei-strength scalar times the fan-in times the synaptic
-driving force). The only free parameter is the membrane-noise std σ_V.
+driving force). The effective membrane-noise std σ_V is free and sensitivity-tested.
 
 The runner sweeps the external drive $I_\text{ext}$ (nA), tracks the
 silent fixed point, diagonalises the Jacobian, and locates the Hopf
@@ -34,7 +34,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from scipy import linalg
 from scipy.integrate import quad, solve_ivp
-from scipy.optimize import fsolve
+from scipy.optimize import brentq, fsolve
 from scipy.special import erf
 
 REPO = Path(__file__).resolve().parents[1]
@@ -60,15 +60,19 @@ TAU_AMPA_MS = 2.0
 # mean-field analysis tracks the spiking collection's τ_GABA.
 TAU_GABA_MS = TAU_GABA_GAMMA_MS
 
-# ── Calibrated gain: COBANet's LIF f-I (src/cli/models.py params) ──────
+# ── COBANet-grounded gain with a free effective-noise scale ───────────
 # Couplings are the ei-strength values, fan-in normalised so the lumped
-# W̃ = w·N = s (E→I) and r·s (I→E); σ_V is the one calibration knob.
+# W̃ = w·N = s (E→I) and r·s (I→E); σ_V is not derived from COBANet.
 E_L_MV, V_TH_MV, V_RESET_MV = -65.0, -50.0, -65.0
 CELL_E = {"tau_m": TAU_E_MS, "g_L": 0.05, "tau_ref": 3.0}
 CELL_I = {"tau_m": TAU_I_MS, "g_L": 0.10, "tau_ref": 1.5}
 DV_INH_MV, DV_EXC_MV = 15.0, 65.0   # |V_rest − E_rev| driving forces
 WT_EI, WT_IE = 1.0, 2.0             # lumped couplings (µS): s and r·s
 SIGMA_V_MV = 4.0                    # membrane-noise std
+SIGMA_V_GRID_MV = (3.0, 4.0, 5.0, 6.0)
+HYSTERESIS_SPAN_NA = (-0.1, 0.55)
+HYSTERESIS_POINTS = 25
+LIMIT_CYCLE_OFFSET_NA = 0.4
 
 
 def lif_fi(mu_I, cell, sigma=SIGMA_V_MV):
@@ -89,7 +93,7 @@ def gI(mu, sigma=SIGMA_V_MV):
     return lif_fi(mu, CELL_I, sigma)
 
 
-# ── 4D calibrated mean-field, state (E, I, g_e^I, g_i^E) ───────────────
+# ── 4D mean-field, state (E, I, g_e^I, g_i^E) ─────────────────────────
 
 
 def rhs_4d(t, y, I_ext, tau_gaba=TAU_GABA_MS, sigma=SIGMA_V_MV):
@@ -153,36 +157,73 @@ def sweep(I_ext_grid, tau_gaba=TAU_GABA_MS, sigma=SIGMA_V_MV):
     return results
 
 
-def find_hopf(results):
-    """Smallest I_ext at which max Re(eig) crosses 0 with Im ≠ 0."""
-    prev_max = None
+def _leading_complex_eigenvalue(fp, I_ext, tau_gaba, sigma):
+    eigs = linalg.eigvals(jacobian(fp, I_ext, tau_gaba, sigma))
+    complex_eigs = [e for e in eigs if abs(e.imag) > 1e-6]
+    return max(complex_eigs, key=lambda e: e.real) if complex_eigs else None
+
+
+def find_hopf(results, tau_gaba=TAU_GABA_MS, sigma=SIGMA_V_MV, refine=True):
+    """Locate and refine the first complex-pair stability crossing.
+
+    ``results`` supplies a coarse continuation grid.  Once a bracket is found,
+    Brent's method refines the drive at which the leading complex eigenvalue's
+    real part is zero; the fixed point and Jacobian are recomputed there.
+    """
+    previous = None
     for r in results:
-        re_max = max(e[0] for e in r["eigs"])
-        if prev_max is not None and prev_max < 0 <= re_max:
-            cand = [(e[0], e[1]) for e in r["eigs"]
-                    if abs(e[1]) > 1e-6 and e[0] >= -1e-2]
-            if not cand:
-                continue
-            cand.sort(key=lambda x: -x[0])
-            re, im = cand[0]
+        complex_eigs = [complex(e[0], e[1]) for e in r["eigs"]
+                        if abs(e[1]) > 1e-6]
+        leading = max(complex_eigs, key=lambda e: e.real) if complex_eigs else None
+        if (previous is not None and previous[1] is not None and leading is not None
+                and previous[1].real < 0 <= leading.real):
+            lo, hi = previous[0]["I_ext"], r["I_ext"]
+            if not refine:
+                return {
+                    "I_ext_star": float(r["I_ext"]),
+                    "omega_star": float(abs(leading.imag)),
+                    "freq_star_Hz": float(1000.0 * abs(leading.imag) / (2 * np.pi)),
+                    "fp_at_star": r["fp"],
+                    "leading_eigenvalue": [float(leading.real), float(leading.imag)],
+                    "coarse_bracket_nA": [float(lo), float(hi)],
+                }
+            x0 = tuple(previous[0]["fp"][:2])
+
+            def real_part(drive):
+                fp = fixed_point(drive, tau_gaba, x0=x0, sigma=sigma)
+                if fp is None:
+                    raise RuntimeError(f"fixed-point solve failed at I_ext={drive}")
+                eig = _leading_complex_eigenvalue(fp, drive, tau_gaba, sigma)
+                if eig is None:
+                    raise RuntimeError(f"no complex eigenvalue at I_ext={drive}")
+                return float(eig.real)
+
+            drive_star = float(brentq(real_part, lo, hi, xtol=1e-10, rtol=1e-12))
+            fp_star = fixed_point(drive_star, tau_gaba, x0=x0, sigma=sigma)
+            eig_star = _leading_complex_eigenvalue(
+                fp_star, drive_star, tau_gaba, sigma
+            )
             return {
-                "I_ext_star": r["I_ext"],
-                "omega_star": abs(im),
-                "freq_star_Hz": 1000.0 * abs(im) / (2 * np.pi),
-                "fp_at_star": r["fp"],
+                "I_ext_star": drive_star,
+                "omega_star": float(abs(eig_star.imag)),
+                "freq_star_Hz": float(1000.0 * abs(eig_star.imag) / (2 * np.pi)),
+                "fp_at_star": fp_star.tolist(),
+                "leading_eigenvalue": [float(eig_star.real), float(eig_star.imag)],
+                "coarse_bracket_nA": [float(lo), float(hi)],
             }
-        prev_max = re_max
+        previous = (r, leading)
     return None
 
 
 # ── Super- vs subcritical by direct simulation ────────────────────────
 
 
-def settle(I_ext, y0, tau_gaba=TAU_GABA_MS, t_max=2000.0, t_settle=1500.0):
+def settle(I_ext, y0, tau_gaba=TAU_GABA_MS, sigma=SIGMA_V_MV,
+           t_max=2000.0, t_settle=1500.0):
     """Integrate from y0 to steady state; return (peak-to-peak E amplitude,
     final state). The final state is carried into the next sweep step so a
     coexisting cycle, if any, is followed (quasi-static continuation)."""
-    sol = solve_ivp(rhs_4d, (0, t_max), y0, args=(I_ext, tau_gaba),
+    sol = solve_ivp(rhs_4d, (0, t_max), y0, args=(I_ext, tau_gaba, sigma),
                     method="LSODA", rtol=1e-7, atol=1e-10, max_step=1.0)
     y_end = sol.y[:, -1]
     E = sol.y[0][sol.t >= t_settle]
@@ -190,22 +231,23 @@ def settle(I_ext, y0, tau_gaba=TAU_GABA_MS, t_max=2000.0, t_settle=1500.0):
     return amp, y_end
 
 
-def hysteresis_sweep(i_star, tau_gaba=TAU_GABA_MS, span=(-0.1, 0.55), n=25):
+def hysteresis_sweep(i_star, tau_gaba=TAU_GABA_MS, sigma=SIGMA_V_MV,
+                     span=(-0.1, 0.55), n=25):
     """Quasi-static up/down ramp of I_ext across I*. Supercritical onset is
     reversible (branches coincide); subcritical leaves a hysteresis loop."""
     grid = np.linspace(i_star + span[0], i_star + span[1], n)
     thr = 1e-4
     # rising branch: start from the silent fixed point with a small kick
-    y = fixed_point(grid[0], tau_gaba).copy()
+    y = fixed_point(grid[0], tau_gaba, sigma=sigma).copy()
     y[0] += 1e-3
     up = []
     for I in grid:
-        amp, y = settle(I, y, tau_gaba)
+        amp, y = settle(I, y, tau_gaba, sigma)
         up.append({"I_ext": float(I), "amp": amp})
     # falling branch: continue from the high-drive end state
     down = []
     for I in grid[::-1]:
-        amp, y = settle(I, y, tau_gaba)
+        amp, y = settle(I, y, tau_gaba, sigma)
         down.append({"I_ext": float(I), "amp": amp})
     down.reverse()
     # max amplitude gap between branches at equal drive = hysteresis size
@@ -278,16 +320,16 @@ def rhs_2d(t, y, I_ext, tau_gaba=TAU_GABA_MS, sigma=SIGMA_V_MV):
     ]
 
 
-def compute_2d_vs_4d(hopf, offset=1.0):
+def compute_2d_vs_4d(hopf, offset=1.0, sigma=SIGMA_V_MV):
     """Same drive above the 4D Hopf: 2D rings down, 4D sustains. Numeric
     check for the analytic Bendixson-Dulac rejection of the 2D field."""
     I_ext = hopf["I_ext_star"] + offset
-    fp4 = fixed_point(I_ext)
+    fp4 = fixed_point(I_ext, sigma=sigma)
     sol4 = solve_ivp(rhs_4d, (0, 300), fp4 + np.array([2e-3, 0, 0, 0]),
-                     args=(I_ext,), method="LSODA",
+                     args=(I_ext, TAU_GABA_MS, sigma), method="LSODA",
                      rtol=1e-8, atol=1e-11, max_step=0.5)
     sol2 = solve_ivp(rhs_2d, (0, 300), [fp4[0] + 2e-3, fp4[1]],
-                     args=(I_ext,), method="LSODA",
+                     args=(I_ext, TAU_GABA_MS, sigma), method="LSODA",
                      rtol=1e-8, atol=1e-11, max_step=0.5)
     d4, d2 = sol4.y[0] - fp4[0], sol2.y[0] - fp4[0]
     pp4 = float(d4[sol4.t > 150].max() - d4[sol4.t > 150].min())
@@ -330,13 +372,12 @@ def plot_eigenvalues_complex(results, hopf, out_path, run_id):
     plt.close(fig)
 
 
-def plot_limit_cycle(hopf, out_path, run_id, offset=0.4):
-    """4D limit cycle just above onset: E and I waveforms and the E→I lag."""
-    theme.apply()
+def limit_cycle_metrics(hopf, offset=0.4, sigma=SIGMA_V_MV):
+    """Return reference limit-cycle metrics at a drive relative to onset."""
     I_ext = hopf["I_ext_star"] + offset
-    fp = fixed_point(I_ext)
+    fp = fixed_point(I_ext, sigma=sigma)
     sol = solve_ivp(rhs_4d, (0, 700), fp + np.array([1e-3, 0, 0, 0]),
-                    args=(I_ext,), method="LSODA",
+                    args=(I_ext, TAU_GABA_MS, sigma), method="LSODA",
                     rtol=1e-9, atol=1e-12, max_step=0.25, dense_output=True)
     period = 1000.0 / hopf["freq_star_Hz"]
     tt = np.linspace(700 - 3 * period, 700, 1500)
@@ -345,8 +386,23 @@ def plot_limit_cycle(hopf, out_path, run_id, offset=0.4):
     Ez, Iz = E - E.mean(), I - I.mean()
     lags = (np.arange(len(tt)) - len(tt) // 2) * (tt[1] - tt[0])
     xc = np.correlate(Iz, Ez, mode="same")
-    lag_ms = float(lags[np.argmax(xc)])
-    print(f"  limit cycle at I={I_ext:.2f} nA: I lags E by {lag_ms:.2f} ms")
+    return {
+        "I_ext": float(I_ext),
+        "e_leads_i_ms": float(abs(lags[np.argmax(xc)])),
+        "e_peak_to_peak": float(np.ptp(E)),
+        "t_ms": tt,
+        "E": E,
+        "I": I,
+    }
+
+
+def plot_limit_cycle(hopf, out_path, run_id, offset=0.4, sigma=SIGMA_V_MV):
+    """4D limit cycle just above onset: E and I waveforms and the E→I lag."""
+    theme.apply()
+    metrics = limit_cycle_metrics(hopf, offset=offset, sigma=sigma)
+    I_ext, tt, E, I = (metrics[k] for k in ("I_ext", "t_ms", "E", "I"))
+    print(f"  limit cycle at I={I_ext:.2f} nA: "
+          f"I lags E by {metrics['e_leads_i_ms']:.2f} ms")
     fig, ax = plt.subplots(figsize=(8.0, 4.5), dpi=150)
     ax.plot(tt - tt[0], E, color=theme.INK_BLACK, lw=1.3, label="$E$")
     ax.set_xlabel("time (ms)", fontsize=theme.SIZE_LABEL)
@@ -358,7 +414,7 @@ def plot_limit_cycle(hopf, out_path, run_id, offset=0.4):
     stamp_figure(fig, run_id)
     fig.savefig(out_path, dpi=150)
     plt.close(fig)
-    return {"I_ext": float(I_ext), "e_leads_i_ms": float(abs(lag_ms))}
+    return {k: metrics[k] for k in ("I_ext", "e_leads_i_ms", "e_peak_to_peak")}
 
 
 # ── Frequency vs inhibitory decay, against the exp041 spiking sweep ─────
@@ -377,10 +433,10 @@ def load_exp041_fgamma():
     return {k: float(np.median(v)) for k, v in meas.items()}
 
 
-def frequency_vs_tau_gaba(tau_list, I_grid):
+def frequency_vs_tau_gaba(tau_list, I_grid, sigma=SIGMA_V_MV):
     out = []
     for tg in tau_list:
-        h = find_hopf(sweep(I_grid, tau_gaba=tg))
+        h = find_hopf(sweep(I_grid, tau_gaba=tg, sigma=sigma), tg, sigma)
         out.append({"tau_gaba_ms": tg,
                     "f_star_Hz": h["freq_star_Hz"] if h else None,
                     "I_ext_star": h["I_ext_star"] if h else None})
@@ -393,7 +449,7 @@ def plot_frequency_vs_tau_gaba(mf, meas, out_path, run_id):
     tg = [d["tau_gaba_ms"] for d in mf if d["f_star_Hz"] is not None]
     fs = [d["f_star_Hz"] for d in mf if d["f_star_Hz"] is not None]
     ax.plot(tg, fs, "o-", color=theme.INK_BLACK, lw=1.4,
-            label="calibrated mean-field $f^\\star$")
+            label="reference mean-field $f^\\star$")
     if meas:
         mt = sorted(meas)
         ax.plot(mt, [meas[t] for t in mt], "s--", color=theme.DEEP_RED, lw=1.3,
@@ -675,7 +731,7 @@ def fig_bifurcation_compound(results, hopf, sweep, mf, meas, out_path, run_id):
     """Claim-3 anchor: the recruitment cliff as a predictable Hopf bifurcation.
     A — the 4D eigenvalue pair crossing into the right half-plane at I*.
     B — the hysteresis sweep (supercritical, reversible onset).
-    C — gamma frequency vs τ_GABA, calibrated mean-field vs exp041 spiking."""
+    C — gamma frequency vs τ_GABA, reference mean-field vs exp041 spiking."""
     theme.apply()
     from matplotlib.gridspec import GridSpec
 
@@ -746,16 +802,119 @@ def fig_bifurcation_compound(results, hopf, sweep, mf, meas, out_path, run_id):
     plt.close(fig)
 
 
+def sigma_sensitivity(sigma_grid, coarse_grid, convergence_grid):
+    """Evaluate every headline bifurcation quantity across effective noise."""
+    rows = []
+    for sigma in sigma_grid:
+        coarse = sweep(coarse_grid, sigma=sigma)
+        hopf = find_hopf(coarse, sigma=sigma)
+        fine_hopf = find_hopf(sweep(convergence_grid, sigma=sigma), sigma=sigma)
+        if hopf is None:
+            rows.append({"sigma_V_mV": float(sigma), "hopf_exists": False})
+            continue
+        criticality = hysteresis_sweep(
+            hopf["I_ext_star"], sigma=sigma,
+            span=HYSTERESIS_SPAN_NA, n=HYSTERESIS_POINTS,
+        )
+        cycle = limit_cycle_metrics(
+            hopf, offset=LIMIT_CYCLE_OFFSET_NA, sigma=sigma
+        )
+        rows.append({
+            "sigma_V_mV": float(sigma),
+            "hopf_exists": True,
+            "hopf": hopf,
+            "fixed_point_at_hopf": {
+                "E_per_ms": hopf["fp_at_star"][0],
+                "I_per_ms": hopf["fp_at_star"][1],
+                "g_eI": hopf["fp_at_star"][2],
+                "g_iE": hopf["fp_at_star"][3],
+            },
+            "criticality": {k: v for k, v in criticality.items()
+                            if k not in {"up", "down"}},
+            "limit_cycle": {
+                "relative_drive_nA": LIMIT_CYCLE_OFFSET_NA,
+                "e_peak_to_peak": cycle["e_peak_to_peak"],
+                "e_leads_i_ms": cycle["e_leads_i_ms"],
+            },
+            "convergence_check": {
+                "comparison_grid_step_nA": float(np.diff(convergence_grid[:2])[0]),
+                "I_ext_star": fine_hopf["I_ext_star"] if fine_hopf else None,
+                "absolute_difference_nA": (
+                    abs(hopf["I_ext_star"] - fine_hopf["I_ext_star"])
+                    if fine_hopf else None
+                ),
+            },
+        })
+    return {
+        "sigma_grid_mV": [float(s) for s in sigma_grid],
+        "reference_sigma_mV": SIGMA_V_MV,
+        "settings": {
+            "drive_interval_nA": [float(coarse_grid[0]), float(coarse_grid[-1])],
+            "coarse_grid_step_nA": float(np.diff(coarse_grid[:2])[0]),
+            "hopf_refinement": "Brent root of leading complex eigenvalue real part",
+            "hysteresis_span_relative_nA": list(HYSTERESIS_SPAN_NA),
+            "hysteresis_points": HYSTERESIS_POINTS,
+            "amplitude_threshold": 1e-4,
+            "integration_t_max_ms": 2000.0,
+            "integration_settle_start_ms": 1500.0,
+            "limit_cycle_relative_drive_nA": LIMIT_CYCLE_OFFSET_NA,
+        },
+        "rows": rows,
+        "topology_retained": all(row.get("hopf_exists") for row in rows),
+        "supercritical_retained": all(
+            row.get("criticality", {}).get("verdict") == "supercritical"
+            for row in rows
+        ),
+    }
+
+
+def plot_sigma_sensitivity(sensitivity, out_path, run_id):
+    """Compact audit of threshold, frequency, onset state, and amplitude."""
+    rows = [row for row in sensitivity["rows"] if row["hopf_exists"]]
+    sigma = [row["sigma_V_mV"] for row in rows]
+    theme.apply()
+    fig, axes = plt.subplots(2, 2, figsize=(8.0, 4.5), dpi=150)
+    ax_threshold, ax_frequency, ax_fixed, ax_amplitude = axes.flat
+    ax_threshold.plot(sigma, [r["hopf"]["I_ext_star"] for r in rows], "o-",
+                      color=theme.INK_BLACK)
+    ax_threshold.set_ylabel("$I^\\star_\\text{ext}$ (nA)")
+    ax_frequency.plot(sigma, [r["hopf"]["freq_star_Hz"] for r in rows], "o-",
+                      color=theme.INK_BLACK)
+    ax_frequency.set_ylabel("$f^\\star$ (Hz)")
+    ax_fixed.plot(sigma, [1000 * r["fixed_point_at_hopf"]["E_per_ms"] for r in rows],
+                  "o-", color=theme.INK_BLACK, label="E")
+    ax_fixed.plot(sigma, [1000 * r["fixed_point_at_hopf"]["I_per_ms"] for r in rows],
+                  "s--", color=theme.DEEP_RED, label="I")
+    ax_fixed.set_ylabel("fixed-point rate (Hz)")
+    ax_fixed.legend(frameon=False, fontsize=theme.SIZE_LEGEND)
+    ax_amplitude.plot(
+        sigma, [1000 * r["limit_cycle"]["e_peak_to_peak"] for r in rows], "o-",
+        color=theme.INK_BLACK,
+    )
+    ax_amplitude.set_ylabel("E amplitude (Hz, pk-pk)")
+    verdict = "supercritical retained" if sensitivity["supercritical_retained"] else "verdict changes"
+    ax_amplitude.text(0.02, 0.95, verdict, transform=ax_amplitude.transAxes,
+                      ha="left", va="top", fontsize=theme.SIZE_ANNOTATION)
+    for ax in axes.flat:
+        ax.set_xlabel("$\\sigma_V$ (mV)")
+        ax.axvline(SIGMA_V_MV, color=theme.GREY_MID, lw=0.7, ls=":")
+        _despine(ax)
+    fig.tight_layout()
+    stamp_figure(fig, run_id)
+    fig.savefig(out_path, dpi=150)
+    plt.close(fig)
+
+
 def main() -> None:
     FIGURES.mkdir(parents=True, exist_ok=True)
     run_id = "exp033-numerics"
     log_runner_event(SLUG, "started", run_id=run_id)
 
-    print(f"[{SLUG}] sweeping I_ext (nA) for the calibrated 4D reduction "
+    print(f"[{SLUG}] sweeping I_ext (nA) for the reference 4D reduction "
           f"(σ_V = {SIGMA_V_MV} mV)")
     I_grid = np.linspace(0.0, 4.0, 401)
     results = sweep(I_grid)
-    hopf = find_hopf(results)
+    hopf = find_hopf(results, sigma=SIGMA_V_MV)
     if hopf:
         print(f"  4D Hopf: I_ext* = {hopf['I_ext_star']:.3f} nA, "
               f"omega* = {hopf['omega_star']:.4f} rad/ms, "
@@ -767,7 +926,10 @@ def main() -> None:
     twod = None
     limitcyc = None
     if hopf:
-        criticality = hysteresis_sweep(hopf["I_ext_star"])
+        criticality = hysteresis_sweep(
+            hopf["I_ext_star"], sigma=SIGMA_V_MV,
+            span=HYSTERESIS_SPAN_NA, n=HYSTERESIS_POINTS,
+        )
         print(f"  criticality: {criticality['verdict']} "
               f"(hysteresis gap {criticality['hyst_gap']:.2e}, "
               f"width {criticality['hyst_width_nA']} nA; "
@@ -779,8 +941,11 @@ def main() -> None:
         plot_eigenvalues_complex(
             results, hopf, FIGURES / "eigenvalues_complex.svg", run_id)
         print(f"  wrote {FIGURES / 'eigenvalues_complex.svg'}")
-        twod = compute_2d_vs_4d(hopf)
-        limitcyc = plot_limit_cycle(hopf, FIGURES / "limit_cycle.svg", run_id)
+        twod = compute_2d_vs_4d(hopf, sigma=SIGMA_V_MV)
+        limitcyc = plot_limit_cycle(
+            hopf, FIGURES / "limit_cycle.svg", run_id,
+            offset=LIMIT_CYCLE_OFFSET_NA, sigma=SIGMA_V_MV,
+        )
         print(f"  wrote {FIGURES / 'limit_cycle.svg'}")
 
         plot_timeseries(hopf, FIGURES / "timeseries.svg", run_id)
@@ -799,10 +964,12 @@ def main() -> None:
         ("keep_I_gi", rhs_2d_I_gi, fixed_point_2d_I_gi),
         ("keep_I_ge", rhs_2d_I_ge, fixed_point_2d_I_ge),
     ]
-    hopf3 = find_hopf(reduction_sweep(rhs_3d_qss, fixed_point_3d_qss, I_grid))
+    hopf3 = find_hopf(
+        reduction_sweep(rhs_3d_qss, fixed_point_3d_qss, I_grid), refine=False
+    )
     two_d = {}
     for label, rhs_fn, fp_fn in two_d_specs:
-        h = find_hopf(reduction_sweep(rhs_fn, fp_fn, I_grid))
+        h = find_hopf(reduction_sweep(rhs_fn, fp_fn, I_grid), refine=False)
         two_d[label] = h
         print(f"  2D {label}: "
               + (f"Hopf I*={h['I_ext_star']:.3f} nA" if h else "no Hopf (rings down)"))
@@ -814,13 +981,15 @@ def main() -> None:
                               FIGURES / "reduction_ladder.svg", run_id)
         print(f"  wrote {FIGURES / 'reduction_ladder.svg'}")
 
-    print(f"[{SLUG}] frequency vs tau_GABA (calibrated vs exp041 spiking)")
-    mf_freq = frequency_vs_tau_gaba([4.5, 6.0, 9.0, 12.0, 18.0, 27.0], I_grid)
+    print(f"[{SLUG}] frequency vs tau_GABA (reference vs exp041 spiking)")
+    mf_freq = frequency_vs_tau_gaba(
+        [4.5, 6.0, 9.0, 12.0, 18.0, 27.0], I_grid, sigma=SIGMA_V_MV
+    )
     meas_fgamma = load_exp041_fgamma()
     for d in mf_freq:
         m = meas_fgamma.get(d["tau_gaba_ms"])
         f = d["f_star_Hz"]
-        print(f"    tau_GABA={d['tau_gaba_ms']:5}  calibrated f*="
+        print(f"    tau_GABA={d['tau_gaba_ms']:5}  reference f*="
               + (f"{f:.2f} Hz" if f else "—")
               + (f"  spiking f_gamma={m:.2f} Hz" if m else ""))
     plot_frequency_vs_tau_gaba(
@@ -833,6 +1002,17 @@ def main() -> None:
             results, hopf, criticality, mf_freq, meas_fgamma,
             FIGURES / "bifurcation_compound.svg", run_id)
         print(f"  wrote {FIGURES / 'bifurcation_compound.svg'}")
+
+    print(f"[{SLUG}] sigma_V sensitivity")
+    sensitivity_grid = np.linspace(0.0, 1.2, 121)
+    sensitivity_convergence_grid = np.linspace(0.0, 1.2, 241)
+    sensitivity = sigma_sensitivity(
+        SIGMA_V_GRID_MV, sensitivity_grid, sensitivity_convergence_grid
+    )
+    plot_sigma_sensitivity(
+        sensitivity, FIGURES / "sigma_sensitivity.svg", run_id
+    )
+    print(f"  wrote {FIGURES / 'sigma_sensitivity.svg'}")
 
     summary = {
         "slug": SLUG,
@@ -857,10 +1037,11 @@ def main() -> None:
                 "three_d_qss": hopf3,
                 "two_d_all_pairs": two_d,
             },
+            "sigma_sensitivity": sensitivity,
         },
         "success_criteria": [
             {
-                "label": "Calibrated 4D Hopf in the gamma band",
+                "label": "Reference 4D Hopf in the gamma band",
                 "passed": bool(hopf and 20.0 <= hopf["freq_star_Hz"] <= 80.0),
                 "detail": (
                     f"I_ext* = {hopf['I_ext_star']:.3f} nA, "
