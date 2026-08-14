@@ -25,6 +25,24 @@ def test_graph_shaped_authoring_and_component_expansion():
     assert net.groups["cell"].members
 
 
+def test_disabled_projection_remains_structural_and_explicit():
+    net, cell = small_network()
+    loop = net.connect(
+        cell.E.spikes,
+        cell.I.excitatory,
+        name="disabled_extra_loop",
+        synapse=snn.AMPA(tau=5 * snn.ms),
+        weight=snn.Normal(0.2, 0.01),
+        connection="recurrent",
+        enabled=False,
+    )
+    graph = snn.compile(net, target=None).graph
+    row = next(p for p in graph["projections"] if p["id"] == loop.id)
+    assert row["enabled"] is False
+    parameter = next(p for p in graph["parameters"] if p["id"] == loop.weight.id)
+    assert parameter["shape"] == [3, 12]
+
+
 def test_names_are_unique():
     net = snn.Network("bad")
     net.input("x", shape=(1,), signal_type="continuous")

@@ -174,6 +174,12 @@ def validate_graph(graph: Mapping[str, Any]) -> ValidationResult:
     consumers: set[str] = set()
     adjacency: dict[str, set[str]] = {p: set() for p in population_ids}
     for row in graph.get("projections", []):
+        if not isinstance(row.get("enabled", True), bool):
+            out.diagnostics.append(
+                Diagnostic(
+                    "error", "E108", "projection enabled must be boolean", row["id"]
+                )
+            )
         source = row["source"]
         target_pop, _, target_port = row["target"].partition(".")
         if source not in signals:
@@ -249,7 +255,11 @@ def validate_graph(graph: Mapping[str, Any]) -> ValidationResult:
                     )
         consumers.add(source)
         source_owner = source.partition(".")[0]
-        if source_owner in adjacency and target_pop in adjacency:
+        if (
+            row.get("enabled", True)
+            and source_owner in adjacency
+            and target_pop in adjacency
+        ):
             adjacency[source_owner].add(target_pop)
 
     for row in graph.get("operations", []):

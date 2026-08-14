@@ -888,6 +888,7 @@ class PlannedProjection:
     decay: float
     delay_steps: int
     parameter: str
+    enabled: bool
 
 
 @dataclass(frozen=True)
@@ -972,6 +973,7 @@ def runtime_state_compatibility(plan: GraphPlan) -> dict[str, Any]:
                 "delay_steps": row.delay_steps,
                 "parameter": row.parameter,
                 "parameter_shape": parameters[row.parameter]["shape"],
+                "enabled": row.enabled,
             }
             for row in plan.projections
         ],
@@ -1195,6 +1197,7 @@ def plan_graph(graph: Mapping[str, Any]) -> GraphPlan:
                 decay=decay,
                 delay_steps=steps,
                 parameter=row["parameters"][0],
+                enabled=row.get("enabled", True),
             )
         )
     populations = list(graph.get("populations", []))
@@ -1202,7 +1205,9 @@ def plan_graph(graph: Mapping[str, Any]) -> GraphPlan:
     zero_edges = [
         (p.source.partition(".")[0], p.target.partition(".")[0])
         for p in planned
-        if p.delay_steps == 0 and p.source.partition(".")[0] in population_ids
+        if p.enabled
+        and p.delay_steps == 0
+        and p.source.partition(".")[0] in population_ids
     ]
     ordered: list[Mapping[str, Any]] = []
     remaining = {p["id"]: p for p in populations}
@@ -1534,6 +1539,9 @@ class GraphExecutor(nn.Module):
                     if projection.target.partition(".")[0] != name:
                         continue
                     key = (projection.id, projection.polarity)
+                    if not projection.enabled:
+                        conductance[key].zero_()
+                        continue
                     source_owner = projection.source.partition(".")[0]
                     if source_owner in populations:
                         if projection.delay_steps == 0:

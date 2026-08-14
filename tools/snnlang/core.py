@@ -157,6 +157,7 @@ class Projection:
     delay: Quantity | None
     parameter_ids: tuple[str, ...]
     group: str | None
+    enabled: bool
 
     @property
     def weight(self) -> ParameterRef:
@@ -296,6 +297,7 @@ class Network:
         constraint: Spec | None = None,
         connection: str = "feedforward",
         delay: Quantity | None = None,
+        enabled: bool = True,
     ) -> Projection:
         self._claim(name)
         target_pop, _, target_port = target.partition(".")
@@ -310,6 +312,8 @@ class Network:
             raise ValueError(f"invalid target port: {target}")
         if connection not in {"feedforward", "recurrent", "feedback", "modulatory"}:
             raise ValueError(f"invalid connection kind: {connection}")
+        if not isinstance(enabled, bool):
+            raise TypeError("projection enabled must be boolean")
         if isinstance(weight, ParameterRef):
             parameter_id = weight.id
         else:
@@ -335,6 +339,8 @@ class Network:
             "parameters": [parameter_id],
             "group": self.current_group,
         }
+        if not enabled:
+            row["enabled"] = False
         self.projections.append(row)
         return Projection(
             self,
@@ -346,6 +352,7 @@ class Network:
             delay,
             (parameter_id,),
             self.current_group,
+            enabled,
         )
 
     def operation(
