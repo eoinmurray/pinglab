@@ -182,7 +182,11 @@ seeded Bernoulli or exact-fan-in initial zeroing. Build metrics expose stable
 per-parameter realized statistics together with the constraint, unit, runtime
 shape, and fan-in scaling convention.
 
-Graph-native training is deliberately not enabled at this milestone. A graph
-training request fails with the explicit future `training:v1` capability rather
-than silently routing through the legacy trainer. The legacy CLI and bundle
-adapter remain the default and retain their historical numerical contract.
+The typed graph API supports deterministic single-batch AdamW updates for the
+validated cross-entropy and spike-budget vocabulary. `ExecutionSpec` supplies
+resolved inputs and external targets; a bundle may authenticate and supply its
+training recipe. Results expose per-update loss components, named gradients,
+parameters, and optimizer state. Dataset iteration, CLI target loading,
+production checkpoint persistence, and exact resume remain separate gates. The
+legacy CLI and bundle adapter remain the default and retain their historical
+numerical contract.

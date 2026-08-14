@@ -45,7 +45,7 @@
 
   === Current boundary
 
-  Training recipes compile, and a narrow one-layer MNIST PING recipe can be translated into the legacy trainer. Graph-native training is not implemented. A graph training request fails explicitly and never falls back silently to legacy execution.
+  Training recipes compile, and a narrow one-layer MNIST PING recipe can be translated into the legacy trainer. The typed graph API now executes deterministic single-batch AdamW updates for cross-entropy and spike-budget objectives through named trainable/frozen groups. It returns per-update loss components, named gradients, final parameters, and optimizer state. Dataset iteration, CLI target loading, production checkpoints, and exact resume remain later gates; requests never fall back silently to legacy execution.
 
   The complete implementation also needs deterministic initialization, differentiable-reachability checks, recurrent trainability, variable-rate training, spike-budget regularization, selected and final checkpoints, optimizer-state replay, exact resume, and layered legacy-versus-graph conformance tests.
 
@@ -98,7 +98,7 @@
 
   === Execution support
 
-  `snn.compile(net, training=recipe)` validates and serializes the recipe. `tools.snn.execution.train(ExecutionSpec(executor="graph", ...))` currently raises `NotImplementedError`. Use the explicit legacy executor only for the supported compatibility adapter.
+  `snn.compile(net, training=recipe)` validates and serializes the recipe. `tools.snn.execution.train(ExecutionSpec(executor="graph", training=..., inputs=..., targets=...))` performs one update by default; `options={"updates": n}` repeats the same resolved batch for focused trajectory checks. A training bundle authenticates and supplies its own recipe. The result exposes named gradients and optimizer state without tensor-position mapping.
 
   #link("/ar089/")[Next: Runtime state, checkpoints, and provenance]
 ]

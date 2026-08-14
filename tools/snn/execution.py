@@ -22,7 +22,7 @@ from typing import Any, Callable, Literal, Mapping, Sequence
 import models as M
 import numpy as np
 import torch
-from bundle import load_graph_bundle
+from bundle import load_graph_bundle, load_training_recipe
 from torch import nn
 
 ExecutorName = Literal["legacy", "graph"]
@@ -88,6 +88,8 @@ class ExecutionSpec:
     event_bindings: Sequence[EventStreamBinding] = field(default_factory=tuple)
     poisson_bindings: Sequence[PoissonInputBinding] = field(default_factory=tuple)
     protocol: Mapping[str, Any] = field(default_factory=dict)
+    training: Mapping[str, Any] | None = None
+    targets: Mapping[str, torch.Tensor] = field(default_factory=dict)
     seed: int = 0
     device: str = "auto"
     recording: RecordingProfile = "full"
@@ -102,6 +104,8 @@ class ExecutionResult:
     outputs: dict[str, torch.Tensor] = field(default_factory=dict)
     recordings: dict[str, torch.Tensor] = field(default_factory=dict)
     parameters: dict[str, torch.Tensor] = field(default_factory=dict)
+    gradients: dict[str, torch.Tensor] = field(default_factory=dict)
+    optimizer_state: dict[str, Any] = field(default_factory=dict)
     final_state: dict[str, torch.Tensor] = field(default_factory=dict)
     runtime_state: GraphRuntimeState | None = None
     metrics: dict[str, Any] = field(default_factory=dict)
@@ -130,7 +134,13 @@ GRAPH_CAPABILITIES_V1 = {
     "connections": {"feedforward", "recurrent", "feedback"},
     "recordings": {"spikes", "voltage"},
     "delays": "integer_steps",
-    "training": False,
+    "training": {
+        "objectives": {"cross_entropy"},
+        "regularizers": {"spike_budget"},
+        "optimizers": {"adamw"},
+        "parameter_groups": "named_trainable_and_frozen",
+        "updates": "single_batch_one_or_more",
+    },
 }
 
 
@@ -1236,14 +1246,23 @@ def plan_graph(graph: Mapping[str, Any]) -> GraphPlan:
 class GraphExecutor(nn.Module):
     """Dense graph executor whose graph topology is lowered before simulation."""
 
-    def __init__(self, plan: GraphPlan, *, seed: int = 0):
+    def __init__(
+        self,
+        plan: GraphPlan,
+        *,
+        seed: int = 0,
+        trainable_parameters: Sequence[str] = (),
+        surrogate_slope: float = M.SURROGATE_SLOPE,
+    ):
         super().__init__()
         self.plan = plan
+        self.surrogate_slope = float(surrogate_slope)
         torch.manual_seed(seed)
         rows = {row["id"]: row for row in plan.graph.get("parameters", [])}
         self.weights = nn.ParameterDict()
         self.initialization_metadata: dict[str, dict[str, Any]] = {}
         pop_ids = {p["id"] for p in plan.populations}
+        trainable = set(trainable_parameters)
 
         def initialise(
             row: Mapping[str, Any],
@@ -1366,13 +1385,14 @@ class GraphExecutor(nn.Module):
                     row, runtime_shape=shape, scale_by_fanin=False
                 )
         for projection in plan.projections:
+            parameter_id = projection.parameter
             self.weights[projection.parameter.replace(".", "__")] = nn.Parameter(
-                realised[projection.parameter], requires_grad=False
+                realised[projection.parameter], requires_grad=parameter_id in trainable
             )
         for operation in plan.graph.get("operations", []):
             for parameter in operation.get("parameters", []):
                 self.weights[parameter.replace(".", "__")] = nn.Parameter(
-                    realised[parameter], requires_grad=False
+                    realised[parameter], requires_grad=parameter in trainable
                 )
 
     def parameter_map(self) -> dict[str, torch.Tensor]:
@@ -1672,7 +1692,9 @@ class GraphExecutor(nn.Module):
                     c_m,
                     g_l,
                     ref_steps,
-                    M.spike_biophysical,
+                    lambda value, threshold_offset=0.0: M.fast_sigmoid_spike(
+                        value - M.V_th - threshold_offset, self.surrogate_slope
+                    ),
                     dt_override=self.plan.dt_ms,
                     v_grad_dampen=dampen,
                 )
@@ -1826,6 +1848,13 @@ class GraphExecutor(nn.Module):
         packed.update(
             {k: torch.stack(v) for k, v in projection_recordings.items() if v}
         )
+        if recording == "full":
+            packed.update(
+                {
+                    f"{name}.spikes": torch.stack(values)
+                    for name, values in spike_traces.items()
+                }
+            )
         next_input_histories = {
             name: torch.cat((history, inputs[name]), dim=0)[-history.shape[0] :]
             .detach()
@@ -1868,13 +1897,26 @@ def build(spec: ExecutionSpec) -> ExecutionResult:
             executor="legacy", metrics={"request": "build", "routing": "legacy"}
         )
     graph = spec.graph
+    training = spec.training
     if graph is None and spec.bundle is not None:
-        _, graph = load_graph_bundle(spec.bundle)
+        manifest, graph = load_graph_bundle(spec.bundle)
+        if spec.kind == "train" and training is None:
+            training = load_training_recipe(spec.bundle, manifest, graph)
     if graph is None:
         raise ValueError("graph execution requires graph data or a bundle")
     device = resolve_device(spec.device)
     started = time.perf_counter()
-    model = GraphExecutor(plan_graph(graph), seed=spec.seed).to(device)
+    trainable = (
+        training.get("resolved_parameters", {}).get("trainable", []) if training else []
+    )
+    surrogate = (training or {}).get("surrogate") or {}
+    surrogate_slope = float(surrogate.get("slope", M.SURROGATE_SLOPE))
+    model = GraphExecutor(
+        plan_graph(graph),
+        seed=spec.seed,
+        trainable_parameters=trainable,
+        surrogate_slope=surrogate_slope,
+    ).to(device)
     return ExecutionResult(
         executor="graph",
         model=model,
@@ -1882,6 +1924,7 @@ def build(spec: ExecutionSpec) -> ExecutionResult:
         metrics={
             "build_s": time.perf_counter() - started,
             "initialization": model.initialization_metadata,
+            "training_schema": training.get("schema") if training else None,
         },
     )
 
@@ -1944,12 +1987,174 @@ def simulate(
 
 
 def train(spec: ExecutionSpec) -> ExecutionResult:
-    if spec.executor == "graph":
-        raise NotImplementedError(
-            "graph training requires capability training:v1 (Milestone 6)"
+    if spec.executor != "graph":
+        return ExecutionResult(
+            executor="legacy", metrics={"request": "train", "routing": "legacy"}
         )
+    built = build(spec)
+    assert isinstance(built.model, GraphExecutor)
+    model = built.model
+    graph = model.plan.graph
+    training = spec.training
+    if training is None and spec.bundle is not None:
+        manifest, _ = load_graph_bundle(spec.bundle)
+        training = load_training_recipe(spec.bundle, manifest, graph)
+    if training is None:
+        raise ValueError("graph training requires a training recipe or training bundle")
+    if not spec.targets:
+        raise ValueError("graph training requires external target tensors")
+    device = resolve_device(spec.device)
+    resolved_inputs = resolve_input_bindings(
+        graph,
+        dense_bindings=spec.input_bindings,
+        event_bindings=spec.event_bindings,
+        poisson_bindings=spec.poisson_bindings,
+        inputs=spec.inputs,
+        device=device,
+        seed=spec.seed,
+        protocol=spec.protocol,
+    )
+    parameter_map = model.parameter_map()
+    groups = []
+    for group in sorted(
+        training.get("parameter_groups", []), key=lambda row: row["id"]
+    ):
+        if group.get("frozen"):
+            continue
+        groups.append(
+            {
+                "params": [parameter_map[name] for name in sorted(group["parameters"])],
+                "lr": float(group["lr"]),
+                "name": group["id"],
+            }
+        )
+    if not groups:
+        raise ValueError(
+            "graph training requires at least one trainable parameter group"
+        )
+    optimizer_spec = training.get("optimizer", {})
+    if optimizer_spec.get("kind") != "adamw":
+        raise ValueError(
+            f"graph training unsupported optimizer {optimizer_spec.get('kind')}"
+        )
+    optimizer = torch.optim.AdamW(groups, **dict(optimizer_spec.get("config", {})))
+    output_ids = {row["signal"]: row["id"] for row in graph.get("outputs", [])}
+    updates = int(spec.options.get("updates", 1))
+    if updates <= 0:
+        raise ValueError("graph training updates must be positive")
+    history = []
+    last_gradients: dict[str, torch.Tensor] = {}
+    final_forward: ExecutionResult | None = None
+    for update in range(updates):
+        optimizer.zero_grad(set_to_none=True)
+        forward = model(resolved_inputs.tensors, record="full")
+        components: dict[str, torch.Tensor] = {}
+        loss = torch.zeros((), device=device)
+        for index, objective in enumerate(training.get("objectives", [])):
+            if objective.get("kind") != "cross_entropy":
+                raise ValueError(
+                    f"objective[{index}] unsupported kind {objective.get('kind')}"
+                )
+            output_id = output_ids.get(objective["prediction"])
+            if output_id is None:
+                raise ValueError(
+                    f"objective[{index}] prediction {objective['prediction']} is not a graph output"
+                )
+            target_name = objective["target"]
+            if target_name not in spec.targets:
+                raise ValueError(
+                    f"objective[{index}] missing target tensor {target_name}"
+                )
+            target = spec.targets[target_name].to(device=device, dtype=torch.long)
+            value = torch.nn.functional.cross_entropy(
+                forward.outputs[output_id], target
+            ) * float(objective.get("weight", 1.0))
+            components[f"objective[{index}]"] = value
+            loss = loss + value
+        duration = training.get("presentation_duration")
+        duration_s = (
+            float(duration["value"]) / 1000.0
+            if duration
+            else resolved_inputs.protocol["timing"]["duration_ms"] / 1000.0
+        )
+        for index, regularizer in enumerate(training.get("regularizers", [])):
+            if regularizer.get("kind") != "spike_budget":
+                raise ValueError(
+                    f"regularizer[{index}] unsupported kind {regularizer.get('kind')}"
+                )
+            ceiling = float(regularizer["config"]["ceiling"]["value"])
+            penalties = []
+            for signal in regularizer["signals"]:
+                spikes = forward.recordings.get(signal)
+                if spikes is None:
+                    raise ValueError(
+                        f"regularizer[{index}] spike signal {signal} is not recorded"
+                    )
+                sample_rates = spikes.sum(dim=0).mean(dim=1) / duration_s
+                penalties.append(torch.relu(sample_rates - ceiling).square())
+            value = float(regularizer["strength"]) * torch.stack(penalties).mean()
+            components[f"regularizer[{index}]"] = value
+            loss = loss + value
+        loss.backward()
+        last_gradients = {
+            name: parameter.grad.detach().clone()
+            for name, parameter in parameter_map.items()
+            if parameter.grad is not None
+        }
+        clip = training.get("gradient_clip")
+        if clip is not None:
+            torch.nn.utils.clip_grad_norm_(
+                [parameter for group in groups for parameter in group["params"]],
+                float(clip),
+            )
+        optimizer.step()
+        rows = {row["id"]: row for row in graph.get("parameters", [])}
+        with torch.no_grad():
+            for name, parameter in parameter_map.items():
+                if (rows[name].get("constraint") or {}).get("kind") == "non_negative":
+                    parameter.clamp_(min=0)
+        history.append(
+            {
+                "update": update + 1,
+                "loss": float(loss.detach()),
+                "components": {
+                    name: float(value.detach()) for name, value in components.items()
+                },
+            }
+        )
+        final_forward = forward
+    assert final_forward is not None
+
+    def optimizer_state_by_name() -> dict[str, Any]:
+        packed = {}
+        for name, parameter in parameter_map.items():
+            if parameter not in optimizer.state:
+                continue
+            packed[name] = {
+                key: value.detach().clone()
+                if isinstance(value, torch.Tensor)
+                else value
+                for key, value in optimizer.state[parameter].items()
+            }
+        return packed
+
     return ExecutionResult(
-        executor="legacy", metrics={"request": "train", "routing": "legacy"}
+        executor="graph",
+        outputs=final_forward.outputs,
+        recordings=final_forward.recordings,
+        parameters={
+            name: value.detach().clone() for name, value in parameter_map.items()
+        },
+        gradients=last_gradients,
+        optimizer_state=optimizer_state_by_name(),
+        model=model,
+        metrics={
+            **built.metrics,
+            "updates": history,
+            "execution_protocol": resolved_inputs.protocol,
+            "trainable_parameters": sorted(last_gradients),
+            "optimizer": optimizer_spec,
+        },
     )
 
 
