@@ -859,6 +859,13 @@ def _build_subparsers(parser, parent):
         metavar="ID=FACTOR",
         help="[graph] Multiply a named graph projection for this inference request; repeatable.",
     )
+    sim_parser.add_argument(
+        "--intervention",
+        action="append",
+        default=[],
+        metavar="KIND:POPULATION=VALUE",
+        help="[graph] Ordered spike intervention: drop:POPULATION=PROBABILITY or add:POPULATION=RATE_HZ; repeatable.",
+    )
     # Uniform-Poisson drive knobs (--input synthetic-spikes / --input-file): the
     # net structure + drive for f–I curves and untrained-net parameter sweeps.
     # (Folded in from the retired `probe` subcommand.)
@@ -1896,6 +1903,8 @@ def main(argv=None):
         raise SystemExit("--poisson-protocol requires --executor graph")
     if request.executor == "legacy" and getattr(args, "scale_projection", None):
         raise SystemExit("--scale-projection requires --executor graph")
+    if request.executor == "legacy" and getattr(args, "intervention", None):
+        raise SystemExit("--intervention requires --executor graph")
 
     if request.executor == "graph":
         from dataclasses import replace
@@ -1934,6 +1943,31 @@ def main(argv=None):
                         f"--scale-projection repeats projection {projection_id!r}"
                     )
                 projection_scales[projection_id] = float(raw_factor)
+            interventions = []
+            for item in getattr(args, "intervention", []):
+                target, separator, raw_value = item.partition("=")
+                kind, kind_separator, population_id = target.partition(":")
+                if (
+                    not separator
+                    or not kind_separator
+                    or not population_id
+                    or not raw_value
+                    or kind not in {"drop", "add"}
+                ):
+                    raise ValueError(
+                        "--intervention expects drop:POPULATION=PROBABILITY or add:POPULATION=RATE_HZ"
+                    )
+                value = float(raw_value)
+                interventions.append(
+                    {
+                        "kind": (
+                            "drop_spikes" if kind == "drop" else "add_poisson_spikes"
+                        ),
+                        "population_id": population_id,
+                        "probability" if kind == "drop" else "rate_hz": value,
+                        "seed": args.seed,
+                    }
+                )
             if poisson_protocol:
                 input_ids = [row["id"] for row in graph.get("inputs", [])]
                 if len(input_ids) != 1:
@@ -2014,6 +2048,7 @@ def main(argv=None):
                     if projection_scales
                     else {}
                 ),
+                **({"inference_interventions": interventions} if interventions else {}),
             },
             runtime_state=runtime_state,
         )
