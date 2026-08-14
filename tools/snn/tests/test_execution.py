@@ -19,6 +19,7 @@ from execution import (
     GraphExecutor,
     GraphRuntimeState,
     PoissonInputBinding,
+    TargetArrayBinding,
     build,
     execute_request,
     execution_spec_from_args,
@@ -27,6 +28,7 @@ from execution import (
     load_dense_array_bindings,
     load_event_stream_bindings,
     load_runtime_state,
+    load_target_array_bindings,
     load_training_checkpoint,
     plan_graph,
     resolve_dense_array_bindings,
@@ -34,6 +36,7 @@ from execution import (
     resolve_event_stream_bindings,
     resolve_input_bindings,
     resolve_poisson_input_bindings,
+    resolve_target_array_bindings,
     runtime_state_signature,
     save_runtime_state,
     save_training_checkpoint,
@@ -349,6 +352,116 @@ def test_training_checkpoint_rejects_partial_parameter_mapping(tmp_path):
                 checkpoint=root,
             )
         )
+
+
+def test_dataset_training_resume_preserves_shuffle_and_batch_position(tmp_path):
+    bundle = _direct_train_bundle()
+    inputs = torch.zeros(3, 5, 2)
+    for sample in range(5):
+        inputs[:, sample, sample % 2] = 1
+    common = dict(
+        kind="train",
+        executor="graph",
+        graph=bundle.graph,
+        training=bundle.training,
+        inputs={"events": inputs},
+        targets={"label": torch.tensor([0, 1, 0, 1, 0])},
+        seed=23,
+    )
+    trajectory = {"epochs": 2, "batch_size": 2, "shuffle": True}
+    uninterrupted = train(ExecutionSpec(**common, options=trajectory))
+    checkpoint_dir = tmp_path / "dataset-checkpoint"
+    first = train(
+        ExecutionSpec(
+            **common,
+            options={
+                **trajectory,
+                "updates": 1,
+                "save_final_checkpoint": checkpoint_dir,
+            },
+        )
+    )
+    assert first.training_checkpoint is not None
+    assert first.training_checkpoint.data_state == {"epoch": 0, "batch": 1}
+    resumed = train(
+        ExecutionSpec(
+            **common,
+            checkpoint=checkpoint_dir,
+            options=trajectory,
+        )
+    )
+    assert resumed.metrics["updates"] == uninterrupted.metrics["updates"][1:]
+    assert resumed.training_checkpoint is not None
+    assert resumed.training_checkpoint.data_state == {"epoch": 2, "batch": 0}
+    for name in uninterrupted.parameters:
+        torch.testing.assert_close(
+            resumed.parameters[name], uninterrupted.parameters[name], rtol=0, atol=0
+        )
+
+
+def test_target_array_binding_is_named_and_digest_bearing(tmp_path):
+    bundle = _direct_train_bundle()
+    path = tmp_path / "targets.npy"
+    np.save(path, np.array([0, 1, 1], dtype=np.int64))
+    bindings = load_target_array_bindings(path, bundle.training)
+    assert bindings[0].target_id == "label"
+    assert bindings[0].source["digest"].startswith("sha256:")
+    resolved, rows = resolve_target_array_bindings(
+        bundle.training, bindings=bindings, sample_count=3
+    )
+    assert resolved["label"].tolist() == [0, 1, 1]
+    assert rows[0]["source"]["path"] == str(path)
+    with pytest.raises(ValueError, match="target ids do not match recipe"):
+        resolve_target_array_bindings(
+            bundle.training,
+            bindings=(TargetArrayBinding("wrong", torch.tensor([0, 1, 1])),),
+            sample_count=3,
+        )
+
+
+def test_graph_training_cli_loads_targets_and_writes_resume_checkpoint(tmp_path):
+    bundle = _direct_train_bundle().write(tmp_path / "train.bundle")
+    inputs = np.zeros((3, 4, 2), dtype=np.float32)
+    inputs[:, ::2, 0] = 1
+    inputs[:, 1::2, 1] = 1
+    input_path = tmp_path / "inputs.npy"
+    target_path = tmp_path / "targets.npy"
+    np.save(input_path, inputs)
+    np.save(target_path, np.array([0, 1, 0, 1], dtype=np.int64))
+    checkpoint = tmp_path / "checkpoint"
+    out_dir = tmp_path / "run"
+    assert (
+        main(
+            [
+                "train",
+                "--executor",
+                "graph",
+                "--bundle",
+                str(bundle),
+                "--input-file",
+                str(input_path),
+                "--target-file",
+                str(target_path),
+                "--batch-size",
+                "2",
+                "--input-shuffle",
+                "--save-final-checkpoint",
+                str(checkpoint),
+                "--out-dir",
+                str(out_dir),
+            ]
+        )
+        == 0
+    )
+    metrics = json.loads((out_dir / "metrics.json").read_text())
+    assert len(metrics["updates"]) == 2
+    assert metrics["execution_protocol"]["targets"][0]["source"]["digest"].startswith(
+        "sha256:"
+    )
+    assert load_training_checkpoint(checkpoint).data_state == {
+        "epoch": 1,
+        "batch": 0,
+    }
 
 
 def test_legacy_parameter_map_uses_complete_semantic_names():
