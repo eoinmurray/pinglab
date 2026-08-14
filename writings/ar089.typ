@@ -28,9 +28,9 @@
 
   === Checkpoints
 
-  Parameter checkpoints and runtime state serve different purposes. A parameter checkpoint describes learned or initialized weights. Runtime state describes where one simulation trajectory currently is. A graph-training checkpoint additionally carries named optimizer state, the completed-update count, CPU stochastic state, the resolved execution protocol, initializer metadata, and graph and training digests.
+  Parameter checkpoints and runtime state serve different purposes. A parameter checkpoint describes learned or initialized weights. Runtime state describes where one simulation trajectory currently is. A graph-training checkpoint additionally carries named optimizer state, the completed-update count, CPU stochastic state, exact named accelerator generator states when applicable, the resolved execution protocol, initializer metadata, and graph and training digests.
 
-  The graph trainer can write both the final update and the lowest-loss update selected during an invocation. Resume validates the complete named parameter set, shapes, dtypes, recipe identity, protocol, and initializer provenance before restoring parameters, AdamW state, the random-number stream, and the next dataset epoch and batch. A partial or positional mapping is rejected.
+  The graph trainer can write both the final update and the lowest-loss update selected during an invocation. Resume validates the complete named parameter set, shapes, dtypes, recipe identity, protocol, initializer provenance, random backend, and accelerator device topology before restoring parameters, AdamW state, random-number streams, and the next dataset epoch and batch. A partial or positional mapping is rejected. CPU, CUDA, and MPS checkpoints resume only on the same random backend; CUDA requires the exact contiguous device set captured from `cuda:0` onward.
 
   === Provenance
 
@@ -81,12 +81,18 @@
   ```python
   save_training_checkpoint(path, checkpoint) -> Path
   load_training_checkpoint(path, *, device="cpu") -> TrainingCheckpoint
+  capture_training_rng_state(device) -> tuple[str, dict[str, Tensor]]
+  restore_training_rng_state(checkpoint, device) -> None
   legacy_parameter_map_v1(graph) -> dict[str, str]
   import_legacy_parameters_v1(graph, state_dict) -> ParameterInterchange
   export_legacy_parameters_v1(graph, parameters) -> ParameterInterchange
   ```
 
-  Training checkpoints use schema `tools/snn.training-checkpoint/v1` and store a JSON manifest beside a digest-verified compressed tensor payload. Parameters and optimizer tensors are keyed by stable graph parameter id. The manifest authenticates the graph and training recipes, completed update, resolved execution protocol, realized initialization metadata, optimizer scalars, selected loss, tensor layout, and dataset iterator position.
+  Training checkpoints use schema `tools/snn.training-checkpoint/v1` and store a JSON manifest beside a digest-verified compressed tensor payload. Manifest version 2 adds `rng_backend`, an exact accelerator-device inventory, and one authenticated uint8 generator state per device while retaining the CPU generator. Parameters and optimizer tensors are keyed by stable graph parameter id. The manifest authenticates the graph and training recipes, completed update, resolved execution protocol, realized initialization metadata, optimizer scalars, selected loss, tensor layout, dataset iterator position, and stochastic topology. CPU-only manifest version 1 remains loadable.
+
+  CUDA capture uses every state returned by `torch.cuda.get_rng_state_all`; resume requires the available device count to reproduce the exact `cuda:0 ... cuda:N` inventory before any generator is changed. MPS stores exactly one `mps` state. Cross-backend resume, missing or extra states, non-contiguous CUDA ids, malformed RNG tensors, and unavailable MPS restoration fail closed. Training metrics report the checkpoint RNG backend and device names.
+
+  Mocked topology fixtures prove schema, inventory, validation, and restore dispatch without allocating hardware. They do *not* prove accelerator numerical determinism or legacy-versus-graph parity; those claims require the publication-device cases in the final conformance campaign.
 
   `ExecutionSpec.checkpoint` resumes graph training from a checkpoint directory. The `save_final_checkpoint` and `save_selected_checkpoint` options persist the final and invocation-selected states. `legacy_parameter_map_v1` provides the explicit one-layer legacy adapter map and fails closed for graphs that cannot be represented without omissions or ambiguity.
 
