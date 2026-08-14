@@ -364,6 +364,20 @@ retains the source artifact digest. `validate_derived_inference_products`
 rejects corruption or reuse against a different source cache. Scientific
 acceptance thresholds remain campaign decisions rather than executor defaults.
 
+## Final migration gate
+
+`tools/snn/equivalence-policy-v1.json` is the frozen comparison contract for the
+legacy-to-graph migration. Exact comparison remains the default; only named
+floating results receive the declared `1e-6` absolute and relative tolerance.
+The policy digest must be recorded before final evidence is inspected, and any
+change requires a new policy identity.
+
+`tools.snn.migration.migration_preflight` performs a read-only, fail-closed
+check for the immutable legacy campaign, the complete digest-matched graph
+campaign, and policy-bound CUDA or MPS conformance evidence. It reports missing
+gates without executing a campaign, activating a publication view, or changing
+the independent legacy record.
+
 A separate five-sample dataset oracle reconstructs two shuffled epochs and
 their uneven final batches directly with seeded PyTorch permutations. Update
 coordinates, the complete loss trajectory, final gradient/parameter/AdamW
