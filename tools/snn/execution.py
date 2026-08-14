@@ -33,6 +33,7 @@ RecordingProfile = Literal["full", "observables", "none"]
 DENSE_ARRAY_BINDING_SCHEMA = "tools/snn.dense-array-binding/v1"
 EVENT_STREAM_BINDING_SCHEMA = "tools/snn.event-stream-binding/v1"
 MIXED_INPUT_BINDING_SCHEMA = "tools/snn.mixed-input-bindings/v1"
+POISSON_INPUT_BINDING_SCHEMA = "tools/snn.poisson-input-binding/v1"
 EXECUTION_PROTOCOL_SCHEMA = "tools/snn.execution-protocol/v1"
 
 
@@ -59,6 +60,18 @@ class EventStreamBinding:
 
 
 @dataclass(frozen=True)
+class PoissonInputBinding:
+    """Generated Bernoulli-discretised Poisson spikes for one graph input."""
+
+    input_id: str
+    steps_count: int
+    batch_size: int
+    rates_hz: Sequence[float]
+    seed: int
+    categorical: bool = False
+
+
+@dataclass(frozen=True)
 class ResolvedDenseInputs:
     tensors: Mapping[str, torch.Tensor]
     protocol: Mapping[str, Any]
@@ -73,6 +86,7 @@ class ExecutionSpec:
     inputs: Mapping[str, torch.Tensor] = field(default_factory=dict)
     input_bindings: Sequence[DenseArrayBinding] = field(default_factory=tuple)
     event_bindings: Sequence[EventStreamBinding] = field(default_factory=tuple)
+    poisson_bindings: Sequence[PoissonInputBinding] = field(default_factory=tuple)
     protocol: Mapping[str, Any] = field(default_factory=dict)
     seed: int = 0
     device: str = "auto"
@@ -195,6 +209,7 @@ def load_event_stream_bindings(
     source_base = {"kind": "file", "path": str(source_path), "digest": digest}
     bindings = []
     for input_id in input_ids:
+
         def key(field: str) -> str:
             return field if use_plain else f"{input_id}.{field}"
 
@@ -360,7 +375,9 @@ def resolve_dense_array_bindings(
     try:
         json.dumps(execution_protocol, sort_keys=True)
     except TypeError as exc:
-        raise ValueError(f"execution protocol must be JSON-serializable: {exc}") from exc
+        raise ValueError(
+            f"execution protocol must be JSON-serializable: {exc}"
+        ) from exc
     return ResolvedDenseInputs(tensors=resolved, protocol=execution_protocol)
 
 
@@ -426,14 +443,16 @@ def resolve_event_stream_bindings(
             )
         coordinates = (binding.steps, binding.batches, binding.channels)
         if any(value.ndim != 1 for value in coordinates):
-            raise ValueError(f"event input {input_id} coordinates must be one-dimensional")
+            raise ValueError(
+                f"event input {input_id} coordinates must be one-dimensional"
+            )
         lengths = {int(value.numel()) for value in coordinates}
         if len(lengths) != 1:
-            raise ValueError(
-                f"event input {input_id} coordinate lengths must match"
-            )
+            raise ValueError(f"event input {input_id} coordinate lengths must match")
         if any(value.dtype not in integer_dtypes for value in coordinates):
-            raise ValueError(f"event input {input_id} coordinates must use integer dtypes")
+            raise ValueError(
+                f"event input {input_id} coordinates must use integer dtypes"
+            )
         steps = binding.steps.to(dtype=torch.int64, device="cpu")
         batches = binding.batches.to(dtype=torch.int64, device="cpu")
         channels = binding.channels.to(dtype=torch.int64, device="cpu")
@@ -455,7 +474,9 @@ def resolve_event_stream_bindings(
                     f"event input {input_id} coordinates must be ordered by step, batch, channel"
                 )
             if torch.any(differences == 0):
-                raise ValueError(f"event input {input_id} contains duplicate coordinates")
+                raise ValueError(
+                    f"event input {input_id} contains duplicate coordinates"
+                )
         current_leading = (steps_count, batch_size)
         if leading_shape is None:
             leading_shape = current_leading
@@ -536,7 +557,9 @@ def resolve_event_stream_bindings(
     try:
         json.dumps(execution_protocol, sort_keys=True)
     except TypeError as exc:
-        raise ValueError(f"execution protocol must be JSON-serializable: {exc}") from exc
+        raise ValueError(
+            f"execution protocol must be JSON-serializable: {exc}"
+        ) from exc
     return ResolvedDenseInputs(tensors=resolved, protocol=execution_protocol)
 
 
@@ -545,12 +568,13 @@ def resolve_input_bindings(
     *,
     dense_bindings: Sequence[DenseArrayBinding] = (),
     event_bindings: Sequence[EventStreamBinding] = (),
+    poisson_bindings: Sequence[PoissonInputBinding] = (),
     inputs: Mapping[str, torch.Tensor] | None = None,
     device: str | torch.device = "cpu",
     seed: int = 0,
     protocol: Mapping[str, Any] | None = None,
 ) -> ResolvedDenseInputs:
-    """Resolve dense, event-stream, or mixed graph input representations."""
+    """Resolve dense, event-stream, generated-Poisson, or mixed graph inputs."""
     if dense_bindings and inputs:
         raise ValueError("provide dense input bindings or input tensors, not both")
     if inputs:
@@ -560,15 +584,32 @@ def resolve_input_bindings(
         )
     dense_ids = {binding.input_id for binding in dense_bindings}
     event_ids = {binding.input_id for binding in event_bindings}
-    overlap = sorted(dense_ids & event_ids)
+    poisson_ids = {binding.input_id for binding in poisson_bindings}
+    overlap = sorted(
+        (dense_ids & event_ids) | (dense_ids & poisson_ids) | (event_ids & poisson_ids)
+    )
     if overlap:
-        raise ValueError(f"graph inputs cannot have dense and event bindings: {overlap}")
+        raise ValueError(
+            f"graph inputs cannot have dense and event bindings: {overlap}"
+        )
     graph_ids = {row["id"] for row in graph.get("inputs", [])}
-    if dense_ids | event_ids != graph_ids:
-        missing = sorted(graph_ids - dense_ids - event_ids)
-        unexpected = sorted((dense_ids | event_ids) - graph_ids)
+    if dense_ids | event_ids | poisson_ids != graph_ids:
+        missing = sorted(graph_ids - dense_ids - event_ids - poisson_ids)
+        unexpected = sorted((dense_ids | event_ids | poisson_ids) - graph_ids)
         raise ValueError(
             f"input ids do not match graph inputs; missing={missing}, unexpected={unexpected}"
+        )
+    if poisson_bindings:
+        if dense_bindings or event_bindings:
+            raise ValueError(
+                "Poisson bindings cannot yet be mixed with replay bindings"
+            )
+        return resolve_poisson_input_bindings(
+            graph,
+            bindings=poisson_bindings,
+            device=device,
+            seed=seed,
+            protocol=protocol,
         )
     if not event_bindings:
         return resolve_dense_array_bindings(
@@ -646,6 +687,148 @@ def resolve_input_bindings(
     return ResolvedDenseInputs(
         tensors={**dense.tensors, **events.tensors}, protocol=execution_protocol
     )
+
+
+def resolve_poisson_input_bindings(
+    graph: Mapping[str, Any],
+    *,
+    bindings: Sequence[PoissonInputBinding],
+    device: str | torch.device = "cpu",
+    seed: int = 0,
+    protocol: Mapping[str, Any] | None = None,
+) -> ResolvedDenseInputs:
+    """Generate reproducible fixed or per-presentation categorical Poisson spikes."""
+    specs = {row["id"]: row for row in graph.get("inputs", [])}
+    by_name = {binding.input_id: binding for binding in bindings}
+    if len(by_name) != len(bindings):
+        raise ValueError("duplicate Poisson binding for a graph input")
+    if set(by_name) != set(specs):
+        missing = sorted(set(specs) - set(by_name))
+        unexpected = sorted(set(by_name) - set(specs))
+        raise ValueError(
+            f"Poisson input ids do not match graph inputs; missing={missing}, unexpected={unexpected}"
+        )
+    dt_ms = float(graph["timebase"]["dt"]["value"])
+    tensors: dict[str, torch.Tensor] = {}
+    rows: list[dict[str, Any]] = []
+    leading_shape: tuple[int, int] | None = None
+    for input_id in sorted(specs):
+        spec = specs[input_id]
+        binding = by_name[input_id]
+        declared = spec.get("shape", [])
+        if declared[:2] != ["time", "batch"] or len(declared) != 3:
+            raise ValueError(
+                f"input {input_id} Poisson binding requires shape ['time', 'batch', channels]"
+            )
+        if spec.get("signal_type") != "spikes":
+            raise ValueError(
+                f"input {input_id} Poisson binding requires signal_type spikes"
+            )
+        if binding.steps_count <= 0 or binding.batch_size <= 0:
+            raise ValueError(
+                f"Poisson input {input_id} steps_count and batch_size must be positive"
+            )
+        rates = tuple(float(rate) for rate in binding.rates_hz)
+        if not rates or any(not math.isfinite(rate) or rate < 0 for rate in rates):
+            raise ValueError(
+                f"Poisson input {input_id} rates must be finite and non-negative"
+            )
+        if not binding.categorical and len(rates) != 1:
+            raise ValueError(
+                f"fixed-rate Poisson input {input_id} requires exactly one rate"
+            )
+        if max(rates) * dt_ms / 1000.0 > 1.0:
+            raise ValueError(
+                f"Poisson input {input_id} rate times dt exceeds probability one"
+            )
+        current_leading = (int(binding.steps_count), int(binding.batch_size))
+        if leading_shape is None:
+            leading_shape = current_leading
+        elif current_leading != leading_shape:
+            raise ValueError(
+                f"Poisson input {input_id} leading shape expected {leading_shape}, got {current_leading}"
+            )
+        generator = torch.Generator(device="cpu").manual_seed(int(binding.seed))
+        if binding.categorical:
+            indices = torch.randint(
+                len(rates), (binding.batch_size,), generator=generator
+            )
+            realized = torch.tensor(rates, dtype=torch.float32)[indices]
+        else:
+            realized = torch.full((binding.batch_size,), rates[0], dtype=torch.float32)
+        probability = realized.reshape(1, -1, 1) * dt_ms / 1000.0
+        value = (
+            (
+                torch.rand(
+                    binding.steps_count,
+                    binding.batch_size,
+                    int(declared[2]),
+                    generator=generator,
+                )
+                < probability
+            )
+            .float()
+            .to(device)
+        )
+        tensors[input_id] = value
+        rows.append(
+            {
+                "input_id": input_id,
+                "representation": "poisson",
+                "shape": list(value.shape),
+                "dtype": "float32",
+                "signal_type": "spikes",
+                "unit": spec.get("unit"),
+                "protocol": "categorical_rate" if binding.categorical else "fixed_rate",
+                "rates_hz": list(rates),
+                "realized_rates_hz": realized.tolist(),
+                "seed": int(binding.seed),
+                "selection": "uniform_independent_per_presentation"
+                if binding.categorical
+                else "constant",
+            }
+        )
+    assert leading_shape is not None
+    supplied = dict(protocol or {})
+    dataset = dict(supplied.pop("dataset", {}))
+    if {
+        "schema",
+        "binding_schema",
+        "representation",
+        "inputs",
+        "timing",
+        "seeds",
+    } & supplied.keys():
+        raise ValueError("execution protocol cannot override reserved Poisson fields")
+    dataset.setdefault("identity", None)
+    dataset.setdefault("split", None)
+    dataset.setdefault("sample_cap", leading_shape[1])
+    dataset.setdefault("batch_size", leading_shape[1])
+    dataset.setdefault("shuffle", None)
+    execution_protocol = {
+        "schema": EXECUTION_PROTOCOL_SCHEMA,
+        "binding_schema": POISSON_INPUT_BINDING_SCHEMA,
+        "representation": "poisson",
+        "inputs": rows,
+        "dataset": dataset,
+        "timing": {
+            "dt_ms": dt_ms,
+            "steps": leading_shape[0],
+            "duration_ms": leading_shape[0] * dt_ms,
+        },
+        "masks": [],
+        "seeds": {
+            "execution": int(seed),
+            "poisson": {row["input_id"]: row["seed"] for row in rows},
+        },
+        "resolution": {
+            "distribution": "Bernoulli discretization of homogeneous Poisson",
+            "rate_selection": "per_presentation",
+        },
+        **supplied,
+    }
+    json.dumps(execution_protocol, sort_keys=True)
+    return ResolvedDenseInputs(tensors=tensors, protocol=execution_protocol)
 
 
 def graph_capability_issues(graph: Mapping[str, Any]) -> list[CapabilityIssue]:
@@ -1645,6 +1828,7 @@ def simulate(
         built.model.plan.graph,
         dense_bindings=spec.input_bindings,
         event_bindings=spec.event_bindings,
+        poisson_bindings=spec.poisson_bindings,
         inputs=spec.inputs,
         device=device,
         seed=spec.seed,

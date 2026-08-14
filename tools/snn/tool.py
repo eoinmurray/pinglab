@@ -135,7 +135,7 @@ def _build_config_mapping(parent_parser):
             _SPECIAL_CONFIG_KEYS = {
                 "n_hidden": "hidden_sizes",  # CLI --n-hidden → dest=n_hidden; config key=hidden_sizes
                 "spike_rate": "input_rate",  # CLI --spike-rate → dest=spike_rate; config key=input_rate
-                "readout_mode": "readout",   # CLI --readout → dest=readout_mode; config key=readout
+                "readout_mode": "readout",  # CLI --readout → dest=readout_mode; config key=readout
             }
             if dest in _SPECIAL_CONFIG_KEYS:
                 cfg_key = _SPECIAL_CONFIG_KEYS[dest]
@@ -148,7 +148,9 @@ def _build_config_mapping(parent_parser):
             # This is used in _apply_load_config to check if a user explicitly set this value.
             if action.option_strings and dest not in dest_to_flag:
                 # Split flags into positive (--foo) and negative (--no-foo) forms
-                yes_flags = [f for f in action.option_strings if not f.startswith("--no-")]
+                yes_flags = [
+                    f for f in action.option_strings if not f.startswith("--no-")
+                ]
 
                 # Prefer positive over negative (user usually passes --foo, not --no-foo)
                 if yes_flags:
@@ -328,7 +330,10 @@ def _build_parent_parser():
     net_group.add_argument(
         "--readout",
         choices=[
-            "rate", "mem-mean", "spike-count", "spike-rate",
+            "rate",
+            "mem-mean",
+            "spike-count",
+            "spike-rate",
             "cumulative-potential",
         ],
         default="rate",
@@ -384,8 +389,8 @@ def _build_parent_parser():
         action="store_true",
         default=False,
         help="Forward-pass state clamp: floor conductances at 0 (and cap "
-             "magnitude) each timestep, so a signed-weight net cannot drive "
-             "g_tot <= 0 into NaN. Bounds the state, keeps weights signed.",
+        "magnitude) each timestep, so a signed-weight net cannot drive "
+        "g_tot <= 0 into NaN. Bounds the state, keeps weights signed.",
     )
     net_group.add_argument(
         "--train-leak",
@@ -740,9 +745,7 @@ def _build_subparsers(parser, parent):
     """Attach the per-mode subcommands (sim/train)."""
     import argparse
 
-    subparsers = parser.add_subparsers(
-        dest="mode", help="Mode: sim or train"
-    )
+    subparsers = parser.add_subparsers(dest="mode", help="Mode: sim or train")
 
     # -- sim subcommand (forward pass + metrics) --
     sim_parser = subparsers.add_parser(
@@ -801,54 +804,79 @@ def _build_subparsers(parser, parent):
         "either default to models.py (9.0 ms).",
     )
     sim_parser.add_argument(
-        "--skip-load", nargs="+", default=None, metavar="PREFIX",
+        "--skip-load",
+        nargs="+",
+        default=None,
+        metavar="PREFIX",
         help="[--infer] Drop state_dict keys with these prefixes before loading "
         "(e.g. W_ei. W_ie.) so a fresh sub-block survives — transfer-load probes.",
     )
     sim_parser.add_argument(
-        "--perturb-mode", choices=["drop", "add"], default=None,
+        "--perturb-mode",
+        choices=["drop", "add"],
+        default=None,
         help="[--infer] Hidden-spike perturbation applied inside the forward loop: "
         "drop (Bernoulli mask), add (Poisson noise Hz).",
     )
     sim_parser.add_argument(
-        "--perturb-level", nargs="+", type=float, default=None, metavar="LEVEL",
+        "--perturb-level",
+        nargs="+",
+        type=float,
+        default=None,
+        metavar="LEVEL",
         help="[--perturb-mode] level: one value for drop (prob) / add (Hz).",
     )
     sim_parser.add_argument(
-        "--i-override-file", type=str, default=None,
+        "--i-override-file",
+        type=str,
+        default=None,
         help="[--infer] NPZ with a sparse per-trial I-spike stream "
         "(i_trial/i_t/i_cell + n_trials/T/n_i) to substitute for the inhibitory "
         "spikes each timestep — generic injection dual of --outputs rasters.",
     )
     sim_parser.add_argument(
-        "--scale-w-in", type=float, default=1.0,
+        "--scale-w-in",
+        type=float,
+        default=1.0,
         help="[--infer] Multiply loaded input weights (W_ff[0]) before the forward pass.",
     )
     sim_parser.add_argument(
-        "--scale-w-ei", type=float, default=1.0,
+        "--scale-w-ei",
+        type=float,
+        default=1.0,
         help="[--infer] Multiply loaded W_ei matrices before the forward pass.",
     )
     sim_parser.add_argument(
-        "--scale-w-ie", type=float, default=1.0,
+        "--scale-w-ie",
+        type=float,
+        default=1.0,
         help="[--infer] Multiply loaded W_ie matrices before the forward pass.",
     )
     # Uniform-Poisson drive knobs (--input synthetic-spikes / --input-file): the
     # net structure + drive for f–I curves and untrained-net parameter sweeps.
     # (Folded in from the retired `probe` subcommand.)
     sim_parser.add_argument(
-        "--n-in", type=int, default=784,
+        "--n-in",
+        type=int,
+        default=784,
         help="[synthetic-spikes] Number of input channels (default: 784).",
     )
     sim_parser.add_argument(
-        "--n-inh", type=int, default=None,
+        "--n-inh",
+        type=int,
+        default=None,
         help="[synthetic-spikes] Inhibitory pool size (n_inh_per_layer, layer 1).",
     )
     sim_parser.add_argument(
-        "--n-batch", type=int, default=64,
+        "--n-batch",
+        type=int,
+        default=64,
         help="[synthetic-spikes] Number of Poisson-input trials averaged (default: 64).",
     )
     sim_parser.add_argument(
-        "--input-file", type=str, default=None,
+        "--input-file",
+        type=str,
+        default=None,
         help="Dense NPY/NPZ replay. Graph execution binds arrays by graph input id; "
         "legacy execution accepts input_spikes as before.",
     )
@@ -858,6 +886,12 @@ def _build_subparsers(parser, parent):
         default=None,
         help="Sparse event-stream NPZ replay for graph execution. Coordinates are "
         "zero-based integer steps, batches, and channels.",
+    )
+    sim_parser.add_argument(
+        "--poisson-protocol",
+        choices=["fixed-rate", "categorical-rate"],
+        default=None,
+        help="Generate graph-input Poisson spikes from --input-rate or --input-rates.",
     )
     sim_parser.add_argument(
         "--input-dataset-id",
@@ -878,16 +912,21 @@ def _build_subparsers(parser, parent):
         help="Record whether the graph replay batch was shuffled (use --no-input-shuffle for false).",
     )
     sim_parser.add_argument(
-        "--w-ei-mean", type=float, default=None,
+        "--w-ei-mean",
+        type=float,
+        default=None,
         help="[synthetic-spikes] Explicit W_ei mean (overrides ei-strength/ratio). "
         "std = 0.1·mean.",
     )
     sim_parser.add_argument(
-        "--w-ie-mean", type=float, default=None,
+        "--w-ie-mean",
+        type=float,
+        default=None,
         help="[synthetic-spikes] Explicit W_ie mean (independent of --w-ei-mean).",
     )
     sim_parser.add_argument(
-        "--private-w-in", action="store_true",
+        "--private-w-in",
+        action="store_true",
         help="[synthetic-spikes] Identity W_in: one input channel per E cell.",
     )
 
@@ -1111,15 +1150,17 @@ For the underlying theory of --v-grad-dampen see /articles/ar006/.
         return False
 
     args._input_auto = False
-    config_set_dataset = getattr(args, "load_config", None) and getattr(
-        args, "dataset", None
-    ) == "mnist"
+    config_set_dataset = (
+        getattr(args, "load_config", None) and getattr(args, "dataset", None) == "mnist"
+    )
     # Only auto-flip when --input was LEFT AT DEFAULT. An explicit --input
     # synthetic-spikes (e.g. uniform-Poisson f–I on a trained cell, which also
     # passes --load-config → dataset) must be honoured, not overridden.
     input_explicit = _flag_in_argv("--input")
-    if not input_explicit and args.input == "synthetic-spikes" and (
-        _flag_in_argv("--dataset", "--digit", "--sample") or config_set_dataset
+    if (
+        not input_explicit
+        and args.input == "synthetic-spikes"
+        and (_flag_in_argv("--dataset", "--digit", "--sample") or config_set_dataset)
     ):
         args.input = "dataset"
         args._input_auto = True
@@ -1149,9 +1190,7 @@ def configure_models(args):
         if val is not None:
             setattr(M, attr, cast(val))
     # Special case: a bare flag.
-    M.EXACT_K_INITIALIZATION = bool(
-        getattr(args, "exact_k_initialization", False)
-    )
+    M.EXACT_K_INITIALIZATION = bool(getattr(args, "exact_k_initialization", False))
     # Input Poisson rate and trial duration — single source of truth. Every
     # code path reads M.max_rate_hz / M.T_ms, so setting them here once means
     # all dispatch branches (sim/train × all input types) respect
@@ -1270,24 +1309,43 @@ def _print_intro(log, config, args, mode):
 
     # Drive line: Poisson rate only when synthetically driven (the input mode
     # is already the banner subtitle, so it is not repeated here).
-    groups.append(("sim", join(
-        f"dt {config.get('dt', '?')} ms",
-        f"T {config.get('t_ms', '?')} ms",
-        f"Poisson {config.get('spike_rate', '?')} Hz" if not dataset_used else None,
-    )))
+    groups.append(
+        (
+            "sim",
+            join(
+                f"dt {config.get('dt', '?')} ms",
+                f"T {config.get('t_ms', '?')} ms",
+                f"Poisson {config.get('spike_rate', '?')} Hz"
+                if not dataset_used
+                else None,
+            ),
+        )
+    )
 
     if mode == "train":
-        groups.append(("train", join(
-            f"{config.get('epochs', '?')} epochs",
-            f"lr {config.get('lr', '?')}",
-            f"batch {config.get('batch_size', 64)}",
-            f"v-dampen {config['v_grad_dampen']}" if has("v_grad_dampen") else None,
-        )))
+        groups.append(
+            (
+                "train",
+                join(
+                    f"{config.get('epochs', '?')} epochs",
+                    f"lr {config.get('lr', '?')}",
+                    f"batch {config.get('batch_size', 64)}",
+                    f"v-dampen {config['v_grad_dampen']}"
+                    if has("v_grad_dampen")
+                    else None,
+                ),
+            )
+        )
 
-    groups.append(("run", join(
-        config.get("run_id"),
-        f"git {config['git_sha']}" if has("git_sha") else None,
-    )))
+    groups.append(
+        (
+            "run",
+            join(
+                config.get("run_id"),
+                f"git {config['git_sha']}" if has("git_sha") else None,
+            ),
+        )
+    )
 
     runlog.banner(log, mode, model, subtitle)
     runlog.config_block(log, groups)
@@ -1316,13 +1374,14 @@ def _build_cell_drive(args, C, dt, T_steps):
     import torch
 
     dev = C.DEVICE
-    ext_g = None      # (T, N_E) drive onto the E population
-    ext_g_i = None    # (T, N_I) drive onto the I population
+    ext_g = None  # (T, N_E) drive onto the E population
+    ext_g_i = None  # (T, N_I) drive onto the I population
 
     # Constant tonic baseline on E (Börgers bias current), if configured.
     if C.BIAS > 0:
-        ext_g = torch.full((T_steps, C.N_E), float(C.BIAS),
-                           dtype=torch.float32, device=dev)
+        ext_g = torch.full(
+            (T_steps, C.N_E), float(C.BIAS), dtype=torch.float32, device=dev
+        )
 
     def _add(acc, contrib):
         return contrib if acc is None else acc + contrib
@@ -1335,7 +1394,9 @@ def _build_cell_drive(args, C, dt, T_steps):
     if getattr(args, "quenched_drive", None) is not None:
         mean, std = float(args.quenched_drive[0]), float(args.quenched_drive[1])
         gen = torch.Generator(device="cpu").manual_seed(C.SEED + 3)
-        q = torch.clamp(torch.normal(mean, std, (C.N_E,), generator=gen), min=0.0).to(dev)
+        q = torch.clamp(torch.normal(mean, std, (C.N_E,), generator=gen), min=0.0).to(
+            dev
+        )
         ext_g = _add(ext_g, q.unsqueeze(0).expand(T_steps, -1))
 
     if getattr(args, "independent_drive_i", None) is not None:
@@ -1346,7 +1407,9 @@ def _build_cell_drive(args, C, dt, T_steps):
     if getattr(args, "quenched_drive_i", None) is not None:
         mean, std = float(args.quenched_drive_i[0]), float(args.quenched_drive_i[1])
         gen = torch.Generator(device="cpu").manual_seed(C.SEED + 4)
-        q = torch.clamp(torch.normal(mean, std, (C.N_I,), generator=gen), min=0.0).to(dev)
+        q = torch.clamp(torch.normal(mean, std, (C.N_I,), generator=gen), min=0.0).to(
+            dev
+        )
         ext_g_i = _add(ext_g_i, q.unsqueeze(0).expand(T_steps, -1))
 
     return ext_g, ext_g_i
@@ -1358,8 +1421,9 @@ def _run_sim(args, C, out_dir, log):
     if getattr(args, "infer", False):
         # Check if --digit / --sample / --sample-index were explicitly passed (snapshot mode)
         _snap_flags = ("--digit", "--sample", "--sample-index")
-        snapshot_mode = any(arg in sys.argv for arg in _snap_flags) or \
-                       any(arg.split("=")[0] in _snap_flags for arg in sys.argv)
+        snapshot_mode = any(arg in sys.argv for arg in _snap_flags) or any(
+            arg.split("=")[0] in _snap_flags for arg in sys.argv
+        )
         _emit_infer(args, C, out_dir, log, snapshot_mode=snapshot_mode)
         return
 
@@ -1391,21 +1455,34 @@ def _run_sim(args, C, out_dir, log):
     # Drive: synthetic-spikes → one trial of uniform Poisson at --input-rate fed
     # through W_in (records voltages → snapshot.npz drives both the raster/PSD and
     # the per-neuron trace panels). Otherwise the Börgers tonic conductance step.
-    _drive_flags = ("independent_drive", "independent_drive_i",
-                    "quenched_drive", "quenched_drive_i")
+    _drive_flags = (
+        "independent_drive",
+        "independent_drive_i",
+        "quenched_drive",
+        "quenched_drive_i",
+    )
     _has_cell_drive = any(getattr(args, d, None) is not None for d in _drive_flags)
-    if getattr(args, "input", "synthetic-spikes") == "synthetic-spikes" and not _has_cell_drive:
+    if (
+        getattr(args, "input", "synthetic-spikes") == "synthetic-spikes"
+        and not _has_cell_drive
+    ):
         import torch
+
         n_in = int(getattr(M, "N_IN", C.N_E))
         T_steps = int(round(args.t_ms / dt))
         gen = torch.Generator().manual_seed(C.SEED)
         spk_in = M.poisson_spikes(spike_rate, (T_steps, n_in), dt, gen)
         runlog.phase(
-            log, "drive",
+            log,
+            "drive",
             f"uniform Poisson {spike_rate:.0f} Hz × {n_in} ch → W_in",
         )
         rec, display, _ = run_sim(
-            dt, 0.0, model_name=args.model, t_e_async=t_e_async, input_spikes=spk_in,
+            dt,
+            0.0,
+            model_name=args.model,
+            t_e_async=t_e_async,
+            input_spikes=spk_in,
         )
     else:
         # Cell-drive path (--independent-drive / --shared-drive / --quenched-
@@ -1415,6 +1492,7 @@ def _run_sim(args, C, out_dir, log):
         # direct cell-drive coexist, matching the historical path), and inject
         # ext_g / ext_g_i on top inside the model's forward pass.
         import torch
+
         T_steps = int(round(args.t_ms / dt))
         ext_g, ext_g_i = _build_cell_drive(args, C, dt, T_steps)
         n_in = int(getattr(M, "N_IN", C.N_E))
@@ -1422,18 +1500,25 @@ def _run_sim(args, C, out_dir, log):
         gen = torch.Generator().manual_seed(C.SEED)
         spk_in = (torch.rand(T_steps, n_in, generator=gen) < p_step).float()
         runlog.phase(
-            log, "drive",
+            log,
+            "drive",
             f"cell-drive · Poisson {spike_rate:.0f} Hz × {n_in} ch → W_in "
             f"+ per-cell ext_g",
         )
         rec, display, _ = run_sim(
-            dt, t_e_async, model_name=args.model, t_e_async=t_e_async,
-            input_spikes=spk_in, ext_g=ext_g, ext_g_i=ext_g_i,
+            dt,
+            t_e_async,
+            model_name=args.model,
+            t_e_async=t_e_async,
+            input_spikes=spk_in,
+            ext_g=ext_g,
+            ext_g_i=ext_g_i,
         )
 
     spk_e = rec[primary_hid_key(rec)]
     spk_i = rec[primary_inh_key(rec)] if primary_inh_key(rec) else None
     from metrics import compute_metrics
+
     _m = compute_metrics(spk_e, spk_i, dt, args.model, n_e=C.N_E, n_i=C.N_I)
     runlog.metrics_line(log, _m, label="result")
 
@@ -1446,15 +1531,25 @@ def _run_sim(args, C, out_dir, log):
     extra = None
     lyap_eps = float(getattr(args, "lyapunov_eps", 0.0) or 0.0)
     if lyap_eps > 0 and _has_cell_drive:
-        v_key = "v_e_1" if "v_e_1" in rec else next(
-            (k for k in rec if k.startswith("v_e_")), None)
+        v_key = (
+            "v_e_1"
+            if "v_e_1" in rec
+            else next((k for k in rec if k.startswith("v_e_")), None)
+        )
         if v_key is not None:
             rec_p, _, _ = run_sim(
-                dt, t_e_async, model_name=args.model, t_e_async=t_e_async,
-                input_spikes=spk_in, ext_g=ext_g, ext_g_i=ext_g_i,
-                v_perturb_eps=lyap_eps, v_perturb_seed=C.SEED + 7,
+                dt,
+                t_e_async,
+                model_name=args.model,
+                t_e_async=t_e_async,
+                input_spikes=spk_in,
+                ext_g=ext_g,
+                ext_g_i=ext_g_i,
+                v_perturb_eps=lyap_eps,
+                v_perturb_seed=C.SEED + 7,
             )
             import numpy as np
+
             vc = np.asarray(rec[v_key])
             vp = np.asarray(rec_p[v_key])
             n_t = min(vc.shape[0], vp.shape[0])
@@ -1462,13 +1557,15 @@ def _run_sim(args, C, out_dir, log):
             vp = vp[:n_t].reshape(n_t, -1)
             lyap_vdist = np.sqrt(((vc - vp) ** 2).sum(axis=1))
             lyap_t_ms = np.arange(n_t) * dt
-            extra = {"lyap_vdist": lyap_vdist.astype(np.float32),
-                     "lyap_t_ms": lyap_t_ms.astype(np.float32),
-                     "lyap_eps": np.float32(lyap_eps)}
+            extra = {
+                "lyap_vdist": lyap_vdist.astype(np.float32),
+                "lyap_t_ms": lyap_t_ms.astype(np.float32),
+                "lyap_eps": np.float32(lyap_eps),
+            }
             runlog.phase(
-                log, "lyapunov",
-                f"ε={lyap_eps:g} mV · ‖ΔV‖ {lyap_vdist[0]:.2e} → "
-                f"{lyap_vdist[-1]:.2e}",
+                log,
+                "lyapunov",
+                f"ε={lyap_eps:g} mV · ‖ΔV‖ {lyap_vdist[0]:.2e} → {lyap_vdist[-1]:.2e}",
             )
 
     # Save full integration window snapshot for notebooks
@@ -1732,11 +1829,16 @@ def main(argv=None):
     request = execution_spec_from_args(args)
 
     if request.executor == "legacy" and (
-        getattr(args, "load_runtime_state", None) or getattr(args, "save_runtime_state", None)
+        getattr(args, "load_runtime_state", None)
+        or getattr(args, "save_runtime_state", None)
     ):
-        raise SystemExit("--load-runtime-state/--save-runtime-state require --executor graph")
+        raise SystemExit(
+            "--load-runtime-state/--save-runtime-state require --executor graph"
+        )
     if request.executor == "legacy" and getattr(args, "event_file", None):
         raise SystemExit("--event-file requires --executor graph")
+    if request.executor == "legacy" and getattr(args, "poisson_protocol", None):
+        raise SystemExit("--poisson-protocol requires --executor graph")
 
     if request.executor == "graph":
         from dataclasses import replace
@@ -1745,24 +1847,64 @@ def main(argv=None):
 
         input_file = getattr(args, "input_file", None)
         event_file = getattr(args, "event_file", None)
-        if bool(input_file) == bool(event_file):
+        poisson_protocol = getattr(args, "poisson_protocol", None)
+        if (
+            sum(bool(value) for value in (input_file, event_file, poisson_protocol))
+            != 1
+        ):
             raise SystemExit(
-                "graph execution requires exactly one of --input-file or --event-file"
+                "graph execution requires exactly one of --input-file, --event-file, or --poisson-protocol"
             )
         from bundle import load_graph_bundle
         from execution import (
+            PoissonInputBinding,
             load_dense_array_bindings,
             load_event_stream_bindings,
             load_runtime_state,
             save_runtime_state,
         )
+
         _, graph = load_graph_bundle(args.bundle)
         try:
-            binding_update = (
-                {"event_bindings": load_event_stream_bindings(event_file, graph)}
-                if event_file
-                else {"input_bindings": load_dense_array_bindings(input_file, graph)}
-            )
+            if poisson_protocol:
+                input_ids = [row["id"] for row in graph.get("inputs", [])]
+                if len(input_ids) != 1:
+                    raise ValueError(
+                        "CLI Poisson generation requires exactly one graph input"
+                    )
+                dt_ms = float(graph["timebase"]["dt"]["value"])
+                steps = float(args.t_ms) / dt_ms
+                if not steps.is_integer():
+                    raise ValueError(
+                        "--t-ms must be an exact multiple of the graph timestep"
+                    )
+                rates = (
+                    args.input_rates
+                    if poisson_protocol == "categorical-rate"
+                    else [args.spike_rate]
+                )
+                if poisson_protocol == "categorical-rate" and not rates:
+                    raise ValueError("categorical-rate Poisson requires --input-rates")
+                binding_update = {
+                    "poisson_bindings": (
+                        PoissonInputBinding(
+                            input_id=input_ids[0],
+                            steps_count=int(steps),
+                            batch_size=args.n_batch,
+                            rates_hz=rates,
+                            seed=args.seed,
+                            categorical=poisson_protocol == "categorical-rate",
+                        ),
+                    )
+                }
+            else:
+                binding_update = (
+                    {"event_bindings": load_event_stream_bindings(event_file, graph)}
+                    if event_file
+                    else {
+                        "input_bindings": load_dense_array_bindings(input_file, graph)
+                    }
+                )
         except ValueError as exc:
             raise SystemExit(str(exc)) from exc
         runtime_state = (
@@ -1790,10 +1932,21 @@ def main(argv=None):
         result = execute_request(request)
         out_dir = Path(args.out_dir)
         out_dir.mkdir(parents=True, exist_ok=True)
-        np.savez_compressed(out_dir / "recordings.npz", **{k: v.detach().cpu().numpy() for k, v in result.recordings.items()})
-        np.savez_compressed(out_dir / "outputs.npz", **{k: v.detach().cpu().numpy() for k, v in result.outputs.items()})
-        np.savez_compressed(out_dir / "parameters.npz", **{k: v.detach().cpu().numpy() for k, v in result.parameters.items()})
-        (out_dir / "metrics.json").write_text(json.dumps(result.metrics, indent=2) + "\n")
+        np.savez_compressed(
+            out_dir / "recordings.npz",
+            **{k: v.detach().cpu().numpy() for k, v in result.recordings.items()},
+        )
+        np.savez_compressed(
+            out_dir / "outputs.npz",
+            **{k: v.detach().cpu().numpy() for k, v in result.outputs.items()},
+        )
+        np.savez_compressed(
+            out_dir / "parameters.npz",
+            **{k: v.detach().cpu().numpy() for k, v in result.parameters.items()},
+        )
+        (out_dir / "metrics.json").write_text(
+            json.dumps(result.metrics, indent=2) + "\n"
+        )
         if getattr(args, "save_runtime_state", None):
             assert result.runtime_state is not None
             save_runtime_state(args.save_runtime_state, result.runtime_state)
@@ -1819,7 +1972,9 @@ def main(argv=None):
 
     def _legacy_request():
         _MODE_HANDLERS[mode](args, C, out_dir, log)
-        return ExecutionResult(executor="legacy", metrics={"request": request.kind, "routing": "legacy"})
+        return ExecutionResult(
+            executor="legacy", metrics={"request": request.kind, "routing": "legacy"}
+        )
 
     execute_request(request, legacy=_legacy_request)
 
