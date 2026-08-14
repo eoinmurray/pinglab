@@ -40,8 +40,8 @@
     [Runtime continuation], [Implemented], [Validated save, load, and continuation of dynamic graph state.],
     [Readouts], [Implemented], [Mean voltage, final voltage, spike count, spike rate, cumulative potential, and valid-time masks execute through graph operations.],
     [Input bindings], [Partial], [Resolved dense-array, valid-time-mask, and sparse event-stream bindings emit a versioned execution protocol; portable dataset loaders and encoders are pending.],
-    [Training recipes], [Partial], [The schema and narrow legacy adapter exist.],
-    [Native training], [Not implemented], [Requires gradients, optimizer state, resume, checkpoints, and parity gates.],
+    [Training recipes], [Implemented], [Validated objectives, regularizers, groups, gradient choices, duration, and reachability compile to canonical data.],
+    [Native training], [Core implemented], [Typed single-batch AdamW updates expose named loss, gradients, parameters, and optimizer state; dataset iteration, checkpoints, resume, and parity gates remain.],
     [Collection migration], [Not implemented], [Requires the complete issue 73 equivalence process.],
   )
 
@@ -57,8 +57,8 @@
 
   ==== Graph-native training and checkpoints
 
-  - Train the supported recurrent SNN subset through the graph executor.
-  - Define stable parameter names, trainable and frozen sets, optimizer state, checkpoint schema, and an explicit legacy-to-graph parameter map.
+  - Extend the implemented recurrent single-batch update core to dataset iteration and production trajectories.
+  - Define the checkpoint schema and an explicit legacy-to-graph parameter map; stable parameter names, trainable/frozen sets, and named optimizer state are implemented.
   - Save selected and final checkpoints, reject partial mappings, and resume without changing data order, optimizer state, or stochastic streams.
   - Validate COBA, PING, trainable recurrence, fine timesteps, variable rates, MNIST, SHD, and deeper trained graphs.
 
