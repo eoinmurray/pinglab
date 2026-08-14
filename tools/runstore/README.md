@@ -14,6 +14,14 @@ This document defines and documents contract version `runstore/v1`.
 | `artifacts/` | Selected publication view for Demolab and GitHub Pages | Yes, except the built site |
 | R2 `campaigns/<namespace>/<archive-id>/` | Verified durable archives | No |
 
+`artifacts/` is deliberately a compact publication view, not a second run
+archive. It may contain provenance metadata, `numbers.json`, compact derived
+tables, final figures, and rendered publications. Raw arrays, checkpoints,
+caches, repeated inputs, and other reconstructable intermediates remain in the
+isolated run and its verified R2 archive. Existing historical binaries are
+grandfathered until the planned history migration; new ones are rejected by
+CI.
+
 An isolated run directory is the source of truth. Running an experiment must
 not update `artifacts/` as a side effect. Promotion is a separate reviewed
 operation.
