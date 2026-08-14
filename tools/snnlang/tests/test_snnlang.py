@@ -215,6 +215,61 @@ def test_gradient_vocabulary_rejects_invalid_surrogate_and_dampening():
         snn.compile(net)
 
 
+def test_spike_budget_and_presentation_duration_compile_exact_physical_contract():
+    net, cell = small_network()
+    scores = snn.readouts.SpikeCount(source=cell.E.spikes, classes=2, name="scores")
+    net.output("class_scores", scores)
+    ids = [p["id"] for p in net.parameters]
+    spec = snn.TrainSpec(
+        objectives=[training.CrossEntropy(prediction=scores, target="label")],
+        parameter_groups=[training.ParameterGroup(ids, name="all", lr=1e-3)],
+        optimizer=training.AdamW(),
+        regularizers=[
+            training.SpikeBudgetPenalty(
+                signals=(cell.E.spikes, cell.I.spikes), ceiling_hz=10.0, strength=0.01
+            )
+        ],
+        presentation_duration=200 * snn.ms,
+    )
+    recipe = snn.compile(net, training=spec).training
+    assert recipe["presentation_duration"] == {"value": 200.0, "unit": "ms"}
+    assert recipe["regularizers"] == [
+        {
+            "kind": "spike_budget",
+            "signals": ["cell_E.spikes", "cell_I.spikes"],
+            "strength": 0.01,
+            "config": {
+                "ceiling": {"value": 10.0, "unit": "Hz"},
+                "penalty": "squared_hinge",
+                "aggregation": "mean_presentations_then_layers_of_population_mean_rate",
+            },
+        }
+    ]
+
+
+def test_loss_and_duration_vocabulary_fail_closed():
+    net, cell = small_network()
+    scores = snn.readouts.SpikeCount(source=cell.E.spikes, classes=2, name="scores")
+    net.output("class_scores", scores)
+    ids = [p["id"] for p in net.parameters]
+    spec = snn.TrainSpec(
+        objectives=[training.CrossEntropy(prediction=scores, target="label")],
+        parameter_groups=[training.ParameterGroup(ids, name="all", lr=1e-3)],
+        optimizer=training.AdamW(),
+        regularizers=[
+            training.SpikeBudgetPenalty(signals=(), ceiling_hz=-1, strength=-1)
+        ],
+        presentation_duration=0.15 * snn.ms,
+    )
+    with pytest.raises(ValueError) as exc:
+        snn.compile(net, training=spec)
+    message = str(exc.value)
+    assert "regularizer requires at least one signal" in message
+    assert "ceiling must be non-negative Hz" in message
+    assert "strength must be non-negative and finite" in message
+    assert "integer number of graph timesteps" in message
+
+
 @pytest.mark.parametrize(
     ("groups", "message"),
     [

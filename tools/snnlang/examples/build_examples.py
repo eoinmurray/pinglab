@@ -50,6 +50,7 @@ def ping_classifier():
         ],
         optimizer=training.AdamW(weight_decay=1e-4),
         surrogate=training.FastSigmoid(slope=1.0),
+        presentation_duration=200 * snn.ms,
         epochs=20,
     )
     return snn.compile(net, training=train)

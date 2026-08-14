@@ -123,6 +123,10 @@ The standard backward contract uses an explicit fast-sigmoid surrogate and
 positive per-population voltage-gradient dampening factors. Compilation records
 both in `resolved_gradients`; the legacy adapter maps the supported shared
 dampening case back to its established CLI settings.
+Training recipes may declare a physical presentation duration independently of
+graph `dt`, plus the collection's exact multi-layer spike-budget penalty. Its
+stored aggregation contract is the mean over presentations and layers of each
+population's mean-rate squared overshoot above a ceiling in Hz.
 Unsupported graph structures fail with an element-level capability error;
 legacy commands that omit `--bundle` retain their existing defaults and
 behaviour.

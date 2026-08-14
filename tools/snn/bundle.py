@@ -37,6 +37,7 @@ class TrainingSettings:
     epochs: int
     surrogate_slope: float
     voltage_grad_dampen: float
+    presentation_duration_ms: float | None
 
 
 @dataclass(frozen=True)
@@ -467,6 +468,11 @@ def translate_training_v1(
         raise BundleCompatibilityError(
             "current trainer requires one voltage-gradient dampening factor across spiking populations"
         )
+    duration = training.get("presentation_duration")
+    if duration is not None and duration.get("unit") != "ms":
+        raise BundleCompatibilityError(
+            "current trainer requires presentation duration in milliseconds"
+        )
     gradient_clip = training.get("gradient_clip")
     if gradient_clip not in (None, 1, 1.0):
         raise BundleCompatibilityError(
@@ -493,6 +499,7 @@ def translate_training_v1(
         epochs=epochs,
         surrogate_slope=surrogate_slope,
         voltage_grad_dampen=dampening.pop(),
+        presentation_duration_ms=(float(duration["value"]) if duration else None),
     )
 
 
@@ -582,4 +589,6 @@ def apply_bundle_to_args(args, argv: list[str]):
         args.epochs = training.epochs
         args.surrogate_slope = training.surrogate_slope
         args.v_grad_dampen = training.voltage_grad_dampen
+        if training.presentation_duration_ms is not None and "--t-ms" not in explicit:
+            args.t_ms = training.presentation_duration_ms
     return args
