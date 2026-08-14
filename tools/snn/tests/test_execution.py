@@ -404,6 +404,63 @@ def test_training_checkpoint_rejects_partial_parameter_mapping(tmp_path):
         )
 
 
+def test_graph_inference_loads_portable_selected_checkpoint_with_provenance(tmp_path):
+    bundle = _direct_train_bundle()
+    inputs = torch.zeros(3, 2, 2)
+    inputs[:, 0, 0] = 1
+    inputs[:, 1, 1] = 1
+    selected_path = tmp_path / "selected"
+    trained = train(
+        ExecutionSpec(
+            kind="train",
+            executor="graph",
+            graph=bundle.graph,
+            training=bundle.training,
+            inputs={"events": inputs},
+            targets={"label": torch.tensor([0, 1])},
+            seed=17,
+            options={"updates": 3, "save_selected_checkpoint": selected_path},
+        )
+    )
+    selected = load_training_checkpoint(selected_path)
+    inferred = simulate(
+        ExecutionSpec(
+            kind="simulate",
+            executor="graph",
+            graph=bundle.graph,
+            inputs={"events": inputs},
+            seed=17,
+            checkpoint=selected_path,
+        )
+    )
+    for name in selected.parameters:
+        torch.testing.assert_close(
+            inferred.parameters[name], selected.parameters[name], rtol=0, atol=0
+        )
+    assert inferred.metrics["checkpoint"] == {
+        "format": "tools/snn.training-checkpoint/v1",
+        "path": str(selected_path),
+        "graph_digest": selected.graph_digest,
+        "training_digest": selected.training_digest,
+        "completed_updates": selected.completed_updates,
+        "selected_loss": selected.selected_loss,
+    }
+    assert trained.selected_checkpoint is not None
+
+    incompatible = copy.deepcopy(bundle.graph)
+    incompatible["name"] = "different"
+    with pytest.raises(ValueError, match="inference checkpoint graph digest"):
+        simulate(
+            ExecutionSpec(
+                kind="simulate",
+                executor="graph",
+                graph=incompatible,
+                inputs={"events": inputs},
+                checkpoint=selected_path,
+            )
+        )
+
+
 def test_dataset_training_resume_preserves_shuffle_and_batch_position(tmp_path):
     bundle = _direct_train_bundle()
     inputs = torch.zeros(3, 5, 2)

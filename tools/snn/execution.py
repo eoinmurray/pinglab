@@ -2331,10 +2331,49 @@ def simulate(
     built = build(spec)
     assert isinstance(built.model, GraphExecutor)
     device = resolve_device(spec.device)
+    checkpoint_provenance = None
     if spec.checkpoint:
-        built.model.load_state_dict(
-            torch.load(spec.checkpoint, map_location=device, weights_only=True)
-        )
+        checkpoint_path = Path(spec.checkpoint)
+        if checkpoint_path.is_dir():
+            checkpoint = load_training_checkpoint(checkpoint_path, device=device)
+            graph_digest = _json_digest(built.model.plan.graph)
+            if checkpoint.graph_digest != graph_digest:
+                raise ValueError(
+                    f"inference checkpoint graph digest expected {graph_digest}, got {checkpoint.graph_digest}"
+                )
+            parameter_map = built.model.parameter_map()
+            if set(checkpoint.parameters) != set(parameter_map):
+                raise ValueError(
+                    "inference checkpoint parameter names do not match graph"
+                )
+            with torch.no_grad():
+                for name, parameter in parameter_map.items():
+                    restored = checkpoint.parameters[name]
+                    if (
+                        restored.shape != parameter.shape
+                        or restored.dtype != parameter.dtype
+                    ):
+                        raise ValueError(
+                            f"inference checkpoint parameter {name} expected shape={list(parameter.shape)} dtype={parameter.dtype}, "
+                            f"got shape={list(restored.shape)} dtype={restored.dtype}"
+                        )
+                    parameter.copy_(restored)
+            checkpoint_provenance = {
+                "format": TRAINING_CHECKPOINT_SCHEMA,
+                "path": str(checkpoint_path),
+                "graph_digest": checkpoint.graph_digest,
+                "training_digest": checkpoint.training_digest,
+                "completed_updates": checkpoint.completed_updates,
+                "selected_loss": checkpoint.selected_loss,
+            }
+        else:
+            built.model.load_state_dict(
+                torch.load(checkpoint_path, map_location=device, weights_only=True)
+            )
+            checkpoint_provenance = {
+                "format": "legacy_torch_state_dict",
+                "path": str(checkpoint_path),
+            }
     tracemalloc.start()
     started = time.perf_counter()
     resolved_inputs = resolve_input_bindings(
@@ -2364,6 +2403,7 @@ def simulate(
             "device": device,
             "recording": spec.recording,
             "execution_protocol": resolved_inputs.protocol,
+            "checkpoint": checkpoint_provenance,
             **built.metrics,
         }
     )
