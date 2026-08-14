@@ -215,8 +215,11 @@ encoding brings topology, initializer metadata, protocols, and checkpoint
 coordinates into the same report as forward outputs, gradients, parameters,
 and optimizer tensors. Declared tolerance rules that match no field are errors.
 
-The first cross-backend CPU fixture copies one complete one-layer parameter set
-through the semantic legacy map and compares hidden spikes and mean-voltage
-logits. It established that legacy recurrent keys are one-based (`W_ee.1`,
+The first cross-backend CPU fixtures copy one complete one-layer parameter set
+through the semantic legacy map and compare E/I spikes, membrane traces,
+input/AMPA/GABA conductances, and mean-voltage logits with recurrence both
+isolated and active. Dynamic state and parameters match exactly; logits use a
+predeclared `1e-6` absolute/relative tolerance. The fixtures established that
+legacy recurrent keys are one-based (`W_ee.1`,
 `W_ei.1`, `W_ie.1`, and `W_ii.1`) and that the compatible mean-voltage readout
 uses the legacy 2 ms output-membrane time constant.
