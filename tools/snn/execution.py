@@ -7,6 +7,7 @@ requests are planned once and execute a fixed vectorised schedule per step.
 
 from __future__ import annotations
 
+import copy
 import hashlib
 import json
 import math
@@ -1318,6 +1319,8 @@ def write_inference_artifacts(
         "inference_interventions": result.metrics.get("inference_interventions"),
         "recording": result.metrics.get("recording"),
         "device": result.metrics.get("device"),
+        "source_graph_digest": result.metrics.get("source_graph_digest"),
+        "effective_graph_digest": result.metrics.get("effective_graph_digest"),
     }
     manifest = {
         "schema": INFERENCE_ARTIFACT_SCHEMA,
@@ -1415,6 +1418,8 @@ def validate_inference_artifacts(
         "inference_interventions": metrics.get("inference_interventions"),
         "recording": metrics.get("recording"),
         "device": metrics.get("device"),
+        "source_graph_digest": metrics.get("source_graph_digest"),
+        "effective_graph_digest": metrics.get("effective_graph_digest"),
     }
     actual_request_digest = _json_digest(request)
     if actual_request_digest != manifest.get("request_digest"):
@@ -2580,21 +2585,65 @@ def simulate(
         return ExecutionResult(
             executor="legacy", metrics={"request": "simulate", "routing": "legacy"}
         )
-    built = build(spec)
-    assert isinstance(built.model, GraphExecutor)
-    device = resolve_device(spec.device)
     overrides = dict(spec.options.get("inference_overrides", {}))
     requested_interventions = tuple(spec.options.get("inference_interventions", ()))
     interventions = tuple(
         {**dict(row), "seed": dict(row).get("seed", spec.seed)}
         for row in requested_interventions
     )
-    allowed_overrides = {"duration_ms", "input_rate_hz", "projection_scales"}
+    allowed_overrides = {
+        "duration_ms",
+        "input_rate_hz",
+        "projection_scales",
+        "timestep_ms",
+    }
     unknown_overrides = sorted(set(overrides) - allowed_overrides)
     if unknown_overrides:
         raise ValueError(f"unsupported inference overrides: {unknown_overrides}")
+    source_graph: Mapping[str, Any] | None = None
+    source_graph_digest: str | None = None
+    source_dt_ms: float | None = None
+    build_spec = spec
+    if "timestep_ms" in overrides:
+        timestep_ms = float(overrides["timestep_ms"])
+        if not math.isfinite(timestep_ms) or timestep_ms <= 0:
+            raise ValueError("inference timestep must be finite and positive")
+        if runtime_state is not None or spec.runtime_state is not None:
+            raise ValueError(
+                "inference timestep recompilation cannot convert runtime state"
+            )
+        if (
+            not spec.poisson_bindings
+            or spec.input_bindings
+            or spec.event_bindings
+            or spec.inputs
+        ):
+            raise ValueError(
+                "inference timestep recompilation requires resampleable Poisson input bindings"
+            )
+        if spec.graph is not None:
+            source_graph = spec.graph
+        elif spec.bundle is not None:
+            _, source_graph = load_graph_bundle(spec.bundle)
+        else:
+            raise ValueError("graph execution requires graph data or a bundle")
+        source_graph_digest = _json_digest(source_graph)
+        source_dt_ms = float(source_graph["timebase"]["dt"]["value"])
+        recompiled_graph = copy.deepcopy(source_graph)
+        recompiled_graph["timebase"]["dt"] = {
+            "value": timestep_ms,
+            "unit": "ms",
+        }
+        build_spec = replace(spec, graph=recompiled_graph, bundle=None)
+    built = build(build_spec)
+    assert isinstance(built.model, GraphExecutor)
+    device = resolve_device(spec.device)
     poisson_bindings = spec.poisson_bindings
-    if "duration_ms" in overrides or "input_rate_hz" in overrides:
+    if (
+        "duration_ms" in overrides
+        or "input_rate_hz" in overrides
+        or "timestep_ms" in overrides
+    ):
         if (
             not poisson_bindings
             or spec.input_bindings
@@ -2606,7 +2655,10 @@ def simulate(
             )
         dt_ms = built.model.plan.dt_ms
         duration_ms = float(
-            overrides.get("duration_ms", poisson_bindings[0].steps_count * dt_ms)
+            overrides.get(
+                "duration_ms",
+                poisson_bindings[0].steps_count * (source_dt_ms or dt_ms),
+            )
         )
         raw_steps = duration_ms / dt_ms
         if duration_ms <= 0 or not math.isclose(
@@ -2632,7 +2684,7 @@ def simulate(
         checkpoint_path = Path(spec.checkpoint)
         if checkpoint_path.is_dir():
             checkpoint = load_training_checkpoint(checkpoint_path, device=device)
-            graph_digest = _json_digest(built.model.plan.graph)
+            graph_digest = source_graph_digest or _json_digest(built.model.plan.graph)
             if checkpoint.graph_digest != graph_digest:
                 raise ValueError(
                     f"inference checkpoint graph digest expected {graph_digest}, got {checkpoint.graph_digest}"
@@ -2727,6 +2779,7 @@ def simulate(
                 "requested": overrides,
                 "resolved": {
                     "duration_ms": resolved_inputs.protocol["timing"]["duration_ms"],
+                    "timestep_ms": built.model.plan.dt_ms,
                     "projection_scales": scales,
                     **(
                         {"input_rate_hz": float(overrides["input_rate_hz"])}
@@ -2744,6 +2797,8 @@ def simulate(
             }
             if interventions
             else None,
+            "source_graph_digest": source_graph_digest,
+            "effective_graph_digest": _json_digest(built.model.plan.graph),
             **built.metrics,
         }
     )

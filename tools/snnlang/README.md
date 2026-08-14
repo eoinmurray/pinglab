@@ -251,8 +251,11 @@ duration and a finite non-negative rate. Named graph projections may be scaled
 by finite non-negative factors after checkpoint loading. The original graph and
 checkpoint stay unchanged, and metrics record the requested and resolved
 values. Unknown projection ids, mixed replay/Poisson duration requests, and
-runtime timestep changes fail closed; a different timestep requires compiling
-a graph with that timebase.
+non-resampleable replay tensors fail closed. A `timestep_ms` override recompiles
+an immutable graph copy, rebuilds physical decays and delays, and resamples only
+generated Poisson bindings while preserving their physical duration. Runtime
+state is not converted. Checkpoints authenticate against the source graph
+before named, same-shaped parameters load into the effective graph.
 
 ```python
 result = simulate(ExecutionSpec(
@@ -270,7 +273,8 @@ result = simulate(ExecutionSpec(
 ```
 
 The CLI accepts repeatable `--scale-projection ID=FACTOR`; generated Poisson
-duration and rate continue to use `--t-ms` and `--input-rate`.
+duration and rate continue to use `--t-ms` and `--input-rate`, and
+`--inference-timestep-ms` requests the recompiled timebase.
 
 Ordered hidden-spike interventions use
 `tools/snn.inference-interventions/v1`. `drop_spikes` removes emitted spikes by
