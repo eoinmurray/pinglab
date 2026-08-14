@@ -62,6 +62,11 @@ def AdamW(**config: Any) -> Optimizer:
     return Optimizer("adamw", config)
 
 
+def FastSigmoid(*, slope: float = 1.0) -> Spec:
+    """Fast-sigmoid surrogate used by the collection's spike backward pass."""
+    return Spec("fast_sigmoid", {"slope": slope})
+
+
 @dataclass(frozen=True)
 class StopGradient:
     signal: str

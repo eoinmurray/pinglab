@@ -35,6 +35,8 @@ class TrainingSettings:
     lr: float
     weight_decay: float
     epochs: int
+    surrogate_slope: float
+    voltage_grad_dampen: float
 
 
 @dataclass(frozen=True)
@@ -444,13 +446,26 @@ def translate_training_v1(
             "current trainer requires one unit-weight cross-entropy objective "
             "from the named output to target 'digit'"
         )
-    if (
-        training.get("regularizers")
-        or training.get("stop_gradients")
-        or training.get("surrogate") is not None
-    ):
+    if training.get("regularizers") or training.get("stop_gradients"):
         raise BundleCompatibilityError(
-            "regularizers, stop-gradients, and custom surrogates are not yet supported"
+            "regularizers and stop-gradients are not yet supported"
+        )
+    surrogate = training.get("surrogate") or {"kind": "fast_sigmoid", "slope": 1.0}
+    if surrogate.get("kind") != "fast_sigmoid":
+        raise BundleCompatibilityError(
+            f"current trainer does not support surrogate {surrogate.get('kind')}"
+        )
+    surrogate_slope = float(surrogate.get("slope", 0.0))
+    if surrogate_slope <= 0:
+        raise BundleCompatibilityError("fast-sigmoid surrogate slope must be positive")
+    dampening = {
+        float(population.get("neuron", {}).get("voltage_grad_dampen", 1.0))
+        for population in graph.get("populations", [])
+        if population.get("spiking")
+    }
+    if len(dampening) != 1:
+        raise BundleCompatibilityError(
+            "current trainer requires one voltage-gradient dampening factor across spiking populations"
         )
     gradient_clip = training.get("gradient_clip")
     if gradient_clip not in (None, 1, 1.0):
@@ -476,6 +491,8 @@ def translate_training_v1(
         lr=trainable_lrs.pop(),
         weight_decay=weight_decay,
         epochs=epochs,
+        surrogate_slope=surrogate_slope,
+        voltage_grad_dampen=dampening.pop(),
     )
 
 
@@ -507,6 +524,8 @@ _TRAINING_RECIPE_FLAGS = {
     "--trainable-w-ei",
     "--trainable-w-ie",
     "--trainable-w-ii",
+    "--surrogate-slope",
+    "--v-grad-dampen",
 }
 
 
@@ -561,4 +580,6 @@ def apply_bundle_to_args(args, argv: list[str]):
         args.lr = training.lr
         args.weight_decay = training.weight_decay
         args.epochs = training.epochs
+        args.surrogate_slope = training.surrogate_slope
+        args.v_grad_dampen = training.voltage_grad_dampen
     return args
