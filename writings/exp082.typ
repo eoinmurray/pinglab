@@ -6,10 +6,17 @@
   status: "draft",
 )
 
+#let r = json("/artifacts/data/exp082/numbers.json")
+#let provisional = (
+  r.profile != "production"
+  or r.config.digits_per_seed_cell < 200
+  or r.config.psychometric_rates_hz.len() < r.config.training_rates_hz.len()
+)
+
 #let body = [
   == Abstract
 
-  This experiment will test whether PING networks trained across input rates can classify continuous MNIST streams without the fixed-rate and mean-membrane mismatch inherited by exp048. Excitatory spikes drive ten spiking output LIF neurons, and each class logit is the corresponding output neuron's total spikes over the current digit's presentation window. The planned results comprise matched-condition streaming, variable-rate and variable-duration streaming, a 200 ms rate psychometric, and a duration-by-rate accuracy map. Results remain pending until exp022 produces all three variable-rate checkpoints.
+  This experiment tests whether PING networks trained across input rates can classify continuous MNIST streams with the same spiking readout used during training. Excitatory spikes drive ten output LIF neurons, and each class logit is the corresponding neuron's total spike count within the current digit's presentation window. Matched-condition and variable-condition streams show the online network response, while a 200 ms rate psychometric and a duration-by-rate map measure performance across the trained input distribution.
 
   == Methods
 
@@ -47,15 +54,43 @@
 
   == Results
 
+  #if provisional [
+    #block(inset: 10pt, fill: rgb("f3f0e8"), radius: 3pt)[
+      *Provisional validation output.* These figures verify the complete inference, measurement, and rendering path. Each seed-level grid cell contains only #r.config.digits_per_seed_cell classified digits, and the checkpoints come from reduced training runs, so the numerical values are not estimates of publication performance.
+    ]
+  ]
+
   === 1. Matched-condition stream
 
-  *TODO.* Reproduce the structure of exp048's streaming figure: excitatory, inhibitory, and output rasters; digit boundaries; and the ten online class-evidence traces. Unlike exp048, every trace will be the cumulative output-spike rate from the start of the current digit: spikes observed so far divided by elapsed time in the matched window.
+  The matched stream holds the maximum-pixel input rate at #r.config.matched_rate_hz Hz and gives every digit #r.config.matched_duration_ms ms of presentation and readout time. Vertical lines mark digit boundaries. The class traces are softmax transformations of cumulative output-LIF spike counts within the current digit; the counts reset at each boundary while the hidden PING state continues.
+
+  #figure(
+    image("/artifacts/data/exp082/matched_stream.png", width: 100%, alt: "Excitatory and inhibitory rasters with online spike-count class evidence for the matched-condition digit stream."),
+    caption: [Matched-rate streaming inference with presentation duration equal to the spike-count readout window.],
+  )
 
   === 2. Variable conditions
 
-  *TODO.* Reproduce exp048's joint temporal and encoding-rate summary using the variable-rate-trained weights. Pair the duration-by-rate accuracy map with the 200 ms psychometric curve, so the effects of rate and available integration time remain distinguishable.
+  The variable stream changes both input rate and presentation duration at digit boundaries. Each decision still uses exactly the spikes emitted during that digit, so evidence never leaks across labels.
+
+  #figure(
+    image("/artifacts/data/exp082/variable_stream.png", width: 100%, alt: "Excitatory and inhibitory rasters with online spike-count class evidence as input rate and digit duration vary."),
+    caption: [Streaming inference while maximum-pixel input rate and presentation duration vary between digits.],
+  )
+
+  The factorial summary separates the two manipulations. The left panel crosses presentation duration with maximum-pixel input rate. The right panel holds presentation and readout at 200 ms, giving the rate psychometric without a simultaneous change in integration time.
+
+  #figure(
+    image("/artifacts/data/exp082/duration_rate_summary.png", width: 100%, alt: "Accuracy map over presentation duration and input rate beside the 200 millisecond input-rate psychometric curve."),
+    caption: [Accuracy across matched presentation/readout durations and input rates, with the 200 ms rate psychometric shown separately.],
+  )
+
+  #figure(
+    image("/artifacts/data/exp082/psychometric_200ms.svg", width: 85%, alt: "Classification accuracy versus maximum-pixel input rate at 200 milliseconds."),
+    caption: [Input-rate psychometric at a fixed 200 ms presentation and spike-count window.],
+  )
 
   === 3. Comparison with exp048
 
-  *TODO.* Compare the completed results with exp048. The comparison must be interpretive rather than a silent replacement. Exp048 uses fixed-25-Hz training and reconstructs a sliding `mem-mean` output. This experiment uses mixed-rate training and the trained `spike-count` readout. Any accuracy difference therefore reflects the combined training-distribution and readout correction, not a single isolated intervention.
+  Exp048 used a fixed-25-Hz training distribution and reconstructed a sliding `mem-mean` output. This experiment instead trains across the evaluated rates and uses the trained output-LIF spike counts directly. A numerical difference between the experiments therefore combines a change in training distribution with a change in readout; it is not an isolated comparison of either intervention.
 ]

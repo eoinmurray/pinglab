@@ -31,3 +31,53 @@ agent should proactively say so and suggest the right cleanup — don't wait to 
 
 Suggest at natural boundaries (task done, topic pivot) — not mid-task, and at most once per
 boundary; if declined, drop it until the next one.
+
+## Development workflow
+
+Use judgment about whether work should go directly to `main` or through a PR. Do not apply the rule mechanically.
+
+### Small changes
+
+Small, obvious, low-risk changes may be committed directly to `main`. Examples include trivial fixes, small configuration changes, typo/documentation fixes, and other changes where a PR would add ceremony without useful context.
+
+### Substantial work
+
+For features, refactors, investigations, or any change involving meaningful design decisions, multiple steps, uncertainty, or useful implementation context:
+
+1. Create a branch.
+2. If there is not yet code worth committing, create an empty commit:
+   ```bash
+   git commit --allow-empty -m "Start <feature>"
+   ```
+3. Push the branch and immediately open a **draft PR**.
+4. Use the PR description as the primary working document for the change: motivation, design decisions, TODOs, discoveries, trade-offs, and implementation status should live there.
+5. Update the PR description as understanding of the problem evolves.
+6. Mark the PR ready once the work is coherent and ready for final review/merge.
+
+Prefer starting a draft PR over creating a separate issue when the work is already going to be implemented and the issue would merely duplicate or fragment the same documentation. Use issues when something genuinely needs to exist independently of an implementation PR.
+
+The PR description is the scientific decision record, not release-note decoration. Keep it current with the question being tested, competing interpretations, provenance or data implications, decisions made, rejected alternatives, and unresolved limitations. Commits should remain small enough to explain one coherent change, but the PR is where the reasoning across those commits lives.
+
+### Campaign and publication worktrees
+
+Campaign execution, campaign activation, artifact promotion, and publication-view rebuilding must happen on the campaign's own branch in a dedicated worktree. Do not activate a campaign in a general development worktree: activation intentionally replaces tracked publication artifacts and makes unrelated changes dangerously easy to commit together.
+
+- One campaign or publication view per worktree and branch.
+- Open its draft PR before substantial execution or promotion work begins.
+- Treat `runs/` and R2 as the raw execution record; Git tracks only the selected publication view.
+- New raw arrays, checkpoints, caches, and duplicated inputs do not belong in `artifacts/data/`. Archive them through `runstore`; promote compact results, final figures, and provenance metadata.
+- Review `git status` and the artifact diff before every campaign commit. A large generated diff is evidence to inspect, not permission to use `git add -A` blindly.
+
+### Use judgment and intervene
+
+Actively flag when the current workflow appears inappropriate rather than blindly following the immediate instruction.
+
+In particular:
+
+- If substantial work is starting directly on `main`, suggest creating a branch and draft PR before proceeding.
+- If a growing change initially treated as "small" has accumulated complexity, suggest moving it to a branch/PR.
+- If an issue and PR are duplicating the same evolving feature documentation, suggest consolidating the implementation discussion into the PR.
+- Conversely, do not suggest a PR for trivial changes where it would provide little value.
+- If uncertain, favor preserving useful context without introducing unnecessary process.
+
+The goal is **good engineering history and useful documentation, not process for its own sake**.

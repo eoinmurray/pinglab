@@ -90,6 +90,31 @@ def test_validation_rejects_invalid_rate_mask_shape():
         snn.compile(net)
 
 
+def test_validation_rejects_non_positive_rate_duration():
+    net, cell = small_network()
+    rate = snn.readouts.SpikeRate(
+        source=cell.E.spikes, classes=4, name="rate", duration=0
+    )
+    net.output("rates", rate)
+    with pytest.raises(ValueError, match="positive seconds"):
+        snn.compile(net)
+
+
+def test_validation_rejects_linear_readout_parameter_shape_drift():
+    net, cell = small_network()
+    scores = snn.readouts.SpikeCount(source=cell.E.spikes, classes=4, name="scores")
+    net.output("class_scores", scores)
+    graph = graph_dict(net)
+    parameter = next(
+        p for p in graph["parameters"] if p["id"] == "scores_projection.weight"
+    )
+    parameter["shape"] = [3, 12]
+    result = validate_graph(graph)
+    assert any(d.code == "E209" for d in result.errors)
+    with pytest.raises(ValueError, match="linear parameter shape"):
+        snn.compile(net)
+
+
 def test_validation_rejects_operation_unit_drift():
     net, cell = small_network()
     bad = net.operation(

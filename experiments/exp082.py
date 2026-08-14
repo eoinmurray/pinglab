@@ -15,6 +15,7 @@ three variable-rate checkpoints.  Until then it fails before creating a run.
 
 from __future__ import annotations
 
+import argparse
 import json
 import os
 import subprocess
@@ -69,9 +70,27 @@ MATCHED_RATE_HZ = 5.0
 N_CLASSES = 10
 N_INPUT = 784
 N_HEADLINE_DIGITS = 5
-STREAMS_PER_CELL = 1 if SMOKE else 20
-DIGITS_PER_STREAM = 3 if SMOKE else 10
+STREAMS_PER_CELL = int(
+    os.environ.get("PINGLAB_EXP082_STREAMS_PER_CELL", 1 if SMOKE else 20)
+)
+DIGITS_PER_STREAM = int(
+    os.environ.get("PINGLAB_EXP082_DIGITS_PER_STREAM", 3 if SMOKE else 10)
+)
 DT_MS = 0.1
+
+if STREAMS_PER_CELL < 1 or DIGITS_PER_STREAM < 1:
+    raise ValueError("exp082 stream and digit counts must both be positive")
+
+EVALUATION_PROFILE = (
+    "smoke"
+    if SMOKE
+    else (
+        "pilot"
+        if "PINGLAB_EXP082_STREAMS_PER_CELL" in os.environ
+        or "PINGLAB_EXP082_DIGITS_PER_STREAM" in os.environ
+        else "production"
+    )
+)
 
 VARIABLE_STREAM = (
     (200.0, 0.5),
@@ -89,6 +108,8 @@ SCALE = {
     "cells": len(DURATIONS_MS) * len(PSYCHOMETRIC_RATES_HZ),
     "grid": f"{len(DURATIONS_MS)} duration × {len(PSYCHOMETRIC_RATES_HZ)} rate",
 }
+
+MEASUREMENTS_FILE = "measurements.npz"
 
 
 def training_cell_name(seed: int) -> str:
@@ -355,6 +376,7 @@ def plot_stream(result: dict[str, Any], path: Path, run_id: str) -> None:
 
 def plot_psychometric(rows: list[dict[str, Any]], path: Path, run_id: str) -> None:
     theme.apply()
+    plt.rcParams["svg.hashsalt"] = "pinglab-exp082"
     rates = sorted({row["rate_hz"] for row in rows})
     means = []
     sems = []
@@ -411,7 +433,56 @@ def plot_duration_rate_summary(
     plt.close(fig)
 
 
+def save_measurements(matched: dict[str, Any], variable: dict[str, Any]) -> None:
+    """Save the array-valued results needed to reproduce the stream figures."""
+    np.savez_compressed(
+        FIGURES / MEASUREMENTS_FILE,
+        **{
+            f"{name}_{key}": result[key]
+            for name, result in (("matched", matched), ("variable", variable))
+            for key in ("spikes_e", "spikes_i", "spikes_out", "probabilities")
+        },
+    )
+
+
+def replot_results(numbers_path: Path, measurements_path: Path) -> None:
+    """Regenerate every exp082 figure from saved inference measurements."""
+    payload = json.loads(numbers_path.read_text())
+    with np.load(measurements_path) as arrays:
+        streams = {
+            name: {
+                **payload[f"{name}_stream"],
+                **{
+                    key: arrays[f"{name}_{key}"]
+                    for key in ("spikes_e", "spikes_i", "spikes_out", "probabilities")
+                },
+            }
+            for name in ("matched", "variable")
+        }
+    run_id = payload.get("run_id", "replot")
+    plot_stream(streams["matched"], FIGURES / "matched_stream.png", run_id)
+    plot_stream(streams["variable"], FIGURES / "variable_stream.png", run_id)
+    rows = payload["grid_per_seed"]
+    psychometric = payload["duration_200ms_psychometric"]
+    plot_psychometric(psychometric, FIGURES / "psychometric_200ms.svg", run_id)
+    plot_duration_rate_summary(rows, FIGURES / "duration_rate_summary.png", run_id)
+
+
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--replot",
+        action="store_true",
+        help="regenerate figures from numbers.json and measurements.npz",
+    )
+    return parser.parse_args()
+
+
 def main() -> None:
+    args = parse_args()
+    if args.replot:
+        replot_results(FIGURES / "numbers.json", FIGURES / MEASUREMENTS_FILE)
+        return
     require_training_bank()
     run_id = next_run_id(SLUG)
     log_runner_event(SLUG, "started", run_id=run_id)
@@ -424,6 +495,7 @@ def main() -> None:
     )
     matched = evaluate_stream(directory, x_test, y_test, matched_conditions, 82, "matched")
     variable = evaluate_stream(directory, x_test, y_test, VARIABLE_STREAM, 83, "variable")
+    save_measurements(matched, variable)
     plot_stream(matched, FIGURES / "matched_stream.png", run_id)
     plot_stream(variable, FIGURES / "variable_stream.png", run_id)
 
@@ -441,6 +513,8 @@ def main() -> None:
 
     payload = {
         "status": "complete",
+        "run_id": run_id,
+        "profile": EVALUATION_PROFILE,
         "training_source": "exp022 variable-rate streaming training",
         "training_cells": [training_cell_name(seed) for seed in SEEDS],
         "checkpoint_provenance": checkpoint_provenance(
@@ -458,6 +532,9 @@ def main() -> None:
             "durations_ms": list(DURATIONS_MS),
             "matched_duration_ms": MATCHED_DURATION_MS,
             "matched_rate_hz": MATCHED_RATE_HZ,
+            "streams_per_cell": STREAMS_PER_CELL,
+            "digits_per_stream": DIGITS_PER_STREAM,
+            "digits_per_seed_cell": STREAMS_PER_CELL * DIGITS_PER_STREAM,
             "dt_ms": float(config["dt"]),
         },
         "matched_stream": {key: value for key, value in matched.items() if not isinstance(value, np.ndarray)},

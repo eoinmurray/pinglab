@@ -50,6 +50,16 @@ tools/artifacts/
 # regen caches for --plot-only/--replot live in scratch (temp/), never the published data dir
 artifacts/data/**/*_cache.npz
 
+# Raw numerical payloads belong in isolated runs and verified R2 archives.
+# Existing tracked historical files remain visible to Git until the planned
+# history migration; these rules prevent accidental new publication payloads.
+artifacts/data/**/*.npy
+artifacts/data/**/*.npz
+artifacts/data/**/*.pt
+artifacts/data/**/*.pth
+artifacts/data/**/*.h5
+artifacts/data/**/*.hdf5
+
 # atomic-publish staging dirs (run_dirs.published_run): a run writes here and the
 # dir is renamed into the published data dir on success — transient, never committed.
 artifacts/data/*.staging/

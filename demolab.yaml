@@ -4,7 +4,7 @@ book-title: pinglab — the book
 contents-title: pinglab — contents
 annotations: hypothesis
 
-collection-order: [gamma-gated-sparsity, spiking-heidelberg-digits, documentation, literature, exploratory, weekly-feed]
+collection-order: [gamma-gated-sparsity, spiking-heidelberg-digits, snnlang, documentation, literature, exploratory, weekly-feed]
 collections:
   gamma-gated-sparsity:
     label: Gamma-gated sparsity
@@ -12,6 +12,9 @@ collections:
   spiking-heidelberg-digits:
     label: Spiking Heidelberg Digits
     description: Training the PING E/I network on the SHD event-based audio benchmark — from raw cochlear spikes to spoken-digit classification.
+  snnlang:
+    label: SNNLANG
+    description: Developer documentation for authoring, compiling, and executing graph-shaped spiking neural networks.
   documentation:
     label: Documentation
     description: Model derivations, conventions, and how the toolkit works.

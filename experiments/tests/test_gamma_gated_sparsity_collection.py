@@ -52,7 +52,7 @@ def test_plan_paths_are_isolated_and_all_runners_are_integrated(tmp_path: Path) 
     assert all(row["integrated"] or row["slug"] == "exp022" for row in rows)
     assert payload["excluded"] == ["exp048"]
     assert payload["blocking_issues"] == []
-    assert payload["acceptance_issues"] == [47]
+    assert payload["acceptance_issues"] == []
     assert all(row["command"] for row in rows)
     assert all(row["required_outputs"] for row in rows)
 
@@ -346,7 +346,9 @@ def test_slurm_dry_run_preserves_collection_dependencies(
     payload = slurm.submit_campaign(root, resources_path)
     assert payload["source"] == plan["source"]
     assert payload["exp022_manifest_sha256"] == "c" * 64
-    assert len(payload["expected_outputs"]) == len(execution.rows_in_order(plan))
+    assert len(payload["expected_outputs"]) == sum(
+        len(row["required_outputs"]) for row in execution.rows_in_order(plan)
+    )
     jobs = {job["name"]: job for job in payload["jobs"]}
     standard = jobs["exp022-standard"]
     assert "--cpus-per-task=4" in standard["command"]

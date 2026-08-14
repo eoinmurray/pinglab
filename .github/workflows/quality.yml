@@ -1,0 +1,81 @@
+name: Fast quality checks
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: quality-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Reject new raw publication payloads
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          PUSH_BASE_SHA: ${{ github.event.before }}
+        run: |
+          if [[ "$EVENT_NAME" == "pull_request" ]]; then
+            base="$PR_BASE_SHA"
+          elif [[ "$EVENT_NAME" == "push" && "$PUSH_BASE_SHA" != "0000000000000000000000000000000000000000" ]]; then
+            base="$PUSH_BASE_SHA"
+          else
+            base="HEAD^"
+          fi
+
+          mapfile -t added < <(git diff --name-only --diff-filter=A "$base" HEAD)
+          rejected=()
+          for path in "${added[@]}"; do
+            case "$path" in
+              artifacts/data/*.npy|artifacts/data/*.npz|artifacts/data/*.pt|artifacts/data/*.pth|artifacts/data/*.h5|artifacts/data/*.hdf5)
+                rejected+=("$path: raw numerical payload belongs in runs/ and the verified R2 archive")
+                ;;
+            esac
+            if [[ -f "$path" ]]; then
+              size=$(wc -c < "$path")
+              if (( size > 5242880 )); then
+                rejected+=("$path: new tracked file exceeds 5 MiB; archive it or justify a narrower policy exception")
+              fi
+            fi
+          done
+
+          if (( ${#rejected[@]} )); then
+            printf '%s\n' "New files violate the compact scientific-artifact policy:" "${rejected[@]}"
+            exit 1
+          fi
+
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+
+      - name: Install project
+        run: uv sync --dev
+
+      - name: Ruff
+        run: uv run ruff check --output-format=github
+
+      - name: Experiment tool-import boundary
+        run: uv run ruff check experiments --select TID --output-format=github
+
+      - name: Short-running tests
+        run: >-
+          uv run pytest -q -m "not slow"
+          tools/runstore/tests
+          tools/snnlang/tests
+          tools/snn/tests/test_artifacts_schema.py
+          tools/snn/tests/test_bundle.py
+          tools/snn/tests/test_config.py
