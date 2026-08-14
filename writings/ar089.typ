@@ -90,6 +90,8 @@
 
   `ExecutionSpec.checkpoint` resumes graph training from a checkpoint directory. The `save_final_checkpoint` and `save_selected_checkpoint` options persist the final and invocation-selected states. `legacy_parameter_map_v1` provides the explicit one-layer legacy adapter map and fails closed for graphs that cannot be represented without omissions or ambiguity.
 
+  Simulation and inference requests also accept a graph training-checkpoint directory. They authenticate the payload and graph digest, require exact parameter names, shapes, and dtypes, and load parameters without restoring optimizer, random-stream, or data-order state. Inference metrics retain the checkpoint format, path, graph and training digests, completed update, and selected loss. A non-directory checkpoint remains the explicit legacy PyTorch state-file route.
+
   Parameter interchange uses schema `tools/snn.legacy-parameter-interchange/v1`. Import and export require the exact six supported one-layer keys, runtime shapes, floating dtypes, and complete graph coverage. The returned provenance records direction, mapping version, and the full semantic map. This is parameter-only interchange: legacy optimizer objects are not relabelled as portable graph-training checkpoints.
 
   === Provenance fields
