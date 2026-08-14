@@ -88,7 +88,10 @@ def test_explicit_name_remapping_rejects_partial_and_duplicate_maps():
         remap_named_tensors(values, {"graph.a": "legacy.a", "graph.b": "legacy.a"})
 
 
-def test_minimal_legacy_and_graph_ping_forward_share_parameters_and_logits():
+@pytest.mark.parametrize("active_recurrence", [False, True])
+def test_minimal_legacy_and_graph_ping_forward_share_parameters_and_logits(
+    active_recurrence,
+):
     M.N_IN = 2
     M.N_OUT = 2
     M.dt = 0.1
@@ -124,6 +127,9 @@ def test_minimal_legacy_and_graph_ping_forward_share_parameters_and_logits():
             "cell_I_to_I.weight",
         ):
             graph_parameters[name].zero_()
+        if active_recurrence:
+            graph_parameters["cell_E_to_I.weight"].fill_(2.0)
+            graph_parameters["cell_I_to_E.weight"].fill_(5.0)
         graph_parameters["scores_projection.weight"].copy_(
             torch.tensor([[1.0, 0.5], [0.25, 1.5], [1.25, 0.75], [0.5, 1.0]])
         )
@@ -151,12 +157,21 @@ def test_minimal_legacy_and_graph_ping_forward_share_parameters_and_logits():
     inputs[::2, 1, 1] = 1
     graph = graph_model({"events": inputs}, record="full")
     legacy_logits = legacy(input_spikes=inputs)
+    if active_recurrence:
+        assert torch.count_nonzero(legacy.spike_record["inh"]) > 0
+        assert torch.count_nonzero(legacy.spike_record["gi_e_1"]) > 0
     report = compare_conformance_layers(
         "minimal-legacy-graph-ping",
         {
             "parameters": remap_named_tensors(graph.parameters, mapping),
             "forward": {
-                "hidden_spikes": legacy.spike_record["hid"],
+                "e_spikes": legacy.spike_record["hid"],
+                "i_spikes": legacy.spike_record["inh"],
+                "e_voltage": legacy.spike_record["v_e_1"],
+                "i_voltage": legacy.spike_record["v_i_1"],
+                "input_conductance": legacy.spike_record["ge_e_1"],
+                "e_to_i_conductance": legacy.spike_record["ge_i_1"],
+                "i_to_e_conductance": legacy.spike_record["gi_e_1"],
                 "logits": legacy_logits.detach(),
             },
         },
@@ -165,7 +180,13 @@ def test_minimal_legacy_and_graph_ping_forward_share_parameters_and_logits():
                 name: value.detach() for name, value in legacy_parameters.items()
             },
             "forward": {
-                "hidden_spikes": graph.recordings["cell_E.spikes"],
+                "e_spikes": graph.recordings["cell_E.spikes"],
+                "i_spikes": graph.recordings["cell_I.spikes"],
+                "e_voltage": graph.recordings["cell_E.voltage"],
+                "i_voltage": graph.recordings["cell_I.voltage"],
+                "input_conductance": graph.recordings["cell_input.conductance"],
+                "e_to_i_conductance": graph.recordings["cell_E_to_I.conductance"],
+                "i_to_e_conductance": graph.recordings["cell_I_to_E.conductance"],
                 "logits": graph.outputs["class_logits"].detach(),
             },
         },
