@@ -365,6 +365,7 @@ def plot_stream(result: dict[str, Any], path: Path, run_id: str) -> None:
 
 def plot_psychometric(rows: list[dict[str, Any]], path: Path, run_id: str) -> None:
     theme.apply()
+    plt.rcParams["svg.hashsalt"] = "pinglab-exp082"
     rates = sorted({row["rate_hz"] for row in rows})
     means = []
     sems = []
