@@ -14,7 +14,11 @@ def ping_classifier():
         "image", shape=("time", "batch", 784), signal_type="spikes", unit="spike"
     )
     cell = snn.components.ping(
-        net, name="sensory_ping", n_e=256, n_i=64, source=image,
+        net,
+        name="sensory_ping",
+        n_e=256,
+        n_i=64,
+        source=image,
         include_silent_recurrence=True,
     )
     readout = snn.readouts.MeanVoltage(
@@ -32,15 +36,11 @@ def ping_classifier():
         if projection["connection"] == "recurrent"
     }
     recurrent = [p["id"] for p in net.parameters if p["id"] in recurrent_projection_ids]
-    feedforward = [
-        p["id"] for p in net.parameters if p["id"] not in set(recurrent)
-    ]
+    feedforward = [p["id"] for p in net.parameters if p["id"] not in set(recurrent)]
     train = snn.TrainSpec(
         objectives=[training.CrossEntropy(prediction=readout, target="digit")],
         parameter_groups=[
-            training.ParameterGroup(
-                feedforward, name="feedforward", lr=1e-3
-            ),
+            training.ParameterGroup(feedforward, name="feedforward", lr=1e-3),
             training.ParameterGroup(
                 recurrent,
                 name="recurrent_frozen",
@@ -49,6 +49,7 @@ def ping_classifier():
             ),
         ],
         optimizer=training.AdamW(weight_decay=1e-4),
+        surrogate=training.FastSigmoid(slope=1.0),
         epochs=20,
     )
     return snn.compile(net, training=train)

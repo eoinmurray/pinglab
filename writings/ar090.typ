@@ -52,8 +52,7 @@
   ==== Complete graph and protocol vocabulary
 
   - Add portable dataset-loader and encoder bindings. Fixed and categorical variable-rate Poisson protocols are implemented.
-  - Represent disabled recurrent loops without changing tensor shapes or initialization order.
-  - Complete initializer distributions, constraints, realized statistics, parameter-group trainability, group-specific learning rates, surrogate gradients, backward dampening, spike-budget regularization, variable timestep, and variable duration.
+  - Complete spike-budget regularization and variable-duration training vocabulary. Disabled loops, initializer metadata, parameter-group trainability, group-specific learning rates, surrogate gradients, backward dampening, and variable graph timesteps are implemented.
   - Record dataset identity, split, sample cap, batch size, shuffle behavior, and all stochastic seeds as execution protocol.
 
   ==== Graph-native training and checkpoints
