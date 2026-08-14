@@ -50,17 +50,45 @@ def required_capabilities_v1(graph: dict[str, Any]) -> tuple[BackendCapability, 
     """Describe bundle requirements without importing the authoring package."""
     rows: list[BackendCapability] = []
     for pop in graph.get("populations", []):
-        rows.append(BackendCapability("tools/snn.capability/v1", pop["id"], f"neuron:{pop['neuron']['kind']}"))
+        rows.append(
+            BackendCapability(
+                "tools/snn.capability/v1", pop["id"], f"neuron:{pop['neuron']['kind']}"
+            )
+        )
     for projection in graph.get("projections", []):
-        rows.extend((
-            BackendCapability("tools/snn.capability/v1", projection["id"], f"synapse:{projection['synapse']['kind']}"),
-            BackendCapability("tools/snn.capability/v1", projection["id"], f"connection:{projection['connection']}"),
-            BackendCapability("tools/snn.capability/v1", projection["id"], "delay:integer_steps"),
-        ))
+        rows.extend(
+            (
+                BackendCapability(
+                    "tools/snn.capability/v1",
+                    projection["id"],
+                    f"synapse:{projection['synapse']['kind']}",
+                ),
+                BackendCapability(
+                    "tools/snn.capability/v1",
+                    projection["id"],
+                    f"connection:{projection['connection']}",
+                ),
+                BackendCapability(
+                    "tools/snn.capability/v1", projection["id"], "delay:integer_steps"
+                ),
+            )
+        )
     for operation in graph.get("operations", []):
-        rows.append(BackendCapability("tools/snn.capability/v1", operation["id"], f"operation:{operation['kind']}"))
+        rows.append(
+            BackendCapability(
+                "tools/snn.capability/v1",
+                operation["id"],
+                f"operation:{operation['kind']}",
+            )
+        )
     for observable in graph.get("observables", []):
-        rows.append(BackendCapability("tools/snn.capability/v1", observable["id"], f"recording:{observable['signal'].partition('.')[2]}"))
+        rows.append(
+            BackendCapability(
+                "tools/snn.capability/v1",
+                observable["id"],
+                f"recording:{observable['signal'].partition('.')[2]}",
+            )
+        )
     return tuple(rows)
 
 
@@ -115,9 +143,7 @@ def load_training_recipe(
         root = root.parent
     training_path = root / "training.json"
     if not training_path.is_file():
-        raise BundleCompatibilityError(
-            "bundle-driven training requires training.json"
-        )
+        raise BundleCompatibilityError("bundle-driven training requires training.json")
     training = json.loads(training_path.read_text())
     if training.get("schema") != "snnlang.training/v1":
         raise BundleCompatibilityError(
@@ -127,9 +153,7 @@ def load_training_recipe(
         raise BundleCompatibilityError(
             "training.json graph digest does not match graph.json"
         )
-    declared = {
-        row.get("path"): row.get("digest") for row in manifest.get("files", [])
-    }
+    declared = {row.get("path"): row.get("digest") for row in manifest.get("files", [])}
     if declared.get("training.json") != _digest(training):
         raise BundleCompatibilityError(
             "training.json digest does not match manifest.json"
@@ -150,9 +174,13 @@ def _normal(
             f"projection {projection.get('id')} must own exactly one weight parameter"
         )
     initializer = parameters[ids[0]].get("initializer", {})
-    if initializer.get("kind") != "normal":
+    if initializer.get("kind") not in {"normal", "lower_clamped_normal"}:
         raise BundleCompatibilityError(
-            f"projection {projection.get('id')} requires a normal initializer"
+            f"projection {projection.get('id')} requires a lower-clamped normal initializer"
+        )
+    if float(initializer.get("initial_zero_fraction", 0.0)) != 0.0:
+        raise BundleCompatibilityError(
+            f"projection {projection.get('id')} legacy translation does not support initializer zeroing"
         )
     return float(initializer["mean"]), float(initializer["std"])
 
@@ -179,7 +207,8 @@ def translate_cobanet_v1(graph: dict[str, Any]) -> LegacySettings:
         )
 
     inhibitory = [
-        row for row in projections
+        row
+        for row in projections
         if row.get("polarity") == "inhibitory"
         and row.get("source", "").partition(".")[0]
         != row.get("target", "").partition(".")[0]
@@ -213,7 +242,8 @@ def translate_cobanet_v1(graph: dict[str, Any]) -> LegacySettings:
         e_neuron.get("kind") != "coba_lif"
         or e_neuron.get("tau_mem") != {"value": 20.0, "unit": "ms"}
         or i_neuron.get("kind") != "coba_lif"
-        or i_neuron.get("tau_mem") not in (
+        or i_neuron.get("tau_mem")
+        not in (
             {"value": 5.0, "unit": "ms"},
             # Compatibility with pre-audit bundles. Their legacy route has
             # always executed the historical 5 ms I cell.
@@ -261,7 +291,8 @@ def translate_cobanet_v1(graph: dict[str, Any]) -> LegacySettings:
         inhibitory[0]["id"],
     }
     same_population = [
-        row for row in projections
+        row
+        for row in projections
         if row["source"].partition(".")[0] == row["target"].partition(".")[0]
     ]
     for row in same_population:
@@ -387,7 +418,9 @@ def translate_training_v1(
             "training parameter groups must partition graph parameters: "
             + "; ".join(detail)
         )
-    actual_trainable = {parameter for parameter, frozen in selected.items() if not frozen}
+    actual_trainable = {
+        parameter for parameter, frozen in selected.items() if not frozen
+    }
     actual_frozen = {parameter for parameter, frozen in selected.items() if frozen}
     if actual_trainable != trainable_expected or actual_frozen != recurrent:
         raise BundleCompatibilityError(
@@ -490,9 +523,7 @@ def apply_bundle_to_args(args, argv: list[str]):
         load_graph_bundle(args.bundle)
         return args
     if args.mode not in {"sim", "train"}:
-        raise BundleCompatibilityError(
-            "--bundle currently supports sim and train only"
-        )
+        raise BundleCompatibilityError("--bundle currently supports sim and train only")
     explicit = {item.split("=", 1)[0] for item in argv if item.startswith("--")}
     owned = _MODEL_SPEC_FLAGS | (
         _TRAINING_RECIPE_FLAGS if args.mode == "train" else set()
