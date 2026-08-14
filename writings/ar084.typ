@@ -69,7 +69,7 @@
 
   Parameters have stable names, shapes, units, initializers, and optional constraints. Projections normally create their own dense weight parameter, but a named `ParameterRef` may be supplied explicitly.
 
-  `Normal`, `Constant`, and `NonNegative` are currently available. More elaborate initialization and structural sparsity need explicit reusable representations rather than hidden tensor manipulation.
+  Initializers explicitly distinguish lower-clamped normal, signed normal, uniform, constant, and zero distributions. Lower-clamped normal may request Bernoulli or exact-fan-in initial zeroing; those zeros remain ordinary parameters rather than a permanent connectivity mask. Projection weights record fan-in normalization, while direct readout parameters record direct storage. The execution result reports each parameter's initializer, constraint, unit, runtime shape, scaling rule, and realized count, zero fraction, mean, standard deviation, minimum, and maximum.
 
   == API reference
 
@@ -104,7 +104,7 @@
   net.constant(name, value, *, unit="1") -> str
   ```
 
-  Parameter constructors are `Normal(mean, std)` and `Constant(value)`. `NonNegative()` is the implemented constraint. Neuron constructors are `COBA_LIF(**values)`, `LIF(**values)`, and `LeakyIntegrator(**values)`. Unit helpers are `ms`, `mV`, `nS`, and `Hz`.
+  Parameter constructors are `LowerClampedNormal(mean, std, initial_zero_fraction=0, zeroing="bernoulli")`, its compatibility spelling `Normal(mean, std)`, `SignedNormal(mean, std)`, `Uniform(low, high)`, `Constant(value)`, and `Zeros()`. Exact fan-in zeroing uses `zeroing="exact_k"`. `NonNegative()` is the implemented constraint. Neuron constructors are `COBA_LIF(**values)`, `LIF(**values)`, and `LeakyIntegrator(**values)`. Unit helpers are `ms`, `mV`, `nS`, and `Hz`.
 
   === Core return types
 

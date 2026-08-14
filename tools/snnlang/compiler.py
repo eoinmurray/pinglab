@@ -169,6 +169,50 @@ def validate_graph(graph: Mapping[str, Any]) -> ValidationResult:
         signals[f"{row['id']}.value"] = row
 
     parameter_rows = {p["id"]: p for p in graph.get("parameters", [])}
+    initializer_fields = {
+        "normal": {"mean", "std"},
+        "lower_clamped_normal": {"mean", "std", "initial_zero_fraction", "zeroing"},
+        "signed_normal": {"mean", "std"},
+        "uniform": {"low", "high"},
+        "constant": {"value"},
+        "zeros": set(),
+    }
+    for row in parameter_rows.values():
+        if not row.get("unit"):
+            out.diagnostics.append(
+                Diagnostic(
+                    "error", "E109", "parameter requires an explicit unit", row["id"]
+                )
+            )
+        initializer = row.get("initializer", {})
+        kind = initializer.get("kind")
+        if kind not in initializer_fields:
+            out.diagnostics.append(
+                Diagnostic(
+                    "error", "E110", f"unsupported initializer {kind}", row["id"]
+                )
+            )
+            continue
+        missing = initializer_fields[kind] - set(initializer)
+        if missing:
+            out.diagnostics.append(
+                Diagnostic(
+                    "error",
+                    "E111",
+                    f"initializer missing fields {sorted(missing)}",
+                    row["id"],
+                )
+            )
+        constraint = row.get("constraint")
+        if constraint is not None and constraint.get("kind") != "non_negative":
+            out.diagnostics.append(
+                Diagnostic(
+                    "error",
+                    "E112",
+                    f"unsupported constraint {constraint.get('kind')}",
+                    row["id"],
+                )
+            )
     parameter_ids = set(parameter_rows)
     population_ids = {p["id"] for p in graph.get("populations", [])}
     consumers: set[str] = set()
