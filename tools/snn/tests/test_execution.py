@@ -52,7 +52,7 @@ from tool import main, parse_args
 
 from tools import snnlang as snn
 from tools.snnlang import training
-from tools.snnlang.examples.build_examples import ping_classifier
+from tools.snnlang.examples.build_examples import deep_network, ping_classifier
 
 
 def _coupled_graph(*, direction="reciprocal", delay_ms=0.1):
@@ -767,6 +767,96 @@ def test_representative_shd_checkpoint_and_recording_requests_remain_legacy():
     assert shd.executor == "legacy"
     assert shd.options["dataset"] == "shd"
     assert shd.options["max_samples"] == 8
+
+
+def test_production_shaped_mnist_and_shd_graphs_execute_named_outputs():
+    mnist = ping_classifier()
+    shd = deep_network()
+    assert mnist.graph["inputs"][0]["shape"] == ["time", "batch", 784]
+    assert shd.graph["inputs"][0]["shape"] == ["time", "batch", 700]
+    assert len(shd.graph["populations"]) == 6
+    assert [row["target"] for row in shd.training["objectives"]] == ["gesture"]
+    mnist_result = simulate(
+        ExecutionSpec(
+            kind="simulate",
+            executor="graph",
+            graph=mnist.graph,
+            inputs={"image": torch.zeros(2, 1, 784)},
+            recording="observables",
+            seed=5,
+        )
+    )
+    shd_result = simulate(
+        ExecutionSpec(
+            kind="simulate",
+            executor="graph",
+            graph=shd.graph,
+            inputs={"events": torch.zeros(2, 1, 700)},
+            recording="observables",
+            seed=5,
+        )
+    )
+    assert mnist_result.outputs["class_logits"].shape == (1, 10)
+    assert shd_result.outputs["gesture_logits"].shape == (1, 20)
+    assert set(shd_result.recordings) == {
+        "association_E_spikes",
+        "decision_E_spikes",
+        "encoder_E_spikes",
+    }
+
+
+def test_production_shaped_deep_shd_recipe_trains_all_recurrent_layers():
+    bundle = deep_network()
+    result = train(
+        ExecutionSpec(
+            kind="train",
+            executor="graph",
+            graph=bundle.graph,
+            training=bundle.training,
+            inputs={"events": torch.zeros(2, 1, 700)},
+            targets={"gesture": torch.tensor([0])},
+            seed=9,
+        )
+    )
+    assert set(result.gradients) == set(
+        bundle.training["resolved_parameters"]["trainable"]
+    )
+    assert {
+        "encoder_E_to_I.weight",
+        "encoder_I_to_E.weight",
+        "association_E_to_I.weight",
+        "association_I_to_E.weight",
+        "decision_E_to_I.weight",
+        "decision_I_to_E.weight",
+    } <= set(result.gradients)
+    assert result.metrics["updates"][0]["components"]["regularizer[0]"] == 0.0
+
+
+def test_production_ping_fine_timestep_and_variable_rate_protocol():
+    bundle = ping_classifier()
+    result = simulate(
+        ExecutionSpec(
+            kind="simulate",
+            executor="graph",
+            graph=bundle.graph,
+            poisson_bindings=(
+                PoissonInputBinding(
+                    "image", 2, 3, (0.0, 5.0, 25.0), 41, categorical=True
+                ),
+            ),
+            recording="observables",
+            seed=41,
+            options={"inference_overrides": {"timestep_ms": 0.05}},
+        )
+    )
+    protocol = result.metrics["execution_protocol"]
+    assert protocol["timing"] == {
+        "dt_ms": 0.05,
+        "steps": 4,
+        "duration_ms": pytest.approx(0.2),
+    }
+    assert set(protocol["inputs"][0]["realized_rates_hz"]) <= {0.0, 5.0, 25.0}
+    assert result.outputs["class_logits"].shape == (3, 10)
     checkpoint = execution_spec_from_args(
         parse_args(["sim", "--load-weights", "checkpoint.pth", "--outputs", "rasters"])
     )
