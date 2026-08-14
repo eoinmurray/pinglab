@@ -62,11 +62,13 @@
       stop_gradients=(),
       epochs=1,
       gradient_clip=None,
-      surrogate=None,
+      surrogate=training.FastSigmoid(slope=1.0),
   )
   ```
 
   The specification is data only. `compile` verifies referenced outputs, parameters, regularizer signals, and stop-gradient signals before writing `training.json`.
+
+  The collection's supported surrogate is `training.FastSigmoid(slope=1.0)`. Its slope must be positive and finite. Voltage-gradient dampening is declared per spiking population as `voltage_grad_dampen`; it is also resolved into `training.json` so training provenance contains the complete backward contract. Dampening factors must be positive and finite. The narrow legacy adapter accepts fast-sigmoid slopes and a single shared dampening factor, and rejects richer unsupported combinations explicitly.
 
   === Objectives and parameter groups
 
@@ -83,6 +85,7 @@
   training.AdamW(**config) -> Optimizer
   training.UpperRatePenalty(*, signal, threshold, strength) -> Regularizer
   training.StopGradient.at(signal) -> StopGradient
+  training.FastSigmoid(*, slope=1.0) -> Spec
   ```
 
   Optimizer configuration is serialized without running an optimizer. `UpperRatePenalty` stores an upper-rate threshold and strength against a named signal. `StopGradient.at` records a graph boundary by signal identifier.
