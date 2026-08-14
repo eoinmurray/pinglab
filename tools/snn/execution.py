@@ -15,6 +15,7 @@ import tempfile
 import time
 import tracemalloc
 from dataclasses import dataclass, field
+from numbers import Integral
 from pathlib import Path
 from typing import Any, Callable, Literal, Mapping, Sequence
 
@@ -30,6 +31,8 @@ RecordingProfile = Literal["full", "observables", "none"]
 
 
 DENSE_ARRAY_BINDING_SCHEMA = "tools/snn.dense-array-binding/v1"
+EVENT_STREAM_BINDING_SCHEMA = "tools/snn.event-stream-binding/v1"
+MIXED_INPUT_BINDING_SCHEMA = "tools/snn.mixed-input-bindings/v1"
 EXECUTION_PROTOCOL_SCHEMA = "tools/snn.execution-protocol/v1"
 
 
@@ -39,6 +42,19 @@ class DenseArrayBinding:
 
     input_id: str
     value: torch.Tensor
+    source: Mapping[str, Any] = field(default_factory=dict)
+
+
+@dataclass(frozen=True)
+class EventStreamBinding:
+    """Sparse binary spike events resolved against one named graph input."""
+
+    input_id: str
+    steps: torch.Tensor
+    batches: torch.Tensor
+    channels: torch.Tensor
+    steps_count: int
+    batch_size: int
     source: Mapping[str, Any] = field(default_factory=dict)
 
 
@@ -56,6 +72,7 @@ class ExecutionSpec:
     graph: Mapping[str, Any] | None = None
     inputs: Mapping[str, torch.Tensor] = field(default_factory=dict)
     input_bindings: Sequence[DenseArrayBinding] = field(default_factory=tuple)
+    event_bindings: Sequence[EventStreamBinding] = field(default_factory=tuple)
     protocol: Mapping[str, Any] = field(default_factory=dict)
     seed: int = 0
     device: str = "auto"
@@ -146,6 +163,68 @@ def load_dense_array_bindings(
         )
         for input_id, value in arrays.items()
     )
+
+
+def load_event_stream_bindings(
+    path: str | Path, graph: Mapping[str, Any]
+) -> tuple[EventStreamBinding, ...]:
+    """Load named sparse spike coordinates from a replayable NPZ file."""
+    source_path = Path(path)
+    if source_path.suffix.lower() != ".npz":
+        raise ValueError("event-stream replay requires an NPZ file")
+    digest = "sha256:" + hashlib.sha256(source_path.read_bytes()).hexdigest()
+    loaded = np.load(source_path, allow_pickle=False)
+    try:
+        arrays = {key: loaded[key] for key in loaded.files}
+    finally:
+        loaded.close()
+    input_ids = [row["id"] for row in graph.get("inputs", [])]
+    fields = ("steps", "batches", "channels", "steps_count", "batch_size")
+    plain = set(fields)
+    use_plain = len(input_ids) == 1 and set(arrays) == plain
+    expected = (
+        plain
+        if use_plain
+        else {f"{input_id}.{field}" for input_id in input_ids for field in fields}
+    )
+    if set(arrays) != expected:
+        raise ValueError(
+            "event-stream NPZ keys do not match graph inputs; "
+            f"expected={sorted(expected)}, got={sorted(arrays)}"
+        )
+    source_base = {"kind": "file", "path": str(source_path), "digest": digest}
+    bindings = []
+    for input_id in input_ids:
+        def key(field: str) -> str:
+            return field if use_plain else f"{input_id}.{field}"
+
+        steps_count_value = np.asarray(arrays[key("steps_count")])
+        batch_size_value = np.asarray(arrays[key("batch_size")])
+        if steps_count_value.size != 1 or batch_size_value.size != 1:
+            raise ValueError(
+                f"event input {input_id} steps_count and batch_size must be scalars"
+            )
+        if not np.issubdtype(steps_count_value.dtype, np.integer) or not np.issubdtype(
+            batch_size_value.dtype, np.integer
+        ):
+            raise ValueError(
+                f"event input {input_id} steps_count and batch_size must use integer dtypes"
+            )
+        bindings.append(
+            EventStreamBinding(
+                input_id=input_id,
+                steps=torch.as_tensor(arrays[key("steps")]),
+                batches=torch.as_tensor(arrays[key("batches")]),
+                channels=torch.as_tensor(arrays[key("channels")]),
+                steps_count=int(steps_count_value.item()),
+                batch_size=int(batch_size_value.item()),
+                source={
+                    **source_base,
+                    "arrays": {field: key(field) for field in fields},
+                },
+            )
+        )
+    return tuple(bindings)
 
 
 def resolve_dense_array_bindings(
@@ -283,6 +362,290 @@ def resolve_dense_array_bindings(
     except TypeError as exc:
         raise ValueError(f"execution protocol must be JSON-serializable: {exc}") from exc
     return ResolvedDenseInputs(tensors=resolved, protocol=execution_protocol)
+
+
+def resolve_event_stream_bindings(
+    graph: Mapping[str, Any],
+    *,
+    bindings: Sequence[EventStreamBinding],
+    device: str | torch.device = "cpu",
+    seed: int = 0,
+    protocol: Mapping[str, Any] | None = None,
+) -> ResolvedDenseInputs:
+    """Validate sparse spike coordinates and materialize binary graph inputs."""
+    specs = {row["id"]: row for row in graph.get("inputs", [])}
+    by_name: dict[str, EventStreamBinding] = {}
+    for binding in bindings:
+        if binding.input_id in by_name:
+            raise ValueError(f"duplicate event binding for input {binding.input_id}")
+        by_name[binding.input_id] = binding
+    if set(by_name) != set(specs):
+        missing = sorted(set(specs) - set(by_name))
+        unexpected = sorted(set(by_name) - set(specs))
+        raise ValueError(
+            f"event input ids do not match graph inputs; missing={missing}, unexpected={unexpected}"
+        )
+
+    resolved: dict[str, torch.Tensor] = {}
+    rows: list[dict[str, Any]] = []
+    leading_shape: tuple[int, int] | None = None
+    integer_dtypes = {
+        torch.int8,
+        torch.int16,
+        torch.int32,
+        torch.int64,
+        torch.uint8,
+    }
+    for input_id in sorted(specs):
+        spec = specs[input_id]
+        binding = by_name[input_id]
+        declared = spec.get("shape", [])
+        if declared[:2] != ["time", "batch"] or len(declared) != 3:
+            raise ValueError(
+                f"input {input_id} event binding requires shape ['time', 'batch', channels]"
+            )
+        if spec.get("signal_type") != "spikes":
+            raise ValueError(
+                f"input {input_id} event binding requires signal_type spikes"
+            )
+        channels_count = int(declared[2])
+        if (
+            not isinstance(binding.steps_count, Integral)
+            or isinstance(binding.steps_count, bool)
+            or not isinstance(binding.batch_size, Integral)
+            or isinstance(binding.batch_size, bool)
+        ):
+            raise ValueError(
+                f"event input {input_id} steps_count and batch_size must be integers"
+            )
+        steps_count = int(binding.steps_count)
+        batch_size = int(binding.batch_size)
+        if steps_count <= 0 or batch_size <= 0:
+            raise ValueError(
+                f"event input {input_id} steps_count and batch_size must be positive"
+            )
+        coordinates = (binding.steps, binding.batches, binding.channels)
+        if any(value.ndim != 1 for value in coordinates):
+            raise ValueError(f"event input {input_id} coordinates must be one-dimensional")
+        lengths = {int(value.numel()) for value in coordinates}
+        if len(lengths) != 1:
+            raise ValueError(
+                f"event input {input_id} coordinate lengths must match"
+            )
+        if any(value.dtype not in integer_dtypes for value in coordinates):
+            raise ValueError(f"event input {input_id} coordinates must use integer dtypes")
+        steps = binding.steps.to(dtype=torch.int64, device="cpu")
+        batches = binding.batches.to(dtype=torch.int64, device="cpu")
+        channels = binding.channels.to(dtype=torch.int64, device="cpu")
+        bounds = (
+            ("step", steps, steps_count),
+            ("batch", batches, batch_size),
+            ("channel", channels, channels_count),
+        )
+        for label, values, upper in bounds:
+            if torch.any(values < 0) or torch.any(values >= upper):
+                raise ValueError(
+                    f"event input {input_id} {label} coordinates must be in [0, {upper})"
+                )
+        flat = (steps * batch_size + batches) * channels_count + channels
+        if flat.numel() > 1:
+            differences = flat[1:] - flat[:-1]
+            if torch.any(differences < 0):
+                raise ValueError(
+                    f"event input {input_id} coordinates must be ordered by step, batch, channel"
+                )
+            if torch.any(differences == 0):
+                raise ValueError(f"event input {input_id} contains duplicate coordinates")
+        current_leading = (steps_count, batch_size)
+        if leading_shape is None:
+            leading_shape = current_leading
+        elif current_leading != leading_shape:
+            raise ValueError(
+                f"event input {input_id} leading shape expected {leading_shape}, got {current_leading}"
+            )
+        value = torch.zeros(
+            (steps_count, batch_size, channels_count),
+            dtype=torch.float32,
+            device=device,
+        )
+        if flat.numel():
+            value[
+                steps.to(device=device),
+                batches.to(device=device),
+                channels.to(device=device),
+            ] = 1.0
+        resolved[input_id] = value
+        rows.append(
+            {
+                "input_id": input_id,
+                "representation": "event_stream",
+                "shape": list(value.shape),
+                "dtype": "float32",
+                "signal_type": "spikes",
+                "unit": spec.get("unit"),
+                "event_count": int(flat.numel()),
+                "source": dict(binding.source),
+            }
+        )
+    if leading_shape is None:
+        raise ValueError("graph execution requires at least one event input binding")
+    dt_ms = float(graph["timebase"]["dt"]["value"])
+    supplied = dict(protocol or {})
+    dataset = dict(supplied.pop("dataset", {}))
+    reserved = {
+        "schema",
+        "binding_schema",
+        "representation",
+        "inputs",
+        "dataset",
+        "timing",
+        "masks",
+        "seeds",
+        "resolution",
+    }
+    if reserved & supplied.keys():
+        raise ValueError(
+            f"execution protocol cannot override reserved fields {sorted(reserved & supplied.keys())}"
+        )
+    dataset.setdefault("identity", None)
+    dataset.setdefault("split", None)
+    dataset.setdefault("sample_cap", leading_shape[1])
+    dataset.setdefault("batch_size", leading_shape[1])
+    dataset.setdefault("shuffle", None)
+    execution_protocol = {
+        "schema": EXECUTION_PROTOCOL_SCHEMA,
+        "binding_schema": EVENT_STREAM_BINDING_SCHEMA,
+        "representation": "event_stream",
+        "inputs": rows,
+        "dataset": dataset,
+        "timing": {
+            "dt_ms": dt_ms,
+            "steps": leading_shape[0],
+            "duration_ms": leading_shape[0] * dt_ms,
+        },
+        "masks": [],
+        "seeds": {"execution": int(seed)},
+        "resolution": {
+            "coordinates": "zero_based_integer_steps",
+            "ordering": "step,batch,channel",
+            "duplicates": "reject",
+            "materialization": "binary_dense",
+        },
+        **supplied,
+    }
+    try:
+        json.dumps(execution_protocol, sort_keys=True)
+    except TypeError as exc:
+        raise ValueError(f"execution protocol must be JSON-serializable: {exc}") from exc
+    return ResolvedDenseInputs(tensors=resolved, protocol=execution_protocol)
+
+
+def resolve_input_bindings(
+    graph: Mapping[str, Any],
+    *,
+    dense_bindings: Sequence[DenseArrayBinding] = (),
+    event_bindings: Sequence[EventStreamBinding] = (),
+    inputs: Mapping[str, torch.Tensor] | None = None,
+    device: str | torch.device = "cpu",
+    seed: int = 0,
+    protocol: Mapping[str, Any] | None = None,
+) -> ResolvedDenseInputs:
+    """Resolve dense, event-stream, or mixed graph input representations."""
+    if dense_bindings and inputs:
+        raise ValueError("provide dense input bindings or input tensors, not both")
+    if inputs:
+        dense_bindings = tuple(
+            DenseArrayBinding(name, value, {"kind": "memory"})
+            for name, value in inputs.items()
+        )
+    dense_ids = {binding.input_id for binding in dense_bindings}
+    event_ids = {binding.input_id for binding in event_bindings}
+    overlap = sorted(dense_ids & event_ids)
+    if overlap:
+        raise ValueError(f"graph inputs cannot have dense and event bindings: {overlap}")
+    graph_ids = {row["id"] for row in graph.get("inputs", [])}
+    if dense_ids | event_ids != graph_ids:
+        missing = sorted(graph_ids - dense_ids - event_ids)
+        unexpected = sorted((dense_ids | event_ids) - graph_ids)
+        raise ValueError(
+            f"input ids do not match graph inputs; missing={missing}, unexpected={unexpected}"
+        )
+    if not event_bindings:
+        return resolve_dense_array_bindings(
+            graph,
+            bindings=dense_bindings,
+            device=device,
+            seed=seed,
+            protocol=protocol,
+        )
+    if not dense_bindings:
+        return resolve_event_stream_bindings(
+            graph,
+            bindings=event_bindings,
+            device=device,
+            seed=seed,
+            protocol=protocol,
+        )
+
+    def graph_with_inputs(input_ids: set[str]) -> dict[str, Any]:
+        return {
+            **graph,
+            "inputs": [
+                row for row in graph.get("inputs", []) if row["id"] in input_ids
+            ],
+        }
+
+    dense = resolve_dense_array_bindings(
+        graph_with_inputs(dense_ids),
+        bindings=dense_bindings,
+        device=device,
+        seed=seed,
+        protocol=protocol,
+    )
+    events = resolve_event_stream_bindings(
+        graph_with_inputs(event_ids),
+        bindings=event_bindings,
+        device=device,
+        seed=seed,
+        protocol=protocol,
+    )
+    if dense.protocol["timing"] != events.protocol["timing"]:
+        raise ValueError(
+            "dense and event input bindings must resolve to the same timestep, duration, and batch shape"
+        )
+    execution_protocol = {
+        "schema": EXECUTION_PROTOCOL_SCHEMA,
+        "binding_schema": MIXED_INPUT_BINDING_SCHEMA,
+        "representation": "mixed",
+        "inputs": sorted(
+            [*dense.protocol["inputs"], *events.protocol["inputs"]],
+            key=lambda row: row["input_id"],
+        ),
+        "dataset": dense.protocol["dataset"],
+        "timing": dense.protocol["timing"],
+        "masks": dense.protocol["masks"],
+        "seeds": dense.protocol["seeds"],
+        "resolution": {"event_stream": events.protocol["resolution"]},
+        **{
+            key: value
+            for key, value in dense.protocol.items()
+            if key
+            not in {
+                "schema",
+                "binding_schema",
+                "representation",
+                "inputs",
+                "dataset",
+                "timing",
+                "masks",
+                "seeds",
+                "resolution",
+            }
+        },
+    }
+    return ResolvedDenseInputs(
+        tensors={**dense.tensors, **events.tensors}, protocol=execution_protocol
+    )
 
 
 def graph_capability_issues(graph: Mapping[str, Any]) -> list[CapabilityIssue]:
@@ -777,9 +1140,6 @@ class GraphExecutor(nn.Module):
         if not inputs:
             raise ValueError("graph execution requires at least one input tensor")
         first = next(iter(inputs.values()))
-        if first.ndim == 2:
-            inputs = {k: v.unsqueeze(1) for k, v in inputs.items()}
-            first = next(iter(inputs.values()))
         steps, batch = first.shape[:2]
         device = first.device
         parameter_dtype = (
@@ -1281,9 +1641,10 @@ def simulate(
         )
     tracemalloc.start()
     started = time.perf_counter()
-    resolved_inputs = resolve_dense_array_bindings(
+    resolved_inputs = resolve_input_bindings(
         built.model.plan.graph,
-        bindings=spec.input_bindings,
+        dense_bindings=spec.input_bindings,
+        event_bindings=spec.event_bindings,
         inputs=spec.inputs,
         device=device,
         seed=spec.seed,

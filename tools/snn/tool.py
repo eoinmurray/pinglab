@@ -853,22 +853,29 @@ def _build_subparsers(parser, parent):
         "legacy execution accepts input_spikes as before.",
     )
     sim_parser.add_argument(
+        "--event-file",
+        type=str,
+        default=None,
+        help="Sparse event-stream NPZ replay for graph execution. Coordinates are "
+        "zero-based integer steps, batches, and channels.",
+    )
+    sim_parser.add_argument(
         "--input-dataset-id",
         type=str,
         default=None,
-        help="Stable dataset or snapshot identity recorded for a dense graph replay.",
+        help="Stable dataset or snapshot identity recorded for a graph replay.",
     )
     sim_parser.add_argument(
         "--input-split",
         type=str,
         default=None,
-        help="Dataset split recorded for a dense graph replay.",
+        help="Dataset split recorded for a graph replay.",
     )
     sim_parser.add_argument(
         "--input-shuffle",
         action=argparse.BooleanOptionalAction,
         default=None,
-        help="Record whether the replay batch was shuffled (use --no-input-shuffle for false).",
+        help="Record whether the graph replay batch was shuffled (use --no-input-shuffle for false).",
     )
     sim_parser.add_argument(
         "--w-ei-mean", type=float, default=None,
@@ -1728,23 +1735,34 @@ def main(argv=None):
         getattr(args, "load_runtime_state", None) or getattr(args, "save_runtime_state", None)
     ):
         raise SystemExit("--load-runtime-state/--save-runtime-state require --executor graph")
+    if request.executor == "legacy" and getattr(args, "event_file", None):
+        raise SystemExit("--event-file requires --executor graph")
 
     if request.executor == "graph":
         from dataclasses import replace
 
         import numpy as np
 
-        if not getattr(args, "input_file", None):
-            raise SystemExit("graph execution requires --input-file with arrays named for graph input ports")
+        input_file = getattr(args, "input_file", None)
+        event_file = getattr(args, "event_file", None)
+        if bool(input_file) == bool(event_file):
+            raise SystemExit(
+                "graph execution requires exactly one of --input-file or --event-file"
+            )
         from bundle import load_graph_bundle
         from execution import (
             load_dense_array_bindings,
+            load_event_stream_bindings,
             load_runtime_state,
             save_runtime_state,
         )
         _, graph = load_graph_bundle(args.bundle)
         try:
-            input_bindings = load_dense_array_bindings(args.input_file, graph)
+            binding_update = (
+                {"event_bindings": load_event_stream_bindings(event_file, graph)}
+                if event_file
+                else {"input_bindings": load_dense_array_bindings(input_file, graph)}
+            )
         except ValueError as exc:
             raise SystemExit(str(exc)) from exc
         runtime_state = (
@@ -1754,7 +1772,7 @@ def main(argv=None):
         )
         request = replace(
             request,
-            input_bindings=input_bindings,
+            **binding_update,
             protocol={
                 "dataset": {
                     key: value

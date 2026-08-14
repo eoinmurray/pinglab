@@ -39,7 +39,7 @@
     [Arbitrary topology], [Implemented], [Named feedforward, recurrent, and feedback projections with integral delays.],
     [Runtime continuation], [Implemented], [Validated save, load, and continuation of dynamic graph state.],
     [Readouts], [Implemented], [Mean voltage, final voltage, spike count, spike rate, cumulative potential, and valid-time masks execute through graph operations.],
-    [Input bindings], [Partial], [Resolved dense-array and valid-time-mask bindings emit a versioned execution protocol; portable dataset loaders, event streams, and encoders are pending.],
+    [Input bindings], [Partial], [Resolved dense-array, valid-time-mask, and sparse event-stream bindings emit a versioned execution protocol; portable dataset loaders and encoders are pending.],
     [Training recipes], [Partial], [The schema and narrow legacy adapter exist.],
     [Native training], [Not implemented], [Requires gradients, optimizer state, resume, checkpoints, and parity gates.],
     [Collection migration], [Not implemented], [Requires the complete issue 73 equivalence process.],
@@ -51,7 +51,7 @@
 
   ==== Complete graph and protocol vocabulary
 
-  - Add portable dataset-loader and event-stream input bindings, reusable encoders, and fixed or categorical variable-rate stimulus protocols.
+  - Add portable dataset-loader bindings, reusable encoders, and fixed or categorical variable-rate stimulus protocols.
   - Represent disabled recurrent loops without changing tensor shapes or initialization order.
   - Complete initializer distributions, constraints, realized statistics, parameter-group trainability, group-specific learning rates, surrogate gradients, backward dampening, spike-budget regularization, variable timestep, and variable duration.
   - Record dataset identity, split, sample cap, batch size, shuffle behavior, and all stochastic seeds as execution protocol.
