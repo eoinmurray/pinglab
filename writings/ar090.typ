@@ -66,7 +66,7 @@
   Portable selected/final graph checkpoint loading for simulation and inference is implemented with exact graph/name/shape/dtype validation and checkpoint provenance in metrics. A versioned, request-local override contract supports Poisson duration and rate plus scaling of named projections. It rejects ambiguous input modes, invalid values, and unknown projections; timestep replacement remains unsupported because it requires graph recompilation rather than runtime mutation.
   Inference timestep changes now recompile an immutable graph copy and rebuild physical decay and delay planning. Only generated Poisson bindings are resampled; their physical presentation duration is preserved unless separately overridden. Checkpoints authenticate against the source graph before their same-shaped named parameters load into the effective graph. Dense/event replay, incompatible delays, and runtime-state conversion fail closed.
   Named hidden-population spike deletion and Poisson-addition interventions are implemented as an ordered, seeded, request-local contract. Intervened spikes feed later zero-delay populations, delayed histories, recordings, and readouts through the ordinary graph schedule without backend callbacks.
-  Graph CLI inference now writes a versioned manifest that inventories the stable names, shapes, and data types in output, recording, and parameter payloads. It binds their content digests to graph, seed, execution protocol, checkpoint, override, intervention, recording, and device provenance; validation fails closed on identity drift or corruption. Task-specific accuracy and raster aggregation remain campaign-layer work over these named tensors.
+  Graph CLI inference now writes a versioned manifest that inventories the stable names, shapes, and data types in output, recording, and parameter payloads. It binds their content digests to graph, seed, execution protocol, checkpoint, override, intervention, recording, and device provenance; validation fails closed on identity drift or corruption. A derived-inference contract resolves exact public logits and population-spike names into labels, predictions, accuracy, per-presentation per-cell rates, and sparse time/batch/cell rasters while retaining the authenticated source-artifact digest.
 
   ==== Artifacts and campaigns
 
@@ -197,7 +197,27 @@
 
   Graph CLI runs persist `recordings.npz`, `outputs.npz`, `parameters.npz`, and `metrics.json` beside `inference-manifest.json`. Schema `tools/snn.inference-artifacts/v1` inventories every NPZ array name, shape, and data type and authenticates each payload by SHA-256. Its graph digest prevents reuse against a different source graph. Its request digest covers the seed, execution protocol, checkpoint, overrides, interventions, recording profile, resolved device, and source/effective graph identities.
 
-  `validate_inference_artifacts` verifies the manifest identity, exact file set, payload digests, NPZ inventories, request digest, and optional expected graph and seed. A cache consumer must validate before reuse; paths or directory names are not identities. Accuracy, raster conversion, and other task-specific aggregations remain experiment or campaign operations over the stable named payloads.
+  `validate_inference_artifacts` verifies the manifest identity, exact file set, payload digests, NPZ inventories, request digest, and optional expected graph and seed. A cache consumer must validate before reuse; paths or directory names are not identities. The standard accuracy/rate/raster conversion below consumes these stable named payloads; scientific interpretation remains at the experiment or campaign layer.
+
+  === Derived inference products
+
+  ```python
+  summary = derive_inference_products(
+    "inference-run",
+    "derived-run",
+    logits_id="class_logits",
+    labels=labels,
+    spike_recordings=("sensory_ping_E.spikes", "sensory_ping_I.spikes"),
+  )
+  validate_derived_inference_products(
+    "derived-run",
+    source_artifact_digest=source_manifest["artifact_digest"],
+  )
+  ```
+
+  Schema `tools/snn.derived-inference/v1` writes exact integer labels and predictions, JSON accuracy and timing, per-presentation per-cell rates in Hz, and sparse raster coordinates for each requested public spike recording. Raster arrays explicitly store zero-based `steps`, `batches`, `cells`, and the original `[time, batch, cells]` shape. Rates divide each presentation's cell counts by the resolved physical duration.
+
+  Derivation first validates the source inference cache, then requires floating `[batch, classes]` logits, integral in-range `[batch]` labels, positive protocol duration, and binary `[time, batch, cells]` recordings with the same batch axis. Its own manifest authenticates every derived payload and links it to the source artifact digest. Scientific thresholds and campaign acceptance decisions remain outside this generic conversion.
 
   === Code map
 

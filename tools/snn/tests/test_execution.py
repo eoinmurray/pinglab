@@ -22,6 +22,7 @@ from execution import (
     PoissonInputBinding,
     TargetArrayBinding,
     build,
+    derive_inference_products,
     execute_request,
     execution_spec_from_args,
     export_legacy_parameters_v1,
@@ -45,6 +46,7 @@ from execution import (
     save_training_checkpoint,
     simulate,
     train,
+    validate_derived_inference_products,
     validate_inference_artifacts,
     write_inference_artifacts,
 )
@@ -1747,6 +1749,78 @@ def test_inference_artifact_validation_rejects_payload_corruption(tmp_path):
         handle.write(b"corrupt")
     with pytest.raises(ValueError, match="outputs.npz digest"):
         validate_inference_artifacts(root)
+
+
+def test_derived_inference_products_use_named_public_tensors(tmp_path):
+    bundle = ping_classifier()
+    result = simulate(
+        ExecutionSpec(
+            kind="simulate",
+            executor="graph",
+            graph=bundle.graph,
+            inputs={"image": torch.zeros(2, 2, 784)},
+            seed=3,
+        )
+    )
+    source = tmp_path / "source"
+    source_manifest = write_inference_artifacts(
+        source, result, graph=bundle.graph, seed=3
+    )
+    derived = tmp_path / "derived"
+    summary = derive_inference_products(
+        source,
+        derived,
+        logits_id="class_logits",
+        labels=np.asarray([0, 1], dtype=np.int64),
+        spike_recordings=("sensory_ping_E.spikes",),
+    )
+    assert summary["schema"] == "tools/snn.derived-inference/v1"
+    assert summary["source_artifact_digest"] == source_manifest["artifact_digest"]
+    assert summary["accuracy"] == 0.5
+    rates = np.load(derived / "rates.npz", allow_pickle=False)
+    rasters = np.load(derived / "rasters.npz", allow_pickle=False)
+    try:
+        assert rates["sensory_ping_E.spikes"].shape == (2, 256)
+        assert rasters["sensory_ping_E.spikes.shape"].tolist() == [2, 2, 256]
+        assert rasters["sensory_ping_E.spikes.steps"].dtype == np.int64
+    finally:
+        rates.close()
+        rasters.close()
+    validate_derived_inference_products(
+        derived, source_artifact_digest=source_manifest["artifact_digest"]
+    )
+
+
+def test_derived_inference_products_fail_closed_on_names_and_corruption(tmp_path):
+    bundle = ping_classifier()
+    result = simulate(
+        ExecutionSpec(
+            kind="simulate",
+            executor="graph",
+            graph=bundle.graph,
+            inputs={"image": torch.zeros(1, 1, 784)},
+        )
+    )
+    source = tmp_path / "source"
+    write_inference_artifacts(source, result, graph=bundle.graph, seed=0)
+    with pytest.raises(ValueError, match="do not contain logits"):
+        derive_inference_products(
+            source,
+            tmp_path / "missing",
+            logits_id="missing",
+            labels=np.asarray([0]),
+        )
+    derived = tmp_path / "derived"
+    derive_inference_products(
+        source,
+        derived,
+        logits_id="class_logits",
+        labels=np.asarray([0]),
+    )
+    with (derived / "predictions.npy").open("ab") as handle:
+        handle.write(b"corrupt")
+    with pytest.raises(ValueError, match="predictions.npy digest"):
+        validate_derived_inference_products(derived)
 
 
 def test_categorical_poisson_samples_one_reproducible_rate_per_presentation():
