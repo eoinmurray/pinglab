@@ -39,7 +39,7 @@
     [Arbitrary topology], [Implemented], [Named feedforward, recurrent, and feedback projections with integral delays.],
     [Runtime continuation], [Implemented], [Validated save, load, and continuation of dynamic graph state.],
     [Readouts], [Implemented], [Mean voltage, final voltage, spike count, spike rate, cumulative potential, and valid-time masks execute through graph operations.],
-    [Input bindings], [Partial], [Resolved dense-array, valid-time-mask, and sparse event-stream bindings emit a versioned execution protocol; portable dataset loaders and encoders are pending.],
+    [Input bindings], [Implemented], [Dense arrays, valid-time masks, sparse event streams, fixed/categorical Poisson, and portable dense/prebinned/timestamped-event dataset snapshots emit versioned execution protocols.],
     [Training recipes], [Implemented], [Validated objectives, regularizers, groups, gradient choices, duration, and reachability compile to canonical data.],
     [Native training], [Core implemented], [Deterministic epoch/minibatch AdamW training and versioned named checkpoints support exact mid-epoch CPU resume; accelerator stochastic state and parity gates remain.],
     [Collection migration], [Not implemented], [Requires the complete issue 73 equivalence process.],
@@ -51,9 +51,9 @@
 
   ==== Complete graph and protocol vocabulary
 
-  - Add portable dataset-loader and encoder bindings. Fixed and categorical variable-rate Poisson protocols are implemented.
+  Portable immutable NPZ dataset snapshots now cover feature-scaled rate-Poisson encoding, exact prebinned spikes, and graph-timestep binning of timestamped events. Deterministic selection and target binding support MNIST-like dense and SHD-like event data without a hidden dataset registry or download side effect.
   The complete collection training vocabulary is implemented: disabled and trainable recurrent variants, initializer metadata, constraints and units, exhaustive parameter groups, gradient choices, spike-budget regularization, variable graph timesteps and presentation durations, differentiable-route validation, and element-level rejection are explicit.
-  - Record dataset identity, split, sample cap, batch size, shuffle behavior, and all stochastic seeds as execution protocol.
+  Dataset identity, split, source digest and keys, total/selected indices, sample cap, batch size, shuffle behavior, duration, encoder configuration, and execution/order/encoder seeds are recorded in the execution protocol.
 
   ==== Graph-native training and checkpoints
 
