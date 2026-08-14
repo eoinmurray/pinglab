@@ -1322,6 +1322,93 @@ def test_fixed_rate_poisson_binding_has_exact_boundary_fixtures():
     assert full.protocol["inputs"][0]["selection"] == "constant"
 
 
+def test_graph_inference_overrides_poisson_duration_and_rate():
+    graph = _standard_readout_graph("count")
+    result = simulate(
+        ExecutionSpec(
+            kind="simulate",
+            executor="graph",
+            graph=graph,
+            poisson_bindings=(PoissonInputBinding("events", 2, 1, (0.0,), 7),),
+            options={
+                "inference_overrides": {
+                    "duration_ms": 300.0,
+                    "input_rate_hz": 10.0,
+                }
+            },
+        )
+    )
+    protocol = result.metrics["execution_protocol"]
+    assert protocol["timing"] == {
+        "dt_ms": 100.0,
+        "duration_ms": 300.0,
+        "steps": 3,
+    }
+    assert protocol["inputs"][0]["rates_hz"] == [10.0]
+    assert result.metrics["inference_overrides"] == {
+        "schema": "tools/snn.inference-overrides/v1",
+        "requested": {"duration_ms": 300.0, "input_rate_hz": 10.0},
+        "resolved": {
+            "duration_ms": 300.0,
+            "projection_scales": {},
+            "input_rate_hz": 10.0,
+        },
+    }
+
+
+def test_graph_inference_projection_scale_is_request_local():
+    graph = _coupled_graph(direction="uncoupled")
+    inputs = {
+        "drive_a": torch.zeros(2, 1, 3),
+        "drive_b": torch.zeros(2, 1, 2),
+    }
+    baseline = build(ExecutionSpec(kind="build", executor="graph", graph=graph, seed=5))
+    projection = graph["projections"][0]
+    parameter_id = projection["parameters"][0]
+    result = simulate(
+        ExecutionSpec(
+            kind="simulate",
+            executor="graph",
+            graph=graph,
+            inputs=inputs,
+            seed=5,
+            options={
+                "inference_overrides": {"projection_scales": {projection["id"]: 0.25}}
+            },
+        )
+    )
+    torch.testing.assert_close(
+        result.parameters[parameter_id], baseline.parameters[parameter_id] * 0.25
+    )
+    assert graph["parameters"][0]["initializer"] != {"kind": "constant", "value": 0.25}
+
+
+def test_graph_inference_overrides_reject_ambiguous_or_unknown_requests():
+    graph = _standard_readout_graph("count")
+    with pytest.raises(ValueError, match="require Poisson"):
+        simulate(
+            ExecutionSpec(
+                kind="simulate",
+                executor="graph",
+                graph=graph,
+                inputs={"events": torch.zeros(2, 1, 2)},
+                options={"inference_overrides": {"duration_ms": 100.0}},
+            )
+        )
+    with pytest.raises(ValueError, match="unknown projections"):
+        simulate(
+            ExecutionSpec(
+                kind="simulate",
+                executor="graph",
+                graph=graph,
+                inputs={"events": torch.zeros(2, 1, 2)},
+                options={
+                    "inference_overrides": {"projection_scales": {"missing": 1.0}}
+                },
+            )
+        )
+
+
 def test_categorical_poisson_samples_one_reproducible_rate_per_presentation():
     graph = _standard_readout_graph("count")
     binding = PoissonInputBinding("events", 4, 5, (0.0, 1.0, 5.0), 41, categorical=True)

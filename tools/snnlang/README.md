@@ -245,6 +245,33 @@ digests, completed update, and selected loss; optimizer and iterator state are
 not restored for inference. Non-directory checkpoints remain the explicit
 legacy PyTorch state-file route.
 
+Inference variations use the request-local `tools/snn.inference-overrides/v1`
+contract. Generated Poisson inputs may override a positive, timestep-aligned
+duration and a finite non-negative rate. Named graph projections may be scaled
+by finite non-negative factors after checkpoint loading. The original graph and
+checkpoint stay unchanged, and metrics record the requested and resolved
+values. Unknown projection ids, mixed replay/Poisson duration requests, and
+runtime timestep changes fail closed; a different timestep requires compiling
+a graph with that timebase.
+
+```python
+result = simulate(ExecutionSpec(
+    kind="simulate",
+    executor="graph",
+    bundle="small_ping.bundle",
+    checkpoint="train-run/selected.checkpoint",
+    poisson_bindings=(binding,),
+    options={"inference_overrides": {
+        "duration_ms": 400.0,
+        "input_rate_hz": 25.0,
+        "projection_scales": {"cell_I_to_E": 0.5},
+    }},
+))
+```
+
+The CLI accepts repeatable `--scale-projection ID=FACTOR`; generated Poisson
+duration and rate continue to use `--t-ms` and `--input-rate`.
+
 A separate five-sample dataset oracle reconstructs two shuffled epochs and
 their uneven final batches directly with seeded PyTorch permutations. Update
 coordinates, the complete loss trajectory, final gradient/parameter/AdamW
