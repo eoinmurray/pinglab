@@ -1909,8 +1909,6 @@ def main(argv=None):
     if request.executor == "graph":
         from dataclasses import replace
 
-        import numpy as np
-
         input_file = getattr(args, "input_file", None)
         event_file = getattr(args, "event_file", None)
         poisson_protocol = getattr(args, "poisson_protocol", None)
@@ -1929,6 +1927,7 @@ def main(argv=None):
             load_runtime_state,
             load_target_array_bindings,
             save_runtime_state,
+            write_inference_artifacts,
         )
 
         manifest, graph = load_graph_bundle(args.bundle)
@@ -2055,21 +2054,7 @@ def main(argv=None):
         result = execute_request(request)
         out_dir = Path(args.out_dir)
         out_dir.mkdir(parents=True, exist_ok=True)
-        np.savez_compressed(
-            out_dir / "recordings.npz",
-            **{k: v.detach().cpu().numpy() for k, v in result.recordings.items()},
-        )
-        np.savez_compressed(
-            out_dir / "outputs.npz",
-            **{k: v.detach().cpu().numpy() for k, v in result.outputs.items()},
-        )
-        np.savez_compressed(
-            out_dir / "parameters.npz",
-            **{k: v.detach().cpu().numpy() for k, v in result.parameters.items()},
-        )
-        (out_dir / "metrics.json").write_text(
-            json.dumps(result.metrics, indent=2) + "\n"
-        )
+        write_inference_artifacts(out_dir, result, graph=graph, seed=request.seed)
         if getattr(args, "save_runtime_state", None):
             assert result.runtime_state is not None
             save_runtime_state(args.save_runtime_state, result.runtime_state)

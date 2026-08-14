@@ -66,8 +66,7 @@
   Portable selected/final graph checkpoint loading for simulation and inference is implemented with exact graph/name/shape/dtype validation and checkpoint provenance in metrics. A versioned, request-local override contract supports Poisson duration and rate plus scaling of named projections. It rejects ambiguous input modes, invalid values, and unknown projections; timestep replacement remains unsupported because it requires graph recompilation rather than runtime mutation.
   - Add an explicit graph-recompilation route for inference timestep changes.
   Named hidden-population spike deletion and Poisson-addition interventions are implemented as an ordered, seeded, request-local contract. Intervened spikes feed later zero-delay populations, delayed histories, recordings, and readouts through the ordinary graph schedule without backend callbacks.
-  - Stabilize names and shapes for population spikes, membrane traces, rates, logits, accuracy, and rasters.
-  - Preserve seed-labelled caches and fail closed when a compiled graph cannot support an intervention.
+  Graph CLI inference now writes a versioned manifest that inventories the stable names, shapes, and data types in output, recording, and parameter payloads. It binds their content digests to graph, seed, execution protocol, checkpoint, override, intervention, recording, and device provenance; validation fails closed on identity drift or corruption. Task-specific accuracy and raster aggregation remain campaign-layer work over these named tensors.
 
   ==== Artifacts and campaigns
 
@@ -182,6 +181,21 @@
   The ordered contract uses schema `tools/snn.inference-interventions/v1`. Deletion independently removes each emitted spike with the declared probability. Addition takes the union with a Bernoulli-discretized homogeneous Poisson stream whose probability is `rate_hz * dt_seconds`. Exact population identifiers are required; duplicate kind/target pairs, unknown fields, non-spiking populations, invalid probabilities, and rates above the timestep probability boundary are rejected.
 
   Each intervention uses a seed-derived stream keyed by its list position, kind, population, and absolute execution step. A continued runtime therefore consumes the same intervention samples as one uninterrupted run. The modified spikes enter normal downstream propagation, delay histories, recordings, and readouts. Metrics retain the requested list and resolved per-step probabilities. The CLI preserves list order through repeatable `--intervention drop:POPULATION=PROBABILITY` and `--intervention add:POPULATION=RATE_HZ` arguments.
+
+  === Inference artifacts and cache validation
+
+  ```python
+  manifest = write_inference_artifacts(
+    "inference-run", result, graph=graph, seed=17,
+  )
+  validate_inference_artifacts(
+    "inference-run", graph=graph, seed=17,
+  )
+  ```
+
+  Graph CLI runs persist `recordings.npz`, `outputs.npz`, `parameters.npz`, and `metrics.json` beside `inference-manifest.json`. Schema `tools/snn.inference-artifacts/v1` inventories every NPZ array name, shape, and data type and authenticates each payload by SHA-256. Its graph digest prevents reuse against a different compiled graph. Its request digest covers the seed, execution protocol, checkpoint, overrides, interventions, recording profile, and resolved device.
+
+  `validate_inference_artifacts` verifies the manifest identity, exact file set, payload digests, NPZ inventories, request digest, and optional expected graph and seed. A cache consumer must validate before reuse; paths or directory names are not identities. Accuracy, raster conversion, and other task-specific aggregations remain experiment or campaign operations over the stable named payloads.
 
   === Code map
 
