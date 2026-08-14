@@ -63,8 +63,8 @@
 
   ==== Inference and interventions
 
-  Portable selected/final graph checkpoint loading for simulation and inference is implemented with exact graph/name/shape/dtype validation and checkpoint provenance in metrics.
-  - Override inference duration, input rate, timestep, and supported projection strengths through an explicit execution contract.
+  Portable selected/final graph checkpoint loading for simulation and inference is implemented with exact graph/name/shape/dtype validation and checkpoint provenance in metrics. A versioned, request-local override contract supports Poisson duration and rate plus scaling of named projections. It rejects ambiguous input modes, invalid values, and unknown projections; timestep replacement remains unsupported because it requires graph recompilation rather than runtime mutation.
+  - Add an explicit graph-recompilation route for inference timestep changes.
   - Provide hidden-spike deletion and Poisson-addition interventions without reaching into backend internals.
   - Stabilize names and shapes for population spikes, membrane traces, rates, logits, accuracy, and rasters.
   - Preserve seed-labelled caches and fail closed when a compiled graph cannot support an intervention.
@@ -138,6 +138,27 @@
   ```
 
   Reports use schema `tools/snn.conformance-report/v1`. Each layer and field is named explicitly. Missing fields, extra fields, shapes, dtypes, values, maximum absolute and relative errors, and the applied policy are recorded. Exact comparison is the default; numerical tolerance must be declared for a specific field, and an unused rule is rejected. `canonical_json_tensor` encodes topology and provenance structures for exact comparison beside numerical tensors.
+
+  === Inference overrides
+
+  ```python
+  simulate(ExecutionSpec(
+    kind="simulate",
+    executor="graph",
+    bundle="trained.bundle",
+    checkpoint="selected.checkpoint",
+    poisson_bindings=(binding,),
+    options={"inference_overrides": {
+      "duration_ms": 400.0,
+      "input_rate_hz": 25.0,
+      "projection_scales": {"sensory_ping_I_to_E": 0.5},
+    }},
+  ))
+  ```
+
+  The contract uses schema `tools/snn.inference-overrides/v1`. Overrides apply after checkpoint loading to one built model only; the graph bundle and checkpoint are not modified. Duration must be a positive integral number of graph timesteps. Rate must be finite and non-negative. Projection scales use exact graph projection identifiers and finite non-negative factors. Duration and rate overrides require generated Poisson bindings, while projection scaling also works with replay bindings. Metrics retain both the requested mapping and its resolved duration, rate, and projection factors.
+
+  The command line exposes named scaling with repeatable `--scale-projection ID=FACTOR`. Existing `--t-ms` and `--input-rate` arguments define generated Poisson execution at request construction. Runtime `timestep_ms` override is rejected rather than silently changing compiled dynamics.
 
   === Code map
 

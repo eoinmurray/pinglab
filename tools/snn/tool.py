@@ -852,6 +852,13 @@ def _build_subparsers(parser, parent):
         default=1.0,
         help="[--infer] Multiply loaded W_ie matrices before the forward pass.",
     )
+    sim_parser.add_argument(
+        "--scale-projection",
+        action="append",
+        default=[],
+        metavar="ID=FACTOR",
+        help="[graph] Multiply a named graph projection for this inference request; repeatable.",
+    )
     # Uniform-Poisson drive knobs (--input synthetic-spikes / --input-file): the
     # net structure + drive for f–I curves and untrained-net parameter sweeps.
     # (Folded in from the retired `probe` subcommand.)
@@ -1887,6 +1894,8 @@ def main(argv=None):
         raise SystemExit("--event-file requires --executor graph")
     if request.executor == "legacy" and getattr(args, "poisson_protocol", None):
         raise SystemExit("--poisson-protocol requires --executor graph")
+    if request.executor == "legacy" and getattr(args, "scale_projection", None):
+        raise SystemExit("--scale-projection requires --executor graph")
 
     if request.executor == "graph":
         from dataclasses import replace
@@ -1915,6 +1924,16 @@ def main(argv=None):
 
         manifest, graph = load_graph_bundle(args.bundle)
         try:
+            projection_scales = {}
+            for item in getattr(args, "scale_projection", []):
+                projection_id, separator, raw_factor = item.partition("=")
+                if not separator or not projection_id or not raw_factor:
+                    raise ValueError("--scale-projection expects ID=FACTOR")
+                if projection_id in projection_scales:
+                    raise ValueError(
+                        f"--scale-projection repeats projection {projection_id!r}"
+                    )
+                projection_scales[projection_id] = float(raw_factor)
             if poisson_protocol:
                 input_ids = [row["id"] for row in graph.get("inputs", [])]
                 if len(input_ids) != 1:
@@ -1990,6 +2009,11 @@ def main(argv=None):
             options={
                 **request.options,
                 "shuffle": bool(getattr(args, "input_shuffle", False)),
+                **(
+                    {"inference_overrides": {"projection_scales": projection_scales}}
+                    if projection_scales
+                    else {}
+                ),
             },
             runtime_state=runtime_state,
         )
