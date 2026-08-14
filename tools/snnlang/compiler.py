@@ -128,7 +128,7 @@ def _training_dict(
         "regularizers": [
             {
                 "kind": r.kind,
-                "signal": r.signal,
+                "signals": sorted(r.signals),
                 "strength": r.strength,
                 "config": r.config,
             }
@@ -139,6 +139,9 @@ def _training_dict(
         "epochs": spec.epochs,
         "gradient_clip": spec.gradient_clip,
         "surrogate": spec.surrogate.json() if spec.surrogate else None,
+        "presentation_duration": (
+            spec.presentation_duration.json() if spec.presentation_duration else None
+        ),
         "resolved_gradients": {
             "surrogate": spec.surrogate.json() if spec.surrogate else None,
             "voltage_gradient_dampening": {
@@ -728,6 +731,24 @@ def validate_training(
             )
         )
     for objective in training.get("objectives", []):
+        if objective.get("kind") != "cross_entropy":
+            result.diagnostics.append(
+                Diagnostic(
+                    "error", "E424", f"unsupported objective {objective.get('kind')}"
+                )
+            )
+        weight = objective.get("weight")
+        if (
+            not isinstance(weight, (int, float))
+            or isinstance(weight, bool)
+            or not math.isfinite(weight)
+            or weight <= 0
+        ):
+            result.diagnostics.append(
+                Diagnostic(
+                    "error", "E425", "objective weight must be positive and finite"
+                )
+            )
         if objective["prediction"] not in output_signals:
             result.diagnostics.append(
                 Diagnostic(
@@ -741,17 +762,95 @@ def validate_training(
                 Diagnostic("error", "E404", "objective target is empty")
             )
     for regularizer in training.get("regularizers", []):
-        if regularizer["signal"] not in signals and not any(
-            regularizer["signal"].startswith(p["id"] + ".")
-            for p in graph["populations"]
+        regularizer_signals = regularizer.get("signals", [])
+        if not regularizer_signals:
+            result.diagnostics.append(
+                Diagnostic("error", "E405", "regularizer requires at least one signal")
+            )
+        for signal in regularizer_signals:
+            if signal not in signals and not any(
+                signal.startswith(p["id"] + ".") for p in graph["populations"]
+            ):
+                result.diagnostics.append(
+                    Diagnostic(
+                        "error", "E405", f"regularizer signal is unresolved: {signal}"
+                    )
+                )
+        if regularizer.get("kind") != "spike_budget":
+            result.diagnostics.append(
+                Diagnostic(
+                    "error",
+                    "E418",
+                    f"unsupported regularizer {regularizer.get('kind')}",
+                )
+            )
+        else:
+            ceiling = regularizer.get("config", {}).get("ceiling", {})
+            strength = regularizer.get("strength")
+            if (
+                ceiling.get("unit") != "Hz"
+                or not isinstance(ceiling.get("value"), (int, float))
+                or ceiling.get("value") < 0
+            ):
+                result.diagnostics.append(
+                    Diagnostic(
+                        "error", "E419", "spike-budget ceiling must be non-negative Hz"
+                    )
+                )
+            if (
+                not isinstance(strength, (int, float))
+                or isinstance(strength, bool)
+                or not math.isfinite(strength)
+                or strength < 0
+            ):
+                result.diagnostics.append(
+                    Diagnostic(
+                        "error",
+                        "E420",
+                        "spike-budget strength must be non-negative and finite",
+                    )
+                )
+            expected_config = {
+                "ceiling": ceiling,
+                "penalty": "squared_hinge",
+                "aggregation": "mean_presentations_then_layers_of_population_mean_rate",
+            }
+            if regularizer.get("config") != expected_config:
+                result.diagnostics.append(
+                    Diagnostic(
+                        "error",
+                        "E421",
+                        "spike-budget aggregation contract is unsupported",
+                    )
+                )
+    duration = training.get("presentation_duration")
+    if duration is not None:
+        value = duration.get("value")
+        if (
+            duration.get("unit") != "ms"
+            or not isinstance(value, (int, float))
+            or isinstance(value, bool)
+            or not math.isfinite(value)
+            or value <= 0
         ):
             result.diagnostics.append(
                 Diagnostic(
                     "error",
-                    "E405",
-                    f"regularizer signal is unresolved: {regularizer['signal']}",
+                    "E422",
+                    "presentation duration must be positive finite milliseconds",
                 )
             )
+        else:
+            dt_ms = float(graph["timebase"]["dt"]["value"])
+            steps = value / dt_ms
+            if not math.isclose(steps, round(steps), abs_tol=1e-9):
+                result.diagnostics.append(
+                    Diagnostic(
+                        "error",
+                        "E423",
+                        "presentation duration must be an integer number of graph timesteps",
+                    )
+                )
     for signal in training.get("stop_gradients", []):
         if signal not in signals and not any(
             signal.startswith(p["id"] + ".") for p in graph["populations"]
