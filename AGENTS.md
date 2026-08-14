@@ -16,6 +16,10 @@ Spiking E/I (PING) networks, trained with surrogate gradients and diagnosed via
   permission, creating/posting an issue is fine; reading is always fine. Don't open
   branches/PRs unless asked — "commit and push" means commit + push to the current branch.
 - **Free reign on notebooks; editing the cli (`tools/snn`) needs explicit permission.**
+- **For writings-only changes, do not run the software test suite.** Build the affected
+  Demolab entries (and the complete publication only when the change can affect shared
+  rendering, collection structure, or the book). Run code tests only when code, data
+  contracts, runners, or executable examples change.
 - NEVER add Co-Authored-By, "Generated with Claude Code", or any other AI-attribution trailers to commit messages or PR descriptions. Commits are authored by Eoin alone.
 
 ## Session hygiene

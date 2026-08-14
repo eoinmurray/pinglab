@@ -8,7 +8,17 @@
 )
 
 #let body = [
-  == Outputs and observables
+  == Contents
+
+  + #link("/ar087/#developer-guide")[Developer guide]
+  + #link("/ar087/#outputs-and-observables")[Outputs and observables]
+  + #link("/ar087/#standard-readouts")[Standard readouts]
+  + #link("/ar087/#input-bindings")[Input bindings]
+  + #link("/ar087/#api-reference")[API reference]
+
+  == Developer guide
+
+  === Outputs and observables
 
   An output is a named value returned by the graph. An observable exposes an internal signal for recording without changing the computation.
 
@@ -22,13 +32,13 @@
   net.expose(cell.E.spikes, cell.I.spikes, name="hidden")
   ```
 
-  == Standard readouts
+  === Standard readouts
 
   The standard readouts are mean voltage, final voltage, spike count, duration-normalized spike rate, and cumulative potential. Spike-rate logits divide spike count by valid presentation duration, so changing duration does not silently rescale the classifier.
 
   All five standard readouts execute in the graph executor. Spike rate reports spikes per second from either an explicit duration in seconds or a `(time, batch)` valid-time mask; masked reductions reject empty windows rather than silently returning arbitrary values. The compiler infers shapes and units, checks linear readout parameter shapes, rejects malformed masks and ambiguous durations, and records operation requirements in the bundle capability manifest.
 
-  == Input bindings
+  === Input bindings
 
   The execution layer binds concrete data to graph inputs without placing datasets or stimuli in graph structure. Dense-array bindings are implemented as named, data-only values. NPY replay binds to a graph with one input; NPZ arrays bind by input identifier.
 
@@ -39,6 +49,44 @@
   Fixed-rate and categorical variable-rate Poisson encoding belong to execution protocol rather than graph topology. Dense arrays and event streams need separate bindings because their storage and timing semantics differ.
 
   Dense-array and valid-time-mask bindings work today. Event-stream, portable dataset-loader, and encoder bindings are not implemented.
+
+  == API reference
+
+  === Outputs and observables
+
+  ```python
+  net.output(name, signal) -> SignalLike
+  net.expose(*signals, name=None) -> None
+  ```
+
+  An output maps a public name to one graph signal. `expose` records one or more internal signals. A single exposed signal uses `name` directly; multiple signals use `<name>_0`, `<name>_1`, and subsequent indices.
+
+  === Standard readouts
+
+  ```python
+  snn.readouts.MeanVoltage(*, source, classes, name, tau=20 * snn.ms, weight=Normal(1.0, 0.1))
+  snn.readouts.FinalVoltage(*, source, classes, name)
+  snn.readouts.SpikeCount(*, source, classes, name)
+  snn.readouts.SpikeRate(*, source, classes, name, duration=None, mask=None, window="full")
+  snn.readouts.CumulativePotential(*, source, classes, name)
+  ```
+
+  Every constructor returns a `Readout`, which delegates signal attributes and exposes its parameter identifiers. `classes` is the output width. `SpikeRate` requires either `duration` in seconds or a `(time, batch)` mask. The only implemented window is `"full"`.
+
+  === Dense bindings
+
+  ```python
+  DenseArrayBinding(input_id, value, source={})
+  load_dense_array_bindings(path, graph) -> tuple[DenseArrayBinding, ...]
+  resolve_dense_array_bindings(
+      graph, *, bindings=(), inputs=None,
+      device="cpu", seed=0, protocol=None,
+  ) -> ResolvedDenseInputs
+  ```
+
+  `value` is a PyTorch tensor. `source` is JSON-serializable provenance. NPY binds only to a graph with one input; NPZ keys bind by graph input identifier. Direct `ExecutionSpec.inputs` values are converted to in-memory bindings and validated through the same resolver.
+
+  The resolved protocol uses schemas `tools/snn.dense-array-binding/v1` and `tools/snn.execution-protocol/v1`. Reserved protocol fields cannot be overridden by caller metadata.
 
   #link("/ar088/")[Next: Training recipes and graph-native learning]
 ]
