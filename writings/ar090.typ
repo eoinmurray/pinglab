@@ -76,7 +76,7 @@
 
   ==== Conformance and migration
 
-  The first hand-checkable CPU case proves exact hidden spikes and named parameter tensors, plus numerically equivalent mean-voltage logits, for a one-layer feedforward-driven PING graph and legacy COBANet built from one parameter set. It also fixed the legacy recurrent layer map to its actual one-based names and aligned the `MeanVoltage` default with the legacy 2 ms output membrane.
+  The first hand-checkable CPU cases prove exact named parameter tensors and complete E/I spike, membrane, AMPA, and GABA traces for both feedforward-isolated and actively recurrent one-layer PING networks built from one parameter set. Mean-voltage logits agree under the predeclared $10^(-6)$ absolute and relative CPU tolerance. The first case also fixed the legacy recurrent layer map to its actual one-based names and aligned the `MeanVoltage` default with the legacy 2 ms output membrane.
 
   - Compare topology, parameter tensors, initialized state, forward traces, loss, gradients, optimizer updates, checkpoint interchange, exact resume, learning trajectories, interventions, and aggregations.
   - Define exact fields and numerical tolerances before viewing the final comparison.
