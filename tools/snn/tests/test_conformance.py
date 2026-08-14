@@ -400,3 +400,153 @@ def test_legacy_and_graph_four_update_trajectory_and_resume_are_conformant(tmp_p
         },
     )
     report.require_passed()
+
+
+def test_shuffled_dataset_trajectory_matches_independent_pytorch_loop(tmp_path):
+    net = snn.Network("dataset_oracle", dt=0.1 * snn.ms)
+    events = net.input(
+        "events", shape=("time", "batch", 2), signal_type="spikes", unit="spike"
+    )
+    scores = snn.readouts.SpikeCount(source=events, classes=2, name="scores")
+    snn.ops.linear(events, size=1, name="shadow")
+    net.output("class_scores", scores)
+    parameter_ids = [row["id"] for row in net.parameters]
+    recipe = snn.TrainSpec(
+        objectives=[training.CrossEntropy(prediction=scores, target="label")],
+        parameter_groups=[
+            training.ParameterGroup(
+                ["scores_projection.weight"], name="readout", lr=0.1
+            ),
+            training.ParameterGroup(
+                [name for name in parameter_ids if name != "scores_projection.weight"],
+                name="frozen",
+                lr=0.0,
+                frozen=True,
+            ),
+        ],
+        optimizer=training.AdamW(weight_decay=0.0),
+        epochs=2,
+        presentation_duration=0.3 * snn.ms,
+    )
+    bundle = snn.compile(net, training=recipe)
+    inputs = torch.zeros(3, 5, 2)
+    for sample in range(5):
+        inputs[:, sample, sample % 2] = 1
+    labels = torch.tensor([0, 1, 0, 1, 0])
+    seed = 23
+    batch_size = 2
+    graph = train(
+        ExecutionSpec(
+            kind="train",
+            executor="graph",
+            graph=bundle.graph,
+            training=bundle.training,
+            inputs={"events": inputs},
+            targets={"label": labels},
+            seed=seed,
+            options={"epochs": 2, "batch_size": batch_size, "shuffle": True},
+        )
+    )
+    initial = build(
+        ExecutionSpec(
+            kind="build",
+            executor="graph",
+            graph=bundle.graph,
+            training=bundle.training,
+            seed=seed,
+        )
+    )
+    direct = torch.nn.Parameter(
+        initial.parameters["scores_projection.weight"].detach().clone()
+    )
+    optimizer = torch.optim.AdamW([direct], lr=0.1, weight_decay=0.0)
+    losses = []
+    coordinates = []
+    direct_gradient = None
+    for epoch in range(2):
+        order = torch.randperm(5, generator=torch.Generator().manual_seed(seed + epoch))
+        for batch, indices in enumerate(order.split(batch_size)):
+            optimizer.zero_grad(set_to_none=True)
+            logits = (inputs[:, indices] @ direct).sum(dim=0)
+            loss = torch.nn.functional.cross_entropy(logits, labels[indices])
+            losses.append(loss.detach().clone())
+            coordinates.append((epoch + 1, batch + 1))
+            loss.backward()
+            direct_gradient = direct.grad.detach().clone()
+            optimizer.step()
+    assert [
+        (row["epoch"], row["batch"]) for row in graph.metrics["updates"]
+    ] == coordinates
+    assert direct_gradient is not None
+    direct_optimizer = {
+        state: value.detach()
+        for state, value in optimizer.state[direct].items()
+        if isinstance(value, torch.Tensor)
+    }
+    graph_optimizer = graph.optimizer_state["scores_projection.weight"]
+    graph_losses = torch.tensor([row["loss"] for row in graph.metrics["updates"]])
+    assert torch.allclose(torch.stack(losses), graph_losses, atol=1e-6, rtol=1e-6), (
+        torch.stack(losses),
+        graph_losses,
+    )
+    numeric = ComparisonPolicy(mode="numeric", atol=1e-6, rtol=1e-6)
+    report = compare_conformance_layers(
+        "dataset-order-oracle",
+        {
+            "loss": {"cross_entropy": torch.stack(losses)},
+            "gradients": {"scores_projection.weight": direct_gradient},
+            "parameters": {"scores_projection.weight": direct.detach()},
+            "optimizer": direct_optimizer,
+        },
+        {
+            "loss": {"cross_entropy": graph_losses},
+            "gradients": {
+                "scores_projection.weight": graph.gradients["scores_projection.weight"]
+            },
+            "parameters": {
+                "scores_projection.weight": graph.parameters["scores_projection.weight"]
+            },
+            "optimizer": graph_optimizer,
+        },
+        policies={
+            "loss": {"cross_entropy": numeric},
+            "gradients": {"scores_projection.weight": numeric},
+            "parameters": {"scores_projection.weight": numeric},
+            "optimizer": {name: numeric for name in direct_optimizer},
+        },
+    )
+    report.require_passed()
+
+    checkpoint = tmp_path / "mid-epoch"
+    train(
+        ExecutionSpec(
+            kind="train",
+            executor="graph",
+            graph=bundle.graph,
+            training=bundle.training,
+            inputs={"events": inputs},
+            targets={"label": labels},
+            seed=seed,
+            options={
+                "epochs": 2,
+                "batch_size": batch_size,
+                "shuffle": True,
+                "updates": 2,
+                "save_final_checkpoint": checkpoint,
+            },
+        )
+    )
+    with pytest.raises(ValueError, match="execution protocol does not match"):
+        train(
+            ExecutionSpec(
+                kind="train",
+                executor="graph",
+                graph=bundle.graph,
+                training=bundle.training,
+                inputs={"events": inputs},
+                targets={"label": labels},
+                seed=seed,
+                checkpoint=checkpoint,
+                options={"epochs": 2, "batch_size": batch_size, "shuffle": False},
+            )
+        )
