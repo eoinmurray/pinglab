@@ -284,6 +284,23 @@ def validate_graph(graph: Mapping[str, Any]) -> ValidationResult:
                     "error", "E203", "spike-rate duration is ambiguous", row["id"]
                 )
             )
+        if (
+            row["kind"] == "duration_normalise"
+            and row["config"].get("duration") is not None
+        ):
+            try:
+                duration = float(row["config"]["duration"])
+            except (TypeError, ValueError):
+                duration = -1
+            if duration <= 0:
+                out.diagnostics.append(
+                    Diagnostic(
+                        "error",
+                        "E208",
+                        "spike-rate duration must be positive seconds",
+                        row["id"],
+                    )
+                )
         if not row.get("shape") or not row.get("unit"):
             out.diagnostics.append(
                 Diagnostic(
@@ -294,6 +311,80 @@ def validate_graph(graph: Mapping[str, Any]) -> ValidationResult:
                 )
             )
         primary = signals.get(row["sources"][0]) if row.get("sources") else None
+        if primary:
+            primary_shape = list(primary.get("shape", []))
+            expected_shape: list[Any] | None = None
+            if row["kind"] == "linear":
+                expected_shape = [
+                    *primary_shape[:-1],
+                    row.get("config", {}).get("size"),
+                ]
+                for pid in row.get("parameters", []):
+                    if pid in parameter_rows:
+                        expected_parameter = [
+                            row.get("config", {}).get("size"),
+                            primary_shape[-1],
+                        ]
+                        if parameter_rows[pid]["shape"] != expected_parameter:
+                            out.diagnostics.append(
+                                Diagnostic(
+                                    "error",
+                                    "E209",
+                                    f"linear parameter shape {parameter_rows[pid]['shape']} does not match {expected_parameter}",
+                                    row["id"],
+                                )
+                            )
+            elif row["kind"] in {"reduce_mean", "reduce_sum"}:
+                if row.get("config", {}).get("window", "full") != "full":
+                    out.diagnostics.append(
+                        Diagnostic(
+                            "error",
+                            "E210",
+                            "only full-window reductions are supported",
+                            row["id"],
+                        )
+                    )
+                if "time" not in primary_shape:
+                    out.diagnostics.append(
+                        Diagnostic(
+                            "error",
+                            "E211",
+                            "time reduction requires a time axis",
+                            row["id"],
+                        )
+                    )
+                else:
+                    time_axis = primary_shape.index("time")
+                    expected_shape = [
+                        dimension
+                        for index, dimension in enumerate(primary_shape)
+                        if index != time_axis
+                    ]
+            elif row["kind"] == "select_final":
+                if not primary_shape or primary_shape[0] != "time":
+                    out.diagnostics.append(
+                        Diagnostic(
+                            "error",
+                            "E212",
+                            "final selection requires a leading time axis",
+                            row["id"],
+                        )
+                    )
+                else:
+                    expected_shape = primary_shape[1:]
+            elif row["kind"] == "cumulative_sum":
+                expected_shape = primary_shape
+            elif row["kind"] == "duration_normalise":
+                expected_shape = primary_shape
+            if expected_shape is not None and row.get("shape") != expected_shape:
+                out.diagnostics.append(
+                    Diagnostic(
+                        "error",
+                        "E213",
+                        f"operation shape {row.get('shape')} does not match inferred {expected_shape}",
+                        row["id"],
+                    )
+                )
         if (
             primary
             and row["kind"]
@@ -323,13 +414,13 @@ def validate_graph(graph: Mapping[str, Any]) -> ValidationResult:
                 mask = signals.get(mask_id)
                 if mask and (
                     mask.get("signal_type") != "mask"
-                    or mask.get("shape", [])[:2] != ["time", "batch"]
+                    or mask.get("shape", []) != ["time", "batch"]
                 ):
                     out.diagnostics.append(
                         Diagnostic(
                             "error",
                             "E207",
-                            "valid-duration mask must have type mask and shape (batch, time)",
+                            "valid-duration mask must have type mask and shape (time, batch)",
                             row["id"],
                         )
                     )
@@ -458,14 +549,35 @@ def capability_report(graph: Mapping[str, Any], target: str | None) -> list[Diag
     for population in graph["populations"]:
         kind = population["neuron"]["kind"]
         if kind not in neuron_support:
-            diagnostics.append(Diagnostic("warning", "C102", f"{vocabulary}: {target} lacks neuron:{kind}", population["id"]))
+            diagnostics.append(
+                Diagnostic(
+                    "warning",
+                    "C102",
+                    f"{vocabulary}: {target} lacks neuron:{kind}",
+                    population["id"],
+                )
+            )
     for projection in graph["projections"]:
         synapse = projection["synapse"]["kind"]
         connection = projection["connection"]
         if synapse not in synapse_support:
-            diagnostics.append(Diagnostic("warning", "C103", f"{vocabulary}: {target} lacks synapse:{synapse}", projection["id"]))
+            diagnostics.append(
+                Diagnostic(
+                    "warning",
+                    "C103",
+                    f"{vocabulary}: {target} lacks synapse:{synapse}",
+                    projection["id"],
+                )
+            )
         if connection not in connection_support:
-            diagnostics.append(Diagnostic("warning", "C104", f"{vocabulary}: {target} lacks connection:{connection}", projection["id"]))
+            diagnostics.append(
+                Diagnostic(
+                    "warning",
+                    "C104",
+                    f"{vocabulary}: {target} lacks connection:{connection}",
+                    projection["id"],
+                )
+            )
     for op in graph["operations"]:
         if op["kind"] not in supported:
             diagnostics.append(
@@ -483,21 +595,35 @@ def capability_requirements(graph: Mapping[str, Any]) -> dict[str, Any]:
     """Canonical element-level requirements archived with every bundle."""
     elements = []
     for population in graph["populations"]:
-        elements.append({"element": population["id"], "features": [f"neuron:{population['neuron']['kind']}"]})
+        elements.append(
+            {
+                "element": population["id"],
+                "features": [f"neuron:{population['neuron']['kind']}"],
+            }
+        )
     for projection in graph["projections"]:
         delay = projection.get("delay")
-        elements.append({
-            "element": projection["id"],
-            "features": [
-                f"synapse:{projection['synapse']['kind']}",
-                f"connection:{projection['connection']}",
-                "delay:none" if delay is None else "delay:explicit",
-            ],
-        })
+        elements.append(
+            {
+                "element": projection["id"],
+                "features": [
+                    f"synapse:{projection['synapse']['kind']}",
+                    f"connection:{projection['connection']}",
+                    "delay:none" if delay is None else "delay:explicit",
+                ],
+            }
+        )
     for operation in graph["operations"]:
-        elements.append({"element": operation["id"], "features": [f"operation:{operation['kind']}"]})
+        elements.append(
+            {"element": operation["id"], "features": [f"operation:{operation['kind']}"]}
+        )
     for observable in graph["observables"]:
-        elements.append({"element": observable["id"], "features": [f"recording:{observable['signal'].partition('.')[2]}"]})
+        elements.append(
+            {
+                "element": observable["id"],
+                "features": [f"recording:{observable['signal'].partition('.')[2]}"],
+            }
+        )
     return {
         "schema": CAPABILITY_SCHEMA,
         "elements": sorted(elements, key=lambda row: row["element"]),
