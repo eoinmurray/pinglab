@@ -23,9 +23,11 @@ from execution import (
     execute_request,
     execution_spec_from_args,
     graph_capability_issues,
+    legacy_parameter_map_v1,
     load_dense_array_bindings,
     load_event_stream_bindings,
     load_runtime_state,
+    load_training_checkpoint,
     plan_graph,
     resolve_dense_array_bindings,
     resolve_device,
@@ -34,6 +36,7 @@ from execution import (
     resolve_poisson_input_bindings,
     runtime_state_signature,
     save_runtime_state,
+    save_training_checkpoint,
     simulate,
     train,
 )
@@ -258,6 +261,106 @@ def test_graph_training_backpropagates_through_recurrence_and_spike_budget():
     assert result.metrics["updates"][0]["components"][
         "regularizer[0]"
     ] == pytest.approx(float(expected.detach()))
+
+
+def test_training_checkpoint_round_trip_and_resume_are_exact(tmp_path):
+    bundle = _direct_train_bundle()
+    inputs = torch.zeros(3, 2, 2)
+    inputs[:, 0, 0] = 1
+    inputs[:, 1, 1] = 1
+    common = dict(
+        kind="train",
+        executor="graph",
+        graph=bundle.graph,
+        training=bundle.training,
+        inputs={"events": inputs},
+        targets={"label": torch.tensor([0, 1])},
+        seed=17,
+    )
+    uninterrupted = train(ExecutionSpec(**common, options={"updates": 4}))
+    checkpoint_dir = tmp_path / "checkpoint"
+    first_half = train(
+        ExecutionSpec(
+            **common,
+            options={
+                "updates": 2,
+                "save_final_checkpoint": checkpoint_dir,
+                "save_selected_checkpoint": tmp_path / "selected",
+            },
+        )
+    )
+    loaded = load_training_checkpoint(checkpoint_dir)
+    assert loaded.completed_updates == 2
+    assert loaded.graph_digest == bundle.training["graph_digest"]
+    assert (tmp_path / "selected" / "manifest.json").is_file()
+    resumed = train(
+        ExecutionSpec(
+            **common,
+            checkpoint=checkpoint_dir,
+            options={"updates": 2},
+        )
+    )
+    assert resumed.metrics["resumed_from_update"] == 2
+    assert [row["update"] for row in resumed.metrics["updates"]] == [3, 4]
+    assert resumed.metrics["updates"] == uninterrupted.metrics["updates"][2:]
+    for name in uninterrupted.parameters:
+        torch.testing.assert_close(
+            resumed.parameters[name], uninterrupted.parameters[name], rtol=0, atol=0
+        )
+    for name in uninterrupted.optimizer_state:
+        for state in uninterrupted.optimizer_state[name]:
+            torch.testing.assert_close(
+                resumed.optimizer_state[name][state],
+                uninterrupted.optimizer_state[name][state],
+                rtol=0,
+                atol=0,
+            )
+    assert first_half.training_checkpoint is not None
+    assert resumed.training_checkpoint is not None
+    assert resumed.training_checkpoint.completed_updates == 4
+
+
+def test_training_checkpoint_rejects_partial_parameter_mapping(tmp_path):
+    bundle = _direct_train_bundle()
+    inputs = torch.zeros(3, 2, 2)
+    result = train(
+        ExecutionSpec(
+            kind="train",
+            executor="graph",
+            graph=bundle.graph,
+            training=bundle.training,
+            inputs={"events": inputs},
+            targets={"label": torch.tensor([0, 1])},
+        )
+    )
+    checkpoint = result.training_checkpoint
+    assert checkpoint is not None
+    checkpoint.parameters.pop("shadow.weight")
+    root = save_training_checkpoint(tmp_path / "partial", checkpoint)
+    with pytest.raises(ValueError, match="parameter names mismatch"):
+        train(
+            ExecutionSpec(
+                kind="train",
+                executor="graph",
+                graph=bundle.graph,
+                training=bundle.training,
+                inputs={"events": inputs},
+                targets={"label": torch.tensor([0, 1])},
+                checkpoint=root,
+            )
+        )
+
+
+def test_legacy_parameter_map_uses_complete_semantic_names():
+    graph = ping_classifier().graph
+    assert legacy_parameter_map_v1(graph) == {
+        "classifier_projection.weight": "W_ff.1",
+        "sensory_ping_E_to_E.weight": "W_ee.0",
+        "sensory_ping_E_to_I.weight": "W_ei.0",
+        "sensory_ping_I_to_E.weight": "W_ie.0",
+        "sensory_ping_I_to_I.weight": "W_ii.0",
+        "sensory_ping_input.weight": "W_ff.0",
+    }
 
 
 def test_legacy_and_bundle_cli_arguments_both_lower_to_typed_specs(tmp_path):
