@@ -623,6 +623,19 @@ def test_legacy_and_bundle_cli_arguments_both_lower_to_typed_specs(tmp_path):
     assert called and result.executor == "legacy"
 
 
+def test_graph_cli_accepts_ordered_intervention_syntax():
+    args = parse_args(
+        [
+            "sim",
+            "--intervention",
+            "drop:cell_E=0.25",
+            "--intervention",
+            "add:cell_E=5",
+        ]
+    )
+    assert args.intervention == ["drop:cell_E=0.25", "add:cell_E=5"]
+
+
 def test_graph_cli_resolves_explicit_device_and_recording_profile(
     tmp_path, monkeypatch
 ):
@@ -1404,6 +1417,134 @@ def test_graph_inference_overrides_reject_ambiguous_or_unknown_requests():
                 inputs={"events": torch.zeros(2, 1, 2)},
                 options={
                     "inference_overrides": {"projection_scales": {"missing": 1.0}}
+                },
+            )
+        )
+
+
+def test_graph_inference_interventions_are_ordered_and_recorded():
+    graph = _coupled_graph(direction="uncoupled")
+    inputs = {
+        "drive_a": torch.zeros(3, 1, 3),
+        "drive_b": torch.zeros(3, 1, 2),
+    }
+    add = {
+        "kind": "add_poisson_spikes",
+        "population_id": "a_E",
+        "rate_hz": 10000.0,
+        "seed": 11,
+    }
+    drop = {
+        "kind": "drop_spikes",
+        "population_id": "a_E",
+        "probability": 1.0,
+        "seed": 12,
+    }
+    dropped = simulate(
+        ExecutionSpec(
+            kind="simulate",
+            executor="graph",
+            graph=graph,
+            inputs=inputs,
+            options={"inference_interventions": [add, drop]},
+        )
+    )
+    added = simulate(
+        ExecutionSpec(
+            kind="simulate",
+            executor="graph",
+            graph=graph,
+            inputs=inputs,
+            options={"inference_interventions": [drop, add]},
+        )
+    )
+    assert torch.count_nonzero(dropped.recordings["a_E.spikes"]) == 0
+    assert torch.all(added.recordings["a_E.spikes"] == 1)
+    provenance = added.metrics["inference_interventions"]
+    assert provenance["schema"] == "tools/snn.inference-interventions/v1"
+    assert provenance["requested"] == [drop, add]
+    assert provenance["resolved"][1]["probability_per_step"] == 1.0
+
+
+def test_graph_inference_intervention_stream_resumes_exactly():
+    graph = _coupled_graph(direction="uncoupled")
+    intervention = {
+        "kind": "add_poisson_spikes",
+        "population_id": "a_E",
+        "rate_hz": 5000.0,
+        "seed": 31,
+    }
+    full_model = GraphExecutor(plan_graph(graph), seed=4)
+    full = full_model(
+        {
+            "drive_a": torch.zeros(4, 2, 3),
+            "drive_b": torch.zeros(4, 2, 2),
+        },
+        interventions=(intervention,),
+    )
+    resumed_model = GraphExecutor(plan_graph(graph), seed=4)
+    first = resumed_model(
+        {
+            "drive_a": torch.zeros(2, 2, 3),
+            "drive_b": torch.zeros(2, 2, 2),
+        },
+        interventions=(intervention,),
+    )
+    second = resumed_model(
+        {
+            "drive_a": torch.zeros(2, 2, 3),
+            "drive_b": torch.zeros(2, 2, 2),
+        },
+        runtime_state=first.runtime_state,
+        interventions=(intervention,),
+    )
+    torch.testing.assert_close(
+        full.recordings["a_E.spikes"],
+        torch.cat((first.recordings["a_E.spikes"], second.recordings["a_E.spikes"])),
+        rtol=0,
+        atol=0,
+    )
+
+
+def test_graph_inference_interventions_reject_invalid_targets_and_values():
+    graph = _coupled_graph(direction="uncoupled")
+    inputs = {
+        "drive_a": torch.zeros(1, 1, 3),
+        "drive_b": torch.zeros(1, 1, 2),
+    }
+    with pytest.raises(ValueError, match="unknown population"):
+        simulate(
+            ExecutionSpec(
+                kind="simulate",
+                executor="graph",
+                graph=graph,
+                inputs=inputs,
+                options={
+                    "inference_interventions": [
+                        {
+                            "kind": "drop_spikes",
+                            "population_id": "missing",
+                            "probability": 0.5,
+                        }
+                    ]
+                },
+            )
+        )
+    with pytest.raises(ValueError, match="rate times dt"):
+        simulate(
+            ExecutionSpec(
+                kind="simulate",
+                executor="graph",
+                graph=graph,
+                inputs=inputs,
+                options={
+                    "inference_interventions": [
+                        {
+                            "kind": "add_poisson_spikes",
+                            "population_id": "a_E",
+                            "rate_hz": 10001.0,
+                        }
+                    ]
                 },
             )
         )

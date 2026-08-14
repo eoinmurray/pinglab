@@ -272,6 +272,26 @@ result = simulate(ExecutionSpec(
 The CLI accepts repeatable `--scale-projection ID=FACTOR`; generated Poisson
 duration and rate continue to use `--t-ms` and `--input-rate`.
 
+Ordered hidden-spike interventions use
+`tools/snn.inference-interventions/v1`. `drop_spikes` removes emitted spikes by
+a finite probability in `[0, 1]`; `add_poisson_spikes` unions them with a
+seeded homogeneous Poisson stream at a finite non-negative rate supported by
+the graph timestep. Targets are exact ids of spiking populations. Modified
+spikes flow through downstream zero-delay projections, delay histories,
+recordings, and readouts. Seed streams are keyed by absolute execution step, so
+runtime continuation matches an uninterrupted request exactly.
+
+```sh
+uv run python tools/snn/tool.py sim \
+  --executor graph \
+  --bundle small_ping.bundle \
+  --input-file replay.npz \
+  --intervention drop:cell_E=0.25 \
+  --intervention add:cell_E=5 \
+  --seed 17 \
+  --out-dir intervention-run/
+```
+
 A separate five-sample dataset oracle reconstructs two shuffled epochs and
 their uneven final batches directly with seeded PyTorch permutations. Update
 coordinates, the complete loss trajectory, final gradient/parameter/AdamW
