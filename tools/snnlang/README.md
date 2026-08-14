@@ -224,9 +224,11 @@ legacy recurrent keys are one-based (`W_ee.1`,
 `W_ei.1`, `W_ie.1`, and `W_ii.1`) and that the compatible mean-voltage readout
 uses the legacy 2 ms output-membrane time constant.
 
-The corresponding one-step backward fixture trains all six mapped tensors and
-compares cross-entropy, named surrogate gradients, constrained parameters, and
-AdamW step/first-moment/second-moment tensors under the same frozen CPU policy.
+The corresponding four-update backward fixture trains all six mapped tensors
+and compares the complete cross-entropy trajectory, final named surrogate
+gradients, constrained parameters, and AdamW step/first-moment/second-moment
+tensors under the same frozen CPU policy. A two-plus-two checkpoint resume is
+bit-identical to the uninterrupted graph trajectory.
 Both routes apply the non-negative parameter projection after the optimizer
 step; optimizer state itself remains the unconstrained AdamW update record.
 

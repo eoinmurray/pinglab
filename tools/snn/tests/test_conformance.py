@@ -213,7 +213,7 @@ def test_minimal_legacy_and_graph_ping_forward_share_parameters_and_logits(
     report.require_passed()
 
 
-def test_legacy_and_graph_one_step_backward_and_adamw_are_conformant():
+def test_legacy_and_graph_four_update_trajectory_and_resume_are_conformant(tmp_path):
     M.N_IN = 2
     M.N_OUT = 2
     M.dt = 0.1
@@ -285,6 +285,7 @@ def test_legacy_and_graph_one_step_backward_and_adamw_are_conformant():
     inputs[:, 0, 0] = 1
     inputs[::2, 1, 1] = 1
     labels = torch.tensor([0, 1])
+    update_count = 4
     graph = train(
         ExecutionSpec(
             kind="train",
@@ -294,30 +295,69 @@ def test_legacy_and_graph_one_step_backward_and_adamw_are_conformant():
             inputs={"events": inputs},
             targets={"label": labels},
             seed=7,
+            options={"updates": update_count},
         )
     )
+    checkpoint_path = tmp_path / "trajectory-checkpoint"
+    first_half = train(
+        ExecutionSpec(
+            kind="train",
+            executor="graph",
+            graph=bundle.graph,
+            training=bundle.training,
+            inputs={"events": inputs},
+            targets={"label": labels},
+            seed=7,
+            options={"updates": 2, "save_final_checkpoint": checkpoint_path},
+        )
+    )
+    resumed = train(
+        ExecutionSpec(
+            kind="train",
+            executor="graph",
+            graph=bundle.graph,
+            training=bundle.training,
+            inputs={"events": inputs},
+            targets={"label": labels},
+            seed=7,
+            checkpoint=checkpoint_path,
+            options={"updates": 2},
+        )
+    )
+    assert [
+        *first_half.metrics["updates"],
+        *resumed.metrics["updates"],
+    ] == graph.metrics["updates"]
+    for name in graph.parameters:
+        torch.testing.assert_close(
+            resumed.parameters[name], graph.parameters[name], rtol=0, atol=0
+        )
     optimizer = torch.optim.AdamW(
         [legacy_parameters[mapping[name]] for name in sorted(trainable)],
         lr=0.01,
         weight_decay=0.0,
     )
-    optimizer.zero_grad(set_to_none=True)
-    legacy_logits = legacy(input_spikes=inputs)
-    legacy_loss = torch.nn.functional.cross_entropy(legacy_logits, labels)
-    legacy_loss.backward()
-    legacy_gradients = {
-        mapping[name]: legacy_parameters[mapping[name]].grad.detach().clone()
-        for name in trainable
-    }
+    legacy_losses = []
+    legacy_gradients = {}
+    for _ in range(update_count):
+        optimizer.zero_grad(set_to_none=True)
+        legacy_logits = legacy(input_spikes=inputs)
+        legacy_loss = torch.nn.functional.cross_entropy(legacy_logits, labels)
+        legacy_losses.append(legacy_loss.detach().clone())
+        legacy_loss.backward()
+        legacy_gradients = {
+            mapping[name]: legacy_parameters[mapping[name]].grad.detach().clone()
+            for name in trainable
+        }
+        optimizer.step()
+        with torch.no_grad():
+            for parameter in legacy_parameters.values():
+                parameter.clamp_(min=0)
     assert torch.count_nonzero(legacy_gradients["W_ff.0"]) > 0
     assert torch.count_nonzero(legacy_gradients["W_ff.1"]) > 0
     assert any(
         torch.count_nonzero(legacy_gradients[mapping[name]]) > 0 for name in recurrent
     )
-    optimizer.step()
-    with torch.no_grad():
-        for parameter in legacy_parameters.values():
-            parameter.clamp_(min=0)
     legacy_optimizer = {}
     for name in sorted(legacy_gradients):
         for state, value in optimizer.state[legacy_parameters[name]].items():
@@ -333,7 +373,7 @@ def test_legacy_and_graph_one_step_backward_and_adamw_are_conformant():
     report = compare_conformance_layers(
         "legacy-graph-backward",
         {
-            "loss": {"cross_entropy": legacy_loss.detach()},
+            "loss": {"cross_entropy": torch.stack(legacy_losses)},
             "gradients": legacy_gradients,
             "parameters": {
                 name: value.detach() for name, value in legacy_parameters.items()
@@ -342,7 +382,9 @@ def test_legacy_and_graph_one_step_backward_and_adamw_are_conformant():
         },
         {
             "loss": {
-                "cross_entropy": torch.tensor(graph.metrics["updates"][0]["loss"])
+                "cross_entropy": torch.tensor(
+                    [row["loss"] for row in graph.metrics["updates"]]
+                )
             },
             "gradients": remap_named_tensors(
                 graph.gradients, {name: mapping[name] for name in graph.gradients}
