@@ -48,9 +48,9 @@
 
   Every replay emits a versioned execution protocol containing the representation, source-file digest and array keys, resolved shape and data type, signal type and unit, dataset identity and split when supplied, sample cap, batch size, shuffle behavior, timestep, duration, masks, seeds, and representation-specific resolution semantics. The command-line contract accepts `--input-file` or `--event-file`, dataset metadata, and the explicit `--input-shuffle` or `--no-input-shuffle` pair.
 
-  Fixed-rate and categorical variable-rate Poisson encoding belong to execution protocol rather than graph topology.
+  Fixed-rate and categorical variable-rate Poisson encoding belong to execution protocol rather than graph topology. Both are implemented as seeded bindings. The categorical protocol samples one rate uniformly and independently per presentation, records the realized rate vector, and then generates graph-shaped spikes using the declared timestep.
 
-  Dense-array, valid-time-mask, and sparse event-stream bindings work today. Portable dataset-loader and encoder bindings are not implemented.
+  Dense-array, valid-time-mask, sparse event-stream, and generated Poisson bindings work today. Portable dataset-loader and encoder bindings are not implemented.
 
   == API reference
 

@@ -65,7 +65,23 @@ uv run python tools/snn/tool.py sim \
 ```
 
 The resolved contract is written under `execution_protocol` in `metrics.json`.
-Generated Poisson protocols remain a separate future binding.
+Generated Poisson inputs are execution protocols rather than graph structure.
+`PoissonInputBinding` supports a fixed rate or a rate sampled uniformly and
+independently per presentation from a categorical set. The resolver owns an
+explicit seed, records both configured and realized rates, and uses the graph
+timestep to materialize Bernoulli-discretized homogeneous Poisson spikes.
+
+```sh
+uv run python tools/snn/tool.py sim \
+  --executor graph \
+  --bundle small_ping.bundle \
+  --poisson-protocol categorical-rate \
+  --input-rates 0.5 1 5 10 25 \
+  --n-batch 64 \
+  --t-ms 200 \
+  --seed 17 \
+  --out-dir run/
+```
 
 Run all examples:
 
