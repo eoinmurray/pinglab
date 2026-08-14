@@ -35,6 +35,7 @@ EVENT_STREAM_BINDING_SCHEMA = "tools/snn.event-stream-binding/v1"
 MIXED_INPUT_BINDING_SCHEMA = "tools/snn.mixed-input-bindings/v1"
 POISSON_INPUT_BINDING_SCHEMA = "tools/snn.poisson-input-binding/v1"
 EXECUTION_PROTOCOL_SCHEMA = "tools/snn.execution-protocol/v1"
+TRAINING_CHECKPOINT_SCHEMA = "tools/snn.training-checkpoint/v1"
 
 
 @dataclass(frozen=True)
@@ -106,6 +107,8 @@ class ExecutionResult:
     parameters: dict[str, torch.Tensor] = field(default_factory=dict)
     gradients: dict[str, torch.Tensor] = field(default_factory=dict)
     optimizer_state: dict[str, Any] = field(default_factory=dict)
+    training_checkpoint: TrainingCheckpoint | None = None
+    selected_checkpoint: TrainingCheckpoint | None = None
     final_state: dict[str, torch.Tensor] = field(default_factory=dict)
     runtime_state: GraphRuntimeState | None = None
     metrics: dict[str, Any] = field(default_factory=dict)
@@ -117,6 +120,19 @@ class CapabilityIssue:
     element: str
     capability: str
     message: str
+
+
+@dataclass
+class TrainingCheckpoint:
+    graph_digest: str
+    training_digest: str
+    completed_updates: int
+    execution_protocol: Mapping[str, Any]
+    initialization: Mapping[str, Any]
+    parameters: dict[str, torch.Tensor]
+    optimizer_state: dict[str, dict[str, Any]]
+    rng_state: torch.Tensor
+    selected_loss: float | None = None
 
 
 GRAPH_CAPABILITIES_V1 = {
@@ -1137,6 +1153,206 @@ def load_runtime_state(
     )
 
 
+def _json_digest(value: Mapping[str, Any]) -> str:
+    encoded = json.dumps(
+        value, sort_keys=True, separators=(",", ":"), ensure_ascii=False
+    ).encode()
+    return "sha256:" + hashlib.sha256(encoded + b"\n").hexdigest()
+
+
+def save_training_checkpoint(path: str | Path, checkpoint: TrainingCheckpoint) -> Path:
+    """Atomically write a named, authenticated graph-training checkpoint."""
+    root = Path(path)
+    root.mkdir(parents=True, exist_ok=True)
+    arrays: dict[str, np.ndarray] = {}
+    tensors: list[dict[str, Any]] = []
+
+    def append(group: str, name: str, value: torch.Tensor, state: str | None = None):
+        key = f"tensor_{len(arrays):04d}"
+        tensor = value.detach().cpu().contiguous()
+        arrays[key] = tensor.numpy()
+        row = {
+            "group": group,
+            "name": name,
+            "key": key,
+            "shape": list(tensor.shape),
+            "dtype": str(tensor.dtype).removeprefix("torch."),
+        }
+        if state is not None:
+            row["state"] = state
+        tensors.append(row)
+
+    for name in sorted(checkpoint.parameters):
+        append("parameters", name, checkpoint.parameters[name])
+    optimizer_scalars: dict[str, dict[str, Any]] = {}
+    for name in sorted(checkpoint.optimizer_state):
+        optimizer_scalars[name] = {}
+        for state, value in sorted(checkpoint.optimizer_state[name].items()):
+            if isinstance(value, torch.Tensor):
+                append("optimizer", name, value, state)
+            else:
+                optimizer_scalars[name][state] = value
+    append("rng", "cpu", checkpoint.rng_state)
+    fd, temporary_name = tempfile.mkstemp(prefix=".tensors-", suffix=".npz", dir=root)
+    os.close(fd)
+    temporary_tensors = Path(temporary_name)
+    try:
+        np.savez_compressed(temporary_tensors, **arrays)
+        tensors_digest = _file_digest(temporary_tensors)
+        os.replace(temporary_tensors, root / "tensors.npz")
+    finally:
+        temporary_tensors.unlink(missing_ok=True)
+    manifest = {
+        "schema": TRAINING_CHECKPOINT_SCHEMA,
+        "schema_version": 1,
+        "backend": "tools/snn.graph-training/v1",
+        "graph_digest": checkpoint.graph_digest,
+        "training_digest": checkpoint.training_digest,
+        "completed_updates": checkpoint.completed_updates,
+        "selected_loss": checkpoint.selected_loss,
+        "execution_protocol": checkpoint.execution_protocol,
+        "initialization": checkpoint.initialization,
+        "optimizer_scalars": optimizer_scalars,
+        "tensors_file": "tensors.npz",
+        "tensors_digest": tensors_digest,
+        "tensors": tensors,
+    }
+    fd, temporary_name = tempfile.mkstemp(prefix=".manifest-", suffix=".json", dir=root)
+    temporary_manifest = Path(temporary_name)
+    try:
+        with os.fdopen(fd, "w") as handle:
+            json.dump(manifest, handle, sort_keys=True, separators=(",", ":"))
+            handle.write("\n")
+        os.replace(temporary_manifest, root / "manifest.json")
+    finally:
+        temporary_manifest.unlink(missing_ok=True)
+    return root
+
+
+def load_training_checkpoint(
+    path: str | Path, *, device: str | torch.device = "cpu"
+) -> TrainingCheckpoint:
+    """Load and authenticate a portable named graph-training checkpoint."""
+    root = Path(path)
+    manifest = json.loads((root / "manifest.json").read_text())
+    if (
+        manifest.get("schema") != TRAINING_CHECKPOINT_SCHEMA
+        or manifest.get("schema_version") != 1
+    ):
+        raise ValueError(
+            f"unsupported training-checkpoint schema: {manifest.get('schema')}"
+        )
+    tensors_path = root / manifest.get("tensors_file", "tensors.npz")
+    actual_digest = _file_digest(tensors_path)
+    if actual_digest != manifest.get("tensors_digest"):
+        raise ValueError(
+            f"training-checkpoint tensors digest expected {manifest.get('tensors_digest')}, got {actual_digest}"
+        )
+    parameters: dict[str, torch.Tensor] = {}
+    optimizer_state: dict[str, dict[str, Any]] = {
+        name: dict(values)
+        for name, values in manifest.get("optimizer_scalars", {}).items()
+    }
+    rng_state = None
+    with np.load(tensors_path, allow_pickle=False) as archive:
+        expected_keys = {row["key"] for row in manifest["tensors"]}
+        if set(archive.files) != expected_keys:
+            raise ValueError(
+                f"training-checkpoint tensor keys expected {sorted(expected_keys)}, got {sorted(archive.files)}"
+            )
+        for row in manifest["tensors"]:
+            array = archive[row["key"]]
+            if list(array.shape) != row["shape"] or str(array.dtype) != row["dtype"]:
+                raise ValueError(
+                    f"training-checkpoint tensor {row['group']}.{row['name']} metadata does not match tensors.npz"
+                )
+            value = torch.from_numpy(array.copy()).to(device)
+            if row["group"] == "parameters":
+                parameters[row["name"]] = value
+            elif row["group"] == "optimizer":
+                optimizer_state.setdefault(row["name"], {})[row["state"]] = value
+            elif row["group"] == "rng" and row["name"] == "cpu":
+                rng_state = value.cpu()
+            else:
+                raise ValueError(
+                    f"unsupported training-checkpoint tensor group {row['group']}"
+                )
+    if rng_state is None:
+        raise ValueError("training checkpoint is missing CPU RNG state")
+    return TrainingCheckpoint(
+        graph_digest=manifest["graph_digest"],
+        training_digest=manifest["training_digest"],
+        completed_updates=int(manifest["completed_updates"]),
+        selected_loss=manifest.get("selected_loss"),
+        execution_protocol=manifest["execution_protocol"],
+        initialization=manifest["initialization"],
+        parameters=parameters,
+        optimizer_state=optimizer_state,
+        rng_state=rng_state,
+    )
+
+
+def legacy_parameter_map_v1(graph: Mapping[str, Any]) -> dict[str, str]:
+    """Map the supported one-layer legacy COBANet by semantic graph roles."""
+    populations = {row["id"]: row for row in graph.get("populations", [])}
+    input_ids = {row["id"] for row in graph.get("inputs", [])}
+    mapping: dict[str, str] = {}
+    recurrent_index = 0
+    for projection in graph.get("projections", []):
+        parameters = projection.get("parameters", [])
+        if len(parameters) != 1:
+            raise ValueError(
+                f"legacy parameter mapping requires one parameter on projection {projection.get('id')}"
+            )
+        parameter = parameters[0]
+        source = projection["source"].partition(".")[0]
+        target = projection["target"].partition(".")[0]
+        if source in input_ids:
+            legacy = "W_ff.0"
+        elif populations[target]["neuron"]["kind"] == "leaky_integrator":
+            legacy = "W_ff.1"
+        elif projection.get("connection") == "recurrent":
+            source_size = int(populations[source]["size"])
+            target_size = int(populations[target]["size"])
+            if source == target and projection["polarity"] == "excitatory":
+                legacy = f"W_ee.{recurrent_index}"
+            elif source == target and projection["polarity"] == "inhibitory":
+                legacy = f"W_ii.{recurrent_index}"
+            elif source_size >= target_size and projection["polarity"] == "excitatory":
+                legacy = f"W_ei.{recurrent_index}"
+            elif source_size <= target_size and projection["polarity"] == "inhibitory":
+                legacy = f"W_ie.{recurrent_index}"
+            else:
+                raise ValueError(
+                    f"legacy parameter mapping cannot classify recurrent projection {projection['id']}"
+                )
+        else:
+            raise ValueError(
+                f"legacy parameter mapping cannot classify projection {projection['id']}"
+            )
+        if legacy in mapping.values():
+            raise ValueError(f"legacy parameter mapping duplicates role {legacy}")
+        mapping[parameter] = legacy
+    for operation in graph.get("operations", []):
+        if operation.get("kind") != "linear":
+            continue
+        for parameter in operation.get("parameters", []):
+            if parameter in mapping:
+                continue
+            legacy = "W_ff.1"
+            if legacy in mapping.values():
+                raise ValueError(f"legacy parameter mapping duplicates role {legacy}")
+            mapping[parameter] = legacy
+    graph_parameters = {row["id"] for row in graph.get("parameters", [])}
+    if set(mapping) != graph_parameters:
+        missing = sorted(graph_parameters - set(mapping))
+        extra = sorted(set(mapping) - graph_parameters)
+        raise ValueError(
+            f"legacy parameter mapping must be complete; missing={missing}, extra={extra}"
+        )
+    return dict(sorted(mapping.items()))
+
+
 class DelayBuffer:
     """Fixed causal delay used by recurrent and feedback projections."""
 
@@ -2015,6 +2231,47 @@ def train(spec: ExecutionSpec) -> ExecutionResult:
         protocol=spec.protocol,
     )
     parameter_map = model.parameter_map()
+    graph_digest = training["graph_digest"]
+    training_digest = _json_digest(training)
+    resumed: TrainingCheckpoint | None = None
+    completed_updates = 0
+    if spec.checkpoint is not None:
+        resumed = load_training_checkpoint(spec.checkpoint, device=device)
+        if resumed.graph_digest != graph_digest:
+            raise ValueError(
+                f"training checkpoint graph digest expected {graph_digest}, got {resumed.graph_digest}"
+            )
+        if resumed.training_digest != training_digest:
+            raise ValueError(
+                f"training checkpoint recipe digest expected {training_digest}, got {resumed.training_digest}"
+            )
+        if resumed.execution_protocol != resolved_inputs.protocol:
+            raise ValueError(
+                "training checkpoint execution protocol does not match request"
+            )
+        if resumed.initialization != built.metrics["initialization"]:
+            raise ValueError(
+                "training checkpoint initializer metadata does not match graph build"
+            )
+        if set(resumed.parameters) != set(parameter_map):
+            missing = sorted(set(parameter_map) - set(resumed.parameters))
+            extra = sorted(set(resumed.parameters) - set(parameter_map))
+            raise ValueError(
+                f"training checkpoint parameter names mismatch; missing={missing}, extra={extra}"
+            )
+        with torch.no_grad():
+            for name, parameter in parameter_map.items():
+                restored = resumed.parameters[name]
+                if (
+                    restored.shape != parameter.shape
+                    or restored.dtype != parameter.dtype
+                ):
+                    raise ValueError(
+                        f"training checkpoint parameter {name} expected shape={list(parameter.shape)} dtype={parameter.dtype}, "
+                        f"got shape={list(restored.shape)} dtype={restored.dtype}"
+                    )
+                parameter.copy_(restored)
+        completed_updates = resumed.completed_updates
     groups = []
     for group in sorted(
         training.get("parameter_groups", []), key=lambda row: row["id"]
@@ -2038,6 +2295,22 @@ def train(spec: ExecutionSpec) -> ExecutionResult:
             f"graph training unsupported optimizer {optimizer_spec.get('kind')}"
         )
     optimizer = torch.optim.AdamW(groups, **dict(optimizer_spec.get("config", {})))
+    if resumed is not None:
+        trainable_names = {
+            name for name, parameter in parameter_map.items() if parameter.requires_grad
+        }
+        if set(resumed.optimizer_state) != trainable_names:
+            missing = sorted(trainable_names - set(resumed.optimizer_state))
+            extra = sorted(set(resumed.optimizer_state) - trainable_names)
+            raise ValueError(
+                f"training checkpoint optimizer parameter names mismatch; missing={missing}, extra={extra}"
+            )
+        for name in sorted(trainable_names):
+            optimizer.state[parameter_map[name]] = {
+                key: value.to(device) if isinstance(value, torch.Tensor) else value
+                for key, value in resumed.optimizer_state[name].items()
+            }
+        torch.set_rng_state(resumed.rng_state.cpu())
     output_ids = {row["signal"]: row["id"] for row in graph.get("outputs", [])}
     updates = int(spec.options.get("updates", 1))
     if updates <= 0:
@@ -2045,6 +2318,36 @@ def train(spec: ExecutionSpec) -> ExecutionResult:
     history = []
     last_gradients: dict[str, torch.Tensor] = {}
     final_forward: ExecutionResult | None = None
+    selected_checkpoint: TrainingCheckpoint | None = None
+
+    def optimizer_state_by_name() -> dict[str, dict[str, Any]]:
+        packed = {}
+        for name, parameter in parameter_map.items():
+            if parameter not in optimizer.state:
+                continue
+            packed[name] = {
+                key: value.detach().clone()
+                if isinstance(value, torch.Tensor)
+                else value
+                for key, value in optimizer.state[parameter].items()
+            }
+        return packed
+
+    def checkpoint_at(update_count: int, loss_value: float) -> TrainingCheckpoint:
+        return TrainingCheckpoint(
+            graph_digest=graph_digest,
+            training_digest=training_digest,
+            completed_updates=update_count,
+            selected_loss=loss_value,
+            execution_protocol=resolved_inputs.protocol,
+            initialization=built.metrics["initialization"],
+            parameters={
+                name: value.detach().clone() for name, value in parameter_map.items()
+            },
+            optimizer_state=optimizer_state_by_name(),
+            rng_state=torch.get_rng_state().clone(),
+        )
+
     for update in range(updates):
         optimizer.zero_grad(set_to_none=True)
         forward = model(resolved_inputs.tensors, record="full")
@@ -2113,30 +2416,30 @@ def train(spec: ExecutionSpec) -> ExecutionResult:
             for name, parameter in parameter_map.items():
                 if (rows[name].get("constraint") or {}).get("kind") == "non_negative":
                     parameter.clamp_(min=0)
+        absolute_update = completed_updates + update + 1
+        loss_value = float(loss.detach())
         history.append(
             {
-                "update": update + 1,
-                "loss": float(loss.detach()),
+                "update": absolute_update,
+                "loss": loss_value,
                 "components": {
                     name: float(value.detach()) for name, value in components.items()
                 },
             }
         )
+        candidate = checkpoint_at(absolute_update, loss_value)
+        if selected_checkpoint is None or loss_value < float(
+            selected_checkpoint.selected_loss
+        ):
+            selected_checkpoint = candidate
         final_forward = forward
     assert final_forward is not None
-
-    def optimizer_state_by_name() -> dict[str, Any]:
-        packed = {}
-        for name, parameter in parameter_map.items():
-            if parameter not in optimizer.state:
-                continue
-            packed[name] = {
-                key: value.detach().clone()
-                if isinstance(value, torch.Tensor)
-                else value
-                for key, value in optimizer.state[parameter].items()
-            }
-        return packed
+    final_checkpoint = checkpoint_at(completed_updates + updates, history[-1]["loss"])
+    if save_final := spec.options.get("save_final_checkpoint"):
+        save_training_checkpoint(save_final, final_checkpoint)
+    if save_selected := spec.options.get("save_selected_checkpoint"):
+        assert selected_checkpoint is not None
+        save_training_checkpoint(save_selected, selected_checkpoint)
 
     return ExecutionResult(
         executor="graph",
@@ -2147,6 +2450,8 @@ def train(spec: ExecutionSpec) -> ExecutionResult:
         },
         gradients=last_gradients,
         optimizer_state=optimizer_state_by_name(),
+        training_checkpoint=final_checkpoint,
+        selected_checkpoint=selected_checkpoint,
         model=model,
         metrics={
             **built.metrics,
@@ -2154,6 +2459,8 @@ def train(spec: ExecutionSpec) -> ExecutionResult:
             "execution_protocol": resolved_inputs.protocol,
             "trainable_parameters": sorted(last_gradients),
             "optimizer": optimizer_spec,
+            "training_checkpoint_schema": TRAINING_CHECKPOINT_SCHEMA,
+            "resumed_from_update": completed_updates,
         },
     )
 
