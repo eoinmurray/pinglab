@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import math
 import shutil
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -80,6 +81,15 @@ def graph_dict(net: Network) -> dict[str, Any]:
 
 
 def _training_dict(spec: TrainSpec, graph_digest: str) -> dict[str, Any]:
+    groups = [
+        {
+            "id": g.name,
+            "parameters": sorted(g.ids()),
+            "lr": g.lr,
+            "frozen": g.frozen,
+        }
+        for g in spec.parameter_groups
+    ]
     return {
         "schema": TRAINING_SCHEMA,
         "graph_digest": graph_digest,
@@ -92,15 +102,27 @@ def _training_dict(spec: TrainSpec, graph_digest: str) -> dict[str, Any]:
             }
             for o in spec.objectives
         ],
-        "parameter_groups": [
-            {
-                "id": g.name,
-                "parameters": sorted(g.ids()),
-                "lr": g.lr,
-                "frozen": g.frozen,
-            }
-            for g in spec.parameter_groups
-        ],
+        "parameter_groups": groups,
+        "resolved_parameters": {
+            "trainable": sorted(
+                parameter
+                for group in groups
+                if not group["frozen"]
+                for parameter in group["parameters"]
+            ),
+            "frozen": sorted(
+                parameter
+                for group in groups
+                if group["frozen"]
+                for parameter in group["parameters"]
+            ),
+            "learning_rates": {
+                parameter: group["lr"]
+                for group in sorted(groups, key=lambda row: row["id"])
+                if not group["frozen"]
+                for parameter in group["parameters"]
+            },
+        },
         "regularizers": [
             {
                 "kind": r.kind,
@@ -525,8 +547,59 @@ def validate_training(
     output_signals = {o["signal"] for o in graph["outputs"]}
     signals = {f"{x['id']}.value" for x in graph["operations"]} | output_signals
     selected: dict[str, str] = {}
+    group_names: set[str] = set()
     for group in training.get("parameter_groups", []):
-        for pid in group["parameters"]:
+        group_id = group.get("id")
+        if not group_id or group_id in group_names:
+            result.diagnostics.append(
+                Diagnostic(
+                    "error",
+                    "E407",
+                    "parameter group id must be non-empty and unique",
+                    group_id,
+                )
+            )
+        group_names.add(group_id)
+        members = group.get("parameters", [])
+        if not members:
+            result.diagnostics.append(
+                Diagnostic(
+                    "error", "E408", "parameter group must not be empty", group_id
+                )
+            )
+        lr = group.get("lr")
+        if (
+            not isinstance(lr, (int, float))
+            or isinstance(lr, bool)
+            or not math.isfinite(lr)
+        ):
+            result.diagnostics.append(
+                Diagnostic(
+                    "error",
+                    "E409",
+                    "parameter group learning rate must be finite",
+                    group_id,
+                )
+            )
+        elif group.get("frozen") and lr != 0:
+            result.diagnostics.append(
+                Diagnostic(
+                    "error",
+                    "E410",
+                    "frozen parameter group learning rate must be zero",
+                    group_id,
+                )
+            )
+        elif not group.get("frozen") and lr <= 0:
+            result.diagnostics.append(
+                Diagnostic(
+                    "error",
+                    "E411",
+                    "trainable parameter group learning rate must be positive",
+                    group_id,
+                )
+            )
+        for pid in members:
             if pid not in parameters:
                 result.diagnostics.append(
                     Diagnostic(
@@ -546,6 +619,51 @@ def validate_training(
                     )
                 )
             selected[pid] = group["id"]
+    omitted = sorted(parameters - set(selected))
+    if omitted:
+        result.diagnostics.append(
+            Diagnostic(
+                "error",
+                "E412",
+                f"parameters must be assigned to exactly one trainable or frozen group; omitted={omitted}",
+            )
+        )
+    resolved = training.get("resolved_parameters", {})
+    expected_trainable = sorted(
+        pid
+        for group in training.get("parameter_groups", [])
+        if not group.get("frozen")
+        for pid in group.get("parameters", [])
+    )
+    expected_frozen = sorted(
+        pid
+        for group in training.get("parameter_groups", [])
+        if group.get("frozen")
+        for pid in group.get("parameters", [])
+    )
+    if (
+        resolved.get("trainable") != expected_trainable
+        or resolved.get("frozen") != expected_frozen
+    ):
+        result.diagnostics.append(
+            Diagnostic(
+                "error",
+                "E413",
+                "resolved trainable/frozen parameter sets do not match groups",
+            )
+        )
+    expected_rates = {
+        pid: group["lr"]
+        for group in training.get("parameter_groups", [])
+        if not group.get("frozen")
+        for pid in group.get("parameters", [])
+    }
+    if resolved.get("learning_rates") != expected_rates:
+        result.diagnostics.append(
+            Diagnostic(
+                "error", "E414", "resolved parameter learning rates do not match groups"
+            )
+        )
     for objective in training.get("objectives", []):
         if objective["prediction"] not in output_signals:
             result.diagnostics.append(
