@@ -292,6 +292,17 @@ uv run python tools/snn/tool.py sim \
   --out-dir intervention-run/
 ```
 
+Every graph CLI inference directory also contains
+`inference-manifest.json` using `tools/snn.inference-artifacts/v1`. It records
+the graph and request identity, request seed, and the names, shapes, dtypes, and
+SHA-256 digest of each NPZ payload. The request digest binds the execution
+protocol, checkpoint, overrides, interventions, recording profile, and device.
+Use `validate_inference_artifacts(path, graph=graph, seed=seed)` before cache
+reuse; it rejects manifest drift, a different graph or seed, missing files,
+payload corruption, and array-inventory changes. Task-specific accuracy and
+raster aggregation remain experiment-level operations over these stable named
+tensors.
+
 A separate five-sample dataset oracle reconstructs two shuffled epochs and
 their uneven final batches directly with seeded PyTorch permutations. Update
 coordinates, the complete loss trajectory, final gradient/parameter/AdamW
