@@ -35,6 +35,7 @@ DENSE_ARRAY_BINDING_SCHEMA = "tools/snn.dense-array-binding/v1"
 EVENT_STREAM_BINDING_SCHEMA = "tools/snn.event-stream-binding/v1"
 MIXED_INPUT_BINDING_SCHEMA = "tools/snn.mixed-input-bindings/v1"
 POISSON_INPUT_BINDING_SCHEMA = "tools/snn.poisson-input-binding/v1"
+DATASET_SNAPSHOT_BINDING_SCHEMA = "tools/snn.dataset-snapshot-binding/v1"
 EXECUTION_PROTOCOL_SCHEMA = "tools/snn.execution-protocol/v1"
 INFERENCE_OVERRIDE_SCHEMA = "tools/snn.inference-overrides/v1"
 INFERENCE_INTERVENTION_SCHEMA = "tools/snn.inference-interventions/v1"
@@ -88,6 +89,33 @@ class PoissonInputBinding:
 
 
 @dataclass(frozen=True)
+class DatasetEncoder:
+    """Portable standard encoding recipe for an immutable dataset snapshot."""
+
+    kind: Literal["rate_poisson", "prebinned_spikes", "event_bin"]
+    duration_ms: float | None = None
+    max_rate_hz: float | None = None
+    seed: int = 0
+
+
+@dataclass(frozen=True)
+class DatasetSnapshotBinding:
+    """Bind one digest-identified NPZ snapshot to a graph input and target."""
+
+    path: Path
+    input_id: str
+    dataset_id: str
+    split: str
+    encoder: DatasetEncoder
+    target_id: str | None = None
+    feature_key: str = "features"
+    label_key: str = "labels"
+    sample_cap: int | None = None
+    shuffle: bool = False
+    order_seed: int = 0
+
+
+@dataclass(frozen=True)
 class ResolvedDenseInputs:
     tensors: Mapping[str, torch.Tensor]
     protocol: Mapping[str, Any]
@@ -103,6 +131,7 @@ class ExecutionSpec:
     input_bindings: Sequence[DenseArrayBinding] = field(default_factory=tuple)
     event_bindings: Sequence[EventStreamBinding] = field(default_factory=tuple)
     poisson_bindings: Sequence[PoissonInputBinding] = field(default_factory=tuple)
+    dataset_binding: DatasetSnapshotBinding | None = None
     protocol: Mapping[str, Any] = field(default_factory=dict)
     training: Mapping[str, Any] | None = None
     targets: Mapping[str, torch.Tensor] = field(default_factory=dict)
@@ -967,6 +996,303 @@ def resolve_poisson_input_bindings(
     }
     json.dumps(execution_protocol, sort_keys=True)
     return ResolvedDenseInputs(tensors=tensors, protocol=execution_protocol)
+
+
+def resolve_dataset_snapshot_binding(
+    graph: Mapping[str, Any],
+    binding: DatasetSnapshotBinding,
+    *,
+    device: str | torch.device = "cpu",
+    execution_seed: int = 0,
+    protocol: Mapping[str, Any] | None = None,
+) -> tuple[ResolvedDenseInputs, tuple[TargetArrayBinding, ...]]:
+    """Load, select, and encode one immutable MNIST/SHD-style NPZ snapshot."""
+    specs = {row["id"]: row for row in graph.get("inputs", [])}
+    if set(specs) != {binding.input_id}:
+        raise ValueError(
+            "dataset snapshot binding requires exactly its one named graph input"
+        )
+    spec = specs[binding.input_id]
+    declared = spec.get("shape", [])
+    if declared[:2] != ["time", "batch"] or len(declared) != 3:
+        raise ValueError(
+            "dataset snapshot binding requires graph input shape ['time', 'batch', channels]"
+        )
+    if spec.get("signal_type") != "spikes":
+        raise ValueError("dataset snapshot binding requires a spike graph input")
+    source_path = Path(binding.path)
+    if source_path.suffix.lower() != ".npz":
+        raise ValueError("dataset snapshot binding requires an NPZ file")
+    source_digest = _file_digest(source_path)
+    loaded = np.load(source_path, allow_pickle=False)
+    try:
+        arrays = {key: loaded[key] for key in loaded.files}
+    finally:
+        loaded.close()
+    if not binding.dataset_id or not binding.split:
+        raise ValueError("dataset snapshot identity and split must be non-empty")
+    if binding.label_key not in arrays:
+        raise ValueError(
+            f"dataset snapshot is missing labels key {binding.label_key!r}"
+        )
+    labels = np.asarray(arrays[binding.label_key])
+    if labels.ndim != 1 or not np.issubdtype(labels.dtype, np.integer):
+        raise ValueError(
+            "dataset snapshot labels must be a one-dimensional integer array"
+        )
+    sample_count = int(labels.shape[0])
+    if sample_count <= 0:
+        raise ValueError("dataset snapshot must contain at least one sample")
+    cap = sample_count if binding.sample_cap is None else int(binding.sample_cap)
+    if cap <= 0 or cap > sample_count:
+        raise ValueError(f"dataset snapshot sample cap must be in [1, {sample_count}]")
+    order = torch.arange(sample_count)
+    if binding.shuffle:
+        generator = torch.Generator(device="cpu").manual_seed(int(binding.order_seed))
+        order = torch.randperm(sample_count, generator=generator)
+    selected = order[:cap].numpy()
+    selected_labels = labels[selected].astype(np.int64, copy=False)
+    encoder = binding.encoder
+    dt_ms = float(graph["timebase"]["dt"]["value"])
+    channels = int(declared[2])
+    encoder_row: dict[str, Any]
+    if encoder.kind == "rate_poisson" and (
+        encoder.duration_ms is None or encoder.max_rate_hz is None
+    ):
+        raise ValueError(
+            "rate-Poisson encoder requires explicit duration_ms and max_rate_hz"
+        )
+    if encoder.kind == "prebinned_spikes" and (
+        encoder.duration_ms is not None
+        or encoder.max_rate_hz is not None
+        or encoder.seed != 0
+    ):
+        raise ValueError(
+            "prebinned encoder does not accept duration, max rate, or a stochastic seed"
+        )
+    if encoder.kind == "event_bin" and (
+        encoder.duration_ms is None
+        or encoder.max_rate_hz is not None
+        or encoder.seed != 0
+    ):
+        raise ValueError(
+            "event-bin encoder requires duration_ms and does not accept max rate or a stochastic seed"
+        )
+    if encoder.kind in {"rate_poisson", "prebinned_spikes"}:
+        if binding.feature_key not in arrays:
+            raise ValueError(
+                f"dataset snapshot is missing feature key {binding.feature_key!r}"
+            )
+        features = np.asarray(arrays[binding.feature_key])
+    if encoder.kind == "rate_poisson":
+        if features.shape != (sample_count, channels):
+            raise ValueError(
+                f"rate-Poisson dataset features expected shape {(sample_count, channels)}, got {features.shape}"
+            )
+        if not np.issubdtype(features.dtype, np.floating):
+            raise ValueError("rate-Poisson dataset features must use a floating dtype")
+        if (
+            not np.isfinite(features).all()
+            or np.any(features < 0)
+            or np.any(features > 1)
+        ):
+            raise ValueError("rate-Poisson dataset features must be finite in [0, 1]")
+        duration_ms = float(encoder.duration_ms or 0)
+        max_rate_hz = float(encoder.max_rate_hz or 0)
+        raw_steps = duration_ms / dt_ms
+        if (
+            duration_ms <= 0
+            or not math.isclose(raw_steps, round(raw_steps), abs_tol=1e-9)
+            or not math.isfinite(max_rate_hz)
+            or max_rate_hz < 0
+            or max_rate_hz * dt_ms / 1000.0 > 1
+        ):
+            raise ValueError(
+                "rate-Poisson encoder requires timestep-aligned positive duration and a supported finite non-negative max rate"
+            )
+        rates = torch.as_tensor(features[selected], dtype=torch.float32)
+        generator = torch.Generator(device="cpu").manual_seed(int(encoder.seed))
+        probability = rates.unsqueeze(0) * max_rate_hz * dt_ms / 1000.0
+        spikes = (
+            torch.rand(int(round(raw_steps)), cap, channels, generator=generator)
+            < probability
+        ).float()
+        encoder_row = {
+            "kind": encoder.kind,
+            "duration_ms": duration_ms,
+            "max_rate_hz": max_rate_hz,
+            "seed": int(encoder.seed),
+            "distribution": "Bernoulli discretization of feature-scaled homogeneous Poisson",
+        }
+    elif encoder.kind == "prebinned_spikes":
+        if features.ndim != 3 or features.shape[1:] != (sample_count, channels):
+            raise ValueError(
+                f"prebinned dataset features expected [time, {sample_count}, {channels}]"
+            )
+        if not np.all((features == 0) | (features == 1)):
+            raise ValueError("prebinned dataset spikes must be binary")
+        spikes = torch.as_tensor(features[:, selected, :], dtype=torch.float32)
+        encoder_row = {
+            "kind": encoder.kind,
+            "duration_ms": int(features.shape[0]) * dt_ms,
+            "seed": None,
+        }
+    elif encoder.kind == "event_bin":
+        event_keys = ("event_sample", "event_time_ms", "event_channel")
+        missing = [key for key in event_keys if key not in arrays]
+        if missing:
+            raise ValueError(f"event dataset snapshot is missing keys {missing}")
+        samples = np.asarray(arrays["event_sample"])
+        times = np.asarray(arrays["event_time_ms"])
+        event_channels = np.asarray(arrays["event_channel"])
+        if (
+            samples.ndim != 1
+            or times.ndim != 1
+            or event_channels.ndim != 1
+            or not (len(samples) == len(times) == len(event_channels))
+            or not np.issubdtype(samples.dtype, np.integer)
+            or not np.issubdtype(event_channels.dtype, np.integer)
+            or not np.issubdtype(times.dtype, np.floating)
+        ):
+            raise ValueError(
+                "event dataset coordinates must be equal-length sample/channel integer and time floating arrays"
+            )
+        duration_ms = float(encoder.duration_ms or 0)
+        raw_steps = duration_ms / dt_ms
+        if duration_ms <= 0 or not math.isclose(
+            raw_steps, round(raw_steps), abs_tol=1e-9
+        ):
+            raise ValueError(
+                "event-bin encoder duration must be a positive integer number of timesteps"
+            )
+        if (
+            not np.isfinite(times).all()
+            or np.any(samples < 0)
+            or np.any(samples >= sample_count)
+            or np.any(event_channels < 0)
+            or np.any(event_channels >= channels)
+            or np.any(times < 0)
+            or np.any(times >= duration_ms)
+        ):
+            raise ValueError("event dataset coordinates are out of snapshot bounds")
+        selected_position = {
+            int(sample): index for index, sample in enumerate(selected)
+        }
+        spikes = torch.zeros(int(round(raw_steps)), cap, channels)
+        retained = 0
+        collisions = 0
+        for sample, time_ms, channel in zip(
+            samples, times, event_channels, strict=True
+        ):
+            batch = selected_position.get(int(sample))
+            if batch is None:
+                continue
+            step = min(int(float(time_ms) / dt_ms), spikes.shape[0] - 1)
+            collisions += int(spikes[step, batch, int(channel)] != 0)
+            spikes[step, batch, int(channel)] = 1
+            retained += 1
+        encoder_row = {
+            "kind": encoder.kind,
+            "duration_ms": duration_ms,
+            "seed": None,
+            "timestamp_unit": "ms",
+            "binning": "floor_left_closed_right_open",
+            "retained_events": retained,
+            "binary_collisions": collisions,
+        }
+    else:
+        raise ValueError(f"unsupported dataset encoder {encoder.kind!r}")
+    source = {
+        "kind": "dataset_snapshot",
+        "path": str(source_path),
+        "digest": source_digest,
+        "arrays": {
+            "labels": binding.label_key,
+            **(
+                {"features": binding.feature_key}
+                if encoder.kind != "event_bin"
+                else {
+                    "sample": "event_sample",
+                    "time_ms": "event_time_ms",
+                    "channel": "event_channel",
+                }
+            ),
+        },
+    }
+    resolved = resolve_dense_array_bindings(
+        graph,
+        bindings=(DenseArrayBinding(binding.input_id, spikes, source),),
+        device=device,
+        seed=execution_seed,
+        protocol={
+            "dataset": {
+                "identity": binding.dataset_id,
+                "split": binding.split,
+                "sample_cap": cap,
+                "batch_size": cap,
+                "shuffle": bool(binding.shuffle),
+            }
+        },
+    )
+    supplied = dict(protocol or {})
+    supplied_dataset = dict(supplied.pop("dataset", {}))
+    expected_dataset = dict(resolved.protocol["dataset"])
+    unknown_dataset = sorted(set(supplied_dataset) - set(expected_dataset))
+    conflicts = sorted(
+        key
+        for key, value in supplied_dataset.items()
+        if value is not None and value != expected_dataset[key]
+    )
+    if unknown_dataset or conflicts:
+        raise ValueError(
+            "dataset execution protocol metadata does not match binding; "
+            f"unknown={unknown_dataset}, conflicts={conflicts}"
+        )
+    reserved = {
+        "schema",
+        "binding_schema",
+        "representation",
+        "inputs",
+        "timing",
+        "masks",
+        "seeds",
+        "dataset_binding",
+    }
+    if reserved & supplied.keys():
+        raise ValueError(
+            f"dataset execution protocol cannot override reserved fields {sorted(reserved & supplied.keys())}"
+        )
+    protocol = {
+        **resolved.protocol,
+        "binding_schema": DATASET_SNAPSHOT_BINDING_SCHEMA,
+        "representation": "dataset_snapshot",
+        "dataset_binding": {
+            "source": source,
+            "sample_count": sample_count,
+            "selected_indices": selected.tolist(),
+            "order_seed": int(binding.order_seed),
+            "encoder": encoder_row,
+            "target_id": binding.target_id,
+        },
+        "seeds": {
+            **resolved.protocol["seeds"],
+            "dataset_order": int(binding.order_seed),
+            "encoder": int(encoder.seed) if encoder.kind == "rate_poisson" else None,
+        },
+        **supplied,
+    }
+    targets = (
+        (
+            TargetArrayBinding(
+                binding.target_id,
+                torch.as_tensor(selected_labels),
+                source={**source, "array": binding.label_key},
+            ),
+        )
+        if binding.target_id
+        else ()
+    )
+    return ResolvedDenseInputs(resolved.tensors, protocol), targets
 
 
 def graph_capability_issues(graph: Mapping[str, Any]) -> list[CapabilityIssue]:
@@ -2919,16 +3245,34 @@ def simulate(
                 parameters[projection_parameters[projection_id]].mul_(factor)
     tracemalloc.start()
     started = time.perf_counter()
-    resolved_inputs = resolve_input_bindings(
-        built.model.plan.graph,
-        dense_bindings=spec.input_bindings,
-        event_bindings=spec.event_bindings,
-        poisson_bindings=poisson_bindings,
-        inputs=spec.inputs,
-        device=device,
-        seed=spec.seed,
-        protocol=spec.protocol,
-    )
+    if spec.dataset_binding is not None:
+        if (
+            spec.input_bindings
+            or spec.event_bindings
+            or poisson_bindings
+            or spec.inputs
+        ):
+            raise ValueError(
+                "dataset snapshot binding cannot be combined with other input bindings"
+            )
+        resolved_inputs, _ = resolve_dataset_snapshot_binding(
+            built.model.plan.graph,
+            spec.dataset_binding,
+            device=device,
+            execution_seed=spec.seed,
+            protocol=spec.protocol,
+        )
+    else:
+        resolved_inputs = resolve_input_bindings(
+            built.model.plan.graph,
+            dense_bindings=spec.input_bindings,
+            event_bindings=spec.event_bindings,
+            poisson_bindings=poisson_bindings,
+            inputs=spec.inputs,
+            device=device,
+            seed=spec.seed,
+            protocol=spec.protocol,
+        )
     result = built.model(
         resolved_inputs.tensors,
         record=spec.recording,
@@ -3003,19 +3347,44 @@ def train(spec: ExecutionSpec) -> ExecutionResult:
         training = load_training_recipe(spec.bundle, manifest, graph)
     if training is None:
         raise ValueError("graph training requires a training recipe or training bundle")
-    if not spec.targets and not spec.target_bindings:
+    if (
+        not spec.targets
+        and not spec.target_bindings
+        and not (spec.dataset_binding and spec.dataset_binding.target_id)
+    ):
         raise ValueError("graph training requires external target tensors")
     device = resolve_device(spec.device)
-    resolved_inputs = resolve_input_bindings(
-        graph,
-        dense_bindings=spec.input_bindings,
-        event_bindings=spec.event_bindings,
-        poisson_bindings=spec.poisson_bindings,
-        inputs=spec.inputs,
-        device=device,
-        seed=spec.seed,
-        protocol=spec.protocol,
-    )
+    dataset_targets: tuple[TargetArrayBinding, ...] = ()
+    if spec.dataset_binding is not None:
+        if (
+            spec.input_bindings
+            or spec.event_bindings
+            or spec.poisson_bindings
+            or spec.inputs
+            or spec.target_bindings
+            or spec.targets
+        ):
+            raise ValueError(
+                "dataset snapshot binding cannot be combined with other input or target bindings"
+            )
+        resolved_inputs, dataset_targets = resolve_dataset_snapshot_binding(
+            graph,
+            spec.dataset_binding,
+            device=device,
+            execution_seed=spec.seed,
+            protocol=spec.protocol,
+        )
+    else:
+        resolved_inputs = resolve_input_bindings(
+            graph,
+            dense_bindings=spec.input_bindings,
+            event_bindings=spec.event_bindings,
+            poisson_bindings=spec.poisson_bindings,
+            inputs=spec.inputs,
+            device=device,
+            seed=spec.seed,
+            protocol=spec.protocol,
+        )
     dataset_epochs = int(spec.options.get("epochs", 0) or 0)
     dataset_mode = dataset_epochs > 0
     dataset_size = next(iter(resolved_inputs.tensors.values())).shape[1]
@@ -3025,7 +3394,7 @@ def train(spec: ExecutionSpec) -> ExecutionResult:
         raise ValueError("graph training inputs must share one dataset sample axis")
     resolved_targets, target_rows = resolve_target_array_bindings(
         training,
-        bindings=spec.target_bindings,
+        bindings=dataset_targets or spec.target_bindings,
         targets=spec.targets,
         sample_count=dataset_size,
         device=device,
