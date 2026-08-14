@@ -214,3 +214,9 @@ bounds, and writes `tools/snn.conformance-report/v1` JSON. Canonical JSON
 encoding brings topology, initializer metadata, protocols, and checkpoint
 coordinates into the same report as forward outputs, gradients, parameters,
 and optimizer tensors. Declared tolerance rules that match no field are errors.
+
+The first cross-backend CPU fixture copies one complete one-layer parameter set
+through the semantic legacy map and compares hidden spikes and mean-voltage
+logits. It established that legacy recurrent keys are one-based (`W_ee.1`,
+`W_ei.1`, `W_ie.1`, and `W_ii.1`) and that the compatible mean-voltage readout
+uses the legacy 2 ms output-membrane time constant.
