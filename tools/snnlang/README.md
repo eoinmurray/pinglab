@@ -33,6 +33,29 @@ realised spike tensors belong to the experiment protocol. `tools/snn` may
 generate a standard stimulus from CLI parameters or consume an exact replay
 with `--input-file`; the latter is optional evidence, not part of the graph.
 
+Dense replay is resolved before graph execution. NPY files bind to the sole
+graph input; NPZ arrays bind by input id. The resolver requires exact input
+coverage, matching time and batch axes, declared feature shapes, finite values,
+binary spikes, and boolean or zero/one masks. It records a versioned execution
+protocol containing source-file digests, resolved shapes and dtypes, dataset
+identity and split when supplied, sample cap, batch size, shuffle behavior,
+duration, masks, and the execution seed.
+
+```sh
+uv run python tools/snn/tool.py sim \
+  --executor graph \
+  --bundle small_ping.bundle \
+  --input-file replay.npz \
+  --input-dataset-id mnist-test-sha256-... \
+  --input-split test \
+  --no-input-shuffle \
+  --seed 17 \
+  --out-dir run/
+```
+
+The resolved contract is written under `execution_protocol` in `metrics.json`.
+Event streams and generated Poisson protocols remain separate future bindings.
+
 Run all examples:
 
 ```sh
@@ -85,6 +108,10 @@ result = simulate(ExecutionSpec(
     inputs={"events": torch.zeros(100, 1, 128)},
 ))
 ```
+
+For explicit provenance, pass `DenseArrayBinding` objects through
+`ExecutionSpec.input_bindings`; the original `inputs={...}` tensor mapping is a
+compatible in-memory shorthand and is resolved through the same validator.
 
 The planner lowers the complete dense topology before stepping. It supports
 arbitrarily named COBA-LIF and leaky-integrator populations, independent spike

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import copy
+import json
 from pathlib import Path
 
 import config
@@ -12,6 +13,7 @@ import pytest
 import torch
 from execution import (
     DelayBuffer,
+    DenseArrayBinding,
     ExecutionSpec,
     GraphExecutor,
     GraphRuntimeState,
@@ -19,8 +21,10 @@ from execution import (
     execute_request,
     execution_spec_from_args,
     graph_capability_issues,
+    load_dense_array_bindings,
     load_runtime_state,
     plan_graph,
+    resolve_dense_array_bindings,
     resolve_device,
     runtime_state_signature,
     save_runtime_state,
@@ -379,6 +383,157 @@ def test_graph_masked_spike_rate_uses_valid_duration_in_spikes_per_second():
         rtol=0,
         atol=0,
     )
+
+
+def test_dense_array_bindings_match_hand_calculation_and_record_protocol():
+    graph = _standard_readout_graph("rate", mask=True)
+    events = torch.tensor(
+        [
+            [[1.0, 0.0], [0.0, 1.0]],
+            [[1.0, 1.0], [0.0, 0.0]],
+            [[0.0, 1.0], [1.0, 1.0]],
+        ]
+    )
+    valid = torch.tensor([[True, True], [False, True], [True, False]])
+    result = simulate(
+        ExecutionSpec(
+            kind="simulate",
+            executor="graph",
+            graph=graph,
+            seed=17,
+            input_bindings=(
+                DenseArrayBinding(
+                    "events", events, {"kind": "fixture", "id": "events-v1"}
+                ),
+                DenseArrayBinding("valid", valid, {"kind": "fixture", "id": "mask-v1"}),
+            ),
+            protocol={
+                "dataset": {
+                    "identity": "hand-calculated-v1",
+                    "split": "test",
+                    "sample_cap": 2,
+                    "shuffle": False,
+                }
+            },
+        )
+    )
+    projected = events.sum(dim=2, keepdim=True).expand(-1, -1, 2)
+    expected_count = (projected * valid[:, :, None]).sum(dim=0)
+    expected_seconds = valid.sum(dim=0).to(projected.dtype)[:, None] * 0.1
+    torch.testing.assert_close(
+        result.outputs["class_scores"],
+        expected_count / expected_seconds,
+        rtol=0,
+        atol=0,
+    )
+    protocol = result.metrics["execution_protocol"]
+    assert protocol["schema"] == "tools/snn.execution-protocol/v1"
+    assert protocol["binding_schema"] == "tools/snn.dense-array-binding/v1"
+    assert protocol["dataset"] == {
+        "identity": "hand-calculated-v1",
+        "split": "test",
+        "sample_cap": 2,
+        "shuffle": False,
+        "batch_size": 2,
+    }
+    assert protocol["timing"] == {"dt_ms": 100.0, "steps": 3, "duration_ms": 300.0}
+    assert protocol["masks"] == ["valid"]
+    assert protocol["seeds"] == {"execution": 17}
+
+
+@pytest.mark.parametrize(
+    ("bindings", "message"),
+    [
+        ((DenseArrayBinding("events", torch.zeros(3, 1, 2)),), "missing=['valid']"),
+        (
+            (
+                DenseArrayBinding("events", torch.zeros(3, 1, 2)),
+                DenseArrayBinding("valid", torch.ones(3, 2, dtype=torch.bool)),
+            ),
+            "leading shape expected (3, 1)",
+        ),
+        (
+            (
+                DenseArrayBinding("events", torch.zeros(3, 1, 3)),
+                DenseArrayBinding("valid", torch.ones(3, 1, dtype=torch.bool)),
+            ),
+            "trailing shape expected (2,)",
+        ),
+        (
+            (
+                DenseArrayBinding("events", torch.full((3, 1, 2), 0.5)),
+                DenseArrayBinding("valid", torch.ones(3, 1, dtype=torch.bool)),
+            ),
+            "spike values must be boolean or zero/one",
+        ),
+    ],
+)
+def test_dense_array_bindings_fail_closed_on_contract_mismatch(bindings, message):
+    with pytest.raises(ValueError) as exc:
+        resolve_dense_array_bindings(
+            _standard_readout_graph("rate", mask=True), bindings=bindings
+        )
+    assert message in str(exc.value)
+
+
+def test_dense_array_file_loader_and_cli_emit_replayable_protocol(tmp_path):
+    graph = _standard_readout_graph("count")
+    bundle = snn.compiler.Bundle(
+        graph=graph,
+        training=None,
+        manifest={
+            "schema": "snnlang.bundle/v1",
+            "graph_digest": snn.compiler.digest(graph),
+            "files": [{"path": "graph.json", "digest": snn.compiler.digest(graph)}],
+            "assets": [],
+            "compiler": {"name": "test", "version": "1"},
+            "target": None,
+        },
+        diagnostics=[],
+        asset_sources={},
+    ).write(tmp_path / "graph.bundle")
+    input_file = tmp_path / "dense.npz"
+    events = np.array([[[1.0, 0.0]], [[0.0, 1.0]]], dtype=np.float32)
+    np.savez(input_file, events=events)
+    bindings = load_dense_array_bindings(input_file, graph)
+    assert len(bindings) == 1 and bindings[0].input_id == "events"
+    assert bindings[0].source["digest"].startswith("sha256:")
+    out = tmp_path / "out"
+    assert (
+        main(
+            [
+                "sim",
+                "--executor",
+                "graph",
+                "--bundle",
+                str(bundle),
+                "--input-file",
+                str(input_file),
+                "--input-dataset-id",
+                "fixture-snapshot-v1",
+                "--input-split",
+                "test",
+                "--no-input-shuffle",
+                "--seed",
+                "23",
+                "--out-dir",
+                str(out),
+            ]
+        )
+        == 0
+    )
+    metrics = json.loads((out / "metrics.json").read_text())
+    protocol = metrics["execution_protocol"]
+    assert protocol["dataset"] == {
+        "identity": "fixture-snapshot-v1",
+        "split": "test",
+        "shuffle": False,
+        "sample_cap": 1,
+        "batch_size": 1,
+    }
+    assert protocol["timing"] == {"dt_ms": 100.0, "steps": 2, "duration_ms": 200.0}
+    assert protocol["seeds"] == {"execution": 23}
+    assert protocol["inputs"][0]["source"]["digest"].startswith("sha256:")
 
 
 def test_delay_lowering_is_exact_in_steps_and_feedback_is_causal():

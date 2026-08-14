@@ -16,7 +16,7 @@ import time
 import tracemalloc
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Callable, Literal, Mapping
+from typing import Any, Callable, Literal, Mapping, Sequence
 
 import models as M
 import numpy as np
@@ -29,6 +29,25 @@ RequestKind = Literal["build", "simulate", "train", "infer"]
 RecordingProfile = Literal["full", "observables", "none"]
 
 
+DENSE_ARRAY_BINDING_SCHEMA = "tools/snn.dense-array-binding/v1"
+EXECUTION_PROTOCOL_SCHEMA = "tools/snn.execution-protocol/v1"
+
+
+@dataclass(frozen=True)
+class DenseArrayBinding:
+    """One concrete dense tensor resolved against a named graph input."""
+
+    input_id: str
+    value: torch.Tensor
+    source: Mapping[str, Any] = field(default_factory=dict)
+
+
+@dataclass(frozen=True)
+class ResolvedDenseInputs:
+    tensors: Mapping[str, torch.Tensor]
+    protocol: Mapping[str, Any]
+
+
 @dataclass(frozen=True)
 class ExecutionSpec:
     kind: RequestKind
@@ -36,6 +55,8 @@ class ExecutionSpec:
     bundle: Path | None = None
     graph: Mapping[str, Any] | None = None
     inputs: Mapping[str, torch.Tensor] = field(default_factory=dict)
+    input_bindings: Sequence[DenseArrayBinding] = field(default_factory=tuple)
+    protocol: Mapping[str, Any] = field(default_factory=dict)
     seed: int = 0
     device: str = "auto"
     recording: RecordingProfile = "full"
@@ -80,6 +101,188 @@ GRAPH_CAPABILITIES_V1 = {
     "delays": "integer_steps",
     "training": False,
 }
+
+
+def load_dense_array_bindings(
+    path: str | Path, graph: Mapping[str, Any]
+) -> tuple[DenseArrayBinding, ...]:
+    """Load a replayable NPY/NPZ file without weakening named-input semantics."""
+    source_path = Path(path)
+    digest = "sha256:" + hashlib.sha256(source_path.read_bytes()).hexdigest()
+    loaded = np.load(source_path, allow_pickle=False)
+    input_ids = [row["id"] for row in graph.get("inputs", [])]
+    source_base = {
+        "kind": "file",
+        "path": str(source_path),
+        "digest": digest,
+    }
+    if isinstance(loaded, np.ndarray):
+        if len(input_ids) != 1:
+            raise ValueError(
+                "a dense NPY can bind only a graph with exactly one input; "
+                f"graph inputs are {input_ids}"
+            )
+        return (
+            DenseArrayBinding(
+                input_ids[0],
+                torch.as_tensor(loaded),
+                {**source_base, "array": None},
+            ),
+        )
+    try:
+        arrays = {key: loaded[key] for key in loaded.files}
+    finally:
+        loaded.close()
+    if set(arrays) == {"input_spikes"} and len(input_ids) == 1:
+        arrays = {input_ids[0]: arrays["input_spikes"]}
+        keys = {input_ids[0]: "input_spikes"}
+    else:
+        keys = {key: key for key in arrays}
+    return tuple(
+        DenseArrayBinding(
+            input_id,
+            torch.as_tensor(value),
+            {**source_base, "array": keys[input_id]},
+        )
+        for input_id, value in arrays.items()
+    )
+
+
+def resolve_dense_array_bindings(
+    graph: Mapping[str, Any],
+    *,
+    bindings: Sequence[DenseArrayBinding] = (),
+    inputs: Mapping[str, torch.Tensor] | None = None,
+    device: str | torch.device = "cpu",
+    seed: int = 0,
+    protocol: Mapping[str, Any] | None = None,
+) -> ResolvedDenseInputs:
+    """Validate dense arrays, resolve symbolic axes, and freeze run provenance."""
+    if bindings and inputs:
+        raise ValueError("provide dense input bindings or input tensors, not both")
+    if not bindings:
+        bindings = tuple(
+            DenseArrayBinding(name, value, {"kind": "memory"})
+            for name, value in (inputs or {}).items()
+        )
+    specs = {row["id"]: row for row in graph.get("inputs", [])}
+    by_name: dict[str, DenseArrayBinding] = {}
+    for binding in bindings:
+        if binding.input_id in by_name:
+            raise ValueError(f"duplicate dense binding for input {binding.input_id}")
+        by_name[binding.input_id] = binding
+    if set(by_name) != set(specs):
+        missing = sorted(set(specs) - set(by_name))
+        unexpected = sorted(set(by_name) - set(specs))
+        raise ValueError(
+            f"dense input ids do not match graph inputs; missing={missing}, unexpected={unexpected}"
+        )
+
+    resolved: dict[str, torch.Tensor] = {}
+    rows: list[dict[str, Any]] = []
+    leading_shape: tuple[int, int] | None = None
+    masks: list[str] = []
+    for input_id in sorted(specs):
+        spec = specs[input_id]
+        binding = by_name[input_id]
+        value = binding.value
+        declared = spec.get("shape", [])
+        if len(declared) < 2 or declared[:2] != ["time", "batch"]:
+            raise ValueError(
+                f"input {input_id} dense binding requires declared shape beginning with ['time', 'batch']"
+            )
+        if value.ndim == len(declared) - 1 and declared[1] == "batch":
+            value = value.unsqueeze(1)
+        if value.ndim != len(declared):
+            raise ValueError(
+                f"input {input_id} rank expected {len(declared)}, got {value.ndim}"
+            )
+        expected_tail = tuple(int(axis) for axis in declared[2:])
+        if tuple(value.shape[2:]) != expected_tail:
+            raise ValueError(
+                f"input {input_id} trailing shape expected {expected_tail}, got {tuple(value.shape[2:])}"
+            )
+        current_leading = (int(value.shape[0]), int(value.shape[1]))
+        if leading_shape is None:
+            leading_shape = current_leading
+        elif current_leading != leading_shape:
+            raise ValueError(
+                f"input {input_id} leading shape expected {leading_shape}, got {current_leading}"
+            )
+        signal_type = spec.get("signal_type")
+        if signal_type == "mask":
+            if value.dtype != torch.bool:
+                if not torch.all((value == 0) | (value == 1)):
+                    raise ValueError(
+                        f"input {input_id} mask values must be boolean or zero/one"
+                    )
+                value = value.bool()
+            masks.append(input_id)
+        elif not (value.is_floating_point() or value.dtype == torch.bool):
+            value = value.float()
+        if value.is_floating_point() and not torch.isfinite(value).all():
+            raise ValueError(f"input {input_id} contains non-finite values")
+        if signal_type == "spikes" and not torch.all((value == 0) | (value == 1)):
+            raise ValueError(
+                f"input {input_id} spike values must be boolean or zero/one"
+            )
+        if signal_type != "mask":
+            value = value.float()
+        value = value.to(device)
+        resolved[input_id] = value
+        rows.append(
+            {
+                "input_id": input_id,
+                "representation": "dense_array",
+                "shape": list(value.shape),
+                "dtype": str(value.dtype).removeprefix("torch."),
+                "signal_type": signal_type,
+                "unit": spec.get("unit"),
+                "source": dict(binding.source),
+            }
+        )
+    assert leading_shape is not None
+    dt_ms = float(graph["timebase"]["dt"]["value"])
+    supplied = dict(protocol or {})
+    dataset = dict(supplied.pop("dataset", {}))
+    reserved = {
+        "schema",
+        "binding_schema",
+        "representation",
+        "inputs",
+        "timing",
+        "masks",
+        "seeds",
+    }
+    if reserved & supplied.keys():
+        raise ValueError(
+            f"execution protocol cannot override reserved fields {sorted(reserved & supplied.keys())}"
+        )
+    dataset.setdefault("identity", None)
+    dataset.setdefault("split", None)
+    dataset.setdefault("sample_cap", leading_shape[1])
+    dataset.setdefault("batch_size", leading_shape[1])
+    dataset.setdefault("shuffle", None)
+    execution_protocol = {
+        "schema": EXECUTION_PROTOCOL_SCHEMA,
+        "binding_schema": DENSE_ARRAY_BINDING_SCHEMA,
+        "representation": "dense_array",
+        "inputs": rows,
+        "dataset": dataset,
+        "timing": {
+            "dt_ms": dt_ms,
+            "steps": leading_shape[0],
+            "duration_ms": leading_shape[0] * dt_ms,
+        },
+        "masks": masks,
+        "seeds": {"execution": int(seed)},
+        **supplied,
+    }
+    try:
+        json.dumps(execution_protocol, sort_keys=True)
+    except TypeError as exc:
+        raise ValueError(f"execution protocol must be JSON-serializable: {exc}") from exc
+    return ResolvedDenseInputs(tensors=resolved, protocol=execution_protocol)
 
 
 def graph_capability_issues(graph: Mapping[str, Any]) -> list[CapabilityIssue]:
@@ -1078,8 +1281,16 @@ def simulate(
         )
     tracemalloc.start()
     started = time.perf_counter()
+    resolved_inputs = resolve_dense_array_bindings(
+        built.model.plan.graph,
+        bindings=spec.input_bindings,
+        inputs=spec.inputs,
+        device=device,
+        seed=spec.seed,
+        protocol=spec.protocol,
+    )
     result = built.model(
-        {k: v.to(device) for k, v in spec.inputs.items()},
+        resolved_inputs.tensors,
         record=spec.recording,
         runtime_state=runtime_state
         if runtime_state is not None
@@ -1094,6 +1305,7 @@ def simulate(
             "peak_python_bytes": peak,
             "device": device,
             "recording": spec.recording,
+            "execution_protocol": resolved_inputs.protocol,
             **built.metrics,
         }
     )

@@ -30,11 +30,15 @@
 
   == Input bindings
 
-  The complete execution layer will bind concrete data to graph inputs. A resolved binding should state representation, dataset identity, split, sample cap, batch size, shuffle behavior, duration, masks, and seeds.
+  The execution layer binds concrete data to graph inputs without placing datasets or stimuli in graph structure. Dense-array bindings are implemented as named, data-only values. NPY replay binds to a graph with one input; NPZ arrays bind by input identifier.
+
+  Before execution, the resolver requires exact input coverage, common time and batch axes, declared feature dimensions, finite numeric values, binary spike values, and boolean or zero/one masks. A mismatch names the offending input and fails before simulation.
+
+  Every resolved dense replay emits a versioned execution protocol containing the representation, source-file digest and array key, resolved shape and data type, signal type and unit, dataset identity and split when supplied, sample cap, batch size, shuffle behavior, timestep, duration, masks, and execution seed. The command-line contract accepts `--input-file`, `--input-dataset-id`, `--input-split`, and the explicit `--input-shuffle` or `--no-input-shuffle` pair. The typed request accepts `DenseArrayBinding` values; the original in-memory tensor mapping passes through the same resolver.
 
   Fixed-rate and categorical variable-rate Poisson encoding belong to execution protocol rather than graph topology. Dense arrays and event streams need separate bindings because their storage and timing semantics differ.
 
-  Explicit dense input tensors and legacy CLI dataset handling work today, and graph simulations may consume valid-time masks as ordinary named input tensors. Portable dataset, event-stream, and encoder bindings are not implemented.
+  Dense-array and valid-time-mask bindings work today. Event-stream, portable dataset-loader, and encoder bindings are not implemented.
 
   #link("/ar088/")[Next: Training recipes and graph-native learning]
 ]
