@@ -40,15 +40,17 @@
 
   === Input bindings
 
-  The execution layer binds concrete data to graph inputs without placing datasets or stimuli in graph structure. Dense-array bindings are implemented as named, data-only values. NPY replay binds to a graph with one input; NPZ arrays bind by input identifier.
+  The execution layer binds concrete data to graph inputs without placing datasets or stimuli in graph structure. Dense arrays and sparse event streams are implemented as separate named, data-only representations. Dense NPY replay binds to a graph with one input; dense NPZ arrays bind by input identifier.
 
   Before execution, the resolver requires exact input coverage, common time and batch axes, declared feature dimensions, finite numeric values, binary spike values, and boolean or zero/one masks. A mismatch names the offending input and fails before simulation.
 
-  Every resolved dense replay emits a versioned execution protocol containing the representation, source-file digest and array key, resolved shape and data type, signal type and unit, dataset identity and split when supplied, sample cap, batch size, shuffle behavior, timestep, duration, masks, and execution seed. The command-line contract accepts `--input-file`, `--input-dataset-id`, `--input-split`, and the explicit `--input-shuffle` or `--no-input-shuffle` pair. The typed request accepts `DenseArrayBinding` values; the original in-memory tensor mapping passes through the same resolver.
+  Event replay stores zero-based integer step, batch, and channel coordinates plus explicit step and batch counts. Coordinates must be ordered by step, batch, and channel. The resolver rejects duplicates, invalid graph input types, inconsistent durations, and out-of-bounds coordinates before materializing binary spikes.
 
-  Fixed-rate and categorical variable-rate Poisson encoding belong to execution protocol rather than graph topology. Dense arrays and event streams need separate bindings because their storage and timing semantics differ.
+  Every replay emits a versioned execution protocol containing the representation, source-file digest and array keys, resolved shape and data type, signal type and unit, dataset identity and split when supplied, sample cap, batch size, shuffle behavior, timestep, duration, masks, seeds, and representation-specific resolution semantics. The command-line contract accepts `--input-file` or `--event-file`, dataset metadata, and the explicit `--input-shuffle` or `--no-input-shuffle` pair.
 
-  Dense-array and valid-time-mask bindings work today. Event-stream, portable dataset-loader, and encoder bindings are not implemented.
+  Fixed-rate and categorical variable-rate Poisson encoding belong to execution protocol rather than graph topology.
+
+  Dense-array, valid-time-mask, and sparse event-stream bindings work today. Portable dataset-loader and encoder bindings are not implemented.
 
   == API reference
 
@@ -87,6 +89,30 @@
   `value` is a PyTorch tensor. `source` is JSON-serializable provenance. NPY binds only to a graph with one input; NPZ keys bind by graph input identifier. Direct `ExecutionSpec.inputs` values are converted to in-memory bindings and validated through the same resolver.
 
   The resolved protocol uses schemas `tools/snn.dense-array-binding/v1` and `tools/snn.execution-protocol/v1`. Reserved protocol fields cannot be overridden by caller metadata.
+
+  === Event-stream bindings
+
+  ```python
+  EventStreamBinding(
+      input_id, steps, batches, channels,
+      steps_count, batch_size, source={},
+  )
+  load_event_stream_bindings(path, graph) -> tuple[EventStreamBinding, ...]
+  resolve_event_stream_bindings(
+      graph, *, bindings,
+      device="cpu", seed=0, protocol=None,
+  ) -> ResolvedDenseInputs
+  resolve_input_bindings(
+      graph, *, dense_bindings=(), event_bindings=(), inputs=None,
+      device="cpu", seed=0, protocol=None,
+  ) -> ResolvedDenseInputs
+  ```
+
+  Event bindings support graph inputs with shape `("time", "batch", channels)` and signal type `"spikes"`. Coordinate arrays are one-dimensional integer tensors of equal length. Step coordinates lie in `[0, steps_count)`, batch coordinates in `[0, batch_size)`, and channel coordinates in the declared graph width.
+
+  A single-input NPZ uses `steps`, `batches`, `channels`, `steps_count`, and `batch_size`. Multi-input files prefix each key with the input identifier and a period. Typed requests may combine event-stream spike inputs with dense masks or continuous inputs when their time and batch axes agree.
+
+  The event schema is `tools/snn.event-stream-binding/v1`; a mixed request uses `tools/snn.mixed-input-bindings/v1`. The protocol records ordering, duplicate rejection, binary materialization, event counts, masks, and file provenance.
 
   #link("/ar088/")[Next: Training recipes and graph-native learning]
 ]
