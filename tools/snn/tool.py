@@ -866,6 +866,12 @@ def _build_subparsers(parser, parent):
         metavar="KIND:POPULATION=VALUE",
         help="[graph] Ordered spike intervention: drop:POPULATION=PROBABILITY or add:POPULATION=RATE_HZ; repeatable.",
     )
+    sim_parser.add_argument(
+        "--inference-timestep-ms",
+        type=float,
+        default=None,
+        help="[graph Poisson] Recompile an immutable graph copy at this inference timestep.",
+    )
     # Uniform-Poisson drive knobs (--input synthetic-spikes / --input-file): the
     # net structure + drive for f–I curves and untrained-net parameter sweeps.
     # (Folded in from the retired `probe` subcommand.)
@@ -1905,6 +1911,8 @@ def main(argv=None):
         raise SystemExit("--scale-projection requires --executor graph")
     if request.executor == "legacy" and getattr(args, "intervention", None):
         raise SystemExit("--intervention requires --executor graph")
+    if request.executor == "legacy" and getattr(args, "inference_timestep_ms", None):
+        raise SystemExit("--inference-timestep-ms requires --executor graph")
 
     if request.executor == "graph":
         from dataclasses import replace
@@ -1932,6 +1940,7 @@ def main(argv=None):
 
         manifest, graph = load_graph_bundle(args.bundle)
         try:
+            inference_overrides = {}
             projection_scales = {}
             for item in getattr(args, "scale_projection", []):
                 projection_id, separator, raw_factor = item.partition("=")
@@ -1942,6 +1951,10 @@ def main(argv=None):
                         f"--scale-projection repeats projection {projection_id!r}"
                     )
                 projection_scales[projection_id] = float(raw_factor)
+            if projection_scales:
+                inference_overrides["projection_scales"] = projection_scales
+            if getattr(args, "inference_timestep_ms", None) is not None:
+                inference_overrides["timestep_ms"] = args.inference_timestep_ms
             interventions = []
             for item in getattr(args, "intervention", []):
                 target, separator, raw_value = item.partition("=")
@@ -2043,8 +2056,8 @@ def main(argv=None):
                 **request.options,
                 "shuffle": bool(getattr(args, "input_shuffle", False)),
                 **(
-                    {"inference_overrides": {"projection_scales": projection_scales}}
-                    if projection_scales
+                    {"inference_overrides": inference_overrides}
+                    if inference_overrides
                     else {}
                 ),
                 **({"inference_interventions": interventions} if interventions else {}),

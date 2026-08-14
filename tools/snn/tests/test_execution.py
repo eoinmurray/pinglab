@@ -633,9 +633,12 @@ def test_graph_cli_accepts_ordered_intervention_syntax():
             "drop:cell_E=0.25",
             "--intervention",
             "add:cell_E=5",
+            "--inference-timestep-ms",
+            "0.05",
         ]
     )
     assert args.intervention == ["drop:cell_E=0.25", "add:cell_E=5"]
+    assert args.inference_timestep_ms == 0.05
 
 
 def test_graph_cli_resolves_explicit_device_and_recording_profile(
@@ -1365,10 +1368,66 @@ def test_graph_inference_overrides_poisson_duration_and_rate():
         "requested": {"duration_ms": 300.0, "input_rate_hz": 10.0},
         "resolved": {
             "duration_ms": 300.0,
+            "timestep_ms": 100.0,
             "projection_scales": {},
             "input_rate_hz": 10.0,
         },
     }
+
+
+def test_graph_inference_timestep_recompiles_and_preserves_duration(tmp_path):
+    bundle = _direct_train_bundle()
+    checkpoint = tmp_path / "checkpoint"
+    train(
+        ExecutionSpec(
+            kind="train",
+            executor="graph",
+            graph=bundle.graph,
+            training=bundle.training,
+            inputs={"events": torch.ones(3, 1, 2)},
+            targets={"label": torch.tensor([0])},
+            seed=7,
+            options={"save_final_checkpoint": checkpoint},
+        )
+    )
+    result = simulate(
+        ExecutionSpec(
+            kind="simulate",
+            executor="graph",
+            graph=bundle.graph,
+            checkpoint=checkpoint,
+            poisson_bindings=(PoissonInputBinding("events", 3, 1, (0.0,), 13),),
+            options={"inference_overrides": {"timestep_ms": 0.05}},
+        )
+    )
+    assert bundle.graph["timebase"]["dt"] == {"value": 0.1, "unit": "ms"}
+    assert result.metrics["execution_protocol"]["timing"] == {
+        "dt_ms": 0.05,
+        "steps": 6,
+        "duration_ms": pytest.approx(0.3),
+    }
+    provenance = result.metrics["inference_overrides"]
+    assert provenance["resolved"]["timestep_ms"] == 0.05
+    assert provenance["resolved"]["duration_ms"] == pytest.approx(0.3)
+    assert result.metrics["source_graph_digest"] == bundle.training["graph_digest"]
+    assert (
+        result.metrics["effective_graph_digest"]
+        != result.metrics["source_graph_digest"]
+    )
+
+
+def test_graph_inference_timestep_rejects_non_resampleable_inputs():
+    graph = _standard_readout_graph("count")
+    with pytest.raises(ValueError, match="resampleable Poisson"):
+        simulate(
+            ExecutionSpec(
+                kind="simulate",
+                executor="graph",
+                graph=graph,
+                inputs={"events": torch.zeros(2, 1, 2)},
+                options={"inference_overrides": {"timestep_ms": 50.0}},
+            )
+        )
 
 
 def test_graph_inference_projection_scale_is_request_local():
