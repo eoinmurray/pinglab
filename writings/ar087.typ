@@ -50,7 +50,7 @@
 
   Fixed-rate and categorical variable-rate Poisson encoding belong to execution protocol rather than graph topology. Both are implemented as seeded bindings. The categorical protocol samples one rate uniformly and independently per presentation, records the realized rate vector, and then generates graph-shaped spikes using the declared timestep.
 
-  Dense-array, valid-time-mask, sparse event-stream, and generated Poisson bindings work today. Portable dataset-loader and encoder bindings are not implemented.
+  Dense-array, valid-time-mask, sparse event-stream, generated Poisson, and portable dataset-snapshot bindings work today. A snapshot remains an external immutable NPZ file identified by its content digest and caller-supplied dataset/split identity. The standard encoder vocabulary covers feature-scaled rate-Poisson samples, already binned spikes, and timestamped event samples binned at the graph timestep.
 
   == API reference
 
@@ -113,6 +113,33 @@
   A single-input NPZ uses `steps`, `batches`, `channels`, `steps_count`, and `batch_size`. Multi-input files prefix each key with the input identifier and a period. Typed requests may combine event-stream spike inputs with dense masks or continuous inputs when their time and batch axes agree.
 
   The event schema is `tools/snn.event-stream-binding/v1`; a mixed request uses `tools/snn.mixed-input-bindings/v1`. The protocol records ordering, duplicate rejection, binary materialization, event counts, masks, and file provenance.
+
+  === Dataset snapshots and encoders
+
+  ```python
+  DatasetEncoder(
+    kind, duration_ms=None, max_rate_hz=None, seed=0,
+  )
+  DatasetSnapshotBinding(
+    path, input_id, dataset_id, split, encoder,
+    target_id=None,
+    feature_key="features", label_key="labels",
+    sample_cap=None, shuffle=False, order_seed=0,
+  )
+  resolve_dataset_snapshot_binding(
+    graph, binding, device="cpu", execution_seed=0,
+  ) -> tuple[ResolvedDenseInputs, tuple[TargetArrayBinding, ...]]
+  ```
+
+  The binding uses schema `tools/snn.dataset-snapshot-binding/v1` and currently requires a single spike input shaped `(time, batch, channels)`. Every snapshot contains one-dimensional integer labels. A target id turns the selected labels into a digest-bearing training target; simulation may omit the target id.
+
+  `rate_poisson` expects floating `features` shaped `(samples, channels)` with finite values in `[0, 1]`. Each value scales `max_rate_hz`; seeded Bernoulli discretization produces the declared physical duration at graph `dt`. The maximum rate must keep per-step probability at most one.
+
+  `prebinned_spikes` expects binary `features` shaped `(time, samples, channels)` and preserves the exact time axis. `event_bin` expects equal-length `event_sample` and `event_channel` integer arrays plus floating `event_time_ms`. It applies left-closed, right-open floor bins, unions collisions into binary spikes, and records retained-event and collision counts.
+
+  Selection starts from snapshot sample indices, applies a seed-derived permutation when requested, and then applies the cap. The execution protocol records the snapshot path and SHA-256, dataset identity, split, total and selected sample indices, label/feature keys, batch size, shuffle flag, order seed, encoder parameters and seed, graph timestep, physical duration, and resolved target provenance.
+
+  The CLI selects this route with `--dataset-file`, `--dataset-encoder`, `--input-dataset-id`, and `--input-split`. Training also supplies `--dataset-target-id`; `--max-samples`, `--input-shuffle`, `--seed`, `--t-ms`, and `--input-rate` define selection and encoding where applicable. Dataset snapshots cannot be combined with replay or generated-input bindings.
 
   #link("/ar088/")[Next: Training recipes and graph-native learning]
 ]

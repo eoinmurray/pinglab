@@ -908,6 +908,22 @@ def _build_subparsers(parser, parent):
         "zero-based integer steps, batches, and channels.",
     )
     sim_parser.add_argument(
+        "--dataset-file",
+        type=str,
+        default=None,
+        help="Immutable NPZ dataset snapshot for graph execution.",
+    )
+    sim_parser.add_argument(
+        "--dataset-encoder",
+        choices=("rate-poisson", "prebinned-spikes", "event-bin"),
+        default=None,
+        help="Standard encoder applied to --dataset-file.",
+    )
+    sim_parser.add_argument("--dataset-input-id", type=str, default=None)
+    sim_parser.add_argument("--dataset-target-id", type=str, default=None)
+    sim_parser.add_argument("--dataset-feature-key", default="features")
+    sim_parser.add_argument("--dataset-label-key", default="labels")
+    sim_parser.add_argument(
         "--poisson-protocol",
         choices=["fixed-rate", "categorical-rate"],
         default=None,
@@ -1002,6 +1018,21 @@ def _build_subparsers(parser, parent):
         default=None,
         help="Integer NPY/NPZ graph-training targets, bound by recipe target id.",
     )
+    train_parser.add_argument(
+        "--dataset-file",
+        type=str,
+        default=None,
+        help="Immutable NPZ dataset snapshot for graph training.",
+    )
+    train_parser.add_argument(
+        "--dataset-encoder",
+        choices=("rate-poisson", "prebinned-spikes", "event-bin"),
+        default=None,
+    )
+    train_parser.add_argument("--dataset-input-id", type=str, default=None)
+    train_parser.add_argument("--dataset-target-id", type=str, default=None)
+    train_parser.add_argument("--dataset-feature-key", default="features")
+    train_parser.add_argument("--dataset-label-key", default="labels")
     train_parser.add_argument(
         "--input-dataset-id",
         type=str,
@@ -1905,6 +1936,8 @@ def main(argv=None):
         )
     if request.executor == "legacy" and getattr(args, "event_file", None):
         raise SystemExit("--event-file requires --executor graph")
+    if request.executor == "legacy" and getattr(args, "dataset_file", None):
+        raise SystemExit("--dataset-file requires --executor graph")
     if request.executor == "legacy" and getattr(args, "poisson_protocol", None):
         raise SystemExit("--poisson-protocol requires --executor graph")
     if request.executor == "legacy" and getattr(args, "scale_projection", None):
@@ -1920,15 +1953,21 @@ def main(argv=None):
         input_file = getattr(args, "input_file", None)
         event_file = getattr(args, "event_file", None)
         poisson_protocol = getattr(args, "poisson_protocol", None)
+        dataset_file = getattr(args, "dataset_file", None)
         if (
-            sum(bool(value) for value in (input_file, event_file, poisson_protocol))
+            sum(
+                bool(value)
+                for value in (input_file, event_file, poisson_protocol, dataset_file)
+            )
             != 1
         ):
             raise SystemExit(
-                "graph execution requires exactly one of --input-file, --event-file, or --poisson-protocol"
+                "graph execution requires exactly one of --input-file, --event-file, --poisson-protocol, or --dataset-file"
             )
         from bundle import load_graph_bundle, load_training_recipe
         from execution import (
+            DatasetEncoder,
+            DatasetSnapshotBinding,
             PoissonInputBinding,
             load_dense_array_bindings,
             load_event_stream_bindings,
@@ -1980,7 +2019,50 @@ def main(argv=None):
                         "seed": args.seed,
                     }
                 )
-            if poisson_protocol:
+            if dataset_file:
+                if not args.dataset_encoder:
+                    raise ValueError("--dataset-file requires --dataset-encoder")
+                if not args.input_dataset_id or not args.input_split:
+                    raise ValueError(
+                        "--dataset-file requires --input-dataset-id and --input-split"
+                    )
+                input_ids = [row["id"] for row in graph.get("inputs", [])]
+                input_id = args.dataset_input_id or (
+                    input_ids[0] if len(input_ids) == 1 else None
+                )
+                if input_id is None:
+                    raise ValueError(
+                        "multi-input dataset graphs require --dataset-input-id"
+                    )
+                encoder_kind = args.dataset_encoder.replace("-", "_")
+                encoder = DatasetEncoder(
+                    encoder_kind,
+                    duration_ms=(
+                        args.t_ms
+                        if encoder_kind in {"rate_poisson", "event_bin"}
+                        else None
+                    ),
+                    max_rate_hz=(
+                        args.spike_rate if encoder_kind == "rate_poisson" else None
+                    ),
+                    seed=request.seed if encoder_kind == "rate_poisson" else 0,
+                )
+                binding_update = {
+                    "dataset_binding": DatasetSnapshotBinding(
+                        path=Path(dataset_file),
+                        input_id=input_id,
+                        target_id=args.dataset_target_id,
+                        dataset_id=args.input_dataset_id,
+                        split=args.input_split,
+                        encoder=encoder,
+                        feature_key=args.dataset_feature_key,
+                        label_key=args.dataset_label_key,
+                        sample_cap=args.max_samples,
+                        shuffle=bool(args.input_shuffle),
+                        order_seed=request.seed,
+                    )
+                }
+            elif poisson_protocol:
                 input_ids = [row["id"] for row in graph.get("inputs", [])]
                 if len(input_ids) != 1:
                     raise ValueError(
@@ -2022,12 +2104,24 @@ def main(argv=None):
             target_update = {}
             if request.kind == "train":
                 target_file = getattr(args, "target_file", None)
-                if not target_file:
+                if not target_file and not dataset_file:
                     raise ValueError("graph training requires --target-file")
+                if dataset_file and not args.dataset_target_id:
+                    raise ValueError(
+                        "graph dataset training requires --dataset-target-id"
+                    )
                 recipe = load_training_recipe(args.bundle, manifest, graph)
                 target_update = {
                     "training": recipe,
-                    "target_bindings": load_target_array_bindings(target_file, recipe),
+                    **(
+                        {
+                            "target_bindings": load_target_array_bindings(
+                                target_file, recipe
+                            )
+                        }
+                        if target_file
+                        else {}
+                    ),
                 }
         except ValueError as exc:
             raise SystemExit(str(exc)) from exc
