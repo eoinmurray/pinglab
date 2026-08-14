@@ -18,6 +18,7 @@ from execution import (
     ExecutionSpec,
     GraphExecutor,
     GraphRuntimeState,
+    PoissonInputBinding,
     build,
     execute_request,
     execution_spec_from_args,
@@ -30,6 +31,7 @@ from execution import (
     resolve_device,
     resolve_event_stream_bindings,
     resolve_input_bindings,
+    resolve_poisson_input_bindings,
     runtime_state_signature,
     save_runtime_state,
     simulate,
@@ -627,9 +629,7 @@ def test_event_stream_bindings_fail_closed(updates, message):
         "channels": torch.tensor([0]),
     }
     values.update(updates)
-    binding = EventStreamBinding(
-        "events", **values, steps_count=3, batch_size=1
-    )
+    binding = EventStreamBinding("events", **values, steps_count=3, batch_size=1)
     with pytest.raises(ValueError) as exc:
         resolve_event_stream_bindings(
             _standard_readout_graph("count"), bindings=(binding,)
@@ -787,6 +787,91 @@ def test_named_multi_input_event_file_resolves_each_graph_port(tmp_path):
     assert resolved.tensors["drive_a"].sum() == 2
     assert resolved.tensors["drive_b"].shape == (2, 1, 2)
     assert resolved.tensors["drive_b"].sum() == 0
+
+
+def test_fixed_rate_poisson_binding_has_exact_boundary_fixtures():
+    graph = _standard_readout_graph("count")
+    zero = resolve_poisson_input_bindings(
+        graph,
+        bindings=(PoissonInputBinding("events", 3, 2, (0.0,), 7),),
+    )
+    assert torch.count_nonzero(zero.tensors["events"]) == 0
+    graph["timebase"]["dt"] = {"value": 1.0, "unit": "ms"}
+    full = resolve_poisson_input_bindings(
+        graph,
+        bindings=(PoissonInputBinding("events", 3, 2, (1000.0,), 7),),
+    )
+    assert torch.all(full.tensors["events"] == 1)
+    assert full.protocol["binding_schema"] == "tools/snn.poisson-input-binding/v1"
+    assert full.protocol["inputs"][0]["selection"] == "constant"
+
+
+def test_categorical_poisson_samples_one_reproducible_rate_per_presentation():
+    graph = _standard_readout_graph("count")
+    binding = PoissonInputBinding("events", 4, 5, (0.0, 1.0, 5.0), 41, categorical=True)
+    first = resolve_poisson_input_bindings(graph, bindings=(binding,))
+    second = resolve_poisson_input_bindings(graph, bindings=(binding,))
+    torch.testing.assert_close(first.tensors["events"], second.tensors["events"])
+    row = first.protocol["inputs"][0]
+    assert len(row["realized_rates_hz"]) == 5
+    assert set(row["realized_rates_hz"]) <= {0.0, 1.0, 5.0}
+    assert row["selection"] == "uniform_independent_per_presentation"
+
+
+def test_poisson_binding_rejects_invalid_rate_probability():
+    graph = _standard_readout_graph("count")
+    with pytest.raises(ValueError, match="rate times dt exceeds probability one"):
+        resolve_poisson_input_bindings(
+            graph,
+            bindings=(PoissonInputBinding("events", 1, 1, (10001.0,), 0),),
+        )
+
+
+def test_graph_cli_generates_fixed_rate_poisson_protocol(tmp_path):
+    graph = _standard_readout_graph("count")
+    bundle = snn.compiler.Bundle(
+        graph=graph,
+        training=None,
+        manifest={
+            "schema": "snnlang.bundle/v1",
+            "graph_digest": snn.compiler.digest(graph),
+            "files": [{"path": "graph.json", "digest": snn.compiler.digest(graph)}],
+            "assets": [],
+            "compiler": {"name": "test", "version": "1"},
+            "target": None,
+        },
+        diagnostics=[],
+        asset_sources={},
+    ).write(tmp_path / "graph.bundle")
+    out = tmp_path / "out"
+    assert (
+        main(
+            [
+                "sim",
+                "--executor",
+                "graph",
+                "--bundle",
+                str(bundle),
+                "--poisson-protocol",
+                "fixed-rate",
+                "--input-rate",
+                "0",
+                "--n-batch",
+                "1",
+                "--t-ms",
+                "200",
+                "--seed",
+                "13",
+                "--out-dir",
+                str(out),
+            ]
+        )
+        == 0
+    )
+    protocol = json.loads((out / "metrics.json").read_text())["execution_protocol"]
+    assert protocol["representation"] == "poisson"
+    assert protocol["inputs"][0]["realized_rates_hz"] == [0.0]
+    assert protocol["seeds"] == {"execution": 13, "poisson": {"events": 13}}
 
 
 def test_delay_lowering_is_exact_in_steps_and_feedback_is_causal():
