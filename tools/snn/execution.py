@@ -14,7 +14,7 @@ import os
 import tempfile
 import time
 import tracemalloc
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from numbers import Integral
 from pathlib import Path
 from typing import Any, Callable, Literal, Mapping, Sequence
@@ -35,6 +35,7 @@ EVENT_STREAM_BINDING_SCHEMA = "tools/snn.event-stream-binding/v1"
 MIXED_INPUT_BINDING_SCHEMA = "tools/snn.mixed-input-bindings/v1"
 POISSON_INPUT_BINDING_SCHEMA = "tools/snn.poisson-input-binding/v1"
 EXECUTION_PROTOCOL_SCHEMA = "tools/snn.execution-protocol/v1"
+INFERENCE_OVERRIDE_SCHEMA = "tools/snn.inference-overrides/v1"
 TRAINING_CHECKPOINT_SCHEMA = "tools/snn.training-checkpoint/v1"
 LEGACY_PARAMETER_INTERCHANGE_SCHEMA = "tools/snn.legacy-parameter-interchange/v1"
 
@@ -2331,6 +2332,45 @@ def simulate(
     built = build(spec)
     assert isinstance(built.model, GraphExecutor)
     device = resolve_device(spec.device)
+    overrides = dict(spec.options.get("inference_overrides", {}))
+    allowed_overrides = {"duration_ms", "input_rate_hz", "projection_scales"}
+    unknown_overrides = sorted(set(overrides) - allowed_overrides)
+    if unknown_overrides:
+        raise ValueError(f"unsupported inference overrides: {unknown_overrides}")
+    poisson_bindings = spec.poisson_bindings
+    if "duration_ms" in overrides or "input_rate_hz" in overrides:
+        if (
+            not poisson_bindings
+            or spec.input_bindings
+            or spec.event_bindings
+            or spec.inputs
+        ):
+            raise ValueError(
+                "duration and input-rate inference overrides require Poisson input bindings"
+            )
+        dt_ms = built.model.plan.dt_ms
+        duration_ms = float(
+            overrides.get("duration_ms", poisson_bindings[0].steps_count * dt_ms)
+        )
+        raw_steps = duration_ms / dt_ms
+        if duration_ms <= 0 or not math.isclose(
+            raw_steps, round(raw_steps), abs_tol=1e-9
+        ):
+            raise ValueError(
+                f"inference duration {duration_ms} ms must be a positive integer multiple of dt={dt_ms} ms"
+            )
+        rate = overrides.get("input_rate_hz")
+        if rate is not None and (not math.isfinite(float(rate)) or float(rate) < 0):
+            raise ValueError("inference input rate must be finite and non-negative")
+        poisson_bindings = tuple(
+            replace(
+                binding,
+                steps_count=int(round(raw_steps)),
+                rates_hz=(float(rate),) if rate is not None else binding.rates_hz,
+                categorical=False if rate is not None else binding.categorical,
+            )
+            for binding in poisson_bindings
+        )
     checkpoint_provenance = None
     if spec.checkpoint:
         checkpoint_path = Path(spec.checkpoint)
@@ -2374,13 +2414,33 @@ def simulate(
                 "format": "legacy_torch_state_dict",
                 "path": str(checkpoint_path),
             }
+    scales = dict(overrides.get("projection_scales", {}))
+    if scales:
+        projection_parameters = {
+            row["id"]: row["parameters"][0]
+            for row in built.model.plan.graph.get("projections", [])
+        }
+        unknown = sorted(set(scales) - set(projection_parameters))
+        if unknown:
+            raise ValueError(
+                f"inference projection scales target unknown projections: {unknown}"
+            )
+        with torch.no_grad():
+            parameters = built.model.parameter_map()
+            for projection_id, factor in sorted(scales.items()):
+                factor = float(factor)
+                if not math.isfinite(factor) or factor < 0:
+                    raise ValueError(
+                        f"inference projection scale {projection_id} must be finite and non-negative"
+                    )
+                parameters[projection_parameters[projection_id]].mul_(factor)
     tracemalloc.start()
     started = time.perf_counter()
     resolved_inputs = resolve_input_bindings(
         built.model.plan.graph,
         dense_bindings=spec.input_bindings,
         event_bindings=spec.event_bindings,
-        poisson_bindings=spec.poisson_bindings,
+        poisson_bindings=poisson_bindings,
         inputs=spec.inputs,
         device=device,
         seed=spec.seed,
@@ -2404,6 +2464,21 @@ def simulate(
             "recording": spec.recording,
             "execution_protocol": resolved_inputs.protocol,
             "checkpoint": checkpoint_provenance,
+            "inference_overrides": {
+                "schema": INFERENCE_OVERRIDE_SCHEMA,
+                "requested": overrides,
+                "resolved": {
+                    "duration_ms": resolved_inputs.protocol["timing"]["duration_ms"],
+                    "projection_scales": scales,
+                    **(
+                        {"input_rate_hz": float(overrides["input_rate_hz"])}
+                        if "input_rate_hz" in overrides
+                        else {}
+                    ),
+                },
+            }
+            if overrides
+            else None,
             **built.metrics,
         }
     )
