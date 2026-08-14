@@ -890,6 +890,27 @@ def test_delay_lowering_is_exact_in_steps_and_feedback_is_causal():
     assert received == [0.0, 0.0, 0.0, 1.0, 0.0]
 
 
+def test_disabled_projection_keeps_initialization_position_but_carries_no_drive():
+    enabled_graph = _coupled_graph(direction="uncoupled")
+    disabled_graph = copy.deepcopy(enabled_graph)
+    disabled_graph["projections"][0]["enabled"] = False
+    enabled = GraphExecutor(plan_graph(enabled_graph), seed=29)
+    disabled = GraphExecutor(plan_graph(disabled_graph), seed=29)
+    assert disabled.plan.projections[0].enabled is False
+    for name, value in enabled.parameter_map().items():
+        torch.testing.assert_close(
+            value, disabled.parameter_map()[name], rtol=0, atol=0
+        )
+    result = disabled(
+        {
+            "drive_a": torch.ones(2, 1, 3),
+            "drive_b": torch.zeros(2, 1, 2),
+        }
+    )
+    projection_id = disabled.plan.projections[0].id
+    assert torch.count_nonzero(result.recordings[f"{projection_id}.conductance"]) == 0
+
+
 def test_input_delay_pulse_arrives_on_exact_timestep_and_handles_boundary():
     graph = _coupled_graph(direction="uncoupled")
     projection = next(p for p in graph["projections"] if p["id"] == "a_input")
