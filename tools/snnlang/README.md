@@ -89,12 +89,17 @@ result = simulate(ExecutionSpec(
 The planner lowers the complete dense topology before stepping. It supports
 arbitrarily named COBA-LIF and leaky-integrator populations, independent spike
 inputs, AMPA and GABA projections, feedforward/recurrent/feedback paths,
-integral delay buffers, mean-voltage outputs, and recordings from every named
-population. Zero-delay feedforward edges follow a deterministic topological
-order. Recurrent and feedback spikes are causal, so zero additional delay means
-one simulation step. Positive delays must be exact integer multiples of the
-declared timestep. Zero-delay cycles, dimension errors, polarity mismatches,
-and missing backend capabilities fail before simulation.
+integral delay buffers, standard readout operations, and recordings from every
+named population. Mean voltage, final voltage, spike count, spike rate, and
+cumulative-potential readouts execute through the graph operation vocabulary.
+Spike-rate readouts report spikes/s from either an explicit duration in seconds
+or a `(time, batch)` valid-time mask whose duration is inferred from graph
+`dt`. Zero-delay feedforward edges follow a deterministic topological order.
+Recurrent and feedback spikes are causal, so zero additional delay means one
+simulation step. Positive delays must be exact integer multiples of the declared
+timestep. Zero-delay cycles, dimension errors, malformed masks, ambiguous
+durations, polarity mismatches, and missing backend capabilities fail before
+simulation.
 
 Graph-native training is deliberately not enabled at this milestone. A graph
 training request fails with the explicit future `training:v1` capability rather
