@@ -67,11 +67,13 @@
   )
   ```
 
-  The specification is data only. `compile` verifies referenced outputs, parameters, regularizer signals, and stop-gradient signals before writing `training.json`.
+  The specification is data only. `compile` verifies referenced outputs, parameters, regularizer signals, stop-gradient signals, and differentiable routes before writing `training.json`.
 
   The collection's supported surrogate is `training.FastSigmoid(slope=1.0)`. Its slope must be positive and finite. Voltage-gradient dampening is declared per spiking population as `voltage_grad_dampen`; it is also resolved into `training.json` so training provenance contains the complete backward contract. Dampening factors must be positive and finite. The narrow legacy adapter accepts fast-sigmoid slopes and a single shared dampening factor, and rejects richer unsupported combinations explicitly.
 
   Presentation duration is a positive millisecond quantity independent of graph timestep, but it must resolve to an integer number of steps. `SpikeBudgetPenalty` implements the exp022 one-sided quadratic firing-rate ceiling. It converts each population's spike count to a per-presentation population-mean rate in Hz, applies the squared hinge above the ceiling, then averages presentations and layers. This makes the term invariant to batch size, population width, hidden-layer count, and equivalent changes in presentation duration.
+
+  Compilation proves a gradient route for every objective and regularizer by walking backward through operations and enabled projections. It intersects the reachable named parameters with the resolved trainable set and respects `StopGradient` boundaries. Frozen-only paths, disabled trainable projections, and barriers with no downstream trainable parameter fail with the exact reachable and trainable sets. Recurrent parameters are treated structurally, so frozen, trainable initialized, trainable zero-initialized, and trainable small-initialized loop variants use the same vocabulary without name-based exceptions.
 
   === Objectives and parameter groups
 
