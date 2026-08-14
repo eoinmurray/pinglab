@@ -36,6 +36,7 @@ MIXED_INPUT_BINDING_SCHEMA = "tools/snn.mixed-input-bindings/v1"
 POISSON_INPUT_BINDING_SCHEMA = "tools/snn.poisson-input-binding/v1"
 EXECUTION_PROTOCOL_SCHEMA = "tools/snn.execution-protocol/v1"
 TRAINING_CHECKPOINT_SCHEMA = "tools/snn.training-checkpoint/v1"
+LEGACY_PARAMETER_INTERCHANGE_SCHEMA = "tools/snn.legacy-parameter-interchange/v1"
 
 
 @dataclass(frozen=True)
@@ -144,6 +145,12 @@ class TrainingCheckpoint:
     rng_state: torch.Tensor
     data_state: Mapping[str, Any] = field(default_factory=dict)
     selected_loss: float | None = None
+
+
+@dataclass(frozen=True)
+class ParameterInterchange:
+    parameters: dict[str, torch.Tensor]
+    provenance: Mapping[str, Any]
 
 
 GRAPH_CAPABILITIES_V1 = {
@@ -1453,6 +1460,73 @@ def legacy_parameter_map_v1(graph: Mapping[str, Any]) -> dict[str, str]:
             f"legacy parameter mapping must be complete; missing={missing}, extra={extra}"
         )
     return dict(sorted(mapping.items()))
+
+
+def _validate_interchange_parameters(
+    graph: Mapping[str, Any], parameters: Mapping[str, torch.Tensor]
+) -> None:
+    rows = {row["id"]: row for row in graph.get("parameters", [])}
+    if set(parameters) != set(rows):
+        raise ValueError(
+            f"graph parameter interchange must be complete; missing={sorted(set(rows) - set(parameters))}, extra={sorted(set(parameters) - set(rows))}"
+        )
+    for name, value in parameters.items():
+        runtime_shape = tuple(reversed(rows[name]["shape"]))
+        if tuple(value.shape) != runtime_shape:
+            raise ValueError(
+                f"graph parameter {name} expected runtime shape {runtime_shape}, got {tuple(value.shape)}"
+            )
+        if not value.is_floating_point():
+            raise ValueError(f"graph parameter {name} must use a floating dtype")
+
+
+def import_legacy_parameters_v1(
+    graph: Mapping[str, Any],
+    state_dict: Mapping[str, torch.Tensor],
+    *,
+    device: str | torch.device = "cpu",
+) -> ParameterInterchange:
+    """Import the exact supported one-layer legacy parameter state by semantic name."""
+    mapping = legacy_parameter_map_v1(graph)
+    reverse = {legacy: graph_name for graph_name, legacy in mapping.items()}
+    if set(state_dict) != set(reverse):
+        raise ValueError(
+            f"legacy parameter interchange requires exact keys; missing={sorted(set(reverse) - set(state_dict))}, extra={sorted(set(state_dict) - set(reverse))}"
+        )
+    parameters = {
+        reverse[name]: value.detach().clone().to(device)
+        for name, value in state_dict.items()
+    }
+    _validate_interchange_parameters(graph, parameters)
+    return ParameterInterchange(
+        parameters=dict(sorted(parameters.items())),
+        provenance={
+            "schema": LEGACY_PARAMETER_INTERCHANGE_SCHEMA,
+            "mapping_version": 1,
+            "direction": "legacy_to_graph",
+            "mapping": mapping,
+        },
+    )
+
+
+def export_legacy_parameters_v1(
+    graph: Mapping[str, Any], parameters: Mapping[str, torch.Tensor]
+) -> ParameterInterchange:
+    """Export a complete supported graph parameter set under legacy state keys."""
+    _validate_interchange_parameters(graph, parameters)
+    mapping = legacy_parameter_map_v1(graph)
+    exported = {
+        mapping[name]: value.detach().clone() for name, value in parameters.items()
+    }
+    return ParameterInterchange(
+        parameters=dict(sorted(exported.items())),
+        provenance={
+            "schema": LEGACY_PARAMETER_INTERCHANGE_SCHEMA,
+            "mapping_version": 1,
+            "direction": "graph_to_legacy",
+            "mapping": mapping,
+        },
+    )
 
 
 class DelayBuffer:

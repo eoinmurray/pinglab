@@ -17,6 +17,8 @@ from execution import (
     ExecutionSpec,
     GraphExecutor,
     build,
+    export_legacy_parameters_v1,
+    import_legacy_parameters_v1,
     legacy_parameter_map_v1,
     train,
 )
@@ -154,10 +156,15 @@ def test_minimal_legacy_and_graph_ping_forward_share_parameters_and_logits(
     )
     legacy.recording = True
     mapping = legacy_parameter_map_v1(bundle.graph)
+    exported = export_legacy_parameters_v1(bundle.graph, graph_parameters)
+    imported = import_legacy_parameters_v1(bundle.graph, exported.parameters)
+    with torch.no_grad():
+        for name, value in imported.parameters.items():
+            graph_parameters[name].copy_(value)
     legacy_parameters = dict(legacy.named_parameters())
     with torch.no_grad():
-        for graph_name, legacy_name in mapping.items():
-            legacy_parameters[legacy_name].copy_(graph_parameters[graph_name])
+        for legacy_name, value in exported.parameters.items():
+            legacy_parameters[legacy_name].copy_(value)
 
     inputs = torch.zeros(40, 2, 2)
     inputs[:, 0, 0] = 1
