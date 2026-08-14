@@ -186,7 +186,16 @@ The typed graph API supports deterministic single-batch AdamW updates for the
 validated cross-entropy and spike-budget vocabulary. `ExecutionSpec` supplies
 resolved inputs and external targets; a bundle may authenticate and supply its
 training recipe. Results expose per-update loss components, named gradients,
-parameters, and optimizer state. Dataset iteration, CLI target loading,
-production checkpoint persistence, and exact resume remain separate gates. The
-legacy CLI and bundle adapter remain the default and retain their historical
-numerical contract.
+parameters, and optimizer state.
+
+Graph training checkpoints use a versioned manifest plus a digest-verified
+tensor payload. They key parameters and AdamW state by stable graph id and
+record graph/training digests, completed updates, execution protocol,
+initializer metadata, and CPU random state. The trainer can save final and
+invocation-selected checkpoints and resume exactly after rejecting recipe,
+protocol, initializer, shape, dtype, or parameter-set mismatches. An explicit
+one-layer legacy parameter map fails closed when any graph parameter is
+unrepresentable. Dataset iteration, CLI target loading, accelerator stochastic
+state, and production trajectory parity remain separate gates. The legacy CLI
+and bundle adapter remain the default and retain their historical numerical
+contract.

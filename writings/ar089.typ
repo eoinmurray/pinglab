@@ -28,9 +28,9 @@
 
   === Checkpoints
 
-  Parameter checkpoints and runtime state serve different purposes. A parameter checkpoint describes learned or initialized weights. Runtime state describes where one simulation trajectory currently is. A complete training checkpoint additionally requires optimizer state, data-order state, and stochastic-stream state.
+  Parameter checkpoints and runtime state serve different purposes. A parameter checkpoint describes learned or initialized weights. Runtime state describes where one simulation trajectory currently is. A graph-training checkpoint additionally carries named optimizer state, the completed-update count, CPU stochastic state, the resolved execution protocol, initializer metadata, and graph and training digests.
 
-  Parameter loading and graph runtime state exist today. A portable graph-training checkpoint and exact optimizer resume contract are not implemented.
+  The graph trainer can write both the final update and the lowest-loss update selected during an invocation. Resume validates the complete named parameter set, shapes, dtypes, recipe identity, protocol, and initializer provenance before restoring parameters, AdamW state, and the random-number stream. A partial or positional mapping is rejected. Dataset iteration and its data-order state remain a separate protocol gate.
 
   === Provenance
 
@@ -75,6 +75,18 @@
   ```
 
   A resume request must preserve graph structure, timestep, population sizes, projections, delays, synapses, parameter shapes, batch shape, and state dtypes. `result.runtime_state.completed_steps` reports the cumulative trajectory length.
+
+  === Training checkpoints
+
+  ```python
+  save_training_checkpoint(path, checkpoint) -> Path
+  load_training_checkpoint(path, *, device="cpu") -> TrainingCheckpoint
+  legacy_parameter_map_v1(graph) -> dict[str, str]
+  ```
+
+  Training checkpoints use schema `tools/snn.training-checkpoint/v1` and store a JSON manifest beside a digest-verified compressed tensor payload. Parameters and optimizer tensors are keyed by stable graph parameter id. The manifest authenticates the graph and training recipes, completed update, resolved execution protocol, realized initialization metadata, optimizer scalars, selected loss, and tensor layout.
+
+  `ExecutionSpec.checkpoint` resumes graph training from a checkpoint directory. The `save_final_checkpoint` and `save_selected_checkpoint` options persist the final and invocation-selected states. `legacy_parameter_map_v1` provides the explicit one-layer legacy adapter map and fails closed for graphs that cannot be represented without omissions or ambiguity.
 
   === Provenance fields
 
