@@ -164,3 +164,15 @@ def test_saved_measurements_replot_every_figure(tmp_path, monkeypatch) -> None:
         "psychometric_200ms.svg", "duration_rate_summary.png",
     ):
         assert (tmp_path / filename).is_file()
+    first_hashes = {
+        filename: (tmp_path / filename).read_bytes()
+        for filename in (
+            "matched_stream.png", "variable_stream.png",
+            "psychometric_200ms.svg", "duration_rate_summary.png",
+        )
+    }
+    exp082.replot_results(numbers, tmp_path / exp082.MEASUREMENTS_FILE)
+    assert {
+        filename: (tmp_path / filename).read_bytes()
+        for filename in first_hashes
+    } == first_hashes
