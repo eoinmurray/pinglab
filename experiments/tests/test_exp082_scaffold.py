@@ -106,6 +106,7 @@ def test_psychometric_is_fixed_at_training_duration() -> None:
 def test_exp082_evaluation_scale_is_recorded() -> None:
     assert exp082.STREAMS_PER_CELL >= 1
     assert exp082.DIGITS_PER_STREAM >= 1
+    assert exp082.EVALUATION_PROFILE in {"smoke", "pilot", "production"}
 
 
 def test_collection_requires_exp082_measurements_and_figures(tmp_path) -> None:
