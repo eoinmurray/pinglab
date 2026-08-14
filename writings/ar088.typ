@@ -41,7 +41,7 @@
   bundle = snn.compile(net, training=recipe)
   ```
 
-  The recipe vocabulary includes objectives, named parameter groups, learning rates, frozen parameters, optimizer settings, regularizers, stop-gradient boundaries, epoch count, gradient clipping, and surrogate configuration.
+  The recipe vocabulary includes objectives, named parameter groups, learning rates, frozen parameters, optimizer settings, regularizers, stop-gradient boundaries, epoch count, gradient clipping, and surrogate configuration. Every graph parameter must belong to exactly one group. Trainable groups require a positive finite learning rate; frozen groups require zero. Compilation records canonical resolved trainable and frozen sets plus a per-parameter learning-rate map so backends never infer ownership from naming conventions.
 
   === Current boundary
 
@@ -75,7 +75,7 @@
   training.ParameterGroup(parameters, name, lr, frozen=False)
   ```
 
-  `prediction` accepts a signal-like object or identifier. It must resolve to a named graph output. `target` is the external target identifier. A parameter may appear in only one group.
+  `prediction` accepts a signal-like object or identifier. It must resolve to a named graph output. `target` is the external target identifier. Group identifiers are non-empty and unique; groups are non-empty; and every parameter appears exactly once across the groups. Frozen groups use `lr=0`, while trainable groups use a positive finite rate.
 
   === Optimizer and regularization
 
