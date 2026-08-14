@@ -971,6 +971,54 @@ def _build_subparsers(parser, parent):
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     train_parser.add_argument(
+        "--input-file",
+        type=str,
+        default=None,
+        help="Dense NPY/NPZ graph-training inputs, bound by graph input id.",
+    )
+    train_parser.add_argument(
+        "--target-file",
+        type=str,
+        default=None,
+        help="Integer NPY/NPZ graph-training targets, bound by recipe target id.",
+    )
+    train_parser.add_argument(
+        "--input-dataset-id",
+        type=str,
+        default=None,
+        help="Stable dataset or snapshot identity recorded for graph training.",
+    )
+    train_parser.add_argument(
+        "--input-split",
+        type=str,
+        default=None,
+        help="Dataset split recorded for graph training.",
+    )
+    train_parser.add_argument(
+        "--input-shuffle",
+        action=argparse.BooleanOptionalAction,
+        default=None,
+        help="Deterministically shuffle graph-training samples each epoch.",
+    )
+    train_parser.add_argument(
+        "--load-weights",
+        type=str,
+        default=None,
+        help="Resume graph training from a training-checkpoint directory.",
+    )
+    train_parser.add_argument(
+        "--save-final-checkpoint",
+        type=str,
+        default=None,
+        help="Write the final graph-training checkpoint directory.",
+    )
+    train_parser.add_argument(
+        "--save-selected-checkpoint",
+        type=str,
+        default=None,
+        help="Write the lowest-loss graph-training checkpoint directory.",
+    )
+    train_parser.add_argument(
         "--lr",
         type=float,
         default=0.01,
@@ -1855,16 +1903,17 @@ def main(argv=None):
             raise SystemExit(
                 "graph execution requires exactly one of --input-file, --event-file, or --poisson-protocol"
             )
-        from bundle import load_graph_bundle
+        from bundle import load_graph_bundle, load_training_recipe
         from execution import (
             PoissonInputBinding,
             load_dense_array_bindings,
             load_event_stream_bindings,
             load_runtime_state,
+            load_target_array_bindings,
             save_runtime_state,
         )
 
-        _, graph = load_graph_bundle(args.bundle)
+        manifest, graph = load_graph_bundle(args.bundle)
         try:
             if poisson_protocol:
                 input_ids = [row["id"] for row in graph.get("inputs", [])]
@@ -1905,6 +1954,16 @@ def main(argv=None):
                         "input_bindings": load_dense_array_bindings(input_file, graph)
                     }
                 )
+            target_update = {}
+            if request.kind == "train":
+                target_file = getattr(args, "target_file", None)
+                if not target_file:
+                    raise ValueError("graph training requires --target-file")
+                recipe = load_training_recipe(args.bundle, manifest, graph)
+                target_update = {
+                    "training": recipe,
+                    "target_bindings": load_target_array_bindings(target_file, recipe),
+                }
         except ValueError as exc:
             raise SystemExit(str(exc)) from exc
         runtime_state = (
@@ -1915,6 +1974,7 @@ def main(argv=None):
         request = replace(
             request,
             **binding_update,
+            **target_update,
             protocol={
                 "dataset": {
                     key: value
@@ -1926,6 +1986,10 @@ def main(argv=None):
                     }.items()
                     if value is not None
                 }
+            },
+            options={
+                **request.options,
+                "shuffle": bool(getattr(args, "input_shuffle", False)),
             },
             runtime_state=runtime_state,
         )

@@ -48,6 +48,15 @@ class DenseArrayBinding:
 
 
 @dataclass(frozen=True)
+class TargetArrayBinding:
+    """One concrete target vector resolved against a named training target."""
+
+    target_id: str
+    value: torch.Tensor
+    source: Mapping[str, Any] = field(default_factory=dict)
+
+
+@dataclass(frozen=True)
 class EventStreamBinding:
     """Sparse binary spike events resolved against one named graph input."""
 
@@ -91,6 +100,7 @@ class ExecutionSpec:
     protocol: Mapping[str, Any] = field(default_factory=dict)
     training: Mapping[str, Any] | None = None
     targets: Mapping[str, torch.Tensor] = field(default_factory=dict)
+    target_bindings: Sequence[TargetArrayBinding] = field(default_factory=tuple)
     seed: int = 0
     device: str = "auto"
     recording: RecordingProfile = "full"
@@ -132,6 +142,7 @@ class TrainingCheckpoint:
     parameters: dict[str, torch.Tensor]
     optimizer_state: dict[str, dict[str, Any]]
     rng_state: torch.Tensor
+    data_state: Mapping[str, Any] = field(default_factory=dict)
     selected_loss: float | None = None
 
 
@@ -155,7 +166,8 @@ GRAPH_CAPABILITIES_V1 = {
         "regularizers": {"spike_budget"},
         "optimizers": {"adamw"},
         "parameter_groups": "named_trainable_and_frozen",
-        "updates": "single_batch_one_or_more",
+        "updates": "deterministic_epochs_and_minibatches",
+        "targets": "named_integer_arrays",
     },
 }
 
@@ -203,6 +215,94 @@ def load_dense_array_bindings(
         )
         for input_id, value in arrays.items()
     )
+
+
+def load_target_array_bindings(
+    path: str | Path, training: Mapping[str, Any]
+) -> tuple[TargetArrayBinding, ...]:
+    """Load NPY/NPZ class targets against the recipe's named objectives."""
+    source_path = Path(path)
+    digest = "sha256:" + hashlib.sha256(source_path.read_bytes()).hexdigest()
+    target_ids = sorted(
+        {row["target"] for row in training.get("objectives", []) if "target" in row}
+    )
+    loaded = np.load(source_path, allow_pickle=False)
+    source = {"kind": "file", "path": str(source_path), "digest": digest}
+    if isinstance(loaded, np.ndarray):
+        if len(target_ids) != 1:
+            raise ValueError(
+                f"a target NPY requires exactly one recipe target; targets are {target_ids}"
+            )
+        arrays = {target_ids[0]: loaded}
+        keys = {target_ids[0]: None}
+    else:
+        try:
+            arrays = {key: loaded[key] for key in loaded.files}
+        finally:
+            loaded.close()
+        keys = {key: key for key in arrays}
+    if set(arrays) != set(target_ids):
+        raise ValueError(
+            f"target array ids do not match recipe targets; expected={target_ids}, got={sorted(arrays)}"
+        )
+    return tuple(
+        TargetArrayBinding(
+            target_id,
+            torch.as_tensor(arrays[target_id]),
+            {**source, "array": keys[target_id]},
+        )
+        for target_id in target_ids
+    )
+
+
+def resolve_target_array_bindings(
+    training: Mapping[str, Any],
+    *,
+    bindings: Sequence[TargetArrayBinding] = (),
+    targets: Mapping[str, torch.Tensor] | None = None,
+    sample_count: int,
+    device: str | torch.device = "cpu",
+) -> tuple[dict[str, torch.Tensor], list[dict[str, Any]]]:
+    """Validate named one-dimensional integer targets and retain their provenance."""
+    if bindings and targets:
+        raise ValueError("provide target bindings or target tensors, not both")
+    if not bindings:
+        bindings = tuple(
+            TargetArrayBinding(name, value, {"kind": "memory"})
+            for name, value in (targets or {}).items()
+        )
+    expected = {
+        row["target"] for row in training.get("objectives", []) if "target" in row
+    }
+    by_name = {binding.target_id: binding for binding in bindings}
+    if len(by_name) != len(bindings):
+        raise ValueError("duplicate target array binding")
+    if set(by_name) != expected:
+        raise ValueError(
+            f"target ids do not match recipe; missing={sorted(expected - set(by_name))}, unexpected={sorted(set(by_name) - expected)}"
+        )
+    resolved = {}
+    rows = []
+    integer_dtypes = {torch.int8, torch.int16, torch.int32, torch.int64, torch.uint8}
+    for target_id in sorted(by_name):
+        binding = by_name[target_id]
+        value = binding.value
+        if value.ndim != 1 or value.shape[0] != sample_count:
+            raise ValueError(
+                f"training target {target_id} expected shape [{sample_count}], got {list(value.shape)}"
+            )
+        if value.dtype not in integer_dtypes:
+            raise ValueError(f"training target {target_id} must use an integer dtype")
+        resolved[target_id] = value.to(device=device, dtype=torch.long)
+        rows.append(
+            {
+                "target_id": target_id,
+                "shape": list(value.shape),
+                "dtype": str(value.dtype).removeprefix("torch."),
+                "source": dict(binding.source),
+            }
+        )
+    return resolved, rows
 
 
 def load_event_stream_bindings(
@@ -1212,6 +1312,7 @@ def save_training_checkpoint(path: str | Path, checkpoint: TrainingCheckpoint) -
         "selected_loss": checkpoint.selected_loss,
         "execution_protocol": checkpoint.execution_protocol,
         "initialization": checkpoint.initialization,
+        "data_state": checkpoint.data_state,
         "optimizer_scalars": optimizer_scalars,
         "tensors_file": "tensors.npz",
         "tensors_digest": tensors_digest,
@@ -1289,6 +1390,7 @@ def load_training_checkpoint(
         parameters=parameters,
         optimizer_state=optimizer_state,
         rng_state=rng_state,
+        data_state=manifest.get("data_state", {}),
     )
 
 
@@ -2217,7 +2319,7 @@ def train(spec: ExecutionSpec) -> ExecutionResult:
         training = load_training_recipe(spec.bundle, manifest, graph)
     if training is None:
         raise ValueError("graph training requires a training recipe or training bundle")
-    if not spec.targets:
+    if not spec.targets and not spec.target_bindings:
         raise ValueError("graph training requires external target tensors")
     device = resolve_device(spec.device)
     resolved_inputs = resolve_input_bindings(
@@ -2230,11 +2332,49 @@ def train(spec: ExecutionSpec) -> ExecutionResult:
         seed=spec.seed,
         protocol=spec.protocol,
     )
+    dataset_epochs = int(spec.options.get("epochs", 0) or 0)
+    dataset_mode = dataset_epochs > 0
+    dataset_size = next(iter(resolved_inputs.tensors.values())).shape[1]
+    if any(
+        value.shape[1] != dataset_size for value in resolved_inputs.tensors.values()
+    ):
+        raise ValueError("graph training inputs must share one dataset sample axis")
+    resolved_targets, target_rows = resolve_target_array_bindings(
+        training,
+        bindings=spec.target_bindings,
+        targets=spec.targets,
+        sample_count=dataset_size,
+        device=device,
+    )
+    batch_size = int(spec.options.get("batch_size") or dataset_size)
+    if batch_size <= 0:
+        raise ValueError("graph training batch size must be positive")
+    batches_per_epoch = math.ceil(dataset_size / batch_size)
+    shuffle = bool(spec.options.get("shuffle", False))
+    protocol = {**resolved_inputs.protocol, "targets": target_rows}
+    if dataset_mode:
+        protocol = {
+            **protocol,
+            "dataset": {
+                **protocol["dataset"],
+                "sample_cap": dataset_size,
+                "batch_size": batch_size,
+                "shuffle": shuffle,
+            },
+            "training_iteration": {
+                "schema": "tools/snn.dataset-iteration/v1",
+                "epochs": dataset_epochs,
+                "drop_last": False,
+                "order_seed": int(spec.seed),
+            },
+        }
+    resolved_inputs = ResolvedDenseInputs(resolved_inputs.tensors, protocol)
     parameter_map = model.parameter_map()
     graph_digest = training["graph_digest"]
     training_digest = _json_digest(training)
     resumed: TrainingCheckpoint | None = None
     completed_updates = 0
+    data_state: dict[str, Any] = {"epoch": 0, "batch": 0} if dataset_mode else {}
     if spec.checkpoint is not None:
         resumed = load_training_checkpoint(spec.checkpoint, device=device)
         if resumed.graph_digest != graph_digest:
@@ -2272,6 +2412,31 @@ def train(spec: ExecutionSpec) -> ExecutionResult:
                     )
                 parameter.copy_(restored)
         completed_updates = resumed.completed_updates
+        if dataset_mode:
+            if set(resumed.data_state) != {"epoch", "batch"}:
+                raise ValueError(
+                    "dataset training checkpoint requires epoch and batch data-order state"
+                )
+            data_state = {
+                "epoch": int(resumed.data_state["epoch"]),
+                "batch": int(resumed.data_state["batch"]),
+            }
+            epoch = data_state["epoch"]
+            batch = data_state["batch"]
+            if (
+                epoch < 0
+                or epoch > dataset_epochs
+                or batch < 0
+                or batch >= batches_per_epoch
+                or (epoch == dataset_epochs and batch != 0)
+            ):
+                raise ValueError(
+                    f"dataset training checkpoint has invalid data-order state {data_state}"
+                )
+        elif resumed.data_state:
+            raise ValueError(
+                "single-batch training cannot resume a dataset-iteration checkpoint"
+            )
     groups = []
     for group in sorted(
         training.get("parameter_groups", []), key=lambda row: row["id"]
@@ -2312,7 +2477,14 @@ def train(spec: ExecutionSpec) -> ExecutionResult:
             }
         torch.set_rng_state(resumed.rng_state.cpu())
     output_ids = {row["signal"]: row["id"] for row in graph.get("outputs", [])}
-    updates = int(spec.options.get("updates", 1))
+    updates_option = spec.options.get("updates")
+    updates = int(
+        updates_option
+        if updates_option is not None
+        else (
+            dataset_epochs * math.ceil(dataset_size / batch_size) if dataset_mode else 1
+        )
+    )
     if updates <= 0:
         raise ValueError("graph training updates must be positive")
     history = []
@@ -2333,7 +2505,9 @@ def train(spec: ExecutionSpec) -> ExecutionResult:
             }
         return packed
 
-    def checkpoint_at(update_count: int, loss_value: float) -> TrainingCheckpoint:
+    def checkpoint_at(
+        update_count: int, loss_value: float, next_data_state: Mapping[str, Any]
+    ) -> TrainingCheckpoint:
         return TrainingCheckpoint(
             graph_digest=graph_digest,
             training_digest=training_digest,
@@ -2346,11 +2520,44 @@ def train(spec: ExecutionSpec) -> ExecutionResult:
             },
             optimizer_state=optimizer_state_by_name(),
             rng_state=torch.get_rng_state().clone(),
+            data_state=dict(next_data_state),
         )
 
-    for update in range(updates):
+    scheduled: list[tuple[int, int, torch.Tensor]] = []
+    if dataset_mode:
+        for epoch in range(data_state["epoch"], dataset_epochs):
+            generator = torch.Generator(device="cpu").manual_seed(spec.seed + epoch)
+            order = (
+                torch.randperm(dataset_size, generator=generator)
+                if shuffle
+                else torch.arange(dataset_size)
+            )
+            first_batch = data_state["batch"] if epoch == data_state["epoch"] else 0
+            for batch in range(first_batch, batches_per_epoch):
+                scheduled.append(
+                    (epoch, batch, order[batch * batch_size : (batch + 1) * batch_size])
+                )
+        scheduled = scheduled[:updates]
+        if not scheduled:
+            raise ValueError(
+                "dataset training checkpoint is already at the requested end epoch"
+            )
+    else:
+        scheduled = [
+            (-1, update, torch.arange(dataset_size)) for update in range(updates)
+        ]
+
+    for update, (epoch, batch, sample_indices) in enumerate(scheduled):
         optimizer.zero_grad(set_to_none=True)
-        forward = model(resolved_inputs.tensors, record="full")
+        batch_inputs = {
+            name: value.index_select(1, sample_indices.to(value.device))
+            for name, value in resolved_inputs.tensors.items()
+        }
+        batch_targets = {
+            name: value.index_select(0, sample_indices.to(value.device))
+            for name, value in resolved_targets.items()
+        }
+        forward = model(batch_inputs, record="full")
         components: dict[str, torch.Tensor] = {}
         loss = torch.zeros((), device=device)
         for index, objective in enumerate(training.get("objectives", [])):
@@ -2364,11 +2571,11 @@ def train(spec: ExecutionSpec) -> ExecutionResult:
                     f"objective[{index}] prediction {objective['prediction']} is not a graph output"
                 )
             target_name = objective["target"]
-            if target_name not in spec.targets:
+            if target_name not in resolved_targets:
                 raise ValueError(
                     f"objective[{index}] missing target tensor {target_name}"
                 )
-            target = spec.targets[target_name].to(device=device, dtype=torch.long)
+            target = batch_targets[target_name].to(device=device, dtype=torch.long)
             value = torch.nn.functional.cross_entropy(
                 forward.outputs[output_id], target
             ) * float(objective.get("weight", 1.0))
@@ -2417,24 +2624,35 @@ def train(spec: ExecutionSpec) -> ExecutionResult:
                 if (rows[name].get("constraint") or {}).get("kind") == "non_negative":
                     parameter.clamp_(min=0)
         absolute_update = completed_updates + update + 1
+        next_data_state: dict[str, Any] = {}
+        if dataset_mode:
+            next_data_state = {"epoch": epoch, "batch": batch + 1}
+            if next_data_state["batch"] == batches_per_epoch:
+                next_data_state = {"epoch": epoch + 1, "batch": 0}
         loss_value = float(loss.detach())
         history.append(
             {
                 "update": absolute_update,
+                **({"epoch": epoch + 1, "batch": batch + 1} if dataset_mode else {}),
                 "loss": loss_value,
                 "components": {
                     name: float(value.detach()) for name, value in components.items()
                 },
             }
         )
-        candidate = checkpoint_at(absolute_update, loss_value)
+        candidate = checkpoint_at(absolute_update, loss_value, next_data_state)
         if selected_checkpoint is None or loss_value < float(
             selected_checkpoint.selected_loss
         ):
             selected_checkpoint = candidate
         final_forward = forward
     assert final_forward is not None
-    final_checkpoint = checkpoint_at(completed_updates + updates, history[-1]["loss"])
+    completed_this_call = len(scheduled)
+    final_checkpoint = checkpoint_at(
+        completed_updates + completed_this_call,
+        history[-1]["loss"],
+        next_data_state,
+    )
     if save_final := spec.options.get("save_final_checkpoint"):
         save_training_checkpoint(save_final, final_checkpoint)
     if save_selected := spec.options.get("save_selected_checkpoint"):

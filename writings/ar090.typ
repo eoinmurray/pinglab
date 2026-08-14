@@ -41,7 +41,7 @@
     [Readouts], [Implemented], [Mean voltage, final voltage, spike count, spike rate, cumulative potential, and valid-time masks execute through graph operations.],
     [Input bindings], [Partial], [Resolved dense-array, valid-time-mask, and sparse event-stream bindings emit a versioned execution protocol; portable dataset loaders and encoders are pending.],
     [Training recipes], [Implemented], [Validated objectives, regularizers, groups, gradient choices, duration, and reachability compile to canonical data.],
-    [Native training], [Core implemented], [Typed single-batch AdamW updates and versioned named checkpoints support exact CPU resume; dataset iteration, accelerator stochastic state, and parity gates remain.],
+    [Native training], [Core implemented], [Deterministic epoch/minibatch AdamW training and versioned named checkpoints support exact mid-epoch CPU resume; accelerator stochastic state and parity gates remain.],
     [Collection migration], [Not implemented], [Requires the complete issue 73 equivalence process.],
   )
 
@@ -57,9 +57,8 @@
 
   ==== Graph-native training and checkpoints
 
-  - Extend the implemented recurrent single-batch update core to dataset iteration and production trajectories.
-  Versioned graph-training checkpoints, selected and final persistence, strict named loading, the one-layer legacy parameter map, and exact CPU optimizer/random-stream resume are implemented.
-  - Extend the checkpoint contract to accelerator stochastic state and dataset data-order state when those execution layers are added.
+  Deterministic dataset iteration, named digest-bearing target bindings, versioned graph-training checkpoints, selected and final persistence, strict named loading, the one-layer legacy parameter map, and exact mid-epoch CPU optimizer/random-stream/data-order resume are implemented.
+  - Extend the checkpoint contract to accelerator stochastic state when accelerator training is validated.
   - Validate COBA, PING, trainable recurrence, fine timesteps, variable rates, MNIST, SHD, and deeper trained graphs.
 
   ==== Inference and interventions
