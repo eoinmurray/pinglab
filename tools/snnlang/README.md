@@ -238,6 +238,13 @@ state. They require exact keys, runtime shapes, floating dtypes, and complete
 graph coverage, and return mapping-version/direction provenance. Legacy
 optimizer objects are not presented as portable graph training checkpoints.
 
+Graph simulation/inference can load a selected or final training-checkpoint
+directory after authenticating its payload, graph digest, names, shapes, and
+dtypes. Inference metrics retain checkpoint format/path, graph and training
+digests, completed update, and selected loss; optimizer and iterator state are
+not restored for inference. Non-directory checkpoints remain the explicit
+legacy PyTorch state-file route.
+
 A separate five-sample dataset oracle reconstructs two shuffled epochs and
 their uneven final batches directly with seeded PyTorch permutations. Update
 coordinates, the complete loss trajectory, final gradient/parameter/AdamW

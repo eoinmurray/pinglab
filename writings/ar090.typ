@@ -63,6 +63,7 @@
 
   ==== Inference and interventions
 
+  Portable selected/final graph checkpoint loading for simulation and inference is implemented with exact graph/name/shape/dtype validation and checkpoint provenance in metrics.
   - Override inference duration, input rate, timestep, and supported projection strengths through an explicit execution contract.
   - Provide hidden-spike deletion and Poisson-addition interventions without reaching into backend internals.
   - Stabilize names and shapes for population spikes, membrane traces, rates, logits, accuracy, and rasters.
