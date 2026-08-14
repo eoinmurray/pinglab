@@ -118,5 +118,5 @@ def build_plan(root: Path, campaign_id: str) -> dict[str, Any]:
         "pending_root_decisions": list(PENDING_ROOT_DECISIONS),
         "excluded": ["exp048"],
         "blocking_issues": [],
-        "acceptance_issues": [47],
+        "acceptance_issues": [],
     }

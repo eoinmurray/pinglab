@@ -7,7 +7,8 @@ weights with `load_cell` (imported from this module) instead of retraining
 their own. This replaces the collection's older "standalone runner, no
 cross-notebook helpers" rule with a train-once / reuse-many policy (see ar016).
 
-87 cells across five families (canonical, rate target, τ_GABA, Δt, init) that exp025
+90 cells across six families (canonical, rate target, τ_GABA, Δt, init, variable rate)
+that exp025
 defines and that exp024 / exp037 / exp038 each used to retrain
 independently. Standard: 50 epochs, dt = 0.1 ms, T = 200 ms, and THREE seeds
 (42/43/44) for every cell — including the rate target interior, so the accuracy–rate
