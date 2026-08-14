@@ -184,6 +184,51 @@ def test_training_selects_and_freezes_parameters():
     assert bundle.training is not None
     assert bundle.training["graph_digest"] == bundle.manifest["graph_digest"]
     assert bundle.training["parameter_groups"][1]["frozen"]
+    assert bundle.training["resolved_parameters"] == {
+        "trainable": sorted(ids[:1]),
+        "frozen": sorted(ids[1:]),
+        "learning_rates": {ids[0]: 1e-3},
+    }
+
+
+@pytest.mark.parametrize(
+    ("groups", "message"),
+    [
+        (
+            lambda ids: [training.ParameterGroup(ids[:1], name="partial", lr=1e-3)],
+            "omitted",
+        ),
+        (
+            lambda ids: [
+                training.ParameterGroup(ids, name="first", lr=1e-3),
+                training.ParameterGroup(ids[:1], name="second", lr=1e-3),
+            ],
+            "already selected",
+        ),
+        (
+            lambda ids: [
+                training.ParameterGroup(ids, name="frozen", lr=1e-3, frozen=True)
+            ],
+            "frozen parameter group learning rate must be zero",
+        ),
+        (
+            lambda ids: [training.ParameterGroup(ids, name="trainable", lr=0)],
+            "trainable parameter group learning rate must be positive",
+        ),
+    ],
+)
+def test_training_parameter_groups_fail_closed(groups, message):
+    net, cell = small_network()
+    scores = snn.readouts.SpikeCount(source=cell.E.spikes, classes=2, name="scores")
+    net.output("class_scores", scores)
+    ids = [p["id"] for p in net.parameters]
+    spec = snn.TrainSpec(
+        objectives=[training.CrossEntropy(prediction=scores, target="label")],
+        parameter_groups=groups(ids),
+        optimizer=training.AdamW(),
+    )
+    with pytest.raises(ValueError, match=message):
+        snn.compile(net, training=spec)
 
 
 def test_training_rejects_unknown_parameter():
