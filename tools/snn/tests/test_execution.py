@@ -24,7 +24,9 @@ from execution import (
     build,
     execute_request,
     execution_spec_from_args,
+    export_legacy_parameters_v1,
     graph_capability_issues,
+    import_legacy_parameters_v1,
     legacy_parameter_map_v1,
     load_dense_array_bindings,
     load_event_stream_bindings,
@@ -522,6 +524,31 @@ def test_legacy_parameter_map_uses_complete_semantic_names():
         "sensory_ping_I_to_I.weight": "W_ii.1",
         "sensory_ping_input.weight": "W_ff.0",
     }
+
+
+def test_legacy_parameter_interchange_round_trips_exactly_and_rejects_partial():
+    graph = ping_classifier().graph
+    built = build(ExecutionSpec(kind="build", executor="graph", graph=graph, seed=9))
+    exported = export_legacy_parameters_v1(graph, built.parameters)
+    assert exported.provenance["direction"] == "graph_to_legacy"
+    assert set(exported.parameters) == {
+        "W_ff.0",
+        "W_ff.1",
+        "W_ee.1",
+        "W_ei.1",
+        "W_ie.1",
+        "W_ii.1",
+    }
+    imported = import_legacy_parameters_v1(graph, exported.parameters)
+    assert imported.provenance["direction"] == "legacy_to_graph"
+    for name in built.parameters:
+        torch.testing.assert_close(
+            imported.parameters[name], built.parameters[name], rtol=0, atol=0
+        )
+    partial = dict(exported.parameters)
+    partial.pop("W_ii.1")
+    with pytest.raises(ValueError, match="exact keys"):
+        import_legacy_parameters_v1(graph, partial)
 
 
 def test_legacy_and_bundle_cli_arguments_both_lower_to_typed_specs(tmp_path):

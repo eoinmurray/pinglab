@@ -80,6 +80,8 @@
 
   A one-step backward case makes all six feedforward and recurrent tensors trainable and compares cross-entropy, every named gradient, the constrained post-update parameters, and all named AdamW tensors under the same predeclared tolerance. The fixture applies the legacy trainer's non-negative projection after the optimizer step, separating optimizer state from the constrained stored parameter value.
 
+  Bidirectional parameter interchange now imports and exports the supported legacy state keys with exact coverage, shape, dtype, and mapping-version provenance. Forward conformance is rerun after a graph → legacy → graph round trip. Optimizer interchange remains deliberately excluded because a legacy optimizer object does not satisfy the portable graph checkpoint contract.
+
   - Compare topology, parameter tensors, initialized state, forward traces, loss, gradients, optimizer updates, checkpoint interchange, exact resume, learning trajectories, interventions, and aggregations.
   - Define exact fields and numerical tolerances before viewing the final comparison.
   - Run CPU and publication-accelerator conformance cases and record any limits on numerical determinism.
