@@ -43,6 +43,25 @@ def test_disabled_projection_remains_structural_and_explicit():
     assert parameter["shape"] == [3, 12]
 
 
+def test_initializer_vocabulary_serializes_without_opaque_options():
+    assert snn.SignedNormal(-0.1, 0.2).json() == {
+        "kind": "signed_normal",
+        "mean": -0.1,
+        "std": 0.2,
+    }
+    assert snn.Uniform(0.1, 0.3).json() == {"kind": "uniform", "low": 0.1, "high": 0.3}
+    assert snn.Zeros().json() == {"kind": "zeros"}
+    assert snn.LowerClampedNormal(
+        0.2, 0.03, initial_zero_fraction=0.75, zeroing="exact_k"
+    ).json() == {
+        "kind": "lower_clamped_normal",
+        "mean": 0.2,
+        "std": 0.03,
+        "initial_zero_fraction": 0.75,
+        "zeroing": "exact_k",
+    }
+
+
 def test_names_are_unique():
     net = snn.Network("bad")
     net.input("x", shape=(1,), signal_type="continuous")
