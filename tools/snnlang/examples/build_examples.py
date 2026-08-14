@@ -73,7 +73,35 @@ def deep_network():
     )
     net.output("gesture_logits", result)
     net.expose(first.E.spikes, second.E.spikes, third.E.spikes)
-    return snn.compile(net)
+    recipe = snn.TrainSpec(
+        objectives=[training.CrossEntropy(prediction=result, target="gesture")],
+        regularizers=[
+            training.SpikeBudgetPenalty(
+                signals=(
+                    first.E.spikes,
+                    first.I.spikes,
+                    second.E.spikes,
+                    second.I.spikes,
+                    third.E.spikes,
+                    third.I.spikes,
+                ),
+                ceiling_hz=100.0,
+                strength=1e-4,
+            )
+        ],
+        parameter_groups=[
+            training.ParameterGroup(
+                [row["id"] for row in net.parameters],
+                name="all_layers",
+                lr=1e-3,
+            )
+        ],
+        optimizer=training.AdamW(weight_decay=1e-4),
+        surrogate=training.FastSigmoid(slope=1.0),
+        presentation_duration=100 * snn.ms,
+        epochs=20,
+    )
+    return snn.compile(net, training=recipe)
 
 
 def coupled_feedback():
