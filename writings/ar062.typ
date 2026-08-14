@@ -4,7 +4,7 @@
   title: "Bayesian and sampling-based cortical computation",
   date: "2026-06-28",
   description: "A project-oriented reading guide to Bayesian population codes, neural sampling, recurrent E/I dynamics, and the background needed to read the core papers.",
-  collection: "miscellaneous",
+  collection: "exploratory",
 )
 
 #let refs = (

@@ -4,7 +4,7 @@
   title: "Arnold tongue of two coupled PING circuits",
   date: "2026-08-07",
   description: "An 80 E / 20 I graph-native reproduction recovers the widening Arnold tongue; a focused 800 E / 200 I confirmation resolves its lone phase-sign failure.",
-  collection: "miscellaneous",
+  collection: "exploratory",
   status: "final",
 )
 

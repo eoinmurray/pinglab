@@ -4,7 +4,7 @@
   title: "The Functional Role of PING: mapping the space",
   date: "2026-07-12",
   description: "An exhaustive, DOI-verified, recall-measured corpus of papers in which the PING mechanism (gamma from reciprocal pyramidal–interneuron interaction) is explicitly the vehicle for a functional claim. Built by four decorrelated capture channels, membership decided by a consistent two-stage judge, completeness estimated by capture–recapture.",
-  collection: "miscellaneous",
+  collection: "exploratory",
   status: "final",
 )
 
