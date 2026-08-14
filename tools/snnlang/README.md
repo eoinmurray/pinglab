@@ -198,11 +198,19 @@ epoch count, and order seed.
 Graph training checkpoints use a versioned manifest plus a digest-verified
 tensor payload. They key parameters and AdamW state by stable graph id and
 record graph/training digests, completed updates, execution protocol,
-initializer metadata, CPU random state, and the exact next epoch/batch. The trainer can save final and
-invocation-selected checkpoints and resume exactly after rejecting recipe,
+initializer metadata, CPU random state, and the exact next epoch/batch. The
+trainer can save final and invocation-selected checkpoints and resume exactly after rejecting recipe,
 protocol, initializer, shape, dtype, or parameter-set mismatches. An explicit
 one-layer legacy parameter map fails closed when any graph parameter is
 unrepresentable. Accelerator stochastic state and production trajectory parity
 remain separate gates. The legacy CLI
 and bundle adapter remain the default and retain their historical numerical
 contract.
+
+`tools/snn/conformance.py` provides the versioned, fail-closed comparison layer
+for migration evidence. It compares complete named tensor layers under an
+explicit exact or numerical policy, reports coverage, shape, dtype, and error
+bounds, and writes `tools/snn.conformance-report/v1` JSON. Canonical JSON
+encoding brings topology, initializer metadata, protocols, and checkpoint
+coordinates into the same report as forward outputs, gradients, parameters,
+and optimizer tensors. Declared tolerance rules that match no field are errors.
