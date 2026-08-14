@@ -55,6 +55,8 @@
 
   The graph backend supports dense AMPA and GABA feedforward, recurrent, and feedback projections. Sparse matrices, structured connectivity, fractional-step delays, and modulatory synapses are not implemented.
 
+  A projection may set `enabled: false`. Disabled projections remain structural: their parameter names, shapes, initializers, and construction positions are unchanged, while execution contributes exactly zero conductance. This is the appropriate representation for controlled recurrent-loop ablations because later tensors retain the same identities and random draws.
+
   === Scheduling and causality
 
   Feedforward edges with no delay follow a deterministic topological order. Recurrent and feedback spikes are causal: zero additional delay still means that a spike affects another population no earlier than the next simulation step. Positive delays must be exact multiples of the network timestep.
@@ -82,6 +84,7 @@
       source, target, *, name, synapse,
       weight=Constant(1.0), constraint=None,
       connection="feedforward", delay=None,
+      enabled=True,
   ) -> Projection
   ```
 

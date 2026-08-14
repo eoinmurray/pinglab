@@ -155,6 +155,11 @@ timestep. Zero-delay cycles, dimension errors, malformed masks, ambiguous
 durations, polarity mismatches, and missing backend capabilities fail before
 simulation.
 
+Projections authored with `enabled=False` remain in the graph with the same
+parameter shape, initializer, name, and construction position, but contribute
+zero conductance at runtime. Controlled cells can therefore disable a recurrent
+loop without shifting later tensor identities or random initialization draws.
+
 Graph-native training is deliberately not enabled at this milestone. A graph
 training request fails with the explicit future `training:v1` capability rather
 than silently routing through the legacy trainer. The legacy CLI and bundle
