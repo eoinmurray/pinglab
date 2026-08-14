@@ -9,6 +9,7 @@ import pytest
 from tools.runstore.contract import (
     ContractError,
     inventory_payload,
+    validate_run_manifest,
     write_json_atomic,
 )
 from tools.runstore.lifecycle import initialize_run
@@ -57,6 +58,14 @@ def test_init_creates_adhoc_layout_and_refuses_existing_root(tmp_path: Path) -> 
     )
 
     assert manifest["kind"] == "adhoc"
+    assert manifest["execution"] == {
+        "experiment": "exp123",
+        "collection": None,
+        "command": ["experiment", "--out-dir", str(root)],
+        "executor": "legacy",
+        "graph_digest": None,
+        "training_digest": None,
+    }
     assert (root / "state").is_dir()
     assert (root / "derived/artifacts/data/exp123").is_dir()
     assert (root / "logs").is_dir()
@@ -90,6 +99,34 @@ def test_init_creates_campaign_layout(tmp_path: Path) -> None:
     assert (root / "derived/artifacts").is_dir()
 
 
+def test_graph_run_requires_and_preserves_compiled_identities(tmp_path: Path) -> None:
+    graph_digest = "sha256:" + "a" * 64
+    training_digest = "sha256:" + "b" * 64
+    manifest = initialize_run(
+        tmp_path / "graph-run",
+        run_id="graph-run",
+        kind="adhoc",
+        experiment="exp123",
+        collection=None,
+        command=["tool.py", "train", "--executor", "graph"],
+        executor="graph",
+        graph_digest=graph_digest,
+        training_digest=training_digest,
+        repository=tmp_path,
+    )
+    assert manifest["execution"]["executor"] == "graph"
+    assert manifest["execution"]["graph_digest"] == graph_digest
+    assert manifest["execution"]["training_digest"] == training_digest
+
+    invalid = json.loads(json.dumps(manifest))
+    invalid["execution"]["graph_digest"] = None
+    with pytest.raises(ContractError, match="requires execution.graph_digest"):
+        validate_run_manifest(invalid)
+    invalid["execution"] = {**manifest["execution"], "executor": "legacy"}
+    with pytest.raises(ContractError, match="legacy execution cannot"):
+        validate_run_manifest(invalid)
+
+
 def test_promotion_writes_reverse_provenance_without_changing_source(
     tmp_path: Path,
 ) -> None:
@@ -112,6 +149,9 @@ def test_promotion_writes_reverse_provenance_without_changing_source(
     assert provenance["archive"]["archive_id"] == "test-archive"
     assert provenance["source_directory"] == "derived/artifacts/data/exp123"
     assert provenance["promoted_at_utc"] == "2026-08-11T01:02:03Z"
+    assert provenance["executor"] == "legacy"
+    assert provenance["graph_digest"] is None
+    assert provenance["training_digest"] is None
     assert {row["path"] for row in provenance["files"]} == {
         "figure.svg",
         "numbers.json",
