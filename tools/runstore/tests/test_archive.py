@@ -7,7 +7,8 @@ from pathlib import Path
 import pytest
 
 from tools.runstore.archive import archive_run, restore_archive, verify_archive
-from tools.runstore.contract import ContractError
+from tools.runstore.contract import ContractError, inventory_payload, write_json_atomic
+from tools.runstore.lifecycle import initialize_run
 from tools.runstore.storage import LocalStore
 
 EXAMPLE = Path(__file__).parents[1] / "examples" / "minimal-run"
@@ -42,6 +43,47 @@ def test_local_archive_verify_and_restore_round_trip(tmp_path: Path) -> None:
     ).read_bytes() == (
         source / "derived/artifacts/data/exp000/numbers.json"
     ).read_bytes()
+
+
+def test_graph_execution_identity_survives_archive_and_restore(tmp_path: Path) -> None:
+    source = tmp_path / "source"
+    graph_digest = "sha256:" + "a" * 64
+    training_digest = "sha256:" + "b" * 64
+    run = initialize_run(
+        source,
+        run_id="graph-fixture",
+        kind="adhoc",
+        experiment="exp123",
+        collection=None,
+        command=["tool.py", "train", "--executor", "graph"],
+        executor="graph",
+        graph_digest=graph_digest,
+        training_digest=training_digest,
+        repository=tmp_path,
+    )
+    run["status"] = "complete"
+    write_json_atomic(source / "run.json", run)
+    write_json_atomic(
+        source / "inventory.json",
+        inventory_payload(source, run_id=run["run_id"]),
+    )
+    store = LocalStore(tmp_path / "store")
+    archived = archive_run(source, "graph-fixture", store)
+    restored_root = tmp_path / "restored"
+    restore_archive(store, "graph-fixture", restored_root)
+    restored = json.loads((restored_root / "run.json").read_text())
+    assert (
+        archived["execution"]
+        == restored["execution"]
+        == {
+            "experiment": "exp123",
+            "collection": None,
+            "command": ["tool.py", "train", "--executor", "graph"],
+            "executor": "graph",
+            "graph_digest": graph_digest,
+            "training_digest": training_digest,
+        }
+    )
 
 
 def test_archive_refuses_existing_identity(tmp_path: Path) -> None:

@@ -73,7 +73,8 @@ runs/restored/<archive-id>/
 - `source.git_commit`: full generating commit when known, otherwise `null`;
 - `source.git_clean`: boolean when known, otherwise `null`;
 - `source.lockfile`: repository-relative lockfile path and SHA-256 when known;
-- `execution`: experiment or collection identity plus the invoked command;
+- `execution`: experiment or collection identity, invoked command, explicit
+  `legacy` or `graph` executor, and nullable graph/training digests;
 - `upstream`: referenced run/campaign identities;
 - `archive`: stable archive identity and R2 URI, or `null` before archival;
 - `provenance_notes`: honest free-text qualifications, especially for legacy data.
@@ -83,6 +84,25 @@ reconstructed from the current checkout and presented as historical fact.
 
 Commands are JSON arrays, not shell strings. This preserves argument boundaries
 without requiring shell parsing.
+
+Every newly initialized run stores `execution.executor`; omitted executor fields
+remain accepted only for historical version-1 manifests and are interpreted as
+legacy during promotion. Graph runs require a `sha256:<64 lowercase hex>` graph
+digest and may record the training-recipe digest. Legacy runs reject both
+digests. Initialize a graph run with, for example:
+
+```sh
+uv run python -m tools.runstore init runs/adhoc/example \
+  --run-id example --kind adhoc --experiment exp123 \
+  --executor graph \
+  --graph-digest sha256:... \
+  --training-digest sha256:... \
+  --command uv run python experiments/exp123.py
+```
+
+Inventory, archive, verification, and restore retain `run.json` byte-for-byte.
+Promotion copies executor and graph/training identities into reverse provenance,
+so publication ownership remains independent of the selected execution backend.
 
 ## `inventory.json`
 
@@ -322,7 +342,8 @@ the same interface as they enter the checked-in dependency graph.
 
 The gamma-gated-sparsity orchestrator may depend only on this sequence:
 
-1. `runstore init` creates a new campaign root and `run.json`.
+1. `runstore init` creates a new campaign root and `run.json`, explicitly
+   selecting the executor and graph/training identities when applicable.
 2. Experiments write state, logs, and derived artifact candidates beneath it.
 3. `runstore inspect --finalize` marks the successful campaign `complete` and
    freezes its payload identity.

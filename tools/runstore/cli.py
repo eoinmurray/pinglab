@@ -144,6 +144,11 @@ def build_parser() -> argparse.ArgumentParser:
     init_parser.add_argument("--upstream", action="append", default=[])
     init_parser.add_argument("--provenance-notes", default="")
     init_parser.add_argument(
+        "--executor", choices=("legacy", "graph"), default="legacy"
+    )
+    init_parser.add_argument("--graph-digest")
+    init_parser.add_argument("--training-digest")
+    init_parser.add_argument(
         "--command",
         dest="execution_command",
         nargs=argparse.REMAINDER,
@@ -270,6 +275,9 @@ def main(argv: list[str] | None = None) -> None:
                 command=args.execution_command,
                 upstream=args.upstream,
                 provenance_notes=args.provenance_notes,
+                executor=args.executor,
+                graph_digest=args.graph_digest,
+                training_digest=args.training_digest,
             )
             _print_result(
                 {
