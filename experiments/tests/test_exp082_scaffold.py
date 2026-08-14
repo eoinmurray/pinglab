@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import numpy as np
 from experiments import exp022, exp082
+from experiments.collections.gamma_gated_sparsity.plan import build_plan
 
 
 def test_exp022_planned_bank_targets_exp082() -> None:
@@ -100,3 +101,61 @@ def test_spike_count_logits_use_only_matched_window() -> None:
 def test_psychometric_is_fixed_at_training_duration() -> None:
     assert exp082.MATCHED_DURATION_MS == 200.0
     assert exp082.PSYCHOMETRIC_RATES_HZ == exp082.TRAINING_RATES_HZ
+
+
+def test_collection_requires_exp082_measurements_and_figures(tmp_path) -> None:
+    plan = build_plan(tmp_path / "campaign", "exp082-contract")
+    row = next(
+        row
+        for stage in plan["stages"]
+        for row in stage["experiments"]
+        if row["slug"] == "exp082"
+    )
+    assert [path.rsplit("/", 1)[-1] for path in row["required_outputs"]] == [
+        "numbers.json",
+        "measurements.npz",
+        "matched_stream.png",
+        "variable_stream.png",
+        "psychometric_200ms.svg",
+        "duration_rate_summary.png",
+    ]
+
+
+def test_saved_measurements_replot_every_figure(tmp_path, monkeypatch) -> None:
+    monkeypatch.setattr(exp082, "FIGURES", tmp_path)
+    stream = {
+        "boundaries": [0, 2],
+        "conditions": [[0.2, 5.0]],
+        "labels": [1],
+        "predictions": [1],
+        "correct": [1],
+        "spikes_e": np.zeros((2, 4), dtype=np.int8),
+        "spikes_i": np.zeros((2, 2), dtype=np.int8),
+        "spikes_out": np.zeros((2, 10), dtype=np.int8),
+        "probabilities": np.full((2, 10), 0.1, dtype=np.float32),
+    }
+    exp082.save_measurements(stream, stream)
+    payload = {
+        "run_id": "test",
+        "matched_stream": {key: value for key, value in stream.items() if not isinstance(value, np.ndarray)},
+        "variable_stream": {key: value for key, value in stream.items() if not isinstance(value, np.ndarray)},
+        "grid_per_seed": [
+            {"seed": seed, "duration_ms": duration, "rate_hz": rate,
+             "n_correct": 1, "n_total": 1, "accuracy": 1.0}
+            for duration in exp082.DURATIONS_MS
+            for rate in exp082.PSYCHOMETRIC_RATES_HZ
+            for seed in exp082.SEEDS
+        ],
+    }
+    payload["duration_200ms_psychometric"] = [
+        row for row in payload["grid_per_seed"]
+        if row["duration_ms"] == exp082.MATCHED_DURATION_MS
+    ]
+    numbers = tmp_path / "numbers.json"
+    numbers.write_text(exp082.json.dumps(payload))
+    exp082.replot_results(numbers, tmp_path / exp082.MEASUREMENTS_FILE)
+    for filename in (
+        "matched_stream.png", "variable_stream.png",
+        "psychometric_200ms.svg", "duration_rate_summary.png",
+    ):
+        assert (tmp_path / filename).is_file()
