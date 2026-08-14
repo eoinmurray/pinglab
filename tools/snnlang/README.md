@@ -229,3 +229,9 @@ compares cross-entropy, named surrogate gradients, constrained parameters, and
 AdamW step/first-moment/second-moment tensors under the same frozen CPU policy.
 Both routes apply the non-negative parameter projection after the optimizer
 step; optimizer state itself remains the unconstrained AdamW update record.
+
+`import_legacy_parameters_v1` and `export_legacy_parameters_v1` provide
+bidirectional parameter-only interchange for the supported one-layer legacy
+state. They require exact keys, runtime shapes, floating dtypes, and complete
+graph coverage, and return mapping-version/direction provenance. Legacy
+optimizer objects are not presented as portable graph training checkpoints.
