@@ -541,12 +541,18 @@ def apply_bundle_to_args(args, argv: list[str]):
     if not getattr(args, "bundle", None):
         return args
     if getattr(args, "executor", "legacy") == "graph":
-        if args.mode == "train":
-            raise BundleCompatibilityError(
-                "graph executor lacks training:v1; use legacy or wait for Milestone 6"
-            )
         # Authenticate data now; graph capability checks happen in planning.
-        load_graph_bundle(args.bundle)
+        manifest, graph = load_graph_bundle(args.bundle)
+        if args.mode == "train":
+            explicit = {item.split("=", 1)[0] for item in argv if item.startswith("--")}
+            conflicts = sorted(explicit & _TRAINING_RECIPE_FLAGS)
+            if conflicts:
+                raise BundleCompatibilityError(
+                    "bundle owns training settings; remove conflicting flags: "
+                    + ", ".join(conflicts)
+                )
+            recipe = load_training_recipe(args.bundle, manifest, graph)
+            args.epochs = int(recipe["epochs"])
         return args
     if args.mode not in {"sim", "train"}:
         raise BundleCompatibilityError("--bundle currently supports sim and train only")

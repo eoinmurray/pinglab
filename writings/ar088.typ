@@ -45,9 +45,9 @@
 
   === Current boundary
 
-  Training recipes compile, and a narrow one-layer MNIST PING recipe can be translated into the legacy trainer. The typed graph API now executes deterministic single-batch AdamW updates for cross-entropy and spike-budget objectives through named trainable/frozen groups. It returns per-update loss components, named gradients, final parameters, and optimizer state. Dataset iteration, CLI target loading, production checkpoints, and exact resume remain later gates; requests never fall back silently to legacy execution.
+  Training recipes compile, and a narrow one-layer MNIST PING recipe can be translated into the legacy trainer. The typed graph API executes deterministic minibatch AdamW trajectories for cross-entropy and spike-budget objectives through named trainable/frozen groups. Named input and target files retain their digests in the execution protocol; seed-derived epoch permutations and checkpointed batch position support exact mid-epoch CPU resume. Requests never fall back silently to legacy execution.
 
-  The complete implementation also needs deterministic initialization, differentiable-reachability checks, recurrent trainability, variable-rate training, spike-budget regularization, selected and final checkpoints, optimizer-state replay, exact resume, and layered legacy-versus-graph conformance tests.
+  Deterministic initialization, differentiable-reachability checks, recurrent trainability, variable-rate protocols, spike-budget regularization, selected and final checkpoints, optimizer-state replay, and exact CPU resume are implemented. Accelerator stochastic-state support and layered legacy-versus-graph conformance tests remain.
 
   == API reference
 
@@ -98,7 +98,7 @@
 
   === Execution support
 
-  `snn.compile(net, training=recipe)` validates and serializes the recipe. `tools.snn.execution.train(ExecutionSpec(executor="graph", training=..., inputs=..., targets=...))` performs one update by default; `options={"updates": n}` repeats the same resolved batch for focused trajectory checks. A training bundle authenticates and supplies its own recipe. The result exposes named gradients and optimizer state without tensor-position mapping.
+  `snn.compile(net, training=recipe)` validates and serializes the recipe. `tools.snn.execution.train(ExecutionSpec(executor="graph", training=..., inputs=..., targets=...))` performs one update by default; `options={"updates": n}` repeats the same resolved batch for focused trajectory checks. Setting `options={"epochs": n, "batch_size": b, "shuffle": true}` iterates the sample axis with a deterministic permutation per epoch. `TargetArrayBinding` and `load_target_array_bindings` provide named NPY/NPZ targets with source digests. A training bundle authenticates and supplies its own recipe. The result exposes named gradients, optimizer state, selected/final checkpoints, and exact next-batch state without tensor-position mapping.
 
   #link("/ar089/")[Next: Runtime state, checkpoints, and provenance]
 ]
