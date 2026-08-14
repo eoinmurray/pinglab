@@ -237,3 +237,8 @@ bidirectional parameter-only interchange for the supported one-layer legacy
 state. They require exact keys, runtime shapes, floating dtypes, and complete
 graph coverage, and return mapping-version/direction provenance. Legacy
 optimizer objects are not presented as portable graph training checkpoints.
+
+A separate five-sample dataset oracle reconstructs two shuffled epochs and
+their uneven final batches directly with seeded PyTorch permutations. Update
+coordinates, the complete loss trajectory, final gradient/parameter/AdamW
+state, and fail-closed resume protocol checks conform with graph iteration.
