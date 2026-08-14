@@ -911,6 +911,42 @@ def test_disabled_projection_keeps_initialization_position_but_carries_no_drive(
     assert torch.count_nonzero(result.recordings[f"{projection_id}.conductance"]) == 0
 
 
+def test_explicit_initializers_constraints_units_and_realized_statistics():
+    graph = _coupled_graph(direction="uncoupled")
+    rows = {row["id"]: row for row in graph["parameters"]}
+    first_id = graph["projections"][0]["parameters"][0]
+    rows[first_id]["initializer"] = {
+        "kind": "lower_clamped_normal",
+        "mean": 0.5,
+        "std": 0.1,
+        "initial_zero_fraction": 0.5,
+        "zeroing": "exact_k",
+    }
+    model = GraphExecutor(plan_graph(graph), seed=37)
+    metadata = model.initialization_metadata[first_id]
+    assert metadata["unit"] == "nS"
+    assert metadata["constraint"] == {"kind": "non_negative"}
+    assert metadata["scaling"] == "fan_in_normalized"
+    assert metadata["statistics"]["count"] == 4
+    assert metadata["statistics"]["zero_fraction"] == pytest.approx(0.5)
+    assert (
+        metadata
+        == GraphExecutor(plan_graph(graph), seed=37).initialization_metadata[first_id]
+    )
+
+
+def test_signed_normal_and_uniform_initializers_have_distinct_semantics():
+    graph = _coupled_graph(direction="uncoupled")
+    rows = {row["id"]: row for row in graph["parameters"]}
+    ids = [projection["parameters"][0] for projection in graph["projections"][:2]]
+    rows[ids[0]]["initializer"] = {"kind": "signed_normal", "mean": -1.0, "std": 0.0}
+    rows[ids[0]]["constraint"] = None
+    rows[ids[1]]["initializer"] = {"kind": "uniform", "low": 2.0, "high": 2.0}
+    model = GraphExecutor(plan_graph(graph), seed=1)
+    assert torch.all(model.parameter_map()[ids[0]] < 0)
+    assert torch.all(model.parameter_map()[ids[1]] > 0)
+
+
 def test_input_delay_pulse_arrives_on_exact_timestep_and_handles_boundary():
     graph = _coupled_graph(direction="uncoupled")
     projection = next(p for p in graph["projections"] if p["id"] == "a_input")

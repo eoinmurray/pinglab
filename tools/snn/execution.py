@@ -1242,6 +1242,7 @@ class GraphExecutor(nn.Module):
         torch.manual_seed(seed)
         rows = {row["id"]: row for row in plan.graph.get("parameters", [])}
         self.weights = nn.ParameterDict()
+        self.initialization_metadata: dict[str, dict[str, Any]] = {}
         pop_ids = {p["id"] for p in plan.populations}
 
         def initialise(
@@ -1251,19 +1252,85 @@ class GraphExecutor(nn.Module):
             scale_by_fanin: bool,
         ) -> torch.Tensor:
             init = row["initializer"]
-            if init["kind"] == "normal":
+            kind = init["kind"]
+            if kind in {"normal", "lower_clamped_normal"}:
                 value = (
                     torch.randn(*runtime_shape)
                     .mul_(float(init["std"]))
                     .add_(float(init["mean"]))
                     .clamp_(min=0)
                 )
+            elif kind == "signed_normal":
+                value = (
+                    torch.randn(*runtime_shape)
+                    .mul_(float(init["std"]))
+                    .add_(float(init["mean"]))
+                )
+            elif kind == "uniform":
+                value = (
+                    torch.rand(*runtime_shape)
+                    .mul_(float(init["high"]) - float(init["low"]))
+                    .add_(float(init["low"]))
+                )
             elif init["kind"] == "constant":
                 value = torch.full(runtime_shape, float(init["value"]))
+            elif kind == "zeros":
+                value = torch.zeros(runtime_shape)
             else:
                 raise ValueError(f"{row['id']}: unsupported initializer {init['kind']}")
+            zero_fraction = float(init.get("initial_zero_fraction", 0.0))
+            if not 0 <= zero_fraction < 1:
+                raise ValueError(
+                    f"{row['id']}: initial_zero_fraction must satisfy 0 <= fraction < 1"
+                )
+            zeroing = init.get("zeroing", "bernoulli")
+            if zero_fraction:
+                if zeroing == "exact_k":
+                    if len(runtime_shape) != 2:
+                        raise ValueError(
+                            f"{row['id']}: exact_k zeroing requires a matrix"
+                        )
+                    fan_in, fan_out = runtime_shape
+                    kept = max(1, int(round((1.0 - zero_fraction) * fan_in)))
+                    mask = torch.zeros(runtime_shape)
+                    for column in range(fan_out):
+                        mask[torch.randperm(fan_in)[:kept], column] = 1
+                    value = value * mask * (fan_in / kept)
+                elif zeroing == "bernoulli":
+                    value = (
+                        value
+                        * (torch.rand(*runtime_shape) > zero_fraction)
+                        / (1 - zero_fraction)
+                    )
+                else:
+                    raise ValueError(
+                        f"{row['id']}: unsupported initializer zeroing {zeroing}"
+                    )
+            constraint = row.get("constraint")
+            if constraint is not None:
+                if constraint.get("kind") != "non_negative":
+                    raise ValueError(
+                        f"{row['id']}: unsupported constraint {constraint.get('kind')}"
+                    )
+                value = value.clamp(min=0)
             if scale_by_fanin:
                 value = value / runtime_shape[0]
+            flat = value.reshape(-1)
+            self.initialization_metadata[row["id"]] = {
+                "initializer": dict(init),
+                "constraint": dict(constraint) if constraint else None,
+                "unit": row.get("unit"),
+                "runtime_shape": list(runtime_shape),
+                "scaling": "fan_in_normalized" if scale_by_fanin else "direct",
+                "statistics": {
+                    "count": flat.numel(),
+                    "zero_fraction": float((flat == 0).float().mean()),
+                    "mean": float(flat.mean()),
+                    "std": float(flat.std(unbiased=False)),
+                    "min": float(flat.min()),
+                    "max": float(flat.max()),
+                },
+            }
             return value
 
         def init_priority(projection: PlannedProjection) -> tuple[int, str]:
@@ -1812,7 +1879,10 @@ def build(spec: ExecutionSpec) -> ExecutionResult:
         executor="graph",
         model=model,
         parameters=model.parameter_map(),
-        metrics={"build_s": time.perf_counter() - started},
+        metrics={
+            "build_s": time.perf_counter() - started,
+            "initialization": model.initialization_metadata,
+        },
     )
 
 
