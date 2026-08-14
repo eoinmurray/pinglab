@@ -8,16 +8,16 @@
 )
 
 #let body = [
-  == Contents <contents>
+  == Contents
 
-  + #link(<developer-guide>)[Developer guide]
-  + #link(<training-separation>)[Training is separate from the graph]
-  + #link(<current-boundary>)[Current boundary]
-  + #link(<api-reference>)[API reference]
+  + #link("/ar088/#developer-guide")[Developer guide]
+  + #link("/ar088/#training-is-separate-from-the-graph")[Training is separate from the graph]
+  + #link("/ar088/#current-boundary")[Current boundary]
+  + #link("/ar088/#api-reference")[API reference]
 
-  == Developer guide <developer-guide>
+  == Developer guide
 
-  === Training is separate from the graph <training-separation>
+  === Training is separate from the graph
 
   `TrainSpec` describes standard learning choices without embedding a training loop in graph structure. It refers to named outputs and parameters in one network.
 
@@ -43,13 +43,13 @@
 
   The recipe vocabulary includes objectives, named parameter groups, learning rates, frozen parameters, optimizer settings, regularizers, stop-gradient boundaries, epoch count, gradient clipping, and surrogate configuration.
 
-  === Current boundary <current-boundary>
+  === Current boundary
 
   Training recipes compile, and a narrow one-layer MNIST PING recipe can be translated into the legacy trainer. Graph-native training is not implemented. A graph training request fails explicitly and never falls back silently to legacy execution.
 
   The complete implementation also needs deterministic initialization, differentiable-reachability checks, recurrent trainability, variable-rate training, spike-budget regularization, selected and final checkpoints, optimizer-state replay, exact resume, and layered legacy-versus-graph conformance tests.
 
-  == API reference <api-reference>
+  == API reference
 
   === `TrainSpec`
 

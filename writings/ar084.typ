@@ -8,18 +8,18 @@
 )
 
 #let body = [
-  == Contents <contents>
+  == Contents
 
-  + #link(<developer-guide>)[Developer guide]
-  + #link(<networks>)[Networks]
-  + #link(<signals-inputs>)[Signals and inputs]
-  + #link(<populations>)[Populations]
-  + #link(<parameters>)[Parameters]
-  + #link(<api-reference>)[API reference]
+  + #link("/ar084/#developer-guide")[Developer guide]
+  + #link("/ar084/#networks")[Networks]
+  + #link("/ar084/#signals-and-inputs")[Signals and inputs]
+  + #link("/ar084/#populations")[Populations]
+  + #link("/ar084/#parameters")[Parameters]
+  + #link("/ar084/#api-reference")[API reference]
 
-  == Developer guide <developer-guide>
+  == Developer guide
 
-  === Networks <networks>
+  === Networks
 
   `Network` is the mutable authoring object. Compilation turns it into immutable graph data. Every graph has a name and timestep.
 
@@ -29,7 +29,7 @@
 
   Names must be unique and contain no whitespace. They become stable identifiers in graphs, recordings, and checkpoints.
 
-  === Signals and inputs <signals-inputs>
+  === Signals and inputs
 
   Signals carry an identifier, shape, physical unit, and signal type. Time-varying inputs use the canonical `(time, batch, channels)` axis order.
 
@@ -44,7 +44,7 @@
 
   This declares what the graph accepts. It does not decide whether the spikes came from MNIST, SHD, a Poisson encoder, or a recorded event stream.
 
-  === Populations <populations>
+  === Populations
 
   A population contains equally configured neurons and exposes named ports such as `spikes`, `voltage`, `excitatory`, and `inhibitory`.
 
@@ -65,13 +65,13 @@
 
   The authoring API describes COBA-LIF, LIF, and non-spiking leaky-integrator populations. The graph executor currently supports COBA-LIF and leaky integrators. General current-based LIF execution is not implemented.
 
-  === Parameters <parameters>
+  === Parameters
 
   Parameters have stable names, shapes, units, initializers, and optional constraints. Projections normally create their own dense weight parameter, but a named `ParameterRef` may be supplied explicitly.
 
   `Normal`, `Constant`, and `NonNegative` are currently available. More elaborate initialization and structural sparsity need explicit reusable representations rather than hidden tensor manipulation.
 
-  == API reference <api-reference>
+  == API reference
 
   === `Network`
 

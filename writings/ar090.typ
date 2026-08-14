@@ -8,18 +8,18 @@
 )
 
 #let body = [
-  == Contents <contents>
+  == Contents
 
-  + #link(<developer-guide>)[Developer guide]
-  + #link(<compatibility>)[Compatibility]
-  + #link(<current-support>)[Current support]
-  + #link(<remaining-work>)[What remains]
-  + #link(<extension-guide>)[Extending snnlang]
-  + #link(<api-reference>)[API reference]
+  + #link("/ar090/#developer-guide")[Developer guide]
+  + #link("/ar090/#compatibility")[Compatibility]
+  + #link("/ar090/#current-support")[Current support]
+  + #link("/ar090/#what-remains")[What remains]
+  + #link("/ar090/#extending-snnlang")[Extending snnlang]
+  + #link("/ar090/#api-reference")[API reference]
 
-  == Developer guide <developer-guide>
+  == Developer guide
 
-  === Compatibility <compatibility>
+  === Compatibility
 
   _snnlang_ is additive. Historical commands and experiments use the legacy executor unless they explicitly select the graph executor. Bundles remain data-only, and _tools/snn_ does not import the authoring package when replaying them.
 
@@ -27,7 +27,7 @@
 
   #link("https://github.com/eoinmurray/pinglab/issues/73")[Issue 73] is the active implementation and migration checklist. The independent exp022 gold-star campaign remains outside this documentation work.
 
-  === Current support <current-support>
+  === Current support
 
   #table(
     columns: (1.3fr, 1fr, 2.2fr),
@@ -45,7 +45,7 @@
     [Collection migration], [Not implemented], [Requires the complete issue 73 equivalence process.],
   )
 
-  === What remains <remaining-work>
+  === What remains
 
   The following work is *not implemented*. #link("https://github.com/eoinmurray/pinglab/issues/73")[Issue 73] tracks it as an active checklist.
 
@@ -84,7 +84,7 @@
   - After the independent legacy gold-star campaign is complete, run the full snnlang campaign under the frozen scientific protocol and compare every result, uncertainty band, claim, and figure.
   - Retain both immutable campaigns and require deliberate review before changing the default executor or migrating the publication collection.
 
-  === Extending snnlang <extension-guide>
+  === Extending snnlang
 
   Add a feature when it represents reusable computation or execution. Keep it in an experiment runner when its meaning depends on one hypothesis or figure.
 
@@ -92,7 +92,7 @@
 
   Avoid opaque callbacks, access to backend internals, positional checkpoint guesses, and silent fallbacks.
 
-  == API reference <api-reference>
+  == API reference
 
   === Validation and diagnostics
 
