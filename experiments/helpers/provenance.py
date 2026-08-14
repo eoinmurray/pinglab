@@ -51,13 +51,15 @@ RUN_SH_FILE = "run.sh"
 # or demolab-engine/) does not affect the run, so it is deliberately excluded
 # from both the dirty check and the captured patch.
 DEP_PATHS = ("tools", "experiments")
+GIT_TIMEOUT_S = float(os.environ.get("PINGLAB_GIT_TIMEOUT_S", "30"))
 
 
 def _git_ok(args: list[str]) -> str | None:
     """Run a git command that should exit 0; return stdout, or None on failure."""
     try:
         return subprocess.check_output(
-            ["git", *args], cwd=REPO, stderr=subprocess.DEVNULL, timeout=5
+            ["git", *args], cwd=REPO, stderr=subprocess.DEVNULL,
+            timeout=GIT_TIMEOUT_S,
         ).decode()
     except Exception:
         return None
@@ -73,7 +75,7 @@ def _git_diff(args: list[str]) -> str | None:
             cwd=REPO,
             capture_output=True,
             text=True,
-            timeout=10,
+            timeout=GIT_TIMEOUT_S,
         )
         return r.stdout
     except Exception:
@@ -93,7 +95,7 @@ def git_state() -> tuple[str, bool]:
             cwd=REPO,
             stderr=subprocess.DEVNULL,
             stdout=subprocess.DEVNULL,
-            timeout=5,
+            timeout=GIT_TIMEOUT_S,
         )
     )
     return sha_out.strip(), dirty
@@ -107,7 +109,7 @@ def _code_dirty() -> bool:
         cwd=REPO,
         stderr=subprocess.DEVNULL,
         stdout=subprocess.DEVNULL,
-        timeout=5,
+        timeout=GIT_TIMEOUT_S,
     )
     if tracked != 0:
         return True
