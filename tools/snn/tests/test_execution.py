@@ -24,6 +24,7 @@ from execution import (
     PoissonInputBinding,
     TargetArrayBinding,
     build,
+    capture_training_rng_state,
     derive_inference_products,
     execute_request,
     execution_spec_from_args,
@@ -44,6 +45,7 @@ from execution import (
     resolve_input_bindings,
     resolve_poisson_input_bindings,
     resolve_target_array_bindings,
+    restore_training_rng_state,
     runtime_state_signature,
     save_runtime_state,
     save_training_checkpoint,
@@ -378,6 +380,90 @@ def test_training_checkpoint_round_trip_and_resume_are_exact(tmp_path):
             )
     assert first_half.training_checkpoint is not None
     assert resumed.training_checkpoint.completed_updates == 4
+
+
+def test_accelerator_rng_checkpoint_round_trip_and_topology_restore(
+    tmp_path, monkeypatch
+):
+    bundle = _direct_train_bundle()
+    trained = train(
+        ExecutionSpec(
+            kind="train",
+            executor="graph",
+            graph=bundle.graph,
+            training=bundle.training,
+            inputs={"events": torch.zeros(3, 1, 2)},
+            targets={"label": torch.tensor([0])},
+        )
+    )
+    checkpoint = trained.training_checkpoint
+    assert checkpoint is not None
+    checkpoint.rng_backend = "cuda"
+    checkpoint.accelerator_rng_states = {
+        "cuda:0": torch.tensor([1, 2, 3], dtype=torch.uint8),
+        "cuda:1": torch.tensor([4, 5, 6], dtype=torch.uint8),
+    }
+    root = save_training_checkpoint(tmp_path / "cuda-checkpoint", checkpoint)
+    manifest = json.loads((root / "manifest.json").read_text())
+    assert manifest["schema_version"] == 2
+    assert manifest["rng_backend"] == "cuda"
+    assert manifest["accelerator_rng_devices"] == ["cuda:0", "cuda:1"]
+    loaded = load_training_checkpoint(root)
+    assert loaded.rng_backend == "cuda"
+    assert set(loaded.accelerator_rng_states) == {"cuda:0", "cuda:1"}
+
+    restored = []
+    monkeypatch.setattr(torch.cuda, "device_count", lambda: 2)
+    monkeypatch.setattr(
+        torch.cuda, "set_rng_state_all", lambda states: restored.extend(states)
+    )
+    restore_training_rng_state(loaded, "cuda")
+    assert [state.tolist() for state in restored] == [[1, 2, 3], [4, 5, 6]]
+    monkeypatch.setattr(torch.cuda, "device_count", lambda: 1)
+    with pytest.raises(ValueError, match="topology"):
+        restore_training_rng_state(loaded, "cuda")
+
+
+def test_accelerator_rng_capture_names_every_cuda_device(monkeypatch):
+    monkeypatch.setattr(torch.cuda, "device_count", lambda: 2)
+    monkeypatch.setattr(
+        torch.cuda,
+        "get_rng_state_all",
+        lambda: [
+            torch.tensor([7], dtype=torch.uint8),
+            torch.tensor([8], dtype=torch.uint8),
+        ],
+    )
+    backend, states = capture_training_rng_state("cuda:1")
+    assert backend == "cuda"
+    assert {name: value.tolist() for name, value in states.items()} == {
+        "cuda:0": [7],
+        "cuda:1": [8],
+    }
+
+
+def test_v1_cpu_checkpoint_remains_loadable(tmp_path):
+    bundle = _direct_train_bundle()
+    trained = train(
+        ExecutionSpec(
+            kind="train",
+            executor="graph",
+            graph=bundle.graph,
+            training=bundle.training,
+            inputs={"events": torch.zeros(3, 1, 2)},
+            targets={"label": torch.tensor([0])},
+        )
+    )
+    assert trained.training_checkpoint is not None
+    root = save_training_checkpoint(tmp_path / "v1", trained.training_checkpoint)
+    manifest = json.loads((root / "manifest.json").read_text())
+    manifest["schema_version"] = 1
+    manifest.pop("rng_backend")
+    manifest.pop("accelerator_rng_devices")
+    (root / "manifest.json").write_text(json.dumps(manifest) + "\n")
+    loaded = load_training_checkpoint(root)
+    assert loaded.rng_backend == "cpu"
+    assert loaded.accelerator_rng_states == {}
 
 
 def test_training_checkpoint_rejects_partial_parameter_mapping(tmp_path):
