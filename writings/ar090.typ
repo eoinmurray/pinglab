@@ -78,6 +78,8 @@
 
   The first hand-checkable CPU cases prove exact named parameter tensors and complete E/I spike, membrane, AMPA, and GABA traces for both feedforward-isolated and actively recurrent one-layer PING networks built from one parameter set. Mean-voltage logits agree under the predeclared $10^(-6)$ absolute and relative CPU tolerance. The first case also fixed the legacy recurrent layer map to its actual one-based names and aligned the `MeanVoltage` default with the legacy 2 ms output membrane.
 
+  A one-step backward case makes all six feedforward and recurrent tensors trainable and compares cross-entropy, every named gradient, the constrained post-update parameters, and all named AdamW tensors under the same predeclared tolerance. The fixture applies the legacy trainer's non-negative projection after the optimizer step, separating optimizer state from the constrained stored parameter value.
+
   - Compare topology, parameter tensors, initialized state, forward traces, loss, gradients, optimizer updates, checkpoint interchange, exact resume, learning trajectories, interventions, and aggregations.
   - Define exact fields and numerical tolerances before viewing the final comparison.
   - Run CPU and publication-accelerator conformance cases and record any limits on numerical determinism.

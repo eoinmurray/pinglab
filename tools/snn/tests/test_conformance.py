@@ -13,9 +13,16 @@ from conformance import (
     remap_named_tensors,
     write_conformance_report,
 )
-from execution import ExecutionSpec, GraphExecutor, build, legacy_parameter_map_v1
+from execution import (
+    ExecutionSpec,
+    GraphExecutor,
+    build,
+    legacy_parameter_map_v1,
+    train,
+)
 
 from tools import snnlang as snn
+from tools.snnlang import training
 
 
 def test_layered_conformance_requires_complete_exact_named_coverage(tmp_path):
@@ -194,6 +201,153 @@ def test_minimal_legacy_and_graph_ping_forward_share_parameters_and_logits(
             "forward": {
                 "logits": ComparisonPolicy(mode="numeric", atol=1e-6, rtol=1e-6)
             }
+        },
+    )
+    report.require_passed()
+
+
+def test_legacy_and_graph_one_step_backward_and_adamw_are_conformant():
+    M.N_IN = 2
+    M.N_OUT = 2
+    M.dt = 0.1
+    M.T_ms = 4.0
+    M.T_steps = 40
+    net = snn.Network("legacy_graph_backward", dt=0.1 * snn.ms)
+    events = net.input(
+        "events", shape=("time", "batch", 2), signal_type="spikes", unit="spike"
+    )
+    cell = snn.components.ping(
+        net,
+        name="cell",
+        n_e=4,
+        n_i=1,
+        source=events,
+        include_silent_recurrence=True,
+    )
+    scores = snn.readouts.MeanVoltage(source=cell.E.spikes, classes=2, name="scores")
+    net.output("class_logits", scores)
+    recurrent = [
+        "cell_E_to_E.weight",
+        "cell_E_to_I.weight",
+        "cell_I_to_E.weight",
+        "cell_I_to_I.weight",
+    ]
+    trainable = ["cell_input.weight", "scores_projection.weight", *recurrent]
+    recipe = snn.TrainSpec(
+        objectives=[training.CrossEntropy(prediction=scores, target="label")],
+        parameter_groups=[
+            training.ParameterGroup(trainable, name="all", lr=0.01),
+        ],
+        optimizer=training.AdamW(weight_decay=0.0),
+        surrogate=training.FastSigmoid(slope=5.0),
+        presentation_duration=4.0 * snn.ms,
+    )
+    bundle = snn.compile(net, training=recipe)
+    initial = build(
+        ExecutionSpec(
+            kind="build",
+            executor="graph",
+            graph=bundle.graph,
+            training=bundle.training,
+            seed=7,
+        )
+    )
+    assert isinstance(initial.model, GraphExecutor)
+    mapping = legacy_parameter_map_v1(bundle.graph)
+    legacy = M.COBANet(
+        hidden_sizes=[4],
+        n_inh_per_layer={1: 1},
+        readout_mode="mem-mean",
+        w_in=(0.0, 0.0),
+        w_hid=(0.0, 0.0),
+        w_ee=(0.0, 0.0),
+        w_ei=(0.0, 0.0),
+        w_ie=(0.0, 0.0),
+        w_ii=(0.0, 0.0),
+        trainable_w_ee=True,
+        trainable_w_ei=True,
+        trainable_w_ie=True,
+        trainable_w_ii=True,
+    )
+    legacy_parameters = dict(legacy.named_parameters())
+    with torch.no_grad():
+        for graph_name, legacy_name in mapping.items():
+            legacy_parameters[legacy_name].copy_(initial.parameters[graph_name])
+
+    inputs = torch.zeros(40, 2, 2)
+    inputs[:, 0, 0] = 1
+    inputs[::2, 1, 1] = 1
+    labels = torch.tensor([0, 1])
+    graph = train(
+        ExecutionSpec(
+            kind="train",
+            executor="graph",
+            graph=bundle.graph,
+            training=bundle.training,
+            inputs={"events": inputs},
+            targets={"label": labels},
+            seed=7,
+        )
+    )
+    optimizer = torch.optim.AdamW(
+        [legacy_parameters[mapping[name]] for name in sorted(trainable)],
+        lr=0.01,
+        weight_decay=0.0,
+    )
+    optimizer.zero_grad(set_to_none=True)
+    legacy_logits = legacy(input_spikes=inputs)
+    legacy_loss = torch.nn.functional.cross_entropy(legacy_logits, labels)
+    legacy_loss.backward()
+    legacy_gradients = {
+        mapping[name]: legacy_parameters[mapping[name]].grad.detach().clone()
+        for name in trainable
+    }
+    assert torch.count_nonzero(legacy_gradients["W_ff.0"]) > 0
+    assert torch.count_nonzero(legacy_gradients["W_ff.1"]) > 0
+    assert any(
+        torch.count_nonzero(legacy_gradients[mapping[name]]) > 0 for name in recurrent
+    )
+    optimizer.step()
+    with torch.no_grad():
+        for parameter in legacy_parameters.values():
+            parameter.clamp_(min=0)
+    legacy_optimizer = {}
+    for name in sorted(legacy_gradients):
+        for state, value in optimizer.state[legacy_parameters[name]].items():
+            if isinstance(value, torch.Tensor):
+                legacy_optimizer[f"{name}.{state}"] = value.detach()
+    graph_optimizer = {
+        f"{mapping[name]}.{state}": value
+        for name, values in graph.optimizer_state.items()
+        for state, value in values.items()
+        if isinstance(value, torch.Tensor)
+    }
+    numeric = ComparisonPolicy(mode="numeric", atol=1e-6, rtol=1e-6)
+    report = compare_conformance_layers(
+        "legacy-graph-backward",
+        {
+            "loss": {"cross_entropy": legacy_loss.detach()},
+            "gradients": legacy_gradients,
+            "parameters": {
+                name: value.detach() for name, value in legacy_parameters.items()
+            },
+            "optimizer": legacy_optimizer,
+        },
+        {
+            "loss": {
+                "cross_entropy": torch.tensor(graph.metrics["updates"][0]["loss"])
+            },
+            "gradients": remap_named_tensors(
+                graph.gradients, {name: mapping[name] for name in graph.gradients}
+            ),
+            "parameters": remap_named_tensors(graph.parameters, mapping),
+            "optimizer": graph_optimizer,
+        },
+        policies={
+            "loss": {"cross_entropy": numeric},
+            "gradients": {name: numeric for name in legacy_gradients},
+            "parameters": {name: numeric for name in legacy_parameters},
+            "optimizer": {name: numeric for name in legacy_optimizer},
         },
     )
     report.require_passed()
