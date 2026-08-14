@@ -30,6 +30,16 @@ RUNNER_ARGUMENTS: dict[str, tuple[str, ...]] = {
     "exp082": (),
 }
 
+EXTRA_REQUIRED_OUTPUTS: dict[str, tuple[str, ...]] = {
+    "exp082": (
+        "measurements.npz",
+        "matched_stream.png",
+        "variable_stream.png",
+        "psychometric_200ms.svg",
+        "duration_rate_summary.png",
+    ),
+}
+
 
 def runner_command(slug: str) -> list[str]:
     return [
@@ -84,7 +94,11 @@ def build_plan(root: Path, campaign_id: str) -> dict[str, Any]:
                         / "artifacts"
                         / "data"
                         / experiment.slug
-                        / "numbers.json"
+                        / filename
+                    )
+                    for filename in (
+                        "numbers.json",
+                        *EXTRA_REQUIRED_OUTPUTS.get(experiment.slug, ()),
                     )
                 ],
             }
@@ -104,5 +118,5 @@ def build_plan(root: Path, campaign_id: str) -> dict[str, Any]:
         "pending_root_decisions": list(PENDING_ROOT_DECISIONS),
         "excluded": ["exp048"],
         "blocking_issues": [],
-        "acceptance_issues": [47],
+        "acceptance_issues": [],
     }
