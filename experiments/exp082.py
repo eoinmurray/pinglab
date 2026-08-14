@@ -70,9 +70,16 @@ MATCHED_RATE_HZ = 5.0
 N_CLASSES = 10
 N_INPUT = 784
 N_HEADLINE_DIGITS = 5
-STREAMS_PER_CELL = 1 if SMOKE else 20
-DIGITS_PER_STREAM = 3 if SMOKE else 10
+STREAMS_PER_CELL = int(
+    os.environ.get("PINGLAB_EXP082_STREAMS_PER_CELL", 1 if SMOKE else 20)
+)
+DIGITS_PER_STREAM = int(
+    os.environ.get("PINGLAB_EXP082_DIGITS_PER_STREAM", 3 if SMOKE else 10)
+)
 DT_MS = 0.1
+
+if STREAMS_PER_CELL < 1 or DIGITS_PER_STREAM < 1:
+    raise ValueError("exp082 stream and digit counts must both be positive")
 
 VARIABLE_STREAM = (
     (200.0, 0.5),
@@ -513,6 +520,9 @@ def main() -> None:
             "durations_ms": list(DURATIONS_MS),
             "matched_duration_ms": MATCHED_DURATION_MS,
             "matched_rate_hz": MATCHED_RATE_HZ,
+            "streams_per_cell": STREAMS_PER_CELL,
+            "digits_per_stream": DIGITS_PER_STREAM,
+            "digits_per_seed_cell": STREAMS_PER_CELL * DIGITS_PER_STREAM,
             "dt_ms": float(config["dt"]),
         },
         "matched_stream": {key: value for key, value in matched.items() if not isinstance(value, np.ndarray)},
