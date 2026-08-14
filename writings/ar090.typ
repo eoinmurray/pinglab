@@ -41,7 +41,7 @@
     [Readouts], [Implemented], [Mean voltage, final voltage, spike count, spike rate, cumulative potential, and valid-time masks execute through graph operations.],
     [Input bindings], [Implemented], [Dense arrays, valid-time masks, sparse event streams, fixed/categorical Poisson, and portable dense/prebinned/timestamped-event dataset snapshots emit versioned execution protocols.],
     [Training recipes], [Implemented], [Validated objectives, regularizers, groups, gradient choices, duration, and reachability compile to canonical data.],
-    [Native training], [Core implemented], [Deterministic epoch/minibatch AdamW training and versioned named checkpoints support exact mid-epoch CPU resume; accelerator stochastic state and parity gates remain.],
+    [Native training], [Core implemented], [Deterministic epoch/minibatch AdamW training and versioned named checkpoints support exact CPU resume and accelerator random-state topology; hardware parity remains a campaign gate.],
     [Collection migration], [Not implemented], [Requires the complete issue 73 equivalence process.],
   )
 
@@ -62,7 +62,7 @@
 
   ==== Inference and interventions
 
-  Portable selected/final graph checkpoint loading for simulation and inference is implemented with exact graph/name/shape/dtype validation and checkpoint provenance in metrics. A versioned, request-local override contract supports Poisson duration and rate plus scaling of named projections. It rejects ambiguous input modes, invalid values, and unknown projections; timestep replacement remains unsupported because it requires graph recompilation rather than runtime mutation.
+  Portable selected/final graph checkpoint loading for simulation and inference is implemented with exact graph/name/shape/dtype validation and checkpoint provenance in metrics. A versioned, request-local override contract supports Poisson duration and rate plus scaling of named projections. It rejects ambiguous input modes, invalid values, and unknown projections. Timestep replacement recompiles an immutable graph copy rather than mutating runtime state.
   Inference timestep changes now recompile an immutable graph copy and rebuild physical decay and delay planning. Only generated Poisson bindings are resampled; their physical presentation duration is preserved unless separately overridden. Checkpoints authenticate against the source graph before their same-shaped named parameters load into the effective graph. Dense/event replay, incompatible delays, and runtime-state conversion fail closed.
   Named hidden-population spike deletion and Poisson-addition interventions are implemented as an ordered, seeded, request-local contract. Intervened spikes feed later zero-delay populations, delayed histories, recordings, and readouts through the ordinary graph schedule without backend callbacks.
   Graph CLI inference now writes a versioned manifest that inventories the stable names, shapes, and data types in output, recording, and parameter payloads. It binds their content digests to graph, seed, execution protocol, checkpoint, override, intervention, recording, and device provenance; validation fails closed on identity drift or corruption. A derived-inference contract resolves exact public logits and population-spike names into labels, predictions, accuracy, per-presentation per-cell rates, and sparse time/batch/cell rasters while retaining the authenticated source-artifact digest.
@@ -85,9 +85,11 @@
 
   The representative production-shaped fixtures add the 784-channel/10-class MNIST contract and the 700-channel/20-class SHD contract. The SHD example is a trainable three-PING hierarchy with exhaustive parameter coverage and a six-population spike budget. Its focused CPU update confirms gradients for feedforward, all recurrent E→I/I→E tensors, and the readout. A separate PING fixture recompiles from 0.1 ms to 0.05 ms while preserving presentation duration and sampling categorical rates across three presentations. These are interface and numerical-path gates, not claims about dataset accuracy.
 
-  - Compare topology, parameter tensors, initialized state, forward traces, loss, gradients, optimizer updates, checkpoint interchange, exact resume, learning trajectories, interventions, and aggregations.
-  - Define exact fields and numerical tolerances before viewing the final comparison.
-  - Run CPU and publication-accelerator conformance cases and record any limits on numerical determinism.
+  The checked-in `tools/snn.equivalence-policy/v1` freezes the final comparison before campaign evidence is inspected. Topology, parameter identity and initialization, discrete state, checkpoint coordinates and provenance, labels, predictions, rasters, and campaign identity are exact. Only named floating results use the predeclared $10^(-6)$ absolute and relative tolerance. Learning trajectories, interventions, aggregations, downstream measurements, uncertainty bands, claims, and figures are all in review scope. Changing a tolerance requires a new policy identity rather than editing the frozen decision after seeing results.
+
+  A read-only `tools/snn.migration-preflight/v1` report now fails closed unless an immutable legacy campaign, a complete graph campaign with the expected graph and training digests, and passing CUDA or MPS conformance evidence all authenticate against that policy. It neither executes nor activates campaigns. The repository is therefore explicit about missing external evidence instead of treating local fixtures as migration readiness.
+
+  - Run the publication-accelerator conformance case and record any limits on numerical determinism.
   - After the independent legacy gold-star campaign is complete, run the full snnlang campaign under the frozen scientific protocol and compare every result, uncertainty band, claim, and figure.
   - Retain both immutable campaigns and require deliberate review before changing the default executor or migrating the publication collection.
 
@@ -138,6 +140,8 @@
   ```
 
   Reports use schema `tools/snn.conformance-report/v1`. Each layer and field is named explicitly. Missing fields, extra fields, shapes, dtypes, values, maximum absolute and relative errors, and the applied policy are recorded. Exact comparison is the default; numerical tolerance must be declared for a specific field, and an unused rule is rejected. `canonical_json_tensor` encodes topology and provenance structures for exact comparison beside numerical tensors.
+
+  The final migration contract is stored in `tools/snn/equivalence-policy-v1.json`. `load_equivalence_policy` authenticates its canonical digest, and `migration_preflight` returns named readiness gates and failures without changing campaign or publication state.
 
   === Inference overrides
 

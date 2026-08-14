@@ -1,0 +1,37 @@
+{
+  "schema": "tools/snn.equivalence-policy/v1",
+  "policy_id": "snnlang-final-migration-v1",
+  "policy_digest": "sha256:cc4a345cf4cffa0763f95fd48f429f1698fe806fa3ea7b2faee023f8a7969d44",
+  "freeze_rule": "The policy digest must be recorded before final campaign evidence is inspected; changing the policy requires a new policy_id and comparison.",
+  "comparisons": {
+    "exact": [
+      "topology",
+      "parameter_names_shapes_dtypes_and_initial_values",
+      "dynamic_state_and_discrete_spike_traces",
+      "optimizer_and_checkpoint_coordinates",
+      "checkpoint_protocol_and_provenance",
+      "labels_predictions_and_raster_coordinates",
+      "campaign_manifest_executor_and_source_identity",
+      "graph_and_training_digests"
+    ],
+    "numeric": {
+      "forward_logits": {"atol": 1e-6, "rtol": 1e-6, "equal_nan": false},
+      "losses_gradients_and_floating_optimizer_tensors": {"atol": 1e-6, "rtol": 1e-6, "equal_nan": false},
+      "learning_trajectories_downstream_measurements_and_uncertainty_bands": {"atol": 1e-6, "rtol": 1e-6, "equal_nan": false}
+    }
+  },
+  "required_evidence": [
+    "legacy_campaign",
+    "graph_campaign",
+    "accelerator_conformance"
+  ],
+  "review_scope": [
+    "learning_trajectories",
+    "interventions",
+    "aggregations",
+    "downstream_measurements",
+    "uncertainty_bands",
+    "claims",
+    "figures"
+  ]
+}
