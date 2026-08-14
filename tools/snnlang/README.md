@@ -239,12 +239,18 @@ epoch count, and order seed.
 Graph training checkpoints use a versioned manifest plus a digest-verified
 tensor payload. They key parameters and AdamW state by stable graph id and
 record graph/training digests, completed updates, execution protocol,
-initializer metadata, CPU random state, and the exact next epoch/batch. The
+initializer metadata, CPU random state, exact named accelerator random states,
+and the exact next epoch/batch. Manifest version 2 records `cpu`, `cuda`, or
+`mps` as the random backend. CUDA captures every contiguous device generator;
+MPS captures its single generator. Resume requires the same backend and exact
+device topology before changing any stream. CPU-only version 1 checkpoints
+remain loadable. The
 trainer can save final and invocation-selected checkpoints and resume exactly after rejecting recipe,
 protocol, initializer, shape, dtype, or parameter-set mismatches. An explicit
 one-layer legacy parameter map fails closed when any graph parameter is
-unrepresentable. Accelerator stochastic state and production trajectory parity
-remain separate gates. The legacy CLI
+unrepresentable. Mocked topology tests cover accelerator-state serialization
+and fail-closed restore dispatch, but production accelerator trajectory parity
+remains a hardware gate. The legacy CLI
 and bundle adapter remain the default and retain their historical numerical
 contract.
 

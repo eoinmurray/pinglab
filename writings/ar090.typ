@@ -57,8 +57,7 @@
 
   ==== Graph-native training and checkpoints
 
-  Deterministic dataset iteration, named digest-bearing target bindings, versioned graph-training checkpoints, selected and final persistence, strict named loading, the one-layer legacy parameter map, and exact mid-epoch CPU optimizer/random-stream/data-order resume are implemented.
-  - Extend the checkpoint contract to accelerator stochastic state when accelerator training is validated.
+  Deterministic dataset iteration, named digest-bearing target bindings, versioned graph-training checkpoints, selected and final persistence, strict named loading, the one-layer legacy parameter map, and exact mid-epoch CPU optimizer/random-stream/data-order resume are implemented. Checkpoint manifest version 2 also stores the random backend and exact CUDA-device or MPS generator inventory, rejects cross-backend/topology resume, and remains backward-compatible with CPU-only version 1 checkpoints. Mocked topology tests validate this contract; publication-accelerator numerical resume and parity remain unproven until hardware execution.
   A compact local production matrix now executes MNIST-shaped one-layer PING and SHD-shaped three-layer PING graphs, trains every named parameter in the deep recurrent SHD recipe, and combines categorical variable-rate input with fine-timestep inference. It verifies public output/recording shapes and complete recurrent gradient coverage without downloading datasets. Full dataset trajectories, accelerator parity, and campaign-scale resource/job shapes remain campaign gates.
 
   ==== Inference and interventions
