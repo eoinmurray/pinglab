@@ -1,14 +1,24 @@
 #let meta = (
-  title: "Introduction to snnlang",
+  title: "SNNLANG developer documentation",
   date: "2026-07-30",
-  description: "Start here: what snnlang is, how it fits beside tools/snn, and how to author and simulate a first graph-shaped spiking network.",
+  description: "Start with the collection contents, learn the high-level development model, then use the concrete SNNLANG and graph-execution API reference.",
   collection: "snnlang",
   status: "draft",
   order: 1,
 )
 
 #let body = [
-  == What snnlang does
+  == Contents <contents>
+
+  + #link(<developer-guide>)[Developer guide]
+  + #link(<first-network>)[Your first network]
+  + #link(<first-simulation>)[Run the graph]
+  + #link(<api-reference>)[API reference]
+  + #link(<reading-path>)[Collection reading path]
+
+  == Developer guide <developer-guide>
+
+  === What snnlang does
 
   _snnlang_ is the network-authoring layer for _tools/snn_. It provides a small Python API for describing populations, projections, inputs, outputs, and recordings. Compilation checks the description and writes a portable, data-only bundle. _tools/snn_ loads that bundle and performs the simulation or training.
 
@@ -21,7 +31,7 @@
 
   A saved bundle contains scientific structure rather than live Python objects. It can be inspected and replayed without importing the authoring package.
 
-  == Your first network
+  === Your first network <first-network>
 
   A network begins with an explicit timestep and a typed input. Components add reusable motifs. Outputs are values returned to a caller; observables are internal signals retained for inspection.
 
@@ -51,7 +61,7 @@
 
   Compilation produces `graph.json`, `manifest.json`, a readable report, and optional circuit diagrams.
 
-  == Simulate it
+  === Run the graph <first-simulation>
 
   Provide one tensor for every declared input:
 
@@ -76,9 +86,41 @@
 
   Graph-native forward simulation supports this example today. Input generation remains the caller's responsibility.
 
-  == Continue reading
+  == API reference <api-reference>
 
-  The remaining pages in the SNNLANG collection cover authoring, graph composition, compilation and execution, readouts and inputs, training, state and provenance, and safe extension. Each page states what is implemented and what remains planned.
+  === Package surface
+
+  Import the public authoring API with `from tools import snnlang as snn`. The top-level package exports `Network`, graph specification constructors, units, `compile`, `load_bundle`, `validate_graph`, and the `components`, `ops`, `readouts`, and `training` modules.
+
+  === Minimal lifecycle
+
+  ```python
+  net = snn.Network(name, dt=0.1 * snn.ms)
+  bundle = snn.compile(net, training=None, target=None, assets=None)
+  root = bundle.write(path, visualise=False)
+  loaded = snn.load_bundle(root)
+  ```
+
+  `Network` is mutable while authoring. `compile` returns a `Bundle` containing immutable graph data, optional training data, a manifest, diagnostics, and logical asset sources. `Bundle.write` returns the bundle directory. `load_bundle` verifies digests and validates the stored graph before returning a `Bundle`.
+
+  === Execution boundary
+
+  Execution is deliberately separate from `tools.snnlang`. Import `ExecutionSpec`, `build`, `simulate`, `train`, or `infer` from `tools.snn.execution`. Graph execution is opt-in with `executor="graph"`; the legacy executor remains the default.
+
+  == Collection reading path <reading-path>
+
+  Read the collection in this order:
+
+  + *SNNLANG developer documentation.* This page establishes the architecture, first graph, execution boundary, and package lifecycle.
+  + #link("/ar084/")[*Networks, signals, and parameters.*] Core authoring objects, shapes, units, populations, and parameters.
+  + #link("/ar085/")[*Components, projections, and delays.*] Reusable motifs, connectivity, scheduling, and causality.
+  + #link("/ar086/")[*Compiling and executing bundles.*] Validation, bundle I/O, typed requests, and result objects.
+  + #link("/ar087/")[*Inputs, outputs, and readouts.*] Public outputs, recordings, standard readouts, and dense bindings.
+  + #link("/ar088/")[*Training recipes and graph-native learning.*] Declarative learning vocabulary and current execution limits.
+  + #link("/ar089/")[*Runtime state, checkpoints, and provenance.*] Continuation, compatibility, save/load, and replay identity.
+  + #link("/ar090/")[*Compatibility, status, and extension.*] Current support, remaining gates, diagnostics, and extension points.
+
+  Each page begins with its own linked contents, presents the high-level developer guide, and ends with the API reference.
 
   #link("/ar084/")[Next: Networks, signals, and parameters]
 ]
