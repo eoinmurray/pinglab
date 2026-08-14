@@ -82,11 +82,15 @@
   save_training_checkpoint(path, checkpoint) -> Path
   load_training_checkpoint(path, *, device="cpu") -> TrainingCheckpoint
   legacy_parameter_map_v1(graph) -> dict[str, str]
+  import_legacy_parameters_v1(graph, state_dict) -> ParameterInterchange
+  export_legacy_parameters_v1(graph, parameters) -> ParameterInterchange
   ```
 
   Training checkpoints use schema `tools/snn.training-checkpoint/v1` and store a JSON manifest beside a digest-verified compressed tensor payload. Parameters and optimizer tensors are keyed by stable graph parameter id. The manifest authenticates the graph and training recipes, completed update, resolved execution protocol, realized initialization metadata, optimizer scalars, selected loss, tensor layout, and dataset iterator position.
 
   `ExecutionSpec.checkpoint` resumes graph training from a checkpoint directory. The `save_final_checkpoint` and `save_selected_checkpoint` options persist the final and invocation-selected states. `legacy_parameter_map_v1` provides the explicit one-layer legacy adapter map and fails closed for graphs that cannot be represented without omissions or ambiguity.
+
+  Parameter interchange uses schema `tools/snn.legacy-parameter-interchange/v1`. Import and export require the exact six supported one-layer keys, runtime shapes, floating dtypes, and complete graph coverage. The returned provenance records direction, mapping version, and the full semantic map. This is parameter-only interchange: legacy optimizer objects are not relabelled as portable graph-training checkpoints.
 
   === Provenance fields
 
