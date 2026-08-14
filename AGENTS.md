@@ -56,6 +56,18 @@ For features, refactors, investigations, or any change involving meaningful desi
 
 Prefer starting a draft PR over creating a separate issue when the work is already going to be implemented and the issue would merely duplicate or fragment the same documentation. Use issues when something genuinely needs to exist independently of an implementation PR.
 
+The PR description is the scientific decision record, not release-note decoration. Keep it current with the question being tested, competing interpretations, provenance or data implications, decisions made, rejected alternatives, and unresolved limitations. Commits should remain small enough to explain one coherent change, but the PR is where the reasoning across those commits lives.
+
+### Campaign and publication worktrees
+
+Campaign execution, campaign activation, artifact promotion, and publication-view rebuilding must happen on the campaign's own branch in a dedicated worktree. Do not activate a campaign in a general development worktree: activation intentionally replaces tracked publication artifacts and makes unrelated changes dangerously easy to commit together.
+
+- One campaign or publication view per worktree and branch.
+- Open its draft PR before substantial execution or promotion work begins.
+- Treat `runs/` and R2 as the raw execution record; Git tracks only the selected publication view.
+- New raw arrays, checkpoints, caches, and duplicated inputs do not belong in `artifacts/data/`. Archive them through `runstore`; promote compact results, final figures, and provenance metadata.
+- Review `git status` and the artifact diff before every campaign commit. A large generated diff is evidence to inspect, not permission to use `git add -A` blindly.
+
 ### Use judgment and intervene
 
 Actively flag when the current workflow appears inappropriate rather than blindly following the immediate instruction.
