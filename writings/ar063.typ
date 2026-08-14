@@ -8,15 +8,15 @@
 )
 
 #let body = [
-  == Contents <contents>
+  == Contents
 
-  + #link(<developer-guide>)[Developer guide]
-  + #link(<first-network>)[Your first network]
-  + #link(<first-simulation>)[Run the graph]
-  + #link(<api-reference>)[API reference]
-  + #link(<reading-path>)[Collection reading path]
+  + #link("/ar063/#developer-guide")[Developer guide]
+  + #link("/ar063/#your-first-network")[Your first network]
+  + #link("/ar063/#run-the-graph")[Run the graph]
+  + #link("/ar063/#api-reference")[API reference]
+  + #link("/ar063/#collection-reading-path")[Collection reading path]
 
-  == Developer guide <developer-guide>
+  == Developer guide
 
   === What snnlang does
 
@@ -31,7 +31,7 @@
 
   A saved bundle contains scientific structure rather than live Python objects. It can be inspected and replayed without importing the authoring package.
 
-  === Your first network <first-network>
+  === Your first network
 
   A network begins with an explicit timestep and a typed input. Components add reusable motifs. Outputs are values returned to a caller; observables are internal signals retained for inspection.
 
@@ -61,7 +61,7 @@
 
   Compilation produces `graph.json`, `manifest.json`, a readable report, and optional circuit diagrams.
 
-  === Run the graph <first-simulation>
+  === Run the graph
 
   Provide one tensor for every declared input:
 
@@ -86,7 +86,7 @@
 
   Graph-native forward simulation supports this example today. Input generation remains the caller's responsibility.
 
-  == API reference <api-reference>
+  == API reference
 
   === Package surface
 
@@ -107,7 +107,7 @@
 
   Execution is deliberately separate from `tools.snnlang`. Import `ExecutionSpec`, `build`, `simulate`, `train`, or `infer` from `tools.snn.execution`. Graph execution is opt-in with `executor="graph"`; the legacy executor remains the default.
 
-  == Collection reading path <reading-path>
+  == Collection reading path
 
   Read the collection in this order:
 

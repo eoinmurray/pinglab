@@ -8,17 +8,17 @@
 )
 
 #let body = [
-  == Contents <contents>
+  == Contents
 
-  + #link(<developer-guide>)[Developer guide]
-  + #link(<outputs-observables>)[Outputs and observables]
-  + #link(<standard-readouts>)[Standard readouts]
-  + #link(<input-bindings>)[Input bindings]
-  + #link(<api-reference>)[API reference]
+  + #link("/ar087/#developer-guide")[Developer guide]
+  + #link("/ar087/#outputs-and-observables")[Outputs and observables]
+  + #link("/ar087/#standard-readouts")[Standard readouts]
+  + #link("/ar087/#input-bindings")[Input bindings]
+  + #link("/ar087/#api-reference")[API reference]
 
-  == Developer guide <developer-guide>
+  == Developer guide
 
-  === Outputs and observables <outputs-observables>
+  === Outputs and observables
 
   An output is a named value returned by the graph. An observable exposes an internal signal for recording without changing the computation.
 
@@ -32,13 +32,13 @@
   net.expose(cell.E.spikes, cell.I.spikes, name="hidden")
   ```
 
-  === Standard readouts <standard-readouts>
+  === Standard readouts
 
   The standard readouts are mean voltage, final voltage, spike count, duration-normalized spike rate, and cumulative potential. Spike-rate logits divide spike count by valid presentation duration, so changing duration does not silently rescale the classifier.
 
   All five standard readouts execute in the graph executor. Spike rate reports spikes per second from either an explicit duration in seconds or a `(time, batch)` valid-time mask; masked reductions reject empty windows rather than silently returning arbitrary values. The compiler infers shapes and units, checks linear readout parameter shapes, rejects malformed masks and ambiguous durations, and records operation requirements in the bundle capability manifest.
 
-  === Input bindings <input-bindings>
+  === Input bindings
 
   The execution layer binds concrete data to graph inputs without placing datasets or stimuli in graph structure. Dense-array bindings are implemented as named, data-only values. NPY replay binds to a graph with one input; NPZ arrays bind by input identifier.
 
@@ -50,7 +50,7 @@
 
   Dense-array and valid-time-mask bindings work today. Event-stream, portable dataset-loader, and encoder bindings are not implemented.
 
-  == API reference <api-reference>
+  == API reference
 
   === Outputs and observables
 

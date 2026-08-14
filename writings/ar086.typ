@@ -8,17 +8,17 @@
 )
 
 #let body = [
-  == Contents <contents>
+  == Contents
 
-  + #link(<developer-guide>)[Developer guide]
-  + #link(<compilation>)[Compilation]
-  + #link(<execution-requests>)[Execution requests]
-  + #link(<recordings-results>)[Recordings and results]
-  + #link(<api-reference>)[API reference]
+  + #link("/ar086/#developer-guide")[Developer guide]
+  + #link("/ar086/#compilation")[Compilation]
+  + #link("/ar086/#execution-requests")[Execution requests]
+  + #link("/ar086/#recordings-and-results")[Recordings and results]
+  + #link("/ar086/#api-reference")[API reference]
 
-  == Developer guide <developer-guide>
+  == Developer guide
 
-  === Compilation <compilation>
+  === Compilation
 
   `snn.compile` validates a network, validates an optional training recipe, reports target capabilities, and returns a `Bundle`. A target asks for diagnostics but never changes the graph.
 
@@ -31,13 +31,13 @@
 
   Dataset paths, output directories, accelerator caches, and experiment-specific analysis do not belong in the bundle.
 
-  === Execution requests <execution-requests>
+  === Execution requests
 
   `ExecutionSpec` selects the legacy or graph executor explicitly and supplies inputs, seed, device, recording profile, checkpoint, runtime state, and execution options.
 
   The graph executor plans the complete topology before stepping. It validates dimensions, scheduling, polarity, delays, supplied inputs, outputs, and backend capabilities. Historical CLI commands continue to select the legacy executor by default.
 
-  === Recordings and results <recordings-results>
+  === Recordings and results
 
   Recording profiles are:
 
@@ -49,7 +49,7 @@
 
   Forward graph execution is implemented for dense COBA-LIF and leaky-integrator graphs with AMPA and GABA projections. Unsupported capabilities fail explicitly before execution.
 
-  == API reference <api-reference>
+  == API reference
 
   === Compile and load
 
