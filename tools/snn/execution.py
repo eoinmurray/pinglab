@@ -177,6 +177,8 @@ class TrainingCheckpoint:
     parameters: dict[str, torch.Tensor]
     optimizer_state: dict[str, dict[str, Any]]
     rng_state: torch.Tensor
+    rng_backend: str = "cpu"
+    accelerator_rng_states: dict[str, torch.Tensor] = field(default_factory=dict)
     data_state: Mapping[str, Any] = field(default_factory=dict)
     selected_loss: float | None = None
 
@@ -1932,6 +1934,32 @@ def validate_derived_inference_products(
 
 def save_training_checkpoint(path: str | Path, checkpoint: TrainingCheckpoint) -> Path:
     """Atomically write a named, authenticated graph-training checkpoint."""
+    if checkpoint.rng_state.dtype != torch.uint8 or checkpoint.rng_state.ndim != 1:
+        raise ValueError(
+            "training checkpoint CPU RNG state must be one-dimensional uint8"
+        )
+    if checkpoint.rng_backend not in {"cpu", "cuda", "mps"}:
+        raise ValueError(
+            f"training checkpoint has unsupported RNG backend {checkpoint.rng_backend!r}"
+        )
+    devices = sorted(checkpoint.accelerator_rng_states)
+    if checkpoint.rng_backend == "cpu" and devices:
+        raise ValueError(
+            "CPU training checkpoint cannot contain accelerator RNG states"
+        )
+    if checkpoint.rng_backend == "cuda" and (
+        not devices or devices != [f"cuda:{index}" for index in range(len(devices))]
+    ):
+        raise ValueError(
+            "CUDA training checkpoint RNG devices must be contiguous from cuda:0"
+        )
+    if checkpoint.rng_backend == "mps" and devices != ["mps"]:
+        raise ValueError("MPS training checkpoint requires exactly the mps RNG state")
+    for name, state in checkpoint.accelerator_rng_states.items():
+        if state.dtype != torch.uint8 or state.ndim != 1:
+            raise ValueError(
+                f"training checkpoint {name} RNG state must be one-dimensional uint8"
+            )
     root = Path(path)
     root.mkdir(parents=True, exist_ok=True)
     arrays: dict[str, np.ndarray] = {}
@@ -1963,6 +1991,8 @@ def save_training_checkpoint(path: str | Path, checkpoint: TrainingCheckpoint) -
             else:
                 optimizer_scalars[name][state] = value
     append("rng", "cpu", checkpoint.rng_state)
+    for name in sorted(checkpoint.accelerator_rng_states):
+        append("rng", name, checkpoint.accelerator_rng_states[name])
     fd, temporary_name = tempfile.mkstemp(prefix=".tensors-", suffix=".npz", dir=root)
     os.close(fd)
     temporary_tensors = Path(temporary_name)
@@ -1974,8 +2004,10 @@ def save_training_checkpoint(path: str | Path, checkpoint: TrainingCheckpoint) -
         temporary_tensors.unlink(missing_ok=True)
     manifest = {
         "schema": TRAINING_CHECKPOINT_SCHEMA,
-        "schema_version": 1,
+        "schema_version": 2,
         "backend": "tools/snn.graph-training/v1",
+        "rng_backend": checkpoint.rng_backend,
+        "accelerator_rng_devices": sorted(checkpoint.accelerator_rng_states),
         "graph_digest": checkpoint.graph_digest,
         "training_digest": checkpoint.training_digest,
         "completed_updates": checkpoint.completed_updates,
@@ -2006,10 +2038,9 @@ def load_training_checkpoint(
     """Load and authenticate a portable named graph-training checkpoint."""
     root = Path(path)
     manifest = json.loads((root / "manifest.json").read_text())
-    if (
-        manifest.get("schema") != TRAINING_CHECKPOINT_SCHEMA
-        or manifest.get("schema_version") != 1
-    ):
+    if manifest.get("schema") != TRAINING_CHECKPOINT_SCHEMA or manifest.get(
+        "schema_version"
+    ) not in {1, 2}:
         raise ValueError(
             f"unsupported training-checkpoint schema: {manifest.get('schema')}"
         )
@@ -2025,6 +2056,7 @@ def load_training_checkpoint(
         for name, values in manifest.get("optimizer_scalars", {}).items()
     }
     rng_state = None
+    accelerator_rng_states: dict[str, torch.Tensor] = {}
     with np.load(tensors_path, allow_pickle=False) as archive:
         expected_keys = {row["key"] for row in manifest["tensors"]}
         if set(archive.files) != expected_keys:
@@ -2037,19 +2069,63 @@ def load_training_checkpoint(
                 raise ValueError(
                     f"training-checkpoint tensor {row['group']}.{row['name']} metadata does not match tensors.npz"
                 )
-            value = torch.from_numpy(array.copy()).to(device)
+            value = torch.from_numpy(array.copy())
             if row["group"] == "parameters":
-                parameters[row["name"]] = value
+                parameters[row["name"]] = value.to(device)
             elif row["group"] == "optimizer":
-                optimizer_state.setdefault(row["name"], {})[row["state"]] = value
+                optimizer_state.setdefault(row["name"], {})[row["state"]] = value.to(
+                    device
+                )
             elif row["group"] == "rng" and row["name"] == "cpu":
+                if value.dtype != torch.uint8 or value.ndim != 1:
+                    raise ValueError(
+                        "training checkpoint CPU RNG state must be one-dimensional uint8"
+                    )
                 rng_state = value.cpu()
+            elif row["group"] == "rng":
+                if value.dtype != torch.uint8 or value.ndim != 1:
+                    raise ValueError(
+                        f"training checkpoint {row['name']} RNG state must be one-dimensional uint8"
+                    )
+                accelerator_rng_states[row["name"]] = value.cpu()
             else:
                 raise ValueError(
                     f"unsupported training-checkpoint tensor group {row['group']}"
                 )
     if rng_state is None:
         raise ValueError("training checkpoint is missing CPU RNG state")
+    schema_version = int(manifest["schema_version"])
+    rng_backend = manifest.get("rng_backend", "cpu")
+    declared_devices = set(manifest.get("accelerator_rng_devices", []))
+    if schema_version == 2:
+        if rng_backend not in {"cpu", "cuda", "mps"}:
+            raise ValueError(
+                f"training checkpoint has unsupported RNG backend {rng_backend!r}"
+            )
+        if declared_devices != set(accelerator_rng_states):
+            raise ValueError(
+                "training checkpoint accelerator RNG device inventory does not match tensors"
+            )
+        if rng_backend == "cpu" and accelerator_rng_states:
+            raise ValueError(
+                "CPU training checkpoint cannot contain accelerator RNG states"
+            )
+        if rng_backend == "cuda" and not accelerator_rng_states:
+            raise ValueError(
+                "CUDA training checkpoint is missing accelerator RNG states"
+            )
+        if rng_backend == "cuda":
+            expected_cuda = [
+                f"cuda:{index}" for index in range(len(accelerator_rng_states))
+            ]
+            if sorted(accelerator_rng_states) != expected_cuda:
+                raise ValueError(
+                    "CUDA training checkpoint RNG devices must be contiguous from cuda:0"
+                )
+        if rng_backend == "mps" and set(accelerator_rng_states) != {"mps"}:
+            raise ValueError(
+                "MPS training checkpoint requires exactly the mps RNG state"
+            )
     return TrainingCheckpoint(
         graph_digest=manifest["graph_digest"],
         training_digest=manifest["training_digest"],
@@ -2060,8 +2136,68 @@ def load_training_checkpoint(
         parameters=parameters,
         optimizer_state=optimizer_state,
         rng_state=rng_state,
+        rng_backend=rng_backend,
+        accelerator_rng_states=accelerator_rng_states,
         data_state=manifest.get("data_state", {}),
     )
+
+
+def capture_training_rng_state(
+    device: str | torch.device,
+) -> tuple[str, dict[str, torch.Tensor]]:
+    """Capture every stochastic stream required for exact resume on one backend."""
+    name = str(device).lower()
+    if name.startswith("cuda"):
+        states = torch.cuda.get_rng_state_all()
+        expected = torch.cuda.device_count()
+        if len(states) != expected or expected <= 0:
+            raise ValueError(
+                f"CUDA RNG capture expected {expected} device states, got {len(states)}"
+            )
+        return "cuda", {
+            f"cuda:{index}": state.detach().cpu().clone()
+            for index, state in enumerate(states)
+        }
+    if name == "mps":
+        if not torch.backends.mps.is_available():
+            raise ValueError("MPS RNG capture requires an available MPS backend")
+        return "mps", {"mps": torch.mps.get_rng_state().detach().cpu().clone()}
+    return "cpu", {}
+
+
+def restore_training_rng_state(
+    checkpoint: TrainingCheckpoint, device: str | torch.device
+) -> None:
+    """Restore CPU and exact-matching accelerator streams or fail closed."""
+    name = str(device).lower()
+    requested_backend = (
+        "cuda" if name.startswith("cuda") else "mps" if name == "mps" else "cpu"
+    )
+    if checkpoint.rng_backend != requested_backend:
+        raise ValueError(
+            f"training checkpoint RNG backend {checkpoint.rng_backend} cannot resume on {requested_backend}"
+        )
+    if requested_backend == "cuda":
+        expected = [f"cuda:{index}" for index in range(torch.cuda.device_count())]
+        if sorted(checkpoint.accelerator_rng_states) != expected:
+            raise ValueError(
+                "training checkpoint CUDA RNG topology does not match available devices"
+            )
+        torch.set_rng_state(checkpoint.rng_state.cpu())
+        torch.cuda.set_rng_state_all(
+            [checkpoint.accelerator_rng_states[key].cpu() for key in expected]
+        )
+    elif requested_backend == "mps":
+        if not torch.backends.mps.is_available():
+            raise ValueError("MPS RNG restore requires an available MPS backend")
+        if set(checkpoint.accelerator_rng_states) != {"mps"}:
+            raise ValueError("training checkpoint MPS RNG state is missing")
+        torch.set_rng_state(checkpoint.rng_state.cpu())
+        torch.mps.set_rng_state(checkpoint.accelerator_rng_states["mps"].cpu())
+    else:
+        if checkpoint.accelerator_rng_states:
+            raise ValueError("CPU resume cannot restore accelerator RNG states")
+        torch.set_rng_state(checkpoint.rng_state.cpu())
 
 
 def legacy_parameter_map_v1(graph: Mapping[str, Any]) -> dict[str, str]:
@@ -3528,7 +3664,7 @@ def train(spec: ExecutionSpec) -> ExecutionResult:
                 key: value.to(device) if isinstance(value, torch.Tensor) else value
                 for key, value in resumed.optimizer_state[name].items()
             }
-        torch.set_rng_state(resumed.rng_state.cpu())
+        restore_training_rng_state(resumed, device)
     output_ids = {row["signal"]: row["id"] for row in graph.get("outputs", [])}
     updates_option = spec.options.get("updates")
     updates = int(
@@ -3561,6 +3697,7 @@ def train(spec: ExecutionSpec) -> ExecutionResult:
     def checkpoint_at(
         update_count: int, loss_value: float, next_data_state: Mapping[str, Any]
     ) -> TrainingCheckpoint:
+        rng_backend, accelerator_rng_states = capture_training_rng_state(device)
         return TrainingCheckpoint(
             graph_digest=graph_digest,
             training_digest=training_digest,
@@ -3573,6 +3710,8 @@ def train(spec: ExecutionSpec) -> ExecutionResult:
             },
             optimizer_state=optimizer_state_by_name(),
             rng_state=torch.get_rng_state().clone(),
+            rng_backend=rng_backend,
+            accelerator_rng_states=accelerator_rng_states,
             data_state=dict(next_data_state),
         )
 
@@ -3731,6 +3870,10 @@ def train(spec: ExecutionSpec) -> ExecutionResult:
             "trainable_parameters": sorted(last_gradients),
             "optimizer": optimizer_spec,
             "training_checkpoint_schema": TRAINING_CHECKPOINT_SCHEMA,
+            "training_checkpoint_rng": {
+                "backend": final_checkpoint.rng_backend,
+                "devices": sorted(final_checkpoint.accelerator_rng_states),
+            },
             "resumed_from_update": completed_updates,
         },
     )
