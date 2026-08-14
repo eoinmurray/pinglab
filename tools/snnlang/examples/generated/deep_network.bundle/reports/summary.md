@@ -6,7 +6,7 @@ Operations: 2
 Parameters: 10 tensors / 517,120 scalars
 Estimated state: 960 scalars per sample and timestep
 Estimated dense projection edges: 514,560
-Trainable this recipe: 0 tensors
+Trainable this recipe: 10 tensors
 Outputs: gesture_logits
 Recurrent paths: association_E_to_I, association_I_to_E, decision_E_to_I, decision_I_to_E, encoder_E_to_I, encoder_I_to_E
 Diagnostics: 0 errors, 0 warnings
@@ -31,13 +31,13 @@ Diagnostics: 0 errors, 0 warnings
 - encoder_input: events.value → encoder_E.excitatory [feedforward, excitatory]
 
 ## Parameters
-- association_E_to_I.weight: [64, 256] nS (frozen/unselected)
-- association_I_to_E.weight: [256, 64] nS (frozen/unselected)
-- association_input.weight: [256, 384] nS (frozen/unselected)
-- decision_E_to_I.weight: [32, 128] nS (frozen/unselected)
-- decision_I_to_E.weight: [128, 32] nS (frozen/unselected)
-- decision_input.weight: [128, 256] nS (frozen/unselected)
-- encoder_E_to_I.weight: [96, 384] nS (frozen/unselected)
-- encoder_I_to_E.weight: [384, 96] nS (frozen/unselected)
-- encoder_input.weight: [384, 700] nS (frozen/unselected)
-- gesture_readout_projection.weight: [20, 128] 1 (frozen/unselected)
+- association_E_to_I.weight: [64, 256] nS (selected)
+- association_I_to_E.weight: [256, 64] nS (selected)
+- association_input.weight: [256, 384] nS (selected)
+- decision_E_to_I.weight: [32, 128] nS (selected)
+- decision_I_to_E.weight: [128, 32] nS (selected)
+- decision_input.weight: [128, 256] nS (selected)
+- encoder_E_to_I.weight: [96, 384] nS (selected)
+- encoder_I_to_E.weight: [384, 96] nS (selected)
+- encoder_input.weight: [384, 700] nS (selected)
+- gesture_readout_projection.weight: [20, 128] 1 (selected)
