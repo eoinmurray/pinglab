@@ -1399,7 +1399,7 @@ def legacy_parameter_map_v1(graph: Mapping[str, Any]) -> dict[str, str]:
     populations = {row["id"]: row for row in graph.get("populations", [])}
     input_ids = {row["id"] for row in graph.get("inputs", [])}
     mapping: dict[str, str] = {}
-    recurrent_index = 0
+    recurrent_index = 1
     for projection in graph.get("projections", []):
         parameters = projection.get("parameters", [])
         if len(parameters) != 1:

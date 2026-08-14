@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 
+import models as M
 import pytest
 import torch
 from conformance import (
@@ -12,6 +13,9 @@ from conformance import (
     remap_named_tensors,
     write_conformance_report,
 )
+from execution import ExecutionSpec, GraphExecutor, build, legacy_parameter_map_v1
+
+from tools import snnlang as snn
 
 
 def test_layered_conformance_requires_complete_exact_named_coverage(tmp_path):
@@ -82,3 +86,93 @@ def test_explicit_name_remapping_rejects_partial_and_duplicate_maps():
         remap_named_tensors(values, {"graph.a": "legacy.a"})
     with pytest.raises(ValueError, match="duplicate destination"):
         remap_named_tensors(values, {"graph.a": "legacy.a", "graph.b": "legacy.a"})
+
+
+def test_minimal_legacy_and_graph_ping_forward_share_parameters_and_logits():
+    M.N_IN = 2
+    M.N_OUT = 2
+    M.dt = 0.1
+    M.T_ms = 4.0
+    M.T_steps = 40
+    net = snn.Network("legacy_graph_ping", dt=0.1 * snn.ms)
+    events = net.input(
+        "events", shape=("time", "batch", 2), signal_type="spikes", unit="spike"
+    )
+    cell = snn.components.ping(
+        net,
+        name="cell",
+        n_e=4,
+        n_i=1,
+        source=events,
+        include_silent_recurrence=True,
+    )
+    scores = snn.readouts.MeanVoltage(source=cell.E.spikes, classes=2, name="scores")
+    net.output("class_logits", scores)
+    bundle = snn.compile(net)
+    built = build(
+        ExecutionSpec(kind="build", executor="graph", graph=bundle.graph, seed=7)
+    )
+    assert isinstance(built.model, GraphExecutor)
+    graph_model = built.model
+    graph_parameters = graph_model.parameter_map()
+    with torch.no_grad():
+        graph_parameters["cell_input.weight"].fill_(10.0)
+        for name in (
+            "cell_E_to_E.weight",
+            "cell_E_to_I.weight",
+            "cell_I_to_E.weight",
+            "cell_I_to_I.weight",
+        ):
+            graph_parameters[name].zero_()
+        graph_parameters["scores_projection.weight"].copy_(
+            torch.tensor([[1.0, 0.5], [0.25, 1.5], [1.25, 0.75], [0.5, 1.0]])
+        )
+
+    legacy = M.COBANet(
+        hidden_sizes=[4],
+        n_inh_per_layer={1: 1},
+        readout_mode="mem-mean",
+        w_in=(0.0, 0.0),
+        w_hid=(0.0, 0.0),
+        w_ee=(0.0, 0.0),
+        w_ei=(0.0, 0.0),
+        w_ie=(0.0, 0.0),
+        w_ii=(0.0, 0.0),
+    )
+    legacy.recording = True
+    mapping = legacy_parameter_map_v1(bundle.graph)
+    legacy_parameters = dict(legacy.named_parameters())
+    with torch.no_grad():
+        for graph_name, legacy_name in mapping.items():
+            legacy_parameters[legacy_name].copy_(graph_parameters[graph_name])
+
+    inputs = torch.zeros(40, 2, 2)
+    inputs[:, 0, 0] = 1
+    inputs[::2, 1, 1] = 1
+    graph = graph_model({"events": inputs}, record="full")
+    legacy_logits = legacy(input_spikes=inputs)
+    report = compare_conformance_layers(
+        "minimal-legacy-graph-ping",
+        {
+            "parameters": remap_named_tensors(graph.parameters, mapping),
+            "forward": {
+                "hidden_spikes": legacy.spike_record["hid"],
+                "logits": legacy_logits.detach(),
+            },
+        },
+        {
+            "parameters": {
+                name: value.detach() for name, value in legacy_parameters.items()
+            },
+            "forward": {
+                "hidden_spikes": graph.recordings["cell_E.spikes"],
+                "logits": graph.outputs["class_logits"].detach(),
+            },
+        },
+        policies={
+            "forward": {
+                "logits": ComparisonPolicy(mode="numeric", atol=1e-6, rtol=1e-6)
+            }
+        },
+    )
+    report.require_passed()

@@ -516,10 +516,10 @@ def test_legacy_parameter_map_uses_complete_semantic_names():
     graph = ping_classifier().graph
     assert legacy_parameter_map_v1(graph) == {
         "classifier_projection.weight": "W_ff.1",
-        "sensory_ping_E_to_E.weight": "W_ee.0",
-        "sensory_ping_E_to_I.weight": "W_ei.0",
-        "sensory_ping_I_to_E.weight": "W_ie.0",
-        "sensory_ping_I_to_I.weight": "W_ii.0",
+        "sensory_ping_E_to_E.weight": "W_ee.1",
+        "sensory_ping_E_to_I.weight": "W_ei.1",
+        "sensory_ping_I_to_E.weight": "W_ie.1",
+        "sensory_ping_I_to_I.weight": "W_ii.1",
         "sensory_ping_input.weight": "W_ff.0",
     }
 
