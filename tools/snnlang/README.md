@@ -115,6 +115,10 @@ recordings remain CLI concerns. Structural flags cannot override the bundle.
 For the first training subset, `training.json` owns cross-entropy, AdamW,
 epochs, learning rate, and a trainable input/readout plus frozen recurrent
 scope; dataset cap and batch size remain execution choices.
+Parameter groups are exhaustive and non-overlapping. The compiled recipe also
+contains resolved trainable/frozen parameter lists and a stable per-parameter
+learning-rate map; frozen groups use zero and trainable groups require a
+positive finite rate.
 Unsupported graph structures fail with an element-level capability error;
 legacy commands that omit `--bundle` retain their existing defaults and
 behaviour.
