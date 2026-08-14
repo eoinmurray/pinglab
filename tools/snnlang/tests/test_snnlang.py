@@ -171,11 +171,17 @@ def test_training_selects_and_freezes_parameters():
     scores = snn.readouts.SpikeCount(source=cell.E.spikes, classes=2, name="scores")
     net.output("class_scores", scores)
     ids = [p["id"] for p in net.parameters]
+    selected = "scores_projection.weight"
     spec = snn.TrainSpec(
         objectives=[training.CrossEntropy(prediction=scores, target="label")],
         parameter_groups=[
-            training.ParameterGroup(ids[:1], name="selected", lr=1e-3),
-            training.ParameterGroup(ids[1:], name="frozen", lr=0, frozen=True),
+            training.ParameterGroup([selected], name="selected", lr=1e-3),
+            training.ParameterGroup(
+                [pid for pid in ids if pid != selected],
+                name="frozen",
+                lr=0,
+                frozen=True,
+            ),
         ],
         optimizer=training.AdamW(),
         stop_gradients=[training.StopGradient.at(cell.E.spikes)],
@@ -186,9 +192,9 @@ def test_training_selects_and_freezes_parameters():
     assert bundle.training["graph_digest"] == bundle.manifest["graph_digest"]
     assert bundle.training["parameter_groups"][1]["frozen"]
     assert bundle.training["resolved_parameters"] == {
-        "trainable": sorted(ids[:1]),
-        "frozen": sorted(ids[1:]),
-        "learning_rates": {ids[0]: 1e-3},
+        "trainable": [selected],
+        "frozen": sorted(pid for pid in ids if pid != selected),
+        "learning_rates": {selected: 1e-3},
     }
     assert bundle.training["surrogate"] == {"kind": "fast_sigmoid", "slope": 1.25}
     assert bundle.training["resolved_gradients"] == {
@@ -268,6 +274,91 @@ def test_loss_and_duration_vocabulary_fail_closed():
     assert "ceiling must be non-negative Hz" in message
     assert "strength must be non-negative and finite" in message
     assert "integer number of graph timesteps" in message
+
+
+def test_objective_rejects_stop_gradient_route_with_no_downstream_trainable_parameter():
+    net, cell = small_network()
+    scores = snn.readouts.SpikeCount(source=cell.E.spikes, classes=2, name="scores")
+    net.output("class_scores", scores)
+    ids = [p["id"] for p in net.parameters]
+    input_weight = "cell_input.weight"
+    spec = snn.TrainSpec(
+        objectives=[training.CrossEntropy(prediction=scores, target="label")],
+        parameter_groups=[
+            training.ParameterGroup([input_weight], name="input", lr=1e-3),
+            training.ParameterGroup(
+                [pid for pid in ids if pid != input_weight],
+                name="frozen",
+                lr=0,
+                frozen=True,
+            ),
+        ],
+        optimizer=training.AdamW(),
+        stop_gradients=[training.StopGradient.at(cell.E.spikes)],
+    )
+    with pytest.raises(ValueError, match="objective has no differentiable route"):
+        snn.compile(net, training=spec)
+
+
+def test_trainable_zero_initialized_recurrent_variant_has_named_gradient_route():
+    net, cell = small_network()
+    recurrent = next(
+        projection
+        for projection in net.projections
+        if projection["id"] == "cell_E_to_I"
+    )
+    recurrent_parameter = recurrent["parameters"][0]
+    parameter = next(p for p in net.parameters if p["id"] == recurrent_parameter)
+    parameter["initializer"] = snn.Zeros().json()
+    scores = snn.readouts.SpikeCount(source=cell.E.spikes, classes=2, name="scores")
+    net.output("class_scores", scores)
+    ids = [p["id"] for p in net.parameters]
+    spec = snn.TrainSpec(
+        objectives=[training.CrossEntropy(prediction=scores, target="label")],
+        parameter_groups=[
+            training.ParameterGroup([recurrent_parameter], name="recurrent", lr=4e-4),
+            training.ParameterGroup(
+                [pid for pid in ids if pid != recurrent_parameter],
+                name="frozen",
+                lr=0,
+                frozen=True,
+            ),
+        ],
+        optimizer=training.AdamW(),
+        surrogate=training.FastSigmoid(slope=1),
+    )
+    recipe = snn.compile(net, training=spec).training
+    assert recipe["resolved_parameters"]["trainable"] == [recurrent_parameter]
+    assert parameter["initializer"] == {"kind": "zeros"}
+
+
+def test_disabled_trainable_projection_is_not_a_differentiable_route():
+    net, cell = small_network()
+    disabled = net.connect(
+        cell.E.spikes,
+        cell.I.excitatory,
+        name="disabled_trainable",
+        synapse=snn.AMPA(tau=2 * snn.ms),
+        weight=snn.Zeros(),
+        connection="recurrent",
+        enabled=False,
+    )
+    scores = snn.readouts.SpikeCount(source=cell.E.spikes, classes=2, name="scores")
+    net.output("class_scores", scores)
+    ids = [p["id"] for p in net.parameters]
+    pid = disabled.weight.id
+    spec = snn.TrainSpec(
+        objectives=[training.CrossEntropy(prediction=scores, target="label")],
+        parameter_groups=[
+            training.ParameterGroup([pid], name="disabled", lr=1e-3),
+            training.ParameterGroup(
+                [item for item in ids if item != pid], name="frozen", lr=0, frozen=True
+            ),
+        ],
+        optimizer=training.AdamW(),
+    )
+    with pytest.raises(ValueError, match="objective has no differentiable route"):
+        snn.compile(net, training=spec)
 
 
 @pytest.mark.parametrize(

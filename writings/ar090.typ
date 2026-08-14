@@ -52,7 +52,7 @@
   ==== Complete graph and protocol vocabulary
 
   - Add portable dataset-loader and encoder bindings. Fixed and categorical variable-rate Poisson protocols are implemented.
-  - Complete differentiable-route validation and recurrent initialization/trainability variants. Disabled loops, initializer metadata, parameter groups, gradient choices, spike-budget regularization, variable graph timesteps, and variable presentation durations are implemented.
+  The complete collection training vocabulary is implemented: disabled and trainable recurrent variants, initializer metadata, constraints and units, exhaustive parameter groups, gradient choices, spike-budget regularization, variable graph timesteps and presentation durations, differentiable-route validation, and element-level rejection are explicit.
   - Record dataset identity, split, sample cap, batch size, shuffle behavior, and all stochastic seeds as execution protocol.
 
   ==== Graph-native training and checkpoints

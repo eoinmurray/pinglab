@@ -860,6 +860,71 @@ def validate_training(
                     "error", "E406", f"stop-gradient signal is unresolved: {signal}"
                 )
             )
+
+    trainable = set(training.get("resolved_parameters", {}).get("trainable", []))
+    operations = {
+        f"{operation['id']}.value": operation
+        for operation in graph.get("operations", [])
+    }
+    populations = {population["id"] for population in graph.get("populations", [])}
+    incoming: dict[str, list[Mapping[str, Any]]] = {
+        population: [] for population in populations
+    }
+    for projection in graph.get("projections", []):
+        if projection.get("enabled", True):
+            incoming.setdefault(projection["target"].partition(".")[0], []).append(
+                projection
+            )
+    barriers = set(training.get("stop_gradients", []))
+
+    def upstream_parameters(signal: str, visiting: set[str] | None = None) -> set[str]:
+        if signal in barriers:
+            return set()
+        visiting = set() if visiting is None else visiting
+        if signal in visiting:
+            return set()
+        visiting = {*visiting, signal}
+        if signal in operations:
+            operation = operations[signal]
+            found = set(operation.get("parameters", []))
+            for source in operation.get("sources", []):
+                found.update(upstream_parameters(source, visiting))
+            return found
+        owner = signal.partition(".")[0]
+        if owner in populations:
+            found = set()
+            for projection in incoming.get(owner, []):
+                found.update(projection.get("parameters", []))
+                found.update(upstream_parameters(projection["source"], visiting))
+            return found
+        return set()
+
+    for index, objective in enumerate(training.get("objectives", [])):
+        reachable = upstream_parameters(objective.get("prediction", ""))
+        if not reachable & trainable:
+            result.diagnostics.append(
+                Diagnostic(
+                    "error",
+                    "E426",
+                    "objective has no differentiable route to a trainable parameter; "
+                    f"reachable={sorted(reachable)}, trainable={sorted(trainable)}",
+                    f"objective[{index}]",
+                )
+            )
+    for index, regularizer in enumerate(training.get("regularizers", [])):
+        reachable = set()
+        for signal in regularizer.get("signals", []):
+            reachable.update(upstream_parameters(signal))
+        if not reachable & trainable:
+            result.diagnostics.append(
+                Diagnostic(
+                    "error",
+                    "E427",
+                    "regularizer has no differentiable route to a trainable parameter; "
+                    f"reachable={sorted(reachable)}, trainable={sorted(trainable)}",
+                    f"regularizer[{index}]",
+                )
+            )
     return result
 
 
