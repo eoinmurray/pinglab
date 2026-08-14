@@ -71,6 +71,38 @@ independently per presentation from a categorical set. The resolver owns an
 explicit seed, records both configured and realized rates, and uses the graph
 timestep to materialize Bernoulli-discretized homogeneous Poisson spikes.
 
+Portable dataset snapshots use `DatasetSnapshotBinding` and remain external
+immutable NPZ files. The binding authenticates the file, selects samples by a
+seeded permutation and cap, binds integer labels to an optional training target,
+and applies one standard `DatasetEncoder`:
+
+- `rate_poisson`: finite normalized `(samples, channels)` features scaled by a
+  maximum rate and sampled for a physical duration;
+- `prebinned_spikes`: exact binary `(time, samples, channels)` replay;
+- `event_bin`: timestamped sample/channel events binned at graph `dt`, with
+  binary collision counts retained in provenance.
+
+The `tools/snn.dataset-snapshot-binding/v1` protocol records the source digest,
+dataset identity and split, selected indices, keys, sample cap, batch size,
+shuffle policy, timing, encoder parameters, labels, and execution/order/encoder
+seeds. No download or dataset registry is consulted.
+
+```sh
+uv run python tools/snn/tool.py train \
+  --executor graph \
+  --bundle deep_network.bundle \
+  --dataset-file shd-train-snapshot.npz \
+  --dataset-encoder event-bin \
+  --dataset-target-id gesture \
+  --input-dataset-id shd-train-sha256-... \
+  --input-split train \
+  --t-ms 100 \
+  --max-samples 1000 \
+  --input-shuffle \
+  --seed 17 \
+  --out-dir train-run/
+```
+
 ```sh
 uv run python tools/snn/tool.py sim \
   --executor graph \
