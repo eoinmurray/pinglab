@@ -81,6 +81,17 @@ DT_MS = 0.1
 if STREAMS_PER_CELL < 1 or DIGITS_PER_STREAM < 1:
     raise ValueError("exp082 stream and digit counts must both be positive")
 
+EVALUATION_PROFILE = (
+    "smoke"
+    if SMOKE
+    else (
+        "pilot"
+        if "PINGLAB_EXP082_STREAMS_PER_CELL" in os.environ
+        or "PINGLAB_EXP082_DIGITS_PER_STREAM" in os.environ
+        else "production"
+    )
+)
+
 VARIABLE_STREAM = (
     (200.0, 0.5),
     (50.0, 25.0),
@@ -503,7 +514,7 @@ def main() -> None:
     payload = {
         "status": "complete",
         "run_id": run_id,
-        "profile": "smoke" if SMOKE else "production",
+        "profile": EVALUATION_PROFILE,
         "training_source": "exp022 variable-rate streaming training",
         "training_cells": [training_cell_name(seed) for seed in SEEDS],
         "checkpoint_provenance": checkpoint_provenance(

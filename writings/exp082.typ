@@ -7,7 +7,11 @@
 )
 
 #let r = json("/artifacts/data/exp082/numbers.json")
-#let provisional = r.config.psychometric_rates_hz.len() < r.config.training_rates_hz.len()
+#let provisional = (
+  r.profile != "production"
+  or r.config.digits_per_seed_cell < 200
+  or r.config.psychometric_rates_hz.len() < r.config.training_rates_hz.len()
+)
 
 #let body = [
   == Abstract
@@ -52,7 +56,7 @@
 
   #if provisional [
     #block(inset: 10pt, fill: rgb("f3f0e8"), radius: 3pt)[
-      *Provisional smoke-test output.* These figures verify the complete inference, measurement, and rendering path. Each grid cell contains only nine classified digits across three short training runs, so the numerical values are not estimates of publication performance.
+      *Provisional validation output.* These figures verify the complete inference, measurement, and rendering path. Each seed-level grid cell contains only #r.config.digits_per_seed_cell classified digits, and the checkpoints come from reduced training runs, so the numerical values are not estimates of publication performance.
     ]
   ]
 
