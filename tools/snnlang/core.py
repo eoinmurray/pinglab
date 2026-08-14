@@ -83,7 +83,38 @@ def Modulatory(**values: Any) -> Spec:
 
 
 def Normal(mean: float, std: float) -> Spec:
-    return Spec("normal", {"mean": mean, "std": std})
+    """Compatibility name for the collection's lower-clamped normal law."""
+    return LowerClampedNormal(mean, std)
+
+
+def LowerClampedNormal(
+    mean: float,
+    std: float,
+    *,
+    initial_zero_fraction: float = 0.0,
+    zeroing: str = "bernoulli",
+) -> Spec:
+    return Spec(
+        "lower_clamped_normal",
+        {
+            "mean": mean,
+            "std": std,
+            "initial_zero_fraction": initial_zero_fraction,
+            "zeroing": zeroing,
+        },
+    )
+
+
+def SignedNormal(mean: float, std: float) -> Spec:
+    return Spec("signed_normal", {"mean": mean, "std": std})
+
+
+def Uniform(low: float, high: float) -> Spec:
+    return Spec("uniform", {"low": low, "high": high})
+
+
+def Zeros() -> Spec:
+    return Spec("zeros")
 
 
 def Constant(value: float) -> Spec:

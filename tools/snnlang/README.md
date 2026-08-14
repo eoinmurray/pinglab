@@ -160,6 +160,12 @@ parameter shape, initializer, name, and construction position, but contribute
 zero conductance at runtime. Controlled cells can therefore disable a recurrent
 loop without shifting later tensor identities or random initialization draws.
 
+Initializer specifications distinguish lower-clamped and signed normals,
+uniform, constant, and zero distributions. Lower-clamped normals can apply
+seeded Bernoulli or exact-fan-in initial zeroing. Build metrics expose stable
+per-parameter realized statistics together with the constraint, unit, runtime
+shape, and fan-in scaling convention.
+
 Graph-native training is deliberately not enabled at this milestone. A graph
 training request fails with the explicit future `training:v1` capability rather
 than silently routing through the legacy trainer. The legacy CLI and bundle
