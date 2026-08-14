@@ -80,7 +80,9 @@ def graph_dict(net: Network) -> dict[str, Any]:
     }
 
 
-def _training_dict(spec: TrainSpec, graph_digest: str) -> dict[str, Any]:
+def _training_dict(
+    spec: TrainSpec, graph_digest: str, graph: Mapping[str, Any]
+) -> dict[str, Any]:
     groups = [
         {
             "id": g.name,
@@ -137,6 +139,14 @@ def _training_dict(spec: TrainSpec, graph_digest: str) -> dict[str, Any]:
         "epochs": spec.epochs,
         "gradient_clip": spec.gradient_clip,
         "surrogate": spec.surrogate.json() if spec.surrogate else None,
+        "resolved_gradients": {
+            "surrogate": spec.surrogate.json() if spec.surrogate else None,
+            "voltage_gradient_dampening": {
+                population["id"]: population["neuron"].get("voltage_grad_dampen", 1.0)
+                for population in graph.get("populations", [])
+                if population.get("spiking")
+            },
+        },
     }
 
 
@@ -178,6 +188,21 @@ def validate_graph(graph: Mapping[str, Any]) -> ValidationResult:
     for row in graph.get("inputs", []):
         signals[f"{row['id']}.value"] = row
     for row in graph.get("populations", []):
+        dampening = row.get("neuron", {}).get("voltage_grad_dampen", 1.0)
+        if (
+            not isinstance(dampening, (int, float))
+            or isinstance(dampening, bool)
+            or not math.isfinite(dampening)
+            or dampening <= 0
+        ):
+            out.diagnostics.append(
+                Diagnostic(
+                    "error",
+                    "E113",
+                    "voltage_grad_dampen must be a positive finite factor",
+                    row["id"],
+                )
+            )
         signals[f"{row['id']}.voltage"] = {
             "shape": ["time", "batch", row["size"]],
             "unit": "mV",
@@ -664,6 +689,44 @@ def validate_training(
                 "error", "E414", "resolved parameter learning rates do not match groups"
             )
         )
+    surrogate = training.get("surrogate")
+    if surrogate is not None:
+        slope = surrogate.get("slope")
+        if surrogate.get("kind") != "fast_sigmoid":
+            result.diagnostics.append(
+                Diagnostic(
+                    "error", "E415", f"unsupported surrogate {surrogate.get('kind')}"
+                )
+            )
+        elif (
+            not isinstance(slope, (int, float))
+            or isinstance(slope, bool)
+            or not math.isfinite(slope)
+            or slope <= 0
+        ):
+            result.diagnostics.append(
+                Diagnostic(
+                    "error",
+                    "E416",
+                    "fast-sigmoid surrogate slope must be positive and finite",
+                )
+            )
+    expected_gradients = {
+        "surrogate": surrogate,
+        "voltage_gradient_dampening": {
+            population["id"]: population["neuron"].get("voltage_grad_dampen", 1.0)
+            for population in graph.get("populations", [])
+            if population.get("spiking")
+        },
+    }
+    if training.get("resolved_gradients") != expected_gradients:
+        result.diagnostics.append(
+            Diagnostic(
+                "error",
+                "E417",
+                "resolved gradient contract does not match graph and training recipe",
+            )
+        )
     for objective in training.get("objectives", []):
         if objective["prediction"] not in output_signals:
             result.diagnostics.append(
@@ -921,7 +984,7 @@ def compile(
     graph_validation = validate_graph(graph)
     graph_validation.raise_for_errors()
     graph_digest = digest(graph)
-    training_data = _training_dict(training, graph_digest) if training else None
+    training_data = _training_dict(training, graph_digest, graph) if training else None
     training_validation = (
         validate_training(graph, training_data) if training_data else ValidationResult()
     )

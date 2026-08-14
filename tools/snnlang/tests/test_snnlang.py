@@ -179,6 +179,7 @@ def test_training_selects_and_freezes_parameters():
         ],
         optimizer=training.AdamW(),
         stop_gradients=[training.StopGradient.at(cell.E.spikes)],
+        surrogate=training.FastSigmoid(slope=1.25),
     )
     bundle = snn.compile(net, training=spec)
     assert bundle.training is not None
@@ -189,6 +190,29 @@ def test_training_selects_and_freezes_parameters():
         "frozen": sorted(ids[1:]),
         "learning_rates": {ids[0]: 1e-3},
     }
+    assert bundle.training["surrogate"] == {"kind": "fast_sigmoid", "slope": 1.25}
+    assert bundle.training["resolved_gradients"] == {
+        "surrogate": {"kind": "fast_sigmoid", "slope": 1.25},
+        "voltage_gradient_dampening": {"cell_E": 80.0, "cell_I": 80.0},
+    }
+
+
+def test_gradient_vocabulary_rejects_invalid_surrogate_and_dampening():
+    net, cell = small_network()
+    scores = snn.readouts.SpikeCount(source=cell.E.spikes, classes=2, name="scores")
+    net.output("class_scores", scores)
+    ids = [p["id"] for p in net.parameters]
+    spec = snn.TrainSpec(
+        objectives=[training.CrossEntropy(prediction=scores, target="label")],
+        parameter_groups=[training.ParameterGroup(ids, name="all", lr=1e-3)],
+        optimizer=training.AdamW(),
+        surrogate=training.FastSigmoid(slope=0),
+    )
+    with pytest.raises(ValueError, match="surrogate slope must be positive"):
+        snn.compile(net, training=spec)
+    net.populations[0]["neuron"]["voltage_grad_dampen"] = 0
+    with pytest.raises(ValueError, match="voltage_grad_dampen must be a positive"):
+        snn.compile(net)
 
 
 @pytest.mark.parametrize(

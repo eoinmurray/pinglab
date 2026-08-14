@@ -119,6 +119,10 @@ Parameter groups are exhaustive and non-overlapping. The compiled recipe also
 contains resolved trainable/frozen parameter lists and a stable per-parameter
 learning-rate map; frozen groups use zero and trainable groups require a
 positive finite rate.
+The standard backward contract uses an explicit fast-sigmoid surrogate and
+positive per-population voltage-gradient dampening factors. Compilation records
+both in `resolved_gradients`; the legacy adapter maps the supported shared
+dampening case back to its established CLI settings.
 Unsupported graph structures fail with an element-level capability error;
 legacy commands that omit `--bundle` retain their existing defaults and
 behaviour.
