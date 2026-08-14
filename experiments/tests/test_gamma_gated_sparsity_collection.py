@@ -346,7 +346,9 @@ def test_slurm_dry_run_preserves_collection_dependencies(
     payload = slurm.submit_campaign(root, resources_path)
     assert payload["source"] == plan["source"]
     assert payload["exp022_manifest_sha256"] == "c" * 64
-    assert len(payload["expected_outputs"]) == len(execution.rows_in_order(plan))
+    assert len(payload["expected_outputs"]) == sum(
+        len(row["required_outputs"]) for row in execution.rows_in_order(plan)
+    )
     jobs = {job["name"]: job for job in payload["jobs"]}
     standard = jobs["exp022-standard"]
     assert "--cpus-per-task=4" in standard["command"]
