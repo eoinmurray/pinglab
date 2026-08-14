@@ -24,9 +24,9 @@
 
   == Standard readouts
 
-  The intended standard readouts are mean voltage, final voltage, spike count, duration-normalized spike rate, and cumulative potential. Spike-rate logits divide spike count by valid presentation duration, so changing duration does not silently rescale the classifier.
+  The standard readouts are mean voltage, final voltage, spike count, duration-normalized spike rate, and cumulative potential. Spike-rate logits divide spike count by valid presentation duration, so changing duration does not silently rescale the classifier.
 
-  Mean voltage is implemented in the graph executor. Final voltage, spike count, spike rate, masks, and cumulative potential exist in parts of the authoring API but are not implemented end to end.
+  All five standard readouts execute in the graph executor. Spike rate reports spikes per second from either an explicit duration in seconds or a `(time, batch)` valid-time mask; masked reductions reject empty windows rather than silently returning arbitrary values. The compiler infers shapes and units, checks linear readout parameter shapes, rejects malformed masks and ambiguous durations, and records operation requirements in the bundle capability manifest.
 
   == Input bindings
 
@@ -34,7 +34,7 @@
 
   Fixed-rate and categorical variable-rate Poisson encoding belong to execution protocol rather than graph topology. Dense arrays and event streams need separate bindings because their storage and timing semantics differ.
 
-  Explicit dense input tensors and legacy CLI dataset handling work today. Portable dataset, event-stream, mask, and encoder bindings are not implemented.
+  Explicit dense input tensors and legacy CLI dataset handling work today, and graph simulations may consume valid-time masks as ordinary named input tensors. Portable dataset, event-stream, and encoder bindings are not implemented.
 
   #link("/ar088/")[Next: Training recipes and graph-native learning]
 ]
