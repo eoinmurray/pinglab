@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any, Protocol, Sequence
 
-from .core import ParameterRef, Signal, Spec
+from .core import ParameterRef, Quantity, Signal, Spec
 
 
 class SignalLike(Protocol):
@@ -41,7 +41,7 @@ class ParameterGroup:
 @dataclass(frozen=True)
 class Regularizer:
     kind: str
-    signal: str
+    signals: tuple[str, ...]
     strength: float
     config: dict[str, Any] = field(default_factory=dict)
 
@@ -49,7 +49,25 @@ class Regularizer:
 def UpperRatePenalty(
     *, signal: Signal, threshold: float, strength: float
 ) -> Regularizer:
-    return Regularizer("upper_rate", signal.id, strength, {"threshold": threshold})
+    return SpikeBudgetPenalty(
+        signals=(signal,), ceiling_hz=threshold, strength=strength
+    )
+
+
+def SpikeBudgetPenalty(
+    *, signals: Sequence[Signal | str], ceiling_hz: float, strength: float
+) -> Regularizer:
+    ids = tuple(signal if isinstance(signal, str) else signal.id for signal in signals)
+    return Regularizer(
+        "spike_budget",
+        ids,
+        strength,
+        {
+            "ceiling": {"value": ceiling_hz, "unit": "Hz"},
+            "penalty": "squared_hinge",
+            "aggregation": "mean_presentations_then_layers_of_population_mean_rate",
+        },
+    )
 
 
 @dataclass(frozen=True)
@@ -86,3 +104,4 @@ class TrainSpec:
     epochs: int = 1
     gradient_clip: float | None = None
     surrogate: Spec | None = None
+    presentation_duration: Quantity | None = None
