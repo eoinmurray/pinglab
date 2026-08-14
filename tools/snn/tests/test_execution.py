@@ -45,6 +45,8 @@ from execution import (
     save_training_checkpoint,
     simulate,
     train,
+    validate_inference_artifacts,
+    write_inference_artifacts,
 )
 from tool import main, parse_args
 
@@ -1548,6 +1550,54 @@ def test_graph_inference_interventions_reject_invalid_targets_and_values():
                 },
             )
         )
+
+
+def test_inference_artifact_manifest_authenticates_cache_identity(tmp_path):
+    graph = _standard_readout_graph("count")
+    result = simulate(
+        ExecutionSpec(
+            kind="simulate",
+            executor="graph",
+            graph=graph,
+            inputs={"events": torch.ones(2, 1, 2)},
+            seed=23,
+        )
+    )
+    root = tmp_path / "inference"
+    manifest = write_inference_artifacts(root, result, graph=graph, seed=23)
+    assert manifest["schema"] == "tools/snn.inference-artifacts/v1"
+    assert manifest["request_seed"] == 23
+    assert {row["path"] for row in manifest["files"]} == {
+        "recordings.npz",
+        "outputs.npz",
+        "parameters.npz",
+        "metrics.json",
+    }
+    outputs = next(row for row in manifest["files"] if row["path"] == "outputs.npz")
+    assert outputs["arrays"] == [
+        {"name": "class_scores", "shape": [1, 2], "dtype": "float32"}
+    ]
+    assert validate_inference_artifacts(root, graph=graph, seed=23) == manifest
+    with pytest.raises(ValueError, match="request seed"):
+        validate_inference_artifacts(root, seed=24)
+
+
+def test_inference_artifact_validation_rejects_payload_corruption(tmp_path):
+    graph = _standard_readout_graph("count")
+    result = simulate(
+        ExecutionSpec(
+            kind="simulate",
+            executor="graph",
+            graph=graph,
+            inputs={"events": torch.zeros(1, 1, 2)},
+        )
+    )
+    root = tmp_path / "inference"
+    write_inference_artifacts(root, result, graph=graph, seed=0)
+    with (root / "outputs.npz").open("ab") as handle:
+        handle.write(b"corrupt")
+    with pytest.raises(ValueError, match="outputs.npz digest"):
+        validate_inference_artifacts(root)
 
 
 def test_categorical_poisson_samples_one_reproducible_rate_per_presentation():

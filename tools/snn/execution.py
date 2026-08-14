@@ -37,6 +37,7 @@ POISSON_INPUT_BINDING_SCHEMA = "tools/snn.poisson-input-binding/v1"
 EXECUTION_PROTOCOL_SCHEMA = "tools/snn.execution-protocol/v1"
 INFERENCE_OVERRIDE_SCHEMA = "tools/snn.inference-overrides/v1"
 INFERENCE_INTERVENTION_SCHEMA = "tools/snn.inference-interventions/v1"
+INFERENCE_ARTIFACT_SCHEMA = "tools/snn.inference-artifacts/v1"
 TRAINING_CHECKPOINT_SCHEMA = "tools/snn.training-checkpoint/v1"
 LEGACY_PARAMETER_INTERCHANGE_SCHEMA = "tools/snn.legacy-parameter-interchange/v1"
 
@@ -1267,6 +1268,160 @@ def _json_digest(value: Mapping[str, Any]) -> str:
         value, sort_keys=True, separators=(",", ":"), ensure_ascii=False
     ).encode()
     return "sha256:" + hashlib.sha256(encoded + b"\n").hexdigest()
+
+
+def write_inference_artifacts(
+    path: str | Path,
+    result: ExecutionResult,
+    *,
+    graph: Mapping[str, Any],
+    seed: int,
+) -> Mapping[str, Any]:
+    """Persist graph inference tensors and a digest-bound cache manifest."""
+    root = Path(path)
+    root.mkdir(parents=True, exist_ok=True)
+    payloads = {
+        "recordings.npz": result.recordings,
+        "outputs.npz": result.outputs,
+        "parameters.npz": result.parameters,
+    }
+    files = []
+    for filename, tensors in payloads.items():
+        arrays = {
+            name: value.detach().cpu().numpy()
+            for name, value in sorted(tensors.items())
+        }
+        destination = root / filename
+        np.savez_compressed(destination, **arrays)
+        files.append(
+            {
+                "path": filename,
+                "digest": _file_digest(destination),
+                "arrays": [
+                    {
+                        "name": name,
+                        "shape": list(value.shape),
+                        "dtype": str(value.dtype),
+                    }
+                    for name, value in arrays.items()
+                ],
+            }
+        )
+    metrics_path = root / "metrics.json"
+    metrics_path.write_text(json.dumps(result.metrics, indent=2, sort_keys=True) + "\n")
+    files.append({"path": "metrics.json", "digest": _file_digest(metrics_path)})
+    request = {
+        "seed": int(seed),
+        "execution_protocol": result.metrics.get("execution_protocol"),
+        "checkpoint": result.metrics.get("checkpoint"),
+        "inference_overrides": result.metrics.get("inference_overrides"),
+        "inference_interventions": result.metrics.get("inference_interventions"),
+        "recording": result.metrics.get("recording"),
+        "device": result.metrics.get("device"),
+    }
+    manifest = {
+        "schema": INFERENCE_ARTIFACT_SCHEMA,
+        "schema_version": 1,
+        "graph_digest": _json_digest(graph),
+        "request_seed": int(seed),
+        "request_digest": _json_digest(request),
+        "files": files,
+    }
+    manifest["artifact_digest"] = _json_digest(manifest)
+    (root / "inference-manifest.json").write_text(
+        json.dumps(manifest, indent=2, sort_keys=True) + "\n"
+    )
+    return manifest
+
+
+def validate_inference_artifacts(
+    path: str | Path,
+    *,
+    graph: Mapping[str, Any] | None = None,
+    seed: int | None = None,
+) -> Mapping[str, Any]:
+    """Authenticate a persisted graph inference artifact set before reuse."""
+    root = Path(path)
+    manifest_path = root / "inference-manifest.json"
+    manifest = json.loads(manifest_path.read_text())
+    if (
+        manifest.get("schema") != INFERENCE_ARTIFACT_SCHEMA
+        or manifest.get("schema_version") != 1
+    ):
+        raise ValueError(
+            f"unsupported inference-artifact schema: {manifest.get('schema')}"
+        )
+    claimed_artifact_digest = manifest.get("artifact_digest")
+    unsigned = dict(manifest)
+    unsigned.pop("artifact_digest", None)
+    actual_artifact_digest = _json_digest(unsigned)
+    if claimed_artifact_digest != actual_artifact_digest:
+        raise ValueError(
+            f"inference artifact manifest digest expected {claimed_artifact_digest}, got {actual_artifact_digest}"
+        )
+    if graph is not None:
+        expected_graph_digest = _json_digest(graph)
+        if manifest.get("graph_digest") != expected_graph_digest:
+            raise ValueError(
+                f"inference artifact graph digest expected {expected_graph_digest}, got {manifest.get('graph_digest')}"
+            )
+    if seed is not None and manifest.get("request_seed") != int(seed):
+        raise ValueError(
+            f"inference artifact request seed expected {int(seed)}, got {manifest.get('request_seed')}"
+        )
+    expected_files = {
+        "recordings.npz",
+        "outputs.npz",
+        "parameters.npz",
+        "metrics.json",
+    }
+    rows = manifest.get("files", [])
+    if {row.get("path") for row in rows} != expected_files:
+        raise ValueError("inference artifact manifest file set is incomplete")
+    for row in rows:
+        filename = row["path"]
+        if Path(filename).name != filename:
+            raise ValueError(f"inference artifact path must be a filename: {filename}")
+        payload_path = root / filename
+        actual_digest = _file_digest(payload_path)
+        if actual_digest != row.get("digest"):
+            raise ValueError(
+                f"inference artifact {filename} digest expected {row.get('digest')}, got {actual_digest}"
+            )
+        if filename.endswith(".npz"):
+            loaded = np.load(payload_path, allow_pickle=False)
+            try:
+                actual_arrays = {
+                    name: {
+                        "name": name,
+                        "shape": list(loaded[name].shape),
+                        "dtype": str(loaded[name].dtype),
+                    }
+                    for name in sorted(loaded.files)
+                }
+            finally:
+                loaded.close()
+            expected_arrays = {row["name"]: row for row in row.get("arrays", [])}
+            if actual_arrays != expected_arrays:
+                raise ValueError(
+                    f"inference artifact {filename} array inventory does not match manifest"
+                )
+    metrics = json.loads((root / "metrics.json").read_text())
+    request = {
+        "seed": int(manifest["request_seed"]),
+        "execution_protocol": metrics.get("execution_protocol"),
+        "checkpoint": metrics.get("checkpoint"),
+        "inference_overrides": metrics.get("inference_overrides"),
+        "inference_interventions": metrics.get("inference_interventions"),
+        "recording": metrics.get("recording"),
+        "device": metrics.get("device"),
+    }
+    actual_request_digest = _json_digest(request)
+    if actual_request_digest != manifest.get("request_digest"):
+        raise ValueError(
+            f"inference artifact request digest expected {manifest.get('request_digest')}, got {actual_request_digest}"
+        )
+    return manifest
 
 
 def save_training_checkpoint(path: str | Path, checkpoint: TrainingCheckpoint) -> Path:
