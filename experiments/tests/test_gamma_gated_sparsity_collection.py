@@ -52,7 +52,7 @@ def test_plan_paths_are_isolated_and_all_runners_are_integrated(tmp_path: Path) 
     assert all(row["integrated"] or row["slug"] == "exp022" for row in rows)
     assert payload["excluded"] == ["exp048"]
     assert payload["blocking_issues"] == []
-    assert payload["acceptance_issues"] == [47]
+    assert payload["acceptance_issues"] == []
     assert all(row["command"] for row in rows)
     assert all(row["required_outputs"] for row in rows)
 
