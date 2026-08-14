@@ -66,14 +66,14 @@
   === Standard readouts
 
   ```python
-  snn.readouts.MeanVoltage(*, source, classes, name, tau=20 * snn.ms, weight=Normal(1.0, 0.1))
+  snn.readouts.MeanVoltage(*, source, classes, name, tau=2 * snn.ms, weight=Normal(1.0, 0.1))
   snn.readouts.FinalVoltage(*, source, classes, name)
   snn.readouts.SpikeCount(*, source, classes, name)
   snn.readouts.SpikeRate(*, source, classes, name, duration=None, mask=None, window="full")
   snn.readouts.CumulativePotential(*, source, classes, name)
   ```
 
-  Every constructor returns a `Readout`, which delegates signal attributes and exposes its parameter identifiers. `classes` is the output width. `SpikeRate` requires either `duration` in seconds or a `(time, batch)` mask. The only implemented window is `"full"`.
+  Every constructor returns a `Readout`, which delegates signal attributes and exposes its parameter identifiers. `classes` is the output width. `MeanVoltage` defaults to the legacy COBANet output membrane's 2 ms time constant; alternatives remain explicit authoring choices. `SpikeRate` requires either `duration` in seconds or a `(time, batch)` mask. The only implemented window is `"full"`.
 
   === Dense bindings
 

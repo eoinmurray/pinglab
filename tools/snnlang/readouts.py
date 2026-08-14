@@ -26,7 +26,7 @@ def MeanVoltage(
     source: Signal,
     classes: int,
     name: str,
-    tau=20 * ms,
+    tau=2 * ms,
     weight: Spec = Normal(1.0, 0.1),
 ) -> Readout:
     net = source.network
@@ -64,7 +64,9 @@ def FinalVoltage(*, source: Signal, classes: int, name: str) -> Readout:
             "select_final",
             projected,
             name=f"{name}_final",
-            shape=tuple(dimension for dimension in projected.shape if dimension != "time"),
+            shape=tuple(
+                dimension for dimension in projected.shape if dimension != "time"
+            ),
             unit=projected.unit,
         )
     return Readout(signal)
