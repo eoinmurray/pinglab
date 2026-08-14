@@ -316,6 +316,16 @@ payload corruption, and array-inventory changes. Task-specific accuracy and
 raster aggregation remain experiment-level operations over these stable named
 tensors.
 
+`derive_inference_products` provides the standard conversion layer for those
+public tensors. Given an authenticated inference directory, an exact logits id,
+integer labels, and exact population-spike recording ids, it writes versioned
+labels, predictions, accuracy, per-presentation per-cell rates in Hz, and
+sparse zero-based time/batch/cell rasters. The
+`tools/snn.derived-inference/v1` manifest authenticates all derived payloads and
+retains the source artifact digest. `validate_derived_inference_products`
+rejects corruption or reuse against a different source cache. Scientific
+acceptance thresholds remain campaign decisions rather than executor defaults.
+
 A separate five-sample dataset oracle reconstructs two shuffled epochs and
 their uneven final batches directly with seeded PyTorch permutations. Update
 coordinates, the complete loss trajectory, final gradient/parameter/AdamW
