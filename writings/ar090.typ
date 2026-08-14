@@ -70,9 +70,9 @@
 
   ==== Artifacts and campaigns
 
-  - Version the metric, checkpoint, and provenance schemas needed by collection campaigns.
-  - Integrate graph and training digests with runstore validation, resumption, promotion, archive, and restore.
-  - Select `legacy` or `graph` explicitly while keeping campaign ownership and publication behavior unchanged.
+  Metrics, checkpoints, inference artifacts, and runstore provenance now use versioned schemas. Every newly initialized run stores an explicit `legacy` or `graph` executor. Graph runs require a prefixed graph digest and may record the training digest; legacy runs reject graph identities. Inventory, archive, verification, and restore retain the manifest, while promotion carries executor and graph/training identities into reverse provenance without changing campaign ownership.
+  - Wire the collection orchestrator's future graph campaign plan to the explicit runstore fields after the independent legacy campaign is complete.
+  - Validate resumption and promotion through a complete graph campaign worktree without changing the active publication view prematurely.
 
   ==== Conformance and migration
 

@@ -17,6 +17,7 @@ KINDS = frozenset({"adhoc", "campaign", "legacy"})
 STATUSES = frozenset({"planned", "running", "complete", "failed", "legacy"})
 ROLES = frozenset({"state", "derived", "log"})
 SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
+PREFIXED_SHA256_RE = re.compile(r"^sha256:[0-9a-f]{64}$")
 
 
 class ContractError(ValueError):
@@ -125,6 +126,27 @@ def validate_run_manifest(value: dict[str, Any]) -> dict[str, Any]:
         raise ContractError(
             "run.json execution.command must be a non-empty string array"
         )
+    executor = execution.get("executor")
+    if executor is not None and executor not in {"legacy", "graph"}:
+        raise ContractError("run.json execution.executor must be legacy or graph")
+    graph_digest = execution.get("graph_digest")
+    training_digest = execution.get("training_digest")
+    for digest, label in (
+        (graph_digest, "graph_digest"),
+        (training_digest, "training_digest"),
+    ):
+        if digest is not None and (
+            not isinstance(digest, str) or not PREFIXED_SHA256_RE.fullmatch(digest)
+        ):
+            raise ContractError(
+                f"run.json execution.{label} must be a prefixed SHA-256 or null"
+            )
+    if executor == "graph" and graph_digest is None:
+        raise ContractError("graph execution requires execution.graph_digest")
+    if executor in {None, "legacy"} and (
+        graph_digest is not None or training_digest is not None
+    ):
+        raise ContractError("legacy execution cannot record graph/training digests")
 
     if not isinstance(value.get("upstream"), list):
         raise ContractError("run.json upstream must be an array")

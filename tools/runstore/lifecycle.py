@@ -71,6 +71,9 @@ def initialize_run(
     upstream: list[str] | None = None,
     provenance_notes: str = "",
     repository: Path | None = None,
+    executor: str = "legacy",
+    graph_digest: str | None = None,
+    training_digest: str | None = None,
 ) -> dict:
     """Create a new isolated run root, refusing every pre-existing destination."""
     root = root.resolve()
@@ -103,6 +106,9 @@ def initialize_run(
             "experiment": experiment,
             "collection": collection,
             "command": command,
+            "executor": executor,
+            "graph_digest": graph_digest,
+            "training_digest": training_digest,
         },
         "upstream": list(upstream or []),
         "archive": None,
