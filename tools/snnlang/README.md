@@ -31,7 +31,8 @@ uses the canonical `(time, batch, channels)` axis order and declares its signal
 type and unit. Dataset selection, Poisson rates, encoders, seeds, durations, and
 realised spike tensors belong to the experiment protocol. `tools/snn` may
 generate a standard stimulus from CLI parameters or consume an exact replay
-with `--input-file`; the latter is optional evidence, not part of the graph.
+with `--input-file` or `--event-file`; the replay is optional evidence, not part
+of the graph.
 
 Dense replay is resolved before graph execution. NPY files bind to the sole
 graph input; NPZ arrays bind by input id. The resolver requires exact input
@@ -40,6 +41,16 @@ binary spikes, and boolean or zero/one masks. It records a versioned execution
 protocol containing source-file digests, resolved shapes and dtypes, dataset
 identity and split when supplied, sample cap, batch size, shuffle behavior,
 duration, masks, and the execution seed.
+
+Sparse event replay uses an NPZ coordinate contract. A single-input file stores
+`steps`, `batches`, `channels`, `steps_count`, and `batch_size`; multi-input
+files prefix each field with the graph input id. Coordinates are zero-based
+integer simulation steps ordered by step, batch, and channel. Resolution rejects
+duplicates and out-of-bounds coordinates, then materializes binary spikes for
+the graph executor while retaining event counts and source identity in the
+protocol. Typed requests may combine event-stream spike inputs with dense mask
+or continuous inputs when every binding resolves to the same time and batch
+axes.
 
 ```sh
 uv run python tools/snn/tool.py sim \
@@ -54,7 +65,7 @@ uv run python tools/snn/tool.py sim \
 ```
 
 The resolved contract is written under `execution_protocol` in `metrics.json`.
-Event streams and generated Poisson protocols remain separate future bindings.
+Generated Poisson protocols remain a separate future binding.
 
 Run all examples:
 
