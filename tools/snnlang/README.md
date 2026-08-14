@@ -89,6 +89,15 @@ Run all examples:
 uv run python -m tools.snnlang.examples.build_examples
 ```
 
+The generated examples include a 784-channel, 10-class one-layer PING recipe
+and a 700-channel, 20-class three-layer PING hierarchy. The deep example now
+contains an executable training recipe with every feedforward, recurrent, and
+readout parameter assigned to an explicit group plus a six-population spike
+budget. Focused local acceptance cases use tiny synthetic batches to validate
+their production-shaped public tensors, recurrent gradients, fine-timestep
+recompilation, and categorical variable-rate protocol. They do not substitute
+for dataset accuracy, accelerator parity, or the final campaign comparison.
+
 Graph validity is checked independently of a simulator backend. Passing
 `target="tools/snn"` adds capability diagnostics but never changes the graph.
 See `writings/ar063.typ` for the architectural rationale and staged backend
