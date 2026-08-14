@@ -36,6 +36,7 @@ MIXED_INPUT_BINDING_SCHEMA = "tools/snn.mixed-input-bindings/v1"
 POISSON_INPUT_BINDING_SCHEMA = "tools/snn.poisson-input-binding/v1"
 EXECUTION_PROTOCOL_SCHEMA = "tools/snn.execution-protocol/v1"
 INFERENCE_OVERRIDE_SCHEMA = "tools/snn.inference-overrides/v1"
+INFERENCE_INTERVENTION_SCHEMA = "tools/snn.inference-interventions/v1"
 TRAINING_CHECKPOINT_SCHEMA = "tools/snn.training-checkpoint/v1"
 LEGACY_PARAMETER_INTERCHANGE_SCHEMA = "tools/snn.legacy-parameter-interchange/v1"
 
@@ -1797,6 +1798,7 @@ class GraphExecutor(nn.Module):
         *,
         record: bool | RecordingProfile = True,
         runtime_state: GraphRuntimeState | None = None,
+        interventions: Sequence[Mapping[str, Any]] = (),
     ) -> ExecutionResult:
         recording: RecordingProfile = (
             "full" if record is True else "none" if record is False else record
@@ -1831,6 +1833,71 @@ class GraphExecutor(nn.Module):
                     f"input {name} dtype expected {parameter_dtype}, got {value.dtype}"
                 )
         populations = {p["id"]: p for p in self.plan.populations}
+        resolved_interventions: list[dict[str, Any]] = []
+        intervention_keys: set[tuple[str, str]] = set()
+        for index, raw in enumerate(interventions):
+            row = dict(raw)
+            kind = str(row.get("kind", ""))
+            population_id = str(row.get("population_id", ""))
+            if kind not in {"drop_spikes", "add_poisson_spikes"}:
+                raise ValueError(
+                    f"inference intervention {index} has unsupported kind {kind!r}"
+                )
+            if population_id not in populations:
+                raise ValueError(
+                    f"inference intervention {index} targets unknown population {population_id!r}"
+                )
+            if populations[population_id]["neuron"]["kind"] != "coba_lif":
+                raise ValueError(
+                    f"inference intervention {index} population {population_id!r} does not emit spikes"
+                )
+            key = (kind, population_id)
+            if key in intervention_keys:
+                raise ValueError(
+                    f"inference intervention repeats {kind} for population {population_id}"
+                )
+            intervention_keys.add(key)
+            allowed = (
+                {"kind", "population_id", "probability", "seed"}
+                if kind == "drop_spikes"
+                else {"kind", "population_id", "rate_hz", "seed"}
+            )
+            unknown = sorted(set(row) - allowed)
+            if unknown:
+                raise ValueError(
+                    f"inference intervention {index} has unsupported fields: {unknown}"
+                )
+            seed = int(row.get("seed", 0))
+            if kind == "drop_spikes":
+                value = float(row.get("probability", float("nan")))
+                if not math.isfinite(value) or not 0 <= value <= 1:
+                    raise ValueError(
+                        f"inference intervention {index} drop probability must be finite and between zero and one"
+                    )
+                resolved_interventions.append(
+                    {
+                        "kind": kind,
+                        "population_id": population_id,
+                        "probability": value,
+                        "seed": seed,
+                    }
+                )
+            else:
+                value = float(row.get("rate_hz", float("nan")))
+                probability = value * self.plan.dt_ms / 1000.0
+                if not math.isfinite(value) or value < 0 or probability > 1:
+                    raise ValueError(
+                        f"inference intervention {index} Poisson rate must be finite, non-negative, and satisfy rate times dt <= 1"
+                    )
+                resolved_interventions.append(
+                    {
+                        "kind": kind,
+                        "population_id": population_id,
+                        "rate_hz": value,
+                        "probability_per_step": probability,
+                        "seed": seed,
+                    }
+                )
         population_history_lengths = {
             name: max(
                 (
@@ -2091,6 +2158,34 @@ class GraphExecutor(nn.Module):
                     dt_override=self.plan.dt_ms,
                     v_grad_dampen=dampen,
                 )
+                for intervention_index, intervention in enumerate(
+                    resolved_interventions
+                ):
+                    if intervention["population_id"] != name:
+                        continue
+                    absolute_step = completed_steps + t
+                    seed_material = (
+                        f"{intervention['seed']}:{intervention_index}:"
+                        f"{intervention['kind']}:{name}:{absolute_step}"
+                    ).encode()
+                    step_seed = int.from_bytes(
+                        hashlib.sha256(seed_material).digest()[:8], "big"
+                    ) % (2**63 - 1)
+                    generator = torch.Generator(device=device).manual_seed(step_seed)
+                    sample = torch.rand(
+                        new_spikes[name].shape,
+                        device=device,
+                        generator=generator,
+                    )
+                    if intervention["kind"] == "drop_spikes":
+                        new_spikes[name] = new_spikes[name] * (
+                            sample >= intervention["probability"]
+                        )
+                    else:
+                        added = (sample < intervention["probability_per_step"]).to(
+                            new_spikes[name].dtype
+                        )
+                        new_spikes[name] = torch.maximum(new_spikes[name], added)
             spikes = new_spikes
             for name in populations:
                 spike_traces[name].append(spikes[name])
@@ -2280,6 +2375,7 @@ class GraphExecutor(nn.Module):
                 f"{k}.voltage": v.detach().clone() for k, v in voltage.items()
             },
             runtime_state=next_runtime_state,
+            metrics={"resolved_interventions": resolved_interventions},
             model=self,
         )
 
@@ -2333,6 +2429,11 @@ def simulate(
     assert isinstance(built.model, GraphExecutor)
     device = resolve_device(spec.device)
     overrides = dict(spec.options.get("inference_overrides", {}))
+    requested_interventions = tuple(spec.options.get("inference_interventions", ()))
+    interventions = tuple(
+        {**dict(row), "seed": dict(row).get("seed", spec.seed)}
+        for row in requested_interventions
+    )
     allowed_overrides = {"duration_ms", "input_rate_hz", "projection_scales"}
     unknown_overrides = sorted(set(overrides) - allowed_overrides)
     if unknown_overrides:
@@ -2452,10 +2553,12 @@ def simulate(
         runtime_state=runtime_state
         if runtime_state is not None
         else spec.runtime_state,
+        interventions=interventions,
     )
     elapsed = time.perf_counter() - started
     _, peak = tracemalloc.get_traced_memory()
     tracemalloc.stop()
+    resolved_interventions = result.metrics.pop("resolved_interventions", [])
     result.metrics.update(
         {
             "simulate_s": elapsed,
@@ -2478,6 +2581,13 @@ def simulate(
                 },
             }
             if overrides
+            else None,
+            "inference_interventions": {
+                "schema": INFERENCE_INTERVENTION_SCHEMA,
+                "requested": [dict(row) for row in requested_interventions],
+                "resolved": resolved_interventions,
+            }
+            if interventions
             else None,
             **built.metrics,
         }

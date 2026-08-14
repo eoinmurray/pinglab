@@ -65,7 +65,7 @@
 
   Portable selected/final graph checkpoint loading for simulation and inference is implemented with exact graph/name/shape/dtype validation and checkpoint provenance in metrics. A versioned, request-local override contract supports Poisson duration and rate plus scaling of named projections. It rejects ambiguous input modes, invalid values, and unknown projections; timestep replacement remains unsupported because it requires graph recompilation rather than runtime mutation.
   - Add an explicit graph-recompilation route for inference timestep changes.
-  - Provide hidden-spike deletion and Poisson-addition interventions without reaching into backend internals.
+  Named hidden-population spike deletion and Poisson-addition interventions are implemented as an ordered, seeded, request-local contract. Intervened spikes feed later zero-delay populations, delayed histories, recordings, and readouts through the ordinary graph schedule without backend callbacks.
   - Stabilize names and shapes for population spikes, membrane traces, rates, logits, accuracy, and rasters.
   - Preserve seed-labelled caches and fail closed when a compiled graph cannot support an intervention.
 
@@ -159,6 +159,29 @@
   The contract uses schema `tools/snn.inference-overrides/v1`. Overrides apply after checkpoint loading to one built model only; the graph bundle and checkpoint are not modified. Duration must be a positive integral number of graph timesteps. Rate must be finite and non-negative. Projection scales use exact graph projection identifiers and finite non-negative factors. Duration and rate overrides require generated Poisson bindings, while projection scaling also works with replay bindings. Metrics retain both the requested mapping and its resolved duration, rate, and projection factors.
 
   The command line exposes named scaling with repeatable `--scale-projection ID=FACTOR`. Existing `--t-ms` and `--input-rate` arguments define generated Poisson execution at request construction. Runtime `timestep_ms` override is rejected rather than silently changing compiled dynamics.
+
+  === Inference interventions
+
+  ```python
+  options={"inference_interventions": [
+    {
+      "kind": "drop_spikes",
+      "population_id": "sensory_ping_E",
+      "probability": 0.25,
+      "seed": 17,
+    },
+    {
+      "kind": "add_poisson_spikes",
+      "population_id": "sensory_ping_E",
+      "rate_hz": 5.0,
+      "seed": 18,
+    },
+  ]}
+  ```
+
+  The ordered contract uses schema `tools/snn.inference-interventions/v1`. Deletion independently removes each emitted spike with the declared probability. Addition takes the union with a Bernoulli-discretized homogeneous Poisson stream whose probability is `rate_hz * dt_seconds`. Exact population identifiers are required; duplicate kind/target pairs, unknown fields, non-spiking populations, invalid probabilities, and rates above the timestep probability boundary are rejected.
+
+  Each intervention uses a seed-derived stream keyed by its list position, kind, population, and absolute execution step. A continued runtime therefore consumes the same intervention samples as one uninterrupted run. The modified spikes enter normal downstream propagation, delay histories, recordings, and readouts. Metrics retain the requested list and resolved per-step probabilities. The CLI preserves list order through repeatable `--intervention drop:POPULATION=PROBABILITY` and `--intervention add:POPULATION=RATE_HZ` arguments.
 
   === Code map
 
