@@ -11,6 +11,7 @@ import models as M
 import numpy as np
 import pytest
 import torch
+from conformance import canonical_json_tensor, compare_conformance_layers
 from execution import (
     DelayBuffer,
     DenseArrayBinding,
@@ -306,10 +307,58 @@ def test_training_checkpoint_round_trip_and_resume_are_exact(tmp_path):
     assert resumed.metrics["resumed_from_update"] == 2
     assert [row["update"] for row in resumed.metrics["updates"]] == [3, 4]
     assert resumed.metrics["updates"] == uninterrupted.metrics["updates"][2:]
+    assert uninterrupted.training_checkpoint is not None
+    assert resumed.training_checkpoint is not None
     for name in uninterrupted.parameters:
         torch.testing.assert_close(
             resumed.parameters[name], uninterrupted.parameters[name], rtol=0, atol=0
         )
+    conformance = compare_conformance_layers(
+        "checkpoint-resume",
+        {
+            "topology": {"graph": canonical_json_tensor(bundle.graph)},
+            "initialization": {
+                "metadata": canonical_json_tensor(
+                    uninterrupted.metrics["initialization"]
+                )
+            },
+            "parameters": uninterrupted.parameters,
+            "gradients": uninterrupted.gradients,
+            "outputs": uninterrupted.outputs,
+            "optimizer": {
+                f"{name}.{state}": value
+                for name, values in uninterrupted.optimizer_state.items()
+                for state, value in values.items()
+                if isinstance(value, torch.Tensor)
+            },
+            "checkpoint": {
+                "data_state": canonical_json_tensor(
+                    uninterrupted.training_checkpoint.data_state
+                )
+            },
+        },
+        {
+            "topology": {"graph": canonical_json_tensor(bundle.graph)},
+            "initialization": {
+                "metadata": canonical_json_tensor(resumed.metrics["initialization"])
+            },
+            "parameters": resumed.parameters,
+            "gradients": resumed.gradients,
+            "outputs": resumed.outputs,
+            "optimizer": {
+                f"{name}.{state}": value
+                for name, values in resumed.optimizer_state.items()
+                for state, value in values.items()
+                if isinstance(value, torch.Tensor)
+            },
+            "checkpoint": {
+                "data_state": canonical_json_tensor(
+                    resumed.training_checkpoint.data_state
+                )
+            },
+        },
+    )
+    conformance.require_passed()
     for name in uninterrupted.optimizer_state:
         for state in uninterrupted.optimizer_state[name]:
             torch.testing.assert_close(
@@ -319,7 +368,6 @@ def test_training_checkpoint_round_trip_and_resume_are_exact(tmp_path):
                 atol=0,
             )
     assert first_half.training_checkpoint is not None
-    assert resumed.training_checkpoint is not None
     assert resumed.training_checkpoint.completed_updates == 4
 
 
