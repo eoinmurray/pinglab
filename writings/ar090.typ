@@ -114,6 +114,22 @@
 
   `GRAPH_CAPABILITIES_V1` is the current machine-readable executor boundary. It lists supported neuron, synapse, operation, connection, recording, delay, and training capabilities.
 
+  === Conformance reports
+
+  ```python
+  policy = ComparisonPolicy(mode="numeric", atol=1e-6, rtol=1e-5)
+  report = compare_conformance_layers(
+      case_id,
+      reference,
+      candidate,
+      policies={"forward": {"logits": policy}},
+  )
+  report.require_passed()
+  write_conformance_report(path, report)
+  ```
+
+  Reports use schema `tools/snn.conformance-report/v1`. Each layer and field is named explicitly. Missing fields, extra fields, shapes, dtypes, values, maximum absolute and relative errors, and the applied policy are recorded. Exact comparison is the default; numerical tolerance must be declared for a specific field, and an unused rule is rejected. `canonical_json_tensor` encodes topology and provenance structures for exact comparison beside numerical tensors.
+
   === Code map
 
   - `tools/snnlang/core.py`: authoring objects and primitive specifications.
@@ -123,6 +139,7 @@
   - `compiler.py`: validation and bundle writing.
   - `visualize.py`: bundle reports.
   - `tools/snn/execution.py`: graph planning and execution.
+  - `tools/snn/conformance.py`: versioned layered comparison reports.
   - `tools/snn/bundle.py`: the narrow legacy adapter.
   - `tools/snnlang/tests` and `tools/snn/tests/test_execution.py`: focused conformance fixtures.
 ]
