@@ -849,8 +849,26 @@ def _build_subparsers(parser, parent):
     )
     sim_parser.add_argument(
         "--input-file", type=str, default=None,
-        help="NPZ with 'input_spikes' (T,B,N_IN) to forward instead of generating "
-        "Poisson input — arbitrary stimulus (routes through the uniform-Poisson path).",
+        help="Dense NPY/NPZ replay. Graph execution binds arrays by graph input id; "
+        "legacy execution accepts input_spikes as before.",
+    )
+    sim_parser.add_argument(
+        "--input-dataset-id",
+        type=str,
+        default=None,
+        help="Stable dataset or snapshot identity recorded for a dense graph replay.",
+    )
+    sim_parser.add_argument(
+        "--input-split",
+        type=str,
+        default=None,
+        help="Dataset split recorded for a dense graph replay.",
+    )
+    sim_parser.add_argument(
+        "--input-shuffle",
+        action=argparse.BooleanOptionalAction,
+        default=None,
+        help="Record whether the replay batch was shuffled (use --no-input-shuffle for false).",
     )
     sim_parser.add_argument(
         "--w-ei-mean", type=float, default=None,
@@ -1715,25 +1733,20 @@ def main(argv=None):
         from dataclasses import replace
 
         import numpy as np
-        import torch
 
         if not getattr(args, "input_file", None):
             raise SystemExit("graph execution requires --input-file with arrays named for graph input ports")
-        loaded = np.load(args.input_file)
-        if isinstance(loaded, np.ndarray):
-            from bundle import load_graph_bundle
-            _, graph = load_graph_bundle(args.bundle)
-            input_rows = graph.get("inputs", [])
-            if len(input_rows) != 1:
-                raise SystemExit("a multi-input graph requires an NPZ with one array per input id")
-            input_arrays = {input_rows[0]["id"]: loaded}
-        else:
-            input_arrays = {key: loaded[key] for key in loaded.files}
-            if set(input_arrays) == {"input_spikes"}:
-                from bundle import load_graph_bundle
-                _, graph = load_graph_bundle(args.bundle)
-                input_arrays = {graph["inputs"][0]["id"]: input_arrays["input_spikes"]}
-        from execution import load_runtime_state, save_runtime_state
+        from bundle import load_graph_bundle
+        from execution import (
+            load_dense_array_bindings,
+            load_runtime_state,
+            save_runtime_state,
+        )
+        _, graph = load_graph_bundle(args.bundle)
+        try:
+            input_bindings = load_dense_array_bindings(args.input_file, graph)
+        except ValueError as exc:
+            raise SystemExit(str(exc)) from exc
         runtime_state = (
             load_runtime_state(args.load_runtime_state, device=request.device)
             if getattr(args, "load_runtime_state", None)
@@ -1741,7 +1754,19 @@ def main(argv=None):
         )
         request = replace(
             request,
-            inputs={key: torch.as_tensor(value, dtype=torch.float32) for key, value in input_arrays.items()},
+            input_bindings=input_bindings,
+            protocol={
+                "dataset": {
+                    key: value
+                    for key, value in {
+                        "identity": getattr(args, "input_dataset_id", None),
+                        "split": getattr(args, "input_split", None),
+                        "sample_cap": getattr(args, "max_samples", None),
+                        "shuffle": getattr(args, "input_shuffle", None),
+                    }.items()
+                    if value is not None
+                }
+            },
             runtime_state=runtime_state,
         )
         result = execute_request(request)
