@@ -48,6 +48,7 @@ from helpers import (
 )
 from helpers.checkpoints import (  # noqa: E402
     cache_tag,
+    checkpoint_policy,
     checkpoint_provenance,
     resolve_checkpoint,
     training_horizon,
@@ -80,7 +81,9 @@ ARTIFACTS = (
     RUN_PATHS.state if RUN_PATHS.isolated else runpod.artifacts_scratch(SLUG)
 )
 SNN_TOOL = REPO / "tools" / "snn" / "tool.py"
-CHECKPOINT_ROLE = "final_epoch"
+ANALYSIS_PURPOSE = "endpoint_dynamics"
+CHECKPOINT_POLICY = checkpoint_policy(ANALYSIS_PURPOSE)
+CHECKPOINT_ROLE = CHECKPOINT_POLICY["role"]
 EVAL_SEED = 20260415  # mirror cli.encoders.EVAL_SEED (kept in sync by hand)
 
 TRAINING_ROOT = runpod.training_root()
@@ -2202,6 +2205,7 @@ def main() -> None:
         "notebook_run_id": notebook_run_id,
         "duration_s": round(duration_s, 1),
         "duration": format_duration(duration_s),
+        "checkpoint_policy": CHECKPOINT_POLICY,
         "checkpoint_provenance": checkpoint_provenance(
             exp022_dirs + exp041_dirs,
             CHECKPOINT_ROLE,

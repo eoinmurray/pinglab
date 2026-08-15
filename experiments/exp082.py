@@ -34,6 +34,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from helpers import theme  # noqa: E402
 from helpers.checkpoints import (  # noqa: E402
     cache_tag,
+    checkpoint_policy,
     checkpoint_provenance,
     resolve_checkpoint,
 )
@@ -48,7 +49,9 @@ from helpers.run_id import next_run_id  # noqa: E402
 from helpers.stamp import stamp_figure  # noqa: E402
 
 SLUG = "exp082"
-CHECKPOINT_ROLE = "best_validation"
+ANALYSIS_PURPOSE = "deployment_performance"
+CHECKPOINT_POLICY = checkpoint_policy(ANALYSIS_PURPOSE)
+CHECKPOINT_ROLE = CHECKPOINT_POLICY["role"]
 RUN_PATHS = runner_paths(SLUG)
 ARTIFACTS, FIGURES = artifacts_and_figures(SLUG)
 SNN_TOOL = REPO / "tools" / "snn" / "tool.py"
@@ -517,6 +520,7 @@ def main() -> None:
         "profile": EVALUATION_PROFILE,
         "training_source": "exp022 variable-rate streaming training",
         "training_cells": [training_cell_name(seed) for seed in SEEDS],
+        "checkpoint_policy": CHECKPOINT_POLICY,
         "checkpoint_provenance": checkpoint_provenance(
             [training_dir(seed) for seed in SEEDS], CHECKPOINT_ROLE
         ),

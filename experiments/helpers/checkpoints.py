@@ -12,6 +12,23 @@ ROLES = {
     "final_epoch": "weights_final.pth",
 }
 
+PURPOSE_ROLES = {
+    "deployment_performance": "best_validation",
+    "endpoint_dynamics": "final_epoch",
+}
+
+
+def checkpoint_policy(purpose: str) -> dict[str, str]:
+    """Resolve a scientific analysis purpose to its checkpoint role."""
+    try:
+        role = PURPOSE_ROLES[purpose]
+    except KeyError as exc:
+        raise ValueError(
+            f"unknown checkpoint purpose {purpose!r}; "
+            f"expected one of {sorted(PURPOSE_ROLES)}"
+        ) from exc
+    return {"purpose": purpose, "role": role}
+
 
 def sha256_file(path: Path) -> str:
     digest = hashlib.sha256()

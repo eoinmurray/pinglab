@@ -17,6 +17,7 @@ from experiments import (
 )
 from experiments.helpers.checkpoints import (
     cache_tag,
+    checkpoint_policy,
     public_provenance,
     resolve_checkpoint,
     sha256_file,
@@ -95,6 +96,32 @@ def test_collection_checkpoint_roles_are_explicit() -> None:
         exp038.CHECKPOINT_ROLE,
         exp082.CHECKPOINT_ROLE,
     } == {"best_validation"}
+
+
+def test_checkpoint_policy_is_purpose_based_and_fail_closed() -> None:
+    assert checkpoint_policy("endpoint_dynamics") == {
+        "purpose": "endpoint_dynamics",
+        "role": "final_epoch",
+    }
+    assert checkpoint_policy("deployment_performance") == {
+        "purpose": "deployment_performance",
+        "role": "best_validation",
+    }
+    with pytest.raises(ValueError, match="unknown checkpoint purpose"):
+        checkpoint_policy("exp042")
+
+
+def test_collection_runners_derive_one_role_from_their_analysis_purpose() -> None:
+    endpoint = (exp025, exp041, exp042, exp044, exp046, exp049)
+    deployment = (exp037, exp038, exp082)
+    for module in endpoint:
+        assert module.ANALYSIS_PURPOSE == "endpoint_dynamics"
+        assert module.CHECKPOINT_POLICY == checkpoint_policy(module.ANALYSIS_PURPOSE)
+        assert module.CHECKPOINT_ROLE == module.CHECKPOINT_POLICY["role"]
+    for module in deployment:
+        assert module.ANALYSIS_PURPOSE == "deployment_performance"
+        assert module.CHECKPOINT_POLICY == checkpoint_policy(module.ANALYSIS_PURPOSE)
+        assert module.CHECKPOINT_ROLE == module.CHECKPOINT_POLICY["role"]
 
 
 def test_exp044_command_loads_final_checkpoint(
