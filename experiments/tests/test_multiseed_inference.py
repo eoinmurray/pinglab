@@ -5,10 +5,52 @@ import sys
 from pathlib import Path
 
 import numpy as np
-from experiments import exp037, exp038
+from experiments import exp022, exp037, exp038
 from experiments.helpers.checkpoints import sha256_file
 
 REPO = Path(__file__).resolve().parents[2]
+
+
+def test_frontier_consumers_cover_the_complete_tr02_registry() -> None:
+    expected = {
+        cell["name"]
+        for cell in exp022.CANONICAL_CELLS
+        if cell["training_run_id"] == "TR-02"
+    }
+    for module in (exp037, exp038):
+        observed = {
+            module.cell_name(model, target, seed)
+            for model in module.MODELS
+            for target in module.RATE_TARGET_GRID_HZ
+            for seed in module.seeds_for(target)
+        }
+        assert observed == expected
+        assert len(observed) == 36
+
+
+def test_frontier_summary_reports_mean_and_sem_across_seeds() -> None:
+    rows = [
+        {
+            "cell_name": f"ping__off__seed{seed}",
+            "model": "ping",
+            "rate_target_display": "off",
+            "rate_target_hz": None,
+            "seed": seed,
+            "best_acc": value + 1,
+            "final_acc": value,
+            "rate_e": value / 10,
+        }
+        for seed, value in zip((42, 43, 44), (80.0, 82.0, 84.0))
+    ]
+    summary = exp037.summarize_frontier(rows)
+    assert len(summary) == 1
+    point = summary[0]
+    assert point["seeds"] == [42, 43, 44]
+    assert point["n_seeds"] == 3
+    assert point["statistic"] == "mean_across_independent_seeds"
+    assert point["uncertainty"] == "sem_across_independent_seeds"
+    assert point["final_acc"] == 82.0
+    np.testing.assert_allclose(point["final_acc_sem"], 2 / np.sqrt(3))
 
 
 def _write_selected_checkpoint(train_dir: Path) -> None:
