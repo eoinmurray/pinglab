@@ -34,7 +34,7 @@ def test_exp022_variable_rate_args() -> None:
 
 def test_exp022_wilkes_resource_tiers_partition_registry() -> None:
     expected = {
-        "standard": 78,
+        "standard": 90,
         "fine_dt": 3,
         "canonical_coba": 3,
         "canonical_ping": 3,

@@ -40,9 +40,9 @@ REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from exp022 import (
-    SHARED_READOUT_W_INIT_MEAN,  # noqa: E402
-    SHARED_READOUT_W_INIT_STD,  # noqa: E402
+    LOW_W_IN_VALUES,  # noqa: E402
     cell_name,  # noqa: E402
+    low_w_in_cell_name,  # noqa: E402
 )
 from exp022 import cell_dir as shared_cell_dir  # noqa: E402
 from helpers import theme  # noqa: E402
@@ -72,9 +72,9 @@ RUN_PATHS = runner_paths(SLUG)
 ARTIFACTS, FIGURES = artifacts_and_figures(SLUG)
 
 SMOKE = os.environ.get("PINGLAB_SMOKE") == "1"
-MAX_SAMPLES = 100 if SMOKE else 500
+MAX_SAMPLES = 100 if SMOKE else 7000
 EVAL_MAX_SAMPLES = 100 if SMOKE else MNIST_REDUCED_EVAL_SAMPLES
-EPOCHS = 2 if SMOKE else 10
+EPOCHS = 2 if SMOKE else 50
 T_MS = 200.0
 DT_TRAIN = 0.1
 
@@ -82,6 +82,7 @@ DT_TRAIN = 0.1
 # Mechanism-only diagnostics use one explicitly representative checkpoint.
 SEEDS: list[int] = [42, 43, 44]
 REPRESENTATIVE_SEED: int = 42
+LOW_W_IN_SEEDS: list[int] = [REPRESENTATIVE_SEED] if SMOKE else list(SEEDS)
 
 # Inference-time ei_strength sweep on the coba__off__seed42 baseline.
 # Subsumes the now-retired nb019 — trains nothing new; just runs the
@@ -100,6 +101,7 @@ EI_RASTER_N_I_PLOT: int = 64
 # loses accuracy.
 RATE_TARGET_GRID_HZ: list[float | None] = [None, 25.0, 10.0, 5.0, 2.5, 1.0]
 FR_STRENGTH_UPPER = 1e-3
+LOW_W_IN_RATE_TARGET_HZ: float = 1.0
 
 MODELS = ["coba", "ping"]
 
@@ -114,20 +116,14 @@ SCALE = {
     "dt_ms": DT_TRAIN,
     "batch_size": 256,
     "seeds": len(SEEDS),
-    "cells": len(MODELS) * len(RATE_TARGET_GRID_HZ) * len(SEEDS),
-    "grid": "rate target ∈ {off, 25, 10, 5, 2.5, 1} Hz",
-}
-
-LOW_W_IN_RECIPE: dict[str, str] = {
-    "--ei-strength": "1",
-    "--v-grad-dampen": "1000",
-    "--w-in-initial-zero-fraction": "0.95",
-    "--readout": "mem-mean",
-    "--surrogate-slope": "1",
-    "--readout-w-init-mean": SHARED_READOUT_W_INIT_MEAN,
-    "--readout-w-init-std": SHARED_READOUT_W_INIT_STD,
-    "--lr": "0.0004",
-    "--batch-size": "256",
+    "cells": (
+        len(MODELS) * len(RATE_TARGET_GRID_HZ) * len(SEEDS)
+        + len(LOW_W_IN_VALUES) * len(LOW_W_IN_SEEDS)
+    ),
+    "grid": (
+        "shared TR-02: 2 models × 6 targets × 3 seeds; "
+        f"local controls: 4 W_in values × {len(LOW_W_IN_SEEDS)} seeds"
+    ),
 }
 
 MODEL_COLORS = {
@@ -166,8 +162,7 @@ def cell_dir(model: str, rate_target_hz: float | None, seed: int) -> Path:
 
     All cells are seed-suffixed by the shared exp022 registry.
     """
-    # rate target cell — now the shared exp022 cell (train-once / reuse-many). exp022
-    # owns the rate target sweep; exp025 keeps only its low_w_in cells locally.
+    # exp022 owns the shared training bank; exp025 only analyzes its checkpoints.
     if RUN_PATHS.isolated and not os.environ.get("PINGLAB_TRAINING_ROOT"):
         raise RuntimeError("isolated exp025 requires explicit PINGLAB_TRAINING_ROOT")
     return shared_cell_dir(cell_name(model, rate_target_hz, seed))
@@ -868,43 +863,37 @@ def plot_rate_target_p_fgamma(
 # training land in the sub-f* COBA-like basin instead of locking into
 # PING? The w_in initializations straddle f*, with 0.9 as the shared standard.
 
-LOW_W_IN_VALUES: list[float] = [0.05, 0.1, 0.3, 0.9]
-LOW_W_IN_RATE_TARGET_HZ: float = 1.0                   # tightest target from frontier sweep
-LOW_W_IN_SEED: int = REPRESENTATIVE_SEED
+def low_w_in_cell_dir(w_in: float, seed: int) -> Path:
+    return shared_cell_dir(low_w_in_cell_name(w_in, seed))
 
 
-def low_w_in_cell_dir(w_in: float) -> Path:
-    label = f"{w_in:g}".replace(".", "p")
-    return ARTIFACTS / f"ping__low_w_in__win{label}"
+def aggregate_low_w_in_seed_rows(w_in: float, seed_rows: list[dict]) -> dict:
+    """Aggregate one local control across independent training seeds."""
+    if not seed_rows:
+        raise ValueError("low-W_in aggregation requires at least one seed")
 
+    def mean_sem(key: str) -> tuple[float, float]:
+        values = np.asarray([row[key] for row in seed_rows], dtype=float)
+        sem = float(values.std(ddof=1) / np.sqrt(len(values))) if len(values) > 1 else 0.0
+        return float(values.mean()), sem
 
-def build_low_w_in_args(w_in: float, out_dir: Path) -> list[str]:
-    """Train args for the low-w_in alternate-schedule sweep:
-    PING recipe with --w-in overridden and the 1 Hz target on from epoch 0."""
-    recipe = dict(LOW_W_IN_RECIPE)
-    recipe["--w-in"] = f"{w_in:g}"
-    args = [
-        "train",
-        "--model", "ping",
-        "--dataset", "mnist",
-        "--max-samples", str(MAX_SAMPLES),
-        "--epochs", str(EPOCHS),
-        "--t-ms", str(T_MS),
-        "--dt", str(DT_TRAIN),
-        "--seed", str(LOW_W_IN_SEED),
-        "--out-dir", str(out_dir),
-        "--wipe-dir",
-    ]
-    for k, v in recipe.items():
-        if v is True:
-            args.append(k)
-        elif v is not None:
-            args += [k, v]
-    args += [
-        "--fr-reg-upper-target-hz", str(LOW_W_IN_RATE_TARGET_HZ),
-        "--fr-reg-upper-strength", str(FR_STRENGTH_UPPER),
-    ]
-    return args
+    final_acc, final_acc_sem = mean_sem("final_acc")
+    rate_e, rate_e_sem = mean_sem("rate_e")
+    rate_i, rate_i_sem = mean_sem("rate_i")
+    return {
+        "w_in": float(w_in),
+        "seeds": [int(row["seed"]) for row in seed_rows],
+        "n_seeds": len(seed_rows),
+        "statistic": "mean_across_independent_seeds",
+        "uncertainty": "sem_across_independent_seeds",
+        "final_acc": final_acc,
+        "final_acc_sem": final_acc_sem,
+        "rate_e": rate_e,
+        "rate_e_sem": rate_e_sem,
+        "rate_i": rate_i,
+        "rate_i_sem": rate_i_sem,
+        "per_seed": seed_rows,
+    }
 
 
 def plot_low_w_in(rows: list[dict], out_path: Path, run_id: str) -> None:
@@ -921,36 +910,62 @@ def plot_low_w_in(rows: list[dict], out_path: Path, run_id: str) -> None:
     )
     rate_max = 0.0
     for col, row in enumerate(rows):
-        metrics = load_metrics(low_w_in_cell_dir(row["w_in"]))
-        epochs = list(range(1, len(metrics["epochs"]) + 1))
-        accs = [float(e["acc"]) for e in metrics["epochs"]]
-        # Prefer test-set rates (added to the trainer in train.py); fall
-        # back to the single-trial observation rates for legacy runs.
-        rate_e = [
-            float(e.get("test_rate_e") if e.get("test_rate_e") is not None
-                  else (e.get("rate_e") or 0.0))
-            for e in metrics["epochs"]
+        histories = [
+            load_metrics(low_w_in_cell_dir(row["w_in"], seed))["epochs"]
+            for seed in LOW_W_IN_SEEDS
         ]
-        rate_i = [
-            float(e.get("test_rate_i") if e.get("test_rate_i") is not None
-                  else (e.get("rate_i") or 0.0))
-            for e in metrics["epochs"]
-        ]
-        rate_max = max(rate_max, max(rate_e), max(rate_i))
+        epochs = np.arange(1, len(histories[0]) + 1)
+
+        def series(key: str, fallback: str | None = None) -> np.ndarray:
+            values = []
+            for history in histories:
+                values.append([
+                    float(
+                        e.get(key)
+                        if e.get(key) is not None
+                        else (e.get(fallback) or 0.0) if fallback else 0.0
+                    )
+                    for e in history
+                ])
+            return np.asarray(values, dtype=float)
+
+        acc = series("acc")
+        rate_e = series("test_rate_e", "rate_e")
+        rate_i = series("test_rate_i", "rate_i")
+        acc_mean, rate_e_mean, rate_i_mean = (
+            acc.mean(axis=0), rate_e.mean(axis=0), rate_i.mean(axis=0)
+        )
+        rate_max = max(rate_max, float(rate_e.max()), float(rate_i.max()))
 
         ax_acc = axes[0, col]
         ax_rate = axes[1, col]
-        ax_acc.plot(epochs, accs, marker="o", color=theme.INK_BLACK, lw=1.5)
+        ax_acc.plot(epochs, acc_mean, color=theme.INK_BLACK, lw=1.5)
+        if len(histories) > 1:
+            acc_sem = acc.std(axis=0, ddof=1) / np.sqrt(len(histories))
+            ax_acc.fill_between(
+                epochs, acc_mean - acc_sem, acc_mean + acc_sem,
+                color=theme.INK_BLACK, alpha=0.16, linewidth=0,
+            )
         ax_acc.axhline(10.0, color=theme.GREY_MID, lw=0.6, ls=":", alpha=0.5)
         ax_acc.set_ylim(0, 100)
         ax_acc.set_title(
             f"$W_\\text{{in}}$ = {row['w_in']:g}",
             fontsize=theme.SIZE_TITLE,
         )
-        ax_rate.plot(epochs, rate_e, marker="o", color=theme.INK_BLACK,
+        ax_rate.plot(epochs, rate_e_mean, color=theme.INK_BLACK,
                      lw=1.5, label="E")
-        ax_rate.plot(epochs, rate_i, marker="s", color=theme.DEEP_RED,
+        ax_rate.plot(epochs, rate_i_mean, color=theme.DEEP_RED,
                      lw=1.5, label="I")
+        if len(histories) > 1:
+            for mean, values, color in (
+                (rate_e_mean, rate_e, theme.INK_BLACK),
+                (rate_i_mean, rate_i, theme.DEEP_RED),
+            ):
+                sem = values.std(axis=0, ddof=1) / np.sqrt(len(histories))
+                ax_rate.fill_between(
+                    epochs, mean - sem, mean + sem,
+                    color=color, alpha=0.14, linewidth=0,
+                )
         ax_rate.set_xlabel("Epoch", fontsize=theme.SIZE_LABEL)
         if col == 0:
             ax_acc.set_ylabel("Test accuracy (%)", fontsize=theme.SIZE_LABEL)
@@ -1393,7 +1408,10 @@ def main() -> None:
 
     t_start = time.monotonic()
     run_id = next_run_id(SLUG)
-    n_cells = len(MODELS) * len(RATE_TARGET_GRID_HZ) * len(SEEDS)
+    n_cells = (
+        len(MODELS) * len(RATE_TARGET_GRID_HZ) * len(SEEDS)
+        + len(LOW_W_IN_VALUES) * len(LOW_W_IN_SEEDS)
+    )
     print(
         f"notebook_run_id = {run_id} cells={n_cells}"
         + ("  [skip-training]" if meta.skip_training else "")
@@ -1409,19 +1427,7 @@ def main() -> None:
 
 
 def _run(meta, run_id: str, figures: Path, t_start: float) -> None:
-    if not meta.skip_training:
-        # rate target sweep training moved to exp022 (train-once / reuse-many); exp025
-        # reads those cells via cell_dir and trains only its low_w_in sweep.
-        for w_in in LOW_W_IN_VALUES:
-            out = low_w_in_cell_dir(w_in)
-            if meta.only_missing and (out / "metrics.json").exists():
-                print(
-                    f"[skip] low_w_in/w_in={w_in} already trained → "
-                    f"{out}"
-                )
-                continue
-            print(f"[train] low_w_in/w_in={w_in} → {out}")
-            run_cli(build_low_w_in_args(w_in, out))
+    # All training is owned by exp022. exp025 only consumes TR-02 and TR-07.
 
     rows: list[dict] = []
     for model in MODELS:
@@ -1510,28 +1516,34 @@ def _run(meta, run_id: str, figures: Path, t_start: float) -> None:
         fig_results_compound(rows, npz_coba, npz_ping, out, run_id)
         print(f"wrote {out}.{{png,pdf}}")
 
-    # Low-w_in alternate-schedule sweep — reads metrics from the three
-    # dispatched trainings and plots accuracy + E/I rates vs --w-in init.
+    # Low-w_in alternate-schedule sweep — aggregate independent seeds and plot
+    # mean trajectories with SEM bands.
     print("[low-w_in-sweep] reading metrics from dispatched trainings")
     low_w_in_rows: list[dict] = []
     for w_in in LOW_W_IN_VALUES:
-        run_dir = low_w_in_cell_dir(w_in)
-        if not (run_dir / "metrics.json").exists():
-            raise SystemExit(f"missing metrics: {run_dir / 'metrics.json'}")
-        metrics = load_metrics(run_dir)
-        last = metrics["epochs"][-1]
-        low_w_in_rows.append({
-            "w_in": float(w_in),
-            "best_acc": float(metrics["best_acc"]),
-            "best_epoch": int(metrics["best_epoch"]),
-            "final_acc": float(last["acc"]),
-            "rate_e": float(last.get("rate_e") or 0.0),
-            "rate_i": float(last.get("rate_i") or 0.0),
-        })
+        seed_rows: list[dict] = []
+        for seed in LOW_W_IN_SEEDS:
+            run_dir = low_w_in_cell_dir(w_in, seed)
+            if not (run_dir / "metrics.json").exists():
+                raise SystemExit(f"missing metrics: {run_dir / 'metrics.json'}")
+            metrics = load_metrics(run_dir)
+            last = metrics["epochs"][-1]
+            seed_rows.append({
+                "seed": seed,
+                "best_acc": float(metrics["best_acc"]),
+                "best_epoch": int(metrics["best_epoch"]),
+                "final_acc": float(last["acc"]),
+                "rate_e": float(last.get("test_rate_e") or last.get("rate_e") or 0.0),
+                "rate_i": float(last.get("test_rate_i") or last.get("rate_i") or 0.0),
+            })
+
+        aggregate = aggregate_low_w_in_seed_rows(w_in, seed_rows)
+        low_w_in_rows.append(aggregate)
         print(
-            f"  w_in={w_in:>4}  acc={last['acc']:5.2f}%  "
-            f"E={last.get('rate_e') or 0:6.2f} Hz  "
-            f"I={last.get('rate_i') or 0:6.2f} Hz"
+            f"  w_in={w_in:>4}  "
+            f"acc={aggregate['final_acc']:5.2f}±{aggregate['final_acc_sem']:.2f}%  "
+            f"E={aggregate['rate_e']:6.2f}±{aggregate['rate_e_sem']:.2f} Hz  "
+            f"I={aggregate['rate_i']:6.2f}±{aggregate['rate_i_sem']:.2f} Hz"
         )
     plot_low_w_in(low_w_in_rows, figures / "low_w_in_sweep", run_id)
     print(f"wrote {figures / 'low_w_in_sweep'}.{{svg,pdf}}")
@@ -1552,16 +1564,41 @@ def _run(meta, run_id: str, figures: Path, t_start: float) -> None:
 
     duration_s = time.monotonic() - t_start
     train_cfg = load_config(baseline_dir(MODELS[0]))
+    tr07_cfg = load_config(low_w_in_cell_dir(LOW_W_IN_VALUES[0], LOW_W_IN_SEEDS[0]))
     frontier_statistics = aggregate_frontier(rows)
+    shared_checkpoints = checkpoint_provenance(
+        [cell_dir(model, theta, seed) for model in MODELS
+         for theta in RATE_TARGET_GRID_HZ for seed in SEEDS],
+        CHECKPOINT_ROLE,
+    )
+    tr07_checkpoints = checkpoint_provenance(
+        [low_w_in_cell_dir(w_in, seed) for w_in in LOW_W_IN_VALUES
+         for seed in LOW_W_IN_SEEDS],
+        CHECKPOINT_ROLE,
+    )
     write_numbers(
         figures, run_id=run_id, duration_s=duration_s,
         payload={
             "git_sha_train": train_cfg.get("git_sha"),
-            "checkpoint_provenance": checkpoint_provenance(
-                [cell_dir(model, theta, seed) for model in MODELS
-                 for theta in RATE_TARGET_GRID_HZ for seed in SEEDS],
-                CHECKPOINT_ROLE,
-            ),
+            "checkpoint_provenance": shared_checkpoints,
+            "training_sources": {
+                "shared_tr02": {
+                    "owner": "exp022/TR-02",
+                    "max_samples": int(train_cfg["max_samples"]),
+                    "epochs": int(train_cfg["epochs"]),
+                    "seeds": list(SEEDS),
+                    "checkpoint_role": CHECKPOINT_ROLE,
+                    "checkpoints": shared_checkpoints,
+                },
+                "low_w_in_controls": {
+                    "owner": "exp022/TR-07",
+                    "max_samples": int(tr07_cfg["max_samples"]),
+                    "epochs": int(tr07_cfg["epochs"]),
+                    "seeds": list(LOW_W_IN_SEEDS),
+                    "checkpoint_role": CHECKPOINT_ROLE,
+                    "checkpoints": tr07_checkpoints,
+                },
+            },
             "config": {
                 "dataset": "mnist",
                 "models": MODELS,
