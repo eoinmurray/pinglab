@@ -1284,8 +1284,7 @@ def fig_results_compound(rows, npz_coba, npz_ping, out_path, run_id):
             accs.append([e["acc"] for e in md["epochs"]])
         if not accs:
             continue
-        # Markers every 10th epoch only — 100-epoch curves otherwise read as a
-        # solid band and hide the near-identical COBA/PING traces.
+        # Sparse markers keep the near-identical COBA/PING traces legible.
         ax_acc.plot(eps, np.asarray(accs).mean(0), marker=MODEL_MARKERS[m],
                     ms=3.2, markevery=10, lw=1.4,
                     color=MODEL_COLORS[m], label=m.upper())

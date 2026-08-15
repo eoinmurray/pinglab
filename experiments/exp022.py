@@ -77,7 +77,7 @@ def _display_path(path: Path) -> Path:
 TRAINING_ROOT = runpod.training_root()
 SNN_TOOL = REPO / "tools" / "snn" / "tool.py"
 
-EPOCHS_STANDARD = 50           # standard depth (halved from 100 — see exp022.mdx §2)
+EPOCHS_STANDARD = 50
 DT_MS = 0.1
 T_MS = 200.0
 SEEDS_BASELINE = [42, 43, 44]
@@ -680,11 +680,10 @@ def runpod_is_done(cell: dict, plumbing: bool) -> bool:
     """A cell is done iff its metrics.json exists AND was trained at the scale
     THIS run expects (max_samples, epochs, dt all matching).
 
-    Existence alone is not enough: TRAINING_ROOT is littered with cells from
-    earlier, coarser standards (e.g. 2000 samples / 100 epochs), and a bare
-    exists() check — what --only-missing does — would skip those and silently
-    ship a mixed-scale, invalid dataset. Comparing the baked config makes the
-    marker honest: a stale cell reads as pending and gets retrained.
+    Existence alone is not enough: a training root may contain cells produced
+    under a different run contract, and a bare exists() check would skip those
+    and silently ship a mixed-scale, invalid dataset. Comparing the baked config
+    makes the marker honest: a stale cell reads as pending and gets retrained.
     """
     p = cell_dir(cell["name"]) / "metrics.json"
     if not p.exists():

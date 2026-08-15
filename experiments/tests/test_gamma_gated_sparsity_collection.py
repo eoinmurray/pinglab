@@ -4,6 +4,7 @@ from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
+from experiments import exp022, exp080
 from experiments.collections.gamma_gated_sparsity import execution, slurm
 from experiments.collections.gamma_gated_sparsity.graph import (
     EXPERIMENTS,
@@ -11,6 +12,11 @@ from experiments.collections.gamma_gated_sparsity.graph import (
     ordered_experiments,
 )
 from experiments.collections.gamma_gated_sparsity.plan import REPO, build_plan
+
+
+def test_collection_production_training_horizon_is_50_epochs() -> None:
+    assert exp022.EPOCHS_STANDARD == 50
+    assert exp080.EPOCHS_STANDARD == 50
 
 
 def test_graph_orders_dependencies_and_replaces_exp048_with_exp082() -> None:
