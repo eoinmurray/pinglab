@@ -41,6 +41,9 @@
 #let body = [
   The trained networks this entry uses are produced once in the shared training
   hub, #link("/exp022/")[exp022 (Training)], and reused here rather than retrained.
+  Its complete TR-02 activity frontier contains seeds 42–44 at every COBA and
+  PING rate target. The machine-readable results retain each checkpoint row and
+  report the across-seed mean and SEM for every frontier point.
 
   == Abstract
 

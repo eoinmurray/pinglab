@@ -28,6 +28,8 @@ import numpy as np
 REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
+from exp022 import RATE_TARGET_GRID_HZ as SHARED_RATE_TARGET_GRID_HZ  # noqa: E402
+from exp022 import SEEDS_BASELINE as SHARED_SEEDS  # noqa: E402
 from exp022 import cell_dir as shared_cell_dir  # noqa: E402
 from exp022 import cell_name  # noqa: E402
 from helpers import (
@@ -43,6 +45,7 @@ from helpers.cli import Meta, parse_meta  # noqa: E402
 from helpers.datasets import MNIST_REDUCED_EVAL_SAMPLES  # noqa: E402
 from helpers.figsave import save_figure  # noqa: E402
 from helpers.fmt import format_duration  # noqa: E402
+from helpers.frontier import summarize_frontier  # noqa: E402
 from helpers.paths import artifacts_and_figures, runner_paths  # noqa: E402
 from helpers.run_cli import run_cli  # noqa: E402
 from helpers.run_dirs import prepare as prepare_run_dirs  # noqa: E402
@@ -65,12 +68,8 @@ EVAL_CORPUS_SAMPLES = EVAL_MAX_SAMPLES
 T_MS = 200.0
 DT_TRAIN = 0.1
 
-# Baseline (rate target = off) cells are trained at multiple seeds so the
-# headline bar chart and learning curves can show mean ± SEM. The rate target
-# sweep cells stay single-seed — the frontier *shape* is dominated by
-# the regulariser, not the seed.
-SEEDS_BASELINE: list[int] = [42, 43, 44]
-SEED_SWEEP: int = 42
+# Every activity-frontier point uses the same independent seeds.
+SEEDS_BASELINE: list[int] = list(SHARED_SEEDS)
 BASELINE_EPOCHS: int = 50
 
 # Inference-time ei_strength sweep on the coba__off__seed42 baseline.
@@ -101,7 +100,7 @@ if SMOKE:
 # pressure (off → ~80 Hz coba baseline) down to 1 Hz —
 # below ping's natural 5 Hz and into the regime where every model
 # loses accuracy.
-RATE_TARGET_GRID_HZ: list[float | None] = [None, 25.0, 10.0, 5.0, 2.5, 1.0]
+RATE_TARGET_GRID_HZ: list[float | None] = list(SHARED_RATE_TARGET_GRID_HZ)
 FR_STRENGTH_UPPER = 1e-3
 
 MODELS = ["coba", "ping"]
@@ -123,8 +122,8 @@ SCALE = {
     "dt_ms": DT_TRAIN,
     "batch_size": 256,
     "seeds": len(SEEDS_BASELINE),
-    "cells": 16,
-    "grid": "2 models × (3 baseline seeds + 5 single-seed regularized cells)",
+    "cells": 36,
+    "grid": "2 models × 6 rate targets × 3 seeds",
 }
 
 def _level_tag(level) -> str:
@@ -254,8 +253,8 @@ def rate_target_hz_value(rate_target_hz: float | None) -> float | None:
 
 
 def seeds_for(rate_target_hz: float | None) -> list[int]:
-    """Baseline cells run all seeds; sweep cells stay single-seed."""
-    return list(SEEDS_BASELINE) if rate_target_hz is None else [SEED_SWEEP]
+    """Return the independent seeds used at every frontier point."""
+    return list(SEEDS_BASELINE)
 
 
 def cell_dir(model: str, rate_target_hz: float | None, seed: int) -> Path:
@@ -630,7 +629,7 @@ def main() -> None:
 
     t_start = time.monotonic()
     notebook_run_id = next_run_id(SLUG)
-    n_cells = len(MODELS) * len(RATE_TARGET_GRID_HZ)
+    n_cells = len(MODELS) * len(RATE_TARGET_GRID_HZ) * len(SEEDS_BASELINE)
     print(
         f"notebook_run_id = {notebook_run_id} cells={n_cells}"
         + ("  [skip-training]" if skip_training else "")
@@ -658,6 +657,7 @@ def main() -> None:
                 last = metrics["epochs"][-1]
                 rows.append(
                     {
+                        "cell_name": cell_name(model, rate_target_hz, seed),
                         "model": model,
                         "rate_target_display": rate_target_display(rate_target_hz),
                         "rate_target_hz": rate_target_hz,
@@ -771,7 +771,12 @@ def main() -> None:
         "notebook_run_id": notebook_run_id,
         "git_sha": train_cfg.get("git_sha"),
         "checkpoint_provenance": checkpoint_provenance(
-            [baseline_dir(model, seed) for model in MODELS for seed in SEEDS_BASELINE],
+            [
+                cell_dir(model, target, seed)
+                for model in MODELS
+                for target in RATE_TARGET_GRID_HZ
+                for seed in SEEDS_BASELINE
+            ],
             CHECKPOINT_ROLE,
         ),
         "duration_s": round(duration_s, 1),
@@ -787,16 +792,16 @@ def main() -> None:
             "epochs": BASELINE_EPOCHS,
             "t_ms": T_MS,
             "dt": DT_TRAIN,
-            "seeds_baseline": SEEDS_BASELINE,
+            "frontier_seeds": SEEDS_BASELINE,
             "quantitative_inference_seeds": SEEDS_BASELINE,
             "illustrative_raster_seed": SEEDS_BASELINE[0],
             "evaluation_samples_per_seed": sorted(
                 {int(row["n_total"]) for row in perturb_rows}
             ),
-            "seed_sweep": SEED_SWEEP,
             "fr_strength_upper": FR_STRENGTH_UPPER,
         },
         "baseline_results": rows,
+        "frontier_summary": summarize_frontier(rows),
         "perturbation": perturb_rows,
         "perturbation_summary": summarize_perturbation_rows(perturb_rows),
     }
