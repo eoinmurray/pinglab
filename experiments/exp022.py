@@ -7,7 +7,8 @@ weights with `load_cell` (imported from this module) instead of retraining
 their own. This replaces the collection's older "standalone runner, no
 cross-notebook helpers" rule with a train-once / reuse-many policy (see ar016).
 
-90 cells across six families (canonical, rate target, τ_GABA, Δt, init, variable rate)
+102 cells across seven families (canonical, rate target, τ_GABA, Δt, init,
+variable rate, low-input recruitment)
 that exp025
 defines and that exp024 / exp037 / exp038 each used to retrain
 independently. Standard: 50 epochs, dt = 0.1 ms, T = 200 ms, and THREE seeds
@@ -86,6 +87,7 @@ VARIABLE_RATE_TRAINING_RATES_HZ = (
 VARIABLE_RATE_CONSUMER = "exp082"
 RATE_TARGET_GRID_HZ: list[float | None] = [None, 25.0, 10.0, 5.0, 2.5, 1.0]
 FR_STRENGTH_UPPER = 1e-3
+LOW_W_IN_VALUES = (0.05, 0.1, 0.3, 0.9)
 TAU_AMPA_MS = 2.0          # AMPA decay — fixed across the collection (no CLI knob)
 INPUT_RATE_HZ = 25.0
 N_INPUT = 784
@@ -156,6 +158,7 @@ TRAINING_RUN_IDS = {
     "dt": "TR-04",
     "init": "TR-05",
     "variable_rate": "TR-06",
+    "low_w_in": "TR-07",
 }
 
 # ping recipe without the fixed --ei-strength, for the init family (exp049),
@@ -304,9 +307,38 @@ def _planned_variable_rate_cells() -> list[dict]:
     ]
 
 
+def low_w_in_cell_name(w_in: float, seed: int) -> str:
+    label = f"{w_in:g}".replace(".", "p")
+    return f"ping__low_w_in__win{label}__seed{seed}"
+
+
+def _low_w_in_cells() -> list[dict]:
+    """PING recruitment controls consumed by exp025."""
+    return [
+        {
+            "name": low_w_in_cell_name(w_in, seed),
+            "model": "ping",
+            "family": "low_w_in",
+            "tag": f"W_in={w_in:g}",
+            "seed": seed,
+            "dt_ms": DT_MS,
+            "tau_gaba": TAU_GABA_GAMMA,
+            "w_in": w_in,
+            "rate_target_hz": 1.0,
+            "recipe_overrides": {"--w-in": str(w_in)},
+            "extra": [
+                "--fr-reg-upper-target-hz", "1.0",
+                "--fr-reg-upper-strength", str(FR_STRENGTH_UPPER),
+            ],
+        }
+        for w_in in LOW_W_IN_VALUES
+        for seed in SEEDS_BASELINE
+    ]
+
+
 PLANNED_VARIABLE_RATE_CELLS = _planned_variable_rate_cells()
 BASE_CELLS = (_canonical_cells() + _activity_frontier_cells() + _tau_gaba_cells()
-              + _dt_cells() + _init_cells())
+              + _dt_cells() + _init_cells() + _low_w_in_cells())
 CANONICAL_CELLS = BASE_CELLS + PLANNED_VARIABLE_RATE_CELLS
 for _cell in CANONICAL_CELLS:
     _cell["training_run_id"] = TRAINING_RUN_IDS[_cell["family"]]
@@ -404,7 +436,7 @@ def cells_in_resource_tier(tier: str) -> list[dict]:
 # the Methods table via RunScale; the mdx never restates these numbers.
 SCALE = {
     "dataset": "mnist",
-    # Sweep scale (61/67 cells); the 6 canonical cells override to all of MNIST.
+    # Reduced-pool scale; the six canonical cells override to all of MNIST.
     "max_samples": SUBSET_MAX_SAMPLES,
     "epochs": EPOCHS_STANDARD,
     "t_ms": T_MS,
@@ -412,7 +444,7 @@ SCALE = {
     "batch_size": BATCH_SIZE,
     "seeds": len(SEEDS_BASELINE),
     "cells": len(CANONICAL_CELLS),
-    "grid": "2 architectures × 5 families",
+    "grid": "7 training-run families",
 }
 
 
@@ -438,6 +470,7 @@ def build_train_args(spec: dict, out_dir: Path,
                      recipes: dict[str, dict] | None = None) -> list[str]:
     """CLI `train` args for one registry cell, across all families."""
     recipe = dict((recipes or MODEL_RECIPES)[spec["model"]])
+    recipe.update(spec.get("recipe_overrides", {}))
     if spec.get("readout") is not None:
         recipe["--readout"] = spec["readout"]
     ms = spec.get("max_samples") or max_samples   # canonical cells override
@@ -548,6 +581,7 @@ FAMILY_COLORS = {
     "dt": theme.ELECTRIC_CYAN,
     "init": theme.AMBER,
     "variable_rate": theme.ELECTRIC_CYAN,
+    "low_w_in": theme.MUTED,
 }
 
 
@@ -567,7 +601,10 @@ def training_curve(d: Path) -> tuple[list[int], list[float]]:
     return eps, accs
 
 
-FAMILY_ORDER = ["canonical", "activity_frontier", "tau_gaba", "dt", "init", "variable_rate"]
+FAMILY_ORDER = [
+    "canonical", "activity_frontier", "tau_gaba", "dt", "init",
+    "variable_rate", "low_w_in",
+]
 FAMILY_LABELS = {
     "canonical": "Canonical reference",
     "activity_frontier": "Hidden-E activity-ceiling sweep",
@@ -576,8 +613,12 @@ FAMILY_LABELS = {
     "dt": "Δt sweep",
     "init": "Init variants",
     "variable_rate": "Variable-rate streaming bank",
+    "low_w_in": "Low-input recruitment sweep",
 }
-FAMILY_ARTIFACT_SLUGS = {"activity_frontier": "theta_u"}
+FAMILY_ARTIFACT_SLUGS = {
+    "activity_frontier": "theta_u",
+    "low_w_in": "low_w_in",
+}
 
 
 def plot_family_curves(family: str, cells: list[dict],
@@ -1279,7 +1320,7 @@ def _handle_campaign_cli(argv: list[str]) -> bool:
     status = campaign.summarize_status(manifest)
     if args.campaign_aggregate:
         if len(manifest["cells"]) != len(CANONICAL_CELLS):
-            raise SystemExit("aggregation requires the complete 90-cell registry")
+            raise SystemExit("aggregation requires the complete 102-cell registry")
         incomplete = [row["name"] for row in status["cells"] if not row["valid"]]
         if incomplete:
             raise SystemExit(

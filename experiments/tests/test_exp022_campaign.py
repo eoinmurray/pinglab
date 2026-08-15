@@ -13,9 +13,9 @@ from experiments.helpers import archive
 CONCRETE_TIERS = ("standard", "fine_dt", "canonical_coba", "canonical_ping", "variable_rate")
 
 
-def test_registry_has_90_unique_cells_partitioned_once() -> None:
+def test_registry_has_102_unique_cells_partitioned_once() -> None:
     names = [cell["name"] for cell in exp022.CANONICAL_CELLS]
-    assert len(names) == len(set(names)) == 90
+    assert len(names) == len(set(names)) == 102
     tiered = [cell["name"] for tier in CONCRETE_TIERS for cell in exp022.cells_in_resource_tier(tier)]
     assert sorted(tiered) == sorted(names)
 
@@ -71,6 +71,26 @@ def test_registry_training_run_identity(family: str, run_id: str) -> None:
     assert {cell["training_run_id"] for cell in cells} == {run_id}
 
 
+def test_tr07_low_input_controls_use_production_contract(tmp_path: Path) -> None:
+    cells = [
+        cell for cell in exp022.CANONICAL_CELLS
+        if cell["training_run_id"] == "TR-07"
+    ]
+    assert len(cells) == 12
+    assert {cell["seed"] for cell in cells} == {42, 43, 44}
+    assert {cell["w_in"] for cell in cells} == {0.05, 0.1, 0.3, 0.9}
+    for cell in cells:
+        args = exp022.build_train_args(
+            cell, tmp_path / cell["name"],
+            exp022.SUBSET_MAX_SAMPLES, exp022.EPOCHS_STANDARD,
+        )
+        assert args[args.index("--max-samples") + 1] == "7000"
+        assert args[args.index("--epochs") + 1] == "50"
+        assert args[args.index("--seed") + 1] == str(cell["seed"])
+        assert args[args.index("--w-in") + 1] == str(cell["w_in"])
+        assert args[args.index("--fr-reg-upper-target-hz") + 1] == "1.0"
+
+
 def test_all_resolved_commands_keep_family_contract(tmp_path: Path) -> None:
     for cell in exp022.CANONICAL_CELLS:
         samples, epochs = exp022.cell_samples_epochs(cell)
@@ -83,7 +103,8 @@ def test_all_resolved_commands_keep_family_contract(tmp_path: Path) -> None:
         assert args[args.index("--input-rate") + 1] == "25.0"
         assert args[args.index("--weight-decay") + 1] == "0.0"
         assert "--dales-law" in args
-        assert args[args.index("--w-in") + 1] == "0.9"
+        expected_w_in = str(cell["w_in"]) if cell["family"] == "low_w_in" else "0.9"
+        assert args[args.index("--w-in") + 1] == expected_w_in
         assert args[args.index("--readout-w-init-mean") + 1] == exp022.SHARED_READOUT_W_INIT_MEAN
         assert args[args.index("--readout-w-init-std") + 1] == exp022.SHARED_READOUT_W_INIT_STD
         assert "--readout-w-out-scale" not in args
@@ -141,7 +162,7 @@ def test_all_resolved_cells_have_complete_scientific_contract(tmp_path: Path) ->
             assert contract["input"]["rate_hz"] == 25.0
             assert contract["input"]["rate_distribution_hz"] is None
 
-    assert len(contracts) == 90
+    assert len(contracts) == 102
 
 
 def test_every_production_argument_is_mapped_or_operational(tmp_path: Path) -> None:
