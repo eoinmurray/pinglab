@@ -77,10 +77,32 @@ def test_exp042_baseline_inference_is_capped_in_smoke(
     exp042._BASE_CACHE.clear()
     monkeypatch.setattr(exp042, "ARTIFACTS", tmp_path / "derived")
     monkeypatch.setattr(exp042, "SMOKE", True)
+    monkeypatch.setattr(exp042, "EVAL_MAX_SAMPLES", 100)
     monkeypatch.setattr(exp042, "run_cli", fake_run)
     exp042._run_baseline(train_dir)
 
     assert observed[observed.index("--max-samples") + 1] == "100"
+
+
+def test_exp042_production_inference_uses_publication_subset(
+    monkeypatch, tmp_path
+) -> None:
+    observed: list[str] = []
+
+    def fake_run(command):
+        observed.extend(command)
+        out = Path(command[command.index("--out-dir") + 1])
+        out.mkdir(parents=True, exist_ok=True)
+        (out / "metrics.json").write_text("{}")
+
+    train_dir = tmp_path / "cell"
+    train_dir.mkdir()
+    _write_final_checkpoint(train_dir, {})
+    monkeypatch.setattr(exp042, "ARTIFACTS", tmp_path / "derived")
+    monkeypatch.setattr(exp042, "EVAL_MAX_SAMPLES", 1000)
+    monkeypatch.setattr(exp042, "run_cli", fake_run)
+    exp042._run_with_override(train_dir, tmp_path / "override.npz")
+    assert observed[observed.index("--max-samples") + 1] == "1000"
 
 
 def test_smoke_grids_retain_every_writeup_anchor() -> None:

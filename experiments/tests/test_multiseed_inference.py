@@ -99,7 +99,7 @@ def test_exp037_publication_rows_retain_seed_and_sample_provenance() -> None:
     }]
 
 
-def test_exp037_quantitative_inference_pins_full_mnist_pool(
+def test_exp037_quantitative_inference_uses_publication_subset(
     monkeypatch, tmp_path: Path
 ) -> None:
     train_dir = tmp_path / "coba__off__seed42"
@@ -121,7 +121,7 @@ def test_exp037_quantitative_inference_pins_full_mnist_pool(
     monkeypatch.setattr(exp037, "ARTIFACTS", tmp_path / "state")
     monkeypatch.setattr(exp037, "run_cli", fake_run_cli)
     result = exp037.run_perturbation_sweep(train_dir, "drop", 0.5)
-    assert commands[0][commands[0].index("--max-samples") + 1] == "60000"
+    assert commands[0][commands[0].index("--max-samples") + 1] == "1000"
     assert result["n_total"] == 14000
 
 
