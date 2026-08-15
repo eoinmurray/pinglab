@@ -54,7 +54,7 @@ def main() -> None:
         and payload["gpu_compute_capability"]
         and payload["gpu_compute_capability"][0] == 8
         and payload["mnist_train_samples"] == 60000
-        and payload["exp022_registered_cells"] == 90
+        and payload["exp022_registered_cells"] == 102
     )
     args.output.parent.mkdir(parents=True, exist_ok=True)
     temporary = args.output.with_suffix(args.output.suffix + ".tmp")

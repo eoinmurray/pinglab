@@ -28,7 +28,10 @@ EXPERIMENTS: tuple[Experiment, ...] = (
     Experiment("exp080", integrated=True, note="variable-rate calibration"),
     Experiment("exp081", integrated=True, note="filtered-response theory"),
     Experiment("exp024", ("exp022",), "TR-02", integrated=True),
-    Experiment("exp025", ("exp022",), "TR-02", integrated=True),
+    Experiment(
+        "exp025", ("exp022",), "TR-02", integrated=True,
+        note="also consumes TR-07 low-input recruitment controls",
+    ),
     Experiment("exp037", ("exp022",), "TR-02", integrated=True),
     Experiment("exp038", ("exp022",), "TR-02", integrated=True),
     Experiment("exp041", ("exp022",), "TR-03", integrated=True),

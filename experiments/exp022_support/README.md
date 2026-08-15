@@ -1,6 +1,6 @@
 # exp022 on Cambridge Wilkes3 SL2
 
-This is the executable operator runbook for the 90-cell exp022 campaign. The
+This is the executable operator runbook for the 102-cell exp022 campaign. The
 scientific registry remains solely in `experiments/exp022.py`; these scripts
 only map a reviewed manifest onto Wilkes3 resources.
 
@@ -88,7 +88,7 @@ uv run python experiments/exp022.py \
   --campaign-id production-<UTC> --tier all
 ```
 
-Review `campaign.json`, especially its commit, lock hash, destination, 90-cell
+Review `campaign.json`, especially its commit, lock hash, destination, 102-cell
 count, scientific parameters, and commands. The manifest hash detects edits.
 
 ## 5. Status, tiny flow, and failure rehearsal
@@ -147,7 +147,7 @@ Scientific completion is determined by the validator, not Slurm state.
 
 ## 8. Aggregate and recover
 
-After all 90 cells validate, aggregate from that one campaign only. The
+After all 102 cells validate, aggregate from that one campaign only. The
 aggregator must refuse incomplete or mixed banks, render TR-01--TR-06 curves and
 rasters, and then run focused exp082 compatibility checks. Archive only the
 exact verified campaign bank named by its manifest:
