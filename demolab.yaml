@@ -15,6 +15,7 @@ collections:
   snnlang:
     label: SNNLANG
     description: Developer documentation for authoring, compiling, and executing graph-shaped spiking neural networks.
+    theme: docs
   documentation:
     label: Documentation
     description: Model derivations, conventions, and how the toolkit works.
