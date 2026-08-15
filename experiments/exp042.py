@@ -50,6 +50,7 @@ from helpers.checkpoints import (  # noqa: E402
     cache_tag,
     checkpoint_provenance,
     resolve_checkpoint,
+    training_horizon,
 )
 from helpers.cli import Meta, parse_meta  # noqa: E402
 from helpers.datasets import (  # noqa: E402
@@ -2176,14 +2177,18 @@ def main() -> None:
         )
 
     duration_s = time.monotonic() - t_start
+    exp041_dirs = [
+        _xtau_exp041_cell_dir(tau, seed)
+        for tau in XTAU_TAU_GABAS_MS
+        for seed in XTAU_SEEDS
+    ]
     summary = {
         "notebook_run_id": notebook_run_id,
         "duration_s": round(duration_s, 1),
         "duration": format_duration(duration_s),
         "checkpoint_provenance": checkpoint_provenance(
             [NB035_ARTIFACTS / f"ping__off__seed{seed}" for seed in SEEDS]
-            + [_xtau_exp041_cell_dir(tau, seed) for tau in XTAU_TAU_GABAS_MS
-               for seed in XTAU_SEEDS],
+            + exp041_dirs,
             CHECKPOINT_ROLE,
         ),
         "config": {
@@ -2198,7 +2203,8 @@ def main() -> None:
             "xtau_seeds": list(XTAU_SEEDS),
             "xtau_sigmas_ms": list(XTAU_SIGMAS_MS),
             "exp025_source": "ping__off__seed{seed} (θ_u = off baseline)",
-            "exp041_source": "ping__tg{N}__seed{S} (100-epoch baselines)",
+            "exp041_source": "ping__tg{N}__seed{S}",
+            "exp041_training_epochs": training_horizon(exp041_dirs),
             "raster_sample_idx": RASTER_SAMPLE_IDX,
         },
         "results": rows,

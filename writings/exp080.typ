@@ -141,7 +141,7 @@
 
   #figure(
     image("/artifacts/data/exp080/training_history.svg", width: 72%,
-      alt: "Three validation-accuracy curves rise over ten training epochs."),
+      alt: "Three validation-accuracy curves over the decoder training run."),
     caption: [Mixed-rate validation accuracy across training. The horizontal
       axis is epoch and the vertical axis is validation accuracy. Each curve is
       one independently trained nonlinear decoder, and every epoch uses fresh

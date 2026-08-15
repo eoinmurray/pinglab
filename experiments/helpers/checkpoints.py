@@ -74,6 +74,23 @@ def checkpoint_provenance(train_dirs: Iterable[Path], role: str) -> list[dict]:
     return sorted(records, key=lambda row: row["training_cell"])
 
 
+def training_horizon(train_dirs: Iterable[Path]) -> int:
+    """Return the common configured epoch count, failing on mixed inputs."""
+    horizons = set()
+    for train_dir in train_dirs:
+        metrics_path = Path(train_dir).resolve() / "metrics.json"
+        try:
+            metrics = json.loads(metrics_path.read_text())
+            horizons.add(int(metrics["config"]["epochs"]))
+        except (OSError, json.JSONDecodeError, KeyError, TypeError, ValueError) as exc:
+            raise RuntimeError(f"cannot resolve training horizon from {metrics_path}") from exc
+    if not horizons:
+        raise ValueError("training horizon requires at least one training directory")
+    if len(horizons) != 1:
+        raise RuntimeError(f"mixed upstream training horizons: {sorted(horizons)}")
+    return horizons.pop()
+
+
 def cache_tag(record: dict) -> str:
     """Stable suffix preventing cache reuse across checkpoint roles or contents."""
     return f"{record['role']}__{record['sha256'][:12]}"

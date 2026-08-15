@@ -16,7 +16,7 @@
 
   == Methods
 
-  Cycle statistics are evaluated from the final-epoch checkpoints used by exp041, so this experiment audits the same endpoint gamma dynamics.
+  Cycle statistics are evaluated from the final-epoch checkpoints used by exp041, so this experiment audits the same endpoint gamma dynamics. The source training horizon is read from those checkpoint configurations and retained in the generated provenance.
 
   For each of exp041's 18 trained cells (6 $tau_"GABA"$ × 3 seeds):
 

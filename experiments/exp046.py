@@ -40,6 +40,7 @@ from helpers.checkpoints import (  # noqa: E402
     cache_tag,
     checkpoint_provenance,
     resolve_checkpoint,
+    training_horizon,
 )
 from helpers.datasets import MNIST_REDUCED_EVAL_SAMPLES  # noqa: E402
 from helpers.figsave import save_figure  # noqa: E402
@@ -462,19 +463,25 @@ def main() -> None:
     }
 
     duration_s = time.monotonic() - t_start
+    exp041_dirs = [
+        exp041_cell_dir(tau, seed)
+        for tau in TAU_GABA_SWEEP_MS
+        for seed in SEEDS
+    ]
     numbers = {
         "notebook_run_id": notebook_run_id,
         "duration_s": duration_s,
         "duration": f"{int(duration_s // 60)}m {int(duration_s % 60):02d}s",
         "checkpoint_provenance": checkpoint_provenance(
-            [exp041_cell_dir(tau, seed) for tau in TAU_GABA_SWEEP_MS for seed in SEEDS],
+            exp041_dirs,
             CHECKPOINT_ROLE,
         ),
         "config": {
             "tau_gabas_ms": list(TAU_GABA_SWEEP_MS),
             "seeds": list(SEEDS),
             "evaluation_samples": EVAL_MAX_SAMPLES,
-            "exp041_source": "ping__tg{N}__seed{S} (100-epoch baselines)",
+            "exp041_source": "ping__tg{N}__seed{S}",
+            "exp041_training_epochs": training_horizon(exp041_dirs),
         },
         "global_fracs": global_fracs,
         "n_cell_cycle_pairs": g_total,
