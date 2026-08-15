@@ -4,7 +4,7 @@ from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
-from experiments import exp022, exp080
+from experiments import exp022, exp042, exp080
 from experiments.collections.gamma_gated_sparsity import execution, slurm
 from experiments.collections.gamma_gated_sparsity.graph import (
     EXPERIMENTS,
@@ -26,11 +26,30 @@ def test_graph_orders_dependencies_and_replaces_exp048_with_exp082() -> None:
     assert positions["exp022"] < positions["exp082"]
     assert positions["exp041"] < positions["exp033"]
     assert positions["exp041"] < positions["exp054"]
+    assert positions["exp022"] < positions["exp042"]
+    assert positions["exp041"] < positions["exp042"]
     assert {"exp023", "exp047", "exp080", "exp081"} <= positions.keys()
     exp082 = next(
         experiment for experiment in EXPERIMENTS if experiment.slug == "exp082"
     )
     assert exp082.training_run == "TR-06"
+    exp042_node = next(
+        experiment for experiment in EXPERIMENTS if experiment.slug == "exp042"
+    )
+    assert exp042_node.dependencies == ("exp022", "exp041")
+    assert exp042_node.training_run == "TR-02"
+
+
+def test_exp042_declares_checkpoint_sources_by_owner_and_training_run() -> None:
+    sources = exp042.checkpoint_source_dirs()
+    assert set(sources) == {"exp022_tr02", "exp041_tr03"}
+    assert [path.name for path in sources["exp022_tr02"]] == [
+        "ping__off__seed42",
+        "ping__off__seed43",
+        "ping__off__seed44",
+    ]
+    assert len(sources["exp041_tr03"]) == 18
+    assert all(path.name.startswith("ping__tg") for path in sources["exp041_tr03"])
 
 
 def test_graph_rejects_unknown_dependencies_and_cycles() -> None:
@@ -371,6 +390,14 @@ def test_slurm_dry_run_preserves_collection_dependencies(
     )
     exp033 = jobs["ggs-exp033"]
     assert any("<ggs-exp041-job-id>" in argument for argument in exp033["command"])
+    exp042_job = jobs["ggs-exp042"]
+    exp042_dependency = next(
+        argument
+        for argument in exp042_job["command"]
+        if argument.startswith("--dependency")
+    )
+    assert "<ggs-exp022-aggregate-job-id>" in exp042_dependency
+    assert "<ggs-exp041-job-id>" in exp042_dependency
     final = jobs["ggs-finalize"]
     dependency = next(
         argument for argument in final["command"] if argument.startswith("--dependency")
