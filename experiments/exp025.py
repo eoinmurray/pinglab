@@ -48,6 +48,7 @@ from exp022 import cell_dir as shared_cell_dir  # noqa: E402
 from helpers import theme  # noqa: E402
 from helpers.checkpoints import (  # noqa: E402
     cache_tag,
+    checkpoint_policy,
     checkpoint_provenance,
     resolve_checkpoint,
 )
@@ -65,7 +66,9 @@ from helpers.run_dirs import published_run  # noqa: E402
 from helpers.run_id import next_run_id  # noqa: E402
 from helpers.stamp import stamp_figure  # noqa: E402
 
-CHECKPOINT_ROLE = "final_epoch"
+ANALYSIS_PURPOSE = "endpoint_dynamics"
+CHECKPOINT_POLICY = checkpoint_policy(ANALYSIS_PURPOSE)
+CHECKPOINT_ROLE = CHECKPOINT_POLICY["role"]
 
 SLUG = "exp025"
 RUN_PATHS = runner_paths(SLUG)
@@ -1579,6 +1582,7 @@ def _run(meta, run_id: str, figures: Path, t_start: float) -> None:
         figures, run_id=run_id, duration_s=duration_s,
         payload={
             "git_sha_train": train_cfg.get("git_sha"),
+            "checkpoint_policy": CHECKPOINT_POLICY,
             "checkpoint_provenance": shared_checkpoints,
             "training_sources": {
                 "shared_tr02": {

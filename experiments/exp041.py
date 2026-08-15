@@ -34,6 +34,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from helpers import theme  # noqa: E402
 from helpers.checkpoints import (  # noqa: E402
     cache_tag,
+    checkpoint_policy,
     checkpoint_provenance,
     resolve_checkpoint,
 )
@@ -57,7 +58,9 @@ from helpers.run_id import next_run_id  # noqa: E402
 from helpers.stamp import stamp_figure  # noqa: E402
 
 SLUG = "exp041"
-CHECKPOINT_ROLE = "final_epoch"
+ANALYSIS_PURPOSE = "endpoint_dynamics"
+CHECKPOINT_POLICY = checkpoint_policy(ANALYSIS_PURPOSE)
+CHECKPOINT_ROLE = CHECKPOINT_POLICY["role"]
 RUN_PATHS = runner_paths(SLUG)
 ARTIFACTS, FIGURES = artifacts_and_figures(SLUG)
 SMOKE = os.environ.get("PINGLAB_SMOKE") == "1"
@@ -714,6 +717,7 @@ def write_numbers(
         FIGURES, run_id=run_id, duration_s=duration_s,
         payload={
             "git_sha_train": train_cfg.get("git_sha"),
+            "checkpoint_policy": CHECKPOINT_POLICY,
             "checkpoint_provenance": checkpoint_provenance(
                 [cell_dir(tau, seed) for tau in TAU_GABA_SWEEP for seed in SEEDS],
                 CHECKPOINT_ROLE,
