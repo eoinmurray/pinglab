@@ -27,6 +27,7 @@ Writing: writings/exp022.typ · figures + numbers.json: artifacts/data/exp022/
 from __future__ import annotations
 
 import argparse
+import copy
 import json
 import os
 import shlex
@@ -342,6 +343,58 @@ BASE_CELLS = (_canonical_cells() + _activity_frontier_cells() + _tau_gaba_cells(
 CANONICAL_CELLS = BASE_CELLS + PLANNED_VARIABLE_RATE_CELLS
 for _cell in CANONICAL_CELLS:
     _cell["training_run_id"] = TRAINING_RUN_IDS[_cell["family"]]
+
+
+def training_run_cells(training_run_id: str) -> tuple[dict, ...]:
+    """Return isolated copies of the registered cells for one public TR ID."""
+    if training_run_id not in set(TRAINING_RUN_IDS.values()):
+        raise ValueError(f"unknown exp022 training-run ID {training_run_id!r}")
+    return tuple(
+        copy.deepcopy(cell)
+        for cell in CANONICAL_CELLS
+        if cell["training_run_id"] == training_run_id
+    )
+
+
+def training_run_values(training_run_id: str, field: str) -> tuple:
+    """Return unique registered values for ``field`` in registry order."""
+    values = []
+    for cell in training_run_cells(training_run_id):
+        if field not in cell:
+            raise ValueError(f"{training_run_id} cell {cell['name']} has no {field!r}")
+        value = cell[field]
+        if not any(value == existing for existing in values):
+            values.append(value)
+    return tuple(values)
+
+
+def training_run_cell(training_run_id: str, **identity: object) -> dict:
+    """Resolve exactly one registered cell by a small set of identity fields."""
+    matches = [
+        cell
+        for cell in training_run_cells(training_run_id)
+        if all(cell.get(field) == value for field, value in identity.items())
+    ]
+    if len(matches) != 1:
+        raise ValueError(
+            f"expected one {training_run_id} cell matching {identity}, "
+            f"found {len(matches)}"
+        )
+    return matches[0]
+
+
+def require_training_run_cells(
+    training_run_id: str, expected_names: list[str] | tuple[str, ...] | set[str]
+) -> None:
+    """Fail clearly when a consumer's expected cell bank drifts from exp022."""
+    registered = {cell["name"] for cell in training_run_cells(training_run_id)}
+    expected = set(expected_names)
+    if expected != registered:
+        missing = sorted(registered - expected)
+        extra = sorted(expected - registered)
+        raise ValueError(
+            f"{training_run_id} cell contract mismatch; missing={missing}, extra={extra}"
+        )
 
 
 def scientific_contract(cell: dict, max_samples: int, epochs: int) -> dict:

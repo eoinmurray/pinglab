@@ -39,12 +39,11 @@ import numpy as np
 REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from exp022 import (
-    LOW_W_IN_VALUES,  # noqa: E402
-    cell_name,  # noqa: E402
-    low_w_in_cell_name,  # noqa: E402
-)
 from exp022 import cell_dir as shared_cell_dir  # noqa: E402
+from exp022 import (
+    training_run_cell,  # noqa: E402
+    training_run_values,  # noqa: E402
+)
 from helpers import theme  # noqa: E402
 from helpers.checkpoints import (  # noqa: E402
     cache_tag,
@@ -83,7 +82,7 @@ DT_TRAIN = 0.1
 
 # Every quantitative frontier point uses the three independent TR-02 seeds.
 # Mechanism-only diagnostics use one explicitly representative checkpoint.
-SEEDS: list[int] = [42, 43, 44]
+SEEDS: list[int] = list(training_run_values("TR-02", "seed"))
 REPRESENTATIVE_SEED: int = 42
 LOW_W_IN_SEEDS: list[int] = [REPRESENTATIVE_SEED] if SMOKE else list(SEEDS)
 
@@ -102,11 +101,20 @@ EI_RASTER_N_I_PLOT: int = 64
 # pressure (off → ~80 Hz coba baseline) down to 1 Hz —
 # below ping's natural 5 Hz and into the regime where every model
 # loses accuracy.
-RATE_TARGET_GRID_HZ: list[float | None] = [None, 25.0, 10.0, 5.0, 2.5, 1.0]
+RATE_TARGET_GRID_HZ: list[float | None] = list(
+    training_run_values("TR-02", "rate_target_hz")
+)
+LOW_W_IN_VALUES = training_run_values("TR-07", "w_in")
 FR_STRENGTH_UPPER = 1e-3
 LOW_W_IN_RATE_TARGET_HZ: float = 1.0
 
-MODELS = ["coba", "ping"]
+MODELS = list(training_run_values("TR-02", "model"))
+
+
+def cell_name(model: str, rate_target_hz: float | None, seed: int) -> str:
+    return training_run_cell(
+        "TR-02", model=model, rate_target_hz=rate_target_hz, seed=seed
+    )["name"]
 
 # Run scale — stamped into the manifest by run_dirs.prepare and rendered as
 # the Methods table via RunScale; the mdx never restates these numbers.
@@ -867,7 +875,8 @@ def plot_rate_target_p_fgamma(
 # PING? The w_in initializations straddle f*, with 0.9 as the shared standard.
 
 def low_w_in_cell_dir(w_in: float, seed: int) -> Path:
-    return shared_cell_dir(low_w_in_cell_name(w_in, seed))
+    cell = training_run_cell("TR-07", w_in=w_in, seed=seed)
+    return shared_cell_dir(cell["name"])
 
 
 def aggregate_low_w_in_seed_rows(w_in: float, seed_rows: list[dict]) -> dict:

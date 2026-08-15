@@ -1,7 +1,12 @@
 # Gamma-gated sparsity campaign
 
 This package owns the dependency graph and isolated execution of the collection.
-It does not own experiment parameters; those remain in the experiment runners.
+Exp022 owns shared training contracts: public TR IDs, registered cell names,
+training grids, seeds, and training-only cell parameters. Downstream runners read
+those values through `training_run_cells`, `training_run_values`, and
+`training_run_cell`; they do not copy them. Each downstream runner continues to
+own its inference interventions, evaluation grids, raster samples, plotting, and
+other analysis-only parameters.
 
 Initialize a production campaign from a clean, frozen checkout:
 

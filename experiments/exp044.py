@@ -27,6 +27,13 @@ import numpy as np
 REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
+from exp022 import (  # noqa: E402
+    cell_dir as shared_cell_dir,
+)
+from exp022 import (
+    training_run_cell,
+    training_run_values,
+)
 from helpers import theme  # noqa: E402
 from helpers.checkpoints import (  # noqa: E402
     cache_tag,
@@ -64,8 +71,8 @@ T_MS = 200.0
 # at Δt = 0.1 ms; nb040 trained CUBA-PING at Δt = 1.0 ms. This audit
 # trains the same recipe across the full range to verify the rate
 # ceiling is a physical (Hz) feature rather than a step-count artefact.
-DT_SWEEP_MS: tuple[float, ...] = (0.05, 0.1, 0.25, 0.5, 1.0)
-SEEDS: tuple[int, ...] = (42, 43, 44)
+DT_SWEEP_MS: tuple[float, ...] = training_run_values("TR-04", "dt_ms")
+SEEDS: tuple[int, ...] = training_run_values("TR-04", "seed")
 
 # Single-trial raster capture — same convention as exp025 / exp042.
 RASTER_SAMPLE_IDX: int = 0
@@ -90,7 +97,10 @@ SCALE = {
     "t_ms": T_MS,
     "seeds": len(SEEDS),
     "cells": len(DT_SWEEP_MS) * len(SEEDS),
-    "grid": "5 Δt × 3 seeds (Δt ∈ {0.05, 0.1, 0.25, 0.5, 1.0} ms)",
+    "grid": (
+        f"{len(DT_SWEEP_MS)} Δt × {len(SEEDS)} seeds "
+        f"(Δt ∈ {{{', '.join(f'{dt:g}' for dt in DT_SWEEP_MS)}}} ms)"
+    ),
 }
 
 def dt_label(dt_ms: float) -> str:
@@ -100,10 +110,10 @@ def dt_label(dt_ms: float) -> str:
 
 def cell_dir(dt_ms: float, seed: int) -> Path:
     """Trained cell — now the shared exp022 cell (train-once / reuse-many)."""
-    from exp022 import cell_dir as shared_cell_dir
     if RUN_PATHS.isolated and not os.environ.get("PINGLAB_TRAINING_ROOT"):
         raise RuntimeError("isolated exp044 requires explicit PINGLAB_TRAINING_ROOT")
-    return shared_cell_dir(f"ping__{dt_label(dt_ms)}__seed{seed}")
+    cell = training_run_cell("TR-04", dt_ms=dt_ms, seed=seed)
+    return shared_cell_dir(cell["name"])
 
 
 def load_metrics(run_dir: Path) -> dict:

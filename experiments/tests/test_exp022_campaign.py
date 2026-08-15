@@ -37,6 +37,20 @@ def test_tr02_registry_uses_explicit_hz_targets() -> None:
             assert "--fr-reg-upper-strength" in args
 
 
+def test_downstream_contract_interface_is_isolated_and_fail_closed() -> None:
+    cells = exp022.training_run_cells("TR-06")
+    assert len(cells) == 3
+    cells[0]["input_rates_hz"].append(999.0)
+    assert 999.0 not in exp022.training_run_cell("TR-06", seed=42)["input_rates_hz"]
+    assert exp022.training_run_values("TR-06", "seed") == (42, 43, 44)
+    with pytest.raises(ValueError, match="unknown exp022 training-run ID"):
+        exp022.training_run_cells("TR-99")
+    with pytest.raises(ValueError, match="expected one TR-02 cell"):
+        exp022.training_run_cell("TR-02", seed=42)
+    with pytest.raises(ValueError, match="cell contract mismatch"):
+        exp022.require_training_run_cells("TR-06", {"invented-cell"})
+
+
 def test_campaign_python_identity_stays_inside_environment(monkeypatch, tmp_path: Path) -> None:
     bin_dir = tmp_path / "venv" / "bin"
     bin_dir.mkdir(parents=True)

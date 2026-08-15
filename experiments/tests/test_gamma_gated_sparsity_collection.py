@@ -4,7 +4,20 @@ from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
-from experiments import exp022, exp042, exp080
+from experiments import (
+    exp022,
+    exp024,
+    exp025,
+    exp037,
+    exp038,
+    exp041,
+    exp042,
+    exp044,
+    exp046,
+    exp049,
+    exp080,
+    exp082,
+)
 from experiments.collections.gamma_gated_sparsity import execution, slurm
 from experiments.collections.gamma_gated_sparsity.graph import (
     EXPERIMENTS,
@@ -17,6 +30,63 @@ from experiments.collections.gamma_gated_sparsity.plan import REPO, build_plan
 def test_collection_production_training_horizon_is_50_epochs() -> None:
     assert exp022.EPOCHS_STANDARD == 50
     assert exp080.EPOCHS_STANDARD == 50
+
+
+def test_downstream_cell_banks_resolve_through_exp022_registry() -> None:
+    registered = {
+        run_id: {cell["name"] for cell in exp022.training_run_cells(run_id)}
+        for run_id in ("TR-02", "TR-03", "TR-04", "TR-05", "TR-06", "TR-07")
+    }
+
+    for module, seeds in (
+        (exp025, exp025.SEEDS),
+        (exp037, exp037.SEEDS_BASELINE),
+        (exp038, exp038.SEEDS_BASELINE),
+    ):
+        assert {
+            module.cell_dir(model, target, seed).name
+            for model in module.MODELS
+            for target in module.RATE_TARGET_GRID_HZ
+            for seed in seeds
+        } == registered["TR-02"]
+    assert {
+        exp024.cell_dir(model, seed).name
+        for model in exp024.MODELS
+        for seed in exp024.SEEDS
+    } <= registered["TR-02"]
+
+    assert {
+        exp041.cell_dir(tau, seed).name
+        for tau in exp041.TAU_GABA_SWEEP
+        for seed in exp041.SEEDS
+    } == registered["TR-03"]
+    assert {
+        exp046.exp041_cell_dir(tau, seed).name
+        for tau in exp046.TAU_GABA_SWEEP_MS
+        for seed in exp046.SEEDS
+    } == registered["TR-03"]
+    assert {
+        exp044.cell_dir(dt, seed).name
+        for dt in exp044.DT_SWEEP_MS
+        for seed in exp044.SEEDS
+    } == registered["TR-04"]
+    assert {
+        exp049.cell_dir(condition, seed).name
+        for condition in exp049.COND_ORDER
+        for seed in exp049.SEEDS
+    } == registered["TR-05"]
+    assert {
+        exp082.training_dir(seed).name for seed in exp082.SEEDS
+    } == registered["TR-06"]
+    assert {
+        exp025.low_w_in_cell_dir(w_in, seed).name
+        for w_in in exp025.LOW_W_IN_VALUES
+        for seed in exp025.LOW_W_IN_SEEDS
+    } <= registered["TR-07"]
+
+    exp042_sources = exp042.checkpoint_source_dirs()
+    assert {path.name for path in exp042_sources["exp022_tr02"]} <= registered["TR-02"]
+    assert {path.name for path in exp042_sources["exp041_tr03"]} == registered["TR-03"]
 
 
 def test_graph_orders_dependencies_and_replaces_exp048_with_exp082() -> None:
