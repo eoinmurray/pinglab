@@ -39,8 +39,8 @@ from helpers.checkpoints import (  # noqa: E402
     checkpoint_provenance,
     resolve_checkpoint,
 )
-from helpers.datasets import MNIST_REDUCED_EVAL_SAMPLES  # noqa: E402
 from helpers.cli import Meta, parse_meta  # noqa: E402
+from helpers.datasets import MNIST_REDUCED_EVAL_SAMPLES  # noqa: E402
 from helpers.figsave import save_figure  # noqa: E402
 from helpers.fmt import format_duration  # noqa: E402
 from helpers.paths import artifacts_and_figures, runner_paths  # noqa: E402

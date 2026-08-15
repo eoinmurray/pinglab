@@ -36,12 +36,12 @@ REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from helpers import theme  # noqa: E402
-from helpers.datasets import MNIST_REDUCED_EVAL_SAMPLES  # noqa: E402
 from helpers.checkpoints import (  # noqa: E402
     cache_tag,
     checkpoint_provenance,
     resolve_checkpoint,
 )
+from helpers.datasets import MNIST_REDUCED_EVAL_SAMPLES  # noqa: E402
 from helpers.figsave import save_figure  # noqa: E402
 from helpers.operating_point import MODELS_DEFAULT_TAU_GABA_MS  # noqa: E402
 from helpers.paths import (  # noqa: E402
