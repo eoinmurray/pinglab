@@ -18,7 +18,6 @@ from pathlib import Path
 
 import numpy as np
 
-
 # Comparable downstream analyses of reduced-pool exp022 cells use 10% of the
 # untouched 10,000-image official MNIST test partition.
 MNIST_REDUCED_EVAL_SAMPLES = 1_000

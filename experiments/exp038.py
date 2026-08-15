@@ -32,13 +32,13 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from exp022 import cell_dir as shared_cell_dir  # noqa: E402
 from exp022 import cell_name  # noqa: E402
 from helpers import theme  # noqa: E402
-from helpers.datasets import MNIST_REDUCED_EVAL_SAMPLES  # noqa: E402
 from helpers.checkpoints import (  # noqa: E402
     cache_tag,
     checkpoint_provenance,
     resolve_checkpoint,
 )
 from helpers.cli import parse_meta, replot_target  # noqa: E402
+from helpers.datasets import MNIST_REDUCED_EVAL_SAMPLES  # noqa: E402
 from helpers.figsave import save_figure  # noqa: E402
 from helpers.numbers import write_numbers  # noqa: E402
 from helpers.paths import artifacts_and_figures, runner_paths  # noqa: E402

@@ -32,13 +32,13 @@ REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from helpers import theme  # noqa: E402
-from helpers.datasets import MNIST_REDUCED_EVAL_SAMPLES  # noqa: E402
 from helpers.checkpoints import (  # noqa: E402
     cache_tag,
     checkpoint_provenance,
     resolve_checkpoint,
 )
 from helpers.cli import parse_meta  # noqa: E402
+from helpers.datasets import MNIST_REDUCED_EVAL_SAMPLES  # noqa: E402
 from helpers.figsave import save_figure  # noqa: E402
 from helpers.fmt import format_duration  # noqa: E402
 from helpers.numbers import write_numbers as write_numbers_json  # noqa: E402
