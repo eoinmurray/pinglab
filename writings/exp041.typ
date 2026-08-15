@@ -43,6 +43,9 @@
   Adam at $4 times 10^(-4)$, batch 256, mem-mean readout, no spike budget,
   $Delta t = 0.1$ ms, $T = 200$ ms); only $tau_"GABA"$ varies.
 
+  Checkpoint-backed accuracy, rate, and spectral measurements use the same fixed
+  1,000-image subset of the official MNIST test partition for every cell.
+
   *Measuring $f_gamma$.* For each cell, $f_gamma$ is the parabolic-interpolated peak
   of the Welch PSD on the per-trial population E trace; the fit (Figure 4) uses
   per-trial peak medians, which avoid the centroid bias of trial-mean PSD peaks.

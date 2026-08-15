@@ -32,6 +32,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from exp022 import cell_dir as shared_cell_dir  # noqa: E402
 from exp022 import cell_name  # noqa: E402
 from helpers import theme  # noqa: E402
+from helpers.datasets import MNIST_REDUCED_EVAL_SAMPLES  # noqa: E402
 from helpers.checkpoints import (  # noqa: E402
     cache_tag,
     checkpoint_provenance,
@@ -53,7 +54,7 @@ ARTIFACTS, FIGURES = artifacts_and_figures(SLUG)
 
 MAX_SAMPLES = 7000  # exp022 sweep-cell scale (10% of MNIST); reporting only
 SMOKE = os.environ.get("PINGLAB_SMOKE") == "1"
-EVAL_MAX_SAMPLES = 100 if SMOKE else 60000
+EVAL_MAX_SAMPLES = 100 if SMOKE else MNIST_REDUCED_EVAL_SAMPLES
 EVAL_CORPUS_SAMPLES = 10000
 T_MS = 200.0
 DT_TRAIN = 0.1
@@ -64,6 +65,7 @@ BASELINE_EPOCHS: int = 50  # baseline cell training horizon (in exp022 now)
 SCALE = {
     "dataset": "mnist",
     "max_samples": MAX_SAMPLES,
+    "evaluation_samples": EVAL_MAX_SAMPLES,
     "epochs": BASELINE_EPOCHS,
     "t_ms": T_MS,
     "dt_ms": DT_TRAIN,

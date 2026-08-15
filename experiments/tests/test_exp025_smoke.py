@@ -70,6 +70,7 @@ def test_smoke_scaled_inference_caps_dataset(monkeypatch, tmp_path: Path) -> Non
     monkeypatch.setattr(exp025, "_infer_cell", fake_infer)
     monkeypatch.setattr(exp025, "SMOKE", True)
     monkeypatch.setattr(exp025, "MAX_SAMPLES", 100)
+    monkeypatch.setattr(exp025, "EVAL_MAX_SAMPLES", 100)
     exp025._eval_scaled(train_dir, scale_w_in=0.5)
 
     assert observed["max_samples"] == 100

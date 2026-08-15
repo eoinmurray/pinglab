@@ -84,7 +84,7 @@
     [Parameter], [Value],
     [Integration timestep $Delta t$], [0.1 ms],
     [Trial duration $T$], [200 ms],
-    [MNIST training pool (2,000 official-training samples)], [1,800 optimizer-training / 200 validation; evaluation uses the official 10,000-image test partition],
+    [MNIST training pool (2,000 official-training samples)], [1,800 optimizer-training / 200 validation; downstream inference uses a fixed 1,000-image subset of the official test partition],
     [Epochs], [100],
   )
 
@@ -142,7 +142,8 @@
   epoch 0; Figure 3). To map the loss landscape around the operating point, each
   network trained at the tightest ceiling ($r_"max" = 1$ Hz) has its $W_"in"$ scaled
   by a common scalar $s in [0.05, 3]$ at inference with all other weights frozen,
-  metrics averaged over the test set at 24 values of $s$ (Figures 4–5).
+  metrics averaged over the same fixed 1,000-image held-out subset at 24 values
+  of $s$ (Figures 4–5).
 
   == Results
 

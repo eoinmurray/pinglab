@@ -8,7 +8,7 @@
 
 #let run = json("/artifacts/data/exp038/numbers.json")
 #let cfg = run.config
-#let eval_n = cfg.at("evaluation_samples_per_seed", default: (14000,)).first()
+#let eval_n = cfg.at("evaluation_samples_per_seed", default: (1000,)).first()
 #let eval_pool = cfg.at("evaluation_pool_samples", default: 10000)
 #let ei = run.at("ei_sweep_summary", default: run.ei_sweep)
 #let at(strength) = ei.filter(r => calc.abs(r.ei_strength - strength) < 0.001).first()
