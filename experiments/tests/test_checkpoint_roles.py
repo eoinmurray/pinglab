@@ -20,6 +20,7 @@ from experiments.helpers.checkpoints import (
     public_provenance,
     resolve_checkpoint,
     sha256_file,
+    training_horizon,
 )
 
 
@@ -66,6 +67,18 @@ def test_resolver_rejects_checkpoint_hash_drift(tmp_path: Path) -> None:
     (bank / "weights_final.pth").write_bytes(b"changed")
     with pytest.raises(RuntimeError, match="hash mismatch"):
         resolve_checkpoint(bank, "final_epoch")
+
+
+def test_training_horizon_is_read_from_upstream_configs(tmp_path: Path) -> None:
+    banks = [_checkpoint_bank(tmp_path / f"cell-{index}") for index in range(2)]
+    assert training_horizon(banks) == 5
+
+    metrics_path = banks[1] / "metrics.json"
+    metrics = json.loads(metrics_path.read_text())
+    metrics["config"]["epochs"] = 50
+    metrics_path.write_text(json.dumps(metrics))
+    with pytest.raises(RuntimeError, match="mixed upstream training horizons"):
+        training_horizon(banks)
 
 
 def test_collection_checkpoint_roles_are_explicit() -> None:
