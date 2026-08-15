@@ -42,6 +42,7 @@ if TYPE_CHECKING:  # torch is imported lazily inside the functions at runtime
 REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
+from exp022 import training_run_cell, training_run_values  # noqa: E402
 from helpers import (
     runpod,  # noqa: E402
     theme,  # noqa: E402
@@ -88,7 +89,7 @@ EVAL_SEED = 20260415  # mirror cli.encoders.EVAL_SEED (kept in sync by hand)
 
 TRAINING_ROOT = runpod.training_root()
 EXP022_TRAINING_ROOT = TRAINING_ROOT
-SEEDS: tuple[int, ...] = (42, 43, 44)
+SEEDS: tuple[int, ...] = training_run_values("TR-02", "seed")
 
 CONDITIONS: tuple[str, ...] = ("baseline", "phase_shuffled_i", "poisson_matched_i")
 
@@ -127,8 +128,8 @@ MIX_K_GRID: tuple[float, ...] = (0.25, 0.5, 1.0, 2.0, 4.0)
 # xtau_inflection_vs_period.
 NB041_ARTIFACTS = TRAINING_ROOT
 NB041_NUMBERS = FIGURES.parent / "exp041" / "numbers.json"
-XTAU_TAU_GABAS_MS: tuple[float, ...] = (4.5, 6.0, 9.0, 12.0, 18.0, 27.0)
-XTAU_SEEDS: tuple[int, ...] = (42, 43, 44)
+XTAU_TAU_GABAS_MS: tuple[float, ...] = training_run_values("TR-03", "tau_gaba")
+XTAU_SEEDS: tuple[int, ...] = training_run_values("TR-03", "seed")
 XTAU_SIGMAS_MS: tuple[float, ...] = (
     0.0, 1.0, 3.0, 7.0, 14.0, 21.0, 28.0, 42.0, 60.0, 100.0,
 )
@@ -1296,14 +1297,19 @@ def _xtau_tau_label(tau_ms: float) -> str:
 
 
 def _xtau_exp041_cell_dir(tau_ms: float, seed: int) -> Path:
-    return NB041_ARTIFACTS / f"ping__{_xtau_tau_label(tau_ms)}__seed{seed}"
+    cell = training_run_cell("TR-03", tau_gaba=tau_ms, seed=seed)
+    return NB041_ARTIFACTS / cell["name"]
 
 
 def checkpoint_source_dirs() -> dict[str, list[Path]]:
     """Hard checkpoint inputs, grouped by their owning experiment and TR."""
     return {
         "exp022_tr02": [
-            EXP022_TRAINING_ROOT / f"ping__off__seed{seed}" for seed in SEEDS
+            EXP022_TRAINING_ROOT
+            / training_run_cell(
+                "TR-02", model="ping", rate_target_hz=None, seed=seed
+            )["name"]
+            for seed in SEEDS
         ],
         "exp041_tr03": [
             _xtau_exp041_cell_dir(tau, seed)

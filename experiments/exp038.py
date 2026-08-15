@@ -29,10 +29,8 @@ import numpy as np
 REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from exp022 import RATE_TARGET_GRID_HZ as SHARED_RATE_TARGET_GRID_HZ  # noqa: E402
-from exp022 import SEEDS_BASELINE as SHARED_SEEDS  # noqa: E402
 from exp022 import cell_dir as shared_cell_dir  # noqa: E402
-from exp022 import cell_name  # noqa: E402
+from exp022 import training_run_cell, training_run_values  # noqa: E402
 from helpers import theme  # noqa: E402
 from helpers.checkpoints import (  # noqa: E402
     cache_tag,
@@ -82,7 +80,7 @@ SCALE = {
 }
 
 # Every activity-frontier point uses the same independent seeds.
-SEEDS_BASELINE: list[int] = list(SHARED_SEEDS)
+SEEDS_BASELINE: list[int] = list(training_run_values("TR-02", "seed"))
 
 # Inference-time ei_strength sweep on all three COBA baselines.
 # Subsumes the now-retired nb019 — trains nothing new; just runs the
@@ -101,10 +99,18 @@ if SMOKE:
 # pressure (off → ~80 Hz coba baseline) down to 1 Hz —
 # below ping's natural 5 Hz and into the regime where every model
 # loses accuracy.
-RATE_TARGET_GRID_HZ: list[float | None] = list(SHARED_RATE_TARGET_GRID_HZ)
+RATE_TARGET_GRID_HZ: list[float | None] = list(
+    training_run_values("TR-02", "rate_target_hz")
+)
 FR_STRENGTH_UPPER = 1e-3
 
-MODELS = ["coba", "ping"]
+MODELS = list(training_run_values("TR-02", "model"))
+
+
+def cell_name(model: str, rate_target_hz: float | None, seed: int) -> str:
+    return training_run_cell(
+        "TR-02", model=model, rate_target_hz=rate_target_hz, seed=seed
+    )["name"]
 
 MODEL_COLORS = {
     "coba": theme.DEEP_RED,
@@ -685,13 +691,6 @@ def run_ei_sweep(notebook_run_id: str) -> list[dict]:
 
 
 # ── End ei sweep ────────────────────────────────────────────────────
-
-
-# ── tau_GABA sweep (inference-only, trained ping) ───────────────────
-
-TAU_GABA_VALUES: list[float] = [4.5, 6.0, 9.0, 12.0, 18.0, 27.0]  # ms; default 9.0
-
-
 
 
 def _despine(ax):

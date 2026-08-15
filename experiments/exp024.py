@@ -28,6 +28,13 @@ import numpy as np
 REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
+from exp022 import (  # noqa: E402
+    cell_dir as shared_cell_dir,
+)
+from exp022 import (
+    training_run_cell,
+    training_run_values,
+)
 from helpers import theme  # noqa: E402
 from helpers.cli import parse_meta  # noqa: E402
 from helpers.numbers import write_numbers  # noqa: E402
@@ -47,7 +54,7 @@ DT_TRAIN = 0.1
 # horizon here so the reported Methods scale matches the cells actually plotted.
 EPOCHS: int = 50
 
-SEEDS: tuple[int, ...] = (42, 43, 44)
+SEEDS: tuple[int, ...] = training_run_values("TR-02", "seed")
 
 # Matches the exp022 sweep-cell scale (10% of MNIST = 7000) so the reported
 # Methods table matches the θ_u=off baseline cells actually read.
@@ -67,7 +74,7 @@ SCALE = {
     "cells": len(SEEDS) * 2,
 }
 
-MODELS = ["coba", "ping"]
+MODELS = list(training_run_values("TR-02", "model"))
 
 MODEL_COLORS = {"coba": theme.DEEP_RED, "ping": theme.INK_BLACK}
 MODEL_MARKERS = {"coba": "s", "ping": "D"}
@@ -82,10 +89,8 @@ def cell_dir(model: str, seed: int) -> Path:
     reuse-many). exp022 owns the training; exp024 only audits convergence."""
     if RUN_PATHS.isolated and not os.environ.get("PINGLAB_TRAINING_ROOT"):
         raise RuntimeError("isolated exp024 requires explicit PINGLAB_TRAINING_ROOT")
-    from exp022 import cell_dir as shared_cell_dir
-    from exp022 import cell_name
-
-    return shared_cell_dir(cell_name(model, None, seed))
+    cell = training_run_cell("TR-02", model=model, rate_target_hz=None, seed=seed)
+    return shared_cell_dir(cell["name"])
 
 
 def _log_event(event: str, **fields: object) -> None:

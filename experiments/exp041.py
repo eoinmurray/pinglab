@@ -31,6 +31,13 @@ from scipy import signal as sp_signal
 REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
+from exp022 import (  # noqa: E402
+    cell_dir as shared_cell_dir,
+)
+from exp022 import (
+    training_run_cell,
+    training_run_values,
+)
 from helpers import theme  # noqa: E402
 from helpers.checkpoints import (  # noqa: E402
     cache_tag,
@@ -73,8 +80,8 @@ DT_TRAIN = 0.1
 # τ_GABA grid — matches the exp037 inference-only sweep so the retrained
 # and inference-only curves can be overlaid in ar008. exp037's default
 # τ_GABA was 9.0 ms.
-TAU_GABA_SWEEP: tuple[float, ...] = (4.5, 6.0, 9.0, 12.0, 18.0, 27.0)
-SEEDS: tuple[int, ...] = (42, 43, 44)
+TAU_GABA_SWEEP: tuple[float, ...] = training_run_values("TR-03", "tau_gaba")
+SEEDS: tuple[int, ...] = training_run_values("TR-03", "seed")
 
 # Search band for the gamma peak. τ_GABA = 4.5 ms predicts f_γ near
 # 1/(τ_AMPA + τ_GABA) ≈ 1/(2 + 4.5) ms ≈ 154 Hz at the absurd extreme,
@@ -121,10 +128,10 @@ def tau_label(tau_ms: float) -> str:
 
 def cell_dir(tau_ms: float, seed: int) -> Path:
     """Trained cell — now the shared exp022 cell (train-once / reuse-many)."""
-    from exp022 import cell_dir as shared_cell_dir
     if RUN_PATHS.isolated and not os.environ.get("PINGLAB_TRAINING_ROOT"):
         raise RuntimeError("isolated exp041 requires explicit PINGLAB_TRAINING_ROOT")
-    return shared_cell_dir(f"ping__{tau_label(tau_ms)}__seed{seed}")
+    cell = training_run_cell("TR-03", tau_gaba=tau_ms, seed=seed)
+    return shared_cell_dir(cell["name"])
 
 
 def load_metrics(run_dir: Path) -> dict:

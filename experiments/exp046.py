@@ -35,6 +35,7 @@ import numpy as np
 REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
+from exp022 import training_run_cell, training_run_values  # noqa: E402
 from helpers import theme  # noqa: E402
 from helpers.checkpoints import (  # noqa: E402
     cache_tag,
@@ -72,8 +73,8 @@ NB041_ARTIFACTS = Path(
 )
 NB041_NUMBERS = FIGURES.parent / "exp041" / "numbers.json"
 
-TAU_GABA_SWEEP_MS: tuple[float, ...] = (4.5, 6.0, 9.0, 12.0, 18.0, 27.0)
-SEEDS: tuple[int, ...] = (42, 43, 44)
+TAU_GABA_SWEEP_MS: tuple[float, ...] = training_run_values("TR-03", "tau_gaba")
+SEEDS: tuple[int, ...] = training_run_values("TR-03", "seed")
 
 # Run scale — stamped into the manifest by run_dirs.prepare and rendered as
 # the Methods table via RunScale; the mdx never restates these numbers.
@@ -91,7 +92,8 @@ def tau_label(tau_ms: float) -> str:
 
 
 def exp041_cell_dir(tau_ms: float, seed: int) -> Path:
-    return NB041_ARTIFACTS / f"ping__{tau_label(tau_ms)}__seed{seed}"
+    cell = training_run_cell("TR-03", tau_gaba=tau_ms, seed=seed)
+    return NB041_ARTIFACTS / cell["name"]
 
 
 def load_exp041_f_gamma() -> dict[tuple[float, int], float]:
