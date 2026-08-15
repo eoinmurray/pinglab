@@ -31,6 +31,10 @@ import torch
 REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
+from exp022 import (  # noqa: E402
+    training_run_cell,
+    training_run_values,
+)
 from helpers import theme  # noqa: E402
 from helpers.checkpoints import (  # noqa: E402
     cache_tag,
@@ -59,11 +63,12 @@ TRAINING_ROOT = Path(
     os.environ.get("PINGLAB_TRAINING_ROOT", REPO / "temp" / "experiments" / "exp022")
 )
 
-SEEDS = (42, 43, 44)
+SEEDS = training_run_values("TR-06", "seed")
 SMOKE = os.environ.get("PINGLAB_SMOKE") == "1"
-TRAINING_RATES_HZ = (
-    0.5, 0.75, 1.0, 1.5, 2.0, 3.0, 5.0, 7.5, 10.0, 15.0, 25.0,
-)
+_TR06_RATE_SETS = training_run_values("TR-06", "input_rates_hz")
+if len(_TR06_RATE_SETS) != 1:
+    raise ValueError(f"TR-06 must register one input-rate set, got {_TR06_RATE_SETS}")
+TRAINING_RATES_HZ = tuple(_TR06_RATE_SETS[0])
 PSYCHOMETRIC_RATES_HZ = (
     (0.5, 5.0, 25.0) if SMOKE else TRAINING_RATES_HZ
 )
@@ -116,7 +121,7 @@ MEASUREMENTS_FILE = "measurements.npz"
 
 
 def training_cell_name(seed: int) -> str:
-    return f"ping__variable_rate__seed{seed}"
+    return training_run_cell("TR-06", seed=seed)["name"]
 
 
 def training_dir(seed: int) -> Path:
