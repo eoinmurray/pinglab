@@ -39,7 +39,10 @@ EXPERIMENTS: tuple[Experiment, ...] = (
     Experiment("exp049", ("exp022",), "TR-05", integrated=True),
     Experiment("exp082", ("exp022",), "TR-06", integrated=True),
     Experiment("exp033", ("exp041",), integrated=True),
-    Experiment("exp042", ("exp041",), integrated=True),
+    Experiment(
+        "exp042", ("exp022", "exp041"), "TR-02", integrated=True,
+        note="also consumes exp041 measurements and TR-03 checkpoints",
+    ),
     Experiment("exp046", ("exp041",), integrated=True),
     Experiment("exp054", ("exp041",), integrated=True),
 )

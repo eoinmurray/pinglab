@@ -1,6 +1,6 @@
 """Notebook runner for entry 042 — rhythm vs mean-inhibition control.
 
-Pure inference on the trained exp025 PING baseline. Three conditions
+Pure inference on the exp022 TR-02 PING baseline. Three conditions
 applied to the I-population spike stream at evaluation time, all
 preserving per-cell mean I rate within trial:
 
@@ -84,7 +84,7 @@ CHECKPOINT_ROLE = "final_epoch"
 EVAL_SEED = 20260415  # mirror cli.encoders.EVAL_SEED (kept in sync by hand)
 
 TRAINING_ROOT = runpod.training_root()
-NB035_ARTIFACTS = TRAINING_ROOT
+EXP022_TRAINING_ROOT = TRAINING_ROOT
 SEEDS: tuple[int, ...] = (42, 43, 44)
 
 CONDITIONS: tuple[str, ...] = ("baseline", "phase_shuffled_i", "poisson_matched_i")
@@ -162,7 +162,7 @@ if SMOKE:
 
 # Run scale — stamped into the manifest by run_dirs.prepare and rendered as
 # the Methods table via RunScale; the mdx never restates these numbers.
-# exp042 is inference-only against the trained exp025 PING baseline, so the
+# exp042 is inference-only against the exp022 TR-02 PING baseline, so the
 # dataset / max_samples / t_ms / dt_ms are inherited from each cell's own
 # config.json at run time. What this runner declares is the evaluation grid:
 # how many seeds and cells it sweeps, and the perturbation grids.
@@ -817,7 +817,7 @@ def plot_raster_strip(samples: list[dict], out_path: Path, run_id: str) -> None:
         )
         if i == 0:
             ax.set_title(
-                "Single-trial rasters — trained PING (exp025 seed 42) "
+                "Single-trial rasters — trained PING (exp022 TR-02 seed 42) "
                 "under each I-stream condition"
             )
         if i < n - 1:
@@ -1084,7 +1084,7 @@ def plot_pareto_raster_strip(
         )
         if i == 0:
             ax.set_title(
-                "Pareto-sweep rasters — trained PING (exp025 seed 42) "
+                "Pareto-sweep rasters — trained PING (exp022 TR-02 seed 42) "
                 "under (α, k) I-stream perturbations"
             )
         if i < n - 1:
@@ -1294,6 +1294,20 @@ def _xtau_tau_label(tau_ms: float) -> str:
 
 def _xtau_exp041_cell_dir(tau_ms: float, seed: int) -> Path:
     return NB041_ARTIFACTS / f"ping__{_xtau_tau_label(tau_ms)}__seed{seed}"
+
+
+def checkpoint_source_dirs() -> dict[str, list[Path]]:
+    """Hard checkpoint inputs, grouped by their owning experiment and TR."""
+    return {
+        "exp022_tr02": [
+            EXP022_TRAINING_ROOT / f"ping__off__seed{seed}" for seed in SEEDS
+        ],
+        "exp041_tr03": [
+            _xtau_exp041_cell_dir(tau, seed)
+            for tau in XTAU_TAU_GABAS_MS
+            for seed in XTAU_SEEDS
+        ],
+    }
 
 
 def _xtau_load_exp041_f_gamma() -> dict[tuple[float, int], float]:
@@ -1652,7 +1666,7 @@ def build_rhythm_compound(run_id: str | None = None) -> None:
     """Rebuild the compound from cached numbers.json — no sweep re-runs.
 
     Sweep curves load from numbers.json; the two example rasters are cheap
-    single-trial forward passes against the cached exp025 PING weights.
+    single-trial forward passes against the cached exp022 TR-02 PING weights.
     ``run_id`` defaults to the cached notebook_run_id so the corner stamp stays
     consistent with the committed run rather than reading "replot".
     """
@@ -1663,7 +1677,7 @@ def build_rhythm_compound(run_id: str | None = None) -> None:
     cell_rows = data["cell_jitter_sweep"]
 
     seed = int(data["config"]["seeds"][0])
-    train_dir = NB035_ARTIFACTS / f"ping__off__seed{seed}"
+    train_dir = EXP022_TRAINING_ROOT / f"ping__off__seed{seed}"
     # Same jitter magnitude on both arms — σ = 14 ms. See the note in main() on why
     # this σ (a shared measured grid point), not σ = 100 ms, is the headline raster.
     raster_cyc = capture_condition_raster(
@@ -1912,11 +1926,11 @@ def main() -> None:
 
     rows: list[dict] = []
     for seed in SEEDS:
-        train_dir = NB035_ARTIFACTS / f"ping__off__seed{seed}"
+        train_dir = EXP022_TRAINING_ROOT / f"ping__off__seed{seed}"
         if not (train_dir / "weights_final.pth").exists():
             raise SystemExit(
-                f"missing exp025 trained PING checkpoint at {train_dir} — "
-                "train exp025 baselines first"
+                f"missing exp022 TR-02 PING checkpoint at {train_dir} — "
+                "run exp022 TR-02 first"
             )
         print(f"[eval] seed={seed} from {train_dir}")
         for cond in CONDITIONS:
@@ -1933,7 +1947,7 @@ def main() -> None:
             )
 
     # Raster strip — single trial per condition from seed 42.
-    raster_train_dir = NB035_ARTIFACTS / f"ping__off__seed{SEEDS[0]}"
+    raster_train_dir = EXP022_TRAINING_ROOT / f"ping__off__seed{SEEDS[0]}"
     print(
         f"[raster] single-trial panels from seed {SEEDS[0]}, "
         f"sample {RASTER_SAMPLE_IDX}"
@@ -1957,7 +1971,7 @@ def main() -> None:
     print(f"[jitter] sweep σ ∈ {list(JITTER_SIGMAS_MS)} ms")
     jitter_rows: list[dict] = []
     for seed in SEEDS:
-        train_dir = NB035_ARTIFACTS / f"ping__off__seed{seed}"
+        train_dir = EXP022_TRAINING_ROOT / f"ping__off__seed{seed}"
         for sigma_ms in JITTER_SIGMAS_MS:
             cond = f"jitter_sigma_{sigma_ms:g}"
             t0 = time.monotonic()
@@ -1981,7 +1995,7 @@ def main() -> None:
     # all from the first seed at sample 0 so panels read against the
     # baseline raster strip directly.
     raster_seed = SEEDS[0]
-    raster_train_dir = NB035_ARTIFACTS / f"ping__off__seed{raster_seed}"
+    raster_train_dir = EXP022_TRAINING_ROOT / f"ping__off__seed{raster_seed}"
     print(
         f"[jitter-raster] panels from seed {raster_seed}, "
         f"σ ∈ {list(JITTER_RASTER_SIGMAS_MS)} ms"
@@ -2010,7 +2024,7 @@ def main() -> None:
     print(f"[cell-jitter] sweep σ ∈ {list(CELL_JITTER_SIGMAS_MS)} ms")
     cell_jitter_rows: list[dict] = []
     for seed in SEEDS:
-        train_dir = NB035_ARTIFACTS / f"ping__off__seed{seed}"
+        train_dir = EXP022_TRAINING_ROOT / f"ping__off__seed{seed}"
         for sigma_ms in CELL_JITTER_SIGMAS_MS:
             cond = f"cell_jitter_sigma_{sigma_ms:g}"
             t0 = time.monotonic()
@@ -2079,7 +2093,7 @@ def main() -> None:
     # corner of the (α, k) grid. Single seed (first in SEEDS) — the
     # frontier shape, not error bars, is the load-bearing observation.
     pareto_seed = SEEDS[0]
-    pareto_train_dir = NB035_ARTIFACTS / f"ping__off__seed{pareto_seed}"
+    pareto_train_dir = EXP022_TRAINING_ROOT / f"ping__off__seed{pareto_seed}"
     print(
         f"[pareto] α × k sweep on seed {pareto_seed}: "
         f"α ∈ {list(MIX_ALPHA_GRID)}, k ∈ {list(MIX_K_GRID)}"
@@ -2177,20 +2191,28 @@ def main() -> None:
         )
 
     duration_s = time.monotonic() - t_start
-    exp041_dirs = [
-        _xtau_exp041_cell_dir(tau, seed)
-        for tau in XTAU_TAU_GABAS_MS
-        for seed in XTAU_SEEDS
-    ]
+    source_dirs = checkpoint_source_dirs()
+    exp022_dirs = source_dirs["exp022_tr02"]
+    exp041_dirs = source_dirs["exp041_tr03"]
+    source_provenance = {
+        source: checkpoint_provenance(paths, CHECKPOINT_ROLE)
+        for source, paths in source_dirs.items()
+    }
     summary = {
         "notebook_run_id": notebook_run_id,
         "duration_s": round(duration_s, 1),
         "duration": format_duration(duration_s),
         "checkpoint_provenance": checkpoint_provenance(
-            [NB035_ARTIFACTS / f"ping__off__seed{seed}" for seed in SEEDS]
-            + exp041_dirs,
+            exp022_dirs + exp041_dirs,
             CHECKPOINT_ROLE,
         ),
+        "checkpoint_sources": source_provenance,
+        "measurement_sources": {
+            "exp041_tr03": {
+                "artifact": "artifacts/data/exp041/numbers.json",
+                "fields": ["results[].f_gamma_hz"],
+            }
+        },
         "config": {
             "evaluation_samples_per_condition": EVAL_MAX_SAMPLES,
             "seeds": list(SEEDS),
@@ -2202,8 +2224,8 @@ def main() -> None:
             "xtau_tau_gabas_ms": list(XTAU_TAU_GABAS_MS),
             "xtau_seeds": list(XTAU_SEEDS),
             "xtau_sigmas_ms": list(XTAU_SIGMAS_MS),
-            "exp025_source": "ping__off__seed{seed} (θ_u = off baseline)",
-            "exp041_source": "ping__tg{N}__seed{S}",
+            "exp022_tr02_source": "ping__off__seed{seed}",
+            "exp041_tr03_source": "ping__tg{N}__seed{S}",
             "exp041_training_epochs": training_horizon(exp041_dirs),
             "raster_sample_idx": RASTER_SAMPLE_IDX,
         },

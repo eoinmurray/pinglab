@@ -81,8 +81,10 @@
 
   Each point in the dense intervention sweeps uses the same fixed 1,000-image subset of the official MNIST test partition. The complete condition grids and all three trained seeds are retained; the subset bounds repeated inference while leaving headline checkpoint accuracy to the full official test evaluation reported by exp022.
 
-  Pure inference on the trained #link("/exp025/")[exp025] PING baseline (seed 42,
-  $theta_u =$ off). For each batch the I-population spike tensor
+  Pure inference on the exp022-owned #link("/exp022/")[TR-02] PING baseline
+  (seed 42, $theta_u =$ off). #link("/exp025/")[exp025] provides the scientific
+  COBA–PING rate-gap comparison; it does not own this checkpoint. For each batch
+  the I-population spike tensor
   $bold(s)^I_"base" in {0,1}^(T times B times N_I)$ is recorded from a baseline
   forward pass, then an override tensor replaces it in a second pass via the
   #link("/exp037/")[exp037] hidden-perturbation hook. The E-population experiences only
