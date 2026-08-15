@@ -37,6 +37,13 @@ import numpy as np
 REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
+from exp022 import (  # noqa: E402
+    cell_dir as shared_cell_dir,
+)
+from exp022 import (
+    training_run_cell,
+    training_run_values,
+)
 from helpers import theme  # noqa: E402
 from helpers.checkpoints import (  # noqa: E402
     cache_tag,
@@ -75,7 +82,7 @@ EPOCHS = 50
 T_MS = 200.0
 DT_TRAIN = 0.1
 
-SEEDS: list[int] = [42, 43, 44]
+SEEDS: list[int] = list(training_run_values("TR-05", "seed"))
 
 # Per-condition recipes — what's different from the canonical exp025 PING
 # init is the (ei_strength, trainable flags) trio. Everything else
@@ -83,31 +90,24 @@ SEEDS: list[int] = [42, 43, 44]
 # exp025's PING baseline exactly so the comparisons stay honest.
 CONDITIONS: dict[str, dict] = {
     "frozen_ping": {
-        "ei_strength": "1",
-        "trainable_w_ei": False,
-        "trainable_w_ie": False,
         "label": "Frozen PING (control)",
     },
     "trainable_ping_init": {
-        "ei_strength": "1",
-        "trainable_w_ei": True,
-        "trainable_w_ie": True,
         "label": "Trainable, PING init",
     },
     "trainable_zero_init": {
-        "ei_strength": "0",
-        "trainable_w_ei": True,
-        "trainable_w_ie": True,
         "label": "Trainable, zero init",
     },
     "trainable_small_init": {
-        "ei_strength": "0.1",
-        "trainable_w_ei": True,
-        "trainable_w_ie": True,
         "label": "Trainable, small seed init",
     },
 }
-COND_ORDER = list(CONDITIONS.keys())
+COND_ORDER = list(training_run_values("TR-05", "tag"))
+if set(COND_ORDER) != set(CONDITIONS):
+    raise ValueError(
+        f"TR-05 condition contract drift: registry={COND_ORDER}, "
+        f"analysis={list(CONDITIONS)}"
+    )
 
 # Drive parameters match exp025's PING baseline so the comparison only
 # tests the structural change (trainability of the recurrent loop).
@@ -155,10 +155,10 @@ SCALE = {
 # ── Paths ───────────────────────────────────────────────────────────
 def cell_dir(condition: str, seed: int) -> Path:
     """Trained cell — now the shared exp022 cell (train-once / reuse-many)."""
-    from exp022 import cell_dir as shared_cell_dir
     if RUN_PATHS.isolated and not os.environ.get("PINGLAB_TRAINING_ROOT"):
         raise RuntimeError("isolated exp049 requires explicit PINGLAB_TRAINING_ROOT")
-    return shared_cell_dir(f"{condition}__seed{seed}")
+    cell = training_run_cell("TR-05", tag=condition, seed=seed)
+    return shared_cell_dir(cell["name"])
 
 
 def load_metrics(run_dir: Path) -> dict:
