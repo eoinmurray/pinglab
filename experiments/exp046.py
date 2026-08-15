@@ -38,6 +38,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from helpers import theme  # noqa: E402
 from helpers.checkpoints import (  # noqa: E402
     cache_tag,
+    checkpoint_policy,
     checkpoint_provenance,
     resolve_checkpoint,
     training_horizon,
@@ -58,7 +59,9 @@ SLUG = "exp046"
 RUN_PATHS = runner_paths(SLUG)
 ARTIFACTS, FIGURES = artifacts_and_figures(SLUG)
 SNN_TOOL = REPO / "tools" / "snn" / "tool.py"
-CHECKPOINT_ROLE = "final_epoch"
+ANALYSIS_PURPOSE = "endpoint_dynamics"
+CHECKPOINT_POLICY = checkpoint_policy(ANALYSIS_PURPOSE)
+CHECKPOINT_ROLE = CHECKPOINT_POLICY["role"]
 SMOKE = os.environ.get("PINGLAB_SMOKE") == "1"
 EVAL_MAX_SAMPLES = 100 if SMOKE else MNIST_REDUCED_EVAL_SAMPLES
 
@@ -472,6 +475,7 @@ def main() -> None:
         "notebook_run_id": notebook_run_id,
         "duration_s": duration_s,
         "duration": f"{int(duration_s // 60)}m {int(duration_s % 60):02d}s",
+        "checkpoint_policy": CHECKPOINT_POLICY,
         "checkpoint_provenance": checkpoint_provenance(
             exp041_dirs,
             CHECKPOINT_ROLE,

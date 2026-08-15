@@ -38,6 +38,7 @@ from helpers import (
 )
 from helpers.checkpoints import (  # noqa: E402
     cache_tag,
+    checkpoint_policy,
     checkpoint_provenance,
     resolve_checkpoint,
 )
@@ -59,7 +60,9 @@ ARTIFACTS = (
     RUN_PATHS.state if RUN_PATHS.isolated else runpod.artifacts_scratch(SLUG)
 )
 SNN_TOOL = REPO / "tools" / "snn" / "tool.py"
-CHECKPOINT_ROLE = "best_validation"
+ANALYSIS_PURPOSE = "deployment_performance"
+CHECKPOINT_POLICY = checkpoint_policy(ANALYSIS_PURPOSE)
+CHECKPOINT_ROLE = CHECKPOINT_POLICY["role"]
 
 MAX_SAMPLES = 7000
 SMOKE = os.environ.get("PINGLAB_SMOKE") == "1"
@@ -770,6 +773,7 @@ def main() -> None:
     summary = {
         "notebook_run_id": notebook_run_id,
         "git_sha": train_cfg.get("git_sha"),
+        "checkpoint_policy": CHECKPOINT_POLICY,
         "checkpoint_provenance": checkpoint_provenance(
             [
                 cell_dir(model, target, seed)
