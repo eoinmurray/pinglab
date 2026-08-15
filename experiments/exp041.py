@@ -32,6 +32,7 @@ REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from helpers import theme  # noqa: E402
+from helpers.datasets import MNIST_REDUCED_EVAL_SAMPLES  # noqa: E402
 from helpers.checkpoints import (  # noqa: E402
     cache_tag,
     checkpoint_provenance,
@@ -61,6 +62,7 @@ RUN_PATHS = runner_paths(SLUG)
 ARTIFACTS, FIGURES = artifacts_and_figures(SLUG)
 SMOKE = os.environ.get("PINGLAB_SMOKE") == "1"
 SMOKE_MAX_SAMPLES = 100
+EVAL_MAX_SAMPLES = SMOKE_MAX_SAMPLES if SMOKE else MNIST_REDUCED_EVAL_SAMPLES
 
 T_MS = 200.0
 DT_TRAIN = 0.1
@@ -98,6 +100,7 @@ BATCH_SIZE = 256
 SCALE = {
     "dataset": "mnist",
     "max_samples": MAX_SAMPLES,
+    "evaluation_samples": EVAL_MAX_SAMPLES,
     "epochs": EPOCHS,
     "t_ms": T_MS,
     "dt_ms": DT_TRAIN,
@@ -165,8 +168,8 @@ def _infer_cell(train_dir: Path, extra_args: list[str], out_name: str) -> Path:
             "--out-dir", str(out_dir),
             *extra_args,
     ]
-    if SMOKE and "--sample-index" not in extra_args:
-        cmd += ["--max-samples", str(SMOKE_MAX_SAMPLES)]
+    if "--sample-index" not in extra_args:
+        cmd += ["--max-samples", str(EVAL_MAX_SAMPLES)]
     run_cli(cmd)
     return out_dir
 
@@ -721,6 +724,7 @@ def write_numbers(
                 "seeds": list(SEEDS),
                 "f_gamma_band_hz": list(F_GAMMA_BAND_HZ),
                 "max_samples": MAX_SAMPLES,
+                "evaluation_samples": EVAL_MAX_SAMPLES,
                 "epochs": EPOCHS,
                 "t_ms": T_MS,
                 "dt": DT_TRAIN,

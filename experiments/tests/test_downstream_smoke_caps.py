@@ -5,8 +5,18 @@ from pathlib import Path
 
 import numpy as np
 import pytest
-from experiments import exp025, exp037, exp041, exp042, exp044, exp049
+from experiments import (
+    exp025,
+    exp037,
+    exp038,
+    exp041,
+    exp042,
+    exp044,
+    exp046,
+    exp049,
+)
 from experiments.helpers.checkpoints import sha256_file
+from experiments.helpers.datasets import MNIST_REDUCED_EVAL_SAMPLES
 
 
 def _write_final_checkpoint(train_dir: Path, config: dict) -> None:
@@ -36,6 +46,7 @@ def test_quantitative_inference_is_capped_in_smoke(
 
     monkeypatch.setattr(module, "ARTIFACTS", tmp_path / "derived")
     monkeypatch.setattr(module, "SMOKE", True)
+    monkeypatch.setattr(module, "EVAL_MAX_SAMPLES", 100)
     monkeypatch.setattr(module, "run_cli", lambda cmd: observed.extend(cmd))
     module._infer_cell(train_dir, ["--outputs", "pop_traces"], "infer")
 
@@ -103,6 +114,14 @@ def test_exp042_production_inference_uses_publication_subset(
     monkeypatch.setattr(exp042, "run_cli", fake_run)
     exp042._run_with_override(train_dir, tmp_path / "override.npz")
     assert observed[observed.index("--max-samples") + 1] == "1000"
+
+
+@pytest.mark.parametrize(
+    "module",
+    [exp025, exp037, exp038, exp041, exp042, exp044, exp046, exp049],
+)
+def test_reduced_pool_downstream_evaluation_contract(module) -> None:
+    assert module.EVAL_MAX_SAMPLES == MNIST_REDUCED_EVAL_SAMPLES == 1000
 
 
 def test_smoke_grids_retain_every_writeup_anchor() -> None:

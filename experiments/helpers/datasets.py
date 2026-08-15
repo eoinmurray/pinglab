@@ -18,6 +18,11 @@ from pathlib import Path
 
 import numpy as np
 
+
+# Comparable downstream analyses of reduced-pool exp022 cells use 10% of the
+# untouched 10,000-image official MNIST test partition.
+MNIST_REDUCED_EVAL_SAMPLES = 1_000
+
 # ── SHD (Spiking Heidelberg Digits) ───────────────────────────────────────
 # Class id → spoken word. SHD is digits 0-9 in German (labels 0-9) then English
 # (labels 10-19), 20 classes total. Kept here so figures can title a raster with

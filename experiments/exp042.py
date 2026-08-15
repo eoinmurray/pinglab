@@ -52,7 +52,10 @@ from helpers.checkpoints import (  # noqa: E402
     resolve_checkpoint,
 )
 from helpers.cli import Meta, parse_meta  # noqa: E402
-from helpers.datasets import load_mnist_split  # noqa: E402
+from helpers.datasets import (  # noqa: E402
+    MNIST_REDUCED_EVAL_SAMPLES,
+    load_mnist_split,
+)
 from helpers.figsave import save_figure  # noqa: E402
 from helpers.fmt import format_duration  # noqa: E402
 from helpers.operating_point import (  # noqa: E402
@@ -141,7 +144,9 @@ RASTER_N_I_PLOT: int = 64
 
 SMOKE = os.environ.get("PINGLAB_SMOKE") == "1"
 SMOKE_MAX_SAMPLES = 100
-EVAL_MAX_SAMPLES = SMOKE_MAX_SAMPLES if SMOKE else 1000
+EVAL_MAX_SAMPLES = (
+    SMOKE_MAX_SAMPLES if SMOKE else MNIST_REDUCED_EVAL_SAMPLES
+)
 if SMOKE:
     # Keep every anchor interpolated by the entry/manuscript while dropping the
     # dense production-only points between them.
