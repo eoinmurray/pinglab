@@ -38,6 +38,7 @@ from helpers.checkpoints import (  # noqa: E402
     resolve_checkpoint,
 )
 from helpers.cli import parse_meta, replot_target  # noqa: E402
+from helpers.datasets import MNIST_REDUCED_EVAL_SAMPLES  # noqa: E402
 from helpers.figsave import save_figure  # noqa: E402
 from helpers.numbers import write_numbers  # noqa: E402
 from helpers.paths import artifacts_and_figures, runner_paths  # noqa: E402
@@ -53,7 +54,7 @@ ARTIFACTS, FIGURES = artifacts_and_figures(SLUG)
 
 MAX_SAMPLES = 7000  # exp022 sweep-cell scale (10% of MNIST); reporting only
 SMOKE = os.environ.get("PINGLAB_SMOKE") == "1"
-EVAL_MAX_SAMPLES = 100 if SMOKE else 60000
+EVAL_MAX_SAMPLES = 100 if SMOKE else MNIST_REDUCED_EVAL_SAMPLES
 EVAL_CORPUS_SAMPLES = 10000
 T_MS = 200.0
 DT_TRAIN = 0.1
@@ -64,6 +65,7 @@ BASELINE_EPOCHS: int = 50  # baseline cell training horizon (in exp022 now)
 SCALE = {
     "dataset": "mnist",
     "max_samples": MAX_SAMPLES,
+    "evaluation_samples": EVAL_MAX_SAMPLES,
     "epochs": BASELINE_EPOCHS,
     "t_ms": T_MS,
     "dt_ms": DT_TRAIN,

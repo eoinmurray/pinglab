@@ -52,6 +52,7 @@ from helpers.checkpoints import (  # noqa: E402
     resolve_checkpoint,
 )
 from helpers.cli import parse_meta  # noqa: E402
+from helpers.datasets import MNIST_REDUCED_EVAL_SAMPLES  # noqa: E402
 from helpers.figsave import save_figure  # noqa: E402
 from helpers.numbers import write_numbers  # noqa: E402
 from helpers.paths import (  # noqa: E402
@@ -72,6 +73,7 @@ ARTIFACTS, FIGURES = artifacts_and_figures(SLUG)
 
 SMOKE = os.environ.get("PINGLAB_SMOKE") == "1"
 MAX_SAMPLES = 100 if SMOKE else 500
+EVAL_MAX_SAMPLES = 100 if SMOKE else MNIST_REDUCED_EVAL_SAMPLES
 EPOCHS = 2 if SMOKE else 10
 T_MS = 200.0
 DT_TRAIN = 0.1
@@ -106,6 +108,7 @@ MODELS = ["coba", "ping"]
 SCALE = {
     "dataset": "mnist",
     "max_samples": MAX_SAMPLES,
+    "evaluation_samples": EVAL_MAX_SAMPLES,
     "epochs": EPOCHS,
     "t_ms": T_MS,
     "dt_ms": DT_TRAIN,
@@ -592,7 +595,7 @@ def _eval_scaled(
         train_dir,
         ["--scale-w-in", str(scale_w_in), "--outputs", "per_cell_rates"],
         out_name=f"win_scale/s{scale_w_in:g}",
-        max_samples=MAX_SAMPLES if SMOKE else None,
+        max_samples=EVAL_MAX_SAMPLES,
     )
     m = json.loads((out_dir / "metrics.json").read_text())
     rates = m.get("rates_hz", {})
@@ -689,7 +692,7 @@ def measure_p_fgamma(train_dir: Path, is_ping: bool) -> dict:
         train_dir,
         ["--outputs", "pop_traces", "rasters"],
         out_name="pfg",
-        max_samples=PFG_MAX_TRIALS * 5,
+        max_samples=min(PFG_MAX_TRIALS * 5, EVAL_MAX_SAMPLES),
     )
     m = json.loads((out_dir / "metrics.json").read_text())
     rates = m.get("rates_hz", {})
@@ -1566,6 +1569,7 @@ def _run(meta, run_id: str, figures: Path, t_start: float) -> None:
                     rate_target_hz_value(t) for t in RATE_TARGET_GRID_HZ if t is not None
                 ],
                 "max_samples": MAX_SAMPLES,
+                "evaluation_samples": EVAL_MAX_SAMPLES,
                 "epochs": EPOCHS,
                 "t_ms": T_MS,
                 "dt": DT_TRAIN,

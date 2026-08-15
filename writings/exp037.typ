@@ -10,8 +10,8 @@
 // numbers.json, never hand-typed, so a re-run updates the prose automatically.
 #let run = json("/artifacts/data/exp037/numbers.json")
 #let cfg = run.config
-#let eval_n = cfg.at("evaluation_samples_per_seed", default: (14000,)).first()
-#let eval_pool = cfg.at("evaluation_pool_samples", default: 10000)
+#let eval_n = cfg.at("evaluation_samples_per_seed", default: (1000,)).first()
+#let eval_pool = cfg.at("evaluation_pool_samples", default: 1000)
 #let mean(a) = a.sum() / a.len()
 #let rate-target(r) = if r.keys().contains("rate_target_hz") { r.rate_target_hz } else { r.theta_u }
 
@@ -77,7 +77,7 @@
   *The perturbation.* A per-step callback on the COBANet's _\_hidden_perturb_fn_
   slot fires every timestep of every trial, with no warm-up, schedule, or exclusion.
   Trials are $T = #cfg.t_ms$ ms at $Delta t = #cfg.dt$ ms → 2000 fires per trial,
-  applied across the official test set for independently trained seeds 42, 43,
+  applied across a fixed 1,000-image subset of the official test partition for independently trained seeds 42, 43,
   and 44. At each
   timestep $t$:
 

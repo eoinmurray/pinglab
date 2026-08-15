@@ -41,6 +41,7 @@ from helpers.checkpoints import (  # noqa: E402
     checkpoint_provenance,
     resolve_checkpoint,
 )
+from helpers.datasets import MNIST_REDUCED_EVAL_SAMPLES  # noqa: E402
 from helpers.figsave import save_figure  # noqa: E402
 from helpers.operating_point import MODELS_DEFAULT_TAU_GABA_MS  # noqa: E402
 from helpers.paths import (  # noqa: E402
@@ -57,6 +58,8 @@ RUN_PATHS = runner_paths(SLUG)
 ARTIFACTS, FIGURES = artifacts_and_figures(SLUG)
 SNN_TOOL = REPO / "tools" / "snn" / "tool.py"
 CHECKPOINT_ROLE = "final_epoch"
+SMOKE = os.environ.get("PINGLAB_SMOKE") == "1"
+EVAL_MAX_SAMPLES = 100 if SMOKE else MNIST_REDUCED_EVAL_SAMPLES
 
 # τ_GABA sweep cells now live in the shared training root (exp022
 # train-once / reuse-many), not the retired per-notebook exp041 dir.
@@ -72,6 +75,7 @@ SEEDS: tuple[int, ...] = (42, 43, 44)
 # the Methods table via RunScale; the mdx never restates these numbers.
 SCALE = {
     "dataset": "mnist",
+    "evaluation_samples": EVAL_MAX_SAMPLES,
     "seeds": len(SEEDS),
     "cells": len(TAU_GABA_SWEEP_MS) * len(SEEDS),
     "grid": f"{len(TAU_GABA_SWEEP_MS)} tau_GABA x {len(SEEDS)} seeds",
@@ -196,7 +200,7 @@ def evaluate_cell(train_dir: Path, f_gamma_hz: float) -> dict:
     out_dir = _infer_cell(
         train_dir,
         ["--outputs", "rasters", "per_cell_rates"],
-        max_samples=int(cfg["max_samples"]),
+        max_samples=EVAL_MAX_SAMPLES,
     )
     m = json.loads((out_dir / "metrics.json").read_text())
     acc = float(m["best_acc"])
@@ -469,6 +473,7 @@ def main() -> None:
         "config": {
             "tau_gabas_ms": list(TAU_GABA_SWEEP_MS),
             "seeds": list(SEEDS),
+            "evaluation_samples": EVAL_MAX_SAMPLES,
             "exp041_source": "ping__tg{N}__seed{S} (100-epoch baselines)",
         },
         "global_fracs": global_fracs,
