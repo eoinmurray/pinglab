@@ -32,10 +32,10 @@
   uv run python tools/snn/tool.py sim --model ping --ei-strength 0.5
   ```
 
-  Train on MNIST for 100 epochs:
+  Train on MNIST for 50 epochs:
 
   ```
-  uv run python tools/snn/tool.py train --dataset mnist --epochs 100 --lr 0.0001
+  uv run python tools/snn/tool.py train --dataset mnist --epochs 50 --lr 0.0001
   ```
 
   Evaluate a trained run on the test set, replaying it at a coarser timestep:
@@ -93,7 +93,7 @@
 
   ```
   uv run python tools/snn/tool.py train --model ping --dataset mnist \
-    --epochs 100 --lr 0.0001 --v-grad-dampen 1000
+    --epochs 50 --lr 0.0001 --v-grad-dampen 1000
   ```
 
   _--epochs 0_ runs the init snapshot only, useful as a probe.
@@ -255,7 +255,7 @@
   *Train, then measure the trained network.* Train writes a run directory; _sim --infer_ reads it back and emits the population traces a runner needs for a PSD:
 
   ```
-  uv run python tools/snn/tool.py train --dataset mnist --epochs 100 \
+  uv run python tools/snn/tool.py train --dataset mnist --epochs 50 \
     --lr 0.0001 --v-grad-dampen 1000 --out-dir runs/ping
 
   uv run python tools/snn/tool.py sim --infer \

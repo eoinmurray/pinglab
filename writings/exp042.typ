@@ -77,7 +77,7 @@
 
   == Methods
 
-  The interventions use final-epoch checkpoints because they test the endpoint dynamics characterized by exp041, rather than deployment performance of the validation-selected classifier.
+  The interventions use final-epoch checkpoints because they test the endpoint dynamics characterized by exp041, rather than deployment performance of the validation-selected classifier. The source training horizon is read from those checkpoint configurations and retained in the generated provenance.
 
   Each point in the dense intervention sweeps uses the same fixed 1,000-image subset of the official MNIST test partition. The complete condition grids and all three trained seeds are retained; the subset bounds repeated inference while leaving headline checkpoint accuracy to the full official test evaluation reported by exp022.
 
