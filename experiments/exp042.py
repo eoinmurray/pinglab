@@ -141,6 +141,7 @@ RASTER_N_I_PLOT: int = 64
 
 SMOKE = os.environ.get("PINGLAB_SMOKE") == "1"
 SMOKE_MAX_SAMPLES = 100
+EVAL_MAX_SAMPLES = SMOKE_MAX_SAMPLES if SMOKE else 1000
 if SMOKE:
     # Keep every anchor interpolated by the entry/manuscript while dropping the
     # dense production-only points between them.
@@ -161,6 +162,7 @@ if SMOKE:
 # how many seeds and cells it sweeps, and the perturbation grids.
 SCALE = {
     "dataset": "mnist",
+    "max_samples": EVAL_MAX_SAMPLES,
     "seeds": len(SEEDS),
     "cells": len(CONDITIONS),
     "grid": (
@@ -251,8 +253,7 @@ def _run_baseline(train_dir: Path, tau_gaba=None):
                 ]
                 if tau_gaba is not None:
                     cmd += ["--tau-gaba", str(tau_gaba)]
-                if SMOKE:
-                    cmd += ["--max-samples", str(SMOKE_MAX_SAMPLES)]
+                cmd += ["--max-samples", str(EVAL_MAX_SAMPLES)]
                 run_cli(cmd)
                 # Publish atomically; metrics last so _baseline_complete only
                 # passes once both files are live.
@@ -311,8 +312,7 @@ def _run_with_override(train_dir: Path, override_path: Path, tau_gaba=None) -> d
     ]
     if tau_gaba is not None:
         cmd += ["--tau-gaba", str(tau_gaba)]
-    if SMOKE:
-        cmd += ["--max-samples", str(SMOKE_MAX_SAMPLES)]
+    cmd += ["--max-samples", str(EVAL_MAX_SAMPLES)]
     run_cli(cmd)
     return json.loads((out_dir / "metrics.json").read_text())
 
@@ -2182,6 +2182,7 @@ def main() -> None:
             CHECKPOINT_ROLE,
         ),
         "config": {
+            "evaluation_samples_per_condition": EVAL_MAX_SAMPLES,
             "seeds": list(SEEDS),
             "conditions": list(CONDITIONS),
             "jitter_sigmas_ms": list(JITTER_SIGMAS_MS),
