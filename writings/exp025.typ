@@ -88,6 +88,11 @@
     [Epochs], [50],
   )
 
+  Checkpoint-backed rates, rasters, and input-scaling interventions use the
+  final-epoch checkpoint because this experiment characterizes the trained
+  network's endpoint dynamics, rather than deployment performance of the
+  validation-selected classifier.
+
   Two configurations of the same COBANet architecture, differing only in whether the
   E→I→E inhibitory loop is active. *COBA* (_--ei-strength 0_) disables the loop;
   excitatory cells drive each other but receive no structured inhibition. *PING*
