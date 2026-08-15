@@ -84,8 +84,8 @@
     [Parameter], [Value],
     [Integration timestep $Delta t$], [0.1 ms],
     [Trial duration $T$], [200 ms],
-    [MNIST training pool (2,000 official-training samples)], [1,800 optimizer-training / 200 validation; downstream inference uses a fixed 1,000-image subset of the official test partition],
-    [Epochs], [100],
+    [MNIST training pool (7,000 official-training samples)], [6,300 optimizer-training / 700 validation; downstream inference uses a fixed 1,000-image subset of the official test partition],
+    [Epochs], [50],
   )
 
   Two configurations of the same COBANet architecture, differing only in whether the
@@ -137,7 +137,8 @@
   I-burst peak detection and per-(cell, cycle) spike counting (style of
   #link("/exp046/")[exp046]).
 
-  *Basin and landscape probes.* To test basin attractivity, four PING networks are
+  *Basin and landscape probes.* To test basin attractivity, four input-weight
+  conditions are each trained with seeds 42, 43, and 44 (12 PING networks total),
   trained with $W_"in"$ initialised at 0.05, 0.1, 0.3, and 0.9 ($r_"max" = 1$ Hz from
   epoch 0; Figure 3). To map the loss landscape around the operating point, each
   network trained at the tightest ceiling ($r_"max" = 1$ Hz) has its $W_"in"$ scaled
@@ -196,16 +197,14 @@
     image(
       "/artifacts/data/exp025/low_w_in_sweep.svg",
       width: 100%,
-      alt: "Per-epoch test accuracy and E/I firing rates for four PING networks initialised across the recruitment cliff, one column per W_in value.",
+      alt: "Across-seed mean per-epoch test accuracy and E/I firing rates for four PING input-weight initializations, one column per W_in value.",
     ),
     caption: [
-      Per-epoch training traces from four PING networks (seed 42, $r_"max" = 1$ Hz
-      from epoch 0), one per column. Top: test accuracy. Bottom: test-set E (black)
-      and I (red) firing rates. Recruitment is $W_"in"$-ordered: at $W_"in" = 0.05$
-      and $0.1$ the I population stays silent for the first ≈ 8 epochs and engages
-      only weakly in the final one or two; at $W_"in" = 0.3$ the loop recruits by
-      epoch 7; at $W_"in" = 0.9$ it is active from epoch 1. The lower the input drive,
-      the later the loop crosses the recruitment threshold. Final accuracies:
+      Across-seed mean per-epoch training traces for four initial $W_"in"$ values
+      (seeds 42–44, $r_"max" = 1$ Hz from epoch 0), one condition per column;
+      shaded bands are SEM. Top: test accuracy. Bottom: test-set E (black) and I
+      (red) firing rates. The comparison tests whether lower initial input drive
+      delays or prevents recruitment of the inhibitory loop. Final mean accuracies:
       #low_accs.at(0)% / #low_accs.at(1)% / #low_accs.at(2)% / #low_accs.at(3)%;
       final I rates: #low_is.at(0) / #low_is.at(1) / #low_is.at(2) / #low_is.at(3) Hz.
     ],

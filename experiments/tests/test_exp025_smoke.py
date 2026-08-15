@@ -79,9 +79,31 @@ def test_smoke_scaled_inference_caps_dataset(monkeypatch, tmp_path: Path) -> Non
     ]
 
 
-def test_low_w_in_training_uses_direct_readout_initializer(tmp_path: Path) -> None:
-    args = exp025.build_low_w_in_args(0.9, tmp_path / "cell")
-    assert "--readout-w-out-scale" not in args
-    assert args[args.index("--readout-w-init-mean") + 1] == "1.12060546875"
-    assert args[args.index("--readout-w-init-std") + 1] == "0.8349609375"
-    assert exp025.LOW_W_IN_VALUES == [0.05, 0.1, 0.3, 0.9]
+def test_low_w_in_cells_are_owned_by_exp022() -> None:
+    assert tuple(exp025.LOW_W_IN_VALUES) == (0.05, 0.1, 0.3, 0.9)
+    assert "exp022" in str(exp025.low_w_in_cell_dir(0.9, 43))
+
+
+def test_low_w_in_production_grid_uses_three_seeds() -> None:
+    assert exp025.LOW_W_IN_SEEDS == [42, 43, 44]
+    paths = {
+        exp025.low_w_in_cell_dir(w_in, seed)
+        for w_in in exp025.LOW_W_IN_VALUES
+        for seed in exp025.LOW_W_IN_SEEDS
+    }
+    assert len(paths) == 12
+
+
+def test_low_w_in_aggregation_reports_mean_and_sem() -> None:
+    rows = [
+        {"seed": 42, "final_acc": 80.0, "rate_e": 10.0, "rate_i": 5.0},
+        {"seed": 43, "final_acc": 82.0, "rate_e": 12.0, "rate_i": 7.0},
+        {"seed": 44, "final_acc": 84.0, "rate_e": 14.0, "rate_i": 9.0},
+    ]
+    result = exp025.aggregate_low_w_in_seed_rows(0.3, rows)
+    assert result["n_seeds"] == 3
+    assert result["seeds"] == [42, 43, 44]
+    assert result["final_acc"] == 82.0
+    assert result["final_acc_sem"] > 0
+    assert result["statistic"] == "mean_across_independent_seeds"
+    assert result["uncertainty"] == "sem_across_independent_seeds"

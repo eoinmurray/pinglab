@@ -58,6 +58,7 @@
     + #link("#tr-04-integration-timestep-sweep")[TR-04 — Integration-timestep sweep]
     + #link("#tr-05-recurrent-initialization-sweep")[TR-05 — Recurrent-initialization sweep]
     + #link("#tr-06-variable-rate-streaming-bank")[TR-06 — Variable-rate streaming bank]
+    + #link("#tr-07-low-input-recruitment-sweep")[TR-07 — Low-input recruitment sweep]
   + #link("#results-by-training-run")[Results by training run]
     + #link("#tr-01-results-canonical-full-data-reference")[TR-01 — Canonical full-data reference]
     + #link("#tr-02-results-activity-ceiling-sweep")[TR-02 — Activity-ceiling sweep]
@@ -65,12 +66,13 @@
     + #link("#tr-04-results-integration-timestep-sweep")[TR-04 — Integration-timestep sweep]
     + #link("#tr-05-results-recurrent-initialization-sweep")[TR-05 — Recurrent-initialization sweep]
     + #link("#tr-06-results-variable-rate-streaming-bank")[TR-06 — Variable-rate streaming bank]
+    + #link("#tr-07-results-low-input-recruitment-sweep")[TR-07 — Low-input recruitment sweep]
 
   #major-divider()
 
   == Abstract
 
-  Exp022 defines the collection's shared training runs and checkpoint bank. It specifies the motivation, parameterization, output-layer shape, and downstream consumers for six training-run types. Five run types comprise #r.n_cells trained cells spanning reference models and controlled sweeps over spike budget, inhibitory timescale, integration timestep, and recurrent initialization. TR-06 adds three PING cells trained across variable input rates with ten spiking output LIF neurons; each class logit is the corresponding neuron's total spike count over the presentation. Together, these runs provide the checkpoints used by the collection's training-dependent experiments.
+  Exp022 defines the collection's shared training runs and checkpoint bank. It specifies the motivation, parameterization, output-layer shape, and downstream consumers for seven training-run types comprising #r.n_cells cells. The runs span reference models and controlled sweeps over activity ceiling, inhibitory timescale, integration timestep, recurrent initialization, input rate, and initial input strength. Together, they provide the checkpoints used by the collection's training-dependent experiments.
 
   Every cell saves two identified checkpoints. For MNIST, each epoch is evaluated over three fixed, independently seeded Poisson encodings of the validation split. The best-validation checkpoint minimizes mean validation cross-entropy across those draws, with mean accuracy as a tie-breaker; the final-epoch checkpoint represents the dynamical and parameter state at the end of training. The result rasters in this entry use the final-epoch checkpoint.
 
@@ -212,6 +214,28 @@
     [Cells], [1 recipe × 3 seeds = 3], [Checkpoint bank expected by exp082],
   )
 
+  #divider()
+
+  === TR-07 — Low-input recruitment sweep
+
+  This run tests whether a PING network trained under the strict 1 Hz activity
+  ceiling can recruit its inhibitory loop when the input projection begins below
+  the standard strength. It uses the same reduced production scale as the other
+  sweeps; only the initial input-weight mean changes. The resulting checkpoints
+  are used by #run-links(("exp025",)).
+
+  #table(
+    columns: (1.2fr, 1.65fr, 2fr),
+    table.header([*Key parameter*], [*Value*], [*Why it differs*]),
+    [Architecture], [PING], [Tests recruitment of the recurrent inhibitory loop],
+    [Training pool], [7,000 samples], [6,300 optimizer-training and 700 validation samples],
+    [Epochs], [50], [Matches the reduced production standard],
+    [Initial $W_"in"$ mean], [0.05, 0.1, 0.3, 0.9], [Spans weak drive through the shared standard initialization],
+    [Hidden-E rate target], [1 Hz], [Applies the strictest TR-02 activity ceiling from epoch 0],
+    [Cells], [4 settings × 3 seeds = 12], [Across-seed estimate for every condition],
+    [Readout shape], [$1024 arrow 10$ spiking LIF outputs], [`mem-mean`: mean membrane voltage supplies the logits],
+  )
+
   #major-divider()
 
   == Results by training run
@@ -315,4 +339,16 @@
   *TODO — training curves.* Add the three variable-rate learning curves after the Cambridge jobs complete.
 
   *TODO — sample raster.* Add a seed-42 E/I/output raster at a declared held-out rate, plus low- and high-rate diagnostics if one raster hides a rate-dependent failure.
+
+  #divider()
+
+  === TR-07 results — Low-input recruitment sweep
+
+  *Run status:* pending · 0/12 cells trained
+
+  *TODO — training curves.* Add across-seed mean accuracy and E/I-rate curves
+  for all four input initializations after the Cambridge jobs complete.
+
+  *TODO — sample raster.* Add a representative seed-42 raster for each input
+  initialization at a declared held-out MNIST example.
 ]
