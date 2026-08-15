@@ -35,7 +35,7 @@
     [Integration timestep $Delta t$], [0.05–1.0 ms (swept)],
     [Trial duration $T$], [200 ms],
     [MNIST training pool (7,000 official-training samples)],
-    [6,300 optimizer-training / 700 validation; evaluation uses the official 10,000-image test partition],
+    [6,300 optimizer-training / 700 validation; downstream inference uses a fixed 1,000-image subset of the official test partition],
     [Epochs], [50],
   )
 
@@ -46,7 +46,7 @@
   configs. All other PING training parameters are likewise checked for equality;
   only integration timestep and seed may differ between cells.
 
-  Run inference on the test set; report mean E rate (Hz), accuracy, and a
+  Run inference on that held-out subset; report mean E rate (Hz), accuracy, and a
   single-trial raster from seed 42 per Δt for visual cycle-period inspection.
 
   == Results
