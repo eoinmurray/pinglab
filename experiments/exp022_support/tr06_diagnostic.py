@@ -65,7 +65,12 @@ def diagnostic_args(
         _replace_value(args, "--t-ms", str(t_ms))
     if dt_ms is not None:
         _replace_value(args, "--dt", str(dt_ms))
-    if variant == "fanin-spike-count":
+    if variant == "registered-spike-count":
+        _replace_value(
+            args, "--readout-w-init-mean", exp022.SHARED_READOUT_W_INIT_MEAN
+        )
+        _replace_value(args, "--readout-w-init-std", exp022.SHARED_READOUT_W_INIT_STD)
+    elif variant == "fanin-spike-count":
         _remove_pair(args, "--readout-w-init-mean")
         _remove_pair(args, "--readout-w-init-std")
     elif variant in {"mean-005-spike-count", "mean-010-spike-count"}:
@@ -75,6 +80,10 @@ def diagnostic_args(
         _replace_value(args, "--readout-w-init-std", str(std))
     elif variant == "mem-mean-control":
         _replace_value(args, "--readout", "mem-mean")
+        _replace_value(
+            args, "--readout-w-init-mean", exp022.SHARED_READOUT_W_INIT_MEAN
+        )
+        _replace_value(args, "--readout-w-init-std", exp022.SHARED_READOUT_W_INIT_STD)
     return args
 
 
