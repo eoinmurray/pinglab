@@ -106,6 +106,8 @@ SHARED_W_IN_SUMMED_PARENT_MEAN = "0.9"
 # Normal(5.1, 3.8) / 1024 × 225 recipe, now expressed directly.
 SHARED_READOUT_W_INIT_MEAN = "1.12060546875"
 SHARED_READOUT_W_INIT_STD = "0.8349609375"
+TR06_READOUT_W_INIT_MEAN = "0.05"
+TR06_READOUT_W_INIT_STD = "0.04"
 
 # Production recipe for the next exp022 bank. COBA and PING share the input and
 # readout initialization distributions selected by the matched-midpoint gate. They
@@ -300,6 +302,10 @@ def _planned_variable_rate_cells() -> list[dict]:
             "input_rates_hz": list(VARIABLE_RATE_TRAINING_RATES_HZ),
             "rate_sampling": "uniform categorical per presentation",
             "consumer": VARIABLE_RATE_CONSUMER,
+            "recipe_overrides": {
+                "--readout-w-init-mean": TR06_READOUT_W_INIT_MEAN,
+                "--readout-w-init-std": TR06_READOUT_W_INIT_STD,
+            },
             "extra": [],
             "status": "ready_to_train",
         }
@@ -515,6 +521,41 @@ def load_cell(name: str) -> Path:
             "run exp022 (Training) first to produce the shared cells."
         )
     return d
+
+
+def _tr06_diagnostic_root() -> Path:
+    return Path(os.environ["PINGLAB_ARTIFACTS_ROOT"])
+
+
+def tr06_diagnostic_done(job_id: str) -> bool:
+    """Modal completion hook for one bounded TR-06 readout variant."""
+    from experiments.exp022_support import tr06_diagnostic
+
+    return (
+        job_id in tr06_diagnostic.VARIANTS
+        and (_tr06_diagnostic_root() / job_id / "diagnostic_summary.json").exists()
+    )
+
+
+def run_tr06_diagnostic(job_id: str) -> None:
+    """Modal execution hook; diagnostic scale is explicit in the job environment."""
+    from experiments.exp022_support import tr06_diagnostic
+
+    def optional_number(name: str, converter):
+        value = os.environ.get(name)
+        return None if value is None else converter(value)
+
+    tr06_diagnostic.run_variant(
+        job_id,
+        root=_tr06_diagnostic_root(),
+        max_samples=int(os.environ["EXP022_TR06_DIAGNOSTIC_MAX_SAMPLES"]),
+        epochs=int(os.environ["EXP022_TR06_DIAGNOSTIC_EPOCHS"]),
+        seed=int(os.environ["EXP022_TR06_DIAGNOSTIC_SEED"]),
+        device="auto",
+        n_hidden=optional_number("EXP022_TR06_DIAGNOSTIC_N_HIDDEN", int),
+        t_ms=optional_number("EXP022_TR06_DIAGNOSTIC_T_MS", float),
+        dt_ms=optional_number("EXP022_TR06_DIAGNOSTIC_DT_MS", float),
+    )
 
 
 def build_train_args(spec: dict, out_dir: Path,
