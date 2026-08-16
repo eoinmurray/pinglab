@@ -12,6 +12,9 @@ def test_tr06_diagnostic_variants_change_only_the_readout_contract(tmp_path) -> 
             epochs=10,
             seed=42,
             device="cuda",
+            n_hidden=64,
+            t_ms=50.0,
+            dt_ms=1.0,
         )
         for variant in tr06_diagnostic.VARIANTS
     }
@@ -31,7 +34,20 @@ def test_tr06_diagnostic_variants_change_only_the_readout_contract(tmp_path) -> 
         assert command[command.index("--epochs") + 1] == "10"
         assert command[command.index("--seed") + 1] == "42"
         assert command[command.index("--device") + 1] == "cuda"
+        assert command[command.index("--n-hidden") + 1] == "64"
+        assert command[command.index("--t-ms") + 1] == "50.0"
+        assert command[command.index("--dt") + 1] == "1.0"
         start = command.index("--input-rates") + 1
         assert tuple(map(float, command[start : start + 11])) == (
-            0.5, 0.75, 1.0, 1.5, 2.0, 3.0, 5.0, 7.5, 10.0, 15.0, 25.0,
+            0.5,
+            0.75,
+            1.0,
+            1.5,
+            2.0,
+            3.0,
+            5.0,
+            7.5,
+            10.0,
+            15.0,
+            25.0,
         )

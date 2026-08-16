@@ -15,7 +15,11 @@ import subprocess
 import sys
 from pathlib import Path
 
+REPO = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(REPO))
+
 from experiments import exp022
+from experiments.helpers import modal_backend
 
 VARIANTS = (
     "registered-spike-count",
@@ -41,6 +45,9 @@ def diagnostic_args(
     epochs: int,
     seed: int,
     device: str,
+    n_hidden: int | None = None,
+    t_ms: float | None = None,
+    dt_ms: float | None = None,
 ) -> list[str]:
     if variant not in VARIANTS:
         raise ValueError(f"unknown TR-06 diagnostic variant: {variant}")
@@ -50,12 +57,50 @@ def diagnostic_args(
     cell.pop("max_samples", None)
     args = exp022.build_train_args(cell, output, max_samples, epochs)
     args += ["--device", device]
+    if n_hidden is not None:
+        _replace_value(args, "--n-hidden", str(n_hidden))
+    if t_ms is not None:
+        _replace_value(args, "--t-ms", str(t_ms))
+    if dt_ms is not None:
+        _replace_value(args, "--dt", str(dt_ms))
     if variant == "fanin-spike-count":
         _remove_pair(args, "--readout-w-init-mean")
         _remove_pair(args, "--readout-w-init-std")
     elif variant == "mem-mean-control":
         _replace_value(args, "--readout", "mem-mean")
     return args
+
+
+def run_variant(
+    variant: str,
+    *,
+    root: Path,
+    max_samples: int,
+    epochs: int,
+    seed: int,
+    device: str,
+    n_hidden: int | None = None,
+    t_ms: float | None = None,
+    dt_ms: float | None = None,
+) -> dict[str, object]:
+    directory = root / variant
+    command = diagnostic_args(
+        variant,
+        output=directory,
+        max_samples=max_samples,
+        epochs=epochs,
+        seed=seed,
+        device=device,
+        n_hidden=n_hidden,
+        t_ms=t_ms,
+        dt_ms=dt_ms,
+    )
+    subprocess.run([sys.executable, str(exp022.SNN_TOOL), *command], check=True)
+    result = summarize(directory, variant)
+    (directory / "diagnostic_summary.json").write_text(
+        json.dumps(result, indent=2) + "\n"
+    )
+    return result
 
 
 def summarize(directory: Path, variant: str) -> dict[str, object]:
@@ -98,31 +143,78 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--epochs", type=int, default=10)
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--device", default="auto")
+    parser.add_argument("--n-hidden", type=int)
+    parser.add_argument("--t-ms", type=float)
+    parser.add_argument("--dt-ms", type=float)
+    parser.add_argument("--only-variant", action="append", choices=VARIANTS)
+    parser.add_argument("--modal", action="store_true")
+    parser.add_argument("--live", action="store_true")
     return parser.parse_args()
 
 
 def main() -> None:
     options = parse_args()
     root = options.out_dir.resolve()
+    variants = options.only_variant or list(VARIANTS)
+    if options.modal:
+        modal_backend.dispatch(
+            slug="exp022-tr06-diagnostic",
+            runner="exp022",
+            job_ids=variants,
+            live=options.live,
+            local_collect_dir=root,
+            ledger_path=root / "compute_ledger.json",
+            timeout_s=14_400,
+            extra_env={
+                "EXP022_TR06_DIAGNOSTIC_MAX_SAMPLES": str(options.max_samples),
+                "EXP022_TR06_DIAGNOSTIC_EPOCHS": str(options.epochs),
+                "EXP022_TR06_DIAGNOSTIC_SEED": str(options.seed),
+                **(
+                    {"EXP022_TR06_DIAGNOSTIC_N_HIDDEN": str(options.n_hidden)}
+                    if options.n_hidden
+                    else {}
+                ),
+                **(
+                    {"EXP022_TR06_DIAGNOSTIC_T_MS": str(options.t_ms)}
+                    if options.t_ms
+                    else {}
+                ),
+                **(
+                    {"EXP022_TR06_DIAGNOSTIC_DT_MS": str(options.dt_ms)}
+                    if options.dt_ms
+                    else {}
+                ),
+            },
+            is_done_name="tr06_diagnostic_done",
+            run_job_name="run_tr06_diagnostic",
+        )
+        return
+    if options.live:
+        raise SystemExit("--live requires --modal")
     root.mkdir(parents=True, exist_ok=False)
     results = []
-    for variant in VARIANTS:
-        directory = root / variant
-        command = diagnostic_args(
-            variant,
-            output=directory,
-            max_samples=options.max_samples,
-            epochs=options.epochs,
-            seed=options.seed,
-            device=options.device,
+    for variant in variants:
+        results.append(
+            run_variant(
+                variant,
+                root=root,
+                max_samples=options.max_samples,
+                epochs=options.epochs,
+                seed=options.seed,
+                device=options.device,
+                n_hidden=options.n_hidden,
+                t_ms=options.t_ms,
+                dt_ms=options.dt_ms,
+            )
         )
-        subprocess.run([sys.executable, str(exp022.SNN_TOOL), *command], check=True)
-        results.append(summarize(directory, variant))
     payload = {
         "purpose": "TR-06 bounded readout diagnosis; not production evidence",
         "seed": options.seed,
         "max_samples": options.max_samples,
         "epochs": options.epochs,
+        "n_hidden": options.n_hidden or exp022.N_EXCITATORY,
+        "t_ms": options.t_ms or exp022.T_MS,
+        "dt_ms": options.dt_ms or exp022.DT_MS,
         "variants": results,
     }
     (root / "summary.json").write_text(json.dumps(payload, indent=2) + "\n")
