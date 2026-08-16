@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from experiments import exp022
 from experiments.exp022_support import tr06_diagnostic
 
 
@@ -25,8 +26,14 @@ def test_tr06_diagnostic_variants_change_only_the_readout_contract(tmp_path) -> 
     control = commands["mem-mean-control"]
 
     assert registered[registered.index("--readout") + 1] == "spike-count"
-    assert "--readout-w-init-mean" in registered
-    assert "--readout-w-init-std" in registered
+    assert (
+        registered[registered.index("--readout-w-init-mean") + 1]
+        == exp022.SHARED_READOUT_W_INIT_MEAN
+    )
+    assert (
+        registered[registered.index("--readout-w-init-std") + 1]
+        == exp022.SHARED_READOUT_W_INIT_STD
+    )
     assert fanin[fanin.index("--readout") + 1] == "spike-count"
     assert "--readout-w-init-mean" not in fanin
     assert "--readout-w-init-std" not in fanin
@@ -35,6 +42,10 @@ def test_tr06_diagnostic_variants_change_only_the_readout_contract(tmp_path) -> 
     assert mean_005[mean_005.index("--readout-w-init-std") + 1] == "0.04"
     assert mean_010[mean_010.index("--readout-w-init-std") + 1] == "0.08"
     assert control[control.index("--readout") + 1] == "mem-mean"
+    assert (
+        control[control.index("--readout-w-init-mean") + 1]
+        == exp022.SHARED_READOUT_W_INIT_MEAN
+    )
     for command in commands.values():
         assert command[command.index("--max-samples") + 1] == "700"
         assert command[command.index("--epochs") + 1] == "10"
