@@ -27,6 +27,8 @@ def test_exp022_variable_rate_args() -> None:
     cell = exp022.PLANNED_VARIABLE_RATE_CELLS[0]
     args = exp022.build_train_args(cell, exp082.training_dir(42), 7000, 50)
     assert args[args.index("--readout") + 1] == "spike-count"
+    assert args[args.index("--readout-w-init-mean") + 1] == "0.05"
+    assert args[args.index("--readout-w-init-std") + 1] == "0.04"
     start = args.index("--input-rates") + 1
     stop = start + len(exp082.TRAINING_RATES_HZ)
     assert tuple(map(float, args[start:stop])) == exp082.TRAINING_RATES_HZ
@@ -107,6 +109,32 @@ def test_exp082_evaluation_scale_is_recorded() -> None:
     assert exp082.STREAMS_PER_CELL >= 1
     assert exp082.DIGITS_PER_STREAM >= 1
     assert exp082.EVALUATION_PROFILE in {"smoke", "pilot", "production"}
+    if exp082.EVALUATION_PROFILE == "production":
+        assert exp082.DIGITS_PER_STREAM == 5
+
+
+def test_output_activity_summary_uses_presentation_boundaries() -> None:
+    spikes = np.zeros((5, 3), dtype=np.int8)
+    spikes[0, 0] = 1
+    spikes[3, 2] = 1
+    summary = exp082.output_activity_summary(spikes, [0, 2, 5])
+    assert summary == {
+        "n_presentations": 2,
+        "total_output_spikes": 2,
+        "spikes_per_presentation": [1, 1],
+        "silent_presentations": 0,
+        "silent_fraction": 0.0,
+        "class_spike_totals": [1, 0, 1],
+    }
+
+
+def test_grid_preflight_rejects_wholly_silent_readout() -> None:
+    rows = [
+        {"n_total": 5, "silent_fraction": 1.0,
+         "output_spikes_per_presentation": 0.0},
+    ]
+    with np.testing.assert_raises_regex(RuntimeError, "output readout is silent"):
+        exp082.grid_output_preflight(rows)
 
 
 def test_collection_requires_exp082_measurements_and_figures(tmp_path) -> None:

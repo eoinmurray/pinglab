@@ -128,8 +128,18 @@ def test_all_resolved_commands_keep_family_contract(tmp_path: Path) -> None:
         assert "--dales-law" in args
         expected_w_in = str(cell["w_in"]) if cell["family"] == "low_w_in" else "0.9"
         assert args[args.index("--w-in") + 1] == expected_w_in
-        assert args[args.index("--readout-w-init-mean") + 1] == exp022.SHARED_READOUT_W_INIT_MEAN
-        assert args[args.index("--readout-w-init-std") + 1] == exp022.SHARED_READOUT_W_INIT_STD
+        expected_readout_mean = (
+            exp022.TR06_READOUT_W_INIT_MEAN
+            if cell["family"] == "variable_rate"
+            else exp022.SHARED_READOUT_W_INIT_MEAN
+        )
+        expected_readout_std = (
+            exp022.TR06_READOUT_W_INIT_STD
+            if cell["family"] == "variable_rate"
+            else exp022.SHARED_READOUT_W_INIT_STD
+        )
+        assert args[args.index("--readout-w-init-mean") + 1] == expected_readout_mean
+        assert args[args.index("--readout-w-init-std") + 1] == expected_readout_std
         assert "--readout-w-out-scale" not in args
         if cell["model"] == "coba":
             assert args[args.index("--ei-strength") + 1] == "0"

@@ -1276,6 +1276,11 @@ class COBANet(nn.Module):
         # Expose grad-attached per-neuron spike counts so the trainer's
         # firing-rate regulariser (train.py) can build its loss.
         self.last_spike_counts = rate_counts
+        # Spike-count readouts need their own activity diagnostics.  Preserve
+        # the per-sample, per-class counts from the completed presentation so
+        # training can detect silent and saturated decoders without enabling
+        # the much larger timestep recording buffers.
+        self.last_output_spike_counts = state["out_spike_count"]
         if self.readout_mode == "mem-mean":
             return state["mem_sum"] / float(T_steps)
         return logits_t

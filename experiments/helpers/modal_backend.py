@@ -84,6 +84,7 @@ def _source_image(modal: Any):
         modal.Image.debian_slim(python_version="3.10")
         .uv_pip_install(
             "torch",
+            "torchvision",
             "numpy",
             "scipy",
             "scikit-learn",
