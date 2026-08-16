@@ -802,6 +802,11 @@ def train(
         margin_sum = 0.0       # mean (z_true - z_runner_up), the decision margin
         conf_sum = 0.0         # mean softmax prob of the true class
         logit_scale_sum = 0.0  # mean |logit|, the raw logit magnitude
+        output_spike_sum = 0.0
+        output_silent_samples = 0
+        output_sample_count = 0
+        output_class_spikes = torch.zeros(M.N_OUT, dtype=torch.float64)
+        output_by_rate: dict[float, dict[str, float]] = {}
         n_test_batches = len(test_loader)
         validation_draws = []
         with torch.no_grad():
@@ -814,11 +819,12 @@ def train(
                 draw_loss_sum = 0.0
                 for X_b, y_b in test_loader:
                     X_b, y_b = X_b.to(device), y_b.to(device)
+                    sampled_rates = sample_input_rates(len(X_b), draw_rate_gen)
                     spk = encode_batch(
                         X_b,
                         dt,
                         generator=eval_gen,
-                        max_rate_hz=sample_input_rates(len(X_b), draw_rate_gen),
+                        max_rate_hz=sampled_rates,
                     )
                     logits_t = net(input_spikes=spk)
                     B = y_b.size(0)
@@ -844,6 +850,37 @@ def train(
                         .item()
                     )
                     logit_scale_sum += float(logits_t.abs().mean(1).sum().item())
+                    if readout_mode in ("spike-count", "spike-rate"):
+                        output_counts = net.last_output_spike_counts.detach().cpu()
+                        per_sample_counts = output_counts.sum(dim=1)
+                        output_spike_sum += float(per_sample_counts.sum().item())
+                        output_silent_samples += int((per_sample_counts == 0).sum().item())
+                        output_sample_count += B
+                        output_class_spikes += output_counts.sum(dim=0).to(torch.float64)
+                        rates = (
+                            sampled_rates.detach().cpu()
+                            if sampled_rates is not None
+                            else torch.full((B,), float(M.max_rate_hz))
+                        )
+                        predictions = logits_t.argmax(1).detach().cpu()
+                        labels = y_b.detach().cpu()
+                        for rate in torch.unique(rates).tolist():
+                            mask = rates == rate
+                            bucket = output_by_rate.setdefault(
+                                float(rate),
+                                {"n_samples": 0.0, "n_correct": 0.0,
+                                 "n_silent": 0.0, "n_spikes": 0.0},
+                            )
+                            bucket["n_samples"] += int(mask.sum().item())
+                            bucket["n_correct"] += int(
+                                (predictions[mask] == labels[mask]).sum().item()
+                            )
+                            bucket["n_silent"] += int(
+                                (per_sample_counts[mask] == 0).sum().item()
+                            )
+                            bucket["n_spikes"] += float(
+                                per_sample_counts[mask].sum().item()
+                            )
                     # net.rates is set by _set_meta after every forward pass;
                     # values are already per-cell Hz averaged over the batch.
                     batch_rates = getattr(net, "rates", None) or {}
@@ -885,6 +922,30 @@ def train(
         test_margin = margin_sum / total if total else 0.0
         test_confidence = conf_sum / total if total else 0.0
         test_logit_scale = logit_scale_sum / total if total else 0.0
+        test_output_spikes_per_sample = (
+            output_spike_sum / output_sample_count if output_sample_count else None
+        )
+        test_output_silent_fraction = (
+            output_silent_samples / output_sample_count if output_sample_count else None
+        )
+        class_spike_total = float(output_class_spikes.sum().item())
+        test_output_class_spike_fraction = (
+            [float(value / class_spike_total) for value in output_class_spikes.tolist()]
+            if class_spike_total
+            else [0.0] * M.N_OUT
+            if output_sample_count
+            else None
+        )
+        test_output_by_input_rate = [
+            {
+                "rate_hz": rate,
+                "n_samples": int(bucket["n_samples"]),
+                "accuracy_pct": 100.0 * bucket["n_correct"] / bucket["n_samples"],
+                "spikes_per_sample": bucket["n_spikes"] / bucket["n_samples"],
+                "silent_fraction": bucket["n_silent"] / bucket["n_samples"],
+            }
+            for rate, bucket in sorted(output_by_rate.items())
+        ]
 
         new_best = avg_test < best_validation_loss or (
             avg_test == best_validation_loss and acc > best_acc
@@ -945,6 +1006,10 @@ def train(
             "test_margin": test_margin,
             "test_confidence": test_confidence,
             "test_logit_scale": test_logit_scale,
+            "test_output_spikes_per_sample": test_output_spikes_per_sample,
+            "test_output_silent_fraction": test_output_silent_fraction,
+            "test_output_class_spike_fraction": test_output_class_spike_fraction,
+            "test_output_by_input_rate": test_output_by_input_rate,
             "validation_draws": validation_draws,
             "lr": cur_lr,
             "elapsed_s": elapsed,
