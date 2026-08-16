@@ -85,6 +85,15 @@ def test_registry_training_run_identity(family: str, run_id: str) -> None:
     assert {cell["training_run_id"] for cell in cells} == {run_id}
 
 
+def test_every_registered_training_run_has_guide_and_results_sections() -> None:
+    writing = (exp022.REPO / "writings" / "exp022.typ").read_text()
+    run_ids = tuple(exp022.TRAINING_RUN_IDS.values())
+    assert len(run_ids) == len(set(run_ids))
+    for run_id in run_ids:
+        assert writing.count(f"=== {run_id} —") == 1
+        assert writing.count(f"=== {run_id} results —") == 1
+
+
 def test_tr07_low_input_controls_use_production_contract(tmp_path: Path) -> None:
     cells = [
         cell for cell in exp022.CANONICAL_CELLS
