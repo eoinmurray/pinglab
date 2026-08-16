@@ -24,7 +24,13 @@ from experiments.helpers import modal_backend
 VARIANTS = (
     "registered-spike-count",
     "fanin-spike-count",
+    "mean-005-spike-count",
+    "mean-010-spike-count",
     "mem-mean-control",
+)
+READOUT_STD_TO_MEAN = (
+    float(exp022.SHARED_READOUT_W_INIT_STD)
+    / float(exp022.SHARED_READOUT_W_INIT_MEAN)
 )
 
 
@@ -66,6 +72,10 @@ def diagnostic_args(
     if variant == "fanin-spike-count":
         _remove_pair(args, "--readout-w-init-mean")
         _remove_pair(args, "--readout-w-init-std")
+    elif variant in {"mean-005-spike-count", "mean-010-spike-count"}:
+        mean = 0.05 if variant == "mean-005-spike-count" else 0.10
+        _replace_value(args, "--readout-w-init-mean", str(mean))
+        _replace_value(args, "--readout-w-init-std", str(mean * READOUT_STD_TO_MEAN))
     elif variant == "mem-mean-control":
         _replace_value(args, "--readout", "mem-mean")
     return args
