@@ -20,6 +20,8 @@ def test_tr06_diagnostic_variants_change_only_the_readout_contract(tmp_path) -> 
     }
     registered = commands["registered-spike-count"]
     fanin = commands["fanin-spike-count"]
+    mean_005 = commands["mean-005-spike-count"]
+    mean_010 = commands["mean-010-spike-count"]
     control = commands["mem-mean-control"]
 
     assert registered[registered.index("--readout") + 1] == "spike-count"
@@ -28,6 +30,10 @@ def test_tr06_diagnostic_variants_change_only_the_readout_contract(tmp_path) -> 
     assert fanin[fanin.index("--readout") + 1] == "spike-count"
     assert "--readout-w-init-mean" not in fanin
     assert "--readout-w-init-std" not in fanin
+    assert mean_005[mean_005.index("--readout-w-init-mean") + 1] == "0.05"
+    assert mean_010[mean_010.index("--readout-w-init-mean") + 1] == "0.1"
+    assert float(mean_005[mean_005.index("--readout-w-init-std") + 1]) > 0
+    assert float(mean_010[mean_010.index("--readout-w-init-std") + 1]) > 0
     assert control[control.index("--readout") + 1] == "mem-mean"
     for command in commands.values():
         assert command[command.index("--max-samples") + 1] == "700"
