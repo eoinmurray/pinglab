@@ -106,6 +106,8 @@ SHARED_W_IN_SUMMED_PARENT_MEAN = "0.9"
 # Normal(5.1, 3.8) / 1024 × 225 recipe, now expressed directly.
 SHARED_READOUT_W_INIT_MEAN = "1.12060546875"
 SHARED_READOUT_W_INIT_STD = "0.8349609375"
+TR06_READOUT_W_INIT_MEAN = "0.05"
+TR06_READOUT_W_INIT_STD = "0.04"
 
 # Production recipe for the next exp022 bank. COBA and PING share the input and
 # readout initialization distributions selected by the matched-midpoint gate. They
@@ -300,6 +302,10 @@ def _planned_variable_rate_cells() -> list[dict]:
             "input_rates_hz": list(VARIABLE_RATE_TRAINING_RATES_HZ),
             "rate_sampling": "uniform categorical per presentation",
             "consumer": VARIABLE_RATE_CONSUMER,
+            "recipe_overrides": {
+                "--readout-w-init-mean": TR06_READOUT_W_INIT_MEAN,
+                "--readout-w-init-std": TR06_READOUT_W_INIT_STD,
+            },
             "extra": [],
             "status": "ready_to_train",
         }
