@@ -67,6 +67,7 @@ def _display_path(path: Path) -> Path:
     except ValueError:
         return path
 
+
 # ── Canonical training registry (the hub the collection reuses) ──────
 # Analysis notebooks import `load_cell` / `cell_dir` from this module rather
 # than retraining; this entry is the single producer of the shared cells.
@@ -82,13 +83,23 @@ DT_MS = 0.1
 T_MS = 200.0
 SEEDS_BASELINE = [42, 43, 44]
 VARIABLE_RATE_TRAINING_RATES_HZ = (
-    0.5, 0.75, 1.0, 1.5, 2.0, 3.0, 5.0, 7.5, 10.0, 15.0, 25.0,
+    0.5,
+    0.75,
+    1.0,
+    1.5,
+    2.0,
+    3.0,
+    5.0,
+    7.5,
+    10.0,
+    15.0,
+    25.0,
 )
 VARIABLE_RATE_CONSUMER = "exp082"
 RATE_TARGET_GRID_HZ: list[float | None] = [None, 25.0, 10.0, 5.0, 2.5, 1.0]
 FR_STRENGTH_UPPER = 1e-3
 LOW_W_IN_VALUES = (0.05, 0.1, 0.3, 0.9)
-TAU_AMPA_MS = 2.0          # AMPA decay — fixed across the collection (no CLI knob)
+TAU_AMPA_MS = 2.0  # AMPA decay — fixed across the collection (no CLI knob)
 INPUT_RATE_HZ = 25.0
 N_INPUT = 784
 N_EXCITATORY = 1024
@@ -175,15 +186,15 @@ INIT_CONDITIONS: dict[str, tuple] = {
 }
 
 
-TAU_GABA_SWEEP = (4.5, 6.0, 9.0, 12.0, 18.0, 27.0)   # exp041
-DT_SWEEP_MS = (0.05, 0.1, 0.25, 0.5, 1.0)             # exp044 (the dt exception)
-MNIST_TRAIN_SAMPLES = 60000                           # official training partition
-MNIST_TEST_SAMPLES = 10000                            # untouched official test partition
-CANONICAL_MAX_SAMPLES = MNIST_TRAIN_SAMPLES           # all official training data
-SUBSET_MAX_SAMPLES = 7000                             # reduced sweep training pool
-MAX_SAMPLES = 100                                     # plumbing cap on every cell
-EPOCHS = 2                                            # plumbing depth on every cell
-BATCH_SIZE = 256                                      # fixed across every recipe
+TAU_GABA_SWEEP = (4.5, 6.0, 9.0, 12.0, 18.0, 27.0)  # exp041
+DT_SWEEP_MS = (0.05, 0.1, 0.25, 0.5, 1.0)  # exp044 (the dt exception)
+MNIST_TRAIN_SAMPLES = 60000  # official training partition
+MNIST_TEST_SAMPLES = 10000  # untouched official test partition
+CANONICAL_MAX_SAMPLES = MNIST_TRAIN_SAMPLES  # all official training data
+SUBSET_MAX_SAMPLES = 7000  # reduced sweep training pool
+MAX_SAMPLES = 100  # plumbing cap on every cell
+EPOCHS = 2  # plumbing depth on every cell
+BATCH_SIZE = 256  # fixed across every recipe
 
 
 def rate_target_label(target_hz: float | None) -> str:
@@ -220,39 +231,70 @@ def _label(x: float) -> str:
 # per-notebook artifacts, so folding the already-trained cells in is a move,
 # not a retrain.
 
+
 def _activity_frontier_cells() -> list[dict]:
     cells = []
     for m in MODELS:
         for target_hz in RATE_TARGET_GRID_HZ:
-            extra = ([] if target_hz is None else
-                     ["--fr-reg-upper-target-hz", str(target_hz),
-                      "--fr-reg-upper-strength", str(FR_STRENGTH_UPPER)])
+            extra = (
+                []
+                if target_hz is None
+                else [
+                    "--fr-reg-upper-target-hz",
+                    str(target_hz),
+                    "--fr-reg-upper-strength",
+                    str(FR_STRENGTH_UPPER),
+                ]
+            )
             for s in seeds_for(target_hz):
-                cells.append({
-                    "name": cell_name(m, target_hz, s), "model": m, "family": "activity_frontier",
-                    "tag": rate_target_display(target_hz), "seed": s, "dt_ms": DT_MS,
-                    "tau_gaba": TAU_GABA_GAMMA,
-                    "rate_target_hz": target_hz, "extra": extra,
-                })
+                cells.append(
+                    {
+                        "name": cell_name(m, target_hz, s),
+                        "model": m,
+                        "family": "activity_frontier",
+                        "tag": rate_target_display(target_hz),
+                        "seed": s,
+                        "dt_ms": DT_MS,
+                        "tau_gaba": TAU_GABA_GAMMA,
+                        "rate_target_hz": target_hz,
+                        "extra": extra,
+                    }
+                )
     return cells
 
 
 def _tau_gaba_cells() -> list[dict]:
     return [
-        {"name": f"ping__tg{_label(tau)}__seed{s}", "model": "ping",
-         "family": "tau_gaba", "tag": f"τ={tau:g}", "seed": s, "dt_ms": DT_MS,
-         "tau_gaba": tau, "extra": []}
-        for tau in TAU_GABA_SWEEP for s in SEEDS_BASELINE
+        {
+            "name": f"ping__tg{_label(tau)}__seed{s}",
+            "model": "ping",
+            "family": "tau_gaba",
+            "tag": f"τ={tau:g}",
+            "seed": s,
+            "dt_ms": DT_MS,
+            "tau_gaba": tau,
+            "extra": [],
+        }
+        for tau in TAU_GABA_SWEEP
+        for s in SEEDS_BASELINE
     ]
 
 
 def _dt_cells() -> list[dict]:
     # The dt sweep is the documented exception that varies dt by design.
     return [
-        {"name": f"ping__dt{_label(dt)}__seed{s}", "model": "ping",
-         "family": "dt", "tag": f"dt={dt:g}", "seed": s, "dt_ms": dt,
-         "tau_gaba": TAU_GABA_GAMMA, "extra": []}
-        for dt in DT_SWEEP_MS for s in SEEDS_BASELINE
+        {
+            "name": f"ping__dt{_label(dt)}__seed{s}",
+            "model": "ping",
+            "family": "dt",
+            "tag": f"dt={dt:g}",
+            "seed": s,
+            "dt_ms": dt,
+            "tau_gaba": TAU_GABA_GAMMA,
+            "extra": [],
+        }
+        for dt in DT_SWEEP_MS
+        for s in SEEDS_BASELINE
     ]
 
 
@@ -260,10 +302,19 @@ def _canonical_cells() -> list[dict]:
     # The canonical reference: rate target = off, trained on ALL of MNIST (not the
     # subset the other families use) once the full standard is restored.
     return [
-        {"name": f"{m}__canonical__seed{s}", "model": m, "family": "canonical",
-         "tag": "off · all MNIST", "seed": s, "dt_ms": DT_MS, "extra": [],
-         "tau_gaba": TAU_GABA_GAMMA, "max_samples": CANONICAL_MAX_SAMPLES}
-        for m in MODELS for s in SEEDS_BASELINE
+        {
+            "name": f"{m}__canonical__seed{s}",
+            "model": m,
+            "family": "canonical",
+            "tag": "off · all MNIST",
+            "seed": s,
+            "dt_ms": DT_MS,
+            "extra": [],
+            "tau_gaba": TAU_GABA_GAMMA,
+            "max_samples": CANONICAL_MAX_SAMPLES,
+        }
+        for m in MODELS
+        for s in SEEDS_BASELINE
     ]
 
 
@@ -276,11 +327,18 @@ def _init_cells() -> list[dict]:
         if t_ie:
             extra.append("--trainable-w-ie")
         for s in SEEDS_BASELINE:
-            cells.append({
-                "name": f"{cond}__seed{s}", "model": "ping_init",
-                "family": "init", "tag": cond, "seed": s, "dt_ms": DT_MS,
-                "tau_gaba": TAU_GABA_GAMMA, "extra": extra,
-            })
+            cells.append(
+                {
+                    "name": f"{cond}__seed{s}",
+                    "model": "ping_init",
+                    "family": "init",
+                    "tag": cond,
+                    "seed": s,
+                    "dt_ms": DT_MS,
+                    "tau_gaba": TAU_GABA_GAMMA,
+                    "extra": extra,
+                }
+            )
     return cells
 
 
@@ -327,8 +385,10 @@ def _low_w_in_cells() -> list[dict]:
             "rate_target_hz": 1.0,
             "recipe_overrides": {"--w-in": str(w_in)},
             "extra": [
-                "--fr-reg-upper-target-hz", "1.0",
-                "--fr-reg-upper-strength", str(FR_STRENGTH_UPPER),
+                "--fr-reg-upper-target-hz",
+                "1.0",
+                "--fr-reg-upper-strength",
+                str(FR_STRENGTH_UPPER),
             ],
         }
         for w_in in LOW_W_IN_VALUES
@@ -337,8 +397,14 @@ def _low_w_in_cells() -> list[dict]:
 
 
 PLANNED_VARIABLE_RATE_CELLS = _planned_variable_rate_cells()
-BASE_CELLS = (_canonical_cells() + _activity_frontier_cells() + _tau_gaba_cells()
-              + _dt_cells() + _init_cells() + _low_w_in_cells())
+BASE_CELLS = (
+    _canonical_cells()
+    + _activity_frontier_cells()
+    + _tau_gaba_cells()
+    + _dt_cells()
+    + _init_cells()
+    + _low_w_in_cells()
+)
 CANONICAL_CELLS = BASE_CELLS + PLANNED_VARIABLE_RATE_CELLS
 for _cell in CANONICAL_CELLS:
     _cell["training_run_id"] = TRAINING_RUN_IDS[_cell["family"]]
@@ -445,13 +511,12 @@ def scientific_contract(cell: dict, max_samples: int, epochs: int) -> dict:
             "epochs": int(epochs),
         },
         "readout": {
-            "mode": cell.get(
-                "readout", MODEL_RECIPES[cell["model"]]["--readout"]
-            ),
+            "mode": cell.get("readout", MODEL_RECIPES[cell["model"]]["--readout"]),
             "shape": [N_EXCITATORY, N_OUTPUT],
         },
         "seed": int(cell["seed"]),
     }
+
 
 RESOURCE_TIERS = (
     "standard",
@@ -483,6 +548,7 @@ def cells_in_resource_tier(tier: str) -> list[dict]:
     if tier == "all":
         return list(CANONICAL_CELLS)
     return [cell for cell in CANONICAL_CELLS if cell_resource_tier(cell) == tier]
+
 
 # Run scale — stamped into the manifest by run_dirs.prepare and rendered as
 # the Methods table via RunScale; the mdx never restates these numbers.
@@ -517,30 +583,81 @@ def load_cell(name: str) -> Path:
     return d
 
 
-def build_train_args(spec: dict, out_dir: Path,
-                     max_samples: int, epochs: int,
-                     recipes: dict[str, dict] | None = None) -> list[str]:
+def _tr06_diagnostic_root() -> Path:
+    return Path(os.environ["PINGLAB_ARTIFACTS_ROOT"])
+
+
+def tr06_diagnostic_done(job_id: str) -> bool:
+    """Modal completion hook for one bounded TR-06 readout variant."""
+    from experiments.exp022_support import tr06_diagnostic
+
+    return (
+        job_id in tr06_diagnostic.VARIANTS
+        and (_tr06_diagnostic_root() / job_id / "diagnostic_summary.json").exists()
+    )
+
+
+def run_tr06_diagnostic(job_id: str) -> None:
+    """Modal execution hook; diagnostic scale is explicit in the job environment."""
+    from experiments.exp022_support import tr06_diagnostic
+
+    def optional_number(name: str, converter):
+        value = os.environ.get(name)
+        return None if value is None else converter(value)
+
+    tr06_diagnostic.run_variant(
+        job_id,
+        root=_tr06_diagnostic_root(),
+        max_samples=int(os.environ["EXP022_TR06_DIAGNOSTIC_MAX_SAMPLES"]),
+        epochs=int(os.environ["EXP022_TR06_DIAGNOSTIC_EPOCHS"]),
+        seed=int(os.environ["EXP022_TR06_DIAGNOSTIC_SEED"]),
+        device="auto",
+        n_hidden=optional_number("EXP022_TR06_DIAGNOSTIC_N_HIDDEN", int),
+        t_ms=optional_number("EXP022_TR06_DIAGNOSTIC_T_MS", float),
+        dt_ms=optional_number("EXP022_TR06_DIAGNOSTIC_DT_MS", float),
+    )
+
+
+def build_train_args(
+    spec: dict,
+    out_dir: Path,
+    max_samples: int,
+    epochs: int,
+    recipes: dict[str, dict] | None = None,
+) -> list[str]:
     """CLI `train` args for one registry cell, across all families."""
     recipe = dict((recipes or MODEL_RECIPES)[spec["model"]])
     recipe.update(spec.get("recipe_overrides", {}))
     if spec.get("readout") is not None:
         recipe["--readout"] = spec["readout"]
-    ms = spec.get("max_samples") or max_samples   # canonical cells override
+    ms = spec.get("max_samples") or max_samples  # canonical cells override
     args = [
         "train",
-        "--model", recipe["__build_as"],
-        "--dataset", "mnist",
-        "--n-hidden", str(N_EXCITATORY),
-        "--input-rate", str(INPUT_RATE_HZ),
-        "--max-samples", str(ms),
-        "--epochs", str(epochs),
-        "--t-ms", str(T_MS),
-        "--dt", str(spec["dt_ms"]),
-        "--tau-gaba", str(spec["tau_gaba"]),
-        "--seed", str(spec["seed"]),
-        "--weight-decay", str(WEIGHT_DECAY),
+        "--model",
+        recipe["__build_as"],
+        "--dataset",
+        "mnist",
+        "--n-hidden",
+        str(N_EXCITATORY),
+        "--input-rate",
+        str(INPUT_RATE_HZ),
+        "--max-samples",
+        str(ms),
+        "--epochs",
+        str(epochs),
+        "--t-ms",
+        str(T_MS),
+        "--dt",
+        str(spec["dt_ms"]),
+        "--tau-gaba",
+        str(spec["tau_gaba"]),
+        "--seed",
+        str(spec["seed"]),
+        "--weight-decay",
+        str(WEIGHT_DECAY),
         "--dales-law",
-        "--out-dir", str(out_dir),
+        "--out-dir",
+        str(out_dir),
         "--wipe-dir",
     ]
     for k, v in recipe.items():
@@ -621,8 +738,10 @@ def final_rates(d: Path) -> tuple[float, float]:
     if not lines:
         return float("nan"), float("nan")
     row = json.loads(lines[-1])
-    return (float(row.get("test_rate_e", row.get("rate_e", float("nan")))),
-            float(row.get("test_rate_i", row.get("rate_i", float("nan")))))
+    return (
+        float(row.get("test_rate_e", row.get("rate_e", float("nan")))),
+        float(row.get("test_rate_i", row.get("rate_i", float("nan")))),
+    )
 
 
 FAMILY_COLORS = {
@@ -654,8 +773,13 @@ def training_curve(d: Path) -> tuple[list[int], list[float]]:
 
 
 FAMILY_ORDER = [
-    "canonical", "activity_frontier", "tau_gaba", "dt", "init",
-    "variable_rate", "low_w_in",
+    "canonical",
+    "activity_frontier",
+    "tau_gaba",
+    "dt",
+    "init",
+    "variable_rate",
+    "low_w_in",
 ]
 FAMILY_LABELS = {
     "canonical": "Canonical reference",
@@ -673,8 +797,9 @@ FAMILY_ARTIFACT_SLUGS = {
 }
 
 
-def plot_family_curves(family: str, cells: list[dict],
-                       out_path: Path, run_id: str) -> int:
+def plot_family_curves(
+    family: str, cells: list[dict], out_path: Path, run_id: str
+) -> int:
     """One figure for one family: each cell's test-accuracy learning curve,
     coloured by the swept value. Returns the number of cells actually drawn."""
     import matplotlib.cm as cm
@@ -684,31 +809,58 @@ def plot_family_curves(family: str, cells: list[dict],
     plt.rcParams["savefig.bbox"] = "standard"
     tags = list(dict.fromkeys(c["tag"] for c in cells))  # ordered unique
     # cm.viridis exists at runtime; the matplotlib stub omits it (false positive).
-    colours = {t: cm.viridis(i / max(1, len(tags) - 1))  # ty: ignore[unresolved-attribute]
-               for i, t in enumerate(tags)}
+    colours = {
+        t: cm.viridis(i / max(1, len(tags) - 1))  # ty: ignore[unresolved-attribute]
+        for i, t in enumerate(tags)
+    }
     # ping (and ping-init) solid, coba dashed — distinguishes the two models
     # in families that train both (rate target, canonical).
     linestyle = {"coba": "--", "ping": "-", "ping_init": "-"}
     models = list(dict.fromkeys(c["model"] for c in cells))
 
-    fig, ax = plt.subplots(figsize=(6.5, 3.66))   # H11–H12: column width, 16:9
+    fig, ax = plt.subplots(figsize=(6.5, 3.66))  # H11–H12: column width, 16:9
     n = 0
     for c in cells:
         eps, accs = training_curve(cell_dir(c["name"]))
         if eps:
-            ax.plot(eps, accs, lw=1.1, color=colours[c["tag"]],
-                    ls=linestyle.get(c["model"], "-"), alpha=0.85)
+            ax.plot(
+                eps,
+                accs,
+                lw=1.1,
+                color=colours[c["tag"]],
+                ls=linestyle.get(c["model"], "-"),
+                alpha=0.85,
+            )
             n += 1
     handles = [Line2D([0], [0], color=colours[t], lw=2.4, label=t) for t in tags]
-    leg1 = ax.legend(handles=handles, frameon=False, fontsize=theme.SIZE_LEGEND,
-                     ncol=2, loc="lower right", title="swept value")
+    leg1 = ax.legend(
+        handles=handles,
+        frameon=False,
+        fontsize=theme.SIZE_LEGEND,
+        ncol=2,
+        loc="lower right",
+        title="swept value",
+    )
     ax.add_artist(leg1)
     if len(models) > 1:
-        mh = [Line2D([0], [0], color=theme.MUTED, lw=2.0,
-                     ls=linestyle.get(m, "-"), label="ping" if m == "ping_init" else m)
-              for m in models]
-        ax.legend(handles=mh, frameon=False, fontsize=theme.SIZE_LEGEND,
-                  loc="lower center", title="model")
+        mh = [
+            Line2D(
+                [0],
+                [0],
+                color=theme.MUTED,
+                lw=2.0,
+                ls=linestyle.get(m, "-"),
+                label="ping" if m == "ping_init" else m,
+            )
+            for m in models
+        ]
+        ax.legend(
+            handles=mh,
+            frameon=False,
+            fontsize=theme.SIZE_LEGEND,
+            loc="lower center",
+            title="model",
+        )
     ax.set_xlabel("epoch")
     ax.set_ylabel("test accuracy (%)")
     ax.set_ylim(0, 100)
@@ -718,7 +870,7 @@ def plot_family_curves(family: str, cells: list[dict],
     fig.tight_layout()
     stamp_figure(fig, run_id)
     out_path.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(out_path)   # H10: line plot → SVG (caller passes .svg); dpi from theme
+    fig.savefig(out_path)  # H10: line plot → SVG (caller passes .svg); dpi from theme
     plt.close(fig)
     return n
 
@@ -727,6 +879,7 @@ def plot_family_curves(family: str, cells: list[dict],
 # The generic pod-fleet machinery lives in helpers/runpod.py; these functions
 # are the exp022-specific glue that tells it what to train. Driven by the
 # `--runpod` path in main(); see writings/exp022.typ §3 for the compute design.
+
 
 def runpod_is_done(cell: dict, plumbing: bool) -> bool:
     """A cell is done iff its metrics.json exists AND was trained at the scale
@@ -747,9 +900,11 @@ def runpod_is_done(cell: dict, plumbing: bool) -> bool:
     if plumbing:
         os.environ["PINGLAB_NB022_PLUMBING"] = "1"
     want_ms, want_ep = cell_samples_epochs(cell)
-    return (cfg.get("max_samples") == want_ms
-            and cfg.get("epochs") == want_ep
-            and cfg.get("dt") == cell["dt_ms"])
+    return (
+        cfg.get("max_samples") == want_ms
+        and cfg.get("epochs") == want_ep
+        and cfg.get("dt") == cell["dt_ms"]
+    )
 
 
 def _train_one_cell(cell: dict, plumbing: bool) -> None:
@@ -819,7 +974,8 @@ def pod_run() -> None:
 
     runpod.pod_run_loop(
         job_ids=[c["name"] for c in CANONICAL_CELLS],
-        is_done=is_done, run_job=run_job,
+        is_done=is_done,
+        run_job=run_job,
     )
 
 
@@ -830,8 +986,12 @@ def runpod_buckets(cells: list[dict], cells_per_pod: int) -> list[dict]:
     sweep = [c["name"] for c in cells if c["family"] != "canonical"]
     buckets = [{"name": f"canon-{n}", "cells": [n]} for n in canonical]
     for i in range(0, len(sweep), cells_per_pod):
-        buckets.append({"name": f"sweep-{i // cells_per_pod:02d}",
-                        "cells": sweep[i:i + cells_per_pod]})
+        buckets.append(
+            {
+                "name": f"sweep-{i // cells_per_pod:02d}",
+                "cells": sweep[i : i + cells_per_pod],
+            }
+        )
     return buckets
 
 
@@ -857,9 +1017,13 @@ def run_via_runpod(argv: list[str]) -> None:
             raise SystemExit(f"unknown cell(s): {sorted(missing)}")
 
     runpod.dispatch(
-        slug=SLUG, runner=SLUG,
+        slug=SLUG,
+        runner=SLUG,
         buckets=runpod_buckets(cells, meta.cells_per_pod),
-        gpu=meta.gpu, live=meta.live, plumbing=meta.plumbing, collect=meta.collect,
+        gpu=meta.gpu,
+        live=meta.live,
+        plumbing=meta.plumbing,
+        collect=meta.collect,
         collect_subdir=runpod.TRAINING_SUBDIR,
         local_collect_dir=str(TRAINING_ROOT),
         plumbing_env={"PINGLAB_NB022_PLUMBING": "1"},
@@ -867,6 +1031,7 @@ def run_via_runpod(argv: list[str]) -> None:
 
 
 # ── Appendix: one fixed-input raster per config (visual inspection) ──
+
 
 def _gamma_psd(spk_i, dt):
     """I-population power spectrum + gamma peak from a single-trial raster.
@@ -880,15 +1045,15 @@ def _gamma_psd(spk_i, dt):
     import numpy as np
 
     T, ni = spk_i.shape
-    spm = max(1, round(1.0 / dt))          # timesteps per 1 ms bin (dt-aware:
-    nb = T // spm                          # the Δt sweep cells vary dt)
+    spm = max(1, round(1.0 / dt))  # timesteps per 1 ms bin (dt-aware:
+    nb = T // spm  # the Δt sweep cells vary dt)
     b = spk_i[: nb * spm].reshape(nb, spm, ni).sum(axis=(1, 2)).astype(float)  # pop/ms
-    if b.sum() < 50:                       # essentially silent (e.g. COBA I pop)
+    if b.sum() < 50:  # essentially silent (e.g. COBA I pop)
         return None, None, None
     k = np.exp(-0.5 * ((np.arange(31) - 15) / 3.0) ** 2)
     k /= k.sum()
     x = np.convolve(b - b.mean(), k, "same") * np.hanning(nb)
-    fr = np.fft.rfftfreq(nb, 1 / 1000.0)   # 1 kHz after 1 ms binning
+    fr = np.fft.rfftfreq(nb, 1 / 1000.0)  # 1 kHz after 1 ms binning
     P = np.abs(np.fft.rfft(x)) ** 2
     band = (fr >= 20) & (fr <= 110)
     fpk = float(fr[band][np.argmax(P[band])])
@@ -915,8 +1080,9 @@ def _plot_snapshot_raster(snap_path: Path, out_png: Path) -> None:
     theme.apply()
     # H12: stacked multi-panel, column width, height capped so it fits a page.
     fig = plt.figure(figsize=(6.5, 5.0))
-    gs = fig.add_gridspec(2, 2, height_ratios=[3, 1.15], width_ratios=[3, 1],
-                          hspace=0.32, wspace=0.20)
+    gs = fig.add_gridspec(
+        2, 2, height_ratios=[3, 1.15], width_ratios=[3, 1], hspace=0.32, wspace=0.20
+    )
     ax = fig.add_subplot(gs[0, :])
     ax2 = fig.add_subplot(gs[1, 0])
     ax3 = fig.add_subplot(gs[1, 1])
@@ -931,9 +1097,15 @@ def _plot_snapshot_raster(snap_path: Path, out_png: Path) -> None:
     # values stay as a compact data annotation — they're computed at render time
     # from this raster, so they can't drift, unlike a hand-typed caption number.
     gtxt = f"f_γ ≈ {fgam:.0f} Hz" if fgam else "asynchronous (no γ)"
-    ax.annotate(f"digit 0 · E {e_hz:.0f} Hz · I {i_hz:.0f} Hz · {gtxt}",
-                xy=(0, 1.02), xycoords="axes fraction", fontsize=theme.SIZE_ANNOTATION,
-                color=theme.MUTED, ha="left", va="bottom")
+    ax.annotate(
+        f"digit 0 · E {e_hz:.0f} Hz · I {i_hz:.0f} Hz · {gtxt}",
+        xy=(0, 1.02),
+        xycoords="axes fraction",
+        fontsize=theme.SIZE_ANNOTATION,
+        color=theme.MUTED,
+        ha="left",
+        va="bottom",
+    )
 
     bins = np.arange(0, tms + 1, 1.0)
     re, _ = np.histogram(et * dt, bins=bins)
@@ -948,6 +1120,7 @@ def _plot_snapshot_raster(snap_path: Path, out_png: Path) -> None:
 
     if fr is not None:
         import numpy as np
+
         # Normalise to the gamma-band peak (not the DC/onset bin, which otherwise
         # dwarfs the rhythm) and drop the low-freq ramp so f_γ is the visual focus.
         gband = (fr >= 20) & (fr <= 110)
@@ -956,12 +1129,26 @@ def _plot_snapshot_raster(snap_path: Path, out_png: Path) -> None:
         ax3.plot(fr[m], np.clip(P[m] / norm, 0, 1.3), c=theme.DEEP_RED, lw=1.0)
         if fgam:
             ax3.axvline(fgam, color=theme.INK_BLACK, ls="--", lw=0.9)
-            ax3.annotate(f"{fgam:.0f} Hz", xy=(fgam, 1.0), xytext=(5, -3),
-                         textcoords="offset points", fontsize=9, fontweight="bold")
+            ax3.annotate(
+                f"{fgam:.0f} Hz",
+                xy=(fgam, 1.0),
+                xytext=(5, -3),
+                textcoords="offset points",
+                fontsize=9,
+                fontweight="bold",
+            )
         ax3.set_ylim(0, 1.3)
     else:
-        ax3.text(0.5, 0.5, "I silent\n(no γ loop)", ha="center", va="center",
-                 transform=ax3.transAxes, fontsize=9, color=theme.MUTED)
+        ax3.text(
+            0.5,
+            0.5,
+            "I silent\n(no γ loop)",
+            ha="center",
+            va="center",
+            transform=ax3.transAxes,
+            fontsize=9,
+            color=theme.MUTED,
+        )
     ax3.set_xlim(0, 120)
     ax3.set_xlabel("freq (Hz)")
     ax3.set_ylabel("I PSD (norm)")
@@ -970,7 +1157,7 @@ def _plot_snapshot_raster(snap_path: Path, out_png: Path) -> None:
         for sp in ("top", "right"):
             a.spines[sp].set_visible(False)
     out_png.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(out_png)   # PNG (dense raster, H10); dpi 240 from theme (H11)
+    fig.savefig(out_png)  # PNG (dense raster, H10); dpi 240 from theme (H11)
     plt.close(fig)
 
 
@@ -997,17 +1184,25 @@ def appendix_rasters() -> None:
             checkpoint = resolve_checkpoint(d, RESULT_CHECKPOINT_ROLE)
             scratch = scratch_root / c["name"]
             inference_args = [
-                sys.executable, str(SNN_TOOL), "sim", "--infer",
-                "--load-config", str(d / "config.json"),
-                "--load-weights", str(checkpoint["path"]),
-                "--digit", "0", "--sample", "0",
-                "--out-dir", str(scratch), "--wipe-dir",
+                sys.executable,
+                str(SNN_TOOL),
+                "sim",
+                "--infer",
+                "--load-config",
+                str(d / "config.json"),
+                "--load-weights",
+                str(checkpoint["path"]),
+                "--digit",
+                "0",
+                "--sample",
+                "0",
+                "--out-dir",
+                str(scratch),
+                "--wipe-dir",
             ]
             if c["family"] == "variable_rate":
                 inference_args += ["--input-rate", "5"]
-            subprocess.run(
-                inference_args,
-                cwd=REPO, check=True, capture_output=True)
+            subprocess.run(inference_args, cwd=REPO, check=True, capture_output=True)
             _plot_snapshot_raster(scratch / "snapshot.npz", rdir / f"{c['name']}.png")
             print(f"  {c['name']}.png")
     finally:
@@ -1020,6 +1215,7 @@ def appendix_rasters() -> None:
 # that training-pool size, so
 # the raster density gap between coba/ping canonical and off is attributable to
 # the training data alone — the visual counterpart to the ≈ 2× firing-rate gap.
+
 
 def _raster_panel(ax, snap_path: Path) -> tuple[float, float]:
     """Draw one raster (E black below the divider, I red above) into `ax` from a
@@ -1061,8 +1257,12 @@ def comparison_rasters() -> None:
     col_titles = ["100% MNIST (canonical)", "10% MNIST (off)"]
     scratch_root = ARTIFACTS / "comparison-scratch"
     theme.apply()
-    fig, axes = plt.subplots(2, 2, figsize=(9, 5.06),   # H11–H12: 16:9
-                             gridspec_kw={"hspace": 0.30, "wspace": 0.14})
+    fig, axes = plt.subplots(
+        2,
+        2,
+        figsize=(9, 5.06),  # H11–H12: 16:9
+        gridspec_kw={"hspace": 0.30, "wspace": 0.14},
+    )
     print(
         "comparison: 4 rasters (seed 42) → "
         f"{_display_path(FIGURES / 'comparison__data_fraction.png')}"
@@ -1073,24 +1273,51 @@ def comparison_rasters() -> None:
                 ax = axes[r][cc]
                 d = cell_dir(name)
                 if not (d / "weights_final.pth").exists():
-                    ax.text(0.5, 0.5, f"{name}\n(no weights)", ha="center",
-                            va="center", transform=ax.transAxes,
-                            fontsize=theme.SIZE_ANNOTATION, color=theme.MUTED)
+                    ax.text(
+                        0.5,
+                        0.5,
+                        f"{name}\n(no weights)",
+                        ha="center",
+                        va="center",
+                        transform=ax.transAxes,
+                        fontsize=theme.SIZE_ANNOTATION,
+                        color=theme.MUTED,
+                    )
                     continue
                 checkpoint = resolve_checkpoint(d, RESULT_CHECKPOINT_ROLE)
                 scratch = scratch_root / name
                 subprocess.run(
-                    [sys.executable, str(SNN_TOOL), "sim", "--infer",
-                     "--load-config", str(d / "config.json"),
-                     "--load-weights", str(checkpoint["path"]),
-                     "--digit", "0", "--sample", "0",
-                     "--out-dir", str(scratch), "--wipe-dir"],
-                    cwd=REPO, check=True, capture_output=True)
+                    [
+                        sys.executable,
+                        str(SNN_TOOL),
+                        "sim",
+                        "--infer",
+                        "--load-config",
+                        str(d / "config.json"),
+                        "--load-weights",
+                        str(checkpoint["path"]),
+                        "--digit",
+                        "0",
+                        "--sample",
+                        "0",
+                        "--out-dir",
+                        str(scratch),
+                        "--wipe-dir",
+                    ],
+                    cwd=REPO,
+                    check=True,
+                    capture_output=True,
+                )
                 e_hz, i_hz = _raster_panel(ax, scratch / "snapshot.npz")
-                ax.annotate(f"E {e_hz:.0f} Hz · I {i_hz:.0f} Hz",
-                            xy=(0, 1.01), xycoords="axes fraction",
-                            fontsize=theme.SIZE_ANNOTATION, color=theme.MUTED,
-                            ha="left", va="bottom")
+                ax.annotate(
+                    f"E {e_hz:.0f} Hz · I {i_hz:.0f} Hz",
+                    xy=(0, 1.01),
+                    xycoords="axes fraction",
+                    fontsize=theme.SIZE_ANNOTATION,
+                    color=theme.MUTED,
+                    ha="left",
+                    va="bottom",
+                )
                 if r == 0:
                     ax.set_title(col_titles[cc], fontsize=theme.SIZE_LABEL)
                 if cc == 0:
@@ -1101,7 +1328,7 @@ def comparison_rasters() -> None:
                     ax.spines[sp].set_visible(False)
         out = FIGURES / "comparison__data_fraction.png"
         out.parent.mkdir(parents=True, exist_ok=True)
-        fig.savefig(out)   # PNG (dense raster, H10); dpi 240 from theme (H11)
+        fig.savefig(out)  # PNG (dense raster, H10); dpi 240 from theme (H11)
         plt.close(fig)
         print(f"  wrote {_display_path(out)}")
     finally:
@@ -1160,7 +1387,9 @@ def _checked_manifest(path: Path, *, allow_generated_dirty: bool = False) -> dic
         raise SystemExit("campaign contains duplicate cell names")
     expected_names_list = [cell["name"] for cell in selected_cells]
     if manifest_names_list != expected_names_list:
-        raise SystemExit("campaign cell list does not exactly match its declared selection")
+        raise SystemExit(
+            "campaign cell list does not exactly match its declared selection"
+        )
     previous_plumbing = os.environ.get("PINGLAB_NB022_PLUMBING")
     runtime_commands = {}
     try:
@@ -1172,11 +1401,19 @@ def _checked_manifest(path: Path, *, allow_generated_dirty: bool = False) -> dic
             spec = _cell_by_name(row["name"])
             assert spec is not None
             samples, epochs = cell_samples_epochs(spec)
-            command_spec = ({k: v for k, v in spec.items() if k != "max_samples"}
-                            if manifest.get("plumbing") else spec)
-            train_args = build_train_args(command_spec, root / "cells" / spec["name"], samples, epochs)
+            command_spec = (
+                {k: v for k, v in spec.items() if k != "max_samples"}
+                if manifest.get("plumbing")
+                else spec
+            )
+            train_args = build_train_args(
+                command_spec, root / "cells" / spec["name"], samples, epochs
+            )
             resolved = campaign.resolved_parameters(
-                spec, train_args, samples, epochs,
+                spec,
+                train_args,
+                samples,
+                epochs,
                 scientific_contract=scientific_contract(spec, samples, epochs),
             )
             command = [campaign.python_executable(), str(SNN_TOOL), *train_args]
@@ -1195,7 +1432,9 @@ def _checked_manifest(path: Path, *, allow_generated_dirty: bool = False) -> dic
             if row != expected:
                 raise SystemExit(f"campaign manifest registry drift for {row['name']}")
             if output_directory.parent != (root / "cells").resolve():
-                raise SystemExit(f"campaign output path escapes the cells root: {row['name']}")
+                raise SystemExit(
+                    f"campaign output path escapes the cells root: {row['name']}"
+                )
             runtime_commands[row["name"]] = command
     finally:
         if previous_plumbing is None:
@@ -1210,39 +1449,53 @@ def _stamp_campaign_identity(directory: Path, manifest: dict, row: dict) -> None
     for filename in ("config.json", "metrics.json"):
         path = directory / filename
         payload = json.loads(path.read_text())
-        payload.update({
-            "campaign_id": manifest["campaign_id"],
-            "campaign_manifest_sha256": manifest["manifest_sha256"],
-            "resource_tier": row["resource_tier"],
-            "campaign_repository_commit": manifest["repository"]["commit"],
-            "campaign_resolved_parameters": row["parameters"],
-        })
-        nested = payload.get("config")
-        if isinstance(nested, dict):
-            nested.update({
+        payload.update(
+            {
                 "campaign_id": manifest["campaign_id"],
                 "campaign_manifest_sha256": manifest["manifest_sha256"],
                 "resource_tier": row["resource_tier"],
                 "campaign_repository_commit": manifest["repository"]["commit"],
                 "campaign_resolved_parameters": row["parameters"],
-            })
+            }
+        )
+        nested = payload.get("config")
+        if isinstance(nested, dict):
+            nested.update(
+                {
+                    "campaign_id": manifest["campaign_id"],
+                    "campaign_manifest_sha256": manifest["manifest_sha256"],
+                    "resource_tier": row["resource_tier"],
+                    "campaign_repository_commit": manifest["repository"]["commit"],
+                    "campaign_resolved_parameters": row["parameters"],
+                }
+            )
         campaign.atomic_json(path, payload)
 
 
 def _gpu_metadata() -> dict:
     try:
         query = subprocess.run(
-            ["nvidia-smi", "--query-gpu=name,memory.total,memory.used", "--format=csv,noheader,nounits"],
-            capture_output=True, text=True,
+            [
+                "nvidia-smi",
+                "--query-gpu=name,memory.total,memory.used",
+                "--format=csv,noheader,nounits",
+            ],
+            capture_output=True,
+            text=True,
         )
     except FileNotFoundError:
         return {"available": False}
     if query.returncode != 0:
         return {"available": False}
-    return {"available": True, "devices": [line.strip() for line in query.stdout.splitlines()]}
+    return {
+        "available": True,
+        "devices": [line.strip() for line in query.stdout.splitlines()],
+    }
 
 
-def _campaign_train(manifest_path: Path, name: str, *, recover_stale: bool = False) -> int:
+def _campaign_train(
+    manifest_path: Path, name: str, *, recover_stale: bool = False
+) -> int:
     manifest = _checked_manifest(manifest_path)
     row = campaign.manifest_cell(manifest, name)
     directory = Path(row["output_directory"])
@@ -1251,7 +1504,9 @@ def _campaign_train(manifest_path: Path, name: str, *, recover_stale: bool = Fal
         print(f"[skip-valid] {name} is complete and will not be touched")
         return 0
     record, attempt_lock = campaign.acquire_attempt(
-        manifest, row, recover_stale=recover_stale,
+        manifest,
+        row,
+        recover_stale=recover_stale,
     )
     status_path = campaign.status_path(manifest, name)
     exit_code = 1
@@ -1259,12 +1514,16 @@ def _campaign_train(manifest_path: Path, name: str, *, recover_stale: bool = Fal
     try:
         existing = campaign.validate_cell(row)
         if existing["valid"]:
-            record.update({
-                "ended_at_utc": campaign.utc_now(), "exit_code": 0,
-                "elapsed_seconds": round(time.monotonic() - attempt_started, 3),
-                "state": "complete", "validation": existing,
-                "note": "became valid before training ownership was acquired",
-            })
+            record.update(
+                {
+                    "ended_at_utc": campaign.utc_now(),
+                    "exit_code": 0,
+                    "elapsed_seconds": round(time.monotonic() - attempt_started, 3),
+                    "state": "complete",
+                    "validation": existing,
+                    "note": "became valid before training ownership was acquired",
+                }
+            )
             campaign.atomic_json(status_path, record)
             print(f"[skip-valid] {name} became complete and will not be touched")
             return 0
@@ -1292,25 +1551,38 @@ def _campaign_train(manifest_path: Path, name: str, *, recover_stale: bool = Fal
             metrics_payload = load_metrics(directory)
         except (OSError, ValueError, json.JSONDecodeError):
             metrics_payload = {}
-        record.update({
-            "ended_at_utc": campaign.utc_now(), "exit_code": exit_code,
-            "elapsed_seconds": round(time.monotonic() - attempt_started, 3),
-            "state": "complete" if exit_code == 0 and validation["valid"] else "failed",
-            "validation": validation,
-            "gpu_after": _gpu_metadata(),
-            "training_performance": metrics_payload.get("perf"),
-            "output_bytes": sum(path.stat().st_size for path in directory.rglob("*") if path.is_file()),
-        })
+        record.update(
+            {
+                "ended_at_utc": campaign.utc_now(),
+                "exit_code": exit_code,
+                "elapsed_seconds": round(time.monotonic() - attempt_started, 3),
+                "state": "complete"
+                if exit_code == 0 and validation["valid"]
+                else "failed",
+                "validation": validation,
+                "gpu_after": _gpu_metadata(),
+                "training_performance": metrics_payload.get("perf"),
+                "output_bytes": sum(
+                    path.stat().st_size
+                    for path in directory.rglob("*")
+                    if path.is_file()
+                ),
+            }
+        )
         directory.mkdir(parents=True, exist_ok=True)
         campaign.atomic_json(directory / "attempt.json", record)
         campaign.atomic_json(status_path, record)
         return 0 if record["state"] == "complete" else 1
     except BaseException as exc:
-        record.update({
-            "ended_at_utc": campaign.utc_now(), "exit_code": exit_code,
-            "elapsed_seconds": round(time.monotonic() - attempt_started, 3),
-            "state": "failed", "error": f"{type(exc).__name__}: {exc}",
-        })
+        record.update(
+            {
+                "ended_at_utc": campaign.utc_now(),
+                "exit_code": exit_code,
+                "elapsed_seconds": round(time.monotonic() - attempt_started, 3),
+                "state": "failed",
+                "error": f"{type(exc).__name__}: {exc}",
+            }
+        )
         directory.mkdir(parents=True, exist_ok=True)
         campaign.atomic_json(directory / "attempt.json", record)
         campaign.atomic_json(status_path, record)
@@ -1320,10 +1592,17 @@ def _campaign_train(manifest_path: Path, name: str, *, recover_stale: bool = Fal
 
 
 def _handle_campaign_cli(argv: list[str]) -> bool:
-    if not any(flag in argv for flag in (
-        "--campaign-manifest", "--campaign-status", "--campaign-list",
-        "--campaign-train-cell", "--campaign-validate", "--campaign-aggregate",
-    )):
+    if not any(
+        flag in argv
+        for flag in (
+            "--campaign-manifest",
+            "--campaign-status",
+            "--campaign-list",
+            "--campaign-train-cell",
+            "--campaign-validate",
+            "--campaign-aggregate",
+        )
+    ):
         return False
     args = _campaign_parser().parse_args(argv[1:])
     if args.campaign_manifest:
@@ -1337,9 +1616,13 @@ def _handle_campaign_cli(argv: list[str]) -> bool:
             os.environ["PINGLAB_NB022_PLUMBING"] = "1"
         root = args.campaign_manifest.resolve()
         manifest = campaign.create_manifest(
-            repo=REPO, campaign_root=root, campaign_id=args.campaign_id,
-            cells=selected, tier_for=cell_resource_tier,
-            samples_epochs=cell_samples_epochs, build_args=build_train_args,
+            repo=REPO,
+            campaign_root=root,
+            campaign_id=args.campaign_id,
+            cells=selected,
+            tier_for=cell_resource_tier,
+            samples_epochs=cell_samples_epochs,
+            build_args=build_train_args,
             scientific_contract_for=scientific_contract,
             plumbing=args.plumbing,
             selection_tier=args.tier,
@@ -1355,16 +1638,24 @@ def _handle_campaign_cli(argv: list[str]) -> bool:
         campaign.write_manifest(root / "campaign.json", manifest)
         print(root / "campaign.json")
         return True
-    manifest_path = (args.campaign or args.campaign_status or args.campaign_list
-                     or args.campaign_validate or args.campaign_aggregate)
+    manifest_path = (
+        args.campaign
+        or args.campaign_status
+        or args.campaign_list
+        or args.campaign_validate
+        or args.campaign_aggregate
+    )
     if manifest_path is None:
         raise SystemExit("--campaign MANIFEST is required")
     manifest = _checked_manifest(manifest_path)
     if args.campaign_train_cell:
-        raise SystemExit(_campaign_train(
-            manifest_path, args.campaign_train_cell,
-            recover_stale=args.recover_stale,
-        ))
+        raise SystemExit(
+            _campaign_train(
+                manifest_path,
+                args.campaign_train_cell,
+                recover_stale=args.recover_stale,
+            )
+        )
     if args.campaign_validate:
         print(f"valid manifest {manifest['campaign_id']} {manifest['manifest_sha256']}")
         return True
@@ -1378,11 +1669,15 @@ def _handle_campaign_cli(argv: list[str]) -> bool:
                 f"aggregation refused: {len(incomplete)} cells are not valid"
             )
         environment = os.environ.copy()
-        environment["PINGLAB_TRAINING_ROOT"] = str(Path(manifest["campaign_root"]) / "cells")
+        environment["PINGLAB_TRAINING_ROOT"] = str(
+            Path(manifest["campaign_root"]) / "cells"
+        )
         environment["EXP022_VERIFIED_CAMPAIGN"] = str(manifest_path.resolve())
         subprocess.run(
             [sys.executable, str(Path(__file__).resolve()), "--skip-training"],
-            cwd=REPO, env=environment, check=True,
+            cwd=REPO,
+            env=environment,
+            check=True,
         )
         # The guide embeds representative rasters as required results, not as
         # optional local decorations.  Generate them from the verified bank as
@@ -1405,7 +1700,11 @@ def _handle_campaign_cli(argv: list[str]) -> bool:
             raise SystemExit("campaign changed during aggregation")
         return True
     if args.campaign_list:
-        cells = [cell for cell in manifest["cells"] if args.tier == "all" or cell["resource_tier"] == args.tier]
+        cells = [
+            cell
+            for cell in manifest["cells"]
+            if args.tier == "all" or cell["resource_tier"] == args.tier
+        ]
         if args.retry_only:
             retry = set(status["retry_cells"])
             cells = [cell for cell in cells if cell["name"] in retry]
@@ -1449,7 +1748,7 @@ def main() -> None:
 
     # RunPod backend + kill switch are handled before the local path.
     if meta.pod_run:
-        pod_run()   # runs ON a pod: train assigned cells to the volume, self-terminate
+        pod_run()  # runs ON a pod: train assigned cells to the volume, self-terminate
         return
     if meta.reap:
         runpod.reap_all_pods()
@@ -1465,12 +1764,20 @@ def main() -> None:
 
     t_start = time.monotonic()
     run_id = next_run_id(SLUG)
-    print(f"notebook_run_id = {run_id} "
-          f"cells={len(CANONICAL_CELLS)}"
-          + ("  [skip-training]" if skip_training else ""))
+    print(
+        f"notebook_run_id = {run_id} "
+        f"cells={len(CANONICAL_CELLS)}" + ("  [skip-training]" if skip_training else "")
+    )
     # Wipe only this entry's figures, never the shared TRAINING_ROOT.
-    prepare_run_dirs(SLUG, run_id, wipe=True, skip_training=skip_training,
-                     make_artifacts=False, scale=SCALE, host="local")
+    prepare_run_dirs(
+        SLUG,
+        run_id,
+        wipe=True,
+        skip_training=skip_training,
+        make_artifacts=False,
+        scale=SCALE,
+        host="local",
+    )
 
     if not skip_training:
         TRAINING_ROOT.mkdir(parents=True, exist_ok=True)
@@ -1487,26 +1794,36 @@ def main() -> None:
         _stamp_training_run_identity(c)
         m = load_metrics(d)
         re, ri = final_rates(d)
-        rows.append({
-            "name": c["name"], "model": c["model"], "family": c["family"],
-            "training_run_id": c["training_run_id"],
-            "tag": c["tag"], "seed": c["seed"],
-            "acc": float(m.get("best_acc", float("nan"))),
-            "best_epoch": m.get("best_epoch"), "rate_e": re, "rate_i": ri,
-        })
-        print(f"  {c['name']:<22} acc={rows[-1]['acc']:5.1f}%  "
-              f"E={re:5.1f}Hz I={ri:5.1f}Hz")
+        rows.append(
+            {
+                "name": c["name"],
+                "model": c["model"],
+                "family": c["family"],
+                "training_run_id": c["training_run_id"],
+                "tag": c["tag"],
+                "seed": c["seed"],
+                "acc": float(m.get("best_acc", float("nan"))),
+                "best_epoch": m.get("best_epoch"),
+                "rate_e": re,
+                "rate_i": ri,
+            }
+        )
+        print(
+            f"  {c['name']:<22} acc={rows[-1]['acc']:5.1f}%  "
+            f"E={re:5.1f}Hz I={ri:5.1f}Hz"
+        )
 
     # One training-curve figure per family. Untrained families get no figure,
     # so the entry's <Figure> shows its "not generated yet" placeholder.
     family_status = {}
     for fam in FAMILY_ORDER:
         fcells = [c for c in CANONICAL_CELLS if c["family"] == fam]
-        n_trained = sum(1 for c in fcells
-                        if (cell_dir(c["name"]) / "metrics.jsonl").exists())
+        n_trained = sum(
+            1 for c in fcells if (cell_dir(c["name"]) / "metrics.jsonl").exists()
+        )
         family_status[fam] = {"cells": len(fcells), "trained": n_trained}
         artifact_slug = FAMILY_ARTIFACT_SLUGS.get(fam, fam)
-        out = FIGURES / f"curves__{artifact_slug}.svg"   # H10: line plots → SVG
+        out = FIGURES / f"curves__{artifact_slug}.svg"  # H10: line plots → SVG
         if n_trained:
             plot_family_curves(fam, fcells, out, run_id)
             print(f"wrote {out}")
@@ -1517,17 +1834,29 @@ def main() -> None:
     # Provenance: the git sha lives in each cell's config.json (metrics.json's
     # own config block has a null git_sha). Take the first cell that has one.
     # coerce to str for cell_dir (r["name"] widens to a union across rows).
-    git_sha = next((s for s in (load_config(cell_dir(str(r["name"]))).get("git_sha")
-                                for r in rows) if s), None)
+    git_sha = next(
+        (
+            s
+            for s in (
+                load_config(cell_dir(str(r["name"]))).get("git_sha") for r in rows
+            )
+            if s
+        ),
+        None,
+    )
     summary = {
         "notebook_run_id": run_id,
         "git_sha": git_sha,
         "duration_s": round(duration_s, 1),
         "duration": format_duration(duration_s),
-        "standard": {"epochs": EPOCHS_STANDARD, "dt_ms": DT_MS, "t_ms": T_MS,
-                     "dataset": "mnist",
-                     "max_samples_canonical": CANONICAL_MAX_SAMPLES,
-                     "max_samples_sweeps": SUBSET_MAX_SAMPLES},
+        "standard": {
+            "epochs": EPOCHS_STANDARD,
+            "dt_ms": DT_MS,
+            "t_ms": T_MS,
+            "dataset": "mnist",
+            "max_samples_canonical": CANONICAL_MAX_SAMPLES,
+            "max_samples_sweeps": SUBSET_MAX_SAMPLES,
+        },
         "training_root": training_root_provenance(TRAINING_ROOT),
         "result_checkpoint_provenance": checkpoint_provenance(
             [cell_dir(c["name"]) for c in CANONICAL_CELLS],
@@ -1549,7 +1878,8 @@ def main() -> None:
             "campaign_root": source["campaign_root"],
         }
     (FIGURES / "numbers.json").write_text(
-        json.dumps(_json_safe(summary), indent=2) + "\n")
+        json.dumps(_json_safe(summary), indent=2) + "\n"
+    )
     print(f"wrote {FIGURES / 'numbers.json'}")
     print(f"  total duration: {summary['duration']}")
 
