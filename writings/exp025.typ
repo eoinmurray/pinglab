@@ -142,10 +142,12 @@
   I-burst peak detection and per-(cell, cycle) spike counting (style of
   #link("/exp046/")[exp046]).
 
-  *Basin and landscape probes.* To test basin attractivity, four input-weight
+  *Basin and landscape probes.* To test basin attractivity, four input-coupling
   conditions are each trained with seeds 42, 43, and 44 (12 PING networks total),
-  trained with $W_"in"$ initialised at 0.05, 0.1, 0.3, and 0.9 ($r_"max" = 1$ Hz from
-  epoch 0; Figure 3). To map the loss landscape around the operating point, each
+  using parent means of 0.05, 0.1, 0.3, and 0.9 for the expected summed $W_"in"$
+  initialization before lower clamping and fan-in normalization ($r_"max" = 1$ Hz
+  from epoch 0; Figure 3). Exp022 owns these TR-07 trainings; this experiment
+  aggregates their checkpoints. To map the loss landscape around the operating point, each
   network trained at the tightest ceiling ($r_"max" = 1$ Hz) has its $W_"in"$ scaled
   by a common scalar $s in [0.05, 3]$ at inference with all other weights frozen,
   metrics averaged over the same fixed 1,000-image held-out subset at 24 values
@@ -202,10 +204,11 @@
     image(
       "/artifacts/data/exp025/low_w_in_sweep.svg",
       width: 100%,
-      alt: "Across-seed mean per-epoch test accuracy and E/I firing rates for four PING input-weight initializations, one column per W_in value.",
+      alt: "Across-seed mean per-epoch test accuracy and E/I firing rates for four PING input summed-coupling parent means, one column per condition.",
     ),
     caption: [
-      Across-seed mean per-epoch training traces for four initial $W_"in"$ values
+      Across-seed mean per-epoch training traces for four input summed-coupling
+      parent means
       (seeds 42–44, $r_"max" = 1$ Hz from epoch 0), one condition per column;
       shaded bands are SEM. Top: test accuracy. Bottom: test-set E (black) and I
       (red) firing rates. The comparison tests whether lower initial input drive

@@ -72,7 +72,7 @@
 
   == Abstract
 
-  Exp022 defines the collection's shared training runs and checkpoint bank. It specifies the motivation, parameterization, output-layer shape, and downstream consumers for seven training-run types comprising #r.n_cells cells. The runs span reference models and controlled sweeps over activity ceiling, inhibitory timescale, integration timestep, recurrent initialization, input rate, and initial input strength. Together, they provide the checkpoints used by the collection's training-dependent experiments.
+  Exp022 defines the collection's shared training runs and checkpoint bank. It specifies the motivation, parameterization, output-layer shape, and downstream consumers for seven training-run types comprising #r.n_cells cells. The runs span reference models and controlled sweeps over activity ceiling, inhibitory timescale, integration timestep, recurrent initialization, input rate, and feedforward input coupling. Together, they provide the checkpoints used by the collection's training-dependent experiments.
 
   Every cell saves two identified checkpoints. For MNIST, each epoch is evaluated over three fixed, independently seeded Poisson encodings of the validation split. The best-validation checkpoint minimizes mean validation cross-entropy across those draws, with mean accuracy as a tie-breaker; the final-epoch checkpoint represents the dynamical and parameter state at the end of training. The result rasters in this entry use the final-epoch checkpoint.
 
@@ -218,11 +218,15 @@
 
   === TR-07 — Low-input recruitment sweep
 
-  This run tests whether a PING network trained under the strict 1 Hz activity
-  ceiling can recruit its inhibitory loop when the input projection begins below
-  the standard strength. It uses the same reduced production scale as the other
-  sweeps; only the initial input-weight mean changes. The resulting checkpoints
-  are used by #run-links(("exp025",)).
+  TR-02 asks how changing the activity ceiling affects networks initialized at the
+  standard input coupling. TR-07 asks the complementary question: with the strictest
+  TR-02 ceiling fixed at 1 Hz from the first epoch, can PING recruit its inhibitory
+  loop when the feedforward projection starts weak? It varies the parent mean used
+  to initialize expected summed input coupling, before lower clamping and fan-in
+  normalization; it does not directly set the mean of the stored synaptic matrix.
+  The training pool, optimizer, recurrent loop, and `mem-mean` readout remain at the
+  reduced-sweep defaults. Exp022 owns all twelve checkpoints, and #run-links(("exp025",))
+  aggregates the three seeds at each setting to test recruitment and path dependence.
 
   #table(
     columns: (1.2fr, 1.65fr, 2fr),
@@ -230,8 +234,9 @@
     [Architecture], [PING], [Tests recruitment of the recurrent inhibitory loop],
     [Training pool], [7,000 samples], [6,300 optimizer-training and 700 validation samples],
     [Epochs], [50], [Matches the reduced production standard],
-    [Initial $W_"in"$ mean], [0.05, 0.1, 0.3, 0.9], [Spans weak drive through the shared standard initialization],
+    [Input summed-coupling parent mean], [0.05, 0.1, 0.3, 0.9], [Varies initial feedforward drive from weak coupling to the shared 0.9 standard before clamping and fan-in normalization],
     [Hidden-E rate target], [1 Hz], [Applies the strictest TR-02 activity ceiling from epoch 0],
+    [Parameters held fixed], [PING loop, optimizer, dataset split, and `mem-mean` readout], [Isolates initial feedforward recruitment from the activity-ceiling sweep],
     [Cells], [4 settings × 3 seeds = 12], [Across-seed estimate for every condition],
     [Readout shape], [$1024 arrow 10$ spiking LIF outputs], [`mem-mean`: mean membrane voltage supplies the logits],
   )
