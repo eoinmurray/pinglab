@@ -410,6 +410,7 @@ class TestSpikeCountReadout:
         recorded = net.spike_record["out_spikes"]
 
         assert torch.equal(logits, recorded.sum(dim=0))
+        assert torch.equal(net.last_output_spike_counts, logits)
         assert net.spike_record["v_out"].shape == recorded.shape
 
     def test_surrogate_spikes_propagate_gradient_to_output_weights(self):

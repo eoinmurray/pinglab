@@ -82,7 +82,7 @@ STREAMS_PER_CELL = int(
     os.environ.get("PINGLAB_EXP082_STREAMS_PER_CELL", 1 if SMOKE else 20)
 )
 DIGITS_PER_STREAM = int(
-    os.environ.get("PINGLAB_EXP082_DIGITS_PER_STREAM", 3 if SMOKE else 10)
+    os.environ.get("PINGLAB_EXP082_DIGITS_PER_STREAM", 3 if SMOKE else 5)
 )
 DT_MS = 0.1
 
@@ -217,6 +217,10 @@ def run_spikes(
             "uv", "run", "python", str(SNN_TOOL), "sim",
             "--load-config", str((directory / "config.json").resolve()),
             "--load-weights", str(checkpoint["path"]),
+            # Saved training configs record the accelerator used on Wilkes.
+            # Inference must select the current host rather than inheriting
+            # that non-portable device identity.
+            "--device", "auto",
             "--n-in", str(N_INPUT),
             "--input-file", str(input_path),
             "--outputs", "rasters",
@@ -263,6 +267,27 @@ def softmax(values: np.ndarray) -> np.ndarray:
     shifted = values - np.max(values)
     exp = np.exp(shifted)
     return exp / exp.sum()
+
+
+def output_activity_summary(
+    spikes_out: np.ndarray,
+    boundaries: list[int],
+) -> dict[str, Any]:
+    """Summarize output activity over declared presentation windows."""
+    counts = [
+        spikes_out[start:stop].sum(axis=0)
+        for start, stop in zip(boundaries[:-1], boundaries[1:], strict=True)
+    ]
+    per_presentation = np.asarray(counts, dtype=np.int64)
+    totals = per_presentation.sum(axis=1)
+    return {
+        "n_presentations": len(counts),
+        "total_output_spikes": int(totals.sum()),
+        "spikes_per_presentation": totals.tolist(),
+        "silent_presentations": int((totals == 0).sum()),
+        "silent_fraction": float((totals == 0).mean()),
+        "class_spike_totals": per_presentation.sum(axis=0).tolist(),
+    }
 
 
 def pick_digits(x_test: np.ndarray, y_test: np.ndarray, n: int, seed: int) -> tuple[np.ndarray, np.ndarray]:
@@ -314,6 +339,7 @@ def evaluate_stream(
         "spikes_i": spikes_i,
         "spikes_out": spikes_out,
         "probabilities": probabilities,
+        "output_activity": output_activity_summary(spikes_out, boundaries),
     }
 
 
@@ -322,6 +348,12 @@ def evaluate_cell(seed: int, duration_ms: float, rate_hz: float) -> dict[str, An
     rng = np.random.default_rng(82_000 + seed + int(duration_ms * 10) + int(rate_hz * 100))
     n_correct = 0
     n_total = 0
+    n_output_spikes = 0
+    n_silent_presentations = 0
+    n_e_spikes = 0
+    n_i_spikes = 0
+    total_duration_s = 0.0
+    class_spike_totals = np.zeros(N_CLASSES, dtype=np.int64)
     for stream_index in range(STREAMS_PER_CELL):
         indices = rng.choice(len(y_test), DIGITS_PER_STREAM, replace=False)
         conditions = tuple(
@@ -331,7 +363,7 @@ def evaluate_cell(seed: int, duration_ms: float, rate_hz: float) -> dict[str, An
             x_test[indices], conditions,
             torch.Generator().manual_seed(82_000 + seed * 100 + stream_index),
         )
-        _, _, spikes_out = run_spikes(
+        spikes_e, spikes_i, spikes_out = run_spikes(
             directory,
             spikes,
             f"cell_d{duration_ms:g}_r{rate_hz:g}_s{stream_index}",
@@ -347,6 +379,13 @@ def evaluate_cell(seed: int, duration_ms: float, rate_hz: float) -> dict[str, An
             logits = spike_count_logits(spikes_out, start, stop)
             n_correct += int(np.argmax(logits) == label)
             n_total += 1
+            spike_total = int(logits.sum())
+            n_output_spikes += spike_total
+            n_silent_presentations += int(spike_total == 0)
+            class_spike_totals += logits.astype(np.int64)
+        n_e_spikes += int(spikes_e.sum())
+        n_i_spikes += int(spikes_i.sum())
+        total_duration_s += DIGITS_PER_STREAM * duration_ms / 1000.0
     return {
         "seed": seed,
         "duration_ms": duration_ms,
@@ -354,7 +393,37 @@ def evaluate_cell(seed: int, duration_ms: float, rate_hz: float) -> dict[str, An
         "n_correct": n_correct,
         "n_total": n_total,
         "accuracy": n_correct / n_total,
+        "output_spikes_per_presentation": n_output_spikes / n_total,
+        "silent_fraction": n_silent_presentations / n_total,
+        "class_spike_totals": class_spike_totals.tolist(),
+        "rate_e_hz": n_e_spikes / (1024 * total_duration_s),
+        "rate_i_hz": n_i_spikes / (256 * total_duration_s),
     }
+
+
+def grid_output_preflight(rows: list[dict[str, Any]]) -> dict[str, Any]:
+    """Report and reject a wholly silent grid-level output readout."""
+    n_presentations = sum(int(row["n_total"]) for row in rows)
+    n_silent = sum(
+        round(float(row["silent_fraction"]) * int(row["n_total"]))
+        for row in rows
+    )
+    total_spikes = sum(
+        float(row["output_spikes_per_presentation"]) * int(row["n_total"])
+        for row in rows
+    )
+    summary = {
+        "n_presentations": n_presentations,
+        "total_output_spikes": int(round(total_spikes)),
+        "silent_presentations": n_silent,
+        "silent_fraction": n_silent / n_presentations,
+    }
+    if summary["total_output_spikes"] == 0:
+        raise RuntimeError(
+            "exp082 scientific preflight failed: output readout is silent "
+            "across the complete duration-rate grid"
+        )
+    return summary
 
 
 def plot_stream(result: dict[str, Any], path: Path, run_id: str) -> None:
@@ -515,6 +584,7 @@ def main() -> None:
         for rate in PSYCHOMETRIC_RATES_HZ
         for seed in SEEDS
     ]
+    output_preflight = grid_output_preflight(rows)
     psychometric = [row for row in rows if row["duration_ms"] == MATCHED_DURATION_MS]
     plot_psychometric(psychometric, FIGURES / "psychometric_200ms.svg", run_id)
     plot_duration_rate_summary(rows, FIGURES / "duration_rate_summary.png", run_id)
@@ -548,6 +618,11 @@ def main() -> None:
         },
         "matched_stream": {key: value for key, value in matched.items() if not isinstance(value, np.ndarray)},
         "variable_stream": {key: value for key, value in variable.items() if not isinstance(value, np.ndarray)},
+        "scientific_preflight": {
+            "matched_stream": matched["output_activity"],
+            "variable_stream": variable["output_activity"],
+            "evaluation_grid": output_preflight,
+        },
         "grid_per_seed": rows,
         "duration_200ms_psychometric": psychometric,
         "duration_s": time.monotonic() - started,
