@@ -27,6 +27,8 @@ def test_exp022_variable_rate_args() -> None:
     cell = exp022.PLANNED_VARIABLE_RATE_CELLS[0]
     args = exp022.build_train_args(cell, exp082.training_dir(42), 7000, 50)
     assert args[args.index("--readout") + 1] == "spike-count"
+    assert args[args.index("--readout-w-init-mean") + 1] == "0.05"
+    assert args[args.index("--readout-w-init-std") + 1] == "0.04"
     start = args.index("--input-rates") + 1
     stop = start + len(exp082.TRAINING_RATES_HZ)
     assert tuple(map(float, args[start:stop])) == exp082.TRAINING_RATES_HZ

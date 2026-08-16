@@ -200,7 +200,7 @@
 
   === TR-06 — Variable-rate streaming bank
 
-  This run trains PING across the input rates used by exp082. One rate is sampled uniformly for each presentation, and the ten output LIF neurons produce class logits from their total spike counts rather than their mean membrane voltages. This keeps the cross-entropy logits dimensionless and gives one additional output spike the same logit increment. Output firing rates may still be reported as activity measurements. During streaming inference, the output neurons reset at digit boundaries while the hidden PING state continues. The resulting checkpoints are used by #run-links(("exp082",)).
+  This run trains PING across the input rates used by exp082. One rate is sampled uniformly for each presentation, and the ten output LIF neurons produce class logits from their total spike counts rather than their mean membrane voltages. This keeps the cross-entropy logits dimensionless and gives one additional output spike the same logit increment. The readout weights use a small positive Gaussian initialization, $cal(N)(0.05, 0.04^2)$ followed by the shared non-negative constraint. This places the output neurons near threshold at the upper training rates without saturating them; the larger `mem-mean` initialization used by the other runs is not transferred to this different decision rule. Output firing rates may still be reported as activity measurements. During streaming inference, the output neurons reset at digit boundaries while the hidden PING state continues. The resulting checkpoints are used by #run-links(("exp082",)).
 
   #table(
     columns: (1.2fr, 1.65fr, 2fr),
@@ -210,6 +210,7 @@
     [Input-rate set], [0.5, 0.75, 1, 1.5, 2, 3, 5, 7.5, 10, 15, 25 Hz], [Denser sampling within the interval selected by exp080],
     [Sampling rule], [Uniform categorical, independently per presentation], [Makes rate variation part of the training distribution],
     [Readout], [`spike-count`], [Hidden E spikes drive ten spiking LIF class neurons; each logit is that class neuron's total spikes over the presentation],
+    [Readout initialization], [$cal(N)(0.05, 0.04^2)$, constrained non-negative], [Keeps the spiking outputs near threshold at high training rates without the saturation caused by the default `mem-mean` scale],
     [Readout shape], [$1024 arrow 10$ spiking LIF outputs], [Ten class neurons emit and reset throughout the presentation],
     [Cells], [1 recipe × 3 seeds = 3], [Checkpoint bank expected by exp082],
   )
