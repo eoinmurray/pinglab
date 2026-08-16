@@ -7,11 +7,10 @@ weights with `load_cell` (imported from this module) instead of retraining
 their own. This replaces the collection's older "standalone runner, no
 cross-notebook helpers" rule with a train-once / reuse-many policy (see ar016).
 
-102 cells across seven families (canonical, rate target, τ_GABA, Δt, init,
-variable rate, low-input recruitment)
-that exp025
-defines and that exp024 / exp037 / exp038 each used to retrain
-independently. Standard: 50 epochs, dt = 0.1 ms, T = 200 ms, and THREE seeds
+102 cells across seven families (canonical, activity ceiling, τ_GABA, Δt,
+recurrent initialization, variable rate, and low-input recruitment). Exp022 owns
+these training contracts and their checkpoints; downstream experiments only consume
+them. Standard: 50 epochs, dt = 0.1 ms, T = 200 ms, and three seeds
 (42/43/44) for every cell — including the rate target interior, so the accuracy–rate
 frontier carries error bars (it was single-seed; no longer). Canonical sees all
 of MNIST, the sweeps 10%. (exp044's Δt sweep is the documented exception that
