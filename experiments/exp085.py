@@ -88,6 +88,8 @@ SCALE = {
     "phase_edge_trim_ms": PHASE_EDGE_TRIM_MS,
     "terminal_phase_window_ms": TERMINAL_PHASE_WINDOW_MS,
     "phase_error_smooth_ms": PHASE_ERROR_SMOOTH_MS,
+    "clean_convergence_terminal_p95_max_rad": SYNC_EXAMPLE_TERMINAL_P95_MAX_RAD,
+    "clean_convergence_post_settling_max_rad": SYNC_EXAMPLE_POST_SETTLING_MAX_RAD,
 }
 
 
@@ -292,6 +294,22 @@ def trial_terminal_phase_error(phase: np.ndarray) -> tuple[np.ndarray, np.ndarra
     return np.arange(error.size) * TRACE_BIN_MS, error
 
 
+def clean_convergence_trials(phase: np.ndarray) -> list[int]:
+    """Return trial indices satisfying the illustrative clean-convergence rule."""
+    passed = []
+    bin_steps = round(TRACE_BIN_MS / DT_MS)
+    for trial, native_phase in enumerate(phase):
+        _, error = trial_terminal_phase_error(native_phase[::bin_steps])
+        terminal_p95 = np.quantile(error[-500:], 0.95)
+        post_settling_max = np.max(error[500:])
+        if (
+            terminal_p95 <= SYNC_EXAMPLE_TERMINAL_P95_MAX_RAD
+            and post_settling_max <= SYNC_EXAMPLE_POST_SETTLING_MAX_RAD
+        ):
+            passed.append(trial)
+    return passed
+
+
 def select_sync_example(phases: dict[float, np.ndarray]) -> tuple[float, int, np.ndarray, np.ndarray]:
     """Select the largest clean onset-to-settled terminal-error reduction."""
     candidates = []
@@ -458,7 +476,11 @@ def main() -> None:
             combined_b = np.concatenate((equilibration_arrays["b_e"], continuation["b_e"]))
             phase = relative_phase(combined_a, combined_b, onset_step=onset_step)
             phases[coupling] = phase
-            summaries.append(summarize_condition(coupling, continuation, phase))
+            summary = summarize_condition(coupling, continuation, phase)
+            converged_trials = clean_convergence_trials(phase)
+            summary["clean_convergence_count"] = len(converged_trials)
+            summary["clean_convergence_seeds"] = [TRIAL_SEEDS[index] for index in converged_trials]
+            summaries.append(summary)
             graph_rows.append({"coupling": coupling, "digest": bundle.manifest["graph_digest"]})
             if coupling in REPRESENTATIVE_K:
                 representative[coupling] = continuation
@@ -485,6 +507,8 @@ def main() -> None:
                 "terminal_edge_trim_ms": PHASE_EDGE_TRIM_MS,
                 "terminal_phase_window_ms": TERMINAL_PHASE_WINDOW_MS,
                 "phase_error_smooth_ms": PHASE_ERROR_SMOOTH_MS,
+                "clean_convergence_terminal_p95_max_rad": SYNC_EXAMPLE_TERMINAL_P95_MAX_RAD,
+                "clean_convergence_post_settling_max_rad": SYNC_EXAMPLE_POST_SETTLING_MAX_RAD,
                 "method": "fourth-order zero-phase Butterworth plus Hilbert phase",
                 "sign": "onset-relative A-minus-B",
             },

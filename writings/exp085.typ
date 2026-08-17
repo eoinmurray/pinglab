@@ -11,6 +11,9 @@
 #let uncoupled = r.conditions.first()
 #let strongest = r.conditions.last()
 #let sync-example = r.synchrony_example
+#let convergence-counts = r.conditions.map(row =>
+  "K = " + str(row.coupling) + ": " + str(row.clean_convergence_count) + "/" + str(r.config.trials)
+).join("; ")
 
 #let body = [
   == Abstract
@@ -55,4 +58,6 @@
     image("/artifacts/data/exp085/synchrony_over_time.svg", width: 100%, alt: "One representative network pair converging toward its terminal phase relationship over time."),
     caption: [A representative pair synchronizing after coupling onset at K = #sync-example.coupling (seed #sync-example.seed). The single trace is its circular error from its mean phase offset during the final #r.phase_analysis.terminal_phase_window_ms ms, with #r.phase_analysis.phase_error_smooth_ms ms smoothing; lower values indicate closer approach to the terminal relationship. The example follows the stated stability-and-largest-reduction rule. Its retrospective terminal reference makes this an illustration of convergence, not a synchronization-latency estimate.],
   )
+
+  Under the same illustrative clean-convergence rule, the passing counts are #convergence-counts. A trial passes only when its terminal-error 95th percentile is at most #r.phase_analysis.clean_convergence_terminal_p95_max_rad rad and it has no post-settling excursion above #r.phase_analysis.clean_convergence_post_settling_max_rad rad. This post-hoc descriptive rule is not a formal synchronization boundary.
 ]

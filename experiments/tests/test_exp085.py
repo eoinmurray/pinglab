@@ -99,3 +99,12 @@ def test_terminal_phase_error_reports_approach_to_terminal_offset():
 
     assert error[0] > 0.7
     assert error[-1] < 0.01
+
+
+def test_clean_convergence_trials_rejects_late_phase_slip():
+    steps = round(1_000.0 / exp085.DT_MS)
+    stable = np.zeros(steps)
+    slipping = stable.copy()
+    slipping[round(600.0 / exp085.DT_MS) :] = np.pi
+
+    assert exp085.clean_convergence_trials(np.stack((stable, slipping))) == [0]
