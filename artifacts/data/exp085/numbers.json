@@ -1,7 +1,7 @@
 {
-  "run_id": "r006",
-  "git_sha": "a66fb53a",
-  "duration_s": 125.9,
+  "run_id": "r007",
+  "git_sha": "00b2193e",
+  "duration_s": 125.8,
   "duration": "2m 06s",
   "question": "How does reciprocal excitation change relative phase after coupling is switched on between equilibrated PING circuits?",
   "config": {
@@ -47,7 +47,8 @@
       60.0
     ],
     "phase_smooth_ms": 5.0,
-    "phase_edge_trim_ms": 100.0
+    "phase_edge_trim_ms": 100.0,
+    "local_plv_window_ms": 250.0
   },
   "frequency_analysis": {
     "name": "exp085-dominant-rhythm-v1",
@@ -81,6 +82,7 @@
       60.0
     ],
     "terminal_edge_trim_ms": 100.0,
+    "local_plv_window_ms": 250.0,
     "method": "fourth-order zero-phase Butterworth plus Hilbert phase",
     "sign": "onset-relative A-minus-B"
   },
