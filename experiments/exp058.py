@@ -29,6 +29,10 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from helpers import theme  # noqa: E402
 from helpers.cli import parse_meta  # noqa: E402
+from helpers.gamma_frequency import (  # noqa: E402
+    EXP058_HISTORICAL,
+    estimate_gamma_from_raster,
+)
 from helpers.numbers import write_numbers  # noqa: E402
 from helpers.paths import artifacts_and_figures  # noqa: E402
 from helpers.run_cli import run_cli  # noqa: E402
@@ -160,36 +164,21 @@ SCALE = {
 }
 
 
-F_GAMMA_BAND_HZ: tuple[float, float] = (5.0, 150.0)
+F_GAMMA_BAND_HZ = EXP058_HISTORICAL.band_hz
 
 
 def _population_psd(spk_2d: np.ndarray, dt_ms: float):
-    """Welch periodogram on the population-mean spike trace.
-    Matches the exp041 / exp049 / exp023 pipeline: one window per trial,
-    density scaling, mean-subtracted. Returns (freqs, psd, f_peak_or_None).
-    """
-    from scipy import signal as sp_signal
+    """Historical exp058 spectral view through the shared estimator."""
     T, N = spk_2d.shape
     if T < 2 or N == 0:
         return np.array([0.0]), np.array([0.0]), None
-    x = spk_2d.mean(axis=1).astype(np.float64)
-    x = x - x.mean()
-    fs = 1000.0 / dt_ms
-    freqs, psd = sp_signal.welch(x, fs=fs, nperseg=T, scaling="density")
-    band = (freqs >= F_GAMMA_BAND_HZ[0]) & (freqs <= F_GAMMA_BAND_HZ[1])
-    if not band.any() or psd[band].max() == 0 or not np.isfinite(psd[band]).any():
-        return freqs, psd, None
-    abs_idx = int(np.where(band)[0][int(np.argmax(psd[band]))])
-    if 0 < abs_idx < len(psd) - 1:
-        y0, y1, y2 = psd[abs_idx - 1], psd[abs_idx], psd[abs_idx + 1]
-        denom = (y0 - 2 * y1 + y2)
-        delta = 0.5 * (y0 - y2) / denom if denom != 0 else 0.0
-        delta = float(max(-0.5, min(0.5, delta)))
-    else:
-        delta = 0.0
-    df = float(freqs[1] - freqs[0]) if len(freqs) > 1 else 0.0
-    f_peak = float(freqs[abs_idx] + delta * df)
-    return freqs, psd, f_peak
+    estimate = estimate_gamma_from_raster(
+        spk_2d,
+        dt_ms=dt_ms,
+        config=EXP058_HISTORICAL,
+    )
+    trial = estimate.trials[0]
+    return trial.frequencies_hz, trial.psd, trial.frequency_hz
 
 
 def _pair_cross_correlogram(
@@ -712,6 +701,7 @@ def main() -> None:
         payload = {
             "common_args": COMMON_ARGS,
             "cells": {cell: spec["args"] for cell, spec in CELLS.items()},
+            "gamma_frequency": EXP058_HISTORICAL.json(),
             "summary": summary_rows,
             "k_sweep": ksweep,
             "lyapunov": lyap_summary,
