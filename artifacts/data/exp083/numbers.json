@@ -1,7 +1,7 @@
 {
-  "run_id": "r003",
-  "git_sha": "b0d1eff3",
-  "duration_s": 16.3,
+  "run_id": "r004",
+  "git_sha": "1657b1f2",
+  "duration_s": 16.1,
   "duration": "16s",
   "question": "Does the default SNNLANG PING component contain a reproducible gamma regime as homogeneous Poisson drive increases?",
   "config": {
@@ -65,6 +65,8 @@
       "i_rate_mean_hz": 0.0,
       "i_rate_std_hz": 0.0,
       "gamma_resolved_fraction": 0.0,
+      "rhythmicity_score_median": 0.0,
+      "rhythmicity_score_iqr": 0.0,
       "gamma_frequency_median_hz": null,
       "e_i_peak_lag_median_ms": null,
       "trials": [
@@ -83,6 +85,7 @@
             "band_median_power": null,
             "prominence_ratio": null
           },
+          "rhythmicity_contrast": null,
           "e_i_peak_lag_ms": null
         },
         {
@@ -100,6 +103,7 @@
             "band_median_power": null,
             "prominence_ratio": null
           },
+          "rhythmicity_contrast": null,
           "e_i_peak_lag_ms": null
         },
         {
@@ -117,6 +121,7 @@
             "band_median_power": null,
             "prominence_ratio": null
           },
+          "rhythmicity_contrast": null,
           "e_i_peak_lag_ms": null
         },
         {
@@ -134,6 +139,7 @@
             "band_median_power": null,
             "prominence_ratio": null
           },
+          "rhythmicity_contrast": null,
           "e_i_peak_lag_ms": null
         },
         {
@@ -151,6 +157,7 @@
             "band_median_power": null,
             "prominence_ratio": null
           },
+          "rhythmicity_contrast": null,
           "e_i_peak_lag_ms": null
         }
       ]
@@ -162,6 +169,8 @@
       "i_rate_mean_hz": 0.0,
       "i_rate_std_hz": 0.0,
       "gamma_resolved_fraction": 0.0,
+      "rhythmicity_score_median": 0.0,
+      "rhythmicity_score_iqr": 0.0,
       "gamma_frequency_median_hz": null,
       "e_i_peak_lag_median_ms": null,
       "trials": [
@@ -180,6 +189,7 @@
             "band_median_power": null,
             "prominence_ratio": null
           },
+          "rhythmicity_contrast": null,
           "e_i_peak_lag_ms": null
         },
         {
@@ -197,6 +207,7 @@
             "band_median_power": null,
             "prominence_ratio": null
           },
+          "rhythmicity_contrast": null,
           "e_i_peak_lag_ms": null
         },
         {
@@ -214,6 +225,7 @@
             "band_median_power": null,
             "prominence_ratio": null
           },
+          "rhythmicity_contrast": null,
           "e_i_peak_lag_ms": null
         },
         {
@@ -231,6 +243,7 @@
             "band_median_power": null,
             "prominence_ratio": null
           },
+          "rhythmicity_contrast": null,
           "e_i_peak_lag_ms": null
         },
         {
@@ -248,6 +261,7 @@
             "band_median_power": null,
             "prominence_ratio": null
           },
+          "rhythmicity_contrast": null,
           "e_i_peak_lag_ms": null
         }
       ]
@@ -259,6 +273,8 @@
       "i_rate_mean_hz": 32.65,
       "i_rate_std_hz": 1.3597161928137813,
       "gamma_resolved_fraction": 0.2,
+      "rhythmicity_score_median": 1.0,
+      "rhythmicity_score_iqr": 0.008972009816784365,
       "gamma_frequency_median_hz": 43.71337965965826,
       "e_i_peak_lag_median_ms": -1.0,
       "trials": [
@@ -277,6 +293,7 @@
             "band_median_power": 4.241315156948473e-08,
             "prominence_ratio": 17.354181423218773
           },
+          "rhythmicity_contrast": 1.0,
           "e_i_peak_lag_ms": -1.0
         },
         {
@@ -294,6 +311,7 @@
             "band_median_power": 1.2142786409797173e-07,
             "prominence_ratio": 5.342061524251498
           },
+          "rhythmicity_contrast": 0.9819552868095837,
           "e_i_peak_lag_ms": -1.0
         },
         {
@@ -311,6 +329,7 @@
             "band_median_power": 1.0966124241779037e-07,
             "prominence_ratio": 3.5672930850469315
           },
+          "rhythmicity_contrast": 1.0,
           "e_i_peak_lag_ms": -1.0
         },
         {
@@ -328,6 +347,7 @@
             "band_median_power": 4.477996351134916e-08,
             "prominence_ratio": 14.884045292494955
           },
+          "rhythmicity_contrast": 1.0,
           "e_i_peak_lag_ms": -1.0
         },
         {
@@ -345,6 +365,7 @@
             "band_median_power": 4.884450329614386e-08,
             "prominence_ratio": 13.341625486657406
           },
+          "rhythmicity_contrast": 0.9910279901832156,
           "e_i_peak_lag_ms": -2.0
         }
       ]
@@ -356,6 +377,8 @@
       "i_rate_mean_hz": 46.4625,
       "i_rate_std_hz": 0.8542174781634966,
       "gamma_resolved_fraction": 1.0,
+      "rhythmicity_score_median": 1.0,
+      "rhythmicity_score_iqr": 2.220446049250313e-16,
       "gamma_frequency_median_hz": 37.848764314838434,
       "e_i_peak_lag_median_ms": -1.0,
       "trials": [
@@ -374,6 +397,7 @@
             "band_median_power": 7.871900882218287e-08,
             "prominence_ratio": 16.657733955368442
           },
+          "rhythmicity_contrast": 1.0,
           "e_i_peak_lag_ms": -1.0
         },
         {
@@ -391,6 +415,7 @@
             "band_median_power": 6.661191797183352e-08,
             "prominence_ratio": 23.932014959852793
           },
+          "rhythmicity_contrast": 1.0,
           "e_i_peak_lag_ms": -1.0
         },
         {
@@ -408,6 +433,7 @@
             "band_median_power": 9.367878618546167e-08,
             "prominence_ratio": 15.272001774217108
           },
+          "rhythmicity_contrast": 1.0000000000000002,
           "e_i_peak_lag_ms": -1.0
         },
         {
@@ -425,6 +451,7 @@
             "band_median_power": 6.616405888064424e-08,
             "prominence_ratio": 16.86423257743766
           },
+          "rhythmicity_contrast": 1.0,
           "e_i_peak_lag_ms": -1.0
         },
         {
@@ -442,6 +469,7 @@
             "band_median_power": 6.831318283364515e-08,
             "prominence_ratio": 19.767285175194647
           },
+          "rhythmicity_contrast": 1.0000000000000002,
           "e_i_peak_lag_ms": -1.0
         }
       ]
@@ -453,6 +481,8 @@
       "i_rate_mean_hz": 58.6125,
       "i_rate_std_hz": 2.6851006731592015,
       "gamma_resolved_fraction": 1.0,
+      "rhythmicity_score_median": 1.0,
+      "rhythmicity_score_iqr": 0.0,
       "gamma_frequency_median_hz": 43.59168649740901,
       "e_i_peak_lag_median_ms": -1.0,
       "trials": [
@@ -471,6 +501,7 @@
             "band_median_power": 6.439836500502274e-08,
             "prominence_ratio": 26.357275932773234
           },
+          "rhythmicity_contrast": 1.0,
           "e_i_peak_lag_ms": -1.0
         },
         {
@@ -488,6 +519,7 @@
             "band_median_power": 9.04420449123836e-08,
             "prominence_ratio": 29.93339987349345
           },
+          "rhythmicity_contrast": 1.0,
           "e_i_peak_lag_ms": -2.0
         },
         {
@@ -505,6 +537,7 @@
             "band_median_power": 8.524412023246788e-08,
             "prominence_ratio": 25.993777218830424
           },
+          "rhythmicity_contrast": 1.0,
           "e_i_peak_lag_ms": -1.0
         },
         {
@@ -522,6 +555,7 @@
             "band_median_power": 6.762073858007988e-08,
             "prominence_ratio": 38.63174175447968
           },
+          "rhythmicity_contrast": 1.0,
           "e_i_peak_lag_ms": -1.0
         },
         {
@@ -539,6 +573,7 @@
             "band_median_power": 9.981967904079337e-08,
             "prominence_ratio": 20.45352134233477
           },
+          "rhythmicity_contrast": 1.0,
           "e_i_peak_lag_ms": -1.0
         }
       ]
@@ -550,6 +585,8 @@
       "i_rate_mean_hz": 66.9,
       "i_rate_std_hz": 0.8438657328035071,
       "gamma_resolved_fraction": 1.0,
+      "rhythmicity_score_median": 1.0,
+      "rhythmicity_score_iqr": 0.0,
       "gamma_frequency_median_hz": 46.384184201365926,
       "e_i_peak_lag_median_ms": -1.0,
       "trials": [
@@ -568,6 +605,7 @@
             "band_median_power": 5.654396401408358e-08,
             "prominence_ratio": 43.745714638729794
           },
+          "rhythmicity_contrast": 1.0,
           "e_i_peak_lag_ms": -1.0
         },
         {
@@ -585,6 +623,7 @@
             "band_median_power": 2.2158306457991115e-08,
             "prominence_ratio": 121.54988003891762
           },
+          "rhythmicity_contrast": 1.0,
           "e_i_peak_lag_ms": -1.0
         },
         {
@@ -602,6 +641,7 @@
             "band_median_power": 1.1914454174163772e-07,
             "prominence_ratio": 17.565961285754636
           },
+          "rhythmicity_contrast": 1.0,
           "e_i_peak_lag_ms": -1.0
         },
         {
@@ -619,6 +659,7 @@
             "band_median_power": 3.0905253261759064e-08,
             "prominence_ratio": 76.83448385981578
           },
+          "rhythmicity_contrast": 1.0,
           "e_i_peak_lag_ms": -1.0
         },
         {
@@ -636,6 +677,7 @@
             "band_median_power": 2.268867012187425e-08,
             "prominence_ratio": 173.501277618054
           },
+          "rhythmicity_contrast": 1.0,
           "e_i_peak_lag_ms": -1.0
         }
       ]
@@ -647,6 +689,8 @@
       "i_rate_mean_hz": 73.45,
       "i_rate_std_hz": 0.8562728099151578,
       "gamma_resolved_fraction": 1.0,
+      "rhythmicity_score_median": 1.0,
+      "rhythmicity_score_iqr": 0.0,
       "gamma_frequency_median_hz": 50.08541202172877,
       "e_i_peak_lag_median_ms": -1.0,
       "trials": [
@@ -665,6 +709,7 @@
             "band_median_power": 2.8382444244336674e-08,
             "prominence_ratio": 140.70959357263385
           },
+          "rhythmicity_contrast": 1.0,
           "e_i_peak_lag_ms": -1.0
         },
         {
@@ -682,6 +727,7 @@
             "band_median_power": 2.447260169772637e-08,
             "prominence_ratio": 145.50947744573054
           },
+          "rhythmicity_contrast": 1.0,
           "e_i_peak_lag_ms": -1.0
         },
         {
@@ -699,6 +745,7 @@
             "band_median_power": 3.2324275130854974e-08,
             "prominence_ratio": 122.37426194202362
           },
+          "rhythmicity_contrast": 1.0000000000000002,
           "e_i_peak_lag_ms": -1.0
         },
         {
@@ -716,6 +763,7 @@
             "band_median_power": 4.4142146496592824e-08,
             "prominence_ratio": 76.43752646876676
           },
+          "rhythmicity_contrast": 1.0,
           "e_i_peak_lag_ms": -1.0
         },
         {
@@ -733,6 +781,7 @@
             "band_median_power": 3.6954731484199435e-08,
             "prominence_ratio": 96.97249511379329
           },
+          "rhythmicity_contrast": 1.0,
           "e_i_peak_lag_ms": -1.0
         }
       ]
@@ -744,6 +793,8 @@
       "i_rate_mean_hz": 82.825,
       "i_rate_std_hz": 1.3674508674903092,
       "gamma_resolved_fraction": 1.0,
+      "rhythmicity_score_median": 1.0,
+      "rhythmicity_score_iqr": 0.0,
       "gamma_frequency_median_hz": 56.185186912154734,
       "e_i_peak_lag_median_ms": -1.0,
       "trials": [
@@ -762,6 +813,7 @@
             "band_median_power": 2.5756762469709297e-08,
             "prominence_ratio": 191.52023141683043
           },
+          "rhythmicity_contrast": 1.0,
           "e_i_peak_lag_ms": -1.0
         },
         {
@@ -779,6 +831,7 @@
             "band_median_power": 9.912102603984111e-09,
             "prominence_ratio": 620.1009813284797
           },
+          "rhythmicity_contrast": 1.0,
           "e_i_peak_lag_ms": -1.0
         },
         {
@@ -796,6 +849,7 @@
             "band_median_power": 2.3128876862995315e-08,
             "prominence_ratio": 217.14048528890774
           },
+          "rhythmicity_contrast": 1.0000000000000002,
           "e_i_peak_lag_ms": -1.0
         },
         {
@@ -813,6 +867,7 @@
             "band_median_power": 2.2844967607914292e-08,
             "prominence_ratio": 189.43838387531207
           },
+          "rhythmicity_contrast": 1.0,
           "e_i_peak_lag_ms": -1.0
         },
         {
@@ -830,6 +885,7 @@
             "band_median_power": 4.4592889190320364e-08,
             "prominence_ratio": 113.64625703486972
           },
+          "rhythmicity_contrast": 1.0,
           "e_i_peak_lag_ms": -1.0
         }
       ]
