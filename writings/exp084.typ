@@ -15,7 +15,7 @@
 #let body = [
   == Abstract
 
-  At a fixed #r.config.input_rate_hz Hz/channel drive, shortening inhibitory synaptic decay from #slowest.tau_gaba_ms to #fastest.tau_gaba_ms ms changes the default SNNLANG PING rhythm from #calc.round(slowest.rhythm_frequency_median_hz, digits: 2) to #calc.round(fastest.rhythm_frequency_median_hz, digits: 2) Hz. This experiment varies one public component parameter while preserving the authored circuit, paired inputs, and analysis policy established in exp083.
+  At a fixed #r.config.input_rate_hz Hz/channel drive, shortening inhibitory synaptic decay from #slowest.tau_gaba_ms to #fastest.tau_gaba_ms ms accelerates the default SNNLANG PING rhythm from #calc.round(slowest.rhythm_frequency_median_hz, digits: 2) to #calc.round(fastest.rhythm_frequency_median_hz, digits: 2) Hz. Decays of #r.conditions.at(1).tau_gaba_ms ms and below enter the 30--80 Hz gamma band without weakening the standard rhythmicity score. This experiment varies one public component parameter while preserving the authored circuit, paired inputs, and analysis policy established in exp083.
 
   == Methods
 

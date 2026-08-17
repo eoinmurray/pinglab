@@ -132,7 +132,7 @@ def plot_response(summaries: list[dict], out: Path) -> None:
     for axis in axes:
         axis.axvline(9.0, color=theme.GREY_MID, ls="--", lw=0.8)
         axis.spines[["top", "right"]].set_visible(False)
-    fig.supxlabel("inhibitory decay, tau_GABA (ms)")
+    fig.supxlabel("inhibitory decay, τGABA (ms)")
     fig.tight_layout()
     fig.savefig(out, dpi=220, bbox_inches="tight")
     plt.close(fig)
@@ -183,7 +183,7 @@ def plot_representative_rasters(
         axis.text(
             1.012,
             0.5,
-            f"tau_GABA {tau:g} ms\n{frequency_label}",
+            f"τGABA {tau:g} ms\n{frequency_label}",
             transform=axis.transAxes,
             ha="left",
             va="center",
