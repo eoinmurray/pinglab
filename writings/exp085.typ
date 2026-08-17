@@ -24,7 +24,7 @@
 
   + *Measure relative phase.* E-population rates are smoothed with a #r.phase_analysis.smoothing_sigma_ms ms Gaussian kernel and filtered over #r.phase_analysis.band_hz.at(0)--#r.phase_analysis.band_hz.at(1) Hz. Hilbert phases define the unwrapped A-minus-B relative phase, expressed as its change from coupling onset. Figures divide this phase change by $2 pi$ to report relative cycles gained. The final #r.phase_analysis.terminal_edge_trim_ms ms are excluded to prevent the finite-record filter boundary from appearing as a phase jump. This continuous trajectory is the primary result; no locking threshold or latency is inferred.
 
-  + *Measure supporting responses.* The registered #raw(r.frequency_analysis.name) policy reports each circuit's dominant rhythm from the final 1.5 s. Frequency difference, descriptive phase-locking value, and population firing rates support the phase trajectories. A #r.phase_analysis.local_plv_window_ms ms rolling phase-locking value summarizes synchrony over time within each paired trial; Figure 5 reports the median across trials and does not impose a locking threshold.
+  + *Measure supporting responses.* The registered #raw(r.frequency_analysis.name) policy reports each circuit's dominant rhythm from the final 1.5 s. Frequency difference, descriptive phase-locking value, and population firing rates support the phase trajectories. Figure 5 measures settling as each trial's circular phase error from its own mean terminal offset, defined over the final #r.phase_analysis.terminal_phase_window_ms ms and smoothed over #r.phase_analysis.phase_error_smooth_ms ms. It is a descriptive convergence view, not a registered latency estimator.
 
   #figure(
     image("/artifacts/data/exp085/network.svg", width: 88%, alt: "Two independently driven PING circuits connected by reciprocal excitatory projections."),
@@ -51,7 +51,7 @@
   )
 
   #figure(
-    image("/artifacts/data/exp085/synchrony_over_time.svg", width: 100%, alt: "Local phase-locking value over time at four representative reciprocal coupling strengths."),
-    caption: [Synchrony over time after coupling onset at the four predeclared K values. Each trace is the median across #r.config.trials paired trials of the within-trial phase-locking value in a centered #r.phase_analysis.local_plv_window_ms ms window. Values near one indicate that relative phase remained nearly constant within that local window. This descriptive view exposes the trajectory directly without defining a binary synchronization boundary or requiring trials to settle at the same phase offset.],
+    image("/artifacts/data/exp085/synchrony_over_time.svg", width: 100%, alt: "Circular phase error from the terminal phase relationship over time at four coupling strengths."),
+    caption: [Convergence toward the terminal phase relationship after coupling onset for K = 0.06--0.10. Each line is the median circular error from the trial's own mean phase offset during the final #r.phase_analysis.terminal_phase_window_ms ms; bands span the interquartile range across #r.config.trials paired trials, and trajectories use #r.phase_analysis.phase_error_smooth_ms ms smoothing. Lower values indicate closer approach to the terminal relationship. The terminal reference is descriptive and retrospective, so this figure does not estimate synchronization latency.],
   )
 ]

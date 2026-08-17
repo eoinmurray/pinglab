@@ -49,7 +49,9 @@ PHASE_BAND_HZ = (20.0, 60.0)
 PHASE_SMOOTH_MS = 5.0
 PHASE_EDGE_TRIM_MS = 100.0
 TRACE_BIN_MS = 1.0
-LOCAL_PLV_WINDOW_MS = 250.0
+SETTLING_K = (0.06, 0.07, 0.08, 0.10)
+TERMINAL_PHASE_WINDOW_MS = 500.0
+PHASE_ERROR_SMOOTH_MS = 50.0
 DISPLAY_TRIAL = 0
 FREQUENCY_CONFIG = replace(
     exp083.FREQUENCY_CONFIG,
@@ -82,7 +84,8 @@ SCALE = {
     "phase_band_hz": list(PHASE_BAND_HZ),
     "phase_smooth_ms": PHASE_SMOOTH_MS,
     "phase_edge_trim_ms": PHASE_EDGE_TRIM_MS,
-    "local_plv_window_ms": LOCAL_PLV_WINDOW_MS,
+    "terminal_phase_window_ms": TERMINAL_PHASE_WINDOW_MS,
+    "phase_error_smooth_ms": PHASE_ERROR_SMOOTH_MS,
 }
 
 
@@ -277,20 +280,27 @@ def plot_phase_small_multiples(phases: dict[float, np.ndarray], out: Path) -> No
     plt.close(fig)
 
 
-def rolling_phase_locking(phase: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
-    """Return window-centre times and median within-trial rolling PLV."""
+def terminal_phase_error(
+    phase: np.ndarray,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    """Return smoothed circular error from each trial's terminal phase offset."""
     bin_steps = round(TRACE_BIN_MS / DT_MS)
     binned = phase[:, ::bin_steps]
-    window_steps = round(LOCAL_PLV_WINDOW_MS / TRACE_BIN_MS)
-    kernel = np.ones(window_steps, dtype=np.float64) / window_steps
-    trial_plv = []
+    terminal_steps = round(TERMINAL_PHASE_WINDOW_MS / TRACE_BIN_MS)
+    smooth_steps = PHASE_ERROR_SMOOTH_MS / TRACE_BIN_MS
+    trial_errors = []
     for row in binned:
-        local_mean = np.convolve(np.exp(1j * row), kernel, mode="valid")
-        trial_plv.append(np.abs(local_mean))
-    centres_ms = (
-        np.arange(len(trial_plv[0])) + (window_steps - 1) / 2.0
-    ) * TRACE_BIN_MS
-    return centres_ms, np.median(np.stack(trial_plv), axis=0)
+        terminal_phase = np.angle(np.mean(np.exp(1j * row[-terminal_steps:])))
+        circular_error = np.abs(np.angle(np.exp(1j * (row - terminal_phase))))
+        trial_errors.append(gaussian_filter1d(circular_error, smooth_steps))
+    errors = np.stack(trial_errors)
+    time_ms = np.arange(errors.shape[1]) * TRACE_BIN_MS
+    return (
+        time_ms,
+        np.median(errors, axis=0),
+        np.quantile(errors, 0.25, axis=0),
+        np.quantile(errors, 0.75, axis=0),
+    )
 
 
 def plot_synchrony_over_time(phases: dict[float, np.ndarray], out: Path) -> None:
@@ -302,19 +312,20 @@ def plot_synchrony_over_time(phases: dict[float, np.ndarray], out: Path) -> None
         (theme.DEEP_RED, "-."),
         (theme.INK_BLACK, "-"),
     )
-    for coupling, (colour, linestyle) in zip(REPRESENTATIVE_K, styles, strict=True):
-        time_ms, median_plv = rolling_phase_locking(phases[coupling])
+    for coupling, (colour, linestyle) in zip(SETTLING_K, styles, strict=True):
+        time_ms, median_error, lower, upper = terminal_phase_error(phases[coupling])
+        axis.fill_between(time_ms / 1_000.0, lower, upper, color=colour, alpha=0.10, linewidth=0)
         axis.plot(
             time_ms / 1_000.0,
-            median_plv,
+            median_error,
             color=colour,
             linestyle=linestyle,
             linewidth=1.0,
             label=f"K = {coupling:.2f}",
         )
     axis.set_xlabel("time after coupling onset (s)")
-    axis.set_ylabel("local phase-locking value")
-    axis.set_ylim(-0.03, 1.03)
+    axis.set_ylabel("terminal phase error (rad)")
+    axis.set_ylim(bottom=0.0)
     axis.legend(frameon=False, ncol=2)
     axis.spines[["top", "right"]].set_visible(False)
     fig.tight_layout()
@@ -474,7 +485,8 @@ def main() -> None:
                 "smoothing_sigma_ms": PHASE_SMOOTH_MS,
                 "band_hz": list(PHASE_BAND_HZ),
                 "terminal_edge_trim_ms": PHASE_EDGE_TRIM_MS,
-                "local_plv_window_ms": LOCAL_PLV_WINDOW_MS,
+                "terminal_phase_window_ms": TERMINAL_PHASE_WINDOW_MS,
+                "phase_error_smooth_ms": PHASE_ERROR_SMOOTH_MS,
                 "method": "fourth-order zero-phase Butterworth plus Hilbert phase",
                 "sign": "onset-relative A-minus-B",
             },
