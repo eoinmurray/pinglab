@@ -57,7 +57,13 @@ NETWORK_SEED = 83
 REPRESENTATIVE_RATES_HZ = (25.0, 75.0, 150.0)
 DISPLAY_TRIAL = 0
 
-GAMMA_CONFIG = replace(DEFAULT_PING_GAMMA, burn_ms=BURN_MS)
+FREQUENCY_CONFIG = replace(
+    DEFAULT_PING_GAMMA,
+    name="default-ping-dominant-rhythm-v1",
+    band_hz=(5.0, 80.0),
+    burn_ms=BURN_MS,
+    subharmonic_ratio=0.3,
+)
 
 SCALE = {
     "dt_ms": DT_MS,
@@ -154,7 +160,7 @@ def _trial_rows(
                 "input_rate_hz": rate_hz,
                 "e_rate_hz": float(e_spikes[burn:, index].sum() / N_E / duration_s),
                 "i_rate_hz": float(i_spikes[burn:, index].sum() / N_I / duration_s),
-                "gamma": peak.json(),
+                "frequency": peak.json(),
                 "rhythmicity_contrast": _rhythmicity_contrast(e_spikes[:, index]),
                 "e_i_peak_lag_ms": _phase_lag_ms(
                     e_spikes[:, index], i_spikes[:, index]
@@ -166,7 +172,7 @@ def _trial_rows(
 
 def summarize_condition(rate_hz: float, rows: list[dict]) -> dict:
     resolved = [
-        row["gamma"]["frequency_hz"] for row in rows if row["gamma"]["resolved"]
+        row["frequency"]["frequency_hz"] for row in rows if row["frequency"]["resolved"]
     ]
     lags = [
         row["e_i_peak_lag_ms"] for row in rows if row["e_i_peak_lag_ms"] is not None
@@ -182,14 +188,14 @@ def summarize_condition(rate_hz: float, rows: list[dict]) -> dict:
         "e_rate_std_hz": float(np.std([row["e_rate_hz"] for row in rows], ddof=1)),
         "i_rate_mean_hz": float(np.mean([row["i_rate_hz"] for row in rows])),
         "i_rate_std_hz": float(np.std([row["i_rate_hz"] for row in rows], ddof=1)),
-        "gamma_resolved_fraction": len(resolved) / len(rows),
+        "frequency_resolved_fraction": len(resolved) / len(rows),
         "rhythmicity_score_median": 0.0
         if not rhythmicity
         else float(np.median(rhythmicity)),
         "rhythmicity_score_iqr": 0.0
         if not rhythmicity
         else float(np.percentile(rhythmicity, 75) - np.percentile(rhythmicity, 25)),
-        "gamma_frequency_median_hz": None
+        "rhythm_frequency_median_hz": None
         if not resolved
         else float(np.median(resolved)),
         "e_i_peak_lag_median_ms": None if not lags else float(np.median(lags)),
@@ -261,7 +267,7 @@ def plot_representative_rasters(
 def plot_response(summaries: list[dict], out: Path) -> None:
     theme.apply()
     x = np.array([row["input_rate_hz"] for row in summaries])
-    fig, axes = plt.subplots(1, 3, figsize=(6.5, 3.66))
+    fig, axes = plt.subplots(3, 1, figsize=(6.5, 5.2), sharex=True)
     for key, std, label, colour in (
         ("e_rate_mean_hz", "e_rate_std_hz", "E", theme.INK_BLACK),
         ("i_rate_mean_hz", "i_rate_std_hz", "I", theme.DEEP_RED),
@@ -290,10 +296,10 @@ def plot_response(summaries: list[dict], out: Path) -> None:
     )
     axes[1].set_ylim(-0.04, 1.04)
     axes[1].set_ylabel("rhythmicity score")
-    frequencies = [row["gamma_frequency_median_hz"] for row in summaries]
+    frequencies = [row["rhythm_frequency_median_hz"] for row in summaries]
     axes[2].plot(x, frequencies, marker="o", color=theme.DEEP_RED)
-    axes[2].axhspan(30, 80, color=theme.GREY_LIGHT, alpha=0.5)
-    axes[2].set_ylim(20, 90)
+    axes[2].axhspan(5, 30, color=theme.GREY_LIGHT, alpha=0.35)
+    axes[2].set_ylim(0, 65)
     axes[2].set_ylabel("frequency (Hz)")
     for axis in axes:
         axis.spines[["top", "right"]].set_visible(False)
@@ -362,7 +368,7 @@ def main() -> None:
             estimate = estimate_gamma_from_raster(
                 e_spikes,
                 dt_ms=DT_MS,
-                config=GAMMA_CONFIG,
+                config=FREQUENCY_CONFIG,
             )
             rows = _trial_rows(rate, e_spikes, i_spikes, estimate)
             summaries.append(summarize_condition(rate, rows))
@@ -386,7 +392,7 @@ def main() -> None:
         payload = {
             "question": "Does the default SNNLANG PING component contain a reproducible gamma regime as homogeneous Poisson drive increases?",
             "config": SCALE,
-            "gamma_frequency": GAMMA_CONFIG.json(),
+            "frequency_analysis": FREQUENCY_CONFIG.json(),
             "representative_rates_hz": list(REPRESENTATIVE_RATES_HZ),
             "graph": {
                 "digest": bundle.manifest["graph_digest"],

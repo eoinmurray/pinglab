@@ -4,12 +4,13 @@ import numpy as np
 from experiments import exp083
 
 
-def test_protocol_is_frozen_to_default_ping_gamma_policy():
-    assert exp083.GAMMA_CONFIG.name == "default-ping-gamma-v1"
-    assert exp083.GAMMA_CONFIG.band_hz == (30.0, 80.0)
-    assert exp083.GAMMA_CONFIG.burn_ms == 200.0
-    assert exp083.GAMMA_CONFIG.min_prominence_ratio == 3.0
-    assert exp083.GAMMA_CONFIG.reject_band_edges
+def test_protocol_uses_broad_dominant_rhythm_policy():
+    assert exp083.FREQUENCY_CONFIG.name == "default-ping-dominant-rhythm-v1"
+    assert exp083.FREQUENCY_CONFIG.band_hz == (5.0, 80.0)
+    assert exp083.FREQUENCY_CONFIG.burn_ms == 200.0
+    assert exp083.FREQUENCY_CONFIG.min_prominence_ratio == 3.0
+    assert exp083.FREQUENCY_CONFIG.subharmonic_ratio == 0.3
+    assert exp083.FREQUENCY_CONFIG.reject_band_edges
 
 
 def test_input_trials_are_deterministic_and_paired_across_rates():
@@ -34,7 +35,7 @@ def test_silent_condition_remains_unresolved():
     estimate = exp083.estimate_gamma_from_raster(
         raster,
         dt_ms=exp083.DT_MS,
-        config=exp083.GAMMA_CONFIG,
+        config=exp083.FREQUENCY_CONFIG,
     )
     assert not estimate.resolved
     assert estimate.frequency_hz is None
@@ -48,7 +49,7 @@ def test_silent_condition_has_zero_rhythmicity_score():
             "i_rate_hz": 0.0,
             "e_i_peak_lag_ms": None,
             "rhythmicity_contrast": None,
-            "gamma": {
+            "frequency": {
                 "resolved": False,
                 "frequency_hz": None,
                 "prominence_ratio": None,
