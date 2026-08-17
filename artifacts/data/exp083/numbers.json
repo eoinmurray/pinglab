@@ -1,8 +1,8 @@
 {
-  "run_id": "r002",
-  "git_sha": "6f337429",
-  "duration_s": 15.3,
-  "duration": "15s",
+  "run_id": "r003",
+  "git_sha": "b0d1eff3",
+  "duration_s": 16.3,
+  "duration": "16s",
   "question": "Does the default SNNLANG PING component contain a reproducible gamma regime as homogeneous Poisson drive increases?",
   "config": {
     "dt_ms": 0.1,
