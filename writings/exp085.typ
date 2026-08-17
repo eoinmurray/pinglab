@@ -26,9 +26,9 @@
 
   + *Branch one mature state.* The executor captures voltages, refractory counters, conductances, population histories, and input-delay histories at coupling onset. That identical state branches across #(r.config.couplings.len()) reciprocal coupling strengths. Private future inputs remain paired across K and independent between circuits.
 
-  + *Measure relative phase.* E-population rates are smoothed with a #r.phase_analysis.smoothing_sigma_ms ms Gaussian kernel and filtered over #r.phase_analysis.band_hz.at(0)--#r.phase_analysis.band_hz.at(1) Hz. Hilbert phases define the unwrapped A-minus-B relative phase, expressed as its change from coupling onset. Figures divide this phase change by $2 pi$ to report relative cycles gained. The final #r.phase_analysis.terminal_edge_trim_ms ms are excluded to prevent the finite-record filter boundary from appearing as a phase jump. This continuous trajectory is the primary result; no locking threshold or latency is inferred.
+  + *Measure relative phase.* E-population rates are smoothed with a #r.phase_analysis.smoothing_sigma_ms ms Gaussian kernel and filtered over #r.phase_analysis.band_hz.at(0)--#r.phase_analysis.band_hz.at(1) Hz. Hilbert phases define the unwrapped A-minus-B relative phase, expressed as its change from coupling onset. The final #r.phase_analysis.terminal_edge_trim_ms ms are excluded to prevent the finite-record filter boundary from appearing as a phase jump. No locking threshold or latency is inferred.
 
-  + *Measure supporting responses.* The registered #raw(r.frequency_analysis.name) policy reports each circuit's dominant rhythm from the final 1.5 s. Frequency difference, descriptive phase-locking value, and population firing rates support the phase trajectories. Figure 5 measures one illustrative trial's circular phase error from its own mean terminal offset, defined over the final #r.phase_analysis.terminal_phase_window_ms ms and smoothed over #r.phase_analysis.phase_error_smooth_ms ms. Among K >= 0.07 trials with stable terminal error and no later slip, the example is selected by the largest clean reduction from onset to the settled interval. It is descriptive, not a registered latency estimator.
+  + *Measure supporting responses.* The registered #raw(r.frequency_analysis.name) policy reports each circuit's dominant rhythm from the final 1.5 s. Frequency difference, descriptive phase-locking value, and population firing rates support the phase trajectories. Figure 3 measures every trial at one illustrative K by its circular phase error from its own mean terminal offset, defined over the final #r.phase_analysis.terminal_phase_window_ms ms and smoothed over #r.phase_analysis.phase_error_smooth_ms ms. The displayed K is the condition containing the stable trial with the largest clean onset-to-settled reduction; all samples at that K are then shown. This is descriptive, not a registered latency estimator.
 
   #figure(
     image("/artifacts/data/exp085/network.svg", width: 88%, alt: "Two independently driven PING circuits connected by reciprocal excitatory projections."),
@@ -37,12 +37,7 @@
 
   == Results
 
-  The relative-phase trajectories expose the response to coupling without reducing it to a label. At K = #uncoupled.coupling the circuits repeatedly lap one another. Increasing K changes the slope and structure of that drift; the strongest condition ends with a median phase-locking value of #calc.round(strongest.phase_locking_value_median, digits: 2).
-
-  #figure(
-    image("/artifacts/data/exp085/relative_phase.svg", width: 100%, alt: "Small multiples of unwrapped relative phase after coupling onset at eleven reciprocal coupling strengths."),
-    caption: [Cumulative A-minus-B relative cycles gained after coupling onset. One vertical unit means that A has completed one additional cycle relative to B. Panels increase in reciprocal coupling K from left to right and top to bottom. Every trace is zeroed at onset; the final #r.phase_analysis.terminal_edge_trim_ms ms are excluded as a registered filter-edge guard. The black trace is one predeclared paired trial; grey traces are the other #(r.config.trials - 1) trials from the same mature-state and input protocol. Persistent slope indicates repeated lapping, plateaus indicate transient capture, and a bounded trace indicates a stable phase relationship.],
-  )
+  The coupling scan shows frequency convergence and rising phase concentration without reducing either to a binary label. At K = #uncoupled.coupling the circuits repeatedly lap one another; the strongest condition ends with a median phase-locking value of #calc.round(strongest.phase_locking_value_median, digits: 2).
 
   #figure(
     image("/artifacts/data/exp085/response.svg", width: 100%, alt: "Dominant frequencies, their absolute difference, and phase-locking value across reciprocal coupling."),
@@ -50,13 +45,8 @@
   )
 
   #figure(
-    image("/artifacts/data/exp085/representative_rates.svg", width: 100%, alt: "Excitatory population-rate traces for circuits A and B at four predeclared coupling strengths."),
-    caption: [Excitatory population activity after coupling onset at the four predeclared K values. Time is in milliseconds and rate is in hertz after the registered #r.phase_analysis.smoothing_sigma_ms ms smoothing. Circuit A is black and circuit B is dashed red; all panels use the same paired trial and axes. The sequence makes repeated lapping, transient alignment, and shared volley timing directly comparable.],
-  )
-
-  #figure(
-    image("/artifacts/data/exp085/synchrony_over_time.svg", width: 100%, alt: "One representative network pair converging toward its terminal phase relationship over time."),
-    caption: [A representative pair synchronizing after coupling onset at K = #sync-example.coupling (seed #sync-example.seed). The single trace is its circular error from its mean phase offset during the final #r.phase_analysis.terminal_phase_window_ms ms, with #r.phase_analysis.phase_error_smooth_ms ms smoothing; lower values indicate closer approach to the terminal relationship. The example follows the stated stability-and-largest-reduction rule. Its retrospective terminal reference makes this an illustration of convergence, not a synchronization-latency estimate.],
+    image("/artifacts/data/exp085/synchrony_over_time.svg", width: 100%, alt: "Five network pairs at one coupling strength converging toward their terminal phase relationships over time."),
+    caption: [All #r.config.trials paired trials at the selected K = #sync-example.coupling. Each trace is that trial's circular error from its own mean phase offset during the final #r.phase_analysis.terminal_phase_window_ms ms, with #r.phase_analysis.phase_error_smooth_ms ms smoothing; lower values indicate closer approach to the terminal relationship. The rule-selected seed #sync-example.seed is black and the other seeds are grey. Retrospective terminal references make these illustrations of convergence, not synchronization-latency estimates.],
   )
 
   Under the same illustrative clean-convergence rule, the passing counts are #convergence-counts. A trial passes only when its terminal-error 95th percentile is at most #r.phase_analysis.clean_convergence_terminal_p95_max_rad rad and it has no post-settling excursion above #r.phase_analysis.clean_convergence_post_settling_max_rad rad. This post-hoc descriptive rule is not a formal synchronization boundary.

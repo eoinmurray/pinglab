@@ -336,17 +336,34 @@ def select_sync_example(phases: dict[float, np.ndarray]) -> tuple[float, int, np
 def plot_synchrony_over_time(phases: dict[float, np.ndarray], out: Path) -> dict:
     theme.apply()
     fig, axis = plt.subplots(figsize=(6.5, 3.2))
-    coupling, trial, time_ms, error = select_sync_example(phases)
-    axis.plot(time_ms / 1_000.0, error, color=theme.INK_BLACK, linewidth=1.0)
+    coupling, selected_trial, _, _ = select_sync_example(phases)
+    bin_steps = round(TRACE_BIN_MS / DT_MS)
+    for trial, native_phase in enumerate(phases[coupling]):
+        time_ms, error = trial_terminal_phase_error(native_phase[::bin_steps])
+        selected = trial == selected_trial
+        axis.plot(
+            time_ms / 1_000.0,
+            error,
+            color=theme.INK_BLACK if selected else theme.GREY_MID,
+            alpha=1.0 if selected else 0.55,
+            linewidth=1.0 if selected else 0.7,
+            label=f"seed {TRIAL_SEEDS[trial]}" if selected else None,
+            zorder=2 if selected else 1,
+        )
     axis.set_xlabel("time after coupling onset (s)")
     axis.set_ylabel("terminal phase error (rad)")
     axis.set_ylim(bottom=0.0)
-    axis.text(0.98, 0.92, f"K = {coupling:.2f}, seed = {TRIAL_SEEDS[trial]}", transform=axis.transAxes, ha="right", va="top")
+    axis.text(0.98, 0.92, f"K = {coupling:.2f}", transform=axis.transAxes, ha="right", va="top")
+    axis.legend(frameon=False)
     axis.spines[["top", "right"]].set_visible(False)
     fig.tight_layout()
     fig.savefig(out, bbox_inches="tight")
     plt.close(fig)
-    return {"coupling": coupling, "trial": trial, "seed": TRIAL_SEEDS[trial]}
+    return {
+        "coupling": coupling,
+        "trial": selected_trial,
+        "seed": TRIAL_SEEDS[selected_trial],
+    }
 
 
 def plot_response(summaries: list[dict], out: Path) -> None:
@@ -448,7 +465,6 @@ def main() -> None:
         }
 
         phases: dict[float, np.ndarray] = {}
-        representative: dict[float, dict[str, np.ndarray]] = {}
         summaries = []
         graph_rows = []
         continuation_inputs = {
@@ -482,12 +498,7 @@ def main() -> None:
             summary["clean_convergence_seeds"] = [TRIAL_SEEDS[index] for index in converged_trials]
             summaries.append(summary)
             graph_rows.append({"coupling": coupling, "digest": bundle.manifest["graph_digest"]})
-            if coupling in REPRESENTATIVE_K:
-                representative[coupling] = continuation
-
-        plot_phase_small_multiples(phases, staging / "relative_phase.svg")
         plot_response(summaries, staging / "response.svg")
-        plot_representative_rates(representative, staging / "representative_rates.svg")
         sync_example = plot_synchrony_over_time(phases, staging / "synchrony_over_time.svg")
         bin_steps = round(TRACE_BIN_MS / DT_MS)
         np.savez_compressed(
