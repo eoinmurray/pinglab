@@ -36,6 +36,10 @@ from tools import snnlang as snn  # noqa: E402, TID251
 
 from helpers import modal_backend, theme  # noqa: E402
 from helpers.cli import parse_meta  # noqa: E402
+from helpers.gamma_frequency import (  # noqa: E402
+    EXP078_HISTORICAL,
+    estimate_gamma_from_raster,
+)
 from helpers.numbers import write_numbers  # noqa: E402
 from helpers.run_dirs import published_run  # noqa: E402
 from helpers.run_id import next_run_id  # noqa: E402
@@ -59,7 +63,6 @@ PILOT_COUPLINGS = (0.0, 0.01, 0.02, 0.04, 0.06, 0.08, 0.10, 0.125)
 PRIMARY_NONZERO_LEVELS = 10
 SMOOTH_SIGMA_MS = 5.0
 BAND_HZ = (25.0, 90.0)
-PEAK_BAND_HZ = (25.0, 80.0)
 STATE_DECIMATE_MS = 1.0
 FOLLOWUP_JOBS = {
     f"{'m1' if detuning < 0 else 'p1'}_k{int(round(coupling * 1000)):03d}": {
@@ -299,24 +302,19 @@ def _population_rate(spikes: np.ndarray, n_cells: int) -> np.ndarray:
     return gaussian_filter1d(rate_hz.astype(np.float64), SMOOTH_SIGMA_MS / DT_MS)
 
 
-def _peak_frequency(rate_hz: np.ndarray) -> tuple[float, bool]:
-    frequencies, power = sp_signal.welch(
-        rate_hz,
-        fs=1000.0 / DT_MS,
-        nperseg=len(rate_hz),
-        detrend="constant",
-        scaling="density",
+def _peak_frequency(spikes: np.ndarray) -> tuple[float, bool]:
+    estimate = estimate_gamma_from_raster(
+        spikes,
+        dt_ms=DT_MS,
+        config=EXP078_HISTORICAL,
     )
-    mask = (frequencies >= PEAK_BAND_HZ[0]) & (frequencies <= PEAK_BAND_HZ[1])
-    if not np.any(mask) or not np.all(np.isfinite(power[mask])):
-        return float("nan"), False
-    band_power = power[mask]
-    peak_index = int(np.argmax(band_power))
-    peak = float(frequencies[mask][peak_index])
-    # A numerical maximum always exists.  Require it to rise above the band
-    # median so featureless low-rate noise is not called a gamma oscillation.
-    resolved = bool(band_power[peak_index] > np.median(band_power) * 1.25)
-    return peak, resolved
+    trial = estimate.trials[0]
+    peak = (
+        trial.frequency_hz
+        if trial.frequency_hz is not None
+        else trial.discrete_frequency_hz
+    )
+    return float("nan") if peak is None else float(peak), trial.resolved
 
 
 def _phase_metrics(rate_a: np.ndarray, rate_b: np.ndarray) -> tuple[float, int, float, float, np.ndarray]:
@@ -356,8 +354,8 @@ def analyse_recordings(path: Path) -> tuple[list[TrialMetrics], dict[str, np.nda
             }
             rate_a = _population_rate(arrays["a_e"][:, trial], N_E)[burn:]
             rate_b = _population_rate(arrays["b_e"][:, trial], N_E)[burn:]
-            frequency_a, peak_a = _peak_frequency(rate_a)
-            frequency_b, peak_b = _peak_frequency(rate_b)
+            frequency_a, peak_a = _peak_frequency(arrays["a_e"][:, trial])
+            frequency_b, peak_b = _peak_frequency(arrays["b_e"][:, trial])
             slope, slips, plv, circular_mean, phase = _phase_metrics(rate_a, rate_b)
             reasons: list[str] = []
             if not finite:
@@ -1673,6 +1671,7 @@ def main() -> None:
                     "input_weight": INPUT_WEIGHT,
                     "coupling_reference": COUPLING_REFERENCE,
                     "delay_ms": DELAY_MS,
+                    "gamma_frequency": EXP078_HISTORICAL.json(),
                 },
                 "simulation_executed": True,
                 "registration": {
