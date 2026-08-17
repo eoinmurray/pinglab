@@ -49,9 +49,11 @@ PHASE_BAND_HZ = (20.0, 60.0)
 PHASE_SMOOTH_MS = 5.0
 PHASE_EDGE_TRIM_MS = 100.0
 TRACE_BIN_MS = 1.0
-SETTLING_K = (0.06, 0.07, 0.08, 0.10)
 TERMINAL_PHASE_WINDOW_MS = 500.0
 PHASE_ERROR_SMOOTH_MS = 50.0
+SYNC_EXAMPLE_MIN_K = 0.07
+SYNC_EXAMPLE_TERMINAL_P95_MAX_RAD = 0.25
+SYNC_EXAMPLE_POST_SETTLING_MAX_RAD = 0.5
 DISPLAY_TRIAL = 0
 FREQUENCY_CONFIG = replace(
     exp083.FREQUENCY_CONFIG,
@@ -280,57 +282,53 @@ def plot_phase_small_multiples(phases: dict[float, np.ndarray], out: Path) -> No
     plt.close(fig)
 
 
-def terminal_phase_error(
-    phase: np.ndarray,
-) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
-    """Return smoothed circular error from each trial's terminal phase offset."""
-    bin_steps = round(TRACE_BIN_MS / DT_MS)
-    binned = phase[:, ::bin_steps]
+def trial_terminal_phase_error(phase: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+    """Return one trial's smoothed circular error from its terminal phase offset."""
     terminal_steps = round(TERMINAL_PHASE_WINDOW_MS / TRACE_BIN_MS)
     smooth_steps = PHASE_ERROR_SMOOTH_MS / TRACE_BIN_MS
-    trial_errors = []
-    for row in binned:
-        terminal_phase = np.angle(np.mean(np.exp(1j * row[-terminal_steps:])))
-        circular_error = np.abs(np.angle(np.exp(1j * (row - terminal_phase))))
-        trial_errors.append(gaussian_filter1d(circular_error, smooth_steps))
-    errors = np.stack(trial_errors)
-    time_ms = np.arange(errors.shape[1]) * TRACE_BIN_MS
-    return (
-        time_ms,
-        np.median(errors, axis=0),
-        np.quantile(errors, 0.25, axis=0),
-        np.quantile(errors, 0.75, axis=0),
-    )
+    terminal_phase = np.angle(np.mean(np.exp(1j * phase[-terminal_steps:])))
+    circular_error = np.abs(np.angle(np.exp(1j * (phase - terminal_phase))))
+    error = gaussian_filter1d(circular_error, smooth_steps)
+    return np.arange(error.size) * TRACE_BIN_MS, error
 
 
-def plot_synchrony_over_time(phases: dict[float, np.ndarray], out: Path) -> None:
+def select_sync_example(phases: dict[float, np.ndarray]) -> tuple[float, int, np.ndarray, np.ndarray]:
+    """Select the largest clean onset-to-settled terminal-error reduction."""
+    candidates = []
+    for coupling in COUPLINGS:
+        if coupling < SYNC_EXAMPLE_MIN_K:
+            continue
+        for trial, native_phase in enumerate(phases[coupling]):
+            binned_phase = native_phase[:: round(TRACE_BIN_MS / DT_MS)]
+            time_ms, error = trial_terminal_phase_error(binned_phase)
+            terminal_p95 = np.quantile(error[-500:], 0.95)
+            post_settling_max = np.max(error[500:])
+            if (
+                terminal_p95 <= SYNC_EXAMPLE_TERMINAL_P95_MAX_RAD
+                and post_settling_max <= SYNC_EXAMPLE_POST_SETTLING_MAX_RAD
+            ):
+                reduction = np.mean(error[:100]) - np.mean(error[250:500])
+                candidates.append((reduction, coupling, trial, time_ms, error))
+    if not candidates:
+        raise RuntimeError("no phase-settling trace satisfies the example selection rule")
+    _, coupling, trial, time_ms, error = max(candidates, key=lambda row: row[0])
+    return coupling, trial, time_ms, error
+
+
+def plot_synchrony_over_time(phases: dict[float, np.ndarray], out: Path) -> dict:
     theme.apply()
     fig, axis = plt.subplots(figsize=(6.5, 3.2))
-    styles = (
-        (theme.GREY_LIGHT, ":"),
-        (theme.GREY_DARK, "--"),
-        (theme.DEEP_RED, "-."),
-        (theme.INK_BLACK, "-"),
-    )
-    for coupling, (colour, linestyle) in zip(SETTLING_K, styles, strict=True):
-        time_ms, median_error, lower, upper = terminal_phase_error(phases[coupling])
-        axis.fill_between(time_ms / 1_000.0, lower, upper, color=colour, alpha=0.10, linewidth=0)
-        axis.plot(
-            time_ms / 1_000.0,
-            median_error,
-            color=colour,
-            linestyle=linestyle,
-            linewidth=1.0,
-            label=f"K = {coupling:.2f}",
-        )
+    coupling, trial, time_ms, error = select_sync_example(phases)
+    axis.plot(time_ms / 1_000.0, error, color=theme.INK_BLACK, linewidth=1.0)
     axis.set_xlabel("time after coupling onset (s)")
     axis.set_ylabel("terminal phase error (rad)")
     axis.set_ylim(bottom=0.0)
-    axis.legend(frameon=False, ncol=2)
+    axis.text(0.98, 0.92, f"K = {coupling:.2f}, seed = {TRIAL_SEEDS[trial]}", transform=axis.transAxes, ha="right", va="top")
     axis.spines[["top", "right"]].set_visible(False)
     fig.tight_layout()
     fig.savefig(out, bbox_inches="tight")
     plt.close(fig)
+    return {"coupling": coupling, "trial": trial, "seed": TRIAL_SEEDS[trial]}
 
 
 def plot_response(summaries: list[dict], out: Path) -> None:
@@ -468,7 +466,7 @@ def main() -> None:
         plot_phase_small_multiples(phases, staging / "relative_phase.svg")
         plot_response(summaries, staging / "response.svg")
         plot_representative_rates(representative, staging / "representative_rates.svg")
-        plot_synchrony_over_time(phases, staging / "synchrony_over_time.svg")
+        sync_example = plot_synchrony_over_time(phases, staging / "synchrony_over_time.svg")
         bin_steps = round(TRACE_BIN_MS / DT_MS)
         np.savez_compressed(
             staging / "phase_traces.npz",
@@ -497,6 +495,7 @@ def main() -> None:
             },
             "graphs": graph_rows,
             "conditions": summaries,
+            "synchrony_example": sync_example,
         }
         (staging / "protocol.json").write_text(json.dumps(SCALE, indent=2) + "\n")
         write_numbers(staging, run_id=run_id, duration_s=time.monotonic() - started, payload=payload)

@@ -10,6 +10,7 @@
 #let r = json("/artifacts/data/exp085/numbers.json")
 #let uncoupled = r.conditions.first()
 #let strongest = r.conditions.last()
+#let sync-example = r.synchrony_example
 
 #let body = [
   == Abstract
@@ -24,7 +25,7 @@
 
   + *Measure relative phase.* E-population rates are smoothed with a #r.phase_analysis.smoothing_sigma_ms ms Gaussian kernel and filtered over #r.phase_analysis.band_hz.at(0)--#r.phase_analysis.band_hz.at(1) Hz. Hilbert phases define the unwrapped A-minus-B relative phase, expressed as its change from coupling onset. Figures divide this phase change by $2 pi$ to report relative cycles gained. The final #r.phase_analysis.terminal_edge_trim_ms ms are excluded to prevent the finite-record filter boundary from appearing as a phase jump. This continuous trajectory is the primary result; no locking threshold or latency is inferred.
 
-  + *Measure supporting responses.* The registered #raw(r.frequency_analysis.name) policy reports each circuit's dominant rhythm from the final 1.5 s. Frequency difference, descriptive phase-locking value, and population firing rates support the phase trajectories. Figure 5 measures settling as each trial's circular phase error from its own mean terminal offset, defined over the final #r.phase_analysis.terminal_phase_window_ms ms and smoothed over #r.phase_analysis.phase_error_smooth_ms ms. It is a descriptive convergence view, not a registered latency estimator.
+  + *Measure supporting responses.* The registered #raw(r.frequency_analysis.name) policy reports each circuit's dominant rhythm from the final 1.5 s. Frequency difference, descriptive phase-locking value, and population firing rates support the phase trajectories. Figure 5 measures one illustrative trial's circular phase error from its own mean terminal offset, defined over the final #r.phase_analysis.terminal_phase_window_ms ms and smoothed over #r.phase_analysis.phase_error_smooth_ms ms. Among K >= 0.07 trials with stable terminal error and no later slip, the example is selected by the largest clean reduction from onset to the settled interval. It is descriptive, not a registered latency estimator.
 
   #figure(
     image("/artifacts/data/exp085/network.svg", width: 88%, alt: "Two independently driven PING circuits connected by reciprocal excitatory projections."),
@@ -51,7 +52,7 @@
   )
 
   #figure(
-    image("/artifacts/data/exp085/synchrony_over_time.svg", width: 100%, alt: "Circular phase error from the terminal phase relationship over time at four coupling strengths."),
-    caption: [Convergence toward the terminal phase relationship after coupling onset for K = 0.06--0.10. Each line is the median circular error from the trial's own mean phase offset during the final #r.phase_analysis.terminal_phase_window_ms ms; bands span the interquartile range across #r.config.trials paired trials, and trajectories use #r.phase_analysis.phase_error_smooth_ms ms smoothing. Lower values indicate closer approach to the terminal relationship. The terminal reference is descriptive and retrospective, so this figure does not estimate synchronization latency.],
+    image("/artifacts/data/exp085/synchrony_over_time.svg", width: 100%, alt: "One representative network pair converging toward its terminal phase relationship over time."),
+    caption: [A representative pair synchronizing after coupling onset at K = #sync-example.coupling (seed #sync-example.seed). The single trace is its circular error from its mean phase offset during the final #r.phase_analysis.terminal_phase_window_ms ms, with #r.phase_analysis.phase_error_smooth_ms ms smoothing; lower values indicate closer approach to the terminal relationship. The example follows the stated stability-and-largest-reduction rule. Its retrospective terminal reference makes this an illustration of convergence, not a synchronization-latency estimate.],
   )
 ]

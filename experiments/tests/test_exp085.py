@@ -91,14 +91,11 @@ def test_relative_phase_reports_linear_drift():
 
 
 def test_terminal_phase_error_reports_approach_to_terminal_offset():
-    steps = round(1_000.0 / exp085.DT_MS)
-    time_s = np.arange(steps) * exp085.DT_MS / 1_000.0
+    steps = round(1_000.0 / exp085.TRACE_BIN_MS)
+    time_s = np.arange(steps) * exp085.TRACE_BIN_MS / 1_000.0
     approach = np.exp(-time_s / 0.15)
-    phase = np.stack((approach, 0.8 * approach))
 
-    _, median_error, lower, upper = exp085.terminal_phase_error(phase)
+    _, error = exp085.trial_terminal_phase_error(approach)
 
-    assert median_error[0] > 0.65
-    assert median_error[-1] < 0.01
-    assert np.all(lower <= median_error)
-    assert np.all(median_error <= upper)
+    assert error[0] > 0.7
+    assert error[-1] < 0.01
