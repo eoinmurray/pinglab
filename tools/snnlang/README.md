@@ -271,6 +271,18 @@ legacy recurrent keys are one-based (`W_ee.1`,
 `W_ei.1`, `W_ie.1`, and `W_ii.1`) and that the compatible mean-voltage readout
 uses the legacy 2 ms output-membrane time constant.
 
+The bounded forward accelerator check reuses the active-recurrence case. It
+runs the graph executor twice on one accelerator, then compares graph and
+legacy forward state on that same device under predeclared `1e-6` absolute and
+relative tolerances. It deliberately excludes training, checkpoints, datasets,
+and cross-device equality:
+
+```sh
+uv run python tools/snn/accelerator_forward.py --device mps
+# or, on a CUDA host:
+uv run python tools/snn/accelerator_forward.py --device cuda
+```
+
 The corresponding four-update backward fixture trains all six mapped tensors
 and compares the complete cross-entropy trajectory, final named surrogate
 gradients, constrained parameters, and AdamW step/first-moment/second-moment

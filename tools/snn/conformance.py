@@ -107,8 +107,10 @@ def _error_bounds(
 ) -> tuple[float, float]:
     if reference.numel() == 0:
         return 0.0, 0.0
-    reference = reference.detach().to(dtype=torch.float64, device="cpu")
-    candidate = candidate.detach().to(dtype=torch.float64, device="cpu")
+    # MPS does not support float64, so leave the accelerator before widening
+    # the values for stable error measurement.
+    reference = reference.detach().to(device="cpu").to(dtype=torch.float64)
+    candidate = candidate.detach().to(device="cpu").to(dtype=torch.float64)
     absolute = (reference - candidate).abs()
     relative = absolute / reference.abs().clamp_min(torch.finfo(torch.float64).tiny)
     return float(absolute.max()), float(relative.max())
@@ -166,12 +168,14 @@ def compare_conformance_layers(
                 max_abs = max_rel = None
             else:
                 max_abs, max_rel = _error_bounds(expected, actual)
+                expected_value = expected.detach().to(device="cpu")
+                actual_value = actual.detach().to(device="cpu")
                 if policy.mode == "exact":
-                    passed = torch.equal(expected, actual)
+                    passed = torch.equal(expected_value, actual_value)
                 else:
                     passed = torch.allclose(
-                        expected,
-                        actual,
+                        expected_value,
+                        actual_value,
                         atol=policy.atol,
                         rtol=policy.rtol,
                         equal_nan=policy.equal_nan,
