@@ -74,8 +74,11 @@
     detuning measurements. <method-calibration>],
 
     [*Measure phase and concentration.* Excitatory spikes are converted to
-    population rates with a fixed 5 ms Gaussian kernel. Gamma frequency comes
-    from the post-transient spectrum. A zero-phase 25--90 Hz band-pass filter
+    population rates with a fixed 5 ms Gaussian kernel. The named
+    `exp078-historical-v1` frequency configuration discards the first 500 ms,
+    computes a single-trial-length Welch spectrum, searches 25--80 Hz without
+    sub-bin interpolation, and resolves a peak only when its power exceeds
+    1.25 times the band median. A zero-phase 25--90 Hz band-pass filter
     and analytic signal define relative phase
 
     $ phi(t) = "unwrap"(theta_A(t) - theta_B(t)), quad "(2)" $ <eq-phase>
