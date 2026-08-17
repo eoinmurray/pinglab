@@ -22,7 +22,7 @@
 
   + *Branch one mature state.* The executor captures voltages, refractory counters, conductances, population histories, and input-delay histories at coupling onset. That identical state branches across #(r.config.couplings.len()) reciprocal coupling strengths. Private future inputs remain paired across K and independent between circuits.
 
-  + *Measure relative phase.* E-population rates are smoothed with a #r.phase_analysis.smoothing_sigma_ms ms Gaussian kernel and filtered over #r.phase_analysis.band_hz.at(0)--#r.phase_analysis.band_hz.at(1) Hz. Hilbert phases define the unwrapped A-minus-B relative phase. This continuous trajectory is the primary result; no locking threshold or latency is inferred.
+  + *Measure relative phase.* E-population rates are smoothed with a #r.phase_analysis.smoothing_sigma_ms ms Gaussian kernel and filtered over #r.phase_analysis.band_hz.at(0)--#r.phase_analysis.band_hz.at(1) Hz. Hilbert phases define the unwrapped A-minus-B relative phase, expressed as its change from coupling onset. The final #r.phase_analysis.terminal_edge_trim_ms ms are excluded to prevent the finite-record filter boundary from appearing as a phase jump. This continuous trajectory is the primary result; no locking threshold or latency is inferred.
 
   + *Measure supporting responses.* The registered #raw(r.frequency_analysis.name) policy reports each circuit's dominant rhythm from the final 1.5 s. Frequency difference, descriptive phase-locking value, and population firing rates support the phase trajectories.
 
@@ -37,16 +37,16 @@
 
   #figure(
     image("/artifacts/data/exp085/relative_phase.svg", width: 100%, alt: "Small multiples of unwrapped relative phase after coupling onset at eleven reciprocal coupling strengths."),
-    caption: [Unwrapped A-minus-B relative phase after coupling onset. Time is in seconds and phase is in radians. Panels increase in reciprocal coupling K from left to right and top to bottom. The black trace is one predeclared paired trial; grey traces are the other #(r.config.trials - 1) trials from the same mature-state and input protocol. Persistent slope indicates phase drift, plateaus indicate transient capture, and a bounded trace indicates a stable phase relationship.],
+    caption: [Change in unwrapped A-minus-B relative phase after coupling onset. Time is in seconds and phase change is in radians. Panels increase in reciprocal coupling K from left to right and top to bottom. Every trace is zeroed at onset; the final #r.phase_analysis.terminal_edge_trim_ms ms are excluded as a registered filter-edge guard. The black trace is one predeclared paired trial; grey traces are the other #(r.config.trials - 1) trials from the same mature-state and input protocol. Persistent slope indicates phase drift, plateaus indicate transient capture, and a bounded trace indicates a stable phase relationship.],
   )
 
   #figure(
     image("/artifacts/data/exp085/response.svg", width: 100%, alt: "Dominant frequencies, their absolute difference, and phase-locking value across reciprocal coupling."),
-    caption: [Supporting coupling response. Top: median dominant E-population frequencies of circuits A and B in hertz. Middle: their absolute difference in hertz. Bottom: median descriptive phase-locking value across #r.config.trials paired trials. K is the shared weight of the four reciprocal AMPA projections.],
+    caption: [Supporting coupling response. First: median dominant E-population frequencies of circuits A and B in hertz. Second: their absolute difference in hertz. Third: median descriptive phase-locking value across #r.config.trials paired trials. Fourth: mean E and I firing rates in hertz for both circuits. K is the shared weight of the four reciprocal AMPA projections.],
   )
 
   #figure(
     image("/artifacts/data/exp085/representative_rasters.png", width: 100%, alt: "Stacked A and B excitatory and inhibitory rasters at four predeclared coupling strengths."),
-    caption: [Population rasters after coupling onset at the four predeclared K values. Time is in milliseconds; black marks E cells and red marks I cells. Each panel stacks A:E, A:I, B:E, and B:I for the same paired trial. The sequence shows how population volleys change as reciprocal excitation strengthens.],
+    caption: [Population rasters after coupling onset at the four predeclared K values. Time is in milliseconds; black marks E cells and red marks I cells. Each panel stacks A:E, A:I, B:E, and B:I from bottom to top for the same paired trial. The sequence shows how population volleys change as reciprocal excitation strengthens.],
   )
 ]

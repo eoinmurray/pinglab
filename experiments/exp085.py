@@ -47,6 +47,7 @@ TRIAL_SEEDS = (8500, 8501, 8502, 8503, 8504)
 NETWORK_SEED = 85
 PHASE_BAND_HZ = (20.0, 60.0)
 PHASE_SMOOTH_MS = 5.0
+PHASE_EDGE_TRIM_MS = 100.0
 TRACE_BIN_MS = 1.0
 DISPLAY_TRIAL = 0
 FREQUENCY_CONFIG = replace(
@@ -79,6 +80,7 @@ SCALE = {
     "network_seed": NETWORK_SEED,
     "phase_band_hz": list(PHASE_BAND_HZ),
     "phase_smooth_ms": PHASE_SMOOTH_MS,
+    "phase_edge_trim_ms": PHASE_EDGE_TRIM_MS,
 }
 
 
@@ -166,7 +168,7 @@ def relative_phase(
     *,
     onset_step: int,
 ) -> np.ndarray:
-    """Return [trial, post-onset time] unwrapped A-minus-B phase."""
+    """Return onset-relative unwrapped A-minus-B phase, excluding filter edge."""
     sample_hz = 1_000.0 / DT_MS
     sos = sp_signal.butter(4, PHASE_BAND_HZ, btype="bandpass", fs=sample_hz, output="sos")
     phases = []
@@ -179,7 +181,8 @@ def relative_phase(
             sp_signal.hilbert(filtered_b)
         )
         unwrapped = np.unwrap(np.angle(np.exp(1j * wrapped)))
-        post = unwrapped[onset_step:].copy()
+        edge_steps = round(PHASE_EDGE_TRIM_MS / DT_MS)
+        post = unwrapped[onset_step:-edge_steps].copy()
         post -= post[0]
         phases.append(post)
     return np.stack(phases)
@@ -251,7 +254,8 @@ def _copy_runtime_state(state: GraphRuntimeState) -> GraphRuntimeState:
 def plot_phase_small_multiples(phases: dict[float, np.ndarray], out: Path) -> None:
     theme.apply()
     bin_steps = round(TRACE_BIN_MS / DT_MS)
-    time_s = np.arange(0, round(CONTINUATION_MS / DT_MS), bin_steps) * DT_MS / 1_000.0
+    trace_steps = next(iter(phases.values())).shape[1]
+    time_s = np.arange(0, trace_steps, bin_steps) * DT_MS / 1_000.0
     fig, axes = plt.subplots(3, 4, figsize=(6.5, 5.2), sharex=True, sharey=True)
     flat = axes.ravel()
     for index, coupling in enumerate(COUPLINGS):
@@ -265,7 +269,7 @@ def plot_phase_small_multiples(phases: dict[float, np.ndarray], out: Path) -> No
         axis.spines[["top", "right"]].set_visible(False)
     flat[-1].axis("off")
     fig.supxlabel("time after coupling onset (s)")
-    fig.supylabel("unwrapped relative phase, φA − φB (rad)")
+    fig.supylabel("change in unwrapped relative phase, Δ(φA − φB) (rad)")
     fig.tight_layout()
     fig.savefig(out, bbox_inches="tight")
     plt.close(fig)
@@ -274,7 +278,7 @@ def plot_phase_small_multiples(phases: dict[float, np.ndarray], out: Path) -> No
 def plot_response(summaries: list[dict], out: Path) -> None:
     theme.apply()
     x = np.array([row["coupling"] for row in summaries])
-    fig, axes = plt.subplots(3, 1, figsize=(6.5, 5.2), sharex=True)
+    fig, axes = plt.subplots(4, 1, figsize=(6.5, 5.5), sharex=True)
     axes[0].plot(x, [row["frequency_a_median_hz"] for row in summaries], "o-", color=theme.INK_BLACK, label="A")
     axes[0].plot(x, [row["frequency_b_median_hz"] for row in summaries], "s--", color=theme.DEEP_RED, label="B")
     axes[0].set_ylabel("frequency (Hz)")
@@ -284,7 +288,24 @@ def plot_response(summaries: list[dict], out: Path) -> None:
     axes[2].plot(x, [row["phase_locking_value_median"] for row in summaries], "o-", color=theme.INK_BLACK)
     axes[2].set_ylabel("phase-locking value")
     axes[2].set_ylim(-0.04, 1.04)
-    axes[2].set_xlabel("reciprocal coupling K")
+    for circuit, colour in (("a", theme.INK_BLACK), ("b", theme.DEEP_RED)):
+        axes[3].plot(
+            x,
+            [row[f"{circuit}_e_rate_mean_hz"] for row in summaries],
+            "o-",
+            color=colour,
+            label=f"{circuit.upper()}:E",
+        )
+        axes[3].plot(
+            x,
+            [row[f"{circuit}_i_rate_mean_hz"] for row in summaries],
+            "s--",
+            color=colour,
+            label=f"{circuit.upper()}:I",
+        )
+    axes[3].set_ylabel("rate (Hz)")
+    axes[3].set_xlabel("reciprocal coupling K")
+    axes[3].legend(frameon=False, ncol=4)
     for axis in axes:
         axis.spines[["top", "right"]].set_visible(False)
     fig.tight_layout()
@@ -390,7 +411,7 @@ def main() -> None:
         np.savez_compressed(
             staging / "phase_traces.npz",
             couplings=np.asarray(COUPLINGS),
-            time_ms=np.arange(0, round(CONTINUATION_MS / DT_MS), bin_steps) * DT_MS,
+            time_ms=np.arange(0, next(iter(phases.values())).shape[1], bin_steps) * DT_MS,
             phase_rad=np.stack([phases[value][:, ::bin_steps] for value in COUPLINGS]),
         )
         for coupling, arrays in representative.items():
@@ -406,8 +427,9 @@ def main() -> None:
                 "population": "E",
                 "smoothing_sigma_ms": PHASE_SMOOTH_MS,
                 "band_hz": list(PHASE_BAND_HZ),
+                "terminal_edge_trim_ms": PHASE_EDGE_TRIM_MS,
                 "method": "fourth-order zero-phase Butterworth plus Hilbert phase",
-                "sign": "A-minus-B",
+                "sign": "onset-relative A-minus-B",
             },
             "runtime_state": {
                 "schema": equilibration.metrics["runtime_state_schema"],
