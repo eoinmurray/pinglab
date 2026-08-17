@@ -414,11 +414,6 @@ def main() -> None:
             time_ms=np.arange(0, next(iter(phases.values())).shape[1], bin_steps) * DT_MS,
             phase_rad=np.stack([phases[value][:, ::bin_steps] for value in COUPLINGS]),
         )
-        for coupling, arrays in representative.items():
-            np.savez_compressed(
-                staging / f"raster-k{coupling:.2f}.npz",
-                **arrays,
-            )
         payload = {
             "question": "How does reciprocal excitation change relative phase after coupling is switched on between equilibrated PING circuits?",
             "config": SCALE,
