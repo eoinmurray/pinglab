@@ -165,42 +165,70 @@ def summarize_condition(rate_hz: float, rows: list[dict]) -> dict:
 
 
 def plot_representative_rasters(
-    recordings: dict[float, dict[str, np.ndarray]], out: Path
+    recordings: dict[float, dict[str, np.ndarray]],
+    summaries: list[dict],
+    out: Path,
 ) -> None:
     theme.apply()
-    fig, axes = plt.subplots(3, 2, figsize=(8.2, 7.0), sharex=True)
+    by_rate = {row["input_rate_hz"]: row for row in summaries}
+    gap = 6
+    fig, axes = plt.subplots(
+        3, 1, figsize=(6.5, 3.5), sharex=True, gridspec_kw={"hspace": 0.18}
+    )
     for row, rate in enumerate(REPRESENTATIVE_RATES_HZ):
         arrays = recordings[rate]
-        for column, (key, label, colour, size) in enumerate(
-            (("e", "E", theme.INK_BLACK, N_E), ("i", "I", theme.DEEP_RED, N_I))
-        ):
-            times, cells = np.nonzero(arrays[key][:, DISPLAY_TRIAL])
-            axes[row, column].scatter(
-                times * DT_MS,
-                cells,
-                s=1.5,
-                linewidths=0,
-                color=colour,
-                rasterized=True,
-            )
-            axes[row, column].axvline(BURN_MS, color=theme.GREY_MID, ls="--", lw=0.8)
-            axes[row, column].set_ylim(-1, size)
-            axes[row, column].set_ylabel(f"{rate:g} Hz\ncell")
-            if row == 0:
-                axes[row, column].set_title(f"{label} population")
-            axes[row, column].spines[["top", "right"]].set_visible(False)
-    for axis in axes[-1]:
-        axis.set_xlabel("time (ms)")
-    fig.suptitle("Fixed representative rates · trial seed 8300", y=0.995)
-    fig.tight_layout()
-    fig.savefig(out, dpi=220, bbox_inches="tight")
+        axis = axes[row]
+        e_t, e_cells = np.nonzero(arrays["e"][:, DISPLAY_TRIAL])
+        i_t, i_cells = np.nonzero(arrays["i"][:, DISPLAY_TRIAL])
+        axis.scatter(
+            e_t * DT_MS,
+            e_cells,
+            s=2.0,
+            marker="|",
+            linewidths=0.4,
+            color=theme.INK_BLACK,
+            rasterized=True,
+        )
+        axis.scatter(
+            i_t * DT_MS,
+            i_cells + N_E + gap,
+            s=2.0,
+            marker="|",
+            linewidths=0.4,
+            color=theme.DEEP_RED,
+            rasterized=True,
+        )
+        axis.axvline(BURN_MS, color=theme.GREY_MID, ls="--", lw=0.8)
+        axis.set_ylim(-2, N_E + gap + N_I + 2)
+        axis.set_yticks([N_E / 2, N_E + gap + N_I / 2])
+        axis.set_yticklabels(["E", "I"])
+        axis.tick_params(axis="y", length=0)
+        condition = by_rate[rate]
+        axis.text(
+            1.012,
+            0.5,
+            (
+                f"{rate:g} Hz/channel\n"
+                f"E {condition['e_rate_mean_hz']:.1f} · "
+                f"I {condition['i_rate_mean_hz']:.1f} Hz"
+            ),
+            transform=axis.transAxes,
+            ha="left",
+            va="center",
+            fontsize=theme.SIZE_ANNOTATION,
+        )
+        axis.spines[["top", "right"]].set_visible(False)
+    axes[-1].set_xlim(0, T_MS)
+    axes[-1].set_xlabel("time (ms)")
+    fig.subplots_adjust(left=0.08, right=0.78, bottom=0.15, top=0.98, hspace=0.18)
+    fig.savefig(out, dpi=240, bbox_inches="tight")
     plt.close(fig)
 
 
 def plot_response(summaries: list[dict], out: Path) -> None:
     theme.apply()
     x = np.array([row["input_rate_hz"] for row in summaries])
-    fig, axes = plt.subplots(1, 3, figsize=(12.0, 3.8))
+    fig, axes = plt.subplots(1, 3, figsize=(6.5, 3.66))
     for key, std, label, colour in (
         ("e_rate_mean_hz", "e_rate_std_hz", "E", theme.INK_BLACK),
         ("i_rate_mean_hz", "i_rate_std_hz", "I", theme.DEEP_RED),
@@ -215,7 +243,7 @@ def plot_response(summaries: list[dict], out: Path) -> None:
             color=colour,
             label=label,
         )
-    axes[0].set_ylabel("population rate (Hz)")
+    axes[0].set_ylabel("rate (Hz)")
     axes[0].legend(frameon=False)
     axes[1].plot(
         x,
@@ -224,15 +252,15 @@ def plot_response(summaries: list[dict], out: Path) -> None:
         color=theme.INK_BLACK,
     )
     axes[1].set_ylim(-0.04, 1.04)
-    axes[1].set_ylabel("resolved gamma fraction")
+    axes[1].set_ylabel("resolved fraction")
     frequencies = [row["gamma_frequency_median_hz"] for row in summaries]
     axes[2].plot(x, frequencies, marker="o", color=theme.DEEP_RED)
     axes[2].axhspan(30, 80, color=theme.GREY_LIGHT, alpha=0.5)
     axes[2].set_ylim(20, 90)
-    axes[2].set_ylabel("median resolved frequency (Hz)")
+    axes[2].set_ylabel("frequency (Hz)")
     for axis in axes:
-        axis.set_xlabel("input rate per channel (Hz)")
         axis.spines[["top", "right"]].set_visible(False)
+    fig.supxlabel("input rate per channel (Hz)")
     fig.tight_layout()
     fig.savefig(out, dpi=220, bbox_inches="tight")
     plt.close(fig)
@@ -311,7 +339,9 @@ def main() -> None:
             )
 
         plot_representative_rasters(
-            all_recordings, staging / "representative_rasters.png"
+            all_recordings,
+            summaries,
+            staging / "representative_rasters.png",
         )
         plot_response(summaries, staging / "response.png")
         plot_spectra(estimates, staging / "spectra.png")
