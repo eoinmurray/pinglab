@@ -322,6 +322,7 @@ def plot_representative_rates(recordings: dict[float, dict[str, np.ndarray]], ou
             time_ms,
             _population_rate(recordings[coupling]["a_e"][:, DISPLAY_TRIAL]),
             color=theme.INK_BLACK,
+            linewidth=0.55,
             label="A:E",
         )
         axis.plot(
@@ -329,6 +330,7 @@ def plot_representative_rates(recordings: dict[float, dict[str, np.ndarray]], ou
             _population_rate(recordings[coupling]["b_e"][:, DISPLAY_TRIAL]),
             color=theme.DEEP_RED,
             linestyle="--",
+            linewidth=0.55,
             label="B:E",
         )
         axis.text(1.01, 0.5, f"K = {coupling:.2f}", transform=axis.transAxes, va="center", fontsize=theme.SIZE_ANNOTATION)
