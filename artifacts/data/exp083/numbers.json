@@ -1,0 +1,894 @@
+{
+  "run_id": "r005",
+  "git_sha": "5093d8ef",
+  "duration_s": 16.4,
+  "duration": "16s",
+  "question": "Does the default SNNLANG PING component contain a reproducible gamma regime as homogeneous Poisson drive increases?",
+  "config": {
+    "dt_ms": 0.1,
+    "t_ms": 1000.0,
+    "burn_ms": 200.0,
+    "n_input": 128,
+    "n_e": 80,
+    "n_i": 20,
+    "rates_hz": [
+      0.0,
+      25.0,
+      50.0,
+      75.0,
+      100.0,
+      125.0,
+      150.0,
+      200.0
+    ],
+    "trials": 5,
+    "network_seed": 83
+  },
+  "frequency_analysis": {
+    "name": "default-ping-dominant-rhythm-v1",
+    "source_population": "E",
+    "band_hz": [
+      5.0,
+      80.0
+    ],
+    "burn_ms": 200.0,
+    "bin_ms": null,
+    "smooth_sigma_ms": null,
+    "population_reduction": "mean",
+    "mean_center": true,
+    "spectral_method": "welch",
+    "segment_length": "trial",
+    "window": "hann",
+    "detrend": false,
+    "scaling": "density",
+    "interpolate": true,
+    "min_events": 1,
+    "min_prominence_ratio": 3.0,
+    "reject_band_edges": true,
+    "subharmonic_ratio": 0.3,
+    "aggregation": "median"
+  },
+  "representative_rates_hz": [
+    25.0,
+    75.0,
+    150.0
+  ],
+  "graph": {
+    "digest": "sha256:1173035a820aa4fb1c1770474cb465f78fc86d0f1523a52f17677d40c9ef6e3f",
+    "name": "default_ping_drive_response"
+  },
+  "conditions": [
+    {
+      "input_rate_hz": 0.0,
+      "e_rate_mean_hz": 0.0,
+      "e_rate_std_hz": 0.0,
+      "i_rate_mean_hz": 0.0,
+      "i_rate_std_hz": 0.0,
+      "frequency_resolved_fraction": 0.0,
+      "rhythmicity_score_median": 0.0,
+      "rhythmicity_score_iqr": 0.0,
+      "rhythm_frequency_median_hz": null,
+      "e_i_peak_lag_median_ms": null,
+      "trials": [
+        {
+          "trial": 0,
+          "seed": 8300,
+          "input_rate_hz": 0.0,
+          "e_rate_hz": 0.0,
+          "i_rate_hz": 0.0,
+          "frequency": {
+            "resolved": false,
+            "frequency_hz": null,
+            "reason": "insufficient_activity",
+            "discrete_frequency_hz": null,
+            "peak_power": null,
+            "band_median_power": null,
+            "prominence_ratio": null
+          },
+          "rhythmicity_contrast": null,
+          "e_i_peak_lag_ms": null
+        },
+        {
+          "trial": 1,
+          "seed": 8301,
+          "input_rate_hz": 0.0,
+          "e_rate_hz": 0.0,
+          "i_rate_hz": 0.0,
+          "frequency": {
+            "resolved": false,
+            "frequency_hz": null,
+            "reason": "insufficient_activity",
+            "discrete_frequency_hz": null,
+            "peak_power": null,
+            "band_median_power": null,
+            "prominence_ratio": null
+          },
+          "rhythmicity_contrast": null,
+          "e_i_peak_lag_ms": null
+        },
+        {
+          "trial": 2,
+          "seed": 8302,
+          "input_rate_hz": 0.0,
+          "e_rate_hz": 0.0,
+          "i_rate_hz": 0.0,
+          "frequency": {
+            "resolved": false,
+            "frequency_hz": null,
+            "reason": "insufficient_activity",
+            "discrete_frequency_hz": null,
+            "peak_power": null,
+            "band_median_power": null,
+            "prominence_ratio": null
+          },
+          "rhythmicity_contrast": null,
+          "e_i_peak_lag_ms": null
+        },
+        {
+          "trial": 3,
+          "seed": 8303,
+          "input_rate_hz": 0.0,
+          "e_rate_hz": 0.0,
+          "i_rate_hz": 0.0,
+          "frequency": {
+            "resolved": false,
+            "frequency_hz": null,
+            "reason": "insufficient_activity",
+            "discrete_frequency_hz": null,
+            "peak_power": null,
+            "band_median_power": null,
+            "prominence_ratio": null
+          },
+          "rhythmicity_contrast": null,
+          "e_i_peak_lag_ms": null
+        },
+        {
+          "trial": 4,
+          "seed": 8304,
+          "input_rate_hz": 0.0,
+          "e_rate_hz": 0.0,
+          "i_rate_hz": 0.0,
+          "frequency": {
+            "resolved": false,
+            "frequency_hz": null,
+            "reason": "insufficient_activity",
+            "discrete_frequency_hz": null,
+            "peak_power": null,
+            "band_median_power": null,
+            "prominence_ratio": null
+          },
+          "rhythmicity_contrast": null,
+          "e_i_peak_lag_ms": null
+        }
+      ]
+    },
+    {
+      "input_rate_hz": 25.0,
+      "e_rate_mean_hz": 0.0,
+      "e_rate_std_hz": 0.0,
+      "i_rate_mean_hz": 0.0,
+      "i_rate_std_hz": 0.0,
+      "frequency_resolved_fraction": 0.0,
+      "rhythmicity_score_median": 0.0,
+      "rhythmicity_score_iqr": 0.0,
+      "rhythm_frequency_median_hz": null,
+      "e_i_peak_lag_median_ms": null,
+      "trials": [
+        {
+          "trial": 0,
+          "seed": 8300,
+          "input_rate_hz": 25.0,
+          "e_rate_hz": 0.0,
+          "i_rate_hz": 0.0,
+          "frequency": {
+            "resolved": false,
+            "frequency_hz": null,
+            "reason": "insufficient_activity",
+            "discrete_frequency_hz": null,
+            "peak_power": null,
+            "band_median_power": null,
+            "prominence_ratio": null
+          },
+          "rhythmicity_contrast": null,
+          "e_i_peak_lag_ms": null
+        },
+        {
+          "trial": 1,
+          "seed": 8301,
+          "input_rate_hz": 25.0,
+          "e_rate_hz": 0.0,
+          "i_rate_hz": 0.0,
+          "frequency": {
+            "resolved": false,
+            "frequency_hz": null,
+            "reason": "insufficient_activity",
+            "discrete_frequency_hz": null,
+            "peak_power": null,
+            "band_median_power": null,
+            "prominence_ratio": null
+          },
+          "rhythmicity_contrast": null,
+          "e_i_peak_lag_ms": null
+        },
+        {
+          "trial": 2,
+          "seed": 8302,
+          "input_rate_hz": 25.0,
+          "e_rate_hz": 0.0,
+          "i_rate_hz": 0.0,
+          "frequency": {
+            "resolved": false,
+            "frequency_hz": null,
+            "reason": "insufficient_activity",
+            "discrete_frequency_hz": null,
+            "peak_power": null,
+            "band_median_power": null,
+            "prominence_ratio": null
+          },
+          "rhythmicity_contrast": null,
+          "e_i_peak_lag_ms": null
+        },
+        {
+          "trial": 3,
+          "seed": 8303,
+          "input_rate_hz": 25.0,
+          "e_rate_hz": 0.0,
+          "i_rate_hz": 0.0,
+          "frequency": {
+            "resolved": false,
+            "frequency_hz": null,
+            "reason": "insufficient_activity",
+            "discrete_frequency_hz": null,
+            "peak_power": null,
+            "band_median_power": null,
+            "prominence_ratio": null
+          },
+          "rhythmicity_contrast": null,
+          "e_i_peak_lag_ms": null
+        },
+        {
+          "trial": 4,
+          "seed": 8304,
+          "input_rate_hz": 25.0,
+          "e_rate_hz": 0.0,
+          "i_rate_hz": 0.0,
+          "frequency": {
+            "resolved": false,
+            "frequency_hz": null,
+            "reason": "insufficient_activity",
+            "discrete_frequency_hz": null,
+            "peak_power": null,
+            "band_median_power": null,
+            "prominence_ratio": null
+          },
+          "rhythmicity_contrast": null,
+          "e_i_peak_lag_ms": null
+        }
+      ]
+    },
+    {
+      "input_rate_hz": 50.0,
+      "e_rate_mean_hz": 9.809375,
+      "e_rate_std_hz": 0.23107045394749226,
+      "i_rate_mean_hz": 32.65,
+      "i_rate_std_hz": 1.3597161928137813,
+      "frequency_resolved_fraction": 1.0,
+      "rhythmicity_score_median": 1.0,
+      "rhythmicity_score_iqr": 0.008972009816784365,
+      "rhythm_frequency_median_hz": 14.92950571694049,
+      "e_i_peak_lag_median_ms": -1.0,
+      "trials": [
+        {
+          "trial": 0,
+          "seed": 8300,
+          "input_rate_hz": 50.0,
+          "e_rate_hz": 9.515625,
+          "i_rate_hz": 31.749999999999996,
+          "frequency": {
+            "resolved": true,
+            "frequency_hz": 14.872215221747396,
+            "reason": null,
+            "discrete_frequency_hz": 15.0,
+            "peak_power": 9.202787133091659e-07,
+            "band_median_power": 2.7746055768856283e-08,
+            "prominence_ratio": 33.16791117900577
+          },
+          "rhythmicity_contrast": 1.0,
+          "e_i_peak_lag_ms": -1.0
+        },
+        {
+          "trial": 1,
+          "seed": 8301,
+          "input_rate_hz": 50.0,
+          "e_rate_hz": 9.656249999999998,
+          "i_rate_hz": 31.187499999999996,
+          "frequency": {
+            "resolved": true,
+            "frequency_hz": 14.96810652915092,
+            "reason": null,
+            "discrete_frequency_hz": 15.0,
+            "peak_power": 8.918515422417762e-07,
+            "band_median_power": 9.259570056416477e-08,
+            "prominence_ratio": 9.631673358567681
+          },
+          "rhythmicity_contrast": 0.9819552868095837,
+          "e_i_peak_lag_ms": -1.0
+        },
+        {
+          "trial": 2,
+          "seed": 8302,
+          "input_rate_hz": 50.0,
+          "e_rate_hz": 9.921875,
+          "i_rate_hz": 32.75,
+          "frequency": {
+            "resolved": true,
+            "frequency_hz": 14.941243863312474,
+            "reason": null,
+            "discrete_frequency_hz": 15.0,
+            "peak_power": 7.907060404914013e-07,
+            "band_median_power": 8.875340284599135e-08,
+            "prominence_ratio": 8.90902224744518
+          },
+          "rhythmicity_contrast": 1.0,
+          "e_i_peak_lag_ms": -1.0
+        },
+        {
+          "trial": 3,
+          "seed": 8303,
+          "input_rate_hz": 50.0,
+          "e_rate_hz": 10.109375,
+          "i_rate_hz": 34.75,
+          "frequency": {
+            "resolved": true,
+            "frequency_hz": 14.74764188661941,
+            "reason": null,
+            "discrete_frequency_hz": 15.0,
+            "peak_power": 7.882142493851754e-07,
+            "band_median_power": 2.9479956898227264e-08,
+            "prominence_ratio": 26.73729314144871
+          },
+          "rhythmicity_contrast": 1.0,
+          "e_i_peak_lag_ms": -1.0
+        },
+        {
+          "trial": 4,
+          "seed": 8304,
+          "input_rate_hz": 50.0,
+          "e_rate_hz": 9.84375,
+          "i_rate_hz": 32.8125,
+          "frequency": {
+            "resolved": true,
+            "frequency_hz": 14.92950571694049,
+            "reason": null,
+            "discrete_frequency_hz": 15.0,
+            "peak_power": 8.442452133888503e-07,
+            "band_median_power": 3.574744479370641e-08,
+            "prominence_ratio": 23.61693872837271
+          },
+          "rhythmicity_contrast": 0.9910279901832156,
+          "e_i_peak_lag_ms": -2.0
+        }
+      ]
+    },
+    {
+      "input_rate_hz": 75.0,
+      "e_rate_mean_hz": 13.88125,
+      "e_rate_std_hz": 0.29327588067807453,
+      "i_rate_mean_hz": 46.4625,
+      "i_rate_std_hz": 0.8542174781634966,
+      "frequency_resolved_fraction": 1.0,
+      "rhythmicity_score_median": 1.0,
+      "rhythmicity_score_iqr": 2.220446049250313e-16,
+      "rhythm_frequency_median_hz": 18.879362145018863,
+      "e_i_peak_lag_median_ms": -1.0,
+      "trials": [
+        {
+          "trial": 0,
+          "seed": 8300,
+          "input_rate_hz": 75.0,
+          "e_rate_hz": 14.140625,
+          "i_rate_hz": 47.75,
+          "frequency": {
+            "resolved": true,
+            "frequency_hz": 18.643872756918313,
+            "reason": null,
+            "discrete_frequency_hz": 18.75,
+            "peak_power": 1.7995649721735622e-06,
+            "band_median_power": 4.9458139717219616e-08,
+            "prominence_ratio": 36.385617867204495
+          },
+          "rhythmicity_contrast": 1.0,
+          "e_i_peak_lag_ms": -1.0
+        },
+        {
+          "trial": 1,
+          "seed": 8301,
+          "input_rate_hz": 75.0,
+          "e_rate_hz": 13.625,
+          "i_rate_hz": 45.37499999999999,
+          "frequency": {
+            "resolved": true,
+            "frequency_hz": 19.179702167603118,
+            "reason": null,
+            "discrete_frequency_hz": 18.75,
+            "peak_power": 1.5944183668833775e-06,
+            "band_median_power": 4.659166054352725e-08,
+            "prominence_ratio": 34.221110565351644
+          },
+          "rhythmicity_contrast": 1.0,
+          "e_i_peak_lag_ms": -1.0
+        },
+        {
+          "trial": 2,
+          "seed": 8302,
+          "input_rate_hz": 75.0,
+          "e_rate_hz": 14.25,
+          "i_rate_hz": 46.5,
+          "frequency": {
+            "resolved": true,
+            "frequency_hz": 18.879362145018863,
+            "reason": null,
+            "discrete_frequency_hz": 18.75,
+            "peak_power": 1.9901170099782455e-06,
+            "band_median_power": 5.700363566455319e-08,
+            "prominence_ratio": 34.91210668893824
+          },
+          "rhythmicity_contrast": 1.0000000000000002,
+          "e_i_peak_lag_ms": -1.0
+        },
+        {
+          "trial": 3,
+          "seed": 8303,
+          "input_rate_hz": 75.0,
+          "e_rate_hz": 13.640624999999998,
+          "i_rate_hz": 46.1875,
+          "frequency": {
+            "resolved": true,
+            "frequency_hz": 18.56482314096586,
+            "reason": null,
+            "discrete_frequency_hz": 18.75,
+            "peak_power": 1.6971629652201177e-06,
+            "band_median_power": 4.7602403987892605e-08,
+            "prominence_ratio": 35.65288353192795
+          },
+          "rhythmicity_contrast": 1.0,
+          "e_i_peak_lag_ms": -1.0
+        },
+        {
+          "trial": 4,
+          "seed": 8304,
+          "input_rate_hz": 75.0,
+          "e_rate_hz": 13.75,
+          "i_rate_hz": 46.5,
+          "frequency": {
+            "resolved": true,
+            "frequency_hz": 18.89341338627892,
+            "reason": null,
+            "discrete_frequency_hz": 18.75,
+            "peak_power": 1.7857798704569166e-06,
+            "band_median_power": 2.7394118554513846e-08,
+            "prominence_ratio": 65.18844061009825
+          },
+          "rhythmicity_contrast": 1.0000000000000002,
+          "e_i_peak_lag_ms": -1.0
+        }
+      ]
+    },
+    {
+      "input_rate_hz": 100.0,
+      "e_rate_mean_hz": 17.20625,
+      "e_rate_std_hz": 0.34875616033985696,
+      "i_rate_mean_hz": 58.6125,
+      "i_rate_std_hz": 2.6851006731592015,
+      "frequency_resolved_fraction": 1.0,
+      "rhythmicity_score_median": 1.0,
+      "rhythmicity_score_iqr": 0.0,
+      "rhythm_frequency_median_hz": 21.539200898962914,
+      "e_i_peak_lag_median_ms": -1.0,
+      "trials": [
+        {
+          "trial": 0,
+          "seed": 8300,
+          "input_rate_hz": 100.0,
+          "e_rate_hz": 17.359374999999996,
+          "i_rate_hz": 59.3125,
+          "frequency": {
+            "resolved": true,
+            "frequency_hz": 21.539200898962914,
+            "reason": null,
+            "discrete_frequency_hz": 21.25,
+            "peak_power": 2.453403351257322e-06,
+            "band_median_power": 3.9658896972515907e-08,
+            "prominence_ratio": 61.8626219725062
+          },
+          "rhythmicity_contrast": 1.0,
+          "e_i_peak_lag_ms": -1.0
+        },
+        {
+          "trial": 1,
+          "seed": 8301,
+          "input_rate_hz": 100.0,
+          "e_rate_hz": 17.53125,
+          "i_rate_hz": 61.93749999999999,
+          "frequency": {
+            "resolved": true,
+            "frequency_hz": 21.260381748866816,
+            "reason": null,
+            "discrete_frequency_hz": 21.25,
+            "peak_power": 3.222554965035517e-06,
+            "band_median_power": 4.79770281445306e-08,
+            "prominence_ratio": 67.16870739320458
+          },
+          "rhythmicity_contrast": 1.0,
+          "e_i_peak_lag_ms": -2.0
+        },
+        {
+          "trial": 2,
+          "seed": 8302,
+          "input_rate_hz": 100.0,
+          "e_rate_hz": 17.046874999999996,
+          "i_rate_hz": 57.1875,
+          "frequency": {
+            "resolved": true,
+            "frequency_hz": 22.085440202939953,
+            "reason": null,
+            "discrete_frequency_hz": 22.5,
+            "peak_power": 2.2348598002337958e-06,
+            "band_median_power": 5.542155605958796e-08,
+            "prominence_ratio": 40.32473930957346
+          },
+          "rhythmicity_contrast": 1.0,
+          "e_i_peak_lag_ms": -1.0
+        },
+        {
+          "trial": 3,
+          "seed": 8303,
+          "input_rate_hz": 100.0,
+          "e_rate_hz": 16.671875,
+          "i_rate_hz": 54.87499999999999,
+          "frequency": {
+            "resolved": true,
+            "frequency_hz": 21.259245321089946,
+            "reason": null,
+            "discrete_frequency_hz": 21.25,
+            "peak_power": 2.9763726549837997e-06,
+            "band_median_power": 3.0623848966317045e-08,
+            "prominence_ratio": 97.19133144424435
+          },
+          "rhythmicity_contrast": 1.0,
+          "e_i_peak_lag_ms": -1.0
+        },
+        {
+          "trial": 4,
+          "seed": 8304,
+          "input_rate_hz": 100.0,
+          "e_rate_hz": 17.421875,
+          "i_rate_hz": 59.74999999999999,
+          "frequency": {
+            "resolved": true,
+            "frequency_hz": 22.153050679236177,
+            "reason": null,
+            "discrete_frequency_hz": 22.5,
+            "peak_power": 2.264868145563777e-06,
+            "band_median_power": 4.865484937961201e-08,
+            "prominence_ratio": 46.549689793363775
+          },
+          "rhythmicity_contrast": 1.0,
+          "e_i_peak_lag_ms": -1.0
+        }
+      ]
+    },
+    {
+      "input_rate_hz": 125.0,
+      "e_rate_mean_hz": 19.443749999999998,
+      "e_rate_std_hz": 0.66983702542111,
+      "i_rate_mean_hz": 66.9,
+      "i_rate_std_hz": 0.8438657328035071,
+      "frequency_resolved_fraction": 1.0,
+      "rhythmicity_score_median": 1.0,
+      "rhythmicity_score_iqr": 0.0,
+      "rhythm_frequency_median_hz": 23.42797515266497,
+      "e_i_peak_lag_median_ms": -1.0,
+      "trials": [
+        {
+          "trial": 0,
+          "seed": 8300,
+          "input_rate_hz": 125.0,
+          "e_rate_hz": 18.765624999999996,
+          "i_rate_hz": 66.125,
+          "frequency": {
+            "resolved": true,
+            "frequency_hz": 23.42797515266497,
+            "reason": null,
+            "discrete_frequency_hz": 23.75,
+            "peak_power": 3.0374040816742948e-06,
+            "band_median_power": 4.116835463346359e-08,
+            "prominence_ratio": 73.78006987933757
+          },
+          "rhythmicity_contrast": 1.0,
+          "e_i_peak_lag_ms": -1.0
+        },
+        {
+          "trial": 1,
+          "seed": 8301,
+          "input_rate_hz": 125.0,
+          "e_rate_hz": 18.843749999999996,
+          "i_rate_hz": 66.25,
+          "frequency": {
+            "resolved": true,
+            "frequency_hz": 22.6239214406469,
+            "reason": null,
+            "discrete_frequency_hz": 22.5,
+            "peak_power": 3.5034636320563834e-06,
+            "band_median_power": 1.400134699050727e-08,
+            "prominence_ratio": 250.22332740069123
+          },
+          "rhythmicity_contrast": 1.0,
+          "e_i_peak_lag_ms": -1.0
+        },
+        {
+          "trial": 2,
+          "seed": 8302,
+          "input_rate_hz": 125.0,
+          "e_rate_hz": 20.265624999999996,
+          "i_rate_hz": 68.0625,
+          "frequency": {
+            "resolved": true,
+            "frequency_hz": 23.990342002843867,
+            "reason": null,
+            "discrete_frequency_hz": 23.75,
+            "peak_power": 3.6072171993270845e-06,
+            "band_median_power": 8.463762872595608e-08,
+            "prominence_ratio": 42.61954468274048
+          },
+          "rhythmicity_contrast": 1.0,
+          "e_i_peak_lag_ms": -1.0
+        },
+        {
+          "trial": 3,
+          "seed": 8303,
+          "input_rate_hz": 125.0,
+          "e_rate_hz": 19.984375,
+          "i_rate_hz": 66.5625,
+          "frequency": {
+            "resolved": true,
+            "frequency_hz": 23.539479150125928,
+            "reason": null,
+            "discrete_frequency_hz": 23.75,
+            "peak_power": 3.3201025108271258e-06,
+            "band_median_power": 2.3429037467936902e-08,
+            "prominence_ratio": 141.70887367313964
+          },
+          "rhythmicity_contrast": 1.0,
+          "e_i_peak_lag_ms": -1.0
+        },
+        {
+          "trial": 4,
+          "seed": 8304,
+          "input_rate_hz": 125.0,
+          "e_rate_hz": 19.359375,
+          "i_rate_hz": 67.5,
+          "frequency": {
+            "resolved": true,
+            "frequency_hz": 23.125,
+            "reason": null,
+            "discrete_frequency_hz": 22.5,
+            "peak_power": 2.865557103484289e-06,
+            "band_median_power": 1.143852196359516e-08,
+            "prominence_ratio": 344.14527210143973
+          },
+          "rhythmicity_contrast": 1.0,
+          "e_i_peak_lag_ms": -1.0
+        }
+      ]
+    },
+    {
+      "input_rate_hz": 150.0,
+      "e_rate_mean_hz": 21.50625,
+      "e_rate_std_hz": 0.27700793930409334,
+      "i_rate_mean_hz": 73.45,
+      "i_rate_std_hz": 0.8562728099151578,
+      "frequency_resolved_fraction": 1.0,
+      "rhythmicity_score_median": 1.0,
+      "rhythmicity_score_iqr": 0.0,
+      "rhythm_frequency_median_hz": 25.033942185865282,
+      "e_i_peak_lag_median_ms": -1.0,
+      "trials": [
+        {
+          "trial": 0,
+          "seed": 8300,
+          "input_rate_hz": 150.0,
+          "e_rate_hz": 21.328125,
+          "i_rate_hz": 72.8125,
+          "frequency": {
+            "resolved": true,
+            "frequency_hz": 25.052258828170906,
+            "reason": null,
+            "discrete_frequency_hz": 25.0,
+            "peak_power": 4.678299281177121e-06,
+            "band_median_power": 2.195676800799234e-08,
+            "prominence_ratio": 213.068666548474
+          },
+          "rhythmicity_contrast": 1.0,
+          "e_i_peak_lag_ms": -1.0
+        },
+        {
+          "trial": 1,
+          "seed": 8301,
+          "input_rate_hz": 150.0,
+          "e_rate_hz": 21.281249999999996,
+          "i_rate_hz": 73.375,
+          "frequency": {
+            "resolved": true,
+            "frequency_hz": 24.913804229603148,
+            "reason": null,
+            "discrete_frequency_hz": 25.0,
+            "peak_power": 4.337976230929354e-06,
+            "band_median_power": 1.3886299901948324e-08,
+            "prominence_ratio": 312.3925207981942
+          },
+          "rhythmicity_contrast": 1.0,
+          "e_i_peak_lag_ms": -1.0
+        },
+        {
+          "trial": 2,
+          "seed": 8302,
+          "input_rate_hz": 150.0,
+          "e_rate_hz": 21.375,
+          "i_rate_hz": 72.5,
+          "frequency": {
+            "resolved": true,
+            "frequency_hz": 25.033942185865282,
+            "reason": null,
+            "discrete_frequency_hz": 25.0,
+            "peak_power": 4.621701022793274e-06,
+            "band_median_power": 2.0554769801865577e-08,
+            "prominence_ratio": 224.84810422804165
+          },
+          "rhythmicity_contrast": 1.0000000000000002,
+          "e_i_peak_lag_ms": -1.0
+        },
+        {
+          "trial": 3,
+          "seed": 8303,
+          "input_rate_hz": 150.0,
+          "e_rate_hz": 21.953125,
+          "i_rate_hz": 74.625,
+          "frequency": {
+            "resolved": true,
+            "frequency_hz": 25.00314701363745,
+            "reason": null,
+            "discrete_frequency_hz": 25.0,
+            "peak_power": 4.389399670278648e-06,
+            "band_median_power": 2.5452686186369012e-08,
+            "prominence_ratio": 172.4532977831376
+          },
+          "rhythmicity_contrast": 1.0,
+          "e_i_peak_lag_ms": -1.0
+        },
+        {
+          "trial": 4,
+          "seed": 8304,
+          "input_rate_hz": 150.0,
+          "e_rate_hz": 21.593749999999996,
+          "i_rate_hz": 73.9375,
+          "frequency": {
+            "resolved": true,
+            "frequency_hz": 25.1359478119887,
+            "reason": null,
+            "discrete_frequency_hz": 25.0,
+            "peak_power": 4.597236581457531e-06,
+            "band_median_power": 2.020466739165401e-08,
+            "prominence_ratio": 227.5333957418434
+          },
+          "rhythmicity_contrast": 1.0,
+          "e_i_peak_lag_ms": -1.0
+        }
+      ]
+    },
+    {
+      "input_rate_hz": 200.0,
+      "e_rate_mean_hz": 24.896875,
+      "e_rate_std_hz": 0.7257303702564052,
+      "i_rate_mean_hz": 82.825,
+      "i_rate_std_hz": 1.3674508674903092,
+      "frequency_resolved_fraction": 1.0,
+      "rhythmicity_score_median": 1.0,
+      "rhythmicity_score_iqr": 0.0,
+      "rhythm_frequency_median_hz": 27.961733124934383,
+      "e_i_peak_lag_median_ms": -1.0,
+      "trials": [
+        {
+          "trial": 0,
+          "seed": 8300,
+          "input_rate_hz": 200.0,
+          "e_rate_hz": 25.0,
+          "i_rate_hz": 82.4375,
+          "frequency": {
+            "resolved": true,
+            "frequency_hz": 27.717272966748748,
+            "reason": null,
+            "discrete_frequency_hz": 27.5,
+            "peak_power": 6.002523101192652e-06,
+            "band_median_power": 1.1081192087418068e-08,
+            "prominence_ratio": 541.6856827171243
+          },
+          "rhythmicity_contrast": 1.0,
+          "e_i_peak_lag_ms": -1.0
+        },
+        {
+          "trial": 1,
+          "seed": 8301,
+          "input_rate_hz": 200.0,
+          "e_rate_hz": 25.484374999999996,
+          "i_rate_hz": 82.5,
+          "frequency": {
+            "resolved": true,
+            "frequency_hz": 27.961733124934383,
+            "reason": null,
+            "discrete_frequency_hz": 27.5,
+            "peak_power": 5.005228381386274e-06,
+            "band_median_power": 5.090528414238861e-09,
+            "prominence_ratio": 1207.439395597236
+          },
+          "rhythmicity_contrast": 1.0,
+          "e_i_peak_lag_ms": -1.0
+        },
+        {
+          "trial": 2,
+          "seed": 8302,
+          "input_rate_hz": 200.0,
+          "e_rate_hz": 23.96875,
+          "i_rate_hz": 81.25,
+          "frequency": {
+            "resolved": true,
+            "frequency_hz": 27.86924528712868,
+            "reason": null,
+            "discrete_frequency_hz": 27.5,
+            "peak_power": 4.906376729639324e-06,
+            "band_median_power": 1.1857158297103279e-08,
+            "prominence_ratio": 423.5597957265298
+          },
+          "rhythmicity_contrast": 1.0000000000000002,
+          "e_i_peak_lag_ms": -1.0
+        },
+        {
+          "trial": 3,
+          "seed": 8303,
+          "input_rate_hz": 200.0,
+          "e_rate_hz": 24.359375,
+          "i_rate_hz": 82.93749999999999,
+          "frequency": {
+            "resolved": true,
+            "frequency_hz": 28.381219272079843,
+            "reason": null,
+            "discrete_frequency_hz": 28.75,
+            "peak_power": 4.671624650010033e-06,
+            "band_median_power": 1.442612583015649e-08,
+            "prominence_ratio": 323.8308541746136
+          },
+          "rhythmicity_contrast": 1.0,
+          "e_i_peak_lag_ms": -1.0
+        },
+        {
+          "trial": 4,
+          "seed": 8304,
+          "input_rate_hz": 200.0,
+          "e_rate_hz": 25.671875,
+          "i_rate_hz": 85.0,
+          "frequency": {
+            "resolved": true,
+            "frequency_hz": 28.712258034210258,
+            "reason": null,
+            "discrete_frequency_hz": 28.75,
+            "peak_power": 6.399227790110538e-06,
+            "band_median_power": 3.0381250311251884e-08,
+            "prominence_ratio": 210.63082409549628
+          },
+          "rhythmicity_contrast": 1.0,
+          "e_i_peak_lag_ms": -1.0
+        }
+      ]
+    }
+  ]
+}
