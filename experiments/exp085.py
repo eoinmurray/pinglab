@@ -295,31 +295,28 @@ def rolling_phase_locking(phase: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
 
 def plot_synchrony_over_time(phases: dict[float, np.ndarray], out: Path) -> None:
     theme.apply()
-    rows = []
-    time_ms = None
-    for coupling in COUPLINGS:
-        time_ms, median_plv = rolling_phase_locking(phases[coupling])
-        rows.append(median_plv)
     fig, axis = plt.subplots(figsize=(6.5, 3.2))
-    image = axis.imshow(
-        np.stack(rows),
-        origin="lower",
-        aspect="auto",
-        extent=(
-            time_ms[0] / 1_000.0,
-            time_ms[-1] / 1_000.0,
-            COUPLINGS[0] - 0.005,
-            COUPLINGS[-1] + 0.005,
-        ),
-        cmap="Greys",
-        vmin=0.0,
-        vmax=1.0,
-        interpolation="nearest",
+    styles = (
+        (theme.GREY_LIGHT, ":"),
+        (theme.GREY_DARK, "--"),
+        (theme.DEEP_RED, "-."),
+        (theme.INK_BLACK, "-"),
     )
+    for coupling, (colour, linestyle) in zip(REPRESENTATIVE_K, styles, strict=True):
+        time_ms, median_plv = rolling_phase_locking(phases[coupling])
+        axis.plot(
+            time_ms / 1_000.0,
+            median_plv,
+            color=colour,
+            linestyle=linestyle,
+            linewidth=1.0,
+            label=f"K = {coupling:.2f}",
+        )
     axis.set_xlabel("time after coupling onset (s)")
-    axis.set_ylabel("reciprocal coupling K")
-    colourbar = fig.colorbar(image, ax=axis, pad=0.02)
-    colourbar.set_label("local phase-locking value")
+    axis.set_ylabel("local phase-locking value")
+    axis.set_ylim(-0.03, 1.03)
+    axis.legend(frameon=False, ncol=2)
+    axis.spines[["top", "right"]].set_visible(False)
     fig.tight_layout()
     fig.savefig(out, bbox_inches="tight")
     plt.close(fig)

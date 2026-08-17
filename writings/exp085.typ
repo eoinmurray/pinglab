@@ -51,7 +51,7 @@
   )
 
   #figure(
-    image("/artifacts/data/exp085/synchrony_over_time.svg", width: 100%, alt: "Heatmap of local phase-locking value over time and reciprocal coupling strength."),
-    caption: [Synchrony over time after coupling onset. Each cell is the median across #r.config.trials paired trials of the within-trial phase-locking value in a centered #r.phase_analysis.local_plv_window_ms ms window. Darker values indicate that relative phase remained more nearly constant within that local window. This descriptive view exposes the time course across K without defining a binary synchronization boundary or requiring trials to settle at the same phase offset.],
+    image("/artifacts/data/exp085/synchrony_over_time.svg", width: 100%, alt: "Local phase-locking value over time at four representative reciprocal coupling strengths."),
+    caption: [Synchrony over time after coupling onset at the four predeclared K values. Each trace is the median across #r.config.trials paired trials of the within-trial phase-locking value in a centered #r.phase_analysis.local_plv_window_ms ms window. Values near one indicate that relative phase remained nearly constant within that local window. This descriptive view exposes the trajectory directly without defining a binary synchronization boundary or requiring trials to settle at the same phase offset.],
   )
 ]
