@@ -41,5 +41,6 @@
     60.0
   ],
   "phase_smooth_ms": 5.0,
-  "phase_edge_trim_ms": 100.0
+  "phase_edge_trim_ms": 100.0,
+  "local_plv_window_ms": 250.0
 }
