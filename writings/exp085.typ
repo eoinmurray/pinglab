@@ -47,6 +47,6 @@
 
   #figure(
     image("/artifacts/data/exp085/representative_rasters.png", width: 100%, alt: "Stacked A and B excitatory and inhibitory rasters at four predeclared coupling strengths."),
-    caption: [Population rasters after coupling onset at the four predeclared K values. Time is in milliseconds; black marks E cells and red marks I cells. Each panel stacks A:E, A:I, B:E, and B:I from bottom to top for the same paired trial. The sequence shows how population volleys change as reciprocal excitation strengthens.],
+    caption: [Population rasters after coupling onset at the four predeclared K values. Time is in milliseconds; black marks identify E cells and red marks identify I cells. Each panel stacks A:E, A:I, B:E, and B:I from bottom to top for the same paired trial. The sequence shows how population volleys change as reciprocal excitation strengthens.],
   )
 ]
