@@ -39,3 +39,22 @@ def test_silent_condition_remains_unresolved():
     assert not estimate.resolved
     assert estimate.frequency_hz is None
     assert {trial.reason for trial in estimate.trials} == {"insufficient_activity"}
+
+
+def test_silent_condition_has_zero_rhythmicity_score():
+    rows = [
+        {
+            "e_rate_hz": 0.0,
+            "i_rate_hz": 0.0,
+            "e_i_peak_lag_ms": None,
+            "gamma": {
+                "resolved": False,
+                "frequency_hz": None,
+                "prominence_ratio": None,
+            },
+        }
+        for _ in exp083.TRIAL_SEEDS
+    ]
+    summary = exp083.summarize_condition(0.0, rows)
+    assert summary["rhythmicity_score_median"] == 0.0
+    assert summary["rhythmicity_score_iqr"] == 0.0
