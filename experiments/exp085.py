@@ -49,6 +49,7 @@ PHASE_BAND_HZ = (20.0, 60.0)
 PHASE_SMOOTH_MS = 5.0
 PHASE_EDGE_TRIM_MS = 100.0
 TRACE_BIN_MS = 1.0
+LOCAL_PLV_WINDOW_MS = 250.0
 DISPLAY_TRIAL = 0
 FREQUENCY_CONFIG = replace(
     exp083.FREQUENCY_CONFIG,
@@ -81,6 +82,7 @@ SCALE = {
     "phase_band_hz": list(PHASE_BAND_HZ),
     "phase_smooth_ms": PHASE_SMOOTH_MS,
     "phase_edge_trim_ms": PHASE_EDGE_TRIM_MS,
+    "local_plv_window_ms": LOCAL_PLV_WINDOW_MS,
 }
 
 
@@ -275,6 +277,54 @@ def plot_phase_small_multiples(phases: dict[float, np.ndarray], out: Path) -> No
     plt.close(fig)
 
 
+def rolling_phase_locking(phase: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+    """Return window-centre times and median within-trial rolling PLV."""
+    bin_steps = round(TRACE_BIN_MS / DT_MS)
+    binned = phase[:, ::bin_steps]
+    window_steps = round(LOCAL_PLV_WINDOW_MS / TRACE_BIN_MS)
+    kernel = np.ones(window_steps, dtype=np.float64) / window_steps
+    trial_plv = []
+    for row in binned:
+        local_mean = np.convolve(np.exp(1j * row), kernel, mode="valid")
+        trial_plv.append(np.abs(local_mean))
+    centres_ms = (
+        np.arange(len(trial_plv[0])) + (window_steps - 1) / 2.0
+    ) * TRACE_BIN_MS
+    return centres_ms, np.median(np.stack(trial_plv), axis=0)
+
+
+def plot_synchrony_over_time(phases: dict[float, np.ndarray], out: Path) -> None:
+    theme.apply()
+    rows = []
+    time_ms = None
+    for coupling in COUPLINGS:
+        time_ms, median_plv = rolling_phase_locking(phases[coupling])
+        rows.append(median_plv)
+    fig, axis = plt.subplots(figsize=(6.5, 3.2))
+    image = axis.imshow(
+        np.stack(rows),
+        origin="lower",
+        aspect="auto",
+        extent=(
+            time_ms[0] / 1_000.0,
+            time_ms[-1] / 1_000.0,
+            COUPLINGS[0] - 0.005,
+            COUPLINGS[-1] + 0.005,
+        ),
+        cmap="Greys",
+        vmin=0.0,
+        vmax=1.0,
+        interpolation="nearest",
+    )
+    axis.set_xlabel("time after coupling onset (s)")
+    axis.set_ylabel("reciprocal coupling K")
+    colourbar = fig.colorbar(image, ax=axis, pad=0.02)
+    colourbar.set_label("local phase-locking value")
+    fig.tight_layout()
+    fig.savefig(out, bbox_inches="tight")
+    plt.close(fig)
+
+
 def plot_response(summaries: list[dict], out: Path) -> None:
     theme.apply()
     x = np.array([row["coupling"] for row in summaries])
@@ -410,6 +460,7 @@ def main() -> None:
         plot_phase_small_multiples(phases, staging / "relative_phase.svg")
         plot_response(summaries, staging / "response.svg")
         plot_representative_rates(representative, staging / "representative_rates.svg")
+        plot_synchrony_over_time(phases, staging / "synchrony_over_time.svg")
         bin_steps = round(TRACE_BIN_MS / DT_MS)
         np.savez_compressed(
             staging / "phase_traces.npz",
@@ -426,6 +477,7 @@ def main() -> None:
                 "smoothing_sigma_ms": PHASE_SMOOTH_MS,
                 "band_hz": list(PHASE_BAND_HZ),
                 "terminal_edge_trim_ms": PHASE_EDGE_TRIM_MS,
+                "local_plv_window_ms": LOCAL_PLV_WINDOW_MS,
                 "method": "fourth-order zero-phase Butterworth plus Hilbert phase",
                 "sign": "onset-relative A-minus-B",
             },

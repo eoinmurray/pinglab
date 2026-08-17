@@ -24,7 +24,7 @@
 
   + *Measure relative phase.* E-population rates are smoothed with a #r.phase_analysis.smoothing_sigma_ms ms Gaussian kernel and filtered over #r.phase_analysis.band_hz.at(0)--#r.phase_analysis.band_hz.at(1) Hz. Hilbert phases define the unwrapped A-minus-B relative phase, expressed as its change from coupling onset. Figures divide this phase change by $2 pi$ to report relative cycles gained. The final #r.phase_analysis.terminal_edge_trim_ms ms are excluded to prevent the finite-record filter boundary from appearing as a phase jump. This continuous trajectory is the primary result; no locking threshold or latency is inferred.
 
-  + *Measure supporting responses.* The registered #raw(r.frequency_analysis.name) policy reports each circuit's dominant rhythm from the final 1.5 s. Frequency difference, descriptive phase-locking value, and population firing rates support the phase trajectories.
+  + *Measure supporting responses.* The registered #raw(r.frequency_analysis.name) policy reports each circuit's dominant rhythm from the final 1.5 s. Frequency difference, descriptive phase-locking value, and population firing rates support the phase trajectories. A #r.phase_analysis.local_plv_window_ms ms rolling phase-locking value summarizes synchrony over time within each paired trial; Figure 5 reports the median across trials and does not impose a locking threshold.
 
   #figure(
     image("/artifacts/data/exp085/network.svg", width: 88%, alt: "Two independently driven PING circuits connected by reciprocal excitatory projections."),
@@ -48,5 +48,10 @@
   #figure(
     image("/artifacts/data/exp085/representative_rates.svg", width: 100%, alt: "Excitatory population-rate traces for circuits A and B at four predeclared coupling strengths."),
     caption: [Excitatory population activity after coupling onset at the four predeclared K values. Time is in milliseconds and rate is in hertz after the registered #r.phase_analysis.smoothing_sigma_ms ms smoothing. Circuit A is black and circuit B is dashed red; all panels use the same paired trial and axes. The sequence makes repeated lapping, transient alignment, and shared volley timing directly comparable.],
+  )
+
+  #figure(
+    image("/artifacts/data/exp085/synchrony_over_time.svg", width: 100%, alt: "Heatmap of local phase-locking value over time and reciprocal coupling strength."),
+    caption: [Synchrony over time after coupling onset. Each cell is the median across #r.config.trials paired trials of the within-trial phase-locking value in a centered #r.phase_analysis.local_plv_window_ms ms window. Darker values indicate that relative phase remained more nearly constant within that local window. This descriptive view exposes the time course across K without defining a binary synchronization boundary or requiring trials to settle at the same phase offset.],
   )
 ]
