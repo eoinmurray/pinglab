@@ -1,8 +1,8 @@
 {
   "slug": "exp085",
-  "run_id": "r008",
-  "run_at": "2026-08-17T18:07:13+00:00",
-  "git_sha": "8c5665a2",
+  "run_id": "r009",
+  "run_at": "2026-08-17T18:12:34+00:00",
+  "git_sha": "3b57cff1",
   "dirty": false,
   "code_dirty": false,
   "patch": null,
@@ -51,6 +51,7 @@
     ],
     "phase_smooth_ms": 5.0,
     "phase_edge_trim_ms": 100.0,
-    "local_plv_window_ms": 250.0
+    "terminal_phase_window_ms": 500.0,
+    "phase_error_smooth_ms": 50.0
   }
 }
