@@ -1,7 +1,7 @@
 {
-  "run_id": "r009",
-  "git_sha": "3b57cff1",
-  "duration_s": 125.7,
+  "run_id": "r010",
+  "git_sha": "98363b0c",
+  "duration_s": 125.6,
   "duration": "2m 06s",
   "question": "How does reciprocal excitation change relative phase after coupling is switched on between equilibrated PING circuits?",
   "config": {
@@ -756,5 +756,10 @@
         }
       ]
     }
-  ]
+  ],
+  "synchrony_example": {
+    "coupling": 0.07,
+    "trial": 2,
+    "seed": 8502
+  }
 }
