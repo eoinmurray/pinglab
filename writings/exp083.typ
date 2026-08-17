@@ -8,60 +8,71 @@
 )
 
 #let r = json("/artifacts/data/exp083/numbers.json")
-#let resolved = r.conditions.filter(row => row.gamma_resolved_fraction > 0)
+#let active = r.conditions.filter(row => row.gamma_resolved_fraction == 1)
+#let transition = r.conditions.filter(row => row.input_rate_hz == 50).first()
+#let first-active = active.first()
+#let last-active = active.last()
 
 #let body = [
   == Abstract
 
-  This experiment asks a deliberately basic question about the reusable default `snn.components.ping()` circuit: as homogeneous Poisson drive increases, does it pass through a reproducible gamma regime? One compiled graph is held fixed across every condition. Only the input rate changes. The result is therefore both a first scientific example for SNNLANG and a test of what its advertised defaults actually do—without tuning them until the plot becomes photogenic.
+  The default `snn.components.ping()` circuit is silent at weak drive, begins firing near #transition.input_rate_hz Hz per input channel, and settles into reproducible gamma activity from #first-active.input_rate_hz to #last-active.input_rate_hz Hz. Across that resolved interval, the median gamma frequency rises from #calc.round(first-active.gamma_frequency_median_hz, digits: 2) to #calc.round(last-active.gamma_frequency_median_hz, digits: 2) Hz. One compiled graph produces the entire response curve. No model parameter is tuned between conditions.
 
   == Methods
 
-  === Fixed authored graph
+  + *Author one graph.* A typed #(r.config.n_input)-channel spike input drives the default PING component, which contains #r.config.n_e excitatory (E) and #r.config.n_i inhibitory (I) cells. The timestep is #r.config.dt_ms ms. Neuron, synapse, delay, initializer, and constraint specifications remain at their component defaults.
+
+  + *Vary only input drive.* Homogeneous Poisson input spans #(r.config.rates_hz.map(value => str(value) + " Hz").join(", ")) per channel. Every condition uses the same compiled graph and #r.config.trials paired deterministic trials, each lasting #r.config.t_ms ms. Measurements exclude the first #r.config.burn_ms ms.
+
+  + *Resolve gamma consistently.* The #raw(r.gamma_frequency.name) policy computes a single-trial Welch spectrum from the E-population raster. It searches #r.gamma_frequency.band_hz.at(0)--#r.gamma_frequency.band_hz.at(1) Hz, interpolates the peak between bins, rejects maxima at the band edge, and requires peak power to exceed #r.gamma_frequency.min_prominence_ratio times the band median. Failed checks retain an unresolved reason; they are not reported as 0 Hz.
+
+  + *Measure E/I timing separately.* Post-transient population spikes are binned at 1 ms. The lag of the strongest E/I cross-correlation within plus or minus 20 ms is descriptive and does not enter the gamma-resolution rule.
 
   #figure(
-    image("/artifacts/data/exp083/network.svg", width: 86%, alt: "Compiled SNNLANG graph containing one spike input and the default excitatory-inhibitory PING component."),
-    caption: [The single compiled graph reused at every drive condition.],
+    image(
+      "/artifacts/data/exp083/network.svg",
+      width: 82%,
+      alt: "Compiled SNNLANG graph with one typed spike input driving the default PING component.",
+    ),
+    caption: [
+      Compiled graph reused at every input condition. A time-by-batch-by-#r.config.n_input spike tensor drives one default PING component with #r.config.n_e E cells and #r.config.n_i I cells. Only the input event probability changes across the sweep; the graph and its parameters remain fixed.
+    ],
   )
-
-  A 128-channel typed spike input drives one default PING component containing 80 excitatory and 20 inhibitory cells. The timestep is #r.config.dt_ms ms. Default neuron, synapse, delay, initializer, and constraint specifications are left untouched. The graph digest is #raw(r.graph.digest).
-
-  === Registered drive sweep and measurements
-
-  Homogeneous Poisson drive spans #(r.config.rates_hz.map(value => str(value) + " Hz").join(", ")) per input channel. Each condition contains #r.config.trials deterministic trials paired across rates, lasts #r.config.t_ms ms, and discards the first #r.config.burn_ms ms.
-
-  Gamma frequency uses the named #raw(r.gamma_frequency.name) policy on the excitatory raster: a #r.gamma_frequency.band_hz.at(0)--#r.gamma_frequency.band_hz.at(1) Hz single-trial Welch spectrum, three-point sub-bin interpolation, rejection of band-edge maxima, and a peak-to-band-median power ratio greater than #r.gamma_frequency.min_prominence_ratio. Silence and failed quality gates remain unresolved rather than becoming 0 Hz. E--I lag is a separate descriptive cross-correlation measurement and does not decide whether gamma resolved.
 
   == Results
 
-  === Exact responses at preselected drives
+  The network is silent through #r.conditions.at(1).input_rate_hz Hz per channel. At #transition.input_rate_hz Hz it activates, but gamma resolves in only #calc.round(transition.gamma_resolved_fraction * 100)% of trials. From #first-active.input_rate_hz Hz onward, every trial resolves. Both population rates and gamma frequency then increase with input drive. The untouched default component therefore has a broad gamma regime, but firing begins before the spectral criterion becomes reliable across trials.
 
   #figure(
-    image("/artifacts/data/exp083/representative_rasters.png", width: 92%, alt: "Excitatory and inhibitory spike rasters at three input rates fixed before the primary sweep."),
-    caption: [Exact E and I rasters at the three rates fixed before inspecting the primary sweep. The dashed line marks the end of burn-in.],
+    image(
+      "/artifacts/data/exp083/response.png",
+      width: 100%,
+      alt: "Population firing rates, resolved gamma fraction, and gamma peak frequency across homogeneous input drive.",
+    ),
+    caption: [
+      Response of one fixed default PING graph to homogeneous Poisson drive. Left: mean E and I firing rates in hertz, with standard deviations across #r.config.trials paired trials. Middle: fraction of trials passing the registered gamma-resolution rule. Right: median resolved E-population frequency in hertz; the grey region marks the registered #r.gamma_frequency.band_hz.at(0)--#r.gamma_frequency.band_hz.at(1) Hz search band. Activity begins at #transition.input_rate_hz Hz per channel, but resolution becomes reproducible only at #first-active.input_rate_hz Hz.
+    ],
   )
-
-  === Drive-response curve
 
   #figure(
-    image("/artifacts/data/exp083/response.png", width: 100%, alt: "Population rates, resolved gamma fraction, and resolved gamma frequency across input drive."),
-    caption: [Population activation and the standardized gamma-frequency result across homogeneous drive. Error bars are standard deviations across paired trials.],
+    image(
+      "/artifacts/data/exp083/representative_rasters.png",
+      width: 100%,
+      alt: "Stacked excitatory and inhibitory rasters at three input rates selected before the primary sweep.",
+    ),
+    caption: [
+      Single-trial E and I rasters at the three input rates fixed before the primary sweep. Time is in milliseconds; E cells are black, I cells are red, and the dashed vertical line marks the #r.config.burn_ms ms transient exclusion. The right labels report input rate per channel and post-transient mean population rates in hertz. The #r.representative_rates_hz.first() Hz condition is silent, whereas the higher-drive conditions show repeated population volleys.
+    ],
   )
-
-  #if resolved.len() == 0 [
-    No drive condition produced a resolved gamma peak under the registered default policy. The default component may activate, but this sweep provides no evidence that it enters a reproducible gamma regime.
-  ] else [
-    The standardized estimator resolved at least one trial in #resolved.len() of #r.conditions.len() drive conditions. Resolution fraction, rather than the existence of a numerical spectral maximum, determines where the evidence supports rhythmic activity.
-  ]
-
-  === Spectral shape
 
   #figure(
-    image("/artifacts/data/exp083/spectra.png", width: 78%, alt: "Mean excitatory population spectra at the three preselected input rates."),
-    caption: [Mean E-population spectra at the preselected low, transitional, and high drives. Curves are peak-normalized for shape comparison; resolution uses unnormalized power.],
+    image(
+      "/artifacts/data/exp083/spectra.png",
+      width: 100%,
+      alt: "Mean excitatory population spectra at three input rates selected before the primary sweep.",
+    ),
+    caption: [
+      Mean E-population power spectra at the preselected input rates. Frequency is in hertz and power is normalized to each curve's maximum for shape comparison; gamma resolution uses the unnormalized single-trial spectra. The grey region marks #r.gamma_frequency.band_hz.at(0)--#r.gamma_frequency.band_hz.at(1) Hz. Stronger drive shifts the dominant resolved rhythm upward within the registered band.
+    ],
   )
-
-  == Interpretation
-
-  The experiment is intentionally allowed to disappoint. A robust resolved interval supports the default component as a useful out-of-the-box PING regime. Activation without resolution says the defaults produce spikes but not convincing gamma under this protocol. Abrupt, seed-sensitive, or saturated responses instead identify where the reusable defaults need revision. All three outcomes are more useful than tuning in secret and publishing the prettiest survivor.
 ]
