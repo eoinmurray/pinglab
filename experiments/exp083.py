@@ -149,6 +149,12 @@ def summarize_condition(rate_hz: float, rows: list[dict]) -> dict:
     lags = [
         row["e_i_peak_lag_ms"] for row in rows if row["e_i_peak_lag_ms"] is not None
     ]
+    rhythmicity = [
+        0.0
+        if row["gamma"]["prominence_ratio"] is None
+        else row["gamma"]["prominence_ratio"]
+        for row in rows
+    ]
     return {
         "input_rate_hz": rate_hz,
         "e_rate_mean_hz": float(np.mean([row["e_rate_hz"] for row in rows])),
@@ -156,6 +162,10 @@ def summarize_condition(rate_hz: float, rows: list[dict]) -> dict:
         "i_rate_mean_hz": float(np.mean([row["i_rate_hz"] for row in rows])),
         "i_rate_std_hz": float(np.std([row["i_rate_hz"] for row in rows], ddof=1)),
         "gamma_resolved_fraction": len(resolved) / len(rows),
+        "rhythmicity_score_median": float(np.median(rhythmicity)),
+        "rhythmicity_score_iqr": float(
+            np.percentile(rhythmicity, 75) - np.percentile(rhythmicity, 25)
+        ),
         "gamma_frequency_median_hz": None
         if not resolved
         else float(np.median(resolved)),
@@ -245,14 +255,24 @@ def plot_response(summaries: list[dict], out: Path) -> None:
         )
     axes[0].set_ylabel("rate (Hz)")
     axes[0].legend(frameon=False)
-    axes[1].plot(
+    rhythmicity = np.array([row["rhythmicity_score_median"] for row in summaries])
+    rhythmicity_iqr = np.array([row["rhythmicity_score_iqr"] for row in summaries])
+    axes[1].errorbar(
         x,
-        [row["gamma_resolved_fraction"] for row in summaries],
+        rhythmicity,
+        yerr=rhythmicity_iqr / 2.0,
         marker="o",
+        capsize=3,
         color=theme.INK_BLACK,
     )
-    axes[1].set_ylim(-0.04, 1.04)
-    axes[1].set_ylabel("resolved fraction")
+    axes[1].axhline(
+        GAMMA_CONFIG.min_prominence_ratio,
+        color=theme.DEEP_RED,
+        ls="--",
+        lw=1.2,
+    )
+    axes[1].set_ylim(bottom=-0.2)
+    axes[1].set_ylabel("rhythmicity score")
     frequencies = [row["gamma_frequency_median_hz"] for row in summaries]
     axes[2].plot(x, frequencies, marker="o", color=theme.DEEP_RED)
     axes[2].axhspan(30, 80, color=theme.GREY_LIGHT, alpha=0.5)

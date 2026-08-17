@@ -50,7 +50,7 @@
       alt: "Population firing rates, resolved gamma fraction, and gamma peak frequency across homogeneous input drive.",
     ),
     caption: [
-      Response of one fixed default PING graph to homogeneous Poisson drive. Left: mean E and I firing rates in hertz, with standard deviations across #r.config.trials paired trials. Middle: fraction of trials passing the registered gamma-resolution rule. Right: median resolved E-population frequency in hertz; the grey region marks the registered #r.gamma_frequency.band_hz.at(0)--#r.gamma_frequency.band_hz.at(1) Hz search band. Activity begins at #transition.input_rate_hz Hz per channel, but resolution becomes reproducible only at #first-active.input_rate_hz Hz.
+      Response of one fixed default PING graph to homogeneous Poisson drive. Left: mean E and I firing rates in hertz, with standard deviations across #r.config.trials paired trials. Middle: median rhythmicity score, defined as peak power divided by median power within the registered gamma band; error bars show half the interquartile range and the red dashed line marks the registered score threshold of #r.gamma_frequency.min_prominence_ratio. Right: median resolved E-population frequency in hertz; the grey region marks the registered #r.gamma_frequency.band_hz.at(0)--#r.gamma_frequency.band_hz.at(1) Hz search band. Activity begins at #transition.input_rate_hz Hz per channel, but rhythmicity clears the registered threshold consistently only at stronger drive.
     ],
   )
 
