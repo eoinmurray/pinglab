@@ -23,9 +23,9 @@ sys.path.insert(0, str(REPO / "tools" / "snn"))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from execution import ExecutionSpec, simulate  # noqa: E402
+from experiments import exp083  # noqa: E402
 from tools import snnlang as snn  # noqa: E402, TID251
 
-from experiments import exp083  # noqa: E402
 from helpers import theme  # noqa: E402
 from helpers.cli import parse_meta  # noqa: E402
 from helpers.gamma_frequency import (  # noqa: E402
