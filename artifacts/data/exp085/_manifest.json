@@ -1,8 +1,8 @@
 {
   "slug": "exp085",
-  "run_id": "r010",
-  "run_at": "2026-08-17T20:36:32+00:00",
-  "git_sha": "98363b0c",
+  "run_id": "r011",
+  "run_at": "2026-08-17T20:44:04+00:00",
+  "git_sha": "bbd54e3e",
   "dirty": false,
   "code_dirty": false,
   "patch": null,
@@ -52,6 +52,8 @@
     "phase_smooth_ms": 5.0,
     "phase_edge_trim_ms": 100.0,
     "terminal_phase_window_ms": 500.0,
-    "phase_error_smooth_ms": 50.0
+    "phase_error_smooth_ms": 50.0,
+    "clean_convergence_terminal_p95_max_rad": 0.25,
+    "clean_convergence_post_settling_max_rad": 0.5
   }
 }

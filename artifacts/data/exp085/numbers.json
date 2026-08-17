@@ -1,8 +1,8 @@
 {
-  "run_id": "r010",
-  "git_sha": "98363b0c",
-  "duration_s": 125.6,
-  "duration": "2m 06s",
+  "run_id": "r011",
+  "git_sha": "bbd54e3e",
+  "duration_s": 118.2,
+  "duration": "1m 58s",
   "question": "How does reciprocal excitation change relative phase after coupling is switched on between equilibrated PING circuits?",
   "config": {
     "dt_ms": 0.1,
@@ -49,7 +49,9 @@
     "phase_smooth_ms": 5.0,
     "phase_edge_trim_ms": 100.0,
     "terminal_phase_window_ms": 500.0,
-    "phase_error_smooth_ms": 50.0
+    "phase_error_smooth_ms": 50.0,
+    "clean_convergence_terminal_p95_max_rad": 0.25,
+    "clean_convergence_post_settling_max_rad": 0.5
   },
   "frequency_analysis": {
     "name": "exp085-dominant-rhythm-v1",
@@ -85,6 +87,8 @@
     "terminal_edge_trim_ms": 100.0,
     "terminal_phase_window_ms": 500.0,
     "phase_error_smooth_ms": 50.0,
+    "clean_convergence_terminal_p95_max_rad": 0.25,
+    "clean_convergence_post_settling_max_rad": 0.5,
     "method": "fourth-order zero-phase Butterworth plus Hilbert phase",
     "sign": "onset-relative A-minus-B"
   },
@@ -194,7 +198,9 @@
           "frequency_a_hz": 37.19194640651406,
           "frequency_b_hz": 31.854039628026513
         }
-      ]
+      ],
+      "clean_convergence_count": 0,
+      "clean_convergence_seeds": []
     },
     {
       "coupling": 0.01,
@@ -250,7 +256,9 @@
           "frequency_a_hz": 37.34714727660374,
           "frequency_b_hz": 32.60924057211492
         }
-      ]
+      ],
+      "clean_convergence_count": 0,
+      "clean_convergence_seeds": []
     },
     {
       "coupling": 0.02,
@@ -306,7 +314,9 @@
           "frequency_a_hz": 37.5721065301209,
           "frequency_b_hz": 32.502043437287625
         }
-      ]
+      ],
+      "clean_convergence_count": 0,
+      "clean_convergence_seeds": []
     },
     {
       "coupling": 0.03,
@@ -362,7 +372,9 @@
           "frequency_a_hz": 37.0978797888245,
           "frequency_b_hz": 33.203678977916574
         }
-      ]
+      ],
+      "clean_convergence_count": 0,
+      "clean_convergence_seeds": []
     },
     {
       "coupling": 0.04,
@@ -418,7 +430,9 @@
           "frequency_a_hz": 37.472126236699566,
           "frequency_b_hz": 33.86823536194141
         }
-      ]
+      ],
+      "clean_convergence_count": 0,
+      "clean_convergence_seeds": []
     },
     {
       "coupling": 0.05,
@@ -474,7 +488,9 @@
           "frequency_a_hz": 36.417140548950734,
           "frequency_b_hz": 34.68046363853017
         }
-      ]
+      ],
+      "clean_convergence_count": 0,
+      "clean_convergence_seeds": []
     },
     {
       "coupling": 0.06,
@@ -530,7 +546,9 @@
           "frequency_a_hz": 36.0394490626552,
           "frequency_b_hz": 34.304224101933364
         }
-      ]
+      ],
+      "clean_convergence_count": 0,
+      "clean_convergence_seeds": []
     },
     {
       "coupling": 0.07,
@@ -586,6 +604,11 @@
           "frequency_a_hz": 34.967776141428146,
           "frequency_b_hz": 34.99999999999999
         }
+      ],
+      "clean_convergence_count": 2,
+      "clean_convergence_seeds": [
+        8501,
+        8502
       ]
     },
     {
@@ -642,6 +665,14 @@
           "frequency_a_hz": 35.18258029811148,
           "frequency_b_hz": 35.183356875273
         }
+      ],
+      "clean_convergence_count": 5,
+      "clean_convergence_seeds": [
+        8500,
+        8501,
+        8502,
+        8503,
+        8504
       ]
     },
     {
@@ -698,6 +729,13 @@
           "frequency_a_hz": 34.61590363511632,
           "frequency_b_hz": 34.631762410961485
         }
+      ],
+      "clean_convergence_count": 4,
+      "clean_convergence_seeds": [
+        8500,
+        8501,
+        8503,
+        8504
       ]
     },
     {
@@ -754,6 +792,14 @@
           "frequency_a_hz": 34.58113934418691,
           "frequency_b_hz": 34.594325727305716
         }
+      ],
+      "clean_convergence_count": 5,
+      "clean_convergence_seeds": [
+        8500,
+        8501,
+        8502,
+        8503,
+        8504
       ]
     }
   ],
