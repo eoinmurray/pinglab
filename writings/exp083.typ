@@ -47,10 +47,10 @@
     image(
       "/artifacts/data/exp083/response.png",
       width: 100%,
-      alt: "Population firing rates, resolved gamma fraction, and gamma peak frequency across homogeneous input drive.",
+      alt: "Population firing rates, lobe-trough rhythmicity contrast, and gamma peak frequency across homogeneous input drive.",
     ),
     caption: [
-      Response of one fixed default PING graph to homogeneous Poisson drive. Left: mean E and I firing rates in hertz, with standard deviations across #r.config.trials paired trials. Middle: median rhythmicity score, defined as peak power divided by median power within the registered gamma band; error bars show half the interquartile range and the red dashed line marks the registered score threshold of #r.gamma_frequency.min_prominence_ratio. Right: median resolved E-population frequency in hertz; the grey region marks the registered #r.gamma_frequency.band_hz.at(0)--#r.gamma_frequency.band_hz.at(1) Hz search band. Activity begins at #transition.input_rate_hz Hz per channel, but rhythmicity clears the registered threshold consistently only at stronger drive.
+      Response of one fixed default PING graph to homogeneous Poisson drive. Left: mean E and I firing rates in hertz, with standard deviations across #r.config.trials paired trials. Middle: median lobe-trough rhythmicity contrast $R$, with error bars showing half the interquartile range. The dimensionless score is the Michelson contrast between the first side lobe and first trough of the 1 ms-binned E-population autocorrelogram; $R = 0$ is flat and $R$ approaches 1 as periodic structure strengthens. Right: median resolved E-population frequency in hertz; the grey region marks the registered #r.gamma_frequency.band_hz.at(0)--#r.gamma_frequency.band_hz.at(1) Hz search band. Activity begins at #transition.input_rate_hz Hz per channel, then rhythmicity strengthens with drive.
     ],
   )
 
