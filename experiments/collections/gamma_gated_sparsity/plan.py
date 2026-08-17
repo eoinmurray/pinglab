@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Any
 
 from .graph import COLLECTION, PENDING_ROOT_DECISIONS, ordered_experiments
+from .workloads import shard_count, workload_contract
 
 REPO = Path(__file__).resolve().parents[3]
 
@@ -62,7 +63,7 @@ def validate_campaign_root(root: Path) -> Path:
     return resolved
 
 
-def build_plan(root: Path, campaign_id: str) -> dict[str, Any]:
+def build_plan(root: Path, campaign_id: str, *, smoke: bool = False) -> dict[str, Any]:
     resolved = validate_campaign_root(root)
     stages: dict[int, list[dict[str, object]]] = {}
     depths: dict[str, int] = {}
@@ -76,6 +77,15 @@ def build_plan(root: Path, campaign_id: str) -> dict[str, Any]:
             if experiment.slug == "exp022"
             else resolved / "downstream" / experiment.slug
         )
+        execution = {"mode": "monolithic"}
+        contract = workload_contract(experiment.slug, smoke=smoke)
+        if shard_count(experiment.slug) > 1:
+            execution = {
+                "mode": "sharded-inference",
+                "shards": shard_count(experiment.slug),
+                "partition": "ordered-round-robin",
+                "workload_contract": contract,
+            }
         stages.setdefault(depth, []).append(
             {
                 **experiment.as_dict(),
@@ -87,6 +97,7 @@ def build_plan(root: Path, campaign_id: str) -> dict[str, Any]:
                     "logs": str(resolved / "logs" / experiment.slug),
                 },
                 "command": runner_command(experiment.slug),
+                "execution": execution,
                 "required_outputs": [
                     str(
                         resolved
