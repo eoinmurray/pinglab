@@ -46,7 +46,7 @@
 
   === 4. Variable-rate and variable-duration inference
 
-  A second five-digit stream changes both presentation duration and maximum-pixel Poisson rate at digit boundaries. Each digit retains its own matched readout window. A factorial evaluation then crosses presentation durations 25, 50, 100, and 200 ms with the eleven training rates. Every cell is evaluated independently for seeds 42, 43, and 44. Independent five-digit streams are evaluated in simulator batches; each batch member has separate neuronal state, while hidden state remains continuous only between the five digits belonging to that stream. Statistical grid cells retain compact per-presentation spike counts and population totals. Full rasters are retained only for the two illustrative streams.
+  A second five-digit stream changes both presentation duration and maximum-pixel Poisson rate at digit boundaries. Each digit retains its own matched readout window. A factorial evaluation then crosses presentation durations 25, 50, 100, and 200 ms with the eleven training rates. Every cell is evaluated on 200 classified digits independently for seeds 42, 43, and 44. Independent five-digit streams are evaluated in simulator batches; each batch member has separate neuronal state, while hidden state remains continuous only between the five digits belonging to that stream. Statistical grid cells retain compact per-presentation spike counts and population totals. Full rasters are retained only for the two illustrative streams.
 
   === 5. Psychometric protocol
 

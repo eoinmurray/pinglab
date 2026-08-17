@@ -16,8 +16,8 @@ PRODUCTION_CONTRACTS: dict[str, dict[str, int]] = {
     "exp042": {"condition_jobs": 270, "simulator_launches_max": 270},
     "exp082": {
         "condition_jobs": 132,
-        "simulator_launches_max": 530,
-        "classified_presentations": 13_200,
+        "simulator_launches_max": 1_058,
+        "classified_presentations": 26_400,
     },
 }
 

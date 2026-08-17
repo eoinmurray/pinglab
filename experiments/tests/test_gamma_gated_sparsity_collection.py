@@ -553,8 +553,8 @@ def test_plan_records_reviewed_heavy_workload_contracts(tmp_path: Path) -> None:
         "partition": "ordered-round-robin",
         "workload_contract": {
             "condition_jobs": 132,
-            "simulator_launches_max": 530,
-            "classified_presentations": 13_200,
+            "simulator_launches_max": 1_058,
+            "classified_presentations": 26_400,
         },
     }
     assert rows["exp025"]["execution"] == {"mode": "monolithic"}

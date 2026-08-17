@@ -80,7 +80,7 @@ N_CLASSES = 10
 N_INPUT = 784
 N_HEADLINE_DIGITS = 5
 STREAMS_PER_CELL = int(
-    os.environ.get("PINGLAB_EXP082_STREAMS_PER_CELL", 1 if SMOKE else 20)
+    os.environ.get("PINGLAB_EXP082_STREAMS_PER_CELL", 1 if SMOKE else 40)
 )
 DIGITS_PER_STREAM = int(
     os.environ.get("PINGLAB_EXP082_DIGITS_PER_STREAM", 3 if SMOKE else 5)

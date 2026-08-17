@@ -113,6 +113,8 @@ def test_exp082_evaluation_scale_is_recorded() -> None:
     assert exp082.EVALUATION_PROFILE in {"smoke", "pilot", "production"}
     if exp082.EVALUATION_PROFILE == "production":
         assert exp082.DIGITS_PER_STREAM == 5
+        assert exp082.STREAMS_PER_CELL == 40
+        assert exp082.STREAMS_PER_CELL * exp082.DIGITS_PER_STREAM == 200
 
 
 def test_exp082_stream_batches_preserve_stream_boundaries(tmp_path, monkeypatch) -> None:
