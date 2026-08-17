@@ -260,7 +260,7 @@ def plot_phase_small_multiples(phases: dict[float, np.ndarray], out: Path) -> No
     flat = axes.ravel()
     for index, coupling in enumerate(COUPLINGS):
         axis = flat[index]
-        trace = phases[coupling][:, ::bin_steps]
+        trace = phases[coupling][:, ::bin_steps] / (2.0 * np.pi)
         for trial in range(1, len(TRIAL_SEEDS)):
             axis.plot(time_s, trace[trial], color=theme.GREY_MID, alpha=0.42, lw=0.65)
         axis.plot(time_s, trace[DISPLAY_TRIAL], color=theme.INK_BLACK, lw=1.0)
@@ -269,7 +269,7 @@ def plot_phase_small_multiples(phases: dict[float, np.ndarray], out: Path) -> No
         axis.spines[["top", "right"]].set_visible(False)
     flat[-1].axis("off")
     fig.supxlabel("time after coupling onset (s)")
-    fig.supylabel("Δ relative phase (rad)")
+    fig.supylabel("relative cycles gained")
     fig.tight_layout()
     fig.savefig(out, bbox_inches="tight")
     plt.close(fig)
@@ -313,31 +313,32 @@ def plot_response(summaries: list[dict], out: Path) -> None:
     plt.close(fig)
 
 
-def plot_representative_rasters(recordings: dict[float, dict[str, np.ndarray]], out: Path) -> None:
+def plot_representative_rates(recordings: dict[float, dict[str, np.ndarray]], out: Path) -> None:
     theme.apply()
-    gap = 5
-    offsets = {
-        "a_e": 0,
-        "a_i": N_E + gap,
-        "b_e": N_E + gap + N_I + 2 * gap,
-        "b_i": 2 * N_E + 2 * gap + N_I + 3 * gap,
-    }
-    labels = ["A:E", "A:I", "B:E", "B:I"]
-    ticks = [N_E / 2, N_E + gap + N_I / 2, N_E + N_I + 2 * gap + N_E / 2, 2 * N_E + N_I + 3 * gap + N_I / 2]
-    fig, axes = plt.subplots(4, 1, figsize=(6.5, 5.2), sharex=True)
+    fig, axes = plt.subplots(4, 1, figsize=(6.5, 5.2), sharex=True, sharey=True)
     for axis, coupling in zip(axes, REPRESENTATIVE_K):
-        for name, colour in (("a_e", theme.INK_BLACK), ("a_i", theme.DEEP_RED), ("b_e", theme.INK_BLACK), ("b_i", theme.DEEP_RED)):
-            steps, cells = np.nonzero(recordings[coupling][name][:, DISPLAY_TRIAL])
-            axis.scatter(steps * DT_MS, cells + offsets[name], s=1.8, marker="|", linewidths=0.35, color=colour, rasterized=True)
-        axis.set_yticks(ticks)
-        axis.set_yticklabels(labels)
-        axis.tick_params(axis="y", length=0)
+        time_ms = np.arange(recordings[coupling]["a_e"].shape[0]) * DT_MS
+        axis.plot(
+            time_ms,
+            _population_rate(recordings[coupling]["a_e"][:, DISPLAY_TRIAL]),
+            color=theme.INK_BLACK,
+            label="A:E",
+        )
+        axis.plot(
+            time_ms,
+            _population_rate(recordings[coupling]["b_e"][:, DISPLAY_TRIAL]),
+            color=theme.DEEP_RED,
+            linestyle="--",
+            label="B:E",
+        )
         axis.text(1.01, 0.5, f"K = {coupling:.2f}", transform=axis.transAxes, va="center", fontsize=theme.SIZE_ANNOTATION)
         axis.spines[["top", "right"]].set_visible(False)
+    axes[0].legend(frameon=False, ncol=2)
+    fig.supylabel("E-population rate (Hz)")
     axes[-1].set_xlim(0, CONTINUATION_MS)
     axes[-1].set_xlabel("time after coupling onset (ms)")
     fig.tight_layout()
-    fig.savefig(out, dpi=240, bbox_inches="tight")
+    fig.savefig(out, bbox_inches="tight")
     plt.close(fig)
 
 
@@ -406,7 +407,7 @@ def main() -> None:
 
         plot_phase_small_multiples(phases, staging / "relative_phase.svg")
         plot_response(summaries, staging / "response.svg")
-        plot_representative_rasters(representative, staging / "representative_rasters.png")
+        plot_representative_rates(representative, staging / "representative_rates.svg")
         bin_steps = round(TRACE_BIN_MS / DT_MS)
         np.savez_compressed(
             staging / "phase_traces.npz",

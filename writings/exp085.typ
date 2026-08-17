@@ -22,7 +22,7 @@
 
   + *Branch one mature state.* The executor captures voltages, refractory counters, conductances, population histories, and input-delay histories at coupling onset. That identical state branches across #(r.config.couplings.len()) reciprocal coupling strengths. Private future inputs remain paired across K and independent between circuits.
 
-  + *Measure relative phase.* E-population rates are smoothed with a #r.phase_analysis.smoothing_sigma_ms ms Gaussian kernel and filtered over #r.phase_analysis.band_hz.at(0)--#r.phase_analysis.band_hz.at(1) Hz. Hilbert phases define the unwrapped A-minus-B relative phase, expressed as its change from coupling onset. The final #r.phase_analysis.terminal_edge_trim_ms ms are excluded to prevent the finite-record filter boundary from appearing as a phase jump. This continuous trajectory is the primary result; no locking threshold or latency is inferred.
+  + *Measure relative phase.* E-population rates are smoothed with a #r.phase_analysis.smoothing_sigma_ms ms Gaussian kernel and filtered over #r.phase_analysis.band_hz.at(0)--#r.phase_analysis.band_hz.at(1) Hz. Hilbert phases define the unwrapped A-minus-B relative phase, expressed as its change from coupling onset. Figures divide this phase change by $2 pi$ to report relative cycles gained. The final #r.phase_analysis.terminal_edge_trim_ms ms are excluded to prevent the finite-record filter boundary from appearing as a phase jump. This continuous trajectory is the primary result; no locking threshold or latency is inferred.
 
   + *Measure supporting responses.* The registered #raw(r.frequency_analysis.name) policy reports each circuit's dominant rhythm from the final 1.5 s. Frequency difference, descriptive phase-locking value, and population firing rates support the phase trajectories.
 
@@ -37,7 +37,7 @@
 
   #figure(
     image("/artifacts/data/exp085/relative_phase.svg", width: 100%, alt: "Small multiples of unwrapped relative phase after coupling onset at eleven reciprocal coupling strengths."),
-    caption: [Change in unwrapped A-minus-B relative phase after coupling onset. Time is in seconds and phase change is in radians. Panels increase in reciprocal coupling K from left to right and top to bottom. Every trace is zeroed at onset; the final #r.phase_analysis.terminal_edge_trim_ms ms are excluded as a registered filter-edge guard. The black trace is one predeclared paired trial; grey traces are the other #(r.config.trials - 1) trials from the same mature-state and input protocol. Persistent slope indicates phase drift, plateaus indicate transient capture, and a bounded trace indicates a stable phase relationship.],
+    caption: [Cumulative A-minus-B relative cycles gained after coupling onset. One vertical unit means that A has completed one additional cycle relative to B. Panels increase in reciprocal coupling K from left to right and top to bottom. Every trace is zeroed at onset; the final #r.phase_analysis.terminal_edge_trim_ms ms are excluded as a registered filter-edge guard. The black trace is one predeclared paired trial; grey traces are the other #(r.config.trials - 1) trials from the same mature-state and input protocol. Persistent slope indicates repeated lapping, plateaus indicate transient capture, and a bounded trace indicates a stable phase relationship.],
   )
 
   #figure(
@@ -46,7 +46,7 @@
   )
 
   #figure(
-    image("/artifacts/data/exp085/representative_rasters.png", width: 100%, alt: "Stacked A and B excitatory and inhibitory rasters at four predeclared coupling strengths."),
-    caption: [Population rasters after coupling onset at the four predeclared K values. Time is in milliseconds; black marks identify E cells and red marks identify I cells. Each panel stacks A:E, A:I, B:E, and B:I from bottom to top for the same paired trial. The sequence shows how population volleys change as reciprocal excitation strengthens.],
+    image("/artifacts/data/exp085/representative_rates.svg", width: 100%, alt: "Excitatory population-rate traces for circuits A and B at four predeclared coupling strengths."),
+    caption: [Excitatory population activity after coupling onset at the four predeclared K values. Time is in milliseconds and rate is in hertz after the registered #r.phase_analysis.smoothing_sigma_ms ms smoothing. Circuit A is black and circuit B is dashed red; all panels use the same paired trial and axes. The sequence makes repeated lapping, transient alignment, and shared volley timing directly comparable.],
   )
 ]
