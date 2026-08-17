@@ -473,6 +473,75 @@ class TestSpikeCountReadout:
         assert {"out_trial", "out_t", "out_cell"} <= set(raster.files)
         assert int(raster["T"]) == 6
 
+    def test_input_file_probe_emits_compact_batched_spike_summary(self, tmp_path):
+        M.N_IN = 8
+        M.T_steps = 6
+        M.T_ms = M.T_steps * M.dt
+        net = build_net("ping", hidden_sizes=[16], readout_mode="spike-count")
+        weights = tmp_path / "weights.pth"
+        torch.save(net.state_dict(), weights)
+        input_file = tmp_path / "input.npz"
+        np.savez(
+            input_file,
+            input_spikes=np.ones((6, 3, 8), dtype=np.float32),
+            readout_reset=np.asarray([True, False, False, True, False, False]),
+        )
+
+        probe(
+            model_name="ping",
+            dt=M.dt,
+            t_ms=M.T_ms,
+            hidden_sizes=[16],
+            n_in=8,
+            load_weights=weights,
+            input_file=input_file,
+            out_dir=tmp_path,
+            outputs={"spike_summary", "rasters"},
+            readout_mode="spike-count",
+        )
+
+        summary = np.load(tmp_path / "spike_summary.npz")
+        assert summary["e_counts"].shape == (3, 2)
+        assert summary["i_counts"].shape == (3, 2)
+        assert summary["out_counts"].shape == (3, 2, M.N_OUT)
+        assert summary["segment_starts"].tolist() == [0, 3]
+        assert summary["segment_stops"].tolist() == [3, 6]
+        raster = np.load(tmp_path / "rasters.npz")
+        expected = np.zeros((3, 2, M.N_OUT), dtype=np.int64)
+        for trial, timestep, cell in zip(
+            raster["out_trial"], raster["out_t"], raster["out_cell"], strict=True
+        ):
+            expected[int(trial), int(timestep) // 3, int(cell)] += 1
+        np.testing.assert_array_equal(summary["out_counts"], expected)
+
+    def test_batched_streams_match_independent_single_streams(self):
+        M.N_IN = 8
+        M.T_steps = 12
+        M.T_ms = M.T_steps * M.dt
+        torch.manual_seed(82)
+        batched = build_net("ping", hidden_sizes=[16], readout_mode="spike-count")
+        batched.recording = True
+        inputs = (torch.rand(M.T_steps, 3, M.N_IN) < 0.25).float()
+        reset = torch.zeros(M.T_steps, dtype=torch.bool)
+        reset[[0, 4, 8]] = True
+        batched(input_spikes=inputs, readout_reset_mask=reset)
+
+        expected = {name: [] for name in ("hid", "inh", "out_spikes")}
+        for trial in range(inputs.shape[1]):
+            single = build_net("ping", hidden_sizes=[16], readout_mode="spike-count")
+            single.load_state_dict(batched.state_dict())
+            single.recording = True
+            single(
+                input_spikes=inputs[:, trial : trial + 1],
+                readout_reset_mask=reset,
+            )
+            for name in expected:
+                expected[name].append(single.spike_record[name])
+        for name, trials in expected.items():
+            torch.testing.assert_close(
+                batched.spike_record[name], torch.stack(trials, dim=1), rtol=0, atol=0
+            )
+
 
 class TestRecurrentDalesProjection:
     def _trainable_net(self, *, dales_law=True):
