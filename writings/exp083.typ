@@ -26,6 +26,8 @@
 
   + *Resolve gamma consistently.* The #raw(r.gamma_frequency.name) policy computes a single-trial Welch spectrum from the E-population raster. It searches #r.gamma_frequency.band_hz.at(0)--#r.gamma_frequency.band_hz.at(1) Hz, interpolates the peak between bins, rejects maxima at the band edge, and requires peak power to exceed #r.gamma_frequency.min_prominence_ratio times the band median. Failed checks retain an unresolved reason; they are not reported as 0 Hz.
 
+  + *Score rhythmicity.* The standard exp054 metric bins the E-population spike count at 1 ms, computes its normalized autocorrelogram, and applies a three-point smoothing kernel. If $L$ is the first side-lobe height and $T$ the following trough height, the dimensionless Michelson contrast is $R = (L - T) / (L + T)$. Silence is reported as $R = 0$.
+
   + *Measure E/I timing separately.* Post-transient population spikes are binned at 1 ms. The lag of the strongest E/I cross-correlation within plus or minus 20 ms is descriptive and does not enter the gamma-resolution rule.
 
   #figure(
@@ -41,7 +43,7 @@
 
   == Results
 
-  The network is silent through #r.conditions.at(1).input_rate_hz Hz per channel. At #transition.input_rate_hz Hz it activates, but gamma resolves in only #calc.round(transition.gamma_resolved_fraction * 100)% of trials. From #first-active.input_rate_hz Hz onward, every trial resolves. Both population rates and gamma frequency then increase with input drive. The untouched default component therefore has a broad gamma regime, but firing begins before the spectral criterion becomes reliable across trials.
+  The network is silent through #r.conditions.at(1).input_rate_hz Hz per channel. At #transition.input_rate_hz Hz it activates and the median rhythmicity score reaches #calc.round(transition.rhythmicity_score_median, digits: 2), but gamma resolves in only #calc.round(transition.gamma_resolved_fraction * 100)% of trials. From #first-active.input_rate_hz Hz onward, every trial resolves. The contrast detects strong temporal structure immediately at onset, whereas the spectral rule separately asks whether a stable peak lies inside the registered gamma band.
 
   #figure(
     image(
@@ -50,7 +52,7 @@
       alt: "Population firing rates, lobe-trough rhythmicity contrast, and gamma peak frequency across homogeneous input drive.",
     ),
     caption: [
-      Response of one fixed default PING graph to homogeneous Poisson drive. Left: mean E and I firing rates in hertz, with standard deviations across #r.config.trials paired trials. Middle: median lobe-trough rhythmicity contrast $R$, with error bars showing half the interquartile range. The dimensionless score is the Michelson contrast between the first side lobe and first trough of the 1 ms-binned E-population autocorrelogram; $R = 0$ is flat and $R$ approaches 1 as periodic structure strengthens. Right: median resolved E-population frequency in hertz; the grey region marks the registered #r.gamma_frequency.band_hz.at(0)--#r.gamma_frequency.band_hz.at(1) Hz search band. Activity begins at #transition.input_rate_hz Hz per channel, then rhythmicity strengthens with drive.
+      Response of one fixed default PING graph to homogeneous Poisson drive. Left: mean E and I firing rates in hertz, with standard deviations across #r.config.trials paired trials. Middle: median lobe-trough rhythmicity contrast $R$, with error bars showing half the interquartile range; $R = 0$ is flat and $R$ approaches 1 as periodic structure strengthens. Right: median resolved E-population frequency in hertz; the grey region marks the registered #r.gamma_frequency.band_hz.at(0)--#r.gamma_frequency.band_hz.at(1) Hz search band. At #transition.input_rate_hz Hz per channel, $R$ already saturates while the spectral rule resolves only #calc.round(transition.gamma_resolved_fraction * 100)% of trials, separating temporal structure from gamma-band peak validity.
     ],
   )
 
