@@ -47,6 +47,7 @@ def test_silent_condition_has_zero_rhythmicity_score():
             "e_rate_hz": 0.0,
             "i_rate_hz": 0.0,
             "e_i_peak_lag_ms": None,
+            "rhythmicity_contrast": None,
             "gamma": {
                 "resolved": False,
                 "frequency_hz": None,
@@ -58,3 +59,11 @@ def test_silent_condition_has_zero_rhythmicity_score():
     summary = exp083.summarize_condition(0.0, rows)
     assert summary["rhythmicity_score_median"] == 0.0
     assert summary["rhythmicity_score_iqr"] == 0.0
+
+
+def test_periodic_volleys_have_strong_standard_rhythmicity_contrast():
+    raster = np.zeros((10_000, exp083.N_E), dtype=np.uint8)
+    raster[2_000::250] = 1
+    score = exp083._rhythmicity_contrast(raster)
+    assert score is not None
+    assert score > 0.8

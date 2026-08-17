@@ -35,6 +35,12 @@ from helpers.gamma_frequency import (  # noqa: E402
     estimate_gamma_from_raster,
 )
 from helpers.numbers import write_numbers  # noqa: E402
+from helpers.rhythmicity import (  # noqa: E402
+    iei_histogram,
+    population_event_times,
+    rhythmicity_scalars,
+    spike_autocorrelogram,
+)
 from helpers.run_dirs import published_run  # noqa: E402
 from helpers.run_id import next_run_id  # noqa: E402
 
@@ -115,6 +121,21 @@ def _phase_lag_ms(e_spikes: np.ndarray, i_spikes: np.ndarray) -> float | None:
     return float(lags[keep][np.argmax(correlation[keep])])
 
 
+def _rhythmicity_contrast(e_spikes: np.ndarray) -> float | None:
+    """Canonical exp054 lobe-trough contrast on the post-burn E raster."""
+    burn = round(BURN_MS / DT_MS)
+    spikes = e_spikes[burn:]
+    ac_lags, ac = spike_autocorrelogram(spikes, DT_MS, 100.0, 1.0)
+    iei_lags, iei = iei_histogram(
+        population_event_times(spikes, DT_MS),
+        100.0,
+        1.0,
+    )
+    scalars = rhythmicity_scalars(ac_lags, ac, iei_lags, iei, 1.0)
+    contrast = scalars["contrast"]
+    return None if contrast is None or not np.isfinite(contrast) else float(contrast)
+
+
 def _trial_rows(
     rate_hz: float,
     e_spikes: np.ndarray,
@@ -134,6 +155,7 @@ def _trial_rows(
                 "e_rate_hz": float(e_spikes[burn:, index].sum() / N_E / duration_s),
                 "i_rate_hz": float(i_spikes[burn:, index].sum() / N_I / duration_s),
                 "gamma": peak.json(),
+                "rhythmicity_contrast": _rhythmicity_contrast(e_spikes[:, index]),
                 "e_i_peak_lag_ms": _phase_lag_ms(
                     e_spikes[:, index], i_spikes[:, index]
                 ),
@@ -150,10 +172,9 @@ def summarize_condition(rate_hz: float, rows: list[dict]) -> dict:
         row["e_i_peak_lag_ms"] for row in rows if row["e_i_peak_lag_ms"] is not None
     ]
     rhythmicity = [
-        0.0
-        if row["gamma"]["prominence_ratio"] is None
-        else row["gamma"]["prominence_ratio"]
+        row["rhythmicity_contrast"]
         for row in rows
+        if row["rhythmicity_contrast"] is not None
     ]
     return {
         "input_rate_hz": rate_hz,
@@ -162,10 +183,12 @@ def summarize_condition(rate_hz: float, rows: list[dict]) -> dict:
         "i_rate_mean_hz": float(np.mean([row["i_rate_hz"] for row in rows])),
         "i_rate_std_hz": float(np.std([row["i_rate_hz"] for row in rows], ddof=1)),
         "gamma_resolved_fraction": len(resolved) / len(rows),
-        "rhythmicity_score_median": float(np.median(rhythmicity)),
-        "rhythmicity_score_iqr": float(
-            np.percentile(rhythmicity, 75) - np.percentile(rhythmicity, 25)
-        ),
+        "rhythmicity_score_median": 0.0
+        if not rhythmicity
+        else float(np.median(rhythmicity)),
+        "rhythmicity_score_iqr": 0.0
+        if not rhythmicity
+        else float(np.percentile(rhythmicity, 75) - np.percentile(rhythmicity, 25)),
         "gamma_frequency_median_hz": None
         if not resolved
         else float(np.median(resolved)),
@@ -265,13 +288,7 @@ def plot_response(summaries: list[dict], out: Path) -> None:
         capsize=3,
         color=theme.INK_BLACK,
     )
-    axes[1].axhline(
-        GAMMA_CONFIG.min_prominence_ratio,
-        color=theme.DEEP_RED,
-        ls="--",
-        lw=1.2,
-    )
-    axes[1].set_ylim(bottom=-0.2)
+    axes[1].set_ylim(-0.04, 1.04)
     axes[1].set_ylabel("rhythmicity score")
     frequencies = [row["gamma_frequency_median_hz"] for row in summaries]
     axes[2].plot(x, frequencies, marker="o", color=theme.DEEP_RED)
