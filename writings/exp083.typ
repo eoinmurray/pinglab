@@ -8,7 +8,7 @@
 )
 
 #let r = json("/artifacts/data/exp083/numbers.json")
-#let active = r.conditions.filter(row => row.gamma_resolved_fraction == 1)
+#let active = r.conditions.filter(row => row.frequency_resolved_fraction == 1)
 #let transition = r.conditions.filter(row => row.input_rate_hz == 50).first()
 #let first-active = active.first()
 #let last-active = active.last()
@@ -16,7 +16,7 @@
 #let body = [
   == Abstract
 
-  The default `snn.components.ping()` circuit is silent at weak drive, begins firing near #transition.input_rate_hz Hz per input channel, and settles into reproducible gamma activity from #first-active.input_rate_hz to #last-active.input_rate_hz Hz. Across that resolved interval, the median gamma frequency rises from #calc.round(first-active.gamma_frequency_median_hz, digits: 2) to #calc.round(last-active.gamma_frequency_median_hz, digits: 2) Hz. One compiled graph produces the entire response curve. No model parameter is tuned between conditions.
+  The default `snn.components.ping()` circuit is silent at weak drive, then switches abruptly into a strongly rhythmic state near #transition.input_rate_hz Hz per input channel. The dominant rhythm rises from #calc.round(transition.rhythm_frequency_median_hz, digits: 2) to #calc.round(last-active.rhythm_frequency_median_hz, digits: 2) Hz across the active sweep and remains predominantly below the conventional gamma band. One compiled graph produces the entire response curve. No model parameter is tuned between conditions.
 
   == Methods
 
@@ -24,7 +24,7 @@
 
   + *Vary only input drive.* Homogeneous Poisson input spans #(r.config.rates_hz.map(value => str(value) + " Hz").join(", ")) per channel. Every condition uses the same compiled graph and #r.config.trials paired deterministic trials, each lasting #r.config.t_ms ms. Measurements exclude the first #r.config.burn_ms ms.
 
-  + *Resolve gamma consistently.* The #raw(r.gamma_frequency.name) policy computes a single-trial Welch spectrum from the E-population raster. It searches #r.gamma_frequency.band_hz.at(0)--#r.gamma_frequency.band_hz.at(1) Hz, interpolates the peak between bins, rejects maxima at the band edge, and requires peak power to exceed #r.gamma_frequency.min_prominence_ratio times the band median. Failed checks retain an unresolved reason; they are not reported as 0 Hz.
+  + *Resolve the dominant rhythm.* The #raw(r.frequency_analysis.name) policy computes a single-trial Welch spectrum from the E-population raster. It searches #r.frequency_analysis.band_hz.at(0)--#r.frequency_analysis.band_hz.at(1) Hz, interpolates the peak between bins, rejects maxima at the band edge, and requires peak power to exceed #r.frequency_analysis.min_prominence_ratio times the band median. If a peak at half the selected frequency carries at least #calc.round(r.frequency_analysis.subharmonic_ratio * 100)% of its power, the lower frequency is reported. This prevents a strong harmonic from masquerading as the population rhythm.
 
   + *Score rhythmicity.* The standard exp054 metric bins the E-population spike count at 1 ms, computes its normalized autocorrelogram, and applies a three-point smoothing kernel. If $L$ is the first side-lobe height and $T$ the following trough height, the dimensionless Michelson contrast is $R = (L - T) / (L + T)$. Silence is reported as $R = 0$.
 
@@ -43,16 +43,16 @@
 
   == Results
 
-  The network is silent through #r.conditions.at(1).input_rate_hz Hz per channel. At #transition.input_rate_hz Hz it activates and the median rhythmicity score reaches #calc.round(transition.rhythmicity_score_median, digits: 2), but gamma resolves in only #calc.round(transition.gamma_resolved_fraction * 100)% of trials. From #first-active.input_rate_hz Hz onward, every trial resolves. The contrast detects strong temporal structure immediately at onset, whereas the spectral rule separately asks whether a stable peak lies inside the registered gamma band.
+  The network is silent through #r.conditions.at(1).input_rate_hz Hz per channel. At #transition.input_rate_hz Hz it activates, the median rhythmicity score reaches #calc.round(transition.rhythmicity_score_median, digits: 2), and the dominant rhythm is #calc.round(transition.rhythm_frequency_median_hz, digits: 2) Hz. Rhythmicity therefore appears discontinuously, while the rhythm frequency increases smoothly with drive. The default circuit sings, but under this protocol it mostly sings below gamma.
 
   #figure(
     image(
       "/artifacts/data/exp083/response.png",
       width: 100%,
-      alt: "Population firing rates, lobe-trough rhythmicity contrast, and gamma peak frequency across homogeneous input drive.",
+      alt: "Population firing rates, lobe-trough rhythmicity contrast, and dominant rhythm frequency across homogeneous input drive.",
     ),
     caption: [
-      Response of one fixed default PING graph to homogeneous Poisson drive. Left: mean E and I firing rates in hertz, with standard deviations across #r.config.trials paired trials. Middle: median lobe-trough rhythmicity contrast $R$, with error bars showing half the interquartile range; $R = 0$ is flat and $R$ approaches 1 as periodic structure strengthens. Right: median resolved E-population frequency in hertz; the grey region marks the registered #r.gamma_frequency.band_hz.at(0)--#r.gamma_frequency.band_hz.at(1) Hz search band. At #transition.input_rate_hz Hz per channel, $R$ already saturates while the spectral rule resolves only #calc.round(transition.gamma_resolved_fraction * 100)% of trials, separating temporal structure from gamma-band peak validity.
+      Response of one fixed default PING graph to homogeneous Poisson drive. Top: mean E and I firing rates in hertz, with standard deviations across #r.config.trials paired trials. Middle: median lobe-trough rhythmicity contrast $R$, with error bars showing half the interquartile range; $R = 0$ is flat and $R$ approaches 1 as periodic structure strengthens. Bottom: median dominant E-population frequency in hertz after subharmonic correction; the grey region marks 5--30 Hz. Rhythmicity switches on abruptly at #transition.input_rate_hz Hz per channel, while the dominant rhythm increases smoothly from #calc.round(transition.rhythm_frequency_median_hz, digits: 2) Hz.
     ],
   )
 
@@ -74,7 +74,7 @@
       alt: "Mean excitatory population spectra at three input rates selected before the primary sweep.",
     ),
     caption: [
-      Mean E-population power spectra at the preselected input rates. Frequency is in hertz and power is normalized to each curve's maximum for shape comparison; gamma resolution uses the unnormalized single-trial spectra. The grey region marks #r.gamma_frequency.band_hz.at(0)--#r.gamma_frequency.band_hz.at(1) Hz. Stronger drive shifts the dominant resolved rhythm upward within the registered band.
+      Mean E-population power spectra at the preselected input rates. Frequency is in hertz and power is normalized to each curve's maximum for shape comparison; frequency resolution uses the unnormalized single-trial spectra. The grey region marks the former 30--80 Hz gamma-only window. The dominant peaks sit below it, while visible harmonics fall inside it, explaining why a gamma-restricted search gave a misleading frequency curve.
     ],
   )
 ]
