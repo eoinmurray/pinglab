@@ -269,7 +269,7 @@ def plot_phase_small_multiples(phases: dict[float, np.ndarray], out: Path) -> No
         axis.spines[["top", "right"]].set_visible(False)
     flat[-1].axis("off")
     fig.supxlabel("time after coupling onset (s)")
-    fig.supylabel("change in unwrapped relative phase, Δ(φA − φB) (rad)")
+    fig.supylabel("Δ relative phase (rad)")
     fig.tight_layout()
     fig.savefig(out, bbox_inches="tight")
     plt.close(fig)
