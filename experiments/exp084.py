@@ -247,7 +247,7 @@ def main() -> None:
                 i_spikes=i_spikes,
             )
 
-        plot_response(summaries, staging / "response.png")
+        plot_response(summaries, staging / "response.svg")
         plot_representative_rasters(recordings, summaries, staging / "representative_rasters.png")
         shutil.copytree(conditions, staging / "conditions")
         payload = {

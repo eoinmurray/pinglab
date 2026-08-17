@@ -42,7 +42,7 @@
 
   #figure(
     image(
-      "/artifacts/data/exp084/response.png",
+      "/artifacts/data/exp084/response.svg",
       width: 100%,
       alt: "Population rates, rhythmicity, and dominant frequency across inhibitory decay time.",
     ),
