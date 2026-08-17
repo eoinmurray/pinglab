@@ -66,11 +66,11 @@
 
   == f₀
 
-  _What it is:_ The dominant oscillation frequency of the E population, in Hz. If the network is gamma-locked the rate signal has a clear peak in its Fourier spectrum; $f_0$ is the frequency of that peak.
+  _What it is:_ A resolved dominant oscillation frequency of a recorded population, in Hz. A gamma-locked network should have a clear spectral peak, but a numerical maximum inside a search band is not by itself evidence of a rhythm.
 
-  _How it's calculated:_ The E spike raster is binned at 2 ms, the resulting time series $r_E (t)$ is mean-subtracted and FFTed. A peak search runs in the 5–80 Hz band and requires the peak to be at least 3× the band median (an SNR gate). A subharmonic check follows: if there is clear power at half the peak frequency (≥ 30 % of the peak's power), $f_0$ is set to that lower frequency instead — this catches the case where pyramidal neurons fire every second cycle.
+  _How it's calculated:_ Generic simulator metrics do not currently emit $f_0$; the earlier autocorrelation-lag shortcut was disabled because it selected a sub-cycle feature near 1 ms rather than the gamma period. Experiments use the shared gamma-frequency analysis helper on retained rasters or population traces. The experiment records its named configuration: source population, transient exclusion, binning and smoothing, Welch settings, search band, interpolation, activity and prominence gates, harmonic handling, and trial aggregation. New default-PING experiments use the recommended 30–80 Hz E-population configuration; historical experiments may retain explicit named variants when their scientific question requires a broader band or different preprocessing.
 
-  _Common values:_ 0 Hz (non-oscillating; always for non-PING models, which short-circuit the calculation); 30–80 Hz (gamma, the PING target); anything below 30 Hz is sub-gamma beta. Shows `-` in the header when 0.
+  _Common values:_ 30–80 Hz for a resolved gamma rhythm. Silence, inadequate prominence, insufficient duration, non-finite input, or a rejected band-edge maximum produces an unresolved result, not a fabricated 0 Hz frequency.
 
   == CV
 
@@ -152,9 +152,7 @@
 
   _What it is:_ The power spectral density (frequency content) of the E population rate $r_E (t)$. The gamma band (30–80 Hz) is shaded.
 
-  _How it's calculated:_ $r_E (t)$ is computed in 2 ms bins over the stimulus window, mean-centred, FFTed, and normalised:
-
-  $ "PSD"(f) = (|"FFT"(r_E - macron(r)_E)(f)|^2) / (max_f |"FFT"(r_E - macron(r)_E)(f)|^2) $
+  _How it's calculated:_ The experiment's named gamma-frequency configuration defines the population trace, transient exclusion, optional binning or smoothing, and spectral estimator. The shared helper returns the frequency axis, PSD, discrete and interpolated peaks, band-median power, prominence, and a resolved or unresolved reason. Figures may normalise the returned PSD for display, but peak resolution is applied to the unnormalised spectrum.
 
   _How to read it:_ A flat PSD means asynchronous firing. A peak inside the shaded band means gamma. A peak below 30 Hz means sub-gamma (beta). A peak above 80 Hz is rejected by the $f_0$ search.
 
@@ -198,9 +196,9 @@
 
   == sweep_f0
 
-  _What it is:_ Peak oscillation frequency $f_0$ across the sweep, with the gamma band (30–80 Hz) shaded. Sweep-only.
+  _What it is:_ Resolved peak oscillation frequency $f_0$ across the sweep under one recorded analysis configuration, with the gamma band (30–80 Hz) shaded. Sweep-only.
 
-  _How to read it:_ A PING run with a robust E→I→E loop holds $f_0$ inside the shaded band across the whole sweep. Drift out of band indicates the loop is failing at that parameter value.
+  _How to read it:_ A PING run with a robust E→I→E loop holds resolved $f_0$ inside the shaded band across the whole sweep. Missing points are unresolved spectra and must retain their reason; they are not zeros. Drift out of band or loss of resolution indicates that the loop is changing or failing at that parameter value.
 
   == Spectral radius
 
