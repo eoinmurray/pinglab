@@ -22,7 +22,8 @@ def test_private_inputs_are_deterministic_and_continuous():
     assert set(first) == {"drive_a", "drive_b"}
     np.testing.assert_array_equal(first["drive_a"], repeated["drive_a"])
     assert not np.array_equal(first["drive_a"], first["drive_b"])
-    assert first["drive_a"].shape == (35_000, 5, 128)
+    expected_steps = round((exp085.EQUILIBRATION_MS + exp085.CONTINUATION_MS) / exp085.DT_MS)
+    assert first["drive_a"].shape == (expected_steps, 5, 128)
 
 
 def test_only_cross_coupling_initializers_change_across_graphs():

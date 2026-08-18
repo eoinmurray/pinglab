@@ -34,15 +34,16 @@ from helpers.run_id import next_run_id  # noqa: E402
 SLUG = "exp085"
 DT_MS = 0.1
 EQUILIBRATION_MS = 1_000.0
-CONTINUATION_MS = 2_500.0
+SCOUT_MS = 2_400.0
+CONTINUATION_MS = 1_500.0
 N_INPUT = 128
 N_E = 80
 N_I = 20
 INPUT_RATE_HZ = 100.0
 TAU_A_MS = 4.0
 TAU_B_MS = 5.0
-COUPLINGS = tuple(round(value, 2) for value in np.linspace(0.0, 0.10, 11))
-REPRESENTATIVE_K = (0.0, 0.03, 0.06, 0.10)
+COUPLING = 0.08
+PHASE_TARGETS_RAD = (0.0, 0.5 * np.pi, np.pi, 1.5 * np.pi)
 TRIAL_SEEDS = (8500, 8501, 8502, 8503, 8504)
 NETWORK_SEED = 85
 PHASE_BAND_HZ = (20.0, 60.0)
@@ -51,10 +52,14 @@ PHASE_EDGE_TRIM_MS = 100.0
 TRACE_BIN_MS = 1.0
 TERMINAL_PHASE_WINDOW_MS = 500.0
 PHASE_ERROR_SMOOTH_MS = 50.0
+PHASE_PREHISTORY_MS = 300.0
+# Legacy scan helpers remain importable for historical tests but are not published.
+COUPLINGS = tuple(round(value, 2) for value in np.linspace(0.0, 0.10, 11))
+REPRESENTATIVE_K = (0.0, 0.03, 0.06, 0.10)
+DISPLAY_TRIAL = 0
 SYNC_EXAMPLE_MIN_K = 0.07
 SYNC_EXAMPLE_TERMINAL_P95_MAX_RAD = 0.25
 SYNC_EXAMPLE_POST_SETTLING_MAX_RAD = 0.5
-DISPLAY_TRIAL = 0
 FREQUENCY_CONFIG = replace(
     exp083.FREQUENCY_CONFIG,
     name="exp085-dominant-rhythm-v1",
@@ -78,8 +83,9 @@ SCALE = {
     "input_rate_hz": INPUT_RATE_HZ,
     "tau_a_ms": TAU_A_MS,
     "tau_b_ms": TAU_B_MS,
-    "couplings": list(COUPLINGS),
-    "representative_couplings": list(REPRESENTATIVE_K),
+    "coupling": COUPLING,
+    "phase_targets_rad": list(PHASE_TARGETS_RAD),
+    "scout_ms": SCOUT_MS,
     "trials": len(TRIAL_SEEDS),
     "trial_seeds": list(TRIAL_SEEDS),
     "network_seed": NETWORK_SEED,
@@ -88,8 +94,7 @@ SCALE = {
     "phase_edge_trim_ms": PHASE_EDGE_TRIM_MS,
     "terminal_phase_window_ms": TERMINAL_PHASE_WINDOW_MS,
     "phase_error_smooth_ms": PHASE_ERROR_SMOOTH_MS,
-    "clean_convergence_terminal_p95_max_rad": SYNC_EXAMPLE_TERMINAL_P95_MAX_RAD,
-    "clean_convergence_post_settling_max_rad": SYNC_EXAMPLE_POST_SETTLING_MAX_RAD,
+    "phase_prehistory_ms": PHASE_PREHISTORY_MS,
 }
 
 
@@ -179,7 +184,9 @@ def relative_phase(
 ) -> np.ndarray:
     """Return onset-relative unwrapped A-minus-B phase, excluding filter edge."""
     sample_hz = 1_000.0 / DT_MS
-    sos = sp_signal.butter(4, PHASE_BAND_HZ, btype="bandpass", fs=sample_hz, output="sos")
+    sos = sp_signal.butter(
+        4, PHASE_BAND_HZ, btype="bandpass", fs=sample_hz, output="sos"
+    )
     phases = []
     for trial in range(a_e.shape[1]):
         rate_a = _population_rate(a_e[:, trial])
@@ -248,8 +255,12 @@ def summarize_condition(
                 "seed": TRIAL_SEEDS[index],
                 "phase_locking_value": float(plv[index]),
                 "phase_slope_rad_s": float(slopes[index]),
-                "frequency_a_hz": frequency_a[index] if len(frequency_a) == len(TRIAL_SEEDS) else None,
-                "frequency_b_hz": frequency_b[index] if len(frequency_b) == len(TRIAL_SEEDS) else None,
+                "frequency_a_hz": frequency_a[index]
+                if len(frequency_a) == len(TRIAL_SEEDS)
+                else None,
+                "frequency_b_hz": frequency_b[index]
+                if len(frequency_b) == len(TRIAL_SEEDS)
+                else None,
             }
             for index in range(len(TRIAL_SEEDS))
         ],
@@ -310,7 +321,9 @@ def clean_convergence_trials(phase: np.ndarray) -> list[int]:
     return passed
 
 
-def select_sync_example(phases: dict[float, np.ndarray]) -> tuple[float, int, np.ndarray, np.ndarray]:
+def select_sync_example(
+    phases: dict[float, np.ndarray],
+) -> tuple[float, int, np.ndarray, np.ndarray]:
     """Select the largest clean onset-to-settled terminal-error reduction."""
     candidates = []
     for coupling in COUPLINGS:
@@ -328,7 +341,9 @@ def select_sync_example(phases: dict[float, np.ndarray]) -> tuple[float, int, np
                 reduction = np.mean(error[:100]) - np.mean(error[250:500])
                 candidates.append((reduction, coupling, trial, time_ms, error))
     if not candidates:
-        raise RuntimeError("no phase-settling trace satisfies the example selection rule")
+        raise RuntimeError(
+            "no phase-settling trace satisfies the example selection rule"
+        )
     _, coupling, trial, time_ms, error = max(candidates, key=lambda row: row[0])
     return coupling, trial, time_ms, error
 
@@ -353,7 +368,14 @@ def plot_synchrony_over_time(phases: dict[float, np.ndarray], out: Path) -> dict
     axis.set_xlabel("time after coupling onset (s)")
     axis.set_ylabel("terminal phase error (rad)")
     axis.set_ylim(bottom=0.0)
-    axis.text(0.98, 0.92, f"K = {coupling:.2f}", transform=axis.transAxes, ha="right", va="top")
+    axis.text(
+        0.98,
+        0.92,
+        f"K = {coupling:.2f}",
+        transform=axis.transAxes,
+        ha="right",
+        va="top",
+    )
     axis.legend(frameon=False)
     axis.spines[["top", "right"]].set_visible(False)
     fig.tight_layout()
@@ -370,13 +392,35 @@ def plot_response(summaries: list[dict], out: Path) -> None:
     theme.apply()
     x = np.array([row["coupling"] for row in summaries])
     fig, axes = plt.subplots(4, 1, figsize=(6.5, 5.5), sharex=True)
-    axes[0].plot(x, [row["frequency_a_median_hz"] for row in summaries], "o-", color=theme.INK_BLACK, label="A")
-    axes[0].plot(x, [row["frequency_b_median_hz"] for row in summaries], "s--", color=theme.DEEP_RED, label="B")
+    axes[0].plot(
+        x,
+        [row["frequency_a_median_hz"] for row in summaries],
+        "o-",
+        color=theme.INK_BLACK,
+        label="A",
+    )
+    axes[0].plot(
+        x,
+        [row["frequency_b_median_hz"] for row in summaries],
+        "s--",
+        color=theme.DEEP_RED,
+        label="B",
+    )
     axes[0].set_ylabel("frequency (Hz)")
     axes[0].legend(frameon=False)
-    axes[1].plot(x, [row["absolute_frequency_difference_hz"] for row in summaries], "o-", color=theme.INK_BLACK)
+    axes[1].plot(
+        x,
+        [row["absolute_frequency_difference_hz"] for row in summaries],
+        "o-",
+        color=theme.INK_BLACK,
+    )
     axes[1].set_ylabel("|fA − fB| (Hz)")
-    axes[2].plot(x, [row["phase_locking_value_median"] for row in summaries], "o-", color=theme.INK_BLACK)
+    axes[2].plot(
+        x,
+        [row["phase_locking_value_median"] for row in summaries],
+        "o-",
+        color=theme.INK_BLACK,
+    )
     axes[2].set_ylabel("phase-locking value")
     axes[2].set_ylim(-0.04, 1.04)
     for circuit, colour in (("a", theme.INK_BLACK), ("b", theme.DEEP_RED)):
@@ -404,7 +448,9 @@ def plot_response(summaries: list[dict], out: Path) -> None:
     plt.close(fig)
 
 
-def plot_representative_rates(recordings: dict[float, dict[str, np.ndarray]], out: Path) -> None:
+def plot_representative_rates(
+    recordings: dict[float, dict[str, np.ndarray]], out: Path
+) -> None:
     theme.apply()
     fig, axes = plt.subplots(4, 1, figsize=(6.5, 5.2), sharex=True, sharey=True)
     for axis, coupling in zip(axes, REPRESENTATIVE_K):
@@ -424,7 +470,14 @@ def plot_representative_rates(recordings: dict[float, dict[str, np.ndarray]], ou
             linewidth=0.55,
             label="B:E",
         )
-        axis.text(1.01, 0.5, f"K = {coupling:.2f}", transform=axis.transAxes, va="center", fontsize=theme.SIZE_ANNOTATION)
+        axis.text(
+            1.01,
+            0.5,
+            f"K = {coupling:.2f}",
+            transform=axis.transAxes,
+            va="center",
+            fontsize=theme.SIZE_ANNOTATION,
+        )
         axis.spines[["top", "right"]].set_visible(False)
     axes[0].legend(frameon=False, ncol=2)
     fig.supylabel("E-population rate (Hz)")
@@ -435,105 +488,268 @@ def plot_representative_rates(recordings: dict[float, dict[str, np.ndarray]], ou
     plt.close(fig)
 
 
+def _phase_signal(a_e: np.ndarray, b_e: np.ndarray) -> np.ndarray:
+    sample_hz = 1_000.0 / DT_MS
+    sos = sp_signal.butter(
+        4, PHASE_BAND_HZ, btype="bandpass", fs=sample_hz, output="sos"
+    )
+    a = sp_signal.sosfiltfilt(sos, _population_rate(a_e))
+    b = sp_signal.sosfiltfilt(sos, _population_rate(b_e))
+    return np.angle(
+        np.exp(1j * (np.angle(sp_signal.hilbert(a)) - np.angle(sp_signal.hilbert(b))))
+    )
+
+
+def select_phase_onsets(phase: np.ndarray) -> dict[float, int]:
+    start = round(EQUILIBRATION_MS / DT_MS)
+    stop = round((SCOUT_MS - PHASE_EDGE_TRIM_MS) / DT_MS)
+    selected = {}
+    for target in PHASE_TARGETS_RAD:
+        error = np.abs(np.angle(np.exp(1j * (phase[start:stop] - target))))
+        selected[target] = start + int(np.argmin(error))
+    return selected
+
+
+def _private_inputs(
+    seed: int, duration_ms: float, *, offset: int
+) -> dict[str, np.ndarray]:
+    steps = round(duration_ms / DT_MS)
+    probability = INPUT_RATE_HZ * DT_MS / 1_000.0
+    result = {}
+    for circuit, name in enumerate(("drive_a", "drive_b")):
+        rng = np.random.default_rng(seed * 100 + offset + circuit)
+        result[name] = (
+            rng.random((steps, 1, N_INPUT), dtype=np.float32) < probability
+        ).astype(np.uint8)
+    return result
+
+
+def _run(
+    bundle: snn.Bundle,
+    inputs: dict[str, np.ndarray],
+    state: GraphRuntimeState | None = None,
+):
+    return simulate(
+        ExecutionSpec(
+            kind="simulate",
+            executor="graph",
+            graph=bundle.graph,
+            inputs={
+                name: torch.from_numpy(value).float() for name, value in inputs.items()
+            },
+            seed=NETWORK_SEED,
+            runtime_state=None if state is None else _copy_runtime_state(state),
+        )
+    )
+
+
+def _phase_error(
+    pre_a: np.ndarray, pre_b: np.ndarray, post_a: np.ndarray, post_b: np.ndarray
+) -> np.ndarray:
+    phase = _phase_signal(
+        np.concatenate((pre_a, post_a)), np.concatenate((pre_b, post_b))
+    )
+    start = len(pre_a)
+    edge = round(PHASE_EDGE_TRIM_MS / DT_MS)
+    usable = phase[start:-edge]
+    terminal = np.angle(
+        np.mean(np.exp(1j * usable[-round(TERMINAL_PHASE_WINDOW_MS / DT_MS) :]))
+    )
+    error = np.abs(np.angle(np.exp(1j * (usable - terminal))))
+    return gaussian_filter1d(error, PHASE_ERROR_SMOOTH_MS / DT_MS)[
+        :: round(TRACE_BIN_MS / DT_MS)
+    ]
+
+
+def plot_phase_control(rows: list[dict], out: Path) -> None:
+    theme.apply()
+    fig, axis = plt.subplots(figsize=(4.8, 3.4))
+    axis.scatter(
+        [row["target_phase_rad"] for row in rows],
+        [row["achieved_phase_rad"] for row in rows],
+        color=theme.INK_BLACK,
+        s=14,
+    )
+    axis.plot([0, 2 * np.pi], [0, 2 * np.pi], color=theme.GREY_LIGHT, linewidth=0.8)
+    axis.set(
+        xlabel="prescribed phase (rad)",
+        ylabel="achieved phase (rad)",
+        xlim=(-0.1, 2 * np.pi + 0.1),
+        ylim=(-0.1, 2 * np.pi + 0.1),
+    )
+    axis.spines[["top", "right"]].set_visible(False)
+    fig.tight_layout()
+    fig.savefig(out, bbox_inches="tight")
+    plt.close(fig)
+
+
+def plot_controlled_convergence(
+    coupled: np.ndarray, control: np.ndarray, out: Path
+) -> None:
+    theme.apply()
+    time_s = np.arange(coupled.shape[-1]) * TRACE_BIN_MS / 1_000.0
+    colours = (theme.INK_BLACK, theme.DEEP_RED, theme.ELECTRIC_CYAN, theme.AMBER)
+    fig, axes = plt.subplots(2, 1, figsize=(6.5, 5.0), sharex=True, sharey=True)
+    for target_index, (target, colour) in enumerate(
+        zip(PHASE_TARGETS_RAD, colours, strict=True)
+    ):
+        for trial in range(len(TRIAL_SEEDS)):
+            axes[0].plot(
+                time_s,
+                coupled[target_index, trial],
+                color=colour,
+                alpha=0.42,
+                linewidth=0.65,
+            )
+            axes[1].plot(
+                time_s,
+                control[target_index, trial],
+                color=colour,
+                alpha=0.42,
+                linewidth=0.65,
+            )
+        axes[0].plot(
+            time_s,
+            np.median(coupled[target_index], axis=0),
+            color=colour,
+            linewidth=1.2,
+            label=f"{target / np.pi:.1g}π",
+        )
+        axes[1].plot(
+            time_s,
+            np.median(control[target_index], axis=0),
+            color=colour,
+            linewidth=1.2,
+        )
+    axes[0].set_title("coupling on")
+    axes[1].set_title("uncoupled control")
+    axes[0].legend(frameon=False, ncol=4)
+    axes[1].set_xlabel("time after onset (s)")
+    fig.supylabel("terminal phase error (rad)")
+    for axis in axes:
+        axis.spines[["top", "right"]].set_visible(False)
+    fig.tight_layout()
+    fig.savefig(out, bbox_inches="tight")
+    plt.close(fig)
+
+
 def main() -> None:
     meta = parse_meta(sys.argv)
     if meta.runpod:
-        raise SystemExit("exp085 is a bounded local experiment; RunPod is not supported")
+        raise SystemExit(
+            "exp085 is a bounded local experiment; RunPod is not supported"
+        )
     started = time.monotonic()
     run_id = next_run_id(SLUG)
     print(f"notebook_run_id = {run_id}")
-    with published_run(SLUG, run_id, scale=SCALE, plot_only=meta.plot_only) as (scratch, staging):
-        inputs = make_inputs()
-        onset_step = round(EQUILIBRATION_MS / DT_MS)
-        zero_bundle = author_network(0.0)
-        zero_dir = staging / "network.bundle"
-        zero_bundle.write(zero_dir, visualise=True)
-        shutil.copy2(zero_dir / "reports/circuit.svg", staging / "network.svg")
-        equilibration = simulate(
-            ExecutionSpec(
-                kind="simulate",
-                executor="graph",
-                graph=zero_bundle.graph,
-                inputs={name: torch.from_numpy(value[:onset_step]).float() for name, value in inputs.items()},
-                seed=NETWORK_SEED,
-            )
-        )
-        assert equilibration.runtime_state is not None
-        equilibration_arrays = {
-            name: equilibration.recordings[key].cpu().numpy().astype(np.uint8)
-            for name, key in POPULATION_KEYS.items()
-        }
-
-        phases: dict[float, np.ndarray] = {}
-        summaries = []
-        graph_rows = []
-        continuation_inputs = {
-            name: torch.from_numpy(value[onset_step:]).float()
-            for name, value in inputs.items()
-        }
-        for coupling in COUPLINGS:
-            print(f"[branch] K = {coupling:.2f}")
-            bundle = author_network(coupling)
-            result = simulate(
-                ExecutionSpec(
-                    kind="simulate",
-                    executor="graph",
-                    graph=bundle.graph,
-                    inputs=continuation_inputs,
-                    seed=NETWORK_SEED,
-                    runtime_state=_copy_runtime_state(equilibration.runtime_state),
-                )
-            )
-            continuation = {
-                name: result.recordings[key].cpu().numpy().astype(np.uint8)
+    with published_run(SLUG, run_id, scale=SCALE, plot_only=meta.plot_only) as (
+        _scratch,
+        staging,
+    ):
+        zero = author_network(0.0)
+        coupled_bundle = author_network(COUPLING)
+        bundle_dir = staging / "network.bundle"
+        zero.write(bundle_dir, visualise=True)
+        shutil.copy2(bundle_dir / "reports/circuit.svg", staging / "network.svg")
+        rows = []
+        coupled_errors = []
+        control_errors = []
+        pre_steps = round(PHASE_PREHISTORY_MS / DT_MS)
+        for seed in TRIAL_SEEDS:
+            print(f"[scout] seed = {seed}")
+            scout_inputs = _private_inputs(seed, SCOUT_MS, offset=0)
+            scout = _run(zero, scout_inputs)
+            scout_arrays = {
+                name: scout.recordings[key].cpu().numpy()[:, 0].astype(np.uint8)
                 for name, key in POPULATION_KEYS.items()
             }
-            combined_a = np.concatenate((equilibration_arrays["a_e"], continuation["a_e"]))
-            combined_b = np.concatenate((equilibration_arrays["b_e"], continuation["b_e"]))
-            phase = relative_phase(combined_a, combined_b, onset_step=onset_step)
-            phases[coupling] = phase
-            summary = summarize_condition(coupling, continuation, phase)
-            converged_trials = clean_convergence_trials(phase)
-            summary["clean_convergence_count"] = len(converged_trials)
-            summary["clean_convergence_seeds"] = [TRIAL_SEEDS[index] for index in converged_trials]
-            summaries.append(summary)
-            graph_rows.append({"coupling": coupling, "digest": bundle.manifest["graph_digest"]})
-        plot_response(summaries, staging / "response.svg")
-        sync_example = plot_synchrony_over_time(phases, staging / "synchrony_over_time.svg")
-        bin_steps = round(TRACE_BIN_MS / DT_MS)
+            scout_phase = _phase_signal(scout_arrays["a_e"], scout_arrays["b_e"])
+            onsets = select_phase_onsets(scout_phase)
+            future = _private_inputs(seed, CONTINUATION_MS, offset=10)
+            states = {}
+            cursor = 0
+            state = None
+            for target, step in sorted(onsets.items(), key=lambda item: item[1]):
+                segment = {
+                    name: value[cursor:step] for name, value in scout_inputs.items()
+                }
+                replay = _run(zero, segment, state)
+                assert replay.runtime_state is not None
+                for name, key in POPULATION_KEYS.items():
+                    np.testing.assert_array_equal(
+                        replay.recordings[key].cpu().numpy()[:, 0],
+                        scout_arrays[name][cursor:step],
+                    )
+                state = replay.runtime_state
+                states[target] = _copy_runtime_state(state)
+                cursor = step
+            seed_coupled = []
+            seed_control = []
+            for target in PHASE_TARGETS_RAD:
+                step = onsets[target]
+                pre_a = scout_arrays["a_e"][step - pre_steps : step]
+                pre_b = scout_arrays["b_e"][step - pre_steps : step]
+                achieved = float(scout_phase[step] % (2 * np.pi))
+                on = _run(coupled_bundle, future, states[target])
+                off = _run(zero, future, states[target])
+                on_a = on.recordings[POPULATION_KEYS["a_e"]].cpu().numpy()[:, 0]
+                on_b = on.recordings[POPULATION_KEYS["b_e"]].cpu().numpy()[:, 0]
+                off_a = off.recordings[POPULATION_KEYS["a_e"]].cpu().numpy()[:, 0]
+                off_b = off.recordings[POPULATION_KEYS["b_e"]].cpu().numpy()[:, 0]
+                seed_coupled.append(_phase_error(pre_a, pre_b, on_a, on_b))
+                seed_control.append(_phase_error(pre_a, pre_b, off_a, off_b))
+                rows.append(
+                    {
+                        "seed": seed,
+                        "target_phase_rad": float(target),
+                        "achieved_phase_rad": achieved,
+                        "onset_ms": step * DT_MS,
+                        "target_error_rad": float(
+                            abs(np.angle(np.exp(1j * (achieved - target))))
+                        ),
+                    }
+                )
+            coupled_errors.append(seed_coupled)
+            control_errors.append(seed_control)
+        coupled_array = np.transpose(np.asarray(coupled_errors), (1, 0, 2))
+        control_array = np.transpose(np.asarray(control_errors), (1, 0, 2))
+        plot_phase_control(rows, staging / "phase_control.svg")
+        plot_controlled_convergence(
+            coupled_array, control_array, staging / "synchrony_over_time.svg"
+        )
         np.savez_compressed(
             staging / "phase_traces.npz",
-            couplings=np.asarray(COUPLINGS),
-            time_ms=np.arange(0, next(iter(phases.values())).shape[1], bin_steps) * DT_MS,
-            phase_rad=np.stack([phases[value][:, ::bin_steps] for value in COUPLINGS]),
+            targets_rad=np.asarray(PHASE_TARGETS_RAD),
+            time_ms=np.arange(coupled_array.shape[-1]) * TRACE_BIN_MS,
+            coupled_error_rad=coupled_array,
+            control_error_rad=control_array,
         )
         payload = {
-            "question": "How does reciprocal excitation change relative phase after coupling is switched on between equilibrated PING circuits?",
+            "question": "Do mature detuned PING circuits converge from controlled relative phases when coupling switches on?",
             "config": SCALE,
-            "frequency_analysis": FREQUENCY_CONFIG.json(),
             "phase_analysis": {
-                "population": "E",
                 "smoothing_sigma_ms": PHASE_SMOOTH_MS,
                 "band_hz": list(PHASE_BAND_HZ),
                 "terminal_edge_trim_ms": PHASE_EDGE_TRIM_MS,
                 "terminal_phase_window_ms": TERMINAL_PHASE_WINDOW_MS,
                 "phase_error_smooth_ms": PHASE_ERROR_SMOOTH_MS,
-                "clean_convergence_terminal_p95_max_rad": SYNC_EXAMPLE_TERMINAL_P95_MAX_RAD,
-                "clean_convergence_post_settling_max_rad": SYNC_EXAMPLE_POST_SETTLING_MAX_RAD,
-                "method": "fourth-order zero-phase Butterworth plus Hilbert phase",
-                "sign": "onset-relative A-minus-B",
             },
-            "runtime_state": {
-                "schema": equilibration.metrics["runtime_state_schema"],
-                "signature": equilibration.metrics["runtime_state_signature"],
-                "completed_steps": equilibration.metrics["completed_steps"],
-            },
-            "graphs": graph_rows,
-            "conditions": summaries,
-            "synchrony_example": sync_example,
+            "phase_control": rows,
+            "max_target_error_rad": max(row["target_error_rad"] for row in rows),
+            "coupled_terminal_error_median_rad": float(
+                np.median(coupled_array[:, :, -500:])
+            ),
+            "control_terminal_error_median_rad": float(
+                np.median(control_array[:, :, -500:])
+            ),
         }
         (staging / "protocol.json").write_text(json.dumps(SCALE, indent=2) + "\n")
-        write_numbers(staging, run_id=run_id, duration_s=time.monotonic() - started, payload=payload)
+        write_numbers(
+            staging,
+            run_id=run_id,
+            duration_s=time.monotonic() - started,
+            payload=payload,
+        )
     print(f"exp085 complete: {run_id}")
 
 
