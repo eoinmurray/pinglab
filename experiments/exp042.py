@@ -1760,8 +1760,6 @@ def _job_catalog() -> list[dict]:
                 "id": _job_id("eval", train_dir.name, cond),
                 "run": lambda td=train_dir, c=cond, s=seed: evaluate_condition(
                     td, c, seed_offset=s),
-                "done": ARTIFACTS / "baseline" / train_dir.name / "metrics.json"
-                if cond == "baseline" else None,
                 "train_dir": train_dir,
                 "condition": cond,
                 "seed_offset": seed,
@@ -1843,20 +1841,27 @@ def _job_spec(job_id: str) -> dict:
 
 
 def _job_metrics_path(spec: dict) -> Path:
-    if spec.get("done"):
-        return spec["done"]
     train_dir = spec["train_dir"]
     condition = spec["condition"]
     seed_offset = spec["seed_offset"]
+    tag = cache_tag(resolve_checkpoint(train_dir, CHECKPOINT_ROLE))
     # An xtau cell at σ=0 is a pure baseline pass: _xtau_evaluate_cell returns the
     # baseline metrics (written to baseline/<cell>/ by _run_baseline), NOT an
     # override eval, so its done-marker is the baseline metrics — not an ovrun path
     # that is never written. Without this the 18 xtau σ=0 jobs never register as
     # done and get re-fired every round forever.
-    if spec.get("xtau") and condition == "jitter_sigma_0":
-        return ARTIFACTS / "baseline" / train_dir.name / "metrics.json"
+    if condition == "baseline" or (
+        spec.get("xtau") and condition == "jitter_sigma_0"
+    ):
+        return ARTIFACTS / "baseline" / train_dir.name / tag / "metrics.json"
     ov_stem = f"{train_dir.name}_{condition}_{seed_offset}"
-    return ARTIFACTS / "ovrun" / f"{train_dir.name}__{ov_stem}" / "metrics.json"
+    return (
+        ARTIFACTS
+        / "ovrun"
+        / f"{train_dir.name}__{ov_stem}"
+        / tag
+        / "metrics.json"
+    )
 
 
 def job_is_done(job_id: str) -> bool:

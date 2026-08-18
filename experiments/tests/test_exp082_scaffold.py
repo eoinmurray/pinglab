@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import numpy as np
+import torch
 from experiments import exp022, exp082
 from experiments.collections.gamma_gated_sparsity.plan import build_plan
 
@@ -108,9 +109,80 @@ def test_psychometric_is_fixed_at_training_duration() -> None:
 def test_exp082_evaluation_scale_is_recorded() -> None:
     assert exp082.STREAMS_PER_CELL >= 1
     assert exp082.DIGITS_PER_STREAM >= 1
+    assert exp082.STREAM_BATCH_SIZE >= 1
     assert exp082.EVALUATION_PROFILE in {"smoke", "pilot", "production"}
     if exp082.EVALUATION_PROFILE == "production":
         assert exp082.DIGITS_PER_STREAM == 5
+        assert exp082.STREAMS_PER_CELL == 40
+        assert exp082.STREAMS_PER_CELL * exp082.DIGITS_PER_STREAM == 200
+
+
+def test_exp082_stream_batches_preserve_stream_boundaries(tmp_path, monkeypatch) -> None:
+    monkeypatch.setattr(exp082, "ARTIFACTS", tmp_path)
+    monkeypatch.setattr(exp082, "STREAMS_PER_CELL", 5)
+    monkeypatch.setattr(exp082, "DIGITS_PER_STREAM", 2)
+    monkeypatch.setattr(exp082, "STREAM_BATCH_SIZE", 3)
+    monkeypatch.setattr(exp082, "N_INPUT", 4)
+    monkeypatch.setattr(exp082, "DT_MS", 1.0)
+
+    directory = tmp_path / "training"
+    directory.mkdir()
+    (directory / "config.json").write_text('{"dt": 1.0}\n')
+    checkpoint = directory / "weights_final.pth"
+    checkpoint.write_bytes(b"checkpoint")
+    x_test = np.ones((20, 4), dtype=np.float32)
+    y_test = np.arange(20) % 10
+    monkeypatch.setattr(exp082, "load_eval", lambda _seed: (directory, {}, x_test, y_test))
+    monkeypatch.setattr(
+        exp082,
+        "resolve_checkpoint",
+        lambda *_args: {"path": checkpoint, "sha256": "a" * 64},
+    )
+    monkeypatch.setattr(exp082, "cache_tag", lambda _checkpoint: "checkpoint")
+    monkeypatch.setattr(
+        exp082,
+        "encode_stream",
+        lambda pixels, _conditions, _generator: torch.ones((4, len(pixels))),
+    )
+    batch_sizes = []
+
+    def fake_summary(_directory, spikes, _tag, *, reset_steps):
+        batch_sizes.append(spikes.shape[1])
+        assert reset_steps == (0, 2)
+        batch = spikes.shape[1]
+        return {
+            "out_counts": np.ones((batch, 2, 10), dtype=np.int64),
+            "e_counts": np.ones((batch, 2), dtype=np.int64),
+            "i_counts": np.ones((batch, 2), dtype=np.int64),
+        }
+
+    monkeypatch.setattr(exp082, "run_spike_summary", fake_summary)
+    result = exp082.evaluate_cell(42, 2.0, 5.0)
+    assert batch_sizes == [3, 2]
+    assert result["n_total"] == 10
+    assert result["stream_batch_size"] == 3
+
+    batch_sizes.clear()
+    assert exp082.evaluate_cell(42, 2.0, 5.0) == result
+    assert batch_sizes == []
+
+
+def test_exp082_condition_jobs_cover_the_registered_grid() -> None:
+    jobs = exp082.infer_jobs()
+    assert len(jobs) == (
+        len(exp082.SEEDS)
+        * len(exp082.DURATIONS_MS)
+        * len(exp082.PSYCHOMETRIC_RATES_HZ)
+    )
+    assert len(jobs) == len(set(jobs))
+    assert {
+        exp082.parse_condition_job_id(job_id) for job_id in jobs
+    } == {
+        (seed, duration, rate)
+        for duration in exp082.DURATIONS_MS
+        for rate in exp082.PSYCHOMETRIC_RATES_HZ
+        for seed in exp082.SEEDS
+    }
 
 
 def test_output_activity_summary_uses_presentation_boundaries() -> None:

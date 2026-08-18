@@ -92,7 +92,7 @@ def _require_clean_source() -> None:
 def initialize_campaign(root: Path, campaign_id: str, *, smoke: bool) -> dict[str, Any]:
     root = validate_campaign_root(root)
     _require_clean_source()
-    plan = build_plan(root, campaign_id)
+    plan = build_plan(root, campaign_id, smoke=smoke)
     if not plan["executable"]:
         raise CollectionError("collection plan contains non-integrated runners")
     command = [
@@ -375,6 +375,59 @@ def run_experiment(root: Path, slug: str) -> None:
         if not _outputs_valid_for_plan(plan, rows[dependency]):
             raise CollectionError(f"{slug} dependency {dependency} is incomplete")
     _run_downstream(plan, row)
+
+
+def run_experiment_shard(root: Path, slug: str, index: int, count: int) -> None:
+    """Run one deterministic shard of an experiment's resumable inference jobs."""
+    plan = load_plan(root)
+    rows = {row["slug"]: row for row in rows_in_order(plan)}
+    if slug not in rows or slug == "exp022":
+        raise CollectionError(f"unknown downstream experiment: {slug}")
+    row = rows[slug]
+    for dependency in row["dependencies"]:
+        if not _outputs_valid_for_plan(plan, rows[dependency]):
+            raise CollectionError(f"{slug} dependency {dependency} is incomplete")
+
+    environment = _runner_environment(plan, row)
+    os.environ.update(environment)
+    from .workloads import execute_shard
+
+    status_path = root / "collection-shards" / slug / f"{index}.json"
+    write_json_atomic(
+        status_path,
+        {
+            "experiment": slug,
+            "shard_index": index,
+            "shard_count": count,
+            "state": "running",
+            "started_at_utc": utc_now(),
+        },
+    )
+    try:
+        result = execute_shard(
+            slug, index, count, smoke=plan.get("profile") == "smoke"
+        )
+    except BaseException:
+        write_json_atomic(
+            status_path,
+            {
+                "experiment": slug,
+                "shard_index": index,
+                "shard_count": count,
+                "state": "failed",
+                "ended_at_utc": utc_now(),
+            },
+        )
+        raise
+    write_json_atomic(
+        status_path,
+        {
+            **result,
+            "experiment": slug,
+            "state": "complete",
+            "ended_at_utc": utc_now(),
+        },
+    )
 
 
 def campaign_status(root: Path) -> dict[str, Any]:
