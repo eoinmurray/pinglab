@@ -1,38 +1,27 @@
 {
-  "run_id": "r012",
-  "git_sha": "5aa5e162",
-  "duration_s": 124.2,
-  "duration": "2m 04s",
-  "question": "How does reciprocal excitation change relative phase after coupling is switched on between equilibrated PING circuits?",
+  "run_id": "r014",
+  "git_sha": "557c9e50",
+  "duration_s": 341.4,
+  "duration": "5m 41s",
+  "question": "Do mature detuned PING circuits converge from controlled relative phases when coupling switches on?",
   "config": {
     "dt_ms": 0.1,
     "equilibration_ms": 1000.0,
-    "continuation_ms": 2500.0,
+    "continuation_ms": 1500.0,
     "n_input_per_circuit": 128,
     "n_e_per_circuit": 80,
     "n_i_per_circuit": 20,
     "input_rate_hz": 100.0,
     "tau_a_ms": 4.0,
     "tau_b_ms": 5.0,
-    "couplings": [
+    "coupling": 0.08,
+    "phase_targets_rad": [
       0.0,
-      0.01,
-      0.02,
-      0.03,
-      0.04,
-      0.05,
-      0.06,
-      0.07,
-      0.08,
-      0.09,
-      0.1
+      1.5707963267948966,
+      3.141592653589793,
+      4.71238898038469
     ],
-    "representative_couplings": [
-      0.0,
-      0.03,
-      0.06,
-      0.1
-    ],
+    "scout_ms": 2400.0,
     "trials": 5,
     "trial_seeds": [
       8500,
@@ -50,35 +39,9 @@
     "phase_edge_trim_ms": 100.0,
     "terminal_phase_window_ms": 500.0,
     "phase_error_smooth_ms": 50.0,
-    "clean_convergence_terminal_p95_max_rad": 0.25,
-    "clean_convergence_post_settling_max_rad": 0.5
-  },
-  "frequency_analysis": {
-    "name": "exp085-dominant-rhythm-v1",
-    "source_population": "E",
-    "band_hz": [
-      5.0,
-      80.0
-    ],
-    "burn_ms": 0.0,
-    "bin_ms": null,
-    "smooth_sigma_ms": null,
-    "population_reduction": "mean",
-    "mean_center": true,
-    "spectral_method": "welch",
-    "segment_length": "trial",
-    "window": "hann",
-    "detrend": false,
-    "scaling": "density",
-    "interpolate": true,
-    "min_events": 1,
-    "min_prominence_ratio": 3.0,
-    "reject_band_edges": true,
-    "subharmonic_ratio": 0.3,
-    "aggregation": "median"
+    "phase_prehistory_ms": 300.0
   },
   "phase_analysis": {
-    "population": "E",
     "smoothing_sigma_ms": 5.0,
     "band_hz": [
       20.0,
@@ -86,726 +49,151 @@
     ],
     "terminal_edge_trim_ms": 100.0,
     "terminal_phase_window_ms": 500.0,
-    "phase_error_smooth_ms": 50.0,
-    "clean_convergence_terminal_p95_max_rad": 0.25,
-    "clean_convergence_post_settling_max_rad": 0.5,
-    "method": "fourth-order zero-phase Butterworth plus Hilbert phase",
-    "sign": "onset-relative A-minus-B"
+    "phase_error_smooth_ms": 50.0
   },
-  "runtime_state": {
-    "schema": "tools/snn.graph-runtime-state/v1",
-    "signature": "sha256:464a3552df23cbb41f63b353a6734f52ec32e1f5631e4ffa0b71c2240da73b99",
-    "completed_steps": 10000
-  },
-  "graphs": [
+  "phase_control": [
     {
-      "coupling": 0.0,
-      "digest": "sha256:dbfe85efa16b2a90180b58699b097c4d4e2712ba5241f20261d1863817306006"
+      "seed": 8500,
+      "target_phase_rad": 0.0,
+      "achieved_phase_rad": 6.580961331836832e-05,
+      "onset_ms": 1115.8,
+      "target_error_rad": 6.580961331836832e-05
     },
     {
-      "coupling": 0.01,
-      "digest": "sha256:3965e2923d79e5a0d9e8e3e4937d6d1de38f415cfabc221c61cce486e46b9228"
+      "seed": 8500,
+      "target_phase_rad": 1.5707963267948966,
+      "achieved_phase_rad": 1.5703573174674825,
+      "onset_ms": 1358.7,
+      "target_error_rad": 0.0004390093274140305
     },
     {
-      "coupling": 0.02,
-      "digest": "sha256:c53b65a7f0c96dda1aef8ed9691d809f815601a3c669d039953e6cdb7f32f315"
+      "seed": 8500,
+      "target_phase_rad": 3.141592653589793,
+      "achieved_phase_rad": 3.1418892445082633,
+      "onset_ms": 1612.8000000000002,
+      "target_error_rad": 0.00029659091847022983
     },
     {
-      "coupling": 0.03,
-      "digest": "sha256:82d1794cd55f5996643dff3534f3189369633c342d0939728fd7e8934d52c243"
+      "seed": 8500,
+      "target_phase_rad": 4.71238898038469,
+      "achieved_phase_rad": 4.712235412772642,
+      "onset_ms": 1249.5,
+      "target_error_rad": 0.0001535676120481
     },
     {
-      "coupling": 0.04,
-      "digest": "sha256:02a08605e8d82e6a86e0f425915902a9e39b86c3b1ae3e9dfce4b53e9f0bba01"
+      "seed": 8501,
+      "target_phase_rad": 0.0,
+      "achieved_phase_rad": 6.283037838712609,
+      "onset_ms": 2262.0,
+      "target_error_rad": 0.00014746846697757455
     },
     {
-      "coupling": 0.05,
-      "digest": "sha256:f1b987988483c3819e8777c9323c5db0a656e3ebbe767d6e7818a46548dff199"
+      "seed": 8501,
+      "target_phase_rad": 1.5707963267948966,
+      "achieved_phase_rad": 1.5709441144347633,
+      "onset_ms": 1360.9,
+      "target_error_rad": 0.000147787639866781
     },
     {
-      "coupling": 0.06,
-      "digest": "sha256:1a2e12de328a56b0246b409bbd2b9aed3ddc7f52e3c71148efe579070ac75016"
+      "seed": 8501,
+      "target_phase_rad": 3.141592653589793,
+      "achieved_phase_rad": 3.1415557120304864,
+      "onset_ms": 1750.0,
+      "target_error_rad": 3.694155930666909e-05
     },
     {
-      "coupling": 0.07,
-      "digest": "sha256:19a2797dd0a07725dc11c21d54457e509b381f38160555c910549822dc98f875"
+      "seed": 8501,
+      "target_phase_rad": 4.71238898038469,
+      "achieved_phase_rad": 4.71240417901485,
+      "onset_ms": 1436.4,
+      "target_error_rad": 1.5198630160639935e-05
     },
     {
-      "coupling": 0.08,
-      "digest": "sha256:99f38c85d656d14e324236c3c97a4afe8674255bc7b7e42445abe59c58cfb51b"
+      "seed": 8502,
+      "target_phase_rad": 0.0,
+      "achieved_phase_rad": 6.283113180003654,
+      "onset_ms": 1213.9,
+      "target_error_rad": 7.212717593254659e-05
     },
     {
-      "coupling": 0.09,
-      "digest": "sha256:19c5314609e6fec04f94f85dd4f7c7965cc70322520e46711fc7a48dc4339aea"
+      "seed": 8502,
+      "target_phase_rad": 1.5707963267948966,
+      "achieved_phase_rad": 1.5709593949420462,
+      "onset_ms": 1440.1000000000001,
+      "target_error_rad": 0.00016306814714961426
     },
     {
-      "coupling": 0.1,
-      "digest": "sha256:02307f8aad6625537a07c22556deabb7970b5ed5d1ec5ecd89efb1f85ae64b4a"
+      "seed": 8502,
+      "target_phase_rad": 3.141592653589793,
+      "achieved_phase_rad": 3.1414211199185202,
+      "onset_ms": 1693.0,
+      "target_error_rad": 0.0001715336712728721
+    },
+    {
+      "seed": 8502,
+      "target_phase_rad": 4.71238898038469,
+      "achieved_phase_rad": 4.712312337714021,
+      "onset_ms": 1965.9,
+      "target_error_rad": 7.664267066864738e-05
+    },
+    {
+      "seed": 8503,
+      "target_phase_rad": 0.0,
+      "achieved_phase_rad": 0.00018504481702352749,
+      "onset_ms": 1946.0,
+      "target_error_rad": 0.00018504481702352749
+    },
+    {
+      "seed": 8503,
+      "target_phase_rad": 1.5707963267948966,
+      "achieved_phase_rad": 1.5707551285991892,
+      "onset_ms": 1011.0,
+      "target_error_rad": 4.1198195707359275e-05
+    },
+    {
+      "seed": 8503,
+      "target_phase_rad": 3.141592653589793,
+      "achieved_phase_rad": 3.1415901863556717,
+      "onset_ms": 2226.9,
+      "target_error_rad": 2.467234121450446e-06
+    },
+    {
+      "seed": 8503,
+      "target_phase_rad": 4.71238898038469,
+      "achieved_phase_rad": 4.712367526971918,
+      "onset_ms": 1311.0,
+      "target_error_rad": 2.145341277159929e-05
+    },
+    {
+      "seed": 8504,
+      "target_phase_rad": 0.0,
+      "achieved_phase_rad": 0.00026303374955238823,
+      "onset_ms": 2111.5,
+      "target_error_rad": 0.00026303374955238823
+    },
+    {
+      "seed": 8504,
+      "target_phase_rad": 1.5707963267948966,
+      "achieved_phase_rad": 1.57054509062976,
+      "onset_ms": 1130.0,
+      "target_error_rad": 0.0002512361651365591
+    },
+    {
+      "seed": 8504,
+      "target_phase_rad": 3.141592653589793,
+      "achieved_phase_rad": 3.1417525559834636,
+      "onset_ms": 1392.3000000000002,
+      "target_error_rad": 0.00015990239367047468
+    },
+    {
+      "seed": 8504,
+      "target_phase_rad": 4.71238898038469,
+      "achieved_phase_rad": 4.712532236487141,
+      "onset_ms": 2068.9,
+      "target_error_rad": 0.0001432561024516943
     }
   ],
-  "conditions": [
-    {
-      "coupling": 0.0,
-      "frequency_a_median_hz": 36.76215254005234,
-      "frequency_b_median_hz": 31.985171417119904,
-      "absolute_frequency_difference_hz": 4.776981122932437,
-      "frequency_a_resolved_fraction": 1.0,
-      "frequency_b_resolved_fraction": 1.0,
-      "phase_locking_value_median": 0.03199978542318929,
-      "phase_slope_median_rad_s": 30.10327902126602,
-      "a_e_rate_mean_hz": 33.713,
-      "a_i_rate_mean_hz": 109.92,
-      "b_e_rate_mean_hz": 28.494999999999997,
-      "b_i_rate_mean_hz": 94.236,
-      "trials": [
-        {
-          "trial": 0,
-          "seed": 8500,
-          "phase_locking_value": 0.03782780296550385,
-          "phase_slope_rad_s": 29.731424232536448,
-          "frequency_a_hz": 36.76215254005234,
-          "frequency_b_hz": 31.985171417119904
-        },
-        {
-          "trial": 1,
-          "seed": 8501,
-          "phase_locking_value": 0.029086168148720348,
-          "phase_slope_rad_s": 30.10327902126602,
-          "frequency_a_hz": 36.99999999999999,
-          "frequency_b_hz": 31.97962504047534
-        },
-        {
-          "trial": 2,
-          "seed": 8502,
-          "phase_locking_value": 0.10954367596136569,
-          "phase_slope_rad_s": 29.333419454758136,
-          "frequency_a_hz": 36.6337369791574,
-          "frequency_b_hz": 32.04517256555359
-        },
-        {
-          "trial": 3,
-          "seed": 8503,
-          "phase_locking_value": 0.006553134490548362,
-          "phase_slope_rad_s": 31.87130000591127,
-          "frequency_a_hz": 36.758966952114335,
-          "frequency_b_hz": 32.13922748483484
-        },
-        {
-          "trial": 4,
-          "seed": 8504,
-          "phase_locking_value": 0.03199978542318929,
-          "phase_slope_rad_s": 31.057050059075276,
-          "frequency_a_hz": 37.19194640651406,
-          "frequency_b_hz": 31.854039628026513
-        }
-      ],
-      "clean_convergence_count": 0,
-      "clean_convergence_seeds": []
-    },
-    {
-      "coupling": 0.01,
-      "frequency_a_median_hz": 37.30192977278986,
-      "frequency_b_median_hz": 32.11048341439218,
-      "absolute_frequency_difference_hz": 5.191446358397684,
-      "frequency_a_resolved_fraction": 1.0,
-      "frequency_b_resolved_fraction": 1.0,
-      "phase_locking_value_median": 0.06594885842764775,
-      "phase_slope_median_rad_s": 30.798167031017748,
-      "a_e_rate_mean_hz": 34.111000000000004,
-      "a_i_rate_mean_hz": 110.824,
-      "b_e_rate_mean_hz": 28.825,
-      "b_i_rate_mean_hz": 96.148,
-      "trials": [
-        {
-          "trial": 0,
-          "seed": 8500,
-          "phase_locking_value": 0.06594885842764775,
-          "phase_slope_rad_s": 31.416929069600922,
-          "frequency_a_hz": 37.301793180528364,
-          "frequency_b_hz": 32.11048341439218
-        },
-        {
-          "trial": 1,
-          "seed": 8501,
-          "phase_locking_value": 0.1143999455996509,
-          "phase_slope_rad_s": 30.798167031017748,
-          "frequency_a_hz": 37.30192977278986,
-          "frequency_b_hz": 32.028026691305534
-        },
-        {
-          "trial": 2,
-          "seed": 8502,
-          "phase_locking_value": 0.0368202096236491,
-          "phase_slope_rad_s": 27.385143345893116,
-          "frequency_a_hz": 36.78350457886421,
-          "frequency_b_hz": 32.35484697721359
-        },
-        {
-          "trial": 3,
-          "seed": 8503,
-          "phase_locking_value": 0.08189395077983687,
-          "phase_slope_rad_s": 32.66140479243235,
-          "frequency_a_hz": 37.89912429658183,
-          "frequency_b_hz": 31.968203832042857
-        },
-        {
-          "trial": 4,
-          "seed": 8504,
-          "phase_locking_value": 0.04839077672866301,
-          "phase_slope_rad_s": 30.026987864410327,
-          "frequency_a_hz": 37.34714727660374,
-          "frequency_b_hz": 32.60924057211492
-        }
-      ],
-      "clean_convergence_count": 0,
-      "clean_convergence_seeds": []
-    },
-    {
-      "coupling": 0.02,
-      "frequency_a_median_hz": 37.565540835636526,
-      "frequency_b_median_hz": 32.701004499872425,
-      "absolute_frequency_difference_hz": 4.8645363357641,
-      "frequency_a_resolved_fraction": 1.0,
-      "frequency_b_resolved_fraction": 1.0,
-      "phase_locking_value_median": 0.15459182241566116,
-      "phase_slope_median_rad_s": 31.623699921813152,
-      "a_e_rate_mean_hz": 34.273,
-      "a_i_rate_mean_hz": 111.596,
-      "b_e_rate_mean_hz": 29.098000000000003,
-      "b_i_rate_mean_hz": 96.828,
-      "trials": [
-        {
-          "trial": 0,
-          "seed": 8500,
-          "phase_locking_value": 0.16416764638870948,
-          "phase_slope_rad_s": 28.620839747954243,
-          "frequency_a_hz": 37.37366932401697,
-          "frequency_b_hz": 32.87586268972182
-        },
-        {
-          "trial": 1,
-          "seed": 8501,
-          "phase_locking_value": 0.13014077518621772,
-          "phase_slope_rad_s": 32.162956823716,
-          "frequency_a_hz": 37.565540835636526,
-          "frequency_b_hz": 32.701004499872425
-        },
-        {
-          "trial": 2,
-          "seed": 8502,
-          "phase_locking_value": 0.1368472085020248,
-          "phase_slope_rad_s": 24.958890566088524,
-          "frequency_a_hz": 37.29286788716277,
-          "frequency_b_hz": 32.890912624345596
-        },
-        {
-          "trial": 3,
-          "seed": 8503,
-          "phase_locking_value": 0.15459182241566116,
-          "phase_slope_rad_s": 31.623699921813152,
-          "frequency_a_hz": 37.959569083100014,
-          "frequency_b_hz": 32.42564659494153
-        },
-        {
-          "trial": 4,
-          "seed": 8504,
-          "phase_locking_value": 0.17238197504403083,
-          "phase_slope_rad_s": 32.26767399420173,
-          "frequency_a_hz": 37.5721065301209,
-          "frequency_b_hz": 32.502043437287625
-        }
-      ],
-      "clean_convergence_count": 0,
-      "clean_convergence_seeds": []
-    },
-    {
-      "coupling": 0.03,
-      "frequency_a_median_hz": 37.33376747652217,
-      "frequency_b_median_hz": 33.14072795476084,
-      "absolute_frequency_difference_hz": 4.193039521761328,
-      "frequency_a_resolved_fraction": 1.0,
-      "frequency_b_resolved_fraction": 1.0,
-      "phase_locking_value_median": 0.2741615260376429,
-      "phase_slope_median_rad_s": 25.900626846396662,
-      "a_e_rate_mean_hz": 34.108999999999995,
-      "a_i_rate_mean_hz": 111.68800000000002,
-      "b_e_rate_mean_hz": 29.522,
-      "b_i_rate_mean_hz": 98.14,
-      "trials": [
-        {
-          "trial": 0,
-          "seed": 8500,
-          "phase_locking_value": 0.2741615260376429,
-          "phase_slope_rad_s": 25.900626846396662,
-          "frequency_a_hz": 37.3177489862722,
-          "frequency_b_hz": 33.03561770157154
-        },
-        {
-          "trial": 1,
-          "seed": 8501,
-          "phase_locking_value": 0.227262444468822,
-          "phase_slope_rad_s": 29.000601058503484,
-          "frequency_a_hz": 37.74462641748612,
-          "frequency_b_hz": 33.14072795476084
-        },
-        {
-          "trial": 2,
-          "seed": 8502,
-          "phase_locking_value": 0.304456020238795,
-          "phase_slope_rad_s": 22.41820308587822,
-          "frequency_a_hz": 37.33376747652217,
-          "frequency_b_hz": 33.379380238875996
-        },
-        {
-          "trial": 3,
-          "seed": 8503,
-          "phase_locking_value": 0.28054423948037516,
-          "phase_slope_rad_s": 28.067604883105723,
-          "frequency_a_hz": 37.854141456755194,
-          "frequency_b_hz": 32.897714578327516
-        },
-        {
-          "trial": 4,
-          "seed": 8504,
-          "phase_locking_value": 0.25898655018128736,
-          "phase_slope_rad_s": 25.126916144954272,
-          "frequency_a_hz": 37.0978797888245,
-          "frequency_b_hz": 33.203678977916574
-        }
-      ],
-      "clean_convergence_count": 0,
-      "clean_convergence_seeds": []
-    },
-    {
-      "coupling": 0.04,
-      "frequency_a_median_hz": 37.472126236699566,
-      "frequency_b_median_hz": 33.65739567091684,
-      "absolute_frequency_difference_hz": 3.8147305657827246,
-      "frequency_a_resolved_fraction": 1.0,
-      "frequency_b_resolved_fraction": 1.0,
-      "phase_locking_value_median": 0.35966080405720163,
-      "phase_slope_median_rad_s": 23.275479241110634,
-      "a_e_rate_mean_hz": 34.062,
-      "a_i_rate_mean_hz": 112.876,
-      "b_e_rate_mean_hz": 29.735000000000003,
-      "b_i_rate_mean_hz": 100.03200000000001,
-      "trials": [
-        {
-          "trial": 0,
-          "seed": 8500,
-          "phase_locking_value": 0.35966080405720163,
-          "phase_slope_rad_s": 23.275479241110634,
-          "frequency_a_hz": 37.42721705126749,
-          "frequency_b_hz": 33.65739567091684
-        },
-        {
-          "trial": 1,
-          "seed": 8501,
-          "phase_locking_value": 0.3267581419032873,
-          "phase_slope_rad_s": 25.29418976853795,
-          "frequency_a_hz": 37.98794993546776,
-          "frequency_b_hz": 33.338005889375495
-        },
-        {
-          "trial": 2,
-          "seed": 8502,
-          "phase_locking_value": 0.37910362210029935,
-          "phase_slope_rad_s": 18.64214680050805,
-          "frequency_a_hz": 37.43171148129287,
-          "frequency_b_hz": 33.7774239983305
-        },
-        {
-          "trial": 3,
-          "seed": 8503,
-          "phase_locking_value": 0.3512343088919075,
-          "phase_slope_rad_s": 28.17495113825135,
-          "frequency_a_hz": 37.864011402392556,
-          "frequency_b_hz": 33.218665384593386
-        },
-        {
-          "trial": 4,
-          "seed": 8504,
-          "phase_locking_value": 0.44341130158986836,
-          "phase_slope_rad_s": 21.47100696680137,
-          "frequency_a_hz": 37.472126236699566,
-          "frequency_b_hz": 33.86823536194141
-        }
-      ],
-      "clean_convergence_count": 0,
-      "clean_convergence_seeds": []
-    },
-    {
-      "coupling": 0.05,
-      "frequency_a_median_hz": 36.80300817444684,
-      "frequency_b_median_hz": 34.68046363853017,
-      "absolute_frequency_difference_hz": 2.122544535916667,
-      "frequency_a_resolved_fraction": 1.0,
-      "frequency_b_resolved_fraction": 1.0,
-      "phase_locking_value_median": 0.6731688015795264,
-      "phase_slope_median_rad_s": 10.111955931721313,
-      "a_e_rate_mean_hz": 33.624,
-      "a_i_rate_mean_hz": 116.88,
-      "b_e_rate_mean_hz": 30.653000000000002,
-      "b_i_rate_mean_hz": 103.61999999999998,
-      "trials": [
-        {
-          "trial": 0,
-          "seed": 8500,
-          "phase_locking_value": 0.7013287291135998,
-          "phase_slope_rad_s": 9.831211384737358,
-          "frequency_a_hz": 37.162786748333005,
-          "frequency_b_hz": 34.77731307837184
-        },
-        {
-          "trial": 1,
-          "seed": 8501,
-          "phase_locking_value": 0.7075722555311285,
-          "phase_slope_rad_s": 10.111955931721313,
-          "frequency_a_hz": 37.03356787503522,
-          "frequency_b_hz": 34.47508394524493
-        },
-        {
-          "trial": 2,
-          "seed": 8502,
-          "phase_locking_value": 0.6731688015795264,
-          "phase_slope_rad_s": 9.603217048341744,
-          "frequency_a_hz": 36.77133620230307,
-          "frequency_b_hz": 35.26387645443124
-        },
-        {
-          "trial": 3,
-          "seed": 8503,
-          "phase_locking_value": 0.5070714569705446,
-          "phase_slope_rad_s": 18.497221374842358,
-          "frequency_a_hz": 36.80300817444684,
-          "frequency_b_hz": 33.9426242969349
-        },
-        {
-          "trial": 4,
-          "seed": 8504,
-          "phase_locking_value": 0.595402362985184,
-          "phase_slope_rad_s": 15.493864473840919,
-          "frequency_a_hz": 36.417140548950734,
-          "frequency_b_hz": 34.68046363853017
-        }
-      ],
-      "clean_convergence_count": 0,
-      "clean_convergence_seeds": []
-    },
-    {
-      "coupling": 0.06,
-      "frequency_a_median_hz": 35.319340107096245,
-      "frequency_b_median_hz": 35.19993140785703,
-      "absolute_frequency_difference_hz": 0.11940869923921582,
-      "frequency_a_resolved_fraction": 1.0,
-      "frequency_b_resolved_fraction": 1.0,
-      "phase_locking_value_median": 0.8932537723927754,
-      "phase_slope_median_rad_s": 3.911038554934794,
-      "a_e_rate_mean_hz": 32.678999999999995,
-      "a_i_rate_mean_hz": 120.804,
-      "b_e_rate_mean_hz": 31.558,
-      "b_i_rate_mean_hz": 108.13200000000002,
-      "trials": [
-        {
-          "trial": 0,
-          "seed": 8500,
-          "phase_locking_value": 0.7583660495158067,
-          "phase_slope_rad_s": 8.730279639910771,
-          "frequency_a_hz": 36.670146779102836,
-          "frequency_b_hz": 34.585636916536934
-        },
-        {
-          "trial": 1,
-          "seed": 8501,
-          "phase_locking_value": 0.9152928774561447,
-          "phase_slope_rad_s": 3.893660521405561,
-          "frequency_a_hz": 35.319340107096245,
-          "frequency_b_hz": 35.34190763665276
-        },
-        {
-          "trial": 2,
-          "seed": 8502,
-          "phase_locking_value": 0.8932537723927754,
-          "phase_slope_rad_s": 0.393103668722185,
-          "frequency_a_hz": 35.21923612807294,
-          "frequency_b_hz": 35.19993140785703
-        },
-        {
-          "trial": 3,
-          "seed": 8503,
-          "phase_locking_value": 0.9224209445995404,
-          "phase_slope_rad_s": 3.911038554934794,
-          "frequency_a_hz": 35.282082108173924,
-          "frequency_b_hz": 35.26336378911017
-        },
-        {
-          "trial": 4,
-          "seed": 8504,
-          "phase_locking_value": 0.7005547491967862,
-          "phase_slope_rad_s": 11.127078499349716,
-          "frequency_a_hz": 36.0394490626552,
-          "frequency_b_hz": 34.304224101933364
-        }
-      ],
-      "clean_convergence_count": 0,
-      "clean_convergence_seeds": []
-    },
-    {
-      "coupling": 0.07,
-      "frequency_a_median_hz": 35.053098465445935,
-      "frequency_b_median_hz": 35.113392053296636,
-      "absolute_frequency_difference_hz": 0.06029358785070116,
-      "frequency_a_resolved_fraction": 1.0,
-      "frequency_b_resolved_fraction": 1.0,
-      "phase_locking_value_median": 0.9354770247082486,
-      "phase_slope_median_rad_s": 0.2713909179398718,
-      "a_e_rate_mean_hz": 32.419000000000004,
-      "a_i_rate_mean_hz": 124.78,
-      "b_e_rate_mean_hz": 32.065,
-      "b_i_rate_mean_hz": 114.76399999999998,
-      "trials": [
-        {
-          "trial": 0,
-          "seed": 8500,
-          "phase_locking_value": 0.9039162865653987,
-          "phase_slope_rad_s": 3.3068214904441984,
-          "frequency_a_hz": 35.053098465445935,
-          "frequency_b_hz": 35.113392053296636
-        },
-        {
-          "trial": 1,
-          "seed": 8501,
-          "phase_locking_value": 0.9636509965141122,
-          "phase_slope_rad_s": 0.018145744226906024,
-          "frequency_a_hz": 35.931162411253354,
-          "frequency_b_hz": 35.95997747346132
-        },
-        {
-          "trial": 2,
-          "seed": 8502,
-          "phase_locking_value": 0.9354770247082486,
-          "phase_slope_rad_s": 0.2713909179398718,
-          "frequency_a_hz": 35.293089263655155,
-          "frequency_b_hz": 35.28037016489107
-        },
-        {
-          "trial": 3,
-          "seed": 8503,
-          "phase_locking_value": 0.8347210033296221,
-          "phase_slope_rad_s": 6.04496051044711,
-          "frequency_a_hz": 34.955934293616686,
-          "frequency_b_hz": 34.85166060080967
-        },
-        {
-          "trial": 4,
-          "seed": 8504,
-          "phase_locking_value": 0.967523140334211,
-          "phase_slope_rad_s": -0.04030016918208384,
-          "frequency_a_hz": 34.967776141428146,
-          "frequency_b_hz": 34.99999999999999
-        }
-      ],
-      "clean_convergence_count": 2,
-      "clean_convergence_seeds": [
-        8501,
-        8502
-      ]
-    },
-    {
-      "coupling": 0.08,
-      "frequency_a_median_hz": 34.76954235369214,
-      "frequency_b_median_hz": 34.77089259734508,
-      "absolute_frequency_difference_hz": 0.0013502436529435613,
-      "frequency_a_resolved_fraction": 1.0,
-      "frequency_b_resolved_fraction": 1.0,
-      "phase_locking_value_median": 0.9823388066806319,
-      "phase_slope_median_rad_s": 0.013726373484264781,
-      "a_e_rate_mean_hz": 32.202,
-      "a_i_rate_mean_hz": 129.224,
-      "b_e_rate_mean_hz": 32.57000000000001,
-      "b_i_rate_mean_hz": 121.89200000000001,
-      "trials": [
-        {
-          "trial": 0,
-          "seed": 8500,
-          "phase_locking_value": 0.9856823972691572,
-          "phase_slope_rad_s": -0.013658785161400826,
-          "frequency_a_hz": 34.71032451322553,
-          "frequency_b_hz": 34.71416657311303
-        },
-        {
-          "trial": 1,
-          "seed": 8501,
-          "phase_locking_value": 0.9849527955462929,
-          "phase_slope_rad_s": 0.013726373484264781,
-          "frequency_a_hz": 35.366317237225225,
-          "frequency_b_hz": 35.37176710220217
-        },
-        {
-          "trial": 2,
-          "seed": 8502,
-          "phase_locking_value": 0.9405536244586353,
-          "phase_slope_rad_s": 0.27764773337689624,
-          "frequency_a_hz": 34.633464656212816,
-          "frequency_b_hz": 34.6020450670326
-        },
-        {
-          "trial": 3,
-          "seed": 8503,
-          "phase_locking_value": 0.9818219505914562,
-          "phase_slope_rad_s": -0.06405156449133806,
-          "frequency_a_hz": 34.76954235369214,
-          "frequency_b_hz": 34.77089259734508
-        },
-        {
-          "trial": 4,
-          "seed": 8504,
-          "phase_locking_value": 0.9823388066806319,
-          "phase_slope_rad_s": 0.03368090853466198,
-          "frequency_a_hz": 35.18258029811148,
-          "frequency_b_hz": 35.183356875273
-        }
-      ],
-      "clean_convergence_count": 5,
-      "clean_convergence_seeds": [
-        8500,
-        8501,
-        8502,
-        8503,
-        8504
-      ]
-    },
-    {
-      "coupling": 0.09,
-      "frequency_a_median_hz": 34.84572084681673,
-      "frequency_b_median_hz": 34.824560227090025,
-      "absolute_frequency_difference_hz": 0.021160619726707353,
-      "frequency_a_resolved_fraction": 1.0,
-      "frequency_b_resolved_fraction": 1.0,
-      "phase_locking_value_median": 0.9861596573090806,
-      "phase_slope_median_rad_s": -0.011894215590254659,
-      "a_e_rate_mean_hz": 32.071000000000005,
-      "a_i_rate_mean_hz": 132.07999999999998,
-      "b_e_rate_mean_hz": 32.772000000000006,
-      "b_i_rate_mean_hz": 126.16799999999998,
-      "trials": [
-        {
-          "trial": 0,
-          "seed": 8500,
-          "phase_locking_value": 0.9892348155064691,
-          "phase_slope_rad_s": -0.011894215590254659,
-          "frequency_a_hz": 34.72589318240848,
-          "frequency_b_hz": 34.72620586975863
-        },
-        {
-          "trial": 1,
-          "seed": 8501,
-          "phase_locking_value": 0.9861596573090806,
-          "phase_slope_rad_s": 0.006778465774047202,
-          "frequency_a_hz": 35.325223177485654,
-          "frequency_b_hz": 35.33570891384241
-        },
-        {
-          "trial": 2,
-          "seed": 8502,
-          "phase_locking_value": 0.9748798155756438,
-          "phase_slope_rad_s": -0.04118734613516484,
-          "frequency_a_hz": 34.84572084681673,
-          "frequency_b_hz": 34.824560227090025
-        },
-        {
-          "trial": 3,
-          "seed": 8503,
-          "phase_locking_value": 0.9871662156682375,
-          "phase_slope_rad_s": -0.012948688828673362,
-          "frequency_a_hz": 34.99999999999999,
-          "frequency_b_hz": 34.99999999999999
-        },
-        {
-          "trial": 4,
-          "seed": 8504,
-          "phase_locking_value": 0.9845144859218584,
-          "phase_slope_rad_s": 0.00015850306686783204,
-          "frequency_a_hz": 34.61590363511632,
-          "frequency_b_hz": 34.631762410961485
-        }
-      ],
-      "clean_convergence_count": 4,
-      "clean_convergence_seeds": [
-        8500,
-        8501,
-        8503,
-        8504
-      ]
-    },
-    {
-      "coupling": 0.1,
-      "frequency_a_median_hz": 34.762381007799625,
-      "frequency_b_median_hz": 34.74953441290372,
-      "absolute_frequency_difference_hz": 0.012846594895904673,
-      "frequency_a_resolved_fraction": 1.0,
-      "frequency_b_resolved_fraction": 1.0,
-      "phase_locking_value_median": 0.9878367624468657,
-      "phase_slope_median_rad_s": -0.007616874533477596,
-      "a_e_rate_mean_hz": 32.033,
-      "a_i_rate_mean_hz": 133.384,
-      "b_e_rate_mean_hz": 32.838,
-      "b_i_rate_mean_hz": 128.804,
-      "trials": [
-        {
-          "trial": 0,
-          "seed": 8500,
-          "phase_locking_value": 0.9890443305806881,
-          "phase_slope_rad_s": -0.007616874533477596,
-          "frequency_a_hz": 34.81512083979548,
-          "frequency_b_hz": 34.807821524870725
-        },
-        {
-          "trial": 1,
-          "seed": 8501,
-          "phase_locking_value": 0.9856455613071201,
-          "phase_slope_rad_s": 0.024047286527467553,
-          "frequency_a_hz": 35.35141847420146,
-          "frequency_b_hz": 35.35660430024844
-        },
-        {
-          "trial": 2,
-          "seed": 8502,
-          "phase_locking_value": 0.9761667194474738,
-          "phase_slope_rad_s": -0.028022692352635072,
-          "frequency_a_hz": 34.762381007799625,
-          "frequency_b_hz": 34.74953441290372
-        },
-        {
-          "trial": 3,
-          "seed": 8503,
-          "phase_locking_value": 0.9905476861096137,
-          "phase_slope_rad_s": -0.03245346481646073,
-          "frequency_a_hz": 34.58334539893486,
-          "frequency_b_hz": 34.58800571087254
-        },
-        {
-          "trial": 4,
-          "seed": 8504,
-          "phase_locking_value": 0.9878367624468657,
-          "phase_slope_rad_s": 0.02329331614793889,
-          "frequency_a_hz": 34.58113934418691,
-          "frequency_b_hz": 34.594325727305716
-        }
-      ],
-      "clean_convergence_count": 5,
-      "clean_convergence_seeds": [
-        8500,
-        8501,
-        8502,
-        8503,
-        8504
-      ]
-    }
-  ],
-  "synchrony_example": {
-    "coupling": 0.07,
-    "trial": 2,
-    "seed": 8502
-  }
+  "max_target_error_rad": 0.0004390093274140305,
+  "coupled_terminal_error_median_rad": 0.13844966606085368,
+  "control_terminal_error_median_rad": 1.4542756700102055
 }
