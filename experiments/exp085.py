@@ -564,12 +564,10 @@ def _phase_error(
 def plot_phase_control(rows: list[dict], out: Path) -> None:
     theme.apply()
     fig, axis = plt.subplots(figsize=(4.8, 3.4))
-    axis.scatter(
-        [row["target_phase_rad"] for row in rows],
-        [row["achieved_phase_rad"] for row in rows],
-        color=theme.INK_BLACK,
-        s=14,
-    )
+    targets = np.asarray([row["target_phase_rad"] for row in rows])
+    achieved = np.asarray([row["achieved_phase_rad"] for row in rows])
+    achieved_near_target = targets + np.angle(np.exp(1j * (achieved - targets)))
+    axis.scatter(targets, achieved_near_target, color=theme.INK_BLACK, s=14)
     axis.plot([0, 2 * np.pi], [0, 2 * np.pi], color=theme.GREY_LIGHT, linewidth=0.8)
     axis.set(
         xlabel="prescribed phase (rad)",
@@ -613,7 +611,7 @@ def plot_controlled_convergence(
             np.median(coupled[target_index], axis=0),
             color=colour,
             linewidth=1.2,
-            label=f"{target / np.pi:.1g}π",
+            label=f"{target / np.pi:.1f}π",
         )
         axes[1].plot(
             time_s,
