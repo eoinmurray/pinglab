@@ -109,3 +109,14 @@ def test_clean_convergence_trials_rejects_late_phase_slip():
     slipping[round(600.0 / exp085.DT_MS) :] = np.pi
 
     assert exp085.clean_convergence_trials(np.stack((stable, slipping))) == [0]
+
+
+def test_phase_onset_selector_recovers_prescribed_offsets():
+    steps = round(exp085.SCOUT_MS / exp085.DT_MS)
+    phase = np.mod(np.arange(steps) * 2 * np.pi / 1_000, 2 * np.pi)
+
+    selected = exp085.select_phase_onsets(phase)
+
+    for target, step in selected.items():
+        error = abs(np.angle(np.exp(1j * (phase[step] - target))))
+        assert error < 0.01
