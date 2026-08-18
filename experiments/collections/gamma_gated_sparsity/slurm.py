@@ -19,6 +19,7 @@ from .execution import (
     write_json_atomic,
 )
 from .plan import REPO, validate_campaign_root
+from .workloads import shard_count
 
 TIERS = ("standard", "fine_dt", "canonical_coba", "canonical_ping", "variable_rate")
 SUBMISSION_NAME = "collection-submission.json"
@@ -65,7 +66,7 @@ def load_resources(path: Path) -> dict[str, Any]:
     jobs = config.get("jobs")
     if not isinstance(jobs, dict):
         raise CollectionError("Slurm resources require jobs")
-    for name in ("aggregate", "downstream", "finalize"):
+    for name in ("aggregate", "downstream", "heavy_downstream", "finalize"):
         row = jobs.get(name)
         if not isinstance(row, dict):
             raise CollectionError(f"Slurm resources require jobs.{name}")
@@ -327,6 +328,60 @@ def _submit_job(
     }
 
 
+def _submit_experiment_shards(
+    plan: dict[str, Any],
+    resources: dict[str, Any],
+    *,
+    slug: str,
+    dependencies: list[str],
+    submit: bool,
+    test_only: bool,
+) -> dict[str, Any]:
+    root = Path(plan["campaign_root"])
+    count = shard_count(slug)
+    logs = root / "logs" / "collection" / f"{slug}-shards"
+    if submit:
+        logs.mkdir(parents=True, exist_ok=True)
+    name = f"ggs-{slug}-inference"
+    command = [
+        "sbatch",
+        "--parsable",
+        *_job_args(resources, "heavy_downstream"),
+        *(_dependency(dependencies) if not test_only else []),
+        f"--array=0-{count - 1}%{count}",
+        f"--job-name={name}",
+        f"--output={logs}/%A_%a.out",
+        f"--error={logs}/%A_%a.err",
+        f"--export=ALL,PINGLAB_ROOT={REPO}",
+        str(
+            REPO
+            / "experiments"
+            / "collections"
+            / "gamma_gated_sparsity"
+            / "collection-job.sbatch"
+        ),
+        "run-experiment-shard",
+        str(root),
+        resources["uv"],
+        resources["mnist_cache"],
+        slug,
+        str(count),
+    ]
+    return {
+        "name": name,
+        "job_id": _run(
+            command,
+            submit=submit,
+            test_only=test_only,
+            dry_id=f"<{name}-job-id>",
+        ),
+        "experiment": slug,
+        "shard_count": count,
+        "partition": "ordered-round-robin",
+        "command": command,
+    }
+
+
 def submit_campaign(
     root: Path,
     resources_path: Path,
@@ -405,6 +460,17 @@ def submit_campaign(
         if slug == "exp022" or _outputs_valid_for_plan(plan, row):
             continue
         dependency_ids = [by_name[d] for d in row["dependencies"] if d in by_name]
+        if shard_count(slug) > 1:
+            shards = _submit_experiment_shards(
+                plan,
+                resources,
+                slug=slug,
+                dependencies=dependency_ids,
+                submit=submit,
+                test_only=test_only,
+            )
+            record(shards)
+            dependency_ids = [shards["job_id"]]
         job = _submit_job(
             plan,
             resources,
