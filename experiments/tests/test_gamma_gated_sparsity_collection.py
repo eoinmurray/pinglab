@@ -544,6 +544,52 @@ def test_workload_shards_are_disjoint_complete_and_stable(monkeypatch) -> None:
     ]
 
 
+def test_exp037_shard_completion_uses_checkpoint_cache_tag(
+    tmp_path: Path, monkeypatch
+) -> None:
+    train_dir = tmp_path / "training" / "coba__off__seed42"
+    checkpoint = {"path": train_dir / "weights.pth", "sha256": "a" * 64}
+    monkeypatch.setattr(exp037, "ARTIFACTS", tmp_path / "artifacts")
+    monkeypatch.setattr(exp037, "baseline_dir", lambda _model, _seed: train_dir)
+    monkeypatch.setattr(exp037, "resolve_checkpoint", lambda *_args: checkpoint)
+    monkeypatch.setattr(exp037, "cache_tag", lambda _checkpoint: "best__aaaa")
+
+    output = (
+        exp037._perturb_out_dir(train_dir, "drop", 0.0)
+        / "best__aaaa"
+        / "metrics.json"
+    )
+    output.parent.mkdir(parents=True)
+    output.write_text("{}\n")
+
+    assert exp037.job_is_done("sweep__coba__seed42__drop__0")
+
+
+def test_exp042_shard_completion_uses_checkpoint_cache_tag(
+    tmp_path: Path, monkeypatch
+) -> None:
+    train_dir = tmp_path / "training" / "ping__off__seed42"
+    checkpoint = {"path": train_dir / "weights_final.pth", "sha256": "b" * 64}
+    monkeypatch.setattr(exp042, "ARTIFACTS", tmp_path / "artifacts")
+    monkeypatch.setattr(exp042, "resolve_checkpoint", lambda *_args: checkpoint)
+    monkeypatch.setattr(exp042, "cache_tag", lambda _checkpoint: "final__bbbb")
+    spec = {
+        "train_dir": train_dir,
+        "condition": "baseline",
+        "seed_offset": 42,
+    }
+
+    expected = (
+        tmp_path
+        / "artifacts"
+        / "baseline"
+        / train_dir.name
+        / "final__bbbb"
+        / "metrics.json"
+    )
+    assert exp042._job_metrics_path(spec) == expected
+
+
 def test_plan_records_reviewed_heavy_workload_contracts(tmp_path: Path) -> None:
     plan = build_plan(tmp_path / "campaign", "production")
     rows = {row["slug"]: row for row in execution.rows_in_order(plan)}
