@@ -1,13 +1,14 @@
 {
-  "run_id": "r020",
-  "git_sha": "f41b284c",
-  "duration_s": 88.5,
-  "duration": "1m 28s",
+  "run_id": "r021",
+  "git_sha": "d1f553e0",
+  "duration_s": 111.4,
+  "duration": "1m 51s",
   "status": "draft",
   "completed_methods": [
     1,
     2,
-    3
+    3,
+    4
   ],
   "simulation_run": true,
   "network": {
@@ -18,7 +19,7 @@
     },
     "detuning_input_rates_hz": {
       "PING_A": 300.0,
-      "PING_B": 240.0
+      "PING_B": 260.0
     },
     "cross_network_projections": [
       "E-to-E",
@@ -30,7 +31,7 @@
       "K_EE": 0.08,
       "K_EI": 0.08
     },
-    "delay_ms": 0.5,
+    "delay_ms": 2.0,
     "local_e_to_i": {
       "weight": 0.5,
       "ampa_tau_ms": 1.0
@@ -43,9 +44,9 @@
       "iei_cv": 0.036837092258725966
     },
     "PING_B": {
-      "volleys": 75,
-      "frequency_hz": 44.52734821589746,
-      "iei_cv": 0.040493672172616214
+      "volleys": 80,
+      "frequency_hz": 46.706870048480546,
+      "iei_cv": 0.031447121112342255
     },
     "inhibitory_spikes_per_cycle": {
       "PING_A": {
@@ -55,13 +56,13 @@
         "maximum": 1
       },
       "PING_B": {
-        "cycles": 74,
+        "cycles": 79,
         "mean_spikes_per_neuron": 1.0,
         "minimum": 1,
         "maximum": 1
       }
     },
-    "phase_wraps": 10
+    "phase_wraps": 7
   },
   "phase_response": {
     "network": "PING_A",
@@ -70,7 +71,7 @@
     "pulse": {
       "source_channels": 80,
       "exact_fan_in": 8,
-      "arrival_delay_ms": 0.5,
+      "arrival_delay_ms": 2.0,
       "e_target_strength": 0.08,
       "i_target_strength": 0.08
     },
@@ -415,8 +416,98 @@
       ]
     }
   },
+  "pathway_comparison": {
+    "coupling_onset_ms": 500.0,
+    "shared_delay_ms": 2.0,
+    "classification": {
+      "final_window_ms": 500.0,
+      "maximum_absolute_drift_cycles_per_s": 0.25,
+      "minimum_phase_concentration": 0.95
+    },
+    "conditions": [
+      {
+        "PING_A": {
+          "volleys": 76,
+          "frequency_hz": 50.84056399132321,
+          "iei_cv": 0.03700758498322317
+        },
+        "PING_B": {
+          "volleys": 70,
+          "frequency_hz": 46.57441781977725,
+          "iei_cv": 0.03156940661714158
+        },
+        "final_drift_rate_cycles_per_s": 4.733829385708273,
+        "final_phase_concentration": 0.11127158836332875,
+        "phase_locked": false,
+        "locked_phase_rad": null,
+        "id": "none",
+        "label": "No coupling",
+        "K_EE": 0.0,
+        "K_EI": 0.0
+      },
+      {
+        "PING_A": {
+          "volleys": 76,
+          "frequency_hz": 50.88885873252816,
+          "iei_cv": 0.034628097453069606
+        },
+        "PING_B": {
+          "volleys": 76,
+          "frequency_hz": 50.57657293141816,
+          "iei_cv": 0.03536562416961155
+        },
+        "final_drift_rate_cycles_per_s": 0.016488975156869087,
+        "final_phase_concentration": 0.9963411984157056,
+        "phase_locked": true,
+        "locked_phase_rad": 0.995952978132813,
+        "id": "e_to_e",
+        "label": "E\u2192E only",
+        "K_EE": 0.08,
+        "K_EI": 0.0
+      },
+      {
+        "PING_A": {
+          "volleys": 75,
+          "frequency_hz": 50.31959744322046,
+          "iei_cv": 0.04788977252992767
+        },
+        "PING_B": {
+          "volleys": 70,
+          "frequency_hz": 46.47716556648255,
+          "iei_cv": 0.065402152050715
+        },
+        "final_drift_rate_cycles_per_s": 3.570827473245089,
+        "final_phase_concentration": 0.06853607647832372,
+        "phase_locked": false,
+        "locked_phase_rad": null,
+        "id": "e_to_i",
+        "label": "E\u2192I only",
+        "K_EE": 0.0,
+        "K_EI": 0.08
+      },
+      {
+        "PING_A": {
+          "volleys": 76,
+          "frequency_hz": 50.89231186808713,
+          "iei_cv": 0.03466035046879144
+        },
+        "PING_B": {
+          "volleys": 76,
+          "frequency_hz": 50.586806960744624,
+          "iei_cv": 0.03455894775154487
+        },
+        "final_drift_rate_cycles_per_s": -0.004346009647230989,
+        "final_phase_concentration": 0.9972780752862983,
+        "phase_locked": true,
+        "locked_phase_rad": 0.9370001820346413,
+        "id": "both",
+        "label": "Both pathways",
+        "K_EE": 0.08,
+        "K_EI": 0.08
+      }
+    ]
+  },
   "remaining_methods_unrun": [
-    4,
     5
   ]
 }

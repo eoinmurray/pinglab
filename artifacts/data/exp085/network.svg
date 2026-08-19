@@ -25,9 +25,9 @@
 <path fill="none" stroke="#243044" stroke-width="1.7" d="M137.46,-208C158.36,-208 181.48,-208 202.79,-208"/>
 <polygon fill="#243044" stroke="#243044" stroke-width="1.7" points="202.66,-210.52 209.86,-208 202.66,-205.48 202.66,-210.52"/>
 </g>
-<!-- drive_B_240_Hz&#45;&gt;PING_B_E -->
+<!-- drive_B_260_Hz&#45;&gt;PING_B_E -->
 <g id="e_n_PING_B_input_to_E" class="edge edge excitatory feedforward">
-<title>drive_B_240_Hz&#45;&gt;PING_B_E</title>
+<title>drive_B_260_Hz&#45;&gt;PING_B_E</title>
 <path fill="none" stroke="#243044" stroke-width="1.7" d="M137.46,-64C158.36,-64 181.48,-64 202.79,-64"/>
 <polygon fill="#243044" stroke="#243044" stroke-width="1.7" points="202.66,-66.52 209.86,-64 202.66,-61.48 202.66,-66.52"/>
 </g>
@@ -90,11 +90,11 @@
 <polygon fill="#f5f7fa" stroke="none" points="11.52,-179.62 11.52,-197.38 125.52,-197.38 125.52,-179.62 11.52,-179.62"/>
 <text xml:space="preserve" text-anchor="start" x="15.52" y="-184.82" font-family="Helvetica,sans-Serif" font-size="9.00" fill="#243044">SPIKES</text>
 </g>
-<!-- drive_B_240_Hz -->
-<g id="n_drive_B_240_Hz" class="node node input">
-<title>drive_B_240_Hz</title>
+<!-- drive_B_260_Hz -->
+<g id="n_drive_B_260_Hz" class="node node input">
+<title>drive_B_260_Hz</title>
 <path fill="#f5f7fa" stroke="#cbd5e1" d="M125.04,-101.02C125.04,-101.02 12,-101.02 12,-101.02 6,-101.02 0,-95.02 0,-89.02 0,-89.02 0,-38.98 0,-38.98 0,-32.98 6,-26.98 12,-26.98 12,-26.98 125.04,-26.98 125.04,-26.98 131.04,-26.98 137.04,-32.98 137.04,-38.98 137.04,-38.98 137.04,-89.02 137.04,-89.02 137.04,-95.02 131.04,-101.02 125.04,-101.02"/>
-<text xml:space="preserve" text-anchor="start" x="11.52" y="-79.12" font-family="Helvetica,sans-Serif" font-weight="bold" font-size="15.00" fill="#243044">drive_B_240_Hz</text>
+<text xml:space="preserve" text-anchor="start" x="11.52" y="-79.12" font-family="Helvetica,sans-Serif" font-weight="bold" font-size="15.00" fill="#243044">drive_B_260_Hz</text>
 <text xml:space="preserve" text-anchor="start" x="11.52" y="-62.12" font-family="Helvetica,sans-Serif" font-size="10.00" fill="#667085">time × batch × 128</text>
 <polygon fill="#f5f7fa" stroke="none" points="11.52,-35.62 11.52,-53.38 125.52,-53.38 125.52,-35.62 11.52,-35.62"/>
 <text xml:space="preserve" text-anchor="start" x="15.52" y="-40.83" font-family="Helvetica,sans-Serif" font-size="9.00" fill="#243044">SPIKES</text>
