@@ -1,0 +1,581 @@
+"""EXP086: weaken coupling and look for intermittent PING synchronization."""
+
+from __future__ import annotations
+
+import json
+import shutil
+import sys
+import time
+from pathlib import Path
+
+import matplotlib.pyplot as plt
+import numpy as np
+import torch
+from scipy.ndimage import gaussian_filter1d
+
+REPO = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(REPO))
+sys.path.insert(0, str(REPO / "tools" / "snn"))
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+
+from execution import ExecutionSpec, simulate  # noqa: E402
+from experiments.exp085 import (  # noqa: E402
+    COUPLING_DELAY_MS,
+    DT_MS,
+    INPUT_RATE_A_HZ,
+    INPUT_RATE_B_HZ,
+    INPUT_SEEDS,
+    N_E,
+    N_I,
+    NETWORK_SEED,
+    PING_GROUPS,
+    author_network,
+    detect_volleys,
+    interpolated_phase,
+    poisson_input,
+    population_rate,
+    rhythm_summary,
+)
+
+from helpers import theme  # noqa: E402
+from helpers.cli import parse_meta  # noqa: E402
+from helpers.numbers import write_numbers  # noqa: E402
+from helpers.run_dirs import published_run  # noqa: E402
+from helpers.run_id import next_run_id  # noqa: E402
+
+SLUG = "exp086"
+STATUS = "draft"
+
+T_MS = 5_000.0
+COUPLING_ONSET_MS = 500.0
+ANALYSIS_START_MS = 300.0
+DISPLAY_WINDOW_MS = 1_500.0
+RATE_SMOOTH_MS = 1.0
+VELOCITY_SMOOTH_MS = 8.0
+PHASE_BINS = 24
+K_VALUES = np.asarray([0.08, 0.07, 0.06, 0.05, 0.04, 0.03, 0.02, 0.01, 0.0])
+
+SCALE = {
+    "status": STATUS,
+    "completed_methods": [1, 2, 3],
+    "dt_ms": DT_MS,
+    "t_ms": T_MS,
+    "coupling_onset_ms": COUPLING_ONSET_MS,
+    "analysis_start_ms_after_coupling": ANALYSIS_START_MS,
+    "input_rate_a_hz": INPUT_RATE_A_HZ,
+    "input_rate_b_hz": INPUT_RATE_B_HZ,
+    "coupling_delay_ms": COUPLING_DELAY_MS,
+    "k_values_us": K_VALUES.tolist(),
+    "same_k_for_e_to_e_and_e_to_i": True,
+    "trajectories_per_k": 1,
+}
+
+
+def make_inputs() -> dict[str, torch.Tensor]:
+    """Generate the one fixed input realization shared by every branch."""
+    steps = round(T_MS / DT_MS)
+    return {
+        f"drive_A_{INPUT_RATE_A_HZ:g}_Hz": poisson_input(
+            rate_hz=INPUT_RATE_A_HZ,
+            seed=INPUT_SEEDS[0],
+            steps=steps,
+        ),
+        f"drive_B_{INPUT_RATE_B_HZ:g}_Hz": poisson_input(
+            rate_hz=INPUT_RATE_B_HZ,
+            seed=INPUT_SEEDS[1],
+            steps=steps,
+        ),
+    }
+
+
+def instantaneous_frequency(peaks: np.ndarray, steps: int) -> np.ndarray:
+    """Assign each inter-volley interval its instantaneous frequency."""
+    frequency = np.full(steps, np.nan)
+    for left, right in zip(peaks[:-1], peaks[1:], strict=True):
+        if right > left:
+            frequency[left:right] = 1_000.0 / ((right - left) * DT_MS)
+    return frequency
+
+
+def circular_distance(a: float, b: float) -> float:
+    """Return the absolute shortest angular distance in radians."""
+    return float(abs(np.angle(np.exp(1j * (a - b)))))
+
+
+def analyse_trajectory(
+    recordings: dict[str, np.ndarray],
+    *,
+    k: float,
+) -> dict[str, object]:
+    """Measure position, velocity, slips, and preferred phase for one K."""
+    e_a = population_rate(recordings["population_0"], N_E)
+    i_a = population_rate(recordings["population_1"], N_I)
+    e_b = population_rate(recordings["population_2"], N_E)
+    i_b = population_rate(recordings["population_3"], N_I)
+    peaks_a = detect_volleys(e_a, burn_ms=0.0)
+    peaks_b = detect_volleys(e_b, burn_ms=0.0)
+    phase_a = interpolated_phase(peaks_a, len(e_a))
+    phase_b = interpolated_phase(peaks_b, len(e_b))
+    frequency_a = instantaneous_frequency(peaks_a, len(e_a))
+    frequency_b = instantaneous_frequency(peaks_b, len(e_b))
+
+    wrapped = np.angle(np.exp(1j * (phase_a - phase_b)))
+    velocity = 2.0 * np.pi * (frequency_a - frequency_b)
+    valid = np.isfinite(wrapped) & np.isfinite(velocity)
+    valid &= np.arange(len(wrapped)) * DT_MS >= ANALYSIS_START_MS
+    if valid.sum() < 100:
+        raise RuntimeError(f"K={k:g} produced too little valid phase data")
+
+    time_ms = np.arange(len(wrapped))[valid] * DT_MS
+    wrapped_valid = wrapped[valid]
+    velocity_valid = velocity[valid]
+    unwrapped = np.unwrap(wrapped_valid)
+    unwrapped -= unwrapped[0]
+    net_cycles = float((unwrapped[-1] - unwrapped[0]) / (2.0 * np.pi))
+    slips = int(np.floor(abs(net_cycles) + 1e-9))
+    concentration = float(abs(np.mean(np.exp(1j * wrapped_valid))))
+
+    edges = np.linspace(-np.pi, np.pi, PHASE_BINS + 1)
+    centres = 0.5 * (edges[:-1] + edges[1:])
+    counts, _ = np.histogram(wrapped_valid, bins=edges)
+    density = counts / counts.sum() / np.diff(edges)
+    bin_index = np.clip(np.digitize(wrapped_valid, edges) - 1, 0, PHASE_BINS - 1)
+    mean_velocity = np.full(PHASE_BINS, np.nan)
+    for index in range(PHASE_BINS):
+        values = velocity_valid[bin_index == index]
+        if values.size:
+            mean_velocity[index] = float(values.mean())
+
+    preferred_index = int(np.argmax(density))
+    preferred_phase = float(centres[preferred_index])
+    populated = np.isfinite(mean_velocity)
+    slow_index = int(
+        np.flatnonzero(populated)[
+            np.argmin(np.abs(mean_velocity[populated]))
+        ]
+    )
+    slow_phase = float(centres[slow_index])
+    alignment = circular_distance(preferred_phase, slow_phase)
+    density_ratio = float(density.max() / density.mean())
+    mean_abs_velocity = float(np.mean(np.abs(velocity_valid)))
+    slow_abs_velocity = float(abs(mean_velocity[slow_index]))
+    slowing_fraction = (
+        1.0 - slow_abs_velocity / mean_abs_velocity
+        if mean_abs_velocity > 0
+        else 0.0
+    )
+
+    return {
+        "k": float(k),
+        "time_ms": time_ms,
+        "rate_e_a": e_a,
+        "rate_i_a": i_a,
+        "rate_e_b": e_b,
+        "rate_i_b": i_b,
+        "peaks_a": peaks_a,
+        "peaks_b": peaks_b,
+        "wrapped_phase": wrapped_valid,
+        "unwrapped_phase": unwrapped,
+        "relative_velocity_rad_s": velocity_valid,
+        "relative_velocity_smoothed_rad_s": gaussian_filter1d(
+            velocity_valid,
+            sigma=VELOCITY_SMOOTH_MS / DT_MS,
+        ),
+        "phase_bin_centres": centres,
+        "phase_density": density,
+        "mean_velocity_by_phase": mean_velocity,
+        "preferred_phase_rad": preferred_phase,
+        "slow_phase_rad": slow_phase,
+        "phase_alignment_error_rad": alignment,
+        "phase_concentration": concentration,
+        "density_peak_to_mean": density_ratio,
+        "slowing_fraction": slowing_fraction,
+        "net_phase_change_cycles": net_cycles,
+        "phase_slips": slips,
+        "network_a": rhythm_summary(peaks_a),
+        "network_b": rhythm_summary(peaks_b),
+    }
+
+
+def public_summary(trajectory: dict[str, object]) -> dict[str, object]:
+    """Drop large arrays before JSON serialization."""
+    array_keys = {
+        "time_ms",
+        "rate_e_a",
+        "rate_i_a",
+        "rate_e_b",
+        "rate_i_b",
+        "peaks_a",
+        "peaks_b",
+        "wrapped_phase",
+        "unwrapped_phase",
+        "relative_velocity_rad_s",
+        "relative_velocity_smoothed_rad_s",
+        "phase_bin_centres",
+        "phase_density",
+        "mean_velocity_by_phase",
+    }
+    return {key: value for key, value in trajectory.items() if key not in array_keys}
+
+
+def choose_intermediate(trajectories: list[dict[str, object]]) -> dict[str, object]:
+    """Choose the slipping nonzero-K trajectory with the clearest attraction."""
+    candidates = [
+        row
+        for row in trajectories
+        if 0.0 < float(row["k"]) < float(K_VALUES.max())
+        and int(row["phase_slips"]) >= 2
+    ]
+    if not candidates:
+        raise RuntimeError("the coupling sweep produced no intermediate slipping case")
+
+    def score(row: dict[str, object]) -> float:
+        alignment_score = np.exp(-float(row["phase_alignment_error_rad"]))
+        return (
+            float(row["phase_concentration"])
+            * float(row["density_peak_to_mean"])
+            * max(float(row["slowing_fraction"]), 0.0)
+            * alignment_score
+        )
+
+    return max(candidates, key=score)
+
+
+def run_sweep() -> tuple[list[dict[str, object]], dict[str, torch.Tensor]]:
+    """Branch every K from one saved state and one fixed input suffix."""
+    inputs = make_inputs()
+    onset = round(COUPLING_ONSET_MS / DT_MS)
+    prefix = simulate(
+        ExecutionSpec(
+            kind="simulate",
+            executor="graph",
+            graph=author_network(k_ee=0.0, k_ei=0.0).graph,
+            inputs={name: value[:onset] for name, value in inputs.items()},
+            seed=NETWORK_SEED,
+        )
+    )
+    if prefix.runtime_state is None:
+        raise RuntimeError("the uncoupled prefix returned no reusable runtime state")
+    suffix = {name: value[onset:] for name, value in inputs.items()}
+    trajectories = []
+    for k in K_VALUES:
+        print(f"[sweep] K_EE = K_EI = {k:.3f} µS")
+        result = simulate(
+            ExecutionSpec(
+                kind="simulate",
+                executor="graph",
+                graph=author_network(k_ee=float(k), k_ei=float(k)).graph,
+                inputs=suffix,
+                seed=NETWORK_SEED,
+            ),
+            runtime_state=prefix.runtime_state.detached(),
+        )
+        recordings = {
+            key: value.cpu().numpy().astype(np.uint8)
+            for key, value in result.recordings.items()
+        }
+        trajectories.append(analyse_trajectory(recordings, k=float(k)))
+    return trajectories, inputs
+
+
+def _normalise(values: np.ndarray, window: slice) -> np.ndarray:
+    selected = values[window]
+    maximum = float(selected.max()) if selected.size else 0.0
+    return selected / maximum if maximum > 0 else selected
+
+
+def plot_uncoupled(trajectory: dict[str, object], out: Path) -> None:
+    """Result 1: show the two uncoupled rhythms and their relative-phase drift."""
+    theme.apply()
+    rate_length = len(np.asarray(trajectory["rate_e_a"]))
+    stop = rate_length
+    start = max(0, stop - round(250.0 / DT_MS))
+    window = slice(start, stop)
+    excerpt_time = np.arange(start, stop) * DT_MS
+    fig, axes = plt.subplots(3, 1, figsize=(7.2, 6.2))
+    for ax, label, e_key, i_key in (
+        (axes[0], "Network A", "rate_e_a", "rate_i_a"),
+        (axes[1], "Network B", "rate_e_b", "rate_i_b"),
+    ):
+        ax.plot(
+            excerpt_time,
+            _normalise(np.asarray(trajectory[e_key]), window),
+            color=theme.INK_BLACK,
+            lw=1.0,
+            label="E",
+        )
+        ax.plot(
+            excerpt_time,
+            _normalise(np.asarray(trajectory[i_key]), window),
+            color=theme.DEEP_RED,
+            lw=1.0,
+            label="I",
+        )
+        ax.set(ylabel=f"{label}\nnormalized rate", ylim=(-0.05, 1.08))
+        ax.legend(frameon=False, ncol=2, loc="upper right")
+        ax.spines[["top", "right"]].set_visible(False)
+    axes[1].set_xlabel("time after coupling decision (ms)")
+    axes[2].plot(
+        trajectory["time_ms"],
+        trajectory["wrapped_phase"],
+        color=theme.INK_BLACK,
+        lw=0.9,
+    )
+    axes[2].set(
+        xlabel="time after coupling decision (ms)",
+        ylabel="relative-phase\nposition (rad)",
+        ylim=(-np.pi, np.pi),
+    )
+    axes[2].set_yticks((-np.pi, 0, np.pi), labels=(r"$-\pi$", "0", r"$\pi$"))
+    axes[2].spines[["top", "right"]].set_visible(False)
+    fig.tight_layout()
+    fig.savefig(out, dpi=220, bbox_inches="tight")
+    plt.close(fig)
+
+
+def _plot_position_time(ax, trajectory: dict[str, object], color: str) -> None:
+    time_ms = np.asarray(trajectory["time_ms"])
+    keep = time_ms >= max(time_ms.min(), time_ms.max() - DISPLAY_WINDOW_MS)
+    ax.plot(
+        time_ms[keep] - time_ms[keep][0],
+        np.asarray(trajectory["wrapped_phase"])[keep],
+        color=color,
+        lw=1.0,
+    )
+    ax.set(ylim=(-np.pi, np.pi))
+    ax.set_yticks((-np.pi, 0, np.pi), labels=(r"$-\pi$", "0", r"$\pi$"))
+    ax.spines[["top", "right"]].set_visible(False)
+
+
+def _plot_velocity_position(ax, trajectory: dict[str, object], color: str) -> None:
+    centres = np.asarray(trajectory["phase_bin_centres"])
+    velocity = np.asarray(trajectory["mean_velocity_by_phase"])
+    ax.plot(centres, velocity, color=color, marker="o", ms=2.5, lw=1.2)
+    ax.axhline(0.0, color=theme.GREY_LIGHT, lw=0.7, ls="--")
+    ax.set(xlim=(-np.pi, np.pi))
+    ax.set_xticks((-np.pi, 0, np.pi), labels=(r"$-\pi$", "0", r"$\pi$"))
+    ax.spines[["top", "right"]].set_visible(False)
+
+
+def plot_coupling_regimes(
+    strong: dict[str, object],
+    intermediate: dict[str, object],
+    uncoupled: dict[str, object],
+    out: Path,
+) -> None:
+    """Result 2: reproduce the Method 2 three-regime schematic with data."""
+    theme.apply()
+    columns = (
+        (strong, "Strong coupling", theme.INK_BLACK),
+        (intermediate, "Intermediate coupling", theme.DEEP_RED),
+        (uncoupled, "No coupling", theme.GREY_MID),
+    )
+    fig, axes = plt.subplots(2, 3, figsize=(10.5, 5.5), sharey="row")
+    for column, (trajectory, label, color) in enumerate(columns):
+        preferred = float(trajectory["preferred_phase_rad"])
+        axes[0, column].axhspan(
+            preferred - np.pi / PHASE_BINS,
+            preferred + np.pi / PHASE_BINS,
+            color=theme.ELECTRIC_CYAN,
+            alpha=0.12,
+            lw=0,
+        )
+        _plot_position_time(axes[0, column], trajectory, color)
+        _plot_velocity_position(axes[1, column], trajectory, color)
+        axes[1, column].axvspan(
+            preferred - np.pi / PHASE_BINS,
+            preferred + np.pi / PHASE_BINS,
+            color=theme.ELECTRIC_CYAN,
+            alpha=0.12,
+            lw=0,
+        )
+        axes[0, column].set_title(
+            f'{label}\nK = {float(trajectory["k"]):.3f} µS'
+        )
+        axes[0, column].set_xlabel("time in displayed window (ms)")
+        axes[1, column].set_xlabel("relative-phase position (rad)")
+    axes[0, 0].set_ylabel("relative-phase\nposition (rad)")
+    axes[1, 0].set_ylabel("mean relative-phase\nvelocity (rad/s)")
+    fig.suptitle("Measured transition as reciprocal coupling weakens", y=1.01)
+    fig.tight_layout()
+    fig.savefig(out, dpi=220, bbox_inches="tight")
+    plt.close(fig)
+
+
+def plot_intermittent_attraction(
+    trajectory: dict[str, object],
+    out: Path,
+) -> None:
+    """Result 3: reproduce the four-panel mechanism schematic with data."""
+    theme.apply()
+    time_ms = np.asarray(trajectory["time_ms"])
+    keep = time_ms >= max(time_ms.min(), time_ms.max() - DISPLAY_WINDOW_MS)
+    local_time = time_ms[keep] - time_ms[keep][0]
+    preferred = float(trajectory["preferred_phase_rad"])
+    half_bin = np.pi / PHASE_BINS
+    fig, axes = plt.subplots(2, 2, figsize=(8.5, 6.2))
+
+    axes[0, 0].axhspan(
+        preferred - half_bin,
+        preferred + half_bin,
+        color=theme.ELECTRIC_CYAN,
+        alpha=0.12,
+        lw=0,
+    )
+    axes[0, 0].plot(
+        local_time,
+        np.asarray(trajectory["wrapped_phase"])[keep],
+        color=theme.INK_BLACK,
+        lw=1.0,
+    )
+    axes[0, 0].set(
+        title="A  Relative-phase position through time",
+        xlabel="time in displayed window (ms)",
+        ylabel="position (rad)",
+        ylim=(-np.pi, np.pi),
+    )
+    axes[0, 0].set_yticks((-np.pi, 0, np.pi), labels=(r"$-\pi$", "0", r"$\pi$"))
+
+    axes[0, 1].plot(
+        local_time,
+        np.asarray(trajectory["relative_velocity_smoothed_rad_s"])[keep],
+        color=theme.DEEP_RED,
+        lw=1.0,
+    )
+    axes[0, 1].set(
+        title="B  Relative-phase velocity through time",
+        xlabel="time in displayed window (ms)",
+        ylabel="velocity (rad/s)",
+    )
+
+    axes[1, 0].axvspan(
+        preferred - half_bin,
+        preferred + half_bin,
+        color=theme.ELECTRIC_CYAN,
+        alpha=0.12,
+        lw=0,
+    )
+    _plot_velocity_position(axes[1, 0], trajectory, theme.DEEP_RED)
+    axes[1, 0].set(
+        title="C  Velocity depends on phase position",
+        xlabel="relative-phase position (rad)",
+        ylabel="mean velocity (rad/s)",
+    )
+
+    centres = np.asarray(trajectory["phase_bin_centres"])
+    density = np.asarray(trajectory["phase_density"])
+    axes[1, 1].axvspan(
+        preferred - half_bin,
+        preferred + half_bin,
+        color=theme.ELECTRIC_CYAN,
+        alpha=0.12,
+        lw=0,
+    )
+    axes[1, 1].fill_between(
+        centres,
+        density,
+        color=theme.ELECTRIC_CYAN,
+        alpha=0.18,
+    )
+    axes[1, 1].plot(centres, density, color=theme.ELECTRIC_CYAN, lw=1.5)
+    axes[1, 1].set(
+        title="D  Phase-position distribution",
+        xlabel="relative-phase position (rad)",
+        ylabel="density",
+        xlim=(-np.pi, np.pi),
+    )
+    axes[1, 1].set_xticks((-np.pi, 0, np.pi), labels=(r"$-\pi$", "0", r"$\pi$"))
+    for ax in axes.flat:
+        ax.spines[["top", "right"]].set_visible(False)
+    fig.suptitle(
+        f'Intermediate condition: K = {float(trajectory["k"]):.3f} µS',
+        y=1.01,
+    )
+    fig.tight_layout()
+    fig.savefig(out, dpi=220, bbox_inches="tight")
+    plt.close(fig)
+
+
+def save_traces(trajectories: list[dict[str, object]], out: Path) -> None:
+    payload: dict[str, np.ndarray] = {}
+    for trajectory in trajectories:
+        label = f'k_{float(trajectory["k"]):.3f}'.replace(".", "p")
+        for key in (
+            "time_ms",
+            "wrapped_phase",
+            "unwrapped_phase",
+            "relative_velocity_rad_s",
+            "phase_bin_centres",
+            "phase_density",
+            "mean_velocity_by_phase",
+        ):
+            payload[f"{label}__{key}"] = np.asarray(trajectory[key])
+    np.savez_compressed(out, **payload)
+
+
+def main() -> None:
+    meta = parse_meta(sys.argv)
+    if meta.runpod:
+        raise SystemExit("exp086 is a bounded local experiment")
+    started = time.monotonic()
+    run_id = next_run_id(SLUG)
+    with published_run(SLUG, run_id, scale=SCALE) as (_scratch, staging):
+        current = REPO / "artifacts" / "data" / SLUG
+        for name in ("coupling_regimes.svg", "intermittent_attraction.svg"):
+            source = current / name
+            if source.exists():
+                shutil.copy2(source, staging / name)
+
+        bundle = author_network()
+        bundle.write(staging / "network.bundle", visualise=True)
+        bundle.visualise(
+            staging / "network.svg",
+            view="circuit",
+            expand_groups=PING_GROUPS,
+        )
+
+        trajectories, _inputs = run_sweep()
+        strong = next(row for row in trajectories if np.isclose(row["k"], K_VALUES.max()))
+        uncoupled = next(row for row in trajectories if np.isclose(row["k"], 0.0))
+        intermediate = choose_intermediate(trajectories)
+
+        plot_uncoupled(uncoupled, staging / "uncoupled.png")
+        plot_coupling_regimes(
+            strong,
+            intermediate,
+            uncoupled,
+            staging / "coupling_regimes_measured.png",
+        )
+        plot_intermittent_attraction(
+            intermediate,
+            staging / "intermittent_attraction_measured.png",
+        )
+        save_traces(trajectories, staging / "sweep_traces.npz")
+
+        record = {
+            "status": STATUS,
+            "completed_methods": [1, 2, 3],
+            "simulation_run": True,
+            "fixed_inputs": {
+                "seeds": list(INPUT_SEEDS),
+                "reused_suffix_for_every_k": True,
+            },
+            "coupling": {
+                "K_EE_equals_K_EI": True,
+                "delay_ms": COUPLING_DELAY_MS,
+                "values_us": K_VALUES.tolist(),
+            },
+            "trajectories": [public_summary(row) for row in trajectories],
+            "selected_intermediate": public_summary(intermediate),
+        }
+        (staging / "protocol.json").write_text(json.dumps(record, indent=2) + "\n")
+        write_numbers(
+            staging,
+            run_id=run_id,
+            duration_s=time.monotonic() - started,
+            payload=record,
+        )
+
+
+if __name__ == "__main__":
+    main()
