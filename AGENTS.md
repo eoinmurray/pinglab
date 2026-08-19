@@ -42,20 +42,25 @@ boundary; if declined, drop it until the next one.
 - When handing off a document, provide clickable links to both its generated PDF and its
   generated HTML webpage. Do not substitute a PDF attachment or preview for those links.
 
-## Experiment proposals
+## Experiment drafts
 
-Use `status: "proposal"` for an experiment whose design is still being refined and which has
-not been run. The canonical proposal format is deliberately minimal:
+Use `status: "draft"` for an experiment whose design is still being refined and which has not
+been run. The canonical draft format is deliberately minimal:
 
 1. A short `Abstract` stating the question and intended measurement.
 2. An enumerated `Methods` section describing the planned experiment.
-3. An enumerated `Results` section describing the expected outputs while clearly stating that
-   the experiment is unrun and that expectations are not observations.
+3. An indented `Result` block under every method item. `Result` is a label, not a list item.
+   Give it separate list items for axes, traces or marks, why, and expectation.
 
-Keep the Methods and Results lists in the same general order. Where practical, each Results
-item should show the output of the corresponding Methods item.
+Do not add a separate `Results` section to a draft. State near the start of Methods that the
+experiment has not been run and that the results are planned outputs, not observations.
 
-Write proposals in direct, human-readable language. Introduce technical terms only when they
+For every plotted result, define the horizontal and vertical axes, the traces or marks, why the
+plot is needed, and what it is expected to show. Define a third axis when needed. For a non-plot
+result, state that axes and traces do not apply, then define the displayed elements, why the
+output is needed, and the expected output.
+
+Write drafts in direct, human-readable language. Introduce technical terms only when they
 are needed, explain them briefly, and do not add speculative theory or extra sections unless
 the experiment requires them or the user asks for them.
 
