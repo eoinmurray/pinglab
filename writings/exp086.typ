@@ -62,6 +62,15 @@
 
   + *Reduce coupling while everything else stays the same.* Save the network immediately before coupling begins. Replay from that point several times with the same neuron states and the same pre-generated input spike trains after that point. Change only the coupling strength $K$: begin at #start.k-ee-us µS, then use progressively weaker values down to zero. E-to-E and E-to-I coupling always use the same value. Run one trajectory at each value of $K$; repeated seeds and trials are outside this experiment. For each coupling strength, track the phase gap between the two rhythms. Strong coupling may keep that gap fixed. Weaker coupling may allow one rhythm to repeatedly gain a full cycle on the other, producing phase slips. We are looking for the intermediate behaviour reported by Lowet et al. (2017): phase slips continue, but the phase gap repeatedly slows near one preferred value, making that value more common#cite(1). Select one trajectory that shows this pattern. This demonstrates the behaviour once; it does not establish reliability across seeds. Generates #link("#result-2-coupling-boundary")[Result 2].
 
+    #figure(
+      image(
+        "/artifacts/data/exp086/coupling_regimes.svg",
+        width: 100%,
+        alt: "Illustrative comparison of strong, intermediate, and absent coupling. Strong coupling fixes relative phase, intermediate coupling permits phase slips but slows them near a preferred phase, and absent coupling produces nearly uniform phase drift.",
+      ),
+      caption: [*Expected mechanism and effect of weakening coupling.* Strong coupling can fully cancel the networks' frequency difference and hold a fixed relative-phase position. At intermediate coupling, the correction is too weak to stop relative-phase motion but still slows it near a preferred position. With no coupling, the original frequency difference produces nearly uniform relative-phase drift. These curves illustrate the experimental logic; they are not simulated data. Result 2 will reproduce this layout with measured trajectories.],
+    )
+
   + *Relate phase velocity to phase position.* For the selected condition, estimate each network's instantaneous frequency from consecutive excitatory volleys. Relative-phase velocity is $v_theta = 2 pi (f_A - f_B)$, where $f_A$ and $f_B$ are the instantaneous frequencies of Networks A and B. Group $v_theta$ by wrapped relative-phase position $theta$, and compare the resulting velocity curve with the distribution of $theta$. Intermittent attraction requires continued phase slips, a non-uniform phase distribution, and lower absolute velocity near the distribution's preferred position. Generates #link("#result-3-intermittent-attraction")[Result 3].
 
   == Results
@@ -73,10 +82,10 @@
     - *Expectation.* Each network maintains a clean PING rhythm while their uncoupled relative phase repeatedly wraps.
 
   + <result-2-coupling-boundary> *Coupling boundary.*
-    - *Axes.* Coupling scale $K$ on the horizontal axis. The upper panel shows phase concentration; the lower panel shows phase slips per second.
-    - *Traces.* One trace in each panel across the fixed-detuning coupling sweep, with the starting point, uncoupled baseline, and selected intermittent condition marked.
-    - *Why.* Test one controlled move from permanent locking toward the intermittent synchronization seen in cortex.
-    - *Expectation.* Reducing coupling first introduces phase slips while phase concentration remains above the uncoupled baseline. Further reduction approaches unconstrained drift.
+    - *Axes.* Reproduce the three-column layout of the Method 2 schematic using measured data. The upper row shows time against wrapped relative-phase position. The lower row shows relative-phase position against mean relative-phase velocity.
+    - *Traces.* Show the strong starting coupling, the selected intermediate coupling, and zero coupling. State the measured value of $K$ above each column.
+    - *Why.* Show the observed transition in the same visual language used to explain the proposed mechanism.
+    - *Expectation.* Strong coupling holds a fixed relative-phase position. Intermediate coupling permits slips but slows near a preferred position. With no coupling, relative phase drifts at nearly constant velocity.
 
   + <result-3-intermittent-attraction> *Intermittent phase attraction.*
     - *Axes.* The first two panels show time against relative-phase position $theta$ and velocity $v_theta$. The third shows position $theta$ against mean velocity $v_theta$. The fourth shows the distribution of $theta$.
