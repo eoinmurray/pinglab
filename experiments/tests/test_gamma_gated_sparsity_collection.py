@@ -18,7 +18,7 @@ from experiments import (
     exp080,
     exp082,
 )
-from experiments.collections.gamma_gated_sparsity import execution, slurm
+from experiments.collections.gamma_gated_sparsity import execution, slurm, workloads
 from experiments.collections.gamma_gated_sparsity.graph import (
     EXPERIMENTS,
     Experiment,
@@ -401,7 +401,7 @@ def _slurm_resources(tmp_path: Path) -> dict:
         },
         "jobs": {
             kind: {"time": "00:30:00", "cpus": 2, "memory_gb": 8, "gpus": 0}
-            for kind in ("aggregate", "downstream", "finalize")
+            for kind in ("aggregate", "downstream", "heavy_downstream", "finalize")
         },
     }
 
@@ -466,8 +466,17 @@ def test_slurm_dry_run_preserves_collection_dependencies(
         for argument in exp042_job["command"]
         if argument.startswith("--dependency")
     )
-    assert "<ggs-exp022-aggregate-job-id>" in exp042_dependency
-    assert "<ggs-exp041-job-id>" in exp042_dependency
+    exp042_shards = jobs["ggs-exp042-inference"]
+    assert "--array=0-7%8" in exp042_shards["command"]
+    assert exp042_shards["shard_count"] == 8
+    shard_dependency = next(
+        argument
+        for argument in exp042_shards["command"]
+        if argument.startswith("--dependency")
+    )
+    assert "<ggs-exp022-aggregate-job-id>" in shard_dependency
+    assert "<ggs-exp041-job-id>" in shard_dependency
+    assert "<ggs-exp042-inference-job-id>" in exp042_dependency
     final = jobs["ggs-finalize"]
     dependency = next(
         argument for argument in final["command"] if argument.startswith("--dependency")
@@ -494,6 +503,8 @@ def test_collection_job_uses_explicit_repository_root() -> None:
     assert '${PINGLAB_ROOT:?' in wrapper
     assert 'cd "$PINGLAB_ROOT"' in wrapper
     assert 'dirname "$0"' not in wrapper
+    assert 'run-experiment-shard' in wrapper
+    assert 'SLURM_ARRAY_TASK_ID' in wrapper
 
 
 def test_slurm_accepts_smoke_profile(tmp_path: Path, monkeypatch) -> None:
@@ -514,7 +525,85 @@ def test_slurm_accepts_smoke_profile(tmp_path: Path, monkeypatch) -> None:
 
     payload = slurm.submit_campaign(root, resources_path)
     assert payload["mode"] == "dry-run"
-    assert len(payload["jobs"]) == 23
+    assert len(payload["jobs"]) == 26
+
+
+def test_workload_shards_are_disjoint_complete_and_stable(monkeypatch) -> None:
+    jobs = [f"job-{index}" for index in range(19)]
+    runner = SimpleNamespace(infer_jobs=lambda: jobs)
+    monkeypatch.setattr(workloads, "_runner", lambda _slug: runner)
+    monkeypatch.setitem(workloads.SHARD_COUNTS, "exp-test", 4)
+
+    shards = [workloads.jobs_for_shard("exp-test", index, 4) for index in range(4)]
+    assert [job for shard in shards for job in shard] != jobs
+    assert sorted(job for shard in shards for job in shard) == sorted(jobs)
+    assert all(set(left).isdisjoint(right) for i, left in enumerate(shards)
+               for right in shards[i + 1:])
+    assert shards == [
+        workloads.jobs_for_shard("exp-test", index, 4) for index in range(4)
+    ]
+
+
+def test_exp037_shard_completion_uses_checkpoint_cache_tag(
+    tmp_path: Path, monkeypatch
+) -> None:
+    train_dir = tmp_path / "training" / "coba__off__seed42"
+    checkpoint = {"path": train_dir / "weights.pth", "sha256": "a" * 64}
+    monkeypatch.setattr(exp037, "ARTIFACTS", tmp_path / "artifacts")
+    monkeypatch.setattr(exp037, "baseline_dir", lambda _model, _seed: train_dir)
+    monkeypatch.setattr(exp037, "resolve_checkpoint", lambda *_args: checkpoint)
+    monkeypatch.setattr(exp037, "cache_tag", lambda _checkpoint: "best__aaaa")
+
+    output = (
+        exp037._perturb_out_dir(train_dir, "drop", 0.0)
+        / "best__aaaa"
+        / "metrics.json"
+    )
+    output.parent.mkdir(parents=True)
+    output.write_text("{}\n")
+
+    assert exp037.job_is_done("sweep__coba__seed42__drop__0")
+
+
+def test_exp042_shard_completion_uses_checkpoint_cache_tag(
+    tmp_path: Path, monkeypatch
+) -> None:
+    train_dir = tmp_path / "training" / "ping__off__seed42"
+    checkpoint = {"path": train_dir / "weights_final.pth", "sha256": "b" * 64}
+    monkeypatch.setattr(exp042, "ARTIFACTS", tmp_path / "artifacts")
+    monkeypatch.setattr(exp042, "resolve_checkpoint", lambda *_args: checkpoint)
+    monkeypatch.setattr(exp042, "cache_tag", lambda _checkpoint: "final__bbbb")
+    spec = {
+        "train_dir": train_dir,
+        "condition": "baseline",
+        "seed_offset": 42,
+    }
+
+    expected = (
+        tmp_path
+        / "artifacts"
+        / "baseline"
+        / train_dir.name
+        / "final__bbbb"
+        / "metrics.json"
+    )
+    assert exp042._job_metrics_path(spec) == expected
+
+
+def test_plan_records_reviewed_heavy_workload_contracts(tmp_path: Path) -> None:
+    plan = build_plan(tmp_path / "campaign", "production")
+    rows = {row["slug"]: row for row in execution.rows_in_order(plan)}
+    assert rows["exp082"]["execution"] == {
+        "mode": "sharded-inference",
+        "shards": 6,
+        "partition": "ordered-round-robin",
+        "workload_contract": {
+            "condition_jobs": 132,
+            "simulator_launches_max": 1_058,
+            "classified_presentations": 26_400,
+        },
+    }
+    assert rows["exp025"]["execution"] == {"mode": "monolithic"}
 
 
 def test_slurm_test_only_calls_sbatch_without_submitting(monkeypatch) -> None:

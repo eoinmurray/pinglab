@@ -187,10 +187,15 @@ def job_is_done(job_id: str) -> bool:
     kind, model, seed, mode, tag = _parse_job(job_id)
     level = _level_from_tag(tag)
     train_dir = baseline_dir(model, seed)
+    checkpoint_tag = cache_tag(resolve_checkpoint(train_dir, CHECKPOINT_ROLE))
     if kind == "sweep":
-        out = _perturb_out_dir(train_dir, mode, level) / "metrics.json"
+        out = _perturb_out_dir(train_dir, mode, level) / checkpoint_tag / "metrics.json"
     elif kind == "raster":
-        out = _perturb_raster_out_dir(model, seed, mode, level, 0) / "snapshot.npz"
+        out = (
+            _perturb_raster_out_dir(model, seed, mode, level, 0)
+            / checkpoint_tag
+            / "snapshot.npz"
+        )
     else:
         return False
     if not out.exists():

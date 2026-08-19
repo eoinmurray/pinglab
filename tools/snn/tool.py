@@ -786,13 +786,14 @@ def _build_subparsers(parser, parent):
         "--outputs",
         nargs="+",
         default=None,
-        choices=["per_cell_rates", "pop_traces", "rasters"],
+        choices=["per_cell_rates", "pop_traces", "rasters", "spike_summary"],
         metavar="OUTPUT",
         help="[--infer] Extra artifacts to emit from the one test-set forward pass "
         "(metrics.json is always written): "
         "per_cell_rates (per-cell E/I Hz → per_cell_rates.npz), "
         "pop_traces (per-trial population activity → pop_traces.npz, base signal for PSD/f_gamma), "
-        "rasters (sparse per-trial spike indices → rasters.npz, for cycle-level analysis).",
+        "rasters (sparse per-trial spike indices → rasters.npz, for cycle-level analysis), "
+        "spike_summary (--input-file only; compact per-presentation E/I/output spike counts).",
     )
     sim_parser.add_argument(
         "--tau-gaba",

@@ -5,8 +5,8 @@ set -euo pipefail
 
 : "${PINGLAB_ROOT:?submit through the collection campaign scheduler}"
 
-if [[ $# -lt 4 || $# -gt 5 ]]; then
-  echo "usage: $0 ACTION CAMPAIGN_ROOT UV MNIST_CACHE [EXPERIMENT]" >&2
+if [[ $# -lt 4 || $# -gt 6 ]]; then
+  echo "usage: $0 ACTION CAMPAIGN_ROOT UV MNIST_CACHE [EXPERIMENT] [SHARD_COUNT]" >&2
   exit 2
 fi
 
@@ -15,6 +15,7 @@ campaign_root="$2"
 uv_bin="$3"
 mnist_cache="$4"
 experiment="${5:-}"
+shard_count="${6:-}"
 cd "$PINGLAB_ROOT"
 source experiments/exp022_support/load-wilkes-modules.sh
 experiments/exp022_support/ensure-mnist-link.sh "$mnist_cache"
@@ -32,6 +33,17 @@ case "$action" in
   run-experiment)
     [[ -n "$experiment" ]] || { echo "run-experiment requires an experiment" >&2; exit 2; }
     "${command[@]}" run-experiment --campaign-root "$campaign_root" --slug "$experiment"
+    ;;
+  run-experiment-shard)
+    [[ -n "$experiment" && -n "$shard_count" ]] || {
+      echo "run-experiment-shard requires an experiment and shard count" >&2
+      exit 2
+    }
+    "${command[@]}" run-experiment-shard \
+      --campaign-root "$campaign_root" \
+      --slug "$experiment" \
+      --index "$SLURM_ARRAY_TASK_ID" \
+      --count "$shard_count"
     ;;
   finalize)
     "${command[@]}" finalize --campaign-root "$campaign_root"

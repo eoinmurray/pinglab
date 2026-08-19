@@ -20,6 +20,7 @@ import json
 import os
 import subprocess
 import sys
+import tempfile
 import time
 from pathlib import Path
 from typing import Any
@@ -79,15 +80,18 @@ N_CLASSES = 10
 N_INPUT = 784
 N_HEADLINE_DIGITS = 5
 STREAMS_PER_CELL = int(
-    os.environ.get("PINGLAB_EXP082_STREAMS_PER_CELL", 1 if SMOKE else 20)
+    os.environ.get("PINGLAB_EXP082_STREAMS_PER_CELL", 1 if SMOKE else 40)
 )
 DIGITS_PER_STREAM = int(
     os.environ.get("PINGLAB_EXP082_DIGITS_PER_STREAM", 3 if SMOKE else 5)
 )
+STREAM_BATCH_SIZE = int(
+    os.environ.get("PINGLAB_EXP082_STREAM_BATCH_SIZE", 1 if SMOKE else 5)
+)
 DT_MS = 0.1
 
-if STREAMS_PER_CELL < 1 or DIGITS_PER_STREAM < 1:
-    raise ValueError("exp082 stream and digit counts must both be positive")
+if STREAMS_PER_CELL < 1 or DIGITS_PER_STREAM < 1 or STREAM_BATCH_SIZE < 1:
+    raise ValueError("exp082 stream, digit, and stream-batch counts must be positive")
 
 EVALUATION_PROFILE = (
     "smoke"
@@ -252,6 +256,48 @@ def run_spikes(
     )
 
 
+def run_spike_summary(
+    directory: Path,
+    input_spikes: torch.Tensor,
+    tag: str,
+    *,
+    reset_steps: tuple[int, ...],
+) -> dict[str, np.ndarray]:
+    """Run a batched statistical stream without retaining full rasters."""
+    checkpoint = resolve_checkpoint(directory, CHECKPOINT_ROLE)
+    work_root = ARTIFACTS / ".work"
+    work_root.mkdir(parents=True, exist_ok=True)
+    with tempfile.TemporaryDirectory(prefix=f"{tag}__", dir=work_root) as raw:
+        out_dir = Path(raw).resolve()
+        input_path = out_dir / "input.npz"
+        readout_reset = np.zeros(len(input_spikes), dtype=np.bool_)
+        for step in reset_steps:
+            if not 0 <= step < len(readout_reset):
+                raise ValueError(f"readout reset step {step} is outside the input stream")
+            readout_reset[step] = True
+        np.savez_compressed(
+            input_path,
+            input_spikes=input_spikes.cpu().numpy(),
+            readout_reset=readout_reset,
+        )
+        subprocess.run(
+            [
+                "uv", "run", "python", str(SNN_TOOL), "sim",
+                "--load-config", str((directory / "config.json").resolve()),
+                "--load-weights", str(checkpoint["path"]),
+                "--device", "auto",
+                "--n-in", str(N_INPUT),
+                "--input-file", str(input_path),
+                "--outputs", "spike_summary",
+                "--out-dir", str(out_dir),
+            ],
+            cwd=REPO,
+            check=True,
+        )
+        with np.load(out_dir / "spike_summary.npz") as summary:
+            return {key: summary[key].copy() for key in summary.files}
+
+
 def spike_count_logits(
     spikes_out: np.ndarray,
     start: int,
@@ -345,6 +391,21 @@ def evaluate_stream(
 
 def evaluate_cell(seed: int, duration_ms: float, rate_hz: float) -> dict[str, Any]:
     directory, _, x_test, y_test = load_eval(seed)
+    checkpoint = resolve_checkpoint(directory, CHECKPOINT_ROLE)
+    condition_path = condition_result_path(seed, duration_ms, rate_hz, checkpoint)
+    condition_dir = condition_path.parent
+    if condition_path.is_file():
+        try:
+            cached = json.loads(condition_path.read_text())
+        except (OSError, json.JSONDecodeError):
+            cached = None
+        if (
+            isinstance(cached, dict)
+            and cached.get("n_total") == STREAMS_PER_CELL * DIGITS_PER_STREAM
+            and cached.get("stream_batch_size") == STREAM_BATCH_SIZE
+        ):
+            return cached
+
     rng = np.random.default_rng(82_000 + seed + int(duration_ms * 10) + int(rate_hz * 100))
     n_correct = 0
     n_total = 0
@@ -354,42 +415,66 @@ def evaluate_cell(seed: int, duration_ms: float, rate_hz: float) -> dict[str, An
     n_i_spikes = 0
     total_duration_s = 0.0
     class_spike_totals = np.zeros(N_CLASSES, dtype=np.int64)
+    conditions = tuple((duration_ms, rate_hz) for _ in range(DIGITS_PER_STREAM))
+    reset_steps = tuple(
+        digit_index * int(round(duration_ms / DT_MS))
+        for digit_index in range(DIGITS_PER_STREAM)
+    )
+    encoded_streams: list[torch.Tensor] = []
+    label_streams: list[np.ndarray] = []
+
+    def flush_batch(first_stream_index: int) -> None:
+        nonlocal n_correct, n_total, n_output_spikes, n_silent_presentations
+        nonlocal n_e_spikes, n_i_spikes, total_duration_s, class_spike_totals
+        if not encoded_streams:
+            return
+        batched = torch.stack(encoded_streams, dim=1)
+        summary = run_spike_summary(
+            directory,
+            batched,
+            f"cell_d{duration_ms:g}_r{rate_hz:g}_s{first_stream_index}",
+            reset_steps=reset_steps,
+        )
+        output_counts = np.asarray(summary["out_counts"], dtype=np.int64)
+        labels = np.stack(label_streams)
+        if output_counts.shape != (*labels.shape, N_CLASSES):
+            raise RuntimeError(
+                f"unexpected output-count shape {output_counts.shape}; "
+                f"expected {(*labels.shape, N_CLASSES)}"
+            )
+        n_correct += int((output_counts.argmax(axis=2) == labels).sum())
+        n_total += int(labels.size)
+        totals = output_counts.sum(axis=2)
+        n_output_spikes += int(totals.sum())
+        n_silent_presentations += int((totals == 0).sum())
+        class_spike_totals += output_counts.sum(axis=(0, 1))
+        n_e_spikes += int(np.asarray(summary["e_counts"]).sum())
+        n_i_spikes += int(np.asarray(summary["i_counts"]).sum())
+        total_duration_s += labels.size * duration_ms / 1000.0
+        encoded_streams.clear()
+        label_streams.clear()
+
+    first_stream_index = 0
     for stream_index in range(STREAMS_PER_CELL):
         indices = rng.choice(len(y_test), DIGITS_PER_STREAM, replace=False)
-        conditions = tuple(
-            (duration_ms, rate_hz) for _ in range(DIGITS_PER_STREAM)
+        encoded_streams.append(
+            encode_stream(
+                x_test[indices],
+                conditions,
+                torch.Generator().manual_seed(82_000 + seed * 100 + stream_index),
+            )
         )
-        spikes = encode_stream(
-            x_test[indices], conditions,
-            torch.Generator().manual_seed(82_000 + seed * 100 + stream_index),
-        )
-        spikes_e, spikes_i, spikes_out = run_spikes(
-            directory,
-            spikes,
-            f"cell_d{duration_ms:g}_r{rate_hz:g}_s{stream_index}",
-            reset_steps=tuple(
-                digit_index * int(round(duration_ms / DT_MS))
-                for digit_index in range(DIGITS_PER_STREAM)
-            ),
-        )
-        segment_steps = int(round(duration_ms / DT_MS))
-        for digit_index, label in enumerate(y_test[indices]):
-            start = digit_index * segment_steps
-            stop = start + segment_steps
-            logits = spike_count_logits(spikes_out, start, stop)
-            n_correct += int(np.argmax(logits) == label)
-            n_total += 1
-            spike_total = int(logits.sum())
-            n_output_spikes += spike_total
-            n_silent_presentations += int(spike_total == 0)
-            class_spike_totals += logits.astype(np.int64)
-        n_e_spikes += int(spikes_e.sum())
-        n_i_spikes += int(spikes_i.sum())
-        total_duration_s += DIGITS_PER_STREAM * duration_ms / 1000.0
-    return {
+        label_streams.append(y_test[indices])
+        if len(encoded_streams) == STREAM_BATCH_SIZE:
+            flush_batch(first_stream_index)
+            first_stream_index = stream_index + 1
+    flush_batch(first_stream_index)
+
+    result = {
         "seed": seed,
         "duration_ms": duration_ms,
         "rate_hz": rate_hz,
+        "stream_batch_size": STREAM_BATCH_SIZE,
         "n_correct": n_correct,
         "n_total": n_total,
         "accuracy": n_correct / n_total,
@@ -399,6 +484,84 @@ def evaluate_cell(seed: int, duration_ms: float, rate_hz: float) -> dict[str, An
         "rate_e_hz": n_e_spikes / (1024 * total_duration_s),
         "rate_i_hz": n_i_spikes / (256 * total_duration_s),
     }
+    condition_dir.mkdir(parents=True, exist_ok=True)
+    temporary = condition_path.with_suffix(".json.tmp")
+    temporary.write_text(json.dumps(result, indent=2) + "\n")
+    temporary.replace(condition_path)
+    return result
+
+
+def _number_tag(value: float) -> str:
+    return f"{value:g}".replace(".", "p")
+
+
+def _number_from_tag(value: str) -> float:
+    return float(value.replace("p", "."))
+
+
+def condition_job_id(seed: int, duration_ms: float, rate_hz: float) -> str:
+    return f"seed{seed}__d{_number_tag(duration_ms)}__r{_number_tag(rate_hz)}"
+
+
+def parse_condition_job_id(job_id: str) -> tuple[int, float, float]:
+    parts = job_id.split("__")
+    if (
+        len(parts) != 3
+        or not parts[0].startswith("seed")
+        or not parts[1].startswith("d")
+        or not parts[2].startswith("r")
+    ):
+        raise ValueError(f"invalid exp082 condition job: {job_id}")
+    return (
+        int(parts[0].removeprefix("seed")),
+        _number_from_tag(parts[1].removeprefix("d")),
+        _number_from_tag(parts[2].removeprefix("r")),
+    )
+
+
+def condition_result_path(
+    seed: int,
+    duration_ms: float,
+    rate_hz: float,
+    checkpoint: dict[str, Any] | None = None,
+) -> Path:
+    directory = training_dir(seed)
+    resolved = checkpoint or resolve_checkpoint(directory, CHECKPOINT_ROLE)
+    return (
+        ARTIFACTS
+        / "conditions"
+        / f"{directory.name}__{cache_tag(resolved)}"
+        / f"d{duration_ms:g}_r{rate_hz:g}.json"
+    )
+
+
+def infer_jobs() -> list[str]:
+    return [
+        condition_job_id(seed, duration, rate)
+        for duration in DURATIONS_MS
+        for rate in PSYCHOMETRIC_RATES_HZ
+        for seed in SEEDS
+    ]
+
+
+def job_is_done(job_id: str) -> bool:
+    seed, duration, rate = parse_condition_job_id(job_id)
+    path = condition_result_path(seed, duration, rate)
+    if not path.is_file():
+        return False
+    try:
+        payload = json.loads(path.read_text())
+    except (OSError, json.JSONDecodeError):
+        return False
+    return (
+        payload.get("n_total") == STREAMS_PER_CELL * DIGITS_PER_STREAM
+        and payload.get("stream_batch_size") == STREAM_BATCH_SIZE
+    )
+
+
+def run_infer_job(job_id: str) -> None:
+    seed, duration, rate = parse_condition_job_id(job_id)
+    evaluate_cell(seed, duration, rate)
 
 
 def grid_output_preflight(rows: list[dict[str, Any]]) -> dict[str, Any]:
@@ -613,6 +776,7 @@ def main() -> None:
             "matched_rate_hz": MATCHED_RATE_HZ,
             "streams_per_cell": STREAMS_PER_CELL,
             "digits_per_stream": DIGITS_PER_STREAM,
+            "stream_batch_size": STREAM_BATCH_SIZE,
             "digits_per_seed_cell": STREAMS_PER_CELL * DIGITS_PER_STREAM,
             "dt_ms": float(config["dt"]),
         },

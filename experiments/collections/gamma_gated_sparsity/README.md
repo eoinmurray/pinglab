@@ -34,6 +34,10 @@ exclusive.
 
 Only the same command with `--live` creates jobs. It submits the five exp022
 arrays, aggregation, downstream experiments in dependency order, and finalization.
+Exp037, exp042, and exp082 declare bounded inference shards followed by a normal
+experiment aggregation job. The campaign records the reviewed condition and
+simulator-launch contracts, rejects drift in the condition count, and writes one
+status document per shard. Other downstream experiments remain monolithic.
 Use `slurm-status` to combine scheduler and output state. After a failed campaign,
 `resume` prints the missing-work plan and `resume --live` submits it. Publication is
 a separate `build` command and requires a clean disposable worktree at the campaign
@@ -43,6 +47,11 @@ Use the identical commands with a campaign initialized using `--smoke` for the
 Slurm rehearsal. Smoke and production require separate unique campaign roots and
 resource files; the smoke campaign exercises every registered tier and downstream
 dependency with reduced experiment-owned workloads.
+
+The private resource file has separate `downstream` and `heavy_downstream`
+profiles. The latter applies only to the bounded inference arrays; their aggregate
+jobs use the ordinary downstream profile. Resource values must come from the most
+recent Wilkes benchmark rather than the placeholder example.
 
 Before the production arrays, use `canaries` with the production campaign and
 provisional resource file. It selects one still-missing cell from each of the
