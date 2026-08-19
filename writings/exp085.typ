@@ -11,7 +11,7 @@
 #let a = r.uncoupled.PING_A
 #let b = r.uncoupled.PING_B
 #let prc = r.phase_response
-#let early-i = prc.early_i_pulse_example
+#let doublets = prc.responses.I.filter(row => row.i_volleys_before_next_e == 2)
 
 #let body = [
   == Abstract
@@ -41,7 +41,9 @@
 
   + *Confirm uncoupled phase drift.* Set $K_(E E) = K_(E I) = 0$ and run both networks for 2 s with independent input streams. Discard the first 300 ms. Detect excitatory population volleys, interpolate phase between successive volleys, and calculate the wrapped phase difference. Require both rhythms to remain in the gamma band with an inter-volley-interval coefficient of variation below 0.2. Generates #link("#result-2-uncoupled-phase-drift")[Result 2].
 
-  + *Measure each pathway's phase response.* Use Network A and one baseline cycle. Deliver a synchronous probe volley at nine phases from 0.1 to 0.9 of that cycle. Send it separately through coupling-matched E-to-E and E-to-I projections. Each target receives exactly #prc.pulse.exact_fan_in probe afferents with the corresponding coupling strength and delay. Repeat the fixed input without a probe and measure the shift in the next excitatory volley. Positive values mean an advance; negative values mean a delay. Generates #link("#result-3-phase-response-curve")[Result 3].
+  + *Measure each pathway's phase response.* Use Network A and one baseline cycle. A preliminary scan at intervals of 0.1 cycle located an abrupt inhibitory response near phase 0.1. The reported run therefore samples phases 0.02--0.30 at intervals of 0.02 and retains intervals of 0.1 over the rest of the cycle.
+
+    Keep $K_(E E) = #prc.pulse.e_target_strength$, $K_(E I) = #prc.pulse.i_target_strength$, and $d = #prc.pulse.arrival_delay_ms$ ms fixed. Only the probe target and arrival phase change. For desired phase $phi$, emit the source volley at $t_E + phi T - d$ so it reaches the target at $t_E + phi T$. Every condition uses the same network, initial state, input, and seed. Compare the next excitatory volley with the no-probe baseline. For I-targeted probes, also count inhibitory volleys and measure any second-volley latency. In a representative doublet, record local and probe excitatory conductance and every I-cell voltage. Positive phase shifts mean an advance; negative shifts mean a delay. Generates #link("#result-3-phase-response-curve")[Result 3].
 
   + *Test the coupling pathways.* Continue from the same saved state and input in four conditions: no coupling, E-to-E only, E-to-I only, and both pathways. Track the relative phase in each condition. Generates #link("#result-4-pathway-comparison")[Result 4].
 
@@ -65,11 +67,18 @@
   === Result 3: Phase-response curve
 
   #figure(
-    image("/artifacts/data/exp085/phase_response.png", width: 100%, alt: "Phase-response curves for coupling-matched excitation of the excitatory and inhibitory populations."),
-    caption: [Next-volley response to coupling-matched probe volleys. Positive values indicate an advance; negative values indicate a delay.],
+    image("/artifacts/data/exp085/phase_response_examples.png", width: 100%, alt: "Three event-aligned PING responses showing an E-targeted advance, an ineffective I-targeted probe, and an I-targeted doublet and delay."),
+    caption: [Representative probe responses. Time zero is the reference excitatory volley. Black and red show perturbed E and I rates. Cyan marks probe arrival. The grey dashed trace and line show the baseline E response and baseline next-volley time; a black dotted line marks a shifted next volley.],
   )
 
-  Direct excitation of the excitatory population has little effect early in the cycle and advances the next volley later in the cycle. Excitation of the inhibitory population has a narrow early delay window. The earliest I-targeted probe produces a second #(early-i.perturbed_i_volleys.at(1).spikes)-spike inhibitory volley #calc.round(early-i.perturbed_i_volleys.at(1).time_ms - early-i.perturbed_i_volleys.at(0).time_ms, digits: 2) ms after the normal volley. This extra inhibition delays the next excitatory volley by #calc.round(early-i.perturbed_next_e_volley_ms - early-i.baseline_next_e_volley_ms, digits: 1) ms. The strong E-to-I response is therefore a narrow doublet mechanism rather than a broad inhibitory effect.
+  #figure(
+    image("/artifacts/data/exp085/phase_response.png", width: 100%, alt: "Phase-response curves for coupling-matched excitation of the excitatory and inhibitory populations."),
+    caption: [Response to coupling-matched probe volleys. The upper panels show the whole-cycle response and enlarged early-I window. Open points produce one inhibitory volley; filled red points produce doublets. The lower panels show local, probe, and total excitation onto I neurons and all I-cell voltages for the phase-0.12 doublet. Cyan marks probe arrival; the dashed voltage line marks threshold.],
+  )
+
+  E-targeted probes advance the rhythm late in the cycle. I-targeted probes delay it only from phase #calc.round(doublets.first().pulse_phase_fraction, digits: 2) to #calc.round(doublets.last().pulse_phase_fraction, digits: 2), where they trigger a second inhibitory volley.
+
+  In the doublet case, local E-to-I conductance remains when the probe arrives. The probe raises total excitation as the recovered I-cell voltages approach threshold, producing the second volley. Earlier probes meet refractory neurons; later probes lack this remaining local excitation and are too weak alone.
 
   === Result 4: Pathway comparison
 

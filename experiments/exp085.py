@@ -36,9 +36,33 @@ T_MS = 2_000.0
 BURN_MS = 300.0
 DISPLAY_START_MS = 500.0
 DISPLAY_END_MS = 750.0
-PRC_T_MS = 1_200.0
+PRC_T_MS = 900.0
 PRC_REFERENCE_MS = 700.0
-PRC_PHASE_FRACTIONS = np.linspace(0.1, 0.9, 9)
+PRC_PHASE_FRACTIONS = np.asarray(
+    [
+        0.02,
+        0.04,
+        0.06,
+        0.08,
+        0.10,
+        0.12,
+        0.14,
+        0.16,
+        0.18,
+        0.20,
+        0.22,
+        0.24,
+        0.26,
+        0.28,
+        0.30,
+        0.40,
+        0.50,
+        0.60,
+        0.70,
+        0.80,
+        0.90,
+    ]
+)
 N_INPUT = 128
 N_E = 80
 N_I = 20
@@ -551,7 +575,7 @@ def population_volley_events(
     return events
 
 
-def run_phase_response() -> dict[str, object]:
+def run_phase_response() -> tuple[dict[str, object], dict[str, object]]:
     """Measure the next-volley shift caused by E- and I-targeted probe volleys."""
     bundle = author_phase_response_network()
     baseline = simulate(
@@ -575,9 +599,16 @@ def run_phase_response() -> dict[str, object]:
     period_steps = baseline_next - left
 
     responses: dict[str, list[dict[str, float]]] = {"E": [], "I": []}
+    representative_specs = {
+        ("E", 0.70): "e_late_advance",
+        ("I", 0.08): "i_early_no_doublet",
+        ("I", 0.12): "i_early_doublet",
+    }
+    representative_cases: dict[str, dict[str, object]] = {}
+    strongest_i_delay_steps = 0
     early_i_pulse_example: dict[str, object] | None = None
     for target in ("E", "I"):
-        for phase_index, fraction in enumerate(PRC_PHASE_FRACTIONS):
+        for fraction in PRC_PHASE_FRACTIONS:
             arrival = left + round(float(fraction) * period_steps)
             perturbed = simulate(
                 ExecutionSpec(
@@ -599,23 +630,63 @@ def run_phase_response() -> dict[str, object]:
                 raise RuntimeError(f"no E volley followed the {target}-targeted pulse")
             perturbed_next = int(candidates[0])
             shift_steps = baseline_next - perturbed_next
-            responses[target].append(
-                {
-                    "pulse_phase_fraction": (arrival - left) / period_steps,
-                    "pulse_phase_rad": 2.0
-                    * np.pi
-                    * (arrival - left)
-                    / period_steps,
-                    "next_volley_shift_ms": shift_steps * DT_MS,
-                    "next_volley_phase_shift_rad": 2.0
-                    * np.pi
-                    * shift_steps
-                    / period_steps,
+            response = {
+                "pulse_phase_fraction": (arrival - left) / period_steps,
+                "pulse_phase_rad": 2.0
+                * np.pi
+                * (arrival - left)
+                / period_steps,
+                "next_volley_shift_ms": shift_steps * DT_MS,
+                "next_volley_phase_shift_rad": 2.0
+                * np.pi
+                * shift_steps
+                / period_steps,
+            }
+            if target == "I":
+                i_events = population_volley_events(
+                    perturbed_i,
+                    start=left,
+                    stop=perturbed_next,
+                )
+                response["i_volleys_before_next_e"] = len(i_events)
+                response["second_i_volley_latency_ms"] = (
+                    i_events[1]["time_ms"] - i_events[0]["time_ms"]
+                    if len(i_events) >= 2
+                    else None
+                )
+            responses[target].append(response)
+            case_name = representative_specs.get((target, round(float(fraction), 2)))
+            if case_name is not None:
+                representative_cases[case_name] = {
+                    "target": target,
+                    "pulse_phase_fraction": response["pulse_phase_fraction"],
+                    "arrival_step": arrival,
+                    "next_e_step": perturbed_next,
+                    "rate_e": population_rate(perturbed_e, N_E),
+                    "rate_i": population_rate(perturbed_i, N_I),
+                    "i_volleys_before_next_e": response.get(
+                        "i_volleys_before_next_e"
+                    ),
                 }
-            )
-            if target == "I" and phase_index == 0:
+                if case_name == "i_early_doublet":
+                    representative_cases[case_name].update(
+                        {
+                            "i_voltage": perturbed.recordings[
+                                "PING_A_I.voltage"
+                            ].cpu().numpy(),
+                            "local_e_to_i_conductance": perturbed.recordings[
+                                "PING_A_E_to_I.conductance"
+                            ].cpu().numpy(),
+                            "probe_e_to_i_conductance": perturbed.recordings[
+                                "probe_E_to_PING_A_I_K_EI.conductance"
+                            ].cpu().numpy(),
+                        }
+                    )
+            if target == "I" and shift_steps < strongest_i_delay_steps:
+                strongest_i_delay_steps = shift_steps
                 event_stop = perturbed_next + round(2.0 / DT_MS)
                 early_i_pulse_example = {
+                    "pulse_phase_fraction": response["pulse_phase_fraction"],
                     "pulse_arrival_ms": arrival * DT_MS,
                     "baseline_next_e_volley_ms": baseline_next * DT_MS,
                     "perturbed_next_e_volley_ms": perturbed_next * DT_MS,
@@ -632,9 +703,11 @@ def run_phase_response() -> dict[str, object]:
                 }
 
     if early_i_pulse_example is None:
-        raise RuntimeError("the early I-targeted pulse example was not recorded")
+        raise RuntimeError("no I-targeted pulse delayed the next excitatory volley")
+    if len(representative_cases) != len(representative_specs):
+        raise RuntimeError("not all representative PRC cases were recorded")
 
-    return {
+    record = {
         "network": "PING_A",
         "baseline_cycle_start_ms": left * DT_MS,
         "baseline_cycle_period_ms": period_steps * DT_MS,
@@ -646,42 +719,294 @@ def run_phase_response() -> dict[str, object]:
             "i_target_strength": K_EI,
         },
         "positive_response_means": "next excitatory volley advanced",
+        "sampling": {
+            "coarse_pilot_interval_fraction": 0.1,
+            "refined_region_fraction": [0.02, 0.30],
+            "refined_interval_fraction": 0.02,
+            "reason": "coarse pilot located the inhibitory transition near phase 0.1",
+        },
         "responses": responses,
         "early_i_pulse_example": early_i_pulse_example,
     }
+    illustration = {
+        "left_step": left,
+        "baseline_next_step": baseline_next,
+        "baseline_rate_e": population_rate(baseline_e, N_E),
+        "cases": representative_cases,
+    }
+    return record, illustration
 
 
-def plot_phase_response(phase_response: dict[str, object], out: Path) -> None:
-    """Plot E- and I-targeted phase-response curves."""
+def plot_phase_response_examples(
+    illustration: dict[str, object],
+    out: Path,
+) -> None:
+    """Show how three representative probes change the next PING volley."""
     theme.apply()
-    fig, ax = plt.subplots(figsize=(6.6, 3.6))
+    left = int(illustration["left_step"])
+    baseline_next = int(illustration["baseline_next_step"])
+    start = left - round(2.0 / DT_MS)
+    stop = left + round(32.0 / DT_MS)
+    window = slice(start, stop)
+    time_ms = (np.arange(start, stop) - left) * DT_MS
+    baseline_e = _normalise_window(
+        np.asarray(illustration["baseline_rate_e"]),
+        window,
+    )
+    panels = (
+        ("e_late_advance", "E probe at phase 0.70: next volley advances"),
+        ("i_early_no_doublet", "I probe at phase 0.08: no doublet"),
+        ("i_early_doublet", "I probe at phase 0.12: doublet delays next volley"),
+    )
+    fig, axes = plt.subplots(3, 1, figsize=(7.0, 6.0), sharex=True, sharey=True)
+    for ax, (case_name, title) in zip(axes, panels, strict=True):
+        case = illustration["cases"][case_name]
+        rate_e = _normalise_window(np.asarray(case["rate_e"]), window)
+        rate_i = _normalise_window(np.asarray(case["rate_i"]), window)
+        arrival_ms = (int(case["arrival_step"]) - left) * DT_MS
+        next_e_ms = (int(case["next_e_step"]) - left) * DT_MS
+        baseline_next_ms = (baseline_next - left) * DT_MS
+        ax.plot(time_ms, baseline_e, color=theme.GREY_LIGHT, lw=1.0, ls="--")
+        ax.plot(time_ms, rate_e, color=theme.INK_BLACK, lw=1.2, label="E")
+        ax.plot(time_ms, rate_i, color=theme.DEEP_RED, lw=1.2, label="I")
+        ax.axvline(
+            arrival_ms,
+            color=theme.ELECTRIC_CYAN,
+            lw=1.1,
+            label="probe arrival",
+        )
+        ax.axvline(
+            baseline_next_ms,
+            color=theme.GREY_MID,
+            lw=0.9,
+            ls="--",
+            label="baseline next E",
+        )
+        if next_e_ms != baseline_next_ms:
+            ax.axvline(next_e_ms, color=theme.INK_BLACK, lw=0.8, ls=":")
+        ax.set(title=title, ylim=(-0.05, 1.12))
+        ax.spines[["top", "right"]].set_visible(False)
+    axes[0].legend(frameon=False, ncol=4, loc="upper center")
+    axes[1].set_ylabel("normalized population rate")
+    axes[2].set_xlabel("time from reference E volley (ms)")
+    fig.tight_layout()
+    fig.savefig(out, dpi=220, bbox_inches="tight")
+    plt.close(fig)
+
+
+def plot_phase_response(
+    phase_response: dict[str, object],
+    illustration: dict[str, object],
+    out: Path,
+) -> None:
+    """Summarize whole-cycle responses and resolve the early-I transition."""
+    theme.apply()
+    fig, axes = plt.subplots(
+        4,
+        1,
+        figsize=(6.8, 8.4),
+        gridspec_kw={"height_ratios": [1.35, 1.0, 0.8, 1.0]},
+    )
+    i_rows = phase_response["responses"]["I"]
+    i_phase = np.asarray([row["pulse_phase_fraction"] for row in i_rows])
+    i_shift = np.asarray([row["next_volley_shift_ms"] for row in i_rows])
+    doublet = np.asarray(
+        [row["i_volleys_before_next_e"] == 2 for row in i_rows]
+    )
+    doublet_indices = np.flatnonzero(doublet)
+    first = int(doublet_indices[0])
+    last = int(doublet_indices[-1])
+    window_left = 0.5 * (i_phase[first - 1] + i_phase[first])
+    window_right = 0.5 * (i_phase[last] + i_phase[last + 1])
+
+    whole = axes[0]
     for target, color in (("E", theme.INK_BLACK), ("I", theme.DEEP_RED)):
         rows = phase_response["responses"][target]
-        phase = np.asarray([row["pulse_phase_rad"] for row in rows])
-        response = np.asarray(
-            [row["next_volley_phase_shift_rad"] for row in rows]
-        )
-        ax.plot(
+        phase = np.asarray([row["pulse_phase_fraction"] for row in rows])
+        response = np.asarray([row["next_volley_shift_ms"] for row in rows])
+        whole.scatter(
             phase,
             response,
-            marker="o",
-            ms=4,
-            lw=1.2,
+            s=22,
             color=color,
             label=f"pulse to {target}",
+            zorder=3,
         )
-    ax.axhline(0.0, color=theme.GREY_MID, lw=0.8, ls="--")
-    ax.set(
-        xlim=(0.0, 2.0 * np.pi),
-        xlabel="pulse phase (rad)",
-        ylabel="next-volley phase shift (rad)",
+    whole.axvspan(
+        window_left,
+        window_right,
+        color=theme.DEEP_RED,
+        alpha=0.08,
+        lw=0,
     )
-    ax.set_xticks(
-        (0.0, 0.5 * np.pi, np.pi, 1.5 * np.pi, 2.0 * np.pi),
-        labels=("0", r"$\pi/2$", r"$\pi$", r"$3\pi/2$", r"$2\pi$"),
+    whole.axhline(0.0, color=theme.GREY_MID, lw=0.8, ls="--")
+    whole.annotate(
+        "late E input\nadvances next volley",
+        xy=(0.70, 2.7),
+        xytext=(0.50, 1.45),
+        arrowprops={"arrowstyle": "-", "color": theme.INK_BLACK, "lw": 0.8},
+        ha="right",
+        va="center",
+        fontsize=theme.SIZE_ANNOTATION,
     )
-    ax.legend(frameon=False, ncol=2)
-    ax.spines[["top", "right"]].set_visible(False)
+    whole.annotate(
+        "I doublet delays next volley",
+        xy=(i_phase[doublet][1], i_shift[doublet][1]),
+        xytext=(0.24, -4.7),
+        arrowprops={"arrowstyle": "-", "color": theme.DEEP_RED, "lw": 0.8},
+        color=theme.DEEP_RED,
+        fontsize=theme.SIZE_ANNOTATION,
+    )
+    whole.set(
+        xlim=(0.0, 1.0),
+        ylim=(-6.8, 3.3),
+        title="Whole cycle: E advances late; I delays only in a narrow window",
+        ylabel="next E-volley shift (ms)",
+    )
+    whole.legend(frameon=False, ncol=2, loc="lower right")
+    whole.spines[["top", "right"]].set_visible(False)
+
+    early = axes[1]
+    early_mask = i_phase <= 0.30 + 1e-9
+    single_early = early_mask & ~doublet
+    doublet_early = early_mask & doublet
+    early.axvspan(
+        window_left,
+        window_right,
+        color=theme.DEEP_RED,
+        alpha=0.08,
+        lw=0,
+    )
+    early.scatter(
+        i_phase[single_early],
+        i_shift[single_early],
+        s=26,
+        facecolors="white",
+        edgecolors=theme.GREY_MID,
+        label="one I volley",
+        zorder=3,
+    )
+    early.scatter(
+        i_phase[doublet_early],
+        i_shift[doublet_early],
+        s=30,
+        color=theme.DEEP_RED,
+        label="two I volleys",
+        zorder=3,
+    )
+    early.axhline(0.0, color=theme.GREY_MID, lw=0.8, ls="--")
+    for row in np.asarray(i_rows, dtype=object)[doublet]:
+        early.annotate(
+            f'{row["second_i_volley_latency_ms"]:.2f} ms',
+            xy=(row["pulse_phase_fraction"], row["next_volley_shift_ms"]),
+            xytext=(0, 7),
+            textcoords="offset points",
+            ha="center",
+            va="bottom",
+            rotation=90,
+            color=theme.DEEP_RED,
+            fontsize=theme.SIZE_ANNOTATION,
+        )
+    early.text(
+        0.5 * (window_left + window_right),
+        0.8,
+        "doublet window",
+        ha="center",
+        color=theme.DEEP_RED,
+        fontsize=theme.SIZE_ANNOTATION,
+    )
+    early.set(
+        xlim=(0.0, 0.30),
+        ylim=(-6.8, 1.4),
+        title="Early I response: filled points are doublets; labels give latency",
+        xlabel="probe arrival phase (fraction of cycle)",
+        ylabel="next E-volley shift (ms)",
+    )
+    early.legend(frameon=False, ncol=2, loc="upper right")
+    early.spines[["top", "right"]].set_visible(False)
+
+    state_case = illustration["cases"]["i_early_doublet"]
+    state_left = int(illustration["left_step"])
+    state_start = state_left - round(0.5 / DT_MS)
+    state_stop = state_left + round(7.0 / DT_MS)
+    state_window = slice(state_start, state_stop)
+    state_time_ms = (np.arange(state_start, state_stop) - state_left) * DT_MS
+    arrival_ms = (int(state_case["arrival_step"]) - state_left) * DT_MS
+
+    local_g = np.asarray(state_case["local_e_to_i_conductance"])[
+        state_window, 0
+    ].mean(axis=1)
+    probe_g = np.asarray(state_case["probe_e_to_i_conductance"])[
+        state_window, 0
+    ].mean(axis=1)
+    conductance = axes[2]
+    conductance.plot(
+        state_time_ms,
+        local_g,
+        color=theme.AMBER,
+        lw=1.3,
+        ls="--",
+        label="local E→I",
+        zorder=3,
+    )
+    conductance.plot(
+        state_time_ms,
+        probe_g,
+        color=theme.ELECTRIC_CYAN,
+        lw=1.3,
+        ls="-.",
+        label="probe→I",
+        zorder=3,
+    )
+    conductance.plot(
+        state_time_ms,
+        local_g + probe_g,
+        color=theme.INK_BLACK,
+        lw=1.6,
+        label="total excitation",
+        zorder=2,
+    )
+    conductance.axvline(arrival_ms, color=theme.ELECTRIC_CYAN, lw=0.9, ls=":")
+    conductance.set(
+        xlim=(-0.5, 7.0),
+        title="Doublet case: the probe adds to local excitation after recovery",
+        ylabel="mean I excitatory\nconductance (µS)",
+    )
+    conductance.legend(frameon=False, ncol=3, loc="upper right")
+    conductance.spines[["top", "right"]].set_visible(False)
+
+    voltage_values = np.asarray(state_case["i_voltage"])[state_window, 0]
+    voltage = axes[3]
+    for neuron_voltage in voltage_values.T:
+        voltage.plot(
+            state_time_ms,
+            neuron_voltage,
+            color=theme.DEEP_RED_LIGHT,
+            lw=0.5,
+            alpha=0.35,
+        )
+    voltage.plot(
+        state_time_ms,
+        voltage_values.mean(axis=1),
+        color=theme.INK_BLACK,
+        lw=1.2,
+        label="I-cell mean",
+    )
+    voltage.axhline(-50.0, color=theme.GREY_MID, lw=0.8, ls="--", label="threshold")
+    voltage.axvline(
+        arrival_ms,
+        color=theme.ELECTRIC_CYAN,
+        lw=0.9,
+        ls=":",
+        label="probe arrival",
+    )
+    voltage.set(
+        xlim=(-0.5, 7.0),
+        xlabel="time from reference E volley (ms)",
+        ylabel="I membrane\nvoltage (mV)",
+    )
+    voltage.legend(frameon=False, ncol=3, loc="upper right")
+    voltage.spines[["top", "right"]].set_visible(False)
     fig.tight_layout()
     fig.savefig(out, dpi=220, bbox_inches="tight")
     plt.close(fig)
@@ -766,8 +1091,16 @@ def main() -> None:
             peaks_b=analysis["peaks_b"],
             phase_difference=analysis["phase_difference"],
         )
-        phase_response = run_phase_response()
-        plot_phase_response(phase_response, staging / "phase_response.png")
+        phase_response, phase_response_examples = run_phase_response()
+        plot_phase_response_examples(
+            phase_response_examples,
+            staging / "phase_response_examples.png",
+        )
+        plot_phase_response(
+            phase_response,
+            phase_response_examples,
+            staging / "phase_response.png",
+        )
         record = experiment_record(analysis, phase_response)
         (staging / "protocol.json").write_text(
             json.dumps(record, indent=2) + "\n"
