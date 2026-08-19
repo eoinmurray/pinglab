@@ -1,47 +1,61 @@
 #let meta = (
-  title: "Can controlled phase offsets synchronize?",
-  date: "2026-08-18",
-  description: "Mature SNNLANG PING circuits start from prescribed relative phases to test whether reciprocal excitation drives convergence.",
+  title: "How long do two PING networks take to synchronize?",
+  date: "2026-08-19",
+  description: "Measure how two PING rhythms form a stable phase relationship.",
   collection: "snnlang",
-  status: "draft",
+  status: "proposal",
   order: 11,
 )
 
-#let r = json("/artifacts/data/exp085/numbers.json")
+#let result-link(id, text) = context {
+  if target() == "html" {
+    html.elem("a", attrs: (href: "#" + id), text)
+  } else {
+    text
+  }
+}
+
+#let result-anchor(id) = context {
+  if target() == "html" {
+    html.elem("span", attrs: (id: id))
+  }
+}
 
 #let body = [
   == Abstract
 
-  Two mature, slightly detuned PING circuits begin at four prescribed relative phases before reciprocal excitation switches on. The maximum onset-phase error is #calc.round(r.max_target_error_rad, digits: 4) rad. With K = #r.config.coupling, terminal phase error falls to a median #calc.round(r.coupled_terminal_error_median_rad, digits: 2) rad; matched uncoupled controls retain #calc.round(r.control_terminal_error_median_rad, digits: 2) rad error. Controlling onset phase turns an accidental representative trajectory into a direct test of convergence.
+  Two PING networks can synchronize when they exchange spikes. This experiment follows one ideal pair from phase drift to phase locking. It shows how their phase difference changes. It also measures how long locking takes.
 
   == Methods
 
-  + *Scout mature uncoupled dynamics.* Independent #r.config.input_rate_hz Hz/channel Poisson streams drive two #r.config.n_e_per_circuit E / #r.config.n_i_per_circuit I PING circuits. Circuit A uses #r.config.tau_a_ms ms inhibitory decay and circuit B uses #r.config.tau_b_ms ms. Each seed runs uncoupled for #r.config.scout_ms ms.
+  + *Define the network.* Use SNNLANG to build two PING networks. Each network has 80 excitatory cells, 20 inhibitory cells, and an independent 128-channel spike input. Set their inhibitory decay times to 4 ms and 5 ms. Connect each excitatory population to both populations in the other network. The four AMPA connections share one weight, $K$. Set $K=0$ before coupling and $K=0.08$ after coupling. Use a 0.1 ms connection delay. See #result-link("result-network", [Result 1]).
 
-  + *Select valid phase-controlled states.* Smoothed E-population rates are filtered over #r.phase_analysis.band_hz.at(0)--#r.phase_analysis.band_hz.at(1) Hz. The runner locates naturally occurring joint states nearest the four prescribed phases. It then deterministically replays the uncoupled prefix and captures the complete graph runtime state at each onset. No voltage, conductance, refractory counter, population history, or delay history is edited or recombined.
+  + *Start two drifting rhythms.* Run the two networks with $K=0$. Wait until each rhythm is stable. Confirm that their wrapped phase difference repeatedly crosses the phase range. See #result-link("result-drift", [Result 2]).
 
-  + *Apply paired futures.* Each captured state branches into K = #r.config.coupling coupling-on and K = 0 controls. Within a seed, every prescribed phase receives the same future private A/B input streams. Exact replay assertions compare every population spike against the scout prefix before any branch is accepted.
+  + *Switch on coupling.* At a fixed time, change $K$ from 0 to 0.08. Keep all other inputs and parameters unchanged. Continue the run until the phase difference becomes stable. Record all spikes and calculate each population firing rate. See #result-link("result-coupling", [Result 3]).
 
-  + *Measure convergence.* Each trajectory is compared with its own mean relative phase over the final #r.phase_analysis.terminal_phase_window_ms ms. Circular terminal-phase error is smoothed over #r.phase_analysis.phase_error_smooth_ms ms. The final #r.phase_analysis.terminal_edge_trim_ms ms are excluded uniformly as a filter-edge guard.
+  + *Measure the phase difference.* Use each excitatory population volley as a rhythm marker. Use these markers to calculate the phase difference $phi(t)$. Save the spike rasters, population rates, and volley times. See #result-link("result-phase", [Result 4]).
 
-  #figure(
-    image("/artifacts/data/exp085/network.svg", width: 88%, alt: "Two independently driven PING circuits connected by reciprocal excitatory projections."),
-    caption: [Controlled coupling-onset graph. Independent spike inputs drive circuits A and B. Four reciprocal AMPA projections switch from zero during scout and replay to K = #r.config.coupling after each captured onset.],
-  )
+  + *Measure phase locking.* The networks lock when their phase difference enters a narrow band and stays there for a set time. Report the locked phase difference. Measure $t_"sync"$ from the start of coupling to the first sustained entry into the band. See #result-link("result-locking", [Result 5]).
 
   == Results
 
-  The prescribed offsets are recovered to sub-milliradian accuracy across all #(r.config.phase_targets_rad.len() * r.config.trials) onsets.
+  #block(inset: 10pt, fill: rgb("f3f0e8"), radius: 3pt)[
+    *This experiment has not been run.* The network diagram comes from the SNNLANG graph. The other items describe planned figures and expectations.
+  ]
 
-  #figure(
-    image("/artifacts/data/exp085/phase_control.svg", width: 72%, alt: "Prescribed relative phase against achieved relative phase at coupling onset."),
-    caption: [Phase-control accuracy. Each point is one seed and prescribed onset phase; the diagonal is exact agreement. Maximum circular target error is #calc.round(r.max_target_error_rad, digits: 5) rad.],
-  )
+  + #result-anchor("result-network")*Show the network.* The SNNLANG diagram shows both PING networks, their independent inputs, and their reciprocal connections.
 
-  #figure(
-    image("/artifacts/data/exp085/synchrony_over_time.svg", width: 100%, alt: "Terminal phase error after onset for coupled circuits and matched uncoupled controls."),
-    caption: [Convergence from controlled relative phases. Top: coupling switches to K = #r.config.coupling. Bottom: matched states continue uncoupled. Thin traces are all #r.config.trials seeds at each prescribed phase; thick traces are phase-group medians. Coupled trajectories collapse toward low terminal error, whereas uncoupled controls continue to traverse relative phase.],
-  )
+    #figure(
+      image("/artifacts/data/exp085/network.svg", width: 82%, alt: "Two PING networks with independent spike inputs and reciprocal coupling."),
+      caption: [Proposed SNNLANG graph. Each PING network contains 80 excitatory and 20 inhibitory cells. The dashed reciprocal links contain four AMPA projections. Their shared weight is $K=0$ before coupling and $K=0.08$ after coupling.],
+    )
 
-  Controlled onset resolves the ambiguity in the earlier accidental-phase experiment: convergence is a repeatable consequence of reciprocal coupling here, not a fortunate single seed. The terminal reference remains retrospective, so the figure demonstrates convergence without registering a synchronization-latency estimator.
+  + #result-anchor("result-drift")*Show uncoupled phase drift.* The horizontal axis shows time before coupling. The vertical axis shows wrapped phase difference from $-pi$ to $pi$. We expect a repeating sawtooth as the faster rhythm passes the slower rhythm. This pattern shows drift, not phase locking.
+
+  + #result-anchor("result-coupling")*Show three short time windows.* Select a few cycles before coupling, during the transition, and after locking. Give each window its own panel. The horizontal axis shows local time in milliseconds. The vertical axis shows normalized excitatory population rate. Overlay Network A and Network B. Before coupling, their peaks have no fixed offset. During the transition, the offset changes. After locking, the peaks keep a fixed offset. Use the full rate traces and spike raster only as diagnostic outputs.
+
+  + #result-anchor("result-phase")*Check the phase measurement.* The horizontal axis shows time. Aligned vertical panels show population firing rate, detected volleys, and the phase of each network. The phase traces must follow the volley rhythm before and after coupling.
+
+  + #result-anchor("result-locking")*Show the locking time.* The horizontal axis shows time. The vertical axis shows phase difference $phi(t)$. Mark coupling onset with a vertical line. Add a shaded band around the locked phase difference. Mark $t_"sync"$ from coupling onset to the first sustained entry into this band. This plot shows the full flow from drift to phase locking.
 ]
