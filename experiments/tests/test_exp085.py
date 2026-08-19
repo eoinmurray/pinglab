@@ -99,6 +99,24 @@ def test_cross_network_paths_are_reciprocal_and_separately_weighted(
     assert realised_fan_in == CROSS_FAN_IN
 
 
+def test_pathway_branches_can_share_one_runtime_state() -> None:
+    from execution import plan_graph, runtime_state_signature
+
+    signatures = {
+        runtime_state_signature(
+            plan_graph(author_network(k_ee=k_ee, k_ei=k_ei).graph)
+        )
+        for k_ee, k_ei in (
+            (0.0, 0.0),
+            (K_EE, 0.0),
+            (0.0, K_EI),
+            (K_EE, K_EI),
+        )
+    }
+
+    assert len(signatures) == 1
+
+
 def test_phase_response_paths_match_the_two_coupling_paths() -> None:
     probe_graph = author_phase_response_network().graph
     projections = {row["id"]: row for row in probe_graph["projections"]}

@@ -1,4 +1,4 @@
-"""EXP085 methods 1-3: define PING networks, detuning, and phase responses."""
+"""EXP085 methods 1-4: define PING networks and compare coupling pathways."""
 
 from __future__ import annotations
 
@@ -34,6 +34,7 @@ STATUS = "draft"
 DT_MS = 0.1
 T_MS = 2_000.0
 BURN_MS = 300.0
+COUPLING_ONSET_MS = 500.0
 DISPLAY_START_MS = 500.0
 DISPLAY_END_MS = 750.0
 PRC_T_MS = 900.0
@@ -75,7 +76,7 @@ E_TO_I_TAU_MS = 1.0
 # These rates define the intended detuning. Method 2 must verify the resulting
 # uncoupled gamma frequencies; they are design inputs, not completed results.
 INPUT_RATE_A_HZ = 300.0
-INPUT_RATE_B_HZ = 240.0
+INPUT_RATE_B_HZ = 260.0
 INPUT_SEEDS = (8501, 8502)
 NETWORK_SEED = 85
 
@@ -83,17 +84,18 @@ NETWORK_SEED = 85
 # executor divides each nominal total strength across the realised fan-in.
 K_EE = 0.08
 K_EI = 0.08
-COUPLING_DELAY_MS = 0.5
+COUPLING_DELAY_MS = 2.0
 CROSS_FAN_IN = 8
 CROSS_ZERO_FRACTION = 1.0 - CROSS_FAN_IN / N_E
 PING_GROUPS = ("PING_A", "PING_B")
 
 SCALE = {
     "status": STATUS,
-    "completed_methods": [1, 2, 3],
+    "completed_methods": [1, 2, 3, 4],
     "dt_ms": DT_MS,
     "t_ms": T_MS,
     "burn_ms": BURN_MS,
+    "coupling_onset_ms": COUPLING_ONSET_MS,
     "n_input_per_network": N_INPUT,
     "n_e_per_network": N_E,
     "n_i_per_network": N_I,
@@ -373,9 +375,13 @@ def population_rate(spikes: np.ndarray, population_size: int) -> np.ndarray:
     return gaussian_filter1d(rate_hz, sigma=1.0 / DT_MS)
 
 
-def detect_volleys(rate_hz: np.ndarray) -> np.ndarray:
+def detect_volleys(
+    rate_hz: np.ndarray,
+    *,
+    burn_ms: float = BURN_MS,
+) -> np.ndarray:
     """Detect separated excitatory population volleys after burn-in."""
-    burn = round(BURN_MS / DT_MS)
+    burn = round(burn_ms / DT_MS)
     post = rate_hz[burn:]
     if post.size == 0 or post.max() <= 0:
         return np.array([], dtype=int)
@@ -1012,13 +1018,189 @@ def plot_phase_response(
     plt.close(fig)
 
 
+def analyse_pathway_branch(
+    recordings: dict[str, np.ndarray],
+) -> tuple[dict[str, object], dict[str, np.ndarray]]:
+    """Measure relative-phase drift after coupling onset."""
+    rate_a = population_rate(recordings["population_0"], N_E)
+    rate_b = population_rate(recordings["population_2"], N_E)
+    peaks_a = detect_volleys(rate_a, burn_ms=0.0)
+    peaks_b = detect_volleys(rate_b, burn_ms=0.0)
+    phase_a = interpolated_phase(peaks_a, len(rate_a))
+    phase_b = interpolated_phase(peaks_b, len(rate_b))
+    valid = np.isfinite(phase_a) & np.isfinite(phase_b)
+    valid_steps = np.flatnonzero(valid)
+    wrapped = np.angle(np.exp(1j * (phase_a[valid] - phase_b[valid])))
+    unwrapped_cycles = np.unwrap(wrapped) / (2.0 * np.pi)
+    unwrapped_cycles -= unwrapped_cycles[0]
+    time_ms = valid_steps * DT_MS
+    final = time_ms >= time_ms[-1] - 500.0
+    final_time_s = time_ms[final] / 1_000.0
+    final_cycles = unwrapped_cycles[final]
+    drift_rate = float(np.polyfit(final_time_s, final_cycles, 1)[0])
+    concentration = float(abs(np.mean(np.exp(1j * wrapped[final]))))
+    locked = abs(drift_rate) < 0.25 and concentration > 0.95
+    locked_phase = (
+        float(np.angle(np.mean(np.exp(1j * wrapped[final])))) if locked else None
+    )
+    summary_a = rhythm_summary(peaks_a)
+    summary_b = rhythm_summary(peaks_b)
+    record = {
+        "PING_A": summary_a,
+        "PING_B": summary_b,
+        "final_drift_rate_cycles_per_s": drift_rate,
+        "final_phase_concentration": concentration,
+        "phase_locked": locked,
+        "locked_phase_rad": locked_phase,
+    }
+    traces = {
+        "time_ms": time_ms,
+        "unwrapped_phase_change_cycles": unwrapped_cycles,
+    }
+    return record, traces
+
+
+def run_pathway_comparison() -> tuple[dict[str, object], dict[str, object]]:
+    """Branch four coupling conditions from one uncoupled runtime state."""
+    inputs = make_uncoupled_inputs()
+    onset = round(COUPLING_ONSET_MS / DT_MS)
+    prefix_graph = author_network(
+        k_ee=0.0,
+        k_ei=0.0,
+        coupling_delay_ms=COUPLING_DELAY_MS,
+    ).graph
+    prefix = simulate(
+        ExecutionSpec(
+            kind="simulate",
+            executor="graph",
+            graph=prefix_graph,
+            inputs={name: value[:onset] for name, value in inputs.items()},
+            seed=NETWORK_SEED,
+        )
+    )
+    if prefix.runtime_state is None:
+        raise RuntimeError("the uncoupled prefix did not return runtime state")
+
+    specifications = (
+        ("none", "No coupling", 0.0, 0.0),
+        ("e_to_e", "E→E only", K_EE, 0.0),
+        ("e_to_i", "E→I only", 0.0, K_EI),
+        ("both", "Both pathways", K_EE, K_EI),
+    )
+    condition_records = []
+    condition_traces = {}
+    suffix_inputs = {name: value[onset:] for name, value in inputs.items()}
+    for condition_id, label, k_ee, k_ei in specifications:
+        graph = author_network(
+            k_ee=k_ee,
+            k_ei=k_ei,
+            coupling_delay_ms=COUPLING_DELAY_MS,
+        ).graph
+        result = simulate(
+            ExecutionSpec(
+                kind="simulate",
+                executor="graph",
+                graph=graph,
+                inputs=suffix_inputs,
+                seed=NETWORK_SEED,
+            ),
+            runtime_state=prefix.runtime_state.detached(),
+        )
+        recordings = {
+            key: value.cpu().numpy()
+            for key, value in result.recordings.items()
+        }
+        condition_record, traces = analyse_pathway_branch(recordings)
+        condition_record.update(
+            {
+                "id": condition_id,
+                "label": label,
+                "K_EE": k_ee,
+                "K_EI": k_ei,
+            }
+        )
+        condition_records.append(condition_record)
+        condition_traces[condition_id] = traces
+
+    return (
+        {
+            "coupling_onset_ms": COUPLING_ONSET_MS,
+            "shared_delay_ms": COUPLING_DELAY_MS,
+            "classification": {
+                "final_window_ms": 500.0,
+                "maximum_absolute_drift_cycles_per_s": 0.25,
+                "minimum_phase_concentration": 0.95,
+            },
+            "conditions": condition_records,
+        },
+        condition_traces,
+    )
+
+
+def plot_pathway_comparison(
+    pathway_comparison: dict[str, object],
+    traces: dict[str, object],
+    out: Path,
+) -> None:
+    """Show which coupling pathways arrest relative-phase drift."""
+    theme.apply()
+    colors = {
+        "none": theme.GREY_MID,
+        "e_to_e": theme.INK_BLACK,
+        "e_to_i": theme.DEEP_RED,
+        "both": theme.ELECTRIC_CYAN,
+    }
+    all_phase = np.concatenate(
+        [
+            np.asarray(traces[row["id"]]["unwrapped_phase_change_cycles"])
+            for row in pathway_comparison["conditions"]
+        ]
+    )
+    lower = float(all_phase.min()) - 0.3
+    upper = float(all_phase.max()) + 0.3
+    fig, axes = plt.subplots(4, 1, figsize=(7.0, 6.4), sharex=True, sharey=True)
+    for ax, condition in zip(
+        axes,
+        pathway_comparison["conditions"],
+        strict=True,
+    ):
+        condition_id = condition["id"]
+        condition_trace = traces[condition_id]
+        state = "phase locked" if condition["phase_locked"] else "phase drift"
+        ax.plot(
+            condition_trace["time_ms"],
+            condition_trace["unwrapped_phase_change_cycles"],
+            color=colors[condition_id],
+            lw=1.2,
+        )
+        ax.axhline(0.0, color=theme.GREY_LIGHT, lw=0.7, ls="--")
+        ax.set(title=f'{condition["label"]}: {state}', ylim=(lower, upper))
+        ax.text(
+            0.99,
+            0.82,
+            f'{condition["final_drift_rate_cycles_per_s"]:.2f} cycles/s',
+            transform=ax.transAxes,
+            ha="right",
+            va="top",
+            fontsize=theme.SIZE_ANNOTATION,
+            color=colors[condition_id],
+        )
+        ax.spines[["top", "right"]].set_visible(False)
+    axes[1].set_ylabel("unwrapped relative phase change (cycles)")
+    axes[-1].set_xlabel("time after coupling onset (ms)")
+    fig.tight_layout()
+    fig.savefig(out, dpi=220, bbox_inches="tight")
+    plt.close(fig)
+
+
 def experiment_record(
     analysis: dict[str, object],
     phase_response: dict[str, object],
+    pathway_comparison: dict[str, object],
 ) -> dict[str, object]:
     return {
         "status": STATUS,
-        "completed_methods": [1, 2, 3],
+        "completed_methods": [1, 2, 3, 4],
         "simulation_run": True,
         "network": {
             "local_circuit": "matched E-to-I-to-E PING",
@@ -1047,14 +1229,15 @@ def experiment_record(
             "phase_wraps": analysis["drift_wraps"],
         },
         "phase_response": phase_response,
-        "remaining_methods_unrun": [4, 5],
+        "pathway_comparison": pathway_comparison,
+        "remaining_methods_unrun": [5],
     }
 
 
 def main() -> None:
     meta = parse_meta(sys.argv)
     if meta.runpod:
-        raise SystemExit("exp085 methods 1-2 are a bounded local run")
+        raise SystemExit("exp085 methods 1-4 are a bounded local run")
     started = time.monotonic()
     run_id = next_run_id(SLUG)
     with published_run(SLUG, run_id, scale=SCALE) as (_scratch, staging):
@@ -1101,7 +1284,17 @@ def main() -> None:
             phase_response_examples,
             staging / "phase_response.png",
         )
-        record = experiment_record(analysis, phase_response)
+        pathway_comparison, pathway_traces = run_pathway_comparison()
+        plot_pathway_comparison(
+            pathway_comparison,
+            pathway_traces,
+            staging / "pathway_comparison.png",
+        )
+        record = experiment_record(
+            analysis,
+            phase_response,
+            pathway_comparison,
+        )
         (staging / "protocol.json").write_text(
             json.dumps(record, indent=2) + "\n"
         )
