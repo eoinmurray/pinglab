@@ -12,11 +12,16 @@
 #let b = r.uncoupled.PING_B
 #let prc = r.phase_response
 #let doublets = prc.responses.I.filter(row => row.i_volleys_before_next_e == 2)
+#let pathways = r.pathway_comparison.conditions
+#let no-coupling = pathways.filter(row => row.id == "none").first()
+#let e-to-e = pathways.filter(row => row.id == "e_to_e").first()
+#let e-to-i = pathways.filter(row => row.id == "e_to_i").first()
+#let both = pathways.filter(row => row.id == "both").first()
 
 #let body = [
   == Abstract
 
-  Two frequency-detuned PING networks are connected by reciprocal excitatory projections. This experiment asks whether phase locking is caused mainly by direct excitation of pyramidal cells, recruitment of local inhibition, or interaction between both pathways.
+  Two frequency-detuned PING networks are connected by reciprocal excitatory projections. At the selected demonstration point, direct E-to-E coupling arrests relative-phase drift. E-to-I coupling produces a narrow inhibitory-doublet response but does not lock the networks by itself.
 
   == Prior art
 
@@ -27,7 +32,7 @@
   == Methods
 
   #block(inset: 10pt, fill: rgb("f3f0e8"), radius: 3pt)[
-    *Methods 1–3 are complete. Methods 4–5 are not yet run.*
+    *Methods 1–4 are complete. Method 5 is not yet run.*
   ]
 
   + *Define the networks.* Build two matched PING networks. Each contains #r.network.populations_per_network.E excitatory and #r.network.populations_per_network.I inhibitory neurons connected through local E-to-I and I-to-E synapses. Drive Network A at #r.network.detuning_input_rates_hz.PING_A Hz and Network B at #r.network.detuning_input_rates_hz.PING_B Hz; these values place both uncoupled rhythms in the gamma band. Use a #r.network.local_e_to_i.ampa_tau_ms ms local E-to-I AMPA decay so each inhibitory neuron fires once, rather than twice, after an excitatory volley. Connect the networks reciprocally through E-to-E and E-to-I projections. Each target receives exactly #r.network.exact_fan_in_per_target randomly selected excitatory afferents from the other network. Give the pathways separate weights $K_(E E)$ and $K_(E I)$ and a shared delay $d$.
@@ -45,7 +50,7 @@
 
     Keep $K_(E E) = #prc.pulse.e_target_strength$, $K_(E I) = #prc.pulse.i_target_strength$, and $d = #prc.pulse.arrival_delay_ms$ ms fixed. Only the probe target and arrival phase change. For desired phase $phi$, emit the source volley at $t_E + phi T - d$ so it reaches the target at $t_E + phi T$. Every condition uses the same network, initial state, input, and seed. Compare the next excitatory volley with the no-probe baseline. For I-targeted probes, also count inhibitory volleys and measure any second-volley latency. In a representative doublet, record local and probe excitatory conductance and every I-cell voltage. Positive phase shifts mean an advance; negative shifts mean a delay. Generates #link("#result-3-phase-response-curve")[Result 3].
 
-  + *Test the coupling pathways.* Continue from the same saved state and input in four conditions: no coupling, E-to-E only, E-to-I only, and both pathways. Track the relative phase in each condition. Generates #link("#result-4-pathway-comparison")[Result 4].
+  + *Test the coupling pathways.* Run both networks uncoupled for #r.pathway_comparison.coupling_onset_ms ms. Save their complete runtime state, then branch into four conditions: no coupling, E-to-E only, E-to-I only, and both pathways. Every branch starts from the same voltages, refractory states, live synapses, delayed events, and future input. Unwrap relative phase after coupling onset. Classify the final #r.pathway_comparison.classification.final_window_ms ms as locked when absolute drift is below #r.pathway_comparison.classification.maximum_absolute_drift_cycles_per_s cycles/s and phase concentration exceeds #r.pathway_comparison.classification.minimum_phase_concentration. Generates #link("#result-4-pathway-comparison")[Result 4].
 
   + *Trace the mechanism.* Align activity on incoming excitatory volleys. Measure target excitatory activity, target inhibitory activity, inhibition received by the target excitatory population, and the phase correction in the following cycle. Generates #link("#result-5-event-aligned-mechanism")[Result 5].
 
@@ -82,10 +87,12 @@
 
   === Result 4: Pathway comparison
 
-  *Axes.* Time against wrapped relative phase.  \
-  *Traces.* No coupling, E-to-E only, E-to-I only, and both pathways.  \
-  *Why.* Identify which pathway is sufficient for locking.  \
-  *Expectation.* The conditions separate direct excitation, feedforward inhibition, and any interaction between them.
+  #figure(
+    image("/artifacts/data/exp085/pathway_comparison.png", width: 100%, alt: "Unwrapped relative-phase change after coupling onset for no coupling, E-to-E only, E-to-I only, and both pathways."),
+    caption: [Pathway comparison from one shared runtime state. A continuing slope indicates phase drift; a plateau indicates phase locking. The annotation in each panel gives drift over the final #r.pathway_comparison.classification.final_window_ms ms.],
+  )
+
+  Without coupling, relative phase drifts at #calc.round(no-coupling.final_drift_rate_cycles_per_s, digits: 2) cycles/s. E-to-I coupling alone still drifts at #calc.round(e-to-i.final_drift_rate_cycles_per_s, digits: 2) cycles/s. E-to-E coupling alone reduces final drift to #calc.round(e-to-e.final_drift_rate_cycles_per_s, digits: 2) cycles/s and locks the rhythms; both pathways also lock, at #calc.round(both.final_drift_rate_cycles_per_s, digits: 2) cycles/s. Direct excitation is therefore sufficient at this operating point, whereas the narrow inhibitory-doublet pathway is not.
 
   === Result 5: Event-aligned mechanism
 
