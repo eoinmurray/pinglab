@@ -36,6 +36,29 @@ agent should proactively say so and suggest the right cleanup — don't wait to 
 Suggest at natural boundaries (task done, topic pivot) — not mid-task, and at most once per
 boundary; if declined, drop it until the next one.
 
+## Document delivery
+
+- Do not open, embed, or display generated PDFs in the Codex app.
+- When handing off a document, provide clickable links to both its generated PDF and its
+  generated HTML webpage. Do not substitute a PDF attachment or preview for those links.
+
+## Experiment proposals
+
+Use `status: "proposal"` for an experiment whose design is still being refined and which has
+not been run. The canonical proposal format is deliberately minimal:
+
+1. A short `Abstract` stating the question and intended measurement.
+2. An enumerated `Methods` section describing the planned experiment.
+3. An enumerated `Results` section describing the expected outputs while clearly stating that
+   the experiment is unrun and that expectations are not observations.
+
+Keep the Methods and Results lists in the same general order. Where practical, each Results
+item should show the output of the corresponding Methods item.
+
+Write proposals in direct, human-readable language. Introduce technical terms only when they
+are needed, explain them briefly, and do not add speculative theory or extra sections unless
+the experiment requires them or the user asks for them.
+
 ## Development workflow
 
 Use judgment about whether work should go directly to `main` or through a PR. Do not apply the rule mechanically.
