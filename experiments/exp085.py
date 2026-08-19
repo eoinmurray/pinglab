@@ -1,4 +1,4 @@
-"""EXP085 method 1: define and render two coupled cortical PING networks."""
+"""EXP085 methods 1-2: define coupled PING networks and verify detuning."""
 
 from __future__ import annotations
 
@@ -8,12 +8,21 @@ import time
 from dataclasses import dataclass
 from pathlib import Path
 
+import matplotlib.pyplot as plt
+import numpy as np
+import torch
+from scipy.ndimage import gaussian_filter1d
+from scipy.signal import find_peaks
+
 REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO))
+sys.path.insert(0, str(REPO / "tools" / "snn"))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
+from execution import ExecutionSpec, simulate  # noqa: E402
 from tools import snnlang as snn  # noqa: E402, TID251
 
+from helpers import theme  # noqa: E402
 from helpers.cli import parse_meta  # noqa: E402
 from helpers.numbers import write_numbers  # noqa: E402
 from helpers.run_dirs import published_run  # noqa: E402
@@ -23,17 +32,25 @@ SLUG = "exp085"
 STATUS = "draft"
 
 DT_MS = 0.1
+T_MS = 2_000.0
+BURN_MS = 300.0
+DISPLAY_START_MS = 500.0
+DISPLAY_END_MS = 750.0
 N_INPUT = 128
 N_E = 80
 N_I = 20
 TAU_GABA_MS = 9.0
 E_REFRACTORY_MS = 3.0
 I_REFRACTORY_MS = 1.5
+E_TO_I_WEIGHT = 0.5
+E_TO_I_TAU_MS = 1.0
 
 # These rates define the intended detuning. Method 2 must verify the resulting
 # uncoupled gamma frequencies; they are design inputs, not completed results.
-INPUT_RATE_A_HZ = 110.0
-INPUT_RATE_B_HZ = 90.0
+INPUT_RATE_A_HZ = 300.0
+INPUT_RATE_B_HZ = 240.0
+INPUT_SEEDS = (8501, 8502)
+NETWORK_SEED = 85
 
 # Separate controls even though their initial nominal values match. The graph
 # executor divides each nominal total strength across the realised fan-in.
@@ -46,14 +63,18 @@ PING_GROUPS = ("PING_A", "PING_B")
 
 SCALE = {
     "status": STATUS,
-    "completed_methods": [1],
+    "completed_methods": [1, 2],
     "dt_ms": DT_MS,
+    "t_ms": T_MS,
+    "burn_ms": BURN_MS,
     "n_input_per_network": N_INPUT,
     "n_e_per_network": N_E,
     "n_i_per_network": N_I,
     "tau_gaba_ms": TAU_GABA_MS,
     "e_refractory_ms": E_REFRACTORY_MS,
     "i_refractory_ms": I_REFRACTORY_MS,
+    "e_to_i_weight": E_TO_I_WEIGHT,
+    "e_to_i_tau_ms": E_TO_I_TAU_MS,
     "input_rate_a_hz": INPUT_RATE_A_HZ,
     "input_rate_b_hz": INPUT_RATE_B_HZ,
     "k_ee": K_EE,
@@ -74,6 +95,8 @@ def add_ping(
     *,
     name: str,
     source: snn.Signal,
+    e_to_i_weight: float = E_TO_I_WEIGHT,
+    e_to_i_tau_ms: float = E_TO_I_TAU_MS,
 ) -> PING:
     """Add one matched, minimal E-to-I-to-E PING circuit."""
     with net.group(name):
@@ -119,8 +142,8 @@ def add_ping(
             e.spikes,
             i.excitatory,
             name=f"{name}_E_to_I",
-            synapse=snn.AMPA(tau=2 * snn.ms),
-            weight=snn.Normal(0.5, 0.05),
+            synapse=snn.AMPA(tau=e_to_i_tau_ms * snn.ms),
+            weight=snn.Normal(e_to_i_weight, 0.1 * e_to_i_weight),
             constraint=snn.NonNegative(),
             connection="recurrent",
             delay=DT_MS * snn.ms,
@@ -153,6 +176,8 @@ def author_network(
     k_ee: float = K_EE,
     k_ei: float = K_EI,
     coupling_delay_ms: float = COUPLING_DELAY_MS,
+    e_to_i_weight: float = E_TO_I_WEIGHT,
+    e_to_i_tau_ms: float = E_TO_I_TAU_MS,
 ) -> snn.Bundle:
     """Author the canonical coupled-PING graph for the remaining methods."""
     net = snn.Network("canonical_coupled_ping", dt=DT_MS * snn.ms)
@@ -168,8 +193,20 @@ def author_network(
         signal_type="spikes",
         unit="spike",
     )
-    network_a = add_ping(net, name="PING_A", source=drive_a)
-    network_b = add_ping(net, name="PING_B", source=drive_b)
+    network_a = add_ping(
+        net,
+        name="PING_A",
+        source=drive_a,
+        e_to_i_weight=e_to_i_weight,
+        e_to_i_tau_ms=e_to_i_tau_ms,
+    )
+    network_b = add_ping(
+        net,
+        name="PING_B",
+        source=drive_b,
+        e_to_i_weight=e_to_i_weight,
+        e_to_i_tau_ms=e_to_i_tau_ms,
+    )
 
     for source_name, source, target_name, target in (
         ("PING_A", network_a, "PING_B", network_b),
@@ -206,11 +243,211 @@ def author_network(
     return snn.compile(net, target="tools/snn")
 
 
-def method_1_record() -> dict[str, object]:
+def make_uncoupled_inputs() -> dict[str, torch.Tensor]:
+    """Create independent deterministic Poisson drives at the design rates."""
+    steps = round(T_MS / DT_MS)
+    inputs = {}
+    rows = (
+        (f"drive_A_{INPUT_RATE_A_HZ:g}_Hz", INPUT_RATE_A_HZ, INPUT_SEEDS[0]),
+        (f"drive_B_{INPUT_RATE_B_HZ:g}_Hz", INPUT_RATE_B_HZ, INPUT_SEEDS[1]),
+    )
+    for name, rate_hz, seed in rows:
+        probability = rate_hz * DT_MS / 1_000.0
+        rng = np.random.default_rng(seed)
+        spikes = rng.random((steps, 1, N_INPUT), dtype=np.float32) < probability
+        inputs[name] = torch.from_numpy(spikes.astype(np.float32))
+    return inputs
+
+
+def population_rate(spikes: np.ndarray, population_size: int) -> np.ndarray:
+    """Return a 1 ms Gaussian-smoothed per-neuron firing rate in hertz."""
+    counts = spikes[:, 0].sum(axis=1).astype(float)
+    rate_hz = counts / population_size / (DT_MS / 1_000.0)
+    return gaussian_filter1d(rate_hz, sigma=1.0 / DT_MS)
+
+
+def detect_volleys(rate_hz: np.ndarray) -> np.ndarray:
+    """Detect separated excitatory population volleys after burn-in."""
+    burn = round(BURN_MS / DT_MS)
+    post = rate_hz[burn:]
+    if post.size == 0 or post.max() <= 0:
+        return np.array([], dtype=int)
+    peaks, _ = find_peaks(
+        post,
+        distance=round(15.0 / DT_MS),
+        prominence=0.1 * float(post.max()),
+    )
+    return peaks + burn
+
+
+def interpolated_phase(peaks: np.ndarray, steps: int) -> np.ndarray:
+    """Interpolate phase from zero to 2π between detected volleys."""
+    phase = np.full(steps, np.nan)
+    for left, right in zip(peaks[:-1], peaks[1:], strict=True):
+        phase[left:right] = 2.0 * np.pi * np.arange(right - left) / (right - left)
+    return phase
+
+
+def rhythm_summary(peaks: np.ndarray) -> dict[str, float | int | None]:
+    intervals_ms = np.diff(peaks) * DT_MS
+    if intervals_ms.size == 0:
+        return {"volleys": int(peaks.size), "frequency_hz": None, "iei_cv": None}
+    mean_interval_ms = float(intervals_ms.mean())
+    return {
+        "volleys": int(peaks.size),
+        "frequency_hz": 1_000.0 / mean_interval_ms,
+        "iei_cv": float(intervals_ms.std() / mean_interval_ms),
+    }
+
+
+def inhibitory_cycle_summary(
+    spikes: np.ndarray,
+    excitatory_peaks: np.ndarray,
+) -> dict[str, float | int]:
+    """Summarize inhibitory spikes per neuron between excitatory volleys."""
+    cycle_counts = [
+        spikes[left:right, 0].sum(axis=0)
+        for left, right in zip(
+            excitatory_peaks[:-1], excitatory_peaks[1:], strict=True
+        )
+    ]
+    if not cycle_counts:
+        return {
+            "cycles": 0,
+            "mean_spikes_per_neuron": 0.0,
+            "minimum": 0,
+            "maximum": 0,
+        }
+    counts = np.concatenate(cycle_counts)
+    return {
+        "cycles": len(cycle_counts),
+        "mean_spikes_per_neuron": float(counts.mean()),
+        "minimum": int(counts.min()),
+        "maximum": int(counts.max()),
+    }
+
+
+def analyse_uncoupled(recordings: dict[str, np.ndarray]) -> dict[str, object]:
+    e_a = population_rate(recordings["population_0"], N_E)
+    i_a = population_rate(recordings["population_1"], N_I)
+    e_b = population_rate(recordings["population_2"], N_E)
+    i_b = population_rate(recordings["population_3"], N_I)
+    peaks_a = detect_volleys(e_a)
+    peaks_b = detect_volleys(e_b)
+    summary_a = rhythm_summary(peaks_a)
+    summary_b = rhythm_summary(peaks_b)
+    inhibition_a = inhibitory_cycle_summary(recordings["population_1"], peaks_a)
+    inhibition_b = inhibitory_cycle_summary(recordings["population_3"], peaks_b)
+    phase_a = interpolated_phase(peaks_a, len(e_a))
+    phase_b = interpolated_phase(peaks_b, len(e_b))
+    valid = np.isfinite(phase_a) & np.isfinite(phase_b)
+    phase_difference = np.full_like(phase_a, np.nan)
+    phase_difference[valid] = np.angle(
+        np.exp(1j * (phase_a[valid] - phase_b[valid]))
+    )
+    valid_phase = phase_difference[valid]
+    drift_wraps = int(np.count_nonzero(np.abs(np.diff(valid_phase)) > np.pi))
+
+    for name, summary in (("A", summary_a), ("B", summary_b)):
+        if summary["volleys"] < 20 or summary["iei_cv"] is None:
+            raise RuntimeError(f"PING {name} did not produce a sustained rhythm")
+        if float(summary["iei_cv"]) > 0.2:
+            raise RuntimeError(f"PING {name} rhythm was too irregular")
+    frequency_a = float(summary_a["frequency_hz"])
+    frequency_b = float(summary_b["frequency_hz"])
+    if not (30.0 <= frequency_a <= 80.0 and 30.0 <= frequency_b <= 80.0):
+        raise RuntimeError("the uncoupled rhythms were outside the gamma band")
+    if abs(frequency_a - frequency_b) < 0.5:
+        raise RuntimeError("the uncoupled PING rhythms were not frequency-detuned")
+    if drift_wraps < 2:
+        raise RuntimeError("the uncoupled relative phase did not repeatedly wrap")
+    for name, inhibition in (("A", inhibition_a), ("B", inhibition_b)):
+        if inhibition["minimum"] != 1 or inhibition["maximum"] != 1:
+            raise RuntimeError(
+                f"PING {name} did not produce exactly one inhibitory spike "
+                "per neuron per cycle before coupling"
+            )
+
+    return {
+        "rate_e_a": e_a,
+        "rate_i_a": i_a,
+        "rate_e_b": e_b,
+        "rate_i_b": i_b,
+        "peaks_a": peaks_a,
+        "peaks_b": peaks_b,
+        "phase_difference": phase_difference,
+        "network_a": summary_a,
+        "network_b": summary_b,
+        "inhibition_a": inhibition_a,
+        "inhibition_b": inhibition_b,
+        "drift_wraps": drift_wraps,
+    }
+
+
+def _normalise_window(trace: np.ndarray, window: slice) -> np.ndarray:
+    values = trace[window]
+    maximum = float(values.max()) if values.size else 0.0
+    return values / maximum if maximum > 0 else values
+
+
+def plot_uncoupled(analysis: dict[str, object], out: Path) -> None:
+    """Show readable E/I rhythm excerpts above the full phase-drift trace."""
+    theme.apply()
+    start = round(DISPLAY_START_MS / DT_MS)
+    stop = round(DISPLAY_END_MS / DT_MS)
+    window = slice(start, stop)
+    local_time_ms = np.arange(stop - start) * DT_MS + DISPLAY_START_MS
+    full_time_ms = np.arange(len(analysis["phase_difference"])) * DT_MS
+
+    fig, axes = plt.subplots(3, 1, figsize=(7.2, 6.2))
+    for ax, name, e_key, i_key in (
+        (axes[0], "Network A", "rate_e_a", "rate_i_a"),
+        (axes[1], "Network B", "rate_e_b", "rate_i_b"),
+    ):
+        ax.plot(
+            local_time_ms,
+            _normalise_window(np.asarray(analysis[e_key]), window),
+            color=theme.INK_BLACK,
+            lw=1.0,
+            label="E",
+        )
+        ax.plot(
+            local_time_ms,
+            _normalise_window(np.asarray(analysis[i_key]), window),
+            color=theme.DEEP_RED,
+            lw=1.0,
+            label="I",
+        )
+        ax.set(ylabel=f"{name}\nnormalized rate", ylim=(-0.05, 1.1))
+        ax.legend(frameon=False, ncol=2, loc="upper right")
+        ax.spines[["top", "right"]].set_visible(False)
+    axes[1].set_xlabel("time (ms), rhythm excerpt")
+
+    axes[2].plot(
+        full_time_ms,
+        analysis["phase_difference"],
+        color=theme.INK_BLACK,
+        lw=0.9,
+    )
+    axes[2].axvline(BURN_MS, color=theme.GREY_MID, ls="--", lw=0.8)
+    axes[2].set(
+        xlim=(BURN_MS, T_MS),
+        ylim=(-np.pi, np.pi),
+        xlabel="time (ms)",
+        ylabel="wrapped phase\ndifference (rad)",
+    )
+    axes[2].set_yticks((-np.pi, 0, np.pi), labels=(r"$-\pi$", "0", r"$\pi$"))
+    axes[2].spines[["top", "right"]].set_visible(False)
+    fig.tight_layout()
+    fig.savefig(out, dpi=220, bbox_inches="tight")
+    plt.close(fig)
+
+
+def experiment_record(analysis: dict[str, object]) -> dict[str, object]:
     return {
         "status": STATUS,
-        "completed_methods": [1],
-        "simulation_run": False,
+        "completed_methods": [1, 2],
+        "simulation_run": True,
         "network": {
             "local_circuit": "matched E-to-I-to-E PING",
             "populations_per_network": {"E": N_E, "I": N_I},
@@ -223,15 +460,28 @@ def method_1_record() -> dict[str, object]:
             "exact_fan_in_per_target": CROSS_FAN_IN,
             "weights": {"K_EE": K_EE, "K_EI": K_EI},
             "delay_ms": COUPLING_DELAY_MS,
+            "local_e_to_i": {
+                "weight": E_TO_I_WEIGHT,
+                "ampa_tau_ms": E_TO_I_TAU_MS,
+            },
         },
-        "remaining_methods_unrun": [2, 3, 4, 5],
+        "uncoupled": {
+            "PING_A": analysis["network_a"],
+            "PING_B": analysis["network_b"],
+            "inhibitory_spikes_per_cycle": {
+                "PING_A": analysis["inhibition_a"],
+                "PING_B": analysis["inhibition_b"],
+            },
+            "phase_wraps": analysis["drift_wraps"],
+        },
+        "remaining_methods_unrun": [3, 4, 5],
     }
 
 
 def main() -> None:
     meta = parse_meta(sys.argv)
     if meta.runpod:
-        raise SystemExit("exp085 method 1 is a bounded local graph build")
+        raise SystemExit("exp085 methods 1-2 are a bounded local run")
     started = time.monotonic()
     run_id = next_run_id(SLUG)
     with published_run(SLUG, run_id, scale=SCALE) as (_scratch, staging):
@@ -242,7 +492,33 @@ def main() -> None:
             view="circuit",
             expand_groups=PING_GROUPS,
         )
-        record = method_1_record()
+        uncoupled = author_network(k_ee=0.0, k_ei=0.0)
+        result = simulate(
+            ExecutionSpec(
+                kind="simulate",
+                executor="graph",
+                graph=uncoupled.graph,
+                inputs=make_uncoupled_inputs(),
+                seed=NETWORK_SEED,
+            )
+        )
+        recordings = {
+            key: value.cpu().numpy().astype(np.uint8)
+            for key, value in result.recordings.items()
+        }
+        analysis = analyse_uncoupled(recordings)
+        plot_uncoupled(analysis, staging / "uncoupled.png")
+        np.savez_compressed(
+            staging / "uncoupled_trace.npz",
+            rate_e_a=analysis["rate_e_a"],
+            rate_i_a=analysis["rate_i_a"],
+            rate_e_b=analysis["rate_e_b"],
+            rate_i_b=analysis["rate_i_b"],
+            peaks_a=analysis["peaks_a"],
+            peaks_b=analysis["peaks_b"],
+            phase_difference=analysis["phase_difference"],
+        )
+        record = experiment_record(analysis)
         (staging / "protocol.json").write_text(
             json.dumps(record, indent=2) + "\n"
         )
