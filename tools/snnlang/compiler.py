@@ -6,6 +6,7 @@ import hashlib
 import json
 import math
 import shutil
+from collections.abc import Collection
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Mapping
@@ -1130,11 +1131,22 @@ class Bundle:
         return root
 
     def visualise(
-        self, path: str | Path, *, view: str = "circuit", scale: int = 1
+        self,
+        path: str | Path,
+        *,
+        view: str = "circuit",
+        scale: int = 1,
+        expand_groups: Collection[str] = (),
     ) -> Path:
         from .visualize import visualise_bundle
 
-        return visualise_bundle(self, Path(path), view=view, scale=scale)
+        return visualise_bundle(
+            self,
+            Path(path),
+            view=view,
+            scale=scale,
+            expand_groups=expand_groups,
+        )
 
 
 def compile(

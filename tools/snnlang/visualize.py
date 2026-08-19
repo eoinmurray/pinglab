@@ -5,6 +5,7 @@ from __future__ import annotations
 import html
 import subprocess
 import tempfile
+from collections.abc import Collection
 from pathlib import Path
 
 from .compiler import Bundle
@@ -43,7 +44,12 @@ def _card(title: str, subtitle: str, badge: str, fill: str) -> str:
     )
 
 
-def _dot(bundle: Bundle, view: str) -> str:
+def _dot(
+    bundle: Bundle,
+    view: str,
+    *,
+    expand_groups: Collection[str] = (),
+) -> str:
     if view not in {"circuit", "training", "expanded"}:
         raise ValueError("view must be circuit, training, or expanded")
     graph = bundle.graph
@@ -53,6 +59,13 @@ def _dot(bundle: Bundle, view: str) -> str:
         )
     groups = {g["id"]: g for g in graph["groups"]}
     collapsed = view in {"circuit", "training"}
+    expanded_groups = set(expand_groups)
+    if expanded_groups and not collapsed:
+        raise ValueError("expand_groups is only available for circuit and training views")
+    unknown_groups = expanded_groups - groups.keys()
+    if unknown_groups:
+        unknown = ", ".join(sorted(unknown_groups))
+        raise ValueError(f"cannot expand unknown groups: {unknown}")
     member_group = {member: g["id"] for g in graph["groups"] for member in g["members"]}
     lines = [
         "digraph snnlang {",
@@ -73,6 +86,8 @@ def _dot(bundle: Bundle, view: str) -> str:
 
     if collapsed:
         for group_id, group in sorted(groups.items()):
+            if group_id in expanded_groups:
+                continue
             pops = [p for p in graph["populations"] if p["id"] in group["members"]]
             ops = [o for o in graph["operations"] if o["id"] in group["members"]]
             if not pops and not ops:
@@ -88,7 +103,11 @@ def _dot(bundle: Bundle, view: str) -> str:
             rendered.add(group_id)
 
     for pop in graph["populations"]:
-        if collapsed and pop.get("group") in groups:
+        if (
+            collapsed
+            and pop.get("group") in groups
+            and pop.get("group") not in expanded_groups
+        ):
             continue
         fill = PALETTE["exc"]
         title_lower = pop["id"].lower()
@@ -96,11 +115,32 @@ def _dot(bundle: Bundle, view: str) -> str:
             fill = PALETTE["inh"]
         badge = "spiking population" if pop["spiking"] else "analogue population"
         pop_detail = f"{pop['size']:,} units · {pop['neuron']['kind']}"
+        pop_title = (
+            pop["id"].replace("_", " ")
+            if pop.get("group") in expanded_groups
+            else pop["id"]
+        )
         lines.append(
-            f'{_q(pop["id"])} [id={_q(_node_id(pop["id"]))}, class="node population {"spiking" if pop["spiking"] else "analogue"}", label={_card(pop["id"], pop_detail, badge, fill)}, '
+            f'{_q(pop["id"])} [id={_q(_node_id(pop["id"]))}, class="node population {"spiking" if pop["spiking"] else "analogue"}", label={_card(pop_title, pop_detail, badge, fill)}, '
             f'shape=box, style="rounded,filled", fillcolor="#FFFFFF", color="#B8C4D1", penwidth=1.4, margin="0.18,0.14"];'
         )
         rendered.add(pop["id"])
+
+    for group_id in sorted(expanded_groups):
+        members = [
+            pop["id"]
+            for pop in graph["populations"]
+            if pop.get("group") == group_id
+        ]
+        title = group_id.replace("_", " ")
+        lines.append(
+            f'subgraph {_q("cluster_" + _node_id(group_id))} {{ label={_q(title)}; '
+            f'color="#8FA3B8"; fontcolor="{PALETTE["ink"]}"; fontname="Helvetica-Bold"; '
+            'fontsize=15; penwidth=1.8; style="rounded"; margin=18; labeljust="l";'
+        )
+        for member in members:
+            lines.append(f"{_q(member)};")
+        lines.append("}")
 
     if view == "expanded":
         for op in graph["operations"]:
@@ -123,7 +163,11 @@ def _dot(bundle: Bundle, view: str) -> str:
 
     def mapped(owner: str) -> str:
         group = member_group.get(owner)
-        return group if collapsed and group in rendered else owner
+        return (
+            group
+            if collapsed and group in rendered and group not in expanded_groups
+            else owner
+        )
 
     emitted_edges: set[tuple[str, str, str]] = set()
     for projection in graph["projections"]:
@@ -265,9 +309,16 @@ def _dot(bundle: Bundle, view: str) -> str:
     return "\n".join(lines) + "\n"
 
 
-def visualise_bundle(bundle: Bundle, path: Path, *, view: str, scale: int = 1) -> Path:
+def visualise_bundle(
+    bundle: Bundle,
+    path: Path,
+    *,
+    view: str,
+    scale: int = 1,
+    expand_groups: Collection[str] = (),
+) -> Path:
     path.parent.mkdir(parents=True, exist_ok=True)
-    dot = _dot(bundle, view)
+    dot = _dot(bundle, view, expand_groups=expand_groups)
     suffix = path.suffix.lower()
     if suffix not in {".svg", ".png", ".pdf", ".dot"}:
         raise ValueError("visual output must be .svg, .png, .pdf, or .dot")
