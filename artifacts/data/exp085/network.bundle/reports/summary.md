@@ -1,4 +1,4 @@
-# snnlang report — coupling_onset
+# snnlang report — ping_pair
 
 Populations: 4 (200 units)
 Projections: 10

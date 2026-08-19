@@ -1,37 +1,22 @@
 {
-  "dt_ms": 0.1,
-  "equilibration_ms": 1000.0,
-  "continuation_ms": 1500.0,
-  "n_input_per_circuit": 128,
-  "n_e_per_circuit": 80,
-  "n_i_per_circuit": 20,
-  "input_rate_hz": 100.0,
-  "tau_a_ms": 4.0,
-  "tau_b_ms": 5.0,
-  "coupling": 0.08,
-  "phase_targets_rad": [
-    0.0,
-    1.5707963267948966,
-    3.141592653589793,
-    4.71238898038469
-  ],
-  "scout_ms": 2400.0,
-  "trials": 5,
-  "trial_seeds": [
-    8500,
-    8501,
-    8502,
-    8503,
-    8504
-  ],
-  "network_seed": 85,
-  "phase_band_hz": [
-    20.0,
-    60.0
-  ],
-  "phase_smooth_ms": 5.0,
-  "phase_edge_trim_ms": 100.0,
-  "terminal_phase_window_ms": 500.0,
-  "phase_error_smooth_ms": 50.0,
-  "phase_prehistory_ms": 300.0
+  "status": "proposal",
+  "simulation_run": false,
+  "main_parameter": {
+    "name": "K",
+    "value": 0.08,
+    "meaning": "weight of each reciprocal cross-network AMPA projection",
+    "before_onset": 0.0,
+    "after_onset": 0.08
+  },
+  "network": {
+    "status": "proposal",
+    "dt_ms": 0.1,
+    "n_input_per_network": 128,
+    "n_e_per_network": 80,
+    "n_i_per_network": 20,
+    "tau_gaba_a_ms": 4.0,
+    "tau_gaba_b_ms": 5.0,
+    "coupling_k": 0.08,
+    "coupling_delay_ms": 0.1
+  }
 }
