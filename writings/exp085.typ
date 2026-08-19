@@ -44,11 +44,11 @@
     *This experiment has not been run.* The network diagram comes from the SNNLANG graph. The other items describe planned figures and expectations.
   ]
 
-  + #result-anchor("result-network")*Show the network.* The SNNLANG diagram shows both PING networks, their independent inputs, and their reciprocal connections.
+  + #result-anchor("result-network")*Show the network.* The SNNLANG circuit view expands the two PING components into their excitatory and inhibitory populations. It shows both independent inputs, both internal PING loops, and all four cross-network connections.
 
     #figure(
-      image("/artifacts/data/exp085/network.svg", width: 82%, alt: "Two PING networks with independent spike inputs and reciprocal coupling."),
-      caption: [Proposed SNNLANG graph. Each PING network contains 80 excitatory and 20 inhibitory cells. The dashed reciprocal links contain four AMPA projections. Their shared weight is $K=0$ before coupling and $K=0.08$ after coupling.],
+      image("/artifacts/data/exp085/network.svg", width: 100%, alt: "SNNLANG circuit view with two expanded PING components and four reciprocal AMPA connections."),
+      caption: [SNNLANG circuit view of the proposed graph. PING A and PING B are expanded selectively. Each contains an excitatory and inhibitory population. Four reciprocal AMPA projections share the weight $K=0$ before coupling and $K=0.08$ after coupling.],
     )
 
   + #result-anchor("result-drift")*Show uncoupled phase drift.* The horizontal axis shows time before coupling. The vertical axis shows wrapped phase difference from $-pi$ to $pi$. We expect a repeating sawtooth as the faster rhythm passes the slower rhythm. This pattern shows drift, not phase locking.

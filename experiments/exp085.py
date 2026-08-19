@@ -7,7 +7,6 @@ synchronization experiment.
 from __future__ import annotations
 
 import json
-import shutil
 import sys
 from pathlib import Path
 
@@ -33,6 +32,7 @@ TAU_GABA_A_MS = 4.0
 TAU_GABA_B_MS = 5.0
 COUPLING_K = 0.08
 COUPLING_DELAY_MS = 0.1
+PING_GROUPS = ("PING_A", "PING_B")
 
 SCALE = {
     "status": STATUS,
@@ -64,7 +64,7 @@ def author_network(coupling_k: float = COUPLING_K) -> snn.Bundle:
     )
     network_a = snn.components.ping(
         net,
-        name="a",
+        name="PING_A",
         n_e=N_E,
         n_i=N_I,
         source=drive_a,
@@ -72,7 +72,7 @@ def author_network(coupling_k: float = COUPLING_K) -> snn.Bundle:
     )
     network_b = snn.components.ping(
         net,
-        name="b",
+        name="PING_B",
         n_e=N_E,
         n_i=N_I,
         source=drive_b,
@@ -80,8 +80,8 @@ def author_network(coupling_k: float = COUPLING_K) -> snn.Bundle:
     )
 
     for source_name, source, target_name, target in (
-        ("a", network_a, "b", network_b),
-        ("b", network_b, "a", network_a),
+        ("PING_A", network_a, "PING_B", network_b),
+        ("PING_B", network_b, "PING_A", network_a),
     ):
         for population_name, target_port in (
             ("E", target.E.excitatory),
@@ -118,7 +118,11 @@ def main() -> None:
         bundle = author_network()
         bundle_dir = staging / "network.bundle"
         bundle.write(bundle_dir, visualise=True)
-        shutil.copy2(bundle_dir / "reports/circuit.svg", staging / "network.svg")
+        bundle.visualise(
+            staging / "network.svg",
+            view="circuit",
+            expand_groups=PING_GROUPS,
+        )
         protocol = {
             "status": STATUS,
             "simulation_run": False,
