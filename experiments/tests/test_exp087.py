@@ -10,6 +10,10 @@ from experiments.exp087 import (
     NEURONS_PER_LAYER,
     PACKET_CHANNELS,
     author_network,
+    make_background,
+    make_packet,
+    packet_width_ms,
+    run_packet,
 )
 
 
@@ -55,3 +59,43 @@ def test_packet_and_background_connections_use_exact_fan_in(graph: dict) -> None
         assert initializer["initial_zero_fraction"] == pytest.approx(
             1.0 - FEEDFORWARD_FAN_IN / NEURONS_PER_LAYER
         )
+
+
+def test_packet_generator_preserves_size_and_width() -> None:
+    packet = make_packet(alpha=50, sigma_ms=2.0).numpy()
+
+    assert int(packet.sum()) == 50
+    assert packet_width_ms(packet) == pytest.approx(2.0, abs=0.5)
+
+
+def test_selected_point_separates_extinction_from_convergence(graph: dict) -> None:
+    background = make_background()
+    weak = run_packet(
+        graph,
+        packet_id="weak",
+        label="Weak, diffuse",
+        alpha=45,
+        sigma_ms=5.0,
+        background=background,
+    )
+    broad = run_packet(
+        graph,
+        packet_id="broad",
+        label="Broad, strong",
+        alpha=50,
+        sigma_ms=5.0,
+        background=background,
+    )
+    oversized = run_packet(
+        graph,
+        packet_id="oversized",
+        label="Narrow, oversized",
+        alpha=80,
+        sigma_ms=0.2,
+        background=background,
+    )
+
+    assert not weak.survives
+    assert broad.alphas[-1] == NEURONS_PER_LAYER
+    assert oversized.alphas[-1] == NEURONS_PER_LAYER
+    assert broad.sigmas_ms[-1] == pytest.approx(oversized.sigmas_ms[-1], abs=0.01)
