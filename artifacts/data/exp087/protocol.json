@@ -1,8 +1,11 @@
 {
   "status": "draft",
-  "simulation_run": false,
-  "compiled_methods": [
-    1
+  "simulation_run": true,
+  "completed_methods": [
+    1,
+    2,
+    3,
+    4
   ],
   "dt_ms": 0.1,
   "layers": 6,
@@ -10,13 +13,3638 @@
   "packet_channels": 100,
   "background_channels": 600,
   "feedforward_fan_in": 40,
-  "feedforward_total_strength_us": 0.8,
+  "feedforward_total_strength_us": 0.33,
   "feedforward_delay_ms": 1.0,
   "background_fan_in": 100,
   "background_total_strength_us": 0.25,
+  "background_rate_hz": 10.0,
+  "t_ms": 60.0,
+  "packet_centre_ms": 10.0,
+  "network_seed": 11,
+  "background_seed": 7,
   "question": "Can pulse packets converge to a stable size and width?",
-  "remaining_methods_unrun": [
-    2,
-    3
-  ]
+  "operating_point": {
+    "feedforward_strength_us": 0.33,
+    "background_rate_hz": 10.0,
+    "selection": "weakest tested strength carrying the reference packet cleanly through all six pools",
+    "search": [
+      {
+        "feedforward_strength_us": 0.33,
+        "background_rate_hz": 2.0,
+        "alphas": [
+          7,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "sigmas_ms": [
+          2.2420835790643943,
+          null,
+          null,
+          null,
+          null,
+          null
+        ],
+        "accepted": false
+      },
+      {
+        "feedforward_strength_us": 0.35,
+        "background_rate_hz": 2.0,
+        "alphas": [
+          12,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "sigmas_ms": [
+          1.973927275481265,
+          null,
+          null,
+          null,
+          null,
+          null
+        ],
+        "accepted": false
+      },
+      {
+        "feedforward_strength_us": 0.37,
+        "background_rate_hz": 2.0,
+        "alphas": [
+          22,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "sigmas_ms": [
+          1.8280470995975755,
+          null,
+          null,
+          null,
+          null,
+          null
+        ],
+        "accepted": false
+      },
+      {
+        "feedforward_strength_us": 0.4,
+        "background_rate_hz": 2.0,
+        "alphas": [
+          44,
+          61,
+          100,
+          100,
+          100,
+          100
+        ],
+        "sigmas_ms": [
+          1.9337423572265857,
+          0.7567025596449235,
+          0.3534671130388227,
+          0.059799665550904504,
+          0.0217944947177029,
+          0.03666060555964723
+        ],
+        "accepted": true
+      },
+      {
+        "feedforward_strength_us": 0.33,
+        "background_rate_hz": 5.0,
+        "alphas": [
+          16,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "sigmas_ms": [
+          1.7835949477109427,
+          null,
+          null,
+          null,
+          null,
+          null
+        ],
+        "accepted": false
+      },
+      {
+        "feedforward_strength_us": 0.35,
+        "background_rate_hz": 5.0,
+        "alphas": [
+          27,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "sigmas_ms": [
+          1.8728732794793284,
+          null,
+          null,
+          null,
+          null,
+          null
+        ],
+        "accepted": false
+      },
+      {
+        "feedforward_strength_us": 0.37,
+        "background_rate_hz": 5.0,
+        "alphas": [
+          43,
+          61,
+          100,
+          100,
+          100,
+          100
+        ],
+        "sigmas_ms": [
+          1.969947274951738,
+          0.734806693021078,
+          0.36054958050176705,
+          0.06913031173081717,
+          0.051923019942989423,
+          0.04199999999999964
+        ],
+        "accepted": true
+      },
+      {
+        "feedforward_strength_us": 0.4,
+        "background_rate_hz": 5.0,
+        "alphas": [
+          62,
+          100,
+          100,
+          100,
+          100,
+          100
+        ],
+        "sigmas_ms": [
+          1.977509470135227,
+          0.5797680570711015,
+          0.09318798205777408,
+          0.043863424398923254,
+          0.040938978980916675,
+          0.03316624790355446
+        ],
+        "accepted": true
+      },
+      {
+        "feedforward_strength_us": 0.33,
+        "background_rate_hz": 10.0,
+        "alphas": [
+          51,
+          93,
+          100,
+          100,
+          100,
+          100
+        ],
+        "sigmas_ms": [
+          1.7540659636525333,
+          0.7818173018322944,
+          0.1330563790278389,
+          0.06495382975622001,
+          0.05982474404458461,
+          0.06212084996198977
+        ],
+        "accepted": true
+      },
+      {
+        "feedforward_strength_us": 0.35,
+        "background_rate_hz": 10.0,
+        "alphas": [
+          64,
+          100,
+          100,
+          100,
+          100,
+          100
+        ],
+        "sigmas_ms": [
+          1.8636217259680143,
+          0.6053065339148422,
+          0.09325234581499815,
+          0.05656854249492361,
+          0.05894913061275843,
+          0.054772255750515746
+        ],
+        "accepted": true
+      },
+      {
+        "feedforward_strength_us": 0.37,
+        "background_rate_hz": 10.0,
+        "alphas": [
+          76,
+          100,
+          100,
+          100,
+          100,
+          100
+        ],
+        "sigmas_ms": [
+          1.9499462845076976,
+          0.4930020283933932,
+          0.0815536633144096,
+          0.05413871073455679,
+          0.055452682532046396,
+          0.05617828762075309
+        ],
+        "accepted": true
+      },
+      {
+        "feedforward_strength_us": 0.4,
+        "background_rate_hz": 10.0,
+        "alphas": [
+          92,
+          147,
+          200,
+          218,
+          300,
+          399
+        ],
+        "sigmas_ms": [
+          1.9927713767325106,
+          2.8686422296857153,
+          2.9021281415540567,
+          3.666927718451665,
+          4.7665264664696405,
+          5.922316126744552
+        ],
+        "accepted": false
+      }
+    ]
+  },
+  "representative_packets": [
+    {
+      "id": "weak",
+      "label": "Weak, diffuse",
+      "input": {
+        "alpha": 45,
+        "requested_sigma_ms": 5.0,
+        "realised_sigma_ms": 5.030594790938472
+      },
+      "layers": [
+        {
+          "pool": 1,
+          "alpha": 30,
+          "sigma_ms": 1.2227519054257174
+        },
+        {
+          "pool": 2,
+          "alpha": 3,
+          "sigma_ms": 0.7717224601860148
+        },
+        {
+          "pool": 3,
+          "alpha": 0,
+          "sigma_ms": null
+        },
+        {
+          "pool": 4,
+          "alpha": 0,
+          "sigma_ms": null
+        },
+        {
+          "pool": 5,
+          "alpha": 0,
+          "sigma_ms": null
+        },
+        {
+          "pool": 6,
+          "alpha": 0,
+          "sigma_ms": null
+        }
+      ],
+      "survives": false
+    },
+    {
+      "id": "broad",
+      "label": "Broad, strong",
+      "input": {
+        "alpha": 50,
+        "requested_sigma_ms": 5.0,
+        "realised_sigma_ms": 4.857252309691149
+      },
+      "layers": [
+        {
+          "pool": 1,
+          "alpha": 51,
+          "sigma_ms": 1.7540659636525333
+        },
+        {
+          "pool": 2,
+          "alpha": 93,
+          "sigma_ms": 0.7818173018322944
+        },
+        {
+          "pool": 3,
+          "alpha": 100,
+          "sigma_ms": 0.1330563790278389
+        },
+        {
+          "pool": 4,
+          "alpha": 100,
+          "sigma_ms": 0.06495382975622001
+        },
+        {
+          "pool": 5,
+          "alpha": 100,
+          "sigma_ms": 0.05982474404458461
+        },
+        {
+          "pool": 6,
+          "alpha": 100,
+          "sigma_ms": 0.06212084996198977
+        }
+      ],
+      "survives": true
+    },
+    {
+      "id": "oversized",
+      "label": "Narrow, oversized",
+      "input": {
+        "alpha": 80,
+        "requested_sigma_ms": 0.2,
+        "realised_sigma_ms": 0.16582652833608993
+      },
+      "layers": [
+        {
+          "pool": 1,
+          "alpha": 100,
+          "sigma_ms": 0.1177115117564974
+        },
+        {
+          "pool": 2,
+          "alpha": 100,
+          "sigma_ms": 0.058446556784809665
+        },
+        {
+          "pool": 3,
+          "alpha": 100,
+          "sigma_ms": 0.057784080852774755
+        },
+        {
+          "pool": 4,
+          "alpha": 100,
+          "sigma_ms": 0.05894913061275778
+        },
+        {
+          "pool": 5,
+          "alpha": 100,
+          "sigma_ms": 0.05545268253204693
+        },
+        {
+          "pool": 6,
+          "alpha": 100,
+          "sigma_ms": 0.06307931515164081
+        }
+      ],
+      "survives": true
+    }
+  ],
+  "state_space": [
+    {
+      "id": "a20_s0.2",
+      "label": "\u03b1=20, \u03c3=0.2 ms",
+      "input": {
+        "alpha": 20,
+        "requested_sigma_ms": 0.2,
+        "realised_sigma_ms": 0.19131126469708976
+      },
+      "layers": [
+        {
+          "pool": 1,
+          "alpha": 0,
+          "sigma_ms": null
+        },
+        {
+          "pool": 2,
+          "alpha": 0,
+          "sigma_ms": null
+        },
+        {
+          "pool": 3,
+          "alpha": 0,
+          "sigma_ms": null
+        },
+        {
+          "pool": 4,
+          "alpha": 0,
+          "sigma_ms": null
+        },
+        {
+          "pool": 5,
+          "alpha": 0,
+          "sigma_ms": null
+        },
+        {
+          "pool": 6,
+          "alpha": 0,
+          "sigma_ms": null
+        }
+      ],
+      "survives": false
+    },
+    {
+      "id": "a20_s0.5",
+      "label": "\u03b1=20, \u03c3=0.5 ms",
+      "input": {
+        "alpha": 20,
+        "requested_sigma_ms": 0.5,
+        "realised_sigma_ms": 0.45549423706562975
+      },
+      "layers": [
+        {
+          "pool": 1,
+          "alpha": 0,
+          "sigma_ms": null
+        },
+        {
+          "pool": 2,
+          "alpha": 0,
+          "sigma_ms": null
+        },
+        {
+          "pool": 3,
+          "alpha": 0,
+          "sigma_ms": null
+        },
+        {
+          "pool": 4,
+          "alpha": 0,
+          "sigma_ms": null
+        },
+        {
+          "pool": 5,
+          "alpha": 0,
+          "sigma_ms": null
+        },
+        {
+          "pool": 6,
+          "alpha": 0,
+          "sigma_ms": null
+        }
+      ],
+      "survives": false
+    },
+    {
+      "id": "a20_s1",
+      "label": "\u03b1=20, \u03c3=1 ms",
+      "input": {
+        "alpha": 20,
+        "requested_sigma_ms": 1.0,
+        "realised_sigma_ms": 0.9120855223058855
+      },
+      "layers": [
+        {
+          "pool": 1,
+          "alpha": 0,
+          "sigma_ms": null
+        },
+        {
+          "pool": 2,
+          "alpha": 0,
+          "sigma_ms": null
+        },
+        {
+          "pool": 3,
+          "alpha": 0,
+          "sigma_ms": null
+        },
+        {
+          "pool": 4,
+          "alpha": 0,
+          "sigma_ms": null
+        },
+        {
+          "pool": 5,
+          "alpha": 0,
+          "sigma_ms": null
+        },
+        {
+          "pool": 6,
+          "alpha": 0,
+          "sigma_ms": null
+        }
+      ],
+      "survives": false
+    },
+    {
+      "id": "a20_s2",
+      "label": "\u03b1=20, \u03c3=2 ms",
+      "input": {
+        "alpha": 20,
+        "requested_sigma_ms": 2.0,
+        "realised_sigma_ms": 2.3245375884248465
+      },
+      "layers": [
+        {
+          "pool": 1,
+          "alpha": 0,
+          "sigma_ms": null
+        },
+        {
+          "pool": 2,
+          "alpha": 0,
+          "sigma_ms": null
+        },
+        {
+          "pool": 3,
+          "alpha": 0,
+          "sigma_ms": null
+        },
+        {
+          "pool": 4,
+          "alpha": 0,
+          "sigma_ms": null
+        },
+        {
+          "pool": 5,
+          "alpha": 0,
+          "sigma_ms": null
+        },
+        {
+          "pool": 6,
+          "alpha": 0,
+          "sigma_ms": null
+        }
+      ],
+      "survives": false
+    },
+    {
+      "id": "a20_s3",
+      "label": "\u03b1=20, \u03c3=3 ms",
+      "input": {
+        "alpha": 20,
+        "requested_sigma_ms": 3.0,
+        "realised_sigma_ms": 3.7020095893987097
+      },
+      "layers": [
+        {
+          "pool": 1,
+          "alpha": 0,
+          "sigma_ms": null
+        },
+        {
+          "pool": 2,
+          "alpha": 0,
+          "sigma_ms": null
+        },
+        {
+          "pool": 3,
+          "alpha": 0,
+          "sigma_ms": null
+        },
+        {
+          "pool": 4,
+          "alpha": 0,
+          "sigma_ms": null
+        },
+        {
+          "pool": 5,
+          "alpha": 0,
+          "sigma_ms": null
+        },
+        {
+          "pool": 6,
+          "alpha": 0,
+          "sigma_ms": null
+        }
+      ],
+      "survives": false
+    },
+    {
+      "id": "a20_s4",
+      "label": "\u03b1=20, \u03c3=4 ms",
+      "input": {
+        "alpha": 20,
+        "requested_sigma_ms": 4.0,
+        "realised_sigma_ms": 4.278831616224224
+      },
+      "layers": [
+        {
+          "pool": 1,
+          "alpha": 0,
+          "sigma_ms": null
+        },
+        {
+          "pool": 2,
+          "alpha": 0,
+          "sigma_ms": null
+        },
+        {
+          "pool": 3,
+          "alpha": 0,
+          "sigma_ms": null
+        },
+        {
+          "pool": 4,
+          "alpha": 0,
+          "sigma_ms": null
+        },
+        {
+          "pool": 5,
+          "alpha": 0,
+          "sigma_ms": null
+        },
+        {
+          "pool": 6,
+          "alpha": 0,
+          "sigma_ms": null
+        }
+      ],
+      "survives": false
+    },
+    {
+      "id": "a20_s5",
+      "label": "\u03b1=20, \u03c3=5 ms",
+      "input": {
+        "alpha": 20,
+        "requested_sigma_ms": 5.0,
+        "realised_sigma_ms": 4.015280189476196
+      },
+      "layers": [
+        {
+          "pool": 1,
+          "alpha": 0,
+          "sigma_ms": null
+        },
+        {
+          "pool": 2,
+          "alpha": 0,
+          "sigma_ms": null
+        },
+        {
+          "pool": 3,
+          "alpha": 0,
+          "sigma_ms": null
+        },
+        {
+          "pool": 4,
+          "alpha": 0,
+          "sigma_ms": null
+        },
+        {
+          "pool": 5,
+          "alpha": 0,
+          "sigma_ms": null
+        },
+        {
+          "pool": 6,
+          "alpha": 0,
+          "sigma_ms": null
+        }
+      ],
+      "survives": false
+    },
+    {
+      "id": "a30_s0.2",
+      "label": "\u03b1=30, \u03c3=0.2 ms",
+      "input": {
+        "alpha": 30,
+        "requested_sigma_ms": 0.2,
+        "realised_sigma_ms": 0.21656407827707735
+      },
+      "layers": [
+        {
+          "pool": 1,
+          "alpha": 0,
+          "sigma_ms": null
+        },
+        {
+          "pool": 2,
+          "alpha": 0,
+          "sigma_ms": null
+        },
+        {
+          "pool": 3,
+          "alpha": 0,
+          "sigma_ms": null
+        },
+        {
+          "pool": 4,
+          "alpha": 0,
+          "sigma_ms": null
+        },
+        {
+          "pool": 5,
+          "alpha": 0,
+          "sigma_ms": null
+        },
+        {
+          "pool": 6,
+          "alpha": 0,
+          "sigma_ms": null
+        }
+      ],
+      "survives": false
+    },
+    {
+      "id": "a30_s0.5",
+      "label": "\u03b1=30, \u03c3=0.5 ms",
+      "input": {
+        "alpha": 30,
+        "requested_sigma_ms": 0.5,
+        "realised_sigma_ms": 0.48000000000000004
+      },
+      "layers": [
+        {
+          "pool": 1,
+          "alpha": 3,
+          "sigma_ms": 0.3299831645537218
+        },
+        {
+          "pool": 2,
+          "alpha": 0,
+          "sigma_ms": null
+        },
+        {
+          "pool": 3,
+          "alpha": 0,
+          "sigma_ms": null
+        },
+        {
+          "pool": 4,
+          "alpha": 0,
+          "sigma_ms": null
+        },
+        {
+          "pool": 5,
+          "alpha": 0,
+          "sigma_ms": null
+        },
+        {
+          "pool": 6,
+          "alpha": 0,
+          "sigma_ms": null
+        }
+      ],
+      "survives": false
+    },
+    {
+      "id": "a30_s1",
+      "label": "\u03b1=30, \u03c3=1 ms",
+      "input": {
+        "alpha": 30,
+        "requested_sigma_ms": 1.0,
+        "realised_sigma_ms": 1.2101469148642887
+      },
+      "layers": [
+        {
+          "pool": 1,
+          "alpha": 5,
+          "sigma_ms": 0.5535341001239218
+        },
+        {
+          "pool": 2,
+          "alpha": 0,
+          "sigma_ms": null
+        },
+        {
+          "pool": 3,
+          "alpha": 0,
+          "sigma_ms": null
+        },
+        {
+          "pool": 4,
+          "alpha": 0,
+          "sigma_ms": null
+        },
+        {
+          "pool": 5,
+          "alpha": 0,
+          "sigma_ms": null
+        },
+        {
+          "pool": 6,
+          "alpha": 0,
+          "sigma_ms": null
+        }
+      ],
+      "survives": false
+    },
+    {
+      "id": "a30_s2",
+      "label": "\u03b1=30, \u03c3=2 ms",
+      "input": {
+        "alpha": 30,
+        "requested_sigma_ms": 2.0,
+        "realised_sigma_ms": 1.641980511455602
+      },
+      "layers": [
+        {
+          "pool": 1,
+          "alpha": 1,
+          "sigma_ms": null
+        },
+        {
+          "pool": 2,
+          "alpha": 0,
+          "sigma_ms": null
+        },
+        {
+          "pool": 3,
+          "alpha": 0,
+          "sigma_ms": null
+        },
+        {
+          "pool": 4,
+          "alpha": 0,
+          "sigma_ms": null
+        },
+        {
+          "pool": 5,
+          "alpha": 0,
+          "sigma_ms": null
+        },
+        {
+          "pool": 6,
+          "alpha": 0,
+          "sigma_ms": null
+        }
+      ],
+      "survives": false
+    },
+    {
+      "id": "a30_s3",
+      "label": "\u03b1=30, \u03c3=3 ms",
+      "input": {
+        "alpha": 30,
+        "requested_sigma_ms": 3.0,
+        "realised_sigma_ms": 3.0457055376746816
+      },
+      "layers": [
+        {
+          "pool": 1,
+          "alpha": 1,
+          "sigma_ms": null
+        },
+        {
+          "pool": 2,
+          "alpha": 0,
+          "sigma_ms": null
+        },
+        {
+          "pool": 3,
+          "alpha": 0,
+          "sigma_ms": null
+        },
+        {
+          "pool": 4,
+          "alpha": 0,
+          "sigma_ms": null
+        },
+        {
+          "pool": 5,
+          "alpha": 0,
+          "sigma_ms": null
+        },
+        {
+          "pool": 6,
+          "alpha": 0,
+          "sigma_ms": null
+        }
+      ],
+      "survives": false
+    },
+    {
+      "id": "a30_s4",
+      "label": "\u03b1=30, \u03c3=4 ms",
+      "input": {
+        "alpha": 30,
+        "requested_sigma_ms": 4.0,
+        "realised_sigma_ms": 4.3491250716539405
+      },
+      "layers": [
+        {
+          "pool": 1,
+          "alpha": 1,
+          "sigma_ms": null
+        },
+        {
+          "pool": 2,
+          "alpha": 0,
+          "sigma_ms": null
+        },
+        {
+          "pool": 3,
+          "alpha": 0,
+          "sigma_ms": null
+        },
+        {
+          "pool": 4,
+          "alpha": 0,
+          "sigma_ms": null
+        },
+        {
+          "pool": 5,
+          "alpha": 0,
+          "sigma_ms": null
+        },
+        {
+          "pool": 6,
+          "alpha": 0,
+          "sigma_ms": null
+        }
+      ],
+      "survives": false
+    },
+    {
+      "id": "a30_s5",
+      "label": "\u03b1=30, \u03c3=5 ms",
+      "input": {
+        "alpha": 30,
+        "requested_sigma_ms": 5.0,
+        "realised_sigma_ms": 4.982949818018328
+      },
+      "layers": [
+        {
+          "pool": 1,
+          "alpha": 0,
+          "sigma_ms": null
+        },
+        {
+          "pool": 2,
+          "alpha": 0,
+          "sigma_ms": null
+        },
+        {
+          "pool": 3,
+          "alpha": 0,
+          "sigma_ms": null
+        },
+        {
+          "pool": 4,
+          "alpha": 0,
+          "sigma_ms": null
+        },
+        {
+          "pool": 5,
+          "alpha": 0,
+          "sigma_ms": null
+        },
+        {
+          "pool": 6,
+          "alpha": 0,
+          "sigma_ms": null
+        }
+      ],
+      "survives": false
+    },
+    {
+      "id": "a35_s0.2",
+      "label": "\u03b1=35, \u03c3=0.2 ms",
+      "input": {
+        "alpha": 35,
+        "requested_sigma_ms": 0.2,
+        "realised_sigma_ms": 0.240170007813343
+      },
+      "layers": [
+        {
+          "pool": 1,
+          "alpha": 18,
+          "sigma_ms": 0.727608122719169
+        },
+        {
+          "pool": 2,
+          "alpha": 0,
+          "sigma_ms": null
+        },
+        {
+          "pool": 3,
+          "alpha": 0,
+          "sigma_ms": null
+        },
+        {
+          "pool": 4,
+          "alpha": 0,
+          "sigma_ms": null
+        },
+        {
+          "pool": 5,
+          "alpha": 0,
+          "sigma_ms": null
+        },
+        {
+          "pool": 6,
+          "alpha": 0,
+          "sigma_ms": null
+        }
+      ],
+      "survives": false
+    },
+    {
+      "id": "a35_s0.5",
+      "label": "\u03b1=35, \u03c3=0.5 ms",
+      "input": {
+        "alpha": 35,
+        "requested_sigma_ms": 0.5,
+        "realised_sigma_ms": 0.44726835299609197
+      },
+      "layers": [
+        {
+          "pool": 1,
+          "alpha": 21,
+          "sigma_ms": 0.6004911066460499
+        },
+        {
+          "pool": 2,
+          "alpha": 0,
+          "sigma_ms": null
+        },
+        {
+          "pool": 3,
+          "alpha": 0,
+          "sigma_ms": null
+        },
+        {
+          "pool": 4,
+          "alpha": 0,
+          "sigma_ms": null
+        },
+        {
+          "pool": 5,
+          "alpha": 0,
+          "sigma_ms": null
+        },
+        {
+          "pool": 6,
+          "alpha": 0,
+          "sigma_ms": null
+        }
+      ],
+      "survives": false
+    },
+    {
+      "id": "a35_s1",
+      "label": "\u03b1=35, \u03c3=1 ms",
+      "input": {
+        "alpha": 35,
+        "requested_sigma_ms": 1.0,
+        "realised_sigma_ms": 1.0213396564696542
+      },
+      "layers": [
+        {
+          "pool": 1,
+          "alpha": 15,
+          "sigma_ms": 0.8605941100322628
+        },
+        {
+          "pool": 2,
+          "alpha": 0,
+          "sigma_ms": null
+        },
+        {
+          "pool": 3,
+          "alpha": 0,
+          "sigma_ms": null
+        },
+        {
+          "pool": 4,
+          "alpha": 0,
+          "sigma_ms": null
+        },
+        {
+          "pool": 5,
+          "alpha": 0,
+          "sigma_ms": null
+        },
+        {
+          "pool": 6,
+          "alpha": 0,
+          "sigma_ms": null
+        }
+      ],
+      "survives": false
+    },
+    {
+      "id": "a35_s2",
+      "label": "\u03b1=35, \u03c3=2 ms",
+      "input": {
+        "alpha": 35,
+        "requested_sigma_ms": 2.0,
+        "realised_sigma_ms": 2.16946151505532
+      },
+      "layers": [
+        {
+          "pool": 1,
+          "alpha": 11,
+          "sigma_ms": 0.9620913858416698
+        },
+        {
+          "pool": 2,
+          "alpha": 0,
+          "sigma_ms": null
+        },
+        {
+          "pool": 3,
+          "alpha": 0,
+          "sigma_ms": null
+        },
+        {
+          "pool": 4,
+          "alpha": 0,
+          "sigma_ms": null
+        },
+        {
+          "pool": 5,
+          "alpha": 0,
+          "sigma_ms": null
+        },
+        {
+          "pool": 6,
+          "alpha": 0,
+          "sigma_ms": null
+        }
+      ],
+      "survives": false
+    },
+    {
+      "id": "a35_s3",
+      "label": "\u03b1=35, \u03c3=3 ms",
+      "input": {
+        "alpha": 35,
+        "requested_sigma_ms": 3.0,
+        "realised_sigma_ms": 2.634257824457258
+      },
+      "layers": [
+        {
+          "pool": 1,
+          "alpha": 7,
+          "sigma_ms": 0.443087497693452
+        },
+        {
+          "pool": 2,
+          "alpha": 0,
+          "sigma_ms": null
+        },
+        {
+          "pool": 3,
+          "alpha": 0,
+          "sigma_ms": null
+        },
+        {
+          "pool": 4,
+          "alpha": 0,
+          "sigma_ms": null
+        },
+        {
+          "pool": 5,
+          "alpha": 0,
+          "sigma_ms": null
+        },
+        {
+          "pool": 6,
+          "alpha": 0,
+          "sigma_ms": null
+        }
+      ],
+      "survives": false
+    },
+    {
+      "id": "a35_s4",
+      "label": "\u03b1=35, \u03c3=4 ms",
+      "input": {
+        "alpha": 35,
+        "requested_sigma_ms": 4.0,
+        "realised_sigma_ms": 4.591114755032546
+      },
+      "layers": [
+        {
+          "pool": 1,
+          "alpha": 2,
+          "sigma_ms": 1.5
+        },
+        {
+          "pool": 2,
+          "alpha": 0,
+          "sigma_ms": null
+        },
+        {
+          "pool": 3,
+          "alpha": 0,
+          "sigma_ms": null
+        },
+        {
+          "pool": 4,
+          "alpha": 0,
+          "sigma_ms": null
+        },
+        {
+          "pool": 5,
+          "alpha": 0,
+          "sigma_ms": null
+        },
+        {
+          "pool": 6,
+          "alpha": 0,
+          "sigma_ms": null
+        }
+      ],
+      "survives": false
+    },
+    {
+      "id": "a35_s5",
+      "label": "\u03b1=35, \u03c3=5 ms",
+      "input": {
+        "alpha": 35,
+        "requested_sigma_ms": 5.0,
+        "realised_sigma_ms": 5.125809841440887
+      },
+      "layers": [
+        {
+          "pool": 1,
+          "alpha": 0,
+          "sigma_ms": null
+        },
+        {
+          "pool": 2,
+          "alpha": 0,
+          "sigma_ms": null
+        },
+        {
+          "pool": 3,
+          "alpha": 0,
+          "sigma_ms": null
+        },
+        {
+          "pool": 4,
+          "alpha": 0,
+          "sigma_ms": null
+        },
+        {
+          "pool": 5,
+          "alpha": 0,
+          "sigma_ms": null
+        },
+        {
+          "pool": 6,
+          "alpha": 0,
+          "sigma_ms": null
+        }
+      ],
+      "survives": false
+    },
+    {
+      "id": "a40_s0.2",
+      "label": "\u03b1=40, \u03c3=0.2 ms",
+      "input": {
+        "alpha": 40,
+        "requested_sigma_ms": 0.2,
+        "realised_sigma_ms": 0.2556242359401784
+      },
+      "layers": [
+        {
+          "pool": 1,
+          "alpha": 38,
+          "sigma_ms": 0.8168414270208794
+        },
+        {
+          "pool": 2,
+          "alpha": 39,
+          "sigma_ms": 0.7503144201770184
+        },
+        {
+          "pool": 3,
+          "alpha": 50,
+          "sigma_ms": 0.6808347817202056
+        },
+        {
+          "pool": 4,
+          "alpha": 99,
+          "sigma_ms": 0.60878847375334
+        },
+        {
+          "pool": 5,
+          "alpha": 100,
+          "sigma_ms": 0.09205976319761
+        },
+        {
+          "pool": 6,
+          "alpha": 100,
+          "sigma_ms": 0.059084684986889645
+        }
+      ],
+      "survives": true
+    },
+    {
+      "id": "a40_s0.5",
+      "label": "\u03b1=40, \u03c3=0.5 ms",
+      "input": {
+        "alpha": 40,
+        "requested_sigma_ms": 0.5,
+        "realised_sigma_ms": 0.48246761549351674
+      },
+      "layers": [
+        {
+          "pool": 1,
+          "alpha": 44,
+          "sigma_ms": 0.7054978899523886
+        },
+        {
+          "pool": 2,
+          "alpha": 75,
+          "sigma_ms": 0.6798614237883744
+        },
+        {
+          "pool": 3,
+          "alpha": 100,
+          "sigma_ms": 0.19416230324138622
+        },
+        {
+          "pool": 4,
+          "alpha": 100,
+          "sigma_ms": 0.06403124237432825
+        },
+        {
+          "pool": 5,
+          "alpha": 100,
+          "sigma_ms": 0.05975784467331398
+        },
+        {
+          "pool": 6,
+          "alpha": 100,
+          "sigma_ms": 0.05830951894845315
+        }
+      ],
+      "survives": true
+    },
+    {
+      "id": "a40_s1",
+      "label": "\u03b1=40, \u03c3=1 ms",
+      "input": {
+        "alpha": 40,
+        "requested_sigma_ms": 1.0,
+        "realised_sigma_ms": 0.94486771560891
+      },
+      "layers": [
+        {
+          "pool": 1,
+          "alpha": 44,
+          "sigma_ms": 0.689157468601281
+        },
+        {
+          "pool": 2,
+          "alpha": 71,
+          "sigma_ms": 0.8175179800401644
+        },
+        {
+          "pool": 3,
+          "alpha": 100,
+          "sigma_ms": 0.25038170859709385
+        },
+        {
+          "pool": 4,
+          "alpha": 100,
+          "sigma_ms": 0.06651315659326368
+        },
+        {
+          "pool": 5,
+          "alpha": 100,
+          "sigma_ms": 0.058949130612757236
+        },
+        {
+          "pool": 6,
+          "alpha": 100,
+          "sigma_ms": 0.06009159675029522
+        }
+      ],
+      "survives": true
+    },
+    {
+      "id": "a40_s2",
+      "label": "\u03b1=40, \u03c3=2 ms",
+      "input": {
+        "alpha": 40,
+        "requested_sigma_ms": 2.0,
+        "realised_sigma_ms": 1.5202302457193781
+      },
+      "layers": [
+        {
+          "pool": 1,
+          "alpha": 33,
+          "sigma_ms": 0.7254142921922647
+        },
+        {
+          "pool": 2,
+          "alpha": 21,
+          "sigma_ms": 0.7599976130765714
+        },
+        {
+          "pool": 3,
+          "alpha": 0,
+          "sigma_ms": null
+        },
+        {
+          "pool": 4,
+          "alpha": 0,
+          "sigma_ms": null
+        },
+        {
+          "pool": 5,
+          "alpha": 0,
+          "sigma_ms": null
+        },
+        {
+          "pool": 6,
+          "alpha": 0,
+          "sigma_ms": null
+        }
+      ],
+      "survives": false
+    },
+    {
+      "id": "a40_s3",
+      "label": "\u03b1=40, \u03c3=3 ms",
+      "input": {
+        "alpha": 40,
+        "requested_sigma_ms": 3.0,
+        "realised_sigma_ms": 3.125810894791942
+      },
+      "layers": [
+        {
+          "pool": 1,
+          "alpha": 23,
+          "sigma_ms": 1.1824328513768227
+        },
+        {
+          "pool": 2,
+          "alpha": 1,
+          "sigma_ms": null
+        },
+        {
+          "pool": 3,
+          "alpha": 0,
+          "sigma_ms": null
+        },
+        {
+          "pool": 4,
+          "alpha": 0,
+          "sigma_ms": null
+        },
+        {
+          "pool": 5,
+          "alpha": 0,
+          "sigma_ms": null
+        },
+        {
+          "pool": 6,
+          "alpha": 0,
+          "sigma_ms": null
+        }
+      ],
+      "survives": false
+    },
+    {
+      "id": "a40_s4",
+      "label": "\u03b1=40, \u03c3=4 ms",
+      "input": {
+        "alpha": 40,
+        "requested_sigma_ms": 4.0,
+        "realised_sigma_ms": 3.968182833489405
+      },
+      "layers": [
+        {
+          "pool": 1,
+          "alpha": 14,
+          "sigma_ms": 1.6878467141930413
+        },
+        {
+          "pool": 2,
+          "alpha": 0,
+          "sigma_ms": null
+        },
+        {
+          "pool": 3,
+          "alpha": 0,
+          "sigma_ms": null
+        },
+        {
+          "pool": 4,
+          "alpha": 0,
+          "sigma_ms": null
+        },
+        {
+          "pool": 5,
+          "alpha": 0,
+          "sigma_ms": null
+        },
+        {
+          "pool": 6,
+          "alpha": 0,
+          "sigma_ms": null
+        }
+      ],
+      "survives": false
+    },
+    {
+      "id": "a40_s5",
+      "label": "\u03b1=40, \u03c3=5 ms",
+      "input": {
+        "alpha": 40,
+        "requested_sigma_ms": 5.0,
+        "realised_sigma_ms": 4.227699581332619
+      },
+      "layers": [
+        {
+          "pool": 1,
+          "alpha": 5,
+          "sigma_ms": 1.4688771221582833
+        },
+        {
+          "pool": 2,
+          "alpha": 0,
+          "sigma_ms": null
+        },
+        {
+          "pool": 3,
+          "alpha": 0,
+          "sigma_ms": null
+        },
+        {
+          "pool": 4,
+          "alpha": 0,
+          "sigma_ms": null
+        },
+        {
+          "pool": 5,
+          "alpha": 0,
+          "sigma_ms": null
+        },
+        {
+          "pool": 6,
+          "alpha": 0,
+          "sigma_ms": null
+        }
+      ],
+      "survives": false
+    },
+    {
+      "id": "a45_s0.2",
+      "label": "\u03b1=45, \u03c3=0.2 ms",
+      "input": {
+        "alpha": 45,
+        "requested_sigma_ms": 0.2,
+        "realised_sigma_ms": 0.2309401076758503
+      },
+      "layers": [
+        {
+          "pool": 1,
+          "alpha": 70,
+          "sigma_ms": 0.6662781180650051
+        },
+        {
+          "pool": 2,
+          "alpha": 100,
+          "sigma_ms": 0.2108909670896315
+        },
+        {
+          "pool": 3,
+          "alpha": 100,
+          "sigma_ms": 0.057758116312774395
+        },
+        {
+          "pool": 4,
+          "alpha": 100,
+          "sigma_ms": 0.05963220606350225
+        },
+        {
+          "pool": 5,
+          "alpha": 100,
+          "sigma_ms": 0.058309518948453126
+        },
+        {
+          "pool": 6,
+          "alpha": 100,
+          "sigma_ms": 0.06063002556489626
+        }
+      ],
+      "survives": true
+    },
+    {
+      "id": "a45_s0.5",
+      "label": "\u03b1=45, \u03c3=0.5 ms",
+      "input": {
+        "alpha": 45,
+        "requested_sigma_ms": 0.5,
+        "realised_sigma_ms": 0.42163702135578385
+      },
+      "layers": [
+        {
+          "pool": 1,
+          "alpha": 69,
+          "sigma_ms": 0.7404790197864902
+        },
+        {
+          "pool": 2,
+          "alpha": 100,
+          "sigma_ms": 0.2908797002198677
+        },
+        {
+          "pool": 3,
+          "alpha": 100,
+          "sigma_ms": 0.06617401302626268
+        },
+        {
+          "pool": 4,
+          "alpha": 100,
+          "sigma_ms": 0.06048966853934693
+        },
+        {
+          "pool": 5,
+          "alpha": 100,
+          "sigma_ms": 0.05812916651733428
+        },
+        {
+          "pool": 6,
+          "alpha": 100,
+          "sigma_ms": 0.056426943918663326
+        }
+      ],
+      "survives": true
+    },
+    {
+      "id": "a45_s1",
+      "label": "\u03b1=45, \u03c3=1 ms",
+      "input": {
+        "alpha": 45,
+        "requested_sigma_ms": 1.0,
+        "realised_sigma_ms": 1.2515274618059011
+      },
+      "layers": [
+        {
+          "pool": 1,
+          "alpha": 73,
+          "sigma_ms": 0.8226526395504694
+        },
+        {
+          "pool": 2,
+          "alpha": 100,
+          "sigma_ms": 0.20055921818754696
+        },
+        {
+          "pool": 3,
+          "alpha": 100,
+          "sigma_ms": 0.06003332407921433
+        },
+        {
+          "pool": 4,
+          "alpha": 100,
+          "sigma_ms": 0.05999999999999978
+        },
+        {
+          "pool": 5,
+          "alpha": 100,
+          "sigma_ms": 0.059632206063502884
+        },
+        {
+          "pool": 6,
+          "alpha": 100,
+          "sigma_ms": 0.057227615711297676
+        }
+      ],
+      "survives": true
+    },
+    {
+      "id": "a45_s2",
+      "label": "\u03b1=45, \u03c3=2 ms",
+      "input": {
+        "alpha": 45,
+        "requested_sigma_ms": 2.0,
+        "realised_sigma_ms": 1.7254178237941866
+      },
+      "layers": [
+        {
+          "pool": 1,
+          "alpha": 69,
+          "sigma_ms": 0.9804023795753032
+        },
+        {
+          "pool": 2,
+          "alpha": 100,
+          "sigma_ms": 0.3284432979982999
+        },
+        {
+          "pool": 3,
+          "alpha": 100,
+          "sigma_ms": 0.06615134163416474
+        },
+        {
+          "pool": 4,
+          "alpha": 100,
+          "sigma_ms": 0.06495382975621967
+        },
+        {
+          "pool": 5,
+          "alpha": 100,
+          "sigma_ms": 0.0606217782649113
+        },
+        {
+          "pool": 6,
+          "alpha": 100,
+          "sigma_ms": 0.06161168720299728
+        }
+      ],
+      "survives": true
+    },
+    {
+      "id": "a45_s3",
+      "label": "\u03b1=45, \u03c3=3 ms",
+      "input": {
+        "alpha": 45,
+        "requested_sigma_ms": 3.0,
+        "realised_sigma_ms": 2.7924890441554817
+      },
+      "layers": [
+        {
+          "pool": 1,
+          "alpha": 55,
+          "sigma_ms": 1.1617313952505306
+        },
+        {
+          "pool": 2,
+          "alpha": 99,
+          "sigma_ms": 0.5526757315445858
+        },
+        {
+          "pool": 3,
+          "alpha": 100,
+          "sigma_ms": 0.10397595875970536
+        },
+        {
+          "pool": 4,
+          "alpha": 100,
+          "sigma_ms": 0.06671581521648397
+        },
+        {
+          "pool": 5,
+          "alpha": 100,
+          "sigma_ms": 0.06079473661428189
+        },
+        {
+          "pool": 6,
+          "alpha": 100,
+          "sigma_ms": 0.06151422599691967
+        }
+      ],
+      "survives": true
+    },
+    {
+      "id": "a45_s4",
+      "label": "\u03b1=45, \u03c3=4 ms",
+      "input": {
+        "alpha": 45,
+        "requested_sigma_ms": 4.0,
+        "realised_sigma_ms": 4.067737563915461
+      },
+      "layers": [
+        {
+          "pool": 1,
+          "alpha": 35,
+          "sigma_ms": 1.4534294419947407
+        },
+        {
+          "pool": 2,
+          "alpha": 21,
+          "sigma_ms": 1.0960245623478704
+        },
+        {
+          "pool": 3,
+          "alpha": 0,
+          "sigma_ms": null
+        },
+        {
+          "pool": 4,
+          "alpha": 0,
+          "sigma_ms": null
+        },
+        {
+          "pool": 5,
+          "alpha": 0,
+          "sigma_ms": null
+        },
+        {
+          "pool": 6,
+          "alpha": 0,
+          "sigma_ms": null
+        }
+      ],
+      "survives": false
+    },
+    {
+      "id": "a45_s5",
+      "label": "\u03b1=45, \u03c3=5 ms",
+      "input": {
+        "alpha": 45,
+        "requested_sigma_ms": 5.0,
+        "realised_sigma_ms": 5.030594790938472
+      },
+      "layers": [
+        {
+          "pool": 1,
+          "alpha": 30,
+          "sigma_ms": 1.2227519054257174
+        },
+        {
+          "pool": 2,
+          "alpha": 3,
+          "sigma_ms": 0.7717224601860148
+        },
+        {
+          "pool": 3,
+          "alpha": 0,
+          "sigma_ms": null
+        },
+        {
+          "pool": 4,
+          "alpha": 0,
+          "sigma_ms": null
+        },
+        {
+          "pool": 5,
+          "alpha": 0,
+          "sigma_ms": null
+        },
+        {
+          "pool": 6,
+          "alpha": 0,
+          "sigma_ms": null
+        }
+      ],
+      "survives": false
+    },
+    {
+      "id": "a50_s0.2",
+      "label": "\u03b1=50, \u03c3=0.2 ms",
+      "input": {
+        "alpha": 50,
+        "requested_sigma_ms": 0.2,
+        "realised_sigma_ms": 0.19983993594874871
+      },
+      "layers": [
+        {
+          "pool": 1,
+          "alpha": 93,
+          "sigma_ms": 0.5588460767057564
+        },
+        {
+          "pool": 2,
+          "alpha": 100,
+          "sigma_ms": 0.1171153277756588
+        },
+        {
+          "pool": 3,
+          "alpha": 100,
+          "sigma_ms": 0.05635601121442144
+        },
+        {
+          "pool": 4,
+          "alpha": 100,
+          "sigma_ms": 0.0607536007163361
+        },
+        {
+          "pool": 5,
+          "alpha": 100,
+          "sigma_ms": 0.059699246226396996
+        },
+        {
+          "pool": 6,
+          "alpha": 100,
+          "sigma_ms": 0.06403124237432851
+        }
+      ],
+      "survives": true
+    },
+    {
+      "id": "a50_s0.5",
+      "label": "\u03b1=50, \u03c3=0.5 ms",
+      "input": {
+        "alpha": 50,
+        "requested_sigma_ms": 0.5,
+        "realised_sigma_ms": 0.4996999099459594
+      },
+      "layers": [
+        {
+          "pool": 1,
+          "alpha": 87,
+          "sigma_ms": 0.6333886118104315
+        },
+        {
+          "pool": 2,
+          "alpha": 100,
+          "sigma_ms": 0.13883443376914836
+        },
+        {
+          "pool": 3,
+          "alpha": 100,
+          "sigma_ms": 0.06140846847137594
+        },
+        {
+          "pool": 4,
+          "alpha": 100,
+          "sigma_ms": 0.058949130612757895
+        },
+        {
+          "pool": 5,
+          "alpha": 100,
+          "sigma_ms": 0.05834380858325947
+        },
+        {
+          "pool": 6,
+          "alpha": 100,
+          "sigma_ms": 0.06499230723708745
+        }
+      ],
+      "survives": true
+    },
+    {
+      "id": "a50_s1",
+      "label": "\u03b1=50, \u03c3=1 ms",
+      "input": {
+        "alpha": 50,
+        "requested_sigma_ms": 1.0,
+        "realised_sigma_ms": 0.9110455531969849
+      },
+      "layers": [
+        {
+          "pool": 1,
+          "alpha": 92,
+          "sigma_ms": 0.6957837851045156
+        },
+        {
+          "pool": 2,
+          "alpha": 100,
+          "sigma_ms": 0.14309088021254177
+        },
+        {
+          "pool": 3,
+          "alpha": 100,
+          "sigma_ms": 0.06237788069500306
+        },
+        {
+          "pool": 4,
+          "alpha": 100,
+          "sigma_ms": 0.057087651904768194
+        },
+        {
+          "pool": 5,
+          "alpha": 100,
+          "sigma_ms": 0.05975784467331443
+        },
+        {
+          "pool": 6,
+          "alpha": 100,
+          "sigma_ms": 0.0577148161220325
+        }
+      ],
+      "survives": true
+    },
+    {
+      "id": "a50_s2",
+      "label": "\u03b1=50, \u03c3=2 ms",
+      "input": {
+        "alpha": 50,
+        "requested_sigma_ms": 2.0,
+        "realised_sigma_ms": 1.7359677416357713
+      },
+      "layers": [
+        {
+          "pool": 1,
+          "alpha": 87,
+          "sigma_ms": 0.7184799944634368
+        },
+        {
+          "pool": 2,
+          "alpha": 100,
+          "sigma_ms": 0.14951922953252553
+        },
+        {
+          "pool": 3,
+          "alpha": 100,
+          "sigma_ms": 0.06480740698407841
+        },
+        {
+          "pool": 4,
+          "alpha": 100,
+          "sigma_ms": 0.0583438085832597
+        },
+        {
+          "pool": 5,
+          "alpha": 100,
+          "sigma_ms": 0.057131427428342596
+        },
+        {
+          "pool": 6,
+          "alpha": 100,
+          "sigma_ms": 0.0599999999999998
+        }
+      ],
+      "survives": true
+    },
+    {
+      "id": "a50_s3",
+      "label": "\u03b1=50, \u03c3=3 ms",
+      "input": {
+        "alpha": 50,
+        "requested_sigma_ms": 3.0,
+        "realised_sigma_ms": 2.7322518185555302
+      },
+      "layers": [
+        {
+          "pool": 1,
+          "alpha": 84,
+          "sigma_ms": 1.017288200780247
+        },
+        {
+          "pool": 2,
+          "alpha": 100,
+          "sigma_ms": 0.20814418079783062
+        },
+        {
+          "pool": 3,
+          "alpha": 100,
+          "sigma_ms": 0.06324555320336742
+        },
+        {
+          "pool": 4,
+          "alpha": 100,
+          "sigma_ms": 0.058103356185336366
+        },
+        {
+          "pool": 5,
+          "alpha": 100,
+          "sigma_ms": 0.05545268253204689
+        },
+        {
+          "pool": 6,
+          "alpha": 100,
+          "sigma_ms": 0.06062177826491082
+        }
+      ],
+      "survives": true
+    },
+    {
+      "id": "a50_s4",
+      "label": "\u03b1=50, \u03c3=4 ms",
+      "input": {
+        "alpha": 50,
+        "requested_sigma_ms": 4.0,
+        "realised_sigma_ms": 3.7039703022567556
+      },
+      "layers": [
+        {
+          "pool": 1,
+          "alpha": 69,
+          "sigma_ms": 1.6111275520820583
+        },
+        {
+          "pool": 2,
+          "alpha": 100,
+          "sigma_ms": 0.4635471928509546
+        },
+        {
+          "pool": 3,
+          "alpha": 100,
+          "sigma_ms": 0.07649182962905259
+        },
+        {
+          "pool": 4,
+          "alpha": 100,
+          "sigma_ms": 0.06837397165588692
+        },
+        {
+          "pool": 5,
+          "alpha": 100,
+          "sigma_ms": 0.06493073232299149
+        },
+        {
+          "pool": 6,
+          "alpha": 100,
+          "sigma_ms": 0.06458327956986956
+        }
+      ],
+      "survives": true
+    },
+    {
+      "id": "a50_s5",
+      "label": "\u03b1=50, \u03c3=5 ms",
+      "input": {
+        "alpha": 50,
+        "requested_sigma_ms": 5.0,
+        "realised_sigma_ms": 4.857252309691149
+      },
+      "layers": [
+        {
+          "pool": 1,
+          "alpha": 51,
+          "sigma_ms": 1.7540659636525333
+        },
+        {
+          "pool": 2,
+          "alpha": 93,
+          "sigma_ms": 0.7818173018322944
+        },
+        {
+          "pool": 3,
+          "alpha": 100,
+          "sigma_ms": 0.1330563790278389
+        },
+        {
+          "pool": 4,
+          "alpha": 100,
+          "sigma_ms": 0.06495382975622001
+        },
+        {
+          "pool": 5,
+          "alpha": 100,
+          "sigma_ms": 0.05982474404458461
+        },
+        {
+          "pool": 6,
+          "alpha": 100,
+          "sigma_ms": 0.06212084996198977
+        }
+      ],
+      "survives": true
+    },
+    {
+      "id": "a55_s0.2",
+      "label": "\u03b1=55, \u03c3=0.2 ms",
+      "input": {
+        "alpha": 55,
+        "requested_sigma_ms": 0.2,
+        "realised_sigma_ms": 0.192297978139902
+      },
+      "layers": [
+        {
+          "pool": 1,
+          "alpha": 100,
+          "sigma_ms": 0.5013980454688669
+        },
+        {
+          "pool": 2,
+          "alpha": 100,
+          "sigma_ms": 0.08368990381163069
+        },
+        {
+          "pool": 3,
+          "alpha": 100,
+          "sigma_ms": 0.058957611891935165
+        },
+        {
+          "pool": 4,
+          "alpha": 100,
+          "sigma_ms": 0.06161168720299725
+        },
+        {
+          "pool": 5,
+          "alpha": 100,
+          "sigma_ms": 0.05881326381013024
+        },
+        {
+          "pool": 6,
+          "alpha": 100,
+          "sigma_ms": 0.0642728558568862
+        }
+      ],
+      "survives": true
+    },
+    {
+      "id": "a55_s0.5",
+      "label": "\u03b1=55, \u03c3=0.5 ms",
+      "input": {
+        "alpha": 55,
+        "requested_sigma_ms": 0.5,
+        "realised_sigma_ms": 0.5006904323940184
+      },
+      "layers": [
+        {
+          "pool": 1,
+          "alpha": 98,
+          "sigma_ms": 0.4883695216441854
+        },
+        {
+          "pool": 2,
+          "alpha": 100,
+          "sigma_ms": 0.08616263691415214
+        },
+        {
+          "pool": 3,
+          "alpha": 100,
+          "sigma_ms": 0.06224949798994372
+        },
+        {
+          "pool": 4,
+          "alpha": 100,
+          "sigma_ms": 0.05999999999999993
+        },
+        {
+          "pool": 5,
+          "alpha": 100,
+          "sigma_ms": 0.0565685424949236
+        },
+        {
+          "pool": 6,
+          "alpha": 100,
+          "sigma_ms": 0.06225752966509367
+        }
+      ],
+      "survives": true
+    },
+    {
+      "id": "a55_s1",
+      "label": "\u03b1=55, \u03c3=1 ms",
+      "input": {
+        "alpha": 55,
+        "requested_sigma_ms": 1.0,
+        "realised_sigma_ms": 1.1687161848204026
+      },
+      "layers": [
+        {
+          "pool": 1,
+          "alpha": 96,
+          "sigma_ms": 0.6005639710583156
+        },
+        {
+          "pool": 2,
+          "alpha": 100,
+          "sigma_ms": 0.10397595875970526
+        },
+        {
+          "pool": 3,
+          "alpha": 100,
+          "sigma_ms": 0.06013318551349217
+        },
+        {
+          "pool": 4,
+          "alpha": 100,
+          "sigma_ms": 0.059160797830995954
+        },
+        {
+          "pool": 5,
+          "alpha": 100,
+          "sigma_ms": 0.057758116312774395
+        },
+        {
+          "pool": 6,
+          "alpha": 100,
+          "sigma_ms": 0.06403124237432901
+        }
+      ],
+      "survives": true
+    },
+    {
+      "id": "a55_s2",
+      "label": "\u03b1=55, \u03c3=2 ms",
+      "input": {
+        "alpha": 55,
+        "requested_sigma_ms": 2.0,
+        "realised_sigma_ms": 1.5944469752941908
+      },
+      "layers": [
+        {
+          "pool": 1,
+          "alpha": 95,
+          "sigma_ms": 0.6949234199225025
+        },
+        {
+          "pool": 2,
+          "alpha": 100,
+          "sigma_ms": 0.10700934538627899
+        },
+        {
+          "pool": 3,
+          "alpha": 100,
+          "sigma_ms": 0.05793099343184091
+        },
+        {
+          "pool": 4,
+          "alpha": 100,
+          "sigma_ms": 0.06675327707311429
+        },
+        {
+          "pool": 5,
+          "alpha": 100,
+          "sigma_ms": 0.05758472019555194
+        },
+        {
+          "pool": 6,
+          "alpha": 100,
+          "sigma_ms": 0.06307931515164068
+        }
+      ],
+      "survives": true
+    },
+    {
+      "id": "a55_s3",
+      "label": "\u03b1=55, \u03c3=3 ms",
+      "input": {
+        "alpha": 55,
+        "requested_sigma_ms": 3.0,
+        "realised_sigma_ms": 2.2632310699601703
+      },
+      "layers": [
+        {
+          "pool": 1,
+          "alpha": 95,
+          "sigma_ms": 0.764159777929319
+        },
+        {
+          "pool": 2,
+          "alpha": 100,
+          "sigma_ms": 0.13143439428094944
+        },
+        {
+          "pool": 3,
+          "alpha": 100,
+          "sigma_ms": 0.0583095189484528
+        },
+        {
+          "pool": 4,
+          "alpha": 100,
+          "sigma_ms": 0.06557438524302044
+        },
+        {
+          "pool": 5,
+          "alpha": 100,
+          "sigma_ms": 0.05851495535331101
+        },
+        {
+          "pool": 6,
+          "alpha": 100,
+          "sigma_ms": 0.062481997407253013
+        }
+      ],
+      "survives": true
+    },
+    {
+      "id": "a55_s4",
+      "label": "\u03b1=55, \u03c3=4 ms",
+      "input": {
+        "alpha": 55,
+        "requested_sigma_ms": 4.0,
+        "realised_sigma_ms": 3.8406068735324626
+      },
+      "layers": [
+        {
+          "pool": 1,
+          "alpha": 94,
+          "sigma_ms": 1.4642769758549827
+        },
+        {
+          "pool": 2,
+          "alpha": 100,
+          "sigma_ms": 0.20653329029480927
+        },
+        {
+          "pool": 3,
+          "alpha": 100,
+          "sigma_ms": 0.05936328831862385
+        },
+        {
+          "pool": 4,
+          "alpha": 100,
+          "sigma_ms": 0.06179805822192128
+        },
+        {
+          "pool": 5,
+          "alpha": 100,
+          "sigma_ms": 0.059966657402259586
+        },
+        {
+          "pool": 6,
+          "alpha": 100,
+          "sigma_ms": 0.060819404798140214
+        }
+      ],
+      "survives": true
+    },
+    {
+      "id": "a55_s5",
+      "label": "\u03b1=55, \u03c3=5 ms",
+      "input": {
+        "alpha": 55,
+        "requested_sigma_ms": 5.0,
+        "realised_sigma_ms": 4.701420217988996
+      },
+      "layers": [
+        {
+          "pool": 1,
+          "alpha": 83,
+          "sigma_ms": 1.4385996239125478
+        },
+        {
+          "pool": 2,
+          "alpha": 100,
+          "sigma_ms": 0.2206807649071391
+        },
+        {
+          "pool": 3,
+          "alpha": 100,
+          "sigma_ms": 0.06519969325081192
+        },
+        {
+          "pool": 4,
+          "alpha": 100,
+          "sigma_ms": 0.06483826030978972
+        },
+        {
+          "pool": 5,
+          "alpha": 100,
+          "sigma_ms": 0.06493073232299157
+        },
+        {
+          "pool": 6,
+          "alpha": 100,
+          "sigma_ms": 0.06458327956987092
+        }
+      ],
+      "survives": true
+    },
+    {
+      "id": "a60_s0.2",
+      "label": "\u03b1=60, \u03c3=0.2 ms",
+      "input": {
+        "alpha": 60,
+        "requested_sigma_ms": 0.2,
+        "realised_sigma_ms": 0.18119204054139784
+      },
+      "layers": [
+        {
+          "pool": 1,
+          "alpha": 100,
+          "sigma_ms": 0.318502747240899
+        },
+        {
+          "pool": 2,
+          "alpha": 100,
+          "sigma_ms": 0.07140728254176884
+        },
+        {
+          "pool": 3,
+          "alpha": 100,
+          "sigma_ms": 0.05915234568468128
+        },
+        {
+          "pool": 4,
+          "alpha": 100,
+          "sigma_ms": 0.06327716807822527
+        },
+        {
+          "pool": 5,
+          "alpha": 100,
+          "sigma_ms": 0.057131427428343436
+        },
+        {
+          "pool": 6,
+          "alpha": 100,
+          "sigma_ms": 0.06301587101675238
+        }
+      ],
+      "survives": true
+    },
+    {
+      "id": "a60_s0.5",
+      "label": "\u03b1=60, \u03c3=0.5 ms",
+      "input": {
+        "alpha": 60,
+        "requested_sigma_ms": 0.5,
+        "realised_sigma_ms": 0.4846390409366542
+      },
+      "layers": [
+        {
+          "pool": 1,
+          "alpha": 100,
+          "sigma_ms": 0.4158076478373142
+        },
+        {
+          "pool": 2,
+          "alpha": 100,
+          "sigma_ms": 0.07936623967405794
+        },
+        {
+          "pool": 3,
+          "alpha": 100,
+          "sigma_ms": 0.06164414002968955
+        },
+        {
+          "pool": 4,
+          "alpha": 100,
+          "sigma_ms": 0.061676575780437275
+        },
+        {
+          "pool": 5,
+          "alpha": 100,
+          "sigma_ms": 0.05730619512757747
+        },
+        {
+          "pool": 6,
+          "alpha": 100,
+          "sigma_ms": 0.0621208499619892
+        }
+      ],
+      "survives": true
+    },
+    {
+      "id": "a60_s1",
+      "label": "\u03b1=60, \u03c3=1 ms",
+      "input": {
+        "alpha": 60,
+        "requested_sigma_ms": 1.0,
+        "realised_sigma_ms": 0.9546668994413123
+      },
+      "layers": [
+        {
+          "pool": 1,
+          "alpha": 100,
+          "sigma_ms": 0.4221125442343546
+        },
+        {
+          "pool": 2,
+          "alpha": 100,
+          "sigma_ms": 0.09149316914393138
+        },
+        {
+          "pool": 3,
+          "alpha": 100,
+          "sigma_ms": 0.05868560300448464
+        },
+        {
+          "pool": 4,
+          "alpha": 100,
+          "sigma_ms": 0.05916079783099604
+        },
+        {
+          "pool": 5,
+          "alpha": 100,
+          "sigma_ms": 0.05847221562417511
+        },
+        {
+          "pool": 6,
+          "alpha": 100,
+          "sigma_ms": 0.06301587101675236
+        }
+      ],
+      "survives": true
+    },
+    {
+      "id": "a60_s2",
+      "label": "\u03b1=60, \u03c3=2 ms",
+      "input": {
+        "alpha": 60,
+        "requested_sigma_ms": 2.0,
+        "realised_sigma_ms": 1.806176901635053
+      },
+      "layers": [
+        {
+          "pool": 1,
+          "alpha": 99,
+          "sigma_ms": 0.6103501397831853
+        },
+        {
+          "pool": 2,
+          "alpha": 100,
+          "sigma_ms": 0.10461357464497584
+        },
+        {
+          "pool": 3,
+          "alpha": 100,
+          "sigma_ms": 0.06301587101675307
+        },
+        {
+          "pool": 4,
+          "alpha": 100,
+          "sigma_ms": 0.06062177826491048
+        },
+        {
+          "pool": 5,
+          "alpha": 100,
+          "sigma_ms": 0.05878775382679606
+        },
+        {
+          "pool": 6,
+          "alpha": 100,
+          "sigma_ms": 0.06383572667401902
+        }
+      ],
+      "survives": true
+    },
+    {
+      "id": "a60_s3",
+      "label": "\u03b1=60, \u03c3=3 ms",
+      "input": {
+        "alpha": 60,
+        "requested_sigma_ms": 3.0,
+        "realised_sigma_ms": 3.241013216058624
+      },
+      "layers": [
+        {
+          "pool": 1,
+          "alpha": 98,
+          "sigma_ms": 1.0210635650299822
+        },
+        {
+          "pool": 2,
+          "alpha": 100,
+          "sigma_ms": 0.13638181696985874
+        },
+        {
+          "pool": 3,
+          "alpha": 100,
+          "sigma_ms": 0.05975784467331449
+        },
+        {
+          "pool": 4,
+          "alpha": 100,
+          "sigma_ms": 0.06244997998398438
+        },
+        {
+          "pool": 5,
+          "alpha": 100,
+          "sigma_ms": 0.05736723803705367
+        },
+        {
+          "pool": 6,
+          "alpha": 100,
+          "sigma_ms": 0.06151422599691857
+        }
+      ],
+      "survives": true
+    },
+    {
+      "id": "a60_s4",
+      "label": "\u03b1=60, \u03c3=4 ms",
+      "input": {
+        "alpha": 60,
+        "requested_sigma_ms": 4.0,
+        "realised_sigma_ms": 3.7891728062409022
+      },
+      "layers": [
+        {
+          "pool": 1,
+          "alpha": 98,
+          "sigma_ms": 1.4441111803486013
+        },
+        {
+          "pool": 2,
+          "alpha": 100,
+          "sigma_ms": 0.2401895085135903
+        },
+        {
+          "pool": 3,
+          "alpha": 100,
+          "sigma_ms": 0.06606057825965479
+        },
+        {
+          "pool": 4,
+          "alpha": 100,
+          "sigma_ms": 0.05722761571129856
+        },
+        {
+          "pool": 5,
+          "alpha": 100,
+          "sigma_ms": 0.06140846847137594
+        },
+        {
+          "pool": 6,
+          "alpha": 100,
+          "sigma_ms": 0.05782732917920363
+        }
+      ],
+      "survives": true
+    },
+    {
+      "id": "a60_s5",
+      "label": "\u03b1=60, \u03c3=5 ms",
+      "input": {
+        "alpha": 60,
+        "requested_sigma_ms": 5.0,
+        "realised_sigma_ms": 4.872045828556578
+      },
+      "layers": [
+        {
+          "pool": 1,
+          "alpha": 92,
+          "sigma_ms": 1.5403316824215025
+        },
+        {
+          "pool": 2,
+          "alpha": 100,
+          "sigma_ms": 0.2761503213831191
+        },
+        {
+          "pool": 3,
+          "alpha": 100,
+          "sigma_ms": 0.06480740698407889
+        },
+        {
+          "pool": 4,
+          "alpha": 100,
+          "sigma_ms": 0.05894913061275782
+        },
+        {
+          "pool": 5,
+          "alpha": 100,
+          "sigma_ms": 0.05399999999999982
+        },
+        {
+          "pool": 6,
+          "alpha": 100,
+          "sigma_ms": 0.058813263810129905
+        }
+      ],
+      "survives": true
+    },
+    {
+      "id": "a70_s0.2",
+      "label": "\u03b1=70, \u03c3=0.2 ms",
+      "input": {
+        "alpha": 70,
+        "requested_sigma_ms": 0.2,
+        "realised_sigma_ms": 0.18813803009319244
+      },
+      "layers": [
+        {
+          "pool": 1,
+          "alpha": 100,
+          "sigma_ms": 0.1850297273413113
+        },
+        {
+          "pool": 2,
+          "alpha": 100,
+          "sigma_ms": 0.06225752966509351
+        },
+        {
+          "pool": 3,
+          "alpha": 100,
+          "sigma_ms": 0.06140846847137595
+        },
+        {
+          "pool": 4,
+          "alpha": 100,
+          "sigma_ms": 0.06384355879804997
+        },
+        {
+          "pool": 5,
+          "alpha": 100,
+          "sigma_ms": 0.056736231810016934
+        },
+        {
+          "pool": 6,
+          "alpha": 100,
+          "sigma_ms": 0.06689544080129801
+        }
+      ],
+      "survives": true
+    },
+    {
+      "id": "a70_s0.5",
+      "label": "\u03b1=70, \u03c3=0.5 ms",
+      "input": {
+        "alpha": 70,
+        "requested_sigma_ms": 0.5,
+        "realised_sigma_ms": 0.4521174671273305
+      },
+      "layers": [
+        {
+          "pool": 1,
+          "alpha": 100,
+          "sigma_ms": 0.19791664912280615
+        },
+        {
+          "pool": 2,
+          "alpha": 100,
+          "sigma_ms": 0.06689544080129824
+        },
+        {
+          "pool": 3,
+          "alpha": 100,
+          "sigma_ms": 0.054945427471264414
+        },
+        {
+          "pool": 4,
+          "alpha": 100,
+          "sigma_ms": 0.059422218066982904
+        },
+        {
+          "pool": 5,
+          "alpha": 100,
+          "sigma_ms": 0.05653317610041009
+        },
+        {
+          "pool": 6,
+          "alpha": 100,
+          "sigma_ms": 0.06406246951218765
+        }
+      ],
+      "survives": true
+    },
+    {
+      "id": "a70_s1",
+      "label": "\u03b1=70, \u03c3=1 ms",
+      "input": {
+        "alpha": 70,
+        "requested_sigma_ms": 1.0,
+        "realised_sigma_ms": 0.9898051756352286
+      },
+      "layers": [
+        {
+          "pool": 1,
+          "alpha": 100,
+          "sigma_ms": 0.2868361901852693
+        },
+        {
+          "pool": 2,
+          "alpha": 100,
+          "sigma_ms": 0.06550572494064906
+        },
+        {
+          "pool": 3,
+          "alpha": 100,
+          "sigma_ms": 0.06075360071633642
+        },
+        {
+          "pool": 4,
+          "alpha": 100,
+          "sigma_ms": 0.062249497989943454
+        },
+        {
+          "pool": 5,
+          "alpha": 100,
+          "sigma_ms": 0.05730619512757755
+        },
+        {
+          "pool": 6,
+          "alpha": 100,
+          "sigma_ms": 0.062120849961989535
+        }
+      ],
+      "survives": true
+    },
+    {
+      "id": "a70_s2",
+      "label": "\u03b1=70, \u03c3=2 ms",
+      "input": {
+        "alpha": 70,
+        "requested_sigma_ms": 2.0,
+        "realised_sigma_ms": 1.9165956212801398
+      },
+      "layers": [
+        {
+          "pool": 1,
+          "alpha": 100,
+          "sigma_ms": 0.46101084585940055
+        },
+        {
+          "pool": 2,
+          "alpha": 100,
+          "sigma_ms": 0.0780448588953815
+        },
+        {
+          "pool": 3,
+          "alpha": 100,
+          "sigma_ms": 0.06584831053261754
+        },
+        {
+          "pool": 4,
+          "alpha": 100,
+          "sigma_ms": 0.061351446600711644
+        },
+        {
+          "pool": 5,
+          "alpha": 100,
+          "sigma_ms": 0.05722761571129859
+        },
+        {
+          "pool": 6,
+          "alpha": 100,
+          "sigma_ms": 0.06359245238233835
+        }
+      ],
+      "survives": true
+    },
+    {
+      "id": "a70_s3",
+      "label": "\u03b1=70, \u03c3=3 ms",
+      "input": {
+        "alpha": 70,
+        "requested_sigma_ms": 3.0,
+        "realised_sigma_ms": 3.0237107220453887
+      },
+      "layers": [
+        {
+          "pool": 1,
+          "alpha": 100,
+          "sigma_ms": 0.6581671520214298
+        },
+        {
+          "pool": 2,
+          "alpha": 100,
+          "sigma_ms": 0.10180373274099559
+        },
+        {
+          "pool": 3,
+          "alpha": 100,
+          "sigma_ms": 0.062096698785039886
+        },
+        {
+          "pool": 4,
+          "alpha": 100,
+          "sigma_ms": 0.05744562646538029
+        },
+        {
+          "pool": 5,
+          "alpha": 100,
+          "sigma_ms": 0.06048966853934651
+        },
+        {
+          "pool": 6,
+          "alpha": 100,
+          "sigma_ms": 0.057061370470748225
+        }
+      ],
+      "survives": true
+    },
+    {
+      "id": "a70_s4",
+      "label": "\u03b1=70, \u03c3=4 ms",
+      "input": {
+        "alpha": 70,
+        "requested_sigma_ms": 4.0,
+        "realised_sigma_ms": 3.624272199986066
+      },
+      "layers": [
+        {
+          "pool": 1,
+          "alpha": 100,
+          "sigma_ms": 0.9514509971617036
+        },
+        {
+          "pool": 2,
+          "alpha": 100,
+          "sigma_ms": 0.13747727084867506
+        },
+        {
+          "pool": 3,
+          "alpha": 100,
+          "sigma_ms": 0.06276145313805263
+        },
+        {
+          "pool": 4,
+          "alpha": 100,
+          "sigma_ms": 0.05912698199637772
+        },
+        {
+          "pool": 5,
+          "alpha": 100,
+          "sigma_ms": 0.0581291665173349
+        },
+        {
+          "pool": 6,
+          "alpha": 100,
+          "sigma_ms": 0.06301587101675246
+        }
+      ],
+      "survives": true
+    },
+    {
+      "id": "a70_s5",
+      "label": "\u03b1=70, \u03c3=5 ms",
+      "input": {
+        "alpha": 70,
+        "requested_sigma_ms": 5.0,
+        "realised_sigma_ms": 4.79929012607966
+      },
+      "layers": [
+        {
+          "pool": 1,
+          "alpha": 100,
+          "sigma_ms": 1.5213139058064251
+        },
+        {
+          "pool": 2,
+          "alpha": 100,
+          "sigma_ms": 0.24506325713986588
+        },
+        {
+          "pool": 3,
+          "alpha": 100,
+          "sigma_ms": 0.0659090282131362
+        },
+        {
+          "pool": 4,
+          "alpha": 100,
+          "sigma_ms": 0.060827625302982594
+        },
+        {
+          "pool": 5,
+          "alpha": 100,
+          "sigma_ms": 0.05912698199637772
+        },
+        {
+          "pool": 6,
+          "alpha": 100,
+          "sigma_ms": 0.06273754856543226
+        }
+      ],
+      "survives": true
+    },
+    {
+      "id": "a80_s0.2",
+      "label": "\u03b1=80, \u03c3=0.2 ms",
+      "input": {
+        "alpha": 80,
+        "requested_sigma_ms": 0.2,
+        "realised_sigma_ms": 0.16582652833608993
+      },
+      "layers": [
+        {
+          "pool": 1,
+          "alpha": 100,
+          "sigma_ms": 0.1177115117564974
+        },
+        {
+          "pool": 2,
+          "alpha": 100,
+          "sigma_ms": 0.058446556784809665
+        },
+        {
+          "pool": 3,
+          "alpha": 100,
+          "sigma_ms": 0.057784080852774755
+        },
+        {
+          "pool": 4,
+          "alpha": 100,
+          "sigma_ms": 0.05894913061275778
+        },
+        {
+          "pool": 5,
+          "alpha": 100,
+          "sigma_ms": 0.05545268253204693
+        },
+        {
+          "pool": 6,
+          "alpha": 100,
+          "sigma_ms": 0.06307931515164081
+        }
+      ],
+      "survives": true
+    },
+    {
+      "id": "a80_s0.5",
+      "label": "\u03b1=80, \u03c3=0.5 ms",
+      "input": {
+        "alpha": 80,
+        "requested_sigma_ms": 0.5,
+        "realised_sigma_ms": 0.5824034254706956
+      },
+      "layers": [
+        {
+          "pool": 1,
+          "alpha": 100,
+          "sigma_ms": 0.16583123951777
+        },
+        {
+          "pool": 2,
+          "alpha": 100,
+          "sigma_ms": 0.06433506042586748
+        },
+        {
+          "pool": 3,
+          "alpha": 100,
+          "sigma_ms": 0.056382621436041724
+        },
+        {
+          "pool": 4,
+          "alpha": 100,
+          "sigma_ms": 0.06269768735766876
+        },
+        {
+          "pool": 5,
+          "alpha": 100,
+          "sigma_ms": 0.05817215828899621
+        },
+        {
+          "pool": 6,
+          "alpha": 100,
+          "sigma_ms": 0.06173329733620239
+        }
+      ],
+      "survives": true
+    },
+    {
+      "id": "a80_s1",
+      "label": "\u03b1=80, \u03c3=1 ms",
+      "input": {
+        "alpha": 80,
+        "requested_sigma_ms": 1.0,
+        "realised_sigma_ms": 0.8818579463269582
+      },
+      "layers": [
+        {
+          "pool": 1,
+          "alpha": 100,
+          "sigma_ms": 0.1937937047481161
+        },
+        {
+          "pool": 2,
+          "alpha": 100,
+          "sigma_ms": 0.06483826030978931
+        },
+        {
+          "pool": 3,
+          "alpha": 100,
+          "sigma_ms": 0.06019966777316944
+        },
+        {
+          "pool": 4,
+          "alpha": 100,
+          "sigma_ms": 0.0659090282131368
+        },
+        {
+          "pool": 5,
+          "alpha": 100,
+          "sigma_ms": 0.056736231810016934
+        },
+        {
+          "pool": 6,
+          "alpha": 100,
+          "sigma_ms": 0.06689544080129801
+        }
+      ],
+      "survives": true
+    },
+    {
+      "id": "a80_s2",
+      "label": "\u03b1=80, \u03c3=2 ms",
+      "input": {
+        "alpha": 80,
+        "requested_sigma_ms": 2.0,
+        "realised_sigma_ms": 1.8315294155431958
+      },
+      "layers": [
+        {
+          "pool": 1,
+          "alpha": 100,
+          "sigma_ms": 0.30508359510140826
+        },
+        {
+          "pool": 2,
+          "alpha": 100,
+          "sigma_ms": 0.06390618123468166
+        },
+        {
+          "pool": 3,
+          "alpha": 100,
+          "sigma_ms": 0.053814496188295514
+        },
+        {
+          "pool": 4,
+          "alpha": 100,
+          "sigma_ms": 0.06193545026880787
+        },
+        {
+          "pool": 5,
+          "alpha": 100,
+          "sigma_ms": 0.05969924622639757
+        },
+        {
+          "pool": 6,
+          "alpha": 100,
+          "sigma_ms": 0.06144916598294878
+        }
+      ],
+      "survives": true
+    },
+    {
+      "id": "a80_s3",
+      "label": "\u03b1=80, \u03c3=3 ms",
+      "input": {
+        "alpha": 80,
+        "requested_sigma_ms": 3.0,
+        "realised_sigma_ms": 2.760121996850864
+      },
+      "layers": [
+        {
+          "pool": 1,
+          "alpha": 100,
+          "sigma_ms": 0.5266725738065349
+        },
+        {
+          "pool": 2,
+          "alpha": 100,
+          "sigma_ms": 0.09305374790947453
+        },
+        {
+          "pool": 3,
+          "alpha": 100,
+          "sigma_ms": 0.05491812087098373
+        },
+        {
+          "pool": 4,
+          "alpha": 100,
+          "sigma_ms": 0.06053098380168613
+        },
+        {
+          "pool": 5,
+          "alpha": 100,
+          "sigma_ms": 0.05660388679233979
+        },
+        {
+          "pool": 6,
+          "alpha": 100,
+          "sigma_ms": 0.0634350061086146
+        }
+      ],
+      "survives": true
+    },
+    {
+      "id": "a80_s4",
+      "label": "\u03b1=80, \u03c3=4 ms",
+      "input": {
+        "alpha": 80,
+        "requested_sigma_ms": 4.0,
+        "realised_sigma_ms": 3.653791694938287
+      },
+      "layers": [
+        {
+          "pool": 1,
+          "alpha": 100,
+          "sigma_ms": 0.6807348970047005
+        },
+        {
+          "pool": 2,
+          "alpha": 100,
+          "sigma_ms": 0.11473447607410771
+        },
+        {
+          "pool": 3,
+          "alpha": 100,
+          "sigma_ms": 0.0599666574022596
+        },
+        {
+          "pool": 4,
+          "alpha": 100,
+          "sigma_ms": 0.06225752966509329
+        },
+        {
+          "pool": 5,
+          "alpha": 100,
+          "sigma_ms": 0.057017541160594355
+        },
+        {
+          "pool": 6,
+          "alpha": 100,
+          "sigma_ms": 0.05946427498927381
+        }
+      ],
+      "survives": true
+    },
+    {
+      "id": "a80_s5",
+      "label": "\u03b1=80, \u03c3=5 ms",
+      "input": {
+        "alpha": 80,
+        "requested_sigma_ms": 5.0,
+        "realised_sigma_ms": 4.7303481637190306
+      },
+      "layers": [
+        {
+          "pool": 1,
+          "alpha": 100,
+          "sigma_ms": 0.8258183819702734
+        },
+        {
+          "pool": 2,
+          "alpha": 100,
+          "sigma_ms": 0.11106754701531851
+        },
+        {
+          "pool": 3,
+          "alpha": 100,
+          "sigma_ms": 0.060827625302982594
+        },
+        {
+          "pool": 4,
+          "alpha": 100,
+          "sigma_ms": 0.0629603049547886
+        },
+        {
+          "pool": 5,
+          "alpha": 100,
+          "sigma_ms": 0.05793099343184076
+        },
+        {
+          "pool": 6,
+          "alpha": 100,
+          "sigma_ms": 0.06244997998398453
+        }
+      ],
+      "survives": true
+    },
+    {
+      "id": "a90_s0.2",
+      "label": "\u03b1=90, \u03c3=0.2 ms",
+      "input": {
+        "alpha": 90,
+        "requested_sigma_ms": 0.2,
+        "realised_sigma_ms": 0.2136716068071647
+      },
+      "layers": [
+        {
+          "pool": 1,
+          "alpha": 100,
+          "sigma_ms": 0.07405403432629437
+        },
+        {
+          "pool": 2,
+          "alpha": 100,
+          "sigma_ms": 0.05771481612203243
+        },
+        {
+          "pool": 3,
+          "alpha": 100,
+          "sigma_ms": 0.05844655678480963
+        },
+        {
+          "pool": 4,
+          "alpha": 100,
+          "sigma_ms": 0.06499230723708782
+        },
+        {
+          "pool": 5,
+          "alpha": 100,
+          "sigma_ms": 0.05473572873361586
+        },
+        {
+          "pool": 6,
+          "alpha": 100,
+          "sigma_ms": 0.06406246951218783
+        }
+      ],
+      "survives": true
+    },
+    {
+      "id": "a90_s0.5",
+      "label": "\u03b1=90, \u03c3=0.5 ms",
+      "input": {
+        "alpha": 90,
+        "requested_sigma_ms": 0.5,
+        "realised_sigma_ms": 0.4595274008138856
+      },
+      "layers": [
+        {
+          "pool": 1,
+          "alpha": 100,
+          "sigma_ms": 0.09526279441628828
+        },
+        {
+          "pool": 2,
+          "alpha": 100,
+          "sigma_ms": 0.058309518948453154
+        },
+        {
+          "pool": 3,
+          "alpha": 100,
+          "sigma_ms": 0.056382621436041586
+        },
+        {
+          "pool": 4,
+          "alpha": 100,
+          "sigma_ms": 0.0565685424949236
+        },
+        {
+          "pool": 5,
+          "alpha": 100,
+          "sigma_ms": 0.05736723803705367
+        },
+        {
+          "pool": 6,
+          "alpha": 100,
+          "sigma_ms": 0.061408468471376695
+        }
+      ],
+      "survives": true
+    },
+    {
+      "id": "a90_s1",
+      "label": "\u03b1=90, \u03c3=1 ms",
+      "input": {
+        "alpha": 90,
+        "requested_sigma_ms": 1.0,
+        "realised_sigma_ms": 0.8641387634339383
+      },
+      "layers": [
+        {
+          "pool": 1,
+          "alpha": 100,
+          "sigma_ms": 0.1493284969454926
+        },
+        {
+          "pool": 2,
+          "alpha": 100,
+          "sigma_ms": 0.06128621378417842
+        },
+        {
+          "pool": 3,
+          "alpha": 100,
+          "sigma_ms": 0.05948949487094318
+        },
+        {
+          "pool": 4,
+          "alpha": 100,
+          "sigma_ms": 0.06082762530298207
+        },
+        {
+          "pool": 5,
+          "alpha": 100,
+          "sigma_ms": 0.05656854249492361
+        },
+        {
+          "pool": 6,
+          "alpha": 100,
+          "sigma_ms": 0.06135144660071223
+        }
+      ],
+      "survives": true
+    },
+    {
+      "id": "a90_s2",
+      "label": "\u03b1=90, \u03c3=2 ms",
+      "input": {
+        "alpha": 90,
+        "requested_sigma_ms": 2.0,
+        "realised_sigma_ms": 1.8877280746841207
+      },
+      "layers": [
+        {
+          "pool": 1,
+          "alpha": 100,
+          "sigma_ms": 0.2793188142606938
+        },
+        {
+          "pool": 2,
+          "alpha": 100,
+          "sigma_ms": 0.06825686778632607
+        },
+        {
+          "pool": 3,
+          "alpha": 100,
+          "sigma_ms": 0.05868560300448468
+        },
+        {
+          "pool": 4,
+          "alpha": 100,
+          "sigma_ms": 0.06462197768561383
+        },
+        {
+          "pool": 5,
+          "alpha": 100,
+          "sigma_ms": 0.05462600113499045
+        },
+        {
+          "pool": 6,
+          "alpha": 100,
+          "sigma_ms": 0.06383572667401907
+        }
+      ],
+      "survives": true
+    },
+    {
+      "id": "a90_s3",
+      "label": "\u03b1=90, \u03c3=3 ms",
+      "input": {
+        "alpha": 90,
+        "requested_sigma_ms": 3.0,
+        "realised_sigma_ms": 3.1028588967810533
+      },
+      "layers": [
+        {
+          "pool": 1,
+          "alpha": 100,
+          "sigma_ms": 0.4594736118647076
+        },
+        {
+          "pool": 2,
+          "alpha": 100,
+          "sigma_ms": 0.0813080561814142
+        },
+        {
+          "pool": 3,
+          "alpha": 100,
+          "sigma_ms": 0.05975784467331474
+        },
+        {
+          "pool": 4,
+          "alpha": 100,
+          "sigma_ms": 0.06557438524301977
+        },
+        {
+          "pool": 5,
+          "alpha": 100,
+          "sigma_ms": 0.05782732917920427
+        },
+        {
+          "pool": 6,
+          "alpha": 100,
+          "sigma_ms": 0.0638357266740183
+        }
+      ],
+      "survives": true
+    },
+    {
+      "id": "a90_s4",
+      "label": "\u03b1=90, \u03c3=4 ms",
+      "input": {
+        "alpha": 90,
+        "requested_sigma_ms": 4.0,
+        "realised_sigma_ms": 3.7343047677935224
+      },
+      "layers": [
+        {
+          "pool": 1,
+          "alpha": 100,
+          "sigma_ms": 0.5457801755285732
+        },
+        {
+          "pool": 2,
+          "alpha": 100,
+          "sigma_ms": 0.10365326815879956
+        },
+        {
+          "pool": 3,
+          "alpha": 100,
+          "sigma_ms": 0.05688585061331143
+        },
+        {
+          "pool": 4,
+          "alpha": 100,
+          "sigma_ms": 0.06396092557179012
+        },
+        {
+          "pool": 5,
+          "alpha": 100,
+          "sigma_ms": 0.05306599664568621
+        },
+        {
+          "pool": 6,
+          "alpha": 100,
+          "sigma_ms": 0.06161168720299724
+        }
+      ],
+      "survives": true
+    },
+    {
+      "id": "a90_s5",
+      "label": "\u03b1=90, \u03c3=5 ms",
+      "input": {
+        "alpha": 90,
+        "requested_sigma_ms": 5.0,
+        "realised_sigma_ms": 5.022765948934688
+      },
+      "layers": [
+        {
+          "pool": 1,
+          "alpha": 100,
+          "sigma_ms": 0.7878292962311061
+        },
+        {
+          "pool": 2,
+          "alpha": 100,
+          "sigma_ms": 0.12615863030328134
+        },
+        {
+          "pool": 3,
+          "alpha": 100,
+          "sigma_ms": 0.057930993431840744
+        },
+        {
+          "pool": 4,
+          "alpha": 100,
+          "sigma_ms": 0.06164414002969035
+        },
+        {
+          "pool": 5,
+          "alpha": 100,
+          "sigma_ms": 0.05528109984434083
+        },
+        {
+          "pool": 6,
+          "alpha": 100,
+          "sigma_ms": 0.061408468471375946
+        }
+      ],
+      "survives": true
+    }
+  ],
+  "remaining_methods_unrun": []
 }
