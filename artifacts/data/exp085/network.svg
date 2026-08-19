@@ -19,17 +19,17 @@
 <path fill="#ffffff" stroke="#8fa3b8" stroke-width="1.8" d="M207.04,-8C207.04,-8 554.88,-8 554.88,-8 560.88,-8 566.88,-14 566.88,-20 566.88,-20 566.88,-132 566.88,-132 566.88,-138 560.88,-144 554.88,-144 554.88,-144 207.04,-144 207.04,-144 201.04,-144 195.04,-138 195.04,-132 195.04,-132 195.04,-20 195.04,-20 195.04,-14 201.04,-8 207.04,-8"/>
 <text xml:space="preserve" text-anchor="middle" x="228.92" y="-125.75" font-family="Helvetica,sans-Serif" font-weight="bold" font-size="15.00" fill="#243044">PING B</text>
 </g>
-<!-- drive_A_110_Hz&#45;&gt;PING_A_E -->
+<!-- drive_A_300_Hz&#45;&gt;PING_A_E -->
 <g id="e_n_PING_A_input_to_E" class="edge edge excitatory feedforward">
-<title>drive_A_110_Hz&#45;&gt;PING_A_E</title>
+<title>drive_A_300_Hz&#45;&gt;PING_A_E</title>
 <path fill="none" stroke="#243044" stroke-width="1.7" d="M137.46,-208C158.36,-208 181.48,-208 202.79,-208"/>
 <polygon fill="#243044" stroke="#243044" stroke-width="1.7" points="202.66,-210.52 209.86,-208 202.66,-205.48 202.66,-210.52"/>
 </g>
-<!-- drive_B_90_Hz&#45;&gt;PING_B_E -->
+<!-- drive_B_240_Hz&#45;&gt;PING_B_E -->
 <g id="e_n_PING_B_input_to_E" class="edge edge excitatory feedforward">
-<title>drive_B_90_Hz&#45;&gt;PING_B_E</title>
-<path fill="none" stroke="#243044" stroke-width="1.7" d="M133.18,-64C155.17,-64 180.01,-64 202.77,-64"/>
-<polygon fill="#243044" stroke="#243044" stroke-width="1.7" points="202.61,-66.52 209.81,-64 202.61,-61.48 202.61,-66.52"/>
+<title>drive_B_240_Hz&#45;&gt;PING_B_E</title>
+<path fill="none" stroke="#243044" stroke-width="1.7" d="M137.46,-64C158.36,-64 181.48,-64 202.79,-64"/>
+<polygon fill="#243044" stroke="#243044" stroke-width="1.7" points="202.66,-66.52 209.86,-64 202.66,-61.48 202.66,-66.52"/>
 </g>
 <!-- PING_A_E&#45;&gt;PING_A_I -->
 <g id="e_n_PING_A_E_to_I" class="edge edge excitatory recurrent">
@@ -81,23 +81,23 @@
 <polygon fill="#c44a55" stroke="#c44a55" stroke-width="2.2" points="344.44,-81.71 344.8,-74.52 346.24,-74.59 345.88,-81.78 344.44,-81.71"/>
 <polyline fill="none" stroke="#c44a55" stroke-width="2.2" points="343.9,-78.08 347.5,-78.26"/>
 </g>
-<!-- drive_A_110_Hz -->
-<g id="n_drive_A_110_Hz" class="node node input">
-<title>drive_A_110_Hz</title>
+<!-- drive_A_300_Hz -->
+<g id="n_drive_A_300_Hz" class="node node input">
+<title>drive_A_300_Hz</title>
 <path fill="#f5f7fa" stroke="#cbd5e1" d="M125.04,-245.01C125.04,-245.01 12,-245.01 12,-245.01 6,-245.01 0,-239.01 0,-233.01 0,-233.01 0,-182.99 0,-182.99 0,-176.99 6,-170.99 12,-170.99 12,-170.99 125.04,-170.99 125.04,-170.99 131.04,-170.99 137.04,-176.99 137.04,-182.99 137.04,-182.99 137.04,-233.01 137.04,-233.01 137.04,-239.01 131.04,-245.01 125.04,-245.01"/>
-<text xml:space="preserve" text-anchor="start" x="11.52" y="-223.12" font-family="Helvetica,sans-Serif" font-weight="bold" font-size="15.00" fill="#243044">drive_A_110_Hz</text>
+<text xml:space="preserve" text-anchor="start" x="11.52" y="-223.12" font-family="Helvetica,sans-Serif" font-weight="bold" font-size="15.00" fill="#243044">drive_A_300_Hz</text>
 <text xml:space="preserve" text-anchor="start" x="11.52" y="-206.12" font-family="Helvetica,sans-Serif" font-size="10.00" fill="#667085">time × batch × 128</text>
 <polygon fill="#f5f7fa" stroke="none" points="11.52,-179.62 11.52,-197.38 125.52,-197.38 125.52,-179.62 11.52,-179.62"/>
 <text xml:space="preserve" text-anchor="start" x="15.52" y="-184.82" font-family="Helvetica,sans-Serif" font-size="9.00" fill="#243044">SPIKES</text>
 </g>
-<!-- drive_B_90_Hz -->
-<g id="n_drive_B_90_Hz" class="node node input">
-<title>drive_B_90_Hz</title>
-<path fill="#f5f7fa" stroke="#cbd5e1" d="M120.91,-101.02C120.91,-101.02 16.13,-101.02 16.13,-101.02 10.13,-101.02 4.12,-95.02 4.12,-89.02 4.12,-89.02 4.12,-38.98 4.12,-38.98 4.12,-32.98 10.12,-26.98 16.12,-26.98 16.12,-26.98 120.91,-26.98 120.91,-26.98 126.91,-26.98 132.91,-32.98 132.91,-38.98 132.91,-38.98 132.91,-89.02 132.91,-89.02 132.91,-95.02 126.91,-101.02 120.91,-101.02"/>
-<text xml:space="preserve" text-anchor="start" x="15.64" y="-79.12" font-family="Helvetica,sans-Serif" font-weight="bold" font-size="15.00" fill="#243044">drive_B_90_Hz</text>
-<text xml:space="preserve" text-anchor="start" x="15.64" y="-62.12" font-family="Helvetica,sans-Serif" font-size="10.00" fill="#667085">time × batch × 128</text>
-<polygon fill="#f5f7fa" stroke="none" points="15.64,-35.62 15.64,-53.38 121.39,-53.38 121.39,-35.62 15.64,-35.62"/>
-<text xml:space="preserve" text-anchor="start" x="19.64" y="-40.83" font-family="Helvetica,sans-Serif" font-size="9.00" fill="#243044">SPIKES</text>
+<!-- drive_B_240_Hz -->
+<g id="n_drive_B_240_Hz" class="node node input">
+<title>drive_B_240_Hz</title>
+<path fill="#f5f7fa" stroke="#cbd5e1" d="M125.04,-101.02C125.04,-101.02 12,-101.02 12,-101.02 6,-101.02 0,-95.02 0,-89.02 0,-89.02 0,-38.98 0,-38.98 0,-32.98 6,-26.98 12,-26.98 12,-26.98 125.04,-26.98 125.04,-26.98 131.04,-26.98 137.04,-32.98 137.04,-38.98 137.04,-38.98 137.04,-89.02 137.04,-89.02 137.04,-95.02 131.04,-101.02 125.04,-101.02"/>
+<text xml:space="preserve" text-anchor="start" x="11.52" y="-79.12" font-family="Helvetica,sans-Serif" font-weight="bold" font-size="15.00" fill="#243044">drive_B_240_Hz</text>
+<text xml:space="preserve" text-anchor="start" x="11.52" y="-62.12" font-family="Helvetica,sans-Serif" font-size="10.00" fill="#667085">time × batch × 128</text>
+<polygon fill="#f5f7fa" stroke="none" points="11.52,-35.62 11.52,-53.38 125.52,-53.38 125.52,-35.62 11.52,-35.62"/>
+<text xml:space="preserve" text-anchor="start" x="15.52" y="-40.83" font-family="Helvetica,sans-Serif" font-size="9.00" fill="#243044">SPIKES</text>
 </g>
 <!-- PING_A_E -->
 <g id="n_PING_A_E" class="node node population spiking">
