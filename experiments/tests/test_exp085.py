@@ -20,9 +20,12 @@ from experiments.exp085 import (
     N_INPUT,
     T_MS,
     author_network,
-    interpolated_phase,
+    author_phase_response_network,
     inhibitory_cycle_summary,
+    interpolated_phase,
+    make_phase_response_inputs,
     make_uncoupled_inputs,
+    population_volley_events,
     rhythm_summary,
 )
 
@@ -96,6 +99,23 @@ def test_cross_network_paths_are_reciprocal_and_separately_weighted(
     assert realised_fan_in == CROSS_FAN_IN
 
 
+def test_phase_response_paths_match_the_two_coupling_paths() -> None:
+    probe_graph = author_phase_response_network().graph
+    projections = {row["id"]: row for row in probe_graph["projections"]}
+    parameters = {row["id"]: row for row in probe_graph["parameters"]}
+    expected = {
+        "probe_E_to_PING_A_E_K_EE": ("PING_A_E.excitatory", K_EE),
+        "probe_E_to_PING_A_I_K_EI": ("PING_A_I.excitatory", K_EI),
+    }
+    for projection_id, (target, strength) in expected.items():
+        assert projections[projection_id]["target"] == target
+        initializer = parameters[f"{projection_id}.weight"]["initializer"]
+        assert initializer["mean"] == strength
+        assert initializer["initial_zero_fraction"] == pytest.approx(
+            CROSS_ZERO_FRACTION
+        )
+
+
 def test_uncoupled_inputs_use_the_two_design_rates() -> None:
     inputs = make_uncoupled_inputs()
     duration_s = T_MS / 1_000.0
@@ -111,6 +131,18 @@ def test_uncoupled_inputs_use_the_two_design_rates() -> None:
     )
     assert realised_a == pytest.approx(INPUT_RATE_A_HZ, rel=0.03)
     assert realised_b == pytest.approx(INPUT_RATE_B_HZ, rel=0.03)
+
+
+def test_phase_response_input_places_one_full_probe_volley() -> None:
+    arrival_step = 100
+    inputs = make_phase_response_inputs(target="I", arrival_step=arrival_step)
+    pulse_e = inputs["coupling_matched_pulse_to_E"]
+    pulse_i = inputs["coupling_matched_pulse_to_I"]
+    delay_steps = round(COUPLING_DELAY_MS / DT_MS)
+
+    assert pulse_e.sum() == 0
+    assert pulse_i.sum() == N_E
+    assert pulse_i[arrival_step - delay_steps].sum() == N_E
 
 
 def test_phase_and_frequency_follow_detected_volley_intervals() -> None:
@@ -140,3 +172,16 @@ def test_inhibitory_cycle_summary_counts_each_neuron_between_volleys() -> None:
         "minimum": 1,
         "maximum": 1,
     }
+
+
+def test_population_volley_events_groups_adjacent_timesteps() -> None:
+    spikes = np.zeros((10, 1, 3), dtype=np.uint8)
+    spikes[2, 0, :2] = 1
+    spikes[3, 0, 2] = 1
+    spikes[8, 0, :] = 1
+
+    events = population_volley_events(spikes, start=0, stop=10)
+
+    assert len(events) == 2
+    assert events[0]["spikes"] == 3
+    assert events[1]["spikes"] == 3

@@ -1,4 +1,4 @@
-"""EXP085 methods 1-2: define coupled PING networks and verify detuning."""
+"""EXP085 methods 1-3: define PING networks, detuning, and phase responses."""
 
 from __future__ import annotations
 
@@ -36,6 +36,9 @@ T_MS = 2_000.0
 BURN_MS = 300.0
 DISPLAY_START_MS = 500.0
 DISPLAY_END_MS = 750.0
+PRC_T_MS = 1_200.0
+PRC_REFERENCE_MS = 700.0
+PRC_PHASE_FRACTIONS = np.linspace(0.1, 0.9, 9)
 N_INPUT = 128
 N_E = 80
 N_I = 20
@@ -63,7 +66,7 @@ PING_GROUPS = ("PING_A", "PING_B")
 
 SCALE = {
     "status": STATUS,
-    "completed_methods": [1, 2],
+    "completed_methods": [1, 2, 3],
     "dt_ms": DT_MS,
     "t_ms": T_MS,
     "burn_ms": BURN_MS,
@@ -81,6 +84,9 @@ SCALE = {
     "k_ei": K_EI,
     "coupling_delay_ms": COUPLING_DELAY_MS,
     "cross_fan_in": CROSS_FAN_IN,
+    "prc_t_ms": PRC_T_MS,
+    "prc_reference_ms": PRC_REFERENCE_MS,
+    "prc_phase_fractions": PRC_PHASE_FRACTIONS.tolist(),
 }
 
 
@@ -243,6 +249,57 @@ def author_network(
     return snn.compile(net, target="tools/snn")
 
 
+def author_phase_response_network() -> snn.Bundle:
+    """Author one PING circuit with coupling-matched E and I probe paths."""
+    net = snn.Network("ping_phase_response", dt=DT_MS * snn.ms)
+    drive = net.input(
+        f"drive_A_{INPUT_RATE_A_HZ:g}_Hz",
+        shape=("time", "batch", N_INPUT),
+        signal_type="spikes",
+        unit="spike",
+    )
+    pulse_e = net.input(
+        "coupling_matched_pulse_to_E",
+        shape=("time", "batch", N_E),
+        signal_type="spikes",
+        unit="spike",
+    )
+    pulse_i = net.input(
+        "coupling_matched_pulse_to_I",
+        shape=("time", "batch", N_E),
+        signal_type="spikes",
+        unit="spike",
+    )
+    network = add_ping(net, name="PING_A", source=drive)
+    net.connect(
+        pulse_e,
+        network.E.excitatory,
+        name="probe_E_to_PING_A_E_K_EE",
+        synapse=snn.AMPA(tau=2 * snn.ms),
+        weight=sparse_coupling(K_EE),
+        constraint=snn.NonNegative(),
+        delay=COUPLING_DELAY_MS * snn.ms,
+    )
+    net.connect(
+        pulse_i,
+        network.I.excitatory,
+        name="probe_E_to_PING_A_I_K_EI",
+        synapse=snn.AMPA(tau=2 * snn.ms),
+        weight=sparse_coupling(K_EI),
+        constraint=snn.NonNegative(),
+        delay=COUPLING_DELAY_MS * snn.ms,
+    )
+    net.expose(network.E.spikes, network.I.spikes, name="population")
+    return snn.compile(net, target="tools/snn")
+
+
+def poisson_input(*, rate_hz: float, seed: int, steps: int) -> torch.Tensor:
+    probability = rate_hz * DT_MS / 1_000.0
+    rng = np.random.default_rng(seed)
+    spikes = rng.random((steps, 1, N_INPUT), dtype=np.float32) < probability
+    return torch.from_numpy(spikes.astype(np.float32))
+
+
 def make_uncoupled_inputs() -> dict[str, torch.Tensor]:
     """Create independent deterministic Poisson drives at the design rates."""
     steps = round(T_MS / DT_MS)
@@ -252,11 +309,37 @@ def make_uncoupled_inputs() -> dict[str, torch.Tensor]:
         (f"drive_B_{INPUT_RATE_B_HZ:g}_Hz", INPUT_RATE_B_HZ, INPUT_SEEDS[1]),
     )
     for name, rate_hz, seed in rows:
-        probability = rate_hz * DT_MS / 1_000.0
-        rng = np.random.default_rng(seed)
-        spikes = rng.random((steps, 1, N_INPUT), dtype=np.float32) < probability
-        inputs[name] = torch.from_numpy(spikes.astype(np.float32))
+        inputs[name] = poisson_input(rate_hz=rate_hz, seed=seed, steps=steps)
     return inputs
+
+
+def make_phase_response_inputs(
+    *,
+    target: str | None = None,
+    arrival_step: int | None = None,
+) -> dict[str, torch.Tensor]:
+    """Create one fixed drive with an optional coupling-matched probe volley."""
+    steps = round(PRC_T_MS / DT_MS)
+    pulse_e = torch.zeros((steps, 1, N_E), dtype=torch.float32)
+    pulse_i = torch.zeros((steps, 1, N_E), dtype=torch.float32)
+    if target is not None:
+        if arrival_step is None:
+            raise ValueError("arrival_step is required when target is set")
+        delay_steps = round(COUPLING_DELAY_MS / DT_MS)
+        source_step = arrival_step - delay_steps
+        if not (0 <= source_step < steps):
+            raise ValueError("pulse source time is outside the simulation")
+        pulses = {"E": pulse_e, "I": pulse_i}
+        pulses[target][source_step, 0, :] = 1.0
+    return {
+        f"drive_A_{INPUT_RATE_A_HZ:g}_Hz": poisson_input(
+            rate_hz=INPUT_RATE_A_HZ,
+            seed=INPUT_SEEDS[0],
+            steps=steps,
+        ),
+        "coupling_matched_pulse_to_E": pulse_e,
+        "coupling_matched_pulse_to_I": pulse_i,
+    }
 
 
 def population_rate(spikes: np.ndarray, population_size: int) -> np.ndarray:
@@ -443,10 +526,174 @@ def plot_uncoupled(analysis: dict[str, object], out: Path) -> None:
     plt.close(fig)
 
 
-def experiment_record(analysis: dict[str, object]) -> dict[str, object]:
+def population_volley_events(
+    spikes: np.ndarray,
+    *,
+    start: int,
+    stop: int,
+) -> list[dict[str, float | int]]:
+    """Group adjacent occupied timesteps into population spike volleys."""
+    counts = spikes[start:stop, 0].sum(axis=1)
+    occupied = np.flatnonzero(counts)
+    if occupied.size == 0:
+        return []
+    groups = np.split(occupied, np.flatnonzero(np.diff(occupied) > 1) + 1)
+    events = []
+    for group in groups:
+        group_counts = counts[group]
+        centre = float(np.average(group + start, weights=group_counts))
+        events.append(
+            {
+                "time_ms": centre * DT_MS,
+                "spikes": int(group_counts.sum()),
+            }
+        )
+    return events
+
+
+def run_phase_response() -> dict[str, object]:
+    """Measure the next-volley shift caused by E- and I-targeted probe volleys."""
+    bundle = author_phase_response_network()
+    baseline = simulate(
+        ExecutionSpec(
+            kind="simulate",
+            executor="graph",
+            graph=bundle.graph,
+            inputs=make_phase_response_inputs(),
+            seed=NETWORK_SEED,
+        )
+    )
+    baseline_e = baseline.recordings["population_0"].cpu().numpy()
+    baseline_i = baseline.recordings["population_1"].cpu().numpy()
+    baseline_peaks = detect_volleys(population_rate(baseline_e, N_E))
+    reference_step = round(PRC_REFERENCE_MS / DT_MS)
+    left_index = int(np.searchsorted(baseline_peaks, reference_step) - 1)
+    if left_index < 0 or left_index + 1 >= len(baseline_peaks):
+        raise RuntimeError("no complete baseline cycle near the PRC reference time")
+    left = int(baseline_peaks[left_index])
+    baseline_next = int(baseline_peaks[left_index + 1])
+    period_steps = baseline_next - left
+
+    responses: dict[str, list[dict[str, float]]] = {"E": [], "I": []}
+    early_i_pulse_example: dict[str, object] | None = None
+    for target in ("E", "I"):
+        for phase_index, fraction in enumerate(PRC_PHASE_FRACTIONS):
+            arrival = left + round(float(fraction) * period_steps)
+            perturbed = simulate(
+                ExecutionSpec(
+                    kind="simulate",
+                    executor="graph",
+                    graph=bundle.graph,
+                    inputs=make_phase_response_inputs(
+                        target=target,
+                        arrival_step=arrival,
+                    ),
+                    seed=NETWORK_SEED,
+                )
+            )
+            perturbed_e = perturbed.recordings["population_0"].cpu().numpy()
+            perturbed_i = perturbed.recordings["population_1"].cpu().numpy()
+            perturbed_peaks = detect_volleys(population_rate(perturbed_e, N_E))
+            candidates = perturbed_peaks[perturbed_peaks > arrival]
+            if candidates.size == 0:
+                raise RuntimeError(f"no E volley followed the {target}-targeted pulse")
+            perturbed_next = int(candidates[0])
+            shift_steps = baseline_next - perturbed_next
+            responses[target].append(
+                {
+                    "pulse_phase_fraction": (arrival - left) / period_steps,
+                    "pulse_phase_rad": 2.0
+                    * np.pi
+                    * (arrival - left)
+                    / period_steps,
+                    "next_volley_shift_ms": shift_steps * DT_MS,
+                    "next_volley_phase_shift_rad": 2.0
+                    * np.pi
+                    * shift_steps
+                    / period_steps,
+                }
+            )
+            if target == "I" and phase_index == 0:
+                event_stop = perturbed_next + round(2.0 / DT_MS)
+                early_i_pulse_example = {
+                    "pulse_arrival_ms": arrival * DT_MS,
+                    "baseline_next_e_volley_ms": baseline_next * DT_MS,
+                    "perturbed_next_e_volley_ms": perturbed_next * DT_MS,
+                    "baseline_i_volleys": population_volley_events(
+                        baseline_i,
+                        start=left,
+                        stop=event_stop,
+                    ),
+                    "perturbed_i_volleys": population_volley_events(
+                        perturbed_i,
+                        start=left,
+                        stop=event_stop,
+                    ),
+                }
+
+    if early_i_pulse_example is None:
+        raise RuntimeError("the early I-targeted pulse example was not recorded")
+
+    return {
+        "network": "PING_A",
+        "baseline_cycle_start_ms": left * DT_MS,
+        "baseline_cycle_period_ms": period_steps * DT_MS,
+        "pulse": {
+            "source_channels": N_E,
+            "exact_fan_in": CROSS_FAN_IN,
+            "arrival_delay_ms": COUPLING_DELAY_MS,
+            "e_target_strength": K_EE,
+            "i_target_strength": K_EI,
+        },
+        "positive_response_means": "next excitatory volley advanced",
+        "responses": responses,
+        "early_i_pulse_example": early_i_pulse_example,
+    }
+
+
+def plot_phase_response(phase_response: dict[str, object], out: Path) -> None:
+    """Plot E- and I-targeted phase-response curves."""
+    theme.apply()
+    fig, ax = plt.subplots(figsize=(6.6, 3.6))
+    for target, color in (("E", theme.INK_BLACK), ("I", theme.DEEP_RED)):
+        rows = phase_response["responses"][target]
+        phase = np.asarray([row["pulse_phase_rad"] for row in rows])
+        response = np.asarray(
+            [row["next_volley_phase_shift_rad"] for row in rows]
+        )
+        ax.plot(
+            phase,
+            response,
+            marker="o",
+            ms=4,
+            lw=1.2,
+            color=color,
+            label=f"pulse to {target}",
+        )
+    ax.axhline(0.0, color=theme.GREY_MID, lw=0.8, ls="--")
+    ax.set(
+        xlim=(0.0, 2.0 * np.pi),
+        xlabel="pulse phase (rad)",
+        ylabel="next-volley phase shift (rad)",
+    )
+    ax.set_xticks(
+        (0.0, 0.5 * np.pi, np.pi, 1.5 * np.pi, 2.0 * np.pi),
+        labels=("0", r"$\pi/2$", r"$\pi$", r"$3\pi/2$", r"$2\pi$"),
+    )
+    ax.legend(frameon=False, ncol=2)
+    ax.spines[["top", "right"]].set_visible(False)
+    fig.tight_layout()
+    fig.savefig(out, dpi=220, bbox_inches="tight")
+    plt.close(fig)
+
+
+def experiment_record(
+    analysis: dict[str, object],
+    phase_response: dict[str, object],
+) -> dict[str, object]:
     return {
         "status": STATUS,
-        "completed_methods": [1, 2],
+        "completed_methods": [1, 2, 3],
         "simulation_run": True,
         "network": {
             "local_circuit": "matched E-to-I-to-E PING",
@@ -474,7 +721,8 @@ def experiment_record(analysis: dict[str, object]) -> dict[str, object]:
             },
             "phase_wraps": analysis["drift_wraps"],
         },
-        "remaining_methods_unrun": [3, 4, 5],
+        "phase_response": phase_response,
+        "remaining_methods_unrun": [4, 5],
     }
 
 
@@ -518,7 +766,9 @@ def main() -> None:
             peaks_b=analysis["peaks_b"],
             phase_difference=analysis["phase_difference"],
         )
-        record = experiment_record(analysis)
+        phase_response = run_phase_response()
+        plot_phase_response(phase_response, staging / "phase_response.png")
+        record = experiment_record(analysis, phase_response)
         (staging / "protocol.json").write_text(
             json.dumps(record, indent=2) + "\n"
         )
