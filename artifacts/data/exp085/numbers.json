@@ -1,4 +1,8 @@
 {
+  "run_id": "r017",
+  "git_sha": "714fd1f5",
+  "duration_s": 1.0,
+  "duration": "1s",
   "status": "draft",
   "completed_methods": [
     1
