@@ -73,6 +73,15 @@
 
   + *Relate phase velocity to phase position.* For the selected condition, estimate each network's instantaneous frequency from consecutive excitatory volleys. Relative-phase velocity is $v_theta = 2 pi (f_A - f_B)$, where $f_A$ and $f_B$ are the instantaneous frequencies of Networks A and B. Group $v_theta$ by wrapped relative-phase position $theta$, and compare the resulting velocity curve with the distribution of $theta$. Intermittent attraction requires continued phase slips, a non-uniform phase distribution, and lower absolute velocity near the distribution's preferred position. Generates #link("#result-3-intermittent-attraction")[Result 3].
 
+    #figure(
+      image(
+        "/artifacts/data/exp086/intermittent_attraction.svg",
+        width: 100%,
+        alt: "Four-panel design schematic showing continuing relative-phase slips, recurring reductions in relative-phase velocity, a velocity minimum at a preferred relative-phase position, and a matching peak in the phase-position distribution.",
+      ),
+      caption: [*How Result 3 will identify intermittent attraction.* Relative phase must continue to slip, but its velocity should repeatedly fall near one position. Grouping velocity by relative-phase position should reveal a minimum there, while the phase-position distribution should show a matching peak. The curves explain the analysis and are not simulated data.],
+    )
+
   == Results
 
   + <result-1-uncoupled-rhythms> *Uncoupled rhythms.*
@@ -88,10 +97,10 @@
     - *Expectation.* Strong coupling holds a fixed relative-phase position. Intermediate coupling permits slips but slows near a preferred position. With no coupling, relative phase drifts at nearly constant velocity.
 
   + <result-3-intermittent-attraction> *Intermittent phase attraction.*
-    - *Axes.* The first two panels show time against relative-phase position $theta$ and velocity $v_theta$. The third shows position $theta$ against mean velocity $v_theta$. The fourth shows the distribution of $theta$.
-    - *Traces.* Wrapped phase position and phase velocity through time, followed by the position-binned velocity curve and phase-position distribution for the same condition.
-    - *Why.* Test the specific Lowet 2017 signature without fitting a full oscillator model or mapping a second parameter.
-    - *Expectation.* Position continues to wrap through phase slips, but absolute velocity is smallest near the position at which the phase distribution peaks.
+    - *Axes.* Reproduce the four-panel layout of the Method 3 schematic using measured data: time against relative-phase position, time against relative-phase velocity, position against mean velocity, and position against density.
+    - *Traces.* Use the same selected intermediate-coupling trajectory in all four panels. Mark the preferred relative-phase position consistently across panels.
+    - *Why.* Test the specific Lowet 2017 signature and directly compare the observed mechanism with the planned one.
+    - *Expectation.* Relative phase continues to wrap through slips. Its velocity repeatedly falls near one position, producing a velocity minimum and a density peak at that same position.
 
   == References
 
