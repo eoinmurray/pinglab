@@ -9,10 +9,12 @@ from experiments.exp087 import (
     LAYERS,
     NEURONS_PER_LAYER,
     PACKET_CHANNELS,
+    REPRESENTATIVE_PACKETS,
     author_network,
     make_background,
     make_packet,
     packet_width_ms,
+    run_background_only,
     run_packet,
 )
 
@@ -46,12 +48,16 @@ def test_packet_and_background_connections_use_exact_fan_in(graph: dict) -> None
         FEEDFORWARD_FAN_IN
     )
 
-    for layer in range(1, LAYERS + 1):
-        background = parameters[f"background_to_pool_{layer}.weight"]["initializer"]
-        assert background["zeroing"] == "exact_k"
-        assert round(
-            (1.0 - background["initial_zero_fraction"]) * BACKGROUND_CHANNELS
-        ) == BACKGROUND_FAN_IN
+    for pathway in ("excitation", "inhibition"):
+        for layer in range(1, LAYERS + 1):
+            background = parameters[f"background_{pathway}_to_pool_{layer}.weight"][
+                "initializer"
+            ]
+            assert background["zeroing"] == "exact_k"
+            assert (
+                round((1.0 - background["initial_zero_fraction"]) * BACKGROUND_CHANNELS)
+                == BACKGROUND_FAN_IN
+            )
 
     for layer in range(1, LAYERS):
         feedforward = parameters[f"pool_{layer}_to_pool_{layer + 1}.weight"]
@@ -70,28 +76,38 @@ def test_packet_generator_preserves_size_and_width() -> None:
 
 def test_selected_point_separates_extinction_from_convergence(graph: dict) -> None:
     background = make_background()
+    spontaneous_counts = run_background_only(graph, background)
+    assert 3 <= sum(spontaneous_counts) <= 30
+
+    packets = {
+        packet_id: (label, alpha, sigma_ms)
+        for packet_id, label, alpha, sigma_ms in REPRESENTATIVE_PACKETS
+    }
+    weak_label, weak_alpha, weak_sigma = packets["weak"]
     weak = run_packet(
         graph,
         packet_id="weak",
-        label="Weak, diffuse",
-        alpha=45,
-        sigma_ms=5.0,
+        label=weak_label,
+        alpha=weak_alpha,
+        sigma_ms=weak_sigma,
         background=background,
     )
+    broad_label, broad_alpha, broad_sigma = packets["broad"]
     broad = run_packet(
         graph,
         packet_id="broad",
-        label="Broad, strong",
-        alpha=50,
-        sigma_ms=5.0,
+        label=broad_label,
+        alpha=broad_alpha,
+        sigma_ms=broad_sigma,
         background=background,
     )
+    oversized_label, oversized_alpha, oversized_sigma = packets["oversized"]
     oversized = run_packet(
         graph,
         packet_id="oversized",
-        label="Narrow, oversized",
-        alpha=80,
-        sigma_ms=0.2,
+        label=oversized_label,
+        alpha=oversized_alpha,
+        sigma_ms=oversized_sigma,
         background=background,
     )
 
