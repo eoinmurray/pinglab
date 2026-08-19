@@ -1,13 +1,14 @@
 {
-  "run_id": "r017",
-  "git_sha": "714fd1f5",
-  "duration_s": 1.0,
-  "duration": "1s",
+  "run_id": "r018",
+  "git_sha": "6db4ed9e",
+  "duration_s": 9.7,
+  "duration": "10s",
   "status": "draft",
   "completed_methods": [
-    1
+    1,
+    2
   ],
-  "simulation_run": false,
+  "simulation_run": true,
   "network": {
     "local_circuit": "matched E-to-I-to-E PING",
     "populations_per_network": {
@@ -15,8 +16,8 @@
       "I": 20
     },
     "detuning_input_rates_hz": {
-      "PING_A": 110.0,
-      "PING_B": 90.0
+      "PING_A": 300.0,
+      "PING_B": 240.0
     },
     "cross_network_projections": [
       "E-to-E",
@@ -28,10 +29,40 @@
       "K_EE": 0.08,
       "K_EI": 0.08
     },
-    "delay_ms": 0.5
+    "delay_ms": 0.5,
+    "local_e_to_i": {
+      "weight": 0.5,
+      "ampa_tau_ms": 1.0
+    }
+  },
+  "uncoupled": {
+    "PING_A": {
+      "volleys": 86,
+      "frequency_hz": 50.71599045346062,
+      "iei_cv": 0.036837092258725966
+    },
+    "PING_B": {
+      "volleys": 75,
+      "frequency_hz": 44.52734821589746,
+      "iei_cv": 0.040493672172616214
+    },
+    "inhibitory_spikes_per_cycle": {
+      "PING_A": {
+        "cycles": 85,
+        "mean_spikes_per_neuron": 1.0,
+        "minimum": 1,
+        "maximum": 1
+      },
+      "PING_B": {
+        "cycles": 74,
+        "mean_spikes_per_neuron": 1.0,
+        "minimum": 1,
+        "maximum": 1
+      }
+    },
+    "phase_wraps": 10
   },
   "remaining_methods_unrun": [
-    2,
     3,
     4,
     5

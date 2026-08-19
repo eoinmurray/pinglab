@@ -22,12 +22,12 @@ Diagnostics: 0 errors, 0 warnings
 - PING_A_E_to_PING_B_E_K_EE: PING_A_E.spikes → PING_B_E.excitatory [feedback, excitatory]
 - PING_A_E_to_PING_B_I_K_EI: PING_A_E.spikes → PING_B_I.excitatory [feedback, excitatory]
 - PING_A_I_to_E: PING_A_I.spikes → PING_A_E.inhibitory [recurrent, inhibitory]
-- PING_A_input_to_E: drive_A_110_Hz.value → PING_A_E.excitatory [feedforward, excitatory]
+- PING_A_input_to_E: drive_A_300_Hz.value → PING_A_E.excitatory [feedforward, excitatory]
 - PING_B_E_to_I: PING_B_E.spikes → PING_B_I.excitatory [recurrent, excitatory]
 - PING_B_E_to_PING_A_E_K_EE: PING_B_E.spikes → PING_A_E.excitatory [feedback, excitatory]
 - PING_B_E_to_PING_A_I_K_EI: PING_B_E.spikes → PING_A_I.excitatory [feedback, excitatory]
 - PING_B_I_to_E: PING_B_I.spikes → PING_B_E.inhibitory [recurrent, inhibitory]
-- PING_B_input_to_E: drive_B_90_Hz.value → PING_B_E.excitatory [feedforward, excitatory]
+- PING_B_input_to_E: drive_B_240_Hz.value → PING_B_E.excitatory [feedforward, excitatory]
 
 ## Parameters
 - PING_A_E_to_I.weight: [20, 80] nS (frozen/unselected)
