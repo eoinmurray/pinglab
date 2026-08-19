@@ -1,11 +1,11 @@
 # snnlang report — diesmann_synfire_chain
 
 Populations: 6 (600 units)
-Projections: 12
+Projections: 18
 Operations: 0
-Parameters: 12 tensors / 420,000 scalars
+Parameters: 18 tensors / 780,000 scalars
 Estimated state: 600 scalars per sample and timestep
-Estimated dense projection edges: 420,000
+Estimated dense projection edges: 780,000
 Trainable this recipe: 0 tensors
 Outputs: none
 Recurrent paths: none
@@ -20,12 +20,18 @@ Diagnostics: 0 errors, 0 warnings
 - pool_6: 100 × coba_lif (spiking)
 
 ## Projections
-- background_to_pool_1: independent_background.value → pool_1.excitatory [feedforward, excitatory]
-- background_to_pool_2: independent_background.value → pool_2.excitatory [feedforward, excitatory]
-- background_to_pool_3: independent_background.value → pool_3.excitatory [feedforward, excitatory]
-- background_to_pool_4: independent_background.value → pool_4.excitatory [feedforward, excitatory]
-- background_to_pool_5: independent_background.value → pool_5.excitatory [feedforward, excitatory]
-- background_to_pool_6: independent_background.value → pool_6.excitatory [feedforward, excitatory]
+- background_excitation_to_pool_1: background_excitation.value → pool_1.excitatory [feedforward, excitatory]
+- background_excitation_to_pool_2: background_excitation.value → pool_2.excitatory [feedforward, excitatory]
+- background_excitation_to_pool_3: background_excitation.value → pool_3.excitatory [feedforward, excitatory]
+- background_excitation_to_pool_4: background_excitation.value → pool_4.excitatory [feedforward, excitatory]
+- background_excitation_to_pool_5: background_excitation.value → pool_5.excitatory [feedforward, excitatory]
+- background_excitation_to_pool_6: background_excitation.value → pool_6.excitatory [feedforward, excitatory]
+- background_inhibition_to_pool_1: background_inhibition.value → pool_1.inhibitory [feedforward, inhibitory]
+- background_inhibition_to_pool_2: background_inhibition.value → pool_2.inhibitory [feedforward, inhibitory]
+- background_inhibition_to_pool_3: background_inhibition.value → pool_3.inhibitory [feedforward, inhibitory]
+- background_inhibition_to_pool_4: background_inhibition.value → pool_4.inhibitory [feedforward, inhibitory]
+- background_inhibition_to_pool_5: background_inhibition.value → pool_5.inhibitory [feedforward, inhibitory]
+- background_inhibition_to_pool_6: background_inhibition.value → pool_6.inhibitory [feedforward, inhibitory]
 - packet_to_pool_1: pulse_packet.value → pool_1.excitatory [feedforward, excitatory]
 - pool_1_to_pool_2: pool_1.spikes → pool_2.excitatory [feedforward, excitatory]
 - pool_2_to_pool_3: pool_2.spikes → pool_3.excitatory [feedforward, excitatory]
@@ -34,12 +40,18 @@ Diagnostics: 0 errors, 0 warnings
 - pool_5_to_pool_6: pool_5.spikes → pool_6.excitatory [feedforward, excitatory]
 
 ## Parameters
-- background_to_pool_1.weight: [100, 600] nS (frozen/unselected)
-- background_to_pool_2.weight: [100, 600] nS (frozen/unselected)
-- background_to_pool_3.weight: [100, 600] nS (frozen/unselected)
-- background_to_pool_4.weight: [100, 600] nS (frozen/unselected)
-- background_to_pool_5.weight: [100, 600] nS (frozen/unselected)
-- background_to_pool_6.weight: [100, 600] nS (frozen/unselected)
+- background_excitation_to_pool_1.weight: [100, 600] nS (frozen/unselected)
+- background_excitation_to_pool_2.weight: [100, 600] nS (frozen/unselected)
+- background_excitation_to_pool_3.weight: [100, 600] nS (frozen/unselected)
+- background_excitation_to_pool_4.weight: [100, 600] nS (frozen/unselected)
+- background_excitation_to_pool_5.weight: [100, 600] nS (frozen/unselected)
+- background_excitation_to_pool_6.weight: [100, 600] nS (frozen/unselected)
+- background_inhibition_to_pool_1.weight: [100, 600] nS (frozen/unselected)
+- background_inhibition_to_pool_2.weight: [100, 600] nS (frozen/unselected)
+- background_inhibition_to_pool_3.weight: [100, 600] nS (frozen/unselected)
+- background_inhibition_to_pool_4.weight: [100, 600] nS (frozen/unselected)
+- background_inhibition_to_pool_5.weight: [100, 600] nS (frozen/unselected)
+- background_inhibition_to_pool_6.weight: [100, 600] nS (frozen/unselected)
 - packet_to_pool_1.weight: [100, 100] nS (frozen/unselected)
 - pool_1_to_pool_2.weight: [100, 100] nS (frozen/unselected)
 - pool_2_to_pool_3.weight: [100, 100] nS (frozen/unselected)

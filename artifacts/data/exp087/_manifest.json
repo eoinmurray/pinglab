@@ -1,14 +1,14 @@
 {
   "slug": "exp087",
-  "run_id": "r003",
-  "run_at": "2026-08-19T23:19:26+00:00",
-  "git_sha": "ad8aa0e5",
+  "run_id": "r004",
+  "run_at": "2026-08-19T23:38:11+00:00",
+  "git_sha": "1a325baf",
   "dirty": true,
   "code_dirty": true,
   "patch": {
     "file": "_dirty.patch",
-    "sha256": "a60e46e5f5995606fdff1137e5c3706a03e29d8d1394066489f64e83c47fa073",
-    "lines": 803
+    "sha256": "9781422ee303fc96419b172d71b5bf58e0ccc4d642fd46c0ac649c74e9032590",
+    "lines": 665
   },
   "host": "local",
   "scale": {
@@ -26,11 +26,12 @@
     "packet_channels": 100,
     "background_channels": 600,
     "feedforward_fan_in": 40,
-    "feedforward_total_strength_us": 0.33,
+    "feedforward_total_strength_us": 0.22,
     "feedforward_delay_ms": 1.0,
     "background_fan_in": 100,
-    "background_total_strength_us": 0.25,
-    "background_rate_hz": 10.0,
+    "background_excitatory_strength_us": 0.28,
+    "background_inhibitory_strength_us": 0.05,
+    "background_rate_hz": 30.0,
     "t_ms": 60.0,
     "packet_centre_ms": 10.0,
     "network_seed": 11,

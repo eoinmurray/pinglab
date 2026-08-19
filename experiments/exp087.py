@@ -38,25 +38,28 @@ NEURONS_PER_LAYER = 100
 PACKET_CHANNELS = 100
 BACKGROUND_CHANNELS = 600
 FEEDFORWARD_FAN_IN = 40
-FEEDFORWARD_TOTAL_STRENGTH_US = 0.33
+FEEDFORWARD_TOTAL_STRENGTH_US = 0.22
 FEEDFORWARD_DELAY_MS = 1.0
 BACKGROUND_FAN_IN = 100
-BACKGROUND_TOTAL_STRENGTH_US = 0.25
-BACKGROUND_RATE_HZ = 10.0
+BACKGROUND_EXCITATORY_STRENGTH_US = 0.28
+BACKGROUND_INHIBITORY_STRENGTH_US = 0.05
+BACKGROUND_RATE_HZ = 30.0
 T_MS = 60.0
 PACKET_CENTRE_MS = 10.0
 NETWORK_SEED = 11
 BACKGROUND_SEED = 7
 RESPONSE_START_MS = 7.0
 RESPONSE_END_MS = 40.0
+VOLLEY_WINDOW_MS = 8.0
+VOLLEY_MIN_SPIKES = 5
 STATE_ALPHAS = (20, 30, 35, 40, 45, 50, 55, 60, 70, 80, 90)
 STATE_SIGMAS_MS = (0.2, 0.5, 1.0, 2.0, 3.0, 4.0, 5.0)
 REPRESENTATIVE_PACKETS = (
-    ("weak", "Weak, diffuse", 45, 5.0),
-    ("broad", "Broad, strong", 50, 5.0),
+    ("weak", "Weak, diffuse", 21, 4.0),
+    ("broad", "Broad, strong", 35, 5.0),
     ("oversized", "Narrow, oversized", 80, 0.2),
 )
-REFERENCE_PACKET = (50, 5.0)
+REFERENCE_PACKET = (35, 5.0)
 METHOD_SVG_NAMES = (
     "packet_definition.svg",
     "packet_fates.svg",
@@ -77,7 +80,8 @@ SCALE = {
     "feedforward_total_strength_us": FEEDFORWARD_TOTAL_STRENGTH_US,
     "feedforward_delay_ms": FEEDFORWARD_DELAY_MS,
     "background_fan_in": BACKGROUND_FAN_IN,
-    "background_total_strength_us": BACKGROUND_TOTAL_STRENGTH_US,
+    "background_excitatory_strength_us": BACKGROUND_EXCITATORY_STRENGTH_US,
+    "background_inhibitory_strength_us": BACKGROUND_INHIBITORY_STRENGTH_US,
     "background_rate_hz": BACKGROUND_RATE_HZ,
     "t_ms": T_MS,
     "packet_centre_ms": PACKET_CENTRE_MS,
@@ -99,6 +103,7 @@ class PacketRun:
     pool_spikes: list[np.ndarray]
     alphas: list[int]
     sigmas_ms: list[float | None]
+    volley_windows: list[tuple[int, int] | None]
 
     @property
     def survives(self) -> bool:
@@ -118,7 +123,8 @@ def exact_fan_in(total_strength: float, fan_in: int, source_size: int):
 def author_network(
     *,
     feedforward_strength_us: float = FEEDFORWARD_TOTAL_STRENGTH_US,
-    background_strength_us: float = BACKGROUND_TOTAL_STRENGTH_US,
+    background_excitatory_strength_us: float = BACKGROUND_EXCITATORY_STRENGTH_US,
+    background_inhibitory_strength_us: float = BACKGROUND_INHIBITORY_STRENGTH_US,
 ) -> snn.Bundle:
     """Author six feedforward pools with explicit packet and background inputs."""
     net = snn.Network("diesmann_synfire_chain", dt=DT_MS * snn.ms)
@@ -128,8 +134,14 @@ def author_network(
         signal_type="spikes",
         unit="spike",
     )
-    background = net.input(
-        "independent_background",
+    background_excitation = net.input(
+        "background_excitation",
+        shape=("time", "batch", BACKGROUND_CHANNELS),
+        signal_type="spikes",
+        unit="spike",
+    )
+    background_inhibition = net.input(
+        "background_inhibition",
         shape=("time", "batch", BACKGROUND_CHANNELS),
         signal_type="spikes",
         unit="spike",
@@ -155,12 +167,24 @@ def author_network(
             )
             pools.append(pool)
             net.connect(
-                background,
+                background_excitation,
                 pool.excitatory,
-                name=f"background_to_pool_{layer}",
+                name=f"background_excitation_to_pool_{layer}",
                 synapse=snn.AMPA(tau=2 * snn.ms),
                 weight=exact_fan_in(
-                    background_strength_us,
+                    background_excitatory_strength_us,
+                    BACKGROUND_FAN_IN,
+                    BACKGROUND_CHANNELS,
+                ),
+                constraint=snn.NonNegative(),
+            )
+            net.connect(
+                background_inhibition,
+                pool.inhibitory,
+                name=f"background_inhibition_to_pool_{layer}",
+                synapse=snn.GABA(tau=9 * snn.ms),
+                weight=exact_fan_in(
+                    background_inhibitory_strength_us,
                     BACKGROUND_FAN_IN,
                     BACKGROUND_CHANNELS,
                 ),
@@ -203,16 +227,22 @@ def author_network(
     return snn.compile(net, target="tools/snn")
 
 
-def make_background(rate_hz: float = BACKGROUND_RATE_HZ) -> torch.Tensor:
-    """Generate the one fixed background realization used by a condition."""
+def make_background(
+    rate_hz: float = BACKGROUND_RATE_HZ,
+) -> dict[str, torch.Tensor]:
+    """Generate fixed independent excitatory and inhibitory background spikes."""
     steps = round(T_MS / DT_MS)
     probability = rate_hz * DT_MS / 1_000.0
-    rng = np.random.default_rng(BACKGROUND_SEED)
-    spikes = rng.random(
-        (steps, 1, BACKGROUND_CHANNELS),
-        dtype=np.float32,
-    ) < probability
-    return torch.from_numpy(spikes.astype(np.float32))
+    shape = (steps, 1, BACKGROUND_CHANNELS)
+    backgrounds = {}
+    for name, seed in (
+        ("background_excitation", BACKGROUND_SEED),
+        ("background_inhibition", BACKGROUND_SEED + 1),
+    ):
+        rng = np.random.default_rng(seed)
+        spikes = rng.random(shape, dtype=np.float32) < probability
+        backgrounds[name] = torch.from_numpy(spikes.astype(np.float32))
+    return backgrounds
 
 
 def make_packet(alpha: int, sigma_ms: float) -> torch.Tensor:
@@ -224,9 +254,7 @@ def make_packet(alpha: int, sigma_ms: float) -> torch.Tensor:
     rng = np.random.default_rng(seed)
     channels = rng.choice(PACKET_CHANNELS, size=alpha, replace=False)
     centre_step = round(PACKET_CENTRE_MS / DT_MS)
-    times = np.rint(
-        rng.normal(centre_step, sigma_ms / DT_MS, size=alpha)
-    ).astype(int)
+    times = np.rint(rng.normal(centre_step, sigma_ms / DT_MS, size=alpha)).astype(int)
     times = np.clip(times, 0, steps - 1)
     spikes = np.zeros((steps, 1, PACKET_CHANNELS), dtype=np.float32)
     spikes[times, 0, channels] = 1.0
@@ -241,6 +269,51 @@ def packet_width_ms(spikes: np.ndarray) -> float | None:
     return float(np.std(times.astype(float) * DT_MS))
 
 
+def measure_volley(
+    spikes: np.ndarray,
+) -> tuple[int, float | None, tuple[int, int] | None]:
+    """Measure the densest short response window, rejecting isolated noise."""
+    start = round(RESPONSE_START_MS / DT_MS)
+    end = round(RESPONSE_END_MS / DT_MS)
+    window = round(VOLLEY_WINDOW_MS / DT_MS)
+    counts = spikes[start:end].sum(axis=(1, 2)).astype(int)
+    if counts.size < window:
+        return 0, None, None
+    cumulative = np.pad(np.cumsum(counts), (1, 0))
+    window_counts = cumulative[window:] - cumulative[:-window]
+    best = int(np.argmax(window_counts))
+    alpha = int(window_counts[best])
+    if alpha < VOLLEY_MIN_SPIKES:
+        return 0, None, None
+    window_start = start + best
+    window_end = window_start + window
+    selected = spikes[window_start:window_end]
+    return alpha, packet_width_ms(selected), (window_start, window_end)
+
+
+def run_background_only(
+    graph: dict,
+    background: dict[str, torch.Tensor],
+) -> list[int]:
+    """Count spontaneous output spikes with no pulse packet."""
+    steps = round(T_MS / DT_MS)
+    result = simulate(
+        ExecutionSpec(
+            kind="simulate",
+            executor="graph",
+            graph=graph,
+            inputs={
+                "pulse_packet": torch.zeros((steps, 1, PACKET_CHANNELS)),
+                **background,
+            },
+            seed=NETWORK_SEED,
+        )
+    )
+    return [
+        int(result.recordings[f"pool_spikes_{layer}"].sum()) for layer in range(LAYERS)
+    ]
+
+
 def run_packet(
     graph: dict,
     *,
@@ -248,9 +321,10 @@ def run_packet(
     label: str,
     alpha: int,
     sigma_ms: float,
-    background: torch.Tensor,
+    background: dict[str, torch.Tensor],
 ) -> PacketRun:
     """Simulate and measure one packet trajectory through the chain."""
+    input_alpha = alpha
     packet = make_packet(alpha, sigma_ms)
     result = simulate(
         ExecutionSpec(
@@ -259,49 +333,50 @@ def run_packet(
             graph=graph,
             inputs={
                 "pulse_packet": packet,
-                "independent_background": background,
+                **background,
             },
             seed=NETWORK_SEED,
         )
     )
-    start = round(RESPONSE_START_MS / DT_MS)
-    end = round(RESPONSE_END_MS / DT_MS)
     pool_spikes = []
     alphas = []
     sigmas_ms = []
+    volley_windows = []
+    extinct = False
     for layer in range(LAYERS):
         spikes = (
-            result.recordings[f"pool_spikes_{layer}"]
-            .cpu()
-            .numpy()
-            .astype(np.uint8)
+            result.recordings[f"pool_spikes_{layer}"].cpu().numpy().astype(np.uint8)
         )
-        response = spikes[start:end]
         pool_spikes.append(spikes)
-        alphas.append(int(response.sum()))
-        sigmas_ms.append(packet_width_ms(response))
+        if extinct:
+            measured_alpha, sigma_ms_measured, volley_window = 0, None, None
+        else:
+            measured_alpha, sigma_ms_measured, volley_window = measure_volley(spikes)
+            extinct = measured_alpha == 0
+        alphas.append(measured_alpha)
+        sigmas_ms.append(sigma_ms_measured)
+        volley_windows.append(volley_window)
     return PacketRun(
         packet_id=packet_id,
         label=label,
-        input_alpha=alpha,
+        input_alpha=input_alpha,
         requested_sigma_ms=sigma_ms,
         input_sigma_ms=packet_width_ms(packet.numpy()) or 0.0,
         input_spikes=packet.numpy().astype(np.uint8),
         pool_spikes=pool_spikes,
         alphas=alphas,
         sigmas_ms=sigmas_ms,
+        volley_windows=volley_windows,
     )
 
 
 def run_operating_point_search() -> tuple[float, float, list[dict[str, object]]]:
     """Choose the weakest clean reference-packet propagation point."""
     rows = []
-    for rate_hz in (2.0, 5.0, 10.0):
+    for rate_hz in (25.0, 30.0, 35.0):
         background = make_background(rate_hz)
-        for strength_us in (0.33, 0.35, 0.37, 0.40):
-            graph = author_network(
-                feedforward_strength_us=strength_us
-            ).graph
+        for strength_us in (0.22, 0.25, 0.28, 0.31):
+            graph = author_network(feedforward_strength_us=strength_us).graph
             run = run_packet(
                 graph,
                 packet_id="reference",
@@ -310,10 +385,17 @@ def run_operating_point_search() -> tuple[float, float, list[dict[str, object]]]
                 sigma_ms=REFERENCE_PACKET[1],
                 background=background,
             )
+            spontaneous_counts = run_background_only(graph, background)
             clean = (
-                all(value > 0 for value in run.alphas)
+                3 <= sum(spontaneous_counts) <= 30
+                and max(spontaneous_counts) <= 10
+                and all(value > 0 for value in run.alphas)
                 and max(run.alphas) <= NEURONS_PER_LAYER
                 and min(run.alphas[-2:]) >= 0.9 * NEURONS_PER_LAYER
+                and all(
+                    int(spikes.sum()) - alpha <= 20
+                    for spikes, alpha in zip(run.pool_spikes, run.alphas, strict=True)
+                )
             )
             rows.append(
                 {
@@ -321,6 +403,7 @@ def run_operating_point_search() -> tuple[float, float, list[dict[str, object]]]
                     "background_rate_hz": rate_hz,
                     "alphas": run.alphas,
                     "sigmas_ms": run.sigmas_ms,
+                    "spontaneous_spikes_by_pool": spontaneous_counts,
                     "accepted": clean,
                 }
             )
@@ -341,7 +424,10 @@ def run_operating_point_search() -> tuple[float, float, list[dict[str, object]]]
     )
 
 
-def run_state_space(graph: dict, background: torch.Tensor) -> list[PacketRun]:
+def run_state_space(
+    graph: dict,
+    background: dict[str, torch.Tensor],
+) -> list[PacketRun]:
     """Measure one layer trajectory at every requested packet state."""
     runs = []
     for alpha in STATE_ALPHAS:
@@ -365,9 +451,7 @@ def raster_points(run: PacketRun) -> tuple[np.ndarray, np.ndarray]:
     neurons = []
     for layer, spikes in enumerate(run.pool_spikes):
         step, _batch, neuron = np.nonzero(spikes)
-        keep = (step * DT_MS >= RESPONSE_START_MS) & (
-            step * DT_MS <= RESPONSE_END_MS
-        )
+        keep = (step * DT_MS >= RESPONSE_START_MS) & (step * DT_MS <= RESPONSE_END_MS)
         times.append(step[keep] * DT_MS)
         neurons.append(neuron[keep] + layer * NEURONS_PER_LAYER)
     return np.concatenate(times), np.concatenate(neurons)
@@ -486,7 +570,11 @@ def grid_edges(values: tuple[float, ...] | tuple[int, ...]) -> np.ndarray:
     centres = np.asarray(values, dtype=float)
     mids = (centres[:-1] + centres[1:]) / 2.0
     return np.concatenate(
-        ([centres[0] - (mids[0] - centres[0])], mids, [centres[-1] + (centres[-1] - mids[-1])])
+        (
+            [centres[0] - (mids[0] - centres[0])],
+            mids,
+            [centres[-1] + (centres[-1] - mids[-1])],
+        )
     )
 
 
@@ -499,9 +587,7 @@ def plot_state_space(
     theme.apply()
     fig, axes = plt.subplots(1, 2, figsize=(12.0, 5.4))
     fate = np.zeros((len(STATE_SIGMAS_MS), len(STATE_ALPHAS)))
-    by_state = {
-        (run.input_alpha, run.requested_sigma_ms): run for run in grid_runs
-    }
+    by_state = {(run.input_alpha, run.requested_sigma_ms): run for run in grid_runs}
     for row, sigma_ms in enumerate(STATE_SIGMAS_MS):
         for column, alpha in enumerate(STATE_ALPHAS):
             fate[row, column] = by_state[(alpha, sigma_ms)].survives
@@ -570,27 +656,32 @@ def render_raster_hero(runs: list[PacketRun], out: Path) -> None:
     event_times = []
     event_neurons = []
     event_colors = []
-    for run, onset_s, base_color in zip(
-        runs, onsets_s, base_colors, strict=True
-    ):
-        for layer, spikes in enumerate(run.pool_spikes):
+    for run, onset_s, base_color in zip(runs, onsets_s, base_colors, strict=True):
+        for layer, (spikes, volley_window) in enumerate(
+            zip(run.pool_spikes, run.volley_windows, strict=True)
+        ):
             steps, _batch, neurons = np.nonzero(spikes)
             keep = (steps * DT_MS >= RESPONSE_START_MS) & (
                 steps * DT_MS <= RESPONSE_END_MS
             )
             event_times.extend(
-                onset_s
-                + (steps[keep] * DT_MS - PACKET_CENTRE_MS)
-                * biological_to_video
+                onset_s + (steps[keep] * DT_MS - PACKET_CENTRE_MS) * biological_to_video
             )
             event_neurons.extend(neurons[keep] + layer * NEURONS_PER_LAYER)
-            if run.packet_id == "oversized" and layer >= 3:
-                event_colors.extend(["#8be9fd"] * int(keep.sum()))
-            else:
-                event_colors.extend([base_color] * int(keep.sum()))
+            for step in steps[keep]:
+                in_volley = (
+                    volley_window is not None
+                    and volley_window[0] <= step < volley_window[1]
+                )
+                if not in_volley:
+                    event_colors.append(to_rgba("#9aa8b8", alpha=0.48))
+                elif run.packet_id == "oversized" and layer >= 3:
+                    event_colors.append(to_rgba("#8be9fd"))
+                else:
+                    event_colors.append(to_rgba(base_color))
     event_times_array = np.mod(np.asarray(event_times), period_s)
     event_neurons_array = np.asarray(event_neurons)
-    event_rgba = np.asarray([to_rgba(color) for color in event_colors])
+    event_rgba = np.asarray(event_colors)
 
     fig, ax = plt.subplots(figsize=(12.0, 5.5), facecolor="#09111f")
     ax.set_facecolor("#0c1728")
@@ -625,7 +716,11 @@ def render_raster_hero(runs: list[PacketRun], out: Path) -> None:
         x = np.mod(event_times_array - phase, period_s)
         points.set_offsets(np.column_stack((x, event_neurons_array)))
         colors = event_rgba.copy()
-        colors[:, 3] = np.clip(np.minimum(x, period_s - x) / 0.35, 0.0, 1.0)
+        colors[:, 3] *= np.clip(
+            np.minimum(x, period_s - x) / 0.35,
+            0.0,
+            1.0,
+        )
         points.set_color(colors)
         return (points,)
 
@@ -657,9 +752,21 @@ def run_record(run: PacketRun) -> dict[str, object]:
             "realised_sigma_ms": run.input_sigma_ms,
         },
         "layers": [
-            {"pool": layer, "alpha": alpha, "sigma_ms": sigma_ms}
-            for layer, (alpha, sigma_ms) in enumerate(
-                zip(run.alphas, run.sigmas_ms, strict=True),
+            {
+                "pool": layer,
+                "alpha": alpha,
+                "sigma_ms": sigma_ms,
+                "volley_window_ms": None
+                if window is None
+                else [window[0] * DT_MS, window[1] * DT_MS],
+            }
+            for layer, (alpha, sigma_ms, window) in enumerate(
+                zip(
+                    run.alphas,
+                    run.sigmas_ms,
+                    run.volley_windows,
+                    strict=True,
+                ),
                 start=1,
             )
         ],
@@ -687,6 +794,7 @@ def main() -> None:
             expand_groups=("synfire_chain",),
         )
         background = make_background(selected_rate)
+        spontaneous_counts = run_background_only(bundle.graph, background)
         representative_runs = [
             run_packet(
                 bundle.graph,
@@ -727,11 +835,10 @@ def main() -> None:
                 "feedforward_strength_us": selected_strength,
                 "background_rate_hz": selected_rate,
                 "selection": "weakest tested strength carrying the reference packet cleanly through all six pools",
+                "spontaneous_spikes_by_pool": spontaneous_counts,
                 "search": search_rows,
             },
-            "representative_packets": [
-                run_record(run) for run in representative_runs
-            ],
+            "representative_packets": [run_record(run) for run in representative_runs],
             "state_space": [run_record(run) for run in grid_runs],
             "remaining_methods_unrun": [],
         }
