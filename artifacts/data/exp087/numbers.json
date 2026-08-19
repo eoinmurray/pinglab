@@ -1,0 +1,26 @@
+{
+  "run_id": "r001",
+  "git_sha": "e77bf424",
+  "duration_s": 0.9,
+  "duration": "1s",
+  "status": "draft",
+  "simulation_run": false,
+  "compiled_methods": [
+    1
+  ],
+  "dt_ms": 0.1,
+  "layers": 6,
+  "neurons_per_layer": 100,
+  "packet_channels": 100,
+  "background_channels": 600,
+  "feedforward_fan_in": 40,
+  "feedforward_total_strength_us": 0.8,
+  "feedforward_delay_ms": 1.0,
+  "background_fan_in": 100,
+  "background_total_strength_us": 0.25,
+  "question": "Can pulse packets converge to a stable size and width?",
+  "remaining_methods_unrun": [
+    2,
+    3
+  ]
+}

@@ -1,0 +1,68 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="550" viewBox="0 0 1200 550" role="img" aria-labelledby="title desc">
+  <title id="title">Approximate frame from a looping synfire raster animation</title>
+  <desc id="desc">One frame of a dark scrolling spike raster with six pool bands. A weak packet fades after three pools, while two other packets produce compact volleys by Pool 6.</desc>
+  <defs>
+    <filter id="cyan-glow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="4" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <filter id="red-glow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="3" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <linearGradient id="edge-fade-left" x1="0" x2="1"><stop offset="0" stop-color="#09111f"/><stop offset="1" stop-color="#09111f" stop-opacity="0"/></linearGradient>
+    <linearGradient id="edge-fade-right" x1="1" x2="0"><stop offset="0" stop-color="#09111f"/><stop offset="1" stop-color="#09111f" stop-opacity="0"/></linearGradient>
+  </defs>
+  <rect width="1200" height="550" fill="#09111f"/>
+  <style>
+    .label { font: 600 17px system-ui, sans-serif; fill: #dce5ee; }
+    .small { font: 15px system-ui, sans-serif; fill: #98a9bd; }
+    .band { stroke: #26364a; stroke-width: 1; }
+    .axis { stroke: #8191a4; stroke-width: 1.6; }
+    .weak { stroke: #ef476f; stroke-width: 3; stroke-linecap: round; filter: url(#red-glow); }
+    .broad { stroke: #66d9ef; stroke-width: 3; stroke-linecap: round; filter: url(#cyan-glow); }
+    .large { stroke: #ffd166; stroke-width: 3; stroke-linecap: round; }
+    .stable { stroke: #8be9fd; stroke-width: 3.2; stroke-linecap: round; filter: url(#cyan-glow); }
+  </style>
+
+  <g transform="translate(0,-60)">
+  <rect x="105" y="112" width="1035" height="390" rx="8" fill="#0c1728" stroke="#2b3d52"/>
+  <g class="band">
+    <line x1="105" y1="177" x2="1140" y2="177"/><line x1="105" y1="242" x2="1140" y2="242"/>
+    <line x1="105" y1="307" x2="1140" y2="307"/><line x1="105" y1="372" x2="1140" y2="372"/>
+    <line x1="105" y1="437" x2="1140" y2="437"/>
+  </g>
+  <g class="label" text-anchor="end">
+    <text x="90" y="150">P1</text><text x="90" y="215">P2</text><text x="90" y="280">P3</text>
+    <text x="90" y="345">P4</text><text x="90" y="410">P5</text><text x="90" y="475">P6</text>
+  </g>
+
+  <!-- Weak packet: fewer spikes at each regenerated volley, then extinction. -->
+  <path d="M145 132v7 M158 154v7 M172 122v7 M188 161v7 M203 139v7 M219 128v7 M237 157v7" class="weak"/>
+  <path d="M220 197v7 M236 221v7 M252 190v7 M267 226v7 M281 207v7" class="weak" opacity="0.75"/>
+  <path d="M286 260v7 M307 285v7 M325 270v7" class="weak" opacity="0.42"/>
+
+  <!-- Broad packet: each pool regenerates a progressively tighter volley. -->
+  <path d="M375 126v7 M391 156v7 M409 135v7 M430 165v7 M448 120v7 M465 148v7 M485 139v7" class="broad" opacity="0.72"/>
+  <path d="M452 196v7 M466 218v7 M480 188v7 M495 229v7 M508 207v7 M522 199v7" class="broad" opacity="0.8"/>
+  <path d="M520 258v7 M534 284v7 M547 265v7 M560 290v7 M574 272v7 M588 253v7" class="broad" opacity="0.88"/>
+  <path d="M584 327v7 M595 350v7 M606 315v7 M617 341v7 M628 322v7 M638 356v7" class="broad" opacity="0.94"/>
+  <path d="M641 392v7 M650 415v7 M659 381v7 M668 405v7 M677 398v7 M686 420v7" class="stable"/>
+  <path d="M690 455v7 M698 480v7 M706 448v7 M714 474v7 M722 463v7 M730 487v7" class="stable"/>
+
+  <!-- Oversized packet: large first response relaxes toward the same compact form. -->
+  <path d="M760 121v7 M766 143v7 M772 164v7 M778 132v7 M784 154v7 M790 118v7 M796 149v7 M802 137v7 M808 161v7 M814 127v7" class="large"/>
+  <path d="M817 190v7 M824 217v7 M831 198v7 M838 226v7 M845 185v7 M852 208v7 M859 231v7 M866 201v7 M873 220v7" class="large" opacity="0.9"/>
+  <path d="M876 255v7 M884 280v7 M892 263v7 M900 290v7 M908 248v7 M916 273v7 M924 284v7 M932 260v7" class="large" opacity="0.75"/>
+  <path d="M937 318v7 M946 347v7 M955 328v7 M964 358v7 M973 314v7 M982 340v7 M991 352v7" class="broad"/>
+  <path d="M991 390v7 M1000 413v7 M1009 379v7 M1018 404v7 M1027 396v7 M1036 419v7" class="stable"/>
+  <path d="M1022 455v7 M1030 480v7 M1038 448v7 M1046 474v7 M1054 463v7 M1062 487v7" class="stable"/>
+
+  <rect x="105" y="112" width="90" height="390" fill="url(#edge-fade-left)"/>
+  <rect x="1050" y="112" width="90" height="390" fill="url(#edge-fade-right)"/>
+
+  <line x1="190" y1="553" x2="1050" y2="553" class="axis"/>
+  <path d="M1050 553 l-13 -7 v14 z" fill="#8191a4"/>
+  <text x="620" y="580" text-anchor="middle" class="label">time and continuous scroll</text>
+  </g>
+</svg>
