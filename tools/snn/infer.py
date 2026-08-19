@@ -790,6 +790,7 @@ def probe(
 
     outputs = set(outputs or ())
     emit_rasters = "rasters" in outputs
+    emit_spike_summary = "spike_summary" in outputs
     emit_per_cell = "per_cell_rates" in outputs
 
     # Input: either an arbitrary pre-built spike stream (--input-file, the generic
@@ -884,6 +885,51 @@ def probe(
                 f"  → {out_dir_path / 'rasters.npz'}  "
                 f"({e_tr.size + i_tr.size + out_tr.size} spikes)"
             )
+
+        if emit_spike_summary:
+            def _as_tbc(key, width):
+                value = rec.get(key)
+                if value is None:
+                    return torch.zeros(
+                        (T_steps, n_batch, width), device=device
+                    )
+                if value.ndim == 2:
+                    value = value.unsqueeze(1)
+                return value
+
+            starts = [0]
+            if readout_reset is not None:
+                reset_indices = torch.nonzero(
+                    readout_reset.detach().bool().cpu(), as_tuple=False
+                ).flatten().tolist()
+                starts.extend(int(index) for index in reset_indices if int(index) > 0)
+            starts = sorted(set(starts))
+            stops = [*starts[1:], T_steps]
+
+            e_spikes = _as_tbc(hk, n_e)
+            i_spikes = _as_tbc(ik, n_i)
+            out_spikes = _as_tbc("out_spikes", M.N_OUT)
+
+            def _population_counts(value):
+                return torch.stack(
+                    [value[start:stop].sum(dim=(0, 2)) for start, stop in zip(starts, stops)]
+                ).transpose(0, 1).detach().cpu().numpy().astype(np.int64)
+
+            output_counts = torch.stack(
+                [out_spikes[start:stop].sum(dim=0) for start, stop in zip(starts, stops)]
+            ).permute(1, 0, 2).detach().cpu().numpy().astype(np.int64)
+            np.savez_compressed(
+                out_dir_path / "spike_summary.npz",
+                dt=np.float32(dt),
+                n_trials=np.int32(n_batch),
+                T=np.int32(T_steps),
+                segment_starts=np.asarray(starts, dtype=np.int32),
+                segment_stops=np.asarray(stops, dtype=np.int32),
+                e_counts=_population_counts(e_spikes),
+                i_counts=_population_counts(i_spikes),
+                out_counts=output_counts,
+            )
+            log.info(f"  → {out_dir_path / 'spike_summary.npz'}")
 
     return {"rate_e_hz": r_e, "rate_i_hz": r_i}
 

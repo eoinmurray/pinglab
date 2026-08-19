@@ -13,6 +13,7 @@ from .execution import (
     finalize_campaign,
     initialize_campaign,
     run_experiment,
+    run_experiment_shard,
     run_local,
     validate_campaign,
 )
@@ -42,6 +43,13 @@ def parser() -> argparse.ArgumentParser:
     )
     experiment.add_argument("--campaign-root", type=Path, required=True)
     experiment.add_argument("--slug", required=True)
+    shard = commands.add_parser(
+        "run-experiment-shard", help="run one scheduler-managed inference shard"
+    )
+    shard.add_argument("--campaign-root", type=Path, required=True)
+    shard.add_argument("--slug", required=True)
+    shard.add_argument("--index", type=int, required=True)
+    shard.add_argument("--count", type=int, required=True)
     status = commands.add_parser("status", help="report validated campaign state")
     status.add_argument("--campaign-root", type=Path, required=True)
     status.add_argument("--json", action="store_true")
@@ -99,6 +107,9 @@ def main(argv: list[str] | None = None) -> None:
         return
     if args.command == "run-experiment":
         run_experiment(args.campaign_root, args.slug)
+        return
+    if args.command == "run-experiment-shard":
+        run_experiment_shard(args.campaign_root, args.slug, args.index, args.count)
         return
     if args.command == "finalize":
         print(
