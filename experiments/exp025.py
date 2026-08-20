@@ -622,6 +622,43 @@ def _eval_scaled(
     )
 
 
+def evaluate_frontier_cell(train_dir: Path) -> dict:
+    """Measure one TR-02 endpoint on a single, shared evaluation contract.
+
+    Both coordinates in Figure 1's frontier come from the same deterministic
+    subset of the official MNIST test partition, using the final-epoch
+    checkpoint selected by ``_infer_cell``. Training's per-epoch ``acc`` and
+    ``rate_e`` fields describe different validation/reference measurements and
+    therefore cannot form a coherent endpoint together.
+    """
+    out_dir = _infer_cell(
+        train_dir,
+        out_name="frontier",
+        max_samples=EVAL_MAX_SAMPLES,
+    )
+    metrics = json.loads((out_dir / "metrics.json").read_text())
+    config = metrics.get("config", {})
+    partition = config.get("evaluation_partition")
+    samples = int(config.get("evaluation_samples", metrics.get("n_total", 0)))
+    if partition != "official_mnist_test":
+        raise RuntimeError(
+            f"frontier inference used {partition!r}, expected official_mnist_test"
+        )
+    if samples != EVAL_MAX_SAMPLES:
+        raise RuntimeError(
+            f"frontier inference evaluated {samples} samples, expected "
+            f"{EVAL_MAX_SAMPLES}"
+        )
+    rates = metrics.get("rates_hz", {})
+    return {
+        "final_acc": float(metrics["best_acc"]),
+        "rate_e": float(rates["hid"]),
+        "evaluation_partition": partition,
+        "evaluation_samples": samples,
+        "checkpoint_role": CHECKPOINT_ROLE,
+    }
+
+
 # ── per-cycle participation p and gamma frequency f_γ vs rate target ────────
 #
 # Decomposes the rate floor into its two factors: rate ≈ p · f_γ. As
@@ -1283,7 +1320,7 @@ def fig_results_compound(rows, npz_coba, npz_ping, out_path, run_id):
         ax.set_title(title, loc="left", fontweight="semibold")
         _despine(ax)
 
-    # --- bottom-left: test accuracy per epoch (both architectures learn) ---
+    # --- bottom-left: validation accuracy per epoch (checkpoint selection) ---
     ax_acc = fig.add_subplot(gs[1, 0])
     for m in MODELS:
         accs, eps = [], []
@@ -1301,7 +1338,7 @@ def fig_results_compound(rows, npz_coba, npz_ping, out_path, run_id):
                     ms=3.2, markevery=10, lw=1.4,
                     color=MODEL_COLORS[m], label=m.upper())
     ax_acc.set_xlabel("epoch")
-    ax_acc.set_ylabel("test accuracy (%)")
+    ax_acc.set_ylabel("validation accuracy (%)")
     ax_acc.set_ylim(0, 100)
     # No baked-in title: the caption carries the takeaway (HOUSESTYLE H17).
     ax_acc.legend(fontsize=theme.SIZE_LEGEND, frameon=False, loc="lower right")
@@ -1369,25 +1406,18 @@ def fig_results_compound(rows, npz_coba, npz_ping, out_path, run_id):
 
 
 def build_results_compound(figures: Path, run_id: str) -> None:
-    """Assemble rows from cached cell metrics and render the results compound —
-    no training, no inference reruns."""
-    rows: list[dict] = []
-    for model in MODELS:
-        for rate_target_hz in RATE_TARGET_GRID_HZ:
-            for seed in seeds_for(rate_target_hz):
-                run_dir = cell_dir(model, rate_target_hz, seed)
-                if not (run_dir / "metrics.json").exists():
-                    continue
-                last = load_metrics(run_dir)["epochs"][-1]
-                rows.append({
-                    "cell_name": cell_name(model, rate_target_hz, seed),
-                    "model": model,
-                    "rate_target_hz": rate_target_hz,
-                    "rate_target_display": rate_target_display(rate_target_hz),
-                    "seed": seed,
-                    "final_acc": float(last["acc"]),
-                    "rate_e": float(last.get("rate_e") or 0.0),
-                })
+    """Redraw the compound from its published quantitative payload only."""
+    numbers_path = figures / "numbers.json"
+    if not numbers_path.exists():
+        raise SystemExit(f"missing published frontier data: {numbers_path}")
+    rows = json.loads(numbers_path.read_text()).get("results", [])
+    if not rows or any(
+        row.get("evaluation_partition") != "official_mnist_test" for row in rows
+    ):
+        raise SystemExit(
+            "published frontier lacks the official-test evaluation contract; "
+            "run exp025 once before plot-only"
+        )
     npz_coba = baseline_dir("coba") / "infer" / "snapshot.npz"
     npz_ping = baseline_dir("ping") / "infer" / "snapshot.npz"
     for p in (npz_coba, npz_ping):
@@ -1448,7 +1478,7 @@ def _run(meta, run_id: str, figures: Path, t_start: float) -> None:
                 if not (run_dir / "metrics.json").exists():
                     raise SystemExit(f"missing metrics: {run_dir / 'metrics.json'}")
                 metrics = load_metrics(run_dir)
-                last = metrics["epochs"][-1]
+                endpoint = evaluate_frontier_cell(run_dir)
                 rows.append(
                     {
                         "cell_name": cell_name(model, rate_target_hz, seed),
@@ -1458,8 +1488,7 @@ def _run(meta, run_id: str, figures: Path, t_start: float) -> None:
                         "seed": seed,
                         "best_acc": float(metrics["best_acc"]),
                         "best_epoch": int(metrics["best_epoch"]),
-                        "final_acc": float(last["acc"]),
-                        "rate_e": float(last.get("rate_e") or 0.0),
+                        **endpoint,
                     }
                 )
 
@@ -1472,8 +1501,9 @@ def _run(meta, run_id: str, figures: Path, t_start: float) -> None:
         )
         print(
             f"    {r['model']:<5}  {theta_str}  "
-            f"acc(final)={r['final_acc']:6.2f}%  best={r['best_acc']:6.2f}%  "
-            f"rate_e={r['rate_e']:6.1f} Hz"
+            f"acc(test)={r['final_acc']:6.2f}%  "
+            f"best(validation)={r['best_acc']:6.2f}%  "
+            f"rate_e(test)={r['rate_e']:6.1f} Hz"
         )
 
     # rate target vs (p, f_γ) decomposition — mechanism behind the frontier floor.

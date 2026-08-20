@@ -7,7 +7,7 @@ from pathlib import Path
 import pytest
 import torch
 from experiments import exp022
-from experiments.exp022_support import campaign
+from experiments.exp022_support import campaign, fr_strength_pilot
 from experiments.helpers import archive
 
 CONCRETE_TIERS = ("standard", "fine_dt", "canonical_coba", "canonical_ping", "variable_rate")
@@ -719,3 +719,15 @@ def test_submission_selection_is_frozen_read_only() -> None:
     assert 'chmod 0444 "$selection"' in submit
     assert 'mapfile -t cells < "$EXP022_SELECTION"' in array
     assert "--campaign-list" not in array
+
+
+def test_fr_strength_pilot_is_isolated_from_registered_tr02() -> None:
+    pilot = fr_strength_pilot.pilot_spec("coba", 4.1e-2)
+    registered = exp022.training_run_cell(
+        "TR-02", model="coba", rate_target_hz=1.0, seed=42
+    )
+
+    flag = pilot["extra"].index("--fr-reg-upper-strength")
+    registered_flag = registered["extra"].index("--fr-reg-upper-strength")
+    assert pilot["extra"][flag + 1] == "0.041"
+    assert registered["extra"][registered_flag + 1] == "0.001"

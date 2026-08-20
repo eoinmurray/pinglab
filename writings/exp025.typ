@@ -169,7 +169,7 @@
       (_--ei-strength 1_) fires in gamma bands at ≈ #ping_cadence ms cadence
       (≈ #ping_off_rate Hz per E cell) with synchronous I bursts (red) above E
       (black), on the same architecture, parameter count, and recipe, with only
-      PING's recurrent E↔I matrices non-zero. *Bottom left:* test accuracy per epoch
+      PING's recurrent E↔I matrices non-zero. *Bottom left:* validation accuracy per epoch
       (mean over three seeds); both reach ≈ #ping_off_acc%, so both learn the task.
       *Bottom right:* the accuracy–rate frontier across hidden-E rate ceilings
       (mean ± SEM across three seeds at every point). PING sits
