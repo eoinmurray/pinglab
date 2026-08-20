@@ -11,6 +11,7 @@
 
 #let r = json("/artifacts/data/exp087/numbers.json")
 #let op = r.operating_point
+#let bg = op.background
 #let weak = r.representative_packets.filter(packet => packet.id == "weak").first()
 #let broad = r.representative_packets.filter(packet => packet.id == "broad").first()
 #let oversized = r.representative_packets.filter(packet => packet.id == "oversized").first()
@@ -18,7 +19,7 @@
 #let body = [
   == Abstract
 
-  A synfire chain is a sequence of neuron pools connected in one direction. A brief packet of nearly synchronous spikes enters the first pool, which may generate a new packet in the next pool. Diesmann et al. (1999) showed that weak or diffuse packets disappear, while sufficiently strong packets can converge toward a stable size and temporal width#cite(1). Here, balanced background input produces sparse irregular firing without population bursts. A weak packet disappears after Pool 1. A broad packet grows and sharpens, while an oversized narrow packet relaxes immediately. Both surviving packets reach a 100-spike state with a spread near 0.15 ms. A grid of initial packet sizes and widths separates extinction from propagation. This qualitatively demonstrates stable packet propagation within ongoing background activity.
+  A synfire chain is a sequence of neuron pools connected in one direction. A brief packet of nearly synchronous spikes enters the first pool, which may generate a new packet in the next pool. Diesmann et al. (1999) showed that weak or diffuse packets disappear, while sufficiently strong packets can converge toward a stable size and temporal width#cite(1). Here, each network runs for #r.t_ms ms against balanced background activity averaging #calc.round(bg.mean_settled_rate_hz, digits: 2) Hz per neuron. A weak diffuse input produces no coherent volley. A broad packet grows from #broad.layers.first().alpha to #broad.layers.last().alpha neurons and sharpens, while an oversized narrow packet settles near the same state. This qualitatively demonstrates stable packet propagation within substantial ongoing activity.
 
   == Prior work
 
@@ -30,7 +31,7 @@
     *Methods 1--4 are complete. Every simulation uses one network seed and one fixed background realization.*
   ]
 
-  + *Define the chain and the pulse packet.* Build #r.layers feedforward pools of #r.neurons_per_layer conductance-based leaky integrate-and-fire neurons. Each neuron receives exactly #r.feedforward_fan_in excitatory connections from the preceding pool, with total incoming strength #r.feedforward_total_strength_us µS and delay #r.feedforward_delay_ms ms. Independent excitatory and inhibitory background inputs produce sparse irregular spikes without producing population volleys by themselves. The first pool receives an artificial pulse packet through the same feedforward connection rule.
+  + *Define the chain and the pulse packet.* Build #r.layers feedforward pools of #r.neurons_per_layer conductance-based leaky integrate-and-fire neurons. Each neuron receives exactly #r.feedforward_fan_in excitatory connections from the preceding pool, with total incoming strength #r.feedforward_total_strength_us µS and delay #r.feedforward_delay_ms ms. Independent excitatory and inhibitory background inputs produce ongoing irregular spikes. Adjust inhibitory background strength by pool so asynchronous feedforward activity does not raise the mean rate downstream. The first pool receives an artificial pulse packet through the same feedforward connection rule.
 
     #figure(
       image(
@@ -54,7 +55,7 @@
 
     Generates #link("#result-1-reference-propagation")[Result 1].
 
-  + *Compare packets with different starting states.* Use one fixed realization of the background input. Test feedforward strengths 0.22, 0.25, 0.28, and 0.31 µS at background rates 25, 30, and 35 Hz. Select the weakest point at which a 35-spike, 5 ms reference packet reaches every pool as one dominant volley while background-only activity remains sparse. Freeze those network settings. Then test a weak diffuse packet, a broad strong packet, and a narrow oversized packet. In each pool, define the packet as the densest 8 ms response window containing at least five spikes. Isolated background spikes do not count toward packet size $alpha$ or temporal spread $sigma$.
+  + *Compare packets with different starting states.* Use one fixed background realization and discard the first 30 ms as settling time. Tune the background so every pool fires between 8 and 12 Hz per neuron. Test feedforward strengths 0.10, 0.12, and 0.14 µS. Select the weakest point at which an 80-spike, 3 ms reference packet reaches every pool while background-only coincidences remain below the packet threshold. Freeze those settings. Then test a weak diffuse packet, a broad strong packet, and a narrow oversized packet. Detect a packet when its 1 ms peak exceeds that pool's largest background-only peak by at least five spikes. Measure $alpha$ as the number of neurons participating within 3 ms of that peak and calculate their temporal spread $sigma$.
 
     #figure(
       image(
@@ -67,7 +68,7 @@
 
     Generates #link("#result-2-packet-fates")[Result 2].
 
-  + *Map the packet state transformation.* Keep the tuned network and background input fixed. Test 11 packet sizes from 20 to 90 spikes and seven temporal spreads from 0.2 to 5 ms. At each pool, plot the measured packet state $(alpha_n, sigma_n)$ and draw an arrow to the state produced in the next pool, $(alpha_(n+1), sigma_(n+1))$. Classify a packet as extinct when no later pool produces a response volley. Locate the boundary between extinction and propagation, and test whether surviving trajectories approach one common state.
+  + *Map the packet state transformation.* Keep the tuned network and background input fixed. Test 12 packet sizes from 20 to 100 spikes and seven temporal spreads from 0.2 to 5 ms. At each pool, plot the measured packet state $(alpha_n, sigma_n)$ and draw an arrow to the state produced in the next pool, $(alpha_(n+1), sigma_(n+1))$. Classify a packet as extinct when no later pool produces a response volley. Locate the boundary between extinction and propagation, and test whether surviving trajectories approach one common state.
 
     #figure(
       image(
@@ -99,10 +100,10 @@
 
     #figure(
       image("/artifacts/data/exp087/reference_propagation.png", width: 100%, alt: "Measured spike raster and packet statistics for a broad reference packet propagating through six synfire pools."),
-      caption: [Reference-packet propagation at total feedforward strength #op.feedforward_strength_us µS and background rate #op.background_rate_hz Hz.],
+      caption: [Reference-packet propagation at total feedforward strength #op.feedforward_strength_us µS. External background channels fire at #op.background_rate_hz Hz, producing #calc.round(bg.mean_settled_rate_hz, digits: 2) Hz mean neural output.],
     )
 
-    The broad reference packet produces #broad.layers.at(0).alpha spikes in Pool 1 and #broad.layers.at(1).alpha in Pool 2. It then reaches all #r.neurons_per_layer neurons while narrowing from #calc.round(broad.layers.at(0).sigma_ms, digits: 2) ms to approximately #calc.round(broad.layers.last().sigma_ms, digits: 2) ms. Each pool emits one regenerated volley.
+    The broad reference packet recruits #broad.layers.at(0).alpha neurons in Pool 1 and #broad.layers.at(1).alpha in Pool 2. It reaches #broad.layers.last().alpha neurons in Pool 6 while narrowing from #calc.round(broad.layers.at(0).sigma_ms, digits: 2) ms to #calc.round(broad.layers.last().sigma_ms, digits: 2) ms. Each pool regenerates one coherent volley above its background activity.
 
   + <result-2-packet-fates> *Three packet trajectories.*
 
@@ -111,16 +112,16 @@
       caption: [Measured packet fates. The upper panels show spikes grouped by pool. The lower panels show packet size $alpha$ in black and spread $sigma$ in red.],
     )
 
-    The weak packet produces #weak.layers.at(0).alpha coherent spikes in Pool 1, then disappears into the sparse background. The broad and oversized packets both reach #broad.layers.last().alpha spikes with late-chain spreads of #calc.round(broad.layers.last().sigma_ms, digits: 2) and #calc.round(oversized.layers.last().sigma_ms, digits: 2) ms. Different initial packets therefore converge on the same measured state.
+    The weak input produces no volley distinguishable from background. The broad and oversized packets reach #broad.layers.last().alpha and #oversized.layers.last().alpha participating neurons, with late-chain spreads of #calc.round(broad.layers.last().sigma_ms, digits: 2) and #calc.round(oversized.layers.last().sigma_ms, digits: 2) ms. Their final states are close despite very different initial temporal spreads.
 
   + <result-3-packet-state-space> *Packet state space.*
 
     #figure(
       image("/artifacts/data/exp087/packet_state_space.png", width: 100%, alt: "Measured packet-state map separating extinction from propagation beside three layer-to-layer trajectories."),
-      caption: [Measured packet state space. Tiles classify 77 initial size-width combinations. Arrows follow the three representative packets from their inputs through successive pools.],
+      caption: [Measured packet state space. Tiles classify #r.state_space.len() initial size-width combinations. Arrows follow the three representative packets from their inputs through successive pools.],
     )
 
-    #r.state_space.filter(packet => packet.survives).len() of #r.state_space.len() tested packets reach Pool 6. The boundary shifts toward larger $alpha$ as $sigma$ increases: temporally diffuse packets require more spikes. Surviving trajectories collapse toward the saturated 100-spike state, while the weak trajectory moves toward extinction.
+    #r.state_space.filter(packet => packet.survives).len() of #r.state_space.len() tested packets reach Pool 6. The boundary shifts toward larger $alpha$ as $sigma$ increases: temporally diffuse packets require more spikes. Surviving trajectories approach a high-participation packet, while the weak trajectory moves directly to extinction.
 
   + <result-4-looping-raster-hero> *Looping raster hero.*
 
