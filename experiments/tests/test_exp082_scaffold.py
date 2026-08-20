@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from pathlib import Path
+
 import numpy as np
 import torch
 from experiments import exp022, exp082
@@ -142,12 +144,12 @@ def test_exp082_stream_batches_preserve_stream_boundaries(tmp_path, monkeypatch)
     monkeypatch.setattr(
         exp082,
         "encode_stream",
-        lambda pixels, _conditions, _generator: torch.ones((4, len(pixels))),
+        lambda _pixels, _conditions, _generator: torch.ones((4, 1, 4)),
     )
-    batch_sizes = []
+    batch_shapes = []
 
     def fake_summary(_directory, spikes, _tag, *, reset_steps):
-        batch_sizes.append(spikes.shape[1])
+        batch_shapes.append(tuple(spikes.shape))
         assert reset_steps == (0, 2)
         batch = spikes.shape[1]
         return {
@@ -158,13 +160,52 @@ def test_exp082_stream_batches_preserve_stream_boundaries(tmp_path, monkeypatch)
 
     monkeypatch.setattr(exp082, "run_spike_summary", fake_summary)
     result = exp082.evaluate_cell(42, 2.0, 5.0)
-    assert batch_sizes == [3, 2]
+    assert batch_shapes == [(4, 3, 4), (4, 2, 4)]
     assert result["n_total"] == 10
     assert result["stream_batch_size"] == 3
 
-    batch_sizes.clear()
+    batch_shapes.clear()
     assert exp082.evaluate_cell(42, 2.0, 5.0) == result
-    assert batch_sizes == []
+    assert batch_shapes == []
+
+
+def test_exp082_spike_summary_serializes_time_batch_input_shape(
+    tmp_path, monkeypatch
+) -> None:
+    monkeypatch.setattr(exp082, "ARTIFACTS", tmp_path / "artifacts")
+    monkeypatch.setattr(exp082, "N_INPUT", 4)
+    directory = tmp_path / "training"
+    directory.mkdir()
+    (directory / "config.json").write_text("{}\n")
+    checkpoint = directory / "weights_final.pth"
+    checkpoint.write_bytes(b"checkpoint")
+    monkeypatch.setattr(
+        exp082,
+        "resolve_checkpoint",
+        lambda *_args: {"path": checkpoint, "sha256": "a" * 64},
+    )
+
+    def fake_run(command, **_kwargs):
+        input_path = command[command.index("--input-file") + 1]
+        out_dir = Path(command[command.index("--out-dir") + 1])
+        with np.load(input_path) as payload:
+            assert payload["input_spikes"].shape == (4, 3, 4)
+            assert payload["readout_reset"].tolist() == [True, False, True, False]
+        np.savez(
+            out_dir / "spike_summary.npz",
+            e_counts=np.zeros((3, 2), dtype=np.int64),
+            i_counts=np.zeros((3, 2), dtype=np.int64),
+            out_counts=np.zeros((3, 2, 10), dtype=np.int64),
+        )
+
+    monkeypatch.setattr(exp082.subprocess, "run", fake_run)
+    result = exp082.run_spike_summary(
+        directory,
+        torch.ones((4, 3, 4)),
+        "shape-regression",
+        reset_steps=(0, 2),
+    )
+    assert result["out_counts"].shape == (3, 2, 10)
 
 
 def test_exp082_condition_jobs_cover_the_registered_grid() -> None:
