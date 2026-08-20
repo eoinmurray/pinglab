@@ -747,6 +747,19 @@ def test_fr_strength_pilot_array_is_fixed_and_collision_free() -> None:
     assert "EXP022_PILOT_ROOT" in script
 
 
+def test_fr_strength_pilot_eval_uses_figure_one_contract() -> None:
+    script = (
+        exp022.REPO
+        / "experiments"
+        / "exp022_support"
+        / "fr-strength-pilot-eval.sbatch"
+    ).read_text()
+    assert script.count("__lambda") == 8
+    assert "weights_final.pth" in script
+    assert "--max-samples 1000" in script
+    assert 'test ! -e "$cell_root/official-test"' in script
+
+
 def test_portable_cell_contract_ignores_only_output_path() -> None:
     source = _manifest_cell(Path("/source"))
     destination = _manifest_cell(Path("/destination"))
