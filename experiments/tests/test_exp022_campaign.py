@@ -731,3 +731,16 @@ def test_fr_strength_pilot_is_isolated_from_registered_tr02() -> None:
     registered_flag = registered["extra"].index("--fr-reg-upper-strength")
     assert pilot["extra"][flag + 1] == "0.041"
     assert registered["extra"][registered_flag + 1] == "0.001"
+
+
+def test_fr_strength_pilot_array_is_fixed_and_collision_free() -> None:
+    script = (
+        exp022.REPO
+        / "experiments"
+        / "exp022_support"
+        / "fr-strength-pilot.sbatch"
+    ).read_text()
+    assert "models=(coba coba coba coba ping ping ping ping)" in script
+    assert "strengths=(0.004 0.016 0.041 0.1 0.004 0.016 0.041 0.1)" in script
+    assert "--campaign-train-cell" not in script
+    assert "EXP022_PILOT_ROOT" in script
