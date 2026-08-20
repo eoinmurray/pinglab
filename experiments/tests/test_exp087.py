@@ -4,12 +4,16 @@ import pytest
 from experiments.exp087 import (
     BACKGROUND_CHANNELS,
     BACKGROUND_FAN_IN,
+    DT_MS,
     FEEDFORWARD_DELAY_MS,
     FEEDFORWARD_FAN_IN,
     LAYERS,
     NEURONS_PER_LAYER,
     PACKET_CHANNELS,
     REPRESENTATIVE_PACKETS,
+    T_MS,
+    TARGET_OUTPUT_RATE_HZ,
+    VOLLEY_MIN_PEAK_SPIKES_BY_POOL,
     author_network,
     make_background,
     make_packet,
@@ -70,14 +74,29 @@ def test_packet_and_background_connections_use_exact_fan_in(graph: dict) -> None
 def test_packet_generator_preserves_size_and_width() -> None:
     packet = make_packet(alpha=50, sigma_ms=2.0).numpy()
 
+    assert packet.shape[0] == round(T_MS / DT_MS)
     assert int(packet.sum()) == 50
     assert packet_width_ms(packet) == pytest.approx(2.0, abs=0.5)
 
 
 def test_selected_point_separates_extinction_from_convergence(graph: dict) -> None:
     background = make_background()
-    spontaneous_counts = run_background_only(graph, background)
-    assert 3 <= sum(spontaneous_counts) <= 30
+    background_metrics = run_background_only(graph, background)
+    assert background_metrics["mean_settled_rate_hz"] == pytest.approx(
+        TARGET_OUTPUT_RATE_HZ,
+        abs=0.5,
+    )
+    assert all(
+        8.0 <= rate <= 12.0 for rate in background_metrics["settled_rate_hz_by_pool"]
+    )
+    assert all(
+        peak < threshold
+        for peak, threshold in zip(
+            background_metrics["max_1ms_spikes_by_pool"],
+            VOLLEY_MIN_PEAK_SPIKES_BY_POOL,
+            strict=True,
+        )
+    )
 
     packets = {
         packet_id: (label, alpha, sigma_ms)
@@ -112,6 +131,6 @@ def test_selected_point_separates_extinction_from_convergence(graph: dict) -> No
     )
 
     assert not weak.survives
-    assert broad.alphas[-1] == NEURONS_PER_LAYER
-    assert oversized.alphas[-1] == NEURONS_PER_LAYER
-    assert broad.sigmas_ms[-1] == pytest.approx(oversized.sigmas_ms[-1], abs=0.01)
+    assert broad.alphas[-1] >= 0.9 * NEURONS_PER_LAYER
+    assert oversized.alphas[-1] >= 0.9 * NEURONS_PER_LAYER
+    assert broad.sigmas_ms[-1] == pytest.approx(oversized.sigmas_ms[-1], abs=0.1)

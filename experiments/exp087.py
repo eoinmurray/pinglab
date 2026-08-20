@@ -8,6 +8,7 @@ import sys
 import time
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Sequence
 
 import matplotlib.animation as animation
 import matplotlib.pyplot as plt
@@ -38,28 +39,38 @@ NEURONS_PER_LAYER = 100
 PACKET_CHANNELS = 100
 BACKGROUND_CHANNELS = 600
 FEEDFORWARD_FAN_IN = 40
-FEEDFORWARD_TOTAL_STRENGTH_US = 0.22
+FEEDFORWARD_TOTAL_STRENGTH_US = 0.12
 FEEDFORWARD_DELAY_MS = 1.0
 BACKGROUND_FAN_IN = 100
-BACKGROUND_EXCITATORY_STRENGTH_US = 0.28
-BACKGROUND_INHIBITORY_STRENGTH_US = 0.05
-BACKGROUND_RATE_HZ = 30.0
-T_MS = 60.0
-PACKET_CENTRE_MS = 10.0
+BACKGROUND_EXCITATORY_STRENGTH_US = 0.24
+BACKGROUND_INHIBITORY_STRENGTHS_US = (
+    0.074,
+    0.084078,
+    0.087438,
+    0.086094,
+    0.084078,
+    0.088781,
+)
+BACKGROUND_RATE_HZ = 100.0
+TARGET_OUTPUT_RATE_HZ = 10.0
+T_MS = 100.0
+PACKET_CENTRE_MS = 70.0
 NETWORK_SEED = 11
 BACKGROUND_SEED = 7
-RESPONSE_START_MS = 7.0
-RESPONSE_END_MS = 40.0
-VOLLEY_WINDOW_MS = 8.0
-VOLLEY_MIN_SPIKES = 5
-STATE_ALPHAS = (20, 30, 35, 40, 45, 50, 55, 60, 70, 80, 90)
+BACKGROUND_SETTLED_START_MS = 30.0
+RESPONSE_START_MS = 65.0
+RESPONSE_END_MS = 95.0
+VOLLEY_PEAK_WINDOW_MS = 1.0
+VOLLEY_MEASUREMENT_WINDOW_MS = 3.0
+VOLLEY_MIN_PEAK_SPIKES_BY_POOL = (12, 14, 17, 19, 24, 26)
+STATE_ALPHAS = (20, 30, 35, 40, 45, 50, 55, 60, 70, 80, 90, 100)
 STATE_SIGMAS_MS = (0.2, 0.5, 1.0, 2.0, 3.0, 4.0, 5.0)
 REPRESENTATIVE_PACKETS = (
-    ("weak", "Weak, diffuse", 21, 4.0),
-    ("broad", "Broad, strong", 35, 5.0),
-    ("oversized", "Narrow, oversized", 80, 0.2),
+    ("weak", "Weak, diffuse", 20, 5.0),
+    ("broad", "Broad, strong", 80, 3.0),
+    ("oversized", "Narrow, oversized", 100, 0.2),
 )
-REFERENCE_PACKET = (35, 5.0)
+REFERENCE_PACKET = (80, 3.0)
 METHOD_SVG_NAMES = (
     "packet_definition.svg",
     "packet_fates.svg",
@@ -81,8 +92,9 @@ SCALE = {
     "feedforward_delay_ms": FEEDFORWARD_DELAY_MS,
     "background_fan_in": BACKGROUND_FAN_IN,
     "background_excitatory_strength_us": BACKGROUND_EXCITATORY_STRENGTH_US,
-    "background_inhibitory_strength_us": BACKGROUND_INHIBITORY_STRENGTH_US,
+    "background_inhibitory_strengths_us": BACKGROUND_INHIBITORY_STRENGTHS_US,
     "background_rate_hz": BACKGROUND_RATE_HZ,
+    "target_output_rate_hz": TARGET_OUTPUT_RATE_HZ,
     "t_ms": T_MS,
     "packet_centre_ms": PACKET_CENTRE_MS,
     "network_seed": NETWORK_SEED,
@@ -123,8 +135,10 @@ def exact_fan_in(total_strength: float, fan_in: int, source_size: int):
 def author_network(
     *,
     feedforward_strength_us: float = FEEDFORWARD_TOTAL_STRENGTH_US,
-    background_excitatory_strength_us: float = BACKGROUND_EXCITATORY_STRENGTH_US,
-    background_inhibitory_strength_us: float = BACKGROUND_INHIBITORY_STRENGTH_US,
+    background_excitatory_strength_us: float
+    | Sequence[float] = BACKGROUND_EXCITATORY_STRENGTH_US,
+    background_inhibitory_strength_us: float
+    | Sequence[float] = BACKGROUND_INHIBITORY_STRENGTHS_US,
 ) -> snn.Bundle:
     """Author six feedforward pools with explicit packet and background inputs."""
     net = snn.Network("diesmann_synfire_chain", dt=DT_MS * snn.ms)
@@ -150,6 +164,16 @@ def author_network(
     pools = []
     with net.group("synfire_chain"):
         for layer in range(1, LAYERS + 1):
+            excitatory_strength = (
+                background_excitatory_strength_us
+                if isinstance(background_excitatory_strength_us, (int, float))
+                else background_excitatory_strength_us[layer - 1]
+            )
+            inhibitory_strength = (
+                background_inhibitory_strength_us
+                if isinstance(background_inhibitory_strength_us, (int, float))
+                else background_inhibitory_strength_us[layer - 1]
+            )
             pool = net.population(
                 f"pool_{layer}",
                 size=NEURONS_PER_LAYER,
@@ -172,7 +196,7 @@ def author_network(
                 name=f"background_excitation_to_pool_{layer}",
                 synapse=snn.AMPA(tau=2 * snn.ms),
                 weight=exact_fan_in(
-                    background_excitatory_strength_us,
+                    excitatory_strength,
                     BACKGROUND_FAN_IN,
                     BACKGROUND_CHANNELS,
                 ),
@@ -184,7 +208,7 @@ def author_network(
                 name=f"background_inhibition_to_pool_{layer}",
                 synapse=snn.GABA(tau=9 * snn.ms),
                 weight=exact_fan_in(
-                    background_inhibitory_strength_us,
+                    inhibitory_strength,
                     BACKGROUND_FAN_IN,
                     BACKGROUND_CHANNELS,
                 ),
@@ -271,31 +295,41 @@ def packet_width_ms(spikes: np.ndarray) -> float | None:
 
 def measure_volley(
     spikes: np.ndarray,
-) -> tuple[int, float | None, tuple[int, int] | None]:
-    """Measure the densest short response window, rejecting isolated noise."""
+    *,
+    search_start: int,
+    search_end: int,
+    min_peak_spikes: int,
+) -> tuple[int, float | None, tuple[int, int] | None, int | None]:
+    """Measure a synchronous volley above the calibrated background maximum."""
     start = round(RESPONSE_START_MS / DT_MS)
     end = round(RESPONSE_END_MS / DT_MS)
-    window = round(VOLLEY_WINDOW_MS / DT_MS)
-    counts = spikes[start:end].sum(axis=(1, 2)).astype(int)
-    if counts.size < window:
-        return 0, None, None
+    search_start = max(start, search_start)
+    search_end = min(end, search_end)
+    peak_window = round(VOLLEY_PEAK_WINDOW_MS / DT_MS)
+    counts = spikes[search_start:search_end].sum(axis=(1, 2)).astype(int)
+    if counts.size < peak_window:
+        return 0, None, None, None
     cumulative = np.pad(np.cumsum(counts), (1, 0))
-    window_counts = cumulative[window:] - cumulative[:-window]
+    window_counts = cumulative[peak_window:] - cumulative[:-peak_window]
     best = int(np.argmax(window_counts))
-    alpha = int(window_counts[best])
-    if alpha < VOLLEY_MIN_SPIKES:
-        return 0, None, None
-    window_start = start + best
-    window_end = window_start + window
+    peak_alpha = int(window_counts[best])
+    if peak_alpha < min_peak_spikes:
+        return 0, None, None, None
+    peak_step = search_start + best + peak_window // 2
+    measurement_window = round(VOLLEY_MEASUREMENT_WINDOW_MS / DT_MS)
+    window_start = max(start, peak_step - measurement_window // 2)
+    window_end = min(end, window_start + measurement_window)
     selected = spikes[window_start:window_end]
-    return alpha, packet_width_ms(selected), (window_start, window_end)
+    _steps, _batch, neurons = np.nonzero(selected)
+    alpha = int(np.unique(neurons).size)
+    return alpha, packet_width_ms(selected), (window_start, window_end), peak_step
 
 
 def run_background_only(
     graph: dict,
     background: dict[str, torch.Tensor],
-) -> list[int]:
-    """Count spontaneous output spikes with no pulse packet."""
+) -> dict[str, list[float] | float]:
+    """Measure settled background rate and its strongest 1 ms coincidence."""
     steps = round(T_MS / DT_MS)
     result = simulate(
         ExecutionSpec(
@@ -309,9 +343,27 @@ def run_background_only(
             seed=NETWORK_SEED,
         )
     )
-    return [
-        int(result.recordings[f"pool_spikes_{layer}"].sum()) for layer in range(LAYERS)
-    ]
+    settled_start = round(BACKGROUND_SETTLED_START_MS / DT_MS)
+    peak_window = round(VOLLEY_PEAK_WINDOW_MS / DT_MS)
+    settled_duration_s = (T_MS - BACKGROUND_SETTLED_START_MS) / 1_000.0
+    counts = []
+    rates_hz = []
+    peak_counts = []
+    for layer in range(LAYERS):
+        spikes = result.recordings[f"pool_spikes_{layer}"].cpu().numpy()
+        population_counts = spikes[settled_start:].sum(axis=(1, 2)).astype(int)
+        count = int(population_counts.sum())
+        cumulative = np.pad(np.cumsum(population_counts), (1, 0))
+        window_counts = cumulative[peak_window:] - cumulative[:-peak_window]
+        counts.append(count)
+        rates_hz.append(count / (NEURONS_PER_LAYER * settled_duration_s))
+        peak_counts.append(int(window_counts.max(initial=0)))
+    return {
+        "settled_spikes_by_pool": counts,
+        "settled_rate_hz_by_pool": rates_hz,
+        "mean_settled_rate_hz": float(np.mean(rates_hz)),
+        "max_1ms_spikes_by_pool": peak_counts,
+    }
 
 
 def run_packet(
@@ -343,16 +395,34 @@ def run_packet(
     sigmas_ms = []
     volley_windows = []
     extinct = False
+    search_start = round((PACKET_CENTRE_MS - 5.0) / DT_MS)
+    search_end = round((PACKET_CENTRE_MS + 10.0) / DT_MS)
     for layer in range(LAYERS):
         spikes = (
             result.recordings[f"pool_spikes_{layer}"].cpu().numpy().astype(np.uint8)
         )
         pool_spikes.append(spikes)
         if extinct:
-            measured_alpha, sigma_ms_measured, volley_window = 0, None, None
+            measured_alpha = 0
+            sigma_ms_measured = None
+            volley_window = None
+            peak_step = None
         else:
-            measured_alpha, sigma_ms_measured, volley_window = measure_volley(spikes)
+            (
+                measured_alpha,
+                sigma_ms_measured,
+                volley_window,
+                peak_step,
+            ) = measure_volley(
+                spikes,
+                search_start=search_start,
+                search_end=search_end,
+                min_peak_spikes=VOLLEY_MIN_PEAK_SPIKES_BY_POOL[layer],
+            )
             extinct = measured_alpha == 0
+            if peak_step is not None:
+                search_start = peak_step + round(0.5 / DT_MS)
+                search_end = peak_step + round(10.0 / DT_MS)
         alphas.append(measured_alpha)
         sigmas_ms.append(sigma_ms_measured)
         volley_windows.append(volley_window)
@@ -373,9 +443,9 @@ def run_packet(
 def run_operating_point_search() -> tuple[float, float, list[dict[str, object]]]:
     """Choose the weakest clean reference-packet propagation point."""
     rows = []
-    for rate_hz in (25.0, 30.0, 35.0):
+    for rate_hz in (BACKGROUND_RATE_HZ,):
         background = make_background(rate_hz)
-        for strength_us in (0.22, 0.25, 0.28, 0.31):
+        for strength_us in (0.10, 0.12, 0.14):
             graph = author_network(feedforward_strength_us=strength_us).graph
             run = run_packet(
                 graph,
@@ -385,17 +455,22 @@ def run_operating_point_search() -> tuple[float, float, list[dict[str, object]]]
                 sigma_ms=REFERENCE_PACKET[1],
                 background=background,
             )
-            spontaneous_counts = run_background_only(graph, background)
+            background_metrics = run_background_only(graph, background)
+            settled_rates = background_metrics["settled_rate_hz_by_pool"]
+            peak_counts = background_metrics["max_1ms_spikes_by_pool"]
             clean = (
-                3 <= sum(spontaneous_counts) <= 30
-                and max(spontaneous_counts) <= 10
+                all(8.0 <= value <= 12.0 for value in settled_rates)
+                and all(
+                    peak < threshold
+                    for peak, threshold in zip(
+                        peak_counts,
+                        VOLLEY_MIN_PEAK_SPIKES_BY_POOL,
+                        strict=True,
+                    )
+                )
                 and all(value > 0 for value in run.alphas)
                 and max(run.alphas) <= NEURONS_PER_LAYER
-                and min(run.alphas[-2:]) >= 0.9 * NEURONS_PER_LAYER
-                and all(
-                    int(spikes.sum()) - alpha <= 20
-                    for spikes, alpha in zip(run.pool_spikes, run.alphas, strict=True)
-                )
+                and min(run.alphas[-2:]) >= 40
             )
             rows.append(
                 {
@@ -403,7 +478,7 @@ def run_operating_point_search() -> tuple[float, float, list[dict[str, object]]]
                     "background_rate_hz": rate_hz,
                     "alphas": run.alphas,
                     "sigmas_ms": run.sigmas_ms,
-                    "spontaneous_spikes_by_pool": spontaneous_counts,
+                    "background": background_metrics,
                     "accepted": clean,
                 }
             )
@@ -466,7 +541,7 @@ def style_raster_axis(ax: plt.Axes) -> None:
             linewidth=0.8,
         )
     ax.set(
-        xlim=(RESPONSE_START_MS, 28.0),
+        xlim=(RESPONSE_START_MS, RESPONSE_END_MS),
         ylim=(LAYERS * NEURONS_PER_LAYER - 0.5, -0.5),
         yticks=[(layer + 0.5) * NEURONS_PER_LAYER for layer in range(LAYERS)],
         yticklabels=[f"P{layer}" for layer in range(1, LAYERS + 1)],
@@ -794,7 +869,7 @@ def main() -> None:
             expand_groups=("synfire_chain",),
         )
         background = make_background(selected_rate)
-        spontaneous_counts = run_background_only(bundle.graph, background)
+        background_metrics = run_background_only(bundle.graph, background)
         representative_runs = [
             run_packet(
                 bundle.graph,
@@ -835,7 +910,7 @@ def main() -> None:
                 "feedforward_strength_us": selected_strength,
                 "background_rate_hz": selected_rate,
                 "selection": "weakest tested strength carrying the reference packet cleanly through all six pools",
-                "spontaneous_spikes_by_pool": spontaneous_counts,
+                "background": background_metrics,
                 "search": search_rows,
             },
             "representative_packets": [run_record(run) for run in representative_runs],
