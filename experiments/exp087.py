@@ -14,7 +14,7 @@ import matplotlib.animation as animation
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
-from matplotlib.colors import ListedColormap, to_rgba
+from matplotlib.colors import ListedColormap
 
 REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO))
@@ -722,89 +722,76 @@ def plot_state_space(
 
 
 def render_raster_hero(runs: list[PacketRun], out: Path) -> None:
-    """Render an eight-second seamless raster loop from measured spikes."""
+    """Animate the three measured rasters using Figure 7's top-row layout."""
     period_s = 8.0
     fps = 30
-    biological_to_video = 0.12
-    onsets_s = (0.7, 3.2, 5.7)
-    base_colors = ("#ef476f", "#66d9ef", "#ffd166")
-    event_times = []
-    event_neurons = []
-    event_colors = []
-    for run, onset_s, base_color in zip(runs, onsets_s, base_colors, strict=True):
-        for layer, (spikes, volley_window) in enumerate(
-            zip(run.pool_spikes, run.volley_windows, strict=True)
-        ):
-            steps, _batch, neurons = np.nonzero(spikes)
-            keep = (steps * DT_MS >= RESPONSE_START_MS) & (
-                steps * DT_MS <= RESPONSE_END_MS
-            )
-            event_times.extend(
-                onset_s + (steps[keep] * DT_MS - PACKET_CENTRE_MS) * biological_to_video
-            )
-            event_neurons.extend(neurons[keep] + layer * NEURONS_PER_LAYER)
-            for step in steps[keep]:
-                in_volley = (
-                    volley_window is not None
-                    and volley_window[0] <= step < volley_window[1]
-                )
-                if not in_volley:
-                    event_colors.append(to_rgba("#9aa8b8", alpha=0.48))
-                elif run.packet_id == "oversized" and layer >= 3:
-                    event_colors.append(to_rgba("#8be9fd"))
-                else:
-                    event_colors.append(to_rgba(base_color))
-    event_times_array = np.mod(np.asarray(event_times), period_s)
-    event_neurons_array = np.asarray(event_neurons)
-    event_rgba = np.asarray(event_colors)
+    window_ms = 30.0
+    loop_start_ms = BACKGROUND_SETTLED_START_MS
+    final_window_start_ms = T_MS - window_ms
+    frames = round(period_s * fps)
 
-    fig, ax = plt.subplots(figsize=(12.0, 5.5), facecolor="#09111f")
-    ax.set_facecolor("#0c1728")
-    for boundary in range(1, LAYERS):
-        ax.axhline(
-            boundary * NEURONS_PER_LAYER - 0.5,
-            color="#26364a",
-            linewidth=0.8,
+    theme.apply()
+    fig, axes = plt.subplots(1, 3, figsize=(14.0, 5.2), sharey=True)
+    title = fig.suptitle("Measured packet trajectories rolling through time")
+    for column, (ax, run) in enumerate(zip(axes, runs, strict=True)):
+        event_times = []
+        event_neurons = []
+        for layer, spikes in enumerate(run.pool_spikes):
+            steps, _batch, neurons = np.nonzero(spikes)
+            keep = (steps * DT_MS >= loop_start_ms) & (steps * DT_MS < T_MS)
+            event_times.extend(steps[keep] * DT_MS)
+            event_neurons.extend(neurons[keep] + layer * NEURONS_PER_LAYER)
+        for boundary in range(1, LAYERS):
+            ax.axhline(
+                boundary * NEURONS_PER_LAYER - 0.5,
+                color=theme.RULE,
+                linewidth=0.8,
+            )
+        ax.scatter(
+            event_times,
+            event_neurons,
+            marker="|",
+            s=12,
+            linewidths=0.9,
+            color=theme.CYCLE[column],
         )
-    points = ax.scatter(
-        event_times_array,
-        event_neurons_array,
-        marker="|",
-        s=22,
-        linewidths=1.5,
-        color=event_rgba,
-    )
-    ax.set(
-        xlim=(0, period_s),
-        ylim=(LAYERS * NEURONS_PER_LAYER - 0.5, -0.5),
-        xticks=[],
-        yticks=[(layer + 0.5) * NEURONS_PER_LAYER for layer in range(LAYERS)],
-        yticklabels=[f"P{layer}" for layer in range(1, LAYERS + 1)],
-    )
-    ax.tick_params(colors="#dce5ee", length=0, pad=10)
-    for spine in ax.spines.values():
-        spine.set_color("#2b3d52")
-    fig.tight_layout(pad=1.2)
+        ax.set(
+            title=run.label,
+            xlim=(loop_start_ms, loop_start_ms + window_ms),
+            ylim=(LAYERS * NEURONS_PER_LAYER - 0.5, -0.5),
+            yticks=[
+                (layer + 0.5) * NEURONS_PER_LAYER for layer in range(LAYERS)
+            ],
+            yticklabels=[f"P{layer}" for layer in range(1, LAYERS + 1)],
+            xlabel="time (ms)",
+        )
+        if column == 0:
+            ax.set_ylabel("pool")
+        else:
+            ax.tick_params(labelleft=False)
+        ax.spines[["top", "right"]].set_visible(False)
+    fig.tight_layout(rect=(0.0, 0.0, 1.0, 0.94))
 
     def update(frame: int):
-        phase = frame / fps
-        x = np.mod(event_times_array - phase, period_s)
-        points.set_offsets(np.column_stack((x, event_neurons_array)))
-        colors = event_rgba.copy()
-        colors[:, 3] *= np.clip(
-            np.minimum(x, period_s - x) / 0.35,
-            0.0,
-            1.0,
+        fraction = frame / max(frames - 1, 1)
+        window_start = loop_start_ms + fraction * (
+            final_window_start_ms - loop_start_ms
         )
-        points.set_color(colors)
-        return (points,)
+        window_end = window_start + window_ms
+        for ax in axes:
+            ax.set_xlim(window_start, window_end)
+        title.set_text(
+            "Measured packet trajectories rolling through time"
+            f" · {window_start:04.1f}–{window_end:04.1f} ms"
+        )
+        return (*axes, title)
 
     movie = animation.FuncAnimation(
         fig,
         update,
-        frames=round(period_s * fps),
+        frames=frames,
         interval=1_000 / fps,
-        blit=True,
+        blit=False,
     )
     writer = animation.FFMpegWriter(
         fps=fps,
