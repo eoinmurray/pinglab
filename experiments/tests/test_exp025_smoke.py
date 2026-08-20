@@ -3,7 +3,11 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from experiments import exp025
+from experiments import exp022, exp025
+
+
+def test_frontier_strength_is_owned_by_exp022() -> None:
+    assert exp025.FR_STRENGTH_UPPER == exp022.FR_STRENGTH_UPPER == 0.041
 
 
 def _frontier_rows() -> list[dict]:

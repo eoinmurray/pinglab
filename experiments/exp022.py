@@ -87,7 +87,11 @@ VARIABLE_RATE_TRAINING_RATES_HZ = (
 )
 VARIABLE_RATE_CONSUMER = "exp082"
 RATE_TARGET_GRID_HZ: list[float | None] = [None, 25.0, 10.0, 5.0, 2.5, 1.0]
-FR_STRENGTH_UPPER = 1e-3
+# Calibrated for the sample-wise, population-normalized Hz contract. The prior
+# 1e-3 value was carried over from the neuron-summed spike-count objective and
+# became 40.96x weaker at N_E=1024 and T=0.2 s. The one-seed calibration at
+# {0.004, 0.016, 0.041, 0.1} selected this measured elbow (PR #159).
+FR_STRENGTH_UPPER = 0.041
 LOW_W_IN_VALUES = (0.05, 0.1, 0.3, 0.9)
 TAU_AMPA_MS = 2.0          # AMPA decay — fixed across the collection (no CLI knob)
 INPUT_RATE_HZ = 25.0

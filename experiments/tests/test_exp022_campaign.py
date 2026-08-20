@@ -36,6 +36,8 @@ def test_tr02_registry_uses_explicit_hz_targets() -> None:
         else:
             assert "--fr-reg-upper-target-hz" in args
             assert "--fr-reg-upper-strength" in args
+            strength = args[args.index("--fr-reg-upper-strength") + 1]
+            assert strength == "0.041"
 
 
 def test_downstream_contract_interface_is_isolated_and_fail_closed() -> None:
@@ -113,6 +115,7 @@ def test_tr07_low_input_controls_use_production_contract(tmp_path: Path) -> None
         assert args[args.index("--seed") + 1] == str(cell["seed"])
         assert args[args.index("--w-in") + 1] == str(cell["w_in"])
         assert args[args.index("--fr-reg-upper-target-hz") + 1] == "1.0"
+        assert args[args.index("--fr-reg-upper-strength") + 1] == "0.041"
 
 
 def test_all_resolved_commands_keep_family_contract(tmp_path: Path) -> None:
@@ -723,15 +726,15 @@ def test_submission_selection_is_frozen_read_only() -> None:
 
 
 def test_fr_strength_pilot_is_isolated_from_registered_tr02() -> None:
-    pilot = fr_strength_pilot.pilot_spec("coba", 4.1e-2)
+    pilot = fr_strength_pilot.pilot_spec("coba", 1.6e-2)
     registered = exp022.training_run_cell(
         "TR-02", model="coba", rate_target_hz=1.0, seed=42
     )
 
     flag = pilot["extra"].index("--fr-reg-upper-strength")
     registered_flag = registered["extra"].index("--fr-reg-upper-strength")
-    assert pilot["extra"][flag + 1] == "0.041"
-    assert registered["extra"][registered_flag + 1] == "0.001"
+    assert pilot["extra"][flag + 1] == "0.016"
+    assert registered["extra"][registered_flag + 1] == "0.041"
 
 
 def test_fr_strength_pilot_array_is_fixed_and_collision_free() -> None:

@@ -39,10 +39,13 @@ import numpy as np
 REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from exp022 import cell_dir as shared_cell_dir  # noqa: E402
 from exp022 import (
+    FR_STRENGTH_UPPER,  # noqa: E402
     training_run_cell,  # noqa: E402
     training_run_values,  # noqa: E402
+)
+from exp022 import (
+    cell_dir as shared_cell_dir,  # noqa: E402
 )
 from helpers import theme  # noqa: E402
 from helpers.checkpoints import (  # noqa: E402
@@ -105,7 +108,6 @@ RATE_TARGET_GRID_HZ: list[float | None] = list(
     training_run_values("TR-02", "rate_target_hz")
 )
 LOW_W_IN_VALUES = training_run_values("TR-07", "w_in")
-FR_STRENGTH_UPPER = 1e-3
 LOW_W_IN_RATE_TARGET_HZ: float = 1.0
 
 MODELS = list(training_run_values("TR-02", "model"))
