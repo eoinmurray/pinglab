@@ -17,7 +17,6 @@
     .strong-dot { fill: #1a1a1a; }
     .intermediate-dot { fill: #c8102e; }
     .uncoupled-dot { fill: #6a6a6a; }
-    .band { fill: #00b4d8; fill-opacity: 0.12; }
   </style>
 
   <text x="600" y="34" text-anchor="middle" class="title">Expected transition as reciprocal coupling weakens</text>
@@ -32,10 +31,7 @@
     <text x="975" y="99" class="note">K = 0</text>
   </g>
 
-  <!-- Preferred-position bands and top-row axes. -->
-  <rect x="78" y="179" width="294" height="24" class="band"/>
-  <rect x="453" y="179" width="294" height="24" class="band"/>
-  <rect x="828" y="179" width="294" height="24" class="band"/>
+  <!-- Top-row axes. -->
   <path d="M78 120V300H372 M453 120V300H747 M828 120V300H1122" class="axis"/>
   <text x="32" y="210" transform="rotate(-90 32 210)" text-anchor="middle" class="label">relative-phase position (rad)</text>
   <g class="tick" text-anchor="end"><text x="68" y="129">π</text><text x="68" y="215">0</text><text x="68" y="300">−π</text></g>
@@ -50,10 +46,7 @@
   <path d="M461 286L486 250L512 216C532 196 554 190 579 188C607 186 630 177 646 151L670 122M670 122V288L694 252L720 217C731 203 740 196 743 194" class="intermediate"/>
   <path d="M836 289L900 122M900 122V289L964 122M964 122V289L1028 122M1028 122V289L1114 129" class="uncoupled"/>
 
-  <!-- Bottom-row axes and preferred-position bands. -->
-  <rect x="202" y="384" width="46" height="184" class="band"/>
-  <rect x="577" y="384" width="46" height="184" class="band"/>
-  <rect x="952" y="384" width="46" height="184" class="band"/>
+  <!-- Bottom-row axes. -->
   <path d="M78 384V568H372 M453 384V568H747 M828 384V568H1122" class="axis"/>
   <path d="M78 542H372 M453 542H747 M828 542H1122" class="zero"/>
   <text x="32" y="476" transform="rotate(-90 32 476)" text-anchor="middle" class="label">mean relative-phase velocity (rad/s)</text>
