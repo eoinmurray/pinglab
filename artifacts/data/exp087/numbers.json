@@ -1,8 +1,8 @@
 {
-  "run_id": "r004",
-  "git_sha": "1a325baf",
-  "duration_s": 52.9,
-  "duration": "53s",
+  "run_id": "r005",
+  "git_sha": "72b2f86d",
+  "duration_s": 77.8,
+  "duration": "1m 18s",
   "status": "draft",
   "simulation_run": true,
   "completed_methods": [
@@ -17,376 +17,199 @@
   "packet_channels": 100,
   "background_channels": 600,
   "feedforward_fan_in": 40,
-  "feedforward_total_strength_us": 0.22,
+  "feedforward_total_strength_us": 0.12,
   "feedforward_delay_ms": 1.0,
   "background_fan_in": 100,
-  "background_excitatory_strength_us": 0.28,
-  "background_inhibitory_strength_us": 0.05,
-  "background_rate_hz": 30.0,
-  "t_ms": 60.0,
-  "packet_centre_ms": 10.0,
+  "background_excitatory_strength_us": 0.24,
+  "background_inhibitory_strengths_us": [
+    0.074,
+    0.084078,
+    0.087438,
+    0.086094,
+    0.084078,
+    0.088781
+  ],
+  "background_rate_hz": 100.0,
+  "target_output_rate_hz": 10.0,
+  "t_ms": 100.0,
+  "packet_centre_ms": 70.0,
   "network_seed": 11,
   "background_seed": 7,
   "question": "Can pulse packets converge to a stable size and width?",
   "operating_point": {
-    "feedforward_strength_us": 0.22,
-    "background_rate_hz": 30.0,
+    "feedforward_strength_us": 0.12,
+    "background_rate_hz": 100.0,
     "selection": "weakest tested strength carrying the reference packet cleanly through all six pools",
-    "spontaneous_spikes_by_pool": [
-      1,
-      1,
-      1,
-      2,
-      1,
-      2
-    ],
+    "background": {
+      "settled_spikes_by_pool": [
+        69,
+        74,
+        71,
+        70,
+        70,
+        69
+      ],
+      "settled_rate_hz_by_pool": [
+        9.857142857142856,
+        10.57142857142857,
+        10.142857142857142,
+        9.999999999999998,
+        9.999999999999998,
+        9.857142857142856
+      ],
+      "mean_settled_rate_hz": 10.07142857142857,
+      "max_1ms_spikes_by_pool": [
+        7,
+        9,
+        12,
+        14,
+        19,
+        21
+      ]
+    },
     "search": [
       {
-        "feedforward_strength_us": 0.22,
-        "background_rate_hz": 25.0,
+        "feedforward_strength_us": 0.1,
+        "background_rate_hz": 100.0,
         "alphas": [
-          8,
-          0,
+          37,
+          26,
           0,
           0,
           0,
           0
         ],
         "sigmas_ms": [
-          2.3318112595148004,
-          null,
+          0.7910935926396819,
+          0.725935429994094,
           null,
           null,
           null,
           null
         ],
-        "spontaneous_spikes_by_pool": [
-          0,
-          0,
-          0,
-          0,
-          0,
-          0
-        ],
+        "background": {
+          "settled_spikes_by_pool": [
+            69,
+            55,
+            35,
+            24,
+            32,
+            13
+          ],
+          "settled_rate_hz_by_pool": [
+            9.857142857142856,
+            7.857142857142856,
+            4.999999999999999,
+            3.428571428571428,
+            4.571428571428571,
+            1.857142857142857
+          ],
+          "mean_settled_rate_hz": 5.428571428571427,
+          "max_1ms_spikes_by_pool": [
+            7,
+            10,
+            8,
+            5,
+            6,
+            4
+          ]
+        },
         "accepted": false
       },
       {
-        "feedforward_strength_us": 0.25,
-        "background_rate_hz": 25.0,
-        "alphas": [
-          16,
-          0,
-          0,
-          0,
-          0,
-          0
-        ],
-        "sigmas_ms": [
-          2.1688040339090113,
-          null,
-          null,
-          null,
-          null,
-          null
-        ],
-        "spontaneous_spikes_by_pool": [
-          0,
-          0,
-          0,
-          0,
-          0,
-          0
-        ],
-        "accepted": false
-      },
-      {
-        "feedforward_strength_us": 0.28,
-        "background_rate_hz": 25.0,
-        "alphas": [
-          28,
-          40,
-          97,
-          128,
-          182,
-          200
-        ],
-        "sigmas_ms": [
-          1.83596093395813,
-          1.9932244605161757,
-          1.6077933538219082,
-          2.5047307534864776,
-          3.4434134319418264,
-          3.4264205448251683
-        ],
-        "spontaneous_spikes_by_pool": [
-          0,
-          0,
-          0,
-          0,
-          0,
-          0
-        ],
-        "accepted": false
-      },
-      {
-        "feedforward_strength_us": 0.31,
-        "background_rate_hz": 25.0,
-        "alphas": [
-          41,
-          98,
-          104,
-          100,
-          102,
-          102
-        ],
-        "sigmas_ms": [
-          1.8238390976548464,
-          1.1376855474300973,
-          1.3512759694311633,
-          0.09614572273377538,
-          0.8904492384257482,
-          0.8588235294117648
-        ],
-        "spontaneous_spikes_by_pool": [
-          0,
-          0,
-          0,
-          0,
-          0,
-          0
-        ],
-        "accepted": false
-      },
-      {
-        "feedforward_strength_us": 0.22,
-        "background_rate_hz": 30.0,
-        "alphas": [
-          25,
-          29,
-          82,
-          100,
-          100,
-          100
-        ],
-        "sigmas_ms": [
-          1.8778540944386495,
-          1.6039858201667732,
-          2.3235301559232733,
-          0.6892162215154254,
-          0.22477544349861706,
-          0.1483374531263093
-        ],
-        "spontaneous_spikes_by_pool": [
-          1,
-          1,
-          1,
-          2,
-          1,
-          2
-        ],
-        "accepted": true
-      },
-      {
-        "feedforward_strength_us": 0.25,
-        "background_rate_hz": 30.0,
-        "alphas": [
-          38,
-          85,
-          100,
-          100,
-          100,
-          100
-        ],
-        "sigmas_ms": [
-          1.6475302594121513,
-          0.894055725410004,
-          0.25068705590835755,
-          0.13845938032506142,
-          0.11371455491712579,
-          0.1202455820394246
-        ],
-        "spontaneous_spikes_by_pool": [
-          1,
-          1,
-          1,
-          2,
-          1,
-          2
-        ],
-        "accepted": true
-      },
-      {
-        "feedforward_strength_us": 0.28,
-        "background_rate_hz": 30.0,
-        "alphas": [
-          51,
-          99,
-          101,
-          100,
-          100,
-          100
-        ],
-        "sigmas_ms": [
-          1.9225867650852708,
-          0.8374657258389161,
-          0.6922385402788459,
-          0.11683749398202624,
-          0.09905049217444609,
-          0.10322790320451157
-        ],
-        "spontaneous_spikes_by_pool": [
-          1,
-          1,
-          1,
-          2,
-          1,
-          3
-        ],
-        "accepted": false
-      },
-      {
-        "feedforward_strength_us": 0.31,
-        "background_rate_hz": 30.0,
-        "alphas": [
-          65,
-          100,
-          100,
-          102,
-          152,
-          200
-        ],
-        "sigmas_ms": [
-          1.859133856994932,
-          0.51406128039369,
-          0.12719669807035092,
-          0.9440260171771044,
-          2.6934701452086296,
-          2.6615362105370655
-        ],
-        "spontaneous_spikes_by_pool": [
-          1,
-          1,
-          1,
-          2,
-          1,
-          3
-        ],
-        "accepted": false
-      },
-      {
-        "feedforward_strength_us": 0.22,
-        "background_rate_hz": 35.0,
+        "feedforward_strength_us": 0.12,
+        "background_rate_hz": 100.0,
         "alphas": [
           48,
+          54,
+          73,
+          79,
+          91,
+          95
+        ],
+        "sigmas_ms": [
+          0.7756717518813397,
+          0.7920320794101808,
+          0.6773913735772031,
+          0.6046208858768605,
+          0.5892057247383846,
+          0.3741124306987461
+        ],
+        "background": {
+          "settled_spikes_by_pool": [
+            69,
+            74,
+            71,
+            70,
+            70,
+            69
+          ],
+          "settled_rate_hz_by_pool": [
+            9.857142857142856,
+            10.57142857142857,
+            10.142857142857142,
+            9.999999999999998,
+            9.999999999999998,
+            9.857142857142856
+          ],
+          "mean_settled_rate_hz": 10.07142857142857,
+          "max_1ms_spikes_by_pool": [
+            7,
+            9,
+            12,
+            14,
+            19,
+            21
+          ]
+        },
+        "accepted": true
+      },
+      {
+        "feedforward_strength_us": 0.14,
+        "background_rate_hz": 100.0,
+        "alphas": [
+          55,
+          87,
           98,
-          100,
-          101,
-          100,
+          99,
+          99,
           100
         ],
         "sigmas_ms": [
-          1.7100791384384006,
-          0.9087712938210231,
-          0.28294699150194186,
-          0.33049439695253224,
-          0.13674794331177345,
-          0.1404421589124861
+          0.7282266471276487,
+          0.7664245081035358,
+          0.5691472317674676,
+          0.3742393571215256,
+          0.3009253490611598,
+          0.2882273408266468
         ],
-        "spontaneous_spikes_by_pool": [
-          13,
-          54,
-          108,
-          198,
-          212,
-          213
-        ],
-        "accepted": false
-      },
-      {
-        "feedforward_strength_us": 0.25,
-        "background_rate_hz": 35.0,
-        "alphas": [
-          63,
-          101,
-          100,
-          100,
-          126,
-          115
-        ],
-        "sigmas_ms": [
-          2.0671140373565833,
-          0.8563412069492753,
-          0.19240322242623695,
-          0.14122322755127792,
-          1.8017942682320904,
-          1.34825911697375
-        ],
-        "spontaneous_spikes_by_pool": [
-          13,
-          63,
-          132,
-          209,
-          249,
-          300
-        ],
-        "accepted": false
-      },
-      {
-        "feedforward_strength_us": 0.28,
-        "background_rate_hz": 35.0,
-        "alphas": [
-          71,
-          101,
-          101,
-          191,
-          201,
-          202
-        ],
-        "sigmas_ms": [
-          1.678500998529069,
-          0.6052105224568562,
-          0.737716121535204,
-          2.5371853074391257,
-          2.4914983783265305,
-          2.574202255692134
-        ],
-        "spontaneous_spikes_by_pool": [
-          13,
-          69,
-          155,
-          218,
-          304,
-          337
-        ],
-        "accepted": false
-      },
-      {
-        "feedforward_strength_us": 0.31,
-        "background_rate_hz": 35.0,
-        "alphas": [
-          83,
-          127,
-          198,
-          200,
-          218,
-          200
-        ],
-        "sigmas_ms": [
-          1.875683453122052,
-          2.4962569784775375,
-          3.3056540177169906,
-          3.187910757847528,
-          2.456401459580403,
-          3.118035278825434
-        ],
-        "spontaneous_spikes_by_pool": [
-          13,
-          73,
-          172,
-          282,
-          339,
-          449
-        ],
+        "background": {
+          "settled_spikes_by_pool": [
+            69,
+            93,
+            108,
+            157,
+            173,
+            172
+          ],
+          "settled_rate_hz_by_pool": [
+            9.857142857142856,
+            13.285714285714285,
+            15.428571428571427,
+            22.428571428571427,
+            24.71428571428571,
+            24.57142857142857
+          ],
+          "mean_settled_rate_hz": 18.38095238095238,
+          "max_1ms_spikes_by_pool": [
+            7,
+            14,
+            19,
+            41,
+            63,
+            81
+          ]
+        },
         "accepted": false
       }
     ]
@@ -396,19 +219,16 @@
       "id": "weak",
       "label": "Weak, diffuse",
       "input": {
-        "alpha": 21,
-        "requested_sigma_ms": 4.0,
-        "realised_sigma_ms": 3.5675979456828957
+        "alpha": 20,
+        "requested_sigma_ms": 5.0,
+        "realised_sigma_ms": 4.104314802741135
       },
       "layers": [
         {
           "pool": 1,
-          "alpha": 7,
-          "sigma_ms": 2.3674665698133257,
-          "volley_window_ms": [
-            12.8,
-            20.8
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         },
         {
           "pool": 2,
@@ -447,63 +267,63 @@
       "id": "broad",
       "label": "Broad, strong",
       "input": {
-        "alpha": 35,
-        "requested_sigma_ms": 5.0,
-        "realised_sigma_ms": 5.125809841440887
+        "alpha": 80,
+        "requested_sigma_ms": 3.0,
+        "realised_sigma_ms": 2.7601219968508635
       },
       "layers": [
         {
           "pool": 1,
-          "alpha": 25,
-          "sigma_ms": 1.8778540944386495,
+          "alpha": 48,
+          "sigma_ms": 0.7756717518813397,
           "volley_window_ms": [
-            11.600000000000001,
-            19.6
+            70.10000000000001,
+            73.10000000000001
           ]
         },
         {
           "pool": 2,
-          "alpha": 29,
-          "sigma_ms": 1.6039858201667732,
+          "alpha": 54,
+          "sigma_ms": 0.7920320794101808,
           "volley_window_ms": [
-            18.5,
-            26.5
+            72.8,
+            75.8
           ]
         },
         {
           "pool": 3,
-          "alpha": 82,
-          "sigma_ms": 2.3235301559232733,
+          "alpha": 73,
+          "sigma_ms": 0.6773913735772031,
           "volley_window_ms": [
-            23.6,
-            31.6
+            75.8,
+            78.80000000000001
           ]
         },
         {
           "pool": 4,
-          "alpha": 100,
-          "sigma_ms": 0.6892162215154254,
+          "alpha": 79,
+          "sigma_ms": 0.6046208858768605,
           "volley_window_ms": [
-            21.700000000000003,
-            29.700000000000003
+            78.30000000000001,
+            81.30000000000001
           ]
         },
         {
           "pool": 5,
-          "alpha": 100,
-          "sigma_ms": 0.22477544349861706,
+          "alpha": 91,
+          "sigma_ms": 0.5892057247383846,
           "volley_window_ms": [
-            21.900000000000002,
-            29.900000000000002
+            80.30000000000001,
+            83.30000000000001
           ]
         },
         {
           "pool": 6,
-          "alpha": 100,
-          "sigma_ms": 0.1483374531263093,
+          "alpha": 95,
+          "sigma_ms": 0.3741124306987461,
           "volley_window_ms": [
-            23.200000000000003,
-            31.200000000000003
+            82.60000000000001,
+            85.60000000000001
           ]
         }
       ],
@@ -513,63 +333,63 @@
       "id": "oversized",
       "label": "Narrow, oversized",
       "input": {
-        "alpha": 80,
+        "alpha": 100,
         "requested_sigma_ms": 0.2,
-        "realised_sigma_ms": 0.16582652833608993
+        "realised_sigma_ms": 0.2118962010041709
       },
       "layers": [
         {
           "pool": 1,
-          "alpha": 100,
-          "sigma_ms": 0.21700460824600015,
+          "alpha": 97,
+          "sigma_ms": 0.4497492836129035,
           "volley_window_ms": [
-            7.0,
-            15.0
+            70.10000000000001,
+            73.10000000000001
           ]
         },
         {
           "pool": 2,
-          "alpha": 100,
-          "sigma_ms": 0.13999999999999999,
+          "alpha": 98,
+          "sigma_ms": 0.4602798706768206,
           "volley_window_ms": [
-            7.0,
-            15.0
+            72.0,
+            75.0
           ]
         },
         {
           "pool": 3,
-          "alpha": 100,
-          "sigma_ms": 0.12798046725965648,
+          "alpha": 99,
+          "sigma_ms": 0.5594829043803283,
           "volley_window_ms": [
-            7.9,
-            15.9
+            74.10000000000001,
+            77.10000000000001
           ]
         },
         {
           "pool": 4,
-          "alpha": 100,
-          "sigma_ms": 0.14168980203246817,
+          "alpha": 96,
+          "sigma_ms": 0.5060817192877276,
           "volley_window_ms": [
-            9.4,
-            17.400000000000002
+            76.10000000000001,
+            79.10000000000001
           ]
         },
         {
           "pool": 5,
-          "alpha": 100,
-          "sigma_ms": 0.1358639024906911,
+          "alpha": 98,
+          "sigma_ms": 0.4732142169536229,
           "volley_window_ms": [
-            10.9,
-            18.900000000000002
+            78.0,
+            81.0
           ]
         },
         {
           "pool": 6,
-          "alpha": 100,
-          "sigma_ms": 0.14205280708243676,
+          "alpha": 99,
+          "sigma_ms": 0.44571214979794116,
           "volley_window_ms": [
-            12.5,
-            20.5
+            80.2,
+            83.2
           ]
         }
       ],
@@ -583,17 +403,14 @@
       "input": {
         "alpha": 20,
         "requested_sigma_ms": 0.2,
-        "realised_sigma_ms": 0.19131126469708976
+        "realised_sigma_ms": 0.19131126469708987
       },
       "layers": [
         {
           "pool": 1,
-          "alpha": 6,
-          "sigma_ms": 0.5022173057773122,
-          "volley_window_ms": [
-            7.1000000000000005,
-            15.100000000000001
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         },
         {
           "pool": 2,
@@ -639,12 +456,9 @@
       "layers": [
         {
           "pool": 1,
-          "alpha": 6,
-          "sigma_ms": 2.793096648683838,
-          "volley_window_ms": [
-            12.700000000000001,
-            20.700000000000003
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         },
         {
           "pool": 2,
@@ -685,17 +499,14 @@
       "input": {
         "alpha": 20,
         "requested_sigma_ms": 1.0,
-        "realised_sigma_ms": 0.9120855223058855
+        "realised_sigma_ms": 0.9120855223058848
       },
       "layers": [
         {
           "pool": 1,
-          "alpha": 5,
-          "sigma_ms": 2.0202970078679026,
-          "volley_window_ms": [
-            11.700000000000001,
-            19.700000000000003
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         },
         {
           "pool": 2,
@@ -736,17 +547,14 @@
       "input": {
         "alpha": 20,
         "requested_sigma_ms": 2.0,
-        "realised_sigma_ms": 2.3245375884248465
+        "realised_sigma_ms": 2.324537588424847
       },
       "layers": [
         {
           "pool": 1,
-          "alpha": 5,
-          "sigma_ms": 1.857309882599024,
-          "volley_window_ms": [
-            11.4,
-            19.400000000000002
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         },
         {
           "pool": 2,
@@ -835,7 +643,7 @@
       "input": {
         "alpha": 20,
         "requested_sigma_ms": 4.0,
-        "realised_sigma_ms": 4.278831616224224
+        "realised_sigma_ms": 4.390270492805653
       },
       "layers": [
         {
@@ -883,7 +691,7 @@
       "input": {
         "alpha": 20,
         "requested_sigma_ms": 5.0,
-        "realised_sigma_ms": 4.015280189476196
+        "realised_sigma_ms": 4.104314802741135
       },
       "layers": [
         {
@@ -931,65 +739,50 @@
       "input": {
         "alpha": 30,
         "requested_sigma_ms": 0.2,
-        "realised_sigma_ms": 0.21656407827707735
+        "realised_sigma_ms": 0.21656407827707935
       },
       "layers": [
         {
           "pool": 1,
-          "alpha": 21,
-          "sigma_ms": 1.7689306504943894,
+          "alpha": 24,
+          "sigma_ms": 0.6250416652778704,
           "volley_window_ms": [
-            11.4,
-            19.400000000000002
+            70.0,
+            73.0
           ]
         },
         {
           "pool": 2,
-          "alpha": 11,
-          "sigma_ms": 1.5432069217398505,
-          "volley_window_ms": [
-            25.5,
-            33.5
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         },
         {
           "pool": 3,
-          "alpha": 27,
-          "sigma_ms": 1.8993826157432459,
-          "volley_window_ms": [
-            29.5,
-            37.5
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         },
         {
           "pool": 4,
-          "alpha": 63,
-          "sigma_ms": 1.256934406319146,
-          "volley_window_ms": [
-            31.900000000000002,
-            39.900000000000006
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         },
         {
           "pool": 5,
-          "alpha": 98,
-          "sigma_ms": 0.7174303954704292,
-          "volley_window_ms": [
-            31.8,
-            39.800000000000004
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         },
         {
           "pool": 6,
-          "alpha": 72,
-          "sigma_ms": 0.22776083947860754,
-          "volley_window_ms": [
-            32.0,
-            40.0
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         }
       ],
-      "survives": true
+      "survives": false
     },
     {
       "id": "a30_s0.5",
@@ -997,65 +790,50 @@
       "input": {
         "alpha": 30,
         "requested_sigma_ms": 0.5,
-        "realised_sigma_ms": 0.48000000000000004
+        "realised_sigma_ms": 0.48000000000000065
       },
       "layers": [
         {
           "pool": 1,
           "alpha": 27,
-          "sigma_ms": 1.5990051776961325,
+          "sigma_ms": 0.6784352205056107,
           "volley_window_ms": [
-            11.4,
-            19.400000000000002
+            70.60000000000001,
+            73.60000000000001
           ]
         },
         {
           "pool": 2,
-          "alpha": 34,
-          "sigma_ms": 1.208075480581411,
-          "volley_window_ms": [
-            14.9,
-            22.900000000000002
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         },
         {
           "pool": 3,
-          "alpha": 74,
-          "sigma_ms": 1.8003859865349214,
-          "volley_window_ms": [
-            20.400000000000002,
-            28.400000000000002
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         },
         {
           "pool": 4,
-          "alpha": 100,
-          "sigma_ms": 0.43849173310337336,
-          "volley_window_ms": [
-            17.400000000000002,
-            25.400000000000002
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         },
         {
           "pool": 5,
-          "alpha": 100,
-          "sigma_ms": 0.16230834852218784,
-          "volley_window_ms": [
-            18.1,
-            26.1
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         },
         {
           "pool": 6,
-          "alpha": 100,
-          "sigma_ms": 0.13580868897091966,
-          "volley_window_ms": [
-            19.5,
-            27.5
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         }
       ],
-      "survives": true
+      "survives": false
     },
     {
       "id": "a30_s1",
@@ -1063,65 +841,50 @@
       "input": {
         "alpha": 30,
         "requested_sigma_ms": 1.0,
-        "realised_sigma_ms": 1.2101469148642887
+        "realised_sigma_ms": 1.210146914864289
       },
       "layers": [
         {
           "pool": 1,
-          "alpha": 29,
-          "sigma_ms": 1.8495749423315706,
+          "alpha": 21,
+          "sigma_ms": 0.7014400477514592,
           "volley_window_ms": [
-            12.200000000000001,
-            20.200000000000003
+            71.0,
+            74.0
           ]
         },
         {
           "pool": 2,
-          "alpha": 41,
-          "sigma_ms": 1.1831908179157908,
-          "volley_window_ms": [
-            14.9,
-            22.900000000000002
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         },
         {
           "pool": 3,
-          "alpha": 89,
-          "sigma_ms": 1.3103686607275034,
-          "volley_window_ms": [
-            20.8,
-            28.8
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         },
         {
           "pool": 4,
-          "alpha": 100,
-          "sigma_ms": 0.35344589402057,
-          "volley_window_ms": [
-            16.900000000000002,
-            24.900000000000002
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         },
         {
           "pool": 5,
-          "alpha": 100,
-          "sigma_ms": 0.14903355326905415,
-          "volley_window_ms": [
-            18.1,
-            26.1
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         },
         {
           "pool": 6,
-          "alpha": 100,
-          "sigma_ms": 0.13266499161421597,
-          "volley_window_ms": [
-            19.6,
-            27.6
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         }
       ],
-      "survives": true
+      "survives": false
     },
     {
       "id": "a30_s2",
@@ -1129,53 +892,41 @@
       "input": {
         "alpha": 30,
         "requested_sigma_ms": 2.0,
-        "realised_sigma_ms": 1.641980511455602
+        "realised_sigma_ms": 1.6419805114556008
       },
       "layers": [
         {
           "pool": 1,
-          "alpha": 19,
-          "sigma_ms": 1.650937784371972,
+          "alpha": 25,
+          "sigma_ms": 0.7797435475847172,
           "volley_window_ms": [
-            10.3,
-            18.3
+            70.0,
+            73.0
           ]
         },
         {
           "pool": 2,
-          "alpha": 9,
-          "sigma_ms": 1.527363580216852,
-          "volley_window_ms": [
-            15.0,
-            23.0
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         },
         {
           "pool": 3,
-          "alpha": 18,
-          "sigma_ms": 2.0624284499373817,
-          "volley_window_ms": [
-            29.8,
-            37.800000000000004
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         },
         {
           "pool": 4,
-          "alpha": 28,
-          "sigma_ms": 1.414371389901333,
-          "volley_window_ms": [
-            31.900000000000002,
-            39.900000000000006
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         },
         {
           "pool": 5,
-          "alpha": 35,
-          "sigma_ms": 1.059672648721755,
-          "volley_window_ms": [
-            32.0,
-            40.0
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         },
         {
           "pool": 6,
@@ -1192,65 +943,47 @@
       "input": {
         "alpha": 30,
         "requested_sigma_ms": 3.0,
-        "realised_sigma_ms": 3.0457055376746816
+        "realised_sigma_ms": 3.045705537674681
       },
       "layers": [
         {
           "pool": 1,
-          "alpha": 22,
-          "sigma_ms": 1.645762151056841,
-          "volley_window_ms": [
-            12.4,
-            20.400000000000002
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         },
         {
           "pool": 2,
-          "alpha": 17,
-          "sigma_ms": 2.1563938884341436,
-          "volley_window_ms": [
-            18.400000000000002,
-            26.400000000000002
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         },
         {
           "pool": 3,
-          "alpha": 54,
-          "sigma_ms": 1.8168365533884427,
-          "volley_window_ms": [
-            26.0,
-            34.0
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         },
         {
           "pool": 4,
-          "alpha": 100,
-          "sigma_ms": 0.8978524377646918,
-          "volley_window_ms": [
-            26.5,
-            34.5
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         },
         {
           "pool": 5,
-          "alpha": 101,
-          "sigma_ms": 0.47375384082444355,
-          "volley_window_ms": [
-            28.8,
-            36.800000000000004
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         },
         {
           "pool": 6,
-          "alpha": 100,
-          "sigma_ms": 0.18216476058777123,
-          "volley_window_ms": [
-            27.3,
-            35.300000000000004
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         }
       ],
-      "survives": true
+      "survives": false
     },
     {
       "id": "a30_s4",
@@ -1258,44 +991,32 @@
       "input": {
         "alpha": 30,
         "requested_sigma_ms": 4.0,
-        "realised_sigma_ms": 4.3491250716539405
+        "realised_sigma_ms": 4.34912507165394
       },
       "layers": [
         {
           "pool": 1,
-          "alpha": 18,
-          "sigma_ms": 1.7966790352078903,
-          "volley_window_ms": [
-            12.200000000000001,
-            20.200000000000003
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         },
         {
           "pool": 2,
-          "alpha": 11,
-          "sigma_ms": 1.6935463305010936,
-          "volley_window_ms": [
-            25.6,
-            33.6
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         },
         {
           "pool": 3,
-          "alpha": 11,
-          "sigma_ms": 2.0573592959731837,
-          "volley_window_ms": [
-            31.0,
-            39.0
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         },
         {
           "pool": 4,
-          "alpha": 9,
-          "sigma_ms": 1.2138094304022085,
-          "volley_window_ms": [
-            30.8,
-            38.800000000000004
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         },
         {
           "pool": 5,
@@ -1318,53 +1039,38 @@
       "input": {
         "alpha": 30,
         "requested_sigma_ms": 5.0,
-        "realised_sigma_ms": 4.982949818018328
+        "realised_sigma_ms": 5.064456754897036
       },
       "layers": [
         {
           "pool": 1,
-          "alpha": 15,
-          "sigma_ms": 2.302076357455494,
-          "volley_window_ms": [
-            13.200000000000001,
-            21.200000000000003
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         },
         {
           "pool": 2,
-          "alpha": 16,
-          "sigma_ms": 1.7714753738056876,
-          "volley_window_ms": [
-            27.1,
-            35.1
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         },
         {
           "pool": 3,
-          "alpha": 23,
-          "sigma_ms": 1.7490153859860351,
-          "volley_window_ms": [
-            30.1,
-            38.1
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         },
         {
           "pool": 4,
-          "alpha": 39,
-          "sigma_ms": 1.1781597881959922,
-          "volley_window_ms": [
-            31.900000000000002,
-            39.900000000000006
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         },
         {
           "pool": 5,
-          "alpha": 62,
-          "sigma_ms": 0.8602521833384708,
-          "volley_window_ms": [
-            32.0,
-            40.0
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         },
         {
           "pool": 6,
@@ -1381,65 +1087,50 @@
       "input": {
         "alpha": 35,
         "requested_sigma_ms": 0.2,
-        "realised_sigma_ms": 0.240170007813343
+        "realised_sigma_ms": 0.24017000781334374
       },
       "layers": [
         {
           "pool": 1,
-          "alpha": 54,
-          "sigma_ms": 1.3265051497105107,
+          "alpha": 31,
+          "sigma_ms": 0.508471419239216,
           "volley_window_ms": [
-            9.5,
-            17.5
+            70.4,
+            73.4
           ]
         },
         {
           "pool": 2,
-          "alpha": 100,
-          "sigma_ms": 0.7776400195463194,
-          "volley_window_ms": [
-            12.9,
-            20.900000000000002
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         },
         {
           "pool": 3,
-          "alpha": 100,
-          "sigma_ms": 0.20191830030980348,
-          "volley_window_ms": [
-            11.4,
-            19.400000000000002
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         },
         {
           "pool": 4,
-          "alpha": 100,
-          "sigma_ms": 0.14659809002848578,
-          "volley_window_ms": [
-            12.700000000000001,
-            20.700000000000003
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         },
         {
           "pool": 5,
-          "alpha": 100,
-          "sigma_ms": 0.13879481258317977,
-          "volley_window_ms": [
-            14.200000000000001,
-            22.200000000000003
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         },
         {
           "pool": 6,
-          "alpha": 100,
-          "sigma_ms": 0.1525090161269162,
-          "volley_window_ms": [
-            15.8,
-            23.8
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         }
       ],
-      "survives": true
+      "survives": false
     },
     {
       "id": "a35_s0.5",
@@ -1447,65 +1138,50 @@
       "input": {
         "alpha": 35,
         "requested_sigma_ms": 0.5,
-        "realised_sigma_ms": 0.44726835299609197
+        "realised_sigma_ms": 0.44726835299609163
       },
       "layers": [
         {
           "pool": 1,
-          "alpha": 43,
-          "sigma_ms": 1.1426819382042948,
+          "alpha": 33,
+          "sigma_ms": 0.7001377274976438,
           "volley_window_ms": [
-            9.8,
-            17.8
+            70.3,
+            73.3
           ]
         },
         {
           "pool": 2,
-          "alpha": 91,
-          "sigma_ms": 0.8216003716111417,
-          "volley_window_ms": [
-            12.4,
-            20.400000000000002
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         },
         {
           "pool": 3,
-          "alpha": 100,
-          "sigma_ms": 0.26358110706194404,
-          "volley_window_ms": [
-            12.200000000000001,
-            20.200000000000003
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         },
         {
           "pool": 4,
-          "alpha": 100,
-          "sigma_ms": 0.16165085833363213,
-          "volley_window_ms": [
-            13.4,
-            21.400000000000002
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         },
         {
           "pool": 5,
-          "alpha": 100,
-          "sigma_ms": 0.1314343942809492,
-          "volley_window_ms": [
-            14.8,
-            22.8
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         },
         {
           "pool": 6,
-          "alpha": 100,
-          "sigma_ms": 0.14233411397131748,
-          "volley_window_ms": [
-            16.400000000000002,
-            24.400000000000002
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         }
       ],
-      "survives": true
+      "survives": false
     },
     {
       "id": "a35_s1",
@@ -1513,65 +1189,50 @@
       "input": {
         "alpha": 35,
         "requested_sigma_ms": 1.0,
-        "realised_sigma_ms": 1.0213396564696542
+        "realised_sigma_ms": 1.0213396564696535
       },
       "layers": [
         {
           "pool": 1,
-          "alpha": 49,
-          "sigma_ms": 1.4313937136052417,
+          "alpha": 30,
+          "sigma_ms": 0.721295131459146,
           "volley_window_ms": [
-            10.9,
-            18.900000000000002
+            70.60000000000001,
+            73.60000000000001
           ]
         },
         {
           "pool": 2,
-          "alpha": 95,
-          "sigma_ms": 0.9809622727757772,
-          "volley_window_ms": [
-            13.8,
-            21.8
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         },
         {
           "pool": 3,
-          "alpha": 100,
-          "sigma_ms": 0.23826665734004832,
-          "volley_window_ms": [
-            11.8,
-            19.8
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         },
         {
           "pool": 4,
-          "alpha": 100,
-          "sigma_ms": 0.15039614356757958,
-          "volley_window_ms": [
-            13.100000000000001,
-            21.1
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         },
         {
           "pool": 5,
-          "alpha": 100,
-          "sigma_ms": 0.1314343942809492,
-          "volley_window_ms": [
-            14.5,
-            22.5
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         },
         {
           "pool": 6,
-          "alpha": 100,
-          "sigma_ms": 0.14580466384858884,
-          "volley_window_ms": [
-            16.1,
-            24.1
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         }
       ],
-      "survives": true
+      "survives": false
     },
     {
       "id": "a35_s2",
@@ -1579,65 +1240,47 @@
       "input": {
         "alpha": 35,
         "requested_sigma_ms": 2.0,
-        "realised_sigma_ms": 2.16946151505532
+        "realised_sigma_ms": 2.1694615150553185
       },
       "layers": [
         {
           "pool": 1,
-          "alpha": 43,
-          "sigma_ms": 1.659673448172874,
-          "volley_window_ms": [
-            10.8,
-            18.8
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         },
         {
           "pool": 2,
-          "alpha": 88,
-          "sigma_ms": 1.1709900584301085,
-          "volley_window_ms": [
-            14.9,
-            22.900000000000002
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         },
         {
           "pool": 3,
-          "alpha": 100,
-          "sigma_ms": 0.30485898379414705,
-          "volley_window_ms": [
-            13.100000000000001,
-            21.1
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         },
         {
           "pool": 4,
-          "alpha": 100,
-          "sigma_ms": 0.17429572570777513,
-          "volley_window_ms": [
-            14.3,
-            22.3
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         },
         {
           "pool": 5,
-          "alpha": 100,
-          "sigma_ms": 0.13819913169047046,
-          "volley_window_ms": [
-            15.700000000000001,
-            23.700000000000003
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         },
         {
           "pool": 6,
-          "alpha": 100,
-          "sigma_ms": 0.14044215891248607,
-          "volley_window_ms": [
-            17.2,
-            25.200000000000003
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         }
       ],
-      "survives": true
+      "survives": false
     },
     {
       "id": "a35_s3",
@@ -1645,65 +1288,47 @@
       "input": {
         "alpha": 35,
         "requested_sigma_ms": 3.0,
-        "realised_sigma_ms": 2.634257824457258
+        "realised_sigma_ms": 2.6342578244572574
       },
       "layers": [
         {
           "pool": 1,
-          "alpha": 36,
-          "sigma_ms": 1.9084829312219254,
-          "volley_window_ms": [
-            12.4,
-            20.400000000000002
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         },
         {
           "pool": 2,
-          "alpha": 60,
-          "sigma_ms": 1.3981684447876803,
-          "volley_window_ms": [
-            15.8,
-            23.8
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         },
         {
           "pool": 3,
-          "alpha": 100,
-          "sigma_ms": 0.589915248150105,
-          "volley_window_ms": [
-            16.2,
-            24.200000000000003
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         },
         {
           "pool": 4,
-          "alpha": 100,
-          "sigma_ms": 0.20615528128088298,
-          "volley_window_ms": [
-            15.600000000000001,
-            23.6
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         },
         {
           "pool": 5,
-          "alpha": 100,
-          "sigma_ms": 0.13313151392514097,
-          "volley_window_ms": [
-            16.900000000000002,
-            24.900000000000002
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         },
         {
           "pool": 6,
-          "alpha": 100,
-          "sigma_ms": 0.14035668847618196,
-          "volley_window_ms": [
-            18.400000000000002,
-            26.400000000000002
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         }
       ],
-      "survives": true
+      "survives": false
     },
     {
       "id": "a35_s4",
@@ -1711,65 +1336,47 @@
       "input": {
         "alpha": 35,
         "requested_sigma_ms": 4.0,
-        "realised_sigma_ms": 4.591114755032546
+        "realised_sigma_ms": 4.591114755032547
       },
       "layers": [
         {
           "pool": 1,
-          "alpha": 33,
-          "sigma_ms": 1.7739674501617109,
-          "volley_window_ms": [
-            12.600000000000001,
-            20.6
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         },
         {
           "pool": 2,
-          "alpha": 54,
-          "sigma_ms": 1.4847567960727526,
-          "volley_window_ms": [
-            18.3,
-            26.3
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         },
         {
           "pool": 3,
-          "alpha": 100,
-          "sigma_ms": 0.7313514886837928,
-          "volley_window_ms": [
-            18.5,
-            26.5
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         },
         {
           "pool": 4,
-          "alpha": 100,
-          "sigma_ms": 0.22551274908527894,
-          "volley_window_ms": [
-            17.400000000000002,
-            25.400000000000002
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         },
         {
           "pool": 5,
-          "alpha": 100,
-          "sigma_ms": 0.1356465996625054,
-          "volley_window_ms": [
-            18.7,
-            26.700000000000003
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         },
         {
           "pool": 6,
-          "alpha": 100,
-          "sigma_ms": 0.1392264342716569,
-          "volley_window_ms": [
-            20.200000000000003,
-            28.200000000000003
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         }
       ],
-      "survives": true
+      "survives": false
     },
     {
       "id": "a35_s5",
@@ -1777,65 +1384,47 @@
       "input": {
         "alpha": 35,
         "requested_sigma_ms": 5.0,
-        "realised_sigma_ms": 5.125809841440887
+        "realised_sigma_ms": 5.1491358498295625
       },
       "layers": [
         {
           "pool": 1,
-          "alpha": 25,
-          "sigma_ms": 1.8778540944386495,
-          "volley_window_ms": [
-            11.600000000000001,
-            19.6
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         },
         {
           "pool": 2,
-          "alpha": 29,
-          "sigma_ms": 1.6039858201667732,
-          "volley_window_ms": [
-            18.5,
-            26.5
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         },
         {
           "pool": 3,
-          "alpha": 82,
-          "sigma_ms": 2.3235301559232733,
-          "volley_window_ms": [
-            23.6,
-            31.6
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         },
         {
           "pool": 4,
-          "alpha": 100,
-          "sigma_ms": 0.6892162215154254,
-          "volley_window_ms": [
-            21.700000000000003,
-            29.700000000000003
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         },
         {
           "pool": 5,
-          "alpha": 100,
-          "sigma_ms": 0.22477544349861706,
-          "volley_window_ms": [
-            21.900000000000002,
-            29.900000000000002
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         },
         {
           "pool": 6,
-          "alpha": 100,
-          "sigma_ms": 0.1483374531263093,
-          "volley_window_ms": [
-            23.200000000000003,
-            31.200000000000003
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         }
       ],
-      "survives": true
+      "survives": false
     },
     {
       "id": "a40_s0.2",
@@ -1843,65 +1432,53 @@
       "input": {
         "alpha": 40,
         "requested_sigma_ms": 0.2,
-        "realised_sigma_ms": 0.2556242359401784
+        "realised_sigma_ms": 0.2556242359401781
       },
       "layers": [
         {
           "pool": 1,
-          "alpha": 72,
-          "sigma_ms": 1.3675809949607292,
+          "alpha": 40,
+          "sigma_ms": 0.5981168364124188,
           "volley_window_ms": [
-            10.5,
-            18.5
+            70.0,
+            73.0
           ]
         },
         {
           "pool": 2,
-          "alpha": 100,
-          "sigma_ms": 0.4708237462150778,
+          "alpha": 30,
+          "sigma_ms": 0.8454124568648267,
           "volley_window_ms": [
-            9.700000000000001,
-            17.7
+            73.7,
+            76.7
           ]
         },
         {
           "pool": 3,
-          "alpha": 100,
-          "sigma_ms": 0.16216966424088078,
-          "volley_window_ms": [
-            10.4,
-            18.400000000000002
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         },
         {
           "pool": 4,
-          "alpha": 100,
-          "sigma_ms": 0.13928388277184126,
-          "volley_window_ms": [
-            11.8,
-            19.8
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         },
         {
           "pool": 5,
-          "alpha": 100,
-          "sigma_ms": 0.13612861565446116,
-          "volley_window_ms": [
-            13.3,
-            21.3
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         },
         {
           "pool": 6,
-          "alpha": 100,
-          "sigma_ms": 0.14783774890061058,
-          "volley_window_ms": [
-            14.9,
-            22.900000000000002
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         }
       ],
-      "survives": true
+      "survives": false
     },
     {
       "id": "a40_s0.5",
@@ -1909,65 +1486,50 @@
       "input": {
         "alpha": 40,
         "requested_sigma_ms": 0.5,
-        "realised_sigma_ms": 0.48246761549351674
+        "realised_sigma_ms": 0.48246761549351624
       },
       "layers": [
         {
           "pool": 1,
-          "alpha": 71,
-          "sigma_ms": 1.152577474340993,
+          "alpha": 38,
+          "sigma_ms": 0.5892621801011049,
           "volley_window_ms": [
-            9.600000000000001,
-            17.6
+            70.2,
+            73.2
           ]
         },
         {
           "pool": 2,
-          "alpha": 100,
-          "sigma_ms": 0.4109744517606903,
-          "volley_window_ms": [
-            9.600000000000001,
-            17.6
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         },
         {
           "pool": 3,
-          "alpha": 100,
-          "sigma_ms": 0.14978651474682228,
-          "volley_window_ms": [
-            10.3,
-            18.3
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         },
         {
           "pool": 4,
-          "alpha": 100,
-          "sigma_ms": 0.14467549896233306,
-          "volley_window_ms": [
-            11.700000000000001,
-            19.700000000000003
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         },
         {
           "pool": 5,
-          "alpha": 100,
-          "sigma_ms": 0.1344432965974876,
-          "volley_window_ms": [
-            13.200000000000001,
-            21.200000000000003
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         },
         {
           "pool": 6,
-          "alpha": 100,
-          "sigma_ms": 0.14148851543499916,
-          "volley_window_ms": [
-            14.8,
-            22.8
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         }
       ],
-      "survives": true
+      "survives": false
     },
     {
       "id": "a40_s1",
@@ -1980,60 +1542,45 @@
       "layers": [
         {
           "pool": 1,
-          "alpha": 57,
-          "sigma_ms": 0.9974976385611433,
+          "alpha": 35,
+          "sigma_ms": 0.7740379150129217,
           "volley_window_ms": [
-            8.700000000000001,
-            16.7
+            70.5,
+            73.5
           ]
         },
         {
           "pool": 2,
-          "alpha": 100,
-          "sigma_ms": 0.49162994213127414,
-          "volley_window_ms": [
-            10.100000000000001,
-            18.1
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         },
         {
           "pool": 3,
-          "alpha": 100,
-          "sigma_ms": 0.15978422950967344,
-          "volley_window_ms": [
-            10.700000000000001,
-            18.7
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         },
         {
           "pool": 4,
-          "alpha": 100,
-          "sigma_ms": 0.148848916690717,
-          "volley_window_ms": [
-            12.100000000000001,
-            20.1
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         },
         {
           "pool": 5,
-          "alpha": 100,
-          "sigma_ms": 0.1325858212630597,
-          "volley_window_ms": [
-            13.5,
-            21.5
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         },
         {
           "pool": 6,
-          "alpha": 100,
-          "sigma_ms": 0.14258681565979373,
-          "volley_window_ms": [
-            15.100000000000001,
-            23.1
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         }
       ],
-      "survives": true
+      "survives": false
     },
     {
       "id": "a40_s2",
@@ -2046,60 +1593,45 @@
       "layers": [
         {
           "pool": 1,
-          "alpha": 63,
-          "sigma_ms": 1.3667044590390671,
+          "alpha": 30,
+          "sigma_ms": 0.579885046079537,
           "volley_window_ms": [
-            10.4,
-            18.400000000000002
+            70.9,
+            73.9
           ]
         },
         {
           "pool": 2,
-          "alpha": 99,
-          "sigma_ms": 0.5464991867199835,
-          "volley_window_ms": [
-            10.3,
-            18.3
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         },
         {
           "pool": 3,
-          "alpha": 100,
-          "sigma_ms": 0.1722672342611909,
-          "volley_window_ms": [
-            10.8,
-            18.8
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         },
         {
           "pool": 4,
-          "alpha": 100,
-          "sigma_ms": 0.14077997016621369,
-          "volley_window_ms": [
-            12.200000000000001,
-            20.200000000000003
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         },
         {
           "pool": 5,
-          "alpha": 100,
-          "sigma_ms": 0.13665650368716453,
-          "volley_window_ms": [
-            13.700000000000001,
-            21.700000000000003
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         },
         {
           "pool": 6,
-          "alpha": 100,
-          "sigma_ms": 0.15090062955468403,
-          "volley_window_ms": [
-            15.3,
-            23.3
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         }
       ],
-      "survives": true
+      "survives": false
     },
     {
       "id": "a40_s3",
@@ -2112,60 +1644,42 @@
       "layers": [
         {
           "pool": 1,
-          "alpha": 55,
-          "sigma_ms": 1.432381130313905,
-          "volley_window_ms": [
-            11.5,
-            19.5
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         },
         {
           "pool": 2,
-          "alpha": 98,
-          "sigma_ms": 0.7400738394219535,
-          "volley_window_ms": [
-            12.600000000000001,
-            20.6
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         },
         {
           "pool": 3,
-          "alpha": 100,
-          "sigma_ms": 0.22325769863545575,
-          "volley_window_ms": [
-            12.4,
-            20.400000000000002
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         },
         {
           "pool": 4,
-          "alpha": 100,
-          "sigma_ms": 0.15173661390712523,
-          "volley_window_ms": [
-            13.700000000000001,
-            21.700000000000003
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         },
         {
           "pool": 5,
-          "alpha": 100,
-          "sigma_ms": 0.13067516979135715,
-          "volley_window_ms": [
-            15.100000000000001,
-            23.1
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         },
         {
           "pool": 6,
-          "alpha": 100,
-          "sigma_ms": 0.14572576985557495,
-          "volley_window_ms": [
-            16.7,
-            24.700000000000003
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         }
       ],
-      "survives": true
+      "survives": false
     },
     {
       "id": "a40_s4",
@@ -2173,65 +1687,47 @@
       "input": {
         "alpha": 40,
         "requested_sigma_ms": 4.0,
-        "realised_sigma_ms": 3.968182833489405
+        "realised_sigma_ms": 3.9681828334894056
       },
       "layers": [
         {
           "pool": 1,
-          "alpha": 57,
-          "sigma_ms": 1.6158513807977823,
-          "volley_window_ms": [
-            11.9,
-            19.900000000000002
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         },
         {
           "pool": 2,
-          "alpha": 100,
-          "sigma_ms": 0.7889461325084243,
-          "volley_window_ms": [
-            13.0,
-            21.0
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         },
         {
           "pool": 3,
-          "alpha": 100,
-          "sigma_ms": 0.21994544778194436,
-          "volley_window_ms": [
-            12.600000000000001,
-            20.6
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         },
         {
           "pool": 4,
-          "alpha": 100,
-          "sigma_ms": 0.1581739548724757,
-          "volley_window_ms": [
-            14.0,
-            22.0
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         },
         {
           "pool": 5,
-          "alpha": 100,
-          "sigma_ms": 0.13379088160259658,
-          "volley_window_ms": [
-            15.4,
-            23.400000000000002
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         },
         {
           "pool": 6,
-          "alpha": 100,
-          "sigma_ms": 0.14470314440260096,
-          "volley_window_ms": [
-            17.0,
-            25.0
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         }
       ],
-      "survives": true
+      "survives": false
     },
     {
       "id": "a40_s5",
@@ -2239,65 +1735,47 @@
       "input": {
         "alpha": 40,
         "requested_sigma_ms": 5.0,
-        "realised_sigma_ms": 4.227699581332619
+        "realised_sigma_ms": 4.227699581332621
       },
       "layers": [
         {
           "pool": 1,
-          "alpha": 43,
-          "sigma_ms": 2.1240414756715973,
-          "volley_window_ms": [
-            12.600000000000001,
-            20.6
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         },
         {
           "pool": 2,
-          "alpha": 92,
-          "sigma_ms": 1.4014086216245798,
-          "volley_window_ms": [
-            16.7,
-            24.700000000000003
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         },
         {
           "pool": 3,
-          "alpha": 101,
-          "sigma_ms": 0.784235919762229,
-          "volley_window_ms": [
-            21.0,
-            29.0
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         },
         {
           "pool": 4,
-          "alpha": 100,
-          "sigma_ms": 0.1837688765814276,
-          "volley_window_ms": [
-            16.0,
-            24.0
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         },
         {
           "pool": 5,
-          "alpha": 100,
-          "sigma_ms": 0.13184839779079607,
-          "volley_window_ms": [
-            17.400000000000002,
-            25.400000000000002
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         },
         {
           "pool": 6,
-          "alpha": 100,
-          "sigma_ms": 0.1386326079968201,
-          "volley_window_ms": [
-            18.900000000000002,
-            26.900000000000002
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         }
       ],
-      "survives": true
+      "survives": false
     },
     {
       "id": "a45_s0.2",
@@ -2305,65 +1783,53 @@
       "input": {
         "alpha": 45,
         "requested_sigma_ms": 0.2,
-        "realised_sigma_ms": 0.2309401076758503
+        "realised_sigma_ms": 0.23094010767585088
       },
       "layers": [
         {
           "pool": 1,
-          "alpha": 80,
-          "sigma_ms": 1.012839449271206,
+          "alpha": 49,
+          "sigma_ms": 0.5890504433603209,
           "volley_window_ms": [
-            9.5,
-            17.5
+            70.2,
+            73.2
           ]
         },
         {
           "pool": 2,
-          "alpha": 100,
-          "sigma_ms": 0.3147634032094583,
+          "alpha": 41,
+          "sigma_ms": 0.7596924766847895,
           "volley_window_ms": [
-            8.5,
-            16.5
+            73.10000000000001,
+            76.10000000000001
           ]
         },
         {
           "pool": 3,
-          "alpha": 100,
-          "sigma_ms": 0.13646977687385592,
-          "volley_window_ms": [
-            9.5,
-            17.5
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         },
         {
           "pool": 4,
-          "alpha": 100,
-          "sigma_ms": 0.1398963902322001,
-          "volley_window_ms": [
-            11.0,
-            19.0
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         },
         {
           "pool": 5,
-          "alpha": 100,
-          "sigma_ms": 0.13568714014231417,
-          "volley_window_ms": [
-            12.5,
-            20.5
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         },
         {
           "pool": 6,
-          "alpha": 100,
-          "sigma_ms": 0.13856406460551018,
-          "volley_window_ms": [
-            14.0,
-            22.0
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         }
       ],
-      "survives": true
+      "survives": false
     },
     {
       "id": "a45_s0.5",
@@ -2371,65 +1837,56 @@
       "input": {
         "alpha": 45,
         "requested_sigma_ms": 0.5,
-        "realised_sigma_ms": 0.42163702135578385
+        "realised_sigma_ms": 0.4216370213557832
       },
       "layers": [
         {
           "pool": 1,
-          "alpha": 87,
-          "sigma_ms": 1.0735952147635373,
+          "alpha": 54,
+          "sigma_ms": 0.6131503573905634,
           "volley_window_ms": [
-            10.200000000000001,
-            18.2
+            70.4,
+            73.4
           ]
         },
         {
           "pool": 2,
-          "alpha": 100,
-          "sigma_ms": 0.26901858671846446,
+          "alpha": 50,
+          "sigma_ms": 0.753169303676139,
           "volley_window_ms": [
-            8.200000000000001,
-            16.2
+            73.10000000000001,
+            76.10000000000001
           ]
         },
         {
           "pool": 3,
-          "alpha": 100,
-          "sigma_ms": 0.13057947771376643,
+          "alpha": 32,
+          "sigma_ms": 0.6890252966147179,
           "volley_window_ms": [
-            9.4,
-            17.400000000000002
+            76.4,
+            79.4
           ]
         },
         {
           "pool": 4,
-          "alpha": 100,
-          "sigma_ms": 0.13946684193742978,
-          "volley_window_ms": [
-            10.9,
-            18.900000000000002
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         },
         {
           "pool": 5,
-          "alpha": 100,
-          "sigma_ms": 0.14242190842703945,
-          "volley_window_ms": [
-            12.4,
-            20.400000000000002
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         },
         {
           "pool": 6,
-          "alpha": 100,
-          "sigma_ms": 0.1432340741583509,
-          "volley_window_ms": [
-            14.0,
-            22.0
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         }
       ],
-      "survives": true
+      "survives": false
     },
     {
       "id": "a45_s1",
@@ -2442,60 +1899,45 @@
       "layers": [
         {
           "pool": 1,
-          "alpha": 86,
-          "sigma_ms": 1.0238660970793558,
+          "alpha": 39,
+          "sigma_ms": 0.6736029690365135,
           "volley_window_ms": [
-            9.0,
-            17.0
+            70.4,
+            73.4
           ]
         },
         {
           "pool": 2,
-          "alpha": 100,
-          "sigma_ms": 0.29715147652333823,
-          "volley_window_ms": [
-            9.0,
-            17.0
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         },
         {
           "pool": 3,
-          "alpha": 100,
-          "sigma_ms": 0.13423486879346958,
-          "volley_window_ms": [
-            9.9,
-            17.900000000000002
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         },
         {
           "pool": 4,
-          "alpha": 100,
-          "sigma_ms": 0.14291256067959882,
-          "volley_window_ms": [
-            11.3,
-            19.3
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         },
         {
           "pool": 5,
-          "alpha": 100,
-          "sigma_ms": 0.13975335416368367,
-          "volley_window_ms": [
-            12.8,
-            20.8
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         },
         {
           "pool": 6,
-          "alpha": 100,
-          "sigma_ms": 0.14174272468102198,
-          "volley_window_ms": [
-            14.3,
-            22.3
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         }
       ],
-      "survives": true
+      "survives": false
     },
     {
       "id": "a45_s2",
@@ -2503,65 +1945,50 @@
       "input": {
         "alpha": 45,
         "requested_sigma_ms": 2.0,
-        "realised_sigma_ms": 1.7254178237941866
+        "realised_sigma_ms": 1.725417823794187
       },
       "layers": [
         {
           "pool": 1,
-          "alpha": 80,
-          "sigma_ms": 1.412497787608887,
+          "alpha": 33,
+          "sigma_ms": 0.7227892102295402,
           "volley_window_ms": [
-            12.0,
-            20.0
+            70.0,
+            73.0
           ]
         },
         {
           "pool": 2,
-          "alpha": 100,
-          "sigma_ms": 0.3712142238654117,
-          "volley_window_ms": [
-            9.200000000000001,
-            17.2
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         },
         {
           "pool": 3,
-          "alpha": 100,
-          "sigma_ms": 0.14703400967123223,
-          "volley_window_ms": [
-            10.200000000000001,
-            18.2
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         },
         {
           "pool": 4,
-          "alpha": 100,
-          "sigma_ms": 0.1456021977856105,
-          "volley_window_ms": [
-            11.600000000000001,
-            19.6
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         },
         {
           "pool": 5,
-          "alpha": 100,
-          "sigma_ms": 0.13182943525631904,
-          "volley_window_ms": [
-            13.100000000000001,
-            21.1
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         },
         {
           "pool": 6,
-          "alpha": 100,
-          "sigma_ms": 0.14282856857085696,
-          "volley_window_ms": [
-            14.700000000000001,
-            22.700000000000003
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         }
       ],
-      "survives": true
+      "survives": false
     },
     {
       "id": "a45_s3",
@@ -2569,65 +1996,50 @@
       "input": {
         "alpha": 45,
         "requested_sigma_ms": 3.0,
-        "realised_sigma_ms": 2.7924890441554817
+        "realised_sigma_ms": 2.7924890441554813
       },
       "layers": [
         {
           "pool": 1,
-          "alpha": 80,
-          "sigma_ms": 1.5062240661667838,
+          "alpha": 26,
+          "sigma_ms": 0.7898018626519697,
           "volley_window_ms": [
-            11.5,
-            19.5
+            69.9,
+            72.9
           ]
         },
         {
           "pool": 2,
-          "alpha": 100,
-          "sigma_ms": 0.37638278387832785,
-          "volley_window_ms": [
-            10.100000000000001,
-            18.1
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         },
         {
           "pool": 3,
-          "alpha": 100,
-          "sigma_ms": 0.15142985174660908,
-          "volley_window_ms": [
-            10.700000000000001,
-            18.7
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         },
         {
           "pool": 4,
-          "alpha": 100,
-          "sigma_ms": 0.14605136082899067,
-          "volley_window_ms": [
-            12.100000000000001,
-            20.1
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         },
         {
           "pool": 5,
-          "alpha": 100,
-          "sigma_ms": 0.13465140177510226,
-          "volley_window_ms": [
-            13.600000000000001,
-            21.6
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         },
         {
           "pool": 6,
-          "alpha": 100,
-          "sigma_ms": 0.14388884598883958,
-          "volley_window_ms": [
-            15.200000000000001,
-            23.200000000000003
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         }
       ],
-      "survives": true
+      "survives": false
     },
     {
       "id": "a45_s4",
@@ -2635,65 +2047,47 @@
       "input": {
         "alpha": 45,
         "requested_sigma_ms": 4.0,
-        "realised_sigma_ms": 4.067737563915461
+        "realised_sigma_ms": 4.089130427648523
       },
       "layers": [
         {
           "pool": 1,
-          "alpha": 70,
-          "sigma_ms": 1.7492645685007873,
-          "volley_window_ms": [
-            11.600000000000001,
-            19.6
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         },
         {
           "pool": 2,
-          "alpha": 100,
-          "sigma_ms": 0.5475134701539315,
-          "volley_window_ms": [
-            11.200000000000001,
-            19.200000000000003
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         },
         {
           "pool": 3,
-          "alpha": 100,
-          "sigma_ms": 0.16431676725154984,
-          "volley_window_ms": [
-            11.200000000000001,
-            19.200000000000003
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         },
         {
           "pool": 4,
-          "alpha": 100,
-          "sigma_ms": 0.13992497989994504,
-          "volley_window_ms": [
-            12.600000000000001,
-            20.6
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         },
         {
           "pool": 5,
-          "alpha": 100,
-          "sigma_ms": 0.14154857823376402,
-          "volley_window_ms": [
-            14.100000000000001,
-            22.1
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         },
         {
           "pool": 6,
-          "alpha": 100,
-          "sigma_ms": 0.15199999999999997,
-          "volley_window_ms": [
-            15.700000000000001,
-            23.700000000000003
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         }
       ],
-      "survives": true
+      "survives": false
     },
     {
       "id": "a45_s5",
@@ -2701,65 +2095,47 @@
       "input": {
         "alpha": 45,
         "requested_sigma_ms": 5.0,
-        "realised_sigma_ms": 5.030594790938472
+        "realised_sigma_ms": 5.072334062293824
       },
       "layers": [
         {
           "pool": 1,
-          "alpha": 62,
-          "sigma_ms": 1.4136063944753368,
-          "volley_window_ms": [
-            11.200000000000001,
-            19.200000000000003
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         },
         {
           "pool": 2,
-          "alpha": 100,
-          "sigma_ms": 0.5492868103277194,
-          "volley_window_ms": [
-            11.9,
-            19.900000000000002
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         },
         {
           "pool": 3,
-          "alpha": 100,
-          "sigma_ms": 0.17004705231199982,
-          "volley_window_ms": [
-            12.100000000000001,
-            20.1
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         },
         {
           "pool": 4,
-          "alpha": 100,
-          "sigma_ms": 0.14991997865528137,
-          "volley_window_ms": [
-            13.5,
-            21.5
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         },
         {
           "pool": 5,
-          "alpha": 100,
-          "sigma_ms": 0.13258582126305968,
-          "volley_window_ms": [
-            15.0,
-            23.0
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         },
         {
           "pool": 6,
-          "alpha": 100,
-          "sigma_ms": 0.1474584687293341,
-          "volley_window_ms": [
-            16.5,
-            24.5
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         }
       ],
-      "survives": true
+      "survives": false
     },
     {
       "id": "a50_s0.2",
@@ -2767,61 +2143,61 @@
       "input": {
         "alpha": 50,
         "requested_sigma_ms": 0.2,
-        "realised_sigma_ms": 0.19983993594874871
+        "realised_sigma_ms": 0.1998399359487493
       },
       "layers": [
         {
           "pool": 1,
-          "alpha": 95,
-          "sigma_ms": 1.010293832906479,
+          "alpha": 58,
+          "sigma_ms": 0.6297140887192458,
           "volley_window_ms": [
-            11.100000000000001,
-            19.1
+            70.4,
+            73.4
           ]
         },
         {
           "pool": 2,
-          "alpha": 100,
-          "sigma_ms": 0.22424094184604199,
+          "alpha": 53,
+          "sigma_ms": 0.6926815724190712,
           "volley_window_ms": [
-            7.7,
-            15.700000000000001
+            72.60000000000001,
+            75.60000000000001
           ]
         },
         {
           "pool": 3,
-          "alpha": 100,
-          "sigma_ms": 0.12851459061133885,
+          "alpha": 60,
+          "sigma_ms": 0.6235093334416807,
           "volley_window_ms": [
-            9.0,
-            17.0
+            75.9,
+            78.9
           ]
         },
         {
           "pool": 4,
-          "alpha": 100,
-          "sigma_ms": 0.13820274961085266,
+          "alpha": 63,
+          "sigma_ms": 0.7438976568452911,
           "volley_window_ms": [
-            10.5,
-            18.5
+            78.60000000000001,
+            81.60000000000001
           ]
         },
         {
           "pool": 5,
-          "alpha": 100,
-          "sigma_ms": 0.13624977064200886,
+          "alpha": 70,
+          "sigma_ms": 0.6764553471846415,
           "volley_window_ms": [
-            12.0,
-            20.0
+            81.30000000000001,
+            84.30000000000001
           ]
         },
         {
           "pool": 6,
-          "alpha": 100,
-          "sigma_ms": 0.13989639023220002,
+          "alpha": 78,
+          "sigma_ms": 0.49509759695058697,
           "volley_window_ms": [
-            13.600000000000001,
-            21.6
+            83.7,
+            86.7
           ]
         }
       ],
@@ -2838,60 +2214,57 @@
       "layers": [
         {
           "pool": 1,
-          "alpha": 96,
-          "sigma_ms": 0.8722177989979848,
+          "alpha": 57,
+          "sigma_ms": 0.6712171567605387,
           "volley_window_ms": [
-            8.3,
-            16.3
+            70.4,
+            73.4
           ]
         },
         {
           "pool": 2,
-          "alpha": 100,
-          "sigma_ms": 0.21411212016137712,
+          "alpha": 59,
+          "sigma_ms": 0.7607960873876224,
           "volley_window_ms": [
-            7.800000000000001,
-            15.8
+            73.2,
+            76.2
           ]
         },
         {
           "pool": 3,
-          "alpha": 100,
-          "sigma_ms": 0.1275107838576802,
+          "alpha": 53,
+          "sigma_ms": 0.6385893585196396,
           "volley_window_ms": [
-            9.1,
-            17.1
+            76.2,
+            79.2
           ]
         },
         {
           "pool": 4,
-          "alpha": 100,
-          "sigma_ms": 0.14146024176424993,
+          "alpha": 50,
+          "sigma_ms": 0.7006425622241345,
           "volley_window_ms": [
-            10.600000000000001,
-            18.6
+            78.10000000000001,
+            81.10000000000001
           ]
         },
         {
           "pool": 5,
-          "alpha": 100,
-          "sigma_ms": 0.1355876100534264,
+          "alpha": 56,
+          "sigma_ms": 0.6657050888389863,
           "volley_window_ms": [
-            12.100000000000001,
-            20.1
+            81.7,
+            84.7
           ]
         },
         {
           "pool": 6,
-          "alpha": 100,
-          "sigma_ms": 0.13845938032506136,
-          "volley_window_ms": [
-            13.700000000000001,
-            21.700000000000003
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         }
       ],
-      "survives": true
+      "survives": false
     },
     {
       "id": "a50_s1",
@@ -2904,60 +2277,51 @@
       "layers": [
         {
           "pool": 1,
-          "alpha": 96,
-          "sigma_ms": 0.7979764990621939,
+          "alpha": 48,
+          "sigma_ms": 0.7160335139192547,
           "volley_window_ms": [
-            9.8,
-            17.8
+            70.7,
+            73.7
           ]
         },
         {
           "pool": 2,
-          "alpha": 100,
-          "sigma_ms": 0.19832044776068858,
+          "alpha": 47,
+          "sigma_ms": 0.7209784107162137,
           "volley_window_ms": [
-            8.1,
-            16.1
+            73.8,
+            76.80000000000001
           ]
         },
         {
           "pool": 3,
-          "alpha": 100,
-          "sigma_ms": 0.12545517127643652,
+          "alpha": 30,
+          "sigma_ms": 0.733795309030765,
           "volley_window_ms": [
-            9.4,
-            17.400000000000002
+            76.9,
+            79.9
           ]
         },
         {
           "pool": 4,
-          "alpha": 100,
-          "sigma_ms": 0.13883803513446896,
-          "volley_window_ms": [
-            10.9,
-            18.900000000000002
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         },
         {
           "pool": 5,
-          "alpha": 100,
-          "sigma_ms": 0.13627545633752255,
-          "volley_window_ms": [
-            12.4,
-            20.400000000000002
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         },
         {
           "pool": 6,
-          "alpha": 100,
-          "sigma_ms": 0.14594176920950352,
-          "volley_window_ms": [
-            14.0,
-            22.0
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         }
       ],
-      "survives": true
+      "survives": false
     },
     {
       "id": "a50_s2",
@@ -2965,65 +2329,53 @@
       "input": {
         "alpha": 50,
         "requested_sigma_ms": 2.0,
-        "realised_sigma_ms": 1.7359677416357713
+        "realised_sigma_ms": 1.7359677416357702
       },
       "layers": [
         {
           "pool": 1,
-          "alpha": 93,
-          "sigma_ms": 0.8834679770942727,
+          "alpha": 33,
+          "sigma_ms": 0.7700667210189885,
           "volley_window_ms": [
-            8.3,
-            16.3
+            70.9,
+            73.9
           ]
         },
         {
           "pool": 2,
-          "alpha": 100,
-          "sigma_ms": 0.2543933961407017,
+          "alpha": 33,
+          "sigma_ms": 0.6911217110374999,
           "volley_window_ms": [
-            8.4,
-            16.400000000000002
+            73.9,
+            76.9
           ]
         },
         {
           "pool": 3,
-          "alpha": 100,
-          "sigma_ms": 0.13313151392514097,
-          "volley_window_ms": [
-            9.8,
-            17.8
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         },
         {
           "pool": 4,
-          "alpha": 100,
-          "sigma_ms": 0.13689046716261885,
-          "volley_window_ms": [
-            11.200000000000001,
-            19.200000000000003
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         },
         {
           "pool": 5,
-          "alpha": 100,
-          "sigma_ms": 0.1353366173657374,
-          "volley_window_ms": [
-            12.700000000000001,
-            20.700000000000003
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         },
         {
           "pool": 6,
-          "alpha": 100,
-          "sigma_ms": 0.14525494828060073,
-          "volley_window_ms": [
-            14.3,
-            22.3
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         }
       ],
-      "survives": true
+      "survives": false
     },
     {
       "id": "a50_s3",
@@ -3031,65 +2383,50 @@
       "input": {
         "alpha": 50,
         "requested_sigma_ms": 3.0,
-        "realised_sigma_ms": 2.7322518185555302
+        "realised_sigma_ms": 2.732251818555529
       },
       "layers": [
         {
           "pool": 1,
-          "alpha": 91,
-          "sigma_ms": 1.2715354177373748,
+          "alpha": 18,
+          "sigma_ms": 0.6548018265847809,
           "volley_window_ms": [
-            10.100000000000001,
-            18.1
+            74.3,
+            77.30000000000001
           ]
         },
         {
           "pool": 2,
-          "alpha": 100,
-          "sigma_ms": 0.3334306524601479,
-          "volley_window_ms": [
-            9.5,
-            17.5
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         },
         {
           "pool": 3,
-          "alpha": 100,
-          "sigma_ms": 0.13856406460551027,
-          "volley_window_ms": [
-            10.5,
-            18.5
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         },
         {
           "pool": 4,
-          "alpha": 100,
-          "sigma_ms": 0.1389244398944981,
-          "volley_window_ms": [
-            12.0,
-            20.0
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         },
         {
           "pool": 5,
-          "alpha": 100,
-          "sigma_ms": 0.1336974195712094,
-          "volley_window_ms": [
-            13.5,
-            21.5
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         },
         {
           "pool": 6,
-          "alpha": 100,
-          "sigma_ms": 0.14006784070585224,
-          "volley_window_ms": [
-            15.0,
-            23.0
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         }
       ],
-      "survives": true
+      "survives": false
     },
     {
       "id": "a50_s4",
@@ -3102,60 +2439,42 @@
       "layers": [
         {
           "pool": 1,
-          "alpha": 77,
-          "sigma_ms": 1.916496811107705,
-          "volley_window_ms": [
-            12.0,
-            20.0
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         },
         {
           "pool": 2,
-          "alpha": 100,
-          "sigma_ms": 0.4918495704989484,
-          "volley_window_ms": [
-            10.3,
-            18.3
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         },
         {
           "pool": 3,
-          "alpha": 100,
-          "sigma_ms": 0.16448708155961672,
-          "volley_window_ms": [
-            10.9,
-            18.900000000000002
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         },
         {
           "pool": 4,
-          "alpha": 100,
-          "sigma_ms": 0.14628738838327798,
-          "volley_window_ms": [
-            12.3,
-            20.3
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         },
         {
           "pool": 5,
-          "alpha": 100,
-          "sigma_ms": 0.13317657451669193,
-          "volley_window_ms": [
-            13.8,
-            21.8
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         },
         {
           "pool": 6,
-          "alpha": 100,
-          "sigma_ms": 0.1414213562373095,
-          "volley_window_ms": [
-            15.3,
-            23.3
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         }
       ],
-      "survives": true
+      "survives": false
     },
     {
       "id": "a50_s5",
@@ -3168,60 +2487,42 @@
       "layers": [
         {
           "pool": 1,
-          "alpha": 73,
-          "sigma_ms": 1.542009470457517,
-          "volley_window_ms": [
-            11.8,
-            19.8
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         },
         {
           "pool": 2,
-          "alpha": 100,
-          "sigma_ms": 0.4880768382130011,
-          "volley_window_ms": [
-            11.4,
-            19.400000000000002
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         },
         {
           "pool": 3,
-          "alpha": 100,
-          "sigma_ms": 0.16587947431795175,
-          "volley_window_ms": [
-            11.600000000000001,
-            19.6
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         },
         {
           "pool": 4,
-          "alpha": 100,
-          "sigma_ms": 0.1451723114095798,
-          "volley_window_ms": [
-            13.0,
-            21.0
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         },
         {
           "pool": 5,
-          "alpha": 100,
-          "sigma_ms": 0.13883443376914822,
-          "volley_window_ms": [
-            14.5,
-            22.5
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         },
         {
           "pool": 6,
-          "alpha": 100,
-          "sigma_ms": 0.14630105946301275,
-          "volley_window_ms": [
-            16.0,
-            24.0
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         }
       ],
-      "survives": true
+      "survives": false
     },
     {
       "id": "a55_s0.2",
@@ -3229,61 +2530,61 @@
       "input": {
         "alpha": 55,
         "requested_sigma_ms": 0.2,
-        "realised_sigma_ms": 0.192297978139902
+        "realised_sigma_ms": 0.19229797813990254
       },
       "layers": [
         {
           "pool": 1,
-          "alpha": 99,
-          "sigma_ms": 0.8718230912861537,
+          "alpha": 62,
+          "sigma_ms": 0.539973406675508,
           "volley_window_ms": [
-            9.9,
-            17.900000000000002
+            70.3,
+            73.3
           ]
         },
         {
           "pool": 2,
-          "alpha": 100,
-          "sigma_ms": 0.18884914614580597,
+          "alpha": 54,
+          "sigma_ms": 0.6106311246328427,
           "volley_window_ms": [
-            7.300000000000001,
-            15.3
+            72.4,
+            75.4
           ]
         },
         {
           "pool": 3,
-          "alpha": 100,
-          "sigma_ms": 0.1267241097818408,
+          "alpha": 63,
+          "sigma_ms": 0.7054051118910936,
           "volley_window_ms": [
-            8.700000000000001,
-            16.7
+            75.8,
+            78.80000000000001
           ]
         },
         {
           "pool": 4,
-          "alpha": 100,
-          "sigma_ms": 0.14378803844548405,
+          "alpha": 67,
+          "sigma_ms": 0.6952532949437176,
           "volley_window_ms": [
-            10.3,
-            18.3
+            78.4,
+            81.4
           ]
         },
         {
           "pool": 5,
-          "alpha": 100,
-          "sigma_ms": 0.1354400236266961,
+          "alpha": 78,
+          "sigma_ms": 0.6722008951143289,
           "volley_window_ms": [
-            11.8,
-            19.8
+            80.9,
+            83.9
           ]
         },
         {
           "pool": 6,
-          "alpha": 100,
-          "sigma_ms": 0.13686124360095517,
+          "alpha": 87,
+          "sigma_ms": 0.4570089502461629,
           "volley_window_ms": [
-            13.3,
-            21.3
+            83.2,
+            86.2
           ]
         }
       ],
@@ -3295,61 +2596,61 @@
       "input": {
         "alpha": 55,
         "requested_sigma_ms": 0.5,
-        "realised_sigma_ms": 0.5006904323940184
+        "realised_sigma_ms": 0.5006904323940182
       },
       "layers": [
         {
           "pool": 1,
-          "alpha": 99,
-          "sigma_ms": 0.6337383719237509,
+          "alpha": 62,
+          "sigma_ms": 0.5881061864803693,
           "volley_window_ms": [
-            7.0,
-            15.0
+            70.10000000000001,
+            73.10000000000001
           ]
         },
         {
           "pool": 2,
-          "alpha": 100,
-          "sigma_ms": 0.19123545696339891,
+          "alpha": 58,
+          "sigma_ms": 0.6223182656657387,
           "volley_window_ms": [
-            7.300000000000001,
-            15.3
+            72.4,
+            75.4
           ]
         },
         {
           "pool": 3,
-          "alpha": 100,
-          "sigma_ms": 0.12609123680890763,
+          "alpha": 66,
+          "sigma_ms": 0.6449795520708635,
           "volley_window_ms": [
-            8.700000000000001,
-            16.7
+            75.4,
+            78.4
           ]
         },
         {
           "pool": 4,
-          "alpha": 100,
-          "sigma_ms": 0.14146024176424993,
+          "alpha": 74,
+          "sigma_ms": 0.621734713566851,
           "volley_window_ms": [
-            10.200000000000001,
-            18.2
+            78.0,
+            81.0
           ]
         },
         {
           "pool": 5,
-          "alpha": 100,
-          "sigma_ms": 0.13831485820402675,
+          "alpha": 85,
+          "sigma_ms": 0.6073186858307338,
           "volley_window_ms": [
-            11.700000000000001,
-            19.700000000000003
+            80.2,
+            83.2
           ]
         },
         {
           "pool": 6,
-          "alpha": 100,
-          "sigma_ms": 0.1420422472365176,
+          "alpha": 91,
+          "sigma_ms": 0.3903682784588846,
           "volley_window_ms": [
-            13.3,
-            21.3
+            82.5,
+            85.5
           ]
         }
       ],
@@ -3361,65 +2662,59 @@
       "input": {
         "alpha": 55,
         "requested_sigma_ms": 1.0,
-        "realised_sigma_ms": 1.1687161848204026
+        "realised_sigma_ms": 1.1687161848204028
       },
       "layers": [
         {
           "pool": 1,
-          "alpha": 99,
-          "sigma_ms": 0.8286978511848033,
+          "alpha": 46,
+          "sigma_ms": 0.6651214764611841,
           "volley_window_ms": [
-            9.3,
-            17.3
+            70.10000000000001,
+            73.10000000000001
           ]
         },
         {
           "pool": 2,
-          "alpha": 100,
-          "sigma_ms": 0.2041837407826588,
+          "alpha": 54,
+          "sigma_ms": 0.8133003602572133,
           "volley_window_ms": [
-            7.800000000000001,
-            15.8
+            73.5,
+            76.5
           ]
         },
         {
           "pool": 3,
-          "alpha": 100,
-          "sigma_ms": 0.12531560158256438,
+          "alpha": 45,
+          "sigma_ms": 0.5751907896032799,
           "volley_window_ms": [
-            9.200000000000001,
-            17.2
+            76.60000000000001,
+            79.60000000000001
           ]
         },
         {
           "pool": 4,
-          "alpha": 100,
-          "sigma_ms": 0.1473091986265624,
+          "alpha": 36,
+          "sigma_ms": 0.6605915325218045,
           "volley_window_ms": [
-            10.700000000000001,
-            18.7
+            78.5,
+            81.5
           ]
         },
         {
           "pool": 5,
-          "alpha": 100,
-          "sigma_ms": 0.13507035203922438,
-          "volley_window_ms": [
-            12.200000000000001,
-            20.200000000000003
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         },
         {
           "pool": 6,
-          "alpha": 100,
-          "sigma_ms": 0.1414213562373095,
-          "volley_window_ms": [
-            13.700000000000001,
-            21.700000000000003
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         }
       ],
-      "survives": true
+      "survives": false
     },
     {
       "id": "a55_s2",
@@ -3427,65 +2722,56 @@
       "input": {
         "alpha": 55,
         "requested_sigma_ms": 2.0,
-        "realised_sigma_ms": 1.5944469752941908
+        "realised_sigma_ms": 1.5944469752941912
       },
       "layers": [
         {
           "pool": 1,
-          "alpha": 99,
-          "sigma_ms": 0.8400713210839323,
+          "alpha": 42,
+          "sigma_ms": 0.6590551885059389,
           "volley_window_ms": [
-            9.1,
-            17.1
+            70.3,
+            73.3
           ]
         },
         {
           "pool": 2,
-          "alpha": 100,
-          "sigma_ms": 0.20135540717845155,
+          "alpha": 44,
+          "sigma_ms": 0.7426881874660811,
           "volley_window_ms": [
-            7.7,
-            15.700000000000001
+            73.5,
+            76.5
           ]
         },
         {
           "pool": 3,
-          "alpha": 100,
-          "sigma_ms": 0.12328828005937965,
+          "alpha": 30,
+          "sigma_ms": 0.6031859856904281,
           "volley_window_ms": [
-            9.1,
-            17.1
+            76.7,
+            79.7
           ]
         },
         {
           "pool": 4,
-          "alpha": 100,
-          "sigma_ms": 0.14225329521666638,
-          "volley_window_ms": [
-            10.600000000000001,
-            18.6
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         },
         {
           "pool": 5,
-          "alpha": 100,
-          "sigma_ms": 0.13705473359209452,
-          "volley_window_ms": [
-            12.200000000000001,
-            20.200000000000003
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         },
         {
           "pool": 6,
-          "alpha": 100,
-          "sigma_ms": 0.1393700111214747,
-          "volley_window_ms": [
-            13.700000000000001,
-            21.700000000000003
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         }
       ],
-      "survives": true
+      "survives": false
     },
     {
       "id": "a55_s3",
@@ -3493,65 +2779,53 @@
       "input": {
         "alpha": 55,
         "requested_sigma_ms": 3.0,
-        "realised_sigma_ms": 2.2632310699601703
+        "realised_sigma_ms": 2.2632310699601716
       },
       "layers": [
         {
           "pool": 1,
-          "alpha": 99,
-          "sigma_ms": 0.8598908679982887,
+          "alpha": 32,
+          "sigma_ms": 0.7761835720369248,
           "volley_window_ms": [
-            7.800000000000001,
-            15.8
+            68.8,
+            71.8
           ]
         },
         {
           "pool": 2,
-          "alpha": 100,
-          "sigma_ms": 0.2290502128355265,
+          "alpha": 33,
+          "sigma_ms": 0.8016168234764294,
           "volley_window_ms": [
-            7.9,
-            15.9
+            73.7,
+            76.7
           ]
         },
         {
           "pool": 3,
-          "alpha": 100,
-          "sigma_ms": 0.13210223313782407,
-          "volley_window_ms": [
-            9.3,
-            17.3
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         },
         {
           "pool": 4,
-          "alpha": 100,
-          "sigma_ms": 0.14018202452525796,
-          "volley_window_ms": [
-            10.8,
-            18.8
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         },
         {
           "pool": 5,
-          "alpha": 100,
-          "sigma_ms": 0.13892443989449813,
-          "volley_window_ms": [
-            12.3,
-            20.3
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         },
         {
           "pool": 6,
-          "alpha": 100,
-          "sigma_ms": 0.14508962747212492,
-          "volley_window_ms": [
-            13.9,
-            21.900000000000002
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         }
       ],
-      "survives": true
+      "survives": false
     },
     {
       "id": "a55_s4",
@@ -3559,65 +2833,47 @@
       "input": {
         "alpha": 55,
         "requested_sigma_ms": 4.0,
-        "realised_sigma_ms": 3.8406068735324626
+        "realised_sigma_ms": 3.840606873532462
       },
       "layers": [
         {
           "pool": 1,
-          "alpha": 93,
-          "sigma_ms": 1.521840838431795,
-          "volley_window_ms": [
-            11.600000000000001,
-            19.6
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         },
         {
           "pool": 2,
-          "alpha": 100,
-          "sigma_ms": 0.31777193079313976,
-          "volley_window_ms": [
-            9.0,
-            17.0
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         },
         {
           "pool": 3,
-          "alpha": 100,
-          "sigma_ms": 0.13420506696842713,
-          "volley_window_ms": [
-            10.200000000000001,
-            18.2
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         },
         {
           "pool": 4,
-          "alpha": 100,
-          "sigma_ms": 0.14142135623730956,
-          "volley_window_ms": [
-            11.700000000000001,
-            19.700000000000003
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         },
         {
           "pool": 5,
-          "alpha": 100,
-          "sigma_ms": 0.1308854460969592,
-          "volley_window_ms": [
-            13.200000000000001,
-            21.200000000000003
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         },
         {
           "pool": 6,
-          "alpha": 100,
-          "sigma_ms": 0.14275503493747602,
-          "volley_window_ms": [
-            14.700000000000001,
-            22.700000000000003
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         }
       ],
-      "survives": true
+      "survives": false
     },
     {
       "id": "a55_s5",
@@ -3625,65 +2881,47 @@
       "input": {
         "alpha": 55,
         "requested_sigma_ms": 5.0,
-        "realised_sigma_ms": 4.701420217988996
+        "realised_sigma_ms": 4.886151792448018
       },
       "layers": [
         {
           "pool": 1,
-          "alpha": 88,
-          "sigma_ms": 1.5100267498041111,
-          "volley_window_ms": [
-            10.8,
-            18.8
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         },
         {
           "pool": 2,
-          "alpha": 100,
-          "sigma_ms": 0.354011299254699,
-          "volley_window_ms": [
-            9.8,
-            17.8
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         },
         {
           "pool": 3,
-          "alpha": 100,
-          "sigma_ms": 0.1410531814600437,
-          "volley_window_ms": [
-            10.700000000000001,
-            18.7
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         },
         {
           "pool": 4,
-          "alpha": 100,
-          "sigma_ms": 0.1432340741583511,
-          "volley_window_ms": [
-            12.100000000000001,
-            20.1
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         },
         {
           "pool": 5,
-          "alpha": 100,
-          "sigma_ms": 0.1389244398944981,
-          "volley_window_ms": [
-            13.600000000000001,
-            21.6
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         },
         {
           "pool": 6,
-          "alpha": 100,
-          "sigma_ms": 0.14924811556599293,
-          "volley_window_ms": [
-            15.200000000000001,
-            23.200000000000003
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         }
       ],
-      "survives": true
+      "survives": false
     },
     {
       "id": "a60_s0.2",
@@ -3691,61 +2929,61 @@
       "input": {
         "alpha": 60,
         "requested_sigma_ms": 0.2,
-        "realised_sigma_ms": 0.18119204054139784
+        "realised_sigma_ms": 0.18119204054139787
       },
       "layers": [
         {
           "pool": 1,
-          "alpha": 100,
-          "sigma_ms": 0.4875448697299562,
+          "alpha": 72,
+          "sigma_ms": 0.5730424945999066,
           "volley_window_ms": [
-            7.0,
-            15.0
+            70.2,
+            73.2
           ]
         },
         {
           "pool": 2,
-          "alpha": 100,
-          "sigma_ms": 0.1577466322936879,
+          "alpha": 82,
+          "sigma_ms": 0.6915698717894848,
           "volley_window_ms": [
-            7.0,
-            15.0
+            72.60000000000001,
+            75.60000000000001
           ]
         },
         {
           "pool": 3,
-          "alpha": 100,
-          "sigma_ms": 0.12397983707038832,
+          "alpha": 88,
+          "sigma_ms": 0.610013505811738,
           "volley_window_ms": [
-            8.4,
-            16.400000000000002
+            75.10000000000001,
+            78.10000000000001
           ]
         },
         {
           "pool": 4,
-          "alpha": 100,
-          "sigma_ms": 0.14242190842703945,
+          "alpha": 91,
+          "sigma_ms": 0.5286456734313415,
           "volley_window_ms": [
-            10.0,
-            18.0
+            77.0,
+            80.0
           ]
         },
         {
           "pool": 5,
-          "alpha": 100,
-          "sigma_ms": 0.13564659966250533,
+          "alpha": 96,
+          "sigma_ms": 0.49216848508242916,
           "volley_window_ms": [
-            11.5,
-            19.5
+            79.10000000000001,
+            82.10000000000001
           ]
         },
         {
           "pool": 6,
-          "alpha": 100,
-          "sigma_ms": 0.13477388471065158,
+          "alpha": 98,
+          "sigma_ms": 0.3929631449887512,
           "volley_window_ms": [
-            13.0,
-            21.0
+            81.30000000000001,
+            84.30000000000001
           ]
         }
       ],
@@ -3762,56 +3000,56 @@
       "layers": [
         {
           "pool": 1,
-          "alpha": 99,
-          "sigma_ms": 0.628670834102601,
+          "alpha": 70,
+          "sigma_ms": 0.6613159422773688,
           "volley_window_ms": [
-            9.3,
-            17.3
+            70.3,
+            73.3
           ]
         },
         {
           "pool": 2,
-          "alpha": 100,
-          "sigma_ms": 0.16594878728089582,
+          "alpha": 67,
+          "sigma_ms": 0.6379894349019883,
           "volley_window_ms": [
-            7.0,
-            15.0
+            72.4,
+            75.4
           ]
         },
         {
           "pool": 3,
-          "alpha": 100,
-          "sigma_ms": 0.12255202976695255,
+          "alpha": 75,
+          "sigma_ms": 0.5690912834413201,
           "volley_window_ms": [
-            8.5,
-            16.5
+            75.3,
+            78.30000000000001
           ]
         },
         {
           "pool": 4,
-          "alpha": 100,
-          "sigma_ms": 0.14303496076134686,
+          "alpha": 81,
+          "sigma_ms": 0.5551466259049225,
           "volley_window_ms": [
-            10.0,
-            18.0
+            77.30000000000001,
+            80.30000000000001
           ]
         },
         {
           "pool": 5,
-          "alpha": 100,
-          "sigma_ms": 0.1352737964278375,
+          "alpha": 92,
+          "sigma_ms": 0.5720603742907285,
           "volley_window_ms": [
-            11.5,
-            19.5
+            79.60000000000001,
+            82.60000000000001
           ]
         },
         {
           "pool": 6,
-          "alpha": 100,
-          "sigma_ms": 0.13753544997563352,
+          "alpha": 97,
+          "sigma_ms": 0.4075778117781218,
           "volley_window_ms": [
-            13.100000000000001,
-            21.1
+            81.80000000000001,
+            84.80000000000001
           ]
         }
       ],
@@ -3823,61 +3061,61 @@
       "input": {
         "alpha": 60,
         "requested_sigma_ms": 1.0,
-        "realised_sigma_ms": 0.9546668994413123
+        "realised_sigma_ms": 0.9546668994413121
       },
       "layers": [
         {
           "pool": 1,
-          "alpha": 100,
-          "sigma_ms": 0.6923842863612664,
+          "alpha": 58,
+          "sigma_ms": 0.7150351512608625,
           "volley_window_ms": [
-            9.600000000000001,
-            17.6
+            70.9,
+            73.9
           ]
         },
         {
           "pool": 2,
-          "alpha": 100,
-          "sigma_ms": 0.17713271860387625,
+          "alpha": 65,
+          "sigma_ms": 0.7308809631181543,
           "volley_window_ms": [
-            7.4,
-            15.4
+            73.0,
+            76.0
           ]
         },
         {
           "pool": 3,
-          "alpha": 100,
-          "sigma_ms": 0.12081390648431173,
+          "alpha": 75,
+          "sigma_ms": 0.6395192638919401,
           "volley_window_ms": [
-            8.9,
-            16.900000000000002
+            75.7,
+            78.7
           ]
         },
         {
           "pool": 4,
-          "alpha": 100,
-          "sigma_ms": 0.14001428498549726,
+          "alpha": 81,
+          "sigma_ms": 0.5881028478164475,
           "volley_window_ms": [
-            10.4,
-            18.400000000000002
+            78.30000000000001,
+            81.30000000000001
           ]
         },
         {
           "pool": 5,
-          "alpha": 100,
-          "sigma_ms": 0.14183088521193127,
+          "alpha": 92,
+          "sigma_ms": 0.573781276046039,
           "volley_window_ms": [
-            11.9,
-            19.900000000000002
+            80.30000000000001,
+            83.30000000000001
           ]
         },
         {
           "pool": 6,
-          "alpha": 100,
-          "sigma_ms": 0.14365235814284422,
+          "alpha": 95,
+          "sigma_ms": 0.3674362778531109,
           "volley_window_ms": [
-            13.5,
-            21.5
+            82.60000000000001,
+            85.60000000000001
           ]
         }
       ],
@@ -3889,61 +3127,61 @@
       "input": {
         "alpha": 60,
         "requested_sigma_ms": 2.0,
-        "realised_sigma_ms": 1.806176901635053
+        "realised_sigma_ms": 1.806176901635054
       },
       "layers": [
         {
           "pool": 1,
-          "alpha": 100,
-          "sigma_ms": 0.8110511697790713,
+          "alpha": 45,
+          "sigma_ms": 0.8195451915469057,
           "volley_window_ms": [
-            7.9,
-            15.9
+            70.0,
+            73.0
           ]
         },
         {
           "pool": 2,
-          "alpha": 100,
-          "sigma_ms": 0.21353219897710976,
+          "alpha": 53,
+          "sigma_ms": 0.8138311315718741,
           "volley_window_ms": [
-            7.800000000000001,
-            15.8
+            73.4,
+            76.4
           ]
         },
         {
           "pool": 3,
-          "alpha": 100,
-          "sigma_ms": 0.12757350822173077,
+          "alpha": 58,
+          "sigma_ms": 0.6345108689425133,
           "volley_window_ms": [
-            9.200000000000001,
-            17.2
+            76.7,
+            79.7
           ]
         },
         {
           "pool": 4,
-          "alpha": 100,
-          "sigma_ms": 0.14607874588727823,
+          "alpha": 66,
+          "sigma_ms": 0.6789721746564873,
           "volley_window_ms": [
-            10.700000000000001,
-            18.7
+            79.0,
+            82.0
           ]
         },
         {
           "pool": 5,
-          "alpha": 100,
-          "sigma_ms": 0.1342050669684271,
+          "alpha": 83,
+          "sigma_ms": 0.5783408627947434,
           "volley_window_ms": [
-            12.200000000000001,
-            20.200000000000003
+            81.7,
+            84.7
           ]
         },
         {
           "pool": 6,
-          "alpha": 100,
-          "sigma_ms": 0.1414213562373095,
+          "alpha": 88,
+          "sigma_ms": 0.4305483722259861,
           "volley_window_ms": [
-            13.700000000000001,
-            21.700000000000003
+            83.9,
+            86.9
           ]
         }
       ],
@@ -3960,60 +3198,42 @@
       "layers": [
         {
           "pool": 1,
-          "alpha": 99,
-          "sigma_ms": 0.9583564562494356,
-          "volley_window_ms": [
-            9.5,
-            17.5
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         },
         {
           "pool": 2,
-          "alpha": 100,
-          "sigma_ms": 0.23952244153732233,
-          "volley_window_ms": [
-            8.6,
-            16.6
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         },
         {
           "pool": 3,
-          "alpha": 100,
-          "sigma_ms": 0.12845232578665136,
-          "volley_window_ms": [
-            9.8,
-            17.8
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         },
         {
           "pool": 4,
-          "alpha": 100,
-          "sigma_ms": 0.14235167719419398,
-          "volley_window_ms": [
-            11.3,
-            19.3
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         },
         {
           "pool": 5,
-          "alpha": 100,
-          "sigma_ms": 0.13294735800308335,
-          "volley_window_ms": [
-            12.8,
-            20.8
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         },
         {
           "pool": 6,
-          "alpha": 100,
-          "sigma_ms": 0.14134709052541547,
-          "volley_window_ms": [
-            14.3,
-            22.3
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         }
       ],
-      "survives": true
+      "survives": false
     },
     {
       "id": "a60_s4",
@@ -4021,65 +3241,47 @@
       "input": {
         "alpha": 60,
         "requested_sigma_ms": 4.0,
-        "realised_sigma_ms": 3.7891728062409022
+        "realised_sigma_ms": 3.7891728062409027
       },
       "layers": [
         {
           "pool": 1,
-          "alpha": 98,
-          "sigma_ms": 1.4130011541246825,
-          "volley_window_ms": [
-            9.9,
-            17.900000000000002
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         },
         {
           "pool": 2,
-          "alpha": 101,
-          "sigma_ms": 0.7160367015625047,
-          "volley_window_ms": [
-            14.200000000000001,
-            22.200000000000003
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         },
         {
           "pool": 3,
-          "alpha": 100,
-          "sigma_ms": 0.13702554506368522,
-          "volley_window_ms": [
-            9.600000000000001,
-            17.6
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         },
         {
           "pool": 4,
-          "alpha": 100,
-          "sigma_ms": 0.14309088021254196,
-          "volley_window_ms": [
-            11.100000000000001,
-            19.1
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         },
         {
           "pool": 5,
-          "alpha": 100,
-          "sigma_ms": 0.1334578585172114,
-          "volley_window_ms": [
-            12.600000000000001,
-            20.6
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         },
         {
           "pool": 6,
-          "alpha": 100,
-          "sigma_ms": 0.14451297519600095,
-          "volley_window_ms": [
-            14.200000000000001,
-            22.200000000000003
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         }
       ],
-      "survives": true
+      "survives": false
     },
     {
       "id": "a60_s5",
@@ -4087,65 +3289,47 @@
       "input": {
         "alpha": 60,
         "requested_sigma_ms": 5.0,
-        "realised_sigma_ms": 4.872045828556578
+        "realised_sigma_ms": 5.39817253027973
       },
       "layers": [
         {
           "pool": 1,
-          "alpha": 99,
-          "sigma_ms": 1.6418041494702815,
-          "volley_window_ms": [
-            12.100000000000001,
-            20.1
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         },
         {
           "pool": 2,
-          "alpha": 101,
-          "sigma_ms": 0.6423919251908731,
-          "volley_window_ms": [
-            13.9,
-            21.900000000000002
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         },
         {
           "pool": 3,
-          "alpha": 100,
-          "sigma_ms": 0.14833745312630933,
-          "volley_window_ms": [
-            10.600000000000001,
-            18.6
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         },
         {
           "pool": 4,
-          "alpha": 100,
-          "sigma_ms": 0.13642213896578523,
-          "volley_window_ms": [
-            12.100000000000001,
-            20.1
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         },
         {
           "pool": 5,
-          "alpha": 100,
-          "sigma_ms": 0.13539202339872172,
-          "volley_window_ms": [
-            13.600000000000001,
-            21.6
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         },
         {
           "pool": 6,
-          "alpha": 100,
-          "sigma_ms": 0.1467344540317644,
-          "volley_window_ms": [
-            15.200000000000001,
-            23.200000000000003
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         }
       ],
-      "survives": true
+      "survives": false
     },
     {
       "id": "a70_s0.2",
@@ -4153,61 +3337,61 @@
       "input": {
         "alpha": 70,
         "requested_sigma_ms": 0.2,
-        "realised_sigma_ms": 0.18813803009319244
+        "realised_sigma_ms": 0.1881380300931923
       },
       "layers": [
         {
           "pool": 1,
-          "alpha": 100,
-          "sigma_ms": 0.35791619130740654,
+          "alpha": 85,
+          "sigma_ms": 0.6254421273557453,
           "volley_window_ms": [
-            7.0,
-            15.0
+            70.10000000000001,
+            73.10000000000001
           ]
         },
         {
           "pool": 2,
-          "alpha": 100,
-          "sigma_ms": 0.1583508762211312,
+          "alpha": 94,
+          "sigma_ms": 0.618388983051476,
           "volley_window_ms": [
-            7.0,
-            15.0
+            72.60000000000001,
+            75.60000000000001
           ]
         },
         {
           "pool": 3,
-          "alpha": 100,
-          "sigma_ms": 0.12782409788455387,
+          "alpha": 97,
+          "sigma_ms": 0.5777060562123434,
           "volley_window_ms": [
-            8.1,
-            16.1
+            74.7,
+            77.7
           ]
         },
         {
           "pool": 4,
-          "alpha": 100,
-          "sigma_ms": 0.14019985734657514,
+          "alpha": 96,
+          "sigma_ms": 0.5247757044019432,
           "volley_window_ms": [
-            9.600000000000001,
-            17.6
+            76.7,
+            79.7
           ]
         },
         {
           "pool": 5,
-          "alpha": 100,
-          "sigma_ms": 0.1381122731693314,
+          "alpha": 97,
+          "sigma_ms": 0.45853231782684295,
           "volley_window_ms": [
-            11.100000000000001,
-            19.1
+            78.60000000000001,
+            81.60000000000001
           ]
         },
         {
           "pool": 6,
-          "alpha": 100,
-          "sigma_ms": 0.13542156401400773,
+          "alpha": 98,
+          "sigma_ms": 0.4104273937791533,
           "volley_window_ms": [
-            12.700000000000001,
-            20.700000000000003
+            80.7,
+            83.7
           ]
         }
       ],
@@ -4219,61 +3403,61 @@
       "input": {
         "alpha": 70,
         "requested_sigma_ms": 0.5,
-        "realised_sigma_ms": 0.4521174671273305
+        "realised_sigma_ms": 0.45211746712733
       },
       "layers": [
         {
           "pool": 1,
-          "alpha": 100,
-          "sigma_ms": 0.3336165463522455,
+          "alpha": 80,
+          "sigma_ms": 0.5843465902185107,
           "volley_window_ms": [
-            7.0,
-            15.0
+            70.10000000000001,
+            73.10000000000001
           ]
         },
         {
           "pool": 2,
-          "alpha": 100,
-          "sigma_ms": 0.14641038214552962,
+          "alpha": 91,
+          "sigma_ms": 0.609510821571965,
           "volley_window_ms": [
-            7.0,
-            15.0
+            72.5,
+            75.5
           ]
         },
         {
           "pool": 3,
-          "alpha": 100,
-          "sigma_ms": 0.12253978945632325,
+          "alpha": 97,
+          "sigma_ms": 0.5914651408663301,
           "volley_window_ms": [
-            8.1,
-            16.1
+            74.7,
+            77.7
           ]
         },
         {
           "pool": 4,
-          "alpha": 100,
-          "sigma_ms": 0.1435931753252919,
+          "alpha": 95,
+          "sigma_ms": 0.5119145531192593,
           "volley_window_ms": [
-            9.700000000000001,
-            17.7
+            76.7,
+            79.7
           ]
         },
         {
           "pool": 5,
-          "alpha": 100,
-          "sigma_ms": 0.12742056348957187,
+          "alpha": 97,
+          "sigma_ms": 0.46214092810769936,
           "volley_window_ms": [
-            11.200000000000001,
-            19.200000000000003
+            78.7,
+            81.7
           ]
         },
         {
           "pool": 6,
-          "alpha": 100,
-          "sigma_ms": 0.13826062346163495,
+          "alpha": 98,
+          "sigma_ms": 0.406917742481437,
           "volley_window_ms": [
-            12.700000000000001,
-            20.700000000000003
+            80.80000000000001,
+            83.80000000000001
           ]
         }
       ],
@@ -4290,56 +3474,56 @@
       "layers": [
         {
           "pool": 1,
-          "alpha": 100,
-          "sigma_ms": 0.4334178122781757,
+          "alpha": 74,
+          "sigma_ms": 0.7594366159880845,
           "volley_window_ms": [
-            7.0,
-            15.0
+            70.3,
+            73.3
           ]
         },
         {
           "pool": 2,
-          "alpha": 100,
-          "sigma_ms": 0.1535284989830878,
+          "alpha": 87,
+          "sigma_ms": 0.6869044760964068,
           "volley_window_ms": [
-            7.0,
-            15.0
+            72.5,
+            75.5
           ]
         },
         {
           "pool": 3,
-          "alpha": 100,
-          "sigma_ms": 0.13303758867327686,
+          "alpha": 93,
+          "sigma_ms": 0.5908795382674943,
           "volley_window_ms": [
-            8.4,
-            16.400000000000002
+            75.0,
+            78.0
           ]
         },
         {
           "pool": 4,
-          "alpha": 100,
-          "sigma_ms": 0.14395832730342492,
+          "alpha": 93,
+          "sigma_ms": 0.5068954519332936,
           "volley_window_ms": [
-            9.9,
-            17.900000000000002
+            77.0,
+            80.0
           ]
         },
         {
           "pool": 5,
-          "alpha": 100,
-          "sigma_ms": 0.13671503209230515,
+          "alpha": 97,
+          "sigma_ms": 0.4727813021201162,
           "volley_window_ms": [
-            11.4,
-            19.400000000000002
+            79.0,
+            82.0
           ]
         },
         {
           "pool": 6,
-          "alpha": 100,
-          "sigma_ms": 0.14247806848775002,
+          "alpha": 98,
+          "sigma_ms": 0.3929260474955813,
           "volley_window_ms": [
-            13.0,
-            21.0
+            81.10000000000001,
+            84.10000000000001
           ]
         }
       ],
@@ -4351,61 +3535,61 @@
       "input": {
         "alpha": 70,
         "requested_sigma_ms": 2.0,
-        "realised_sigma_ms": 1.9165956212801398
+        "realised_sigma_ms": 1.9165956212801407
       },
       "layers": [
         {
           "pool": 1,
-          "alpha": 100,
-          "sigma_ms": 0.6483486716266178,
+          "alpha": 52,
+          "sigma_ms": 0.7750644180137584,
           "volley_window_ms": [
-            7.0,
-            15.0
+            69.60000000000001,
+            72.60000000000001
           ]
         },
         {
           "pool": 2,
-          "alpha": 100,
-          "sigma_ms": 0.18080652643087858,
+          "alpha": 56,
+          "sigma_ms": 0.7071045263781656,
           "volley_window_ms": [
-            7.0,
-            15.0
+            72.2,
+            75.2
           ]
         },
         {
           "pool": 3,
-          "alpha": 100,
-          "sigma_ms": 0.12961481396815727,
+          "alpha": 74,
+          "sigma_ms": 0.6564132679786252,
           "volley_window_ms": [
-            8.5,
-            16.5
+            75.5,
+            78.5
           ]
         },
         {
           "pool": 4,
-          "alpha": 100,
-          "sigma_ms": 0.13854963009694407,
+          "alpha": 83,
+          "sigma_ms": 0.6112151621581594,
           "volley_window_ms": [
-            10.0,
-            18.0
+            77.60000000000001,
+            80.60000000000001
           ]
         },
         {
           "pool": 5,
-          "alpha": 100,
-          "sigma_ms": 0.14079772725438439,
+          "alpha": 92,
+          "sigma_ms": 0.5761269469302804,
           "volley_window_ms": [
-            11.5,
-            19.5
+            79.7,
+            82.7
           ]
         },
         {
           "pool": 6,
-          "alpha": 100,
-          "sigma_ms": 0.14491376746189433,
+          "alpha": 97,
+          "sigma_ms": 0.40026295958508906,
           "volley_window_ms": [
-            13.100000000000001,
-            21.1
+            81.9,
+            84.9
           ]
         }
       ],
@@ -4422,60 +3606,48 @@
       "layers": [
         {
           "pool": 1,
-          "alpha": 100,
-          "sigma_ms": 0.9000283328873597,
+          "alpha": 26,
+          "sigma_ms": 0.6663954083250322,
           "volley_window_ms": [
-            8.4,
-            16.400000000000002
+            67.7,
+            70.7
           ]
         },
         {
           "pool": 2,
-          "alpha": 100,
-          "sigma_ms": 0.21840100732368428,
+          "alpha": 28,
+          "sigma_ms": 0.7495236582561716,
           "volley_window_ms": [
-            7.6000000000000005,
-            15.600000000000001
+            73.60000000000001,
+            76.60000000000001
           ]
         },
         {
           "pool": 3,
-          "alpha": 100,
-          "sigma_ms": 0.12732242536175642,
-          "volley_window_ms": [
-            9.0,
-            17.0
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         },
         {
           "pool": 4,
-          "alpha": 100,
-          "sigma_ms": 0.14097872179871698,
-          "volley_window_ms": [
-            10.5,
-            18.5
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         },
         {
           "pool": 5,
-          "alpha": 100,
-          "sigma_ms": 0.14143549766589722,
-          "volley_window_ms": [
-            12.0,
-            20.0
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         },
         {
           "pool": 6,
-          "alpha": 100,
-          "sigma_ms": 0.14491376746189433,
-          "volley_window_ms": [
-            13.600000000000001,
-            21.6
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         }
       ],
-      "survives": true
+      "survives": false
     },
     {
       "id": "a70_s4",
@@ -4488,60 +3660,45 @@
       "layers": [
         {
           "pool": 1,
-          "alpha": 100,
-          "sigma_ms": 1.047459307085483,
+          "alpha": 33,
+          "sigma_ms": 0.6676301577581778,
           "volley_window_ms": [
-            7.7,
-            15.700000000000001
+            69.3,
+            72.3
           ]
         },
         {
           "pool": 2,
-          "alpha": 100,
-          "sigma_ms": 0.2522914980731613,
-          "volley_window_ms": [
-            7.5,
-            15.5
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         },
         {
           "pool": 3,
-          "alpha": 100,
-          "sigma_ms": 0.12965724044572297,
-          "volley_window_ms": [
-            8.9,
-            16.900000000000002
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         },
         {
           "pool": 4,
-          "alpha": 100,
-          "sigma_ms": 0.14600000000000005,
-          "volley_window_ms": [
-            10.4,
-            18.400000000000002
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         },
         {
           "pool": 5,
-          "alpha": 100,
-          "sigma_ms": 0.1367150320923051,
-          "volley_window_ms": [
-            11.9,
-            19.900000000000002
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         },
         {
           "pool": 6,
-          "alpha": 100,
-          "sigma_ms": 0.13763720427268203,
-          "volley_window_ms": [
-            13.4,
-            21.400000000000002
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         }
       ],
-      "survives": true
+      "survives": false
     },
     {
       "id": "a70_s5",
@@ -4554,60 +3711,42 @@
       "layers": [
         {
           "pool": 1,
-          "alpha": 96,
-          "sigma_ms": 1.5906434183609475,
-          "volley_window_ms": [
-            10.3,
-            18.3
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         },
         {
           "pool": 2,
-          "alpha": 100,
-          "sigma_ms": 0.3365991681510814,
-          "volley_window_ms": [
-            8.4,
-            16.400000000000002
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         },
         {
           "pool": 3,
-          "alpha": 100,
-          "sigma_ms": 0.1396424004376895,
-          "volley_window_ms": [
-            9.4,
-            17.400000000000002
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         },
         {
           "pool": 4,
-          "alpha": 100,
-          "sigma_ms": 0.14401041628993372,
-          "volley_window_ms": [
-            10.9,
-            18.900000000000002
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         },
         {
           "pool": 5,
-          "alpha": 100,
-          "sigma_ms": 0.13527749258468685,
-          "volley_window_ms": [
-            12.4,
-            20.400000000000002
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         },
         {
           "pool": 6,
-          "alpha": 100,
-          "sigma_ms": 0.13961017154921054,
-          "volley_window_ms": [
-            13.9,
-            21.900000000000002
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         }
       ],
-      "survives": true
+      "survives": false
     },
     {
       "id": "a80_s0.2",
@@ -4615,61 +3754,61 @@
       "input": {
         "alpha": 80,
         "requested_sigma_ms": 0.2,
-        "realised_sigma_ms": 0.16582652833608993
+        "realised_sigma_ms": 0.16582652833608977
       },
       "layers": [
         {
           "pool": 1,
-          "alpha": 100,
-          "sigma_ms": 0.21700460824600015,
+          "alpha": 90,
+          "sigma_ms": 0.4926120853842978,
           "volley_window_ms": [
-            7.0,
-            15.0
+            70.2,
+            73.2
           ]
         },
         {
           "pool": 2,
-          "alpha": 100,
-          "sigma_ms": 0.13999999999999999,
+          "alpha": 96,
+          "sigma_ms": 0.5299524595423631,
           "volley_window_ms": [
-            7.0,
-            15.0
+            72.10000000000001,
+            75.10000000000001
           ]
         },
         {
           "pool": 3,
-          "alpha": 100,
-          "sigma_ms": 0.12798046725965648,
+          "alpha": 98,
+          "sigma_ms": 0.5677734778933266,
           "volley_window_ms": [
-            7.9,
-            15.9
+            74.4,
+            77.4
           ]
         },
         {
           "pool": 4,
-          "alpha": 100,
-          "sigma_ms": 0.14168980203246817,
+          "alpha": 96,
+          "sigma_ms": 0.5138194397516181,
           "volley_window_ms": [
-            9.4,
-            17.400000000000002
+            76.4,
+            79.4
           ]
         },
         {
           "pool": 5,
-          "alpha": 100,
-          "sigma_ms": 0.1358639024906911,
+          "alpha": 98,
+          "sigma_ms": 0.4781665751973731,
           "volley_window_ms": [
-            10.9,
-            18.900000000000002
+            78.2,
+            81.2
           ]
         },
         {
           "pool": 6,
-          "alpha": 100,
-          "sigma_ms": 0.14205280708243676,
+          "alpha": 99,
+          "sigma_ms": 0.44646921703405734,
           "volley_window_ms": [
-            12.5,
-            20.5
+            80.5,
+            83.5
           ]
         }
       ],
@@ -4686,56 +3825,56 @@
       "layers": [
         {
           "pool": 1,
-          "alpha": 100,
-          "sigma_ms": 0.27271046917931113,
+          "alpha": 90,
+          "sigma_ms": 0.6577026984178892,
           "volley_window_ms": [
-            7.0,
-            15.0
+            70.3,
+            73.3
           ]
         },
         {
           "pool": 2,
-          "alpha": 100,
-          "sigma_ms": 0.14035668847618205,
+          "alpha": 95,
+          "sigma_ms": 0.5445066892390201,
           "volley_window_ms": [
-            7.0,
-            15.0
+            72.5,
+            75.5
           ]
         },
         {
           "pool": 3,
-          "alpha": 100,
-          "sigma_ms": 0.12891470048058912,
+          "alpha": 98,
+          "sigma_ms": 0.5483276988317501,
           "volley_window_ms": [
-            8.1,
-            16.1
+            74.60000000000001,
+            77.60000000000001
           ]
         },
         {
           "pool": 4,
-          "alpha": 100,
-          "sigma_ms": 0.1423341139713176,
+          "alpha": 96,
+          "sigma_ms": 0.5046560555219763,
           "volley_window_ms": [
-            9.600000000000001,
-            17.6
+            76.5,
+            79.5
           ]
         },
         {
           "pool": 5,
-          "alpha": 100,
-          "sigma_ms": 0.13932336487466856,
+          "alpha": 97,
+          "sigma_ms": 0.4581172336025669,
           "volley_window_ms": [
-            11.100000000000001,
-            19.1
+            78.4,
+            81.4
           ]
         },
         {
           "pool": 6,
-          "alpha": 100,
-          "sigma_ms": 0.14455448799674117,
+          "alpha": 98,
+          "sigma_ms": 0.40922947476374455,
           "volley_window_ms": [
-            12.700000000000001,
-            20.700000000000003
+            80.7,
+            83.7
           ]
         }
       ],
@@ -4747,61 +3886,61 @@
       "input": {
         "alpha": 80,
         "requested_sigma_ms": 1.0,
-        "realised_sigma_ms": 0.8818579463269582
+        "realised_sigma_ms": 0.881857946326958
       },
       "layers": [
         {
           "pool": 1,
-          "alpha": 100,
-          "sigma_ms": 0.293385412043612,
+          "alpha": 81,
+          "sigma_ms": 0.6921886544604848,
           "volley_window_ms": [
-            7.0,
-            15.0
+            70.0,
+            73.0
           ]
         },
         {
           "pool": 2,
-          "alpha": 100,
-          "sigma_ms": 0.14632498077908643,
+          "alpha": 94,
+          "sigma_ms": 0.6286793014736555,
           "volley_window_ms": [
-            7.0,
-            15.0
+            72.5,
+            75.5
           ]
         },
         {
           "pool": 3,
-          "alpha": 100,
-          "sigma_ms": 0.12268251709188242,
+          "alpha": 97,
+          "sigma_ms": 0.5753759624281143,
           "volley_window_ms": [
-            8.1,
-            16.1
+            74.7,
+            77.7
           ]
         },
         {
           "pool": 4,
-          "alpha": 100,
-          "sigma_ms": 0.1456021977856104,
+          "alpha": 95,
+          "sigma_ms": 0.5056402101896811,
           "volley_window_ms": [
-            9.700000000000001,
-            17.7
+            76.60000000000001,
+            79.60000000000001
           ]
         },
         {
           "pool": 5,
-          "alpha": 100,
-          "sigma_ms": 0.13425349157470728,
+          "alpha": 97,
+          "sigma_ms": 0.46558463345422435,
           "volley_window_ms": [
-            11.200000000000001,
-            19.200000000000003
+            78.5,
+            81.5
           ]
         },
         {
           "pool": 6,
-          "alpha": 100,
-          "sigma_ms": 0.13856406460551016,
+          "alpha": 98,
+          "sigma_ms": 0.40602116468532545,
           "volley_window_ms": [
-            12.700000000000001,
-            20.700000000000003
+            80.80000000000001,
+            83.80000000000001
           ]
         }
       ],
@@ -4818,56 +3957,56 @@
       "layers": [
         {
           "pool": 1,
-          "alpha": 100,
-          "sigma_ms": 0.4707440918375929,
+          "alpha": 63,
+          "sigma_ms": 0.7716473659285175,
           "volley_window_ms": [
-            7.0,
-            15.0
+            70.3,
+            73.3
           ]
         },
         {
           "pool": 2,
-          "alpha": 100,
-          "sigma_ms": 0.16103105290595346,
+          "alpha": 83,
+          "sigma_ms": 0.7435423838139948,
           "volley_window_ms": [
-            7.0,
-            15.0
+            72.8,
+            75.8
           ]
         },
         {
           "pool": 3,
-          "alpha": 100,
-          "sigma_ms": 0.1289147004805892,
+          "alpha": 95,
+          "sigma_ms": 0.6493090297127263,
           "volley_window_ms": [
-            8.4,
-            16.400000000000002
+            75.2,
+            78.2
           ]
         },
         {
           "pool": 4,
-          "alpha": 100,
-          "sigma_ms": 0.13785499628232567,
+          "alpha": 96,
+          "sigma_ms": 0.566911711723165,
           "volley_window_ms": [
-            9.9,
-            17.900000000000002
+            77.2,
+            80.2
           ]
         },
         {
           "pool": 5,
-          "alpha": 100,
-          "sigma_ms": 0.13848826665100555,
+          "alpha": 97,
+          "sigma_ms": 0.47968619068584917,
           "volley_window_ms": [
-            11.4,
-            19.400000000000002
+            79.10000000000001,
+            82.10000000000001
           ]
         },
         {
           "pool": 6,
-          "alpha": 100,
-          "sigma_ms": 0.1404955515310004,
+          "alpha": 98,
+          "sigma_ms": 0.39210237594216624,
           "volley_window_ms": [
-            13.0,
-            21.0
+            81.2,
+            84.2
           ]
         }
       ],
@@ -4879,61 +4018,61 @@
       "input": {
         "alpha": 80,
         "requested_sigma_ms": 3.0,
-        "realised_sigma_ms": 2.760121996850864
+        "realised_sigma_ms": 2.7601219968508635
       },
       "layers": [
         {
           "pool": 1,
-          "alpha": 100,
-          "sigma_ms": 0.6209178689649703,
+          "alpha": 48,
+          "sigma_ms": 0.7756717518813397,
           "volley_window_ms": [
-            7.0,
-            15.0
+            70.10000000000001,
+            73.10000000000001
           ]
         },
         {
           "pool": 2,
-          "alpha": 100,
-          "sigma_ms": 0.18001111076819673,
+          "alpha": 54,
+          "sigma_ms": 0.7920320794101808,
           "volley_window_ms": [
-            7.4,
-            15.4
+            72.8,
+            75.8
           ]
         },
         {
           "pool": 3,
-          "alpha": 100,
-          "sigma_ms": 0.12916655913974023,
+          "alpha": 73,
+          "sigma_ms": 0.6773913735772031,
           "volley_window_ms": [
-            8.9,
-            16.900000000000002
+            75.8,
+            78.80000000000001
           ]
         },
         {
           "pool": 4,
-          "alpha": 100,
-          "sigma_ms": 0.14824304368165142,
+          "alpha": 79,
+          "sigma_ms": 0.6046208858768605,
           "volley_window_ms": [
-            10.4,
-            18.400000000000002
+            78.30000000000001,
+            81.30000000000001
           ]
         },
         {
           "pool": 5,
-          "alpha": 100,
-          "sigma_ms": 0.13465140177510224,
+          "alpha": 91,
+          "sigma_ms": 0.5892057247383846,
           "volley_window_ms": [
-            11.9,
-            19.900000000000002
+            80.30000000000001,
+            83.30000000000001
           ]
         },
         {
           "pool": 6,
-          "alpha": 100,
-          "sigma_ms": 0.13760813929415658,
+          "alpha": 95,
+          "sigma_ms": 0.3741124306987461,
           "volley_window_ms": [
-            13.4,
-            21.400000000000002
+            82.60000000000001,
+            85.60000000000001
           ]
         }
       ],
@@ -4945,65 +4084,56 @@
       "input": {
         "alpha": 80,
         "requested_sigma_ms": 4.0,
-        "realised_sigma_ms": 3.653791694938287
+        "realised_sigma_ms": 3.653791694938288
       },
       "layers": [
         {
           "pool": 1,
-          "alpha": 100,
-          "sigma_ms": 0.8182047421030999,
+          "alpha": 45,
+          "sigma_ms": 0.8357564770247903,
           "volley_window_ms": [
-            7.6000000000000005,
-            15.600000000000001
+            68.8,
+            71.8
           ]
         },
         {
           "pool": 2,
-          "alpha": 100,
-          "sigma_ms": 0.18444240293381572,
+          "alpha": 38,
+          "sigma_ms": 0.8598299129620792,
           "volley_window_ms": [
-            7.1000000000000005,
-            15.100000000000001
+            72.5,
+            75.5
           ]
         },
         {
           "pool": 3,
-          "alpha": 100,
-          "sigma_ms": 0.1302919797992187,
+          "alpha": 38,
+          "sigma_ms": 0.6212811800699755,
           "volley_window_ms": [
-            8.700000000000001,
-            16.7
+            76.4,
+            79.4
           ]
         },
         {
           "pool": 4,
-          "alpha": 100,
-          "sigma_ms": 0.1416862731530476,
-          "volley_window_ms": [
-            10.200000000000001,
-            18.2
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         },
         {
           "pool": 5,
-          "alpha": 100,
-          "sigma_ms": 0.13941305534274762,
-          "volley_window_ms": [
-            11.700000000000001,
-            19.700000000000003
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         },
         {
           "pool": 6,
-          "alpha": 100,
-          "sigma_ms": 0.14021055595068432,
-          "volley_window_ms": [
-            13.3,
-            21.3
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         }
       ],
-      "survives": true
+      "survives": false
     },
     {
       "id": "a80_s5",
@@ -5011,65 +4141,50 @@
       "input": {
         "alpha": 80,
         "requested_sigma_ms": 5.0,
-        "realised_sigma_ms": 4.7303481637190306
+        "realised_sigma_ms": 4.73034816371903
       },
       "layers": [
         {
           "pool": 1,
-          "alpha": 100,
-          "sigma_ms": 0.9955119286075884,
+          "alpha": 31,
+          "sigma_ms": 0.7524915257715269,
           "volley_window_ms": [
-            8.700000000000001,
-            16.7
+            69.5,
+            72.5
           ]
         },
         {
           "pool": 2,
-          "alpha": 100,
-          "sigma_ms": 0.2167579294974004,
-          "volley_window_ms": [
-            7.5,
-            15.5
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         },
         {
           "pool": 3,
-          "alpha": 100,
-          "sigma_ms": 0.12922847983320088,
-          "volley_window_ms": [
-            8.9,
-            16.900000000000002
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         },
         {
           "pool": 4,
-          "alpha": 100,
-          "sigma_ms": 0.14607874588727826,
-          "volley_window_ms": [
-            10.4,
-            18.400000000000002
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         },
         {
           "pool": 5,
-          "alpha": 100,
-          "sigma_ms": 0.13674794331177345,
-          "volley_window_ms": [
-            11.9,
-            19.900000000000002
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         },
         {
           "pool": 6,
-          "alpha": 100,
-          "sigma_ms": 0.13542156401400776,
-          "volley_window_ms": [
-            13.4,
-            21.400000000000002
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         }
       ],
-      "survives": true
+      "survives": false
     },
     {
       "id": "a90_s0.2",
@@ -5077,61 +4192,61 @@
       "input": {
         "alpha": 90,
         "requested_sigma_ms": 0.2,
-        "realised_sigma_ms": 0.2136716068071647
+        "realised_sigma_ms": 0.21367160680716513
       },
       "layers": [
         {
           "pool": 1,
-          "alpha": 100,
-          "sigma_ms": 0.19665960439297134,
+          "alpha": 95,
+          "sigma_ms": 0.48077038823640766,
           "volley_window_ms": [
-            7.0,
-            15.0
+            70.2,
+            73.2
           ]
         },
         {
           "pool": 2,
-          "alpha": 100,
-          "sigma_ms": 0.1371531990148243,
+          "alpha": 97,
+          "sigma_ms": 0.48283095456214103,
           "volley_window_ms": [
-            7.0,
-            15.0
+            72.0,
+            75.0
           ]
         },
         {
           "pool": 3,
-          "alpha": 100,
-          "sigma_ms": 0.1239798370703883,
+          "alpha": 99,
+          "sigma_ms": 0.5572792360422048,
           "volley_window_ms": [
-            7.7,
-            15.700000000000001
+            74.2,
+            77.2
           ]
         },
         {
           "pool": 4,
-          "alpha": 100,
-          "sigma_ms": 0.14233411397131754,
+          "alpha": 96,
+          "sigma_ms": 0.5029082089871538,
           "volley_window_ms": [
-            9.3,
-            17.3
+            76.2,
+            79.2
           ]
         },
         {
           "pool": 5,
-          "alpha": 100,
-          "sigma_ms": 0.1371531990148244,
+          "alpha": 98,
+          "sigma_ms": 0.4725459414760619,
           "volley_window_ms": [
-            10.8,
-            18.8
+            78.10000000000001,
+            81.10000000000001
           ]
         },
         {
           "pool": 6,
-          "alpha": 100,
-          "sigma_ms": 0.14434680460612903,
+          "alpha": 99,
+          "sigma_ms": 0.4495687148643205,
           "volley_window_ms": [
-            12.4,
-            20.400000000000002
+            80.30000000000001,
+            83.30000000000001
           ]
         }
       ],
@@ -5143,61 +4258,61 @@
       "input": {
         "alpha": 90,
         "requested_sigma_ms": 0.5,
-        "realised_sigma_ms": 0.4595274008138856
+        "realised_sigma_ms": 0.45952740081388516
       },
       "layers": [
         {
           "pool": 1,
-          "alpha": 100,
-          "sigma_ms": 0.1884117830710171,
+          "alpha": 94,
+          "sigma_ms": 0.5358661751952858,
           "volley_window_ms": [
-            7.0,
-            15.0
+            70.10000000000001,
+            73.10000000000001
           ]
         },
         {
           "pool": 2,
-          "alpha": 100,
-          "sigma_ms": 0.14,
+          "alpha": 98,
+          "sigma_ms": 0.5208041710564099,
           "volley_window_ms": [
-            7.0,
-            15.0
+            72.3,
+            75.3
           ]
         },
         {
           "pool": 3,
-          "alpha": 100,
-          "sigma_ms": 0.12913171570144963,
+          "alpha": 99,
+          "sigma_ms": 0.5561411055594878,
           "volley_window_ms": [
-            7.800000000000001,
-            15.8
+            74.2,
+            77.2
           ]
         },
         {
           "pool": 4,
-          "alpha": 100,
-          "sigma_ms": 0.13760813929415666,
+          "alpha": 96,
+          "sigma_ms": 0.49975579974123363,
           "volley_window_ms": [
-            9.3,
-            17.3
+            76.3,
+            79.30000000000001
           ]
         },
         {
           "pool": 5,
-          "alpha": 100,
-          "sigma_ms": 0.1349073756323205,
+          "alpha": 98,
+          "sigma_ms": 0.47350127443647,
           "volley_window_ms": [
-            10.8,
-            18.8
+            78.10000000000001,
+            81.10000000000001
           ]
         },
         {
           "pool": 6,
-          "alpha": 100,
-          "sigma_ms": 0.1386217876093076,
+          "alpha": 99,
+          "sigma_ms": 0.44645550518545174,
           "volley_window_ms": [
-            12.4,
-            20.400000000000002
+            80.30000000000001,
+            83.30000000000001
           ]
         }
       ],
@@ -5209,61 +4324,61 @@
       "input": {
         "alpha": 90,
         "requested_sigma_ms": 1.0,
-        "realised_sigma_ms": 0.8641387634339383
+        "realised_sigma_ms": 0.8641387634339376
       },
       "layers": [
         {
           "pool": 1,
-          "alpha": 100,
-          "sigma_ms": 0.22555487137279928,
+          "alpha": 88,
+          "sigma_ms": 0.6415535122582599,
           "volley_window_ms": [
-            7.0,
-            15.0
+            69.8,
+            72.8
           ]
         },
         {
           "pool": 2,
-          "alpha": 100,
-          "sigma_ms": 0.13718236038208415,
+          "alpha": 95,
+          "sigma_ms": 0.5367739894867053,
           "volley_window_ms": [
-            7.0,
-            15.0
+            72.10000000000001,
+            75.10000000000001
           ]
         },
         {
           "pool": 3,
-          "alpha": 100,
-          "sigma_ms": 0.12656618821786492,
+          "alpha": 98,
+          "sigma_ms": 0.5709336413488204,
           "volley_window_ms": [
-            7.800000000000001,
-            15.8
+            74.2,
+            77.2
           ]
         },
         {
           "pool": 4,
-          "alpha": 100,
-          "sigma_ms": 0.1413647763765784,
+          "alpha": 96,
+          "sigma_ms": 0.5135141980483328,
           "volley_window_ms": [
-            9.3,
-            17.3
+            76.2,
+            79.2
           ]
         },
         {
           "pool": 5,
-          "alpha": 100,
-          "sigma_ms": 0.13889204440859826,
+          "alpha": 98,
+          "sigma_ms": 0.4732098162504153,
           "volley_window_ms": [
-            10.8,
-            18.8
+            78.10000000000001,
+            81.10000000000001
           ]
         },
         {
           "pool": 6,
-          "alpha": 100,
-          "sigma_ms": 0.13703649149040556,
+          "alpha": 99,
+          "sigma_ms": 0.4492236157565318,
           "volley_window_ms": [
-            12.4,
-            20.400000000000002
+            80.30000000000001,
+            83.30000000000001
           ]
         }
       ],
@@ -5275,61 +4390,61 @@
       "input": {
         "alpha": 90,
         "requested_sigma_ms": 2.0,
-        "realised_sigma_ms": 1.8877280746841207
+        "realised_sigma_ms": 1.8877280746841203
       },
       "layers": [
         {
           "pool": 1,
-          "alpha": 100,
-          "sigma_ms": 0.39527711798180276,
+          "alpha": 68,
+          "sigma_ms": 0.8387910954046329,
           "volley_window_ms": [
-            7.0,
-            15.0
+            69.5,
+            72.5
           ]
         },
         {
           "pool": 2,
-          "alpha": 100,
-          "sigma_ms": 0.158757676979729,
+          "alpha": 86,
+          "sigma_ms": 0.6926837001771272,
           "volley_window_ms": [
-            7.0,
-            15.0
+            72.0,
+            75.0
           ]
         },
         {
           "pool": 3,
-          "alpha": 100,
-          "sigma_ms": 0.12810542533398034,
+          "alpha": 90,
+          "sigma_ms": 0.5540657802904714,
           "volley_window_ms": [
-            7.9,
-            15.9
+            74.2,
+            77.2
           ]
         },
         {
           "pool": 4,
-          "alpha": 100,
-          "sigma_ms": 0.14168627315304766,
+          "alpha": 93,
+          "sigma_ms": 0.5045153956855581,
           "volley_window_ms": [
-            9.4,
-            17.400000000000002
+            76.4,
+            79.4
           ]
         },
         {
           "pool": 5,
-          "alpha": 100,
-          "sigma_ms": 0.13857849761056004,
+          "alpha": 97,
+          "sigma_ms": 0.4710020343445236,
           "volley_window_ms": [
-            11.0,
-            19.0
+            78.30000000000001,
+            81.30000000000001
           ]
         },
         {
           "pool": 6,
-          "alpha": 100,
-          "sigma_ms": 0.13665650368716448,
+          "alpha": 99,
+          "sigma_ms": 0.4502853112691334,
           "volley_window_ms": [
-            12.5,
-            20.5
+            80.5,
+            83.5
           ]
         }
       ],
@@ -5341,61 +4456,61 @@
       "input": {
         "alpha": 90,
         "requested_sigma_ms": 3.0,
-        "realised_sigma_ms": 3.1028588967810533
+        "realised_sigma_ms": 3.1215794118829274
       },
       "layers": [
         {
           "pool": 1,
-          "alpha": 100,
-          "sigma_ms": 0.6326136261573884,
+          "alpha": 38,
+          "sigma_ms": 0.7563031533940574,
           "volley_window_ms": [
-            7.0,
-            15.0
+            71.9,
+            74.9
           ]
         },
         {
           "pool": 2,
-          "alpha": 100,
-          "sigma_ms": 0.17571283390805584,
+          "alpha": 50,
+          "sigma_ms": 0.7160698289971448,
           "volley_window_ms": [
-            7.0,
-            15.0
+            74.4,
+            77.4
           ]
         },
         {
           "pool": 3,
-          "alpha": 100,
-          "sigma_ms": 0.12467557900406971,
+          "alpha": 76,
+          "sigma_ms": 0.664326455810091,
           "volley_window_ms": [
-            8.5,
-            16.5
+            75.60000000000001,
+            78.60000000000001
           ]
         },
         {
           "pool": 4,
-          "alpha": 100,
-          "sigma_ms": 0.1418837552364611,
+          "alpha": 84,
+          "sigma_ms": 0.5780702807039181,
           "volley_window_ms": [
-            10.100000000000001,
-            18.1
+            78.0,
+            81.0
           ]
         },
         {
           "pool": 5,
-          "alpha": 100,
-          "sigma_ms": 0.13948476619330152,
+          "alpha": 93,
+          "sigma_ms": 0.556276789326078,
           "volley_window_ms": [
-            11.600000000000001,
-            19.6
+            80.4,
+            83.4
           ]
         },
         {
           "pool": 6,
-          "alpha": 100,
-          "sigma_ms": 0.13511476603243627,
+          "alpha": 96,
+          "sigma_ms": 0.3732583978924282,
           "volley_window_ms": [
-            13.100000000000001,
-            21.1
+            82.30000000000001,
+            85.30000000000001
           ]
         }
       ],
@@ -5407,65 +4522,59 @@
       "input": {
         "alpha": 90,
         "requested_sigma_ms": 4.0,
-        "realised_sigma_ms": 3.7343047677935224
+        "realised_sigma_ms": 3.734304767793522
       },
       "layers": [
         {
           "pool": 1,
-          "alpha": 100,
-          "sigma_ms": 0.7306846104852628,
+          "alpha": 45,
+          "sigma_ms": 0.8174455847031148,
           "volley_window_ms": [
-            7.0,
-            15.0
+            67.9,
+            70.9
           ]
         },
         {
           "pool": 2,
-          "alpha": 100,
-          "sigma_ms": 0.19142622599842482,
+          "alpha": 47,
+          "sigma_ms": 0.7883775478728708,
           "volley_window_ms": [
-            7.0,
-            15.0
+            71.10000000000001,
+            74.10000000000001
           ]
         },
         {
           "pool": 3,
-          "alpha": 100,
-          "sigma_ms": 0.13629380029920665,
+          "alpha": 44,
+          "sigma_ms": 0.6807074285666237,
           "volley_window_ms": [
-            7.4,
-            15.4
+            74.4,
+            77.4
           ]
         },
         {
           "pool": 4,
-          "alpha": 100,
-          "sigma_ms": 0.13955285736952874,
+          "alpha": 48,
+          "sigma_ms": 0.6726779762428843,
           "volley_window_ms": [
-            8.9,
-            16.900000000000002
+            76.3,
+            79.30000000000001
           ]
         },
         {
           "pool": 5,
-          "alpha": 100,
-          "sigma_ms": 0.12922847983320088,
-          "volley_window_ms": [
-            10.5,
-            18.5
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         },
         {
           "pool": 6,
-          "alpha": 100,
-          "sigma_ms": 0.1362754563375225,
-          "volley_window_ms": [
-            12.0,
-            20.0
-          ]
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
         }
       ],
-      "survives": true
+      "survives": false
     },
     {
       "id": "a90_s5",
@@ -5473,65 +4582,500 @@
       "input": {
         "alpha": 90,
         "requested_sigma_ms": 5.0,
-        "realised_sigma_ms": 5.022765948934688
+        "realised_sigma_ms": 5.415146681323315
       },
       "layers": [
         {
           "pool": 1,
-          "alpha": 100,
-          "sigma_ms": 0.9087221797667316,
+          "alpha": 24,
+          "sigma_ms": 0.8055363982396383,
           "volley_window_ms": [
-            7.0,
-            15.0
+            72.0,
+            75.0
           ]
         },
         {
           "pool": 2,
-          "alpha": 100,
-          "sigma_ms": 0.22933817824339675,
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
+        },
+        {
+          "pool": 3,
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
+        },
+        {
+          "pool": 4,
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
+        },
+        {
+          "pool": 5,
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
+        },
+        {
+          "pool": 6,
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
+        }
+      ],
+      "survives": false
+    },
+    {
+      "id": "a100_s0.2",
+      "label": "\u03b1=100, \u03c3=0.2 ms",
+      "input": {
+        "alpha": 100,
+        "requested_sigma_ms": 0.2,
+        "realised_sigma_ms": 0.2118962010041709
+      },
+      "layers": [
+        {
+          "pool": 1,
+          "alpha": 97,
+          "sigma_ms": 0.4497492836129035,
           "volley_window_ms": [
-            7.0,
-            15.0
+            70.10000000000001,
+            73.10000000000001
+          ]
+        },
+        {
+          "pool": 2,
+          "alpha": 98,
+          "sigma_ms": 0.4602798706768206,
+          "volley_window_ms": [
+            72.0,
+            75.0
           ]
         },
         {
           "pool": 3,
-          "alpha": 100,
-          "sigma_ms": 0.1243020514714058,
+          "alpha": 99,
+          "sigma_ms": 0.5594829043803283,
           "volley_window_ms": [
-            8.0,
-            16.0
+            74.10000000000001,
+            77.10000000000001
           ]
         },
         {
           "pool": 4,
-          "alpha": 100,
-          "sigma_ms": 0.14295453822806747,
+          "alpha": 96,
+          "sigma_ms": 0.5060817192877276,
           "volley_window_ms": [
-            9.600000000000001,
-            17.6
+            76.10000000000001,
+            79.10000000000001
           ]
         },
         {
           "pool": 5,
-          "alpha": 100,
-          "sigma_ms": 0.1324348896628075,
+          "alpha": 98,
+          "sigma_ms": 0.4732142169536229,
           "volley_window_ms": [
-            11.100000000000001,
-            19.1
+            78.0,
+            81.0
           ]
         },
         {
           "pool": 6,
-          "alpha": 100,
-          "sigma_ms": 0.13935207210515388,
+          "alpha": 99,
+          "sigma_ms": 0.44571214979794116,
           "volley_window_ms": [
-            12.600000000000001,
-            20.6
+            80.2,
+            83.2
           ]
         }
       ],
       "survives": true
+    },
+    {
+      "id": "a100_s0.5",
+      "label": "\u03b1=100, \u03c3=0.5 ms",
+      "input": {
+        "alpha": 100,
+        "requested_sigma_ms": 0.5,
+        "realised_sigma_ms": 0.49296957309756967
+      },
+      "layers": [
+        {
+          "pool": 1,
+          "alpha": 96,
+          "sigma_ms": 0.5057471353656445,
+          "volley_window_ms": [
+            70.0,
+            73.0
+          ]
+        },
+        {
+          "pool": 2,
+          "alpha": 98,
+          "sigma_ms": 0.4882501117205901,
+          "volley_window_ms": [
+            72.0,
+            75.0
+          ]
+        },
+        {
+          "pool": 3,
+          "alpha": 99,
+          "sigma_ms": 0.5590067276692032,
+          "volley_window_ms": [
+            74.10000000000001,
+            77.10000000000001
+          ]
+        },
+        {
+          "pool": 4,
+          "alpha": 96,
+          "sigma_ms": 0.5052319582105058,
+          "volley_window_ms": [
+            76.10000000000001,
+            79.10000000000001
+          ]
+        },
+        {
+          "pool": 5,
+          "alpha": 98,
+          "sigma_ms": 0.47236963233716917,
+          "volley_window_ms": [
+            78.0,
+            81.0
+          ]
+        },
+        {
+          "pool": 6,
+          "alpha": 99,
+          "sigma_ms": 0.44571443894673585,
+          "volley_window_ms": [
+            80.2,
+            83.2
+          ]
+        }
+      ],
+      "survives": true
+    },
+    {
+      "id": "a100_s1",
+      "label": "\u03b1=100, \u03c3=1 ms",
+      "input": {
+        "alpha": 100,
+        "requested_sigma_ms": 1.0,
+        "realised_sigma_ms": 0.9976347026843033
+      },
+      "layers": [
+        {
+          "pool": 1,
+          "alpha": 92,
+          "sigma_ms": 0.6507257472312286,
+          "volley_window_ms": [
+            70.0,
+            73.0
+          ]
+        },
+        {
+          "pool": 2,
+          "alpha": 97,
+          "sigma_ms": 0.5394974496140632,
+          "volley_window_ms": [
+            72.10000000000001,
+            75.10000000000001
+          ]
+        },
+        {
+          "pool": 3,
+          "alpha": 99,
+          "sigma_ms": 0.5690357219828664,
+          "volley_window_ms": [
+            74.10000000000001,
+            77.10000000000001
+          ]
+        },
+        {
+          "pool": 4,
+          "alpha": 96,
+          "sigma_ms": 0.5066870541402586,
+          "volley_window_ms": [
+            76.2,
+            79.2
+          ]
+        },
+        {
+          "pool": 5,
+          "alpha": 98,
+          "sigma_ms": 0.4790618000285182,
+          "volley_window_ms": [
+            78.0,
+            81.0
+          ]
+        },
+        {
+          "pool": 6,
+          "alpha": 99,
+          "sigma_ms": 0.4482754994143287,
+          "volley_window_ms": [
+            80.2,
+            83.2
+          ]
+        }
+      ],
+      "survives": true
+    },
+    {
+      "id": "a100_s2",
+      "label": "\u03b1=100, \u03c3=2 ms",
+      "input": {
+        "alpha": 100,
+        "requested_sigma_ms": 2.0,
+        "realised_sigma_ms": 1.8367566523630718
+      },
+      "layers": [
+        {
+          "pool": 1,
+          "alpha": 73,
+          "sigma_ms": 0.8536741867884762,
+          "volley_window_ms": [
+            70.10000000000001,
+            73.10000000000001
+          ]
+        },
+        {
+          "pool": 2,
+          "alpha": 90,
+          "sigma_ms": 0.7034693566904454,
+          "volley_window_ms": [
+            71.9,
+            74.9
+          ]
+        },
+        {
+          "pool": 3,
+          "alpha": 95,
+          "sigma_ms": 0.6214147026639945,
+          "volley_window_ms": [
+            74.3,
+            77.30000000000001
+          ]
+        },
+        {
+          "pool": 4,
+          "alpha": 94,
+          "sigma_ms": 0.5062097415096589,
+          "volley_window_ms": [
+            76.2,
+            79.2
+          ]
+        },
+        {
+          "pool": 5,
+          "alpha": 98,
+          "sigma_ms": 0.4849258306426766,
+          "volley_window_ms": [
+            78.10000000000001,
+            81.10000000000001
+          ]
+        },
+        {
+          "pool": 6,
+          "alpha": 99,
+          "sigma_ms": 0.4527033379742627,
+          "volley_window_ms": [
+            80.30000000000001,
+            83.30000000000001
+          ]
+        }
+      ],
+      "survives": true
+    },
+    {
+      "id": "a100_s3",
+      "label": "\u03b1=100, \u03c3=3 ms",
+      "input": {
+        "alpha": 100,
+        "requested_sigma_ms": 3.0,
+        "realised_sigma_ms": 2.988873366337222
+      },
+      "layers": [
+        {
+          "pool": 1,
+          "alpha": 54,
+          "sigma_ms": 0.8307552714173136,
+          "volley_window_ms": [
+            69.4,
+            72.4
+          ]
+        },
+        {
+          "pool": 2,
+          "alpha": 72,
+          "sigma_ms": 0.8075729050145135,
+          "volley_window_ms": [
+            71.5,
+            74.5
+          ]
+        },
+        {
+          "pool": 3,
+          "alpha": 81,
+          "sigma_ms": 0.6769193331332604,
+          "volley_window_ms": [
+            74.10000000000001,
+            77.10000000000001
+          ]
+        },
+        {
+          "pool": 4,
+          "alpha": 90,
+          "sigma_ms": 0.5609966880032514,
+          "volley_window_ms": [
+            76.7,
+            79.7
+          ]
+        },
+        {
+          "pool": 5,
+          "alpha": 94,
+          "sigma_ms": 0.47711787508646725,
+          "volley_window_ms": [
+            78.30000000000001,
+            81.30000000000001
+          ]
+        },
+        {
+          "pool": 6,
+          "alpha": 98,
+          "sigma_ms": 0.4457256857329582,
+          "volley_window_ms": [
+            80.60000000000001,
+            83.60000000000001
+          ]
+        }
+      ],
+      "survives": true
+    },
+    {
+      "id": "a100_s4",
+      "label": "\u03b1=100, \u03c3=4 ms",
+      "input": {
+        "alpha": 100,
+        "requested_sigma_ms": 4.0,
+        "realised_sigma_ms": 4.097314242281155
+      },
+      "layers": [
+        {
+          "pool": 1,
+          "alpha": 33,
+          "sigma_ms": 0.7971482689676306,
+          "volley_window_ms": [
+            67.7,
+            70.7
+          ]
+        },
+        {
+          "pool": 2,
+          "alpha": 40,
+          "sigma_ms": 0.7601973427998813,
+          "volley_window_ms": [
+            71.4,
+            74.4
+          ]
+        },
+        {
+          "pool": 3,
+          "alpha": 56,
+          "sigma_ms": 0.6674248983203722,
+          "volley_window_ms": [
+            75.0,
+            78.0
+          ]
+        },
+        {
+          "pool": 4,
+          "alpha": 67,
+          "sigma_ms": 0.6561157361406642,
+          "volley_window_ms": [
+            76.9,
+            79.9
+          ]
+        },
+        {
+          "pool": 5,
+          "alpha": 75,
+          "sigma_ms": 0.6396332282383919,
+          "volley_window_ms": [
+            79.30000000000001,
+            82.30000000000001
+          ]
+        },
+        {
+          "pool": 6,
+          "alpha": 90,
+          "sigma_ms": 0.4590919647508171,
+          "volley_window_ms": [
+            82.10000000000001,
+            85.10000000000001
+          ]
+        }
+      ],
+      "survives": true
+    },
+    {
+      "id": "a100_s5",
+      "label": "\u03b1=100, \u03c3=5 ms",
+      "input": {
+        "alpha": 100,
+        "requested_sigma_ms": 5.0,
+        "realised_sigma_ms": 4.986287095625362
+      },
+      "layers": [
+        {
+          "pool": 1,
+          "alpha": 35,
+          "sigma_ms": 0.7900607054950569,
+          "volley_window_ms": [
+            68.2,
+            71.2
+          ]
+        },
+        {
+          "pool": 2,
+          "alpha": 35,
+          "sigma_ms": 0.7173647920674384,
+          "volley_window_ms": [
+            69.2,
+            72.2
+          ]
+        },
+        {
+          "pool": 3,
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
+        },
+        {
+          "pool": 4,
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
+        },
+        {
+          "pool": 5,
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
+        },
+        {
+          "pool": 6,
+          "alpha": 0,
+          "sigma_ms": null,
+          "volley_window_ms": null
+        }
+      ],
+      "survives": false
     }
   ],
   "remaining_methods_unrun": []
