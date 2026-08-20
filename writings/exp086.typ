@@ -1,7 +1,23 @@
 #import "/.demolab/lib.typ": cite, reference-list
 
+#let run = json("/artifacts/data/exp086/numbers.json")
+#let trajectories = run.trajectories
+#let selected = run.selected_intermediate
+#let strong = trajectories.filter(row => calc.abs(row.k - 0.08) < 0.0001).first()
+#let uncoupled = trajectories.filter(row => calc.abs(row.k) < 0.0001).first()
+#let selected-k = calc.round(selected.k, digits: 2)
+#let selected-concentration = calc.round(selected.phase_concentration, digits: 3)
+#let selected-density-ratio = calc.round(selected.density_peak_to_mean, digits: 1)
+#let selected-preferred = calc.round(selected.preferred_phase_rad, digits: 2)
+#let selected-slow = calc.round(selected.slow_phase_rad, digits: 2)
+#let selected-alignment = calc.round(selected.phase_alignment_error_rad, digits: 2)
+#let strong-concentration = calc.round(strong.phase_concentration, digits: 3)
+#let uncoupled-concentration = calc.round(uncoupled.phase_concentration, digits: 3)
+#let uncoupled-frequency-a = calc.round(uncoupled.network_a.frequency_hz, digits: 1)
+#let uncoupled-frequency-b = calc.round(uncoupled.network_b.frequency_hz, digits: 1)
+
 #let meta = (
-  title: "Can weaker coupling produce intermittent gamma synchronization?",
+  title: "Demonstrating Lowet 2017",
   date: "2026-08-19",
   description: "Reduce coupling at fixed detuning and test whether two PING networks develop cortical-like intermittent phase attraction.",
   collection: "snnlang",
@@ -24,7 +40,7 @@
 #let body = [
   == Abstract
 
-  In macaque V1, nearby gamma rhythms did not hold one fixed relative-phase position. Their relative phase continued to move, but its velocity slowed near positions where coupling made the two instantaneous frequencies more similar. This phase-dependent slowing concentrated the observed phase differences around those positions, producing a peaked distribution despite continuing phase slips#cite(1). The effect could create recurring windows for effective communication between cortical populations without forcing them into permanent synchronization. Starting from two rigidly phase-locked PING networks, this experiment reduces coupling and asks whether their relative phase begins to circulate while still slowing near a preferred position. Network structure, input, frequency difference, delay, and noise remain fixed. Broader parameter maps and oscillator modelling are left for later experiments.
+  In macaque V1, nearby gamma rhythms did not hold one fixed relative-phase position. Their relative phase continued to move, but its velocity slowed near positions where coupling made the two instantaneous frequencies more similar. This phase-dependent slowing concentrated the observed phase differences around those positions despite continuing phase slips#cite(1). The effect could create recurring windows for communication without permanent synchronization. We reproduced that qualitative regime in one fixed-input PING trajectory by reducing equal reciprocal coupling from 0.08 to #selected-k µS. The networks completed #selected.phase_slips phase slips, but their relative phase remained concentrated around a preferred position. Removing coupling produced #uncoupled.phase_slips slips and an almost uniform phase distribution. This is a controlled demonstration, not a claim about reliability across inputs or seeds.
 
   == Prior work
 
@@ -46,18 +62,18 @@
   == Methods
 
   #block(inset: 10pt, fill: rgb("f3f0e8"), radius: 3pt)[
-    *This experiment has not been run. Its starting values and topology were sourced from exp085 and are fixed here as design inputs.*
+    *All three methods were run once. The starting values and topology were sourced from exp085. Every coupling condition reused the same saved network state and pre-generated input spike trains.*
   ]
 
   + *Define the starting rhythms.* Each network contains an excitatory population, an inhibitory population, and a local E-to-I-to-E feedback loop. Reciprocal excitation targets both E and I populations with $K_(E E) = #start.k-ee-us$ µS, $K_(E I) = #start.k-ei-us$ µS, and delay $d = #start.delay-ms$ ms. Drive Networks A and B at #start.input-a-hz and #start.input-b-hz Hz. Run them without cross-network coupling and confirm regular rhythms near mean frequency #start.mean-frequency-hz Hz and detuning #start.detuning-hz Hz. Interpolate phase between consecutive excitatory volleys and calculate their wrapped and unwrapped relative phase. Generates #link("#result-1-uncoupled-rhythms")[Result 1].
 
     #figure(
       image(
-        "/artifacts/data/exp085/network.svg",
+        "/artifacts/data/exp086/network.svg",
         width: 100%,
-        alt: "Planned topology of two PING networks with local excitatory-inhibitory loops and reciprocal excitatory coupling.",
+        alt: "Implemented topology of two PING networks with local excitatory-inhibitory loops and reciprocal excitatory coupling.",
       ),
-      caption: [Planned starting topology. Networks A and B each contain a local E-to-I-to-E PING loop. Reciprocal projections target E and I populations with independently controlled strengths.],
+      caption: [Implemented topology. Networks A and B each contain a local E-to-I-to-E PING loop. Reciprocal projections target E and I populations with independently controlled strengths.],
     )
 
   + *Reduce coupling while everything else stays the same.* Save the network immediately before coupling begins. Replay from that point several times with the same neuron states and the same pre-generated input spike trains after that point. Change only the coupling strength $K$: begin at #start.k-ee-us µS, then use progressively weaker values down to zero. E-to-E and E-to-I coupling always use the same value. Run one trajectory at each value of $K$; repeated seeds and trials are outside this experiment. For each coupling strength, track the phase gap between the two rhythms. Strong coupling may keep that gap fixed. Weaker coupling may allow one rhythm to repeatedly gain a full cycle on the other, producing phase slips. We are looking for the intermediate behaviour reported by Lowet et al. (2017): phase slips continue, but the phase gap repeatedly slows near one preferred value, making that value more common#cite(1). Select one trajectory that shows this pattern. This demonstrates the behaviour once; it does not establish reliability across seeds. Generates #link("#result-2-coupling-boundary")[Result 2].
@@ -68,7 +84,7 @@
         width: 100%,
         alt: "Illustrative comparison of strong, intermediate, and absent coupling. Strong coupling fixes relative phase, intermediate coupling permits phase slips but slows them near a preferred phase, and absent coupling produces nearly uniform phase drift.",
       ),
-      caption: [*Expected mechanism and effect of weakening coupling.* Strong coupling can fully cancel the networks' frequency difference and hold a fixed relative-phase position. At intermediate coupling, the correction is too weak to stop relative-phase motion but still slows it near a preferred position. With no coupling, the original frequency difference produces nearly uniform relative-phase drift. These curves illustrate the experimental logic; they are not simulated data. Result 2 will reproduce this layout with measured trajectories.],
+      caption: [*Expected mechanism and effect of weakening coupling.* Strong coupling can fully cancel the networks' frequency difference and hold a fixed relative-phase position. At intermediate coupling, the correction is too weak to stop relative-phase motion but still slows it near a preferred position. With no coupling, the original frequency difference produces nearly uniform relative-phase drift. These curves illustrate the experimental logic; they are not simulated data. Result 2 reproduces this layout with measured trajectories.],
     )
 
   + *Relate phase velocity to phase position.* For the selected condition, estimate each network's instantaneous frequency from consecutive excitatory volleys. Relative-phase velocity is $v_theta = 2 pi (f_A - f_B)$, where $f_A$ and $f_B$ are the instantaneous frequencies of Networks A and B. Group $v_theta$ by wrapped relative-phase position $theta$, and compare the resulting velocity curve with the distribution of $theta$. Intermittent attraction requires continued phase slips, a non-uniform phase distribution, and lower absolute velocity near the distribution's preferred position. Generates #link("#result-3-intermittent-attraction")[Result 3].
@@ -85,22 +101,25 @@
   == Results
 
   + <result-1-uncoupled-rhythms> *Uncoupled rhythms.*
-    - *Axes.* Time on the horizontal axis; normalized population activity on the vertical axis.
-    - *Traces.* Excitatory and inhibitory activity from Networks A and B, followed by their wrapped relative-phase position.
-    - *Why.* Confirm that both networks generate regular gamma rhythms with a controlled intrinsic frequency difference before coupling.
-    - *Expectation.* Each network maintains a clean PING rhythm while their uncoupled relative phase repeatedly wraps.
+
+    #figure(
+      image("/artifacts/data/exp086/uncoupled.png", width: 100%),
+      caption: [Both uncoupled networks maintain regular PING rhythms, but Network A runs at #uncoupled-frequency-a Hz and Network B at #uncoupled-frequency-b Hz. Their relative phase therefore circulates, completing #uncoupled.phase_slips slips with phase concentration #uncoupled-concentration.],
+    )
 
   + <result-2-coupling-boundary> *Coupling boundary.*
-    - *Axes.* Reproduce the three-column layout of the Method 2 schematic using measured data. The upper row shows time against wrapped relative-phase position. The lower row shows relative-phase position against mean relative-phase velocity.
-    - *Traces.* Show the strong starting coupling, the selected intermediate coupling, and zero coupling. State the measured value of $K$ above each column.
-    - *Why.* Show the observed transition in the same visual language used to explain the proposed mechanism.
-    - *Expectation.* Strong coupling holds a fixed relative-phase position. Intermediate coupling permits slips but slows near a preferred position. With no coupling, relative phase drifts at nearly constant velocity.
+
+    #figure(
+      image("/artifacts/data/exp086/coupling_regimes_measured.png", width: 100%),
+      caption: [The measured trajectories reproduce the planned transition. At 0.08 µS, relative phase remains fixed with concentration #strong-concentration. At #selected-k µS, it completes #selected.phase_slips slips but repeatedly slows near one phase region. With no coupling, it completes #uncoupled.phase_slips slips and approaches uniform drift.],
+    )
 
   + <result-3-intermittent-attraction> *Intermittent phase attraction.*
-    - *Axes.* Reproduce the four-panel layout of the Method 3 schematic using measured data: time against relative-phase position, time against relative-phase velocity, position against mean velocity, and position against density.
-    - *Traces.* Use the same selected intermediate-coupling trajectory in all four panels. Mark the preferred relative-phase position consistently across panels.
-    - *Why.* Test the specific Lowet 2017 signature and directly compare the observed mechanism with the planned one.
-    - *Expectation.* Relative phase continues to wrap through slips. Its velocity repeatedly falls near one position, producing a velocity minimum and a density peak at that same position.
+
+    #figure(
+      image("/artifacts/data/exp086/intermittent_attraction_measured.png", width: 100%),
+      caption: [At $K = #selected-k$ µS, relative phase continues to slip but has concentration #selected-concentration. Its distribution peaks at #selected-preferred rad and reaches #selected-density-ratio times the mean density. The smallest absolute mean velocity occurs at #selected-slow rad, #selected-alignment rad away—one analysis bin—from the density peak. This single trajectory shows the Lowet-style signature, but does not establish its reliability across trials.],
+    )
 
   == References
 

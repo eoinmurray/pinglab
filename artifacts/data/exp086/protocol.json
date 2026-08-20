@@ -1,0 +1,243 @@
+{
+  "status": "draft",
+  "completed_methods": [
+    1,
+    2,
+    3
+  ],
+  "simulation_run": true,
+  "fixed_inputs": {
+    "seeds": [
+      8501,
+      8502
+    ],
+    "reused_suffix_for_every_k": true
+  },
+  "coupling": {
+    "K_EE_equals_K_EI": true,
+    "delay_ms": 2.0,
+    "values_us": [
+      0.08,
+      0.07,
+      0.06,
+      0.05,
+      0.04,
+      0.03,
+      0.02,
+      0.01,
+      0.0
+    ]
+  },
+  "trajectories": [
+    {
+      "k": 0.08,
+      "preferred_phase_rad": 0.9162978572970226,
+      "slow_phase_rad": 0.9162978572970226,
+      "phase_alignment_error_rad": 0.0,
+      "phase_concentration": 0.9916679949892636,
+      "density_peak_to_mean": 17.100744132799075,
+      "slowing_fraction": 0.9978114957462503,
+      "net_phase_change_cycles": -0.009432292722845428,
+      "phase_slips": 0,
+      "network_a": {
+        "volleys": 228,
+        "frequency_hz": 50.72739055621355,
+        "iei_cv": 0.03513211962982681
+      },
+      "network_b": {
+        "volleys": 228,
+        "frequency_hz": 50.63234670889745,
+        "iei_cv": 0.031140781656190306
+      }
+    },
+    {
+      "k": 0.07,
+      "preferred_phase_rad": 0.9162978572970226,
+      "slow_phase_rad": 0.9162978572970226,
+      "phase_alignment_error_rad": 0.0,
+      "phase_concentration": 0.9839370833252195,
+      "density_peak_to_mean": 13.675443617630215,
+      "slowing_fraction": 0.9976682516169059,
+      "net_phase_change_cycles": -0.014410197715676438,
+      "phase_slips": 0,
+      "network_a": {
+        "volleys": 228,
+        "frequency_hz": 50.73079157913556,
+        "iei_cv": 0.03521787714566905
+      },
+      "network_b": {
+        "volleys": 228,
+        "frequency_hz": 50.63121737966723,
+        "iei_cv": 0.03276238909376545
+      }
+    },
+    {
+      "k": 0.06,
+      "preferred_phase_rad": 1.178097245096172,
+      "slow_phase_rad": 0.9162978572970226,
+      "phase_alignment_error_rad": 0.26179938779914935,
+      "phase_concentration": 0.7849657050297622,
+      "density_peak_to_mean": 7.614195764167152,
+      "slowing_fraction": 0.9424354451871623,
+      "net_phase_change_cycles": 3.9811137632633233,
+      "phase_slips": 3,
+      "network_a": {
+        "volleys": 229,
+        "frequency_hz": 50.95769170596518,
+        "iei_cv": 0.036478176915031864
+      },
+      "network_b": {
+        "volleys": 225,
+        "frequency_hz": 49.96208234821786,
+        "iei_cv": 0.041591262373689826
+      }
+    },
+    {
+      "k": 0.05,
+      "preferred_phase_rad": 1.178097245096172,
+      "slow_phase_rad": 1.178097245096172,
+      "phase_alignment_error_rad": 0.0,
+      "phase_concentration": 0.5564535520148114,
+      "density_peak_to_mean": 4.315084226646253,
+      "slowing_fraction": 0.8258115497170022,
+      "net_phase_change_cycles": 8.4274466787152,
+      "phase_slips": 8,
+      "network_a": {
+        "volleys": 229,
+        "frequency_hz": 51.02840133390031,
+        "iei_cv": 0.03804951303059075
+      },
+      "network_b": {
+        "volleys": 220,
+        "frequency_hz": 49.025094580376525,
+        "iei_cv": 0.04168994055751677
+      }
+    },
+    {
+      "k": 0.04,
+      "preferred_phase_rad": 1.7016960206944711,
+      "slow_phase_rad": 1.7016960206944711,
+      "phase_alignment_error_rad": 0.0,
+      "phase_concentration": 0.4055228633313518,
+      "density_peak_to_mean": 2.9273609484427694,
+      "slowing_fraction": 0.7278914244643004,
+      "net_phase_change_cycles": 11.929715914097358,
+      "phase_slips": 11,
+      "network_a": {
+        "volleys": 229,
+        "frequency_hz": 51.06726095818307,
+        "iei_cv": 0.038619596208759724
+      },
+      "network_b": {
+        "volleys": 217,
+        "frequency_hz": 48.2552164782628,
+        "iei_cv": 0.04138381211957283
+      }
+    },
+    {
+      "k": 0.03,
+      "preferred_phase_rad": 1.4398966328953215,
+      "slow_phase_rad": 1.4398966328953215,
+      "phase_alignment_error_rad": 0.0,
+      "phase_concentration": 0.21438816130256086,
+      "density_peak_to_mean": 2.205492220549217,
+      "slowing_fraction": 0.597936171478161,
+      "net_phase_change_cycles": 14.695397989826542,
+      "phase_slips": 14,
+      "network_a": {
+        "volleys": 229,
+        "frequency_hz": 51.06497345965196,
+        "iei_cv": 0.036652767027782154
+      },
+      "network_b": {
+        "volleys": 214,
+        "frequency_hz": 47.61585406746698,
+        "iei_cv": 0.03691907842825491
+      }
+    },
+    {
+      "k": 0.02,
+      "preferred_phase_rad": 0.9162978572970226,
+      "slow_phase_rad": 0.9162978572970226,
+      "phase_alignment_error_rad": 0.0,
+      "phase_concentration": 0.12759236705514,
+      "density_peak_to_mean": 1.709200516721687,
+      "slowing_fraction": 0.45092579910939967,
+      "net_phase_change_cycles": 15.237686204057194,
+      "phase_slips": 15,
+      "network_a": {
+        "volleys": 228,
+        "frequency_hz": 50.88887394355145,
+        "iei_cv": 0.03511213726412143
+      },
+      "network_b": {
+        "volleys": 213,
+        "frequency_hz": 47.28870647542995,
+        "iei_cv": 0.03664805511649771
+      }
+    },
+    {
+      "k": 0.01,
+      "preferred_phase_rad": 1.178097245096172,
+      "slow_phase_rad": 1.178097245096172,
+      "phase_alignment_error_rad": 0.0,
+      "phase_concentration": 0.07823070345934822,
+      "density_peak_to_mean": 1.4857115572850783,
+      "slowing_fraction": 0.35408488835190866,
+      "net_phase_change_cycles": 16.457542257211855,
+      "phase_slips": 16,
+      "network_a": {
+        "volleys": 228,
+        "frequency_hz": 50.7954977735013,
+        "iei_cv": 0.03391924794265795
+      },
+      "network_b": {
+        "volleys": 211,
+        "frequency_hz": 46.891747052518745,
+        "iei_cv": 0.03391324034066748
+      }
+    },
+    {
+      "k": 0.0,
+      "preferred_phase_rad": -2.2252947962927703,
+      "slow_phase_rad": -2.4870941840919194,
+      "phase_alignment_error_rad": 0.26179938779914913,
+      "phase_concentration": 0.028094682607569064,
+      "density_peak_to_mean": 1.3216427359820355,
+      "slowing_fraction": 0.27527974182837345,
+      "net_phase_change_cycles": 16.95276389574918,
+      "phase_slips": 16,
+      "network_a": {
+        "volleys": 227,
+        "frequency_hz": 50.607967395928966,
+        "iei_cv": 0.03709812524419884
+      },
+      "network_b": {
+        "volleys": 210,
+        "frequency_hz": 46.598738043744845,
+        "iei_cv": 0.030640431193007318
+      }
+    }
+  ],
+  "selected_intermediate": {
+    "k": 0.06,
+    "preferred_phase_rad": 1.178097245096172,
+    "slow_phase_rad": 0.9162978572970226,
+    "phase_alignment_error_rad": 0.26179938779914935,
+    "phase_concentration": 0.7849657050297622,
+    "density_peak_to_mean": 7.614195764167152,
+    "slowing_fraction": 0.9424354451871623,
+    "net_phase_change_cycles": 3.9811137632633233,
+    "phase_slips": 3,
+    "network_a": {
+      "volleys": 229,
+      "frequency_hz": 50.95769170596518,
+      "iei_cv": 0.036478176915031864
+    },
+    "network_b": {
+      "volleys": 225,
+      "frequency_hz": 49.96208234821786,
+      "iei_cv": 0.041591262373689826
+    }
+  }
+}
