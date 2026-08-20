@@ -125,7 +125,7 @@
 
   + <result-4-looping-raster-hero> *Looping raster hero.*
 
-    #video("synfire_raster_hero.mp4", caption: [Measured spikes from the three packet trajectories, arranged as an eight-second seamless scrolling raster.])
+    #video("synfire_raster_hero.mp4", caption: [One measured broad-packet run shown as an eight-second seamless scrolling raster.])
 
     Black marks are genuine background-driven spikes from the measured run. Cyan marks are the same measured spikes when they fall inside a detected packet volley. The red dashed line marks input time. The raster repeats the settled 70 ms segment only to form a seamless loop; it does not splice different simulations together.
 
