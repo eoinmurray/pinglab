@@ -17,7 +17,7 @@
 #let uncoupled-frequency-b = calc.round(uncoupled.network_b.frequency_hz, digits: 1)
 
 #let meta = (
-  title: "Demonstrating Lowet 2017",
+  title: "Lowet 2017",
   date: "2026-08-19",
   description: "Reduce coupling at fixed detuning and test whether two PING networks develop cortical-like intermittent phase attraction.",
   collection: "paper-demonstrations",
