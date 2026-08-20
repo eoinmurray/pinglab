@@ -70,6 +70,24 @@ def test_catalogue_merges_local_and_archive_locations(tmp_path: Path) -> None:
 
 def test_activate_swaps_whole_view_and_preserves_unrelated_data(tmp_path: Path) -> None:
     campaign = _complete_campaign(tmp_path / "campaign")
+    repaired_commit = "d" * 40
+    numbers = campaign / "derived/artifacts/data/exp082/numbers.json"
+    numbers.write_text(
+        json.dumps(
+            {
+                "passed": True,
+                "collection_provenance": {
+                    "campaign_id": "smoke-001",
+                    "source_git_commit": repaired_commit,
+                },
+            }
+        )
+        + "\n"
+    )
+    write_json_atomic(
+        campaign / "inventory.json",
+        inventory_payload(campaign, run_id="smoke-001"),
+    )
     artifacts = tmp_path / "artifacts" / "data"
     unrelated = artifacts / "exp999"
     unrelated.mkdir(parents=True)
@@ -92,6 +110,9 @@ def test_activate_swaps_whole_view_and_preserves_unrelated_data(tmp_path: Path) 
         json.loads((artifacts / "exp022/_provenance.json").read_text())["campaign_id"]
         == "smoke-001"
     )
+    assert json.loads((artifacts / "exp082/_provenance.json").read_text())[
+        "generating_git_commit"
+    ] == repaired_commit
     assert current_view(artifacts)["valid"] is True
 
 

@@ -19,7 +19,7 @@ from .contract import (
     verify_payload,
     write_json_atomic,
 )
-from .promotion import FIGURE_SUFFIXES, _sha256, _source_rows
+from .promotion import FIGURE_SUFFIXES, _generating_git_commit, _sha256, _source_rows
 from .storage import Store
 
 VIEW_NAME = ".runstore-view.json"
@@ -198,7 +198,8 @@ def _stage_experiment(
             "contract_version": CONTRACT_VERSION,
             "run_id": run["run_id"],
             "campaign_id": run["run_id"],
-            "generating_git_commit": run["source"]["git_commit"],
+            "generating_git_commit": _generating_git_commit(run, source),
+            "campaign_source_git_commit": run["source"]["git_commit"],
             "source_directory": source_relative.as_posix(),
             "source_inventory_payload_digest": inventory["payload_digest"],
             "archive": run["archive"],
@@ -316,14 +317,17 @@ def current_view(artifacts_root: Path, *, verify_files: bool = True) -> dict[str
         except ContractError as exc:
             errors.append(str(exc))
             continue
-        for field in (
-            "campaign_id",
-            "generating_git_commit",
-            "source_inventory_payload_digest",
-        ):
+        for field in ("campaign_id", "source_inventory_payload_digest"):
             expected = view[field]
             if provenance.get(field) != expected:
                 errors.append(f"{experiment} {field} does not match active view")
+        campaign_source = provenance.get(
+            "campaign_source_git_commit", provenance.get("generating_git_commit")
+        )
+        if campaign_source != view["generating_git_commit"]:
+            errors.append(
+                f"{experiment} campaign source commit does not match active view"
+            )
         if verify_files:
             for row in provenance.get("files", []):
                 target = root / row["path"]
