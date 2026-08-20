@@ -1,4 +1,4 @@
-"""EXP085 methods 1-4: define PING networks and compare coupling pathways."""
+"""EXP085: dissect pathway-specific synchronization in coupled PING networks."""
 
 from __future__ import annotations
 
@@ -91,7 +91,7 @@ PING_GROUPS = ("PING_A", "PING_B")
 
 SCALE = {
     "status": STATUS,
-    "completed_methods": [1, 2, 3, 4],
+    "completed_methods": [1, 2, 3, 4, 5],
     "dt_ms": DT_MS,
     "t_ms": T_MS,
     "burn_ms": BURN_MS,
@@ -420,9 +420,7 @@ def inhibitory_cycle_summary(
     """Summarize inhibitory spikes per neuron between excitatory volleys."""
     cycle_counts = [
         spikes[left:right, 0].sum(axis=0)
-        for left, right in zip(
-            excitatory_peaks[:-1], excitatory_peaks[1:], strict=True
-        )
+        for left, right in zip(excitatory_peaks[:-1], excitatory_peaks[1:], strict=True)
     ]
     if not cycle_counts:
         return {
@@ -455,9 +453,7 @@ def analyse_uncoupled(recordings: dict[str, np.ndarray]) -> dict[str, object]:
     phase_b = interpolated_phase(peaks_b, len(e_b))
     valid = np.isfinite(phase_a) & np.isfinite(phase_b)
     phase_difference = np.full_like(phase_a, np.nan)
-    phase_difference[valid] = np.angle(
-        np.exp(1j * (phase_a[valid] - phase_b[valid]))
-    )
+    phase_difference[valid] = np.angle(np.exp(1j * (phase_a[valid] - phase_b[valid])))
     valid_phase = phase_difference[valid]
     drift_wraps = int(np.count_nonzero(np.abs(np.diff(valid_phase)) > np.pi))
 
@@ -638,15 +634,9 @@ def run_phase_response() -> tuple[dict[str, object], dict[str, object]]:
             shift_steps = baseline_next - perturbed_next
             response = {
                 "pulse_phase_fraction": (arrival - left) / period_steps,
-                "pulse_phase_rad": 2.0
-                * np.pi
-                * (arrival - left)
-                / period_steps,
+                "pulse_phase_rad": 2.0 * np.pi * (arrival - left) / period_steps,
                 "next_volley_shift_ms": shift_steps * DT_MS,
-                "next_volley_phase_shift_rad": 2.0
-                * np.pi
-                * shift_steps
-                / period_steps,
+                "next_volley_phase_shift_rad": 2.0 * np.pi * shift_steps / period_steps,
             }
             if target == "I":
                 i_events = population_volley_events(
@@ -670,22 +660,24 @@ def run_phase_response() -> tuple[dict[str, object], dict[str, object]]:
                     "next_e_step": perturbed_next,
                     "rate_e": population_rate(perturbed_e, N_E),
                     "rate_i": population_rate(perturbed_i, N_I),
-                    "i_volleys_before_next_e": response.get(
-                        "i_volleys_before_next_e"
-                    ),
+                    "i_volleys_before_next_e": response.get("i_volleys_before_next_e"),
                 }
                 if case_name == "i_early_doublet":
                     representative_cases[case_name].update(
                         {
-                            "i_voltage": perturbed.recordings[
-                                "PING_A_I.voltage"
-                            ].cpu().numpy(),
+                            "i_voltage": perturbed.recordings["PING_A_I.voltage"]
+                            .cpu()
+                            .numpy(),
                             "local_e_to_i_conductance": perturbed.recordings[
                                 "PING_A_E_to_I.conductance"
-                            ].cpu().numpy(),
+                            ]
+                            .cpu()
+                            .numpy(),
                             "probe_e_to_i_conductance": perturbed.recordings[
                                 "probe_E_to_PING_A_I_K_EI.conductance"
-                            ].cpu().numpy(),
+                            ]
+                            .cpu()
+                            .numpy(),
                         }
                     )
             if target == "I" and shift_steps < strongest_i_delay_steps:
@@ -816,9 +808,7 @@ def plot_phase_response(
     i_rows = phase_response["responses"]["I"]
     i_phase = np.asarray([row["pulse_phase_fraction"] for row in i_rows])
     i_shift = np.asarray([row["next_volley_shift_ms"] for row in i_rows])
-    doublet = np.asarray(
-        [row["i_volleys_before_next_e"] == 2 for row in i_rows]
-    )
+    doublet = np.asarray([row["i_volleys_before_next_e"] == 2 for row in i_rows])
     doublet_indices = np.flatnonzero(doublet)
     first = int(doublet_indices[0])
     last = int(doublet_indices[-1])
@@ -903,7 +893,7 @@ def plot_phase_response(
     early.axhline(0.0, color=theme.GREY_MID, lw=0.8, ls="--")
     for row in np.asarray(i_rows, dtype=object)[doublet]:
         early.annotate(
-            f'{row["second_i_volley_latency_ms"]:.2f} ms',
+            f"{row['second_i_volley_latency_ms']:.2f} ms",
             xy=(row["pulse_phase_fraction"], row["next_volley_shift_ms"]),
             xytext=(0, 7),
             textcoords="offset points",
@@ -939,12 +929,12 @@ def plot_phase_response(
     state_time_ms = (np.arange(state_start, state_stop) - state_left) * DT_MS
     arrival_ms = (int(state_case["arrival_step"]) - state_left) * DT_MS
 
-    local_g = np.asarray(state_case["local_e_to_i_conductance"])[
-        state_window, 0
-    ].mean(axis=1)
-    probe_g = np.asarray(state_case["probe_e_to_i_conductance"])[
-        state_window, 0
-    ].mean(axis=1)
+    local_g = np.asarray(state_case["local_e_to_i_conductance"])[state_window, 0].mean(
+        axis=1
+    )
+    probe_g = np.asarray(state_case["probe_e_to_i_conductance"])[state_window, 0].mean(
+        axis=1
+    )
     conductance = axes[2]
     conductance.plot(
         state_time_ms,
@@ -1060,7 +1050,11 @@ def analyse_pathway_branch(
     return record, traces
 
 
-def run_pathway_comparison() -> tuple[dict[str, object], dict[str, object]]:
+def run_pathway_comparison() -> tuple[
+    dict[str, object],
+    dict[str, object],
+    dict[str, dict[str, np.ndarray]],
+]:
     """Branch four coupling conditions from one uncoupled runtime state."""
     inputs = make_uncoupled_inputs()
     onset = round(COUPLING_ONSET_MS / DT_MS)
@@ -1089,6 +1083,7 @@ def run_pathway_comparison() -> tuple[dict[str, object], dict[str, object]]:
     )
     condition_records = []
     condition_traces = {}
+    condition_recordings = {}
     suffix_inputs = {name: value[onset:] for name, value in inputs.items()}
     for condition_id, label, k_ee, k_ei in specifications:
         graph = author_network(
@@ -1107,8 +1102,7 @@ def run_pathway_comparison() -> tuple[dict[str, object], dict[str, object]]:
             runtime_state=prefix.runtime_state.detached(),
         )
         recordings = {
-            key: value.cpu().numpy()
-            for key, value in result.recordings.items()
+            key: value.cpu().numpy() for key, value in result.recordings.items()
         }
         condition_record, traces = analyse_pathway_branch(recordings)
         condition_record.update(
@@ -1121,8 +1115,9 @@ def run_pathway_comparison() -> tuple[dict[str, object], dict[str, object]]:
         )
         condition_records.append(condition_record)
         condition_traces[condition_id] = traces
+        condition_recordings[condition_id] = recordings
 
-    return (
+    comparison = (
         {
             "coupling_onset_ms": COUPLING_ONSET_MS,
             "shared_delay_ms": COUPLING_DELAY_MS,
@@ -1135,6 +1130,203 @@ def run_pathway_comparison() -> tuple[dict[str, object], dict[str, object]]:
         },
         condition_traces,
     )
+    return (*comparison, condition_recordings)
+
+
+def analyse_event_aligned_mechanism(
+    recordings: dict[str, dict[str, np.ndarray]],
+) -> tuple[dict[str, object], dict[str, np.ndarray]]:
+    """Resolve the first measurable E-to-E correction after coupling begins."""
+    baseline = recordings["none"]
+    coupled = recordings["e_to_e"]
+    source_rate = population_rate(coupled["population_0"], N_E)
+    source_peaks = detect_volleys(source_rate, burn_ms=0.0)
+    delay_steps = round(COUPLING_DELAY_MS / DT_MS)
+    left_steps = round(5.0 / DT_MS)
+    right_steps = round(17.0 / DT_MS)
+    candidates = source_peaks[
+        (source_peaks + delay_steps >= left_steps)
+        & (source_peaks + delay_steps + right_steps < len(source_rate))
+    ]
+    if candidates.size == 0:
+        raise RuntimeError("no source volley has a complete mechanism window")
+    source_step = int(candidates[0])
+    arrival_step = source_step + delay_steps
+
+    baseline_target_peaks = detect_volleys(
+        population_rate(baseline["population_2"], N_E),
+        burn_ms=0.0,
+    )
+    coupled_target_peaks = detect_volleys(
+        population_rate(coupled["population_2"], N_E),
+        burn_ms=0.0,
+    )
+    baseline_next = baseline_target_peaks[baseline_target_peaks > arrival_step]
+    coupled_next = coupled_target_peaks[coupled_target_peaks > arrival_step]
+    if baseline_next.size == 0 or coupled_next.size == 0:
+        raise RuntimeError("no target volley follows the selected coupling event")
+    baseline_next_step = int(baseline_next[0])
+    coupled_next_step = int(coupled_next[0])
+
+    start = arrival_step - left_steps
+    stop = arrival_step + right_steps
+    window = slice(start, stop)
+    traces = {
+        "time_from_arrival_ms": (np.arange(start, stop) - arrival_step) * DT_MS,
+        "incoming_e_to_e_conductance": coupled["PING_A_E_to_PING_B_E_K_EE.conductance"][
+            window, 0
+        ].mean(axis=1),
+        "baseline_target_e_rate": population_rate(baseline["population_2"], N_E)[
+            window
+        ],
+        "coupled_target_e_rate": population_rate(coupled["population_2"], N_E)[window],
+        "baseline_target_i_rate": population_rate(baseline["population_3"], N_I)[
+            window
+        ],
+        "coupled_target_i_rate": population_rate(coupled["population_3"], N_I)[window],
+        "baseline_inhibition_to_e": baseline["PING_B_I_to_E.conductance"][
+            window, 0
+        ].mean(axis=1),
+        "coupled_inhibition_to_e": coupled["PING_B_I_to_E.conductance"][window, 0].mean(
+            axis=1
+        ),
+    }
+    record = {
+        "source_network": "PING_A",
+        "target_network": "PING_B",
+        "source_volley_ms_after_coupling": source_step * DT_MS,
+        "arrival_ms_after_coupling": arrival_step * DT_MS,
+        "baseline_next_target_volley_ms_after_coupling": baseline_next_step * DT_MS,
+        "coupled_next_target_volley_ms_after_coupling": coupled_next_step * DT_MS,
+        "next_target_volley_advance_ms": (baseline_next_step - coupled_next_step)
+        * DT_MS,
+    }
+    return record, traces
+
+
+def plot_event_aligned_mechanism(
+    mechanism: dict[str, object],
+    traces: dict[str, np.ndarray],
+    out: Path,
+) -> None:
+    """Trace the causal sequence around one incoming E-to-E volley."""
+    theme.apply()
+    time_ms = traces["time_from_arrival_ms"]
+    source_ms = -COUPLING_DELAY_MS
+    baseline_next_ms = (
+        mechanism["baseline_next_target_volley_ms_after_coupling"]
+        - mechanism["arrival_ms_after_coupling"]
+    )
+    coupled_next_ms = (
+        mechanism["coupled_next_target_volley_ms_after_coupling"]
+        - mechanism["arrival_ms_after_coupling"]
+    )
+    fig, axes = plt.subplots(4, 1, figsize=(7.0, 7.2), sharex=True)
+
+    axes[0].plot(
+        time_ms,
+        traces["incoming_e_to_e_conductance"],
+        color=theme.ELECTRIC_CYAN,
+        label="A→B E conductance",
+    )
+    axes[0].set(
+        title="One E→E event advances the target network's next volley",
+        ylabel="cross-network\nconductance (µS)",
+    )
+    axes[0].legend(frameon=False, loc="upper right")
+
+    axes[1].plot(
+        time_ms,
+        traces["baseline_target_e_rate"],
+        color=theme.GREY_MID,
+        ls="--",
+        label="no coupling",
+    )
+    axes[1].plot(
+        time_ms,
+        traces["coupled_target_e_rate"],
+        color=theme.INK_BLACK,
+        label="E→E only",
+    )
+    axes[1].axvline(
+        baseline_next_ms,
+        color=theme.GREY_MID,
+        lw=0.9,
+        ls="--",
+    )
+    axes[1].axvline(coupled_next_ms, color=theme.INK_BLACK, lw=0.9, ls=":")
+    axes[1].annotate(
+        f"{mechanism['next_target_volley_advance_ms']:.1f} ms advance",
+        xy=(coupled_next_ms, traces["coupled_target_e_rate"].max()),
+        xytext=(coupled_next_ms - 2.0, traces["coupled_target_e_rate"].max()),
+        ha="right",
+        va="top",
+        fontsize=theme.SIZE_ANNOTATION,
+        arrowprops={"arrowstyle": "-", "color": theme.INK_BLACK, "lw": 0.8},
+    )
+    axes[1].set_ylabel("target E rate\n(Hz per neuron)")
+    axes[1].legend(frameon=False, loc="upper left")
+
+    axes[2].plot(
+        time_ms,
+        traces["baseline_target_i_rate"],
+        color=theme.GREY_MID,
+        ls="--",
+        label="no coupling",
+    )
+    axes[2].plot(
+        time_ms,
+        traces["coupled_target_i_rate"],
+        color=theme.DEEP_RED,
+        label="E→E only",
+    )
+    axes[2].set_ylabel("target I rate\n(Hz per neuron)")
+    axes[2].legend(frameon=False, loc="upper left")
+
+    axes[3].plot(
+        time_ms,
+        traces["baseline_inhibition_to_e"],
+        color=theme.GREY_MID,
+        ls="--",
+        label="no coupling",
+    )
+    axes[3].plot(
+        time_ms,
+        traces["coupled_inhibition_to_e"],
+        color=theme.DEEP_RED,
+        label="E→E only",
+    )
+    axes[3].set(
+        xlabel="time from cross-network excitation reaching Network B (ms)",
+        ylabel="inhibition onto E\n(µS)",
+    )
+    axes[3].legend(frameon=False, loc="upper left")
+
+    for ax in axes:
+        ax.axvline(source_ms, color=theme.AMBER, lw=0.8, ls=":")
+        ax.axvline(0.0, color=theme.ELECTRIC_CYAN, lw=0.9, ls="--")
+        ax.spines[["top", "right"]].set_visible(False)
+    axes[0].text(
+        source_ms,
+        axes[0].get_ylim()[1],
+        "source volley",
+        ha="right",
+        va="top",
+        fontsize=theme.SIZE_ANNOTATION,
+        color=theme.AMBER,
+    )
+    axes[0].text(
+        0.0,
+        axes[0].get_ylim()[1],
+        "arrival",
+        ha="left",
+        va="top",
+        fontsize=theme.SIZE_ANNOTATION,
+        color=theme.ELECTRIC_CYAN,
+    )
+    fig.tight_layout()
+    fig.savefig(out, dpi=220, bbox_inches="tight")
+    plt.close(fig)
 
 
 def plot_pathway_comparison(
@@ -1174,11 +1366,11 @@ def plot_pathway_comparison(
             lw=1.2,
         )
         ax.axhline(0.0, color=theme.GREY_LIGHT, lw=0.7, ls="--")
-        ax.set(title=f'{condition["label"]}: {state}', ylim=(lower, upper))
+        ax.set(title=f"{condition['label']}: {state}", ylim=(lower, upper))
         ax.text(
             0.99,
             0.82,
-            f'{condition["final_drift_rate_cycles_per_s"]:.2f} cycles/s',
+            f"{condition['final_drift_rate_cycles_per_s']:.2f} cycles/s",
             transform=ax.transAxes,
             ha="right",
             va="top",
@@ -1197,10 +1389,11 @@ def experiment_record(
     analysis: dict[str, object],
     phase_response: dict[str, object],
     pathway_comparison: dict[str, object],
+    event_aligned_mechanism: dict[str, object],
 ) -> dict[str, object]:
     return {
         "status": STATUS,
-        "completed_methods": [1, 2, 3, 4],
+        "completed_methods": [1, 2, 3, 4, 5],
         "simulation_run": True,
         "network": {
             "local_circuit": "matched E-to-I-to-E PING",
@@ -1230,7 +1423,8 @@ def experiment_record(
         },
         "phase_response": phase_response,
         "pathway_comparison": pathway_comparison,
-        "remaining_methods_unrun": [5],
+        "event_aligned_mechanism": event_aligned_mechanism,
+        "remaining_methods_unrun": [],
     }
 
 
@@ -1284,20 +1478,31 @@ def main() -> None:
             phase_response_examples,
             staging / "phase_response.png",
         )
-        pathway_comparison, pathway_traces = run_pathway_comparison()
+        (
+            pathway_comparison,
+            pathway_traces,
+            pathway_recordings,
+        ) = run_pathway_comparison()
         plot_pathway_comparison(
             pathway_comparison,
             pathway_traces,
             staging / "pathway_comparison.png",
         )
+        event_aligned_mechanism, mechanism_traces = analyse_event_aligned_mechanism(
+            pathway_recordings
+        )
+        plot_event_aligned_mechanism(
+            event_aligned_mechanism,
+            mechanism_traces,
+            staging / "event_aligned_mechanism.png",
+        )
         record = experiment_record(
             analysis,
             phase_response,
             pathway_comparison,
+            event_aligned_mechanism,
         )
-        (staging / "protocol.json").write_text(
-            json.dumps(record, indent=2) + "\n"
-        )
+        (staging / "protocol.json").write_text(json.dumps(record, indent=2) + "\n")
         write_numbers(
             staging,
             run_id=run_id,
