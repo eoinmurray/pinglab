@@ -14,7 +14,7 @@ import matplotlib.animation as animation
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
-from matplotlib.colors import ListedColormap, to_rgba
+from matplotlib.colors import ListedColormap
 
 REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO))
@@ -722,107 +722,76 @@ def plot_state_space(
 
 
 def render_raster_hero(runs: list[PacketRun], out: Path) -> None:
-    """Render one measured run as a scrolling classic raster."""
+    """Animate the three measured rasters using Figure 7's top-row layout."""
     period_s = 8.0
     fps = 30
-    window_ms = 40.0
+    window_ms = 30.0
     loop_start_ms = BACKGROUND_SETTLED_START_MS
-    loop_span_ms = T_MS - loop_start_ms
-    run = next(run for run in runs if run.packet_id == "broad")
-    event_times = []
-    event_neurons = []
-    event_colors = []
-    for layer, (spikes, volley_window) in enumerate(
-        zip(run.pool_spikes, run.volley_windows, strict=True)
-    ):
-        steps, _batch, neurons = np.nonzero(spikes)
-        keep = (steps * DT_MS >= loop_start_ms) & (steps * DT_MS < T_MS)
-        event_times.extend(steps[keep] * DT_MS)
-        event_neurons.extend(neurons[keep] + layer * NEURONS_PER_LAYER)
-        for step in steps[keep]:
-            in_volley = (
-                volley_window is not None
-                and volley_window[0] <= step < volley_window[1]
-            )
-            if in_volley:
-                event_colors.append(to_rgba(theme.ELECTRIC_CYAN, alpha=0.95))
-            else:
-                event_colors.append(to_rgba(theme.INK_BLACK, alpha=0.62))
-    event_times_array = np.asarray(event_times)
-    event_neurons_array = np.asarray(event_neurons)
-    event_rgba = np.asarray(event_colors)
+    final_window_start_ms = T_MS - window_ms
+    frames = round(period_s * fps)
 
     theme.apply()
-    fig, ax = plt.subplots(figsize=(12.0, 5.5))
-    for boundary in range(1, LAYERS):
-        ax.axhline(
-            boundary * NEURONS_PER_LAYER - 0.5,
-            color=theme.RULE,
-            linewidth=0.8,
+    fig, axes = plt.subplots(1, 3, figsize=(14.0, 5.2), sharey=True)
+    title = fig.suptitle("Measured packet trajectories rolling through time")
+    for column, (ax, run) in enumerate(zip(axes, runs, strict=True)):
+        event_times = []
+        event_neurons = []
+        for layer, spikes in enumerate(run.pool_spikes):
+            steps, _batch, neurons = np.nonzero(spikes)
+            keep = (steps * DT_MS >= loop_start_ms) & (steps * DT_MS < T_MS)
+            event_times.extend(steps[keep] * DT_MS)
+            event_neurons.extend(neurons[keep] + layer * NEURONS_PER_LAYER)
+        for boundary in range(1, LAYERS):
+            ax.axhline(
+                boundary * NEURONS_PER_LAYER - 0.5,
+                color=theme.RULE,
+                linewidth=0.8,
+            )
+        ax.scatter(
+            event_times,
+            event_neurons,
+            marker="|",
+            s=12,
+            linewidths=0.9,
+            color=theme.CYCLE[column],
         )
-    points = ax.scatter(
-        np.zeros_like(event_times_array),
-        event_neurons_array,
-        marker="|",
-        s=18,
-        linewidths=1.0,
-        color=event_rgba,
-    )
-    input_line = ax.axvline(
-        0.0,
-        color=theme.DEEP_RED,
-        linestyle="--",
-        linewidth=1.2,
-    )
-    time_label = ax.text(
-        0.99,
-        1.02,
-        "",
-        ha="right",
-        va="bottom",
-        transform=ax.transAxes,
-        color=theme.DIM,
-    )
-    ax.set(
-        title="Measured broad-packet run",
-        xlim=(0, window_ms),
-        ylim=(LAYERS * NEURONS_PER_LAYER - 0.5, -0.5),
-        xticks=np.arange(0.0, window_ms + 0.1, 10.0),
-        yticks=[(layer + 0.5) * NEURONS_PER_LAYER for layer in range(LAYERS)],
-        yticklabels=[f"P{layer}" for layer in range(1, LAYERS + 1)],
-        xlabel="time from window start (ms)",
-        ylabel="neuron (grouped by pool)",
-    )
-    ax.spines[["top", "right"]].set_visible(False)
-    fig.tight_layout(pad=1.2)
+        ax.set(
+            title=run.label,
+            xlim=(loop_start_ms, loop_start_ms + window_ms),
+            ylim=(LAYERS * NEURONS_PER_LAYER - 0.5, -0.5),
+            yticks=[
+                (layer + 0.5) * NEURONS_PER_LAYER for layer in range(LAYERS)
+            ],
+            yticklabels=[f"P{layer}" for layer in range(1, LAYERS + 1)],
+            xlabel="time (ms)",
+        )
+        if column == 0:
+            ax.set_ylabel("pool")
+        else:
+            ax.tick_params(labelleft=False)
+        ax.spines[["top", "right"]].set_visible(False)
+    fig.tight_layout(rect=(0.0, 0.0, 1.0, 0.94))
 
     def update(frame: int):
-        phase_ms = frame / (period_s * fps) * loop_span_ms
-        window_start = loop_start_ms + phase_ms
-        x = np.mod(event_times_array - window_start, loop_span_ms)
-        visible = x < window_ms
-        points.set_offsets(np.column_stack((x, event_neurons_array)))
-        colors = event_rgba.copy()
-        colors[:, 3] *= visible
-        points.set_color(colors)
-        input_x = np.mod(PACKET_CENTRE_MS - window_start, loop_span_ms)
-        input_line.set_xdata([input_x, input_x])
-        input_line.set_visible(input_x < window_ms)
+        fraction = frame / max(frames - 1, 1)
+        window_start = loop_start_ms + fraction * (
+            final_window_start_ms - loop_start_ms
+        )
         window_end = window_start + window_ms
-        if window_end <= T_MS:
-            label = f"run time {window_start:04.1f}–{window_end:04.1f} ms"
-        else:
-            wrapped_end = loop_start_ms + window_end - T_MS
-            label = f"run time {window_start:04.1f}–100 / 30–{wrapped_end:04.1f} ms"
-        time_label.set_text(label)
-        return points, input_line, time_label
+        for ax in axes:
+            ax.set_xlim(window_start, window_end)
+        title.set_text(
+            "Measured packet trajectories rolling through time"
+            f" · {window_start:04.1f}–{window_end:04.1f} ms"
+        )
+        return (*axes, title)
 
     movie = animation.FuncAnimation(
         fig,
         update,
-        frames=round(period_s * fps),
+        frames=frames,
         interval=1_000 / fps,
-        blit=True,
+        blit=False,
     )
     writer = animation.FFMpegWriter(
         fps=fps,
