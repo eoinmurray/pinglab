@@ -131,7 +131,7 @@
 
   with $r_b$ the population-mean hidden-E firing rate for presentation $b$ and
   $r_"max"$ its ceiling in hertz. Presentations at or below the ceiling contribute
-  zero. We sweep off, 25, 10, 5, 2.5, and 1 Hz, giving twelve
+  zero. The normalized penalty uses $lambda = 0.041$. We sweep off, 25, 10, 5, 2.5, and 1 Hz, giving twelve
   $("model", r_"max")$ conditions and 36 trained cells across seeds.
 
   *Rate-floor decomposition.* The affine law $r_E = p dot f_gamma$

@@ -29,8 +29,14 @@ import numpy as np
 REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from exp022 import cell_dir as shared_cell_dir  # noqa: E402
-from exp022 import training_run_cell, training_run_values  # noqa: E402
+from exp022 import (  # noqa: E402
+    FR_STRENGTH_UPPER,
+    training_run_cell,
+    training_run_values,
+)
+from exp022 import (
+    cell_dir as shared_cell_dir,
+)
 from helpers import theme  # noqa: E402
 from helpers.checkpoints import (  # noqa: E402
     cache_tag,
@@ -102,7 +108,6 @@ if SMOKE:
 RATE_TARGET_GRID_HZ: list[float | None] = list(
     training_run_values("TR-02", "rate_target_hz")
 )
-FR_STRENGTH_UPPER = 1e-3
 
 MODELS = list(training_run_values("TR-02", "model"))
 
