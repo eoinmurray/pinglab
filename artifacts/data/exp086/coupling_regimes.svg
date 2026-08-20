@@ -1,73 +1,78 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="620" viewBox="0 0 1200 620" role="img" aria-labelledby="title desc">
-  <title id="title">Illustrative transition from phase locking to intermittent attraction and free drift</title>
-  <desc id="desc">Three columns compare strong, intermediate, and zero coupling. Top plots show relative-phase position over time. Bottom plots show relative-phase velocity against position. Strong coupling stops phase motion, intermediate coupling slows but does not stop it near a preferred phase, and zero coupling gives steady drift.</desc>
-  <rect width="1200" height="620" fill="#ffffff"/>
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="648" viewBox="0 0 1200 648" role="img" aria-labelledby="title desc">
+  <title id="title">Expected transition as reciprocal coupling weakens</title>
+  <desc id="desc">A qualitative two-by-three schematic matching the measured coupling-regime figure. Columns show strong, intermediate, and zero coupling. Rows show relative-phase position through time and mean relative-phase velocity by position.</desc>
+  <rect width="1200" height="648" fill="#ffffff"/>
   <style>
-    .title { font: 600 25px system-ui, sans-serif; fill: #171717; }
-    .subtitle { font: 17px system-ui, sans-serif; fill: #555; }
-    .head { font: 600 20px system-ui, sans-serif; fill: #171717; }
-    .label { font: 16px system-ui, sans-serif; fill: #333; }
-    .small { font: 15px system-ui, sans-serif; fill: #555; }
-    .axis { stroke: #333; stroke-width: 1.5; fill: none; }
-    .guide { stroke: #aeb4bb; stroke-width: 1.2; stroke-dasharray: 5 5; fill: none; }
-    .phase { stroke: #171717; stroke-width: 3; fill: none; stroke-linecap: round; stroke-linejoin: round; }
-    .velocity { stroke: #c51632; stroke-width: 3; fill: none; stroke-linecap: round; stroke-linejoin: round; }
-    .accent { fill: #dcecf7; }
-    .accent-line { stroke: #277da1; stroke-width: 1.5; stroke-dasharray: 5 4; }
+    text { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; fill: #1a1a1a; }
+    .title { font-size: 21px; font-weight: 700; }
+    .note { font-size: 13px; fill: #555; }
+    .head { font-size: 16px; font-weight: 700; }
+    .label { font-size: 14px; }
+    .tick { font-size: 12px; }
+    .axis { stroke: #1a1a1a; stroke-width: 1.6; fill: none; }
+    .zero { stroke: #a0a0a0; stroke-width: 1; stroke-dasharray: 5 4; }
+    .strong { stroke: #1a1a1a; fill: none; stroke-width: 2.5; }
+    .intermediate { stroke: #c8102e; fill: none; stroke-width: 2.5; }
+    .uncoupled { stroke: #6a6a6a; fill: none; stroke-width: 2.5; }
+    .strong-dot { fill: #1a1a1a; }
+    .intermediate-dot { fill: #c8102e; }
+    .uncoupled-dot { fill: #6a6a6a; }
+    .band { fill: #00b4d8; fill-opacity: 0.12; }
   </style>
 
-  <text x="60" y="42" class="title">What weakening coupling should change</text>
-  <text x="60" y="70" class="subtitle">Design schematic — these curves are not simulated results</text>
+  <text x="600" y="34" text-anchor="middle" class="title">Expected transition as reciprocal coupling weakens</text>
+  <text x="1140" y="34" text-anchor="end" class="note">qualitative schematic</text>
 
-  <text x="220" y="111" text-anchor="middle" class="head">Strong coupling</text>
-  <text x="600" y="111" text-anchor="middle" class="head">Intermediate coupling</text>
-  <text x="980" y="111" text-anchor="middle" class="head">No coupling</text>
+  <g id="titles" text-anchor="middle">
+    <text x="225" y="78" class="head">Strong coupling</text>
+    <text x="225" y="99" class="note">K high</text>
+    <text x="600" y="78" class="head">Intermediate coupling</text>
+    <text x="600" y="99" class="note">K intermediate</text>
+    <text x="975" y="78" class="head">No coupling</text>
+    <text x="975" y="99" class="note">K = 0</text>
+  </g>
 
-  <!-- preferred-position bands -->
-  <rect x="80" y="187" width="280" height="30" rx="3" class="accent"/>
-  <rect x="460" y="187" width="280" height="30" rx="3" class="accent"/>
-  <rect x="840" y="187" width="280" height="30" rx="3" class="accent"/>
+  <!-- Preferred-position bands and top-row axes. -->
+  <rect x="78" y="179" width="294" height="24" class="band"/>
+  <rect x="453" y="179" width="294" height="24" class="band"/>
+  <rect x="828" y="179" width="294" height="24" class="band"/>
+  <path d="M78 120V300H372 M453 120V300H747 M828 120V300H1122" class="axis"/>
+  <text x="32" y="210" transform="rotate(-90 32 210)" text-anchor="middle" class="label">relative-phase position (rad)</text>
+  <g class="tick" text-anchor="end"><text x="68" y="129">π</text><text x="68" y="215">0</text><text x="68" y="300">−π</text></g>
+  <g class="label" text-anchor="middle">
+    <text x="225" y="330">time in displayed window (ms)</text>
+    <text x="600" y="330">time in displayed window (ms)</text>
+    <text x="975" y="330">time in displayed window (ms)</text>
+  </g>
 
-  <!-- top axes -->
-  <path d="M80 135 V290 H360 M460 135 V290 H740 M840 135 V290 H1120" class="axis"/>
-  <text x="45" y="215" transform="rotate(-90 45 215)" text-anchor="middle" class="label">relative-phase position θ</text>
-  <text x="220" y="315" text-anchor="middle" class="label">time</text>
-  <text x="600" y="315" text-anchor="middle" class="label">time</text>
-  <text x="980" y="315" text-anchor="middle" class="label">time</text>
-  <text x="68" y="145" text-anchor="end" class="small">+π</text>
-  <text x="68" y="289" text-anchor="end" class="small">−π</text>
+  <!-- Idealized relative-phase trajectories. -->
+  <path d="M86 270C116 248 139 220 163 202C186 187 216 190 246 190H364" class="strong"/>
+  <path d="M461 286L486 250L512 216C532 196 554 190 579 188C607 186 630 177 646 151L670 122M670 122V288L694 252L720 217C731 203 740 196 743 194" class="intermediate"/>
+  <path d="M836 289L900 122M900 122V289L964 122M964 122V289L1028 122M1028 122V289L1114 129" class="uncoupled"/>
 
-  <!-- top trajectories -->
-  <path d="M88 250 C115 232 137 215 158 205 C181 197 210 201 238 201 H350" class="phase"/>
-  <path d="M468 278 L492 250 L515 222 C532 208 552 202 575 200 C600 198 620 194 634 178 L664 136 M664 136 L664 282 M664 282 L685 252 L708 222 C724 209 733 205 737 204" class="phase"/>
-  <path d="M848 280 L915 136 M915 136 L915 282 M915 282 L982 136 M982 136 L982 282 M982 282 L1049 136 M1049 136 L1049 282 M1049 282 L1115 140" class="phase"/>
+  <!-- Bottom-row axes and preferred-position bands. -->
+  <rect x="202" y="384" width="46" height="184" class="band"/>
+  <rect x="577" y="384" width="46" height="184" class="band"/>
+  <rect x="952" y="384" width="46" height="184" class="band"/>
+  <path d="M78 384V568H372 M453 384V568H747 M828 384V568H1122" class="axis"/>
+  <path d="M78 542H372 M453 542H747 M828 542H1122" class="zero"/>
+  <text x="32" y="476" transform="rotate(-90 32 476)" text-anchor="middle" class="label">mean relative-phase velocity (rad/s)</text>
+  <g class="tick" text-anchor="middle">
+    <text x="78" y="590">−π</text><text x="225" y="590">0</text><text x="372" y="590">π</text>
+    <text x="453" y="590">−π</text><text x="600" y="590">0</text><text x="747" y="590">π</text>
+    <text x="828" y="590">−π</text><text x="975" y="590">0</text><text x="1122" y="590">π</text>
+  </g>
+  <g class="label" text-anchor="middle">
+    <text x="225" y="620">relative-phase position (rad)</text>
+    <text x="600" y="620">relative-phase position (rad)</text>
+    <text x="975" y="620">relative-phase position (rad)</text>
+  </g>
 
-  <text x="220" y="342" text-anchor="middle" class="small">position settles and stays fixed</text>
-  <text x="600" y="342" text-anchor="middle" class="small">position slips, but lingers in blue band</text>
-  <text x="980" y="342" text-anchor="middle" class="small">position circulates at nearly steady speed</text>
-
-  <!-- bottom axes -->
-  <path d="M80 385 V545 H360 M460 385 V545 H740 M840 385 V545 H1120" class="axis"/>
-  <path d="M80 495 H360 M460 495 H740 M840 495 H1120" class="guide"/>
-  <text x="43" y="465" transform="rotate(-90 43 465)" text-anchor="middle" class="label">relative-phase velocity vθ</text>
-  <text x="220" y="582" text-anchor="middle" class="label">relative-phase position θ</text>
-  <text x="600" y="582" text-anchor="middle" class="label">relative-phase position θ</text>
-  <text x="980" y="582" text-anchor="middle" class="label">relative-phase position θ</text>
-  <text x="68" y="500" text-anchor="end" class="small">0</text>
-  <text x="82" y="565" class="small">−π</text>
-  <text x="350" y="565" text-anchor="end" class="small">+π</text>
-  <text x="462" y="565" class="small">−π</text>
-  <text x="730" y="565" text-anchor="end" class="small">+π</text>
-  <text x="842" y="565" class="small">−π</text>
-  <text x="1110" y="565" text-anchor="end" class="small">+π</text>
-
-  <!-- bottom velocity curves -->
-  <path d="M88 405 C130 420 166 457 198 491 C205 498 213 502 222 500 C238 496 255 472 273 444 C292 418 317 405 350 401" class="velocity"/>
-  <circle cx="211" cy="498" r="6" fill="#277da1"/>
-  <path d="M468 413 C510 418 545 434 573 455 C589 467 600 472 613 469 C634 464 652 441 673 426 C692 413 713 408 732 407" class="velocity"/>
-  <path d="M848 421 C912 419 979 420 1045 418 C1070 417 1090 418 1112 417" class="velocity"/>
-
-  <text x="220" y="375" text-anchor="middle" class="small">correction cancels detuning: vθ = 0</text>
-  <text x="600" y="375" text-anchor="middle" class="small">correction lowers vθ but does not reach zero</text>
-  <text x="980" y="375" text-anchor="middle" class="small">detuning remains: vθ is nearly constant</text>
+  <!-- Idealized phase-dependent velocity curves. -->
+  <path d="M86 410C130 423 167 465 200 525C210 543 221 548 232 540C248 527 266 475 289 438C310 414 334 405 364 402" class="strong"/>
+  <g class="strong-dot"><circle cx="86" cy="410" r="3"/><circle cx="150" cy="442" r="3"/><circle cx="210" cy="542" r="3"/><circle cx="276" cy="458" r="3"/><circle cx="364" cy="402" r="3"/></g>
+  <path d="M461 420C505 426 543 448 573 480C590 498 603 503 618 496C641 484 661 450 686 432C706 418 726 414 739 414" class="intermediate"/>
+  <g class="intermediate-dot"><circle cx="461" cy="420" r="3"/><circle cx="535" cy="443" r="3"/><circle cx="603" cy="501" r="3"/><circle cx="675" cy="440" r="3"/><circle cx="739" cy="414" r="3"/></g>
+  <path d="M836 432C900 430 968 431 1034 428C1060 427 1084 429 1114 427" class="uncoupled"/>
+  <g class="uncoupled-dot"><circle cx="836" cy="432" r="3"/><circle cx="910" cy="430" r="3"/><circle cx="975" cy="431" r="3"/><circle cx="1045" cy="428" r="3"/><circle cx="1114" cy="427" r="3"/></g>
 </svg>
