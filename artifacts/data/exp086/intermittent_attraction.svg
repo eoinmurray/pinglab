@@ -15,7 +15,6 @@
     .velocity { stroke: #c8102e; stroke-width: 2.5; fill: none; }
     .velocity-dot { fill: #c8102e; }
     .density { stroke: #00b4d8; stroke-width: 2.5; fill: #00b4d8; fill-opacity: 0.18; }
-    .band { fill: #00b4d8; fill-opacity: 0.12; }
   </style>
 
   <text x="600" y="34" text-anchor="middle" class="title">Expected intermittent-attraction signature</text>
@@ -23,7 +22,6 @@
 
   <!-- Panel A. -->
   <text x="330" y="82" text-anchor="middle" class="head">A  Relative-phase position through time</text>
-  <rect x="82" y="188" width="496" height="28" class="band"/>
   <path d="M82 112V365H578" class="axis"/>
   <text x="32" y="238" transform="rotate(-90 32 238)" text-anchor="middle" class="label">position (rad)</text>
   <text x="330" y="400" text-anchor="middle" class="label">time in displayed window (ms)</text>
@@ -39,7 +37,6 @@
 
   <!-- Panel C. -->
   <text x="330" y="486" text-anchor="middle" class="head">C  Velocity depends on phase position</text>
-  <rect x="303" y="516" width="54" height="253" class="band"/>
   <path d="M82 516V769H578" class="axis"/>
   <path d="M82 744H578" class="zero"/>
   <text x="32" y="642" transform="rotate(-90 32 642)" text-anchor="middle" class="label">mean velocity (rad/s)</text>
@@ -50,7 +47,6 @@
 
   <!-- Panel D. -->
   <text x="900" y="486" text-anchor="middle" class="head">D  Phase-position distribution</text>
-  <rect x="873" y="516" width="54" height="253" class="band"/>
   <path d="M652 516V769H1148" class="axis"/>
   <text x="602" y="642" transform="rotate(-90 602 642)" text-anchor="middle" class="label">density</text>
   <text x="900" y="830" text-anchor="middle" class="label">relative-phase position (rad)</text>

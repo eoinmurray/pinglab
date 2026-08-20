@@ -372,23 +372,8 @@ def plot_coupling_regimes(
     )
     fig, axes = plt.subplots(2, 3, figsize=(10.5, 5.5), sharey="row")
     for column, (trajectory, label, color) in enumerate(columns):
-        preferred = float(trajectory["preferred_phase_rad"])
-        axes[0, column].axhspan(
-            preferred - np.pi / PHASE_BINS,
-            preferred + np.pi / PHASE_BINS,
-            color=theme.ELECTRIC_CYAN,
-            alpha=0.12,
-            lw=0,
-        )
         _plot_position_time(axes[0, column], trajectory, color)
         _plot_velocity_position(axes[1, column], trajectory, color)
-        axes[1, column].axvspan(
-            preferred - np.pi / PHASE_BINS,
-            preferred + np.pi / PHASE_BINS,
-            color=theme.ELECTRIC_CYAN,
-            alpha=0.12,
-            lw=0,
-        )
         axes[0, column].set_title(
             f'{label}\nK = {float(trajectory["k"]):.3f} µS'
         )
@@ -411,17 +396,8 @@ def plot_intermittent_attraction(
     time_ms = np.asarray(trajectory["time_ms"])
     keep = time_ms >= max(time_ms.min(), time_ms.max() - DISPLAY_WINDOW_MS)
     local_time = time_ms[keep] - time_ms[keep][0]
-    preferred = float(trajectory["preferred_phase_rad"])
-    half_bin = np.pi / PHASE_BINS
     fig, axes = plt.subplots(2, 2, figsize=(8.5, 6.2))
 
-    axes[0, 0].axhspan(
-        preferred - half_bin,
-        preferred + half_bin,
-        color=theme.ELECTRIC_CYAN,
-        alpha=0.12,
-        lw=0,
-    )
     axes[0, 0].plot(
         local_time,
         np.asarray(trajectory["wrapped_phase"])[keep],
@@ -448,13 +424,6 @@ def plot_intermittent_attraction(
         ylabel="velocity (rad/s)",
     )
 
-    axes[1, 0].axvspan(
-        preferred - half_bin,
-        preferred + half_bin,
-        color=theme.ELECTRIC_CYAN,
-        alpha=0.12,
-        lw=0,
-    )
     _plot_velocity_position(axes[1, 0], trajectory, theme.DEEP_RED)
     axes[1, 0].set(
         title="C  Velocity depends on phase position",
@@ -464,13 +433,6 @@ def plot_intermittent_attraction(
 
     centres = np.asarray(trajectory["phase_bin_centres"])
     density = np.asarray(trajectory["phase_density"])
-    axes[1, 1].axvspan(
-        preferred - half_bin,
-        preferred + half_bin,
-        color=theme.ELECTRIC_CYAN,
-        alpha=0.12,
-        lw=0,
-    )
     axes[1, 1].fill_between(
         centres,
         density,
