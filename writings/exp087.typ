@@ -81,15 +81,15 @@
 
     Generates #link("#result-3-packet-state-space")[Result 3].
 
-  + *Render a looping raster hero.* Use all measured pool spikes from the three trajectories in Method 2. Place neurons from Pools 1--6 in separate horizontal bands, with time moving horizontally. Scroll the raster at a constant speed. Show packet volleys in color and unrelated background spikes in muted gray. Show the weak packet fading out and the two surviving packets approaching the same compact volley. Incoming spikes must stop at each pool and a newly generated volley must appear in the next pool. Repeat the complete sequence at an exact interval and match the first and last frames to produce an eight-second seamless MP4 loop.
+  + *Render a looping raster hero.* Use the complete measured broad-packet run from Method 2. After the 30 ms settling period, scroll a 40 ms window through the remaining activity. Draw every measured spike as a conventional raster tick on a white field. Show background spikes in black, spikes inside the measured packet windows in cyan, and packet-input time as a red dashed line. Repeat the measured 30--100 ms segment to make an eight-second seamless loop. The repeated boundary is an animation device; the spikes within the segment come from one simulation.
 
     #figure(
       image(
         "/artifacts/data/exp087/raster_hero_storyboard.svg",
         width: 100%,
-        alt: "Approximate frame from a dark scrolling raster animation with six pool bands. A weak packet disappears while two other packets produce matching compact volleys.",
+        alt: "Design frame for a white scientific raster animation with six pool bands, black background spikes, a cyan propagating packet, and a red input-time marker.",
       ),
-      caption: [*Approximate frame from the hero animation.* Result 4 replaces these illustrative marks with measured spikes. Packet size appears as spike density and packet spread appears as horizontal volley width.],
+      caption: [*Design frame for the hero animation.* Result 4 replaces these illustrative marks with every measured spike from the broad-packet run.],
     )
 
     Generates #link("#result-4-looping-raster-hero")[Result 4].
@@ -127,7 +127,7 @@
 
     #video("synfire_raster_hero.mp4", caption: [Measured spikes from the three packet trajectories, arranged as an eight-second seamless scrolling raster.])
 
-    Red shows the packet that dies. Cyan shows the broad packet sharpening as each pool regenerates it. Amber begins as the oversized packet and becomes cyan after it reaches the same stable form. Muted gray marks show genuine spikes caused by ongoing background drive rather than the measured packet volley. Spike marks fade at the horizontal boundaries so the periodic time window loops without a visible cut.
+    Black marks are genuine background-driven spikes from the measured run. Cyan marks are the same measured spikes when they fall inside a detected packet volley. The red dashed line marks input time. The raster repeats the settled 70 ms segment only to form a seamless loop; it does not splice different simulations together.
 
   == References
 
