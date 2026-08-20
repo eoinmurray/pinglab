@@ -1,7 +1,7 @@
 #import "/.demolab/lib.typ": cite, reference-list
 
 #let meta = (
-  title: "Dissecting Lowet 2015 PING Synchronization",
+  title: "Lowet 2015",
   date: "2026-08-19",
   description: "Distinguish the pathways that phase-lock two cortical PING rhythms.",
   collection: "paper-demonstrations",
