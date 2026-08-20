@@ -30,6 +30,7 @@ import copy
 import json
 import os
 import shlex
+import shutil
 import subprocess
 import sys
 import time
@@ -1158,7 +1159,11 @@ def _campaign_parser() -> argparse.ArgumentParser:
     group.add_argument("--campaign-train-cell", metavar="NAME")
     group.add_argument("--campaign-validate", type=Path, metavar="MANIFEST")
     group.add_argument("--campaign-aggregate", type=Path, metavar="MANIFEST")
+    group.add_argument(
+        "--campaign-import-compatible", type=Path, metavar="MANIFEST"
+    )
     parser.add_argument("--campaign", type=Path, metavar="MANIFEST")
+    parser.add_argument("--from-campaign", type=Path, metavar="MANIFEST")
     parser.add_argument("--campaign-id")
     parser.add_argument("--tier", default="all")
     parser.add_argument("--json", action="store_true")
@@ -1166,6 +1171,80 @@ def _campaign_parser() -> argparse.ArgumentParser:
     parser.add_argument("--recover-stale", action="store_true")
     parser.add_argument("--plumbing", action="store_true")
     return parser
+
+
+def _portable_cell_contract(row: dict) -> dict:
+    """Return the scientific cell contract with destination paths removed."""
+    parameters = copy.deepcopy(row["parameters"])
+    parameters.get("arguments", {}).pop("--out-dir", None)
+    return {
+        "name": row["name"],
+        "training_run_id": row["training_run_id"],
+        "family": row["family"],
+        "resource_tier": row["resource_tier"],
+        "parameters": parameters,
+    }
+
+
+def _import_compatible_cells(destination: dict, source_path: Path) -> dict:
+    """Copy only source cells with an identical resolved scientific contract."""
+    source_path = source_path.resolve()
+    source = campaign.load_manifest(source_path)
+    source_root = Path(source["campaign_root"])
+    if source_path != source_root / "campaign.json":
+        raise SystemExit("source manifest must be <campaign-root>/campaign.json")
+    source_rows = {row["name"]: row for row in source["cells"]}
+    imported: list[str] = []
+    incompatible: list[str] = []
+    for row in destination["cells"]:
+        source_row = source_rows.get(row["name"])
+        if (
+            source_row is None
+            or _portable_cell_contract(source_row) != _portable_cell_contract(row)
+        ):
+            incompatible.append(row["name"])
+            continue
+        validation = campaign.validate_cell(source_row)
+        if not validation["valid"]:
+            raise SystemExit(
+                f"compatible source cell is invalid: {row['name']}: "
+                + "; ".join(validation["reasons"])
+            )
+        destination_dir = Path(row["output_directory"])
+        if destination_dir.exists():
+            raise SystemExit(f"import destination already exists: {destination_dir}")
+        shutil.copytree(Path(source_row["output_directory"]), destination_dir)
+        origin = {
+            "campaign_id": source["campaign_id"],
+            "campaign_manifest_sha256": source["manifest_sha256"],
+            "repository_commit": source["repository"]["commit"],
+            "source_directory": source_row["output_directory"],
+        }
+        for filename in ("config.json", "metrics.json"):
+            path = destination_dir / filename
+            payload = json.loads(path.read_text())
+            payload["imported_cell_provenance"] = origin
+            payload["training_run_id"] = row["training_run_id"]
+            payload["training_cell_name"] = row["name"]
+            nested = payload.get("config")
+            if isinstance(nested, dict):
+                nested["training_run_id"] = row["training_run_id"]
+                nested["training_cell_name"] = row["name"]
+            path.write_text(json.dumps(payload, indent=2) + "\n")
+        _stamp_campaign_identity(destination_dir, destination, row)
+        imported_validation = campaign.validate_cell(row)
+        if not imported_validation["valid"]:
+            raise RuntimeError(
+                f"imported cell failed destination validation: {row['name']}: "
+                + "; ".join(imported_validation["reasons"])
+            )
+        imported.append(row["name"])
+    return {
+        "source_campaign_id": source["campaign_id"],
+        "destination_campaign_id": destination["campaign_id"],
+        "imported": imported,
+        "pending_incompatible": incompatible,
+    }
 
 
 def _checked_manifest(path: Path, *, allow_generated_dirty: bool = False) -> dict:
@@ -1364,9 +1443,20 @@ def _handle_campaign_cli(argv: list[str]) -> bool:
     if not any(flag in argv for flag in (
         "--campaign-manifest", "--campaign-status", "--campaign-list",
         "--campaign-train-cell", "--campaign-validate", "--campaign-aggregate",
+        "--campaign-import-compatible",
     )):
         return False
     args = _campaign_parser().parse_args(argv[1:])
+    if args.campaign_import_compatible:
+        if args.from_campaign is None:
+            raise SystemExit("--from-campaign is required")
+        destination = _checked_manifest(args.campaign_import_compatible)
+        print(json.dumps(
+            _import_compatible_cells(destination, args.from_campaign),
+            indent=2,
+            sort_keys=True,
+        ))
+        return True
     if args.campaign_manifest:
         if not args.campaign_id:
             raise SystemExit("--campaign-id is required")

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import copy
 import json
 import subprocess
 from pathlib import Path
@@ -744,3 +745,72 @@ def test_fr_strength_pilot_array_is_fixed_and_collision_free() -> None:
     assert "strengths=(0.004 0.016 0.041 0.1 0.004 0.016 0.041 0.1)" in script
     assert "--campaign-train-cell" not in script
     assert "EXP022_PILOT_ROOT" in script
+
+
+def test_portable_cell_contract_ignores_only_output_path() -> None:
+    source = _manifest_cell(Path("/source"))
+    destination = _manifest_cell(Path("/destination"))
+    source["family"] = destination["family"] = "variable_rate"
+    source["parameters"]["arguments"]["--out-dir"] = "/source/cell"
+    destination["parameters"]["arguments"]["--out-dir"] = "/destination/cell"
+
+    assert exp022._portable_cell_contract(source) == exp022._portable_cell_contract(
+        destination
+    )
+
+    destination["parameters"]["arguments"]["--fr-reg-upper-strength"] = "0.041"
+    assert exp022._portable_cell_contract(source) != exp022._portable_cell_contract(
+        destination
+    )
+
+
+def test_import_compatible_cell_restamps_destination_and_keeps_origin(
+    tmp_path: Path,
+) -> None:
+    source_root = (tmp_path / "source").resolve()
+    destination_root = (tmp_path / "destination").resolve()
+    source_row = _manifest_cell(source_root)
+    source_row["family"] = "variable_rate"
+    source_row["parameters"]["arguments"]["--out-dir"] = source_row[
+        "output_directory"
+    ]
+    _write_valid_cell(source_row)
+    source_manifest = {
+        "schema": campaign.SCHEMA,
+        "schema_version": campaign.SCHEMA_VERSION,
+        "campaign_id": "base",
+        "campaign_root": str(source_root),
+        "repository": {"commit": "a" * 40, "dirty": False},
+        "cells": [source_row],
+    }
+    source_root.mkdir(exist_ok=True)
+    campaign.write_manifest(source_root / "campaign.json", source_manifest)
+
+    destination_row = copy.deepcopy(source_row)
+    destination_row["output_directory"] = str(
+        destination_root / "cells" / destination_row["name"]
+    )
+    destination_row["parameters"]["arguments"]["--out-dir"] = destination_row[
+        "output_directory"
+    ]
+    destination_manifest = {
+        **source_manifest,
+        "campaign_id": "repair",
+        "campaign_root": str(destination_root),
+        "repository": {"commit": "b" * 40, "dirty": False},
+        "cells": [destination_row],
+        "manifest_sha256": "c" * 64,
+    }
+
+    result = exp022._import_compatible_cells(
+        destination_manifest, source_root / "campaign.json"
+    )
+
+    assert result["imported"] == [destination_row["name"]]
+    assert result["pending_incompatible"] == []
+    assert campaign.validate_cell(destination_row)["valid"]
+    imported = json.loads(
+        (Path(destination_row["output_directory"]) / "metrics.json").read_text()
+    )
+    assert imported["campaign_id"] == "repair"
+    assert imported["imported_cell_provenance"]["campaign_id"] == "base"
