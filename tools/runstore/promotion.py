@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import hashlib
+import json
+import re
 import shutil
 import tempfile
 from datetime import datetime, timezone
@@ -20,6 +22,7 @@ from .contract import (
 )
 
 FIGURE_SUFFIXES = frozenset({".pdf", ".png", ".svg"})
+GIT_COMMIT = re.compile(r"^[0-9a-f]{40}$")
 
 
 def _sha256(path: Path) -> str:
@@ -70,6 +73,22 @@ def _source_rows(run_root: Path, source: Path, inventory: dict) -> list[dict]:
     return rows
 
 
+def _generating_git_commit(run: dict, source: Path) -> str:
+    """Prefer experiment-level campaign provenance for repaired outputs."""
+    numbers = source / "numbers.json"
+    try:
+        document = json.loads(numbers.read_text())
+    except (OSError, json.JSONDecodeError):
+        return run["source"]["git_commit"]
+    provenance = document.get("collection_provenance")
+    if run.get("kind") != "campaign" or not isinstance(provenance, dict):
+        return run["source"]["git_commit"]
+    commit = provenance.get("source_git_commit")
+    if provenance.get("campaign_id") != run["run_id"] or not isinstance(commit, str):
+        return run["source"]["git_commit"]
+    return commit if GIT_COMMIT.fullmatch(commit) else run["source"]["git_commit"]
+
+
 def promote_experiment(
     run_root: Path,
     experiment: str,
@@ -112,7 +131,8 @@ def promote_experiment(
         "contract_version": CONTRACT_VERSION,
         "run_id": run["run_id"],
         "campaign_id": run["run_id"] if run["kind"] in {"campaign", "legacy"} else None,
-        "generating_git_commit": run["source"]["git_commit"],
+        "generating_git_commit": _generating_git_commit(run, source),
+        "campaign_source_git_commit": run["source"]["git_commit"],
         "executor": run["execution"].get("executor", "legacy"),
         "graph_digest": run["execution"].get("graph_digest"),
         "training_digest": run["execution"].get("training_digest"),

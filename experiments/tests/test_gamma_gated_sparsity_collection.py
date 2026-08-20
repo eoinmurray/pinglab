@@ -273,6 +273,84 @@ def test_collection_provenance_rejects_cross_campaign_output(tmp_path: Path) -> 
         execution._stamp_collection_provenance(plan, row)
 
 
+def test_integrate_repair_preserves_base_and_records_repaired_source(
+    tmp_path: Path, monkeypatch
+) -> None:
+    root = tmp_path / "campaign"
+    repair_root = tmp_path / "repair"
+    root.mkdir()
+    (root / execution.STATUS_DIR).mkdir()
+    plan = build_plan(root, "campaign-a")
+    base_source = {
+        "git_commit": "a" * 40,
+        "git_clean": True,
+        "lockfile": {"path": "uv.lock", "sha256": "b" * 64},
+    }
+    repair_source = {
+        "git_commit": "d" * 40,
+        "git_clean": True,
+        "lockfile": {"path": "uv.lock", "sha256": "b" * 64},
+    }
+    plan["source"] = base_source
+    plan["profile"] = "production"
+    plan["exp022_manifest"] = str(root / "exp022/campaign.json")
+    Path(plan["exp022_manifest"]).parent.mkdir()
+    execution.write_json_atomic(
+        Path(plan["exp022_manifest"]), {"manifest_sha256": "c" * 64}
+    )
+    execution.write_json_atomic(root / execution.PLAN_NAME, plan)
+    execution.write_json_atomic(
+        root / "run.json",
+        {
+            "run_id": "campaign-a",
+            "status": "running",
+            "upstream": [],
+            "provenance_notes": "publication campaign",
+        },
+    )
+
+    row = next(row for row in execution.rows_in_order(plan) if row["slug"] == "exp082")
+    source_dir = repair_root / "derived/artifacts/data/exp082"
+    source_dir.mkdir(parents=True)
+    for required in row["required_outputs"]:
+        name = Path(required).name
+        (source_dir / name).write_text("{}\n")
+    execution.write_json_atomic(
+        repair_root / "repair-run.json",
+        {
+            "experiment": "exp082",
+            "source_git_commit": repair_source["git_commit"],
+            "base_campaign_root": str(root),
+            "base_campaign_source_git_commit": base_source["git_commit"],
+            "exp022_manifest_file_sha256": execution._sha256(
+                Path(plan["exp022_manifest"])
+            ),
+        },
+    )
+    monkeypatch.setattr(execution, "source_provenance", lambda: repair_source)
+
+    result = execution.integrate_repair(root, repair_root, "exp082")
+
+    updated = execution.load_json(root / execution.PLAN_NAME)
+    numbers = execution.load_json(Path(row["required_outputs"][0]))
+    run = execution.load_json(root / "run.json")
+    assert result["source_git_commit"] == repair_source["git_commit"]
+    assert updated["source"] == base_source
+    assert updated["repairs"]["exp082"]["source"] == repair_source
+    assert numbers["collection_provenance"]["source_git_commit"] == repair_source[
+        "git_commit"
+    ]
+    assert numbers["collection_provenance"]["repair"][
+        "base_source_git_commit"
+    ] == base_source["git_commit"]
+    assert run["upstream"] == [
+        f"exp082-repair:{repair_source['git_commit']}:{repair_root.resolve()}"
+    ]
+    assert execution.load_json(root / execution.STATUS_DIR / "exp082.json")[
+        "state"
+    ] == "complete"
+
+
 def test_finalize_delegates_to_runstore_after_validation(
     tmp_path: Path,
     monkeypatch,
@@ -340,7 +418,13 @@ def test_publication_build_runs_promotion_from_separate_checkout(
 
     monkeypatch.setattr(execution, "load_plan", lambda _root: plan)
     monkeypatch.setattr(execution, "validate_campaign", lambda _root: {})
-    monkeypatch.setattr(execution, "_checkout_source", lambda _path: plan["source"])
+    repair_source = {
+        "git_commit": "d" * 40,
+        "git_clean": True,
+        "lockfile": None,
+    }
+    plan["repairs"] = {"exp082": {"source": repair_source}}
+    monkeypatch.setattr(execution, "_checkout_source", lambda _path: repair_source)
     monkeypatch.setattr(execution.shutil, "which", lambda _name: "/usr/bin/uv")
 
     def fake_run(command, **kwargs):
