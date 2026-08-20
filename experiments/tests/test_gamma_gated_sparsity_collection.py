@@ -286,10 +286,18 @@ def test_integrate_repair_preserves_base_and_records_repaired_source(
         "git_clean": True,
         "lockfile": {"path": "uv.lock", "sha256": "b" * 64},
     }
-    repair_source = {
-        "git_commit": "d" * 40,
+    integration_source = {
+        "git_commit": "e" * 40,
         "git_clean": True,
         "lockfile": {"path": "uv.lock", "sha256": "b" * 64},
+    }
+    expected_repair_source = {
+        "git_commit": "d" * 40,
+        "git_clean": True,
+        "lockfile": {
+            "path": "uv.lock",
+            "sha256": execution.hashlib.sha256(b"repair lock").hexdigest(),
+        },
     }
     plan["source"] = base_source
     plan["profile"] = "production"
@@ -319,7 +327,7 @@ def test_integrate_repair_preserves_base_and_records_repaired_source(
         repair_root / "repair-run.json",
         {
             "experiment": "exp082",
-            "source_git_commit": repair_source["git_commit"],
+            "source_git_commit": expected_repair_source["git_commit"],
             "base_campaign_root": str(root),
             "base_campaign_source_git_commit": base_source["git_commit"],
             "exp022_manifest_file_sha256": execution._sha256(
@@ -327,24 +335,34 @@ def test_integrate_repair_preserves_base_and_records_repaired_source(
             ),
         },
     )
-    monkeypatch.setattr(execution, "source_provenance", lambda: repair_source)
+    monkeypatch.setattr(execution, "source_provenance", lambda: integration_source)
+
+    def fake_git(command, **_kwargs):
+        if "merge-base" in command:
+            return SimpleNamespace(returncode=0)
+        assert command[1:3] == ["show", f"{expected_repair_source['git_commit']}:uv.lock"]
+        return SimpleNamespace(returncode=0, stdout=b"repair lock")
+
+    monkeypatch.setattr(execution.subprocess, "run", fake_git)
 
     result = execution.integrate_repair(root, repair_root, "exp082")
 
     updated = execution.load_json(root / execution.PLAN_NAME)
     numbers = execution.load_json(Path(row["required_outputs"][0]))
     run = execution.load_json(root / "run.json")
-    assert result["source_git_commit"] == repair_source["git_commit"]
+    assert result["source_git_commit"] == expected_repair_source["git_commit"]
+    assert result["integration_source_git_commit"] == integration_source["git_commit"]
     assert updated["source"] == base_source
-    assert updated["repairs"]["exp082"]["source"] == repair_source
-    assert numbers["collection_provenance"]["source_git_commit"] == repair_source[
+    assert updated["repairs"]["exp082"]["source"] == expected_repair_source
+    assert updated["repairs"]["exp082"]["integration_source"] == integration_source
+    assert numbers["collection_provenance"]["source_git_commit"] == expected_repair_source[
         "git_commit"
     ]
     assert numbers["collection_provenance"]["repair"][
         "base_source_git_commit"
     ] == base_source["git_commit"]
     assert run["upstream"] == [
-        f"exp082-repair:{repair_source['git_commit']}:{repair_root.resolve()}"
+        f"exp082-repair:{expected_repair_source['git_commit']}:{repair_root.resolve()}"
     ]
     assert execution.load_json(root / execution.STATUS_DIR / "exp082.json")[
         "state"

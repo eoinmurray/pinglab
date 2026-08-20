@@ -158,9 +158,11 @@ def load_plan(root: Path) -> dict[str, Any]:
         raise CollectionError("campaign plan root does not match its location")
     source = source_provenance()
     repair_sources = [
-        repair.get("source")
+        source
         for repair in (plan.get("repairs") or {}).values()
         if isinstance(repair, dict)
+        for source in (repair.get("source"), repair.get("integration_source"))
+        if isinstance(source, dict)
     ]
     if source not in [plan.get("source"), *repair_sources]:
         raise CollectionError(
@@ -277,8 +279,8 @@ def integrate_repair(root: Path, repair_root: Path, slug: str) -> dict[str, Any]
         raise CollectionError(f"campaign already registers a repair for {slug}")
 
     repair_manifest = load_json(repair_root / "repair-run.json")
-    source = source_provenance()
-    if source.get("git_clean") is not True:
+    integration_source = source_provenance()
+    if integration_source.get("git_clean") is not True:
         raise CollectionError("repair integration requires a clean Git checkout")
     if repair_manifest.get("experiment") != slug:
         raise CollectionError("repair run belongs to another experiment")
@@ -288,8 +290,29 @@ def integrate_repair(root: Path, repair_root: Path, slug: str) -> dict[str, Any]
         "git_commit"
     ):
         raise CollectionError("repair run base commit differs from campaign")
-    if repair_manifest.get("source_git_commit") != source.get("git_commit"):
-        raise CollectionError("repair run source commit differs from checkout")
+    repair_commit = repair_manifest.get("source_git_commit")
+    if not isinstance(repair_commit, str):
+        raise CollectionError("repair run does not record its source commit")
+    ancestry = subprocess.run(
+        ["git", "merge-base", "--is-ancestor", repair_commit, integration_source["git_commit"]],
+        cwd=REPO,
+    )
+    if ancestry.returncode != 0:
+        raise CollectionError("repair run source is not an ancestor of the integration checkout")
+    lockfile = subprocess.run(
+        ["git", "show", f"{repair_commit}:uv.lock"],
+        cwd=REPO,
+        check=True,
+        capture_output=True,
+    ).stdout
+    repair_source = {
+        "git_commit": repair_commit,
+        "git_clean": True,
+        "lockfile": {
+            "path": "uv.lock",
+            "sha256": hashlib.sha256(lockfile).hexdigest(),
+        },
+    }
     manifest_sha = _sha256(Path(plan["exp022_manifest"]))
     if repair_manifest.get("exp022_manifest_file_sha256") != manifest_sha:
         raise CollectionError("repair run used a different exp022 manifest")
@@ -304,7 +327,8 @@ def integrate_repair(root: Path, repair_root: Path, slug: str) -> dict[str, Any]
 
     integrated_at = utc_now()
     repair = {
-        "source": source,
+        "source": repair_source,
+        "integration_source": integration_source,
         "repair_run_root": str(repair_root),
         "repair_run_manifest_sha256": _sha256(repair_root / "repair-run.json"),
         "integrated_at_utc": integrated_at,
@@ -339,12 +363,13 @@ def integrate_repair(root: Path, repair_root: Path, slug: str) -> dict[str, Any]
         write_json_atomic(root / PLAN_NAME, updated_plan)
 
         upstream = list(run.get("upstream") or [])
-        repair_ref = f"{slug}-repair:{source['git_commit']}:{repair_root}"
+        repair_ref = f"{slug}-repair:{repair_source['git_commit']}:{repair_root}"
         if repair_ref not in upstream:
             upstream.append(repair_ref)
         notes = run.get("provenance_notes", "")
         note = (
-            f"{slug} repaired by {source['git_commit']} from {repair_root}; "
+            f"{slug} repaired by {repair_source['git_commit']} from {repair_root} "
+            f"and integrated by {integration_source['git_commit']}; "
             f"all other outputs retain campaign source {plan['source']['git_commit']}"
         )
         write_json_atomic(
@@ -355,7 +380,8 @@ def integrate_repair(root: Path, repair_root: Path, slug: str) -> dict[str, Any]
             root,
             slug,
             state="complete",
-            repair_source_git_commit=source["git_commit"],
+            repair_source_git_commit=repair_source["git_commit"],
+            integration_source_git_commit=integration_source["git_commit"],
             repair_run_root=str(repair_root),
             ended_at_utc=integrated_at,
         )
@@ -379,7 +405,8 @@ def integrate_repair(root: Path, repair_root: Path, slug: str) -> dict[str, Any]
     return {
         "campaign_id": plan["campaign_id"],
         "experiment": slug,
-        "source_git_commit": source["git_commit"],
+        "source_git_commit": repair_source["git_commit"],
+        "integration_source_git_commit": integration_source["git_commit"],
         "repair_run_root": str(repair_root),
         "outputs": required_names,
     }
@@ -675,9 +702,11 @@ def build_publication(root: Path, checkout: Path) -> dict[str, Any]:
     allowed_sources = [
         plan["source"],
         *[
-            repair["source"]
+            source
             for repair in (plan.get("repairs") or {}).values()
-            if isinstance(repair, dict) and isinstance(repair.get("source"), dict)
+            if isinstance(repair, dict)
+            for source in (repair.get("source"), repair.get("integration_source"))
+            if isinstance(source, dict)
         ],
     ]
     if target_source not in allowed_sources:
