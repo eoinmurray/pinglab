@@ -4,7 +4,8 @@
     1,
     2,
     3,
-    4
+    4,
+    5
   ],
   "simulation_run": true,
   "network": {
@@ -503,7 +504,14 @@
       }
     ]
   },
-  "remaining_methods_unrun": [
-    5
-  ]
+  "event_aligned_mechanism": {
+    "source_network": "PING_A",
+    "target_network": "PING_B",
+    "source_volley_ms_after_coupling": 17.900000000000002,
+    "arrival_ms_after_coupling": 19.900000000000002,
+    "baseline_next_target_volley_ms_after_coupling": 33.5,
+    "coupled_next_target_volley_ms_after_coupling": 32.6,
+    "next_target_volley_advance_ms": 0.9
+  },
+  "remaining_methods_unrun": []
 }

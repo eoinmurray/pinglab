@@ -19,6 +19,7 @@ from experiments.exp085 import (
     N_I,
     N_INPUT,
     T_MS,
+    analyse_event_aligned_mechanism,
     author_network,
     author_phase_response_network,
     inhibitory_cycle_summary,
@@ -42,14 +43,8 @@ def test_network_contains_two_matched_ping_circuits(graph: dict) -> None:
     assert populations["PING_A_I"]["size"] == N_I
     assert populations["PING_B_I"]["size"] == N_I
 
-    assert (
-        populations["PING_A_E"]["neuron"]
-        == populations["PING_B_E"]["neuron"]
-    )
-    assert (
-        populations["PING_A_I"]["neuron"]
-        == populations["PING_B_I"]["neuron"]
-    )
+    assert populations["PING_A_E"]["neuron"] == populations["PING_B_E"]["neuron"]
+    assert populations["PING_A_I"]["neuron"] == populations["PING_B_I"]["neuron"]
     assert populations["PING_A_E"]["neuron"]["refractory_steps"] == round(
         E_REFRACTORY_MS / DT_MS
     )
@@ -103,9 +98,7 @@ def test_pathway_branches_can_share_one_runtime_state() -> None:
     from execution import plan_graph, runtime_state_signature
 
     signatures = {
-        runtime_state_signature(
-            plan_graph(author_network(k_ee=k_ee, k_ei=k_ei).graph)
-        )
+        runtime_state_signature(plan_graph(author_network(k_ee=k_ee, k_ei=k_ei).graph))
         for k_ee, k_ei in (
             (0.0, 0.0),
             (K_EE, 0.0),
@@ -138,14 +131,10 @@ def test_uncoupled_inputs_use_the_two_design_rates() -> None:
     inputs = make_uncoupled_inputs()
     duration_s = T_MS / 1_000.0
     realised_a = (
-        float(inputs[f"drive_A_{INPUT_RATE_A_HZ:g}_Hz"].sum())
-        / N_INPUT
-        / duration_s
+        float(inputs[f"drive_A_{INPUT_RATE_A_HZ:g}_Hz"].sum()) / N_INPUT / duration_s
     )
     realised_b = (
-        float(inputs[f"drive_B_{INPUT_RATE_B_HZ:g}_Hz"].sum())
-        / N_INPUT
-        / duration_s
+        float(inputs[f"drive_B_{INPUT_RATE_B_HZ:g}_Hz"].sum()) / N_INPUT / duration_s
     )
     assert realised_a == pytest.approx(INPUT_RATE_A_HZ, rel=0.03)
     assert realised_b == pytest.approx(INPUT_RATE_B_HZ, rel=0.03)
@@ -203,3 +192,37 @@ def test_population_volley_events_groups_adjacent_timesteps() -> None:
     assert len(events) == 2
     assert events[0]["spikes"] == 3
     assert events[1]["spikes"] == 3
+
+
+def test_event_aligned_mechanism_measures_target_volley_advance() -> None:
+    steps = 500
+
+    def spikes(size: int, at: int) -> np.ndarray:
+        values = np.zeros((steps, 1, size), dtype=np.uint8)
+        values[at, 0] = 1
+        return values
+
+    def conductance(size: int) -> np.ndarray:
+        return np.zeros((steps, 1, size), dtype=np.float32)
+
+    baseline = {
+        "population_0": spikes(N_E, 100),
+        "population_2": spikes(N_E, 300),
+        "population_3": spikes(N_I, 310),
+        "PING_A_E_to_PING_B_E_K_EE.conductance": conductance(N_E),
+        "PING_B_I_to_E.conductance": conductance(N_E),
+    }
+    coupled = {
+        "population_0": spikes(N_E, 100),
+        "population_2": spikes(N_E, 290),
+        "population_3": spikes(N_I, 300),
+        "PING_A_E_to_PING_B_E_K_EE.conductance": conductance(N_E),
+        "PING_B_I_to_E.conductance": conductance(N_E),
+    }
+
+    record, traces = analyse_event_aligned_mechanism(
+        {"none": baseline, "e_to_e": coupled}
+    )
+
+    assert record["next_target_volley_advance_ms"] == pytest.approx(1.0)
+    assert traces["time_from_arrival_ms"][0] == pytest.approx(-5.0)
