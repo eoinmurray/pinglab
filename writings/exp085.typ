@@ -1,5 +1,5 @@
 #let meta = (
-  title: "How does excitation synchronize two PING networks?",
+  title: "Dissecting Lowet 2015 PING Synchronization",
   date: "2026-08-19",
   description: "Distinguish the pathways that phase-lock two cortical PING rhythms.",
   collection: "snnlang",
@@ -13,6 +13,7 @@
 #let prc = r.phase_response
 #let doublets = prc.responses.I.filter(row => row.i_volleys_before_next_e == 2)
 #let pathways = r.pathway_comparison.conditions
+#let mechanism = r.event_aligned_mechanism
 #let no-coupling = pathways.filter(row => row.id == "none").first()
 #let e-to-e = pathways.filter(row => row.id == "e_to_e").first()
 #let e-to-i = pathways.filter(row => row.id == "e_to_i").first()
@@ -32,7 +33,7 @@
   == Methods
 
   #block(inset: 10pt, fill: rgb("f3f0e8"), radius: 3pt)[
-    *Methods 1–4 are complete. Method 5 is not yet run.*
+    *Methods 1–5 are complete.*
   ]
 
   + *Define the networks.* Build two matched PING networks. Each contains #r.network.populations_per_network.E excitatory and #r.network.populations_per_network.I inhibitory neurons connected through local E-to-I and I-to-E synapses. Drive Network A at #r.network.detuning_input_rates_hz.PING_A Hz and Network B at #r.network.detuning_input_rates_hz.PING_B Hz; these values place both uncoupled rhythms in the gamma band. Use a #r.network.local_e_to_i.ampa_tau_ms ms local E-to-I AMPA decay so each inhibitory neuron fires once, rather than twice, after an excitatory volley. Connect the networks reciprocally through E-to-E and E-to-I projections. Each target receives exactly #r.network.exact_fan_in_per_target randomly selected excitatory afferents from the other network. Give the pathways separate weights $K_(E E)$ and $K_(E I)$ and a shared delay $d$.
@@ -52,7 +53,7 @@
 
   + *Test the coupling pathways.* Run both networks uncoupled for #r.pathway_comparison.coupling_onset_ms ms. Save their complete runtime state, then branch into four conditions: no coupling, E-to-E only, E-to-I only, and both pathways. Every branch starts from the same voltages, refractory states, live synapses, delayed events, and future input. Unwrap relative phase after coupling onset. Classify the final #r.pathway_comparison.classification.final_window_ms ms as locked when absolute drift is below #r.pathway_comparison.classification.maximum_absolute_drift_cycles_per_s cycles/s and phase concentration exceeds #r.pathway_comparison.classification.minimum_phase_concentration. Generates #link("#result-4-pathway-comparison")[Result 4].
 
-  + *Trace the mechanism.* Align activity on incoming excitatory volleys. Measure target excitatory activity, target inhibitory activity, inhibition received by the target excitatory population, and the phase correction in the following cycle. Generates #link("#result-5-event-aligned-mechanism")[Result 5].
+  + *Trace the locking event.* Start from the same saved uncoupled state used in Method 4. Compare the no-coupling and E-to-E-only branches around the first Network A volley that reaches Network B. Measure the arriving E-to-E conductance, Network B's excitatory and inhibitory activity, inhibition returned to its excitatory population, and the timing of its next excitatory volley. Generates #link("#result-5-event-aligned-mechanism")[Result 5].
 
   == Results
 
@@ -96,8 +97,10 @@
 
   === Result 5: Event-aligned mechanism
 
-  *Axes.* Time from a source excitatory volley against normalized activity or conductance.  \
-  *Traces.* Arriving excitation, target inhibitory activity, target inhibition, and target excitatory activity.  \
-  *Why.* Establish the order of events that produces each phase correction.  \
-  *Expectation.* The pathway responsible for locking changes before the target network's next corrected volley.
+  #figure(
+    image("/artifacts/data/exp085/event_aligned_mechanism.png", width: 100%, alt: "Event-aligned traces showing cross-network E-to-E conductance followed by an advanced target excitatory volley, inhibitory response, and feedback inhibition."),
+    caption: [The first measurable E-to-E correction after coupling begins. Time zero is the arrival of excitation from Network A at Network B. Dashed grey traces show the no-coupling branch from the same saved state. Solid traces show the E-to-E-only branch.],
+  )
+
+  The arriving E-to-E conductance advances Network B's next excitatory volley by #calc.round(mechanism.next_target_volley_advance_ms, digits: 1) ms. Its inhibitory volley and feedback inhibition move with the excitatory volley; they follow the correction rather than initiating it. At this operating point, locking begins through direct excitation of the target excitatory population.
 ]
