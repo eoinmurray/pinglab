@@ -1,68 +1,60 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1200" height="550" viewBox="0 0 1200 550" role="img" aria-labelledby="title desc">
-  <title id="title">Approximate frame from a looping synfire raster animation</title>
-  <desc id="desc">One frame of a dark scrolling spike raster with six pool bands. A weak packet fades after three pools, while two other packets produce compact volleys by Pool 6.</desc>
-  <defs>
-    <filter id="cyan-glow" x="-30%" y="-30%" width="160%" height="160%">
-      <feGaussianBlur stdDeviation="4" result="blur"/>
-      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
-    </filter>
-    <filter id="red-glow" x="-30%" y="-30%" width="160%" height="160%">
-      <feGaussianBlur stdDeviation="3" result="blur"/>
-      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
-    </filter>
-    <linearGradient id="edge-fade-left" x1="0" x2="1"><stop offset="0" stop-color="#09111f"/><stop offset="1" stop-color="#09111f" stop-opacity="0"/></linearGradient>
-    <linearGradient id="edge-fade-right" x1="1" x2="0"><stop offset="0" stop-color="#09111f"/><stop offset="1" stop-color="#09111f" stop-opacity="0"/></linearGradient>
-  </defs>
-  <rect width="1200" height="550" fill="#09111f"/>
+  <title id="title">Design frame for a classic scrolling synfire raster</title>
+  <desc id="desc">A white scientific spike raster with six pool bands, black background spikes, a cyan packet volley, and a red dashed packet-input marker.</desc>
+  <rect width="1200" height="550" fill="#ffffff"/>
   <style>
-    .label { font: 600 17px system-ui, sans-serif; fill: #dce5ee; }
-    .small { font: 15px system-ui, sans-serif; fill: #98a9bd; }
-    .band { stroke: #26364a; stroke-width: 1; }
-    .axis { stroke: #8191a4; stroke-width: 1.6; }
-    .weak { stroke: #ef476f; stroke-width: 3; stroke-linecap: round; filter: url(#red-glow); }
-    .broad { stroke: #66d9ef; stroke-width: 3; stroke-linecap: round; filter: url(#cyan-glow); }
-    .large { stroke: #ffd166; stroke-width: 3; stroke-linecap: round; }
-    .stable { stroke: #8be9fd; stroke-width: 3.2; stroke-linecap: round; filter: url(#cyan-glow); }
+    .title { font: 600 24px system-ui, sans-serif; fill: #1f2328; }
+    .label { font: 17px system-ui, sans-serif; fill: #1f2328; }
+    .small { font: 15px system-ui, sans-serif; fill: #57606a; }
+    .axis { stroke: #1f2328; stroke-width: 2; }
+    .rule { stroke: #d8dee4; stroke-width: 1; }
+    .background { stroke: #1f2328; stroke-width: 1.7; stroke-linecap: round; opacity: 0.65; }
+    .packet { stroke: #00a6c8; stroke-width: 2.4; stroke-linecap: round; }
+    .input { stroke: #c91832; stroke-width: 1.7; stroke-dasharray: 7 6; }
   </style>
 
-  <g transform="translate(0,-60)">
-  <rect x="105" y="112" width="1035" height="390" rx="8" fill="#0c1728" stroke="#2b3d52"/>
-  <g class="band">
-    <line x1="105" y1="177" x2="1140" y2="177"/><line x1="105" y1="242" x2="1140" y2="242"/>
-    <line x1="105" y1="307" x2="1140" y2="307"/><line x1="105" y1="372" x2="1140" y2="372"/>
-    <line x1="105" y1="437" x2="1140" y2="437"/>
+  <text x="100" y="40" class="title">Measured broad-packet run</text>
+  <text x="1100" y="40" text-anchor="end" class="small">run time 52.0–92.0 ms</text>
+  <line x1="100" y1="70" x2="100" y2="460" class="axis"/>
+  <line x1="100" y1="460" x2="1140" y2="460" class="axis"/>
+  <g class="rule">
+    <line x1="100" y1="135" x2="1140" y2="135"/><line x1="100" y1="200" x2="1140" y2="200"/>
+    <line x1="100" y1="265" x2="1140" y2="265"/><line x1="100" y1="330" x2="1140" y2="330"/>
+    <line x1="100" y1="395" x2="1140" y2="395"/>
   </g>
   <g class="label" text-anchor="end">
-    <text x="90" y="150">P1</text><text x="90" y="215">P2</text><text x="90" y="280">P3</text>
-    <text x="90" y="345">P4</text><text x="90" y="410">P5</text><text x="90" y="475">P6</text>
+    <text x="84" y="108">P1</text><text x="84" y="173">P2</text><text x="84" y="238">P3</text>
+    <text x="84" y="303">P4</text><text x="84" y="368">P5</text><text x="84" y="433">P6</text>
   </g>
 
-  <!-- Weak packet: fewer spikes at each regenerated volley, then extinction. -->
-  <path d="M145 132v7 M158 154v7 M172 122v7 M188 161v7 M203 139v7 M219 128v7 M237 157v7" class="weak"/>
-  <path d="M220 197v7 M236 221v7 M252 190v7 M267 226v7 M281 207v7" class="weak" opacity="0.75"/>
-  <path d="M286 260v7 M307 285v7 M325 270v7" class="weak" opacity="0.42"/>
+  <g class="background">
+    <path d="M138 83v7 M176 118v7 M219 94v7 M262 124v7 M314 76v7 M367 109v7 M421 88v7 M497 121v7 M552 101v7 M935 84v7 M1012 116v7 M1091 91v7"/>
+    <path d="M121 158v7 M190 187v7 M248 149v7 M339 176v7 M402 164v7 M471 191v7 M530 144v7 M909 181v7 M984 151v7 M1072 174v7"/>
+    <path d="M151 224v7 M228 247v7 M293 211v7 M375 252v7 M448 232v7 M525 205v7 M940 242v7 M1037 219v7 M1110 250v7"/>
+    <path d="M132 286v7 M207 316v7 M281 276v7 M356 307v7 M430 294v7 M511 271v7 M927 312v7 M1004 280v7 M1090 301v7"/>
+    <path d="M159 348v7 M236 382v7 M304 341v7 M389 370v7 M467 354v7 M535 386v7 M947 344v7 M1021 378v7 M1115 360v7"/>
+    <path d="M126 419v7 M198 447v7 M272 407v7 M350 438v7 M438 414v7 M522 451v7 M921 431v7 M997 405v7 M1084 444v7"/>
+  </g>
 
-  <!-- Broad packet: each pool regenerates a progressively tighter volley. -->
-  <path d="M375 126v7 M391 156v7 M409 135v7 M430 165v7 M448 120v7 M465 148v7 M485 139v7" class="broad" opacity="0.72"/>
-  <path d="M452 196v7 M466 218v7 M480 188v7 M495 229v7 M508 207v7 M522 199v7" class="broad" opacity="0.8"/>
-  <path d="M520 258v7 M534 284v7 M547 265v7 M560 290v7 M574 272v7 M588 253v7" class="broad" opacity="0.88"/>
-  <path d="M584 327v7 M595 350v7 M606 315v7 M617 341v7 M628 322v7 M638 356v7" class="broad" opacity="0.94"/>
-  <path d="M641 392v7 M650 415v7 M659 381v7 M668 405v7 M677 398v7 M686 420v7" class="stable"/>
-  <path d="M690 455v7 M698 480v7 M706 448v7 M714 474v7 M722 463v7 M730 487v7" class="stable"/>
+  <line x1="620" y1="70" x2="620" y2="460" class="input"/>
+  <g class="packet">
+    <path d="M631 78v8 M640 112v8 M648 91v8 M657 123v8 M666 101v8 M675 73v8 M684 116v8"/>
+    <path d="M671 145v8 M680 184v8 M689 161v8 M698 192v8 M707 151v8 M716 176v8 M725 168v8"/>
+    <path d="M711 210v8 M720 246v8 M729 225v8 M738 255v8 M747 215v8 M756 239v8 M765 231v8"/>
+    <path d="M751 276v8 M760 312v8 M769 289v8 M778 321v8 M787 280v8 M796 305v8 M805 297v8"/>
+    <path d="M791 341v8 M800 379v8 M809 356v8 M818 386v8 M827 346v8 M836 371v8 M845 363v8"/>
+    <path d="M831 405v8 M840 444v8 M849 421v8 M858 452v8 M867 411v8 M876 436v8 M885 428v8"/>
+  </g>
 
-  <!-- Oversized packet: large first response relaxes toward the same compact form. -->
-  <path d="M760 121v7 M766 143v7 M772 164v7 M778 132v7 M784 154v7 M790 118v7 M796 149v7 M802 137v7 M808 161v7 M814 127v7" class="large"/>
-  <path d="M817 190v7 M824 217v7 M831 198v7 M838 226v7 M845 185v7 M852 208v7 M859 231v7 M866 201v7 M873 220v7" class="large" opacity="0.9"/>
-  <path d="M876 255v7 M884 280v7 M892 263v7 M900 290v7 M908 248v7 M916 273v7 M924 284v7 M932 260v7" class="large" opacity="0.75"/>
-  <path d="M937 318v7 M946 347v7 M955 328v7 M964 358v7 M973 314v7 M982 340v7 M991 352v7" class="broad"/>
-  <path d="M991 390v7 M1000 413v7 M1009 379v7 M1018 404v7 M1027 396v7 M1036 419v7" class="stable"/>
-  <path d="M1022 455v7 M1030 480v7 M1038 448v7 M1046 474v7 M1054 463v7 M1062 487v7" class="stable"/>
-
-  <rect x="105" y="112" width="90" height="390" fill="url(#edge-fade-left)"/>
-  <rect x="1050" y="112" width="90" height="390" fill="url(#edge-fade-right)"/>
-
-  <line x1="190" y1="553" x2="1050" y2="553" class="axis"/>
-  <path d="M1050 553 l-13 -7 v14 z" fill="#8191a4"/>
-  <text x="620" y="580" text-anchor="middle" class="label">time and continuous scroll</text>
+  <g class="small" text-anchor="middle">
+    <text x="100" y="486">0</text><text x="360" y="486">10</text><text x="620" y="486">20</text>
+    <text x="880" y="486">30</text><text x="1140" y="486">40</text>
+    <text x="620" y="520" class="label">time from window start (ms)</text>
+  </g>
+  <text x="24" y="270" text-anchor="middle" transform="rotate(-90 24 270)" class="label">pool and neuron index</text>
+  <g transform="translate(720,515)" class="small">
+    <path d="M0 -5v10" class="background"/><text x="12" y="5">background spike</text>
+    <path d="M150 -5v10" class="packet"/><text x="162" y="5">packet volley</text>
+    <line x1="275" y1="0" x2="300" y2="0" class="input"/><text x="310" y="5">packet input</text>
   </g>
 </svg>

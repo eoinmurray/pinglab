@@ -722,82 +722,100 @@ def plot_state_space(
 
 
 def render_raster_hero(runs: list[PacketRun], out: Path) -> None:
-    """Render an eight-second seamless raster loop from measured spikes."""
+    """Render one measured run as a scrolling classic raster."""
     period_s = 8.0
     fps = 30
-    biological_to_video = 0.12
-    onsets_s = (0.7, 3.2, 5.7)
-    base_colors = ("#ef476f", "#66d9ef", "#ffd166")
+    window_ms = 40.0
+    loop_start_ms = BACKGROUND_SETTLED_START_MS
+    loop_span_ms = T_MS - loop_start_ms
+    run = next(run for run in runs if run.packet_id == "broad")
     event_times = []
     event_neurons = []
     event_colors = []
-    for run, onset_s, base_color in zip(runs, onsets_s, base_colors, strict=True):
-        for layer, (spikes, volley_window) in enumerate(
-            zip(run.pool_spikes, run.volley_windows, strict=True)
-        ):
-            steps, _batch, neurons = np.nonzero(spikes)
-            keep = (steps * DT_MS >= RESPONSE_START_MS) & (
-                steps * DT_MS <= RESPONSE_END_MS
+    for layer, (spikes, volley_window) in enumerate(
+        zip(run.pool_spikes, run.volley_windows, strict=True)
+    ):
+        steps, _batch, neurons = np.nonzero(spikes)
+        keep = (steps * DT_MS >= loop_start_ms) & (steps * DT_MS < T_MS)
+        event_times.extend(steps[keep] * DT_MS)
+        event_neurons.extend(neurons[keep] + layer * NEURONS_PER_LAYER)
+        for step in steps[keep]:
+            in_volley = (
+                volley_window is not None
+                and volley_window[0] <= step < volley_window[1]
             )
-            event_times.extend(
-                onset_s + (steps[keep] * DT_MS - PACKET_CENTRE_MS) * biological_to_video
-            )
-            event_neurons.extend(neurons[keep] + layer * NEURONS_PER_LAYER)
-            for step in steps[keep]:
-                in_volley = (
-                    volley_window is not None
-                    and volley_window[0] <= step < volley_window[1]
-                )
-                if not in_volley:
-                    event_colors.append(to_rgba("#9aa8b8", alpha=0.48))
-                elif run.packet_id == "oversized" and layer >= 3:
-                    event_colors.append(to_rgba("#8be9fd"))
-                else:
-                    event_colors.append(to_rgba(base_color))
-    event_times_array = np.mod(np.asarray(event_times), period_s)
+            if in_volley:
+                event_colors.append(to_rgba(theme.ELECTRIC_CYAN, alpha=0.95))
+            else:
+                event_colors.append(to_rgba(theme.INK_BLACK, alpha=0.62))
+    event_times_array = np.asarray(event_times)
     event_neurons_array = np.asarray(event_neurons)
     event_rgba = np.asarray(event_colors)
 
-    fig, ax = plt.subplots(figsize=(12.0, 5.5), facecolor="#09111f")
-    ax.set_facecolor("#0c1728")
+    theme.apply()
+    fig, ax = plt.subplots(figsize=(12.0, 5.5))
     for boundary in range(1, LAYERS):
         ax.axhline(
             boundary * NEURONS_PER_LAYER - 0.5,
-            color="#26364a",
+            color=theme.RULE,
             linewidth=0.8,
         )
     points = ax.scatter(
-        event_times_array,
+        np.zeros_like(event_times_array),
         event_neurons_array,
         marker="|",
-        s=22,
-        linewidths=1.5,
+        s=18,
+        linewidths=1.0,
         color=event_rgba,
     )
+    input_line = ax.axvline(
+        0.0,
+        color=theme.DEEP_RED,
+        linestyle="--",
+        linewidth=1.2,
+    )
+    time_label = ax.text(
+        0.99,
+        1.02,
+        "",
+        ha="right",
+        va="bottom",
+        transform=ax.transAxes,
+        color=theme.DIM,
+    )
     ax.set(
-        xlim=(0, period_s),
+        title="Measured broad-packet run",
+        xlim=(0, window_ms),
         ylim=(LAYERS * NEURONS_PER_LAYER - 0.5, -0.5),
-        xticks=[],
+        xticks=np.arange(0.0, window_ms + 0.1, 10.0),
         yticks=[(layer + 0.5) * NEURONS_PER_LAYER for layer in range(LAYERS)],
         yticklabels=[f"P{layer}" for layer in range(1, LAYERS + 1)],
+        xlabel="time from window start (ms)",
+        ylabel="neuron (grouped by pool)",
     )
-    ax.tick_params(colors="#dce5ee", length=0, pad=10)
-    for spine in ax.spines.values():
-        spine.set_color("#2b3d52")
+    ax.spines[["top", "right"]].set_visible(False)
     fig.tight_layout(pad=1.2)
 
     def update(frame: int):
-        phase = frame / fps
-        x = np.mod(event_times_array - phase, period_s)
+        phase_ms = frame / (period_s * fps) * loop_span_ms
+        window_start = loop_start_ms + phase_ms
+        x = np.mod(event_times_array - window_start, loop_span_ms)
+        visible = x < window_ms
         points.set_offsets(np.column_stack((x, event_neurons_array)))
         colors = event_rgba.copy()
-        colors[:, 3] *= np.clip(
-            np.minimum(x, period_s - x) / 0.35,
-            0.0,
-            1.0,
-        )
+        colors[:, 3] *= visible
         points.set_color(colors)
-        return (points,)
+        input_x = np.mod(PACKET_CENTRE_MS - window_start, loop_span_ms)
+        input_line.set_xdata([input_x, input_x])
+        input_line.set_visible(input_x < window_ms)
+        window_end = window_start + window_ms
+        if window_end <= T_MS:
+            label = f"run time {window_start:04.1f}–{window_end:04.1f} ms"
+        else:
+            wrapped_end = loop_start_ms + window_end - T_MS
+            label = f"run time {window_start:04.1f}–100 / 30–{wrapped_end:04.1f} ms"
+        time_label.set_text(label)
+        return points, input_line, time_label
 
     movie = animation.FuncAnimation(
         fig,
