@@ -16,6 +16,9 @@ def _frontier_rows() -> list[dict]:
             "seed": seed,
             "final_acc": 80.0 + seed / 100.0,
             "rate_e": 10.0 + seed / 100.0,
+            "evaluation_partition": "official_mnist_test",
+            "evaluation_samples": exp025.EVAL_MAX_SAMPLES,
+            "checkpoint_role": exp025.CHECKPOINT_ROLE,
         }
         for model in exp025.MODELS
         for rate_target_hz in exp025.RATE_TARGET_GRID_HZ
@@ -77,6 +80,55 @@ def test_smoke_scaled_inference_caps_dataset(monkeypatch, tmp_path: Path) -> Non
     assert observed["extra_args"] == [
         "--scale-w-in", "0.5", "--outputs", "per_cell_rates",
     ]
+
+
+def test_frontier_endpoint_uses_one_official_test_forward_pass(
+    monkeypatch, tmp_path: Path,
+) -> None:
+    train_dir = tmp_path / "train"
+    train_dir.mkdir()
+    infer_dir = tmp_path / "infer"
+    infer_dir.mkdir()
+    (infer_dir / "metrics.json").write_text(json.dumps({
+        "best_acc": 73.5,
+        "n_total": 100,
+        "rates_hz": {"hid": 4.25},
+        "config": {
+            "evaluation_partition": "official_mnist_test",
+            "evaluation_samples": 100,
+        },
+    }))
+    observed: dict[str, object] = {}
+
+    def fake_infer(
+        _train_dir: Path,
+        extra_args: list[str] | None = None,
+        out_name: str = "infer",
+        max_samples: int | None = None,
+    ) -> Path:
+        observed.update(
+            extra_args=extra_args,
+            out_name=out_name,
+            max_samples=max_samples,
+        )
+        return infer_dir
+
+    monkeypatch.setattr(exp025, "_infer_cell", fake_infer)
+    monkeypatch.setattr(exp025, "EVAL_MAX_SAMPLES", 100)
+    endpoint = exp025.evaluate_frontier_cell(train_dir)
+
+    assert observed == {
+        "extra_args": None,
+        "out_name": "frontier",
+        "max_samples": 100,
+    }
+    assert endpoint == {
+        "final_acc": 73.5,
+        "rate_e": 4.25,
+        "evaluation_partition": "official_mnist_test",
+        "evaluation_samples": 100,
+        "checkpoint_role": exp025.CHECKPOINT_ROLE,
+    }
 
 
 def test_low_w_in_cells_are_owned_by_exp022() -> None:
