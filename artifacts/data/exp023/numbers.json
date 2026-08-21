@@ -1,34 +1,117 @@
 {
-  "run_id": "r002",
-  "git_sha": "de07d43",
-  "duration_s": 28.2,
-  "duration": "28s",
+  "collection_provenance": {
+    "campaign_id": "ggs-production-20260818-4ad223d3",
+    "collection": "gamma-gated-sparsity",
+    "dependencies": [],
+    "exp022_manifest_sha256": "8c3e402e8425a98799e3476468a69a5afd5f3aa52d2877217aa5d8442663ee98",
+    "experiment": "exp023",
+    "lockfile_sha256": "6ccb764ff373a1354635909ba5e2225e26271d02ac589f68097ee976304983ae",
+    "source_git_commit": "4ad223d32620dd9f03698b89f28aedfe944d43ac",
+    "training_run": null
+  },
   "config": {
-    "model": "ping",
-    "input": "mnist d0 s0",
     "cells": [
       "coba",
       "ping"
     ],
-    "t_ms": 400,
-    "dt_ms": 0.1,
-    "input_rate_hz": 50
+    "drive": {
+      "fi_sweep": {
+        "dt_ms": 0.1,
+        "ei_strength_by_cell": {
+          "coba": 0.0,
+          "ping": 1.5
+        },
+        "input": "synthetic-spikes",
+        "input_rates_hz": [
+          2,
+          5,
+          10,
+          20,
+          40,
+          70,
+          100
+        ],
+        "t_ms": 400.0
+      },
+      "raster_operating_points": {
+        "coba": {
+          "dt_ms": 0.1,
+          "ei_strength": 0.0,
+          "input": "synthetic-spikes",
+          "input_rate_hz": 5.0,
+          "scientific_args": [
+            "sim",
+            "--model",
+            "ping",
+            "--input",
+            "synthetic-spikes",
+            "--n-hidden",
+            "1024",
+            "--n-inh",
+            "256",
+            "--n-in",
+            "1024",
+            "--w-in",
+            "1.5",
+            "0.3",
+            "--w-in-initial-zero-fraction",
+            "0.95",
+            "--t-ms",
+            "400",
+            "--dt",
+            "0.1",
+            "--ei-strength",
+            "0",
+            "--input-rate",
+            "5"
+          ],
+          "t_ms": 400.0
+        },
+        "ping": {
+          "dt_ms": 0.1,
+          "ei_strength": 1.5,
+          "input": "synthetic-spikes",
+          "input_rate_hz": 45.0,
+          "scientific_args": [
+            "sim",
+            "--model",
+            "ping",
+            "--input",
+            "synthetic-spikes",
+            "--n-hidden",
+            "1024",
+            "--n-inh",
+            "256",
+            "--n-in",
+            "1024",
+            "--w-in",
+            "1.5",
+            "0.3",
+            "--w-in-initial-zero-fraction",
+            "0.95",
+            "--t-ms",
+            "400",
+            "--dt",
+            "0.1",
+            "--ei-strength",
+            "1.5",
+            "--input-rate",
+            "45"
+          ],
+          "t_ms": 400.0
+        }
+      }
+    },
+    "model": "ping"
   },
+  "duration": "2m 56s",
+  "duration_s": 176.1,
   "f_gamma_hz": {
     "coba": null,
-    "ping": 41.57464116171167
+    "ping": 41.38624111849317
   },
   "fi_curves": {
     "coba": {
-      "in": [
-        2,
-        5,
-        10,
-        20,
-        40,
-        70,
-        100
-      ],
       "e": [
         1.69189453125,
         23.85986328125,
@@ -46,9 +129,7 @@
         0.0,
         0.0,
         0.0
-      ]
-    },
-    "ping": {
+      ],
       "in": [
         2,
         5,
@@ -57,26 +138,39 @@
         40,
         70,
         100
-      ],
+      ]
+    },
+    "ping": {
       "e": [
         1.69189453125,
-        2.3095703125,
-        2.60498046875,
-        3.505859375,
-        5.4052734375,
-        7.03125,
-        8.5302734375
+        2.255859375,
+        2.53662109375,
+        3.70849609375,
+        5.56396484375,
+        7.5146484375,
+        8.44482421875
       ],
       "i": [
         0.0,
-        9.21875,
-        22.451171875,
-        31.201171875,
-        43.7109375,
-        58.564453125,
-        76.171875
+        14.814453125,
+        22.5,
+        32.5,
+        45.0,
+        63.10546875,
+        79.86328125
+      ],
+      "in": [
+        2,
+        5,
+        10,
+        20,
+        40,
+        70,
+        100
       ]
     }
   },
-  "results": []
+  "git_sha": "4ad223d3",
+  "results": [],
+  "run_id": "r001"
 }

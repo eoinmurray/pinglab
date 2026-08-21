@@ -1,0 +1,77 @@
+{
+  "contract_version": "runstore/v1",
+  "run_id": "ggs-production-composite-20260821-6d9c38eb",
+  "campaign_id": "ggs-production-composite-20260821-6d9c38eb",
+  "generating_git_commit": "73f0883edc14aa634f5a6d55e4f4123fbfeb7508",
+  "campaign_source_git_commit": "6d9c38ebd0d2d9c5bf4a4f59bede9e03e90d86bf",
+  "executor": "legacy",
+  "graph_digest": null,
+  "training_digest": null,
+  "source_directory": "derived/artifacts/data/exp082",
+  "source_inventory_payload_digest": "7ef819f466a134762326450e431a1e96af9667e48fc87701ce27efa6a4a244ba",
+  "archive": null,
+  "promoted_at_utc": "2026-08-21T17:41:06Z",
+  "files": [
+    {
+      "path": "_manifest.json",
+      "source_path": "derived/artifacts/data/exp082/_manifest.json",
+      "size_bytes": 338,
+      "sha256": "0c1ccbac26099bf9515a45efb108678b9c32c96e9adf766e442513002ac5c68a"
+    },
+    {
+      "path": "_run.txt",
+      "source_path": "derived/artifacts/data/exp082/_run.txt",
+      "size_bytes": 2,
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865"
+    },
+    {
+      "path": "duration_rate_summary.png",
+      "source_path": "derived/artifacts/data/exp082/duration_rate_summary.png",
+      "size_bytes": 80913,
+      "sha256": "51fd300b8e1581a74b89d229faa2c7e6422cdf3a94b1b07330fb7c4c90ad72fa"
+    },
+    {
+      "path": "matched_stream.png",
+      "source_path": "derived/artifacts/data/exp082/matched_stream.png",
+      "size_bytes": 186275,
+      "sha256": "2c6a8fa2b7a790eb027a76917d0a4a4897cd269dac886eb79a70c3d39a48510f"
+    },
+    {
+      "path": "measurements.npz",
+      "source_path": "derived/artifacts/data/exp082/measurements.npz",
+      "size_bytes": 70557,
+      "sha256": "9c046a82d4198f8ea3abf778b991b86fe015798a730af8eefe1f2f5ec602abac"
+    },
+    {
+      "path": "numbers.json",
+      "source_path": "derived/artifacts/data/exp082/numbers.json",
+      "size_bytes": 88607,
+      "sha256": "04eea468ed968682a5d4c77caf8dea1b619e2982a99e466009b3acf99192a84e"
+    },
+    {
+      "path": "psychometric_200ms.svg",
+      "source_path": "derived/artifacts/data/exp082/psychometric_200ms.svg",
+      "size_bytes": 34547,
+      "sha256": "9734ac178e9e30b39ba56a59aa786569f15e3f7a6e77d4697b185452ea7ea972"
+    },
+    {
+      "path": "run.sh",
+      "source_path": "derived/artifacts/data/exp082/run.sh",
+      "size_bytes": 247,
+      "sha256": "1af38d72e1d6edc980c317cb9dbec95704e55369f4614a58923c76577e1e1e74"
+    },
+    {
+      "path": "variable_stream.png",
+      "source_path": "derived/artifacts/data/exp082/variable_stream.png",
+      "size_bytes": 137867,
+      "sha256": "c8aee2a7d23004c87f9d53831a6b98b8e390701fe894fc58a8d1da7892a2231a"
+    }
+  ],
+  "composition_source": {
+    "file_count": 9,
+    "payload_digest": "08f25f132052603a5a7bf51462e442a410fd0f7e6b9cb014b689366389f67e0e",
+    "run_id": "ggs-production-20260818-4ad223d3",
+    "source_directory": "/rds/user/em586/hpc-work/campaigns/ggs-production-20260818-4ad223d3/derived/artifacts/data/exp082",
+    "source_git_commit": "73f0883edc14aa634f5a6d55e4f4123fbfeb7508"
+  }
+}

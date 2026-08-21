@@ -1,0 +1,107 @@
+{
+  "contract_version": "runstore/v1",
+  "run_id": "ggs-production-composite-20260821-6d9c38eb",
+  "campaign_id": "ggs-production-composite-20260821-6d9c38eb",
+  "generating_git_commit": "ac6f49884084811e3e05d49e8b45735d514ff245",
+  "campaign_source_git_commit": "6d9c38ebd0d2d9c5bf4a4f59bede9e03e90d86bf",
+  "executor": "legacy",
+  "graph_digest": null,
+  "training_digest": null,
+  "source_directory": "derived/artifacts/data/exp038",
+  "source_inventory_payload_digest": "7ef819f466a134762326450e431a1e96af9667e48fc87701ce27efa6a4a244ba",
+  "archive": null,
+  "promoted_at_utc": "2026-08-21T17:41:03Z",
+  "files": [
+    {
+      "path": "_manifest.json",
+      "source_path": "derived/artifacts/data/exp038/_manifest.json",
+      "size_bytes": 456,
+      "sha256": "49ebb88c80b406ff91ec64d76afe6a7712819aa5813f244ee9908124180c0946"
+    },
+    {
+      "path": "_run.txt",
+      "source_path": "derived/artifacts/data/exp038/_run.txt",
+      "size_bytes": 2,
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865"
+    },
+    {
+      "path": "ei_rasters.pdf",
+      "source_path": "derived/artifacts/data/exp038/ei_rasters.pdf",
+      "size_bytes": 36354,
+      "sha256": "752a775761ee738961372e128ecbada9c2563c8fff055929b13431d39a7c2f57"
+    },
+    {
+      "path": "ei_rasters.png",
+      "source_path": "derived/artifacts/data/exp038/ei_rasters.png",
+      "size_bytes": 70583,
+      "sha256": "d31d93fd82f9fce8f85678aeddc6e1eda386018bf624fd6f8e4f2f2426188800"
+    },
+    {
+      "path": "fi_curve__ping.pdf",
+      "source_path": "derived/artifacts/data/exp038/fi_curve__ping.pdf",
+      "size_bytes": 11777,
+      "sha256": "3b03fc4ea3f65494ec768adb5ea5f40e559613a781a138c0eb0bc11ccd2ca976"
+    },
+    {
+      "path": "fi_curve__ping.svg",
+      "source_path": "derived/artifacts/data/exp038/fi_curve__ping.svg",
+      "size_bytes": 36074,
+      "sha256": "1550b89818088944fa7d5f85f868450b87361d355928f4e817cc44566b43f3c0"
+    },
+    {
+      "path": "fi_curve_uniform.pdf",
+      "source_path": "derived/artifacts/data/exp038/fi_curve_uniform.pdf",
+      "size_bytes": 21192,
+      "sha256": "c5420a4872b626b293747e84934c2270ccc37f1eff89cc0f4326f94b0cc9489c"
+    },
+    {
+      "path": "fi_curve_uniform.svg",
+      "source_path": "derived/artifacts/data/exp038/fi_curve_uniform.svg",
+      "size_bytes": 82385,
+      "sha256": "d86254554a2ba2413a1fb8fde555062b213093670210148ba49e92133c8cc820"
+    },
+    {
+      "path": "loop_transfer_compound.pdf",
+      "source_path": "derived/artifacts/data/exp038/loop_transfer_compound.pdf",
+      "size_bytes": 32808,
+      "sha256": "3d7d160b715568a77855d289b55ab7528424f028899e40926037c87f71294f89"
+    },
+    {
+      "path": "loop_transfer_compound.png",
+      "source_path": "derived/artifacts/data/exp038/loop_transfer_compound.png",
+      "size_bytes": 136046,
+      "sha256": "54905d785df9f8889277fcb9647dcda876dbdad77f97552593657229082caf08"
+    },
+    {
+      "path": "numbers.json",
+      "source_path": "derived/artifacts/data/exp038/numbers.json",
+      "size_bytes": 43167,
+      "sha256": "592d925c2138fe1c9b76e5f521368f1a0712ff546c654dcd4f05cd0078ba8996"
+    },
+    {
+      "path": "rate_rasters__ping.pdf",
+      "source_path": "derived/artifacts/data/exp038/rate_rasters__ping.pdf",
+      "size_bytes": 44779,
+      "sha256": "5c9e17596c83e4a601d7ba8a39499a0b2abca95094faa1657dc425062bf4a6d6"
+    },
+    {
+      "path": "rate_rasters__ping.png",
+      "source_path": "derived/artifacts/data/exp038/rate_rasters__ping.png",
+      "size_bytes": 130676,
+      "sha256": "4a025198d3c901f9a77bd21b3d5235d16e3f7dd55ecc554084c375145bb06141"
+    },
+    {
+      "path": "run.sh",
+      "source_path": "derived/artifacts/data/exp038/run.sh",
+      "size_bytes": 247,
+      "sha256": "dc8aac25572d6544309a2a3a900b54ca87edd17a650395a04cb54f8734266249"
+    }
+  ],
+  "composition_source": {
+    "file_count": 14,
+    "payload_digest": "d9930ddc9e8e4166a670491da1c516880eb4230dfa1e15a80bcd1d235c7b72d2",
+    "run_id": "ggs-fr-repair-20260820-ac6f4988",
+    "source_directory": "/rds/user/em586/hpc-work/campaigns/ggs-fr-repair-20260820-ac6f4988/derived/artifacts/data/exp038",
+    "source_git_commit": "ac6f49884084811e3e05d49e8b45735d514ff245"
+  }
+}

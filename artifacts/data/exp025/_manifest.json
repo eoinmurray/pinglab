@@ -1,25 +1,22 @@
 {
   "slug": "exp025",
-  "run_id": "r004",
-  "run_at": "2026-07-10T18:59:14+00:00",
-  "git_sha": "de07d43",
-  "dirty": true,
-  "code_dirty": true,
-  "patch": {
-    "file": "_dirty.patch",
-    "sha256": "7e77cad022b5bca0206d97f32c98c19af844ab63d4bb7a9a65078bc376c1ff7e",
-    "lines": 661
-  },
+  "run_id": "r001",
+  "run_at": "2026-08-21T08:20:38+00:00",
+  "git_sha": "ac6f4988",
+  "dirty": false,
+  "code_dirty": false,
+  "patch": null,
   "host": "local",
   "scale": {
     "dataset": "mnist",
-    "max_samples": 500,
-    "epochs": 10,
+    "max_samples": 7000,
+    "evaluation_samples": 1000,
+    "epochs": 50,
     "t_ms": 200.0,
     "dt_ms": 0.1,
     "batch_size": 256,
     "seeds": 3,
-    "cells": 12,
-    "grid": "\u03b8_u \u2208 {off, 5, 2, 1, 0.5, 0.2} spikes/trial; baselines 100 epochs"
+    "cells": 48,
+    "grid": "shared TR-02: 2 models \u00d7 6 targets \u00d7 3 seeds; local controls: 4 W_in values \u00d7 3 seeds"
   }
 }

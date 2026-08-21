@@ -1,0 +1,107 @@
+{
+  "contract_version": "runstore/v1",
+  "run_id": "ggs-production-composite-20260821-6d9c38eb",
+  "campaign_id": "ggs-production-composite-20260821-6d9c38eb",
+  "generating_git_commit": "ac6f49884084811e3e05d49e8b45735d514ff245",
+  "campaign_source_git_commit": "6d9c38ebd0d2d9c5bf4a4f59bede9e03e90d86bf",
+  "executor": "legacy",
+  "graph_digest": null,
+  "training_digest": null,
+  "source_directory": "derived/artifacts/data/exp037",
+  "source_inventory_payload_digest": "7ef819f466a134762326450e431a1e96af9667e48fc87701ce27efa6a4a244ba",
+  "archive": null,
+  "promoted_at_utc": "2026-08-21T17:41:02Z",
+  "files": [
+    {
+      "path": "_manifest.json",
+      "source_path": "derived/artifacts/data/exp037/_manifest.json",
+      "size_bytes": 456,
+      "sha256": "fcb34cf7beba209e37da02f44cdb90726fbc35d8dee37a401c6065edea87d7b2"
+    },
+    {
+      "path": "_run.txt",
+      "source_path": "derived/artifacts/data/exp037/_run.txt",
+      "size_bytes": 2,
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865"
+    },
+    {
+      "path": "numbers.json",
+      "source_path": "derived/artifacts/data/exp037/numbers.json",
+      "size_bytes": 83871,
+      "sha256": "b5ab2fd4af49bcff116a69ca8c80efb84407a2c227bee5498ea4ae465154ea40"
+    },
+    {
+      "path": "perturb_rasters__add__coba.pdf",
+      "source_path": "derived/artifacts/data/exp037/perturb_rasters__add__coba.pdf",
+      "size_bytes": 43845,
+      "sha256": "b42766c55db30a7ab5df78b26aa93f6b24e86986f260fcd85a5ee17a97d953a5"
+    },
+    {
+      "path": "perturb_rasters__add__coba.png",
+      "source_path": "derived/artifacts/data/exp037/perturb_rasters__add__coba.png",
+      "size_bytes": 110284,
+      "sha256": "0eb14495faccc91341d5dd1120a78b049c4cf634f3412ef933cc702b3bce628a"
+    },
+    {
+      "path": "perturb_rasters__add__ping.pdf",
+      "source_path": "derived/artifacts/data/exp037/perturb_rasters__add__ping.pdf",
+      "size_bytes": 38017,
+      "sha256": "471b07e95b80b2895e6719caca783e5d53199438f9b14d90e75ad71410bc768f"
+    },
+    {
+      "path": "perturb_rasters__add__ping.png",
+      "source_path": "derived/artifacts/data/exp037/perturb_rasters__add__ping.png",
+      "size_bytes": 100846,
+      "sha256": "e92d72e4ff3fad59d4c8446ee8fdbc3723b792e39415227fb36046e22f33dae9"
+    },
+    {
+      "path": "perturb_rasters__drop__coba.pdf",
+      "source_path": "derived/artifacts/data/exp037/perturb_rasters__drop__coba.pdf",
+      "size_bytes": 22679,
+      "sha256": "8655e885a639387c95351f81e2af06d57ee7b0e6cf7c6d81bc84a5cabad83b7c"
+    },
+    {
+      "path": "perturb_rasters__drop__coba.png",
+      "source_path": "derived/artifacts/data/exp037/perturb_rasters__drop__coba.png",
+      "size_bytes": 72281,
+      "sha256": "b29b50154c54618e0983078df2f2764840206ddd35eb909c4d021cd04b1c2656"
+    },
+    {
+      "path": "perturb_rasters__drop__ping.pdf",
+      "source_path": "derived/artifacts/data/exp037/perturb_rasters__drop__ping.pdf",
+      "size_bytes": 16721,
+      "sha256": "b8113059b25c88756476e6ef953b615b506b566b31fb4a9f18e8aa9be511c131"
+    },
+    {
+      "path": "perturb_rasters__drop__ping.png",
+      "source_path": "derived/artifacts/data/exp037/perturb_rasters__drop__ping.png",
+      "size_bytes": 57116,
+      "sha256": "eb8cc86de184acb00ec228001a97a00a4f49e4d3c3d6c4298a1fc092eca56aa7"
+    },
+    {
+      "path": "perturbation_curves.pdf",
+      "source_path": "derived/artifacts/data/exp037/perturbation_curves.pdf",
+      "size_bytes": 20745,
+      "sha256": "e6682d66876abb5e57bcaf0572024fa889c632d00f53ac2064718ff1cd72990f"
+    },
+    {
+      "path": "perturbation_curves.svg",
+      "source_path": "derived/artifacts/data/exp037/perturbation_curves.svg",
+      "size_bytes": 73159,
+      "sha256": "c8cf717dab76c153df2a8ee9627143f71c20623c76029dab20d4ca306c903241"
+    },
+    {
+      "path": "run.sh",
+      "source_path": "derived/artifacts/data/exp037/run.sh",
+      "size_bytes": 247,
+      "sha256": "0445b0045682fe556861c33f6d017dd431c4b3f268939bba7ba2d78d8ad5fa85"
+    }
+  ],
+  "composition_source": {
+    "file_count": 14,
+    "payload_digest": "d1e199c5c628b84a94680107e5bbfbf251b3c38252c81c1dea9a1a523ac69bc3",
+    "run_id": "ggs-fr-repair-20260820-ac6f4988",
+    "source_directory": "/rds/user/em586/hpc-work/campaigns/ggs-fr-repair-20260820-ac6f4988/derived/artifacts/data/exp037",
+    "source_git_commit": "ac6f49884084811e3e05d49e8b45735d514ff245"
+  }
+}
