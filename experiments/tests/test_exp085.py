@@ -1,122 +1,228 @@
 from __future__ import annotations
 
-import copy
-
 import numpy as np
 import pytest
-import torch
-from execution import ExecutionSpec, plan_graph, runtime_state_signature, simulate
-from experiments import exp085
+from experiments.exp085 import (
+    COUPLING_DELAY_MS,
+    CROSS_FAN_IN,
+    CROSS_ZERO_FRACTION,
+    DT_MS,
+    E_REFRACTORY_MS,
+    E_TO_I_TAU_MS,
+    E_TO_I_WEIGHT,
+    I_REFRACTORY_MS,
+    INPUT_RATE_A_HZ,
+    INPUT_RATE_B_HZ,
+    K_EE,
+    K_EI,
+    N_E,
+    N_I,
+    N_INPUT,
+    T_MS,
+    analyse_event_aligned_mechanism,
+    author_network,
+    author_phase_response_network,
+    inhibitory_cycle_summary,
+    interpolated_phase,
+    make_phase_response_inputs,
+    make_uncoupled_inputs,
+    population_volley_events,
+    rhythm_summary,
+)
 
 
-def test_protocol_scans_eleven_couplings_and_predeclares_rasters():
-    assert exp085.COUPLINGS == tuple(round(value, 2) for value in np.linspace(0, 0.1, 11))
-    assert exp085.REPRESENTATIVE_K == (0.0, 0.03, 0.06, 0.1)
-    assert exp085.TAU_A_MS == 4.0
-    assert exp085.TAU_B_MS == 5.0
+@pytest.fixture(scope="module")
+def graph() -> dict:
+    return author_network().graph
 
 
-def test_private_inputs_are_deterministic_and_continuous():
-    first = exp085.make_inputs()
-    repeated = exp085.make_inputs()
-    assert set(first) == {"drive_a", "drive_b"}
-    np.testing.assert_array_equal(first["drive_a"], repeated["drive_a"])
-    assert not np.array_equal(first["drive_a"], first["drive_b"])
-    expected_steps = round((exp085.EQUILIBRATION_MS + exp085.CONTINUATION_MS) / exp085.DT_MS)
-    assert first["drive_a"].shape == (expected_steps, 5, 128)
+def test_network_contains_two_matched_ping_circuits(graph: dict) -> None:
+    populations = {row["id"]: row for row in graph["populations"]}
+    assert populations["PING_A_E"]["size"] == N_E
+    assert populations["PING_B_E"]["size"] == N_E
+    assert populations["PING_A_I"]["size"] == N_I
+    assert populations["PING_B_I"]["size"] == N_I
+
+    assert populations["PING_A_E"]["neuron"] == populations["PING_B_E"]["neuron"]
+    assert populations["PING_A_I"]["neuron"] == populations["PING_B_I"]["neuron"]
+    assert populations["PING_A_E"]["neuron"]["refractory_steps"] == round(
+        E_REFRACTORY_MS / DT_MS
+    )
+    assert populations["PING_A_I"]["neuron"]["refractory_steps"] == round(
+        I_REFRACTORY_MS / DT_MS
+    )
 
 
-def test_only_cross_coupling_initializers_change_across_graphs():
-    zero = exp085.author_network(0.0).graph
-    strong = exp085.author_network(0.1).graph
-    changed = []
-    zero_parameters = {row["id"]: row for row in zero["parameters"]}
-    for row in strong["parameters"]:
-        if row != zero_parameters[row["id"]]:
-            changed.append(row["id"])
-    assert set(changed) == {
-        "a_E_to_b_E.weight",
-        "a_E_to_b_I.weight",
-        "b_E_to_a_E.weight",
-        "b_E_to_a_I.weight",
+def test_network_has_only_local_e_to_i_to_e_ping_loops(graph: dict) -> None:
+    projections = {row["id"]: row for row in graph["projections"]}
+    parameters = {row["id"]: row for row in graph["parameters"]}
+    for name in ("PING_A", "PING_B"):
+        assert projections[f"{name}_E_to_I"]["target"] == f"{name}_I.excitatory"
+        assert projections[f"{name}_I_to_E"]["target"] == f"{name}_E.inhibitory"
+        assert f"{name}_E_to_E" not in projections
+        assert f"{name}_I_to_I" not in projections
+        e_to_i = projections[f"{name}_E_to_I"]
+        assert e_to_i["synapse"]["tau"]["value"] == E_TO_I_TAU_MS
+        initializer = parameters[f"{name}_E_to_I.weight"]["initializer"]
+        assert initializer["mean"] == E_TO_I_WEIGHT
+
+
+def test_cross_network_paths_are_reciprocal_and_separately_weighted(
+    graph: dict,
+) -> None:
+    projections = {row["id"]: row for row in graph["projections"]}
+    parameters = {row["id"]: row for row in graph["parameters"]}
+    expected = {
+        "PING_A_E_to_PING_B_E_K_EE": K_EE,
+        "PING_A_E_to_PING_B_I_K_EI": K_EI,
+        "PING_B_E_to_PING_A_E_K_EE": K_EE,
+        "PING_B_E_to_PING_A_I_K_EI": K_EI,
     }
-    assert runtime_state_signature(plan_graph(zero)) == runtime_state_signature(plan_graph(strong))
+
+    for projection_id, strength in expected.items():
+        projection = projections[projection_id]
+        assert projection["connection"] == "feedback"
+        assert projection["delay"]["value"] == COUPLING_DELAY_MS
+        initializer = parameters[f"{projection_id}.weight"]["initializer"]
+        assert initializer["mean"] == strength
+        assert initializer["initial_zero_fraction"] == pytest.approx(
+            CROSS_ZERO_FRACTION
+        )
+        assert initializer["zeroing"] == "exact_k"
+
+    realised_fan_in = round((1.0 - CROSS_ZERO_FRACTION) * N_E)
+    assert realised_fan_in == CROSS_FAN_IN
 
 
-def test_zero_coupling_state_branch_matches_uninterrupted_continuation():
-    bundle = exp085.author_network(0.0)
-    graph = copy.deepcopy(bundle.graph)
-    steps = 40
-    inputs = {
-        "drive_a": torch.zeros(steps, 1, exp085.N_INPUT),
-        "drive_b": torch.zeros(steps, 1, exp085.N_INPUT),
+def test_pathway_branches_can_share_one_runtime_state() -> None:
+    from execution import plan_graph, runtime_state_signature
+
+    signatures = {
+        runtime_state_signature(plan_graph(author_network(k_ee=k_ee, k_ei=k_ei).graph))
+        for k_ee, k_ei in (
+            (0.0, 0.0),
+            (K_EE, 0.0),
+            (0.0, K_EI),
+            (K_EE, K_EI),
+        )
     }
-    inputs["drive_a"][::5] = 1
-    inputs["drive_b"][2::7] = 1
-    whole = simulate(
-        ExecutionSpec(kind="simulate", executor="graph", graph=graph, inputs=inputs, seed=7)
-    )
-    first = simulate(
-        ExecutionSpec(
-            kind="simulate",
-            executor="graph",
-            graph=graph,
-            inputs={name: value[:17] for name, value in inputs.items()},
-            seed=7,
+
+    assert len(signatures) == 1
+
+
+def test_phase_response_paths_match_the_two_coupling_paths() -> None:
+    probe_graph = author_phase_response_network().graph
+    projections = {row["id"]: row for row in probe_graph["projections"]}
+    parameters = {row["id"]: row for row in probe_graph["parameters"]}
+    expected = {
+        "probe_E_to_PING_A_E_K_EE": ("PING_A_E.excitatory", K_EE),
+        "probe_E_to_PING_A_I_K_EI": ("PING_A_I.excitatory", K_EI),
+    }
+    for projection_id, (target, strength) in expected.items():
+        assert projections[projection_id]["target"] == target
+        initializer = parameters[f"{projection_id}.weight"]["initializer"]
+        assert initializer["mean"] == strength
+        assert initializer["initial_zero_fraction"] == pytest.approx(
+            CROSS_ZERO_FRACTION
         )
+
+
+def test_uncoupled_inputs_use_the_two_design_rates() -> None:
+    inputs = make_uncoupled_inputs()
+    duration_s = T_MS / 1_000.0
+    realised_a = (
+        float(inputs[f"drive_A_{INPUT_RATE_A_HZ:g}_Hz"].sum()) / N_INPUT / duration_s
     )
-    assert first.runtime_state is not None
-    second = simulate(
-        ExecutionSpec(
-            kind="simulate",
-            executor="graph",
-            graph=graph,
-            inputs={name: value[17:] for name, value in inputs.items()},
-            seed=7,
-            runtime_state=first.runtime_state,
-        )
+    realised_b = (
+        float(inputs[f"drive_B_{INPUT_RATE_B_HZ:g}_Hz"].sum()) / N_INPUT / duration_s
     )
-    for name, expected in whole.recordings.items():
-        actual = torch.cat((first.recordings[name], second.recordings[name]))
-        torch.testing.assert_close(actual, expected, rtol=0, atol=0)
+    assert realised_a == pytest.approx(INPUT_RATE_A_HZ, rel=0.03)
+    assert realised_b == pytest.approx(INPUT_RATE_B_HZ, rel=0.03)
 
 
-def test_relative_phase_reports_linear_drift():
-    steps = round((exp085.EQUILIBRATION_MS + exp085.CONTINUATION_MS) / exp085.DT_MS)
-    time_s = np.arange(steps) * exp085.DT_MS / 1_000.0
-    a = np.sin(2 * np.pi * 38 * time_s)[:, None, None]
-    b = np.sin(2 * np.pi * 33 * time_s)[:, None, None]
-    phase = exp085.relative_phase(a, b, onset_step=round(exp085.EQUILIBRATION_MS / exp085.DT_MS))
-    slope = np.polyfit(np.arange(phase.shape[1]) * exp085.DT_MS / 1_000.0, phase[0], 1)[0]
-    assert slope == pytest.approx(2 * np.pi * 5, rel=0.05)
+def test_phase_response_input_places_one_full_probe_volley() -> None:
+    arrival_step = 100
+    inputs = make_phase_response_inputs(target="I", arrival_step=arrival_step)
+    pulse_e = inputs["coupling_matched_pulse_to_E"]
+    pulse_i = inputs["coupling_matched_pulse_to_I"]
+    delay_steps = round(COUPLING_DELAY_MS / DT_MS)
+
+    assert pulse_e.sum() == 0
+    assert pulse_i.sum() == N_E
+    assert pulse_i[arrival_step - delay_steps].sum() == N_E
 
 
-def test_terminal_phase_error_reports_approach_to_terminal_offset():
-    steps = round(1_000.0 / exp085.TRACE_BIN_MS)
-    time_s = np.arange(steps) * exp085.TRACE_BIN_MS / 1_000.0
-    approach = np.exp(-time_s / 0.15)
+def test_phase_and_frequency_follow_detected_volley_intervals() -> None:
+    interval_steps = round(25.0 / DT_MS)
+    peaks = np.arange(0, 5 * interval_steps, interval_steps)
+    summary = rhythm_summary(peaks)
+    phase = interpolated_phase(peaks, steps=6 * interval_steps)
 
-    _, error = exp085.trial_terminal_phase_error(approach)
-
-    assert error[0] > 0.7
-    assert error[-1] < 0.01
-
-
-def test_clean_convergence_trials_rejects_late_phase_slip():
-    steps = round(1_000.0 / exp085.DT_MS)
-    stable = np.zeros(steps)
-    slipping = stable.copy()
-    slipping[round(600.0 / exp085.DT_MS) :] = np.pi
-
-    assert exp085.clean_convergence_trials(np.stack((stable, slipping))) == [0]
+    assert summary["frequency_hz"] == 40.0
+    assert summary["iei_cv"] == 0.0
+    np.testing.assert_allclose(
+        phase[:interval_steps],
+        2.0 * np.pi * np.arange(interval_steps) / interval_steps,
+    )
 
 
-def test_phase_onset_selector_recovers_prescribed_offsets():
-    steps = round(exp085.SCOUT_MS / exp085.DT_MS)
-    phase = np.mod(np.arange(steps) * 2 * np.pi / 1_000, 2 * np.pi)
+def test_inhibitory_cycle_summary_counts_each_neuron_between_volleys() -> None:
+    spikes = np.zeros((8, 1, 2), dtype=np.uint8)
+    spikes[1, 0] = 1
+    spikes[5, 0] = 1
 
-    selected = exp085.select_phase_onsets(phase)
+    summary = inhibitory_cycle_summary(spikes, np.array([0, 4, 8]))
 
-    for target, step in selected.items():
-        error = abs(np.angle(np.exp(1j * (phase[step] - target))))
-        assert error < 0.01
+    assert summary == {
+        "cycles": 2,
+        "mean_spikes_per_neuron": 1.0,
+        "minimum": 1,
+        "maximum": 1,
+    }
+
+
+def test_population_volley_events_groups_adjacent_timesteps() -> None:
+    spikes = np.zeros((10, 1, 3), dtype=np.uint8)
+    spikes[2, 0, :2] = 1
+    spikes[3, 0, 2] = 1
+    spikes[8, 0, :] = 1
+
+    events = population_volley_events(spikes, start=0, stop=10)
+
+    assert len(events) == 2
+    assert events[0]["spikes"] == 3
+    assert events[1]["spikes"] == 3
+
+
+def test_event_aligned_mechanism_measures_target_volley_advance() -> None:
+    steps = 500
+
+    def spikes(size: int, at: int) -> np.ndarray:
+        values = np.zeros((steps, 1, size), dtype=np.uint8)
+        values[at, 0] = 1
+        return values
+
+    def conductance(size: int) -> np.ndarray:
+        return np.zeros((steps, 1, size), dtype=np.float32)
+
+    baseline = {
+        "population_0": spikes(N_E, 100),
+        "population_2": spikes(N_E, 300),
+        "population_3": spikes(N_I, 310),
+        "PING_A_E_to_PING_B_E_K_EE.conductance": conductance(N_E),
+        "PING_B_I_to_E.conductance": conductance(N_E),
+    }
+    coupled = {
+        "population_0": spikes(N_E, 100),
+        "population_2": spikes(N_E, 290),
+        "population_3": spikes(N_I, 300),
+        "PING_A_E_to_PING_B_E_K_EE.conductance": conductance(N_E),
+        "PING_B_I_to_E.conductance": conductance(N_E),
+    }
+
+    record, traces = analyse_event_aligned_mechanism(
+        {"none": baseline, "e_to_e": coupled}
+    )
+
+    assert record["next_target_volley_advance_ms"] == pytest.approx(1.0)
+    assert traces["time_from_arrival_ms"][0] == pytest.approx(-5.0)

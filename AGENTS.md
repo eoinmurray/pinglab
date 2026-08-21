@@ -36,6 +36,55 @@ agent should proactively say so and suggest the right cleanup — don't wait to 
 Suggest at natural boundaries (task done, topic pivot) — not mid-task, and at most once per
 boundary; if declined, drop it until the next one.
 
+## Document delivery
+
+- Do not open, embed, or display generated PDFs in the Codex app.
+- When handing off a document, provide clickable links to both its generated PDF and its
+  generated HTML webpage. Do not substitute a PDF attachment or preview for those links.
+
+## Experiment drafts
+
+Use `status: "draft"` for an experiment whose design is still being refined and which has not
+been run. The canonical draft format is deliberately minimal:
+
+1. A short `Abstract` stating the question and intended measurement.
+2. An enumerated `Methods` section describing the planned experiment.
+3. A separate enumerated `Results` section. Keep its items in the same order as the methods.
+   Give each result separate list items for axes, traces or marks, why, and expectation or
+   observation.
+
+Keep a network or experimental-design diagram beside the method that defines it. Do not repeat
+that diagram as a result. State near the start of Methods which parts have been run. Clearly
+distinguish planned outputs from observations.
+
+For every plotted result, define the horizontal and vertical axes, the traces or marks, why the
+plot is needed, and what it is expected to show. Define a third axis when needed. For a non-plot
+result, state that axes and traces do not apply, then define the displayed elements, why the
+output is needed, and the expected output.
+
+Use that structure only for planned results. Once a result exists, remove the planning fields.
+Show only its title, figure, and concise interpretation.
+
+Write drafts in direct, human-readable language. Introduce technical terms only when they
+are needed, explain them briefly, and do not add speculative theory or extra sections unless
+the experiment requires them or the user asks for them.
+
+### Methods-to-results mirror figures
+
+Suggest the **exp086 figure pattern** when a planned mechanism would be easier to understand
+visually:
+
+1. Put a clean, hand-authored SVG schematic in Methods. Use plot-like axes and illustrative
+   curves to explain the proposed mechanism, and label it clearly as a design schematic rather
+   than simulated or measured data.
+2. Plan a Results figure with the same panel layout and visual language, generated
+   reproducibly from the real experimental data.
+
+Use direct SVG for the conceptual figure because precise explanatory layout matters. Use the
+experiment runner and its plotting library for the measured result because provenance and
+reproducibility matter. The user can trigger this pattern by saying **“use the exp086 figure
+pattern”** or **“make a Methods-to-Results mirror figure.”**
+
 ## Development workflow
 
 Use judgment about whether work should go directly to `main` or through a PR. Do not apply the rule mechanically.

@@ -5,7 +5,7 @@ networks. Every cell is trained once here, to a shared artifact root
 (src/artifacts/notebooks/training/), and the analysis notebooks load those
 weights with `load_cell` (imported from this module) instead of retraining
 their own. This replaces the collection's older "standalone runner, no
-cross-notebook helpers" rule with a train-once / reuse-many policy (see ar016).
+cross-notebook helpers" rule with a train-once / reuse-many policy.
 
 102 cells across seven families (canonical, activity ceiling, τ_GABA, Δt,
 recurrent initialization, variable rate, and low-input recruitment). Exp022 owns

@@ -523,3 +523,36 @@ def test_all_visual_views_render(tmp_path):
         assert (
             bundle.visualise(tmp_path / f"{view}.svg", view=view).stat().st_size > 500
         )
+
+
+def test_circuit_visualisation_can_expand_selected_groups(tmp_path):
+    if shutil.which("dot") is None:
+        pytest.skip("Graphviz 'dot' is required for snnlang visualisation")
+    net, cell = small_network()
+    net.output("spikes", cell.E.spikes)
+    bundle = snn.compile(net)
+
+    output = bundle.visualise(
+        tmp_path / "selected.svg",
+        view="circuit",
+        expand_groups=("cell",),
+    )
+    svg = output.read_text()
+
+    assert "cluster_n_cell" in svg
+    assert "n_cell_E" in svg
+    assert "n_cell_I" in svg
+    assert "n_cell_E_to_I" in svg
+
+
+def test_circuit_visualisation_rejects_unknown_expanded_group(tmp_path):
+    net, cell = small_network()
+    net.output("spikes", cell.E.spikes)
+    bundle = snn.compile(net)
+
+    with pytest.raises(ValueError, match="cannot expand unknown groups: missing"):
+        bundle.visualise(
+            tmp_path / "selected.svg",
+            view="circuit",
+            expand_groups=("missing",),
+        )
