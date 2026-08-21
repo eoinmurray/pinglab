@@ -49,16 +49,21 @@ been run. The canonical draft format is deliberately minimal:
 
 1. A short `Abstract` stating the question and intended measurement.
 2. An enumerated `Methods` section describing the planned experiment.
-3. An indented `Result` block under every method item. `Result` is a label, not a list item.
-   Give it separate list items for axes, traces or marks, why, and expectation.
+3. A separate enumerated `Results` section. Keep its items in the same order as the methods.
+   Give each result separate list items for axes, traces or marks, why, and expectation or
+   observation.
 
-Do not add a separate `Results` section to a draft. State near the start of Methods that the
-experiment has not been run and that the results are planned outputs, not observations.
+Keep a network or experimental-design diagram beside the method that defines it. Do not repeat
+that diagram as a result. State near the start of Methods which parts have been run. Clearly
+distinguish planned outputs from observations.
 
 For every plotted result, define the horizontal and vertical axes, the traces or marks, why the
 plot is needed, and what it is expected to show. Define a third axis when needed. For a non-plot
 result, state that axes and traces do not apply, then define the displayed elements, why the
 output is needed, and the expected output.
+
+Use that structure only for planned results. Once a result exists, remove the planning fields.
+Show only its title, figure, and concise interpretation.
 
 Write drafts in direct, human-readable language. Introduce technical terms only when they
 are needed, explain them briefly, and do not add speculative theory or extra sections unless
