@@ -75,9 +75,9 @@ def test_downstream_cell_banks_resolve_through_exp022_registry() -> None:
         for condition in exp049.COND_ORDER
         for seed in exp049.SEEDS
     } == registered["TR-05"]
-    assert {
-        exp082.training_dir(seed).name for seed in exp082.SEEDS
-    } == registered["TR-06"]
+    assert {exp082.training_dir(seed).name for seed in exp082.SEEDS} == registered[
+        "TR-06"
+    ]
     assert {
         exp025.low_w_in_cell_dir(w_in, seed).name
         for w_in in exp025.LOW_W_IN_VALUES
@@ -156,7 +156,9 @@ def test_runner_environment_exposes_shared_derived_root(tmp_path: Path) -> None:
     payload = build_plan(tmp_path / "campaign", "smoke")
     payload["profile"] = "smoke"
     payload["exp022_manifest"] = str(tmp_path / "campaign/exp022/campaign.json")
-    row = next(row for row in execution.rows_in_order(payload) if row["slug"] == "exp054")
+    row = next(
+        row for row in execution.rows_in_order(payload) if row["slug"] == "exp054"
+    )
     environment = execution._runner_environment(payload, row)
     assert environment["PINGLAB_COLLECTION_DERIVED_ROOT"] == str(
         (tmp_path / "campaign/derived/artifacts/data").resolve()
@@ -273,6 +275,108 @@ def test_collection_provenance_rejects_cross_campaign_output(tmp_path: Path) -> 
         execution._stamp_collection_provenance(plan, row)
 
 
+def test_compose_campaign_replaces_selected_outputs_and_records_sources(
+    tmp_path: Path, monkeypatch
+) -> None:
+    base = tmp_path / "base"
+    overlay = tmp_path / "overlay"
+    destination = tmp_path / "composite"
+    base.mkdir()
+    overlay.mkdir()
+    base_plan = build_plan(base, "base-run")
+    execution.write_json_atomic(base / execution.PLAN_NAME, base_plan)
+    execution.write_json_atomic(
+        base / "run.json",
+        {
+            "run_id": "base-run",
+            "status": "complete",
+            "source": {"git_commit": "a" * 40},
+        },
+    )
+    execution.write_json_atomic(
+        base / "inventory.json",
+        {"run_id": "base-run", "payload_digest": "b" * 64},
+    )
+    execution.write_json_atomic(
+        overlay / "run.json",
+        {
+            "run_id": "repair-run",
+            "status": "planned",
+            "source": {"git_commit": "c" * 40},
+        },
+    )
+    slugs = [row["slug"] for row in execution.rows_in_order(base_plan)]
+    for source_root, run_id, selected in (
+        (base, "base-run", slugs),
+        (overlay, "repair-run", ["exp022", "exp025"]),
+    ):
+        for slug in selected:
+            derived = source_root / "derived/artifacts/data" / slug
+            derived.mkdir(parents=True)
+            execution.write_json_atomic(
+                derived / "numbers.json",
+                {
+                    "marker": run_id,
+                    "collection_provenance": {
+                        "campaign_id": run_id,
+                        "source_git_commit": ("a" if run_id == "base-run" else "c")
+                        * 40,
+                    },
+                },
+            )
+            (derived / "figure.svg").write_text("<svg/>\n")
+
+    monkeypatch.setattr(execution, "_require_clean_source", lambda: None)
+    monkeypatch.setattr(
+        execution,
+        "_inspect_runstore",
+        lambda root: (
+            {"inventory": "valid"} if root == base else {"inventory": "absent"}
+        ),
+    )
+
+    def fake_run(command, **_kwargs):
+        assert "tools.runstore" in command and "init" in command
+        (destination / "exp022").mkdir(parents=True)
+        (destination / "downstream").mkdir()
+        (destination / "derived/artifacts").mkdir(parents=True)
+        (destination / "logs").mkdir()
+        execution.write_json_atomic(
+            destination / "run.json",
+            {
+                "run_id": "composite-run",
+                "source": {"git_commit": "d" * 40},
+            },
+        )
+        return SimpleNamespace(returncode=0)
+
+    monkeypatch.setattr(execution.subprocess, "run", fake_run)
+    result = execution.compose_campaign(
+        destination,
+        "composite-run",
+        base_root=base,
+        overlay_root=overlay,
+        replacements=["exp022", "exp025"],
+    )
+
+    assert result["experiments"] == len(slugs)
+    assert (
+        execution.load_json(destination / "derived/artifacts/data/exp022/numbers.json")[
+            "marker"
+        ]
+        == "repair-run"
+    )
+    assert (
+        execution.load_json(destination / "derived/artifacts/data/exp037/numbers.json")[
+            "marker"
+        ]
+        == "base-run"
+    )
+    composition = execution.load_json(destination / "composition.json")
+    assert composition["experiments"]["exp025"]["run_id"] == "repair-run"
+    assert composition["experiments"]["exp037"]["run_id"] == "base-run"
+
+
 def test_integrate_repair_preserves_base_and_records_repaired_source(
     tmp_path: Path, monkeypatch
 ) -> None:
@@ -340,7 +444,10 @@ def test_integrate_repair_preserves_base_and_records_repaired_source(
     def fake_git(command, **_kwargs):
         if "merge-base" in command:
             return SimpleNamespace(returncode=0)
-        assert command[1:3] == ["show", f"{expected_repair_source['git_commit']}:uv.lock"]
+        assert command[1:3] == [
+            "show",
+            f"{expected_repair_source['git_commit']}:uv.lock",
+        ]
         return SimpleNamespace(returncode=0, stdout=b"repair lock")
 
     monkeypatch.setattr(execution.subprocess, "run", fake_git)
@@ -355,18 +462,21 @@ def test_integrate_repair_preserves_base_and_records_repaired_source(
     assert updated["source"] == base_source
     assert updated["repairs"]["exp082"]["source"] == expected_repair_source
     assert updated["repairs"]["exp082"]["integration_source"] == integration_source
-    assert numbers["collection_provenance"]["source_git_commit"] == expected_repair_source[
-        "git_commit"
-    ]
-    assert numbers["collection_provenance"]["repair"][
-        "base_source_git_commit"
-    ] == base_source["git_commit"]
+    assert (
+        numbers["collection_provenance"]["source_git_commit"]
+        == expected_repair_source["git_commit"]
+    )
+    assert (
+        numbers["collection_provenance"]["repair"]["base_source_git_commit"]
+        == base_source["git_commit"]
+    )
     assert run["upstream"] == [
         f"exp082-repair:{expected_repair_source['git_commit']}:{repair_root.resolve()}"
     ]
-    assert execution.load_json(root / execution.STATUS_DIR / "exp082.json")[
-        "state"
-    ] == "complete"
+    assert (
+        execution.load_json(root / execution.STATUS_DIR / "exp082.json")["state"]
+        == "complete"
+    )
 
 
 def test_finalize_delegates_to_runstore_after_validation(
@@ -602,11 +712,11 @@ def test_collection_job_uses_explicit_repository_root() -> None:
         / "gamma_gated_sparsity"
         / "collection-job.sbatch"
     ).read_text()
-    assert '${PINGLAB_ROOT:?' in wrapper
+    assert "${PINGLAB_ROOT:?" in wrapper
     assert 'cd "$PINGLAB_ROOT"' in wrapper
     assert 'dirname "$0"' not in wrapper
-    assert 'run-experiment-shard' in wrapper
-    assert 'SLURM_ARRAY_TASK_ID' in wrapper
+    assert "run-experiment-shard" in wrapper
+    assert "SLURM_ARRAY_TASK_ID" in wrapper
 
 
 def test_slurm_accepts_smoke_profile(tmp_path: Path, monkeypatch) -> None:
@@ -639,8 +749,11 @@ def test_workload_shards_are_disjoint_complete_and_stable(monkeypatch) -> None:
     shards = [workloads.jobs_for_shard("exp-test", index, 4) for index in range(4)]
     assert [job for shard in shards for job in shard] != jobs
     assert sorted(job for shard in shards for job in shard) == sorted(jobs)
-    assert all(set(left).isdisjoint(right) for i, left in enumerate(shards)
-               for right in shards[i + 1:])
+    assert all(
+        set(left).isdisjoint(right)
+        for i, left in enumerate(shards)
+        for right in shards[i + 1 :]
+    )
     assert shards == [
         workloads.jobs_for_shard("exp-test", index, 4) for index in range(4)
     ]
@@ -657,9 +770,7 @@ def test_exp037_shard_completion_uses_checkpoint_cache_tag(
     monkeypatch.setattr(exp037, "cache_tag", lambda _checkpoint: "best__aaaa")
 
     output = (
-        exp037._perturb_out_dir(train_dir, "drop", 0.0)
-        / "best__aaaa"
-        / "metrics.json"
+        exp037._perturb_out_dir(train_dir, "drop", 0.0) / "best__aaaa" / "metrics.json"
     )
     output.parent.mkdir(parents=True)
     output.write_text("{}\n")

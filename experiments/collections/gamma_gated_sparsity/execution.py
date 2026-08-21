@@ -41,6 +41,194 @@ def write_json_atomic(path: Path, value: dict[str, Any]) -> None:
     temporary.replace(path)
 
 
+def _directory_snapshot(root: Path) -> dict[str, Any]:
+    rows = []
+    for item in sorted(
+        root.rglob("*"), key=lambda path: path.relative_to(root).as_posix()
+    ):
+        if item.is_symlink():
+            raise CollectionError(f"composition source contains a symlink: {item}")
+        if item.is_file():
+            rows.append(
+                {
+                    "path": item.relative_to(root).as_posix(),
+                    "size_bytes": item.stat().st_size,
+                    "sha256": _sha256(item),
+                }
+            )
+    digest = hashlib.sha256(
+        json.dumps(rows, sort_keys=True, separators=(",", ":")).encode()
+    ).hexdigest()
+    return {"file_count": len(rows), "payload_digest": digest}
+
+
+def _replace_plan_root(value: Any, old: str, new: str) -> Any:
+    if isinstance(value, str):
+        return value.replace(old, new)
+    if isinstance(value, list):
+        return [_replace_plan_root(item, old, new) for item in value]
+    if isinstance(value, dict):
+        return {key: _replace_plan_root(item, old, new) for key, item in value.items()}
+    return value
+
+
+def _inspect_runstore(root: Path) -> dict[str, Any]:
+    result = subprocess.run(
+        [sys.executable, "-m", "tools.runstore", "inspect", str(root), "--json"],
+        cwd=REPO,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    return json.loads(result.stdout)
+
+
+def compose_campaign(
+    root: Path,
+    campaign_id: str,
+    *,
+    base_root: Path,
+    overlay_root: Path,
+    replacements: list[str],
+) -> dict[str, Any]:
+    """Compose a complete campaign from a frozen base and selected repair outputs."""
+    root = validate_campaign_root(root)
+    base_root = base_root.resolve()
+    overlay_root = overlay_root.resolve()
+    _require_clean_source()
+
+    base_run = load_json(base_root / "run.json")
+    base_inventory = load_json(base_root / "inventory.json")
+    if base_run["status"] != "complete":
+        raise CollectionError("composition base campaign must be complete")
+    inspected_base = _inspect_runstore(base_root)
+    if inspected_base.get("inventory") != "valid":
+        raise CollectionError("composition base inventory is not valid")
+
+    overlay_run = load_json(overlay_root / "run.json")
+    base_plan = load_json(base_root / PLAN_NAME)
+    rows = [row for stage in base_plan["stages"] for row in stage["experiments"]]
+    planned = {row["slug"] for row in rows}
+    selected = set(replacements)
+    if not selected or selected - planned:
+        raise CollectionError(
+            f"invalid composition replacements: {sorted(selected - planned)}"
+        )
+
+    base_derived = base_root / "derived/artifacts/data"
+    if {path.name for path in base_derived.iterdir() if path.is_dir()} != planned:
+        raise CollectionError(
+            "composition base does not contain every planned experiment"
+        )
+
+    source_rows: dict[str, dict[str, Any]] = {}
+    for slug in sorted(planned):
+        source_run = overlay_run if slug in selected else base_run
+        source_root = overlay_root if slug in selected else base_root
+        source = source_root / "derived/artifacts/data" / slug
+        if not (source / "numbers.json").is_file():
+            raise CollectionError(f"composition source is missing {slug}/numbers.json")
+        numbers = load_json(source / "numbers.json")
+        provenance = numbers.get("collection_provenance")
+        if (
+            not isinstance(provenance, dict)
+            or provenance.get("campaign_id") != source_run["run_id"]
+        ):
+            raise CollectionError(
+                f"{slug} provenance does not match its source campaign"
+            )
+        snapshot = _directory_snapshot(source)
+        source_rows[slug] = {
+            "run_id": source_run["run_id"],
+            "source_git_commit": provenance.get("source_git_commit")
+            or source_run["source"]["git_commit"],
+            "source_directory": str(source),
+            **snapshot,
+        }
+
+    command = [
+        sys.executable,
+        "-m",
+        "experiments.collections.gamma_gated_sparsity",
+        "compose",
+        "--campaign-root",
+        str(root),
+        "--campaign-id",
+        campaign_id,
+        "--base-root",
+        str(base_root),
+        "--overlay-root",
+        str(overlay_root),
+        *[part for slug in sorted(selected) for part in ("--replace", slug)],
+    ]
+    try:
+        subprocess.run(
+            [
+                sys.executable,
+                "-m",
+                "tools.runstore",
+                "init",
+                str(root),
+                "--run-id",
+                campaign_id,
+                "--kind",
+                "campaign",
+                "--collection",
+                COLLECTION,
+                "--upstream",
+                base_run["run_id"],
+                "--upstream",
+                overlay_run["run_id"],
+                "--provenance-notes",
+                "composite publication campaign",
+                "--command",
+                *command,
+            ],
+            cwd=REPO,
+            check=True,
+        )
+        run = load_json(root / "run.json")
+        destination = root / "derived/artifacts/data"
+        destination.mkdir(parents=True)
+        for slug in sorted(planned):
+            source = Path(source_rows[slug]["source_directory"])
+            shutil.copytree(source, destination / slug)
+
+        plan = _replace_plan_root(base_plan, str(base_root), str(root))
+        plan["campaign_id"] = campaign_id
+        plan["campaign_root"] = str(root)
+        plan["profile"] = "production-composite"
+        plan["source"] = run["source"]
+        plan["composition"] = {
+            "schema": "pinglab.campaign-composition/v1",
+            "base_run_id": base_run["run_id"],
+            "overlay_run_id": overlay_run["run_id"],
+            "replacements": sorted(selected),
+        }
+        write_json_atomic(root / PLAN_NAME, plan)
+        composition = {
+            "schema": "pinglab.campaign-composition/v1",
+            "run_id": campaign_id,
+            "base": {
+                "run_id": base_run["run_id"],
+                "inventory_payload_digest": base_inventory["payload_digest"],
+            },
+            "overlay": {"run_id": overlay_run["run_id"]},
+            "experiments": source_rows,
+        }
+        write_json_atomic(root / "composition.json", composition)
+        return {
+            "campaign_root": str(root),
+            "campaign_id": campaign_id,
+            "experiments": len(planned),
+            "replacements": sorted(selected),
+            "payload": _inspect_runstore(root),
+        }
+    except BaseException:
+        shutil.rmtree(root, ignore_errors=True)
+        raise
+
+
 def _sha256(path: Path) -> str:
     digest = hashlib.sha256()
     with path.open("rb") as handle:
@@ -204,9 +392,7 @@ def _outputs_valid(row: dict[str, Any]) -> bool:
     return all(Path(path).is_file() for path in row["required_outputs"])
 
 
-def _collection_provenance(
-    plan: dict[str, Any], row: dict[str, Any]
-) -> dict[str, Any]:
+def _collection_provenance(plan: dict[str, Any], row: dict[str, Any]) -> dict[str, Any]:
     repair = (plan.get("repairs") or {}).get(row["slug"])
     source = repair["source"] if repair else plan["source"]
     exp022 = load_json(Path(plan["exp022_manifest"]))
@@ -294,11 +480,19 @@ def integrate_repair(root: Path, repair_root: Path, slug: str) -> dict[str, Any]
     if not isinstance(repair_commit, str):
         raise CollectionError("repair run does not record its source commit")
     ancestry = subprocess.run(
-        ["git", "merge-base", "--is-ancestor", repair_commit, integration_source["git_commit"]],
+        [
+            "git",
+            "merge-base",
+            "--is-ancestor",
+            repair_commit,
+            integration_source["git_commit"],
+        ],
         cwd=REPO,
     )
     if ancestry.returncode != 0:
-        raise CollectionError("repair run source is not an ancestor of the integration checkout")
+        raise CollectionError(
+            "repair run source is not an ancestor of the integration checkout"
+        )
     lockfile = subprocess.run(
         ["git", "show", f"{repair_commit}:uv.lock"],
         cwd=REPO,
@@ -374,7 +568,11 @@ def integrate_repair(root: Path, repair_root: Path, slug: str) -> dict[str, Any]
         )
         write_json_atomic(
             run_path,
-            {**run, "upstream": upstream, "provenance_notes": f"{notes}; {note}".strip("; ")},
+            {
+                **run,
+                "upstream": upstream,
+                "provenance_notes": f"{notes}; {note}".strip("; "),
+            },
         )
         _write_status(
             root,
@@ -570,9 +768,7 @@ def run_experiment_shard(root: Path, slug: str, index: int, count: int) -> None:
         },
     )
     try:
-        result = execute_shard(
-            slug, index, count, smoke=plan.get("profile") == "smoke"
-        )
+        result = execute_shard(slug, index, count, smoke=plan.get("profile") == "smoke")
     except BaseException:
         write_json_atomic(
             status_path,

@@ -19,7 +19,13 @@ from .contract import (
     verify_payload,
     write_json_atomic,
 )
-from .promotion import FIGURE_SUFFIXES, _generating_git_commit, _sha256, _source_rows
+from .promotion import (
+    FIGURE_SUFFIXES,
+    _composition_source,
+    _generating_git_commit,
+    _sha256,
+    _source_rows,
+)
 from .storage import Store
 
 VIEW_NAME = ".runstore-view.json"
@@ -192,21 +198,22 @@ def _stage_experiment(
             raise ContractError(
                 f"staged file differs from source: {experiment}/{row['path']}"
             )
-    write_json_atomic(
-        destination / "_provenance.json",
-        {
-            "contract_version": CONTRACT_VERSION,
-            "run_id": run["run_id"],
-            "campaign_id": run["run_id"],
-            "generating_git_commit": _generating_git_commit(run, source),
-            "campaign_source_git_commit": run["source"]["git_commit"],
-            "source_directory": source_relative.as_posix(),
-            "source_inventory_payload_digest": inventory["payload_digest"],
-            "archive": run["archive"],
-            "promoted_at_utc": timestamp,
-            "files": rows,
-        },
-    )
+    provenance = {
+        "contract_version": CONTRACT_VERSION,
+        "run_id": run["run_id"],
+        "campaign_id": run["run_id"],
+        "generating_git_commit": _generating_git_commit(run, source, run_root),
+        "campaign_source_git_commit": run["source"]["git_commit"],
+        "source_directory": source_relative.as_posix(),
+        "source_inventory_payload_digest": inventory["payload_digest"],
+        "archive": run["archive"],
+        "promoted_at_utc": timestamp,
+        "files": rows,
+    }
+    composition = _composition_source(run_root, experiment)
+    if composition is not None:
+        provenance["composition_source"] = composition
+    write_json_atomic(destination / "_provenance.json", provenance)
     return len(rows)
 
 
