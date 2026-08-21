@@ -1,0 +1,107 @@
+{
+  "contract_version": "runstore/v1",
+  "run_id": "ggs-production-composite-20260821-6d9c38eb",
+  "campaign_id": "ggs-production-composite-20260821-6d9c38eb",
+  "generating_git_commit": "4ad223d32620dd9f03698b89f28aedfe944d43ac",
+  "campaign_source_git_commit": "6d9c38ebd0d2d9c5bf4a4f59bede9e03e90d86bf",
+  "executor": "legacy",
+  "graph_digest": null,
+  "training_digest": null,
+  "source_directory": "derived/artifacts/data/exp041",
+  "source_inventory_payload_digest": "7ef819f466a134762326450e431a1e96af9667e48fc87701ce27efa6a4a244ba",
+  "archive": null,
+  "promoted_at_utc": "2026-08-21T17:41:04Z",
+  "files": [
+    {
+      "path": "_manifest.json",
+      "source_path": "derived/artifacts/data/exp041/_manifest.json",
+      "size_bytes": 439,
+      "sha256": "e07aa38209ab1438f32cd38a1b4874b093d9f11033fe596586c7201186e81cb0"
+    },
+    {
+      "path": "_run.txt",
+      "source_path": "derived/artifacts/data/exp041/_run.txt",
+      "size_bytes": 2,
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865"
+    },
+    {
+      "path": "numbers.json",
+      "source_path": "derived/artifacts/data/exp041/numbers.json",
+      "size_bytes": 8534,
+      "sha256": "074aa33505f5f2ca61890e8133fd03eda494e0d0c1f4927d1cf0ad2d17164e61"
+    },
+    {
+      "path": "per_trial_peaks.pdf",
+      "source_path": "derived/artifacts/data/exp041/per_trial_peaks.pdf",
+      "size_bytes": 32840,
+      "sha256": "1940d54ba6ce8f0ab6075abdd98f3045673aca674cc797a7f0db34cd9518e820"
+    },
+    {
+      "path": "per_trial_peaks.svg",
+      "source_path": "derived/artifacts/data/exp041/per_trial_peaks.svg",
+      "size_bytes": 340661,
+      "sha256": "e20231ab9c06c3c2e5417d6276c0e45d1b89bbee26efed7af6ea510776199947"
+    },
+    {
+      "path": "psds.pdf",
+      "source_path": "derived/artifacts/data/exp041/psds.pdf",
+      "size_bytes": 14130,
+      "sha256": "0b2d7b4e9b762c0f153073d408b96ef30091492c985473f814954de46ebcd538"
+    },
+    {
+      "path": "psds.svg",
+      "source_path": "derived/artifacts/data/exp041/psds.svg",
+      "size_bytes": 50111,
+      "sha256": "d7122782fb2588b4f43958de406ccd45bebd57065012e412f229d68f241d05b0"
+    },
+    {
+      "path": "raster_strip.pdf",
+      "source_path": "derived/artifacts/data/exp041/raster_strip.pdf",
+      "size_bytes": 21231,
+      "sha256": "d4edaf7d8d7f8836fd3bca43b5ebbf1f713e400d8a2147b4e9aa3b9f7d7c4c65"
+    },
+    {
+      "path": "raster_strip.png",
+      "source_path": "derived/artifacts/data/exp041/raster_strip.png",
+      "size_bytes": 83032,
+      "sha256": "46fb65515b7752868887b6733d4ad7400a6923d594893e60d3bf14bdee4c89f0"
+    },
+    {
+      "path": "rate_vs_fgamma.pdf",
+      "source_path": "derived/artifacts/data/exp041/rate_vs_fgamma.pdf",
+      "size_bytes": 28661,
+      "sha256": "febd63865b37e59ef61721f66caa800f32631765b3e97fc0d849acf2e4b46739"
+    },
+    {
+      "path": "rate_vs_fgamma.svg",
+      "source_path": "derived/artifacts/data/exp041/rate_vs_fgamma.svg",
+      "size_bytes": 73327,
+      "sha256": "5a9dcf6928ac20c620de11e232361c46db4a307dec99ac0adcfff76c6f1a939e"
+    },
+    {
+      "path": "run.sh",
+      "source_path": "derived/artifacts/data/exp041/run.sh",
+      "size_bytes": 247,
+      "sha256": "cda4ff4c92c8037ffa265db9aac9bfd052fa1c3095dafdb7f9a5ba39fb343245"
+    },
+    {
+      "path": "training_curves.pdf",
+      "source_path": "derived/artifacts/data/exp041/training_curves.pdf",
+      "size_bytes": 23242,
+      "sha256": "105161e76f8509467db6cbcd5788d67f7409b6bbfe366d5f8af53be76a6d0057"
+    },
+    {
+      "path": "training_curves.svg",
+      "source_path": "derived/artifacts/data/exp041/training_curves.svg",
+      "size_bytes": 97562,
+      "sha256": "591ae3be9a5e4f3bbfc5e387445e613e1a8d4118f3a80bb23295af70d98191f0"
+    }
+  ],
+  "composition_source": {
+    "file_count": 14,
+    "payload_digest": "95d909e04142c4d8eada32d77d2a5ca6013cc5a17934d7efde7c95ed4650e33a",
+    "run_id": "ggs-production-20260818-4ad223d3",
+    "source_directory": "/rds/user/em586/hpc-work/campaigns/ggs-production-20260818-4ad223d3/derived/artifacts/data/exp041",
+    "source_git_commit": "4ad223d32620dd9f03698b89f28aedfe944d43ac"
+  }
+}

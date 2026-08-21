@@ -1,0 +1,83 @@
+{
+  "contract_version": "runstore/v1",
+  "run_id": "ggs-production-composite-20260821-6d9c38eb",
+  "campaign_id": "ggs-production-composite-20260821-6d9c38eb",
+  "generating_git_commit": "4ad223d32620dd9f03698b89f28aedfe944d43ac",
+  "campaign_source_git_commit": "6d9c38ebd0d2d9c5bf4a4f59bede9e03e90d86bf",
+  "executor": "legacy",
+  "graph_digest": null,
+  "training_digest": null,
+  "source_directory": "derived/artifacts/data/exp044",
+  "source_inventory_payload_digest": "7ef819f466a134762326450e431a1e96af9667e48fc87701ce27efa6a4a244ba",
+  "archive": null,
+  "promoted_at_utc": "2026-08-21T17:41:04Z",
+  "files": [
+    {
+      "path": "_manifest.json",
+      "source_path": "derived/artifacts/data/exp044/_manifest.json",
+      "size_bytes": 463,
+      "sha256": "da981abcddc2c03716c9a03102bc9fba29e4f9c3baa215b47a0e6ef5ce878ea6"
+    },
+    {
+      "path": "_run.txt",
+      "source_path": "derived/artifacts/data/exp044/_run.txt",
+      "size_bytes": 2,
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865"
+    },
+    {
+      "path": "dt_sweep.pdf",
+      "source_path": "derived/artifacts/data/exp044/dt_sweep.pdf",
+      "size_bytes": 11197,
+      "sha256": "31e0cfc0c18a30e539e8bf309906ebf1c5b0d89008c20716d19775bcb05c26f0"
+    },
+    {
+      "path": "dt_sweep.svg",
+      "source_path": "derived/artifacts/data/exp044/dt_sweep.svg",
+      "size_bytes": 37735,
+      "sha256": "4ec3df231c163840197e9201cffb584ba91d7b35d18311ec112b260036d52f7d"
+    },
+    {
+      "path": "numbers.json",
+      "source_path": "derived/artifacts/data/exp044/numbers.json",
+      "size_bytes": 10115,
+      "sha256": "93362988f17be442a845d9590af2db20ad48988eab9255753a813ceffbe2ff3e"
+    },
+    {
+      "path": "raster_strip.pdf",
+      "source_path": "derived/artifacts/data/exp044/raster_strip.pdf",
+      "size_bytes": 19453,
+      "sha256": "64bfe68e6a7df68a1e80fdc1b994991a6b5247aff74990266a6991c7ae1e299a"
+    },
+    {
+      "path": "raster_strip.png",
+      "source_path": "derived/artifacts/data/exp044/raster_strip.png",
+      "size_bytes": 66816,
+      "sha256": "4a839c6281db22c7120fd1a6033e8a13dbdbd0eb936a0d947ae641b2c62b76c3"
+    },
+    {
+      "path": "run.sh",
+      "source_path": "derived/artifacts/data/exp044/run.sh",
+      "size_bytes": 247,
+      "sha256": "317000b537ff9cbbcda2a8df49711198db64aff8335d11f911e7dfb0502fe07b"
+    },
+    {
+      "path": "training_curves.pdf",
+      "source_path": "derived/artifacts/data/exp044/training_curves.pdf",
+      "size_bytes": 20032,
+      "sha256": "c97efed12ff5bfa59f07c74a1c0057ff3518f3b4000e30941b5e8f17ae55639d"
+    },
+    {
+      "path": "training_curves.svg",
+      "source_path": "derived/artifacts/data/exp044/training_curves.svg",
+      "size_bytes": 84504,
+      "sha256": "fa6f558b0ad22d3c9f8e51eb75fdce778e17bcc95c4773dbddf4ad35da593a63"
+    }
+  ],
+  "composition_source": {
+    "file_count": 10,
+    "payload_digest": "41a1abc60c5657b715abbd7dc4285e8879d268b74e373e090ea33c4aeb4fda5f",
+    "run_id": "ggs-production-20260818-4ad223d3",
+    "source_directory": "/rds/user/em586/hpc-work/campaigns/ggs-production-20260818-4ad223d3/derived/artifacts/data/exp044",
+    "source_git_commit": "4ad223d32620dd9f03698b89f28aedfe944d43ac"
+  }
+}

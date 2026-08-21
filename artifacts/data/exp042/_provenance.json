@@ -1,0 +1,179 @@
+{
+  "contract_version": "runstore/v1",
+  "run_id": "ggs-production-composite-20260821-6d9c38eb",
+  "campaign_id": "ggs-production-composite-20260821-6d9c38eb",
+  "generating_git_commit": "4ad223d32620dd9f03698b89f28aedfe944d43ac",
+  "campaign_source_git_commit": "6d9c38ebd0d2d9c5bf4a4f59bede9e03e90d86bf",
+  "executor": "legacy",
+  "graph_digest": null,
+  "training_digest": null,
+  "source_directory": "derived/artifacts/data/exp042",
+  "source_inventory_payload_digest": "7ef819f466a134762326450e431a1e96af9667e48fc87701ce27efa6a4a244ba",
+  "archive": null,
+  "promoted_at_utc": "2026-08-21T17:41:07Z",
+  "files": [
+    {
+      "path": "_manifest.json",
+      "source_path": "derived/artifacts/data/exp042/_manifest.json",
+      "size_bytes": 413,
+      "sha256": "d1df4502497ebdc8f957919852b4239442be7f028bb2c68d2bccb88e7e41b3cb"
+    },
+    {
+      "path": "_run.txt",
+      "source_path": "derived/artifacts/data/exp042/_run.txt",
+      "size_bytes": 2,
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865"
+    },
+    {
+      "path": "bar_chart.pdf",
+      "source_path": "derived/artifacts/data/exp042/bar_chart.pdf",
+      "size_bytes": 12073,
+      "sha256": "71baae492ce817743f6e5822724619d61698a844758779af6f2333b7f69bd2b4"
+    },
+    {
+      "path": "bar_chart.svg",
+      "source_path": "derived/artifacts/data/exp042/bar_chart.svg",
+      "size_bytes": 47281,
+      "sha256": "02b6c712008ea412383b846b086555495c5b03022e93df48d152107f8385cf8d"
+    },
+    {
+      "path": "cell_jitter_raster_strip.pdf",
+      "source_path": "derived/artifacts/data/exp042/cell_jitter_raster_strip.pdf",
+      "size_bytes": 29640,
+      "sha256": "7c3a28fc98bcd780e4ac84512b83ee30682d75771b048019f64764b8105e133a"
+    },
+    {
+      "path": "cell_jitter_raster_strip.png",
+      "source_path": "derived/artifacts/data/exp042/cell_jitter_raster_strip.png",
+      "size_bytes": 96256,
+      "sha256": "c72d46a9c8076e1bf4409f4e59bdb39ab45b04a5540261bf77418135b6d8f63a"
+    },
+    {
+      "path": "cell_jitter_sweep.pdf",
+      "source_path": "derived/artifacts/data/exp042/cell_jitter_sweep.pdf",
+      "size_bytes": 13968,
+      "sha256": "b9afa83733ddae5937554825fe89817df5a3cd1090560f41f14c4978e4977605"
+    },
+    {
+      "path": "cell_jitter_sweep.svg",
+      "source_path": "derived/artifacts/data/exp042/cell_jitter_sweep.svg",
+      "size_bytes": 52408,
+      "sha256": "8d80bc24525385b628870208798b1f2004eb20a889832d523eddc6c598955fe7"
+    },
+    {
+      "path": "jitter_raster_strip.pdf",
+      "source_path": "derived/artifacts/data/exp042/jitter_raster_strip.pdf",
+      "size_bytes": 49636,
+      "sha256": "49abcfb9e973cfd2fdb41c9ae29ee1d02b52ff01f182cca04d2e89c87e412d54"
+    },
+    {
+      "path": "jitter_raster_strip.png",
+      "source_path": "derived/artifacts/data/exp042/jitter_raster_strip.png",
+      "size_bytes": 136856,
+      "sha256": "cfae226604b26fb625e150ce8ce6cee49bb53da8389d8ccfcb2152c100a93ab7"
+    },
+    {
+      "path": "jitter_sweep.pdf",
+      "source_path": "derived/artifacts/data/exp042/jitter_sweep.pdf",
+      "size_bytes": 14225,
+      "sha256": "a8a3d10890f674c3c57006e17d6f96eecc8fec87bd60a05f55c00025568cc390"
+    },
+    {
+      "path": "jitter_sweep.svg",
+      "source_path": "derived/artifacts/data/exp042/jitter_sweep.svg",
+      "size_bytes": 54887,
+      "sha256": "62f85789f90aac5e8effaedf60b3d1b662dd02d3b5761035318bd0141a7e69b0"
+    },
+    {
+      "path": "numbers.json",
+      "source_path": "derived/artifacts/data/exp042/numbers.json",
+      "size_bytes": 84553,
+      "sha256": "e69641e736d34f3373195570ad1874b3bc7fc48e49c44183a2d41276fc0d2999"
+    },
+    {
+      "path": "pareto_sweep.pdf",
+      "source_path": "derived/artifacts/data/exp042/pareto_sweep.pdf",
+      "size_bytes": 23935,
+      "sha256": "c0fc6b85ab8f9df43b96de4203e5d5dca34dd2061c7027a52422053c0ce16894"
+    },
+    {
+      "path": "pareto_sweep.svg",
+      "source_path": "derived/artifacts/data/exp042/pareto_sweep.svg",
+      "size_bytes": 82673,
+      "sha256": "99116cc95448d05f8579490f23e11e993cf22cf668b88eea165dd23228abc762"
+    },
+    {
+      "path": "raster_strip.pdf",
+      "source_path": "derived/artifacts/data/exp042/raster_strip.pdf",
+      "size_bytes": 35422,
+      "sha256": "d68fdab0e97eaa84cce76b8011d52b7e40f969420813981d5740a5d09185881e"
+    },
+    {
+      "path": "raster_strip.png",
+      "source_path": "derived/artifacts/data/exp042/raster_strip.png",
+      "size_bytes": 109691,
+      "sha256": "c38b3bcb60b18a4e4ca2abedfdad9c241d98c67452a64e2934c1c8c7f4a264c9"
+    },
+    {
+      "path": "rhythm_compound.pdf",
+      "source_path": "derived/artifacts/data/exp042/rhythm_compound.pdf",
+      "size_bytes": 34896,
+      "sha256": "313f9e09154a1c282f073751be3f9cf67be05d0a6c45d4f350ac90f5787c94c4"
+    },
+    {
+      "path": "rhythm_compound.png",
+      "source_path": "derived/artifacts/data/exp042/rhythm_compound.png",
+      "size_bytes": 204356,
+      "sha256": "03760f990e414451feddee6043c278a9d67a33aeda6920073957b50e16da199d"
+    },
+    {
+      "path": "run.sh",
+      "source_path": "derived/artifacts/data/exp042/run.sh",
+      "size_bytes": 247,
+      "sha256": "897f13632a338a7a7d0d3b20181ec5b7ea73491b0384ade5e751780f56f7a418"
+    },
+    {
+      "path": "xtau_dimensional_collapse.pdf",
+      "source_path": "derived/artifacts/data/exp042/xtau_dimensional_collapse.pdf",
+      "size_bytes": 16800,
+      "sha256": "de92d19097d31f361df0deceb45cd2c668d940f01190bfd95fb30e75ea8a3a3e"
+    },
+    {
+      "path": "xtau_dimensional_collapse.svg",
+      "source_path": "derived/artifacts/data/exp042/xtau_dimensional_collapse.svg",
+      "size_bytes": 66507,
+      "sha256": "d348bb4407a29fe3d812e07a5670f8d125af3659fdde6402dd9adb6d1dc38c37"
+    },
+    {
+      "path": "xtau_inflection_vs_period.pdf",
+      "source_path": "derived/artifacts/data/exp042/xtau_inflection_vs_period.pdf",
+      "size_bytes": 14492,
+      "sha256": "67056cd1ce939df3fc06f01828fb6a456d5f4a6a3ff6a8761519899333f518f0"
+    },
+    {
+      "path": "xtau_inflection_vs_period.svg",
+      "source_path": "derived/artifacts/data/exp042/xtau_inflection_vs_period.svg",
+      "size_bytes": 47244,
+      "sha256": "ac732c901a700b109d6d146a29fbdb76a3de68b888c5981ac903c5dfc397ca2f"
+    },
+    {
+      "path": "xtau_raw_sweeps.pdf",
+      "source_path": "derived/artifacts/data/exp042/xtau_raw_sweeps.pdf",
+      "size_bytes": 21243,
+      "sha256": "13d575bfcd22d9e944fe7ae8a740bd7e464555a1a19708eb95abecfcdca8f113"
+    },
+    {
+      "path": "xtau_raw_sweeps.svg",
+      "source_path": "derived/artifacts/data/exp042/xtau_raw_sweeps.svg",
+      "size_bytes": 93542,
+      "sha256": "ed5af42a410a921dc39b7602fbb8e6f08f76e968353cc94dbad4abb36e069dc7"
+    }
+  ],
+  "composition_source": {
+    "file_count": 26,
+    "payload_digest": "305229020093a634a314f211f1391e030f58e4bfd3d9df46c948276af6af4d57",
+    "run_id": "ggs-production-20260818-4ad223d3",
+    "source_directory": "/rds/user/em586/hpc-work/campaigns/ggs-production-20260818-4ad223d3/derived/artifacts/data/exp042",
+    "source_git_commit": "4ad223d32620dd9f03698b89f28aedfe944d43ac"
+  }
+}

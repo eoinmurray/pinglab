@@ -1,0 +1,83 @@
+{
+  "contract_version": "runstore/v1",
+  "run_id": "ggs-production-composite-20260821-6d9c38eb",
+  "campaign_id": "ggs-production-composite-20260821-6d9c38eb",
+  "generating_git_commit": "4ad223d32620dd9f03698b89f28aedfe944d43ac",
+  "campaign_source_git_commit": "6d9c38ebd0d2d9c5bf4a4f59bede9e03e90d86bf",
+  "executor": "legacy",
+  "graph_digest": null,
+  "training_digest": null,
+  "source_directory": "derived/artifacts/data/exp033",
+  "source_inventory_payload_digest": "7ef819f466a134762326450e431a1e96af9667e48fc87701ce27efa6a4a244ba",
+  "archive": null,
+  "promoted_at_utc": "2026-08-21T17:41:06Z",
+  "files": [
+    {
+      "path": "bifurcation_compound.svg",
+      "source_path": "derived/artifacts/data/exp033/bifurcation_compound.svg",
+      "size_bytes": 330757,
+      "sha256": "ea89c7be455326ca1d5564e42a9840c4777a45b95b55ef0fa7f3f858a37069c4"
+    },
+    {
+      "path": "eigenvalues_complex.svg",
+      "source_path": "derived/artifacts/data/exp033/eigenvalues_complex.svg",
+      "size_bytes": 272337,
+      "sha256": "90cc62f91a995a62d6d6c91e3890ad016dd238074e8d17bb6f51449e2cf5890e"
+    },
+    {
+      "path": "freq_vs_tau_gaba.svg",
+      "source_path": "derived/artifacts/data/exp033/freq_vs_tau_gaba.svg",
+      "size_bytes": 35222,
+      "sha256": "1e8d19817ff58fbaa6bbf5aacffd2846e7561038c714646e0e0efcb1ca593343"
+    },
+    {
+      "path": "hysteresis.svg",
+      "source_path": "derived/artifacts/data/exp033/hysteresis.svg",
+      "size_bytes": 49058,
+      "sha256": "4729d13d81123086507d5797f7a944ca1bf5f025e1f0dbbb826bf0ab07d20a01"
+    },
+    {
+      "path": "limit_cycle.svg",
+      "source_path": "derived/artifacts/data/exp033/limit_cycle.svg",
+      "size_bytes": 40507,
+      "sha256": "10cd306de56384544b1badd703aa36765bc947dcc869f398ea864097d46b2823"
+    },
+    {
+      "path": "numbers.json",
+      "source_path": "derived/artifacts/data/exp033/numbers.json",
+      "size_bytes": 16216,
+      "sha256": "f9c96bd236f1588bdfe3ae92d4dc6d738fa2524a17a2b5756589fbd31fb7e0a5"
+    },
+    {
+      "path": "phase_planes.svg",
+      "source_path": "derived/artifacts/data/exp033/phase_planes.svg",
+      "size_bytes": 123395,
+      "sha256": "617f539e509ab4fbf5e0b1ec23b819b1fdc661da521fa47394fb8332e0abb689"
+    },
+    {
+      "path": "reduction_ladder.svg",
+      "source_path": "derived/artifacts/data/exp033/reduction_ladder.svg",
+      "size_bytes": 67040,
+      "sha256": "ba4a308d7701c8844f8a6835663ea506e7f636ec2dda45e6588fc306698fade6"
+    },
+    {
+      "path": "sigma_sensitivity.svg",
+      "source_path": "derived/artifacts/data/exp033/sigma_sensitivity.svg",
+      "size_bytes": 66788,
+      "sha256": "5b481e6fccf9ce370e19023ee8806f2d5c5ab9ea8ce805da55b8975770e673ec"
+    },
+    {
+      "path": "timeseries.svg",
+      "source_path": "derived/artifacts/data/exp033/timeseries.svg",
+      "size_bytes": 54190,
+      "sha256": "bbd08cd3d77a2ba02b48bd64b1bd98b07e2757acd69bd2eb271d412141d2b395"
+    }
+  ],
+  "composition_source": {
+    "file_count": 10,
+    "payload_digest": "f436df55cc8ec10ad980470913e7a48eb29b37ed4c952263e95a25ab02505c12",
+    "run_id": "ggs-production-20260818-4ad223d3",
+    "source_directory": "/rds/user/em586/hpc-work/campaigns/ggs-production-20260818-4ad223d3/derived/artifacts/data/exp033",
+    "source_git_commit": "4ad223d32620dd9f03698b89f28aedfe944d43ac"
+  }
+}
