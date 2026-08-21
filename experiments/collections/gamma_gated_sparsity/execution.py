@@ -8,6 +8,7 @@ import os
 import shutil
 import subprocess
 import sys
+import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -38,6 +39,194 @@ def write_json_atomic(path: Path, value: dict[str, Any]) -> None:
     temporary = path.with_suffix(path.suffix + ".tmp")
     temporary.write_text(json.dumps(value, indent=2, sort_keys=True) + "\n")
     temporary.replace(path)
+
+
+def _directory_snapshot(root: Path) -> dict[str, Any]:
+    rows = []
+    for item in sorted(
+        root.rglob("*"), key=lambda path: path.relative_to(root).as_posix()
+    ):
+        if item.is_symlink():
+            raise CollectionError(f"composition source contains a symlink: {item}")
+        if item.is_file():
+            rows.append(
+                {
+                    "path": item.relative_to(root).as_posix(),
+                    "size_bytes": item.stat().st_size,
+                    "sha256": _sha256(item),
+                }
+            )
+    digest = hashlib.sha256(
+        json.dumps(rows, sort_keys=True, separators=(",", ":")).encode()
+    ).hexdigest()
+    return {"file_count": len(rows), "payload_digest": digest}
+
+
+def _replace_plan_root(value: Any, old: str, new: str) -> Any:
+    if isinstance(value, str):
+        return value.replace(old, new)
+    if isinstance(value, list):
+        return [_replace_plan_root(item, old, new) for item in value]
+    if isinstance(value, dict):
+        return {key: _replace_plan_root(item, old, new) for key, item in value.items()}
+    return value
+
+
+def _inspect_runstore(root: Path) -> dict[str, Any]:
+    result = subprocess.run(
+        [sys.executable, "-m", "tools.runstore", "inspect", str(root), "--json"],
+        cwd=REPO,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    return json.loads(result.stdout)
+
+
+def compose_campaign(
+    root: Path,
+    campaign_id: str,
+    *,
+    base_root: Path,
+    overlay_root: Path,
+    replacements: list[str],
+) -> dict[str, Any]:
+    """Compose a complete campaign from a frozen base and selected repair outputs."""
+    root = validate_campaign_root(root)
+    base_root = base_root.resolve()
+    overlay_root = overlay_root.resolve()
+    _require_clean_source()
+
+    base_run = load_json(base_root / "run.json")
+    base_inventory = load_json(base_root / "inventory.json")
+    if base_run["status"] != "complete":
+        raise CollectionError("composition base campaign must be complete")
+    inspected_base = _inspect_runstore(base_root)
+    if inspected_base.get("inventory") != "valid":
+        raise CollectionError("composition base inventory is not valid")
+
+    overlay_run = load_json(overlay_root / "run.json")
+    base_plan = load_json(base_root / PLAN_NAME)
+    rows = [row for stage in base_plan["stages"] for row in stage["experiments"]]
+    planned = {row["slug"] for row in rows}
+    selected = set(replacements)
+    if not selected or selected - planned:
+        raise CollectionError(
+            f"invalid composition replacements: {sorted(selected - planned)}"
+        )
+
+    base_derived = base_root / "derived/artifacts/data"
+    if {path.name for path in base_derived.iterdir() if path.is_dir()} != planned:
+        raise CollectionError(
+            "composition base does not contain every planned experiment"
+        )
+
+    source_rows: dict[str, dict[str, Any]] = {}
+    for slug in sorted(planned):
+        source_run = overlay_run if slug in selected else base_run
+        source_root = overlay_root if slug in selected else base_root
+        source = source_root / "derived/artifacts/data" / slug
+        if not (source / "numbers.json").is_file():
+            raise CollectionError(f"composition source is missing {slug}/numbers.json")
+        numbers = load_json(source / "numbers.json")
+        provenance = numbers.get("collection_provenance")
+        if (
+            not isinstance(provenance, dict)
+            or provenance.get("campaign_id") != source_run["run_id"]
+        ):
+            raise CollectionError(
+                f"{slug} provenance does not match its source campaign"
+            )
+        snapshot = _directory_snapshot(source)
+        source_rows[slug] = {
+            "run_id": source_run["run_id"],
+            "source_git_commit": provenance.get("source_git_commit")
+            or source_run["source"]["git_commit"],
+            "source_directory": str(source),
+            **snapshot,
+        }
+
+    command = [
+        sys.executable,
+        "-m",
+        "experiments.collections.gamma_gated_sparsity",
+        "compose",
+        "--campaign-root",
+        str(root),
+        "--campaign-id",
+        campaign_id,
+        "--base-root",
+        str(base_root),
+        "--overlay-root",
+        str(overlay_root),
+        *[part for slug in sorted(selected) for part in ("--replace", slug)],
+    ]
+    try:
+        subprocess.run(
+            [
+                sys.executable,
+                "-m",
+                "tools.runstore",
+                "init",
+                str(root),
+                "--run-id",
+                campaign_id,
+                "--kind",
+                "campaign",
+                "--collection",
+                COLLECTION,
+                "--upstream",
+                base_run["run_id"],
+                "--upstream",
+                overlay_run["run_id"],
+                "--provenance-notes",
+                "composite publication campaign",
+                "--command",
+                *command,
+            ],
+            cwd=REPO,
+            check=True,
+        )
+        run = load_json(root / "run.json")
+        destination = root / "derived/artifacts/data"
+        destination.mkdir(parents=True)
+        for slug in sorted(planned):
+            source = Path(source_rows[slug]["source_directory"])
+            shutil.copytree(source, destination / slug)
+
+        plan = _replace_plan_root(base_plan, str(base_root), str(root))
+        plan["campaign_id"] = campaign_id
+        plan["campaign_root"] = str(root)
+        plan["profile"] = "production-composite"
+        plan["source"] = run["source"]
+        plan["composition"] = {
+            "schema": "pinglab.campaign-composition/v1",
+            "base_run_id": base_run["run_id"],
+            "overlay_run_id": overlay_run["run_id"],
+            "replacements": sorted(selected),
+        }
+        write_json_atomic(root / PLAN_NAME, plan)
+        composition = {
+            "schema": "pinglab.campaign-composition/v1",
+            "run_id": campaign_id,
+            "base": {
+                "run_id": base_run["run_id"],
+                "inventory_payload_digest": base_inventory["payload_digest"],
+            },
+            "overlay": {"run_id": overlay_run["run_id"]},
+            "experiments": source_rows,
+        }
+        write_json_atomic(root / "composition.json", composition)
+        return {
+            "campaign_root": str(root),
+            "campaign_id": campaign_id,
+            "experiments": len(planned),
+            "replacements": sorted(selected),
+            "payload": _inspect_runstore(root),
+        }
+    except BaseException:
+        shutil.rmtree(root, ignore_errors=True)
+        raise
 
 
 def _sha256(path: Path) -> str:
@@ -156,7 +345,14 @@ def load_plan(root: Path) -> dict[str, Any]:
     if plan.get("campaign_root") != str(root):
         raise CollectionError("campaign plan root does not match its location")
     source = source_provenance()
-    if source != plan.get("source"):
+    repair_sources = [
+        source
+        for repair in (plan.get("repairs") or {}).values()
+        if isinstance(repair, dict)
+        for source in (repair.get("source"), repair.get("integration_source"))
+        if isinstance(source, dict)
+    ]
+    if source not in [plan.get("source"), *repair_sources]:
         raise CollectionError(
             "campaign source commit or lockfile differs from checkout"
         )
@@ -196,12 +392,11 @@ def _outputs_valid(row: dict[str, Any]) -> bool:
     return all(Path(path).is_file() for path in row["required_outputs"])
 
 
-def _collection_provenance(
-    plan: dict[str, Any], row: dict[str, Any]
-) -> dict[str, Any]:
-    source = plan["source"]
+def _collection_provenance(plan: dict[str, Any], row: dict[str, Any]) -> dict[str, Any]:
+    repair = (plan.get("repairs") or {}).get(row["slug"])
+    source = repair["source"] if repair else plan["source"]
     exp022 = load_json(Path(plan["exp022_manifest"]))
-    return {
+    provenance = {
         "campaign_id": plan["campaign_id"],
         "collection": plan["collection"],
         "experiment": row["slug"],
@@ -211,6 +406,13 @@ def _collection_provenance(
         "dependencies": list(row["dependencies"]),
         "training_run": row.get("training_run"),
     }
+    if repair:
+        provenance["repair"] = {
+            "base_source_git_commit": plan["source"]["git_commit"],
+            "repair_run_root": repair["repair_run_root"],
+            "integrated_at_utc": repair["integrated_at_utc"],
+        }
+    return provenance
 
 
 def _outputs_valid_for_plan(plan: dict[str, Any], row: dict[str, Any]) -> bool:
@@ -218,6 +420,21 @@ def _outputs_valid_for_plan(plan: dict[str, Any], row: dict[str, Any]) -> bool:
         return False
     try:
         document = load_json(Path(row["required_outputs"][0]))
+        if plan.get("composition"):
+            composition = load_json(Path(plan["campaign_root"]) / "composition.json")
+            source = composition.get("experiments", {}).get(row["slug"])
+            provenance = document.get("collection_provenance")
+            output_root = Path(plan["campaign_root"]) / "derived/artifacts/data" / row["slug"]
+            if not isinstance(source, dict) or not isinstance(provenance, dict):
+                return False
+            snapshot = _directory_snapshot(output_root)
+            return (
+                provenance.get("campaign_id") == source.get("run_id")
+                and provenance.get("source_git_commit")
+                == source.get("source_git_commit")
+                and snapshot["file_count"] == source.get("file_count")
+                and snapshot["payload_digest"] == source.get("payload_digest")
+            )
         return document.get("collection_provenance") == _collection_provenance(
             plan, row
         )
@@ -244,6 +461,168 @@ def _write_status(root: Path, slug: str, **fields: object) -> None:
     if path.exists():
         current = load_json(path)
     write_json_atomic(path, {**current, "experiment": slug, **fields})
+
+
+def integrate_repair(root: Path, repair_root: Path, slug: str) -> dict[str, Any]:
+    """Atomically register one repaired downstream result in a frozen campaign."""
+    root = validate_campaign_root(root)
+    repair_root = validate_campaign_root(repair_root)
+    plan = load_json(root / PLAN_NAME)
+    if plan.get("collection") != COLLECTION or plan.get("campaign_root") != str(root):
+        raise CollectionError("invalid campaign plan for repair integration")
+    if (root / "inventory.json").exists():
+        raise CollectionError("cannot repair a finalized campaign")
+
+    rows = {row["slug"]: row for row in rows_in_order(plan)}
+    if slug not in rows or slug == "exp022":
+        raise CollectionError(f"unknown repairable downstream experiment: {slug}")
+    if slug in (plan.get("repairs") or {}):
+        raise CollectionError(f"campaign already registers a repair for {slug}")
+
+    repair_manifest = load_json(repair_root / "repair-run.json")
+    integration_source = source_provenance()
+    if integration_source.get("git_clean") is not True:
+        raise CollectionError("repair integration requires a clean Git checkout")
+    if repair_manifest.get("experiment") != slug:
+        raise CollectionError("repair run belongs to another experiment")
+    if Path(str(repair_manifest.get("base_campaign_root"))).resolve() != root:
+        raise CollectionError("repair run belongs to another base campaign")
+    if repair_manifest.get("base_campaign_source_git_commit") != plan["source"].get(
+        "git_commit"
+    ):
+        raise CollectionError("repair run base commit differs from campaign")
+    repair_commit = repair_manifest.get("source_git_commit")
+    if not isinstance(repair_commit, str):
+        raise CollectionError("repair run does not record its source commit")
+    ancestry = subprocess.run(
+        [
+            "git",
+            "merge-base",
+            "--is-ancestor",
+            repair_commit,
+            integration_source["git_commit"],
+        ],
+        cwd=REPO,
+    )
+    if ancestry.returncode != 0:
+        raise CollectionError(
+            "repair run source is not an ancestor of the integration checkout"
+        )
+    lockfile = subprocess.run(
+        ["git", "show", f"{repair_commit}:uv.lock"],
+        cwd=REPO,
+        check=True,
+        capture_output=True,
+    ).stdout
+    repair_source = {
+        "git_commit": repair_commit,
+        "git_clean": True,
+        "lockfile": {
+            "path": "uv.lock",
+            "sha256": hashlib.sha256(lockfile).hexdigest(),
+        },
+    }
+    manifest_sha = _sha256(Path(plan["exp022_manifest"]))
+    if repair_manifest.get("exp022_manifest_file_sha256") != manifest_sha:
+        raise CollectionError("repair run used a different exp022 manifest")
+
+    row = rows[slug]
+    source_dir = repair_root / "derived" / "artifacts" / "data" / slug
+    destination = Path(row["paths"]["derived"])
+    required_names = [Path(path).name for path in row["required_outputs"]]
+    missing = [name for name in required_names if not (source_dir / name).is_file()]
+    if missing:
+        raise CollectionError("repair run is missing outputs: " + ", ".join(missing))
+
+    integrated_at = utc_now()
+    repair = {
+        "source": repair_source,
+        "integration_source": integration_source,
+        "repair_run_root": str(repair_root),
+        "repair_run_manifest_sha256": _sha256(repair_root / "repair-run.json"),
+        "integrated_at_utc": integrated_at,
+    }
+    updated_plan = {**plan, "repairs": {**(plan.get("repairs") or {}), slug: repair}}
+    run_path = root / "run.json"
+    run = load_json(run_path)
+    status_path = _status_path(root, slug)
+    previous_status = load_json(status_path) if status_path.exists() else None
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    backup = destination.with_name(f".{slug}.pre-repair")
+    if backup.exists():
+        raise CollectionError(f"repair backup already exists: {backup}")
+    staging = Path(tempfile.mkdtemp(dir=destination.parent, prefix=f".{slug}.repair-"))
+    moved_existing = False
+    installed_repair = False
+    try:
+        shutil.copytree(source_dir, staging, dirs_exist_ok=True)
+        numbers = staging / "numbers.json"
+        document = load_json(numbers)
+        provenance = _collection_provenance(updated_plan, row)
+        existing = document.get("collection_provenance")
+        if existing is not None and existing != provenance:
+            raise CollectionError("repair output belongs to a different campaign")
+        write_json_atomic(numbers, {**document, "collection_provenance": provenance})
+
+        if destination.exists():
+            destination.rename(backup)
+            moved_existing = True
+        staging.rename(destination)
+        installed_repair = True
+        write_json_atomic(root / PLAN_NAME, updated_plan)
+
+        upstream = list(run.get("upstream") or [])
+        repair_ref = f"{slug}-repair:{repair_source['git_commit']}:{repair_root}"
+        if repair_ref not in upstream:
+            upstream.append(repair_ref)
+        notes = run.get("provenance_notes", "")
+        note = (
+            f"{slug} repaired by {repair_source['git_commit']} from {repair_root} "
+            f"and integrated by {integration_source['git_commit']}; "
+            f"all other outputs retain campaign source {plan['source']['git_commit']}"
+        )
+        write_json_atomic(
+            run_path,
+            {
+                **run,
+                "upstream": upstream,
+                "provenance_notes": f"{notes}; {note}".strip("; "),
+            },
+        )
+        _write_status(
+            root,
+            slug,
+            state="complete",
+            repair_source_git_commit=repair_source["git_commit"],
+            integration_source_git_commit=integration_source["git_commit"],
+            repair_run_root=str(repair_root),
+            ended_at_utc=integrated_at,
+        )
+        if moved_existing:
+            shutil.rmtree(backup)
+    except BaseException:
+        if installed_repair and destination.exists():
+            shutil.rmtree(destination)
+        if moved_existing and backup.exists() and not destination.exists():
+            backup.rename(destination)
+        write_json_atomic(root / PLAN_NAME, plan)
+        write_json_atomic(run_path, run)
+        if previous_status is None:
+            status_path.unlink(missing_ok=True)
+        else:
+            write_json_atomic(status_path, previous_status)
+        raise
+    finally:
+        shutil.rmtree(staging, ignore_errors=True)
+
+    return {
+        "campaign_id": plan["campaign_id"],
+        "experiment": slug,
+        "source_git_commit": repair_source["git_commit"],
+        "integration_source_git_commit": integration_source["git_commit"],
+        "repair_run_root": str(repair_root),
+        "outputs": required_names,
+    }
 
 
 def _run_exp022(plan: dict[str, Any], row: dict[str, Any]) -> None:
@@ -404,9 +783,7 @@ def run_experiment_shard(root: Path, slug: str, index: int, count: int) -> None:
         },
     )
     try:
-        result = execute_shard(
-            slug, index, count, smoke=plan.get("profile") == "smoke"
-        )
+        result = execute_shard(slug, index, count, smoke=plan.get("profile") == "smoke")
     except BaseException:
         write_json_atomic(
             status_path,
@@ -533,9 +910,19 @@ def build_publication(root: Path, checkout: Path) -> dict[str, Any]:
         raise CollectionError("campaign must be finalized before publication build")
     checkout = checkout.resolve()
     target_source = _checkout_source(checkout)
-    if target_source != plan["source"]:
+    allowed_sources = [
+        plan["source"],
+        *[
+            source
+            for repair in (plan.get("repairs") or {}).values()
+            if isinstance(repair, dict)
+            for source in (repair.get("source"), repair.get("integration_source"))
+            if isinstance(source, dict)
+        ],
+    ]
+    if target_source not in allowed_sources:
         raise CollectionError(
-            "publication checkout must be clean and match the campaign commit and lockfile"
+            "publication checkout must be clean and match a campaign source commit and lockfile"
         )
     uv = shutil.which("uv")
     if uv is None:

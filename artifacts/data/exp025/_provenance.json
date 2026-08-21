@@ -1,0 +1,131 @@
+{
+  "contract_version": "runstore/v1",
+  "run_id": "ggs-production-composite-20260821-6d9c38eb",
+  "campaign_id": "ggs-production-composite-20260821-6d9c38eb",
+  "generating_git_commit": "ac6f49884084811e3e05d49e8b45735d514ff245",
+  "campaign_source_git_commit": "6d9c38ebd0d2d9c5bf4a4f59bede9e03e90d86bf",
+  "executor": "legacy",
+  "graph_digest": null,
+  "training_digest": null,
+  "source_directory": "derived/artifacts/data/exp025",
+  "source_inventory_payload_digest": "7ef819f466a134762326450e431a1e96af9667e48fc87701ce27efa6a4a244ba",
+  "archive": null,
+  "promoted_at_utc": "2026-08-21T17:41:01Z",
+  "files": [
+    {
+      "path": "_manifest.json",
+      "source_path": "derived/artifacts/data/exp025/_manifest.json",
+      "size_bytes": 511,
+      "sha256": "efefc7e98c69bcf59c26145d50cc498121bc729f4052593ebb4a9c3d67d52090"
+    },
+    {
+      "path": "_run.txt",
+      "source_path": "derived/artifacts/data/exp025/_run.txt",
+      "size_bytes": 2,
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865"
+    },
+    {
+      "path": "low_w_in_sweep.pdf",
+      "source_path": "derived/artifacts/data/exp025/low_w_in_sweep.pdf",
+      "size_bytes": 37272,
+      "sha256": "acdbf80e60ce0919f49723684eeb942b48db3d89393d5b1c778ee2d9a1cf457f"
+    },
+    {
+      "path": "low_w_in_sweep.svg",
+      "source_path": "derived/artifacts/data/exp025/low_w_in_sweep.svg",
+      "size_bytes": 121155,
+      "sha256": "a2677dab208267882b8478ae9098fe60f3d915d4c3374d9eef91230286659d61"
+    },
+    {
+      "path": "numbers.json",
+      "source_path": "derived/artifacts/data/exp025/numbers.json",
+      "size_bytes": 63269,
+      "sha256": "4bc17fd4193eacc4f8f3ff1ef16af2f6f0d56724a9fda65b618a6518cd329853"
+    },
+    {
+      "path": "raster__coba.pdf",
+      "source_path": "derived/artifacts/data/exp025/raster__coba.pdf",
+      "size_bytes": 170569,
+      "sha256": "9ad2f286f6376a24873cb92c4793fcfe33ae281c976447ce80a96e40d4f1098c"
+    },
+    {
+      "path": "raster__coba.png",
+      "source_path": "derived/artifacts/data/exp025/raster__coba.png",
+      "size_bytes": 304579,
+      "sha256": "2a2066b89d13667c4ef35a67a1991e414a7e24fb14c47ed6fd46cab777472f15"
+    },
+    {
+      "path": "raster__ping.pdf",
+      "source_path": "derived/artifacts/data/exp025/raster__ping.pdf",
+      "size_bytes": 57411,
+      "sha256": "77d3fd8899c646f32bfe4a3ae22c88df50ef6c21f91c3f3a6c705bacfa079a3f"
+    },
+    {
+      "path": "raster__ping.png",
+      "source_path": "derived/artifacts/data/exp025/raster__ping.png",
+      "size_bytes": 101592,
+      "sha256": "ce6ad928c82cf1a4d9e1c8f951c6e74efd55c998c85ed72bc9dd8cc73fb0158c"
+    },
+    {
+      "path": "results_compound.pdf",
+      "source_path": "derived/artifacts/data/exp025/results_compound.pdf",
+      "size_bytes": 255656,
+      "sha256": "f141d2e5d1f868eb882eef6b750ff636724bc9e8f88959945bc58235c18445a8"
+    },
+    {
+      "path": "results_compound.png",
+      "source_path": "derived/artifacts/data/exp025/results_compound.png",
+      "size_bytes": 611992,
+      "sha256": "e09626fcd81501afdd9e56a8345f1c1fe9347d30b2184cf07c5e70a0640430fb"
+    },
+    {
+      "path": "run.sh",
+      "source_path": "derived/artifacts/data/exp025/run.sh",
+      "size_bytes": 247,
+      "sha256": "69b971bafa2db11f485ef2d545adde7f830d90cb95392a0c2b9840b734da4b22"
+    },
+    {
+      "path": "theta_p_fgamma.pdf",
+      "source_path": "derived/artifacts/data/exp025/theta_p_fgamma.pdf",
+      "size_bytes": 23404,
+      "sha256": "5eb0773036e1d37546a694475b624a5a4752be80e8c580123bdd144e9577d3d1"
+    },
+    {
+      "path": "theta_p_fgamma.svg",
+      "source_path": "derived/artifacts/data/exp025/theta_p_fgamma.svg",
+      "size_bytes": 101893,
+      "sha256": "abd6d980b8c9524fe55890c7284d4dc337fdb603def866b3e011298d00d381f3"
+    },
+    {
+      "path": "w_in_scale_sweep.pdf",
+      "source_path": "derived/artifacts/data/exp025/w_in_scale_sweep.pdf",
+      "size_bytes": 36761,
+      "sha256": "bd5e37b0897b3baaf38feebe21f2545c681e488a5b8f6229c108e58d9b672aa2"
+    },
+    {
+      "path": "w_in_scale_sweep.svg",
+      "source_path": "derived/artifacts/data/exp025/w_in_scale_sweep.svg",
+      "size_bytes": 145123,
+      "sha256": "bec0ac81d387f20ed6ae0ec8ec58df0dac26337facac6d465f4ebeb6c6ed8da4"
+    },
+    {
+      "path": "w_in_scale_sweep_vs_rate.pdf",
+      "source_path": "derived/artifacts/data/exp025/w_in_scale_sweep_vs_rate.pdf",
+      "size_bytes": 37557,
+      "sha256": "9fb56358c3ad7c27053b95165e1ea663f93ac4dfecaf57351bb2263f6b5095da"
+    },
+    {
+      "path": "w_in_scale_sweep_vs_rate.svg",
+      "source_path": "derived/artifacts/data/exp025/w_in_scale_sweep_vs_rate.svg",
+      "size_bytes": 151064,
+      "sha256": "7e9f2f4b1f18c43974aef4b64f73e16abd2915649f192a170a5098ae10247022"
+    }
+  ],
+  "composition_source": {
+    "file_count": 18,
+    "payload_digest": "42b3e06abd6186001a1406ac9dccd5d072e80cb46a1e37d9a00ffa5467690a1c",
+    "run_id": "ggs-fr-repair-20260820-ac6f4988",
+    "source_directory": "/rds/user/em586/hpc-work/campaigns/ggs-fr-repair-20260820-ac6f4988/derived/artifacts/data/exp025",
+    "source_git_commit": "ac6f49884084811e3e05d49e8b45735d514ff245"
+  }
+}

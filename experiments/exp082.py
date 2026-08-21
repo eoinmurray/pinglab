@@ -428,7 +428,7 @@ def evaluate_cell(seed: int, duration_ms: float, rate_hz: float) -> dict[str, An
         nonlocal n_e_spikes, n_i_spikes, total_duration_s, class_spike_totals
         if not encoded_streams:
             return
-        batched = torch.stack(encoded_streams, dim=1)
+        batched = torch.cat(encoded_streams, dim=1)
         summary = run_spike_summary(
             directory,
             batched,

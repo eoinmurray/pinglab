@@ -131,7 +131,7 @@
 
   with $r_b$ the population-mean hidden-E firing rate for presentation $b$ and
   $r_"max"$ its ceiling in hertz. Presentations at or below the ceiling contribute
-  zero. We sweep off, 25, 10, 5, 2.5, and 1 Hz, giving twelve
+  zero. The normalized penalty uses $lambda = 0.041$. We sweep off, 25, 10, 5, 2.5, and 1 Hz, giving twelve
   $("model", r_"max")$ conditions and 36 trained cells across seeds.
 
   *Rate-floor decomposition.* The affine law $r_E = p dot f_gamma$
@@ -169,7 +169,7 @@
       (_--ei-strength 1_) fires in gamma bands at ≈ #ping_cadence ms cadence
       (≈ #ping_off_rate Hz per E cell) with synchronous I bursts (red) above E
       (black), on the same architecture, parameter count, and recipe, with only
-      PING's recurrent E↔I matrices non-zero. *Bottom left:* test accuracy per epoch
+      PING's recurrent E↔I matrices non-zero. *Bottom left:* validation accuracy per epoch
       (mean over three seeds); both reach ≈ #ping_off_acc%, so both learn the task.
       *Bottom right:* the accuracy–rate frontier across hidden-E rate ceilings
       (mean ± SEM across three seeds at every point). PING sits

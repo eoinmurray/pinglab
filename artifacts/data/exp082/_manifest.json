@@ -1,0 +1,18 @@
+{
+  "slug": "exp082",
+  "run_id": "r001",
+  "run_at": "2026-08-20T09:04:03+00:00",
+  "git_sha": "73f0883e",
+  "dirty": false,
+  "code_dirty": false,
+  "patch": null,
+  "host": "local",
+  "scale": {
+    "dataset": "mnist",
+    "t_ms": 200.0,
+    "dt_ms": 0.1,
+    "seeds": 3,
+    "cells": 44,
+    "grid": "4 duration \u00d7 11 rate"
+  }
+}

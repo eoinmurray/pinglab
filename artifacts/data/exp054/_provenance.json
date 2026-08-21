@@ -1,0 +1,101 @@
+{
+  "contract_version": "runstore/v1",
+  "run_id": "ggs-production-composite-20260821-6d9c38eb",
+  "campaign_id": "ggs-production-composite-20260821-6d9c38eb",
+  "generating_git_commit": "4ad223d32620dd9f03698b89f28aedfe944d43ac",
+  "campaign_source_git_commit": "6d9c38ebd0d2d9c5bf4a4f59bede9e03e90d86bf",
+  "executor": "legacy",
+  "graph_digest": null,
+  "training_digest": null,
+  "source_directory": "derived/artifacts/data/exp054",
+  "source_inventory_payload_digest": "7ef819f466a134762326450e431a1e96af9667e48fc87701ce27efa6a4a244ba",
+  "archive": null,
+  "promoted_at_utc": "2026-08-21T17:41:08Z",
+  "files": [
+    {
+      "path": "_manifest.json",
+      "source_path": "derived/artifacts/data/exp054/_manifest.json",
+      "size_bytes": 362,
+      "sha256": "d6a97d3c445746e3b72ca1652b620d0c5ed228cacd050acf7863c43277ce069a"
+    },
+    {
+      "path": "_run.txt",
+      "source_path": "derived/artifacts/data/exp054/_run.txt",
+      "size_bytes": 2,
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865"
+    },
+    {
+      "path": "grid_autocorr.png",
+      "source_path": "derived/artifacts/data/exp054/grid_autocorr.png",
+      "size_bytes": 181125,
+      "sha256": "d64abc38f1ffdb77e579295d51427b9a034abf86c3e1ddef60152fa8ab152572"
+    },
+    {
+      "path": "grid_maps.png",
+      "source_path": "derived/artifacts/data/exp054/grid_maps.png",
+      "size_bytes": 106662,
+      "sha256": "179a3b060599a3d4d5f99103713dd89e16e8c289b9ca332e55e5a482323be8c8"
+    },
+    {
+      "path": "grid_rasters.png",
+      "source_path": "derived/artifacts/data/exp054/grid_rasters.png",
+      "size_bytes": 120980,
+      "sha256": "212a19211909ee12cb37ce3341a780f6bcc5245c514d7dc3cb22fe9ad55f375a"
+    },
+    {
+      "path": "null_autocorr.png",
+      "source_path": "derived/artifacts/data/exp054/null_autocorr.png",
+      "size_bytes": 131618,
+      "sha256": "0e72b694520c4ee2074008b9cd41e43c55dca2d656f95b964972a6728c5ca687"
+    },
+    {
+      "path": "numbers.json",
+      "source_path": "derived/artifacts/data/exp054/numbers.json",
+      "size_bytes": 12640,
+      "sha256": "2f7a10e5645bda2cee1ec66270cdf5d9c30fcc1b264a24a1de87df561a709b63"
+    },
+    {
+      "path": "onset_super_compound.pdf",
+      "source_path": "derived/artifacts/data/exp054/onset_super_compound.pdf",
+      "size_bytes": 107823,
+      "sha256": "8dd95327042a3c42b0409bd682d8e3410dd3304d35cd09472c50977e7395f45e"
+    },
+    {
+      "path": "onset_super_compound.png",
+      "source_path": "derived/artifacts/data/exp054/onset_super_compound.png",
+      "size_bytes": 373202,
+      "sha256": "70a307fe7f2dbad86a42533f4f6f5ecabf02e3be6f098c63a372ea339faa67c0"
+    },
+    {
+      "path": "rate_invariance.png",
+      "source_path": "derived/artifacts/data/exp054/rate_invariance.png",
+      "size_bytes": 66364,
+      "sha256": "bbb55d492bd9574fc9304d07030d2a7b2eaf0b852c9511f03052587720b69c7d"
+    },
+    {
+      "path": "run.sh",
+      "source_path": "derived/artifacts/data/exp054/run.sh",
+      "size_bytes": 247,
+      "sha256": "647a35b68ae4d38686906dc87a44e073ae5f5814d55803900487b46282671ff6"
+    },
+    {
+      "path": "turnon_compound.png",
+      "source_path": "derived/artifacts/data/exp054/turnon_compound.png",
+      "size_bytes": 143476,
+      "sha256": "e32381fe4460a3f40eb63ded16e6d73d2376193400b922c064242826032a5cf9"
+    },
+    {
+      "path": "turnon_maps_compound.png",
+      "source_path": "derived/artifacts/data/exp054/turnon_maps_compound.png",
+      "size_bytes": 158095,
+      "sha256": "b92eff7a103d4915b72c558a24faee5cc9138b5e22c4af65e44af6fbbcc414a0"
+    }
+  ],
+  "composition_source": {
+    "file_count": 13,
+    "payload_digest": "523a72163a7a01ab50c11ec7e6683e395d0890536774bd299e95ddf7e56310f6",
+    "run_id": "ggs-production-20260818-4ad223d3",
+    "source_directory": "/rds/user/em586/hpc-work/campaigns/ggs-production-20260818-4ad223d3/derived/artifacts/data/exp054",
+    "source_git_commit": "4ad223d32620dd9f03698b89f28aedfe944d43ac"
+  }
+}

@@ -1,0 +1,107 @@
+{
+  "contract_version": "runstore/v1",
+  "run_id": "ggs-production-composite-20260821-6d9c38eb",
+  "campaign_id": "ggs-production-composite-20260821-6d9c38eb",
+  "generating_git_commit": "4ad223d32620dd9f03698b89f28aedfe944d43ac",
+  "campaign_source_git_commit": "6d9c38ebd0d2d9c5bf4a4f59bede9e03e90d86bf",
+  "executor": "legacy",
+  "graph_digest": null,
+  "training_digest": null,
+  "source_directory": "derived/artifacts/data/exp080",
+  "source_inventory_payload_digest": "7ef819f466a134762326450e431a1e96af9667e48fc87701ce27efa6a4a244ba",
+  "archive": null,
+  "promoted_at_utc": "2026-08-21T17:40:59Z",
+  "files": [
+    {
+      "path": "_run.txt",
+      "source_path": "derived/artifacts/data/exp080/_run.txt",
+      "size_bytes": 2,
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865"
+    },
+    {
+      "path": "decision.json",
+      "source_path": "derived/artifacts/data/exp080/decision.json",
+      "size_bytes": 1989,
+      "sha256": "af25b43dd0f3ece8b91bf1891a025f09f7c36c4afd35e40b45fb6e153df65b00"
+    },
+    {
+      "path": "feature_images.png",
+      "source_path": "derived/artifacts/data/exp080/feature_images.png",
+      "size_bytes": 15194,
+      "sha256": "0c1f6b5af6da56ad286a8e47d6f8416963ccffe5ae0abe8d8284ed1069a5305d"
+    },
+    {
+      "path": "held_out_correctness.npz",
+      "source_path": "derived/artifacts/data/exp080/held_out_correctness.npz",
+      "size_bytes": 18755,
+      "sha256": "4619110337903b884a5f9c86b653a8dc0948d0cd10c8c4e1299d57c6d60405be"
+    },
+    {
+      "path": "models/seed-42/decoder.pt",
+      "source_path": "derived/artifacts/data/exp080/models/seed-42/decoder.pt",
+      "size_bytes": 3258525,
+      "sha256": "c4d855015e79e77c908c1a2d46885d2c539578a3319a3d7b6707e7cf2a2242f3"
+    },
+    {
+      "path": "models/seed-42/training.json",
+      "source_path": "derived/artifacts/data/exp080/models/seed-42/training.json",
+      "size_bytes": 5294,
+      "sha256": "97da9defead40afa81b79aaf1a38fd7e6a3e4eece74940d632d6481b4124518e"
+    },
+    {
+      "path": "models/seed-43/decoder.pt",
+      "source_path": "derived/artifacts/data/exp080/models/seed-43/decoder.pt",
+      "size_bytes": 3258525,
+      "sha256": "af86a9b366376cb1ef3eb2c5c6552a3629a8368af952a83235dab828c364f380"
+    },
+    {
+      "path": "models/seed-43/training.json",
+      "source_path": "derived/artifacts/data/exp080/models/seed-43/training.json",
+      "size_bytes": 5293,
+      "sha256": "5241b2c06bb139d95797a06a45d11d7cfd965f0781d8a42172e04edbe15bb472"
+    },
+    {
+      "path": "models/seed-44/decoder.pt",
+      "source_path": "derived/artifacts/data/exp080/models/seed-44/decoder.pt",
+      "size_bytes": 3258525,
+      "sha256": "4d80a44fe7853272ae1f1479e0afd15b33faa4483924ac5bb2ca7e43e6a15045"
+    },
+    {
+      "path": "models/seed-44/training.json",
+      "source_path": "derived/artifacts/data/exp080/models/seed-44/training.json",
+      "size_bytes": 5296,
+      "sha256": "a2520d34601b13fab934c1e46312743554263f81478b4d408098057b90a9ab33"
+    },
+    {
+      "path": "numbers.json",
+      "source_path": "derived/artifacts/data/exp080/numbers.json",
+      "size_bytes": 23768,
+      "sha256": "f4b977ee37b4d52f1e773f1ba7d17c05e0a509b1e13439529e09d130cae4cba7"
+    },
+    {
+      "path": "psychometric.svg",
+      "source_path": "derived/artifacts/data/exp080/psychometric.svg",
+      "size_bytes": 39101,
+      "sha256": "1c4bcf5b9a10c299b408dcd18d45da7affef3058f92c661dbde3909f41aff01d"
+    },
+    {
+      "path": "reproducer.json",
+      "source_path": "derived/artifacts/data/exp080/reproducer.json",
+      "size_bytes": 55,
+      "sha256": "33f87adde26e4660140505403612fc47e512ab92fc7749c846577daf7c01f385"
+    },
+    {
+      "path": "training_history.svg",
+      "source_path": "derived/artifacts/data/exp080/training_history.svg",
+      "size_bytes": 30205,
+      "sha256": "fe5e694030abc00e14b101e694f561600849b028d1525567be6364a74345ba96"
+    }
+  ],
+  "composition_source": {
+    "file_count": 14,
+    "payload_digest": "44e284f0ee1624ded56f7a60ba6066946f9755a129009ef96944f1cd29ea92ea",
+    "run_id": "ggs-production-20260818-4ad223d3",
+    "source_directory": "/rds/user/em586/hpc-work/campaigns/ggs-production-20260818-4ad223d3/derived/artifacts/data/exp080",
+    "source_git_commit": "4ad223d32620dd9f03698b89f28aedfe944d43ac"
+  }
+}

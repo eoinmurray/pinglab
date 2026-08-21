@@ -1,0 +1,71 @@
+{
+  "contract_version": "runstore/v1",
+  "run_id": "ggs-production-composite-20260821-6d9c38eb",
+  "campaign_id": "ggs-production-composite-20260821-6d9c38eb",
+  "generating_git_commit": "4ad223d32620dd9f03698b89f28aedfe944d43ac",
+  "campaign_source_git_commit": "6d9c38ebd0d2d9c5bf4a4f59bede9e03e90d86bf",
+  "executor": "legacy",
+  "graph_digest": null,
+  "training_digest": null,
+  "source_directory": "derived/artifacts/data/exp046",
+  "source_inventory_payload_digest": "7ef819f466a134762326450e431a1e96af9667e48fc87701ce27efa6a4a244ba",
+  "archive": null,
+  "promoted_at_utc": "2026-08-21T17:41:08Z",
+  "files": [
+    {
+      "path": "_manifest.json",
+      "source_path": "derived/artifacts/data/exp046/_manifest.json",
+      "size_bytes": 328,
+      "sha256": "bbdd70b2340aff5b833f5ede29b12099a3f451107b9ecde7ffd0b39809f524cd"
+    },
+    {
+      "path": "_run.txt",
+      "source_path": "derived/artifacts/data/exp046/_run.txt",
+      "size_bytes": 2,
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865"
+    },
+    {
+      "path": "ceiling_vs_fgamma.pdf",
+      "source_path": "derived/artifacts/data/exp046/ceiling_vs_fgamma.pdf",
+      "size_bytes": 18448,
+      "sha256": "94c16b3ca47c8d23dad49501be569ca8083cfd46ace7849e0ef8f46beddb88d6"
+    },
+    {
+      "path": "ceiling_vs_fgamma.svg",
+      "source_path": "derived/artifacts/data/exp046/ceiling_vs_fgamma.svg",
+      "size_bytes": 60189,
+      "sha256": "3e179b02ee405a3c812e93eaa89382ebe6222732ac07b4e3976dfbb1413de740"
+    },
+    {
+      "path": "numbers.json",
+      "source_path": "derived/artifacts/data/exp046/numbers.json",
+      "size_bytes": 460162,
+      "sha256": "a827c22e639baf52216ba10f688ba9e4625182758bfcd6711b99e97e4b733893"
+    },
+    {
+      "path": "run.sh",
+      "source_path": "derived/artifacts/data/exp046/run.sh",
+      "size_bytes": 247,
+      "sha256": "a71606da501827cf23153bf68582e622ad81eea725dbf387f54849bd34fc57b0"
+    },
+    {
+      "path": "spikes_per_cycle_distribution.pdf",
+      "source_path": "derived/artifacts/data/exp046/spikes_per_cycle_distribution.pdf",
+      "size_bytes": 18338,
+      "sha256": "6fad567ea087e082607d6826377b09d7471456761f96d5499c49bb7e1beadd2c"
+    },
+    {
+      "path": "spikes_per_cycle_distribution.svg",
+      "source_path": "derived/artifacts/data/exp046/spikes_per_cycle_distribution.svg",
+      "size_bytes": 83870,
+      "sha256": "0bf3eb7f8a8067b601c9467950252cfcf1fbbbff215561fea2d099fd65c5b8b2"
+    }
+  ],
+  "composition_source": {
+    "file_count": 8,
+    "payload_digest": "689c1d29dd3af8e09205dda43942607d52129e756fefc5a944b46a427ca4d7db",
+    "run_id": "ggs-production-20260818-4ad223d3",
+    "source_directory": "/rds/user/em586/hpc-work/campaigns/ggs-production-20260818-4ad223d3/derived/artifacts/data/exp046",
+    "source_git_commit": "4ad223d32620dd9f03698b89f28aedfe944d43ac"
+  }
+}
