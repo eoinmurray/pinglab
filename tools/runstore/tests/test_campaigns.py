@@ -70,6 +70,24 @@ def test_catalogue_merges_local_and_archive_locations(tmp_path: Path) -> None:
 
 def test_activate_swaps_whole_view_and_preserves_unrelated_data(tmp_path: Path) -> None:
     campaign = _complete_campaign(tmp_path / "campaign")
+    repaired_commit = "d" * 40
+    numbers = campaign / "derived/artifacts/data/exp082/numbers.json"
+    numbers.write_text(
+        json.dumps(
+            {
+                "passed": True,
+                "collection_provenance": {
+                    "campaign_id": "smoke-001",
+                    "source_git_commit": repaired_commit,
+                },
+            }
+        )
+        + "\n"
+    )
+    write_json_atomic(
+        campaign / "inventory.json",
+        inventory_payload(campaign, run_id="smoke-001"),
+    )
     artifacts = tmp_path / "artifacts" / "data"
     unrelated = artifacts / "exp999"
     unrelated.mkdir(parents=True)
@@ -92,7 +110,46 @@ def test_activate_swaps_whole_view_and_preserves_unrelated_data(tmp_path: Path) 
         json.loads((artifacts / "exp022/_provenance.json").read_text())["campaign_id"]
         == "smoke-001"
     )
+    assert (
+        json.loads((artifacts / "exp082/_provenance.json").read_text())[
+            "generating_git_commit"
+        ]
+        == repaired_commit
+    )
     assert current_view(artifacts)["valid"] is True
+
+
+def test_activate_uses_composite_experiment_source_provenance(tmp_path: Path) -> None:
+    campaign = _complete_campaign(tmp_path / "campaign", "composite-001")
+    source_commit = "e" * 40
+    write_json_atomic(
+        campaign / "composition.json",
+        {
+            "schema": "pinglab.campaign-composition/v1",
+            "run_id": "composite-001",
+            "experiments": {
+                slug: {
+                    "run_id": "repair-001" if slug == "exp082" else "base-001",
+                    "source_git_commit": source_commit,
+                    "source_directory": f"/source/{slug}",
+                    "file_count": 2,
+                    "payload_digest": "f" * 64,
+                }
+                for slug in ("exp022", "exp082")
+            },
+        },
+    )
+    write_json_atomic(
+        campaign / "inventory.json",
+        inventory_payload(campaign, run_id="composite-001"),
+    )
+
+    artifacts = tmp_path / "artifacts/data"
+    activate_campaign(campaign, artifacts_root=artifacts)
+
+    provenance = json.loads((artifacts / "exp082/_provenance.json").read_text())
+    assert provenance["generating_git_commit"] == source_commit
+    assert provenance["composition_source"]["run_id"] == "repair-001"
 
 
 def test_current_detects_mixed_or_modified_view(tmp_path: Path) -> None:

@@ -1,41 +1,1265 @@
 {
-  "notebook_run_id": "r007",
-  "git_sha": "cc36be1",
-  "duration_s": 0.4,
-  "duration": "0s",
-  "standard": {
-    "epochs": 50,
-    "dt_ms": 0.1,
-    "t_ms": 200.0,
-    "dataset": "mnist",
-    "max_samples_canonical": 70000,
-    "max_samples_sweeps": 7000
+  "campaign": {
+    "campaign_id": "ggs-fr-repair-20260820-ac6f4988",
+    "campaign_root": "/rds/user/em586/hpc-work/campaigns/ggs-fr-repair-20260820-ac6f4988/exp022",
+    "manifest_sha256": "4788f452dd51482fd45bf18427f62c1f9c0d434fdd244646e7fba66487d4dce5",
+    "repository_commit": "ac6f49884084811e3e05d49e8b45735d514ff245"
   },
-  "training_root": "temp/experiments/exp022",
+  "cells": [
+    {
+      "acc": 95.93333333333334,
+      "best_epoch": 50,
+      "family": "canonical",
+      "model": "coba",
+      "name": "coba__canonical__seed42",
+      "rate_e": 246.84501519097222,
+      "rate_i": 0.0,
+      "seed": 42,
+      "tag": "off \u00b7 all MNIST",
+      "training_run_id": "TR-01"
+    },
+    {
+      "acc": 96.03888888888889,
+      "best_epoch": 50,
+      "family": "canonical",
+      "model": "coba",
+      "name": "coba__canonical__seed43",
+      "rate_e": 246.7488481987847,
+      "rate_i": 0.0,
+      "seed": 43,
+      "tag": "off \u00b7 all MNIST",
+      "training_run_id": "TR-01"
+    },
+    {
+      "acc": 95.97777777777777,
+      "best_epoch": 50,
+      "family": "canonical",
+      "model": "coba",
+      "name": "coba__canonical__seed44",
+      "rate_e": 248.91729709201388,
+      "rate_i": 0.0,
+      "seed": 44,
+      "tag": "off \u00b7 all MNIST",
+      "training_run_id": "TR-01"
+    },
+    {
+      "acc": 91.50555555555556,
+      "best_epoch": 47,
+      "family": "canonical",
+      "model": "ping",
+      "name": "ping__canonical__seed42",
+      "rate_e": 23.977899848090278,
+      "rate_i": 183.3162109375,
+      "seed": 42,
+      "tag": "off \u00b7 all MNIST",
+      "training_run_id": "TR-01"
+    },
+    {
+      "acc": 91.56111111111112,
+      "best_epoch": 36,
+      "family": "canonical",
+      "model": "ping",
+      "name": "ping__canonical__seed43",
+      "rate_e": 24.68019558376736,
+      "rate_i": 189.75070095486112,
+      "seed": 43,
+      "tag": "off \u00b7 all MNIST",
+      "training_run_id": "TR-01"
+    },
+    {
+      "acc": 91.5111111111111,
+      "best_epoch": 32,
+      "family": "canonical",
+      "model": "ping",
+      "name": "ping__canonical__seed44",
+      "rate_e": 24.58023220486111,
+      "rate_i": 188.86509114583333,
+      "seed": 44,
+      "tag": "off \u00b7 all MNIST",
+      "training_run_id": "TR-01"
+    },
+    {
+      "acc": 91.04761904761905,
+      "best_epoch": 43,
+      "family": "activity_frontier",
+      "model": "coba",
+      "name": "coba__off__seed42",
+      "rate_e": 110.83590029761905,
+      "rate_i": 0.0,
+      "seed": 42,
+      "tag": "off",
+      "training_run_id": "TR-02"
+    },
+    {
+      "acc": 90.76190476190476,
+      "best_epoch": 50,
+      "family": "activity_frontier",
+      "model": "coba",
+      "name": "coba__off__seed43",
+      "rate_e": 110.89972563244048,
+      "rate_i": 0.0,
+      "seed": 43,
+      "tag": "off",
+      "training_run_id": "TR-02"
+    },
+    {
+      "acc": 90.9047619047619,
+      "best_epoch": 50,
+      "family": "activity_frontier",
+      "model": "coba",
+      "name": "coba__off__seed44",
+      "rate_e": 110.88421688988095,
+      "rate_i": 0.0,
+      "seed": 44,
+      "tag": "off",
+      "training_run_id": "TR-02"
+    },
+    {
+      "acc": 88.9047619047619,
+      "best_epoch": 49,
+      "family": "activity_frontier",
+      "model": "coba",
+      "name": "coba__rt25hz__seed42",
+      "rate_e": 17.348714192708332,
+      "rate_i": 0.0,
+      "seed": 42,
+      "tag": "25 Hz",
+      "training_run_id": "TR-02"
+    },
+    {
+      "acc": 88.95238095238095,
+      "best_epoch": 49,
+      "family": "activity_frontier",
+      "model": "coba",
+      "name": "coba__rt25hz__seed43",
+      "rate_e": 17.383089192708333,
+      "rate_i": 0.0,
+      "seed": 43,
+      "tag": "25 Hz",
+      "training_run_id": "TR-02"
+    },
+    {
+      "acc": 88.71428571428571,
+      "best_epoch": 49,
+      "family": "activity_frontier",
+      "model": "coba",
+      "name": "coba__rt25hz__seed44",
+      "rate_e": 17.365864490327382,
+      "rate_i": 0.0,
+      "seed": 44,
+      "tag": "25 Hz",
+      "training_run_id": "TR-02"
+    },
+    {
+      "acc": 82.52380952380952,
+      "best_epoch": 50,
+      "family": "activity_frontier",
+      "model": "coba",
+      "name": "coba__rt10hz__seed42",
+      "rate_e": 8.897163318452382,
+      "rate_i": 0.0,
+      "seed": 42,
+      "tag": "10 Hz",
+      "training_run_id": "TR-02"
+    },
+    {
+      "acc": 82.61904761904762,
+      "best_epoch": 50,
+      "family": "activity_frontier",
+      "model": "coba",
+      "name": "coba__rt10hz__seed43",
+      "rate_e": 8.91435546875,
+      "rate_i": 0.0,
+      "seed": 43,
+      "tag": "10 Hz",
+      "training_run_id": "TR-02"
+    },
+    {
+      "acc": 81.85714285714286,
+      "best_epoch": 50,
+      "family": "activity_frontier",
+      "model": "coba",
+      "name": "coba__rt10hz__seed44",
+      "rate_e": 8.877766927083334,
+      "rate_i": 0.0,
+      "seed": 44,
+      "tag": "10 Hz",
+      "training_run_id": "TR-02"
+    },
+    {
+      "acc": 73.76190476190476,
+      "best_epoch": 50,
+      "family": "activity_frontier",
+      "model": "coba",
+      "name": "coba__rt5hz__seed42",
+      "rate_e": 5.348032924107143,
+      "rate_i": 0.0,
+      "seed": 42,
+      "tag": "5 Hz",
+      "training_run_id": "TR-02"
+    },
+    {
+      "acc": 74.33333333333333,
+      "best_epoch": 47,
+      "family": "activity_frontier",
+      "model": "coba",
+      "name": "coba__rt5hz__seed43",
+      "rate_e": 5.320296223958334,
+      "rate_i": 0.0,
+      "seed": 43,
+      "tag": "5 Hz",
+      "training_run_id": "TR-02"
+    },
+    {
+      "acc": 73.76190476190476,
+      "best_epoch": 47,
+      "family": "activity_frontier",
+      "model": "coba",
+      "name": "coba__rt5hz__seed44",
+      "rate_e": 5.334919084821428,
+      "rate_i": 0.0,
+      "seed": 44,
+      "tag": "5 Hz",
+      "training_run_id": "TR-02"
+    },
+    {
+      "acc": 67.23809523809524,
+      "best_epoch": 50,
+      "family": "activity_frontier",
+      "model": "coba",
+      "name": "coba__rt2p5hz__seed42",
+      "rate_e": 3.325190662202381,
+      "rate_i": 0.0,
+      "seed": 42,
+      "tag": "2.5 Hz",
+      "training_run_id": "TR-02"
+    },
+    {
+      "acc": 66.23809523809524,
+      "best_epoch": 50,
+      "family": "activity_frontier",
+      "model": "coba",
+      "name": "coba__rt2p5hz__seed43",
+      "rate_e": 3.2729166666666667,
+      "rate_i": 0.0,
+      "seed": 43,
+      "tag": "2.5 Hz",
+      "training_run_id": "TR-02"
+    },
+    {
+      "acc": 66.33333333333333,
+      "best_epoch": 50,
+      "family": "activity_frontier",
+      "model": "coba",
+      "name": "coba__rt2p5hz__seed44",
+      "rate_e": 3.2999093191964284,
+      "rate_i": 0.0,
+      "seed": 44,
+      "tag": "2.5 Hz",
+      "training_run_id": "TR-02"
+    },
+    {
+      "acc": 60.95238095238095,
+      "best_epoch": 50,
+      "family": "activity_frontier",
+      "model": "coba",
+      "name": "coba__rt1hz__seed42",
+      "rate_e": 2.133779761904762,
+      "rate_i": 0.0,
+      "seed": 42,
+      "tag": "1 Hz",
+      "training_run_id": "TR-02"
+    },
+    {
+      "acc": 61.095238095238095,
+      "best_epoch": 50,
+      "family": "activity_frontier",
+      "model": "coba",
+      "name": "coba__rt1hz__seed43",
+      "rate_e": 2.1283435639880954,
+      "rate_i": 0.0,
+      "seed": 43,
+      "tag": "1 Hz",
+      "training_run_id": "TR-02"
+    },
+    {
+      "acc": 62.42857142857143,
+      "best_epoch": 50,
+      "family": "activity_frontier",
+      "model": "coba",
+      "name": "coba__rt1hz__seed44",
+      "rate_e": 2.1377022879464285,
+      "rate_i": 0.0,
+      "seed": 44,
+      "tag": "1 Hz",
+      "training_run_id": "TR-02"
+    },
+    {
+      "acc": 89.52380952380952,
+      "best_epoch": 50,
+      "family": "activity_frontier",
+      "model": "ping",
+      "name": "ping__off__seed42",
+      "rate_e": 16.375465029761905,
+      "rate_i": 106.36541108630952,
+      "seed": 42,
+      "tag": "off",
+      "training_run_id": "TR-02"
+    },
+    {
+      "acc": 90.0952380952381,
+      "best_epoch": 43,
+      "family": "activity_frontier",
+      "model": "ping",
+      "name": "ping__off__seed43",
+      "rate_e": 16.283751860119047,
+      "rate_i": 105.88311941964285,
+      "seed": 43,
+      "tag": "off",
+      "training_run_id": "TR-02"
+    },
+    {
+      "acc": 89.80952380952381,
+      "best_epoch": 50,
+      "family": "activity_frontier",
+      "model": "ping",
+      "name": "ping__off__seed44",
+      "rate_e": 16.49154110863095,
+      "rate_i": 107.39099702380952,
+      "seed": 44,
+      "tag": "off",
+      "training_run_id": "TR-02"
+    },
+    {
+      "acc": 89.76190476190476,
+      "best_epoch": 50,
+      "family": "activity_frontier",
+      "model": "ping",
+      "name": "ping__rt25hz__seed42",
+      "rate_e": 16.345359002976192,
+      "rate_i": 106.33125930059524,
+      "seed": 42,
+      "tag": "25 Hz",
+      "training_run_id": "TR-02"
+    },
+    {
+      "acc": 89.61904761904762,
+      "best_epoch": 45,
+      "family": "activity_frontier",
+      "model": "ping",
+      "name": "ping__rt25hz__seed43",
+      "rate_e": 16.144707961309525,
+      "rate_i": 104.94454985119047,
+      "seed": 43,
+      "tag": "25 Hz",
+      "training_run_id": "TR-02"
+    },
+    {
+      "acc": 90.28571428571429,
+      "best_epoch": 47,
+      "family": "activity_frontier",
+      "model": "ping",
+      "name": "ping__rt25hz__seed44",
+      "rate_e": 16.441152808779762,
+      "rate_i": 107.18553757440476,
+      "seed": 44,
+      "tag": "25 Hz",
+      "training_run_id": "TR-02"
+    },
+    {
+      "acc": 89.57142857142857,
+      "best_epoch": 45,
+      "family": "activity_frontier",
+      "model": "ping",
+      "name": "ping__rt10hz__seed42",
+      "rate_e": 8.986832682291666,
+      "rate_i": 50.37211681547619,
+      "seed": 42,
+      "tag": "10 Hz",
+      "training_run_id": "TR-02"
+    },
+    {
+      "acc": 89.38095238095238,
+      "best_epoch": 42,
+      "family": "activity_frontier",
+      "model": "ping",
+      "name": "ping__rt10hz__seed43",
+      "rate_e": 9.00488048735119,
+      "rate_i": 50.50763578869048,
+      "seed": 43,
+      "tag": "10 Hz",
+      "training_run_id": "TR-02"
+    },
+    {
+      "acc": 89.80952380952381,
+      "best_epoch": 40,
+      "family": "activity_frontier",
+      "model": "ping",
+      "name": "ping__rt10hz__seed44",
+      "rate_e": 9.001815941220238,
+      "rate_i": 50.43314732142857,
+      "seed": 44,
+      "tag": "10 Hz",
+      "training_run_id": "TR-02"
+    },
+    {
+      "acc": 85.61904761904762,
+      "best_epoch": 44,
+      "family": "activity_frontier",
+      "model": "ping",
+      "name": "ping__rt5hz__seed42",
+      "rate_e": 5.8290945870535715,
+      "rate_i": 28.458975074404762,
+      "seed": 42,
+      "tag": "5 Hz",
+      "training_run_id": "TR-02"
+    },
+    {
+      "acc": 85.57142857142857,
+      "best_epoch": 50,
+      "family": "activity_frontier",
+      "model": "ping",
+      "name": "ping__rt5hz__seed43",
+      "rate_e": 5.8249488467261905,
+      "rate_i": 28.52978980654762,
+      "seed": 43,
+      "tag": "5 Hz",
+      "training_run_id": "TR-02"
+    },
+    {
+      "acc": 85.14285714285714,
+      "best_epoch": 50,
+      "family": "activity_frontier",
+      "model": "ping",
+      "name": "ping__rt5hz__seed44",
+      "rate_e": 5.843736049107143,
+      "rate_i": 28.355840773809526,
+      "seed": 44,
+      "tag": "5 Hz",
+      "training_run_id": "TR-02"
+    },
+    {
+      "acc": 78.9047619047619,
+      "best_epoch": 43,
+      "family": "activity_frontier",
+      "model": "ping",
+      "name": "ping__rt2p5hz__seed42",
+      "rate_e": 5.043277994791667,
+      "rate_i": 9.345870535714285,
+      "seed": 42,
+      "tag": "2.5 Hz",
+      "training_run_id": "TR-02"
+    },
+    {
+      "acc": 80.04761904761905,
+      "best_epoch": 45,
+      "family": "activity_frontier",
+      "model": "ping",
+      "name": "ping__rt2p5hz__seed43",
+      "rate_e": 4.954399181547619,
+      "rate_i": 9.371688988095238,
+      "seed": 43,
+      "tag": "2.5 Hz",
+      "training_run_id": "TR-02"
+    },
+    {
+      "acc": 79.76190476190476,
+      "best_epoch": 43,
+      "family": "activity_frontier",
+      "model": "ping",
+      "name": "ping__rt2p5hz__seed44",
+      "rate_e": 5.025797526041667,
+      "rate_i": 9.085658482142858,
+      "seed": 44,
+      "tag": "2.5 Hz",
+      "training_run_id": "TR-02"
+    },
+    {
+      "acc": 77.28571428571429,
+      "best_epoch": 47,
+      "family": "activity_frontier",
+      "model": "ping",
+      "name": "ping__rt1hz__seed42",
+      "rate_e": 4.6151460193452385,
+      "rate_i": 5.333156622023809,
+      "seed": 42,
+      "tag": "1 Hz",
+      "training_run_id": "TR-02"
+    },
+    {
+      "acc": 77.0952380952381,
+      "best_epoch": 42,
+      "family": "activity_frontier",
+      "model": "ping",
+      "name": "ping__rt1hz__seed43",
+      "rate_e": 4.515343656994047,
+      "rate_i": 5.366034226190476,
+      "seed": 43,
+      "tag": "1 Hz",
+      "training_run_id": "TR-02"
+    },
+    {
+      "acc": 77.57142857142857,
+      "best_epoch": 46,
+      "family": "activity_frontier",
+      "model": "ping",
+      "name": "ping__rt1hz__seed44",
+      "rate_e": 4.699860491071429,
+      "rate_i": 5.460518973214286,
+      "seed": 44,
+      "tag": "1 Hz",
+      "training_run_id": "TR-02"
+    },
+    {
+      "acc": 90.71428571428571,
+      "best_epoch": 38,
+      "family": "tau_gaba",
+      "model": "ping",
+      "name": "ping__tg4p5__seed42",
+      "rate_e": 17.856075613839284,
+      "rate_i": 118.27260974702381,
+      "seed": 42,
+      "tag": "\u03c4=4.5",
+      "training_run_id": "TR-03"
+    },
+    {
+      "acc": 91.38095238095238,
+      "best_epoch": 39,
+      "family": "tau_gaba",
+      "model": "ping",
+      "name": "ping__tg4p5__seed43",
+      "rate_e": 18.17928757440476,
+      "rate_i": 120.81360677083333,
+      "seed": 43,
+      "tag": "\u03c4=4.5",
+      "training_run_id": "TR-03"
+    },
+    {
+      "acc": 90.76190476190476,
+      "best_epoch": 43,
+      "family": "tau_gaba",
+      "model": "ping",
+      "name": "ping__tg4p5__seed44",
+      "rate_e": 18.074151320684525,
+      "rate_i": 119.87977120535714,
+      "seed": 44,
+      "tag": "\u03c4=4.5",
+      "training_run_id": "TR-03"
+    },
+    {
+      "acc": 90.52380952380952,
+      "best_epoch": 38,
+      "family": "tau_gaba",
+      "model": "ping",
+      "name": "ping__tg6__seed42",
+      "rate_e": 16.37642299107143,
+      "rate_i": 106.30435267857143,
+      "seed": 42,
+      "tag": "\u03c4=6",
+      "training_run_id": "TR-03"
+    },
+    {
+      "acc": 89.85714285714286,
+      "best_epoch": 43,
+      "family": "tau_gaba",
+      "model": "ping",
+      "name": "ping__tg6__seed43",
+      "rate_e": 16.258277529761905,
+      "rate_i": 105.71360677083334,
+      "seed": 43,
+      "tag": "\u03c4=6",
+      "training_run_id": "TR-03"
+    },
+    {
+      "acc": 89.42857142857143,
+      "best_epoch": 50,
+      "family": "tau_gaba",
+      "model": "ping",
+      "name": "ping__tg6__seed44",
+      "rate_e": 16.517615327380952,
+      "rate_i": 107.50816592261904,
+      "seed": 44,
+      "tag": "\u03c4=6",
+      "training_run_id": "TR-03"
+    },
+    {
+      "acc": 88.47619047619048,
+      "best_epoch": 48,
+      "family": "tau_gaba",
+      "model": "ping",
+      "name": "ping__tg9__seed42",
+      "rate_e": 12.996305338541667,
+      "rate_i": 81.69221540178572,
+      "seed": 42,
+      "tag": "\u03c4=9",
+      "training_run_id": "TR-03"
+    },
+    {
+      "acc": 89.0,
+      "best_epoch": 50,
+      "family": "tau_gaba",
+      "model": "ping",
+      "name": "ping__tg9__seed43",
+      "rate_e": 13.031412760416666,
+      "rate_i": 82.2197265625,
+      "seed": 43,
+      "tag": "\u03c4=9",
+      "training_run_id": "TR-03"
+    },
+    {
+      "acc": 88.61904761904762,
+      "best_epoch": 50,
+      "family": "tau_gaba",
+      "model": "ping",
+      "name": "ping__tg9__seed44",
+      "rate_e": 13.126190476190477,
+      "rate_i": 82.59334077380953,
+      "seed": 44,
+      "tag": "\u03c4=9",
+      "training_run_id": "TR-03"
+    },
+    {
+      "acc": 86.61904761904762,
+      "best_epoch": 50,
+      "family": "tau_gaba",
+      "model": "ping",
+      "name": "ping__tg12__seed42",
+      "rate_e": 11.207800874255952,
+      "rate_i": 68.65272507440476,
+      "seed": 42,
+      "tag": "\u03c4=12",
+      "training_run_id": "TR-03"
+    },
+    {
+      "acc": 86.95238095238095,
+      "best_epoch": 49,
+      "family": "tau_gaba",
+      "model": "ping",
+      "name": "ping__tg12__seed43",
+      "rate_e": 11.282491629464285,
+      "rate_i": 69.45326450892857,
+      "seed": 43,
+      "tag": "\u03c4=12",
+      "training_run_id": "TR-03"
+    },
+    {
+      "acc": 87.61904761904762,
+      "best_epoch": 49,
+      "family": "tau_gaba",
+      "model": "ping",
+      "name": "ping__tg12__seed44",
+      "rate_e": 11.502841331845238,
+      "rate_i": 70.89983258928571,
+      "seed": 44,
+      "tag": "\u03c4=12",
+      "training_run_id": "TR-03"
+    },
+    {
+      "acc": 85.42857142857143,
+      "best_epoch": 50,
+      "family": "tau_gaba",
+      "model": "ping",
+      "name": "ping__tg18__seed42",
+      "rate_e": 7.930617559523809,
+      "rate_i": 46.234533110119045,
+      "seed": 42,
+      "tag": "\u03c4=18",
+      "training_run_id": "TR-03"
+    },
+    {
+      "acc": 86.61904761904762,
+      "best_epoch": 50,
+      "family": "tau_gaba",
+      "model": "ping",
+      "name": "ping__tg18__seed43",
+      "rate_e": 8.510679408482142,
+      "rate_i": 49.91934523809524,
+      "seed": 43,
+      "tag": "\u03c4=18",
+      "training_run_id": "TR-03"
+    },
+    {
+      "acc": 86.23809523809524,
+      "best_epoch": 50,
+      "family": "tau_gaba",
+      "model": "ping",
+      "name": "ping__tg18__seed44",
+      "rate_e": 8.271561104910715,
+      "rate_i": 48.208203125,
+      "seed": 44,
+      "tag": "\u03c4=18",
+      "training_run_id": "TR-03"
+    },
+    {
+      "acc": 80.80952380952381,
+      "best_epoch": 50,
+      "family": "tau_gaba",
+      "model": "ping",
+      "name": "ping__tg27__seed42",
+      "rate_e": 3.305777994791667,
+      "rate_i": 17.449962797619047,
+      "seed": 42,
+      "tag": "\u03c4=27",
+      "training_run_id": "TR-03"
+    },
+    {
+      "acc": 78.04761904761905,
+      "best_epoch": 50,
+      "family": "tau_gaba",
+      "model": "ping",
+      "name": "ping__tg27__seed43",
+      "rate_e": 2.371856398809524,
+      "rate_i": 9.072637648809524,
+      "seed": 43,
+      "tag": "\u03c4=27",
+      "training_run_id": "TR-03"
+    },
+    {
+      "acc": 80.0952380952381,
+      "best_epoch": 50,
+      "family": "tau_gaba",
+      "model": "ping",
+      "name": "ping__tg27__seed44",
+      "rate_e": 2.7901878720238096,
+      "rate_i": 13.752371651785714,
+      "seed": 44,
+      "tag": "\u03c4=27",
+      "training_run_id": "TR-03"
+    },
+    {
+      "acc": 89.33333333333333,
+      "best_epoch": 50,
+      "family": "dt",
+      "model": "ping",
+      "name": "ping__dt0p05__seed42",
+      "rate_e": 13.597598121279763,
+      "rate_i": 95.8736793154762,
+      "seed": 42,
+      "tag": "dt=0.05",
+      "training_run_id": "TR-04"
+    },
+    {
+      "acc": 89.04761904761905,
+      "best_epoch": 47,
+      "family": "dt",
+      "model": "ping",
+      "name": "ping__dt0p05__seed43",
+      "rate_e": 13.868636067708334,
+      "rate_i": 98.38141741071429,
+      "seed": 43,
+      "tag": "dt=0.05",
+      "training_run_id": "TR-04"
+    },
+    {
+      "acc": 89.04761904761905,
+      "best_epoch": 50,
+      "family": "dt",
+      "model": "ping",
+      "name": "ping__dt0p05__seed44",
+      "rate_e": 13.419768415178572,
+      "rate_i": 94.27483258928571,
+      "seed": 44,
+      "tag": "dt=0.05",
+      "training_run_id": "TR-04"
+    },
+    {
+      "acc": 89.71428571428571,
+      "best_epoch": 43,
+      "family": "dt",
+      "model": "ping",
+      "name": "ping__dt0p1__seed42",
+      "rate_e": 16.298779296875,
+      "rate_i": 105.95928199404761,
+      "seed": 42,
+      "tag": "dt=0.1",
+      "training_run_id": "TR-04"
+    },
+    {
+      "acc": 90.33333333333333,
+      "best_epoch": 44,
+      "family": "dt",
+      "model": "ping",
+      "name": "ping__dt0p1__seed43",
+      "rate_e": 16.16431129092262,
+      "rate_i": 104.86506696428572,
+      "seed": 43,
+      "tag": "dt=0.1",
+      "training_run_id": "TR-04"
+    },
+    {
+      "acc": 89.61904761904762,
+      "best_epoch": 50,
+      "family": "dt",
+      "model": "ping",
+      "name": "ping__dt0p1__seed44",
+      "rate_e": 16.509240141369048,
+      "rate_i": 107.4708984375,
+      "seed": 44,
+      "tag": "dt=0.1",
+      "training_run_id": "TR-04"
+    },
+    {
+      "acc": 90.57142857142857,
+      "best_epoch": 45,
+      "family": "dt",
+      "model": "ping",
+      "name": "ping__dt0p25__seed42",
+      "rate_e": 16.91874767485119,
+      "rate_i": 81.3828869047619,
+      "seed": 42,
+      "tag": "dt=0.25",
+      "training_run_id": "TR-04"
+    },
+    {
+      "acc": 90.66666666666667,
+      "best_epoch": 42,
+      "family": "dt",
+      "model": "ping",
+      "name": "ping__dt0p25__seed43",
+      "rate_e": 16.967401413690474,
+      "rate_i": 81.66081659226191,
+      "seed": 43,
+      "tag": "dt=0.25",
+      "training_run_id": "TR-04"
+    },
+    {
+      "acc": 90.42857142857143,
+      "best_epoch": 45,
+      "family": "dt",
+      "model": "ping",
+      "name": "ping__dt0p25__seed44",
+      "rate_e": 16.90361793154762,
+      "rate_i": 81.43804873511905,
+      "seed": 44,
+      "tag": "dt=0.25",
+      "training_run_id": "TR-04"
+    },
+    {
+      "acc": 89.80952380952381,
+      "best_epoch": 48,
+      "family": "dt",
+      "model": "ping",
+      "name": "ping__dt0p5__seed42",
+      "rate_e": 17.832972935267858,
+      "rate_i": 62.34601004464286,
+      "seed": 42,
+      "tag": "dt=0.5",
+      "training_run_id": "TR-04"
+    },
+    {
+      "acc": 90.0,
+      "best_epoch": 30,
+      "family": "dt",
+      "model": "ping",
+      "name": "ping__dt0p5__seed43",
+      "rate_e": 17.810611979166666,
+      "rate_i": 62.40590587797619,
+      "seed": 43,
+      "tag": "dt=0.5",
+      "training_run_id": "TR-04"
+    },
+    {
+      "acc": 89.95238095238095,
+      "best_epoch": 49,
+      "family": "dt",
+      "model": "ping",
+      "name": "ping__dt0p5__seed44",
+      "rate_e": 17.740664527529763,
+      "rate_i": 62.23841145833333,
+      "seed": 44,
+      "tag": "dt=0.5",
+      "training_run_id": "TR-04"
+    },
+    {
+      "acc": 89.19047619047619,
+      "best_epoch": 31,
+      "family": "dt",
+      "model": "ping",
+      "name": "ping__dt1__seed42",
+      "rate_e": 19.692138671875,
+      "rate_i": 55.67183779761905,
+      "seed": 42,
+      "tag": "dt=1",
+      "training_run_id": "TR-04"
+    },
+    {
+      "acc": 90.52380952380952,
+      "best_epoch": 44,
+      "family": "dt",
+      "model": "ping",
+      "name": "ping__dt1__seed43",
+      "rate_e": 19.557642764136904,
+      "rate_i": 55.751971726190476,
+      "seed": 43,
+      "tag": "dt=1",
+      "training_run_id": "TR-04"
+    },
+    {
+      "acc": 90.61904761904762,
+      "best_epoch": 44,
+      "family": "dt",
+      "model": "ping",
+      "name": "ping__dt1__seed44",
+      "rate_e": 19.508756510416667,
+      "rate_i": 55.622674851190474,
+      "seed": 44,
+      "tag": "dt=1",
+      "training_run_id": "TR-04"
+    },
+    {
+      "acc": 89.0952380952381,
+      "best_epoch": 49,
+      "family": "init",
+      "model": "ping_init",
+      "name": "frozen_ping__seed42",
+      "rate_e": 16.38993908110119,
+      "rate_i": 106.52599516369048,
+      "seed": 42,
+      "tag": "frozen_ping",
+      "training_run_id": "TR-05"
+    },
+    {
+      "acc": 90.14285714285714,
+      "best_epoch": 48,
+      "family": "init",
+      "model": "ping_init",
+      "name": "frozen_ping__seed43",
+      "rate_e": 16.159142485119048,
+      "rate_i": 105.06244419642857,
+      "seed": 43,
+      "tag": "frozen_ping",
+      "training_run_id": "TR-05"
+    },
+    {
+      "acc": 90.04761904761905,
+      "best_epoch": 49,
+      "family": "init",
+      "model": "ping_init",
+      "name": "frozen_ping__seed44",
+      "rate_e": 16.455045572916667,
+      "rate_i": 107.042578125,
+      "seed": 44,
+      "tag": "frozen_ping",
+      "training_run_id": "TR-05"
+    },
+    {
+      "acc": 91.14285714285714,
+      "best_epoch": 37,
+      "family": "init",
+      "model": "ping_init",
+      "name": "trainable_ping_init__seed42",
+      "rate_e": 49.62127743675595,
+      "rate_i": 4.792113095238095,
+      "seed": 42,
+      "tag": "trainable_ping_init",
+      "training_run_id": "TR-05"
+    },
+    {
+      "acc": 92.0,
+      "best_epoch": 35,
+      "family": "init",
+      "model": "ping_init",
+      "name": "trainable_ping_init__seed43",
+      "rate_e": 44.763699776785714,
+      "rate_i": 6.5739676339285715,
+      "seed": 43,
+      "tag": "trainable_ping_init",
+      "training_run_id": "TR-05"
+    },
+    {
+      "acc": 92.14285714285714,
+      "best_epoch": 36,
+      "family": "init",
+      "model": "ping_init",
+      "name": "trainable_ping_init__seed44",
+      "rate_e": 49.51601795014881,
+      "rate_i": 4.734319196428571,
+      "seed": 44,
+      "tag": "trainable_ping_init",
+      "training_run_id": "TR-05"
+    },
+    {
+      "acc": 89.61904761904762,
+      "best_epoch": 46,
+      "family": "init",
+      "model": "ping_init",
+      "name": "trainable_zero_init__seed42",
+      "rate_e": 85.60763811383929,
+      "rate_i": 0.0,
+      "seed": 42,
+      "tag": "trainable_zero_init",
+      "training_run_id": "TR-05"
+    },
+    {
+      "acc": 89.80952380952381,
+      "best_epoch": 46,
+      "family": "init",
+      "model": "ping_init",
+      "name": "trainable_zero_init__seed43",
+      "rate_e": 85.73634905133929,
+      "rate_i": 0.0,
+      "seed": 43,
+      "tag": "trainable_zero_init",
+      "training_run_id": "TR-05"
+    },
+    {
+      "acc": 89.76190476190476,
+      "best_epoch": 49,
+      "family": "init",
+      "model": "ping_init",
+      "name": "trainable_zero_init__seed44",
+      "rate_e": 86.42667410714286,
+      "rate_i": 0.0,
+      "seed": 44,
+      "tag": "trainable_zero_init",
+      "training_run_id": "TR-05"
+    },
+    {
+      "acc": 91.61904761904762,
+      "best_epoch": 25,
+      "family": "init",
+      "model": "ping_init",
+      "name": "trainable_small_init__seed42",
+      "rate_e": 55.11011207217262,
+      "rate_i": 9.92734375,
+      "seed": 42,
+      "tag": "trainable_small_init",
+      "training_run_id": "TR-05"
+    },
+    {
+      "acc": 90.76190476190476,
+      "best_epoch": 27,
+      "family": "init",
+      "model": "ping_init",
+      "name": "trainable_small_init__seed43",
+      "rate_e": 64.063037109375,
+      "rate_i": 5.896530877976191,
+      "seed": 43,
+      "tag": "trainable_small_init",
+      "training_run_id": "TR-05"
+    },
+    {
+      "acc": 92.23809523809524,
+      "best_epoch": 26,
+      "family": "init",
+      "model": "ping_init",
+      "name": "trainable_small_init__seed44",
+      "rate_e": 55.20018833705357,
+      "rate_i": 9.684402901785715,
+      "seed": 44,
+      "tag": "trainable_small_init",
+      "training_run_id": "TR-05"
+    },
+    {
+      "acc": 77.04761904761905,
+      "best_epoch": 48,
+      "family": "low_w_in",
+      "model": "ping",
+      "name": "ping__low_w_in__win0p05__seed42",
+      "rate_e": 4.4318824404761905,
+      "rate_i": 5.307393973214285,
+      "seed": 42,
+      "tag": "W_in=0.05",
+      "training_run_id": "TR-07"
+    },
+    {
+      "acc": 77.38095238095238,
+      "best_epoch": 43,
+      "family": "low_w_in",
+      "model": "ping",
+      "name": "ping__low_w_in__win0p05__seed43",
+      "rate_e": 4.536860584077381,
+      "rate_i": 5.519986979166666,
+      "seed": 43,
+      "tag": "W_in=0.05",
+      "training_run_id": "TR-07"
+    },
+    {
+      "acc": 76.9047619047619,
+      "best_epoch": 50,
+      "family": "low_w_in",
+      "model": "ping",
+      "name": "ping__low_w_in__win0p05__seed44",
+      "rate_e": 4.6392392113095235,
+      "rate_i": 6.027994791666667,
+      "seed": 44,
+      "tag": "W_in=0.05",
+      "training_run_id": "TR-07"
+    },
+    {
+      "acc": 77.23809523809524,
+      "best_epoch": 45,
+      "family": "low_w_in",
+      "model": "ping",
+      "name": "ping__low_w_in__win0p1__seed42",
+      "rate_e": 4.565104166666667,
+      "rate_i": 5.67934337797619,
+      "seed": 42,
+      "tag": "W_in=0.1",
+      "training_run_id": "TR-07"
+    },
+    {
+      "acc": 76.52380952380952,
+      "best_epoch": 38,
+      "family": "low_w_in",
+      "model": "ping",
+      "name": "ping__low_w_in__win0p1__seed43",
+      "rate_e": 4.543452380952381,
+      "rate_i": 5.760184151785714,
+      "seed": 43,
+      "tag": "W_in=0.1",
+      "training_run_id": "TR-07"
+    },
+    {
+      "acc": 76.80952380952381,
+      "best_epoch": 46,
+      "family": "low_w_in",
+      "model": "ping",
+      "name": "ping__low_w_in__win0p1__seed44",
+      "rate_e": 4.6437918526785715,
+      "rate_i": 5.876422991071428,
+      "seed": 44,
+      "tag": "W_in=0.1",
+      "training_run_id": "TR-07"
+    },
+    {
+      "acc": 77.14285714285714,
+      "best_epoch": 49,
+      "family": "low_w_in",
+      "model": "ping",
+      "name": "ping__low_w_in__win0p3__seed42",
+      "rate_e": 4.467159598214286,
+      "rate_i": 5.528692336309524,
+      "seed": 42,
+      "tag": "W_in=0.3",
+      "training_run_id": "TR-07"
+    },
+    {
+      "acc": 77.0,
+      "best_epoch": 50,
+      "family": "low_w_in",
+      "model": "ping",
+      "name": "ping__low_w_in__win0p3__seed43",
+      "rate_e": 4.533391462053571,
+      "rate_i": 5.9548456101190474,
+      "seed": 43,
+      "tag": "W_in=0.3",
+      "training_run_id": "TR-07"
+    },
+    {
+      "acc": 76.57142857142857,
+      "best_epoch": 46,
+      "family": "low_w_in",
+      "model": "ping",
+      "name": "ping__low_w_in__win0p3__seed44",
+      "rate_e": 4.538483537946429,
+      "rate_i": 5.463848586309524,
+      "seed": 44,
+      "tag": "W_in=0.3",
+      "training_run_id": "TR-07"
+    },
+    {
+      "acc": 76.71428571428571,
+      "best_epoch": 49,
+      "family": "low_w_in",
+      "model": "ping",
+      "name": "ping__low_w_in__win0p9__seed42",
+      "rate_e": 4.663709077380952,
+      "rate_i": 5.604361979166667,
+      "seed": 42,
+      "tag": "W_in=0.9",
+      "training_run_id": "TR-07"
+    },
+    {
+      "acc": 76.42857142857143,
+      "best_epoch": 49,
+      "family": "low_w_in",
+      "model": "ping",
+      "name": "ping__low_w_in__win0p9__seed43",
+      "rate_e": 4.666489955357143,
+      "rate_i": 5.888736979166667,
+      "seed": 43,
+      "tag": "W_in=0.9",
+      "training_run_id": "TR-07"
+    },
+    {
+      "acc": 76.76190476190476,
+      "best_epoch": 48,
+      "family": "low_w_in",
+      "model": "ping",
+      "name": "ping__low_w_in__win0p9__seed44",
+      "rate_e": 4.604231770833334,
+      "rate_i": 5.429845610119048,
+      "seed": 44,
+      "tag": "W_in=0.9",
+      "training_run_id": "TR-07"
+    },
+    {
+      "acc": 66.66666666666667,
+      "best_epoch": 49,
+      "family": "variable_rate",
+      "model": "ping",
+      "name": "ping__variable_rate__seed42",
+      "rate_e": 5.004850260416666,
+      "rate_i": 24.058082217261905,
+      "seed": 42,
+      "tag": "categorical 0.5\u201325 Hz \u00b7 output spike count",
+      "training_run_id": "TR-06"
+    },
+    {
+      "acc": 66.85714285714286,
+      "best_epoch": 46,
+      "family": "variable_rate",
+      "model": "ping",
+      "name": "ping__variable_rate__seed43",
+      "rate_e": 5.0176664806547615,
+      "rate_i": 24.098958333333332,
+      "seed": 43,
+      "tag": "categorical 0.5\u201325 Hz \u00b7 output spike count",
+      "training_run_id": "TR-06"
+    },
+    {
+      "acc": 66.76190476190476,
+      "best_epoch": 49,
+      "family": "variable_rate",
+      "model": "ping",
+      "name": "ping__variable_rate__seed44",
+      "rate_e": 4.980168805803571,
+      "rate_i": 23.956380208333332,
+      "seed": 44,
+      "tag": "categorical 0.5\u201325 Hz \u00b7 output spike count",
+      "training_run_id": "TR-06"
+    }
+  ],
+  "collection_provenance": {
+    "campaign_id": "ggs-fr-repair-20260820-ac6f4988",
+    "collection": "gamma-gated-sparsity",
+    "dependencies": [],
+    "exp022_manifest_sha256": "4788f452dd51482fd45bf18427f62c1f9c0d434fdd244646e7fba66487d4dce5",
+    "experiment": "exp022",
+    "lockfile_sha256": "6ccb764ff373a1354635909ba5e2225e26271d02ac589f68097ee976304983ae",
+    "source_git_commit": "ac6f49884084811e3e05d49e8b45735d514ff245",
+    "training_run": null
+  },
+  "duration": "6s",
+  "duration_s": 5.9,
   "families": [
     "canonical",
-    "theta_u",
-    "theta_u_3seed",
+    "activity_frontier",
     "tau_gaba",
     "dt",
-    "init"
+    "init",
+    "variable_rate",
+    "low_w_in"
   ],
   "family_status": {
-    "canonical": {
-      "cells": 6,
-      "trained": 6
-    },
-    "theta_u": {
+    "activity_frontier": {
       "cells": 36,
       "trained": 36
     },
-    "theta_u_3seed": {
-      "cells": 0,
-      "trained": 0
-    },
-    "tau_gaba": {
-      "cells": 18,
-      "trained": 18
+    "canonical": {
+      "cells": 6,
+      "trained": 6
     },
     "dt": {
       "cells": 15,
@@ -44,966 +1268,758 @@
     "init": {
       "cells": 12,
       "trained": 12
+    },
+    "low_w_in": {
+      "cells": 12,
+      "trained": 12
+    },
+    "tau_gaba": {
+      "cells": 18,
+      "trained": 18
+    },
+    "variable_rate": {
+      "cells": 3,
+      "trained": 3
     }
   },
-  "n_cells": 87,
-  "cells": [
-    {
-      "name": "coba__canonical__seed42",
-      "model": "coba",
-      "family": "canonical",
-      "tag": "off \u00b7 all MNIST",
-      "seed": 42,
-      "acc": 95.56428571428572,
-      "best_epoch": 47,
-      "rate_e": 285.2053170340402,
-      "rate_i": 0.0
-    },
-    {
-      "name": "coba__canonical__seed43",
-      "model": "coba",
-      "family": "canonical",
-      "tag": "off \u00b7 all MNIST",
-      "seed": 43,
-      "acc": 95.55,
-      "best_epoch": 47,
-      "rate_e": 283.3165935407366,
-      "rate_i": 0.0
-    },
-    {
-      "name": "coba__canonical__seed44",
-      "model": "coba",
-      "family": "canonical",
-      "tag": "off \u00b7 all MNIST",
-      "seed": 44,
-      "acc": 95.52857142857142,
-      "best_epoch": 47,
-      "rate_e": 284.9917082868304,
-      "rate_i": 0.0
-    },
-    {
-      "name": "ping__canonical__seed42",
-      "model": "ping",
-      "family": "canonical",
-      "tag": "off \u00b7 all MNIST",
-      "seed": 42,
-      "acc": 93.95,
-      "best_epoch": 45,
-      "rate_e": 16.69016322544643,
-      "rate_i": 108.60257114955357
-    },
-    {
-      "name": "ping__canonical__seed43",
-      "model": "ping",
-      "family": "canonical",
-      "tag": "off \u00b7 all MNIST",
-      "seed": 43,
-      "acc": 93.95714285714286,
-      "best_epoch": 40,
-      "rate_e": 16.822725306919644,
-      "rate_i": 109.69738699776785
-    },
-    {
-      "name": "ping__canonical__seed44",
-      "model": "ping",
-      "family": "canonical",
-      "tag": "off \u00b7 all MNIST",
-      "seed": 44,
-      "acc": 93.90714285714286,
-      "best_epoch": 36,
-      "rate_e": 16.800640694754463,
-      "rate_i": 109.60375139508929
-    },
-    {
-      "name": "coba__off__seed42",
-      "model": "coba",
-      "family": "theta_u",
-      "tag": "off",
-      "seed": 42,
-      "acc": 90.71428571428571,
-      "best_epoch": 40,
-      "rate_e": 143.44023786272322,
-      "rate_i": 0.0
-    },
-    {
-      "name": "coba__off__seed43",
-      "model": "coba",
-      "family": "theta_u",
-      "tag": "off",
-      "seed": 43,
-      "acc": 90.64285714285714,
-      "best_epoch": 40,
-      "rate_e": 141.64444754464284,
-      "rate_i": 0.0
-    },
-    {
-      "name": "coba__off__seed44",
-      "model": "coba",
-      "family": "theta_u",
-      "tag": "off",
-      "seed": 44,
-      "acc": 90.78571428571429,
-      "best_epoch": 40,
-      "rate_e": 143.28622000558036,
-      "rate_i": 0.0
-    },
+  "git_sha": "4ad223d3",
+  "n_cells": 102,
+  "notebook_run_id": "r001",
+  "result_checkpoint_provenance": [
     {
-      "name": "coba__tu5__seed42",
-      "model": "coba",
-      "family": "theta_u",
-      "tag": "5",
-      "seed": 42,
-      "acc": 85.35714285714286,
-      "best_epoch": 49,
-      "rate_e": 24.617539760044643,
-      "rate_i": 0.0
-    },
-    {
-      "name": "coba__tu5__seed43",
-      "model": "coba",
-      "family": "theta_u",
-      "tag": "5",
-      "seed": 43,
-      "acc": 85.28571428571429,
-      "best_epoch": 49,
-      "rate_e": 24.65507114955357,
-      "rate_i": 0.0
-    },
-    {
-      "name": "coba__tu5__seed44",
-      "model": "coba",
-      "family": "theta_u",
-      "tag": "5",
-      "seed": 44,
-      "acc": 84.92857142857143,
-      "best_epoch": 41,
-      "rate_e": 24.640914481026787,
-      "rate_i": 0.0
-    },
-    {
-      "name": "coba__tu2__seed42",
-      "model": "coba",
-      "family": "theta_u",
-      "tag": "2",
-      "seed": 42,
-      "acc": 78.0,
-      "best_epoch": 35,
-      "rate_e": 10.8500244140625,
-      "rate_i": 0.0
-    },
-    {
-      "name": "coba__tu2__seed43",
-      "model": "coba",
-      "family": "theta_u",
-      "tag": "2",
-      "seed": 43,
-      "acc": 77.42857142857143,
-      "best_epoch": 47,
-      "rate_e": 10.867867606026786,
-      "rate_i": 0.0
-    },
-    {
-      "name": "coba__tu2__seed44",
-      "model": "coba",
-      "family": "theta_u",
-      "tag": "2",
-      "seed": 44,
-      "acc": 77.71428571428571,
-      "best_epoch": 41,
-      "rate_e": 10.885954938616072,
-      "rate_i": 0.0
-    },
-    {
-      "name": "coba__tu1__seed42",
-      "model": "coba",
-      "family": "theta_u",
-      "tag": "1",
-      "seed": 42,
-      "acc": 69.64285714285714,
-      "best_epoch": 6,
-      "rate_e": 5.843603515625,
-      "rate_i": 0.0
-    },
-    {
-      "name": "coba__tu1__seed43",
-      "model": "coba",
-      "family": "theta_u",
-      "tag": "1",
-      "seed": 43,
-      "acc": 68.71428571428571,
-      "best_epoch": 15,
-      "rate_e": 5.8381417410714285,
-      "rate_i": 0.0
-    },
-    {
-      "name": "coba__tu1__seed44",
-      "model": "coba",
-      "family": "theta_u",
-      "tag": "1",
-      "seed": 44,
-      "acc": 70.64285714285714,
-      "best_epoch": 4,
-      "rate_e": 5.866231863839285,
-      "rate_i": 0.0
-    },
-    {
-      "name": "coba__tu0p5__seed42",
-      "model": "coba",
-      "family": "theta_u",
-      "tag": "0.5",
-      "seed": 42,
-      "acc": 65.85714285714286,
-      "best_epoch": 4,
-      "rate_e": 3.3593087332589286,
-      "rate_i": 0.0
-    },
-    {
-      "name": "coba__tu0p5__seed43",
-      "model": "coba",
-      "family": "theta_u",
-      "tag": "0.5",
-      "seed": 43,
-      "acc": 65.5,
-      "best_epoch": 14,
-      "rate_e": 3.3522774832589284,
-      "rate_i": 0.0
-    },
-    {
-      "name": "coba__tu0p5__seed44",
-      "model": "coba",
-      "family": "theta_u",
-      "tag": "0.5",
-      "seed": 44,
-      "acc": 66.35714285714286,
-      "best_epoch": 6,
-      "rate_e": 3.355367606026786,
-      "rate_i": 0.0
-    },
-    {
-      "name": "coba__tu0p2__seed42",
-      "model": "coba",
-      "family": "theta_u",
-      "tag": "0.2",
-      "seed": 42,
-      "acc": 59.857142857142854,
-      "best_epoch": 2,
-      "rate_e": 1.9705740792410715,
-      "rate_i": 0.0
-    },
-    {
-      "name": "coba__tu0p2__seed43",
-      "model": "coba",
-      "family": "theta_u",
-      "tag": "0.2",
-      "seed": 43,
-      "acc": 59.714285714285715,
-      "best_epoch": 2,
-      "rate_e": 1.9556815011160715,
-      "rate_i": 0.0
-    },
-    {
-      "name": "coba__tu0p2__seed44",
-      "model": "coba",
-      "family": "theta_u",
-      "tag": "0.2",
-      "seed": 44,
-      "acc": 60.857142857142854,
-      "best_epoch": 4,
-      "rate_e": 1.9600272042410714,
-      "rate_i": 0.0
-    },
-    {
-      "name": "ping__off__seed42",
-      "model": "ping",
-      "family": "theta_u",
-      "tag": "off",
-      "seed": 42,
-      "acc": 91.42857142857143,
-      "best_epoch": 32,
-      "rate_e": 10.436851283482143,
-      "rate_i": 62.06089564732143
-    },
-    {
-      "name": "ping__off__seed43",
-      "model": "ping",
-      "family": "theta_u",
-      "tag": "off",
-      "seed": 43,
-      "acc": 91.57142857142857,
-      "best_epoch": 32,
-      "rate_e": 10.370758928571428,
-      "rate_i": 61.55086495535714
-    },
-    {
-      "name": "ping__off__seed44",
-      "model": "ping",
-      "family": "theta_u",
-      "tag": "off",
-      "seed": 44,
-      "acc": 91.71428571428571,
-      "best_epoch": 26,
-      "rate_e": 10.30952845982143,
-      "rate_i": 60.979868861607144
-    },
-    {
-      "name": "ping__tu5__seed42",
-      "model": "ping",
-      "family": "theta_u",
-      "tag": "5",
-      "seed": 42,
-      "acc": 91.42857142857143,
-      "best_epoch": 41,
-      "rate_e": 10.301203264508928,
-      "rate_i": 61.47420479910714
-    },
-    {
-      "name": "ping__tu5__seed43",
-      "model": "ping",
-      "family": "theta_u",
-      "tag": "5",
-      "seed": 43,
-      "acc": 91.5,
-      "best_epoch": 32,
-      "rate_e": 10.2670166015625,
-      "rate_i": 61.19811662946429
-    },
-    {
-      "name": "ping__tu5__seed44",
-      "model": "ping",
-      "family": "theta_u",
-      "tag": "5",
-      "seed": 44,
-      "acc": 91.64285714285714,
-      "best_epoch": 35,
-      "rate_e": 10.144646344866072,
-      "rate_i": 60.48787667410714
-    },
-    {
-      "name": "ping__tu2__seed42",
-      "model": "ping",
-      "family": "theta_u",
-      "tag": "2",
-      "seed": 42,
-      "acc": 91.71428571428571,
-      "best_epoch": 50,
-      "rate_e": 8.229690987723215,
-      "rate_i": 46.51078404017857
-    },
-    {
-      "name": "ping__tu2__seed43",
-      "model": "ping",
-      "family": "theta_u",
-      "tag": "2",
-      "seed": 43,
-      "acc": 91.57142857142857,
-      "best_epoch": 50,
-      "rate_e": 8.262405831473215,
-      "rate_i": 46.92307477678571
-    },
-    {
-      "name": "ping__tu2__seed44",
-      "model": "ping",
-      "family": "theta_u",
-      "tag": "2",
-      "seed": 44,
-      "acc": 91.42857142857143,
-      "best_epoch": 50,
-      "rate_e": 8.248130580357143,
-      "rate_i": 46.715262276785715
-    },
-    {
-      "name": "ping__tu1__seed42",
-      "model": "ping",
-      "family": "theta_u",
-      "tag": "1",
-      "seed": 42,
-      "acc": 90.14285714285714,
-      "best_epoch": 29,
-      "rate_e": 5.1811139787946425,
-      "rate_i": 26.257254464285715
-    },
-    {
-      "name": "ping__tu1__seed43",
-      "model": "ping",
-      "family": "theta_u",
-      "tag": "1",
-      "seed": 43,
-      "acc": 90.28571428571429,
-      "best_epoch": 48,
-      "rate_e": 5.177622767857143,
-      "rate_i": 26.30673828125
-    },
-    {
-      "name": "ping__tu1__seed44",
-      "model": "ping",
-      "family": "theta_u",
-      "tag": "1",
-      "seed": 44,
-      "acc": 90.57142857142857,
-      "best_epoch": 30,
-      "rate_e": 5.185379464285714,
-      "rate_i": 26.35629185267857
-    },
-    {
-      "name": "ping__tu0p5__seed42",
-      "model": "ping",
-      "family": "theta_u",
-      "tag": "0.5",
-      "seed": 42,
-      "acc": 88.0,
-      "best_epoch": 45,
-      "rate_e": 4.117107282366072,
-      "rate_i": 10.451869419642858
-    },
-    {
-      "name": "ping__tu0p5__seed43",
-      "model": "ping",
-      "family": "theta_u",
-      "tag": "0.5",
-      "seed": 43,
-      "acc": 88.14285714285714,
-      "best_epoch": 24,
-      "rate_e": 4.125258091517857,
-      "rate_i": 10.46000279017857
-    },
-    {
-      "name": "ping__tu0p5__seed44",
-      "model": "ping",
-      "family": "theta_u",
-      "tag": "0.5",
-      "seed": 44,
-      "acc": 87.92857142857143,
-      "best_epoch": 24,
-      "rate_e": 4.142721121651785,
-      "rate_i": 10.6017578125
-    },
-    {
-      "name": "ping__tu0p2__seed42",
-      "model": "ping",
-      "family": "theta_u",
-      "tag": "0.2",
-      "seed": 42,
-      "acc": 86.07142857142857,
-      "best_epoch": 50,
-      "rate_e": 3.8593715122767858,
-      "rate_i": 7.3430106026785715
-    },
-    {
-      "name": "ping__tu0p2__seed43",
-      "model": "ping",
-      "family": "theta_u",
-      "tag": "0.2",
-      "seed": 43,
-      "acc": 86.57142857142857,
-      "best_epoch": 27,
-      "rate_e": 3.7965053013392858,
-      "rate_i": 7.168150111607143
-    },
-    {
-      "name": "ping__tu0p2__seed44",
-      "model": "ping",
-      "family": "theta_u",
-      "tag": "0.2",
-      "seed": 44,
-      "acc": 86.71428571428571,
-      "best_epoch": 39,
-      "rate_e": 3.823399135044643,
-      "rate_i": 7.214662388392857
-    },
-    {
-      "name": "ping__tg4p5__seed42",
-      "model": "ping",
-      "family": "tau_gaba",
-      "tag": "\u03c4=4.5",
-      "seed": 42,
-      "acc": 92.0,
-      "best_epoch": 30,
-      "rate_e": 11.630287388392857,
-      "rate_i": 69.32451171875
-    },
-    {
-      "name": "ping__tg4p5__seed43",
-      "model": "ping",
-      "family": "tau_gaba",
-      "tag": "\u03c4=4.5",
-      "seed": 43,
-      "acc": 92.14285714285714,
-      "best_epoch": 29,
-      "rate_e": 11.565900530133929,
-      "rate_i": 68.80118582589286
-    },
-    {
-      "name": "ping__tg4p5__seed44",
-      "model": "ping",
-      "family": "tau_gaba",
-      "tag": "\u03c4=4.5",
-      "seed": 44,
-      "acc": 92.21428571428571,
-      "best_epoch": 29,
-      "rate_e": 11.487186104910714,
-      "rate_i": 68.14019252232143
-    },
-    {
-      "name": "ping__tg6__seed42",
-      "model": "ping",
-      "family": "tau_gaba",
-      "tag": "\u03c4=6",
-      "seed": 42,
-      "acc": 91.78571428571429,
-      "best_epoch": 50,
-      "rate_e": 10.392909458705358,
-      "rate_i": 61.50013950892857
-    },
-    {
-      "name": "ping__tg6__seed43",
-      "model": "ping",
-      "family": "tau_gaba",
-      "tag": "\u03c4=6",
-      "seed": 43,
-      "acc": 91.57142857142857,
-      "best_epoch": 30,
-      "rate_e": 10.390415736607142,
-      "rate_i": 61.697112165178574
-    },
-    {
-      "name": "ping__tg6__seed44",
-      "model": "ping",
-      "family": "tau_gaba",
-      "tag": "\u03c4=6",
-      "seed": 44,
-      "acc": 91.57142857142857,
-      "best_epoch": 30,
-      "rate_e": 10.241751534598214,
-      "rate_i": 60.381556919642854
-    },
-    {
-      "name": "ping__tg9__seed42",
-      "model": "ping",
-      "family": "tau_gaba",
-      "tag": "\u03c4=9",
-      "seed": 42,
-      "acc": 90.35714285714286,
-      "best_epoch": 50,
-      "rate_e": 8.704774693080358,
-      "rate_i": 50.74976283482143
-    },
-    {
-      "name": "ping__tg9__seed43",
-      "model": "ping",
-      "family": "tau_gaba",
-      "tag": "\u03c4=9",
-      "seed": 43,
-      "acc": 90.42857142857143,
-      "best_epoch": 48,
-      "rate_e": 8.739808872767858,
-      "rate_i": 50.99126674107143
-    },
-    {
-      "name": "ping__tg9__seed44",
-      "model": "ping",
-      "family": "tau_gaba",
-      "tag": "\u03c4=9",
-      "seed": 44,
-      "acc": 90.0,
-      "best_epoch": 28,
-      "rate_e": 8.746861049107142,
-      "rate_i": 51.188755580357146
-    },
-    {
-      "name": "ping__tg12__seed42",
-      "model": "ping",
-      "family": "tau_gaba",
-      "tag": "\u03c4=12",
-      "seed": 42,
-      "acc": 89.28571428571429,
-      "best_epoch": 48,
-      "rate_e": 7.575212751116071,
-      "rate_i": 43.349051339285715
-    },
-    {
-      "name": "ping__tg12__seed43",
-      "model": "ping",
-      "family": "tau_gaba",
-      "tag": "\u03c4=12",
-      "seed": 43,
-      "acc": 89.85714285714286,
-      "best_epoch": 46,
-      "rate_e": 7.73720703125,
-      "rate_i": 44.54626116071429
-    },
-    {
-      "name": "ping__tg12__seed44",
-      "model": "ping",
-      "family": "tau_gaba",
-      "tag": "\u03c4=12",
-      "seed": 44,
-      "acc": 89.85714285714286,
-      "best_epoch": 47,
-      "rate_e": 7.501433454241071,
-      "rate_i": 42.829129464285714
-    },
-    {
-      "name": "ping__tg18__seed42",
-      "model": "ping",
-      "family": "tau_gaba",
-      "tag": "\u03c4=18",
-      "seed": 42,
-      "acc": 87.85714285714286,
-      "best_epoch": 30,
-      "rate_e": 6.216329520089285,
-      "rate_i": 34.54704241071428
-    },
-    {
-      "name": "ping__tg18__seed43",
-      "model": "ping",
-      "family": "tau_gaba",
-      "tag": "\u03c4=18",
-      "seed": 43,
-      "acc": 87.85714285714286,
-      "best_epoch": 28,
-      "rate_e": 6.379471261160714,
-      "rate_i": 35.833384486607144
-    },
-    {
-      "name": "ping__tg18__seed44",
-      "model": "ping",
-      "family": "tau_gaba",
-      "tag": "\u03c4=18",
-      "seed": 44,
-      "acc": 87.92857142857143,
-      "best_epoch": 32,
-      "rate_e": 6.075673130580357,
-      "rate_i": 33.62131696428571
-    },
-    {
-      "name": "ping__tg27__seed42",
-      "model": "ping",
-      "family": "tau_gaba",
-      "tag": "\u03c4=27",
-      "seed": 42,
-      "acc": 85.71428571428571,
-      "best_epoch": 46,
-      "rate_e": 4.954666573660714,
-      "rate_i": 26.578138950892857
-    },
-    {
-      "name": "ping__tg27__seed43",
-      "model": "ping",
-      "family": "tau_gaba",
-      "tag": "\u03c4=27",
-      "seed": 43,
-      "acc": 85.28571428571429,
-      "best_epoch": 50,
-      "rate_e": 4.887967354910714,
-      "rate_i": 26.323786272321428
-    },
-    {
-      "name": "ping__tg27__seed44",
-      "model": "ping",
-      "family": "tau_gaba",
-      "tag": "\u03c4=27",
-      "seed": 44,
-      "acc": 85.78571428571429,
-      "best_epoch": 49,
-      "rate_e": 4.884866768973215,
-      "rate_i": 26.147572544642856
-    },
-    {
-      "name": "ping__dt0p05__seed42",
-      "model": "ping",
-      "family": "dt",
-      "tag": "dt=0.05",
-      "seed": 42,
-      "acc": 90.64285714285714,
-      "best_epoch": 47,
-      "rate_e": 9.300847516741072,
-      "rate_i": 56.61946149553572
-    },
-    {
-      "name": "ping__dt0p05__seed43",
-      "model": "ping",
-      "family": "dt",
-      "tag": "dt=0.05",
-      "seed": 43,
-      "acc": 90.64285714285714,
-      "best_epoch": 47,
-      "rate_e": 9.428819056919643,
-      "rate_i": 57.90044642857143
-    },
-    {
-      "name": "ping__dt0p05__seed44",
-      "model": "ping",
-      "family": "dt",
-      "tag": "dt=0.05",
-      "seed": 44,
-      "acc": 90.71428571428571,
-      "best_epoch": 47,
-      "rate_e": 9.411526925223214,
-      "rate_i": 58.216155133928574
-    },
-    {
-      "name": "ping__dt0p1__seed42",
-      "model": "ping",
-      "family": "dt",
-      "tag": "dt=0.1",
-      "seed": 42,
-      "acc": 91.42857142857143,
-      "best_epoch": 48,
-      "rate_e": 10.454488699776785,
-      "rate_i": 62.091420200892856
-    },
-    {
-      "name": "ping__dt0p1__seed43",
-      "model": "ping",
-      "family": "dt",
-      "tag": "dt=0.1",
-      "seed": 43,
-      "acc": 91.14285714285714,
-      "best_epoch": 30,
-      "rate_e": 10.409089006696428,
-      "rate_i": 61.780161830357144
-    },
-    {
-      "name": "ping__dt0p1__seed44",
-      "model": "ping",
-      "family": "dt",
-      "tag": "dt=0.1",
-      "seed": 44,
-      "acc": 91.71428571428571,
-      "best_epoch": 41,
-      "rate_e": 10.346669224330357,
-      "rate_i": 61.337025669642856
-    },
-    {
-      "name": "ping__dt0p25__seed42",
-      "model": "ping",
-      "family": "dt",
-      "tag": "dt=0.25",
-      "seed": 42,
-      "acc": 90.85714285714286,
-      "best_epoch": 50,
-      "rate_e": 11.3601806640625,
-      "rate_i": 54.1001953125
-    },
-    {
-      "name": "ping__dt0p25__seed43",
-      "model": "ping",
-      "family": "dt",
-      "tag": "dt=0.25",
-      "seed": 43,
-      "acc": 91.0,
-      "best_epoch": 36,
-      "rate_e": 11.382913643973215,
-      "rate_i": 54.15934709821428
-    },
-    {
-      "name": "ping__dt0p25__seed44",
-      "model": "ping",
-      "family": "dt",
-      "tag": "dt=0.25",
-      "seed": 44,
-      "acc": 90.92857142857143,
-      "best_epoch": 38,
-      "rate_e": 11.310801478794643,
-      "rate_i": 53.801116071428574
-    },
-    {
-      "name": "ping__dt0p5__seed42",
-      "model": "ping",
-      "family": "dt",
-      "tag": "dt=0.5",
-      "seed": 42,
-      "acc": 90.71428571428571,
-      "best_epoch": 43,
-      "rate_e": 12.501625279017857,
-      "rate_i": 48.804715401785714
-    },
-    {
-      "name": "ping__dt0p5__seed43",
-      "model": "ping",
-      "family": "dt",
-      "tag": "dt=0.5",
-      "seed": 43,
-      "acc": 90.85714285714286,
-      "best_epoch": 44,
-      "rate_e": 12.479554966517858,
-      "rate_i": 48.86792689732143
-    },
-    {
-      "name": "ping__dt0p5__seed44",
-      "model": "ping",
-      "family": "dt",
-      "tag": "dt=0.5",
-      "seed": 44,
-      "acc": 90.71428571428571,
-      "best_epoch": 32,
-      "rate_e": 12.4253662109375,
-      "rate_i": 48.71174665178572
-    },
-    {
-      "name": "ping__dt1__seed42",
-      "model": "ping",
-      "family": "dt",
-      "tag": "dt=1",
-      "seed": 42,
-      "acc": 90.78571428571429,
-      "best_epoch": 32,
-      "rate_e": 15.280301339285714,
-      "rate_i": 48.68763950892857
-    },
-    {
-      "name": "ping__dt1__seed43",
-      "model": "ping",
-      "family": "dt",
-      "tag": "dt=1",
-      "seed": 43,
-      "acc": 90.42857142857143,
-      "best_epoch": 31,
-      "rate_e": 15.250516183035714,
-      "rate_i": 48.60090680803572
-    },
-    {
-      "name": "ping__dt1__seed44",
-      "model": "ping",
-      "family": "dt",
-      "tag": "dt=1",
-      "seed": 44,
-      "acc": 90.42857142857143,
-      "best_epoch": 36,
-      "rate_e": 15.125142996651785,
-      "rate_i": 48.35228794642857
-    },
-    {
-      "name": "frozen_ping__seed42",
-      "model": "ping_init",
-      "family": "init",
-      "tag": "frozen_ping",
-      "seed": 42,
-      "acc": 91.42857142857143,
-      "best_epoch": 48,
-      "rate_e": 10.454488699776785,
-      "rate_i": 62.091420200892856
-    },
-    {
-      "name": "frozen_ping__seed43",
-      "model": "ping_init",
-      "family": "init",
-      "tag": "frozen_ping",
-      "seed": 43,
-      "acc": 91.14285714285714,
-      "best_epoch": 30,
-      "rate_e": 10.409089006696428,
-      "rate_i": 61.780161830357144
-    },
-    {
-      "name": "frozen_ping__seed44",
-      "model": "ping_init",
-      "family": "init",
-      "tag": "frozen_ping",
-      "seed": 44,
-      "acc": 91.71428571428571,
-      "best_epoch": 41,
-      "rate_e": 10.346669224330357,
-      "rate_i": 61.337025669642856
-    },
-    {
-      "name": "trainable_ping_init__seed42",
-      "model": "ping_init",
-      "family": "init",
-      "tag": "trainable_ping_init",
-      "seed": 42,
-      "acc": 90.07142857142857,
-      "best_epoch": 44,
-      "rate_e": 43.99225376674107,
-      "rate_i": 3.7176060267857145
-    },
-    {
-      "name": "trainable_ping_init__seed43",
-      "model": "ping_init",
-      "family": "init",
-      "tag": "trainable_ping_init",
-      "seed": 43,
-      "acc": 91.35714285714286,
-      "best_epoch": 38,
-      "rate_e": 28.453585379464286,
-      "rate_i": 5.301967075892857
-    },
-    {
-      "name": "trainable_ping_init__seed44",
-      "model": "ping_init",
-      "family": "init",
-      "tag": "trainable_ping_init",
-      "seed": 44,
-      "acc": 89.85714285714286,
-      "best_epoch": 44,
-      "rate_e": 42.98888462611607,
-      "rate_i": 4.2718889508928575
-    },
-    {
-      "name": "trainable_zero_init__seed42",
-      "model": "ping_init",
-      "family": "init",
-      "tag": "trainable_zero_init",
-      "seed": 42,
-      "acc": 89.35714285714286,
-      "best_epoch": 50,
-      "rate_e": 79.6177978515625,
-      "rate_i": 0.0
-    },
-    {
-      "name": "trainable_zero_init__seed43",
-      "model": "ping_init",
-      "family": "init",
-      "tag": "trainable_zero_init",
-      "seed": 43,
-      "acc": 89.35714285714286,
-      "best_epoch": 44,
-      "rate_e": 78.85125906808035,
-      "rate_i": 0.0
-    },
-    {
-      "name": "trainable_zero_init__seed44",
-      "model": "ping_init",
-      "family": "init",
-      "tag": "trainable_zero_init",
-      "seed": 44,
-      "acc": 89.35714285714286,
-      "best_epoch": 44,
-      "rate_e": 79.44036690848215,
-      "rate_i": 0.0
-    },
-    {
-      "name": "trainable_small_init__seed42",
-      "model": "ping_init",
-      "family": "init",
-      "tag": "trainable_small_init",
-      "seed": 42,
-      "acc": 90.57142857142857,
-      "best_epoch": 47,
-      "rate_e": 62.22438616071429,
-      "rate_i": 7.514202008928572
-    },
-    {
-      "name": "trainable_small_init__seed43",
-      "model": "ping_init",
-      "family": "init",
-      "tag": "trainable_small_init",
-      "seed": 43,
-      "acc": 89.92857142857143,
-      "best_epoch": 49,
-      "rate_e": 42.19429059709822,
-      "rate_i": 7.301925223214286
-    },
-    {
-      "name": "trainable_small_init__seed44",
-      "model": "ping_init",
-      "family": "init",
-      "tag": "trainable_small_init",
-      "seed": 44,
-      "acc": 89.14285714285714,
-      "best_epoch": 49,
-      "rate_e": 51.7270263671875,
-      "rate_i": 7.675153459821429
+      "epoch": 50,
+      "filename": "weights_final.pth",
+      "role": "final_epoch",
+      "sha256": "860d7c9842bc60351603fe08b89a4e78c34e3ae7f19ed588562e02e4eeefffe3",
+      "training_cell": "coba__canonical__seed42"
+    },
+    {
+      "epoch": 50,
+      "filename": "weights_final.pth",
+      "role": "final_epoch",
+      "sha256": "a385eb576edf7f5b8db87f8391500749f227a823551f65a85158c9c80f42d6d9",
+      "training_cell": "coba__canonical__seed43"
+    },
+    {
+      "epoch": 50,
+      "filename": "weights_final.pth",
+      "role": "final_epoch",
+      "sha256": "c405e8b3627340ffd0bc79679e1544e95c0677c7e7b9fd13c8040718a6d97fa8",
+      "training_cell": "coba__canonical__seed44"
+    },
+    {
+      "epoch": 50,
+      "filename": "weights_final.pth",
+      "role": "final_epoch",
+      "sha256": "b7f2ef5415a775d343dca19478d6096cf26182036ae92fdfb82a65972f1fa593",
+      "training_cell": "coba__off__seed42"
+    },
+    {
+      "epoch": 50,
+      "filename": "weights_final.pth",
+      "role": "final_epoch",
+      "sha256": "a9197614f1be7cd5433f4c9177e41b03556b6f14de7a91af26269b4d677da73b",
+      "training_cell": "coba__off__seed43"
+    },
+    {
+      "epoch": 50,
+      "filename": "weights_final.pth",
+      "role": "final_epoch",
+      "sha256": "b6e0c006e965b480feaddea33c13bcf9a99b20b22a920b51559e319c10c70192",
+      "training_cell": "coba__off__seed44"
+    },
+    {
+      "epoch": 50,
+      "filename": "weights_final.pth",
+      "role": "final_epoch",
+      "sha256": "7aec76190a34edd0999dd8b0486d4bbc62bef48daf550daf617cbd49c278eb69",
+      "training_cell": "coba__rt10hz__seed42"
+    },
+    {
+      "epoch": 50,
+      "filename": "weights_final.pth",
+      "role": "final_epoch",
+      "sha256": "30fddcfe4c468737d61aa430f918d72848337b5b9039fd511b6fde6a88770abf",
+      "training_cell": "coba__rt10hz__seed43"
+    },
+    {
+      "epoch": 50,
+      "filename": "weights_final.pth",
+      "role": "final_epoch",
+      "sha256": "c8f655a0f892a219d99e9ec01b440aa0cb5fd93c45e089b672865b6824027d1a",
+      "training_cell": "coba__rt10hz__seed44"
+    },
+    {
+      "epoch": 50,
+      "filename": "weights_final.pth",
+      "role": "final_epoch",
+      "sha256": "19c298ce4b3f25667a1e222a6e6295f5af8e988539e311264acadcb5787e4101",
+      "training_cell": "coba__rt1hz__seed42"
+    },
+    {
+      "epoch": 50,
+      "filename": "weights_final.pth",
+      "role": "final_epoch",
+      "sha256": "5af04efd209f56f83deec3d4c29c1506b64abf2f748cd3a2581705d1be8bb3fa",
+      "training_cell": "coba__rt1hz__seed43"
+    },
+    {
+      "epoch": 50,
+      "filename": "weights_final.pth",
+      "role": "final_epoch",
+      "sha256": "a3279271afd17b3c3f369f19198fd175ac3ae31b57a2d425a9844d34de02a0fc",
+      "training_cell": "coba__rt1hz__seed44"
+    },
+    {
+      "epoch": 50,
+      "filename": "weights_final.pth",
+      "role": "final_epoch",
+      "sha256": "ccbd1f829cf8dbeddf156501212bc12b21c28a5f1c3a28caa874bf7c71ba2f58",
+      "training_cell": "coba__rt25hz__seed42"
+    },
+    {
+      "epoch": 50,
+      "filename": "weights_final.pth",
+      "role": "final_epoch",
+      "sha256": "30356203e0d52d53c92f56ff418d10dcd254887fa71d5f39c7f7498605084590",
+      "training_cell": "coba__rt25hz__seed43"
+    },
+    {
+      "epoch": 50,
+      "filename": "weights_final.pth",
+      "role": "final_epoch",
+      "sha256": "0096cf9c1319350ccacc5363265ff226f87db1e8fac4cda51545aa3e9cd37732",
+      "training_cell": "coba__rt25hz__seed44"
+    },
+    {
+      "epoch": 50,
+      "filename": "weights_final.pth",
+      "role": "final_epoch",
+      "sha256": "6385a42d3476f27ed625f71383759cefc9dcd2f12fb22c6bbbbc1931f3f09a8b",
+      "training_cell": "coba__rt2p5hz__seed42"
+    },
+    {
+      "epoch": 50,
+      "filename": "weights_final.pth",
+      "role": "final_epoch",
+      "sha256": "a069c15a3c036c90e7123a80e6c0fdcc3b136f6edaee14a22612bd94d6f1d419",
+      "training_cell": "coba__rt2p5hz__seed43"
+    },
+    {
+      "epoch": 50,
+      "filename": "weights_final.pth",
+      "role": "final_epoch",
+      "sha256": "2ab8b367e3f9e42356108e8e9a505a6ab53f77fc653c41f68b0bb1fad8f08fb3",
+      "training_cell": "coba__rt2p5hz__seed44"
+    },
+    {
+      "epoch": 50,
+      "filename": "weights_final.pth",
+      "role": "final_epoch",
+      "sha256": "4ee7070160e6becf0a1fecb866bd49fdfd53f998d11d82abd6823aa99e1a34ec",
+      "training_cell": "coba__rt5hz__seed42"
+    },
+    {
+      "epoch": 50,
+      "filename": "weights_final.pth",
+      "role": "final_epoch",
+      "sha256": "c05cd29232202097ad343593330826f3f419f7fc4ab6b32d5356be0904c1bedf",
+      "training_cell": "coba__rt5hz__seed43"
+    },
+    {
+      "epoch": 50,
+      "filename": "weights_final.pth",
+      "role": "final_epoch",
+      "sha256": "dde723701f910da02a5392d43b206ffaeaa13164e399139a1d5bfbb66062aa8f",
+      "training_cell": "coba__rt5hz__seed44"
+    },
+    {
+      "epoch": 50,
+      "filename": "weights_final.pth",
+      "role": "final_epoch",
+      "sha256": "6e39bd4670c87e45e7a8ca72f4234e07e1eba645e605c563a571d7c63fa404b5",
+      "training_cell": "frozen_ping__seed42"
+    },
+    {
+      "epoch": 50,
+      "filename": "weights_final.pth",
+      "role": "final_epoch",
+      "sha256": "302a1065adbf695823ebfe83a5e748165a11fd5aa143018ac9631bfef78ffd90",
+      "training_cell": "frozen_ping__seed43"
+    },
+    {
+      "epoch": 50,
+      "filename": "weights_final.pth",
+      "role": "final_epoch",
+      "sha256": "1b90f3ce4e31657581e83d055930bdda7969bb9a352f6e0bc362fec4f21b65b3",
+      "training_cell": "frozen_ping__seed44"
+    },
+    {
+      "epoch": 50,
+      "filename": "weights_final.pth",
+      "role": "final_epoch",
+      "sha256": "afe3bce49a89c2dbdac4f986bc3ca65bda91db385b2d58914c9c765075d78a0f",
+      "training_cell": "ping__canonical__seed42"
+    },
+    {
+      "epoch": 50,
+      "filename": "weights_final.pth",
+      "role": "final_epoch",
+      "sha256": "f871ae6db0c2d9f534bcc14a75da731be49249b98bdbf2397594dd371d3da43a",
+      "training_cell": "ping__canonical__seed43"
+    },
+    {
+      "epoch": 50,
+      "filename": "weights_final.pth",
+      "role": "final_epoch",
+      "sha256": "6b637761d2935883df8f02d2d56fcb8d18899edce99757df35acd762c53f00c7",
+      "training_cell": "ping__canonical__seed44"
+    },
+    {
+      "epoch": 50,
+      "filename": "weights_final.pth",
+      "role": "final_epoch",
+      "sha256": "0dfc246807de1b53eb4270ee403d209de7c36136b2831c8f61de766fe6457a67",
+      "training_cell": "ping__dt0p05__seed42"
+    },
+    {
+      "epoch": 50,
+      "filename": "weights_final.pth",
+      "role": "final_epoch",
+      "sha256": "5996bf42e432ce8d56ee7745cc456e92bcfcf98a62360a1ffdd44124397d617f",
+      "training_cell": "ping__dt0p05__seed43"
+    },
+    {
+      "epoch": 50,
+      "filename": "weights_final.pth",
+      "role": "final_epoch",
+      "sha256": "e371ed41f27728ff51006291d2d12daf590c89948cb4168c32010804b5fb98d0",
+      "training_cell": "ping__dt0p05__seed44"
+    },
+    {
+      "epoch": 50,
+      "filename": "weights_final.pth",
+      "role": "final_epoch",
+      "sha256": "f139d86907e9136468a43d82ffc6ef6bedd4e8d4da77458a9ec39adb80075e9f",
+      "training_cell": "ping__dt0p1__seed42"
+    },
+    {
+      "epoch": 50,
+      "filename": "weights_final.pth",
+      "role": "final_epoch",
+      "sha256": "26ef2f96abc4dbf4cc5094ea71f1bf976f618defd56decf7dbf9152716b00e09",
+      "training_cell": "ping__dt0p1__seed43"
+    },
+    {
+      "epoch": 50,
+      "filename": "weights_final.pth",
+      "role": "final_epoch",
+      "sha256": "2f03a98b8c271ab5ffab65ff337c48e68d2f1cb936ad983278243aec84996e85",
+      "training_cell": "ping__dt0p1__seed44"
+    },
+    {
+      "epoch": 50,
+      "filename": "weights_final.pth",
+      "role": "final_epoch",
+      "sha256": "a4dee97466f81e419f7c5211e157d39e2cbf1f7ce799fb66a32d126a2ed0e9f9",
+      "training_cell": "ping__dt0p25__seed42"
+    },
+    {
+      "epoch": 50,
+      "filename": "weights_final.pth",
+      "role": "final_epoch",
+      "sha256": "43c42332fbda5e140da16939b307696573bb4738f0e682c732bf31d57a469ea2",
+      "training_cell": "ping__dt0p25__seed43"
+    },
+    {
+      "epoch": 50,
+      "filename": "weights_final.pth",
+      "role": "final_epoch",
+      "sha256": "7b985e6521c35c23bcce64f3536ea267c4d2177296707fddeba3543838d963af",
+      "training_cell": "ping__dt0p25__seed44"
+    },
+    {
+      "epoch": 50,
+      "filename": "weights_final.pth",
+      "role": "final_epoch",
+      "sha256": "d21e9ed3b67c02c900c16a0233153f574847f6e9b01cc85382a41c26f8951819",
+      "training_cell": "ping__dt0p5__seed42"
+    },
+    {
+      "epoch": 50,
+      "filename": "weights_final.pth",
+      "role": "final_epoch",
+      "sha256": "fdd89e2014fce352f16c658f250bbd8f196a2d1b60e0830eed3fccb6de08181c",
+      "training_cell": "ping__dt0p5__seed43"
+    },
+    {
+      "epoch": 50,
+      "filename": "weights_final.pth",
+      "role": "final_epoch",
+      "sha256": "7eece91a202a02160de3a66bc234d9571e1e11e01dd1cf956de0d7cf384a2c90",
+      "training_cell": "ping__dt0p5__seed44"
+    },
+    {
+      "epoch": 50,
+      "filename": "weights_final.pth",
+      "role": "final_epoch",
+      "sha256": "f318e715940b9e02216add097d90109871805b6b28131cdc697f72e6e2b0b7e9",
+      "training_cell": "ping__dt1__seed42"
+    },
+    {
+      "epoch": 50,
+      "filename": "weights_final.pth",
+      "role": "final_epoch",
+      "sha256": "895755a82b45468bdbde15daa8c390221d15fffb30186f15617b416b8f110ee9",
+      "training_cell": "ping__dt1__seed43"
+    },
+    {
+      "epoch": 50,
+      "filename": "weights_final.pth",
+      "role": "final_epoch",
+      "sha256": "8524ab2e3eadf221c0938d3d32afd0483e9ab1d91719d802cea3b4a594ca7c9f",
+      "training_cell": "ping__dt1__seed44"
+    },
+    {
+      "epoch": 50,
+      "filename": "weights_final.pth",
+      "role": "final_epoch",
+      "sha256": "bade65ec83b7fedea3d278c1f1c366e36de716bd348ca29f4e45fbbd43c27d90",
+      "training_cell": "ping__low_w_in__win0p05__seed42"
+    },
+    {
+      "epoch": 50,
+      "filename": "weights_final.pth",
+      "role": "final_epoch",
+      "sha256": "21f9689443afd13f2d6535d0f14dd98a9e27c7ae5b2f1b9c379613c1499dcec3",
+      "training_cell": "ping__low_w_in__win0p05__seed43"
+    },
+    {
+      "epoch": 50,
+      "filename": "weights_final.pth",
+      "role": "final_epoch",
+      "sha256": "263169cb7382af1fc2ace61c903d118aaa3521822e6b564f4f11315d2a242263",
+      "training_cell": "ping__low_w_in__win0p05__seed44"
+    },
+    {
+      "epoch": 50,
+      "filename": "weights_final.pth",
+      "role": "final_epoch",
+      "sha256": "45907592dfbeee9761b0aed6e15399ec6de6ec78722176e15495ef80278ad5ba",
+      "training_cell": "ping__low_w_in__win0p1__seed42"
+    },
+    {
+      "epoch": 50,
+      "filename": "weights_final.pth",
+      "role": "final_epoch",
+      "sha256": "6b7bb3d83e89094a36167831882a79c3fc409db75b1c11e71f586d6f3db912e1",
+      "training_cell": "ping__low_w_in__win0p1__seed43"
+    },
+    {
+      "epoch": 50,
+      "filename": "weights_final.pth",
+      "role": "final_epoch",
+      "sha256": "b2087e49c9baea1d4ed34445b790d0a8153a719e1a86780d6c376593a58c512e",
+      "training_cell": "ping__low_w_in__win0p1__seed44"
+    },
+    {
+      "epoch": 50,
+      "filename": "weights_final.pth",
+      "role": "final_epoch",
+      "sha256": "4e0920ea954fdd12edbb734b986337cd015ac874ee24a55eda499ad447658dbb",
+      "training_cell": "ping__low_w_in__win0p3__seed42"
+    },
+    {
+      "epoch": 50,
+      "filename": "weights_final.pth",
+      "role": "final_epoch",
+      "sha256": "60c1922fe080ccf5945a979875e390c70935452dc913d8f8181dc80100d42494",
+      "training_cell": "ping__low_w_in__win0p3__seed43"
+    },
+    {
+      "epoch": 50,
+      "filename": "weights_final.pth",
+      "role": "final_epoch",
+      "sha256": "0710a1ba05f6e09f4aa9cf32fe503fd51b774c159f9cc2a81ff9838bb0ff3f7b",
+      "training_cell": "ping__low_w_in__win0p3__seed44"
+    },
+    {
+      "epoch": 50,
+      "filename": "weights_final.pth",
+      "role": "final_epoch",
+      "sha256": "c71536bf715b3d67d6169ddb74bcd61e696e6ae9cc54738b58481d0475ac247e",
+      "training_cell": "ping__low_w_in__win0p9__seed42"
+    },
+    {
+      "epoch": 50,
+      "filename": "weights_final.pth",
+      "role": "final_epoch",
+      "sha256": "b6f3852f649e52ff850a0534cd87a489579e1a706c22ec7482a3f18e90afc97d",
+      "training_cell": "ping__low_w_in__win0p9__seed43"
+    },
+    {
+      "epoch": 50,
+      "filename": "weights_final.pth",
+      "role": "final_epoch",
+      "sha256": "7ebccf2df8ca584c73d826dee00161652de363556d8d0a18bfc721650a41dd37",
+      "training_cell": "ping__low_w_in__win0p9__seed44"
+    },
+    {
+      "epoch": 50,
+      "filename": "weights_final.pth",
+      "role": "final_epoch",
+      "sha256": "de553afe678c7a92ae04f98e1b903bc00ddfb3819ee421541f85411df94f3291",
+      "training_cell": "ping__off__seed42"
+    },
+    {
+      "epoch": 50,
+      "filename": "weights_final.pth",
+      "role": "final_epoch",
+      "sha256": "8b56e5539ff439c3926f77d980e14b368f7e5a2e7f872dbebe9bd6717b67f5e2",
+      "training_cell": "ping__off__seed43"
+    },
+    {
+      "epoch": 50,
+      "filename": "weights_final.pth",
+      "role": "final_epoch",
+      "sha256": "b690c6f53806c2a548b0d7cbc86cd29c71c902e7dde8eb53fbddaf066495300a",
+      "training_cell": "ping__off__seed44"
+    },
+    {
+      "epoch": 50,
+      "filename": "weights_final.pth",
+      "role": "final_epoch",
+      "sha256": "d998f45381faad5729dc6524a0cdd4b248a99801e47059a11112eac00128b061",
+      "training_cell": "ping__rt10hz__seed42"
+    },
+    {
+      "epoch": 50,
+      "filename": "weights_final.pth",
+      "role": "final_epoch",
+      "sha256": "5f17cfb01a0e5a9d5515326de4f32b31ed121a1baa6804969702b61b646faf0e",
+      "training_cell": "ping__rt10hz__seed43"
+    },
+    {
+      "epoch": 50,
+      "filename": "weights_final.pth",
+      "role": "final_epoch",
+      "sha256": "ada3dbbf1ea473c79c6d115e73855a3f0e5e461f3163a23292ca724cf7d4f7db",
+      "training_cell": "ping__rt10hz__seed44"
+    },
+    {
+      "epoch": 50,
+      "filename": "weights_final.pth",
+      "role": "final_epoch",
+      "sha256": "0efc1d2690813ba2a71e06a14be1bed95700ce271a58ffa811657b09034c06f7",
+      "training_cell": "ping__rt1hz__seed42"
+    },
+    {
+      "epoch": 50,
+      "filename": "weights_final.pth",
+      "role": "final_epoch",
+      "sha256": "82d92c3d2dca23188b2e624554e01441c981ca1f17d54d4b5e48bd8154f22a7f",
+      "training_cell": "ping__rt1hz__seed43"
+    },
+    {
+      "epoch": 50,
+      "filename": "weights_final.pth",
+      "role": "final_epoch",
+      "sha256": "9f6e1f4b70745ec134486ec1a1fa9180a7e86eba398cc11e4c9cbd2817308585",
+      "training_cell": "ping__rt1hz__seed44"
+    },
+    {
+      "epoch": 50,
+      "filename": "weights_final.pth",
+      "role": "final_epoch",
+      "sha256": "7376685efcb3d1325dac61215ebae92537e32ed7d1b330178faf50b3697930a9",
+      "training_cell": "ping__rt25hz__seed42"
+    },
+    {
+      "epoch": 50,
+      "filename": "weights_final.pth",
+      "role": "final_epoch",
+      "sha256": "a29409762ca912ef1221953cab12fd7d29fc52c08fe799601d4dbcee01f9a62a",
+      "training_cell": "ping__rt25hz__seed43"
+    },
+    {
+      "epoch": 50,
+      "filename": "weights_final.pth",
+      "role": "final_epoch",
+      "sha256": "c6d1e1f2c1ac22e1e911c15837c129cf584d54888746b87c13fcddb44b0a191a",
+      "training_cell": "ping__rt25hz__seed44"
+    },
+    {
+      "epoch": 50,
+      "filename": "weights_final.pth",
+      "role": "final_epoch",
+      "sha256": "506e3dbfe49b318656409988b36d27f671fa40625b1aa68fb9fc0b464a2e2f68",
+      "training_cell": "ping__rt2p5hz__seed42"
+    },
+    {
+      "epoch": 50,
+      "filename": "weights_final.pth",
+      "role": "final_epoch",
+      "sha256": "6b7a323784537e5c7ae1ee5f5e745e35a017467d0e592bb4510352f1b98c609b",
+      "training_cell": "ping__rt2p5hz__seed43"
+    },
+    {
+      "epoch": 50,
+      "filename": "weights_final.pth",
+      "role": "final_epoch",
+      "sha256": "0f12c059a5090f427fb0d730437d40277d908fda584c69d1e739e12bbd35935e",
+      "training_cell": "ping__rt2p5hz__seed44"
+    },
+    {
+      "epoch": 50,
+      "filename": "weights_final.pth",
+      "role": "final_epoch",
+      "sha256": "d6eb9c12d75ba58665ccc928a82923067ade94c8316dea27c185ddd706ce8bfb",
+      "training_cell": "ping__rt5hz__seed42"
+    },
+    {
+      "epoch": 50,
+      "filename": "weights_final.pth",
+      "role": "final_epoch",
+      "sha256": "a703a4d36c1364c5d929891cb9aa1b29d6a8eb73aff7b1dd58eeabe012d7e1c0",
+      "training_cell": "ping__rt5hz__seed43"
+    },
+    {
+      "epoch": 50,
+      "filename": "weights_final.pth",
+      "role": "final_epoch",
+      "sha256": "636b2240a0dc3e25b47f5ad1e5a753e60c2faabcbabc25f964135f425b6b1ba9",
+      "training_cell": "ping__rt5hz__seed44"
+    },
+    {
+      "epoch": 50,
+      "filename": "weights_final.pth",
+      "role": "final_epoch",
+      "sha256": "deb6518a1c77f199933efd836c6a5d51dd0b83d9e19f7603edb8ef9ed90a8d59",
+      "training_cell": "ping__tg12__seed42"
+    },
+    {
+      "epoch": 50,
+      "filename": "weights_final.pth",
+      "role": "final_epoch",
+      "sha256": "9b333d7e9f92c55589aad2b9242bcaf2038b0fdc6c14c27815a95862b2923251",
+      "training_cell": "ping__tg12__seed43"
+    },
+    {
+      "epoch": 50,
+      "filename": "weights_final.pth",
+      "role": "final_epoch",
+      "sha256": "a0a91789ad15d92cd1ed4e310a6924a4fd99bbebbd0387b7fa4d73bcc67749a4",
+      "training_cell": "ping__tg12__seed44"
+    },
+    {
+      "epoch": 50,
+      "filename": "weights_final.pth",
+      "role": "final_epoch",
+      "sha256": "7620b5ce1658c6e4507f4f9c1d31bfe20a76056b5b7c1901214d168b10a4397a",
+      "training_cell": "ping__tg18__seed42"
+    },
+    {
+      "epoch": 50,
+      "filename": "weights_final.pth",
+      "role": "final_epoch",
+      "sha256": "53fe74ef7a0078c3366e62510e34f60a4f536c150709df51c594dad6ac09bb22",
+      "training_cell": "ping__tg18__seed43"
+    },
+    {
+      "epoch": 50,
+      "filename": "weights_final.pth",
+      "role": "final_epoch",
+      "sha256": "8a618559c8b6ae3111669ec66ffc6b9b9b04eafa3197d1e7c61c6eab16a4080c",
+      "training_cell": "ping__tg18__seed44"
+    },
+    {
+      "epoch": 50,
+      "filename": "weights_final.pth",
+      "role": "final_epoch",
+      "sha256": "26c111f82b145c7280d605758c3dc94570cad4f5a5905372cef1dc44800f4297",
+      "training_cell": "ping__tg27__seed42"
+    },
+    {
+      "epoch": 50,
+      "filename": "weights_final.pth",
+      "role": "final_epoch",
+      "sha256": "7c319d3fbe1a4dc565eac8a9258c59aee04c60ba6611d59529729f58cd9011ff",
+      "training_cell": "ping__tg27__seed43"
+    },
+    {
+      "epoch": 50,
+      "filename": "weights_final.pth",
+      "role": "final_epoch",
+      "sha256": "88088408030a6ad5d2d56dc4ee2f77ab9c3c3dfcc56a9fb29196b46d30b9f113",
+      "training_cell": "ping__tg27__seed44"
+    },
+    {
+      "epoch": 50,
+      "filename": "weights_final.pth",
+      "role": "final_epoch",
+      "sha256": "0a5d7745912ac2b48c25d70d7cd87cb033d5ced620222ca3393ba30eaf6386ba",
+      "training_cell": "ping__tg4p5__seed42"
+    },
+    {
+      "epoch": 50,
+      "filename": "weights_final.pth",
+      "role": "final_epoch",
+      "sha256": "316a7dfa83bf76c9bf4c9dfd4182865c9211d00b5ba9c7d3f8af84d22dcac50d",
+      "training_cell": "ping__tg4p5__seed43"
+    },
+    {
+      "epoch": 50,
+      "filename": "weights_final.pth",
+      "role": "final_epoch",
+      "sha256": "6a30b7b87309d83e92df06c4d2815c4b8a14f9b7283781dfc456dad926cdd7ac",
+      "training_cell": "ping__tg4p5__seed44"
+    },
+    {
+      "epoch": 50,
+      "filename": "weights_final.pth",
+      "role": "final_epoch",
+      "sha256": "34a94d90e652059ef754a214670d2fe642af504a6fcc01380d33bd22854278c6",
+      "training_cell": "ping__tg6__seed42"
+    },
+    {
+      "epoch": 50,
+      "filename": "weights_final.pth",
+      "role": "final_epoch",
+      "sha256": "7d1a390ab8bd3c969b07dba6fa198b88cf875fa16912ad2d85d24179a2387196",
+      "training_cell": "ping__tg6__seed43"
+    },
+    {
+      "epoch": 50,
+      "filename": "weights_final.pth",
+      "role": "final_epoch",
+      "sha256": "81df5593d2957331be933cb8dc4d6975f1b29bc09dd74d68c63bf2037621773c",
+      "training_cell": "ping__tg6__seed44"
+    },
+    {
+      "epoch": 50,
+      "filename": "weights_final.pth",
+      "role": "final_epoch",
+      "sha256": "50f10a1abca5094f59681feaf9f7d8d03cf8aae4f8996dc688406311371caed9",
+      "training_cell": "ping__tg9__seed42"
+    },
+    {
+      "epoch": 50,
+      "filename": "weights_final.pth",
+      "role": "final_epoch",
+      "sha256": "03bdde633a716714a9c6946d9e5cc88f9d52107b623556aca71dedf017a8dbe7",
+      "training_cell": "ping__tg9__seed43"
+    },
+    {
+      "epoch": 50,
+      "filename": "weights_final.pth",
+      "role": "final_epoch",
+      "sha256": "3eb2b8968a34d5484cb2e88ce873abc6ff66757d46097e6ff30ab066801e6e12",
+      "training_cell": "ping__tg9__seed44"
+    },
+    {
+      "epoch": 50,
+      "filename": "weights_final.pth",
+      "role": "final_epoch",
+      "sha256": "2bd7873597caf2c42ee52375a9465aa6fca26c5dc82bb41c675f447ab38e3262",
+      "training_cell": "ping__variable_rate__seed42"
+    },
+    {
+      "epoch": 50,
+      "filename": "weights_final.pth",
+      "role": "final_epoch",
+      "sha256": "7b5979d01426bff1b70d3836a456eddfc605bae115114c3d77a3c5f81154944e",
+      "training_cell": "ping__variable_rate__seed43"
+    },
+    {
+      "epoch": 50,
+      "filename": "weights_final.pth",
+      "role": "final_epoch",
+      "sha256": "2787330d0b0aa9ebcc54dfc07158d62513a414502256144139b8ed4d9f6de3bf",
+      "training_cell": "ping__variable_rate__seed44"
+    },
+    {
+      "epoch": 50,
+      "filename": "weights_final.pth",
+      "role": "final_epoch",
+      "sha256": "98bbe936132408be1b86e609fc08faa6ee1cc2a5feb0a6cb04caa62e08182f23",
+      "training_cell": "trainable_ping_init__seed42"
+    },
+    {
+      "epoch": 50,
+      "filename": "weights_final.pth",
+      "role": "final_epoch",
+      "sha256": "b7eb2a05d2cb43c966ecf922ede3bd9d622570eae19ef3bfb28d37339feea3e4",
+      "training_cell": "trainable_ping_init__seed43"
+    },
+    {
+      "epoch": 50,
+      "filename": "weights_final.pth",
+      "role": "final_epoch",
+      "sha256": "4a15feab4770c1ec197547bad29715cc2e06d20f15dfced3e00ba19a62dc5bc2",
+      "training_cell": "trainable_ping_init__seed44"
+    },
+    {
+      "epoch": 50,
+      "filename": "weights_final.pth",
+      "role": "final_epoch",
+      "sha256": "b1e5e8215f45432ed16a211d79ab6c2d5db496f5755ec26b83c2a8778e6db85e",
+      "training_cell": "trainable_small_init__seed42"
+    },
+    {
+      "epoch": 50,
+      "filename": "weights_final.pth",
+      "role": "final_epoch",
+      "sha256": "32e67b661c2d612c67fd851fa713df132bdbd23af2d3398ae7ed72ba487473bc",
+      "training_cell": "trainable_small_init__seed43"
+    },
+    {
+      "epoch": 50,
+      "filename": "weights_final.pth",
+      "role": "final_epoch",
+      "sha256": "fbc936b87843ce902d7d3ebf6ce58345cc75004cf80b46eb008a54942772a445",
+      "training_cell": "trainable_small_init__seed44"
+    },
+    {
+      "epoch": 50,
+      "filename": "weights_final.pth",
+      "role": "final_epoch",
+      "sha256": "69a22dc744d425d34ce75efeb1aba3076935f564d1c7941b3bba4bb95064dd91",
+      "training_cell": "trainable_zero_init__seed42"
+    },
+    {
+      "epoch": 50,
+      "filename": "weights_final.pth",
+      "role": "final_epoch",
+      "sha256": "e056b6668ce4651fc8307a73e0670935081a65d4a817ac4ae2da169a1f1e5f55",
+      "training_cell": "trainable_zero_init__seed43"
+    },
+    {
+      "epoch": 50,
+      "filename": "weights_final.pth",
+      "role": "final_epoch",
+      "sha256": "8b3205174b0875dea947315733d4982c6f0fa363720b10c90434b1403f9c4b73",
+      "training_cell": "trainable_zero_init__seed44"
     }
-  ]
+  ],
+  "standard": {
+    "dataset": "mnist",
+    "dt_ms": 0.1,
+    "epochs": 50,
+    "max_samples_canonical": 60000,
+    "max_samples_sweeps": 7000,
+    "t_ms": 200.0
+  },
+  "training_root": {
+    "location": "external",
+    "path": "/rds/user/em586/hpc-work/campaigns/ggs-fr-repair-20260820-ac6f4988/exp022/cells"
+  },
+  "training_run_ids": {
+    "activity_frontier": "TR-02",
+    "canonical": "TR-01",
+    "dt": "TR-04",
+    "init": "TR-05",
+    "low_w_in": "TR-07",
+    "tau_gaba": "TR-03",
+    "variable_rate": "TR-06"
+  }
 }

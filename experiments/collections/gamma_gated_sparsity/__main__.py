@@ -10,8 +10,10 @@ from .execution import (
     aggregate_exp022,
     build_publication,
     campaign_status,
+    compose_campaign,
     finalize_campaign,
     initialize_campaign,
+    integrate_repair,
     run_experiment,
     run_experiment_shard,
     run_local,
@@ -50,6 +52,12 @@ def parser() -> argparse.ArgumentParser:
     shard.add_argument("--slug", required=True)
     shard.add_argument("--index", type=int, required=True)
     shard.add_argument("--count", type=int, required=True)
+    repair = commands.add_parser(
+        "integrate-repair", help="register one repaired downstream result"
+    )
+    repair.add_argument("--campaign-root", type=Path, required=True)
+    repair.add_argument("--repair-root", type=Path, required=True)
+    repair.add_argument("--slug", required=True)
     status = commands.add_parser("status", help="report validated campaign state")
     status.add_argument("--campaign-root", type=Path, required=True)
     status.add_argument("--json", action="store_true")
@@ -64,6 +72,14 @@ def parser() -> argparse.ArgumentParser:
     )
     build.add_argument("--campaign-root", type=Path, required=True)
     build.add_argument("--checkout", type=Path, required=True)
+    compose = commands.add_parser(
+        "compose", help="compose a complete campaign from base and repair outputs"
+    )
+    compose.add_argument("--campaign-root", type=Path, required=True)
+    compose.add_argument("--campaign-id", required=True)
+    compose.add_argument("--base-root", type=Path, required=True)
+    compose.add_argument("--overlay-root", type=Path, required=True)
+    compose.add_argument("--replace", action="append", required=True)
     submit = commands.add_parser(
         "submit", help="plan or submit the production campaign to Slurm"
     )
@@ -111,6 +127,15 @@ def main(argv: list[str] | None = None) -> None:
     if args.command == "run-experiment-shard":
         run_experiment_shard(args.campaign_root, args.slug, args.index, args.count)
         return
+    if args.command == "integrate-repair":
+        print(
+            json.dumps(
+                integrate_repair(args.campaign_root, args.repair_root, args.slug),
+                indent=2,
+                sort_keys=True,
+            )
+        )
+        return
     if args.command == "finalize":
         print(
             json.dumps(finalize_campaign(args.campaign_root), indent=2, sort_keys=True)
@@ -120,6 +145,21 @@ def main(argv: list[str] | None = None) -> None:
         print(
             json.dumps(
                 build_publication(args.campaign_root, args.checkout),
+                indent=2,
+                sort_keys=True,
+            )
+        )
+        return
+    if args.command == "compose":
+        print(
+            json.dumps(
+                compose_campaign(
+                    args.campaign_root,
+                    args.campaign_id,
+                    base_root=args.base_root,
+                    overlay_root=args.overlay_root,
+                    replacements=args.replace,
+                ),
                 indent=2,
                 sort_keys=True,
             )

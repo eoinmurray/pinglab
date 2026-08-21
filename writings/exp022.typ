@@ -141,7 +141,7 @@
     [Architectures], [COBA and PING], [Direct architecture comparison],
     [Training pool], [7,000 official training samples], [6,300 optimizer-training and 700 validation samples],
     [Hidden-E rate target $r_"max"$], [off, 25, 10, 5, 2.5, 1 Hz], [Spans unconstrained through severe sparsity],
-    [Penalty strength], [$10^(-3)$ when enabled], [Applies the upper-rate regularizer],
+    [Penalty strength], [$0.041$ when enabled], [Calibrated for the sample-wise, population-normalized Hz objective],
     [Cells], [2 × 6 settings × 3 seeds = 36], [Error bars at every frontier point],
     [Readout shape], [$1024 arrow 10$ spiking LIF outputs], [`mem-mean`: mean membrane voltage supplies the logits],
   )

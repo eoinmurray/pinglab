@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import hashlib
+import json
+import re
 import shutil
 import tempfile
 from datetime import datetime, timezone
@@ -20,6 +22,7 @@ from .contract import (
 )
 
 FIGURE_SUFFIXES = frozenset({".pdf", ".png", ".svg"})
+GIT_COMMIT = re.compile(r"^[0-9a-f]{40}$")
 
 
 def _sha256(path: Path) -> str:
@@ -70,6 +73,46 @@ def _source_rows(run_root: Path, source: Path, inventory: dict) -> list[dict]:
     return rows
 
 
+def _composition_source(run_root: Path, experiment: str) -> dict | None:
+    path = run_root / "composition.json"
+    if not path.is_file():
+        return None
+    document = load_json(path)
+    if document.get("run_id") != load_json(run_root / "run.json").get("run_id"):
+        raise ContractError("composition ledger belongs to another run")
+    row = document.get("experiments", {}).get(experiment)
+    if not isinstance(row, dict):
+        raise ContractError(f"composition ledger is missing {experiment}")
+    return row
+
+
+def _generating_git_commit(
+    run: dict, source: Path, run_root: Path | None = None
+) -> str:
+    """Prefer experiment-level campaign provenance for repaired outputs."""
+    if run_root is not None:
+        composition = _composition_source(run_root, source.name)
+        if composition is not None:
+            commit = composition.get("source_git_commit")
+            if not isinstance(commit, str) or not GIT_COMMIT.fullmatch(commit):
+                raise ContractError(
+                    f"composition source commit is invalid: {source.name}"
+                )
+            return commit
+    numbers = source / "numbers.json"
+    try:
+        document = json.loads(numbers.read_text())
+    except (OSError, json.JSONDecodeError):
+        return run["source"]["git_commit"]
+    provenance = document.get("collection_provenance")
+    if run.get("kind") != "campaign" or not isinstance(provenance, dict):
+        return run["source"]["git_commit"]
+    commit = provenance.get("source_git_commit")
+    if provenance.get("campaign_id") != run["run_id"] or not isinstance(commit, str):
+        return run["source"]["git_commit"]
+    return commit if GIT_COMMIT.fullmatch(commit) else run["source"]["git_commit"]
+
+
 def promote_experiment(
     run_root: Path,
     experiment: str,
@@ -112,7 +155,8 @@ def promote_experiment(
         "contract_version": CONTRACT_VERSION,
         "run_id": run["run_id"],
         "campaign_id": run["run_id"] if run["kind"] in {"campaign", "legacy"} else None,
-        "generating_git_commit": run["source"]["git_commit"],
+        "generating_git_commit": _generating_git_commit(run, source, run_root),
+        "campaign_source_git_commit": run["source"]["git_commit"],
         "executor": run["execution"].get("executor", "legacy"),
         "graph_digest": run["execution"].get("graph_digest"),
         "training_digest": run["execution"].get("training_digest"),
@@ -122,6 +166,9 @@ def promote_experiment(
         "promoted_at_utc": timestamp,
         "files": rows,
     }
+    composition = _composition_source(run_root, experiment)
+    if composition is not None:
+        provenance["composition_source"] = composition
 
     artifacts_root = artifacts_root.resolve()
     artifacts_root.mkdir(parents=True, exist_ok=True)
