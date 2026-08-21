@@ -376,6 +376,16 @@ def test_compose_campaign_replaces_selected_outputs_and_records_sources(
     assert composition["experiments"]["exp025"]["run_id"] == "repair-run"
     assert composition["experiments"]["exp037"]["run_id"] == "base-run"
 
+    composite_plan = execution.load_json(destination / execution.PLAN_NAME)
+    rows = {row["slug"]: row for row in execution.rows_in_order(composite_plan)}
+    assert execution._outputs_valid_for_plan(composite_plan, rows["exp025"])
+    assert execution._outputs_valid_for_plan(composite_plan, rows["exp037"])
+
+    (destination / "derived/artifacts/data/exp025/figure.svg").write_text(
+        "<svg><text>tampered</text></svg>\n"
+    )
+    assert not execution._outputs_valid_for_plan(composite_plan, rows["exp025"])
+
 
 def test_integrate_repair_preserves_base_and_records_repaired_source(
     tmp_path: Path, monkeypatch

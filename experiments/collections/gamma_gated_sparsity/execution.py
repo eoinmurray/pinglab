@@ -420,6 +420,21 @@ def _outputs_valid_for_plan(plan: dict[str, Any], row: dict[str, Any]) -> bool:
         return False
     try:
         document = load_json(Path(row["required_outputs"][0]))
+        if plan.get("composition"):
+            composition = load_json(Path(plan["campaign_root"]) / "composition.json")
+            source = composition.get("experiments", {}).get(row["slug"])
+            provenance = document.get("collection_provenance")
+            output_root = Path(plan["campaign_root"]) / "derived/artifacts/data" / row["slug"]
+            if not isinstance(source, dict) or not isinstance(provenance, dict):
+                return False
+            snapshot = _directory_snapshot(output_root)
+            return (
+                provenance.get("campaign_id") == source.get("run_id")
+                and provenance.get("source_git_commit")
+                == source.get("source_git_commit")
+                and snapshot["file_count"] == source.get("file_count")
+                and snapshot["payload_digest"] == source.get("payload_digest")
+            )
         return document.get("collection_provenance") == _collection_provenance(
             plan, row
         )
