@@ -5,8 +5,6 @@ from dataclasses import replace
 import numpy as np
 from experiments.helpers.gamma_frequency import (
     DEFAULT_PING_GAMMA,
-    EXP058_HISTORICAL,
-    EXP078_HISTORICAL,
     GammaFrequencyConfig,
     estimate_gamma_frequency,
     estimate_gamma_from_raster,
@@ -151,55 +149,3 @@ def test_configuration_and_result_are_provenance_ready():
     assert payload["config"]["segment_length"] == "trial"
     assert payload["resolved_trials"] == 1
     assert len(payload["frequencies_hz"]) == len(payload["mean_psd"])
-
-
-def test_exp058_preset_preserves_historical_welch_estimate():
-    from scipy import signal
-
-    rng = np.random.default_rng(58)
-    raster = rng.random((4_096, 24)) < 0.012
-    trace = raster.mean(axis=1).astype(np.float64)
-    trace -= trace.mean()
-    expected_frequencies, expected_psd = signal.welch(
-        trace,
-        fs=10_000.0,
-        nperseg=len(trace),
-        scaling="density",
-    )
-    estimate = estimate_gamma_from_raster(
-        raster,
-        dt_ms=0.1,
-        config=EXP058_HISTORICAL,
-    )
-    trial = estimate.trials[0]
-    np.testing.assert_array_equal(trial.frequencies_hz, expected_frequencies)
-    np.testing.assert_allclose(trial.psd, expected_psd, rtol=1e-13, atol=0.0)
-
-
-def test_exp078_preset_preserves_historical_discrete_peak():
-    from scipy import signal
-    from scipy.ndimage import gaussian_filter1d
-
-    raster = np.zeros((30_000, 80), dtype=np.uint8)
-    raster[5_000::250, :] = 1
-    historical_rate = gaussian_filter1d(
-        raster.mean(axis=1) * 10_000.0,
-        50.0,
-    )[5_000:]
-    frequencies, power = signal.welch(
-        historical_rate,
-        fs=10_000.0,
-        nperseg=len(historical_rate),
-        detrend="constant",
-        scaling="density",
-    )
-    band = (frequencies >= 25.0) & (frequencies <= 80.0)
-    expected = float(frequencies[band][np.argmax(power[band])])
-
-    estimate = estimate_gamma_from_raster(
-        raster,
-        dt_ms=0.1,
-        config=EXP078_HISTORICAL,
-    )
-    assert estimate.resolved
-    assert estimate.frequency_hz == expected

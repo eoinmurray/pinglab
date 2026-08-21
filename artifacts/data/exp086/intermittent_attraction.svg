@@ -1,0 +1,55 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="875" viewBox="0 0 1200 875" role="img" aria-labelledby="title desc">
+  <title id="title">Expected intermittent-attraction signature</title>
+  <desc id="desc">A qualitative two-by-two schematic matching the measured intermittent-attraction figure. It shows relative-phase position and velocity through time, mean velocity by phase position, and the phase-position distribution.</desc>
+  <rect width="1200" height="875" fill="#ffffff"/>
+  <style>
+    text { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; fill: #1a1a1a; }
+    .title { font-size: 21px; font-weight: 700; }
+    .note { font-size: 13px; fill: #555; }
+    .head { font-size: 16px; font-weight: 700; }
+    .label { font-size: 14px; }
+    .tick { font-size: 12px; }
+    .axis { stroke: #1a1a1a; stroke-width: 1.6; fill: none; }
+    .zero { stroke: #a0a0a0; stroke-width: 1; stroke-dasharray: 5 4; }
+    .phase { stroke: #1a1a1a; stroke-width: 2.5; fill: none; }
+    .velocity { stroke: #c8102e; stroke-width: 2.5; fill: none; }
+    .velocity-dot { fill: #c8102e; }
+    .density { stroke: #00b4d8; stroke-width: 2.5; fill: #00b4d8; fill-opacity: 0.18; }
+  </style>
+
+  <text x="600" y="34" text-anchor="middle" class="title">Expected intermittent-attraction signature</text>
+  <text x="1140" y="34" text-anchor="end" class="note">qualitative schematic</text>
+
+  <!-- Panel A. -->
+  <text x="330" y="82" text-anchor="middle" class="head">A  Relative-phase position through time</text>
+  <path d="M82 112V365H578" class="axis"/>
+  <text x="32" y="238" transform="rotate(-90 32 238)" text-anchor="middle" class="label">position (rad)</text>
+  <text x="330" y="400" text-anchor="middle" class="label">time in displayed window (ms)</text>
+  <g class="tick" text-anchor="end"><text x="71" y="121">π</text><text x="71" y="242">0</text><text x="71" y="365">−π</text></g>
+  <path d="M92 352L132 300C150 272 172 235 200 216C230 195 258 204 286 194C312 184 335 155 355 114M355 114V353L395 300C413 272 435 235 463 216C493 195 521 204 549 194C560 188 570 174 574 162" class="phase"/>
+
+  <!-- Panel B. -->
+  <text x="900" y="82" text-anchor="middle" class="head">B  Relative-phase velocity through time</text>
+  <path d="M652 112V365H1148" class="axis"/>
+  <text x="602" y="238" transform="rotate(-90 602 238)" text-anchor="middle" class="label">velocity (rad/s)</text>
+  <text x="900" y="400" text-anchor="middle" class="label">time in displayed window (ms)</text>
+  <path d="M662 145C705 149 738 176 768 252C784 293 802 298 821 259C846 205 875 161 910 146C953 149 986 176 1016 252C1032 293 1050 298 1069 259C1094 205 1122 162 1138 151" class="velocity"/>
+
+  <!-- Panel C. -->
+  <text x="330" y="486" text-anchor="middle" class="head">C  Velocity depends on phase position</text>
+  <path d="M82 516V769H578" class="axis"/>
+  <path d="M82 744H578" class="zero"/>
+  <text x="32" y="642" transform="rotate(-90 32 642)" text-anchor="middle" class="label">mean velocity (rad/s)</text>
+  <text x="330" y="830" text-anchor="middle" class="label">relative-phase position (rad)</text>
+  <g class="tick" text-anchor="middle"><text x="82" y="798">−π</text><text x="330" y="798">0</text><text x="578" y="798">π</text></g>
+  <path d="M92 558C148 565 204 589 258 656C286 691 311 713 332 708C365 700 396 644 434 598C483 543 536 548 568 554" class="velocity"/>
+  <g class="velocity-dot"><circle cx="92" cy="558" r="3"/><circle cx="172" cy="573" r="3"/><circle cx="252" cy="649" r="3"/><circle cx="332" cy="708" r="3"/><circle cx="414" cy="621" r="3"/><circle cx="492" cy="548" r="3"/><circle cx="568" cy="554" r="3"/></g>
+
+  <!-- Panel D. -->
+  <text x="900" y="486" text-anchor="middle" class="head">D  Phase-position distribution</text>
+  <path d="M652 516V769H1148" class="axis"/>
+  <text x="602" y="642" transform="rotate(-90 602 642)" text-anchor="middle" class="label">density</text>
+  <text x="900" y="830" text-anchor="middle" class="label">relative-phase position (rad)</text>
+  <g class="tick" text-anchor="middle"><text x="652" y="798">−π</text><text x="900" y="798">0</text><text x="1148" y="798">π</text></g>
+  <path d="M662 755C727 752 788 741 834 695C858 670 873 584 900 548C927 584 942 670 966 695C1012 741 1073 752 1138 755L1138 769H662Z" class="density"/>
+</svg>
