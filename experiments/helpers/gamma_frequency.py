@@ -137,26 +137,6 @@ class GammaFrequencyEstimate:
 
 DEFAULT_PING_GAMMA = GammaFrequencyConfig(name="default-ping-gamma-v1")
 
-EXP058_HISTORICAL = GammaFrequencyConfig(
-    name="exp058-historical-v1",
-    band_hz=(5.0, 150.0),
-    detrend="constant",
-    min_events=1,
-    min_prominence_ratio=None,
-    reject_band_edges=False,
-)
-
-EXP078_HISTORICAL = GammaFrequencyConfig(
-    name="exp078-historical-v1",
-    band_hz=(25.0, 80.0),
-    burn_ms=500.0,
-    smooth_sigma_ms=5.0,
-    min_events=0,
-    min_prominence_ratio=1.25,
-    reject_band_edges=False,
-    interpolate=False,
-)
-
 
 def _empty_peak(
     reason: str,
