@@ -808,7 +808,6 @@ def plot_phase_response(
     )
     i_rows = phase_response["responses"]["I"]
     i_phase = np.asarray([row["pulse_phase_fraction"] for row in i_rows])
-    i_shift = np.asarray([row["next_volley_shift_ms"] for row in i_rows])
     doublet = np.asarray([row["i_volleys_before_next_e"] == 2 for row in i_rows])
     doublet_indices = np.flatnonzero(doublet)
     first = int(doublet_indices[0])
