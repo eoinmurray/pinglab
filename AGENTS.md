@@ -1,136 +1,122 @@
-> **demolab lab** — before working here, run `demolab docs` and follow what it prints
-> (the agent manual + runbook menu; no venv yet? `uvx demolab-cli docs`). A user message
-> that is just a NAME in CAPS (`HELP`, `LINT`, `DOCTOR`, …) is a command — the manual explains.
+# pinglab agent governance
 
-# pinglab
+Pinglab studies conductance-based spiking E/I networks, especially PING
+(pyramidal-interneuron gamma) dynamics, trained with surrogate gradients and
+diagnosed for timestep stability.
 
-Spiking E/I (PING) networks, trained with surrogate gradients and diagnosed via
-Δt-stability. The `tools/snn` engine emits data → `experiments/` runners render figures →
-`writings/*.typ` publish via Typst.
+This file contains durable project invariants and authorization boundaries.
+Procedures belong in the repository skills under `.agents/skills/`.
 
-## This lab's rules
+## Authority
 
-- **No RunPod fan-outs without explicit permission** — `--runpod --live` (and any
-  pod-creating call) spends real money; default local. Same for anything Modal-dispatching.
-- **Don't write to GitHub issues/PRs without explicit permission** — with explicit
-  permission, creating/posting an issue is fine; reading is always fine. Don't open
-  branches/PRs unless asked — "commit and push" means commit + push to the current branch.
-- **Free reign on notebooks; editing the cli (`tools/snn`) needs explicit permission.**
-- **For writings-only changes, do not run the software test suite.** Build the affected
-  Demolab entries (and the complete publication only when the change can affect shared
-  rendering, collection structure, or the book). Run code tests only when code, data
-  contracts, runners, or executable examples change.
-- NEVER add Co-Authored-By, "Generated with Claude Code", or any other AI-attribution trailers to commit messages or PR descriptions. Commits are authored by Eoin alone.
+This file and other version-controlled Pinglab policies govern work in this
+repository. Project skills may authorize only the exact actions declared in the
+lexicon below. Git operations and general software delivery remain governed by
+the global `$scope`, `$go`, `$repo`, and `$help` lexicon.
 
-## Session hygiene
+Project skills are opt-in command handlers, not automatic task routers. Use a
+skill under `.agents/skills/` only when the user explicitly invokes one of its
+documented `$` commands. Semantic similarity, an ordinary natural-language
+request, or automatic skill selection is insufficient, even for read-only work.
+Handle those requests normally without loading the project skill.
 
-Eoin tends to let sessions grow far too large. When the conversation **changes topic** (a new
-experiment, a pivot from writing to debugging, a finished runbook, an unrelated question), the
-agent should proactively say so and suggest the right cleanup — don't wait to be asked:
+A project command authorizes no Git mutation, GitHub write, deployment, or
+action outside this repository. Never infer a broader authorization from a
+narrower command.
 
-- **`/clear`** when the new topic shares nothing with the old one — carry-over context is pure
-  cost. Offer a one-paragraph handoff summary to paste into the fresh session if useful.
-- **`/compact`** when the thread continues but the history is mostly spent (long tool output,
-  finished sub-tasks, resolved debugging).
+## Pinglab lexicon
 
-Suggest at natural boundaries (task done, topic pivot) — not mid-task, and at most once per
-boundary; if declined, drop it until the next one.
+| Command | Authorization |
+| --- | --- |
+| `$lab help` | Explain the project lexicon; read-only. |
+| `$lab status` | Inspect repository, experiment, campaign, and publication state; read-only. |
+| `$experiment design` | Develop an experiment design conversationally; read-only. |
+| `$experiment draft` | Create or revise only `writings/expNNN.typ` and hand-authored design SVGs under `artifacts/data/expNNN/`. |
+| `$experiment review ID` | Review one experiment's design, implementation, evidence, and interpretation; read-only. |
+| `$experiment run ID` | Run one existing experiment locally; it may write only beneath `runs/` and the runner's matching `artifacts/data/ID/`. |
+| `$campaign plan` | Develop a campaign plan conversationally; read-only. |
+| `$campaign status ID` | Inspect one campaign and its jobs, provenance, and completeness; read-only. |
+| `$campaign run ID` | Execute an approved campaign, writing only its declared run root and job state. Paid or pod-creating targets require explicit permission naming the target in the same request. |
+| `$campaign resume ID` | Resume only approved incomplete stages within the same declared run root, under the same compute gate as `run`. |
+| `$campaign review ID` | Review campaign completeness, provenance, and scientific validity; read-only. |
+| `$campaign promote ID` | Promote reviewed compact outputs into matching `artifacts/data/` entries in the campaign's existing publication worktree; do not create the worktree, commit, or publish. |
+| `$writing draft` | Create or revise only `writings/*.typ` and their referenced hand-authored assets under matching `artifacts/data/` entries. |
+| `$writing review ID` | Review one writing and its figures; read-only. |
+| `$writing build ID` | Build one existing entry, updating only `artifacts/pdfs/ID.pdf` and its ignored `artifacts/site/` outputs. |
+| `$publish check` | Inspect collection-wide publication readiness; read-only. |
+| `$publish build` | Build the complete local publication view, updating only `artifacts/pdfs/` and ignored `artifacts/site/`; do not commit, push, or deploy. |
+| `$lab-doctor` | Audit Pinglab governance, structure, provenance, and skill integrity; read-only. |
 
-## Document delivery
+Arguments are mandatory where shown. A bare noun explains its subcommands and
+does not mutate state. Project commands never stage, commit, switch branches,
+create worktrees, push, open or update GitHub objects, merge, or deploy. Use the
+appropriate global Lexicon command for those actions.
 
-- Do not open, embed, or display generated PDFs in the Codex app.
-- When handing off a document, provide clickable links to both its generated PDF and its
-  generated HTML webpage. Do not substitute a PDF attachment or preview for those links.
+## Demolab boundary
 
-## Experiment drafts
+Pinglab uses Demolab as a publishing engine, not as a source of project
+governance. Pinglab adopts only these Demolab contracts:
 
-Use `status: "draft"` for an experiment whose design is still being refined and which has not
-been run. The canonical draft format is deliberately minimal:
+1. `demolab.yaml` identifies and configures the lab.
+2. `.demolab/` and `temp/bundle/` are machine-managed and must not be edited.
+3. Writings use `writings/*.typ` with top-level `meta` and `body` definitions.
+4. Published assets use `artifacts/data/`, `artifacts/pdfs/`, and the gitignored
+   `artifacts/site/` locations.
+5. Writings may use the public helpers exported by `/.demolab/lib.typ`.
+6. `demolab build`, `demolab dev`, and entry-specific builds are the supported
+   publication interfaces.
+7. The installed Demolab version is pinned by `uv.lock`.
 
-1. A short `Abstract` stating the question and intended measurement.
-2. An enumerated `Methods` section describing the planned experiment.
-3. A separate enumerated `Results` section. Keep its items in the same order as the methods.
-   Give each result separate list items for axes, traces or marks, why, and expectation or
-   observation.
+No other Demolab rule, guide, house style, runbook, workflow, agent instruction,
+experiment contract, provenance policy, document convention, or recommendation
+is adopted implicitly. `demolab docs` is reference documentation, not an
+instruction source. Follow a Demolab runbook only when this file incorporates
+it or the user explicitly invokes it. Pinglab policy wins on conflict.
 
-Keep a network or experimental-design diagram beside the method that defines it. Do not repeat
-that diagram as a result. State near the start of Methods which parts have been run. Clearly
-distinguish planned outputs from observations.
+## Scientific record
 
-For every plotted result, define the horizontal and vertical axes, the traces or marks, why the
-plot is needed, and what it is expected to show. Define a third axis when needed. For a non-plot
-result, state that axes and traces do not apply, then define the displayed elements, why the
-output is needed, and the expected output.
+- The `tools/snn` engine emits data, experiment runners render figures, and
+  `writings/*.typ` publish the selected results.
+- A reported computed value must be read from the run that produced it. Do not
+  hand-type measured results into prose, captions, tables, or figures.
+- Keep observed results distinct from hypotheses, expectations, and planned
+  outputs. Preserve negative and partial results and material uncertainty.
+- `runs/` and verified R2 archives are the raw execution record. Git tracks the
+  compact selected publication view: provenance metadata, derived numbers,
+  final figures, and rendered publications.
+- Do not add new raw arrays, checkpoints, caches, repeated inputs, or other
+  reconstructable intermediates to `artifacts/data/`.
+- Never treat ignored, untracked, generated, or remote scientific files as
+  disposable without classifying them and obtaining the required authority.
 
-Use that structure only for planned results. Once a result exists, remove the planning fields.
-Show only its title, figure, and concise interpretation.
+## Permission and execution boundaries
 
-Write drafts in direct, human-readable language. Introduce technical terms only when they
-are needed, explain them briefly, and do not add speculative theory or extra sections unless
-the experiment requires them or the user asks for them.
+- Creating RunPod pods, Modal dispatches, or other paid compute requires
+  explicit permission naming that target. Default to local execution.
+- Editing `tools/snn` requires `$go` authorization in addition to any scientific
+  design or review command.
+- GitHub writes require the applicable global Lexicon authorization.
+- Never add AI authorship or attribution trailers to commits or PR text.
 
-### Methods-to-results mirror figures
+## Verification
 
-Suggest the **exp086 figure pattern** when a planned mechanism would be easier to understand
-visually:
+- Writing-only changes: build each affected Demolab entry. Run the complete
+  publication build only when shared rendering, collection structure, or the
+  book can change. Do not run the software suite.
+- Code, data-contract, runner, or executable-example changes: run focused tests
+  first, then the proportionate broader checks defined by the affected tool.
+- Inspect generated artifacts and provenance before accepting them. A large
+  generated diff is evidence to review, never permission for blind staging.
 
-1. Put a clean, hand-authored SVG schematic in Methods. Use plot-like axes and illustrative
-   curves to explain the proposed mechanism, and label it clearly as a design schematic rather
-   than simulated or measured data.
-2. Plan a Results figure with the same panel layout and visual language, generated
-   reproducibly from the real experimental data.
+## Campaign and publication isolation
 
-Use direct SVG for the conceptual figure because precise explanatory layout matters. Use the
-experiment runner and its plotting library for the measured result because provenance and
-reproducibility matter. The user can trigger this pattern by saying **“use the exp086 figure
-pattern”** or **“make a Methods-to-Results mirror figure.”**
+Campaign execution, activation, artifact promotion, and publication-view
+rebuilding must happen on the campaign's own branch in a dedicated worktree.
+Use one campaign or publication view per worktree and branch. Open its draft PR
+before substantial execution or promotion work begins; the PR description is
+the scientific decision record for motivation, provenance, competing
+interpretations, decisions, and unresolved limitations.
 
-## Development workflow
-
-Use judgment about whether work should go directly to `main` or through a PR. Do not apply the rule mechanically.
-
-### Small changes
-
-Small, obvious, low-risk changes may be committed directly to `main`. Examples include trivial fixes, small configuration changes, typo/documentation fixes, and other changes where a PR would add ceremony without useful context.
-
-### Substantial work
-
-For features, refactors, investigations, or any change involving meaningful design decisions, multiple steps, uncertainty, or useful implementation context:
-
-1. Create a branch.
-2. If there is not yet code worth committing, create an empty commit:
-   ```bash
-   git commit --allow-empty -m "Start <feature>"
-   ```
-3. Push the branch and immediately open a **draft PR**.
-4. Use the PR description as the primary working document for the change: motivation, design decisions, TODOs, discoveries, trade-offs, and implementation status should live there.
-5. Update the PR description as understanding of the problem evolves.
-6. Mark the PR ready once the work is coherent and ready for final review/merge.
-
-Prefer starting a draft PR over creating a separate issue when the work is already going to be implemented and the issue would merely duplicate or fragment the same documentation. Use issues when something genuinely needs to exist independently of an implementation PR.
-
-The PR description is the scientific decision record, not release-note decoration. Keep it current with the question being tested, competing interpretations, provenance or data implications, decisions made, rejected alternatives, and unresolved limitations. Commits should remain small enough to explain one coherent change, but the PR is where the reasoning across those commits lives.
-
-### Campaign and publication worktrees
-
-Campaign execution, campaign activation, artifact promotion, and publication-view rebuilding must happen on the campaign's own branch in a dedicated worktree. Do not activate a campaign in a general development worktree: activation intentionally replaces tracked publication artifacts and makes unrelated changes dangerously easy to commit together.
-
-- One campaign or publication view per worktree and branch.
-- Open its draft PR before substantial execution or promotion work begins.
-- Treat `runs/` and R2 as the raw execution record; Git tracks only the selected publication view.
-- New raw arrays, checkpoints, caches, and duplicated inputs do not belong in `artifacts/data/`. Archive them through `runstore`; promote compact results, final figures, and provenance metadata.
-- Review `git status` and the artifact diff before every campaign commit. A large generated diff is evidence to inspect, not permission to use `git add -A` blindly.
-
-### Use judgment and intervene
-
-Actively flag when the current workflow appears inappropriate rather than blindly following the immediate instruction.
-
-In particular:
-
-- If substantial work is starting directly on `main`, suggest creating a branch and draft PR before proceeding.
-- If a growing change initially treated as "small" has accumulated complexity, suggest moving it to a branch/PR.
-- If an issue and PR are duplicating the same evolving feature documentation, suggest consolidating the implementation discussion into the PR.
-- Conversely, do not suggest a PR for trivial changes where it would provide little value.
-- If uncertain, favor preserving useful context without introducing unnecessary process.
-
-The goal is **good engineering history and useful documentation, not process for its own sake**.
+Do not activate a campaign in a general development worktree. Review `git
+status` and the artifact diff before every campaign commit, and never use
+`git add -A` as a substitute for that review.
