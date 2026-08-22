@@ -147,8 +147,35 @@
   #figure([
     #image("/artifacts/data/exp094/p_sigmoid.svg", width: 100%, alt: "Illustrative cumulative counts becoming independent sigmoid scores that rise together.")
     #v(6pt)
-    #image("/artifacts/data/exp094/measured_p_sigmoid.svg", width: 82%, alt: "Measured independent sigmoid scores from the same cumulative counts.")
+    #image("/artifacts/data/exp094/measured_p_sigmoid.svg", width: 100%, alt: "Measured independent sigmoid scores from the same cumulative counts.")
   ], caption: [Independent sigmoid applied to cumulative spike counts. It retains the same $z$ used by both softmax variants and reveals what is lost when classes no longer compete.])
 
   Because every cumulative count grows, all ten sigmoid scores saturate near one almost immediately. The mapping preserves neither useful relative separation nor a meaningful class decision; its failure follows from applying an independent bounded transform to non-negative accumulating counts.
+
+  == Screening check across 100 images
+
+  The single digit above suggests that PING exposes class information through spikes more robustly than COBA, but one example cannot establish that pattern. A fast screening run therefore selected the first ten official-test images from each MNIST class without inspecting their outcomes. The same fixed Poisson encoding was presented to both frozen networks. Inputs were processed in batches, and every alternative decoder reused its recorded activity. This 100-image convenience sample completed locally in under one minute. It is a check on whether the observation immediately collapses, not an estimate of test-set accuracy.
+
+  #figure(
+    image("/artifacts/data/exp094/screen_accuracy.svg", width: 100%, alt: "Accuracy matrix for eight decoder options across a balanced 100-image COBA and PING screening sample."),
+    caption: [Decoder transfer screen. Each cell gives accuracy and, below it, the change from that network's native mean-voltage decoder. The divider separates temporal evidence choices from mappings of the shared cumulative-count evidence.],
+  )
+
+  The contrast survives the screen. COBA's native decoder classifies all 100 images correctly, but its spike-based evidence rules retain only 10--18%. PING's native decoder reaches 96%; cumulative count retains 88%, leaky count 85%, cycle voting 82%, and the 25 ms window 72%. This does not show that PING is decoder-independent. It shows that its spike events preserve substantially more of the trained decision than COBA's counterfactual output spikes do.
+
+  Ordinary and softened softmax exactly match cumulative-count accuracy because both preserve its winning class. Independent sigmoid falls to 10% for both networks: the accumulating non-negative counts saturate together, and numerical ties default to class zero. Its apparent winner is therefore not a meaningful decoded decision.
+
+  #figure(
+    image("/artifacts/data/exp094/screen_transitions.svg", width: 100%, alt: "Stacked transition counts showing which native decisions each alternative decoder preserves, breaks, or repairs."),
+    caption: [Decision transitions relative to native decoding. Green is preserved correctness; red is a native correct decision broken by the alternative. Yellow denotes a repair and grey a prediction that remains wrong.],
+  )
+
+  COBA's alternatives break 82--90 decisions that its native decoder gets right. PING loses 8 decisions under cumulative count, 11 under leaky count, 24 under the finite window, and 15 under cycle voting. Cycle voting also repairs one of PING's four native errors. The distinction is therefore not merely a shift in aggregate accuracy: it is a large difference in how often changing the decoder destroys an already correct decision.
+
+  #figure(
+    image("/artifacts/data/exp094/screen_classes.svg", width: 100%, alt: "Per-digit accuracy changes from native decoding for COBA and PING across all decoder options."),
+    caption: [Class-specific change from native accuracy, in percentage points. The screen is balanced at ten images per digit, so each image changes its class cell by ten points.],
+  )
+
+  COBA's loss spans almost every digit rather than reproducing only the original class-4 failure. Its spike decoders disproportionately return class zero, explaining why digit zero is the lone robust row. PING's losses are smaller and distributed across classes, with cumulative decoding weakest here for digits five and six. A full test-set, multi-seed evaluation is still required before treating decoder robustness as an architectural property.
 ]

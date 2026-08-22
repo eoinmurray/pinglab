@@ -66,3 +66,33 @@ def test_pre_reset_voltage_uses_recorded_output_reset() -> None:
     beta = np.exp(-1.0)
     first = 1.0 - beta
     np.testing.assert_allclose(result[:, 0], [first, beta * (first - 1.0)])
+
+
+def test_balanced_screen_uses_equal_outcome_blind_class_counts() -> None:
+    labels = np.repeat(np.arange(10), 3)
+    indices = exp094.balanced_test_indices(labels, per_class=2)
+    np.testing.assert_array_equal(np.bincount(labels[indices]), np.full(10, 2))
+    np.testing.assert_array_equal(indices[:2], [0, 1])
+
+
+def test_screening_summary_tracks_native_decision_transitions() -> None:
+    labels = np.arange(10)
+    coba_native = np.array([0, 1, 9, 9, 4, 5, 6, 7, 8, 9])
+    ping_native = np.array([0, 9, 2, 9, 4, 5, 6, 7, 8, 9])
+    predictions = {
+        "coba": {
+            name: coba_native.copy() for name in exp094.DECODER_ORDER
+        },
+        "ping": {
+            name: ping_native.copy() for name in exp094.DECODER_ORDER
+        },
+    }
+    predictions["coba"]["cumulative"] = ping_native.copy()
+    summary = exp094.screening_summary(labels, predictions)
+    transitions = summary["models"]["coba"]["cumulative"]["transitions"]
+    assert transitions == {
+        "correct_to_correct": 7,
+        "correct_to_wrong": 1,
+        "wrong_to_correct": 1,
+        "wrong_to_wrong": 1,
+    }
