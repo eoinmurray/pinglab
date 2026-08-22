@@ -241,6 +241,50 @@ def test_output_activity_summary_uses_presentation_boundaries() -> None:
     }
 
 
+def test_single_trial_is_first_fully_reset_stream_presentation() -> None:
+    stream = {
+        "boundaries": [0, 2, 5],
+        "conditions": [[0.2, 5.0], [0.3, 10.0]],
+        "pixels": np.arange(2 * 784, dtype=np.float32).reshape(2, 784),
+        "labels": [4, 7],
+        "predictions": [4, 6],
+        "correct": [1, 0],
+        "spikes_e": np.arange(20).reshape(5, 4),
+        "spikes_i": np.arange(10).reshape(5, 2),
+        "spikes_out": np.eye(10, dtype=np.int8)[[4, 4, 6, 6, 7]],
+        "probabilities": np.full((5, 10), 0.1, dtype=np.float32),
+    }
+    trial = exp082.single_trial_from_stream(stream)
+    assert trial["boundaries"] == [0, 2]
+    assert trial["conditions"] == [[0.2, 5.0]]
+    assert trial["labels"] == [4]
+    assert trial["predictions"] == [4]
+    np.testing.assert_array_equal(trial["pixels"], stream["pixels"][:1])
+    np.testing.assert_array_equal(trial["spikes_out"], stream["spikes_out"][:2])
+    assert trial["output_activity"]["class_spike_totals"][4] == 2
+
+
+def test_explanatory_trial_is_first_correct_presentation() -> None:
+    stream = {
+        "boundaries": [0, 1, 2],
+        "conditions": [[0.1, 5.0], [0.1, 5.0]],
+        "pixels": np.zeros((2, 784), dtype=np.float32),
+        "labels": [8, 4],
+        "predictions": [5, 4],
+        "correct": [0, 1],
+        "spikes_e": np.zeros((2, 4), dtype=np.int8),
+        "spikes_i": np.zeros((2, 2), dtype=np.int8),
+        "spikes_out": np.eye(10, dtype=np.int8)[[5, 4]],
+        "probabilities": np.full((2, 10), 0.1, dtype=np.float32),
+    }
+
+    trial = exp082.first_correct_trial_from_stream(stream)
+
+    assert trial["labels"] == [4]
+    assert trial["predictions"] == [4]
+    assert trial["correct"] == [1]
+
+
 def test_grid_preflight_rejects_wholly_silent_readout() -> None:
     rows = [
         {"n_total": 5, "silent_fraction": 1.0,
@@ -261,6 +305,8 @@ def test_collection_requires_exp082_measurements_and_figures(tmp_path) -> None:
     assert [path.rsplit("/", 1)[-1] for path in row["required_outputs"]] == [
         "numbers.json",
         "measurements.npz",
+        "single_trial.png",
+        "single_trial_transition.png",
         "matched_stream.png",
         "variable_stream.png",
         "psychometric_200ms.svg",
@@ -303,6 +349,7 @@ def test_saved_measurements_replot_every_figure(tmp_path, monkeypatch) -> None:
     numbers.write_text(exp082.json.dumps(payload))
     exp082.replot_results(numbers, tmp_path / exp082.MEASUREMENTS_FILE)
     for filename in (
+        "single_trial.png", "single_trial_transition.png",
         "matched_stream.png", "variable_stream.png",
         "psychometric_200ms.svg", "duration_rate_summary.png",
     ):
@@ -310,6 +357,7 @@ def test_saved_measurements_replot_every_figure(tmp_path, monkeypatch) -> None:
     first_hashes = {
         filename: (tmp_path / filename).read_bytes()
         for filename in (
+            "single_trial.png", "single_trial_transition.png",
             "matched_stream.png", "variable_stream.png",
             "psychometric_200ms.svg", "duration_rate_summary.png",
         )
@@ -319,3 +367,58 @@ def test_saved_measurements_replot_every_figure(tmp_path, monkeypatch) -> None:
         filename: (tmp_path / filename).read_bytes()
         for filename in first_hashes
     } == first_hashes
+
+
+def test_replot_recovers_pixels_for_historical_measurements(
+    tmp_path, monkeypatch,
+) -> None:
+    monkeypatch.setattr(exp082, "FIGURES", tmp_path)
+    arrays = {
+        f"{name}_{key}": np.zeros(shape, dtype=dtype)
+        for name in ("matched", "variable")
+        for key, shape, dtype in (
+            ("spikes_e", (2, 4), np.int8),
+            ("spikes_i", (2, 2), np.int8),
+            ("spikes_out", (2, 10), np.int8),
+            ("probabilities", (2, 10), np.float32),
+        )
+    }
+    measurements = tmp_path / exp082.MEASUREMENTS_FILE
+    np.savez_compressed(measurements, **arrays)
+    stream = {
+        "boundaries": [0, 2],
+        "conditions": [[0.2, 5.0]],
+        "labels": [0],
+        "predictions": [0],
+        "correct": [1],
+    }
+    payload = {
+        "matched_stream": stream,
+        "variable_stream": stream,
+        "grid_per_seed": [],
+        "duration_200ms_psychometric": [],
+    }
+    numbers = tmp_path / "numbers.json"
+    numbers.write_text(exp082.json.dumps(payload))
+    x_test = np.zeros((10, 784), dtype=np.float32)
+    y_test = np.arange(10)
+    monkeypatch.setattr(
+        exp082,
+        "load_mnist_split",
+        lambda: (x_test, x_test, y_test, y_test),
+    )
+    captured = []
+    monkeypatch.setattr(
+        exp082,
+        "plot_single_trial",
+        lambda result, *_args: captured.append(result["pixels"].shape),
+    )
+    monkeypatch.setattr(exp082, "plot_single_trial_transition", lambda *_args: None)
+    monkeypatch.setattr(exp082, "plot_stream", lambda *_args: None)
+    monkeypatch.setattr(exp082, "plot_variable_headline", lambda *_args: None)
+    monkeypatch.setattr(exp082, "plot_psychometric", lambda *_args: None)
+    monkeypatch.setattr(exp082, "plot_duration_rate_summary", lambda *_args: None)
+
+    exp082.replot_results(numbers, measurements)
+
+    assert captured == [(1, 784)]

@@ -34,6 +34,8 @@ RUNNER_ARGUMENTS: dict[str, tuple[str, ...]] = {
 EXTRA_REQUIRED_OUTPUTS: dict[str, tuple[str, ...]] = {
     "exp082": (
         "measurements.npz",
+        "single_trial.png",
+        "single_trial_transition.png",
         "matched_stream.png",
         "variable_stream.png",
         "psychometric_200ms.svg",

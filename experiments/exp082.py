@@ -112,6 +112,8 @@ VARIABLE_STREAM = (
     (25.0, 10.0),
     (200.0, 5.0),
 )
+SINGLE_TRIAL_TRANSITION_WINDOW_MS = (91.5, 94.5)
+CLASS_PROBABILITY_TICKS = (0.0, 0.25, 0.5, 0.75, 1.0)
 
 SCALE = {
     "dataset": "mnist",
@@ -335,6 +337,39 @@ def output_activity_summary(
         "silent_fraction": float((totals == 0).mean()),
         "class_spike_totals": per_presentation.sum(axis=0).tolist(),
     }
+
+
+def single_trial_from_stream(
+    stream: dict[str, Any], segment_index: int = 0,
+) -> dict[str, Any]:
+    """Extract one independently readable presentation from a stream result."""
+    start = int(stream["boundaries"][segment_index])
+    stop = int(stream["boundaries"][segment_index + 1])
+    trial = {
+        "conditions": [stream["conditions"][segment_index]],
+        "pixels": np.asarray(stream["pixels"])[segment_index : segment_index + 1],
+        "labels": [stream["labels"][segment_index]],
+        "predictions": [stream["predictions"][segment_index]],
+        "correct": [stream["correct"][segment_index]],
+        "boundaries": [0, stop - start],
+        **{
+            key: np.asarray(stream[key])[start:stop]
+            for key in ("spikes_e", "spikes_i", "spikes_out", "probabilities")
+        },
+    }
+    trial["output_activity"] = output_activity_summary(
+        trial["spikes_out"], trial["boundaries"]
+    )
+    return trial
+
+
+def first_correct_trial_from_stream(stream: dict[str, Any]) -> dict[str, Any]:
+    """Select the first successful presentation for explanatory figures."""
+    try:
+        segment_index = list(stream["correct"]).index(1)
+    except ValueError as error:
+        raise RuntimeError("matched stream contains no correctly classified trial") from error
+    return single_trial_from_stream(stream, segment_index)
 
 
 def pick_digits(x_test: np.ndarray, y_test: np.ndarray, n: int, seed: int) -> tuple[np.ndarray, np.ndarray]:
@@ -616,8 +651,14 @@ def plot_stream(result: dict[str, Any], path: Path, run_id: str) -> None:
     plt.close(fig)
 
 
-def plot_variable_headline(result: dict[str, Any], path: Path, run_id: str) -> None:
-    """Exp048-Figure-1-style variable-condition streaming headline."""
+def plot_stream_headline(
+    result: dict[str, Any],
+    path: Path,
+    run_id: str,
+    *,
+    annotate_final_counts: bool = False,
+) -> None:
+    """Exp048-Figure-1-style streaming headline for one or more trials."""
     theme.apply()
     conditions = result["conditions"]
     boundaries = np.asarray(result["boundaries"], dtype=int)
@@ -740,6 +781,15 @@ def plot_variable_headline(result: dict[str, Any], path: Path, run_id: str) -> N
             lw=0.6,
             alpha=0.45,
         )
+    final_counts = np.asarray(result["spikes_out"]).sum(axis=0).astype(int)
+    final_winner = int(final_counts.argmax())
+    if annotate_final_counts and final_winner not in set(labels):
+        evidence_axis.plot(
+            time_ms,
+            probabilities[:, final_winner],
+            color=theme.INK_BLACK,
+            lw=1.5,
+        )
     for index, (start, stop) in enumerate(zip(starts, stops, strict=True)):
         evidence_axis.plot(
             time_ms[start:stop],
@@ -756,10 +806,120 @@ def plot_variable_headline(result: dict[str, Any], path: Path, run_id: str) -> N
         xlim=(0, total_ms),
         ylim=(0, 1),
         xlabel="time (ms)",
-        ylabel="spike-count p(class)",
+        ylabel=r"$p_c(u)$ · Eq. (2)",
     )
+    evidence_axis.set_yticks(CLASS_PROBABILITY_TICKS)
     evidence_axis.spines[["top", "right"]].set_visible(False)
+    if annotate_final_counts:
+        true_class = int(labels[0])
+        other_counts = final_counts.copy()
+        other_counts[final_winner] = -1
+        runner_up_class = int(other_counts.argmax())
+        margin = int(final_counts[final_winner] - final_counts[runner_up_class])
+        if true_class == final_winner:
+            summary = (
+                f"correct class {true_class}: {final_counts[true_class]} spikes · "
+                f"runner-up {runner_up_class}: {final_counts[runner_up_class]} spikes · "
+                f"margin {margin}"
+            )
+        else:
+            summary = (
+                f"true {true_class}: {final_counts[true_class]} spikes · "
+                f"winner {final_winner}: {final_counts[final_winner]} spikes · "
+                f"margin {margin}"
+            )
+        evidence_axis.text(
+            0.01,
+            0.98,
+            summary,
+            transform=evidence_axis.transAxes,
+            ha="left",
+            va="top",
+            fontsize=theme.SIZE_ANNOTATION,
+            color=theme.INK_BLACK,
+            bbox=dict(facecolor="white", edgecolor="none", alpha=0.82),
+        )
 
+    stamp_figure(fig, run_id)
+    fig.savefig(path, dpi=240, facecolor="white")
+    plt.close(fig)
+
+
+def plot_variable_headline(result: dict[str, Any], path: Path, run_id: str) -> None:
+    """Plot the variable-condition stream used as the exp048 successor."""
+    plot_stream_headline(result, path, run_id)
+
+
+def plot_single_trial(result: dict[str, Any], path: Path, run_id: str) -> None:
+    """Plot one selected presentation to explain spike-count evidence."""
+    plot_stream_headline(result, path, run_id, annotate_final_counts=True)
+
+
+def plot_single_trial_transition(
+    result: dict[str, Any], path: Path, run_id: str,
+) -> None:
+    """Resolve the output spikes behind the selected evidence transition."""
+    theme.apply()
+    start_ms, stop_ms = SINGLE_TRIAL_TRANSITION_WINDOW_MS
+    start = int(round(start_ms / DT_MS))
+    stop = int(round(stop_ms / DT_MS)) + 1
+    spikes_out = np.asarray(result["spikes_out"])
+    counts = spikes_out.cumsum(axis=0)
+    probabilities = np.asarray(result["probabilities"])
+    time_ms = np.arange(len(spikes_out)) * DT_MS
+    true_class = int(result["labels"][0])
+    winner = int(counts[-1].argmax())
+
+    fig, axes = plt.subplots(
+        3, 1, figsize=(6.9, 4.8), sharex=True, constrained_layout=True,
+        gridspec_kw={"height_ratios": (1.0, 1.4, 1.7)},
+    )
+    spike_times, spike_classes = np.nonzero(spikes_out[start:stop])
+    spike_times_ms = (spike_times + start) * DT_MS
+    spike_colours = [
+        theme.DEEP_RED if class_index == true_class
+        else theme.INK_BLACK if class_index == winner
+        else theme.GREY_MID
+        for class_index in spike_classes
+    ]
+    axes[0].scatter(
+        spike_times_ms, spike_classes, c=spike_colours,
+        marker="|", s=48, linewidths=1.2,
+    )
+    axes[0].set_ylabel("output class")
+    axes[0].set_yticks(range(N_CLASSES))
+
+    for class_index in range(N_CLASSES):
+        colour = theme.GREY_MID
+        width = 0.7
+        alpha = 0.45
+        if class_index == winner:
+            colour, width, alpha = theme.INK_BLACK, 1.6, 1.0
+        if class_index == true_class:
+            colour, width, alpha = theme.DEEP_RED, 2.0, 1.0
+        axes[1].step(
+            time_ms[start:stop], counts[start:stop, class_index],
+            where="post", color=colour, lw=width, alpha=alpha,
+        )
+        axes[2].step(
+            time_ms[start:stop], probabilities[start:stop, class_index],
+            where="post", color=colour, lw=width, alpha=alpha,
+        )
+    axes[1].set_ylabel(r"$z_c(u)$ · Eq. (1)")
+    axes[2].set(
+        xlabel="time (ms)", ylabel=r"$p_c(u)$ · Eq. (2)", ylim=(0, 1),
+    )
+    axes[2].set_yticks(CLASS_PROBABILITY_TICKS)
+    axes[2].axhline(0.5, color=theme.GREY_MID, lw=0.5, ls="--", alpha=0.6)
+    for axis in axes:
+        axis.set_xlim(start_ms, stop_ms)
+        axis.spines[["top", "right"]].set_visible(False)
+    title = (
+        f"true and winning class {true_class} (red)"
+        if true_class == winner
+        else f"true class {true_class} (red) · eventual winner {winner} (black)"
+    )
+    axes[0].set_title(title, loc="left", fontsize=theme.SIZE_LABEL)
     stamp_figure(fig, run_id)
     fig.savefig(path, dpi=240, facecolor="white")
     plt.close(fig)
@@ -824,13 +984,20 @@ def plot_duration_rate_summary(
     plt.close(fig)
 
 
-def save_measurements(matched: dict[str, Any], variable: dict[str, Any]) -> None:
+def save_measurements(
+    matched: dict[str, Any],
+    variable: dict[str, Any],
+    single_trial: dict[str, Any] | None = None,
+) -> None:
     """Save the array-valued results needed to reproduce the stream figures."""
+    results = [("matched", matched), ("variable", variable)]
+    if single_trial is not None:
+        results.append(("single_trial", single_trial))
     np.savez_compressed(
         FIGURES / MEASUREMENTS_FILE,
         **{
             f"{name}_{key}": result[key]
-            for name, result in (("matched", matched), ("variable", variable))
+            for name, result in results
             for key in (
                 "pixels", "spikes_e", "spikes_i", "spikes_out", "probabilities",
             )
@@ -842,19 +1009,38 @@ def replot_results(numbers_path: Path, measurements_path: Path) -> None:
     """Regenerate every exp082 figure from saved inference measurements."""
     payload = json.loads(numbers_path.read_text())
     with np.load(measurements_path) as arrays:
+        pixels_by_stream: dict[str, np.ndarray] = {}
+        if all(f"{name}_pixels" in arrays for name in ("matched", "variable")):
+            pixels_by_stream = {
+                name: arrays[f"{name}_pixels"] for name in ("matched", "variable")
+            }
+        else:
+            _, x_test, _, y_test = load_mnist_split()
+            pixels_by_stream = {
+                name: pick_digits(x_test, y_test, N_HEADLINE_DIGITS, seed)[0]
+                for name, seed in (("matched", 82), ("variable", 83))
+            }
         streams = {
             name: {
                 **payload[f"{name}_stream"],
+                "pixels": pixels_by_stream[name],
                 **{
                     key: arrays[f"{name}_{key}"]
                     for key in (
-                        "pixels", "spikes_e", "spikes_i", "spikes_out", "probabilities",
+                        "spikes_e", "spikes_i", "spikes_out", "probabilities",
                     )
                 },
             }
             for name in ("matched", "variable")
         }
     run_id = payload.get("run_id", "replot")
+    single_trial = first_correct_trial_from_stream(streams["matched"])
+    plot_single_trial(
+        single_trial, FIGURES / "single_trial.png", run_id
+    )
+    plot_single_trial_transition(
+        single_trial, FIGURES / "single_trial_transition.png", run_id
+    )
     plot_stream(streams["matched"], FIGURES / "matched_stream.png", run_id)
     plot_variable_headline(
         streams["variable"], FIGURES / "variable_stream.png", run_id
@@ -892,7 +1078,12 @@ def main() -> None:
     )
     matched = evaluate_stream(directory, x_test, y_test, matched_conditions, 82, "matched")
     variable = evaluate_stream(directory, x_test, y_test, VARIABLE_STREAM, 83, "variable")
-    save_measurements(matched, variable)
+    single_trial = first_correct_trial_from_stream(matched)
+    save_measurements(matched, variable, single_trial)
+    plot_single_trial(single_trial, FIGURES / "single_trial.png", run_id)
+    plot_single_trial_transition(
+        single_trial, FIGURES / "single_trial_transition.png", run_id
+    )
     plot_stream(matched, FIGURES / "matched_stream.png", run_id)
     plot_variable_headline(variable, FIGURES / "variable_stream.png", run_id)
 
@@ -939,6 +1130,11 @@ def main() -> None:
         },
         "matched_stream": {key: value for key, value in matched.items() if not isinstance(value, np.ndarray)},
         "variable_stream": {key: value for key, value in variable.items() if not isinstance(value, np.ndarray)},
+        "single_trial": {
+            key: value
+            for key, value in single_trial.items()
+            if not isinstance(value, np.ndarray)
+        },
         "scientific_preflight": {
             "matched_stream": matched["output_activity"],
             "variable_stream": variable["output_activity"],
