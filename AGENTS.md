@@ -10,9 +10,11 @@ Procedures belong in the repository skills under `.agents/skills/`.
 ## Authority
 
 This file and other version-controlled Pinglab policies govern work in this
-repository. Project skills may authorize only the exact actions declared in the
-lexicon below. Git operations and general software delivery remain governed by
-the global `$scope`, `$go`, `$repo`, and `$help` lexicon.
+repository. Mutation authority is inherited from the global `$scope`, `$go`,
+`$repo`, and `$help` lexicon. A matching global command is sufficient throughout
+this repository; project commands are optional specialist workflows, not
+additional permission gates. Project commands may also independently authorize
+only the exact actions declared in the lexicon below.
 
 Project skills are opt-in command handlers, not automatic task routers. Use a
 skill under `.agents/skills/` only when the user explicitly invokes one of its
@@ -94,8 +96,8 @@ it or the user explicitly invokes it. Pinglab policy wins on conflict.
 
 - Creating RunPod pods, Modal dispatches, or other paid compute requires
   explicit permission naming that target. Default to local execution.
-- Editing `tools/snn` requires `$go` authorization in addition to any scientific
-  design or review command.
+- Editing `tools/snn` is authorized by the applicable global `$go` command; no
+  project command is additionally required.
 - GitHub writes require the applicable global Lexicon authorization.
 - Never add AI authorship or attribution trailers to commits or PR text.
 
