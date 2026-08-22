@@ -1,0 +1,92 @@
+{
+  "status": "complete",
+  "training_source": {
+    "publication_run_id": "ggs-production-composite-20260821-6d9c38eb",
+    "upstream_campaign_id": "ggs-fr-repair-20260820-ac6f4988",
+    "cells": {
+      "coba": "coba__canonical__seed42",
+      "ping": "ping__canonical__seed42"
+    }
+  },
+  "selection": {
+    "label": 4,
+    "official_test_index": 4,
+    "outcome_blind": true
+  },
+  "shared_input": {
+    "seed": 94,
+    "identical_between_models": true
+  },
+  "checkpoint_provenance": {
+    "coba": {
+      "training_cell": "coba__canonical__seed42",
+      "role": "final_epoch",
+      "filename": "weights_final.pth",
+      "epoch": 50,
+      "sha256": "860d7c9842bc60351603fe08b89a4e78c34e3ae7f19ed588562e02e4eeefffe3"
+    },
+    "ping": {
+      "training_cell": "ping__canonical__seed42",
+      "role": "final_epoch",
+      "filename": "weights_final.pth",
+      "epoch": 50,
+      "sha256": "afe3bce49a89c2dbdac4f986bc3ca65bda91db385b2d58914c9c765075d78a0f"
+    }
+  },
+  "decoder": {
+    "native_readout": "mem-mean",
+    "spike_readout_intervention": "spike-count",
+    "shared_hidden_drive": true,
+    "leak_tau_ms": 25.0,
+    "window_ms": 25.0,
+    "softmax_temperature": 4.0,
+    "p_input": "the same cumulative output-spike count vector for every mapping",
+    "cycle_boundaries_ms": [
+      0.0,
+      11.5,
+      26.0,
+      40.2,
+      51.400000000000006,
+      60.900000000000006,
+      72.2,
+      83.2,
+      92.0,
+      101.2,
+      109.7,
+      115.9,
+      122.4,
+      131.5,
+      139.8,
+      147.20000000000002,
+      155.8,
+      163.70000000000002,
+      170.5,
+      178.0,
+      190.5,
+      200.0
+    ]
+  },
+  "final_winners": {
+    "coba": {
+      "mean": 4,
+      "cumulative": 0,
+      "leaky": 0,
+      "window": 0,
+      "vote": 0,
+      "softmax": 0,
+      "softened": 0,
+      "sigmoid": 0
+    },
+    "ping": {
+      "mean": 4,
+      "cumulative": 4,
+      "leaky": 4,
+      "window": 4,
+      "vote": 4,
+      "softmax": 4,
+      "softened": 4,
+      "sigmoid": 0
+    }
+  },
+  "duration_s": 12.063
+}

@@ -1,0 +1,511 @@
+diff --git a/experiments/exp094.py b/experiments/exp094.py
+new file mode 100644
+index 00000000..d5a5cc33
+--- /dev/null
++++ b/experiments/exp094.py
+@@ -0,0 +1,430 @@
++"""EXP094: frozen temporal decoders for trained COBA and PING networks.
++
++One preselected MNIST digit and one Poisson encoding are replayed through the
++canonical seed-42 COBA and PING checkpoints. Alternative temporal evidence
++functions and output mappings are then computed post hoc from the same output
++trajectories. No training occurs.
++"""
++
++from __future__ import annotations
++
++import json
++import os
++import shutil
++import subprocess
++import sys
++import time
++from pathlib import Path
++from typing import Any
++
++import matplotlib.pyplot as plt
++import numpy as np
++import torch
++
++REPO = Path(__file__).resolve().parents[1]
++sys.path.insert(0, str(Path(__file__).resolve().parent))
++
++from helpers import theme  # noqa: E402
++from helpers.checkpoints import (  # noqa: E402
++    public_provenance,
++    resolve_checkpoint,
++)
++from helpers.datasets import load_mnist_split  # noqa: E402
++from helpers.paths import artifacts_and_figures, log_runner_event  # noqa: E402
++from helpers.run_dirs import published_run  # noqa: E402
++from helpers.run_id import next_run_id  # noqa: E402
++
++SLUG = "exp094"
++ARTIFACTS, FIGURES = artifacts_and_figures(SLUG)
++DESIGN_ASSETS = REPO / "artifacts" / "data" / SLUG
++SNN_TOOL = REPO / "tools" / "snn" / "tool.py"
++TRAINING_ROOT = Path(
++    os.environ.get(
++        "PINGLAB_TRAINING_ROOT",
++        REPO
++        / "runs"
++        / "inputs"
++        / "ggs-fr-repair-20260820-ac6f4988"
++        / "exp022"
++        / "cells",
++    )
++)
++CELLS = {
++    "coba": "coba__canonical__seed42",
++    "ping": "ping__canonical__seed42",
++}
++GOLD_STAR_PUBLICATION = "ggs-production-composite-20260821-6d9c38eb"
++UPSTREAM_CAMPAIGN = "ggs-fr-repair-20260820-ac6f4988"
++CHECKPOINT_ROLE = "final_epoch"
++EXPECTED_CHECKPOINTS = {
++    "coba": "860d7c9842bc60351603fe08b89a4e78c34e3ae7f19ed588562e02e4eeefffe3",
++    "ping": "afe3bce49a89c2dbdac4f986bc3ca65bda91db385b2d58914c9c765075d78a0f",
++}
++LABEL = 4
++SEED = 94
++DT_MS = 0.1
++DURATION_MS = 200.0
++INPUT_RATE_HZ = 25.0
++LEAK_TAU_MS = 25.0
++WINDOW_MS = 25.0
++SOFTMAX_TEMPERATURE = 4.0
++N_INPUT = 784
++N_CLASSES = 10
++HAND_ASSETS = (
++    "decoder_pipeline.svg",
++    "z_mean.svg",
++    "z_cumulative.svg",
++    "z_leaky.svg",
++    "z_window.svg",
++    "z_vote.svg",
++    "p_softmax.svg",
++    "p_softened.svg",
++    "p_sigmoid.svg",
++)
++SCALE = {
++    "dataset": "mnist",
++    "models": list(CELLS),
++    "training_family": "canonical",
++    "gold_star_publication": GOLD_STAR_PUBLICATION,
++    "seed": SEED,
++    "label": LABEL,
++    "dt_ms": DT_MS,
++    "t_ms": DURATION_MS,
++    "input_rate_hz": INPUT_RATE_HZ,
++    "trials": 1,
++}
++
++
++def require_training_bank() -> dict[str, dict[str, Any]]:
++    records: dict[str, dict[str, Any]] = {}
++    missing = []
++    for model, cell in CELLS.items():
++        directory = TRAINING_ROOT / cell
++        cell_missing = []
++        for name in ("config.json", "metrics.json", "weights_final.pth"):
++            if not (directory / name).is_file():
++                cell_missing.append(str(directory / name))
++        missing.extend(cell_missing)
++        if not cell_missing:
++            records[model] = resolve_checkpoint(directory, CHECKPOINT_ROLE)
++            if records[model]["sha256"] != EXPECTED_CHECKPOINTS[model]:
++                raise RuntimeError(
++                    f"{cell} does not match the checkpoint published by "
++                    f"{GOLD_STAR_PUBLICATION}: {records[model]['sha256']}"
++                )
++    if missing:
++        raise SystemExit(
++            "exp094 requires the canonical seed-42 exp022 COBA/PING checkpoint bank "
++            "from the latest gold-star publication view. "
++            "Set PINGLAB_TRAINING_ROOT to the restored cells directory. Missing:\n  "
++            + "\n  ".join(missing)
++        )
++    return records
++
++
++def encode_digit(pixels: np.ndarray, *, generator: torch.Generator) -> np.ndarray:
++    steps = int(round(DURATION_MS / DT_MS))
++    probability = torch.as_tensor(pixels, dtype=torch.float32) * INPUT_RATE_HZ * DT_MS / 1000.0
++    spikes = torch.rand(steps, 1, N_INPUT, generator=generator) < probability.reshape(1, 1, -1)
++    return spikes.to(torch.float32).numpy()
++
++
++def _dense(raster: np.lib.npyio.NpzFile, prefix: str, width: int) -> np.ndarray:
++    values = np.zeros((int(raster["T"]), width), dtype=np.float32)
++    keep = raster[f"{prefix}_trial"] == 0
++    values[raster[f"{prefix}_t"][keep], raster[f"{prefix}_cell"][keep]] = 1.0
++    return values
++
++
++def run_model(
++    model: str,
++    input_spikes: np.ndarray,
++    checkpoint: dict[str, Any],
++) -> dict[str, np.ndarray]:
++    directory = TRAINING_ROOT / CELLS[model]
++    work = ARTIFACTS / model
++    work.mkdir(parents=True, exist_ok=True)
++    input_path = work / "input.npz"
++    np.savez_compressed(input_path, input_spikes=input_spikes)
++
++    def simulate(name: str, *, readout: str | None = None) -> Path:
++        output = work / name
++        command = [
++            "uv", "run", "python", str(SNN_TOOL), "sim",
++            "--load-config", str(directory / "config.json"),
++            "--load-weights", str(checkpoint["path"]),
++            "--device", "auto",
++            "--n-in", str(N_INPUT),
++            "--input-file", str(input_path),
++            "--outputs", "rasters",
++            "--out-dir", str(output),
++        ]
++        if readout is not None:
++            command[command.index("--n-in"):command.index("--n-in")] = [
++                "--readout", readout
++            ]
++        subprocess.run(command, cwd=REPO, check=True)
++        return output / "rasters.npz"
++
++    with np.load(simulate("native_mem_mean")) as raster:
++        e = _dense(raster, "e", int(raster["n_e"]))
++        i = _dense(raster, "i", int(raster["n_i"]))
++        native_out = _dense(raster, "out", N_CLASSES)
++    with np.load(simulate("counterfactual_spike_count", readout="spike-count")) as raster:
++        out = _dense(raster, "out", N_CLASSES)
++    weights_dir = work / "weights"
++    subprocess.run(
++        [
++            "uv", "run", "python", str(SNN_TOOL), "dump-weights",
++            "--load-config", str(directory / "config.json"),
++            "--load-weights", str(checkpoint["path"]),
++            "--device", "auto",
++            "--out-dir", str(weights_dir),
++        ],
++        cwd=REPO,
++        check=True,
++    )
++    with np.load(weights_dir / "weights_dump.npz") as dumped:
++        keys = sorted(
++            (key for key in dumped.files if key.startswith("W_ff_") and key.endswith("_trained")),
++            key=lambda key: int(key.split("_")[2]),
++        )
++        w_out = dumped[keys[-1]].copy()
++    config = json.loads((directory / "config.json").read_text())
++    pre_voltage = replay_pre_reset_voltage(
++        e, native_out, w_out, float(config.get("tau_out_ms", 2.0)), DT_MS
++    )
++    return {"e": e, "i": i, "out": out, "pre_voltage": pre_voltage}
++
++
++def replay_pre_reset_voltage(
++    e_spikes: np.ndarray,
++    out_spikes: np.ndarray,
++    w_out: np.ndarray,
++    tau_out_ms: float,
++    dt_ms: float,
++) -> np.ndarray:
++    beta = float(np.exp(-dt_ms / tau_out_ms))
++    scale = (1.0 - beta) / dt_ms
++    post_reset = np.zeros(out_spikes.shape[1], dtype=np.float64)
++    pre_reset = np.zeros_like(out_spikes, dtype=np.float64)
++    for t in range(len(e_spikes)):
++        value = beta * post_reset + scale * (e_spikes[t] @ w_out)
++        pre_reset[t] = value
++        post_reset = value - out_spikes[t]
++    return pre_reset
++
++
++def cumulative_mean(values: np.ndarray) -> np.ndarray:
++    return np.cumsum(values, axis=0) / np.arange(1, len(values) + 1)[:, None]
++
++
++def cumulative_count(spikes: np.ndarray) -> np.ndarray:
++    return np.cumsum(spikes, axis=0)
++
++
++def leaky_count(spikes: np.ndarray, retention: float) -> np.ndarray:
++    result = np.zeros_like(spikes, dtype=np.float64)
++    state = np.zeros(spikes.shape[1], dtype=np.float64)
++    for t, row in enumerate(spikes):
++        state = retention * state + row
++        result[t] = state
++    return result
++
++
++def window_count(spikes: np.ndarray, steps: int) -> np.ndarray:
++    cumulative = np.concatenate(
++        [np.zeros((1, spikes.shape[1])), np.cumsum(spikes, axis=0)], axis=0
++    )
++    result = np.empty_like(spikes, dtype=np.float64)
++    for t in range(len(spikes)):
++        lo = max(0, t + 1 - steps)
++        result[t] = cumulative[t + 1] - cumulative[lo]
++    return result
++
++
++def ping_cycle_boundaries(i_spikes: np.ndarray, dt_ms: float) -> np.ndarray:
++    counts = i_spikes.sum(axis=1)
++    active = np.flatnonzero(counts > 0)
++    if len(active) == 0:
++        return np.array([0, len(i_spikes)], dtype=int)
++    gap = max(1, int(round(5.0 / dt_ms)))
++    splits = np.flatnonzero(np.diff(active) > gap) + 1
++    groups = np.split(active, splits)
++    centres = np.array([group[np.argmax(counts[group])] for group in groups], dtype=int)
++    if len(centres) < 2:
++        return np.array([0, len(i_spikes)], dtype=int)
++    mids = ((centres[:-1] + centres[1:]) // 2).astype(int)
++    return np.unique(np.concatenate(([0], mids, [len(i_spikes)])))
++
++
++def cumulative_bin_votes(spikes: np.ndarray, boundaries: np.ndarray) -> np.ndarray:
++    votes = np.zeros(spikes.shape[1], dtype=np.float64)
++    result = np.zeros_like(spikes, dtype=np.float64)
++    for start, stop in zip(boundaries[:-1], boundaries[1:], strict=True):
++        counts = spikes[start:stop].sum(axis=0)
++        votes[int(np.argmax(counts))] += 1.0
++        result[start:stop] = votes
++    return result
++
++
++def softmax(values: np.ndarray, temperature: float = 1.0) -> np.ndarray:
++    scaled = values / temperature
++    shifted = scaled - scaled.max(axis=1, keepdims=True)
++    weights = np.exp(shifted)
++    return weights / weights.sum(axis=1, keepdims=True)
++
++
++def sigmoid(values: np.ndarray) -> np.ndarray:
++    return 1.0 / (1.0 + np.exp(-values))
++
++
++def decoder_arrays(
++    recordings: dict[str, dict[str, np.ndarray]],
++) -> tuple[dict[str, dict[str, np.ndarray]], np.ndarray]:
++    boundaries = ping_cycle_boundaries(recordings["ping"]["i"], DT_MS)
++    retention = float(np.exp(-DT_MS / LEAK_TAU_MS))
++    window_steps = int(round(WINDOW_MS / DT_MS))
++    decoded: dict[str, dict[str, np.ndarray]] = {}
++    for model, arrays in recordings.items():
++        counts = cumulative_count(arrays["out"])
++        decoded[model] = {
++            "mean": cumulative_mean(arrays["pre_voltage"]),
++            "cumulative": counts,
++            "leaky": leaky_count(arrays["out"], retention),
++            "window": window_count(arrays["out"], window_steps),
++            "vote": cumulative_bin_votes(arrays["out"], boundaries),
++            "softmax": softmax(counts),
++            "softened": softmax(counts, SOFTMAX_TEMPERATURE),
++            "sigmoid": sigmoid(counts),
++        }
++    return decoded, boundaries
++
++
++def _competitor(values: np.ndarray, true_class: int) -> int:
++    final = values[-1].copy()
++    final[true_class] = -np.inf
++    return int(np.argmax(final))
++
++
++def plot_decoder_pair(
++    decoded: dict[str, dict[str, np.ndarray]],
++    key: str,
++    ylabel: str,
++    path: Path,
++    *,
++    boundaries: np.ndarray | None = None,
++) -> None:
++    theme.apply()
++    fig, axes = plt.subplots(2, 1, figsize=(6.5, 4.0), sharex=True)
++    time_ms = np.arange(len(decoded["coba"][key])) * DT_MS
++    for axis, model in zip(axes, ("coba", "ping"), strict=True):
++        values = decoded[model][key]
++        competitor = _competitor(values, LABEL)
++        axis.plot(time_ms, values[:, competitor], color=theme.INK_BLACK, lw=1.0)
++        axis.plot(time_ms, values[:, LABEL], color=theme.DEEP_RED, lw=1.8)
++        if boundaries is not None:
++            for boundary in boundaries[1:-1]:
++                axis.axvline(boundary * DT_MS, color=theme.GREY_LIGHT, lw=0.6, ls=":")
++        axis.text(0.01, 0.93, model.upper(), transform=axis.transAxes, va="top")
++        axis.spines[["top", "right"]].set_visible(False)
++    axes[0].set_ylabel(ylabel)
++    axes[1].set(ylabel=ylabel, xlabel="time (ms)")
++    fig.tight_layout()
++    fig.savefig(path, format="svg", facecolor="white", bbox_inches="tight")
++    plt.close(fig)
++
++
++def plot_mapping_pair(
++    decoded: dict[str, dict[str, np.ndarray]], key: str, ylabel: str, path: Path
++) -> None:
++    theme.apply()
++    fig, axes = plt.subplots(2, 1, figsize=(6.5, 4.0), sharex=True, sharey=True)
++    time_ms = np.arange(len(decoded["coba"][key])) * DT_MS
++    for axis, model in zip(axes, ("coba", "ping"), strict=True):
++        values = decoded[model][key]
++        for class_index in range(N_CLASSES):
++            axis.plot(time_ms, values[:, class_index], color=theme.GREY_MID, lw=0.6, alpha=0.45)
++        axis.plot(time_ms, values[:, LABEL], color=theme.DEEP_RED, lw=1.8)
++        axis.axhline(0.5, color=theme.GREY_LIGHT, lw=0.6, ls="--")
++        axis.text(0.01, 0.93, model.upper(), transform=axis.transAxes, va="top")
++        axis.spines[["top", "right"]].set_visible(False)
++    axes[0].set_ylabel(ylabel)
++    axes[1].set(ylabel=ylabel, xlabel="time (ms)")
++    fig.tight_layout()
++    fig.savefig(path, format="svg", facecolor="white", bbox_inches="tight")
++    plt.close(fig)
++
++
++def main() -> None:
++    checkpoints = require_training_bank()
++    run_id = next_run_id(SLUG)
++    log_runner_event(SLUG, "started", run_id=run_id)
++    started = time.monotonic()
++    coba_config = json.loads((TRAINING_ROOT / CELLS["coba"] / "config.json").read_text())
++    _, x_test, _, y_test = load_mnist_split(max_samples=int(coba_config["max_samples"]))
++    sample_index = int(np.flatnonzero(y_test == LABEL)[0])
++    pixels = np.asarray(x_test[sample_index], dtype=np.float32)
++    input_spikes = encode_digit(pixels, generator=torch.Generator().manual_seed(SEED))
++    recordings = {
++        model: run_model(model, input_spikes, checkpoints[model]) for model in CELLS
++    }
++    decoded, boundaries = decoder_arrays(recordings)
++
++    with published_run(SLUG, run_id, scale=SCALE) as (_scratch, staging):
++        for name in HAND_ASSETS:
++            shutil.copy2(DESIGN_ASSETS / name, staging / name)
++        plot_decoder_pair(decoded, "mean", "mean pre-reset voltage", staging / "measured_z_mean.svg")
++        plot_decoder_pair(decoded, "cumulative", "cumulative output spikes", staging / "measured_z_cumulative.svg")
++        plot_decoder_pair(decoded, "leaky", "leaky spike evidence", staging / "measured_z_leaky.svg")
++        plot_decoder_pair(decoded, "window", "spikes in window", staging / "measured_z_window.svg")
++        plot_decoder_pair(decoded, "vote", "cumulative votes", staging / "measured_z_vote.svg", boundaries=boundaries)
++        plot_mapping_pair(decoded, "softmax", "softmax class share", staging / "measured_p_softmax.svg")
++        plot_mapping_pair(decoded, "softened", "softened class share", staging / "measured_p_softened.svg")
++        plot_mapping_pair(decoded, "sigmoid", "independent sigmoid score", staging / "measured_p_sigmoid.svg")
++        np.savez_compressed(
++            staging / "measurements.npz",
++            pixels=pixels,
++            input_spikes=input_spikes,
++            cycle_boundaries=boundaries,
++            **{
++                f"{model}_{name}": values
++                for model, rows in decoded.items()
++                for name, values in rows.items()
++            },
++        )
++        payload = {
++            "status": "complete",
++            "training_source": {
++                "publication_run_id": GOLD_STAR_PUBLICATION,
++                "upstream_campaign_id": UPSTREAM_CAMPAIGN,
++                "cells": CELLS,
++            },
++            "selection": {"label": LABEL, "official_test_index": sample_index, "outcome_blind": True},
++            "shared_input": {"seed": SEED, "identical_between_models": True},
++            "checkpoint_provenance": {
++                model: public_provenance(record) for model, record in checkpoints.items()
++            },
++            "decoder": {
++                "native_readout": "mem-mean",
++                "spike_readout_intervention": "spike-count",
++                "shared_hidden_drive": True,
++                "leak_tau_ms": LEAK_TAU_MS,
++                "window_ms": WINDOW_MS,
++                "softmax_temperature": SOFTMAX_TEMPERATURE,
++                "p_input": "the same cumulative output-spike count vector for every mapping",
++                "cycle_boundaries_ms": (boundaries * DT_MS).tolist(),
++            },
++            "final_winners": {
++                model: {name: int(values[-1].argmax()) for name, values in rows.items()}
++                for model, rows in decoded.items()
++            },
++            "duration_s": round(time.monotonic() - started, 3),
++        }
++        (staging / "numbers.json").write_text(json.dumps(payload, indent=2) + "\n")
++    log_runner_event(SLUG, "completed", run_id=run_id)
++    print(f"exp094 complete: {run_id}")
++
++
++if __name__ == "__main__":
++    main()
+
+diff --git a/experiments/tests/test_exp094_decoders.py b/experiments/tests/test_exp094_decoders.py
+new file mode 100644
+index 00000000..a6b338b3
+--- /dev/null
++++ b/experiments/tests/test_exp094_decoders.py
+@@ -0,0 +1,68 @@
++from __future__ import annotations
++
++import numpy as np
++from experiments import exp094
++
++
++def test_gold_star_checkpoint_contract_is_final_epoch_and_hash_pinned() -> None:
++    assert exp094.GOLD_STAR_PUBLICATION == "ggs-production-composite-20260821-6d9c38eb"
++    assert exp094.UPSTREAM_CAMPAIGN == "ggs-fr-repair-20260820-ac6f4988"
++    assert exp094.CHECKPOINT_ROLE == "final_epoch"
++    assert set(exp094.EXPECTED_CHECKPOINTS) == {"coba", "ping"}
++
++
++def test_cumulative_and_window_counts_have_declared_memory() -> None:
++    spikes = np.zeros((5, 2), dtype=float)
++    spikes[0, 0] = 1
++    spikes[2, 1] = 1
++    spikes[4, 0] = 1
++
++    cumulative = exp094.cumulative_count(spikes)
++    window = exp094.window_count(spikes, 2)
++
++    np.testing.assert_array_equal(cumulative[-1], [2, 1])
++    np.testing.assert_array_equal(window[1], [1, 0])
++    np.testing.assert_array_equal(window[2], [0, 1])
++    np.testing.assert_array_equal(window[-1], [1, 0])
++
++
++def test_leaky_count_adds_spikes_and_forgets_between_them() -> None:
++    spikes = np.zeros((4, 1), dtype=float)
++    spikes[0, 0] = 1
++    result = exp094.leaky_count(spikes, 0.5)
++    np.testing.assert_allclose(result[:, 0], [1.0, 0.5, 0.25, 0.125])
++
++
++def test_cycle_votes_discard_within_bin_margin() -> None:
++    spikes = np.zeros((6, 2), dtype=float)
++    spikes[0:3, 0] = 1
++    spikes[3:5, 1] = 1
++    votes = exp094.cumulative_bin_votes(spikes, np.array([0, 3, 6]))
++    np.testing.assert_array_equal(votes[2], [1, 0])
++    np.testing.assert_array_equal(votes[-1], [1, 1])
++
++
++def test_softmax_temperature_changes_sharpness_not_winner() -> None:
++    counts = np.array([[0.0, 0.0], [3.0, 1.0]])
++    ordinary = exp094.softmax(counts)
++    softened = exp094.softmax(counts, temperature=4.0)
++    assert ordinary[-1].argmax() == softened[-1].argmax() == 0
++    assert softened[-1, 0] < ordinary[-1, 0]
++    np.testing.assert_allclose(ordinary.sum(axis=1), 1.0)
++    np.testing.assert_allclose(softened.sum(axis=1), 1.0)
++
++
++def test_sigmoid_is_independent_and_can_raise_multiple_classes() -> None:
++    values = exp094.sigmoid(np.array([[4.0, 3.0]]))
++    assert np.all(values > 0.9)
++    assert values.sum() > 1.0
++
++
++def test_pre_reset_voltage_uses_recorded_output_reset() -> None:
++    e = np.array([[1.0], [0.0]])
++    out = np.array([[1.0], [0.0]])
++    weights = np.array([[1.0]])
++    result = exp094.replay_pre_reset_voltage(e, out, weights, 1.0, 1.0)
++    beta = np.exp(-1.0)
++    first = 1.0 - beta
++    np.testing.assert_allclose(result[:, 0], [first, beta * (first - 1.0)])
