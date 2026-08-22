@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="470" viewBox="0 0 1200 470" role="img" aria-labelledby="title desc">
+  <title id="title">Matched decoder pipeline</title>
+  <desc id="desc">One digit and spike tensor branch into frozen COBA and PING networks, followed by shared output activity, temporal evidence, confidence mapping, and decision stages.</desc>
+  <defs>
+    <marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0 0 L8 4 L0 8 Z" fill="#3f3f3f"/></marker>
+    <style>
+      .box{fill:#fff;stroke:#242424;stroke-width:2}.soft{fill:#f3f0e8;stroke:#777;stroke-width:1.5}.accent{fill:#fff4f3;stroke:#a51d2d;stroke-width:2}.line{fill:none;stroke:#3f3f3f;stroke-width:2;marker-end:url(#arrow)}.dash{fill:none;stroke:#888;stroke-width:1.5;stroke-dasharray:6 5}.h{font:600 18px Arial,sans-serif;fill:#202020}.t{font:15px Arial,sans-serif;fill:#303030}.s{font:13px Arial,sans-serif;fill:#666}.red{stroke:#a51d2d;fill:none;stroke-width:2.5}.ink{stroke:#222;fill:none;stroke-width:2}
+    </style>
+  </defs>
+  <rect width="1200" height="470" fill="white"/>
+  <text x="600" y="32" text-anchor="middle" class="h">One frozen neural history, several meanings</text>
+  <rect x="30" y="165" width="130" height="110" rx="8" class="soft"/>
+  <text x="95" y="194" text-anchor="middle" class="h">MNIST 4</text>
+  <path d="M62 242 Q78 205 96 245 Q112 280 125 214 M64 246 L132 246" class="ink"/>
+  <text x="95" y="296" text-anchor="middle" class="s">same Poisson spikes</text>
+  <path d="M160 220 H208 V115 H245" class="line"/>
+  <path d="M208 220 V345 H245" class="line"/>
+  <rect x="245" y="62" width="205" height="112" rx="8" class="box"/>
+  <text x="347" y="91" text-anchor="middle" class="h">Frozen COBA</text>
+  <circle cx="303" cy="128" r="21" class="soft"/><text x="303" y="134" text-anchor="middle" class="t">E</text>
+  <path d="M324 128 H385" class="line"/><circle cx="411" cy="128" r="21" class="soft"/><text x="411" y="134" text-anchor="middle" class="t">out</text>
+  <text x="347" y="160" text-anchor="middle" class="s">asynchronous activity</text>
+  <rect x="245" y="292" width="205" height="112" rx="8" class="accent"/>
+  <text x="347" y="321" text-anchor="middle" class="h">Frozen PING</text>
+  <circle cx="303" cy="358" r="21" class="soft"/><text x="303" y="364" text-anchor="middle" class="t">E</text>
+  <circle cx="367" cy="374" r="21" class="accent"/><text x="367" y="380" text-anchor="middle" class="t">I</text>
+  <path d="M323 351 Q347 329 362 352" class="line"/><path d="M349 374 Q323 392 309 379" class="line"/><path d="M388 358 H414" class="line"/>
+  <text x="347" y="426" text-anchor="middle" class="s">cycle-organised activity</text>
+  <path d="M450 115 H502" class="line"/><path d="M450 345 H502" class="line"/>
+  <rect x="502" y="62" width="170" height="112" rx="8" class="soft"/>
+  <rect x="502" y="292" width="170" height="112" rx="8" class="soft"/>
+  <text x="587" y="93" text-anchor="middle" class="h">Output activity</text><text x="587" y="120" text-anchor="middle" class="t">spikes</text><text x="587" y="145" text-anchor="middle" class="t">voltages</text>
+  <text x="587" y="323" text-anchor="middle" class="h">Output activity</text><text x="587" y="350" text-anchor="middle" class="t">spikes</text><text x="587" y="375" text-anchor="middle" class="t">voltages</text>
+  <rect x="720" y="154" width="145" height="132" rx="8" class="box"/>
+  <text x="792" y="187" text-anchor="middle" class="h">Evidence z</text>
+  <text x="792" y="216" text-anchor="middle" class="t">mean</text><text x="792" y="239" text-anchor="middle" class="t">count · leak</text><text x="792" y="262" text-anchor="middle" class="t">window · vote</text>
+  <path d="M672 115 H695 V190 H720" class="line"/><path d="M672 345 H695 V250 H720" class="line"/>
+  <path d="M865 220 H908" class="line"/>
+  <rect x="908" y="165" width="135" height="110" rx="8" class="accent"/>
+  <text x="975" y="199" text-anchor="middle" class="h">Display map</text><text x="975" y="229" text-anchor="middle" class="t">margin</text><text x="975" y="253" text-anchor="middle" class="t">softmax p</text>
+  <path d="M1043 220 H1082" class="line"/>
+  <rect x="1082" y="181" width="88" height="78" rx="8" class="box"/>
+  <text x="1126" y="212" text-anchor="middle" class="h">Decision</text><text x="1126" y="239" text-anchor="middle" class="t">arg max</text>
+  <path d="M502 220 H672" class="dash"/><text x="587" y="211" text-anchor="middle" class="s">primitive activity held fixed</text>
+</svg>
