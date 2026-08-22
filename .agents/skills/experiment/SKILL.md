@@ -1,6 +1,6 @@
 ---
 name: experiment
-description: Use only when the user explicitly invokes $experiment to design, draft, review, or locally run one Pinglab experiment.
+description: Use only when the user explicitly invokes $experiment to draft, review, or locally run one Pinglab experiment.
 ---
 
 # Experiment
@@ -11,8 +11,6 @@ an experiment.
 
 Use exactly one subcommand:
 
-- `$experiment design` — inspect relevant prior work and develop a falsifiable,
-  proportionate experiment design conversationally. Read-only.
 - `$experiment draft` — create or revise only an unrun experiment writing and
   hand-authored design assets. Read [references/drafts.md](references/drafts.md).
 - `$experiment review ID` — review the named design, runner, artifacts,
