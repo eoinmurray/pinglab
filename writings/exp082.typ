@@ -68,23 +68,27 @@
 
   === 1. Single-trial spike-count evidence
 
-  The isolated trial shows the complete path from one input digit through E- and I-population activity to the ten output-LIF class traces. Each step in a trace is caused by an output spike; confidence changes only when one of the cumulative class counts changes.
+  The isolated trial shows how the network turns successive bursts of activity into a decision. Excitatory spikes drive the ten output-LIF neurons, one for each class. Every output spike adds one to that class's cumulative count. These counts can only increase, remain unchanged between spikes, and determine the final prediction directly: whichever class has accumulated the most spikes wins.
 
   #figure(
     image("/artifacts/data/exp082/single_trial.png", width: 100%, alt: "One MNIST digit above excitatory and inhibitory spike rasters and ten cumulative spike-count class-evidence traces."),
     caption: [A correctly classified 200 ms presentation at a maximum-pixel input rate of 5 Hz, selected as the first success in the pre-existing matched stream. The output readout resets at the boundary while hidden PING state remains continuous. The top badge gives the true label and final prediction. The middle panels show E- and I-cell spike rasters. The lower panel shows $p_c(u)$ from Equation 2; the true and winning class is red, and the annotation gives its final count, the runner-up count, and the winning margin. Equation 2 visualizes the cumulative integer counts $z_c(u)$ from Equation 1 and is not a calibrated posterior probability.],
   )
 
-  The transition near 93 ms is not a continuous change in confidence. It is the softmax response to discrete output spikes, including spikes from the true and winning class.
+  The plotted traces apply softmax to these cumulative counts. Softmax does not measure how much evidence exists in absolute terms; it shows how that evidence is distributed among the competing classes. Adding the same number of spikes to every class leaves the traces unchanged. What matters is the difference between their counts. For any two classes $c$ and $d$,
+
+  $ p_c(u) / p_d(u) = exp(z_c(u) - z_d(u)). $
+
+  Their displayed evidence ratio is therefore determined entirely by their spike-count margin. Each additional spike increases that class's log-odds against every unchanged competitor by one. Consequently, a modest accumulated lead can appear as near-total confidence even when the underlying difference is only a few spikes. The traces show relative, exponentially emphasized evidence, not calibrated probabilities that a class is correct.
+
+  This also explains why other classes can rise above the eventual winner during the first few cycles. With only a handful of output spikes, a single event can change the leader. The output counts reset for the new digit, but the hidden PING state continues from the preceding presentation, so the earliest activity need not favour the new input cleanly. Class 4 wins only after its evidence accumulates more consistently across later bursts.
 
   #figure(
     image("/artifacts/data/exp082/single_trial_transition.png", width: 100%, alt: "A zoom from 91.5 to 94.5 milliseconds showing output spikes, cumulative class counts, and class evidence."),
     caption: [The 91.5–94.5 ms transition from Figure 1. Top: output-LIF spikes by class. Middle: cumulative counts $z_c(u)$ from Equation 1. Bottom: $p_c(u)$ from Equation 2. The true and winning class 4 is red; other classes are grey. The apparent jump in class evidence is produced by discrete count increments rather than by a continuous-valued readout.],
   )
 
-  Figure 2 resolves the transformation from output spikes to the plotted class evidence. Each mark in the top panel increments exactly one cumulative count $z_c(u)$ in the middle panel; between output spikes every count remains constant. Equation 2 exponentiates and normalizes all ten counts, so, if the other counts are fixed, one additional spike multiplies that class's unnormalized softmax weight by $e approx 2.72$. At 92.6 ms, an output spike from class 4 raises $p_4(u)$ from 0.47 to 0.71. At 93.9 ms, class 4 spikes alongside classes 0, 3, and 6, moving $p_4(u)$ from 0.53 to 0.73. Conversely, $p_4(u)$ can fall while $z_4(u)$ remains constant when competing classes spike and enlarge Equation 2's denominator.
-
-  The horizontal 0.5 line therefore marks where class 4's exponential weight equals the combined weight of the other nine classes; it does not represent half of the output spikes. By the end of the presentation, class 4 has 31 spikes and runner-up class 9 has 28. Softmax maps this three-spike margin to $p_4 = 0.95$. The near-saturated trace is thus a normalized display of relative integer-count evidence, not a calibrated probability that the classification is correct.
+  Figure 2 resolves how the rhythmic E/I activity becomes the plotted class evidence. Output spikes occur around the population bursts, and each mark in the top panel increments one cumulative count in the middle panel. When one class spikes, its softmax trace rises and all the others fall because they share the same normalization denominator. A class's displayed evidence can therefore decrease even while its own cumulative count remains unchanged. The connecting lines render samples at successive timesteps; the underlying readout changes discretely at output spikes. This trial is consistent with successive PING bursts delivering packets of class evidence, but it does not establish that every cycle independently improves the decision.
 
   === 2. Streaming classification and temporal evidence
 
