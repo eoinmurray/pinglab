@@ -273,6 +273,7 @@ def test_saved_measurements_replot_every_figure(tmp_path, monkeypatch) -> None:
     stream = {
         "boundaries": [0, 2],
         "conditions": [[0.2, 5.0]],
+        "pixels": np.zeros((1, 784), dtype=np.float32),
         "labels": [1],
         "predictions": [1],
         "correct": [1],
