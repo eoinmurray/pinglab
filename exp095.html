@@ -1,0 +1,546 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>How hard is a neural code to read?</title><style>/* Alignment */
+mtable.right-align mtd,
+mtable mtd.right-align,
+mtable.left-align mtd.right-align,
+mtable.aligned mtd:nth-child(odd) {
+  justify-items: end;
+  text-align: right;
+}
+mtable.cases mtd,
+mtable.left-align mtd,
+mtable mtd.left-align,
+mtable.aligned mtd:nth-child(even),
+math:is(:not([display])) > mtable.multiline-equation mtd {
+  justify-items: start;
+  text-align: left;
+}
+mtable.cases mtd,
+mtable.aligned mtd,
+mtable mtd.flushed,
+mtable mtd.left-flush {
+  padding-left: 0;
+}
+mtable.cases mtd,
+mtable.aligned mtd,
+mtable mtd.flushed,
+mtable mtd.right-flush {
+  padding-right: 0;
+}
+
+/* Tables */
+mtable {
+  math-style: inherit;
+}
+mtd {
+  math-depth: auto-add;
+  math-style: compact;
+  math-shift: compact;
+}
+
+/* Equations */
+mtable.multiline-equation mtd {
+  math-depth: inherit;
+  math-style: inherit;
+  math-shift: inherit;
+  padding: 0;
+}
+math > mtable.multiline-equation mtr:not(:last-child) mtd {
+  padding-bottom: 0.5em;
+}
+
+/* Fractions */
+mfrac {
+  padding-inline: 0;
+  margin-inline: 0.1em;
+}
+
+/* Accents */
+mover[accent="true" i] > :first-child {
+  font-feature-settings: "dtls";
+}
+mover.dotted[accent="true" i] > :first-child {
+  font-feature-settings: "dtls" 0;
+}
+
+/* Other rules for scriptlevel, displaystyle and math-shift */
+munder > :nth-child(2),
+munderover > :nth-child(2) {
+  math-shift: compact
+}
+munder[accentunder="true" i] > :not(:first-child),
+mover[accent="true" i] > :not(:first-child) {
+  math-depth: inherit;
+  math-style: inherit;
+  math-shift: inherit;
+}</style></head><body><link rel="icon" type="image/svg+xml" href="favicon.svg"><style>/* demolab web styles — injected into each HTML page by publish/lib.typ.
+   Typst HTML export ships no CSS (paged #set rules don't apply to HTML), so the
+   web look lives here. Avoid `>` / `<` in selectors: they'd be escaped inside <style>.
+   Body face is CMU Serif, the web-available Computer Modern branch closest to the PDFs'
+   New Computer Modern. The pinned web fonts keep that shared lineage without vendoring a
+   second full font family into every site; Charter/Georgia fall back when offline. */
+@font-face {
+  font-family: "Computer Modern Serif";
+  src: url("https://cdn.jsdelivr.net/gh/aaaakshat/cm-web-fonts@333f55ec19733c28cdc43567ecf72eafd6b0af61/font/Serif/cmunrm.woff") format("woff");
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Computer Modern Serif";
+  src: url("https://cdn.jsdelivr.net/gh/aaaakshat/cm-web-fonts@333f55ec19733c28cdc43567ecf72eafd6b0af61/font/Serif/cmunbx.woff") format("woff");
+  font-weight: bold;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Computer Modern Serif";
+  src: url("https://cdn.jsdelivr.net/gh/aaaakshat/cm-web-fonts@333f55ec19733c28cdc43567ecf72eafd6b0af61/font/Serif/cmunti.woff") format("woff");
+  font-weight: normal;
+  font-style: italic;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Computer Modern Serif";
+  src: url("https://cdn.jsdelivr.net/gh/aaaakshat/cm-web-fonts@333f55ec19733c28cdc43567ecf72eafd6b0af61/font/Serif/cmunbi.woff") format("woff");
+  font-weight: bold;
+  font-style: italic;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Computer Modern Typewriter";
+  src: url("https://cdn.jsdelivr.net/gh/aaaakshat/cm-web-fonts@333f55ec19733c28cdc43567ecf72eafd6b0af61/font/Typewriter/cmuntt.woff") format("woff");
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+/* A genuine mid-weight for the CM family: CMU ships only Roman + Bold, so there is no semibold to
+   step down to. Latin Modern Roman Demi (the CM-lineage demibold) fills weight 600 — used only by
+   inline citations, which want emphasis without the full punch of bold. */
+@font-face {
+  font-family: "Computer Modern Serif";
+  src: url("https://cdn.jsdelivr.net/gh/sugina-dev/latin-modern-web@1.0.1/font/lmromandemi-regular-webfont.woff") format("woff");
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+/* One deliberate scale drives the whole site:
+     - two inks:  --ink (headings, body, titles, links) and --muted (all secondary text)
+     - one body size (--fs-body) + a three-step heading scale (--fs-h1..h3)
+     - one secondary size (--fs-small) shared by every id, date, count, caption, meta line
+   Everything below composes those tokens — no one-off px or ad-hoc greys. */
+:root {
+  --ink: #1a1a1a;
+  --muted: #666;          /* every piece of secondary text, one grey */
+  --rule: #e7e5df;
+  --rule-strong: #d8d5cd;
+  --paper: #fff;
+  --paper-tint: #fafaf7;
+  --selection: #ebe9e2;
+
+  --fs-h1: 1.6rem;        /* page/entry title  (Typst level 1 → <h2>) — 28.8px */
+  --fs-h2: 1.3rem;        /* section heading   (Typst level 2 → <h3>) — 23.4px */
+  --fs-h3: 1.1rem;        /* subsection        (Typst level 3 → <h4>) — 19.8px */
+  --fs-small: 0.85rem;    /* every piece of secondary text, one size  — 15.3px */
+  --fs-label: 0.72rem;    /* uppercase mono labels — 13px */
+
+  --mono: "Computer Modern Typewriter", ui-monospace, "SF Mono", Menlo, monospace;
+}
+* { box-sizing: border-box; }
+/* rem is anchored to the 18px body so the heading scale steps cleanly off body size. */
+html { font-size: 18px; }
+body {
+  max-width: 42em;
+  margin: clamp(2rem, 7vw, 3.5rem) auto;
+  padding: 0 clamp(1rem, 4vw, 1.5rem);
+  font: 1rem/1.6 "Computer Modern Serif", Charter, Georgia, "Times New Roman", serif;
+  font-kerning: normal;
+  font-synthesis: none;
+  color: var(--ink);
+  background: var(--paper);
+  -webkit-text-size-adjust: 100%;
+}
+::selection { color: var(--ink); background: var(--selection); }
+/* Typst's HTML export reserves <h1> and renders heading level N as <h(N+1)>: an entry/
+   page title (level 1) is <h2>, a section (level 2) is <h3>, a subsection is <h4>. Style
+   the emitted tags, not the Typst levels. */
+h1, h2 {
+  margin: 0 0 .35rem;
+  font-size: var(--fs-h1);
+  line-height: 1.15;
+  font-weight: 700;
+  letter-spacing: -.012em;
+  text-wrap: balance;
+}
+h3 { font-size: var(--fs-h2); line-height: 1.25; font-weight: 700; margin: 2.4rem 0 .5rem; text-wrap: balance; }
+h4 { font-size: var(--fs-h3); line-height: 1.3; font-weight: 700; margin: 1.8rem 0 .35rem; text-wrap: balance; }
+/* Print-style links: ink with a hairline underline, not web blue. */
+a {
+  color: var(--ink);
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 2px;
+}
+a:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 3px;
+  border-radius: 1px;
+}
+/* Listing pages (home, collection, all-entries) follow pinglab: nav/index links are
+   unadorned and only underline on hover. Entry-body prose keeps the default underline. */
+.listing a { text-decoration: none; }
+.listing a:hover { text-decoration: underline; }
+/* ...except concrete destination links: the per-row pdf badge and the foot-line links
+   ("Browse all entries", "single pdf", the back arrows) stay underlined so they read as
+   links rather than nav chrome. Title/id links keep the clean hover-only treatment. */
+.listing .page-foot a,
+.entry-row .row-pdf { text-decoration: underline; }
+
+/* --- secondary text: one size (--fs-small), one colour (--muted) everywhere --- */
+.entry-meta,           /* id · date · status · collection under an entry/collection title */
+.coll-desc,            /* collection blurb on the homepage directory */
+.row-id, .row-meta, .row-pdf,  /* the aligned index-row columns */
+figcaption,
+.page-foot {           /* the "Browse all / back" line at the foot of a listing */
+  font-size: var(--fs-small);
+  color: var(--muted);
+}
+.entry-meta { margin: .2rem 0 1.75rem; }
+/* Byline under the homepage title: the lab's owner, quiet, links to contact if set. Its
+   default spacing also works when there is no description; the adjacent rule closes the
+   larger description margin only when that line actually exists. */
+.byline { font-size: var(--fs-small); color: var(--muted); margin: .2rem 0 1.5rem; }
+.entry-meta + .byline { margin-top: -.9rem; }
+.byline a { color: var(--muted); }
+.byline a:hover { color: var(--ink); }
+/* Home link at the top of an entry page: quiet, small, one step back to the directory. */
+.home-link { display: inline-block; font-size: var(--fs-small); color: var(--muted); text-decoration: none; margin: 0 0 1.1rem; }
+.home-link:hover { color: var(--ink); text-decoration: underline; }
+
+/* Citations: inline numbers stay in the text (underline on hover); the reference list is
+   secondary text, each entry's DOI a quiet link out. */
+/* A hair of space before the bracket, owned here so authors attach `#cite` directly to the
+   preceding word (`runs#cite(2)`); nowrap + no source whitespace keeps the bracket from
+   orphaning onto the next line. */
+.cite { white-space: nowrap; margin-left: 0.15em; font-weight: 600; }
+.cite a { color: inherit; text-decoration: none; }
+.cite a:hover { text-decoration: underline; }
+ol.refs { font-size: var(--fs-small); line-height: 1.55; padding-left: 1.5rem; margin: 1rem 0; }
+ol.refs li { margin: .45rem 0; }
+ol.refs li::marker { color: var(--muted); }
+ol.refs .doi { color: var(--muted); }
+ol.refs .doi:hover { color: var(--ink); }
+/* Hover popover for an inline citation (Wikipedia-style): a small card echoing the reference. */
+.cite-popover {
+  position: absolute; z-index: 50; display: none;
+  width: min(24rem, calc(100vw - 1rem)); padding: .6rem .8rem;
+  background: var(--paper); border: 1px solid var(--rule-strong); border-radius: 2px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, .1);
+  font-size: var(--fs-small); line-height: 1.5; color: var(--ink);
+}
+.cite-popover .doi { color: var(--muted); }
+.cite-popover .doi:hover { color: var(--ink); }
+
+/* Status marker (`.status`): plain text in the meta line — `final` renders nothing (RULES §6.4),
+   so no styling is needed; it inherits the meta line's look. */
+
+/* Build-error stub: an entry that failed to compile (a missing figure, a Typst error) is served as
+   a stub page with the error in this block, so the failure is visible on its own page while the
+   rest of the site is fine. */
+.build-error { border-left: 3px solid #c0392b; background: #fcf3f2; color: #7a1f16; }
+
+/* Heading anchors: every heading carries a slug id (link to page.html#slug); a quiet # permalink
+   fades in on hover to grab that URL. */
+.hx .permalink { opacity: 0; margin-left: .3em; color: var(--muted); text-decoration: none; font-weight: 400; font-size: .85em; }
+.hx:hover .permalink, .hx:focus-within .permalink { opacity: 1; }
+.hx .permalink:hover { color: var(--ink); }
+
+/* Figure placeholder (`#pending` / `#pending-figure`): a figure whose asset isn't ready yet.
+   A tinted, dashed panel that reserves the figure's footprint so the page doesn't reflow when the
+   real plot lands — a small framed-image mark over the muted reason. aspect-ratio is set inline
+   from the helper's `ratio` arg. */
+.fig-pending {
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: .7rem;
+  width: 100%; padding: 1.5rem; text-align: center;
+  background: var(--paper-tint);
+  border: 1px dashed #d6d3ca;
+  border-radius: 2px;
+}
+.fig-pending-mark { width: 1.7em; height: 1.2em; border: 1px solid #b9b6ad; border-radius: 2px; }
+.fig-pending-note { font-size: var(--fs-small); font-style: italic; color: var(--muted); }
+
+/* Entry meta strip: id · date · status · pdf, all inline. The pdf is a concrete destination, so it
+   keeps its underline (muted, darkening on hover) rather than the bare listing-nav treatment. */
+.entry-pdf { color: var(--muted); text-decoration: underline; }
+.entry-pdf:hover { color: var(--ink); }
+/* On listing pages the description sits closer to the list it heads (entry pages keep the
+   airier 1.75rem before the body). */
+.listing .entry-meta { margin-bottom: 1.25rem; }
+/* Homepage brand lockup: quieter and tighter than an article title. The tagline is more
+   important than generic metadata, but still secondary to the name. Scoping this to the
+   header keeps entry and collection hierarchy unchanged. */
+.site-head {
+  margin-bottom: 1rem;
+}
+.site-head h1, .site-head h2 {
+  font-size: 1.5rem;
+  line-height: 1.15;
+  letter-spacing: -.008em;
+}
+.site-head .entry-meta {
+  max-width: 38rem;
+  margin: .3rem 0 0;
+  font-size: 1rem;
+  line-height: 1.5;
+  color: var(--muted);
+}
+.site-head .byline { margin-bottom: 0; }
+.site-head .entry-meta + .byline { margin-top: .3rem; }
+/* Breathing room at the foot of an entry page so the last line isn't flush to the edge. */
+.entry-tail { height: 6rem; }
+
+/* Empty state: a freshly-scaffolded repo (no writings) — the homepage's only content. Warm and
+   jargon-free (the first thing a non-technical user sees), led by a confident line. */
+.empty-state { margin: 1.75rem 0; line-height: 1.65; max-width: 34rem; }
+.empty-lead { font-size: 1.2rem; color: var(--ink); margin: 0 0 .6rem; }
+.empty-state p:not(.empty-lead) { color: var(--muted); }
+
+/* Landing-page building blocks for a custom landing.typ (pitch, links, command boxes) —
+   used by the upstream demo's site/landing.typ; a lab's own landing.typ may reuse them. */
+.welcome { margin: 0 0 2.75rem; max-width: 36rem; }
+.welcome-body { margin: 0 0 1rem; }
+.welcome-links {
+  margin: 0 0 1.15rem;
+  font-size: 1rem;
+  line-height: 1.6;
+  color: var(--muted);
+}
+/* The homepage is a .listing page (links unadorned by default), so re-add the underline for
+   links in the landing hero — both the nav row and inline links in the body prose. */
+.welcome-links a, .welcome-body a { text-decoration: underline; }
+.welcome-links a { color: #444; }
+.welcome-links a:hover { color: var(--ink); }
+.welcome-kicker {
+  font-family: var(--mono); font-size: var(--fs-label); color: var(--muted);
+  text-transform: uppercase; letter-spacing: .08em; margin: 3rem 0 .65rem;
+}
+.welcome-cmd { margin: 0 0 .75rem; }
+.welcome-os {
+  font-family: var(--mono); font-size: var(--fs-label); color: var(--muted);
+  text-transform: uppercase; letter-spacing: .08em; margin-bottom: .35rem;
+}
+.welcome pre {
+  margin: 0; padding: .9rem 1rem; overflow-x: auto;
+  font-family: var(--mono); font-size: .82rem; line-height: 1.5;
+  background: var(--paper-tint); border: 1px solid var(--rule-strong); border-radius: 2px;
+}
+/* A quiet aside under a section (the "prefer to do it by hand?" line) — smaller and muted,
+   so it reads as a footnote to the block above, not the next paragraph. */
+.welcome-note { margin: 0 0 1rem; font-size: var(--fs-small); color: var(--muted); }
+.welcome-note a { color: var(--muted); text-decoration: underline; }
+.welcome-note a:hover { color: var(--ink); }
+/* The paste-into-your-agent command is a sentence, not shell — let it wrap rather than
+   clip/scroll at the .welcome column width. */
+.welcome-cmd pre { white-space: pre-wrap; }
+/* Runbook menu: NAME → what saying it does. A dl of hairline-separated rows; the name column
+   is mono (runbook names are commands) and fixed-width so descriptions align. */
+.welcome-runbooks { margin: 0 0 .75rem; }
+.welcome-runbook {
+  display: flex; gap: .75rem; padding: .45rem 0;
+  border-bottom: 1px solid var(--rule);
+}
+.welcome-runbook:last-child { border-bottom: none; }
+.welcome-runbook dt {
+  flex: 0 0 8.5rem; font-family: var(--mono); font-size: .78rem;
+  padding-top: .1rem;
+}
+.welcome-runbook dd { margin: 0; font-size: var(--fs-small); color: var(--muted); }
+/* Documentation tiers: four deliberately equal columns on wide screens, then a balanced
+   two-column grid — never an orphaned 3 + 1 arrangement at intermediate widths. */
+.welcome-docs {
+  display: grid; grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 1.25rem 1rem; margin: .15rem 0 1rem;
+}
+.welcome-docs-tier { border-top: 1px solid var(--rule-strong); padding-top: .55rem; }
+.welcome-docs-label {
+  margin: 0 0 .4rem;
+  font-family: var(--mono);
+  font-size: var(--fs-label);
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: .08em;
+}
+.welcome-docs-tier ul { list-style: none; padding-left: 0; margin: 0; }
+.welcome-docs-tier li { padding: .125rem 0; font-size: var(--fs-small); line-height: 1.4; }
+.welcome-docs-tier a { text-decoration: underline; color: var(--ink); }
+.welcome-docs-tier a:hover { color: var(--ink); }
+.welcome-foot {
+  margin: 1.75rem 0 0;
+  padding-top: .85rem;
+  border-top: 1px solid var(--rule);
+  font-size: var(--fs-small);
+  color: var(--muted);
+}
+.welcome-foot a { color: var(--muted); }
+.welcome-foot a:hover { color: var(--ink); }
+
+/* Homepage collection directory: collection-name links, description beneath. These are the
+   page's hero items, so they sit one step above body — the middle of the home hierarchy
+   (title 28.8 → collection 20.7 → description 15.3). */
+.coll-list { list-style: none; padding-left: 0; margin: 1.25rem 0; }
+.coll-row { padding: .55rem 0; }
+.coll-title { font-size: 1.15rem; }
+.coll-desc { margin: .2rem 0 0; line-height: 1.45; }
+
+/* Index rows: mono id in a left column; title + a quiet meta sub-line (date · status · pdf)
+   stacked in the main column, so long titles wrap without orphaning the meta. */
+.entry-list { list-style: none; padding-left: 0; margin: 1.25rem 0; }
+.entry-row { display: flex; align-items: baseline; gap: .6rem; padding: .5rem 0; }
+.entry-row .row-id { flex: 0 0 auto; min-width: 3em; font-family: var(--mono); }
+.row-main { flex: 1 1 auto; min-width: 0; }
+.row-main .row-title { display: block; }
+.row-main .row-meta { display: block; margin-top: .15rem; font-variant-numeric: tabular-nums; }
+
+/* Foot-of-listing nav line: quiet by default, links darken + underline on hover. */
+.page-foot { margin-top: 2rem; }
+.page-foot a { color: var(--muted); }
+.page-foot a:hover { color: var(--ink); }
+
+p { margin: 1rem 0; text-wrap: pretty; }
+img, video { max-width: 100%; height: auto; display: block; margin: 1.5rem auto; }
+figure { margin: 1.75rem 0; text-align: center; }
+figcaption { margin-top: .5rem; text-align: left; }
+table { border-collapse: collapse; margin: 1.25rem 0; font-size: var(--fs-small); }
+th, td { border: 1px solid var(--rule); padding: .35rem .75rem; text-align: left; }
+th { background: var(--paper-tint); font-weight: 600; }
+td:last-child, th:last-child { text-align: right; font-variant-numeric: tabular-nums; }
+math { font-size: 1.05em; }
+ul { padding-left: 1.25rem; }
+li { margin: .3rem 0; }
+hr { border: none; border-top: 1px solid var(--rule); margin: 2rem 0; }
+code, pre { font-family: var(--mono); }
+code { font-size: .9em; }
+pre {
+  font-size: .85em;
+  background: var(--paper-tint);
+  border: 1px solid var(--rule);
+  border-radius: 2px;
+  padding: .9rem 1.1rem;
+  line-height: 1.5;
+  overflow-x: auto;
+}
+pre code { font-size: 1em; }
+
+/* Built-in article treatment: developer documentation. A collection opts its articles in
+   with `theme: docs` in demolab.yaml. This stays close to demolab's default spacing and
+   structure while using the neutral sans/mono pairing, cool slate surfaces, and blue accent
+   readers expect from contemporary technical references.
+   Collection listings, experiments, PDFs, and the combined book remain unchanged. */
+body:has(.theme-docs) {
+  max-width: 46em;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Helvetica, Arial, sans-serif;
+  font-size: 17px;
+  line-height: 1.65;
+  color: #172033;
+  --ink: #172033;
+  --muted: #64748b;
+  --rule: #e2e8f0;
+  --rule-strong: #cbd5e1;
+  --paper-tint: #f8fafc;
+  --selection: #dbeafe;
+  --docs-accent: #315faa;
+  --mono: ui-monospace, "SFMono-Regular", Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+}
+body:has(.theme-docs) h1,
+body:has(.theme-docs) h2,
+body:has(.theme-docs) h3,
+body:has(.theme-docs) h4,
+body:has(.theme-docs) h5,
+body:has(.theme-docs) h6 {
+  color: #111827;
+  font-family: inherit;
+  letter-spacing: -.018em;
+}
+body:has(.theme-docs) h5 {
+  margin: 1.6rem 0 .4rem;
+  font-size: .95rem;
+  line-height: 1.35;
+}
+body:has(.theme-docs) h6 {
+  margin: 1.35rem 0 .35rem;
+  font-size: .9rem;
+  line-height: 1.35;
+}
+body:has(.theme-docs) a { color: var(--docs-accent); text-decoration-color: #9db4da; }
+body:has(.theme-docs) .home-link,
+body:has(.theme-docs) .entry-meta,
+body:has(.theme-docs) .page-foot { color: var(--muted); }
+body:has(.theme-docs) code {
+  padding: .08em .28em;
+  border-radius: 3px;
+  color: #334155;
+  background: #f1f5f9;
+  font-family: var(--mono);
+  font-size: .86em;
+}
+body:has(.theme-docs) pre {
+  border-color: #d0d7de;
+  border-radius: 6px;
+  color: #e2e8f0;
+  background: #172033;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, .06);
+}
+body:has(.theme-docs) pre code { padding: 0; color: inherit; background: transparent; font-size: 1em; }
+body:has(.theme-docs) table { width: 100%; font-size: .88rem; }
+body:has(.theme-docs) th,
+body:has(.theme-docs) td { border-color: var(--rule); padding: .55rem .7rem; vertical-align: top; }
+body:has(.theme-docs) th { color: #334155; background: #f1f5f9; }
+body:has(.theme-docs) td { color: #334155; }
+body:has(.theme-docs) td:last-child,
+body:has(.theme-docs) th:last-child { text-align: left; font-variant-numeric: normal; }
+.docs-toc {
+  margin: 1.5rem 0 2rem;
+  padding: .85rem 1rem;
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+  background: var(--paper-tint);
+}
+.docs-toc-title { margin: 0 0 .35rem; color: #334155; font-size: .88rem; font-weight: 650; }
+.docs-toc ul { columns: 2; margin: 0; padding-left: 1.15rem; }
+.docs-toc li { margin: .15rem 0; color: var(--muted); font-size: .9rem; }
+.docs-note {
+  margin: 1.25rem 0;
+  padding: .75rem 1rem;
+  border-left: 3px solid var(--docs-accent);
+  color: #334155;
+  background: #eff6ff;
+}
+.api-signature {
+  margin: .8rem 0 1rem;
+  padding: .75rem .9rem;
+  overflow-x: auto;
+  border: 1px solid #dbe3ee;
+  border-left: 3px solid #93add3;
+  border-radius: 4px;
+  color: #1e3a5f;
+  background: #f8fafc;
+  font-family: var(--mono);
+  font-size: .82rem;
+  line-height: 1.5;
+}
+.api-signature code { padding: 0; color: inherit; background: transparent; font-size: 1em; }
+
+@media (max-width: 42rem) {
+  body { margin-top: 2rem; margin-bottom: 2.5rem; }
+  .welcome { margin-bottom: 2rem; }
+  .welcome-kicker { margin-top: 2.5rem; }
+  .welcome-docs { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .welcome-runbook { display: block; padding: .6rem 0; }
+  .welcome-runbook dt { margin-bottom: .2rem; }
+  .entry-row { align-items: flex-start; gap: .5rem; }
+  .docs-toc ul { columns: 1; }
+}
+
+@media (max-width: 22rem) {
+  .welcome-docs { grid-template-columns: 1fr; }
+}
+</style><meta name="generator" content="demolab 2.4.0"><script src="cite-popover.js" defer></script><script src="https://hypothes.is/embed.js" async></script><p><a class="home-link" href="index.html">← Home</a></p><h2 id="how-hard-is-a-neural-code-to-read" class="hx">How hard is a neural code to read?<a class="permalink" href="#how-hard-is-a-neural-code-to-read" aria-label="Link to this section">#</a></h2><div class="entry-meta">exp095 · 22 August 2026 · <span class="status">Draft</span> · <a class="entry-pdf" href="pdfs/exp095.pdf">pdf</a></div><h3 id="abstract" class="hx">Abstract<a class="permalink" href="#abstract" aria-label="Link to this section">#</a></h3><p>Exp094 found that simple spike-based decoders preserved much more of PING’s native MNIST decision than COBA’s. That result does not tell us whether COBA discarded the class information or merely expressed it in a form that a simple decoder could not read. This experiment freezes matched COBA and PING networks, gives downstream decoders access only to their hidden excitatory spikes, and increases decoder capacity and temporal access systematically. It asks how much learned machinery and labelled data each representation requires before it supports accurate classification.</p><h3 id="methods" class="hx">Methods<a class="permalink" href="#methods" aria-label="Link to this section">#</a></h3><div><strong>Run status.</strong> Nothing in this experiment has been run. All curves, surfaces, and numerical comparisons below are planned outputs. The diagrams are qualitative design schematics, not simulated data.</div><ol><li><p><strong>Create one matched frozen-activity bank.</strong> Use the canonical seed-42 COBA and PING final-epoch checkpoints from the latest gold-star publication view. Present identical Poisson-encoded MNIST images and seeds to both networks. Freeze every network parameter. Record only the 1,024 excitatory hidden-neuron spike trains, binned into 5 ms counts over the 200 ms presentation. A decoder therefore receives a sequence <math><msub><mi>𝒙</mi><mrow><mn>1</mn><mo rspace="0em">:</mo><mi>𝐵</mi></mrow></msub></math> with <math><mi>𝐵</mi><mo>=</mo><mn>40</mn></math> bins and <math><msub><mi>𝒙</mi><mi>𝑏</mi></msub><mo>∈</mo><msup><mi>ℝ</mi><mn>1024</mn></msup></math>. It never receives pixels, labels, hidden voltages, or native output activity. Use the original MNIST training partition to fit decoders, a fixed held-out part of that partition for decoder selection, and the untouched official test partition once for final evaluation. Generates <a href="#result-1-interface">Result 1</a>.</p><figure><img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMjAwIiBoZWlnaHQ9IjQ3MCIgdmlld0JveD0iMCAwIDEyMDAgNDcwIiByb2xlPSJpbWciIGFyaWEtbGFiZWxsZWRieT0idGl0bGUgZGVzYyI+CiAgPHRpdGxlIGlkPSJ0aXRsZSI+RnJvemVuIHJlcHJlc2VudGF0aW9uIGFjY2VzcyBleHBlcmltZW50PC90aXRsZT4KICA8ZGVzYyBpZD0iZGVzYyI+SWRlbnRpY2FsIE1OSVNUIHNwaWtlIGlucHV0cyBicmFuY2ggaW50byBmcm96ZW4gQ09CQSBhbmQgUElORyBuZXR3b3Jrcy4gVGhlaXIgbWF0Y2hlZCBiaW5uZWQgZXhjaXRhdG9yeSBzcGlrZSByZXByZXNlbnRhdGlvbnMgZmVlZCBzZXBhcmF0ZWx5IHRyYWluZWQgZGVjb2RlciBsYWRkZXJzIGFuZCBoZWxkLW91dCBkZWNpc2lvbnMuPC9kZXNjPgogIDxkZWZzPgogICAgPG1hcmtlciBpZD0iYXJyb3ciIG1hcmtlcldpZHRoPSI4IiBtYXJrZXJIZWlnaHQ9IjgiIHJlZlg9IjciIHJlZlk9IjQiIG9yaWVudD0iYXV0byI+PHBhdGggZD0iTTAgMCBMOCA0IEwwIDggWiIgZmlsbD0iIzMzMyIvPjwvbWFya2VyPgogICAgPHN0eWxlPi5ib3h7ZmlsbDojZmZmO3N0cm9rZTojMjQyNDI0O3N0cm9rZS13aWR0aDoyfS5zb2Z0e2ZpbGw6I2YzZjBlODtzdHJva2U6Izc3NztzdHJva2Utd2lkdGg6MS41fS5hY2NlbnR7ZmlsbDojZmZmNGYzO3N0cm9rZTojYTUxZDJkO3N0cm9rZS13aWR0aDoyfS5saW5le2ZpbGw6bm9uZTtzdHJva2U6IzMzMztzdHJva2Utd2lkdGg6MjttYXJrZXItZW5kOnVybCgjYXJyb3cpfS5kYXNoe2ZpbGw6bm9uZTtzdHJva2U6Izg4ODtzdHJva2Utd2lkdGg6MS41O3N0cm9rZS1kYXNoYXJyYXk6NiA1fS5oe2ZvbnQ6NjAwIDE4cHggQXJpYWwsc2Fucy1zZXJpZjtmaWxsOiMyMDIwMjB9LnR7Zm9udDoxNXB4IEFyaWFsLHNhbnMtc2VyaWY7ZmlsbDojMzAzMDMwfS5ze2ZvbnQ6MTNweCBBcmlhbCxzYW5zLXNlcmlmO2ZpbGw6IzY2Nn0ucmVke3N0cm9rZTojYTUxZDJkO2ZpbGw6bm9uZTtzdHJva2Utd2lkdGg6Mi41fS5pbmt7c3Ryb2tlOiMyMjI7ZmlsbDpub25lO3N0cm9rZS13aWR0aDoyfTwvc3R5bGU+CiAgPC9kZWZzPgogIDxyZWN0IHdpZHRoPSIxMjAwIiBoZWlnaHQ9IjQ3MCIgZmlsbD0id2hpdGUiLz4KICA8dGV4dCB4PSI2MDAiIHk9IjM0IiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBjbGFzcz0iaCI+RnJlZXplIHRoZSByZXByZXNlbnRhdGlvbjsgdmFyeSBvbmx5IGhvdyBoYXJkIGl0IGlzIHRvIHJlYWQ8L3RleHQ+CiAgPHJlY3QgeD0iMjgiIHk9IjE2NiIgd2lkdGg9IjE1MCIgaGVpZ2h0PSIxMTIiIHJ4PSI4IiBjbGFzcz0ic29mdCIvPgogIDx0ZXh0IHg9IjEwMyIgeT0iMTk3IiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBjbGFzcz0iaCI+TU5JU1QgaW1hZ2U8L3RleHQ+CiAgPHBhdGggZD0iTTcwIDI1MCBRODIgMjA1IDEwNCAyNDYgUTEyMSAyNzggMTM5IDIxMSBNNjcgMjUxIEgxNDMiIGNsYXNzPSJpbmsiLz4KICA8dGV4dCB4PSIxMDMiIHk9IjMwMCIgdGV4dC1hbmNob3I9Im1pZGRsZSIgY2xhc3M9InMiPmlkZW50aWNhbCBQb2lzc29uIHNwaWtlczwvdGV4dD4KICA8cGF0aCBkPSJNMTc4IDIyMiBIMjIwIFYxMTMgSDI1NyIgY2xhc3M9ImxpbmUiLz48cGF0aCBkPSJNMjIwIDIyMiBWMzUwIEgyNTciIGNsYXNzPSJsaW5lIi8+CiAgPHJlY3QgeD0iMjU3IiB5PSI2NCIgd2lkdGg9IjE5MCIgaGVpZ2h0PSIxMDAiIHJ4PSI4IiBjbGFzcz0iYm94Ii8+CiAgPHRleHQgeD0iMzUyIiB5PSI5OCIgdGV4dC1hbmNob3I9Im1pZGRsZSIgY2xhc3M9ImgiPkZyb3plbiBDT0JBPC90ZXh0Pjx0ZXh0IHg9IjM1MiIgeT0iMTI4IiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBjbGFzcz0idCI+d2VpZ2h0cyBuZXZlciB1cGRhdGU8L3RleHQ+CiAgPHJlY3QgeD0iMjU3IiB5PSIzMDAiIHdpZHRoPSIxOTAiIGhlaWdodD0iMTAwIiByeD0iOCIgY2xhc3M9ImFjY2VudCIvPgogIDx0ZXh0IHg9IjM1MiIgeT0iMzM0IiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBjbGFzcz0iaCI+RnJvemVuIFBJTkc8L3RleHQ+PHRleHQgeD0iMzUyIiB5PSIzNjQiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGNsYXNzPSJ0Ij53ZWlnaHRzIG5ldmVyIHVwZGF0ZTwvdGV4dD4KICA8cGF0aCBkPSJNNDQ3IDExMyBINTAwIiBjbGFzcz0ibGluZSIvPjxwYXRoIGQ9Ik00NDcgMzUwIEg1MDAiIGNsYXNzPSJsaW5lIi8+CiAgPHJlY3QgeD0iNTAwIiB5PSI2NCIgd2lkdGg9IjIxOCIgaGVpZ2h0PSIxMDAiIHJ4PSI4IiBjbGFzcz0ic29mdCIvPgogIDx0ZXh0IHg9IjYwOSIgeT0iOTQiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGNsYXNzPSJoIj5IaWRkZW4gRSBzcGlrZXM8L3RleHQ+PHRleHQgeD0iNjA5IiB5PSIxMjIiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGNsYXNzPSJ0Ij40MCBiaW5zIMOXIDEsMDI0IG5ldXJvbnM8L3RleHQ+PHRleHQgeD0iNjA5IiB5PSIxNDciIHRleHQtYW5jaG9yPSJtaWRkbGUiIGNsYXNzPSJzIj5zYW1lIGludGVyZmFjZTwvdGV4dD4KICA8cmVjdCB4PSI1MDAiIHk9IjMwMCIgd2lkdGg9IjIxOCIgaGVpZ2h0PSIxMDAiIHJ4PSI4IiBjbGFzcz0ic29mdCIvPgogIDx0ZXh0IHg9IjYwOSIgeT0iMzMwIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBjbGFzcz0iaCI+SGlkZGVuIEUgc3Bpa2VzPC90ZXh0Pjx0ZXh0IHg9IjYwOSIgeT0iMzU4IiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBjbGFzcz0idCI+NDAgYmlucyDDlyAxLDAyNCBuZXVyb25zPC90ZXh0Pjx0ZXh0IHg9IjYwOSIgeT0iMzgzIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBjbGFzcz0icyI+c2FtZSBpbnRlcmZhY2U8L3RleHQ+CiAgPHBhdGggZD0iTTcxOCAxMTMgSDc3MCIgY2xhc3M9ImxpbmUiLz48cGF0aCBkPSJNNzE4IDM1MCBINzcwIiBjbGFzcz0ibGluZSIvPgogIDxyZWN0IHg9Ijc3MCIgeT0iNjQiIHdpZHRoPSIyMzgiIGhlaWdodD0iMTAwIiByeD0iOCIgY2xhc3M9ImJveCIvPgogIDx0ZXh0IHg9Ijg4OSIgeT0iOTMiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGNsYXNzPSJoIj5DT0JBIGRlY29kZXIgbGFkZGVyPC90ZXh0Pjx0ZXh0IHg9Ijg4OSIgeT0iMTIxIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBjbGFzcz0idCI+bGluZWFyIOKGkiB0ZW1wb3JhbCDihpIgR1JVPC90ZXh0Pjx0ZXh0IHg9Ijg4OSIgeT0iMTQ3IiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBjbGFzcz0icyI+b25seSBkZWNvZGVyIGxlYXJuczwvdGV4dD4KICA8cmVjdCB4PSI3NzAiIHk9IjMwMCIgd2lkdGg9IjIzOCIgaGVpZ2h0PSIxMDAiIHJ4PSI4IiBjbGFzcz0iYWNjZW50Ii8+CiAgPHRleHQgeD0iODg5IiB5PSIzMjkiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGNsYXNzPSJoIj5QSU5HIGRlY29kZXIgbGFkZGVyPC90ZXh0Pjx0ZXh0IHg9Ijg4OSIgeT0iMzU3IiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBjbGFzcz0idCI+bGluZWFyIOKGkiB0ZW1wb3JhbCDihpIgR1JVPC90ZXh0Pjx0ZXh0IHg9Ijg4OSIgeT0iMzgzIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBjbGFzcz0icyI+bWF0Y2hlZCBjYXBhY2l0eTwvdGV4dD4KICA8cGF0aCBkPSJNMTAwOCAxMTMgSDEwNTAiIGNsYXNzPSJsaW5lIi8+PHBhdGggZD0iTTEwMDggMzUwIEgxMDUwIiBjbGFzcz0ibGluZSIvPgogIDxyZWN0IHg9IjEwNTAiIHk9IjgyIiB3aWR0aD0iMTIyIiBoZWlnaHQ9IjY0IiByeD0iOCIgY2xhc3M9ImJveCIvPjx0ZXh0IHg9IjExMTEiIHk9IjEwOCIgdGV4dC1hbmNob3I9Im1pZGRsZSIgY2xhc3M9ImgiPkRlY2lzaW9uPC90ZXh0Pjx0ZXh0IHg9IjExMTEiIHk9IjEzMiIgdGV4dC1hbmNob3I9Im1pZGRsZSIgY2xhc3M9InMiPmhlbGQtb3V0IHRlc3Q8L3RleHQ+CiAgPHJlY3QgeD0iMTA1MCIgeT0iMzE4IiB3aWR0aD0iMTIyIiBoZWlnaHQ9IjY0IiByeD0iOCIgY2xhc3M9ImJveCIvPjx0ZXh0IHg9IjExMTEiIHk9IjM0NCIgdGV4dC1hbmNob3I9Im1pZGRsZSIgY2xhc3M9ImgiPkRlY2lzaW9uPC90ZXh0Pjx0ZXh0IHg9IjExMTEiIHk9IjM2OCIgdGV4dC1hbmNob3I9Im1pZGRsZSIgY2xhc3M9InMiPmhlbGQtb3V0IHRlc3Q8L3RleHQ+CiAgPHBhdGggZD0iTTUwMCAyMzAgSDEwMDgiIGNsYXNzPSJkYXNoIi8+PHRleHQgeD0iNzU0IiB5PSIyMTkiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGNsYXNzPSJzIj5zYW1lIHRyaWFscyDCtyBsYWJlbHMgwrcgb3B0aW1pemF0aW9uIGJ1ZGdldCDCtyBkZWNvZGVyIHNlZWRzPC90ZXh0Pgo8L3N2Zz4K" alt="Identical MNIST spike inputs passing through frozen COBA and PING networks into matched decoder ladders." width="1200" height="470" style="display: block; width: 100%"><figcaption>Figure 1: Experimental interface. Both networks receive the same input and expose the same 40 by 1,024 binned excitatory-spike representation. Only the separately fitted downstream decoder may learn.</figcaption></figure></li><li><p><strong>Increase decoder capacity without changing its input.</strong> Fit the same decoder family separately to COBA and PING activity. Begin with a linear classifier on presentation-mean spike counts. Add a linear temporal classifier that may weight bins differently. Then fit gated recurrent units with hidden widths <math><mi>𝐻</mi><mo>∈</mo><mrow><mo>{</mo><mrow><mn>2</mn><mo>,</mo><mn>4</mn><mo>,</mo><mn>8</mn><mo>,</mo><mn>16</mn><mo>,</mo><mn>32</mn><mo>,</mo><mn>64</mn><mo>,</mo><mn>128</mn></mrow><mo>}</mo></mrow></math>. For a decoder with parameters <math><mi>𝜃</mi></math>, let <math><mi>𝑃</mi><mo>=</mo><mo lspace="0em" rspace="0em">|</mo><mi>𝜃</mi><mo stretchy="false">|</mo></math> be its trainable parameter count. Compare models by measured <math><mi>𝑃</mi></math>, not by their informal family names. Use identical optimization budgets, early-stopping rules, data order, and five decoder initializations for both networks. A shuffled-label control must remain at chance. Generates <a href="#result-2-capacity">Result 2</a>.</p><figure><img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMDAwIiBoZWlnaHQ9IjM2MCIgdmlld0JveD0iMCAwIDEwMDAgMzYwIiByb2xlPSJpbWciIGFyaWEtbGFiZWxsZWRieT0idGl0bGUgZGVzYyI+CiAgPHRpdGxlIGlkPSJ0aXRsZSI+RGVjb2RlciBhY2Nlc3NpYmlsaXR5IGN1cnZlIGRlc2lnbiBzY2hlbWF0aWM8L3RpdGxlPgogIDxkZXNjIGlkPSJkZXNjIj5JbGx1c3RyYXRpdmUgYWNjdXJhY3kgY3VydmVzIGFnYWluc3QgbG9nYXJpdGhtaWMgZGVjb2RlciBwYXJhbWV0ZXIgY291bnQuIFBJTkcgcmlzZXMgZWFybGllciB0aGFuIENPQkEgYW5kIGJvdGggY29udmVyZ2UgYXQgYSBzaGFyZWQgY2VpbGluZy4gVmFsdWVzIGFyZSBub3QgcHJlZGljdGlvbnMuPC9kZXNjPgogIDxzdHlsZT4uYXhpc3tzdHJva2U6IzIyMjtzdHJva2Utd2lkdGg6MjtmaWxsOm5vbmV9LmdyaWR7c3Ryb2tlOiNkZGQ7c3Ryb2tlLXdpZHRoOjF9LnBpbmd7c3Ryb2tlOiNhNTFkMmQ7c3Ryb2tlLXdpZHRoOjQ7ZmlsbDpub25lfS5jb2Jhe3N0cm9rZTojMjIyO3N0cm9rZS13aWR0aDozO2ZpbGw6bm9uZX0ubmF0aXZle3N0cm9rZTojODg4O3N0cm9rZS13aWR0aDoxLjU7c3Ryb2tlLWRhc2hhcnJheTo3IDZ9Lmh7Zm9udDo2MDAgMThweCBBcmlhbCxzYW5zLXNlcmlmO2ZpbGw6IzIwMjAyMH0udHtmb250OjE0cHggQXJpYWwsc2Fucy1zZXJpZjtmaWxsOiM0NDR9LnN7Zm9udDoxM3B4IEFyaWFsLHNhbnMtc2VyaWY7ZmlsbDojNjY2fS5kb3Rwe2ZpbGw6I2E1MWQyZH0uZG90Y3tmaWxsOiMyMjJ9PC9zdHlsZT4KICA8cmVjdCB3aWR0aD0iMTAwMCIgaGVpZ2h0PSIzNjAiIGZpbGw9IndoaXRlIi8+CiAgPHRleHQgeD0iNTAwIiB5PSIyOCIgdGV4dC1hbmNob3I9Im1pZGRsZSIgY2xhc3M9ImgiPkRlc2lnbiBzY2hlbWF0aWMg4oCUIG1lYXN1cmVkIGN1cnZlcyB3aWxsIHJlcGxhY2UgdGhlc2Ugc2hhcGVzPC90ZXh0PgogIDxwYXRoIGQ9Ik0xMDAgMjg1IEg5NDAgTTEwMCAyODUgVjU4IiBjbGFzcz0iYXhpcyIvPgogIDxwYXRoIGQ9Ik0xMDAgMjMwIEg5NDAgTTEwMCAxNzUgSDk0MCBNMTAwIDEyMCBIOTQwIiBjbGFzcz0iZ3JpZCIvPgogIDxwYXRoIGQ9Ik0xMDAgODIgSDk0MCIgY2xhc3M9Im5hdGl2ZSIvPjx0ZXh0IHg9IjkzMiIgeT0iNzQiIHRleHQtYW5jaG9yPSJlbmQiIGNsYXNzPSJzIj5uYXRpdmUgcmVmZXJlbmNlPC90ZXh0PgogIDxwYXRoIGQ9Ik0xMjUgMjQ1IEMyMjAgMjIwIDI3OCAxNjQgMzYwIDEyMCBTNTM1IDg2IDcyMCA4MiBTODUwIDgyIDkyMCA4MiIgY2xhc3M9InBpbmciLz4KICA8cGF0aCBkPSJNMTI1IDI2NiBDMjYwIDI2MCAzNTAgMjMyIDQzMCAxODUgUzU3MCAxMDUgNzAwIDg3IFM4NTAgODIgOTIwIDgyIiBjbGFzcz0iY29iYSIvPgogIDxjaXJjbGUgY3g9IjEyNSIgY3k9IjI0NSIgcj0iNSIgY2xhc3M9ImRvdHAiLz48Y2lyY2xlIGN4PSIzNjAiIGN5PSIxMjAiIHI9IjUiIGNsYXNzPSJkb3RwIi8+PGNpcmNsZSBjeD0iNzIwIiBjeT0iODIiIHI9IjUiIGNsYXNzPSJkb3RwIi8+CiAgPGNpcmNsZSBjeD0iMTI1IiBjeT0iMjY2IiByPSI1IiBjbGFzcz0iZG90YyIvPjxjaXJjbGUgY3g9IjQzMCIgY3k9IjE4NSIgcj0iNSIgY2xhc3M9ImRvdGMiLz48Y2lyY2xlIGN4PSI3MDAiIGN5PSI4NyIgcj0iNSIgY2xhc3M9ImRvdGMiLz4KICA8dGV4dCB4PSI3NDgiIHk9IjEwNyIgY2xhc3M9InQiPlBJTkc8L3RleHQ+PHRleHQgeD0iNTkwIiB5PSIxNTIiIGNsYXNzPSJ0Ij5DT0JBPC90ZXh0PgogIDx0ZXh0IHg9IjUyMCIgeT0iMzM4IiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBjbGFzcz0idCI+dHJhaW5hYmxlIGRlY29kZXIgcGFyYW1ldGVycyBQIChsb2cgc2NhbGUpPC90ZXh0PgogIDx0ZXh0IHg9IjI1IiB5PSIxNzYiIHRleHQtYW5jaG9yPSJtaWRkbGUiIHRyYW5zZm9ybT0icm90YXRlKC05MCAyNSAxNzYpIiBjbGFzcz0idCI+aGVsZC1vdXQgTU5JU1QgYWNjdXJhY3k8L3RleHQ+CiAgPHRleHQgeD0iMTIwIiB5PSIzMTAiIGNsYXNzPSJzIj5saW5lYXI8L3RleHQ+PHRleHQgeD0iNDM4IiB5PSIzMTAiIGNsYXNzPSJzIj5zbWFsbCByZWN1cnJlbnQ8L3RleHQ+PHRleHQgeD0iNzg1IiB5PSIzMTAiIGNsYXNzPSJzIj5sYXJnZSByZWN1cnJlbnQ8L3RleHQ+CiAgPGxpbmUgeDE9IjY5MCIgeTE9IjMyMiIgeDI9IjczMCIgeTI9IjMyMiIgY2xhc3M9InBpbmciLz48dGV4dCB4PSI3MzgiIHk9IjMyNyIgY2xhc3M9InMiPlBJTkc8L3RleHQ+PGxpbmUgeDE9IjgwNSIgeTE9IjMyMiIgeDI9Ijg0NSIgeTI9IjMyMiIgY2xhc3M9ImNvYmEiLz48dGV4dCB4PSI4NTMiIHk9IjMyNyIgY2xhc3M9InMiPkNPQkE8L3RleHQ+Cjwvc3ZnPgo=" alt="Design schematic of accuracy against decoder parameter count, with an earlier-rising PING curve and a later-rising COBA curve converging at high capacity." width="1000" height="360" style="display: block; width: 100%"><figcaption>Figure 2: Design schematic for the decoder-accessibility curve. The illustrated values are not predictions. The measured result will retain this panel layout and visual language.</figcaption></figure></li><li><p><strong>Separate computational capacity from temporal access.</strong> Repeat selected decoder widths while limiting each decoder to the first 5, 10, 25, 50, 100, or 200 ms of activity. At 200 ms, add two controls: collapse all bins into one rate vector, and independently permute time bins within each presentation while preserving every neuron’s total spike count. These interventions distinguish information that is linearly available, nonlinearly available, or dependent on temporal order. Generates <a href="#result-3-temporal">Result 3</a>.</p><figure><img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMDAwIiBoZWlnaHQ9IjQzMCIgdmlld0JveD0iMCAwIDEwMDAgNDMwIiByb2xlPSJpbWciIGFyaWEtbGFiZWxsZWRieT0idGl0bGUgZGVzYyI+CiAgPHRpdGxlIGlkPSJ0aXRsZSI+Q2FwYWNpdHkgYnkgdGVtcG9yYWwgYWNjZXNzIGRlc2lnbiBzY2hlbWF0aWM8L3RpdGxlPgogIDxkZXNjIGlkPSJkZXNjIj5NYXRjaGVkIENPQkEgYW5kIFBJTkcgZ3JpZHMgdmFyeSBkZWNvZGVyIGNhcGFjaXR5IGFjcm9zcyBjb2x1bW5zIGFuZCB0ZW1wb3JhbCBjb250ZXh0IGRvd24gcm93cy4gRGFya2VyIGNlbGxzIGlsbHVzdHJhdGUgaGlnaGVyIGFjY3VyYWN5IHdpdGhvdXQgYXNzZXJ0aW5nIGV4cGVjdGVkIHZhbHVlcy48L2Rlc2M+CiAgPHN0eWxlPi5mcmFtZXtmaWxsOm5vbmU7c3Ryb2tlOiMyMjI7c3Ryb2tlLXdpZHRoOjJ9LmNlbGx7c3Ryb2tlOndoaXRlO3N0cm9rZS13aWR0aDoyfS5sMHtmaWxsOiNmMWVlZTh9Lmwxe2ZpbGw6I2Q4YzhjNn0ubDJ7ZmlsbDojYzg5OTlkfS5sM3tmaWxsOiNiNzVmNmF9Lmw0e2ZpbGw6I2E1MWQyZH0uaHtmb250OjYwMCAxOHB4IEFyaWFsLHNhbnMtc2VyaWY7ZmlsbDojMjAyMDIwfS50e2ZvbnQ6MTRweCBBcmlhbCxzYW5zLXNlcmlmO2ZpbGw6IzQ0NH0uc3tmb250OjEzcHggQXJpYWwsc2Fucy1zZXJpZjtmaWxsOiM2NjZ9PC9zdHlsZT4KICA8cmVjdCB3aWR0aD0iMTAwMCIgaGVpZ2h0PSI0MzAiIGZpbGw9IndoaXRlIi8+CiAgPHRleHQgeD0iNTAwIiB5PSIyOCIgdGV4dC1hbmNob3I9Im1pZGRsZSIgY2xhc3M9ImgiPkRlc2lnbiBzY2hlbWF0aWMg4oCUIGNhcGFjaXR5IGFuZCB0ZW1wb3JhbCBhY2Nlc3MgdmFyeSBpbmRlcGVuZGVudGx5PC90ZXh0PgogIDx0ZXh0IHg9IjI4NSIgeT0iNjYiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGNsYXNzPSJoIj5DT0JBPC90ZXh0Pjx0ZXh0IHg9IjcxNSIgeT0iNjYiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGNsYXNzPSJoIj5QSU5HPC90ZXh0PgogIDxnIHRyYW5zZm9ybT0idHJhbnNsYXRlKDEwNSA4MikiPgogICAgPHJlY3QgeD0iMCIgeT0iMCIgd2lkdGg9IjM2MCIgaGVpZ2h0PSIyNTAiIGNsYXNzPSJmcmFtZSIvPgogICAgPHJlY3QgeD0iMCIgeT0iMCIgd2lkdGg9IjcyIiBoZWlnaHQ9IjUwIiBjbGFzcz0iY2VsbCBsMCIvPjxyZWN0IHg9IjcyIiB5PSIwIiB3aWR0aD0iNzIiIGhlaWdodD0iNTAiIGNsYXNzPSJjZWxsIGwwIi8+PHJlY3QgeD0iMTQ0IiB5PSIwIiB3aWR0aD0iNzIiIGhlaWdodD0iNTAiIGNsYXNzPSJjZWxsIGwxIi8+PHJlY3QgeD0iMjE2IiB5PSIwIiB3aWR0aD0iNzIiIGhlaWdodD0iNTAiIGNsYXNzPSJjZWxsIGwxIi8+PHJlY3QgeD0iMjg4IiB5PSIwIiB3aWR0aD0iNzIiIGhlaWdodD0iNTAiIGNsYXNzPSJjZWxsIGwyIi8+CiAgICA8cmVjdCB4PSIwIiB5PSI1MCIgd2lkdGg9IjcyIiBoZWlnaHQ9IjUwIiBjbGFzcz0iY2VsbCBsMCIvPjxyZWN0IHg9IjcyIiB5PSI1MCIgd2lkdGg9IjcyIiBoZWlnaHQ9IjUwIiBjbGFzcz0iY2VsbCBsMSIvPjxyZWN0IHg9IjE0NCIgeT0iNTAiIHdpZHRoPSI3MiIgaGVpZ2h0PSI1MCIgY2xhc3M9ImNlbGwgbDEiLz48cmVjdCB4PSIyMTYiIHk9IjUwIiB3aWR0aD0iNzIiIGhlaWdodD0iNTAiIGNsYXNzPSJjZWxsIGwyIi8+PHJlY3QgeD0iMjg4IiB5PSI1MCIgd2lkdGg9IjcyIiBoZWlnaHQ9IjUwIiBjbGFzcz0iY2VsbCBsMiIvPgogICAgPHJlY3QgeD0iMCIgeT0iMTAwIiB3aWR0aD0iNzIiIGhlaWdodD0iNTAiIGNsYXNzPSJjZWxsIGwwIi8+PHJlY3QgeD0iNzIiIHk9IjEwMCIgd2lkdGg9IjcyIiBoZWlnaHQ9IjUwIiBjbGFzcz0iY2VsbCBsMSIvPjxyZWN0IHg9IjE0NCIgeT0iMTAwIiB3aWR0aD0iNzIiIGhlaWdodD0iNTAiIGNsYXNzPSJjZWxsIGwyIi8+PHJlY3QgeD0iMjE2IiB5PSIxMDAiIHdpZHRoPSI3MiIgaGVpZ2h0PSI1MCIgY2xhc3M9ImNlbGwgbDIiLz48cmVjdCB4PSIyODgiIHk9IjEwMCIgd2lkdGg9IjcyIiBoZWlnaHQ9IjUwIiBjbGFzcz0iY2VsbCBsMyIvPgogICAgPHJlY3QgeD0iMCIgeT0iMTUwIiB3aWR0aD0iNzIiIGhlaWdodD0iNTAiIGNsYXNzPSJjZWxsIGwxIi8+PHJlY3QgeD0iNzIiIHk9IjE1MCIgd2lkdGg9IjcyIiBoZWlnaHQ9IjUwIiBjbGFzcz0iY2VsbCBsMSIvPjxyZWN0IHg9IjE0NCIgeT0iMTUwIiB3aWR0aD0iNzIiIGhlaWdodD0iNTAiIGNsYXNzPSJjZWxsIGwyIi8+PHJlY3QgeD0iMjE2IiB5PSIxNTAiIHdpZHRoPSI3MiIgaGVpZ2h0PSI1MCIgY2xhc3M9ImNlbGwgbDMiLz48cmVjdCB4PSIyODgiIHk9IjE1MCIgd2lkdGg9IjcyIiBoZWlnaHQ9IjUwIiBjbGFzcz0iY2VsbCBsNCIvPgogICAgPHJlY3QgeD0iMCIgeT0iMjAwIiB3aWR0aD0iNzIiIGhlaWdodD0iNTAiIGNsYXNzPSJjZWxsIGwxIi8+PHJlY3QgeD0iNzIiIHk9IjIwMCIgd2lkdGg9IjcyIiBoZWlnaHQ9IjUwIiBjbGFzcz0iY2VsbCBsMiIvPjxyZWN0IHg9IjE0NCIgeT0iMjAwIiB3aWR0aD0iNzIiIGhlaWdodD0iNTAiIGNsYXNzPSJjZWxsIGwzIi8+PHJlY3QgeD0iMjE2IiB5PSIyMDAiIHdpZHRoPSI3MiIgaGVpZ2h0PSI1MCIgY2xhc3M9ImNlbGwgbDQiLz48cmVjdCB4PSIyODgiIHk9IjIwMCIgd2lkdGg9IjcyIiBoZWlnaHQ9IjUwIiBjbGFzcz0iY2VsbCBsNCIvPgogIDwvZz4KICA8ZyB0cmFuc2Zvcm09InRyYW5zbGF0ZSg1MzUgODIpIj4KICAgIDxyZWN0IHg9IjAiIHk9IjAiIHdpZHRoPSIzNjAiIGhlaWdodD0iMjUwIiBjbGFzcz0iZnJhbWUiLz4KICAgIDxyZWN0IHg9IjAiIHk9IjAiIHdpZHRoPSI3MiIgaGVpZ2h0PSI1MCIgY2xhc3M9ImNlbGwgbDAiLz48cmVjdCB4PSI3MiIgeT0iMCIgd2lkdGg9IjcyIiBoZWlnaHQ9IjUwIiBjbGFzcz0iY2VsbCBsMSIvPjxyZWN0IHg9IjE0NCIgeT0iMCIgd2lkdGg9IjcyIiBoZWlnaHQ9IjUwIiBjbGFzcz0iY2VsbCBsMSIvPjxyZWN0IHg9IjIxNiIgeT0iMCIgd2lkdGg9IjcyIiBoZWlnaHQ9IjUwIiBjbGFzcz0iY2VsbCBsMiIvPjxyZWN0IHg9IjI4OCIgeT0iMCIgd2lkdGg9IjcyIiBoZWlnaHQ9IjUwIiBjbGFzcz0iY2VsbCBsMiIvPgogICAgPHJlY3QgeD0iMCIgeT0iNTAiIHdpZHRoPSI3MiIgaGVpZ2h0PSI1MCIgY2xhc3M9ImNlbGwgbDEiLz48cmVjdCB4PSI3MiIgeT0iNTAiIHdpZHRoPSI3MiIgaGVpZ2h0PSI1MCIgY2xhc3M9ImNlbGwgbDEiLz48cmVjdCB4PSIxNDQiIHk9IjUwIiB3aWR0aD0iNzIiIGhlaWdodD0iNTAiIGNsYXNzPSJjZWxsIGwyIi8+PHJlY3QgeD0iMjE2IiB5PSI1MCIgd2lkdGg9IjcyIiBoZWlnaHQ9IjUwIiBjbGFzcz0iY2VsbCBsMyIvPjxyZWN0IHg9IjI4OCIgeT0iNTAiIHdpZHRoPSI3MiIgaGVpZ2h0PSI1MCIgY2xhc3M9ImNlbGwgbDMiLz4KICAgIDxyZWN0IHg9IjAiIHk9IjEwMCIgd2lkdGg9IjcyIiBoZWlnaHQ9IjUwIiBjbGFzcz0iY2VsbCBsMSIvPjxyZWN0IHg9IjcyIiB5PSIxMDAiIHdpZHRoPSI3MiIgaGVpZ2h0PSI1MCIgY2xhc3M9ImNlbGwgbDIiLz48cmVjdCB4PSIxNDQiIHk9IjEwMCIgd2lkdGg9IjcyIiBoZWlnaHQ9IjUwIiBjbGFzcz0iY2VsbCBsMyIvPjxyZWN0IHg9IjIxNiIgeT0iMTAwIiB3aWR0aD0iNzIiIGhlaWdodD0iNTAiIGNsYXNzPSJjZWxsIGwzIi8+PHJlY3QgeD0iMjg4IiB5PSIxMDAiIHdpZHRoPSI3MiIgaGVpZ2h0PSI1MCIgY2xhc3M9ImNlbGwgbDQiLz4KICAgIDxyZWN0IHg9IjAiIHk9IjE1MCIgd2lkdGg9IjcyIiBoZWlnaHQ9IjUwIiBjbGFzcz0iY2VsbCBsMiIvPjxyZWN0IHg9IjcyIiB5PSIxNTAiIHdpZHRoPSI3MiIgaGVpZ2h0PSI1MCIgY2xhc3M9ImNlbGwgbDMiLz48cmVjdCB4PSIxNDQiIHk9IjE1MCIgd2lkdGg9IjcyIiBoZWlnaHQ9IjUwIiBjbGFzcz0iY2VsbCBsMyIvPjxyZWN0IHg9IjIxNiIgeT0iMTUwIiB3aWR0aD0iNzIiIGhlaWdodD0iNTAiIGNsYXNzPSJjZWxsIGw0Ii8+PHJlY3QgeD0iMjg4IiB5PSIxNTAiIHdpZHRoPSI3MiIgaGVpZ2h0PSI1MCIgY2xhc3M9ImNlbGwgbDQiLz4KICAgIDxyZWN0IHg9IjAiIHk9IjIwMCIgd2lkdGg9IjcyIiBoZWlnaHQ9IjUwIiBjbGFzcz0iY2VsbCBsMyIvPjxyZWN0IHg9IjcyIiB5PSIyMDAiIHdpZHRoPSI3MiIgaGVpZ2h0PSI1MCIgY2xhc3M9ImNlbGwgbDMiLz48cmVjdCB4PSIxNDQiIHk9IjIwMCIgd2lkdGg9IjcyIiBoZWlnaHQ9IjUwIiBjbGFzcz0iY2VsbCBsNCIvPjxyZWN0IHg9IjIxNiIgeT0iMjAwIiB3aWR0aD0iNzIiIGhlaWdodD0iNTAiIGNsYXNzPSJjZWxsIGw0Ii8+PHJlY3QgeD0iMjg4IiB5PSIyMDAiIHdpZHRoPSI3MiIgaGVpZ2h0PSI1MCIgY2xhc3M9ImNlbGwgbDQiLz4KICA8L2c+CiAgPHRleHQgeD0iNTAwIiB5PSIzODgiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGNsYXNzPSJ0Ij5kZWNvZGVyIGNhcGFjaXR5IOKGkjwvdGV4dD48dGV4dCB4PSI1MyIgeT0iMjEwIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiB0cmFuc2Zvcm09InJvdGF0ZSgtOTAgNTMgMjEwKSIgY2xhc3M9InQiPmF2YWlsYWJsZSBhY3Rpdml0eSBkdXJhdGlvbiDihpI8L3RleHQ+CiAgPHRleHQgeD0iMTA1IiB5PSIzNTQiIGNsYXNzPSJzIj5saW5lYXI8L3RleHQ+PHRleHQgeD0iMzk4IiB5PSIzNTQiIGNsYXNzPSJzIj5sYXJnZSBHUlU8L3RleHQ+PHRleHQgeD0iNTM1IiB5PSIzNTQiIGNsYXNzPSJzIj5saW5lYXI8L3RleHQ+PHRleHQgeD0iODI4IiB5PSIzNTQiIGNsYXNzPSJzIj5sYXJnZSBHUlU8L3RleHQ+CiAgPHJlY3QgeD0iMzkwIiB5PSI0MDUiIHdpZHRoPSIzOCIgaGVpZ2h0PSIxMiIgY2xhc3M9ImwwIi8+PHJlY3QgeD0iNDI4IiB5PSI0MDUiIHdpZHRoPSIzOCIgaGVpZ2h0PSIxMiIgY2xhc3M9ImwxIi8+PHJlY3QgeD0iNDY2IiB5PSI0MDUiIHdpZHRoPSIzOCIgaGVpZ2h0PSIxMiIgY2xhc3M9ImwyIi8+PHJlY3QgeD0iNTA0IiB5PSI0MDUiIHdpZHRoPSIzOCIgaGVpZ2h0PSIxMiIgY2xhc3M9ImwzIi8+PHJlY3QgeD0iNTQyIiB5PSI0MDUiIHdpZHRoPSIzOCIgaGVpZ2h0PSIxMiIgY2xhc3M9Imw0Ii8+PHRleHQgeD0iMzc1IiB5PSI0MTYiIHRleHQtYW5jaG9yPSJlbmQiIGNsYXNzPSJzIj5sb3dlcjwvdGV4dD48dGV4dCB4PSI1OTQiIHk9IjQxNiIgY2xhc3M9InMiPmhpZ2hlciBhY2N1cmFjeTwvdGV4dD4KPC9zdmc+Cg==" alt="Matched COBA and PING heatmap schematics with decoder capacity horizontally, temporal access vertically, and accuracy represented by shade." width="1000" height="430" style="display: block; width: 100%"><figcaption>Figure 3: Design schematic for the temporal-accessibility surface. Matched COBA and PING panels vary decoder capacity horizontally and available activity duration vertically.</figcaption></figure></li><li><p><strong>Measure the supervision needed to learn each code.</strong> For the linear rate probe and GRU widths 16 and 64, train on nested, class-balanced subsets of 100, 300, 1,000, 3,000, 10,000, and all available decoder-training images. Keep validation and test sets fixed. Report test accuracy only after selecting the decoder with validation data. This measures sample efficiency rather than raw capacity alone. The seed-42 checkpoint pair is sufficient for this first experiment, but any architectural claim must later be repeated across independently trained network seeds. Generates <a href="#result-4-samples">Result 4</a>.</p><figure><img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMDAwIiBoZWlnaHQ9IjM2MCIgdmlld0JveD0iMCAwIDEwMDAgMzYwIiByb2xlPSJpbWciIGFyaWEtbGFiZWxsZWRieT0idGl0bGUgZGVzYyI+CiAgPHRpdGxlIGlkPSJ0aXRsZSI+RGVjb2RlciBzYW1wbGUgZWZmaWNpZW5jeSBkZXNpZ24gc2NoZW1hdGljPC90aXRsZT4KICA8ZGVzYyBpZD0iZGVzYyI+VGhyZWUgbWF0Y2hlZCBwYW5lbHMgZm9yIGxpbmVhciwgbWVkaXVtIHJlY3VycmVudCwgYW5kIGxhcmdlciByZWN1cnJlbnQgZGVjb2RlcnMgY29tcGFyZSBpbGx1c3RyYXRpdmUgQ09CQSBhbmQgUElORyBhY2N1cmFjeSBhZ2FpbnN0IGxhYmVsbGVkIHRyYWluaW5nIGV4YW1wbGVzLjwvZGVzYz4KICA8c3R5bGU+LmF4aXN7c3Ryb2tlOiMyMjI7c3Ryb2tlLXdpZHRoOjEuODtmaWxsOm5vbmV9LmdyaWR7c3Ryb2tlOiNkZGQ7c3Ryb2tlLXdpZHRoOjF9LnBpbmd7c3Ryb2tlOiNhNTFkMmQ7c3Ryb2tlLXdpZHRoOjM7ZmlsbDpub25lfS5jb2Jhe3N0cm9rZTojMjIyO3N0cm9rZS13aWR0aDoyLjU7ZmlsbDpub25lfS5oe2ZvbnQ6NjAwIDE3cHggQXJpYWwsc2Fucy1zZXJpZjtmaWxsOiMyMDIwMjB9LnR7Zm9udDoxNHB4IEFyaWFsLHNhbnMtc2VyaWY7ZmlsbDojNDQ0fS5ze2ZvbnQ6MTNweCBBcmlhbCxzYW5zLXNlcmlmO2ZpbGw6IzY2Nn08L3N0eWxlPgogIDxyZWN0IHdpZHRoPSIxMDAwIiBoZWlnaHQ9IjM2MCIgZmlsbD0id2hpdGUiLz4KICA8dGV4dCB4PSI1MDAiIHk9IjI3IiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBjbGFzcz0iaCI+RGVzaWduIHNjaGVtYXRpYyDigJQgaWRlbnRpY2FsIG5lc3RlZCB0cmFpbmluZyBzdWJzZXRzPC90ZXh0PgogIDxnIHRyYW5zZm9ybT0idHJhbnNsYXRlKDcwIDYyKSI+PHRleHQgeD0iMTMwIiB5PSIwIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBjbGFzcz0iaCI+TGluZWFyIHJhdGUgcHJvYmU8L3RleHQ+PHBhdGggZD0iTTAgMjM1SDI2ME0wIDIzNVYyNSIgY2xhc3M9ImF4aXMiLz48cGF0aCBkPSJNMCAxODBIMjYwTTAgMTI1SDI2ME0wIDcwSDI2MCIgY2xhc3M9ImdyaWQiLz48cGF0aCBkPSJNMTAgMjEwQzY1IDIwMCAxMjAgMTg3IDE3NSAxNjlTMjI1IDE1MCAyNTAgMTQxIiBjbGFzcz0icGluZyIvPjxwYXRoIGQ9Ik0xMCAyMjVDODAgMjIzIDE0MCAyMTggMTkwIDIwOFMyMzIgMTk1IDI1MCAxODgiIGNsYXNzPSJjb2JhIi8+PC9nPgogIDxnIHRyYW5zZm9ybT0idHJhbnNsYXRlKDM3MCA2MikiPjx0ZXh0IHg9IjEzMCIgeT0iMCIgdGV4dC1hbmNob3I9Im1pZGRsZSIgY2xhc3M9ImgiPkdSVS0xNjwvdGV4dD48cGF0aCBkPSJNMCAyMzVIMjYwTTAgMjM1VjI1IiBjbGFzcz0iYXhpcyIvPjxwYXRoIGQ9Ik0wIDE4MEgyNjBNMCAxMjVIMjYwTTAgNzBIMjYwIiBjbGFzcz0iZ3JpZCIvPjxwYXRoIGQ9Ik0xMCAxOTVDNjUgMTY1IDExMCAxMjkgMTY1IDEwNVMyMjAgODYgMjUwIDgwIiBjbGFzcz0icGluZyIvPjxwYXRoIGQ9Ik0xMCAyMjBDNzggMjEwIDEyNSAxODIgMTc1IDE0NVMyMjUgMTA5IDI1MCA5NiIgY2xhc3M9ImNvYmEiLz48L2c+CiAgPGcgdHJhbnNmb3JtPSJ0cmFuc2xhdGUoNjcwIDYyKSI+PHRleHQgeD0iMTMwIiB5PSIwIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBjbGFzcz0iaCI+R1JVLTY0PC90ZXh0PjxwYXRoIGQ9Ik0wIDIzNUgyNjBNMCAyMzVWMjUiIGNsYXNzPSJheGlzIi8+PHBhdGggZD0iTTAgMTgwSDI2ME0wIDEyNUgyNjBNMCA3MEgyNjAiIGNsYXNzPSJncmlkIi8+PHBhdGggZD0iTTEwIDE4NEM2NSAxNDIgMTEyIDEwNSAxNjUgODRTMjIwIDc1IDI1MCA3MiIgY2xhc3M9InBpbmciLz48cGF0aCBkPSJNMTAgMjE1QzcwIDE5MCAxMjIgMTQzIDE3NSAxMDdTMjIyIDg0IDI1MCA3NyIgY2xhc3M9ImNvYmEiLz48L2c+CiAgPHRleHQgeD0iNTAwIiB5PSIzMzciIHRleHQtYW5jaG9yPSJtaWRkbGUiIGNsYXNzPSJ0Ij5sYWJlbGxlZCBkZWNvZGVyLXRyYWluaW5nIGltYWdlcyAobG9nIHNjYWxlKTwvdGV4dD48dGV4dCB4PSIyMiIgeT0iMTgwIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiB0cmFuc2Zvcm09InJvdGF0ZSgtOTAgMjIgMTgwKSIgY2xhc3M9InQiPmhlbGQtb3V0IE1OSVNUIGFjY3VyYWN5PC90ZXh0PgogIDxsaW5lIHgxPSI3MTUiIHkxPSIzMjkiIHgyPSI3NTUiIHkyPSIzMjkiIGNsYXNzPSJwaW5nIi8+PHRleHQgeD0iNzYyIiB5PSIzMzQiIGNsYXNzPSJzIj5QSU5HPC90ZXh0PjxsaW5lIHgxPSI4MjUiIHkxPSIzMjkiIHgyPSI4NjUiIHkyPSIzMjkiIGNsYXNzPSJjb2JhIi8+PHRleHQgeD0iODcyIiB5PSIzMzQiIGNsYXNzPSJzIj5DT0JBPC90ZXh0Pgo8L3N2Zz4K" alt="Design schematic of held-out accuracy against labelled decoder-training images for linear, medium recurrent, and larger recurrent decoders." width="1000" height="360" style="display: block; width: 100%"><figcaption>Figure 4: Design schematic for sample efficiency. Each decoder capacity receives the same nested labelled subsets for COBA and PING.</figcaption></figure></li></ol><h3 id="results" class="hx">Results<a class="permalink" href="#results" aria-label="Link to this section">#</a></h3><ol><li><p><strong>Native reference and activity-bank validation.</strong></p><p><strong>Axes.</strong> Horizontal axis: presentation time from 0 to 200 ms. Vertical axes: population firing rate and cumulative spike count.</p><p><strong>Traces or marks.</strong> Matched COBA and PING population summaries, plus their native mean-voltage test accuracy as reference lines in an adjacent compact panel.</p><p><strong>Why.</strong> The decoder comparison is interpretable only if both activity banks contain the intended trials, labels, duration, neuron count, and shared input seeds.</p><p><strong>Expectation.</strong> Both native decoders should reproduce their checkpoint performance. COBA and PING may differ in firing rate and temporal organization, but neither activity bank should contain missing or duplicated presentations.</p></li><li><p><strong>Decoder-accessibility curve.</strong></p><p><strong>Axes.</strong> Horizontal axis: trainable decoder parameters <math><mi>𝑃</mi></math> on a logarithmic scale. Vertical axis: official-test MNIST accuracy.</p><p><strong>Traces or marks.</strong> COBA and PING traces; one mark per decoder family and width; uncertainty bands across five decoder initializations; horizontal references for native accuracy and chance.</p><p><strong>Why.</strong> This is the primary test of whether PING exposes class information to smaller downstream computations.</p><p><strong>Expectation.</strong> If PING and COBA approach the same high-capacity ceiling but PING rises earlier, they retain comparable information and differ in accessibility. A persistent high-capacity gap instead suggests a difference in retained task information. The schematic does not assume either outcome.</p></li><li><p><strong>Capacity-by-temporal-access surface.</strong></p><p><strong>Axes.</strong> Horizontal axis: decoder parameter count or width. Vertical axis: available activity duration in milliseconds. Colour axis: official-test accuracy.</p><p><strong>Traces or marks.</strong> Matched COBA and PING heatmaps, supplemented by rate-collapse and time-permutation marks at 200 ms.</p><p><strong>Why.</strong> Parameter count alone cannot distinguish a nonlinear code from one that specifically requires temporal memory.</p><p><strong>Expectation.</strong> If PING’s advantage depends on cycle-organized activity, it should appear at modest capacity with sufficient temporal context and weaken after time permutation. If COBA catches up with a memoryless nonlinear decoder, its obstacle is nonlinear accessibility rather than temporal reconstruction.</p></li><li><p><strong>Decoder sample efficiency.</strong></p><p><strong>Axes.</strong> Horizontal axis: labelled decoder-training images on a logarithmic scale. Vertical axis: official-test accuracy.</p><p><strong>Traces or marks.</strong> COBA and PING traces for the linear rate probe, GRU-16, and GRU-64; uncertainty bands across decoder initializations.</p><p><strong>Why.</strong> A representation may support the same final accuracy yet require much more supervision to learn how to read it.</p><p><strong>Expectation.</strong> Earlier-rising PING curves would show that its code is not only readable by smaller decoders but easier to learn from fewer labels. Convergence at large sample sizes would indicate an accessibility difference rather than absent information.</p></li></ol><div class="entry-tail"></div></body></html>

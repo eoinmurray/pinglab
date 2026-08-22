@@ -1,0 +1,546 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Bayesian and sampling-based cortical computation</title><style>/* Alignment */
+mtable.right-align mtd,
+mtable mtd.right-align,
+mtable.left-align mtd.right-align,
+mtable.aligned mtd:nth-child(odd) {
+  justify-items: end;
+  text-align: right;
+}
+mtable.cases mtd,
+mtable.left-align mtd,
+mtable mtd.left-align,
+mtable.aligned mtd:nth-child(even),
+math:is(:not([display])) > mtable.multiline-equation mtd {
+  justify-items: start;
+  text-align: left;
+}
+mtable.cases mtd,
+mtable.aligned mtd,
+mtable mtd.flushed,
+mtable mtd.left-flush {
+  padding-left: 0;
+}
+mtable.cases mtd,
+mtable.aligned mtd,
+mtable mtd.flushed,
+mtable mtd.right-flush {
+  padding-right: 0;
+}
+
+/* Tables */
+mtable {
+  math-style: inherit;
+}
+mtd {
+  math-depth: auto-add;
+  math-style: compact;
+  math-shift: compact;
+}
+
+/* Equations */
+mtable.multiline-equation mtd {
+  math-depth: inherit;
+  math-style: inherit;
+  math-shift: inherit;
+  padding: 0;
+}
+math > mtable.multiline-equation mtr:not(:last-child) mtd {
+  padding-bottom: 0.5em;
+}
+
+/* Fractions */
+mfrac {
+  padding-inline: 0;
+  margin-inline: 0.1em;
+}
+
+/* Accents */
+mover[accent="true" i] > :first-child {
+  font-feature-settings: "dtls";
+}
+mover.dotted[accent="true" i] > :first-child {
+  font-feature-settings: "dtls" 0;
+}
+
+/* Other rules for scriptlevel, displaystyle and math-shift */
+munder > :nth-child(2),
+munderover > :nth-child(2) {
+  math-shift: compact
+}
+munder[accentunder="true" i] > :not(:first-child),
+mover[accent="true" i] > :not(:first-child) {
+  math-depth: inherit;
+  math-style: inherit;
+  math-shift: inherit;
+}</style></head><body><link rel="icon" type="image/svg+xml" href="favicon.svg"><style>/* demolab web styles — injected into each HTML page by publish/lib.typ.
+   Typst HTML export ships no CSS (paged #set rules don't apply to HTML), so the
+   web look lives here. Avoid `>` / `<` in selectors: they'd be escaped inside <style>.
+   Body face is CMU Serif, the web-available Computer Modern branch closest to the PDFs'
+   New Computer Modern. The pinned web fonts keep that shared lineage without vendoring a
+   second full font family into every site; Charter/Georgia fall back when offline. */
+@font-face {
+  font-family: "Computer Modern Serif";
+  src: url("https://cdn.jsdelivr.net/gh/aaaakshat/cm-web-fonts@333f55ec19733c28cdc43567ecf72eafd6b0af61/font/Serif/cmunrm.woff") format("woff");
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Computer Modern Serif";
+  src: url("https://cdn.jsdelivr.net/gh/aaaakshat/cm-web-fonts@333f55ec19733c28cdc43567ecf72eafd6b0af61/font/Serif/cmunbx.woff") format("woff");
+  font-weight: bold;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Computer Modern Serif";
+  src: url("https://cdn.jsdelivr.net/gh/aaaakshat/cm-web-fonts@333f55ec19733c28cdc43567ecf72eafd6b0af61/font/Serif/cmunti.woff") format("woff");
+  font-weight: normal;
+  font-style: italic;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Computer Modern Serif";
+  src: url("https://cdn.jsdelivr.net/gh/aaaakshat/cm-web-fonts@333f55ec19733c28cdc43567ecf72eafd6b0af61/font/Serif/cmunbi.woff") format("woff");
+  font-weight: bold;
+  font-style: italic;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Computer Modern Typewriter";
+  src: url("https://cdn.jsdelivr.net/gh/aaaakshat/cm-web-fonts@333f55ec19733c28cdc43567ecf72eafd6b0af61/font/Typewriter/cmuntt.woff") format("woff");
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+/* A genuine mid-weight for the CM family: CMU ships only Roman + Bold, so there is no semibold to
+   step down to. Latin Modern Roman Demi (the CM-lineage demibold) fills weight 600 — used only by
+   inline citations, which want emphasis without the full punch of bold. */
+@font-face {
+  font-family: "Computer Modern Serif";
+  src: url("https://cdn.jsdelivr.net/gh/sugina-dev/latin-modern-web@1.0.1/font/lmromandemi-regular-webfont.woff") format("woff");
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+/* One deliberate scale drives the whole site:
+     - two inks:  --ink (headings, body, titles, links) and --muted (all secondary text)
+     - one body size (--fs-body) + a three-step heading scale (--fs-h1..h3)
+     - one secondary size (--fs-small) shared by every id, date, count, caption, meta line
+   Everything below composes those tokens — no one-off px or ad-hoc greys. */
+:root {
+  --ink: #1a1a1a;
+  --muted: #666;          /* every piece of secondary text, one grey */
+  --rule: #e7e5df;
+  --rule-strong: #d8d5cd;
+  --paper: #fff;
+  --paper-tint: #fafaf7;
+  --selection: #ebe9e2;
+
+  --fs-h1: 1.6rem;        /* page/entry title  (Typst level 1 → <h2>) — 28.8px */
+  --fs-h2: 1.3rem;        /* section heading   (Typst level 2 → <h3>) — 23.4px */
+  --fs-h3: 1.1rem;        /* subsection        (Typst level 3 → <h4>) — 19.8px */
+  --fs-small: 0.85rem;    /* every piece of secondary text, one size  — 15.3px */
+  --fs-label: 0.72rem;    /* uppercase mono labels — 13px */
+
+  --mono: "Computer Modern Typewriter", ui-monospace, "SF Mono", Menlo, monospace;
+}
+* { box-sizing: border-box; }
+/* rem is anchored to the 18px body so the heading scale steps cleanly off body size. */
+html { font-size: 18px; }
+body {
+  max-width: 42em;
+  margin: clamp(2rem, 7vw, 3.5rem) auto;
+  padding: 0 clamp(1rem, 4vw, 1.5rem);
+  font: 1rem/1.6 "Computer Modern Serif", Charter, Georgia, "Times New Roman", serif;
+  font-kerning: normal;
+  font-synthesis: none;
+  color: var(--ink);
+  background: var(--paper);
+  -webkit-text-size-adjust: 100%;
+}
+::selection { color: var(--ink); background: var(--selection); }
+/* Typst's HTML export reserves <h1> and renders heading level N as <h(N+1)>: an entry/
+   page title (level 1) is <h2>, a section (level 2) is <h3>, a subsection is <h4>. Style
+   the emitted tags, not the Typst levels. */
+h1, h2 {
+  margin: 0 0 .35rem;
+  font-size: var(--fs-h1);
+  line-height: 1.15;
+  font-weight: 700;
+  letter-spacing: -.012em;
+  text-wrap: balance;
+}
+h3 { font-size: var(--fs-h2); line-height: 1.25; font-weight: 700; margin: 2.4rem 0 .5rem; text-wrap: balance; }
+h4 { font-size: var(--fs-h3); line-height: 1.3; font-weight: 700; margin: 1.8rem 0 .35rem; text-wrap: balance; }
+/* Print-style links: ink with a hairline underline, not web blue. */
+a {
+  color: var(--ink);
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 2px;
+}
+a:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 3px;
+  border-radius: 1px;
+}
+/* Listing pages (home, collection, all-entries) follow pinglab: nav/index links are
+   unadorned and only underline on hover. Entry-body prose keeps the default underline. */
+.listing a { text-decoration: none; }
+.listing a:hover { text-decoration: underline; }
+/* ...except concrete destination links: the per-row pdf badge and the foot-line links
+   ("Browse all entries", "single pdf", the back arrows) stay underlined so they read as
+   links rather than nav chrome. Title/id links keep the clean hover-only treatment. */
+.listing .page-foot a,
+.entry-row .row-pdf { text-decoration: underline; }
+
+/* --- secondary text: one size (--fs-small), one colour (--muted) everywhere --- */
+.entry-meta,           /* id · date · status · collection under an entry/collection title */
+.coll-desc,            /* collection blurb on the homepage directory */
+.row-id, .row-meta, .row-pdf,  /* the aligned index-row columns */
+figcaption,
+.page-foot {           /* the "Browse all / back" line at the foot of a listing */
+  font-size: var(--fs-small);
+  color: var(--muted);
+}
+.entry-meta { margin: .2rem 0 1.75rem; }
+/* Byline under the homepage title: the lab's owner, quiet, links to contact if set. Its
+   default spacing also works when there is no description; the adjacent rule closes the
+   larger description margin only when that line actually exists. */
+.byline { font-size: var(--fs-small); color: var(--muted); margin: .2rem 0 1.5rem; }
+.entry-meta + .byline { margin-top: -.9rem; }
+.byline a { color: var(--muted); }
+.byline a:hover { color: var(--ink); }
+/* Home link at the top of an entry page: quiet, small, one step back to the directory. */
+.home-link { display: inline-block; font-size: var(--fs-small); color: var(--muted); text-decoration: none; margin: 0 0 1.1rem; }
+.home-link:hover { color: var(--ink); text-decoration: underline; }
+
+/* Citations: inline numbers stay in the text (underline on hover); the reference list is
+   secondary text, each entry's DOI a quiet link out. */
+/* A hair of space before the bracket, owned here so authors attach `#cite` directly to the
+   preceding word (`runs#cite(2)`); nowrap + no source whitespace keeps the bracket from
+   orphaning onto the next line. */
+.cite { white-space: nowrap; margin-left: 0.15em; font-weight: 600; }
+.cite a { color: inherit; text-decoration: none; }
+.cite a:hover { text-decoration: underline; }
+ol.refs { font-size: var(--fs-small); line-height: 1.55; padding-left: 1.5rem; margin: 1rem 0; }
+ol.refs li { margin: .45rem 0; }
+ol.refs li::marker { color: var(--muted); }
+ol.refs .doi { color: var(--muted); }
+ol.refs .doi:hover { color: var(--ink); }
+/* Hover popover for an inline citation (Wikipedia-style): a small card echoing the reference. */
+.cite-popover {
+  position: absolute; z-index: 50; display: none;
+  width: min(24rem, calc(100vw - 1rem)); padding: .6rem .8rem;
+  background: var(--paper); border: 1px solid var(--rule-strong); border-radius: 2px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, .1);
+  font-size: var(--fs-small); line-height: 1.5; color: var(--ink);
+}
+.cite-popover .doi { color: var(--muted); }
+.cite-popover .doi:hover { color: var(--ink); }
+
+/* Status marker (`.status`): plain text in the meta line — `final` renders nothing (RULES §6.4),
+   so no styling is needed; it inherits the meta line's look. */
+
+/* Build-error stub: an entry that failed to compile (a missing figure, a Typst error) is served as
+   a stub page with the error in this block, so the failure is visible on its own page while the
+   rest of the site is fine. */
+.build-error { border-left: 3px solid #c0392b; background: #fcf3f2; color: #7a1f16; }
+
+/* Heading anchors: every heading carries a slug id (link to page.html#slug); a quiet # permalink
+   fades in on hover to grab that URL. */
+.hx .permalink { opacity: 0; margin-left: .3em; color: var(--muted); text-decoration: none; font-weight: 400; font-size: .85em; }
+.hx:hover .permalink, .hx:focus-within .permalink { opacity: 1; }
+.hx .permalink:hover { color: var(--ink); }
+
+/* Figure placeholder (`#pending` / `#pending-figure`): a figure whose asset isn't ready yet.
+   A tinted, dashed panel that reserves the figure's footprint so the page doesn't reflow when the
+   real plot lands — a small framed-image mark over the muted reason. aspect-ratio is set inline
+   from the helper's `ratio` arg. */
+.fig-pending {
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: .7rem;
+  width: 100%; padding: 1.5rem; text-align: center;
+  background: var(--paper-tint);
+  border: 1px dashed #d6d3ca;
+  border-radius: 2px;
+}
+.fig-pending-mark { width: 1.7em; height: 1.2em; border: 1px solid #b9b6ad; border-radius: 2px; }
+.fig-pending-note { font-size: var(--fs-small); font-style: italic; color: var(--muted); }
+
+/* Entry meta strip: id · date · status · pdf, all inline. The pdf is a concrete destination, so it
+   keeps its underline (muted, darkening on hover) rather than the bare listing-nav treatment. */
+.entry-pdf { color: var(--muted); text-decoration: underline; }
+.entry-pdf:hover { color: var(--ink); }
+/* On listing pages the description sits closer to the list it heads (entry pages keep the
+   airier 1.75rem before the body). */
+.listing .entry-meta { margin-bottom: 1.25rem; }
+/* Homepage brand lockup: quieter and tighter than an article title. The tagline is more
+   important than generic metadata, but still secondary to the name. Scoping this to the
+   header keeps entry and collection hierarchy unchanged. */
+.site-head {
+  margin-bottom: 1rem;
+}
+.site-head h1, .site-head h2 {
+  font-size: 1.5rem;
+  line-height: 1.15;
+  letter-spacing: -.008em;
+}
+.site-head .entry-meta {
+  max-width: 38rem;
+  margin: .3rem 0 0;
+  font-size: 1rem;
+  line-height: 1.5;
+  color: var(--muted);
+}
+.site-head .byline { margin-bottom: 0; }
+.site-head .entry-meta + .byline { margin-top: .3rem; }
+/* Breathing room at the foot of an entry page so the last line isn't flush to the edge. */
+.entry-tail { height: 6rem; }
+
+/* Empty state: a freshly-scaffolded repo (no writings) — the homepage's only content. Warm and
+   jargon-free (the first thing a non-technical user sees), led by a confident line. */
+.empty-state { margin: 1.75rem 0; line-height: 1.65; max-width: 34rem; }
+.empty-lead { font-size: 1.2rem; color: var(--ink); margin: 0 0 .6rem; }
+.empty-state p:not(.empty-lead) { color: var(--muted); }
+
+/* Landing-page building blocks for a custom landing.typ (pitch, links, command boxes) —
+   used by the upstream demo's site/landing.typ; a lab's own landing.typ may reuse them. */
+.welcome { margin: 0 0 2.75rem; max-width: 36rem; }
+.welcome-body { margin: 0 0 1rem; }
+.welcome-links {
+  margin: 0 0 1.15rem;
+  font-size: 1rem;
+  line-height: 1.6;
+  color: var(--muted);
+}
+/* The homepage is a .listing page (links unadorned by default), so re-add the underline for
+   links in the landing hero — both the nav row and inline links in the body prose. */
+.welcome-links a, .welcome-body a { text-decoration: underline; }
+.welcome-links a { color: #444; }
+.welcome-links a:hover { color: var(--ink); }
+.welcome-kicker {
+  font-family: var(--mono); font-size: var(--fs-label); color: var(--muted);
+  text-transform: uppercase; letter-spacing: .08em; margin: 3rem 0 .65rem;
+}
+.welcome-cmd { margin: 0 0 .75rem; }
+.welcome-os {
+  font-family: var(--mono); font-size: var(--fs-label); color: var(--muted);
+  text-transform: uppercase; letter-spacing: .08em; margin-bottom: .35rem;
+}
+.welcome pre {
+  margin: 0; padding: .9rem 1rem; overflow-x: auto;
+  font-family: var(--mono); font-size: .82rem; line-height: 1.5;
+  background: var(--paper-tint); border: 1px solid var(--rule-strong); border-radius: 2px;
+}
+/* A quiet aside under a section (the "prefer to do it by hand?" line) — smaller and muted,
+   so it reads as a footnote to the block above, not the next paragraph. */
+.welcome-note { margin: 0 0 1rem; font-size: var(--fs-small); color: var(--muted); }
+.welcome-note a { color: var(--muted); text-decoration: underline; }
+.welcome-note a:hover { color: var(--ink); }
+/* The paste-into-your-agent command is a sentence, not shell — let it wrap rather than
+   clip/scroll at the .welcome column width. */
+.welcome-cmd pre { white-space: pre-wrap; }
+/* Runbook menu: NAME → what saying it does. A dl of hairline-separated rows; the name column
+   is mono (runbook names are commands) and fixed-width so descriptions align. */
+.welcome-runbooks { margin: 0 0 .75rem; }
+.welcome-runbook {
+  display: flex; gap: .75rem; padding: .45rem 0;
+  border-bottom: 1px solid var(--rule);
+}
+.welcome-runbook:last-child { border-bottom: none; }
+.welcome-runbook dt {
+  flex: 0 0 8.5rem; font-family: var(--mono); font-size: .78rem;
+  padding-top: .1rem;
+}
+.welcome-runbook dd { margin: 0; font-size: var(--fs-small); color: var(--muted); }
+/* Documentation tiers: four deliberately equal columns on wide screens, then a balanced
+   two-column grid — never an orphaned 3 + 1 arrangement at intermediate widths. */
+.welcome-docs {
+  display: grid; grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 1.25rem 1rem; margin: .15rem 0 1rem;
+}
+.welcome-docs-tier { border-top: 1px solid var(--rule-strong); padding-top: .55rem; }
+.welcome-docs-label {
+  margin: 0 0 .4rem;
+  font-family: var(--mono);
+  font-size: var(--fs-label);
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: .08em;
+}
+.welcome-docs-tier ul { list-style: none; padding-left: 0; margin: 0; }
+.welcome-docs-tier li { padding: .125rem 0; font-size: var(--fs-small); line-height: 1.4; }
+.welcome-docs-tier a { text-decoration: underline; color: var(--ink); }
+.welcome-docs-tier a:hover { color: var(--ink); }
+.welcome-foot {
+  margin: 1.75rem 0 0;
+  padding-top: .85rem;
+  border-top: 1px solid var(--rule);
+  font-size: var(--fs-small);
+  color: var(--muted);
+}
+.welcome-foot a { color: var(--muted); }
+.welcome-foot a:hover { color: var(--ink); }
+
+/* Homepage collection directory: collection-name links, description beneath. These are the
+   page's hero items, so they sit one step above body — the middle of the home hierarchy
+   (title 28.8 → collection 20.7 → description 15.3). */
+.coll-list { list-style: none; padding-left: 0; margin: 1.25rem 0; }
+.coll-row { padding: .55rem 0; }
+.coll-title { font-size: 1.15rem; }
+.coll-desc { margin: .2rem 0 0; line-height: 1.45; }
+
+/* Index rows: mono id in a left column; title + a quiet meta sub-line (date · status · pdf)
+   stacked in the main column, so long titles wrap without orphaning the meta. */
+.entry-list { list-style: none; padding-left: 0; margin: 1.25rem 0; }
+.entry-row { display: flex; align-items: baseline; gap: .6rem; padding: .5rem 0; }
+.entry-row .row-id { flex: 0 0 auto; min-width: 3em; font-family: var(--mono); }
+.row-main { flex: 1 1 auto; min-width: 0; }
+.row-main .row-title { display: block; }
+.row-main .row-meta { display: block; margin-top: .15rem; font-variant-numeric: tabular-nums; }
+
+/* Foot-of-listing nav line: quiet by default, links darken + underline on hover. */
+.page-foot { margin-top: 2rem; }
+.page-foot a { color: var(--muted); }
+.page-foot a:hover { color: var(--ink); }
+
+p { margin: 1rem 0; text-wrap: pretty; }
+img, video { max-width: 100%; height: auto; display: block; margin: 1.5rem auto; }
+figure { margin: 1.75rem 0; text-align: center; }
+figcaption { margin-top: .5rem; text-align: left; }
+table { border-collapse: collapse; margin: 1.25rem 0; font-size: var(--fs-small); }
+th, td { border: 1px solid var(--rule); padding: .35rem .75rem; text-align: left; }
+th { background: var(--paper-tint); font-weight: 600; }
+td:last-child, th:last-child { text-align: right; font-variant-numeric: tabular-nums; }
+math { font-size: 1.05em; }
+ul { padding-left: 1.25rem; }
+li { margin: .3rem 0; }
+hr { border: none; border-top: 1px solid var(--rule); margin: 2rem 0; }
+code, pre { font-family: var(--mono); }
+code { font-size: .9em; }
+pre {
+  font-size: .85em;
+  background: var(--paper-tint);
+  border: 1px solid var(--rule);
+  border-radius: 2px;
+  padding: .9rem 1.1rem;
+  line-height: 1.5;
+  overflow-x: auto;
+}
+pre code { font-size: 1em; }
+
+/* Built-in article treatment: developer documentation. A collection opts its articles in
+   with `theme: docs` in demolab.yaml. This stays close to demolab's default spacing and
+   structure while using the neutral sans/mono pairing, cool slate surfaces, and blue accent
+   readers expect from contemporary technical references.
+   Collection listings, experiments, PDFs, and the combined book remain unchanged. */
+body:has(.theme-docs) {
+  max-width: 46em;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Helvetica, Arial, sans-serif;
+  font-size: 17px;
+  line-height: 1.65;
+  color: #172033;
+  --ink: #172033;
+  --muted: #64748b;
+  --rule: #e2e8f0;
+  --rule-strong: #cbd5e1;
+  --paper-tint: #f8fafc;
+  --selection: #dbeafe;
+  --docs-accent: #315faa;
+  --mono: ui-monospace, "SFMono-Regular", Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+}
+body:has(.theme-docs) h1,
+body:has(.theme-docs) h2,
+body:has(.theme-docs) h3,
+body:has(.theme-docs) h4,
+body:has(.theme-docs) h5,
+body:has(.theme-docs) h6 {
+  color: #111827;
+  font-family: inherit;
+  letter-spacing: -.018em;
+}
+body:has(.theme-docs) h5 {
+  margin: 1.6rem 0 .4rem;
+  font-size: .95rem;
+  line-height: 1.35;
+}
+body:has(.theme-docs) h6 {
+  margin: 1.35rem 0 .35rem;
+  font-size: .9rem;
+  line-height: 1.35;
+}
+body:has(.theme-docs) a { color: var(--docs-accent); text-decoration-color: #9db4da; }
+body:has(.theme-docs) .home-link,
+body:has(.theme-docs) .entry-meta,
+body:has(.theme-docs) .page-foot { color: var(--muted); }
+body:has(.theme-docs) code {
+  padding: .08em .28em;
+  border-radius: 3px;
+  color: #334155;
+  background: #f1f5f9;
+  font-family: var(--mono);
+  font-size: .86em;
+}
+body:has(.theme-docs) pre {
+  border-color: #d0d7de;
+  border-radius: 6px;
+  color: #e2e8f0;
+  background: #172033;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, .06);
+}
+body:has(.theme-docs) pre code { padding: 0; color: inherit; background: transparent; font-size: 1em; }
+body:has(.theme-docs) table { width: 100%; font-size: .88rem; }
+body:has(.theme-docs) th,
+body:has(.theme-docs) td { border-color: var(--rule); padding: .55rem .7rem; vertical-align: top; }
+body:has(.theme-docs) th { color: #334155; background: #f1f5f9; }
+body:has(.theme-docs) td { color: #334155; }
+body:has(.theme-docs) td:last-child,
+body:has(.theme-docs) th:last-child { text-align: left; font-variant-numeric: normal; }
+.docs-toc {
+  margin: 1.5rem 0 2rem;
+  padding: .85rem 1rem;
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+  background: var(--paper-tint);
+}
+.docs-toc-title { margin: 0 0 .35rem; color: #334155; font-size: .88rem; font-weight: 650; }
+.docs-toc ul { columns: 2; margin: 0; padding-left: 1.15rem; }
+.docs-toc li { margin: .15rem 0; color: var(--muted); font-size: .9rem; }
+.docs-note {
+  margin: 1.25rem 0;
+  padding: .75rem 1rem;
+  border-left: 3px solid var(--docs-accent);
+  color: #334155;
+  background: #eff6ff;
+}
+.api-signature {
+  margin: .8rem 0 1rem;
+  padding: .75rem .9rem;
+  overflow-x: auto;
+  border: 1px solid #dbe3ee;
+  border-left: 3px solid #93add3;
+  border-radius: 4px;
+  color: #1e3a5f;
+  background: #f8fafc;
+  font-family: var(--mono);
+  font-size: .82rem;
+  line-height: 1.5;
+}
+.api-signature code { padding: 0; color: inherit; background: transparent; font-size: 1em; }
+
+@media (max-width: 42rem) {
+  body { margin-top: 2rem; margin-bottom: 2.5rem; }
+  .welcome { margin-bottom: 2rem; }
+  .welcome-kicker { margin-top: 2.5rem; }
+  .welcome-docs { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .welcome-runbook { display: block; padding: .6rem 0; }
+  .welcome-runbook dt { margin-bottom: .2rem; }
+  .entry-row { align-items: flex-start; gap: .5rem; }
+  .docs-toc ul { columns: 1; }
+}
+
+@media (max-width: 22rem) {
+  .welcome-docs { grid-template-columns: 1fr; }
+}
+</style><meta name="generator" content="demolab 2.4.0"><script src="cite-popover.js" defer></script><script src="https://hypothes.is/embed.js" async></script><p><a class="home-link" href="index.html">← Home</a></p><h2 id="bayesian-and-sampling-based-cortical-computation" class="hx">Bayesian and sampling-based cortical computation<a class="permalink" href="#bayesian-and-sampling-based-cortical-computation" aria-label="Link to this section">#</a></h2><div class="entry-meta">ar062 · 28 June 2026 · <a class="entry-pdf" href="pdfs/ar062.pdf">pdf</a></div><p>This guide connects the neural-Bayesian literature to our PING project. The central question is not merely whether cortical behaviour can look Bayesian. It is whether recurrent excitatory/inhibitory (E/I) dynamics can represent uncertainty by sampling, and whether the oscillatory and transient regimes we measure are computationally useful rather than incidental.</p><h3 id="1-papers-and-their-relation-to-the-project" class="hx">1. Papers and their relation to the project<a class="permalink" href="#1-papers-and-their-relation-to-the-project" aria-label="Link to this section">#</a></h3><ol><li><p><strong>Pouget, Dayan &amp; Zemel (2003), population-code foundations.</strong> A broad account of inference with population activity<span class="cite">[<a href="#ref-1">1</a>]</span>. It supplies the coding language needed to distinguish a distribution represented by a population from a single decoded estimate. For this project, it is the conceptual baseline: before asking whether PING dynamics sample a posterior, we need to state what information the population activity carries and what a downstream readout could recover.</p></li><li><p><strong>Ma, Beck, Latham &amp; Pouget (2006), probabilistic population codes.</strong> This is the canonical parametric alternative to neural sampling<span class="cite">[<a href="#ref-2">2</a>]</span>. Instantaneous population rates encode the parameters of an exponential-family distribution, and cue combination becomes addition of population activity. It gives us a competing hypothesis: uncertainty may be encoded in population gain rather than in temporal variability. Any sampling claim from our network should make predictions that separate these accounts.</p></li><li><p><strong>Fiser, Berkes, Orbán &amp; Lengyel (2010), the sampling hypothesis.</strong> This review develops the proposal that spontaneous and evoked cortical activity are samples from an internal generative model<span class="cite">[<a href="#ref-3">3</a>]</span>. It connects trial-to-trial variability to probabilistic representation. For our project, it motivates treating fluctuations as signal-bearing dynamics and asking whether the stationary activity distribution, rather than only the mean firing rate or oscillation frequency, matches a target distribution.</p></li><li><p><strong>Aitchison &amp; Lengyel (2016), E/I circuits as Hamiltonian samplers.</strong> This paper is the closest theoretical bridge to our model<span class="cite">[<a href="#ref-4">4</a>]</span>. It assigns different computational roles to excitatory and inhibitory populations and argues that their coupled dynamics can accelerate sampling. It should inform which E/I variables we analyse, how phase-lagged activity might act like position and momentum, and why balanced oscillatory dynamics could improve exploration rather than simply stabilize the circuit.</p></li><li><p><strong>Orbán, Berkes, Fiser &amp; Lengyel (2016), neural variability as sampling evidence.</strong> This paper tests sampling-based predictions in visual cortex<span class="cite">[<a href="#ref-5">5</a>]</span>. It is useful for translating the theory into empirical diagnostics, especially the relation between stimulus-dependent uncertainty, response variability, and the distribution of population activity. Our analogue is to test whether trained PING networks change their variability in the way the represented posterior requires.</p></li><li><p><strong>Echeveste, Aitchison, Hennequin &amp; Lengyel (2020), optimized recurrent samplers.</strong> Recurrent networks optimized for sampling develop cortical-like transients and variability<span class="cite">[<a href="#ref-6">6</a>]</span>. This is the most direct precedent for training a recurrent circuit toward a sampling objective. It motivates comparing task performance with mixing, autocorrelation, transient amplification, and stability, including our Δt-stability diagnostics. A network that fits the task but mixes poorly is not yet a convincing sampler.</p></li><li><p><strong>Padamsey, Katsanevaki, Dupuy &amp; Rochefort (2022), precision under metabolic constraint.</strong> Food scarcity reduces cortical coding precision and energy use<span class="cite">[<a href="#ref-7">7</a>]</span>. This adds a cost axis to the project. If spike rate, inhibitory recruitment, or oscillatory precision has a metabolic price, the best circuit may trade posterior precision against energy rather than maximize accuracy without constraint.</p></li></ol><h3 id="2-reading-order-and-guide" class="hx">2. Reading order and guide<a class="permalink" href="#2-reading-order-and-guide" aria-label="Link to this section">#</a></h3><p>Read the papers in four passes. The order below moves from representation, through the sampling hypothesis, to circuit implementation and finally energetic constraint.</p><ol><li><p><strong>Establish the representational alternatives: Pouget et al. (2003), then Ma et al. (2006).</strong> Ask what object neural activity represents, how uncertainty is encoded, and what operations a downstream circuit can perform. Keep the distinction between <em>encoding a distribution’s parameters</em> and <em>producing samples from a distribution</em> explicit.</p></li><li><p><strong>Learn the sampling claim: Fiser et al. (2010), then Orbán et al. (2016).</strong> Ask what counts as a neural sample, over what time or trial ensemble the distribution is defined, and which observations distinguish meaningful sampling variability from ordinary noise.</p></li><li><p><strong>Study the E/I mechanism: Aitchison &amp; Lengyel (2016), then Echeveste et al. (2020).</strong> Track the mapping from mathematical sampler variables to excitatory and inhibitory activity. Then look for measurable consequences in our networks: phase relations, autocorrelation time, mixing, transient amplification, stationary distributions, and sensitivity to the integration step <math><mi mathvariant="normal">Δ</mi><mi>𝑡</mi></math>.</p></li><li><p><strong>Add the resource constraint: Padamsey et al. (2022).</strong> Ask whether coding precision, firing cost, and inhibitory stabilization can be treated as a joint objective. This paper is best read last because it changes the optimization question from “what is the most accurate code?” to “what precision is worth its metabolic cost?”</p></li></ol><p>On a first pass, read abstracts, figures, and discussion. On a second pass, reconstruct the representation and objective in equations. On a third pass, extract one table with four columns for each paper: represented quantity, circuit mechanism, observable prediction, and corresponding diagnostic in our PING model.</p><h3 id="3-terms-and-background-to-know" class="hx">3. Terms and background to know<a class="permalink" href="#3-terms-and-background-to-know" aria-label="Link to this section">#</a></h3><h4 id="bayesian-fundamentals" class="hx">Bayesian fundamentals<a class="permalink" href="#bayesian-fundamentals" aria-label="Link to this section">#</a></h4><p>A <strong>generative model</strong> is a forward account of how an unobserved cause <math><mi>𝜃</mi></math> produces an observation <math><mi>𝑥</mi></math>. <strong>Recognition</strong> or <strong>inference</strong> reverses that account and estimates the cause from the observation. Bayes’ rule is</p><math display="block"><mi>𝑝</mi><mrow><mo>(</mo><mrow><mi>𝜃</mi><mspace width="0.2222em"/><mo lspace="0em" rspace="0em">|</mo><mspace width="0.2222em"/><mi>𝑥</mi></mrow><mo>)</mo></mrow><mo>=</mo><mfrac><mrow><mi>𝑝</mi><mrow><mo>(</mo><mrow><mi>𝑥</mi><mspace width="0.2222em"/><mo lspace="0em" rspace="0em">|</mo><mspace width="0.2222em"/><mi>𝜃</mi></mrow><mo>)</mo></mrow><mi>𝑝</mi><mrow><mo>(</mo><mi>𝜃</mi><mo>)</mo></mrow></mrow><mrow><mi>𝑝</mi><mrow><mo>(</mo><mi>𝑥</mi><mo>)</mo></mrow></mrow></mfrac><mo>∝</mo><mi>𝑝</mi><mrow><mo>(</mo><mrow><mi>𝑥</mi><mspace width="0.2222em"/><mo lspace="0em" rspace="0em">|</mo><mspace width="0.2222em"/><mi>𝜃</mi></mrow><mo>)</mo></mrow><mi>𝑝</mi><mrow><mo>(</mo><mi>𝜃</mi><mo>)</mo></mrow><mi>.</mi></math><ul><li><math><mi>𝜃</mi></math> is the latent or unobserved cause.</li><li><math><mi>𝑥</mi></math> is the observation.</li><li><math><mi>𝑝</mi><mrow><mo>(</mo><mi>𝜃</mi><mo>)</mo></mrow></math> is the <strong>prior</strong>, the distribution before observing <math><mi>𝑥</mi></math>.</li><li><math><mi>𝑝</mi><mrow><mo>(</mo><mrow><mi>𝑥</mi><mspace width="0.2222em"/><mo lspace="0em" rspace="0em">|</mo><mspace width="0.2222em"/><mi>𝜃</mi></mrow><mo>)</mo></mrow></math> is the <strong>likelihood</strong>, the probability of <math><mi>𝑥</mi></math> under a proposed cause.</li><li><math><mi>𝑝</mi><mrow><mo>(</mo><mrow><mi>𝜃</mi><mspace width="0.2222em"/><mo lspace="0em" rspace="0em">|</mo><mspace width="0.2222em"/><mi>𝑥</mi></mrow><mo>)</mo></mrow></math> is the <strong>posterior</strong>, the updated distribution over causes.</li><li><math><mi>𝑝</mi><mrow><mo>(</mo><mi>𝑥</mi><mo>)</mo></mrow><mo>=</mo><mo form="prefix" lspace="0em">∫</mo><mi>𝑝</mi><mrow><mo>(</mo><mrow><mi>𝑥</mi><mspace width="0.2222em"/><mo lspace="0em" rspace="0em">|</mo><mspace width="0.2222em"/><mi>𝜃</mi></mrow><mo>)</mo></mrow><mi>𝑝</mi><mrow><mo>(</mo><mi>𝜃</mi><mo>)</mo></mrow><mspace width="0.1667em"/><mo form="prefix" lspace="0em" rspace="0em">d</mo><mi>𝜃</mi></math> is the <strong>evidence</strong> or marginal likelihood, which normalizes the posterior.</li></ul><p><strong>Marginalisation</strong> integrates out variables that are not of interest. For a target <math><msub><mi>𝜃</mi><mn>1</mn></msub></math> and nuisance variable <math><msub><mi>𝜃</mi><mn>2</mn></msub></math>,</p><math display="block"><mi>𝑝</mi><mrow><mo>(</mo><mrow><msub><mi>𝜃</mi><mn>1</mn></msub><mspace width="0.2222em"/><mo lspace="0em" rspace="0em">|</mo><mspace width="0.2222em"/><mi>𝑥</mi></mrow><mo>)</mo></mrow><mo>=</mo><mo form="prefix" lspace="0em">∫</mo><mi>𝑝</mi><mrow><mo>(</mo><mrow><msub><mi>𝜃</mi><mn>1</mn></msub><mo>,</mo><msub><mi>𝜃</mi><mn>2</mn></msub><mspace width="0.2222em"/><mo lspace="0em" rspace="0em">|</mo><mspace width="0.2222em"/><mi>𝑥</mi></mrow><mo>)</mo></mrow><mspace width="0.1667em"/><mo form="prefix" lspace="0em" rspace="0em">d</mo><msub><mi>𝜃</mi><mn>2</mn></msub><mi>.</mi></math><ul><li><math><msub><mi>𝜃</mi><mn>1</mn></msub></math> is the quantity to retain.</li><li><math><msub><mi>𝜃</mi><mn>2</mn></msub></math> is the nuisance variable to integrate out.</li><li><math><mi>𝑥</mi></math> is the observation.</li></ul><p>High-dimensional marginalisation is usually intractable, which is why approximate inference is needed.</p><h4 id="probability-representations" class="hx">Probability representations<a class="permalink" href="#probability-representations" aria-label="Link to this section">#</a></h4><ul><li><p><strong>Probabilistic population code (PPC).</strong> Population firing rates encode parameters of a probability distribution. In an exponential-family PPC,</p><math display="block"><mi>𝑝</mi><mrow><mo>(</mo><mrow><mi>𝜃</mi><mspace width="0.2222em"/><mo lspace="0em" rspace="0em">|</mo><mspace width="0.2222em"/><mi>𝑥</mi></mrow><mo>)</mo></mrow><mo>∝</mo><mo form="prefix" lspace="0em" rspace="0em">exp</mo><mrow><mo>(</mo><mrow><mi>𝒉</mi><msup><mrow><mo>(</mo><mi>𝜃</mi><mo>)</mo></mrow><mi>⊤</mi></msup><mi>𝒓</mi></mrow><mo>)</mo></mrow><mi>.</mi></math><p>Here <math><mi>𝜃</mi></math> is the latent variable, <math><mi>𝑥</mi></math> is the observation, <math><mi>𝒉</mi><mrow><mo>(</mo><mi>𝜃</mi><mo>)</mo></mrow></math> is a vector of basis functions or sufficient statistics, and <math><mi>𝒓</mi></math> is the population response. Posterior uncertainty is commonly expressed through population gain.</p></li><li><p><strong>Sampling-based code.</strong> Instantaneous activity is treated as a draw from a distribution,</p><math display="block"><mi>𝒓</mi><mrow><mo>(</mo><mi>𝑡</mi><mo>)</mo></mrow><mo>∼</mo><mi>𝑝</mi><mrow><mo>(</mo><mrow><mi>𝒓</mi><mspace width="0.2222em"/><mo lspace="0em" rspace="0em">|</mo><mspace width="0.2222em"/><mi>𝑥</mi></mrow><mo>)</mo></mrow><mi>.</mi></math><p>Here <math><mi>𝒓</mi><mrow><mo>(</mo><mi>𝑡</mi><mo>)</mo></mrow></math> is population activity at time <math><mi>𝑡</mi></math>, <math><mi>𝑥</mi></math> is the observation, and <math><mi>𝑝</mi><mrow><mo>(</mo><mrow><mi>𝒓</mi><mspace width="0.2222em"/><mo lspace="0em" rspace="0em">|</mo><mspace width="0.2222em"/><mi>𝑥</mi></mrow><mo>)</mo></mrow></math> is the target activity distribution. Uncertainty is expressed by variability across time or trials. A decoder estimates expectations from multiple samples rather than reading distribution parameters from a single activity vector.</p></li><li><p><strong>Variational inference (VI).</strong> A tractable distribution <math><msub><mi>𝑞</mi><mrow><mi>𝜑</mi><mrow><mo>(</mo><mi>𝜃</mi><mo>)</mo></mrow></mrow></msub></math> is fitted to the posterior by optimizing parameters <math><mi>𝜑</mi></math>. VI turns inference into optimization and is usually fast, but its approximation is limited by the chosen family for <math><msub><mi>𝑞</mi><mi>𝜑</mi></msub></math>.</p></li></ul><h4 id="exponential-families-and-approximate-inference" class="hx">Exponential families and approximate inference<a class="permalink" href="#exponential-families-and-approximate-inference" aria-label="Link to this section">#</a></h4><p>An exponential-family distribution has the form</p><math display="block"><mi>𝑝</mi><mrow><mo>(</mo><mrow><mi>𝑥</mi><mspace width="0.2222em"/><mo lspace="0em" rspace="0em">|</mo><mspace width="0.2222em"/><mi>𝜂</mi></mrow><mo>)</mo></mrow><mo>=</mo><mi>ℎ</mi><mrow><mo>(</mo><mi>𝑥</mi><mo>)</mo></mrow><mo form="prefix" lspace="0.16666666666666666em" rspace="0em">exp</mo><mrow><mo>(</mo><mrow><msup><mi>𝜂</mi><mi>⊤</mi></msup><mi>𝑇</mi><mrow><mo>(</mo><mi>𝑥</mi><mo>)</mo></mrow><mo>−</mo><mi>𝐴</mi><mrow><mo>(</mo><mi>𝜂</mi><mo>)</mo></mrow></mrow><mo>)</mo></mrow><mi>.</mi></math><ul><li><math><mi>𝑥</mi></math> is the random variable.</li><li><math><mi>𝜂</mi></math> is the vector of <strong>natural parameters</strong>.</li><li><math><mi>𝑇</mi><mrow><mo>(</mo><mi>𝑥</mi><mo>)</mo></mrow></math> is the vector of <strong>sufficient statistics</strong>.</li><li><math><mi>𝐴</mi><mrow><mo>(</mo><mi>𝜂</mi><mo>)</mo></mrow></math> is the log-partition function.</li><li><math><mi>ℎ</mi><mrow><mo>(</mo><mi>𝑥</mi><mo>)</mo></mrow></math> is the base measure.</li></ul><p>A prior and likelihood are <strong>conjugate</strong> when the posterior belongs to the same parametric family as the prior. Conjugacy makes some Bayesian updates analytic. PPCs use exponential-family structure because multiplying compatible distributions can become addition of their natural parameters.</p><p>Three common approximation families are:</p><ul><li><strong>Laplace approximation.</strong> Fit a Gaussian around the posterior mode using local curvature. It is cheap but poor for strongly non-Gaussian or multimodal posteriors.</li><li><strong>Variational inference.</strong> Optimize a tractable <math><msub><mi>𝑞</mi><mrow><mi>𝜑</mi><mrow><mo>(</mo><mi>𝜃</mi><mo>)</mo></mrow></mrow></msub></math> to approximate the posterior.</li><li><strong>Markov chain Monte Carlo (MCMC).</strong> Construct a Markov chain whose stationary distribution is the posterior. It can be asymptotically exact, but finite runs can be biased by burn-in and autocorrelation.</li></ul><p>The <strong>Kullback–Leibler (KL) divergence</strong> compares distributions:</p><math display="block"><mtext>KL</mtext><mrow><mo>(</mo><mrow><mi>𝑞</mi><mspace width="0.2222em"/><mo stretchy="false">‖</mo><mspace width="0.2222em"/><mi>𝑝</mi></mrow><mo>)</mo></mrow><mo>=</mo><mo form="prefix" lspace="0em">∫</mo><mi>𝑞</mi><mrow><mo>(</mo><mi>𝜃</mi><mo>)</mo></mrow><mo form="prefix" lspace="0.16666666666666666em" rspace="0.16666666666666666em">log</mo><mfrac><mrow><mi>𝑞</mi><mrow><mo>(</mo><mi>𝜃</mi><mo>)</mo></mrow></mrow><mrow><mi>𝑝</mi><mrow><mo>(</mo><mi>𝜃</mi><mo>)</mo></mrow></mrow></mfrac><mspace width="0.1667em"/><mo form="prefix" lspace="0em" rspace="0em">d</mo><mi>𝜃</mi><mo>≥</mo><mn>0</mn><mi>.</mi></math><ul><li><math><mi>𝑝</mi><mrow><mo>(</mo><mi>𝜃</mi><mo>)</mo></mrow></math> is the target distribution.</li><li><math><mi>𝑞</mi><mrow><mo>(</mo><mi>𝜃</mi><mo>)</mo></mrow></math> is the approximation.</li><li><math><mi>𝜃</mi></math> is the variable being integrated over.</li></ul><p>The divergence is asymmetric. Minimizing <math><mtext>KL</mtext><mrow><mo>(</mo><mrow><mi>𝑞</mi><mspace width="0.2222em"/><mo stretchy="false">‖</mo><mspace width="0.2222em"/><mi>𝑝</mi></mrow><mo>)</mo></mrow></math> is usually mode-seeking, while minimizing <math><mtext>KL</mtext><mrow><mo>(</mo><mrow><mi>𝑝</mi><mspace width="0.2222em"/><mo stretchy="false">‖</mo><mspace width="0.2222em"/><mi>𝑞</mi></mrow><mo>)</mo></mrow></math> is usually mass-covering.</p><h4 id="population-coding-and-information" class="hx">Population coding and information<a class="permalink" href="#population-coding-and-information" aria-label="Link to this section">#</a></h4><ul><li><strong>Tuning curve.</strong> The mean response <math><msub><mi>𝑓</mi><mrow><mi>𝑖</mi><mrow><mo>(</mo><mi>𝜃</mi><mo>)</mo></mrow></mrow></msub></math> of neuron <math><mi>𝑖</mi></math> as a function of stimulus <math><mi>𝜃</mi></math>.</li><li><strong>Fisher information.</strong> A measure of how precisely responses identify <math><mi>𝜃</mi></math>. Under regularity conditions, an unbiased estimator obeys the Cramér–Rao bound, <math><mtext>Var</mtext><mrow><mo>(</mo><mover accent="true"><mi>𝜃</mi><mo>̂</mo></mover><mo>)</mo></mrow><mo>≥</mo><mfrac><mn>1</mn><msub><mi>𝐼</mi><mrow><mi>𝐹</mi><mrow><mo>(</mo><mi>𝜃</mi><mo>)</mo></mrow></mrow></msub></mfrac></math>, where <math><mover accent="true"><mi>𝜃</mi><mo>̂</mo></mover></math> is the estimator and <math><msub><mi>𝐼</mi><mrow><mi>𝐹</mi><mrow><mo>(</mo><mi>𝜃</mi><mo>)</mo></mrow></mrow></msub></math> is Fisher information.</li><li><strong>Linear Fisher information.</strong> The information accessible to a linear decoder, which is a useful proxy for what a downstream neuron can extract through weighted synaptic input.</li><li><strong>Noise correlations.</strong> Trial-to-trial covariance between neurons at fixed stimulus. Correlations aligned with the tuning gradient can cap information even as the population grows.</li><li><strong>Poisson variability.</strong> A count model in which spike-count variance equals its mean. It is a common baseline rather than a universal biological law.</li></ul><h4 id="sampling-dynamics-and-e-i-circuits" class="hx">Sampling dynamics and E/I circuits<a class="permalink" href="#sampling-dynamics-and-e-i-circuits" aria-label="Link to this section">#</a></h4><ul><li><strong>Stationary distribution.</strong> The distribution approached by a Markov process at long times. A neural-sampling claim requires the circuit’s stationary distribution to match the intended posterior, not merely to display irregular activity.</li><li><strong>Langevin dynamics.</strong> Noisy gradient dynamics designed to approach a target stationary distribution. They provide the simplest bridge from a log-posterior landscape to recurrent stochastic dynamics.</li><li><strong>Hamiltonian Monte Carlo (HMC).</strong> A sampler that augments the represented variable with momentum, allowing longer, less diffusive moves through the target distribution. The Hamiltonian-brain account associates excitatory and inhibitory populations with complementary state variables.</li><li><strong>Inhibition-stabilized network (ISN).</strong> A recurrent E/I network whose excitatory subnetwork is unstable in isolation and stabilized by feedback inhibition.</li><li><strong>Mixing time.</strong> The time required for a chain to lose dependence on its initial state and explore the target distribution.</li><li><strong>Autocorrelation time.</strong> The time over which successive samples remain correlated. Shorter autocorrelation generally means more effective samples per unit time.</li><li><strong>Transient amplification.</strong> Temporary growth of selected activity patterns in an asymptotically stable recurrent network. It can accelerate movement through state space without requiring sustained instability.</li><li><strong>Δt-stability.</strong> In this project, robustness of the simulated or trained dynamics to the numerical integration step <math><mi mathvariant="normal">Δ</mi><mi>𝑡</mi></math>. A purported computational regime that disappears under a smaller step may be a discretization artefact rather than a property of the continuous-time circuit.</li></ul><h4 id="posterior-readouts-and-metabolic-cost" class="hx">Posterior readouts and metabolic cost<a class="permalink" href="#posterior-readouts-and-metabolic-cost" aria-label="Link to this section">#</a></h4><ul><li><strong>Maximum a posteriori (MAP) estimate.</strong> The posterior mode, <math><msub><mi>𝜃</mi><mtext>MAP</mtext></msub><mo>=</mo><mo form="prefix" lspace="0em" rspace="0.16666666666666666em">arg</mo><msub><mo form="prefix" lspace="0em" rspace="0.16666666666666666em">max</mo><mi>𝜃</mi></msub><mi>𝑝</mi><mrow><mo>(</mo><mrow><mi>𝜃</mi><mspace width="0.2222em"/><mo lspace="0em" rspace="0em">|</mo><mspace width="0.2222em"/><mi>𝑥</mi></mrow><mo>)</mo></mrow></math>.</li><li><strong>Posterior mean.</strong> <math><mi>𝔼</mi><mrow><mo>[</mo><mrow><mi>𝜃</mi><mspace width="0.2222em"/><mo lspace="0em" rspace="0em">|</mo><mspace width="0.2222em"/><mi>𝑥</mi></mrow><mo>]</mo></mrow></math>, the Bayes-optimal point estimate under squared-error loss.</li><li><strong>Posterior variance or credible interval.</strong> The width of the posterior, representing uncertainty rather than only a best estimate.</li><li><strong>Bits per spike.</strong> Mutual information between stimulus and response divided by spike count, used as a measure of coding efficiency.</li><li><strong>Coding precision.</strong> The inverse width of the represented distribution. A system can reduce precision to save energy while retaining a similar posterior mean.</li><li><strong>Metabolic cost of a spike.</strong> The energetic cost, largely paid by ion pumps, of restoring ionic gradients after an action potential.</li></ul><h3 id="references" class="hx">References<a class="permalink" href="#references" aria-label="Link to this section">#</a></h3><ol class="refs"><li id="ref-1">Pouget, Dayan &amp; Zemel (2003), <em>Inference and computation with population codes</em> <a class="doi" href="https://doi.org/10.1146/annurev.neuro.26.041002.131112" target="_blank" rel="noopener">doi:10.1146/annurev.neuro.26.041002.131112</a></li><li id="ref-2">Ma, Beck, Latham &amp; Pouget (2006), <em>Bayesian inference with probabilistic population codes</em> <a class="doi" href="https://doi.org/10.1038/nn1790" target="_blank" rel="noopener">doi:10.1038/nn1790</a></li><li id="ref-3">Fiser, Berkes, Orbán &amp; Lengyel (2010), <em>Statistically optimal perception and learning: from behavior to neural representations</em> <a class="doi" href="https://doi.org/10.1016/j.tics.2010.01.003" target="_blank" rel="noopener">doi:10.1016/j.tics.2010.01.003</a></li><li id="ref-4">Aitchison &amp; Lengyel (2016), <em>The Hamiltonian brain: efficient probabilistic inference with excitation-inhibition networks</em> <a class="doi" href="https://doi.org/10.1371/journal.pcbi.1005186" target="_blank" rel="noopener">doi:10.1371/journal.pcbi.1005186</a></li><li id="ref-5">Orbán, Berkes, Fiser &amp; Lengyel (2016), <em>Neural variability and sampling-based probabilistic representations in the visual cortex</em> <a class="doi" href="https://doi.org/10.1016/j.neuron.2016.09.038" target="_blank" rel="noopener">doi:10.1016/j.neuron.2016.09.038</a></li><li id="ref-6">Echeveste, Aitchison, Hennequin &amp; Lengyel (2020), <em>Cortical-like dynamics in recurrent circuits optimized for sampling-based probabilistic inference</em> <a class="doi" href="https://doi.org/10.1038/s41593-020-0671-1" target="_blank" rel="noopener">doi:10.1038/s41593-020-0671-1</a></li><li id="ref-7">Padamsey, Katsanevaki, Dupuy &amp; Rochefort (2022), <em>Neocortex saves energy by reducing coding precision during food scarcity</em> <a class="doi" href="https://doi.org/10.1016/j.neuron.2021.10.024" target="_blank" rel="noopener">doi:10.1016/j.neuron.2021.10.024</a></li></ol><div class="entry-tail"></div></body></html>
