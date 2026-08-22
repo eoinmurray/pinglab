@@ -1,0 +1,58 @@
+---
+name: abstract
+description: Use only when the user explicitly invokes $abstract to summarize Pinglab's scientific aims and trajectory.
+---
+
+# Abstract
+
+Activate this skill only for an explicit `$abstract` command. Do not activate it
+from semantic similarity, automatic selection, or an ordinary request for a
+summary.
+
+Accept one optional length argument:
+
+- `$abstract short` — exactly 2 paragraphs.
+- `$abstract medium` or bare `$abstract` — exactly 4 paragraphs.
+- `$abstract long` — exactly 6 paragraphs.
+
+For any other argument, state the three valid lengths and that `medium` is the
+default. Do not produce a partial abstract.
+
+## Evidence
+
+Summarize what Pinglab has been trying to understand and build, not merely what
+files exist. Inspect only enough current repository evidence to support the
+account, prioritizing:
+
+1. the project purpose and scientific-record rules in `AGENTS.md` and `README.md`;
+2. collection aims in `demolab.yaml`;
+3. the manuscript, collection introductions, and relevant current writing
+   metadata under `writings/`;
+4. the compact published artifacts or run evidence behind any reported result;
+5. recent Git history when needed to identify the active direction.
+
+Do not use conversation history as evidence for the project's scientific aims.
+Do not imply that every collection or recent commit has equal scientific
+importance. Distinguish demonstrated findings from hypotheses, engineering
+infrastructure, exploratory work, and intended next steps. Preserve negative,
+partial, and uncertain results. Read any reported computed value from the run or
+published artifact that produced it; otherwise keep the statement qualitative.
+
+## Output
+
+Write a self-contained abstract in connected prose for a scientifically literate
+reader. Each paragraph must advance the account rather than pad the requested
+length. Cover the central question, the approach, the strongest supported
+findings, and the present research direction in proportions appropriate to the
+selected length.
+
+The abstract body must contain exactly the requested number of non-empty prose
+paragraphs, separated by blank lines. Do not add a title, headings, bullets,
+numbered lists, a source inventory, process narration, or follow-up question to
+that body. Required higher-level response footers sit outside the abstract and do
+not count toward its paragraph total. Define unfamiliar abbreviations on first
+use. Avoid exact numbers unless they materially improve the summary and satisfy
+the evidence rule.
+
+This command is read-only. Do not edit files, run experiments, build
+publications, mutate Git, or write to external systems.

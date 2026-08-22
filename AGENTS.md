@@ -28,6 +28,7 @@ narrower command.
 
 | Command | Authorization |
 | --- | --- |
+| `$abstract [short\|medium\|long]` | Summarize Pinglab's scientific aims and trajectory in 2, 4, or 6 paragraphs; `medium` is the default. Read-only. |
 | `$lab help` | Explain the project lexicon; read-only. |
 | `$lab status` | Inspect repository, experiment, campaign, and publication state; read-only. |
 | `$experiment design` | Develop an experiment design conversationally; read-only. |
@@ -47,8 +48,9 @@ narrower command.
 | `$publish build` | Build the complete local publication view, updating only `artifacts/pdfs/` and ignored `artifacts/site/`; do not commit, push, or deploy. |
 | `$lab-doctor` | Audit Pinglab governance, structure, provenance, and skill integrity; read-only. |
 
-Arguments are mandatory where shown. A bare noun explains its subcommands and
-does not mutate state. Project commands never stage, commit, switch branches,
+Arguments are mandatory where shown. Optional arguments appear in brackets;
+`$abstract` defaults to `medium`. Other bare nouns explain their subcommands and
+do not mutate state. Project commands never stage, commit, switch branches,
 create worktrees, push, open or update GitHub objects, merge, or deploy. Use the
 appropriate global Lexicon command for those actions.
 
