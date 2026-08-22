@@ -2,12 +2,13 @@
 
 This is the successor to exp048.  It consumes the planned exp022 PING cells
 trained with per-presentation variable input rates and the output-LIF
-`spike-count` readout.  It evaluates four protocols:
+`spike-count` readout.  It reports three protocols:
 
-1. a matched 200-ms presentation/readout stream;
-2. a stream whose presentation duration and input rate both vary;
-3. a 200-ms input-rate psychometric curve; and
-4. a presentation-duration by input-rate accuracy map.
+1. a stream whose presentation duration and input rate both vary;
+2. a 200-ms input-rate psychometric curve; and
+3. a presentation-duration by input-rate accuracy map.
+
+A matched 200-ms stream is retained as an internal validation artifact.
 
 The runner is intentionally executable only after exp022 has produced all
 three variable-rate checkpoints.  Until then it fails before creating a run.
@@ -377,6 +378,7 @@ def evaluate_stream(
         boundaries.append(cursor)
     return {
         "conditions": [list(item) for item in conditions],
+        "pixels": pixels,
         "labels": labels.tolist(),
         "predictions": predictions,
         "correct": correct,
@@ -614,6 +616,155 @@ def plot_stream(result: dict[str, Any], path: Path, run_id: str) -> None:
     plt.close(fig)
 
 
+def plot_variable_headline(result: dict[str, Any], path: Path, run_id: str) -> None:
+    """Exp048-Figure-1-style variable-condition streaming headline."""
+    theme.apply()
+    conditions = result["conditions"]
+    boundaries = np.asarray(result["boundaries"], dtype=int)
+    starts = boundaries[:-1]
+    stops = boundaries[1:]
+    starts_ms = starts * DT_MS
+    stops_ms = stops * DT_MS
+    total_ms = stops_ms[-1]
+    time_ms = np.arange(len(result["spikes_e"])) * DT_MS
+    labels = result["labels"]
+    predictions = result["predictions"]
+
+    fig = plt.figure(figsize=(6.9, 5.33), dpi=150)
+    grid = fig.add_gridspec(
+        4, 1, height_ratios=[1.35, 2.2, 1.2, 2.0], hspace=0.18,
+    )
+
+    thumbnail_axis = fig.add_subplot(grid[0])
+    thumbnail_axis.set(xlim=(0, total_ms), ylim=(0, 1))
+    thumbnail_axis.set_xticks([])
+    thumbnail_axis.set_yticks([])
+    for spine in thumbnail_axis.spines.values():
+        spine.set_visible(False)
+    rates = np.asarray([condition[1] for condition in conditions], dtype=float)
+    log_rates = np.log(rates)
+    for index, ((duration_ms, rate_hz), start_ms, stop_ms) in enumerate(
+        zip(conditions, starts_ms, stops_ms, strict=True)
+    ):
+        width = (stop_ms - start_ms) / total_ms * 0.88
+        left = thumbnail_axis.get_position().x0 + (
+            start_ms / total_ms
+            * (thumbnail_axis.get_position().x1 - thumbnail_axis.get_position().x0)
+        )
+        inset = fig.add_axes([  # ty: ignore[no-matching-overload]
+            left,
+            thumbnail_axis.get_position().y0 + 0.005,
+            width,
+            thumbnail_axis.get_position().height - 0.02,
+        ])
+        alpha = 1.0
+        if log_rates.max() > log_rates.min():
+            alpha = 0.2 + 0.8 * (
+                np.log(rate_hz) - log_rates.min()
+            ) / (log_rates.max() - log_rates.min())
+        inset.imshow(
+            np.asarray(result["pixels"])[index].reshape(28, 28),
+            cmap="Greys",
+            interpolation="nearest",
+            aspect="auto",
+            alpha=alpha,
+        )
+        inset.set_xticks([])
+        inset.set_yticks([])
+        colour = (
+            theme.INK_BLACK
+            if predictions[index] == labels[index]
+            else theme.DEEP_RED
+        )
+        inset.text(
+            0.05,
+            0.95,
+            f"{labels[index]}→{predictions[index]}",
+            transform=inset.transAxes,
+            ha="left",
+            va="top",
+            fontsize=theme.SIZE_LABEL,
+            color="white",
+            weight="bold",
+            bbox=dict(
+                facecolor=colour,
+                edgecolor="none",
+                boxstyle="round,pad=0.2",
+                alpha=0.95,
+            ),
+        )
+        thumbnail_axis.text(
+            (start_ms + stop_ms) / 2,
+            1.02 if index % 2 == 0 else 1.15,
+            f"{duration_ms:g} ms · {rate_hz:g} Hz",
+            transform=thumbnail_axis.get_xaxis_transform(),
+            ha="center",
+            va="bottom",
+            fontsize=theme.SIZE_LABEL - 2,
+            color=theme.MUTED,
+            clip_on=False,
+        )
+
+    raster_specs = (
+        (result["spikes_e"][:, :200], "E cell", theme.INK_BLACK, 2.0, 1024),
+        (result["spikes_i"][:, :64], "I cell", theme.DEEP_RED, 2.0, 256),
+    )
+    for row, (spikes, label, colour, size, population) in enumerate(
+        raster_specs, start=1
+    ):
+        axis = fig.add_subplot(grid[row])
+        spike_times, neurons = np.nonzero(spikes)
+        axis.scatter(
+            spike_times * DT_MS,
+            neurons,
+            s=size,
+            c=colour,
+            marker="|",
+            linewidths=0.4,
+        )
+        axis.set(xlim=(0, total_ms), ylim=(0, spikes.shape[1]))
+        axis.set_yticks([0, spikes.shape[1]], ["0", f"{population}"])
+        axis.set_ylabel(label, fontsize=theme.SIZE_LABEL)
+        axis.tick_params(axis="x", labelbottom=False)
+        axis.spines[["top", "right"]].set_visible(False)
+        for boundary in starts_ms[1:]:
+            axis.axvline(boundary, color=theme.GREY_MID, lw=0.5, ls=":", alpha=0.7)
+
+    evidence_axis = fig.add_subplot(grid[3])
+    probabilities = result["probabilities"]
+    for class_index in range(N_CLASSES):
+        evidence_axis.plot(
+            time_ms,
+            probabilities[:, class_index],
+            color=theme.GREY_MID,
+            lw=0.6,
+            alpha=0.45,
+        )
+    for index, (start, stop) in enumerate(zip(starts, stops, strict=True)):
+        evidence_axis.plot(
+            time_ms[start:stop],
+            probabilities[start:stop, labels[index]],
+            color=theme.DEEP_RED,
+            lw=2.2,
+        )
+    for boundary in starts_ms[1:]:
+        evidence_axis.axvline(
+            boundary, color=theme.GREY_MID, lw=0.5, ls=":", alpha=0.7,
+        )
+    evidence_axis.axhline(0.5, color=theme.GREY_MID, lw=0.5, ls="--", alpha=0.6)
+    evidence_axis.set(
+        xlim=(0, total_ms),
+        ylim=(0, 1),
+        xlabel="time (ms)",
+        ylabel="spike-count p(class)",
+    )
+    evidence_axis.spines[["top", "right"]].set_visible(False)
+
+    stamp_figure(fig, run_id)
+    fig.savefig(path, dpi=240, facecolor="white")
+    plt.close(fig)
+
+
 def plot_psychometric(rows: list[dict[str, Any]], path: Path, run_id: str) -> None:
     theme.apply()
     plt.rcParams["svg.hashsalt"] = "pinglab-exp082"
@@ -680,7 +831,9 @@ def save_measurements(matched: dict[str, Any], variable: dict[str, Any]) -> None
         **{
             f"{name}_{key}": result[key]
             for name, result in (("matched", matched), ("variable", variable))
-            for key in ("spikes_e", "spikes_i", "spikes_out", "probabilities")
+            for key in (
+                "pixels", "spikes_e", "spikes_i", "spikes_out", "probabilities",
+            )
         },
     )
 
@@ -694,14 +847,18 @@ def replot_results(numbers_path: Path, measurements_path: Path) -> None:
                 **payload[f"{name}_stream"],
                 **{
                     key: arrays[f"{name}_{key}"]
-                    for key in ("spikes_e", "spikes_i", "spikes_out", "probabilities")
+                    for key in (
+                        "pixels", "spikes_e", "spikes_i", "spikes_out", "probabilities",
+                    )
                 },
             }
             for name in ("matched", "variable")
         }
     run_id = payload.get("run_id", "replot")
     plot_stream(streams["matched"], FIGURES / "matched_stream.png", run_id)
-    plot_stream(streams["variable"], FIGURES / "variable_stream.png", run_id)
+    plot_variable_headline(
+        streams["variable"], FIGURES / "variable_stream.png", run_id
+    )
     rows = payload["grid_per_seed"]
     psychometric = payload["duration_200ms_psychometric"]
     plot_psychometric(psychometric, FIGURES / "psychometric_200ms.svg", run_id)
@@ -737,7 +894,7 @@ def main() -> None:
     variable = evaluate_stream(directory, x_test, y_test, VARIABLE_STREAM, 83, "variable")
     save_measurements(matched, variable)
     plot_stream(matched, FIGURES / "matched_stream.png", run_id)
-    plot_stream(variable, FIGURES / "variable_stream.png", run_id)
+    plot_variable_headline(variable, FIGURES / "variable_stream.png", run_id)
 
     # Pending tools/snn support is deliberately encountered here, after the two
     # single-stream figures prove checkpoint and readout compatibility.
