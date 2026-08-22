@@ -31,7 +31,6 @@ narrower command.
 | `$abstract [short\|medium\|long]` | Summarize Pinglab's scientific aims and trajectory in 2, 4, or 6 paragraphs; `medium` is the default. Read-only. |
 | `$lab help` | Explain the project lexicon; read-only. |
 | `$lab status` | Inspect repository, experiment, campaign, and publication state; read-only. |
-| `$experiment design` | Develop an experiment design conversationally; read-only. |
 | `$experiment draft` | Create or revise only `writings/expNNN.typ` and hand-authored design SVGs under `artifacts/data/expNNN/`. |
 | `$experiment review ID` | Review one experiment's design, implementation, evidence, and interpretation; read-only. |
 | `$experiment run ID` | Run one existing experiment locally; it may write only beneath `runs/` and the runner's matching `artifacts/data/ID/`. |
