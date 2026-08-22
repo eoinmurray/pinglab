@@ -1,14 +1,14 @@
 {
   "slug": "exp094",
-  "run_id": "r002",
-  "run_at": "2026-08-22T18:36:29+00:00",
-  "git_sha": "07e3b78b",
+  "run_id": "r005",
+  "run_at": "2026-08-22T19:04:04+00:00",
+  "git_sha": "dac6703b",
   "dirty": true,
   "code_dirty": true,
   "patch": {
     "file": "_dirty.patch",
-    "sha256": "44d18e21c99343b099c0c30c0648ab532f14181c5c264d99e3fb478a8d46fe21",
-    "lines": 512
+    "sha256": "a1ebbfb72b0fb102a60921e1843038ffcdb5d241b356f590a89426ff5eb3eab2",
+    "lines": 774
   },
   "host": "local",
   "scale": {
@@ -24,6 +24,7 @@
     "dt_ms": 0.1,
     "t_ms": 200.0,
     "input_rate_hz": 25.0,
-    "trials": 1
+    "trials": 1,
+    "screen_trials": 100
   }
 }
