@@ -5,35 +5,21 @@ Pinglab studies conductance-based spiking E/I networks, especially PING
 diagnosed for timestep stability.
 
 This file contains durable project invariants and authorization boundaries.
-Procedures belong in the repository skills under `.agents/skills/`.
 
 ## Authority
 
 This file and other version-controlled Pinglab policies govern work in this
 repository. Mutation authority comes only from the global `scope`, `go`, and
-`repo` lexicon. Project commands select specialist scientific workflows; they
-do not independently authorize mutation.
+`repo` lexicon. Pinglab defines no project commands.
 
-Project skills are opt-in command handlers, not automatic task routers. Use a
-skill under `.agents/skills/` only when the user explicitly invokes one of its
-documented commands. Semantic similarity, an ordinary natural-language request,
-or automatic skill selection is insufficient. Handle those requests normally
-without loading the project skill.
-
-## Pinglab lexicon
+## Scientific vocabulary
 
 Pinglab's scientific vocabulary is noun-centred. Its types are prose-defined
 and text-serialized as Markdown rather than formally schema-validated.
 `.agents/NOUNS.md` is the canonical type registry and contains the contracts for
-constructing and interpreting them. One thin project command explains that
-registry; ordinary conversation performs the scientific work.
-
-| Command | Handler |
-| --- | --- |
-| `pinglab lexicon` | `.agents/skills/pinglab/SKILL.md` |
-
-The command accepts an optional leading `$`; `pinglab lexicon` and `$pinglab
-lexicon` are equivalent. Bare `pinglab` explains its subcommand.
+constructing and interpreting them. Ordinary conversation performs the
+scientific work over these nouns. The global Lexicon remains separate and
+governs mutation.
 
 ## Demolab boundary
 

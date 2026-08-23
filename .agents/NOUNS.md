@@ -1,9 +1,10 @@
 # Pinglab noun registry
 
-Pinglab commands are scientific verbs over primitive nouns. The nouns are
+Pinglab's scientific vocabulary consists of primitive nouns. The nouns are
 prose-defined and serialized as Markdown rather than formally schema-validated.
-Repository evidence and publication outputs retain their native files alongside
-the textual noun describing them.
+Ordinary conversation constructs and transforms them. Repository evidence and
+publication outputs retain their native files alongside the textual noun
+describing them.
 
 ## `ScientificRecord`
 
@@ -202,17 +203,6 @@ insufficiently grounded packet as definitive.
 Freeze only the best currently grounded formulation without reopening broad
 ideation. If an essential claim remains ungrounded, identify the gap and decline
 to label the packet definitive.
-
-## `PinglabLexiconContext`
-
-The live Pinglab noun vocabulary, its sole explanatory command, and their
-relationship to the global Lexicon.
-
-## `PinglabLexicon`
-
-A concise Markdown reference grouping Pinglab's scientific nouns by family,
-explaining their relationships and lifecycles, and distinguishing the thin
-project vocabulary interface from the mutation-authorizing global Lexicon.
 
 ## Experiment family
 
