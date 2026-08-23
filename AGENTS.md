@@ -22,26 +22,18 @@ without loading the project skill.
 
 ## Pinglab lexicon
 
-The Lexicon contains verbs. Each verb consumes and produces primitive nouns.
-These types are prose-defined and text-serialized as Markdown rather than
-formally schema-validated. `.agents/NOUNS.md` is the canonical type registry;
-each skill is the canonical source for its verb signatures and procedures.
+Pinglab's scientific vocabulary is noun-centred. Its types are prose-defined
+and text-serialized as Markdown rather than formally schema-validated.
+`.agents/NOUNS.md` is the canonical type registry and contains the contracts for
+constructing and interpreting them. One thin project command explains that
+registry; ordinary conversation performs the scientific work.
 
 | Command | Handler |
 | --- | --- |
-| `hypo branches` or `hypo branchesX` | `.agents/skills/hypo/SKILL.md` |
-| `hypo canon` | `.agents/skills/hypo/SKILL.md` |
-| `hypo literature` | `.agents/skills/hypo/SKILL.md` |
-| `hypo repository` | `.agents/skills/hypo/SKILL.md` |
-| `hypo checkpoint` | `.agents/skills/hypo/SKILL.md` |
-| `hypo packet` | `.agents/skills/hypo/SKILL.md` |
 | `pinglab lexicon` | `.agents/skills/pinglab/SKILL.md` |
 
-Arguments are mandatory where shown. Optional arguments appear in brackets;
-`hypo branches` defaults to three branches. Every documented project command
-accepts an optional leading `$`; for example, `hypo literature` and `$hypo
-literature` are equivalent. Bare command-family nouns explain their
-subcommands.
+The command accepts an optional leading `$`; `pinglab lexicon` and `$pinglab
+lexicon` are equivalent. Bare `pinglab` explains its subcommand.
 
 ## Demolab boundary
 
