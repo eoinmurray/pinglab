@@ -1,6 +1,6 @@
 ---
 name: pinglab-lexicon
-description: Interpret, construct, transform, review, or serialize Pinglab noun types whenever a prompt invokes ScientificRecord, PinglabAbstract, Seed, Formulation, HypoBranches, HypoCanon, HypoLiterature, HypoRepository, OpenSearchTrajectory, HypoCheckpoint, GroundedSearchTrajectory, HypoPacket, ExpScoutPlan, ExpPlanAbstract, ExpSharedPlan, ExpInvestigationPlan, ExpInvestigationIdentity, ExpInvestigationIntroduction, ExpExpectedPatterns, ExpVisualSet, ExpDesignSchematic, ExpMeasuredResultSlot, ExpMethodsPlan, ExpPlannedSynthesis, ExpConclusionSlot, ExpReferences, ExpAppendices, ExpScout, ScoutExecution, ExpScoutSummary, ExpSharedExecution, ExpInvestigationExecution, ExpMeasuredResult, ExpObservedPatterns, ExpMethodsExecuted, ExpConclusion, ExpStudyPlan, ExpStudy, or ScientificCollectionState in any case, spacing, joining, or optional dollar-prefixed form.
+description: Interpret, construct, transform, review, or serialize Pinglab noun types whenever a prompt invokes ScientificRecord, PinglabAbstract, Seed, Formulation, HypoBranches, HypoCanon, HypoLiterature, HypoRepository, OpenSearchTrajectory, HypoCheckpoint, GroundedSearchTrajectory, HypoPacket, ExpScoutPlan, ExpPlanAbstract, ExpSharedPlan, ExpInvestigationPlan, ExpInvestigationIdentity, ExpInvestigationIntroduction, ExpExpectedPatterns, ExpVisualSet, ExpDesignSchematic, ExpMeasuredResultSlot, ExpMethodsPlan, ExpPlannedSynthesis, ExpConclusionSlot, ExpReferences, ExpAppendices, ExpScout, ScoutExecution, ExpScoutSummary, ExpSharedExecution, ExpInvestigationExecution, ExpMeasuredResult, ExpObservedPatterns, ExpMethodsExecuted, ExpConclusion, ExpStudyPlan, StudyExecution, ExpStudy, or ScientificCollectionState in any case, spacing, joining, or optional dollar-prefixed form.
 ---
 
 # Pinglab noun registry
@@ -224,13 +224,57 @@ to label the packet definitive.
 
 ## Experiment family
 
-Experiment nouns form an immutable lineage:
+Experiment noun definitions form a directed composition map. A composite noun
+names only its immediate children. A leaf noun names no other experiment noun.
+Children never name their parent, and definitions do not encode sibling,
+provenance, lifecycle, or downstream relationships.
+
+The composition map is:
 
 ```text
-ExpScoutPlan
-└── extended locally by ScoutExecution -> ExpScout
-    └── informs a new ExpStudyPlan
-        └── extended locally by StudyExecution -> ExpStudy
+ExpScout
+├── ExpScoutPlan
+│   ├── ExpPlanAbstract
+│   ├── ExpSharedPlan
+│   ├── ExpInvestigationPlan[]
+│   ├── ExpMethodsPlan
+│   ├── ExpPlannedSynthesis
+│   ├── ExpConclusionSlot
+│   ├── ExpReferences?
+│   └── ExpAppendices?
+└── ScoutExecution
+    ├── ExpScoutSummary
+    ├── ExpSharedExecution
+    ├── ExpInvestigationExecution[]
+    ├── ExpMethodsExecuted
+    └── ExpConclusion
+
+ExpInvestigationPlan
+├── ExpInvestigationIdentity
+├── ExpInvestigationIntroduction
+├── ExpExpectedPatterns
+└── ExpVisualSet?
+
+ExpVisualSet
+├── ExpDesignSchematic
+└── ExpMeasuredResultSlot
+
+ExpInvestigationExecution
+├── ExpMeasuredResult
+├── ExpVisualSet?
+└── ExpObservedPatterns
+
+ExpStudy
+├── ExpStudyPlan
+│   ├── ExpPlanAbstract
+│   ├── ExpSharedPlan
+│   ├── ExpInvestigationPlan[]
+│   ├── ExpMethodsPlan
+│   ├── ExpPlannedSynthesis
+│   ├── ExpConclusionSlot
+│   ├── ExpReferences?
+│   └── ExpAppendices?
+└── StudyExecution
 ```
 
 `Plan` always means prospective. Its paired executed noun preserves the frozen
@@ -239,10 +283,10 @@ observations. A new study plan is derived from the scout rather than extending
 or relabelling it; record which exploratory choices were carried forward,
 changed, rejected, or added.
 
-The rendered executed artifact follows the plan's publication scaffold and
-adds execution evidence beside the corresponding prospective material. It may
-replace planned Methods with one complete account of the executed Methods for
-readability, but the frozen plan retains the original protocol for provenance.
+The rendered executed artifact follows its prospective publication scaffold
+and adds execution evidence beside the corresponding prospective material. It
+may replace planned methods with one complete account of executed methods for
+readability, while retaining the frozen protocol for provenance.
 
 The experiment family uses the registered composition nouns defined below.
 Each also independently triggers this skill.
@@ -262,8 +306,8 @@ rather than duplicating it across investigations.
 
 ## `ExpInvestigationIdentity`
 
-The stable number and descriptive name that identify one investigation within
-an experiment plan and link its planned method, output, and later execution.
+The stable number and descriptive name that identify one investigation and
+join its planned method, output, and later execution.
 
 ## `ExpInvestigationIntroduction`
 
@@ -323,26 +367,14 @@ Use `status: "draft"` while a design is being refined and has not been run.
 
 Use this canonical reading order:
 
-1. `ExpPlanAbstract` — use for the question, hypothesis, intervention, primary
-   estimand, and consequential outcome.
-2. `ExpSharedPlan` — use once for identity, status, collection, dependencies,
-   scientific frame, inputs, controls, decision gates, budget, assumptions,
-   scope, and available provenance.
-3. `ExpInvestigationPlan[]` — use for numbered investigations, each containing
-   an `ExpInvestigationIdentity`, `ExpInvestigationIntroduction`,
-   `ExpExpectedPatterns`, optional `ExpVisualSet`, planned output, and the
-   result's interpretive limits.
-4. `ExpMethodsPlan` — use for the complete planned protocol: configuration,
-   datasets, parameter values, sampling, seeds, execution sequence, analysis
-   definitions, provenance, and reproducibility requirements. Number its
-   subsections so investigations can reference them without duplication.
-5. `ExpPlannedSynthesis` — use for cross-investigation rival discrimination,
-   informative contradictions, stopping rules, and completion criteria.
-6. `ExpConclusionSlot` — use to reserve the executed conclusion's position;
-   omit it from the prospective rendering.
-7. `ExpReferences` — use when external sources inform the plan.
-8. `ExpAppendices` — use when supporting detail would interrupt the main
-   sequence.
+1. `ExpPlanAbstract`
+2. `ExpSharedPlan`
+3. `ExpInvestigationPlan[]`
+4. `ExpMethodsPlan`
+5. `ExpPlannedSynthesis`
+6. `ExpConclusionSlot`
+7. optional `ExpReferences`
+8. optional `ExpAppendices`
 
 Keep a network or experimental-design diagram beside the investigation unit it
 explains. Clearly label conceptual curves as design schematics rather than data.
@@ -361,17 +393,10 @@ does not promise durable inference.
 
 ## `ExpVisualSet`
 
-An optional visual evidence scaffold pairing design schematics with
-structurally matched measured plots. Each pair preserves a shared panel layout,
-variables, colours, visual grammar, interpretive purpose, and caption, and
-reserves links to its investigation unit, protocol section, generating code,
-and source data. It is specified by an `ExpScoutPlan`; the schematic and empty
-result slot form an implementation scaffold, and the measured mirror becomes
-evidence only when generated from executed results.
-
-Internally, each pair contains an `ExpDesignSchematic` and an
-`ExpMeasuredResultSlot`. `ScoutExecution` completes the slot with an
-`ExpMeasuredResult` or preserves its failed, incomplete, or not-run status.
+An optional visual evidence scaffold containing an `ExpDesignSchematic` and an
+`ExpMeasuredResultSlot`. The pair preserves a shared panel layout, variables,
+colours, visual grammar, interpretive purpose, caption, and reserved links to
+generating code and source data.
 
 The default epistemic colour grammar uses blue-grey for conceptual or
 prospective schematics and red-black for measured evidence. A scientific
@@ -389,21 +414,20 @@ and protocol. It is conceptual evidence design, never an observed result.
 
 ## `ExpMeasuredResultSlot`
 
-The prospective placeholder paired with an `ExpDesignSchematic`. It reserves
-the structurally matched measured output, generating code, source data, and
-completion status without containing observations before execution.
+The prospective placeholder for a structurally matched measured output,
+generating code, source data, and completion status. It contains no
+observations before execution.
 
 ## `ExpScoutSummary`
 
 The highest-level execution summary of a scout: its principal observation and
-stop, revise, or escalate disposition without procedural detail. It extends the
-frozen `ExpPlanAbstract` rather than replacing its prospective claims.
+stop, revise, or escalate disposition without procedural detail.
 
 ## `ExpSharedExecution`
 
 The shared execution record containing run provenance, completion status,
-actual common configuration, deviations from `ExpSharedPlan`, and limitations.
-Record common execution facts once rather than repeating them locally.
+actual common configuration, deviations, and limitations. Record common
+execution facts once rather than repeating them locally.
 
 ## `ExpMeasuredResult`
 
@@ -414,105 +438,77 @@ rather than silently omitted.
 
 ## `ExpObservedPatterns`
 
-A concise, exploratory account of what an `ExpMeasuredResult` shows and does
-not show relative to the frozen `ExpExpectedPatterns`. Keep observations
-separate from procedural detail and do not add a local disposition gate.
+A concise, exploratory account of what a measured result shows and does not
+show relative to the frozen expected patterns. Keep observations separate from
+procedural detail and do not add a local disposition gate.
 
 ## `ExpInvestigationExecution`
 
-The execution attached to one corresponding `ExpInvestigationPlan`. It contains
-an `ExpMeasuredResult` or explicit non-completion status, a completed measured
-`ExpVisualSet` mirror when planned, and `ExpObservedPatterns`.
+An execution unit containing an `ExpMeasuredResult` or explicit non-completion
+status, an optional completed `ExpVisualSet`, and `ExpObservedPatterns`.
 
 ## `ExpMethodsExecuted`
 
 The complete account of methods actually executed, concrete outputs,
-provenance, and deviations. It replaces `ExpMethodsPlan` only in the readable
-rendering; the frozen plan remains the prospective provenance record.
+provenance, and deviations.
 
 ## `ExpConclusion`
 
-The cross-investigation interpretation that completes an
-`ExpConclusionSlot`, evaluates the scout against its shared decision gates and
-rivals, states limitations, and records the stop, revise, or escalate
-disposition.
+The cross-investigation interpretation against shared decision gates and
+rivals, including limitations and the stop, revise, or escalate disposition.
 
 ## `ScoutExecution`
 
 The execution overlay comprising an `ExpScoutSummary`, `ExpSharedExecution`,
 one `ExpInvestigationExecution` per planned investigation,
-`ExpMethodsExecuted`, and `ExpConclusion`. It adds what happened to a frozen
-`ExpScoutPlan` without rewriting the plan's prospective content.
+`ExpMethodsExecuted`, and `ExpConclusion`.
 
 ## `ExpScout`
 
-An executed scouting mission formed from its frozen `ExpScoutPlan` plus
-`ScoutExecution`. Preserve the plan's publication structure and extend it
-locally:
+An executed scouting mission containing a frozen `ExpScoutPlan` and
+`ScoutExecution`.
 
-1. `ExpScoutSummary` — use for the highest-level observation and disposition
-   without procedural detail.
-2. `ExpSharedExecution` — use for run provenance, completion status, actual
-   shared configuration, deviations, and limitations.
-3. `ExpInvestigationExecution[]` — use to attach execution evidence to each
-   corresponding `ExpInvestigationPlan`: an `ExpMeasuredResult` or explicit
-   failed, incomplete, or not-run status, a measured `ExpVisualSet` mirror when
-   present, and `ExpObservedPatterns`. Keep numerical and procedural ramble out
-   of the discussion. Do not create a separate investigation-results section or
-   add local decision-gate evaluations.
-4. `ExpMethodsExecuted` — use for one complete account of executed methods,
-   concrete outputs, and deviations. Fully replace `ExpMethodsPlan` in the
-   rendered `ExpScout`; retain the frozen `ExpScoutPlan` as provenance.
-5. `ExpConclusion` — use to complete `ExpConclusionSlot` with the
-   cross-investigation interpretation and stop, revise, or escalate
-   disposition.
-
-References and appendices may gain execution-specific material. Do not rewrite
-planned expectations as observations. All scout evidence remains exploratory
-rather than durable.
+Preserve the prospective publication structure and attach execution evidence
+locally. Replace the planned methods only in the readable rendering; retain the
+frozen protocol for provenance. Do not rewrite expectations as observations or
+create a separate results section. All evidence remains exploratory rather than
+durable.
 
 Number every body heading hierarchically. The publication title, figure
 captions, equations, and inline structural labels such as `Relevance` and
-`ExpVisualSet` are not body headings and remain unnumbered. Optional trailing
-sections are omitted rather than emitted empty; retain the canonical section
-number when one is present.
+visual-set labels are not body headings and remain unnumbered. Optional
+trailing sections are omitted rather than emitted empty; retain the canonical
+section number when one is present.
 
-If the plan requested an `ExpVisualSet`, attach completed measured mirrors with
-code and data provenance. Preserve failed or incomplete result slots. A scout
-without an `ExpVisualSet` remains valid.
-
-Its evidence remains exploratory: it may motivate a new study plan but may not
-be promoted or relabelled as durable evidence. The optional composition is
-`ExpScout = frozen ExpScoutPlan + completed ExpVisualSet + other execution
-evidence + disposition`.
+Attach completed measured mirrors with code and data provenance when planned.
+Preserve failed or incomplete result slots. A scout without visual scaffolding
+remains valid and may not be promoted or relabelled as durable evidence.
 
 ## `ExpStudyPlan`
 
-A new prospective contract informed by one or more `ExpScout` artifacts rather
-than a retrospective expansion of the scout. It uses the canonical plan
-structure with stronger requirements for estimands, sampling and seeds,
-controls, uncertainty, falsifiers, rival discrimination, stopping rules, and
-robustness for a durable scientific test. Freeze which scout-informed choices
-are carried forward before study execution begins.
+A prospective durable-study contract containing an `ExpPlanAbstract`,
+`ExpSharedPlan`, one or more `ExpInvestigationPlan` entries, an
+`ExpMethodsPlan`, `ExpPlannedSynthesis`, `ExpConclusionSlot`, and optional
+`ExpReferences` and `ExpAppendices`.
+
+It requires stronger estimands, sampling and seeds, controls, uncertainty,
+falsifiers, rival discrimination, stopping rules, and robustness than a scout
+plan. Freeze all choices before execution begins.
+
+## `StudyExecution`
+
+The durable execution overlay containing exact implementation and run
+provenance, completion status, actual configuration and deviations,
+observations and uncertainty, rival discrimination, conclusions, limitations,
+and robustness results.
 
 ## `ExpStudy`
 
-A durable executed scientific record containing its frozen `ExpStudyPlan`,
-exact implementation and provenance, observations, uncertainty, deviations,
-rival discrimination, conclusions, limitations, and completion status.
-
-Freeze and preserve the `ExpStudyPlan`, then add:
-
-- exact implementation, run provenance, and completion status;
-- actual configuration and deviations from plan;
-- observations and uncertainty;
-- interpretation against decision rules, falsifiers, and rivals;
-- durable conclusions and limitations.
+A durable executed scientific record containing a frozen `ExpStudyPlan` and
+`StudyExecution`.
 
 For each completed result, show its title, figure or output, and concise
 interpretation. Never replace or rewrite planned expectations as observations.
-The invariant is `ExpScout` -> new `ExpStudyPlan` -> `ExpStudy`, never
-`ExpScout` -> relabelled `ExpStudy`.
 
 ## `ScientificCollectionState`
 
