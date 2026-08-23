@@ -73,11 +73,19 @@ The live Pinglab command vocabulary and its relationship to the global Lexicon.
 A concise Markdown reference mapping Pinglab operators to their input and output
 artifact types.
 
-## `UnrunExperimentSpecification`
+## `ExperimentPlan`
 
-A formal experiment design containing abstract, enumerated methods, planned
-results, measurements, plots, expectations, controls, and interpretations,
-with no observations represented as completed results.
+A self-contained, unrun experiment contract containing identity, question,
+hypothesis, methods, variables, controls, measurements, decision rules, scope,
+expected patterns, falsifiers, planned outputs, and execution requirements.
+Nothing in the plan is represented as an observed result.
+
+## `ExperimentRecord`
+
+An executed experiment record that extends and preserves its frozen
+`ExperimentPlan`, then adds run provenance, actual configuration, deviations,
+observations, uncertainty, interpretation, and completion status. Planned
+expectations remain distinguishable from observed results.
 
 ## `ScientificCollectionState`
 

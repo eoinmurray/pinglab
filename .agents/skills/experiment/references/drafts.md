@@ -1,4 +1,14 @@
-# Experiment drafts
+# Experiment formats
+
+Use one shared experiment contract for both artifact types. Do not duplicate
+these fields between the plan and record:
+
+- identity and scope;
+- question and hypothesis;
+- methods, variables, and controls;
+- measurements and decision rules.
+
+## `ExperimentPlan`
 
 Use `status: "draft"` while a design is being refined and has not been run.
 
@@ -16,6 +26,19 @@ mechanism benefits from visual mirroring, use the exp086 pattern: a precise
 hand-authored SVG in Methods and a reproducibly generated Results figure with
 the same panel layout and visual language.
 
-Once a result exists, remove its planning fields. Show its title, figure or
-output, and concise interpretation. Do not present planned expectations as
-observations.
+The plan additionally defines expected patterns, falsifiers, planned outputs,
+and execution requirements. It contains no observed results.
+
+## `ExperimentRecord extends ExperimentPlan`
+
+Freeze and preserve the original plan, then add execution evidence:
+
+- run provenance and completion status;
+- actual configuration and deviations from plan;
+- observations and uncertainty;
+- interpretation against the plan's decision rules and falsifiers.
+
+For each completed result, show its title, figure or output, and concise
+interpretation. Never replace or rewrite planned expectations as observations.
+The relationship is `ExperimentRecord = frozen ExperimentPlan + execution
+evidence`.
