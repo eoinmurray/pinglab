@@ -24,6 +24,46 @@ Apply this normalization only when identifying a Pinglab noun, not to an
 ordinary phrase that happens to use the same words. Use the canonical noun
 names below when constructing or reporting artifacts.
 
+## Human-facing writing
+
+Apply this writing contract to abstracts, evidence capsules, experiment prose,
+captions, conclusions, and other text intended for a reader. It adapts useful
+parts of ASD-STE100 Simplified Technical English and William Zinsser's clarity,
+simplicity, brevity, and humanity. It does not make the text ASD-STE100
+compliant and does not import that standard's controlled dictionary.
+
+Revise in this order:
+
+1. Preserve scientific accuracy, epistemic status, uncertainty, defined
+   terminology, and the noun's structural contract. These take priority over
+   brevity or style.
+2. Give each paragraph one topic and open with the sentence that orients the
+   reader. Develop information gradually from question or context, through
+   mechanism and evidence, to consequence.
+3. Give each sentence one main claim, action, or contrast. Prefer a concrete
+   subject and an active verb when the real agent is known. Retain passive
+   voice when the agent is unknown, irrelevant, or less important than the
+   scientific object.
+4. Use one stable term for each concept. Define unfamiliar abbreviations and
+   specialist terms on first use. Do not replace precise scientific terms with
+   simpler words that change their meaning.
+5. Prefer concrete nouns and strong verbs. Remove empty qualifiers, repeated
+   framing, avoidable nominalizations, stacked noun phrases, and implementation
+   jargon that does not help interpretation.
+6. In procedures, use one action per step and the imperative form. Where the
+   noun permits lists, use them for genuinely parallel items or complex
+   sequences rather than embedding the sequence in one sentence.
+7. Keep sentences short enough to understand in one reading. Treat 20 words
+   for procedural sentences and 25 words for descriptive sentences as prompts
+   to inspect the sentence, not hard limits. Equations, citations, necessary
+   terms, and accurate qualifications can justify a longer sentence.
+8. Preserve humanity through intelligible stakes, natural rhythm, and an
+   identifiable reasoning voice. Do not manufacture intimacy, anthropomorphize
+   models, dramatize evidence, or trade precision for personality.
+9. After the epistemic review, do one final pass for compression, continuity,
+   and rhythm. Remove words only when the meaning and evidentiary boundaries
+   remain intact.
+
 ## `ScientificRecord`
 
 The evidenced project history: aims, writings, compact artifacts, recorded
