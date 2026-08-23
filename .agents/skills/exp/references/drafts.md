@@ -87,11 +87,32 @@ Freeze and preserve the `ExpScoutPlan`, then add:
 - interpretation against the plan's decision gates;
 - a stop, revise, or escalate decision.
 
-Number every body heading hierarchically, including subsections (for example,
-`1.`, `2.`, `3.1`, and `3.2`). Preserve investigation-unit identifiers inside
-the numbered heading rather than using them as a substitute for document
-section numbers. The publication title, figure captions, equations, and inline
-labels are not body headings and remain unnumbered.
+Use this canonical publication anatomy:
+
+1. **Abstract.** State the question, scout design, highest-level observation,
+   and disposition without procedural detail.
+2. **Shared.** Record the common scientific frame, activity or inputs,
+   controls, decision gate, budget, provenance, deviations, and limitations
+   once rather than repeating them inside investigations.
+3. **Investigations.** List investigations progressively. Each investigation
+   has a numbered descriptive header, a relevance paragraph, the expected
+   pattern or discriminating outcome, its `ExpVisualSet`, and a high-level
+   discussion of what was observed. Keep numerical and procedural ramble out
+   of the discussion.
+4. **Methods.** List methods progressively. Each method has a numbered
+   descriptive header, the mathematical or algorithmic steps involved, its
+   concrete output, and an explicit link to the investigation that consumes
+   that output.
+5. **Conclusion** when the scout benefits from a consolidated interpretation
+   or disposition.
+6. **References** when external sources are used.
+7. **Appendices** when supporting detail would interrupt the main sequence.
+
+Number every body heading hierarchically. The publication title, figure
+captions, equations, and inline structural labels such as `Relevance` and
+`ExpVisualSet` are not body headings and remain unnumbered. Optional trailing
+sections are omitted rather than emitted empty; retain the canonical section
+number when one is present.
 
 If the plan requested an `ExpVisualSet`, attach its completed measured mirrors
 with code and data provenance. Preserve incomplete and failed result slots
