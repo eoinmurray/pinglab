@@ -20,38 +20,33 @@ documented commands. Semantic similarity, an ordinary natural-language request,
 or automatic skill selection is insufficient. Handle those requests normally
 without loading the project skill.
 
-A project command authorizes no Git mutation, GitHub write, deployment, or
-action outside this repository. Never infer a broader authorization from a
-narrower command.
-
 ## Pinglab lexicon
 
 The Lexicon contains operators, conventionally expressed as verbs. Each
 operator consumes and produces primitive artifacts. These types are
 prose-defined and text-serialized as Markdown rather than formally
-schema-validated. Their contracts live in `.agents/ARTIFACTS.md`, and every
-project skill declares its input/output signature.
+schema-validated. `.agents/ARTIFACTS.md` is the canonical type registry; each
+skill is the canonical source for its operator signatures and procedures.
 
-| Command | Input artifact | Output artifact |
-| --- | --- | --- |
-| `abstract [short\|medium\|long]` | `ScientificRecord` | `ScientificAbstract` |
-| `hypo beam` or `hypo beamX` | `Seed`, `Formulation`, or `ResumableCheckpoint` | `BranchSet` |
-| `hypo compare` | `Formulation` | `CanonComparisonCapsules` |
-| `hypo ground web` | `Formulation` | `LiteratureEvidenceCapsules` |
-| `hypo ground local` | `Formulation` | `RepositoryEvidenceCapsules` |
-| `hypo checkpoint` | `OpenSearchTrajectory` | `ResumableCheckpoint` |
-| `hypo freeze` | `GroundedSearchTrajectory` or `ResumableCheckpoint` | `FrozenHypothesisPacket` |
-| `pinglab help` | `PinglabLexiconContext` | `PinglabLexiconReference` |
-| `experiment draft` | `FrozenHypothesisPacket` | `UnrunExperimentSpecification` |
-| `publish check` | `ScientificCollectionState` | `PublicationReadinessReport` |
-| `publish build` | `PublicationReadyCollection` | `PublicationBundle` |
+| Command | Handler |
+| --- | --- |
+| `abstract [short\|medium\|long]` | `.agents/skills/abstract/SKILL.md` |
+| `hypo beam` or `hypo beamX` | `.agents/skills/hypo/SKILL.md` |
+| `hypo compare` | `.agents/skills/hypo/SKILL.md` |
+| `hypo ground web` | `.agents/skills/hypo/SKILL.md` |
+| `hypo ground local` | `.agents/skills/hypo/SKILL.md` |
+| `hypo checkpoint` | `.agents/skills/hypo/SKILL.md` |
+| `hypo freeze` | `.agents/skills/hypo/SKILL.md` |
+| `pinglab help` | `.agents/skills/pinglab/SKILL.md` |
+| `experiment draft` | `.agents/skills/experiment/SKILL.md` |
+| `publish check` | `.agents/skills/publish/SKILL.md` |
+| `publish build` | `.agents/skills/publish/SKILL.md` |
 
 Arguments are mandatory where shown. Optional arguments appear in brackets;
 `abstract` defaults to `medium`, and `hypo beam` defaults to three branches.
 Every documented project command accepts an optional leading `$`; for example,
 `hypo ground web` and `$hypo ground web` are equivalent. Bare command-family
-nouns explain their subcommands. Use the appropriate global Lexicon command to
-authorize any mutation required by a selected workflow.
+nouns explain their subcommands.
 
 ## Demolab boundary
 
@@ -94,9 +89,6 @@ it or the user explicitly invokes it. Pinglab policy wins on conflict.
 
 - Creating RunPod pods, Modal dispatches, or other paid compute requires
   explicit permission naming that target. Default to local execution.
-- Editing `tools/snn` is authorized by the applicable global `go` command; no
-  project command is additionally required.
-- GitHub writes require the applicable global Lexicon authorization.
 - Never add AI authorship or attribution trailers to commits or PR text.
 
 ## Verification
@@ -109,15 +101,12 @@ it or the user explicitly invokes it. Pinglab policy wins on conflict.
 - Inspect generated artifacts and provenance before accepting them. A large
   generated diff is evidence to review, never permission for blind staging.
 
-## Campaign and publication isolation
+## Publication isolation
 
-Campaign execution, activation, artifact promotion, and publication-view
-rebuilding must happen on the campaign's own branch in a dedicated worktree.
-Use one campaign or publication view per worktree and branch. Open its draft PR
-before substantial execution or promotion work begins; the PR description is
-the scientific decision record for motivation, provenance, competing
-interpretations, decisions, and unresolved limitations.
+Publication-view rebuilding must happen on its own branch in a dedicated
+worktree. Open its draft PR before substantial rebuilding; the PR description
+is the scientific decision record for motivation, provenance, decisions,
+competing interpretations, and unresolved limitations.
 
-Do not activate a campaign in a general development worktree. Review `git
-status` and the artifact diff before every campaign commit, and never use
-`git add -A` as a substitute for that review.
+Review `git status` and the artifact diff before each publication commit. Never
+use `git add -A` as a substitute for that review.

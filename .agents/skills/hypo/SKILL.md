@@ -18,9 +18,8 @@ description: Use only when the user explicitly invokes hypo or $hypo to branch, 
 
 Artifact definitions: [../../ARTIFACTS.md](../../ARTIFACTS.md).
 
-Activate this skill only for an exact documented `hypo` command, with or
-without a leading `$`. Do not activate it from semantic similarity or ordinary
-discussion of hypotheses.
+Command grammar: `hypo SUBCOMMAND`. The project-wide optional `$` alias and
+exact-invocation rule apply.
 
 Use exactly one subcommand:
 
@@ -33,8 +32,7 @@ Use exactly one subcommand:
   [references/checkpoint.md](references/checkpoint.md).
 - `hypo freeze` — read [references/freeze.md](references/freeze.md).
 
-Treat `$hypo ...` as an exact alias. Bare `hypo` lists the subcommands without
-choosing one.
+Bare `hypo` lists the subcommands without choosing one.
 
 ## Shared search contract
 

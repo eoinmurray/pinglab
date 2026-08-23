@@ -13,9 +13,8 @@ description: Use only when the user explicitly invokes pinglab help or $pinglab 
 
 Artifact definitions: [../../ARTIFACTS.md](../../ARTIFACTS.md).
 
-Activate this skill only for the exact `pinglab help` command, with or without a
-leading `$`. Do not activate it from semantic similarity or an ordinary request
-about the project.
+Command grammar: `pinglab help`. The project-wide optional `$` alias and
+exact-invocation rule apply.
 
 Explain the project command vocabulary from `AGENTS.md` in concise plain
 language. Present each operator with its input and output artifact types from
