@@ -3,6 +3,7 @@ name: Pinglab
 book-title: pinglab — the book
 contents-title: pinglab — contents
 annotations: hypothesis
+pdfs: false
 
 collection-order: [gamma-gated-sparsity, spiking-heidelberg-digits, paper-demonstrations, snnlang, documentation, literature, exploratory, weekly-feed]
 collections:
