@@ -317,6 +317,9 @@ ExpScout
     ├── ExpMethodsExecuted
     └── ExpConclusion
 
+ExpSharedPlan
+└── ExpDesignSchematic?
+
 ExpInvestigationPlan
 ├── ExpInvestigationIdentity
 ├── ExpInvestigationIntroduction
@@ -392,10 +395,15 @@ Each also independently triggers this skill.
 
 ## `ExpSharedPlan`
 
-The common prospective contract for identity, status, collection,
-dependencies, scientific frame, inputs, controls, decision gates, budget,
-assumptions, and scope. State shared material once here rather than duplicating
-it across investigations.
+A compact common prospective orientation containing an optional
+`ExpDesignSchematic`. It states the identity, status, dependencies, scientific
+frame, shared inputs and controls, decision gates, budget, assumptions, and
+scope needed to understand the investigations. Keep detailed protocol and local
+rationale outside it. State shared material once.
+
+Use the schematic when the common mechanism or experimental design would
+otherwise require extended prose. The schematic replaces explanation rather
+than decorating or enlarging the section.
 
 ## `ExpInvestigationIdentity`
 
@@ -495,7 +503,8 @@ red-black measured evidence.
 A prospective, hand-authored explanation of a mechanism, intervention, or
 expected visual structure. It specifies the panel layout, variables, colours,
 visual grammar, interpretive purpose, caption, and links to its investigation
-and protocol. It is conceptual evidence design, never an observed result.
+or the shared scientific frame and relevant protocol. It is conceptual evidence
+design, never an observed result.
 
 ## `ExpMeasuredResultSlot`
 
