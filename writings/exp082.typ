@@ -38,8 +38,6 @@
     The experiment and publication scaffold were committed before execution. They froze the networks, checkpoint policy, readout, rate and duration grid, sampling scale, and planned outputs. The historical plan did not pre-register directional thresholds or an uncertainty model. Those omissions limit confirmatory interpretation, but the executed protocol itself is prospective.
   ]
 
-  All 132 seed-level cells completed: 26,400 classifications through three pretrained networks, with no retraining or parameter search. Execution matched the frozen rate grid, duration grid, sampling scale, and checkpoint policy. The study uses validation-selected classifiers and held-out streams. It neither isolates training distribution from readout nor includes a fixed-rate control. Three training seeds constrain population-level inference.
-
   == 3. Investigations
 
   === 3.1 How output spikes become a decision
@@ -55,14 +53,7 @@
     caption: [A correctly classified 200 ms presentation at 5 Hz, selected as the first success in a pre-existing matched stream. The figure explains the readout; it does not estimate accuracy. Red marks the true and winning class.],
   )
 
-  In this digit-4 presentation, output spikes increment class counts around successive population bursts. The display applies $p_c(u) = "softmax"_c(bold(z)(u))$ to those counts. It is not a calibrated posterior. Because $p_c(u)/p_j(u)=exp(z_c(u)-z_j(u))$, a small integer margin can look decisive. The counts determine the winner; softmax only displays their relative separation.
-
-  #figure(
-    image("/artifacts/data/exp082/single_trial_transition.png", width: 100%, alt: "A zoom showing output spikes, cumulative class counts, and their softmax display."),
-    caption: [A post-hoc enlargement of 91.5--94.5 ms in the same trial. Each spike increments one cumulative count. Softmax normalization can lower another class's displayed share even when its count does not change.],
-  )
-
-  The trajectory is consistent with PING bursts delivering packets of class evidence. One outcome-selected example cannot show that each cycle improves the decision, or that rhythmic packaging causes the aggregate pattern.
+  In this digit-4 presentation, output spikes increment class counts around successive population bursts. Softmax converts those counts into the displayed shares, but it is not a calibrated posterior and does not determine the winner. The trajectory explains the readout and is consistent with bursts delivering packets of class evidence. One selected example cannot show that each cycle improves the decision or that rhythmic packaging causes the aggregate pattern. The next investigation therefore tests the same readout in a changing stream.
 
   === 3.2 Classification in a changing stream
 
@@ -95,25 +86,17 @@
 
   == 4. Executed methods
 
-  === 4.1 Networks, data, and frozen selection
+  === 4.1 Networks and frozen selection
 
   Three PING networks were trained independently on MNIST. Each image presentation sampled one of the eleven registered input rates. A learned projection connected 1024 excitatory cells to ten output-LIF class units, whose spike counts served as logits. Validation accuracy selected one checkpoint per seed. All weights and checkpoints remained fixed during the study.
 
-  === 4.2 Streaming protocol
+  === 4.2 Streaming evaluation and diagnostics
 
-  Input pixels generated independent Bernoulli spikes at 0.1 ms resolution. Each evaluation cell comprised 40 independent five-digit streams per seed, giving 200 decisions. We simulated five streams per batch, with separate neuronal state for each stream. Hidden state continued only within a stream. At every digit boundary, the output-LIF state and counter reset. Each decision therefore used its matched presentation window alone.
+  Input pixels generated independent Bernoulli spikes at 0.1 ms resolution. Each evaluation cell comprised 40 independent five-digit streams per seed, giving 200 decisions. We simulated five streams per batch, with separate neuronal state for each stream. Hidden state continued only within a stream. At every digit boundary, the output-LIF state and counter reset. Each decision therefore used its matched presentation window alone. The factorial evaluation crossed presentations of 25, 50, 100, and 200 ms with input rates from 0.5 to 25 Hz. The fixed-duration psychometric is the 200 ms slice. For each seed and condition, we retained accuracy, output spikes per presentation, silent-window fraction, and excitatory and inhibitory population rates. The plots summarize seed-level accuracy; they do not pool seeds into one nominal replicate.
 
-  === 4.3 Factorial evaluation and diagnostics
+  === 4.3 Illustrations, deviations, and limits
 
-  The factorial evaluation crossed presentations of 25, 50, 100, and 200 ms with input rates from 0.5 to 25 Hz. The fixed-duration psychometric is the 200 ms slice. For each seed and condition, we retained accuracy, output spikes per presentation, silent-window fraction, and excitatory and inhibitory population rates. The plots summarize seed-level accuracy; they do not pool seeds into one nominal replicate.
-
-  === 4.4 Illustrative trajectories
-
-  The variable stream used five fixed duration--rate pairs and supports only qualitative interpretation. The single-trial figure shows the first correct presentation in a pre-existing 200 ms, 5 Hz stream. We selected it to explain a successful readout. The 91.5--94.5 ms enlargement was chosen post hoc around a conspicuous transition. Neither selection contributes to aggregate accuracy.
-
-  === 4.5 Deviations, uncertainty, and robustness limits
-
-  All factorial cells completed without a known scientific deviation from the frozen design. The study lacks population-level intervals, additional training seeds, an independent stream-bank repeat, and adjusted condition comparisons. Agreement across three networks supports robustness within the tested protocol, not across a broader network population. Because validation selected the checkpoints, this is a deployment evaluation rather than an account of final-epoch dynamics.
+  The variable stream used five fixed duration--rate pairs and supports only qualitative interpretation. The single-trial figure shows the first correct presentation in a pre-existing 200 ms, 5 Hz stream, selected to explain a successful readout rather than estimate reliability. All factorial cells completed without a known scientific deviation, retraining, or parameter search. Evaluation used held-out streams and validation-selected classifiers. The study lacks a fixed-rate control, population-level intervals, additional training seeds, an independent stream-bank repeat, and adjusted condition comparisons. Agreement across three networks supports robustness within the tested protocol, not across a broader network population. This is a deployment evaluation rather than an account of final-epoch dynamics.
 
   == 5. Conclusion
 
