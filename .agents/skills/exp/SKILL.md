@@ -16,9 +16,9 @@ Noun definitions: [../../NOUNS.md](../../NOUNS.md).
 Command grammar: `exp scout-plan`. The project-wide optional `$` alias and
 exact-invocation rule apply.
 
-Read [references/drafts.md](references/drafts.md), then convert the frozen
-hypothesis into a formal, self-contained unrun experiment plan. Return the plan
-in the response. Do not claim that it has been persisted,
-implemented, or run.
+Convert the frozen hypothesis into a formal, self-contained unrun experiment
+plan conforming to the `ExpScoutPlan` contract in
+[../../NOUNS.md](../../NOUNS.md). Return the plan in the response. Do not claim
+that it has been persisted, implemented, or run.
 
 Bare `exp` explains that `scout-plan` is its only subcommand.
