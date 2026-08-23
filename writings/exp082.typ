@@ -22,20 +22,17 @@
 
   == 2. Prospective design and scope
 
-  Three PING networks were trained independently across maximum-pixel Poisson rates from 0.5 to 25 Hz. Before evaluation, we froze their recurrent weights, output projections, and validation-selected checkpoints. Each decision uses only the output-LIF spikes emitted during that digit. The output neurons and counters reset at digit boundaries, while hidden PING state continues within each five-digit stream.
+  Three PING networks were trained independently across changing input rates, then frozen before evaluation. Within each five-digit stream, the PING network runs continuously: its hidden neuronal state does not reset when the digit changes. Only the output-LIF state and class counts reset, so each digit starts a new decision without restarting the network. The shared design below shows this streaming arrangement.
 
-  The leading account predicts useful decisions across much of the trained rate range, provided that enough output spikes arrive. A narrow rate optimum is the main rival. Two measurement effects could also shape the result: longer integration could mimic rate tolerance, and silent output windows could dominate failure. The fixed-200-ms psychometric screens rate tolerance. The duration--rate grid shows how performance changes as matched windows shorten, but it cannot separate presentation time from readout time.
+  #figure(
+    image("/artifacts/data/exp082/shared_design_schematic.svg", width: 100%, alt: "Conceptual streaming design. Changing digit inputs pass through a PING network to output spikes, class counts, and a prediction. Hidden state continues across digit boundaries while output state and counts reset."),
+    caption: [Planned streaming evaluation. Hidden network state continues across digits, while output evidence resets at each boundary. This blue-grey schematic defines the prospective mechanism and is not measured evidence.],
+  )
 
-  The primary estimand is condition-level accuracy,
-
-  $ A_(d,r,s) = 1/N sum_(i=1)^N 1_(hat(y)_(i,d,r,s) = y_i), $
-
-  where $A_(d,r,s)$ is accuracy for duration $d$, rate $r$, and trained seed $s$. Each cell contains $N=200$ digits; $hat(y)$ is the predicted label and $y$ is the true label. Output silence is a companion diagnostic. We summarize the three seed-level accuracies rather than treating 600 presentations as independent network replicates.
-
-  Chance-level accuracy throughout the rate range would falsify useful transfer of the trained readout. A narrow optimum would contradict broad rate tolerance. Persistent silence at moderate rates would instead identify output activity as the limiting failure mode. The duration grid tests robustness, but cannot distinguish less presentation time from less integration time.
+  We test whether this readout remains useful across a broad range of input strengths once enough spikes arrive. A narrow preferred rate is the main rival. The fixed-duration evaluation tests rate tolerance, while the duration--rate grid tests shorter matched windows. Chance-level performance would reject useful transfer. Persistent silence at moderate rates would instead identify missing output activity as the limiting failure. Accuracy is summarized across trained networks. Because presentation and decision time change together, the design cannot separate their effects.
 
   #block(inset: 10pt, fill: rgb("eef4f8"), radius: 3pt)[
-    The experiment and publication scaffold were committed before execution. They froze the networks, checkpoint policy, readout, rate and duration grid, sampling scale, and planned outputs. The historical plan did not pre-register directional thresholds or an uncertainty model. Those omissions limit confirmatory interpretation, but the executed protocol itself is prospective.
+    The experiment and publication scaffold were committed before execution. The networks, readout, evaluation grid, checkpoint policy, sampling scale, and planned outputs were fixed. Missing directional thresholds and a formal uncertainty model limit confirmatory interpretation.
   ]
 
   == 3. Investigations
@@ -49,7 +46,7 @@
   where $s_c^"out"(t)$ is the spike emitted by output unit $c$. The final prediction is $arg max_c z_c(b-1)$. If rhythmic bursts deliver useful evidence packets, classes can exchange the lead before one builds a stable margin. Sparse failure should instead produce few or no output spikes.
 
   #figure(
-    image("/artifacts/data/exp082/single_trial.png", width: 100%, alt: "One MNIST digit above excitatory and inhibitory spike rasters and ten cumulative spike-count evidence traces."),
+    image("/artifacts/data/exp082/single_trial.png", width: 85%, alt: "One MNIST digit above excitatory and inhibitory spike rasters and ten cumulative spike-count evidence traces."),
     caption: [A correctly classified 200 ms presentation at 5 Hz, selected as the first success in a pre-existing matched stream. The figure explains the readout; it does not estimate accuracy. Red marks the true and winning class.],
   )
 
@@ -94,9 +91,17 @@
 
   Input pixels generated independent Bernoulli spikes at 0.1 ms resolution. Each evaluation cell comprised 40 independent five-digit streams per seed, giving 200 decisions. We simulated five streams per batch, with separate neuronal state for each stream. Hidden state continued only within a stream. At every digit boundary, the output-LIF state and counter reset. Each decision therefore used its matched presentation window alone. The factorial evaluation crossed presentations of 25, 50, 100, and 200 ms with input rates from 0.5 to 25 Hz. The fixed-duration psychometric is the 200 ms slice. For each seed and condition, we retained accuracy, output spikes per presentation, silent-window fraction, and excitatory and inhibitory population rates. The plots summarize seed-level accuracy; they do not pool seeds into one nominal replicate.
 
+  The primary estimand was condition-level accuracy,
+
+  $ A_(d,r,s) = 1/N sum_(i=1)^N 1_(hat(y)_(i,d,r,s) = y_i), $
+
+  where $A_(d,r,s)$ is accuracy for duration $d$, rate $r$, and trained seed $s$. Each cell contains $N=200$ digits; $hat(y)$ is the predicted label and $y$ is the true label. Output silence is a companion diagnostic. We summarize the three seed-level accuracies rather than treating 600 presentations as independent network replicates.
+
   === 4.3 Illustrations, deviations, and limits
 
   The variable stream used five fixed duration--rate pairs and supports only qualitative interpretation. The single-trial figure shows the first correct presentation in a pre-existing 200 ms, 5 Hz stream, selected to explain a successful readout rather than estimate reliability. All factorial cells completed without a known scientific deviation, retraining, or parameter search. Evaluation used held-out streams and validation-selected classifiers. The study lacks a fixed-rate control, population-level intervals, additional training seeds, an independent stream-bank repeat, and adjusted condition comparisons. Agreement across three networks supports robustness within the tested protocol, not across a broader network population. This is a deployment evaluation rather than an account of final-epoch dynamics.
+
+  #pagebreak()
 
   == 5. Conclusion
 
