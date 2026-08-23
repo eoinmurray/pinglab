@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="570" viewBox="0 0 1200 570" role="img" aria-labelledby="title desc">
+  <title id="title">Computational benefit under limited time or spikes</title>
+  <desc id="desc">Two-panel publication-style design schematic comparing COBA, intact PING, and timing-disrupted PING under presentation-time and spike-budget constraints.</desc>
+  <defs>
+    <style>
+      text{font-family:"Helvetica Neue",Helvetica,Arial,sans-serif;fill:#1a1a1a}
+      .title{font-size:23px;font-weight:700}.subtitle{font-size:14px;fill:#68655e}.panel{font-size:16px;font-weight:700}
+      .axis-label{font-size:14px;font-weight:600}.tick{font-size:12px;fill:#55524c}.note{font-size:12.5px;fill:#55524c}
+      .axis{stroke:#1a1a1a;stroke-width:1.5}.grid{stroke:#d9d5c8;stroke-width:1;opacity:.55}
+      .coba{stroke:#1a1a1a;stroke-width:3.2;fill:none}.ping{stroke:#a51d2d;stroke-width:4;fill:none}
+      .shuffle{stroke:#a51d2d;stroke-width:3;stroke-dasharray:8 5;fill:none}.benefit{fill:#a51d2d;opacity:.10}
+      .point-coba{fill:#fff;stroke:#1a1a1a;stroke-width:2}.point-ping{fill:#fff;stroke:#a51d2d;stroke-width:2.4}
+      .endpoint{stroke:#8e8a82;stroke-width:1.2;stroke-dasharray:4 4}.card{fill:#f4f1ea;stroke:#d9d5c8;stroke-width:1}
+    </style>
+    <marker id="arrowRed" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L8 4L0 8Z" fill="#a51d2d"/></marker>
+  </defs>
+  <rect width="1200" height="570" fill="#fff"/>
+  <text x="74" y="42" class="title">Computational benefit under limited time or spikes</text>
+  <text x="74" y="66" class="subtitle">Positive-result schematic · overlap of the two PING traces is the registered null</text>
+
+  <text x="74" y="102" class="panel">A</text><text x="100" y="102" class="panel">Available presentation time</text>
+  <text x="620" y="102" class="panel">B</text><text x="646" y="102" class="panel">Retained spike fraction</text>
+  <line x1="100" y1="430" x2="548" y2="430" class="axis"/><line x1="100" y1="126" x2="100" y2="430" class="axis"/>
+  <line x1="646" y1="430" x2="1094" y2="430" class="axis"/><line x1="646" y1="126" x2="646" y2="430" class="axis"/>
+  <g class="grid"><line x1="100" y1="354" x2="548" y2="354"/><line x1="100" y1="278" x2="548" y2="278"/><line x1="100" y1="202" x2="548" y2="202"/><line x1="100" y1="126" x2="548" y2="126"/><line x1="646" y1="354" x2="1094" y2="354"/><line x1="646" y1="278" x2="1094" y2="278"/><line x1="646" y1="202" x2="1094" y2="202"/><line x1="646" y1="126" x2="1094" y2="126"/></g>
+  <g class="tick" text-anchor="end"><text x="90" y="435">0</text><text x="90" y="359">25</text><text x="90" y="283">50</text><text x="90" y="207">75</text><text x="90" y="131">100</text></g>
+  <g class="tick" text-anchor="middle"><text x="130" y="452">25</text><text x="208" y="452">50</text><text x="286" y="452">80</text><text x="364" y="452">100</text><text x="442" y="452">150</text><text x="518" y="452">200</text><text x="676" y="452">20</text><text x="773" y="452">40</text><text x="870" y="452">60</text><text x="967" y="452">80</text><text x="1064" y="452">100</text></g>
+  <text x="324" y="497" class="axis-label" text-anchor="middle">presentation available (ms)</text><text x="870" y="497" class="axis-label" text-anchor="middle">retained hidden spikes (%)</text>
+  <text x="35" y="278" class="axis-label" text-anchor="middle" transform="rotate(-90 35 278)">accuracy (%)</text>
+
+  <path d="M130 386 C208 338 286 278 364 225 S468 177 518 166 L518 183 C468 194 426 214 364 244 S208 357 130 402Z" class="benefit"/>
+  <path d="M676 390 C773 343 870 280 967 221 S1035 177 1064 166 L1064 184 C1035 193 1010 208 967 241 S773 361 676 407Z" class="benefit"/>
+  <path d="M130 376 C208 327 286 265 364 211 S468 165 518 158" class="ping"/><path d="M130 397 C208 367 286 315 364 258 S468 181 518 166" class="shuffle"/><path d="M130 391 C208 353 286 300 364 247 S468 190 518 174" class="coba"/>
+  <path d="M676 380 C773 332 870 267 967 208 S1035 165 1064 158" class="ping"/><path d="M676 401 C773 372 870 320 967 257 S1035 181 1064 167" class="shuffle"/><path d="M676 394 C773 357 870 302 967 244 S1035 190 1064 176" class="coba"/>
+  <g><circle cx="130" cy="376" r="5" class="point-ping"/><circle cx="286" cy="265" r="5" class="point-ping"/><circle cx="442" cy="174" r="5" class="point-ping"/><circle cx="518" cy="158" r="5" class="point-ping"/><circle cx="676" cy="380" r="5" class="point-ping"/><circle cx="870" cy="267" r="5" class="point-ping"/><circle cx="1064" cy="158" r="5" class="point-ping"/></g>
+  <line x1="518" y1="126" x2="518" y2="430" class="endpoint"/><line x1="1064" y1="126" x2="1064" y2="430" class="endpoint"/>
+
+  <line x1="208" y1="327" x2="208" y2="367" stroke="#a51d2d" stroke-width="1.7" marker-end="url(#arrowRed)"/>
+  <text x="220" y="343" class="note" font-weight="700">ΔA</text><text x="220" y="361" class="note">timing benefit</text>
+
+  <rect x="98" y="518" width="998" height="38" rx="7" class="card"/>
+  <line x1="124" y1="537" x2="164" y2="537" class="coba"/><text x="176" y="542" class="note">COBA</text>
+  <line x1="274" y1="537" x2="314" y2="537" class="ping"/><text x="326" y="542" class="note">intact PING</text>
+  <line x1="448" y1="537" x2="488" y2="537" class="shuffle"/><text x="500" y="542" class="note">count-matched timing disruption</text>
+  <rect x="788" y="528" width="35" height="15" class="benefit"/><text x="835" y="542" class="note">operative timing benefit</text>
+</svg>
