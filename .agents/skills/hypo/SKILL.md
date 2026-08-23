@@ -23,45 +23,29 @@ exact-invocation rule apply.
 
 Use exactly one subcommand:
 
-- `hypo branches` or `hypo branchesX` — read
-  [references/branches.md](references/branches.md).
-- `hypo canon` — read [references/canon.md](references/canon.md).
-- `hypo literature` — read [references/literature.md](references/literature.md).
-- `hypo repository` — read
-  [references/repository.md](references/repository.md).
-- `hypo checkpoint` — read
-  [references/checkpoint.md](references/checkpoint.md).
-- `hypo packet` — read [references/packet.md](references/packet.md).
+- `hypo branches` uses three branches. In `hypo branchesX`, require a practical
+  positive integer and reject zero, negative, ambiguous, or unreasonably large
+  values. Beam only at the current consequential uncertainty. After selection,
+  return to ordinary single-branch work unless another branch set is requested.
+- `hypo canon` compares the formulation with internal understanding of the
+  established scientific canon. Include two or three remembered academic
+  references when useful, but do not browse or fabricate bibliographic
+  precision.
+- `hypo literature` identifies claims that could materially change the
+  scientific direction and verifies them using current web literature. Build
+  searches independently from remembered references and actively seek
+  conflicting or limiting evidence. Prefer primary research, authoritative
+  datasets, and first-party technical documentation; use reviews for
+  orientation or field-level synthesis.
+- `hypo repository` inspects relevant code, model definitions, writings,
+  compact artifacts, recorded runs, provenance, and configuration. Do not run
+  or rebuild scientific work.
+- `hypo checkpoint` serializes the current `OpenSearchTrajectory` without
+  replaying the conversation.
+- `hypo packet` freezes only the best currently grounded formulation without
+  reopening broad ideation. If an essential claim remains ungrounded, identify
+  the gap and decline to label the packet definitive.
 
 Bare `hypo` lists the subcommands without choosing one.
 
-## Shared search contract
-
-Maintain the current question and search coordinates, leading formulation and
-serious rivals, user decisions versus model proposals, observed evidence versus
-inference, branch status and rejection reasons, and material uncertainty.
-
-Use stable branch identifiers such as `B1`, `B2`, and `B3`. Represent grounding
-results as evidence capsules:
-
-```text
-Claim:
-Evidence:
-Provenance:
-Verification: canon-comparison / verified-literature / observed-repository
-Limitations:
-Consequence:
-```
-
-When user judgment is required, end with:
-
-```text
-Keep:
-Reject:
-Add:
-Uncertain:
-Suggested next operation:
-```
-
 Ordinary conversation supplies review, selection, and single-branch refinement.
-Do not create a synthetic consensus merely to advance the workflow.
