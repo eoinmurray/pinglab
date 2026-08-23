@@ -2,7 +2,7 @@
 set -eu
 
 repo_dir=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
-skills="lab experiment campaign writing publish lab-doctor"
+skills="abstract hypo pinglab experiment publish"
 
 for name in $skills; do
   file="$repo_dir/.agents/skills/$name/SKILL.md"
@@ -14,14 +14,14 @@ for name in $skills; do
     printf 'Skill name mismatch: %s\n' "$file" >&2
     exit 1
   }
-  grep -Fq "description: Use only when the user explicitly invokes \$$name" "$file" || {
+  grep -Fq "description: Use only when the user explicitly invokes" "$file" || {
     printf 'Skill is not explicit-invocation-only: %s\n' "$file" >&2
     exit 1
   }
 done
 
-for command in lab experiment campaign writing publish lab-doctor; do
-  grep -q "\`\$$command" "$repo_dir/AGENTS.md" || {
+for command in abstract hypo pinglab experiment publish; do
+  grep -q "\`$command" "$repo_dir/AGENTS.md" || {
     printf 'Lexicon command missing from AGENTS.md: %s\n' "$command" >&2
     exit 1
   }
@@ -37,4 +37,29 @@ if grep -R "\[TODO:" "$repo_dir/.agents/skills" >/dev/null 2>&1; then
   exit 1
 fi
 
-printf 'Validated 6 Pinglab skills\n'
+ruby -e '
+  root = ARGV.fetch(0)
+  registry = File.join(root, ".agents", "ARTIFACTS.md")
+  abort "Missing artifact registry: #{registry}" unless File.file?(registry)
+  artifacts = File.read(registry).scan(/^## `([^`]+)`$/).flatten
+  abort "No artifacts declared: #{registry}" if artifacts.empty?
+
+  Dir[File.join(root, ".agents", "skills", "*", "SKILL.md")].sort.each do |file|
+    text = File.read(file)
+    signature = text[/^## Signature\n(.*?)(?=^## |\z)/m, 1]
+    abort "Missing signature: #{file}" unless signature
+    abort "Malformed signature table: #{file}" unless signature.include?("| Operator | Input artifact | Output artifact |")
+    rows = signature.lines.grep(/^\| `[^`]+` \|/)
+    abort "Empty signature: #{file}" if rows.empty?
+    rows.each do |row|
+      columns = row.split("|").map(&:strip)
+      [columns.fetch(2), columns.fetch(3)].each do |column|
+        column.scan(/`([^`]+)`/).flatten.each do |artifact|
+          abort "Unknown artifact #{artifact}: #{file}" unless artifacts.include?(artifact)
+        end
+      end
+    end
+  end
+' "$repo_dir"
+
+printf 'Validated 5 Pinglab skills\n'
