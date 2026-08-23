@@ -38,7 +38,7 @@ skill is the canonical source for its operator signatures and procedures.
 | `hypo checkpoint` | `.agents/skills/hypo/SKILL.md` |
 | `hypo freeze` | `.agents/skills/hypo/SKILL.md` |
 | `pinglab help` | `.agents/skills/pinglab/SKILL.md` |
-| `experiment draft` | `.agents/skills/experiment/SKILL.md` |
+| `exp scope` | `.agents/skills/exp/SKILL.md` |
 | `publish check` | `.agents/skills/publish/SKILL.md` |
 | `publish build` | `.agents/skills/publish/SKILL.md` |
 
