@@ -17,8 +17,8 @@ Command grammar: `experiment draft`. The project-wide optional `$` alias and
 exact-invocation rule apply.
 
 Read [references/drafts.md](references/drafts.md), then convert the frozen
-hypothesis into a formal, self-contained unrun experiment specification. Return
-the specification in the response. Do not claim that it has been persisted,
+hypothesis into a formal, self-contained unrun experiment plan. Return the plan
+in the response. Do not claim that it has been persisted,
 implemented, or run.
 
 Bare `experiment` explains that `draft` is its only subcommand.
