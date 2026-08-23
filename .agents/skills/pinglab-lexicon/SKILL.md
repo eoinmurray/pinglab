@@ -295,6 +295,14 @@ into prose that develops an argument. Do not print noun names, field names, or
 repeated inline labels. Use headings only for substantive document sections and
 descriptively named investigations or methods.
 
+Investigations remain one ordered flat collection. A rendering may place
+consecutive investigations beneath custom descriptive subgroup headings when
+that clarifies the experiment's scientific logic. These headings are optional
+presentation, not nouns or additional hierarchy: they do not own, renumber, or
+change the identity of an investigation, and no fixed subgroup taxonomy is
+implied. Introduce each subgroup with prose that explains the shared question
+and its relationship to neighbouring groups.
+
 Rendered experiment documents contain scientific content, not repository
 plumbing. Omit opaque run and campaign identifiers, commit hashes, checkpoint
 keys, filenames, paths, manifests, commands, and implementation module names.
