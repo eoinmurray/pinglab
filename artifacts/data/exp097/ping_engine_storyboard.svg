@@ -1,0 +1,71 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="720" viewBox="0 0 1200 720" role="img" aria-labelledby="title desc">
+  <title id="title">PING engine animation storyboard</title>
+  <desc id="desc">Prospective four-panel design showing separate excitatory and inhibitory conductance pistons, synchronized spikes and voltages, a conductance phase portrait, and a comparison of two-variable and four-variable state descriptions.</desc>
+  <defs>
+    <style>
+      .bg{fill:#f4f7f9}.panel{fill:#ffffff;stroke:#9aabb8;stroke-width:2}.ink{fill:#20313d}.muted{fill:#607684}.line{fill:none;stroke:#607684;stroke-width:3}.thin{fill:none;stroke:#9aabb8;stroke-width:2}.e{fill:#67859a;stroke:#456678;stroke-width:2}.i{fill:#a8b7c2;stroke:#607684;stroke-width:2}.trace-e{fill:none;stroke:#456678;stroke-width:4}.trace-i{fill:none;stroke:#8a9eaa;stroke-width:4}.dash{fill:none;stroke:#9aabb8;stroke-width:2;stroke-dasharray:8 7}.title{font:700 28px system-ui,sans-serif}.head{font:700 19px system-ui,sans-serif}.body{font:15px system-ui,sans-serif}.small{font:13px system-ui,sans-serif}.tag{font:700 12px system-ui,sans-serif;letter-spacing:1.4px}
+    </style>
+    <marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0 0L8 4L0 8Z" fill="#607684"/></marker>
+    <clipPath id="screen"><rect x="655" y="386" width="485" height="250" rx="8"/></clipPath>
+  </defs>
+  <rect class="bg" width="1200" height="720"/>
+  <text class="tag muted" x="45" y="40">DESIGN SCHEMATIC · NOT DATA</text>
+  <text class="title ink" x="45" y="78">A measured PING cycle as a running engine</text>
+  <text class="body muted" x="45" y="105">Every moving part corresponds to a measured model state.</text>
+
+  <rect class="panel" x="45" y="135" width="535" height="300" rx="12"/>
+  <text class="head ink" x="70" y="170">1 · Mechanical cutaway</text>
+  <text class="small muted" x="70" y="194">Separate local conductances; no shared reservoir</text>
+  <rect class="thin" x="95" y="225" width="150" height="155" rx="9"/>
+  <rect class="thin" x="380" y="225" width="150" height="155" rx="9"/>
+  <rect x="140" y="255" width="60" height="95" rx="5" fill="#e5edf2"/>
+  <rect x="425" y="255" width="60" height="95" rx="5" fill="#e5edf2"/>
+  <rect class="e" x="140" y="292" width="60" height="58"/>
+  <rect class="i" x="425" y="318" width="60" height="32"/>
+  <path class="trace-e" d="M125 292h90M170 292v-35M150 257h40"/>
+  <path class="trace-i" d="M410 318h90M455 318v-61M435 257h40"/>
+  <text class="head ink" x="170" y="407" text-anchor="middle">gE</text>
+  <text class="head ink" x="455" y="407" text-anchor="middle">gI</text>
+  <path class="line" d="M245 265C300 225 330 225 380 265" marker-end="url(#arrow)"/>
+  <path class="line" d="M380 345C330 395 300 395 245 345" marker-end="url(#arrow)"/>
+  <circle class="e" cx="300" cy="235" r="9"/><circle class="e" cx="330" cy="231" r="7"/>
+  <circle class="i" cx="330" cy="386" r="9"/><circle class="i" cx="300" cy="390" r="7"/>
+  <text class="small muted" x="312" y="286" text-anchor="middle">E spikes trigger gE</text>
+  <text class="small muted" x="312" y="330" text-anchor="middle">I spikes trigger gI</text>
+
+  <rect class="panel" x="605" y="135" width="550" height="220" rx="12"/>
+  <text class="head ink" x="630" y="170">2 · Synchronized biological traces</text>
+  <text class="small muted" x="630" y="194">Spikes explain the kicks; voltages explain threshold and reset</text>
+  <line class="thin" x1="690" y1="220" x2="1120" y2="220"/>
+  <line class="thin" x1="690" y1="275" x2="1120" y2="275"/>
+  <line class="thin" x1="690" y1="330" x2="1120" y2="330"/>
+  <text class="small ink" x="630" y="225">spikes</text><text class="small ink" x="630" y="280">gE, gI</text><text class="small ink" x="630" y="335">VE, VI</text>
+  <path class="trace-e" d="M705 220v-30m22 30v-25m83 25v-31m22 31v-23m88 23v-30m22 30v-25"/>
+  <path class="trace-i" d="M760 220v-24m22 24v-31m83 31v-25m22 25v-30m88 30v-26m22 26v-30"/>
+  <path class="trace-e" d="M690 310C720 310 720 245 750 245S780 300 810 300S840 243 870 243S900 300 930 300S960 244 990 244S1020 302 1050 302S1080 248 1120 248"/>
+  <path class="trace-i" d="M690 325C740 325 742 315 760 280S800 315 820 325S860 320 875 282S920 318 940 325S980 318 995 284S1040 319 1060 325S1100 315 1120 300"/>
+  <path class="dash" d="M752 205v135M872 205v135M992 205v135"/>
+
+  <rect class="panel" x="45" y="465" width="535" height="205" rx="12"/>
+  <text class="head ink" x="70" y="500">3 · Joint state in the (gE, gI) plane</text>
+  <line class="line" x1="105" y1="630" x2="520" y2="630" marker-end="url(#arrow)"/>
+  <line class="line" x1="105" y1="630" x2="105" y2="525" marker-end="url(#arrow)"/>
+  <text class="small ink" x="520" y="650" text-anchor="end">gE</text><text class="small ink" x="85" y="525" text-anchor="end">gI</text>
+  <path class="trace-e" d="M125 612C205 620 360 610 460 600C505 595 510 555 470 545C405 528 335 560 280 575C225 590 155 565 125 600C120 606 120 610 125 612" marker-end="url(#arrow)"/>
+  <circle class="e" cx="420" cy="552" r="10"/>
+  <text class="small muted" x="235" y="540">moving state + fading trail</text>
+
+  <rect class="panel" x="605" y="385" width="550" height="285" rx="12"/>
+  <text class="head ink" x="630" y="420">4 · Where the two-variable portrait fails</text>
+  <text class="small muted" x="630" y="444">Compare cycle prediction with and without mean voltage</text>
+  <rect class="thin" x="645" y="470" width="220" height="145" rx="8"/>
+  <rect class="thin" x="895" y="470" width="220" height="145" rx="8"/>
+  <text class="head ink" x="755" y="500" text-anchor="middle">gE, gI</text>
+  <text class="head ink" x="1005" y="500" text-anchor="middle">gE, gI, VE, VI</text>
+  <path class="trace-e" d="M670 575C700 575 700 520 725 520S755 570 780 570S810 522 840 522"/>
+  <path class="trace-e" d="M920 575C950 575 950 520 975 520S1005 570 1030 570S1060 522 1090 522"/>
+  <path class="dash" d="M780 505v92M1030 505v92"/>
+  <circle class="e" cx="780" cy="570" r="8"/><circle class="i" cx="1030" cy="570" r="8"/>
+  <text class="small muted" x="755" y="638" text-anchor="middle">phase and next-volley error</text>
+  <text class="small muted" x="1005" y="638" text-anchor="middle">does voltage reduce error?</text>
+</svg>
