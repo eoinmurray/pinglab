@@ -1,5 +1,5 @@
 ---
-name: pinglab
+name: pinglab-lexicon
 description: Interpret, construct, transform, review, or serialize Pinglab noun types whenever a prompt names ScientificRecord, PinglabAbstract, Seed, Formulation, HypoBranches, HypoCanon, HypoLiterature, HypoRepository, OpenSearchTrajectory, HypoCheckpoint, GroundedSearchTrajectory, HypoPacket, ExpScoutPlan, ExpVisualSet, ExpScout, ExpStudyPlan, ExpStudy, or ScientificCollectionState.
 ---
 
