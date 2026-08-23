@@ -32,6 +32,19 @@ grep -Fq 'Project skills are opt-in command handlers' "$repo_dir/AGENTS.md" || {
   exit 1
 }
 
+if grep -Fq '| Command | Input artifact | Output artifact |' "$repo_dir/AGENTS.md"; then
+  printf 'Operator signatures must live in skills, not AGENTS.md\n' >&2
+  exit 1
+fi
+
+sed -n 's/.*| `\(\.agents\/skills\/[^`]*\/SKILL\.md\)` |$/\1/p' \
+  "$repo_dir/AGENTS.md" | sort -u | while IFS= read -r handler; do
+  [ -f "$repo_dir/$handler" ] || {
+    printf 'Lexicon handler missing: %s\n' "$handler" >&2
+    exit 1
+  }
+done
+
 if grep -R "\[TODO:" "$repo_dir/.agents/skills" >/dev/null 2>&1; then
   printf 'Unfinished skill placeholder found\n' >&2
   exit 1

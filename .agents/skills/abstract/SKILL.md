@@ -13,10 +13,8 @@ description: Use only when the user explicitly invokes abstract or $abstract to 
 
 Artifact definitions: [../../ARTIFACTS.md](../../ARTIFACTS.md).
 
-Activate this skill only for an explicit `abstract` command, with or without a
-leading `$`. Do not activate it
-from semantic similarity, automatic selection, or an ordinary request for a
-summary.
+Command grammar: `abstract [short|medium|long]`. The project-wide optional `$`
+alias and exact-invocation rule apply.
 
 Accept one optional length argument:
 
@@ -29,9 +27,9 @@ default. Do not produce a partial abstract.
 
 ## Evidence
 
-Summarize what Pinglab has been trying to understand and build, not merely what
-files exist. Inspect only enough current repository evidence to support the
-account, prioritizing:
+Follow the Scientific record invariants in `AGENTS.md`. Summarize what Pinglab
+has been trying to understand and build, not merely what files exist. Inspect
+only enough current repository evidence to support the account, prioritizing:
 
 1. the project purpose and scientific-record rules in `AGENTS.md` and `README.md`;
 2. collection aims in `demolab.yaml`;
@@ -40,12 +38,9 @@ account, prioritizing:
 4. the compact published artifacts or run evidence behind any reported result;
 5. recent Git history when needed to identify the active direction.
 
-Do not use conversation history as evidence for the project's scientific aims.
-Do not imply that every collection or recent commit has equal scientific
-importance. Distinguish demonstrated findings from hypotheses, engineering
-infrastructure, exploratory work, and intended next steps. Preserve negative,
-partial, and uncertain results. Read any reported computed value from the run or
-published artifact that produced it; otherwise keep the statement qualitative.
+Do not use conversation history as evidence for the project's scientific aims,
+or imply that every collection or recent commit has equal scientific
+importance.
 
 ## Output
 
@@ -62,6 +57,3 @@ that body. Required higher-level response footers sit outside the abstract and d
 not count toward its paragraph total. Define unfamiliar abbreviations on first
 use. Avoid exact numbers unless they materially improve the summary and satisfy
 the evidence rule.
-
-This command is read-only. Do not edit files, run experiments, build
-publications, mutate Git, or write to external systems.

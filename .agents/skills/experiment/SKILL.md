@@ -13,10 +13,8 @@ description: Use only when the user explicitly invokes experiment draft or $expe
 
 Artifact definitions: [../../ARTIFACTS.md](../../ARTIFACTS.md).
 
-Activate this skill only for the exact `experiment draft` command, with or
-without a leading `$`. Do not activate
-it from semantic similarity, automatic selection, or an ordinary request about
-an experiment.
+Command grammar: `experiment draft`. The project-wide optional `$` alias and
+exact-invocation rule apply.
 
 Read [references/drafts.md](references/drafts.md), then convert the frozen
 hypothesis into a formal, self-contained unrun experiment specification. Return

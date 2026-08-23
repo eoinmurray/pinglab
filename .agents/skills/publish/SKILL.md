@@ -14,16 +14,14 @@ description: Use only when the user explicitly invokes publish or $publish to ch
 
 Artifact definitions: [../../ARTIFACTS.md](../../ARTIFACTS.md).
 
-Activate this skill only for an explicit `publish` command, with or without a
-leading `$`. Do not activate it
-from semantic similarity, automatic selection, or an ordinary publication
-request.
+Command grammar: `publish check|build`. The project-wide optional `$` alias and
+exact-invocation rule apply.
 
 Use exactly one subcommand:
 
 - `publish check` — inspect collection registration, writing metadata,
   referenced artifacts, provenance, generated-output drift, and publication
-  readiness. Read-only.
+  readiness.
 - `publish build` — select the complete supported Demolab build workflow. Run it
   only when the same request supplies applicable global mutation authority;
   otherwise explain that `go` is required and do not build.
