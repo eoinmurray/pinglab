@@ -7,11 +7,11 @@ description: Use only when the user explicitly invokes exp scope or $exp scope t
 
 ## Signature
 
-| Operator | Input artifact | Output artifact |
+| Verb | Input noun | Output noun |
 | --- | --- | --- |
 | `exp scope` | `FrozenHypothesisPacket` | `ExpScoutPlan` |
 
-Artifact definitions: [../../ARTIFACTS.md](../../ARTIFACTS.md).
+Noun definitions: [../../NOUNS.md](../../NOUNS.md).
 
 Command grammar: `exp scope`. The project-wide optional `$` alias and
 exact-invocation rule apply.

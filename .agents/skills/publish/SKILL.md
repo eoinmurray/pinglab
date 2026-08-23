@@ -7,12 +7,12 @@ description: Use only when the user explicitly invokes publish or $publish to ch
 
 ## Signature
 
-| Operator | Input artifact | Output artifact |
+| Verb | Input noun | Output noun |
 | --- | --- | --- |
 | `publish check` | `ScientificCollectionState` | `PublicationReadinessReport` |
 | `publish build` | `PublicationReadyCollection` | `PublicationBundle` |
 
-Artifact definitions: [../../ARTIFACTS.md](../../ARTIFACTS.md).
+Noun definitions: [../../NOUNS.md](../../NOUNS.md).
 
 Command grammar: `publish check|build`. The project-wide optional `$` alias and
 exact-invocation rule apply.

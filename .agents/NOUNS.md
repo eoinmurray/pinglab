@@ -1,9 +1,9 @@
-# Pinglab artifact registry
+# Pinglab noun registry
 
-Pinglab commands are scientific operators over primitive artifacts. The
-artifacts are prose-defined and serialized as Markdown rather than formally
-schema-validated. Repository evidence and publication outputs retain their
-native files alongside the textual artifact describing them.
+Pinglab commands are scientific verbs over primitive nouns. The nouns are
+prose-defined and serialized as Markdown rather than formally schema-validated.
+Repository evidence and publication outputs retain their native files alongside
+the textual noun describing them.
 
 ## `ScientificRecord`
 
@@ -70,8 +70,8 @@ The live Pinglab command vocabulary and its relationship to the global Lexicon.
 
 ## `PinglabLexiconReference`
 
-A concise Markdown reference mapping Pinglab operators to their input and output
-artifact types.
+A concise Markdown reference mapping Pinglab verbs to their input and output
+noun types.
 
 ## `ExpScoutPlan`
 

@@ -7,11 +7,11 @@ description: Use only when the user explicitly invokes abstract or $abstract to 
 
 ## Signature
 
-| Operator | Input artifact | Output artifact |
+| Verb | Input noun | Output noun |
 | --- | --- | --- |
 | `abstract [short|medium|long]` | `ScientificRecord` | `ScientificAbstract` |
 
-Artifact definitions: [../../ARTIFACTS.md](../../ARTIFACTS.md).
+Noun definitions: [../../NOUNS.md](../../NOUNS.md).
 
 Command grammar: `abstract [short|medium|long]`. The project-wide optional `$`
 alias and exact-invocation rule apply.

@@ -7,18 +7,18 @@ description: Use only when the user explicitly invokes pinglab help or $pinglab 
 
 ## Signature
 
-| Operator | Input artifact | Output artifact |
+| Verb | Input noun | Output noun |
 | --- | --- | --- |
 | `pinglab help` | `PinglabLexiconContext` | `PinglabLexiconReference` |
 
-Artifact definitions: [../../ARTIFACTS.md](../../ARTIFACTS.md).
+Noun definitions: [../../NOUNS.md](../../NOUNS.md).
 
 Command grammar: `pinglab help`. The project-wide optional `$` alias and
 exact-invocation rule apply.
 
 Explain the project command vocabulary from `AGENTS.md` in concise plain
-language. Present each operator with its input and output artifact types from
-`.agents/ARTIFACTS.md`. Separate it from the global Lexicon and explain that
+language. Present each verb with its input and output noun types from
+`.agents/NOUNS.md`. Separate it from the global Lexicon and explain that
 project commands select scientific workflows while global commands govern
 mutation. Do not perform another command on the user's behalf.
 
