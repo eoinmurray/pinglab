@@ -49,6 +49,8 @@ proposals, observed evidence versus inference, branch status and rejection
 reasons, and material uncertainty. They do not create synthetic consensus merely
 to advance the workflow.
 
+Ordinary conversation supplies review, selection, and single-branch refinement.
+
 Grounding results use evidence capsules with this structure:
 
 ```text
@@ -89,6 +91,12 @@ potential value, main liability, and the observation that would most efficiently
 distinguish it from the others. Preserve viable minority hypotheses rather than
 forcing consensus. End with a stable numbered set and the shared review hook.
 
+When no cardinality is specified, use three branches. Any requested cardinality
+must be a practical positive integer; reject zero, negative, ambiguous, or
+unreasonably large values. Branch only at the current consequential uncertainty.
+After selection, return to ordinary single-branch work unless another branch
+set is requested.
+
 ## `HypoCanon`
 
 Evidence capsules locating a formulation relative to remembered scientific
@@ -101,6 +109,10 @@ locates a formulation relative to established thinking; it does not establish
 that the remembered canon is current or correct. End with the shared review
 hook.
 
+Construct the comparison from internal understanding of the established
+scientific canon. Include two or three remembered academic references when
+useful, but do not browse or fabricate bibliographic precision.
+
 ## `HypoLiterature`
 
 Evidence capsules containing verified current literature, provenance,
@@ -110,6 +122,12 @@ Separate verified evidence, conflicting evidence, inference beyond the sources,
 and unresolved claims. Cite sources close to the claims they support. Do not
 substitute citation count for relevance or convert absence of evidence into
 evidence of absence. End with the shared review hook.
+
+Identify claims whose truth could materially change the scientific direction
+and verify them using current web literature. Construct searches independently
+from remembered references and actively seek conflicting or limiting evidence.
+Prefer primary research, authoritative datasets, and first-party technical
+documentation; use reviews for orientation or field-level synthesis.
 
 ## `HypoRepository`
 
@@ -122,6 +140,10 @@ the leading formulation from its strongest rival. Give exact file or run
 provenance, verification state, limitations, and consequence. Read computed
 values only from the run or artifact that produced them. End with the shared
 review hook.
+
+Construct it by inspecting relevant code, model definitions, writings, compact
+artifacts, recorded runs, provenance, and configuration. Do not run or rebuild
+scientific work.
 
 ## `OpenSearchTrajectory`
 
@@ -140,6 +162,9 @@ consequential choice or grounding action. Compress repetition and discarded
 wording, not scientific dissent or negative results. Distinguish user decisions
 from model proposals and evidence from inference. Do not manufacture closure.
 Finish with the shared review hook.
+
+Serialize the current trajectory without requiring the preceding conversation
+to be replayed.
 
 ## `GroundedSearchTrajectory`
 
@@ -174,14 +199,20 @@ the claim, strongest rival, next action, decision rule, and completion
 condition. Preserve unresolved uncertainty rather than presenting an
 insufficiently grounded packet as definitive.
 
+Freeze only the best currently grounded formulation without reopening broad
+ideation. If an essential claim remains ungrounded, identify the gap and decline
+to label the packet definitive.
+
 ## `PinglabLexiconContext`
 
-The live Pinglab command vocabulary and its relationship to the global Lexicon.
+The live Pinglab noun vocabulary, its sole explanatory command, and their
+relationship to the global Lexicon.
 
 ## `PinglabLexicon`
 
-A concise Markdown reference mapping Pinglab verbs to their input and output
-noun types.
+A concise Markdown reference grouping Pinglab's scientific nouns by family,
+explaining their relationships and lifecycles, and distinguishing the thin
+project vocabulary interface from the mutation-authorizing global Lexicon.
 
 ## Experiment family
 
