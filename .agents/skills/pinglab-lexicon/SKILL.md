@@ -244,6 +244,28 @@ adds execution evidence beside the corresponding prospective material. It may
 replace planned Methods with one complete account of the executed Methods for
 readability, but the frozen plan retains the original protocol for provenance.
 
+The experiment family uses these internal composition nouns. They structure the
+registered experiment nouns but do not independently trigger this skill:
+
+- `ExpPlanAbstract` states the prospective question, hypothesis, intervention,
+  estimand, and consequential outcome.
+- `ExpSharedPlan` holds identity, scientific frame, shared inputs, controls,
+  gates, budget, assumptions, scope, and available provenance.
+- `ExpInvestigationPlan` contains an `ExpInvestigationIdentity`,
+  `ExpInvestigationIntroduction`, `ExpExpectedPatterns`, and optional
+  `ExpVisualSet`.
+- `ExpMethodsPlan` is the complete prospective protocol.
+- `ExpPlannedSynthesis` specifies cross-investigation interpretation, stopping
+  rules, and completion criteria.
+- `ExpConclusionSlot` reserves the executed conclusion's publication position
+  without predicting it prospectively.
+- `ExpReferences` and `ExpAppendices` hold supporting sources and detail.
+- `ScoutExecution` contains an `ExpScoutSummary`, `ExpSharedExecution`, one
+  `ExpInvestigationExecution` per executed investigation,
+  `ExpMethodsExecuted`, and `ExpConclusion`.
+- `ExpInvestigationExecution` attaches an `ExpMeasuredResult` and
+  `ExpObservedPatterns` to its corresponding `ExpInvestigationPlan`.
+
 ## `ExpScoutPlan`
 
 A prospective, budgeted reconnaissance contract and publication scaffold. It
@@ -254,26 +276,30 @@ Use `status: "draft"` while a design is being refined and has not been run.
 
 Use this canonical reading order:
 
-1. **Abstract.** State the question, hypothesis, intervention, primary estimand,
-   and what outcome would matter.
-2. **Shared.** Give the identity, status, collection, dependencies, scientific
-   frame, inputs, controls, decision gates, budget, assumptions, scope, and
-   available provenance once.
-3. **Investigations.** Give each numbered investigation a descriptive name,
-   introduction, discussion of expected patterns under the hypothesis and its
-   rivals, and an optional `ExpVisualSet`. Specify the planned output and what
-   the result can and cannot establish without adding observed evidence.
-4. **Methods.** Give the complete planned protocol: configuration, datasets,
-   parameter values, sampling, seeds, execution sequence, analysis definitions,
-   provenance, and reproducibility requirements. Number its subsections so
-   investigations can reference them without duplication.
-5. **Planned synthesis.** Explain how the investigations jointly distinguish
-   the mechanism from rivals, including informative contradictions, stopping
-   rules, and completion criteria.
-6. **Conclusion.** Reserve this position for execution; omit it from the
-   prospective rendering rather than predicting observed conclusions.
-7. **References** when external sources inform the plan.
-8. **Appendices** when supporting detail would interrupt the main sequence.
+1. **Abstract — `ExpPlanAbstract`.** State the question, hypothesis,
+   intervention, primary estimand, and what outcome would matter.
+2. **Shared — `ExpSharedPlan`.** Give the identity, status, collection,
+   dependencies, scientific frame, inputs, controls, decision gates, budget,
+   assumptions, scope, and available provenance once.
+3. **Investigations — `ExpInvestigationPlan[]`.** Give each investigation an
+   `ExpInvestigationIdentity`, `ExpInvestigationIntroduction`,
+   `ExpExpectedPatterns` under the hypothesis and its rivals, and an optional
+   `ExpVisualSet`. Specify the planned output and what the result can and cannot
+   establish without adding observed evidence.
+4. **Methods — `ExpMethodsPlan`.** Give the complete planned protocol:
+   configuration, datasets, parameter values, sampling, seeds, execution
+   sequence, analysis definitions, provenance, and reproducibility
+   requirements. Number its subsections so investigations can reference them
+   without duplication.
+5. **Planned synthesis — `ExpPlannedSynthesis`.** Explain how the investigations
+   jointly distinguish the mechanism from rivals, including informative
+   contradictions, stopping rules, and completion criteria.
+6. **Conclusion — `ExpConclusionSlot`.** Reserve this position for execution;
+   omit it from the prospective rendering rather than predicting observed
+   conclusions.
+7. **References — `ExpReferences`** when external sources inform the plan.
+8. **Appendices — `ExpAppendices`** when supporting detail would interrupt the
+   main sequence.
 
 Keep a network or experimental-design diagram beside the investigation unit it
 explains. Clearly label conceptual curves as design schematics rather than data.
@@ -300,6 +326,10 @@ and source data. It is specified by an `ExpScoutPlan`; the schematic and empty
 result slot form an implementation scaffold, and the measured mirror becomes
 evidence only when generated from executed results.
 
+Internally, each pair contains an `ExpDesignSchematic` and an
+`ExpMeasuredResultSlot`. `ScoutExecution` completes the slot with an
+`ExpMeasuredResult` or preserves its failed, incomplete, or not-run status.
+
 The default epistemic colour grammar uses blue-grey for conceptual or
 prospective schematics and red-black for measured evidence. A scientific
 semantic, accessibility need, or established figure convention may override
@@ -313,22 +343,24 @@ An executed scouting mission formed from its frozen `ExpScoutPlan` plus
 `ScoutExecution`. Preserve the plan's publication structure and extend it
 locally:
 
-1. **Abstract.** Add the highest-level observation and disposition without
-   procedural detail.
-2. **Shared.** Add run provenance, completion status, actual shared
-   configuration, deviations, and limitations.
-3. **Investigations.** Add the actual output or explicit failed, incomplete, or
-   not-run status to its corresponding investigation. Complete its measured
-   `ExpVisualSet` mirror when present and add a concise discussion of what was
-   observed. Keep numerical and procedural ramble out of the discussion. Do not
-   create a separate investigation-results section or add local decision-gate
+1. **Abstract — `ExpScoutSummary`.** Add the highest-level observation and
+   disposition without procedural detail.
+2. **Shared — `ExpSharedExecution`.** Add run provenance, completion status,
+   actual shared configuration, deviations, and limitations.
+3. **Investigations — `ExpInvestigationExecution[]`.** Attach each execution to
+   its corresponding `ExpInvestigationPlan`. Add an `ExpMeasuredResult` or
+   explicit failed, incomplete, or not-run status, complete the measured
+   `ExpVisualSet` mirror when present, and add `ExpObservedPatterns`. Keep
+   numerical and procedural ramble out of the discussion. Do not create a
+   separate investigation-results section or add local decision-gate
    evaluations.
-4. **Methods.** In the rendered `ExpScout`, fully replace planned Methods with
-   one complete account of the executed methods, concrete outputs, and
-   deviations. The frozen `ExpScoutPlan` remains the provenance record of what
-   was planned.
-6. **Conclusion.** Add the cross-investigation interpretation and stop, revise,
-   or escalate disposition.
+4. **Methods — `ExpMethodsExecuted`.** In the rendered `ExpScout`, fully replace
+   `ExpMethodsPlan` with one complete account of the executed methods, concrete
+   outputs, and deviations. The frozen `ExpScoutPlan` remains the provenance
+   record of what was planned.
+6. **Conclusion — `ExpConclusion`.** Complete `ExpConclusionSlot` with the
+   cross-investigation interpretation and stop, revise, or escalate
+   disposition.
 
 References and appendices may gain execution-specific material. Do not rewrite
 planned expectations as observations. All scout evidence remains exploratory
