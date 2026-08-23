@@ -1,6 +1,6 @@
 ---
 name: experiment
-description: Use only when the user explicitly invokes experiment draft or $experiment draft to formalize one unrun Pinglab experiment.
+description: Use only when the user explicitly invokes experiment draft or $experiment draft to formalize one unrun Pinglab scouting plan.
 ---
 
 # Experiment
@@ -9,7 +9,7 @@ description: Use only when the user explicitly invokes experiment draft or $expe
 
 | Operator | Input artifact | Output artifact |
 | --- | --- | --- |
-| `experiment draft` | `FrozenHypothesisPacket` | `ExperimentPlan` |
+| `experiment draft` | `FrozenHypothesisPacket` | `ExpScoutPlan` |
 
 Artifact definitions: [../../ARTIFACTS.md](../../ARTIFACTS.md).
 

@@ -73,21 +73,34 @@ The live Pinglab command vocabulary and its relationship to the global Lexicon.
 A concise Markdown reference mapping Pinglab operators to their input and output
 artifact types.
 
-## `ExperimentPlan`
+## `ExpScoutPlan`
 
-A self-contained, unrun experiment contract containing identity, abstract,
-scientific frame, locally aligned investigation units, cross-result synthesis,
-controls and validity, and a detailed protocol. Each investigation unit pairs a
-method summary with its planned output, expected patterns, decision rule, and
-local caveat; lengthy shared implementation detail lives once in the protocol.
-Nothing in the plan is represented as an observed result.
+A prospective, budgeted reconnaissance contract containing identity, abstract,
+scientific frame, locally aligned investigation units, decision gates, controls
+and validity, and a detailed protocol. It defines cheap tests for feasibility,
+pattern discovery, and deciding whether deeper study is warranted.
 
-## `ExperimentRecord`
+## `ExpScout`
 
-An executed experiment record that extends and preserves its frozen
-`ExperimentPlan`, then adds run provenance, actual configuration, deviations,
-observations, uncertainty, interpretation, and completion status. Planned
-expectations remain distinguishable from observed results.
+An executed scouting mission containing its frozen `ExpScoutPlan`,
+implementation and provenance, actual configuration and deviations,
+provisional observations, uncertainty, and a stop, revise, or escalate decision.
+Its evidence is explicitly exploratory rather than durable.
+
+## `ExpStudyPlan`
+
+A new prospective contract informed by one or more `ExpScout` artifacts. It
+uses the shared experiment-plan structure while strengthening estimands,
+sampling, controls, uncertainty treatment, falsifiers, and robustness
+requirements for a durable scientific test.
+
+## `ExpStudy`
+
+A durable executed scientific record containing its frozen `ExpStudyPlan`,
+exact implementation and provenance, observations, uncertainty, deviations,
+rival discrimination, conclusions, limitations, and completion status. An
+`ExpScout` cannot be relabelled as an `ExpStudy`; a new `ExpStudyPlan` must
+separate exploratory choices from the study's prospective commitments.
 
 ## `ScientificCollectionState`
 

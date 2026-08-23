@@ -1,14 +1,21 @@
 # Experiment formats
 
-Use one shared experiment contract for both artifact types. Do not duplicate
-these fields between the plan and record:
+Use one shared experiment contract across the four artifact types. Do not
+duplicate these fields between plans and their executed records:
 
 - identity and scope;
 - question and hypothesis;
 - methods, variables, and controls;
 - measurements and decision rules.
 
-## `ExperimentPlan`
+The lifecycle is:
+
+`ExpScoutPlan` -> `ExpScout` -> `ExpStudyPlan` -> `ExpStudy`.
+
+`Plan` always means prospective. A paired non-`Plan` artifact always means an
+executed record.
+
+## `ExpScoutPlan`
 
 Use `status: "draft"` while a design is being refined and has not been run.
 
@@ -49,16 +56,43 @@ Write expected patterns conditionally. The plan contains no observed results,
 and neither existing context nor a schematic may be presented as execution
 evidence.
 
-## `ExperimentRecord extends ExperimentPlan`
+Keep scout execution cheap and explicitly budgeted. Its investigation units
+should establish feasibility, search broadly for useful structure, reject dead
+branches, and define gates for stopping, revision, or escalation. A scout plan
+does not promise durable inference.
 
-Freeze and preserve the original plan, then add execution evidence:
+## `ExpScout`
+
+Freeze and preserve the `ExpScoutPlan`, then add:
 
 - run provenance and completion status;
 - actual configuration and deviations from plan;
+- provisional observations and uncertainty;
+- interpretation against the plan's decision gates;
+- a stop, revise, or escalate decision.
+
+Label its evidence exploratory. It may motivate a new study plan but may not be
+promoted or relabelled as durable evidence.
+
+## `ExpStudyPlan`
+
+Create a new prospective contract informed by the scout rather than expanding
+the scout retrospectively. Use the same canonical plan structure, with stronger
+requirements for estimands, sampling and seeds, controls, uncertainty,
+falsifiers, rival discrimination, stopping rules, and robustness. Freeze which
+scout-informed choices are carried forward before study execution begins.
+
+## `ExpStudy`
+
+Freeze and preserve the `ExpStudyPlan`, then add:
+
+- exact implementation, run provenance, and completion status;
+- actual configuration and deviations from plan;
 - observations and uncertainty;
-- interpretation against the plan's decision rules and falsifiers.
+- interpretation against decision rules, falsifiers, and rivals;
+- durable conclusions and limitations.
 
 For each completed result, show its title, figure or output, and concise
 interpretation. Never replace or rewrite planned expectations as observations.
-The relationship is `ExperimentRecord = frozen ExperimentPlan + execution
-evidence`.
+The invariant is `ExpScout` -> new `ExpStudyPlan` -> `ExpStudy`, never
+`ExpScout` -> relabelled `ExpStudy`.
