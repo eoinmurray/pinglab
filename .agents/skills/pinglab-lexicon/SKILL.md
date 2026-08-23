@@ -281,26 +281,18 @@ does not promise durable inference.
 
 An optional visual evidence scaffold pairing design schematics with
 structurally matched measured plots. Each pair preserves a shared panel layout,
-variables, colours, and visual grammar, and links to its investigation unit,
-protocol section, generating code, source data, and interpretive caption. It is
-specified by an `ExpScoutPlan`, begins during implementation, and becomes
-evidence only when its measured mirrors are completed from executed results.
-Its default epistemic colour grammar uses blue-grey for conceptual or
-prospective schematics and red-black for measured evidence; documented
-overrides must preserve that distinction.
+variables, colours, visual grammar, interpretive purpose, and caption, and
+reserves links to its investigation unit, protocol section, generating code,
+and source data. It is specified by an `ExpScoutPlan`; the schematic and empty
+result slot form an implementation scaffold, and the measured mirror becomes
+evidence only when generated from executed results.
 
-When an `ExpVisualSet` is useful, the plan specifies each visual pair's design
-schematic, measured mirror, shared panel structure, variables, colours, visual
-grammar, and interpretive purpose. It also reserves links to the investigation
-unit, protocol section, generating code, and source data. The schematic and
-empty result slot form an implementation scaffold; the measured mirror does not
-exist until it is generated from executed evidence.
-
-The colour grammar is epistemic rather than a fixed palette. A scientific
+The default epistemic colour grammar uses blue-grey for conceptual or
+prospective schematics and red-black for measured evidence. A scientific
 semantic, accessibility need, or established figure convention may override
-the default, but the plan must document the new mapping and keep schematic and
-measured roles visibly distinct. Never style an unexecuted or conceptual curve
-as red-black measured evidence.
+it, but the plan must document the new mapping and keep schematic and measured
+roles visibly distinct. Never style an unexecuted or conceptual curve as
+red-black measured evidence.
 
 ## `ExpScout`
 
@@ -354,32 +346,25 @@ with code and data provenance. Preserve incomplete and failed result slots
 rather than silently omitting them. A scout without an `ExpVisualSet` remains
 valid.
 
-Label its evidence exploratory. It may motivate a new study plan but may not be
-promoted or relabelled as durable evidence.
-
-The optional composition is `ExpScout = frozen ExpScoutPlan + completed
-ExpVisualSet + other execution evidence + disposition`.
+Its evidence remains exploratory: it may motivate a new study plan but may not
+be promoted or relabelled as durable evidence. The optional composition is
+`ExpScout = frozen ExpScoutPlan + completed ExpVisualSet + other execution
+evidence + disposition`.
 
 ## `ExpStudyPlan`
 
-A new prospective contract informed by one or more `ExpScout` artifacts. It
-uses the shared experiment-plan structure while strengthening estimands,
-sampling, controls, uncertainty treatment, falsifiers, and robustness
-requirements for a durable scientific test.
-
-Create a new prospective contract informed by the scout rather than expanding
-the scout retrospectively. Use the same canonical plan structure, with stronger
-requirements for estimands, sampling and seeds, controls, uncertainty,
-falsifiers, rival discrimination, stopping rules, and robustness. Freeze which
-scout-informed choices are carried forward before study execution begins.
+A new prospective contract informed by one or more `ExpScout` artifacts rather
+than a retrospective expansion of the scout. It uses the canonical plan
+structure with stronger requirements for estimands, sampling and seeds,
+controls, uncertainty, falsifiers, rival discrimination, stopping rules, and
+robustness for a durable scientific test. Freeze which scout-informed choices
+are carried forward before study execution begins.
 
 ## `ExpStudy`
 
 A durable executed scientific record containing its frozen `ExpStudyPlan`,
 exact implementation and provenance, observations, uncertainty, deviations,
-rival discrimination, conclusions, limitations, and completion status. An
-`ExpScout` cannot be relabelled as an `ExpStudy`; a new `ExpStudyPlan` must
-separate exploratory choices from the study's prospective commitments.
+rival discrimination, conclusions, limitations, and completion status.
 
 Freeze and preserve the `ExpStudyPlan`, then add:
 
