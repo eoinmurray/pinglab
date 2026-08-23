@@ -1,6 +1,6 @@
 ---
 name: pinglab-lexicon
-description: Interpret, construct, transform, review, or serialize Pinglab noun types whenever a prompt names ScientificRecord, PinglabAbstract, Seed, Formulation, HypoBranches, HypoCanon, HypoLiterature, HypoRepository, OpenSearchTrajectory, HypoCheckpoint, GroundedSearchTrajectory, HypoPacket, ExpScoutPlan, ExpVisualSet, ExpScout, ExpStudyPlan, ExpStudy, or ScientificCollectionState.
+description: Interpret, construct, transform, review, or serialize Pinglab noun types whenever a prompt invokes ScientificRecord, PinglabAbstract, Seed, Formulation, HypoBranches, HypoCanon, HypoLiterature, HypoRepository, OpenSearchTrajectory, HypoCheckpoint, GroundedSearchTrajectory, HypoPacket, ExpScoutPlan, ExpVisualSet, ExpScout, ExpStudyPlan, ExpStudy, or ScientificCollectionState in any case, spacing, joining, or optional dollar-prefixed form.
 ---
 
 # Pinglab noun registry
@@ -10,6 +10,19 @@ prose-defined and serialized as Markdown rather than formally schema-validated.
 Ordinary conversation constructs and transforms them. Repository evidence and
 publication outputs retain their native files alongside the textual noun
 describing them.
+
+## Recognition
+
+Recognize every Pinglab noun regardless of letter case. Treat joined and
+whitespace-separated noun words as equivalent where the canonical form is
+unambiguous: for example, `ScientificRecord` and `scientific record`, or
+`ExpScoutPlan` and `exp scout plan`. Allow an optional `$` before the complete
+noun or before any noun word, so `$ExpScoutPlan`, `$exp scout plan`, and
+`$exp $scout $plan` are aliases of `ExpScoutPlan`.
+
+Apply this normalization only when identifying a Pinglab noun, not to an
+ordinary phrase that happens to use the same words. Use the canonical noun
+names below when constructing or reporting artifacts.
 
 ## `ScientificRecord`
 
@@ -211,56 +224,56 @@ to label the packet definitive.
 
 ## Experiment family
 
-Use one shared experiment contract across the four experiment noun types. Do
-not duplicate these fields between plans and their executed records:
+Experiment nouns form an immutable lineage:
 
-- identity and scope;
-- question and hypothesis;
-- methods, variables, and controls;
-- measurements and decision rules.
+```text
+ExpScoutPlan
+└── extended locally by ScoutExecution -> ExpScout
+    └── informs a new ExpStudyPlan
+        └── extended locally by StudyExecution -> ExpStudy
+```
 
-The lifecycle is:
+`Plan` always means prospective. Its paired executed noun preserves the frozen
+plan and adds what actually happened without rewriting expectations as
+observations. A new study plan is derived from the scout rather than extending
+or relabelling it; record which exploratory choices were carried forward,
+changed, rejected, or added.
 
-`ExpScoutPlan` -> `ExpScout` -> `ExpStudyPlan` -> `ExpStudy`.
-
-`Plan` always means prospective. A paired non-`Plan` noun always means an
-executed record.
+The rendered executed artifact follows the plan's publication scaffold and
+adds execution evidence beside the corresponding prospective material. It may
+replace planned Methods with one complete account of the executed Methods for
+readability, but the frozen plan retains the original protocol for provenance.
 
 ## `ExpScoutPlan`
 
-A prospective, budgeted reconnaissance contract containing identity, abstract,
-scientific frame, locally aligned investigation units, decision gates, controls
-and validity, and a detailed protocol. It defines cheap tests for feasibility,
-pattern discovery, and deciding whether deeper study is warranted.
+A prospective, budgeted reconnaissance contract and publication scaffold. It
+defines cheap tests for feasibility, pattern discovery, and deciding whether
+deeper study is warranted.
 
 Use `status: "draft"` while a design is being refined and has not been run.
 
 Use this canonical reading order:
 
-1. **Identity.** Give the title, status, collection, dependencies, and available
-   provenance. State near the start what, if anything, has already run.
-2. **Abstract.** State the question, hypothesis, intervention, primary estimand,
+1. **Abstract.** State the question, hypothesis, intervention, primary estimand,
    and what outcome would matter.
-3. **Scientific frame.** Explain the proposed mechanism, established context,
-   competing explanations, assumptions, and scope.
-4. **Investigation units.** For each numbered unit, keep the evidence logic
-   together in this order:
-   - **Question:** the uncertainty this unit resolves.
-   - **Method summary:** only enough method to understand the planned result,
-     with references to the detailed protocol where needed.
-   - **Planned output:** the figure, table, or statistic, including axes, traces,
-     marks, or displayed elements and its purpose.
-   - **Expected patterns:** predictions under the hypothesis and its rivals.
-   - **Decision rule:** how each material outcome updates the hypothesis.
-   - **Local caveat:** what this result cannot establish.
-5. **Cross-result synthesis.** Explain how the units jointly distinguish the
-   mechanism from rivals, including informative contradictions.
-6. **Controls and validity.** Define positive and negative controls, confounds,
-   uncertainty treatment, falsifiers, stopping rules, and completion criteria.
-7. **Detailed protocol.** Put the complete shared configuration, datasets,
+2. **Shared.** Give the identity, status, collection, dependencies, scientific
+   frame, inputs, controls, decision gates, budget, assumptions, scope, and
+   available provenance once.
+3. **Investigations.** Give each numbered investigation a descriptive name,
+   introduction, discussion of expected patterns under the hypothesis and its
+   rivals, and an optional `ExpVisualSet`. Specify the planned output and what
+   the result can and cannot establish without adding observed evidence.
+4. **Methods.** Give the complete planned protocol: configuration, datasets,
    parameter values, sampling, seeds, execution sequence, analysis definitions,
-   provenance, and reproducibility requirements here. Number its sections so
-   investigation units can reference them without duplication.
+   provenance, and reproducibility requirements. Number its subsections so
+   investigations can reference them without duplication.
+5. **Planned synthesis.** Explain how the investigations jointly distinguish
+   the mechanism from rivals, including informative contradictions, stopping
+   rules, and completion criteria.
+6. **Conclusion.** Reserve this position for execution; omit it from the
+   prospective rendering rather than predicting observed conclusions.
+7. **References** when external sources inform the plan.
+8. **Appendices** when supporting detail would interrupt the main sequence.
 
 Keep a network or experimental-design diagram beside the investigation unit it
 explains. Clearly label conceptual curves as design schematics rather than data.
@@ -296,48 +309,30 @@ red-black measured evidence.
 
 ## `ExpScout`
 
-An executed scouting mission formed from its frozen `ExpScoutPlan` plus an
-execution overlay. The plan remains the authoritative statement of identity,
-question, hypothesis, methods, controls, measurements, and decision rules; do
-not restate or reorganize those fields in the overlay.
+An executed scouting mission formed from its frozen `ExpScoutPlan` plus
+`ScoutExecution`. Preserve the plan's publication structure and extend it
+locally:
 
-The execution overlay adds:
+1. **Abstract.** Add the highest-level observation and disposition without
+   procedural detail.
+2. **Shared.** Add run provenance, completion status, actual shared
+   configuration, deviations, and limitations.
+3. **Investigations.** Add the actual output or explicit failed, incomplete, or
+   not-run status to its corresponding investigation. Complete its measured
+   `ExpVisualSet` mirror when present and add a concise discussion of what was
+   observed. Keep numerical and procedural ramble out of the discussion. Do not
+   create a separate investigation-results section or add local decision-gate
+   evaluations.
+4. **Methods.** In the rendered `ExpScout`, fully replace planned Methods with
+   one complete account of the executed methods, concrete outputs, and
+   deviations. The frozen `ExpScoutPlan` remains the provenance record of what
+   was planned.
+6. **Conclusion.** Add the cross-investigation interpretation and stop, revise,
+   or escalate disposition.
 
-- run provenance and completion status;
-- actual configuration and deviations from plan;
-- provisional observations and uncertainty;
-- interpretation against the plan's decision gates;
-- a stop, revise, or escalate decision.
-
-For each planned investigation, preserve its expectations and attach the actual
-output or explicit failed, incomplete, or not-run status. Never rewrite a
-planned expectation as an observation. The overlay may include a completed
-`ExpVisualSet`; all evidence remains exploratory rather than durable.
-
-An `ExpScout` may use this optional publication rendering. It does not define
-additional noun fields or replace the frozen plan:
-
-1. **Abstract.** State the question, scout design, highest-level observation,
-   and disposition without procedural detail.
-2. **Shared.** Summarize the common scientific frame, activity or inputs,
-   controls, decision gate, and budget by reference to the frozen plan, then
-   record execution provenance, deviations, and limitations once.
-3. **Investigations.** List investigations progressively. Each investigation
-   has a numbered descriptive header and relevance paragraph, references its
-   frozen expected pattern or discriminating outcome, presents its
-   `ExpVisualSet` when present, and discusses what was observed at a high level.
-   Keep numerical and procedural ramble out of the discussion. When visual sets
-   are used, assign one investigation per plotted rule or aggregate diagnostic
-   and exactly one `ExpVisualSet` plot per investigation; do not bundle distinct
-   rules merely because they belong to the same conceptual family. Shared setup
-   schematics may remain in **Shared** because they are not evidence plots.
-4. **Methods.** Give each method a numbered descriptive header, reference its
-   frozen definition, and record its concrete outputs and deviations, linking
-   it to the investigation that consumes it.
-5. **Conclusion** when the scout benefits from a consolidated interpretation
-   or disposition.
-6. **References** when external sources are used.
-7. **Appendices** when supporting detail would interrupt the main sequence.
+References and appendices may gain execution-specific material. Do not rewrite
+planned expectations as observations. All scout evidence remains exploratory
+rather than durable.
 
 Number every body heading hierarchically. The publication title, figure
 captions, equations, and inline structural labels such as `Relevance` and
@@ -346,7 +341,8 @@ sections are omitted rather than emitted empty; retain the canonical section
 number when one is present.
 
 If the plan requested an `ExpVisualSet`, attach completed measured mirrors with
-code and data provenance. A scout without an `ExpVisualSet` remains valid.
+code and data provenance. Preserve failed or incomplete result slots. A scout
+without an `ExpVisualSet` remains valid.
 
 Its evidence remains exploratory: it may motivate a new study plan but may not
 be promoted or relabelled as durable evidence. The optional composition is
