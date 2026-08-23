@@ -241,11 +241,7 @@
   $ A = 1/N sum_(i=1)^N 1_(hat(y)_i = y_i). $
   Each alternative is cross-tabulated against the native decoder as correct-to-correct, correct-to-wrong, wrong-to-correct, or wrong-to-wrong. Per-class change subtracts native class accuracy from alternative class accuracy. The first ten official-test images per class are fixed without outcome inspection.
 
-  == 5. Interpretive framework
-
-  The investigations were intended to separate three questions: whether spike-based evidence preserves the native decision, whether a display mapping merely changes apparent confidence, and whether the illustrative contrast survives a cheap balanced screen. A PING advantage across cumulative, leaky, windowed, and cycle-aware evidence, accompanied by native-decision retention across classes, would favour decoder compatibility over a selected-example artefact. Similar COBA and PING transfer would stop the branch; common saturation or silence would require revision of the output intervention. A contrast confined to cycle voting would motivate a rhythm-specific test, whereas a contrast shared by all spike rules would leave output-rate mismatch as the strongest rival. Completion required one shared replay, all planned visual mirrors, and the balanced-screen diagnostics.
-
-  == 6. Conclusion
+  == 5. Conclusion
 
   The scout supports escalation with revision. Under this frozen-weight intervention, PING output spikes preserve substantially more of the native decision than COBA output spikes, and the contrast survives the cheap balanced screen. Output mappings alone change apparent confidence but cannot repair incompatible evidence.
 
