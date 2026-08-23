@@ -1,0 +1,53 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="570" viewBox="0 0 1200 570" role="img" aria-labelledby="title desc">
+  <title id="title">Information available across temporal resolution</title>
+  <desc id="desc">Publication-style design schematic showing held-out accuracy for COBA and PING across decreasing bin widths, with a gamma-aligned comparison at matched duration.</desc>
+  <defs>
+    <style>
+      text{font-family:"Helvetica Neue",Helvetica,Arial,sans-serif;fill:#1a1a1a}
+      .title{font-size:23px;font-weight:700}.subtitle{font-size:14px;fill:#68655e}
+      .axis-label{font-size:15px;font-weight:600}.tick{font-size:13px;fill:#55524c}
+      .note{font-size:13px;fill:#55524c}.small{font-size:12px;fill:#6d6961}
+      .axis{stroke:#1a1a1a;stroke-width:1.6}.grid{stroke:#d9d5c8;stroke-width:1;opacity:.55}
+      .coba{stroke:#1a1a1a;stroke-width:3.5;fill:none}.ping{stroke:#a51d2d;stroke-width:4;fill:none}
+      .band-coba{fill:#1a1a1a;opacity:.07}.band-ping{fill:#a51d2d;opacity:.10}
+      .chance{stroke:#8e8a82;stroke-width:1.2;stroke-dasharray:5 5}.guide{stroke:#76628a;stroke-width:1.5;stroke-dasharray:4 4}
+      .point-coba{fill:#fff;stroke:#1a1a1a;stroke-width:2.5}.point-ping{fill:#fff;stroke:#a51d2d;stroke-width:2.5}
+      .cycle{fill:#76628a;stroke:#fff;stroke-width:2}.card{fill:#f4f1ea;stroke:#d9d5c8;stroke-width:1}
+    </style>
+    <marker id="arrow" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L8 4L0 8Z" fill="#76628a"/></marker>
+  </defs>
+  <rect width="1200" height="570" fill="#fff"/>
+  <text x="92" y="42" class="title">Information available across temporal resolution</text>
+  <text x="92" y="66" class="subtitle">Design schematic · measured curves replace these shapes</text>
+
+  <rect x="92" y="98" width="930" height="356" fill="#fff"/>
+  <line x1="92" y1="454" x2="1022" y2="454" class="axis"/><line x1="92" y1="98" x2="92" y2="454" class="axis"/>
+  <g class="grid"><line x1="92" y1="365" x2="1022" y2="365"/><line x1="92" y1="276" x2="1022" y2="276"/><line x1="92" y1="187" x2="1022" y2="187"/><line x1="92" y1="98" x2="1022" y2="98"/></g>
+  <g class="tick" text-anchor="end"><text x="80" y="459">0</text><text x="80" y="370">25</text><text x="80" y="281">50</text><text x="80" y="192">75</text><text x="80" y="103">100</text></g>
+  <g class="tick" text-anchor="middle"><text x="132" y="479">200</text><text x="250" y="479">100</text><text x="368" y="479">50</text><text x="486" y="479">25</text><text x="604" y="479">10</text><text x="722" y="479">5</text><text x="840" y="479">2</text><text x="958" y="479">1</text></g>
+  <text x="557" y="525" class="axis-label" text-anchor="middle">bin width Δ (ms) · presentation count → finer timing</text>
+  <text x="24" y="280" class="axis-label" text-anchor="middle" transform="rotate(-90 24 280)">held-out digit accuracy (%)</text>
+  <line x1="92" y1="418" x2="1022" y2="418" class="chance"/><text x="1014" y="412" class="small" text-anchor="end">chance</text>
+
+  <path d="M132 166 C250 165 368 164 486 165 S722 162 958 161 L958 181 C722 182 604 184 486 184 S250 185 132 186Z" class="band-coba"/>
+  <path d="M132 150 C250 149 368 148 486 146 S722 142 958 138 L958 160 C722 162 604 165 486 166 S250 169 132 170Z" class="band-ping"/>
+  <path d="M132 176 C250 175 368 174 486 175 S722 172 958 171" class="coba"/>
+  <path d="M132 160 C250 159 368 158 486 156 S722 152 958 149" class="ping"/>
+  <g><circle cx="132" cy="176" r="5" class="point-coba"/><circle cx="368" cy="174" r="5" class="point-coba"/><circle cx="604" cy="173" r="5" class="point-coba"/><circle cx="840" cy="171" r="5" class="point-coba"/><circle cx="958" cy="171" r="5" class="point-coba"/>
+  <circle cx="132" cy="160" r="5" class="point-ping"/><circle cx="368" cy="158" r="5" class="point-ping"/><circle cx="604" cy="154" r="5" class="point-ping"/><circle cx="840" cy="151" r="5" class="point-ping"/><circle cx="958" cy="149" r="5" class="point-ping"/></g>
+
+  <rect x="1042" y="99" width="138" height="126" rx="7" class="card"/>
+  <line x1="1060" y1="126" x2="1098" y2="126" class="coba"/><text x="1108" y="131" class="note">COBA</text>
+  <line x1="1060" y1="158" x2="1098" y2="158" class="ping"/><text x="1108" y="163" class="note">PING</text>
+  <rect x="1060" y="181" width="38" height="13" class="band-ping"/><text x="1108" y="192" class="note">uncertainty</text>
+
+  <circle cx="486" cy="128" r="8" class="cycle"/><line x1="486" y1="128" x2="486" y2="156" class="guide"/>
+  <path d="M503 124 C548 110 580 105 628 107" fill="none" stroke="#76628a" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <rect x="630" y="84" width="294" height="58" rx="7" class="card"/>
+  <text x="646" y="108" class="note" font-weight="700">Gamma alignment contrast</text><text x="646" y="128" class="small">cycle-aligned point vs fixed 25 ms bin</text>
+
+  <rect x="624" y="304" width="344" height="76" rx="7" class="card"/>
+  <text x="642" y="330" class="note" font-weight="700">How to read the slope</text>
+  <text x="642" y="351" class="small">flat ≈ counts suffice · upward ≈ timing adds information</text>
+  <text x="642" y="369" class="small">cycle point above curve ≈ gamma frame adds information</text>
+</svg>

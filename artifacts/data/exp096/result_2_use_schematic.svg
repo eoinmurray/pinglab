@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="570" viewBox="0 0 1200 570" role="img" aria-labelledby="title desc">
+  <title id="title">Temporal resolution used by the native readout</title>
+  <desc id="desc">Two-panel publication-style design schematic showing native accuracy and true-class margin as finer timing is preserved.</desc>
+  <defs>
+    <style>
+      text{font-family:"Helvetica Neue",Helvetica,Arial,sans-serif;fill:#1a1a1a}
+      .title{font-size:23px;font-weight:700}.subtitle{font-size:14px;fill:#68655e}.panel{font-size:16px;font-weight:700}
+      .axis-label{font-size:14px;font-weight:600}.tick{font-size:12px;fill:#55524c}.note{font-size:12.5px;fill:#55524c}
+      .axis{stroke:#1a1a1a;stroke-width:1.5}.grid{stroke:#d9d5c8;stroke-width:1;opacity:.55}
+      .intact{stroke:#76628a;stroke-width:1.7;stroke-dasharray:5 4}.null{stroke:#52504b;stroke-width:3;fill:none}
+      .used{stroke:#a51d2d;stroke-width:4;fill:none}.used-band{fill:#a51d2d;opacity:.10}
+      .point{fill:#fff;stroke:#a51d2d;stroke-width:2.5}.diamond{fill:#76628a;stroke:#fff;stroke-width:2}
+      .card{fill:#f4f1ea;stroke:#d9d5c8;stroke-width:1}
+    </style>
+  </defs>
+  <rect width="1200" height="570" fill="#fff"/>
+  <text x="74" y="42" class="title">Temporal resolution used by the native readout</text>
+  <text x="74" y="66" class="subtitle">Count-preserving replay · same hidden spikes per neuron and bin</text>
+
+  <text x="74" y="102" class="panel">A</text><text x="100" y="102" class="panel">Native accuracy</text>
+  <text x="620" y="102" class="panel">B</text><text x="646" y="102" class="panel">True-class logit margin</text>
+  <line x1="100" y1="430" x2="548" y2="430" class="axis"/><line x1="100" y1="126" x2="100" y2="430" class="axis"/>
+  <line x1="646" y1="430" x2="1094" y2="430" class="axis"/><line x1="646" y1="126" x2="646" y2="430" class="axis"/>
+  <g class="grid"><line x1="100" y1="354" x2="548" y2="354"/><line x1="100" y1="278" x2="548" y2="278"/><line x1="100" y1="202" x2="548" y2="202"/><line x1="100" y1="126" x2="548" y2="126"/><line x1="646" y1="354" x2="1094" y2="354"/><line x1="646" y1="278" x2="1094" y2="278"/><line x1="646" y1="202" x2="1094" y2="202"/><line x1="646" y1="126" x2="1094" y2="126"/></g>
+  <g class="tick" text-anchor="end"><text x="90" y="435">0</text><text x="90" y="359">25</text><text x="90" y="283">50</text><text x="90" y="207">75</text><text x="90" y="131">100</text></g>
+  <g class="tick" text-anchor="middle"><text x="130" y="452">200</text><text x="257" y="452">50</text><text x="384" y="452">10</text><text x="518" y="452">1</text><text x="676" y="452">200</text><text x="803" y="452">50</text><text x="930" y="452">10</text><text x="1064" y="452">1</text></g>
+  <text x="324" y="497" class="axis-label" text-anchor="middle">preserved bin width Δ (ms)</text><text x="870" y="497" class="axis-label" text-anchor="middle">preserved bin width Δ (ms)</text>
+  <text x="35" y="278" class="axis-label" text-anchor="middle" transform="rotate(-90 35 278)">accuracy (%)</text>
+  <text x="590" y="278" class="axis-label" text-anchor="middle" transform="rotate(-90 590 278)">margin (relative units)</text>
+
+  <line x1="100" y1="151" x2="548" y2="151" class="intact"/><line x1="646" y1="151" x2="1094" y2="151" class="intact"/>
+  <text x="538" y="143" class="note" text-anchor="end" fill="#76628a">intact replay</text><text x="1084" y="143" class="note" text-anchor="end" fill="#76628a">intact replay</text>
+  <path d="M130 161 C257 162 384 159 518 160" class="null"/><path d="M676 165 C803 166 930 163 1064 164" class="null"/>
+  <path d="M130 350 C220 331 300 276 384 208 S475 159 518 154 L518 174 C475 179 445 202 384 231 S220 357 130 371Z" class="used-band"/>
+  <path d="M676 357 C766 338 846 281 930 213 S1021 163 1064 155 L1064 176 C1021 183 991 206 930 236 S766 364 676 378Z" class="used-band"/>
+  <path d="M130 360 C220 341 300 286 384 218 S475 169 518 164" class="used"/><path d="M676 367 C766 348 846 291 930 223 S1021 173 1064 165" class="used"/>
+  <g><circle cx="130" cy="360" r="5" class="point"/><circle cx="257" cy="316" r="5" class="point"/><circle cx="384" cy="218" r="5" class="point"/><circle cx="518" cy="164" r="5" class="point"/><circle cx="676" cy="367" r="5" class="point"/><circle cx="803" cy="322" r="5" class="point"/><circle cx="930" cy="223" r="5" class="point"/><circle cx="1064" cy="165" r="5" class="point"/></g>
+  <rect x="363" y="239" width="14" height="14" transform="rotate(45 370 246)" class="diamond"/><text x="388" y="249" class="note">cycle / phase tests</text>
+
+  <rect x="96" y="518" width="1000" height="38" rx="7" class="card"/>
+  <line x1="122" y1="537" x2="162" y2="537" class="null"/><text x="174" y="542" class="note">registered null: counts suffice</text>
+  <line x1="420" y1="537" x2="460" y2="537" class="used"/><text x="472" y="542" class="note">timing-used signature: recovery as finer structure is restored</text>
+</svg>
