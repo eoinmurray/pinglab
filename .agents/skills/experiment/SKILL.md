@@ -9,7 +9,7 @@ description: Use only when the user explicitly invokes experiment draft or $expe
 
 | Operator | Input artifact | Output artifact |
 | --- | --- | --- |
-| `experiment draft` | `FrozenHypothesisPacket` | `UnrunExperimentSpecification` |
+| `experiment draft` | `FrozenHypothesisPacket` | `ExperimentPlan` |
 
 Artifact definitions: [../../ARTIFACTS.md](../../ARTIFACTS.md).
 
