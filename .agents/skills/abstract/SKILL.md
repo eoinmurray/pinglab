@@ -1,19 +1,28 @@
 ---
 name: abstract
-description: Use only when the user explicitly invokes $abstract to summarize Pinglab's scientific aims and trajectory.
+description: Use only when the user explicitly invokes abstract or $abstract to summarize Pinglab's scientific aims and trajectory.
 ---
 
 # Abstract
 
-Activate this skill only for an explicit `$abstract` command. Do not activate it
+## Signature
+
+| Operator | Input artifact | Output artifact |
+| --- | --- | --- |
+| `abstract [short|medium|long]` | `ScientificRecord` | `ScientificAbstract` |
+
+Artifact definitions: [../../ARTIFACTS.md](../../ARTIFACTS.md).
+
+Activate this skill only for an explicit `abstract` command, with or without a
+leading `$`. Do not activate it
 from semantic similarity, automatic selection, or an ordinary request for a
 summary.
 
 Accept one optional length argument:
 
-- `$abstract short` — exactly 2 paragraphs.
-- `$abstract medium` or bare `$abstract` — exactly 4 paragraphs.
-- `$abstract long` — exactly 6 paragraphs.
+- `abstract short` — exactly 2 paragraphs.
+- `abstract medium` or bare `abstract` — exactly 4 paragraphs.
+- `abstract long` — exactly 6 paragraphs.
 
 For any other argument, state the three valid lengths and that `medium` is the
 default. Do not produce a partial abstract.

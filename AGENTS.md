@@ -10,17 +10,15 @@ Procedures belong in the repository skills under `.agents/skills/`.
 ## Authority
 
 This file and other version-controlled Pinglab policies govern work in this
-repository. Mutation authority is inherited from the global `$scope`, `$go`,
-`$repo`, and `$help` lexicon. A matching global command is sufficient throughout
-this repository; project commands are optional specialist workflows, not
-additional permission gates. Project commands may also independently authorize
-only the exact actions declared in the lexicon below.
+repository. Mutation authority comes only from the global `scope`, `go`, and
+`repo` lexicon. Project commands select specialist scientific workflows; they
+do not independently authorize mutation.
 
 Project skills are opt-in command handlers, not automatic task routers. Use a
 skill under `.agents/skills/` only when the user explicitly invokes one of its
-documented `$` commands. Semantic similarity, an ordinary natural-language
-request, or automatic skill selection is insufficient, even for read-only work.
-Handle those requests normally without loading the project skill.
+documented commands. Semantic similarity, an ordinary natural-language request,
+or automatic skill selection is insufficient. Handle those requests normally
+without loading the project skill.
 
 A project command authorizes no Git mutation, GitHub write, deployment, or
 action outside this repository. Never infer a broader authorization from a
@@ -28,32 +26,32 @@ narrower command.
 
 ## Pinglab lexicon
 
-| Command | Authorization |
-| --- | --- |
-| `$abstract [short\|medium\|long]` | Summarize Pinglab's scientific aims and trajectory in 2, 4, or 6 paragraphs; `medium` is the default. Read-only. |
-| `$lab help` | Explain the project lexicon; read-only. |
-| `$lab status` | Inspect repository, experiment, campaign, and publication state; read-only. |
-| `$experiment draft` | Create or revise only `writings/expNNN.typ` and hand-authored design SVGs under `artifacts/data/expNNN/`. |
-| `$experiment review ID` | Review one experiment's design, implementation, evidence, and interpretation; read-only. |
-| `$experiment run ID` | Run one existing experiment locally; it may write only beneath `runs/` and the runner's matching `artifacts/data/ID/`. |
-| `$campaign plan` | Develop a campaign plan conversationally; read-only. |
-| `$campaign status ID` | Inspect one campaign and its jobs, provenance, and completeness; read-only. |
-| `$campaign run ID` | Execute an approved campaign, writing only its declared run root and job state. Paid or pod-creating targets require explicit permission naming the target in the same request. |
-| `$campaign resume ID` | Resume only approved incomplete stages within the same declared run root, under the same compute gate as `run`. |
-| `$campaign review ID` | Review campaign completeness, provenance, and scientific validity; read-only. |
-| `$campaign promote ID` | Promote reviewed compact outputs into matching `artifacts/data/` entries in the campaign's existing publication worktree; do not create the worktree, commit, or publish. |
-| `$writing draft` | Create or revise only `writings/*.typ` and their referenced hand-authored assets under matching `artifacts/data/` entries. |
-| `$writing review ID` | Review one writing and its figures; read-only. |
-| `$writing build ID` | Build one existing entry, updating only `artifacts/pdfs/ID.pdf` and its ignored `artifacts/site/` outputs. |
-| `$publish check` | Inspect collection-wide publication readiness; read-only. |
-| `$publish build` | Build the complete local publication view, updating only `artifacts/pdfs/` and ignored `artifacts/site/`; do not commit, push, or deploy. |
-| `$lab-doctor` | Audit Pinglab governance, structure, provenance, and skill integrity; read-only. |
+The Lexicon contains operators, conventionally expressed as verbs. Each
+operator consumes and produces primitive artifacts. These types are
+prose-defined and text-serialized as Markdown rather than formally
+schema-validated. Their contracts live in `.agents/ARTIFACTS.md`, and every
+project skill declares its input/output signature.
+
+| Command | Input artifact | Output artifact |
+| --- | --- | --- |
+| `abstract [short\|medium\|long]` | `ScientificRecord` | `ScientificAbstract` |
+| `hypo beam` or `hypo beamX` | `Seed`, `Formulation`, or `ResumableCheckpoint` | `BranchSet` |
+| `hypo compare` | `Formulation` | `CanonComparisonCapsules` |
+| `hypo ground web` | `Formulation` | `LiteratureEvidenceCapsules` |
+| `hypo ground local` | `Formulation` | `RepositoryEvidenceCapsules` |
+| `hypo checkpoint` | `OpenSearchTrajectory` | `ResumableCheckpoint` |
+| `hypo freeze` | `GroundedSearchTrajectory` or `ResumableCheckpoint` | `FrozenHypothesisPacket` |
+| `pinglab help` | `PinglabLexiconContext` | `PinglabLexiconReference` |
+| `experiment draft` | `FrozenHypothesisPacket` | `UnrunExperimentSpecification` |
+| `publish check` | `ScientificCollectionState` | `PublicationReadinessReport` |
+| `publish build` | `PublicationReadyCollection` | `PublicationBundle` |
 
 Arguments are mandatory where shown. Optional arguments appear in brackets;
-`$abstract` defaults to `medium`. Other bare nouns explain their subcommands and
-do not mutate state. Project commands never stage, commit, switch branches,
-create worktrees, push, open or update GitHub objects, merge, or deploy. Use the
-appropriate global Lexicon command for those actions.
+`abstract` defaults to `medium`, and `hypo beam` defaults to three branches.
+Every documented project command accepts an optional leading `$`; for example,
+`hypo ground web` and `$hypo ground web` are equivalent. Bare command-family
+nouns explain their subcommands. Use the appropriate global Lexicon command to
+authorize any mutation required by a selected workflow.
 
 ## Demolab boundary
 
@@ -96,7 +94,7 @@ it or the user explicitly invokes it. Pinglab policy wins on conflict.
 
 - Creating RunPod pods, Modal dispatches, or other paid compute requires
   explicit permission naming that target. Default to local execution.
-- Editing `tools/snn` is authorized by the applicable global `$go` command; no
+- Editing `tools/snn` is authorized by the applicable global `go` command; no
   project command is additionally required.
 - GitHub writes require the applicable global Lexicon authorization.
 - Never add AI authorship or attribution trailers to commits or PR text.
