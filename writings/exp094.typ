@@ -1,13 +1,25 @@
 #let meta = (
-  title: "What does a decoder believe?",
+  title: "Decoder transfer in frozen COBA and PING networks",
   date: "2026-08-22",
-  description: "An illustrated guide to temporal evidence and output mappings for frozen MNIST COBA and PING networks.",
+  description: "An exploratory decoder-transfer scout using matched conceptual diagrams, measured trajectories, and a balanced 100-image screen.",
   collection: "gamma-gated-sparsity",
   status: "complete",
 )
 
+#let r = json("/artifacts/data/exp094/numbers.json")
+#let accuracy(model, decoder) = calc.round(100 * r.screen.models.at(model).at(decoder).accuracy)
+#let transitions(model, decoder) = r.screen.models.at(model).at(decoder).transitions
+
 #let body = [
-  == Introduction
+  == Scout identity
+
+  *Artifact:* `ExpScout` · *execution status:* complete · *evidence class:* exploratory
+
+  *Question.* When the learned network and output projection are frozen, how much of the native MNIST decision survives changes to the temporal evidence function $z$, and what does a later output mapping $p$ change without changing the winner?
+
+  *Decision sought.* Decide whether decoder transfer is immediately uninformative, needs revision, or warrants a new prospective multi-seed full-test study.
+
+  == Abstract
 
   A decoder converts neural activity into a class decision. Here the learned output projection remains frozen while two later choices change: $z$ decides what temporal activity counts as evidence, and $p$ decides how that evidence is displayed as relative confidence.
 
@@ -18,7 +30,39 @@
     caption: [Decoder decomposition. Frozen COBA and PING networks produce output spikes and voltages. A temporal evidence function $z$ compresses that activity, an output mapping $p$ displays the resulting competition, and the decision selects the largest final score.],
   )
 
-  == Temporal evidence functions z
+  == Frozen scout plan
+
+  #block(inset: 10pt, fill: rgb("eef4f8"), radius: 3pt)[
+    *Record status.* No separately frozen `ExpScoutPlan` predates this completed run. The contract below is reconstructed from the preserved runner, manifest, outputs, and outcome-blind selections. It records what was actually constrained, but it must not be mistaken for prospective registration. That missing pre-run freeze is a validity limitation of this scout.
+  ]
+
+  === Scientific frame
+
+  The mechanism under test is decoder compatibility. A readout trained to use temporally averaged subthreshold voltage may not transfer to output spikes even when hidden activity and learned weights are unchanged. PING could preserve more transferable spike evidence because its rhythmic packets separate class competition in time; alternatively, any apparent advantage could be a selected-trial accident, a rate mismatch in the counterfactual output neurons, or a decoder-timescale artefact.
+
+  === Investigation units and gates
+
+  + *IU1 — mechanism mirror.* Replay one outcome-blind official-test image through canonical seed-42 COBA and PING checkpoints. Pair each qualitative blue-grey decoder diagram with a structurally matched red-black measured trajectory. *Gate:* continue only if the shared-input replay and decoder interventions are finite and comparable.
+
+  + *IU2 — temporal evidence transfer.* Compare native running mean voltage with cumulative, leaky, 25 ms windowed, and cycle-or-matched-bin spike evidence. *Gate:* stop if the alternatives merely reproduce the native winner in both networks without exposing a meaningful difference.
+
+  + *IU3 — output mapping control.* Pass one unchanged cumulative-count vector to ordinary softmax, temperature-4 softmax, and independent sigmoid. *Gate:* treat changes in displayed confidence separately from changes in accumulated evidence or argmax.
+
+  + *IU4 — cheap balanced screen.* Run the first ten official-test images from each class, selected without inspecting outcomes, through both frozen networks. *Escalation gate:* a decoder-transfer contrast must survive beyond the illustrative image without being presented as a population estimate.
+
+  === Controls, budget, and completion rule
+
+  The networks, hidden trajectories, learned output weights, inputs, and random encodings are paired wherever the comparison permits. COBA receives duration-matched bins where PING receives detected-cycle bins. All three $p$ mappings receive the identical cumulative-count tensor. The local budget is one illustrative replay plus 100 balanced screening images, with no retraining, hyperparameter search, seed sweep, or full-test evaluation. Completion requires recorded provenance, all matched visual pairs, the balanced screen, explicit limitations, and one `stop`, `revise`, or `escalate` decision.
+
+  == Implementation and provenance
+
+  The scout used final-epoch `mem-mean` checkpoints from publication run #raw(r.training_source.publication_run_id), upstream campaign #raw(r.training_source.upstream_campaign_id): #raw(r.training_source.cells.coba) and #raw(r.training_source.cells.ping). The illustrative input is official MNIST test index #r.selection.official_test_index, label #r.selection.label, chosen without inspecting its outcome; its shared Poisson seed is #r.shared_input.seed. The balanced screen uses Poisson seed #r.screen.design.poisson_seed and batches of #r.screen.design.batch_size images.
+
+  The native non-spiking output provides mean-voltage evidence. A single counterfactual output-LIF trajectory, driven by the same frozen hidden spikes and learned output weights, supplies every spike-based alternative. The leak time constant and window width are both 25 ms. The measured assets, compact arrays, `numbers.json`, runner, checkpoint hashes, dirty-source patch, and run manifest are preserved under `artifacts/data/exp094/`.
+
+  *Deviation from an ideal scout.* The plan was not frozen before execution. The illustrative mechanism view uses one seed and one image; the screen adds images but not training seeds. Cycle detection is available only for PING, so COBA uses duration-matched bins rather than a biologically homologous cycle definition.
+
+  == IU1–IU2: temporal evidence functions z
 
   Each subsection changes only $z$. In the measured plots, red denotes the true class, black its strongest competitor, and time runs horizontally; the diagrams use blue and grey to remain visibly distinct. Mean voltage uses the native non-spiking readout. The four spike-based alternatives use the single counterfactual output-LIF trajectory driven by the same frozen hidden spikes and output weights.
 
@@ -92,7 +136,7 @@
 
   PING's true class wins more detected cycles and pulls away in cumulative votes. The matched COBA bins consistently favour another class. Cycle voting is therefore meaningful here because PING supplies distinct rhythmic evidence packets, not because voting itself guarantees a better decision.
 
-  == Output mappings p
+  == IU3: output mappings p
 
   #block(inset: 10pt, fill: rgb("f3f0e8"), radius: 3pt)[
     *Controlled comparison.* All three $p$ mappings receive the identical ten-class cumulative-count vector
@@ -152,7 +196,7 @@
 
   Because every cumulative count grows, all ten sigmoid scores saturate near one almost immediately. The mapping preserves neither useful relative separation nor a meaningful class decision; its failure follows from applying an independent bounded transform to non-negative accumulating counts.
 
-  == Screening check across 100 images
+  == IU4: screening check across 100 images
 
   The single digit above suggests that PING exposes class information through spikes more robustly than COBA, but one example cannot establish that pattern. A fast screening run therefore selected the first ten official-test images from each MNIST class without inspecting their outcomes. The same fixed Poisson encoding was presented to both frozen networks. Inputs were processed in batches, and every alternative decoder reused its recorded activity. This 100-image convenience sample completed locally in under one minute. It is a check on whether the observation immediately collapses, not an estimate of test-set accuracy.
 
@@ -161,16 +205,16 @@
     caption: [Decoder transfer screen. Each cell gives accuracy and, below it, the change from that network's native mean-voltage decoder. The divider separates temporal evidence choices from mappings of the shared cumulative-count evidence.],
   )
 
-  The contrast survives the screen. COBA's native decoder classifies all 100 images correctly, but its spike-based evidence rules retain only 10--18%. PING's native decoder reaches 96%; cumulative count retains 88%, leaky count 85%, cycle voting 82%, and the 25 ms window 72%. This does not show that PING is decoder-independent. It shows that its spike events preserve substantially more of the trained decision than COBA's counterfactual output spikes do.
+  The contrast survives the screen. COBA's native decoder classifies all #r.screen.n images correctly, but its spike-based evidence rules retain only #accuracy("coba", "vote")--#accuracy("coba", "cumulative")%. PING's native decoder reaches #accuracy("ping", "mean")%; cumulative count retains #accuracy("ping", "cumulative")%, leaky count #accuracy("ping", "leaky")%, cycle voting #accuracy("ping", "vote")%, and the #r.decoder.window_ms ms window #accuracy("ping", "window")%. This does not show that PING is decoder-independent. It shows that its spike events preserve substantially more of the trained decision than COBA's counterfactual output spikes do.
 
-  Ordinary and softened softmax exactly match cumulative-count accuracy because both preserve its winning class. Independent sigmoid falls to 10% for both networks: the accumulating non-negative counts saturate together, and numerical ties default to class zero. Its apparent winner is therefore not a meaningful decoded decision.
+  Ordinary and softened softmax exactly match cumulative-count accuracy because both preserve its winning class. Independent sigmoid falls to #accuracy("coba", "sigmoid")% for both networks: the accumulating non-negative counts saturate together, and numerical ties default to class zero. Its apparent winner is therefore not a meaningful decoded decision.
 
   #figure(
     image("/artifacts/data/exp094/screen_transitions.svg", width: 100%, alt: "Stacked transition counts showing which native decisions each alternative decoder preserves, breaks, or repairs."),
     caption: [Decision transitions relative to native decoding. Green is preserved correctness; red is a native correct decision broken by the alternative. Yellow denotes a repair and grey a prediction that remains wrong.],
   )
 
-  COBA's alternatives break 82--90 decisions that its native decoder gets right. PING loses 8 decisions under cumulative count, 11 under leaky count, 24 under the finite window, and 15 under cycle voting. Cycle voting also repairs one of PING's four native errors. The distinction is therefore not merely a shift in aggregate accuracy: it is a large difference in how often changing the decoder destroys an already correct decision.
+  COBA's alternatives break #transitions("coba", "cumulative").correct_to_wrong -- #transitions("coba", "vote").correct_to_wrong decisions that its native decoder gets right. PING loses #transitions("ping", "cumulative").correct_to_wrong decisions under cumulative count, #transitions("ping", "leaky").correct_to_wrong under leaky count, #transitions("ping", "window").correct_to_wrong under the finite window, and #transitions("ping", "vote").correct_to_wrong under cycle voting. Cycle voting also repairs #transitions("ping", "vote").wrong_to_correct of PING's #(r.screen.n - r.screen.models.ping.mean.transitions.correct_to_correct) native errors. The distinction is therefore not merely a shift in aggregate accuracy: it is a large difference in how often changing the decoder destroys an already correct decision.
 
   #figure(
     image("/artifacts/data/exp094/screen_classes.svg", width: 100%, alt: "Per-digit accuracy changes from native decoding for COBA and PING across all decoder options."),
@@ -178,4 +222,14 @@
   )
 
   COBA's loss spans almost every digit rather than reproducing only the original class-4 failure. Its spike decoders disproportionately return class zero, explaining why digit zero is the lone robust row. PING's losses are smaller and distributed across classes, with cumulative decoding weakest here for digits five and six. A full test-set, multi-seed evaluation is still required before treating decoder robustness as an architectural property.
+
+  == Provisional interpretation and uncertainty
+
+  The scout supports one narrow observation: under this frozen-weight intervention, PING output spikes preserve substantially more of the native decision than COBA output spikes. It does not establish that PING is generally decoder-robust, that rhythmic packetization causes the difference, or that any alternative decoder would perform similarly if trained end to end. The largest unresolved rivals are output-rate mismatch, one-checkpoint dependence, fixed decoder timescales, and the convenience screen's small deterministic sample.
+
+  There are no sampling intervals, independent training seeds, or held-out choices of leak, window, and temperature. Reported percentages are descriptive values for the fixed 100-image screen. Softmax equivalence is algebraic at the argmax; sigmoid failure here is specific to applying it directly to non-negative cumulative counts.
+
+  == Scout decision
+
+  *Decision: escalate, with revision.* The contrast clears the cheap screening gate: PING retains #accuracy("ping", "window")--#accuracy("ping", "cumulative")% accuracy across the spike-based $z$ rules while COBA retains #accuracy("coba", "vote")--#accuracy("coba", "cumulative")%, relative to native scores of #accuracy("ping", "mean")% and #accuracy("coba", "mean")%. The next artifact must be a new prospective `ExpStudyPlan`, not a relabelled continuation of this scout. It should freeze a multi-seed full-test estimand, preselect decoder timescales or a nested validation rule, measure output-rate compatibility, and test whether cycle-aware evidence explains transfer beyond simpler cumulative counts. The absent prospective plan prevents this scout itself from serving as durable confirmatory evidence.
 ]
