@@ -1,0 +1,61 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="430" viewBox="0 0 1200 430" role="img" aria-labelledby="title desc">
+  <title id="title">Planned streaming evaluation</title>
+  <desc id="desc">Conceptual blue-grey schematic. A changing digit input passes through a PING network to output spikes, class counts, and a prediction. At each digit boundary, hidden network state continues while output state and class counts reset.</desc>
+  <defs>
+    <style>
+      text{font-family:"Helvetica Neue",Helvetica,Arial,sans-serif;fill:#1f3342}
+      .title{font-size:23px;font-weight:700}.subtitle{font-size:14px;fill:#647685}
+      .label{font-size:16px;font-weight:700}.small{font-size:13px;fill:#526a7b}.tiny{font-size:12px;fill:#647685}
+      .card{fill:#f2f6f8;stroke:#91a8b8;stroke-width:1.5}.core{fill:#dce8ee;stroke:#627f92;stroke-width:2}
+      .arrow{stroke:#526f82;stroke-width:2.2;fill:none}.boundary{stroke:#91a8b8;stroke-width:1.4;stroke-dasharray:5 5}
+      .continue{stroke:#365b72;stroke-width:4;fill:none}.reset{stroke:#708b9c;stroke-width:3;fill:none}
+    </style>
+    <marker id="arrow" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L8 4L0 8Z" fill="#526f82"/></marker>
+  </defs>
+  <rect width="1200" height="430" fill="#fff"/>
+  <text x="70" y="42" class="title">Planned streaming evaluation</text>
+  <text x="70" y="66" class="subtitle">Conceptual design only · measured results use a separate red-black visual language</text>
+
+  <rect x="70" y="105" width="178" height="104" rx="8" class="card"/>
+  <g transform="translate(92 123)">
+    <rect x="0" y="16" width="42" height="42" rx="4" fill="#bccbd4"/><text x="21" y="44" text-anchor="middle" class="label">7</text>
+    <rect x="48" y="8" width="42" height="58" rx="4" fill="#9fb6c4"/><text x="69" y="44" text-anchor="middle" class="label">2</text>
+    <rect x="96" y="0" width="42" height="74" rx="4" fill="#7f9cab"/><text x="117" y="44" text-anchor="middle" class="label" fill="#fff">4</text>
+  </g>
+  <text x="159" y="193" text-anchor="middle" class="small">changing strength and duration</text>
+
+  <path d="M248 157H326" class="arrow" marker-end="url(#arrow)"/>
+  <rect x="330" y="105" width="205" height="104" rx="8" class="core"/>
+  <text x="432" y="139" text-anchor="middle" class="label">PING network</text>
+  <circle cx="399" cy="169" r="20" fill="#fff" stroke="#627f92" stroke-width="1.5"/><text x="399" y="175" text-anchor="middle" class="label">E</text>
+  <circle cx="467" cy="169" r="20" fill="#fff" stroke="#627f92" stroke-width="1.5"/><text x="467" y="175" text-anchor="middle" class="label">I</text>
+  <path d="M419 162H445" class="arrow" marker-end="url(#arrow)"/><path d="M447 180H421" class="arrow" marker-end="url(#arrow)"/>
+
+  <path d="M535 157H613" class="arrow" marker-end="url(#arrow)"/>
+  <rect x="617" y="105" width="150" height="104" rx="8" class="card"/>
+  <g stroke="#526f82" stroke-width="2"><line x1="646" y1="174" x2="646" y2="137"/><line x1="670" y1="174" x2="670" y2="151"/><line x1="696" y1="174" x2="696" y2="127"/><line x1="723" y1="174" x2="723" y2="144"/></g>
+  <text x="692" y="193" text-anchor="middle" class="small">output spikes</text>
+
+  <path d="M767 157H845" class="arrow" marker-end="url(#arrow)"/>
+  <rect x="849" y="105" width="130" height="104" rx="8" class="card"/>
+  <g fill="#708b9c"><rect x="875" y="154" width="12" height="23"/><rect x="895" y="137" width="12" height="40"/><rect x="915" y="146" width="12" height="31"/><rect x="935" y="121" width="12" height="56"/></g>
+  <text x="914" y="193" text-anchor="middle" class="small">class counts</text>
+
+  <path d="M979 157H1045" class="arrow" marker-end="url(#arrow)"/>
+  <rect x="1049" y="121" width="90" height="72" rx="8" class="core"/>
+  <text x="1094" y="150" text-anchor="middle" class="tiny">prediction</text>
+  <text x="1094" y="177" text-anchor="middle" class="label">4</text>
+
+  <text x="70" y="269" class="label">At each digit boundary</text>
+  <line x1="410" y1="246" x2="410" y2="394" class="boundary"/><line x1="788" y1="246" x2="788" y2="394" class="boundary"/>
+  <text x="410" y="263" text-anchor="middle" class="tiny">boundary</text><text x="788" y="263" text-anchor="middle" class="tiny">boundary</text>
+
+  <text x="70" y="318" class="small">hidden PING state</text>
+  <path d="M218 312C275 286 332 338 390 312S505 286 562 312S677 338 734 312S849 286 906 312S1021 338 1138 312" class="continue"/>
+  <text x="1048" y="296" class="tiny">continues</text>
+
+  <text x="70" y="376" class="small">output state + counts</text>
+  <path d="M218 370H390M430 370H768M808 370H1138" class="reset"/>
+  <path d="M390 358L410 370L390 382M768 358L788 370L768 382" class="arrow" marker-end="url(#arrow)"/>
+  <text x="410" y="397" text-anchor="middle" class="tiny">reset</text><text x="788" y="397" text-anchor="middle" class="tiny">reset</text>
+</svg>
