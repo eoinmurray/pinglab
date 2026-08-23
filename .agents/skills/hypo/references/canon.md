@@ -1,4 +1,4 @@
-# Compare with Canon
+# Canon
 
 Compare the current formulation with the model's internal understanding of the
 established scientific canon. Include two or three remembered academic

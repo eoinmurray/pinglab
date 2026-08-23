@@ -1,6 +1,6 @@
 ---
 name: hypo
-description: Use only when the user explicitly invokes hypo or $hypo to branch, compare, ground, checkpoint, or freeze Pinglab's scientific search.
+description: Use only when the user explicitly invokes hypo or $hypo to request branches, canon, literature, repository evidence, a checkpoint, or a packet for Pinglab's scientific search.
 ---
 
 # Hypo
@@ -9,12 +9,12 @@ description: Use only when the user explicitly invokes hypo or $hypo to branch, 
 
 | Verb | Input noun | Output noun |
 | --- | --- | --- |
-| `hypo beam[X]` | `Seed`, `Formulation`, or `ResumableCheckpoint` | `BranchSet` |
-| `hypo compare` | `Formulation` | `CanonComparisonCapsules` |
-| `hypo ground web` | `Formulation` | `LiteratureEvidenceCapsules` |
-| `hypo ground local` | `Formulation` | `RepositoryEvidenceCapsules` |
-| `hypo checkpoint` | `OpenSearchTrajectory` | `ResumableCheckpoint` |
-| `hypo freeze` | `GroundedSearchTrajectory` or `ResumableCheckpoint` | `FrozenHypothesisPacket` |
+| `hypo branches[X]` | `Seed`, `Formulation`, or `HypoCheckpoint` | `HypoBranches` |
+| `hypo canon` | `Formulation` | `HypoCanon` |
+| `hypo literature` | `Formulation` | `HypoLiterature` |
+| `hypo repository` | `Formulation` | `HypoRepository` |
+| `hypo checkpoint` | `OpenSearchTrajectory` | `HypoCheckpoint` |
+| `hypo packet` | `GroundedSearchTrajectory` or `HypoCheckpoint` | `HypoPacket` |
 
 Noun definitions: [../../NOUNS.md](../../NOUNS.md).
 
@@ -23,14 +23,15 @@ exact-invocation rule apply.
 
 Use exactly one subcommand:
 
-- `hypo beam` or `hypo beamX` — read [references/beam.md](references/beam.md).
-- `hypo compare` — read [references/compare.md](references/compare.md).
-- `hypo ground web` — read [references/ground-web.md](references/ground-web.md).
-- `hypo ground local` — read
-  [references/ground-local.md](references/ground-local.md).
+- `hypo branches` or `hypo branchesX` — read
+  [references/branches.md](references/branches.md).
+- `hypo canon` — read [references/canon.md](references/canon.md).
+- `hypo literature` — read [references/literature.md](references/literature.md).
+- `hypo repository` — read
+  [references/repository.md](references/repository.md).
 - `hypo checkpoint` — read
   [references/checkpoint.md](references/checkpoint.md).
-- `hypo freeze` — read [references/freeze.md](references/freeze.md).
+- `hypo packet` — read [references/packet.md](references/packet.md).
 
 Bare `hypo` lists the subcommands without choosing one.
 

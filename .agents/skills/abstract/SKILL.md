@@ -9,7 +9,7 @@ description: Use only when the user explicitly invokes abstract or $abstract to 
 
 | Verb | Input noun | Output noun |
 | --- | --- | --- |
-| `abstract [short|medium|long]` | `ScientificRecord` | `ScientificAbstract` |
+| `abstract [short|medium|long]` | `ScientificRecord` | `PinglabAbstract` |
 
 Noun definitions: [../../NOUNS.md](../../NOUNS.md).
 

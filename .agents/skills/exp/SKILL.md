@@ -1,6 +1,6 @@
 ---
 name: exp
-description: Use only when the user explicitly invokes exp scope or $exp scope to formalize one unrun Pinglab scouting plan.
+description: Use only when the user explicitly invokes exp scout-plan or $exp scout-plan to formalize one unrun Pinglab scouting plan.
 ---
 
 # Exp
@@ -9,11 +9,11 @@ description: Use only when the user explicitly invokes exp scope or $exp scope t
 
 | Verb | Input noun | Output noun |
 | --- | --- | --- |
-| `exp scope` | `FrozenHypothesisPacket` | `ExpScoutPlan` |
+| `exp scout-plan` | `HypoPacket` | `ExpScoutPlan` |
 
 Noun definitions: [../../NOUNS.md](../../NOUNS.md).
 
-Command grammar: `exp scope`. The project-wide optional `$` alias and
+Command grammar: `exp scout-plan`. The project-wide optional `$` alias and
 exact-invocation rule apply.
 
 Read [references/drafts.md](references/drafts.md), then convert the frozen
@@ -21,4 +21,4 @@ hypothesis into a formal, self-contained unrun experiment plan. Return the plan
 in the response. Do not claim that it has been persisted,
 implemented, or run.
 
-Bare `exp` explains that `scope` is its only subcommand.
+Bare `exp` explains that `scout-plan` is its only subcommand.

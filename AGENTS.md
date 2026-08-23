@@ -30,21 +30,21 @@ each skill is the canonical source for its verb signatures and procedures.
 | Command | Handler |
 | --- | --- |
 | `abstract [short\|medium\|long]` | `.agents/skills/abstract/SKILL.md` |
-| `hypo beam` or `hypo beamX` | `.agents/skills/hypo/SKILL.md` |
-| `hypo compare` | `.agents/skills/hypo/SKILL.md` |
-| `hypo ground web` | `.agents/skills/hypo/SKILL.md` |
-| `hypo ground local` | `.agents/skills/hypo/SKILL.md` |
+| `hypo branches` or `hypo branchesX` | `.agents/skills/hypo/SKILL.md` |
+| `hypo canon` | `.agents/skills/hypo/SKILL.md` |
+| `hypo literature` | `.agents/skills/hypo/SKILL.md` |
+| `hypo repository` | `.agents/skills/hypo/SKILL.md` |
 | `hypo checkpoint` | `.agents/skills/hypo/SKILL.md` |
-| `hypo freeze` | `.agents/skills/hypo/SKILL.md` |
-| `pinglab help` | `.agents/skills/pinglab/SKILL.md` |
-| `exp scope` | `.agents/skills/exp/SKILL.md` |
-| `publish check` | `.agents/skills/publish/SKILL.md` |
-| `publish build` | `.agents/skills/publish/SKILL.md` |
+| `hypo packet` | `.agents/skills/hypo/SKILL.md` |
+| `pinglab lexicon` | `.agents/skills/pinglab/SKILL.md` |
+| `exp scout-plan` | `.agents/skills/exp/SKILL.md` |
+| `publish readiness` | `.agents/skills/publish/SKILL.md` |
+| `publish bundle` | `.agents/skills/publish/SKILL.md` |
 
 Arguments are mandatory where shown. Optional arguments appear in brackets;
-`abstract` defaults to `medium`, and `hypo beam` defaults to three branches.
+`abstract` defaults to `medium`, and `hypo branches` defaults to three branches.
 Every documented project command accepts an optional leading `$`; for example,
-`hypo ground web` and `$hypo ground web` are equivalent. Bare command-family
+`hypo literature` and `$hypo literature` are equivalent. Bare command-family
 nouns explain their subcommands.
 
 ## Demolab boundary

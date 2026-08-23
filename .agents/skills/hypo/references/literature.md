@@ -1,4 +1,4 @@
-# Ground Web
+# Literature
 
 Identify the claims whose truth would materially change the scientific
 direction, then verify them using current web literature. Construct searches
