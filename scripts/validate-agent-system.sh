@@ -32,8 +32,8 @@ grep -Fq 'Project skills are opt-in command handlers' "$repo_dir/AGENTS.md" || {
   exit 1
 }
 
-if grep -Fq '| Command | Input artifact | Output artifact |' "$repo_dir/AGENTS.md"; then
-  printf 'Operator signatures must live in skills, not AGENTS.md\n' >&2
+if grep -Fq '| Command | Input noun | Output noun |' "$repo_dir/AGENTS.md"; then
+  printf 'Verb signatures must live in skills, not AGENTS.md\n' >&2
   exit 1
 fi
 
@@ -52,23 +52,23 @@ fi
 
 ruby -e '
   root = ARGV.fetch(0)
-  registry = File.join(root, ".agents", "ARTIFACTS.md")
-  abort "Missing artifact registry: #{registry}" unless File.file?(registry)
-  artifacts = File.read(registry).scan(/^## `([^`]+)`$/).flatten
-  abort "No artifacts declared: #{registry}" if artifacts.empty?
+  registry = File.join(root, ".agents", "NOUNS.md")
+  abort "Missing noun registry: #{registry}" unless File.file?(registry)
+  nouns = File.read(registry).scan(/^## `([^`]+)`$/).flatten
+  abort "No nouns declared: #{registry}" if nouns.empty?
 
   Dir[File.join(root, ".agents", "skills", "*", "SKILL.md")].sort.each do |file|
     text = File.read(file)
     signature = text[/^## Signature\n(.*?)(?=^## |\z)/m, 1]
     abort "Missing signature: #{file}" unless signature
-    abort "Malformed signature table: #{file}" unless signature.include?("| Operator | Input artifact | Output artifact |")
+    abort "Malformed signature table: #{file}" unless signature.include?("| Verb | Input noun | Output noun |")
     rows = signature.lines.grep(/^\| `[^`]+` \|/)
     abort "Empty signature: #{file}" if rows.empty?
     rows.each do |row|
       columns = row.split("|").map(&:strip)
       [columns.fetch(2), columns.fetch(3)].each do |column|
-        column.scan(/`([^`]+)`/).flatten.each do |artifact|
-          abort "Unknown artifact #{artifact}: #{file}" unless artifacts.include?(artifact)
+        column.scan(/`([^`]+)`/).flatten.each do |noun|
+          abort "Unknown noun #{noun}: #{file}" unless nouns.include?(noun)
         end
       end
     end

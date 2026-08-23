@@ -7,7 +7,7 @@ description: Use only when the user explicitly invokes hypo or $hypo to branch, 
 
 ## Signature
 
-| Operator | Input artifact | Output artifact |
+| Verb | Input noun | Output noun |
 | --- | --- | --- |
 | `hypo beam[X]` | `Seed`, `Formulation`, or `ResumableCheckpoint` | `BranchSet` |
 | `hypo compare` | `Formulation` | `CanonComparisonCapsules` |
@@ -16,7 +16,7 @@ description: Use only when the user explicitly invokes hypo or $hypo to branch, 
 | `hypo checkpoint` | `OpenSearchTrajectory` | `ResumableCheckpoint` |
 | `hypo freeze` | `GroundedSearchTrajectory` or `ResumableCheckpoint` | `FrozenHypothesisPacket` |
 
-Artifact definitions: [../../ARTIFACTS.md](../../ARTIFACTS.md).
+Noun definitions: [../../NOUNS.md](../../NOUNS.md).
 
 Command grammar: `hypo SUBCOMMAND`. The project-wide optional `$` alias and
 exact-invocation rule apply.

@@ -22,11 +22,10 @@ without loading the project skill.
 
 ## Pinglab lexicon
 
-The Lexicon contains operators, conventionally expressed as verbs. Each
-operator consumes and produces primitive artifacts. These types are
-prose-defined and text-serialized as Markdown rather than formally
-schema-validated. `.agents/ARTIFACTS.md` is the canonical type registry; each
-skill is the canonical source for its operator signatures and procedures.
+The Lexicon contains verbs. Each verb consumes and produces primitive nouns.
+These types are prose-defined and text-serialized as Markdown rather than
+formally schema-validated. `.agents/NOUNS.md` is the canonical type registry;
+each skill is the canonical source for its verb signatures and procedures.
 
 | Command | Handler |
 | --- | --- |

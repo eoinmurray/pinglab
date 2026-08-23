@@ -1,6 +1,6 @@
 # Experiment formats
 
-Use one shared experiment contract across the four artifact types. Do not
+Use one shared experiment contract across the four noun types. Do not
 duplicate these fields between plans and their executed records:
 
 - identity and scope;
@@ -12,7 +12,7 @@ The lifecycle is:
 
 `ExpScoutPlan` -> `ExpScout` -> `ExpStudyPlan` -> `ExpStudy`.
 
-`Plan` always means prospective. A paired non-`Plan` artifact always means an
+`Plan` always means prospective. A paired non-`Plan` noun always means an
 executed record.
 
 ## `ExpScoutPlan`
