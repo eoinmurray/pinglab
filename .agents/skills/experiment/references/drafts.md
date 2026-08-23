@@ -59,6 +59,15 @@ links to the investigation unit, protocol section, generating code, and source
 data. The schematic and empty result slot form an implementation scaffold; the
 measured mirror does not exist until it is generated from executed evidence.
 
+Use blue-grey for conceptual mechanisms, designs, interventions, and
+schematics, and red-black for measured observations, comparisons, and
+experimental plots. This is the default epistemic colour grammar, not a fixed
+palette: colours communicate whether a visual is prospective explanation or
+executed evidence. A scientific semantic, accessibility need, or established
+figure convention may override the default, but the plan must document the new
+mapping and keep schematic and measured roles visibly distinct. Never style an
+unexecuted or conceptual curve as red-black measured evidence.
+
 Write expected patterns conditionally. The plan contains no observed results,
 and neither existing context nor a schematic may be presented as execution
 evidence.

@@ -88,6 +88,9 @@ variables, colours, and visual grammar, and links to its investigation unit,
 protocol section, generating code, source data, and interpretive caption. It is
 specified by an `ExpScoutPlan`, begins during implementation, and becomes
 evidence only when its measured mirrors are completed from executed results.
+Its default epistemic colour grammar uses blue-grey for conceptual or
+prospective schematics and red-black for measured evidence; documented
+overrides must preserve that distinction.
 
 ## `ExpScout`
 
