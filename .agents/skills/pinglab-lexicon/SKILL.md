@@ -296,13 +296,12 @@ red-black measured evidence.
 
 ## `ExpScout`
 
-An executed scouting mission containing its frozen `ExpScoutPlan`,
-implementation and provenance, actual configuration and deviations,
-provisional observations, uncertainty, and a stop, revise, or escalate decision.
-It may include a completed `ExpVisualSet`; its evidence is explicitly
-exploratory rather than durable.
+An executed scouting mission formed from its frozen `ExpScoutPlan` plus an
+execution overlay. The plan remains the authoritative statement of identity,
+question, hypothesis, methods, controls, measurements, and decision rules; do
+not restate or reorganize those fields in the overlay.
 
-Freeze and preserve the `ExpScoutPlan`, then add:
+The execution overlay adds:
 
 - run provenance and completion status;
 - actual configuration and deviations from plan;
@@ -310,26 +309,31 @@ Freeze and preserve the `ExpScoutPlan`, then add:
 - interpretation against the plan's decision gates;
 - a stop, revise, or escalate decision.
 
-Use this canonical publication anatomy:
+For each planned investigation, preserve its expectations and attach the actual
+output or explicit failed, incomplete, or not-run status. Never rewrite a
+planned expectation as an observation. The overlay may include a completed
+`ExpVisualSet`; all evidence remains exploratory rather than durable.
+
+An `ExpScout` may use this optional publication rendering. It does not define
+additional noun fields or replace the frozen plan:
 
 1. **Abstract.** State the question, scout design, highest-level observation,
    and disposition without procedural detail.
-2. **Shared.** Record the common scientific frame, activity or inputs,
-   controls, decision gate, budget, provenance, deviations, and limitations
-   once rather than repeating them inside investigations.
+2. **Shared.** Summarize the common scientific frame, activity or inputs,
+   controls, decision gate, and budget by reference to the frozen plan, then
+   record execution provenance, deviations, and limitations once.
 3. **Investigations.** List investigations progressively. Each investigation
-   has a numbered descriptive header, a relevance paragraph, the expected
-   pattern or discriminating outcome, its `ExpVisualSet`, and a high-level
-   discussion of what was observed. Keep numerical and procedural ramble out
-   of the discussion. Use one investigation per plotted rule or aggregate
-   diagnostic: an investigation contains exactly one `ExpVisualSet` plot, and
-   distinct rules must not be bundled merely because they belong to the same
-   conceptual family. Shared setup schematics may remain in **Shared** because
-   they are not evidence plots.
-4. **Methods.** List methods progressively. Each method has a numbered
-   descriptive header, the mathematical or algorithmic steps involved, its
-   concrete output, and an explicit link to the investigation that consumes
-   that output.
+   has a numbered descriptive header and relevance paragraph, references its
+   frozen expected pattern or discriminating outcome, presents its
+   `ExpVisualSet` when present, and discusses what was observed at a high level.
+   Keep numerical and procedural ramble out of the discussion. When visual sets
+   are used, assign one investigation per plotted rule or aggregate diagnostic
+   and exactly one `ExpVisualSet` plot per investigation; do not bundle distinct
+   rules merely because they belong to the same conceptual family. Shared setup
+   schematics may remain in **Shared** because they are not evidence plots.
+4. **Methods.** Give each method a numbered descriptive header, reference its
+   frozen definition, and record its concrete outputs and deviations, linking
+   it to the investigation that consumes it.
 5. **Conclusion** when the scout benefits from a consolidated interpretation
    or disposition.
 6. **References** when external sources are used.
@@ -341,10 +345,8 @@ captions, equations, and inline structural labels such as `Relevance` and
 sections are omitted rather than emitted empty; retain the canonical section
 number when one is present.
 
-If the plan requested an `ExpVisualSet`, attach its completed measured mirrors
-with code and data provenance. Preserve incomplete and failed result slots
-rather than silently omitting them. A scout without an `ExpVisualSet` remains
-valid.
+If the plan requested an `ExpVisualSet`, attach completed measured mirrors with
+code and data provenance. A scout without an `ExpVisualSet` remains valid.
 
 Its evidence remains exploratory: it may motivate a new study plan but may not
 be promoted or relabelled as durable evidence. The optional composition is
