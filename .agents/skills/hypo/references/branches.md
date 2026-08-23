@@ -1,6 +1,6 @@
-# Beam
+# Branches
 
-Use `hypo beam` for three branches. In `hypo beamX`, `X` must be a practical
+Use `hypo branches` for three branches. In `hypo branchesX`, `X` must be a practical
 positive integer. Reject zero, negative, ambiguous, or unreasonably large values.
 
 Beam only at the current consequential uncertainty. Generate exactly the
@@ -10,4 +10,4 @@ observation that would most efficiently distinguish it from the others.
 
 Preserve viable minority hypotheses instead of forcing consensus. End with a
 stable numbered set and the shared review hook. After selection, return to
-ordinary `k=1` work unless the user explicitly invokes another beam.
+ordinary `k=1` work unless the user explicitly requests another branch set.

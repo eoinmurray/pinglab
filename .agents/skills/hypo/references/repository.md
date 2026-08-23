@@ -1,4 +1,4 @@
-# Ground Local
+# Repository
 
 Ground the current formulation using existing Pinglab repository evidence.
 Inspect relevant code, model definitions, writings, compact artifacts, recorded

@@ -1,4 +1,4 @@
-# Freeze
+# Packet
 
 Freeze only the best currently grounded formulation. Do not conceal unresolved
 uncertainty or reopen broad ideation. If an essential claim remains ungrounded,
