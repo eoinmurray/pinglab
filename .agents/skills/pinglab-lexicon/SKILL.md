@@ -1,6 +1,6 @@
 ---
 name: pinglab-lexicon
-description: Interpret, construct, transform, review, or serialize Pinglab noun types whenever a prompt invokes ScientificRecord, PinglabAbstract, Seed, Formulation, HypoBranches, HypoCanon, HypoLiterature, HypoRepository, OpenSearchTrajectory, HypoCheckpoint, GroundedSearchTrajectory, HypoPacket, ExpScoutPlan, ExpPlanAbstract, ExpSharedPlan, ExpInvestigationPlan, ExpInvestigationIdentity, ExpInvestigationIntroduction, ExpExpectedPatterns, ExpVisualSet, ExpDesignSchematic, ExpMeasuredResultSlot, ExpMethodsPlan, ExpPlannedSynthesis, ExpConclusionSlot, ExpReferences, ExpAppendices, ExpScout, ScoutExecution, ExpScoutSummary, ExpSharedExecution, ExpInvestigationExecution, ExpMeasuredResult, ExpObservedPatterns, ExpMethodsExecuted, ExpConclusion, ExpStudyPlan, StudyExecution, ExpStudy, or ScientificCollectionState in any case, spacing, joining, or optional dollar-prefixed form.
+description: Interpret, construct, transform, review, or serialize Pinglab noun types whenever a prompt invokes ScientificRecord, PinglabAbstract, Seed, Formulation, HypoBranches, HypoCanon, HypoLiterature, HypoRepository, OpenSearchTrajectory, HypoCheckpoint, GroundedSearchTrajectory, HypoPacket, ExpScoutPlan, ExpPlanAbstract, ExpSharedPlan, ExpInvestigationPlan, ExpInvestigationIdentity, ExpInvestigationIntroduction, ExpExpectedPatterns, ExpVisualSet, ExpDesignSchematic, ExpMeasuredResultSlot, ExpMethodsPlan, ExpConclusionSlot, ExpReferences, ExpAppendices, ExpScout, ScoutExecution, ExpScoutSummary, ExpSharedExecution, ExpInvestigationExecution, ExpMeasuredResult, ExpObservedPatterns, ExpMethodsExecuted, ExpConclusion, ExpStudyPlan, StudyExecution, ExpStudy, or ScientificCollectionState in any case, spacing, joining, or optional dollar-prefixed form.
 ---
 
 # Pinglab noun registry
@@ -238,7 +238,6 @@ ExpScout
 │   ├── ExpSharedPlan
 │   ├── ExpInvestigationPlan[]
 │   ├── ExpMethodsPlan
-│   ├── ExpPlannedSynthesis
 │   ├── ExpConclusionSlot
 │   ├── ExpReferences?
 │   └── ExpAppendices?
@@ -270,7 +269,6 @@ ExpStudy
 │   ├── ExpSharedPlan
 │   ├── ExpInvestigationPlan[]
 │   ├── ExpMethodsPlan
-│   ├── ExpPlannedSynthesis
 │   ├── ExpConclusionSlot
 │   ├── ExpReferences?
 │   └── ExpAppendices?
@@ -359,12 +357,6 @@ sampling, execution sequence, analysis definitions, and scientifically
 meaningful reproducibility requirements. Number its subsections so
 investigations can reference them without duplicating procedural detail.
 
-## `ExpPlannedSynthesis`
-
-The prospective cross-investigation interpretation contract. It states how
-joint results distinguish the mechanism from rivals, which contradictions
-would be informative, and the stopping rules and completion criteria.
-
 ## `ExpConclusionSlot`
 
 A reserved publication position for the executed conclusion. It contains no
@@ -394,10 +386,9 @@ Use this canonical reading order:
 2. `ExpSharedPlan`
 3. `ExpInvestigationPlan[]`
 4. `ExpMethodsPlan`
-5. `ExpPlannedSynthesis`
-6. `ExpConclusionSlot`
-7. optional `ExpReferences`
-8. optional `ExpAppendices`
+5. `ExpConclusionSlot`
+6. optional `ExpReferences`
+7. optional `ExpAppendices`
 
 Keep a network or experimental-design diagram beside the investigation unit it
 explains. Clearly label conceptual curves as design schematics rather than data.
@@ -508,8 +499,8 @@ remains valid and may not be promoted or relabelled as durable evidence.
 
 A prospective durable-study contract containing an `ExpPlanAbstract`,
 `ExpSharedPlan`, one or more `ExpInvestigationPlan` entries, an
-`ExpMethodsPlan`, `ExpPlannedSynthesis`, `ExpConclusionSlot`, and optional
-`ExpReferences` and `ExpAppendices`.
+`ExpMethodsPlan`, `ExpConclusionSlot`, and optional `ExpReferences` and
+`ExpAppendices`.
 
 It requires stronger estimands, sampling and seeds, controls, uncertainty,
 falsifiers, rival discrimination, stopping rules, and robustness than a scout
