@@ -523,6 +523,17 @@ should establish feasibility, search broadly for useful structure, reject dead
 branches, and define gates for stopping, revision, or escalation. A scout plan
 does not promise durable inference.
 
+Every investigation must resolve a scientific uncertainty through a
+scientifically interpretable measurement. Treat implementation capabilities,
+data extraction, artifact generation, and publication delivery as declared
+dependencies rather than experimental uncertainties. Move their operational
+handoff to `ScientificCollectionState`, an implementation specification, or
+native protocol artifacts. Do not promote a prerequisite already established
+by repository evidence into an investigation merely to verify that execution
+is possible. Scientific datasets, measurement definitions, sampling, controls,
+and reproducibility parameters remain part of the plan when they affect the
+meaning or validity of its evidence.
+
 ## `ExpVisualSet`
 
 An optional visual evidence scaffold containing an `ExpDesignSchematic` and an
