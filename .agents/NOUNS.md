@@ -41,6 +41,35 @@ importance. Each paragraph must advance the account. Define unfamiliar
 abbreviations on first use. Avoid exact numbers unless they materially improve
 the summary and satisfy the evidence rule.
 
+## Hypothesis-search family
+
+Hypothesis-search nouns preserve the current question and search coordinates,
+the leading formulation and serious rivals, user decisions versus model
+proposals, observed evidence versus inference, branch status and rejection
+reasons, and material uncertainty. They do not create synthetic consensus merely
+to advance the workflow.
+
+Grounding results use evidence capsules with this structure:
+
+```text
+Claim:
+Evidence:
+Provenance:
+Verification: canon-comparison / verified-literature / observed-repository
+Limitations:
+Consequence:
+```
+
+When user judgment is required, the artifact ends with this review hook:
+
+```text
+Keep:
+Reject:
+Add:
+Uncertain:
+Suggested next operation:
+```
+
 ## `Seed`
 
 A short scientific intuition, question, anomaly, or proposed mechanism.
@@ -54,20 +83,45 @@ A current candidate framing with its mechanism, scope, claims, and uncertainty.
 A numbered collection of distinct candidate continuations with stable IDs,
 potential value, liabilities, and distinguishing observations.
 
+It contains exactly the requested number of genuinely distinct continuations.
+Each has a stable identifier such as `B1`, `B2`, or `B3`, its central move,
+potential value, main liability, and the observation that would most efficiently
+distinguish it from the others. Preserve viable minority hypotheses rather than
+forcing consensus. End with a stable numbered set and the shared review hook.
+
 ## `HypoCanon`
 
 Evidence capsules locating a formulation relative to remembered scientific
 canon, with every reference-dependent claim marked unverified.
+
+Separate canonical agreement, canonical tension, novel synthesis, and the
+claims most worth live verification. Mark every remembered reference and
+reference-dependent claim as **remembered and unverified**. This artifact
+locates a formulation relative to established thinking; it does not establish
+that the remembered canon is current or correct. End with the shared review
+hook.
 
 ## `HypoLiterature`
 
 Evidence capsules containing verified current literature, provenance,
 conflicting evidence, limitations, and consequences for the formulation.
 
+Separate verified evidence, conflicting evidence, inference beyond the sources,
+and unresolved claims. Cite sources close to the claims they support. Do not
+substitute citation count for relevance or convert absence of evidence into
+evidence of absence. End with the shared review hook.
+
 ## `HypoRepository`
 
 Evidence capsules derived from existing Pinglab code, writings, artifacts, and
 recorded runs without executing new scientific work.
+
+State what repository evidence establishes, what is merely planned or inferred,
+what lies outside the model's validity, and what observation would distinguish
+the leading formulation from its strongest rival. Give exact file or run
+provenance, verification state, limitations, and consequence. Read computed
+values only from the run or artifact that produced them. End with the shared
+review hook.
 
 ## `OpenSearchTrajectory`
 
@@ -79,6 +133,14 @@ paths, and unresolved uncertainty.
 A standalone snapshot preserving enough of an open search trajectory for a new
 agent or later conversation to resume it faithfully.
 
+Preserve the current question and search coordinates, stable branch IDs and
+status, decisions and reasons, evidence capsules, assumptions, contradictions,
+uncertainty, the leading formulation, the strongest rival, and the next
+consequential choice or grounding action. Compress repetition and discarded
+wording, not scientific dissent or negative results. Distinguish user decisions
+from model proposals and evidence from inference. Do not manufacture closure.
+Finish with the shared review hook.
+
 ## `GroundedSearchTrajectory`
 
 An open search trajectory whose load-bearing formulation has been compared or
@@ -89,6 +151,28 @@ grounded sufficiently for a commitment decision.
 A context-free execution contract containing objective, mechanism, rivals,
 evidence, predictions, experiment, estimand, controls, falsifiers, limits,
 provenance, and completion criteria.
+
+It contains:
+
+1. objective, significance, precise hypothesis, and mechanism;
+2. strongest plausible rivals;
+3. an evidence ledger using accumulated evidence capsules;
+4. discriminating qualitative and quantitative predictions;
+5. a definitive experiment, estimand, and decision rule;
+6. positive, negative, procedural, and numerical controls;
+7. falsifiers and inconclusive outcomes;
+8. operational definitions, assumptions, scope limits, and uncertainty;
+9. grounded repository entry points;
+10. resource limits and completion criteria;
+11. the exact recommended next command;
+12. provenance distinguishing user decisions, model proposals, literature, and
+    repository evidence.
+
+The experiment must be capable of changing the conclusion and state what result
+would force a return to branching. A context-free agent must be able to identify
+the claim, strongest rival, next action, decision rule, and completion
+condition. Preserve unresolved uncertainty rather than presenting an
+insufficiently grounded packet as definitive.
 
 ## `PinglabLexiconContext`
 
