@@ -108,6 +108,44 @@ Revise in this order:
 The evidenced project history: aims, writings, compact artifacts, recorded
 runs, demonstrated findings, negative results, and current direction.
 
+## Scientific lifecycle
+
+Use this loop as lightweight orientation for scientific work:
+
+1. Capture a question, intuition, anomaly, or prior result as a `Seed`.
+2. Develop `Formulation` candidates and branch only at consequential
+   uncertainty.
+3. Ground the candidates against remembered canon, verified literature, and
+   observed repository evidence as needed.
+4. Ask the user to select, reject, combine, or revise the leading formulation
+   and its strongest rival.
+5. Construct a `HypoPacket` when the formulation is grounded enough to define
+   a consequential experiment.
+6. Ask the user to approve the experimental contract and decision rule.
+7. Draft an `ExpScoutPlan` or `ExpStudyPlan`; ask the user to freeze the plan
+   before execution and to authorize any paid compute explicitly.
+8. Execute the authorized bounded plan agentically, validate its outputs, and
+   preserve its provenance.
+9. Compare observations with the frozen expected patterns and separate those
+   observations from interpretation.
+10. Ask the user to choose the stop, revise, repeat, or escalate disposition.
+11. Update the `ScientificRecord` and `ScientificCollectionState`; obtain user
+    approval for scientific claims, promotion, or publication.
+12. Turn unresolved uncertainty, failures, or new findings into the next
+    `Seed` when the user considers them worth pursuing.
+
+Encourage use of the loop lightly. At a natural transition, briefly identify
+the current step and suggest at most one next useful operation or human review
+gate. Do not recite the whole loop unless asked, require named artifacts for
+trivial exploration, or turn every transition into a confirmation ceremony.
+Work may enter, leave, repeat, or move backward through the loop as the evidence
+requires.
+
+Between review gates, continue agentically within the frozen scope. Return to
+human-agent conversation when scientific direction or claim acceptance needs
+judgment, or when execution needs new authority, expanded scope, paid compute,
+destructive action, promotion, or publication. Never treat silence as approval.
+
 ## `Abstract`
 
 A concise, connected account of a scientific work's question, approach,
