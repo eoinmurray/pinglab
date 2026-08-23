@@ -1,99 +1,85 @@
 #let meta = (
   title: "Can a PING cycle be seen as a running engine?",
   date: "2026-08-23",
-  description: "Tests whether recurrent conductances form a useful two-variable portrait of a stochastic PING cycle and where that reduction fails.",
+  description: "Tests whether recurrent excitatory and inhibitory conductances trace a coherent simulated PING cycle.",
   collection: "snnlang",
-  status: "draft",
+  status: "complete",
   order: 11,
 )
+
+#let r = json("/artifacts/data/exp097/numbers.json")
+#let result = r.results
+#let loop-video(src) = context {
+  if target() == "html" {
+    html.elem("video", attrs: (src: src, controls: "", loop: "", playsinline: "", style: "max-width:100%;width:100%"))[]
+  } else {
+    text(size: 9pt, style: "italic", fill: gray)[[Video — view the web edition to play.]]
+  }
+}
 
 #let body = [
   == Abstract
 
-  Pyramidal–interneuron gamma (PING) is often described as alternating excitatory and inhibitory volleys. That description hides the local state changes that make the rhythm work. This scout asks whether the recurrent excitatory and inhibitory conductances form a useful two-variable portrait of the cycle, how stochastic structure changes from individual cells to population means, and what information is lost when membrane voltage is omitted. A synchronized mechanical animation will expose the measured trajectory, the spikes that produce each conductance increment, and the voltage changes that lead to the next volley.
+  Pyramidal–interneuron gamma (PING) is often described as alternating excitatory and inhibitory volleys. This scout asks whether the two recurrent conductances form a coherent state portrait of that cycle. Across five simulated trials, the conductance pair repeatedly traced an oriented loop at gamma frequency. The result supports an engine-like visualization of this simulated operating point without claiming that two conductances fully describe the network.
 
-  The aim is to identify the smallest honest state portrait of this simulated PING mechanism, not to establish that the same reduction holds for biological gamma rhythms.
+  The engine picture shows the rhythm clearly, but it does not contain the whole machine.
 
-  == Shared design
+  == The proposed engine
 
-  Nothing below has been run. Use the established 80-E, 20-I conductance-based PING network at its active gamma operating point. Freeze the network, timestep, synaptic parameters, and homogeneous Poisson drive. Observe five paired 500 ms trials and exclude the first 100 ms as settling time.
+  The frozen scout used one 80-excitatory, 20-inhibitory conductance-based PING network at its active gamma operating point. Five predeclared Poisson input realizations drove the same network. Each simulated trial lasted 500 ms, and the first 100 ms was excluded as settling time.
 
-  Define the two main displayed state variables as
+  The engine has two main displayed state variables:
 
   $ g_E(t) = "mean conductance of the recurrent E→I projection", $
 
   $ g_I(t) = "mean conductance of the recurrent I→E projection". $
 
-  These are separate target-local conductances. Neither is transferred into the other. E and I spike arrivals trigger conductance increments; each conductance then decays according to its own synaptic dynamics. Mean E and I membrane voltage and population spike count provide causal context but do not replace the two-variable state.
+  These are separate target-local conductances, not a signed quantity moving between two reservoirs. E spikes increase excitatory conductance onto I cells. I spikes increase inhibitory conductance onto E cells. Each conductance then decays locally. Their ordered rise and fall produces the engine-like cycle.
+
+  == 1. Does the conductance pair form a cycle?
+
+  A useful engine portrait should return through the same joint states in the same order. The frozen analysis aligned every complete post-transient cycle to its E-population volley, then traced $(g_E, g_I)$ through time. It measured trajectory orientation, enclosed area, cycle duration, and E-to-I volley lag.
+
+  *Expected patterns.* A coherent PING cycle should raise $g_E$ after an E volley, recruit an I volley, and then raise $g_I$ while E activity is suppressed. Repeated cycles should traverse a bounded loop in one direction. A collapsed line, inconsistent orientation, or broad cloud would weaken the two-conductance account.
+
+  *Planned visual evidence.* The trial nearest the median rhythm frequency supplies five complete cycles. Equal-sized conductance and voltage instruments, simulated traces, volley marks, and a moving phase-plane point share one clock. Screen positions are normalized, but the video reports biological time.
+
+  *Simulation result.* The five trials supplied #result.cycles_total complete cycles: #(result.cycles_per_trial.map(str).join(", ")) per trial. Every cycle moved #result.modal_orientation through the conductance plane. The median period was #calc.round(result.median_period_ms, digits: 1) ms, or #calc.round(result.median_frequency_hz, digits: 1) Hz. The median signed loop area was #calc.round(result.median_signed_area_uS2, digits: 3) $mu S^2$. The conductance pair therefore forms a coherent cycle at this operating point.
 
   #figure(
-    image(
-      "/artifacts/data/exp097/ping_engine_storyboard.svg",
-      width: 100%,
-      alt: "Design schematic with a mechanical E and I conductance engine, synchronized spike and voltage traces, a conductance phase portrait, and a comparison of two-variable and four-variable state descriptions.",
-    ),
+    loop-video("measured_engine.mp4"),
     caption: [
-      Design schematic, not data. The planned animation keeps four views synchronized: a mechanical cutaway driven by $g_E$ and $g_I$; spike and voltage traces that identify each trigger; a moving point in the $(g_E, g_I)$ plane; and a direct comparison between the two-conductance portrait and the fuller $(g_E, g_I, V_E, V_I)$ state. The measured animation will use the same layout but a distinct measured-evidence colour treatment.
+      Simulation result. Five continuous cycles from the representative simulated trial, looped in the web view. The top row groups the conductance family: pistons, time traces, and joint trajectory. The bottom row groups membrane voltage and activity: voltage pistons, voltage traces, and stochastic input with E and I population volleys. The footer separates biological time from playback rate.
     ],
   )
 
-  == 1. Do two recurrent conductances trace a coherent PING cycle?
+  == Executed methods
 
-  The first investigation tests whether the population means $g_E(t)$ and $g_I(t)$ produce a repeatable oriented trajectory rather than an unstructured cloud. For every complete post-transient cycle, align time to the E-population volley and trace the path through the $(g_E, g_I)$ plane. Measure trajectory orientation, enclosed area, cycle duration, E-to-I volley lag, and the phase of each conductance peak.
+  === 2.1 Simulation and sampling
 
-  Select the illustrative trial by a frozen rule: choose the trial whose post-transient rhythm frequency is closest to the five-trial median. Select four complete cycles beginning at its first complete E volley after the transient. The animation will show these cycles continuously, with measured biological time and a clearly stated playback slowdown.
+  + Simulate 80 excitatory and 20 inhibitory cells with 128 homogeneous Poisson input channels at 100 Hz per channel, a 0.1 ms timestep, and a 2 ms inhibitory decay.
+  + Hold the network realization fixed and use input seeds #(result.per_trial.map(row => str(row.seed)).join(", ")). Simulate 500 ms per trial and exclude the first 100 ms.
+  + Record E and I population spikes, membrane voltages, recurrent E-to-I AMPA conductance, and recurrent I-to-E GABA conductance at every timestep. This investigation analyzes the spikes and recurrent conductances.
 
-  *Expected patterns.* Under a coherent PING cycle, $g_E$ rises after the E volley, the I volley follows, and $g_I$ rises before E activity is suppressed. Repeated cycles should traverse the plane in the same direction with bounded variation in area and timing. A collapsed line, inconsistent orientation, or broad phase cloud would show that the two-conductance portrait is visually convenient but dynamically weak.
-
-  *Planned visual evidence.* A measured mechanical cycle paired with the $(g_E, g_I)$ trajectory, population spike ticks, and direct timing labels. The main motion uses physical conductance values rather than a generic activity scale.
-
-  == 2. Where does stochasticity live in the cycle?
-
-  The second investigation compares three resolutions of the same cycles: individual target-cell conductances, their distribution across cells, and the population mean. Measure the size and timing of discrete conductance increments, across-cell dispersion, cycle-to-cycle peak variation, and how much variance remains after population averaging.
-
-  The visual mapping will preserve this hierarchy. The main plungers show population means. A narrow moving distribution shows the cells beneath each mean. Spike-trigger indicators flash at presynaptic arrivals, making each local jump and subsequent decay visible. No pipe, shared reservoir, or moving fluid will connect the conductances.
-
-  *Expected patterns.* Individual-cell traces should show irregular spike-driven increments and exponential decay. Population averaging should reduce amplitude noise while preserving the ordered E-then-I rhythm. If averaging removes the discrete structure almost completely, the animation must show both levels rather than falsely making the mean look like a single synapse.
-
-  *Planned visual evidence.* One synchronized passage will move from individual kicks, through the across-cell distribution, to the population-scale engine. The schematic uses the prospective blue-grey grammar. Measured marks will use the registered measured-evidence grammar with separate E and I shape coding and direct labels.
-
-  == 3. What does the two-variable portrait leave out?
-
-  The third investigation tests the boundary of the two-conductance reduction. Compare cycle phase and next-volley prediction from $(g_E, g_I)$ against the fuller state $(g_E, g_I, V_E, V_I)$, where $V_E$ and $V_I$ are mean population membrane voltages. Use leave-one-cycle-out prediction within each trial and leave-one-trial-out prediction across trials. Report circular phase error and next-volley timing error rather than classification accuracy alone.
-
-  This comparison does not ask whether four variables reconstruct the complete network. It asks whether voltage contains cycle-relevant state that the conductance plane aliases. Refractory state, cell-to-cell dispersion, and synaptic history remain outside both reductions.
-
-  *Expected patterns.* If $(g_E, g_I)$ is sufficient for the visible cycle, adding mean voltage should give little improvement in phase or next-volley timing. A substantial improvement would show that the two-conductance engine is an explanatory projection, not a minimal dynamical state. Similar errors from both descriptions would leave omitted refractory or distributional state as the stronger limitation.
-
-  *Planned visual evidence.* The animation will pair the conductance-only engine with voltage needles and mark moments when identical or nearby conductance states lead to different subsequent motion. A small error comparison will state whether voltage materially improves phase and timing prediction.
-
-  == Methods
-
-  === 4.1 Frozen model and sampling
-
-  + Use 80 excitatory and 20 inhibitory cells with 128 homogeneous Poisson input channels at 100 Hz per channel, a 0.1 ms timestep, and a 2 ms inhibitory decay.
-  + Freeze one network realization and use five predeclared input realizations. Observe 500 ms per trial and exclude the first 100 ms.
-  + Measure population spikes, membrane voltages, recurrent E→I AMPA conductance, and recurrent I→E GABA conductance at the native timestep.
-
-  === 4.2 Operational definitions
+  === 2.2 Cycle measurements
 
   + Compute $g_E(t)$ from the recurrent E→I AMPA projection and $g_I(t)$ from the recurrent I→E GABA projection. Average over batch and target cells only after retaining the full per-cell traces.
-  + Compute population spike counts at the native timestep. Any display-rate envelope is descriptive and does not drive conductance motion.
-  + Detect E volleys with the registered population-count rhythm policy. Require each selected cycle to contain an E volley followed by an I volley.
-  + Normalize only screen position. Display the physical minimum, maximum, and units beside each mapped variable.
+  + Detect E volleys from the smoothed population spike count after the transient. Define a complete cycle between consecutive detected E volleys.
+  + Compute signed phase-plane area, orientation, period, and E-to-I volley lag from each complete $(g_E, g_I)$ path.
 
-  === 4.3 Analysis and visual mapping
+  === 2.3 Visual mapping
 
-  + Freeze cycle detection and trial selection before inspecting the final animation.
-  + Show measured values at their native temporal resolution. Permit downsampling only when it preserves extrema, spike events, and cycle boundaries.
-  + Keep E and I identity stable across pistons, traces, spikes, and the phase portrait. Pair colour with labels and shape.
-  + State biological time and playback slowdown together. Mark the animation as one simulated trial and distinguish population means from individual-cell values.
+  + Select the illustrative trial by the frozen median-frequency rule. Downsample five cycles to 300 display frames; retain native-resolution arrays for every analysis.
+  + Keep E and I identity stable across pistons, traces, spikes, and the phase portrait. State biological time and playback rate together.
 
-  === 4.4 Scientific decision gates and budget
+  === 2.4 Frozen interpretation gate
 
-  + *Stop* if complete cycles do not produce a consistently oriented conductance trajectory.
-  + *Revise the visual reduction* if population means hide the stochastic increments that generate them.
-  + *Retain the two-variable engine* if it preserves cycle phase and next-volley timing nearly as well as the four-variable comparison.
-  + *Label it an explanatory projection* if adding mean voltage materially reduces either error.
-  + Keep the scout to one frozen network, five short trials, and the three registered analyses. Its evidence remains specific to this simulated operating point.
+  + Stop the engine interpretation if complete cycles do not share a trajectory orientation.
+  + Restrict every conclusion to this network realization and operating point.
+
+  == Conclusion
+
+  The scout passes its coherence gate: all #result.cycles_total detected cycles formed an oriented conductance loop with a median period of #calc.round(result.median_period_ms, digits: 1) ms. The two recurrent conductances therefore support the running-engine visualization at this simulated operating point.
+
+  This bounded result does not establish that the conductance pair is a complete network state or that the same portrait generalizes across network realizations, parameters, or biological gamma rhythms.
 ]

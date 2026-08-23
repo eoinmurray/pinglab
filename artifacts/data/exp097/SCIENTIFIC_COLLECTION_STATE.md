@@ -4,36 +4,26 @@
 
 - Writing: `writings/exp097.typ`
 - Collection: `snnlang`
-- Status: draft `ExpScoutPlan`; not executed
-- Prospective schematic: `artifacts/data/exp097/ping_engine_storyboard.svg`
+- Status: `ExpScout`; execution complete
+- Scout execution: `r006`
+- Simulation results: `numbers.json`, `measured_cycle.svg`, `measured_engine.mp4`,
+  `measured_engine_poster.png`, `animation_state.json`
+- Simulation-result web animation: `ping_engine_state.js`, `ping_engine.js`, `ping_engine.css`
 
-## Established technical dependencies
+## Execution
 
-- SNNLANG graph execution with `recording="full"` already records population
-  voltages and per-projection conductances in addition to authored spike
-  observables. This is an execution prerequisite, not an investigation.
-- Demolab already supports HTML video output. Web delivery is an implementation
-  acceptance check, not scientific evidence and not an investigation.
-- Keep implementation local. Do not use paid compute.
+- Local execution used the frozen 80-E, 20-I network, network seed 83, input
+  seeds 8300--8304, 100 Hz/channel drive, 0.1 ms timestep, 2 ms inhibitory
+  decay, and five 500 ms trials with a 100 ms transient exclusion.
+- Full recordings preserve E/I spikes, E/I voltages, E-to-I AMPA conductance,
+  and I-to-E GABA conductance in the run scratch artifact.
+- The animation state contains five simulated cycles from the trial selected by
+  the frozen median-frequency rule. It is downsampled for display; analyses use
+  native-resolution recordings.
 
-## Execution handoff
+## Scientific disposition
 
-1. Add an exp097 runner that recreates the frozen exp084 active-gamma condition:
-   80 E cells, 20 I cells, 128 homogeneous Poisson input channels at 100 Hz,
-   `dt=0.1 ms`, `tau_GABA=2 ms`, network seed 83, five predeclared input seeds,
-   and 500 ms per trial.
-2. Request full recordings and preserve E/I spikes, E/I voltage,
-   E-to-I AMPA conductance, and I-to-E GABA conductance before aggregation.
-3. Implement the three frozen scientific analyses in `writings/exp097.typ`.
-4. Render the measured animation from a compact, versioned state artifact. Keep
-   biological time, playback slowdown, units, source keys, cycle boundaries,
-   trial selection, and checksums in provenance.
-5. Encode a looping H.264 MP4 with a static poster and transcript. Verify the
-   built Demolab page at mobile and desktop widths without editing `.demolab/`.
-
-## Publication blockers
-
-- No experiment runner or measured state artifact exists.
-- No measured animation, poster, transcript, or observed result exists.
-- The current SVG is a design schematic and must remain visibly labelled as
-  prospective until execution supplies measured evidence.
+- Revise: the conductance plane is coherent but mean voltage improves held-out
+  phase and next-volley prediction.
+- The scout is specific to one network realization and one operating point.
+- Promotion to `ExpStudyPlan` requires a new prospective plan and user review.

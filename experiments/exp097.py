@@ -1,0 +1,426 @@
+"""EXP097: scout the recurrent-conductance state portrait of a PING cycle."""
+
+from __future__ import annotations
+
+import json
+import shutil
+import sys
+import time
+from pathlib import Path
+
+import matplotlib.pyplot as plt
+from matplotlib import animation, patches
+import numpy as np
+import torch
+from scipy.ndimage import gaussian_filter1d
+from scipy.signal import find_peaks
+from scipy.spatial import cKDTree
+
+REPO = Path(__file__).resolve().parents[1]
+ASSETS = Path(__file__).resolve().parent / "assets" / "exp097"
+sys.path.insert(0, str(REPO))
+sys.path.insert(0, str(REPO / "tools" / "snn"))
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+
+from execution import ExecutionSpec, simulate  # noqa: E402
+from experiments import exp083, exp084  # noqa: E402
+from helpers import theme  # noqa: E402
+from helpers.cli import parse_meta  # noqa: E402
+from helpers.numbers import write_numbers  # noqa: E402
+from helpers.run_dirs import published_run  # noqa: E402
+from helpers.run_id import next_run_id  # noqa: E402
+
+SLUG = "exp097"
+DT_MS = 0.1
+T_MS = 500.0
+BURN_MS = 100.0
+TAU_GABA_MS = 2.0
+NETWORK_SEED = 83
+TRIAL_SEEDS = exp083.TRIAL_SEEDS
+INPUT_RATE_HZ = 100.0
+SCALE = {
+    "dt_ms": DT_MS,
+    "t_ms": T_MS,
+    "burn_ms": BURN_MS,
+    "n_input": exp083.N_INPUT,
+    "n_e": exp083.N_E,
+    "n_i": exp083.N_I,
+    "input_rate_hz": INPUT_RATE_HZ,
+    "tau_gaba_ms": TAU_GABA_MS,
+    "network_seed": NETWORK_SEED,
+    "trial_seeds": list(TRIAL_SEEDS),
+}
+
+
+def make_inputs() -> np.ndarray:
+    steps = round(T_MS / DT_MS)
+    probability = INPUT_RATE_HZ * DT_MS / 1_000.0
+    trials = []
+    for seed in TRIAL_SEEDS:
+        rng = np.random.default_rng(seed)
+        trials.append(rng.random((steps, exp083.N_INPUT), dtype=np.float32) < probability)
+    return np.stack(trials, axis=1).astype(np.uint8)
+
+
+def detect_cycles(e_spikes: np.ndarray) -> list[np.ndarray]:
+    burn = round(BURN_MS / DT_MS)
+    cycles = []
+    for trial in range(e_spikes.shape[1]):
+        count = e_spikes[:, trial].sum(axis=1)
+        smooth = gaussian_filter1d(count.astype(float), sigma=5.0)
+        peaks, _ = find_peaks(smooth, distance=round(12.0 / DT_MS), prominence=2.0)
+        peaks = peaks[peaks >= burn]
+        cycles.append(peaks)
+    return cycles
+
+
+def phase_series(peaks: np.ndarray, steps: int) -> tuple[np.ndarray, np.ndarray]:
+    phase = np.full(steps, np.nan)
+    next_ms = np.full(steps, np.nan)
+    for left, right in zip(peaks[:-1], peaks[1:]):
+        phase[left:right] = np.arange(right - left) / (right - left)
+        next_ms[left:right] = (right - np.arange(left, right)) * DT_MS
+    return phase, next_ms
+
+
+def circular_error(predicted: np.ndarray, actual: np.ndarray) -> np.ndarray:
+    delta = np.abs(predicted - actual)
+    return np.minimum(delta, 1.0 - delta)
+
+
+def held_out_errors(states: np.ndarray, cycles: list[np.ndarray]) -> dict:
+    phases = []
+    next_times = []
+    keep = []
+    stride = round(1.0 / DT_MS)
+    for trial, peaks in enumerate(cycles):
+        phase, next_ms = phase_series(peaks, states.shape[0])
+        valid = np.flatnonzero(np.isfinite(phase))[::stride]
+        phases.append(phase[valid])
+        next_times.append(next_ms[valid])
+        keep.append(valid)
+    errors = {"two_phase": [], "four_phase": [], "two_timing": [], "four_timing": []}
+    for held in range(states.shape[1]):
+        train_trials = [i for i in range(states.shape[1]) if i != held]
+        for dims, prefix in ((2, "two"), (4, "four")):
+            train_x = np.concatenate([states[keep[i], i, :dims] for i in train_trials])
+            train_phase = np.concatenate([phases[i] for i in train_trials])
+            train_next = np.concatenate([next_times[i] for i in train_trials])
+            mean = train_x.mean(axis=0)
+            scale = train_x.std(axis=0)
+            scale[scale == 0] = 1.0
+            tree = cKDTree((train_x - mean) / scale)
+            _, index = tree.query((states[keep[held], held, :dims] - mean) / scale)
+            errors[f"{prefix}_phase"].extend(circular_error(train_phase[index], phases[held]))
+            errors[f"{prefix}_timing"].extend(np.abs(train_next[index] - next_times[held]))
+    return {key: float(np.median(value)) for key, value in errors.items()}
+
+
+def analyse(recordings: dict[str, np.ndarray]) -> tuple[dict, dict]:
+    e = recordings["e_spikes"]
+    i = recordings["i_spikes"]
+    ge_cells = recordings["g_e_to_i"]
+    gi_cells = recordings["g_i_to_e"]
+    ge = ge_cells.mean(axis=2)
+    gi = gi_cells.mean(axis=2)
+    ve = recordings["v_e"].mean(axis=2)
+    vi = recordings["v_i"].mean(axis=2)
+    cycles = detect_cycles(e)
+
+    areas = []
+    orientations = []
+    periods = []
+    lags = []
+    per_trial = []
+    for trial, peaks in enumerate(cycles):
+        trial_areas = []
+        for left, right in zip(peaks[:-1], peaks[1:]):
+            x, y = ge[left:right, trial], gi[left:right, trial]
+            area = 0.5 * np.sum(x * np.roll(y, -1) - np.roll(x, -1) * y)
+            areas.append(float(area))
+            trial_areas.append(float(area))
+            orientations.append(int(np.sign(area)))
+            periods.append((right - left) * DT_MS)
+            e_peak = left + int(np.argmax(e[left:right, trial].sum(axis=1)))
+            i_peak = left + int(np.argmax(i[left:right, trial].sum(axis=1)))
+            lags.append((i_peak - e_peak) * DT_MS)
+        per_trial.append({"trial": trial, "seed": TRIAL_SEEDS[trial], "cycles": len(trial_areas), "median_period_ms": float(np.median(np.diff(peaks)) * DT_MS), "orientation": int(np.sign(np.median(trial_areas)))})
+
+    modal = 1 if orientations.count(1) >= orientations.count(-1) else -1
+    orientation_fraction = float(np.mean(np.asarray(orientations) == modal))
+    states = np.stack([ge, gi, ve, vi], axis=2)
+    prediction = held_out_errors(states, cycles)
+    burn = round(BURN_MS / DT_MS)
+    ge_post = ge_cells[burn:]
+    gi_post = gi_cells[burn:]
+    ge_residual_fraction = float(np.std(ge_post - ge_post.mean(axis=2, keepdims=True)) / np.std(ge_post))
+    gi_residual_fraction = float(np.std(gi_post - gi_post.mean(axis=2, keepdims=True)) / np.std(gi_post))
+
+    trial_frequency = [1_000.0 / row["median_period_ms"] for row in per_trial]
+    display_trial = int(np.argmin(np.abs(trial_frequency - np.median(trial_frequency))))
+    display_peaks = cycles[display_trial]
+    starts = display_peaks[:6]
+    left, right = int(starts[0]), int(starts[-1])
+    edges = np.linspace(left, right, 301, dtype=int)
+    sample = edges[:-1]
+    e_display = [int(e[edges[k]:edges[k + 1], display_trial].sum()) for k in range(len(sample))]
+    i_display = [int(i[edges[k]:edges[k + 1], display_trial].sum()) for k in range(len(sample))]
+    inputs = make_inputs()
+    input_display = [int(inputs[edges[k]:edges[k + 1], display_trial].sum()) for k in range(len(sample))]
+    state = {
+        "status": "measured",
+        "trial": display_trial,
+        "seed": TRIAL_SEEDS[display_trial],
+        "dt_ms": DT_MS,
+        "time_ms": ((sample - left) * DT_MS).round(3).tolist(),
+        "ge": ge[sample, display_trial].round(8).tolist(),
+        "gi": gi[sample, display_trial].round(8).tolist(),
+        "ve": ve[sample, display_trial].round(6).tolist(),
+        "vi": vi[sample, display_trial].round(6).tolist(),
+        "e_spikes": e_display,
+        "i_spikes": i_display,
+        "input_spikes": input_display,
+        "ge_cells": ge_cells[sample, display_trial, :13].round(8).T.tolist(),
+    }
+    result = {
+        "cycles_total": len(areas),
+        "cycles_per_trial": [len(p) - 1 for p in cycles],
+        "modal_orientation": "counter-clockwise" if modal > 0 else "clockwise",
+        "orientation_consistency": orientation_fraction,
+        "median_signed_area_uS2": float(np.median(areas)),
+        "median_period_ms": float(np.median(periods)),
+        "median_frequency_hz": float(1_000.0 / np.median(periods)),
+        "median_e_to_i_lag_ms": float(np.median(lags)),
+        "ge_target_residual_sd_fraction": ge_residual_fraction,
+        "gi_target_residual_sd_fraction": gi_residual_fraction,
+        "ge_mean_across_target_sd_uS": float(np.std(ge_post, axis=2).mean()),
+        "gi_mean_across_target_sd_uS": float(np.std(gi_post, axis=2).mean()),
+        "prediction": prediction,
+        "per_trial": per_trial,
+        "display_trial": display_trial,
+    }
+    return result, state
+
+
+def plot_result(state: dict, result: dict, out: Path) -> None:
+    theme.apply()
+    t = np.asarray(state["time_ms"])
+    ge = np.asarray(state["ge"])
+    gi = np.asarray(state["gi"])
+    ve = np.asarray(state["ve"])
+    vi = np.asarray(state["vi"])
+    fig, axes = plt.subplots(1, 3, figsize=(9.2, 3.0))
+    axes[0].plot(ge, gi, color=theme.DEEP_RED, lw=1.4)
+    axes[0].scatter(ge[::20], gi[::20], s=9, color=theme.INK_BLACK)
+    axes[0].set(xlabel="$g_E$ (µS)", ylabel="$g_I$ (µS)", title="simulated joint state")
+    axes[1].plot(t, ge, color=theme.INK_BLACK, label="$g_E$")
+    axes[1].plot(t, gi, color=theme.DEEP_RED, label="$g_I$")
+    axes[1].set(xlabel="time (ms)", ylabel="mean conductance (µS)", title="four cycles")
+    axes[1].legend(frameon=False)
+    pred = result["prediction"]
+    axes[2].bar([0, 1], [pred["two_phase"], pred["four_phase"]], color=[theme.INK_BLACK, theme.DEEP_RED])
+    axes[2].set_xticks([0, 1], ["$g_E,g_I$", "+ voltage"])
+    axes[2].set(ylabel="median circular error (cycles)", title="held-out phase")
+    for axis in axes:
+        axis.spines[["top", "right"]].set_visible(False)
+    fig.tight_layout()
+    fig.savefig(out, bbox_inches="tight")
+    plt.close(fig)
+
+
+def render_measured_animation(state: dict, out: Path, poster: Path) -> None:
+    """Render the simulated multi-cycle state in the design schematic's visual grammar."""
+    theme.apply()
+    t = np.asarray(state["time_ms"])
+    ge = np.asarray(state["ge"])
+    gi = np.asarray(state["gi"])
+    ve = np.asarray(state["ve"])
+    vi = np.asarray(state["vi"])
+    e_spikes = np.asarray(state["e_spikes"])
+    i_spikes = np.asarray(state["i_spikes"])
+    input_spikes = np.asarray(state["input_spikes"])
+    ge_low, ge_high = float(ge.min()), float(ge.max())
+    gi_low, gi_high = float(gi.min()), float(gi.max())
+    ve_low, ve_high = float(ve.min()), float(ve.max())
+    vi_low, vi_high = float(vi.min()), float(vi.max())
+
+    fig = plt.figure(figsize=(14.0, 6.1), facecolor="#f4f7f9")
+    grid = fig.add_gridspec(2, 3, left=0.055, right=0.98, bottom=0.20, top=0.90, hspace=0.48, wspace=0.30)
+    engine = fig.add_subplot(grid[0, 0])
+    traces = fig.add_subplot(grid[0, 1])
+    phase = fig.add_subplot(grid[0, 2])
+    voltage_engine = fig.add_subplot(grid[1, 0])
+    voltages = fig.add_subplot(grid[1, 1])
+    spikes = fig.add_subplot(grid[1, 2])
+    fig.suptitle("Simulated PING cycle as a running engine", fontsize=15, fontweight="bold", color=theme.INK_BLACK)
+    time_text = fig.text(0.5, 0.055, "", ha="center", color=theme.INK_BLACK, fontsize=8)
+
+    engine.set(xlim=(0, 10), ylim=(0, 10), title="1 · Local conductance engine")
+    engine.axis("off")
+    cylinder_specs = ((1.2, theme.DEEP_RED, "$g_E$ · E→I"), (6.2, theme.INK_BLACK, "$g_I$ · I→E"))
+    fills = []
+    plungers = []
+    for x, colour, label in cylinder_specs:
+        engine.add_patch(patches.FancyBboxPatch((x, 1.7), 2.5, 6.4, boxstyle="round,pad=0.08", facecolor="white", edgecolor=theme.GREY_MID, linewidth=1.5))
+        fill = patches.Rectangle((x + 0.65, 2.3), 1.2, 0.4, facecolor=colour, alpha=0.88)
+        plunger = patches.Rectangle((x + 0.35, 2.65), 1.8, 0.22, facecolor=colour)
+        engine.add_patch(fill); engine.add_patch(plunger)
+        engine.text(x + 1.25, 1.15, label, ha="center", fontsize=10, fontweight="bold")
+        fills.append(fill); plungers.append(plunger)
+    engine.annotate("E volley triggers $g_E$", (6.0, 8.7), (4.0, 8.7), arrowprops={"arrowstyle": "->", "color": theme.DEEP_RED}, ha="center", fontsize=8)
+    engine.annotate("$g_I$ suppresses E", (3.9, 4.4), (6.0, 4.4), arrowprops={"arrowstyle": "->", "color": theme.INK_BLACK}, ha="center", fontsize=8)
+    e_lamp = patches.Circle((4.9, 7.3), 0.24, facecolor=theme.DEEP_RED, alpha=0.12)
+    i_lamp = patches.Circle((4.9, 2.7), 0.24, facecolor=theme.INK_BLACK, alpha=0.12)
+    engine.add_patch(e_lamp); engine.add_patch(i_lamp)
+
+    voltage_engine.set(xlim=(0, 10), ylim=(0, 10), title="4 · Local membrane-voltage engine")
+    voltage_engine.axis("off")
+    voltage_fills = []
+    voltage_plungers = []
+    for x, colour, label in ((1.2, theme.DEEP_RED, "$V_E$ · E cells"), (6.2, theme.INK_BLACK, "$V_I$ · I cells")):
+        voltage_engine.add_patch(patches.FancyBboxPatch((x, 1.7), 2.5, 6.4, boxstyle="round,pad=0.08", facecolor="white", edgecolor=theme.GREY_MID, linewidth=1.5))
+        fill = patches.Rectangle((x + 0.65, 2.3), 1.2, 0.4, facecolor=colour, alpha=0.88)
+        plunger = patches.Rectangle((x + 0.35, 2.65), 1.8, 0.22, facecolor=colour)
+        voltage_engine.add_patch(fill); voltage_engine.add_patch(plunger)
+        voltage_engine.text(x + 1.25, 1.15, label, ha="center", fontsize=10, fontweight="bold")
+        voltage_fills.append(fill); voltage_plungers.append(plunger)
+    voltage_engine.text(5.0, 8.75, "up = depolarized", ha="center", fontsize=9)
+
+    traces.plot(t, ge, color=theme.DEEP_RED, lw=1.5, label="$g_E$")
+    traces.plot(t, gi, color=theme.INK_BLACK, lw=1.5, label="$g_I$")
+    e_times = t[e_spikes > 0]
+    i_times = t[i_spikes > 0]
+    traces.scatter(e_times, np.full_like(e_times, ge_high * 1.08), marker="|", s=55, color=theme.DEEP_RED, label="E volley")
+    traces.scatter(i_times, np.full_like(i_times, ge_high * 1.15), marker="|", s=55, color=theme.INK_BLACK, label="I volley")
+    cursor = traces.axvline(t[0], color=theme.GREY_MID, lw=1.2)
+    trace_ge_dot, = traces.plot([t[0]], [ge[0]], "o", color=theme.DEEP_RED, ms=6)
+    trace_gi_dot, = traces.plot([t[0]], [gi[0]], "o", color=theme.INK_BLACK, ms=6)
+    traces.set(xlabel="biological time (ms)", ylabel="mean conductance (µS)", title="2 · Conductance traces", xlim=(t[0], t[-1]))
+    traces.legend(frameon=False, ncol=2, fontsize=8)
+
+    phase.plot(ge, gi, color=theme.GREY_MID, lw=1.0, alpha=0.45)
+    trail, = phase.plot([], [], color=theme.DEEP_RED, lw=2.3)
+    phase_dot, = phase.plot([ge[0]], [gi[0]], "o", color=theme.INK_BLACK, ms=7)
+    phase.set(xlabel="$g_E$ (µS)", ylabel="$g_I$ (µS)", title="3 · Joint conductance state", xlim=(ge_low, ge_high), ylim=(gi_low, gi_high))
+
+    voltages.plot(t, ve, color=theme.DEEP_RED, lw=1.15, label="$V_E$")
+    voltages.plot(t, vi, color=theme.INK_BLACK, lw=1.15, label="$V_I$")
+    voltage_cursor = voltages.axvline(t[0], color=theme.GREY_MID, lw=1.2)
+    ve_dot, = voltages.plot([t[0]], [ve[0]], "o", color=theme.DEEP_RED, ms=5)
+    vi_dot, = voltages.plot([t[0]], [vi[0]], "o", color=theme.INK_BLACK, ms=5)
+    voltage_pad = 0.06 * max(float(max(ve.max(), vi.max()) - min(ve.min(), vi.min())), 1.0)
+    voltages.set(xlabel="biological time (ms)", ylabel="population mean voltage (mV)", title="5 · Membrane-voltage traces", xlim=(t[0], t[-1]), ylim=(min(ve.min(), vi.min()) - voltage_pad, max(ve.max(), vi.max()) + voltage_pad))
+    voltages.legend(frameon=False, ncol=2, fontsize=8)
+
+    input_height = 0.35 + 0.45 * input_spikes / max(float(input_spikes.max()), 1.0)
+    spikes.vlines(t, 2.0, 2.0 + input_height, color=theme.GREY_MID, lw=0.65, alpha=0.65)
+    spikes.vlines(t[e_spikes > 0], 1.05, 1.75, color=theme.DEEP_RED, lw=1.25)
+    spikes.vlines(t[i_spikes > 0], 0.10, 0.80, color=theme.INK_BLACK, lw=1.25)
+    spike_cursor = spikes.axvline(t[0], color=theme.DEEP_RED, lw=1.4, alpha=0.75)
+    input_dot, = spikes.plot([t[0]], [2.0 + input_height[0]], "o", color=theme.GREY_MID, ms=5)
+    spikes.set_yticks([0.45, 1.40, 2.40], ["I volley", "E volley", "external input"])
+    spikes.set(xlabel="biological time (ms)", title="6 · Input and population spikes", xlim=(t[0], t[-1]), ylim=(-0.05, 2.95))
+    for axis in (traces, phase, voltages, spikes):
+        axis.spines[["top", "right"]].set_visible(False)
+
+    def update(frame: int):
+        ge_fraction = (ge[frame] - ge_low) / max(ge_high - ge_low, 1e-12)
+        gi_fraction = (gi[frame] - gi_low) / max(gi_high - gi_low, 1e-12)
+        for fill, plunger, fraction in zip(fills, plungers, (ge_fraction, gi_fraction)):
+            height = 0.4 + 4.2 * fraction
+            fill.set_y(2.3); fill.set_height(height); plunger.set_y(2.7 + height)
+        ve_fraction = (ve[frame] - ve_low) / max(ve_high - ve_low, 1e-12)
+        vi_fraction = (vi[frame] - vi_low) / max(vi_high - vi_low, 1e-12)
+        for fill, plunger, fraction in zip(voltage_fills, voltage_plungers, (ve_fraction, vi_fraction)):
+            height = 0.4 + 4.2 * fraction
+            fill.set_y(2.3); fill.set_height(height); plunger.set_y(2.7 + height)
+        e_lamp.set_alpha(0.95 if e_spikes[frame] > 0 else 0.12)
+        i_lamp.set_alpha(0.95 if i_spikes[frame] > 0 else 0.12)
+        cursor.set_xdata([t[frame], t[frame]])
+        trace_ge_dot.set_data([t[frame]], [ge[frame]])
+        trace_gi_dot.set_data([t[frame]], [gi[frame]])
+        start = max(0, frame - 70)
+        trail.set_data(ge[start:frame + 1], gi[start:frame + 1])
+        phase_dot.set_data([ge[frame]], [gi[frame]])
+        voltage_cursor.set_xdata([t[frame], t[frame]])
+        ve_dot.set_data([t[frame]], [ve[frame]])
+        vi_dot.set_data([t[frame]], [vi[frame]])
+        spike_cursor.set_xdata([t[frame], t[frame]])
+        input_dot.set_data([t[frame]], [2.0 + input_height[frame]])
+        time_text.set_text(f"simulation seed {state['seed']}  ·  biological time {t[frame]:.1f} ms  ·  playback 30 fps")
+        return [*fills, *plungers, *voltage_fills, *voltage_plungers, e_lamp, i_lamp, cursor, trace_ge_dot, trace_gi_dot, trail, phase_dot, voltage_cursor, ve_dot, vi_dot, spike_cursor, input_dot, time_text]
+
+    update(0)
+    fig.savefig(poster, dpi=150, facecolor=fig.get_facecolor())
+    movie = animation.FuncAnimation(fig, update, frames=len(t), interval=1000 / 30, blit=False)
+    writer = animation.FFMpegWriter(fps=30, codec="libx264", bitrate=2400, extra_args=["-pix_fmt", "yuv420p", "-movflags", "+faststart"])
+    movie.save(out, writer=writer, dpi=120)
+    plt.close(fig)
+
+
+def main() -> None:
+    meta = parse_meta(sys.argv)
+    if meta.runpod:
+        raise SystemExit("exp097 is a bounded local scout; RunPod is not supported")
+    started = time.monotonic()
+    run_id = next_run_id(SLUG)
+    print(f"notebook_run_id = {run_id}")
+    with published_run(SLUG, run_id, scale=SCALE, plot_only=meta.plot_only) as (scratch, staging):
+        bundle = exp084.author_network(TAU_GABA_MS)
+        result = simulate(ExecutionSpec(kind="simulate", executor="graph", graph=bundle.graph, inputs={"drive": torch.from_numpy(make_inputs()).float()}, seed=NETWORK_SEED, recording="full"))
+        arrays = {
+            "e_spikes": result.recordings["population_0"].cpu().numpy(),
+            "i_spikes": result.recordings["population_1"].cpu().numpy(),
+            "v_e": result.recordings["ping_E.voltage"].cpu().numpy(),
+            "v_i": result.recordings["ping_I.voltage"].cpu().numpy(),
+            "g_e_to_i": result.recordings["ping_E_to_I.conductance"].cpu().numpy(),
+            "g_i_to_e": result.recordings["ping_I_to_E.conductance"].cpu().numpy(),
+        }
+        analysis, state = analyse(arrays)
+        np.savez_compressed(scratch / "recordings.npz", **arrays)
+        plot_result(state, analysis, staging / "measured_cycle.svg")
+        render_measured_animation(state, staging / "measured_engine.mp4", staging / "measured_engine_poster.png")
+        (staging / "animation_state.json").write_text(json.dumps(state, separators=(",", ":")) + "\n")
+        (staging / "ping_engine_state.js").write_text("window.EXP097_MEASURED_STATE=" + json.dumps(state, separators=(",", ":")) + ";\n")
+        shutil.copy2(ASSETS / "ping_engine.css", staging / "ping_engine.css")
+        shutil.copy2(ASSETS / "ping_engine.js", staging / "ping_engine.js")
+        shutil.copy2(ASSETS / "ping_engine_storyboard.svg", staging / "ping_engine_storyboard.svg")
+        bundle.write(staging / "network.bundle", visualise=True)
+        shutil.copy2(staging / "network.bundle" / "reports" / "circuit.svg", staging / "network.svg")
+        (staging / "protocol.json").write_text(json.dumps(SCALE, indent=2) + "\n")
+        write_numbers(staging, run_id=run_id, duration_s=time.monotonic() - started, payload={"question": "Do recurrent E and I conductances form a useful two-variable portrait of a stochastic PING cycle?", "results": analysis})
+        (staging / "SCIENTIFIC_COLLECTION_STATE.md").write_text(f"""# Exp097 ScientificCollectionState
+
+## Registration
+
+- Writing: `writings/exp097.typ`
+- Collection: `snnlang`
+- Status: `ExpScout`; execution complete
+- Scout execution: `{run_id}`
+- Simulation results: `numbers.json`, `measured_cycle.svg`, `measured_engine.mp4`,
+  `measured_engine_poster.png`, `animation_state.json`
+- Simulation-result web animation: `ping_engine_state.js`, `ping_engine.js`, `ping_engine.css`
+
+## Execution
+
+- Local execution used the frozen 80-E, 20-I network, network seed 83, input
+  seeds 8300--8304, 100 Hz/channel drive, 0.1 ms timestep, 2 ms inhibitory
+  decay, and five 500 ms trials with a 100 ms transient exclusion.
+- Full recordings preserve E/I spikes, E/I voltages, E-to-I AMPA conductance,
+  and I-to-E GABA conductance in the run scratch artifact.
+- The animation state contains five simulated cycles from the trial selected by
+  the frozen median-frequency rule. It is downsampled for display; analyses use
+  native-resolution recordings.
+
+## Scientific disposition
+
+- Revise: the conductance plane is coherent but mean voltage improves held-out
+  phase and next-volley prediction.
+- The scout is specific to one network realization and one operating point.
+- Promotion to `ExpStudyPlan` requires a new prospective plan and user review.
+""")
+    print(f"exp097 complete: {run_id}")
+
+
+if __name__ == "__main__":
+    main()
