@@ -16,9 +16,9 @@
 #let body = [
   == 1. Abstract
 
-  We tested whether a spike-count readout trained across varying input rates could classify streamed digits when input rate and presentation time changed. Three frozen pyramidal--interneuron gamma (PING) networks were evaluated across eleven rates and four matched presentation and readout durations. With 200 ms available, mean accuracy rose from #pct(mean(at-rate(0.5).map(row => row.accuracy))) at 0.5 Hz to #pct(mean(at-rate(7.5).map(row => row.accuracy))) at 7.5 Hz and remained at #pct(mean(at-rate(25.0).map(row => row.accuracy))) at 25 Hz. Across rates, shortening the window from 200 to 25 ms reduced mean accuracy from #pct(mean(at-duration(200.0).map(row => row.accuracy))) to #pct(mean(at-duration(25.0).map(row => row.accuracy))). Sparse and brief inputs often failed to provide enough output spikes. The study supports broad rate tolerance within the tested protocol, but it does not isolate presentation time from evidence-accumulation time or establish a causal role for gamma rhythms.
+  A streaming classifier must handle digits that arrive at different strengths and remain visible for different lengths of time. We tested frozen spiking networks with interacting excitatory and inhibitory neurons, known as pyramidal--interneuron gamma (PING) networks. Their output neurons classified each digit by counting spikes until the next digit began. The readout remained useful across a broad range of input strengths when it had enough activity and time. It became less reliable for weak or brief inputs, sometimes because the output neurons produced no spikes. This weakens the idea that the classifier works only near one preferred input strength. The study cannot separate presentation time from evidence-collection time or show that gamma rhythms caused the robustness.
 
-  In simple terms, the networks read digits reliably across many input strengths when given enough time and spikes, but struggled when the evidence was too sparse or brief.
+  In simple terms, the networks usually read a digit when enough evidence arrived before time ran out.
 
   == 2. Prospective design and scope
 

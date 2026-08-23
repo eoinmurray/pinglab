@@ -65,6 +65,12 @@ parts of ASD-STE100 Simplified Technical English and William Zinsser's clarity,
 simplicity, brevity, and humanity. It does not make the text ASD-STE100
 compliant and does not import that standard's controlled dictionary.
 
+Use plainspoken scientific notebook prose aimed at an informed lab colleague.
+Prefer active, concrete explanations and define specialist terms when they
+first matter. Be direct about observed evidence and restrained about
+interpretation. Avoid compressed journal formality, promotional language, and
+explanations that become childish or scientifically vague.
+
 Revise in this order:
 
 1. Preserve scientific accuracy, epistemic status, uncertainty, defined
@@ -112,12 +118,10 @@ intended, completed observations as observed, and interpretations as
 interpretations. Do not invent findings. State limitations or unresolved issues
 when they materially affect the meaning.
 
-Use simple, direct prose suitable for a lab notebook and accessible to a
-non-specialist. Retain and define scientific terms when simpler wording would
-change their meaning. Explain the principal pattern qualitatively rather than
-giving a numerical summary; keep measurements in the evidence-bearing body.
-Omit headings, bullets, field labels, procedural detail, repository plumbing,
-and ornamental formality.
+Explain the principal pattern qualitatively rather than giving a numerical
+summary; keep measurements in the evidence-bearing body. Omit headings,
+bullets, field labels, procedural detail, repository plumbing, and ornamental
+formality.
 
 End with one plain-language sentence in its own paragraph. It must explain the
 main meaning to a non-specialist without introducing claims, deleting important
