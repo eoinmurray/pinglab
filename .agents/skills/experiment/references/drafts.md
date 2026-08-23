@@ -52,6 +52,13 @@ When a mechanism benefits from visual mirroring, pair a precise hand-authored
 design schematic with a planned reproducible result using the same panel layout
 and visual language.
 
+An `ExpVisualSet` is optional. When one is useful, the plan specifies each
+visual pair's design schematic, measured mirror, shared panel structure,
+variables, colours, visual grammar, and interpretive purpose. It also reserves
+links to the investigation unit, protocol section, generating code, and source
+data. The schematic and empty result slot form an implementation scaffold; the
+measured mirror does not exist until it is generated from executed evidence.
+
 Write expected patterns conditionally. The plan contains no observed results,
 and neither existing context nor a schematic may be presented as execution
 evidence.
@@ -71,8 +78,16 @@ Freeze and preserve the `ExpScoutPlan`, then add:
 - interpretation against the plan's decision gates;
 - a stop, revise, or escalate decision.
 
+If the plan requested an `ExpVisualSet`, attach its completed measured mirrors
+with code and data provenance. Preserve incomplete and failed result slots
+rather than silently omitting them. A scout without an `ExpVisualSet` remains
+valid.
+
 Label its evidence exploratory. It may motivate a new study plan but may not be
 promoted or relabelled as durable evidence.
+
+The optional composition is `ExpScout = frozen ExpScoutPlan + completed
+ExpVisualSet + other execution evidence + disposition`.
 
 ## `ExpStudyPlan`
 
