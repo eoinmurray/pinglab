@@ -75,9 +75,11 @@ artifact types.
 
 ## `ExperimentPlan`
 
-A self-contained, unrun experiment contract containing identity, question,
-hypothesis, methods, variables, controls, measurements, decision rules, scope,
-expected patterns, falsifiers, planned outputs, and execution requirements.
+A self-contained, unrun experiment contract containing identity, abstract,
+scientific frame, locally aligned investigation units, cross-result synthesis,
+controls and validity, and a detailed protocol. Each investigation unit pairs a
+method summary with its planned output, expected patterns, decision rule, and
+local caveat; lengthy shared implementation detail lives once in the protocol.
 Nothing in the plan is represented as an observed result.
 
 ## `ExperimentRecord`
