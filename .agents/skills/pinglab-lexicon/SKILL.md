@@ -276,30 +276,26 @@ Use `status: "draft"` while a design is being refined and has not been run.
 
 Use this canonical reading order:
 
-1. **Abstract — `ExpPlanAbstract`.** State the question, hypothesis,
-   intervention, primary estimand, and what outcome would matter.
-2. **Shared — `ExpSharedPlan`.** Give the identity, status, collection,
-   dependencies, scientific frame, inputs, controls, decision gates, budget,
-   assumptions, scope, and available provenance once.
-3. **Investigations — `ExpInvestigationPlan[]`.** Give each investigation an
-   `ExpInvestigationIdentity`, `ExpInvestigationIntroduction`,
-   `ExpExpectedPatterns` under the hypothesis and its rivals, and an optional
-   `ExpVisualSet`. Specify the planned output and what the result can and cannot
-   establish without adding observed evidence.
-4. **Methods — `ExpMethodsPlan`.** Give the complete planned protocol:
-   configuration, datasets, parameter values, sampling, seeds, execution
-   sequence, analysis definitions, provenance, and reproducibility
-   requirements. Number its subsections so investigations can reference them
-   without duplication.
-5. **Planned synthesis — `ExpPlannedSynthesis`.** Explain how the investigations
-   jointly distinguish the mechanism from rivals, including informative
-   contradictions, stopping rules, and completion criteria.
-6. **Conclusion — `ExpConclusionSlot`.** Reserve this position for execution;
-   omit it from the prospective rendering rather than predicting observed
-   conclusions.
-7. **References — `ExpReferences`** when external sources inform the plan.
-8. **Appendices — `ExpAppendices`** when supporting detail would interrupt the
-   main sequence.
+1. `ExpPlanAbstract` — use for the question, hypothesis, intervention, primary
+   estimand, and consequential outcome.
+2. `ExpSharedPlan` — use once for identity, status, collection, dependencies,
+   scientific frame, inputs, controls, decision gates, budget, assumptions,
+   scope, and available provenance.
+3. `ExpInvestigationPlan[]` — use for numbered investigations, each containing
+   an `ExpInvestigationIdentity`, `ExpInvestigationIntroduction`,
+   `ExpExpectedPatterns`, optional `ExpVisualSet`, planned output, and the
+   result's interpretive limits.
+4. `ExpMethodsPlan` — use for the complete planned protocol: configuration,
+   datasets, parameter values, sampling, seeds, execution sequence, analysis
+   definitions, provenance, and reproducibility requirements. Number its
+   subsections so investigations can reference them without duplication.
+5. `ExpPlannedSynthesis` — use for cross-investigation rival discrimination,
+   informative contradictions, stopping rules, and completion criteria.
+6. `ExpConclusionSlot` — use to reserve the executed conclusion's position;
+   omit it from the prospective rendering.
+7. `ExpReferences` — use when external sources inform the plan.
+8. `ExpAppendices` — use when supporting detail would interrupt the main
+   sequence.
 
 Keep a network or experimental-design diagram beside the investigation unit it
 explains. Clearly label conceptual curves as design schematics rather than data.
@@ -343,22 +339,20 @@ An executed scouting mission formed from its frozen `ExpScoutPlan` plus
 `ScoutExecution`. Preserve the plan's publication structure and extend it
 locally:
 
-1. **Abstract — `ExpScoutSummary`.** Add the highest-level observation and
-   disposition without procedural detail.
-2. **Shared — `ExpSharedExecution`.** Add run provenance, completion status,
-   actual shared configuration, deviations, and limitations.
-3. **Investigations — `ExpInvestigationExecution[]`.** Attach each execution to
-   its corresponding `ExpInvestigationPlan`. Add an `ExpMeasuredResult` or
-   explicit failed, incomplete, or not-run status, complete the measured
-   `ExpVisualSet` mirror when present, and add `ExpObservedPatterns`. Keep
-   numerical and procedural ramble out of the discussion. Do not create a
-   separate investigation-results section or add local decision-gate
-   evaluations.
-4. **Methods — `ExpMethodsExecuted`.** In the rendered `ExpScout`, fully replace
-   `ExpMethodsPlan` with one complete account of the executed methods, concrete
-   outputs, and deviations. The frozen `ExpScoutPlan` remains the provenance
-   record of what was planned.
-6. **Conclusion — `ExpConclusion`.** Complete `ExpConclusionSlot` with the
+1. `ExpScoutSummary` — use for the highest-level observation and disposition
+   without procedural detail.
+2. `ExpSharedExecution` — use for run provenance, completion status, actual
+   shared configuration, deviations, and limitations.
+3. `ExpInvestigationExecution[]` — use to attach execution evidence to each
+   corresponding `ExpInvestigationPlan`: an `ExpMeasuredResult` or explicit
+   failed, incomplete, or not-run status, a measured `ExpVisualSet` mirror when
+   present, and `ExpObservedPatterns`. Keep numerical and procedural ramble out
+   of the discussion. Do not create a separate investigation-results section or
+   add local decision-gate evaluations.
+4. `ExpMethodsExecuted` — use for one complete account of executed methods,
+   concrete outputs, and deviations. Fully replace `ExpMethodsPlan` in the
+   rendered `ExpScout`; retain the frozen `ExpScoutPlan` as provenance.
+5. `ExpConclusion` — use to complete `ExpConclusionSlot` with the
    cross-investigation interpretation and stop, revise, or escalate
    disposition.
 
