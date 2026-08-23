@@ -16,7 +16,7 @@ repository. Mutation authority comes only from the global `scope`, `go`, and
 
 Pinglab's scientific vocabulary is noun-centred. Its types are prose-defined
 and text-serialized as Markdown rather than formally schema-validated.
-`.agents/skills/pinglab-nouns/SKILL.md` is the canonical type registry and
+`.agents/skills/pinglab/SKILL.md` is the canonical type registry and
 contains the contracts for constructing and interpreting them. Ordinary
 conversation performs the scientific work over these nouns. The global Lexicon
 remains separate and governs mutation.
