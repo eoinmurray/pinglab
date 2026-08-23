@@ -87,6 +87,12 @@ Freeze and preserve the `ExpScoutPlan`, then add:
 - interpretation against the plan's decision gates;
 - a stop, revise, or escalate decision.
 
+Number every body heading hierarchically, including subsections (for example,
+`1.`, `2.`, `3.1`, and `3.2`). Preserve investigation-unit identifiers inside
+the numbered heading rather than using them as a substitute for document
+section numbers. The publication title, figure captions, equations, and inline
+labels are not body headings and remain unnumbered.
+
 If the plan requested an `ExpVisualSet`, attach its completed measured mirrors
 with code and data provenance. Preserve incomplete and failed result slots
 rather than silently omitting them. A scout without an `ExpVisualSet` remains
