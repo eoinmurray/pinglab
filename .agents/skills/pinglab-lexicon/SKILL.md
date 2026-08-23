@@ -288,6 +288,21 @@ and adds execution evidence beside the corresponding prospective material. It
 may replace planned methods with one complete account of executed methods for
 readability, while retaining the frozen protocol for provenance.
 
+Composition is not publication anatomy. Child nouns are semantic inputs to a
+connected scientific narrative, not mandatory paragraphs, labels, cards, or
+subsections. In rendered experiment documents, synthesize adjacent children
+into prose that develops an argument. Do not print noun names, field names, or
+repeated inline labels. Use headings only for substantive document sections and
+descriptively named investigations or methods.
+
+Rendered experiment documents contain scientific content, not repository
+plumbing. Omit opaque run and campaign identifiers, commit hashes, checkpoint
+keys, filenames, paths, manifests, commands, and implementation module names.
+Retain those exact details in native artifacts and `ScientificCollectionState`.
+Include a parameter in the document only when it is scientifically meaningful
+to interpretation or reproduction; express model and data sources in
+human-readable scientific language.
+
 The experiment family uses the registered composition nouns defined below.
 Each also independently triggers this skill.
 
@@ -301,8 +316,8 @@ observed result or disposition.
 
 The common prospective contract for identity, status, collection,
 dependencies, scientific frame, inputs, controls, decision gates, budget,
-assumptions, scope, and available provenance. State shared material once here
-rather than duplicating it across investigations.
+assumptions, and scope. State shared material once here rather than duplicating
+it across investigations.
 
 ## `ExpInvestigationIdentity`
 
@@ -332,9 +347,9 @@ and the limits of what its result could establish.
 ## `ExpMethodsPlan`
 
 The complete prospective protocol: configuration, datasets, parameter values,
-sampling, seeds, execution sequence, analysis definitions, provenance, and
-reproducibility requirements. Number its subsections so investigations can
-reference them without duplicating procedural detail.
+sampling, execution sequence, analysis definitions, and scientifically
+meaningful reproducibility requirements. Number its subsections so
+investigations can reference them without duplicating procedural detail.
 
 ## `ExpPlannedSynthesis`
 
@@ -395,8 +410,7 @@ does not promise durable inference.
 
 An optional visual evidence scaffold containing an `ExpDesignSchematic` and an
 `ExpMeasuredResultSlot`. The pair preserves a shared panel layout, variables,
-colours, visual grammar, interpretive purpose, caption, and reserved links to
-generating code and source data.
+colours, visual grammar, interpretive purpose, and caption.
 
 The default epistemic colour grammar uses blue-grey for conceptual or
 prospective schematics and red-black for measured evidence. A scientific
@@ -414,9 +428,8 @@ and protocol. It is conceptual evidence design, never an observed result.
 
 ## `ExpMeasuredResultSlot`
 
-The prospective placeholder for a structurally matched measured output,
-generating code, source data, and completion status. It contains no
-observations before execution.
+The prospective placeholder for a structurally matched measured output and its
+completion status. It contains no observations before execution.
 
 ## `ExpScoutSummary`
 
@@ -425,16 +438,15 @@ stop, revise, or escalate disposition without procedural detail.
 
 ## `ExpSharedExecution`
 
-The shared execution record containing run provenance, completion status,
-actual common configuration, deviations, and limitations. Record common
+The shared execution record containing completion status, scientifically
+meaningful actual configuration, deviations, and limitations. Record common
 execution facts once rather than repeating them locally.
 
 ## `ExpMeasuredResult`
 
-An executed output with its value, figure, table, or other result; completion
-status; generating code and source-data provenance; and measurement-specific
-limitations. A failed, incomplete, or not-run status is preserved explicitly
-rather than silently omitted.
+An executed output with its value, figure, table, or other result, completion
+status, and measurement-specific limitations. A failed, incomplete, or not-run
+status is preserved explicitly rather than silently omitted.
 
 ## `ExpObservedPatterns`
 
@@ -449,8 +461,8 @@ status, an optional completed `ExpVisualSet`, and `ExpObservedPatterns`.
 
 ## `ExpMethodsExecuted`
 
-The complete account of methods actually executed, concrete outputs,
-provenance, and deviations.
+The complete scientific account of methods actually executed, concrete
+outputs, and scientifically meaningful deviations.
 
 ## `ExpConclusion`
 
@@ -497,10 +509,9 @@ plan. Freeze all choices before execution begins.
 
 ## `StudyExecution`
 
-The durable execution overlay containing exact implementation and run
-provenance, completion status, actual configuration and deviations,
-observations and uncertainty, rival discrimination, conclusions, limitations,
-and robustness results.
+The durable execution overlay containing completion status, scientifically
+meaningful actual configuration and deviations, observations and uncertainty,
+rival discrimination, conclusions, limitations, and robustness results.
 
 ## `ExpStudy`
 
@@ -513,4 +524,7 @@ interpretation. Never replace or rewrite planned expectations as observations.
 ## `ScientificCollectionState`
 
 The current collection registration, writing metadata, referenced artifacts,
-provenance, generated outputs, and publication blockers.
+technical provenance, generated outputs, and publication blockers. Technical
+provenance includes exact run and campaign identifiers, commit hashes,
+checkpoint keys, filenames, paths, manifests, commands, and implementation
+module names; it remains outside rendered experiment prose.
