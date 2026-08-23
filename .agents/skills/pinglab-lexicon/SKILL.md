@@ -1,6 +1,6 @@
 ---
 name: pinglab-lexicon
-description: Interpret, construct, transform, review, or serialize Pinglab noun types whenever a prompt invokes ScientificRecord, PinglabAbstract, Seed, Formulation, HypoBranches, HypoCanon, HypoLiterature, HypoRepository, OpenSearchTrajectory, HypoCheckpoint, GroundedSearchTrajectory, HypoPacket, ExpScoutPlan, ExpPlanAbstract, ExpSharedPlan, ExpInvestigationPlan, ExpInvestigationIdentity, ExpInvestigationIntroduction, ExpExpectedPatterns, ExpVisualSet, ExpDesignSchematic, ExpMeasuredResultSlot, ExpMethodsPlan, ExpConclusionSlot, ExpReferences, ExpAppendices, ExpScout, ScoutExecution, ExpScoutSummary, ExpSharedExecution, ExpInvestigationExecution, ExpMeasuredResult, ExpObservedPatterns, ExpMethodsExecuted, ExpConclusion, ExpStudyPlan, StudyExecution, ExpStudy, or ScientificCollectionState in any case, spacing, joining, or optional dollar-prefixed form, or asks to scope encode a rule into the Pinglab writing system.
+description: Interpret, construct, transform, review, or serialize Pinglab noun types whenever a prompt invokes ScientificRecord, Abstract, Seed, Formulation, HypoBranches, HypoCanon, HypoLiterature, HypoRepository, OpenSearchTrajectory, HypoCheckpoint, GroundedSearchTrajectory, HypoPacket, ExpScoutPlan, ExpSharedPlan, ExpInvestigationPlan, ExpInvestigationIdentity, ExpInvestigationIntroduction, ExpExpectedPatterns, ExpVisualSet, ExpDesignSchematic, ExpMeasuredResultSlot, ExpMethodsPlan, ExpConclusionSlot, ExpReferences, ExpAppendices, ExpScout, ScoutExecution, ExpScoutSummary, ExpSharedExecution, ExpInvestigationExecution, ExpMeasuredResult, ExpObservedPatterns, ExpMethodsExecuted, ExpConclusion, ExpStudyPlan, StudyExecution, ExpStudy, or ScientificCollectionState in any case, spacing, joining, or optional dollar-prefixed form, or asks to scope encode a rule into the Pinglab writing system.
 ---
 
 # Pinglab noun registry
@@ -102,36 +102,28 @@ Revise in this order:
 The evidenced project history: aims, writings, compact artifacts, recorded
 runs, demonstrated findings, negative results, and current direction.
 
-## `PinglabAbstract`
+## `Abstract`
 
-A connected two-, four-, or six-paragraph narrative covering the central
-question, approach, supported findings, and present direction.
+A concise, connected account of a scientific work's question, approach,
+supported content, and consequence.
 
-The short, medium, and long forms contain exactly two, four, and six non-empty
-prose paragraphs respectively, separated by blank lines. Medium is the default
-when no length is specified. The body has no title, headings, bullets, numbered
-lists, source inventory, process narration, or follow-up question. Required
-higher-level response footers sit outside the body and do not count toward its
-paragraph total.
+Write only from the work's current epistemic state. Present intended work as
+intended, completed observations as observed, and interpretations as
+interpretations. Do not invent findings. State limitations or unresolved issues
+when they materially affect the meaning.
 
-Construct the narrative from the current `ScientificRecord`, following the
-scientific-record invariants in `AGENTS.md`. Summarize what Pinglab has been
-trying to understand and build rather than merely listing files. Inspect only
-enough current repository evidence to support the account, prioritizing:
+Use simple, direct prose suitable for a lab notebook and accessible to a
+non-specialist. Retain and define scientific terms when simpler wording would
+change their meaning. Explain the principal pattern qualitatively rather than
+giving a numerical summary; keep measurements in the evidence-bearing body.
+Omit headings, bullets, field labels, procedural detail, repository plumbing,
+and ornamental formality.
 
-1. the project purpose and scientific-record rules in `AGENTS.md` and
-   `README.md`;
-2. collection aims in `demolab.yaml`;
-3. the manuscript, collection introductions, and relevant current writing
-   metadata under `writings/`;
-4. compact published artifacts or run evidence behind any reported result;
-5. recent Git history when needed to identify the active direction.
+End with one plain-language sentence in its own paragraph. It must explain the
+main meaning to a non-specialist without introducing claims, deleting important
+uncertainty, or relying on specialist terminology.
 
-Do not use conversation history as evidence for the project's scientific aims
-or imply that every collection or recent commit has equal scientific
-importance. Each paragraph must advance the account. Define unfamiliar
-abbreviations on first use. Avoid exact numbers unless they materially improve
-the summary and satisfy the evidence rule.
+Other nouns may contain or link to an `Abstract`; they do not redefine it.
 
 ## Hypothesis-search family
 
@@ -307,7 +299,7 @@ The composition map is:
 ```text
 ExpScout
 ├── ExpScoutPlan
-│   ├── ExpPlanAbstract
+│   ├── Abstract
 │   ├── ExpSharedPlan
 │   ├── ExpInvestigationPlan[]
 │   ├── ExpMethodsPlan
@@ -338,7 +330,7 @@ ExpInvestigationExecution
 
 ExpStudy
 ├── ExpStudyPlan
-│   ├── ExpPlanAbstract
+│   ├── Abstract
 │   ├── ExpSharedPlan
 │   ├── ExpInvestigationPlan[]
 │   ├── ExpMethodsPlan
@@ -384,12 +376,6 @@ human-readable scientific language.
 
 The experiment family uses the registered composition nouns defined below.
 Each also independently triggers this skill.
-
-## `ExpPlanAbstract`
-
-A prospective summary stating the question, hypothesis, intervention, primary
-estimand, and consequential outcome of an experiment plan. It contains no
-observed result or disposition.
 
 ## `ExpSharedPlan`
 
@@ -455,7 +441,7 @@ Use `status: "draft"` while a design is being refined and has not been run.
 
 Use this canonical reading order:
 
-1. `ExpPlanAbstract`
+1. `Abstract`
 2. `ExpSharedPlan`
 3. `ExpInvestigationPlan[]`
 4. `ExpMethodsPlan`
@@ -570,7 +556,7 @@ remains valid and may not be promoted or relabelled as durable evidence.
 
 ## `ExpStudyPlan`
 
-A prospective durable-study contract containing an `ExpPlanAbstract`,
+A prospective durable-study contract containing an `Abstract`,
 `ExpSharedPlan`, one or more `ExpInvestigationPlan` entries, an
 `ExpMethodsPlan`, `ExpConclusionSlot`, and optional `ExpReferences` and
 `ExpAppendices`.
