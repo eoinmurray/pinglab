@@ -1,6 +1,6 @@
 ---
 name: pinglab-lexicon
-description: Interpret, construct, transform, review, or serialize Pinglab noun types whenever a prompt invokes ScientificRecord, PinglabAbstract, Seed, Formulation, HypoBranches, HypoCanon, HypoLiterature, HypoRepository, OpenSearchTrajectory, HypoCheckpoint, GroundedSearchTrajectory, HypoPacket, ExpScoutPlan, ExpVisualSet, ExpScout, ExpStudyPlan, ExpStudy, or ScientificCollectionState in any case, spacing, joining, or optional dollar-prefixed form.
+description: Interpret, construct, transform, review, or serialize Pinglab noun types whenever a prompt invokes ScientificRecord, PinglabAbstract, Seed, Formulation, HypoBranches, HypoCanon, HypoLiterature, HypoRepository, OpenSearchTrajectory, HypoCheckpoint, GroundedSearchTrajectory, HypoPacket, ExpScoutPlan, ExpPlanAbstract, ExpSharedPlan, ExpInvestigationPlan, ExpInvestigationIdentity, ExpInvestigationIntroduction, ExpExpectedPatterns, ExpVisualSet, ExpDesignSchematic, ExpMeasuredResultSlot, ExpMethodsPlan, ExpPlannedSynthesis, ExpConclusionSlot, ExpReferences, ExpAppendices, ExpScout, ScoutExecution, ExpScoutSummary, ExpSharedExecution, ExpInvestigationExecution, ExpMeasuredResult, ExpObservedPatterns, ExpMethodsExecuted, ExpConclusion, ExpStudyPlan, ExpStudy, or ScientificCollectionState in any case, spacing, joining, or optional dollar-prefixed form.
 ---
 
 # Pinglab noun registry
@@ -244,8 +244,8 @@ adds execution evidence beside the corresponding prospective material. It may
 replace planned Methods with one complete account of the executed Methods for
 readability, but the frozen plan retains the original protocol for provenance.
 
-The experiment family uses these internal composition nouns. They structure the
-registered experiment nouns but do not independently trigger this skill:
+The experiment family uses these registered composition nouns. Each also
+independently triggers this skill:
 
 - `ExpPlanAbstract` states the prospective question, hypothesis, intervention,
   estimand, and consequential outcome.
