@@ -16,9 +16,9 @@
 #let body = [
   == 1. Abstract
 
-  A streaming classifier must handle digits that arrive at different strengths and remain visible for different lengths of time. We tested frozen spiking networks with interacting excitatory and inhibitory neurons, known as pyramidal--interneuron gamma (PING) networks. Their output neurons classified each digit by counting spikes until the next digit began. The readout remained useful across a broad range of input strengths when it had enough activity and time. It became less reliable for weak or brief inputs, sometimes because the output neurons produced no spikes. This weakens the idea that the classifier works only near one preferred input strength. The study cannot separate presentation time from evidence-collection time or show that gamma rhythms caused the robustness.
+  We asked whether a spiking network could classify a continuous digit stream when each digit arrived at a different strength or remained visible for a different time. We froze networks trained on changing input rates and used their output spikes as class evidence. The classifier worked across a broad range of input strengths once enough spikes arrived. Weak or brief inputs were harder, and some ended before the output produced any evidence. Longer presentations helped, but the experiment cannot separate extra viewing time from extra decision time. It also does not show that the network's rhythmic activity caused the result.
 
-  In simple terms, the networks usually read a digit when enough evidence arrived before time ran out.
+  The main lesson is that the classifier handled changing inputs when each digit produced enough evidence before the decision ended.
 
   == 2. Prospective design and scope
 
