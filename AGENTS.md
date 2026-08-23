@@ -29,7 +29,6 @@ each skill is the canonical source for its verb signatures and procedures.
 
 | Command | Handler |
 | --- | --- |
-| `abstract [short\|medium\|long]` | `.agents/skills/abstract/SKILL.md` |
 | `hypo branches` or `hypo branchesX` | `.agents/skills/hypo/SKILL.md` |
 | `hypo canon` | `.agents/skills/hypo/SKILL.md` |
 | `hypo literature` | `.agents/skills/hypo/SKILL.md` |
@@ -37,15 +36,12 @@ each skill is the canonical source for its verb signatures and procedures.
 | `hypo checkpoint` | `.agents/skills/hypo/SKILL.md` |
 | `hypo packet` | `.agents/skills/hypo/SKILL.md` |
 | `pinglab lexicon` | `.agents/skills/pinglab/SKILL.md` |
-| `exp scout-plan` | `.agents/skills/exp/SKILL.md` |
-| `publish readiness` | `.agents/skills/publish/SKILL.md` |
-| `publish bundle` | `.agents/skills/publish/SKILL.md` |
 
 Arguments are mandatory where shown. Optional arguments appear in brackets;
-`abstract` defaults to `medium`, and `hypo branches` defaults to three branches.
-Every documented project command accepts an optional leading `$`; for example,
-`hypo literature` and `$hypo literature` are equivalent. Bare command-family
-nouns explain their subcommands.
+`hypo branches` defaults to three branches. Every documented project command
+accepts an optional leading `$`; for example, `hypo literature` and `$hypo
+literature` are equivalent. Bare command-family nouns explain their
+subcommands.
 
 ## Demolab boundary
 

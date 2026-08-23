@@ -15,6 +15,32 @@ runs, demonstrated findings, negative results, and current direction.
 A connected two-, four-, or six-paragraph narrative covering the central
 question, approach, supported findings, and present direction.
 
+The short, medium, and long forms contain exactly two, four, and six non-empty
+prose paragraphs respectively, separated by blank lines. Medium is the default
+when no length is specified. The body has no title, headings, bullets, numbered
+lists, source inventory, process narration, or follow-up question. Required
+higher-level response footers sit outside the body and do not count toward its
+paragraph total.
+
+Construct the narrative from the current `ScientificRecord`, following the
+scientific-record invariants in `AGENTS.md`. Summarize what Pinglab has been
+trying to understand and build rather than merely listing files. Inspect only
+enough current repository evidence to support the account, prioritizing:
+
+1. the project purpose and scientific-record rules in `AGENTS.md` and
+   `README.md`;
+2. collection aims in `demolab.yaml`;
+3. the manuscript, collection introductions, and relevant current writing
+   metadata under `writings/`;
+4. compact published artifacts or run evidence behind any reported result;
+5. recent Git history when needed to identify the active direction.
+
+Do not use conversation history as evidence for the project's scientific aims
+or imply that every collection or recent commit has equal scientific
+importance. Each paragraph must advance the account. Define unfamiliar
+abbreviations on first use. Avoid exact numbers unless they materially improve
+the summary and satisfy the evidence rule.
+
 ## `Seed`
 
 A short scientific intuition, question, anomaly, or proposed mechanism.
@@ -262,18 +288,3 @@ The invariant is `ExpScout` -> new `ExpStudyPlan` -> `ExpStudy`, never
 
 The current collection registration, writing metadata, referenced artifacts,
 provenance, generated outputs, and publication blockers.
-
-## `PublishReadiness`
-
-A Markdown assessment of collection completeness, missing evidence, provenance,
-artifact drift, and required upstream work.
-
-## `PublicationReadyCollection`
-
-A scientific collection whose required writings, artifacts, provenance, and
-configuration satisfy the supported build contract.
-
-## `PublishBundle`
-
-The complete rendered local PDFs and ignored site outputs, accompanied by a
-concise build-verification report.
