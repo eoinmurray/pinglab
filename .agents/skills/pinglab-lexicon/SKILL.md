@@ -362,6 +362,15 @@ into prose that develops an argument. Do not print noun names, field names, or
 repeated inline labels. Use headings only for substantive document sections and
 descriptively named investigations or methods.
 
+Give the most narrative and visual space to the evidence that bears most
+strongly on the central question. Keep setup sufficient to interpret that
+evidence, and keep illustrative mechanisms subordinate to aggregate results.
+Combine short related material, remove repeated framing and limitations, and
+use transitions to explain why the next evidence is needed. Review the rendered
+document as a whole: avoid stranded headings, broken figure sequences, choppy
+runs of small sections, and nearly empty final pages. Let scientific importance
+determine length; do not target uniform sections or a fixed page count.
+
 Investigations remain one ordered flat collection. A rendering may place
 consecutive investigations beneath custom descriptive subgroup headings when
 that clarifies the experiment's scientific logic. These headings are optional
