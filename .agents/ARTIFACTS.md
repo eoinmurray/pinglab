@@ -80,12 +80,22 @@ scientific frame, locally aligned investigation units, decision gates, controls
 and validity, and a detailed protocol. It defines cheap tests for feasibility,
 pattern discovery, and deciding whether deeper study is warranted.
 
+## `ExpVisualSet`
+
+An optional visual evidence scaffold pairing design schematics with
+structurally matched measured plots. Each pair preserves a shared panel layout,
+variables, colours, and visual grammar, and links to its investigation unit,
+protocol section, generating code, source data, and interpretive caption. It is
+specified by an `ExpScoutPlan`, begins during implementation, and becomes
+evidence only when its measured mirrors are completed from executed results.
+
 ## `ExpScout`
 
 An executed scouting mission containing its frozen `ExpScoutPlan`,
 implementation and provenance, actual configuration and deviations,
 provisional observations, uncertainty, and a stop, revise, or escalate decision.
-Its evidence is explicitly exploratory rather than durable.
+It may include a completed `ExpVisualSet`; its evidence is explicitly
+exploratory rather than durable.
 
 ## `ExpStudyPlan`
 
