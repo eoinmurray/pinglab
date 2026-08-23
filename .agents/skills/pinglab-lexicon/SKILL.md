@@ -1,6 +1,6 @@
 ---
 name: pinglab-lexicon
-description: Interpret, construct, transform, review, or serialize Pinglab noun types whenever a prompt invokes ScientificRecord, Abstract, Seed, Formulation, HypoBranches, HypoCanon, HypoLiterature, HypoRepository, OpenSearchTrajectory, HypoCheckpoint, GroundedSearchTrajectory, HypoPacket, ExpScoutPlan, ExpSharedPlan, ExpInvestigationPlan, ExpInvestigationIdentity, ExpInvestigationIntroduction, ExpExpectedPatterns, ExpVisualSet, ExpDesignSchematic, ExpMeasuredResultSlot, ExpMethodsPlan, ExpConclusionSlot, ExpReferences, ExpAppendices, ExpScout, ScoutExecution, ExpScoutSummary, ExpSharedExecution, ExpInvestigationExecution, ExpMeasuredResult, ExpObservedPatterns, ExpMethodsExecuted, ExpConclusion, ExpStudyPlan, StudyExecution, ExpStudy, or ScientificCollectionState in any case, spacing, joining, or optional dollar-prefixed form, or asks to scope encode a rule into the Pinglab writing system.
+description: Interpret, construct, transform, review, or serialize Pinglab noun types whenever a prompt invokes ScientificRecord, Abstract, Seed, Formulation, HypoBranches, HypoCanon, HypoLiterature, HypoRepository, OpenSearchTrajectory, HypoCheckpoint, GroundedSearchTrajectory, HypoPacket, ExpScoutPlan, ExpSharedPlan, ExpInvestigationPlan, ExpInvestigationIdentity, ExpInvestigationIntroduction, ExpExpectedPatterns, ExpVisualSet, ExpDesignSchematic, ExpMeasuredResultSlot, ExpMethodsPlan, ExpConclusionSlot, ExpReferences, ExpAppendices, ExpScout, ScoutExecution, ExpScoutSummary, ExpSharedExecution, ExpInvestigationExecution, ExpMeasuredResult, ExpObservedPatterns, ExpMethodsExecuted, ExpConclusion, ExpStudyPlan, StudyExecution, ExpStudy, ExpImplementation, CampaignPlan, CampaignExecution, RunRecord, PublicationView, or ScientificCollectionState in any case, spacing, joining, or optional dollar-prefixed form, or asks to scope encode a rule into the Pinglab writing system.
 ---
 
 # Pinglab noun registry
@@ -110,41 +110,65 @@ runs, demonstrated findings, negative results, and current direction.
 
 ## Scientific lifecycle
 
-Use this loop as lightweight orientation for scientific work:
+Use this artifact-centred loop as lightweight orientation for scientific work:
 
-1. Capture a question, intuition, anomaly, or prior result as a `Seed`.
-2. Develop `Formulation` candidates and branch only at consequential
-   uncertainty.
-3. Ground the candidates against remembered canon, verified literature, and
-   observed repository evidence as needed.
-4. Ask the user to select, reject, combine, or revise the leading formulation
-   and its strongest rival.
-5. Construct a `HypoPacket` when the formulation is grounded enough to define
-   a consequential experiment.
-6. Ask the user to approve the experimental contract and decision rule.
-7. Draft an `ExpScoutPlan` or `ExpStudyPlan`; ask the user to freeze the plan
-   before execution and to authorize any paid compute explicitly.
-8. Execute the authorized bounded plan agentically, validate its outputs, and
-   preserve its provenance.
-9. Compare observations with the frozen expected patterns and separate those
-   observations from interpretation.
-10. Ask the user to choose the stop, revise, repeat, or escalate disposition.
-11. Update the `ScientificRecord` and `ScientificCollectionState`; obtain user
-    approval for scientific claims, promotion, or publication.
-12. Turn unresolved uncertainty, failures, or new findings into the next
-    `Seed` when the user considers them worth pursuing.
+1. Develop `Seed`, `Formulation`, `HypoBranches`, and grounding evidence in
+   conversation. Ask the user to select the scientific direction when that
+   choice is consequential.
+2. Before creating an experiment, recommend `Scope a scout in COLLECTION` or
+   the corresponding study request. `Scope` is read-only and identifies the
+   question, collection, dependencies, outputs, implementation, resources, and
+   completion conditions.
+3. An authorized `go` mode creates the `ExpScoutPlan` or `ExpStudyPlan` directly
+   as a persistent artifact, creates its `ExpImplementation`, and registers the
+   experiment in `ScientificCollectionState`. Use `status: "draft"` until the
+   prospective choices are ready to freeze; do not insert a chat-only plan
+   stage.
+4. Ask the user to freeze the plan before evidence-bearing execution. Within
+   the frozen question and scope, build, test, run bounded local work, analyse
+   outputs, and revise implementation and presentation agentically. Return to
+   conversation when the scientific direction or frozen expectations must
+   change.
+5. Use the Demolab-configured development and build interfaces throughout this
+   loop. While the development interface is running, it reacts to changes in
+   writing and the selected evidence; presentation is continuous feedback, not
+   a terminal publication step. Demolab does not select or accept evidence.
+6. When integrated execution is warranted, construct a dry `CampaignPlan` from
+   an explicit snapshot of `ScientificCollectionState`. Ask the user to review
+   its included experiment versions, dependencies, resources, expected outputs,
+   exclusions, and acceptance conditions, and to authorize any named paid
+   compute target explicitly.
+7. Execute the approved plan as `CampaignExecution`, then validate and finalize
+   it as a `RunRecord`. Archival, verification, restoration, repair, and
+   composition preserve rather than silently replace campaign identity.
+8. Ask the user to accept, reject, or iterate on the campaign evidence. Gold-star
+   acceptance and activation are separate human decisions. Activation changes
+   `PublicationView`; Demolab reacts to that evidence selection.
+9. Update `ScientificRecord` and `ScientificCollectionState`, and turn valuable
+   unresolved uncertainty, failures, or new findings into the next `Seed`.
 
-Encourage use of the loop lightly. At a natural transition, briefly identify
-the current step and suggest at most one next useful operation or human review
-gate. Do not recite the whole loop unless asked, require named artifacts for
-trivial exploration, or turn every transition into a confirmation ceremony.
-Work may enter, leave, repeat, or move backward through the loop as the evidence
-requires.
+Between human review gates, continue agentically within the authorized scope.
+Return to human-agent conversation for scientific direction, frozen-plan
+changes, new authority, expanded scope, paid compute, destructive action,
+evidence acceptance, promotion, activation, or publication. Never treat silence
+as approval. Work may enter, leave, repeat, or move backward through the loop as
+the evidence requires.
 
-Between review gates, continue agentically within the frozen scope. Return to
-human-agent conversation when scientific direction or claim acceptance needs
-judgment, or when execution needs new authority, expanded scope, paid compute,
-destructive action, promotion, or publication. Never treat silence as approval.
+### Progressive teaching
+
+Teach the lifecycle through use. At an unfamiliar or consequential transition,
+briefly name the current noun, distinguish conversation from a persistent
+artifact, explain why the next review gate exists, offer one natural-language
+verb or formal command, and say whether the following work is agentic. The
+labels `[CHAT]`, `[ARTIFACT]`, `[GATE]`, and `[REACTIVE]` may make those roles
+clear on first use.
+
+Reduce this guidance as the user demonstrates familiarity: move from a short
+explanation to the current state and one next operation. Do not quiz the user,
+recite the whole lifecycle unless asked, require named artifacts for trivial
+exploration, invent a proficiency score, or repeatedly explain familiar terms.
+When asked where the work is in the lifecycle, report the current step, live
+artifacts, unresolved gate, and one next operation.
 
 ## `Abstract`
 
@@ -329,6 +353,54 @@ Freeze only the best currently grounded formulation without reopening broad
 ideation. If an essential claim remains ungrounded, identify the gap and decline
 to label the packet definitive.
 
+## Execution-artifact family
+
+Execution-artifact nouns connect prospective experiment plans to native code,
+runs, durable evidence, and the continuously rendered presentation. They name
+ownership boundaries rather than requiring every native file to be rewritten as
+Markdown.
+
+## `ExpImplementation`
+
+The SNNLANG bundle or other tool contract, experiment runner, configuration,
+tests, and implementation provenance that realize a persistent experiment plan.
+Reusable computation belongs to the tool; hypothesis-specific conditions,
+analysis, and figures belong to the experiment. An implementation does not
+replace its scientific plan or establish that the experiment was executed.
+
+## `CampaignPlan`
+
+A dry, cold-readable executable snapshot of a collection. It identifies the
+frozen source, included experiment versions, hard dependencies and stages,
+commands, resource requests, shards, expected outputs, explicit exclusions,
+acceptance conditions, and blocking decisions. Constructing it does not
+authorize live submission or paid compute.
+
+## `CampaignExecution`
+
+The mutable execution of one `CampaignPlan`: jobs, shards, logs, experiment
+state, derived artifact candidates, failures, repairs, resume state, aggregation,
+and completion status. Independent stages may run concurrently after their hard
+dependencies complete. A repair or composed campaign retains explicit lineage
+to its sources rather than inheriting their identity.
+
+## `RunRecord`
+
+The provenance-bearing runstore record for an ad-hoc execution or campaign. It
+contains execution identity and status, source and upstream provenance, payload
+inventory and digest, and archive identity. Finalization freezes its complete
+payload identity; archive, verification, and restore establish durable
+recoverability but do not accept scientific claims or activate publication data.
+
+## `PublicationView`
+
+The explicitly selected, provenance-linked evidence set from which Demolab
+renders the current scientific presentation. It may expose draft or candidate
+evidence during local review and accepted campaign evidence after activation.
+Changing the view is distinct from rendering it: runstore or another governed
+selection interface changes evidence ownership, while Demolab reacts to the
+selected data and writing.
+
 ## Experiment family
 
 Experiment noun definitions form a directed composition map. A composite noun
@@ -395,6 +467,14 @@ The rendered executed artifact follows its prospective publication scaffold
 and adds execution evidence beside the corresponding prospective material. It
 may replace planned methods with one complete account of executed methods for
 readability, while retaining the frozen protocol for provenance.
+
+Within each investigation, place its executed result directly after the frozen
+expected patterns and planned visual evidence. Mark simulated evidence plainly
+as **Simulation result** in its lead text or caption; “measured” alone is not
+sufficient when readers could mistake model output for biological measurement.
+Do not move investigation results into a generic results or measured-overview
+section. A cross-investigation figure may appear near the conclusion only when
+it adds genuine synthesis, and it never substitutes for the local results.
 
 Composition is not publication anatomy. Child nouns are semantic inputs to a
 connected scientific narrative, not mandatory paragraphs, labels, cards, or
@@ -652,8 +732,13 @@ interpretation. Never replace or rewrite planned expectations as observations.
 
 ## `ScientificCollectionState`
 
-The current collection registration, writing metadata, referenced artifacts,
-technical provenance, generated outputs, and publication blockers. Technical
-provenance includes exact run and campaign identifiers, commit hashes,
-checkpoint keys, filenames, paths, manifests, commands, and implementation
-module names; it remains outside rendered experiment prose.
+The current collection registration, experiment membership and scientific
+roles, hard dependencies, lifecycle status, campaign readiness, writing
+metadata, referenced artifacts, `PublicationView`, generated outputs, and
+publication blockers. An experiment enters this state when its plan and
+implementation are created; later review freezes an explicit collection
+snapshot for `CampaignPlan` rather than admitting the experiment retroactively.
+
+Technical provenance includes exact run and campaign identifiers, commit
+hashes, checkpoint keys, filenames, paths, manifests, commands, and
+implementation module names; it remains outside rendered experiment prose.
