@@ -244,27 +244,74 @@ adds execution evidence beside the corresponding prospective material. It may
 replace planned Methods with one complete account of the executed Methods for
 readability, but the frozen plan retains the original protocol for provenance.
 
-The experiment family uses these registered composition nouns. Each also
-independently triggers this skill:
+The experiment family uses the registered composition nouns defined below.
+Each also independently triggers this skill.
 
-- `ExpPlanAbstract` states the prospective question, hypothesis, intervention,
-  estimand, and consequential outcome.
-- `ExpSharedPlan` holds identity, scientific frame, shared inputs, controls,
-  gates, budget, assumptions, scope, and available provenance.
-- `ExpInvestigationPlan` contains an `ExpInvestigationIdentity`,
-  `ExpInvestigationIntroduction`, `ExpExpectedPatterns`, and optional
-  `ExpVisualSet`.
-- `ExpMethodsPlan` is the complete prospective protocol.
-- `ExpPlannedSynthesis` specifies cross-investigation interpretation, stopping
-  rules, and completion criteria.
-- `ExpConclusionSlot` reserves the executed conclusion's publication position
-  without predicting it prospectively.
-- `ExpReferences` and `ExpAppendices` hold supporting sources and detail.
-- `ScoutExecution` contains an `ExpScoutSummary`, `ExpSharedExecution`, one
-  `ExpInvestigationExecution` per executed investigation,
-  `ExpMethodsExecuted`, and `ExpConclusion`.
-- `ExpInvestigationExecution` attaches an `ExpMeasuredResult` and
-  `ExpObservedPatterns` to its corresponding `ExpInvestigationPlan`.
+## `ExpPlanAbstract`
+
+A prospective summary stating the question, hypothesis, intervention, primary
+estimand, and consequential outcome of an experiment plan. It contains no
+observed result or disposition.
+
+## `ExpSharedPlan`
+
+The common prospective contract for identity, status, collection,
+dependencies, scientific frame, inputs, controls, decision gates, budget,
+assumptions, scope, and available provenance. State shared material once here
+rather than duplicating it across investigations.
+
+## `ExpInvestigationIdentity`
+
+The stable number and descriptive name that identify one investigation within
+an experiment plan and link its planned method, output, and later execution.
+
+## `ExpInvestigationIntroduction`
+
+The prospective rationale for one investigation: the uncertainty it resolves,
+why that uncertainty matters, and how the investigation relates to the shared
+scientific frame. It includes only enough method to understand the planned
+evidence.
+
+## `ExpExpectedPatterns`
+
+Conditional predictions for one investigation under the leading hypothesis
+and serious rivals, including the observations that distinguish them. It is
+prospective and must not be rewritten after execution to match the result.
+
+## `ExpInvestigationPlan`
+
+A locally complete prospective investigation containing an
+`ExpInvestigationIdentity`, `ExpInvestigationIntroduction`,
+`ExpExpectedPatterns`, optional `ExpVisualSet`, planned output, protocol links,
+and the limits of what its result could establish.
+
+## `ExpMethodsPlan`
+
+The complete prospective protocol: configuration, datasets, parameter values,
+sampling, seeds, execution sequence, analysis definitions, provenance, and
+reproducibility requirements. Number its subsections so investigations can
+reference them without duplicating procedural detail.
+
+## `ExpPlannedSynthesis`
+
+The prospective cross-investigation interpretation contract. It states how
+joint results distinguish the mechanism from rivals, which contradictions
+would be informative, and the stopping rules and completion criteria.
+
+## `ExpConclusionSlot`
+
+A reserved publication position for the executed conclusion. It contains no
+predicted conclusion and is omitted from a prospective rendering.
+
+## `ExpReferences`
+
+The external sources that materially inform an experiment plan or its executed
+record. Keep references attached to the claims or choices they support.
+
+## `ExpAppendices`
+
+Supporting protocol, provenance, calculations, or diagnostics whose inclusion
+in the main sequence would interrupt the experiment's evidence logic.
 
 ## `ExpScoutPlan`
 
@@ -332,6 +379,70 @@ semantic, accessibility need, or established figure convention may override
 it, but the plan must document the new mapping and keep schematic and measured
 roles visibly distinct. Never style an unexecuted or conceptual curve as
 red-black measured evidence.
+
+## `ExpDesignSchematic`
+
+A prospective, hand-authored explanation of a mechanism, intervention, or
+expected visual structure. It specifies the panel layout, variables, colours,
+visual grammar, interpretive purpose, caption, and links to its investigation
+and protocol. It is conceptual evidence design, never an observed result.
+
+## `ExpMeasuredResultSlot`
+
+The prospective placeholder paired with an `ExpDesignSchematic`. It reserves
+the structurally matched measured output, generating code, source data, and
+completion status without containing observations before execution.
+
+## `ExpScoutSummary`
+
+The highest-level execution summary of a scout: its principal observation and
+stop, revise, or escalate disposition without procedural detail. It extends the
+frozen `ExpPlanAbstract` rather than replacing its prospective claims.
+
+## `ExpSharedExecution`
+
+The shared execution record containing run provenance, completion status,
+actual common configuration, deviations from `ExpSharedPlan`, and limitations.
+Record common execution facts once rather than repeating them locally.
+
+## `ExpMeasuredResult`
+
+An executed output with its value, figure, table, or other result; completion
+status; generating code and source-data provenance; and measurement-specific
+limitations. A failed, incomplete, or not-run status is preserved explicitly
+rather than silently omitted.
+
+## `ExpObservedPatterns`
+
+A concise, exploratory account of what an `ExpMeasuredResult` shows and does
+not show relative to the frozen `ExpExpectedPatterns`. Keep observations
+separate from procedural detail and do not add a local disposition gate.
+
+## `ExpInvestigationExecution`
+
+The execution attached to one corresponding `ExpInvestigationPlan`. It contains
+an `ExpMeasuredResult` or explicit non-completion status, a completed measured
+`ExpVisualSet` mirror when planned, and `ExpObservedPatterns`.
+
+## `ExpMethodsExecuted`
+
+The complete account of methods actually executed, concrete outputs,
+provenance, and deviations. It replaces `ExpMethodsPlan` only in the readable
+rendering; the frozen plan remains the prospective provenance record.
+
+## `ExpConclusion`
+
+The cross-investigation interpretation that completes an
+`ExpConclusionSlot`, evaluates the scout against its shared decision gates and
+rivals, states limitations, and records the stop, revise, or escalate
+disposition.
+
+## `ScoutExecution`
+
+The execution overlay comprising an `ExpScoutSummary`, `ExpSharedExecution`,
+one `ExpInvestigationExecution` per planned investigation,
+`ExpMethodsExecuted`, and `ExpConclusion`. It adds what happened to a frozen
+`ExpScoutPlan` without rewriting the plan's prospective content.
 
 ## `ExpScout`
 
