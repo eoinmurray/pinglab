@@ -11,7 +11,7 @@
 
   A decoder converts neural activity into a class decision. Here the learned output projection remains frozen while two later choices change: $z$ decides what temporal activity counts as evidence, and $p$ decides how that evidence is displayed as relative confidence.
 
-  One preselected MNIST digit and one Poisson spike tensor were replayed through the canonical seed-42 COBA and PING final-epoch checkpoints represented in the latest gold-star publication view. These are the full-MNIST reference networks, not exp022's 10%-MNIST activity-frontier (`off`) condition. Their trained decoder is `mem-mean`: a non-spiking output membrane whose temporal mean supplies the class logits. To compare spike-based alternatives without retraining, the same frozen hidden activity and learned output weights also drive a counterfactual output-LIF `spike-count` decoder at inference time. Every spike-based $z$ reads that one shared intervention trajectory, and every $p$ reads the same cumulative counts. The comparison therefore explains decoder choices; it does not estimate the accuracy each alternative would achieve if trained end to end. Each subsection pairs a qualitative mechanism diagram with its measured mirror using the same visual language.
+  One preselected MNIST digit and one Poisson spike tensor were replayed through the canonical seed-42 COBA and PING final-epoch checkpoints represented in the latest gold-star publication view. These are the full-MNIST reference networks, not exp022's 10%-MNIST activity-frontier (`off`) condition. Their trained decoder is `mem-mean`: a non-spiking output membrane whose temporal mean supplies the class logits. To compare spike-based alternatives without retraining, the same frozen hidden activity and learned output weights also drive a counterfactual output-LIF `spike-count` decoder at inference time. Every spike-based $z$ reads that one shared intervention trajectory, and every $p$ reads the same cumulative counts. The comparison therefore explains decoder choices; it does not estimate the accuracy each alternative would achieve if trained end to end. Each subsection pairs a blue-grey qualitative mechanism diagram with a structurally matched red-black measured mirror.
 
   #figure(
     image("/artifacts/data/exp094/decoder_pipeline.svg", width: 100%, alt: "Frozen COBA and PING activity passing through temporal evidence, output mapping, and decision stages."),
@@ -20,7 +20,7 @@
 
   == Temporal evidence functions z
 
-  Each subsection changes only $z$. Red denotes the true class, black its strongest competitor, and time runs horizontally. Mean voltage uses the native non-spiking readout. The four spike-based alternatives use the single counterfactual output-LIF trajectory driven by the same frozen hidden spikes and output weights.
+  Each subsection changes only $z$. In the measured plots, red denotes the true class, black its strongest competitor, and time runs horizontally; the diagrams use blue and grey to remain visibly distinct. Mean voltage uses the native non-spiking readout. The four spike-based alternatives use the single counterfactual output-LIF trajectory driven by the same frozen hidden spikes and output weights.
 
   === Mean output voltage
 

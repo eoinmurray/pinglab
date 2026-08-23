@@ -4,7 +4,7 @@
   <defs>
     <marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0 0 L8 4 L0 8 Z" fill="#3f3f3f"/></marker>
     <style>
-      .box{fill:#fff;stroke:#242424;stroke-width:2}.soft{fill:#f3f0e8;stroke:#777;stroke-width:1.5}.accent{fill:#fff4f3;stroke:#a51d2d;stroke-width:2}.line{fill:none;stroke:#3f3f3f;stroke-width:2;marker-end:url(#arrow)}.dash{fill:none;stroke:#888;stroke-width:1.5;stroke-dasharray:6 5}.h{font:600 18px Arial,sans-serif;fill:#202020}.t{font:15px Arial,sans-serif;fill:#303030}.s{font:13px Arial,sans-serif;fill:#666}.red{stroke:#a51d2d;fill:none;stroke-width:2.5}.ink{stroke:#222;fill:none;stroke-width:2}
+      .box{fill:#fff;stroke:#242424;stroke-width:2}.soft{fill:#edf1f4;stroke:#777;stroke-width:1.5}.accent{fill:#eef4f8;stroke:#2f5f85;stroke-width:2}.line{fill:none;stroke:#3f3f3f;stroke-width:2;marker-end:url(#arrow)}.dash{fill:none;stroke:#888;stroke-width:1.5;stroke-dasharray:6 5}.h{font:600 18px Arial,sans-serif;fill:#202020}.t{font:15px Arial,sans-serif;fill:#303030}.s{font:13px Arial,sans-serif;fill:#666}.red{stroke:#2f5f85;fill:none;stroke-width:2.5}.ink{stroke:#222;fill:none;stroke-width:2}
     </style>
   </defs>
   <rect width="1200" height="470" fill="white"/>
