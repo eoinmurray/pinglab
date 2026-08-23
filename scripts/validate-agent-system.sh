@@ -2,7 +2,7 @@
 set -eu
 
 repo_dir=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
-skills="abstract hypo pinglab experiment publish"
+skills="abstract hypo pinglab exp publish"
 
 for name in $skills; do
   file="$repo_dir/.agents/skills/$name/SKILL.md"
@@ -20,7 +20,7 @@ for name in $skills; do
   }
 done
 
-for command in abstract hypo pinglab experiment publish; do
+for command in abstract hypo pinglab exp publish; do
   grep -q "\`$command" "$repo_dir/AGENTS.md" || {
     printf 'Lexicon command missing from AGENTS.md: %s\n' "$command" >&2
     exit 1
