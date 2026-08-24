@@ -2,6 +2,7 @@
 
 ## Visual index
 
+- [Canvas](#canvas)
 - [Scientific record](#scientificrecord)
 - [Abstract and writing objects](#abstract)
 - [Hypothesis search](#hypothesis-search-family)
@@ -12,6 +13,23 @@
 - [Experiment execution](#expscoutsummary)
 - [Campaigns and publication](#campaignplan)
 - [Collection state](#scientificcollectionstate)
+
+## `Canvas`
+
+A lightweight interactive scientific surface for exploring a mechanism,
+parameter, model, dataset, or proposed experiment through controls and immediate
+visual feedback.
+
+Use the smallest scientifically meaningful model and expose the variables that
+answer the user's question. Distinguish conceptual or simulated behaviour from
+biological measurement, state important simplifications, and avoid presenting
+illustrative output as evidence.
+
+A `Canvas` is conversational and exploratory. Creating or changing one does not
+create an experiment plan, implementation, `ExperimentRun`, official evidence,
+or publication state. If the user later asks to retain or execute its scientific
+question, recommend the appropriate scoped experiment operation rather than
+silently promoting the canvas.
 
 ## `ScientificRecord`
 

@@ -1,6 +1,6 @@
 ---
 name: pinglab-lexicon
-description: Interpret, construct, transform, review, or serialize Pinglab noun types whenever a prompt invokes ScientificRecord, Abstract, Seed, Formulation, HypoBranches, HypoCanon, HypoLiterature, HypoRepository, OpenSearchTrajectory, HypoCheckpoint, GroundedSearchTrajectory, HypoPacket, ExperimentFlow, ExpScoutPlan, ExpSharedPlan, ExpInvestigationPlan, ExpInvestigationIdentity, ExpInvestigationIntroduction, ExpExpectedPatterns, ExpVisualSet, ExpDesignSchematic, ExpMeasuredResultSlot, ExpMethodsPlan, ExpConclusionSlot, ExpReferences, ExpAppendices, ExpScout, ScoutExecution, ExpScoutSummary, ExpSharedExecution, ExpInvestigationExecution, ExpMeasuredResult, ExpObservedPatterns, ExpMethodsExecuted, ExpConclusion, ExpStudyPlan, StudyExecution, ExpStudy, ExpImplementation, CollectionDataset, ExperimentRun, CampaignPlan, CampaignExecution, RunRecord, PublicationView, or ScientificCollectionState in any case, spacing, joining, or optional dollar-prefixed form, or asks to scope encode a rule into the Pinglab writing system.
+description: Interpret, construct, transform, or serialize Pinglab noun types whenever a prompt invokes Canvas, ScientificRecord, Abstract, Seed, Formulation, HypoBranches, HypoCanon, HypoLiterature, HypoRepository, OpenSearchTrajectory, HypoCheckpoint, GroundedSearchTrajectory, HypoPacket, ExperimentFlow, ExpScoutPlan, ExpSharedPlan, ExpInvestigationPlan, ExpInvestigationIdentity, ExpInvestigationIntroduction, ExpExpectedPatterns, ExpVisualSet, ExpDesignSchematic, ExpMeasuredResultSlot, ExpMethodsPlan, ExpConclusionSlot, ExpReferences, ExpAppendices, ExpScout, ScoutExecution, ExpScoutSummary, ExpSharedExecution, ExpInvestigationExecution, ExpMeasuredResult, ExpObservedPatterns, ExpMethodsExecuted, ExpConclusion, ExpStudyPlan, StudyExecution, ExpStudy, ExpImplementation, CollectionDataset, ExperimentRun, CampaignPlan, CampaignExecution, RunRecord, PublicationView, or ScientificCollectionState in any case, spacing, joining, or optional dollar-prefixed form, or asks to scope encode a rule into the Pinglab writing system.
 ---
 
 # Pinglab lexicon
@@ -16,6 +16,10 @@ unambiguous: for example, `ScientificRecord` and `scientific record`, or
 `ExpScoutPlan` and `exp scout plan`. Allow an optional `$` before the complete
 noun or before any noun word, so `$ExpScoutPlan`, `$exp scout plan`, and
 `$exp $scout $plan` are aliases of `ExpScoutPlan`.
+
+Always recognize the bare word `canvas`, in any letter case and optionally
+prefixed by `$`, as the Pinglab noun `Canvas`. Do not require additional Pinglab
+context.
 
 Apply this normalization only when identifying a Pinglab noun, not to an
 ordinary phrase that happens to use the same words. Use the canonical names in
