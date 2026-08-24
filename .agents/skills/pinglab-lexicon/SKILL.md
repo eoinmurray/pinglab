@@ -1,6 +1,6 @@
 ---
 name: pinglab-lexicon
-description: Interpret, construct, transform, review, or serialize Pinglab noun types whenever a prompt invokes ScientificRecord, Abstract, Seed, Formulation, HypoBranches, HypoCanon, HypoLiterature, HypoRepository, OpenSearchTrajectory, HypoCheckpoint, GroundedSearchTrajectory, HypoPacket, ExpScoutPlan, ExpSharedPlan, ExpInvestigationPlan, ExpInvestigationIdentity, ExpInvestigationIntroduction, ExpExpectedPatterns, ExpVisualSet, ExpDesignSchematic, ExpMeasuredResultSlot, ExpMethodsPlan, ExpConclusionSlot, ExpReferences, ExpAppendices, ExpScout, ScoutExecution, ExpScoutSummary, ExpSharedExecution, ExpInvestigationExecution, ExpMeasuredResult, ExpObservedPatterns, ExpMethodsExecuted, ExpConclusion, ExpStudyPlan, StudyExecution, ExpStudy, ExpImplementation, CampaignPlan, CampaignExecution, RunRecord, PublicationView, or ScientificCollectionState in any case, spacing, joining, or optional dollar-prefixed form, or asks to scope encode a rule into the Pinglab writing system.
+description: Interpret, construct, transform, review, or serialize Pinglab noun types whenever a prompt invokes ScientificRecord, Abstract, Seed, Formulation, HypoBranches, HypoCanon, HypoLiterature, HypoRepository, OpenSearchTrajectory, HypoCheckpoint, GroundedSearchTrajectory, HypoPacket, ExpScoutPlan, ExpSharedPlan, ExpInvestigationPlan, ExpInvestigationIdentity, ExpInvestigationIntroduction, ExpExpectedPatterns, ExpVisualSet, ExpDesignSchematic, ExpMeasuredResultSlot, ExpMethodsPlan, ExpConclusionSlot, ExpReferences, ExpAppendices, ExpScout, ScoutExecution, ExpScoutSummary, ExpSharedExecution, ExpInvestigationExecution, ExpMeasuredResult, ExpObservedPatterns, ExpMethodsExecuted, ExpConclusion, ExpStudyPlan, StudyExecution, ExpStudy, ExpImplementation, CollectionDataset, ExperimentRun, CampaignPlan, CampaignExecution, RunRecord, PublicationView, or ScientificCollectionState in any case, spacing, joining, or optional dollar-prefixed form, or asks to scope encode a rule into the Pinglab writing system.
 ---
 
 # Pinglab noun registry
@@ -133,18 +133,24 @@ Use this artifact-centred loop as lightweight orientation for scientific work:
    loop. While the development interface is running, it reacts to changes in
    writing and the selected evidence; presentation is continuous feedback, not
    a terminal publication step. Demolab does not select or accept evidence.
-6. When integrated execution is warranted, construct a dry `CampaignPlan` from
+6. Each useful local execution creates an experiment-scoped `ExperimentRun` in
+   the collection's working `CollectionDataset`. Finalized runs remain
+   immutable; local preview may select a candidate without accepting it as the
+   experiment's official evidence.
+7. When integrated execution is warranted, construct a dry `CampaignPlan` from
    an explicit snapshot of `ScientificCollectionState`. Ask the user to review
    its included experiment versions, dependencies, resources, expected outputs,
    exclusions, and acceptance conditions, and to authorize any named paid
    compute target explicitly.
-7. Execute the approved plan as `CampaignExecution`, then validate and finalize
-   it as a `RunRecord`. Archival, verification, restoration, repair, and
-   composition preserve rather than silently replace campaign identity.
-8. Ask the user to accept, reject, or iterate on the campaign evidence. Gold-star
-   acceptance and activation are separate human decisions. Activation changes
-   `PublicationView`; Demolab reacts to that evidence selection.
-9. Update `ScientificRecord` and `ScientificCollectionState`, and turn valuable
+8. Execute the approved plan as `CampaignExecution`, producing one finalized
+   `ExperimentRun` for each successfully completed experiment. Archival,
+   verification, restoration, repair, and composition preserve run lineage.
+9. Ask the user to accept, reject, or iterate on the evidence. Acceptance moves
+   the `CollectionDataset` official pointer only for covered experiments; later
+   local runs remain candidates until separately accepted. Freezing captures an
+   immutable dataset snapshot. `PublicationView` materializes its selected
+   evidence, and Demolab reacts to that view.
+10. Update `ScientificRecord` and `ScientificCollectionState`, and turn valuable
    unresolved uncertainty, failures, or new findings into the next `Seed`.
 
 Between human review gates, continue agentically within the authorized scope.
@@ -368,6 +374,23 @@ Reusable computation belongs to the tool; hypothesis-specific conditions,
 analysis, and figures belong to the experiment. An implementation does not
 replace its scientific plan or establish that the experiment was executed.
 
+## `CollectionDataset`
+
+The collection-scoped scientific data object. Its working form retains useful
+`ExperimentRun` identities, collection-level assets and upstream datasets, and
+maps each experiment to one official run with optional local preview overrides.
+Official selection is explicit and does not follow recency. Freezing creates an
+immutable, digest-bearing snapshot; later work continues in a successor working
+revision. Verification, publication and pruning remain separate operations.
+
+## `ExperimentRun`
+
+One experiment-scoped local or remote execution. It records execution state,
+source and dirty-patch provenance, command and host, upstream runs and datasets,
+payload location and inventory digest, archive identity and legacy lineage. A
+finalized run is immutable. Its disposition may be temporary, candidate or
+retained; official status exists only through its `CollectionDataset` pointer.
+
 ## `CampaignPlan`
 
 A dry, cold-readable executable snapshot of a collection. It identifies the
@@ -386,7 +409,7 @@ to its sources rather than inheriting their identity.
 
 ## `RunRecord`
 
-The provenance-bearing runstore record for an ad-hoc execution or campaign. It
+The legacy provenance-bearing runstore record for an ad-hoc execution or campaign. It
 contains execution identity and status, source and upstream provenance, payload
 inventory and digest, and archive identity. Finalization freezes its complete
 payload identity; archive, verification, and restore establish durable
@@ -397,9 +420,9 @@ recoverability but do not accept scientific claims or activate publication data.
 The explicitly selected, provenance-linked evidence set from which Demolab
 renders the current scientific presentation. It may expose draft or candidate
 evidence during local review and accepted campaign evidence after activation.
-Changing the view is distinct from rendering it: runstore or another governed
-selection interface changes evidence ownership, while Demolab reacts to the
-selected data and writing.
+Changing the view is distinct from rendering it: `CollectionDataset` selection
+changes evidence ownership, Pingstore materializes that selection, and Demolab
+reacts to the selected data and writing.
 
 ## Experiment family
 
