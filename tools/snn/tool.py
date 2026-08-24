@@ -1898,6 +1898,9 @@ def _emit_probe(args, C, out_dir, log):
         readout_mode=getattr(args, "readout_mode", "rate"),
         signed_readout=getattr(args, "signed_readout", False),
         readout_bias=getattr(args, "readout_bias", False),
+        scale_w_in=getattr(args, "scale_w_in", 1.0),
+        scale_w_ei=getattr(args, "scale_w_ei", 1.0),
+        scale_w_ie=getattr(args, "scale_w_ie", 1.0),
     )
 
 

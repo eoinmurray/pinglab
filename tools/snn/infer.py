@@ -716,6 +716,9 @@ def probe(
     readout_mode="rate",
     signed_readout=False,
     readout_bias=False,
+    scale_w_in=1.0,
+    scale_w_ei=1.0,
+    scale_w_ie=1.0,
 ):
     """Drive a net with uniform homogeneous Poisson input; emit E/I rates.
 
@@ -785,6 +788,19 @@ def probe(
     if load_weights is not None:
         state = torch.load(load_weights, map_location=device)
         net.load_state_dict(state, strict=False)
+    if scale_w_in != 1.0:
+        net.W_ff[0].data.mul_(float(scale_w_in))
+    if scale_w_ei != 1.0:
+        for key in net.W_ei:
+            net.W_ei[key].data.mul_(float(scale_w_ei))
+    if scale_w_ie != 1.0:
+        for key in net.W_ie:
+            net.W_ie[key].data.mul_(float(scale_w_ie))
+    if (scale_w_in, scale_w_ei, scale_w_ie) != (1.0, 1.0, 1.0):
+        log.info(
+            f"  scaled weights: W_in×{scale_w_in} "
+            f"W_ei×{scale_w_ei} W_ie×{scale_w_ie}"
+        )
     net.eval()
     net.recording = True
 
