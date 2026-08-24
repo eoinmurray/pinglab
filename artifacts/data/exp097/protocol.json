@@ -2,10 +2,9 @@
   "dt_ms": 0.1,
   "t_ms": 500.0,
   "burn_ms": 100.0,
-  "n_input": 128,
-  "n_e": 80,
-  "n_i": 20,
-  "input_rate_hz": 100.0,
+  "n_e": 800,
+  "n_i": 200,
+  "input_rate_hz": 50.0,
   "tau_gaba_ms": 2.0,
   "network_seed": 83,
   "trial_seeds": [

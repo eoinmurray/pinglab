@@ -18,68 +18,67 @@
 }
 
 #let body = [
-  == Abstract
+  == 1. Abstract
 
-  Pyramidal–interneuron gamma (PING) is often described as alternating excitatory and inhibitory volleys. This scout asks whether the two recurrent conductances form a coherent state portrait of that cycle. Across five simulated trials, the conductance pair repeatedly traced an oriented loop at gamma frequency. The result supports an engine-like visualization of this simulated operating point without claiming that two conductances fully describe the network.
+  This exploratory scout asks whether recurrent excitatory and inhibitory conductances provide a useful moving portrait of a PING cycle. The pair traces a consistent loop under drive and disappears with activity when drive is removed. The rhythm remains below gamma, and voltage adds predictive information.
 
   The engine picture shows the rhythm clearly, but it does not contain the whole machine.
 
-  == The proposed engine
+  == 2. Design and scope
 
-  The frozen scout used one 80-excitatory, 20-inhibitory conductance-based PING network at its active gamma operating point. Five predeclared Poisson input realizations drove the same network. Each simulated trial lasted 500 ms, and the first 100 ms was excluded as settling time.
+  One fixed 800-excitatory, 200-inhibitory network supports both investigations. The display follows $g_E(t)$, mean recurrent excitation onto inhibitory cells, and $g_I(t)$, mean recurrent inhibition onto excitatory cells.
 
-  The engine has two main displayed state variables:
+  The scout asks whether $(g_E, g_I)$ repeatedly traces one oriented loop under constant drive and follows activity from silence back to silence. An inconsistent path would stop the engine interpretation. A below-gamma rhythm or improved prediction after adding voltage requires revision. The scout includes no training, parameter search, biological data, or robustness claim.
 
-  $ g_E(t) = "mean conductance of the recurrent E→I projection", $
+  #block(inset: 10pt, fill: rgb("eef4f8"), radius: 3pt)[
+    No separately frozen prospective plan predates this run. The expectations and gates above are reconstructed from the preserved experimental record. They remain distinct from the observations but cannot substitute for prospective registration.
+  ]
 
-  $ g_I(t) = "mean conductance of the recurrent I→E projection". $
+  Both investigations completed locally without a known scientific deviation. The disposition is *revise*: the loop is coherent but below gamma and predictively incomplete.
 
-  These are separate target-local conductances, not a signed quantity moving between two reservoirs. E spikes increase excitatory conductance onto I cells. I spikes increase inhibitory conductance onto E cells. Each conductance then decays locally. Their ordered rise and fall produces the engine-like cycle.
+  == 3. Investigations
 
-  == 1. Does the conductance pair form a cycle?
+  === 3.1 Constant drive
 
-  A useful engine portrait should return through the same joint states in the same order. The frozen analysis aligned every complete post-transient cycle to its E-population volley, then traced $(g_E, g_I)$ through time. It measured trajectory orientation, enclosed area, cycle duration, and E-to-I volley lag.
-
-  *Expected patterns.* A coherent PING cycle should raise $g_E$ after an E volley, recruit an I volley, and then raise $g_I$ while E activity is suppressed. Repeated cycles should traverse a bounded loop in one direction. A collapsed line, inconsistent orientation, or broad cloud would weaken the two-conductance account.
-
-  *Planned visual evidence.* The trial nearest the median rhythm frequency supplies five complete cycles. Equal-sized conductance and voltage instruments, simulated traces, volley marks, and a moving phase-plane point share one clock. Screen positions are normalized, but the video reports biological time.
-
-  *Simulation result.* The five trials supplied #result.cycles_total complete cycles: #(result.cycles_per_trial.map(str).join(", ")) per trial. Every cycle moved #result.modal_orientation through the conductance plane. The median period was #calc.round(result.median_period_ms, digits: 1) ms, or #calc.round(result.median_frequency_hz, digits: 1) Hz. The median signed loop area was #calc.round(result.median_signed_area_uS2, digits: 3) $mu S^2$. The conductance pair therefore forms a coherent cycle at this operating point.
+  A coherent cycle should raise $g_E$, recruit inhibition, and then raise $g_I$ while excitatory activity is suppressed. Complete cycles are aligned to excitatory volleys, and the representative trial is selected by a fixed median-frequency rule. A collapsed or inconsistently oriented path would weaken the engine account.
 
   #figure(
     loop-video("measured_engine.mp4"),
     caption: [
-      Simulation result. Five continuous cycles from the representative simulated trial, looped in the web view. The top row groups the conductance family: pistons, time traces, and joint trajectory. The bottom row groups membrane voltage and activity: voltage pistons, voltage traces, and stochastic input with E and I population volleys. The footer separates biological time from playback rate.
+      Simulation result. Five continuous cycles from the representative simulated trial, looped in the web view. The top row shows recurrent conductance as paired instruments, time traces, and a joint trajectory. The bottom row shows membrane voltage and activity. Panel 6 contains native-time spikes from 24 fixed input channels, 40 of 800 excitatory cells, and 20 of 200 inhibitory cells. Thin envelopes show size-normalized rates from each full population.
     ],
   )
 
-  == Executed methods
+  The five trials supplied #result.cycles_total complete cycles, all moving #result.modal_orientation with a median frequency of #calc.round(result.median_frequency_hz, digits: 1) Hz. The loop is coherent but below gamma. Adding population-mean voltage reduced held-out phase error from #calc.round(result.prediction.two_phase, digits: 3) to #calc.round(result.prediction.four_phase, digits: 3) cycles and next-volley error from #calc.round(result.prediction.two_timing, digits: 1) to #calc.round(result.prediction.four_timing, digits: 1) ms, so conductance alone is not a complete predictive state.
 
-  === 2.1 Simulation and sampling
+  === 3.2 From silence to activity and back
 
-  + Simulate 80 excitatory and 20 inhibitory cells with 128 homogeneous Poisson input channels at 100 Hz per channel, a 0.1 ms timestep, and a 2 ms inhibitory decay.
-  + Hold the network realization fixed and use input seeds #(result.per_trial.map(row => str(row.seed)).join(", ")). Simulate 500 ms per trial and exclude the first 100 ms.
-  + Record E and I population spikes, membrane voltages, recurrent E-to-I AMPA conductance, and recurrent I-to-E GABA conductance at every timestep. This investigation analyzes the spikes and recurrent conductances.
+  The same display should become active only while external drive rises and falls. One fixed input realization applies a 0–50–0 Hz command between silent periods; activity before or after that interval would weaken the claim.
 
-  === 2.2 Cycle measurements
+  #figure(
+    loop-video("input_ramp_engine.mp4"),
+    caption: [
+      Simulation result. The commanded input rises from zero to 50 Hz per channel, returns to zero, and ends with 200 ms of silence. The dashed curve in Panel 6 is the command; sampled spikes and solid rate envelopes are simulated responses. The same network and display mapping are used as in the constant-drive video.
+    ],
+  )
 
-  + Compute $g_E(t)$ from the recurrent E→I AMPA projection and $g_I(t)$ from the recurrent I→E GABA projection. Average over batch and target cells only after retaining the full per-cell traces.
-  + Detect E volleys from the smoothed population spike count after the transient. Define a complete cycle between consecutive detected E volleys.
-  + Compute signed phase-plane area, orientation, period, and E-to-I volley lag from each complete $(g_E, g_I)$ path.
+  Both populations were silent before and after the drive. During it, excitatory cells averaged #calc.round(result.drive_transients.ramp.e_rate_active_hz, digits: 1) Hz and inhibitory cells #calc.round(result.drive_transients.ramp.i_rate_active_hz, digits: 1) Hz per neuron. The detector found #result.drive_transients.ramp.active_e_volleys excitatory volleys while driven and #result.drive_transients.ramp.post_e_volleys afterward. In this trial, the engine follows the command back to silence.
 
-  === 2.3 Visual mapping
+  == 4. Methods
 
-  + Select the illustrative trial by the frozen median-frequency rule. Downsample five cycles to 300 display frames; retain native-resolution arrays for every analysis.
-  + Keep E and I identity stable across pistons, traces, spikes, and the phase portrait. State biological time and playback rate together.
+  + Simulate 800 excitatory and 200 inhibitory cells with 128 homogeneous Poisson input channels, a 0.1 ms timestep, and a 2 ms inhibitory decay.
+  + Hold the network realization fixed. For constant drive, use input seeds #(result.per_trial.map(row => str(row.seed)).join(", ")) at 50 Hz per channel. Simulate 500 ms per trial and exclude the first 100 ms.
+  + Record external-input spikes, excitatory and inhibitory population spikes, membrane voltages, recurrent E-to-I AMPA conductance, and recurrent I-to-E GABA conductance at every timestep.
+  + Compute $g_E(t)$ from the recurrent E-to-I AMPA projection and $g_I(t)$ from the recurrent I-to-E GABA projection. Retain per-cell traces before averaging over target cells.
+  + Detect excitatory volleys from the smoothed population spike count after the transient. Define a complete cycle between consecutive detected volleys.
+  + Measure signed phase-plane area, orientation, period, and excitatory-to-inhibitory volley lag for each complete $(g_E, g_I)$ path.
+  + Compare nearest-neighbour prediction from $(g_E, g_I)$ with prediction from $(g_E, g_I, V_E, V_I)$ on held-out cycles. Measure circular phase error and absolute time-to-next-volley error.
+  + Select the illustrative constant-drive trial by the fixed median-frequency rule. Downsample five cycles to 300 display frames while retaining native-resolution arrays for analysis.
+  + Display native timestamps for 24 fixed input channels, 40 fixed excitatory cells, and 20 fixed inhibitory cells. Overlay per-neuron rate envelopes from each complete population.
+  + For the second video, apply a linear 0–50–0 Hz input-rate schedule between two 200 ms silent periods. Use one fixed input realization and the unchanged network.
+  + Restrict every conclusion to this network realization, its tested operating points, and simulated evidence.
 
-  === 2.4 Frozen interpretation gate
+  == 5. Conclusion
 
-  + Stop the engine interpretation if complete cycles do not share a trajectory orientation.
-  + Restrict every conclusion to this network realization and operating point.
-
-  == Conclusion
-
-  The scout passes its coherence gate: all #result.cycles_total detected cycles formed an oriented conductance loop with a median period of #calc.round(result.median_period_ms, digits: 1) ms. The two recurrent conductances therefore support the running-engine visualization at this simulated operating point.
-
-  This bounded result does not establish that the conductance pair is a complete network state or that the same portrait generalizes across network realizations, parameters, or biological gamma rhythms.
+  The scout supports *revision*, not escalation. The display captures an oriented drive-dependent cycle, but the rhythm is below gamma and conductance alone is predictively incomplete. One network cannot establish generality or biological relevance. A new prospective scout should first locate a genuine gamma operating point before testing the portrait across network realizations.
 ]

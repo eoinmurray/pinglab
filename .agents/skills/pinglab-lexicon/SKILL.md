@@ -695,6 +695,20 @@ frozen protocol for provenance. Do not rewrite expectations as observations or
 create a separate results section. All evidence remains exploratory rather than
 durable.
 
+Keep rendered scouts proportionate to reconnaissance. Write the abstract as one
+short qualitative paragraph followed by the required plain-language sentence.
+Keep design and scope to the minimum needed to understand the question, shared
+setup, boundaries, and decision gates; prefer direct human-readable prose over
+contract-like enumeration. For each investigation, use one compact prospective
+passage before its output and one compact observed interpretation after it. Let
+figures, captions, and methods carry detail instead of repeating it in the
+surrounding prose. Keep `ExpMethodsExecuted` complete. End with a short
+disposition-led conclusion containing only the decisive cross-investigation
+interpretation, material limitation, and warranted next step. Brevity never
+permits removing epistemic status, serious rivals, distinguishing expectations,
+failed or incomplete results, material deviations, or limitations needed to
+interpret the evidence. This rendering rule does not apply to `ExpStudy`.
+
 Number every body heading hierarchically. The publication title, figure
 captions, equations, and inline structural labels such as `Relevance` and
 visual-set labels are not body headings and remain unnumbered. Optional
