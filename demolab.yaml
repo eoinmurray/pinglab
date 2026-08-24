@@ -5,6 +5,10 @@ contents-title: pinglab — contents
 annotations: hypothesis
 pdfs: false
 
+index:
+  mode: expanded
+  recent: 5
+
 collection-order: [gamma-gated-sparsity, spiking-heidelberg-digits, paper-demonstrations, snnlang, documentation, literature, exploratory, weekly-feed]
 collections:
   gamma-gated-sparsity:

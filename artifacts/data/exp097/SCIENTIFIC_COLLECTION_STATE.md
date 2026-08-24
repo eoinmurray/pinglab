@@ -9,7 +9,7 @@
   `ScoutExecution`
 - Implementation: `experiments/exp097.py`; tests: `experiments/tests/test_exp097.py`
 - Hard dependencies: `experiments/exp083.py`, `tools/snn`, and `tools/snnlang`
-- Scout execution: `r008`
+- Scout execution: `r021`
 - Writing metadata: title `Can a PING cycle be seen as a running engine?`,
   status `complete`, order 11
 - Simulation results: `numbers.json`, `measured_cycle.svg`, `measured_engine.mp4`,
@@ -19,7 +19,7 @@
 
 ## PublicationView
 
-- Current local view uses ad-hoc run `r008` and the two video results.
+- Current local view uses ad-hoc run `r021` and the two video results.
 - No campaign evidence has been accepted or activated as a gold-star view.
 
 ## Execution

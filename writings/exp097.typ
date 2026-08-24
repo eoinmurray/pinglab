@@ -1,10 +1,11 @@
 #let meta = (
   title: "Can a PING cycle be seen as a running engine?",
-  date: "2026-08-23",
+  created_at: "2026-08-23",
+  updated_at: "2026-08-24",
   description: "Tests whether recurrent excitatory and inhibitory conductances trace a coherent simulated PING cycle.",
   collection: "snnlang",
-  status: "ExpScout",
   order: 11,
+  status: "ExpScout",
 )
 
 #let r = json("/artifacts/data/exp097/numbers.json")

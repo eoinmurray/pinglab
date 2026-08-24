@@ -9,6 +9,16 @@ def test_gold_star_checkpoint_contract_is_final_epoch_and_hash_pinned() -> None:
     assert exp094.UPSTREAM_CAMPAIGN == "ggs-fr-repair-20260820-ac6f4988"
     assert exp094.CHECKPOINT_ROLE == "final_epoch"
     assert set(exp094.EXPECTED_CHECKPOINTS) == {"coba", "ping"}
+    assert exp094.TRAINING_ROOT == (
+        exp094.REPO
+        / "runs"
+        / "restored"
+        / "gold-2"
+        / "state"
+        / "checkpoints"
+        / "current-repair-exp022"
+        / "cells"
+    )
 
 
 def test_cumulative_and_window_counts_have_declared_memory() -> None:

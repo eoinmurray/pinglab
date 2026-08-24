@@ -525,6 +525,27 @@ def test_all_visual_views_render(tmp_path):
         )
 
 
+def test_expanded_visualisation_retains_recurrent_self_projection(tmp_path):
+    if shutil.which("dot") is None:
+        pytest.skip("Graphviz 'dot' is required for snnlang visualisation")
+    net = snn.Network("self_loop")
+    e = net.population("E", size=8, neuron=snn.COBA_LIF())
+    net.connect(
+        e.spikes,
+        e.excitatory,
+        name="E_to_E",
+        synapse=snn.AMPA(),
+        weight=snn.Constant(0.1),
+        connection="recurrent",
+    )
+
+    output = snn.compile(net).visualise(
+        tmp_path / "expanded.svg", view="expanded"
+    )
+
+    assert "n_E_to_E" in output.read_text()
+
+
 def test_circuit_visualisation_can_expand_selected_groups(tmp_path):
     if shutil.which("dot") is None:
         pytest.skip("Graphviz 'dot' is required for snnlang visualisation")

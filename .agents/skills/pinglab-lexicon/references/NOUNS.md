@@ -416,6 +416,24 @@ Use the schematic when the common mechanism or experimental design would
 otherwise require extended prose. The schematic replaces explanation rather
 than decorating or enlarging the section.
 
+When an experiment uses SNNLANG, include a compiled SNNLANG network diagram in
+the `ExpSharedPlan` whenever the authored graph can be rendered. Treat it as a
+structural design schematic, not measured evidence. Use the deepest compiled
+view that remains scientifically legible: expose each relevant population and
+its size, every relevant projection with direction and polarity, and each
+external input with the exact population it targets. Prefer a selectively
+expanded circuit or expanded view over a collapsed component view. Deep means
+population-and-projection level, not individual neurons, synaptic matrices,
+numerical parameters, or implementation ports; keep those details in methods
+or native artifacts unless they are essential to understand the design. If
+conditions share one topology, show one representative graph and identify
+parameterized differences in its caption. If topology varies materially,
+expose those variants rather than presenting one graph as universal. When full
+expansion is illegible, use selective expansion, filtering, or multiple panels
+instead of substituting a high-level diagram that hides the mechanism. This
+requirement does not apply to non-SNNLANG experiments and does not authorize an
+invented or misleading diagram when no compiled graph exists.
+
 ## `ExpInvestigationIdentity`
 
 The stable number and descriptive name that identify one investigation and
@@ -566,6 +584,12 @@ status, an optional completed `ExpVisualSet`, and `ExpObservedPatterns`.
 
 The complete scientific account of methods actually executed, concrete
 outputs, and scientifically meaningful deviations.
+
+In rendered experiments, title this section `Methods` and present its content
+as one flat list. A list item may use multiple sentences when needed, but do
+not add nested lists or subsection headings. This presentation rule applies
+only to `ExpMethodsExecuted`; `ExpMethodsPlan` retains its numbered
+subsections.
 
 ## `ExpConclusion`
 

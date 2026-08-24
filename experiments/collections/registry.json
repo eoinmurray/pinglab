@@ -38,7 +38,8 @@
     "exp086": "paper-demonstrations",
     "exp093": "gamma-gated-sparsity",
     "exp094": "gamma-gated-sparsity",
-    "exp097": "snnlang"
+    "exp097": "snnlang",
+    "exp099": "snnlang"
   },
   "historical": {
     "exp087": {

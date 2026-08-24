@@ -1,0 +1,699 @@
+diff --git a/experiments/collections/registry.json b/experiments/collections/registry.json
+index 46422343..d1b3a24e 100644
+--- a/experiments/collections/registry.json
++++ b/experiments/collections/registry.json
+@@ -38,7 +38,8 @@
+     "exp086": "paper-demonstrations",
+     "exp093": "gamma-gated-sparsity",
+     "exp094": "gamma-gated-sparsity",
+-    "exp097": "snnlang"
++    "exp097": "snnlang",
++    "exp099": "snnlang"
+   },
+   "historical": {
+     "exp087": {
+diff --git a/experiments/exp094.py b/experiments/exp094.py
+index 933daf17..8d561336 100644
+--- a/experiments/exp094.py
++++ b/experiments/exp094.py
+@@ -44,9 +44,11 @@ TRAINING_ROOT = Path(
+         "PINGLAB_TRAINING_ROOT",
+         REPO
+         / "runs"
+-        / "inputs"
+-        / "ggs-fr-repair-20260820-ac6f4988"
+-        / "exp022"
++        / "restored"
++        / "gold-2"
++        / "state"
++        / "checkpoints"
++        / "current-repair-exp022"
+         / "cells",
+     )
+ )
+diff --git a/experiments/exp097.py b/experiments/exp097.py
+index 556a0226..b6c836d5 100644
+--- a/experiments/exp097.py
++++ b/experiments/exp097.py
+@@ -9,9 +9,9 @@ import time
+ from pathlib import Path
+ 
+ import matplotlib.pyplot as plt
++from matplotlib import animation, patches
+ import numpy as np
+ import torch
+-from matplotlib import animation, patches
+ from scipy.ndimage import gaussian_filter1d
+ from scipy.signal import find_peaks
+ from scipy.spatial import cKDTree
+@@ -24,13 +24,12 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
+ 
+ from execution import ExecutionSpec, simulate  # noqa: E402
+ from experiments import exp083  # noqa: E402
+-from tools import snnlang as snn  # noqa: E402, TID251
+-
+ from helpers import theme  # noqa: E402
+ from helpers.cli import parse_meta  # noqa: E402
+ from helpers.numbers import write_numbers  # noqa: E402
+ from helpers.run_dirs import published_run  # noqa: E402
+ from helpers.run_id import next_run_id  # noqa: E402
++from tools import snnlang as snn  # noqa: E402, TID251
+ 
+ SLUG = "exp097"
+ DT_MS = 0.1
+@@ -301,6 +300,8 @@ def plot_result(state: dict, result: dict, out: Path) -> None:
+     t = np.asarray(state["time_ms"])
+     ge = np.asarray(state["ge"])
+     gi = np.asarray(state["gi"])
++    ve = np.asarray(state["ve"])
++    vi = np.asarray(state["vi"])
+     fig, axes = plt.subplots(1, 3, figsize=(9.2, 3.0))
+     axes[0].plot(ge, gi, color=theme.DEEP_RED, lw=1.4)
+     axes[0].scatter(ge[::20], gi[::20], s=9, color=theme.INK_BLACK)
+@@ -330,6 +331,7 @@ def render_measured_animation(state: dict, out: Path, poster: Path) -> None:
+     vi = np.asarray(state["vi"])
+     e_spikes = np.asarray(state["e_spikes"])
+     i_spikes = np.asarray(state["i_spikes"])
++    input_spikes = np.asarray(state["input_spikes"])
+     input_raster_times = np.asarray(state["input_raster_times_ms"])
+     input_raster_rows = np.asarray(state["input_raster_rows"])
+     e_raster_times = np.asarray(state["e_raster_times_ms"])
+@@ -370,17 +372,14 @@ def render_measured_animation(state: dict, out: Path, poster: Path) -> None:
+         engine.add_patch(patches.FancyBboxPatch((x, 1.7), 2.5, 6.4, boxstyle="round,pad=0.08", facecolor="white", edgecolor=theme.GREY_MID, linewidth=1.5))
+         fill = patches.Rectangle((x + 0.65, 2.3), 1.2, 0.4, facecolor=colour, alpha=0.88)
+         plunger = patches.Rectangle((x + 0.35, 2.65), 1.8, 0.22, facecolor=colour)
+-        engine.add_patch(fill)
+-        engine.add_patch(plunger)
++        engine.add_patch(fill); engine.add_patch(plunger)
+         engine.text(x + 1.25, 1.15, label, ha="center", fontsize=10, fontweight="bold")
+-        fills.append(fill)
+-        plungers.append(plunger)
++        fills.append(fill); plungers.append(plunger)
+     engine.annotate("E volley triggers $g_E$", (6.0, 8.7), (4.0, 8.7), arrowprops={"arrowstyle": "->", "color": theme.DEEP_RED}, ha="center", fontsize=8)
+     engine.annotate("$g_I$ suppresses E", (3.9, 4.4), (6.0, 4.4), arrowprops={"arrowstyle": "->", "color": theme.INK_BLACK}, ha="center", fontsize=8)
+     e_lamp = patches.Circle((4.9, 7.3), 0.24, facecolor=theme.DEEP_RED, alpha=0.12)
+     i_lamp = patches.Circle((4.9, 2.7), 0.24, facecolor=theme.INK_BLACK, alpha=0.12)
+-    engine.add_patch(e_lamp)
+-    engine.add_patch(i_lamp)
++    engine.add_patch(e_lamp); engine.add_patch(i_lamp)
+ 
+     voltage_engine.set(xlim=(0, 10), ylim=(0, 10), title="4 · Local membrane-voltage engine")
+     voltage_engine.axis("off")
+@@ -390,11 +389,9 @@ def render_measured_animation(state: dict, out: Path, poster: Path) -> None:
+         voltage_engine.add_patch(patches.FancyBboxPatch((x, 1.7), 2.5, 6.4, boxstyle="round,pad=0.08", facecolor="white", edgecolor=theme.GREY_MID, linewidth=1.5))
+         fill = patches.Rectangle((x + 0.65, 2.3), 1.2, 0.4, facecolor=colour, alpha=0.88)
+         plunger = patches.Rectangle((x + 0.35, 2.65), 1.8, 0.22, facecolor=colour)
+-        voltage_engine.add_patch(fill)
+-        voltage_engine.add_patch(plunger)
++        voltage_engine.add_patch(fill); voltage_engine.add_patch(plunger)
+         voltage_engine.text(x + 1.25, 1.15, label, ha="center", fontsize=10, fontweight="bold")
+-        voltage_fills.append(fill)
+-        voltage_plungers.append(plunger)
++        voltage_fills.append(fill); voltage_plungers.append(plunger)
+     voltage_engine.text(5.0, 8.75, "up = depolarized", ha="center", fontsize=9)
+ 
+     traces.plot(t, ge, color=theme.DEEP_RED, lw=1.5, label="$g_E$")
+@@ -451,16 +448,12 @@ def render_measured_animation(state: dict, out: Path, poster: Path) -> None:
+         gi_fraction = (gi[frame] - gi_low) / max(gi_high - gi_low, 1e-12)
+         for fill, plunger, fraction in zip(fills, plungers, (ge_fraction, gi_fraction)):
+             height = 0.4 + 4.2 * fraction
+-            fill.set_y(2.3)
+-            fill.set_height(height)
+-            plunger.set_y(2.7 + height)
++            fill.set_y(2.3); fill.set_height(height); plunger.set_y(2.7 + height)
+         ve_fraction = (ve[frame] - ve_low) / max(ve_high - ve_low, 1e-12)
+         vi_fraction = (vi[frame] - vi_low) / max(vi_high - vi_low, 1e-12)
+         for fill, plunger, fraction in zip(voltage_fills, voltage_plungers, (ve_fraction, vi_fraction)):
+             height = 0.4 + 4.2 * fraction
+-            fill.set_y(2.3)
+-            fill.set_height(height)
+-            plunger.set_y(2.7 + height)
++            fill.set_y(2.3); fill.set_height(height); plunger.set_y(2.7 + height)
+         e_lamp.set_alpha(0.95 if e_spikes[frame] > 0 else 0.12)
+         i_lamp.set_alpha(0.95 if i_spikes[frame] > 0 else 0.12)
+         cursor.set_xdata([t[frame], t[frame]])
+diff --git a/experiments/tests/test_exp094_decoders.py b/experiments/tests/test_exp094_decoders.py
+index c033e0bb..7030d952 100644
+--- a/experiments/tests/test_exp094_decoders.py
++++ b/experiments/tests/test_exp094_decoders.py
+@@ -9,6 +9,16 @@ def test_gold_star_checkpoint_contract_is_final_epoch_and_hash_pinned() -> None:
+     assert exp094.UPSTREAM_CAMPAIGN == "ggs-fr-repair-20260820-ac6f4988"
+     assert exp094.CHECKPOINT_ROLE == "final_epoch"
+     assert set(exp094.EXPECTED_CHECKPOINTS) == {"coba", "ping"}
++    assert exp094.TRAINING_ROOT == (
++        exp094.REPO
++        / "runs"
++        / "restored"
++        / "gold-2"
++        / "state"
++        / "checkpoints"
++        / "current-repair-exp022"
++        / "cells"
++    )
+ 
+ 
+ def test_cumulative_and_window_counts_have_declared_memory() -> None:
+diff --git a/tools/snnlang/tests/test_snnlang.py b/tools/snnlang/tests/test_snnlang.py
+index 24dd04c1..700786c4 100644
+--- a/tools/snnlang/tests/test_snnlang.py
++++ b/tools/snnlang/tests/test_snnlang.py
+@@ -525,6 +525,27 @@ def test_all_visual_views_render(tmp_path):
+         )
+ 
+ 
++def test_expanded_visualisation_retains_recurrent_self_projection(tmp_path):
++    if shutil.which("dot") is None:
++        pytest.skip("Graphviz 'dot' is required for snnlang visualisation")
++    net = snn.Network("self_loop")
++    e = net.population("E", size=8, neuron=snn.COBA_LIF())
++    net.connect(
++        e.spikes,
++        e.excitatory,
++        name="E_to_E",
++        synapse=snn.AMPA(),
++        weight=snn.Constant(0.1),
++        connection="recurrent",
++    )
++
++    output = snn.compile(net).visualise(
++        tmp_path / "expanded.svg", view="expanded"
++    )
++
++    assert "n_E_to_E" in output.read_text()
++
++
+ def test_circuit_visualisation_can_expand_selected_groups(tmp_path):
+     if shutil.which("dot") is None:
+         pytest.skip("Graphviz 'dot' is required for snnlang visualisation")
+diff --git a/tools/snnlang/visualize.py b/tools/snnlang/visualize.py
+index 08826021..0b80a92e 100644
+--- a/tools/snnlang/visualize.py
++++ b/tools/snnlang/visualize.py
+@@ -173,7 +173,12 @@ def _dot(
+     for projection in graph["projections"]:
+         source = mapped(projection["source"].partition(".")[0])
+         target = mapped(projection["target"].partition(".")[0])
+-        if source == target or source not in rendered or target not in rendered:
++        if source not in rendered or target not in rendered:
++            continue
++        # Collapsed components hide their internal wiring. Expanded views must
++        # retain recurrent self-projections such as E→E and I→I; Graphviz can
++        # render these as labelled loops without inventing an intermediate node.
++        if source == target and collapsed:
+             continue
+         polarity = projection["polarity"]
+         # Circuit diagrams follow the lab's ink-plus-one-accent figure palette:
+
+diff --git a/experiments/exp099.py b/experiments/exp099.py
+new file mode 100644
+index 00000000..985a46f4
+--- /dev/null
++++ b/experiments/exp099.py
+@@ -0,0 +1,405 @@
++"""EXP099: replay a trained PING checkpoint across pixel-rate drive."""
++
++from __future__ import annotations
++
++import json
++import os
++import subprocess
++import sys
++import time
++from pathlib import Path
++
++import matplotlib.animation as animation
++import matplotlib.pyplot as plt
++import numpy as np
++
++REPO = Path(__file__).resolve().parents[1]
++sys.path.insert(0, str(REPO))
++sys.path.insert(0, str(Path(__file__).resolve().parent))
++
++from helpers import theme  # noqa: E402
++from helpers.checkpoints import public_provenance, resolve_checkpoint  # noqa: E402
++from helpers.cli import parse_meta  # noqa: E402
++from helpers.datasets import load_mnist_split  # noqa: E402
++from helpers.numbers import write_numbers  # noqa: E402
++from helpers.rhythmicity import (  # noqa: E402
++    iei_histogram,
++    population_event_times,
++    rhythmicity_scalars,
++    spike_autocorrelogram,
++)
++from helpers.run_dirs import published_run  # noqa: E402
++from helpers.run_id import next_run_id  # noqa: E402
++
++SLUG = "exp099"
++UPSTREAM_PUBLICATION = "ggs-production-composite-20260821-6d9c38eb"
++UPSTREAM_CELL = "ping__canonical__seed42"
++CHECKPOINT_ROLE = "final_epoch"
++EXPECTED_CHECKPOINT_SHA256 = (
++    "afe3bce49a89c2dbdac4f986bc3ca65bda91db385b2d58914c9c765075d78a0f"
++)
++TRAINING_ROOT = Path(
++    os.environ.get(
++        "PINGLAB_TRAINING_ROOT",
++        REPO
++        / "runs"
++        / "restored"
++        / "gold-2"
++        / "state"
++        / "checkpoints"
++        / "current-repair-exp022"
++        / "cells",
++    )
++)
++SNN_TOOL = REPO / "tools" / "snn" / "tool.py"
++DT_MS, T_MS, BURN_MS = 0.1, 400.0, 100.0
++N_INPUT, N_E, N_I = 784, 1_024, 256
++MNIST_SPLIT, IMAGE_INDEX, EXPECTED_LABEL = "official_test", 0, 7
++POISSON_SEED = 9900
++INPUT_RATES_HZ = tuple(float(value) for value in np.linspace(0.0, 100.0, 40))
++VIDEO_FPS = 10
++CORRELATION_CELLS, CORRELATION_BIN_MS = 20, 5.0
++SCALE = {
++    "upstream_publication": UPSTREAM_PUBLICATION,
++    "upstream_cell": UPSTREAM_CELL,
++    "checkpoint_role": CHECKPOINT_ROLE,
++    "checkpoint_sha256": EXPECTED_CHECKPOINT_SHA256,
++    "dataset": "mnist",
++    "dataset_split": MNIST_SPLIT,
++    "image_index": IMAGE_INDEX,
++    "expected_label": EXPECTED_LABEL,
++    "poisson_seed": POISSON_SEED,
++    "input_rates_hz": list(INPUT_RATES_HZ),
++    "dt_ms": DT_MS,
++    "t_ms": T_MS,
++    "burn_ms": BURN_MS,
++    "n_input": N_INPUT,
++    "n_e": N_E,
++    "n_i": N_I,
++    "video_fps": VIDEO_FPS,
++}
++
++
++def require_checkpoint() -> tuple[Path, dict]:
++    directory = TRAINING_ROOT / UPSTREAM_CELL
++    checkpoint = resolve_checkpoint(directory, CHECKPOINT_ROLE)
++    if checkpoint["sha256"] != EXPECTED_CHECKPOINT_SHA256:
++        raise RuntimeError(
++            f"{UPSTREAM_CELL} checkpoint does not match {UPSTREAM_PUBLICATION}: "
++            f"{checkpoint['sha256']}"
++        )
++    return directory, checkpoint
++
++
++def load_test_image() -> tuple[np.ndarray, int]:
++    _, test_pixels, _, test_labels = load_mnist_split()
++    pixels = test_pixels[IMAGE_INDEX].astype(np.float32)
++    label = int(test_labels[IMAGE_INDEX])
++    if label != EXPECTED_LABEL:
++        raise RuntimeError(f"MNIST test image {IMAGE_INDEX} is {label}, expected 7")
++    return pixels, label
++
++
++def paired_input_bank(pixels: np.ndarray) -> dict[float, np.ndarray]:
++    steps = round(T_MS / DT_MS)
++    draws = np.random.default_rng(POISSON_SEED).random(
++        (steps, N_INPUT), dtype=np.float32
++    )
++    return {
++        rate: (draws < pixels[None, :] * rate * DT_MS / 1_000.0)[:, None, :].astype(
++            np.uint8
++        )
++        for rate in INPUT_RATES_HZ
++    }
++
++
++def _dense(raster: np.lib.npyio.NpzFile, prefix: str, width: int) -> np.ndarray:
++    values = np.zeros((int(raster["T"]), width), dtype=np.uint8)
++    keep = raster[f"{prefix}_trial"] == 0
++    values[raster[f"{prefix}_t"][keep], raster[f"{prefix}_cell"][keep]] = 1
++    return values
++
++
++def replay(
++    directory: Path, checkpoint: dict, input_spikes: np.ndarray, work: Path
++) -> dict[str, np.ndarray]:
++    work.mkdir(parents=True, exist_ok=True)
++    input_path, output = work / "input.npz", work / "replay"
++    raster_path = output / "rasters.npz"
++    if not raster_path.is_file():
++        np.savez_compressed(input_path, input_spikes=input_spikes)
++        subprocess.run(
++            [
++                "uv",
++                "run",
++                "python",
++                str(SNN_TOOL),
++                "sim",
++                "--load-config",
++                str(directory / "config.json"),
++                "--load-weights",
++                str(checkpoint["path"]),
++                "--device",
++                "auto",
++                "--n-in",
++                str(N_INPUT),
++                "--input-file",
++                str(input_path),
++                "--outputs",
++                "rasters",
++                "--out-dir",
++                str(output),
++            ],
++            cwd=REPO,
++            check=True,
++        )
++    with np.load(raster_path) as raster:
++        return {
++            "e": _dense(raster, "e", int(raster["n_e"])),
++            "i": _dense(raster, "i", int(raster["n_i"])),
++        }
++
++
++def _isi_cv(spikes: np.ndarray) -> float | None:
++    values = []
++    for cell in range(spikes.shape[1]):
++        times = np.flatnonzero(spikes[:, cell])
++        if len(times) >= 4:
++            intervals = np.diff(times)
++            values.append(float(intervals.std(ddof=1) / intervals.mean()))
++    return None if not values else float(np.median(values))
++
++
++def _pairwise_correlation(spikes: np.ndarray) -> float | None:
++    bin_steps = round(CORRELATION_BIN_MS / DT_MS)
++    trimmed = spikes[: len(spikes) // bin_steps * bin_steps, :CORRELATION_CELLS]
++    counts = trimmed.reshape(-1, bin_steps, CORRELATION_CELLS).sum(axis=1)
++    counts = counts[:, counts.std(axis=0) > 0]
++    if counts.shape[1] < 2:
++        return None
++    matrix = np.corrcoef(counts, rowvar=False)
++    values = matrix[np.triu_indices_from(matrix, 1)]
++    values = values[np.isfinite(values)]
++    return None if not values.size else float(values.mean())
++
++
++def _spectrum(spikes: np.ndarray) -> tuple[float | None, float | None]:
++    counts = spikes.sum(axis=1).astype(float)
++    if counts.std() == 0:
++        return None, None
++    power = np.abs(np.fft.rfft((counts - counts.mean()) * np.hanning(len(counts)))) ** 2
++    frequencies = np.fft.rfftfreq(len(counts), DT_MS / 1_000.0)
++    keep = (frequencies >= 5.0) & (frequencies <= 100.0)
++    selected = power[keep]
++    if not selected.size or not np.any(selected > 0):
++        return None, None
++    index, median = int(np.argmax(selected)), float(np.median(selected))
++    return float(frequencies[keep][index]), (
++        None if median == 0 else float(selected[index] / median)
++    )
++
++
++def _e_i_lag(e: np.ndarray, i: np.ndarray) -> float | None:
++    bin_steps = round(1.0 / DT_MS)
++    e_counts = (
++        e[: len(e) // bin_steps * bin_steps].reshape(-1, bin_steps, N_E).sum((1, 2))
++    )
++    i_counts = (
++        i[: len(i) // bin_steps * bin_steps].reshape(-1, bin_steps, N_I).sum((1, 2))
++    )
++    if e_counts.std() == 0 or i_counts.std() == 0:
++        return None
++    correlation = np.correlate(
++        e_counts - e_counts.mean(), i_counts - i_counts.mean(), mode="full"
++    )
++    lags = np.arange(-len(e_counts) + 1, len(e_counts))
++    keep = np.abs(lags) <= 20
++    # np.correlate(E, I) returns a negative raw lag when E precedes I.
++    return float(-lags[keep][np.argmax(correlation[keep])])
++
++
++def describe(rate: float, arrays: dict[str, np.ndarray]) -> dict:
++    burn = round(BURN_MS / DT_MS)
++    e, i = arrays["e"][burn:], arrays["i"][burn:]
++    duration_s = len(e) * DT_MS / 1_000.0
++    frequency, prominence = _spectrum(e)
++    ac_lags, ac = spike_autocorrelogram(e, DT_MS, 100.0, 1.0)
++    iei_lags, iei = iei_histogram(population_event_times(e, DT_MS), 100.0, 1.0)
++    rhythmicity = rhythmicity_scalars(ac_lags, ac, iei_lags, iei, 1.0)["contrast"]
++    return {
++        "input_rate_hz": rate,
++        "e_rate_hz": float(e.sum() / N_E / duration_s),
++        "i_rate_hz": float(i.sum() / N_I / duration_s),
++        "median_e_isi_cv": _isi_cv(e),
++        "mean_e_pairwise_correlation": _pairwise_correlation(e),
++        "rhythmicity_contrast": None if rhythmicity is None else float(rhythmicity),
++        "dominant_frequency_hz": frequency,
++        "peak_to_median_power": prominence,
++        "e_leads_i_lag_ms": _e_i_lag(e, i),
++    }
++
++
++def plot_summary(rows: list[dict], out: Path) -> None:
++    theme.apply()
++    rates = [row["input_rate_hz"] for row in rows]
++    fig, axes = plt.subplots(3, 1, figsize=(7.0, 7.0), sharex=True)
++    axes[0].plot(
++        rates,
++        [row["e_rate_hz"] for row in rows],
++        "o-",
++        label="E",
++        color=theme.INK_BLACK,
++    )
++    axes[0].plot(
++        rates, [row["i_rate_hz"] for row in rows], "o-", label="I", color=theme.DEEP_RED
++    )
++    axes[0].set_ylabel("rate (Hz)")
++    axes[0].legend(frameon=False)
++    axes[1].plot(
++        rates,
++        [row["mean_e_pairwise_correlation"] for row in rows],
++        label="correlation",
++        color=theme.DEEP_RED,
++    )
++    axes[1].plot(
++        rates,
++        [row["median_e_isi_cv"] for row in rows],
++        label="ISI CV",
++        color=theme.INK_BLACK,
++    )
++    axes[1].set_ylabel("AI diagnostics")
++    axes[1].legend(frameon=False)
++    axes[2].plot(
++        rates,
++        [row["dominant_frequency_hz"] for row in rows],
++        "o-",
++        color=theme.DEEP_RED,
++    )
++    axes[2].axhspan(30, 80, color=theme.GREY_LIGHT, alpha=0.4)
++    axes[2].set(xlabel="maximum pixel rate D (Hz)", ylabel="dominant frequency (Hz)")
++    for axis in axes:
++        axis.spines[["top", "right"]].set_visible(False)
++    fig.tight_layout()
++    fig.savefig(out)
++    plt.close(fig)
++
++
++def render_video(
++    pixels: np.ndarray,
++    rows: list[dict],
++    recordings: list[dict[str, np.ndarray]],
++    out: Path,
++    poster: Path,
++) -> None:
++    theme.apply()
++    fig = plt.figure(figsize=(10.5, 5.8))
++    grid = fig.add_gridspec(2, 2, width_ratios=(1.0, 2.4))
++    image_axis, text_axis = fig.add_subplot(grid[0, 0]), fig.add_subplot(grid[1, 0])
++    raster_axis = fig.add_subplot(grid[:, 1])
++    image_axis.imshow(pixels.reshape(28, 28), cmap="gray_r", vmin=0, vmax=1)
++    image_axis.set_title("MNIST test image 0 · label 7")
++    image_axis.axis("off")
++
++    def update(frame: int):
++        raster_axis.clear()
++        arrays, row = recordings[frame], rows[frame]
++        e_t, e_cell = np.nonzero(arrays["e"][:, :100])
++        i_t, i_cell = np.nonzero(arrays["i"][:, :40])
++        raster_axis.scatter(e_t * DT_MS, e_cell, s=1.2, color=theme.INK_BLACK)
++        raster_axis.scatter(i_t * DT_MS, i_cell + 105, s=1.2, color=theme.DEEP_RED)
++        raster_axis.axvline(BURN_MS, color=theme.GREY_MID, ls="--", lw=0.8)
++        raster_axis.set(
++            xlim=(0, T_MS),
++            ylim=(-2, 147),
++            xlabel="biological time (ms)",
++            ylabel="sampled cells",
++            title=f"trained PING replay · D = {row['input_rate_hz']:.1f} Hz",
++        )
++        raster_axis.set_yticks((49.5, 124.5), ("E", "I"))
++        raster_axis.spines[["top", "right"]].set_visible(False)
++        text_axis.clear()
++        text_axis.axis("off")
++        frequency = row["dominant_frequency_hz"]
++        text_axis.text(
++            0,
++            1,
++            "upstream: gamma-gated-sparsity\ncheckpoint: canonical seed42 · final epoch\n\n"
++            f"E rate  {row['e_rate_hz']:.1f} Hz\nI rate  {row['i_rate_hz']:.1f} Hz\n"
++            f"ISI CV  {row['median_e_isi_cv'] if row['median_e_isi_cv'] is not None else '—'}\n"
++            f"pair corr  {row['mean_e_pairwise_correlation'] if row['mean_e_pairwise_correlation'] is not None else '—'}\n"
++            f"rhythm  {'unresolved' if frequency is None else f'{frequency:.1f} Hz'}",
++            va="top",
++            fontsize=9,
++        )
++        return []
++
++    update(0)
++    fig.tight_layout()
++    fig.savefig(poster, dpi=160)
++    movie = animation.FuncAnimation(
++        fig, update, frames=len(rows), interval=1_000 / VIDEO_FPS
++    )
++    writer = animation.FFMpegWriter(
++        fps=VIDEO_FPS,
++        codec="libx264",
++        bitrate=2_400,
++        extra_args=["-pix_fmt", "yuv420p", "-movflags", "+faststart"],
++    )
++    movie.save(out, writer=writer, dpi=120)
++    plt.close(fig)
++
++
++def main() -> None:
++    meta = parse_meta(sys.argv)
++    if meta.runpod:
++        raise SystemExit(
++            "exp099 uses bounded local checkpoint replay; RunPod is unsupported"
++        )
++    if meta.plot_only:
++        raise SystemExit("exp099 plot-only replay is not implemented")
++    directory, checkpoint = require_checkpoint()
++    pixels, label = load_test_image()
++    inputs = paired_input_bank(pixels)
++    started, run_id = time.monotonic(), next_run_id(SLUG)
++    with published_run(SLUG, run_id, scale=SCALE) as (scratch, staging):
++        rows, recordings = [], []
++        for index, rate in enumerate(INPUT_RATES_HZ):
++            print(f"[replay] D={rate:.2f} Hz")
++            arrays = replay(
++                directory, checkpoint, inputs[rate], scratch / f"condition-{index:02d}"
++            )
++            rows.append(describe(rate, arrays))
++            recordings.append(arrays)
++        np.savez_compressed(
++            staging / "paired_inputs.npz",
++            **{
++                f"D_{index:02d}": inputs[rate]
++                for index, rate in enumerate(INPUT_RATES_HZ)
++            },
++        )
++        plot_summary(rows, staging / "trained_pixel_transition.svg")
++        render_video(
++            pixels,
++            rows,
++            recordings,
++            staging / "trained_pixel_transition.mp4",
++            staging / "trained_pixel_transition_poster.png",
++        )
++        (staging / "protocol.json").write_text(json.dumps(SCALE, indent=2) + "\n")
++        write_numbers(
++            staging,
++            run_id=run_id,
++            duration_s=time.monotonic() - started,
++            payload={
++                "question": "Does maximum pixel rate move a trained PING checkpoint through AI-like activity into PING?",
++                "config": SCALE,
++                "upstream_checkpoint": public_provenance(checkpoint),
++                "image": {"split": MNIST_SPLIT, "index": IMAGE_INDEX, "label": label},
++                "conditions": rows,
++            },
++        )
++    print(f"exp099 complete: {run_id}")
++
++
++if __name__ == "__main__":
++    main()
+
+diff --git a/experiments/tests/test_exp099.py b/experiments/tests/test_exp099.py
+new file mode 100644
+index 00000000..1a1bed78
+--- /dev/null
++++ b/experiments/tests/test_exp099.py
+@@ -0,0 +1,75 @@
++from __future__ import annotations
++
++import numpy as np
++import pytest
++from experiments import exp099
++
++
++def test_checkpoint_dependency_is_hash_pinned_and_external() -> None:
++    directory, record = exp099.require_checkpoint()
++    assert directory.name == "ping__canonical__seed42"
++    assert record["role"] == "final_epoch"
++    assert record["sha256"] == exp099.EXPECTED_CHECKPOINT_SHA256
++    assert exp099.REPO / "artifacts" / "data" / "exp099" not in record["path"].parents
++
++
++def test_rate_sweep_matches_historical_range() -> None:
++    assert len(exp099.INPUT_RATES_HZ) == 40
++    assert exp099.INPUT_RATES_HZ[0] == 0.0
++    assert exp099.INPUT_RATES_HZ[-1] == 100.0
++    assert np.all(np.diff(exp099.INPUT_RATES_HZ) > 0)
++
++
++def test_pixel_inputs_are_paired_and_nested() -> None:
++    pixels = np.linspace(0, 1, exp099.N_INPUT, dtype=np.float32)
++    bank = exp099.paired_input_bank(pixels)
++    assert bank[0.0].shape == (4_000, 1, 784)
++    assert not bank[0.0].any()
++    assert np.all(bank[25.641025641025642] <= bank[100.0])
++
++
++def test_off_pixels_remain_silent() -> None:
++    pixels = np.ones(exp099.N_INPUT, dtype=np.float32)
++    pixels[:10] = 0
++    assert not exp099.paired_input_bank(pixels)[100.0][:, :, :10].any()
++
++
++def test_zero_raster_has_no_state_label() -> None:
++    arrays = {
++        "e": np.zeros((4_000, exp099.N_E), dtype=np.uint8),
++        "i": np.zeros((4_000, exp099.N_I), dtype=np.uint8),
++    }
++    row = exp099.describe(0.0, arrays)
++    assert row["e_rate_hz"] == 0.0
++    assert row["median_e_isi_cv"] is None
++    assert row["dominant_frequency_hz"] is None
++    assert "state" not in row
++
++
++def test_positive_lag_means_e_leads_i() -> None:
++    e = np.zeros((4_000, exp099.N_E), dtype=np.uint8)
++    i = np.zeros((4_000, exp099.N_I), dtype=np.uint8)
++    for step in (1_200, 1_600, 2_000, 2_400, 2_800, 3_200):
++        e[step, :10] = 1
++        i[step + 10, :10] = 1
++    assert exp099._e_i_lag(e, i) == 1.0
++
++
++def test_mnist_test_image_identity() -> None:
++    pixels, label = exp099.load_test_image()
++    assert pixels.shape == (784,)
++    assert pixels.min() >= 0 and pixels.max() <= 1
++    assert label == 7
++
++
++def test_scale_records_upstream_and_input_provenance() -> None:
++    assert exp099.SCALE["upstream_publication"].startswith("ggs-production-composite")
++    assert exp099.SCALE["checkpoint_role"] == "final_epoch"
++    assert exp099.SCALE["dataset_split"] == "official_test"
++    assert exp099.SCALE["poisson_seed"] == 9900
++
++
++def test_checkpoint_mismatch_fails_closed(monkeypatch) -> None:
++    monkeypatch.setattr(exp099, "EXPECTED_CHECKPOINT_SHA256", "bad")
++    with pytest.raises(RuntimeError, match="does not match"):
++        exp099.require_checkpoint()

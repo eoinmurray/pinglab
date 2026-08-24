@@ -173,7 +173,12 @@ def _dot(
     for projection in graph["projections"]:
         source = mapped(projection["source"].partition(".")[0])
         target = mapped(projection["target"].partition(".")[0])
-        if source == target or source not in rendered or target not in rendered:
+        if source not in rendered or target not in rendered:
+            continue
+        # Collapsed components hide their internal wiring. Expanded views must
+        # retain recurrent self-projections such as E→E and I→I; Graphviz can
+        # render these as labelled loops without inventing an intermediate node.
+        if source == target and collapsed:
             continue
         polarity = projection["polarity"]
         # Circuit diagrams follow the lab's ink-plus-one-accent figure palette:
