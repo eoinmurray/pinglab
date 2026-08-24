@@ -5,6 +5,7 @@
 - [Scientific record](#scientificrecord)
 - [Abstract and writing objects](#abstract)
 - [Hypothesis search](#hypothesis-search-family)
+- [ExperimentFlow](#experimentflow)
 - [Execution and datasets](#execution-artifact-family)
 - [Experiment composition](#experiment-family)
 - [Experiment plans](#expscoutplan)
@@ -200,6 +201,14 @@ Freeze only the best currently grounded formulation without reopening broad
 ideation. If an essential claim remains ungrounded, identify the gap and decline
 to label the packet definitive.
 
+## `ExperimentFlow`
+
+Pinglab's turn-based experiment-authoring system. For each persistent experiment,
+it coordinates mutable `.typ` writing, mutable `.py` implementation and tests,
+and an immutable `ExperimentRun` evidence history. It infers the smallest object
+changes required by each turn while preserving experiment identity, evidence
+provenance, and human authority gates.
+
 ## Execution-artifact family
 
 Execution-artifact nouns connect prospective experiment plans to native code,
@@ -334,7 +343,7 @@ An experiment identity owns one continuing central scientific question.
 Parameter refinement, an additional investigation, a new visualization, a
 control, a failed run, or follow-up execution defaults to the same experiment.
 After evidence-bearing execution, revise prospective material in the same
-writing canvas before the next affected execution. Each finalized
+writing surface before the next affected execution. Each finalized
 `ExperimentRun` preserves the exact writing, implementation, configuration,
 source revision, and dirty-patch provenance it executed, so later changes do
 not rewrite the earlier plan. Do not create a new experiment merely because a

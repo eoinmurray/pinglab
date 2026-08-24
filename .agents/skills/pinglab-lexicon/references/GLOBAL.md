@@ -2,7 +2,7 @@
 
 ## Visual index
 
-- [Interactive experiment canvas](#interactive-experiment-canvas)
+- [ExperimentFlow](#experimentflow)
 - [Human-facing writing](#human-facing-writing)
 - [Scientific lifecycle](#scientific-lifecycle)
 - [Progressive teaching](#progressive-teaching)
@@ -71,7 +71,7 @@ Use this artifact-centred loop as lightweight orientation for scientific work:
    question, collection, dependencies, outputs, implementation, resources, and
    completion conditions.
 3. An authorized `go` mode writes the `ExpScoutPlan` or `ExpStudyPlan` directly
-   into the experiment's persistent writing canvas, creates its
+   into the experiment's persistent writing surface, creates its
    `ExpImplementation`, and registers the experiment in managed
    `ScientificCollectionState`. The work remains a plan until its first
    successful evidence-bearing execution. Do not insert a chat-only plan stage
@@ -128,13 +128,14 @@ explanation to the current state and one next operation. Do not quiz the user,
 recite the whole lifecycle unless asked, require named artifacts for trivial
 exploration, invent a proficiency score, or repeatedly explain familiar terms.
 When asked where the work is in the lifecycle, report the current state, live
-canvasses, latest run, supported interpretation, and one next operation.
+`ExperimentFlow` objects, latest run, supported interpretation, and one next
+operation.
 
 Before acting, briefly identify object effects when they help orientation:
 
 > This updates `.typ` and `.py`; no run will be created.
 
-After a substantive turn, give one compact canvas pulse:
+After a substantive turn, give one compact `ExperimentFlow` pulse:
 
 > `exp099` — `.typ` updated · `.py` tested · official `r003` unchanged.
 > Next useful move: run the loop-ablation investigation.
@@ -148,9 +149,10 @@ interpretation:
 Do not emit a full event log, lifecycle lecture, or noun recital unless the
 user asks for it.
 
-## Interactive experiment canvas
+## `ExperimentFlow`
 
-Treat each experiment as a turn-based canvas with three objects:
+`ExperimentFlow` is Pinglab's turn-based experiment-authoring system. For each
+experiment, it coordinates three objects:
 
 1. Its configured `.typ` writing contains the mutable scientific question,
    prospective design, figures, observations, and interpretation.
@@ -158,10 +160,10 @@ Treat each experiment as a turn-based canvas with three objects:
    executable method and evidence-rendering logic.
 3. Its `ExperimentRun` collection is the immutable evidence history.
 
-The `.typ` and `.py` are authored canvasses. Runs are not editable canvasses:
+The `.typ` and `.py` are mutable authored surfaces. Runs are immutable evidence:
 they record what happened under an exact writing, implementation, configuration,
-and source state. Do not create parallel Markdown narratives or
-experiment-local collection-state files.
+and source state. Do not create parallel Markdown narratives or experiment-local
+collection-state files.
 
 For each turn, infer the smallest affected set:
 
@@ -179,5 +181,5 @@ requests one.
 
 Run payloads contain native evidence and provenance such as data, figures,
 manifests, logs, source identity, and dirty patches; they do not become
-additional narrative canvasses. Managed collection and dataset interfaces own
+additional narrative surfaces. Managed collection and dataset interfaces own
 `ScientificCollectionState`, `CollectionDataset`, and evidence selection.
