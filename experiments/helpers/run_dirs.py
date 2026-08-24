@@ -27,8 +27,10 @@ from __future__ import annotations
 import contextlib
 import os
 import shutil
+import subprocess
+import sys
 
-from .paths import REPO, artifacts_and_figures
+from .paths import REPO, artifacts_and_figures, runner_paths
 from .provenance import write_manifest
 from .run_id import COUNTER_FILE
 from .run_id import persist as persist_run_id
@@ -163,5 +165,26 @@ def published_run(slug: str, run_id: str, **kwargs):
         print(f"[FAILED] run did not publish; staging kept for post-mortem: {staging}")
         raise
     else:
+        # A direct local run becomes an immutable Pingstore ExperimentRun before
+        # the historical Demolab artifact view is swapped. Isolated campaign
+        # runners already own their run root and are migrated by collection
+        # orchestration rather than duplicated here.
+        if not runner_paths(slug).isolated:
+            subprocess.run(
+                [
+                    sys.executable,
+                    "-m",
+                    "pingstore",
+                    "capture-local",
+                    "--repo",
+                    str(REPO),
+                    "--experiment",
+                    slug,
+                    "--staging",
+                    str(staging),
+                ],
+                cwd=REPO,
+                check=True,
+            )
         published = publish(slug, run_id)
         print(f"[published] {published}")
