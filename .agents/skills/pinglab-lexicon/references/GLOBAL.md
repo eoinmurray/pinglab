@@ -2,7 +2,7 @@
 
 ## Visual index
 
-- [Canvas ownership](#canvas-ownership)
+- [Interactive experiment canvas](#interactive-experiment-canvas)
 - [Human-facing writing](#human-facing-writing)
 - [Scientific lifecycle](#scientific-lifecycle)
 - [Progressive teaching](#progressive-teaching)
@@ -130,20 +130,54 @@ exploration, invent a proficiency score, or repeatedly explain familiar terms.
 When asked where the work is in the lifecycle, report the current state, live
 canvasses, latest run, supported interpretation, and one next operation.
 
-After execution, prefer a compact report such as:
+Before acting, briefly identify object effects when they help orientation:
 
-> `exp099/r003` completed and is now official. The observed transition is
-> synchronous but not yet established as PING. Next useful test: remove the
-> E-I cross-coupling.
+> This updates `.typ` and `.py`; no run will be created.
 
-## Canvas ownership
+After a substantive turn, give one compact canvas pulse:
 
-For an experiment, its configured `.typ` writing is the sole authored
-scientific canvas. Compose its prospective plan, execution account, and other
-experiment nouns within that writing. Its experiment code and tests are the
-sole authored computational canvasses. Do not create parallel Markdown records,
-one file per noun, or experiment-local collection-state documents. Run payloads
-contain native evidence and provenance such as data, figures, manifests, logs,
-source identity, and dirty patches; they do not become additional narrative
-canvasses. Managed collection and dataset interfaces own
+> `exp099` — `.typ` updated · `.py` tested · official `r003` unchanged.
+> Next useful move: run the loop-ablation investigation.
+
+After evidence-bearing execution, report the run transition and supported
+interpretation:
+
+> `exp099/r004` completed and is now official. The E-I ablation removed the
+> rhythm. `.typ` now records that result.
+
+Do not emit a full event log, lifecycle lecture, or noun recital unless the
+user asks for it.
+
+## Interactive experiment canvas
+
+Treat each experiment as a turn-based canvas with three objects:
+
+1. Its configured `.typ` writing contains the mutable scientific question,
+   prospective design, figures, observations, and interpretation.
+2. Its experiment `.py` implementation and supporting tests contain the mutable
+   executable method and evidence-rendering logic.
+3. Its `ExperimentRun` collection is the immutable evidence history.
+
+The `.typ` and `.py` are authored canvasses. Runs are not editable canvasses:
+they record what happened under an exact writing, implementation, configuration,
+and source state. Do not create parallel Markdown narratives or
+experiment-local collection-state files.
+
+For each turn, infer the smallest affected set:
+
+- explanation or scientific discussion changes no object;
+- prose, captions, layout, or interpretation update `.typ`;
+- method, analysis, or rendering behaviour updates `.py` and its tests;
+- changed simulation, source data, measurement, or derived evidence creates a
+  new run;
+- presentation-only rendering reuses the current official run.
+
+Continue ordinary refinements, controls, visualizations, and additional
+investigations under the same experiment identity. Offer a new experiment only
+when the central scientific question materially changes or the user explicitly
+requests one.
+
+Run payloads contain native evidence and provenance such as data, figures,
+manifests, logs, source identity, and dirty patches; they do not become
+additional narrative canvasses. Managed collection and dataset interfaces own
 `ScientificCollectionState`, `CollectionDataset`, and evidence selection.

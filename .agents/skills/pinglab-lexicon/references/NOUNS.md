@@ -235,6 +235,12 @@ payload location and inventory digest, archive identity and legacy lineage. A
 finalized run is immutable. Successful finalization advances its experiment's
 `CollectionDataset` official pointer. Unsuccessful execution does not.
 
+Create a new run when execution changes observations, measurements, source
+data, simulation outputs, or derived evidence. Styling, layout, captions, and
+other presentation-only changes reuse the existing run when its evidence is
+unchanged. Never rerun a simulation solely to change its presentation when the
+retained evidence can be rendered directly.
+
 ## `CampaignPlan`
 
 A dry, cold-readable executable snapshot of a collection. It identifies the
