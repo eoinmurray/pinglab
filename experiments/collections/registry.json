@@ -42,8 +42,8 @@
   },
   "historical": {
     "exp087": {
-      "disposition": "removed-from-current-tree",
-      "evidence": "Git history contains the former source and outputs; no current payload is retained."
+      "disposition": "removed-and-pruned",
+      "evidence": "The experiment was removed in commit 6bc83e96; its final ignored local residue and Pingstore legacy reference were explicitly pruned on 2026-08-24."
     },
     "exp096": {
       "collection": "gamma-gated-sparsity",
