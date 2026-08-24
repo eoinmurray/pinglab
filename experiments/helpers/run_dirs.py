@@ -25,6 +25,7 @@ recorded sha (upstream staleness is a planned phase-2 check).
 from __future__ import annotations
 
 import contextlib
+import functools
 import os
 import shutil
 import subprocess
@@ -150,6 +151,86 @@ def publish(slug: str, run_id: str):
     return figures
 
 
+def finalize_prepared_run(
+    slug: str,
+    run_id: str,
+    *,
+    scale: dict | None = None,
+    host: str = "local",
+):
+    """Capture a successful legacy ``prepare`` run in immutable Pingstore.
+
+    Legacy runners write directly to the active artifact directory. They call
+    this exactly once, after their final result has been written. New runners
+    should use :func:`published_run`, which also keeps the active view atomic.
+    """
+    if runner_paths(slug).isolated:
+        return None
+    _artifacts, figures = artifacts_and_figures(slug)
+    manifest = figures / "_manifest.json"
+    if not manifest.is_file():
+        write_manifest(figures, slug=slug, run_id=run_id, scale=scale, host=host)
+    _capture_local_result(slug, figures)
+    return figures
+
+
+def _capture_local_result(slug: str, source) -> None:
+    """Invoke the package boundary shared by atomic and legacy runners."""
+    subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "pingstore",
+            "capture-local",
+            "--repo",
+            str(REPO),
+            "--experiment",
+            slug,
+            "--staging",
+            str(source),
+        ],
+        cwd=REPO,
+        check=True,
+    )
+
+
+def preserve_active_view(slug: str):
+    """Rollback the active artifact view when a legacy runner fails.
+
+    This is the transition boundary for runners that still use ``prepare`` and
+    therefore cannot write directly into a staging directory. It does not own
+    successful-run capture; callers still finalize explicitly after writing
+    their complete result.
+    """
+
+    def decorate(function):
+        @functools.wraps(function)
+        def guarded(*args, **kwargs):
+            _artifacts, figures = artifacts_and_figures(slug)
+            backup = figures.with_name(figures.name + ".pre-run")
+            if backup.exists():
+                raise RuntimeError(f"legacy run backup already exists: {backup}")
+            existed = figures.exists()
+            if existed:
+                shutil.copytree(figures, backup)
+            try:
+                result = function(*args, **kwargs)
+            except BaseException:
+                if figures.exists():
+                    shutil.rmtree(figures)
+                if existed:
+                    os.rename(backup, figures)
+                raise
+            else:
+                if backup.exists():
+                    shutil.rmtree(backup)
+                return result
+
+        return guarded
+
+    return decorate
+
+
 @contextlib.contextmanager
 def published_run(slug: str, run_id: str, **kwargs):
     """Context manager: stage → (run body) → publish on success, keep on failure.
@@ -170,21 +251,6 @@ def published_run(slug: str, run_id: str, **kwargs):
         # runners already own their run root and are migrated by collection
         # orchestration rather than duplicated here.
         if not runner_paths(slug).isolated:
-            subprocess.run(
-                [
-                    sys.executable,
-                    "-m",
-                    "pingstore",
-                    "capture-local",
-                    "--repo",
-                    str(REPO),
-                    "--experiment",
-                    slug,
-                    "--staging",
-                    str(staging),
-                ],
-                cwd=REPO,
-                check=True,
-            )
+            _capture_local_result(slug, staging)
         published = publish(slug, run_id)
         print(f"[published] {published}")

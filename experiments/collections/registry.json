@@ -1,0 +1,58 @@
+{
+  "schema": "pingstore.experiment-registry/v1",
+  "experiments": {
+    "exp022": "gamma-gated-sparsity",
+    "exp023": "gamma-gated-sparsity",
+    "exp024": "gamma-gated-sparsity",
+    "exp025": "gamma-gated-sparsity",
+    "exp033": "gamma-gated-sparsity",
+    "exp037": "gamma-gated-sparsity",
+    "exp038": "gamma-gated-sparsity",
+    "exp041": "gamma-gated-sparsity",
+    "exp042": "gamma-gated-sparsity",
+    "exp044": "gamma-gated-sparsity",
+    "exp046": "gamma-gated-sparsity",
+    "exp047": "gamma-gated-sparsity",
+    "exp048": "gamma-gated-sparsity",
+    "exp049": "gamma-gated-sparsity",
+    "exp054": "gamma-gated-sparsity",
+    "exp059": "spiking-heidelberg-digits",
+    "exp065": "exploratory",
+    "exp066": "exploratory",
+    "exp068": "exploratory",
+    "exp069": "exploratory",
+    "exp070": "exploratory",
+    "exp071": "spiking-heidelberg-digits",
+    "exp072": "spiking-heidelberg-digits",
+    "exp073": "spiking-heidelberg-digits",
+    "exp074": "documentation",
+    "exp075": "documentation",
+    "exp076": "documentation",
+    "exp077": "documentation",
+    "exp080": "gamma-gated-sparsity",
+    "exp081": "gamma-gated-sparsity",
+    "exp082": "gamma-gated-sparsity",
+    "exp083": "snnlang",
+    "exp084": "snnlang",
+    "exp085": "paper-demonstrations",
+    "exp086": "paper-demonstrations",
+    "exp093": "gamma-gated-sparsity",
+    "exp094": "gamma-gated-sparsity",
+    "exp097": "snnlang"
+  },
+  "historical": {
+    "exp087": {
+      "disposition": "removed-from-current-tree",
+      "evidence": "Git history contains the former source and outputs; no current payload is retained."
+    },
+    "exp096": {
+      "collection": "gamma-gated-sparsity",
+      "disposition": "artifact-only",
+      "evidence": "Current writing and schematic artifact payload exist without a runnable experiment script."
+    },
+    "exp098": {
+      "disposition": "absent",
+      "evidence": "No source, writing, artifact, or Git-history path exists in the clean repository."
+    }
+  }
+}

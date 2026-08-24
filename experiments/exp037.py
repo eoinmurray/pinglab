@@ -53,6 +53,10 @@ from helpers.fmt import format_duration  # noqa: E402
 from helpers.frontier import summarize_frontier  # noqa: E402
 from helpers.paths import artifacts_and_figures, runner_paths  # noqa: E402
 from helpers.run_cli import run_cli  # noqa: E402
+from helpers.run_dirs import (
+    finalize_prepared_run,  # noqa: E402
+    preserve_active_view,  # noqa: E402
+)
 from helpers.run_dirs import prepare as prepare_run_dirs  # noqa: E402
 from helpers.run_id import next_run_id  # noqa: E402
 from helpers.stamp import stamp_figure  # noqa: E402
@@ -629,6 +633,7 @@ def plot_perturbation_curves(
 # ── inference helpers used by perturbation sweep ────────────────────
 
 
+@preserve_active_view(SLUG)
 def main() -> None:
     theme.set_paper_mode(True)
 
@@ -832,6 +837,7 @@ def main() -> None:
         "completed", run_id=notebook_run_id,
         quantitative_rows=len(perturb_rows),
     )
+    finalize_prepared_run(SLUG, notebook_run_id)
 
 
 

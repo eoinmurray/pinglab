@@ -25,3 +25,7 @@ Legacy Runstore archives stay byte-identical and remain verifiable and
 restorable through `pingstore verify --r2` and `pingstore restore`.
 Native archives are portable local bundles. Uploading them to the new R2
 namespace is intentionally unavailable until remote-write authority is given.
+
+After a shadow rehearsal has been reviewed, the same idempotent import may
+install local working metadata with `pingstore migrate import --local`. This
+does not select official evidence or alter `artifacts/data/`.

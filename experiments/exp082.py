@@ -50,6 +50,10 @@ from helpers.paths import (  # noqa: E402
     log_runner_event,
     runner_paths,
 )
+from helpers.run_dirs import (
+    finalize_prepared_run,  # noqa: E402
+    preserve_active_view,  # noqa: E402
+)
 from helpers.run_dirs import prepare as prepare_run_dirs  # noqa: E402
 from helpers.run_id import next_run_id  # noqa: E402
 from helpers.stamp import stamp_figure  # noqa: E402
@@ -1061,6 +1065,7 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
+@preserve_active_view(SLUG)
 def main() -> None:
     args = parse_args()
     if args.replot:
@@ -1147,6 +1152,7 @@ def main() -> None:
     (FIGURES / "numbers.json").write_text(json.dumps(payload, indent=2) + "\n")
     log_runner_event(SLUG, "completed", run_id=run_id, quantitative_rows=len(rows))
     print(f"exp082 complete: {run_id}")
+    finalize_prepared_run(SLUG, run_id)
 
 
 if __name__ == "__main__":
