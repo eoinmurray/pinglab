@@ -6,10 +6,10 @@ description: Interpret, construct, transform, review, or serialize Pinglab noun 
 # Pinglab noun registry
 
 Pinglab's scientific vocabulary consists of primitive nouns. The nouns are
-prose-defined and serialized as Markdown rather than formally schema-validated.
-Ordinary conversation constructs and transforms them. Repository evidence and
-publication outputs retain their native files alongside the textual noun
-describing them.
+prose-defined semantic structures rather than file types or formally
+schema-validated objects. Ordinary conversation constructs and transforms them.
+Repository evidence and publication outputs retain their native files alongside
+the human-facing writing that interprets them.
 
 ## Recognition
 
@@ -119,11 +119,12 @@ Use this artifact-centred loop as lightweight orientation for scientific work:
    the corresponding study request. `Scope` is read-only and identifies the
    question, collection, dependencies, outputs, implementation, resources, and
    completion conditions.
-3. An authorized `go` mode creates the `ExpScoutPlan` or `ExpStudyPlan` directly
-   as a persistent artifact, creates its `ExpImplementation`, and registers the
-   experiment in `ScientificCollectionState`. Use `status: "draft"` until the
-   prospective choices are ready to freeze; do not insert a chat-only plan
-   stage.
+3. An authorized `go` mode writes the `ExpScoutPlan` or `ExpStudyPlan` directly
+   into the experiment's persistent writing canvas, creates its
+   `ExpImplementation`, and registers the experiment in managed
+   `ScientificCollectionState`. Use `status: "draft"` until the prospective
+   choices are ready to freeze; do not insert a chat-only plan stage or a
+   parallel noun file.
 4. Ask the user to freeze the plan before evidence-bearing execution. Within
    the frozen question and scope, build, test, run bounded local work, analyse
    outputs, and revise implementation and presentation agentically. Return to
@@ -366,6 +367,16 @@ runs, durable evidence, and the continuously rendered presentation. They name
 ownership boundaries rather than requiring every native file to be rewritten as
 Markdown.
 
+For an experiment, its configured `.typ` writing is the sole authored
+scientific canvas. Compose its prospective plan, execution account, and other
+experiment nouns within that writing. Its experiment code and tests are the
+sole authored computational canvasses. Do not create parallel Markdown records,
+one file per noun, or experiment-local collection-state documents. Run payloads
+contain native evidence and provenance such as data, figures, manifests, logs,
+source identity, and dirty patches; they do not become additional narrative
+canvasses. Managed collection and dataset interfaces own
+`ScientificCollectionState`, `CollectionDataset`, and evidence selection.
+
 ## `ExpImplementation`
 
 The SNNLANG bundle or other tool contract, experiment runner, configuration,
@@ -479,6 +490,18 @@ ExpStudy
 │   └── ExpAppendices?
 └── StudyExecution
 ```
+
+An experiment identity owns one continuing central scientific question.
+Parameter refinement, an additional investigation, a new visualization, a
+control, a failed run, or follow-up execution defaults to the same experiment.
+After evidence-bearing execution, revise prospective material in the same
+writing canvas and freeze it again before the next affected execution. Each
+finalized `ExperimentRun` preserves the exact source revision and dirty-patch
+provenance that it executed, so later writing changes do not rewrite the earlier
+plan. Do not create a new experiment merely because a plan or run is frozen.
+Create one only when the central scientific question materially changes or the
+user explicitly requests it; when that distinction is consequential, return it
+to the user rather than creating the experiment automatically.
 
 `Plan` always means prospective. Its paired executed noun preserves the frozen
 plan and adds what actually happened without rewriting expectations as
