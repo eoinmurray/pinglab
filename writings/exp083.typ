@@ -3,7 +3,7 @@
   date: "2026-08-17",
   description: "A fixed SNNLANG graph tests whether the default PING component develops a reproducible gamma rhythm as homogeneous Poisson drive increases.",
   collection: "snnlang",
-  status: "draft",
+  status: "ExpScout",
   order: 9,
 )
 

@@ -5,7 +5,7 @@
   date: "2026-07-14",
   description: "Paired controls separate fixed summed I→E coupling from fixed realised synaptic strength as the inhibitory pool grows.",
   collection: "gamma-gated-sparsity",
-  status: "final",
+  status: "ExpScout",
 )
 
 #let r = json("/artifacts/data/exp047/numbers.json")

@@ -3,7 +3,6 @@
   date: "2026-08-14",
   description: "Bind data to graph inputs, expose internal activity, and turn network signals into stable output values.",
   collection: "snnlang",
-  status: "draft",
   order: 5,
 )
 

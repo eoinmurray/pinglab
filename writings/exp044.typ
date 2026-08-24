@@ -3,7 +3,7 @@
   date: "2026-06-02",
   description: "A Δt audit: the exp025 headline E rate stays in a 9–14 Hz band across a 20× integration-timestep sweep while accuracy holds and the gamma period is invariant.",
   collection: "gamma-gated-sparsity",
-  status: "final",
+  status: "ExpScout",
 )
 
 #let run = json("/artifacts/data/exp044/numbers.json")

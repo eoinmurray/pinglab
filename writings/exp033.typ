@@ -3,7 +3,7 @@
   date: "2026-05-28",
   description: "A 4D conductance mean-field account of exp025's recruitment cliff, with the free effective membrane-noise scale tested explicitly.",
   collection: "gamma-gated-sparsity",
-  status: "final",
+  status: "ExpScout",
 )
 
 #let run = json("/artifacts/data/exp033/numbers.json")

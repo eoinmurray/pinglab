@@ -5,7 +5,7 @@
   date: "2026-08-10",
   description: "Standalone empirical and analytical study of synaptic, membrane, and finite-window filtering under sparse Poisson drive.",
   collection: "gamma-gated-sparsity",
-  status: "draft",
+  status: "ExpScout",
 )
 
 #let r = json("/artifacts/data/exp081/numbers.json")

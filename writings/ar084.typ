@@ -3,7 +3,6 @@
   date: "2026-08-14",
   description: "The core snnlang authoring objects, their names, shapes, units, neuron populations, and parameter declarations.",
   collection: "snnlang",
-  status: "draft",
   order: 2,
 )
 

@@ -3,7 +3,7 @@
   date: "2026-05-30",
   description: "A head-to-head of COBA and PING on MNIST under a matched recipe: PING locks the hidden E rate about an order of magnitude lower at comparable accuracy, so the loop buys per-spike economy.",
   collection: "gamma-gated-sparsity",
-  status: "final",
+  status: "ExpScout",
 )
 
 // Provenance (HOUSESTYLE H9/H19): every run number below is interpolated from the

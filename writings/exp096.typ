@@ -5,7 +5,7 @@
   date: "2026-08-23",
   description: "Separate temporal information, native readout use, and resource-dependent benefit in frozen COBA and PING representations.",
   collection: "gamma-gated-sparsity",
-  status: "draft",
+  status: "ExpScout",
 )
 
 #let body = [

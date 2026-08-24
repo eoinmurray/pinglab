@@ -3,7 +3,7 @@
   date: "2026-06-02",
   description: "Re-training PING at each τ_GABA, the per-cell E rate is affine in the gamma frequency: r_E ≈ 1.15 + 0.18·f_γ with R² ≈ 0.99.",
   collection: "gamma-gated-sparsity",
-  status: "final",
+  status: "ExpScout",
 )
 
 #let run = json("/artifacts/data/exp041/numbers.json")

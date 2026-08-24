@@ -3,7 +3,6 @@
   date: "2026-08-14",
   description: "Understand the legacy compatibility contract, current capability boundary, and rules for extending snnlang safely.",
   collection: "snnlang",
-  status: "draft",
   order: 8,
 )
 

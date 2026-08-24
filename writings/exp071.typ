@@ -3,7 +3,7 @@
   date: "2026-07-19",
   description: "A one-seed validation-only exploratory ladder tests whether the newly added signed cumulative-potential decoder and modest capacity changes raise matched COBA/PING SHD learning.",
   collection: "spiking-heidelberg-digits",
-  status: "draft",
+  status: "ExpScout",
   order: 10,
 )
 

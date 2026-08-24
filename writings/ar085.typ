@@ -3,7 +3,6 @@
   date: "2026-08-14",
   description: "Compose reusable circuit motifs and connect them with explicit synapses, weights, polarity, topology, and causal delays.",
   collection: "snnlang",
-  status: "draft",
   order: 3,
 )
 

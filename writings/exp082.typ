@@ -3,7 +3,7 @@
   date: "2026-08-10",
   description: "A multi-seed study of spike-count classification across input rates and presentation durations.",
   collection: "gamma-gated-sparsity",
-  status: "complete",
+  status: "ExpScout",
 )
 
 #let r = json("/artifacts/data/exp082/numbers.json")

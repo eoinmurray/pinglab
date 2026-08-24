@@ -3,7 +3,7 @@
   date: "2026-08-23",
   description: "Tests whether recurrent excitatory and inhibitory conductances trace a coherent simulated PING cycle.",
   collection: "snnlang",
-  status: "complete",
+  status: "ExpScout",
   order: 11,
 )
 
