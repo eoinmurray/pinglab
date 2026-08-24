@@ -847,6 +847,18 @@ def finalize_campaign(root: Path) -> dict[str, Any]:
             [
                 sys.executable,
                 "-m",
+                "pingstore",
+                "capture-campaign",
+                "--campaign-root",
+                str(root),
+            ],
+            cwd=REPO,
+            check=True,
+        )
+        subprocess.run(
+            [
+                sys.executable,
+                "-m",
                 "tools.runstore",
                 "inspect",
                 str(root),

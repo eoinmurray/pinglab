@@ -9,9 +9,9 @@ import time
 from pathlib import Path
 
 import matplotlib.pyplot as plt
-from matplotlib import animation, patches
 import numpy as np
 import torch
+from matplotlib import animation, patches
 from scipy.ndimage import gaussian_filter1d
 from scipy.signal import find_peaks
 from scipy.spatial import cKDTree
@@ -24,12 +24,13 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from execution import ExecutionSpec, simulate  # noqa: E402
 from experiments import exp083  # noqa: E402
+from tools import snnlang as snn  # noqa: E402, TID251
+
 from helpers import theme  # noqa: E402
 from helpers.cli import parse_meta  # noqa: E402
 from helpers.numbers import write_numbers  # noqa: E402
 from helpers.run_dirs import published_run  # noqa: E402
 from helpers.run_id import next_run_id  # noqa: E402
-from tools import snnlang as snn  # noqa: E402, TID251
 
 SLUG = "exp097"
 DT_MS = 0.1
@@ -300,8 +301,6 @@ def plot_result(state: dict, result: dict, out: Path) -> None:
     t = np.asarray(state["time_ms"])
     ge = np.asarray(state["ge"])
     gi = np.asarray(state["gi"])
-    ve = np.asarray(state["ve"])
-    vi = np.asarray(state["vi"])
     fig, axes = plt.subplots(1, 3, figsize=(9.2, 3.0))
     axes[0].plot(ge, gi, color=theme.DEEP_RED, lw=1.4)
     axes[0].scatter(ge[::20], gi[::20], s=9, color=theme.INK_BLACK)
@@ -331,7 +330,6 @@ def render_measured_animation(state: dict, out: Path, poster: Path) -> None:
     vi = np.asarray(state["vi"])
     e_spikes = np.asarray(state["e_spikes"])
     i_spikes = np.asarray(state["i_spikes"])
-    input_spikes = np.asarray(state["input_spikes"])
     input_raster_times = np.asarray(state["input_raster_times_ms"])
     input_raster_rows = np.asarray(state["input_raster_rows"])
     e_raster_times = np.asarray(state["e_raster_times_ms"])
@@ -372,14 +370,17 @@ def render_measured_animation(state: dict, out: Path, poster: Path) -> None:
         engine.add_patch(patches.FancyBboxPatch((x, 1.7), 2.5, 6.4, boxstyle="round,pad=0.08", facecolor="white", edgecolor=theme.GREY_MID, linewidth=1.5))
         fill = patches.Rectangle((x + 0.65, 2.3), 1.2, 0.4, facecolor=colour, alpha=0.88)
         plunger = patches.Rectangle((x + 0.35, 2.65), 1.8, 0.22, facecolor=colour)
-        engine.add_patch(fill); engine.add_patch(plunger)
+        engine.add_patch(fill)
+        engine.add_patch(plunger)
         engine.text(x + 1.25, 1.15, label, ha="center", fontsize=10, fontweight="bold")
-        fills.append(fill); plungers.append(plunger)
+        fills.append(fill)
+        plungers.append(plunger)
     engine.annotate("E volley triggers $g_E$", (6.0, 8.7), (4.0, 8.7), arrowprops={"arrowstyle": "->", "color": theme.DEEP_RED}, ha="center", fontsize=8)
     engine.annotate("$g_I$ suppresses E", (3.9, 4.4), (6.0, 4.4), arrowprops={"arrowstyle": "->", "color": theme.INK_BLACK}, ha="center", fontsize=8)
     e_lamp = patches.Circle((4.9, 7.3), 0.24, facecolor=theme.DEEP_RED, alpha=0.12)
     i_lamp = patches.Circle((4.9, 2.7), 0.24, facecolor=theme.INK_BLACK, alpha=0.12)
-    engine.add_patch(e_lamp); engine.add_patch(i_lamp)
+    engine.add_patch(e_lamp)
+    engine.add_patch(i_lamp)
 
     voltage_engine.set(xlim=(0, 10), ylim=(0, 10), title="4 · Local membrane-voltage engine")
     voltage_engine.axis("off")
@@ -389,9 +390,11 @@ def render_measured_animation(state: dict, out: Path, poster: Path) -> None:
         voltage_engine.add_patch(patches.FancyBboxPatch((x, 1.7), 2.5, 6.4, boxstyle="round,pad=0.08", facecolor="white", edgecolor=theme.GREY_MID, linewidth=1.5))
         fill = patches.Rectangle((x + 0.65, 2.3), 1.2, 0.4, facecolor=colour, alpha=0.88)
         plunger = patches.Rectangle((x + 0.35, 2.65), 1.8, 0.22, facecolor=colour)
-        voltage_engine.add_patch(fill); voltage_engine.add_patch(plunger)
+        voltage_engine.add_patch(fill)
+        voltage_engine.add_patch(plunger)
         voltage_engine.text(x + 1.25, 1.15, label, ha="center", fontsize=10, fontweight="bold")
-        voltage_fills.append(fill); voltage_plungers.append(plunger)
+        voltage_fills.append(fill)
+        voltage_plungers.append(plunger)
     voltage_engine.text(5.0, 8.75, "up = depolarized", ha="center", fontsize=9)
 
     traces.plot(t, ge, color=theme.DEEP_RED, lw=1.5, label="$g_E$")
@@ -448,12 +451,16 @@ def render_measured_animation(state: dict, out: Path, poster: Path) -> None:
         gi_fraction = (gi[frame] - gi_low) / max(gi_high - gi_low, 1e-12)
         for fill, plunger, fraction in zip(fills, plungers, (ge_fraction, gi_fraction)):
             height = 0.4 + 4.2 * fraction
-            fill.set_y(2.3); fill.set_height(height); plunger.set_y(2.7 + height)
+            fill.set_y(2.3)
+            fill.set_height(height)
+            plunger.set_y(2.7 + height)
         ve_fraction = (ve[frame] - ve_low) / max(ve_high - ve_low, 1e-12)
         vi_fraction = (vi[frame] - vi_low) / max(vi_high - vi_low, 1e-12)
         for fill, plunger, fraction in zip(voltage_fills, voltage_plungers, (ve_fraction, vi_fraction)):
             height = 0.4 + 4.2 * fraction
-            fill.set_y(2.3); fill.set_height(height); plunger.set_y(2.7 + height)
+            fill.set_y(2.3)
+            fill.set_height(height)
+            plunger.set_y(2.7 + height)
         e_lamp.set_alpha(0.95 if e_spikes[frame] > 0 else 0.12)
         i_lamp.set_alpha(0.95 if i_spikes[frame] > 0 else 0.12)
         cursor.set_xdata([t[frame], t[frame]])

@@ -504,7 +504,13 @@ def test_finalize_delegates_to_runstore_after_validation(
     )
     monkeypatch.setattr(execution, "validate_campaign", lambda _root: {})
 
+    calls = []
+
     def fake_run(command, **_kwargs):
+        calls.append(command)
+        if "capture-campaign" in command:
+            assert command[-2:] == ["--campaign-root", str(root)]
+            return SimpleNamespace(returncode=0)
         assert command[-2:] == [str(root), "--finalize"]
         execution.write_json_atomic(
             root / "run.json",
@@ -531,6 +537,7 @@ def test_finalize_delegates_to_runstore_after_validation(
         "total_size_bytes": 42,
         "payload_digest": "a" * 64,
     }
+    assert len(calls) == 2
 
 
 def test_publication_build_runs_promotion_from_separate_checkout(
