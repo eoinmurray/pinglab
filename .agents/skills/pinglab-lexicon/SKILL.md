@@ -122,22 +122,22 @@ Use this artifact-centred loop as lightweight orientation for scientific work:
 3. An authorized `go` mode writes the `ExpScoutPlan` or `ExpStudyPlan` directly
    into the experiment's persistent writing canvas, creates its
    `ExpImplementation`, and registers the experiment in managed
-   `ScientificCollectionState`. Use `status: "draft"` until the prospective
-   choices are ready to freeze; do not insert a chat-only plan stage or a
-   parallel noun file.
-4. Ask the user to freeze the plan before evidence-bearing execution. Within
-   the frozen question and scope, build, test, run bounded local work, analyse
-   outputs, and revise implementation and presentation agentically. Return to
-   conversation when the scientific direction or frozen expectations must
-   change.
+   `ScientificCollectionState`. The work remains a plan until its first
+   successful evidence-bearing execution. Do not insert a chat-only plan stage
+   or create a parallel noun file.
+4. Within the established question and authorized scope, develop the writing
+   and implementation, test them, run bounded local work, analyse outputs, and
+   revise the experiment agentically. Return to conversation when the central
+   scientific question or required authority changes.
 5. Use the Demolab-configured development and build interfaces throughout this
    loop. While the development interface is running, it reacts to changes in
    writing and the selected evidence; presentation is continuous feedback, not
    a terminal publication step. Demolab does not select or accept evidence.
-6. Each useful local execution creates an experiment-scoped `ExperimentRun` in
-   the collection's working `CollectionDataset`. Finalized runs remain
-   immutable; local preview may select a candidate without accepting it as the
-   experiment's official evidence.
+6. Each useful execution creates an experiment-scoped `ExperimentRun` in the
+   collection's working `CollectionDataset`. A successfully finalized run is
+   immutable and automatically becomes that experiment's official evidence.
+   Failed, interrupted, or incomplete runs do not replace the latest successful
+   run.
 7. When integrated execution is warranted, construct a dry `CampaignPlan` from
    an explicit snapshot of `ScientificCollectionState`. Ask the user to review
    its included experiment versions, dependencies, resources, expected outputs,
@@ -146,36 +146,44 @@ Use this artifact-centred loop as lightweight orientation for scientific work:
 8. Execute the approved plan as `CampaignExecution`, producing one finalized
    `ExperimentRun` for each successfully completed experiment. Archival,
    verification, restoration, repair, and composition preserve run lineage.
-9. Ask the user to accept, reject, or iterate on the evidence. Acceptance moves
-   the `CollectionDataset` official pointer only for covered experiments; later
-   local runs remain candidates until separately accepted. Freezing captures an
-   immutable dataset snapshot. `PublicationView` materializes its selected
-   evidence, and Demolab reacts to that view.
+9. Interpret the evidence and update the experiment's writing. Continue useful
+   controls, visualizations, parameter changes, and additional investigations
+   under the same experiment identity. An immutable dataset snapshot may later
+   preserve a selected collection state for archival or publication.
+   `PublicationView` materializes the current official evidence, and Demolab
+   reacts to that view.
 10. Update `ScientificRecord` and `ScientificCollectionState`, and turn valuable
    unresolved uncertainty, failures, or new findings into the next `Seed`.
 
 Between human review gates, continue agentically within the authorized scope.
-Return to human-agent conversation for scientific direction, frozen-plan
-changes, new authority, expanded scope, paid compute, destructive action,
-evidence acceptance, promotion, activation, or publication. Never treat silence
-as approval. Work may enter, leave, repeat, or move backward through the loop as
-the evidence requires.
+Return to human-agent conversation for a materially changed scientific
+question, new authority, expanded scope, paid compute, destructive action,
+promotion, activation, archival, publication, or an interpretation that the
+available evidence cannot resolve. Never treat silence as approval. Work may
+enter, leave, repeat, or move backward through the loop as the evidence
+requires.
 
 ### Progressive teaching
 
-Teach the lifecycle through use. At an unfamiliar or consequential transition,
-briefly name the current noun, distinguish conversation from a persistent
-artifact, explain why the next review gate exists, offer one natural-language
-verb or formal command, and say whether the following work is agentic. The
-labels `[CHAT]`, `[ARTIFACT]`, `[GATE]`, and `[REACTIVE]` may make those roles
-clear on first use.
+Teach the lifecycle through use rather than reciting it. During ordinary
+iteration, state the current experiment and run, what changed, the supported
+interpretation, and one useful next action. Keep noun names backstage unless
+they clarify a transition or the user asks about them. Prefer natural language
+over requiring a formal lifecycle command. The labels `[CHAT]`, `[ARTIFACT]`,
+`[GATE]`, and `[REACTIVE]` may make unfamiliar roles clear on first use.
 
 Reduce this guidance as the user demonstrates familiarity: move from a short
 explanation to the current state and one next operation. Do not quiz the user,
 recite the whole lifecycle unless asked, require named artifacts for trivial
 exploration, invent a proficiency score, or repeatedly explain familiar terms.
-When asked where the work is in the lifecycle, report the current step, live
-artifacts, unresolved gate, and one next operation.
+When asked where the work is in the lifecycle, report the current state, live
+canvasses, latest run, supported interpretation, and one next operation.
+
+After execution, prefer a compact report such as:
+
+> `exp099/r003` completed and is now official. The observed transition is
+> synchronous but not yet established as PING. Next useful test: remove the
+> E-I cross-coupling.
 
 ## `Abstract`
 
@@ -390,22 +398,25 @@ replace its scientific plan or establish that the experiment was executed.
 The collection-scoped scientific data object. Its working form retains useful
 `ExperimentRun` identities, collection-level assets and upstream datasets, and
 maps each experiment to one official run with optional local preview overrides.
-Official selection is explicit and does not follow recency. Freezing creates an
-immutable, digest-bearing snapshot; later work continues in a successor working
-revision. Verification, publication and pruning remain separate operations.
+The newest successfully finalized run automatically becomes official. A failed,
+interrupted, or incomplete run leaves the previous official pointer unchanged.
+Snapshotting creates an immutable, digest-bearing collection revision; later
+work continues in a successor working revision. Verification, publication and
+pruning remain separate operations.
 
 ## `ExperimentRun`
 
 One experiment-scoped local or remote execution. It records execution state,
-source and dirty-patch provenance, command and host, upstream runs and datasets,
+the exact prospective writing, implementation and configuration used, source
+and dirty-patch provenance, command and host, upstream runs and datasets,
 payload location and inventory digest, archive identity and legacy lineage. A
-finalized run is immutable. Its disposition may be temporary, candidate or
-retained; official status exists only through its `CollectionDataset` pointer.
+finalized run is immutable. Successful finalization advances its experiment's
+`CollectionDataset` official pointer. Unsuccessful execution does not.
 
 ## `CampaignPlan`
 
 A dry, cold-readable executable snapshot of a collection. It identifies the
-frozen source, included experiment versions, hard dependencies and stages,
+captured source, included experiment versions, hard dependencies and stages,
 commands, resource requests, shards, expected outputs, explicit exclusions,
 acceptance conditions, and blocking decisions. Constructing it does not
 authorize live submission or paid compute.
@@ -495,24 +506,25 @@ An experiment identity owns one continuing central scientific question.
 Parameter refinement, an additional investigation, a new visualization, a
 control, a failed run, or follow-up execution defaults to the same experiment.
 After evidence-bearing execution, revise prospective material in the same
-writing canvas and freeze it again before the next affected execution. Each
-finalized `ExperimentRun` preserves the exact source revision and dirty-patch
-provenance that it executed, so later writing changes do not rewrite the earlier
-plan. Do not create a new experiment merely because a plan or run is frozen.
+writing canvas before the next affected execution. Each finalized
+`ExperimentRun` preserves the exact writing, implementation, configuration,
+source revision, and dirty-patch provenance it executed, so later changes do
+not rewrite the earlier plan. Do not create a new experiment merely because a
+run already exists.
 Create one only when the central scientific question materially changes or the
 user explicitly requests it; when that distinction is consequential, return it
 to the user rather than creating the experiment automatically.
 
-`Plan` always means prospective. Its paired executed noun preserves the frozen
-plan and adds what actually happened without rewriting expectations as
-observations. A new study plan is derived from the scout rather than extending
-or relabelling it; record which exploratory choices were carried forward,
-changed, rejected, or added.
+`Plan` always means prospective. Its paired executed noun preserves the
+prospective state recorded by its run and adds what actually happened without
+rewriting expectations as observations. A new study plan is derived from the
+scout rather than extending or relabelling it; record which exploratory choices
+were carried forward, changed, rejected, or added.
 
 The rendered executed artifact follows its prospective publication scaffold
 and adds execution evidence beside the corresponding prospective material. It
 may replace planned methods with one complete account of executed methods for
-readability, while retaining the frozen protocol for provenance.
+readability, while retaining the executed protocol through run provenance.
 
 In every rendered `ExpScoutPlan`, `ExpScout`, `ExpStudyPlan`, and `ExpStudy`,
 group the ordered investigation collection beneath one top-level section titled
@@ -520,7 +532,7 @@ group the ordered investigation collection beneath one top-level section titled
 `ExpInvestigationIdentity`; do not expose the noun name as its heading. In a
 prospective plan, keep expected patterns and result slots explicitly planned or
 pending so the `Results` scaffold cannot imply that observations exist. After
-execution, place each result directly after its frozen expected patterns and
+execution, place each result directly after its recorded expected patterns and
 planned visual evidence within the same custom-titled investigation. Mark
 simulated evidence plainly as **Simulation result** in its lead text or caption;
 “measured” alone is not sufficient when readers could mistake model output for
@@ -713,8 +725,9 @@ status is preserved explicitly rather than silently omitted.
 ## `ExpObservedPatterns`
 
 A concise, exploratory account of what a measured result shows and does not
-show relative to the frozen expected patterns. Keep observations separate from
-procedural detail and do not add a local disposition gate.
+show relative to the expected patterns recorded by that execution. Keep
+observations separate from procedural detail and do not add a local disposition
+gate.
 
 ## `ExpInvestigationExecution`
 
@@ -739,13 +752,13 @@ one `ExpInvestigationExecution` per planned investigation,
 
 ## `ExpScout`
 
-An executed scouting mission containing a frozen `ExpScoutPlan` and
-`ScoutExecution`.
+An executed scouting mission containing the prospective `ExpScoutPlan` recorded
+by its `ExperimentRun` and `ScoutExecution`.
 
 Preserve the prospective publication structure and attach execution evidence
 locally within the shared `Results` section. Replace the planned methods only in
-the readable rendering; retain the frozen protocol for provenance. Do not
-rewrite expectations as observations or create a second results section. All
+the readable rendering; retain the executed protocol through run provenance. Do
+not rewrite expectations as observations or create a second results section. All
 evidence remains exploratory rather than durable.
 
 Keep rendered scouts proportionate to reconnaissance. Write the abstract as one
@@ -781,7 +794,7 @@ A prospective durable-study contract containing an `Abstract`,
 
 It requires stronger estimands, sampling and seeds, controls, uncertainty,
 falsifiers, rival discrimination, stopping rules, and robustness than a scout
-plan. Freeze all choices before execution begins.
+plan. The resulting `ExperimentRun` records the exact prospective choices used.
 
 ## `StudyExecution`
 
@@ -791,8 +804,8 @@ rival discrimination, conclusions, limitations, and robustness results.
 
 ## `ExpStudy`
 
-A durable executed scientific record containing a frozen `ExpStudyPlan` and
-`StudyExecution`.
+A durable executed scientific record containing the prospective `ExpStudyPlan`
+recorded by its `ExperimentRun` and `StudyExecution`.
 
 For each completed result, show its title, figure or output, and concise
 interpretation. Never replace or rewrite planned expectations as observations.
@@ -803,8 +816,9 @@ The current collection registration, experiment membership and scientific
 roles, hard dependencies, lifecycle status, campaign readiness, writing
 metadata, referenced artifacts, `PublicationView`, generated outputs, and
 publication blockers. An experiment enters this state when its plan and
-implementation are created; later review freezes an explicit collection
-snapshot for `CampaignPlan` rather than admitting the experiment retroactively.
+implementation are created. Constructing a `CampaignPlan` captures an explicit
+collection snapshot without introducing a separate experiment-plan approval
+gate.
 
 Technical provenance includes exact run and campaign identifiers, commit
 hashes, checkpoint keys, filenames, paths, manifests, commands, and
