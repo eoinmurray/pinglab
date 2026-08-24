@@ -17,6 +17,7 @@ from .materialize import cutover, materialize_shadow
 from .migration import build_plan, classify, import_shadow
 from .native import capture_campaign_metadata, capture_local_run
 from .prune import pruning_plan
+from .registry import coverage, registry_path
 
 DEFAULT_ROOT = Path("runs/pingstore")
 DEFAULT_STORE = "r2:pinglab/campaigns"
@@ -109,7 +110,17 @@ def build_parser() -> argparse.ArgumentParser:
             )
             command.add_argument("--logical-base-uri", default=DEFAULT_URI)
         if name == "import":
-            command.add_argument("--shadow", action="store_true", required=True)
+            destination = command.add_mutually_exclusive_group(required=True)
+            destination.add_argument(
+                "--shadow",
+                action="store_true",
+                help="import into an isolated --root for rehearsal",
+            )
+            destination.add_argument(
+                "--local",
+                action="store_true",
+                help="install working metadata under the selected --root",
+            )
         if name == "cutover":
             command.add_argument("--confirm", action="store_true")
     return parser
@@ -130,7 +141,14 @@ def _status(catalogue: Catalogue) -> dict[str, Any]:
                 "preview_overrides": len(dataset["preview_overrides"]),
             }
         )
-    return {"root": str(catalogue.root.resolve()), "datasets": datasets}
+    result: dict[str, Any] = {
+        "root": str(catalogue.root.resolve()),
+        "datasets": datasets,
+    }
+    repo = Path.cwd().resolve()
+    if registry_path(repo).is_file():
+        result["coverage"] = coverage(repo)
+    return result
 
 
 def _runs(catalogue: Catalogue, experiment: str | None) -> list[dict[str, Any]]:

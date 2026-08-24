@@ -46,6 +46,10 @@ from helpers.paths import (  # noqa: E402
     log_runner_event,
     runner_paths,
 )
+from helpers.run_dirs import (
+    finalize_prepared_run,  # noqa: E402
+    preserve_active_view,  # noqa: E402
+)
 from helpers.stamp import stamp_figure  # noqa: E402
 
 SLUG = "exp033"
@@ -905,6 +909,7 @@ def plot_sigma_sensitivity(sensitivity, out_path, run_id):
     plt.close(fig)
 
 
+@preserve_active_view(SLUG)
 def main() -> None:
     FIGURES.mkdir(parents=True, exist_ok=True)
     run_id = "exp033-numerics"
@@ -1086,6 +1091,7 @@ def main() -> None:
     (FIGURES / "numbers.json").write_text(json.dumps(summary, indent=2) + "\n")
     print(f"  wrote {FIGURES / 'numbers.json'}")
     log_runner_event(SLUG, "completed", run_id=run_id)
+    finalize_prepared_run(SLUG, run_id)
 
 
 if __name__ == "__main__":

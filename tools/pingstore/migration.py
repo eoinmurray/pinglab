@@ -33,7 +33,11 @@ def classify(inventory: dict[str, Any]) -> dict[str, Any]:
             classification = "candidate-local"
         elif payload["kind"] == "scratch-directory":
             classification = "temporary-scratch"
-        if payload.get("experiment") and not payload.get("collection"):
+        if (
+            payload["kind"] != "scratch-directory"
+            and payload.get("experiment")
+            and not payload.get("collection")
+        ):
             blocker = "unresolved collection membership"
         rows.append(
             {
@@ -45,6 +49,7 @@ def classify(inventory: dict[str, Any]) -> dict[str, Any]:
     return {
         "schema": "pingstore.migration-classification/v1",
         "inventory_digest": inventory["digest"],
+        "registry_digest": inventory.get("registry_digest"),
         "rows": rows,
         "blocked": sum(row["blocker"] is not None for row in rows),
         "digest": canonical_digest(rows),
@@ -52,6 +57,10 @@ def classify(inventory: dict[str, Any]) -> dict[str, Any]:
 
 
 def build_plan(inventory: dict[str, Any], classifications: dict[str, Any]) -> dict[str, Any]:
+    if classifications.get("inventory_digest") != inventory.get("digest"):
+        raise PingstoreError("classification inventory digest does not match")
+    if classifications.get("registry_digest") != inventory.get("registry_digest"):
+        raise PingstoreError("classification registry digest does not match")
     by_id = {row["physical_id"]: row for row in classifications["rows"]}
     operations: list[dict[str, Any]] = []
     for payload in inventory["payloads"]:
@@ -73,7 +82,13 @@ def build_plan(inventory: dict[str, Any], classifications: dict[str, Any]) -> di
         "classification_digest": classifications["digest"],
         "operations": operations,
         "blocked": sum(op["action"] == "block" for op in operations),
-        "digest": canonical_digest(operations),
+        "registry_digest": inventory.get("registry_digest"),
+        "digest": canonical_digest(
+            {
+                "operations": operations,
+                "registry_digest": inventory.get("registry_digest"),
+            }
+        ),
     }
 
 
@@ -81,6 +96,7 @@ def _manifest_run(operation: dict[str, Any], payload: dict[str, Any]) -> dict[st
     manifest = json.loads(Path(payload["manifest"]).read_text())
     experiment = operation["experiment"]
     local_id = manifest.get("run_id", "legacy")
+    actual = inventory_payload(Path(operation["path"]), run_id=f"{experiment}/{local_id}")
     return {
         "schema": EXPERIMENT_RUN_SCHEMA,
         "run_id": f"{experiment}/{local_id}",
@@ -104,7 +120,7 @@ def _manifest_run(operation: dict[str, Any], payload: dict[str, Any]) -> dict[st
         "upstream_datasets": [],
         "payload": {
             "location": operation["path"],
-            "inventory_digest": "sha256:" + "0" * 64,
+            "inventory_digest": "sha256:" + actual["payload_digest"],
         },
         "archive": None,
         "legacy_identity": {"manifest": payload["manifest"]},
@@ -155,8 +171,14 @@ def import_shadow(
     catalogue: Catalogue,
     migration_root: Path,
 ) -> dict[str, Any]:
+    if plan.get("inventory_digest") != inventory.get("digest"):
+        raise PingstoreError("migration plan inventory digest does not match")
+    if plan.get("registry_digest") != inventory.get("registry_digest"):
+        raise PingstoreError("migration plan registry digest does not match")
     payloads = {payload["physical_id"]: payload for payload in inventory["payloads"]}
     experiments: dict[str, set[str]] = {}
+    for experiment, collection in inventory.get("memberships", {}).items():
+        experiments.setdefault(collection, set()).add(experiment)
     for operation in plan["operations"]:
         if operation["experiment"] and operation["collection"]:
             experiments.setdefault(operation["collection"], set()).add(
@@ -175,6 +197,9 @@ def import_shadow(
                 sorted(members),
                 migration={"plan_digest": plan["digest"]},
             )
+        else:
+            for experiment in sorted(members):
+                catalogue.register_experiment(collection, experiment)
 
     imported: list[str] = []
     proposals: dict[str, dict[str, str]] = {}
@@ -224,6 +249,28 @@ def import_shadow(
                     proposals.setdefault(operation["collection"], {})[
                         experiment
                     ] = run_id
+        elif (
+            operation["classification"] == "legacy-unverified"
+            and payload["kind"] == "artifact-directory"
+            and operation["experiment"]
+            and operation["collection"]
+        ):
+            experiment = operation["experiment"]
+            source = Path(operation["path"])
+            identity = inventory_payload(
+                source, run_id=f"{experiment}/legacy"
+            )["payload_digest"][:12]
+            runs_to_import.append(
+                _referenced_run(
+                    operation,
+                    payload,
+                    run_id=f"{experiment}/legacy-{identity}",
+                    experiment=experiment,
+                    source=source,
+                    disposition="retained",
+                )
+            )
+            runs_to_import[-1]["legacy_identity"]["verification"] = "unverified"
         for run in runs_to_import:
             root = catalogue.run_path(
                 run["collection"], run["experiment"], run["run_id"]
@@ -248,6 +295,7 @@ def import_shadow(
         "plan_digest": plan["digest"],
         "imported_runs": sorted(imported),
         "selection_proposals": proposals,
+        "historical_dispositions": inventory.get("historical_dispositions", {}),
     }
     write_json_atomic(migration_root / "import.json", result)
     return result

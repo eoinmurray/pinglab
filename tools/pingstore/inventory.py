@@ -18,11 +18,15 @@ from runstore.contract import (
 )
 
 from .contracts import canonical_digest
+from .registry import load_registry, memberships, registry_path
 
 COLLECTION_RE = re.compile(r'collection:\s*"([a-z0-9-]+)"')
 
 
 def writing_collections(writings_root: Path) -> dict[str, str]:
+    registry = writings_root.parent / "experiments/collections/registry.json"
+    if registry.is_file():
+        return memberships(writings_root.parent)
     result: dict[str, str] = {}
     for path in sorted(writings_root.glob("exp*.typ")):
         match = COLLECTION_RE.search(path.read_text(errors="replace")[:2000])
@@ -51,6 +55,11 @@ def inventory_local(
     scratch = (scratch_root or repo / "temp/experiments").resolve()
     restored = (restored_root or repo / "runs/restored").resolve()
     memberships = writing_collections(repo / "writings")
+    registry = (
+        load_registry(repo)
+        if registry_path(repo).is_file()
+        else {"historical": {}}
+    )
     payloads: list[dict[str, Any]] = []
 
     if artifacts.is_dir():
@@ -107,11 +116,18 @@ def inventory_local(
                 }
             )
 
+    registry_state = {
+        "memberships": memberships,
+        "historical_dispositions": registry["historical"],
+    }
     return {
         "schema": "pingstore.migration-inventory/v1",
         "repo": str(repo),
         "payloads": payloads,
         "payload_count": len(payloads),
+        "memberships": memberships,
+        "historical_dispositions": registry["historical"],
+        "registry_digest": canonical_digest(registry_state),
         "digest": canonical_digest(payloads),
     }
 

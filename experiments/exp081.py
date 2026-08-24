@@ -27,6 +27,10 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from helpers import theme  # noqa: E402
 from helpers.numbers import write_numbers  # noqa: E402
 from helpers.paths import artifacts_and_figures  # noqa: E402
+from helpers.run_dirs import (
+    finalize_prepared_run,  # noqa: E402
+    preserve_active_view,  # noqa: E402
+)
 from helpers.run_id import next_run_id, persist  # noqa: E402
 
 SLUG = "exp081"
@@ -350,6 +354,7 @@ def summarize(predicted: np.ndarray, empirical: np.ndarray) -> dict[str, float]:
     }
 
 
+@preserve_active_view(SLUG)
 def main() -> None:
     started = time.perf_counter()
     FIGURES.mkdir(parents=True, exist_ok=True)
@@ -440,6 +445,7 @@ def main() -> None:
     )
     persist(SLUG, run_id)
     print("exp081 complete", flush=True)
+    finalize_prepared_run(SLUG, run_id)
 
 
 if __name__ == "__main__":

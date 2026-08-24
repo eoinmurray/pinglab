@@ -53,6 +53,10 @@ from helpers.cli import parse_meta  # noqa: E402
 from helpers.fmt import format_duration  # noqa: E402
 from helpers.operating_point import TAU_GABA_GAMMA_MS  # noqa: E402
 from helpers.paths import artifacts_and_figures  # noqa: E402
+from helpers.run_dirs import (
+    finalize_prepared_run,  # noqa: E402
+    preserve_active_view,  # noqa: E402
+)
 from helpers.run_dirs import prepare as prepare_run_dirs  # noqa: E402
 from helpers.run_id import next_run_id  # noqa: E402
 from helpers.stamp import stamp_figure  # noqa: E402
@@ -1552,6 +1556,7 @@ def _handle_campaign_cli(argv: list[str]) -> bool:
     return True
 
 
+@preserve_active_view(SLUG)
 def main() -> None:
     if _handle_campaign_cli(sys.argv):
         return
@@ -1687,6 +1692,7 @@ def main() -> None:
         json.dumps(_json_safe(summary), indent=2) + "\n")
     print(f"wrote {FIGURES / 'numbers.json'}")
     print(f"  total duration: {summary['duration']}")
+    finalize_prepared_run(SLUG, run_id)
 
 
 if __name__ == "__main__":
