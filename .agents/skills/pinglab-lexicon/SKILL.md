@@ -491,13 +491,20 @@ and adds execution evidence beside the corresponding prospective material. It
 may replace planned methods with one complete account of executed methods for
 readability, while retaining the frozen protocol for provenance.
 
-Within each investigation, place its executed result directly after the frozen
-expected patterns and planned visual evidence. Mark simulated evidence plainly
-as **Simulation result** in its lead text or caption; “measured” alone is not
-sufficient when readers could mistake model output for biological measurement.
-Do not move investigation results into a generic results or measured-overview
-section. A cross-investigation figure may appear near the conclusion only when
-it adds genuine synthesis, and it never substitutes for the local results.
+In every rendered `ExpScoutPlan`, `ExpScout`, `ExpStudyPlan`, and `ExpStudy`,
+group the ordered investigation collection beneath one top-level section titled
+`Results`. Title each investigation from its descriptive
+`ExpInvestigationIdentity`; do not expose the noun name as its heading. In a
+prospective plan, keep expected patterns and result slots explicitly planned or
+pending so the `Results` scaffold cannot imply that observations exist. After
+execution, place each result directly after its frozen expected patterns and
+planned visual evidence within the same custom-titled investigation. Mark
+simulated evidence plainly as **Simulation result** in its lead text or caption;
+“measured” alone is not sufficient when readers could mistake model output for
+biological measurement. Do not duplicate local evidence in a second aggregate
+results overview. A cross-investigation figure may appear near the conclusion
+only when it adds genuine synthesis, and it never substitutes for the local
+results. Keep `ExpConclusion` outside the `Results` section.
 
 Composition is not publication anatomy. Child nouns are semantic inputs to a
 connected scientific narrative, not mandatory paragraphs, labels, cards, or
@@ -515,13 +522,13 @@ document as a whole: avoid stranded headings, broken figure sequences, choppy
 runs of small sections, and nearly empty final pages. Let scientific importance
 determine length; do not target uniform sections or a fixed page count.
 
-Investigations remain one ordered flat collection. A rendering may place
-consecutive investigations beneath custom descriptive subgroup headings when
-that clarifies the experiment's scientific logic. These headings are optional
-presentation, not nouns or additional hierarchy: they do not own, renumber, or
-change the identity of an investigation, and no fixed subgroup taxonomy is
-implied. Introduce each subgroup with prose that explains the shared question
-and its relationship to neighbouring groups.
+Investigations remain one ordered flat collection within `Results`. A rendering
+may place consecutive investigations beneath custom descriptive subgroup
+headings when that clarifies the experiment's scientific logic. These headings
+are optional presentation, not nouns or additional semantic hierarchy: they do
+not own, renumber, or change the identity of an investigation, and no fixed
+subgroup taxonomy is implied. Introduce each subgroup with prose that explains
+the shared question and its relationship to neighbouring groups.
 
 Rendered experiment documents contain scientific content, not repository
 plumbing. Omit opaque run and campaign identifiers, commit hashes, checkpoint
@@ -713,10 +720,10 @@ An executed scouting mission containing a frozen `ExpScoutPlan` and
 `ScoutExecution`.
 
 Preserve the prospective publication structure and attach execution evidence
-locally. Replace the planned methods only in the readable rendering; retain the
-frozen protocol for provenance. Do not rewrite expectations as observations or
-create a separate results section. All evidence remains exploratory rather than
-durable.
+locally within the shared `Results` section. Replace the planned methods only in
+the readable rendering; retain the frozen protocol for provenance. Do not
+rewrite expectations as observations or create a second results section. All
+evidence remains exploratory rather than durable.
 
 Keep rendered scouts proportionate to reconnaissance. Write the abstract as one
 short qualitative paragraph followed by the required plain-language sentence.
