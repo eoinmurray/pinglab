@@ -3,7 +3,7 @@
   date: "2026-08-11",
   description: "A guide to the shared training runs, their parameters, outputs, and downstream consumers.",
   collection: "gamma-gated-sparsity",
-  status: "draft",
+  status: "ExpScout",
 )
 
 #let r = json("/artifacts/data/exp022/numbers.json")

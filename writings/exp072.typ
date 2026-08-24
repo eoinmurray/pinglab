@@ -3,7 +3,7 @@
   date: "2026-07-19",
   description: "A one-seed validation-only exploratory ladder tests whether trainable conductance leak and adaptive E-cell thresholds move matched COBA/PING SHD accuracy beyond the exp071 plateau.",
   collection: "spiking-heidelberg-digits",
-  status: "draft",
+  status: "ExpScout",
   order: 11,
 )
 

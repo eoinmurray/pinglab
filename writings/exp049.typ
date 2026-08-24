@@ -12,7 +12,7 @@
   date: "2026-06-09",
   description: "Unfreeze the recurrent conductances and Adam does not preserve or recover effective E-to-I recruitment; every tested initialisation moves toward dense E firing and weak I activity.",
   collection: "gamma-gated-sparsity",
-  status: "final",
+  status: "ExpScout",
 )
 
 

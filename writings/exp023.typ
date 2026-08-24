@@ -3,7 +3,7 @@
   date: "2026-05-13",
   description: "PING stripped to its biophysical fundamentals and characterised in isolation from any task: the E→I→E loop produces gamma at ≈ 30 Hz and compresses the E dynamic range an order of magnitude below COBA.",
   collection: "gamma-gated-sparsity",
-  status: "final",
+  status: "ExpScout",
 )
 
 #let body = [

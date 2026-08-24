@@ -5,7 +5,7 @@
   date: "2026-07-11",
   description: "A first look at the SHD event-based audio benchmark before training on it: raw spike rasters of spoken digits across 700 cochlear channels, one per class and several within a class.",
   collection: "spiking-heidelberg-digits",
-  status: "draft",
+  status: "ExpScout",
 )
 
 // Every dataset number below is read from this run's numbers.json, never

@@ -3,7 +3,7 @@
   date: "2026-08-22",
   description: "Compare the legacy and current gamma-gated sparsity manuscript plots side by side.",
   collection: "gamma-gated-sparsity",
-  status: "draft",
+  status: "ExpScout",
 )
 
 #let comparison = json("/artifacts/data/exp093/numbers.json")

@@ -4,7 +4,6 @@
   description: "A short guide to the gamma-gated sparsity collection: its central question, experiment sequence, and data dependencies.",
   collection: "gamma-gated-sparsity",
   order: 1,
-  status: "draft",
 )
 
 #let body = [

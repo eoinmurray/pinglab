@@ -5,7 +5,7 @@
   date: "2026-06-08",
   description: "Streaming and spatial-masking psychometric curves identify the presentation durations, encoding rates, and foreground evidence that support classification in a frozen trained PING network.",
   collection: "gamma-gated-sparsity",
-  status: "final",
+  status: "ExpScout",
 )
 
 #let r = json("/artifacts/data/exp048/numbers.json")

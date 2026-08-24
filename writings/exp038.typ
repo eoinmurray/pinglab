@@ -3,7 +3,7 @@
   date: "2026-05-30",
   description: "Loads a trained COBA network and switches the I-loop on at inference by sweeping ei_strength from 0 to 1; the same weights fire ≈15× slower.",
   collection: "gamma-gated-sparsity",
-  status: "final",
+  status: "ExpScout",
 )
 
 #let run = json("/artifacts/data/exp038/numbers.json")

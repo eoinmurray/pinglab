@@ -3,7 +3,6 @@
   date: "2026-08-20",
   description: "The figures from the gamma-gated sparsity manuscript, presented in sequence with their full captions.",
   collection: "gamma-gated-sparsity",
-  status: "draft",
 )
 
 

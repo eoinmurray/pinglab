@@ -3,7 +3,7 @@
   date: "2026-06-02",
   description: "Reads exp022's 50-epoch PING and COBA baselines and asks whether the firing rate converges once the accuracy has: it does not, not for COBA.",
   collection: "gamma-gated-sparsity",
-  status: "final",
+  status: "ExpScout",
 )
 
 

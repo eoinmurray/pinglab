@@ -3,7 +3,7 @@
   date: "2026-08-22",
   description: "An exploratory decoder-transfer scout using matched conceptual diagrams, measured trajectories, and a balanced 100-image screen.",
   collection: "gamma-gated-sparsity",
-  status: "complete",
+  status: "ExpScout",
 )
 
 #let r = json("/artifacts/data/exp094/numbers.json")

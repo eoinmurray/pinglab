@@ -3,7 +3,7 @@
   date: "2026-07-20",
   description: "A one-seed exploratory SHD experiment tries nonzero Dale-constrained trainable W_EE. The matched COBA/PING design still fails at the COBA local gate, but the authorized PING-only continuation reaches about 71% held-out validation accuracy after 40 epochs.",
   collection: "spiking-heidelberg-digits",
-  status: "draft",
+  status: "ExpScout",
   order: 12,
 )
 
