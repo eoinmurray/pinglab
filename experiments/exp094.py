@@ -44,9 +44,11 @@ TRAINING_ROOT = Path(
         "PINGLAB_TRAINING_ROOT",
         REPO
         / "runs"
-        / "inputs"
-        / "ggs-fr-repair-20260820-ac6f4988"
-        / "exp022"
+        / "restored"
+        / "gold-2"
+        / "state"
+        / "checkpoints"
+        / "current-repair-exp022"
         / "cells",
     )
 )

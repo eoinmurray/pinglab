@@ -1,7 +1,7 @@
 {
-  "run_id": "r008",
-  "git_sha": "dc5fbbd3",
-  "duration_s": 28.7,
+  "run_id": "r021",
+  "git_sha": "471755df",
+  "duration_s": 29.5,
   "duration": "29s",
   "question": "Do recurrent E and I conductances form a useful two-variable portrait of a stochastic PING cycle?",
   "results": {
