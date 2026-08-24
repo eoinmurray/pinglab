@@ -38,6 +38,10 @@ from helpers.cli import replot_target  # noqa: E402
 from helpers.datasets import load_mnist_split  # noqa: E402
 from helpers.figsave import save_figure  # noqa: E402
 from helpers.paths import artifacts_and_figures  # noqa: E402
+from helpers.run_dirs import (
+    finalize_prepared_run,  # noqa: E402
+    preserve_active_view,  # noqa: E402
+)
 from helpers.run_dirs import prepare as prepare_run_dirs  # noqa: E402
 from helpers.run_id import next_run_id  # noqa: E402
 from helpers.stamp import stamp_figure  # noqa: E402
@@ -1101,6 +1105,7 @@ def _load_headline_cache(path: Path) -> dict:
 
 
 # ── Main ────────────────────────────────────────────────────────────
+@preserve_active_view(SLUG)
 def main() -> None:
     # Publication profile: every figure this notebook writes is a print-sized
     # artifact, emitted in both web (SVG/PNG) and manuscript (PDF) formats by
@@ -1282,6 +1287,7 @@ def main() -> None:
     (FIGURES / "numbers.json").write_text(json.dumps(summary, indent=2) + "\n")
     print(f"wrote {FIGURES / 'numbers.json'}")
     print(f"  duration: {duration_s:.1f}s")
+    finalize_prepared_run(SLUG, notebook_run_id)
 
 
 if __name__ == "__main__":

@@ -52,6 +52,10 @@ from helpers.paths import (  # noqa: E402
     log_runner_event,
     runner_paths,
 )
+from helpers.run_dirs import (
+    finalize_prepared_run,  # noqa: E402
+    preserve_active_view,  # noqa: E402
+)
 from helpers.run_dirs import prepare as prepare_run_dirs  # noqa: E402
 from helpers.run_id import next_run_id  # noqa: E402
 from helpers.stamp import stamp_figure  # noqa: E402
@@ -386,6 +390,7 @@ def plot_ceiling_vs_fgamma(rows: list[dict], out_path: Path, run_id: str) -> dic
 # ─── main ───────────────────────────────────────────────────────────
 
 
+@preserve_active_view(SLUG)
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--no-wipe-dir", action="store_true")
@@ -507,6 +512,7 @@ def main() -> None:
     )
     print(f"\nTotal runtime: {numbers['duration']}")
     log_runner_event(SLUG, "completed", run_id=notebook_run_id)
+    finalize_prepared_run(SLUG, notebook_run_id)
 
 
 if __name__ == "__main__":

@@ -71,6 +71,10 @@ from helpers.paths import (  # noqa: E402
     runner_paths,
 )
 from helpers.run_cli import run_cli  # noqa: E402
+from helpers.run_dirs import (
+    finalize_prepared_run,  # noqa: E402
+    preserve_active_view,  # noqa: E402
+)
 from helpers.run_dirs import prepare as prepare_run_dirs  # noqa: E402
 from helpers.run_id import next_run_id  # noqa: E402
 from helpers.stamp import stamp_figure  # noqa: E402
@@ -1905,6 +1909,7 @@ def run_via_runpod(meta: Meta) -> None:
 
 # ─── success criteria ───────────────────────────────────────────────
 
+@preserve_active_view(SLUG)
 def main() -> None:
     theme.set_paper_mode(True)
 
@@ -2260,6 +2265,7 @@ def main() -> None:
     print(f"wrote {FIGURES / 'numbers.json'}")
     print(f"  total duration: {summary['duration']}")
     log_runner_event(SLUG, "completed", run_id=notebook_run_id)
+    finalize_prepared_run(SLUG, notebook_run_id)
 
 
 
