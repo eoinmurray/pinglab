@@ -1,6 +1,6 @@
 """Notebook-side dataset access (data, not CLI internals).
 
-Mirrors the MNIST source partitions used by tools/snn: the official training
+Mirrors the MNIST source partitions used by tools/snnsim: the official training
 partition remains separate from the untouched official test partition.
 
 Notebooks that only *run* the network never need this (the CLI loads data itself);
@@ -54,7 +54,7 @@ def _valid_h5(path: str) -> bool:
 def _shd_h5(split: str) -> str:
     """Fetch + gunzip one SHD split to _SHD_DIR, returning the local .h5 path.
 
-    Mirrors the tool-side download (tools/snn/datasets.py) rather than importing
+    Mirrors the tool-side download (tools/snnsim/datasets.py) rather than importing
     it — same tool↔experiment boundary the mnist path respects. Reuses the cache
     the CLI may already have populated at /tmp/shd.  A stale/truncated HDF5 is
     deleted and rebuilt; this protects cloud runs from treating a partial
@@ -96,7 +96,7 @@ def load_shd_events(split: str = "train", max_samples: int | None = None):
     labels: int64 ndarray of class ids in [0, 20).
 
     Raw events are exactly what a raster needs; binning to a spike tensor is the
-    trainer's job (see ShdBinnedDataset in tools/snn/train.py). Deterministic
+    trainer's job (see ShdBinnedDataset in tools/snnsim/train.py). Deterministic
     subset at seed 42 when max_samples is set.
     """
     import h5py

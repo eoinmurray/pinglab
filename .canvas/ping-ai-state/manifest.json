@@ -1,0 +1,23 @@
+{
+  "name": "ping-ai-state",
+  "forked_from": "ping-emergence",
+  "kind": "synthetic simulation visualization",
+  "status": "clean scaffold",
+  "objective": "Explore a materially stateful AI system rather than presenting neural activity alone as intelligence.",
+  "simulation_ms": 100,
+  "dt_ms": 0.25,
+  "video_frames": 400,
+  "n_e": 100,
+  "n_i": 25,
+  "input_rate_hz": 60,
+  "seed": 7,
+  "n_input": 100,
+  "visible_projections": ["Input_to_E", "E_to_I", "I_to_E"],
+  "arrow_rule": "Draw every outgoing recurrent transmission initiated by a source spike in the current timestep.",
+  "event_arrows": "Thin arrows mark spikes emitted in the current timestep.",
+  "conductance_style": "Persistent connection width and opacity follow reconstructed per-synapse AMPA or GABA conductance after spike arrival and exponential decay.",
+  "neuron_radius": "Mapped from recorded membrane voltage between resting and threshold voltage; spike rings remain explicit after voltage reset.",
+  "input_visual": "The exact seeded Poisson input raster is shown as private one-to-one spike sources onto E; input units do not encode membrane voltage.",
+  "visual_style": "Conference-figure warm off-white; restrained typography; excitatory structure black; inhibitory structure red.",
+  "outputs": []
+}

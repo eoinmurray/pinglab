@@ -272,7 +272,7 @@ def author_network(
         network_b.I.spikes,
         name="population",
     )
-    return snn.compile(net, target="tools/snn")
+    return snn.compile(net, target="tools/snnsim")
 
 
 def author_phase_response_network() -> snn.Bundle:
@@ -316,7 +316,7 @@ def author_phase_response_network() -> snn.Bundle:
         delay=COUPLING_DELAY_MS * snn.ms,
     )
     net.expose(network.E.spikes, network.I.spikes, name="population")
-    return snn.compile(net, target="tools/snn")
+    return snn.compile(net, target="tools/snnsim")
 
 
 def poisson_input(*, rate_hz: float, seed: int, steps: int) -> torch.Tensor:

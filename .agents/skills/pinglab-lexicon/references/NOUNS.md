@@ -25,6 +25,18 @@ answer the user's question. Distinguish conceptual or simulated behaviour from
 biological measurement, state important simplifications, and avoid presenting
 illustrative output as evidence.
 
+After a `Canvas` interaction changes executable code, validate the affected code
+and run the bounded local simulation so the displayed output reflects the change.
+Do not run a simulation for prose, styling, metadata, or replay-only changes. If
+validation fails, execution is unsafe, or the run requires paid compute, stop and
+report the blocker rather than bypassing the applicable authority gate.
+
+After a `Canvas` runs a simulation, report its elapsed simulation runtime in the
+conversational update. If an interrupted or failed simulation has no available
+runtime, state that it is unavailable rather than estimating it. Presentation-only
+changes and replays of retained output without a new simulation do not require a
+simulation runtime.
+
 A `Canvas` is conversational and exploratory. Creating or changing one does not
 create an experiment plan, implementation, `ExperimentRun`, official evidence,
 or publication state. If the user later asks to retain or execute its scientific

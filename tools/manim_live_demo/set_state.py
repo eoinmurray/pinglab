@@ -8,7 +8,6 @@ import os
 import tempfile
 from pathlib import Path
 
-
 STATE_PATH = Path(__file__).with_name("state.json")
 
 

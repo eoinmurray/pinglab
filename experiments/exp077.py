@@ -67,7 +67,7 @@ def author_variant(name: str, delay_steps: int | None) -> snn.Bundle:
     if name.startswith("reciprocal"):
         net.connect(b.I.spikes, a.E.inhibitory, name="b_I_to_a_E", synapse=snn.GABA(tau=9 * snn.ms), weight=snn.Constant(3.0), constraint=snn.NonNegative(), connection="feedback", delay=delay)
     net.expose(a.E.spikes, a.I.spikes, b.E.spikes, b.I.spikes, name="population")
-    return snn.compile(net, target="tools/snn")
+    return snn.compile(net, target="tools/snnsim")
 
 
 def independent_inputs() -> dict[str, torch.Tensor]:

@@ -94,7 +94,7 @@ def author_network() -> snn.Bundle:
         source=drive,
     )
     net.expose(cell.E.spikes, cell.I.spikes, name="population")
-    return snn.compile(net, target="tools/snn")
+    return snn.compile(net, target="tools/snnsim")
 
 
 def make_inputs(rate_hz: float) -> np.ndarray:

@@ -1,7 +1,7 @@
 """Experiment 075 — train a small MNIST PING graph through its snnlang bundle.
 
 This is an integration gate, not a benchmark.  The runner authors a graph and
-training recipe, compiles both to a bundle, invokes ``tools/snn train --bundle``
+training recipe, compiles both to a bundle, invokes ``tools/snnsim train --bundle``
 on a deterministic 1,000-example MNIST subset, and plots the resulting loss and
 accuracy trajectory.
 """
@@ -113,13 +113,13 @@ def author_bundle() -> snn.Bundle:
         epochs=EPOCHS,
         gradient_clip=1.0,
     )
-    return snn.compile(net, training=recipe, target="tools/snn")
+    return snn.compile(net, training=recipe, target="tools/snnsim")
 
 
 def run_training(bundle_dir: Path, out_dir: Path) -> None:
     cmd = [
         sys.executable,
-        str(REPO / "tools/snn/tool.py"),
+        str(REPO / "tools/snnsim/tool.py"),
         "train",
         "--bundle",
         str(bundle_dir),

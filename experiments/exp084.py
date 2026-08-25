@@ -74,7 +74,7 @@ def author_network(tau_gaba_ms: float) -> snn.Bundle:
         tau_gaba=tau_gaba_ms * snn.ms,
     )
     net.expose(cell.E.spikes, cell.I.spikes, name="population")
-    return snn.compile(net, target="tools/snn")
+    return snn.compile(net, target="tools/snnsim")
 
 
 def summarize_condition(

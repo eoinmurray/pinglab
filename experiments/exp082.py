@@ -253,7 +253,7 @@ def run_spikes(
     missing = sorted(required - set(raster.files))
     if missing:
         raise RuntimeError(
-            "exp082 requires tools/snn spike-count output-spike rasters; "
+            "exp082 requires tools/snnsim spike-count output-spike rasters; "
             f"missing {missing} in {out_dir / 'rasters.npz'}"
         )
     return (
@@ -1092,7 +1092,7 @@ def main() -> None:
     plot_stream(matched, FIGURES / "matched_stream.png", run_id)
     plot_variable_headline(variable, FIGURES / "variable_stream.png", run_id)
 
-    # Pending tools/snn support is deliberately encountered here, after the two
+    # Pending tools/snnsim support is deliberately encountered here, after the two
     # single-stream figures prove checkpoint and readout compatibility.
     rows = [
         evaluate_cell(seed, duration, rate)

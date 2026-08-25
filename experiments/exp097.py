@@ -65,7 +65,7 @@ def author_network() -> snn.Bundle:
     drive = net.input("drive", shape=("time", "batch", exp083.N_INPUT), signal_type="spikes", unit="spike")
     cell = snn.components.ping(net, name="ping", n_e=N_E, n_i=N_I, source=drive, tau_gaba=TAU_GABA_MS * snn.ms)
     net.expose(cell.E.spikes, cell.I.spikes, name="population")
-    return snn.compile(net, target="tools/snn")
+    return snn.compile(net, target="tools/snnsim")
 
 
 def make_inputs() -> np.ndarray:
@@ -586,7 +586,7 @@ def main() -> None:
 - Lifecycle status: `ExpScout`; retrospectively reconstructed plan and completed
   `ScoutExecution`
 - Implementation: `experiments/exp097.py`; tests: `experiments/tests/test_exp097.py`
-- Hard dependencies: `experiments/exp083.py`, `tools/snn`, and `tools/snnlang`
+- Hard dependencies: `experiments/exp083.py`, `tools/snnsim`, and `tools/snnlang`
 - Scout execution: `{run_id}`
 - Writing metadata: title `Can a PING cycle be seen as a running engine?`,
   status `complete`, order 11

@@ -7,9 +7,7 @@ import os
 from pathlib import Path
 from typing import Any
 
-from manim import BLUE, Circle, GREEN, RED, Square, Star, Triangle, VGroup
-from manim import Scene
-
+from manim import BLUE, GREEN, RED, Circle, Scene, Square, Star, Triangle, VGroup
 
 STATE_PATH = Path(__file__).with_name("state.json")
 COLORS = {

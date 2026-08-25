@@ -34,7 +34,7 @@ cell_root="$EXP022_PILOT_ROOT/${cells[$SLURM_ARRAY_TASK_ID]}"
 test -f "$cell_root/config.json"
 test -f "$cell_root/weights_final.pth"
 test ! -e "$cell_root/official-test"
-"$EXP022_UV" run python tools/snn/tool.py sim --infer \
+"$EXP022_UV" run python tools/snnsim/tool.py sim --infer \
   --load-config "$cell_root/config.json" \
   --load-weights "$cell_root/weights_final.pth" \
   --out-dir "$cell_root/official-test" \

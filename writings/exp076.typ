@@ -1,7 +1,7 @@
 #let meta = (
   title: "A bundle checkpoint replays",
   date: "2026-08-02",
-  description: "A small deterministic MNIST gate checks that snnlang bundle checkpoints replay through tools/snn and that the current bundle adapter is numerically equivalent to the matching legacy route.",
+  description: "A small deterministic MNIST gate checks that snnlang bundle checkpoints replay through tools/snnsim and that the current bundle adapter is numerically equivalent to the matching legacy route.",
   collection: "documentation",
   status: "ExpScout",
   order: 3,
@@ -27,7 +27,7 @@
   ms timestep, and seed #r.config.seed.
 
   The selected bundle-trained checkpoint replayed through
-  `tools/snn sim --bundle --infer --load-weights` at
+  `tools/snnsim sim --bundle --infer --load-weights` at
   #pct(r.replay.selected_checkpoint_accuracy_pct), exactly matching the
   trainer's recorded best accuracy. The final checkpoint also replayed exactly.
   A focused deterministic unit gate separately shows exact bundle-vs-legacy

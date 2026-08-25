@@ -22,7 +22,7 @@
   `snn.compile` validates a network, validates an optional training recipe, reports target capabilities, and returns a `Bundle`. A target asks for diagnostics but never changes the graph.
 
   ```python
-  bundle = snn.compile(net, target="tools/snn")
+  bundle = snn.compile(net, target="tools/snnsim")
   root = bundle.write("network.bundle", visualise=True)
   ```
 
@@ -58,7 +58,7 @@
   snn.validate_graph(graph) -> ValidationResult
   ```
 
-  `target="tools/snn"` adds capability diagnostics without rewriting the graph. `assets` maps declared logical asset identifiers to physical paths. `load_bundle` verifies every manifest entry and graph digest before returning data.
+  `target="tools/snnsim"` adds capability diagnostics without rewriting the graph. `assets` maps declared logical asset identifiers to physical paths. `load_bundle` verifies every manifest entry and graph digest before returning data.
 
   === `Bundle`
 

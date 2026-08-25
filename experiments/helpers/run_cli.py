@@ -1,6 +1,6 @@
 """The one way an experiment runner invokes the SNN CLI: `sh.uv`.
 
-Every runner shells out to tools/snn/tool.py to train or infer. `run_cli` wraps
+Every runner shells out to tools/snnsim/tool.py to train or infer. `run_cli` wraps
 that single call so every runner spawns identically, replacing the mix of
 `subprocess.run([sys.executable, ...])` and ad-hoc `uv run` invocations.
 

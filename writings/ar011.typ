@@ -1,18 +1,18 @@
 #let meta = (
   title: "The SNN tool",
   date: "2026-07-06",
-  description: "Reference for tools/snn/tool.py, the single command-line tool that drives every simulation, training run, and measurement in the project.",
+  description: "Reference for tools/snnsim/tool.py, the single command-line tool that drives every simulation, training run, and measurement in the project.",
   collection: "documentation",
 )
 
 #let body = [
-  One command-line tool, _tools/snn/tool.py_, drives every simulation, training run, and measurement in this project. Experiment runners never import the model code; they shell out to this tool, which writes data files (metrics, rasters, population traces, weight dumps) into an output directory, and then draw their own figures from those files. The tool is the engine; the plotting lives in the runners under _experiments/_.
+  One command-line tool, _tools/snnsim/tool.py_, drives every simulation, training run, and measurement in this project. Experiment runners never import the model code; they shell out to this tool, which writes data files (metrics, rasters, population traces, weight dumps) into an output directory, and then draw their own figures from those files. The tool is the engine; the plotting lives in the runners under _experiments/_.
 
   This page is the reference for that engine. It is not a tutorial. It is the dictionary you reach for when an experiment mentions _--ei-strength 0.5_ and you want to know exactly what that did.
 
   *At a glance*
 
-  - Run it with _uv run python tools/snn/tool.py_ (never a bare _python_; the repo convention is _uv_).
+  - Run it with _uv run python tools/snnsim/tool.py_ (never a bare _python_; the repo convention is _uv_).
   - Three subcommands: _sim_ (forward pass plus metrics), _train_ (surrogate-gradient BPTT), _dump-weights_ (emit weight matrices).
   - Every parameter is a flag. There is no global config file; a saved run's _config.json_ can be inherited with _--load-config_.
   - Every run writes _config.json_, _run.sh_, _output.log_, and _run.jsonl_ for reproducibility.
@@ -20,7 +20,7 @@
 
   == The tool and the experiment
 
-  demolab draws a hard line between a *tool* and an *experiment*. A tool holds the reusable science and speaks only through files; an experiment (a runner in _experiments/expNNN.py_) chooses which tool commands to run, then reads their data files back and renders the figures. The runner reaches the tool by running its CLI as a subprocess, never by importing it. That firewall is what keeps _tools/snn/_ generic and lets the same engine serve every writeup in the lab.
+  demolab draws a hard line between a *tool* and an *experiment*. A tool holds the reusable science and speaks only through files; an experiment (a runner in _experiments/expNNN.py_) chooses which tool commands to run, then reads their data files back and renders the figures. The runner reaches the tool by running its CLI as a subprocess, never by importing it. That firewall is what keeps _tools/snnsim/_ generic and lets the same engine serve every writeup in the lab.
 
   So a typical experiment does three things: it invokes _tool.py_ (often many times, sweeping a parameter), it aggregates each run's config plus headline metrics into a single _numbers.json_, and it draws PNG or SVG figures from the run's data. The committed record lands in _artifacts/data/expNNN/_; the tool's own scratch output is disposable (see #link("#artifacts")[Artifacts]).
 
@@ -29,19 +29,19 @@
   Run a metrics-only forward pass of the canonical PING network:
 
   ```
-  uv run python tools/snn/tool.py sim --model ping --ei-strength 0.5
+  uv run python tools/snnsim/tool.py sim --model ping --ei-strength 0.5
   ```
 
   Train on MNIST for 50 epochs:
 
   ```
-  uv run python tools/snn/tool.py train --dataset mnist --epochs 50 --lr 0.0001
+  uv run python tools/snnsim/tool.py train --dataset mnist --epochs 50 --lr 0.0001
   ```
 
   Evaluate a trained run on the test set, replaying it at a coarser timestep:
 
   ```
-  uv run python tools/snn/tool.py sim --infer \
+  uv run python tools/snnsim/tool.py sim --infer \
     --load-config runs/foo/config.json \
     --load-weights runs/foo/weights.pth \
     --dt 0.5
@@ -58,7 +58,7 @@
   Run one forward pass and report firing-rate metrics. This is the cheapest mode (no training, no plots), used by the test suite, the dt-stability checks in #link("/ar003/")[ar003], and every experiment that needs a single inference pass over a trained or fresh network.
 
   ```
-  uv run python tools/snn/tool.py sim --model ping --dataset mnist --digit 3
+  uv run python tools/snnsim/tool.py sim --model ping --dataset mnist --digit 3
   ```
 
   On its own it prints metrics. The flags below make it load trained weights, evaluate a test set, emit extra data artifacts, or inject perturbations. There is no _--image_ or _--video_: where those retired flags once produced panels and sweep MP4s, _sim_ now emits raw data (via _--outputs_) that the calling runner plots, and sweep videos are assembled runner-side from many _sim_ calls.
@@ -92,7 +92,7 @@
   Surrogate-gradient BPTT training loop. Writes _weights.pth_, _metrics.json_, a per-step _metrics.jsonl_, and _test_predictions.json_.
 
   ```
-  uv run python tools/snn/tool.py train --model ping --dataset mnist \
+  uv run python tools/snnsim/tool.py train --model ping --dataset mnist \
     --epochs 50 --lr 0.0001 --v-grad-dampen 1000
   ```
 
@@ -117,7 +117,7 @@
   Build the network from a config and emit its weight matrices to _weights_dump.npz_: the init state, plus (with _--load-weights_) the trained state. It runs no forward pass.
 
   ```
-  uv run python tools/snn/tool.py dump-weights \
+  uv run python tools/snnsim/tool.py dump-weights \
     --load-config runs/foo/config.json \
     --load-weights runs/foo/weights.pth \
     --out-dir runs/foo/dump
@@ -222,7 +222,7 @@
   The trick that makes the experiment chain work is _--load-config_. Every _train_ run writes a _config.json_ alongside its _weights.pth_; a later _sim_ or _dump-weights_ run inherits from it:
 
   ```
-  uv run python tools/snn/tool.py sim --infer \
+  uv run python tools/snnsim/tool.py sim --infer \
     --load-config runs/foo/config.json \
     --load-weights runs/foo/weights.pth \
     --dt 0.5
@@ -255,10 +255,10 @@
   *Train, then measure the trained network.* Train writes a run directory; _sim --infer_ reads it back and emits the population traces a runner needs for a PSD:
 
   ```
-  uv run python tools/snn/tool.py train --dataset mnist --epochs 50 \
+  uv run python tools/snnsim/tool.py train --dataset mnist --epochs 50 \
     --lr 0.0001 --v-grad-dampen 1000 --out-dir runs/ping
 
-  uv run python tools/snn/tool.py sim --infer \
+  uv run python tools/snnsim/tool.py sim --infer \
     --load-config runs/ping/config.json \
     --load-weights runs/ping/weights.pth \
     --outputs pop_traces per_cell_rates
@@ -267,7 +267,7 @@
   *Loop-transfer at inference (#link("/exp038/")[exp038]).* Take a network trained as COBA and scale its E→I coupling up at inference, with no retraining:
 
   ```
-  uv run python tools/snn/tool.py sim --infer \
+  uv run python tools/snnsim/tool.py sim --infer \
     --load-config runs/coba/config.json \
     --load-weights runs/coba/weights.pth \
     --scale-w-ei 1.0 --scale-w-ie 1.0 --outputs rasters
@@ -276,7 +276,7 @@
   *Perturbation sweep (#link("/exp037/")[exp037]).* Drop a fraction of emitted spikes, or add off-phase Poisson noise, inside the forward loop:
 
   ```
-  uv run python tools/snn/tool.py sim --infer \
+  uv run python tools/snnsim/tool.py sim --infer \
     --load-config runs/ping/config.json --load-weights runs/ping/weights.pth \
     --perturb-mode drop --perturb-level 0.8
   ```
@@ -284,7 +284,7 @@
   *Recover the trained readout matrix.* Dump weights and read _W_ff_N_trained_ (the last layer is W_out):
 
   ```
-  uv run python tools/snn/tool.py dump-weights \
+  uv run python tools/snnsim/tool.py dump-weights \
     --load-config runs/ping/config.json \
     --load-weights runs/ping/weights.pth --out-dir runs/ping/dump
   ```

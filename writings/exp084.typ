@@ -2,7 +2,7 @@
   title: "Can inhibitory recovery tune default PING into gamma?",
   date: "2026-08-17",
   description: "A one-parameter SNNLANG sweep tests whether inhibitory synaptic decay controls the default PING component's rhythm frequency.",
-  collection: "snnlang",
+  collection: "demo",
   status: "ExpScout",
   order: 10,
 )

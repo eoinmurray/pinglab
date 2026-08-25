@@ -67,3 +67,21 @@ artifacts/data/*.staging/
 
 # demolab engine staging (materialised by the demolab CLI; regenerated on engine updates)
 .demolab/
+
+# Canvas source and small manifests are tracked selectively, but simulations and
+# intermediate renders are local replay caches. Final media belongs in
+# canvas-output/.
+.canvas/**/snapshot.npz
+.canvas/**/recurrent-weights.npz
+.canvas/**/*.mp4
+.canvas/**/*.png
+.canvas/**/__pycache__/
+.canvas/**/snnlang-sweep/
+.canvas/**/sweep-ee/
+.canvas/**/sweep-ping/
+.canvas/**/drive-sweep/
+
+# Exported video is retained locally or archived externally. The repository's
+# compact-artifact CI rejects newly tracked files larger than 5 MiB.
+canvas-output/**/*.mp4
+artifacts/data/**/*.mp4

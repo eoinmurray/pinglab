@@ -32,7 +32,22 @@ def ping(
     source: Signal | None = None,
     tau_gaba=9 * ms,
     include_silent_recurrence: bool = False,
+    w_ee=None,
+    w_ei=None,
+    w_ie=None,
+    w_ii=None,
+    w_in=None,
 ) -> PING:
+    """Author an explicit E/I PING circuit.
+
+    Weight specs are optional so existing callers retain the canonical
+    defaults. Passing ``w_ee`` or ``w_ii`` makes the corresponding same-
+    population projection part of the authored graph; sparsity belongs in the
+    initializer spec (for example ``LowerClampedNormal(..., zeroing='exact_k')``).
+    """
+    w_ei = w_ei or Normal(0.5, 0.05)
+    w_ie = w_ie or Normal(1.0, 0.1)
+    w_in = w_in or Normal(0.2, 0.03)
     with net.group(name):
         # The explicit step counts preserve the legacy COBANet numerical
         # contract: its refractory constants were derived at the historical
@@ -55,13 +70,13 @@ def ping(
                 initial_voltage_mv=-65.0,
             ),
         )
-        if include_silent_recurrence:
+        if include_silent_recurrence or w_ee is not None:
             net.connect(
                 e.spikes,
                 e.excitatory,
                 name=f"{name}_E_to_E",
                 synapse=AMPA(tau=2 * ms),
-                weight=Normal(0.0, 0.0),
+                weight=w_ee or Normal(0.0, 0.0),
                 constraint=NonNegative(),
                 connection="recurrent",
                 delay=0.1 * ms,
@@ -71,7 +86,7 @@ def ping(
             i.excitatory,
             name=f"{name}_E_to_I",
             synapse=AMPA(tau=2 * ms),
-            weight=Normal(0.5, 0.05),
+            weight=w_ei,
             constraint=NonNegative(),
             connection="recurrent",
             delay=0.1 * ms,
@@ -81,18 +96,18 @@ def ping(
             e.inhibitory,
             name=f"{name}_I_to_E",
             synapse=GABA(tau=tau_gaba),
-            weight=Normal(1.0, 0.1),
+            weight=w_ie,
             constraint=NonNegative(),
             connection="recurrent",
             delay=0.1 * ms,
         )
-        if include_silent_recurrence:
+        if include_silent_recurrence or w_ii is not None:
             net.connect(
                 i.spikes,
                 i.inhibitory,
                 name=f"{name}_I_to_I",
                 synapse=GABA(tau=tau_gaba),
-                weight=Normal(0.0, 0.0),
+                weight=w_ii or Normal(0.0, 0.0),
                 constraint=NonNegative(),
                 connection="recurrent",
                 delay=0.1 * ms,
@@ -103,7 +118,7 @@ def ping(
                 e.excitatory,
                 name=f"{name}_input",
                 synapse=AMPA(tau=2 * ms),
-                weight=Normal(0.2, 0.03),
+                weight=w_in,
                 constraint=NonNegative(),
             )
     return PING(e, i)

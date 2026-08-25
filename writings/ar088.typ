@@ -97,7 +97,7 @@
 
   === Execution support
 
-  `snn.compile(net, training=recipe)` validates and serializes the recipe. `tools.snn.execution.train(ExecutionSpec(executor="graph", training=..., inputs=..., targets=...))` performs one update by default; `options={"updates": n}` repeats the same resolved batch for focused trajectory checks. Setting `options={"epochs": n, "batch_size": b, "shuffle": true}` iterates the sample axis with a deterministic permutation per epoch. `TargetArrayBinding` and `load_target_array_bindings` provide named NPY/NPZ targets with source digests. A training bundle authenticates and supplies its own recipe. The result exposes named gradients, optimizer state, selected/final checkpoints, and exact next-batch state without tensor-position mapping.
+  `snn.compile(net, training=recipe)` validates and serializes the recipe. `tools.snnsim.execution.train(ExecutionSpec(executor="graph", training=..., inputs=..., targets=...))` performs one update by default; `options={"updates": n}` repeats the same resolved batch for focused trajectory checks. Setting `options={"epochs": n, "batch_size": b, "shuffle": true}` iterates the sample axis with a deterministic permutation per epoch. `TargetArrayBinding` and `load_target_array_bindings` provide named NPY/NPZ targets with source digests. A training bundle authenticates and supplies its own recipe. The result exposes named gradients, optimizer state, selected/final checkpoints, and exact next-batch state without tensor-position mapping.
 
   #link("/ar089/")[Next: Runtime state, checkpoints, and provenance]
 ]

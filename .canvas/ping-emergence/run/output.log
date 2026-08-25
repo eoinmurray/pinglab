@@ -1,0 +1,11 @@
+◆ pinglab · sim · ping                                synthetic-spikes
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  network   hidden 100 · Dale's law · E/I 0.5×2.0
+  sim       dt 0.25 ms · T 100.0 ms · Poisson 60.0 Hz
+  run       r-20260824-160136 · git 1f0900bc (dirty)
+──────────────────────────────────────────────────────────────────────
+  seed=7 (Python, NumPy, torch)
+  probe: rate_e=15.20Hz rate_i=36.40Hz (n_batch=1, input=60.0Hz)
+  → .canvas/ping-emergence/run/metrics.json
+  → .canvas/ping-emergence/run/rasters.npz  (243 spikes)
+  ✓ done      1s

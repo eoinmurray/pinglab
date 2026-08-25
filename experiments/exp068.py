@@ -1,6 +1,6 @@
 """Full-development SHD comparison of matched Dale-constrained COBA and PING.
 
-The runner enforces a sealed three-way protocol without changing ``tools/snn``:
+The runner enforces a sealed three-way protocol without changing ``tools/snnsim``:
 the official SHD training file is split jointly by speaker and class, the CLI
 sees development-train as ``train`` and validation as ``test`` during fitting,
 and the official test file is unavailable until both validation checkpoints are

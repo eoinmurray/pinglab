@@ -54,7 +54,7 @@
   == Abstract
 
   This one-seed exploratory experiment tests whether the newly merged
-  `tools/snn` cumulative-potential decoder can move matched Dale-constrained
+  `tools/snnsim` cumulative-potential decoder can move matched Dale-constrained
   COBA and PING networks above the exp068–exp070 validation plateau on SHD.
   The screening ladder uses the same deterministic development-training /
   held-out-validation split as exp069 and exp070; the official SHD test remains
