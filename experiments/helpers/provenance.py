@@ -25,7 +25,7 @@ Fields:
   scale       the runner's declared run scale (max_samples, epochs, t_ms, ...)
 
 Experiments must not import the tools' internals, so the git capture is
-deliberately duplicated from tools/snn/runlog.py rather than imported — with one difference:
+deliberately duplicated from tools/snnsim/runlog.py rather than imported — with one difference:
 sha and dirty are separate fields here, not a "(dirty)" string suffix, so
 the docs build can run `git log <sha>..HEAD` without parsing.
 """

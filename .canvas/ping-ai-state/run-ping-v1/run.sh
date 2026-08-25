@@ -1,0 +1,2 @@
+#!/bin/bash
+tools/snn/tool.py sim --model ping --input synthetic-spikes --n-hidden 400 --n-in 400 --n-inh 100 --t-ms 1000 --dt 0.25 --seed 7 --input-rate 1 --w-in 0.01 0.001 --w-ei 0.6 0.18 --w-ie 3.0 0.9 --w-ii 0.4 0.12 --w-ee 4.3 1.29 --recurrent-initial-zero-fraction 0.975 --exact-k-initialization --independent-drive 8 2.10 --independent-drive-i 8 0.25 --out-dir .canvas/ping-ai-state/run-ping-v1 --wipe-dir

@@ -65,7 +65,7 @@
   runtime_state_signature(plan) -> str
   ```
 
-  Runtime state uses schema `tools/snn.graph-runtime-state/v1`. Loading verifies the manifest and tensor payload. Simulation compares the stored signature and compatibility structure with the current graph plan before restoring any state.
+  Runtime state uses schema `tools/snnsim.graph-runtime-state/v1`. Loading verifies the manifest and tensor payload. Simulation compares the stored signature and compatibility structure with the current graph plan before restoring any state.
 
   === Resume execution
 
@@ -87,7 +87,7 @@
   export_legacy_parameters_v1(graph, parameters) -> ParameterInterchange
   ```
 
-  Training checkpoints use schema `tools/snn.training-checkpoint/v1` and store a JSON manifest beside a digest-verified compressed tensor payload. Manifest version 2 adds `rng_backend`, an exact accelerator-device inventory, and one authenticated uint8 generator state per device while retaining the CPU generator. Parameters and optimizer tensors are keyed by stable graph parameter id. The manifest authenticates the graph and training recipes, completed update, resolved execution protocol, realized initialization metadata, optimizer scalars, selected loss, tensor layout, dataset iterator position, and stochastic topology. CPU-only manifest version 1 remains loadable.
+  Training checkpoints use schema `tools/snnsim.training-checkpoint/v1` and store a JSON manifest beside a digest-verified compressed tensor payload. Manifest version 2 adds `rng_backend`, an exact accelerator-device inventory, and one authenticated uint8 generator state per device while retaining the CPU generator. Parameters and optimizer tensors are keyed by stable graph parameter id. The manifest authenticates the graph and training recipes, completed update, resolved execution protocol, realized initialization metadata, optimizer scalars, selected loss, tensor layout, dataset iterator position, and stochastic topology. CPU-only manifest version 1 remains loadable.
 
   CUDA capture uses every state returned by `torch.cuda.get_rng_state_all`; resume requires the available device count to reproduce the exact `cuda:0 ... cuda:N` inventory before any generator is changed. MPS stores exactly one `mps` state. Cross-backend resume, missing or extra states, non-contiguous CUDA ids, malformed RNG tensors, and unavailable MPS restoration fail closed. Training metrics report the checkpoint RNG backend and device names.
 
@@ -97,7 +97,7 @@
 
   Simulation and inference requests also accept a graph training-checkpoint directory. They authenticate the payload and graph digest, require exact parameter names, shapes, and dtypes, and load parameters without restoring optimizer, random-stream, or data-order state. Inference metrics retain the checkpoint format, path, graph and training digests, completed update, and selected loss. A non-directory checkpoint remains the explicit legacy PyTorch state-file route.
 
-  Parameter interchange uses schema `tools/snn.legacy-parameter-interchange/v1`. Import and export require the exact six supported one-layer keys, runtime shapes, floating dtypes, and complete graph coverage. The returned provenance records direction, mapping version, and the full semantic map. This is parameter-only interchange: legacy optimizer objects are not relabelled as portable graph-training checkpoints.
+  Parameter interchange uses schema `tools/snnsim.legacy-parameter-interchange/v1`. Import and export require the exact six supported one-layer keys, runtime shapes, floating dtypes, and complete graph coverage. The returned provenance records direction, mapping version, and the full semantic map. This is parameter-only interchange: legacy optimizer objects are not relabelled as portable graph-training checkpoints.
 
   === Provenance fields
 

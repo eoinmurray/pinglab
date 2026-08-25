@@ -1,7 +1,7 @@
 """Experiment 074 — the first end-to-end snnlang demo.
 
 The runner authors a PING circuit with the Python snnlang API, compiles it to
-a data-only bundle, sends an explicit Poisson spike tensor through tools/snn's
+a data-only bundle, sends an explicit Poisson spike tensor through tools/snnsim's
 CLI bundle route, and publishes the circuit diagram plus aligned input/E/I
 rasters.  This is an integration demonstration, not a scientific comparison.
 """
@@ -24,7 +24,7 @@ sys.path.insert(0, str(REPO))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 # snnlang is an authoring/compiler library, not the simulator.  This intentional
-# import produces a data-only bundle; tools/snn itself remains a subprocess.
+# import produces a data-only bundle; tools/snnsim itself remains a subprocess.
 from tools import snnlang as snn  # noqa: E402, TID251
 
 from helpers import theme  # noqa: E402
@@ -85,7 +85,7 @@ def author_network() -> snn.Bundle:
     )
     net.output("class_logits", logits)
     net.expose(cell.E.spikes, cell.I.spikes, name="cell")
-    return snn.compile(net, target="tools/snn")
+    return snn.compile(net, target="tools/snnsim")
 
 
 def make_input(path: Path) -> np.ndarray:
@@ -103,7 +103,7 @@ def make_input(path: Path) -> np.ndarray:
 def run_simulator(bundle_dir: Path, input_path: Path, sim_dir: Path) -> None:
     cmd = [
         sys.executable,
-        str(REPO / "tools/snn/tool.py"),
+        str(REPO / "tools/snnsim/tool.py"),
         "sim",
         "--bundle",
         str(bundle_dir),

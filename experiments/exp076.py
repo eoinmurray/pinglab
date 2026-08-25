@@ -2,7 +2,7 @@
 
 This is an integration/equivalence gate, not an accuracy benchmark.  The runner
 authors the current supported snnlang subset, trains it through
-``tools/snn train --bundle``, replays the emitted checkpoints through bundle
+``tools/snnsim train --bundle``, replays the emitted checkpoints through bundle
 inference, and checks that the same checkpoint structures load through both the
 bundle and explicit legacy routes.
 """
@@ -124,7 +124,7 @@ def author_bundle() -> snn.Bundle:
         epochs=EPOCHS,
         gradient_clip=1.0,
     )
-    return snn.compile(net, training=recipe, target="tools/snn")
+    return snn.compile(net, training=recipe, target="tools/snnsim")
 
 
 def _run(cmd: list[str], *, cwd: Path = REPO) -> dict[str, Any]:
@@ -489,7 +489,7 @@ def main() -> None:
 
         parity = {
             "automated_test": (
-                "tools/snn/tests/test_bundle.py::"
+                "tools/snnsim/tests/test_bundle.py::"
                 "test_bundle_and_legacy_one_step_training_are_exactly_equivalent"
             ),
             "initial_state_dict": "exact",
@@ -523,7 +523,7 @@ def main() -> None:
         payload = {
             "purpose": "checkpoint replay and bundle/legacy equivalence gate",
             "scope": (
-                "validates only the current MNIST PING + MeanVoltage tools/snn "
+                "validates only the current MNIST PING + MeanVoltage tools/snnsim "
                 "bundle adapter subset"
             ),
             "graph": {

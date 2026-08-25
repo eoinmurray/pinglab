@@ -32,13 +32,14 @@
     "exp080": "gamma-gated-sparsity",
     "exp081": "gamma-gated-sparsity",
     "exp082": "gamma-gated-sparsity",
-    "exp083": "snnlang",
-    "exp084": "snnlang",
+    "exp083": "demo",
+    "exp084": "demo",
     "exp085": "paper-demonstrations",
     "exp086": "paper-demonstrations",
     "exp093": "gamma-gated-sparsity",
     "exp094": "gamma-gated-sparsity",
-    "exp097": "snnlang"
+    "exp097": "demo",
+    "exp098": "demo"
   },
   "historical": {
     "exp087": {
@@ -49,10 +50,6 @@
       "collection": "gamma-gated-sparsity",
       "disposition": "artifact-only",
       "evidence": "Current writing and schematic artifact payload exist without a runnable experiment script."
-    },
-    "exp098": {
-      "disposition": "absent",
-      "evidence": "No source, writing, artifact, or Git-history path exists in the clean repository."
     }
   }
 }

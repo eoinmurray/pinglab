@@ -19,7 +19,7 @@
 
   === What snnlang does
 
-  _snnlang_ is the network-authoring layer for _tools/snn_. It provides a small Python API for describing populations, projections, inputs, outputs, and recordings. Compilation checks the description and writes a portable, data-only bundle. _tools/snn_ loads that bundle and performs the simulation or training.
+  _snnlang_ is the network-authoring layer for _tools/snnsim_. It provides a small Python API for describing populations, projections, inputs, outputs, and recordings. Compilation checks the description and writes a portable, data-only bundle. _tools/snnsim_ loads that bundle and performs the simulation or training.
 
   The system separates four concerns:
 
@@ -54,7 +54,7 @@
   )
   net.expose(cell.E.spikes, cell.I.spikes, name="raster")
 
-  bundle = snn.compile(net, target="tools/snn")
+  bundle = snn.compile(net, target="tools/snnsim")
   bundle.write("small_ping.bundle", visualise=True)
   ```
 
@@ -66,7 +66,7 @@
 
   ```python
   import torch
-  from tools.snn.execution import ExecutionSpec, simulate
+  from tools.snnsim.execution import ExecutionSpec, simulate
 
   spikes = torch.zeros(2_000, 1, 128)
   result = simulate(ExecutionSpec(
@@ -104,7 +104,7 @@
 
   === Execution boundary
 
-  Execution is deliberately separate from `tools.snnlang`. Import `ExecutionSpec`, `build`, `simulate`, `train`, or `infer` from `tools.snn.execution`. Graph execution is opt-in with `executor="graph"`; the legacy executor remains the default.
+  Execution is deliberately separate from `tools.snnlang`. Import `ExecutionSpec`, `build`, `simulate`, `train`, or `infer` from `tools.snnsim.execution`. Graph execution is opt-in with `executor="graph"`; the legacy executor remains the default.
 
   == Collection reading path
 

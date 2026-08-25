@@ -76,6 +76,6 @@ jobs:
           uv run pytest -q -m "not slow"
           tools/runstore/tests
           tools/snnlang/tests
-          tools/snn/tests/test_artifacts_schema.py
-          tools/snn/tests/test_bundle.py
-          tools/snn/tests/test_config.py
+          tools/snnsim/tests/test_artifacts_schema.py
+          tools/snnsim/tests/test_bundle.py
+          tools/snnsim/tests/test_config.py

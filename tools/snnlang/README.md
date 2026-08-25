@@ -29,7 +29,7 @@ checkpoint paths deliberately do not belong in the graph.
 Inputs are graph contracts, not stimulus recipes. A time-varying spike input
 uses the canonical `(time, batch, channels)` axis order and declares its signal
 type and unit. Dataset selection, Poisson rates, encoders, seeds, durations, and
-realised spike tensors belong to the experiment protocol. `tools/snn` may
+realised spike tensors belong to the experiment protocol. `tools/snnsim` may
 generate a standard stimulus from CLI parameters or consume an exact replay
 with `--input-file` or `--event-file`; the replay is optional evidence, not part
 of the graph.
@@ -53,7 +53,7 @@ or continuous inputs when every binding resolves to the same time and batch
 axes.
 
 ```sh
-uv run python tools/snn/tool.py sim \
+uv run python tools/snnsim/tool.py sim \
   --executor graph \
   --bundle small_ping.bundle \
   --input-file replay.npz \
@@ -82,13 +82,13 @@ and applies one standard `DatasetEncoder`:
 - `event_bin`: timestamped sample/channel events binned at graph `dt`, with
   binary collision counts retained in provenance.
 
-The `tools/snn.dataset-snapshot-binding/v1` protocol records the source digest,
+The `tools/snnsim.dataset-snapshot-binding/v1` protocol records the source digest,
 dataset identity and split, selected indices, keys, sample cap, batch size,
 shuffle policy, timing, encoder parameters, labels, and execution/order/encoder
 seeds. No download or dataset registry is consulted.
 
 ```sh
-uv run python tools/snn/tool.py train \
+uv run python tools/snnsim/tool.py train \
   --executor graph \
   --bundle deep_network.bundle \
   --dataset-file shd-train-snapshot.npz \
@@ -104,7 +104,7 @@ uv run python tools/snn/tool.py train \
 ```
 
 ```sh
-uv run python tools/snn/tool.py sim \
+uv run python tools/snnsim/tool.py sim \
   --executor graph \
   --bundle small_ping.bundle \
   --poisson-protocol categorical-rate \
@@ -131,20 +131,20 @@ recompilation, and categorical variable-rate protocol. They do not substitute
 for dataset accuracy, accelerator parity, or the final campaign comparison.
 
 Graph validity is checked independently of a simulator backend. Passing
-`target="tools/snn"` adds capability diagnostics but never changes the graph.
+`target="tools/snnsim"` adds capability diagnostics but never changes the graph.
 See `writings/ar063.typ` for the architectural rationale and staged backend
 integration plan.
 
-The first additive `tools/snn` backend route accepts the deliberately narrow
+The first additive `tools/snnsim` backend route accepts the deliberately narrow
 single-layer MNIST PING subset:
 
 ```sh
-uv run python tools/snn/tool.py sim \
+uv run python tools/snnsim/tool.py sim \
   --bundle small_ping.bundle \
   --t-ms 200 \
   --out-dir run/
 
-uv run python tools/snn/tool.py train \
+uv run python tools/snnsim/tool.py train \
   --bundle tools/snnlang/examples/generated/ping_classifier.bundle \
   --max-samples 1000 \
   --batch-size 64 \
@@ -183,7 +183,7 @@ still data-only and does not import this authoring package.
 
 ```python
 import torch
-from tools.snn.execution import ExecutionSpec, simulate
+from tools.snnsim.execution import ExecutionSpec, simulate
 
 result = simulate(ExecutionSpec(
     kind="simulate",
@@ -254,10 +254,10 @@ remains a hardware gate. The legacy CLI
 and bundle adapter remain the default and retain their historical numerical
 contract.
 
-`tools/snn/conformance.py` provides the versioned, fail-closed comparison layer
+`tools/snnsim/conformance.py` provides the versioned, fail-closed comparison layer
 for migration evidence. It compares complete named tensor layers under an
 explicit exact or numerical policy, reports coverage, shape, dtype, and error
-bounds, and writes `tools/snn.conformance-report/v1` JSON. Canonical JSON
+bounds, and writes `tools/snnsim.conformance-report/v1` JSON. Canonical JSON
 encoding brings topology, initializer metadata, protocols, and checkpoint
 coordinates into the same report as forward outputs, gradients, parameters,
 and optimizer tensors. Declared tolerance rules that match no field are errors.
@@ -278,9 +278,9 @@ relative tolerances. It deliberately excludes training, checkpoints, datasets,
 and cross-device equality:
 
 ```sh
-uv run python tools/snn/accelerator_forward.py --device mps
+uv run python tools/snnsim/accelerator_forward.py --device mps
 # or, on a CUDA host:
-uv run python tools/snn/accelerator_forward.py --device cuda
+uv run python tools/snnsim/accelerator_forward.py --device cuda
 ```
 
 The corresponding four-update backward fixture trains all six mapped tensors
@@ -304,7 +304,7 @@ digests, completed update, and selected loss; optimizer and iterator state are
 not restored for inference. Non-directory checkpoints remain the explicit
 legacy PyTorch state-file route.
 
-Inference variations use the request-local `tools/snn.inference-overrides/v1`
+Inference variations use the request-local `tools/snnsim.inference-overrides/v1`
 contract. Generated Poisson inputs may override a positive, timestep-aligned
 duration and a finite non-negative rate. Named graph projections may be scaled
 by finite non-negative factors after checkpoint loading. The original graph and
@@ -336,7 +336,7 @@ duration and rate continue to use `--t-ms` and `--input-rate`, and
 `--inference-timestep-ms` requests the recompiled timebase.
 
 Ordered hidden-spike interventions use
-`tools/snn.inference-interventions/v1`. `drop_spikes` removes emitted spikes by
+`tools/snnsim.inference-interventions/v1`. `drop_spikes` removes emitted spikes by
 a finite probability in `[0, 1]`; `add_poisson_spikes` unions them with a
 seeded homogeneous Poisson stream at a finite non-negative rate supported by
 the graph timestep. Targets are exact ids of spiking populations. Modified
@@ -345,7 +345,7 @@ recordings, and readouts. Seed streams are keyed by absolute execution step, so
 runtime continuation matches an uninterrupted request exactly.
 
 ```sh
-uv run python tools/snn/tool.py sim \
+uv run python tools/snnsim/tool.py sim \
   --executor graph \
   --bundle small_ping.bundle \
   --input-file replay.npz \
@@ -356,7 +356,7 @@ uv run python tools/snn/tool.py sim \
 ```
 
 Every graph CLI inference directory also contains
-`inference-manifest.json` using `tools/snn.inference-artifacts/v1`. It records
+`inference-manifest.json` using `tools/snnsim.inference-artifacts/v1`. It records
 the graph and request identity, request seed, and the names, shapes, dtypes, and
 SHA-256 digest of each NPZ payload. The request digest binds the execution
 protocol, checkpoint, overrides, interventions, recording profile, and device.
@@ -371,20 +371,20 @@ public tensors. Given an authenticated inference directory, an exact logits id,
 integer labels, and exact population-spike recording ids, it writes versioned
 labels, predictions, accuracy, per-presentation per-cell rates in Hz, and
 sparse zero-based time/batch/cell rasters. The
-`tools/snn.derived-inference/v1` manifest authenticates all derived payloads and
+`tools/snnsim.derived-inference/v1` manifest authenticates all derived payloads and
 retains the source artifact digest. `validate_derived_inference_products`
 rejects corruption or reuse against a different source cache. Scientific
 acceptance thresholds remain campaign decisions rather than executor defaults.
 
 ## Final migration gate
 
-`tools/snn/equivalence-policy-v1.json` is the frozen comparison contract for the
+`tools/snnsim/equivalence-policy-v1.json` is the frozen comparison contract for the
 legacy-to-graph migration. Exact comparison remains the default; only named
 floating results receive the declared `1e-6` absolute and relative tolerance.
 The policy digest must be recorded before final evidence is inspected, and any
 change requires a new policy identity.
 
-`tools.snn.migration.migration_preflight` performs a read-only, fail-closed
+`tools.snnsim.migration.migration_preflight` performs a read-only, fail-closed
 check for the immutable legacy campaign, the complete digest-matched graph
 campaign, and policy-bound CUDA or MPS conformance evidence. It reports missing
 gates without executing a campaign, activating a publication view, or changing

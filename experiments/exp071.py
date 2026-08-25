@@ -92,7 +92,7 @@ COMMITTED_SMOKE = REPO / "artifacts" / "data" / SLUG / "raw" / "smoke" / ATTEMPT
 COMPUTE_LEDGER = SCRATCH / "compute_ledgers" / f"{STAGE}-{ATTEMPT}.json"
 ORIGINAL_VALIDATE_TRAINING = baseline.validate_training
 
-GOAL_PROMPT = """/goal Design and execute the next exploratory SHD experiment on branch night/spiking-heidelberg-digits/ar071, using the newly merged tools/snn cumulative-potential readout additions to try to raise validation accuracy while keeping the comparison between matched Dale-constrained COBA and PING networks scientifically clean.
+GOAL_PROMPT = """/goal Design and execute the next exploratory SHD experiment on branch night/spiking-heidelberg-digits/ar071, using the newly merged tools/snnsim cumulative-potential readout additions to try to raise validation accuracy while keeping the comparison between matched Dale-constrained COBA and PING networks scientifically clean.
 
 Start from updated main at merge commit 9527162d7a0ef80deac0e3f606ce513b9280ba6c. Do not modify main. Open a new draft PR for this experiment when the first meaningful commit is ready.
 
@@ -117,7 +117,7 @@ Candidate ladder:
 1. Baseline architecture with the new signed cumulative-potential readout:
    --readout cumulative-potential --signed-readout --readout-bias
 2. If candidate 1 is finite, active, and improves validation learning, try modest increased capacity with two hidden layers, e.g. --n-hidden 256 256, keeping the same readout.
-3. Optionally test one conservative recurrence/readout-adjacent setting if supported by existing tools/snn CLI and scientifically justified before seeing final results.
+3. Optionally test one conservative recurrence/readout-adjacent setting if supported by existing tools/snnsim CLI and scientifically justified before seeing final results.
 4. Promote the best candidate, if any, to a matched 40-epoch COBA/PING validation run.
 
 Deliverables:

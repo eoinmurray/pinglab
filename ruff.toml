@@ -1,5 +1,5 @@
 # Ruff configuration for pinglab.
-# Python lives in the demolab layer: tools/snn (the engine) + experiments/ (runners).
+# Python lives in the demolab layer: tools/snnsim (the engine) + experiments/ (runners).
 
 target-version = "py310"
 line-length = 88

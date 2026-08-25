@@ -471,7 +471,7 @@ def test_backend_capability_is_separate_from_validity():
         unit="spike",
     )
     net.output("future_result", custom)
-    bundle = snn.compile(net, target="tools/snn")
+    bundle = snn.compile(net, target="tools/snnsim")
     assert any(d.code == "C101" for d in bundle.diagnostics)
 
 

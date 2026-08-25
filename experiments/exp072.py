@@ -109,7 +109,7 @@ COMMITTED_SMOKE = REPO / "artifacts" / "data" / SLUG / "raw" / "smoke" / ATTEMPT
 COMPUTE_LEDGER = SCRATCH / "compute_ledgers" / f"{STAGE}-{ATTEMPT}.json"
 ORIGINAL_VALIDATE_TRAINING = baseline.validate_training
 
-GOAL_PROMPT = """/goal Design and execute the next exploratory SHD experiment from updated main at f32299bb1b48d18ba9dfe6328097d2147bcc6286, using the newly merged tools/snn adaptive conductance controls to test whether COBA/PING validation accuracy can move meaningfully beyond the exp071 ~70% plateau toward canonical SHD RSNN performance.
+GOAL_PROMPT = """/goal Design and execute the next exploratory SHD experiment from updated main at f32299bb1b48d18ba9dfe6328097d2147bcc6286, using the newly merged tools/snnsim adaptive conductance controls to test whether COBA/PING validation accuracy can move meaningfully beyond the exp071 ~70% plateau toward canonical SHD RSNN performance.
 
 Create the next numbered experiment, likely exp072, on a new branch. Do not modify main directly after branching. Open a draft PR after the first meaningful commit.
 

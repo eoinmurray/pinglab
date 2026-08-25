@@ -1,6 +1,6 @@
 # Experiment-scoped ruff config. Extends the repo root and enforces the demolab
 # tool↔experiment boundary: a runner reaches the snn engine ONLY by running it as
-# a subprocess (python tools/snn/tool.py ...), never by importing it. Every direct
+# a subprocess (python tools/snnsim/tool.py ...), never by importing it. Every direct
 # import of the tool package or the torch engine lights up as TID251.
 extend = "../ruff.toml"
 
@@ -9,4 +9,4 @@ extend-select = ["TID"]
 
 [lint.flake8-tidy-imports.banned-api]
 "tools".msg = "experiments reach the snn tool by subprocess, not import (demolab tool↔experiment boundary)"
-"models".msg = "experiments must not import the torch engine directly — go through tools/snn/tool.py"
+"models".msg = "experiments must not import the torch engine directly — go through tools/snnsim/tool.py"

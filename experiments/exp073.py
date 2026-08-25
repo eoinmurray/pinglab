@@ -106,8 +106,8 @@ Experiment:
 - keep the comparison exploratory and single-seed unless I explicitly ask for replication.
 
 Protocol:
-- implement through experiments/exp073.py and existing tools/snn CLI capabilities if possible;
-- do not edit tools/snn unless the current CLI cannot express nonzero trainable W_EE cleanly; if a tools/snn change is required, stop and explain exactly why before editing;
+- implement through experiments/exp073.py and existing tools/snnsim CLI capabilities if possible;
+- do not edit tools/snnsim unless the current CLI cannot express nonzero trainable W_EE cleanly; if a tools/snnsim change is required, stop and explain exactly why before editing;
 - run a local smoke/scout stage first with few epochs/samples to confirm finite loss, active spiking, and W_EE actually changes during training;
 - if both cells are finite and active, run a short RunPod exploratory stage, fewer than 40 epochs for iteration speed;
 - if accuracy looks meaningfully better than the exp071/exp072 historical ~70% regime without pathological firing or NaNs, run a 40-epoch confirmation for the promising cell(s);

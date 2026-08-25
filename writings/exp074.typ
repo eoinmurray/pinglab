@@ -1,7 +1,7 @@
 #let meta = (
   title: "From Python graph to spikes",
   date: "2026-07-31",
-  description: "The first snnlang vertical slice: author a PING network in Python, compile a portable bundle, execute it through tools/snn, and retain both the graph and its spike rasters.",
+  description: "The first snnlang vertical slice: author a PING network in Python, compile a portable bundle, execute it through tools/snnsim, and retain both the graph and its spike rasters.",
   collection: "documentation",
   status: "ExpScout",
   order: 1,
@@ -14,7 +14,7 @@
 
   This is the smallest useful end-to-end demonstration of `snnlang`. The
   experiment runner defines a PING circuit using the Python authoring API,
-  compiles it into a deterministic data-only bundle, and invokes `tools/snn`
+  compiles it into a deterministic data-only bundle, and invokes `tools/snnsim`
   through its command-line interface. The simulator receives an explicit,
   saved Poisson spike tensor rather than an implicit constant drive. The
   published record retains the graph, compiler reports, exact input, simulator

@@ -21,7 +21,7 @@
 
   Components are Python functions that add a reusable motif to a network. They disappear during compilation, leaving ordinary populations, projections, parameters, and groups.
 
-  `snn.components.ping` creates excitatory and inhibitory COBA-LIF populations with reciprocal E-to-I and I-to-E projections. Its defaults preserve established _tools/snn_ numerical conventions. They are compatibility defaults, not a universal biological model.
+  `snn.components.ping` creates excitatory and inhibitory COBA-LIF populations with reciprocal E-to-I and I-to-E projections. Its defaults preserve established _tools/snnsim_ numerical conventions. They are compatibility defaults, not a universal biological model.
 
   ```python
   cell = snn.components.ping(

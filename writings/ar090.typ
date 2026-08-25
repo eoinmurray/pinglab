@@ -20,7 +20,7 @@
 
   === Compatibility
 
-  _snnlang_ is additive. Historical commands and experiments use the legacy executor unless they explicitly select the graph executor. Bundles remain data-only, and _tools/snn_ does not import the authoring package when replaying them.
+  _snnlang_ is additive. Historical commands and experiments use the legacy executor unless they explicitly select the graph executor. Bundles remain data-only, and _tools/snnsim_ does not import the authoring package when replaying them.
 
   Migration requires layered comparisons of structure, parameters, initialization, forward state, gradients, optimizer updates, checkpoints, resumed trajectories, learning curves, downstream measurements, and publication outputs. A successful smoke test does not establish equivalence.
 
@@ -84,9 +84,9 @@
 
   The representative production-shaped fixtures add the 784-channel/10-class MNIST contract and the 700-channel/20-class SHD contract. The SHD example is a trainable three-PING hierarchy with exhaustive parameter coverage and a six-population spike budget. Its focused CPU update confirms gradients for feedforward, all recurrent E→I/I→E tensors, and the readout. A separate PING fixture recompiles from 0.1 ms to 0.05 ms while preserving presentation duration and sampling categorical rates across three presentations. These are interface and numerical-path gates, not claims about dataset accuracy.
 
-  The checked-in `tools/snn.equivalence-policy/v1` freezes the final comparison before campaign evidence is inspected. Topology, parameter identity and initialization, discrete state, checkpoint coordinates and provenance, labels, predictions, rasters, and campaign identity are exact. Only named floating results use the predeclared $10^(-6)$ absolute and relative tolerance. Learning trajectories, interventions, aggregations, downstream measurements, uncertainty bands, claims, and figures are all in review scope. Changing a tolerance requires a new policy identity rather than editing the frozen decision after seeing results.
+  The checked-in `tools/snnsim.equivalence-policy/v1` freezes the final comparison before campaign evidence is inspected. Topology, parameter identity and initialization, discrete state, checkpoint coordinates and provenance, labels, predictions, rasters, and campaign identity are exact. Only named floating results use the predeclared $10^(-6)$ absolute and relative tolerance. Learning trajectories, interventions, aggregations, downstream measurements, uncertainty bands, claims, and figures are all in review scope. Changing a tolerance requires a new policy identity rather than editing the frozen decision after seeing results.
 
-  A read-only `tools/snn.migration-preflight/v1` report now fails closed unless an immutable legacy campaign, a complete graph campaign with the expected graph and training digests, and passing CUDA or MPS conformance evidence all authenticate against that policy. It neither executes nor activates campaigns. The repository is therefore explicit about missing external evidence instead of treating local fixtures as migration readiness.
+  A read-only `tools/snnsim.migration-preflight/v1` report now fails closed unless an immutable legacy campaign, a complete graph campaign with the expected graph and training digests, and passing CUDA or MPS conformance evidence all authenticate against that policy. It neither executes nor activates campaigns. The repository is therefore explicit about missing external evidence instead of treating local fixtures as migration readiness.
 
   - Run the publication-accelerator conformance case and record any limits on numerical determinism.
   - After the independent legacy gold-star campaign is complete, run the full snnlang campaign under the frozen scientific protocol and compare every result, uncertainty band, claim, and figure.
@@ -138,9 +138,9 @@
   write_conformance_report(path, report)
   ```
 
-  Reports use schema `tools/snn.conformance-report/v1`. Each layer and field is named explicitly. Missing fields, extra fields, shapes, dtypes, values, maximum absolute and relative errors, and the applied policy are recorded. Exact comparison is the default; numerical tolerance must be declared for a specific field, and an unused rule is rejected. `canonical_json_tensor` encodes topology and provenance structures for exact comparison beside numerical tensors.
+  Reports use schema `tools/snnsim.conformance-report/v1`. Each layer and field is named explicitly. Missing fields, extra fields, shapes, dtypes, values, maximum absolute and relative errors, and the applied policy are recorded. Exact comparison is the default; numerical tolerance must be declared for a specific field, and an unused rule is rejected. `canonical_json_tensor` encodes topology and provenance structures for exact comparison beside numerical tensors.
 
-  The final migration contract is stored in `tools/snn/equivalence-policy-v1.json`. `load_equivalence_policy` authenticates its canonical digest, and `migration_preflight` returns named readiness gates and failures without changing campaign or publication state.
+  The final migration contract is stored in `tools/snnsim/equivalence-policy-v1.json`. `load_equivalence_policy` authenticates its canonical digest, and `migration_preflight` returns named readiness gates and failures without changing campaign or publication state.
 
   === Inference overrides
 
@@ -159,7 +159,7 @@
   ))
   ```
 
-  The contract uses schema `tools/snn.inference-overrides/v1`. Overrides apply after checkpoint loading to one built model only; the graph bundle and checkpoint are not modified. Duration must be a positive integral number of graph timesteps. Rate must be finite and non-negative. Projection scales use exact graph projection identifiers and finite non-negative factors. Duration and rate overrides require generated Poisson bindings, while projection scaling also works with replay bindings. Metrics retain both the requested mapping and its resolved duration, rate, and projection factors.
+  The contract uses schema `tools/snnsim.inference-overrides/v1`. Overrides apply after checkpoint loading to one built model only; the graph bundle and checkpoint are not modified. Duration must be a positive integral number of graph timesteps. Rate must be finite and non-negative. Projection scales use exact graph projection identifiers and finite non-negative factors. Duration and rate overrides require generated Poisson bindings, while projection scaling also works with replay bindings. Metrics retain both the requested mapping and its resolved duration, rate, and projection factors.
 
   The command line exposes named scaling with repeatable `--scale-projection ID=FACTOR`. Existing `--t-ms` and `--input-rate` arguments define generated Poisson execution at request construction. `--inference-timestep-ms` recompiles a request-local graph copy, preserving the original Poisson duration while changing its step count. Metrics record source and effective graph digests and the resolved timestep.
 
@@ -182,7 +182,7 @@
   ]}
   ```
 
-  The ordered contract uses schema `tools/snn.inference-interventions/v1`. Deletion independently removes each emitted spike with the declared probability. Addition takes the union with a Bernoulli-discretized homogeneous Poisson stream whose probability is `rate_hz * dt_seconds`. Exact population identifiers are required; duplicate kind/target pairs, unknown fields, non-spiking populations, invalid probabilities, and rates above the timestep probability boundary are rejected.
+  The ordered contract uses schema `tools/snnsim.inference-interventions/v1`. Deletion independently removes each emitted spike with the declared probability. Addition takes the union with a Bernoulli-discretized homogeneous Poisson stream whose probability is `rate_hz * dt_seconds`. Exact population identifiers are required; duplicate kind/target pairs, unknown fields, non-spiking populations, invalid probabilities, and rates above the timestep probability boundary are rejected.
 
   Each intervention uses a seed-derived stream keyed by its list position, kind, population, and absolute execution step. A continued runtime therefore consumes the same intervention samples as one uninterrupted run. The modified spikes enter normal downstream propagation, delay histories, recordings, and readouts. Metrics retain the requested list and resolved per-step probabilities. The CLI preserves list order through repeatable `--intervention drop:POPULATION=PROBABILITY` and `--intervention add:POPULATION=RATE_HZ` arguments.
 
@@ -197,7 +197,7 @@
   )
   ```
 
-  Graph CLI runs persist `recordings.npz`, `outputs.npz`, `parameters.npz`, and `metrics.json` beside `inference-manifest.json`. Schema `tools/snn.inference-artifacts/v1` inventories every NPZ array name, shape, and data type and authenticates each payload by SHA-256. Its graph digest prevents reuse against a different source graph. Its request digest covers the seed, execution protocol, checkpoint, overrides, interventions, recording profile, resolved device, and source/effective graph identities.
+  Graph CLI runs persist `recordings.npz`, `outputs.npz`, `parameters.npz`, and `metrics.json` beside `inference-manifest.json`. Schema `tools/snnsim.inference-artifacts/v1` inventories every NPZ array name, shape, and data type and authenticates each payload by SHA-256. Its graph digest prevents reuse against a different source graph. Its request digest covers the seed, execution protocol, checkpoint, overrides, interventions, recording profile, resolved device, and source/effective graph identities.
 
   `validate_inference_artifacts` verifies the manifest identity, exact file set, payload digests, NPZ inventories, request digest, and optional expected graph and seed. A cache consumer must validate before reuse; paths or directory names are not identities. The standard accuracy/rate/raster conversion below consumes these stable named payloads; scientific interpretation remains at the experiment or campaign layer.
 
@@ -217,7 +217,7 @@
   )
   ```
 
-  Schema `tools/snn.derived-inference/v1` writes exact integer labels and predictions, JSON accuracy and timing, per-presentation per-cell rates in Hz, and sparse raster coordinates for each requested public spike recording. Raster arrays explicitly store zero-based `steps`, `batches`, `cells`, and the original `[time, batch, cells]` shape. Rates divide each presentation's cell counts by the resolved physical duration.
+  Schema `tools/snnsim.derived-inference/v1` writes exact integer labels and predictions, JSON accuracy and timing, per-presentation per-cell rates in Hz, and sparse raster coordinates for each requested public spike recording. Raster arrays explicitly store zero-based `steps`, `batches`, `cells`, and the original `[time, batch, cells]` shape. Rates divide each presentation's cell counts by the resolved physical duration.
 
   Derivation first validates the source inference cache, then requires floating `[batch, classes]` logits, integral in-range `[batch]` labels, positive protocol duration, and binary `[time, batch, cells]` recordings with the same batch axis. Its own manifest authenticates every derived payload and links it to the source artifact digest. Scientific thresholds and campaign acceptance decisions remain outside this generic conversion.
 
@@ -229,8 +229,8 @@
   - `training.py`: training recipes.
   - `compiler.py`: validation and bundle writing.
   - `visualize.py`: bundle reports.
-  - `tools/snn/execution.py`: graph planning and execution.
-  - `tools/snn/conformance.py`: versioned layered comparison reports.
-  - `tools/snn/bundle.py`: the narrow legacy adapter.
-  - `tools/snnlang/tests` and `tools/snn/tests/test_execution.py`: focused conformance fixtures.
+  - `tools/snnsim/execution.py`: graph planning and execution.
+  - `tools/snnsim/conformance.py`: versioned layered comparison reports.
+  - `tools/snnsim/bundle.py`: the narrow legacy adapter.
+  - `tools/snnlang/tests` and `tools/snnsim/tests/test_execution.py`: focused conformance fixtures.
 ]

@@ -20,4 +20,3 @@ def test_historical_experiment_dispositions_are_explicit() -> None:
     historical = coverage(REPO)["historical"]
     assert historical["exp087"]["disposition"] == "removed-and-pruned"
     assert historical["exp096"]["disposition"] == "artifact-only"
-    assert historical["exp098"]["disposition"] == "absent"

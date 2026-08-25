@@ -1,7 +1,7 @@
 #let meta = (
   title: "A compiled graph learns",
   date: "2026-07-31",
-  description: "A deliberately small MNIST run checks that an snnlang graph and training recipe can drive the existing tools/snn trainer without legacy structural flags.",
+  description: "A deliberately small MNIST run checks that an snnlang graph and training recipe can drive the existing tools/snnsim trainer without legacy structural flags.",
   collection: "documentation",
   status: "ExpScout",
   order: 2,
@@ -15,7 +15,7 @@
   This is an integration gate, not an MNIST benchmark. A Python `snnlang`
   program defines a #(r.config.n_e)-E/#(r.config.n_i)-I PING network and a standard
   training recipe. The compiler writes the graph and recipe into a portable
-  bundle; `tools/snn train --bundle` authenticates both, maps the supported
+  bundle; `tools/snnsim train --bundle` authenticates both, maps the supported
   subset onto the existing optimised PyTorch trainer, and trains on only
   #r.config.max_samples MNIST examples for #r.config.epochs epochs. The
   experiment asks one intentionally unglamorous question: does the compiled
@@ -59,7 +59,7 @@
 
   #if r.trajectory.train_loss_change < 0 [
     The compiled graph trained: optimisation reduced the training objective and
-    emitted ordinary `tools/snn` checkpoints and metrics. This does not establish
+    emitted ordinary `tools/snnsim` checkpoints and metrics. This does not establish
     competitive accuracy or good generalisation. It establishes the more basic
     vertical slice needed before migrating real experiments: Python graph →
     authenticated bundle → existing PyTorch training loop → inspectable evidence.

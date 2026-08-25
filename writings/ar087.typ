@@ -87,7 +87,7 @@
 
   `value` is a PyTorch tensor. `source` is JSON-serializable provenance. NPY binds only to a graph with one input; NPZ keys bind by graph input identifier. Direct `ExecutionSpec.inputs` values are converted to in-memory bindings and validated through the same resolver.
 
-  The resolved protocol uses schemas `tools/snn.dense-array-binding/v1` and `tools/snn.execution-protocol/v1`. Reserved protocol fields cannot be overridden by caller metadata.
+  The resolved protocol uses schemas `tools/snnsim.dense-array-binding/v1` and `tools/snnsim.execution-protocol/v1`. Reserved protocol fields cannot be overridden by caller metadata.
 
   === Event-stream bindings
 
@@ -111,7 +111,7 @@
 
   A single-input NPZ uses `steps`, `batches`, `channels`, `steps_count`, and `batch_size`. Multi-input files prefix each key with the input identifier and a period. Typed requests may combine event-stream spike inputs with dense masks or continuous inputs when their time and batch axes agree.
 
-  The event schema is `tools/snn.event-stream-binding/v1`; a mixed request uses `tools/snn.mixed-input-bindings/v1`. The protocol records ordering, duplicate rejection, binary materialization, event counts, masks, and file provenance.
+  The event schema is `tools/snnsim.event-stream-binding/v1`; a mixed request uses `tools/snnsim.mixed-input-bindings/v1`. The protocol records ordering, duplicate rejection, binary materialization, event counts, masks, and file provenance.
 
   === Dataset snapshots and encoders
 
@@ -130,7 +130,7 @@
   ) -> tuple[ResolvedDenseInputs, tuple[TargetArrayBinding, ...]]
   ```
 
-  The binding uses schema `tools/snn.dataset-snapshot-binding/v1` and currently requires a single spike input shaped `(time, batch, channels)`. Every snapshot contains one-dimensional integer labels. A target id turns the selected labels into a digest-bearing training target; simulation may omit the target id.
+  The binding uses schema `tools/snnsim.dataset-snapshot-binding/v1` and currently requires a single spike input shaped `(time, batch, channels)`. Every snapshot contains one-dimensional integer labels. A target id turns the selected labels into a digest-bearing training target; simulation may omit the target id.
 
   `rate_poisson` expects floating `features` shaped `(samples, channels)` with finite values in `[0, 1]`. Each value scales `max_rate_hz`; seeded Bernoulli discretization produces the declared physical duration at graph `dt`. The maximum rate must keep per-step probability at most one.
 
