@@ -9,16 +9,19 @@ from types import SimpleNamespace
 
 import config
 import models as M
+import numpy as np
 import pytest
 import torch
 import torch.nn.functional as F
 from bundle import (
     BundleCompatibilityError,
     load_graph_bundle,
+    load_simulation_recipe,
     load_training_recipe,
     translate_cobanet_v1,
     translate_training_v1,
 )
+from simulation_inputs import realize_simulation_inputs
 from tool import _bundle_transition_schedule, parse_args
 
 from tools import snnlang as snn
@@ -41,13 +44,23 @@ def _write_transition_bundle(tmp_path, name, w_ee):
         )
 
     cell = snn.components.ping(
-        net, name="circuit", n_e=400, n_i=100, source=source,
-        w_in=snn.Normal(0.01, 0.001), w_ee=sparse(*w_ee),
-        w_ei=sparse(0.6, 0.18), w_ie=sparse(3.0, 0.9), w_ii=sparse(0.4, 0.12),
+        net,
+        name="circuit",
+        n_e=400,
+        n_i=100,
+        source=source,
+        w_in=snn.Normal(0.01, 0.001),
+        w_ee=sparse(*w_ee),
+        w_ei=sparse(0.6, 0.18),
+        w_ie=sparse(3.0, 0.9),
+        w_ii=sparse(0.4, 0.12),
     )
     readout = snn.readouts.MeanVoltage(
-        source=cell.E.spikes, classes=10, name="readout",
-        tau=2 * snn.ms, weight=snn.Normal(5.1, 3.8),
+        source=cell.E.spikes,
+        classes=10,
+        name="readout",
+        tau=2 * snn.ms,
+        weight=snn.Normal(5.1, 3.8),
     )
     net.output("logits", readout)
     return snn.compile(net).write(tmp_path / f"{name}.bundle")
@@ -160,12 +173,102 @@ def test_bundle_owns_four_recurrent_blocks_and_exact_k(tmp_path):
     assert args.exact_k_initialization is True
 
 
+def _write_combined_bundle(tmp_path):
+    net = snn.Network("combined", dt=0.25 * snn.ms)
+    source = net.input(
+        "input", shape=("time", "batch", 400), signal_type="spikes", unit="spike"
+    )
+    cell = snn.components.ping(
+        net,
+        name="circuit",
+        n_e=400,
+        n_i=100,
+        source_e=source,
+        source_i=source,
+        w_in_e=snn.Normal(0.01, 0.001),
+        w_in_i=snn.Normal(0.02, 0.002),
+    )
+    readout = snn.readouts.MeanVoltage(
+        source=cell.E.spikes,
+        classes=10,
+        name="readout",
+        tau=2 * snn.ms,
+        weight=snn.Normal(5.1, 3.8),
+    )
+    net.output("logits", readout)
+
+    def channel(tau):
+        return snn.BackgroundChannel(
+            private=snn.ShotNoise(200, 0.01, tau),
+            shared=snn.GlobalShotNoise(80, 0.02, tau),
+            heterogeneity=snn.CellDistribution(
+                rate=snn.Uniform(0.8, 1.2), amplitude=snn.Uniform(0.9, 1.1)
+            ),
+        )
+
+    simulation = snn.SimulationSpec(
+        spike_sources=[snn.StructuredPoisson(source, 10)],
+        backgrounds=[
+            snn.ConductanceBackground(cell.E, channel(2), channel(9)),
+            snn.ConductanceBackground(cell.I, channel(2), channel(9)),
+        ],
+        modulation=[snn.ConductanceSchedule((cell.E, cell.I), 2, 6, end_scale=1.5)],
+    )
+    return snn.compile(net, simulation=simulation).write(tmp_path / "combined.bundle")
+
+
+def test_combined_bundle_authenticates_dual_paths_and_owns_drive_flags(tmp_path):
+    root = _write_combined_bundle(tmp_path)
+    args = parse_args(["sim", "--bundle", str(root)])
+    assert args.w_in == [0.01, 0.001]
+    assert args.w_in_i == [0.02, 0.002]
+    manifest, graph = load_graph_bundle(root)
+    assert (
+        load_simulation_recipe(root, manifest, graph)["schema"]
+        == "snnlang.simulation/v1"
+    )
+    with pytest.raises(SystemExit):
+        parse_args(["sim", "--bundle", str(root), "--independent-drive", "10", "0.1"])
+
+
+def test_combined_input_realization_is_reproducible_private_and_shared(tmp_path):
+    root = _write_combined_bundle(tmp_path)
+    manifest, graph = load_graph_bundle(root)
+    recipe = load_simulation_recipe(root, manifest, graph)
+    kwargs = dict(
+        seed=23,
+        dt=0.25,
+        t_steps=400,
+        e_id="circuit_E",
+        i_id="circuit_I",
+        n_e=400,
+        n_i=100,
+        input_size=400,
+    )
+    first = realize_simulation_inputs(recipe, **kwargs)
+    second = realize_simulation_inputs(recipe, **kwargs)
+    assert first.retained.keys() == second.retained.keys()
+    for key in first.retained:
+        assert np.array_equal(first.retained[key], second.retained[key])
+    shared = first.retained["input_excitatory_e_shared"]
+    private = first.retained["input_excitatory_e_private"]
+    assert np.array_equal(shared[:, 0], shared[:, -1])
+    assert not np.array_equal(private[:, 0], private[:, -1])
+    assert not np.array_equal(
+        first.retained["input_excitatory_e_shared"],
+        first.retained["input_inhibitory_e_shared"],
+    )
+
+
 def test_bundle_transition_builds_smooth_weight_schedule(tmp_path):
     baseline = _write_transition_bundle(tmp_path, "baseline", (0.4, 0.12))
     target = _write_transition_bundle(tmp_path, "target", (4.34, 1.302))
     args = SimpleNamespace(
-        bundle=str(baseline), transition_bundle=str(target),
-        transition_start_ms=20.0, transition_end_ms=60.0, t_ms=100.0,
+        bundle=str(baseline),
+        transition_bundle=str(target),
+        transition_start_ms=20.0,
+        transition_end_ms=60.0,
+        t_ms=100.0,
     )
     schedules, time_ms, changed = _bundle_transition_schedule(args, 0.25, 400)
     assert changed == ["w_ee"]
@@ -261,7 +364,9 @@ def test_bundle_and_legacy_build_identical_cobanet(tmp_path):
 
 
 def _named_trainable(net):
-    return {name: param for name, param in net.named_parameters() if param.requires_grad}
+    return {
+        name: param for name, param in net.named_parameters() if param.requires_grad
+    }
 
 
 def _assert_tensor_maps_equal(stage, left, right):

@@ -12,6 +12,7 @@ from pathlib import Path
 from typing import Any, Mapping
 
 from .core import Network
+from .simulation import SimulationSpec, simulation_dict, validate_simulation
 from .training import TrainSpec
 
 SCHEMA = "snnlang.graph/v1"
@@ -1105,6 +1106,7 @@ class Bundle:
     manifest: dict[str, Any]
     diagnostics: list[Diagnostic]
     asset_sources: dict[str, Path] = field(default_factory=dict)
+    simulation: dict[str, Any] | None = None
 
     def write(self, path: str | Path, *, visualise: bool = False) -> Path:
         root = Path(path)
@@ -1112,6 +1114,8 @@ class Bundle:
         (root / "graph.json").write_bytes(canonical_json(self.graph))
         if self.training:
             (root / "training.json").write_bytes(canonical_json(self.training))
+        if self.simulation:
+            (root / "simulation.json").write_bytes(canonical_json(self.simulation))
         assets_dir = root / "assets"
         for name, source in sorted(self.asset_sources.items()):
             assets_dir.mkdir(exist_ok=True)
@@ -1153,6 +1157,7 @@ def compile(
     network: Network,
     *,
     training: TrainSpec | None = None,
+    simulation: SimulationSpec | None = None,
     target: str | None = None,
     assets: Mapping[str, str | Path] | None = None,
 ) -> Bundle:
@@ -1165,6 +1170,9 @@ def compile(
         validate_training(graph, training_data) if training_data else ValidationResult()
     )
     training_validation.raise_for_errors()
+    simulation_data = simulation_dict(simulation, graph_digest) if simulation else None
+    if simulation_data:
+        validate_simulation(graph, simulation_data)
     diagnostics = (
         graph_validation.diagnostics
         + training_validation.diagnostics
@@ -1196,6 +1204,8 @@ def compile(
     files = [{"path": "graph.json", "digest": graph_digest}]
     if training_data:
         files.append({"path": "training.json", "digest": digest(training_data)})
+    if simulation_data:
+        files.append({"path": "simulation.json", "digest": digest(simulation_data)})
     files.extend({"path": x["path"], "digest": x["digest"]} for x in manifest_assets)
     manifest = {
         "schema": BUNDLE_SCHEMA,
@@ -1206,7 +1216,14 @@ def compile(
         "files": files,
         "assets": manifest_assets,
     }
-    return Bundle(graph, training_data, manifest, diagnostics, asset_sources)
+    return Bundle(
+        graph,
+        training_data,
+        manifest,
+        diagnostics,
+        asset_sources,
+        simulation=simulation_data,
+    )
 
 
 def load_bundle(path: str | Path) -> Bundle:
@@ -1215,6 +1232,13 @@ def load_bundle(path: str | Path) -> Bundle:
     manifest = json.loads((root / "manifest.json").read_text())
     training_path = root / "training.json"
     training = json.loads(training_path.read_text()) if training_path.exists() else None
+    simulation_path = root / "simulation.json"
+    simulation = (
+        json.loads(simulation_path.read_text()) if simulation_path.exists() else None
+    )
+    declared_paths = {row.get("path") for row in manifest.get("files", [])}
+    if simulation and "simulation.json" not in declared_paths:
+        raise ValueError("simulation.json is not authenticated by manifest")
     if digest(graph) != manifest["graph_digest"]:
         raise ValueError("graph digest does not match manifest")
     asset_sources: dict[str, Path] = {}
@@ -1237,5 +1261,16 @@ def load_bundle(path: str | Path) -> Bundle:
         if training["graph_digest"] != manifest["graph_digest"]:
             raise ValueError("training specification targets a different graph")
         validation.diagnostics.extend(validate_training(graph, training).diagnostics)
+    if simulation:
+        if simulation.get("graph_digest") != manifest["graph_digest"]:
+            raise ValueError("simulation specification targets a different graph")
+        validate_simulation(graph, simulation)
     validation.raise_for_errors()
-    return Bundle(graph, training, manifest, validation.diagnostics, asset_sources)
+    return Bundle(
+        graph,
+        training,
+        manifest,
+        validation.diagnostics,
+        asset_sources,
+        simulation=simulation,
+    )

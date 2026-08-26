@@ -25,6 +25,63 @@ def test_graph_shaped_authoring_and_component_expansion():
     assert net.groups["cell"].members
 
 
+def _background_channel():
+    return snn.BackgroundChannel(
+        private=snn.ShotNoise(rate_hz=50, amplitude=0.02, tau_ms=2),
+        shared=snn.GlobalShotNoise(rate_hz=10, amplitude=0.01, tau_ms=2),
+        heterogeneity=snn.CellDistribution(
+            rate=snn.LowerClampedNormal(1.0, 0.1),
+            amplitude=snn.Uniform(0.8, 1.2),
+        ),
+    )
+
+
+def test_combined_inputs_compile_as_graph_and_authenticated_simulation_recipe(tmp_path):
+    net = snn.Network("combined")
+    x = net.input("afferent", shape=("time", "batch", 12), signal_type="spikes")
+    cell = snn.components.ping(
+        net,
+        name="cell",
+        n_e=12,
+        n_i=3,
+        source_e=x,
+        source_i=x,
+        w_in_e=snn.Normal(0.1, 0.01),
+        w_in_i=snn.Normal(0.2, 0.02),
+    )
+    excitatory = _background_channel()
+    inhibitory = snn.BackgroundChannel(
+        private=snn.ShotNoise(rate_hz=40, amplitude=0.03, tau_ms=9),
+        shared=snn.GlobalShotNoise(rate_hz=8, amplitude=0.02, tau_ms=9),
+    )
+    simulation = snn.SimulationSpec(
+        spike_sources=[snn.StructuredPoisson(input=x, rate_hz=7)],
+        backgrounds=[
+            snn.ConductanceBackground(cell.E, excitatory, inhibitory),
+            snn.ConductanceBackground(cell.I, excitatory, inhibitory),
+        ],
+        modulation=[snn.ConductanceSchedule((cell.E, cell.I), 10, 30, end_scale=1.5)],
+    )
+    bundle = snn.compile(net, simulation=simulation)
+    assert {
+        p["target"]
+        for p in bundle.graph["projections"]
+        if p["source"] == "afferent.value"
+    } == {"cell_E.excitatory", "cell_I.excitatory"}
+    assert bundle.simulation["graph_digest"] == bundle.manifest["graph_digest"]
+    root = bundle.write(tmp_path / "combined.bundle")
+    assert next(
+        row for row in bundle.manifest["files"] if row["path"] == "simulation.json"
+    )
+    assert snn.load_bundle(root).simulation == bundle.simulation
+
+    recipe = json.loads((root / "simulation.json").read_text())
+    recipe["backgrounds"][0]["excitatory"]["shared"]["rate_hz"] += 1
+    (root / "simulation.json").write_text(json.dumps(recipe))
+    with pytest.raises(ValueError, match="digest mismatch"):
+        snn.load_bundle(root)
+
+
 def test_disabled_projection_remains_structural_and_explicit():
     net, cell = small_network()
     loop = net.connect(
@@ -539,9 +596,7 @@ def test_expanded_visualisation_retains_recurrent_self_projection(tmp_path):
         connection="recurrent",
     )
 
-    output = snn.compile(net).visualise(
-        tmp_path / "expanded.svg", view="expanded"
-    )
+    output = snn.compile(net).visualise(tmp_path / "expanded.svg", view="expanded")
 
     assert "n_E_to_E" in output.read_text()
 

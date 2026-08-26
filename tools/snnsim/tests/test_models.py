@@ -2,6 +2,25 @@ import models as M
 import numpy as np
 import pytest
 import torch
+
+
+def test_external_inhibitory_conductance_enters_gaba_state_without_reset():
+    M.N_IN = 4
+    M.N_OUT = 2
+    M.T_steps = 4
+    M.dt = 0.25
+    net = M.COBANet(hidden_sizes=[4], w_in=(0, 0), w_hid=(0, 0))
+    net.recording = True
+    zeros = torch.zeros(4, 4)
+    inhibitory_e = torch.full((4, 4), 0.05)
+    inhibitory_i = torch.full((4, 1), 0.03)
+    net(input_spikes=zeros, ext_g_inhib_e=inhibitory_e, ext_g_inhib_i=inhibitory_i)
+    rec = net.spike_record
+    assert torch.all(rec["gi_e_1"][1:] > 0)
+    assert torch.all(rec["gi_i_1"][1:] > 0)
+    assert torch.all(rec["ge_e_1"] == 0)
+
+
 import torch.nn.functional as F
 from config import build_net
 from infer import probe
