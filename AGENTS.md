@@ -12,12 +12,6 @@ Pingstore is a filesystem convention, not a service, database, or CLI.
   incomplete and must never be used as evidence or publication input.
 - Keep complete execution provenance in `run.json`; do not infer provenance
   from filesystem timestamps or the run ID alone.
-- Define collection and publication views manually in the top-level
-  `.pingstore/collections.json` as mappings from view names to complete run-ID
-  arrays. A view may select at most one run per experiment.
-- Treat every run referenced by `collections.json` as protected from pruning.
-  Never prune a run that has not been independently verified in backup storage.
-- Mirror `.pingstore/runs/` to R2 without introducing another archive layout.
 - Local and HPC execution use this same run-folder contract. Allocate HPC run
   IDs before submission so concurrent jobs cannot claim the same identity.
 - Do not reintroduce collection/experiment directory nesting, catalogues,
