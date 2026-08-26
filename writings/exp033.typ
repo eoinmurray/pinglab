@@ -1,9 +1,8 @@
 #let meta = (
-  title: "DMFT model",
+  title: "Gamma Emerges at a Hopf Bifurcation",
   date: "2026-05-28",
   description: "A 4D conductance mean-field account of exp025's recruitment cliff, with the free effective membrane-noise scale tested explicitly.",
   collection: "gamma-gated-sparsity",
-  status: "ExpScout",
 )
 
 #let run = json("/.artifacts/exp033/numbers.json")

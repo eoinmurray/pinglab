@@ -988,7 +988,7 @@ def _rhythmicity_summary() -> dict:
     """Init / epoch-1 / final lobe–trough contrast (R) per condition, read from the
     cached per-epoch metrics.jsonl (the exp022 train-once root) — no inference.
 
-    This is what §2.4 of exp009 quotes: the trainable inits collapse the rhythm
+    This is what §2.4 of exp109 quotes: the trainable inits collapse the rhythm
     within the first logged epoch, while the frozen control holds the canonical R.
     Because it reads only committed logs, it can be refreshed via
     `--plot-only rhythmicity` without re-running the (~29 min) cell inference."""

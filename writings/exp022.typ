@@ -1,9 +1,8 @@
 #let meta = (
-  title: "Training-run guide",
+  title: "Training Runs and Raster Diagnostics",
   date: "2026-08-11",
   description: "A guide to the shared training runs, their parameters, outputs, and downstream consumers.",
   collection: "gamma-gated-sparsity",
-  status: "ExpScout",
 )
 
 #let r = json("/.artifacts/exp022/numbers.json")

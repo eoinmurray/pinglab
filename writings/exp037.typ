@@ -1,9 +1,8 @@
 #let meta = (
-  title: "PING tolerates 80% dropped spikes but collapses on added noise",
+  title: "Dropped Spikes vs Added Noise",
   date: "2026-05-30",
   description: "Perturbs the hidden spike stream of trained PING and COBA at inference. PING forgives most dropped spikes but breaks under a small rate of added Poisson noise; COBA is flat to both. The gamma cycle made visible.",
   collection: "gamma-gated-sparsity",
-  status: "ExpScout",
 )
 
 // Provenance (HOUSESTYLE H9): every run number below is read from the run's

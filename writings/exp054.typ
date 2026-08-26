@@ -1,11 +1,10 @@
 #import "/.demolab/lib.typ": numbers-table, provenance-footer
 
 #let meta = (
-  title: "A PING rhythmicity metric",
+  title: "Gamma Turns On Across the Coupling Map",
   date: "2026-06-15",
   description: "A single bounded scalar (the lobe–trough contrast of the spike-time autocorrelation) for how rhythmic a spiking network is, made rate-invariant by private per-cell input.",
   collection: "gamma-gated-sparsity",
-  status: "ExpScout",
 )
 
 

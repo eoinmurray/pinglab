@@ -5,7 +5,6 @@
   date: "2026-08-19",
   description: "Distinguish the pathways that phase-lock two cortical PING rhythms.",
   collection: "demo",
-  status: "ExpScout",
   order: 1,
 )
 

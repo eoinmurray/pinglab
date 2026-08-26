@@ -1,9 +1,8 @@
 #let meta = (
-  title: "Gold-star manuscript figure comparison",
+  title: "Old and New Manuscript Figures",
   date: "2026-08-22",
   description: "Compare the legacy and current gamma-gated sparsity manuscript plots side by side.",
   collection: "gamma-gated-sparsity",
-  status: "ExpScout",
 )
 
 #let comparison = json("/.artifacts/exp093/numbers.json")

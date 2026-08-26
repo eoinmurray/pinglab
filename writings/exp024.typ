@@ -1,9 +1,8 @@
 #let meta = (
-  title: "Accuracy converges, firing rate does not",
+  title: "Accuracy Plateaus While Firing Rate Rises",
   date: "2026-06-02",
   description: "Reads exp022's 50-epoch PING and COBA baselines and asks whether the firing rate converges once the accuracy has: it does not, not for COBA.",
   collection: "gamma-gated-sparsity",
-  status: "ExpScout",
 )
 
 

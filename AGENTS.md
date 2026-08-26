@@ -17,3 +17,8 @@ Pingstore is a filesystem convention, not a service, database, or CLI.
 - Do not reintroduce collection/experiment directory nesting, catalogues,
   lifecycle states, automatic official selections, preview overrides, archive
   bundles, or a Pingstore command-line interface.
+
+# Experiment writing
+
+Before creating or editing `writings/expXXX.typ`, read and follow
+`writings/README.md`.

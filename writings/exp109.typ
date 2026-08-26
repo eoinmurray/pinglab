@@ -1,7 +1,7 @@
 #import "/.demolab/lib.typ": cite, reference-list
 
 #let meta = (
-  title: "Manuscript",
+  title: "Gamma-Gated Sparsity Manuscript",
   date: "2026-06-21",
   description: "A task-trained spiking network with a fixed PING loop: gamma as a structural constraint on excitatory firing rates.",
   collection: "gamma-gated-sparsity",

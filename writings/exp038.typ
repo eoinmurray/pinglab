@@ -1,9 +1,8 @@
 #let meta = (
-  title: "Switching the loop on at inference cuts E rate ≈15×",
+  title: "Switching On the Inhibitory Loop",
   date: "2026-05-30",
   description: "Loads a trained COBA network and switches the I-loop on at inference by sweeping ei_strength from 0 to 1; the same weights fire ≈15× slower.",
   collection: "gamma-gated-sparsity",
-  status: "ExpScout",
 )
 
 #let run = json("/.artifacts/exp038/numbers.json")

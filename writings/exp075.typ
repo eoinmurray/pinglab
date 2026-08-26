@@ -3,7 +3,6 @@
   date: "2026-07-31",
   description: "A deliberately small MNIST run checks that an snnlang graph and training recipe can drive the existing tools/snnsim trainer without legacy structural flags.",
   collection: "snnlang-docs",
-  status: "ExpScout",
   order: 2,
 )
 

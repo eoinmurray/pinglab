@@ -212,7 +212,7 @@ def rate_target_display(target_hz: float | None) -> str:
 def seeds_for(target_hz: float | None) -> list[int]:
     """Every target — baseline and interior — runs all three seeds, so the
     accuracy–rate frontier carries across-seed error bars. The interior used to
-    be single-seed (a limitation exp009 §2.3 disclosed); this removes it."""
+    be single-seed (a limitation exp109 §2.3 disclosed); this removes it."""
     return list(SEEDS_BASELINE)
 
 

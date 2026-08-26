@@ -86,7 +86,6 @@ def test_downstream_cell_banks_resolve_through_exp022_registry() -> None:
 
     exp042_sources = exp042.checkpoint_source_dirs()
     assert {path.name for path in exp042_sources["exp022_tr02"]} <= registered["TR-02"]
-    assert {path.name for path in exp042_sources["exp041_tr03"]} == registered["TR-03"]
 
 
 def test_graph_orders_dependencies_and_replaces_exp048_with_exp082() -> None:
@@ -97,7 +96,6 @@ def test_graph_orders_dependencies_and_replaces_exp048_with_exp082() -> None:
     assert positions["exp041"] < positions["exp033"]
     assert positions["exp041"] < positions["exp054"]
     assert positions["exp022"] < positions["exp042"]
-    assert positions["exp041"] < positions["exp042"]
     assert {"exp023", "exp047", "exp080", "exp081"} <= positions.keys()
     exp082 = next(
         experiment for experiment in EXPERIMENTS if experiment.slug == "exp082"
@@ -106,20 +104,32 @@ def test_graph_orders_dependencies_and_replaces_exp048_with_exp082() -> None:
     exp042_node = next(
         experiment for experiment in EXPERIMENTS if experiment.slug == "exp042"
     )
-    assert exp042_node.dependencies == ("exp022", "exp041")
+    assert exp042_node.dependencies == ("exp022",)
     assert exp042_node.training_run == "TR-02"
 
 
 def test_exp042_declares_checkpoint_sources_by_owner_and_training_run() -> None:
     sources = exp042.checkpoint_source_dirs()
-    assert set(sources) == {"exp022_tr02", "exp041_tr03"}
+    assert set(sources) == {"exp022_tr02"}
     assert [path.name for path in sources["exp022_tr02"]] == [
         "ping__off__seed42",
         "ping__off__seed43",
         "ping__off__seed44",
     ]
-    assert len(sources["exp041_tr03"]) == 18
-    assert all(path.name.startswith("ping__tg") for path in sources["exp041_tr03"])
+
+
+def test_exp042_catalog_contains_only_figure_generating_jobs() -> None:
+    jobs = exp042.infer_jobs()
+    assert len(jobs) == 66
+    assert all("xtau" not in job and "alpha_mix" not in job for job in jobs)
+    assert workloads.workload_contract("exp042", smoke=False) == {
+        "condition_jobs": 66,
+        "simulator_launches_max": 66,
+    }
+    assert workloads.workload_contract("exp042", smoke=True) == {
+        "condition_jobs": 39,
+        "simulator_launches_max": 39,
+    }
 
 
 def test_graph_rejects_unknown_dependencies_and_cycles() -> None:
@@ -707,7 +717,7 @@ def test_slurm_dry_run_preserves_collection_dependencies(
         if argument.startswith("--dependency")
     )
     assert "<ggs-exp022-aggregate-job-id>" in shard_dependency
-    assert "<ggs-exp041-job-id>" in shard_dependency
+    assert "<ggs-exp041-job-id>" not in shard_dependency
     assert "<ggs-exp042-inference-job-id>" in exp042_dependency
     final = jobs["ggs-finalize"]
     dependency = next(

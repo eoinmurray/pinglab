@@ -1,9 +1,8 @@
 #let meta = (
-  title: "E rate is affine in gamma frequency",
+  title: "Firing Rate Tracks Gamma Frequency",
   date: "2026-06-02",
   description: "Re-training PING at each τ_GABA, the per-cell E rate is affine in the gamma frequency: r_E ≈ 1.15 + 0.18·f_γ with R² ≈ 0.99.",
   collection: "gamma-gated-sparsity",
-  status: "ExpScout",
 )
 
 #let run = json("/.artifacts/exp041/numbers.json")

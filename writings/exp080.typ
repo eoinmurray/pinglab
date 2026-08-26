@@ -1,11 +1,10 @@
 #import "/.demolab/lib.typ": cite, reference-list
 
 #let meta = (
-  title: "Empirical input-rate calibration for variable-rate PING training",
+  title: "Calibrating Accuracy Across Input Rates",
   date: "2026-08-10",
   description: "Direct-simulation decoder calibration of the input-rate range for later variable-rate PING training.",
   collection: "gamma-gated-sparsity",
-  status: "ExpScout",
 )
 
 #let r = json("/.artifacts/exp080/numbers.json")

@@ -3,7 +3,6 @@
   date: "2026-08-02",
   description: "A small deterministic MNIST gate checks that snnlang bundle checkpoints replay through tools/snnsim and that the current bundle adapter is numerically equivalent to the matching legacy route.",
   collection: "snnlang-docs",
-  status: "ExpScout",
   order: 3,
 )
 

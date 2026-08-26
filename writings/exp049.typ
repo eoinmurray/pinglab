@@ -8,11 +8,10 @@
 #let wie_mean42 = calc.round(canonical42.w_ie.trained_mean, digits: 6)
 
 #let meta = (
-  title: "Gradient descent does not preserve a trainable PING loop",
+  title: "Training Collapses the PING Loop",
   date: "2026-06-09",
   description: "Unfreeze the recurrent conductances and Adam does not preserve or recover effective E-to-I recruitment; every tested initialisation moves toward dense E firing and weak I activity.",
   collection: "gamma-gated-sparsity",
-  status: "ExpScout",
 )
 
 

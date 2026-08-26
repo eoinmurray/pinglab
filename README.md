@@ -6,8 +6,9 @@ Conductance-based spiking neural networks with explicit excitatory/inhibitory po
 
 ## Architecture
 
-[`AGENTS.md`](AGENTS.md) is the canonical description of the repository
-system, scientific model, evidence lifecycle, and agent behaviour.
+[`AGENTS.md`](AGENTS.md) contains repository instructions for coding agents.
+Subsystem guidance lives beside the files it governs; experiment-writing
+conventions are in [`writings/README.md`](writings/README.md).
 
 ## Installation
 

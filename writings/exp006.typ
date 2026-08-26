@@ -66,7 +66,7 @@
   $ r_b = 1 / (N_E T) sum_(n in E) z_(b n), quad
     cal(L)_"fr" = s_u / B sum_b "ReLU"(r_b - r_"max")^2 $
 
-  The ceiling is applied separately to each presentation's population-mean hidden-E rate before averaging across the minibatch. The loss is normalised over neurons, presentation duration, samples, and hidden layers. This is the mechanism behind the activity sweep in #link("/exp025/")[exp025] and the rate-floor framing in #link("/exp009/")[exp009].
+  The ceiling is applied separately to each presentation's population-mean hidden-E rate before averaging across the minibatch. The loss is normalised over neurons, presentation duration, samples, and hidden layers. This is the mechanism behind the activity sweep in #link("/exp025/")[exp025] and the rate-floor framing in #link("/exp109/")[exp109].
 
   == Weight init
 

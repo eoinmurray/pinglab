@@ -1,9 +1,8 @@
 #let meta = (
-  title: "Spike-count streaming across input rates",
+  title: "Spike-Count Classification in a Continuous Stream",
   date: "2026-08-10",
   description: "A multi-seed study of spike-count classification across input rates and presentation durations.",
   collection: "gamma-gated-sparsity",
-  status: "ExpScout",
 )
 
 #let r = json("/.artifacts/exp082/numbers.json")

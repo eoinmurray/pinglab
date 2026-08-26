@@ -1,11 +1,10 @@
 #import "/.demolab/lib.typ": cite, reference-list
 
 #let meta = (
-  title: "Linear-filter analysis of sparse conductance-driven pixel features",
+  title: "How Pixel Features Respond to Input Rate",
   date: "2026-08-10",
   description: "Standalone empirical and analytical study of synaptic, membrane, and finite-window filtering under sparse Poisson drive.",
   collection: "gamma-gated-sparsity",
-  status: "ExpScout",
 )
 
 #let r = json("/.artifacts/exp081/numbers.json")

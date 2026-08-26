@@ -1,9 +1,8 @@
 #let meta = (
-  title: "Temporal evidence limits of trained PING",
+  title: "Accuracy Across Duration and Input Rate",
   date: "2026-06-08",
   description: "Streaming psychometric curves identify the presentation durations and encoding rates that support classification in a frozen trained PING network.",
   collection: "gamma-gated-sparsity",
-  status: "ExpScout",
 )
 
 #let r = json("/.artifacts/exp048/numbers.json")

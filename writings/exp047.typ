@@ -1,11 +1,10 @@
 #import "/.demolab/lib.typ": numbers-table, provenance-footer
 
 #let meta = (
-  title: "Pool-size invariance requires inverse synaptic scaling",
+  title: "Pool Size Requires Synaptic Rescaling",
   date: "2026-07-14",
   description: "Paired controls separate fixed summed I→E coupling from fixed realised synaptic strength as the inhibitory pool grows.",
   collection: "gamma-gated-sparsity",
-  status: "ExpScout",
 )
 
 #let r = json("/.artifacts/exp047/numbers.json")

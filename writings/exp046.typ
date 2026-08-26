@@ -1,11 +1,10 @@
 #import "/.demolab/lib.typ": numbers-table, provenance-footer
 
 #let meta = (
-  title: "Near-strict 1-spike-per-cycle ceiling: 98.9% of (cell, cycle) pairs",
+  title: "One Spike per Gamma Cycle",
   date: "2026-06-04",
   description: "Counting E spikes per gamma cycle across exp041's 18 checkpoints shows the architecture is overwhelmingly one-spike-per-cycle.",
   collection: "gamma-gated-sparsity",
-  status: "ExpScout",
 )
 
 

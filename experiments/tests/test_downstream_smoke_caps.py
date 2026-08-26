@@ -116,6 +116,32 @@ def test_exp042_production_inference_uses_publication_subset(
     assert observed[observed.index("--max-samples") + 1] == "1000"
 
 
+def test_exp042_override_file_is_deleted_after_inference(
+    monkeypatch, tmp_path: Path,
+) -> None:
+    train_dir = tmp_path / "cell"
+    train_dir.mkdir()
+    monkeypatch.setattr(exp042, "ARTIFACTS", tmp_path / "derived")
+    monkeypatch.setattr(exp042, "_load_eval", lambda _path: ({"dt": 0.1}, None, None))
+    monkeypatch.setattr(exp042, "_run_baseline", lambda _path: ({}, {}))
+    seen: list[Path] = []
+
+    def fake_build(_rasters, _condition, _generator, _dt, path) -> None:
+        path.write_bytes(b"override")
+
+    def fake_run(_train_dir, path) -> dict:
+        assert path.exists()
+        seen.append(path)
+        return {"best_acc": 90.0, "rates_hz": {}, "n_total": 1000}
+
+    monkeypatch.setattr(exp042, "_build_override_file", fake_build)
+    monkeypatch.setattr(exp042, "_run_with_override", fake_run)
+    exp042.evaluate_condition(train_dir, "phase_shuffled_i", seed_offset=42)
+
+    assert len(seen) == 1
+    assert not seen[0].exists()
+
+
 @pytest.mark.parametrize(
     "module",
     [exp025, exp037, exp038, exp041, exp042, exp044, exp046, exp049],
@@ -133,6 +159,47 @@ def test_smoke_grids_retain_every_writeup_anchor() -> None:
     )
 
 
-def test_exp042_json_output_replaces_nonfinite_fit_values() -> None:
-    value = exp042._json_safe({"r2": float("nan"), "nested": [float("inf"), 1.0]})
-    assert value == {"r2": None, "nested": [None, 1.0]}
+def test_exp042_success_cleanup_keeps_metrics_and_removes_tensor_scratch(
+    monkeypatch, tmp_path: Path,
+) -> None:
+    artifacts = tmp_path / "derived"
+    baseline = artifacts / "baseline" / "cell" / "final"
+    baseline.mkdir(parents=True)
+    (baseline / "metrics.json").write_text("{}\n")
+    np.savez(baseline / "rasters.npz", values=np.zeros(1))
+    ovrun = artifacts / "ovrun" / "condition" / "final"
+    ovrun.mkdir(parents=True)
+    (ovrun / "metrics.json").write_text("{}\n")
+    for name in ("condraster", "override", ".override-tmp"):
+        scratch = artifacts / name
+        scratch.mkdir(parents=True)
+        np.savez(scratch / "scratch.npz", values=np.zeros(1))
+
+    monkeypatch.setattr(exp042, "ARTIFACTS", artifacts)
+    exp042._BASE_CACHE["test"] = ({}, {})
+    exp042._cleanup_successful_intermediates()
+
+    assert (baseline / "metrics.json").exists()
+    assert (ovrun / "metrics.json").exists()
+    assert not (baseline / "rasters.npz").exists()
+    assert not any((artifacts / name).exists() for name in (
+        "condraster", "override", ".override-tmp",
+    ))
+    assert exp042._BASE_CACHE == {}
+
+
+def test_exp042_removed_figures_do_not_survive_skip_training_render(
+    monkeypatch, tmp_path: Path,
+) -> None:
+    figures = tmp_path / "figures"
+    figures.mkdir()
+    obsolete = figures / "xtau_raw_sweeps.svg"
+    retained = figures / "jitter_sweep.svg"
+    obsolete.write_text("old\n")
+    retained.write_text("current\n")
+    monkeypatch.setattr(exp042, "FIGURES", figures)
+
+    exp042._remove_obsolete_outputs()
+
+    assert not obsolete.exists()
+    assert retained.exists()

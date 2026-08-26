@@ -3,7 +3,6 @@
   date: "2026-07-31",
   description: "The first snnlang vertical slice: author a PING network in Python, compile a portable bundle, execute it through tools/snnsim, and retain both the graph and its spike rasters.",
   collection: "snnlang-docs",
-  status: "ExpScout",
   order: 1,
 )
 
