@@ -6,7 +6,7 @@
 )
 
 #let body = [
-  Cloudflare R2 stores selected experiment scratch that is expensive to reproduce, especially trained checkpoint banks under `temp/experiments/`. Git remains the record for source code and published artifacts. R2 is a manual backup, not a live training filesystem.
+  Cloudflare R2 mirrors immutable Pingstore runs that are expensive to reproduce, including trained checkpoint banks under `.pingstore/runs/`. Git remains the source-code record; `.artifacts/` is a materialized publication view.
 
   The supported interface is `experiments/helpers/archive.py`. It stores snapshots at:
 
@@ -51,7 +51,7 @@
   Check the local scratch, then archive it:
 
   ```sh
-  du -sh temp/experiments/exp022
+  du -sh .pingstore/runs/exp022-*
   uv run python experiments/helpers/archive.py archive exp022
   ```
 
@@ -81,7 +81,7 @@
   uv run python experiments/helpers/archive.py restore exp022 <sha>
   ```
 
-  Restore copies into `temp/experiments/exp022/` without deleting unrelated local files. Validate configuration files and load representative checkpoints before using the restored bank.
+  Restore into a hidden incomplete run beneath `.pingstore/runs/`; validate it before atomically publishing the run. Never write restored state into `.artifacts/`.
 
   == Safety rules
 

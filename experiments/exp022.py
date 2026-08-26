@@ -79,7 +79,9 @@ def _display_path(path: Path) -> Path:
 # network-volume mount (/shared/training) so a fan-out writes durable artifacts
 # there instead of an ephemeral pod disk. Local runs use the default and are
 # unaffected. cell_dir / load_cell read through this, so every consumer follows.
-TRAINING_ROOT = runpod.training_root()
+TRAINING_ROOT = Path(os.environ["PINGLAB_TRAINING_ROOT"]) if os.environ.get(
+    "PINGLAB_TRAINING_ROOT"
+) else ARTIFACTS
 SNN_TOOL = REPO / "tools" / "snn" / "tool.py"
 
 EPOCHS_STANDARD = 50
@@ -1034,7 +1036,7 @@ def appendix_rasters() -> None:
     cells = [c for c in CANONICAL_CELLS if c["seed"] == 42]
     rdir = FIGURES / "rasters"
     # Snapshots are pure throwaway (only needed to plot each PNG). Keep them under
-    # the temp/experiments/ namespace and wipe the whole scratch tree at the end,
+    # the run-state namespace and wipe the whole scratch tree at the end,
     # so temp stays minimal — the PNGs in artifacts/ are the durable output.
     scratch_root = ARTIFACTS / "appendix-scratch"
     print(f"appendix: {len(cells)} rasters (seed 42) → {_display_path(rdir)}")

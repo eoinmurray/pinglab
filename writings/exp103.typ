@@ -174,12 +174,12 @@
   # One-time interactive authentication.
   uv run modal setup
 
-  # Confirm the runner's options before dispatch.
-  uv run python experiments/exp073.py --help
+  # Replace <runner> with a runner confirmed to support Modal.
+  uv run python experiments/<runner>.py --help
 
   # Free plan, followed by an explicitly authorised live dispatch.
-  uv run python experiments/exp073.py --modal
-  uv run python experiments/exp073.py --modal --live
+  uv run python experiments/<runner>.py --modal
+  uv run python experiments/<runner>.py --modal --live
   ```
 
   Modal is not a drop-in flag for every experiment. If a runner does not expose `--modal`, adding a backend is implementation work rather than a command-line choice.

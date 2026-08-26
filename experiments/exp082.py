@@ -48,6 +48,7 @@ from helpers.datasets import load_mnist_split  # noqa: E402
 from helpers.paths import (  # noqa: E402
     artifacts_and_figures,
     log_runner_event,
+    run_state_source,
     runner_paths,
 )
 from helpers.run_dirs import (
@@ -65,10 +66,6 @@ CHECKPOINT_ROLE = CHECKPOINT_POLICY["role"]
 RUN_PATHS = runner_paths(SLUG)
 ARTIFACTS, FIGURES = artifacts_and_figures(SLUG)
 SNN_TOOL = REPO / "tools" / "snn" / "tool.py"
-TRAINING_ROOT = Path(
-    os.environ.get("PINGLAB_TRAINING_ROOT", REPO / "temp" / "experiments" / "exp022")
-)
-
 SEEDS = training_run_values("TR-06", "seed")
 SMOKE = os.environ.get("PINGLAB_SMOKE") == "1"
 _TR06_RATE_SETS = training_run_values("TR-06", "input_rates_hz")
@@ -136,7 +133,10 @@ def training_cell_name(seed: int) -> str:
 
 
 def training_dir(seed: int) -> Path:
-    return TRAINING_ROOT / training_cell_name(seed)
+    root = Path(os.environ["PINGLAB_TRAINING_ROOT"]) if os.environ.get(
+        "PINGLAB_TRAINING_ROOT"
+    ) else run_state_source("exp022")
+    return root / training_cell_name(seed)
 
 
 def require_training_bank() -> None:

@@ -16,6 +16,7 @@ from pingstore.native import (
     capture_failed_local_run,
     capture_local_run,
     execution_origin,
+    finalize_local_run,
 )
 
 
@@ -56,14 +57,18 @@ def _staging(tmp_path: Path, run_id: str = "r001") -> Path:
 def test_local_capture_is_flat_complete_and_immutable(tmp_path: Path) -> None:
     repo = _repo(tmp_path)
     staging = _staging(tmp_path)
-    run = capture_local_run(repo, "exp001", staging)
+    state = tmp_path / "state"
+    state.mkdir()
+    (state / "weights.pt").write_bytes(b"weights")
+    run = capture_local_run(repo, "exp001", staging, state=state)
     assert run["run_id"] == "exp001-r001-local"
     root = repo / ".pingstore/runs/exp001-r001-local"
     assert sorted(path.name for path in root.iterdir()) == ["files", "run.json"]
     assert (root / "files/result.svg").read_text() == "<svg/>"
+    assert (root / "files/state/weights.pt").read_bytes() == b"weights"
     assert validate_run(load_json(root / "run.json")) == run
     with pytest.raises(PingstoreError, match="already exists"):
-        capture_local_run(repo, "exp001", staging)
+        capture_local_run(repo, "exp001", staging, state=state)
 
 
 def test_failed_capture_remains_hidden(tmp_path: Path) -> None:
@@ -73,6 +78,36 @@ def test_failed_capture_remains_hidden(tmp_path: Path) -> None:
     assert destination.name.endswith("-local.tmp")
     assert (destination / "files/result.svg").is_file()
     assert not (destination / "run.json").exists()
+
+
+def test_direct_working_run_is_finalized_in_place(tmp_path: Path) -> None:
+    repo = _repo(tmp_path)
+    temporary = repo / ".pingstore/runs/.exp001-r001-local.tmp"
+    files = temporary / "files"
+    files.mkdir(parents=True)
+    (files / "_manifest.json").write_text(
+        json.dumps(
+            {
+                "run_id": "r001",
+                "run_at": "2026-08-26T12:00:00+00:00",
+                "host": "local",
+                "git_sha": "abc123",
+                "scale": {"samples": 2},
+            }
+        )
+    )
+    (files / "state").mkdir()
+    (files / "state/checkpoint.pt").write_bytes(b"weights")
+    (files / "result.svg").write_text("<svg/>")
+
+    run = finalize_local_run(repo, "exp001", temporary)
+
+    destination = repo / ".pingstore/runs/exp001-r001-local"
+    assert not temporary.exists()
+    assert destination.is_dir()
+    assert (destination / "files/state/checkpoint.pt").read_bytes() == b"weights"
+    assert (destination / "files/result.svg").read_text() == "<svg/>"
+    assert load_json(destination / "run.json") == run
 
 
 def test_slurm_origin_contains_cluster_and_job(monkeypatch) -> None:

@@ -743,7 +743,7 @@ def write_numbers(
             "fit": fit,
             # results: keep only the per-cell scalars the writeup reads. The bulky
             # arrays (freqs/psd, and the 14k-element per-trial peak list) live in the
-            # plot cache (temp/experiments/exp041/cache) — dumping them here bloated
+            # plot cache (the run's files/state/cache) — dumping them here bloated
             # numbers.json to ~7 MB for no consumer.
             "results": [
                 {k: v for k, v in r.items()

@@ -1,11 +1,6 @@
 {
-  "digest": "sha256:8bf1d75c77e33318654da37e582fff9c32a9c43fb45cfd2747d1733842a42774",
-  "historical_records": {
-    "exp096": {
-      "collection": "gamma-gated-sparsity",
-      "inventory_digest": "sha256:5e30afc5f5a6ce97f50fed11c160ca4b2eb716da75f8daf32de82e3be5318862"
-    }
-  },
+  "digest": "sha256:dbd8c1355e45c4629c4b172f3407f683f72ce0b07333b1162f830b57f9455fcb",
+  "historical_records": {},
   "schema": "pingstore.materialized-view/v1",
   "selections": {
     "exp022": {
@@ -83,51 +78,6 @@
       "dataset_id": "gamma-gated-sparsity/working",
       "run_id": "ggs-production-composite-20260821-6d9c38eb/exp054"
     },
-    "exp059": {
-      "collection": "spiking-heidelberg-digits",
-      "dataset_id": "spiking-heidelberg-digits/working",
-      "run_id": "exp059/r004"
-    },
-    "exp065": {
-      "collection": "exploratory",
-      "dataset_id": "exploratory/working",
-      "run_id": "exp065/r012"
-    },
-    "exp066": {
-      "collection": "exploratory",
-      "dataset_id": "exploratory/working",
-      "run_id": "exp066/r005"
-    },
-    "exp068": {
-      "collection": "exploratory",
-      "dataset_id": "exploratory/working",
-      "run_id": "exp068/r001"
-    },
-    "exp069": {
-      "collection": "exploratory",
-      "dataset_id": "exploratory/working",
-      "run_id": "exp069/r001"
-    },
-    "exp070": {
-      "collection": "exploratory",
-      "dataset_id": "exploratory/working",
-      "run_id": "exp070/r005"
-    },
-    "exp071": {
-      "collection": "spiking-heidelberg-digits",
-      "dataset_id": "spiking-heidelberg-digits/working",
-      "run_id": "exp071/r006"
-    },
-    "exp072": {
-      "collection": "spiking-heidelberg-digits",
-      "dataset_id": "spiking-heidelberg-digits/working",
-      "run_id": "exp072/r018"
-    },
-    "exp073": {
-      "collection": "spiking-heidelberg-digits",
-      "dataset_id": "spiking-heidelberg-digits/working",
-      "run_id": "exp073/r014"
-    },
     "exp074": {
       "collection": "snnlang-docs",
       "dataset_id": "snnlang-docs/working",
@@ -174,24 +124,19 @@
       "run_id": "exp084/r003"
     },
     "exp085": {
-      "collection": "paper-demonstrations",
-      "dataset_id": "paper-demonstrations/working",
+      "collection": "demo",
+      "dataset_id": "demo/working",
       "run_id": "exp085/r024"
     },
     "exp086": {
-      "collection": "paper-demonstrations",
-      "dataset_id": "paper-demonstrations/working",
+      "collection": "demo",
+      "dataset_id": "demo/working",
       "run_id": "exp086/r001"
     },
     "exp093": {
       "collection": "gamma-gated-sparsity",
       "dataset_id": "gamma-gated-sparsity/working",
       "run_id": "exp093/legacy-ef9ef3efa4e6"
-    },
-    "exp094": {
-      "collection": "gamma-gated-sparsity",
-      "dataset_id": "gamma-gated-sparsity/working",
-      "run_id": "exp094/r005"
     },
     "exp097": {
       "collection": "demo",

@@ -11,14 +11,13 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from .paths import artifacts_and_figures
+from .paths import FIGURES_ROOT
 
 COUNTER_FILE = "_run.txt"
 
 
 def _counter_path(slug: str) -> Path:
-    _state, derived = artifacts_and_figures(slug)
-    return derived / COUNTER_FILE
+    return FIGURES_ROOT / slug / COUNTER_FILE
 
 
 def _read_current(slug: str) -> int:

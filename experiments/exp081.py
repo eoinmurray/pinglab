@@ -31,7 +31,7 @@ from helpers.run_dirs import (
     finalize_prepared_run,  # noqa: E402
     preserve_active_view,  # noqa: E402
 )
-from helpers.run_id import next_run_id, persist  # noqa: E402
+from helpers.run_id import next_run_id  # noqa: E402
 
 SLUG = "exp081"
 ARTIFACTS, FIGURES = artifacts_and_figures(SLUG)
@@ -443,7 +443,7 @@ def main() -> None:
     (FIGURES / "reproducer.json").write_text(
         json.dumps({"command": "uv run python experiments/exp081.py"}, indent=2) + "\n"
     )
-    persist(SLUG, run_id)
+    (FIGURES / "_run.txt").write_text(f"{int(run_id.lstrip('r'))}\n")
     print("exp081 complete", flush=True)
     finalize_prepared_run(SLUG, run_id)
 

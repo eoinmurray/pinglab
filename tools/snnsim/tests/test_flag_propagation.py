@@ -524,8 +524,8 @@ def test_trainable_w_flags_propagate_through_cli(tmp_path):
 def test_w_ee_init_and_trainable_flag_propagate_through_train_cli(tmp_path):
     """--w-ee must reach train/build_net, not just the parser.
 
-    exp073 depends on this exact path: Dale-constrained W_EE is nonzero at
-    initialisation and trainable under --trainable-w-ee.
+    This supports Dale-constrained networks whose W_EE is nonzero at
+    initialisation and remains trainable under --trainable-w-ee.
     """
     out = tmp_path / "wee"
     _train_probe(out, "--w-ee", "0.3", "0.01", "--trainable-w-ee")

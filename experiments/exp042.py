@@ -66,6 +66,7 @@ from helpers.operating_point import (  # noqa: E402
     MODELS_DEFAULT_TAU_GABA_MS,
 )
 from helpers.paths import (  # noqa: E402
+    FIGURES_ROOT,
     artifacts_and_figures,
     log_runner_event,
     runner_paths,
@@ -131,7 +132,7 @@ MIX_K_GRID: tuple[float, ...] = (0.25, 0.5, 1.0, 2.0, 4.0)
 # cell's own 1/f_γ. Outputs xtau_raw_sweeps, xtau_dimensional_collapse,
 # xtau_inflection_vs_period.
 NB041_ARTIFACTS = TRAINING_ROOT
-NB041_NUMBERS = FIGURES.parent / "exp041" / "numbers.json"
+NB041_NUMBERS = FIGURES_ROOT / "exp041" / "numbers.json"
 XTAU_TAU_GABAS_MS: tuple[float, ...] = training_run_values("TR-03", "tau_gaba")
 XTAU_SEEDS: tuple[int, ...] = training_run_values("TR-03", "seed")
 XTAU_SIGMAS_MS: tuple[float, ...] = (

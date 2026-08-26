@@ -37,7 +37,7 @@ from helpers import theme  # noqa: E402
 from helpers.cli import replot_target  # noqa: E402
 from helpers.datasets import load_mnist_split  # noqa: E402
 from helpers.figsave import save_figure  # noqa: E402
-from helpers.paths import artifacts_and_figures  # noqa: E402
+from helpers.paths import artifacts_and_figures, run_state_source  # noqa: E402
 from helpers.run_dirs import (
     finalize_prepared_run,  # noqa: E402
     preserve_active_view,  # noqa: E402
@@ -60,12 +60,10 @@ def baseline_dir(seed: int) -> Path:
     # θ_u = off PING baseline now lives in the shared training root (exp022
     # train-once / reuse-many), not the retired per-notebook exp025 dir.
     return (
-        REPO / "temp" / "experiments" / "exp022"
+        run_state_source("exp022")
         / f"ping__off__seed{seed}"
     )
 
-
-NB025_BASELINE: Path = baseline_dir(SEEDS[0])
 
 # Architecture constants for inference (must match exp025's trained config).
 N_E: int = 1024
@@ -96,7 +94,7 @@ RATE_GRID_HZ: list[float] = [5.0, 10.0, 25.0, 50.0, 100.0, 200.0]
 LOW_RATE_HZ: list[float] = [0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0, 2.0, 3.0]
 LOW_RATE_STREAMS: int = 10
 LOW_RATE_DIGITS_PER_STREAM: int = 10
-LOW_RATE_CACHE_ROOT = REPO / "temp" / "experiments" / SLUG / "low_rate"
+LOW_RATE_CACHE_ROOT = ARTIFACTS / "low_rate"
 
 # Varying-stream headline — per-segment (τ_ms, input_rate_hz). Spans a
 # wide drive × duration range to show the trained network is robust to
@@ -1124,23 +1122,10 @@ def main() -> None:
             raise SystemExit("--replot grid: cached numbers.json has no grid_sweep_agg.")
         psychometric = data.get("encoding_rate_psychometric", {})
         if not psychometric:
-            source_data = json.loads(
-                (REPO / "artifacts" / "data" / "exp065" / "numbers.json").read_text()
+            raise SystemExit(
+                "--replot grid: cached numbers.json has no "
+                "encoding_rate_psychometric; rerun exp048."
             )
-            old = source_data["ping_rate"]
-            low_aggregate = [{**row, "source": "exp048 low-rate sweep"}
-                             for row in old["curve"] if row["source"] == "exp065"]
-            psychometric = {
-                "presentation_ms": TRAINED_T_MS, "trained_rate_hz": INPUT_RATE_HZ,
-                "new_rates_hz": LOW_RATE_HZ,
-                "new_streams_per_seed": LOW_RATE_STREAMS,
-                "digits_per_stream": LOW_RATE_DIGITS_PER_STREAM,
-                "per_seed_new_cells": old["per_seed_new_cells"],
-                "curve": rate_curve(grid_agg, low_aggregate),
-                "migration_source": "exp065 initial computation",
-            }
-            data["encoding_rate_psychometric"] = psychometric
-            cached.write_text(json.dumps(data, indent=2) + "\n")
         psychometric_curve = psychometric["curve"]
         assert isinstance(psychometric_curve, list)
         plot_grid_and_rate(

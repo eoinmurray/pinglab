@@ -42,6 +42,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from helpers import theme  # noqa: E402
 from helpers.operating_point import TAU_GABA_GAMMA_MS  # noqa: E402
 from helpers.paths import (  # noqa: E402
+    FIGURES_ROOT,
     artifacts_and_figures,
     log_runner_event,
     runner_paths,
@@ -50,6 +51,7 @@ from helpers.run_dirs import (
     finalize_prepared_run,  # noqa: E402
     preserve_active_view,  # noqa: E402
 )
+from helpers.run_id import next_run_id  # noqa: E402
 from helpers.stamp import stamp_figure  # noqa: E402
 
 SLUG = "exp033"
@@ -426,7 +428,7 @@ def plot_limit_cycle(hopf, out_path, run_id, offset=0.4, sigma=SIGMA_V_MV):
 
 def load_exp041_fgamma():
     collection_root = os.environ.get("PINGLAB_COLLECTION_DERIVED_ROOT")
-    root = Path(collection_root) if collection_root else FIGURES.parent
+    root = Path(collection_root) if collection_root else FIGURES_ROOT
     p = root / "exp041" / "numbers.json"
     if not p.exists():
         return {}
@@ -912,7 +914,8 @@ def plot_sigma_sensitivity(sensitivity, out_path, run_id):
 @preserve_active_view(SLUG)
 def main() -> None:
     FIGURES.mkdir(parents=True, exist_ok=True)
-    run_id = "exp033-numerics"
+    run_id = next_run_id(SLUG)
+    (FIGURES / "_run.txt").write_text(f"{int(run_id.lstrip('r'))}\n")
     log_runner_event(SLUG, "started", run_id=run_id)
 
     print(f"[{SLUG}] sweeping I_ext (nA) for the reference 4D reduction "

@@ -1,7 +1,7 @@
 """Ad-hoc, provenance-keyed backup of a run's scratch to Cloudflare R2.
 
 The expensive, irreplaceable-cheaply inputs a run produces — most of all the
-exp022 weight bank — live only under `temp/experiments/<slug>/` (gitignored) and
+exp022 weight bank — retained under the active immutable Pingstore run and
 on the mutable RunPod network volume. Git protects the *derived* published
 figures, not these *sources*. This is a deliberately manual tool: you decide
 which runs matter and archive them by hand, rather than backing up everything
@@ -47,8 +47,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[2]
-ARTIFACTS_ROOT = REPO / "temp" / "experiments"      # per-run scratch (gitignored)
-PUBLISHED_ROOT = REPO / "artifacts" / "data"        # per-run figures + _manifest.json
+ARTIFACTS_ROOT = REPO / ".pingstore" / "runs"
+PUBLISHED_ROOT = REPO / ".artifacts"
 
 REMOTE = os.environ.get("PINGLAB_R2_REMOTE", "r2")
 BUCKET = os.environ.get("PINGLAB_R2_BUCKET", "pinglab")
@@ -97,7 +97,9 @@ def _remote_dir_exists(path: str) -> bool:
 def _producing_sha(slug: str) -> str:
     """The commit that produced <slug>'s scratch: the modal git_sha across its
     config.json sidecars, else the published _manifest.json, else HEAD."""
-    src = ARTIFACTS_ROOT / slug
+    from experiments.helpers.paths import active_run_state
+
+    src = active_run_state(slug)
     shas: Counter[str] = Counter()
     for cfg in src.rglob("config.json"):
         try:
@@ -189,7 +191,9 @@ def _human(n: int) -> str:
 # ── Commands ─────────────────────────────────────────────────────────
 
 def cmd_archive(slug: str) -> None:
-    src = ARTIFACTS_ROOT / slug
+    from experiments.helpers.paths import active_run_state
+
+    src = active_run_state(slug)
     if not src.is_dir() or not any(src.iterdir()):
         raise SystemExit(f"nothing to archive: {src.relative_to(REPO)} is missing or empty.")
 
@@ -213,7 +217,7 @@ def cmd_archive(slug: str) -> None:
         "n_files": n_files,
         "size_bytes": size,
         "size_human": _human(size),
-        "source": f"temp/experiments/{slug}",
+        "source": str(src.relative_to(REPO)),
         "restore": f"uv run python experiments/helpers/archive.py restore {slug} {sha}",
     }
     mpath = src.parent / f"._{slug}_{sha}_manifest.json"
@@ -318,7 +322,7 @@ def cmd_restore(slug: str, sha: str | None) -> None:
     dest = _dest(slug, sha)
     if not _remote_dir_exists(dest):
         raise SystemExit(f"no snapshot at {dest} — run `list {slug}` to see what exists.")
-    local = ARTIFACTS_ROOT / slug
+    local = ARTIFACTS_ROOT / f".{slug}-restored-{sha}-r2.tmp" / "files" / "state"
     local.mkdir(parents=True, exist_ok=True)
     print(f"restoring {dest}  →  {local.relative_to(REPO)}  [sha {sha}]")
     _rclone(["copy", dest, str(local), "--exclude", MANIFEST,
@@ -346,13 +350,13 @@ def main() -> None:
     ap = argparse.ArgumentParser(
         description="Ad-hoc provenance-keyed backup of a run's scratch to R2.")
     sub = ap.add_subparsers(dest="cmd", required=True)
-    a = sub.add_parser("archive", help="back up temp/experiments/<slug> to R2")
+    a = sub.add_parser("archive", help="back up the active Pingstore run state to R2")
     a.add_argument("slug")
     ac = sub.add_parser("archive-campaign", help="archive the exact verified exp022 campaign bank")
     ac.add_argument("manifest", type=Path)
     ls = sub.add_parser("list", help="list a slug's snapshots on R2")
     ls.add_argument("slug")
-    r = sub.add_parser("restore", help="pull a snapshot back to temp/experiments/<slug>")
+    r = sub.add_parser("restore", help="pull a snapshot into a hidden Pingstore run")
     r.add_argument("slug")
     r.add_argument("sha", nargs="?", default=None, help="snapshot sha (default: latest)")
     rc = sub.add_parser("restore-campaign", help="restore a campaign snapshot separately")

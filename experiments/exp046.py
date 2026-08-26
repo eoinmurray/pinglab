@@ -48,8 +48,10 @@ from helpers.datasets import MNIST_REDUCED_EVAL_SAMPLES  # noqa: E402
 from helpers.figsave import save_figure  # noqa: E402
 from helpers.operating_point import MODELS_DEFAULT_TAU_GABA_MS  # noqa: E402
 from helpers.paths import (  # noqa: E402
+    FIGURES_ROOT,
     artifacts_and_figures,
     log_runner_event,
+    run_state_source,
     runner_paths,
 )
 from helpers.run_dirs import (
@@ -72,10 +74,7 @@ EVAL_MAX_SAMPLES = 100 if SMOKE else MNIST_REDUCED_EVAL_SAMPLES
 
 # τ_GABA sweep cells now live in the shared training root (exp022
 # train-once / reuse-many), not the retired per-notebook exp041 dir.
-NB041_ARTIFACTS = Path(
-    os.environ.get("PINGLAB_TRAINING_ROOT", REPO / "temp" / "experiments" / "exp022")
-)
-NB041_NUMBERS = FIGURES.parent / "exp041" / "numbers.json"
+NB041_NUMBERS = FIGURES_ROOT / "exp041" / "numbers.json"
 
 TAU_GABA_SWEEP_MS: tuple[float, ...] = training_run_values("TR-03", "tau_gaba")
 SEEDS: tuple[int, ...] = training_run_values("TR-03", "seed")
@@ -97,7 +96,10 @@ def tau_label(tau_ms: float) -> str:
 
 def exp041_cell_dir(tau_ms: float, seed: int) -> Path:
     cell = training_run_cell("TR-03", tau_gaba=tau_ms, seed=seed)
-    return NB041_ARTIFACTS / cell["name"]
+    root = Path(os.environ["PINGLAB_TRAINING_ROOT"]) if os.environ.get(
+        "PINGLAB_TRAINING_ROOT"
+    ) else run_state_source("exp022")
+    return root / cell["name"]
 
 
 def load_exp041_f_gamma() -> dict[tuple[float, int], float]:

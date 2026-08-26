@@ -13,20 +13,14 @@ index:
   mode: expanded
   recent: 5
 
-collection-order: [gamma-gated-sparsity, spiking-heidelberg-digits, paper-demonstrations, demo, documentation, literature, exploratory, weekly-feed]
+collection-order: [gamma-gated-sparsity, demo, documentation, literature, weekly-feed]
 collections:
   gamma-gated-sparsity:
     label: Gamma-gated sparsity
     description: PING E/I networks trained with surrogate gradients; what sets the rate, the rhythm, and the sparsity.
-  spiking-heidelberg-digits:
-    label: Spiking Heidelberg Digits
-    description: Training the PING E/I network on the SHD event-based audio benchmark — from raw cochlear spikes to spoken-digit classification.
-  paper-demonstrations:
-    label: Paper Demonstrations
-    description: Approachable, model-based demonstrations of published results in computational neuroscience.
   demo:
     label: Demo
-    description: Executable demonstrations of Pinglab models and tools.
+    description: Executable demonstrations of Pinglab models, tools, and published computational-neuroscience results.
   documentation:
     label: Documentation
     description: Developer documentation for Pinglab's models, tools, conventions, and SNNLANG.
@@ -45,6 +39,3 @@ collections:
   snnviz-docs:
     label: SNNVIZ
     description: Visualisation components and usage guides for SNNVIZ.
-  exploratory:
-    label: Exploratory
-    description: Exploratory studies and supporting research.

@@ -96,17 +96,27 @@ PLUMBING_RUNTIME_S = 2400
 def training_root() -> Path:
     """The exp022 weight bank: PINGLAB_TRAINING_ROOT on a pod (/shared/training),
     else the local scratch default. cell_dir / load_cell read through this."""
-    return Path(os.environ.get(
-        "PINGLAB_TRAINING_ROOT",
-        str(REPO / "temp" / "experiments" / "exp022"),
-    ))
+    override = os.environ.get("PINGLAB_TRAINING_ROOT")
+    if override:
+        return Path(override)
+    from .paths import active_run_state
+    try:
+        return active_run_state("exp022")
+    except (FileNotFoundError, RuntimeError):
+        from .paths import runner_paths
+
+        return runner_paths("exp022").state
 
 
 def artifacts_scratch(slug: str) -> Path:
     """A runner's infer scratch: PINGLAB_ARTIFACTS_ROOT on a pod
-    (/shared/artifacts/<slug>), else local temp/experiments/<slug>."""
+    (/shared/artifacts/<slug>), else the current hidden Pingstore run."""
     override = os.environ.get("PINGLAB_ARTIFACTS_ROOT")
-    return Path(override) if override else REPO / "temp" / "experiments" / slug
+    if override:
+        return Path(override)
+    from .paths import runner_paths
+
+    return runner_paths(slug).state
 
 
 def _sh(cmd: list[str], timeout: float | None = None, check: bool = True) -> str:

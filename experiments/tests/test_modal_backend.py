@@ -10,7 +10,7 @@ from experiments.helpers.cli import parse_meta
 
 def test_modal_meta_flag_parses_for_dispatch_runner():
     meta = parse_meta(
-        ["exp073.py", "--modal", "--live", "--only-cells", "ping"],
+        ["exp999.py", "--modal", "--live", "--only-cells", "ping"],
         allow_dispatch=True,
     )
     assert meta.modal is True

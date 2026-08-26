@@ -20,7 +20,7 @@
   title: "Lowet 2017",
   date: "2026-08-19",
   description: "Reduce coupling at fixed detuning and test whether two PING networks develop cortical-like intermittent phase attraction.",
-  collection: "paper-demonstrations",
+  collection: "demo",
   status: "ExpScout",
   order: 2,
 )

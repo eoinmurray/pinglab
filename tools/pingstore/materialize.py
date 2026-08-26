@@ -17,8 +17,11 @@ from .contracts import (
 RAW_DATA_SUFFIXES = {".h5", ".hdf5", ".npy", ".npz", ".pt", ".pth"}
 
 
-def _ignore(_directory: str, names: list[str]) -> set[str]:
-    return {name for name in names if Path(name).suffix.lower() in RAW_DATA_SUFFIXES}
+def _ignore(directory: str, names: list[str]) -> set[str]:
+    ignored = {name for name in names if Path(name).suffix.lower() in RAW_DATA_SUFFIXES}
+    if Path(directory).name == "files":
+        ignored.add("state")
+    return ignored
 
 
 def _replace_tree(source: Path, destination: Path) -> None:

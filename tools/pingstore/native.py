@@ -50,7 +50,12 @@ def _manifest(staging: Path) -> dict:
 
 
 def capture_local_run(
-    repo: Path, experiment: str, staging: Path, *, root: Path | None = None
+    repo: Path,
+    experiment: str,
+    staging: Path,
+    *,
+    state: Path | None = None,
+    root: Path | None = None,
 ) -> dict:
     """Copy a successful result into a flat immutable run directory."""
     repo = repo.resolve()
@@ -72,6 +77,8 @@ def capture_local_run(
     files.parent.mkdir(parents=True, exist_ok=False)
     try:
         shutil.copytree(staging, files)
+        if state is not None and state.exists():
+            shutil.copytree(state, files / "state")
         inventory = inventory_payload(files, run_id=run_id)
         completed = datetime.now(timezone.utc).isoformat(timespec="seconds")
         run = {
@@ -104,8 +111,60 @@ def capture_local_run(
         raise
 
 
+def finalize_local_run(repo: Path, experiment: str, temporary: Path) -> dict:
+    """Finalize a run whose files were written directly in its hidden root."""
+    repo = repo.resolve()
+    files = temporary / "files"
+    manifest = _manifest(files)
+    identity = manifest.get("run_id")
+    if not isinstance(identity, str) or not identity:
+        raise PingstoreError("cannot finalize run: manifest run_id is missing")
+    collection = memberships(repo).get(experiment)
+    if collection is None:
+        raise PingstoreError(f"cannot finalize {experiment}: collection is missing")
+    origin = execution_origin(manifest.get("host"))
+    run_id = make_run_id(experiment, identity, origin)
+    destination = run_root(repo / ".pingstore", run_id)
+    expected = destination.with_name("." + destination.name + ".tmp")
+    if temporary.resolve() != expected.resolve():
+        raise PingstoreError(f"working run must be {expected}")
+    if destination.exists():
+        raise PingstoreError(f"run already exists: {run_id}")
+    inventory = inventory_payload(files, run_id=run_id)
+    completed = datetime.now(timezone.utc).isoformat(timespec="seconds")
+    run = {
+        "schema": RUN_SCHEMA,
+        "run_id": run_id,
+        "experiment": experiment,
+        "collection": collection,
+        "origin": origin,
+        "created_at": manifest.get("run_at") or completed,
+        "execution": {
+            "command": ["uv", "run", "python", f"experiments/{experiment}.py"],
+            "configuration": manifest.get("scale"),
+            "completed_at": completed,
+        },
+        "provenance": {
+            "git_commit": manifest.get("git_sha"),
+            "dirty": manifest.get("dirty"),
+            "code_dirty": manifest.get("code_dirty"),
+            "dirty_patch": manifest.get("patch"),
+        },
+        "files_digest": "sha256:" + inventory["payload_digest"],
+    }
+    validate_run(run)
+    write_json_atomic(temporary / "run.json", run)
+    os.rename(temporary, destination)
+    return run
+
+
 def capture_failed_local_run(
-    repo: Path, experiment: str, staging: Path, *, root: Path | None = None
+    repo: Path,
+    experiment: str,
+    staging: Path,
+    *,
+    state: Path | None = None,
+    root: Path | None = None,
 ) -> Path:
     """Retain an incomplete result as a hidden folder."""
     manifest = _manifest(staging)
@@ -119,6 +178,8 @@ def capture_failed_local_run(
         raise PingstoreError(f"incomplete run already exists: {destination.name}")
     destination.parent.mkdir(parents=True, exist_ok=True)
     shutil.copytree(staging, destination / "files")
+    if state is not None and state.exists():
+        shutil.copytree(state, destination / "files" / "state")
     return destination
 
 
@@ -141,6 +202,10 @@ def capture_campaign_metadata(root: Path, plan: dict) -> dict:
             files = temporary / "files"
             files.parent.mkdir(parents=True, exist_ok=False)
             shutil.copytree(source, files)
+            state_value = row["paths"].get("state")
+            state = Path(state_value) if state_value else None
+            if state is not None and state.exists():
+                shutil.copytree(state, files / "state")
             inventory = inventory_payload(files, run_id=run_id)
             run = {
                 "schema": RUN_SCHEMA,

@@ -16,15 +16,6 @@
     "exp048": "gamma-gated-sparsity",
     "exp049": "gamma-gated-sparsity",
     "exp054": "gamma-gated-sparsity",
-    "exp059": "spiking-heidelberg-digits",
-    "exp065": "exploratory",
-    "exp066": "exploratory",
-    "exp068": "exploratory",
-    "exp069": "exploratory",
-    "exp070": "exploratory",
-    "exp071": "spiking-heidelberg-digits",
-    "exp072": "spiking-heidelberg-digits",
-    "exp073": "spiking-heidelberg-digits",
     "exp074": "snnlang-docs",
     "exp075": "snnlang-docs",
     "exp076": "snnlang-docs",
@@ -34,10 +25,9 @@
     "exp082": "gamma-gated-sparsity",
     "exp083": "demo",
     "exp084": "demo",
-    "exp085": "paper-demonstrations",
-    "exp086": "paper-demonstrations",
+    "exp085": "demo",
+    "exp086": "demo",
     "exp093": "gamma-gated-sparsity",
-    "exp094": "gamma-gated-sparsity",
     "exp097": "demo",
     "exp099": "demo"
   },
@@ -46,10 +36,15 @@
       "disposition": "removed-and-pruned",
       "evidence": "The experiment was removed in commit 6bc83e96; its final ignored local residue and Pingstore legacy reference were explicitly pruned on 2026-08-24."
     },
+    "exp094": {
+      "collection": "gamma-gated-sparsity",
+      "disposition": "removed-and-pruned",
+      "evidence": "The runnable code, test, writing, local materialized payload, and generated site outputs were removed on 2026-08-26 after the archived exp094/r005 payload was independently verified in R2."
+    },
     "exp096": {
       "collection": "gamma-gated-sparsity",
-      "disposition": "artifact-only",
-      "evidence": "Current writing and schematic artifact payload exist without a runnable experiment script."
+      "disposition": "removed-and-pruned",
+      "evidence": "The unrun writing, schematic artifact payload, and generated site outputs were removed on 2026-08-26; no runnable experiment script or completed run existed."
     }
   }
 }

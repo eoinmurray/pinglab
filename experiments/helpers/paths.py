@@ -1,10 +1,11 @@
 """Canonical artifact + figure directories for a notebook slug.
 
-Every runner writes scratch simulation artifacts (npz, weights, logs) under
-`temp/experiments/<slug>/` (gitignored) and frozen figures + numbers.json
-under `.artifacts/<slug>/` — the demolab published-data layout the Typst
-writings read from. `artifacts_and_figures(slug)` returns that pair so individual
-runners don't re-spell the paths.
+Direct runners write all state and derived output into the hidden Pingstore run
+being assembled at `.pingstore/runs/.<run-id>.tmp/`. State lives beneath
+`files/state/`; derived output lives directly beneath `files/`. On completion
+the hidden directory receives `run.json` and is atomically renamed to its
+immutable visible run ID. `.artifacts/<slug>/` is only a materialized publication
+view consumed by Typst.
 
 (The figure root used to be the Astro site's `src/docs/public/figures/notebooks/`;
 it moved to `.artifacts/` when the site migrated to Typst.)
@@ -17,11 +18,11 @@ import os
 from dataclasses import dataclass
 from pathlib import Path
 
+from pingstore.native import execution_origin, make_run_id
+
 REPO = Path(__file__).resolve().parents[2]
-# Per-experiment scratch lives under temp/experiments/<slug> ("notebooks" is the
-# deprecated name for this root — everything is an experiment now).
-ARTIFACTS_ROOT = REPO / "temp" / "experiments"
 FIGURES_ROOT = REPO / ".artifacts"
+RUNS_ROOT = REPO / ".pingstore" / "runs"
 
 STATE_ENV = "PINGLAB_RUN_STATE_DIR"
 DERIVED_ENV = "PINGLAB_RUN_DERIVED_DIR"
@@ -89,11 +90,17 @@ def runner_paths(slug: str) -> RunnerPaths:
         raise RuntimeError(
             f"{REQUIRE_ISOLATED_ENV}=1 requires {STATE_ENV}, {DERIVED_ENV}, and {LOG_ENV}"
         )
-    state = ARTIFACTS_ROOT / slug
+    counter = FIGURES_ROOT / slug / "_run.txt"
+    try:
+        identity = f"r{int(counter.read_text().strip()) + 1:03d}"
+    except (FileNotFoundError, ValueError):
+        identity = "r001"
+    run_id = make_run_id(slug, identity, execution_origin())
+    temporary = RUNS_ROOT / f".{run_id}.tmp" / "files"
     return RunnerPaths(
-        state=state,
-        derived=FIGURES_ROOT / slug,
-        logs=state / "logs",
+        state=temporary / "state",
+        derived=temporary,
+        logs=temporary / "state" / "logs",
         isolated=False,
     )
 
@@ -102,6 +109,34 @@ def artifacts_and_figures(slug: str) -> tuple[Path, Path]:
     """Return (artifacts_dir, figures_dir) for a notebook slug (e.g. "nb024")."""
     paths = runner_paths(slug)
     return paths.state, paths.derived
+
+
+def active_run_state(slug: str) -> Path:
+    """Return the immutable state directory backing the active artifact view."""
+    active_manifest = FIGURES_ROOT / slug / "_manifest.json"
+    if not active_manifest.is_file():
+        raise FileNotFoundError(f"no active Pingstore run for {slug}")
+    manifest_text = active_manifest.read_text()
+    identity = json.loads(manifest_text).get("run_id")
+    if not isinstance(identity, str) or not identity:
+        raise RuntimeError(f"active manifest for {slug} has no run_id")
+    matches = []
+    for candidate in RUNS_ROOT.glob(f"{slug}-{identity}-*"):
+        stored_manifest = candidate / "files" / "_manifest.json"
+        if (candidate / "run.json").is_file() and stored_manifest.is_file():
+            if stored_manifest.read_text() == manifest_text:
+                matches.append(candidate / "files" / "state")
+    if len(matches) != 1:
+        raise RuntimeError(f"cannot resolve active Pingstore state for {slug}")
+    return matches[0]
+
+
+def run_state_source(slug: str) -> Path:
+    """Resolve active state, or a non-existent current-run path for dry inspection."""
+    try:
+        return active_run_state(slug)
+    except (FileNotFoundError, RuntimeError):
+        return runner_paths(slug).state
 
 
 def log_runner_event(slug: str, event: str, **fields: object) -> None:

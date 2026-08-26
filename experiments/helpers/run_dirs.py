@@ -1,15 +1,10 @@
-"""Prepare a notebook's artifact + figure directories at the start of a run.
+"""Build experiments directly inside hidden Pingstore run directories.
 
-Wipes the per-notebook artifact/figure dirs (unless the runner was given
---no-wipe-dir), recreates them, persists the run-id counter so it survives
-the wipe, and stamps the run-provenance manifest (helpers.provenance). This
-is the boilerplate every runner does between parsing args and the first
-training cell.
-
-`skip_training=True` keeps the existing artifacts (only the figures dir is
-wiped) so figures can be re-rendered from cached sim output. `make_artifacts`
-controls whether the artifacts dir is (re)created — runners that only read
-another notebook's artifacts leave it False.
+Local runners write state, logs, intermediates, and derived output beneath
+`.pingstore/runs/.<run-id>.tmp/files/`. Completion writes `run.json` and
+atomically exposes the immutable run; failure leaves the hidden run intact for
+post-mortem inspection. `.artifacts/` is refreshed afterward only as a filtered
+publication view.
 
 `scale` is the runner's declared run scale (max_samples, epochs, t_ms, ...),
 stamped into the manifest and rendered as the entry's Methods table. Optional
@@ -17,9 +12,8 @@ only until the tier-retirement sweep migrates every runner; it then becomes
 required for training notebooks. `host` records where the training cells run
 ("local"; cloud fan-outs run under the RunPod backend, see helpers/runpod.py).
 
-Note the manifest describes THIS invocation: on a --skip-training re-render
-the figures are fresh but the artifacts they were drawn from may predate the
-recorded sha (upstream staleness is a planned phase-2 check).
+Skip-training and plot-only runs seed their hidden run from the active immutable
+run rather than from shared mutable scratch.
 """
 
 from __future__ import annotations
@@ -30,12 +24,21 @@ import os
 import shutil
 
 from pingstore.materialize import materialize_run
-from pingstore.native import capture_failed_local_run, capture_local_run
+from pingstore.native import (
+    execution_origin,
+    finalize_local_run,
+    make_run_id,
+)
 
-from .paths import FIGURES_ROOT, REPO, artifacts_and_figures, runner_paths
+from .paths import (
+    FIGURES_ROOT,
+    REPO,
+    active_run_state,
+    artifacts_and_figures,
+    runner_paths,
+)
 from .provenance import write_manifest
 from .run_id import COUNTER_FILE
-from .run_id import persist as persist_run_id
 
 
 def _display_path(path):
@@ -55,46 +58,69 @@ def prepare(
     scale: dict | None = None,
     host: str = "local",
 ):
-    """Wipe (optional) + recreate the slug's dirs, persist run id + manifest.
+    """Create the run's state and derived paths and write its manifest.
 
     Returns (artifacts_dir, figures_dir).
     """
-    artifacts, figures = artifacts_and_figures(slug)
-    if wipe:
-        # A full run wipes the whole artifacts (cached sim output) dir; skip
-        # training keeps it. The FIGURES dir is refreshed by removing only its
-        # top-level FILES — auxiliary SUBDIRECTORIES (e.g. exp022's rasters/,
-        # produced by a separate `--plot-only appendix-rasters` pass and
-        # expensive to rebuild) are preserved, so a figure refresh never silently
-        # nukes them.
-        if not skip_training and artifacts.exists():
-            print(f"[wipe] {_display_path(artifacts)}")
-            shutil.rmtree(artifacts)
-        if figures.exists():
-            print(f"[wipe] {_display_path(figures)} (top-level files; subdirs kept)")
-            for p in figures.iterdir():
-                if p.is_file():
-                    p.unlink()
-    if make_artifacts:
-        artifacts.mkdir(parents=True, exist_ok=True)
-    figures.mkdir(parents=True, exist_ok=True)
-    persist_run_id(slug, run_id)
-    write_manifest(figures, slug=slug, run_id=run_id, scale=scale, host=host)
-    return artifacts, figures
+    if runner_paths(slug).isolated:
+        artifacts, figures = artifacts_and_figures(slug)
+        if make_artifacts:
+            artifacts.mkdir(parents=True, exist_ok=True)
+        figures.mkdir(parents=True, exist_ok=True)
+        write_manifest(figures, slug=slug, run_id=run_id, scale=scale, host=host)
+        return artifacts, figures
+    return _prepare_local_working_run(
+        slug,
+        run_id,
+        make_artifacts=make_artifacts,
+        scale=scale,
+        host=host,
+        seed_previous=skip_training,
+    )
 
 
-# ── Atomic-publish API (the standard; supersedes wipe-at-start `prepare`) ──
-# A run writes into a STAGING dir; the published dir is swapped in only when the
-# run completes. A failed run never touches the published dir and keeps its
-# staging dir for post-mortem. This replaces the destructive rmtree-at-start:
-# old data stays visible during a long run, and a crash loses nothing published.
-#
-# `prepare` above is retained only for runners not yet migrated (e.g. exp037).
+# Isolated collection execution retains explicit paths until its orchestration
+# layer captures them. Direct runners use the hidden run path assembled below.
 
 
 def _staging_dir(figures):
     """Sibling of the published figures dir (same filesystem → atomic rename)."""
     return figures.parent / f"{figures.name}.staging"
+
+
+def _prepare_local_working_run(
+    slug: str,
+    run_id: str,
+    *,
+    make_artifacts: bool,
+    scale: dict | None,
+    host: str,
+    seed_previous: bool,
+    seed_derived: bool = False,
+):
+    full_run_id = make_run_id(slug, run_id, execution_origin(host))
+    temporary = REPO / ".pingstore" / "runs" / f".{full_run_id}.tmp"
+    files = temporary / "files"
+    if (files / "_manifest.json").exists() or (temporary / "run.json").exists():
+        raise RuntimeError(f"incomplete run already exists: {temporary}")
+    state = files / "state"
+    files.mkdir(parents=True, exist_ok=True)
+    active = FIGURES_ROOT / slug
+    if seed_derived and active.is_dir():
+        shutil.copytree(active, files, dirs_exist_ok=True)
+    if seed_previous and (active / "_manifest.json").is_file():
+        try:
+            previous_state = active_run_state(slug)
+        except (FileNotFoundError, RuntimeError):
+            previous_state = None
+        if previous_state is not None and previous_state.is_dir():
+            shutil.copytree(previous_state, state, dirs_exist_ok=True)
+    if make_artifacts:
+        state.mkdir(parents=True, exist_ok=True)
+    if run_id.startswith("r"):
+        (files / COUNTER_FILE).write_text(f"{int(run_id.lstrip('r'))}\n")
+    write_manifest(files, slug=slug, run_id=run_id, scale=scale, host=host)
+    return state, files
 
 
 def prepare_staged(
@@ -107,15 +133,17 @@ def prepare_staged(
     host: str = "local",
     plot_only: bool = False,
 ):
-    """Set up a staged run. Returns (artifacts_dir, staging_figures_dir).
-
-    The runner writes ALL figures + numbers.json into the returned staging dir;
-    `publish` swaps it into place on success. The artifacts (scratch/cache) dir
-    is created but NOT wiped — expensive weights survive across runs; resume is
-    the runner's job (e.g. --only-missing). For `plot_only`, the current
-    published figures are copied into staging first so redrawing one figure does
-    not drop the others.
-    """
+    """Return state and derived paths inside this run's hidden directory."""
+    if not runner_paths(slug).isolated:
+        return _prepare_local_working_run(
+            slug,
+            run_id,
+            make_artifacts=make_artifacts,
+            scale=scale,
+            host=host,
+            seed_previous=True,
+            seed_derived=plot_only,
+        )
     artifacts, figures = artifacts_and_figures(slug)
     staging = _staging_dir(figures)
     if staging.exists():
@@ -159,34 +187,16 @@ def finalize_prepared_run(
     scale: dict | None = None,
     host: str = "local",
 ):
-    """Capture a successful legacy ``prepare`` run in immutable Pingstore.
-
-    Legacy runners write directly to the active artifact directory. They call
-    this exactly once, after their final result has been written. New runners
-    should use :func:`published_run`, which also keeps the active view atomic.
-    """
+    """Finalize a legacy runner that wrote directly into its hidden run."""
     if runner_paths(slug).isolated:
         return None
     _artifacts, figures = artifacts_and_figures(slug)
     manifest = figures / "_manifest.json"
     if not manifest.is_file():
         write_manifest(figures, slug=slug, run_id=run_id, scale=scale, host=host)
-    run = _capture_local_result(slug, figures)
+    run = finalize_local_run(REPO, slug, figures.parent)
     _materialize_result(run)
-    return figures
-
-
-def _capture_local_result(slug: str, source) -> dict:
-    """Capture through Pingstore's filesystem-only library boundary."""
-    return capture_local_run(REPO, slug, source)
-
-
-def _capture_failed_result(slug: str, source) -> None:
-    """Retain a failed staging payload without masking the original failure."""
-    try:
-        capture_failed_local_run(REPO, slug, source)
-    except Exception as exc:
-        print(f"[warning] failed-run capture was unavailable: {exc}")
+    return FIGURES_ROOT / slug
 
 
 def _materialize_result(run: dict) -> None:
@@ -195,17 +205,13 @@ def _materialize_result(run: dict) -> None:
 
 
 def preserve_active_view(slug: str):
-    """Rollback the active artifact view when a legacy runner fails.
-
-    This is the transition boundary for runners that still use ``prepare`` and
-    therefore cannot write directly into a staging directory. It does not own
-    successful-run capture; callers still finalize explicitly after writing
-    their complete result.
-    """
+    """Preserve isolated legacy views; local failures keep their hidden run."""
 
     def decorate(function):
         @functools.wraps(function)
         def guarded(*args, **kwargs):
+            if not runner_paths(slug).isolated:
+                return function(*args, **kwargs)
             _artifacts, figures = artifacts_and_figures(slug)
             backup = figures.with_name(figures.name + ".pre-run")
             if backup.exists():
@@ -243,8 +249,6 @@ def published_run(slug: str, run_id: str, **kwargs):
     try:
         yield artifacts, staging
     except BaseException:
-        if not runner_paths(slug).isolated:
-            _capture_failed_result(slug, staging)
         print(f"[FAILED] run did not publish; staging kept for post-mortem: {staging}")
         raise
     else:
@@ -253,10 +257,9 @@ def published_run(slug: str, run_id: str, **kwargs):
         # runners already own their run root and are migrated by collection
         # orchestration rather than duplicated here.
         if not runner_paths(slug).isolated:
-            run = _capture_local_result(slug, staging)
+            run = finalize_local_run(REPO, slug, staging.parent)
             _materialize_result(run)
-            shutil.rmtree(staging)
-            published = runner_paths(slug).derived
+            published = FIGURES_ROOT / slug
         else:
             published = publish(slug, run_id)
         print(f"[published] {published}")
