@@ -1,9 +1,0 @@
-◆ pinglab · sim · ping                                synthetic-spikes
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  network   hidden 400 · Dale's law · E/I 0.5×2.0
-  sim       dt 0.25 ms · T 1000.0 ms · Poisson 1.0 Hz
-  run       r-20260825-095927 · git 1f0900bc (dirty)
-──────────────────────────────────────────────────────────────────────
-  ▸ drive   cell-drive · Poisson 1 Hz × 400 ch → W_in + per-cell ext_g
-  ◈ result    E 10Hz · I 35Hz · CV 0.35 · act 100%
-  ✓ done      0s

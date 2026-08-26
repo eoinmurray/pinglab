@@ -8,7 +8,7 @@
 
 // Provenance (HOUSESTYLE H9/H19): every run number below is interpolated from the
 // run's numbers.json, never hand-typed, so a re-run updates the prose automatically.
-#let run = json("/artifacts/data/exp025/numbers.json")
+#let run = json("/.artifacts/exp025/numbers.json")
 #let mean(a) = a.sum() / a.len()
 #let rate-target(r) = if r.keys().contains("rate_target_hz") {
   r.rate_target_hz
@@ -102,7 +102,7 @@
   *Architecture.* $N_E = 1024$ excitatory cells, $N_I = 256$ inhibitory cells,
   single hidden layer. Input: 784 channels (MNIST pixels), Poisson-encoded at 25 Hz
   peak rate. Readout: mem-mean (time-averaged E spike vector projected through a
-  trained linear layer $W_"out"$; see #link("/ar006/")[ar006] for the full readout
+  trained linear layer $W_"out"$; see #link("/exp006/")[exp006] for the full readout
   specification). Dale's law enforced.
 
   *What is trainable.* Only the input weights $W_"in"$ ($784 times 1024$, 95%
@@ -113,7 +113,7 @@
   trainable parameters out of 2.4M total.
 
   *Training.* Adam, lr = $4 times 10^(-4)$, batch size 256, gradient norm clipped to
-  1.0. Cross-entropy loss on 10-class MNIST (definition in #link("/ar006/")[ar006]).
+  1.0. Cross-entropy loss on 10-class MNIST (definition in #link("/exp006/")[exp006]).
   The voltage-gradient damping is 1 for COBA and 1000 for PING, where recurrent
   backpropagation requires stabilisation. Every frontier condition is trained with
   three independent seeds (42, 43, 44); plotted points are across-seed means with
@@ -157,7 +157,7 @@
 
   #figure(
     image(
-      "/artifacts/data/exp025/results_compound.png",
+      "/.artifacts/exp025/results_compound.png",
       width: 100%,
       alt: "Two-by-two panel: COBA and PING single-trial rasters, per-epoch learning curves, and the accuracy–rate frontier across hidden-E rate ceilings.",
     ),
@@ -184,7 +184,7 @@
 
   #figure(
     image(
-      "/artifacts/data/exp025/theta_p_fgamma.svg",
+      "/.artifacts/exp025/theta_p_fgamma.svg",
       width: 100%,
       alt: "PING participation fraction p and gamma frequency f_gamma across the activity-ceiling sweep, with the p·f_gamma product overlaid on the measured E rate.",
     ),
@@ -202,7 +202,7 @@
 
   #figure(
     image(
-      "/artifacts/data/exp025/low_w_in_sweep.svg",
+      "/.artifacts/exp025/low_w_in_sweep.svg",
       width: 100%,
       alt: "Across-seed mean per-epoch test accuracy and E/I firing rates for four PING input summed-coupling parent means, one column per condition.",
     ),
@@ -220,7 +220,7 @@
 
   #figure(
     image(
-      "/artifacts/data/exp025/w_in_scale_sweep.svg",
+      "/.artifacts/exp025/w_in_scale_sweep.svg",
       width: 100%,
       alt: "Inference-time W_in scale sweep: CE loss, activity penalty, total objective, test accuracy, and E/I rates versus scalar s for PING and COBA.",
     ),
@@ -238,7 +238,7 @@
 
   #figure(
     image(
-      "/artifacts/data/exp025/w_in_scale_sweep_vs_rate.svg",
+      "/.artifacts/exp025/w_in_scale_sweep_vs_rate.svg",
       width: 100%,
       alt: "The W_in scale sweep re-projected with hidden E rate on the x-axis, trained operating points starred for PING and COBA.",
     ),

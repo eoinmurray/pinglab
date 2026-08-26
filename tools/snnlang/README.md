@@ -132,7 +132,7 @@ for dataset accuracy, accelerator parity, or the final campaign comparison.
 
 Graph validity is checked independently of a simulator backend. Passing
 `target="tools/snnsim"` adds capability diagnostics but never changes the graph.
-See `writings/ar063.typ` for the architectural rationale and staged backend
+See `writings/exp102.typ` for the architectural rationale and staged backend
 integration plan.
 
 The first additive `tools/snnsim` backend route accepts the deliberately narrow

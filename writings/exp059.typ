@@ -10,7 +10,7 @@
 
 // Every dataset number below is read from this run's numbers.json, never
 // hand-typed, so the prose cannot drift from what the run measured.
-#let r = json("/artifacts/data/exp059/numbers.json")
+#let r = json("/.artifacts/exp059/numbers.json")
 
 #let body = [
   == Abstract
@@ -18,7 +18,7 @@
   The Spiking Heidelberg Digits (SHD)#cite(1) benchmark delivers spoken digits
   as cochlear spikes. Unlike the static MNIST images the gamma-gated-sparsity
   collection Poisson-encodes into spike trains before its
-  #link("/ar003/")[conductance-based spiking network (COBANet)] ever sees them,
+  #link("/exp100/")[conductance-based spiking network (COBANet)] ever sees them,
   SHD arrives _already_ as events, with no image and no dense array anywhere:
   each sample is a spoken digit passed through a model of the inner ear, so it
   is a list of events, each an event time and the cochlear channel that fired.
@@ -62,7 +62,7 @@
   == Results
 
   #figure(
-    image("/artifacts/data/exp059/class_gallery.png", width: 100%,
+    image("/.artifacts/exp059/class_gallery.png", width: 100%,
       alt: "A " + str(r.config.gallery_nrows) + "-by-" + str(r.config.gallery_ncols) + " grid of spike rasters, one spoken digit per panel, time on the x-axis and cochlear channel on the y-axis; each digit shows a distinct time-frequency pattern."),
     caption: [
       One utterance per class (German #(r.config.digit_min)–#(r.config.digit_max),
@@ -77,7 +77,7 @@
   )
 
   #figure(
-    image("/artifacts/data/exp059/within_class_spread.png", width: 100%,
+    image("/.artifacts/exp059/within_class_spread.png", width: 100%,
       alt: str(r.config.spread_panels) + " spike rasters of the digit null side by side; all share a broad descending contour but differ in density, duration, and detail from utterance to utterance."),
     caption: [
       #(r.config.spread_panels) different utterances of class #(r.config.spread_class), _null_, each a raster of time (ms)

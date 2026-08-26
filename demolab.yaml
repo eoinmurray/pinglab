@@ -32,6 +32,19 @@ collections:
     description: Developer documentation for Pinglab's models, tools, conventions, and SNNLANG.
     theme: docs
     homepage: false
+    children: [pinglab-docs, snnlang-docs, snnsim-docs, snnviz-docs]
+  pinglab-docs:
+    label: Pinglab
+    description: Project operations, infrastructure, and repository-wide conventions.
+  snnlang-docs:
+    label: SNNLANG
+    description: Network authoring, compilation, execution, training, and compatibility guides.
+  snnsim-docs:
+    label: SNNSIM
+    description: Simulator models, parameters, metrics, training, and runtime reference.
+  snnviz-docs:
+    label: SNNVIZ
+    description: Visualisation components and usage guides for SNNVIZ.
   exploratory:
     label: Exploratory
     description: Exploratory studies and supporting research.

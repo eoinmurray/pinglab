@@ -11,7 +11,7 @@ Per cell, two PNGs are written: raster__<cell>.png (population spike
 raster) and traces__<cell>.png (membrane voltage + conductances for a
 single representative neuron from each population).
 
-Writing: writings/exp023.typ · figures + numbers.json: artifacts/data/exp023/
+Writing: writings/exp023.typ · figures + numbers.json: .artifacts/exp023/
 """
 
 from __future__ import annotations

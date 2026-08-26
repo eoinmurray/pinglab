@@ -52,11 +52,11 @@ jobs:
           uv sync
           uv run demolab build
 
-      # Deploys artifacts/site to gh-pages under pr-preview/pr-<N>/ (opened/synchronize/reopened),
+      # Deploys .demolab/site to gh-pages under pr-preview/pr-<N>/ (opened/synchronize/reopened),
       # maintains the sticky PR comment, and removes that subdir on 'closed'. auto-detects the
       # action from the event type.
       - name: Deploy / update / tear down the preview
         uses: rossjrw/pr-preview-action@v1
         with:
-          source-dir: artifacts/site
+          source-dir: .demolab/site
           # umbrella dir defaults to pr-preview/ — matches deploy.yml's clean-exclude.

@@ -44,26 +44,13 @@ temp/
 tmp/
 .scratch/
 runs/
-artifacts/site/
+.pingstore/
 # CLI scratch if the default artifact root is ever hit (normally writes to temp/)
 tools/artifacts/
 
-# regen caches for --plot-only/--replot live in scratch (temp/), never the published data dir
-artifacts/data/**/*_cache.npz
-
-# Raw numerical payloads belong in isolated runs and verified R2 archives.
-# Existing tracked historical files remain visible to Git until the planned
-# history migration; these rules prevent accidental new publication payloads.
-artifacts/data/**/*.npy
-artifacts/data/**/*.npz
-artifacts/data/**/*.pt
-artifacts/data/**/*.pth
-artifacts/data/**/*.h5
-artifacts/data/**/*.hdf5
-
 # atomic-publish staging dirs (run_dirs.published_run): a run writes here and the
 # dir is renamed into the published data dir on success — transient, never committed.
-artifacts/data/*.staging/
+.artifacts/*.staging/
 
 # demolab engine staging (materialised by the demolab CLI; regenerated on engine updates)
 .demolab/
@@ -84,4 +71,3 @@ artifacts/data/*.staging/
 # Exported video is retained locally or archived externally. The repository's
 # compact-artifact CI rejects newly tracked files larger than 5 MiB.
 canvas-output/**/*.mp4
-artifacts/data/**/*.mp4

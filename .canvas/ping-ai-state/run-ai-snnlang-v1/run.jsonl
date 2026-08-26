@@ -1,5 +1,0 @@
-{"ts": "2026-08-25T13:54:57", "event": "run_start", "mode": "sim", "model": "ping", "subtitle": "synthetic-spikes"}
-{"ts": "2026-08-25T13:54:57", "event": "config", "fields": {"network": "hidden 400 \u00b7 Dale's law \u00b7 E/I 0.6\u00d75.0", "sim": "dt 0.25 ms \u00b7 T 1000.0 ms \u00b7 Poisson 1.0 Hz", "run": "r-20260825-135457 \u00b7 git 1f0900bc (dirty)"}}
-{"ts": "2026-08-25T13:54:57", "event": "phase", "name": "drive", "detail": "cell-drive \u00b7 Poisson 1 Hz \u00d7 400 ch \u2192 W_in + per-cell ext_g", "elapsed_s": null}
-{"ts": "2026-08-25T13:54:57", "event": "metrics", "label": "result", "rate_e": 10.272500038146973, "rate_i": 35.150001525878906, "cv": 0.3453444838523865, "act": 1.0, "f0": null}
-{"ts": "2026-08-25T13:54:57", "event": "done", "elapsed_s": 0.49481495888903737, "device": null}

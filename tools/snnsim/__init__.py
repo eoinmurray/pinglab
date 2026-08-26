@@ -13,6 +13,10 @@ This module also re-exports the symbols imported by tests.
 import sys as _sys
 from pathlib import Path as _Path
 
+from ._version import __version__
+
+__all__ = ["__version__"]
+
 # When the engine is imported as the package `tools.snnsim` (rather than run as a
 # script or via pythonpath), put the package dir on sys.path so the submodules'
 # bare sibling imports (`import models`, `from config import ...`) still resolve.

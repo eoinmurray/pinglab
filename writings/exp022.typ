@@ -6,7 +6,7 @@
   status: "ExpScout",
 )
 
-#let r = json("/artifacts/data/exp022/numbers.json")
+#let r = json("/.artifacts/exp022/numbers.json")
 
 #let run-links(items) = {
   if items.len() == 0 { [None yet.] } else {
@@ -257,13 +257,13 @@
   *Run status:* complete · 6/6 cells represented
 
   #result-figure(
-    "/artifacts/data/exp022/curves__canonical.svg",
+    "/.artifacts/exp022/curves__canonical.svg",
     "Test-accuracy learning curves for the canonical COBA and PING cells.",
     [Training curves for the six full-data reference cells.],
   )
 
   #result-figure(
-    "/artifacts/data/exp022/rasters/ping__canonical__seed42.png",
+    "/.artifacts/exp022/rasters/ping__canonical__seed42.png",
     "Seed-42 raster and population-rate diagnostic for canonical PING.",
     [Sample raster: canonical PING, seed 42, held-out digit-0 probe.],
   )
@@ -275,13 +275,13 @@
   *Run status:* complete · 36/36 cells represented
 
   #result-figure(
-    "/artifacts/data/exp022/curves__theta_u.svg",
+    "/.artifacts/exp022/curves__theta_u.svg",
     "Test-accuracy learning curves across the spike-budget sweep.",
     [Training curves across both architectures, six spike budgets, and three seeds.],
   )
 
   #result-figure(
-    "/artifacts/data/exp022/rasters/ping__off__seed42.png",
+    "/.artifacts/exp022/rasters/ping__off__seed42.png",
     "Seed-42 raster for the no-budget PING endpoint in the spike-budget sweep.",
     [Sample raster: PING with spike budget off, seed 42.],
   )
@@ -293,13 +293,13 @@
   *Run status:* complete · 18/18 cells represented
 
   #result-figure(
-    "/artifacts/data/exp022/curves__tau_gaba.svg",
+    "/.artifacts/exp022/curves__tau_gaba.svg",
     "Test-accuracy learning curves across the inhibitory-timescale sweep.",
     [Training curves across six $tau_"GABA"$ values and three seeds.],
   )
 
   #result-figure(
-    "/artifacts/data/exp022/rasters/ping__tg6__seed42.png",
+    "/.artifacts/exp022/rasters/ping__tg6__seed42.png",
     "Seed-42 raster for PING at tau GABA 6 milliseconds.",
     [Sample raster: PING at $tau_"GABA"=6$ ms, seed 42.],
   )
@@ -311,13 +311,13 @@
   *Run status:* complete · 15/15 cells represented
 
   #result-figure(
-    "/artifacts/data/exp022/curves__dt.svg",
+    "/.artifacts/exp022/curves__dt.svg",
     "Test-accuracy learning curves across the integration-timestep sweep.",
     [Training curves across five integration timesteps and three seeds.],
   )
 
   #result-figure(
-    "/artifacts/data/exp022/rasters/ping__dt0p1__seed42.png",
+    "/.artifacts/exp022/rasters/ping__dt0p1__seed42.png",
     "Seed-42 raster for PING at the standard 0.1 millisecond timestep.",
     [Sample raster: PING at $Delta t=0.1$ ms, seed 42.],
   )
@@ -329,13 +329,13 @@
   *Run status:* complete · 12/12 cells represented
 
   #result-figure(
-    "/artifacts/data/exp022/curves__init.svg",
+    "/.artifacts/exp022/curves__init.svg",
     "Test-accuracy learning curves across recurrent initialization conditions.",
     [Training curves across four recurrent-loop conditions and three seeds.],
   )
 
   #result-figure(
-    "/artifacts/data/exp022/rasters/frozen_ping__seed42.png",
+    "/.artifacts/exp022/rasters/frozen_ping__seed42.png",
     "Seed-42 raster for the frozen recurrent PING control.",
     [Sample raster: frozen PING recurrent loop, seed 42.],
   )

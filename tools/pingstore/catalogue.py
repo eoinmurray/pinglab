@@ -18,7 +18,7 @@ from .contracts import (
 
 
 class Catalogue:
-    def __init__(self, root: Path = Path("runs/pingstore")) -> None:
+    def __init__(self, root: Path = Path(".pingstore")) -> None:
         self.root = root
 
     def dataset_path(self, collection: str) -> Path:
@@ -74,7 +74,12 @@ class Catalogue:
         if run["run_id"] not in run_ids:
             run_ids.append(run["run_id"])
             run_ids.sort()
-            self.save_dataset(dataset)
+        # Finalization is the evidence-selection transaction. A successful
+        # immutable run advances the working dataset immediately; failed or
+        # interrupted records remain inspectable without displacing evidence.
+        if run["status"] == "finalized":
+            dataset["official_runs"][experiment] = run["run_id"]
+        self.save_dataset(dataset)
 
     def register_experiment(self, collection: str, experiment: str) -> None:
         dataset = self.load_dataset(collection)
@@ -85,9 +90,20 @@ class Catalogue:
         dataset["runs"][experiment] = []
         self.save_dataset(dataset)
 
+    def attach_asset(self, collection: str, uri: str) -> None:
+        if not uri.startswith(("r2://", "file://")):
+            raise PingstoreError("collection asset must use an r2:// or file:// URI")
+        dataset = self.load_dataset(collection)
+        if uri not in dataset["collection_assets"]:
+            dataset["collection_assets"].append(uri)
+            dataset["collection_assets"].sort()
+            self.save_dataset(dataset)
+
     def select(self, experiment: str, run_id: str, *, preview: bool = False) -> None:
         matches: list[dict[str, Any]] = []
-        for path in sorted((self.root / "collections").glob("*/collection-dataset.json")):
+        for path in sorted(
+            (self.root / "collections").glob("*/collection-dataset.json")
+        ):
             dataset = validate_collection_dataset(load_json(path))
             if experiment in dataset["runs"]:
                 matches.append(dataset)
@@ -120,7 +136,9 @@ class Catalogue:
         if path.exists():
             existing = validate_collection_dataset(load_json(path))
             if existing != frozen:
-                raise PingstoreError(f"frozen dataset already exists with drift: {path}")
+                raise PingstoreError(
+                    f"frozen dataset already exists with drift: {path}"
+                )
             return existing
         write_json_atomic(path, frozen)
         return frozen

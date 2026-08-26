@@ -1,0 +1,103 @@
+{
+  "run_id": "r001",
+  "git_sha": "5d401105",
+  "duration_s": 2.2,
+  "duration": "2s",
+  "schema": "pinglab.manuscript-figure-comparison/v1",
+  "legacy": {
+    "run_id": "legacy-exp022-cc36be1",
+    "archive_id": "exp022-cc36be1",
+    "uri": "r2://pinglab/campaigns/legacy/exp022-cc36be1",
+    "payload_digest": "ab2b0695dbd62d39e1e7b8f9c99864fe6b22008863615e122b4a77c62dbe4a38",
+    "derived_bundle_sha256": "4147040d299daba97841a7bf4012c32449a068c347aed679e142ff456d3ff5d2"
+  },
+  "current": {
+    "run_id": "ggs-production-composite-20260821-6d9c38eb",
+    "archive_id": "ggs-production-composite-20260821-6d9c38eb",
+    "uri": "r2://pinglab/campaigns/ggs-production-composite-20260821-6d9c38eb",
+    "git_commit": "6d9c38ebd0d2d9c5bf4a4f59bede9e03e90d86bf",
+    "payload_digest": "7ef819f466a134762326450e431a1e96af9667e48fc87701ce27efa6a4a244ba"
+  },
+  "figures": [
+    {
+      "experiment": "exp025",
+      "filename": "results_compound.png",
+      "title": "Trained PING versus COBA",
+      "status": "changed",
+      "legacy_path": "/.artifacts/exp093/legacy/exp025/results_compound.png",
+      "current_path": "/.artifacts/exp025/results_compound.png",
+      "legacy_sha256": "b2828d96a590e7c9b14867553ef0ff4b438bc2e4becb15540e98fecc9ec45ee0",
+      "current_sha256": "e09626fcd81501afdd9e56a8345f1c1fe9347d30b2184cf07c5e70a0640430fb"
+    },
+    {
+      "experiment": "exp038",
+      "filename": "loop_transfer_compound.png",
+      "title": "Inference-time loop activation",
+      "status": "changed",
+      "legacy_path": "/.artifacts/exp093/legacy/exp038/loop_transfer_compound.png",
+      "current_path": "/.artifacts/exp038/loop_transfer_compound.png",
+      "legacy_sha256": "b3f4de2455af36faa0571c4860d1e34f28f4b5c56006d1c81f41d7b8c3287edd",
+      "current_sha256": "54905d785df9f8889277fcb9647dcda876dbdad77f97552593657229082caf08"
+    },
+    {
+      "experiment": "exp049",
+      "filename": "training_curves.svg",
+      "title": "Released-loop training",
+      "status": "changed",
+      "legacy_path": "/.artifacts/exp093/legacy/exp049/training_curves.svg",
+      "current_path": "/.artifacts/exp049/training_curves.svg",
+      "legacy_sha256": "f318ccbeb84d59ac49e218c9c7b947b2457c9084826136fc541e9ecb208f8f4b",
+      "current_sha256": "4379c32f5160ca077becbd3d49b383206b64931b3d41d3ca7acfe394f0751795"
+    },
+    {
+      "experiment": "exp041",
+      "filename": "rate_vs_fgamma.svg",
+      "title": "Rate versus gamma frequency",
+      "status": "changed",
+      "legacy_path": "/.artifacts/exp093/legacy/exp041/rate_vs_fgamma.svg",
+      "current_path": "/.artifacts/exp041/rate_vs_fgamma.svg",
+      "legacy_sha256": "fac41b60f6642c8655aa484b1b4c7c485fa0a453ffd0f1783347c225d427496b",
+      "current_sha256": "5a9dcf6928ac20c620de11e232361c46db4a307dec99ac0adcfff76c6f1a939e"
+    },
+    {
+      "experiment": "exp046",
+      "filename": "spikes_per_cycle_distribution.svg",
+      "title": "Spikes per gamma cycle",
+      "status": "changed",
+      "legacy_path": "/.artifacts/exp093/legacy/exp046/spikes_per_cycle_distribution.svg",
+      "current_path": "/.artifacts/exp046/spikes_per_cycle_distribution.svg",
+      "legacy_sha256": "20a7e1d65926f9bdb1ae69840328995e3d19baf6aca147f1c9c4a5c5ae3920ab",
+      "current_sha256": "0bf3eb7f8a8067b601c9467950252cfcf1fbbbff215561fea2d099fd65c5b8b2"
+    },
+    {
+      "experiment": "exp037",
+      "filename": "perturbation_curves.svg",
+      "title": "Spike perturbation robustness",
+      "status": "changed",
+      "legacy_path": "/.artifacts/exp093/legacy/exp037/perturbation_curves.svg",
+      "current_path": "/.artifacts/exp037/perturbation_curves.svg",
+      "legacy_sha256": "9056be13fa8b9a5b450d79773fd4d213aa21eaef8e13f212b1ac22336e9aeccd",
+      "current_sha256": "c8cf717dab76c153df2a8ee9627143f71c20623c76029dab20d4ca306c903241"
+    },
+    {
+      "experiment": "exp042",
+      "filename": "rhythm_compound.png",
+      "title": "Inhibitory timing perturbations",
+      "status": "changed",
+      "legacy_path": "/.artifacts/exp093/legacy/exp042/rhythm_compound.png",
+      "current_path": "/.artifacts/exp042/rhythm_compound.png",
+      "legacy_sha256": "123cb0e3291b55b8256381ea011232e5785e8760fc2a1d9701ea071329007862",
+      "current_sha256": "03760f990e414451feddee6043c278a9d67a33aeda6920073957b50e16da199d"
+    },
+    {
+      "experiment": "exp044",
+      "filename": "dt_sweep.svg",
+      "title": "Integration-timestep invariance",
+      "status": "changed",
+      "legacy_path": "/.artifacts/exp093/legacy/exp044/dt_sweep.svg",
+      "current_path": "/.artifacts/exp044/dt_sweep.svg",
+      "legacy_sha256": "3e918aec369749949891f231b70079fd04e62c051535515353a80706968cd357",
+      "current_sha256": "4ec3df231c163840197e9201cffb584ba91d7b35d18311ec112b260036d52f7d"
+    }
+  ]
+}

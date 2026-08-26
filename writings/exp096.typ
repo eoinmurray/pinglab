@@ -52,7 +52,7 @@
     Gamma alignment is a separate comparison, not another point on the fixed-bin axis. For PING, detect the actual cycle boundaries and count spikes cycle by cycle. Compare that representation with ordinary fixed bins having the same median duration. Equal-duration fixed bins provide the COBA control. If cycle alignment helps, it must beat resolution alone rather than benefiting merely because a gamma cycle is short.
 
     #figure(
-      image("/artifacts/data/exp096/result_1_information_schematic.svg", width: 100%, alt: "Qualitative decoder-accuracy curve across bin widths, with a gamma-aligned point compared with a duration-matched fixed-bin point."),
+      image("/.artifacts/exp096/result_1_information_schematic.svg", width: 100%, alt: "Qualitative decoder-accuracy curve across bin widths, with a gamma-aligned point compared with a duration-matched fixed-bin point."),
       caption: [Design schematic for information available. Moving right narrows $Delta$ and exposes finer timing. The purple cycle mark tests alignment against a fixed bin of the same duration. These curves are illustrative, not predictions or measurements.],
     )
 
@@ -71,7 +71,7 @@
     Two interventions ask what kind of gamma-relative timing matters. Cycle permutation preserves each complete volley but changes its order. Within-cycle phase shuffling preserves cycle participation but changes fine phase. Duration-matched interventions provide the COBA controls.
 
     #figure(
-      image("/artifacts/data/exp096/result_2_use_schematic.svg", width: 100%, alt: "Qualitative native-readout accuracy and logit-margin curves as progressively finer temporal structure is preserved."),
+      image("/.artifacts/exp096/result_2_use_schematic.svg", width: 100%, alt: "Qualitative native-readout accuracy and logit-margin curves as progressively finer temporal structure is preserved."),
       caption: [Design schematic for native use. A flat trace means presentation counts suffice. A low coarse-resolution score that recovers toward intact replay as $Delta$ narrows means the trained output depends on timing at the recovery scale.],
     )
 
@@ -90,7 +90,7 @@
     where $A$ is held-out accuracy and $c$ is the available resource: presentation time or retained-spike fraction. A positive $Delta A$ under scarcity means timing makes the existing population code usable with fewer resources; convergence at 200 ms or 100% retained spikes means the advantage is conditional rather than a baseline accuracy difference.
 
     #figure(
-      image("/artifacts/data/exp096/result_3_benefit_schematic.svg", width: 100%, alt: "Qualitative accuracy plots against presentation time and retained-spike fraction for COBA, intact PING, and count-matched temporally disrupted PING."),
+      image("/.artifacts/exp096/result_3_benefit_schematic.svg", width: 100%, alt: "Qualitative accuracy plots against presentation time and retained-spike fraction for COBA, intact PING, and count-matched temporally disrupted PING."),
       caption: [Design schematic for computational benefit. The illustrated positive interaction is a gap between intact and timing-disrupted PING when time or spikes are scarce, followed by convergence when resources are ample. Overlapping PING traces are the registered null.],
     )
 

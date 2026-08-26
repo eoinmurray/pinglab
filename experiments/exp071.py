@@ -121,7 +121,7 @@ Candidate ladder:
 4. Promote the best candidate, if any, to a matched 40-epoch COBA/PING validation run.
 
 Deliverables:
-- Create the next numbered experiment, likely exp071, with artifacts under artifacts/data/exp071.
+- Create the next numbered experiment, likely exp071, with artifacts under .artifacts/exp071.
 - Produce numbers.json, provenance, reproducer, training curves, firing-rate diagnostics, and matched input/E/I rasters where relevant.
 - Write writings/exp071.typ as the canonical cold-readable experiment report.
 - Include the goal prompt below the abstract and append timestamped activity-log/thread checkpoints in the experiment appendix, following the simplified SHD organization.
@@ -416,9 +416,9 @@ def publish_pre_result() -> None:
                 "latest_checkpoint_id": "cp002" if smoke and smoke.get("passed") else "cp001",
                 "latest_checkpoint_time_utc": utc_now(),
                 "publishable_log": (
-                    "artifacts/data/exp071/activity/messages_cp002.json"
+                    ".artifacts/exp071/activity/messages_cp002.json"
                     if smoke and smoke.get("passed")
-                    else "artifacts/data/exp071/activity/messages_cp001.json"
+                    else ".artifacts/exp071/activity/messages_cp001.json"
                 ),
             },
         }

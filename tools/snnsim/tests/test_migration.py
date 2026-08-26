@@ -5,8 +5,8 @@ from pathlib import Path
 
 import pytest
 
-from tools.runstore.contract import ContractError, inventory_payload, write_json_atomic
-from tools.runstore.lifecycle import initialize_run
+from tools.pingstore.campaign_runtime import initialize_run
+from tools.pingstore.payload import ContractError, inventory_payload, write_json_atomic
 from tools.snnsim.migration import load_equivalence_policy, migration_preflight
 
 POLICY = Path(__file__).parents[1] / "equivalence-policy-v1.json"

@@ -161,12 +161,12 @@ def test_runner_environment_exposes_shared_derived_root(tmp_path: Path) -> None:
     )
     environment = execution._runner_environment(payload, row)
     assert environment["PINGLAB_COLLECTION_DERIVED_ROOT"] == str(
-        (tmp_path / "campaign/derived/artifacts/data").resolve()
+        (tmp_path / "campaign/derived/.artifacts").resolve()
     )
     assert environment["PINGLAB_SMOKE"] == "1"
 
 
-def test_init_composes_runstore_and_exp022_manifests(
+def test_init_composes_pingstore_and_exp022_manifests(
     tmp_path: Path,
     monkeypatch,
 ) -> None:
@@ -180,20 +180,22 @@ def test_init_composes_runstore_and_exp022_manifests(
 
     calls = []
 
+    def fake_initialize(_root, **_kwargs):
+        (root / "exp022").mkdir(parents=True)
+        (root / "downstream").mkdir()
+        (root / "derived/.artifacts").mkdir(parents=True)
+        (root / "logs").mkdir()
+        execution.write_json_atomic(root / "run.json", {"source": source})
+
     def fake_run(command, **_kwargs):
         calls.append(command)
-        if "tools.runstore" in command:
-            (root / "exp022").mkdir(parents=True)
-            (root / "downstream").mkdir()
-            (root / "derived" / "artifacts").mkdir(parents=True)
-            (root / "logs").mkdir()
-            execution.write_json_atomic(root / "run.json", {"source": source})
-        elif "experiments.exp022" in command:
+        if "experiments.exp022" in command:
             exp022 = root / "exp022"
             exp022.mkdir()
             (exp022 / "campaign.json").write_text("{}")
         return SimpleNamespace(returncode=0)
 
+    monkeypatch.setattr(execution, "initialize_run", fake_initialize)
     monkeypatch.setattr(execution.subprocess, "run", fake_run)
     plan = execution.initialize_campaign(root, "smoke-test", smoke=True)
     assert plan["profile"] == "smoke"
@@ -311,7 +313,7 @@ def test_compose_campaign_replaces_selected_outputs_and_records_sources(
         (overlay, "repair-run", ["exp022", "exp025"]),
     ):
         for slug in selected:
-            derived = source_root / "derived/artifacts/data" / slug
+            derived = source_root / "derived/.artifacts" / slug
             derived.mkdir(parents=True)
             execution.write_json_atomic(
                 derived / "numbers.json",
@@ -329,17 +331,16 @@ def test_compose_campaign_replaces_selected_outputs_and_records_sources(
     monkeypatch.setattr(execution, "_require_clean_source", lambda: None)
     monkeypatch.setattr(
         execution,
-        "_inspect_runstore",
+        "_inspect_campaign",
         lambda root: (
             {"inventory": "valid"} if root == base else {"inventory": "absent"}
         ),
     )
 
-    def fake_run(command, **_kwargs):
-        assert "tools.runstore" in command and "init" in command
+    def fake_initialize(_root, **_kwargs):
         (destination / "exp022").mkdir(parents=True)
         (destination / "downstream").mkdir()
-        (destination / "derived/artifacts").mkdir(parents=True)
+        (destination / "derived").mkdir(parents=True)
         (destination / "logs").mkdir()
         execution.write_json_atomic(
             destination / "run.json",
@@ -348,9 +349,8 @@ def test_compose_campaign_replaces_selected_outputs_and_records_sources(
                 "source": {"git_commit": "d" * 40},
             },
         )
-        return SimpleNamespace(returncode=0)
 
-    monkeypatch.setattr(execution.subprocess, "run", fake_run)
+    monkeypatch.setattr(execution, "initialize_run", fake_initialize)
     result = execution.compose_campaign(
         destination,
         "composite-run",
@@ -361,13 +361,13 @@ def test_compose_campaign_replaces_selected_outputs_and_records_sources(
 
     assert result["experiments"] == len(slugs)
     assert (
-        execution.load_json(destination / "derived/artifacts/data/exp022/numbers.json")[
+        execution.load_json(destination / "derived/.artifacts/exp022/numbers.json")[
             "marker"
         ]
         == "repair-run"
     )
     assert (
-        execution.load_json(destination / "derived/artifacts/data/exp037/numbers.json")[
+        execution.load_json(destination / "derived/.artifacts/exp037/numbers.json")[
             "marker"
         ]
         == "base-run"
@@ -381,7 +381,7 @@ def test_compose_campaign_replaces_selected_outputs_and_records_sources(
     assert execution._outputs_valid_for_plan(composite_plan, rows["exp025"])
     assert execution._outputs_valid_for_plan(composite_plan, rows["exp037"])
 
-    (destination / "derived/artifacts/data/exp025/figure.svg").write_text(
+    (destination / "derived/.artifacts/exp025/figure.svg").write_text(
         "<svg><text>tampered</text></svg>\n"
     )
     assert not execution._outputs_valid_for_plan(composite_plan, rows["exp025"])
@@ -432,7 +432,7 @@ def test_integrate_repair_preserves_base_and_records_repaired_source(
     )
 
     row = next(row for row in execution.rows_in_order(plan) if row["slug"] == "exp082")
-    source_dir = repair_root / "derived/artifacts/data/exp082"
+    source_dir = repair_root / "derived/.artifacts/exp082"
     source_dir.mkdir(parents=True)
     for required in row["required_outputs"]:
         name = Path(required).name
@@ -489,7 +489,7 @@ def test_integrate_repair_preserves_base_and_records_repaired_source(
     )
 
 
-def test_finalize_delegates_to_runstore_after_validation(
+def test_finalize_captures_campaign_and_writes_pingstore_inventory(
     tmp_path: Path,
     monkeypatch,
 ) -> None:
@@ -511,33 +511,17 @@ def test_finalize_delegates_to_runstore_after_validation(
         if "capture-campaign" in command:
             assert command[-2:] == ["--campaign-root", str(root)]
             return SimpleNamespace(returncode=0)
-        assert command[-2:] == [str(root), "--finalize"]
-        execution.write_json_atomic(
-            root / "run.json",
-            {
-                "run_id": "smoke",
-                "status": "complete",
-            },
-        )
-        execution.write_json_atomic(
-            root / "inventory.json",
-            {
-                "file_count": 3,
-                "total_size_bytes": 42,
-                "payload_digest": "a" * 64,
-            },
-        )
         return SimpleNamespace(returncode=0)
 
     monkeypatch.setattr(execution.subprocess, "run", fake_run)
     assert execution.finalize_campaign(root) == {
         "campaign_id": "smoke",
         "status": "complete",
-        "file_count": 3,
-        "total_size_bytes": 42,
-        "payload_digest": "a" * 64,
+        "file_count": 0,
+        "total_size_bytes": 0,
+        "payload_digest": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
     }
-    assert len(calls) == 2
+    assert len(calls) == 1
 
 
 def test_publication_build_runs_promotion_from_separate_checkout(
@@ -571,6 +555,14 @@ def test_publication_build_runs_promotion_from_separate_checkout(
     plan["repairs"] = {"exp082": {"source": repair_source}}
     monkeypatch.setattr(execution, "_checkout_source", lambda _path: repair_source)
     monkeypatch.setattr(execution.shutil, "which", lambda _name: "/usr/bin/uv")
+    promotions = []
+    monkeypatch.setattr(
+        execution,
+        "promote_experiment",
+        lambda root, slug, *, artifacts_root: promotions.append(
+            (root, slug, artifacts_root)
+        ),
+    )
 
     def fake_run(command, **kwargs):
         calls.append((command, kwargs))
@@ -579,8 +571,21 @@ def test_publication_build_runs_promotion_from_separate_checkout(
     monkeypatch.setattr(execution.subprocess, "run", fake_run)
     result = execution.build_publication(root, checkout)
     assert result["promoted"] == [row["slug"] for row in execution.rows_in_order(plan)]
-    assert all(call[1]["cwd"] == checkout for call in calls)
-    assert all(str(checkout) in call[0] for call in calls)
+    assert len(promotions) == len(result["promoted"])
+    assert calls == [
+        (
+            [
+                "/usr/bin/uv",
+                "run",
+                "--frozen",
+                "--project",
+                str(checkout),
+                "demolab",
+                "build",
+            ],
+            {"cwd": checkout, "check": True, "capture_output": True, "text": True},
+        )
+    ]
 
 
 def test_publication_build_rejects_stubbed_entries(tmp_path: Path, monkeypatch) -> None:
@@ -602,6 +607,7 @@ def test_publication_build_rejects_stubbed_entries(tmp_path: Path, monkeypatch) 
     monkeypatch.setattr(execution, "validate_campaign", lambda _root: {})
     monkeypatch.setattr(execution, "_checkout_source", lambda _path: plan["source"])
     monkeypatch.setattr(execution.shutil, "which", lambda _name: "/usr/bin/uv")
+    monkeypatch.setattr(execution, "promote_experiment", lambda *_args, **_kwargs: None)
 
     def fake_run(command, **_kwargs):
         output = "built 37 entries, 1 stubbed: exp022" if "demolab" in command else ""

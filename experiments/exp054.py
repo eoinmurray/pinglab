@@ -16,7 +16,7 @@ shared-input design (a spurious low-rate hat).
 
 Measurement only: no training, local CPU, no GPU.
 
-Writing: writings/exp054.typ · figures + numbers.json: artifacts/data/exp054/
+Writing: writings/exp054.typ · figures + numbers.json: .artifacts/exp054/
 """
 
 from __future__ import annotations
@@ -822,7 +822,7 @@ def build_super_compound(grid, results, hopf, sweep, mf, meas, out_path):
 
 
 # ── Onset super-compound cache ──────────────────────────────────────
-# The onset super-compound (Fig 2 of ar009) is otherwise redrawn only by the full
+# The onset super-compound (Fig 2 of exp009) is otherwise redrawn only by the full
 # run, whose ~6 min cost is the 121-network `run_grid`. Persisting its inputs — the
 # grid plus the exp033 mean-field results — lets `--plot-only super` redraw it in
 # seconds. The structures are nested dict/list/ndarray, so they go in as a single

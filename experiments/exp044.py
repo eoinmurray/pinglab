@@ -7,10 +7,10 @@ the sweep on a log-Δt axis and grabs single-trial rasters at each Δt
 to verify the gamma cycle stays at the same physical period in ms
 (rather than the same step count).
 
-Scaffolded by ar009 §Leg 1 item 4. Protects the ≈ 7 Hz headline rate
+Scaffolded by exp009 §Leg 1 item 4. Protects the ≈ 7 Hz headline rate
 in ar008 against a discretisation-artefact reading.
 
-Writing: writings/exp044.typ · figures + numbers.json: artifacts/data/exp044/
+Writing: writings/exp044.typ · figures + numbers.json: .artifacts/exp044/
 """
 
 from __future__ import annotations

@@ -2,12 +2,12 @@
   title: "A compiled graph learns",
   date: "2026-07-31",
   description: "A deliberately small MNIST run checks that an snnlang graph and training recipe can drive the existing tools/snnsim trainer without legacy structural flags.",
-  collection: "documentation",
+  collection: "snnlang-docs",
   status: "ExpScout",
   order: 2,
 )
 
-#let r = json("/artifacts/data/exp075/numbers.json")
+#let r = json("/.artifacts/exp075/numbers.json")
 
 #let body = [
   == Abstract
@@ -23,7 +23,7 @@
 
   == Graph and training scope
 
-  #image("/artifacts/data/exp075/network_graph.svg", width: 100%)
+  #image("/.artifacts/exp075/network_graph.svg", width: 100%)
 
   The graph fixes the PING topology, #r.config.dt_ms ms simulation step,
   mean-voltage classifier, initialisers, and trainable/frozen parameter scope.
@@ -41,7 +41,7 @@
 
   == Training trajectory
 
-  #image("/artifacts/data/exp075/training_curves.png", width: 100%)
+  #image("/.artifacts/exp075/training_curves.png", width: 100%)
 
   The #(r.config.train_count)-example training split and
   #(r.config.held_out_count)-example held-out split are tiny. Across the short

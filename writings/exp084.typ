@@ -7,7 +7,7 @@
   order: 10,
 )
 
-#let r = json("/artifacts/data/exp084/numbers.json")
+#let r = json("/.artifacts/exp084/numbers.json")
 #let default = r.conditions.filter(row => row.tau_gaba_ms == 9).first()
 #let fastest = r.conditions.first()
 #let slowest = r.conditions.last()
@@ -27,7 +27,7 @@
 
   #figure(
     image(
-      "/artifacts/data/exp084/network.svg",
+      "/.artifacts/exp084/network.svg",
       width: 82%,
       alt: "Compiled default PING graph at the default inhibitory decay condition.",
     ),
@@ -42,7 +42,7 @@
 
   #figure(
     image(
-      "/artifacts/data/exp084/response.svg",
+      "/.artifacts/exp084/response.svg",
       width: 100%,
       alt: "Population rates, rhythmicity, and dominant frequency across inhibitory decay time.",
     ),
@@ -53,7 +53,7 @@
 
   #figure(
     image(
-      "/artifacts/data/exp084/representative_rasters.png",
+      "/.artifacts/exp084/representative_rasters.png",
       width: 100%,
       alt: "Stacked excitatory and inhibitory rasters at fast, default, and slow inhibitory decay.",
     ),

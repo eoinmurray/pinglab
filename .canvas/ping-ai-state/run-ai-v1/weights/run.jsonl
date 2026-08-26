@@ -1,3 +1,0 @@
-{"ts": "2026-08-25T10:14:07", "event": "run_start", "mode": "dump-weights", "model": "ping", "subtitle": "on mnist"}
-{"ts": "2026-08-25T10:14:07", "event": "config", "fields": {"data": "mnist \u00b7 digit 0 \u00b7 sample 0", "network": "hidden 400 \u00b7 Dale's law \u00b7 E/I 0.5\u00d72.0", "sim": "dt 0.25 ms \u00b7 T 1000.0 ms", "run": "r-20260825-101407 \u00b7 git 1f0900bc (dirty)"}}
-{"ts": "2026-08-25T10:14:07", "event": "phase", "name": "input", "detail": "auto \u2192 dataset (from --dataset/--digit/--sample)", "elapsed_s": null}

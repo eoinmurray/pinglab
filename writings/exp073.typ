@@ -7,7 +7,7 @@
   order: 12,
 )
 
-#let r = json("/artifacts/data/exp073/numbers.json")
+#let r = json("/.artifacts/exp073/numbers.json")
 #let maybe-pct(x) = {
   if type(x) == float or type(x) == int {
     [#calc.round(x, digits: 2)%]
@@ -22,7 +22,7 @@
     [pending]
   }
 }
-#let attempt-figure(suffix) = "/artifacts/data/exp073/" + r.stage + "_" + r.attempt + "_" + suffix
+#let attempt-figure(suffix) = "/.artifacts/exp073/" + r.stage + "_" + r.attempt + "_" + suffix
 
 #let body = [
   == Abstract
@@ -48,7 +48,7 @@
 
   == Goal prompt
 
-  #raw(read("/artifacts/data/exp073/goal.txt"), block: true)
+  #raw(read("/.artifacts/exp073/goal.txt"), block: true)
 
   == Methods
 

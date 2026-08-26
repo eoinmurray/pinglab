@@ -17,7 +17,7 @@ If the E rate stays clamped without the rhythm, ar008's thesis
 collapses to "inhibition lowers rates." If it shoots up toward COBA's
 operating point, gamma is specifically what is doing the forbidding.
 
-Writing: writings/exp042.typ · figures + numbers.json: artifacts/data/exp042/
+Writing: writings/exp042.typ · figures + numbers.json: .artifacts/exp042/
 """
 
 from __future__ import annotations
@@ -2229,7 +2229,7 @@ def main() -> None:
         "checkpoint_sources": source_provenance,
         "measurement_sources": {
             "exp041_tr03": {
-                "artifact": "artifacts/data/exp041/numbers.json",
+                "artifact": ".artifacts/exp041/numbers.json",
                 "fields": ["results[].f_gamma_hz"],
             }
         },

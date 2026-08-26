@@ -9,9 +9,10 @@ from experiments.helpers import run_dirs
 
 
 def test_legacy_success_finalizer_captures_once(
-    tmp_path: Path, monkeypatch,
+    tmp_path: Path,
+    monkeypatch,
 ) -> None:
-    figures = tmp_path / "artifacts/data/exp001"
+    figures = tmp_path / ".artifacts/exp001"
     figures.mkdir(parents=True)
     (figures / "numbers.json").write_text("{}\n")
     calls: list[list[str]] = []
@@ -36,8 +37,9 @@ def test_legacy_success_finalizer_captures_once(
     result = run_dirs.finalize_prepared_run("exp001", "r001")
     assert result == figures
     assert (figures / "_manifest.json").is_file()
-    assert len(calls) == 1
+    assert len(calls) == 2
     assert calls[0][-2:] == ["--staging", str(figures)]
+    assert calls[1][3:5] == ["materialize-experiment", "exp001"]
 
 
 def test_legacy_success_finalizer_skips_isolated_campaign(
@@ -55,9 +57,10 @@ def test_legacy_success_finalizer_skips_isolated_campaign(
 
 
 def test_legacy_runner_failure_restores_active_view(
-    tmp_path: Path, monkeypatch,
+    tmp_path: Path,
+    monkeypatch,
 ) -> None:
-    figures = tmp_path / "artifacts/data/exp001"
+    figures = tmp_path / ".artifacts/exp001"
     figures.mkdir(parents=True)
     (figures / "result.txt").write_text("accepted")
     monkeypatch.setattr(

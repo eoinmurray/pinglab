@@ -13,6 +13,16 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from pingstore.campaign_promotion import promote_experiment
+from pingstore.campaign_runtime import initialize_run
+from pingstore.payload import (
+    ContractError,
+    inventory_payload,
+    validate_inventory,
+    validate_run_manifest,
+    verify_payload,
+)
+
 from .graph import COLLECTION
 from .plan import REPO, build_plan, validate_campaign_root
 
@@ -72,15 +82,14 @@ def _replace_plan_root(value: Any, old: str, new: str) -> Any:
     return value
 
 
-def _inspect_runstore(root: Path) -> dict[str, Any]:
-    result = subprocess.run(
-        [sys.executable, "-m", "tools.runstore", "inspect", str(root), "--json"],
-        cwd=REPO,
-        check=True,
-        capture_output=True,
-        text=True,
-    )
-    return json.loads(result.stdout)
+def _inspect_campaign(root: Path) -> dict[str, Any]:
+    try:
+        run = validate_run_manifest(load_json(root / "run.json"))
+        inventory = validate_inventory(load_json(root / "inventory.json"))
+        verify_payload(root, inventory)
+    except (ContractError, OSError) as exc:
+        raise CollectionError(f"invalid campaign evidence: {exc}") from exc
+    return {"run": run, "inventory": "valid"}
 
 
 def compose_campaign(
@@ -101,7 +110,7 @@ def compose_campaign(
     base_inventory = load_json(base_root / "inventory.json")
     if base_run["status"] != "complete":
         raise CollectionError("composition base campaign must be complete")
-    inspected_base = _inspect_runstore(base_root)
+    inspected_base = _inspect_campaign(base_root)
     if inspected_base.get("inventory") != "valid":
         raise CollectionError("composition base inventory is not valid")
 
@@ -115,7 +124,7 @@ def compose_campaign(
             f"invalid composition replacements: {sorted(selected - planned)}"
         )
 
-    base_derived = base_root / "derived/artifacts/data"
+    base_derived = base_root / "derived/.artifacts"
     if {path.name for path in base_derived.iterdir() if path.is_dir()} != planned:
         raise CollectionError(
             "composition base does not contain every planned experiment"
@@ -125,7 +134,7 @@ def compose_campaign(
     for slug in sorted(planned):
         source_run = overlay_run if slug in selected else base_run
         source_root = overlay_root if slug in selected else base_root
-        source = source_root / "derived/artifacts/data" / slug
+        source = source_root / "derived/.artifacts" / slug
         if not (source / "numbers.json").is_file():
             raise CollectionError(f"composition source is missing {slug}/numbers.json")
         numbers = load_json(source / "numbers.json")
@@ -162,33 +171,19 @@ def compose_campaign(
         *[part for slug in sorted(selected) for part in ("--replace", slug)],
     ]
     try:
-        subprocess.run(
-            [
-                sys.executable,
-                "-m",
-                "tools.runstore",
-                "init",
-                str(root),
-                "--run-id",
-                campaign_id,
-                "--kind",
-                "campaign",
-                "--collection",
-                COLLECTION,
-                "--upstream",
-                base_run["run_id"],
-                "--upstream",
-                overlay_run["run_id"],
-                "--provenance-notes",
-                "composite publication campaign",
-                "--command",
-                *command,
-            ],
-            cwd=REPO,
-            check=True,
+        initialize_run(
+            root,
+            run_id=campaign_id,
+            kind="campaign",
+            experiment=None,
+            collection=COLLECTION,
+            upstream=[base_run["run_id"], overlay_run["run_id"]],
+            provenance_notes="composite publication campaign",
+            command=command,
+            repository=REPO,
         )
         run = load_json(root / "run.json")
-        destination = root / "derived/artifacts/data"
+        destination = root / "derived/.artifacts"
         destination.mkdir(parents=True)
         for slug in sorted(planned):
             source = Path(source_rows[slug]["source_directory"])
@@ -222,7 +217,7 @@ def compose_campaign(
             "campaign_id": campaign_id,
             "experiments": len(planned),
             "replacements": sorted(selected),
-            "payload": _inspect_runstore(root),
+            "payload": _inspect_campaign(root),
         }
     except BaseException:
         shutil.rmtree(root, ignore_errors=True)
@@ -292,26 +287,15 @@ def initialize_campaign(root: Path, campaign_id: str, *, smoke: bool) -> dict[st
         "--campaign-root",
         str(root),
     ]
-    subprocess.run(
-        [
-            sys.executable,
-            "-m",
-            "tools.runstore",
-            "init",
-            str(root),
-            "--run-id",
-            campaign_id,
-            "--kind",
-            "campaign",
-            "--collection",
-            COLLECTION,
-            "--provenance-notes",
-            "isolated smoke campaign" if smoke else "publication campaign",
-            "--command",
-            *command,
-        ],
-        cwd=REPO,
-        check=True,
+    initialize_run(
+        root,
+        run_id=campaign_id,
+        kind="campaign",
+        experiment=None,
+        collection=COLLECTION,
+        provenance_notes="isolated smoke campaign" if smoke else "publication campaign",
+        command=command,
+        repository=REPO,
     )
     exp022_root = root / "exp022"
     exp022_root.rmdir()
@@ -374,7 +358,7 @@ def _runner_environment(plan: dict[str, Any], row: dict[str, Any]) -> dict[str, 
         "PINGLAB_RUN_DERIVED_DIR": paths["derived"],
         "PINGLAB_RUN_LOG_DIR": paths["logs"],
         "PINGLAB_COLLECTION_DERIVED_ROOT": str(
-            Path(plan["campaign_root"]) / "derived" / "artifacts" / "data"
+            Path(plan["campaign_root"]) / "derived/.artifacts"
         ),
         "PINGLAB_TRAINING_ROOT": str(Path(plan["exp022_manifest"]).parent / "cells"),
         "PINGLAB_CAMPAIGN_ID": plan["campaign_id"],
@@ -424,7 +408,9 @@ def _outputs_valid_for_plan(plan: dict[str, Any], row: dict[str, Any]) -> bool:
             composition = load_json(Path(plan["campaign_root"]) / "composition.json")
             source = composition.get("experiments", {}).get(row["slug"])
             provenance = document.get("collection_provenance")
-            output_root = Path(plan["campaign_root"]) / "derived/artifacts/data" / row["slug"]
+            output_root = (
+                Path(plan["campaign_root"]) / "derived/.artifacts" / row["slug"]
+            )
             if not isinstance(source, dict) or not isinstance(provenance, dict):
                 return False
             snapshot = _directory_snapshot(output_root)
@@ -527,7 +513,7 @@ def integrate_repair(root: Path, repair_root: Path, slug: str) -> dict[str, Any]
         raise CollectionError("repair run used a different exp022 manifest")
 
     row = rows[slug]
-    source_dir = repair_root / "derived" / "artifacts" / "data" / slug
+    source_dir = repair_root / "derived/.artifacts" / slug
     destination = Path(row["paths"]["derived"])
     required_names = [Path(path).name for path in row["required_outputs"]]
     missing = [name for name in required_names if not (source_dir / name).is_file()]
@@ -837,7 +823,7 @@ def validate_campaign(root: Path) -> dict[str, Any]:
 
 
 def finalize_campaign(root: Path) -> dict[str, Any]:
-    """Validate every planned output, then freeze the runstore inventory."""
+    """Validate every planned output, then freeze its Pingstore inventory."""
     root = validate_campaign_root(root)
     validate_campaign(root)
     run = load_json(root / "run.json")
@@ -855,21 +841,13 @@ def finalize_campaign(root: Path) -> dict[str, Any]:
             cwd=REPO,
             check=True,
         )
-        subprocess.run(
-            [
-                sys.executable,
-                "-m",
-                "tools.runstore",
-                "inspect",
-                str(root),
-                "--finalize",
-            ],
-            cwd=REPO,
-            check=True,
-        )
+        inventory = inventory_payload(root, run_id=run["run_id"])
+        write_json_atomic(inventory_path, inventory)
+        run["status"] = "complete"
+        write_json_atomic(root / "run.json", run)
         run = load_json(root / "run.json")
     if run.get("status") != "complete" or not inventory_path.is_file():
-        raise CollectionError("runstore did not finalize the campaign inventory")
+        raise CollectionError("Pingstore did not finalize the campaign inventory")
     inventory = load_json(inventory_path)
     return {
         "campaign_id": run["run_id"],
@@ -941,22 +919,10 @@ def build_publication(root: Path, checkout: Path) -> dict[str, Any]:
         raise CollectionError("uv is required for publication build")
     promoted = []
     for row in rows_in_order(plan):
-        subprocess.run(
-            [
-                uv,
-                "run",
-                "--frozen",
-                "--project",
-                str(checkout),
-                "python",
-                "-m",
-                "tools.runstore",
-                "promote",
-                str(root),
-                row["slug"],
-            ],
-            cwd=checkout,
-            check=True,
+        promote_experiment(
+            root,
+            row["slug"],
+            artifacts_root=checkout / ".artifacts",
         )
         promoted.append(row["slug"])
     built = subprocess.run(

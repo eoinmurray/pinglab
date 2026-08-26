@@ -6,6 +6,7 @@ from pingstore.archive import archive_dataset, restore_dataset
 from pingstore.catalogue import Catalogue
 from pingstore.contracts import EXPERIMENT_RUN_SCHEMA, write_json_atomic
 from pingstore.materialize import materialize_shadow
+from pingstore.payload import inventory_payload
 
 
 def test_frozen_dataset_round_trips_and_materializes(tmp_path: Path) -> None:
@@ -26,7 +27,11 @@ def test_frozen_dataset_round_trips_and_materializes(tmp_path: Path) -> None:
         "execution": {"command": [], "host": "local"},
         "upstream_runs": [],
         "upstream_datasets": [],
-        "payload": {"location": str(payload), "inventory_digest": "sha256:" + "a" * 64},
+        "payload": {
+            "location": str(payload),
+            "inventory_digest": "sha256:"
+            + inventory_payload(payload, run_id=run_id)["payload_digest"],
+        },
         "archive": None,
         "legacy_identity": None,
     }

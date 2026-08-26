@@ -29,7 +29,7 @@ CURRENT_ARCHIVE_ID = "ggs-production-composite-20260821-6d9c38eb"
 DEFAULT_STORE = "r2:pinglab/campaigns"
 LEGACY_BUNDLE = "derived/artifacts-data.tar.gz"
 
-# Order follows the manuscript figure sequence in writings/ar092.typ. Only figures
+# Order follows the manuscript figure sequence in writings/exp092.typ. Only figures
 # present in both immutable campaign archives belong in this before/after review.
 MANUSCRIPT_FIGURES = (
     ("exp025", "results_compound.png", "Trained PING versus COBA"),
@@ -175,8 +175,8 @@ def build_manuscript_comparison(
             with tarfile.open(bundle_path, "r:gz") as bundle:
                 for experiment, filename, title in MANUSCRIPT_FIGURES:
                     relative = f"{experiment}/{filename}"
-                    legacy_member_name = f"artifacts/data/{relative}"
-                    current_inventory_path = f"derived/artifacts/data/{relative}"
+                    legacy_member_name = f".artifacts/{relative}"
+                    current_inventory_path = f"derived/.artifacts/{relative}"
                     current_row = current_files.get(current_inventory_path)
                     if current_row is None:
                         raise RuntimeError(
@@ -216,8 +216,8 @@ def build_manuscript_comparison(
                             "status": "unchanged"
                             if legacy_sha == current_sha
                             else "changed",
-                            "legacy_path": f"/artifacts/data/exp093/legacy/{relative}",
-                            "current_path": f"/artifacts/data/{relative}",
+                            "legacy_path": f"/.artifacts/exp093/legacy/{relative}",
+                            "current_path": f"/.artifacts/{relative}",
                             "legacy_sha256": legacy_sha,
                             "current_sha256": current_sha,
                         }

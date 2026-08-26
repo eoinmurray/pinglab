@@ -12,7 +12,7 @@ Consumes COBA/PING checkpoints from exp022, then runs inference-only probes:
 Figures land in /figures/notebooks/exp038/ and the success-criteria
 summary in exp038/numbers.json.
 
-Writing: writings/exp038.typ · figures + numbers.json: artifacts/data/exp038/
+Writing: writings/exp038.typ · figures + numbers.json: .artifacts/exp038/
 """
 
 from __future__ import annotations

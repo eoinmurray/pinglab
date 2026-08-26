@@ -11,7 +11,7 @@ from pingstore.migration import build_plan, classify, import_shadow
 def make_repo(root: Path) -> None:
     (root / "writings").mkdir(parents=True)
     (root / "writings/exp001.typ").write_text('collection: "demo",\n')
-    artifact = root / "artifacts/data/exp001"
+    artifact = root / ".artifacts/exp001"
     artifact.mkdir(parents=True)
     (artifact / "numbers.json").write_text("{}\n")
     (artifact / "_manifest.json").write_text(
@@ -46,6 +46,15 @@ def test_inventory_plan_and_shadow_import_are_idempotent(tmp_path: Path) -> None
     )
     assert first == second
     assert catalogue.load_dataset("demo")["runs"] == {"exp001": ["exp001/r001"]}
+    run = json.loads(
+        catalogue.run_path("demo", "exp001", "exp001/r001")
+        .joinpath("run.json")
+        .read_text()
+    )
+    assert Path(run["payload"]["location"]).parent == catalogue.run_path(
+        "demo", "exp001", "exp001/r001"
+    )
+    assert Path(run["payload"]["location"]).joinpath("numbers.json").is_file()
 
 
 def test_unresolved_membership_is_blocked_without_preventing_other_imports(
@@ -53,7 +62,7 @@ def test_unresolved_membership_is_blocked_without_preventing_other_imports(
 ) -> None:
     repo = tmp_path / "repo"
     make_repo(repo)
-    unknown = repo / "artifacts/data/exp999"
+    unknown = repo / ".artifacts/exp999"
     unknown.mkdir()
     (unknown / "numbers.json").write_text("{}")
     inventory = inventory_local(repo)
@@ -89,7 +98,7 @@ def test_artifact_only_payload_becomes_retained_unverified_run(
     repo = tmp_path / "repo"
     (repo / "writings").mkdir(parents=True)
     (repo / "writings/exp002.typ").write_text('collection: "demo",\n')
-    artifact = repo / "artifacts/data/exp002"
+    artifact = repo / ".artifacts/exp002"
     artifact.mkdir(parents=True)
     (artifact / "schematic.svg").write_text("<svg/>")
     inventory = inventory_local(repo)
@@ -103,14 +112,11 @@ def test_artifact_only_payload_becomes_retained_unverified_run(
     )
     [run_id] = result["imported_runs"]
     run = json.loads(
-        (
-            catalogue.run_path("demo", "exp002", run_id)
-            / "run.json"
-        ).read_text()
+        (catalogue.run_path("demo", "exp002", run_id) / "run.json").read_text()
     )
     assert run["disposition"] == "retained"
     assert run["legacy_identity"]["verification"] == "unverified"
-    assert catalogue.load_dataset("demo")["official_runs"] == {}
+    assert catalogue.load_dataset("demo")["official_runs"] == {"exp002": run_id}
 
 
 def test_registered_collection_is_created_without_existing_payload(

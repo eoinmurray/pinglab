@@ -20,7 +20,7 @@ Post-training: PSD on the trained-cell E population to read off the
 gamma peak; final-state raster strip; (acc, E rate, gamma peak,
 W_ei norm, W_ie norm) summary table.
 
-Writing: writings/exp049.typ · figures + numbers.json: artifacts/data/exp049/
+Writing: writings/exp049.typ · figures + numbers.json: .artifacts/exp049/
 """
 
 from __future__ import annotations
@@ -988,7 +988,7 @@ def _rhythmicity_summary() -> dict:
     """Init / epoch-1 / final lobe–trough contrast (R) per condition, read from the
     cached per-epoch metrics.jsonl (the exp022 train-once root) — no inference.
 
-    This is what §2.4 of ar009 quotes: the trainable inits collapse the rhythm
+    This is what §2.4 of exp009 quotes: the trainable inits collapse the rhythm
     within the first logged epoch, while the frozen control holds the canonical R.
     Because it reads only committed logs, it can be refreshed via
     `--plot-only rhythmicity` without re-running the (~29 min) cell inference."""

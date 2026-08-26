@@ -14,7 +14,7 @@ def test_manuscript_comparison_materialises_verified_pairs(
     current_root = tmp_path / "current"
     for experiment, filename, _title in exp093.MANUSCRIPT_FIGURES:
         relative = f"{experiment}/{filename}"
-        legacy_files[f"artifacts/data/{relative}"] = f"legacy-{relative}".encode()
+        legacy_files[f".artifacts/{relative}"] = f"legacy-{relative}".encode()
         current_path = current_root / relative
         current_path.parent.mkdir(parents=True, exist_ok=True)
         current_path.write_bytes(f"current-{relative}".encode())
@@ -60,7 +60,7 @@ def test_manuscript_comparison_materialises_verified_pairs(
         "files": [
             row(
                 current_root / experiment / filename,
-                f"derived/artifacts/data/{experiment}/{filename}",
+                f"derived/.artifacts/{experiment}/{filename}",
             )
             for experiment, filename, _title in exp093.MANUSCRIPT_FIGURES
         ],

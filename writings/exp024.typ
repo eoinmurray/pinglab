@@ -34,7 +34,7 @@
 
   #figure(
     image(
-      "/artifacts/data/exp024/coba_curves.svg",
+      "/.artifacts/exp024/coba_curves.svg",
       width: 100%,
       alt: "COBA loss, test accuracy, and firing rate versus epoch; accuracy plateaus early while the E rate keeps climbing.",
     ),
@@ -47,7 +47,7 @@
 
   #figure(
     image(
-      "/artifacts/data/exp024/ping_curves.svg",
+      "/.artifacts/exp024/ping_curves.svg",
       width: 100%,
       alt: "PING loss, test accuracy, and firing rate versus epoch; the E rate settles into a tight band while the I rate rises.",
     ),
@@ -62,7 +62,7 @@
 
   #figure(
     image(
-      "/artifacts/data/exp024/confidence_inflation.svg",
+      "/.artifacts/exp024/confidence_inflation.svg",
       width: 100%,
       alt: "Test accuracy, test cross-entropy, and E firing rate versus epoch for COBA and PING, with accuracy-convergence epochs marked.",
     ),

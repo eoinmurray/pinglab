@@ -2,18 +2,18 @@
   title: "Arbitrary coupled graphs execute natively",
   date: "2026-08-05",
   description: "A cumulative snnlang validation establishes the typed execution seam, exact single-PING parity, and graph-only construction of two independently driven PING circuits with delayed reciprocal inhibition.",
-  collection: "documentation",
+  collection: "snnlang-docs",
   status: "ExpScout",
   order: 4,
 )
 
-#let r = json("/artifacts/data/exp077/numbers.json")
+#let r = json("/.artifacts/exp077/numbers.json")
 #let short-digest(x) = x.slice(0, 19) + "..."
 
 #let body = [
   == Abstract
 
-  This validation completes the cumulative architecture gates through ar063
+  This validation completes the cumulative architecture gates through exp102
   Milestone 3. The new graph executor matches the active legacy single-PING
   reference exactly: seeded parameters, E and I spikes, mean-voltage output,
   and checkpoint replay all have zero recorded discrepancy. Its matched local
@@ -26,7 +26,7 @@
 
   == Registered goal
 
-  #raw(read("/artifacts/data/exp077/goal.txt"), block: true, lang: "text")
+  #raw(read("/.artifacts/exp077/goal.txt"), block: true, lang: "text")
 
   == Methods
 
@@ -78,7 +78,7 @@
 
   #figure(
     image(
-      "/artifacts/data/exp077/reciprocal_delayed.svg",
+      "/.artifacts/exp077/reciprocal_delayed.svg",
       width: 100%,
       alt: "Circuit diagram of two PING components with reciprocal delayed inhibitory projections.",
     ),
@@ -106,7 +106,7 @@
 
   #figure(
     image(
-      "/artifacts/data/exp077/matched_rasters.png",
+      "/.artifacts/exp077/matched_rasters.png",
       width: 100%,
       alt: "Excitatory spike rasters for both circuits across four coupling graph variants.",
     ),

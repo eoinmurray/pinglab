@@ -8,7 +8,7 @@
   status: "ExpScout",
 )
 
-#let r = json("/artifacts/data/exp097/numbers.json")
+#let r = json("/.artifacts/exp097/numbers.json")
 #let result = r.results
 #let loop-video(src) = context {
   if target() == "html" {

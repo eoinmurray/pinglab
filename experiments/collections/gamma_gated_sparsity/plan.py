@@ -57,7 +57,7 @@ def validate_campaign_root(root: Path) -> Path:
     if not root.is_absolute():
         raise ValueError("campaign root must be an explicit absolute path")
     resolved = root.resolve()
-    forbidden = (REPO, REPO / "artifacts", REPO / "temp")
+    forbidden = (REPO, REPO / ".artifacts", REPO / "temp")
     for base in forbidden:
         base = base.resolve()
         if resolved == base or base in resolved.parents:
@@ -94,7 +94,7 @@ def build_plan(root: Path, campaign_id: str, *, smoke: bool = False) -> dict[str
                 "paths": {
                     "state": str(state),
                     "derived": str(
-                        resolved / "derived" / "artifacts" / "data" / experiment.slug
+                        resolved / "derived/.artifacts" / experiment.slug
                     ),
                     "logs": str(resolved / "logs" / experiment.slug),
                 },
@@ -102,11 +102,7 @@ def build_plan(root: Path, campaign_id: str, *, smoke: bool = False) -> dict[str
                 "execution": execution,
                 "required_outputs": [
                     str(
-                        resolved
-                        / "derived"
-                        / "artifacts"
-                        / "data"
-                        / experiment.slug
+                        resolved / "derived/.artifacts" / experiment.slug
                         / filename
                     )
                     for filename in (

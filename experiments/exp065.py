@@ -7,7 +7,7 @@ binarized and their foreground pixels independently retained with probability
 q, producing the ANN calibration curve requested in issue #46.
 
 Spatial-analysis runner for the combined writings/exp048.typ entry.
-Record: artifacts/data/exp065/
+Record: .artifacts/exp065/
 """
 
 from __future__ import annotations

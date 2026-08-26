@@ -16,7 +16,7 @@ Two figures:
 
 No retraining; pure inference. Local MPS.
 
-Writing: writings/exp046.typ · figures + numbers.json: artifacts/data/exp046/
+Writing: writings/exp046.typ · figures + numbers.json: .artifacts/exp046/
 """
 
 from __future__ import annotations

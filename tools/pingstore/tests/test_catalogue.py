@@ -50,3 +50,12 @@ def test_freeze_requires_complete_official_mapping(tmp_path: Path) -> None:
     catalogue.create_dataset("demo", ["exp001"])
     with pytest.raises(PingstoreError, match="official runs"):
         catalogue.freeze("demo", "release-1")
+
+
+def test_attach_collection_asset_is_idempotent(tmp_path: Path) -> None:
+    catalogue = Catalogue(tmp_path / "store")
+    catalogue.create_dataset("demo", ["exp001"])
+    uri = "r2://pinglab/campaigns/gold-1"
+    catalogue.attach_asset("demo", uri)
+    catalogue.attach_asset("demo", uri)
+    assert catalogue.load_dataset("demo")["collection_assets"] == [uri]

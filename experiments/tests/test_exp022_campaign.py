@@ -610,7 +610,7 @@ def test_post_aggregation_check_allows_only_generated_exp022_artifacts(
     monkeypatch.setattr(campaign, "git_identity", lambda _repo: ("deadbeef", True))
     monkeypatch.setattr(
         campaign, "git_dirty_paths",
-        lambda _repo: ["artifacts/data/exp022/numbers.json", "artifacts/pdfs/exp022.pdf"],
+        lambda _repo: [".artifacts/exp022/numbers.json", ".demolab/pdfs/exp022.pdf"],
     )
     assert exp022._checked_manifest(
         manifest_path, allow_generated_dirty=True,

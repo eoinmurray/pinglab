@@ -10,7 +10,7 @@ Consumes COBA/PING baseline checkpoints from exp022 and runs:
 Figures land in /figures/notebooks/exp037/ and the success-criteria
 summary in exp037/numbers.json.
 
-Writing: writings/exp037.typ · figures + numbers.json: artifacts/data/exp037/
+Writing: writings/exp037.typ · figures + numbers.json: .artifacts/exp037/
 """
 
 from __future__ import annotations

@@ -55,7 +55,7 @@ def test_publication_text_does_not_claim_fully_fitted_scale() -> None:
         for path in (
             "writings/exp033.typ",
             "writings/exp054.typ",
-            "writings/ar009.typ",
+            "writings/exp009.typ",
         )
     ).lower()
     assert "no fitted scale" not in corpus

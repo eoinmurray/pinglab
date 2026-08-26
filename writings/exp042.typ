@@ -8,7 +8,7 @@
 
 // Provenance (HOUSESTYLE H9): every run number below is read from the run's
 // numbers.json, never hand-typed, so a re-run updates the prose automatically.
-#let run = json("/artifacts/data/exp042/numbers.json")
+#let run = json("/.artifacts/exp042/numbers.json")
 #let cfg = run.config
 #let mean(a) = a.sum() / a.len()
 
@@ -73,7 +73,7 @@
   the I-loop delivers more inhibition. This entry forecloses that reading and
   identifies _what_ about the I-stream is doing the suppressing: qualitatively
   (rhythm vs mean), and quantitatively (which temporal precision is required).
-  Scaffolded by #link("/ar009/")[ar009] §Leg 1 item 2.
+  Scaffolded by #link("/exp009/")[exp009] §Leg 1 item 2.
 
   == Methods
 
@@ -130,7 +130,7 @@
 
   #figure(
     image(
-      "/artifacts/data/exp042/rhythm_compound.png",
+      "/.artifacts/exp042/rhythm_compound.png",
       width: 100%,
       alt: "A two-by-two panel; both top rasters use the same jitter magnitude, sigma 14 ms, differing only in the kind of jitter. Top row: two single-trial rasters of trained PING (E spikes black, I spikes red). Top left, per-I-cell jitter, where the I-bursts have dissolved into continuous asynchronous firing and E is silent. Top right, cycle-coherent jitter, where the I-bursts stay sharp but are displaced and E firing appears in the gaps; both panels have near-identical realised I rates. Bottom row: two twin-axis line plots of hidden E rate (black diamonds) and accuracy (red squares) versus jitter sigma, each with a grey realised mean I-rate trace. Bottom left (per-cell) E and accuracy fall to near zero while realised I stays flat near 53 Hz; bottom right (cycle-coherent) E rate rises and accuracy stays high, while the grey realised-I trace holds flat then droops at the largest sigma.",
     ),
@@ -161,7 +161,7 @@
 
   #figure(
     image(
-      "/artifacts/data/exp042/cell_jitter_sweep.svg",
+      "/.artifacts/exp042/cell_jitter_sweep.svg",
       width: 100%,
       alt: "Twin-axis line plot: hidden E rate (black diamonds, left axis) and test accuracy (red squares, right axis) versus per-I-cell jitter sigma in milliseconds on a symlog axis. Both fall steeply from baseline at small sigma; E rate is essentially zero by 5 ms and accuracy reaches chance by 9 ms. A grey line shows the realised mean I rate, flat near 53 Hz across the whole sweep and dipping only slightly to about 49 Hz by 50 ms.",
     ),
@@ -182,7 +182,7 @@
 
   #figure(
     image(
-      "/artifacts/data/exp042/cell_jitter_raster_strip.png",
+      "/.artifacts/exp042/cell_jitter_raster_strip.png",
       width: 100%,
       alt: "Five stacked single-trial rasters of trained PING under per-I-cell jitter at sigma 0, 1, 5, 9 and 50 ms; E spikes black, I spikes red. Crisp vertical I-bursts at sigma 0 smear at sigma 1 and dissolve into continuous asynchronous I firing by sigma 5, while E firing goes silent.",
     ),
@@ -202,7 +202,7 @@
 
   #figure(
     image(
-      "/artifacts/data/exp042/jitter_sweep.svg",
+      "/.artifacts/exp042/jitter_sweep.svg",
       width: 100%,
       alt: "Twin-axis line plot on a symlog sigma axis: hidden E rate (black diamonds, left axis) rises monotonically from about 9 Hz to 66 Hz as cycle-coherent jitter sigma grows, while test accuracy (red squares, right axis) declines gently from about 91 to 82 percent. A grey line shows the realised mean I rate: flat near 53 Hz up to about sigma 14 ms, then drooping to about 40 Hz by sigma 100 ms.",
     ),
@@ -225,7 +225,7 @@
 
   #figure(
     image(
-      "/artifacts/data/exp042/jitter_raster_strip.png",
+      "/.artifacts/exp042/jitter_raster_strip.png",
       width: 100%,
       alt: "Five stacked single-trial rasters of trained PING under cycle-coherent jitter at sigma 0, 7, 14, 28 and 100 ms; E spikes black, I spikes red. The red I-bursts stay sharp and vertical at every sigma but shift position, while E firing (black) grows denser and fills the widening gaps as sigma increases.",
     ),

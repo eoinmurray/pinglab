@@ -22,7 +22,7 @@ Then runs:
 All figures land in /figures/notebooks/exp025/ and the success-criteria
 summary in exp025/numbers.json.
 
-Writing: writings/exp025.typ · figures + numbers.json: artifacts/data/exp025/
+Writing: writings/exp025.typ · figures + numbers.json: .artifacts/exp025/
 """
 
 from __future__ import annotations

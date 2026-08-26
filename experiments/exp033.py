@@ -20,7 +20,7 @@ silent fixed point, diagonalises the Jacobian, and locates the Hopf
   - contrasts the 4D field against its 2D Wilson-Cowan reduction (synapses
     adiabatically eliminated), which rings down at the same drive.
 
-Writing: writings/exp033.typ · figures + numbers.json: artifacts/data/exp033/
+Writing: writings/exp033.typ · figures + numbers.json: .artifacts/exp033/
 """
 
 from __future__ import annotations

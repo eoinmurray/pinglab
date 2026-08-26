@@ -8,7 +8,7 @@
 
 // Provenance (HOUSESTYLE H9): every run number below is read from the run's
 // numbers.json, never hand-typed, so a re-run updates the prose automatically.
-#let run = json("/artifacts/data/exp037/numbers.json")
+#let run = json("/.artifacts/exp037/numbers.json")
 #let cfg = run.config
 #let eval_n = cfg.at("evaluation_samples_per_seed", default: (1000,)).first()
 #let eval_pool = cfg.at("evaluation_pool_samples", default: 1000)
@@ -136,7 +136,7 @@
 
   #figure(
     image(
-      "/artifacts/data/exp037/perturbation_curves.svg",
+      "/.artifacts/exp037/perturbation_curves.svg",
       width: 100%,
       alt: "Two panels of across-seed mean test accuracy with shaded standard deviation versus perturbation level for COBA (red) and PING (black).",
     ),
@@ -154,7 +154,7 @@
 
   #figure(
     image(
-      "/artifacts/data/exp037/perturb_rasters__drop__ping.png",
+      "/.artifacts/exp037/perturb_rasters__drop__ping.png",
       width: 100%,
       alt: "Three stacked single-trial rasters of trained PING at drop levels 0, 50, and 100 percent; E spikes in black above I spikes in red. The gamma banding is preserved at 0 and 50 percent and silent at 100 percent.",
     ),
@@ -168,7 +168,7 @@
 
   #figure(
     image(
-      "/artifacts/data/exp037/perturb_rasters__add__ping.png",
+      "/.artifacts/exp037/perturb_rasters__add__ping.png",
       width: 100%,
       alt: "Three stacked single-trial rasters of trained PING at added Poisson rates of 0, 20, and 40 Hz; E spikes in black above I spikes in red. The gamma banding dissolves into asynchronous firing as the added rate rises.",
     ),
@@ -181,7 +181,7 @@
 
   #figure(
     image(
-      "/artifacts/data/exp037/perturb_rasters__drop__coba.png",
+      "/.artifacts/exp037/perturb_rasters__drop__coba.png",
       width: 100%,
       alt: "Three stacked single-trial rasters of trained COBA at drop levels 0, 50, and 100 percent; dense asynchronous E firing that thins uniformly with drop and is silent at 100 percent.",
     ),
@@ -193,7 +193,7 @@
 
   #figure(
     image(
-      "/artifacts/data/exp037/perturb_rasters__add__coba.png",
+      "/.artifacts/exp037/perturb_rasters__add__coba.png",
       width: 100%,
       alt: "Three stacked single-trial rasters of trained COBA at added Poisson rates of 0, 20, and 40 Hz; dense asynchronous firing whose mean rate rises but whose structure is unchanged.",
     ),

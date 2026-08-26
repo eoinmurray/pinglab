@@ -8,7 +8,7 @@
   status: "ExpScout",
 )
 
-#let r = json("/artifacts/data/exp080/numbers.json")
+#let r = json("/.artifacts/exp080/numbers.json")
 #let d = r.decision
 #let criterion-crossed = d.at("criterion_crossed", default: true)
 #let pct(x) = str(calc.round(100 * x, digits: 1)) + "%"
@@ -140,7 +140,7 @@
   Validation accuracy improved across training for all three decoder seeds.
 
   #figure(
-    image("/artifacts/data/exp080/training_history.svg", width: 72%,
+    image("/.artifacts/exp080/training_history.svg", width: 72%,
       alt: "Three validation-accuracy curves over the decoder training run."),
     caption: [Mixed-rate validation accuracy across training. The horizontal
       axis is epoch and the vertical axis is validation accuracy. Each curve is
@@ -152,7 +152,7 @@
   === What the decoder saw
 
   #figure(
-    image("/artifacts/data/exp080/feature_images.png",
+    image("/.artifacts/exp080/feature_images.png",
       alt: "One MNIST input image followed by filtered feature images at increasing input rates."),
     caption: [An MNIST input image and its directly simulated filtered features.
       The left panel shows the normalized input. The remaining panels show
@@ -171,7 +171,7 @@
   === Empirical rate selection
 
   #figure(
-    image("/artifacts/data/exp080/psychometric.svg", width: 72%,
+    image("/.artifacts/exp080/psychometric.svg", width: 72%,
       alt: "Held-out decoder accuracy against maximum-pixel encoding rate, with the practical criterion and any selected floor marked."),
     caption: [Held-out nonlinear-decoder accuracy against maximum-pixel encoding
       rate. Points average the official test images and three independently

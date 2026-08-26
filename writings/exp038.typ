@@ -6,7 +6,7 @@
   status: "ExpScout",
 )
 
-#let run = json("/artifacts/data/exp038/numbers.json")
+#let run = json("/.artifacts/exp038/numbers.json")
 #let cfg = run.config
 #let eval_n = cfg.at("evaluation_samples_per_seed", default: (1000,)).first()
 #let eval_pool = cfg.at("evaluation_pool_samples", default: 10000)
@@ -73,7 +73,7 @@
   == Results
 
   #figure(
-    image("/artifacts/data/exp038/loop_transfer_compound.png", width: 100%,
+    image("/.artifacts/exp038/loop_transfer_compound.png", width: 100%,
       alt: "Trained COBA replayed with the inference-time I-loop swept from 0 to 1: rasters at ei=0 and ei=1, E and I rate versus loop strength, and test accuracy versus loop strength."),
     caption: [
       Switching the recurrent I-loop on _at inference_ on a trained COBA network (no
@@ -94,7 +94,7 @@
   )
 
   #figure(
-    image("/artifacts/data/exp038/ei_rasters.png", width: 100%,
+    image("/.artifacts/exp038/ei_rasters.png", width: 100%,
       alt: "Six stacked E/I spike rasters of the same trial replayed at ei_strength 0, 0.2, 0.4, 0.6, 0.8, 1, showing dense asynchronous firing giving way to gamma bands as the loop strengthens."),
     caption: [
       The illustrative seed-42 transition: trained COBA replayed at six inference-time _ei_strength_

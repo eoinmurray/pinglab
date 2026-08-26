@@ -465,24 +465,24 @@ def main() -> None:
             "bundle_selected_through_bundle": checkpoint_status(
                 "bundle",
                 train_dir / "weights.pth",
-                artifact_path="artifacts/data/exp076/bundle_training/weights.pth",
+                artifact_path=".artifacts/exp076/bundle_training/weights.pth",
                 bundle_dir=bundle_dir,
             ),
             "bundle_final_through_bundle": checkpoint_status(
                 "bundle",
                 train_dir / "weights_final.pth",
-                artifact_path="artifacts/data/exp076/bundle_training/weights_final.pth",
+                artifact_path=".artifacts/exp076/bundle_training/weights_final.pth",
                 bundle_dir=bundle_dir,
             ),
             "bundle_selected_through_legacy": checkpoint_status(
                 "legacy",
                 train_dir / "weights.pth",
-                artifact_path="artifacts/data/exp076/bundle_training/weights.pth",
+                artifact_path=".artifacts/exp076/bundle_training/weights.pth",
             ),
             "legacy_selected_through_bundle": checkpoint_status(
                 "bundle",
                 legacy_train_dir / "weights.pth",
-                artifact_path="artifacts/data/exp076/legacy_training/weights.pth",
+                artifact_path=".artifacts/exp076/legacy_training/weights.pth",
                 bundle_dir=bundle_dir,
             ),
         }
@@ -594,11 +594,11 @@ def main() -> None:
                 },
             },
             "artifacts": {
-                "bundle": "artifacts/data/exp076/network.bundle",
-                "bundle_training": "artifacts/data/exp076/bundle_training",
-                "legacy_training": "artifacts/data/exp076/legacy_training",
-                "selected_replay": "artifacts/data/exp076/bundle_replay_selected",
-                "final_replay": "artifacts/data/exp076/bundle_replay_final",
+                "bundle": ".artifacts/exp076/network.bundle",
+                "bundle_training": ".artifacts/exp076/bundle_training",
+                "legacy_training": ".artifacts/exp076/legacy_training",
+                "selected_replay": ".artifacts/exp076/bundle_replay_selected",
+                "final_replay": ".artifacts/exp076/bundle_replay_final",
             },
         }
         write_numbers(

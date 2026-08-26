@@ -8,8 +8,8 @@
   status: "ExpScout",
 )
 
-#let r = json("/artifacts/data/exp048/numbers.json")
-#let rs = json("/artifacts/data/exp065/numbers.json")
+#let r = json("/.artifacts/exp048/numbers.json")
+#let rs = json("/.artifacts/exp065/numbers.json")
 #let cfg = r.config
 #let scfg = rs.config
 #let rate-at(rate) = r.encoding_rate_psychometric.curve.filter(x => x.input_rate_hz == rate).at(0)
@@ -196,7 +196,7 @@
 
   #figure(
     image(
-      "/artifacts/data/exp048/varying_headline_stream.png",
+      "/.artifacts/exp048/varying_headline_stream.png",
       width: 100%,
       alt: "A digit stream where each segment has its own duration and input rate, with errors marked in red.",
     ),
@@ -211,7 +211,7 @@
 
   #figure(
     image(
-      "/artifacts/data/exp048/acc_grid_tau_rate.png",
+      "/.artifacts/exp048/acc_grid_tau_rate.png",
       width: 100%,
       alt: "A duration-by-input-rate accuracy heatmap beside a fixed-duration encoding-rate psychometric curve.",
     ),
@@ -254,7 +254,7 @@
 
   #figure(
     image(
-      "/artifacts/data/exp065/ann_masking_calibration.svg",
+      "/.artifacts/exp065/ann_masking_calibration.svg",
       width: 100%,
       alt: "ANN probability of correct classification against foreground-pixel retention probability.",
     ),
@@ -280,7 +280,7 @@
 
   #figure(
     image(
-      "/artifacts/data/exp065/matched_masking.svg",
+      "/.artifacts/exp065/matched_masking.svg",
       width: 100%,
       alt: "ANN and frozen PING classification accuracy against foreground retention on the same held-out examples and masks.",
     ),
@@ -296,7 +296,7 @@
 
   #figure(
     image(
-      "/artifacts/data/exp065/masking_diagnostics.png",
+      "/.artifacts/exp065/masking_diagnostics.png",
       width: 100%,
       alt: "Example masked digits and row-normalized ANN and PING confusion matrices at five foreground-retention levels.",
     ),

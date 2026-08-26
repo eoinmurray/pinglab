@@ -6,7 +6,7 @@
   status: "ExpScout",
 )
 
-#let r = json("/artifacts/data/exp094/numbers.json")
+#let r = json("/.artifacts/exp094/numbers.json")
 #let accuracy(model, decoder) = calc.round(100 * r.screen.models.at(model).at(decoder).accuracy)
 #let transitions(model, decoder) = r.screen.models.at(model).at(decoder).transitions
 
@@ -26,7 +26,7 @@
   The scout stops if decoder transfer is uninformative, requires revision if the intervention is mismatched, and escalates if a COBA–PING contrast survives the balanced screen. Its budget is one illustrative replay plus #r.screen.n balanced screening images, with no retraining, hyperparameter search, network-seed sweep, or full-test evaluation.
 
   #figure(
-    image("/artifacts/data/exp094/decoder_pipeline.svg", width: 100%, alt: "Frozen COBA and PING activity passing through temporal evidence, output mapping, and decision stages."),
+    image("/.artifacts/exp094/decoder_pipeline.svg", width: 100%, alt: "Frozen COBA and PING activity passing through temporal evidence, output mapping, and decision stages."),
     caption: [Shared decoder decomposition. Frozen activity enters a temporal evidence rule $z$, then an optional display mapping $p$, before the final argmax decision.],
   )
 
@@ -47,9 +47,9 @@
   Running mean voltage is the native decoder used to train both frozen networks, so it establishes the reference decision before any output-spike intervention. The true class should finish above its competitors in both networks, although their transient competition may differ before the temporal mean settles. The schematic defines the running mean; its measured mirror follows the true class and strongest competitor.
 
   #figure([
-    #image("/artifacts/data/exp094/z_mean.svg", width: 100%, alt: "Illustrative output voltages becoming mean-voltage evidence.")
+    #image("/.artifacts/exp094/z_mean.svg", width: 100%, alt: "Illustrative output voltages becoming mean-voltage evidence.")
     #v(6pt)
-    #image("/artifacts/data/exp094/measured_z_mean.svg", width: 100%, alt: "Measured running mean-voltage evidence for frozen COBA and PING trajectories.")
+    #image("/.artifacts/exp094/measured_z_mean.svg", width: 100%, alt: "Measured running mean-voltage evidence for frozen COBA and PING trajectories.")
   ], caption: [Native mean-voltage evidence retains subthreshold activity while removing temporal order.])
 
   Both native decoders select the true class. COBA settles rapidly, while PING retains more early competition before the true-class mean remains larger. This is the baseline against which later evidence rules are judged.
@@ -59,9 +59,9 @@
   Cumulative count asks whether frozen output spikes preserve the trained decision when every spike remains evidence until reset. Transferable output spikes should allow the true class to accumulate a durable lead; dense, poorly matched output activity should instead obscure class separation. The schematic defines count accumulation, and its measured mirror applies that rule to the shared counterfactual output trajectory.
 
   #figure([
-    #image("/artifacts/data/exp094/z_cumulative.svg", width: 100%, alt: "Illustrative output spikes becoming cumulative staircase evidence.")
+    #image("/.artifacts/exp094/z_cumulative.svg", width: 100%, alt: "Illustrative output spikes becoming cumulative staircase evidence.")
     #v(6pt)
-    #image("/artifacts/data/exp094/measured_z_cumulative.svg", width: 100%, alt: "Measured cumulative output-spike evidence for frozen COBA and PING trajectories.")
+    #image("/.artifacts/exp094/measured_z_cumulative.svg", width: 100%, alt: "Measured cumulative output-spike evidence for frozen COBA and PING trajectories.")
   ], caption: [Cumulative evidence preserves every output spike until reset.])
 
   PING eventually gives the true class the largest cumulative count, whereas COBA does not. The contrast indicates different compatibility with the spike-count intervention, not the accuracy either network would achieve if trained with this decoder.
@@ -71,9 +71,9 @@
   Leaky evidence tests whether forgetting old spikes reveals recent class competition better than an irreversible cumulative count. Recent PING evidence may remain separable as older spikes decay, whereas leakage cannot help if the counterfactual output rate keeps all classes near a common ceiling. The measured mirror uses the same fixed leak for both networks.
 
   #figure([
-    #image("/artifacts/data/exp094/z_leaky.svg", width: 100%, alt: "Illustrative output spikes becoming decaying leaky evidence.")
+    #image("/.artifacts/exp094/z_leaky.svg", width: 100%, alt: "Illustrative output spikes becoming decaying leaky evidence.")
     #v(6pt)
-    #image("/artifacts/data/exp094/measured_z_leaky.svg", width: 100%, alt: "Measured leaky spike evidence for frozen COBA and PING trajectories.")
+    #image("/.artifacts/exp094/measured_z_leaky.svg", width: 100%, alt: "Measured leaky spike evidence for frozen COBA and PING trajectories.")
   ], caption: [Leaky evidence weights recent output spikes more strongly.])
 
   PING retains changing local separation under leakage. COBA remains close to a steady saturated level, so forgetting old evidence does not recover a useful decision.
@@ -83,9 +83,9 @@
   A finite window makes the decoder's memory boundary explicit and tests whether local rather than accumulated evidence carries the decision. A compatible event representation should show class differences within the fixed window, while saturated windows should erase useful competition. The measured mirror shows the resulting local counts.
 
   #figure([
-    #image("/artifacts/data/exp094/z_window.svg", width: 100%, alt: "Illustrative time window selecting which output spikes remain evidence.")
+    #image("/.artifacts/exp094/z_window.svg", width: 100%, alt: "Illustrative time window selecting which output spikes remain evidence.")
     #v(6pt)
-    #image("/artifacts/data/exp094/measured_z_window.svg", width: 100%, alt: "Measured sliding-window spike evidence for frozen COBA and PING trajectories.")
+    #image("/.artifacts/exp094/measured_z_window.svg", width: 100%, alt: "Measured sliding-window spike evidence for frozen COBA and PING trajectories.")
   ], caption: [Windowed evidence retains spikes for #r.decoder.window_ms ms, then removes them.])
 
   PING's local competition remains visible as the window moves. COBA windows are nearly full, showing that a memory rule cannot rescue an output event rate poorly matched to it.
@@ -95,9 +95,9 @@
   Voting tests whether treating rhythmic intervals as discrete evidence packets preserves class information beyond raw burst size. If PING cycles carry structured competition, the true class should win more detected cycles; duration-matched COBA bins provide a non-rhythmic control. The measured mirror accumulates one winner per PING cycle or matched COBA interval.
 
   #figure([
-    #image("/artifacts/data/exp094/z_vote.svg", width: 100%, alt: "Illustrative interval winners becoming cumulative class votes.")
+    #image("/.artifacts/exp094/z_vote.svg", width: 100%, alt: "Illustrative interval winners becoming cumulative class votes.")
     #v(6pt)
-    #image("/artifacts/data/exp094/measured_z_vote.svg", width: 100%, alt: "Measured cumulative cycle or matched-bin votes for frozen COBA and PING trajectories.")
+    #image("/.artifacts/exp094/measured_z_vote.svg", width: 100%, alt: "Measured cumulative cycle or matched-bin votes for frozen COBA and PING trajectories.")
   ], caption: [Cycle or matched-bin evidence gives each interval one class vote.])
 
   The PING true class wins more detected cycles and pulls away in cumulative votes. Matched COBA bins favour another class. This is consistent with meaningful rhythmic packets in the selected PING trajectory, but voting alone does not establish their causal importance.
@@ -111,9 +111,9 @@
   Ordinary softmax separates evidence accumulation from the visual sharpening produced by a normalized output mapping. It should preserve the cumulative-count winner while converting margins into competing class shares, using the same cumulative-count vector as the other output mappings.
 
   #figure([
-    #image("/artifacts/data/exp094/p_softmax.svg", width: 100%, alt: "Illustrative cumulative counts becoming ordinary-softmax shares.")
+    #image("/.artifacts/exp094/p_softmax.svg", width: 100%, alt: "Illustrative cumulative counts becoming ordinary-softmax shares.")
     #v(6pt)
-    #image("/artifacts/data/exp094/measured_p_softmax.svg", width: 100%, alt: "Measured ordinary softmax of cumulative counts for frozen COBA and PING trajectories.")
+    #image("/.artifacts/exp094/measured_p_softmax.svg", width: 100%, alt: "Measured ordinary softmax of cumulative counts for frozen COBA and PING trajectories.")
   ], caption: [Ordinary softmax converts count margins into competing class shares.])
 
   Softmax makes PING leader changes appear abrupt and decisive but leaves the cumulative-count winner unchanged. COBA's different winner is likewise preserved. The plot changes confidence display, not evidence quality.
@@ -123,9 +123,9 @@
   Temperature tests whether apparent decisiveness can be reduced without changing accumulated evidence or the winning class. Dividing the same cumulative-count vector by a positive fixed temperature before softmax should preserve every argmax while making competitors easier to see.
 
   #figure([
-    #image("/artifacts/data/exp094/p_softened.svg", width: 100%, alt: "Illustrative cumulative counts becoming temperature-softened shares.")
+    #image("/.artifacts/exp094/p_softened.svg", width: 100%, alt: "Illustrative cumulative counts becoming temperature-softened shares.")
     #v(6pt)
-    #image("/artifacts/data/exp094/measured_p_softened.svg", width: 100%, alt: "Measured temperature-softened softmax of the same cumulative counts.")
+    #image("/.artifacts/exp094/measured_p_softened.svg", width: 100%, alt: "Measured temperature-softened softmax of the same cumulative counts.")
   ], caption: [Temperature softening exposes competitors while preserving the winner.])
 
   Softening exposes more of PING's competing classes while preserving its leader changes and final winner. The difference from ordinary softmax is entirely presentational.
@@ -135,9 +135,9 @@
   Independent sigmoid removes mutual class competition and tests whether a bounded per-class display is meaningful for non-negative accumulating counts. Because each count is transformed independently rather than normalized across classes, several classes should approach one together and make the final decision tie-dominated.
 
   #figure([
-    #image("/artifacts/data/exp094/p_sigmoid.svg", width: 100%, alt: "Illustrative cumulative counts becoming independent sigmoid scores that rise together.")
+    #image("/.artifacts/exp094/p_sigmoid.svg", width: 100%, alt: "Illustrative cumulative counts becoming independent sigmoid scores that rise together.")
     #v(6pt)
-    #image("/artifacts/data/exp094/measured_p_sigmoid.svg", width: 100%, alt: "Measured independent sigmoid scores from the same cumulative counts.")
+    #image("/.artifacts/exp094/measured_p_sigmoid.svg", width: 100%, alt: "Measured independent sigmoid scores from the same cumulative counts.")
   ], caption: [Independent sigmoid bounds each class separately and removes mutual competition.])
 
   All classes saturate near one, so the displayed winner is governed by numerical tie handling rather than useful separation. The failure is specific to applying independent sigmoid directly to cumulative non-negative counts.
@@ -151,7 +151,7 @@
   Aggregate accuracy tests whether the illustrative decoder-transfer contrast immediately collapses across a balanced set of other inputs. A useful signal should survive across digits, although the screen remains descriptive because it contains one trained network of each kind and is not a population estimate. The matrix applies all eight decoder rules to the same first ten official-test examples of every digit.
 
   #figure(
-    image("/artifacts/data/exp094/screen_accuracy.svg", width: 100%, alt: "Accuracy matrix for eight decoder options across a balanced 100-image COBA and PING screening sample."),
+    image("/.artifacts/exp094/screen_accuracy.svg", width: 100%, alt: "Accuracy matrix for eight decoder options across a balanced 100-image COBA and PING screening sample."),
     caption: [Decoder-transfer screen. The divider separates temporal evidence rules from mappings of shared cumulative evidence.],
   )
 
@@ -162,7 +162,7 @@
   Aggregate accuracy alone cannot distinguish preserved native decisions from compensating repairs and new failures. A compatible alternative should preserve most native correct decisions rather than merely exchange one set of errors for another, so the transition plot cross-tabulates every alternative decision against its network's native decision.
 
   #figure(
-    image("/artifacts/data/exp094/screen_transitions.svg", width: 100%, alt: "Stacked transition counts showing which native decisions each alternative decoder preserves, breaks, or repairs."),
+    image("/.artifacts/exp094/screen_transitions.svg", width: 100%, alt: "Stacked transition counts showing which native decisions each alternative decoder preserves, breaks, or repairs."),
     caption: [Transitions show whether each alternative preserves, breaks, repairs, or retains a native error.],
   )
 
@@ -173,7 +173,7 @@
   Per-class changes test whether aggregate decoder loss is confined to the selected digit or one unusually difficult class. A broad incompatibility should affect several digits, whereas a selected-example artefact should remain narrowly concentrated. The heatmap subtracts native class accuracy from each alternative's class accuracy on the balanced screen.
 
   #figure(
-    image("/artifacts/data/exp094/screen_classes.svg", width: 100%, alt: "Per-digit accuracy changes from native decoding for COBA and PING across all decoder options."),
+    image("/.artifacts/exp094/screen_classes.svg", width: 100%, alt: "Per-digit accuracy changes from native decoding for COBA and PING across all decoder options."),
     caption: [Class-specific changes show whether aggregate loss is confined to one digit.],
   )
 

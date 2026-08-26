@@ -8,7 +8,7 @@
   status: "ExpScout",
 )
 
-#let r = json("/artifacts/data/exp047/numbers.json")
+#let r = json("/.artifacts/exp047/numbers.json")
 #let ft = r.summary.fixed_total
 #let fs = r.summary.fixed_synapse
 #let e(control, level, n) = control.at(level).at(n).r_e_hz_mean
@@ -76,7 +76,7 @@
 
   #figure(
     image(
-      "/artifacts/data/exp047/pool_size_controls.svg",
+      "/.artifacts/exp047/pool_size_controls.svg",
       width: 100%,
       alt: "Four panels comparing E and I firing rates across inhibitory pool sizes. Rates are flat when summed coupling is fixed, but fall strongly with pool size when realised synaptic strength is fixed.",
     ),

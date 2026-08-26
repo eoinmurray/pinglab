@@ -4,24 +4,35 @@ from __future__ import annotations
 
 import argparse
 import json
-import os
 from pathlib import Path
 from typing import Any
 
 from .archive import archive_dataset, restore_dataset
 from .catalogue import Catalogue
 from .contracts import PingstoreError, load_json, write_json_atomic
-from .inventory import add_remote_catalogue, inventory_local, verify_local_inventory
-from .legacy import legacy_catalogue, restore_legacy_archive, verify_legacy_archive
-from .materialize import cutover, materialize_shadow
+from .inventory import inventory_local, verify_local_inventory
+from .materialize import (
+    cutover,
+    materialize_experiment,
+    materialize_publication_view,
+    materialize_shadow,
+)
 from .migration import build_plan, classify, import_shadow
-from .native import capture_campaign_metadata, capture_local_run
+from .native import (
+    capture_campaign_metadata,
+    capture_failed_local_run,
+    capture_local_run,
+)
 from .prune import pruning_plan
 from .registry import coverage, registry_path
+from .remote import (
+    DEFAULT_DATASET_STORE,
+    archive_dataset_r2,
+    inspect_dataset_r2,
+    restore_dataset_r2,
+)
 
-DEFAULT_ROOT = Path("runs/pingstore")
-DEFAULT_STORE = "r2:pinglab/campaigns"
-DEFAULT_URI = "r2://pinglab/campaigns"
+DEFAULT_ROOT = Path(".pingstore")
 
 
 def _print(value: Any, *, as_json: bool = False) -> None:
@@ -52,6 +63,10 @@ def build_parser() -> argparse.ArgumentParser:
     select.add_argument("run_id")
     select.add_argument("--preview", action="store_true")
 
+    attach_asset = sub.add_parser("attach-asset")
+    attach_asset.add_argument("collection")
+    attach_asset.add_argument("uri")
+
     freeze = sub.add_parser("freeze")
     freeze.add_argument("collection")
     freeze.add_argument("--snapshot", required=True)
@@ -60,38 +75,56 @@ def build_parser() -> argparse.ArgumentParser:
     archive.add_argument("dataset_id")
     archive.add_argument("destination", type=Path)
 
+    archive_r2 = sub.add_parser("archive-r2")
+    archive_r2.add_argument("dataset_id")
+    archive_r2.add_argument("--store", default=DEFAULT_DATASET_STORE)
+
+    inspect_r2 = sub.add_parser("inspect-r2")
+    inspect_r2.add_argument("dataset_id")
+    inspect_r2.add_argument("--store", default=DEFAULT_DATASET_STORE)
+
+    restore_r2 = sub.add_parser("restore-r2")
+    restore_r2.add_argument("dataset_id")
+    restore_r2.add_argument("destination", type=Path)
+    restore_r2.add_argument("--store", default=DEFAULT_DATASET_STORE)
+
     preview = sub.add_parser("preview")
     preview.add_argument("collection")
     preview.add_argument("--shadow", type=Path, required=True)
     preview.add_argument("--official-only", action="store_true")
     preview.add_argument("--proposal", action="store_true")
 
+    materialize_one = sub.add_parser("materialize-experiment")
+    materialize_one.add_argument("experiment")
+    materialize_one.add_argument(
+        "--artifacts-root", type=Path, default=Path(".artifacts")
+    )
+
+    publication = sub.add_parser("publication-view")
+    publication.add_argument("--destination", type=Path, default=Path(".artifacts"))
+    publication.add_argument("--activate", action="store_true")
+
     prune = sub.add_parser("prune")
     prune.add_argument("collection")
     prune.add_argument("--plan", action="store_true", required=True)
 
     verify = sub.add_parser("verify")
-    source = verify.add_mutually_exclusive_group(required=True)
-    source.add_argument("--local", action="store_true")
-    source.add_argument("--r2", action="store_true")
-    source.add_argument("--all", action="store_true")
     verify.add_argument("--migration-id", default="legacy-to-pingstore-v1")
     verify.add_argument("--deep", action="store_true")
-    verify.add_argument("--archive-id", action="append", default=[])
-    verify.add_argument("--store", default=os.environ.get("PINGLAB_RUNSTORE_STORE", DEFAULT_STORE))
-    verify.add_argument("--logical-base-uri", default=DEFAULT_URI)
 
     restore = sub.add_parser("restore")
-    restore.add_argument("archive_id")
+    restore.add_argument("archive", type=Path)
     restore.add_argument("destination", type=Path)
-    restore.add_argument("--native", action="store_true")
-    restore.add_argument("--store", default=os.environ.get("PINGLAB_RUNSTORE_STORE", DEFAULT_STORE))
-    restore.add_argument("--logical-base-uri", default=DEFAULT_URI)
 
     capture_local = sub.add_parser("capture-local", help=argparse.SUPPRESS)
     capture_local.add_argument("--repo", type=Path, required=True)
     capture_local.add_argument("--experiment", required=True)
     capture_local.add_argument("--staging", type=Path, required=True)
+
+    capture_failed = sub.add_parser("capture-failed", help=argparse.SUPPRESS)
+    capture_failed.add_argument("--repo", type=Path, required=True)
+    capture_failed.add_argument("--experiment", required=True)
+    capture_failed.add_argument("--staging", type=Path, required=True)
 
     capture_campaign = sub.add_parser("capture-campaign", help=argparse.SUPPRESS)
     capture_campaign.add_argument("--campaign-root", type=Path, required=True)
@@ -103,12 +136,6 @@ def build_parser() -> argparse.ArgumentParser:
         command.add_argument("--migration-id", default="legacy-to-pingstore-v1")
         if name == "inventory":
             command.add_argument("--repo", type=Path, default=Path.cwd())
-            command.add_argument("--r2", action="store_true")
-            command.add_argument(
-                "--store",
-                default=os.environ.get("PINGLAB_RUNSTORE_STORE", DEFAULT_STORE),
-            )
-            command.add_argument("--logical-base-uri", default=DEFAULT_URI)
         if name == "import":
             destination = command.add_mutually_exclusive_group(required=True)
             destination.add_argument(
@@ -128,7 +155,9 @@ def build_parser() -> argparse.ArgumentParser:
 
 def _status(catalogue: Catalogue) -> dict[str, Any]:
     datasets: list[dict[str, Any]] = []
-    for path in sorted((catalogue.root / "collections").glob("*/collection-dataset.json")):
+    for path in sorted(
+        (catalogue.root / "collections").glob("*/collection-dataset.json")
+    ):
         dataset = load_json(path)
         datasets.append(
             {
@@ -189,10 +218,21 @@ def main(argv: list[str] | None = None) -> int:
         elif args.command == "select":
             catalogue.select(args.experiment, args.run_id, preview=args.preview)
             _print({"selected": args.run_id, "preview": args.preview})
+        elif args.command == "attach-asset":
+            catalogue.attach_asset(args.collection, args.uri)
+            _print({"collection": args.collection, "asset": args.uri})
         elif args.command == "freeze":
             _print(catalogue.freeze(args.collection, args.snapshot))
         elif args.command == "archive":
             _print(archive_dataset(catalogue, args.dataset_id, args.destination))
+        elif args.command == "archive-r2":
+            _print(archive_dataset_r2(catalogue, args.dataset_id, store=args.store))
+        elif args.command == "inspect-r2":
+            _print(inspect_dataset_r2(args.dataset_id, store=args.store))
+        elif args.command == "restore-r2":
+            _print(
+                restore_dataset_r2(args.dataset_id, args.destination, store=args.store)
+            )
         elif args.command == "preview":
             _print(
                 materialize_shadow(
@@ -203,23 +243,29 @@ def main(argv: list[str] | None = None) -> int:
                     use_proposal=args.proposal,
                 )
             )
+        elif args.command == "materialize-experiment":
+            _print(
+                materialize_experiment(catalogue, args.experiment, args.artifacts_root)
+            )
+        elif args.command == "publication-view":
+            _print(
+                materialize_publication_view(
+                    catalogue, args.destination, activate=args.activate
+                )
+            )
         elif args.command == "prune":
             _print(pruning_plan(catalogue, args.collection))
         elif args.command == "restore":
-            if args.native:
-                _print(restore_dataset(Path(args.archive_id), args.destination))
-            else:
-                _print(
-                    restore_legacy_archive(
-                        args.archive_id,
-                        args.destination,
-                        store_spec=args.store,
-                        logical_uri=args.logical_base_uri,
-                    )
-                )
+            _print(restore_dataset(args.archive, args.destination))
         elif args.command == "capture-local":
             _print(
                 capture_local_run(
+                    args.repo, args.experiment, args.staging, root=args.root
+                )
+            )
+        elif args.command == "capture-failed":
+            _print(
+                capture_failed_local_run(
                     args.repo, args.experiment, args.staging, root=args.root
                 )
             )
@@ -231,50 +277,17 @@ def main(argv: list[str] | None = None) -> int:
                 )
             )
         elif args.command == "verify":
-            result: dict[str, Any] = {}
-            if args.local or args.all:
-                migration_root = args.root / "migrations" / args.migration_id
-                result["local"] = verify_local_inventory(
+            migration_root = args.root / "migrations" / args.migration_id
+            _print(
+                verify_local_inventory(
                     load_json(migration_root / "inventory.json"), deep=args.deep
                 )
-            if args.r2 or args.all:
-                archive_ids = list(args.archive_id)
-                if not archive_ids:
-                    rows = legacy_catalogue(
-                        local_roots=[],
-                        store_spec=args.store,
-                        logical_uri=args.logical_base_uri,
-                    )
-                    archive_ids = sorted(
-                        {
-                            row["store_key"]
-                            for row in rows
-                            if row.get("store_key") and "/" not in row["store_key"]
-                        }
-                    )
-                result["r2"] = [
-                    verify_legacy_archive(
-                        archive_id,
-                        store_spec=args.store,
-                        logical_uri=args.logical_base_uri,
-                    )
-                    for archive_id in archive_ids
-                ]
-            _print(result)
+            )
         elif args.command == "migrate":
             root = _migration_root(args)
             root.mkdir(parents=True, exist_ok=True)
             if args.migration_command == "inventory":
                 value = inventory_local(args.repo)
-                if args.r2:
-                    value = add_remote_catalogue(
-                        value,
-                        legacy_catalogue(
-                            local_roots=[],
-                            store_spec=args.store,
-                            logical_uri=args.logical_base_uri,
-                        ),
-                    )
                 write_json_atomic(root / "inventory.json", value)
             elif args.migration_command == "classify":
                 value = classify(load_json(root / "inventory.json"))
@@ -292,7 +305,9 @@ def main(argv: list[str] | None = None) -> int:
                 )
             else:
                 if not args.confirm:
-                    raise PingstoreError("cutover requires --confirm and explicit approval")
+                    raise PingstoreError(
+                        "cutover requires --confirm and explicit approval"
+                    )
                 value = cutover()
             _print(value)
         return 0

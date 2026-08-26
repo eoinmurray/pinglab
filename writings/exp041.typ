@@ -6,7 +6,7 @@
   status: "ExpScout",
 )
 
-#let run = json("/artifacts/data/exp041/numbers.json")
+#let run = json("/.artifacts/exp041/numbers.json")
 #let fit = run.fit
 #let fa = calc.round(fit.a_affine, digits: 2)
 #let fp = calc.round(fit.p_affine, digits: 3)
@@ -91,7 +91,7 @@
 
   #figure(
     image(
-      "/artifacts/data/exp041/training_curves.svg",
+      "/.artifacts/exp041/training_curves.svg",
       width: 100%,
       alt: "Per-cell accuracy and E-rate over training epochs across the τ_GABA sweep.",
     ),
@@ -104,7 +104,7 @@
 
   #figure(
     image(
-      "/artifacts/data/exp041/psds.svg",
+      "/.artifacts/exp041/psds.svg",
       width: 100%,
       alt: "Population-E power spectra by τ_GABA, gamma peak shifting with the inhibitory time constant.",
     ),
@@ -117,7 +117,7 @@
 
   #figure(
     image(
-      "/artifacts/data/exp041/raster_strip.png",
+      "/.artifacts/exp041/raster_strip.png",
       width: 100%,
       alt: "One MNIST trial through each τ_GABA network; the gamma cycle period lengthens with τ_GABA.",
     ),
@@ -130,7 +130,7 @@
 
   #figure(
     image(
-      "/artifacts/data/exp041/rate_vs_fgamma.svg",
+      "/.artifacts/exp041/rate_vs_fgamma.svg",
       width: 100%,
       alt: "Post-training E rate against gamma frequency; points lie on the affine fit line.",
     ),

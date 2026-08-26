@@ -1,13 +1,11 @@
-"""Idempotent shadow migration from legacy artifacts and Runstore archives."""
+"""Idempotent shadow migration from legacy scientific artifacts."""
 
 from __future__ import annotations
 
 import json
+import shutil
 from pathlib import Path
 from typing import Any
-
-from runstore.contract import inventory_payload
-from runstore.contract import load_json as load_legacy_json
 
 from .catalogue import Catalogue
 from .contracts import (
@@ -16,6 +14,37 @@ from .contracts import (
     canonical_digest,
     write_json_atomic,
 )
+from .payload import inventory_payload
+from .payload import load_json as load_legacy_json
+
+
+def _internalize_payload(catalogue: Catalogue, run: dict[str, Any]) -> dict[str, Any]:
+    """Copy a legacy payload beneath its immutable native run record."""
+    source = Path(run["payload"]["location"])
+    root = catalogue.run_path(run["collection"], run["experiment"], run["run_id"])
+    destination = root / "payload"
+    if source == destination:
+        return run
+    if not source.is_dir():
+        raise PingstoreError(f"import payload is unavailable: {source}")
+    if destination.exists():
+        actual = inventory_payload(destination, run_id=run["run_id"])
+        if "sha256:" + actual["payload_digest"] != run["payload"]["inventory_digest"]:
+            raise PingstoreError(f"internalized payload drift: {run['run_id']}")
+    else:
+        staging = root / ".payload-staging"
+        if staging.exists():
+            shutil.rmtree(staging)
+        root.mkdir(parents=True, exist_ok=True)
+        shutil.copytree(source, staging)
+        actual = inventory_payload(staging, run_id=run["run_id"])
+        if "sha256:" + actual["payload_digest"] != run["payload"]["inventory_digest"]:
+            shutil.rmtree(staging)
+            raise PingstoreError(f"copied payload drift: {run['run_id']}")
+        staging.rename(destination)
+    copied = dict(run)
+    copied["payload"] = {**run["payload"], "location": str(destination.resolve())}
+    return copied
 
 
 def classify(inventory: dict[str, Any]) -> dict[str, Any]:
@@ -23,7 +52,9 @@ def classify(inventory: dict[str, Any]) -> dict[str, Any]:
     for payload in inventory["payloads"]:
         classification = "legacy-unverified"
         blocker = None
-        if payload["kind"] == "r2-archive":
+        if payload.get("historical"):
+            classification = "historical-record"
+        elif payload["kind"] == "r2-archive":
             classification = "verified-archived"
         elif payload["kind"] == "restored-archive" and payload.get("inventory"):
             classification = "verified-archived"
@@ -56,7 +87,9 @@ def classify(inventory: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def build_plan(inventory: dict[str, Any], classifications: dict[str, Any]) -> dict[str, Any]:
+def build_plan(
+    inventory: dict[str, Any], classifications: dict[str, Any]
+) -> dict[str, Any]:
     if classifications.get("inventory_digest") != inventory.get("digest"):
         raise PingstoreError("classification inventory digest does not match")
     if classifications.get("registry_digest") != inventory.get("registry_digest"):
@@ -68,7 +101,13 @@ def build_plan(inventory: dict[str, Any], classifications: dict[str, Any]) -> di
         operations.append(
             {
                 "physical_id": payload["physical_id"],
-                "action": "block" if row["blocker"] else "import-reference",
+                "action": (
+                    "block"
+                    if row["blocker"]
+                    else "retain-record"
+                    if row["classification"] == "historical-record"
+                    else "import-reference"
+                ),
                 "classification": row["classification"],
                 "collection": payload.get("collection"),
                 "experiment": payload.get("experiment"),
@@ -96,7 +135,9 @@ def _manifest_run(operation: dict[str, Any], payload: dict[str, Any]) -> dict[st
     manifest = json.loads(Path(payload["manifest"]).read_text())
     experiment = operation["experiment"]
     local_id = manifest.get("run_id", "legacy")
-    actual = inventory_payload(Path(operation["path"]), run_id=f"{experiment}/{local_id}")
+    actual = inventory_payload(
+        Path(operation["path"]), run_id=f"{experiment}/{local_id}"
+    )
     return {
         "schema": EXPERIMENT_RUN_SCHEMA,
         "run_id": f"{experiment}/{local_id}",
@@ -180,12 +221,16 @@ def import_shadow(
     for experiment, collection in inventory.get("memberships", {}).items():
         experiments.setdefault(collection, set()).add(experiment)
     for operation in plan["operations"]:
-        if operation["experiment"] and operation["collection"]:
+        if (
+            operation["action"] == "import-reference"
+            and operation["experiment"]
+            and operation["collection"]
+        ):
             experiments.setdefault(operation["collection"], set()).add(
                 operation["experiment"]
             )
         payload = payloads[operation["physical_id"]]
-        if operation["collection"]:
+        if operation["action"] == "import-reference" and operation["collection"]:
             experiments.setdefault(operation["collection"], set()).update(
                 payload.get("experiments", [])
             )
@@ -202,15 +247,39 @@ def import_shadow(
                 catalogue.register_experiment(collection, experiment)
 
     imported: list[str] = []
+    historical_records: list[str] = []
     proposals: dict[str, dict[str, str]] = {}
+    publication_current: dict[str, dict[str, str]] = {}
     for operation in plan["operations"]:
-        if operation["action"] == "block":
+        if operation["action"] == "retain-record":
+            payload = payloads[operation["physical_id"]]
+            experiment = operation.get("experiment")
+            if experiment:
+                source = Path(operation["path"])
+                identity = inventory_payload(source, run_id=f"historical/{experiment}")[
+                    "payload_digest"
+                ]
+                record = {
+                    "schema": "pingstore.historical-record/v1",
+                    "experiment": experiment,
+                    "collection": operation.get("collection"),
+                    "disposition": payload.get("historical"),
+                    "payload": {
+                        "location": str(source),
+                        "inventory_digest": "sha256:" + identity,
+                    },
+                }
+                write_json_atomic(
+                    catalogue.root / "historical" / experiment / "record.json",
+                    record,
+                )
+                historical_records.append(experiment)
+            continue
+        if operation["action"] != "import-reference":
             continue
         payload = payloads[operation["physical_id"]]
         runs_to_import: list[dict[str, Any]] = []
-        if operation["classification"] == "candidate-local" and payload.get(
-            "manifest"
-        ):
+        if operation["classification"] == "candidate-local" and payload.get("manifest"):
             runs_to_import.append(_manifest_run(operation, payload))
         elif operation["classification"] == "verified-local" and payload.get(
             "provenance"
@@ -240,15 +309,15 @@ def import_shadow(
                         run_id=run_id,
                         experiment=experiment,
                         source=Path(operation["path"])
-                        / "derived/artifacts/data"
+                        / "derived/.artifacts"
                         / experiment,
                         disposition="retained",
                     )
                 )
                 if payload.get("legacy_run_id") == "gold-2":
-                    proposals.setdefault(operation["collection"], {})[
-                        experiment
-                    ] = run_id
+                    proposals.setdefault(operation["collection"], {})[experiment] = (
+                        run_id
+                    )
         elif (
             operation["classification"] == "legacy-unverified"
             and payload["kind"] == "artifact-directory"
@@ -257,9 +326,9 @@ def import_shadow(
         ):
             experiment = operation["experiment"]
             source = Path(operation["path"])
-            identity = inventory_payload(
-                source, run_id=f"{experiment}/legacy"
-            )["payload_digest"][:12]
+            identity = inventory_payload(source, run_id=f"{experiment}/legacy")[
+                "payload_digest"
+            ][:12]
             runs_to_import.append(
                 _referenced_run(
                     operation,
@@ -272,6 +341,7 @@ def import_shadow(
             )
             runs_to_import[-1]["legacy_identity"]["verification"] = "unverified"
         for run in runs_to_import:
+            run = _internalize_payload(catalogue, run)
             root = catalogue.run_path(
                 run["collection"], run["experiment"], run["run_id"]
             )
@@ -284,16 +354,29 @@ def import_shadow(
                 write_json_atomic(run_file, run)
             catalogue.register_run(run)
             imported.append(run["run_id"])
+            if payload["kind"] == "artifact-directory":
+                publication_current.setdefault(run["collection"], {})[
+                    run["experiment"]
+                ] = run["run_id"]
 
     for collection, proposal in proposals.items():
         dataset = catalogue.load_dataset(collection)
         dataset["selection_proposal"] = proposal
         catalogue.save_dataset(dataset)
 
+    # Migration preserves the currently visible publication evidence. Archived
+    # campaigns remain retained candidates until their proposed view has been
+    # reviewed against that publication surface.
+    for collection, selections in publication_current.items():
+        dataset = catalogue.load_dataset(collection)
+        dataset["official_runs"].update(selections)
+        catalogue.save_dataset(dataset)
+
     result = {
         "schema": "pingstore.migration-import/v1",
         "plan_digest": plan["digest"],
         "imported_runs": sorted(imported),
+        "historical_records": sorted(historical_records),
         "selection_proposals": proposals,
         "historical_dispositions": inventory.get("historical_dispositions", {}),
     }

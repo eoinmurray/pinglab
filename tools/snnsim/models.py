@@ -951,7 +951,7 @@ class COBANet(nn.Module):
 
         With ``train_leak`` off this is the historical scalar COBA leak.  With it
         on, per-neuron bounded membrane time constants are converted back to
-        leak conductances via g_L = C_m / τ_m, preserving ar003's conductance
+        leak conductances via g_L = C_m / τ_m, preserving exp100's conductance
         equation while giving cells heterogeneous integration horizons.
         """
         if not self.train_leak:

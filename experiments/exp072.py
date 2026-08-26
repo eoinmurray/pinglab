@@ -155,7 +155,7 @@ Suggested default bounds:
 - adaptive threshold max strength: 20.0 mV
 
 Deliverables:
-- Produce artifacts/data/exp072 with numbers.json, provenance, reproducer, training curves, firing-rate diagnostics, parameter diagnostics for learned tau/adaptation values, and matched input/E/I rasters.
+- Produce .artifacts/exp072 with numbers.json, provenance, reproducer, training curves, firing-rate diagnostics, parameter diagnostics for learned tau/adaptation values, and matched input/E/I rasters.
 - Write writings/exp072.typ as the canonical cold-readable experiment report.
 - Include this goal prompt below the abstract.
 - Append timestamped activity-log/thread checkpoints in the experiment appendix.
@@ -488,7 +488,7 @@ def restore_activity_logs(figures: Path, logs: dict[str, str]) -> dict[str, Any]
         "latest_checkpoint_id": latest,
         "latest_checkpoint_time_utc": utc_now(),
         "publishable_log": (
-            f"artifacts/data/{SLUG}/activity/messages_{latest}.json"
+            f".artifacts/{SLUG}/activity/messages_{latest}.json"
             if latest
             else None
         ),

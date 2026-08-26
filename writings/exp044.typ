@@ -6,7 +6,7 @@
   status: "ExpScout",
 )
 
-#let run = json("/artifacts/data/exp044/numbers.json")
+#let run = json("/.artifacts/exp044/numbers.json")
 #let batch-size = run.config.at("training_contract", default: (:))
   .at("common", default: (:)).at("batch_size", default: 256)
 
@@ -52,7 +52,7 @@
   == Results
 
   #figure(
-    image("/artifacts/data/exp044/dt_sweep.svg", width: 100%,
+    image("/.artifacts/exp044/dt_sweep.svg", width: 100%,
       alt: "Hidden E rate and test accuracy against integration timestep; accuracy is flat while the E rate rises gently with coarser Δt."),
     caption: [
       Hidden E rate (black) and test accuracy (red) as Δt varies 20×; markers are
@@ -62,7 +62,7 @@
   )
 
   #figure(
-    image("/artifacts/data/exp044/raster_strip.png", width: 100%,
+    image("/.artifacts/exp044/raster_strip.png", width: 100%,
       alt: "Single-trial E and I spike rasters at five integration timesteps, plotted against physical time; the burst cadence lines up across all five."),
     caption: [
       Single-trial rasters at each Δt, x-axis in _physical_ ms (not steps). All five
@@ -72,7 +72,7 @@
   )
 
   #figure(
-    image("/artifacts/data/exp044/training_curves.svg", width: 100%,
+    image("/.artifacts/exp044/training_curves.svg", width: 100%,
       alt: "Per-cell test accuracy and E rate versus epoch, coloured by Δt; accuracy converges early while the E rate is still climbing at epoch 50."),
     caption: [
       Top: test accuracy converges by epoch ≈ 10–15 across all Δt. Bottom: test E

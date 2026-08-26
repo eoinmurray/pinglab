@@ -4,6 +4,11 @@ Site: [pl.eoinmurray.info](https://pl.eoinmurray.info)
 
 Conductance-based spiking neural networks with explicit excitatory/inhibitory populations and PING (pyramidal–interneuron gamma) dynamics. The site is the project's notebook — the manuscript, method reference, and per-result entries all live there.
 
+## Architecture
+
+[`AGENTS.md`](AGENTS.md) is the canonical description of the repository
+system, scientific model, evidence lifecycle, and agent behaviour.
+
 ## Installation
 
 Prerequisites: [uv](https://docs.astral.sh/uv/) (Python), [typst](https://typst.app) and [task](https://taskfile.dev) (publishing).
@@ -21,7 +26,7 @@ uv sync --dev
 The site is built from Typst sources (`writings/`) with the vendored demolab engine:
 
 ```sh
-task build    # → artifacts/site/ (web) + artifacts/pdfs/ (per-entry PDFs + book.pdf)
+task build    # → .demolab/site/ (web) + .demolab/pdfs/ (per-entry PDFs + book.pdf)
 task dev      # hot-reloading preview on :3000
 ```
 

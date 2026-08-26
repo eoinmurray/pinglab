@@ -13,7 +13,7 @@ Adds the --tau-gaba flag to the pinglab-cli train subcommand
 (symmetric counterpart to --tau-ampa, which doesn't yet exist either —
 add later when needed).
 
-Writing: writings/exp041.typ · figures + numbers.json: artifacts/data/exp041/
+Writing: writings/exp041.typ · figures + numbers.json: .artifacts/exp041/
 """
 
 from __future__ import annotations

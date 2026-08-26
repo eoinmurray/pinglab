@@ -6,9 +6,9 @@
   status: "ExpScout",
 )
 
-#let comparison = json("/artifacts/data/exp093/numbers.json")
+#let comparison = json("/.artifacts/exp093/numbers.json")
 
-#import "ar092.typ": body as manuscript-body
+#import "exp092.typ": body as manuscript-body
 
 #let manuscript-figures = manuscript-body.children.filter(
   item => item.func() == figure,

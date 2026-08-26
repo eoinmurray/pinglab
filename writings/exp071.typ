@@ -7,15 +7,15 @@
   order: 10,
 )
 
-#let r = json("/artifacts/data/exp071/numbers.json")
-#let trace = json("/artifacts/data/exp071/activity/messages_cp001.json")
-#let trace-two = json("/artifacts/data/exp071/activity/messages_cp002.json")
-#let trace-three = json("/artifacts/data/exp071/activity/messages_cp003.json")
-#let trace-four = json("/artifacts/data/exp071/activity/messages_cp004.json")
-#let trace-five = json("/artifacts/data/exp071/activity/messages_cp005.json")
-#let trace-six = json("/artifacts/data/exp071/activity/messages_cp006.json")
-#let trace-seven = json("/artifacts/data/exp071/activity/messages_cp007.json")
-#let baseline-short = json("/artifacts/data/exp071/raw/short/cumulative_baseline/attempt_decision.json")
+#let r = json("/.artifacts/exp071/numbers.json")
+#let trace = json("/.artifacts/exp071/activity/messages_cp001.json")
+#let trace-two = json("/.artifacts/exp071/activity/messages_cp002.json")
+#let trace-three = json("/.artifacts/exp071/activity/messages_cp003.json")
+#let trace-four = json("/.artifacts/exp071/activity/messages_cp004.json")
+#let trace-five = json("/.artifacts/exp071/activity/messages_cp005.json")
+#let trace-six = json("/.artifacts/exp071/activity/messages_cp006.json")
+#let trace-seven = json("/.artifacts/exp071/activity/messages_cp007.json")
+#let baseline-short = json("/.artifacts/exp071/raw/short/cumulative_baseline/attempt_decision.json")
 
 #let maybe-pct(x) = {
   if type(x) == float or type(x) == int {
@@ -25,7 +25,7 @@
   }
 }
 
-#let attempt-figure(suffix) = "/artifacts/data/exp071/" + r.stage + "_" + r.attempt + "_" + suffix
+#let attempt-figure(suffix) = "/.artifacts/exp071/" + r.stage + "_" + r.attempt + "_" + suffix
 
 #let verbatim-prose(value) = {
   for (index, line) in value.split("\n").enumerate() {
@@ -66,7 +66,7 @@
 
   == Goal prompt
 
-  #raw(read("/artifacts/data/exp071/goal.txt"), block: true)
+  #raw(read("/.artifacts/exp071/goal.txt"), block: true)
 
   == Methods
 

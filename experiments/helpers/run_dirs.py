@@ -31,7 +31,7 @@ import shutil
 import subprocess
 import sys
 
-from .paths import REPO, artifacts_and_figures, runner_paths
+from .paths import FIGURES_ROOT, REPO, artifacts_and_figures, runner_paths
 from .provenance import write_manifest
 from .run_id import COUNTER_FILE
 from .run_id import persist as persist_run_id
@@ -144,10 +144,10 @@ def publish(slug: str, run_id: str):
     if old.exists():
         shutil.rmtree(old)
     if figures.exists():
-        os.rename(figures, old)          # move the live dir aside …
-    os.rename(staging, figures)          # … then swap staging in (atomic rename)
+        os.rename(figures, old)  # move the live dir aside …
+    os.rename(staging, figures)  # … then swap staging in (atomic rename)
     if old.exists():
-        shutil.rmtree(old)               # drop the previous run's output
+        shutil.rmtree(old)  # drop the previous run's output
     return figures
 
 
@@ -171,6 +171,7 @@ def finalize_prepared_run(
     if not manifest.is_file():
         write_manifest(figures, slug=slug, run_id=run_id, scale=scale, host=host)
     _capture_local_result(slug, figures)
+    _materialize_official_result(slug)
     return figures
 
 
@@ -188,6 +189,46 @@ def _capture_local_result(slug: str, source) -> None:
             slug,
             "--staging",
             str(source),
+        ],
+        cwd=REPO,
+        check=True,
+    )
+
+
+def _capture_failed_result(slug: str, source) -> None:
+    """Retain a failed staging payload without masking the original failure."""
+    try:
+        subprocess.run(
+            [
+                sys.executable,
+                "-m",
+                "pingstore",
+                "capture-failed",
+                "--repo",
+                str(REPO),
+                "--experiment",
+                slug,
+                "--staging",
+                str(source),
+            ],
+            cwd=REPO,
+            check=True,
+        )
+    except Exception as exc:
+        print(f"[warning] failed-run capture was unavailable: {exc}")
+
+
+def _materialize_official_result(slug: str) -> None:
+    """Refresh Demolab data only through Pingstore's official selection."""
+    subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "pingstore",
+            "materialize-experiment",
+            slug,
+            "--artifacts-root",
+            str(FIGURES_ROOT),
         ],
         cwd=REPO,
         check=True,
@@ -243,6 +284,8 @@ def published_run(slug: str, run_id: str, **kwargs):
     try:
         yield artifacts, staging
     except BaseException:
+        if not runner_paths(slug).isolated:
+            _capture_failed_result(slug, staging)
         print(f"[FAILED] run did not publish; staging kept for post-mortem: {staging}")
         raise
     else:
@@ -252,5 +295,9 @@ def published_run(slug: str, run_id: str, **kwargs):
         # orchestration rather than duplicated here.
         if not runner_paths(slug).isolated:
             _capture_local_result(slug, staging)
-        published = publish(slug, run_id)
+            _materialize_official_result(slug)
+            shutil.rmtree(staging)
+            published = runner_paths(slug).derived
+        else:
+            published = publish(slug, run_id)
         print(f"[published] {published}")

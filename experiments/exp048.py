@@ -14,7 +14,7 @@ tracking the ground-truth label over time.
 Sweep figure: per-segment accuracy vs τ ∈ {25, 50, 100, 200} ms,
 two protocols (constant input rate / rate-compensated for τ).
 
-Writing: writings/exp048.typ · figures + numbers.json: artifacts/data/exp048/
+Writing: writings/exp048.typ · figures + numbers.json: .artifacts/exp048/
 """
 
 from __future__ import annotations

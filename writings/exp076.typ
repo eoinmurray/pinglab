@@ -2,12 +2,12 @@
   title: "A bundle checkpoint replays",
   date: "2026-08-02",
   description: "A small deterministic MNIST gate checks that snnlang bundle checkpoints replay through tools/snnsim and that the current bundle adapter is numerically equivalent to the matching legacy route.",
-  collection: "documentation",
+  collection: "snnlang-docs",
   status: "ExpScout",
   order: 3,
 )
 
-#let r = json("/artifacts/data/exp076/numbers.json")
+#let r = json("/.artifacts/exp076/numbers.json")
 
 #let pct(x) = str(calc.round(x, digits: 3)) + "%"
 #let pp(x) = str(calc.round(x, digits: 4)) + " pp"
@@ -37,10 +37,10 @@
 
   == Lifecycle checked
 
-  #image("/artifacts/data/exp076/lifecycle.svg", width: 100%)
+  #image("/.artifacts/exp076/lifecycle.svg", width: 100%)
 
   The experiment stores the complete executable bundle at
-  `artifacts/data/exp076/network.bundle`, including `graph.json`,
+  `.artifacts/exp076/network.bundle`, including `graph.json`,
   `training.json`, and the manifest that authenticates both. Training writes a
   selected checkpoint and a final checkpoint. Replay then exercises four load
   paths: bundle checkpoint through bundle inference, final bundle checkpoint
@@ -50,7 +50,7 @@
 
   == Short training trajectory
 
-  #image("/artifacts/data/exp076/training_curves.png", width: 100%)
+  #image("/.artifacts/exp076/training_curves.png", width: 100%)
 
   The run used #r.config.train_count training examples and
   #r.config.held_out_count held-out examples from the deterministic split.

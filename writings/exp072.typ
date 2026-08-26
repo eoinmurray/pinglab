@@ -7,13 +7,13 @@
   order: 11,
 )
 
-#let r = json("/artifacts/data/exp072/numbers.json")
-#let trace = json("/artifacts/data/exp072/activity/messages_cp001.json")
-#let trace-two = json("/artifacts/data/exp072/activity/messages_cp002.json")
-#let trace-three = json("/artifacts/data/exp072/activity/messages_cp003.json")
-#let trace-four = json("/artifacts/data/exp072/activity/messages_cp004.json")
-#let trace-five = json("/artifacts/data/exp072/activity/messages_cp005.json")
-#let trace-six = json("/artifacts/data/exp072/activity/messages_cp006.json")
+#let r = json("/.artifacts/exp072/numbers.json")
+#let trace = json("/.artifacts/exp072/activity/messages_cp001.json")
+#let trace-two = json("/.artifacts/exp072/activity/messages_cp002.json")
+#let trace-three = json("/.artifacts/exp072/activity/messages_cp003.json")
+#let trace-four = json("/.artifacts/exp072/activity/messages_cp004.json")
+#let trace-five = json("/.artifacts/exp072/activity/messages_cp005.json")
+#let trace-six = json("/.artifacts/exp072/activity/messages_cp006.json")
 
 #let maybe-pct(x) = {
   if type(x) == float or type(x) == int {
@@ -23,7 +23,7 @@
   }
 }
 
-#let attempt-figure(suffix) = "/artifacts/data/exp072/" + r.stage + "_" + r.attempt + "_" + suffix
+#let attempt-figure(suffix) = "/.artifacts/exp072/" + r.stage + "_" + r.attempt + "_" + suffix
 
 #let verbatim-prose(value) = {
   for (index, line) in value.split("\n").enumerate() {
@@ -63,7 +63,7 @@
 
   == Goal prompt
 
-  #raw(read("/artifacts/data/exp072/goal.txt"), block: true)
+  #raw(read("/.artifacts/exp072/goal.txt"), block: true)
 
   == Methods
 

@@ -64,7 +64,7 @@ def parser() -> argparse.ArgumentParser:
     validate = commands.add_parser("validate", help="require all planned outputs")
     validate.add_argument("--campaign-root", type=Path, required=True)
     finalize = commands.add_parser(
-        "finalize", help="validate outputs and freeze the runstore inventory"
+        "finalize", help="validate outputs and freeze the Pingstore inventory"
     )
     finalize.add_argument("--campaign-root", type=Path, required=True)
     build = commands.add_parser(

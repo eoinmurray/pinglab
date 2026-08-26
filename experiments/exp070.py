@@ -78,8 +78,8 @@ SMOKE_ROOT = REPO / "temp" / "experiments" / SLUG / "smoke" / ATTEMPT
 LOCAL_SPLIT_ROOT = REPO / "temp" / "experiments" / SLUG / "split"
 INSTALLED_SPLIT_ROOT = REPO / "temp" / "experiments" / SLUG / "installed_shd"
 
-EXP069_RAW = REPO / "artifacts" / "data" / "exp069" / "raw"
-COMMITTED_SMOKE = REPO / "artifacts" / "data" / SLUG / "raw" / ATTEMPT / "smoke_summary.json"
+EXP069_RAW = REPO / ".artifacts" / "exp069" / "raw"
+COMMITTED_SMOKE = REPO / ".artifacts" / SLUG / "raw" / ATTEMPT / "smoke_summary.json"
 COMPUTE_LEDGER = SCRATCH / "compute_ledgers" / f"{ATTEMPT}.json"
 
 

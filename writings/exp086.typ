@@ -1,6 +1,6 @@
 #import "/.demolab/lib.typ": cite, reference-list
 
-#let run = json("/artifacts/data/exp086/numbers.json")
+#let run = json("/.artifacts/exp086/numbers.json")
 #let trajectories = run.trajectories
 #let selected = run.selected_intermediate
 #let strong = trajectories.filter(row => calc.abs(row.k - 0.08) < 0.0001).first()
@@ -69,7 +69,7 @@
 
     #figure(
       image(
-        "/artifacts/data/exp086/network.svg",
+        "/.artifacts/exp086/network.svg",
         width: 100%,
         alt: "Implemented topology of two PING networks with local excitatory-inhibitory loops and reciprocal excitatory coupling.",
       ),
@@ -89,7 +89,7 @@
   + <result-1-uncoupled-rhythms> *Uncoupled rhythms.*
 
     #figure(
-      image("/artifacts/data/exp086/uncoupled.png", width: 100%),
+      image("/.artifacts/exp086/uncoupled.png", width: 100%),
       caption: [Both uncoupled networks maintain regular PING rhythms, but Network A runs at #uncoupled-frequency-a Hz and Network B at #uncoupled-frequency-b Hz. Their relative phase therefore circulates, completing #uncoupled.phase_slips slips with phase concentration #uncoupled-concentration.],
     )
 
@@ -99,14 +99,14 @@
       [
         #align(center)[*Expected — schematic*]
         #image(
-          "/artifacts/data/exp086/coupling_regimes.svg",
+          "/.artifacts/exp086/coupling_regimes.svg",
           width: 100%,
           alt: "Schematic comparison of strong, intermediate, and absent coupling.",
         )
         #v(8pt)
         #align(center)[*Observed — measured*]
         #image(
-          "/artifacts/data/exp086/coupling_regimes_measured.png",
+          "/.artifacts/exp086/coupling_regimes_measured.png",
           width: 100%,
           alt: "Measured comparison of strong, intermediate, and absent coupling.",
         )
@@ -120,14 +120,14 @@
       [
         #align(center)[*Expected — schematic*]
         #image(
-          "/artifacts/data/exp086/intermittent_attraction.svg",
+          "/.artifacts/exp086/intermittent_attraction.svg",
           width: 100%,
           alt: "Schematic four-panel signature of intermittent phase attraction.",
         )
         #v(8pt)
         #align(center)[*Observed — measured*]
         #image(
-          "/artifacts/data/exp086/intermittent_attraction_measured.png",
+          "/.artifacts/exp086/intermittent_attraction_measured.png",
           width: 100%,
           alt: "Measured four-panel signature of intermittent phase attraction.",
         )

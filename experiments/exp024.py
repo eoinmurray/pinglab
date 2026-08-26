@@ -11,7 +11,7 @@ Six cells: {coba, ping} x seed {42, 43, 44}, read from exp022. Per-epoch
 trainable-parameter Frobenius norms come from the `weight_norms` field that
 train.py records for every cell.
 
-Writing: writings/exp024.typ · figures + numbers.json: artifacts/data/exp024/
+Writing: writings/exp024.typ · figures + numbers.json: .artifacts/exp024/
 """
 
 from __future__ import annotations

@@ -1,6 +1,7 @@
 """snnlang: deterministic authoring and inspection of spiking network graphs."""
 
 from . import components, ops, readouts, simulation, training
+from ._version import __version__
 from .compiler import Bundle, Diagnostic, compile, load_bundle, validate_graph
 from .core import (
     AMPA,
@@ -90,6 +91,5 @@ __all__ = [
     "mV",
     "ms",
     "nS",
+    "__version__",
 ]
-
-__version__ = "0.1.0"

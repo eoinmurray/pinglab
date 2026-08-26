@@ -1,13 +1,13 @@
 """Canonical artifact + figure directories for a notebook slug.
 
 Every runner writes scratch simulation artifacts (npz, weights, logs) under
-`src/artifacts/notebooks/<slug>/` (gitignored) and frozen figures + numbers.json
-under `artifacts/data/<slug>/` — the demolab published-data layout the Typst
+`temp/experiments/<slug>/` (gitignored) and frozen figures + numbers.json
+under `.artifacts/<slug>/` — the demolab published-data layout the Typst
 writings read from. `artifacts_and_figures(slug)` returns that pair so individual
 runners don't re-spell the paths.
 
 (The figure root used to be the Astro site's `src/docs/public/figures/notebooks/`;
-it moved to `artifacts/data/` when the site migrated to Typst.)
+it moved to `.artifacts/` when the site migrated to Typst.)
 """
 
 from __future__ import annotations
@@ -21,7 +21,7 @@ REPO = Path(__file__).resolve().parents[2]
 # Per-experiment scratch lives under temp/experiments/<slug> ("notebooks" is the
 # deprecated name for this root — everything is an experiment now).
 ARTIFACTS_ROOT = REPO / "temp" / "experiments"
-FIGURES_ROOT = REPO / "artifacts" / "data"
+FIGURES_ROOT = REPO / ".artifacts"
 
 STATE_ENV = "PINGLAB_RUN_STATE_DIR"
 DERIVED_ENV = "PINGLAB_RUN_DERIVED_DIR"
@@ -66,10 +66,10 @@ def _explicit_runner_paths() -> tuple[Path, Path, Path] | None:
     resolved = (paths[0].resolve(), paths[1].resolve(), paths[2].resolve())
     if len(set(resolved)) != len(resolved):
         raise RuntimeError("isolated state, derived, and log paths must be distinct")
-    active_artifacts = (REPO / "artifacts").resolve()
+    active_artifacts = (REPO / ".artifacts").resolve()
     if resolved[1] == active_artifacts or active_artifacts in resolved[1].parents:
         raise RuntimeError(
-            "isolated derived output cannot live under repository artifacts/"
+            "isolated derived output cannot live under repository .artifacts/"
         )
     return resolved
 

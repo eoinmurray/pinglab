@@ -25,10 +25,10 @@
     "exp071": "spiking-heidelberg-digits",
     "exp072": "spiking-heidelberg-digits",
     "exp073": "spiking-heidelberg-digits",
-    "exp074": "documentation",
-    "exp075": "documentation",
-    "exp076": "documentation",
-    "exp077": "documentation",
+    "exp074": "snnlang-docs",
+    "exp075": "snnlang-docs",
+    "exp076": "snnlang-docs",
+    "exp077": "snnlang-docs",
     "exp080": "gamma-gated-sparsity",
     "exp081": "gamma-gated-sparsity",
     "exp082": "gamma-gated-sparsity",
@@ -39,7 +39,6 @@
     "exp093": "gamma-gated-sparsity",
     "exp094": "gamma-gated-sparsity",
     "exp097": "demo",
-    "exp098": "demo",
     "exp099": "demo"
   },
   "historical": {

@@ -11,6 +11,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Mapping
 
+from ._version import __version__
 from .core import Network
 from .simulation import SimulationSpec, simulation_dict, validate_simulation
 from .training import TrainSpec
@@ -1209,7 +1210,7 @@ def compile(
     files.extend({"path": x["path"], "digest": x["digest"]} for x in manifest_assets)
     manifest = {
         "schema": BUNDLE_SCHEMA,
-        "compiler": {"name": "snnlang", "version": "0.1.0"},
+        "compiler": {"name": "snnlang", "version": __version__},
         "graph_digest": graph_digest,
         "target": target,
         "required_capabilities": capability_requirements(graph),

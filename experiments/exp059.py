@@ -13,7 +13,7 @@ no training):
     by side — the speaker-to-speaker variability the classifier must generalise
     over.
 
-Writing: writings/exp059.typ · figures + numbers.json: artifacts/data/exp059/
+Writing: writings/exp059.typ · figures + numbers.json: .artifacts/exp059/
 """
 
 from __future__ import annotations

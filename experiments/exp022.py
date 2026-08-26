@@ -20,7 +20,7 @@ Outputs a per-cell accuracy / E-rate summary plus a manifest (numbers.json)
 recording exactly which cells were trained and the git sha — the contract
 the analysis notebooks rely on.
 
-Writing: writings/exp022.typ · figures + numbers.json: artifacts/data/exp022/
+Writing: writings/exp022.typ · figures + numbers.json: .artifacts/exp022/
 """
 
 from __future__ import annotations
@@ -210,7 +210,7 @@ def rate_target_display(target_hz: float | None) -> str:
 def seeds_for(target_hz: float | None) -> list[int]:
     """Every target — baseline and interior — runs all three seeds, so the
     accuracy–rate frontier carries across-seed error bars. The interior used to
-    be single-seed (a limitation ar009 §2.3 disclosed); this removes it."""
+    be single-seed (a limitation exp009 §2.3 disclosed); this removes it."""
     return list(SEEDS_BASELINE)
 
 
@@ -1028,7 +1028,7 @@ def appendix_rasters() -> None:
     """Generate one digit-0/sample-0 raster per seed-42 config for the writeup
     appendix. The SAME fixed MNIST image is sent through every trained network
     (via `sim --infer --digit 0 --sample 0` → snapshot.npz), so the rasters are
-    directly comparable across configs. Writes to artifacts/data/exp022/rasters/."""
+    directly comparable across configs. Writes to .artifacts/exp022/rasters/."""
     import shutil
 
     cells = [c for c in CANONICAL_CELLS if c["seed"] == 42]
@@ -1100,7 +1100,7 @@ def comparison_rasters() -> None:
     (canonical) versus 10% (spike-budget = off); rows are the two architectures,
     columns the data fraction. Only the fraction differs between a row's two
     cells, so the density gap is attributable to it. Reuses the already-trained
-    seed-42 weights (no retraining) → artifacts/data/exp022/comparison__data_fraction.png."""
+    seed-42 weights (no retraining) → .artifacts/exp022/comparison__data_fraction.png."""
     import shutil
 
     # (row label, 100%-MNIST cell, 10%-MNIST cell) — seed 42 as the representative.
@@ -1266,7 +1266,7 @@ def _checked_manifest(path: Path, *, allow_generated_dirty: bool = False) -> dic
     commit, dirty = campaign.git_identity(REPO)
     if dirty:
         dirty_paths = campaign.git_dirty_paths(REPO)
-        allowed_prefixes = ("artifacts/data/exp022/", "artifacts/pdfs/exp022.pdf")
+        allowed_prefixes = (".artifacts/exp022/", ".demolab/pdfs/exp022.pdf")
         if not allow_generated_dirty or any(
             not path.startswith(allowed_prefixes) for path in dirty_paths
         ):

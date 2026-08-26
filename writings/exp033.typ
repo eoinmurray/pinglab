@@ -6,7 +6,7 @@
   status: "ExpScout",
 )
 
-#let run = json("/artifacts/data/exp033/numbers.json")
+#let run = json("/.artifacts/exp033/numbers.json")
 #let cfg = run.config
 #let hopf = run.results.hopf
 #let crit = run.results.criticality
@@ -52,7 +52,7 @@
 
   ==== 1.1 Summary of COBA model.
 
-  We start from the COBANet model (#link("/ar003/")[ar003 §2]): conductance-based E
+  We start from the COBANet model (#link("/exp100/")[exp100 §2]): conductance-based E
   and I membranes, a threshold-reset rule, and three exponential synapses (no E→E; I
   receives no inhibition):
 
@@ -357,7 +357,7 @@
 
   #figure(
     image(
-      "/artifacts/data/exp033/bifurcation_compound.svg",
+      "/.artifacts/exp033/bifurcation_compound.svg",
       width: 100%,
       alt: "Three panels. A: the four Jacobian eigenvalues in the complex plane, coloured by drive, with one conjugate pair crossing the imaginary axis at the Hopf. B: the hysteresis sweep, rising and falling branches coinciding. C: gamma frequency falling with tau_GABA for the mean-field and the exp041 spiking network.",
     ),
@@ -390,7 +390,7 @@
 
   #figure(
     image(
-      "/artifacts/data/exp033/sigma_sensitivity.svg",
+      "/.artifacts/exp033/sigma_sensitivity.svg",
       width: 100%,
       alt: "Four-panel sensitivity analysis across effective membrane-noise scales from 3 to 6 mV, showing the Hopf threshold, invariant crossing frequency, onset fixed-point rates, and declining relative-onset amplitude.",
     ),
@@ -407,7 +407,7 @@
 
   #figure(
     image(
-      "/artifacts/data/exp033/eigenvalues_complex.svg",
+      "/.artifacts/exp033/eigenvalues_complex.svg",
       width: 100%,
       alt: "The four 4D Jacobian eigenvalues in the complex plane across the drive sweep, coloured dark to bright with I_ext. One complex-conjugate pair lifts off the real axis and crosses the imaginary axis at plus/minus i omega-star; the other two eigenvalues stay in the left half-plane.",
     ),
@@ -432,7 +432,7 @@
 
   #figure(
     image(
-      "/artifacts/data/exp033/freq_vs_tau_gaba.svg",
+      "/.artifacts/exp033/freq_vs_tau_gaba.svg",
       width: 100%,
       alt: "Gamma frequency versus tau_GABA. Both the reference mean-field f-star and the exp041 spiking f-gamma fall monotonically as tau_GABA increases; the mean-field curve runs below the spiking curve across the sweep, the gap largest at short tau_GABA and narrowing at long tau_GABA.",
     ),
@@ -460,7 +460,7 @@
 
   #figure(
     image(
-      "/artifacts/data/exp033/hysteresis.svg",
+      "/.artifacts/exp033/hysteresis.svg",
       width: 100%,
       alt: "Peak-to-peak E amplitude versus I_ext for a quasi-static up-and-down ramp of the drive across I-star. The rising branch (drive increasing) and falling branch (drive decreasing) coincide, amplitude growing continuously from zero at the threshold with no hysteresis loop.",
     ),
@@ -478,7 +478,7 @@
 
   #figure(
     image(
-      "/artifacts/data/exp033/limit_cycle.svg",
+      "/.artifacts/exp033/limit_cycle.svg",
       width: 100%,
       alt: "The E rate (black) and I rate (red) over one limit cycle just above onset, on twin y-axes against time. Both are near-sinusoidal and the E burst leads the I burst by a few milliseconds.",
     ),
@@ -613,7 +613,7 @@
 
   #figure(
     image(
-      "/artifacts/data/exp033/timeseries.svg",
+      "/.artifacts/exp033/timeseries.svg",
       width: 100%,
       alt: "Four stacked time series over one limit cycle sharing a time axis, in loop order E rate, g_e^I, I rate, g_i^E. Each variable peaks after the one above it, one round trip of the ring per gamma cycle; g_e^I tracks the E rate almost rigidly.",
     ),
@@ -628,7 +628,7 @@
 
   #figure(
     image(
-      "/artifacts/data/exp033/phase_planes.svg",
+      "/.artifacts/exp033/phase_planes.svg",
       width: 100%,
       alt: "The 4D limit cycle projected onto all six variable pairs, one closed loop per panel. The E versus g_e^I panel collapses almost to a line; the other five pairs enclose genuine area.",
     ),
@@ -644,7 +644,7 @@
 
   #figure(
     image(
-      "/artifacts/data/exp033/reduction_ladder.svg",
+      "/.artifacts/exp033/reduction_ladder.svg",
       width: 100%,
       alt: "The g_i^E deviation from its fixed point after a small kick at a common drive, for three models. The 4D full model (black solid) and the 3D AMPA-slaved reduction (black dashed) both sustain a limit cycle; the 2D rate-slaved reduction (red) rings down to the fixed point.",
     ),

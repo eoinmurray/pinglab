@@ -9,7 +9,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from tools.runstore.contract import (
+from tools.pingstore.payload import (
     ContractError,
     load_json,
     validate_inventory,

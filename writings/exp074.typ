@@ -2,12 +2,12 @@
   title: "From Python graph to spikes",
   date: "2026-07-31",
   description: "The first snnlang vertical slice: author a PING network in Python, compile a portable bundle, execute it through tools/snnsim, and retain both the graph and its spike rasters.",
-  collection: "documentation",
+  collection: "snnlang-docs",
   status: "ExpScout",
   order: 1,
 )
 
-#let r = json("/artifacts/data/exp074/numbers.json")
+#let r = json("/.artifacts/exp074/numbers.json")
 
 #let body = [
   == Abstract
@@ -23,7 +23,7 @@
 
   == The compiled network
 
-  #image("/artifacts/data/exp074/network.svg", width: 100%)
+  #image("/.artifacts/exp074/network.svg", width: 100%)
 
   The graph contains #r.graph.populations populations,
   #r.graph.projections projections, #r.graph.operations graph operations, and
@@ -40,7 +40,7 @@
   shows trial #r.output.display_trial: the exact input events, then the
   excitatory and inhibitory events produced by the compiled network.
 
-  #image("/artifacts/data/exp074/rasters.png", width: 100%)
+  #image("/.artifacts/exp074/rasters.png", width: 100%)
 
   Across all #r.config.n_batch trials and #r.config.t_ms ms, the simulator
   measured mean E and I rates of

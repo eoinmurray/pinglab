@@ -35,6 +35,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import re
 import subprocess
 from datetime import datetime, timezone
 from pathlib import Path
@@ -52,6 +53,19 @@ RUN_SH_FILE = "run.sh"
 # from both the dirty check and the captured patch.
 DEP_PATHS = ("tools", "experiments")
 GIT_TIMEOUT_S = float(os.environ.get("PINGLAB_GIT_TIMEOUT_S", "30"))
+VERSION_PATTERN = re.compile(r'^__version__ = "([^"]+)"$', re.MULTILINE)
+
+
+def tool_versions() -> dict[str, str]:
+    """Read tool versions without crossing the tool/experiment import boundary."""
+    versions = {}
+    for name in ("snnlang", "snnsim", "snnviz"):
+        source = (REPO / "tools" / name / "_version.py").read_text()
+        match = VERSION_PATTERN.search(source)
+        if match is None:
+            raise RuntimeError(f"missing {name} semantic version")
+        versions[name] = match.group(1)
+    return versions
 
 
 def _git_ok(args: list[str]) -> str | None:
@@ -204,6 +218,7 @@ def write_manifest(
         "patch": patch_meta,
         "host": host,
         "scale": scale,
+        "tool_versions": tool_versions(),
     }
     path = figures_dir / MANIFEST_FILE
     path.write_text(json.dumps(manifest, indent=2) + "\n")

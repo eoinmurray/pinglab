@@ -115,7 +115,7 @@ Protocol:
 - RunPod spending is authorized up to $40 total; reap all pods when finished.
 
 Deliverables:
-- artifacts/data/exp073 with provenance, numbers.json, reproducer, training curves, firing-rate diagnostics, W_EE diagnostics, and matched rasters where relevant;
+- .artifacts/exp073 with provenance, numbers.json, reproducer, training curves, firing-rate diagnostics, W_EE diagnostics, and matched rasters where relevant;
 - writings/exp073.typ as a cold-readable Demolab experiment report comparing exp073 to the historical exp071/exp072 baseline;
 - update the Spiking Heidelberg Digits collection so exp073 is the next canonical experiment;
 - build successfully;
@@ -662,7 +662,7 @@ def restore_activity_logs(figures: Path, logs: dict[str, str]) -> dict[str, Any]
         "latest_checkpoint_id": latest,
         "latest_checkpoint_time_utc": utc_now(),
         "publishable_log": (
-            f"artifacts/data/{SLUG}/activity/messages_{latest}.json"
+            f".artifacts/{SLUG}/activity/messages_{latest}.json"
             if latest
             else None
         ),

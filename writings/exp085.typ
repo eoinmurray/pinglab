@@ -9,7 +9,7 @@
   order: 1,
 )
 
-#let r = json("/artifacts/data/exp085/numbers.json")
+#let r = json("/.artifacts/exp085/numbers.json")
 #let a = r.uncoupled.PING_A
 #let b = r.uncoupled.PING_B
 #let prc = r.phase_response
@@ -35,7 +35,7 @@
   Each network contains #r.network.populations_per_network.E excitatory and #r.network.populations_per_network.I inhibitory neurons in a local PING loop. Sparse reciprocal excitation targets both populations through separate pathways.
 
   #figure(
-    image("/artifacts/data/exp085/network.svg", width: 78%, alt: "Two matched PING networks with local E-to-I-to-E loops and reciprocal E-to-E and E-to-I coupling."),
+    image("/.artifacts/exp085/network.svg", width: 78%, alt: "Two matched PING networks with local E-to-I-to-E loops and reciprocal E-to-E and E-to-I coupling."),
     caption: [Two matched PING circuits. Long-range excitation targets either E or I with exact fan-in 8.],
   )
 
@@ -46,7 +46,7 @@
   === 1. The uncoupled rhythms drift
 
   #figure(
-    image("/artifacts/data/exp085/uncoupled.png", width: 88%, alt: "Two clean PING rhythms above their continually wrapping relative phase."),
+    image("/.artifacts/exp085/uncoupled.png", width: 88%, alt: "Two clean PING rhythms above their continually wrapping relative phase."),
     caption: [Both networks sustain gamma rhythms, but their relative phase keeps moving.],
   )
 
@@ -57,12 +57,12 @@
   We deliver one coupling-matched probe volley at different phases of Network A's cycle. E-targeted probes advance the next excitatory volley late in the cycle. I-targeted probes delay it only in a narrow window.
 
   #figure(
-    image("/artifacts/data/exp085/phase_response_examples.png", width: 88%, alt: "Examples of an E-targeted advance, an ineffective I-targeted probe, and an I-targeted doublet and delay."),
+    image("/.artifacts/exp085/phase_response_examples.png", width: 88%, alt: "Examples of an E-targeted advance, an ineffective I-targeted probe, and an I-targeted doublet and delay."),
     caption: [Three representative responses: direct advance, no correction, and doublet-mediated delay.],
   )
 
   #figure(
-    image("/artifacts/data/exp085/phase_response.png", width: 92%, alt: "Phase responses to E-targeted and I-targeted probe volleys, including the conductance and voltage mechanism of an inhibitory doublet."),
+    image("/.artifacts/exp085/phase_response.png", width: 92%, alt: "Phase responses to E-targeted and I-targeted probe volleys, including the conductance and voltage mechanism of an inhibitory doublet."),
     caption: [E input advances over a broad late-cycle range. I input delays only from phase #calc.round(doublets.first().pulse_phase_fraction, digits: 2) to #calc.round(doublets.last().pulse_phase_fraction, digits: 2); the lower panels show why.],
   )
 
@@ -73,7 +73,7 @@
   We start four conditions from the same saved state: no coupling, E-to-E only, E-to-I only, and both pathways.
 
   #figure(
-    image("/artifacts/data/exp085/pathway_comparison.png", width: 88%, alt: "Relative-phase change after coupling onset for no coupling, E-to-E only, E-to-I only, and both pathways."),
+    image("/.artifacts/exp085/pathway_comparison.png", width: 88%, alt: "Relative-phase change after coupling onset for no coupling, E-to-E only, E-to-I only, and both pathways."),
     caption: [A slope means continued drift; a plateau means phase locking.],
   )
 
@@ -84,7 +84,7 @@
   === 4. The first correction begins in E
 
   #figure(
-    image("/artifacts/data/exp085/event_aligned_mechanism.png", width: 92%, alt: "Cross-network excitation followed by an advanced excitatory volley and advanced feedback inhibition."),
+    image("/.artifacts/exp085/event_aligned_mechanism.png", width: 92%, alt: "Cross-network excitation followed by an advanced excitatory volley and advanced feedback inhibition."),
     caption: [The first correction runs from arriving excitation to an advanced E volley and then advanced feedback inhibition.],
   )
 

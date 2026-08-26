@@ -6,7 +6,7 @@
   status: "ExpScout",
 )
 
-#let r = json("/artifacts/data/exp082/numbers.json")
+#let r = json("/.artifacts/exp082/numbers.json")
 #let pct(x) = str(calc.round(100 * x, digits: 1)) + "%"
 #let mean(xs) = xs.sum() / xs.len()
 #let minimum(xs) = calc.min(..xs)
@@ -25,7 +25,7 @@
   Three PING networks were trained independently across changing input rates, then frozen before evaluation. Within each five-digit stream, the PING network runs continuously: its hidden neuronal state does not reset when the digit changes. Only the output-LIF state and class counts reset, so each digit starts a new decision without restarting the network. The shared design below shows this streaming arrangement.
 
   #figure(
-    image("/artifacts/data/exp082/shared_design_schematic.svg", width: 100%, alt: "Conceptual streaming design. Changing digit inputs pass through a PING network to output spikes, class counts, and a prediction. Hidden state continues across digit boundaries while output state and counts reset."),
+    image("/.artifacts/exp082/shared_design_schematic.svg", width: 100%, alt: "Conceptual streaming design. Changing digit inputs pass through a PING network to output spikes, class counts, and a prediction. Hidden state continues across digit boundaries while output state and counts reset."),
     caption: [Planned streaming evaluation. Hidden network state continues across digits, while output evidence resets at each boundary. This blue-grey schematic defines the prospective mechanism and is not measured evidence.],
   )
 
@@ -46,7 +46,7 @@
   where $s_c^"out"(t)$ is the spike emitted by output unit $c$. The final prediction is $arg max_c z_c(b-1)$. If rhythmic bursts deliver useful evidence packets, classes can exchange the lead before one builds a stable margin. Sparse failure should instead produce few or no output spikes.
 
   #figure(
-    image("/artifacts/data/exp082/single_trial.png", width: 85%, alt: "One MNIST digit above excitatory and inhibitory spike rasters and ten cumulative spike-count evidence traces."),
+    image("/.artifacts/exp082/single_trial.png", width: 85%, alt: "One MNIST digit above excitatory and inhibitory spike rasters and ten cumulative spike-count evidence traces."),
     caption: [A correctly classified 200 ms presentation at 5 Hz, selected as the first success in a pre-existing matched stream. The figure explains the readout; it does not estimate accuracy. Red marks the true and winning class.],
   )
 
@@ -57,7 +57,7 @@
   The second investigation changes input rate and presentation duration at digit boundaries while enforcing $T_"readout"=T_"presentation"$. Boundary resets should prevent class evidence from leaking across labels, although continuing hidden state can shape early activity. Five registered conditions span sparse, dense, short, and matched presentations. This stream is a qualitative stress test, not an accuracy estimate.
 
   #figure(
-    image("/artifacts/data/exp082/variable_stream.png", width: 100%, alt: "Excitatory and inhibitory rasters with online spike-count evidence as input rate and digit duration vary."),
+    image("/.artifacts/exp082/variable_stream.png", width: 100%, alt: "Excitatory and inhibitory rasters with online spike-count evidence as input rate and digit duration vary."),
     caption: [A five-digit stream classified by the native output-LIF spike-count readout. Counts reset at each boundary; hidden PING state continues. Thumbnail opacity increases with input rate, and badges show the true and predicted labels.],
   )
 
@@ -68,14 +68,14 @@
   The factorial evaluation crosses four matched presentation/readout durations with all eleven training rates. Each condition contains 200 digits for each network. The leading account predicts that accuracy will rise as rate and duration supply more output events, then remain useful across a broad upper-rate region.
 
   #figure(
-    image("/artifacts/data/exp082/duration_rate_summary.png", width: 100%, alt: "Accuracy over presentation duration and input rate beside the fixed-200-millisecond psychometric."),
+    image("/.artifacts/exp082/duration_rate_summary.png", width: 100%, alt: "Accuracy over presentation duration and input rate beside the fixed-200-millisecond psychometric."),
     caption: [Held-out accuracy across matched presentation/readout durations and trained input rates. The right panel fixes duration at 200 ms to separate rate tolerance from integration time.],
   )
 
   Mean accuracy increased monotonically with duration: #pct(mean(at-duration(25.0).map(row => row.accuracy))) at 25 ms, #pct(mean(at-duration(50.0).map(row => row.accuracy))) at 50 ms, #pct(mean(at-duration(100.0).map(row => row.accuracy))) at 100 ms, and #pct(mean(at-duration(200.0).map(row => row.accuracy))) at 200 ms. Mean output silence fell from #pct(mean(at-duration(25.0).map(row => row.silent_fraction))) to #pct(mean(at-duration(200.0).map(row => row.silent_fraction))). Shorter presentations leave less time for both hidden dynamics and evidence accumulation. This design cannot separate those effects.
 
   #figure(
-    image("/artifacts/data/exp082/psychometric_200ms.svg", width: 85%, alt: "Classification accuracy versus maximum-pixel input rate at a fixed 200 milliseconds."),
+    image("/.artifacts/exp082/psychometric_200ms.svg", width: 85%, alt: "Classification accuracy versus maximum-pixel input rate at a fixed 200 milliseconds."),
     caption: [Input-rate psychometric with presentation and spike-count window fixed at 200 ms. Each rate contains 200 held-out digit presentations for each of three trained seeds.],
   )
 
