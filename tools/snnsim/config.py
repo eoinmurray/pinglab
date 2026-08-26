@@ -523,6 +523,7 @@ def run_sim(
     model_name="ping",
     t_e_async=None,
     input_spikes=None,
+    input_spikes_i=None,
     ext_g=None,
     ext_g_i=None,
     ext_g_inhib_e=None,
@@ -537,6 +538,8 @@ def run_sim(
     the forward pass):
       - ``input_spikes``: (T, N_in) 0/1 raster routed through W_in onto the E
         cells (the synthetic-spikes input path).
+      - ``input_spikes_i``: optional distinct (T, N_in) raster routed through
+        W_in_i onto I; when omitted, input_spikes drives both populations.
       - ``ext_g`` / ``ext_g_i``: (T, N_E) / (T, N_I) per-cell excitatory
         conductance injected directly onto the E / I populations, bypassing
         W_in. This is the cell-drive path used by the V&S / Brunel balanced
@@ -576,7 +579,11 @@ def run_sim(
         # Spike input (optionally with per-cell ext_g/ext_g_i on top).
         ext_g_tensor = None
         input_spikes = input_spikes.to(cfg.torch_device)
+        if input_spikes_i is not None:
+            input_spikes_i = input_spikes_i.to(cfg.torch_device)
         M.T_steps = min(M.T_steps, len(input_spikes))
+        if input_spikes_i is not None:
+            M.T_steps = min(M.T_steps, len(input_spikes_i))
         if ext_g is not None:
             M.T_steps = min(M.T_steps, len(ext_g))
         for conductance in (ext_g_i, ext_g_inhib_e, ext_g_inhib_i):
@@ -619,6 +626,8 @@ def run_sim(
     }
     if input_spikes is not None:
         fwd_kwargs["input_spikes"] = input_spikes
+        if input_spikes_i is not None:
+            fwd_kwargs["input_spikes_i"] = input_spikes_i
         if ext_g is not None:
             fwd_kwargs["ext_g"] = ext_g
         if ext_g_i is not None:
@@ -662,6 +671,8 @@ def run_sim(
 def build_config(args):
     """Build Config from CLI args."""
     c = Config()
+    if getattr(args, "seed", None) is not None:
+        c.seed = int(args.seed)
     if hasattr(args, "out_dir") and args.out_dir is not None:
         c.artifact_root = args.out_dir
     if hasattr(args, "n_hidden") and args.n_hidden is not None:

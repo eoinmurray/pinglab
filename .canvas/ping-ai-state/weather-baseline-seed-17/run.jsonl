@@ -1,0 +1,5 @@
+{"ts": "2026-08-26T11:50:19", "event": "run_start", "mode": "sim", "model": "ping", "subtitle": "synthetic-spikes"}
+{"ts": "2026-08-26T11:50:19", "event": "config", "fields": {"network": "hidden 400 \u00b7 Dale's law \u00b7 E/I 0.6\u00d75.0", "sim": "dt 0.25 ms \u00b7 T 1500.0 ms \u00b7 Poisson 25.0 Hz", "run": "r-20260826-115019 \u00b7 git 01c08bc0 (dirty)"}}
+{"ts": "2026-08-26T11:50:19", "event": "phase", "name": "drive", "detail": "authenticated structured spikes + four conductance channels", "elapsed_s": null}
+{"ts": "2026-08-26T11:50:19", "event": "metrics", "label": "result", "rate_e": 15.556666374206543, "rate_i": 16.613332748413086, "cv": 0.4282386004924774, "act": 0.9975, "f0": null}
+{"ts": "2026-08-26T11:50:19", "event": "done", "elapsed_s": 0.8879339161794633, "device": null}

@@ -2,7 +2,7 @@
   title: "SNNLANG developer documentation",
   date: "2026-07-30",
   description: "Start with the collection contents, learn the high-level development model, then use the concrete SNNLANG and graph-execution API reference.",
-  collection: "snnlang",
+  collection: "documentation",
   order: 1,
 )
 

@@ -260,6 +260,88 @@ def test_combined_input_realization_is_reproducible_private_and_shared(tmp_path)
     )
 
 
+def test_weather_realization_separates_afferents_and_local_shared_groups():
+    channel = {
+        "private": {
+            "kind": "shot_noise",
+            "rate_hz": 200,
+            "amplitude": 0.02,
+            "tau_ms": 2,
+        },
+        "shared": {
+            "kind": "grouped_shot_noise",
+            "rate_hz": 500,
+            "amplitude": 0.01,
+            "tau_ms": 2,
+            "group_size": 4,
+        },
+        "heterogeneity": {
+            "rate": {"kind": "constant", "value": 1},
+            "amplitude": {"kind": "constant", "value": 1},
+        },
+    }
+    recipe = {
+        "weather": {"kind": "stationary_lognormal", "tau_ms": 50, "std_fraction": 0.2},
+        "afferent_wave": {
+            "kind": "smooth_transient",
+            "onset_ms": 100,
+            "peak_ms": 200,
+            "plateau_end_ms": 200,
+            "offset_ms": 300,
+            "baseline_scale": 1,
+            "peak_scale": 2,
+            "shared_peak_scale": 3,
+        },
+        "spike_sources": [
+            {
+                "kind": "correlated_poisson_afferents",
+                "input_e": "e.value",
+                "input_i": "i.value",
+                "shared_rate_hz": 20,
+                "e_private_rate_hz": 30,
+                "i_private_rate_hz": 40,
+            }
+        ],
+        "backgrounds": [
+            {
+                "target": "E",
+                "excitatory": channel,
+                "inhibitory": channel,
+            }
+        ],
+        "modulation": [],
+    }
+
+    realized = realize_simulation_inputs(
+        recipe,
+        seed=4,
+        dt=1,
+        t_steps=400,
+        e_id="E",
+        i_id="I",
+        n_e=12,
+        n_i=3,
+        input_size=12,
+    )
+
+    assert realized.input_spikes_i is not None
+    assert not np.array_equal(realized.input_spikes, realized.input_spikes_i)
+    shared = realized.retained["input_afferent_shared"]
+    assert np.all(realized.retained["input_structured_spikes_e"] >= shared)
+    assert np.all(realized.retained["input_structured_spikes_i"] >= shared)
+    weather = realized.retained["input_weather_scale"]
+    assert np.all(np.isfinite(weather)) and np.all(weather > 0)
+    wave = realized.retained["input_afferent_scale"]
+    assert wave[0] == pytest.approx(1)
+    assert wave[200] == pytest.approx(2)
+    assert wave[300] == pytest.approx(1)
+    shared_wave = realized.retained["input_afferent_shared_scale"]
+    assert shared_wave[200] == pytest.approx(3)
+    grouped = realized.retained["input_excitatory_e_shared"]
+    assert np.array_equal(grouped[:, 0], grouped[:, 3])
+    assert not np.array_equal(grouped[:, 0], grouped[:, 4])
+
+
 def test_bundle_transition_builds_smooth_weight_schedule(tmp_path):
     baseline = _write_transition_bundle(tmp_path, "baseline", (0.4, 0.12))
     target = _write_transition_bundle(tmp_path, "target", (4.34, 1.302))
@@ -277,6 +359,12 @@ def test_bundle_transition_builds_smooth_weight_schedule(tmp_path):
     assert schedules["w_ee"][160] == pytest.approx((1.0 + 10.85) / 2)
     assert schedules["w_ei"].min() == schedules["w_ei"].max() == 1.0
     assert time_ms[-1] == pytest.approx(99.75)
+
+
+def test_build_config_applies_cli_seed():
+    args = parse_args(["sim", "--seed", "29"])
+    built = config.build_config(args)
+    assert built.seed == 29
 
 
 def test_training_bundle_applies_graph_and_recipe(tmp_path):

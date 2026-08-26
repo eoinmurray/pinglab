@@ -997,6 +997,7 @@ class COBANet(nn.Module):
         ext_g_inhib_i=None,
         drive_sigma=0.0,
         input_spikes=None,
+        input_spikes_i=None,
         readout_reset_mask=None,
         v_perturb_eps=0.0,
         v_perturb_seed=0,
@@ -1008,6 +1009,7 @@ class COBANet(nn.Module):
         has_ext_g_inhib_e = ext_g_inhib_e is not None
         has_ext_g_inhib_i = ext_g_inhib_i is not None
         has_input_spikes = input_spikes is not None
+        has_input_spikes_i = input_spikes_i is not None
         has_readout_reset = readout_reset_mask is not None
 
         if has_ext_g and ext_g.dim() == 3:
@@ -1200,6 +1202,7 @@ class COBANet(nn.Module):
             "drive_gains": drive_gains,
             "ei_layers": self.ei_layers,
             "has_input_spikes": has_input_spikes,
+            "has_input_spikes_i": has_input_spikes_i,
             "has_ext_g": has_ext_g,
             "has_ext_g_i": has_ext_g_i,
             "has_ext_g_inhib_e": has_ext_g_inhib_e,
@@ -1259,6 +1262,11 @@ class COBANet(nn.Module):
                     input_spikes[t].unsqueeze(0)
                     if has_input_spikes and input_spikes.dim() == 2
                     else (input_spikes[t] if has_input_spikes else None)
+                ),
+                "in_i_t": (
+                    input_spikes_i[t].unsqueeze(0)
+                    if has_input_spikes_i and input_spikes_i.dim() == 2
+                    else (input_spikes_i[t] if has_input_spikes_i else None)
                 ),
                 "ext_t": (
                     ext_g[t].unsqueeze(0)
@@ -1380,7 +1388,10 @@ class COBANet(nn.Module):
                 if k == "1" and cfg["has_ext_g_i"]:
                     ei_drive = ei_drive + slc["ext_t_i"]
                 if k == "1" and cfg["has_input_i"] and has_input_spikes:
-                    ei_drive = ei_drive + slc["in_t"] @ cfg["W_in_i"]
+                    input_i = (
+                        slc["in_i_t"] if cfg["has_input_spikes_i"] else slc["in_t"]
+                    )
+                    ei_drive = ei_drive + input_i @ cfg["W_in_i"]
                 state["ge_i"][k] = state["ge_i"][k] * cfg["decay_ampa"] + ei_drive
                 state["gi_e"][k] = (
                     state["gi_e"][k] * cfg["decay_gaba"]

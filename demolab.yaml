@@ -5,11 +5,15 @@ contents-title: pinglab — contents
 annotations: hypothesis
 pdfs: false
 
+links:
+  - label: Documentation
+    url: documentation.html
+
 index:
   mode: expanded
   recent: 5
 
-collection-order: [gamma-gated-sparsity, spiking-heidelberg-digits, paper-demonstrations, demo, snnlang, documentation, literature, exploratory, weekly-feed]
+collection-order: [gamma-gated-sparsity, spiking-heidelberg-digits, paper-demonstrations, demo, documentation, literature, exploratory, weekly-feed]
 collections:
   gamma-gated-sparsity:
     label: Gamma-gated sparsity
@@ -23,13 +27,11 @@ collections:
   demo:
     label: Demo
     description: Executable demonstrations of Pinglab models and tools.
-  snnlang:
-    label: SNNLANG
-    description: Developer documentation for authoring, compiling, and executing graph-shaped spiking neural networks.
-    theme: docs
   documentation:
     label: Documentation
-    description: Model derivations, conventions, and how the toolkit works.
+    description: Developer documentation for Pinglab's models, tools, conventions, and SNNLANG.
+    theme: docs
+    homepage: false
   exploratory:
     label: Exploratory
     description: Exploratory studies and supporting research.

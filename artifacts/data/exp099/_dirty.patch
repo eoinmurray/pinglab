@@ -1,0 +1,1639 @@
+diff --git a/experiments/collections/registry.json b/experiments/collections/registry.json
+index 7ab35fb3..e02bd3b7 100644
+--- a/experiments/collections/registry.json
++++ b/experiments/collections/registry.json
+@@ -39,7 +39,8 @@
+     "exp093": "gamma-gated-sparsity",
+     "exp094": "gamma-gated-sparsity",
+     "exp097": "demo",
+-    "exp098": "demo"
++    "exp098": "demo",
++    "exp099": "demo"
+   },
+   "historical": {
+     "exp087": {
+diff --git a/tools/snnlang/__init__.py b/tools/snnlang/__init__.py
+index 10a5ac9c..db1524fb 100644
+--- a/tools/snnlang/__init__.py
++++ b/tools/snnlang/__init__.py
+@@ -32,10 +32,14 @@ from .simulation import (
+     CellDistribution,
+     ConductanceBackground,
+     ConductanceSchedule,
++    CorrelatedPoissonAfferents,
+     GlobalShotNoise,
++    GroupedShotNoise,
+     ShotNoise,
+     SimulationSpec,
++    StationaryRateWeather,
+     StructuredPoisson,
++    TransientAfferentWave,
+ )
+ from .training import TrainSpec
+ 
+@@ -62,10 +66,14 @@ __all__ = [
+     "TrainSpec",
+     "SimulationSpec",
+     "StructuredPoisson",
++    "CorrelatedPoissonAfferents",
++    "StationaryRateWeather",
++    "TransientAfferentWave",
+     "ConductanceBackground",
+     "BackgroundChannel",
+     "ShotNoise",
+     "GlobalShotNoise",
++    "GroupedShotNoise",
+     "CellDistribution",
+     "ConductanceSchedule",
+     "Bundle",
+diff --git a/tools/snnlang/simulation.py b/tools/snnlang/simulation.py
+index c3a272c5..bf672053 100644
+--- a/tools/snnlang/simulation.py
++++ b/tools/snnlang/simulation.py
+@@ -33,6 +33,20 @@ class GlobalShotNoise(ShotNoise):
+         return {**super().json(), "kind": "global_shot_noise"}
+ 
+ 
++@dataclass(frozen=True)
++class GroupedShotNoise(ShotNoise):
++    """Shot noise shared within contiguous local cell groups."""
++
++    group_size: int = 16
++
++    def json(self) -> dict[str, Any]:
++        return {
++            **super().json(),
++            "kind": "grouped_shot_noise",
++            "group_size": int(self.group_size),
++        }
++
++
+ @dataclass(frozen=True)
+ class CellDistribution:
+     """Reproducible multiplicative cell heterogeneity laws."""
+@@ -47,7 +61,7 @@ class CellDistribution:
+ @dataclass(frozen=True)
+ class BackgroundChannel:
+     private: ShotNoise
+-    shared: GlobalShotNoise
++    shared: GlobalShotNoise | GroupedShotNoise
+     heterogeneity: CellDistribution = field(default_factory=CellDistribution)
+ 
+     def json(self) -> dict[str, Any]:
+@@ -85,6 +99,72 @@ class StructuredPoisson:
+         }
+ 
+ 
++@dataclass(frozen=True)
++class CorrelatedPoissonAfferents:
++    """Excitatory afferents with shared and population-private components."""
++
++    input_e: Signal | str
++    input_i: Signal | str
++    shared_rate_hz: float
++    e_private_rate_hz: float
++    i_private_rate_hz: float
++
++    def json(self) -> dict[str, Any]:
++        return {
++            "kind": "correlated_poisson_afferents",
++            "input_e": _id(self.input_e),
++            "input_i": _id(self.input_i),
++            "shared_rate_hz": float(self.shared_rate_hz),
++            "e_private_rate_hz": float(self.e_private_rate_hz),
++            "i_private_rate_hz": float(self.i_private_rate_hz),
++        }
++
++
++@dataclass(frozen=True)
++class StationaryRateWeather:
++    """Positive stationary slow modulation shared by external input channels."""
++
++    tau_ms: float
++    std_fraction: float
++
++    def json(self) -> dict[str, Any]:
++        return {
++            "kind": "stationary_lognormal",
++            "tau_ms": float(self.tau_ms),
++            "std_fraction": float(self.std_fraction),
++        }
++
++
++@dataclass(frozen=True)
++class TransientAfferentWave:
++    """Smooth finite rate multiplier applied to explicit afferent sources."""
++
++    onset_ms: float
++    peak_ms: float
++    offset_ms: float
++    peak_scale: float
++    shared_peak_scale: float | None = None
++    plateau_end_ms: float | None = None
++
++    def json(self) -> dict[str, Any]:
++        return {
++            "kind": "smooth_transient",
++            "onset_ms": float(self.onset_ms),
++            "peak_ms": float(self.peak_ms),
++            "plateau_end_ms": float(
++                self.peak_ms if self.plateau_end_ms is None else self.plateau_end_ms
++            ),
++            "offset_ms": float(self.offset_ms),
++            "baseline_scale": 1.0,
++            "peak_scale": float(self.peak_scale),
++            "shared_peak_scale": float(
++                self.peak_scale
++                if self.shared_peak_scale is None
++                else self.shared_peak_scale
++            ),
++        }
++
++
+ @dataclass(frozen=True)
+ class ConductanceSchedule:
+     targets: Sequence[Population | str]
+@@ -108,9 +188,11 @@ class ConductanceSchedule:
+ 
+ @dataclass(frozen=True)
+ class SimulationSpec:
+-    spike_sources: Sequence[StructuredPoisson] = ()
++    spike_sources: Sequence[StructuredPoisson | CorrelatedPoissonAfferents] = ()
+     backgrounds: Sequence[ConductanceBackground] = ()
+     modulation: Sequence[ConductanceSchedule] = ()
++    weather: StationaryRateWeather | None = None
++    afferent_wave: TransientAfferentWave | None = None
+ 
+ 
+ def simulation_dict(spec: SimulationSpec, graph_digest: str) -> dict[str, Any]:
+@@ -121,6 +203,10 @@ def simulation_dict(spec: SimulationSpec, graph_digest: str) -> dict[str, Any]:
+         "spike_sources": [source.json() for source in spec.spike_sources],
+         "backgrounds": [background.json() for background in spec.backgrounds],
+         "modulation": [schedule.json() for schedule in spec.modulation],
++        "weather": spec.weather.json() if spec.weather is not None else None,
++        "afferent_wave": (
++            spec.afferent_wave.json() if spec.afferent_wave is not None else None
++        ),
+     }
+ 
+ 
+@@ -132,10 +218,31 @@ def validate_simulation(graph: dict[str, Any], recipe: dict[str, Any]) -> None:
+         row["id"] for row in graph.get("populations", []) if row.get("spiking")
+     }
+     for source in recipe.get("spike_sources", []):
+-        if source.get("input") not in input_ids or float(source.get("rate_hz", 0)) < 0:
++        kind = source.get("kind")
++        if kind == "structured_poisson" and (
++            source.get("input") not in input_ids or float(source.get("rate_hz", 0)) < 0
++        ):
+             raise ValueError(
+                 "simulation spike source must reference an input and use rate_hz >= 0"
+             )
++        if kind == "correlated_poisson_afferents" and (
++            source.get("input_e") not in input_ids
++            or source.get("input_i") not in input_ids
++            or source.get("input_e") == source.get("input_i")
++            or any(
++                float(source.get(key, -1)) < 0
++                for key in (
++                    "shared_rate_hz",
++                    "e_private_rate_hz",
++                    "i_private_rate_hz",
++                )
++            )
++        ):
++            raise ValueError(
++                "correlated afferents require distinct E/I inputs and non-negative rates"
++            )
++        if kind not in {"structured_poisson", "correlated_poisson_afferents"}:
++            raise ValueError(f"unsupported simulation spike source: {kind!r}")
+     targets = []
+     for background in recipe.get("backgrounds", []):
+         target = background.get("target")
+@@ -145,13 +252,13 @@ def validate_simulation(graph: dict[str, Any], recipe: dict[str, Any]) -> None:
+         for polarity in ("excitatory", "inhibitory"):
+             channel = background.get(polarity, {})
+             for ownership, expected in (
+-                ("private", "shot_noise"),
+-                ("shared", "global_shot_noise"),
++                ("private", {"shot_noise"}),
++                ("shared", {"global_shot_noise", "grouped_shot_noise"}),
+             ):
+                 noise = channel.get(ownership, {})
+-                if noise.get("kind") != expected:
++                if noise.get("kind") not in expected:
+                     raise ValueError(
+-                        f"{polarity} background requires one {ownership} stream"
++                        f"{polarity} background requires one valid {ownership} stream"
+                     )
+                 if (
+                     any(
+@@ -162,6 +269,11 @@ def validate_simulation(graph: dict[str, Any], recipe: dict[str, Any]) -> None:
+                     raise ValueError(
+                         "background rates/amplitudes must be non-negative and tau_ms positive"
+                     )
++                if (
++                    noise.get("kind") == "grouped_shot_noise"
++                    and int(noise.get("group_size", 0)) <= 0
++                ):
++                    raise ValueError("grouped shot noise requires group_size > 0")
+     if len(targets) != len(set(targets)):
+         raise ValueError("simulation may declare only one background per population")
+     for schedule in recipe.get("modulation", []):
+@@ -175,3 +287,26 @@ def validate_simulation(graph: dict[str, Any], recipe: dict[str, Any]) -> None:
+             )
+         if not set(schedule.get("targets", ())) <= population_ids:
+             raise ValueError("conductance schedule references an unknown population")
++    weather = recipe.get("weather")
++    if weather is not None and (
++        weather.get("kind") != "stationary_lognormal"
++        or float(weather.get("tau_ms", 0)) <= 0
++        or float(weather.get("std_fraction", -1)) < 0
++    ):
++        raise ValueError("stationary weather requires tau_ms > 0 and std_fraction >= 0")
++    wave = recipe.get("afferent_wave")
++    if wave is not None and (
++        wave.get("kind") != "smooth_transient"
++        or float(wave.get("onset_ms", -1)) < 0
++        or not float(wave.get("onset_ms", -1))
++        < float(wave.get("peak_ms", -1))
++        <= float(wave.get("plateau_end_ms", wave.get("peak_ms", -1)))
++        < float(wave.get("offset_ms", -1))
++        or float(wave.get("baseline_scale", 0)) != 1.0
++        or float(wave.get("peak_scale", 0)) < 1.0
++        or float(wave.get("shared_peak_scale", wave.get("peak_scale", 0))) < 1.0
++    ):
++        raise ValueError(
++            "afferent wave requires 0 <= onset < peak <= plateau_end < offset "
++            "and peak scales >= 1"
++        )
+diff --git a/tools/snnlang/tests/test_snnlang.py b/tools/snnlang/tests/test_snnlang.py
+index bedbcf3d..564918b8 100644
+--- a/tools/snnlang/tests/test_snnlang.py
++++ b/tools/snnlang/tests/test_snnlang.py
+@@ -82,6 +82,55 @@ def test_combined_inputs_compile_as_graph_and_authenticated_simulation_recipe(tm
+         snn.load_bundle(root)
+ 
+ 
++def test_weather_inputs_serialize_correlated_afferents_and_local_groups():
++    net = snn.Network("weather")
++    source_e = net.input(
++        "afferent_e", shape=("time", "batch", 12), signal_type="spikes"
++    )
++    source_i = net.input(
++        "afferent_i", shape=("time", "batch", 12), signal_type="spikes"
++    )
++    cell = snn.components.ping(
++        net, name="cell", n_e=12, n_i=3, source_e=source_e, source_i=source_i
++    )
++    local = snn.BackgroundChannel(
++        private=snn.ShotNoise(50, 0.02, 2),
++        shared=snn.GroupedShotNoise(10, 0.01, 2, group_size=4),
++    )
++    simulation = snn.SimulationSpec(
++        spike_sources=[snn.CorrelatedPoissonAfferents(source_e, source_i, 5, 7, 9)],
++        backgrounds=[snn.ConductanceBackground(cell.E, local, local)],
++        weather=snn.StationaryRateWeather(250, 0.12),
++        afferent_wave=snn.TransientAfferentWave(100, 200, 400, 1.8, 3.0),
++    )
++
++    recipe = snn.compile(net, simulation=simulation).simulation
++
++    assert recipe["spike_sources"][0]["kind"] == "correlated_poisson_afferents"
++    assert recipe["backgrounds"][0]["excitatory"]["shared"] == {
++        "kind": "grouped_shot_noise",
++        "rate_hz": 10.0,
++        "amplitude": 0.01,
++        "tau_ms": 2.0,
++        "group_size": 4,
++    }
++    assert recipe["weather"] == {
++        "kind": "stationary_lognormal",
++        "tau_ms": 250.0,
++        "std_fraction": 0.12,
++    }
++    assert recipe["afferent_wave"] == {
++        "kind": "smooth_transient",
++        "onset_ms": 100.0,
++        "peak_ms": 200.0,
++        "plateau_end_ms": 200.0,
++        "offset_ms": 400.0,
++        "baseline_scale": 1.0,
++        "peak_scale": 1.8,
++        "shared_peak_scale": 3.0,
++    }
++
++
+ def test_disabled_projection_remains_structural_and_explicit():
+     net, cell = small_network()
+     loop = net.connect(
+diff --git a/tools/snnsim/bundle.py b/tools/snnsim/bundle.py
+index 0f6660f8..a93cb0f3 100644
+--- a/tools/snnsim/bundle.py
++++ b/tools/snnsim/bundle.py
+@@ -256,9 +256,9 @@ def translate_cobanet_v1(graph: dict[str, Any]) -> LegacySettings:
+             "COBANet v1 requires exactly two spiking E/I populations and one "
+             "non-spiking readout population"
+         )
+-    if len(inputs) != 1 or len(outputs) != 1:
++    if len(inputs) not in {1, 2} or len(outputs) != 1:
+         raise BundleCompatibilityError(
+-            "COBANet v1 requires exactly one input and one named output"
++            "COBANet v1 requires one or two inputs and one named output"
+         )
+ 
+     inhibitory = [
+@@ -309,17 +309,17 @@ def translate_cobanet_v1(graph: dict[str, Any]) -> LegacySettings:
+             "current COBANet backend requires 20 ms E and 5 ms I COBA-LIF neurons"
+         )
+ 
+-    input_id = inputs[0]["id"]
++    input_ids = {row["id"] for row in inputs}
+     input_projection = [
+         row
+         for row in projections
+-        if row["source"] == f"{input_id}.value"
++        if row["source"].partition(".")[0] in input_ids
+         and row["target"] == f"{e_id}.excitatory"
+     ]
+     input_projection_i = [
+         row
+         for row in projections
+-        if row["source"] == f"{input_id}.value"
++        if row["source"].partition(".")[0] in input_ids
+         and row["target"] == f"{i_id}.excitatory"
+     ]
+     readout_id = analogue[0]["id"]
+@@ -403,15 +403,20 @@ def translate_cobanet_v1(graph: dict[str, Any]) -> LegacySettings:
+         raise BundleCompatibilityError(
+             "graph timebase must declare a positive dt in ms"
+         )
+-    input_shape = inputs[0].get("shape", [])
++    input_shapes = [row.get("shape", []) for row in inputs]
+     if (
+-        len(input_shape) != 3
+-        or input_shape[:2] != ["time", "batch"]
+-        or not isinstance(input_shape[-1], int)
++        any(
++            len(shape) != 3
++            or shape[:2] != ["time", "batch"]
++            or not isinstance(shape[-1], int)
++            for shape in input_shapes
++        )
++        or len({shape[-1] for shape in input_shapes}) != 1
+     ):
+         raise BundleCompatibilityError(
+-            "COBANet v1 input shape must be ['time', 'batch', channels]"
++            "COBANet v1 inputs must share shape ['time', 'batch', channels]"
+         )
++    input_shape = input_shapes[0]
+     tau_gaba = inhibitory[0].get("synapse", {}).get("tau", {})
+     if (
+         inhibitory[0].get("synapse", {}).get("kind") != "gaba"
+diff --git a/tools/snnsim/config.py b/tools/snnsim/config.py
+index 92f8a063..68b75c2f 100644
+--- a/tools/snnsim/config.py
++++ b/tools/snnsim/config.py
+@@ -523,6 +523,7 @@ def run_sim(
+     model_name="ping",
+     t_e_async=None,
+     input_spikes=None,
++    input_spikes_i=None,
+     ext_g=None,
+     ext_g_i=None,
+     ext_g_inhib_e=None,
+@@ -537,6 +538,8 @@ def run_sim(
+     the forward pass):
+       - ``input_spikes``: (T, N_in) 0/1 raster routed through W_in onto the E
+         cells (the synthetic-spikes input path).
++      - ``input_spikes_i``: optional distinct (T, N_in) raster routed through
++        W_in_i onto I; when omitted, input_spikes drives both populations.
+       - ``ext_g`` / ``ext_g_i``: (T, N_E) / (T, N_I) per-cell excitatory
+         conductance injected directly onto the E / I populations, bypassing
+         W_in. This is the cell-drive path used by the V&S / Brunel balanced
+@@ -576,7 +579,11 @@ def run_sim(
+         # Spike input (optionally with per-cell ext_g/ext_g_i on top).
+         ext_g_tensor = None
+         input_spikes = input_spikes.to(cfg.torch_device)
++        if input_spikes_i is not None:
++            input_spikes_i = input_spikes_i.to(cfg.torch_device)
+         M.T_steps = min(M.T_steps, len(input_spikes))
++        if input_spikes_i is not None:
++            M.T_steps = min(M.T_steps, len(input_spikes_i))
+         if ext_g is not None:
+             M.T_steps = min(M.T_steps, len(ext_g))
+         for conductance in (ext_g_i, ext_g_inhib_e, ext_g_inhib_i):
+@@ -619,6 +626,8 @@ def run_sim(
+     }
+     if input_spikes is not None:
+         fwd_kwargs["input_spikes"] = input_spikes
++        if input_spikes_i is not None:
++            fwd_kwargs["input_spikes_i"] = input_spikes_i
+         if ext_g is not None:
+             fwd_kwargs["ext_g"] = ext_g
+         if ext_g_i is not None:
+@@ -662,6 +671,8 @@ def run_sim(
+ def build_config(args):
+     """Build Config from CLI args."""
+     c = Config()
++    if getattr(args, "seed", None) is not None:
++        c.seed = int(args.seed)
+     if hasattr(args, "out_dir") and args.out_dir is not None:
+         c.artifact_root = args.out_dir
+     if hasattr(args, "n_hidden") and args.n_hidden is not None:
+diff --git a/tools/snnsim/metrics.py b/tools/snnsim/metrics.py
+index 8ceddda4..7ff472d6 100644
+--- a/tools/snnsim/metrics.py
++++ b/tools/snnsim/metrics.py
+@@ -229,3 +229,67 @@ def rhythmicity_metrics(spikes, dt, max_lag_ms=100.0, bin_ms=1.0, bio_lag_ms=Non
+     return out
+ 
+ 
++def conductance_loop_score(g_e, g_i):
++    """Bounded geometric score for a consistently rotating E/I conductance loop.
++
++    The trajectory is centred and closed, then scored as the isoperimetric
++    quotient ``4πA/L²`` multiplied by signed-rotation coherence. The result is
++    dimensionless, invariant to uniform conductance scaling, and lies in [0, 1].
++    A circular, consistently traversed loop approaches one; an irregular path
++    with cancelling rotation approaches zero.
++    """
++    x = np.asarray(g_e, dtype=float).reshape(-1)
++    y = np.asarray(g_i, dtype=float).reshape(-1)
++    if x.size != y.size or x.size < 3:
++        return 0.0
++    x = x - x.mean()
++    y = y - y.mean()
++    x = np.r_[x, x[0]]
++    y = np.r_[y, y[0]]
++    cross = x[:-1] * y[1:] - x[1:] * y[:-1]
++    signed_twice_area = float(cross.sum())
++    absolute_sweep = float(np.abs(cross).sum())
++    perimeter = float(np.hypot(np.diff(x), np.diff(y)).sum())
++    if absolute_sweep <= 0 or perimeter <= 0:
++        return 0.0
++    area = 0.5 * abs(signed_twice_area)
++    compactness = min(1.0, 4.0 * np.pi * area / (perimeter * perimeter))
++    direction_coherence = abs(signed_twice_area) / absolute_sweep
++    return float(np.clip(compactness * direction_coherence, 0.0, 1.0))
++
++
++def rolling_conductance_loop_score(
++    g_e,
++    g_i,
++    dt,
++    *,
++    window_ms=40.0,
++    stride_ms=5.0,
++    normalize_percentiles=(10.0, 95.0),
++):
++    """Rolling conductance-loop score plus an explicitly run-relative [0, 1] view."""
++    x = np.asarray(g_e, dtype=float).reshape(-1)
++    y = np.asarray(g_i, dtype=float).reshape(-1)
++    if x.size != y.size:
++        raise ValueError("g_e and g_i must have equal length")
++    window_steps = max(3, int(round(float(window_ms) / float(dt))))
++    stride_steps = max(1, int(round(float(stride_ms) / float(dt))))
++    ends = np.arange(window_steps, x.size + 1, stride_steps)
++    raw = np.array(
++        [
++            conductance_loop_score(
++                x[end - window_steps : end], y[end - window_steps : end]
++            )
++            for end in ends
++        ]
++    )
++    times_ms = ends.astype(float) * float(dt)
++    lo, hi = np.percentile(raw, normalize_percentiles) if raw.size else (0.0, 0.0)
++    normalized = np.clip((raw - lo) / max(float(hi - lo), 1e-12), 0.0, 1.0)
++    return {
++        "times_ms": times_ms,
++        "raw": raw,
++        "normalized": normalized,
++        "normalization_low": float(lo),
++        "normalization_high": float(hi),
++    }
+diff --git a/tools/snnsim/models.py b/tools/snnsim/models.py
+index 6e9acd24..6a6fa0b6 100644
+--- a/tools/snnsim/models.py
++++ b/tools/snnsim/models.py
+@@ -997,6 +997,7 @@ class COBANet(nn.Module):
+         ext_g_inhib_i=None,
+         drive_sigma=0.0,
+         input_spikes=None,
++        input_spikes_i=None,
+         readout_reset_mask=None,
+         v_perturb_eps=0.0,
+         v_perturb_seed=0,
+@@ -1008,6 +1009,7 @@ class COBANet(nn.Module):
+         has_ext_g_inhib_e = ext_g_inhib_e is not None
+         has_ext_g_inhib_i = ext_g_inhib_i is not None
+         has_input_spikes = input_spikes is not None
++        has_input_spikes_i = input_spikes_i is not None
+         has_readout_reset = readout_reset_mask is not None
+ 
+         if has_ext_g and ext_g.dim() == 3:
+@@ -1200,6 +1202,7 @@ class COBANet(nn.Module):
+             "drive_gains": drive_gains,
+             "ei_layers": self.ei_layers,
+             "has_input_spikes": has_input_spikes,
++            "has_input_spikes_i": has_input_spikes_i,
+             "has_ext_g": has_ext_g,
+             "has_ext_g_i": has_ext_g_i,
+             "has_ext_g_inhib_e": has_ext_g_inhib_e,
+@@ -1260,6 +1263,11 @@ class COBANet(nn.Module):
+                     if has_input_spikes and input_spikes.dim() == 2
+                     else (input_spikes[t] if has_input_spikes else None)
+                 ),
++                "in_i_t": (
++                    input_spikes_i[t].unsqueeze(0)
++                    if has_input_spikes_i and input_spikes_i.dim() == 2
++                    else (input_spikes_i[t] if has_input_spikes_i else None)
++                ),
+                 "ext_t": (
+                     ext_g[t].unsqueeze(0)
+                     if has_ext_g and ext_g.dim() == 2
+@@ -1380,7 +1388,10 @@ class COBANet(nn.Module):
+                 if k == "1" and cfg["has_ext_g_i"]:
+                     ei_drive = ei_drive + slc["ext_t_i"]
+                 if k == "1" and cfg["has_input_i"] and has_input_spikes:
+-                    ei_drive = ei_drive + slc["in_t"] @ cfg["W_in_i"]
++                    input_i = (
++                        slc["in_i_t"] if cfg["has_input_spikes_i"] else slc["in_t"]
++                    )
++                    ei_drive = ei_drive + input_i @ cfg["W_in_i"]
+                 state["ge_i"][k] = state["ge_i"][k] * cfg["decay_ampa"] + ei_drive
+                 state["gi_e"][k] = (
+                     state["gi_e"][k] * cfg["decay_gaba"]
+diff --git a/tools/snnsim/simulation_inputs.py b/tools/snnsim/simulation_inputs.py
+index 412eef3e..6efeb9eb 100644
+--- a/tools/snnsim/simulation_inputs.py
++++ b/tools/snnsim/simulation_inputs.py
+@@ -12,6 +12,7 @@ import torch
+ @dataclass(frozen=True)
+ class RealizedInputs:
+     input_spikes: torch.Tensor | None
++    input_spikes_i: torch.Tensor | None
+     excitatory_e: torch.Tensor | None
+     inhibitory_e: torch.Tensor | None
+     excitatory_i: torch.Tensor | None
+@@ -60,6 +61,63 @@ def _smoothstep(
+     return scale
+ 
+ 
++def _stationary_weather(
++    recipe: dict[str, Any], *, seed: int, dt: float, t_steps: int
++) -> torch.Tensor:
++    spec = recipe.get("weather")
++    if spec is None or float(spec.get("std_fraction", 0)) == 0:
++        return torch.ones(t_steps)
++    tau_ms = float(spec["tau_ms"])
++    sigma = float(spec["std_fraction"])
++    alpha = float(np.exp(-float(dt) / tau_ms))
++    innovation = float(np.sqrt(1.0 - alpha * alpha))
++    generator = torch.Generator().manual_seed(int(seed) + 10_000)
++    state = torch.randn(1, generator=generator)[0]
++    values = torch.empty(t_steps)
++    for step in range(t_steps):
++        if step:
++            state = alpha * state + innovation * torch.randn(1, generator=generator)[0]
++        values[step] = torch.exp(sigma * state - 0.5 * sigma * sigma)
++    return values
++
++
++def _afferent_wave(
++    recipe: dict[str, Any], *, dt: float, t_steps: int, scale_key: str = "peak_scale"
++) -> torch.Tensor:
++    spec = recipe.get("afferent_wave")
++    if spec is None:
++        return torch.ones(t_steps)
++    time = torch.arange(t_steps, dtype=torch.float32) * float(dt)
++    onset = float(spec["onset_ms"])
++    peak = float(spec["peak_ms"])
++    plateau_end = float(spec.get("plateau_end_ms", peak))
++    offset = float(spec["offset_ms"])
++    peak_scale = float(spec.get(scale_key, spec["peak_scale"]))
++    rise_u = ((time - onset) / (peak - onset)).clamp(0, 1)
++    fall_u = ((time - plateau_end) / (offset - plateau_end)).clamp(0, 1)
++    rise = rise_u * rise_u * (3 - 2 * rise_u)
++    fall = fall_u * fall_u * (3 - 2 * fall_u)
++    scale = 1 + (peak_scale - 1) * rise
++    scale[time >= peak] = peak_scale
++    scale *= 1 - (1 - 1 / peak_scale) * fall
++    scale[time >= offset] = 1
++    return scale
++
++
++def _poisson_events(
++    rate_hz: float,
++    *,
++    weather: torch.Tensor,
++    dt: float,
++    size: int,
++    generator: torch.Generator,
++) -> torch.Tensor:
++    probability = (float(rate_hz) * float(dt) / 1000.0 * weather).clamp(max=1)
++    return (
++        torch.rand(len(weather), size, generator=generator) < probability.unsqueeze(1)
++    ).float()
++
++
+ def realize_simulation_inputs(
+     recipe: dict[str, Any],
+     *,
+@@ -74,22 +132,65 @@ def realize_simulation_inputs(
+ ) -> RealizedInputs:
+     """Generate mutually independent private/shared streams with stable seeds."""
+     retained: dict[str, np.ndarray] = {}
++    weather = _stationary_weather(recipe, seed=seed, dt=dt, t_steps=t_steps)
++    retained["input_weather_scale"] = weather.numpy()
++    afferent_wave = _afferent_wave(recipe, dt=dt, t_steps=t_steps)
++    shared_afferent_wave = _afferent_wave(
++        recipe, dt=dt, t_steps=t_steps, scale_key="shared_peak_scale"
++    )
++    retained["input_afferent_scale"] = afferent_wave.numpy()
++    retained["input_afferent_shared_scale"] = shared_afferent_wave.numpy()
++    afferent_weather = weather * afferent_wave
++    shared_afferent_weather = weather * shared_afferent_wave
+     spike_sources = recipe.get("spike_sources", [])
+     if len(spike_sources) > 1:
+         raise ValueError("legacy execution supports one structured spike source")
+     input_spikes = None
++    input_spikes_i = None
+     if spike_sources:
+         source = spike_sources[0]
+-        generator = torch.Generator().manual_seed(int(seed))
+-        p = float(source["rate_hz"]) * float(dt) / 1000.0
+         source_size = n_e if input_size is None else int(input_size)
+-        input_spikes = (
+-            torch.rand(t_steps, source_size, generator=generator) < p
+-        ).float()
+-        retained["input_structured_spikes"] = input_spikes.numpy()
++        if source.get("kind") == "correlated_poisson_afferents":
++            shared = _poisson_events(
++                source["shared_rate_hz"],
++                weather=shared_afferent_weather,
++                dt=dt,
++                size=source_size,
++                generator=torch.Generator().manual_seed(int(seed)),
++            )
++            e_private = _poisson_events(
++                source["e_private_rate_hz"],
++                weather=afferent_weather,
++                dt=dt,
++                size=source_size,
++                generator=torch.Generator().manual_seed(int(seed) + 1),
++            )
++            i_private = _poisson_events(
++                source["i_private_rate_hz"],
++                weather=afferent_weather,
++                dt=dt,
++                size=source_size,
++                generator=torch.Generator().manual_seed(int(seed) + 2),
++            )
++            input_spikes = torch.maximum(shared, e_private)
++            input_spikes_i = torch.maximum(shared, i_private)
++            retained["input_afferent_shared"] = shared.numpy()
++            retained["input_afferent_e_private"] = e_private.numpy()
++            retained["input_afferent_i_private"] = i_private.numpy()
++            retained["input_structured_spikes_e"] = input_spikes.numpy()
++            retained["input_structured_spikes_i"] = input_spikes_i.numpy()
++        else:
++            input_spikes = _poisson_events(
++                source["rate_hz"],
++                weather=afferent_weather,
++                dt=dt,
++                size=source_size,
++                generator=torch.Generator().manual_seed(int(seed)),
++            )
++            retained["input_structured_spikes"] = input_spikes.numpy()
+ 
+     resolved: dict[tuple[str, str], torch.Tensor] = {}
+-    channel_index = 1
++    channel_index = 100
+     sizes = {e_id: n_e, i_id: n_i}
+     names = {e_id: "e", i_id: "i"}
+     for background in recipe.get("backgrounds", []):
+@@ -114,18 +215,34 @@ def realize_simulation_inputs(
+             )
+             private = channel["private"]
+             private_p = (
+-                float(private["rate_hz"]) * float(dt) / 1000.0 * rate_scale
++                float(private["rate_hz"])
++                * float(dt)
++                / 1000.0
++                * weather.unsqueeze(1)
++                * rate_scale.unsqueeze(0)
+             ).clamp(max=1)
+             private_events = (
+-                torch.rand(t_steps, size, generator=private_gen)
+-                < private_p.unsqueeze(0)
++                torch.rand(t_steps, size, generator=private_gen) < private_p
+             ).float() * (float(private["amplitude"]) * amplitude_scale).unsqueeze(0)
+             shared = channel["shared"]
+-            shared_p = min(1.0, float(shared["rate_hz"]) * float(dt) / 1000.0)
+-            shared_events = (
+-                torch.rand(t_steps, 1, generator=shared_gen) < shared_p
+-            ).float() * float(shared["amplitude"])
+-            shared_cells = shared_events.expand(-1, size)
++            shared_p = (float(shared["rate_hz"]) * float(dt) / 1000.0 * weather).clamp(
++                max=1
++            )
++            if shared.get("kind") == "grouped_shot_noise":
++                group_size = int(shared["group_size"])
++                groups = (size + group_size - 1) // group_size
++                group_events = (
++                    torch.rand(t_steps, groups, generator=shared_gen)
++                    < shared_p.unsqueeze(1)
++                ).float() * float(shared["amplitude"])
++                shared_cells = group_events.repeat_interleave(group_size, dim=1)[
++                    :, :size
++                ]
++            else:
++                shared_events = (
++                    torch.rand(t_steps, 1, generator=shared_gen) < shared_p.unsqueeze(1)
++                ).float() * float(shared["amplitude"])
++                shared_cells = shared_events.expand(-1, size)
+             total = private_events + shared_cells
+             executed = total * modulation.unsqueeze(1)
+             stem = f"input_{polarity}_{names[target]}"
+@@ -139,6 +256,7 @@ def realize_simulation_inputs(
+ 
+     return RealizedInputs(
+         input_spikes=input_spikes,
++        input_spikes_i=input_spikes_i,
+         excitatory_e=resolved.get((e_id, "excitatory")),
+         inhibitory_e=resolved.get((e_id, "inhibitory")),
+         excitatory_i=resolved.get((i_id, "excitatory")),
+diff --git a/tools/snnsim/tests/test_bundle.py b/tools/snnsim/tests/test_bundle.py
+index 8ba643a4..32e800be 100644
+--- a/tools/snnsim/tests/test_bundle.py
++++ b/tools/snnsim/tests/test_bundle.py
+@@ -260,6 +260,88 @@ def test_combined_input_realization_is_reproducible_private_and_shared(tmp_path)
+     )
+ 
+ 
++def test_weather_realization_separates_afferents_and_local_shared_groups():
++    channel = {
++        "private": {
++            "kind": "shot_noise",
++            "rate_hz": 200,
++            "amplitude": 0.02,
++            "tau_ms": 2,
++        },
++        "shared": {
++            "kind": "grouped_shot_noise",
++            "rate_hz": 500,
++            "amplitude": 0.01,
++            "tau_ms": 2,
++            "group_size": 4,
++        },
++        "heterogeneity": {
++            "rate": {"kind": "constant", "value": 1},
++            "amplitude": {"kind": "constant", "value": 1},
++        },
++    }
++    recipe = {
++        "weather": {"kind": "stationary_lognormal", "tau_ms": 50, "std_fraction": 0.2},
++        "afferent_wave": {
++            "kind": "smooth_transient",
++            "onset_ms": 100,
++            "peak_ms": 200,
++            "plateau_end_ms": 200,
++            "offset_ms": 300,
++            "baseline_scale": 1,
++            "peak_scale": 2,
++            "shared_peak_scale": 3,
++        },
++        "spike_sources": [
++            {
++                "kind": "correlated_poisson_afferents",
++                "input_e": "e.value",
++                "input_i": "i.value",
++                "shared_rate_hz": 20,
++                "e_private_rate_hz": 30,
++                "i_private_rate_hz": 40,
++            }
++        ],
++        "backgrounds": [
++            {
++                "target": "E",
++                "excitatory": channel,
++                "inhibitory": channel,
++            }
++        ],
++        "modulation": [],
++    }
++
++    realized = realize_simulation_inputs(
++        recipe,
++        seed=4,
++        dt=1,
++        t_steps=400,
++        e_id="E",
++        i_id="I",
++        n_e=12,
++        n_i=3,
++        input_size=12,
++    )
++
++    assert realized.input_spikes_i is not None
++    assert not np.array_equal(realized.input_spikes, realized.input_spikes_i)
++    shared = realized.retained["input_afferent_shared"]
++    assert np.all(realized.retained["input_structured_spikes_e"] >= shared)
++    assert np.all(realized.retained["input_structured_spikes_i"] >= shared)
++    weather = realized.retained["input_weather_scale"]
++    assert np.all(np.isfinite(weather)) and np.all(weather > 0)
++    wave = realized.retained["input_afferent_scale"]
++    assert wave[0] == pytest.approx(1)
++    assert wave[200] == pytest.approx(2)
++    assert wave[300] == pytest.approx(1)
++    shared_wave = realized.retained["input_afferent_shared_scale"]
++    assert shared_wave[200] == pytest.approx(3)
++    grouped = realized.retained["input_excitatory_e_shared"]
++    assert np.array_equal(grouped[:, 0], grouped[:, 3])
++    assert not np.array_equal(grouped[:, 0], grouped[:, 4])
++
++
+ def test_bundle_transition_builds_smooth_weight_schedule(tmp_path):
+     baseline = _write_transition_bundle(tmp_path, "baseline", (0.4, 0.12))
+     target = _write_transition_bundle(tmp_path, "target", (4.34, 1.302))
+@@ -279,6 +361,12 @@ def test_bundle_transition_builds_smooth_weight_schedule(tmp_path):
+     assert time_ms[-1] == pytest.approx(99.75)
+ 
+ 
++def test_build_config_applies_cli_seed():
++    args = parse_args(["sim", "--seed", "29"])
++    built = config.build_config(args)
++    assert built.seed == 29
++
++
+ def test_training_bundle_applies_graph_and_recipe(tmp_path):
+     root = _write_bundle(tmp_path)
+     args = parse_args(
+diff --git a/tools/snnsim/tests/test_rhythmicity.py b/tools/snnsim/tests/test_rhythmicity.py
+index 3d6dd34b..85b08e2a 100644
+--- a/tools/snnsim/tests/test_rhythmicity.py
++++ b/tools/snnsim/tests/test_rhythmicity.py
+@@ -11,12 +11,15 @@ from __future__ import annotations
+ import sys
+ 
+ import numpy as np
++import pytest
+ 
+ sys.path.insert(0, "src/cli")
+ 
+ from metrics import (  # noqa: E402
++    conductance_loop_score,
+     population_event_times,
+     rhythmicity_metrics,
++    rolling_conductance_loop_score,
+     spike_autocorrelogram,
+ )
+ 
+@@ -108,3 +111,25 @@ def test_contrast_bounded_and_separates():
+     assert 0.0 <= cf < 0.2, cf            # flat ≈ 0
+     assert 0.0 <= cv < 1.0, cv            # bounded above by 1
+     assert cv > cf + 0.3                  # rhythm clearly higher
++
++
++def test_conductance_loop_score_is_bounded_scale_invariant_and_directional():
++    phase = np.linspace(0, 2 * np.pi, 400, endpoint=False)
++    loop = conductance_loop_score(np.cos(phase), np.sin(phase))
++    scaled = conductance_loop_score(7 * np.cos(phase), 7 * np.sin(phase))
++    cancelling = conductance_loop_score(
++        np.r_[np.cos(phase), np.cos(phase[::-1])],
++        np.r_[np.sin(phase), np.sin(phase[::-1])],
++    )
++    assert 0.9 < loop <= 1.0
++    assert scaled == pytest.approx(loop)
++    assert cancelling < 0.05
++
++
++def test_rolling_conductance_loop_score_has_run_relative_normalized_view():
++    phase = np.linspace(0, 6 * np.pi, 600)
++    result = rolling_conductance_loop_score(
++        np.cos(phase), np.sin(phase), dt=1.0, window_ms=100, stride_ms=10
++    )
++    assert result["times_ms"].shape == result["raw"].shape
++    assert np.all((result["normalized"] >= 0) & (result["normalized"] <= 1))
+diff --git a/tools/snnsim/tool.py b/tools/snnsim/tool.py
+index 88b14fca..924bdf94 100644
+--- a/tools/snnsim/tool.py
++++ b/tools/snnsim/tool.py
+@@ -1728,6 +1728,7 @@ def _run_sim(args, C, out_dir, log):
+             model_name=args.model,
+             t_e_async=t_e_async,
+             input_spikes=spk_in,
++            input_spikes_i=realized.input_spikes_i,
+             ext_g=ext_g,
+             ext_g_i=ext_g_i,
+             ext_g_inhib_e=realized.inhibitory_e,
+diff --git a/tools/snnviz/animation.py b/tools/snnviz/animation.py
+index 1a45c744..4826eafe 100644
+--- a/tools/snnviz/animation.py
++++ b/tools/snnviz/animation.py
+@@ -23,6 +23,29 @@ class FrameTimeline:
+             raise ValueError("require 0 < frames <= steps")
+         return cls(np.linspace(0, steps - 1, frames, dtype=int), dt_ms)
+ 
++    @classmethod
++    def compose(
++        cls,
++        segments: list[tuple[int, int, int]],
++        *,
++        dt_ms: float,
++    ) -> "FrameTimeline":
++        """Compose paced, repeated, or held inclusive step ranges.
++
++        Each segment is ``(start_step, end_step, frame_count)``. A reversed
++        range plays backward and equal endpoints create a hold. This gives a
++        composition full pacing control without coupling it to a plot type.
++        """
++
++        if not segments:
++            raise ValueError("at least one timeline segment is required")
++        sampled = []
++        for start, end, frames in segments:
++            if start < 0 or end < 0 or frames <= 0:
++                raise ValueError("timeline steps must be non-negative and frames positive")
++            sampled.append(np.linspace(start, end, frames, dtype=int))
++        return cls(np.concatenate(sampled), dt_ms)
++
+     def time_ms(self, frame: int) -> float:
+         return float(self.steps[frame] * self.dt_ms)
+ 
+diff --git a/tools/snnviz/loaders.py b/tools/snnviz/loaders.py
+index 6c7ad4d6..856cd8f1 100644
+--- a/tools/snnviz/loaders.py
++++ b/tools/snnviz/loaders.py
+@@ -21,17 +21,36 @@ def load_snnsim_recording(run_dir: str | Path) -> Recording:
+         if "dt" not in payload:
+             raise RecordingError(f"snapshot has no dt field: {snapshot}")
+         dt_ms = float(payload["dt"])
++        time_anchor = next(
++            (
++                np.asarray(payload[name])
++                for name in ("spk_e", "v_e_1", "input_spikes")
++                if name in payload and np.asarray(payload[name]).ndim
++            ),
++            None,
++        )
++        if time_anchor is None:
++            raise RecordingError(f"snapshot has no time-series anchor: {snapshot}")
++        steps = time_anchor.shape[0]
+         signals = {
+             name: np.asarray(payload[name])
+             for name in payload.files
+             if name not in {"dt", "n_e", "n_i", "label"}
+             and np.asarray(payload[name]).ndim
++            and np.asarray(payload[name]).shape[0] == steps
+         }
+         metadata = {
+             name: np.asarray(payload[name]).item()
+             for name in ("n_e", "n_i", "label")
+             if name in payload and np.asarray(payload[name]).size == 1
+         }
++        metadata["retained_static"] = {
++            name: np.asarray(payload[name])
++            for name in payload.files
++            if name not in {"dt", "n_e", "n_i", "label"}
++            and np.asarray(payload[name]).ndim
++            and np.asarray(payload[name]).shape[0] != steps
++        }
+     config = root / "config.json"
+     if config.is_file():
+         metadata["config"] = json.loads(config.read_text())
+diff --git a/tools/snnviz/tests/test_snnviz.py b/tools/snnviz/tests/test_snnviz.py
+index 805b5576..aa54ef75 100644
+--- a/tools/snnviz/tests/test_snnviz.py
++++ b/tools/snnviz/tests/test_snnviz.py
+@@ -12,6 +12,7 @@ from tools.snnviz import (  # noqa: E402
+     grid_layout,
+     representative_frame,
+ )
++from tools.snnviz.loaders import load_snnsim_recording
+ 
+ 
+ def test_recording_validates_shared_timeline():
+@@ -40,3 +41,30 @@ def test_timeline_and_representative_frame():
+     assert timeline.steps[[0, -1]].tolist() == [0, 99]
+     activity = np.asarray([[0, 0], [1, 0], [1, 2]])
+     assert representative_frame(activity) == 2
++
++
++def test_timeline_composes_slow_motion_repeats_and_holds():
++    timeline = FrameTimeline.compose(
++        [(0, 9, 3), (5, 5, 2), (9, 0, 3)], dt_ms=0.25
++    )
++    assert timeline.steps.tolist() == [0, 4, 9, 5, 5, 9, 4, 0]
++
++
++def test_snnsim_loader_separates_retained_static_arrays(tmp_path):
++    np.savez(
++        tmp_path / "snapshot.npz",
++        dt=np.asarray(0.25),
++        spk_e=np.zeros((8, 3)),
++        input_excitatory_e_executed=np.zeros((8, 3)),
++        input_excitatory_e_rate_scale=np.ones(3),
++    )
++
++    recording = load_snnsim_recording(tmp_path)
++
++    assert recording.steps == 8
++    assert "input_excitatory_e_executed" in recording.signals
++    assert "input_excitatory_e_rate_scale" not in recording.signals
++    np.testing.assert_array_equal(
++        recording.metadata["retained_static"]["input_excitatory_e_rate_scale"],
++        np.ones(3),
++    )
+
+diff --git a/experiments/exp099.py b/experiments/exp099.py
+new file mode 100644
+index 00000000..0ce9d6f7
+--- /dev/null
++++ b/experiments/exp099.py
+@@ -0,0 +1,583 @@
++"""EXP099: richer-input PING simulation, retained metrics, and video."""
++
++from __future__ import annotations
++
++import json
++import os
++import shutil
++import subprocess
++import sys
++import time
++from pathlib import Path
++
++import matplotlib.pyplot as plt
++import numpy as np
++from matplotlib.collections import LineCollection
++from matplotlib.colors import to_rgba
++
++REPO = Path(__file__).resolve().parents[1]
++sys.path[:0] = [
++    str(REPO),
++    str(REPO / "tools"),
++    str(REPO / "tools" / "snnsim"),
++    str(Path(__file__).parent),
++]
++
++import infer  # noqa: E402
++import models as snnsim_models  # noqa: E402, TID251
++from bundle import load_graph_bundle, translate_cobanet_v1  # noqa: E402
++from tools import snnlang as snn  # noqa: E402, TID251
++from tools.snnsim.metrics import (  # noqa: E402, TID251
++    rhythmicity_metrics,
++    rolling_conductance_loop_score,
++)
++from tools.snnviz import (  # noqa: E402, TID251
++    FrameTimeline,
++    exponential_trace,
++    grid_layout,
++    load_snnsim_recording,
++    save_animation,
++)
++
++from helpers.numbers import write_numbers  # noqa: E402
++from helpers.run_dirs import published_run  # noqa: E402
++from helpers.run_id import next_run_id  # noqa: E402
++
++SLUG = "exp099"
++DT_MS, DURATION_MS, SEED = 0.25, 2_000.0, 7
++N_E, N_I = 400, 100
++VIEW_START_MS, VIEW_END_MS = 300.0, 1_800.0
++ONSET_MS, PEAK_MS, OFFSET_MS = 600.0, 850.0, 1_100.0
++VIDEO = "richer-input-ai-to-intermittent-ping.mp4"
++POSTER = "richer-input-ai-to-intermittent-ping.png"
++SCALE = {"dt_ms": DT_MS, "t_ms": DURATION_MS, "n_e": N_E, "n_i": N_I, "seed": SEED}
++
++
++# SNNLANG --------------------------------------------------------------------
++
++
++def recurrent(mean: float, std: float) -> snn.LowerClampedNormal:
++    return snn.LowerClampedNormal(
++        mean, std, initial_zero_fraction=0.975, zeroing="exact_k"
++    )
++
++
++def background(tau: float, group: int, private: float, shared: float):
++    return snn.BackgroundChannel(
++        private=snn.ShotNoise(500, private, tau),
++        shared=snn.GroupedShotNoise(80, shared, tau, group),
++        heterogeneity=snn.CellDistribution(
++            rate=snn.LowerClampedNormal(1.0, 0.1),
++            amplitude=snn.LowerClampedNormal(1.0, 0.1),
++        ),
++    )
++
++
++def author_network() -> snn.Bundle:
++    """Author the latest canvas condition without depending on canvas files."""
++    net = snn.Network("exp099_richer_input_ping", dt=DT_MS * snn.ms)
++    source_e = net.input(
++        "afferent_e", shape=("time", "batch", N_E), signal_type="spikes", unit="spike"
++    )
++    source_i = net.input(
++        "afferent_i", shape=("time", "batch", N_E), signal_type="spikes", unit="spike"
++    )
++    cell = snn.components.ping(
++        net,
++        name="balanced_circuit",
++        n_e=N_E,
++        n_i=N_I,
++        source_e=source_e,
++        source_i=source_i,
++        tau_gaba=9 * snn.ms,
++        w_in_e=snn.Normal(0.08, 0.008),
++        w_in_i=snn.Normal(0.02, 0.002),
++        w_ee=recurrent(0.85, 0.255),
++        w_ei=recurrent(0.6, 0.18),
++        w_ie=recurrent(3.0, 0.9),
++        w_ii=recurrent(0.4, 0.12),
++    )
++    readout = snn.readouts.MeanVoltage(
++        source=cell.E.spikes,
++        classes=10,
++        name="state_readout",
++        tau=2 * snn.ms,
++        weight=snn.Normal(5.1, 3.8),
++    )
++    net.output("state_logits", readout)
++    net.expose(cell.E.spikes, cell.I.spikes, name="populations")
++    simulation = snn.SimulationSpec(
++        spike_sources=[snn.CorrelatedPoissonAfferents(source_e, source_i, 10, 15, 15)],
++        backgrounds=[
++            snn.ConductanceBackground(
++                cell.E, background(2, 25, 0.06, 0.02), background(9, 25, 0.03, 0.01)
++            ),
++            snn.ConductanceBackground(
++                cell.I, background(2, 10, 0.03, 0.01), background(9, 10, 0.03, 0.01)
++            ),
++        ],
++        weather=snn.StationaryRateWeather(tau_ms=250, std_fraction=0.12),
++        afferent_wave=snn.TransientAfferentWave(
++            ONSET_MS, PEAK_MS, OFFSET_MS, 1.2, 6.5, plateau_end_ms=PEAK_MS
++        ),
++    )
++    return snn.compile(net, simulation=simulation, target="tools/snnsim")
++
++
++# SNNSIM ---------------------------------------------------------------------
++
++
++def simulate(root: Path) -> None:
++    bundle = root / "network.bundle"
++    run = root / "simulation"
++    author_network().write(bundle, visualise=True)
++    subprocess.run(
++        [
++            sys.executable,
++            str(REPO / "tools/snnsim/tool.py"),
++            "sim",
++            "--bundle",
++            str(bundle),
++            "--t-ms",
++            str(DURATION_MS),
++            "--seed",
++            str(SEED),
++            "--out-dir",
++            str(run),
++            "--wipe-dir",
++        ],
++        cwd=REPO,
++        check=True,
++    )
++    export_initialized_weights(bundle, run)
++    shutil.copy2(bundle / "reports/expanded.svg", root / "network.svg")
++
++
++def export_initialized_weights(bundle: Path, run: Path) -> None:
++    """Recreate and retain the exact seeded matrices used by SNNSIM."""
++    _, graph = load_graph_bundle(bundle)
++    spec = translate_cobanet_v1(graph)
++    infer._pin_run(spec.dt, DURATION_MS, seed=SEED)
++    snnsim_models.N_IN = spec.input_size
++    snnsim_models.N_INH = spec.hidden_size // 4
++    snnsim_models.EXACT_K_INITIALIZATION = spec.exact_k_initialization
++    network = infer.build_net(
++        "ping",
++        w_in=spec.w_in,
++        w_in_i=spec.w_in_i,
++        w_ee=spec.w_ee,
++        w_ei=spec.w_ei,
++        w_ie=spec.w_ie,
++        w_ii=spec.w_ii,
++        w_in_initial_zero_fraction=0.0,
++        recurrent_initial_zero_fraction=spec.recurrent_initial_zero_fraction,
++        device=infer._auto_device(),
++        randomize_init=True,
++        dales_law=True,
++        hidden_sizes=[spec.hidden_size],
++        readout_mode=spec.readout_mode,
++        signed_readout=False,
++        readout_bias=False,
++        n_inh_per_layer=None,
++        train_leak=False,
++        adaptive_threshold=False,
++    )
++    np.savez_compressed(
++        run / "recurrent-weights.npz",
++        w_in_e=network.W_ff[0].detach().cpu().numpy(),
++        w_in_i=network.W_in_i.detach().cpu().numpy(),
++        w_ee=network.W_ee["1"].detach().cpu().numpy(),
++        w_ei=network.W_ei["1"].detach().cpu().numpy(),
++        w_ie=network.W_ie["1"].detach().cpu().numpy(),
++        w_ii=network.W_ii["1"].detach().cpu().numpy(),
++    )
++
++
++def rhythm_trace(spikes: np.ndarray, dt: float) -> tuple[np.ndarray, np.ndarray]:
++    centres = np.arange(200.0, len(spikes) * dt - 200.0, 10.0)
++    values = np.zeros(len(centres))
++    half = round(200 / dt)
++    for index, centre_ms in enumerate(centres):
++        centre = round(centre_ms / dt)
++        result = rhythmicity_metrics(spikes[centre - half : centre + half], dt)
++        values[index] = float(result["contrast"] or 0.0)
++    return centres, values
++
++
++def summarize(root: Path) -> dict:
++    record = load_snnsim_recording(root / "simulation")
++    e = record.signals["spk_e"].astype(bool)
++    i = record.signals["spk_i"].astype(bool)
++    times, rhythm = rhythm_trace(e, record.dt_ms)
++    return {
++        "condition": "richer-input",
++        "e_spikes": int(e.sum()),
++        "i_spikes": int(i.sum()),
++        "peak_rhythmicity": float(rhythm.max()),
++        "peak_rhythmicity_time_ms": float(times[np.argmax(rhythm)]),
++    }
++
++
++# SNNVIZ ---------------------------------------------------------------------
++
++
++def external_trace(data: dict, name: str, dt: float, tau: float, steps: int):
++    events = data.get(name)
++    if events is None:
++        return np.zeros(steps)
++    return exponential_trace(events, dt_ms=dt, tau_ms=tau).mean(axis=1)
++
++
++def render_approximation(root: Path) -> None:
++    run = root / "simulation"
++    record = load_snnsim_recording(run)
++    data, dt = record.signals, record.dt_ms
++    weights = np.load(run / "recurrent-weights.npz")
++    wave = json.loads((run / "config.json").read_text())["_simulation_recipe"][
++        "afferent_wave"
++    ]
++    e, i = data["spk_e"].astype(bool), data["spk_i"].astype(bool)
++    v_e, v_i = data["v_e_1"], data["v_i_1"]
++    g_e, g_i = data["ge_e_1"], data["gi_e_1"]
++    shared = data["input_afferent_shared"].astype(bool)
++    aff_e = data["input_afferent_e_private"].astype(bool)
++    aff_i = data["input_afferent_i_private"].astype(bool)
++    weather = data["input_weather_scale"]
++    shared_scale = data["input_afferent_shared_scale"]
++    steps, times = len(e), np.arange(len(e)) * dt
++    mean_v_e, mean_v_i = v_e.mean(1), v_i.mean(1)
++    mean_g_e, mean_g_i = g_e.mean(1), g_i.mean(1)
++    ext = {
++        "E AMPA": external_trace(data, "input_excitatory_e_executed", dt, 2, steps),
++        "E GABA": external_trace(data, "input_inhibitory_e_executed", dt, 9, steps),
++        "I AMPA": external_trace(data, "input_excitatory_i_executed", dt, 2, steps),
++        "I GABA": external_trace(data, "input_inhibitory_i_executed", dt, 9, steps),
++    }
++    rhythm_t, rhythm = rhythm_trace(e, dt)
++    view = slice(round(VIEW_START_MS / dt), round(VIEW_END_MS / dt))
++    loop = rolling_conductance_loop_score(
++        mean_g_e[view], mean_g_i[view], dt, window_ms=40, stride_ms=5
++    )
++    loop_t = VIEW_START_MS + loop["times_ms"]
++    loop_smooth = np.convolve(loop["raw"], np.ones(15) / 15, mode="same")
++    lo, hi = np.percentile(loop_smooth, [10, 95])
++    loop_score = np.clip((loop_smooth - lo) / max(float(hi - lo), 1e-12), 0, 1)
++
++    bg, black, red, grey = "#f3efe6", "#20201e", "#a62a24", "#77726a"
++    fig = plt.figure(figsize=(14.4, 8.1), dpi=120, facecolor=bg)
++    main = fig.add_axes([0.035, 0.31, 0.93, 0.64])
++    main.set(xlim=(0, 1), ylim=(0, 1))
++    main.axis("off")
++    main.text(0, 1.03, "A · AFFERENT INPUT → E–I CORE", fontsize=17, weight="medium")
++    main.text(
++        1, 1.03, "AI → intermittent PING → AI", ha="right", fontsize=11, color=red
++    )
++    status = main.text(1, 0.975, "", ha="right", va="top", fontsize=9, color=grey)
++
++    shared_xy = grid_layout(N_E, columns=40, x_range=(0.34, 0.66), y_range=(0.82, 0.90))
++    aff_e_xy = grid_layout(N_E, columns=20, x_range=(0.02, 0.20), y_range=(0.34, 0.68))
++    aff_i_xy = grid_layout(N_E, columns=20, x_range=(0.80, 0.98), y_range=(0.34, 0.68))
++    e_xy = grid_layout(N_E, columns=20, x_range=(0.27, 0.57), y_range=(0.26, 0.70))
++    i_xy = grid_layout(N_I, columns=10, x_range=(0.64, 0.76), y_range=(0.36, 0.62))
++    for xy, label, x, y, color in (
++        (shared_xy, "SHARED → E + I", 0.50, 0.915, grey),
++        (aff_e_xy, "E-TARGETING", 0.11, 0.705, black),
++        (aff_i_xy, "I-TARGETING", 0.89, 0.705, red),
++    ):
++        main.scatter(
++            xy[:, 0], xy[:, 1], s=2.3, facecolors=bg, edgecolors=color, linewidths=0.25
++        )
++        main.text(x, y, label, ha="center", fontsize=8, color=color)
++    main.text(0.42, 0.73, f"EXCITATORY · n={N_E}", ha="center", fontsize=10)
++    main.text(0.70, 0.65, f"INHIBITORY · n={N_I}", ha="center", fontsize=10, color=red)
++    e_nodes = main.scatter(
++        e_xy[:, 0], e_xy[:, 1], s=5, color=black, alpha=0.68, zorder=3
++    )
++    i_nodes = main.scatter(i_xy[:, 0], i_xy[:, 1], s=7, color=red, alpha=0.78, zorder=3)
++    active = [
++        main.scatter([], [], s=20, color=grey, edgecolors=bg, zorder=7),
++        main.scatter([], [], s=20, color=black, edgecolors=bg, zorder=7),
++        main.scatter([], [], s=20, color=red, edgecolors=bg, zorder=7),
++        main.scatter(
++            [], [], s=46, facecolors="none", edgecolors=black, linewidths=1.2, zorder=8
++        ),
++        main.scatter(
++            [], [], s=56, facecolors="none", edgecolors=red, linewidths=1.3, zorder=8
++        ),
++    ]
++
++    trace_e = exponential_trace(e, dt_ms=dt, tau_ms=2)
++    trace_i = exponential_trace(i, dt_ms=dt, tau_ms=9)
++    trace_s = exponential_trace(shared, dt_ms=dt, tau_ms=2)
++    trace_ae = exponential_trace(aff_e, dt_ms=dt, tau_ms=2)
++    trace_ai = exponential_trace(aff_i, dt_ms=dt, tau_ms=2)
++
++    def projection(matrix, source_xy, target_xy, trace, color):
++        source, target = np.nonzero(matrix)
++        return (
++            source,
++            np.stack([source_xy[source], target_xy[target]], axis=1),
++            matrix[source, target],
++            trace,
++            color,
++        )
++
++    projections = [
++        projection(weights["w_ee"], e_xy, e_xy, trace_e, black),
++        projection(weights["w_ei"], e_xy, i_xy, trace_e, black),
++        projection(weights["w_ie"], i_xy, e_xy, trace_i, red),
++        projection(weights["w_ii"], i_xy, i_xy, trace_i, red),
++        projection(weights["w_in_e"], shared_xy, e_xy, trace_s, grey),
++        projection(weights["w_in_i"], shared_xy, i_xy, trace_s, grey),
++        projection(weights["w_in_e"], aff_e_xy, e_xy, trace_ae, grey),
++        projection(weights["w_in_i"], aff_i_xy, i_xy, trace_ai, grey),
++    ]
++    lines: list[LineCollection] = []
++
++    def small_panel(index: int, title: str):
++        axis = fig.add_axes([0.035 + index * 0.133, 0.045, 0.115, 0.205])
++        axis.set_title(title, fontsize=8.0, weight="medium", pad=4)
++        axis.tick_params(labelsize=6.2, colors=grey, length=2, pad=2)
++        axis.spines[["top", "right"]].set_visible(False)
++        return axis
++
++    means_ax = small_panel(0, "B · POPULATION MEANS")
++    means_ax.plot(times, mean_v_e, color=black, lw=0.7, label="V E")
++    means_ax.plot(times, mean_v_i, color=red, lw=0.7, label="V I")
++    means_ax.set_xlim(VIEW_START_MS, VIEW_END_MS)
++    means_ax.legend(frameon=False, fontsize=5.4)
++    means_cursor = means_ax.axvline(0, color=red, lw=0.8)
++
++    phase_ax = small_panel(1, "C · CONDUCTANCE LOOP")
++    phase_ax.set(
++        xlim=(mean_g_e.min(), mean_g_e.max()), ylim=(mean_g_i.min(), mean_g_i.max())
++    )
++    (phase_point,) = phase_ax.plot([], [], "o", ms=4, color=red)
++    phase_lines: list[LineCollection] = []
++
++    input_ax = small_panel(2, "D · INPUT CONDUCTANCE")
++    for (label, values), color, style in zip(
++        ext.items(), (black, red, grey, red), ("-", "-", "--", "--")
++    ):
++        input_ax.plot(times, values, color=color, ls=style, lw=0.65, label=label)
++    input_ax.set_xlim(VIEW_START_MS, VIEW_END_MS)
++    input_ax.legend(frameon=False, fontsize=4.4, ncol=2)
++    input_cursor = input_ax.axvline(0, color=red, lw=0.8)
++
++    metric_ax = small_panel(3, "E · PING METRICS")
++    metric_ax.axvspan(ONSET_MS, OFFSET_MS, color=grey, alpha=0.08)
++    metric_ax.plot(rhythm_t, rhythm, color=black, lw=1, label="R")
++    metric_ax.plot(loop_t, loop_score, color=red, lw=0.9, label="L")
++    metric_ax.set(xlim=(VIEW_START_MS, VIEW_END_MS), ylim=(0, 1))
++    metric_ax.legend(frameon=False, fontsize=5.5)
++    metric_cursor = metric_ax.axvline(0, color=red, lw=0.8)
++
++    raster_ax = small_panel(4, "F · COMPLETE RASTER")
++    offset = 0
++    for spikes, color in (
++        (shared, grey),
++        (aff_e, black),
++        (aff_i, red),
++        (e, black),
++        (i, red),
++    ):
++        t, cell = np.nonzero(spikes)
++        raster_ax.scatter(
++            t * dt, cell + offset, s=0.35, color=color, marker="s", linewidths=0
++        )
++        offset += spikes.shape[1]
++    raster_ax.set(xlim=(VIEW_START_MS, VIEW_END_MS), ylim=(offset, 0), yticks=[])
++    raster_cursor = raster_ax.axvline(0, color=red, lw=0.8)
++
++    weight_ax = small_panel(5, "G · RECURRENT WEIGHTS")
++    for name, color in (("w_ee", black), ("w_ei", black), ("w_ii", red), ("w_ie", red)):
++        values = weights[name]
++        weight_ax.hist(
++            values[values > 0],
++            bins=25,
++            density=True,
++            histtype="step",
++            color=color,
++            lw=0.8,
++            label=name.upper(),
++        )
++    weight_ax.set_xscale("log")
++    weight_ax.legend(frameon=False, fontsize=4.4)
++
++    weather_ax = small_panel(6, "H · INPUT WEATHER")
++    weather_ax.plot(times, weather, color=grey, lw=0.7, label="weather")
++    weather_ax.plot(times, shared_scale, color=black, lw=0.9, label="shared wave")
++    weather_ax.set_xlim(VIEW_START_MS, VIEW_END_MS)
++    weather_ax.legend(frameon=False, fontsize=4.8)
++    weather_cursor = weather_ax.axvline(0, color=red, lw=0.8)
++
++    timeline = FrameTimeline.compose(
++        [
++            (round(VIEW_START_MS / dt), round(ONSET_MS / dt) - 1, 140),
++            (round(ONSET_MS / dt), round(PEAK_MS / dt) - 1, 170),
++            (round(PEAK_MS / dt), round(OFFSET_MS / dt) - 1, 170),
++            (round(OFFSET_MS / dt), round(VIEW_END_MS / dt) - 1, 120),
++        ],
++        dt_ms=dt,
++    )
++    frame_steps, trail = timeline.steps, round(40 / dt)
++    v_min, v_max = (
++        min(float(v_e.min()), float(v_i.min())),
++        max(float(v_e.max()), float(v_i.max())),
++    )
++
++    def update(frame: int):
++        step = int(frame_steps[frame])
++        while lines:
++            lines.pop().remove()
++        for index, (source, segments, weight, trace, color) in enumerate(projections):
++            value = weight * trace[step, source]
++            ids = np.flatnonzero(value > 1e-8)
++            limit = 100 if index >= 4 else 240
++            if len(ids) > limit:
++                ids = ids[np.argpartition(value[ids], -limit)[-limit:]]
++            if len(ids):
++                strength = value[ids] / max(float(value[ids].max()), 1e-12)
++                rgba = np.tile(np.asarray(to_rgba(color)), (len(ids), 1))
++                rgba[:, 3] = (0.015 if index >= 4 else 0.03) + (
++                    0.08 if index >= 4 else 0.22
++                ) * np.sqrt(strength)
++                artist = LineCollection(
++                    segments[ids],
++                    colors=rgba,
++                    linewidths=0.08 + (0.6 if index >= 4 else 1.8) * strength,
++                    zorder=2,
++                )
++                main.add_collection(artist)
++                lines.append(artist)
++        for artist, xy, spikes in zip(
++            active,
++            (shared_xy, aff_e_xy, aff_i_xy, e_xy, i_xy),
++            (shared, aff_e, aff_i, e, i),
++        ):
++            artist.set_offsets(xy[spikes[step]])
++        e_nodes.set_sizes(
++            3 + 24 * np.clip((v_e[step] - v_min) / (v_max - v_min), 0, 1) ** 1.3
++        )
++        i_nodes.set_sizes(
++            4 + 28 * np.clip((v_i[step] - v_min) / (v_max - v_min), 0, 1) ** 1.3
++        )
++        for cursor in (
++            means_cursor,
++            input_cursor,
++            metric_cursor,
++            raster_cursor,
++            weather_cursor,
++        ):
++            cursor.set_xdata([step * dt, step * dt])
++        while phase_lines:
++            phase_lines.pop().remove()
++        start = max(0, step - trail)
++        points = np.c_[mean_g_e[start : step + 1], mean_g_i[start : step + 1]]
++        if len(points) > 1:
++            segments = np.stack([points[:-1], points[1:]], axis=1)
++            colors = np.tile(to_rgba(black), (len(segments), 1))
++            colors[:, 3] = np.linspace(0.05, 0.75, len(segments))
++            artist = LineCollection(segments, colors=colors, linewidths=1)
++            phase_ax.add_collection(artist)
++            phase_lines.append(artist)
++        phase_point.set_data([mean_g_e[step]], [mean_g_i[step]])
++        time_ms = step * dt
++        state = (
++            "stationary AI"
++            if time_ms < wave["onset_ms"]
++            else "input rising"
++            if time_ms < wave["peak_ms"]
++            else "input falling"
++            if time_ms < wave["offset_ms"]
++            else "recovery"
++        )
++        status.set_text(
++            f"t={time_ms:6.1f} ms · {state} · shared ×{shared_scale[step]:.2f} · {int(e[step].sum())} E · {int(i[step].sum())} I spikes"
++        )
++        return (*active, e_nodes, i_nodes, status, *lines)
++
++    representative = int(
++        np.argmin(np.abs(frame_steps - round(rhythm_t[np.argmax(rhythm)] / dt)))
++    )
++    update(representative)
++    fig.savefig(root / POSTER, dpi=160, facecolor=bg)
++    save_animation(
++        fig, update, root / VIDEO, frames=len(frame_steps), fps=25, bitrate=3_800
++    )
++    plt.close(fig)
++
++
++# Exact canvas visual migration ----------------------------------------------
++
++
++def render(root: Path) -> None:
++    """Render with the exact production visual grammar used by the canvas."""
++    subprocess.run(
++        [sys.executable, str(REPO / ".canvas/ping-ai-state/render_emergence_style.py")],
++        cwd=REPO,
++        env=os.environ
++        | {
++            "PINGLAB_STATE": "input",
++            "PINGLAB_PACING": "story",
++            "PINGLAB_CONDITION": "inside-band",
++            "PINGLAB_RUN": str((root / "simulation").resolve()),
++            "PINGLAB_VIDEO": str((root / VIDEO).resolve()),
++            "PINGLAB_POSTER": str((root / POSTER).resolve()),
++        },
++        check=True,
++    )
++
++
++# EXPERIMENT ORCHESTRATION ---------------------------------------------------
++
++
++def child(action: str, root: Path) -> None:
++    subprocess.run(
++        [sys.executable, __file__],
++        cwd=REPO,
++        env=os.environ | {"EXP099_ACTION": action, "EXP099_ROOT": str(root)},
++        check=True,
++    )
++
++
++def refresh_web_assets(published: Path) -> None:
++    """Refresh Demolab's static copies after the managed run has published."""
++    destination = REPO / "assets" / SLUG
++    destination.mkdir(parents=True, exist_ok=True)
++    for filename in (VIDEO, POSTER):
++        temporary = destination / f".{filename}.staging"
++        shutil.copy2(published / filename, temporary)
++        os.replace(temporary, destination / filename)
++
++
++def orchestrate() -> None:
++    started = time.monotonic()
++    run_id = next_run_id(SLUG)
++    print(f"experiment_run_id = {run_id}")
++    with published_run(SLUG, run_id, scale=SCALE) as (_scratch, staging):
++        child("simulate", staging)
++        child("render", staging)
++        write_numbers(
++            staging,
++            run_id=run_id,
++            duration_s=time.monotonic() - started,
++            payload={
++                "question": "Does richer input preserve or destabilize a reference PING state?",
++                "results": {"richer-input": summarize(staging)},
++                "disposition": "draft",
++            },
++        )
++    refresh_web_assets(REPO / "artifacts" / "data" / SLUG)
++    print(f"{SLUG} complete: {run_id}")
++
++
++ACTION = os.environ.get("EXP099_ACTION")
++if ACTION is None:
++    orchestrate()
++elif ACTION == "simulate":
++    simulate(Path(os.environ["EXP099_ROOT"]))
++elif ACTION == "render":
++    render(Path(os.environ["EXP099_ROOT"]))
++else:
++    raise ValueError(f"unknown EXP099_ACTION: {ACTION}")

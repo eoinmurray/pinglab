@@ -82,6 +82,55 @@ def test_combined_inputs_compile_as_graph_and_authenticated_simulation_recipe(tm
         snn.load_bundle(root)
 
 
+def test_weather_inputs_serialize_correlated_afferents_and_local_groups():
+    net = snn.Network("weather")
+    source_e = net.input(
+        "afferent_e", shape=("time", "batch", 12), signal_type="spikes"
+    )
+    source_i = net.input(
+        "afferent_i", shape=("time", "batch", 12), signal_type="spikes"
+    )
+    cell = snn.components.ping(
+        net, name="cell", n_e=12, n_i=3, source_e=source_e, source_i=source_i
+    )
+    local = snn.BackgroundChannel(
+        private=snn.ShotNoise(50, 0.02, 2),
+        shared=snn.GroupedShotNoise(10, 0.01, 2, group_size=4),
+    )
+    simulation = snn.SimulationSpec(
+        spike_sources=[snn.CorrelatedPoissonAfferents(source_e, source_i, 5, 7, 9)],
+        backgrounds=[snn.ConductanceBackground(cell.E, local, local)],
+        weather=snn.StationaryRateWeather(250, 0.12),
+        afferent_wave=snn.TransientAfferentWave(100, 200, 400, 1.8, 3.0),
+    )
+
+    recipe = snn.compile(net, simulation=simulation).simulation
+
+    assert recipe["spike_sources"][0]["kind"] == "correlated_poisson_afferents"
+    assert recipe["backgrounds"][0]["excitatory"]["shared"] == {
+        "kind": "grouped_shot_noise",
+        "rate_hz": 10.0,
+        "amplitude": 0.01,
+        "tau_ms": 2.0,
+        "group_size": 4,
+    }
+    assert recipe["weather"] == {
+        "kind": "stationary_lognormal",
+        "tau_ms": 250.0,
+        "std_fraction": 0.12,
+    }
+    assert recipe["afferent_wave"] == {
+        "kind": "smooth_transient",
+        "onset_ms": 100.0,
+        "peak_ms": 200.0,
+        "plateau_end_ms": 200.0,
+        "offset_ms": 400.0,
+        "baseline_scale": 1.0,
+        "peak_scale": 1.8,
+        "shared_peak_scale": 3.0,
+    }
+
+
 def test_disabled_projection_remains_structural_and_explicit():
     net, cell = small_network()
     loop = net.connect(

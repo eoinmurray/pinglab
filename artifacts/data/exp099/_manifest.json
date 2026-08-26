@@ -1,0 +1,21 @@
+{
+  "slug": "exp099",
+  "run_id": "r002",
+  "run_at": "2026-08-26T13:19:33+00:00",
+  "git_sha": "01c08bc0",
+  "dirty": true,
+  "code_dirty": true,
+  "patch": {
+    "file": "_dirty.patch",
+    "sha256": "d983a77b796515b6eb6c571081222b91b461e5fcc7e7f7cd071e4a212944e239",
+    "lines": 1640
+  },
+  "host": "local",
+  "scale": {
+    "dt_ms": 0.25,
+    "t_ms": 2000.0,
+    "n_e": 400,
+    "n_i": 100,
+    "seed": 7
+  }
+}

@@ -1,0 +1,245 @@
+{
+  "mode": "sim",
+  "git_sha": "01c08bc0 (dirty)",
+  "torch_version": "2.11.0",
+  "device": "auto",
+  "python_env_hash": "uv.lock:f557cecf4c35",
+  "run_id": "r-20260826-151935",
+  "started_at": "2026-08-26T15:19:35",
+  "bundle": "/Users/eoin/pinglab/artifacts/data/exp099.staging/network.bundle",
+  "executor": "legacy",
+  "recording": "full",
+  "model": "ping",
+  "n_hidden": [
+    400
+  ],
+  "readout_mode": "mem-mean",
+  "signed_readout": false,
+  "readout_bias": false,
+  "dales_law": true,
+  "state_clamp": false,
+  "train_leak": false,
+  "adaptive_threshold": false,
+  "adapt_strength_init_mv": 1.0,
+  "ei_strength": 0.6,
+  "ei_ratio": 5.0,
+  "w_in_initial_zero_fraction": 0.0,
+  "recurrent_initial_zero_fraction": 0.975,
+  "exact_k_initialization": true,
+  "lyapunov_eps": 0.0,
+  "dt": 0.25,
+  "t_ms": 2000.0,
+  "readout_w_out_scale": 1.0,
+  "input": "synthetic-spikes",
+  "spike_rate": 25.0,
+  "digit": 0,
+  "sample": 0,
+  "dataset": "mnist",
+  "w_in": [
+    0.08,
+    0.008
+  ],
+  "w_ei": [
+    0.6,
+    0.18
+  ],
+  "w_ie": [
+    3.0,
+    0.9
+  ],
+  "w_ii": [
+    0.4,
+    0.12
+  ],
+  "w_ee": [
+    0.85,
+    0.255
+  ],
+  "trainable_w_ee": false,
+  "trainable_w_ei": false,
+  "trainable_w_ie": false,
+  "trainable_w_ii": false,
+  "out_dir": "/Users/eoin/pinglab/artifacts/data/exp099.staging/simulation",
+  "wipe_dir": true,
+  "seed": 7,
+  "infer": false,
+  "tau_gaba": 9.0,
+  "scale_w_in": 1.0,
+  "scale_w_ei": 1.0,
+  "scale_w_ie": 1.0,
+  "scale_projection": [],
+  "intervention": [],
+  "n_in": 400,
+  "n_batch": 64,
+  "dataset_feature_key": "features",
+  "dataset_label_key": "labels",
+  "private_w_in": false,
+  "_simulation_recipe": {
+    "afferent_wave": {
+      "baseline_scale": 1.0,
+      "kind": "smooth_transient",
+      "offset_ms": 1100.0,
+      "onset_ms": 600.0,
+      "peak_ms": 850.0,
+      "peak_scale": 1.2,
+      "plateau_end_ms": 850.0,
+      "shared_peak_scale": 6.5
+    },
+    "backgrounds": [
+      {
+        "excitatory": {
+          "heterogeneity": {
+            "amplitude": {
+              "initial_zero_fraction": 0.0,
+              "kind": "lower_clamped_normal",
+              "mean": 1.0,
+              "std": 0.1,
+              "zeroing": "bernoulli"
+            },
+            "rate": {
+              "initial_zero_fraction": 0.0,
+              "kind": "lower_clamped_normal",
+              "mean": 1.0,
+              "std": 0.1,
+              "zeroing": "bernoulli"
+            }
+          },
+          "private": {
+            "amplitude": 0.06,
+            "kind": "shot_noise",
+            "rate_hz": 500.0,
+            "tau_ms": 2.0
+          },
+          "shared": {
+            "amplitude": 0.02,
+            "group_size": 25,
+            "kind": "grouped_shot_noise",
+            "rate_hz": 80.0,
+            "tau_ms": 2.0
+          }
+        },
+        "inhibitory": {
+          "heterogeneity": {
+            "amplitude": {
+              "initial_zero_fraction": 0.0,
+              "kind": "lower_clamped_normal",
+              "mean": 1.0,
+              "std": 0.1,
+              "zeroing": "bernoulli"
+            },
+            "rate": {
+              "initial_zero_fraction": 0.0,
+              "kind": "lower_clamped_normal",
+              "mean": 1.0,
+              "std": 0.1,
+              "zeroing": "bernoulli"
+            }
+          },
+          "private": {
+            "amplitude": 0.03,
+            "kind": "shot_noise",
+            "rate_hz": 500.0,
+            "tau_ms": 9.0
+          },
+          "shared": {
+            "amplitude": 0.01,
+            "group_size": 25,
+            "kind": "grouped_shot_noise",
+            "rate_hz": 80.0,
+            "tau_ms": 9.0
+          }
+        },
+        "target": "balanced_circuit_E"
+      },
+      {
+        "excitatory": {
+          "heterogeneity": {
+            "amplitude": {
+              "initial_zero_fraction": 0.0,
+              "kind": "lower_clamped_normal",
+              "mean": 1.0,
+              "std": 0.1,
+              "zeroing": "bernoulli"
+            },
+            "rate": {
+              "initial_zero_fraction": 0.0,
+              "kind": "lower_clamped_normal",
+              "mean": 1.0,
+              "std": 0.1,
+              "zeroing": "bernoulli"
+            }
+          },
+          "private": {
+            "amplitude": 0.03,
+            "kind": "shot_noise",
+            "rate_hz": 500.0,
+            "tau_ms": 2.0
+          },
+          "shared": {
+            "amplitude": 0.01,
+            "group_size": 10,
+            "kind": "grouped_shot_noise",
+            "rate_hz": 80.0,
+            "tau_ms": 2.0
+          }
+        },
+        "inhibitory": {
+          "heterogeneity": {
+            "amplitude": {
+              "initial_zero_fraction": 0.0,
+              "kind": "lower_clamped_normal",
+              "mean": 1.0,
+              "std": 0.1,
+              "zeroing": "bernoulli"
+            },
+            "rate": {
+              "initial_zero_fraction": 0.0,
+              "kind": "lower_clamped_normal",
+              "mean": 1.0,
+              "std": 0.1,
+              "zeroing": "bernoulli"
+            }
+          },
+          "private": {
+            "amplitude": 0.03,
+            "kind": "shot_noise",
+            "rate_hz": 500.0,
+            "tau_ms": 9.0
+          },
+          "shared": {
+            "amplitude": 0.01,
+            "group_size": 10,
+            "kind": "grouped_shot_noise",
+            "rate_hz": 80.0,
+            "tau_ms": 9.0
+          }
+        },
+        "target": "balanced_circuit_I"
+      }
+    ],
+    "graph_digest": "sha256:91e2447617b2cefbbb6e6e3a54257836462f1d0479f5048a5e47d89d1a3cd52b",
+    "modulation": [],
+    "schema": "snnlang.simulation/v1",
+    "seed_derivation": "request_seed+stable_channel_index",
+    "spike_sources": [
+      {
+        "e_private_rate_hz": 15.0,
+        "i_private_rate_hz": 15.0,
+        "input_e": "afferent_e.value",
+        "input_i": "afferent_i.value",
+        "kind": "correlated_poisson_afferents",
+        "shared_rate_hz": 10.0
+      }
+    ],
+    "weather": {
+      "kind": "stationary_lognormal",
+      "std_fraction": 0.12,
+      "tau_ms": 250.0
+    }
+  },
+  "w_in_i": [
+    0.02,
+    0.002
+  ],
+  "_input_auto": false
+}

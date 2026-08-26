@@ -66,16 +66,15 @@ Use this artifact-centred loop as lightweight orientation for scientific work:
 1. Develop `Seed`, `Formulation`, `HypoBranches`, and grounding evidence in
    conversation. Ask the user to select the scientific direction when that
    choice is consequential.
-2. Before creating an experiment, recommend `Scope a scout in COLLECTION` or
-   the corresponding study request. `Scope` is read-only and identifies the
+2. Before creating an experiment, recommend `Scope an experiment in COLLECTION`.
+   `Scope` is read-only and identifies the
    question, collection, dependencies, outputs, implementation, resources, and
    completion conditions.
-3. An authorized `go` mode writes the `ExpScoutPlan` or `ExpStudyPlan` directly
-   into the experiment's persistent writing surface, creates its
-   `ExpImplementation`, and registers the experiment in managed
-   `ScientificCollectionState`. The work remains a plan until its first
-   successful evidence-bearing execution. Do not insert a chat-only plan stage
-   or create a parallel noun file.
+3. An authorized `go` mode writes the `Experiment` directly into its persistent
+   writing surface, creates its native implementation and tests, and registers
+   it in managed `ScientificCollectionState`. Its planned content remains
+   prospective until successful evidence-bearing execution. Do not insert a
+   chat-only plan stage or create a parallel noun file.
 4. Within the established question and authorized scope, develop the writing
    and implementation, test them, run bounded local work, analyse outputs, and
    revise the experiment agentically. Return to conversation when the central

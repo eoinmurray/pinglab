@@ -256,9 +256,9 @@ def translate_cobanet_v1(graph: dict[str, Any]) -> LegacySettings:
             "COBANet v1 requires exactly two spiking E/I populations and one "
             "non-spiking readout population"
         )
-    if len(inputs) != 1 or len(outputs) != 1:
+    if len(inputs) not in {1, 2} or len(outputs) != 1:
         raise BundleCompatibilityError(
-            "COBANet v1 requires exactly one input and one named output"
+            "COBANet v1 requires one or two inputs and one named output"
         )
 
     inhibitory = [
@@ -309,17 +309,17 @@ def translate_cobanet_v1(graph: dict[str, Any]) -> LegacySettings:
             "current COBANet backend requires 20 ms E and 5 ms I COBA-LIF neurons"
         )
 
-    input_id = inputs[0]["id"]
+    input_ids = {row["id"] for row in inputs}
     input_projection = [
         row
         for row in projections
-        if row["source"] == f"{input_id}.value"
+        if row["source"].partition(".")[0] in input_ids
         and row["target"] == f"{e_id}.excitatory"
     ]
     input_projection_i = [
         row
         for row in projections
-        if row["source"] == f"{input_id}.value"
+        if row["source"].partition(".")[0] in input_ids
         and row["target"] == f"{i_id}.excitatory"
     ]
     readout_id = analogue[0]["id"]
@@ -403,15 +403,20 @@ def translate_cobanet_v1(graph: dict[str, Any]) -> LegacySettings:
         raise BundleCompatibilityError(
             "graph timebase must declare a positive dt in ms"
         )
-    input_shape = inputs[0].get("shape", [])
+    input_shapes = [row.get("shape", []) for row in inputs]
     if (
-        len(input_shape) != 3
-        or input_shape[:2] != ["time", "batch"]
-        or not isinstance(input_shape[-1], int)
+        any(
+            len(shape) != 3
+            or shape[:2] != ["time", "batch"]
+            or not isinstance(shape[-1], int)
+            for shape in input_shapes
+        )
+        or len({shape[-1] for shape in input_shapes}) != 1
     ):
         raise BundleCompatibilityError(
-            "COBANet v1 input shape must be ['time', 'batch', channels]"
+            "COBANet v1 inputs must share shape ['time', 'batch', channels]"
         )
+    input_shape = input_shapes[0]
     tau_gaba = inhibitory[0].get("synapse", {}).get("tau", {})
     if (
         inhibitory[0].get("synapse", {}).get("kind") != "gaba"

@@ -2,7 +2,7 @@
   title: "Runtime state, checkpoints, and provenance",
   date: "2026-08-14",
   description: "Continue simulations safely, distinguish dynamic state from learned parameters, and record enough identity to replay a run.",
-  collection: "snnlang",
+  collection: "documentation",
   order: 7,
 )
 

@@ -8,7 +8,7 @@ import numpy as np
 
 ROOT = Path(__file__).resolve().parent
 REPO = ROOT.parents[1]
-sys.path.insert(0, str(REPO / "tools" / "snn"))
+sys.path.insert(0, str(REPO / "tools" / "snnsim"))
 
 import infer  # noqa: E402
 import models as M  # noqa: E402
@@ -32,6 +32,7 @@ def main():
     net = infer.build_net(
         "ping",
         w_in=spec.w_in,
+        w_in_i=spec.w_in_i,
         w_ee=spec.w_ee,
         w_ei=spec.w_ei,
         w_ie=spec.w_ie,
@@ -52,6 +53,8 @@ def main():
     args.run_dir.mkdir(parents=True, exist_ok=True)
     np.savez_compressed(
         args.run_dir / "recurrent-weights.npz",
+        w_in_e=net.W_ff[0].detach().cpu().numpy(),
+        w_in_i=net.W_in_i.detach().cpu().numpy(),
         w_ee=net.W_ee["1"].detach().cpu().numpy(),
         w_ei=net.W_ei["1"].detach().cpu().numpy(),
         w_ie=net.W_ie["1"].detach().cpu().numpy(),

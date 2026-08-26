@@ -2,22 +2,48 @@
   "name": "ping-ai-state",
   "forked_from": "ping-emergence",
   "kind": "synthetic simulation visualization",
-  "status": "clean scaffold",
-  "objective": "Explore a materially stateful AI system rather than presenting neural activity alone as intelligence.",
-  "simulation_ms": 100,
+  "status": "weather-input transition",
+  "objective": "Show a coherent transient afferent wave briefly recruiting PING at fixed recurrent weights before the network returns to its irregular background state.",
+  "simulation_ms": {"overshoot": 2400, "inside_band": 2000},
   "dt_ms": 0.25,
-  "video_frames": 400,
-  "n_e": 100,
-  "n_i": 25,
-  "input_rate_hz": 60,
+  "video_frames": 600,
+  "n_e": 400,
+  "n_i": 100,
   "seed": 7,
-  "n_input": 100,
-  "visible_projections": ["Input_to_E", "E_to_I", "I_to_E"],
-  "arrow_rule": "Draw every outgoing recurrent transmission initiated by a source spike in the current timestep.",
-  "event_arrows": "Thin arrows mark spikes emitted in the current timestep.",
+  "fixed_recurrent_initializer": {
+    "w_ee_mean": 0.85,
+    "w_ee_std": 0.255
+  },
+  "conditions": {
+    "overshoot": {
+      "onset_ms": 600,
+      "peak_ms": 1000,
+      "offset_ms": 1400,
+      "private_peak_scale": 1.2,
+      "shared_peak_scale": 10.0
+    },
+    "inside_band": {
+      "onset_ms": 600,
+      "peak_ms": 850,
+      "offset_ms": 1100,
+      "private_peak_scale": 1.2,
+      "shared_peak_scale": 6.5
+    }
+  },
+  "n_input": 400,
+  "afferent_rates_hz": {"shared_e_i": 10, "e_private": 15, "i_private": 15},
+  "stationary_weather": {"tau_ms": 250, "std_fraction": 0.12},
+  "local_background_groups": {"e_group_size": 25, "i_group_size": 10},
+  "visible_projections": ["Afferent_to_E", "Afferent_to_I", "E_to_E", "E_to_I", "I_to_E", "I_to_I"],
+  "arrow_rule": "Draw sampled active projection paths and direction-bearing arrows for current-timestep transmissions; retain every event in the complete raster.",
   "conductance_style": "Persistent connection width and opacity follow reconstructed per-synapse AMPA or GABA conductance after spike arrival and exponential decay.",
   "neuron_radius": "Mapped from recorded membrane voltage between resting and threshold voltage; spike rings remain explicit after voltage reset.",
-  "input_visual": "The exact seeded Poisson input raster is shown as private one-to-one spike sources onto E; input units do not encode membrane voltage.",
+  "input_visual": "Shared, E-targeting and I-targeting excitatory afferents have separate complete rasters and sampled active projection arrows. Private AMPA/GABA events appear as target-cell marks; locally shared events appear as neighbourhood washes; the stationary rate envelope has its own trace.",
   "visual_style": "Conference-figure warm off-white; restrained typography; excitatory structure black; inhibitory structure red.",
-  "outputs": []
+  "outputs": [
+    "input-wave-transient-ping-overshoot-snnlang-v1.mp4",
+    "input-wave-transient-ping-overshoot-snnlang-v1-frame.png",
+    "input-wave-transient-ping-inside-band-snnlang-v1.mp4",
+    "input-wave-transient-ping-inside-band-snnlang-v1-frame.png"
+  ]
 }

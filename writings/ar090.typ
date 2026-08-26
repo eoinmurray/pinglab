@@ -2,7 +2,7 @@
   title: "Compatibility, status, and extension",
   date: "2026-08-14",
   description: "Understand the legacy compatibility contract, current capability boundary, and rules for extending snnlang safely.",
-  collection: "snnlang",
+  collection: "documentation",
   order: 8,
 )
 

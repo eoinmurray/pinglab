@@ -8,9 +8,7 @@
 - [Hypothesis search](#hypothesis-search-family)
 - [ExperimentFlow](#experimentflow)
 - [Execution and datasets](#execution-artifact-family)
-- [Experiment composition](#experiment-family)
-- [Experiment plans](#expscoutplan)
-- [Experiment execution](#expscoutsummary)
+- [Experiment](#experiment)
 - [Campaigns and publication](#campaignplan)
 - [Collection state](#scientificcollectionstate)
 
@@ -38,7 +36,7 @@ changes and replays of retained output without a new simulation do not require a
 simulation runtime.
 
 A `Canvas` is conversational and exploratory. Creating or changing one does not
-create an experiment plan, implementation, `ExperimentRun`, official evidence,
+create an `Experiment`, implementation, `ExperimentRun`, official evidence,
 or publication state. If the user later asks to retain or execute its scientific
 question, recommend the appropriate scoped experiment operation rather than
 silently promoting the canvas.
@@ -246,14 +244,6 @@ runs, durable evidence, and the continuously rendered presentation. They name
 ownership boundaries rather than requiring every native file to be rewritten as
 Markdown.
 
-## `ExpImplementation`
-
-The SNNLANG bundle or other tool contract, experiment runner, configuration,
-tests, and implementation provenance that realize a persistent experiment plan.
-Reusable computation belongs to the tool; hypothesis-specific conditions,
-analysis, and figures belong to the experiment. An implementation does not
-replace its scientific plan or establish that the experiment was executed.
-
 ## `CollectionDataset`
 
 The collection-scoped scientific data object. Its working form retains useful
@@ -313,403 +303,144 @@ Changing the view is distinct from rendering it: `CollectionDataset` selection
 changes evidence ownership, Pingstore materializes that selection, and Demolab
 reacts to the selected data and writing.
 
-## Experiment family
+## `Experiment`
 
-Experiment noun definitions form a directed composition map. A composite noun
-names only its immediate children. A leaf noun names no other experiment noun.
-Children never name their parent, and definitions do not encode sibling,
-provenance, lifecycle, or downstream relationships.
-
-The composition map is:
+A mutable scientific composition that develops around one continuing central
+question. It has one persistent writing surface and combines these components
+in canonical reading order:
 
 ```text
-ExpScout
-├── ExpScoutPlan
-│   ├── Abstract
-│   ├── ExpSharedPlan
-│   ├── ExpInvestigationPlan[]
-│   ├── ExpMethodsPlan
-│   ├── ExpConclusionSlot
-│   ├── ExpReferences?
-│   └── ExpAppendices?
-└── ScoutExecution
-    ├── ExpScoutSummary
-    ├── ExpSharedExecution
-    ├── ExpInvestigationExecution[]
-    ├── ExpMethodsExecuted
-    └── ExpConclusion
-
-ExpSharedPlan
-└── ExpDesignSchematic?
-
-ExpInvestigationPlan
-├── ExpInvestigationIdentity
-├── ExpInvestigationIntroduction
-├── ExpExpectedPatterns
-└── ExpVisualSet?
-
-ExpVisualSet
-├── ExpDesignSchematic
-└── ExpMeasuredResultSlot
-
-ExpInvestigationExecution
-├── ExpMeasuredResult
-├── ExpVisualSet?
-└── ExpObservedPatterns
-
-ExpStudy
-├── ExpStudyPlan
-│   ├── Abstract
-│   ├── ExpSharedPlan
-│   ├── ExpInvestigationPlan[]
-│   ├── ExpMethodsPlan
-│   ├── ExpConclusionSlot
-│   ├── ExpReferences?
-│   └── ExpAppendices?
-└── StudyExecution
+Experiment
+├── Abstract
+├── MediaArea
+├── Results
+├── Methods
+├── Conclusion
+├── References?
+└── Appendices?
 ```
 
-An experiment identity owns one continuing central scientific question.
-Parameter refinement, an additional investigation, a new visualization, a
-control, a failed run, or follow-up execution defaults to the same experiment.
-After evidence-bearing execution, revise prospective material in the same
-writing surface before the next affected execution. Each finalized
+Only `Abstract` is also a registered Pinglab noun. `MediaArea`, `Results`,
+`Methods`, `Conclusion`, `References`, and `Appendices` are components
+of `Experiment`, not independently invokable nouns or separate artifacts.
+Components may be incomplete, reordered during authoring, or absent when
+optional. The canonical order governs the coherent human-facing rendering.
+
+An experiment may begin with any useful fragment and gradually acquire
+structure. Do not require a complete plan, a scout/study classification, or
+separate planning and execution objects before material can be retained.
+Parameter refinement, an additional result, a new visualization, a control, a
+failed run, or follow-up execution defaults to the same experiment. Create a
+new experiment only when the central scientific question materially changes or
+the user explicitly requests one.
+
+Each element preserves its epistemic status where that status matters:
+`idea`, `planned`, `expected`, `observed`, or `interpreted`. These
+statuses describe content within the experiment; they are not lifecycle nouns.
+Never rewrite an expectation to match a later observation. Each finalized
 `ExperimentRun` preserves the exact writing, implementation, configuration,
-source revision, and dirty-patch provenance it executed, so later changes do
-not rewrite the earlier plan. Do not create a new experiment merely because a
-run already exists.
-Create one only when the central scientific question materially changes or the
-user explicitly requests it; when that distinction is consequential, return it
-to the user rather than creating the experiment automatically.
-
-`Plan` always means prospective. Its paired executed noun preserves the
-prospective state recorded by its run and adds what actually happened without
-rewriting expectations as observations. A new study plan is derived from the
-scout rather than extending or relabelling it; record which exploratory choices
-were carried forward, changed, rejected, or added.
-
-The rendered executed artifact follows its prospective publication scaffold
-and adds execution evidence beside the corresponding prospective material. It
-may replace planned methods with one complete account of executed methods for
-readability, while retaining the executed protocol through run provenance.
-
-In every rendered `ExpScoutPlan`, `ExpScout`, `ExpStudyPlan`, and `ExpStudy`,
-group the ordered investigation collection beneath one top-level section titled
-`Results`. Title each investigation from its descriptive
-`ExpInvestigationIdentity`; do not expose the noun name as its heading. In a
-prospective plan, keep expected patterns and result slots explicitly planned or
-pending so the `Results` scaffold cannot imply that observations exist. After
-execution, place each result directly after its recorded expected patterns and
-planned visual evidence within the same custom-titled investigation. Mark
-simulated evidence plainly as **Simulation result** in its lead text or caption;
-“measured” alone is not sufficient when readers could mistake model output for
-biological measurement. Do not duplicate local evidence in a second aggregate
-results overview. A cross-investigation figure may appear near the conclusion
-only when it adds genuine synthesis, and it never substitutes for the local
-results. Keep `ExpConclusion` outside the `Results` section.
-
-Composition is not publication anatomy. Child nouns are semantic inputs to a
-connected scientific narrative, not mandatory paragraphs, labels, cards, or
-subsections. In rendered experiment documents, synthesize adjacent children
-into prose that develops an argument. Do not print noun names, field names, or
-repeated inline labels. Use headings only for substantive document sections and
-descriptively named investigations or methods.
-
-Give the most narrative and visual space to the evidence that bears most
-strongly on the central question. Keep setup sufficient to interpret that
-evidence, and keep illustrative mechanisms subordinate to aggregate results.
-Combine short related material, remove repeated framing and limitations, and
-use transitions to explain why the next evidence is needed. Review the rendered
-document as a whole: avoid stranded headings, broken figure sequences, choppy
-runs of small sections, and nearly empty final pages. Let scientific importance
-determine length; do not target uniform sections or a fixed page count.
-
-Investigations remain one ordered flat collection within `Results`. A rendering
-may place consecutive investigations beneath custom descriptive subgroup
-headings when that clarifies the experiment's scientific logic. These headings
-are optional presentation, not nouns or additional semantic hierarchy: they do
-not own, renumber, or change the identity of an investigation, and no fixed
-subgroup taxonomy is implied. Introduce each subgroup with prose that explains
-the shared question and its relationship to neighbouring groups.
-
-Rendered experiment documents contain scientific content, not repository
-plumbing. Omit opaque run and campaign identifiers, commit hashes, checkpoint
-keys, filenames, paths, manifests, commands, and implementation module names.
-Retain those exact details in native artifacts and `ScientificCollectionState`.
-Include a parameter in the document only when it is scientifically meaningful
-to interpretation or reproduction; express model and data sources in
-human-readable scientific language.
-
-The experiment family uses the registered composition nouns defined below.
-Each also independently triggers this skill.
-
-## `ExpSharedPlan`
-
-A compact common prospective orientation containing an optional
-`ExpDesignSchematic`. It states the identity, status, dependencies, scientific
-frame, shared inputs and controls, decision gates, budget, assumptions, and
-scope needed to understand the investigations. Keep detailed protocol and local
-rationale outside it. State shared material once.
-
-Use the schematic when the common mechanism or experimental design would
-otherwise require extended prose. The schematic replaces explanation rather
-than decorating or enlarging the section.
-
-When an experiment uses SNNLANG, include a compiled SNNLANG network diagram in
-the `ExpSharedPlan` whenever the authored graph can be rendered. Treat it as a
-structural design schematic, not measured evidence. Use the deepest compiled
-view that remains scientifically legible: expose each relevant population and
-its size, every relevant projection with direction and polarity, and each
-external input with the exact population it targets. Prefer a selectively
-expanded circuit or expanded view over a collapsed component view. Deep means
-population-and-projection level, not individual neurons, synaptic matrices,
-numerical parameters, or implementation ports; keep those details in methods
-or native artifacts unless they are essential to understand the design. If
-conditions share one topology, show one representative graph and identify
-parameterized differences in its caption. If topology varies materially,
-expose those variants rather than presenting one graph as universal. When full
-expansion is illegible, use selective expansion, filtering, or multiple panels
-instead of substituting a high-level diagram that hides the mechanism. This
-requirement does not apply to non-SNNLANG experiments and does not authorize an
-invented or misleading diagram when no compiled graph exists.
-
-## `ExpInvestigationIdentity`
-
-The stable number and descriptive name that identify one investigation and
-join its planned method, output, and later execution.
-
-## `ExpInvestigationIntroduction`
-
-The prospective rationale for one investigation: the uncertainty it resolves,
-why that uncertainty matters, and how the investigation relates to the shared
-scientific frame. It includes only enough method to understand the planned
-evidence.
-
-## `ExpExpectedPatterns`
-
-Conditional predictions for one investigation under the leading hypothesis
-and serious rivals, including the observations that distinguish them. It is
-prospective and must not be rewritten after execution to match the result.
-
-## `ExpInvestigationPlan`
-
-A locally complete prospective investigation containing an
-`ExpInvestigationIdentity`, `ExpInvestigationIntroduction`,
-`ExpExpectedPatterns`, optional `ExpVisualSet`, planned output, protocol links,
-and the limits of what its result could establish.
-
-## `ExpMethodsPlan`
-
-The complete prospective protocol: configuration, datasets, parameter values,
-sampling, execution sequence, analysis definitions, and scientifically
-meaningful reproducibility requirements. Number its subsections so
-investigations can reference them without duplicating procedural detail.
-
-## `ExpConclusionSlot`
-
-A reserved publication position for the executed conclusion. It contains no
-predicted conclusion and is omitted from a prospective rendering.
-
-## `ExpReferences`
-
-The external sources that materially inform an experiment plan or its executed
-record. Keep references attached to the claims or choices they support.
-
-## `ExpAppendices`
-
-Supporting protocol, provenance, calculations, or diagnostics whose inclusion
-in the main sequence would interrupt the experiment's evidence logic.
-
-## `ExpScoutPlan`
-
-A prospective, budgeted reconnaissance contract and publication scaffold. It
-defines cheap tests for feasibility, pattern discovery, and deciding whether
-deeper study is warranted.
-
-Use `status: "draft"` while a design is being refined and has not been run.
-
-Use this canonical reading order:
-
-1. `Abstract`
-2. `ExpSharedPlan`
-3. `ExpInvestigationPlan[]`
-4. `ExpMethodsPlan`
-5. `ExpConclusionSlot`
-6. optional `ExpReferences`
-7. optional `ExpAppendices`
-
-Keep a network or experimental-design diagram beside the investigation unit it
-explains. Clearly label conceptual curves as design schematics rather than data.
-When a mechanism benefits from visual mirroring, pair a precise hand-authored
-design schematic with a planned reproducible result using the same panel layout
-and visual language.
-
-Write expected patterns conditionally. The plan contains no observed results,
-and neither existing context nor a schematic may be presented as execution
-evidence.
-
-Keep scout execution cheap and explicitly budgeted. Its investigation units
-should establish feasibility, search broadly for useful structure, reject dead
-branches, and define gates for stopping, revision, or escalation. A scout plan
-does not promise durable inference.
-
-Every investigation must resolve a scientific uncertainty through a
-scientifically interpretable measurement. Treat implementation capabilities,
-data extraction, artifact generation, and publication delivery as declared
-dependencies rather than experimental uncertainties. Move their operational
-handoff to `ScientificCollectionState`, an implementation specification, or
-native protocol artifacts. Do not promote a prerequisite already established
-by repository evidence into an investigation merely to verify that execution
-is possible. Scientific datasets, measurement definitions, sampling, controls,
-and reproducibility parameters remain part of the plan when they affect the
-meaning or validity of its evidence.
-
-## `ExpVisualSet`
-
-An optional visual evidence scaffold containing an `ExpDesignSchematic` and an
-`ExpMeasuredResultSlot`. The pair preserves a shared panel layout, variables,
-colours, visual grammar, interpretive purpose, and caption.
-
-The default epistemic colour grammar uses blue-grey for conceptual or
-prospective schematics and red-black for measured evidence. A scientific
-semantic, accessibility need, or established figure convention may override
-it, but the plan must document the new mapping and keep schematic and measured
-roles visibly distinct. Never style an unexecuted or conceptual curve as
-red-black measured evidence.
-
-## `ExpDesignSchematic`
-
-A prospective, hand-authored explanation of a mechanism, intervention, or
-expected visual structure. It specifies the panel layout, variables, colours,
-visual grammar, interpretive purpose, caption, and links to its investigation
-or the shared scientific frame and relevant protocol. It is conceptual evidence
-design, never an observed result.
-
-## `ExpMeasuredResultSlot`
-
-The prospective placeholder for a structurally matched measured output and its
-completion status. It contains no observations before execution.
-
-## `ExpScoutSummary`
-
-The highest-level execution summary of a scout: its principal observation and
-stop, revise, or escalate disposition without procedural detail.
-
-## `ExpSharedExecution`
-
-The shared execution record containing completion status, scientifically
-meaningful actual configuration, deviations, and limitations. Record common
-execution facts once rather than repeating them locally.
-
-## `ExpMeasuredResult`
-
-An executed output with its value, figure, table, or other result, completion
-status, and measurement-specific limitations. A failed, incomplete, or not-run
-status is preserved explicitly rather than silently omitted.
-
-## `ExpObservedPatterns`
-
-A concise, exploratory account of what a measured result shows and does not
-show relative to the expected patterns recorded by that execution. Keep
-observations separate from procedural detail and do not add a local disposition
-gate.
-
-## `ExpInvestigationExecution`
-
-An execution unit containing an `ExpMeasuredResult` or explicit non-completion
-status, an optional completed `ExpVisualSet`, and `ExpObservedPatterns`.
-
-## `ExpMethodsExecuted`
-
-The complete scientific account of methods actually executed, concrete
-outputs, and scientifically meaningful deviations.
-
-In rendered experiments, title this section `Methods` and present its content
-as one flat list. A list item may use multiple sentences when needed, but do
-not add nested lists or subsection headings. This presentation rule applies
-only to `ExpMethodsExecuted`; `ExpMethodsPlan` retains its numbered
-subsections.
-
-## `ExpConclusion`
-
-The cross-investigation interpretation against shared decision gates and
-rivals, including limitations and the stop, revise, or escalate disposition.
-
-## `ScoutExecution`
-
-The execution overlay comprising an `ExpScoutSummary`, `ExpSharedExecution`,
-one `ExpInvestigationExecution` per planned investigation,
-`ExpMethodsExecuted`, and `ExpConclusion`.
-
-## `ExpScout`
-
-An executed scouting mission containing the prospective `ExpScoutPlan` recorded
-by its `ExperimentRun` and `ScoutExecution`.
-
-Preserve the prospective publication structure and attach execution evidence
-locally within the shared `Results` section. Replace the planned methods only in
-the readable rendering; retain the executed protocol through run provenance. Do
-not rewrite expectations as observations or create a second results section. All
-evidence remains exploratory rather than durable.
-
-Keep rendered scouts proportionate to reconnaissance. Write the abstract as one
-short qualitative paragraph followed by the required plain-language sentence.
-Keep design and scope to the minimum needed to understand the question, shared
-setup, boundaries, and decision gates; prefer direct human-readable prose over
-contract-like enumeration. For each investigation, use one compact prospective
-passage before its output and one compact observed interpretation after it. Let
-figures, captions, and methods carry detail instead of repeating it in the
-surrounding prose. Keep `ExpMethodsExecuted` complete. End with a short
-disposition-led conclusion containing only the decisive cross-investigation
-interpretation, material limitation, and warranted next step. Brevity never
-permits removing epistemic status, serious rivals, distinguishing expectations,
-failed or incomplete results, material deviations, or limitations needed to
-interpret the evidence. This rendering rule does not apply to `ExpStudy`.
-
-Number every body heading hierarchically. The publication title, figure
-captions, equations, and inline structural labels such as `Relevance` and
-visual-set labels are not body headings and remain unnumbered. Optional
-trailing sections are omitted rather than emitted empty; retain the canonical
-section number when one is present.
-
-Attach completed measured mirrors with code and data provenance when planned.
-Preserve failed or incomplete result slots. A scout without visual scaffolding
-remains valid and may not be promoted or relabelled as durable evidence.
-
-## `ExpStudyPlan`
-
-A prospective durable-study contract containing an `Abstract`,
-`ExpSharedPlan`, one or more `ExpInvestigationPlan` entries, an
-`ExpMethodsPlan`, `ExpConclusionSlot`, and optional `ExpReferences` and
-`ExpAppendices`.
-
-It requires stronger estimands, sampling and seeds, controls, uncertainty,
-falsifiers, rival discrimination, stopping rules, and robustness than a scout
-plan. The resulting `ExperimentRun` records the exact prospective choices used.
-
-## `StudyExecution`
-
-The durable execution overlay containing completion status, scientifically
-meaningful actual configuration and deviations, observations and uncertainty,
-rival discrimination, conclusions, limitations, and robustness results.
-
-## `ExpStudy`
-
-A durable executed scientific record containing the prospective `ExpStudyPlan`
-recorded by its `ExperimentRun` and `StudyExecution`.
-
-For each completed result, show its title, figure or output, and concise
-interpretation. Never replace or rewrite planned expectations as observations.
+source revision, and dirty-patch provenance it executed, so later composition
+does not rewrite earlier evidence.
+
+### MediaArea
+
+The loose working surface for images, videos, diagrams, plots, animations, and
+other media that may help the experiment take shape. Material may be placed
+here before its scientific role or final position is known.
+
+Media in `MediaArea` is not evidence merely because it appears in the
+experiment. Mark conceptual, simulated, replayed, and empirically measured
+media accurately. When media becomes a major scientific output, place or link
+it in the relevant `Results` entry while retaining any useful working context.
+
+When an experiment uses SNNLANG and its authored graph can be rendered, include
+a compiled network diagram in `MediaArea` or beside the result it explains.
+Treat it as a structural schematic, not measured evidence. Use the deepest view
+that remains scientifically legible: expose relevant populations, sizes,
+projections, direction, polarity, and external inputs without descending to
+individual neurons or matrices unless scientifically necessary.
+
+### Results
+
+The structured collection of major scientific outputs. Give each result a
+stable descriptive title and enough local structure to preserve:
+
+1. the question or uncertainty it addresses;
+2. planned or expected patterns when they exist;
+3. the output, including explicit failed, incomplete, or not-run status;
+4. what the output shows and does not show;
+5. material limitations and deviations; and
+6. its relationship to the central question or serious rivals.
+
+Keep results as one ordered flat collection. Optional descriptive subgroup
+headings may clarify the scientific logic, but they do not create additional
+semantic hierarchy. Place each output beside its local expectations and
+interpretation. Do not duplicate the same evidence in a second aggregate
+results overview.
+
+Mark simulated evidence plainly as **Simulation result** in its lead text or
+caption when readers could mistake it for biological or empirical measurement.
+Conceptual diagrams and unexecuted curves must remain visibly distinct from
+observed evidence.
+
+### Methods
+
+The reproducible steps that create or analyse the experiment's evidence. Record
+configuration, datasets, parameters, sampling, execution sequence, analysis
+definitions, controls, and scientifically meaningful reproducibility details
+in proportion to their importance.
+
+Mark steps as planned or executed when the distinction matters. After
+execution, record what actually happened, including material deviations,
+without erasing the prospective method preserved by its `ExperimentRun`.
+Prefer one action per procedural step. Reusable computation belongs to the
+tool; hypothesis-specific conditions, analysis, and figures belong to the
+experiment.
+
+### Conclusion
+
+The cross-result interpretation against the central question, expectations,
+serious rivals, and decision gates. State limitations and the warranted next
+disposition without procedural repetition. A conclusion interprets evidence;
+it does not modify the recorded results or turn missing evidence into support.
+
+### References
+
+Optional external sources that materially inform the experiment. Keep
+references attached to the claims or choices they support.
+
+### Appendices
+
+Optional supporting protocol, provenance, calculations, or diagnostics whose
+inclusion in the main sequence would interrupt the experiment's evidence logic.
+
+### Rendering
+
+Synthesize the components into connected scientific notebook prose rather than
+printing component names, field labels, cards, or contract-like enumeration.
+Use headings only for substantive document sections and descriptively named
+results. Give the most visual and narrative space to the evidence that bears
+most strongly on the central question.
+
+Rendered experiments contain scientific content, not repository plumbing. Omit
+opaque run and campaign identifiers, commit hashes, checkpoint keys, filenames,
+paths, manifests, commands, and implementation module names. Retain those exact
+details in native artifacts and `ScientificCollectionState`. Include a
+parameter only when it is scientifically meaningful to interpretation or
+reproduction.
+
+Review the rendered document as a whole. Avoid stranded headings, broken figure
+sequences, choppy runs of small sections, and nearly empty final pages.
+Optional trailing sections are omitted rather than emitted empty.
 
 ## `ScientificCollectionState`
 
 The current collection registration, experiment membership and scientific
 roles, hard dependencies, lifecycle status, campaign readiness, writing
 metadata, referenced artifacts, `PublicationView`, generated outputs, and
-publication blockers. An experiment enters this state when its plan and
+publication blockers. An experiment enters this state when its writing and
 implementation are created. Constructing a `CampaignPlan` captures an explicit
-collection snapshot without introducing a separate experiment-plan approval
-gate.
+collection snapshot without introducing a separate experiment approval gate.
 
 Technical provenance includes exact run and campaign identifiers, commit
 hashes, checkpoint keys, filenames, paths, manifests, commands, and

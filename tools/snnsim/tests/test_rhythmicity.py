@@ -11,12 +11,15 @@ from __future__ import annotations
 import sys
 
 import numpy as np
+import pytest
 
 sys.path.insert(0, "src/cli")
 
 from metrics import (  # noqa: E402
+    conductance_loop_score,
     population_event_times,
     rhythmicity_metrics,
+    rolling_conductance_loop_score,
     spike_autocorrelogram,
 )
 
@@ -108,3 +111,25 @@ def test_contrast_bounded_and_separates():
     assert 0.0 <= cf < 0.2, cf            # flat ≈ 0
     assert 0.0 <= cv < 1.0, cv            # bounded above by 1
     assert cv > cf + 0.3                  # rhythm clearly higher
+
+
+def test_conductance_loop_score_is_bounded_scale_invariant_and_directional():
+    phase = np.linspace(0, 2 * np.pi, 400, endpoint=False)
+    loop = conductance_loop_score(np.cos(phase), np.sin(phase))
+    scaled = conductance_loop_score(7 * np.cos(phase), 7 * np.sin(phase))
+    cancelling = conductance_loop_score(
+        np.r_[np.cos(phase), np.cos(phase[::-1])],
+        np.r_[np.sin(phase), np.sin(phase[::-1])],
+    )
+    assert 0.9 < loop <= 1.0
+    assert scaled == pytest.approx(loop)
+    assert cancelling < 0.05
+
+
+def test_rolling_conductance_loop_score_has_run_relative_normalized_view():
+    phase = np.linspace(0, 6 * np.pi, 600)
+    result = rolling_conductance_loop_score(
+        np.cos(phase), np.sin(phase), dt=1.0, window_ms=100, stride_ms=10
+    )
+    assert result["times_ms"].shape == result["raw"].shape
+    assert np.all((result["normalized"] >= 0) & (result["normalized"] <= 1))

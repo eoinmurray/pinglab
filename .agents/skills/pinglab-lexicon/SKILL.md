@@ -1,6 +1,6 @@
 ---
 name: pinglab-lexicon
-description: Interpret, construct, transform, or serialize Pinglab noun types whenever a prompt invokes Canvas, ScientificRecord, Abstract, Seed, Formulation, HypoBranches, HypoCanon, HypoLiterature, HypoRepository, OpenSearchTrajectory, HypoCheckpoint, GroundedSearchTrajectory, HypoPacket, ExperimentFlow, ExpScoutPlan, ExpSharedPlan, ExpInvestigationPlan, ExpInvestigationIdentity, ExpInvestigationIntroduction, ExpExpectedPatterns, ExpVisualSet, ExpDesignSchematic, ExpMeasuredResultSlot, ExpMethodsPlan, ExpConclusionSlot, ExpReferences, ExpAppendices, ExpScout, ScoutExecution, ExpScoutSummary, ExpSharedExecution, ExpInvestigationExecution, ExpMeasuredResult, ExpObservedPatterns, ExpMethodsExecuted, ExpConclusion, ExpStudyPlan, StudyExecution, ExpStudy, ExpImplementation, CollectionDataset, ExperimentRun, CampaignPlan, CampaignExecution, RunRecord, PublicationView, or ScientificCollectionState in any case, spacing, joining, or optional dollar-prefixed form, or asks to scope encode a rule into the Pinglab writing system.
+description: Interpret, construct, transform, or serialize Pinglab noun types whenever a prompt invokes Canvas, ScientificRecord, Abstract, Seed, Formulation, HypoBranches, HypoCanon, HypoLiterature, HypoRepository, OpenSearchTrajectory, HypoCheckpoint, GroundedSearchTrajectory, HypoPacket, ExperimentFlow, Experiment, CollectionDataset, ExperimentRun, CampaignPlan, CampaignExecution, RunRecord, PublicationView, or ScientificCollectionState in any case, spacing, joining, or optional dollar-prefixed form, or asks to scope encode a rule into the Pinglab writing system.
 ---
 
 # Pinglab lexicon
@@ -13,9 +13,9 @@ Use this file to recognize invocations and route to the authoritative reference.
 Recognize every Pinglab noun regardless of letter case. Treat joined and
 whitespace-separated noun words as equivalent where the canonical form is
 unambiguous: for example, `ScientificRecord` and `scientific record`, or
-`ExpScoutPlan` and `exp scout plan`. Allow an optional `$` before the complete
-noun or before any noun word, so `$ExpScoutPlan`, `$exp scout plan`, and
-`$exp $scout $plan` are aliases of `ExpScoutPlan`.
+`ExperimentRun` and `experiment run`. Allow an optional `$` before the complete
+noun or before any noun word, so `$ExperimentRun`, `$experiment run`, and
+`$experiment $run` are aliases of `ExperimentRun`.
 
 Always recognize the bare word `canvas`, in any letter case and optionally
 prefixed by `$`, as the Pinglab noun `Canvas`. Do not require additional Pinglab

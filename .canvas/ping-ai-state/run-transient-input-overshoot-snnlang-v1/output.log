@@ -1,0 +1,9 @@
+◆ pinglab · sim · ping                                synthetic-spikes
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  network   hidden 400 · Dale's law · E/I 0.6×5.0
+  sim       dt 0.25 ms · T 2400.0 ms · Poisson 25.0 Hz
+  run       r-20260826-133030 · git 01c08bc0 (dirty)
+──────────────────────────────────────────────────────────────────────
+  ▸ drive  authenticated structured spikes + four conductance channels
+  ◈ result    E 16Hz · I 24Hz · CV 0.69 · act 100%
+  ✓ done      1s

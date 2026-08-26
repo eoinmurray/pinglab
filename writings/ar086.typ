@@ -2,7 +2,7 @@
   title: "Compiling and executing bundles",
   date: "2026-08-14",
   description: "Validate a graph, write its portable bundle, select an executor, supply inputs, and retrieve named outputs and recordings.",
-  collection: "snnlang",
+  collection: "documentation",
   order: 4,
 )
 

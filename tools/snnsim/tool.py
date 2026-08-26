@@ -1728,6 +1728,7 @@ def _run_sim(args, C, out_dir, log):
             model_name=args.model,
             t_e_async=t_e_async,
             input_spikes=spk_in,
+            input_spikes_i=realized.input_spikes_i,
             ext_g=ext_g,
             ext_g_i=ext_g_i,
             ext_g_inhib_e=realized.inhibitory_e,
