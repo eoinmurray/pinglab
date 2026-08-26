@@ -880,11 +880,11 @@ wheels = [
 
 [[package]]
 name = "demolab-cli"
-version = "3.5.0"
+version = "4.0.0"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/02/04/66ecb2ecb321b3f342874fd7eaa7edbb5c606eac5ce39c97b00b21a0a4d7/demolab_cli-3.5.0.tar.gz", hash = "sha256:d2bd48b5042a97c44cdf2d8378e67fb72c55bf75573bff2b0d9d17f7351b9a8f", size = 87343, upload-time = "2026-08-26T14:53:26.69Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/3f/23/d42e707ab2c69073fba47bc65cd0193a411b7c782be0f4a3823f07de93c0/demolab_cli-4.0.0.tar.gz", hash = "sha256:88ca82a02b5cbecdb1ed49398df25f9dbfad4afaaaa53152a76f8cbaa62cbc2f", size = 88330, upload-time = "2026-08-26T18:00:17.987Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/72/f8/7d2fc2e96b5998e100a4b05c22a72eccb077c0bb9fee40d7798bfb3fa096/demolab_cli-3.5.0-py3-none-any.whl", hash = "sha256:b7a58dc2f00250c60e1c42f38b953e9d372eada27000a9288a31aa7d4e8bc91e", size = 80382, upload-time = "2026-08-26T14:53:25.357Z" },
+    { url = "https://files.pythonhosted.org/packages/18/81/49fb18353d70080a1a66e6a3ff9c0b7e96b4591cde49fbc25195080a2347/demolab_cli-4.0.0-py3-none-any.whl", hash = "sha256:94c93518bb92cbedfab3977b01f9220f36f098a6aa909ee5b3ec14f27cc98f0c", size = 81181, upload-time = "2026-08-26T18:00:16.627Z" },
 ]
 
 [[package]]
