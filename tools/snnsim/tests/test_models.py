@@ -2,6 +2,10 @@ import models as M
 import numpy as np
 import pytest
 import torch
+import torch.nn.functional as F
+from config import build_net
+from infer import probe
+from torch import nn
 
 
 def test_external_inhibitory_conductance_enters_gaba_state_without_reset():
@@ -19,12 +23,6 @@ def test_external_inhibitory_conductance_enters_gaba_state_without_reset():
     assert torch.all(rec["gi_e_1"][1:] > 0)
     assert torch.all(rec["gi_i_1"][1:] > 0)
     assert torch.all(rec["ge_e_1"] == 0)
-
-
-import torch.nn.functional as F
-from config import build_net
-from infer import probe
-from torch import nn
 
 
 @pytest.fixture(autouse=True)
