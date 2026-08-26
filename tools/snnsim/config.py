@@ -42,6 +42,7 @@ class Config:
     noise_tau: float = 3.0
     spike_rate_base: float = 10.0
     w_in_spikes: tuple = (0.3, 0.06)
+    w_in_i_spikes: tuple | None = None
     w_in_initial_zero_fraction: float = 0.95
     bias: float = 0.0002
     ei_ratio: float = 2.0
@@ -273,6 +274,15 @@ def _build_sim_net(model_name, spike_input=False, **kwargs):
         )
         kwargs.update(
             w_in=w_in,
+            w_in_i=(
+                (
+                    *cfg.w_in_i_spikes,
+                    "lower_clamped_normal",
+                    cfg.w_in_initial_zero_fraction,
+                )
+                if spike_input and cfg.w_in_i_spikes is not None
+                else None
+            ),
             w_hid=(5.1, 3.8),
             w_ee=(
                 *cfg.w_ee,
@@ -299,6 +309,7 @@ LEGACY_MODEL_ALIASES: dict[str, str] = {}
 def build_net(
     model_name,
     w_in=None,
+    w_in_i=None,
     w_in_initial_zero_fraction=0.0,
     w_ee=None,
     w_ei=None,
@@ -377,6 +388,8 @@ def build_net(
         kwargs["trainable_w_ii"] = True
     if w_in is not None:
         kwargs["w_in"] = (*w_in, "lower_clamped_normal", w_in_initial_zero_fraction)
+    if w_in_i is not None:
+        kwargs["w_in_i"] = (*w_in_i, "lower_clamped_normal", w_in_initial_zero_fraction)
     if w_ee is not None:
         kwargs["w_ee"] = (
             *w_ee,
@@ -512,6 +525,8 @@ def run_sim(
     input_spikes=None,
     ext_g=None,
     ext_g_i=None,
+    ext_g_inhib_e=None,
+    ext_g_inhib_i=None,
     v_perturb_eps=0.0,
     v_perturb_seed=0,
     recurrent_weight_scales=None,
@@ -554,6 +569,8 @@ def run_sim(
 
     ext_g = _to_dev(ext_g)
     ext_g_i = _to_dev(ext_g_i)
+    ext_g_inhib_e = _to_dev(ext_g_inhib_e)
+    ext_g_inhib_i = _to_dev(ext_g_inhib_i)
 
     if input_spikes is not None:
         # Spike input (optionally with per-cell ext_g/ext_g_i on top).
@@ -562,6 +579,9 @@ def run_sim(
         M.T_steps = min(M.T_steps, len(input_spikes))
         if ext_g is not None:
             M.T_steps = min(M.T_steps, len(ext_g))
+        for conductance in (ext_g_i, ext_g_inhib_e, ext_g_inhib_i):
+            if conductance is not None:
+                M.T_steps = min(M.T_steps, len(conductance))
     elif ext_g is not None:
         # Pure cell-drive (no W_in input spikes) — e.g. quenched-DC probes.
         ext_g_tensor = None
@@ -603,10 +623,18 @@ def run_sim(
             fwd_kwargs["ext_g"] = ext_g
         if ext_g_i is not None:
             fwd_kwargs["ext_g_i"] = ext_g_i
+        if ext_g_inhib_e is not None:
+            fwd_kwargs["ext_g_inhib_e"] = ext_g_inhib_e
+        if ext_g_inhib_i is not None:
+            fwd_kwargs["ext_g_inhib_i"] = ext_g_inhib_i
     elif ext_g is not None:
         fwd_kwargs["ext_g"] = ext_g
         if ext_g_i is not None:
             fwd_kwargs["ext_g_i"] = ext_g_i
+        if ext_g_inhib_e is not None:
+            fwd_kwargs["ext_g_inhib_e"] = ext_g_inhib_e
+        if ext_g_inhib_i is not None:
+            fwd_kwargs["ext_g_inhib_i"] = ext_g_inhib_i
     else:
         fwd_kwargs["ext_g"] = ext_g_tensor
 
@@ -661,8 +689,13 @@ def build_config(args):
         if len(w) == 1:
             w = [w[0], w[0] * 0.1]  # std = 10% of mean
         c.w_in_spikes = tuple(w[:2])
+    if getattr(args, "w_in_i", None) is not None:
+        c.w_in_i_spikes = tuple(args.w_in_i[:2])
     input_mode = getattr(args, "input", "synthetic-spikes")
-    if hasattr(args, "n_input") and args.n_input is not None:
+    if hasattr(args, "n_in") and args.n_in is not None:
+        M.N_IN = args.n_in
+    elif hasattr(args, "n_input") and args.n_input is not None:
+        # Compatibility for direct Config callers predating the CLI's n_in name.
         M.N_IN = args.n_input
     elif input_mode == "synthetic-spikes":
         M.N_IN = c.n_e

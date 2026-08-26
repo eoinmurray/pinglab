@@ -1,6 +1,6 @@
 """snnlang: deterministic authoring and inspection of spiking network graphs."""
 
-from . import components, ops, readouts, training
+from . import components, ops, readouts, simulation, training
 from .compiler import Bundle, Diagnostic, compile, load_bundle, validate_graph
 from .core import (
     AMPA,
@@ -27,6 +27,16 @@ from .core import (
     mV,
     nS,
 )
+from .simulation import (
+    BackgroundChannel,
+    CellDistribution,
+    ConductanceBackground,
+    ConductanceSchedule,
+    GlobalShotNoise,
+    ShotNoise,
+    SimulationSpec,
+    StructuredPoisson,
+)
 from .training import TrainSpec
 
 __all__ = [
@@ -50,6 +60,14 @@ __all__ = [
     "Uniform",
     "Zeros",
     "TrainSpec",
+    "SimulationSpec",
+    "StructuredPoisson",
+    "ConductanceBackground",
+    "BackgroundChannel",
+    "ShotNoise",
+    "GlobalShotNoise",
+    "CellDistribution",
+    "ConductanceSchedule",
     "Bundle",
     "Diagnostic",
     "compile",
@@ -59,6 +77,7 @@ __all__ = [
     "ops",
     "readouts",
     "training",
+    "simulation",
     "Hz",
     "mV",
     "ms",
