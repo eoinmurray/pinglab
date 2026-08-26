@@ -40,6 +40,12 @@ jobs:
       - uses: astral-sh/setup-uv@v5
         if: github.event.action != 'closed'
 
+      - name: Install rendering system dependencies
+        if: github.event.action != 'closed'
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes libcairo2-dev libpango1.0-dev pkg-config
+
       - name: Build the site bundle
         if: github.event.action != 'closed'
         run: |
