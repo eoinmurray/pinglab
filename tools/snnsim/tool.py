@@ -22,6 +22,7 @@ from bundle import (
     BundleCompatibilityError,
     apply_bundle_to_args,
     load_graph_bundle,
+    load_simulation_recipe,
     translate_cobanet_v1,
 )
 
@@ -57,6 +58,7 @@ from scan import (  # noqa: E402,F401
     primary_hid_key,
     primary_inh_key,
 )
+from simulation_inputs import realize_simulation_inputs
 
 # =============================================================================
 # Training (moved to train.py)
@@ -1545,18 +1547,28 @@ def _bundle_transition_schedule(args, dt, t_steps):
     if target_path is None:
         return None
     if not getattr(args, "bundle", None):
-        raise BundleCompatibilityError("--transition-bundle requires a baseline --bundle")
+        raise BundleCompatibilityError(
+            "--transition-bundle requires a baseline --bundle"
+        )
 
     _, base_graph = load_graph_bundle(args.bundle)
     _, target_graph = load_graph_bundle(target_path)
     base = translate_cobanet_v1(base_graph)
     target = translate_cobanet_v1(target_graph)
     structural = (
-        "dt", "hidden_size", "input_size", "output_size", "w_in",
-        "recurrent_initial_zero_fraction", "exact_k_initialization",
-        "tau_gaba", "readout_mode",
+        "dt",
+        "hidden_size",
+        "input_size",
+        "output_size",
+        "w_in",
+        "recurrent_initial_zero_fraction",
+        "exact_k_initialization",
+        "tau_gaba",
+        "readout_mode",
     )
-    mismatches = [name for name in structural if getattr(base, name) != getattr(target, name)]
+    mismatches = [
+        name for name in structural if getattr(base, name) != getattr(target, name)
+    ]
     if mismatches:
         raise BundleCompatibilityError(
             "transition bundles differ structurally: " + ", ".join(mismatches)
@@ -1601,7 +1613,9 @@ def _bundle_transition_schedule(args, dt, t_steps):
             changed.append(name)
         schedules[name] = (1.0 + alpha * (ratio - 1.0)).astype(np.float32)
     if not changed:
-        raise BundleCompatibilityError("transition bundles have identical recurrent weights")
+        raise BundleCompatibilityError(
+            "transition bundles have identical recurrent weights"
+        )
     return schedules, time_ms, changed
 
 
@@ -1662,7 +1676,65 @@ def _run_sim(args, C, out_dir, log):
         "quenched_drive_i",
     )
     _has_cell_drive = any(getattr(args, d, None) is not None for d in _drive_flags)
-    if (
+    simulation_recipe = getattr(args, "_simulation_recipe", None)
+    realized = None
+    if simulation_recipe is not None:
+        manifest, graph = load_graph_bundle(args.bundle)
+        simulation_recipe = load_simulation_recipe(args.bundle, manifest, graph)
+        inhibitory = next(
+            row
+            for row in graph["projections"]
+            if row.get("polarity") == "inhibitory"
+            and row["source"].partition(".")[0] != row["target"].partition(".")[0]
+        )
+        e_id = inhibitory["target"].partition(".")[0]
+        i_id = inhibitory["source"].partition(".")[0]
+        expected_tau = {"excitatory": 2.0, "inhibitory": float(args.tau_gaba)}
+        for background in simulation_recipe["backgrounds"]:
+            for polarity, tau_ms in expected_tau.items():
+                channel = background[polarity]
+                if any(
+                    abs(float(channel[k]["tau_ms"]) - tau_ms) > 1e-9
+                    for k in ("private", "shared")
+                ):
+                    raise BundleCompatibilityError(
+                        f"legacy execution requires {polarity} background tau_ms={tau_ms:g}"
+                    )
+        realized = realize_simulation_inputs(
+            simulation_recipe,
+            seed=C.SEED,
+            dt=dt,
+            t_steps=T_steps,
+            e_id=e_id,
+            i_id=i_id,
+            n_e=C.N_E,
+            n_i=C.N_I,
+            input_size=int(getattr(M, "N_IN", C.N_E)),
+        )
+        _has_cell_drive = True
+    if realized is not None:
+        spk_in = realized.input_spikes
+        if spk_in is None:
+            import torch
+
+            spk_in = torch.zeros(T_steps, int(getattr(M, "N_IN", C.N_E)))
+        ext_g, ext_g_i = realized.excitatory_e, realized.excitatory_i
+        runlog.phase(
+            log, "drive", "authenticated structured spikes + four conductance channels"
+        )
+        rec, display, _ = run_sim(
+            dt,
+            t_e_async,
+            model_name=args.model,
+            t_e_async=t_e_async,
+            input_spikes=spk_in,
+            ext_g=ext_g,
+            ext_g_i=ext_g_i,
+            ext_g_inhib_e=realized.inhibitory_e,
+            ext_g_inhib_i=realized.inhibitory_i,
+            recurrent_weight_scales=recurrent_scales,
+        )
+    elif (
         getattr(args, "input", "synthetic-spikes") == "synthetic-spikes"
         and not _has_cell_drive
     ):
@@ -1729,6 +1801,8 @@ def _run_sim(args, C, out_dir, log):
     # chaotic balanced net, ≈ 0 for cycle-locked PING. Only meaningful on the
     # cell-drive path (needs the ext_g tensors rebuilt identically).
     extra = {}
+    if realized is not None:
+        extra.update(realized.retained)
     if transition is not None:
         extra["weight_schedule_t_ms"] = transition[1]
         for name, values in transition[0].items():
@@ -1762,11 +1836,13 @@ def _run_sim(args, C, out_dir, log):
             vp = vp[:n_t].reshape(n_t, -1)
             lyap_vdist = np.sqrt(((vc - vp) ** 2).sum(axis=1))
             lyap_t_ms = np.arange(n_t) * dt
-            extra.update({
-                "lyap_vdist": lyap_vdist.astype(np.float32),
-                "lyap_t_ms": lyap_t_ms.astype(np.float32),
-                "lyap_eps": np.float32(lyap_eps),
-            })
+            extra.update(
+                {
+                    "lyap_vdist": lyap_vdist.astype(np.float32),
+                    "lyap_t_ms": lyap_t_ms.astype(np.float32),
+                    "lyap_eps": np.float32(lyap_eps),
+                }
+            )
             runlog.phase(
                 log,
                 "lyapunov",

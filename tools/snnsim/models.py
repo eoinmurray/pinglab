@@ -665,6 +665,7 @@ class COBANet(nn.Module):
     def __init__(
         self,
         w_in=(W_IN_MEAN, W_IN_STD),
+        w_in_i=None,
         w_hid=(W_HID_MEAN, W_HID_STD),
         w_ee=(W_EE_MEAN, W_EE_STD),
         w_ei=(W_EI_MEAN, W_EI_STD),
@@ -766,6 +767,18 @@ class COBANet(nn.Module):
             role = "W_in" if idx == 0 else "W_out" if is_readout else f"W_ff_{idx}"
             init_meta.update({"role": role, "shape": [n_pre, n_post]})
             self.weight_initialization[role] = init_meta
+
+        if w_in_i is None:
+            self.register_parameter("W_in_i", None)
+        else:
+            p1, p2, d, s = _parse_weight_spec(w_in_i, dist, initial_zero_fraction)
+            n_i = self.n_inh_per_layer.get(1, sizes[0] // 4)
+            weight, init_meta = init_weight(
+                (N_IN, n_i), d, p1, p2, s, return_provenance=True
+            )
+            self.W_in_i = nn.Parameter(weight)
+            init_meta.update({"role": "W_in_i", "shape": [N_IN, n_i]})
+            self.weight_initialization["W_in_i"] = init_meta
 
         # The classifier may be an abstract signed decoder while the simulated
         # feed-forward and recurrent synapses remain Dale-constrained.  Keep it
@@ -980,6 +993,8 @@ class COBANet(nn.Module):
         ref_std=0.0,
         ext_g=None,
         ext_g_i=None,
+        ext_g_inhib_e=None,
+        ext_g_inhib_i=None,
         drive_sigma=0.0,
         input_spikes=None,
         readout_reset_mask=None,
@@ -990,6 +1005,8 @@ class COBANet(nn.Module):
     ):
         has_ext_g = ext_g is not None
         has_ext_g_i = ext_g_i is not None
+        has_ext_g_inhib_e = ext_g_inhib_e is not None
+        has_ext_g_inhib_i = ext_g_inhib_i is not None
         has_input_spikes = input_spikes is not None
         has_readout_reset = readout_reset_mask is not None
 
@@ -1185,6 +1202,12 @@ class COBANet(nn.Module):
             "has_input_spikes": has_input_spikes,
             "has_ext_g": has_ext_g,
             "has_ext_g_i": has_ext_g_i,
+            "has_ext_g_inhib_e": has_ext_g_inhib_e,
+            "has_ext_g_inhib_i": has_ext_g_inhib_i,
+            "has_input_i": self.W_in_i is not None,
+            "W_in_i": self.W_in_i.clamp(min=0)
+            if self.W_in_i is not None and not self.signed_weights
+            else self.W_in_i,
             "has_readout_reset": has_readout_reset,
             "readout_mode": self.readout_mode,
             "readout_bias": self.b_out,
@@ -1246,6 +1269,16 @@ class COBANet(nn.Module):
                     ext_g_i[t].unsqueeze(0)
                     if has_ext_g_i and ext_g_i.dim() == 2
                     else (ext_g_i[t] if has_ext_g_i else None)
+                ),
+                "ext_inhib_e_t": (
+                    ext_g_inhib_e[t].unsqueeze(0)
+                    if has_ext_g_inhib_e and ext_g_inhib_e.dim() == 2
+                    else (ext_g_inhib_e[t] if has_ext_g_inhib_e else None)
+                ),
+                "ext_inhib_i_t": (
+                    ext_g_inhib_i[t].unsqueeze(0)
+                    if has_ext_g_inhib_i and ext_g_inhib_i.dim() == 2
+                    else (ext_g_inhib_i[t] if has_ext_g_inhib_i else None)
                 ),
                 "readout_reset_t": (
                     readout_reset_mask[t] if has_readout_reset else None
@@ -1346,6 +1379,8 @@ class COBANet(nn.Module):
                 ei_drive = (state["s_e"][k] @ self.W_ei[k]) * scale_ei
                 if k == "1" and cfg["has_ext_g_i"]:
                     ei_drive = ei_drive + slc["ext_t_i"]
+                if k == "1" and cfg["has_input_i"] and has_input_spikes:
+                    ei_drive = ei_drive + slc["in_t"] @ cfg["W_in_i"]
                 state["ge_i"][k] = state["ge_i"][k] * cfg["decay_ampa"] + ei_drive
                 state["gi_e"][k] = (
                     state["gi_e"][k] * cfg["decay_gaba"]
@@ -1355,6 +1390,10 @@ class COBANet(nn.Module):
                     state["gi_i"][k] * cfg["decay_gaba"]
                     + (state["s_i"][k] @ self.W_ii[k]) * scale_ii
                 )
+                if k == "1" and cfg["has_ext_g_inhib_e"]:
+                    state["gi_e"][k] = state["gi_e"][k] + slc["ext_inhib_e_t"]
+                if k == "1" and cfg["has_ext_g_inhib_i"]:
+                    state["gi_i"][k] = state["gi_i"][k] + slc["ext_inhib_i_t"]
             else:
                 state["ge_e"][k] = state["ge_e"][k] * cfg["decay_ampa"]
 

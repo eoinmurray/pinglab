@@ -24,6 +24,7 @@ class LegacySettings:
     input_size: int
     output_size: int
     w_in: tuple[float, float]
+    w_in_i: tuple[float, float] | None
     w_ee: tuple[float, float]
     w_ei: tuple[float, float]
     w_ie: tuple[float, float]
@@ -59,7 +60,9 @@ def required_capabilities_v1(graph: dict[str, Any]) -> tuple[BackendCapability, 
     for pop in graph.get("populations", []):
         rows.append(
             BackendCapability(
-                "tools/snnsim.capability/v1", pop["id"], f"neuron:{pop['neuron']['kind']}"
+                "tools/snnsim.capability/v1",
+                pop["id"],
+                f"neuron:{pop['neuron']['kind']}",
             )
         )
     for projection in graph.get("projections", []):
@@ -76,7 +79,9 @@ def required_capabilities_v1(graph: dict[str, Any]) -> tuple[BackendCapability, 
                     f"connection:{projection['connection']}",
                 ),
                 BackendCapability(
-                    "tools/snnsim.capability/v1", projection["id"], "delay:integer_steps"
+                    "tools/snnsim.capability/v1",
+                    projection["id"],
+                    "delay:integer_steps",
                 ),
             )
         )
@@ -172,6 +177,37 @@ def load_training_recipe(
     return training
 
 
+def load_simulation_recipe(
+    path: str | Path, manifest: dict[str, Any], graph: dict[str, Any]
+) -> dict[str, Any] | None:
+    """Load and authenticate an optional bundle-owned simulation recipe."""
+    root = Path(path)
+    if root.is_file():
+        root = root.parent
+    recipe_path = root / "simulation.json"
+    declared = {row.get("path"): row.get("digest") for row in manifest.get("files", [])}
+    if not recipe_path.is_file():
+        if "simulation.json" in declared:
+            raise BundleCompatibilityError("declared simulation.json is missing")
+        return None
+    recipe = json.loads(recipe_path.read_text())
+    if recipe.get("schema") != "snnlang.simulation/v1":
+        raise BundleCompatibilityError(
+            f"unsupported simulation schema: {recipe.get('schema')!r}"
+        )
+    if recipe.get("graph_digest") != manifest.get("graph_digest") or recipe.get(
+        "graph_digest"
+    ) != _digest(graph):
+        raise BundleCompatibilityError(
+            "simulation.json graph digest does not authenticate this graph"
+        )
+    if declared.get("simulation.json") != _digest(recipe):
+        raise BundleCompatibilityError(
+            "simulation.json digest does not match manifest.json"
+        )
+    return recipe
+
+
 def _normal_details(
     projection: dict[str, Any], parameters: dict[str, Any]
 ) -> tuple[tuple[float, float], float, str]:
@@ -198,7 +234,9 @@ def _normal_details(
     return (float(initializer["mean"]), float(initializer["std"])), fraction, zeroing
 
 
-def _normal(projection: dict[str, Any], parameters: dict[str, Any]) -> tuple[float, float]:
+def _normal(
+    projection: dict[str, Any], parameters: dict[str, Any]
+) -> tuple[float, float]:
     return _normal_details(projection, parameters)[0]
 
 
@@ -278,6 +316,12 @@ def translate_cobanet_v1(graph: dict[str, Any]) -> LegacySettings:
         if row["source"] == f"{input_id}.value"
         and row["target"] == f"{e_id}.excitatory"
     ]
+    input_projection_i = [
+        row
+        for row in projections
+        if row["source"] == f"{input_id}.value"
+        and row["target"] == f"{i_id}.excitatory"
+    ]
     readout_id = analogue[0]["id"]
     readout_projection = [
         row
@@ -285,7 +329,11 @@ def translate_cobanet_v1(graph: dict[str, Any]) -> LegacySettings:
         if row["source"] == f"{e_id}.spikes"
         and row["target"] == f"{readout_id}.excitatory"
     ]
-    if len(input_projection) != 1 or len(readout_projection) != 1:
+    if (
+        len(input_projection) != 1
+        or len(input_projection_i) > 1
+        or len(readout_projection) != 1
+    ):
         raise BundleCompatibilityError(
             "COBANet v1 requires direct input→E and E→readout projections"
         )
@@ -296,6 +344,10 @@ def translate_cobanet_v1(graph: dict[str, Any]) -> LegacySettings:
     )
     if (
         input_projection[0].get("synapse") not in supported_ampa
+        or (
+            input_projection_i
+            and input_projection_i[0].get("synapse") not in supported_ampa
+        )
         or recurrent_exc[0].get("synapse") not in supported_ampa
     ):
         raise BundleCompatibilityError(
@@ -307,6 +359,8 @@ def translate_cobanet_v1(graph: dict[str, Any]) -> LegacySettings:
         recurrent_exc[0]["id"],
         inhibitory[0]["id"],
     }
+    if input_projection_i:
+        supported_projection_ids.add(input_projection_i[0]["id"])
     same_population = [
         row
         for row in projections
@@ -316,7 +370,9 @@ def translate_cobanet_v1(graph: dict[str, Any]) -> LegacySettings:
         row["source"].partition(".")[0]: row for row in same_population
     }
     if len(same_by_population) != len(same_population):
-        raise BundleCompatibilityError("COBANet v1 allows at most one recurrent projection per population")
+        raise BundleCompatibilityError(
+            "COBANet v1 allows at most one recurrent projection per population"
+        )
     w_ee_row = same_by_population.get(e_id)
     w_ii_row = same_by_population.get(i_id)
     for row in same_population:
@@ -395,6 +451,9 @@ def translate_cobanet_v1(graph: dict[str, Any]) -> LegacySettings:
         input_size=int(input_shape[-1]),
         output_size=int(analogue[0]["size"]),
         w_in=_normal(input_projection[0], parameters),
+        w_in_i=_normal(input_projection_i[0], parameters)
+        if input_projection_i
+        else None,
         w_ee=_normal(w_ee_row, parameters) if w_ee_row else (0.0, 0.0),
         w_ei=_normal(recurrent_exc[0], parameters),
         w_ie=_normal(inhibitory[0], parameters),
@@ -571,6 +630,14 @@ _TRAINING_RECIPE_FLAGS = {
     "--v-grad-dampen",
 }
 
+_SIMULATION_RECIPE_FLAGS = {
+    "--input-rate",
+    "--independent-drive",
+    "--independent-drive-i",
+    "--quenched-drive",
+    "--quenched-drive-i",
+}
+
 
 def apply_bundle_to_args(args, argv: list[str]):
     """Apply bundle structure while preserving execution-only CLI overrides."""
@@ -603,8 +670,19 @@ def apply_bundle_to_args(args, argv: list[str]):
             + ", ".join(conflicts)
         )
     manifest, graph = load_graph_bundle(args.bundle)
+    simulation = load_simulation_recipe(args.bundle, manifest, graph)
+    if simulation:
+        conflicts = sorted(explicit & _SIMULATION_RECIPE_FLAGS)
+        if conflicts:
+            raise BundleCompatibilityError(
+                "bundle owns simulation inputs; remove conflicting flags: "
+                + ", ".join(conflicts)
+            )
+        args._simulation_recipe = simulation
     settings = translate_cobanet_v1(graph)
-    if args.mode == "train" and (settings.output_size != 10 or settings.input_size != 784):
+    if args.mode == "train" and (
+        settings.output_size != 10 or settings.input_size != 784
+    ):
         raise BundleCompatibilityError(
             "first COBANet bundle route is intentionally limited to MNIST "
             "(784 inputs, 10 outputs)"
@@ -616,6 +694,7 @@ def apply_bundle_to_args(args, argv: list[str]):
     args.dt = settings.dt
     args.readout_mode = settings.readout_mode
     args.w_in = list(settings.w_in)
+    args.w_in_i = list(settings.w_in_i) if settings.w_in_i else None
     args.w_in_initial_zero_fraction = 0.0
     args.ei_strength = settings.w_ei[0]
     args.ei_ratio = settings.w_ie[0] / settings.w_ei[0]

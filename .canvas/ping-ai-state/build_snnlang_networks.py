@@ -33,9 +33,11 @@ def build(name: str, w_ee_mean: float, w_ee_std: float):
         name="balanced_circuit",
         n_e=400,
         n_i=100,
-        source=external_spikes,
+        source_e=external_spikes,
+        source_i=external_spikes,
         tau_gaba=9 * snn.ms,
-        w_in=snn.Normal(0.01, 0.001),
+        w_in_e=snn.Normal(0.01, 0.001),
+        w_in_i=snn.Normal(0.02, 0.002),
         w_ee=recurrent(w_ee_mean, w_ee_std),
         w_ei=recurrent(0.6, 0.18),
         w_ie=recurrent(3.0, 0.9),
@@ -50,7 +52,25 @@ def build(name: str, w_ee_mean: float, w_ee_std: float):
     )
     net.output("state_logits", readout)
     net.expose(cell.E.spikes, cell.I.spikes, name="populations")
-    return snn.compile(net, target="tools/snnsim")
+
+    def background(tau_ms: float):
+        return snn.BackgroundChannel(
+            private=snn.ShotNoise(500, 0.03, tau_ms),
+            shared=snn.GlobalShotNoise(80, 0.01, tau_ms),
+            heterogeneity=snn.CellDistribution(
+                rate=snn.LowerClampedNormal(1.0, 0.1),
+                amplitude=snn.LowerClampedNormal(1.0, 0.1),
+            ),
+        )
+
+    simulation = snn.SimulationSpec(
+        spike_sources=[snn.StructuredPoisson(external_spikes, 25)],
+        backgrounds=[
+            snn.ConductanceBackground(cell.E, background(2), background(9)),
+            snn.ConductanceBackground(cell.I, background(2), background(9)),
+        ],
+    )
+    return snn.compile(net, simulation=simulation, target="tools/snnsim")
 
 
 def main():

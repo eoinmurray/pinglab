@@ -56,12 +56,20 @@ weight_scales = {
     for name in ("w_ee", "w_ei", "w_ie", "w_ii")
 }
 
-# Recreate the exact independent E/I drive event streams used by tools/snnsim.
-drive_e_rate, drive_e_conductance = map(float, run_config["independent_drive"])
-drive_i_rate, _drive_i_conductance = map(float, run_config["independent_drive_i"])
-seed = int(run_config["seed"])
-drive_e = (torch.rand(n_steps, n_e, generator=torch.Generator().manual_seed(seed + 1)) < drive_e_rate * dt / 1000).numpy()
-drive_i = (torch.rand(n_steps, n_i, generator=torch.Generator().manual_seed(seed + 2)) < drive_i_rate * dt / 1000).numpy()
+# Prefer retained authenticated inputs. Legacy recordings reconstruct their
+# historical private E/I drive for compatibility.
+combined_inputs = "input_structured_spikes" in data
+if combined_inputs:
+    drive_e = data["input_structured_spikes"].astype(bool)
+    drive_i = data["input_excitatory_i_private"] > 0
+    drive_e_rate = float(np.count_nonzero(drive_e) / drive_e.size * 1000 / dt)
+    drive_e_conductance = 1.0
+else:
+    drive_e_rate, drive_e_conductance = map(float, run_config["independent_drive"])
+    drive_i_rate, _drive_i_conductance = map(float, run_config["independent_drive_i"])
+    seed = int(run_config["seed"])
+    drive_e = (torch.rand(n_steps, n_e, generator=torch.Generator().manual_seed(seed + 1)) < drive_e_rate * dt / 1000).numpy()
+    drive_i = (torch.rand(n_steps, n_i, generator=torch.Generator().manual_seed(seed + 2)) < drive_i_rate * dt / 1000).numpy()
 
 mean_v_e, mean_v_i = v_e.mean(1), v_i.mean(1)
 mean_g_e, mean_g_i = g_e.mean(1), g_i.mean(1)
@@ -115,6 +123,12 @@ ax.set_facecolor(BG)
 ax.set_xlim(0, 1)
 ax.set_ylim(0, 1)
 ax.axis("off")
+if combined_inputs:
+    ax.text(
+        0.285, 0.385,
+        "afferent spikes → E + I\nprivate + shared AMPA/GABA → conductance state\nslow modulation retained separately",
+        color=GREY, fontsize=7.4, ha="left", va="top",
+    )
 
 # Additive ridgeline: activity remains in the network view; one shared
 # absolute log axis makes projection-scale differences spatially explicit.
@@ -266,7 +280,10 @@ raster.axhspan(n_e, n_e * 2, color=BLACK, alpha=0.035, zorder=0)
 raster.axhspan(n_e * 2, n_e * 2 + n_i, color=RED, alpha=0.055, zorder=0)
 raster.axhline(n_e, color="#c9c3b9", linewidth=0.55)
 raster.axhline(n_e * 2, color="#c9c3b9", linewidth=0.55)
-raster.set_yticks([n_e / 2, n_e + n_e / 2, 2 * n_e + n_i / 2], ["Drive", "E", "I"])
+raster.set_yticks(
+    [n_e / 2, n_e + n_e / 2, 2 * n_e + n_i / 2],
+    ["Afferent" if combined_inputs else "Drive", "E", "I"],
+)
 raster.tick_params(axis="x", colors=GREY, labelsize=7.5, length=2)
 raster.tick_params(axis="y", colors="#625f59", labelsize=8.0, length=0, pad=4)
 raster.set_xlabel("simulation time (ms)", color=GREY, fontsize=8.5, labelpad=3)
@@ -288,12 +305,11 @@ def draw_transmissions(step):
     while transmission_artists:
         transmission_artists.pop().remove()
 
-    # Independent E-cell drive is a private one-to-one projection. Its event
-    # adds 2.10 µS to that E cell's AMPA conductance; the line persists with
-    # the same decay as the simulated conductance state.
+    # Legacy private drive used a direct per-cell injection. Authenticated
+    # background conductance is deliberately not drawn as fictitious edges.
     drive_values = trace_drive_e[step] * drive_e_conductance
     drive_active = np.flatnonzero(drive_values > 1e-8)
-    if drive_active.size:
+    if drive_active.size and not combined_inputs:
         drive_strength = np.clip(drive_values[drive_active] / drive_peak, 0, 1)
         drive_rgba = np.tile(np.asarray(to_rgba(GREY)), (drive_active.size, 1))
         drive_rgba[:, 3] = 0.06 + 0.44 * np.sqrt(drive_strength)
@@ -305,7 +321,7 @@ def draw_transmissions(step):
         ax.add_collection(drive_lines)
         transmission_artists.append(drive_lines)
     drive_events = np.flatnonzero(drive_e[step])
-    if drive_events.size:
+    if drive_events.size and not combined_inputs:
         starts = drive_segments[drive_events, 0]
         delta = drive_segments[drive_events, 1] - starts
         drive_arrows = ax.quiver(

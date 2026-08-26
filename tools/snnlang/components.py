@@ -30,6 +30,8 @@ def ping(
     n_e: int,
     n_i: int,
     source: Signal | None = None,
+    source_e: Signal | None = None,
+    source_i: Signal | None = None,
     tau_gaba=9 * ms,
     include_silent_recurrence: bool = False,
     w_ee=None,
@@ -37,6 +39,8 @@ def ping(
     w_ie=None,
     w_ii=None,
     w_in=None,
+    w_in_e=None,
+    w_in_i=None,
 ) -> PING:
     """Author an explicit E/I PING circuit.
 
@@ -47,26 +51,42 @@ def ping(
     """
     w_ei = w_ei or Normal(0.5, 0.05)
     w_ie = w_ie or Normal(1.0, 0.1)
-    w_in = w_in or Normal(0.2, 0.03)
+    if source is not None and (source_e is not None or source_i is not None):
+        raise ValueError("use source or source_e/source_i, not both")
+    source_e = source if source_e is None else source_e
+    w_in_e = w_in_e or w_in or Normal(0.2, 0.03)
+    w_in_i = w_in_i or w_in or Normal(0.2, 0.03)
     with net.group(name):
         # The explicit step counts preserve the legacy COBANet numerical
         # contract: its refractory constants were derived at the historical
         # 0.25 ms module default and are 12 E / 6 I steps for every run.
         e = net.population(
-            f"{name}_E", size=n_e,
+            f"{name}_E",
+            size=n_e,
             neuron=COBA_LIF(
-                tau_mem=20 * ms, capacitance_nf=1.0, leak_us=0.05,
-                resting_mv=-65.0, threshold_mv=-50.0, reset_mv=-65.0,
-                refractory_steps=12, voltage_grad_dampen=80.0,
+                tau_mem=20 * ms,
+                capacitance_nf=1.0,
+                leak_us=0.05,
+                resting_mv=-65.0,
+                threshold_mv=-50.0,
+                reset_mv=-65.0,
+                refractory_steps=12,
+                voltage_grad_dampen=80.0,
                 initial_voltage_mv=-65.0,
             ),
         )
         i = net.population(
-            f"{name}_I", size=n_i,
+            f"{name}_I",
+            size=n_i,
             neuron=COBA_LIF(
-                tau_mem=5 * ms, capacitance_nf=0.5, leak_us=0.1,
-                resting_mv=-65.0, threshold_mv=-50.0, reset_mv=-65.0,
-                refractory_steps=6, voltage_grad_dampen=80.0,
+                tau_mem=5 * ms,
+                capacitance_nf=0.5,
+                leak_us=0.1,
+                resting_mv=-65.0,
+                threshold_mv=-50.0,
+                reset_mv=-65.0,
+                refractory_steps=6,
+                voltage_grad_dampen=80.0,
                 initial_voltage_mv=-65.0,
             ),
         )
@@ -112,13 +132,22 @@ def ping(
                 connection="recurrent",
                 delay=0.1 * ms,
             )
-        if source is not None:
+        if source_e is not None:
             net.connect(
-                source,
+                source_e,
                 e.excitatory,
-                name=f"{name}_input",
+                name=f"{name}_input" if source is not None else f"{name}_input_E",
                 synapse=AMPA(tau=2 * ms),
-                weight=w_in,
+                weight=w_in_e,
+                constraint=NonNegative(),
+            )
+        if source_i is not None:
+            net.connect(
+                source_i,
+                i.excitatory,
+                name=f"{name}_input_I",
+                synapse=AMPA(tau=2 * ms),
+                weight=w_in_i,
                 constraint=NonNegative(),
             )
     return PING(e, i)
