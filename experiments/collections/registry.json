@@ -28,7 +28,6 @@
     "exp085": "demo",
     "exp086": "demo",
     "exp093": "gamma-gated-sparsity",
-    "exp097": "demo",
     "exp099": "demo"
   },
   "historical": {
@@ -45,6 +44,11 @@
       "collection": "gamma-gated-sparsity",
       "disposition": "removed-and-pruned",
       "evidence": "The unrun writing, schematic artifact payload, and generated site outputs were removed on 2026-08-26; no runnable experiment script or completed run existed."
+    },
+    "exp097": {
+      "collection": "demo",
+      "disposition": "removed-and-pruned",
+      "evidence": "The runnable code, test, writing, legacy materialized payload, publication selection, and generated site output were removed on 2026-08-26; no Pingstore run directory existed."
     }
   }
 }

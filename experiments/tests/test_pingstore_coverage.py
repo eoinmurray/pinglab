@@ -21,3 +21,4 @@ def test_historical_experiment_dispositions_are_explicit() -> None:
     assert historical["exp087"]["disposition"] == "removed-and-pruned"
     assert historical["exp094"]["disposition"] == "removed-and-pruned"
     assert historical["exp096"]["disposition"] == "removed-and-pruned"
+    assert historical["exp097"]["disposition"] == "removed-and-pruned"

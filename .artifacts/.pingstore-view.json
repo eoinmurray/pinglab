@@ -1,5 +1,5 @@
 {
-  "digest": "sha256:dbd8c1355e45c4629c4b172f3407f683f72ce0b07333b1162f830b57f9455fcb",
+  "digest": "sha256:369d83e16b59d81e28497bdd69219977b8a70b2c0269000d9de9e0b12666ffde",
   "historical_records": {},
   "schema": "pingstore.materialized-view/v1",
   "selections": {
@@ -137,11 +137,6 @@
       "collection": "gamma-gated-sparsity",
       "dataset_id": "gamma-gated-sparsity/working",
       "run_id": "exp093/legacy-ef9ef3efa4e6"
-    },
-    "exp097": {
-      "collection": "demo",
-      "dataset_id": "demo/working",
-      "run_id": "exp097/r021"
     }
   }
 }
