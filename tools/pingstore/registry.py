@@ -39,7 +39,9 @@ def load_registry(repo: Path) -> dict[str, Any]:
     if not isinstance(historical, dict):
         raise PingstoreError("experiment registry historical must be an object")
     if set(experiments) & set(historical):
-        raise PingstoreError("runnable and historical registry entries must be disjoint")
+        raise PingstoreError(
+            "runnable and historical registry entries must be disjoint"
+        )
     return value
 
 
@@ -59,7 +61,9 @@ def memberships(repo: Path) -> dict[str, str]:
 def coverage(repo: Path) -> dict[str, Any]:
     registry = load_registry(repo)
     registered = set(registry["experiments"])
-    runnable = {path.stem for path in (repo / "experiments").glob("exp[0-9][0-9][0-9].py")}
+    runnable = {
+        path.stem for path in (repo / "experiments").glob("exp[0-9][0-9][0-9].py")
+    }
     capture_routes: dict[str, str] = {}
     for experiment in sorted(runnable):
         text = (repo / "experiments" / f"{experiment}.py").read_text()

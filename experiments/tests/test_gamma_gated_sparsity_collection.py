@@ -505,15 +505,12 @@ def test_finalize_captures_campaign_and_writes_pingstore_inventory(
     monkeypatch.setattr(execution, "validate_campaign", lambda _root: {})
 
     calls = []
-
-    def fake_run(command, **_kwargs):
-        calls.append(command)
-        if "capture-campaign" in command:
-            assert command[-2:] == ["--campaign-root", str(root)]
-            return SimpleNamespace(returncode=0)
-        return SimpleNamespace(returncode=0)
-
-    monkeypatch.setattr(execution.subprocess, "run", fake_run)
+    monkeypatch.setattr(execution, "load_plan", lambda _root: {"campaign_id": "smoke"})
+    monkeypatch.setattr(
+        execution,
+        "capture_campaign_metadata",
+        lambda captured_root, plan: calls.append((captured_root, plan)),
+    )
     assert execution.finalize_campaign(root) == {
         "campaign_id": "smoke",
         "status": "complete",
@@ -521,7 +518,7 @@ def test_finalize_captures_campaign_and_writes_pingstore_inventory(
         "total_size_bytes": 0,
         "payload_digest": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
     }
-    assert len(calls) == 1
+    assert calls == [(root, {"campaign_id": "smoke"})]
 
 
 def test_publication_build_runs_promotion_from_separate_checkout(

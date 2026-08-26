@@ -28,8 +28,9 @@ import contextlib
 import functools
 import os
 import shutil
-import subprocess
-import sys
+
+from pingstore.materialize import materialize_run
+from pingstore.native import capture_failed_local_run, capture_local_run
 
 from .paths import FIGURES_ROOT, REPO, artifacts_and_figures, runner_paths
 from .provenance import write_manifest
@@ -170,69 +171,27 @@ def finalize_prepared_run(
     manifest = figures / "_manifest.json"
     if not manifest.is_file():
         write_manifest(figures, slug=slug, run_id=run_id, scale=scale, host=host)
-    _capture_local_result(slug, figures)
-    _materialize_official_result(slug)
+    run = _capture_local_result(slug, figures)
+    _materialize_result(run)
     return figures
 
 
-def _capture_local_result(slug: str, source) -> None:
-    """Invoke the package boundary shared by atomic and legacy runners."""
-    subprocess.run(
-        [
-            sys.executable,
-            "-m",
-            "pingstore",
-            "capture-local",
-            "--repo",
-            str(REPO),
-            "--experiment",
-            slug,
-            "--staging",
-            str(source),
-        ],
-        cwd=REPO,
-        check=True,
-    )
+def _capture_local_result(slug: str, source) -> dict:
+    """Capture through Pingstore's filesystem-only library boundary."""
+    return capture_local_run(REPO, slug, source)
 
 
 def _capture_failed_result(slug: str, source) -> None:
     """Retain a failed staging payload without masking the original failure."""
     try:
-        subprocess.run(
-            [
-                sys.executable,
-                "-m",
-                "pingstore",
-                "capture-failed",
-                "--repo",
-                str(REPO),
-                "--experiment",
-                slug,
-                "--staging",
-                str(source),
-            ],
-            cwd=REPO,
-            check=True,
-        )
+        capture_failed_local_run(REPO, slug, source)
     except Exception as exc:
         print(f"[warning] failed-run capture was unavailable: {exc}")
 
 
-def _materialize_official_result(slug: str) -> None:
-    """Refresh Demolab data only through Pingstore's official selection."""
-    subprocess.run(
-        [
-            sys.executable,
-            "-m",
-            "pingstore",
-            "materialize-experiment",
-            slug,
-            "--artifacts-root",
-            str(FIGURES_ROOT),
-        ],
-        cwd=REPO,
-        check=True,
-    )
+def _materialize_result(run: dict) -> None:
+    """Refresh the active artifact view from the newly completed run."""
+    materialize_run(REPO / ".pingstore", run["run_id"], FIGURES_ROOT)
 
 
 def preserve_active_view(slug: str):
@@ -294,8 +253,8 @@ def published_run(slug: str, run_id: str, **kwargs):
         # runners already own their run root and are migrated by collection
         # orchestration rather than duplicated here.
         if not runner_paths(slug).isolated:
-            _capture_local_result(slug, staging)
-            _materialize_official_result(slug)
+            run = _capture_local_result(slug, staging)
+            _materialize_result(run)
             shutil.rmtree(staging)
             published = runner_paths(slug).derived
         else:

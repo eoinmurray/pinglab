@@ -1,58 +1,28 @@
 # Pingstore
 
-Pingstore is Pinglab's single operator interface for collection-scoped scientific
-data. A `CollectionDataset` retains experiment-scoped `ExperimentRun` records,
-selects one official run per experiment, and may carry temporary preview
-overrides. Finalized runs and frozen datasets are immutable.
-
-The canonical layout is:
+Pingstore is Pinglab's filesystem convention for immutable scientific runs.
+It has no database, server, catalogue, or command-line interface.
 
 ```text
-.pingstore/experiment-runs/<collection>/<experiment>/<run>/
-├── run.json
-├── payload/                 # immutable complete data
-└── authored-sources/        # exact .py and .typ when captured locally
-.pingstore/collections/<collection>/collection-dataset.json
-.pingstore/frozen/<collection>--<snapshot>/
-.artifacts/              # compact materialized PublicationView
-r2://pinglab/datasets/<collection>/<snapshot>/
+.pingstore/
+├── runs/
+│   ├── exp097-r022-local/
+│   │   ├── run.json
+│   │   └── files/
+│   └── .exp097-r023-slurm-wilkes-48291.tmp/
+└── collections.json
 ```
 
-A successfully finalized run becomes that experiment's official run. Failed
-runs are retained without changing the official selection. `.artifacts/`
-is rebuilt from official selections and excludes raw arrays and checkpoints;
-those remain in the immutable run and verified dataset archive.
+Run IDs encode the experiment, experiment-local identity, and execution source.
+Local and HPC runners write the same structure. A hidden `.tmp` directory is an
+incomplete run; successful completion atomically renames it to the visible,
+immutable run ID.
 
-The managed workflow is:
+`run.json` records the structured execution and source provenance. The `files/`
+directory contains the complete result payload. `collections.json` is a
+manually maintained mapping from named views to run-ID arrays; it is the only
+selection mechanism.
 
-```bash
-pingstore migrate inventory
-pingstore migrate classify
-pingstore migrate plan
-pingstore migrate import --shadow
-pingstore verify --local
-pingstore preview COLLECTION --shadow /absolute/path/to/shadow
-pingstore freeze COLLECTION --snapshot SNAPSHOT
-pingstore archive-r2 COLLECTION/SNAPSHOT
-pingstore inspect-r2 COLLECTION/SNAPSHOT
-pingstore restore-r2 COLLECTION/SNAPSHOT /absolute/path/to/new-root
-pingstore publication-view --activate
-```
-
-Large accepted historical payloads may remain in their existing immutable R2
-location and be attached without copying:
-
-```bash
-pingstore attach-asset COLLECTION r2://pinglab/campaigns/ARCHIVE
-```
-
-An attached asset is retained collection evidence, not an official
-experiment-run selection. New archives use the native dataset namespace.
-
-Normal run finalization advances official evidence by contract; arbitrary file
-recency never does. Archival, deletion, and publication remain separate gates.
-Native archives are portable bundles and are checksum-verified after upload.
-
-Legacy migration first internalizes every referenced payload beneath its native
-run record and verifies the copied digest. Historical non-runnable evidence is
-retained separately and does not pollute active collection membership.
+R2 backup mirrors `runs/` directly. Pruning is an external filesystem operation:
+retain the newest useful runs, every run referenced by `collections.json`, every
+run not yet verified remotely, and anything else selected in a manual view.

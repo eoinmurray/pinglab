@@ -26,9 +26,6 @@ dependencies = [
 Homepage = "https://github.com/eoinmurray/pinglab"
 Repository = "https://github.com/eoinmurray/pinglab"
 
-[project.scripts]
-pingstore = "pingstore.cli:main"
-
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"

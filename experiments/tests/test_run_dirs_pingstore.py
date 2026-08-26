@@ -15,7 +15,7 @@ def test_legacy_success_finalizer_captures_once(
     figures = tmp_path / ".artifacts/exp001"
     figures.mkdir(parents=True)
     (figures / "numbers.json").write_text("{}\n")
-    calls: list[list[str]] = []
+    calls: list[tuple[str, object]] = []
 
     monkeypatch.setattr(
         run_dirs, "artifacts_and_figures", lambda _slug: (tmp_path / "scratch", figures)
@@ -29,17 +29,24 @@ def test_legacy_success_finalizer_captures_once(
 
     monkeypatch.setattr(run_dirs, "write_manifest", fake_manifest)
     monkeypatch.setattr(
-        run_dirs.subprocess,
-        "run",
-        lambda command, **_kwargs: calls.append(command),
+        run_dirs,
+        "capture_local_run",
+        lambda _repo, slug, source: (
+            calls.append(("capture", source)) or {"run_id": f"{slug}-r001-local"}
+        ),
+    )
+    monkeypatch.setattr(
+        run_dirs,
+        "materialize_run",
+        lambda _root, run_id, _artifacts: calls.append(("materialize", run_id)),
     )
 
     result = run_dirs.finalize_prepared_run("exp001", "r001")
     assert result == figures
     assert (figures / "_manifest.json").is_file()
     assert len(calls) == 2
-    assert calls[0][-2:] == ["--staging", str(figures)]
-    assert calls[1][3:5] == ["materialize-experiment", "exp001"]
+    assert calls[0] == ("capture", figures)
+    assert calls[1] == ("materialize", "exp001-r001-local")
 
 
 def test_legacy_success_finalizer_skips_isolated_campaign(
@@ -49,8 +56,8 @@ def test_legacy_success_finalizer_skips_isolated_campaign(
         run_dirs, "runner_paths", lambda _slug: SimpleNamespace(isolated=True)
     )
     monkeypatch.setattr(
-        run_dirs.subprocess,
-        "run",
+        run_dirs,
+        "capture_local_run",
         lambda *_args, **_kwargs: (_ for _ in ()).throw(AssertionError()),
     )
     assert run_dirs.finalize_prepared_run("exp001", "r001") is None

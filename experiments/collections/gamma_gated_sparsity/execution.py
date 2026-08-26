@@ -15,6 +15,7 @@ from typing import Any
 
 from pingstore.campaign_promotion import promote_experiment
 from pingstore.campaign_runtime import initialize_run
+from pingstore.native import capture_campaign_metadata
 from pingstore.payload import (
     ContractError,
     inventory_payload,
@@ -829,18 +830,7 @@ def finalize_campaign(root: Path) -> dict[str, Any]:
     run = load_json(root / "run.json")
     inventory_path = root / "inventory.json"
     if run.get("status") != "complete" or not inventory_path.is_file():
-        subprocess.run(
-            [
-                sys.executable,
-                "-m",
-                "pingstore",
-                "capture-campaign",
-                "--campaign-root",
-                str(root),
-            ],
-            cwd=REPO,
-            check=True,
-        )
+        capture_campaign_metadata(root, load_plan(root))
         inventory = inventory_payload(root, run_id=run["run_id"])
         write_json_atomic(inventory_path, inventory)
         run["status"] = "complete"
