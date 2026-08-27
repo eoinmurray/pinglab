@@ -65,16 +65,50 @@ Example:
 
 This experiment depends on #link("/exp022/")[exp022]. It uses the immutable
 Pingstore run `exp022-tr06-r2`, specifically the `TR-06` checkpoints and
-configurations for seeds 42–44 under `files/state/`.
+configurations for seeds 42–44 under `data/state/`.
 ```
+
+## Design Scope
+
+Apply these rules to every experiment entry:
+
+1. Name the section `Design Scope` and place it after `Dependancies`.
+2. Describe the experiment's parameter space in plain English: what system is
+   studied, what changes, the tested values or ranges, and what remains fixed.
+   Explain what each varied parameter means physically or operationally.
+3. State the relevant starting conditions, comparison groups, and sampling
+   scale, including independent seeds or repetitions where applicable.
+4. Explain why these comparisons address the experiment's question and identify
+   the main boundaries: what the experiment does not vary or test.
+5. Keep this section short. Prefer ordinary prose over notation or configuration
+   dumps; leave execution details and equations to `Methods`. Distinguish planned
+   settings from those actually tested.
+
+## Prior art
+
+Apply these rules to every experiment entry:
+
+1. Name the section `Prior art` and place it after `Design Scope`, before
+   `Results`.
+2. Give a short, plain-English account of relevant work by others: what they
+   studied, how they approached it, and what they established.
+3. Explain how this experiment relates to that work—such as reproducing,
+   adapting, extending, or testing a limitation—without implying novelty merely
+   because the implementation differs.
+4. Cite the sources beside the claims they support. Prefer original research for
+   specific findings; use reviews for broader context.
+5. Include only background needed to understand this experiment. If no directly
+   relevant work has been identified, state that limitation rather than claiming
+   none exists.
 
 ## Results
 
 Apply these rules to every experiment entry:
 
 1. Name the section `Results` exactly and place it before `Methods`.
-2. Select three to five key plots that tell the experiment's scientific story.
-   Do not include every diagnostic merely because it exists.
+2. Select only the key plots needed to tell the experiment's scientific story
+   and support its conclusions; there is no fixed plot count. A single compound
+   figure may suffice. Do not include every diagnostic merely because it exists.
 3. Give each plot a specific, descriptive name that states its principal
    comparison or finding.
 4. Introduce each plot in continuous plain-English prose. Explain what question
@@ -239,3 +273,19 @@ Starting from $n_E(t)$, derive the discrete Fourier transform, Welch spectrum,
 window normalization, frequency resolution, and parabolic peak interpolation
 used in Equation 2.
 ```
+
+## References
+
+Apply these rules to every experiment entry:
+
+1. Place a numbered `References` section at the bottom of the entry, after any
+   appendices.
+2. Use `#cite(...)` for inline citations and `#reference-list(...)` for the
+   reference list.
+3. List sources in order of first citation, with authors, title, publication
+   venue, year, and a DOI or stable URL where available.
+4. Reuse the same number for repeated citations. Keep citation numbers
+   synchronized with list positions.
+5. Include only cited sources and verify that each supports its associated
+   claim. Keep literature references distinct from upstream experiment and run
+   provenance.
