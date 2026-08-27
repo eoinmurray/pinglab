@@ -25,6 +25,7 @@ from experiments.collections.gamma_gated_sparsity.graph import (
     ordered_experiments,
 )
 from experiments.collections.gamma_gated_sparsity.plan import REPO, build_plan
+from experiments.exp024 import collection as exp024_collection
 
 
 def test_collection_production_training_horizon_is_50_epochs() -> None:
@@ -50,7 +51,7 @@ def test_downstream_cell_banks_resolve_through_exp022_registry() -> None:
             for seed in seeds
         } == registered["TR-02"]
     assert {
-        exp024.cell_dir(model, seed).name
+        exp024.cell_name(model, seed)
         for model in exp024.MODELS
         for seed in exp024.SEEDS
     } <= registered["TR-02"]
@@ -158,7 +159,10 @@ def test_plan_paths_are_isolated_and_all_runners_are_integrated(tmp_path: Path) 
     assert payload["excluded"] == ["exp048"]
     assert payload["blocking_issues"] == []
     assert payload["acceptance_issues"] == []
-    assert all(row["command"] for row in rows)
+    assert all(row["command"] or row["execution"]["mode"] == "exp024-staged" for row in rows)
+    audit = next(row for row in rows if row["slug"] == "exp024")
+    assert audit["execution"]["stages"] == ["analyse", "present"]
+    assert not any(".artifacts" in path for path in audit["required_outputs"])
     assert all(row["required_outputs"] for row in rows)
 
 
@@ -199,9 +203,9 @@ def test_init_composes_pingstore_and_exp022_manifests(
 
     def fake_run(command, **_kwargs):
         calls.append(command)
-        if "experiments.exp022" in command:
+        if "experiments.exp022.compute" in command:
             exp022 = root / "exp022"
-            exp022.mkdir()
+            exp022.mkdir(exist_ok=True)
             (exp022 / "campaign.json").write_text("{}")
         return SimpleNamespace(returncode=0)
 
@@ -233,6 +237,11 @@ def test_local_resume_runs_in_dependency_order(tmp_path: Path, monkeypatch) -> N
     (root / execution.STATUS_DIR).mkdir()
     execution.write_json_atomic(root / execution.PLAN_NAME, plan)
     monkeypatch.setattr(execution, "source_provenance", lambda: plan["source"])
+
+    # Scientific work is mocked here; real stage-reference validation has its
+    # own fixture-run coverage in test_exp024_stages.py.
+    monkeypatch.setattr(exp024_collection, "completed", lambda repo, plan, row:
+                        execution.load_json(Path(row["required_outputs"][0])))
 
     seen = []
 
@@ -515,7 +524,11 @@ def test_finalize_captures_campaign_and_writes_pingstore_inventory(
     monkeypatch.setattr(execution, "validate_campaign", lambda _root: {})
 
     calls = []
-    monkeypatch.setattr(execution, "load_plan", lambda _root: {"campaign_id": "smoke"})
+    staged = {"slug": "exp024", "execution": {"mode": "exp024-staged"}}
+    legacy = {"slug": "exp023", "execution": {"mode": "monolithic"}}
+    monkeypatch.setattr(execution, "load_plan", lambda _root: {
+        "campaign_id": "smoke", "stages": [{"experiments": [staged, legacy]}],
+    })
     monkeypatch.setattr(
         execution,
         "capture_campaign_metadata",
@@ -528,7 +541,7 @@ def test_finalize_captures_campaign_and_writes_pingstore_inventory(
         "total_size_bytes": 0,
         "payload_digest": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
     }
-    assert calls == [(root, {"campaign_id": "smoke"})]
+    assert calls == [(root, {"campaign_id": "smoke", "stages": [{"experiments": [legacy]}]})]
 
 
 def test_publication_build_runs_promotion_from_separate_checkout(
@@ -563,6 +576,11 @@ def test_publication_build_runs_promotion_from_separate_checkout(
     monkeypatch.setattr(execution, "_checkout_source", lambda _path: repair_source)
     monkeypatch.setattr(execution.shutil, "which", lambda _name: "/usr/bin/uv")
     promotions = []
+    from pingstore import materialize
+    monkeypatch.setattr(exp024_collection, "completed", lambda *args:
+                        SimpleNamespace(record={"run_id": "exp024-r002-present-local"}))
+    monkeypatch.setattr(materialize, "materialize_run", lambda store, identity, target:
+                        promotions.append((store, "exp024", target)))
     monkeypatch.setattr(
         execution,
         "promote_experiment",
@@ -615,6 +633,10 @@ def test_publication_build_rejects_stubbed_entries(tmp_path: Path, monkeypatch) 
     monkeypatch.setattr(execution, "_checkout_source", lambda _path: plan["source"])
     monkeypatch.setattr(execution.shutil, "which", lambda _name: "/usr/bin/uv")
     monkeypatch.setattr(execution, "promote_experiment", lambda *_args, **_kwargs: None)
+    from pingstore import materialize
+    monkeypatch.setattr(exp024_collection, "completed", lambda *args:
+                        SimpleNamespace(record={"run_id": "exp024-r002-present-local"}))
+    monkeypatch.setattr(materialize, "materialize_run", lambda *args: None)
 
     def fake_run(command, **_kwargs):
         output = "built 37 entries, 1 stubbed: exp022" if "demolab" in command else ""

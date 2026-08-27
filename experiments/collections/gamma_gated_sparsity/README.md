@@ -37,7 +37,13 @@ arrays, aggregation, downstream experiments in dependency order, and finalizatio
 Exp037, exp042, and exp082 declare bounded inference shards followed by a normal
 experiment aggregation job. The campaign records the reviewed condition and
 simulator-launch contracts, rejects drift in the condition count, and writes one
-status document per shard. Other downstream experiments remain monolithic.
+status document per shard. Exp024 dispatches independent analyse and present
+stages from the campaign's explicit completed exp022 compute run. It records
+pinned stage references, not a materialized output directory; stage IDs are
+reserved before live submission. Historical campaigns require their original
+checkout. See the [exp024 notes](../../exp024/README.md) for source validation,
+retries, preview and retention of referenced evidence. Other downstream
+experiments remain monolithic.
 Use `slurm-status` to combine scheduler and output state. After a failed campaign,
 `resume` prints the missing-work plan and `resume --live` submits it. Publication is
 a separate `build` command and requires a clean disposable worktree at the campaign

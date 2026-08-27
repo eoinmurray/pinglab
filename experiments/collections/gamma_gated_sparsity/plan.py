@@ -14,7 +14,7 @@ REPO = Path(__file__).resolve().parents[3]
 RUNNER_ARGUMENTS: dict[str, tuple[str, ...]] = {
     "exp022": (),
     "exp023": (),
-    "exp024": ("--skip-training",),
+    "exp024": (),
     "exp025": ("--only-missing",),
     "exp033": (),
     "exp037": ("--skip-training",),
@@ -45,6 +45,9 @@ EXTRA_REQUIRED_OUTPUTS: dict[str, tuple[str, ...]] = {
 
 
 def runner_command(slug: str) -> list[str]:
+    if slug == "exp024":
+        # The adapter dispatches explicit source/run IDs, never this legacy command.
+        return []
     return [
         sys.executable,
         "-m",
@@ -80,6 +83,8 @@ def build_plan(root: Path, campaign_id: str, *, smoke: bool = False) -> dict[str
             else resolved / "downstream" / experiment.slug
         )
         execution = {"mode": "monolithic"}
+        if experiment.slug == "exp024":
+            execution = {"mode": "exp024-staged", "stages": ["analyse", "present"]}
         contract = workload_contract(experiment.slug, smoke=smoke)
         if shard_count(experiment.slug) > 1:
             execution = {
@@ -100,7 +105,7 @@ def build_plan(root: Path, campaign_id: str, *, smoke: bool = False) -> dict[str
                 },
                 "command": runner_command(experiment.slug),
                 "execution": execution,
-                "required_outputs": [
+                "required_outputs": [str(state / "stage-refs.json")] if experiment.slug == "exp024" else [
                     str(
                         resolved / "derived/.artifacts" / experiment.slug
                         / filename

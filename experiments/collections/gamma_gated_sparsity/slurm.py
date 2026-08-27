@@ -459,6 +459,11 @@ def submit_campaign(
         slug = row["slug"]
         if slug == "exp022" or _outputs_valid_for_plan(plan, row):
             continue
+        if slug == "exp024":
+            from experiments.exp024.collection import require_staged, reserve
+            require_staged(row)
+            if submit:
+                reserve(REPO, row, origin="slurm-wilkes")
         dependency_ids = [by_name[d] for d in row["dependencies"] if d in by_name]
         if shard_count(slug) > 1:
             shards = _submit_experiment_shards(

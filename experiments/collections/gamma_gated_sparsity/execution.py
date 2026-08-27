@@ -401,6 +401,14 @@ def _collection_provenance(plan: dict[str, Any], row: dict[str, Any]) -> dict[st
 
 
 def _outputs_valid_for_plan(plan: dict[str, Any], row: dict[str, Any]) -> bool:
+    if row.get("execution", {}).get("mode") == "exp024-staged":
+        from experiments.exp024.collection import completed
+        from pingstore.contracts import PingstoreError
+        try:
+            completed(REPO, plan, row)
+            return True
+        except (PingstoreError, OSError, KeyError, ValueError):
+            return False
     if not _outputs_valid(row):
         return False
     try:
@@ -705,6 +713,20 @@ def _aggregate_exp022(
 def _run_downstream(plan: dict[str, Any], row: dict[str, Any]) -> None:
     root = Path(plan["campaign_root"])
     slug = row["slug"]
+    if slug == "exp024":
+        from experiments.exp024.collection import execute, require_staged
+        require_staged(row)
+        if _outputs_valid_for_plan(plan, row):
+            _write_status(root, slug, state="complete", resumed=True)
+            return
+        _write_status(root, slug, state="running", started_at_utc=utc_now())
+        try:
+            refs = execute(REPO, plan, row)
+        except BaseException:
+            _write_status(root, slug, state="failed", ended_at_utc=utc_now())
+            raise
+        _write_status(root, slug, state="complete", ended_at_utc=utc_now(), stage_runs=refs)
+        return
     if _outputs_valid_for_plan(plan, row):
         _write_status(root, slug, state="complete", resumed=True)
         return
@@ -851,7 +873,14 @@ def finalize_campaign(root: Path) -> dict[str, Any]:
     run = load_json(root / "run.json")
     inventory_path = root / "inventory.json"
     if run.get("status") != "complete" or not inventory_path.is_file():
-        capture_campaign_metadata(root, load_plan(root))
+        plan = load_plan(root)
+        # Staged exp024 already owns immutable runs; never recapture it as v2.
+        legacy_plan = {**plan, "stages": [
+            {**stage, "experiments": [row for row in stage["experiments"]
+                                     if row.get("execution", {}).get("mode") != "exp024-staged"]}
+            for stage in plan["stages"]
+        ]}
+        capture_campaign_metadata(root, legacy_plan)
         inventory = inventory_payload(root, run_id=run["run_id"])
         write_json_atomic(inventory_path, inventory)
         run["status"] = "complete"
@@ -930,6 +959,14 @@ def build_publication(root: Path, checkout: Path) -> dict[str, Any]:
         raise CollectionError("uv is required for publication build")
     promoted = []
     for row in rows_in_order(plan):
+        if row.get("execution", {}).get("mode") == "exp024-staged":
+            from experiments.exp024.collection import completed
+            from pingstore.materialize import materialize_run
+            presentation = completed(REPO, plan, row)
+            # This is the explicitly requested publication command, not a stage.
+            materialize_run(REPO / ".pingstore", presentation.record["run_id"], checkout / ".artifacts")
+            promoted.append(row["slug"])
+            continue
         promote_experiment(
             root,
             row["slug"],

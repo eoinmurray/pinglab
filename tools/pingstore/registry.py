@@ -67,7 +67,9 @@ def coverage(repo: Path) -> dict[str, Any]:
     capture_routes: dict[str, str] = {}
     for experiment in sorted(runnable):
         stage_dir = repo / "experiments" / experiment
-        if all((stage_dir / f"{stage}.py").is_file() for stage in ("compute", "analyse", "present")):
+        # An audit may reuse another experiment's compute run without owning
+        # a compute stage of its own.
+        if all((stage_dir / f"{stage}.py").is_file() for stage in ("analyse", "present")):
             capture_routes[experiment] = "independent-stages"
             continue
         text = (repo / "experiments" / f"{experiment}.py").read_text()
