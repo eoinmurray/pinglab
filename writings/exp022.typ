@@ -6,6 +6,7 @@
   status: "Results available",
   title: "Training Runs",
   date: "2026-08-11",
+  updated_at: "2026-08-27",
   description: "Seven controlled training families, their retained checkpoint bank, validation learning curves, and raster diagnostics.",
   collection: "gamma-gated-sparsity",
 )

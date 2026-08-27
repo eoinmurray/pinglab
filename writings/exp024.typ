@@ -6,6 +6,7 @@
   status: "Results available",
   title: "Accuracy Plateaus While Firing Rate Rises",
   date: "2026-06-02",
+  updated_at: "2026-08-27",
   description: "Audits validation accuracy and firing-rate stability in unregularised PING and COBA training histories.",
   collection: "gamma-gated-sparsity",
 )

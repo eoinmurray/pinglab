@@ -6,6 +6,7 @@
   status: "Results available",
   title: "Firing Rate Across the Timestep Sweep",
   date: "2026-06-02",
+  updated_at: "2026-08-27",
   description: "Compares final-epoch firing rate, classification accuracy and illustrative rasters across a twentyfold integration-timestep sweep.",
   collection: "gamma-gated-sparsity",
 )

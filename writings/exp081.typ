@@ -7,6 +7,7 @@
   status: "Results available",
   title: "How Pixel Features Respond to Input Rate",
   date: "2026-08-10",
+  updated_at: "2026-08-27",
   description: "Standalone empirical and analytical study of synaptic, membrane, and finite-window filtering under sparse Poisson drive.",
   collection: "gamma-gated-sparsity",
 )
