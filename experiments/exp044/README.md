@@ -61,7 +61,7 @@ ancestor and updated this chain's pins without changing scientific outputs.
 The source-boundary policy below remains unchanged; its historical references
 record the circumstances of the original execution.
 
-The user explicitly selected `.pingstore/runs/exp022-r001-compute-slurm` as the
+The user explicitly selected `.pingstore/runs/exp022-r001-compute` as the
 new source data for exp044. This is a scoped source-boundary instruction: exp044
 validates and pins the selected v3 bank's complete payload and authoritative
 manifest, but does not recursively require its older import sources. Its 15
@@ -93,13 +93,14 @@ production results. Ruff and `git diff --check` passed. The inherited Matplotlib
 
 ## Production execution
 
-The full production recipe completed on 2026-08-27 with `PINGLAB_SMOKE=0`:
+The full production recipe completed on 2026-08-27 with `PINGLAB_SMOKE=0`.
+The table uses the current source-neutral identities:
 
 | Stage | Completed run |
 | --- | --- |
-| Compute | `exp044-r002-compute-local` |
-| Analyse | `exp044-r003-analyse-local` |
-| Present | `exp044-r004-present-local` |
+| Compute | `exp044-r002-compute` |
+| Analyse | `exp044-r003-analyse` |
+| Present | `exp044-r004-present` |
 
 Compute evaluated 1,000 official-test images for each of 15 final checkpoints and
 retained five raster probes. Mean E rates across seeds ranged from 13.84 to
@@ -110,7 +111,8 @@ payload and pinned-source validation. The production article compiled to four
 preview pages, all visually inspected. No training, publication or materialization
 into `.artifacts/` was performed.
 
-The bank's before/after references matched exactly:
+The bank's before/after references matched exactly during that production
+execution. These historical hashes precede the later ancestry and ID migrations:
 
 - Payload: `sha256:2513137c209022d1c68308c1705cae2c45c4c461f1315ea58e02fb7d4600d881`
 - Authoritative manifest SHA-256: `fa83345874e50809363b92c4970e9045bcac530a27ac04c89246625371dcee7c`
@@ -121,3 +123,18 @@ instruction, `exp044-r001-compute-local` failed because the imported configurati
 requested unavailable CUDA; its hidden incomplete directory is retained for
 inspection and is not scientific evidence. The successful retry used a fresh
 identity after fixing device selection. No source evidence was rewritten.
+
+
+## Bank origin correction
+
+The selected bank was previously named `exp022-r001-compute-slurm`. The subsequent
+`exp022-r001-compute-local` identity described the local import; historical
+training remains Slurm. The separately authorized
+[origin correction](../exp022/README.md#local-import-origin-correction) updated
+all three exp044 runs' pins and selected-bank references without changing their
+scientific outputs, original execution records or selected-bank boundary.
+
+The current bank is `exp022-r001-compute`. The
+[source-neutral naming migration](../../tools/pingstore/SOURCE_NEUTRAL_IDS.md)
+removed execution-source suffixes from all completed runs and updated their pins.
+Local import origin and historical Slurm training remain explicit in `run.json`.

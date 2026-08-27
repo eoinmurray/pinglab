@@ -32,8 +32,9 @@ management CLI.
   consumption. The checksum covers every payload file, including optional notes,
   evidence and nested metadata; it excludes only the root authoritative run.json.
 - New staged run IDs include compute, analyse or present, for example
-  `exp022-r001-compute-local`; preserve historical IDs without granting operational
-  eligibility. IDs begin with the experiment and end with execution source. Record stage and input
+  `exp022-r001-compute`; execution origin belongs in run.json, not the ID.
+  Existing valid v3 suffixed runs remain readable until explicitly migrated;
+  historical v2 evidence remains non-operational. Record stage and input
   references in run.json, never infer provenance from the name.
 - Write a run first as `.pingstore/runs/.<run-id>.tmp/`; atomically rename it to
   the visible run ID only after every output and `run.json` is complete.

@@ -195,8 +195,8 @@ def test_failed_analysis_remains_hidden(stage_repo):
     write_json_atomic(root / "run.json", record)
     with pytest.raises(PingstoreError, match="sample shape"):
         analyse.analyse(identity)
-    assert not list((repo / ".pingstore/runs").glob("exp081-*-analyse-*"))
-    assert list((repo / ".pingstore/runs").glob(".exp081-*-analyse-*.tmp"))
+    assert not list((repo / ".pingstore/runs").glob("exp081-*-analyse"))
+    assert list((repo / ".pingstore/runs").glob(".exp081-*-analyse.tmp"))
 
 
 def test_zero_sample_summary_has_no_nonfinite_json():
@@ -255,7 +255,10 @@ def test_collection_reserves_dispatches_and_resumes_without_v2_capture(
     )
     assert row["execution"]["mode"] == "exp081-staged"
     identities = collection.reserve(repo, row, origin="slurm-wilkes")
-    assert all(identity.endswith("slurm-wilkes") for identity in identities.values())
+    for stage, identity in identities.items():
+        assert identity.endswith("-" + stage)
+        reservation = load_json(repo / ".pingstore/runs" / f".{identity}.tmp" / "provenance/reservation.json")
+        assert reservation["origin"] == "slurm-wilkes"
     calls = []
 
     def dispatch(command, **kwargs):

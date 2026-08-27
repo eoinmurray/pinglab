@@ -13,12 +13,23 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from .contracts import (
-    EXPERIMENT_RE, RUN_SCHEMA, PingstoreError, file_sha256, load_json,
-    payload_digest, run_root, validate_operational_run_directory, write_json_atomic,
+    EXPERIMENT_RE,
+    RUN_SCHEMA,
+    STAGE_ID_RE,
+    PingstoreError,
+    file_sha256,
+    load_json,
+    payload_digest,
+    run_root,
+    validate_operational_run_directory,
+    write_json_atomic,
 )
 from .layout import (
-    display_manifest, export_directory, has_presentation_content,
-    initialize_layout, presentation_directory,
+    display_manifest,
+    export_directory,
+    has_presentation_content,
+    initialize_layout,
+    presentation_directory,
 )
 from .native import execution_origin
 from .registry import memberships
@@ -98,7 +109,7 @@ def reserve_stage(root: Path, experiment: str, stage: str,
                   if (match := pattern.match(path.name))), default=0)
     while True:
         number += 1
-        identity = f"{experiment}-r{number:03d}-{stage}-{origin}"
+        identity = f"{experiment}-r{number:03d}-{stage}"
         directory = runs / f".{identity}.tmp"
         if (runs / identity).exists():
             continue
@@ -127,6 +138,12 @@ def stage_reservation(directory: Path) -> dict:
     reservation = load_json(path)
     if reservation.get("schema") != RUN_SCHEMA:
         raise PingstoreError("stage execution requires a v3 reservation")
+    match = STAGE_ID_RE.fullmatch(str(reservation.get("run_id", "")))
+    if (match is None or match.group(1) != reservation.get("experiment")
+            or match.group(3) != reservation.get("stage")):
+        raise PingstoreError("stage execution requires a source-neutral reservation; reserve a fresh identity")
+    if not re.fullmatch(r"[a-z0-9][a-z0-9.-]*", str(reservation.get("origin", ""))):
+        raise PingstoreError("invalid reservation execution origin")
     return reservation
 
 

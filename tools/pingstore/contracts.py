@@ -14,6 +14,7 @@ LEGACY_RUN_SCHEMA = "pingstore.run/v2"
 RUN_SCHEMA = "pingstore.run/v3"
 EXPERIMENT_RE = re.compile(r"^exp[0-9]{3}$")
 RUN_ID_RE = re.compile(r"^exp[0-9]{3}-[a-z0-9][a-z0-9.-]*$")
+STAGE_ID_RE = re.compile(r"^(exp[0-9]{3})-r([0-9]{3,})-(compute|analyse|present)$")
 VIEW_RE = re.compile(r"^[a-z0-9][a-z0-9./-]*$")
 
 
@@ -67,17 +68,19 @@ def validate_run(value: dict[str, Any]) -> dict[str, Any]:
         stage = value["stage"]
         if stage not in ("compute", "analyse", "present"):
             raise PingstoreError("stage must be compute, analyse or present")
-        # Counter-first names sort by execution order. Read the original
-        # stage-first format too so historical backups remain valid evidence.
-        patterns = (rf"{experiment}-r[0-9]{{3,}}-{stage}-[a-z0-9][a-z0-9.-]*",)
+        # New IDs are source-neutral. Existing v3 suffixed runs remain readable
+        # without rewriting evidence; only an explicit migration changes them.
+        neutral = re.fullmatch(rf"{experiment}-r[0-9]{{3,}}-{stage}", run_id)
+        patterns = (rf"{experiment}-r[0-9]{{3,}}-{stage}",
+                    rf"{experiment}-r[0-9]{{3,}}-{stage}-[a-z0-9][a-z0-9.-]*")
         if value["schema"] == LEGACY_RUN_SCHEMA:
             patterns = (
                 rf"{experiment}-r[0-9]+-{stage}-[a-z0-9][a-z0-9.-]*",
                 rf"{experiment}-{stage}-r[0-9]+-[a-z0-9][a-z0-9.-]*",
             )
         if not any(re.fullmatch(pattern, run_id) for pattern in patterns):
-            raise PingstoreError("staged run ID must encode experiment, counter, stage and origin")
-        if not run_id.endswith("-" + str(value.get("origin", ""))):
+            raise PingstoreError("staged run ID must encode experiment, counter and stage")
+        if (value["schema"] == LEGACY_RUN_SCHEMA or not neutral) and not run_id.endswith("-" + str(value.get("origin", ""))):
             raise PingstoreError("staged run ID and execution origin differ")
         if not isinstance(value.get("inputs"), dict):
             raise PingstoreError("staged runs require explicit inputs (empty for new compute)")

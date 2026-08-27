@@ -1,6 +1,6 @@
 # Experiment Runner Guide
 
-Version: **2.0.0**
+Version: **3.0.0**
 
 The Experiment Runner Guide defines the conventions for Pinglab's experiment
 execution code and independent compute, analyse and present stages. This file
@@ -16,6 +16,10 @@ change requirements. Update the version above and add a short entry to the
 version history when changing the guide.
 
 ### 1.1. Version history
+
+- **3.0.0** — Use source-neutral staged IDs and reservations, following Storage
+  Guide 3.0.0. Execution location remains explicit manifest metadata; stage
+  boundaries and the v3 schema are unchanged.
 
 - **2.0.0** — Require v3 for all operational execution and inputs, aligning with
   Storage Guide 2.0.0. Remove legacy capture, discovery, publication and reservation
@@ -59,9 +63,12 @@ payloads to preserve the original and give the new compute run a self-contained
 export. Operational inputs must still resolve to validated v3 runs; migration
 evidence belongs in provenance, not in an unresolved or v2 operational input pin.
 
-Use `--run-id` only for an identity reserved before dispatch. Distributed compute
-may own mutable campaign/checkpoint working directories until completion; those
-are not completed scientific evidence. Scheduler retries and checkpoint recovery
+Run IDs contain the experiment, counter and stage, for example
+`exp022-r001-compute`. Local, Slurm and RunPod execution share that format;
+`origin` and execution records carry location and scheduler provenance.
+Use `--run-id` only for a source-neutral identity reserved before dispatch.
+Distributed compute may own mutable campaign/checkpoint working directories until
+completion; those are not completed scientific evidence. Scheduler retries and checkpoint recovery
 remain inside compute. A failed stage leaves its hidden run for inspection, never
 modifies an earlier completed run, and is not silently resumed by a downstream
 stage. Rerun with a fresh identity unless a compute-specific recovery procedure
@@ -97,9 +104,9 @@ presentations are not valid publication inputs.
 
 ## 5. Progressive example
 
-Compute produces `exp022-r001-compute-local`; analyse reads it and produces
-`exp022-r002-analyse-local`; present reads that and produces
-`exp022-r003-present-local`. Preview selects the third run.
+Compute produces `exp022-r001-compute`; analyse reads it and produces
+`exp022-r002-analyse`; present reads that and produces
+`exp022-r003-present`. Preview selects the third run.
 
 - Change colours: present the same analysis again, producing a new run.
 - Change an estimator: analyse the same compute evidence, then present explicitly.

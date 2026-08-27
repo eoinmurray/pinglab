@@ -84,13 +84,14 @@ operation; restored v2 originals must remain outside operational use.
 
 ## Repaired Gold-2 migration
 
-The following local runs were created without training or simulation:
+The following runs were created locally without training or simulation. The IDs
+below use the current source-neutral convention:
 
 | Stage | Completed run | Output |
 | --- | --- | --- |
-| Compute import | `exp022-r001-compute-slurm` | 102 cells, 408 unchanged scientific files under `export/cells/` |
-| Analyse | `exp022-r002-analyse-local` | Results, checkpoint-role inventories and plot-ready curves under `export/` |
-| Present | `exp022-r003-present-local` | Seven regenerated curve figures, numbers and 35 carried historical raster/comparison images |
+| Compute import | `exp022-r001-compute` | 102 cells, 408 unchanged scientific files under `export/cells/` |
+| Analyse | `exp022-r002-analyse` | Results, checkpoint-role inventories and plot-ready curves under `export/` |
+| Present | `exp022-r003-present` | Seven regenerated curve figures, numbers and 35 carried historical raster/comparison images |
 
 The unchanged source is `exp022-gold-2-repaired-slurm`. Its 60 inherited and
 42 repaired cells remain distinct in the copied historical provenance. Both
@@ -124,7 +125,7 @@ preserved in the repair records; no v2 source is used operationally.
 
 ```sh
 # Analyse the imported bank; prints a NEW analyse ID.
-uv run python experiments/exp022/analyse.py --source exp022-r001-compute-slurm
+uv run python experiments/exp022/analyse.py --source exp022-r001-compute
 ```
 
 Reuse images retained in a v3 presentation
@@ -132,8 +133,8 @@ of the exact same analysis and compute bank. This creates a new presentation run
 
 ```sh
 uv run python experiments/exp022/present.py \
-  --source exp022-r002-analyse-local \
-  --retained-presentation exp022-r003-present-local
+  --source exp022-r002-analyse \
+  --retained-presentation exp022-r003-present
 ```
 
 This redraws all seven curves with the label `validation accuracy (%)`, without
@@ -145,7 +146,7 @@ To generate genuinely new raw probes later, explicitly run:
 
 ```sh
 uv run python experiments/exp022/compute.py \
-  --source exp022-r001-compute-slurm --diagnostics
+  --source exp022-r001-compute --diagnostics
 # Then analyse that NEW compute ID and present its analysis ID.
 ```
 
@@ -157,10 +158,12 @@ identity; collection requires `--runpod --collect --run-id <that-identity>`.
 
 ## Preview and publication
 
-### HPC identity correction
+### HPC identity correction (superseded)
+
+This historical naming decision was reversed by the local-origin correction below.
 
 On 2026-08-27, at the user's request, `exp022-r001-compute-local` was renamed
-to `exp022-r001-compute-slurm`. This run's suffix and `origin` now describe
+to `exp022-r001-compute-slurm`. At that point its suffix and `origin` described
 the historical Slurm computation. Its recorded local import command, host and
 timestamps remain unchanged; `origin_semantics` and `scientific_execution`
 make that distinction explicit. Earlier migration records retain their old IDs.
@@ -178,6 +181,39 @@ validation. The historical `exp022-gold-2-repaired-slurm` source was already
 absent from the live store; its unresolved references in r001 and r003 remain
 unchanged. The preview was briefly paused during activation and resumed.
 No training, analysis, rendering, materialization or publication was performed.
+
+### Local import origin correction
+
+On 2026-08-27 the user authorized restoring `exp022-r001-compute-local` and
+`origin: local`, matching the actual import command and host. Historical
+`scientific_execution.origin: slurm`, all job records, checkpoint roles, and
+original import timestamps are unchanged. The earlier HPC-name decision remains
+in the migration history; it no longer defines the current identity.
+
+The bank and 14 dependent runs were migrated together. All 21 completed runs
+passed v3 layout, checksum and recursive input-pin validation. Only current bank
+labels in three exp022 JSON exports changed; all numerical values, checkpoint,
+array and figure bytes were preserved. Historical execution commands and import
+plans remain evidence of their original operations, not silently rewritten inputs.
+
+The complete rollback tree is
+`.r2/exp022-local-origin-nzqdzl89/originals/`. The adjacent migration journal,
+inventories, scripts and scientific-preservation report record the correction;
+each affected run also retains its original manifest and changed files under
+`provenance/local-origin-correction/`. Restore the complete verified chain only
+under separately authorized recovery. Demolab was paused for activation and
+resumed afterward. No science was rerun and nothing was published or sent to R2.
+
+### Source-neutral IDs
+
+The subsequent authorized naming migration removes execution-source suffixes:
+`exp022-r001-compute`, `exp022-r002-analyse`, `exp022-r003-present` and
+`exp022-r004-present` are the current identities. `origin: local` still describes
+the import; `scientific_execution.origin: slurm` still describes the training.
+All 21 completed runs and their dependent pins were migrated together. See the
+[source-neutral migration record](../../tools/pingstore/SOURCE_NEUTRAL_IDS.md) for
+verification and complete rollback locations. Earlier sections retain the history
+of the superseded naming decisions.
 
 ### Presentation selection
 

@@ -98,6 +98,15 @@ production runtime. That initial code migration created no operational exp042 ru
 
 ## Selective Gold-2 import: 2026-08-27
 
+The current bank is `exp022-r001-compute`; current exp042 IDs are
+`exp042-r001-compute`, `exp042-r002-analyse` and `exp042-r003-present`.
+The [source-neutral naming migration](../../tools/pingstore/SOURCE_NEUTRAL_IDS.md)
+updated all pins while preserving local import origin and Wilkes ancestry.
+The commands, suffixed IDs and sizes below describe the original import, before
+the origin correction and naming migration; retained migration evidence adds bytes.
+Original import plans remain historical evidence; any future import must create
+a fresh plan against the current bank ID and checksums.
+
 The separately authorized import retained the 66 conditions in the current recipe
 and the seed-42, sample-0, sigma-14 ms cycle/per-cell snapshots. This is a subset of
 the historical Wilkes campaign, not a rerun of the current compute implementation.

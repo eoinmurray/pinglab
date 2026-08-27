@@ -231,7 +231,10 @@ def test_collection_plans_use_reserved_stages_and_reject_legacy(repo):
     assert row["command"] == []
     reservations = collection.reserve(root, row, origin="slurm-wilkes")
     assert set(reservations) == {"compute", "analyse", "present"}
-    assert all(value.endswith("-slurm-wilkes") for value in reservations.values())
+    for stage, identity in reservations.items():
+        assert identity.endswith("-" + stage)
+        reservation = load_json(root / ".pingstore/runs" / f".{identity}.tmp" / "provenance/reservation.json")
+        assert reservation["origin"] == "slurm-wilkes"
     assert collection.reserve(root, row) == reservations
     with pytest.raises(PingstoreError, match="legacy exp023"):
         collection.require_staged({"execution": {"mode": "monolithic"}})

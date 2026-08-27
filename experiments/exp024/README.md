@@ -6,7 +6,7 @@ and [Writing Guide](../../writings/README.md). No training or inference is perfo
 ## Independent stages
 
 ```sh
-uv run python experiments/exp024/analyse.py --source exp022-r001-compute-slurm
+uv run python experiments/exp024/analyse.py --source exp022-r001-compute
 uv run python experiments/exp024/present.py --source <printed-exp024-analyse-id>
 ```
 
@@ -69,3 +69,6 @@ binding works unchanged with discovery; absent inputs show the unavailable-data
 notice. Run stages never change `.artifacts/` or publish the site. Materialization
 and publication remain separate authorized operations. Historical exp024 outputs
 have not been migrated or replaced.
+
+Run IDs now use the [source-neutral convention](../../tools/pingstore/SOURCE_NEUTRAL_IDS.md).
+Execution origin remains in `run.json`; migration preserved scientific results.

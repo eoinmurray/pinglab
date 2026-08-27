@@ -42,8 +42,8 @@ being silently rewritten. Publication remains separately authorized.
 ## Evidence and verification boundary
 
 This refactor does not migrate legacy runs or constitute a new scientific run.
-The full-profile local chain is `exp081-r001-compute-local`,
-`exp081-r002-analyse-local` and `exp081-r003-present-local`.
+The full-profile local chain is `exp081-r001-compute`,
+`exp081-r002-analyse` and `exp081-r003-present`.
 The current conformance pass reused those completed runs without simulation.
 Historical interpretations remain in the article's Discussion and Conclusion;
 they require verification against selected scientific evidence before publication.
@@ -53,3 +53,6 @@ selected. Test fixtures and render checks are not scientific evidence.
 For undefined correlations or ratios, analysis now records JSON null instead of
 nonfinite numbers; normal nondegenerate comparisons retain the original estimator.
 An all-zero distribution uses a 0–5 mV histogram range to keep valid bin edges.
+
+Run IDs now use the [source-neutral convention](../../tools/pingstore/SOURCE_NEUTRAL_IDS.md).
+Execution origin remains in `run.json`; migration preserved scientific results.

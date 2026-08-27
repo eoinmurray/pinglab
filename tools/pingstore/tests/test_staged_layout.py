@@ -1,11 +1,17 @@
 """v3 enforcement and mixed-store compatibility; no scientific execution."""
 
-import pytest
+from concurrent.futures import ThreadPoolExecutor
 
+import pytest
 from pingstore import stages
 from pingstore.contracts import (
-    LEGACY_RUN_SCHEMA, RUN_SCHEMA, PingstoreError, load_json, payload_digest,
-    validate_run_directory, write_json_atomic,
+    LEGACY_RUN_SCHEMA,
+    RUN_SCHEMA,
+    PingstoreError,
+    load_json,
+    payload_digest,
+    validate_run_directory,
+    write_json_atomic,
 )
 from pingstore.discovery import discover_runs
 from pingstore.layout import export_directory, initialize_layout, presentation_directory
@@ -14,7 +20,8 @@ from pingstore.materialize import materialize_run, materialize_view
 
 def make_run(store, stage="present", *, number=1, schema=RUN_SCHEMA):
     suffix = f"-{stage}" if stage else ""
-    identity = f"exp001-r{number:03d}{suffix}-local"
+    origin_suffix = "-local" if schema == LEGACY_RUN_SCHEMA else ""
+    identity = f"exp001-r{number:03d}{suffix}{origin_suffix}"
     directory = store / "runs" / identity
     initialize_layout(directory, "exp001", schema=schema)
     record = {
@@ -167,18 +174,22 @@ def test_legacy_evidence_is_rejected_by_operational_readers(tmp_path, stage):
     assert before == ((directory / "run.json").read_bytes(), payload_digest(directory))
 
 
-def test_stage_writer_finishes_v3_with_separate_evidence(tmp_path, monkeypatch):
+@pytest.mark.parametrize("origin", ["local", "slurm-wilkes", "runpod"])
+def test_stage_writer_finishes_v3_with_separate_evidence(tmp_path, monkeypatch, origin):
     monkeypatch.setattr(stages, "memberships", lambda repo: {"exp001": "demo"})
     monkeypatch.setattr(stages, "_capture_code", lambda repo, directory: {
         "git_commit": "fixture", "dirty": False,
     })
-    identity = stages.reserve_stage(tmp_path / ".pingstore", "exp001", "present", origin="local")
+    identity = stages.reserve_stage(tmp_path / ".pingstore", "exp001", "present", origin=origin)
+    assert identity == "exp001-r001-present"
     temporary = tmp_path / ".pingstore/runs" / f".{identity}.tmp"
     assert stages.stage_reservation(temporary)["schema"] == RUN_SCHEMA
     with stages.stage_run(tmp_path, "exp001", "present", run_id=identity) as run:
         (run.export / "numbers.json").write_text("{}")
     assert not temporary.exists()
-    assert validate_run_directory(run.directory)["schema"] == RUN_SCHEMA
+    record = validate_run_directory(run.directory)
+    assert record["schema"] == RUN_SCHEMA
+    assert record["origin"] == origin
     assert (run.export / "_manifest.json").is_file()
     assert (run.provenance / "run.sh").is_file()
     assert not (run.export / "provenance").exists()
@@ -193,3 +204,50 @@ def test_legacy_reservation_is_not_rewritten(tmp_path):
         stages.stage_reservation(tmp_path)
     assert old.read_bytes() == before
     assert not (tmp_path / "provenance").exists()
+
+
+def test_source_neutral_reservations_keep_origin_and_avoid_cross_origin_collisions(tmp_path):
+    runs = tmp_path / "runs"
+    # All earlier formats occupy their counters, including incomplete evidence.
+    (runs / "exp001-r007-compute-local").mkdir(parents=True)
+    (runs / ".exp001-analyse-r008-slurm.tmp").mkdir()
+    (runs / "exp001-r009-present").mkdir()
+    origins = ["local", "slurm-wilkes", "runpod"] * 4
+    with ThreadPoolExecutor(max_workers=6) as pool:
+        identities = list(pool.map(lambda origin: stages.reserve_stage(
+            tmp_path, "exp001", "compute", origin=origin), origins))
+    assert len(set(identities)) == len(origins)
+    for origin, identity in zip(origins, identities):
+        assert identity.endswith("-compute")
+        assert int(identity.split("-")[1][1:]) >= 10
+        reservation = stages.stage_reservation(runs / f".{identity}.tmp")
+        assert reservation["origin"] == origin
+
+
+@pytest.mark.parametrize("origin", ["local", "slurm-wilkes", "runpod"])
+def test_existing_suffixed_v3_is_readable_without_rewriting(tmp_path, origin):
+    directory = make_run(tmp_path)
+    record = load_json(directory / "run.json")
+    record.update(run_id=directory.name + "-" + origin, origin=origin)
+    renamed = directory.with_name(record["run_id"])
+    directory.rename(renamed)
+    write_json_atomic(renamed / "run.json", record)
+    before = (renamed / "run.json").read_bytes()
+    assert stages.source_run(tmp_path, renamed.name).record["origin"] == origin
+    assert (renamed / "run.json").read_bytes() == before
+    record["origin"] = "different-origin"
+    write_json_atomic(renamed / "run.json", record)
+    with pytest.raises(PingstoreError, match="execution origin differ"):
+        stages.source_run(tmp_path, renamed.name)
+
+
+def test_suffixed_reservation_cannot_be_completed(tmp_path):
+    path = tmp_path / "runs/.exp001-r001-compute-local.tmp"
+    reservation = path / "provenance/reservation.json"
+    write_json_atomic(reservation, {"schema": RUN_SCHEMA,
+        "run_id": "exp001-r001-compute-local", "experiment": "exp001",
+        "stage": "compute", "origin": "local"})
+    before = reservation.read_bytes()
+    with pytest.raises(PingstoreError, match="source-neutral reservation"):
+        stages.stage_reservation(path)
+    assert reservation.read_bytes() == before

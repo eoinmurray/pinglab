@@ -1,6 +1,6 @@
 # Storage Guide
 
-Version: **2.0.0**
+Version: **3.0.0**
 
 The Storage Guide defines Pinglab's Pingstore filesystem convention for storing,
 validating and consuming scientific runs. This file is the canonical guide.
@@ -18,6 +18,10 @@ The guide version is separate from run schema versions such as `pingstore.run/v3
 Changing this guide does not itself migrate existing runs or authorize a migration.
 
 ### 1.1. Version history
+
+- **3.0.0** — Require source-neutral IDs for new staged runs and reservations.
+  Keep origin in the v3 manifest; retain read support for existing suffixed v3
+  runs until explicitly migrated. Schema fields and v2 rejection are unchanged.
 
 - **2.0.0** — Require v3 for all operational storage paths; remove allowances
   for v2 reads, legacy capture, discovery, publication and reservation completion.
@@ -41,8 +45,9 @@ service, database, catalogue, or general command-line interface.
 This is `pingstore.run/v3`, required for all local/HPC executions. No other
 root entries or symlinks are accepted. Compute/analyse exports may contain
 subdirectories; present exports contain only flat regular files. No empty
-presentation directory is created. Run IDs begin with the experiment and end
-with execution source; v3 requires an explicit stage and input references.
+presentation directory is created. New run IDs contain the experiment, counter and stage only;
+execution source belongs in `origin` and `execution`, not in the ID. V3 requires
+an explicit stage and input references.
 
 `run.json` records execution, source provenance,
 and `payload_digest`: SHA-256 of UTF-8 compact, sorted-key JSON of the sorted
@@ -108,19 +113,31 @@ byte-preserved outputs and updated input pins; see
 
 ## 4. Independent experiment stages
 
-New staged runs use `<experiment>-rNNN-<stage>-<origin>`, for example
-`exp022-r001-compute-local`, `exp022-r002-analyse-local` and
-`exp022-r003-present-local`. Earlier stage-first IDs remain readable for
-historical evidence and backups; the allocator only creates counter-first IDs.
-Historical non-staged IDs remain unchanged. The explicitly authorized reorder
-of the three new exp022 runs is recorded in that experiment's migration guide.
-`stage` is compute, analyse or present: an execution label, not a mutable state.
-The numeric allocator accounts for visible and hidden identities; exclusive
-temporary-directory creation reserves each full identity before work/dispatch.
-Wilkes campaigns use `--execution-origin slurm-wilkes` to reserve that suffix
-before submission; the default `campaign` permits mixed workers without claiming
-one training host. Individual job IDs remain in cell execution records. RunPod dispatch similarly
-reserves a run-specific remote namespace before creating pods.
+New staged runs use `<experiment>-rNNN-<stage>`, for example
+`exp022-r001-compute`, `exp022-r002-analyse` and `exp022-r003-present`.
+Do not append `local`, `slurm`, `runpod`, a cluster name or a job ID. Record the
+operation's location in `origin` and `execution`; preserve original scientific
+producer information separately for imported evidence. A future HPC computation
+uses the same naming scheme as local execution.
+
+The authorized migration of the current 21 completed runs is documented in the
+[source-neutral migration record](SOURCE_NEUTRAL_IDS.md), including preservation
+checks and recovery locations.
+
+The v3 manifest fields and payload layout are unchanged. Readers still validate
+existing counter-first, origin-suffixed v3 runs without renaming them. Their
+recorded origin must match their historical suffix. This does not grant v2 runs
+or stage-first IDs operational eligibility. Writers and reservation consumers
+require the new source-neutral shape; never resume or rewrite an older suffixed
+reservation automatically. Existing runs and reservations change only through
+an explicitly authorized, reversible migration.
+
+The allocator counts visible and hidden identities in both old and new formats.
+Exclusive temporary-directory creation reserves each complete identity before
+work or dispatch, independently of execution origin. Wilkes campaigns retain
+`--execution-origin slurm-wilkes` as manifest metadata; `campaign` permits mixed
+workers without claiming one training host. Individual job IDs remain in cell
+execution records. RunPod similarly reserves its identity before dispatch.
 
 Every `run.json` requires `stage` and `inputs`. `inputs` maps explicit roles to
 `{run_id, payload_digest, run_json_sha256}`; an initial compute run has

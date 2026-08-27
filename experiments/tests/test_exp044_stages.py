@@ -409,7 +409,10 @@ def test_collection_reserves_and_dispatches_explicit_stages(lab, monkeypatch):
     assert row["command"] == []
     assert row["execution"]["stages"] == ["compute", "analyse", "present"]
     ids = collection.reserve(root, row, origin="slurm-wilkes")
-    assert all(value.endswith("-slurm-wilkes") for value in ids.values())
+    for stage, identity in ids.items():
+        assert identity.endswith("-" + stage)
+        reservation = load_json(root / ".pingstore/runs" / f".{identity}.tmp" / "provenance/reservation.json")
+        assert reservation["origin"] == "slurm-wilkes"
     assert collection.reserve(root, row) == ids
     with pytest.raises(PingstoreError, match="legacy exp044"):
         collection.require_staged({"execution": {"mode": "monolithic"}})

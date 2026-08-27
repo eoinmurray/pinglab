@@ -23,10 +23,17 @@ modified. The snapshot remains historical evidence, not an operational v3 run.
 
 ## Operational ancestry
 
-The imported bank remains `exp022-r001-compute-slurm`, preserving the user's
-earlier identity decision. Its original scientific execution and local import
-timestamps are unchanged. The new ancestry repair records its own local origin
-and timestamp separately.
+The current bank is `exp022-r001-compute`. The later
+[source-neutral naming migration](../../tools/pingstore/SOURCE_NEUTRAL_IDS.md)
+removed suffixes from all 21 completed runs without changing scientific ancestry.
+The IDs below record the earlier repairs and handover.
+
+At this ancestry repair, the imported bank retained the earlier
+`exp022-r001-compute-slurm` identity. The separately authorized
+[local-origin correction](README.md#local-import-origin-correction) subsequently
+restored `exp022-r001-compute-local`: that suffix described the local import;
+historical scientific execution remains Slurm. Original execution and import
+timestamps are unchanged. Each migration records its own local timestamp.
 
 The bank is self-contained and now has no operational inputs. The former missing
 `exp022-gold-2-repaired-slurm` input is preserved under `historical_ancestor`,

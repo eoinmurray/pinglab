@@ -244,7 +244,7 @@ def test_collection_retries_presentation_with_fresh_id_and_reuses_analysis(repo,
     with pytest.raises(RuntimeError, match="plot failure"):
         collection.execute(repo, plan, row)
     refs_before = load_json(Path(row["required_outputs"][0]))
-    failed = next((repo / ".pingstore/runs").glob(".exp024-*-present-*.tmp"))
+    failed = next((repo / ".pingstore/runs").glob(".exp024-*-present.tmp"))
     failed_digest = payload_digest(failed)
     monkeypatch.setattr(present, "plot_model_curves", original_plot)
     refs = collection.execute(repo, plan, row)

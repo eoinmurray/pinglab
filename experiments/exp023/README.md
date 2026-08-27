@@ -37,8 +37,8 @@ materialization/publication requires separate authorization.
   test: it reports the band peak only when I activity is present. It must not
   be interpreted as proof of gamma or as an independent measured absence in COBA.
 - Current simulator defaults are not evidence of historical execution. The local
-  production chain is `exp023-r001-compute-local`, `exp023-r002-analyse-local`
-  and `exp023-r003-present-local`. This conformance pass reused it. The
+  production chain is `exp023-r001-compute`, `exp023-r002-analyse`
+  and `exp023-r003-present`. This conformance pass reused it. The
   article renders quantities only from a selected presentation; absent evidence
   produces the shared unavailable-data notice.
 
@@ -66,3 +66,6 @@ Tests use fabricated arrays in temporary stores, not scientific experiments:
 ```sh
 uv run pytest experiments/tests/test_exp023_drive_provenance.py experiments/tests/test_exp023_stages.py
 ```
+
+Run IDs now use the [source-neutral convention](../../tools/pingstore/SOURCE_NEUTRAL_IDS.md).
+Execution origin remains in `run.json`; migration preserved scientific results.
