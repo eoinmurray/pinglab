@@ -20,7 +20,7 @@ RUNNER_ARGUMENTS: dict[str, tuple[str, ...]] = {
     "exp037": ("--skip-training",),
     "exp038": ("--skip-training",),
     "exp041": ("--skip-training",),
-    "exp042": ("--skip-training",),
+    "exp042": (),
     "exp044": (),
     "exp046": (),
     "exp047": (),
@@ -45,7 +45,7 @@ EXTRA_REQUIRED_OUTPUTS: dict[str, tuple[str, ...]] = {
 
 
 def runner_command(slug: str) -> list[str]:
-    if slug in {"exp023", "exp024", "exp044", "exp081"}:
+    if slug in {"exp023", "exp024", "exp042", "exp044", "exp081"}:
         # The adapter dispatches explicit source/run IDs, never this legacy command.
         return []
     return [
@@ -85,12 +85,13 @@ def build_plan(root: Path, campaign_id: str, *, smoke: bool = False) -> dict[str
         execution = {"mode": "monolithic"}
         if experiment.slug == "exp024":
             execution = {"mode": "exp024-staged", "stages": ["analyse", "present"]}
-        elif experiment.slug in {"exp023", "exp044", "exp081"}:
+        elif experiment.slug in {"exp023", "exp042", "exp044", "exp081"}:
             execution = {"mode": f"{experiment.slug}-staged", "stages": ["compute", "analyse", "present"]}
         contract = workload_contract(experiment.slug, smoke=smoke)
         if shard_count(experiment.slug) > 1:
             execution = {
-                "mode": "sharded-inference",
+                "mode": "exp042-staged" if experiment.slug == "exp042" else "sharded-inference",
+                **({"stages": ["compute", "analyse", "present"]} if experiment.slug == "exp042" else {}),
                 "shards": shard_count(experiment.slug),
                 "partition": "ordered-round-robin",
                 "workload_contract": contract,
@@ -107,7 +108,7 @@ def build_plan(root: Path, campaign_id: str, *, smoke: bool = False) -> dict[str
                 },
                 "command": runner_command(experiment.slug),
                 "execution": execution,
-                "required_outputs": [str(state / "stage-refs.json")] if experiment.slug in {"exp023", "exp024", "exp044", "exp081"} else [
+                "required_outputs": [str(state / "stage-refs.json")] if experiment.slug in {"exp023", "exp024", "exp042", "exp044", "exp081"} else [
                     str(
                         resolved / "derived/.artifacts" / experiment.slug
                         / filename

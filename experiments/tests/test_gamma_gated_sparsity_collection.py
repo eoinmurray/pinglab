@@ -27,6 +27,7 @@ from experiments.collections.gamma_gated_sparsity.graph import (
 from experiments.collections.gamma_gated_sparsity.plan import REPO, build_plan
 from experiments.exp023 import collection as exp023_collection
 from experiments.exp024 import collection as exp024_collection
+from experiments.exp042 import collection as exp042_collection
 from experiments.exp044 import collection as exp044_collection
 from experiments.exp081 import collection as exp081_collection
 
@@ -88,8 +89,7 @@ def test_downstream_cell_banks_resolve_through_exp022_registry() -> None:
         for seed in exp025.LOW_W_IN_SEEDS
     } <= registered["TR-07"]
 
-    exp042_sources = exp042.checkpoint_source_dirs()
-    assert {path.name for path in exp042_sources["exp022_tr02"]} <= registered["TR-02"]
+    assert {exp042.cell_name(seed) for seed in exp042.SEEDS} <= registered["TR-02"]
 
 
 def test_graph_orders_dependencies_and_replaces_exp048_with_exp082() -> None:
@@ -113,9 +113,7 @@ def test_graph_orders_dependencies_and_replaces_exp048_with_exp082() -> None:
 
 
 def test_exp042_declares_checkpoint_sources_by_owner_and_training_run() -> None:
-    sources = exp042.checkpoint_source_dirs()
-    assert set(sources) == {"exp022_tr02"}
-    assert [path.name for path in sources["exp022_tr02"]] == [
+    assert [exp042.cell_name(seed) for seed in exp042.SEEDS] == [
         "ping__off__seed42",
         "ping__off__seed43",
         "ping__off__seed44",
@@ -123,16 +121,16 @@ def test_exp042_declares_checkpoint_sources_by_owner_and_training_run() -> None:
 
 
 def test_exp042_catalog_contains_only_figure_generating_jobs() -> None:
-    jobs = exp042.infer_jobs()
+    jobs = [job["id"] for job in exp042.jobs(exp042.configuration())]
     assert len(jobs) == 66
     assert all("xtau" not in job and "alpha_mix" not in job for job in jobs)
     assert workloads.workload_contract("exp042", smoke=False) == {
         "condition_jobs": 66,
-        "simulator_launches_max": 66,
+        "simulator_launches_max": 69,
     }
     assert workloads.workload_contract("exp042", smoke=True) == {
         "condition_jobs": 39,
-        "simulator_launches_max": 39,
+        "simulator_launches_max": 42,
     }
 
 
@@ -162,7 +160,7 @@ def test_plan_paths_are_isolated_and_all_runners_are_integrated(tmp_path: Path) 
     assert payload["excluded"] == ["exp048"]
     assert payload["blocking_issues"] == []
     assert payload["acceptance_issues"] == []
-    assert all(row["command"] or row["execution"]["mode"] in {"exp023-staged", "exp024-staged", "exp044-staged", "exp081-staged"} for row in rows)
+    assert all(row["command"] or row["execution"]["mode"] in {"exp023-staged", "exp024-staged", "exp042-staged", "exp044-staged", "exp081-staged"} for row in rows)
     audit = next(row for row in rows if row["slug"] == "exp024")
     assert audit["execution"]["stages"] == ["analyse", "present"]
     assert not any(".artifacts" in path for path in audit["required_outputs"])
@@ -243,7 +241,7 @@ def test_local_resume_runs_in_dependency_order(tmp_path: Path, monkeypatch) -> N
 
     # Scientific work is mocked here; real stage-reference validation has its
     # own fixture-run coverage in test_exp024_stages.py and test_exp081.py.
-    for adapter in (exp023_collection, exp024_collection, exp044_collection, exp081_collection):
+    for adapter in (exp023_collection, exp024_collection, exp042_collection, exp044_collection, exp081_collection):
         monkeypatch.setattr(adapter, "completed", lambda repo, plan, row:
                             execution.load_json(Path(row["required_outputs"][0])))
 
@@ -583,7 +581,7 @@ def test_publication_build_runs_promotion_from_separate_checkout(
     monkeypatch.setattr(execution.shutil, "which", lambda _name: "/usr/bin/uv")
     promotions = []
     from pingstore import materialize
-    for adapter in (exp023_collection, exp024_collection, exp044_collection, exp081_collection):
+    for adapter in (exp023_collection, exp024_collection, exp042_collection, exp044_collection, exp081_collection):
         monkeypatch.setattr(adapter, "completed", lambda repo, plan, row:
                             SimpleNamespace(record={"run_id": row["slug"] + "-r003-present-local"}))
     monkeypatch.setattr(materialize, "materialize_run", lambda store, identity, target:
@@ -641,7 +639,7 @@ def test_publication_build_rejects_stubbed_entries(tmp_path: Path, monkeypatch) 
     monkeypatch.setattr(execution.shutil, "which", lambda _name: "/usr/bin/uv")
     monkeypatch.setattr(execution, "promote_experiment", lambda *_args, **_kwargs: None)
     from pingstore import materialize
-    for adapter in (exp023_collection, exp024_collection, exp044_collection, exp081_collection):
+    for adapter in (exp023_collection, exp024_collection, exp042_collection, exp044_collection, exp081_collection):
         monkeypatch.setattr(adapter, "completed", lambda repo, plan, row:
                             SimpleNamespace(record={"run_id": row["slug"] + "-r003-present-local"}))
     monkeypatch.setattr(materialize, "materialize_run", lambda *args: None)
@@ -839,29 +837,9 @@ def test_exp037_shard_completion_uses_checkpoint_cache_tag(
     assert exp037.job_is_done("sweep__coba__seed42__drop__0")
 
 
-def test_exp042_shard_completion_uses_checkpoint_cache_tag(
-    tmp_path: Path, monkeypatch
-) -> None:
-    train_dir = tmp_path / "training" / "ping__off__seed42"
-    checkpoint = {"path": train_dir / "weights_final.pth", "sha256": "b" * 64}
-    monkeypatch.setattr(exp042, "ARTIFACTS", tmp_path / "artifacts")
-    monkeypatch.setattr(exp042, "resolve_checkpoint", lambda *_args: checkpoint)
-    monkeypatch.setattr(exp042, "cache_tag", lambda _checkpoint: "final__bbbb")
-    spec = {
-        "train_dir": train_dir,
-        "condition": "baseline",
-        "seed_offset": 42,
-    }
-
-    expected = (
-        tmp_path
-        / "artifacts"
-        / "baseline"
-        / train_dir.name
-        / "final__bbbb"
-        / "metrics.json"
-    )
-    assert exp042._job_metrics_path(spec) == expected
+def test_exp042_legacy_shard_execution_requires_explicit_v3_bank():
+    with pytest.raises(ValueError, match="explicit v3 bank"):
+        workloads.execute_shard("exp042", 0, 8, smoke=False)
 
 
 def test_plan_records_reviewed_heavy_workload_contracts(tmp_path: Path) -> None:

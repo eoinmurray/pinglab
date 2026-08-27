@@ -15,6 +15,8 @@ from experiments import (
     exp046,
     exp049,
 )
+from experiments.exp042 import recipe as exp042_recipe
+from experiments.exp042 import simulation as exp042_simulation
 from experiments.helpers.checkpoints import sha256_file
 from experiments.helpers.datasets import MNIST_REDUCED_EVAL_SAMPLES
 
@@ -85,12 +87,10 @@ def test_exp042_baseline_inference_is_capped_in_smoke(
         (out_dir / "metrics.json").write_text("{}")
         np.savez(out_dir / "rasters.npz", n_trials=np.int32(0))
 
-    exp042._BASE_CACHE.clear()
-    monkeypatch.setattr(exp042, "ARTIFACTS", tmp_path / "derived")
-    monkeypatch.setattr(exp042, "SMOKE", True)
-    monkeypatch.setattr(exp042, "EVAL_MAX_SAMPLES", 100)
-    monkeypatch.setattr(exp042, "run_cli", fake_run)
-    exp042._run_baseline(train_dir)
+    monkeypatch.setattr(exp042_simulation, "run_cli", fake_run)
+    simulator = exp042_simulation.Simulator(tmp_path / "scratch", tmp_path / "commands",
+                                          exp042_recipe.configuration(smoke=True))
+    simulator._run_baseline(train_dir)
 
     assert observed[observed.index("--max-samples") + 1] == "100"
 
@@ -109,10 +109,10 @@ def test_exp042_production_inference_uses_publication_subset(
     train_dir = tmp_path / "cell"
     train_dir.mkdir()
     _write_final_checkpoint(train_dir, {})
-    monkeypatch.setattr(exp042, "ARTIFACTS", tmp_path / "derived")
-    monkeypatch.setattr(exp042, "EVAL_MAX_SAMPLES", 1000)
-    monkeypatch.setattr(exp042, "run_cli", fake_run)
-    exp042._run_with_override(train_dir, tmp_path / "override.npz")
+    monkeypatch.setattr(exp042_simulation, "run_cli", fake_run)
+    simulator = exp042_simulation.Simulator(tmp_path / "scratch", tmp_path / "commands",
+                                          exp042_recipe.configuration())
+    simulator._run_with_override(train_dir, tmp_path / "override.npz")
     assert observed[observed.index("--max-samples") + 1] == "1000"
 
 
@@ -121,9 +121,10 @@ def test_exp042_override_file_is_deleted_after_inference(
 ) -> None:
     train_dir = tmp_path / "cell"
     train_dir.mkdir()
-    monkeypatch.setattr(exp042, "ARTIFACTS", tmp_path / "derived")
-    monkeypatch.setattr(exp042, "_load_eval", lambda _path: ({"dt": 0.1}, None, None))
-    monkeypatch.setattr(exp042, "_run_baseline", lambda _path: ({}, {}))
+    (train_dir / "config.json").write_text('{"dt": 0.1}')
+    simulator = exp042_simulation.Simulator(tmp_path, tmp_path / "commands",
+                                          exp042_recipe.configuration())
+    monkeypatch.setattr(simulator, "_run_baseline", lambda _path: ({}, {}))
     seen: list[Path] = []
 
     def fake_build(_rasters, _condition, _generator, _dt, path) -> None:
@@ -134,9 +135,9 @@ def test_exp042_override_file_is_deleted_after_inference(
         seen.append(path)
         return {"best_acc": 90.0, "rates_hz": {}, "n_total": 1000}
 
-    monkeypatch.setattr(exp042, "_build_override_file", fake_build)
-    monkeypatch.setattr(exp042, "_run_with_override", fake_run)
-    exp042.evaluate_condition(train_dir, "phase_shuffled_i", seed_offset=42)
+    monkeypatch.setattr(simulator, "_build_override_file", fake_build)
+    monkeypatch.setattr(simulator, "_run_with_override", fake_run)
+    simulator.evaluate(train_dir, {"id": "fixture", "condition": "phase_shuffled_i", "seed_offset": 42})
 
     assert len(seen) == 1
     assert not seen[0].exists()
@@ -157,49 +158,3 @@ def test_smoke_grids_retain_every_writeup_anchor() -> None:
     assert {0.0, 0.5, 1.0, 2.0, 5.0, 9.0, 14.0} <= set(
         exp042.CELL_JITTER_SIGMAS_MS
     )
-
-
-def test_exp042_success_cleanup_keeps_metrics_and_removes_tensor_scratch(
-    monkeypatch, tmp_path: Path,
-) -> None:
-    artifacts = tmp_path / "derived"
-    baseline = artifacts / "baseline" / "cell" / "final"
-    baseline.mkdir(parents=True)
-    (baseline / "metrics.json").write_text("{}\n")
-    np.savez(baseline / "rasters.npz", values=np.zeros(1))
-    ovrun = artifacts / "ovrun" / "condition" / "final"
-    ovrun.mkdir(parents=True)
-    (ovrun / "metrics.json").write_text("{}\n")
-    for name in ("condraster", "override", ".override-tmp"):
-        scratch = artifacts / name
-        scratch.mkdir(parents=True)
-        np.savez(scratch / "scratch.npz", values=np.zeros(1))
-
-    monkeypatch.setattr(exp042, "ARTIFACTS", artifacts)
-    exp042._BASE_CACHE["test"] = ({}, {})
-    exp042._cleanup_successful_intermediates()
-
-    assert (baseline / "metrics.json").exists()
-    assert (ovrun / "metrics.json").exists()
-    assert not (baseline / "rasters.npz").exists()
-    assert not any((artifacts / name).exists() for name in (
-        "condraster", "override", ".override-tmp",
-    ))
-    assert exp042._BASE_CACHE == {}
-
-
-def test_exp042_removed_figures_do_not_survive_skip_training_render(
-    monkeypatch, tmp_path: Path,
-) -> None:
-    figures = tmp_path / "figures"
-    figures.mkdir()
-    obsolete = figures / "xtau_raw_sweeps.svg"
-    retained = figures / "jitter_sweep.svg"
-    obsolete.write_text("old\n")
-    retained.write_text("current\n")
-    monkeypatch.setattr(exp042, "FIGURES", figures)
-
-    exp042._remove_obsolete_outputs()
-
-    assert not obsolete.exists()
-    assert retained.exists()

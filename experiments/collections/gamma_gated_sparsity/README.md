@@ -43,7 +43,9 @@ pinned stage references, not a materialized output directory; stage IDs are
 reserved before live submission. Historical campaigns require their original
 checkout. See the [exp024 notes](../../exp024/README.md) for source validation,
 retries, preview and retention of referenced evidence. Other downstream
-experiments remain monolithic.
+experiments not yet migrated remain monolithic. Exp042 now dispatches eight
+reserved compute shards, completes its compact v3 compute evidence, and invokes
+analyse and present independently; see [its stage notes](../../exp042/README.md).
 Use `slurm-status` to combine scheduler and output state. After a failed campaign,
 `resume` prints the missing-work plan and `resume --live` submits it. Publication is
 a separate `build` command and requires a clean disposable worktree at the campaign

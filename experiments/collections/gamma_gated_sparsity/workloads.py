@@ -13,7 +13,7 @@ SHARD_COUNTS: dict[str, int] = {
 
 PRODUCTION_CONTRACTS: dict[str, dict[str, int]] = {
     "exp037": {"condition_jobs": 204, "simulator_launches_max": 204},
-    "exp042": {"condition_jobs": 66, "simulator_launches_max": 66},
+    "exp042": {"condition_jobs": 66, "simulator_launches_max": 69},
     "exp082": {
         "condition_jobs": 132,
         "simulator_launches_max": 1_058,
@@ -23,7 +23,7 @@ PRODUCTION_CONTRACTS: dict[str, dict[str, int]] = {
 
 SMOKE_CONTRACTS: dict[str, dict[str, int]] = {
     "exp037": {"condition_jobs": 54, "simulator_launches_max": 54},
-    "exp042": {"condition_jobs": 39, "simulator_launches_max": 39},
+    "exp042": {"condition_jobs": 39, "simulator_launches_max": 42},
     "exp082": {
         "condition_jobs": 18,
         "simulator_launches_max": 20,
@@ -58,7 +58,14 @@ def jobs_for_shard(slug: str, index: int, count: int) -> list[str]:
         )
     if not 0 <= index < count:
         raise ValueError(f"shard index {index} outside [0, {count})")
-    jobs = list(_runner(slug).infer_jobs())
+    if slug == "exp042":
+        import os
+
+        from experiments.exp042 import recipe
+        cfg = recipe.configuration(smoke=os.environ.get("PINGLAB_SMOKE") == "1")
+        jobs = [job["id"] for job in recipe.jobs(cfg)]
+    else:
+        jobs = list(_runner(slug).infer_jobs())
     if len(jobs) != len(set(jobs)):
         raise ValueError(f"{slug} inference job IDs must be unique")
     return jobs[index::count]
@@ -73,6 +80,8 @@ def execute_shard(
         )
     if not 0 <= index < count:
         raise ValueError(f"shard index {index} outside [0, {count})")
+    if slug == "exp042":
+        raise ValueError("exp042 shards require the staged adapter and an explicit v3 bank")
     runner = _runner(slug)
     all_jobs = list(runner.infer_jobs())
     contract = workload_contract(slug, smoke=smoke)
