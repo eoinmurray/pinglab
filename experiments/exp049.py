@@ -49,6 +49,7 @@ from helpers.checkpoints import (  # noqa: E402
     cache_tag,
     checkpoint_policy,
     checkpoint_provenance,
+    epoch_metrics,
     resolve_checkpoint,
 )
 from helpers.cli import parse_meta  # noqa: E402
@@ -963,16 +964,15 @@ def fig_attractor(summary_rows, out_path, run_id):
 
 # ── Main ────────────────────────────────────────────────────────────
 def _load_epoch_curves() -> dict:
-    """Read per-epoch metrics.jsonl for every exp049 condition from the shared
+    """Read retained epoch metrics for every exp049 condition from the shared
     training root (exp022 train-once / reuse-many), not exp049's own dir."""
     runs = {}
     for cond in COND_ORDER:
         for seed in SEEDS:
             d = cell_dir(cond, seed)
-            f = d / "metrics.jsonl"
-            if not f.exists():
+            rows = epoch_metrics(d)
+            if not rows:
                 continue
-            rows = [json.loads(ln) for ln in f.read_text().splitlines() if ln.strip()]
             runs[d.name] = {
                 "cond": cond,
                 "ep": [r["ep"] for r in rows],
@@ -986,11 +986,11 @@ def _load_epoch_curves() -> dict:
 
 def _rhythmicity_summary() -> dict:
     """Init / epoch-1 / final lobe–trough contrast (R) per condition, read from the
-    cached per-epoch metrics.jsonl (the exp022 train-once root) — no inference.
+    retained epoch metrics (the exp022 train-once root) — no inference.
 
     This is what §2.4 of exp109 quotes: the trainable inits collapse the rhythm
     within the first logged epoch, while the frozen control holds the canonical R.
-    Because it reads only committed logs, it can be refreshed via
+    Because it reads only retained metrics, it can be refreshed via
     `--plot-only rhythmicity` without re-running the (~29 min) cell inference."""
     curves = _load_epoch_curves()
     trainable = {"trainable_ping_init", "trainable_zero_init", "trainable_small_init"}
@@ -1537,9 +1537,9 @@ def main() -> None:
             }),
         )
         print(f"wrote {figures / 'numbers.json'}")
-    log_runner_event(
-        SLUG, "completed", run_id=run_id, quantitative_rows=len(summary_rows)
-    )
+        log_runner_event(
+            SLUG, "completed", run_id=run_id, quantitative_rows=len(summary_rows)
+        )
 
 
 if __name__ == "__main__":

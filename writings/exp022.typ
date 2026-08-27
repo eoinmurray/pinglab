@@ -262,7 +262,7 @@
   )
 
   #result-figure(
-    "/.artifacts/exp022/rasters/ping__canonical__seed42.png",
+    "/.artifacts/exp022/rasters__ping__canonical__seed42.png",
     "Seed-42 raster and population-rate diagnostic for canonical PING.",
     [Sample raster: canonical PING, seed 42, held-out digit-0 probe.],
   )
@@ -280,7 +280,7 @@
   )
 
   #result-figure(
-    "/.artifacts/exp022/rasters/ping__off__seed42.png",
+    "/.artifacts/exp022/rasters__ping__off__seed42.png",
     "Seed-42 raster for the no-budget PING endpoint in the spike-budget sweep.",
     [Sample raster: PING with spike budget off, seed 42.],
   )
@@ -298,7 +298,7 @@
   )
 
   #result-figure(
-    "/.artifacts/exp022/rasters/ping__tg6__seed42.png",
+    "/.artifacts/exp022/rasters__ping__tg6__seed42.png",
     "Seed-42 raster for PING at tau GABA 6 milliseconds.",
     [Sample raster: PING at $tau_"GABA"=6$ ms, seed 42.],
   )
@@ -316,7 +316,7 @@
   )
 
   #result-figure(
-    "/.artifacts/exp022/rasters/ping__dt0p1__seed42.png",
+    "/.artifacts/exp022/rasters__ping__dt0p1__seed42.png",
     "Seed-42 raster for PING at the standard 0.1 millisecond timestep.",
     [Sample raster: PING at $Delta t=0.1$ ms, seed 42.],
   )
@@ -334,7 +334,7 @@
   )
 
   #result-figure(
-    "/.artifacts/exp022/rasters/frozen_ping__seed42.png",
+    "/.artifacts/exp022/rasters__frozen_ping__seed42.png",
     "Seed-42 raster for the frozen recurrent PING control.",
     [Sample raster: frozen PING recurrent loop, seed 42.],
   )

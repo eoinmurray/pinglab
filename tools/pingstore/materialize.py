@@ -11,17 +11,8 @@ from .contracts import (
     load_json,
     run_root,
     validate_collections,
-    validate_run,
+    validate_run_directory,
 )
-
-RAW_DATA_SUFFIXES = {".h5", ".hdf5", ".npy", ".npz", ".pt", ".pth"}
-
-
-def _ignore(directory: str, names: list[str]) -> set[str]:
-    ignored = {name for name in names if Path(name).suffix.lower() in RAW_DATA_SUFFIXES}
-    if Path(directory).name == "files":
-        ignored.add("state")
-    return ignored
 
 
 def _replace_tree(source: Path, destination: Path) -> None:
@@ -32,7 +23,7 @@ def _replace_tree(source: Path, destination: Path) -> None:
             f"unfinished materialization exists for {destination.name}"
         )
     destination.parent.mkdir(parents=True, exist_ok=True)
-    shutil.copytree(source, staging, ignore=_ignore)
+    shutil.copytree(source, staging)
     try:
         if destination.exists():
             os.rename(destination, previous)
@@ -50,8 +41,8 @@ def _replace_tree(source: Path, destination: Path) -> None:
 
 def materialize_run(root: Path, run_id: str, artifacts_root: Path) -> dict:
     directory = run_root(root, run_id)
-    run = validate_run(load_json(directory / "run.json"))
-    files = directory / "files"
+    run = validate_run_directory(directory)
+    files = directory / "presentation"
     if not files.is_dir():
         raise PingstoreError(f"run files are missing: {run_id}")
     _replace_tree(files, artifacts_root / run["experiment"])
@@ -72,12 +63,12 @@ def materialize_view(root: Path, name: str, destination: Path) -> dict:
     try:
         for run_id in selected:
             directory = run_root(root, run_id)
-            run = validate_run(load_json(directory / "run.json"))
+            run = validate_run_directory(directory)
             experiment = run["experiment"]
             if experiment in experiments:
                 raise PingstoreError(f"view selects multiple runs for {experiment}")
             experiments.add(experiment)
-            shutil.copytree(directory / "files", staging / experiment, ignore=_ignore)
+            shutil.copytree(directory / "presentation", staging / experiment)
         os.rename(staging, destination)
     except Exception:
         shutil.rmtree(staging, ignore_errors=True)

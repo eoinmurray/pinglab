@@ -63,9 +63,9 @@ def test_local_capture_is_flat_complete_and_immutable(tmp_path: Path) -> None:
     run = capture_local_run(repo, "exp001", staging, state=state)
     assert run["run_id"] == "exp001-r001-local"
     root = repo / ".pingstore/runs/exp001-r001-local"
-    assert sorted(path.name for path in root.iterdir()) == ["files", "run.json"]
-    assert (root / "files/result.svg").read_text() == "<svg/>"
-    assert (root / "files/state/weights.pt").read_bytes() == b"weights"
+    assert sorted(path.name for path in root.iterdir()) == ["README.md", "export", "presentation", "run.json"]
+    assert (root / "presentation/result.svg").read_text() == "<svg/>"
+    assert (root / "export/state/weights.pt").read_bytes() == b"weights"
     assert validate_run(load_json(root / "run.json")) == run
     with pytest.raises(PingstoreError, match="already exists"):
         capture_local_run(repo, "exp001", staging, state=state)
@@ -76,16 +76,18 @@ def test_failed_capture_remains_hidden(tmp_path: Path) -> None:
     destination = capture_failed_local_run(repo, "exp001", _staging(tmp_path))
     assert destination.name.startswith(".exp001-r001-failed-")
     assert destination.name.endswith("-local.tmp")
-    assert (destination / "files/result.svg").is_file()
+    assert (destination / "presentation/result.svg").is_file()
     assert not (destination / "run.json").exists()
 
 
 def test_direct_working_run_is_finalized_in_place(tmp_path: Path) -> None:
     repo = _repo(tmp_path)
     temporary = repo / ".pingstore/runs/.exp001-r001-local.tmp"
-    files = temporary / "files"
+    files = temporary / "presentation"
     files.mkdir(parents=True)
-    (files / "_manifest.json").write_text(
+    records = temporary / "export/provenance"
+    records.mkdir(parents=True)
+    (records / "_manifest.json").write_text(
         json.dumps(
             {
                 "run_id": "r001",
@@ -96,8 +98,8 @@ def test_direct_working_run_is_finalized_in_place(tmp_path: Path) -> None:
             }
         )
     )
-    (files / "state").mkdir()
-    (files / "state/checkpoint.pt").write_bytes(b"weights")
+    (temporary / "export/state").mkdir()
+    (temporary / "export/state/checkpoint.pt").write_bytes(b"weights")
     (files / "result.svg").write_text("<svg/>")
 
     run = finalize_local_run(repo, "exp001", temporary)
@@ -105,8 +107,8 @@ def test_direct_working_run_is_finalized_in_place(tmp_path: Path) -> None:
     destination = repo / ".pingstore/runs/exp001-r001-local"
     assert not temporary.exists()
     assert destination.is_dir()
-    assert (destination / "files/state/checkpoint.pt").read_bytes() == b"weights"
-    assert (destination / "files/result.svg").read_text() == "<svg/>"
+    assert (destination / "export/state/checkpoint.pt").read_bytes() == b"weights"
+    assert (destination / "presentation/result.svg").read_text() == "<svg/>"
     assert load_json(destination / "run.json") == run
 
 
@@ -145,7 +147,7 @@ def test_campaign_capture_uses_same_flat_run_layout(
     assert result["runs"] == [run_id]
     run = tmp_path / ".pingstore/runs" / run_id
     assert (run / "run.json").is_file()
-    assert (run / "files/numbers.json").is_file()
+    assert (run / "presentation/numbers.json").is_file()
 
 
 def test_manual_view_materializes_one_run_per_experiment(tmp_path: Path) -> None:
@@ -164,3 +166,177 @@ def test_manual_view_materializes_one_run_per_experiment(tmp_path: Path) -> None
     materialize_view(repo / ".pingstore", "demo/latest", view)
     assert (view / "exp001/result.svg").is_file()
     assert not (view / "exp001/state.npz").exists()
+
+
+def _v1_store(tmp_path: Path, *, relocated_readme: bool = False) -> Path:
+    from pingstore.payload import inventory_payload
+
+    store = tmp_path / "store"
+    run = store / "runs/exp001-r001-local"
+    files = run / "files"
+    (files / "state").mkdir(parents=True)
+    (files / "rasters").mkdir()
+    (files / "state/weights.pth").write_bytes(b"weights")
+    (files / "rasters/example.png").write_bytes(b"picture")
+    (files / "numbers.json").write_text('{"measurement": 42}\n')
+    if relocated_readme:
+        (files / "README.md").write_text("# Original notes\n")
+    digest = inventory_payload(files, run_id=run.name)["payload_digest"]
+    if relocated_readme:
+        (files / "README.md").rename(run / "README.md")
+    (run / "run.json").write_text(json.dumps({
+        "schema": "pingstore.run/v1", "run_id": run.name, "experiment": "exp001",
+        "collection": "demo", "origin": "local", "created_at": "2026-08-27T00:00:00Z",
+        "execution": {"command": ["original", "command"]},
+        "provenance": {"original": True}, "files_digest": "sha256:" + digest,
+    }))
+    return store
+
+
+@pytest.mark.parametrize("relocated_readme", [False, True])
+def test_migration_preserves_all_bytes_and_keeps_rollback(tmp_path, relocated_readme):
+    from pingstore.contracts import validate_run_directory
+    from pingstore.migrate_v2 import activate_store, prepare_store, tree_inventory
+
+    source = _v1_store(tmp_path, relocated_readme=relocated_readme)
+    baseline = tree_inventory(source)
+    work = tmp_path / "migration"
+    report = prepare_store(source, work)
+    assert tree_inventory(source) == baseline
+    run = work / "prepared/runs/exp001-r001-local"
+    manifest = validate_run_directory(run)
+    assert manifest["execution"]["command"] == ["original", "command"]
+    assert manifest["provenance"] == {"original": True}
+    assert (run / "presentation/rasters__example.png").read_bytes() == b"picture"
+    mapping = load_json(run / "export/provenance/format-v1/mapping.json")
+    assert len(mapping["files"]) == report["runs"][0]["source_file_count"]
+    for row in mapping["files"]:
+        assert (run / row["destination"]).read_bytes() == (source / "runs/exp001-r001-local" / row["path"]).read_bytes()
+    activate_store(source, work)
+    assert tree_inventory(work / "rollback") == baseline
+    validate_run_directory(source / "runs/exp001-r001-local")
+    with pytest.raises(PingstoreError):
+        activate_store(source, work)
+
+
+def test_migration_rejects_unexplained_checksum_change(tmp_path):
+    from pingstore.migrate_v2 import prepare_store
+
+    source = _v1_store(tmp_path)
+    (source / "runs/exp001-r001-local/files/state/weights.pth").write_bytes(b"changed")
+    with pytest.raises(PingstoreError, match="checksum mismatch"):
+        prepare_store(source, tmp_path / "migration")
+    assert (source / "runs/exp001-r001-local/files").is_dir()
+
+
+def test_legacy_flattening_refuses_collision(tmp_path):
+    from pingstore.layout import legacy_mapping
+
+    (tmp_path / "rasters").mkdir()
+    (tmp_path / "rasters/example.png").write_bytes(b"nested")
+    (tmp_path / "rasters__example.png").write_bytes(b"flat")
+    with pytest.raises(PingstoreError, match="collision"):
+        legacy_mapping(tmp_path)
+
+
+def test_activation_rechecks_source_and_recovers_interruption(tmp_path, monkeypatch):
+    import os
+
+    from pingstore.migrate_v2 import (
+        activate_store,
+        prepare_store,
+        recover_store,
+        tree_inventory,
+    )
+
+    source = _v1_store(tmp_path)
+    work = tmp_path / "migration"
+    prepare_store(source, work)
+    baseline = tree_inventory(source)
+    original_rename = os.rename
+
+    def fail_second_rename(old, new):
+        if Path(old) == work / "prepared":
+            raise OSError("interrupted")
+        return original_rename(old, new)
+
+    monkeypatch.setattr(os, "rename", fail_second_rename)
+    with pytest.raises(OSError, match="interrupted"):
+        activate_store(source, work)
+    assert tree_inventory(source) == baseline
+    # Simulate process death after the first rename (no exception cleanup).
+    journal = load_json(work / "migration.json")
+    journal["phase"] = "activating"
+    (work / "migration.json").write_text(json.dumps(journal))
+    original_rename(source, work / "rollback")
+    recover_store(source, work)
+    assert tree_inventory(source) == baseline
+    (source / "runs/exp001-r001-local/files/numbers.json").write_text("{}")
+    with pytest.raises(PingstoreError, match="changed since verification"):
+        activate_store(source, work)
+
+
+@pytest.mark.parametrize("invalid", ["nested", "symlink", "extra-root", "corrupt", "old-data-layout"])
+def test_v2_reader_rejects_invalid_payload(tmp_path, invalid):
+    from pingstore.contracts import validate_run_directory
+
+    repo = _repo(tmp_path)
+    run = capture_local_run(repo, "exp001", _staging(tmp_path))
+    directory = repo / ".pingstore/runs" / run["run_id"]
+    if invalid == "nested":
+        (directory / "presentation/nested").mkdir()
+    elif invalid == "symlink":
+        (directory / "presentation/link.svg").symlink_to(directory / "presentation/result.svg")
+    elif invalid == "extra-root":
+        (directory / "extra.txt").write_text("no")
+    elif invalid == "old-data-layout":
+        (directory / "export").rename(directory / "data")
+    else:
+        (directory / "export/derived/state.npz").write_bytes(b"corrupt")
+    with pytest.raises(PingstoreError):
+        validate_run_directory(directory)
+    with pytest.raises(PingstoreError):
+        materialize_run(repo / ".pingstore", run["run_id"], tmp_path / "view")
+    assert not (tmp_path / "view").exists()
+
+
+def test_materialization_copies_presentation_exactly_without_suffix_filter(tmp_path):
+    from pingstore.contracts import payload_digest, write_json_atomic
+
+    repo = _repo(tmp_path)
+    run = capture_local_run(repo, "exp001", _staging(tmp_path))
+    directory = repo / ".pingstore/runs" / run["run_id"]
+    # Fixture assembly only: include an explicitly designated presentation file
+    # whose suffix the v1 materializer would have silently discarded.
+    (directory / "presentation/download.npz").write_bytes(b"presentation download")
+    run["payload_digest"] = payload_digest(directory)
+    write_json_atomic(directory / "run.json", run)
+    materialize_run(repo / ".pingstore", run["run_id"], tmp_path / "view")
+    source = {p.name: p.read_bytes() for p in (directory / "presentation").iterdir()}
+    target = {p.name: p.read_bytes() for p in (tmp_path / "view/exp001").iterdir()}
+    assert target == source
+
+
+@pytest.mark.parametrize("export_root", ["../outside", "/tmp", "export/../../outside", "export/missing", "data/cells", 42])
+def test_run_rejects_invalid_explicit_export_root(tmp_path, export_root):
+    from pingstore.contracts import validate_run_directory, write_json_atomic
+
+    repo = _repo(tmp_path)
+    run = capture_local_run(repo, "exp001", _staging(tmp_path))
+    directory = repo / ".pingstore/runs" / run["run_id"]
+    run["export_root"] = export_root
+    write_json_atomic(directory / "run.json", run)
+    with pytest.raises(PingstoreError, match="export_root"):
+        validate_run_directory(directory)
+
+
+def test_run_rejects_obsolete_data_root(tmp_path):
+    from pingstore.contracts import validate_run_directory, write_json_atomic
+
+    repo = _repo(tmp_path)
+    run = capture_local_run(repo, "exp001", _staging(tmp_path))
+    directory = repo / ".pingstore/runs" / run["run_id"]
+    run["data_root"] = "data/cells"
+    write_json_atomic(directory / "run.json", run)
+    with pytest.raises(PingstoreError, match="data_root is obsolete"):
+        validate_run_directory(directory)

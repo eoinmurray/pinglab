@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import re
@@ -9,7 +10,7 @@ import tempfile
 from pathlib import Path
 from typing import Any
 
-RUN_SCHEMA = "pingstore.run/v1"
+RUN_SCHEMA = "pingstore.run/v2"
 EXPERIMENT_RE = re.compile(r"^exp[0-9]{3}$")
 RUN_ID_RE = re.compile(r"^exp[0-9]{3}-[a-z0-9][a-z0-9.-]*$")
 VIEW_RE = re.compile(r"^[a-z0-9][a-z0-9./-]*$")
@@ -66,9 +67,9 @@ def validate_run(value: dict[str, Any]) -> dict[str, Any]:
         raise PingstoreError("execution must be an object")
     if not isinstance(value.get("provenance"), dict):
         raise PingstoreError("provenance must be an object")
-    digest = value.get("files_digest")
+    digest = value.get("payload_digest")
     if not isinstance(digest, str) or not re.fullmatch(r"sha256:[0-9a-f]{64}", digest):
-        raise PingstoreError("files_digest must be a prefixed SHA-256")
+        raise PingstoreError("payload_digest must be a prefixed SHA-256")
     return value
 
 
@@ -90,3 +91,79 @@ def run_root(root: Path, run_id: str) -> Path:
     if not RUN_ID_RE.fullmatch(run_id):
         raise PingstoreError(f"invalid run ID: {run_id}")
     return root / "runs" / run_id
+
+
+def file_sha256(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def payload_inventory(directory: Path) -> list[dict[str, Any]]:
+    """Inventory all payload bytes, including nested manifests; exclude run.json."""
+    rows = []
+    for path in sorted(directory.rglob("*")):
+        if path.is_symlink() or not (path.is_file() or path.is_dir()):
+            raise PingstoreError(f"unsupported payload entry: {path}")
+        relative = path.relative_to(directory).as_posix()
+        if path.is_file() and relative != "run.json":
+            rows.append(
+                {
+                    "path": relative,
+                    "size_bytes": path.stat().st_size,
+                    "sha256": file_sha256(path),
+                }
+            )
+    return rows
+
+
+def payload_digest(directory: Path) -> str:
+    encoded = json.dumps(
+        payload_inventory(directory), sort_keys=True, separators=(",", ":")
+    ).encode()
+    return "sha256:" + hashlib.sha256(encoded).hexdigest()
+
+
+def validate_layout(directory: Path) -> None:
+    if directory.is_symlink() or not directory.is_dir():
+        raise PingstoreError(f"run must be a real directory: {directory}")
+    expected = {"run.json", "README.md", "export", "presentation"}
+    if {p.name for p in directory.iterdir()} != expected:
+        raise PingstoreError(
+            "run must contain exactly run.json, README.md, export/, presentation/"
+        )
+    for name in expected:
+        path = directory / name
+        if path.is_symlink() or (path.is_dir() != (name in {"export", "presentation"})):
+            raise PingstoreError(f"invalid run entry: {path}")
+        if name in {"run.json", "README.md"} and not path.is_file():
+            raise PingstoreError(f"run entry must be a regular file: {path}")
+    for path in (directory / "presentation").iterdir():
+        if path.is_symlink() or not path.is_file():
+            raise PingstoreError(f"presentation must be flat regular files: {path}")
+    for path in (directory / "export").rglob("*"):
+        if path.is_symlink() or not (path.is_file() or path.is_dir()):
+            raise PingstoreError(f"unsupported export entry: {path}")
+
+
+def validate_run_directory(directory: Path) -> dict[str, Any]:
+    """Validate structure, identity and checksums before reading or publishing."""
+    validate_layout(directory)
+    run = validate_run(load_json(directory / "run.json"))
+    if directory.name not in {run["run_id"], f".{run['run_id']}.tmp"}:
+        raise PingstoreError("run directory and run.json identity differ")
+    if "data_root" in run:
+        raise PingstoreError("data_root is obsolete; use export_root beneath export/")
+    if "export_root" in run:
+        relative = run["export_root"]
+        if not isinstance(relative, str):
+            raise PingstoreError("export_root must be a relative path beneath export/")
+        path = Path(relative)
+        if (path.is_absolute() or not path.parts or path.parts[0] != "export"
+                or ".." in path.parts or not (directory / path).is_dir()):
+            raise PingstoreError("export_root must name a directory beneath export/")
+    if payload_digest(directory) != run["payload_digest"]:
+        raise PingstoreError(f"payload checksum mismatch: {directory}")
+    return run

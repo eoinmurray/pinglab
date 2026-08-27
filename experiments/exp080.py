@@ -313,7 +313,7 @@ def train_seed(images: np.ndarray, labels: np.ndarray, seed: int) -> dict[str, A
 
     if best_state is None:
         raise RuntimeError("training produced no checkpoint")
-    directory = FIGURES / "models" / f"seed-{seed}"
+    directory = ARTIFACTS / "models" / f"seed-{seed}"
     directory.mkdir(parents=True, exist_ok=True)
     checkpoint = directory / "decoder.pt"
     torch.save({"state_dict": best_state, "seed": seed}, checkpoint)
@@ -324,7 +324,7 @@ def train_seed(images: np.ndarray, labels: np.ndarray, seed: int) -> dict[str, A
         "selected_epoch": best_epoch,
         "selected_validation_accuracy": best_accuracy,
         "history": history,
-        "checkpoint": str(checkpoint.relative_to(FIGURES)),
+        "checkpoint": str(checkpoint.relative_to(ARTIFACTS)),
         "checkpoint_sha256": sha256_file(checkpoint),
     }
     (directory / "training.json").write_text(json.dumps(record, indent=2) + "\n")
@@ -352,7 +352,7 @@ def load_models(records: list[dict[str, Any]], device: Any) -> list[Any]:
 
     models = []
     for item in records:
-        path = FIGURES / item["checkpoint"]
+        path = ARTIFACTS / item["checkpoint"]
         if sha256_file(path) != item["checkpoint_sha256"]:
             raise RuntimeError(f"checkpoint hash mismatch: {path}")
         model = make_model(device, int(item["seed"]))
@@ -392,7 +392,7 @@ def evaluate(records: list[dict[str, Any]]) -> tuple[dict[str, Any], np.ndarray]
                         .numpy()
                     )
         print(f"exp080 held-out rate={rate:g} Hz", flush=True)
-    arrays_path = FIGURES / "held_out_correctness.npz"
+    arrays_path = ARTIFACTS / "held_out_correctness.npz"
     np.savez_compressed(
         arrays_path,
         correctness=correctness,
@@ -512,6 +512,7 @@ def plot_feature_images(images: np.ndarray) -> None:
 def main() -> None:
     started = time.perf_counter()
     FIGURES.mkdir(parents=True, exist_ok=True)
+    ARTIFACTS.mkdir(parents=True, exist_ok=True)
     validation = validate_simulator()
     images, labels, training_dataset = load_mnist_training()
     plot_feature_images(images)
@@ -554,7 +555,7 @@ def main() -> None:
         duration_s=numbers["runtime_s"],
         payload=numbers,
     )
-    (FIGURES / "reproducer.json").write_text(
+    (ARTIFACTS / "reproducer.json").write_text(
         json.dumps({"command": "uv run python experiments/exp080.py"}, indent=2) + "\n"
     )
     (FIGURES / "_run.txt").write_text(f"{int(run_id.lstrip('r'))}\n")

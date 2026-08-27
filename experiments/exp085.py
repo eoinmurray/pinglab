@@ -1331,7 +1331,7 @@ def main() -> None:
     run_id = next_run_id(SLUG)
     with published_run(SLUG, run_id, scale=SCALE) as (_scratch, staging):
         bundle = author_network()
-        bundle.write(staging / "network.bundle", visualise=True)
+        bundle.write(_scratch / "network.bundle", visualise=True)
         bundle.visualise(
             staging / "network.svg",
             view="circuit",
@@ -1354,7 +1354,7 @@ def main() -> None:
         analysis = analyse_uncoupled(recordings)
         plot_uncoupled(analysis, staging / "uncoupled.png")
         np.savez_compressed(
-            staging / "uncoupled_trace.npz",
+            _scratch / "uncoupled_trace.npz",
             rate_e_a=analysis["rate_e_a"],
             rate_i_a=analysis["rate_i_a"],
             rate_e_b=analysis["rate_e_b"],

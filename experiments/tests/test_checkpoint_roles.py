@@ -146,3 +146,60 @@ def test_exp044_command_loads_final_checkpoint(
     exp044.measure_rate_acc(bank)
     loaded = Path(commands[0][commands[0].index("--load-weights") + 1])
     assert loaded == (bank / "weights_final.pth").resolve()
+
+
+def test_epoch_metrics_prefers_complete_record_and_supports_legacy_jsonl(tmp_path):
+    from experiments.helpers.checkpoints import epoch_metrics
+
+    jsonl = tmp_path / "metrics.jsonl"
+    jsonl.write_text(json.dumps({"ep": 1, "acc": 10, "timestamp": "then"}) + "\n")
+    assert epoch_metrics(tmp_path)[0]["acc"] == 10
+    complete = [{"ep": 1, "acc": 20, "grad_norms": {"W": 2.0}}]
+    metrics = tmp_path / "metrics.json"
+    metrics.write_text(json.dumps({"epochs": complete}))
+    assert epoch_metrics(tmp_path) == complete
+    jsonl.unlink()
+    assert epoch_metrics(tmp_path) == complete
+    metrics.write_text(json.dumps({"epochs": "invalid"}))
+    with pytest.raises(RuntimeError, match="invalid epoch"):
+        epoch_metrics(tmp_path)
+
+
+def test_exp022_and_exp049_read_compact_epoch_records(tmp_path, monkeypatch):
+    from experiments import exp022
+
+    rows = [{"ep": 1, "acc": 80, "rate_e": 5, "rate_i": 20, "contrast": 0.4},
+            {"ep": 2, "acc": 90, "test_rate_e": 6, "test_rate_i": 21, "contrast": 0.6}]
+    (tmp_path / "metrics.json").write_text(json.dumps({"epochs": rows}))
+    assert exp022.training_curve(tmp_path) == ([1, 2], [80.0, 90.0])
+    assert exp022.final_rates(tmp_path) == (6.0, 21.0)
+    monkeypatch.setattr(exp049, "COND_ORDER", ["frozen_ping"])
+    monkeypatch.setattr(exp049, "SEEDS", [42])
+    monkeypatch.setattr(exp049, "cell_dir", lambda *_: tmp_path)
+    curves = exp049._load_epoch_curves()[tmp_path.name]
+    assert curves["ep"] == [1, 2]
+    assert curves["rate_e"] == [5, 6]
+    assert curves["contrast"] == [0.4, 0.6]
+
+
+def test_exp025_raster_replay_never_modifies_upstream_bank(tmp_path, monkeypatch):
+    bank = _checkpoint_bank(tmp_path / "bank")
+    (bank / "config.json").write_text("{}")
+    legacy = bank / "infer/snapshot.npz"
+    legacy.parent.mkdir()
+    legacy.write_bytes(b"original snapshot")
+    original = {p.relative_to(bank): p.read_bytes() for p in bank.rglob("*") if p.is_file()}
+    state = tmp_path / "exp025-state"
+    monkeypatch.setattr(exp025, "ARTIFACTS", state)
+    monkeypatch.setattr(exp025, "baseline_dir", lambda *_: bank)
+
+    def infer(command):
+        out = Path(command[command.index("--out-dir") + 1])
+        assert state in out.parents
+        (out / "snapshot.npz").write_bytes(b"new analysis snapshot")
+
+    monkeypatch.setattr(exp025, "run_cli", infer)
+    monkeypatch.setattr(exp025, "render_raster", lambda *_: None)
+    exp025.generate_raster("coba", tmp_path / "raster.png")
+    assert exp025.raster_snapshot("coba").read_bytes() == b"new analysis snapshot"
+    assert {p.relative_to(bank): p.read_bytes() for p in bank.rglob("*") if p.is_file()} == original

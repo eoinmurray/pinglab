@@ -498,7 +498,7 @@ def main() -> None:
             },
         )
         print(f"wrote {figures / 'numbers.json'}")
-    log_runner_event(SLUG, "completed", run_id=run_id, quantitative_rows=len(rows))
+        log_runner_event(SLUG, "completed", run_id=run_id, quantitative_rows=len(rows))
 
 
 

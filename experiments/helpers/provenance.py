@@ -194,6 +194,12 @@ def write_manifest(
 ) -> Path:
     """Write `_manifest.json` and the `run.sh` reproducer (and, for a dirty dep
     tree, `_dirty.patch`) into *figures_dir*; return the manifest path."""
+    # Direct v2 runners retain execution records in export/; the sidecar in
+    # presentation is a compatibility projection for the publishing engine.
+    records_dir = figures_dir
+    if figures_dir.name == "presentation" and figures_dir.parent.name.endswith(".tmp"):
+        records_dir = figures_dir.parent / "export/provenance"
+        records_dir.mkdir(parents=True, exist_ok=True)
     sha, dirty = git_state()
 
     patch_meta: dict | None = None
@@ -201,7 +207,7 @@ def write_manifest(
     if code_dirty:
         patch_text = _capture_patch()
         if patch_text:
-            (figures_dir / PATCH_FILE).write_text(patch_text)
+            (records_dir / PATCH_FILE).write_text(patch_text)
             patch_meta = {
                 "file": PATCH_FILE,
                 "sha256": hashlib.sha256(patch_text.encode()).hexdigest(),
@@ -222,5 +228,7 @@ def write_manifest(
     }
     path = figures_dir / MANIFEST_FILE
     path.write_text(json.dumps(manifest, indent=2) + "\n")
-    write_run_sh(figures_dir, slug)
+    if records_dir != figures_dir:
+        (records_dir / MANIFEST_FILE).write_text(json.dumps(manifest, indent=2) + "\n")
+    write_run_sh(records_dir, slug)
     return path

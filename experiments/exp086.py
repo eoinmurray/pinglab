@@ -489,7 +489,7 @@ def main() -> None:
                 shutil.copy2(source, staging / name)
 
         bundle = author_network()
-        bundle.write(staging / "network.bundle", visualise=True)
+        bundle.write(_scratch / "network.bundle", visualise=True)
         bundle.visualise(
             staging / "network.svg",
             view="circuit",
@@ -512,7 +512,7 @@ def main() -> None:
             intermediate,
             staging / "intermittent_attraction_measured.png",
         )
-        save_traces(trajectories, staging / "sweep_traces.npz")
+        save_traces(trajectories, _scratch / "sweep_traces.npz")
 
         record = {
             "status": STATUS,

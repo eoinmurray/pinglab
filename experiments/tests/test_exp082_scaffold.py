@@ -316,6 +316,9 @@ def test_collection_requires_exp082_measurements_and_figures(tmp_path) -> None:
 
 def test_saved_measurements_replot_every_figure(tmp_path, monkeypatch) -> None:
     monkeypatch.setattr(exp082, "FIGURES", tmp_path)
+    state = tmp_path / "state"
+    state.mkdir()
+    monkeypatch.setattr(exp082, "ARTIFACTS", state)
     stream = {
         "boundaries": [0, 2],
         "conditions": [[0.2, 5.0]],
@@ -329,6 +332,7 @@ def test_saved_measurements_replot_every_figure(tmp_path, monkeypatch) -> None:
         "probabilities": np.full((2, 10), 0.1, dtype=np.float32),
     }
     exp082.save_measurements(stream, stream)
+    assert not (tmp_path / exp082.MEASUREMENTS_FILE).exists()
     payload = {
         "run_id": "test",
         "matched_stream": {key: value for key, value in stream.items() if not isinstance(value, np.ndarray)},
@@ -347,7 +351,7 @@ def test_saved_measurements_replot_every_figure(tmp_path, monkeypatch) -> None:
     ]
     numbers = tmp_path / "numbers.json"
     numbers.write_text(exp082.json.dumps(payload))
-    exp082.replot_results(numbers, tmp_path / exp082.MEASUREMENTS_FILE)
+    exp082.replot_results(numbers, state / exp082.MEASUREMENTS_FILE)
     for filename in (
         "single_trial.png", "single_trial_transition.png",
         "matched_stream.png", "variable_stream.png",
@@ -362,7 +366,7 @@ def test_saved_measurements_replot_every_figure(tmp_path, monkeypatch) -> None:
             "psychometric_200ms.svg", "duration_rate_summary.png",
         )
     }
-    exp082.replot_results(numbers, tmp_path / exp082.MEASUREMENTS_FILE)
+    exp082.replot_results(numbers, state / exp082.MEASUREMENTS_FILE)
     assert {
         filename: (tmp_path / filename).read_bytes()
         for filename in first_hashes

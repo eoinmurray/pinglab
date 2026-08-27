@@ -2,7 +2,7 @@
 
 Direct runners write all state and derived output into the hidden Pingstore run
 being assembled at `.pingstore/runs/.<run-id>.tmp/`. State lives beneath
-`files/state/`; derived output lives directly beneath `files/`. On completion
+`export/state/`; derived output lives directly beneath `presentation/`. On completion
 the hidden directory receives `run.json` and is atomically renamed to its
 immutable visible run ID. `.artifacts/<slug>/` is only a materialized publication
 view consumed by Typst.
@@ -18,6 +18,7 @@ import os
 from dataclasses import dataclass
 from pathlib import Path
 
+from pingstore.contracts import load_json, validate_run_directory
 from pingstore.native import execution_origin, make_run_id
 
 REPO = Path(__file__).resolve().parents[2]
@@ -90,19 +91,31 @@ def runner_paths(slug: str) -> RunnerPaths:
         raise RuntimeError(
             f"{REQUIRE_ISOLATED_ENV}=1 requires {STATE_ENV}, {DERIVED_ENV}, and {LOG_ENV}"
         )
-    counter = FIGURES_ROOT / slug / "_run.txt"
-    try:
-        identity = f"r{int(counter.read_text().strip()) + 1:03d}"
-    except (FileNotFoundError, ValueError):
-        identity = "r001"
+    identity = f"r{current_run_number(slug) + 1:03d}"
     run_id = make_run_id(slug, identity, execution_origin())
-    temporary = RUNS_ROOT / f".{run_id}.tmp" / "files"
+    temporary = RUNS_ROOT / f".{run_id}.tmp"
     return RunnerPaths(
-        state=temporary / "state",
-        derived=temporary,
-        logs=temporary / "state" / "logs",
+        state=temporary / "export" / "state",
+        derived=temporary / "presentation",
+        logs=temporary / "export" / "state" / "logs",
         isolated=False,
     )
+
+
+def current_run_number(slug: str) -> int:
+    """Include retained identities, with a legacy view fallback."""
+    import re
+
+    try:
+        number = int((FIGURES_ROOT / slug / "_run.txt").read_text().strip())
+    except (FileNotFoundError, ValueError):
+        number = 0
+    for path in RUNS_ROOT.glob(f"{slug}-r*-*"):
+        match = re.match(rf"{slug}-r(\d+)-", path.name)
+        if match:
+            number = max(number, int(match.group(1)))
+    # A colliding hidden directory is rejected by prepare(), not reused.
+    return number
 
 
 def artifacts_and_figures(slug: str) -> tuple[Path, Path]:
@@ -117,15 +130,29 @@ def active_run_state(slug: str) -> Path:
     if not active_manifest.is_file():
         raise FileNotFoundError(f"no active Pingstore run for {slug}")
     manifest_text = active_manifest.read_text()
-    identity = json.loads(manifest_text).get("run_id")
+    manifest = json.loads(manifest_text)
+    full_id = manifest.get("pingstore_run_id")
+    if full_id:
+        from pingstore.contracts import run_root
+
+        candidate = run_root(REPO / ".pingstore", full_id)
+        run = validate_run_directory(candidate)
+        if run["experiment"] != slug:
+            raise RuntimeError(f"active run experiment differs from {slug}")
+        return candidate / run.get("export_root", "export/state")
+    identity = manifest.get("run_id")
     if not isinstance(identity, str) or not identity:
         raise RuntimeError(f"active manifest for {slug} has no run_id")
     matches = []
-    for candidate in RUNS_ROOT.glob(f"{slug}-{identity}-*"):
-        stored_manifest = candidate / "files" / "_manifest.json"
-        if (candidate / "run.json").is_file() and stored_manifest.is_file():
-            if stored_manifest.read_text() == manifest_text:
-                matches.append(candidate / "files" / "state")
+    for candidate in RUNS_ROOT.glob(f"{slug}-*"):
+        if not (candidate / "run.json").is_file():
+            continue
+        for relative in ("export/provenance/_manifest.json", "export/provenance/legacy/_manifest.json"):
+            stored = candidate / relative
+            if stored.is_file() and load_json(stored) == manifest:
+                run = validate_run_directory(candidate)
+                matches.append(candidate / run.get("export_root", "export/state"))
+                break
     if len(matches) != 1:
         raise RuntimeError(f"cannot resolve active Pingstore state for {slug}")
     return matches[0]
@@ -142,6 +169,11 @@ def run_state_source(slug: str) -> Path:
 def log_runner_event(slug: str, event: str, **fields: object) -> None:
     """Append a compact lifecycle event beneath the runner's explicit log root."""
     paths = runner_paths(slug)
+    identity = fields.get("run_id")
+    if not paths.isolated and identity:
+        completed = RUNS_ROOT / make_run_id(slug, str(identity), execution_origin())
+        if completed.exists():
+            raise RuntimeError("record completion events before finalizing the immutable run")
     paths.logs.mkdir(parents=True, exist_ok=True)
     record = {"event": event, "experiment": slug, **fields}
     with (paths.logs / f"{slug}.jsonl").open("a") as handle:

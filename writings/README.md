@@ -75,11 +75,11 @@ retained evidence):
 
 *Inputs:* Uses checkpoints and configurations for seeds 42–44 from
 #link("/exp022/")[exp022] as starting states for inhibition sweeps, retained in
-immutable Pingstore run `[upstream-run-id]` under `data/state/`.
+immutable Pingstore run `[upstream-run-id]` under `export/state/`.
 
 *Outputs:* Provides measured frequency responses for subsequent comparisons,
 retained in immutable Pingstore run `[this-run-id]` at
-`data/frequency-response.csv`.
+`export/frequency-response.csv`.
 ```
 
 ## Design Scope

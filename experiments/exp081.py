@@ -358,6 +358,7 @@ def summarize(predicted: np.ndarray, empirical: np.ndarray) -> dict[str, float]:
 def main() -> None:
     started = time.perf_counter()
     FIGURES.mkdir(parents=True, exist_ok=True)
+    ARTIFACTS.mkdir(parents=True, exist_ok=True)
     rates_hz, probes = np.meshgrid(INPUT_RATES_HZ, np.asarray(PROBES_US))
     features = simulate_features(rates_hz, probes, MOMENT_DRAWS, stable_seed(1))
     empirical_mean = features.mean(axis=-1)
@@ -384,7 +385,7 @@ def main() -> None:
         where=analytical_variance > 0,
     )
     np.savez_compressed(
-        FIGURES / "moments.npz",
+        ARTIFACTS / "moments.npz",
         input_rates_hz=rates_hz,
         probes_uS=probes,
         empirical_mean_mV=empirical_mean,
@@ -393,7 +394,7 @@ def main() -> None:
         analytical_sd_mV=analytical_sd,
     )
     np.savez_compressed(
-        FIGURES / "distribution_samples.npz",
+        ARTIFACTS / "distribution_samples.npz",
         input_rates_hz=np.asarray(DISTRIBUTION_RATES_HZ),
         samples_mV=distribution_samples,
     )
@@ -440,7 +441,7 @@ def main() -> None:
         duration_s=numbers["runtime_s"],
         payload=numbers,
     )
-    (FIGURES / "reproducer.json").write_text(
+    (ARTIFACTS / "reproducer.json").write_text(
         json.dumps({"command": "uv run python experiments/exp081.py"}, indent=2) + "\n"
     )
     (FIGURES / "_run.txt").write_text(f"{int(run_id.lstrip('r'))}\n")

@@ -54,6 +54,7 @@ from helpers.paths import (  # noqa: E402
 from helpers.run_dirs import (
     finalize_prepared_run,  # noqa: E402
     preserve_active_view,  # noqa: E402
+    published_run,  # noqa: E402
 )
 from helpers.run_dirs import prepare as prepare_run_dirs  # noqa: E402
 from helpers.run_id import next_run_id  # noqa: E402
@@ -998,7 +999,7 @@ def save_measurements(
     if single_trial is not None:
         results.append(("single_trial", single_trial))
     np.savez_compressed(
-        FIGURES / MEASUREMENTS_FILE,
+        ARTIFACTS / MEASUREMENTS_FILE,
         **{
             f"{name}_{key}": result[key]
             for name, result in results
@@ -1067,9 +1068,13 @@ def parse_args() -> argparse.Namespace:
 
 @preserve_active_view(SLUG)
 def main() -> None:
+    global FIGURES
     args = parse_args()
     if args.replot:
-        replot_results(FIGURES / "numbers.json", FIGURES / MEASUREMENTS_FILE)
+        run_id = next_run_id(SLUG)
+        with published_run(SLUG, run_id, plot_only=True, scale=SCALE) as (state, presentation):
+            FIGURES = presentation
+            replot_results(presentation / "numbers.json", state / MEASUREMENTS_FILE)
         return
     require_training_bank()
     run_id = next_run_id(SLUG)

@@ -766,15 +766,8 @@ def main() -> None:
     t_start = time.monotonic()
 
     if meta.plot_only:
-        # Re-render figures from the cached inference results only — no CLI
-        # inference, and crucially no wipe (that would delete the cache and
-        # the surviving figures). Reuse the run id from the last manifest so
-        # the provenance stamp matches the run that produced the data.
-        manifest = FIGURES / "_manifest.json"
-        run_id = (
-            json.loads(manifest.read_text()).get("run_id", next_run_id(SLUG))
-            if manifest.exists() else next_run_id(SLUG)
-        )
+        # Re-render from retained state into a new immutable run.
+        run_id = next_run_id(SLUG)
         print(f"[plot-only] run_id={run_id} — re-rendering from cache")
         # Atomic publish: stage from the published dir and swap back into place
         # only if re-rendering completes. Point the module FIGURES path at the
@@ -839,8 +832,8 @@ def main() -> None:
 
         fit = render_figures(rows, raster_samples, run_id)
         write_numbers(rows, fit, run_id, time.monotonic() - t_start)
+        log_runner_event(SLUG, "completed", run_id=run_id, quantitative_rows=len(rows))
     print(f"  total duration: {format_duration(time.monotonic() - t_start)}")
-    log_runner_event(SLUG, "completed", run_id=run_id, quantitative_rows=len(rows))
 
 
 

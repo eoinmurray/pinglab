@@ -18,6 +18,22 @@ PURPOSE_ROLES = {
 }
 
 
+def epoch_metrics(train_dir: Path) -> list[dict]:
+    """Read the complete epoch record, with a legacy/in-progress JSONL fallback."""
+    metrics_path = Path(train_dir) / "metrics.json"
+    if metrics_path.is_file():
+        metrics = json.loads(metrics_path.read_text())
+        if "epochs" in metrics:
+            rows = metrics["epochs"]
+            if not isinstance(rows, list) or not all(isinstance(row, dict) for row in rows):
+                raise RuntimeError(f"invalid epoch records in {metrics_path}")
+            return rows
+    jsonl_path = Path(train_dir) / "metrics.jsonl"
+    if not jsonl_path.is_file():
+        return []
+    return [json.loads(line) for line in jsonl_path.read_text().splitlines() if line.strip()]
+
+
 def checkpoint_policy(purpose: str) -> dict[str, str]:
     """Resolve a scientific analysis purpose to its checkpoint role."""
     try:

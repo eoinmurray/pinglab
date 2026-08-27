@@ -322,7 +322,7 @@ def cmd_restore(slug: str, sha: str | None) -> None:
     dest = _dest(slug, sha)
     if not _remote_dir_exists(dest):
         raise SystemExit(f"no snapshot at {dest} — run `list {slug}` to see what exists.")
-    local = ARTIFACTS_ROOT / f".{slug}-restored-{sha}-r2.tmp" / "files" / "state"
+    local = ARTIFACTS_ROOT / f".{slug}-restored-{sha}-r2.tmp" / "export" / "state"
     local.mkdir(parents=True, exist_ok=True)
     print(f"restoring {dest}  →  {local.relative_to(REPO)}  [sha {sha}]")
     _rclone(["copy", dest, str(local), "--exclude", MANIFEST,

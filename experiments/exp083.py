@@ -342,7 +342,7 @@ def main() -> None:
         staging,
     ):
         bundle = author_network()
-        bundle_dir = staging / "network.bundle"
+        bundle_dir = scratch / "network.bundle"
         bundle.write(bundle_dir, visualise=True)
         shutil.copy2(bundle_dir / "reports/circuit.svg", staging / "network.svg")
 
@@ -388,7 +388,6 @@ def main() -> None:
         )
         plot_response(summaries, staging / "response.png")
         plot_spectra(estimates, staging / "spectra.png")
-        shutil.copytree(conditions, staging / "conditions")
         payload = {
             "question": "Does the default SNNLANG PING component contain a reproducible gamma regime as homogeneous Poisson drive increases?",
             "config": SCALE,

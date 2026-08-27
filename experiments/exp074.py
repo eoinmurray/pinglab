@@ -218,10 +218,7 @@ def main() -> None:
         input_spikes = make_input(input_path)
         run_simulator(bundle_dir, input_path, sim_dir)
 
-        shutil.copytree(bundle_dir, figures / "network.bundle")
         shutil.copy2(bundle_dir / "reports/circuit.svg", figures / "network.svg")
-        shutil.copy2(input_path, figures / "input_spikes.npz")
-        shutil.copy2(sim_dir / "rasters.npz", figures / "rasters.npz")
 
         event_counts = plot_rasters(
             input_spikes, sim_dir / "rasters.npz", figures / "rasters.png"

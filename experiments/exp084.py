@@ -218,7 +218,7 @@ def main() -> None:
             print(f"[simulate] tau_GABA {tau:g} ms")
             bundle = author_network(tau)
             if tau == 9.0:
-                bundle_dir = staging / "network.bundle"
+                bundle_dir = scratch / "network.bundle"
                 bundle.write(bundle_dir, visualise=True)
                 shutil.copy2(bundle_dir / "reports/circuit.svg", staging / "network.svg")
             result = simulate(
@@ -249,7 +249,6 @@ def main() -> None:
 
         plot_response(summaries, staging / "response.svg")
         plot_representative_rasters(recordings, summaries, staging / "representative_rasters.png")
-        shutil.copytree(conditions, staging / "conditions")
         payload = {
             "question": "Does inhibitory recovery time tune the default SNNLANG PING rhythm into gamma?",
             "config": SCALE,

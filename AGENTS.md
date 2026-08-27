@@ -3,7 +3,17 @@
 Pingstore is a filesystem convention, not a service, database, or CLI.
 
 - Store every completed run at `.pingstore/runs/<run-id>/`, containing only
-  `run.json` and `files/`.
+  `run.json`, `README.md`, `export/`, and `presentation/`.
+- `run.json` uses `pingstore.run/v2` and is authoritative provenance. `README.md`
+  holds human notes. `export/` contains scientific outputs and execution records
+  and may have subdirectories. `presentation/` contains only regular files,
+  never subdirectories or symlinks; use descriptive flattened filenames.
+- Materialize only `presentation/` into `.artifacts/<experiment>/`, copying it
+  exactly without extension filtering. Presentation metadata is a projection,
+  never an independent provenance authority.
+- Validate the exact root layout and payload checksum before publication or
+  consumption. The checksum covers README.md, export/, and presentation/,
+  including nested metadata; it excludes only the authoritative run.json.
 - A run ID begins with its experiment and ends with its execution source, for
   example `exp097-r022-local` or `exp097-r023-slurm-wilkes-48291`.
 - Write a run first as `.pingstore/runs/.<run-id>.tmp/`; atomically rename it to

@@ -221,7 +221,6 @@ def main() -> None:
                 f"training emitted {len(rows)} epochs; expected {EPOCHS}"
             )
         plot_training(metrics, figures / "training_curves.png")
-        shutil.copytree(bundle_dir, figures / "network.bundle")
         shutil.copy2(
             bundle_dir / "reports/circuit.svg",
             figures / "network_graph.svg",

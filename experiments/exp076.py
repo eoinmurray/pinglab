@@ -11,7 +11,6 @@ from __future__ import annotations
 
 import json
 import os
-import shutil
 import subprocess
 import sys
 import time
@@ -465,24 +464,24 @@ def main() -> None:
             "bundle_selected_through_bundle": checkpoint_status(
                 "bundle",
                 train_dir / "weights.pth",
-                artifact_path=".artifacts/exp076/bundle_training/weights.pth",
+                artifact_path="export/state/bundle_training/weights.pth",
                 bundle_dir=bundle_dir,
             ),
             "bundle_final_through_bundle": checkpoint_status(
                 "bundle",
                 train_dir / "weights_final.pth",
-                artifact_path=".artifacts/exp076/bundle_training/weights_final.pth",
+                artifact_path="export/state/bundle_training/weights_final.pth",
                 bundle_dir=bundle_dir,
             ),
             "bundle_selected_through_legacy": checkpoint_status(
                 "legacy",
                 train_dir / "weights.pth",
-                artifact_path=".artifacts/exp076/bundle_training/weights.pth",
+                artifact_path="export/state/bundle_training/weights.pth",
             ),
             "legacy_selected_through_bundle": checkpoint_status(
                 "bundle",
                 legacy_train_dir / "weights.pth",
-                artifact_path=".artifacts/exp076/legacy_training/weights.pth",
+                artifact_path="export/state/legacy_training/weights.pth",
                 bundle_dir=bundle_dir,
             ),
         }
@@ -507,18 +506,8 @@ def main() -> None:
 
         plot_training(metrics, figures / "training_curves.png")
         write_lifecycle_svg(figures / "lifecycle.svg")
-        shutil.copytree(bundle_dir, figures / "network.bundle")
-        for source_dir in (
-            train_dir,
-            legacy_train_dir,
-            selected_infer_dir,
-            final_infer_dir,
-            legacy_load_bundle_dir,
-            bundle_load_legacy_dir,
-        ):
-            shutil.copytree(source_dir, figures / source_dir.name)
         for name, record in command_records.items():
-            (figures / f"{name}_command.json").write_text(json.dumps(record, indent=2))
+            (artifacts / f"{name}_command.json").write_text(json.dumps(record, indent=2))
 
         payload = {
             "purpose": "checkpoint replay and bundle/legacy equivalence gate",
@@ -594,11 +583,11 @@ def main() -> None:
                 },
             },
             "artifacts": {
-                "bundle": ".artifacts/exp076/network.bundle",
-                "bundle_training": ".artifacts/exp076/bundle_training",
-                "legacy_training": ".artifacts/exp076/legacy_training",
-                "selected_replay": ".artifacts/exp076/bundle_replay_selected",
-                "final_replay": ".artifacts/exp076/bundle_replay_final",
+                "bundle": "export/state/network.bundle",
+                "bundle_training": "export/state/bundle_training",
+                "legacy_training": "export/state/legacy_training",
+                "selected_replay": "export/state/bundle_replay_selected",
+                "final_replay": "export/state/bundle_replay_final",
             },
         }
         write_numbers(

@@ -48,7 +48,11 @@ from helpers import (
     runpod,  # noqa: E402
     theme,  # noqa: E402
 )
-from helpers.checkpoints import checkpoint_provenance, resolve_checkpoint  # noqa: E402
+from helpers.checkpoints import (  # noqa: E402
+    checkpoint_provenance,
+    epoch_metrics,
+    resolve_checkpoint,
+)
 from helpers.cli import parse_meta  # noqa: E402
 from helpers.fmt import format_duration  # noqa: E402
 from helpers.operating_point import TAU_GABA_GAMMA_MS  # noqa: E402
@@ -665,14 +669,11 @@ def training_root_provenance(root: Path) -> dict[str, str]:
 
 
 def final_rates(d: Path) -> tuple[float, float]:
-    """Last-epoch E / I rate (Hz) from metrics.jsonl, if present."""
-    p = d / "metrics.jsonl"
-    if not p.exists():
+    """Last-epoch E / I rate (Hz) from the retained epoch record."""
+    rows = epoch_metrics(d)
+    if not rows:
         return float("nan"), float("nan")
-    lines = [ln for ln in p.read_text().splitlines() if ln.strip()]
-    if not lines:
-        return float("nan"), float("nan")
-    row = json.loads(lines[-1])
+    row = rows[-1]
     return (float(row.get("test_rate_e", row.get("rate_e", float("nan")))),
             float(row.get("test_rate_i", row.get("rate_i", float("nan")))))
 
@@ -690,15 +691,9 @@ FAMILY_COLORS = {
 
 
 def training_curve(d: Path) -> tuple[list[int], list[float]]:
-    """Per-epoch (epoch, test accuracy) from a cell's metrics.jsonl."""
-    p = d / "metrics.jsonl"
-    if not p.exists():
-        return [], []
+    """Per-epoch (epoch, test accuracy) from the retained epoch record."""
     eps, accs = [], []
-    for ln in p.read_text().splitlines():
-        if not ln.strip():
-            continue
-        r = json.loads(ln)
+    for r in epoch_metrics(d):
         if "ep" in r and "acc" in r:
             eps.append(int(r["ep"]))
             accs.append(float(r["acc"]))
@@ -1030,11 +1025,11 @@ def appendix_rasters() -> None:
     """Generate one digit-0/sample-0 raster per seed-42 config for the writeup
     appendix. The SAME fixed MNIST image is sent through every trained network
     (via `sim --infer --digit 0 --sample 0` → snapshot.npz), so the rasters are
-    directly comparable across configs. Writes to .artifacts/exp022/rasters/."""
+    directly comparable across configs. Writes flat rasters__*.png presentation files."""
     import shutil
 
     cells = [c for c in CANONICAL_CELLS if c["seed"] == 42]
-    rdir = FIGURES / "rasters"
+    rdir = FIGURES
     # Snapshots are pure throwaway (only needed to plot each PNG). Keep them under
     # the run-state namespace and wipe the whole scratch tree at the end,
     # so temp stays minimal — the PNGs in artifacts/ are the durable output.
@@ -1060,7 +1055,7 @@ def appendix_rasters() -> None:
             subprocess.run(
                 inference_args,
                 cwd=REPO, check=True, capture_output=True)
-            _plot_snapshot_raster(scratch / "snapshot.npz", rdir / f"{c['name']}.png")
+            _plot_snapshot_raster(scratch / "snapshot.npz", rdir / f"rasters__{c['name']}.png")
             print(f"  {c['name']}.png")
     finally:
         shutil.rmtree(scratch_root, ignore_errors=True)
@@ -1645,7 +1640,7 @@ def main() -> None:
     for fam in FAMILY_ORDER:
         fcells = [c for c in CANONICAL_CELLS if c["family"] == fam]
         n_trained = sum(1 for c in fcells
-                        if (cell_dir(c["name"]) / "metrics.jsonl").exists())
+                        if epoch_metrics(cell_dir(c["name"])))
         family_status[fam] = {"cells": len(fcells), "trained": n_trained}
         artifact_slug = FAMILY_ARTIFACT_SLUGS.get(fam, fam)
         out = FIGURES / f"curves__{artifact_slug}.svg"   # H10: line plots → SVG

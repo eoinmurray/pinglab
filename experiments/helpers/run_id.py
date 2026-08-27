@@ -1,7 +1,7 @@
 """Per-notebook incrementing run id.
 
 Each notebook entry has its own monotonic counter persisted at
-`src/docs/public/figures/notebooks/<slug>/_run.txt`. `next_run_id(slug)`
+`.artifacts/<slug>/_run.txt` (legacy fallback); completed run IDs also count. `next_run_id(slug)`
 returns the next id as "rNNN" without touching disk; `persist(slug, run_id)`
 writes the counter back and must be called after any wipe + re-creation of
 the figures dir so the count survives.
@@ -11,7 +11,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from .paths import FIGURES_ROOT
+from .paths import FIGURES_ROOT, current_run_number
 
 COUNTER_FILE = "_run.txt"
 
@@ -21,13 +21,7 @@ def _counter_path(slug: str) -> Path:
 
 
 def _read_current(slug: str) -> int:
-    path = _counter_path(slug)
-    if not path.exists():
-        return 0
-    try:
-        return int(path.read_text().strip())
-    except ValueError:
-        return 0
+    return current_run_number(slug)
 
 
 def next_run_id(slug: str) -> str:

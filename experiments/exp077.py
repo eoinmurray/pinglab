@@ -215,7 +215,7 @@ def main() -> None:
     run_id = next_run_id(SLUG)
     inputs = independent_inputs()
     with published_run(SLUG, run_id, scale=SCALE, plot_only=meta.plot_only) as (_scratch, staging):
-        variants_dir = staging / "variants"
+        variants_dir = _scratch / "variants"
         variants_dir.mkdir()
         recorded: dict[str, dict[str, np.ndarray]] = {}
         summaries = {}
@@ -235,7 +235,7 @@ def main() -> None:
                 "spikes": {key: int(arrays[key].sum()) for key in ("population_0", "population_1", "population_2", "population_3")},
                 "diagnostics": phase_diagnostics(result.recordings["population_0"], result.recordings["population_2"]),
             }
-        np.savez_compressed(staging / "inputs.npz", **{k: v.numpy() for k, v in inputs.items()})
+        np.savez_compressed(_scratch / "inputs.npz", **{k: v.numpy() for k, v in inputs.items()})
         render_rasters(recorded, staging / "matched_rasters.png")
         shutil.copy2(variants_dir / "reciprocal_delayed.bundle/reports/circuit.svg", staging / "reciprocal_delayed.svg")
         delay_evidence = {
@@ -246,8 +246,8 @@ def main() -> None:
             "explicit_delay_steps": 5,
         }
         (staging / "delay_timing.json").write_text(json.dumps(delay_evidence, indent=2) + "\n")
-        (staging / "goal.txt").write_text(GOAL_PROMPT)
-        (staging / "reproduce.sh").write_text("#!/bin/sh\nuv run python experiments/exp077.py\n")
+        (_scratch / "goal.txt").write_text(GOAL_PROMPT)
+        (_scratch / "reproduce.sh").write_text("#!/bin/sh\nuv run python experiments/exp077.py\n")
         compatibility = parity_and_performance()
         activity = [
             {"timestamp": "2026-08-05T11:26:22Z", "event": "Committed the typed compatibility seam as 5be1cdb."},
@@ -262,7 +262,7 @@ def main() -> None:
             {"timestamp": "2026-08-05T12:15:33Z", "event": "Committed the corrected arbitrary graph executor, explicit numerical semantics, CLI request routing, documentation, and focused tests as cf11906."},
             {"timestamp": "2026-08-05T12:15:45Z", "event": "Focused architecture gate passed: 43 tests, zero failures; the broader artifact-schema selection passed 49 tests, zero failures."},
         ]
-        (staging / "activity_log.json").write_text(json.dumps(activity, indent=2) + "\n")
+        (_scratch / "activity_log.json").write_text(json.dumps(activity, indent=2) + "\n")
         payload = {
             "purpose": "Milestones 1-3 architecture and causality validation",
             "config": SCALE,

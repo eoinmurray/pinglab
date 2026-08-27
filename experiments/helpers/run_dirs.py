@@ -1,9 +1,9 @@
 """Build experiments directly inside hidden Pingstore run directories.
 
 Local runners write state, logs, intermediates, and derived output beneath
-`.pingstore/runs/.<run-id>.tmp/files/`. Completion writes `run.json` and
+`.pingstore/runs/.<run-id>.tmp/`. Completion writes `run.json` and
 atomically exposes the immutable run; failure leaves the hidden run intact for
-post-mortem inspection. `.artifacts/` is refreshed afterward only as a filtered
+post-mortem inspection. `.artifacts/` is refreshed afterward only as a direct
 publication view.
 
 `scale` is the runner's declared run scale (max_samples, epochs, t_ms, ...),
@@ -23,6 +23,7 @@ import functools
 import os
 import shutil
 
+from pingstore.layout import copy_legacy_derived, initialize_layout
 from pingstore.materialize import materialize_run
 from pingstore.native import (
     execution_origin,
@@ -100,14 +101,15 @@ def _prepare_local_working_run(
 ):
     full_run_id = make_run_id(slug, run_id, execution_origin(host))
     temporary = REPO / ".pingstore" / "runs" / f".{full_run_id}.tmp"
-    files = temporary / "files"
+    files = temporary / "presentation"
     if (files / "_manifest.json").exists() or (temporary / "run.json").exists():
         raise RuntimeError(f"incomplete run already exists: {temporary}")
-    state = files / "state"
+    state = temporary / "export/state"
+    initialize_layout(temporary, slug)
     files.mkdir(parents=True, exist_ok=True)
     active = FIGURES_ROOT / slug
     if seed_derived and active.is_dir():
-        shutil.copytree(active, files, dirs_exist_ok=True)
+        copy_legacy_derived(active, temporary)
     if seed_previous and (active / "_manifest.json").is_file():
         try:
             previous_state = active_run_state(slug)
@@ -117,8 +119,6 @@ def _prepare_local_working_run(
             shutil.copytree(previous_state, state, dirs_exist_ok=True)
     if make_artifacts:
         state.mkdir(parents=True, exist_ok=True)
-    if run_id.startswith("r"):
-        (files / COUNTER_FILE).write_text(f"{int(run_id.lstrip('r'))}\n")
     write_manifest(files, slug=slug, run_id=run_id, scale=scale, host=host)
     return state, files
 

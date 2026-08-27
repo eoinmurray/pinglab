@@ -455,12 +455,19 @@ def render_baseline_rasters_combined(
     plt.close(fig)
 
 
+def raster_snapshot(model: str) -> Path:
+    """Analysis-owned replay output; never write into the upstream model bank."""
+    train_dir = baseline_dir(model)
+    checkpoint = resolve_checkpoint(train_dir, CHECKPOINT_ROLE)
+    return ARTIFACTS / "rasters" / train_dir.name / cache_tag(checkpoint) / "snapshot.npz"
+
+
 def generate_raster(model: str, out_path: Path) -> None:
     """Replay the trained baseline (rate target = off) network on MNIST digit 0
     for 400 ms and render its raster figure."""
-    infer_dir = baseline_dir(model) / "infer"
+    npz_path = raster_snapshot(model)
+    infer_dir = npz_path.parent
     infer_dir.mkdir(parents=True, exist_ok=True)
-    npz_path = infer_dir / "snapshot.npz"
     if npz_path.exists():
         npz_path.unlink()
     baseline = baseline_dir(model)
@@ -1420,8 +1427,8 @@ def build_results_compound(figures: Path, run_id: str) -> None:
             "published frontier lacks the official-test evaluation contract; "
             "run exp025 once before plot-only"
         )
-    npz_coba = baseline_dir("coba") / "infer" / "snapshot.npz"
-    npz_ping = baseline_dir("ping") / "infer" / "snapshot.npz"
+    npz_coba = raster_snapshot("coba")
+    npz_ping = raster_snapshot("ping")
     for p in (npz_coba, npz_ping):
         if not p.exists():
             raise SystemExit(f"missing cached raster: {p} (run the notebook once first)")
@@ -1466,7 +1473,7 @@ def main() -> None:
         scale=SCALE, plot_only=meta.plot_only,
     ) as (_artifacts, figures):
         _run(meta, run_id, figures, t_start)
-    log_runner_event(SLUG, "completed", run_id=run_id)
+        log_runner_event(SLUG, "completed", run_id=run_id)
 
 
 def _run(meta, run_id: str, figures: Path, t_start: float) -> None:
@@ -1552,8 +1559,8 @@ def _run(meta, run_id: str, figures: Path, t_start: float) -> None:
 
     # Results compound (Figure 1): rasters + accuracy-per-epoch + the
     # accuracy–rate frontier in one frame (replaces the four standalones).
-    npz_coba = baseline_dir("coba") / "infer" / "snapshot.npz"
-    npz_ping = baseline_dir("ping") / "infer" / "snapshot.npz"
+    npz_coba = raster_snapshot("coba")
+    npz_ping = raster_snapshot("ping")
     if npz_coba.exists() and npz_ping.exists():
         out = figures / "results_compound"
         fig_results_compound(rows, npz_coba, npz_ping, out, run_id)
