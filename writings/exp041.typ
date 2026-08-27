@@ -1,11 +1,13 @@
-#import "/.demolab/lib.typ": data-json, data-image
+#import "/.demolab/lib.typ": data-json, data-image, cite, reference-list
 #import "run-inputs.typ": data-file, inputs-ready, pending-report
 #let data-file = data-file.with(article: "exp041")
 
 #let meta = (
+  status: "Ready for review",
   title: "Firing Rate Tracks Gamma Frequency",
   date: "2026-06-02",
-  description: "Re-training PING at each τ_GABA, the per-cell E rate is affine in the gamma frequency: r_E ≈ 1.15 + 0.18·f_γ with R² ≈ 0.99.",
+  updated_at: "2026-08-27",
+  description: "Across PING networks trained at different inhibitory decay times, compare excitatory firing rate with gamma frequency and test accuracy.",
   collection: "gamma-gated-sparsity",
 )
 
@@ -19,7 +21,9 @@
 
 // Keep calculations lazy: absent inputs never become fabricated results.
 #let render-report(data-file) = [
+#set math.equation(numbering: "(1)")
 #let run = data-json(data-file("exp041/numbers.json"))
+#let cfg = run.config
 #let fit = run.fit
 #let fa = calc.round(fit.a_affine, digits: 2)
 #let fp = calc.round(fit.p_affine, digits: 3)
@@ -37,82 +41,35 @@
 #let acc_hi = calc.round(calc.max(..accs))
 
 #let body = [
-  The trained networks this entry uses are produced once in the shared training
-  hub, #link("/exp022/")[exp022 (Training)], and reused here rather than retrained.
-
   == Abstract
 
-  #link("/exp037/")[exp037] varied $tau_"GABA"$ at inference and the per-cell E rate
-  tracked the gamma cycle. Does that survive _re-training_ at each $tau_"GABA"$?
-  Yes. Across $tau_"GABA" in {4.5, 6, 9, 12, 18, 27}$ ms × 3 seeds,
-  $r_E = #fa + #fp dot f_gamma$ with $R^2 = #fr$. The slope is per-cycle E-cell
-  participation; the intercept is a non-rhythmic baseline; accuracy stays at ≈ #acc_lo–#acc_hi%
-  across the sweep. The cycle clock constrains what the network can become.
-
-  == Method
-
-  *Sweep.* Six $tau_"GABA"$ values ${4.5, 6, 9, 12, 18, 27}$ ms × three seeds = 18
-  networks, trained in the shared hub to the gamma standard (50 epochs on MNIST,
-  Adam at $4 times 10^(-4)$, batch 256, mem-mean readout, no spike budget,
-  $Delta t = 0.1$ ms, $T = 200$ ms); only $tau_"GABA"$ varies.
-
-  Checkpoint-backed accuracy, rate, and spectral measurements use the same fixed
-  1,000-image subset of the official MNIST test partition for every cell.
-
-  *Measuring $f_gamma$.* For each cell, $f_gamma$ is the parabolic-interpolated peak
-  of the Welch PSD on the per-trial population E trace; the fit (Figure 4) uses
-  per-trial peak medians, which avoid the centroid bias of trial-mean PSD peaks.
-  Parabolic interpolation with peak-bin values $(y_0, y_1, y_2)$:
-
-  $
-    f_gamma = "freq"["peak"] + 1/2 (y_0 - y_2)/(y_0 - 2 y_1 + y_2) dot Delta f,
-    quad Delta f = 5 "Hz".
-  $
-
-  It is needed because the bare 5 Hz bin quantisation would coarsen $f_gamma$ across
-  the six conditions; on a well-isolated peak the interpolation error is
-  $O((Delta f)^3)$.
-
-  *The predicted law.* The shape $r_E = a + p dot f_gamma$ is predicted by cycle
-  dynamics, not curve-fitted. Within one cycle of duration $1 \/ f_gamma$, a
-  fraction $p$ of E cells emits exactly one spike (those nearest threshold when the
-  I shunt drops); the rest are still recovering, so the cyclic per-cell rate is
-  $p dot f_gamma$. At long $tau_"GABA"$ the I conductance never fully decays and the
-  cycle dissolves into a tonic bath, leaving a feedforward baseline $a$ independent
-  of $f_gamma$:
-
-  $
-    r_E = underbrace(a, "feedforward baseline") +
-    underbrace(p dot f_gamma, "cyclic contribution").
-  $
-
-  We fit this across the 18 cells.
-
-  *Convergence.* Accuracy plateaus by ≈ epoch 15 while the E rate keeps climbing
-  through training (Figure 1), so the fit uses the explicitly recorded final-epoch checkpoints and rates. Fitting
-  $r_E = a + p dot f_gamma$ across the 18 cells is tight, and forcing the intercept
-  through zero barely loosens it, so the law is not an artefact of the free intercept:
-
-  #table(
-    columns: 4,
-    [fit], [$a$ (Hz)], [$p$ (Hz/Hz)], [$R^2$],
-    [affine], [#fa], [#fp], [#fr],
-    [through origin], [0], [#po], [#pr],
-  )
+  Excitatory firing rate tracked gamma frequency across PING networks trained
+  separately at six inhibitory decay times, with three seeds per condition.
+  Reusing their final-epoch weights, we measured population rhythms and MNIST
+  test performance on the same #cfg.evaluation_samples images per network.
+  The six seed-averaged conditions gave an affine rate–frequency fit with
+  intercept #fa Hz, slope #fp and $R^2 = #fr$; test accuracy ranged from
+  #acc_lo% to #acc_hi%. This association is consistent with a cycle-participation
+  model, but does not establish constant participation or identify a physical
+  non-rhythmic baseline.
 
   == Results
+
+  === 1. Training trajectories
 
   #figure(
     data-image(data-file("exp041/training_curves.svg"),
       width: 100%,
-      alt: "Per-cell accuracy and E-rate over training epochs across the τ_GABA sweep.",
+      alt: "Validation accuracy and excitatory firing rate over training across the inhibitory-decay sweep.",
     ),
     caption: [
-      Per-cell accuracy (top) and E rate (bottom) over training, one line per cell.
-      Accuracy plateaus by ≈ epoch 15; the E rate keeps climbing through the 50
-      epochs, so the final-epoch rates are the ones fit.
+      Reused validation accuracy (top) and excitatory rate (bottom), one line per
+      trained network across #cfg.epochs epochs. Subsequent test measurements
+      use final-epoch weights; accuracy convergence does not select the epoch.
     ],
   )
+
+  === 2. Population rhythm frequency
 
   #figure(
     data-image(data-file("exp041/psds.svg"),
@@ -120,11 +77,14 @@
       alt: "Population-E power spectra by τ_GABA, gamma peak shifting with the inhibitory time constant.",
     ),
     caption: [
-      Trial-mean Welch PSDs by $tau_"GABA"$; dots mark the parabolic-interpolated
-      peak. The peak shifts cleanly from ≈ #fg_lo Hz at $tau_"GABA" = 27$ ms to
-      ≈ #fg_hi Hz at $tau_"GABA" = 4.5$ ms, with no overlap between adjacent conditions.
+      Population-E power spectral densities (PSDs), averaged across trials and
+      then seeds at each inhibitory decay time. Dots mark binned peaks of these
+      displayed means. The per-network interpolated frequencies used in the
+      fit span approximately #fg_lo–#fg_hi Hz.
     ],
   )
+
+  === 3. Illustrative spike timing
 
   #figure(
     data-image(data-file("exp041/raster_strip.png"),
@@ -132,11 +92,14 @@
       alt: "One MNIST trial through each τ_GABA network; the gamma cycle period lengthens with τ_GABA.",
     ),
     caption: [
-      One MNIST trial through each network. The cycle period stretches from ≈ 20 ms
-      ($f_gamma ≈ #fg_hi$ Hz) at short $tau_"GABA"$ to ≈ 50 ms ($f_gamma ≈ #fg_lo$ Hz)
-      at long, the eye and the spectrum agreeing.
+      The same illustrative MNIST image at each decay time, using seed 42.
+      Each panel shows 200 excitatory and 64 inhibitory cells during the first
+      100 ms; displayed rates use the full populations and 200 ms trial.
+      These probes illustrate timing, not the population frequency estimate.
     ],
   )
+
+  === 4. Rate–frequency relationship
 
   #figure(
     data-image(data-file("exp041/rate_vs_fgamma.svg"),
@@ -144,12 +107,99 @@
       alt: "Post-training E rate against gamma frequency; points lie on the affine fit line.",
     ),
     caption: [
-      The law itself. Top: mean post-training E rate vs $f_gamma$, six clusters ×
-      three seeds, error bars from seed variance; the affine fit passes through
-      every error bar. Bottom: per-cluster accuracy is flat, so the rate change is
-      not paid in classification.
+      Final-epoch excitatory rate (top) and test accuracy (bottom) against gamma
+      frequency. Each point is a mean over three seeds; error bars show ±1
+      standard error. The affine line fits six condition means. Individual
+      network rates span #er_lo–#er_hi Hz and accuracies #acc_lo–#acc_hi%.
     ],
   )
+
+  #figure(
+    table(
+      columns: 4,
+      [fit], [intercept (Hz)], [slope (Hz/Hz)], [$R^2$],
+      [affine], [#fa], [#fp], [#fr],
+      [through origin], [0], [#po], [#pr],
+    ),
+    caption: [Both least-squares fits use the same six condition means and
+      centred total sum of squares. The origin-constrained fit tests how much
+      the association depends on a free intercept.],
+  )
+
+  == Methods
+
+  We compared final-epoch dynamics across matched networks trained at different
+  inhibitory decay times, keeping the evaluation data fixed.
+
+  + *Reuse matched trained networks.* Six inhibitory GABA decay constants,
+    $tau_"GABA" in {4.5, 6, 9, 12, 18, 27}$ ms, and seeds 42–44 defined 18 PING
+    networks. Training used 6,300 MNIST training images and 700 held-out
+    validation images, 50 epochs of AdamW with zero weight decay, learning rate
+    $4 times 10^(-4)$, batches of 256, a time-averaged membrane-potential readout
+    and no spike budget. Only inhibitory decay varied between conditions;
+    simulation used 0.1 ms timesteps and 200 ms trials. We reused final-epoch
+    weights to measure endpoint dynamics, without retraining or selecting
+    weights by test performance.
+
+  + *Measure fixed-trial responses.* Each network received the same fixed
+    subset of #cfg.evaluation_samples images from the official MNIST test partition.
+    We measured classification accuracy, mean excitatory spikes per cell per
+    second, and each trial's population-E trace over the full 200 ms. The
+    illustrative raster used image index 0 and seed 42; a fixed random seed of
+    0 selected displayed cells without replacement.
+
+  + *Estimate rhythm frequency.* We demeaned each trial's trace and used a
+    Welch density estimate with one full-trial Hann window #cite(1), then
+    averaged PSDs across trials. The largest peak between 5 and 150 Hz defined
+    the candidate gamma frequency; its neighbouring linear-power values gave
+
+    $ f_gamma = f_k + 1/2 (y_0 - y_2)/(y_0 - 2 y_1 + y_2) dot Delta f. $
+
+    Here $f_gamma$ is the interpolated frequency, $f_k$ the peak-bin frequency,
+    and $Delta f = 5$ Hz the bin spacing; $y_0$, $y_1$ and $y_2$ are PSD values
+    immediately below, at and above that bin. We clamped the correction to
+    half a bin, using zero offset for zero curvature or a spectrum endpoint.
+    Interpolation reduces bin quantisation but can remain biased #cite(2).
+    Per-trial peak distributions were diagnostics; their medians did not enter
+    the fit.
+
+  + *Fit the rate–frequency relation.* We averaged each network's frequency
+    and excitatory rate over the three seeds, then fitted the six condition
+    points with equal weight by least squares:
+
+    $ r_E = a + p dot f_gamma, quad r_E = p_0 dot f_gamma. $
+
+    Here $r_E$ is mean excitatory firing rate in hertz, $a$ is the affine
+    intercept in hertz, and $p$ and $p_0$ are dimensionless slopes. Both fits
+    report $R^2$, the coefficient of determination using centred total sum of
+    squares; error bars are sample standard deviations divided by $sqrt(3)$.
+
+  == Appendix: Cycle-participation model
+
+  If a fraction $p$ of excitatory cells emits exactly one spike during each
+  cycle of duration $1 / f_gamma$, its cyclic per-cell rate is $p dot f_gamma$.
+  Adding a frequency-independent contribution $a$ gives
+
+  $ r_E = underbrace(a, "non-rhythmic contribution") +
+    underbrace(p dot f_gamma, "cyclic contribution"). $
+
+  This is a proposed interpretation of the affine form, conditional on stable
+  participation. Cells nearest threshold when inhibition drops could contribute
+  one spike while others recover; long inhibitory decay could instead sustain
+  tonic inhibition and leave a feedforward contribution. Neither mechanism is
+  established by the fit alone. In particular, an extrapolated intercept need
+  not be a physical baseline, and a negative intercept cannot represent a
+  nonnegative background firing rate.
+
+  #reference-list((
+    (text: [P. D. Welch. “The use of the fast Fourier transform for the estimation
+      of power spectra: A method based on time averaging over short, modified
+      periodograms.” _IEEE Transactions on Audio and Electroacoustics_ 15(2),
+      70–73 (1967).], doi: "10.1109/TAU.1967.1161901"),
+    (text: [J. O. Smith III. _Spectral Audio Signal Processing._ W3K Publishing
+      (2011), #link("https://www.dsprelated.com/freebooks/sasp/Quadratic_Interpolation_Spectral_Peaks.html")[“Quadratic Interpolation of Spectral Peaks”]
+      and #link("https://www.dsprelated.com/freebooks/sasp/Bias_Parabolic_Peak_Interpolation.html")[“Bias of Parabolic Peak Interpolation.”]],),
+  ))
 ]
 #body
 ]

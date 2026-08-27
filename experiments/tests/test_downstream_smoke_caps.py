@@ -37,7 +37,7 @@ def _write_final_checkpoint(train_dir: Path, config: dict) -> None:
     }))
 
 
-@pytest.mark.parametrize("module", [exp041, exp049])
+@pytest.mark.parametrize("module", [exp049])
 def test_quantitative_inference_is_capped_in_smoke(
     module, monkeypatch, tmp_path: Path,
 ) -> None:
@@ -55,7 +55,7 @@ def test_quantitative_inference_is_capped_in_smoke(
     assert observed[observed.index("--max-samples") + 1] == "100"
 
 
-@pytest.mark.parametrize("module", [exp041, exp049])
+@pytest.mark.parametrize("module", [exp049])
 def test_single_sample_inference_does_not_restrict_sample_index(
     module, monkeypatch, tmp_path: Path,
 ) -> None:

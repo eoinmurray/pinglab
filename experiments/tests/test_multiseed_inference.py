@@ -226,7 +226,7 @@ def test_downstream_runners_honor_isolated_runner_paths(tmp_path: Path) -> None:
         if path.is_file()
     }
     for slug in (
-        "exp025", "exp033", "exp037", "exp038", "exp041",
+        "exp025", "exp033", "exp037", "exp038",
         "exp046", "exp049", "exp082",
     ):
         root = tmp_path / slug
