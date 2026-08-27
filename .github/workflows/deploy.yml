@@ -48,6 +48,8 @@ jobs:
       - name: Build the site bundle
         run: |
           uv sync
+          # CI has no local runs; an empty store enables unavailable-data notices.
+          mkdir -p .pingstore/runs
           uv run demolab build
 
       # Publish .demolab/site to the root of the gh-pages branch. `clean: true` prunes stale
