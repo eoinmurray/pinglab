@@ -1,4 +1,5 @@
 #let meta = (
+  status: "Drafted",
   title: "Networks, signals, and parameters",
   date: "2026-08-14",
   description: "The core snnlang authoring objects, their names, shapes, units, neuron populations, and parameter declarations.",

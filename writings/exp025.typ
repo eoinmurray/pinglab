@@ -3,6 +3,7 @@
 #let data-file = data-file.with(article: "exp025")
 
 #let meta = (
+  status: "Implemented",
   title: "PING Wins the Accuracy–Rate Frontier",
   date: "2026-05-30",
   description: "A head-to-head of COBA and PING on MNIST under a matched recipe: PING locks the hidden E rate about an order of magnitude lower at comparable accuracy, so the loop buys per-spike economy.",

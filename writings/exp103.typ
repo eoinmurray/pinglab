@@ -1,4 +1,5 @@
 #let meta = (
+  status: "Drafted",
   title: "Compute options",
   date: "2026-08-11",
   description: "A practical inventory of pinglab compute: when each machine or provider is appropriate, how access works, and the commands used to launch and monitor work.",

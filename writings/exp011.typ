@@ -1,4 +1,5 @@
 #let meta = (
+  status: "Drafted",
   title: "The SNN tool",
   date: "2026-07-06",
   description: "Reference for tools/snnsim/tool.py, the single command-line tool that drives every simulation, training run, and measurement in the project.",

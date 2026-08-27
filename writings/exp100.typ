@@ -1,4 +1,5 @@
 #let meta = (
+  status: "Drafted",
   title: "COBANet",
   date: "2026-05-14",
   description: "Deriving the conductance-based (COBA) two-population neuron equations and their exact exponential-Euler discretization.",

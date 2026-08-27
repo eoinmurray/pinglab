@@ -26,8 +26,52 @@ Changing this guide does not itself migrate existing runs or authorize a migrati
 - **2.0.0** — Require v3 for all operational storage paths; remove allowances
   for v2 reads, legacy capture, discovery, publication and reservation completion.
   Retaining historical evidence does not make it conformant or authorize migration.
+- **1.1.0** — Add source-preserving, scoped conformance guidance and evidence-led
+  suggestions for encoding reusable rules with explicit approval. Storage
+  contracts and run schemas remain unchanged.
 - **1.0.0** — Name and version the existing Storage Guide; storage requirements
   and run schemas remain unchanged.
+
+### 1.2. Applying the guide to existing work
+
+Read the current implementation and relevant tests immediately before editing.
+Use the live files, including uncommitted edits, as the baseline; do not rebuild
+them from an older revision or remembered design. Preserve settled decisions
+whether made directly by the user or through an agent.
+
+- Treat conformance as a minimal, scoped change, not permission to redesign
+  storage. Edit only the requested target and strictly necessary dependencies;
+  preserve unrelated behaviour, compatibility and manual edits.
+- Apply the requested guide version, not silently the latest one. If that
+  version cannot be recovered, ask which available version to use. Explicit
+  user instructions control scope and any exceptions to the guide.
+- A code or documentation change does not authorize migration, rewriting runs
+  or reservations, pruning, selection, materialization or publication. Preserve
+  the separate authorization boundaries below.
+- If conformance conflicts with retained evidence, compatibility or a settled
+  decision, identify the conflict and ask before making a material change.
+  Preservation does not establish correctness or waive validation requirements.
+- Review the diff against the live starting files and run relevant checks.
+  Report unresolved gaps and checks not performed; do not infer successful
+  validation of stored runs from code changes or passing unit tests alone.
+
+### 1.3. Improving the guide through use
+
+While applying this guide, use concrete difficulties, validation failures and
+the user's corrections to identify improvements to its reusable instructions.
+
+- Suggest encoding a rule when the lesson would materially improve future
+  storage work; do not manufacture a suggestion for every task.
+- Distinguish reusable rules from run-specific repairs or migration decisions.
+  Check existing rules and refine them rather than adding duplicates. Put a
+  rule in the guide that owns it; execution and writing have separate guides.
+- For each suggestion, state the observed problem, propose exact wording and
+  its location, explain the expected benefit, and ask whether to encode it.
+- Complete the requested work first unless a conflict requires clarification.
+  Present suggestions in the task response, not inside retained run records.
+- Do not modify the guide or broaden implementation edits without explicit
+  approval. Approved guide changes follow its versioning rules and do not
+  themselves authorize changes to stored data.
 
 ## 2. Pingstore filesystem convention
 

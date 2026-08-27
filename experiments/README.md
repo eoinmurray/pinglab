@@ -24,8 +24,57 @@ version history when changing the guide.
 - **2.0.0** — Require v3 for all operational execution and inputs, aligning with
   Storage Guide 2.0.0. Remove legacy capture, discovery, publication and reservation
   completion allowances; historical preservation does not authorize operational use.
+- **1.1.0** — Add source-preserving, scoped conformance guidance and evidence-led
+  suggestions for encoding reusable rules with explicit approval. Execution
+  contracts remain unchanged.
 - **1.0.0** — Name and version the existing Experiment Runner Guide; execution
   requirements remain unchanged.
+
+### 1.2. Applying the guide to existing work
+
+Read the current target, its recipe, relevant stage dependencies and tests
+immediately before editing. Use the live files, including uncommitted edits, as
+the baseline; do not reconstruct an older implementation or undo settled
+scientific decisions, whether made directly by the user or through an agent.
+
+- Treat conformance as a minimal, scoped change, not permission to redesign an
+  experiment. Preserve scientific definitions, parameter values, selection and
+  measurement rules, stage boundaries and unrelated manual edits. Change only
+  the requested target and strictly necessary dependencies.
+- Apply the requested guide version, not silently the latest one. If that
+  version cannot be recovered, ask which available version to use. Explicit
+  user instructions control scope and any exceptions to the guide.
+- Distinguish current code's intended behaviour from historical execution.
+  Ground claims about completed work in retained provenance and outputs; an
+  implementation change does not establish that an experiment was rerun.
+- Editing code or documentation does not itself authorize experiment execution,
+  upstream work, migration or publication. Keep verification within the task's
+  authorized scope and the independent-stage boundaries below.
+- If conformance would materially change scientific meaning, interfaces or a
+  settled decision, identify the conflict and ask before doing so. Preservation
+  does not establish scientific correctness or excuse unsupported claims.
+- Review the diff against the live starting files and run relevant checks.
+  Report unresolved gaps and checks not performed; distinguish test results
+  from newly executed experiments and historical evidence.
+
+### 1.3. Improving the guide through use
+
+While applying this guide, use concrete execution difficulties, weaknesses in
+the implementation and the user's corrections to identify improvements to its
+reusable instructions.
+
+- Suggest encoding a rule when the lesson would materially improve future
+  experiment execution; do not manufacture a suggestion for every task.
+- Distinguish reusable rules from experiment-specific scientific choices.
+  Check existing rules and refine them rather than adding duplicates. Put a
+  rule in the guide that owns it; storage and writing have separate guides.
+- For each suggestion, state the observed problem, propose exact wording and
+  its location, explain the expected benefit, and ask whether to encode it.
+- Complete the requested work first unless a conflict requires clarification.
+  Present suggestions in the task response, not in scientific outputs.
+- Do not modify the guide or broaden experiment edits without explicit
+  approval. Approved guide changes follow its versioning rules and do not
+  themselves authorize execution or changes to retained evidence.
 
 ## 2. Experiment lifecycle
 

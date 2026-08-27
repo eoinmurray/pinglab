@@ -1,4 +1,5 @@
 #let meta = (
+  status: "Drafted",
   title: "Inputs, outputs, and readouts",
   date: "2026-08-14",
   description: "Bind data to graph inputs, expose internal activity, and turn network signals into stable output values.",

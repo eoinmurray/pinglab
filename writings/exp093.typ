@@ -4,6 +4,7 @@
 #let data-file = data-file.with(article: "exp093")
 
 #let meta = (
+  status: "Implemented",
   title: "Old and New Manuscript Figures",
   date: "2026-08-22",
   description: "Compare the legacy and current gamma-gated sparsity manuscript plots side by side.",

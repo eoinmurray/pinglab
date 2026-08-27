@@ -3,6 +3,7 @@
 #let data-file = data-file.with(article: "exp046")
 
 #let meta = (
+  status: "Implemented",
   title: "One Spike per Gamma Cycle",
   date: "2026-06-04",
   description: "Counting E spikes per gamma cycle across exp041's 18 checkpoints shows the architecture is overwhelmingly one-spike-per-cycle.",

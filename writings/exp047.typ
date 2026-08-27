@@ -3,6 +3,7 @@
 #let data-file = data-file.with(article: "exp047")
 
 #let meta = (
+  status: "Implemented",
   title: "Pool Size Requires Synaptic Rescaling",
   date: "2026-07-14",
   description: "Paired controls separate fixed summed I→E coupling from fixed realised synaptic strength as the inhibitory pool grows.",

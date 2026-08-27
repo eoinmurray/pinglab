@@ -3,6 +3,7 @@
 #let data-file = data-file.with(article: "exp022")
 
 #let meta = (
+  status: "Results available",
   title: "Training Runs",
   date: "2026-08-11",
   description: "Seven controlled training families, their retained checkpoint bank, validation learning curves, and raster diagnostics.",

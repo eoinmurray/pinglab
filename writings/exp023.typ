@@ -3,6 +3,7 @@
 #let data-file = data-file.with(article: "exp023")
 
 #let meta = (
+  status: "Results available",
   title: "Turning the PING Loop On",
   date: "2026-05-13",
   description: "PING stripped to its biophysical fundamentals: free-running activity, population spectra and rate responses with the excitatory–inhibitory loop off and on.",

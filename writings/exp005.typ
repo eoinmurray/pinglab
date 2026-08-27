@@ -1,4 +1,5 @@
 #let meta = (
+  status: "Drafted",
   title: "Metrics",
   date: "2026-05-14",
   description: "Reference for every number and panel the scope shows: what each metric measures and what a healthy value looks like.",

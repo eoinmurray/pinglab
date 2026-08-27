@@ -3,6 +3,7 @@
 #let data-file = data-file.with(article: "exp074")
 
 #let meta = (
+  status: "Implemented",
   title: "From Python graph to spikes",
   date: "2026-07-31",
   description: "The first snnlang vertical slice: author a PING network in Python, compile a portable bundle, execute it through tools/snnsim, and retain both the graph and its spike rasters.",

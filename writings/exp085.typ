@@ -4,6 +4,7 @@
 #let data-file = data-file.with(article: "exp085")
 
 #let meta = (
+  status: "Implemented",
   title: "Lowet 2015",
   date: "2026-08-19",
   description: "Distinguish the pathways that phase-lock two cortical PING rhythms.",

@@ -3,6 +3,7 @@
 #let data-file = data-file.with(article: "exp054")
 
 #let meta = (
+  status: "Implemented",
   title: "Gamma Turns On Across the Coupling Map",
   date: "2026-06-15",
   description: "A single bounded scalar (the lobe–trough contrast of the spike-time autocorrelation) for how rhythmic a spiking network is, made rate-invariant by private per-cell input.",

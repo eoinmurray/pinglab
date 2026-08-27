@@ -1,4 +1,5 @@
 #let meta = (
+  status: "Drafted",
   title: "Training",
   date: "2026-05-14",
   description: "The shared surrogate-gradient training recipe every model on the ladder uses, from BPTT through readout, regularisation, and weight init.",

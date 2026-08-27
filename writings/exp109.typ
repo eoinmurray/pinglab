@@ -5,6 +5,7 @@
 #let data-file = data-file.with(article: "exp109")
 
 #let meta = (
+  status: "Drafted",
   title: "Gamma-Gated Sparsity Manuscript",
   date: "2026-06-21",
   description: "A task-trained spiking network with a fixed PING loop: gamma as a structural constraint on excitatory firing rates.",

@@ -44,7 +44,22 @@ preview:
     exp088: []
     exp089: []
     exp090: []
-    exp092: [exp022, exp023, exp025, exp033, exp037, exp038, exp041, exp042, exp044, exp046, exp048, exp049, exp054]
+    exp092:
+      [
+        exp022,
+        exp023,
+        exp025,
+        exp033,
+        exp037,
+        exp038,
+        exp041,
+        exp042,
+        exp044,
+        exp046,
+        exp048,
+        exp049,
+        exp054,
+      ]
     exp093: [exp093, exp025, exp038, exp049, exp041, exp046, exp037, exp042, exp044]
     exp099: [exp099]
     exp100: []
@@ -55,7 +70,22 @@ preview:
     exp106: []
     exp107: []
     exp108: []
-    exp109: [exp022, exp023, exp025, exp033, exp037, exp038, exp041, exp042, exp044, exp046, exp048, exp049, exp054]
+    exp109:
+      [
+        exp022,
+        exp023,
+        exp025,
+        exp033,
+        exp037,
+        exp038,
+        exp041,
+        exp042,
+        exp044,
+        exp046,
+        exp048,
+        exp049,
+        exp054,
+      ]
 
 links:
   - label: Documentation
@@ -69,25 +99,18 @@ collection-order: [gamma-gated-sparsity, demo, documentation, literature, weekly
 collections:
   gamma-gated-sparsity:
     label: Gamma-gated sparsity
-    description: PING E/I networks trained with surrogate gradients; what sets the rate, the rhythm, and the sparsity.
   demo:
-    label: Demo
-    description: Executable demonstrations of Pinglab models, tools, and published computational-neuroscience results.
+    label: Demos
   documentation:
     label: Documentation
-    description: Developer documentation for Pinglab's models, tools, conventions, and SNNLANG.
     theme: docs
     homepage: false
     children: [pinglab-docs, snnlang-docs, snnsim-docs, snnviz-docs]
   pinglab-docs:
     label: Pinglab
-    description: Project operations, infrastructure, and repository-wide conventions.
   snnlang-docs:
     label: SNNLANG
-    description: Network authoring, compilation, execution, training, and compatibility guides.
   snnsim-docs:
     label: SNNSIM
-    description: Simulator models, parameters, metrics, training, and runtime reference.
   snnviz-docs:
     label: SNNVIZ
-    description: Visualisation components and usage guides for SNNVIZ.

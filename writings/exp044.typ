@@ -3,6 +3,7 @@
 #let data-file = data-file.with(article: "exp044")
 
 #let meta = (
+  status: "Results available",
   title: "Firing Rate Across the Timestep Sweep",
   date: "2026-06-02",
   description: "Compares final-epoch firing rate, classification accuracy and illustrative rasters across a twentyfold integration-timestep sweep.",

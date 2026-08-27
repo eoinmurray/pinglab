@@ -3,6 +3,7 @@
 #let data-file = data-file.with(article: "exp042")
 
 #let meta = (
+  status: "Results available",
   title: "Breaking Gamma Releases the Rate Gate",
   date: "2026-06-02",
   description: "Overriding the I-stream of trained PING at inference shows what gates the E rate is the timing of inhibition, the rhythm, not its average level.",

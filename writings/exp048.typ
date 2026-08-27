@@ -3,6 +3,7 @@
 #let data-file = data-file.with(article: "exp048")
 
 #let meta = (
+  status: "Implemented",
   title: "Accuracy Across Duration and Input Rate",
   date: "2026-06-08",
   description: "Streaming psychometric curves identify the presentation durations and encoding rates that support classification in a frozen trained PING network.",

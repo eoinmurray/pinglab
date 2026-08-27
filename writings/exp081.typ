@@ -4,6 +4,7 @@
 #let data-file = data-file.with(article: "exp081")
 
 #let meta = (
+  status: "Results available",
   title: "How Pixel Features Respond to Input Rate",
   date: "2026-08-10",
   description: "Standalone empirical and analytical study of synaptic, membrane, and finite-window filtering under sparse Poisson drive.",

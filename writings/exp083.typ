@@ -3,6 +3,7 @@
 #let data-file = data-file.with(article: "exp083")
 
 #let meta = (
+  status: "Implemented",
   title: "When does the default PING circuit start to sing?",
   date: "2026-08-17",
   description: "A fixed SNNLANG graph tests whether the default PING component develops a reproducible gamma rhythm as homogeneous Poisson drive increases.",

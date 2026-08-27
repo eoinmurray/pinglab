@@ -3,6 +3,7 @@
 #let data-file = data-file.with(article: "exp024")
 
 #let meta = (
+  status: "Results available",
   title: "Accuracy Plateaus While Firing Rate Rises",
   date: "2026-06-02",
   description: "Audits validation accuracy and firing-rate stability in unregularised PING and COBA training histories.",

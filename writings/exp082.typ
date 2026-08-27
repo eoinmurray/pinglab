@@ -3,6 +3,7 @@
 #let data-file = data-file.with(article: "exp082")
 
 #let meta = (
+  status: "Implemented",
   title: "Spike-Count Classification in a Continuous Stream",
   date: "2026-08-10",
   description: "A multi-seed study of spike-count classification across input rates and presentation durations.",

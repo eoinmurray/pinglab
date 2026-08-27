@@ -1,4 +1,5 @@
 #let meta = (
+  status: "Drafted",
   title: "Training recipes and graph-native learning",
   date: "2026-08-14",
   description: "Declare standard objectives, parameter groups, optimization, regularization, and the boundary of current training support.",

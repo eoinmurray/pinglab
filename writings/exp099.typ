@@ -3,6 +3,7 @@
 #let data-file = data-file.with(article: "exp099")
 
 #let meta = (
+  status: "Planned",
   title: "From simplified to brainlike input in a PING network",
   created_at: "2026-08-26",
   updated_at: "2026-08-26",

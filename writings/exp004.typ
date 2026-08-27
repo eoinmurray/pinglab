@@ -1,4 +1,5 @@
 #let meta = (
+  status: "Drafted",
   title: "Parameters & Units",
   date: "2026-05-14",
   description: "The unit system used throughout the codebase and the biophysical constants for the COBA / PING model.",

@@ -3,6 +3,7 @@
 #let data-file = data-file.with(article: "exp075")
 
 #let meta = (
+  status: "Implemented",
   title: "A compiled graph learns",
   date: "2026-07-31",
   description: "A deliberately small MNIST run checks that an snnlang graph and training recipe can drive the existing tools/snnsim trainer without legacy structural flags.",

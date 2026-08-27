@@ -4,6 +4,7 @@
 #let data-file = data-file.with(article: "exp080")
 
 #let meta = (
+  status: "Implemented",
   title: "Calibrating Accuracy Across Input Rates",
   date: "2026-08-10",
   description: "Direct-simulation decoder calibration of the input-rate range for later variable-rate PING training.",

@@ -1,6 +1,6 @@
 # Writing Guide
 
-Version: **8.1.1**
+Version: **9.0.0**
 
 The Writing Guide defines the conventions for Pinglab's published experiment
 entries in `writings/expXXX.typ`. This file is the canonical guide.
@@ -15,6 +15,10 @@ above and add a short entry to the version history when changing the guide.
 
 ### 1.1. Version history
 
+- **9.0.0** — Require milestone-based `meta.status` on every experiment entry,
+  including reference documents. Define evidence-based authoring updates,
+  explicit author review and pause decisions, and a `Drafted` milestone for
+  written accounts without established implementation or results.
 - **8.1.1** — Clarify that incorporating a present run advances the article's
   update date when displayed evidence changes substantively, even without prose
   changes; run completion and equivalent outputs alone do not qualify.
@@ -194,6 +198,58 @@ change merely to adopt this guide.
   unknown historical updates. Updating this field is a necessary dependent
   edit under section 3.1 when the requested revision qualifies, unless the
   author explicitly instructs otherwise.
+
+### 3.5. Research milestones
+
+Every `writings/expXXX.typ` must declare one `meta.status` using an exact label
+from the table below. The badge describes what is currently established for
+the article's scientific or documentary scope, not the last activity, a next
+action, or a live job state. It is an authoring convention, not a measure of
+scientific quality. Null and negative findings qualify on the same terms as
+positive findings.
+
+| Label | Established milestone |
+| --- | --- |
+| `Planned` | The question or intended scope is documented, but the substantive account or intended implementation is not yet established. |
+| `Drafted` | A substantive article, derivation, reference document, or synthesis is written; implementation, usable results, or review readiness have not been established for its scope. |
+| `Implemented` | The intended experimental method or supporting workflow is implemented. This does not certify successful execution, operational readiness, or available results. |
+| `Results available` | Usable retained results relevant to the article's scope have been verified. Analysis, coverage, and writing may still be incomplete. |
+| `Ready for review` | The article covers the agreed scope, and its claims, methods or derivations, figures, references, and limitations have been checked against the relevant evidence or implementation. No known substantive gap prevents review. |
+| `Reviewed` | The author explicitly accepted the current article and supporting evidence. This is not a claim of external peer review or permanent completion. |
+| `Paused` | The author explicitly suspended the work. This overrides the milestone badge until the author resumes it. |
+
+- Choose the most advanced applicable milestone supported by evidence. This is
+  not a compulsory linear sequence: reference documents and theoretical accounts
+  may move from `Drafted` to `Ready for review` without implementation or runs.
+  A partial prototype does not establish implementation of a broader study.
+- At the end of an authorized article revision, relevant implementation or
+  execution task, or evidence-incorporation task, reassess the article's status and
+  update it when a milestone is established or invalidated. This is an agent
+  authoring responsibility, not a build-time calculation, scheduler callback,
+  or background monitor. The metadata update is a necessary dependent edit
+  under section 3.1; explicit author scope restrictions still take precedence.
+- Inspect the current article and relevant code or retained evidence. Existing
+  prose, filenames, a successful build, an illustrative figure, or a completed
+  run alone do not establish the next milestone. For operational run evidence,
+  follow the Storage Guide's v3 layout, checksum, and input-provenance rules.
+  Reused results qualify when their provenance and relevance are established.
+  Record unresolved verification gaps in the task summary, not article prose.
+- Missing access is not evidence that a previously established milestone was
+  never reached. Do not promote without evidence or silently downgrade a
+  supported status merely because inputs are unavailable in the current
+  checkout. When initially assigning an absent status, use the milestone that
+  can be established and report the verification limit.
+- Set `Reviewed` or `Paused` only on explicit author instruction. Preserve
+  `Paused` until the author resumes work, then reassess the milestone. A
+  substantive change to a reviewed article or its incorporated evidence
+  reopens review: assign `Ready for review` if its checks still pass, otherwise
+  the supported earlier milestone. Cosmetic edits and additional runs that
+  are not incorporated do not erase review of the current article.
+- Do not use `Running`, `Edited`, or `Complete` as substitutes for milestones.
+  Status changes alone do not advance `updated_at`; apply section 3.4 to the
+  underlying change. This rule does not modify immutable run records, launch
+  stages, select inputs, authorize historical inspection or migration, or
+  authorize publication.
 
 ## 4. Titles
 

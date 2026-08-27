@@ -3,6 +3,7 @@
 #let data-file = data-file.with(article: "exp037")
 
 #let meta = (
+  status: "Implemented",
   title: "Dropped Spikes vs Added Noise",
   date: "2026-05-30",
   description: "Perturbs the hidden spike stream of trained PING and COBA at inference. PING forgives most dropped spikes but breaks under a small rate of added Poisson noise; COBA is flat to both. The gamma cycle made visible.",

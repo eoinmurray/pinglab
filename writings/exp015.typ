@@ -1,4 +1,5 @@
 #let meta = (
+  status: "Drafted",
   title: "Gradient Stabilisation",
   date: "2026-06-12",
   description: "Why conductance-based spiking networks need --v-grad-dampen to train, derived from the discrete equations: the recurrent loop makes the backpropagated gradient diverge geometrically, and per-step voltage-gradient damping bounds it.",

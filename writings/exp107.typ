@@ -1,4 +1,5 @@
 #let meta = (
+  status: "Drafted",
   title: "Compiling and executing bundles",
   date: "2026-08-14",
   description: "Validate a graph, write its portable bundle, select an executor, supply inputs, and retrieve named outputs and recordings.",
