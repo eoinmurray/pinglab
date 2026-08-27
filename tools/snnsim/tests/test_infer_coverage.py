@@ -29,18 +29,15 @@ from infer import (
 )
 from train import train
 
-# Whole file trains real (tiny) torch models via module fixtures — minutes of
-# wall-clock. Marked slow so `pytest -m "not slow"` is a true fast lane.
-pytestmark = pytest.mark.slow
+# Mark integration classes individually so the pure shape helpers run fast.
 
 
 @pytest.fixture(scope="module")
 def trained_ckpt():
     """Train ONE tiny checkpoint and reuse it across every test in this module.
 
-    Module-scoped so training (the slow part) runs exactly once. Mirrors the
-    `trained_weights` fixture in test_infer_integration.py but scoped to the
-    module instead of the function.
+    Module-scoped so training (the slow part) runs exactly once, like the
+    `trained_weights` fixture in test_infer_integration.py.
     """
     with TemporaryDirectory() as tmpdir:
         train_dir = Path(tmpdir) / "train"
@@ -118,6 +115,7 @@ class TestHiddenSizesFromStateDict:
 # ─────────────────────────────────────────────────────────────────────────────
 
 
+@pytest.mark.slow
 class TestInferPerturb:
     @pytest.mark.parametrize(
         "mode,level",
@@ -162,6 +160,7 @@ class TestInferPerturb:
 # ─────────────────────────────────────────────────────────────────────────────
 
 
+@pytest.mark.slow
 class TestInferEmitters:
     def test_all_outputs_written(self, trained_ckpt, tmp_out):
         result = infer(
@@ -219,6 +218,7 @@ class TestInferEmitters:
 # ─────────────────────────────────────────────────────────────────────────────
 
 
+@pytest.mark.slow
 class TestInferAndSnapshotExtras:
     def test_tau_gaba_and_scale_and_skip_load(self, trained_ckpt, tmp_out):
         # tau_gaba override + skip_load path in infer_and_snapshot. skip_load
@@ -273,6 +273,7 @@ class TestInferAndSnapshotExtras:
 # ─────────────────────────────────────────────────────────────────────────────
 
 
+@pytest.mark.slow
 class TestInferScaleWeights:
     def test_scale_all_three(self, trained_ckpt):
         result = infer(
@@ -326,6 +327,7 @@ class TestInferScaleWeights:
 # ─────────────────────────────────────────────────────────────────────────────
 
 
+@pytest.mark.slow
 class TestProbe:
     def test_probe_fresh_net_returns_rates(self, tmp_out):
         # Untrained net (load_weights=None), no dataset. n_in small to stay cheap.
@@ -458,6 +460,7 @@ def _write_i_override(path, T, n_i, n_trials, seed=0):
     )
 
 
+@pytest.mark.slow
 class TestIOverride:
     def test_infer_i_override(self, trained_ckpt, tmp_out):
         # n_i must match the checkpoint's I-pool (32//4 = 8); T = round(100/0.1).
@@ -496,6 +499,7 @@ class TestIOverride:
 # ─────────────────────────────────────────────────────────────────────────────
 
 
+@pytest.mark.slow
 class TestDumpWeights:
     def test_dump_weights_writes_npz(self, trained_ckpt, tmp_out):
         result = dump_weights(

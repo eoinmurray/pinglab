@@ -12,12 +12,24 @@ import models as M
 import numpy as np
 import pytest
 import torch
+import train as training
 from infer import infer, infer_and_snapshot
 from train import train
 
 # Whole file trains real (tiny) torch models via fixtures and runs inference —
 # minutes of wall-clock. Marked slow so `pytest -m "not slow"` is a true fast lane.
 pytestmark = pytest.mark.slow
+
+_TRAINING_KWARGS = dict(
+    model_name="ping",
+    dt=0.1,
+    t_ms=100.0,
+    dataset="mnist",
+    max_samples=100,
+    lr=0.01,
+    hidden_sizes=[32],
+    seed=42,
+)
 
 
 @pytest.fixture
@@ -27,29 +39,29 @@ def tmp_output_dir():
         yield Path(tmpdir)
 
 
-@pytest.fixture
-def trained_weights(tmp_output_dir):
-    """Pre-trained weights for infer tests.
+@pytest.fixture(scope="module")
+def trained_weights(tmp_path_factory):
+    """Train once; each test loads fresh tensors from a read-only checkpoint.
 
-    Trains a tiny model on mnist to produce weights.pth.
+    Output directories and the conftest model-global reset remain per-test.
     """
-    train_dir = tmp_output_dir / "train"
-    train_dir.mkdir(exist_ok=True)
+    train_dir = tmp_path_factory.mktemp("infer-checkpoint")
+    initial_path = train_dir / "weights_initial.pth"
+    build_net = training.build_net
 
-    train(
-        model_name="ping",
-        dt=0.1,
-        t_ms=100.0,
-        epochs=2,
-        dataset="mnist",
-        max_samples=100,  # enough for stratified split
-        lr=0.01,
-        hidden_sizes=[32],
-        seed=42,
-        out_dir=train_dir,
-    )
+    def save_initial_weights(*args, **kwargs):
+        net = build_net(*args, **kwargs)
+        # Capture this run's actual initial state, without a second training run.
+        torch.save(net.state_dict(), initial_path)
+        return net
+
+    with pytest.MonkeyPatch.context() as patch:
+        patch.setattr(training, "build_net", save_initial_weights)
+        train(**_TRAINING_KWARGS, epochs=2, out_dir=train_dir)
     weights_path = train_dir / "weights.pth"
     assert weights_path.exists(), "Training should produce weights.pth"
+    weights_path.chmod(0o444)
+    initial_path.chmod(0o444)
     return weights_path
 
 
@@ -428,55 +440,33 @@ class TestInferHiddenSizesAutoDetection:
 
 
 class TestInferAccuracyValidation:
-    """Test that inferred accuracy is reasonable."""
+    """Check real learning against the same model before optimizer updates."""
 
-    @pytest.mark.slow
-    def test_trained_model_achieves_reasonable_accuracy(self, trained_weights):
-        """Model trained on mnist should beat the random baseline."""
-        result = infer(
+    def test_training_improves_held_out_accuracy(self, trained_weights):
+        # infer uses a fixed seed-42 subset of the official test partition.
+        # 1,000 images cover every digit without evaluating all 10,000 images.
+        # Use identical encoding for the trained and exact initial checkpoint.
+        kwargs = dict(
             model_name="ping",
             dt=0.1,
             t_ms=100.0,
-            load_weights=trained_weights,
             dataset="mnist",
-            max_samples=None,  # Use all test data
+            max_samples=1000,
             hidden_sizes=[32],
+            seed=42,
         )
-        # The shared fixture trains only briefly on a small mnist subset, so
-        # this is a smoke check that learning happened at all: beat chance
-        # (10% for 10 classes) with a small margin.
-        assert result["acc"] > 12.0, (
+        initial = infer(
+            **kwargs, load_weights=trained_weights.with_name("weights_initial.pth")
+        )
+        trained = infer(**kwargs, load_weights=trained_weights)
+        assert trained["acc"] > 12.0, (
             f"Expected accuracy > 12% on mnist after training, "
-            f"got {result['acc']:.1f}%"
+            f"got {trained['acc']:.1f}%"
         )
-
-    @pytest.mark.slow
-    def test_untrained_model_near_random_baseline(self, tmp_output_dir):
-        """Random (untrained) weights should give near-random accuracy."""
-        # Create weights without training
-        from config import build_net
-
-        # Build the untrained net at mnist's input size so its W_in matches the
-        # net infer() builds for dataset="mnist" (n_in=784); the autouse fixture
-        # otherwise leaves M.N_IN at the module default of 64.
-        M.N_IN = 784
-        net = build_net("ping", hidden_sizes=[32])
-        weights_dir = tmp_output_dir / "untrained"
-        weights_dir.mkdir()
-        weights_path = weights_dir / "weights.pth"
-        torch.save(net.state_dict(), weights_path)
-
-        result = infer(
-            model_name="ping",
-            dt=0.1,
-            t_ms=100.0,
-            load_weights=weights_path,
-            dataset="mnist",
-            max_samples=100,
-            hidden_sizes=[32],
+        assert trained["acc"] > initial["acc"], (
+            f"Training did not improve held-out accuracy: "
+            f"initial={initial['acc']:.1f}%, trained={trained['acc']:.1f}%"
         )
-        # Random baseline for 10-class is 10%, allow 0-30% for variance
-        assert 0.0 <= result["acc"] <= 30.0
 
 
 class TestInferDatasetSpecific:

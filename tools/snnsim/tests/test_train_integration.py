@@ -1,7 +1,7 @@
 """Integration tests for train() function.
 
 Tests parameter propagation, M module globals setup, output artifacts,
-config round-trip, edge cases, and backwards compatibility.
+config round-trip and edge cases.
 """
 
 import hashlib
@@ -640,55 +640,8 @@ class TestEdgeCases:
         assert config["hidden_sizes"] == [64, 32]
 
 
-class TestBackwardsCompatibility:
-    """Test handling of legacy config.json formats."""
-
-    def test_config_without_dales_law_field(self, tmp_output_dir):
-        """Should handle config.json missing dales_law field gracefully."""
-        # Create a config missing the dales_law field
-        config_data = {
-            "model": "ping",
-            "dt": 0.1,
-            "t_ms": 100.0,
-            "epochs": 0,
-            "dataset": "mnist",
-            "n_hidden": 256,
-            "n_inh": 64,
-            "n_in": 64,
-            "n_params": 100000,
-            "n_trainable": 50000,
-        }
-        config_path = tmp_output_dir / "config.json"
-        with open(config_path, "w") as f:
-            json.dump(config_data, f)
-
-        # Try to load it (this tests that downstream code can handle
-        # missing fields, though train() always writes dales_law)
-        with open(config_path) as f:
-            loaded = json.load(f)
-        assert "dales_law" not in loaded
-
-
 class TestTrainWithMinimalData:
     """Test training with very small datasets."""
-
-    @pytest.mark.slow
-    def test_train_converges_on_tiny_dataset(self, tmp_output_dir):
-        """Training on tiny dataset should show non-zero accuracy gain."""
-        best_acc = train(
-            model_name="ping",
-            dt=0.1,
-            t_ms=100.0,
-            epochs=3,
-            dataset="mnist",
-            max_samples=100,
-            lr=0.01,
-            hidden_sizes=[32],
-            out_dir=tmp_output_dir,
-        )
-        # Even on 20 samples, should get some learning
-        assert best_acc > 0.0
-        assert best_acc <= 100.0
 
     @pytest.mark.slow
     def test_metrics_jsonl_created(self, tmp_output_dir):
