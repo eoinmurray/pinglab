@@ -1,6 +1,6 @@
 # Writing Guide
 
-Version: **8.0.0**
+Version: **8.1.1**
 
 The Writing Guide defines the conventions for Pinglab's published experiment
 entries in `writings/expXXX.typ`. This file is the canonical guide.
@@ -15,6 +15,12 @@ above and add a short entry to the version history when changing the guide.
 
 ### 1.1. Version history
 
+- **8.1.1** — Clarify that incorporating a present run advances the article's
+  update date when displayed evidence changes substantively, even without prose
+  changes; run completion and equivalent outputs alone do not qualify.
+- **8.1.0** — Add prospective authored-date rules: update `meta.updated_at`
+  after substantive article revisions, at calendar-day granularity; preserve
+  creation dates and do not backfill unchanged articles.
 - **8.0.0** — Restrict Methods items to substantive scientific operations. Remove
   the preferred minimum item count and prohibit standalone steps for routine
   presentation and summarization; keep necessary figure-reading details in
@@ -154,6 +160,40 @@ requested target; do not restore superseded wording or undo settled decisions.
 Present the candidate for review unless saving or replacement is explicitly
 authorized. If a material choice cannot be recovered confidently, ask rather
 than silently discarding it.
+
+### 3.4. Authored update dates
+
+Apply this rule to future article edits; existing articles do not need a date
+change merely to adopt this guide.
+
+- Set `meta.updated_at` to the author's local calendar date (`YYYY-MM-DD`) when
+  completing and saving a substantive revision. Qualifying changes include
+  revised claims, methods, results, figures, interpretations, meaningful
+  corrections, or explanations that materially improve scientific understanding.
+  A small correction to a consequential number or equation still qualifies.
+- Use completed editing passes as checkpoints, with calendar-day granularity:
+  multiple revisions on the same day share one date. Do not wait for a weekly
+  interval, commit, build, or publication, and do not advance the date merely
+  because time has passed. Unsaved review candidates do not change the article's
+  metadata.
+- Leave `updated_at` unchanged for spelling, punctuation, formatting, link
+  repairs, or source plumbing that do not change scientific meaning, and for
+  rebuilds or deployments alone.
+- Completing a compute, analyse, or present run does not by itself advance the
+  article's date. When a present run is incorporated into the article, set
+  `meta.updated_at` to the date of incorporation if it substantively changes the
+  displayed evidence, figures, or interpolated values—even when the article's
+  prose and other Typst source remain unchanged. Switching to a run with
+  substantively equivalent content does not qualify.
+- Preserve `meta.created_at` (or the existing legacy `meta.date`). An update
+  must not predate creation or move an existing update date backwards; flag a
+  conflicting date rather than silently rewriting it. A new article may omit
+  `updated_at` until its first substantive revision.
+- Dates are explicitly authored metadata. Never infer them from Git,
+  filesystem timestamps, run dates, builds, or deployment dates. Do not backfill
+  unknown historical updates. Updating this field is a necessary dependent
+  edit under section 3.1 when the requested revision qualifies, unless the
+  author explicitly instructs otherwise.
 
 ## 4. Titles
 
