@@ -47,32 +47,46 @@ artifact-backed values):
 > baseline. Within the tested range, inhibitory timescale therefore controls
 > rhythm frequency without materially changing task performance.
 
-## Dependancies
+## Inputs and outputs
 
 Apply these rules to every experiment entry:
 
-1. Name the section `Dependancies` exactly and place it immediately after the
-   abstract.
-2. Name every upstream experiment and the exact immutable Pingstore run used
-   from it.
-3. If there are no upstream experiment dependencies, say so explicitly.
-4. It should be a very short section.
+1. Name the section `Inputs and outputs` exactly and place it immediately after
+   the abstract, before `Design Scope`.
+2. Use two short paragraphs labelled `Inputs` and `Outputs`. Name every upstream
+   experiment used and identify the reusable outputs this experiment provides,
+   such as checkpoints, configurations, datasets, or analysis results. Explain
+   briefly what each input is used for and what each output is suitable for.
+3. For retained inputs and outputs, give the exact immutable Pingstore run IDs
+   and paths within those runs. Keep `run.json` authoritative for provenance;
+   this section is a reader's guide.
+4. State explicitly when there are no upstream experiment inputs or no reusable
+   outputs.
+5. Label planned outputs as planned, distinguish them from outputs actually
+   produced, and never invent a run reference.
+6. Keep the section very short. Do not inventory every plot or repeat the
+   conclusions.
 
-Example:
+Illustrative example (replace the bracketed run IDs and example paths with
+retained evidence):
 
 ```typst
-== Dependancies
+== Inputs and outputs
 
-This experiment depends on #link("/exp022/")[exp022]. It uses the immutable
-Pingstore run `exp022-tr06-r2`, specifically the `TR-06` checkpoints and
-configurations for seeds 42–44 under `data/state/`.
+*Inputs:* Uses checkpoints and configurations for seeds 42–44 from
+#link("/exp022/")[exp022] as starting states for inhibition sweeps, retained in
+immutable Pingstore run `[upstream-run-id]` under `data/state/`.
+
+*Outputs:* Provides measured frequency responses for subsequent comparisons,
+retained in immutable Pingstore run `[this-run-id]` at
+`data/frequency-response.csv`.
 ```
 
 ## Design Scope
 
 Apply these rules to every experiment entry:
 
-1. Name the section `Design Scope` and place it after `Dependancies`.
+1. Name the section `Design Scope` and place it after `Inputs and outputs`.
 2. Describe the experiment's parameter space in plain English: what system is
    studied, what changes, the tested values or ranges, and what remains fixed.
    Explain what each varied parameter means physically or operationally.
