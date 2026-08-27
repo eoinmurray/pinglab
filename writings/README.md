@@ -1,6 +1,6 @@
 # Writing Guide
 
-Version: **6.2.0**
+Version: **6.3.0**
 
 The Writing Guide defines the conventions for Pinglab's published experiment
 entries in `writings/expXXX.typ`. This file is the canonical guide.
@@ -15,6 +15,9 @@ above and add a short entry to the version history when changing the guide.
 
 ### 1.1. Version history
 
+- **6.3.0** — Remove the mandatory Inputs and outputs, Design Scope and Prior
+  art sections. Retain technical data-access rules and scientific coverage in
+  Methods without prescribing separate sections for these topics.
 - **6.2.0** — Ground resampling in the live document, preserve scientific
   content and settled author decisions, and require explicit authorization to
   save or replace the candidate.
@@ -211,9 +214,7 @@ them from its selected evidence.
 > learning histories support subsequent experiments; these training-recipe
 > comparisons do not isolate a causal benefit of gamma timing.
 
-## 6. Inputs and outputs
-
-### 6.1. Data access in Typst source
+## 6. Data access in Typst source
 
 For staged experiments, the writing consumes a selected presentation run, not
 compute checkpoints or live analysis. Pingstore resolves that input to the flat
@@ -254,75 +255,7 @@ the independent stages in [the execution guide](../experiments/README.md).
 Keep imported historical figures distinct from newly generated figures; run.json
 records their source lineage, and captions must not imply a new simulation.
 
-### 6.2. Scientific inputs and outputs
-
-Apply these rules to every experiment entry:
-
-1. Name the section `Inputs and outputs` exactly and place it immediately after
-   the abstract, before `Design Scope`.
-2. Use two short paragraphs labelled `Inputs` and `Outputs`. Identify upstream
-   scientific work by its descriptive name and identify the reusable outputs
-   this experiment provides, such as trained models, parameter sets, datasets,
-   or measured responses. Explain briefly what each input is used for and what
-   each output is suitable for.
-3. Describe the scientific provenance of inputs and outputs through their data,
-   conditions, seeds, and selection criteria where relevant. Do not display run
-   IDs, storage paths, or filenames; exact technical provenance remains in the
-   authoritative run records outside the article.
-4. State explicitly when there are no upstream experiment inputs or no reusable
-   outputs.
-5. Label planned outputs as planned, distinguish them from outputs actually
-   produced, and never invent an input, output, or provenance claim.
-6. Keep the section very short. Do not inventory every plot or repeat the
-   conclusions.
-
-Illustrative example (adapt the conditions and outputs to retained evidence):
-
-```typst
-== Inputs and outputs
-
-*Inputs:* Uses trained models and parameter settings for seeds 42–44 from
-the #link("/exp022/")[Training Runs] study as starting states for inhibition
-sweeps.
-
-*Outputs:* Provides measured frequency responses across inhibitory decay
-conditions for subsequent comparisons of network timing.
-```
-
-## 7. Design Scope
-
-Apply these rules to every experiment entry:
-
-1. Name the section `Design Scope` and place it after `Inputs and outputs`.
-2. Describe the experiment's parameter space in plain English: what system is
-   studied, what changes, the tested values or ranges, and what remains fixed.
-   Explain what each varied parameter means physically or operationally.
-3. State the relevant starting conditions, comparison groups, and sampling
-   scale, including independent seeds or repetitions where applicable.
-4. Explain why these comparisons address the experiment's question and identify
-   the main boundaries: what the experiment does not vary or test.
-5. Keep this section short. Prefer ordinary prose over notation or configuration
-   dumps; leave execution details and equations to `Methods`. Distinguish planned
-   settings from those actually tested.
-
-## 8. Prior art
-
-Apply these rules to every experiment entry:
-
-1. Name the section `Prior art` and place it after `Design Scope`, before
-   `Results`.
-2. Give a short, plain-English account of relevant work by others: what they
-   studied, how they approached it, and what they established.
-3. Explain how this experiment relates to that work—such as reproducing,
-   adapting, extending, or testing a limitation—without implying novelty merely
-   because the implementation differs.
-4. Cite the sources beside the claims they support. Prefer original research for
-   specific findings; use reviews for broader context.
-5. Include only background needed to understand this experiment. If no directly
-   relevant work has been identified, state that limitation rather than claiming
-   none exists.
-
-## 9. Results
+## 7. Results
 
 Stub the Results section with numbered headings, figures and concise captions
 only. Do not fill it with narrative prose.
@@ -373,7 +306,7 @@ outputs and their actual measurement details):
 )
 ```
 
-## 10. Methods
+## 8. Methods
 
 Explain how the experiment was actually performed and how its reported
 measurements and reusable outputs were obtained. Write for a
@@ -442,7 +375,7 @@ validation and model selection; measurements and reusable outputs. Its key
 equations define the readouts and the sample-wise activity penalty; routine
 Poisson and softmax expansions need not appear in the main account.
 
-## 11. References
+## 9. References
 
 Apply these rules to every experiment entry:
 

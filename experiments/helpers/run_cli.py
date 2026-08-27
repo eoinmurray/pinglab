@@ -17,7 +17,7 @@ from pathlib import Path
 
 from .paths import REPO
 
-SNN_TOOL = REPO / "tools" / "snn" / "tool.py"
+SNN_TOOL = REPO / "tools" / "snnsim" / "tool.py"
 
 
 def run_cli(args, *, no_sync: bool | None = None, cwd: Path | None = None) -> None:
