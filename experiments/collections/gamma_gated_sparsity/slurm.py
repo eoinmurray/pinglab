@@ -459,8 +459,10 @@ def submit_campaign(
         slug = row["slug"]
         if slug == "exp022" or _outputs_valid_for_plan(plan, row):
             continue
-        if slug == "exp024":
-            from experiments.exp024.collection import require_staged, reserve
+        if slug in {"exp024", "exp081"}:
+            from .execution import _stage_adapter
+            adapter = _stage_adapter(slug)
+            require_staged, reserve = adapter.require_staged, adapter.reserve
             require_staged(row)
             if submit:
                 reserve(REPO, row, origin="slurm-wilkes")

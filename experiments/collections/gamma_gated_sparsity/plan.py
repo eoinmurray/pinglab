@@ -45,7 +45,7 @@ EXTRA_REQUIRED_OUTPUTS: dict[str, tuple[str, ...]] = {
 
 
 def runner_command(slug: str) -> list[str]:
-    if slug == "exp024":
+    if slug in {"exp024", "exp081"}:
         # The adapter dispatches explicit source/run IDs, never this legacy command.
         return []
     return [
@@ -85,6 +85,8 @@ def build_plan(root: Path, campaign_id: str, *, smoke: bool = False) -> dict[str
         execution = {"mode": "monolithic"}
         if experiment.slug == "exp024":
             execution = {"mode": "exp024-staged", "stages": ["analyse", "present"]}
+        elif experiment.slug == "exp081":
+            execution = {"mode": "exp081-staged", "stages": ["compute", "analyse", "present"]}
         contract = workload_contract(experiment.slug, smoke=smoke)
         if shard_count(experiment.slug) > 1:
             execution = {
@@ -105,7 +107,7 @@ def build_plan(root: Path, campaign_id: str, *, smoke: bool = False) -> dict[str
                 },
                 "command": runner_command(experiment.slug),
                 "execution": execution,
-                "required_outputs": [str(state / "stage-refs.json")] if experiment.slug == "exp024" else [
+                "required_outputs": [str(state / "stage-refs.json")] if experiment.slug in {"exp024", "exp081"} else [
                     str(
                         resolved / "derived/.artifacts" / experiment.slug
                         / filename

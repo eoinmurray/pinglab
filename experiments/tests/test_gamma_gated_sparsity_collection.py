@@ -26,6 +26,7 @@ from experiments.collections.gamma_gated_sparsity.graph import (
 )
 from experiments.collections.gamma_gated_sparsity.plan import REPO, build_plan
 from experiments.exp024 import collection as exp024_collection
+from experiments.exp081 import collection as exp081_collection
 
 
 def test_collection_production_training_horizon_is_50_epochs() -> None:
@@ -159,7 +160,7 @@ def test_plan_paths_are_isolated_and_all_runners_are_integrated(tmp_path: Path) 
     assert payload["excluded"] == ["exp048"]
     assert payload["blocking_issues"] == []
     assert payload["acceptance_issues"] == []
-    assert all(row["command"] or row["execution"]["mode"] == "exp024-staged" for row in rows)
+    assert all(row["command"] or row["execution"]["mode"] in {"exp024-staged", "exp081-staged"} for row in rows)
     audit = next(row for row in rows if row["slug"] == "exp024")
     assert audit["execution"]["stages"] == ["analyse", "present"]
     assert not any(".artifacts" in path for path in audit["required_outputs"])
@@ -239,9 +240,10 @@ def test_local_resume_runs_in_dependency_order(tmp_path: Path, monkeypatch) -> N
     monkeypatch.setattr(execution, "source_provenance", lambda: plan["source"])
 
     # Scientific work is mocked here; real stage-reference validation has its
-    # own fixture-run coverage in test_exp024_stages.py.
-    monkeypatch.setattr(exp024_collection, "completed", lambda repo, plan, row:
-                        execution.load_json(Path(row["required_outputs"][0])))
+    # own fixture-run coverage in test_exp024_stages.py and test_exp081.py.
+    for adapter in (exp024_collection, exp081_collection):
+        monkeypatch.setattr(adapter, "completed", lambda repo, plan, row:
+                            execution.load_json(Path(row["required_outputs"][0])))
 
     seen = []
 
@@ -525,9 +527,10 @@ def test_finalize_captures_campaign_and_writes_pingstore_inventory(
 
     calls = []
     staged = {"slug": "exp024", "execution": {"mode": "exp024-staged"}}
+    staged_root = {"slug": "exp081", "execution": {"mode": "exp081-staged"}}
     legacy = {"slug": "exp023", "execution": {"mode": "monolithic"}}
     monkeypatch.setattr(execution, "load_plan", lambda _root: {
-        "campaign_id": "smoke", "stages": [{"experiments": [staged, legacy]}],
+        "campaign_id": "smoke", "stages": [{"experiments": [staged, staged_root, legacy]}],
     })
     monkeypatch.setattr(
         execution,
@@ -577,10 +580,11 @@ def test_publication_build_runs_promotion_from_separate_checkout(
     monkeypatch.setattr(execution.shutil, "which", lambda _name: "/usr/bin/uv")
     promotions = []
     from pingstore import materialize
-    monkeypatch.setattr(exp024_collection, "completed", lambda *args:
-                        SimpleNamespace(record={"run_id": "exp024-r002-present-local"}))
+    for adapter in (exp024_collection, exp081_collection):
+        monkeypatch.setattr(adapter, "completed", lambda repo, plan, row:
+                            SimpleNamespace(record={"run_id": row["slug"] + "-r003-present-local"}))
     monkeypatch.setattr(materialize, "materialize_run", lambda store, identity, target:
-                        promotions.append((store, "exp024", target)))
+                        promotions.append((store, identity.split("-", 1)[0], target)))
     monkeypatch.setattr(
         execution,
         "promote_experiment",
@@ -634,8 +638,9 @@ def test_publication_build_rejects_stubbed_entries(tmp_path: Path, monkeypatch) 
     monkeypatch.setattr(execution.shutil, "which", lambda _name: "/usr/bin/uv")
     monkeypatch.setattr(execution, "promote_experiment", lambda *_args, **_kwargs: None)
     from pingstore import materialize
-    monkeypatch.setattr(exp024_collection, "completed", lambda *args:
-                        SimpleNamespace(record={"run_id": "exp024-r002-present-local"}))
+    for adapter in (exp024_collection, exp081_collection):
+        monkeypatch.setattr(adapter, "completed", lambda repo, plan, row:
+                            SimpleNamespace(record={"run_id": row["slug"] + "-r003-present-local"}))
     monkeypatch.setattr(materialize, "materialize_run", lambda *args: None)
 
     def fake_run(command, **_kwargs):

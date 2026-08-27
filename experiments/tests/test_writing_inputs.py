@@ -102,6 +102,31 @@ def test_selected_numbers_are_read_and_article_scoped(lab):
     ) is None
 
 
+def test_exp081_selected_report_renders_all_sections(lab):
+    from experiments.exp081 import recipe
+
+    selected = lab / "selected"
+    selected.mkdir()
+    (selected / "numbers.json").write_text(json.dumps({
+        "schema": "exp081.analysis/v1", "parameters": recipe.configuration(),
+        "comparison": {"mean": {"median_predicted_empirical_ratio": 1.5}},
+    }))
+    for name in ("empirical_moments", "response_distributions", "frequency_response", "analytical_empirical"):
+        (selected / f"{name}.svg").write_text(SVG)
+    rendered = evaluate(lab, report_expression("exp081"), preview={"exp081": {"exp081": "/selected"}})
+    assert NOTICE not in rendered
+    headings = ["Abstract", "Results", "Methods", "Discussion"]
+    positions = [rendered.index(heading) for heading in headings]
+    assert positions == sorted(positions)
+    for removed in ("Inputs and outputs", "Design Scope", "Prior art", "Conclusion", "Limitations"):
+        assert removed not in rendered
+    assert "Empirical finite-window response" in rendered
+    assert "Appendix B" in rendered
+    assert "uv run" not in rendered
+    (selected / "numbers.json").write_text("broken")
+    evaluate(lab, report_expression("exp081"), preview={"exp081": {"exp081": "/selected"}}, error="error:")
+
+
 @pytest.mark.parametrize("contents,error", [(None, "file not found"), ("broken", "error:")])
 def test_selected_missing_or_corrupt_numbers_remain_errors(lab, contents, error):
     (lab / "selected").mkdir()

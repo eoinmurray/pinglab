@@ -400,9 +400,21 @@ def _collection_provenance(plan: dict[str, Any], row: dict[str, Any]) -> dict[st
     return provenance
 
 
+def _stage_adapter(slug: str):
+    if slug == "exp081":
+        from experiments.exp081 import collection
+    elif slug == "exp024":
+        from experiments.exp024 import collection
+    else:
+        raise CollectionError(f"no stage adapter for {slug}")
+    return collection
+
+
 def _outputs_valid_for_plan(plan: dict[str, Any], row: dict[str, Any]) -> bool:
-    if row.get("execution", {}).get("mode") == "exp024-staged":
-        from experiments.exp024.collection import completed
+    if row.get("slug") == "exp081" and row.get("execution", {}).get("mode") != "exp081-staged":
+        return False
+    if row.get("execution", {}).get("mode") in {"exp024-staged", "exp081-staged"}:
+        completed = _stage_adapter(row["slug"]).completed
         from pingstore.contracts import PingstoreError
         try:
             completed(REPO, plan, row)
@@ -713,8 +725,9 @@ def _aggregate_exp022(
 def _run_downstream(plan: dict[str, Any], row: dict[str, Any]) -> None:
     root = Path(plan["campaign_root"])
     slug = row["slug"]
-    if slug == "exp024":
-        from experiments.exp024.collection import execute, require_staged
+    if slug in {"exp024", "exp081"}:
+        adapter = _stage_adapter(slug)
+        execute, require_staged = adapter.execute, adapter.require_staged
         require_staged(row)
         if _outputs_valid_for_plan(plan, row):
             _write_status(root, slug, state="complete", resumed=True)
@@ -874,10 +887,10 @@ def finalize_campaign(root: Path) -> dict[str, Any]:
     inventory_path = root / "inventory.json"
     if run.get("status") != "complete" or not inventory_path.is_file():
         plan = load_plan(root)
-        # Staged exp024 already owns immutable runs; never recapture it as v2.
+        # Staged experiments already own immutable runs; never recapture them as v2.
         legacy_plan = {**plan, "stages": [
             {**stage, "experiments": [row for row in stage["experiments"]
-                                     if row.get("execution", {}).get("mode") != "exp024-staged"]}
+                                     if row.get("execution", {}).get("mode") not in {"exp024-staged", "exp081-staged"}]}
             for stage in plan["stages"]
         ]}
         capture_campaign_metadata(root, legacy_plan)
@@ -959,8 +972,8 @@ def build_publication(root: Path, checkout: Path) -> dict[str, Any]:
         raise CollectionError("uv is required for publication build")
     promoted = []
     for row in rows_in_order(plan):
-        if row.get("execution", {}).get("mode") == "exp024-staged":
-            from experiments.exp024.collection import completed
+        if row.get("execution", {}).get("mode") in {"exp024-staged", "exp081-staged"}:
+            completed = _stage_adapter(row["slug"]).completed
             from pingstore.materialize import materialize_run
             presentation = completed(REPO, plan, row)
             # This is the explicitly requested publication command, not a stage.
