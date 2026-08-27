@@ -11,6 +11,15 @@ files; expand this guide as those conventions settle.
 - Use the same identifier for related experiment code and artifact paths when
   they exist.
 
+## Titles
+
+For the experiment's overall title (`meta.title`), use a short, plain-English
+phrase naming its main finding or controlled comparison. Prefer a specific
+relationship ("Firing Rate Tracks Gamma Frequency") over vague topics or
+promotional claims. State a finding only when supported by results; otherwise
+name what is being tested. Aim for 5–10 words, retaining technical terms needed
+for precision.
+
 ## Abstracts
 
 Write a short abstract as a standalone summary of roughly 60–100 words.
