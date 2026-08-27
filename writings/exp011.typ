@@ -22,7 +22,7 @@
 
   demolab draws a hard line between a *tool* and an *experiment*. A tool holds the reusable science and speaks only through files; an experiment (a runner in _experiments/expNNN.py_) chooses which tool commands to run, then reads their data files back and renders the figures. The runner reaches the tool by running its CLI as a subprocess, never by importing it. That firewall is what keeps _tools/snnsim/_ generic and lets the same engine serve every writeup in the lab.
 
-  So a typical experiment does three things: it invokes _tool.py_ (often many times, sweeping a parameter), it aggregates each run's config plus headline metrics into a single _numbers.json_, and it draws PNG or SVG figures from the run's data. The committed record lands in _.artifacts/expNNN/_; the tool's own scratch output is disposable (see #link("#artifacts")[Artifacts]).
+  So a typical experiment does three things: it invokes _tool.py_ (often many times, sweeping a parameter), it aggregates each run's config plus headline metrics into a single _numbers.json_, and it draws PNG or SVG figures from the run's data. Completed staged runs retain their outputs under `.pingstore/runs/<run-id>/export/`; the tool's own scratch output is disposable (see #link("#artifacts")[Artifacts]).
 
   == Quick start
 
@@ -248,7 +248,7 @@
 
   Each command adds its own outputs: _train_ writes _weights.pth_, _metrics.json_, _metrics.jsonl_, _test_predictions.json_; _sim --infer_ writes _metrics.json_ (and _results.json_) plus whatever _--outputs_ requested; _dump-weights_ writes _weights_dump.npz_.
 
-  These files are scratch. By default they land under _temp/pinglab-cli/_, which is gitignored and overwritten every run. The committed record is produced by the runner: it aggregates each command's config plus headline metrics into one _.artifacts/expNNN/numbers.json_ and renders its figures alongside. That folder, not the ephemeral tool output, is what the publisher reads and what reaches the site.
+  These files are scratch. By default they land under _temp/pinglab-cli/_, which is gitignored and overwritten every run. The retained record is produced by the experiment stages: analysis derives numerical results, and presentation exports report-ready `numbers.json` and figures into an immutable Pingstore run. The writing reads the selected presentation input through `run-inputs.typ`, never the ephemeral tool output. Without a selected input, the report shows an unavailable-data notice.
 
   == Recipes
 

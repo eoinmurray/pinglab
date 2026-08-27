@@ -1,3 +1,7 @@
+#import "/.demolab/lib.typ": data-json, data-image
+#import "run-inputs.typ": data-file, inputs-ready, pending-report
+#let data-file = data-file.with(article: "exp022")
+
 #let meta = (
   title: "Training Runs and Raster Diagnostics",
   date: "2026-08-11",
@@ -5,7 +9,23 @@
   collection: "gamma-gated-sparsity",
 )
 
-#let r = json("/.artifacts/exp022/numbers.json")
+#let inputs = ("exp022",)
+#let preview-figures = (
+  (path: "exp022/curves__canonical.svg", label: "curves canonical"),
+  (path: "exp022/rasters__ping__canonical__seed42.png", label: "rasters ping canonical seed42"),
+  (path: "exp022/curves__theta_u.svg", label: "curves theta u"),
+  (path: "exp022/rasters__ping__off__seed42.png", label: "rasters ping off seed42"),
+  (path: "exp022/curves__tau_gaba.svg", label: "curves tau gaba"),
+  (path: "exp022/rasters__ping__tg6__seed42.png", label: "rasters ping tg6 seed42"),
+  (path: "exp022/curves__dt.svg", label: "curves dt"),
+  (path: "exp022/rasters__ping__dt0p1__seed42.png", label: "rasters ping dt0p1 seed42"),
+  (path: "exp022/curves__init.svg", label: "curves init"),
+  (path: "exp022/rasters__frozen_ping__seed42.png", label: "rasters frozen ping seed42"),
+)
+
+// Keep calculations lazy: absent inputs never become fabricated results.
+#let render-report(data-file) = [
+#let r = data-json(data-file("exp022/numbers.json"))
 
 #let run-links(items) = {
   if items.len() == 0 { [None yet.] } else {
@@ -17,7 +37,7 @@
 }
 
 #let result-figure(path, alt, caption) = figure(
-  image(path, width: 100%, alt: alt),
+  data-image(data-file(path), width: 100%, alt: alt),
   caption: caption,
 )
 
@@ -256,13 +276,13 @@
   *Run status:* complete · 6/6 cells represented
 
   #result-figure(
-    "/.artifacts/exp022/curves__canonical.svg",
+    "exp022/curves__canonical.svg",
     "Test-accuracy learning curves for the canonical COBA and PING cells.",
     [Training curves for the six full-data reference cells.],
   )
 
   #result-figure(
-    "/.artifacts/exp022/rasters__ping__canonical__seed42.png",
+    "exp022/rasters__ping__canonical__seed42.png",
     "Seed-42 raster and population-rate diagnostic for canonical PING.",
     [Sample raster: canonical PING, seed 42, held-out digit-0 probe.],
   )
@@ -274,13 +294,13 @@
   *Run status:* complete · 36/36 cells represented
 
   #result-figure(
-    "/.artifacts/exp022/curves__theta_u.svg",
+    "exp022/curves__theta_u.svg",
     "Test-accuracy learning curves across the spike-budget sweep.",
     [Training curves across both architectures, six spike budgets, and three seeds.],
   )
 
   #result-figure(
-    "/.artifacts/exp022/rasters__ping__off__seed42.png",
+    "exp022/rasters__ping__off__seed42.png",
     "Seed-42 raster for the no-budget PING endpoint in the spike-budget sweep.",
     [Sample raster: PING with spike budget off, seed 42.],
   )
@@ -292,13 +312,13 @@
   *Run status:* complete · 18/18 cells represented
 
   #result-figure(
-    "/.artifacts/exp022/curves__tau_gaba.svg",
+    "exp022/curves__tau_gaba.svg",
     "Test-accuracy learning curves across the inhibitory-timescale sweep.",
     [Training curves across six $tau_"GABA"$ values and three seeds.],
   )
 
   #result-figure(
-    "/.artifacts/exp022/rasters__ping__tg6__seed42.png",
+    "exp022/rasters__ping__tg6__seed42.png",
     "Seed-42 raster for PING at tau GABA 6 milliseconds.",
     [Sample raster: PING at $tau_"GABA"=6$ ms, seed 42.],
   )
@@ -310,13 +330,13 @@
   *Run status:* complete · 15/15 cells represented
 
   #result-figure(
-    "/.artifacts/exp022/curves__dt.svg",
+    "exp022/curves__dt.svg",
     "Test-accuracy learning curves across the integration-timestep sweep.",
     [Training curves across five integration timesteps and three seeds.],
   )
 
   #result-figure(
-    "/.artifacts/exp022/rasters__ping__dt0p1__seed42.png",
+    "exp022/rasters__ping__dt0p1__seed42.png",
     "Seed-42 raster for PING at the standard 0.1 millisecond timestep.",
     [Sample raster: PING at $Delta t=0.1$ ms, seed 42.],
   )
@@ -328,13 +348,13 @@
   *Run status:* complete · 12/12 cells represented
 
   #result-figure(
-    "/.artifacts/exp022/curves__init.svg",
+    "exp022/curves__init.svg",
     "Test-accuracy learning curves across recurrent initialization conditions.",
     [Training curves across four recurrent-loop conditions and three seeds.],
   )
 
   #result-figure(
-    "/.artifacts/exp022/rasters__frozen_ping__seed42.png",
+    "exp022/rasters__frozen_ping__seed42.png",
     "Seed-42 raster for the frozen recurrent PING control.",
     [Sample raster: frozen PING recurrent loop, seed 42.],
   )
@@ -361,3 +381,15 @@
   *TODO — sample raster.* Add a representative seed-42 raster for each input
   initialization at a declared held-out MNIST example.
 ]
+#body
+]
+
+#let body = if inputs-ready(data-file, inputs) {
+  render-report(data-file)
+} else {
+  pending-report(
+    data-file, inputs,
+    [This training hub defines the shared checkpoint bank and seven controlled training-run types: full-data references and sweeps over activity ceiling, inhibition, timestep, initialization, input rate, and input coupling. Retained runs supply the cell counts and diagnostic figures.],
+    preview-figures, json-inputs: ("exp022",),
+  )
+}

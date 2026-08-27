@@ -10,7 +10,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from .contracts import (
-    RUN_SCHEMA,
+    LEGACY_RUN_SCHEMA,
     PingstoreError,
     load_json,
     payload_digest,
@@ -55,7 +55,7 @@ def _local_record(repo: Path, experiment: str, manifest: dict) -> dict:
     origin = execution_origin(manifest.get("host"))
     completed = datetime.now(timezone.utc).isoformat(timespec="seconds")
     return {
-        "schema": RUN_SCHEMA,
+        "schema": LEGACY_RUN_SCHEMA,
         "run_id": make_run_id(experiment, identity, origin),
         "experiment": experiment,
         "collection": collection,
@@ -81,9 +81,9 @@ def _complete(
 ) -> dict:
     if destination.exists():
         raise PingstoreError(f"run already exists: {run['run_id']}")
-    initialize_layout(temporary, run["experiment"])
+    initialize_layout(temporary, run["experiment"], schema=LEGACY_RUN_SCHEMA)
     if manifest is not None:
-        display_manifest(temporary, manifest, run["run_id"])
+        display_manifest(temporary, manifest, run["run_id"], schema=LEGACY_RUN_SCHEMA)
     run["payload_digest"] = payload_digest(temporary)
     write_json_atomic(temporary / "run.json", run)
     validate_run_directory(temporary)
@@ -107,7 +107,7 @@ def capture_local_run(
     temporary = destination.with_name("." + destination.name + ".tmp")
     if destination.exists() or temporary.exists():
         raise PingstoreError(f"run already exists: {run['run_id']}")
-    initialize_layout(temporary, experiment)
+    initialize_layout(temporary, experiment, schema=LEGACY_RUN_SCHEMA)
     copy_legacy_derived(staging, temporary)
     if state is not None and state.exists():
         shutil.copytree(state, temporary / "export/state")
@@ -145,7 +145,7 @@ def capture_failed_local_run(
     destination = run_root(store, run_id).with_name("." + run_id + ".tmp")
     if destination.exists():
         raise PingstoreError(f"incomplete run already exists: {destination.name}")
-    initialize_layout(destination, experiment)
+    initialize_layout(destination, experiment, schema=LEGACY_RUN_SCHEMA)
     copy_legacy_derived(staging, destination)
     if state is not None and state.exists():
         shutil.copytree(state, destination / "export/state")
@@ -170,13 +170,13 @@ def capture_campaign_metadata(root: Path, plan: dict) -> dict:
             temporary = destination.with_name("." + destination.name + ".tmp")
             if temporary.exists():
                 raise PingstoreError(f"incomplete run already exists: {temporary}")
-            initialize_layout(temporary, experiment)
+            initialize_layout(temporary, experiment, schema=LEGACY_RUN_SCHEMA)
             copy_legacy_derived(source, temporary)
             state_value = row["paths"].get("state")
             if state_value and Path(state_value).exists():
                 shutil.copytree(state_value, temporary / "export/state")
             run = {
-                "schema": RUN_SCHEMA,
+                "schema": LEGACY_RUN_SCHEMA,
                 "run_id": run_id,
                 "experiment": experiment,
                 "collection": plan["collection"],

@@ -1,3 +1,7 @@
+#import "/.demolab/lib.typ": data-image, video
+#import "run-inputs.typ": data-file, inputs-ready, pending-report
+#let data-file = data-file.with(article: "exp099")
+
 #let meta = (
   title: "From simplified to brainlike input in a PING network",
   created_at: "2026-08-26",
@@ -7,25 +11,9 @@
   order: 13,
 )
 
-#let experiment-video(src, poster) = context {
-  if target() == "html" {
-    html.elem(
-      "video",
-      attrs: (
-        src: src,
-        poster: poster,
-        controls: "",
-        loop: "",
-        playsinline: "",
-        style: "max-width:100%;width:100%",
-      ),
-    )[]
-  } else {
-    image(poster, width: 100%)
-  }
-}
+#let inputs = ("exp099",)
 
-#let body = [
+#let render-report(data-file) = [
   == 1. Abstract
 
   We will compare two input regimes in the same sparse excitatory–inhibitory spiking network.
@@ -41,15 +29,29 @@
   == 2. Working media
 
   #figure(
-    image("/assets/exp099/network.svg", width: 100%),
-    caption: [Structural schematic. The compiled SNNLANG graph exposes the excitatory and inhibitory populations, recurrent projections, and afferent inputs used by the richer-input condition. It is a model diagram, not evidence.],
+    data-image(data-file("exp099/network.svg"), width: 100%),
+    caption: [Structural schematic of the excitatory and inhibitory populations,
+      recurrent projections, and afferent inputs. This is a model diagram, not evidence.],
+    kind: image, supplement: [Figure],
   )
 
   #figure(
-    experiment-video(
-      "/exp099/richer-input-ai-to-intermittent-ping.mp4",
-      "/exp099/richer-input-ai-to-intermittent-ping.png",
-    ),
-    caption: [Simulated working media. The richer-input condition moves from asynchronous activity into intermittent PING and then returns toward asynchronous activity while the recurrent network remains fixed. This animation currently illustrates the developing experiment; it is not yet presented as a result.],
+    data-image(data-file("exp099/richer-input-ai-to-intermittent-ping.png"), width: 100%),
+    caption: [Working animation poster; an illustration of the developing experiment.],
+    kind: image, supplement: [Figure],
+  )
+
+  #let clip = data-file("exp099/richer-input-ai-to-intermittent-ping.mp4")
+  // Missing files in a selected run remain errors, not empty-run placeholders.
+  #if clip != none { let _ = read(clip, encoding: none) }
+  #video(
+    clip,
+    caption: [Simulated working media, not an established result.],
   )
 ]
+
+#let body = if inputs-ready(data-file, inputs) {
+  render-report(data-file)
+} else {
+  pending-report(data-file, inputs, [], ())
+}

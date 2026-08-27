@@ -699,7 +699,10 @@ def dispatch(
                 subpath=collect_subdir, local_dir=str(local_collect_dir),
                 datacenter=DATACENTER, volume_id=VOLUME_ID, gpu=gpu,
             )
-        print(f"→ build figures with: uv run python experiments/{runner}.py --skip-training")
+        if runner == "exp022":
+            print("→ compute capture finishes first; then explicitly analyse and present its run ID")
+        else:
+            print(f"→ build figures with: uv run python experiments/{runner}.py --skip-training")
         return
 
     n_jobs = sum(len(b["cells"]) for b in buckets)

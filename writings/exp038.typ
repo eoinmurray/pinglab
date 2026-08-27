@@ -1,3 +1,7 @@
+#import "/.demolab/lib.typ": data-json, data-image
+#import "run-inputs.typ": data-file, inputs-ready, pending-report
+#let data-file = data-file.with(article: "exp038")
+
 #let meta = (
   title: "Switching On the Inhibitory Loop",
   date: "2026-05-30",
@@ -5,7 +9,15 @@
   collection: "gamma-gated-sparsity",
 )
 
-#let run = json("/.artifacts/exp038/numbers.json")
+#let inputs = ("exp038",)
+#let preview-figures = (
+  (path: "exp038/loop_transfer_compound.png", label: "loop transfer compound"),
+  (path: "exp038/ei_rasters.png", label: "ei rasters"),
+)
+
+// Keep calculations lazy: absent inputs never become fabricated results.
+#let render-report(data-file) = [
+#let run = data-json(data-file("exp038/numbers.json"))
 #let cfg = run.config
 #let eval_n = cfg.at("evaluation_samples_per_seed", default: (1000,)).first()
 #let eval_pool = cfg.at("evaluation_pool_samples", default: 10000)
@@ -72,7 +84,7 @@
   == Results
 
   #figure(
-    image("/.artifacts/exp038/loop_transfer_compound.png", width: 100%,
+    data-image(data-file("exp038/loop_transfer_compound.png"), width: 100%,
       alt: "Trained COBA replayed with the inference-time I-loop swept from 0 to 1: rasters at ei=0 and ei=1, E and I rate versus loop strength, and test accuracy versus loop strength."),
     caption: [
       Switching the recurrent I-loop on _at inference_ on a trained COBA network (no
@@ -93,7 +105,7 @@
   )
 
   #figure(
-    image("/.artifacts/exp038/ei_rasters.png", width: 100%,
+    data-image(data-file("exp038/ei_rasters.png"), width: 100%,
       alt: "Six stacked E/I spike rasters of the same trial replayed at ei_strength 0, 0.2, 0.4, 0.6, 0.8, 1, showing dense asynchronous firing giving way to gamma bands as the loop strengthens."),
     caption: [
       The illustrative seed-42 transition: trained COBA replayed at six inference-time _ei_strength_
@@ -104,3 +116,15 @@
     ],
   )
 ]
+#body
+]
+
+#let body = if inputs-ready(data-file, inputs) {
+  render-report(data-file)
+} else {
+  pending-report(
+    data-file, inputs,
+    [What changes when an inhibitory loop is enabled after feedforward training? Sweep loop strength at inference while holding trained weights and evaluation inputs fixed.],
+    preview-figures, json-inputs: ("exp038",),
+  )
+}

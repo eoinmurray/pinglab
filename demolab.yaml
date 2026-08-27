@@ -5,6 +5,58 @@ contents-title: pinglab — contents
 annotations: hypothesis
 pdfs: false
 
+preview:
+  source: .pingstore/runs
+  discover: [uv, run, pingstore, discover]
+  # Explicit attachments also render selectors before an experiment has any runs.
+  articles:
+    exp004: []
+    exp005: []
+    exp006: []
+    exp011: []
+    exp015: []
+    exp022: [exp022]
+    exp023: [exp023]
+    exp024: [exp024]
+    exp025: [exp025]
+    exp033: [exp033]
+    exp037: [exp037]
+    exp038: [exp038]
+    exp041: [exp041]
+    exp042: [exp042]
+    exp044: [exp044]
+    exp046: [exp046]
+    exp047: [exp047]
+    exp048: [exp048]
+    exp049: [exp049]
+    exp054: [exp054]
+    exp074: [exp074]
+    exp075: [exp075]
+    exp076: [exp076]
+    exp077: [exp077]
+    exp080: [exp080]
+    exp081: [exp081]
+    exp082: [exp082]
+    exp083: [exp083]
+    exp084: [exp084]
+    exp085: [exp085]
+    exp086: [exp086]
+    exp088: []
+    exp089: []
+    exp090: []
+    exp092: [exp022, exp023, exp025, exp033, exp037, exp038, exp041, exp042, exp044, exp046, exp048, exp049, exp054]
+    exp093: [exp093, exp025, exp038, exp049, exp041, exp046, exp037, exp042, exp044]
+    exp099: [exp099]
+    exp100: []
+    exp102: []
+    exp103: []
+    exp104: []
+    exp105: []
+    exp106: []
+    exp107: []
+    exp108: []
+    exp109: [exp022, exp023, exp025, exp033, exp037, exp038, exp041, exp042, exp044, exp046, exp048, exp049, exp054]
+
 links:
   - label: Documentation
     url: documentation.html

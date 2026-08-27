@@ -1,3 +1,7 @@
+#import "/.demolab/lib.typ": data-json, data-image
+#import "run-inputs.typ": data-file, inputs-ready, pending-report
+#let data-file = data-file.with(article: "exp075")
+
 #let meta = (
   title: "A compiled graph learns",
   date: "2026-07-31",
@@ -6,7 +10,15 @@
   order: 2,
 )
 
-#let r = json("/.artifacts/exp075/numbers.json")
+#let inputs = ("exp075",)
+#let preview-figures = (
+  (path: "exp075/network_graph.svg", label: "network graph"),
+  (path: "exp075/training_curves.png", label: "training curves"),
+)
+
+// Keep calculations lazy: absent inputs never become fabricated results.
+#let render-report(data-file) = [
+#let r = data-json(data-file("exp075/numbers.json"))
 
 #let body = [
   == Abstract
@@ -22,7 +34,7 @@
 
   == Graph and training scope
 
-  #image("/.artifacts/exp075/network_graph.svg", width: 100%)
+  #data-image(data-file("exp075/network_graph.svg"), width: 100%)
 
   The graph fixes the PING topology, #r.config.dt_ms ms simulation step,
   mean-voltage classifier, initialisers, and trainable/frozen parameter scope.
@@ -40,7 +52,7 @@
 
   == Training trajectory
 
-  #image("/.artifacts/exp075/training_curves.png", width: 100%)
+  #data-image(data-file("exp075/training_curves.png"), width: 100%)
 
   The #(r.config.train_count)-example training split and
   #(r.config.held_out_count)-example held-out split are tiny. Across the short
@@ -68,3 +80,15 @@
     configuration is not yet evidence that useful optimisation occurs.
   ]
 ]
+#body
+]
+
+#let body = if inputs-ready(data-file, inputs) {
+  render-report(data-file)
+} else {
+  pending-report(
+    data-file, inputs,
+    [Can a compiled network graph learn through the graph-native training path? Inspect its topology and retained learning curves.],
+    preview-figures, json-inputs: ("exp075",),
+  )
+}

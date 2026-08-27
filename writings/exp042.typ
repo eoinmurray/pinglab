@@ -1,3 +1,7 @@
+#import "/.demolab/lib.typ": data-json, data-image
+#import "run-inputs.typ": data-file, inputs-ready, pending-report
+#let data-file = data-file.with(article: "exp042")
+
 #let meta = (
   title: "Breaking Gamma Releases the Rate Gate",
   date: "2026-06-02",
@@ -5,9 +9,18 @@
   collection: "gamma-gated-sparsity",
 )
 
+#let inputs = ("exp042",)
+#let preview-figures = (
+  (path: "exp042/rhythm_compound.png", label: "rhythm compound"),
+  (path: "exp042/cell_jitter_sweep.svg", label: "cell jitter sweep"),
+  (path: "exp042/jitter_sweep.svg", label: "jitter sweep"),
+)
+
+// Keep calculations lazy: absent inputs never become fabricated results.
+#let render-report(data-file) = [
 // Provenance (HOUSESTYLE H9): every run number below is read from the run's
 // numbers.json, never hand-typed, so a re-run updates the prose automatically.
-#let run = json("/.artifacts/exp042/numbers.json")
+#let run = data-json(data-file("exp042/numbers.json"))
 #let cfg = run.config
 #let mean(a) = a.sum() / a.len()
 
@@ -88,8 +101,7 @@
   smeared and release when intact bursts are displaced.
 
   #figure(
-    image(
-      "/.artifacts/exp042/rhythm_compound.png",
+    data-image(data-file("exp042/rhythm_compound.png"),
       width: 100%,
       alt: "Matched per-cell and cycle-coherent inhibitory jitter. Per-cell jitter smears inhibitory bursts and silences excitatory cells; cycle-coherent jitter keeps bursts sharp, opens gaps, and raises excitatory firing at nearly the same realised inhibitory rate.",
     ),
@@ -118,8 +130,7 @@
   remains nearly fixed.
 
   #figure(
-    image(
-      "/.artifacts/exp042/cell_jitter_sweep.svg",
+    data-image(data-file("exp042/cell_jitter_sweep.svg"),
       width: 100%,
       alt: "Excitatory rate and accuracy fall steeply as independent inhibitory-spike jitter increases, while realised inhibitory rate remains nearly flat.",
     ),
@@ -147,8 +158,7 @@
   trial window and reduce the delivered inhibitory rate.
 
   #figure(
-    image(
-      "/.artifacts/exp042/jitter_sweep.svg",
+    data-image(data-file("exp042/jitter_sweep.svg"),
       width: 100%,
       alt: "Excitatory rate rises as coherent inhibitory bursts are displaced, accuracy declines gently, and realised inhibitory rate remains near baseline before falling at the largest offsets.",
     ),
@@ -231,3 +241,15 @@
     anchor, where realised inhibitory rates remain within
     #cyc_i_anchor_drop_pct% of baseline.
 ]
+#body
+]
+
+#let body = if inputs-ready(data-file, inputs) {
+  render-report(data-file)
+} else {
+  pending-report(
+    data-file, inputs,
+    [Does the timing of inhibition matter independently of its mean strength? Compare cell-wise jitter with shifts of intact inhibitory volleys.],
+    preview-figures, json-inputs: ("exp042",),
+  )
+}

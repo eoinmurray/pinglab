@@ -303,7 +303,7 @@ def initialize_campaign(root: Path, campaign_id: str, *, smoke: bool) -> dict[st
     manifest_command = [
         sys.executable,
         "-m",
-        "experiments.exp022",
+        "experiments.exp022.compute",
         "--campaign-manifest",
         str(exp022_root),
         "--campaign-id",
@@ -620,7 +620,7 @@ def _run_exp022(plan: dict[str, Any], row: dict[str, Any]) -> None:
         [
             sys.executable,
             "-m",
-            "experiments.exp022",
+            "experiments.exp022.compute",
             "--campaign-list",
             str(manifest),
             "--retry-only",
@@ -640,7 +640,7 @@ def _run_exp022(plan: dict[str, Any], row: dict[str, Any]) -> None:
             [
                 sys.executable,
                 "-m",
-                "experiments.exp022",
+                "experiments.exp022.compute",
                 "--campaign-train-cell",
                 cell,
                 "--campaign",
@@ -663,22 +663,43 @@ def _aggregate_exp022(
     manifest = Path(plan["exp022_manifest"])
     environment = environment or _runner_environment(plan, row)
     _write_status(root, "exp022", state="aggregating", started_at_utc=utc_now())
-    subprocess.run(
-        [
-            sys.executable,
-            "-m",
-            "experiments.exp022",
-            "--campaign-aggregate",
-            str(manifest),
-        ],
-        cwd=REPO,
-        env=environment,
-        check=True,
-    )
+    compute_id = load_json(manifest).get("pingstore_run_id")
+    if not compute_id:
+        raise CollectionError("legacy campaign needs its original checkout or an explicit completed-bank import")
+    from pingstore.stages import source_run
+    if not (REPO / ".pingstore/runs" / compute_id).exists():
+        subprocess.run(
+            [sys.executable, "-m", "experiments.exp022.compute",
+             "--campaign-aggregate", str(manifest)],
+            cwd=REPO, env=environment, check=True,
+        )
+    source_run(REPO / ".pingstore", compute_id, stage="compute", experiment="exp022")
+    # This collection operation explicitly composes stages. Individual stage
+    # entrypoints never run each other or refresh publication artifacts.
+    def execute_stage(stage: str, source_id: str) -> str:
+        completed = subprocess.run(
+            [sys.executable, "-m", f"experiments.exp022.{stage}", "--source", source_id],
+            cwd=REPO, env=environment, check=True, capture_output=True, text=True,
+        )
+        print(completed.stdout, end="")
+        return completed.stdout.strip().splitlines()[-1]
+    analysis_id = execute_stage("analyse", compute_id)
+    presentation_id = execute_stage("present", analysis_id)
+    presentation = source_run(REPO / ".pingstore", presentation_id,
+                              stage="present", experiment="exp022")
+    derived = Path(row["paths"]["derived"])
+    if derived.resolve() == (REPO / ".artifacts").resolve() or (REPO / ".artifacts").resolve() in derived.resolve().parents:
+        raise CollectionError("collection staging must not replace published artifacts")
+    if derived.name != "exp022":
+        raise CollectionError("exp022 collection view must end in exp022")
+    from pingstore.materialize import materialize_run
+    materialize_run(REPO / ".pingstore", presentation.record["run_id"], derived.parent)
     if not _outputs_valid(row):
         raise CollectionError("exp022 aggregation did not produce numbers.json")
     _stamp_collection_provenance(plan, row)
-    _write_status(root, "exp022", state="complete", ended_at_utc=utc_now())
+    _write_status(root, "exp022", state="complete", ended_at_utc=utc_now(),
+                  compute_run_id=compute_id, analysis_run_id=analysis_id,
+                  presentation_run_id=presentation_id)
 
 
 def _run_downstream(plan: dict[str, Any], row: dict[str, Any]) -> None:

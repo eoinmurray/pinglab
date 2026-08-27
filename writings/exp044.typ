@@ -1,3 +1,7 @@
+#import "/.demolab/lib.typ": data-json, data-image
+#import "run-inputs.typ": data-file, inputs-ready, pending-report
+#let data-file = data-file.with(article: "exp044")
+
 #let meta = (
   title: "Firing Rate Across the Timestep Sweep",
   date: "2026-06-02",
@@ -5,7 +9,16 @@
   collection: "gamma-gated-sparsity",
 )
 
-#let run = json("/.artifacts/exp044/numbers.json")
+#let inputs = ("exp044",)
+#let preview-figures = (
+  (path: "exp044/dt_sweep.svg", label: "dt sweep"),
+  (path: "exp044/raster_strip.png", label: "raster strip"),
+  (path: "exp044/training_curves.svg", label: "training curves"),
+)
+
+// Keep calculations lazy: absent inputs never become fabricated results.
+#let render-report(data-file) = [
+#let run = data-json(data-file("exp044/numbers.json"))
 #let batch-size = run.config.at("training_contract", default: (:))
   .at("common", default: (:)).at("batch_size", default: 256)
 
@@ -51,7 +64,7 @@
   == Results
 
   #figure(
-    image("/.artifacts/exp044/dt_sweep.svg", width: 100%,
+    data-image(data-file("exp044/dt_sweep.svg"), width: 100%,
       alt: "Hidden E rate and test accuracy against integration timestep; accuracy is flat while the E rate rises gently with coarser Δt."),
     caption: [
       Hidden E rate (black) and test accuracy (red) as Δt varies 20×; markers are
@@ -61,7 +74,7 @@
   )
 
   #figure(
-    image("/.artifacts/exp044/raster_strip.png", width: 100%,
+    data-image(data-file("exp044/raster_strip.png"), width: 100%,
       alt: "Single-trial E and I spike rasters at five integration timesteps, plotted against physical time; the burst cadence lines up across all five."),
     caption: [
       Single-trial rasters at each Δt, x-axis in _physical_ ms (not steps). All five
@@ -71,7 +84,7 @@
   )
 
   #figure(
-    image("/.artifacts/exp044/training_curves.svg", width: 100%,
+    data-image(data-file("exp044/training_curves.svg"), width: 100%,
       alt: "Per-cell test accuracy and E rate versus epoch, coloured by Δt; accuracy converges early while the E rate is still climbing at epoch 50."),
     caption: [
       Top: test accuracy converges by epoch ≈ 10–15 across all Δt. Bottom: test E
@@ -80,3 +93,15 @@
     ],
   )
 ]
+#body
+]
+
+#let body = if inputs-ready(data-file, inputs) {
+  render-report(data-file)
+} else {
+  pending-report(
+    data-file, inputs,
+    [How sensitive are firing rate and classification accuracy to numerical timestep? Compare trained PING networks across integration timesteps at fixed physical presentation duration.],
+    preview-figures, json-inputs: ("exp044",),
+  )
+}

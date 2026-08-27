@@ -1,8 +1,26 @@
 # exp022 on Cambridge Wilkes3 SL2
 
 This is the executable operator runbook for the 102-cell exp022 campaign. The
-scientific registry remains solely in `experiments/exp022.py`; these scripts
+scientific registry remains solely in `experiments/exp022/recipe.py`; these scripts
 only map a reviewed manifest onto Wilkes3 resources.
+
+## Staged execution
+
+Compute owns campaign submission, retries and retained diagnostic simulations.
+A new manifest reserves its compute run identity before submission. Campaign
+aggregation now completes that compute run only; it does not analyse, plot or
+publish. Follow it explicitly with:
+
+```sh
+uv run python experiments/exp022/analyse.py --source <completed-compute-run>
+uv run python experiments/exp022/present.py --source <completed-analysis-run>
+```
+
+Do not replace commands in an already-running historical campaign. Continue it
+on its recorded checkout, then import the completed retained bank. New campaigns
+use the staged entrypoint and unchanged scientific registry/checkpoint policy.
+The collection driver composes the stages explicitly and copies presentation
+into its own isolated working view, never the published repository view.
 
 ## 1. Persistent layout and reviewed checkout
 
@@ -79,13 +97,13 @@ Create smoke, canary, and production campaigns under different roots. A
 manifest refuses a dirty checkout and records every resolved command.
 
 ```bash
-uv run python experiments/exp022.py \
+uv run python experiments/exp022/compute.py \
   --campaign-manifest "$EXP022_CAMPAIGNS/smoke-<UTC>" \
-  --campaign-id smoke-<UTC> --tier standard --plumbing
+  --campaign-id smoke-<UTC> --execution-origin slurm-wilkes --tier standard --plumbing
 
-uv run python experiments/exp022.py \
+uv run python experiments/exp022/compute.py \
   --campaign-manifest "$EXP022_CAMPAIGNS/production-<UTC>" \
-  --campaign-id production-<UTC> --tier all
+  --campaign-id production-<UTC> --execution-origin slurm-wilkes --tier all
 ```
 
 Review `campaign.json`, especially its commit, lock hash, destination, 102-cell
@@ -94,9 +112,9 @@ count, scientific parameters, and commands. The manifest hash detects edits.
 ## 5. Status, tiny flow, and failure rehearsal
 
 ```bash
-uv run python experiments/exp022.py --campaign-status <root>/campaign.json
-uv run python experiments/exp022.py --campaign-status <root>/campaign.json --json > <root>/status/status.json
-uv run python experiments/exp022.py --campaign-train-cell <cell> --campaign <root>/campaign.json
+uv run python experiments/exp022/compute.py --campaign-status <root>/campaign.json
+uv run python experiments/exp022/compute.py --campaign-status <root>/campaign.json --json > <root>/status/status.json
+uv run python experiments/exp022/compute.py --campaign-train-cell <cell> --campaign <root>/campaign.json
 ```
 
 For the disposable rehearsal, interrupt or corrupt one plumbing cell, rerun the
@@ -108,7 +126,7 @@ is refused before it can move output. A stale record is listed separately under
 explicitly with:
 
 ```bash
-uv run python experiments/exp022.py --campaign-train-cell <cell> \
+uv run python experiments/exp022/compute.py --campaign-train-cell <cell> \
   --campaign <root>/campaign.json --recover-stale
 ```
 

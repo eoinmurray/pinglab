@@ -10,7 +10,8 @@ import tempfile
 from pathlib import Path
 from typing import Any
 
-RUN_SCHEMA = "pingstore.run/v2"
+LEGACY_RUN_SCHEMA = "pingstore.run/v2"
+RUN_SCHEMA = "pingstore.run/v3"
 EXPERIMENT_RE = re.compile(r"^exp[0-9]{3}$")
 RUN_ID_RE = re.compile(r"^exp[0-9]{3}-[a-z0-9][a-z0-9.-]*$")
 VIEW_RE = re.compile(r"^[a-z0-9][a-z0-9./-]*$")
@@ -50,8 +51,10 @@ def write_json_atomic(path: Path, value: dict[str, Any]) -> None:
 
 
 def validate_run(value: dict[str, Any]) -> dict[str, Any]:
-    if value.get("schema") != RUN_SCHEMA:
-        raise PingstoreError(f"run schema must be {RUN_SCHEMA}")
+    if value.get("schema") not in (LEGACY_RUN_SCHEMA, RUN_SCHEMA):
+        raise PingstoreError(f"run schema must be {LEGACY_RUN_SCHEMA} or {RUN_SCHEMA}")
+    if value["schema"] == RUN_SCHEMA and "stage" not in value:
+        raise PingstoreError("v3 runs require an explicit stage")
     run_id = value.get("run_id")
     experiment = value.get("experiment")
     if not isinstance(run_id, str) or not RUN_ID_RE.fullmatch(run_id):
@@ -60,6 +63,35 @@ def validate_run(value: dict[str, Any]) -> dict[str, Any]:
         raise PingstoreError("experiment must be expNNN")
     if not run_id.startswith(experiment + "-"):
         raise PingstoreError("run_id must begin with experiment-")
+    if "stage" in value:
+        stage = value["stage"]
+        if stage not in ("compute", "analyse", "present"):
+            raise PingstoreError("stage must be compute, analyse or present")
+        # Counter-first names sort by execution order. Read the original
+        # stage-first format too so historical backups remain valid evidence.
+        patterns = (rf"{experiment}-r[0-9]{{3,}}-{stage}-[a-z0-9][a-z0-9.-]*",)
+        if value["schema"] == LEGACY_RUN_SCHEMA:
+            patterns = (
+                rf"{experiment}-r[0-9]+-{stage}-[a-z0-9][a-z0-9.-]*",
+                rf"{experiment}-{stage}-r[0-9]+-[a-z0-9][a-z0-9.-]*",
+            )
+        if not any(re.fullmatch(pattern, run_id) for pattern in patterns):
+            raise PingstoreError("staged run ID must encode experiment, counter, stage and origin")
+        if not run_id.endswith("-" + str(value.get("origin", ""))):
+            raise PingstoreError("staged run ID and execution origin differ")
+        if not isinstance(value.get("inputs"), dict):
+            raise PingstoreError("staged runs require explicit inputs (empty for new compute)")
+        for role, reference in value["inputs"].items():
+            if not isinstance(role, str) or not role or not isinstance(reference, dict):
+                raise PingstoreError("invalid input role/reference")
+            if not isinstance(reference.get("run_id"), str) or not RUN_ID_RE.fullmatch(reference["run_id"]):
+                raise PingstoreError("input must name a completed run")
+            if reference["run_id"] == run_id:
+                raise PingstoreError("run cannot be its own input")
+            if not re.fullmatch(r"sha256:[0-9a-f]{64}", str(reference.get("payload_digest", ""))):
+                raise PingstoreError("input requires a payload checksum")
+            if not re.fullmatch(r"[0-9a-f]{64}", str(reference.get("run_json_sha256", ""))):
+                raise PingstoreError("input requires a run.json checksum")
     for key in ("collection", "origin", "created_at"):
         if not isinstance(value.get(key), str) or not value[key]:
             raise PingstoreError(f"{key} must be a non-empty string")
@@ -129,23 +161,41 @@ def payload_digest(directory: Path) -> str:
 def validate_layout(directory: Path) -> None:
     if directory.is_symlink() or not directory.is_dir():
         raise PingstoreError(f"run must be a real directory: {directory}")
-    expected = {"run.json", "README.md", "export", "presentation"}
-    if {p.name for p in directory.iterdir()} != expected:
-        raise PingstoreError(
-            "run must contain exactly run.json, README.md, export/, presentation/"
-        )
-    for name in expected:
+    manifest = directory / "run.json"
+    if manifest.is_symlink() or not manifest.is_file():
+        raise PingstoreError(f"run.json must be a regular file: {manifest}")
+    run = validate_run(load_json(manifest))
+    names = {p.name for p in directory.iterdir()}
+    if run["schema"] == LEGACY_RUN_SCHEMA:
+        if names != {"run.json", "README.md", "export", "presentation"}:
+            raise PingstoreError(
+                "v2 run must contain exactly run.json, README.md, export/, presentation/"
+            )
+        directories = {"export", "presentation"}
+        flat = directory / "presentation"
+    else:
+        if not {"run.json", "export"} <= names or names - {
+            "run.json", "README.md", "export", "provenance"
+        }:
+            raise PingstoreError(
+                "v3 run requires run.json and export/; only README.md and provenance/ are optional"
+            )
+        directories = {"export", "provenance"}
+        flat = directory / "export" if run["stage"] == "present" else None
+    for name in names:
         path = directory / name
-        if path.is_symlink() or (path.is_dir() != (name in {"export", "presentation"})):
+        if path.is_symlink() or (path.is_dir() != (name in directories)):
             raise PingstoreError(f"invalid run entry: {path}")
         if name in {"run.json", "README.md"} and not path.is_file():
             raise PingstoreError(f"run entry must be a regular file: {path}")
-    for path in (directory / "presentation").iterdir():
-        if path.is_symlink() or not path.is_file():
-            raise PingstoreError(f"presentation must be flat regular files: {path}")
-    for path in (directory / "export").rglob("*"):
-        if path.is_symlink() or not (path.is_file() or path.is_dir()):
-            raise PingstoreError(f"unsupported export entry: {path}")
+    if flat is not None:
+        for path in flat.iterdir():
+            if path.is_symlink() or not path.is_file():
+                raise PingstoreError(f"presentation must be flat regular files: {path}")
+    for name in directories & names:
+        for path in (directory / name).rglob("*"):
+            if path.is_symlink() or not (path.is_file() or path.is_dir()):
+                raise PingstoreError(f"unsupported payload entry: {path}")
 
 
 def validate_run_directory(directory: Path) -> dict[str, Any]:

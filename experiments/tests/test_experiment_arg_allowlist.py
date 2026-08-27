@@ -35,6 +35,7 @@ EXP022_CAMPAIGN_META = {
     "--campaign",
     "--campaign-aggregate",
     "--campaign-id",
+    "--execution-origin",
     "--campaign-import-compatible",
     "--campaign-list",
     "--campaign-manifest",
@@ -52,6 +53,12 @@ EXP022_CAMPAIGN_META = {
 RUNNERS = sorted(
     p for p in EXPERIMENTS.glob("exp*.py") if re.fullmatch(r"exp\d+\.py", p.name)
 )
+RUNNERS += sorted(
+    path for path in EXPERIMENTS.glob("exp[0-9][0-9][0-9]/*.py")
+    if path.stem in {"compute", "analyse", "present"}
+)
+STAGE_META = {"--source", "--run-id", "--import-source", "--diagnostics",
+              "--retained-presentation"}
 
 
 def _is_meta(flag: str) -> bool:
@@ -72,8 +79,10 @@ def test_runners_exist():
 @pytest.mark.parametrize("runner", RUNNERS, ids=lambda p: p.name)
 def test_runner_accepts_only_meta_flags(runner):
     allowed = ALLOWED_EXACT | (
-        EXP022_CAMPAIGN_META if runner.name == "exp022.py" else set()
+        EXP022_CAMPAIGN_META if runner.name == "exp022.py" or runner.parent.name == "exp022" else set()
     )
+    if runner.parent != EXPERIMENTS:
+        allowed |= STAGE_META
     offenders = sorted(
         f for f in _accepted_flags(runner.read_text()) if f not in allowed
     )

@@ -1,4 +1,6 @@
-#import "/.demolab/lib.typ": numbers-table, provenance-footer
+#import "/.demolab/lib.typ": data-json, data-image
+#import "run-inputs.typ": data-file, inputs-ready, pending-report
+#let data-file = data-file.with(article: "exp046")
 
 #let meta = (
   title: "One Spike per Gamma Cycle",
@@ -7,7 +9,14 @@
   collection: "gamma-gated-sparsity",
 )
 
+#let inputs = ("exp046",)
+#let preview-figures = (
+  (path: "exp046/spikes_per_cycle_distribution.svg", label: "spikes per cycle distribution"),
+  (path: "exp046/ceiling_vs_fgamma.svg", label: "ceiling vs fgamma"),
+)
 
+// Keep calculations lazy: absent inputs never become fabricated results.
+#let render-report(data-file) = [
 #let body = [
   == Abstract
 
@@ -30,14 +39,26 @@
   == Results
 
   #figure(
-    image("/.artifacts/exp046/spikes_per_cycle_distribution.svg", width: 100%,
+    data-image(data-file("exp046/spikes_per_cycle_distribution.svg"), width: 100%,
       alt: "Six bar charts, one per τ_GABA, of the probability an E cell emits 0, 1, 2, or ≥3 spikes in a gamma cycle; every panel is dominated by the 0 and 1 bars."),
     caption: [Distribution of E spike count per gamma cycle per cell, by $tau_"GABA"$, three seeds aggregated. Across *179 million (cell, cycle) pairs*, the architecture is overwhelmingly bimodal: each cell either emits zero spikes in a given cycle (≈ 79% of the time) or exactly one (≈ 20% of the time). Two-or-more events occur in ≈ 1.1% of cycles; three-or-more in ≈ 0.14%. Pooled over the sweep, 98.9% of pairs carry at most one spike.],
   )
 
   #figure(
-    image("/.artifacts/exp046/ceiling_vs_fgamma.svg", width: 100%,
+    data-image(data-file("exp046/ceiling_vs_fgamma.svg"), width: 100%,
       alt: "Per-cell E rate against measured gamma frequency; the busiest cell tracks the one-spike-per-cycle line while the median cell tracks exp041's shallower slope."),
     caption: [Per-cell E rate versus measured gamma frequency $f_gamma$ across the $tau_"GABA"$ sweep. The busiest cell in each network tracks the one-spike-per-cycle ceiling $r = f_gamma$ (max-cell fit $r = 0.97 f_gamma$, $R^2 = 0.88$), while the median cell sits on exp041's shallower $r approx 0.20 f_gamma$ participation slope. The ceiling is near-strict: even the most active cell rarely exceeds one spike per cycle.],
   )
 ]
+#body
+]
+
+#let body = if inputs-ready(data-file, inputs) {
+  render-report(data-file)
+} else {
+  pending-report(
+    data-file, inputs,
+    [How often does an excitatory cell spike within one gamma cycle? Count spikes between inhibitory volleys across the exp041 inhibitory-timescale sweep.],
+    preview-figures, json-inputs: (),
+  )
+}

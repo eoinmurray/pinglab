@@ -1,3 +1,7 @@
+#import "/.demolab/lib.typ": data-json, data-image
+#import "run-inputs.typ": data-file, inputs-ready, pending-report
+#let data-file = data-file.with(article: "exp076")
+
 #let meta = (
   title: "A bundle checkpoint replays",
   date: "2026-08-02",
@@ -6,7 +10,15 @@
   order: 3,
 )
 
-#let r = json("/.artifacts/exp076/numbers.json")
+#let inputs = ("exp076",)
+#let preview-figures = (
+  (path: "exp076/lifecycle.svg", label: "lifecycle"),
+  (path: "exp076/training_curves.png", label: "training curves"),
+)
+
+// Keep calculations lazy: absent inputs never become fabricated results.
+#let render-report(data-file) = [
+#let r = data-json(data-file("exp076/numbers.json"))
 
 #let pct(x) = str(calc.round(x, digits: 3)) + "%"
 #let pp(x) = str(calc.round(x, digits: 4)) + " pp"
@@ -36,10 +48,10 @@
 
   == Lifecycle checked
 
-  #image("/.artifacts/exp076/lifecycle.svg", width: 100%)
+  #data-image(data-file("exp076/lifecycle.svg"), width: 100%)
 
   The experiment stores the complete executable bundle at
-  `.artifacts/exp076/network.bundle`, including `graph.json`,
+  the selected run’s retained network bundle, including `graph.json`,
   `training.json`, and the manifest that authenticates both. Training writes a
   selected checkpoint and a final checkpoint. Replay then exercises four load
   paths: bundle checkpoint through bundle inference, final bundle checkpoint
@@ -49,7 +61,7 @@
 
   == Short training trajectory
 
-  #image("/.artifacts/exp076/training_curves.png", width: 100%)
+  #data-image(data-file("exp076/training_curves.png"), width: 100%)
 
   The run used #r.config.train_count training examples and
   #r.config.held_out_count held-out examples from the deterministic split.
@@ -123,3 +135,15 @@
   graph topologies, objectives, recurrent plasticity scopes, custom readouts, or
   accelerator-specific execution.
 ]
+#body
+]
+
+#let body = if inputs-ready(data-file, inputs) {
+  render-report(data-file)
+} else {
+  pending-report(
+    data-file, inputs,
+    [Does a trained bundle replay consistently from its checkpoint? Compare training, reload, inference, and deterministic one-step parity.],
+    preview-figures, json-inputs: ("exp076",),
+  )
+}

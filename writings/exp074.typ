@@ -1,3 +1,7 @@
+#import "/.demolab/lib.typ": data-json, data-image
+#import "run-inputs.typ": data-file, inputs-ready, pending-report
+#let data-file = data-file.with(article: "exp074")
+
 #let meta = (
   title: "From Python graph to spikes",
   date: "2026-07-31",
@@ -6,7 +10,15 @@
   order: 1,
 )
 
-#let r = json("/.artifacts/exp074/numbers.json")
+#let inputs = ("exp074",)
+#let preview-figures = (
+  (path: "exp074/network.svg", label: "network"),
+  (path: "exp074/rasters.png", label: "rasters"),
+)
+
+// Keep calculations lazy: absent inputs never become fabricated results.
+#let render-report(data-file) = [
+#let r = data-json(data-file("exp074/numbers.json"))
 
 #let body = [
   == Abstract
@@ -22,7 +34,7 @@
 
   == The compiled network
 
-  #image("/.artifacts/exp074/network.svg", width: 100%)
+  #data-image(data-file("exp074/network.svg"), width: 100%)
 
   The graph contains #r.graph.populations populations,
   #r.graph.projections projections, #r.graph.operations graph operations, and
@@ -39,7 +51,7 @@
   shows trial #r.output.display_trial: the exact input events, then the
   excitatory and inhibitory events produced by the compiled network.
 
-  #image("/.artifacts/exp074/rasters.png", width: 100%)
+  #data-image(data-file("exp074/rasters.png"), width: 100%)
 
   Across all #r.config.n_batch trials and #r.config.t_ms ms, the simulator
   measured mean E and I rates of
@@ -59,3 +71,15 @@
   growing another pile of bespoke simulator flags—a small victory over
   configuration archaeology.
 ]
+#body
+]
+
+#let body = if inputs-ready(data-file, inputs) {
+  render-report(data-file)
+} else {
+  pending-report(
+    data-file, inputs,
+    [Can a Python-authored network graph reproduce the intended spiking computation? Inspect the compiled topology and its response to a controlled input.],
+    preview-figures, json-inputs: ("exp074",),
+  )
+}

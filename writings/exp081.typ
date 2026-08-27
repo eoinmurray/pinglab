@@ -1,4 +1,7 @@
+#import "/.demolab/lib.typ": data-json, data-image
+#import "run-inputs.typ": data-file, inputs-ready, pending-report
 #import "/.demolab/lib.typ": cite, reference-list
+#let data-file = data-file.with(article: "exp081")
 
 #let meta = (
   title: "How Pixel Features Respond to Input Rate",
@@ -7,7 +10,17 @@
   collection: "gamma-gated-sparsity",
 )
 
-#let r = json("/.artifacts/exp081/numbers.json")
+#let inputs = ("exp081",)
+#let preview-figures = (
+  (path: "exp081/empirical_moments.svg", label: "empirical moments"),
+  (path: "exp081/response_distributions.svg", label: "response distributions"),
+  (path: "exp081/frequency_response.svg", label: "frequency response"),
+  (path: "exp081/analytical_empirical.svg", label: "analytical empirical"),
+)
+
+// Keep calculations lazy: absent inputs never become fabricated results.
+#let render-report(data-file) = [
+#let r = data-json(data-file("exp081/numbers.json"))
 #let p = r.parameters
 #let rounded(x, digits: 3) = str(calc.round(x, digits: digits))
 #let body = [
@@ -194,7 +207,7 @@
   important.
 
   #figure(
-    image("/.artifacts/exp081/empirical_moments.svg", width: 100%,
+    data-image(data-file("exp081/empirical_moments.svg"), width: 100%,
       alt: "Two panels show empirical mean feature and feature standard deviation against input rate for three conductance increments."),
     caption: [Empirical finite-window response of a fully active pixel over the
       input-rate grid. Both horizontal axes show input rate in spikes/s. Panel A
@@ -208,7 +221,7 @@
   )
 
   #figure(
-    image("/.artifacts/exp081/response_distributions.svg", width: 100%,
+    data-image(data-file("exp081/response_distributions.svg"), width: 100%,
       alt: "Three logarithmic histograms show feature distributions becoming smoother as input rate increases."),
     caption: [Empirical feature distributions at
       #p.distribution_rates_hz.map(str).join(", ") spikes/s for the nominal
@@ -231,7 +244,7 @@
   lobes on that falling response.
 
   #figure(
-    image("/.artifacts/exp081/frequency_response.svg", width: 100%,
+    data-image(data-file("exp081/frequency_response.svg"), width: 100%,
       alt: "Two panels show the analytical synapse and membrane frequency response before and after finite-window averaging."),
     caption: [Analytical Bode-magnitude plots at the nominal
       #p.nominal_probe_uS μS probe. Black, red, and cyan denote operating rates
@@ -269,7 +282,7 @@
   deviation.
 
   #figure(
-    image("/.artifacts/exp081/analytical_empirical.svg", width: 100%,
+    data-image(data-file("exp081/analytical_empirical.svg"), width: 100%,
       alt: "Two panels compare analytical curves with empirical points for feature mean and standard deviation over input rate."),
     caption: [Analytical and empirical moments over input rate for a fully active
       pixel. The horizontal axis is input rate in spikes/s. Solid curves are
@@ -455,3 +468,15 @@
     ),
   ))
 ]
+#body
+]
+
+#let body = if inputs-ready(data-file, inputs) {
+  render-report(data-file)
+} else {
+  pending-report(
+    data-file, inputs,
+    [How do pixel-derived features respond to input rate? Compare predicted response statistics with measured moments, distributions, and frequency responses.],
+    preview-figures, json-inputs: ("exp081",),
+  )
+}

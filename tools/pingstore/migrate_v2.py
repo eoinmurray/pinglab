@@ -16,7 +16,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from .contracts import (
-    RUN_SCHEMA,
+    LEGACY_RUN_SCHEMA,
     PingstoreError,
     file_sha256,
     load_json,
@@ -98,7 +98,7 @@ def migrate_run(source: Path, destination: Path) -> dict:
     temporary = destination.with_name("." + destination.name + ".tmp")
     if temporary.exists():
         raise PingstoreError(f"migration staging already exists: {temporary}")
-    initialize_layout(temporary, run["experiment"])
+    initialize_layout(temporary, run["experiment"], schema=LEGACY_RUN_SCHEMA)
     for row in baseline:
         target = temporary / mapping[row["path"]]
         target.parent.mkdir(parents=True, exist_ok=True)
@@ -130,7 +130,7 @@ def migrate_run(source: Path, destination: Path) -> dict:
         )
         (temporary / "README.md").write_text(notes)
     converted = copy.deepcopy(run)
-    converted["schema"] = RUN_SCHEMA
+    converted["schema"] = LEGACY_RUN_SCHEMA
     converted.pop("files_digest")
     local_map = converted.get("provenance", {}).get("import_map")
     if local_map in mapping:
@@ -148,7 +148,8 @@ def migrate_run(source: Path, destination: Path) -> dict:
     }
     manifest_path = source / "files/_manifest.json"
     if manifest_path.exists():
-        display_manifest(temporary, load_json(manifest_path), run["run_id"])
+        display_manifest(temporary, load_json(manifest_path), run["run_id"],
+                         schema=LEGACY_RUN_SCHEMA)
     records = [{**row, "destination": mapping[row["path"]]} for row in baseline]
     write_json_atomic(
         temporary / converted["format_migration"]["mapping"], {"files": records}

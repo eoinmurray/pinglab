@@ -1,4 +1,6 @@
-#import "/.demolab/lib.typ": numbers-table, provenance-footer
+#import "/.demolab/lib.typ": data-json, data-image
+#import "run-inputs.typ": data-file, inputs-ready, pending-report
+#let data-file = data-file.with(article: "exp047")
 
 #let meta = (
   title: "Pool Size Requires Synaptic Rescaling",
@@ -7,7 +9,14 @@
   collection: "gamma-gated-sparsity",
 )
 
-#let r = json("/.artifacts/exp047/numbers.json")
+#let inputs = ("exp047",)
+#let preview-figures = (
+  (path: "exp047/pool_size_controls.svg", label: "pool size controls"),
+)
+
+// Keep calculations lazy: absent inputs never become fabricated results.
+#let render-report(data-file) = [
+#let r = data-json(data-file("exp047/numbers.json"))
 #let ft = r.summary.fixed_total
 #let fs = r.summary.fixed_synapse
 #let e(control, level, n) = control.at(level).at(n).r_e_hz_mean
@@ -74,8 +83,7 @@
   Fixed realised synaptic strength gives the opposite result. At $j_(I E) = #j-mid-ns$ nS, increasing $N_I$ from #n-lo to #n-hi changes the E rate from #re-fs-lo-fmt to #re-fs-hi-fmt Hz and the I rate from #ri-fs-lo-fmt to #ri-fs-hi-fmt Hz. Every tested synaptic strength shows the same pool-size dependence. The direction is mechanistically consistent: more inhibitory cells at unchanged individual strength produce greater population-level inhibition, while the recurrent feedback reduces both E activity and the I activity it recruits.
 
   #figure(
-    image(
-      "/.artifacts/exp047/pool_size_controls.svg",
+    data-image(data-file("exp047/pool_size_controls.svg"),
       width: 100%,
       alt: "Four panels comparing E and I firing rates across inhibitory pool sizes. Rates are flat when summed coupling is fixed, but fall strongly with pool size when realised synaptic strength is fixed.",
     ),
@@ -86,3 +94,15 @@
 
   The network is not intrinsically insensitive to inhibitory-pool size. It is insensitive only along a specific normalization path: individual I→E synapses must scale approximately as $1 / N_I$ so that expected summed coupling stays fixed. The operative control variable in this dense model is population-level inhibitory drive, jointly determined by pool size, realised synaptic strength, and volley participation. This experiment does not establish that the same inverse scaling holds biologically; it identifies the compensation required for invariance in the model.
 ]
+#body
+]
+
+#let body = if inputs-ready(data-file, inputs) {
+  render-report(data-file)
+} else {
+  pending-report(
+    data-file, inputs,
+    [How should synaptic strength scale when inhibitory pool size changes? Compare fixed total coupling against fixed per-synapse coupling.],
+    preview-figures, json-inputs: ("exp047",),
+  )
+}

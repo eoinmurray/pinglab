@@ -6,6 +6,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from .contracts import PingstoreError, validate_run_directory
+from .layout import has_presentation_content, presentation_directory
 
 
 def discover_runs(source: Path) -> list[dict[str, str]]:
@@ -43,15 +44,16 @@ def discover_runs(source: Path) -> list[dict[str, str]]:
             timestamp = created_at.astimezone(timezone.utc).isoformat()
         except (OSError, ValueError, OverflowError) as exc:
             raise PingstoreError(f"cannot discover {directory.name}: {exc}") from exc
+        files = presentation_directory(directory, run)
+        if files is None or not has_presentation_content(files):
+            continue
         records.append(
             {
                 "id": run["run_id"],
                 "experiment": run["experiment"],
                 "label": run["run_id"],
                 "created_at": timestamp,
-                "presentation": (directory / "presentation")
-                .relative_to(source)
-                .as_posix(),
+                "presentation": files.relative_to(source).as_posix(),
             }
         )
     return records

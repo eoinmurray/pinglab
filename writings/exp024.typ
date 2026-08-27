@@ -1,3 +1,7 @@
+#import "/.demolab/lib.typ": data-json, data-image
+#import "run-inputs.typ": data-file, inputs-ready, pending-report
+#let data-file = data-file.with(article: "exp024")
+
 #let meta = (
   title: "Accuracy Plateaus While Firing Rate Rises",
   date: "2026-06-02",
@@ -5,7 +9,15 @@
   collection: "gamma-gated-sparsity",
 )
 
+#let inputs = ("exp024",)
+#let preview-figures = (
+  (path: "exp024/coba_curves.svg", label: "coba curves"),
+  (path: "exp024/ping_curves.svg", label: "ping curves"),
+  (path: "exp024/confidence_inflation.svg", label: "confidence inflation"),
+)
 
+// Keep calculations lazy: absent inputs never become fabricated results.
+#let render-report(data-file) = [
 #let body = [
   The trained networks this entry uses are produced once in the shared training
   hub, #link("/exp022/")[exp022 (Training)], and reused here rather than retrained.
@@ -32,8 +44,7 @@
   == Results
 
   #figure(
-    image(
-      "/.artifacts/exp024/coba_curves.svg",
+    data-image(data-file("exp024/coba_curves.svg"),
       width: 100%,
       alt: "COBA loss, test accuracy, and firing rate versus epoch; accuracy plateaus early while the E rate keeps climbing.",
     ),
@@ -45,8 +56,7 @@
   )
 
   #figure(
-    image(
-      "/.artifacts/exp024/ping_curves.svg",
+    data-image(data-file("exp024/ping_curves.svg"),
       width: 100%,
       alt: "PING loss, test accuracy, and firing rate versus epoch; the E rate settles into a tight band while the I rate rises.",
     ),
@@ -60,8 +70,7 @@
   )
 
   #figure(
-    image(
-      "/.artifacts/exp024/confidence_inflation.svg",
+    data-image(data-file("exp024/confidence_inflation.svg"),
       width: 100%,
       alt: "Test accuracy, test cross-entropy, and E firing rate versus epoch for COBA and PING, with accuracy-convergence epochs marked.",
     ),
@@ -113,3 +122,15 @@
     (slope > 0) while PING's plateaus (slope ≈ 0), matching the cross-entropy and
     rate slopes here.
 ]
+#body
+]
+
+#let body = if inputs-ready(data-file, inputs) {
+  render-report(data-file)
+} else {
+  pending-report(
+    data-file, inputs,
+    [Does firing rate settle when classification accuracy plateaus? Compare the training trajectories of COBA and PING using the shared exp022 checkpoints.],
+    preview-figures, json-inputs: (),
+  )
+}

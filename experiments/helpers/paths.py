@@ -19,6 +19,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from pingstore.contracts import load_json, validate_run_directory
+from pingstore.layout import export_directory
 from pingstore.native import execution_origin, make_run_id
 
 REPO = Path(__file__).resolve().parents[2]
@@ -139,7 +140,7 @@ def active_run_state(slug: str) -> Path:
         run = validate_run_directory(candidate)
         if run["experiment"] != slug:
             raise RuntimeError(f"active run experiment differs from {slug}")
-        return candidate / run.get("export_root", "export/state")
+        return export_directory(candidate, run)
     identity = manifest.get("run_id")
     if not isinstance(identity, str) or not identity:
         raise RuntimeError(f"active manifest for {slug} has no run_id")
@@ -151,7 +152,7 @@ def active_run_state(slug: str) -> Path:
             stored = candidate / relative
             if stored.is_file() and load_json(stored) == manifest:
                 run = validate_run_directory(candidate)
-                matches.append(candidate / run.get("export_root", "export/state"))
+                matches.append(export_directory(candidate, run))
                 break
     if len(matches) != 1:
         raise RuntimeError(f"cannot resolve active Pingstore state for {slug}")

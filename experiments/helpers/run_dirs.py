@@ -23,6 +23,7 @@ import functools
 import os
 import shutil
 
+from pingstore.contracts import LEGACY_RUN_SCHEMA
 from pingstore.layout import copy_legacy_derived, initialize_layout
 from pingstore.materialize import materialize_run
 from pingstore.native import (
@@ -105,7 +106,7 @@ def _prepare_local_working_run(
     if (files / "_manifest.json").exists() or (temporary / "run.json").exists():
         raise RuntimeError(f"incomplete run already exists: {temporary}")
     state = temporary / "export/state"
-    initialize_layout(temporary, slug)
+    initialize_layout(temporary, slug, schema=LEGACY_RUN_SCHEMA)
     files.mkdir(parents=True, exist_ok=True)
     active = FIGURES_ROOT / slug
     if seed_derived and active.is_dir():

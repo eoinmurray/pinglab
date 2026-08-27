@@ -1,3 +1,8 @@
+#import "/.demolab/lib.typ": data-json, data-image
+#import "run-inputs.typ": data-file, inputs-ready, pending-report
+#import "manuscript-figures.typ": figure-description
+#let data-file = data-file.with(article: "exp093")
+
 #let meta = (
   title: "Old and New Manuscript Figures",
   date: "2026-08-22",
@@ -5,31 +10,25 @@
   collection: "gamma-gated-sparsity",
 )
 
-#let comparison = json("/.artifacts/exp093/numbers.json")
+#let inputs = ("exp093", "exp025", "exp038", "exp049", "exp041", "exp046", "exp037", "exp042", "exp044")
 
-#import "exp092.typ": body as manuscript-body
+// Evaluate historical records and figures only when every required input exists.
+#let render-report(data-file) = [
+#let comparison = data-json(data-file("exp093/numbers.json"))
+#let figures = comparison.figures
 
-#let manuscript-figures = manuscript-body.children.filter(
-  item => item.func() == figure,
-)
-
-#let manuscript-figure-index = (
-  exp025: 2,
-  exp038: 3,
-  exp049: 4,
-  exp041: 5,
-  exp046: 6,
-  exp037: 7,
-  exp042: 8,
-  exp044: 9,
-)
-
-#let manuscript-caption(experiment) = {
-  let index = manuscript-figure-index.at(experiment)
-  manuscript-figures.at(index).caption.body
+// Use logical keys, never absolute paths embedded in a historical JSON record.
+// The comparison run's legacy figures obey Pingstore's flat presentation layout.
+#let comparison-image(pair, legacy: false) = {
+  assert(pair.experiment in inputs,
+    message: "comparison figure requires a declared experiment input")
+  assert(not pair.filename.contains("/") and not pair.filename.contains("\\"),
+    message: "comparison filenames must be flat presentation filenames")
+  let key = if legacy {
+    "exp093/legacy__" + pair.experiment + "__" + pair.filename
+  } else { pair.experiment + "/" + pair.filename }
+  data-image(data-file(key), width: 100%)
 }
-
-#let short(hash) = hash.slice(0, 12)
 
 #let wide-html-layout() = context {
   if target() == "html" {
@@ -51,36 +50,40 @@
 #let body = [
   #wide-html-layout()
 
-  This review compares the manuscript plots retained in both immutable gold-star campaigns. The left column is the historical #raw(comparison.legacy.run_id) archive; the right column is the current #raw(comparison.current.run_id) publication campaign. A _changed_ label means the rendered file bytes differ; it is not by itself a scientific judgement.
+  Compare historical manuscript figures retained by an exp093 run with figures
+  from the independently selected experiment runs. Each column follows this
+  article's own selectors; neither column inherits exp092's selection.
 
-  #table(
-    columns: (auto, 1fr),
-    inset: 5pt,
-    align: (left, left),
-    [*Legacy archive*], [#comparison.legacy.uri],
-    [*Legacy payload*], [#comparison.legacy.payload_digest],
-    [*Current archive*], [#comparison.current.uri],
-    [*Current commit*], [#raw(comparison.current.git_commit)],
-    [*Current payload*], [#comparison.current.payload_digest],
-  )
+  *Historical reference:* #raw(comparison.legacy.run_id).
+  The comparison record names #raw(comparison.current.run_id) as its original
+  current-side reference. That identity and its recorded differences do not
+  describe a different run selected here. Authoritative provenance remains in
+  each selected run's `run.json`.
 
-  #for pair in comparison.figures [
+  #for pair in figures [
     == #pair.title
 
-    #pair.experiment · #raw(pair.filename) · *#pair.status*
+    #pair.experiment · #raw(pair.filename)
 
     #table(
       columns: (1fr, 1fr),
       gutter: 10pt,
       inset: 5pt,
       align: (center, center),
-      [*Legacy*], [*Current*],
-      [#link(pair.legacy_path)[#image(pair.legacy_path, width: 100%)]],
-      [#link(pair.current_path)[#image(pair.current_path, width: 100%)]],
-      [#raw("sha256:" + short(pair.legacy_sha256))],
-      [#raw("sha256:" + short(pair.current_sha256))],
+      [*Historical comparison input*], [*Selected experiment input*],
+      comparison-image(pair, legacy: true),
+      comparison-image(pair),
     )
 
-    #manuscript-caption(pair.experiment)
+    #figure-description(pair.experiment)
   ]
 ]
+
+#body
+]
+
+#let body = if inputs-ready(data-file, inputs) {
+  render-report(data-file)
+} else {
+  pending-report(data-file, inputs, [], ())
+}

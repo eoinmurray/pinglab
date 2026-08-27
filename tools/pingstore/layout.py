@@ -1,11 +1,13 @@
-"""Explicit v2 layout helpers and adapters for legacy derived-output producers."""
+"""Versioned run layout and explicit adapters for legacy output producers."""
 
 from __future__ import annotations
 
 import shutil
 from pathlib import Path
 
-from .contracts import PingstoreError, load_json, write_json_atomic
+from .contracts import (
+    LEGACY_RUN_SCHEMA, RUN_SCHEMA, PingstoreError, load_json, write_json_atomic,
+)
 
 FIGURE_SUFFIXES = {".svg", ".png", ".jpg", ".jpeg", ".pdf", ".gif", ".webp", ".mp4"}
 DATA_SUFFIXES = {".h5", ".hdf5", ".npy", ".npz", ".pt", ".pth"}
@@ -19,14 +21,42 @@ RECORD_NAMES = {
 }
 
 
-def initialize_layout(root: Path, experiment: str) -> None:
+def initialize_layout(root: Path, experiment: str, *, schema: str = RUN_SCHEMA) -> None:
+    if schema not in (LEGACY_RUN_SCHEMA, RUN_SCHEMA):
+        raise PingstoreError(f"unsupported layout schema: {schema}")
     (root / "export").mkdir(parents=True, exist_ok=True)
+    if schema == RUN_SCHEMA:
+        return  # v3 has no mandatory README or empty evidence/presentation folders.
     (root / "presentation").mkdir(exist_ok=True)
     readme = root / "README.md"
     if not readme.exists():
         readme.write_text(
             f"# {experiment}\n\nExecution provenance is in `run.json`. Scientific results and execution\nrecords are in `export/`; copyable publication inputs are in `presentation/`.\n"
         )
+
+
+def export_directory(root: Path, run: dict) -> Path:
+    """Resolve scientific output from an already validated v2/v3 record."""
+    default = "export" if run["schema"] == RUN_SCHEMA else "export/state"
+    return root / run.get("export_root", default)
+
+
+def presentation_directory(root: Path, run: dict) -> Path | None:
+    """Resolve publishable output; stage is authoritative, not the folder name.
+
+    Callers must validate the complete run before consuming this directory.
+    Untyped v2 evidence retains its original presentation behaviour.
+    """
+    if run["schema"] == RUN_SCHEMA:
+        return root / "export" if run["stage"] == "present" else None
+    if run["schema"] == LEGACY_RUN_SCHEMA:
+        return root / "presentation" if run.get("stage") in (None, "present") else None
+    raise PingstoreError(f"unsupported layout schema: {run['schema']}")
+
+
+def has_presentation_content(directory: Path) -> bool:
+    return any(path.name not in RECORD_NAMES and path.stat().st_size > 0
+               for path in directory.iterdir())
 
 
 def legacy_target(relative: Path) -> Path:
@@ -75,11 +105,20 @@ def copy_legacy_derived(source: Path, destination: Path) -> None:
         shutil.copy2(source / old, target)
 
 
-def display_manifest(root: Path, manifest: dict, run_id: str) -> None:
+def display_manifest(root: Path, manifest: dict, run_id: str, *,
+                     schema: str = RUN_SCHEMA) -> None:
     """Compatibility projection for the publishing engine, not authoritative provenance."""
     projected = dict(manifest)
     projected["pingstore_run_id"] = run_id
-    write_json_atomic(root / "presentation/_manifest.json", projected)
+    if schema == RUN_SCHEMA:
+        if manifest.get("stage") != "present":
+            raise PingstoreError("only present runs can write publication metadata")
+        destination = root / "export"
+    elif schema == LEGACY_RUN_SCHEMA:
+        destination = root / "presentation"
+    else:
+        raise PingstoreError(f"unsupported layout schema: {schema}")
+    write_json_atomic(destination / "_manifest.json", projected)
 
 
 def read_execution_manifest(root: Path) -> dict:

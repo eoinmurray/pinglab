@@ -13,6 +13,7 @@ from .contracts import (
     validate_collections,
     validate_run_directory,
 )
+from .layout import presentation_directory
 
 
 def _replace_tree(source: Path, destination: Path) -> None:
@@ -42,9 +43,9 @@ def _replace_tree(source: Path, destination: Path) -> None:
 def materialize_run(root: Path, run_id: str, artifacts_root: Path) -> dict:
     directory = run_root(root, run_id)
     run = validate_run_directory(directory)
-    files = directory / "presentation"
-    if not files.is_dir():
-        raise PingstoreError(f"run files are missing: {run_id}")
+    files = presentation_directory(directory, run)
+    if files is None:
+        raise PingstoreError(f"compute/analyse runs cannot be published: {run_id}")
     _replace_tree(files, artifacts_root / run["experiment"])
     return {"run_id": run_id, "experiment": run["experiment"]}
 
@@ -64,11 +65,14 @@ def materialize_view(root: Path, name: str, destination: Path) -> dict:
         for run_id in selected:
             directory = run_root(root, run_id)
             run = validate_run_directory(directory)
+            files = presentation_directory(directory, run)
+            if files is None:
+                raise PingstoreError(f"compute/analyse runs cannot be published: {run_id}")
             experiment = run["experiment"]
             if experiment in experiments:
                 raise PingstoreError(f"view selects multiple runs for {experiment}")
             experiments.add(experiment)
-            shutil.copytree(directory / "presentation", staging / experiment)
+            shutil.copytree(files, staging / experiment)
         os.rename(staging, destination)
     except Exception:
         shutil.rmtree(staging, ignore_errors=True)

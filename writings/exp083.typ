@@ -1,3 +1,7 @@
+#import "/.demolab/lib.typ": data-json, data-image
+#import "run-inputs.typ": data-file, inputs-ready, pending-report
+#let data-file = data-file.with(article: "exp083")
+
 #let meta = (
   title: "When does the default PING circuit start to sing?",
   date: "2026-08-17",
@@ -6,7 +10,17 @@
   order: 9,
 )
 
-#let r = json("/.artifacts/exp083/numbers.json")
+#let inputs = ("exp083",)
+#let preview-figures = (
+  (path: "exp083/network.svg", label: "network"),
+  (path: "exp083/response.png", label: "response"),
+  (path: "exp083/representative_rasters.png", label: "representative rasters"),
+  (path: "exp083/spectra.png", label: "spectra"),
+)
+
+// Keep calculations lazy: absent inputs never become fabricated results.
+#let render-report(data-file) = [
+#let r = data-json(data-file("exp083/numbers.json"))
 #let active = r.conditions.filter(row => row.frequency_resolved_fraction == 1)
 #let transition = r.conditions.filter(row => row.input_rate_hz == 50).first()
 #let first-active = active.first()
@@ -30,8 +44,7 @@
   + *Measure E/I timing separately.* Post-transient population spikes are binned at 1 ms. The lag of the strongest E/I cross-correlation within plus or minus 20 ms is descriptive and does not enter the gamma-resolution rule.
 
   #figure(
-    image(
-      "/.artifacts/exp083/network.svg",
+    data-image(data-file("exp083/network.svg"),
       width: 82%,
       alt: "Compiled SNNLANG graph with one typed spike input driving the default PING component.",
     ),
@@ -45,8 +58,7 @@
   The network is silent through #r.conditions.at(1).input_rate_hz Hz per channel. At #transition.input_rate_hz Hz it activates, the median rhythmicity score reaches #calc.round(transition.rhythmicity_score_median, digits: 2), and the dominant rhythm is #calc.round(transition.rhythm_frequency_median_hz, digits: 2) Hz. Rhythmicity therefore appears discontinuously, while the rhythm frequency increases smoothly with drive. The default circuit sings, but under this protocol it mostly sings below gamma.
 
   #figure(
-    image(
-      "/.artifacts/exp083/response.png",
+    data-image(data-file("exp083/response.png"),
       width: 100%,
       alt: "Population firing rates, lobe-trough rhythmicity contrast, and dominant rhythm frequency across homogeneous input drive.",
     ),
@@ -56,8 +68,7 @@
   )
 
   #figure(
-    image(
-      "/.artifacts/exp083/representative_rasters.png",
+    data-image(data-file("exp083/representative_rasters.png"),
       width: 100%,
       alt: "Stacked excitatory and inhibitory rasters at three input rates selected before the primary sweep.",
     ),
@@ -67,8 +78,7 @@
   )
 
   #figure(
-    image(
-      "/.artifacts/exp083/spectra.png",
+    data-image(data-file("exp083/spectra.png"),
       width: 100%,
       alt: "Mean excitatory population spectra at three input rates selected before the primary sweep.",
     ),
@@ -77,3 +87,15 @@
     ],
   )
 ]
+#body
+]
+
+#let body = if inputs-ready(data-file, inputs) {
+  render-report(data-file)
+} else {
+  pending-report(
+    data-file, inputs,
+    [Under which input conditions does the default PING circuit produce gamma? Inspect its topology, response, rasters, and spectra.],
+    preview-figures, json-inputs: ("exp083",),
+  )
+}

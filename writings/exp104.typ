@@ -6,7 +6,7 @@
 )
 
 #let body = [
-  Cloudflare R2 mirrors immutable Pingstore runs that are expensive to reproduce, including trained checkpoint banks under `.pingstore/runs/`. Git remains the source-code record; `.artifacts/` is a materialized publication view.
+  Cloudflare R2 mirrors immutable Pingstore runs that are expensive to reproduce, including trained checkpoint banks under `.pingstore/runs/`. Git remains the source-code record; writings consume explicitly selected presentation runs through `run-inputs.typ`.
 
   The supported interface is `experiments/helpers/archive.py`. It stores snapshots at:
 
@@ -81,7 +81,7 @@
   uv run python experiments/helpers/archive.py restore exp022 <sha>
   ```
 
-  Restore into a hidden incomplete run beneath `.pingstore/runs/`; validate it before atomically publishing the run. Never write restored state into `.artifacts/`.
+  Restore into a hidden incomplete run beneath `.pingstore/runs/`; validate it before atomically publishing the run. Never use an incomplete restore as a writing input or publish it as completed evidence.
 
   == Safety rules
 

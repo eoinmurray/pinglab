@@ -49,6 +49,45 @@ artifact-backed values):
 
 ## Inputs and outputs
 
+For staged experiments, the writing consumes a selected presentation run, not
+compute checkpoints or live analysis. Pingstore resolves that input to the flat
+`export/` of a v3 present run, or `presentation/` of a compatible v2 run. Keep
+storage-version paths out of the writing: discovery supplies the resolved
+directory, while `run.json` remains authoritative. Import `data-file` from the
+local `run-inputs.typ` helper and bind it to the article. It reads only explicit
+Demolab inputs, with no implicit filesystem fallback. Preview supplies selected
+runs; publication can supply a fixed `demolab-data-inputs` inventory with an
+engine that supports `build.sources`. Without an input for the article, show the
+shared unavailable-data notice rather than evaluating report calculations:
+
+```typst
+#import "/.demolab/lib.typ": data-json, data-image
+#import "run-inputs.typ": data-file, inputs-ready, pending-report
+#let data-file = data-file.with(article: "exp022")
+#let inputs = ("exp022",)
+#let render-report(data-file) = [
+  #let results = data-json(data-file("exp022/numbers.json"))
+  // Interpret results and render figures here, after checking input availability.
+]
+#let body = if inputs-ready(data-file, inputs) {
+  render-report(data-file)
+} else {
+  pending-report(data-file, inputs, [], ())
+}
+```
+
+Declare every required logical data key in `inputs`, including upstream keys in
+galleries and comparisons. The readiness check tests selected directories, not
+the existence of `numbers.json`, so image-only runs work too. Keep data reads,
+calculations, and result-dependent content inside `render-report`. A selected
+run with a missing or corrupt file is an error, never an empty report. Builds
+do not choose Latest, read browser selections, or execute experiment stages.
+
+Editing prose does not require a new run. Scientific or presentation changes use
+the independent stages in [the execution guide](../experiments/README.md).
+Keep imported historical figures distinct from newly generated figures; run.json
+records their source lineage, and captions must not imply a new simulation.
+
 Apply these rules to every experiment entry:
 
 1. Name the section `Inputs and outputs` exactly and place it immediately after
@@ -161,13 +200,13 @@ gamma frequency. We expected frequency to fall as inhibition became slower,
 because excitatory cells should remain suppressed for longer between volleys.
 
 #figure(
-  image("/.artifacts/expXXX/frequency-theory.svg", width: 70%),
+  data-image(data-file("expXXX/frequency-theory.svg"), width: 70%),
   caption: [Expected mechanism: longer inhibition increases the interval
   between excitatory volleys. This schematic represents theory, not data.],
 )
 
 #figure(
-  image("/.artifacts/expXXX/frequency-vs-decay.svg", width: 100%),
+  data-image(data-file("expXXX/frequency-vs-decay.svg"), width: 100%),
   caption: [Gamma frequency across inhibitory decay times. Points show means
   across seeds; error bars show ±1 standard deviation.],
 )
@@ -184,7 +223,7 @@ across the same decay times. If inhibitory duration controls timing rather than
 overall activity, we expected both rates to remain broadly stable.
 
 #figure(
-  image("/.artifacts/expXXX/rate-vs-decay.svg", width: 100%),
+  data-image(data-file("expXXX/rate-vs-decay.svg"), width: 100%),
   caption: [Excitatory and inhibitory firing rates across conditions. Points
   show means across seeds; error bars show ±1 standard deviation.],
 )
@@ -200,7 +239,7 @@ accuracy to remain near baseline wherever coherent rhythmic activity was
 preserved.
 
 #figure(
-  image("/.artifacts/expXXX/accuracy-vs-decay.svg", width: 100%),
+  data-image(data-file("expXXX/accuracy-vs-decay.svg"), width: 100%),
   caption: [Test accuracy across inhibitory decay times. Points show means
   across seeds; error bars show ±1 standard deviation.],
 )

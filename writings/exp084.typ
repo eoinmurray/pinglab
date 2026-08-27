@@ -1,3 +1,7 @@
+#import "/.demolab/lib.typ": data-json, data-image
+#import "run-inputs.typ": data-file, inputs-ready, pending-report
+#let data-file = data-file.with(article: "exp084")
+
 #let meta = (
   title: "Can inhibitory recovery tune default PING into gamma?",
   date: "2026-08-17",
@@ -6,7 +10,16 @@
   order: 10,
 )
 
-#let r = json("/.artifacts/exp084/numbers.json")
+#let inputs = ("exp084",)
+#let preview-figures = (
+  (path: "exp084/network.svg", label: "network"),
+  (path: "exp084/response.svg", label: "response"),
+  (path: "exp084/representative_rasters.png", label: "representative rasters"),
+)
+
+// Keep calculations lazy: absent inputs never become fabricated results.
+#let render-report(data-file) = [
+#let r = data-json(data-file("exp084/numbers.json"))
 #let default = r.conditions.filter(row => row.tau_gaba_ms == 9).first()
 #let fastest = r.conditions.first()
 #let slowest = r.conditions.last()
@@ -25,8 +38,7 @@
   + *Apply the registered rhythm analyses.* The #raw(r.frequency_analysis.name) estimator reports the dominant E-population rhythm over #r.frequency_analysis.band_hz.at(0)--#r.frequency_analysis.band_hz.at(1) Hz, including its prominence and subharmonic rules. Rhythmicity is the standard autocorrelation lobe-trough contrast $R$ used in exp083. E/I lag is measured separately from the peak cross-correlation of 1 ms population counts.
 
   #figure(
-    image(
-      "/.artifacts/exp084/network.svg",
+    data-image(data-file("exp084/network.svg"),
       width: 82%,
       alt: "Compiled default PING graph at the default inhibitory decay condition.",
     ),
@@ -40,8 +52,7 @@
   Inhibitory decay produces a direct test of the textbook recovery-timescale account. The default #default.tau_gaba_ms ms circuit resolves at #calc.round(default.rhythm_frequency_median_hz, digits: 2) Hz. Faster inhibition shifts the rhythm to #calc.round(fastest.rhythm_frequency_median_hz, digits: 2) Hz, while slower inhibition yields #calc.round(slowest.rhythm_frequency_median_hz, digits: 2) Hz.
 
   #figure(
-    image(
-      "/.artifacts/exp084/response.svg",
+    data-image(data-file("exp084/response.svg"),
       width: 100%,
       alt: "Population rates, rhythmicity, and dominant frequency across inhibitory decay time.",
     ),
@@ -51,8 +62,7 @@
   )
 
   #figure(
-    image(
-      "/.artifacts/exp084/representative_rasters.png",
+    data-image(data-file("exp084/representative_rasters.png"),
       width: 100%,
       alt: "Stacked excitatory and inhibitory rasters at fast, default, and slow inhibitory decay.",
     ),
@@ -61,3 +71,15 @@
     ],
   )
 ]
+#body
+]
+
+#let body = if inputs-ready(data-file, inputs) {
+  render-report(data-file)
+} else {
+  pending-report(
+    data-file, inputs,
+    [Can inhibitory recovery tune the default PING circuit into gamma? Compare the response and representative rasters across recovery settings.],
+    preview-figures, json-inputs: ("exp084",),
+  )
+}

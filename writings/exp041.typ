@@ -1,3 +1,7 @@
+#import "/.demolab/lib.typ": data-json, data-image
+#import "run-inputs.typ": data-file, inputs-ready, pending-report
+#let data-file = data-file.with(article: "exp041")
+
 #let meta = (
   title: "Firing Rate Tracks Gamma Frequency",
   date: "2026-06-02",
@@ -5,7 +9,17 @@
   collection: "gamma-gated-sparsity",
 )
 
-#let run = json("/.artifacts/exp041/numbers.json")
+#let inputs = ("exp041",)
+#let preview-figures = (
+  (path: "exp041/training_curves.svg", label: "training curves"),
+  (path: "exp041/psds.svg", label: "psds"),
+  (path: "exp041/raster_strip.png", label: "raster strip"),
+  (path: "exp041/rate_vs_fgamma.svg", label: "rate vs fgamma"),
+)
+
+// Keep calculations lazy: absent inputs never become fabricated results.
+#let render-report(data-file) = [
+#let run = data-json(data-file("exp041/numbers.json"))
 #let fit = run.fit
 #let fa = calc.round(fit.a_affine, digits: 2)
 #let fp = calc.round(fit.p_affine, digits: 3)
@@ -89,8 +103,7 @@
   == Results
 
   #figure(
-    image(
-      "/.artifacts/exp041/training_curves.svg",
+    data-image(data-file("exp041/training_curves.svg"),
       width: 100%,
       alt: "Per-cell accuracy and E-rate over training epochs across the τ_GABA sweep.",
     ),
@@ -102,8 +115,7 @@
   )
 
   #figure(
-    image(
-      "/.artifacts/exp041/psds.svg",
+    data-image(data-file("exp041/psds.svg"),
       width: 100%,
       alt: "Population-E power spectra by τ_GABA, gamma peak shifting with the inhibitory time constant.",
     ),
@@ -115,8 +127,7 @@
   )
 
   #figure(
-    image(
-      "/.artifacts/exp041/raster_strip.png",
+    data-image(data-file("exp041/raster_strip.png"),
       width: 100%,
       alt: "One MNIST trial through each τ_GABA network; the gamma cycle period lengthens with τ_GABA.",
     ),
@@ -128,8 +139,7 @@
   )
 
   #figure(
-    image(
-      "/.artifacts/exp041/rate_vs_fgamma.svg",
+    data-image(data-file("exp041/rate_vs_fgamma.svg"),
       width: 100%,
       alt: "Post-training E rate against gamma frequency; points lie on the affine fit line.",
     ),
@@ -141,3 +151,15 @@
     ],
   )
 ]
+#body
+]
+
+#let body = if inputs-ready(data-file, inputs) {
+  render-report(data-file)
+} else {
+  pending-report(
+    data-file, inputs,
+    [How does inhibitory decay affect gamma frequency, excitatory firing rate, and accuracy? Compare matched trained networks across inhibitory timescales.],
+    preview-figures, json-inputs: ("exp041",),
+  )
+}

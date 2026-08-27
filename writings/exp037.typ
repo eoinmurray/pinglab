@@ -1,3 +1,7 @@
+#import "/.demolab/lib.typ": data-json, data-image
+#import "run-inputs.typ": data-file, inputs-ready, pending-report
+#let data-file = data-file.with(article: "exp037")
+
 #let meta = (
   title: "Dropped Spikes vs Added Noise",
   date: "2026-05-30",
@@ -5,9 +9,20 @@
   collection: "gamma-gated-sparsity",
 )
 
+#let inputs = ("exp037",)
+#let preview-figures = (
+  (path: "exp037/perturbation_curves.svg", label: "perturbation curves"),
+  (path: "exp037/perturb_rasters__drop__ping.png", label: "perturb rasters drop ping"),
+  (path: "exp037/perturb_rasters__add__ping.png", label: "perturb rasters add ping"),
+  (path: "exp037/perturb_rasters__drop__coba.png", label: "perturb rasters drop coba"),
+  (path: "exp037/perturb_rasters__add__coba.png", label: "perturb rasters add coba"),
+)
+
+// Keep calculations lazy: absent inputs never become fabricated results.
+#let render-report(data-file) = [
 // Provenance (HOUSESTYLE H9): every run number below is read from the run's
 // numbers.json, never hand-typed, so a re-run updates the prose automatically.
-#let run = json("/.artifacts/exp037/numbers.json")
+#let run = data-json(data-file("exp037/numbers.json"))
 #let cfg = run.config
 #let eval_n = cfg.at("evaluation_samples_per_seed", default: (1000,)).first()
 #let eval_pool = cfg.at("evaluation_pool_samples", default: 1000)
@@ -134,8 +149,7 @@
   == Results
 
   #figure(
-    image(
-      "/.artifacts/exp037/perturbation_curves.svg",
+    data-image(data-file("exp037/perturbation_curves.svg"),
       width: 100%,
       alt: "Two panels of across-seed mean test accuracy with shaded standard deviation versus perturbation level for COBA (red) and PING (black).",
     ),
@@ -152,8 +166,7 @@
   )
 
   #figure(
-    image(
-      "/.artifacts/exp037/perturb_rasters__drop__ping.png",
+    data-image(data-file("exp037/perturb_rasters__drop__ping.png"),
       width: 100%,
       alt: "Three stacked single-trial rasters of trained PING at drop levels 0, 50, and 100 percent; E spikes in black above I spikes in red. The gamma banding is preserved at 0 and 50 percent and silent at 100 percent.",
     ),
@@ -166,8 +179,7 @@
   )
 
   #figure(
-    image(
-      "/.artifacts/exp037/perturb_rasters__add__ping.png",
+    data-image(data-file("exp037/perturb_rasters__add__ping.png"),
       width: 100%,
       alt: "Three stacked single-trial rasters of trained PING at added Poisson rates of 0, 20, and 40 Hz; E spikes in black above I spikes in red. The gamma banding dissolves into asynchronous firing as the added rate rises.",
     ),
@@ -179,8 +191,7 @@
   )
 
   #figure(
-    image(
-      "/.artifacts/exp037/perturb_rasters__drop__coba.png",
+    data-image(data-file("exp037/perturb_rasters__drop__coba.png"),
       width: 100%,
       alt: "Three stacked single-trial rasters of trained COBA at drop levels 0, 50, and 100 percent; dense asynchronous E firing that thins uniformly with drop and is silent at 100 percent.",
     ),
@@ -191,8 +202,7 @@
   )
 
   #figure(
-    image(
-      "/.artifacts/exp037/perturb_rasters__add__coba.png",
+    data-image(data-file("exp037/perturb_rasters__add__coba.png"),
       width: 100%,
       alt: "Three stacked single-trial rasters of trained COBA at added Poisson rates of 0, 20, and 40 Hz; dense asynchronous firing whose mean rate rises but whose structure is unchanged.",
     ),
@@ -202,3 +212,15 @@
     ],
   )
 ]
+#body
+]
+
+#let body = if inputs-ready(data-file, inputs) {
+  render-report(data-file)
+} else {
+  pending-report(
+    data-file, inputs,
+    [How do trained COBA and PING networks respond to spike deletion and added spikes? Compare matched inference perturbations using retained baseline checkpoints.],
+    preview-figures, json-inputs: ("exp037",),
+  )
+}

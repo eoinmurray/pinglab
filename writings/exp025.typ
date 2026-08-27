@@ -1,3 +1,7 @@
+#import "/.demolab/lib.typ": data-json, data-image
+#import "run-inputs.typ": data-file, inputs-ready, pending-report
+#let data-file = data-file.with(article: "exp025")
+
 #let meta = (
   title: "PING Wins the Accuracy–Rate Frontier",
   date: "2026-05-30",
@@ -5,9 +9,20 @@
   collection: "gamma-gated-sparsity",
 )
 
+#let inputs = ("exp025",)
+#let preview-figures = (
+  (path: "exp025/results_compound.png", label: "results compound"),
+  (path: "exp025/theta_p_fgamma.svg", label: "theta p fgamma"),
+  (path: "exp025/low_w_in_sweep.svg", label: "low w in sweep"),
+  (path: "exp025/w_in_scale_sweep.svg", label: "w in scale sweep"),
+  (path: "exp025/w_in_scale_sweep_vs_rate.svg", label: "w in scale sweep vs rate"),
+)
+
+// Keep calculations lazy: absent inputs never become fabricated results.
+#let render-report(data-file) = [
 // Provenance (HOUSESTYLE H9/H19): every run number below is interpolated from the
 // run's numbers.json, never hand-typed, so a re-run updates the prose automatically.
-#let run = json("/.artifacts/exp025/numbers.json")
+#let run = data-json(data-file("exp025/numbers.json"))
 #let mean(a) = a.sum() / a.len()
 #let rate-target(r) = if r.keys().contains("rate_target_hz") {
   r.rate_target_hz
@@ -155,8 +170,7 @@
   == Results
 
   #figure(
-    image(
-      "/.artifacts/exp025/results_compound.png",
+    data-image(data-file("exp025/results_compound.png"),
       width: 100%,
       alt: "Two-by-two panel: COBA and PING single-trial rasters, per-epoch learning curves, and the accuracy–rate frontier across hidden-E rate ceilings.",
     ),
@@ -182,8 +196,7 @@
   )
 
   #figure(
-    image(
-      "/.artifacts/exp025/theta_p_fgamma.svg",
+    data-image(data-file("exp025/theta_p_fgamma.svg"),
       width: 100%,
       alt: "PING participation fraction p and gamma frequency f_gamma across the activity-ceiling sweep, with the p·f_gamma product overlaid on the measured E rate.",
     ),
@@ -200,8 +213,7 @@
   )
 
   #figure(
-    image(
-      "/.artifacts/exp025/low_w_in_sweep.svg",
+    data-image(data-file("exp025/low_w_in_sweep.svg"),
       width: 100%,
       alt: "Across-seed mean per-epoch test accuracy and E/I firing rates for four PING input summed-coupling parent means, one column per condition.",
     ),
@@ -218,8 +230,7 @@
   )
 
   #figure(
-    image(
-      "/.artifacts/exp025/w_in_scale_sweep.svg",
+    data-image(data-file("exp025/w_in_scale_sweep.svg"),
       width: 100%,
       alt: "Inference-time W_in scale sweep: CE loss, activity penalty, total objective, test accuracy, and E/I rates versus scalar s for PING and COBA.",
     ),
@@ -236,8 +247,7 @@
   )
 
   #figure(
-    image(
-      "/.artifacts/exp025/w_in_scale_sweep_vs_rate.svg",
+    data-image(data-file("exp025/w_in_scale_sweep_vs_rate.svg"),
       width: 100%,
       alt: "The W_in scale sweep re-projected with hidden E rate on the x-axis, trained operating points starred for PING and COBA.",
     ),
@@ -250,3 +260,15 @@
     ],
   )
 ]
+#body
+]
+
+#let body = if inputs-ready(data-file, inputs) {
+  render-report(data-file)
+} else {
+  pending-report(
+    data-file, inputs,
+    [How does inhibition change the trade-off between accuracy and firing rate? Compare COBA and PING across activity ceilings, then examine sensitivity to input coupling.],
+    preview-figures, json-inputs: ("exp025",),
+  )
+}

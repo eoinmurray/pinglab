@@ -30,8 +30,8 @@ case "$mode" in submit|--dry-run|--test-only) ;; *) usage; exit 2 ;; esac
 
 repo_root="$(cd "$(dirname "$0")/../.." && pwd)"
 cd "$repo_root"
-"$uv_bin" run python experiments/exp022.py --campaign-validate "$manifest"
-mapfile -t cells < <("$uv_bin" run python experiments/exp022.py --campaign-list "$manifest" --tier "$tier" --retry-only)
+"$uv_bin" run python experiments/exp022/compute.py --campaign-validate "$manifest"
+mapfile -t cells < <("$uv_bin" run python experiments/exp022/compute.py --campaign-list "$manifest" --tier "$tier" --retry-only)
 if [[ ${#cells[@]} -eq 0 ]]; then
   echo "tier $tier has no missing or invalid cells"
   exit 0

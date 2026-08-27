@@ -7,7 +7,8 @@ Conductance-based spiking neural networks with explicit excitatory/inhibitory po
 ## Architecture
 
 [`AGENTS.md`](AGENTS.md) contains repository instructions for coding agents.
-Subsystem guidance lives beside the files it governs; experiment-writing
+Subsystem guidance lives beside the files it governs; the execution lifecycle
+is in [`experiments/README.md`](experiments/README.md), and experiment-writing
 conventions are in [`writings/README.md`](writings/README.md).
 
 ## Installation
@@ -24,12 +25,17 @@ uv sync --dev
 
 ## Publishing
 
-The site is built from Typst sources (`writings/`) with the vendored demolab engine:
+The site is built from Typst sources (`writings/`) with the installed Demolab engine:
 
 ```sh
-task build    # → .demolab/site/ (web) + .demolab/pdfs/ (per-entry PDFs + book.pdf)
-task dev      # hot-reloading preview on :3000
+uv run demolab build    # → .demolab/site/ (PDFs are disabled in demolab.yaml)
+uv run demolab dev      # live preview with article-scoped run selectors
 ```
+
+Experiment reports read explicit Demolab inputs through `writings/run-inputs.typ`.
+Without a selected input, they show an unavailable-data notice. A production
+build does not inherit preview selections or run experiments; the current
+configuration supplies no fixed publication inputs.
 
 ## Tests
 

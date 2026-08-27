@@ -1,3 +1,7 @@
+#import "/.demolab/lib.typ": data-json, data-image
+#import "run-inputs.typ": data-file, inputs-ready, pending-report
+#let data-file = data-file.with(article: "exp048")
+
 #let meta = (
   title: "Accuracy Across Duration and Input Rate",
   date: "2026-06-08",
@@ -5,7 +9,15 @@
   collection: "gamma-gated-sparsity",
 )
 
-#let r = json("/.artifacts/exp048/numbers.json")
+#let inputs = ("exp048",)
+#let preview-figures = (
+  (path: "exp048/varying_headline_stream.png", label: "varying headline stream"),
+  (path: "exp048/acc_grid_tau_rate.png", label: "acc grid tau rate"),
+)
+
+// Keep calculations lazy: absent inputs never become fabricated results.
+#let render-report(data-file) = [
+#let r = data-json(data-file("exp048/numbers.json"))
 #let cfg = r.config
 #let rate-at(rate) = r.encoding_rate_psychometric.curve.filter(x => x.input_rate_hz == rate).at(0)
 #let p05 = rate-at(0.5)
@@ -155,8 +167,7 @@
   === Streaming classification and temporal evidence
 
   #figure(
-    image(
-      "/.artifacts/exp048/varying_headline_stream.png",
+    data-image(data-file("exp048/varying_headline_stream.png"),
       width: 100%,
       alt: "A digit stream where each segment has its own duration and input rate, with errors marked in red.",
     ),
@@ -170,8 +181,7 @@
   )
 
   #figure(
-    image(
-      "/.artifacts/exp048/acc_grid_tau_rate.png",
+    data-image(data-file("exp048/acc_grid_tau_rate.png"),
       width: 100%,
       alt: "A duration-by-input-rate accuracy heatmap beside a fixed-duration encoding-rate psychometric curve.",
     ),
@@ -207,3 +217,15 @@
   rate and #p5.input_rate_hz Hz is a practical lower bound for future sweeps.
 
 ]
+#body
+]
+
+#let body = if inputs-ready(data-file, inputs) {
+  render-report(data-file)
+} else {
+  pending-report(
+    data-file, inputs,
+    [How do presentation duration and input rate affect streaming classification? Compare continuous-input performance across durations and encoding rates.],
+    preview-figures, json-inputs: ("exp048",),
+  )
+}

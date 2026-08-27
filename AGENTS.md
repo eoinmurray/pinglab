@@ -7,20 +7,29 @@ management CLI.
   completed runs and emit Demolab discovery JSON. It must not select, mutate,
   materialize, upload, or prune runs, or persist a catalogue.
 
-- Store every completed run at `.pingstore/runs/<run-id>/`, containing only
-  `run.json`, `README.md`, `export/`, and `presentation/`.
-- `run.json` uses `pingstore.run/v2` and is authoritative provenance. `README.md`
-  holds human notes. `export/` contains scientific outputs and execution records
-  and may have subdirectories. `presentation/` contains only regular files,
-  never subdirectories or symlinks; use descriptive flattened filenames.
-- Materialize only `presentation/` into `.artifacts/<experiment>/`, copying it
-  exactly without extension filtering. Presentation metadata is a projection,
-  never an independent provenance authority.
+- Store every completed run at `.pingstore/runs/<run-id>/`. New staged runs use
+  `pingstore.run/v3`, with required `run.json` and `export/`, optional `README.md`
+  and `provenance/`, and no other root entries or symlinks.
+- `run.json` is authoritative provenance and must declare compute, analyse or
+  present. `export/` holds stage outputs; nesting is allowed for compute/analyse,
+  while present exports contain only flat regular files. `provenance/` holds
+  retained execution scripts, patches and evidence records; README holds notes.
+- Discovery validates all completed runs, then lists present runs with nonempty
+  output beyond bookkeeping. Materialize only a present run's entire `export/`
+  into `.artifacts/<experiment>/`, without extension filtering; reject publication
+  of compute/analyse runs. Presentation metadata is only a provenance projection.
+- Keep v2 reads and unmigrated legacy capture compatible: v2 retains required
+  `run.json`, `README.md`, `export/`, `presentation/`. Untyped v2 runs may expose
+  their presentation content; typed v2 compute/analyse runs may not. Use shared
+  version-aware helpers, not hardcoded consumer paths. Do not rewrite existing
+  runs or reservations without an explicitly authorized migration.
 - Validate the exact root layout and payload checksum before publication or
-  consumption. The checksum covers README.md, export/, and presentation/,
-  including nested metadata; it excludes only the authoritative run.json.
-- A run ID begins with its experiment and ends with its execution source, for
-  example `exp097-r022-local` or `exp097-r023-slurm-wilkes-48291`.
+  consumption. The checksum covers every payload file, including optional notes,
+  evidence and nested metadata; it excludes only the root authoritative run.json.
+- New staged run IDs include compute, analyse or present, for example
+  `exp022-r001-compute-local`; legacy IDs remain valid and unchanged. IDs begin
+  with the experiment and end with execution source. Record stage and input
+  references in run.json, never infer provenance from the name.
 - Write a run first as `.pingstore/runs/.<run-id>.tmp/`; atomically rename it to
   the visible run ID only after every output and `run.json` is complete.
 - Treat visible run directories as immutable. A hidden temporary directory is
@@ -33,6 +42,12 @@ management CLI.
   lifecycle states, automatic official selections, preview overrides, archive
   bundles, or a general Pingstore management CLI. The read-only discovery
   command above is the sole CLI exception apart from the documented migration utility.
+
+# Experiment execution
+
+Before creating or editing experiment execution code, read and follow
+`experiments/README.md`. Compute, analyse and present complete independently;
+downstream stages never launch upstream work or automatically publish.
 
 # Experiment writing
 

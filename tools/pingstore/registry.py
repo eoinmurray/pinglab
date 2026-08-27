@@ -66,6 +66,10 @@ def coverage(repo: Path) -> dict[str, Any]:
     }
     capture_routes: dict[str, str] = {}
     for experiment in sorted(runnable):
+        stage_dir = repo / "experiments" / experiment
+        if all((stage_dir / f"{stage}.py").is_file() for stage in ("compute", "analyse", "present")):
+            capture_routes[experiment] = "independent-stages"
+            continue
         text = (repo / "experiments" / f"{experiment}.py").read_text()
         if "published_run(" in text:
             capture_routes[experiment] = "atomic-published-run"

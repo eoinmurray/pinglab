@@ -1,6 +1,29 @@
+#import "/.demolab/lib.typ": data-json, data-image
+#import "run-inputs.typ": data-file, inputs-ready, pending-report
 #import "/.demolab/lib.typ": cite, reference-list
+#let data-file = data-file.with(article: "exp086")
 
-#let run = json("/.artifacts/exp086/numbers.json")
+#let meta = (
+  title: "Lowet 2017",
+  date: "2026-08-19",
+  description: "Reduce coupling at fixed detuning and test whether two PING networks develop cortical-like intermittent phase attraction.",
+  collection: "demo",
+  order: 2,
+)
+
+#let inputs = ("exp086",)
+#let preview-figures = (
+  (path: "exp086/network.svg", label: "network"),
+  (path: "exp086/uncoupled.png", label: "uncoupled"),
+  (path: "exp086/coupling_regimes.svg", label: "coupling regimes"),
+  (path: "exp086/coupling_regimes_measured.png", label: "coupling regimes measured"),
+  (path: "exp086/intermittent_attraction.svg", label: "intermittent attraction"),
+  (path: "exp086/intermittent_attraction_measured.png", label: "intermittent attraction measured"),
+)
+
+// Keep calculations lazy: absent inputs never become fabricated results.
+#let render-report(data-file) = [
+#let run = data-json(data-file("exp086/numbers.json"))
 #let trajectories = run.trajectories
 #let selected = run.selected_intermediate
 #let strong = trajectories.filter(row => calc.abs(row.k - 0.08) < 0.0001).first()
@@ -16,13 +39,6 @@
 #let uncoupled-frequency-a = calc.round(uncoupled.network_a.frequency_hz, digits: 1)
 #let uncoupled-frequency-b = calc.round(uncoupled.network_b.frequency_hz, digits: 1)
 
-#let meta = (
-  title: "Lowet 2017",
-  date: "2026-08-19",
-  description: "Reduce coupling at fixed detuning and test whether two PING networks develop cortical-like intermittent phase attraction.",
-  collection: "demo",
-  order: 2,
-)
 
 #let start = (
   input-a-hz: 300,
@@ -67,8 +83,7 @@
   + *Define the starting rhythms.* Each network contains an excitatory population, an inhibitory population, and a local E-to-I-to-E feedback loop. Reciprocal excitation targets both E and I populations with $K_(E E) = #start.k-ee-us$ µS, $K_(E I) = #start.k-ei-us$ µS, and delay $d = #start.delay-ms$ ms. Drive Networks A and B at #start.input-a-hz and #start.input-b-hz Hz. Run them without cross-network coupling and confirm regular rhythms near mean frequency #start.mean-frequency-hz Hz and detuning #start.detuning-hz Hz. Interpolate phase between consecutive excitatory volleys and calculate their wrapped and unwrapped relative phase. Generates #link("#result-1-uncoupled-rhythms")[Result 1].
 
     #figure(
-      image(
-        "/.artifacts/exp086/network.svg",
+      data-image(data-file("exp086/network.svg"),
         width: 100%,
         alt: "Implemented topology of two PING networks with local excitatory-inhibitory loops and reciprocal excitatory coupling.",
       ),
@@ -88,7 +103,7 @@
   + <result-1-uncoupled-rhythms> *Uncoupled rhythms.*
 
     #figure(
-      image("/.artifacts/exp086/uncoupled.png", width: 100%),
+      data-image(data-file("exp086/uncoupled.png"), width: 100%),
       caption: [Both uncoupled networks maintain regular PING rhythms, but Network A runs at #uncoupled-frequency-a Hz and Network B at #uncoupled-frequency-b Hz. Their relative phase therefore circulates, completing #uncoupled.phase_slips slips with phase concentration #uncoupled-concentration.],
     )
 
@@ -97,15 +112,13 @@
     #figure(
       [
         #align(center)[*Expected — schematic*]
-        #image(
-          "/.artifacts/exp086/coupling_regimes.svg",
+        #data-image(data-file("exp086/coupling_regimes.svg"),
           width: 100%,
           alt: "Schematic comparison of strong, intermediate, and absent coupling.",
         )
         #v(8pt)
         #align(center)[*Observed — measured*]
-        #image(
-          "/.artifacts/exp086/coupling_regimes_measured.png",
+        #data-image(data-file("exp086/coupling_regimes_measured.png"),
           width: 100%,
           alt: "Measured comparison of strong, intermediate, and absent coupling.",
         )
@@ -118,15 +131,13 @@
     #figure(
       [
         #align(center)[*Expected — schematic*]
-        #image(
-          "/.artifacts/exp086/intermittent_attraction.svg",
+        #data-image(data-file("exp086/intermittent_attraction.svg"),
           width: 100%,
           alt: "Schematic four-panel signature of intermittent phase attraction.",
         )
         #v(8pt)
         #align(center)[*Observed — measured*]
-        #image(
-          "/.artifacts/exp086/intermittent_attraction_measured.png",
+        #data-image(data-file("exp086/intermittent_attraction_measured.png"),
           width: 100%,
           alt: "Measured four-panel signature of intermittent phase attraction.",
         )
@@ -147,3 +158,15 @@
     ),
   ))
 ]
+#body
+]
+
+#let body = if inputs-ready(data-file, inputs) {
+  render-report(data-file)
+} else {
+  pending-report(
+    data-file, inputs,
+    [Can weaker coupling produce intermittent rather than permanent phase attraction? Compare phase slips, phase concentration, and relative-phase velocity in relation to Lowet 2017.],
+    preview-figures, json-inputs: ("exp086",),
+  )
+}

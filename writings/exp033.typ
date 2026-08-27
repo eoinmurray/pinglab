@@ -1,3 +1,7 @@
+#import "/.demolab/lib.typ": data-json, data-image
+#import "run-inputs.typ": data-file, inputs-ready, pending-report
+#let data-file = data-file.with(article: "exp033")
+
 #let meta = (
   title: "Gamma Emerges at a Hopf Bifurcation",
   date: "2026-05-28",
@@ -5,7 +9,22 @@
   collection: "gamma-gated-sparsity",
 )
 
-#let run = json("/.artifacts/exp033/numbers.json")
+#let inputs = ("exp033",)
+#let preview-figures = (
+  (path: "exp033/bifurcation_compound.svg", label: "bifurcation compound"),
+  (path: "exp033/sigma_sensitivity.svg", label: "sigma sensitivity"),
+  (path: "exp033/eigenvalues_complex.svg", label: "eigenvalues complex"),
+  (path: "exp033/freq_vs_tau_gaba.svg", label: "freq vs tau gaba"),
+  (path: "exp033/hysteresis.svg", label: "hysteresis"),
+  (path: "exp033/limit_cycle.svg", label: "limit cycle"),
+  (path: "exp033/timeseries.svg", label: "timeseries"),
+  (path: "exp033/phase_planes.svg", label: "phase planes"),
+  (path: "exp033/reduction_ladder.svg", label: "reduction ladder"),
+)
+
+// Keep calculations lazy: absent inputs never become fabricated results.
+#let render-report(data-file) = [
+#let run = data-json(data-file("exp033/numbers.json"))
 #let cfg = run.config
 #let hopf = run.results.hopf
 #let crit = run.results.criticality
@@ -355,8 +374,7 @@
   == Results
 
   #figure(
-    image(
-      "/.artifacts/exp033/bifurcation_compound.svg",
+    data-image(data-file("exp033/bifurcation_compound.svg"),
       width: 100%,
       alt: "Three panels. A: the four Jacobian eigenvalues in the complex plane, coloured by drive, with one conjugate pair crossing the imaginary axis at the Hopf. B: the hysteresis sweep, rising and falling branches coinciding. C: gamma frequency falling with tau_GABA for the mean-field and the exp041 spiking network.",
     ),
@@ -388,8 +406,7 @@
   network's gamma qualitatively, not quantitatively (Figure 3).
 
   #figure(
-    image(
-      "/.artifacts/exp033/sigma_sensitivity.svg",
+    data-image(data-file("exp033/sigma_sensitivity.svg"),
       width: 100%,
       alt: "Four-panel sensitivity analysis across effective membrane-noise scales from 3 to 6 mV, showing the Hopf threshold, invariant crossing frequency, onset fixed-point rates, and declining relative-onset amplitude.",
     ),
@@ -405,8 +422,7 @@
   )
 
   #figure(
-    image(
-      "/.artifacts/exp033/eigenvalues_complex.svg",
+    data-image(data-file("exp033/eigenvalues_complex.svg"),
       width: 100%,
       alt: "The four 4D Jacobian eigenvalues in the complex plane across the drive sweep, coloured dark to bright with I_ext. One complex-conjugate pair lifts off the real axis and crosses the imaginary axis at plus/minus i omega-star; the other two eigenvalues stay in the left half-plane.",
     ),
@@ -430,8 +446,7 @@
   )
 
   #figure(
-    image(
-      "/.artifacts/exp033/freq_vs_tau_gaba.svg",
+    data-image(data-file("exp033/freq_vs_tau_gaba.svg"),
       width: 100%,
       alt: "Gamma frequency versus tau_GABA. Both the reference mean-field f-star and the exp041 spiking f-gamma fall monotonically as tau_GABA increases; the mean-field curve runs below the spiking curve across the sweep, the gap largest at short tau_GABA and narrowing at long tau_GABA.",
     ),
@@ -458,8 +473,7 @@
   narrow band of drive above $I_"ext"^*$.
 
   #figure(
-    image(
-      "/.artifacts/exp033/hysteresis.svg",
+    data-image(data-file("exp033/hysteresis.svg"),
       width: 100%,
       alt: "Peak-to-peak E amplitude versus I_ext for a quasi-static up-and-down ramp of the drive across I-star. The rising branch (drive increasing) and falling branch (drive decreasing) coincide, amplitude growing continuously from zero at the threshold with no hysteresis loop.",
     ),
@@ -476,8 +490,7 @@
   Above onset, E leads I by ≈ #elag ms, the loop delay the 2D reduction omits.
 
   #figure(
-    image(
-      "/.artifacts/exp033/limit_cycle.svg",
+    data-image(data-file("exp033/limit_cycle.svg"),
       width: 100%,
       alt: "The E rate (black) and I rate (red) over one limit cycle just above onset, on twin y-axes against time. Both are near-sinusoidal and the E burst leads the I burst by a few milliseconds.",
     ),
@@ -611,8 +624,7 @@
     original variables.
 
   #figure(
-    image(
-      "/.artifacts/exp033/timeseries.svg",
+    data-image(data-file("exp033/timeseries.svg"),
       width: 100%,
       alt: "Four stacked time series over one limit cycle sharing a time axis, in loop order E rate, g_e^I, I rate, g_i^E. Each variable peaks after the one above it, one round trip of the ring per gamma cycle; g_e^I tracks the E rate almost rigidly.",
     ),
@@ -626,8 +638,7 @@
   )
 
   #figure(
-    image(
-      "/.artifacts/exp033/phase_planes.svg",
+    data-image(data-file("exp033/phase_planes.svg"),
       width: 100%,
       alt: "The 4D limit cycle projected onto all six variable pairs, one closed loop per panel. The E versus g_e^I panel collapses almost to a line; the other five pairs enclose genuine area.",
     ),
@@ -642,8 +653,7 @@
   )
 
   #figure(
-    image(
-      "/.artifacts/exp033/reduction_ladder.svg",
+    data-image(data-file("exp033/reduction_ladder.svg"),
       width: 100%,
       alt: "The g_i^E deviation from its fixed point after a small kick at a common drive, for three models. The 4D full model (black solid) and the 3D AMPA-slaved reduction (black dashed) both sustain a limit cycle; the 2D rate-slaved reduction (red) rings down to the fixed point.",
     ),
@@ -656,3 +666,15 @@
     ],
   )
 ]
+#body
+]
+
+#let body = if inputs-ready(data-file, inputs) {
+  render-report(data-file)
+} else {
+  pending-report(
+    data-file, inputs,
+    [Does gamma emerge through a Hopf bifurcation in the mean-field model? Compare fixed-point stability, oscillation amplitude, and inhibitory-timescale dependence.],
+    preview-figures, json-inputs: ("exp033",),
+  )
+}

@@ -129,7 +129,7 @@ def _exp022_cells(manifest: Path, tier: str, uv: str) -> list[str]:
             "--frozen",
             "python",
             "-m",
-            "experiments.exp022",
+            "experiments.exp022.compute",
             "--campaign-list",
             str(manifest),
             "--tier",

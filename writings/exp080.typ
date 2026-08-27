@@ -1,4 +1,7 @@
+#import "/.demolab/lib.typ": data-json, data-image
+#import "run-inputs.typ": data-file, inputs-ready, pending-report
 #import "/.demolab/lib.typ": cite, reference-list
+#let data-file = data-file.with(article: "exp080")
 
 #let meta = (
   title: "Calibrating Accuracy Across Input Rates",
@@ -7,7 +10,16 @@
   collection: "gamma-gated-sparsity",
 )
 
-#let r = json("/.artifacts/exp080/numbers.json")
+#let inputs = ("exp080",)
+#let preview-figures = (
+  (path: "exp080/training_history.svg", label: "training history"),
+  (path: "exp080/feature_images.png", label: "feature images"),
+  (path: "exp080/psychometric.svg", label: "psychometric"),
+)
+
+// Keep calculations lazy: absent inputs never become fabricated results.
+#let render-report(data-file) = [
+#let r = data-json(data-file("exp080/numbers.json"))
 #let d = r.decision
 #let criterion-crossed = d.at("criterion_crossed", default: true)
 #let pct(x) = str(calc.round(100 * x, digits: 1)) + "%"
@@ -139,7 +151,7 @@
   Validation accuracy improved across training for all three decoder seeds.
 
   #figure(
-    image("/.artifacts/exp080/training_history.svg", width: 72%,
+    data-image(data-file("exp080/training_history.svg"), width: 72%,
       alt: "Three validation-accuracy curves over the decoder training run."),
     caption: [Mixed-rate validation accuracy across training. The horizontal
       axis is epoch and the vertical axis is validation accuracy. Each curve is
@@ -151,7 +163,7 @@
   === What the decoder saw
 
   #figure(
-    image("/.artifacts/exp080/feature_images.png",
+    data-image(data-file("exp080/feature_images.png"),
       alt: "One MNIST input image followed by filtered feature images at increasing input rates."),
     caption: [An MNIST input image and its directly simulated filtered features.
       The left panel shows the normalized input. The remaining panels show
@@ -170,7 +182,7 @@
   === Empirical rate selection
 
   #figure(
-    image("/.artifacts/exp080/psychometric.svg", width: 72%,
+    data-image(data-file("exp080/psychometric.svg"), width: 72%,
       alt: "Held-out decoder accuracy against maximum-pixel encoding rate, with the practical criterion and any selected floor marked."),
     caption: [Held-out nonlinear-decoder accuracy against maximum-pixel encoding
       rate. Points average the official test images and three independently
@@ -231,3 +243,15 @@
     ),
   ))
 ]
+#body
+]
+
+#let body = if inputs-ready(data-file, inputs) {
+  render-report(data-file)
+} else {
+  pending-report(
+    data-file, inputs,
+    [How does input rate affect classification accuracy? Calibrate the rate-response curve using controlled visual features and a retained training history.],
+    preview-figures, json-inputs: ("exp080",),
+  )
+}
