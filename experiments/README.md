@@ -1,4 +1,26 @@
-# Experiment lifecycle
+# Experiment Runner Guide
+
+Version: **1.0.0**
+
+The Experiment Runner Guide defines the conventions for Pinglab's experiment
+execution code and independent compute, analyse and present stages. This file
+is the canonical guide.
+
+## 1. Versioning
+
+Version this guide independently of Pinglab, Demolab and the other guides.
+Increment the major version when changed requirements make previously compliant
+experiment execution code require revision, the minor version for compatible
+additions, and the patch version for corrections or clarifications that do not
+change requirements. Update the version above and add a short entry to the
+version history when changing the guide.
+
+### 1.1. Version history
+
+- **1.0.0** — Name and version the existing Experiment Runner Guide; execution
+  requirements remain unchanged.
+
+## 2. Experiment lifecycle
 
 An experiment has three independent execution stages and a Typst writing:
 
@@ -17,7 +39,7 @@ Scientific parameters live in committed recipes, not arbitrary CLI overrides.
 Changing a measurement belongs to analysis; changing its appearance belongs to
 presentation. Inference to generate a raster is computation, not plotting.
 
-## Commands and boundaries
+## 3. Commands and boundaries
 
 ```sh
 uv run python experiments/exp022/compute.py
@@ -40,9 +62,9 @@ modifies an earlier completed run, and is not silently resumed by a downstream
 stage. Rerun with a fresh identity unless a compute-specific recovery procedure
 explicitly handles the incomplete work.
 
-## Storage, preview and publication
+## 4. Storage, preview and publication
 
-The [Pingstore contract](../tools/pingstore/README.md) owns layout, stage IDs,
+The [Storage Guide](../tools/pingstore/README.md) owns layout, stage IDs,
 input provenance, validation and immutability. Stages are execution labels, not
 mutable lifecycle states. The shared implementation is `tools/pingstore/stages.py`.
 
@@ -65,7 +87,7 @@ Publication is separately authorized: materialize the explicitly selected run's
 complete `export/` into `.artifacts/<experiment>/`, then build/publish. The shared
 reader resolves legacy v2 publication inputs to `presentation/` instead.
 
-## Progressive example
+## 5. Progressive example
 
 Compute produces `exp022-r001-compute-local`; analyse reads it and produces
 `exp022-r002-analyse-local`; present reads that and produces
@@ -76,7 +98,7 @@ Compute produces `exp022-r001-compute-local`; analyse reads it and produces
 - Change simulation conditions: compute again, then explicitly analyse and present.
 - Change prose: edit Typst and refresh preview with the same presentation run.
 
-## Migration boundary
+## 6. Migration boundary
 
 Exp022 writes v3 and reads completed v2/v3 inputs. Its three local staged runs
 were explicitly migrated to v3 with recoverable originals; the historical

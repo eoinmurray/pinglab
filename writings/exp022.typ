@@ -59,7 +59,6 @@
   == Contents
 
   + #link("#abstract")[Abstract]
-  + #link("#design-scope")[Design Scope]
   + #link("#results")[Results: TR-01 through TR-07]
   + #link("#methods")[Methods]
   + #link("#appendix-a-training-run-specification-sheets")[Appendix A: shared and TR-specific specification sheets]
@@ -67,27 +66,18 @@
 
   == Abstract
 
-  Feedforward and recurrent recipes produced different balances between classification accuracy and spiking activity. We compared a conductance-based feedforward control with pyramidal–interneuron network gamma (PING), an excitatory–inhibitory feedback model, across seven training families. The retained bank contains #r.n_cells cells with controlled changes to activity ceilings, inhibitory decay, numerical timestep, recurrent initialization, input rate, and initial input coupling. Validation learning histories and representative rasters document reusable checkpoints and expose differences between the trained recipes. They do not by themselves establish a causal benefit of gamma timing or performance on the official test partition.
+  #let abstract-condition-count = r.cells.map(cell => (cell.family, cell.model, cell.tag)).dedup().len()
+  #let abstract-seed-count = r.cells.map(cell => cell.seed).dedup().len()
 
-  == Design Scope
-
-  The experiment compared a feedforward conductance-based control (COBA) with an excitatory–inhibitory PING network on the same digit task. All recipes used 784 input channels, 1,024 excitatory cells, and ten spiking output cells; PING enabled a 256-cell inhibitory feedback population. Three initialization seeds were specified per condition. TR-01 used a 60,000-image pool; TR-02 through TR-07 used 7,000, each with a separate validation subset. Detailed settings and downstream uses are preserved in Appendix A.
-
-  TR-02 varied the firing-rate ceiling from off to 1 Hz; TR-03 varied inhibitory decay from 4.5 to 27 ms; TR-04 varied timestep from 0.05 to 1 ms at fixed 200 ms duration. TR-05 varied both recurrent initialization and trainability, TR-06 sampled input rates from 0.5 to 25 Hz with spike-count decoding, and TR-07 varied initial input coupling from 0.05 to 0.9 under a fixed 1 Hz ceiling. These are separate controlled families, not a full factorial design. The architecture comparison also used different backward-pass gradient damping, and TR-06 changed readout and initialization together; neither comparison isolates a single mechanism. Streaming inference and perturbation tests belong to downstream experiments.
+  We assembled a reusable bank of #r.n_cells spiking networks for MNIST handwritten-digit classification, covering #abstract-condition-count conditions with #abstract-seed-count random seeds each. Training lasted #r.standard.epochs epochs per network. Conditions compared feedforward controls with excitatory–inhibitory recurrent networks and varied activity penalties, inhibitory decay, numerical timestep, recurrent initialization and trainability, and input drive. In the baseline comparison, mean validation accuracy at selected checkpoints was #mean-field("canonical", "acc", model: "coba")% for feedforward networks and #mean-field("canonical", "acc", model: "ping")% for recurrent networks. Their final-epoch excitatory firing rates were #mean-field("canonical", "rate_e", model: "coba") and #mean-field("canonical", "rate_e", model: "ping") Hz, respectively. Retained models and learning histories support subsequent experiments; these training-recipe comparisons do not isolate a causal benefit of gamma timing.
 
   == Results
 
-  Each subsection retains a learning-curve figure and its representative diagnostic raster; TR-07 shows all four specified coupling examples. Curves show individual cells, not means with confidence bands. The numerical summaries below come from the selected `numbers.json`: accuracy is the value at the validation-selected checkpoint, while population rates come from the final retained epoch. They are not paired measurements at one checkpoint.
-
-  *Metric and provenance boundary:* The curve artwork retains the historical axis label “test accuracy,” but the source configurations identify these epoch measurements as validation evaluations over three fixed encoder draws. Read them as validation accuracy, not untouched official-test performance. Captions distinguish curves rendered from saved analysis from historical rasters copied into this presentation. A single raster is an illustration of one probe, not an across-seed estimate or evidence of newly executed simulation.
-
   === 1. TR-01 — Canonical full-data reference
-
-  The full-data comparison asked how the two unrestricted recipes learned before imposing an activity ceiling. If recurrent inhibition reduced excitatory activity, PING should use fewer spikes, but it was not assumed to preserve the control's accuracy. #family-coverage("canonical")
 
   #result-figure(
     "exp022/curves__canonical.svg",
-    "Validation-accuracy learning curves for the canonical COBA and PING cells; the retained axis label says test accuracy.",
+    "Validation-accuracy learning curves for the canonical COBA and PING cells.",
     [Individual learning histories for both architectures and all three seeds in the full-data family; no across-seed averaging or uncertainty bands.],
   )
   #result-figure(
@@ -96,11 +86,7 @@
     [Canonical PING, seed 42: one digit-0 diagnostic from the final-epoch checkpoint, with E/I population rates and the accompanying inhibitory spectrum; not a population estimate.],
   )
 
-  Mean checkpoint-selection accuracy was #mean-field("canonical", "acc", model: "coba")% for COBA and #mean-field("canonical", "acc", model: "ping")% for PING. Final-epoch excitatory rates averaged #mean-field("canonical", "rate_e", model: "coba") Hz and #mean-field("canonical", "rate_e", model: "ping") Hz respectively. The lower activity is consistent with inhibitory suppression, but the lower accuracy and differing gradient damping prevent a claim of cost-free or uniquely rhythm-driven improvement.
-
   === 2. TR-02 — Activity-ceiling sweep
-
-  This family asked how a soft activity penalty traded classification performance against firing rate. Tighter ceilings were expected to reduce activity, with accuracy potentially deteriorating when the penalty constrained useful spikes. #family-coverage("activity_frontier")
 
   #result-figure(
     "exp022/curves__theta_u.svg",
@@ -113,11 +99,7 @@
     [PING with the activity penalty off, seed 42, final-epoch digit-0 probe. This is the reference endpoint, not a raster of the strictest ceiling.],
   )
 
-  Retained checkpoint-selection accuracies span #range-field("activity_frontier", "acc")%, and final-epoch excitatory rates span #range-field("activity_frontier", "rate_e") Hz. This spread is consistent with a performance–activity trade-off; the overview curves alone do not identify a matched-accuracy frontier. The ceiling is a soft loss term, not a guarantee that measured rate stays below its target. #link("/exp025/")[Exp025] makes the condition-matched comparison.
-
   === 3. TR-03 — Inhibitory-timescale sweep
-
-  Changing inhibitory decay asked whether a wider timing interval altered learning and the trained network's activity. Slower recovery from inhibition was expected to change recruitment and rhythm, but an accuracy curve alone cannot measure gamma frequency. #family-coverage("tau_gaba")
 
   #result-figure(
     "exp022/curves__tau_gaba.svg",
@@ -130,11 +112,7 @@
     [Reference inhibitory decay of 6 ms, seed 42, final-epoch digit-0 probe; the plotted spectrum describes this example only.],
   )
 
-  Checkpoint-selection accuracy spans #range-field("tau_gaba", "acc")%, and final-epoch excitatory rate spans #range-field("tau_gaba", "rate_e") Hz. The family therefore changes more than a visually labelled oscillation period. Condition-level frequency and timing interpretations require the dedicated measurements in #run-links(("exp041", "exp042", "exp046")), not extrapolation from the single reference raster.
-
   === 4. TR-04 — Integration-timestep sweep
-
-  This family varied numerical resolution while holding each input presentation's physical duration fixed. A robust trained classifier should avoid large accuracy changes across the tested timesteps; that expectation does not imply convergence of every dynamical observable. #family-coverage("dt")
 
   #result-figure(
     "exp022/curves__dt.svg",
@@ -147,11 +125,7 @@
     [Reference timestep of 0.1 ms, seed 42, final-epoch digit-0 probe. One reference raster cannot establish timestep convergence.],
   )
 
-  Checkpoint-selection accuracy lies within #range-field("dt", "acc")%, while final-epoch excitatory rates span #range-field("dt", "rate_e") Hz. The relatively narrow accuracy interval supports stability of this task outcome within the tested family. The rate variation leaves a stronger claim of dynamical invariance unresolved; #link("/exp044/")[exp044] provides the focused comparison.
-
   === 5. TR-05 — Recurrent-initialization sweep
-
-  Releasing recurrent weights asked whether learning maintained the built-in PING regime or found a different solution. Because both initial values and trainability differ across conditions, any outcome must be attributed to the complete condition rather than to initialization alone. #family-coverage("init")
 
   #result-figure(
     "exp022/curves__init.svg",
@@ -164,11 +138,7 @@
     [Frozen recurrent PING control, seed 42, final-epoch digit-0 probe; this example does not describe the trainable conditions.],
   )
 
-  Checkpoint-selection accuracies span #range-field("init", "acc")%, but final-epoch excitatory rates span #range-field("init", "rate_e") Hz. Similar classification performance therefore does not establish similar activity or preservation of the original loop. #link("/exp049/")[Exp049] examines the learned weights and trajectories needed to distinguish those possibilities.
-
   === 6. TR-06 — Variable-rate streaming bank
-
-  Training with randomly selected input rates asked whether one spike-count classifier could provide a reusable starting point across the streaming rate range. The expected outcome was a usable checkpoint bank, not proof of successful continuous-stream decoding. #family-coverage("variable_rate")
 
   #result-figure(
     "exp022/curves__variable_rate.svg",
@@ -181,11 +151,7 @@
     [Variable-rate PING, seed 42, final-epoch digit-0 probe at 5 Hz maximum-pixel input rate. This retained E/I diagnostic does not include output-neuron spikes or continuous-stream resets.],
   )
 
-  Checkpoint-selection accuracy spans #range-field("variable_rate", "acc")%, with final-epoch excitatory rate spanning #range-field("variable_rate", "rate_e") Hz. The retained curves and raster replace the former pending-training placeholders, but their aggregate accuracy does not establish uniform performance at low and high rates. Per-rate decoding and continuing hidden-state tests belong to #link("/exp082/")[exp082].
-
   === 7. TR-07 — Low-input recruitment sweep
-
-  The final family asked whether weak initial input coupling changed recruitment under the same strict activity ceiling. If the trained outcome retained a strong dependence on initialization, the four conditions could end at substantially different rates or accuracies. #family-coverage("low_w_in")
 
   #result-figure(
     "exp022/curves__low_w_in.svg",
@@ -200,38 +166,34 @@
     )
   }
 
-  Across the selected cells, checkpoint-selection accuracy spans #range-field("low_w_in", "acc")% and final-epoch excitatory rate spans #range-field("low_w_in", "rate_e") Hz. The narrow endpoint ranges do not suggest a large persistent difference in these two outcomes across the tested starts. They do not establish identical learning paths or loop recruitment; #link("/exp025/")[exp025] supplies the targeted analysis. The measured rates also illustrate that the 1 Hz penalty target is not a hard constraint.
-
   == Methods
 
-  We compared feedforward and recurrent spiking classifiers by training seven families of conditions, evaluating classification accuracy, and measuring population activity. The procedure below describes the input encoding, readouts, and training objective. Appendix A gives the shared and TR-specific settings.
+  We trained spiking classifiers under controlled conditions, then analysed retained learning histories and reused diagnostic simulations.
 
-  + *Select the data and conditions.* Training used the official MNIST handwritten-digit training partition, reserving ten percent of each selected pool for validation. Each condition used three initialization seeds, 42–44. The seven families varied the architecture or training settings listed in Appendix A. The official test partition was not used for model selection.
+  + *Prepare the data.* Stratified MNIST splits provided 54,000 training and 6,000 validation images for the baseline, and 6,300 and 700 for sweeps. The split seed was 42; the official test set was excluded from training and model selection.
 
-  + *Encode and simulate each digit.* Pixels drove independent Poisson input channels for the specified presentation duration. The feedforward control or recurrent excitatory/inhibitory (E/I) network was advanced at the condition's numerical timestep. TR-06 sampled one input rate per presentation uniformly from its specified rate set; other families used the fixed baseline rate.
+  + *Build the networks.* Each network contained 1,024 excitatory neurons and ten spiking leaky integrate-and-fire outputs. Recurrent networks added feedback through 256 inhibitory neurons; feedforward controls disabled it. Input and output projections were trained, while recurrent projections were fixed except in designated conditions. Weights retained their excitatory or inhibitory sign.
 
-    $ S_(b i n)^"in" tilde "Bernoulli"(x_(b i) r_b Delta t). quad "(1)" $
+  + *Vary the conditions.* Seven families covered the baseline, activity ceilings, inhibitory decay, timestep, recurrent initialization and trainability, and input drive. Each condition used initialization seeds 42–44; Appendix A lists the grids and shared settings.
 
-    Here $b$ indexes a digit presentation, $i$ an input pixel, and $n$ a numerical timestep. $S_(b i n)^"in"$ is the binary input spike, $x_(b i) in [0, 1]$ is normalized pixel intensity, $r_b$ is the maximum-pixel input rate in hertz for that presentation, and $Delta t$ is the timestep in seconds. Independent draws at each pixel and timestep give the discrete-time Poisson approximation, with spike probability $x_(b i) r_b Delta t$.
+  + *Present the images.* Pixels generated Poisson spikes over #r.standard.t_ms ms, normally with a maximum-pixel rate of 25 Hz and a 0.1 ms timestep. Variable-rate training sampled uniformly from eleven rates between 0.5 and 25 Hz; timestep conditions ranged from 0.05 to 1 ms.
 
-  + *Construct class scores.* Input-to-E and E-to-output projections were trained; recurrent projections were trainable only in the designated TR-05 conditions. The default readout averaged pre-reset output membrane voltages over the presentation, whereas TR-06 used output spike counts. These quantities supplied the logits, the class scores before softmax normalization. Both readouts used ten spiking leaky integrate-and-fire (LIF) output neurons. Appendix A specifies the architecture, weight constraints, and readout initializations.
+  + *Calculate class scores.* Most networks used mean pre-reset output voltage. Variable-rate training used spike counts and smaller initial readout weights.
 
-    $ z_(b k)^"mem" = 1 / N_t sum_(n=1)^(N_t) u_(b k n)^"pre", quad
-      z_(b k)^"count" = sum_(n=1)^(N_t) S_(b k n)^"out". quad "(2)" $
+    $ z_"voltage" = 1 / N sum_(t=1)^N v(t), quad
+      z_"count" = sum_(t=1)^N s(t). quad "(1)" $
 
-    Here $k$ indexes one of the ten output classes, $N_t$ is the number of timesteps in a presentation, $u_(b k n)^"pre"$ is the output neuron's membrane state before spike reset, and $S_(b k n)^"out"$ is its binary spike. The output membrane state uses a dimensionless scale with threshold one. Thus both the mean-membrane score $z_(b k)^"mem"$ and spike-count score $z_(b k)^"count"$ are dimensionless; the selected readout supplies $z_(b k)$ to the classification objective.
+    Each score applies to one output neuron and presentation. Here $t$ indexes the $N$ timesteps, $v(t)$ is pre-reset voltage, and $s(t)$ is a binary spike; voltage and both scores are dimensionless.
 
-  + *Optimize classification with an activity penalty.* Training used surrogate derivatives to approximate gradients through discontinuous spike events, with the condition's gradient damping.#cite(1) Classification used the mean cross-entropy of the class scores:
+  + *Train the networks.* Training used #r.standard.epochs epochs of AdamW, learning rate 0.0004, batches of #r.standard.batch_size, zero weight decay, and gradient clipping at 1. Surrogate gradients approximated spike derivatives#cite(1); voltage-gradient damping was 1,000 for recurrent networks and 1 for controls. Activity-constrained conditions minimized
 
-    $ p_(b k) = exp(z_(b k)) / (sum_(ell=1)^K exp(z_(b ell))), quad
-      L_"CE" = -1 / B sum_(b=1)^B ln(p_(b,y_b)). quad "(3)" $
+    $ L = L_"CE" + lambda lr(⟨max(0, r - r_"max")^2⟩)_"batch". quad "(2)" $
 
-    Here $B$ is minibatch size, $K = 10$ is the number of classes, $ell$ indexes the classes in the normalization, $p_(b k)$ is the predicted probability of class $k$, and $y_b$ is the correct class for presentation $b$. $ln$ is the natural logarithm, so the dimensionless loss $L_"CE"$ is measured in nats per presentation. For the single hidden E population, the objective combined this loss with a penalty on each presentation's mean firing rate:
+    $L$ is total loss and $L_"CE"$ is mean cross-entropy. Each presentation's mean excitatory firing rate $r$ and ceiling $r_"max"$ are in hertz. Brackets average the individual penalties across the batch; $lambda = 0.041$ with rates in hertz, or zero when disabled.
 
-    $ nu_b = 1 / (N_E T) sum_(j=1)^(N_E) C_(b j), quad
-      L = L_"CE" + lambda / B sum_(b=1)^B max(0, nu_b - nu_"max")^2. quad "(4)" $
+  + *Select models.* Validation averaged three fixed Poisson encoding draws. Selection minimized mean cross-entropy, breaking ties by higher accuracy and then earlier epoch. Selected and final-epoch models were retained.
 
-    Here $b$ indexes one of $B$ presentations in a minibatch, $j$ indexes one of $N_E$ hidden excitatory neurons, $C_(b j)$ is its spike count, and $T$ is presentation duration in seconds. Thus $nu_b$ and the ceiling $nu_"max"$ are in hertz. $L_"CE"$ is mean classification cross-entropy, $L$ is the training objective, and $lambda$ scales the squared rate excess (numerically 0.041 when enabled, with rate expressed in hertz). Disabling the penalty sets its contribution to zero. The ceiling is a soft penalty target, so exceeding it remains possible.
+  + *Summarize and retain outputs.* Learning curves show individual validation histories; baseline summaries average three seeds. Accuracy uses selected models, whereas firing rates average final-epoch validation measurements across images and encoding draws. Retained models and histories support subsequent experiments. Reused seed-42 digit-zero rasters are individual probes, not across-seed estimates; no new diagnostic simulations were performed.
 
   == Appendix A: Training-run specification sheets
 

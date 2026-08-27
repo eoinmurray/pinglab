@@ -607,7 +607,7 @@ FAMILY_COLORS = {
 
 
 def training_curve(d: Path) -> tuple[list[int], list[float]]:
-    """Per-epoch (epoch, test accuracy) from the retained epoch record."""
+    """Per-epoch (epoch, validation accuracy) from the retained epoch record."""
     eps, accs = [], []
     for r in epoch_metrics(d):
         if "ep" in r and "acc" in r:

@@ -1,11 +1,11 @@
 # Writing Guide
 
-Version: **1.0.1**
+Version: **6.2.0**
 
 The Writing Guide defines the conventions for Pinglab's published experiment
 entries in `writings/expXXX.typ`. This file is the canonical guide.
 
-## Versioning
+## 1. Versioning
 
 Version this guide independently of Pinglab and Demolab. Increment the major
 version when changed requirements make previously compliant writing require
@@ -13,8 +13,29 @@ revision, the minor version for compatible additions, and the patch version for
 corrections or clarifications that do not change requirements. Update the version
 above and add a short entry to the version history when changing the guide.
 
-### Version history
+### 1.1. Version history
 
+- **6.2.0** — Ground resampling in the live document, preserve scientific
+  content and settled author decisions, and require explicit authorization to
+  save or replace the candidate.
+- **6.1.0** — Suggest evidence-led improvements while applying the guide,
+  distinguishing reusable rules from experiment-specific choices and requiring
+  explicit approval before changing the guide or broadening article edits.
+- **6.0.0** — Make Methods concise and skimmable, with a 300–450-word target,
+  short action-led steps, selected key equations and a compression pass that
+  preserves scientific coverage. Clarify the boundary with appendix detail.
+- **5.0.0** — Ground Methods in execution code and retained evidence, require a
+  complete scientific procedure through selection, measurement and outputs, and
+  include equations only when they clarify consequential operations.
+- **4.0.0** — Make Results a scaffold of numbered headings,
+  figures and concise captions, without narrative prose or prose placeholders.
+  Update the example and remove conflicting guidance in Methods.
+- **3.0.0** — Require code- and evidence-grounded abstracts for rapid browsing,
+  leading with the experiment's finding or reusable output. Replace the abstract
+  example with exp022's verified training-bank summary and allow 60–120 words.
+- **2.0.0** — Apply repository-independent scientific writing and the ban on
+  internal references to all rendered article content, not only Methods.
+  Replace requirements to display run IDs and paths with scientific provenance.
 - **1.0.1** — Require minimal, source-preserving edits when bringing existing
   writing into conformance. Retain the restriction of Methods to scientific
   procedures and evidence limitations, excluding repository, storage, and
@@ -23,14 +44,46 @@ above and add a short entry to the version history when changing the guide.
 - **1.0.0** — Name and version the existing Writing Guide; writing requirements
   remain unchanged.
 
-## Location and naming
+## 2. Location and naming
 
 - Store each entry directly as `writings/expXXX.typ`, where `XXX` is the
   experiment's zero-padded three-digit identifier.
 - Use the same identifier for related experiment code and artifact paths when
   they exist.
 
-## Editing existing writing
+## 3. Global writing rules
+
+These rules apply to every experiment article, including titles, prose,
+captions, alternative text, tables, figures, and appendices.
+
+1. Explain the science independently of the repository: model, data,
+   interventions, numerical methods, training, selection criteria, measurements,
+   and aggregation. Express scientifically relevant implementation choices as
+   algorithms, numerical settings, or measurement definitions.
+2. Exclude internal references: local paths, filenames, run IDs, schema fields,
+   import histories, storage layouts, build commands, and publication mechanics.
+   Use descriptive scientific names rather than bare internal identifiers.
+   Reproducibility does not justify repository bookkeeping in the article;
+   technical provenance belongs in run records and separate documentation.
+3. Preserve scientific provenance and limitations without narrating file
+   handling. Distinguish reused observations from new measurements and identify
+   datasets, experimental conditions, and model-selection criteria scientifically.
+   Literature citations and meaningful references to published scientific work,
+   figures, equations, and sections remain appropriate.
+4. This boundary concerns rendered content, not necessary source-code plumbing.
+   Typst imports, data lookups, citation keys, and link targets may use internal
+   identifiers without displaying them to readers. The technical instructions
+   in this guide describe authoring machinery; they are not article content.
+
+For example, write “Accuracy was evaluated at the validation-selected epoch;
+population firing rates were measured at the final epoch.” Keep the selection
+criterion and measurement definitions, but omit checkpoint filenames, JSON field
+names, and the commands used to retrieve them. A numerical integration timestep
+belongs in the scientific account; the directory containing the simulation does
+not. Moving internal references into a caption or appendix does not satisfy
+these rules.
+
+### 3.1. Editing existing writing
 
 Existing `.typ` files are authored documents that may contain manual revisions,
 not disposable output to regenerate from this guide.
@@ -64,7 +117,35 @@ For example, “update the Methods in exp022 to conform with Writing Guide
 Keep its scientific account and distinctive wording wherever possible; do not
 replace it with a generic Methods section or rewrite the rest of the article.
 
-## Titles
+### 3.2. Improving the guide through use
+
+While applying this guide, identify concrete opportunities to improve its
+reusable instructions. Use difficulties encountered in the task, weaknesses in
+the resulting writing, and the author's corrections as evidence.
+
+- Suggest improvements only when they would materially improve future writing;
+  do not manufacture a suggestion for every task.
+- Distinguish general lessons from experiment-specific choices. Check existing
+  rules and prefer refining them over adding duplicates.
+- For each suggestion, briefly state the observed problem, propose exact wording
+  and its location, and explain the expected benefit.
+- Complete the requested work first unless a conflict requires
+  clarification. Present suggestions in the task response, never in the
+  experiment article.
+- Do not modify the guide or broaden article edits without explicit approval.
+  Approved guide changes follow its versioning rules.
+
+### 3.3. Resampling existing writing
+
+Before resampling existing writing, read the current target and identify the
+scientific content, author decisions, and explicit constraints that must survive.
+Treat edits made directly or through an agent equally. Regenerate only the
+requested target; do not restore superseded wording or undo settled decisions.
+Present the candidate for review unless saving or replacement is explicitly
+authorized. If a material choice cannot be recovered confidently, ask rather
+than silently discarding it.
+
+## 4. Titles
 
 For the experiment's overall title (`meta.title`), use a short, plain-English
 phrase naming its main finding or controlled comparison. Prefer a specific
@@ -73,34 +154,66 @@ promotional claims. State a finding only when supported by results; otherwise
 name what is being tested. Aim for 5–10 words, retaining technical terms needed
 for precision.
 
-## Abstracts
+## 5. Abstracts
 
-Write a short abstract as a standalone summary of roughly 60–100 words.
+Write a standalone summary of roughly 60–120 words that lets a reader browsing
+experiments quickly understand what was done, what happened, and why the result
+is useful.
 
-- Begin with one plain-English sentence stating what the experiment learned or
-  tests.
-- Then state the controlled comparison or intervention, the principal
-  measurement and result, and the narrow conclusion supported by the evidence.
-- Define necessary technical terms or notation at first use.
-- Use past tense for completed experiments and future tense for planned
-  experiments. Never present an expected outcome as an observed result.
-- Omit general background, implementation detail, citations, and implications
-  that the experiment does not establish.
-- Take reported values from retained experiment evidence; do not invent or
-  hand-copy them when they can be interpolated from an artifact.
+### Ground the abstract before writing
 
-Example for a completed experiment (replace the bracketed placeholders with
-artifact-backed values):
+- Read `experiments/expXXX.py` and follow its execution into the relevant recipe,
+  compute, analysis and presentation modules and helpers. Do not draft from the
+  existing article alone.
+- Establish the experiment’s actual purpose, model, task, dataset, comparisons,
+  measurements and reusable outputs.
+- Check completed-run provenance, retained configurations and results. Code
+  describes intended behaviour; retained evidence establishes what actually
+  happened. Resolve differences between current code and historical execution
+  before making claims.
+- Distinguish newly executed work from reused training, measurements or figures.
+  Do not run experiments merely to generate an abstract.
 
-> Slower inhibition makes the network's rhythm slower. We tested this by
-> varying $\tau_{\mathrm{GABA}}$, the time taken for inhibitory synaptic current
-> to decay, while holding the network architecture, input, and analysis fixed.
-> Across three seeds, gamma frequency decreased from **[A]** to **[B] Hz**,
-> while firing rate and classification accuracy remained within **[C]** of
-> baseline. Within the tested range, inhibitory timescale therefore controls
-> rhythm frequency without materially changing task performance.
+### Write for rapid understanding
 
-## Inputs and outputs
+- Lead with the principal finding or concrete output, according to the
+  experiment’s purpose. A training-bank experiment should foreground the bank;
+  a hypothesis test should foreground its result.
+- State what was done, including the comparison and the scale needed to
+  interpret it.
+- Report the decisive result with useful quantities, units and measurement
+  context. Say how outcomes differed, not merely that differences existed.
+- End with the supported conclusion or reuse value. Include limitations that
+  materially change interpretation, without adding a generic disclaimer.
+- Use plain, direct language, consistent terminology and one main idea per
+  sentence. Write researcher-to-colleague prose. Retain necessary scientific
+  terms and define unfamiliar terms or notation.
+- Use past tense for completed work and future tense for planned work. Never
+  substitute an expected outcome for an observation.
+- Omit general background, citations, repository bookkeeping and unnecessary
+  implementation details.
+- Interpolate reported values from retained evidence where possible; do not
+  hardcode them into article prose.
+
+### Example: exp022
+
+The values below illustrate the verified result; the article should interpolate
+them from its selected evidence.
+
+> We assembled a reusable bank of 102 spiking networks for MNIST handwritten-digit
+> classification, covering 34 conditions with three random seeds each. Training
+> lasted 50 epochs per network. Conditions compared feedforward controls with
+> excitatory–inhibitory recurrent networks and varied activity penalties,
+> inhibitory decay, numerical timestep, recurrent initialization and trainability,
+> and input drive. In the baseline comparison, mean validation accuracy was 96.0%
+> for feedforward networks and 91.5% for recurrent networks. Their final-epoch
+> excitatory firing rates were 247.5 and 24.4 Hz, respectively. Retained models and
+> learning histories support subsequent experiments; these training-recipe
+> comparisons do not isolate a causal benefit of gamma timing.
+
+## 6. Inputs and outputs
+
+### 6.1. Data access in Typst source
 
 For staged experiments, the writing consumes a selected presentation run, not
 compute checkpoints or live analysis. Pingstore resolves that input to the flat
@@ -141,40 +254,42 @@ the independent stages in [the execution guide](../experiments/README.md).
 Keep imported historical figures distinct from newly generated figures; run.json
 records their source lineage, and captions must not imply a new simulation.
 
+### 6.2. Scientific inputs and outputs
+
 Apply these rules to every experiment entry:
 
 1. Name the section `Inputs and outputs` exactly and place it immediately after
    the abstract, before `Design Scope`.
-2. Use two short paragraphs labelled `Inputs` and `Outputs`. Name every upstream
-   experiment used and identify the reusable outputs this experiment provides,
-   such as checkpoints, configurations, datasets, or analysis results. Explain
-   briefly what each input is used for and what each output is suitable for.
-3. For retained inputs and outputs, give the exact immutable Pingstore run IDs
-   and paths within those runs. Keep `run.json` authoritative for provenance;
-   this section is a reader's guide.
+2. Use two short paragraphs labelled `Inputs` and `Outputs`. Identify upstream
+   scientific work by its descriptive name and identify the reusable outputs
+   this experiment provides, such as trained models, parameter sets, datasets,
+   or measured responses. Explain briefly what each input is used for and what
+   each output is suitable for.
+3. Describe the scientific provenance of inputs and outputs through their data,
+   conditions, seeds, and selection criteria where relevant. Do not display run
+   IDs, storage paths, or filenames; exact technical provenance remains in the
+   authoritative run records outside the article.
 4. State explicitly when there are no upstream experiment inputs or no reusable
    outputs.
 5. Label planned outputs as planned, distinguish them from outputs actually
-   produced, and never invent a run reference.
+   produced, and never invent an input, output, or provenance claim.
 6. Keep the section very short. Do not inventory every plot or repeat the
    conclusions.
 
-Illustrative example (replace the bracketed run IDs and example paths with
-retained evidence):
+Illustrative example (adapt the conditions and outputs to retained evidence):
 
 ```typst
 == Inputs and outputs
 
-*Inputs:* Uses checkpoints and configurations for seeds 42–44 from
-#link("/exp022/")[exp022] as starting states for inhibition sweeps, retained in
-immutable Pingstore run `[upstream-run-id]` under `export/state/`.
+*Inputs:* Uses trained models and parameter settings for seeds 42–44 from
+the #link("/exp022/")[Training Runs] study as starting states for inhibition
+sweeps.
 
-*Outputs:* Provides measured frequency responses for subsequent comparisons,
-retained in immutable Pingstore run `[this-run-id]` at
-`export/frequency-response.csv`.
+*Outputs:* Provides measured frequency responses across inhibitory decay
+conditions for subsequent comparisons of network timing.
 ```
 
-## Design Scope
+## 7. Design Scope
 
 Apply these rules to every experiment entry:
 
@@ -190,7 +305,7 @@ Apply these rules to every experiment entry:
    dumps; leave execution details and equations to `Methods`. Distinguish planned
    settings from those actually tested.
 
-## Prior art
+## 8. Prior art
 
 Apply these rules to every experiment entry:
 
@@ -207,56 +322,33 @@ Apply these rules to every experiment entry:
    relevant work has been identified, state that limitation rather than claiming
    none exists.
 
-## Results
+## 9. Results
 
-Apply these rules to every experiment entry:
+Stub the Results section with numbered headings, figures and concise captions
+only. Do not fill it with narrative prose.
 
 1. Name the section `Results` exactly and place it before `Methods`.
-2. Select only the key plots needed to tell the experiment's scientific story
-   and support its conclusions; there is no fixed plot count. A single compound
-   figure may suffice. Do not include every diagnostic merely because it exists.
-3. Give each plot a specific, descriptive name that states its principal
-   comparison or finding.
-4. Introduce each plot in continuous plain-English prose. Explain what question
-   it addresses, what quantities it shows, and what pattern was expected before
-   interpreting the experimental data.
-5. When it helps the reader understand the prediction, include an optional SVG
-   theory diagram before the data plot. Its caption must identify it as an
-   expectation or mechanism, not experimental evidence.
-6. Include a figure generated from the retained experimental data artifacts.
-   Its caption must identify the measurement, conditions, aggregation, and
-   uncertainty display needed to read it correctly.
-7. After the data figure, explain in plain English what is visible and compare
-   it directly with the expectation. State agreement, partial agreement,
-   disagreement, or unresolved evidence plainly rather than forcing a positive
-   result.
-8. Write the explanation as flowing prose, not as a checklist of labelled
-   sentences. Keep expected outcomes distinct from observed results, and take
-   all reported values from retained evidence.
-9. Results sections should be numbered but not "Plot 1, Plot 2" etc just 1. Title etc
+2. Use numbered subsection headings such as `1. Rhythm frequency`, not
+   `Plot 1`. Name the comparison or supported finding plainly.
+3. Select only the key plots needed to show the experiment's results. There is
+   no fixed plot count; a subsection may contain more than one related figure.
+4. Use figures from retained experimental outputs. Keep captions concise and
+   identify the measurement, conditions, aggregation and uncertainty needed to
+   read each figure correctly. Distinguish illustrative probes and reused
+   observations from new measurements.
+5. An optional theory diagram may precede a data plot when useful. Its caption
+   must identify it as an expectation or mechanism, not experimental evidence.
+6. Do not add an introductory paragraph, prose before or after figures,
+   expectation-versus-result commentary, or a concluding summary. Do not add
+   prose placeholders asking a later pass to fill these in.
 
-Example for a completed experiment (replace the bracketed placeholders with
-artifact-backed observations and values):
+Illustrative scaffold (replace the figure paths and captions with retained
+outputs and their actual measurement details):
 
 ```typst
 == Results
 
-The experiment produced three key results. Together they test whether inhibitory
-duration changes the network rhythm without simply changing its overall activity
-or damaging task performance.
-
-=== Plot 1 — Slower inhibition produces a slower rhythm
-
-We first asked whether longer-lasting inhibition delays the next excitatory
-volley. The plot compares inhibitory decay time $tau_"GABA"$ with the measured
-gamma frequency. We expected frequency to fall as inhibition became slower,
-because excitatory cells should remain suppressed for longer between volleys.
-
-#figure(
-  data-image(data-file("expXXX/frequency-theory.svg"), width: 70%),
-  caption: [Expected mechanism: longer inhibition increases the interval
-  between excitatory volleys. This schematic represents theory, not data.],
-)
+=== 1. Rhythm frequency
 
 #figure(
   data-image(data-file("expXXX/frequency-vs-decay.svg"), width: 100%),
@@ -264,16 +356,7 @@ because excitatory cells should remain suppressed for longer between volleys.
   across seeds; error bars show ±1 standard deviation.],
 )
 
-The experimental data show [plain-English description of the observed trend,
-including the important values]. This [matches / partly matches / contradicts]
-the expected decrease because [plain-English comparison with the prediction].
-
-=== Plot 2 — Firing rate remains stable
-
-We next checked whether the frequency change was merely caused by the network
-becoming more or less active. Excitatory and inhibitory firing rates are shown
-across the same decay times. If inhibitory duration controls timing rather than
-overall activity, we expected both rates to remain broadly stable.
+=== 2. Population firing rates
 
 #figure(
   data-image(data-file("expXXX/rate-vs-decay.svg"), width: 100%),
@@ -281,127 +364,85 @@ overall activity, we expected both rates to remain broadly stable.
   show means across seeds; error bars show ±1 standard deviation.],
 )
 
-The measured rates [plain-English description]. Compared with the expectation,
-this [supports / weakens] the timing interpretation because [reason].
-
-=== Plot 3 — Task performance is preserved
-
-Finally, we tested whether changing the rhythm affected useful computation. The
-plot shows classification accuracy across inhibitory decay times. We expected
-accuracy to remain near baseline wherever coherent rhythmic activity was
-preserved.
+=== 3. Classification accuracy
 
 #figure(
   data-image(data-file("expXXX/accuracy-vs-decay.svg"), width: 100%),
   caption: [Test accuracy across inhibitory decay times. Points show means
   across seeds; error bars show ±1 standard deviation.],
 )
-
-Accuracy [plain-English description of the observed result]. This
-[matches / partly matches / contradicts] our expectation because [reason].
-Taken together, the three plots show [narrow artifact-backed conclusion].
 ```
 
-## Methods
+## 10. Methods
 
-Apply these rules to every experiment entry:
+Explain how the experiment was actually performed and how its reported
+measurements and reusable outputs were obtained. Write for a
+computational-neuroscience colleague who understands the field but does not know
+this experiment. Aim for 300–450 words, excluding displayed equations but
+including symbol definitions. Use fewer words for simple experiments; exceed this
+only when scientific completeness requires it.
 
-1. Name the section `Methods` exactly.
-2. Place `Methods` after `Results`.
-3. Organize it into no more than ten top-level numbered steps. Avoid nested
-   procedural lists when a single step can state the action clearly.
-4. Include only the few key numbered equations needed to represent what was
-   executed or measured.
-5. Put detailed mathematical derivations of key terms in appendices and refer
-   to them from `Methods`.
-6. Define every key scientific term, symbol, and quantity at first use. After
-   each equation, define all of its terms and give units where applicable.
-7. Bring the reader through the experiment in causal order: starting state,
-   intervention, execution, measurement, aggregation, and evidence boundary.
-   Use a short opening orientation and explain why each step leads to the next.
-   Execution and evidence boundaries here concern scientific operations and
-   limitations, not repository workflows.
-8. Explain the scientific procedure independently of the repository: model,
-   data, interventions, numerical methods, training, selection criteria,
-   measurements, and aggregation. Express scientifically relevant implementation
-   choices as algorithms, numerical settings, or measurement definitions.
-9. Exclude local paths, filenames, run IDs, schema fields, import histories,
-   storage layouts, build commands, and publication mechanics. Reproducibility
-   does not justify putting repository bookkeeping in Methods; technical
-   provenance belongs in run records and appropriate documentation outside it.
-10. Preserve scientific distinctions, such as validation-selected versus
-    final-epoch models or reused versus newly measured observations, without
-    narrating file handling. Removing implementation details must not conceal
-    limitations or imply that unperformed scientific work was executed.
+### Ground the account before writing
 
-`Methods` records the scientific procedure actually executed. Headline findings
-and their interpretation belong in `Results`; mathematical working that is not
-necessary to understand the procedure belongs in an appendix.
+- Read the experiment’s execution code, scientific definitions, analysis and
+  relevant helpers. Do not draft from the existing article alone.
+- Check completed-run provenance, retained configurations and outputs. Resolve
+  differences between current code and historical execution before making claims.
+- Outline the complete scientific procedure before writing prose. Distinguish
+  newly executed work, reused evidence and planned work.
+- Do not run experiments merely to write Methods.
 
-For example, write “Accuracy was evaluated at the validation-selected epoch;
-population firing rates were measured at the final epoch.” Keep the selection
-criterion and measurement definitions, but omit checkpoint filenames, JSON field
-names, and the commands used to retrieve them. A numerical integration timestep
-belongs in Methods because it affects the scientific procedure; the directory
-containing the simulation does not.
+### Write the procedure
 
-Example:
+1. Name the section `Methods` and place it after `Results`.
+2. Begin with a short orientation explaining the experimental approach.
+3. Prefer five to eight scientific operations in one flat numbered list, with
+   at most ten. Do not use nested lists or subsection headings. Derive the
+   operations from the experiment rather than imposing a fixed template.
+4. Follow the actual dependencies: starting data and models, controlled changes,
+   execution, selection, measurement, aggregation and outputs. Include applicable
+   stages; do not stop at training when the report also contains evaluation or
+   analysis.
+5. Give each item a short action-led label and two to four concise sentences.
+   Begin with what was done, then give the essential settings and what the
+   operation produced. Equation-bearing items may include a compact definition
+   paragraph. Explain consequential choices without inventing retrospective
+   justifications.
+6. Make the main account explain the complete procedure and its consequential
+   choices. Put exhaustive parameter grids, initialization distributions and
+   derivations in appendices. Do not defer essential model differences,
+   selection criteria or measurement definitions.
+7. Select the key equations before drafting: those defining the experiment's
+   central model, intervention or measurement, usually one to three, not a quota.
+   Number each equation and place it beside the operation it explains. Describe
+   routine operations in words unless their mathematical form matters to the
+   comparison. Define every symbol once, give units where applicable, and reuse
+   notation consistently. Cite established methods where appropriate.
+8. Explain how reported measurements were obtained, including relevant data
+   partitions, model-selection criteria, measurement timing, repetitions and
+   aggregation. Distinguish illustrative probes from population estimates and
+   reused observations from new measurements.
+9. Use direct, concrete prose. Exclude repository bookkeeping, implementation
+   narration and result interpretation. Finish with a compression pass: remove
+   repeated definitions, textbook exposition, procedural signposting and details
+   already supplied elsewhere. Preserve what was varied, what was held fixed,
+   what was trained, and how outputs were selected and measured.
 
-```typst
-== Results
+### Completion check
 
-Increasing inhibitory decay reduced gamma frequency while preserving rhythmic
-activity across the tested range. [Artifact-backed results and figures.]
+Can the reader recover the procedure from the numbered labels, understand each
+key equation locally, and trace every reported measurement and reusable output
+to its source? The main account must explain the procedure without requiring
+code or reconstruction from appendices. Flag missing evidence rather than
+inventing a step.
 
-== Methods
+For exp022, the applicable sequence is: data and splits; networks and controlled
+conditions; encoding and simulation; class scores; training and optimization;
+validation and model selection; measurements and reusable outputs. Its key
+equations define the readouts and the sample-wise activity penalty; routine
+Poisson and softmax expansions need not appear in the main account.
 
-The experiment asks whether the duration of inhibition controls the network's
-rhythm. We answer this by changing inhibition alone, simulating the resulting
-activity, and measuring its dominant frequency.
-
-+ *Start from matched networks.* We used three independently trained PING
-  networks. A PING network contains excitatory cells that recruit inhibitory
-  cells, which then suppress the excitatory population.
-
-+ *Change the inhibitory timescale.* We varied
-  $tau_"GABA" in {4.5, 6, 9, 12, 18, 27}$ ms while holding architecture,
-  input, training, and analysis fixed. Here $tau_"GABA"$ is the time taken for
-  inhibitory synaptic conductance to decay.
-
-+ *Generate the input.* Pixel $i$ emitted a spike at timestep $t$ according to
-
-  $ S_i(t) tilde "Bernoulli"(x_i r_"max" Delta t / 1000). quad "(1)" $
-
-  Here $S_i(t)$ is the input spike, $x_i$ is normalized pixel intensity,
-  $r_"max"$ is the maximum encoding rate in hertz, and $Delta t$ is the
-  simulation timestep in milliseconds.
-
-+ *Measure the rhythm.* We binned excitatory spikes into the population count
-  $n_E(t)$ and defined gamma frequency as
-
-  $ f_gamma = arg max_(f in [30, 80]) P_E(f). quad "(2)" $
-
-  Here $P_E(f)$ is the Welch power spectrum of $n_E(t)$ at frequency $f$, and
-  $f_gamma$ is its largest gamma-band peak.
-
-+ *Aggregate independent networks.* For condition $c$,
-
-  $ macron(f)_(gamma,c) = 1/S sum_(s=1)^S f_(gamma,c,s). quad "(3)" $
-
-  Here $S=3$ is the number of trained seeds and $s$ indexes one independently
-  trained network.
-
-+ *State the evidence boundary.* Quantitative results use all seeds and
-  registered conditions. Single-trial rasters are illustrative only.
-
-== Appendix A: Derivation of the gamma-frequency estimator
-
-Starting from $n_E(t)$, derive the discrete Fourier transform, Welch spectrum,
-window normalization, frequency resolution, and parabolic peak interpolation
-used in Equation 2.
-```
-
-## References
+## 11. References
 
 Apply these rules to every experiment entry:
 

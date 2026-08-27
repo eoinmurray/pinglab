@@ -117,6 +117,20 @@ uv run python experiments/exp022/present.py \
   --retained-presentation exp022-gold-2-repaired-slurm
 ```
 
+If the original historical source is unavailable, reuse the images already
+retained in a presentation of the exact same analysis and compute bank:
+
+```sh
+uv run python experiments/exp022/present.py \
+  --source exp022-r002-analyse-local \
+  --retained-presentation exp022-r003-present-local
+```
+
+This redraws all seven curves with the label `validation accuracy (%)`, without
+training or analysis. Historical images must match their recorded checksums;
+their earlier lineage is retained as `source_lineage` alongside the immediate
+copy source. Existing completed runs are never changed.
+
 To generate genuinely new raw probes later, explicitly run:
 
 ```sh

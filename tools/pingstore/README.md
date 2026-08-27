@@ -1,4 +1,28 @@
-# Pingstore
+# Storage Guide
+
+Version: **1.0.0**
+
+The Storage Guide defines Pinglab's Pingstore filesystem convention for storing,
+validating and consuming scientific runs. This file is the canonical guide.
+
+## 1. Versioning
+
+Version this guide independently of Pinglab, Demolab and the other guides.
+Increment the major version when changed requirements make previously compliant
+storage implementations or workflows require revision, the minor version for
+compatible additions, and the patch version for corrections or clarifications
+that do not change requirements. Update the version above and add a short entry
+to the version history when changing the guide.
+
+The guide version is separate from run schema versions such as `pingstore.run/v3`.
+Changing this guide does not itself migrate existing runs or authorize a migration.
+
+### 1.1. Version history
+
+- **1.0.0** — Name and version the existing Storage Guide; storage requirements
+  and run schemas remain unchanged.
+
+## 2. Pingstore filesystem convention
 
 Pingstore is a filesystem convention for immutable scientific runs, not a
 service, database, catalogue, or general command-line interface.
@@ -51,7 +75,7 @@ views to arrays of explicit run IDs. No latest/official selection is inferred.
 Existing artifact views without a locally retained backing run are not rebuilt
 or silently replaced during a storage migration.
 
-## Legacy compatibility and enforcement
+## 3. Legacy compatibility and enforcement
 
 Completed `pingstore.run/v2` runs remain readable and unchanged. They require
 exactly run.json, README.md, export/ and presentation/; export_root defaults to
@@ -74,7 +98,7 @@ and updated input pins; see [their migration record](../../experiments/exp022/RE
 Incomplete v2 stage reservations must finish using their original code or be
 replaced by new v3 reservations, never silently reused under a different schema.
 
-## Independent experiment stages
+## 4. Independent experiment stages
 
 New staged runs use `<experiment>-rNNN-<stage>-<origin>`, for example
 `exp022-r001-compute-local`, `exp022-r002-analyse-local` and
@@ -113,11 +137,11 @@ unchanged original. Historical SLURM attempts and inherited/repaired lineage are
 therefore separate from the new import operation. The original is not deleted,
 renamed, reselected, or rewritten; the separate base bank is unaffected.
 
-See [the experiment lifecycle](../../experiments/README.md) for commands and
+See the [Experiment Runner Guide](../../experiments/README.md) for commands and
 responsibility boundaries. The payload inventory/digest algorithm is shared by
 v2 and v3; moving a file still changes its checksum inventory and dependent pins.
 
-## Demolab discovery
+## 5. Demolab discovery
 
 Discovery includes present runs with at least one nonempty export file other
 than the compatibility bookkeeping names in `layout.RECORD_NAMES`. Untyped v2
@@ -181,7 +205,7 @@ cache or unsafe fast mode bypasses validation. Large stores can exceed Demolab's
 current 30-second discovery timeout; efficient validation requires a separate
 protocol change, not dropping checks here. Ordinary builds do not call discovery.
 
-## One-time v1 migration
+## 6. One-time v1 migration
 
 `migrate_v2.py` is a narrowly scoped migration utility, not a Pingstore management
 CLI. It does not retrain, upload, prune, or select published results.

@@ -1,5 +1,8 @@
 # Pingstore filesystem convention
 
+Before creating or editing storage code, read and follow
+the versioned [Storage Guide](tools/pingstore/README.md).
+
 Pingstore is a filesystem convention, not a service, database, or general
 management CLI.
 
@@ -46,7 +49,8 @@ management CLI.
 # Experiment execution
 
 Before creating or editing experiment execution code, read and follow
-`experiments/README.md`. Compute, analyse and present complete independently;
+the versioned [Experiment Runner Guide](experiments/README.md).
+Compute, analyse and present complete independently;
 downstream stages never launch upstream work or automatically publish.
 
 # Experiment writing

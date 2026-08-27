@@ -20,11 +20,11 @@ from experiments.exp022 import recipe
 from helpers import theme
 from helpers.stamp import stamp_figure
 from pingstore.contracts import PingstoreError, file_sha256, load_json, write_json_atomic
-from pingstore.stages import source_run, stage_run
+from pingstore.stages import SourceRun, source_run, stage_run
 
 def plot_family_curves(family: str, cells: list[dict],
                        out_path: Path, run_id: str) -> int:
-    """One figure for one family: each cell's test-accuracy learning curve,
+    """One figure for one family: each cell's validation-accuracy learning curve,
     coloured by the swept value. Returns the number of cells actually drawn."""
     import matplotlib.cm as cm
     from matplotlib.lines import Line2D
@@ -59,7 +59,7 @@ def plot_family_curves(family: str, cells: list[dict],
         ax.legend(handles=mh, frameon=False, fontsize=theme.SIZE_LEGEND,
                   loc="lower center", title="model")
     ax.set_xlabel("epoch")
-    ax.set_ylabel("test accuracy (%)")
+    ax.set_ylabel("validation accuracy (%)")
     ax.set_ylim(0, 100)
     for sp in ("top", "right"):
         ax.spines[sp].set_visible(False)
@@ -174,6 +174,27 @@ def comparison_rasters(rasters: Path, destination: Path) -> None:
     plt.close(fig)
 
 
+def carry_historical(retained: SourceRun, filename: str, destination: Path) -> dict:
+    """Copy a retained image, preserving its lineage through prior presentations."""
+    source = retained.presentation / filename
+    if not source.is_file():
+        raise PingstoreError(f"historical image is missing: {filename}")
+    checksum = file_sha256(source)
+    lineage = {"file": filename, "operation": "carry-historical",
+               "source_run": retained.record["run_id"],
+               "source_path": source.relative_to(retained.directory).as_posix(),
+               "sha256": checksum}
+    if retained.record.get("stage") == "present":
+        records = [item for item in retained.record.get("presentation_lineage", [])
+                   if item["file"] == filename]
+        if (len(records) != 1 or records[0].get("operation") != "carry-historical"
+                or records[0].get("sha256") != checksum):
+            raise PingstoreError(f"historical image lineage does not match: {filename}")
+        lineage["source_lineage"] = records[0]
+    shutil.copy2(source, destination)
+    return lineage
+
+
 def present(identity: str, *, retained_presentation: str | None = None,
             run_id: str | None = None) -> str:
     root = REPO / ".pingstore"
@@ -185,12 +206,18 @@ def present(identity: str, *, retained_presentation: str | None = None,
     retained = None
     if retained_presentation:
         retained = source_run(root, retained_presentation, experiment=recipe.SLUG)
-        # Carrying an old image is permitted only for the exact imported bank,
-        # not merely another run with the same experiment number.
-        compute_ref = analysis.record["inputs"].get("bank", analysis.record["inputs"]["compute"])
+        # Accept the original import or a prior presentation of the exact same
+        # analysis and bank. An experiment-name match alone is insufficient.
+        compute_ref = (analysis.record["inputs"].get("bank")
+                       or analysis.record["inputs"]["compute"])
         bank = source_run(root, compute_ref["run_id"], stage="compute",
                           experiment=recipe.SLUG, reference=compute_ref)
-        if bank.record["inputs"].get("import") != retained.reference:
+        same_evidence = (
+            retained.record.get("stage") == "present"
+            and retained.record.get("inputs", {}).get("analysis") == analysis.reference
+            and retained.record.get("inputs", {}).get("bank") == bank.reference
+        )
+        if bank.record["inputs"].get("import") != retained.reference and not same_evidence:
             raise PingstoreError("retained presentation must belong to this bank's exact import source")
         inputs["bank"] = bank
         inputs["retained_presentation"] = retained
@@ -224,14 +251,7 @@ def present(identity: str, *, retained_presentation: str | None = None,
             else:
                 if retained is None:
                     raise PingstoreError(f"missing raster source for {name}")
-                source = retained.presentation / filename
-                if not source.is_file():
-                    raise PingstoreError(f"historical raster is missing: {filename}")
-                shutil.copy2(source, run.export / filename)
-                lineage.append({"file": filename, "operation": "carry-historical",
-                                "source_run": retained.record["run_id"],
-                                "source_path": source.relative_to(retained.directory).as_posix(),
-                                "sha256": file_sha256(source)})
+                lineage.append(carry_historical(retained, filename, run.export / filename))
         comparison_cells = {
             "coba__canonical__seed42", "coba__off__seed42",
             "ping__canonical__seed42", "ping__off__seed42",
@@ -241,14 +261,7 @@ def present(identity: str, *, retained_presentation: str | None = None,
             comparison_rasters(analysis.export / "rasters", run.export / filename)
             lineage.append({"file": filename, "operation": "render", "source_run": identity})
         elif retained is not None:
-            source = retained.presentation / filename
-            if not source.is_file():
-                raise PingstoreError("historical comparison raster is missing")
-            shutil.copy2(source, run.export / filename)
-            lineage.append({"file": filename, "operation": "carry-historical",
-                            "source_run": retained.record["run_id"],
-                            "source_path": source.relative_to(retained.directory).as_posix(),
-                            "sha256": file_sha256(source)})
+            lineage.append(carry_historical(retained, filename, run.export / filename))
         numbers = dict(results)
         numbers["analysis_run_id"] = identity
         numbers["notebook_run_id"] = run.run_id
@@ -261,7 +274,8 @@ def present(identity: str, *, retained_presentation: str | None = None,
             f"Rendered analysis `{identity}`. Select `{run.run_id}` in Demolab preview.\n\n"
             "Curves and numbers are produced from saved analysis. Any "
             "`carry-historical` raster in run.json was copied unchanged from the "
-            "explicit historical source because its raw snapshot was not retained. "
+            "explicit source because its raw snapshot was not retained. "
+            "When reusing a prior presentation, source_lineage retains the earlier image record. "
             "It is not a newly simulated or remeasured result.\n\n"
             "No scientific execution, materialization or publication occurs here.\n"
         )
@@ -271,7 +285,8 @@ def present(identity: str, *, retained_presentation: str | None = None,
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--source", required=True, help="completed exp022 analyse run ID")
-    parser.add_argument("--retained-presentation", help="explicit original bank for historical rasters")
+    parser.add_argument("--retained-presentation",
+                        help="original import or prior presentation of the same analysis and bank")
     parser.add_argument("--run-id", help="already reserved present identity")
     args = parser.parse_args()
     present(args.source, retained_presentation=args.retained_presentation, run_id=args.run_id)
