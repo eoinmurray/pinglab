@@ -1,6 +1,6 @@
 # Experiment Runner Guide
 
-Version: **1.0.0**
+Version: **2.0.0**
 
 The Experiment Runner Guide defines the conventions for Pinglab's experiment
 execution code and independent compute, analyse and present stages. This file
@@ -17,6 +17,9 @@ version history when changing the guide.
 
 ### 1.1. Version history
 
+- **2.0.0** — Require v3 for all operational execution and inputs, aligning with
+  Storage Guide 2.0.0. Remove legacy capture, discovery, publication and reservation
+  completion allowances; historical preservation does not authorize operational use.
 - **1.0.0** — Name and version the existing Experiment Runner Guide; execution
   requirements remain unchanged.
 
@@ -51,8 +54,10 @@ Each command creates one completed run and prints its ID. Inputs are explicit
 completed Pingstore runs: no latest/active fallback, automatic upstream execution,
 or mutation of source evidence. The stage commands do not materialize or publish.
 Large inputs remain in their source runs; downstream runs retain references and
-their own outputs. A one-time historical import may copy scientific payloads to
-preserve the original and give the new compute run a self-contained export.
+their own outputs. A separately authorized historical import may copy scientific
+payloads to preserve the original and give the new compute run a self-contained
+export. Operational inputs must still resolve to validated v3 runs; migration
+evidence belongs in provenance, not in an unresolved or v2 operational input pin.
 
 Use `--run-id` only for an identity reserved before dispatch. Distributed compute
 may own mutable campaign/checkpoint working directories until completion; those
@@ -68,24 +73,27 @@ The [Storage Guide](../tools/pingstore/README.md) owns layout, stage IDs,
 input provenance, validation and immutability. Stages are execution labels, not
 mutable lifecycle states. The shared implementation is `tools/pingstore/stages.py`.
 
-New staged runs write `pingstore.run/v3`: required `run.json` and `export/`,
+All operational runs require `pingstore.run/v3`: required `run.json` and `export/`,
 optional `README.md` and `provenance/`. All three stages put outputs in `export/`;
 compute/analyse may nest files, while present exports are flat publication inputs.
 Execution attachments belong in `provenance/`, outside the copyable output.
 Run provenance is always authoritative in `run.json`. Use `StageRun.export` and
 `StageRun.provenance` when writing; use validated `SourceRun.export` (the declared
 scientific root), `SourceRun.outputs` (the whole export), and
-`SourceRun.presentation` (version-aware publication input) when reading.
+`SourceRun.presentation` (validated v3 present export) when reading.
+Writers and readers must reject v2; existing shared helpers that still accept
+it require revision and do not provide an exception to this contract.
 
 `pingstore discover` validates all completed runs and lists populated present
-exports. Legacy untyped v2 presentations remain discoverable; typed compute/analyse
-runs are excluded regardless of file contents. Preview selects a listed run and
-renders the current Typst source; it does not change Pingstore, `.artifacts/` or
+exports. Every visible candidate must pass v3 schema, layout and checksum
+validation; v2 fails discovery rather than being listed or silently skipped.
+Compute/analyse runs are excluded regardless of file contents. Preview selects a
+listed run and renders the current Typst source; it does not change Pingstore, `.artifacts/` or
 the published site. Writings must
 use article-scoped `data-file()` bindings; see the [Writing Guide](../writings/README.md).
 Publication is separately authorized: materialize the explicitly selected run's
-complete `export/` into `.artifacts/<experiment>/`, then build/publish. The shared
-reader resolves legacy v2 publication inputs to `presentation/` instead.
+complete `export/` into `.artifacts/<experiment>/`, then build/publish. V2
+presentations are not valid publication inputs.
 
 ## 5. Progressive example
 
@@ -100,17 +108,22 @@ Compute produces `exp022-r001-compute-local`; analyse reads it and produces
 
 ## 6. Migration boundary
 
-Exp022 writes v3 and reads completed v2/v3 inputs. Its three local staged runs
-were explicitly migrated to v3 with recoverable originals; the historical
-Gold-2 source remains unchanged in v2. See [the migration record](exp022/README.md).
-Other flat `expXXX.py` runners retain v2 capture until separately migrated; this
-guide does not silently change their CLI or storage.
-Old hidden v2 stage reservations must be finished with their original code or
-replaced by freshly reserved executions, never silently rewritten as v3.
-Exp022 preserves its historical import interface for downstream experiments, but
-its retired combined execution modes fail with directions to the stage commands.
-Existing completed runs retain their IDs. Importing the repaired Gold-2 bank
-preserves its 102 cells and both checkpoint roles; it never claims to have
-retrained them or replaced the separate base bank. Historical rasters lacking
-retained raw snapshots may be explicitly carried into a presentation run, with
-their old source recorded and no claim of regeneration.
+All experiments, including exp022 and flat `expXXX.py` runners, must write and
+consume validated v3 runs. Existing v2 readers and capture paths are nonconforming;
+this requirement does not itself change code, migrate evidence or authorize execution.
+Old hidden v2 reservations must not be completed or silently converted. New
+execution requires a fresh v3 reservation.
+
+The three local staged exp022 runs were explicitly migrated to v3 with recoverable
+originals; see [the migration record](exp022/README.md). Historical v2 runs remain
+unchanged as non-operational evidence. Historical inspection for migration/recovery
+and migration require separate explicit authorization and recoverable originals.
+Every operational input pin must resolve to validated v3 evidence; a migrated
+manifest alone does not repair missing or v2 upstream references.
+
+Preserve existing completed-run identities unless a migration is explicitly
+authorized. A historical import must preserve scientific bytes and checkpoint
+roles without claiming retraining. Historical rasters lacking raw snapshots may
+be explicitly carried from a validated v3 source, retaining their original lineage
+and making no claim of regeneration. Importing unmigrated historical evidence is
+a separately authorized operation governed by the Storage Guide.

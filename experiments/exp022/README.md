@@ -22,21 +22,25 @@ Compute and archive validation import `experiments.exp022.campaign`. The
 gamma-gated-sparsity collection reuses the scripts in `slurm/`. Downstream
 experiments keep using the existing `exp022` registry and bank interface; the
 scientific recipe, checkpoint roles and stage boundaries are unchanged.
-Historical campaigns must continue on their recorded checkout. This source-code
+Retain historical campaign checkouts for provenance; they do not authorize v2
+execution or reservation completion under the current contract. This source-code
 move does not rewrite their commands, manifests, reservations or completed runs.
 
 ## Current storage contract
 
-New executions write `pingstore.run/v3`: required `run.json` and `export/`, with
-optional `README.md` and `provenance/`. Compute/analyse exports may nest files;
+All operational writes and inputs require `pingstore.run/v3`: required `run.json`
+and `export/`, with optional `README.md` and `provenance/`. Compute/analyse exports may nest files;
 present exports are flat figures, tables and numbers. Scripts, source patches,
 import inventories and the detailed presentation-lineage attachment are retained
 under `provenance/`. The authoritative record is always `run.json`.
 
 The r001/r002/r003 runs below have been migrated to v3 with their IDs unchanged.
-The original mixed-output Gold-2 source remains v2 and is read through version-aware
-helpers. Old hidden v2 reservations require their original code or a fresh v3
-reservation; they are not silently converted.
+The original mixed-output Gold-2 source is historical v2 evidence, not an allowed
+operational input or preview candidate. Any implementation path still accepting
+v2 is nonconforming with Storage Guide 2.0.0. Old hidden v2 reservations must not
+be completed or silently converted; new execution requires a fresh v3 reservation.
+Historical inspection for migration/recovery and migration require separate
+explicit authorization. These documentation changes do not migrate any evidence.
 
 ## Staged-data v3 migration
 
@@ -66,10 +70,12 @@ Pinglab preview process. All migrated runs, input pins, original backups and the
 unchanged Gold-2 source passed migration checksum validation. No tests, preview
 builds or publication were invoked by the migration.
 
-Rollback after completion requires stopping readers and restoring all three v2
-originals together while retaining the v3 copies separately; do not mix versions
+The historical rollback procedure requires stopping readers and restoring all
+three v2 originals together while retaining the v3 copies separately; do not mix versions
 of this checksum-pinned chain. The script's `recover` mode is only for interrupted
 activation and does not undo a completed migration automatically.
+Under Storage Guide 2.0.0, restoration is a separately authorized recovery
+operation; restored v2 originals must remain outside operational use.
 
 ## Repaired Gold-2 migration
 
@@ -95,7 +101,7 @@ run for 34 raster PNGs and the comparison PNG. These images were copied, not
 regenerated; each is marked `carry-historical` in the new run's authoritative
 presentation lineage. Curves and numbers were generated from retained metrics.
 
-## Use the migrated evidence
+## Migrated evidence and operational prerequisites
 
 The three local staged IDs were subsequently reordered to put `rNNN` before
 the stage label, so directory sorting follows execution order. Their input pins,
@@ -106,19 +112,20 @@ The pre-reorder originals are recoverable under
 figure stamps retain their original identities, explained by `id_order_migration`
 in each new run.json. The historical Gold-2 source was not changed.
 
+The command forms below require validated v3 sources and resolvable v3 input
+pins throughout their lineage. The retained bank and presentation have unresolved
+historical-source references;
+they are not ready for conforming operational reuse until that gap is resolved
+through separately authorized work. A successful payload checksum alone is not
+sufficient. Do not substitute the v2 Gold-2 source or silently drop its input pins.
+
 ```sh
 # Analyse the imported bank; prints a NEW analyse ID.
 uv run python experiments/exp022/analyse.py --source exp022-r001-compute-local
-
-# Redraw the completed analysis, explicitly retaining the historical rasters.
-# This creates a NEW presentation run, never overwrites r003.
-uv run python experiments/exp022/present.py \
-  --source exp022-r002-analyse-local \
-  --retained-presentation exp022-gold-2-repaired-slurm
 ```
 
-If the original historical source is unavailable, reuse the images already
-retained in a presentation of the exact same analysis and compute bank:
+Once the input lineage is conforming, reuse images retained in a v3 presentation
+of the exact same analysis and compute bank. This creates a new presentation run:
 
 ```sh
 uv run python experiments/exp022/present.py \
@@ -147,11 +154,14 @@ identity; collection requires `--runpod --collect --run-id <that-identity>`.
 
 ## Preview and publication
 
-In exp022's Demolab preview selector, choose `exp022-r003-present-local`.
-The existing article-scoped `data-file()` bindings consume its presentation.
+Preview may select only a validated v3 present run with conforming input lineage.
+The unresolved source pins described above must be resolved before using the
+retained exp022 presentation. The existing article-scoped `data-file()` bindings
+consume the selected presentation.
 The retained v3 compute/analysis runs have no presentation directory and are
-excluded by their stage. The retained present run exposes `export/`; the original
-historical v2 presentation remains an available candidate.
+excluded by their stage. A conforming present run exposes `export/`; historical
+v2 presentations are not eligible candidates. Discovery must reject a visible v2
+run rather than treating it as a legacy exception.
 No preview build or browser check was run as part of this requested no-test
 migration. No `.artifacts/` materialization or website publication was performed.
 

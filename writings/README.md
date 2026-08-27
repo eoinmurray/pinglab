@@ -1,6 +1,6 @@
 # Writing Guide
 
-Version: **6.3.0**
+Version: **8.0.0**
 
 The Writing Guide defines the conventions for Pinglab's published experiment
 entries in `writings/expXXX.typ`. This file is the canonical guide.
@@ -15,6 +15,13 @@ above and add a short entry to the version history when changing the guide.
 
 ### 1.1. Version history
 
+- **8.0.0** — Restrict Methods items to substantive scientific operations. Remove
+  the preferred minimum item count and prohibit standalone steps for routine
+  presentation and summarization; keep necessary figure-reading details in
+  captions and consequential measurement choices in the relevant scientific step.
+- **7.0.0** — Require validated v3 present runs for article inputs, aligning with
+  Storage Guide 2.0.0. Remove the v2 presentation allowance; article-scoped data
+  bindings and scientific writing requirements remain unchanged.
 - **6.3.0** — Remove the mandatory Inputs and outputs, Design Scope and Prior
   art sections. Retain technical data-access rules and scientific coverage in
   Methods without prescribing separate sections for these topics.
@@ -218,7 +225,9 @@ them from its selected evidence.
 
 For staged experiments, the writing consumes a selected presentation run, not
 compute checkpoints or live analysis. Pingstore resolves that input to the flat
-`export/` of a v3 present run, or `presentation/` of a compatible v2 run. Keep
+`export/` of a validated v3 present run. V2 presentations are not permitted for
+preview or publication. Existing readers that accept them are nonconforming,
+not a compatibility exception; this guide does not authorize their migration. Keep
 storage-version paths out of the writing: discovery supplies the resolved
 directory, while `run.json` remains authoritative. Import `data-file` from the
 local `run-inputs.typ` helper and bind it to the article. It reads only explicit
@@ -312,8 +321,9 @@ Explain how the experiment was actually performed and how its reported
 measurements and reusable outputs were obtained. Write for a
 computational-neuroscience colleague who understands the field but does not know
 this experiment. Aim for 300–450 words, excluding displayed equations but
-including symbol definitions. Use fewer words for simple experiments; exceed this
-only when scientific completeness requires it.
+including symbol definitions. This is a guide, not a quota: use fewer words for
+simple experiments and do not pad the account. Exceed this only when scientific
+completeness requires it.
 
 ### Ground the account before writing
 
@@ -329,13 +339,16 @@ only when scientific completeness requires it.
 
 1. Name the section `Methods` and place it after `Results`.
 2. Begin with a short orientation explaining the experimental approach.
-3. Prefer five to eight scientific operations in one flat numbered list, with
-   at most ten. Do not use nested lists or subsection headings. Derive the
-   operations from the experiment rather than imposing a fixed template.
+3. Use one flat numbered list containing only the substantive scientific
+   operations needed to explain the experiment, with at most ten items. There is
+   no minimum item count. Do not add steps to reach a target length. Do not use
+   nested lists or subsection headings. Derive the operations from the experiment
+   rather than imposing a fixed template.
 4. Follow the actual dependencies: starting data and models, controlled changes,
-   execution, selection, measurement, aggregation and outputs. Include applicable
-   stages; do not stop at training when the report also contains evaluation or
-   analysis.
+   execution, selection and measurement, including substantive analysis where
+   applicable. Do not stop at training when the report also contains evaluation
+   or analysis. Cover the essential scientific procedure without creating a
+   separate step for every output or routine operation.
 5. Give each item a short action-led label and two to four concise sentences.
    Begin with what was done, then give the essential settings and what the
    operation produced. Equation-bearing items may include a compact definition
@@ -354,7 +367,14 @@ only when scientific completeness requires it.
 8. Explain how reported measurements were obtained, including relevant data
    partitions, model-selection criteria, measurement timing, repetitions and
    aggregation. Distinguish illustrative probes from population estimates and
-   reused observations from new measurements.
+   reused observations from new measurements. Do not create standalone Methods
+   items for illustrative raster inspection, plotting, routine averaging across
+   seeds, error-bar construction, or displaying retained training trajectories.
+   Put necessary figure-reading details in concise captions; integrate
+   consequential sampling or measurement choices into the relevant scientific
+   step. A dedicated analysis step is appropriate when it defines a substantive
+   estimator, statistical test, or analysis central to the experiment's question.
+   Routine presentation and summarization alone do not qualify.
 9. Use direct, concrete prose. Exclude repository bookkeeping, implementation
    narration and result interpretation. Finish with a compression pass: remove
    repeated definitions, textbook exposition, procedural signposting and details
@@ -363,10 +383,13 @@ only when scientific completeness requires it.
 
 ### Completion check
 
-Can the reader recover the procedure from the numbered labels, understand each
-key equation locally, and trace every reported measurement and reusable output
-to its source? The main account must explain the procedure without requiring
-code or reconstruction from appendices. Flag missing evidence rather than
+Can the reader recover the substantive procedure from the numbered labels and
+understand each key equation locally? Together, Methods and concise figure
+captions must make the source and meaning of reported measurements and reusable
+outputs clear, without a separate Methods item for every output or routine
+operation. The main account must explain the scientific procedure without
+requiring code or reconstruction from appendices. Remove items that merely
+narrate presentation or repeat captions. Flag missing evidence rather than
 inventing a step.
 
 For exp022, the applicable sequence is: data and splits; networks and controlled

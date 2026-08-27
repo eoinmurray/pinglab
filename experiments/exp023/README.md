@@ -1,8 +1,10 @@
 # Exp023 — PING fundamentals
 
-Conformance target: Experiment Runner Guide 1.1.0, Storage Guide 2.0.0,
-Writing Guide 6.3.0. These commands are independent and never materialize or
-publish. This implementation change does not establish a scientific rerun.
+The implementation was assessed against Experiment Runner Guide 1.1.0,
+Storage Guide 2.0.0 and Writing Guide 6.3.0. Current operational requirements
+are defined by the [Runner Guide](../README.md), [Storage Guide](../../tools/pingstore/README.md)
+and [Writing Guide](../../writings/README.md). These commands are independent and
+never materialize or publish. This implementation change does not establish a scientific rerun.
 
 ```sh
 uv run python experiments/exp023/compute.py
@@ -52,9 +54,9 @@ all three stage IDs before scheduler dispatch and retain stage references;
 old monolithic exp023 plans are rejected, never rewritten or recaptured as v2.
 
 Historical runs and reservations are untouched. No v2 import or migration is
-provided. Exp023 enforces Storage 2.0.0 locally; the contradictory legacy
-allowances in repository-wide guides and other runners were not changed by this
-scoped migration. Shared v2 compatibility remains for unrelated experiments.
+provided. Exp023 enforces Storage 2.0.0 locally. Repository-wide guides also
+require v3; remaining shared v2 readers and unrelated legacy runners are
+nonconforming implementations, not permitted compatibility exceptions.
 
 ## Verification
 

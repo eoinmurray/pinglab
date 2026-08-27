@@ -124,28 +124,14 @@ def test_collection_runners_derive_one_role_from_their_analysis_purpose() -> Non
         assert module.CHECKPOINT_ROLE == module.CHECKPOINT_POLICY["role"]
 
 
-def test_exp044_command_loads_final_checkpoint(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_exp044_command_loads_final_checkpoint(tmp_path: Path) -> None:
+    from experiments.exp044.recipe import inference_args
+
     bank = _checkpoint_bank(tmp_path / "cell")
-    (bank / "config.json").write_text(json.dumps({"dt": 0.1, "t_ms": 200.0}))
-    commands: list[list[str]] = []
-
-    def fake_run(command: list[str]) -> None:
-        commands.append(command)
-        out = Path(command[command.index("--out-dir") + 1])
-        out.mkdir(parents=True, exist_ok=True)
-        (out / "metrics.json").write_text(json.dumps({
-            "best_acc": 10.0,
-            "n_total": 1,
-            "rates_hz": {},
-        }))
-
-    monkeypatch.setattr(exp044, "ARTIFACTS", tmp_path / "artifacts")
-    monkeypatch.setattr(exp044, "run_cli", fake_run)
-    exp044.measure_rate_acc(bank)
-    loaded = Path(commands[0][commands[0].index("--load-weights") + 1])
-    assert loaded == (bank / "weights_final.pth").resolve()
+    checkpoint = resolve_checkpoint(bank, exp044.CHECKPOINT_ROLE)
+    command = inference_args(bank, checkpoint["path"], tmp_path / "infer", samples=1000)
+    assert Path(command[command.index("--load-weights") + 1]) == (bank / "weights_final.pth").resolve()
+    assert command[command.index("--max-samples") + 1] == "1000"
 
 
 def test_epoch_metrics_prefers_complete_record_and_supports_legacy_jsonl(tmp_path):

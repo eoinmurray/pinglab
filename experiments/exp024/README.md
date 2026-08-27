@@ -21,7 +21,12 @@ Presentation reads saved analysis, not cell histories. It writes the existing
 three SVGs and `numbers.json` into its flat `export/`, with figure lineage in
 `run.json`. Both stages validate and pin their inputs, write v3 through shared
 helpers, and print a new stage ID. `--run-id` accepts an unused reservation only.
-Sources must declare their stage; version-aware helpers support typed v2 and v3.
+Sources must declare their stage and use v3. The current shared helpers still
+accept typed v2; that implementation is nonconforming with Storage Guide 2.0.0,
+not an allowed compatibility path. Operational inputs and their pins must resolve
+to validated v3 runs. The exp022 bank's unresolved historical-source pin is
+documented in its [storage runbook](../exp022/README.md); resolve that prerequisite
+through separately authorized work before executing the commands above.
 For a diagnostic compute run with a pinned `bank` input, analysis resolves and
 records that exact bank as an additional input.
 
@@ -54,8 +59,9 @@ working directory. Scheduler execution reserves stage identities before submissi
 The adapter does not materialize output or stamp mutable metadata into completed
 runs. Finalization excludes exp024 from legacy v2 recapture. Keep the referenced
 repository Pingstore runs when transferring a campaign: its reference document
-does not contain the scientific evidence. Legacy campaigns must use their original
-checkout; their plans, reservations and completed runs are never rewritten.
+does not contain the scientific evidence. Preserve legacy campaign checkouts,
+plans, reservations and completed runs as historical evidence; this does not
+permit v2 execution or reservation completion. New executions require v3.
 
 ## Preview and publication
 
