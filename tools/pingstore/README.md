@@ -1,6 +1,6 @@
 # Storage Guide
 
-Version: **1.0.0**
+Version: **2.0.0**
 
 The Storage Guide defines Pinglab's Pingstore filesystem convention for storing,
 validating and consuming scientific runs. This file is the canonical guide.
@@ -19,6 +19,9 @@ Changing this guide does not itself migrate existing runs or authorize a migrati
 
 ### 1.1. Version history
 
+- **2.0.0** — Require v3 for all operational storage paths; remove allowances
+  for v2 reads, legacy capture, discovery, publication and reservation completion.
+  Retaining historical evidence does not make it conformant or authorize migration.
 - **1.0.0** — Name and version the existing Storage Guide; storage requirements
   and run schemas remain unchanged.
 
@@ -35,7 +38,7 @@ service, database, catalogue, or general command-line interface.
 └── README.md        # Optional: human notes
 ```
 
-This is `pingstore.run/v3`, written by new staged local/HPC executions. No other
+This is `pingstore.run/v3`, required for all local/HPC executions. No other
 root entries or symlinks are accepted. Compute/analyse exports may contain
 subdirectories; present exports contain only flat regular files. No empty
 presentation directory is created. Run IDs begin with the experiment and end
@@ -75,28 +78,33 @@ views to arrays of explicit run IDs. No latest/official selection is inferred.
 Existing artifact views without a locally retained backing run are not rebuilt
 or silently replaced during a storage migration.
 
-## 3. Legacy compatibility and enforcement
+## 3. Schema enforcement and historical evidence
 
-Completed `pingstore.run/v2` runs remain readable and unchanged. They require
-exactly run.json, README.md, export/ and presentation/; export_root defaults to
-export/state/. Legacy native capture and the v1-to-v2 migration utility explicitly
-continue writing v2 until their producers are separately migrated. They must not
-label mixed scientific/presentation output as v3 without splitting execution.
+`pingstore.run/v3` is the only conforming operational run schema. All writers,
+readers, stage inputs, discovery and materialization must require v3 and its
+explicit stage and input references. There is no legacy allowance for flat
+experiment runners, native capture, typed or untyped v2 runs, or incomplete v2
+reservations. Existing implementations that accept or write v2 require revision
+to conform to this guide; legacy descriptions elsewhere are not an exception.
+Do not relabel mixed scientific/presentation output as v3 without splitting
+execution into independent stages.
 
-The validator selects the exact layout by schema, not by guessing from folders.
-`layout.export_directory()` and `layout.presentation_directory()` centralize
-version-aware consumption after validation. Untyped v2 runs may expose their
-presentation/; typed v2 compute/analyse runs cannot be published or discovered.
-The Demolab discovery field is still named `presentation`, even when it points
-to a v3 run's export/. Consumers do not need a new discovery protocol.
+Validate the declared schema, exact v3 layout and payload checksum before use;
+reject unsupported schemas rather than inferring a layout or silently falling
+back to legacy paths. Shared layout helpers resolve validated v3 scientific
+exports and presentation exports. The Demolab discovery field remains named
+`presentation`, but points only to a present run's export/.
 
-New stages always write v3. Changing the writer does not rewrite existing data.
-Data migration requires separate authorization and recoverable originals; no
-general v2-to-v3 migration utility is introduced here. The three local staged
-exp022 runs were subsequently migrated with unchanged IDs, byte-preserved outputs
-and updated input pins; see [their migration record](../../experiments/exp022/README.md).
-Incomplete v2 stage reservations must finish using their original code or be
-replaced by new v3 reservations, never silently reused under a different schema.
+Historical v2 runs and reservations remain unchanged as retained evidence, not
+conforming operational inputs. Preservation does not permit their normal
+consumption, discovery, publication or completion. Migration or historical
+inspection for migration/recovery requires separate explicit authorization and
+recoverable originals; this guide change does not authorize either operation.
+Do not silently reuse a v2 reservation under v3; new execution requires a new v3
+reservation. No general v2-to-v3 migration utility is introduced here. The three
+local staged exp022 runs were previously migrated with unchanged IDs,
+byte-preserved outputs and updated input pins; see
+[their migration record](../../experiments/exp022/README.md).
 
 ## 4. Independent experiment stages
 
@@ -114,8 +122,7 @@ before submission; the default `campaign` permits mixed workers without claiming
 one training host. Individual job IDs remain in cell execution records. RunPod dispatch similarly
 reserves a run-specific remote namespace before creating pods.
 
-Every v3 `run.json` requires `stage` and `inputs`. Typed v2 records use the same
-input contract. `inputs` maps explicit roles to
+Every `run.json` requires `stage` and `inputs`. `inputs` maps explicit roles to
 `{run_id, payload_digest, run_json_sha256}`; an initial compute run has
 an empty mapping. Both payload and authoritative manifest are pinned. Readers
 validate exact inputs before use and completion, and never silently choose a
@@ -129,24 +136,25 @@ uncommitted code patches and execution time. Each stage completes independently;
 it never launches a different stage or calls materialization. Failed work remains
 hidden. An unused scheduler reservation is not a completed run or a cache source.
 
-Historical import is a new operation with a new timestamp and its actual local
-origin, not a re-execution of historical jobs. Exp022's explicit
-`compute.py --import-source RUN` preserves original scientific bytes and retains
-the old run.json and any README inside provenance/, with an input reference to the
-unchanged original. Historical SLURM attempts and inherited/repaired lineage are
-therefore separate from the new import operation. The original is not deleted,
-renamed, reselected, or rewritten; the separate base bank is unaffected.
+An explicitly authorized historical migration/import is a new operation with a
+new timestamp and its actual origin, not a re-execution of historical jobs.
+Preserve original scientific bytes and retain the original run.json, notes and
+source checksums as migration evidence under provenance/. Historical SLURM
+attempts and inherited/repaired lineage remain distinct from the import
+operation. Operational input references must resolve to validated v3 runs; a
+reference to an unmigrated v2 run does not satisfy the input contract. Preserve
+the original separately; do not delete, rename, reselect or rewrite it without
+separate authorization.
 
 See the [Experiment Runner Guide](../../experiments/README.md) for commands and
-responsibility boundaries. The payload inventory/digest algorithm is shared by
-v2 and v3; moving a file still changes its checksum inventory and dependent pins.
+responsibility boundaries. Moving a payload file changes its checksum inventory
+and dependent pins.
 
 ## 5. Demolab discovery
 
-Discovery includes present runs with at least one nonempty export file other
-than the compatibility bookkeeping names in `layout.RECORD_NAMES`. Untyped v2
-runs use presentation/ with the same content check. Eligibility comes from the
-authoritative stage, never a name substring or extension. Empty or bookkeeping-only
+Discovery includes v3 present runs with at least one nonempty export file other
+than the compatibility bookkeeping names in `layout.RECORD_NAMES`. Eligibility
+comes from the authoritative stage, never a name substring or extension. Empty or bookkeeping-only
 outputs and compute/analyse runs are omitted **after** full validation; malformed
 compute runs still fail discovery. Numbers, tables, figures and videos all qualify.
 
@@ -166,14 +174,15 @@ Resolution is explicit `--source`, then `DEMOLAB_PREVIEW_SOURCE`, then
 `.pingstore/runs` relative to the working directory. The source must exist and
 must not use symlinks. Discovery inspects only immediate visible directories;
 hidden entries, regular files and symlink candidates are ignored. Every visible
-candidate must pass its schema's full layout and payload checksum checks. A malformed
-candidate fails the command with an error on stderr and no JSON on stdout;
+candidate must declare v3 and pass its full layout and payload checksum checks.
+A malformed or unsupported-schema candidate, including a v2 run, fails the
+command with an error on stderr and no JSON on stdout;
 an empty store returns `[]`. Runs and their payloads are never modified.
 
 Output is one JSON array, sorted by run directory name. Each record contains
 `id` and `label` from `run.json.run_id`, `experiment` from `run.json.experiment`,
 `created_at` from `run.json.created_at` normalized to UTC, and `presentation` as
-`<run-id>/export` (v3) or `<run-id>/presentation` (v2), relative to the source.
+`<run-id>/export`, relative to the source.
 Timestamps must include a timezone; filesystem dates and presentation-side
 metadata are not substitutes.
 
@@ -205,45 +214,24 @@ cache or unsafe fast mode bypasses validation. Large stores can exceed Demolab's
 current 30-second discovery timeout; efficient validation requires a separate
 protocol change, not dropping checks here. Ordinary builds do not call discovery.
 
-## 6. One-time v1 migration
+## 6. Migration and recovery boundary
 
-`migrate_v2.py` is a narrowly scoped migration utility, not a Pingstore management
-CLI. It does not retrain, upload, prune, or select published results.
+The historical `migrate_v2.py` utility produces v2, so it is not a conforming
+upgrade path under this guide. Its presence does not authorize v2 writes or
+activation of a v2 store. Historical recovery under separately authorized legacy
+procedures does not make the recovered store conformant with this version.
 
-```sh
-uv run python -m pingstore.migrate_v2 prepare .pingstore .scratch/pingstore-v2-migration
-# Inspect migration.json and the prepared store before the separate activation.
-uv run python -m pingstore.migrate_v2 activate .pingstore .scratch/pingstore-v2-migration
-```
+Any separately authorized migration must verify original payloads, retain
+recoverable originals and provenance, record file mappings and checksums, and
+validate the resulting v3 runs and their input pins before operational use.
+Unknown classifications, collisions, missing evidence or ambiguous recovery
+states must stop the operation. Activation requires stopped writers/readers and
+rechecked source and prepared inventories. Preserve rollback copies; do not
+merge old and new run trees or delete backups automatically.
 
-The working directory must be new, outside the source store, on the same
-filesystem. Preparation verifies the v1 digest, copies into hidden runs, records
-every original file's destination/size/hash, retains original manifests and
-notes under export/provenance/format-v1/, validates v2, and verifies the source did
-not change. Unknown classifications and flattened-name collisions stop migration.
-A known relocated-root-README case is accepted only if putting its exact bytes
-back at the original inventory path reconstructs the stored v1 digest exactly;
-the verification basis is recorded in the migrated manifest.
-
-Activation requires stopped writers/readers, rechecks source and prepared
-inventories, renames the original store to WORKDIR/rollback, and renames prepared
-into place. This is an explicitly approved one-time format migration exception
-to completed-run immutability. The two renames are recoverable, not a claim of
-atomic whole-store exchange. No rollback copy is deleted automatically.
-
-If interrupted, inspect the journal and use the same paths:
-
-```sh
-uv run python -m pingstore.migrate_v2 recover .pingstore .scratch/pingstore-v2-migration
-```
-
-Recovery restores the verified original when the source is absent, or records
-successful activation when the verified new store is already present. It refuses
-ambiguous states. After success, a deliberate rollback requires stopping users,
-retaining the new store separately, and restoring WORKDIR/rollback together with
-compatible code. Do not merge old and new run trees.
-
-Remote R2/HPC stores are not migrated by local activation. Backups and restores
-must retain the entire run in its recorded schema, not just publication outputs.
+Remote R2/HPC stores are not migrated by a local operation. Historical backups
+must retain entire runs in their recorded schema, not just publication outputs;
+restoring a historical v2 backup does not make it eligible for operational use.
 Never prune a source because a presentation copy exists; verify independent
-backups first.
+backups first. This guide change authorizes no migration, activation, recovery,
+deletion or rewriting of retained runs.
