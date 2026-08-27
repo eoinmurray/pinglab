@@ -1,6 +1,11 @@
 # Pingstore filesystem convention
 
-Pingstore is a filesystem convention, not a service, database, or CLI.
+Pingstore is a filesystem convention, not a service, database, or general
+management CLI.
+
+- `pingstore discover` is a narrow read-only integration command: validate
+  completed runs and emit Demolab discovery JSON. It must not select, mutate,
+  materialize, upload, or prune runs, or persist a catalogue.
 
 - Store every completed run at `.pingstore/runs/<run-id>/`, containing only
   `run.json`, `README.md`, `export/`, and `presentation/`.
@@ -26,7 +31,8 @@ Pingstore is a filesystem convention, not a service, database, or CLI.
   IDs before submission so concurrent jobs cannot claim the same identity.
 - Do not reintroduce collection/experiment directory nesting, catalogues,
   lifecycle states, automatic official selections, preview overrides, archive
-  bundles, or a Pingstore command-line interface.
+  bundles, or a general Pingstore management CLI. The read-only discovery
+  command above is the sole CLI exception apart from the documented migration utility.
 
 # Experiment writing
 

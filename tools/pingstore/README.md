@@ -45,6 +45,62 @@ views to arrays of explicit run IDs. No latest/official selection is inferred.
 Existing artifact views without a locally retained backing run are not rebuilt
 or silently replaced during a storage migration.
 
+## Demolab discovery
+
+`pingstore discover` is the narrow read-only CLI exception: it projects validated
+completed runs into Demolab's generic discovery protocol. It does not choose a
+run, write an index, copy presentation files, or manage local or remote storage.
+
+```sh
+uv run pingstore discover
+uv run pingstore discover --source .pingstore/runs
+# Equivalent module entry point:
+uv run python -m pingstore discover --source .pingstore/runs
+```
+
+The source is the directory containing run folders, not the `.pingstore` parent.
+Resolution is explicit `--source`, then `DEMOLAB_PREVIEW_SOURCE`, then
+`.pingstore/runs` relative to the working directory. The source must exist and
+must not use symlinks. Discovery inspects only immediate visible directories;
+hidden entries, regular files and symlink candidates are ignored. Every visible
+candidate must pass the full v2 layout and payload checksum checks. A malformed
+candidate fails the command with an error on stderr and no JSON on stdout;
+an empty store returns `[]`. Runs and their payloads are never modified.
+
+Output is one JSON array, sorted by run directory name. Each record contains
+`id` and `label` from `run.json.run_id`, `experiment` from `run.json.experiment`,
+`created_at` from `run.json.created_at` normalized to UTC, and `presentation` as
+`<run-id>/presentation` relative to the source. Timestamps must include a timezone;
+filesystem dates and presentation-side metadata are not substitutes.
+
+With a Demolab version supporting command-based preview discovery, add:
+
+```yaml
+preview:
+  source: .pingstore/runs
+  discover: [uv, run, pingstore, discover]
+  articles:
+    exp092: [exp023, exp025, exp038, exp048]
+    exp093:
+      baseline: [exp025, exp038, exp049]
+      candidate: [exp025, exp038, exp049]
+```
+
+Demolab supplies `DEMOLAB_PREVIEW_SOURCE`. Omitted articles automatically match
+their IDs to `experiment`; lists declare multiple inputs and named groups allow
+independent comparison selections. Article-scoped `data-file()` bindings are
+still required in writings: discovery alone does not redirect hardcoded paths.
+The current Demolab implementation defaults preview selections to Latest by
+metadata timestamp and provides Published/default explicitly. Discovery itself
+does not pick a default or change published inputs. This example does not enable
+preview in Pinglab or migrate its writings.
+
+Demolab has no separate checksum-validation callback, so this command verifies
+**all candidate payloads on every invocation**, including `export/`. No metadata
+cache or unsafe fast mode bypasses validation. Large stores can exceed Demolab's
+current 30-second discovery timeout; efficient validation requires a separate
+protocol change, not dropping checks here. Ordinary builds do not call discovery.
+
 ## One-time v1 migration
 
 `migrate_v2.py` is a narrowly scoped migration utility, not a Pingstore management
