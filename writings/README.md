@@ -1,8 +1,27 @@
-# Experiment writing
+# Writing Guide
 
-This directory contains the Typst sources for Pinglab's published notebook
-entries. This is the canonical home for conventions governing `expXXX.typ`
-files; expand this guide as those conventions settle.
+Version: **1.0.1**
+
+The Writing Guide defines the conventions for Pinglab's published experiment
+entries in `writings/expXXX.typ`. This file is the canonical guide.
+
+## Versioning
+
+Version this guide independently of Pinglab and Demolab. Increment the major
+version when changed requirements make previously compliant writing require
+revision, the minor version for compatible additions, and the patch version for
+corrections or clarifications that do not change requirements. Update the version
+above and add a short entry to the version history when changing the guide.
+
+### Version history
+
+- **1.0.1** — Require minimal, source-preserving edits when bringing existing
+  writing into conformance. Retain the restriction of Methods to scientific
+  procedures and evidence limitations, excluding repository, storage, and
+  publication details. At the author's request, this version replaces the
+  provisional, unpublished **2.0.0** label.
+- **1.0.0** — Name and version the existing Writing Guide; writing requirements
+  remain unchanged.
 
 ## Location and naming
 
@@ -10,6 +29,40 @@ files; expand this guide as those conventions settle.
   experiment's zero-padded three-digit identifier.
 - Use the same identifier for related experiment code and artifact paths when
   they exist.
+
+## Editing existing writing
+
+Existing `.typ` files are authored documents that may contain manual revisions,
+not disposable output to regenerate from this guide.
+
+1. Read the current file immediately before editing and use it as the baseline,
+   including uncommitted manual edits. Do not reconstruct it from an older
+   revision, generated output, or a remembered draft.
+2. Treat a conformance request as a minimal edit, not permission to rewrite.
+   Stay close to the source's scientific substance, emphasis, terminology, and
+   wording. Preserve its arguments, procedural details, equations, parameter
+   values, caveats, citations, specification sheets, and plots unless the
+   requested change requires a specific adjustment.
+3. Limit edits to the requested section and strictly necessary dependent
+   changes, such as contents links or citation numbering. Do not revise the
+   title, abstract, results, or other sections merely for stylistic consistency.
+4. Apply the requested guide version, not silently the latest one. If that
+   version cannot be recovered, ask which available version to use. Explicit
+   user instructions control the scope and any exceptions to the guide.
+5. Prefer small changes to organization and phrasing over replacement prose.
+   Conformance alone does not authorize new scientific claims, interpretations,
+   results, literature surveys, or invented missing methods. If a requirement
+   cannot be met without materially changing or removing scientific substance,
+   identify the conflict and ask before doing so. Source preservation does not
+   establish a claim's correctness or override evidence requirements.
+6. Review the diff against the live starting text: every change must serve the
+   requested conformance, with unrelated manual edits preserved. Report any
+   unresolved conformance gaps rather than hiding them with new content.
+
+For example, “update the Methods in exp022 to conform with Writing Guide
+1.0.0” means adapt the existing Methods to that version's applicable rules.
+Keep its scientific account and distinctive wording wherever possible; do not
+replace it with a generic Methods section or rewrite the rest of the article.
 
 ## Titles
 
@@ -266,10 +319,31 @@ Apply these rules to every experiment entry:
 7. Bring the reader through the experiment in causal order: starting state,
    intervention, execution, measurement, aggregation, and evidence boundary.
    Use a short opening orientation and explain why each step leads to the next.
+   Execution and evidence boundaries here concern scientific operations and
+   limitations, not repository workflows.
+8. Explain the scientific procedure independently of the repository: model,
+   data, interventions, numerical methods, training, selection criteria,
+   measurements, and aggregation. Express scientifically relevant implementation
+   choices as algorithms, numerical settings, or measurement definitions.
+9. Exclude local paths, filenames, run IDs, schema fields, import histories,
+   storage layouts, build commands, and publication mechanics. Reproducibility
+   does not justify putting repository bookkeeping in Methods; technical
+   provenance belongs in run records and appropriate documentation outside it.
+10. Preserve scientific distinctions, such as validation-selected versus
+    final-epoch models or reused versus newly measured observations, without
+    narrating file handling. Removing implementation details must not conceal
+    limitations or imply that unperformed scientific work was executed.
 
-`Methods` records what was actually executed. Headline findings and their
-interpretation belong in `Results`; mathematical working that is not necessary
-to understand the procedure belongs in an appendix.
+`Methods` records the scientific procedure actually executed. Headline findings
+and their interpretation belong in `Results`; mathematical working that is not
+necessary to understand the procedure belongs in an appendix.
+
+For example, write “Accuracy was evaluated at the validation-selected epoch;
+population firing rates were measured at the final epoch.” Keep the selection
+criterion and measurement definitions, but omit checkpoint filenames, JSON field
+names, and the commands used to retrieve them. A numerical integration timestep
+belongs in Methods because it affects the scientific procedure; the directory
+containing the simulation does not.
 
 Example:
 

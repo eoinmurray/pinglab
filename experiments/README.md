@@ -60,7 +60,7 @@ exports. Legacy untyped v2 presentations remain discoverable; typed compute/anal
 runs are excluded regardless of file contents. Preview selects a listed run and
 renders the current Typst source; it does not change Pingstore, `.artifacts/` or
 the published site. Writings must
-use article-scoped `data-file()` bindings; see [writing guidance](../writings/README.md).
+use article-scoped `data-file()` bindings; see the [Writing Guide](../writings/README.md).
 Publication is separately authorized: materialize the explicitly selected run's
 complete `export/` into `.artifacts/<experiment>/`, then build/publish. The shared
 reader resolves legacy v2 publication inputs to `presentation/` instead.

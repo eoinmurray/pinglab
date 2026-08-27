@@ -9,7 +9,7 @@ Conductance-based spiking neural networks with explicit excitatory/inhibitory po
 [`AGENTS.md`](AGENTS.md) contains repository instructions for coding agents.
 Subsystem guidance lives beside the files it governs; the execution lifecycle
 is in [`experiments/README.md`](experiments/README.md), and experiment-writing
-conventions are in [`writings/README.md`](writings/README.md).
+conventions are in the versioned [Writing Guide](writings/README.md).
 
 ## Installation
 

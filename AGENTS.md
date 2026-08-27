@@ -52,4 +52,4 @@ downstream stages never launch upstream work or automatically publish.
 # Experiment writing
 
 Before creating or editing `writings/expXXX.typ`, read and follow
-`writings/README.md`.
+the versioned [Writing Guide](writings/README.md).

@@ -1,46 +1,50 @@
-#import "/.demolab/lib.typ": data-json, data-image
+#import "/.demolab/lib.typ": data-json, data-image, cite, reference-list
 #import "run-inputs.typ": data-file, inputs-ready, pending-report
 #let data-file = data-file.with(article: "exp022")
 
 #let meta = (
-  title: "Training Runs and Raster Diagnostics",
+  title: "Training Runs",
   date: "2026-08-11",
-  description: "A guide to the shared training runs, their parameters, outputs, and downstream consumers.",
+  description: "Seven controlled training families, their retained checkpoint bank, validation learning curves, and raster diagnostics.",
   collection: "gamma-gated-sparsity",
 )
 
 #let inputs = ("exp022",)
-#let preview-figures = (
-  (path: "exp022/curves__canonical.svg", label: "curves canonical"),
-  (path: "exp022/rasters__ping__canonical__seed42.png", label: "rasters ping canonical seed42"),
-  (path: "exp022/curves__theta_u.svg", label: "curves theta u"),
-  (path: "exp022/rasters__ping__off__seed42.png", label: "rasters ping off seed42"),
-  (path: "exp022/curves__tau_gaba.svg", label: "curves tau gaba"),
-  (path: "exp022/rasters__ping__tg6__seed42.png", label: "rasters ping tg6 seed42"),
-  (path: "exp022/curves__dt.svg", label: "curves dt"),
-  (path: "exp022/rasters__ping__dt0p1__seed42.png", label: "rasters ping dt0p1 seed42"),
-  (path: "exp022/curves__init.svg", label: "curves init"),
-  (path: "exp022/rasters__frozen_ping__seed42.png", label: "rasters frozen ping seed42"),
-)
 
-// Keep calculations lazy: absent inputs never become fabricated results.
+// Do not evaluate report data or claims when no presentation input is selected.
 #let render-report(data-file) = [
 #let r = data-json(data-file("exp022/numbers.json"))
-
-#let run-links(items) = {
-  if items.len() == 0 { [None yet.] } else {
-    for (index, item) in items.enumerate() {
-      if index > 0 { [, ] }
-      link(item + ".html")[#item]
-    }
+#let family-rows(family, model: none) = r.cells.filter(
+  cell => cell.family == family and (model == none or cell.model == model),
+)
+#let mean-field(family, field, model: none) = {
+  let values = family-rows(family, model: model).map(cell => cell.at(field))
+  calc.round(values.sum() / values.len(), digits: 1)
+}
+#let range-field(family, field) = {
+  let values = family-rows(family).map(cell => cell.at(field))
+  [#calc.round(calc.min(..values), digits: 1)–#calc.round(calc.max(..values), digits: 1)]
+}
+#let family-coverage(family) = {
+  let status = r.family_status.at(family)
+  [#status.trained of #status.cells registered cells have retained training results.]
+}
+#let run-links(items) = items.map(item => link(item + ".html")[#item]).join([, ])
+#let figure-lineage(path) = {
+  let records = r.at("presentation_lineage", default: ())
+    .filter(item => item.file == path.split("/").last())
+  if records.len() == 0 {
+    [Per-figure lineage is not supplied here; consult the selected run's `run.json`.]
+  } else if records.first().operation == "carry-historical" {
+    [Copied unchanged from #raw(records.first().source_run); this presentation did not rerun the probe.]
+  } else {
+    [Rendered from retained analysis in #raw(records.first().source_run).]
   }
 }
-
 #let result-figure(path, alt, caption) = figure(
   data-image(data-file(path), width: 100%, alt: alt),
-  caption: caption,
+  caption: [#caption #figure-lineage(path)],
 )
-
 #let divider() = context {
   if target() == "html" {
     html.elem("hr", attrs: (style: "margin: 2.75rem 0;"))
@@ -51,57 +55,193 @@
   }
 }
 
-#let major-divider() = context {
-  if target() == "html" {
-    html.elem("hr", attrs: (style: "margin: 3.75rem 0; border-top-width: 2px;"))
-  } else {
-    v(1.8em)
-    line(length: 100%, stroke: 1pt + luma(55%))
-    v(1.8em)
-  }
-}
-
-#let callout(body) = quote(block: true, body)
-
 #let body = [
-  // Keep this manual TOC local: demolab suppresses entry headings from the
-  // collection-wide outline.
   == Contents
 
   + #link("#abstract")[Abstract]
-  + #link("#summary")[Summary]
-  + #link("#training-run-guide")[Training-run guide]
-    + #link("#tr-01-canonical-full-data-reference")[TR-01 — Canonical full-data reference]
-    + #link("#tr-02-activity-ceiling-sweep")[TR-02 — Activity-ceiling sweep]
-    + #link("#tr-03-inhibitory-timescale-sweep")[TR-03 — Inhibitory-timescale sweep]
-    + #link("#tr-04-integration-timestep-sweep")[TR-04 — Integration-timestep sweep]
-    + #link("#tr-05-recurrent-initialization-sweep")[TR-05 — Recurrent-initialization sweep]
-    + #link("#tr-06-variable-rate-streaming-bank")[TR-06 — Variable-rate streaming bank]
-    + #link("#tr-07-low-input-recruitment-sweep")[TR-07 — Low-input recruitment sweep]
-  + #link("#results-by-training-run")[Results by training run]
-    + #link("#tr-01-results-canonical-full-data-reference")[TR-01 — Canonical full-data reference]
-    + #link("#tr-02-results-activity-ceiling-sweep")[TR-02 — Activity-ceiling sweep]
-    + #link("#tr-03-results-inhibitory-timescale-sweep")[TR-03 — Inhibitory-timescale sweep]
-    + #link("#tr-04-results-integration-timestep-sweep")[TR-04 — Integration-timestep sweep]
-    + #link("#tr-05-results-recurrent-initialization-sweep")[TR-05 — Recurrent-initialization sweep]
-    + #link("#tr-06-results-variable-rate-streaming-bank")[TR-06 — Variable-rate streaming bank]
-    + #link("#tr-07-results-low-input-recruitment-sweep")[TR-07 — Low-input recruitment sweep]
-
-  #major-divider()
+  + #link("#design-scope")[Design Scope]
+  + #link("#results")[Results: TR-01 through TR-07]
+  + #link("#methods")[Methods]
+  + #link("#appendix-a-training-run-specification-sheets")[Appendix A: shared and TR-specific specification sheets]
+  + #link("#references")[References]
 
   == Abstract
 
-  Exp022 defines the collection's shared training runs and checkpoint bank. It specifies the motivation, parameterization, output-layer shape, and downstream consumers for seven training-run types comprising #r.n_cells cells. The runs span reference models and controlled sweeps over activity ceiling, inhibitory timescale, integration timestep, recurrent initialization, input rate, and feedforward input coupling. Together, they provide the checkpoints used by the collection's training-dependent experiments.
+  Feedforward and recurrent recipes produced different balances between classification accuracy and spiking activity. We compared a conductance-based feedforward control with pyramidal–interneuron network gamma (PING), an excitatory–inhibitory feedback model, across seven training families. The retained bank contains #r.n_cells cells with controlled changes to activity ceilings, inhibitory decay, numerical timestep, recurrent initialization, input rate, and initial input coupling. Validation learning histories and representative rasters document reusable checkpoints and expose differences between the trained recipes. They do not by themselves establish a causal benefit of gamma timing or performance on the official test partition.
 
-  Every cell saves two identified checkpoints. For MNIST, each epoch is evaluated over three fixed, independently seeded Poisson encodings of the validation split. The best-validation checkpoint minimizes mean validation cross-entropy across those draws, with mean accuracy as a tie-breaker; the final-epoch checkpoint represents the dynamical and parameter state at the end of training. The result rasters in this entry use the final-epoch checkpoint.
+  == Design Scope
 
-  #major-divider()
+  The experiment compared a feedforward conductance-based control (COBA) with an excitatory–inhibitory PING network on the same digit task. All recipes used 784 input channels, 1,024 excitatory cells, and ten spiking output cells; PING enabled a 256-cell inhibitory feedback population. Three initialization seeds were specified per condition. TR-01 used a 60,000-image pool; TR-02 through TR-07 used 7,000, each with a separate validation subset. Detailed settings and downstream uses are preserved in Appendix A.
 
-  == Summary
+  TR-02 varied the firing-rate ceiling from off to 1 Hz; TR-03 varied inhibitory decay from 4.5 to 27 ms; TR-04 varied timestep from 0.05 to 1 ms at fixed 200 ms duration. TR-05 varied both recurrent initialization and trainability, TR-06 sampled input rates from 0.5 to 25 Hz with spike-count decoding, and TR-07 varied initial input coupling from 0.05 to 0.9 under a fixed 1 Hz ceiling. These are separate controlled families, not a full factorial design. The architecture comparison also used different backward-pass gradient damping, and TR-06 changed readout and initialization together; neither comparison isolates a single mechanism. Streaming inference and perturbation tests belong to downstream experiments.
+
+  == Results
+
+  Each subsection retains a learning-curve figure and its representative diagnostic raster; TR-07 shows all four specified coupling examples. Curves show individual cells, not means with confidence bands. The numerical summaries below come from the selected `numbers.json`: accuracy is the value at the validation-selected checkpoint, while population rates come from the final retained epoch. They are not paired measurements at one checkpoint.
+
+  *Metric and provenance boundary:* The curve artwork retains the historical axis label “test accuracy,” but the source configurations identify these epoch measurements as validation evaluations over three fixed encoder draws. Read them as validation accuracy, not untouched official-test performance. Captions distinguish curves rendered from saved analysis from historical rasters copied into this presentation. A single raster is an illustration of one probe, not an across-seed estimate or evidence of newly executed simulation.
+
+  === 1. TR-01 — Canonical full-data reference
+
+  The full-data comparison asked how the two unrestricted recipes learned before imposing an activity ceiling. If recurrent inhibition reduced excitatory activity, PING should use fewer spikes, but it was not assumed to preserve the control's accuracy. #family-coverage("canonical")
+
+  #result-figure(
+    "exp022/curves__canonical.svg",
+    "Validation-accuracy learning curves for the canonical COBA and PING cells; the retained axis label says test accuracy.",
+    [Individual learning histories for both architectures and all three seeds in the full-data family; no across-seed averaging or uncertainty bands.],
+  )
+  #result-figure(
+    "exp022/rasters__ping__canonical__seed42.png",
+    "Seed-42 excitatory/inhibitory raster and population-rate diagnostic for canonical PING.",
+    [Canonical PING, seed 42: one digit-0 diagnostic from the final-epoch checkpoint, with E/I population rates and the accompanying inhibitory spectrum; not a population estimate.],
+  )
+
+  Mean checkpoint-selection accuracy was #mean-field("canonical", "acc", model: "coba")% for COBA and #mean-field("canonical", "acc", model: "ping")% for PING. Final-epoch excitatory rates averaged #mean-field("canonical", "rate_e", model: "coba") Hz and #mean-field("canonical", "rate_e", model: "ping") Hz respectively. The lower activity is consistent with inhibitory suppression, but the lower accuracy and differing gradient damping prevent a claim of cost-free or uniquely rhythm-driven improvement.
+
+  === 2. TR-02 — Activity-ceiling sweep
+
+  This family asked how a soft activity penalty traded classification performance against firing rate. Tighter ceilings were expected to reduce activity, with accuracy potentially deteriorating when the penalty constrained useful spikes. #family-coverage("activity_frontier")
+
+  #result-figure(
+    "exp022/curves__theta_u.svg",
+    "Validation learning curves across the activity-ceiling conditions for COBA and PING.",
+    [Individual histories for two architectures, six ceiling settings, and three seeds on the reduced training pool; line colours distinguish settings and line styles distinguish architectures. No uncertainty bands are shown.],
+  )
+  #result-figure(
+    "exp022/rasters__ping__off__seed42.png",
+    "Seed-42 raster for the unconstrained PING endpoint of the activity-ceiling sweep.",
+    [PING with the activity penalty off, seed 42, final-epoch digit-0 probe. This is the reference endpoint, not a raster of the strictest ceiling.],
+  )
+
+  Retained checkpoint-selection accuracies span #range-field("activity_frontier", "acc")%, and final-epoch excitatory rates span #range-field("activity_frontier", "rate_e") Hz. This spread is consistent with a performance–activity trade-off; the overview curves alone do not identify a matched-accuracy frontier. The ceiling is a soft loss term, not a guarantee that measured rate stays below its target. #link("/exp025/")[Exp025] makes the condition-matched comparison.
+
+  === 3. TR-03 — Inhibitory-timescale sweep
+
+  Changing inhibitory decay asked whether a wider timing interval altered learning and the trained network's activity. Slower recovery from inhibition was expected to change recruitment and rhythm, but an accuracy curve alone cannot measure gamma frequency. #family-coverage("tau_gaba")
+
+  #result-figure(
+    "exp022/curves__tau_gaba.svg",
+    "Validation learning histories across six inhibitory-decay settings.",
+    [Individual PING histories for six GABA decay constants and three seeds per setting; the training pool and other recipe settings are fixed. No confidence bands are shown.],
+  )
+  #result-figure(
+    "exp022/rasters__ping__tg6__seed42.png",
+    "Seed-42 PING raster at the six-millisecond inhibitory-decay reference.",
+    [Reference inhibitory decay of 6 ms, seed 42, final-epoch digit-0 probe; the plotted spectrum describes this example only.],
+  )
+
+  Checkpoint-selection accuracy spans #range-field("tau_gaba", "acc")%, and final-epoch excitatory rate spans #range-field("tau_gaba", "rate_e") Hz. The family therefore changes more than a visually labelled oscillation period. Condition-level frequency and timing interpretations require the dedicated measurements in #run-links(("exp041", "exp042", "exp046")), not extrapolation from the single reference raster.
+
+  === 4. TR-04 — Integration-timestep sweep
+
+  This family varied numerical resolution while holding each input presentation's physical duration fixed. A robust trained classifier should avoid large accuracy changes across the tested timesteps; that expectation does not imply convergence of every dynamical observable. #family-coverage("dt")
+
+  #result-figure(
+    "exp022/curves__dt.svg",
+    "Validation learning curves across five integration timesteps.",
+    [Individual histories for five timesteps and three seeds per setting. Training and evaluation use each cell's own timestep at a fixed presentation duration; no across-seed bands are shown.],
+  )
+  #result-figure(
+    "exp022/rasters__ping__dt0p1__seed42.png",
+    "Seed-42 PING raster at the reference 0.1-millisecond timestep.",
+    [Reference timestep of 0.1 ms, seed 42, final-epoch digit-0 probe. One reference raster cannot establish timestep convergence.],
+  )
+
+  Checkpoint-selection accuracy lies within #range-field("dt", "acc")%, while final-epoch excitatory rates span #range-field("dt", "rate_e") Hz. The relatively narrow accuracy interval supports stability of this task outcome within the tested family. The rate variation leaves a stronger claim of dynamical invariance unresolved; #link("/exp044/")[exp044] provides the focused comparison.
+
+  === 5. TR-05 — Recurrent-initialization sweep
+
+  Releasing recurrent weights asked whether learning maintained the built-in PING regime or found a different solution. Because both initial values and trainability differ across conditions, any outcome must be attributed to the complete condition rather than to initialization alone. #family-coverage("init")
+
+  #result-figure(
+    "exp022/curves__init.svg",
+    "Validation learning histories across frozen and trainable recurrent-loop conditions.",
+    [Individual histories for four recurrent conditions and three seeds each. The frozen PING control and three trainable initializations share the feedforward recipe; no confidence bands are shown.],
+  )
+  #result-figure(
+    "exp022/rasters__frozen_ping__seed42.png",
+    "Seed-42 raster for the frozen recurrent PING control.",
+    [Frozen recurrent PING control, seed 42, final-epoch digit-0 probe; this example does not describe the trainable conditions.],
+  )
+
+  Checkpoint-selection accuracies span #range-field("init", "acc")%, but final-epoch excitatory rates span #range-field("init", "rate_e") Hz. Similar classification performance therefore does not establish similar activity or preservation of the original loop. #link("/exp049/")[Exp049] examines the learned weights and trajectories needed to distinguish those possibilities.
+
+  === 6. TR-06 — Variable-rate streaming bank
+
+  Training with randomly selected input rates asked whether one spike-count classifier could provide a reusable starting point across the streaming rate range. The expected outcome was a usable checkpoint bank, not proof of successful continuous-stream decoding. #family-coverage("variable_rate")
+
+  #result-figure(
+    "exp022/curves__variable_rate.svg",
+    "Validation learning histories for all three variable-rate spike-count cells.",
+    [Three individual seed histories for the variable-rate spike-count recipe. Each validation presentation draws from the specified rate set; these curves do not separate accuracy by input rate and have no uncertainty bands.],
+  )
+  #result-figure(
+    "exp022/rasters__ping__variable_rate__seed42.png",
+    "Seed-42 excitatory/inhibitory raster for the variable-rate bank at a five-hertz input rate.",
+    [Variable-rate PING, seed 42, final-epoch digit-0 probe at 5 Hz maximum-pixel input rate. This retained E/I diagnostic does not include output-neuron spikes or continuous-stream resets.],
+  )
+
+  Checkpoint-selection accuracy spans #range-field("variable_rate", "acc")%, with final-epoch excitatory rate spanning #range-field("variable_rate", "rate_e") Hz. The retained curves and raster replace the former pending-training placeholders, but their aggregate accuracy does not establish uniform performance at low and high rates. Per-rate decoding and continuing hidden-state tests belong to #link("/exp082/")[exp082].
+
+  === 7. TR-07 — Low-input recruitment sweep
+
+  The final family asked whether weak initial input coupling changed recruitment under the same strict activity ceiling. If the trained outcome retained a strong dependence on initialization, the four conditions could end at substantially different rates or accuracies. #family-coverage("low_w_in")
+
+  #result-figure(
+    "exp022/curves__low_w_in.svg",
+    "Validation learning curves for four initial input-coupling settings and three seeds each.",
+    [Twelve individual histories under the fixed 1 Hz soft ceiling. Colours distinguish the four input-initialization means; no across-seed means or confidence bands are shown.],
+  )
+  #for (tag, coupling) in (("0p05", "0.05"), ("0p1", "0.1"), ("0p3", "0.3"), ("0p9", "0.9")) {
+    result-figure(
+      "exp022/rasters__ping__low_w_in__win" + tag + "__seed42.png",
+      "Seed-42 E/I diagnostic for initial input-coupling parent mean " + coupling + ".",
+      [Initial input-coupling parent mean #coupling, seed 42, final-epoch digit-0 probe at the same 1 Hz activity-ceiling target. This is one example per setting, not an across-seed statistic.],
+    )
+  }
+
+  Across the selected cells, checkpoint-selection accuracy spans #range-field("low_w_in", "acc")% and final-epoch excitatory rate spans #range-field("low_w_in", "rate_e") Hz. The narrow endpoint ranges do not suggest a large persistent difference in these two outcomes across the tested starts. They do not establish identical learning paths or loop recruitment; #link("/exp025/")[exp025] supplies the targeted analysis. The measured rates also illustrate that the 1 Hz penalty target is not a hard constraint.
+
+  == Methods
+
+  We compared feedforward and recurrent spiking classifiers by training seven families of conditions, evaluating classification accuracy, and measuring population activity. The procedure below describes the input encoding, readouts, and training objective. Appendix A gives the shared and TR-specific settings.
+
+  + *Select the data and conditions.* Training used the official MNIST handwritten-digit training partition, reserving ten percent of each selected pool for validation. Each condition used three initialization seeds, 42–44. The seven families varied the architecture or training settings listed in Appendix A. The official test partition was not used for model selection.
+
+  + *Encode and simulate each digit.* Pixels drove independent Poisson input channels for the specified presentation duration. The feedforward control or recurrent excitatory/inhibitory (E/I) network was advanced at the condition's numerical timestep. TR-06 sampled one input rate per presentation uniformly from its specified rate set; other families used the fixed baseline rate.
+
+    $ S_(b i n)^"in" tilde "Bernoulli"(x_(b i) r_b Delta t). quad "(1)" $
+
+    Here $b$ indexes a digit presentation, $i$ an input pixel, and $n$ a numerical timestep. $S_(b i n)^"in"$ is the binary input spike, $x_(b i) in [0, 1]$ is normalized pixel intensity, $r_b$ is the maximum-pixel input rate in hertz for that presentation, and $Delta t$ is the timestep in seconds. Independent draws at each pixel and timestep give the discrete-time Poisson approximation, with spike probability $x_(b i) r_b Delta t$.
+
+  + *Construct class scores.* Input-to-E and E-to-output projections were trained; recurrent projections were trainable only in the designated TR-05 conditions. The default readout averaged pre-reset output membrane voltages over the presentation, whereas TR-06 used output spike counts. These quantities supplied the logits, the class scores before softmax normalization. Both readouts used ten spiking leaky integrate-and-fire (LIF) output neurons. Appendix A specifies the architecture, weight constraints, and readout initializations.
+
+    $ z_(b k)^"mem" = 1 / N_t sum_(n=1)^(N_t) u_(b k n)^"pre", quad
+      z_(b k)^"count" = sum_(n=1)^(N_t) S_(b k n)^"out". quad "(2)" $
+
+    Here $k$ indexes one of the ten output classes, $N_t$ is the number of timesteps in a presentation, $u_(b k n)^"pre"$ is the output neuron's membrane state before spike reset, and $S_(b k n)^"out"$ is its binary spike. The output membrane state uses a dimensionless scale with threshold one. Thus both the mean-membrane score $z_(b k)^"mem"$ and spike-count score $z_(b k)^"count"$ are dimensionless; the selected readout supplies $z_(b k)$ to the classification objective.
+
+  + *Optimize classification with an activity penalty.* Training used surrogate derivatives to approximate gradients through discontinuous spike events, with the condition's gradient damping.#cite(1) Classification used the mean cross-entropy of the class scores:
+
+    $ p_(b k) = exp(z_(b k)) / (sum_(ell=1)^K exp(z_(b ell))), quad
+      L_"CE" = -1 / B sum_(b=1)^B ln(p_(b,y_b)). quad "(3)" $
+
+    Here $B$ is minibatch size, $K = 10$ is the number of classes, $ell$ indexes the classes in the normalization, $p_(b k)$ is the predicted probability of class $k$, and $y_b$ is the correct class for presentation $b$. $ln$ is the natural logarithm, so the dimensionless loss $L_"CE"$ is measured in nats per presentation. For the single hidden E population, the objective combined this loss with a penalty on each presentation's mean firing rate:
+
+    $ nu_b = 1 / (N_E T) sum_(j=1)^(N_E) C_(b j), quad
+      L = L_"CE" + lambda / B sum_(b=1)^B max(0, nu_b - nu_"max")^2. quad "(4)" $
+
+    Here $b$ indexes one of $B$ presentations in a minibatch, $j$ indexes one of $N_E$ hidden excitatory neurons, $C_(b j)$ is its spike count, and $T$ is presentation duration in seconds. Thus $nu_b$ and the ceiling $nu_"max"$ are in hertz. $L_"CE"$ is mean classification cross-entropy, $L$ is the training objective, and $lambda$ scales the squared rate excess (numerically 0.041 when enabled, with rate expressed in hertz). Disabling the penalty sets its contribution to zero. The ceiling is a soft penalty target, so exceeding it remains possible.
+
+  == Appendix A: Training-run specification sheets
+
+  The following shared sheet and all seven TR sheets specify the controlled recipes and their intended uses. The observed learning curves and diagnostic plots are in Results. Operational resource notes are retained as part of the specification, not as evidence that a new job was submitted.
+
+  === A.1. Shared production specification
 
   All runs map Poisson-encoded pixels through 1,024 excitatory neurons to ten spiking output LIF neurons. COBA and PING use the same input-weight and readout-weight initialization distributions. COBA disables recurrent E/I coupling; PING adds a $1024 arrow 256 arrow 1024$ E/I feedback loop and uses stronger backward-pass gradient damping to stabilize training through that recurrent path.
 
-  Unless a run-specific table says otherwise, every cell uses the following contract.
+  These are specified production settings, not newly measured results. Unless a TR-specific sheet says otherwise, every cell uses this contract. In the tables, $cal(N)(mu, sigma^2)$ denotes a normal distribution with mean $mu$ and standard deviation $sigma$; $max(0, x)$ replaces a sampled weight $x$ by zero when negative. LIF means leaky integrate-and-fire.
 
   #table(
     columns: (1.25fr, 1.3fr, 2.2fr),
@@ -129,13 +269,9 @@
     [Stored projection shapes], [$784 times 1024$; $1024 times 256$; $256 times 1024$; $1024 times 10$], [Input→E, E→I, I→E, and E→class, in source-to-destination orientation],
   )
 
-  #major-divider()
+  === A.2. TR-01 — Canonical full-data reference
 
-  == Training-run guide
-
-  === TR-01 — Canonical full-data reference
-
-  The full-data COBA and PING cells are used for headline accuracy. They use the official MNIST training partition with no spike-budget penalty, so the comparison is not affected by the smaller dataset or regularization used in the sweeps. Ten percent of that partition is reserved for checkpoint selection; the official test partition remains untouched during training. This experiment uses these cells directly.
+  The full-data COBA and PING cells are used for headline accuracy. They use the official MNIST training partition with no spike-budget penalty, so the comparison is not affected by the smaller dataset or regularization used in the sweeps. Ten percent of that partition is reserved for checkpoint selection; the official test partition remains untouched during training. This experiment reports their validation learning histories; independent official-test evaluation belongs to the downstream experiments.
 
   #table(
     columns: (1.2fr, 1.4fr, 2fr),
@@ -150,9 +286,9 @@
 
   #divider()
 
-  === TR-02 — Activity-ceiling sweep
+  === A.3. TR-02 — Activity-ceiling sweep
 
-  This run measures the trade-off between accuracy and firing rate as the activity ceiling is tightened. For each presentation, the loss computes the population-mean hidden-E firing rate, applies a one-sided quadratic penalty above the target, then averages the penalties across the minibatch. Quiet presentations therefore cannot offset active presentations. Expressing the target in hertz and normalising over samples, neurons, duration, and hidden layers makes the intervention comparable across those dimensions. A smaller training pool keeps the multi-seed sweep manageable; only the activity target changes across conditions. Its absolute rates should therefore not be compared directly with the full-data cells. The resulting checkpoints are used by #run-links(("exp024", "exp025", "exp037", "exp038")).
+  This run measures the trade-off between accuracy and firing rate as the activity ceiling is tightened. For each presentation, the loss computes the population-mean hidden-E firing rate, applies a one-sided quadratic penalty above the target, then averages the penalties across the minibatch. Quiet presentations therefore cannot offset active presentations. Expressing the target in hertz and normalising over samples, neurons, duration, and hidden layers makes the intervention comparable across those dimensions. A smaller training pool keeps the multi-seed sweep manageable; only the activity target changes across conditions. Comparisons with the full-data cells also change training-pool size and cannot isolate the penalty alone. The resulting checkpoints are used by #run-links(("exp024", "exp025", "exp037", "exp038")).
 
   #table(
     columns: (1.2fr, 1.5fr, 2fr),
@@ -167,7 +303,7 @@
 
   #divider()
 
-  === TR-03 — Inhibitory-timescale sweep
+  === A.4. TR-03 — Inhibitory-timescale sweep
 
   This run changes $tau_"GABA"$ to test how the inhibitory timescale affects gamma frequency, firing rate, and accuracy. All other scientific settings are held fixed, with 6 ms as the standard condition. The resulting checkpoints are used by #run-links(("exp041", "exp042", "exp046")).
 
@@ -183,7 +319,7 @@
 
   #divider()
 
-  === TR-04 — Integration-timestep sweep
+  === A.5. TR-04 — Integration-timestep sweep
 
   This run changes the integration timestep while keeping each presentation at 200 ms. It tests whether the observed dynamics depend on numerical resolution and measures the extra compute required by finer timesteps. The 0.05 ms cells need the large-memory Cambridge request. The resulting checkpoints are used by #run-links(("exp044",)).
 
@@ -200,7 +336,7 @@
 
   #divider()
 
-  === TR-05 — Recurrent-initialization sweep
+  === A.6. TR-05 — Recurrent-initialization sweep
 
   This run tests whether training preserves the PING loop or learns a useful loop from weaker initial conditions. Recurrent initialization and trainability change together, while the feedforward network and classifier remain fixed to the PING recipe. The resulting checkpoints are used by #run-links(("exp049",)).
 
@@ -217,11 +353,11 @@
 
   #divider()
 
-  === TR-06 — Variable-rate streaming bank
+  === A.7. TR-06 — Variable-rate streaming bank
 
   This run trains PING across the input rates used by exp082. One rate is sampled uniformly for each presentation, and the ten output LIF neurons produce class logits from their total spike counts rather than their mean membrane voltages. This keeps the cross-entropy logits dimensionless and gives one additional output spike the same logit increment. The readout weights use a small Gaussian initialization, $cal(N)(0.05, 0.04^2)$, lower-clamped at zero and governed by the shared non-negative constraint.
 
-  This smaller initialization is required because the decision rule differs from the other runs. Applying their `mem-mean` readout initialization to `spike-count` caused all ten output neurons to fire heavily and almost uniformly whenever the hidden population was active, producing thousands of output spikes at 25 Hz without useful class separation. The generic fan-in-normalized initialization produced the opposite failure: a silent output layer. Bounded full-architecture trials placed $cal(N)(0.05, 0.04^2)$ between these regimes, with output neurons near threshold at the upper training rates, finite gradients, and no gross initial class imbalance. The value is therefore calibrated for spike-count decoding rather than transferred from the membrane-voltage classifier.
+  The recorded design rationale for this smaller initializer was to avoid saturation at the `mem-mean` scale and silence at the generic fan-in-normalized scale. The present bank retains the chosen $cal(N)(0.05, 0.04^2)$ setting; its learning curves do not independently establish those earlier calibration comparisons. This is a specified spike-count recipe, not a claim that the initializer is uniquely optimal.
 
   Output firing rates may still be reported as activity measurements. During streaming inference, the output neurons reset at digit boundaries while the hidden PING state continues. The resulting checkpoints are used by #run-links(("exp082",)).
 
@@ -240,7 +376,7 @@
 
   #divider()
 
-  === TR-07 — Low-input recruitment sweep
+  === A.8. TR-07 — Low-input recruitment sweep
 
   TR-02 asks how changing the activity ceiling affects networks initialized at the
   standard input coupling. TR-07 asks the complementary question: with the strictest
@@ -265,121 +401,9 @@
     [Readout shape], [$1024 arrow 10$ spiking LIF outputs], [`mem-mean`: mean membrane voltage supplies the logits],
   )
 
-  #major-divider()
-
-  == Results by training run
-
-  Each completed run reports one training-curve figure and one representative seed-42 raster. The figures summarize all configurations and seeds; the raster is a diagnostic example, not an across-seed statistic.
-
-  === TR-01 results — Canonical full-data reference
-
-  *Run status:* complete · 6/6 cells represented
-
-  #result-figure(
-    "exp022/curves__canonical.svg",
-    "Test-accuracy learning curves for the canonical COBA and PING cells.",
-    [Training curves for the six full-data reference cells.],
-  )
-
-  #result-figure(
-    "exp022/rasters__ping__canonical__seed42.png",
-    "Seed-42 raster and population-rate diagnostic for canonical PING.",
-    [Sample raster: canonical PING, seed 42, held-out digit-0 probe.],
-  )
-
-  #divider()
-
-  === TR-02 results — Activity-ceiling sweep
-
-  *Run status:* complete · 36/36 cells represented
-
-  #result-figure(
-    "exp022/curves__theta_u.svg",
-    "Test-accuracy learning curves across the spike-budget sweep.",
-    [Training curves across both architectures, six spike budgets, and three seeds.],
-  )
-
-  #result-figure(
-    "exp022/rasters__ping__off__seed42.png",
-    "Seed-42 raster for the no-budget PING endpoint in the spike-budget sweep.",
-    [Sample raster: PING with spike budget off, seed 42.],
-  )
-
-  #divider()
-
-  === TR-03 results — Inhibitory-timescale sweep
-
-  *Run status:* complete · 18/18 cells represented
-
-  #result-figure(
-    "exp022/curves__tau_gaba.svg",
-    "Test-accuracy learning curves across the inhibitory-timescale sweep.",
-    [Training curves across six $tau_"GABA"$ values and three seeds.],
-  )
-
-  #result-figure(
-    "exp022/rasters__ping__tg6__seed42.png",
-    "Seed-42 raster for PING at tau GABA 6 milliseconds.",
-    [Sample raster: PING at $tau_"GABA"=6$ ms, seed 42.],
-  )
-
-  #divider()
-
-  === TR-04 results — Integration-timestep sweep
-
-  *Run status:* complete · 15/15 cells represented
-
-  #result-figure(
-    "exp022/curves__dt.svg",
-    "Test-accuracy learning curves across the integration-timestep sweep.",
-    [Training curves across five integration timesteps and three seeds.],
-  )
-
-  #result-figure(
-    "exp022/rasters__ping__dt0p1__seed42.png",
-    "Seed-42 raster for PING at the standard 0.1 millisecond timestep.",
-    [Sample raster: PING at $Delta t=0.1$ ms, seed 42.],
-  )
-
-  #divider()
-
-  === TR-05 results — Recurrent-initialization sweep
-
-  *Run status:* complete · 12/12 cells represented
-
-  #result-figure(
-    "exp022/curves__init.svg",
-    "Test-accuracy learning curves across recurrent initialization conditions.",
-    [Training curves across four recurrent-loop conditions and three seeds.],
-  )
-
-  #result-figure(
-    "exp022/rasters__frozen_ping__seed42.png",
-    "Seed-42 raster for the frozen recurrent PING control.",
-    [Sample raster: frozen PING recurrent loop, seed 42.],
-  )
-
-  #divider()
-
-  === TR-06 results — Variable-rate streaming bank
-
-  *Run status:* pending · 0/3 cells trained
-
-  *TODO — training curves.* Add the three variable-rate learning curves after the Cambridge jobs complete.
-
-  *TODO — sample raster.* Add a seed-42 E/I/output raster at a declared held-out rate, plus low- and high-rate diagnostics if one raster hides a rate-dependent failure.
-
-  #divider()
-
-  === TR-07 results — Low-input recruitment sweep
-
-  *Run status:* pending · 0/12 cells trained
-
-  *TODO — training curves.* Add across-seed mean accuracy and E/I-rate curves
-  for all four input initializations after the Cambridge jobs complete.
-
-  *TODO — sample raster.* Add a representative seed-42 raster for each input
-  initialization at a declared held-out MNIST example.
+  #reference-list((
+    (text: [E. O. Neftci, H. Mostafa, and F. Zenke. “Surrogate Gradient Learning in Spiking Neural Networks: Bringing the Power of Gradient-Based Optimization to Spiking Neural Networks.” _IEEE Signal Processing Magazine_ 36(6), 51–63 (2019).], doi: "10.1109/MSP.2019.2931595"),
+  ))
 ]
 #body
 ]
@@ -387,9 +411,5 @@
 #let body = if inputs-ready(data-file, inputs) {
   render-report(data-file)
 } else {
-  pending-report(
-    data-file, inputs,
-    [This training hub defines the shared checkpoint bank and seven controlled training-run types: full-data references and sweeps over activity ceiling, inhibition, timestep, initialization, input rate, and input coupling. Retained runs supply the cell counts and diagnostic figures.],
-    preview-figures, json-inputs: ("exp022",),
-  )
+  pending-report(data-file, inputs, [], ())
 }
