@@ -45,6 +45,7 @@ tmp/
 .scratch/
 runs/
 .pingstore/
+.r2/
 # CLI scratch if the default artifact root is ever hit (normally writes to temp/)
 tools/artifacts/
 
