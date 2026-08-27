@@ -17,8 +17,8 @@ mnist_cache="$4"
 experiment="${5:-}"
 shard_count="${6:-}"
 cd "$PINGLAB_ROOT"
-source experiments/exp022_support/load-wilkes-modules.sh
-experiments/exp022_support/ensure-mnist-link.sh "$mnist_cache"
+source experiments/exp022/slurm/load-wilkes-modules.sh
+experiments/exp022/slurm/ensure-mnist-link.sh "$mnist_cache"
 
 echo "job=$SLURM_JOB_ID host=$(hostname) action=$action experiment=${experiment:-none}"
 if command -v nvidia-smi >/dev/null 2>&1; then

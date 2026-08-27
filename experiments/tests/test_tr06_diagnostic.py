@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from experiments import exp022
-from experiments.exp022_support import tr06_diagnostic
+from experiments.exp022 import tr06_diagnostic
 
 
 def test_tr06_diagnostic_variants_change_only_the_readout_contract(tmp_path) -> None:

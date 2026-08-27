@@ -18,7 +18,7 @@ sys.path[:0] = [str(REPO), str(REPO / "experiments"), str(REPO / "tools")]
 
 from experiments.exp022.recipe import *  # noqa: F403
 from experiments.exp022.recipe import _display_path
-from experiments.exp022_support import campaign
+from experiments.exp022 import campaign
 from helpers import runpod
 from helpers.checkpoints import resolve_checkpoint
 from helpers.cli import parse_meta
@@ -48,7 +48,7 @@ def _tr06_diagnostic_root() -> Path:
 
 def tr06_diagnostic_done(job_id: str) -> bool:
     """Modal completion hook for one bounded TR-06 readout variant."""
-    from experiments.exp022_support import tr06_diagnostic
+    from experiments.exp022 import tr06_diagnostic
 
     return (
         job_id in tr06_diagnostic.VARIANTS
@@ -58,7 +58,7 @@ def tr06_diagnostic_done(job_id: str) -> bool:
 
 def run_tr06_diagnostic(job_id: str) -> None:
     """Modal execution hook; diagnostic scale is explicit in the job environment."""
-    from experiments.exp022_support import tr06_diagnostic
+    from experiments.exp022 import tr06_diagnostic
 
     def optional_number(name: str, converter):
         value = os.environ.get(name)

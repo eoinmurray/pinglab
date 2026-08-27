@@ -8,7 +8,7 @@ from pathlib import Path
 import pytest
 import torch
 from experiments import exp022
-from experiments.exp022_support import campaign, fr_strength_pilot
+from experiments.exp022 import campaign, fr_strength_pilot
 from experiments.helpers import archive
 
 CONCRETE_TIERS = ("standard", "fine_dt", "canonical_coba", "canonical_ping", "variable_rate")
@@ -686,7 +686,7 @@ def test_mnist_link_helper_accepts_existing_and_concurrent_creation(tmp_path: Pa
     cache = tmp_path / "cache"
     (cache / "MNIST").mkdir(parents=True)
     link = tmp_path / "mnist"
-    helper = exp022.REPO / "experiments" / "exp022_support" / "ensure-mnist-link.sh"
+    helper = exp022.REPO / "experiments" / "exp022" / "slurm" / "ensure-mnist-link.sh"
     commands = [[str(helper), str(cache), str(link)] for _ in range(2)]
     processes = [subprocess.Popen(command) for command in commands]
     assert [process.wait() for process in processes] == [0, 0]
@@ -700,7 +700,7 @@ def test_wilkes_modules_load_in_sanitized_environment(tmp_path: Path) -> None:
     initializer.write_text(
         'module() { printf "%s\\n" "$*" >> "$EXP022_MODULE_CALLS"; }\n'
     )
-    helper = exp022.REPO / "experiments" / "exp022_support" / "load-wilkes-modules.sh"
+    helper = exp022.REPO / "experiments" / "exp022" / "slurm" / "load-wilkes-modules.sh"
     subprocess.run(
         [
             "env", "-i", f"PATH={Path('/usr/bin')}:/bin",
@@ -715,10 +715,10 @@ def test_wilkes_modules_load_in_sanitized_environment(tmp_path: Path) -> None:
 
 def test_submission_selection_is_frozen_read_only() -> None:
     submit = (
-        exp022.REPO / "experiments" / "exp022_support" / "submit-tier.sh"
+        exp022.REPO / "experiments" / "exp022" / "slurm" / "submit-tier.sh"
     ).read_text()
     array = (
-        exp022.REPO / "experiments" / "exp022_support" / "train-array.sbatch"
+        exp022.REPO / "experiments" / "exp022" / "slurm" / "train-array.sbatch"
     ).read_text()
     assert 'chmod 0444 "$selection"' in submit
     assert 'mapfile -t cells < "$EXP022_SELECTION"' in array
@@ -741,7 +741,7 @@ def test_fr_strength_pilot_array_is_fixed_and_collision_free() -> None:
     script = (
         exp022.REPO
         / "experiments"
-        / "exp022_support"
+        / "exp022" / "slurm"
         / "fr-strength-pilot.sbatch"
     ).read_text()
     assert "models=(coba coba coba coba ping ping ping ping)" in script
@@ -754,7 +754,7 @@ def test_fr_strength_pilot_eval_uses_figure_one_contract() -> None:
     script = (
         exp022.REPO
         / "experiments"
-        / "exp022_support"
+        / "exp022" / "slurm"
         / "fr-strength-pilot-eval.sbatch"
     ).read_text()
     assert script.count("__lambda") == 8

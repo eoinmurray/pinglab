@@ -7,6 +7,24 @@ The shared lifecycle is defined in [the experiment guide](../README.md).
 The original `exp022.py` launcher now delegates to compute. Legacy Python imports
 remain available, but combined `--skip-training`/`--plot-only` modes are retired.
 
+## Code layout and dependencies
+
+Campaign and diagnostic helpers live with the experiment they serve:
+
+- `campaign.py` implements manifests, cell validation and retry bookkeeping;
+  compute passes it the registry and training arguments from `recipe.py`.
+- `tr06_diagnostic.py` and `fr_strength_pilot.py` retain the bounded compute
+  diagnostics and calibration pilot, separate from the production bank.
+- `slurm/` contains the Wilkes environment diagnostic, shell helpers, submission
+  scripts and [operator runbook](slurm/README.md).
+
+Compute and archive validation import `experiments.exp022.campaign`. The
+gamma-gated-sparsity collection reuses the scripts in `slurm/`. Downstream
+experiments keep using the existing `exp022` registry and bank interface; the
+scientific recipe, checkpoint roles and stage boundaries are unchanged.
+Historical campaigns must continue on their recorded checkout. This source-code
+move does not rewrite their commands, manifests, reservations or completed runs.
+
 ## Current storage contract
 
 New executions write `pingstore.run/v3`: required `run.json` and `export/`, with
@@ -109,7 +127,7 @@ uv run python experiments/exp022/compute.py \
 
 That command performs inference and is not part of the migration. New complete
 training runs and campaign captures retain their probes from the outset.
-The [campaign runbook](../exp022_support/README.md) covers worker retries and
+The [campaign runbook](slurm/README.md) covers worker retries and
 preallocated scheduler identities. RunPod live dispatch prints its reserved
 identity; collection requires `--runpod --collect --run-id <that-identity>`.
 

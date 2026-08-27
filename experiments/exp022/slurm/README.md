@@ -4,6 +4,11 @@ This is the executable operator runbook for the 102-cell exp022 campaign. The
 scientific registry remains solely in `experiments/exp022/recipe.py`; these scripts
 only map a reviewed manifest onto Wilkes3 resources.
 
+The [experiment README](../README.md) describes the stage and dependency layout.
+Campaign validation lives in `experiments/exp022/campaign.py`; the bounded TR-06
+diagnostic and firing-rate pilot live beside it. Site-specific entrypoints live
+here in `experiments/exp022/slurm/`.
+
 ## Staged execution
 
 Compute owns campaign submission, retries and retained diagnostic simulations.
@@ -70,8 +75,8 @@ download MNIST.
 ```bash
 export PINGLAB_DATA_ROOT="$PINGLAB_MNIST_CACHE"
 uv run python -c 'from torchvision.datasets import MNIST; import sys; MNIST(sys.argv[1], train=True, download=True); MNIST(sys.argv[1], train=False, download=True)' "$PINGLAB_MNIST_CACHE"
-experiments/exp022_support/ensure-mnist-link.sh "$PINGLAB_MNIST_CACHE"
-uv run python experiments/exp022_support/wilkes_diagnostic.py --data-root "$PINGLAB_MNIST_CACHE" --output <diagnostic-root>/local.json
+experiments/exp022/slurm/ensure-mnist-link.sh "$PINGLAB_MNIST_CACHE"
+uv run python experiments/exp022/slurm/wilkes_diagnostic.py --data-root "$PINGLAB_MNIST_CACHE" --output <diagnostic-root>/local.json
 ```
 
 ## 3. Account and diagnostic job
@@ -84,7 +89,7 @@ and submit the diagnostic script with explicit paths:
 mybalance
 sbatch --account=<SL2-GPU-account> --output=<diagnostic-root>/diagnostic-%j.out \
   --export=PINGLAB_ROOT="$PINGLAB_REPO",EXP022_DIAGNOSTIC_ROOT=<diagnostic-root>,PINGLAB_DATA_ROOT="$PINGLAB_MNIST_CACHE",EXP022_UV="$EXP022_UV" \
-  experiments/exp022_support/diagnostic.sbatch
+  experiments/exp022/slurm/diagnostic.sbatch
 ```
 
 The JSON result must show the reviewed commit, a clean checkout, PyTorch/CUDA,
@@ -143,8 +148,8 @@ export EXP022_SLURM_ACCOUNT=<SL2-GPU-account>
 export EXP022_WALLTIME=<HH:MM:SS>
 export EXP022_CONCURRENCY=<N>
 export EXP022_MNIST_CACHE="$PINGLAB_MNIST_CACHE"
-bash experiments/exp022_support/submit-tier.sh <manifest> standard --dry-run
-bash experiments/exp022_support/submit-tier.sh <manifest> standard --test-only
+bash experiments/exp022/slurm/submit-tier.sh <manifest> standard --dry-run
+bash experiments/exp022/slurm/submit-tier.sh <manifest> standard --test-only
 ```
 
 Run one representative cell from each shape: standard, fine timestep,
@@ -166,8 +171,9 @@ Scientific completion is determined by the validator, not Slurm state.
 ## 8. Aggregate and recover
 
 After all 102 cells validate, aggregate from that one campaign only. The
-aggregator must refuse incomplete or mixed banks, render TR-01--TR-06 curves and
-rasters, and then run focused exp082 compatibility checks. Archive only the
+aggregator must refuse incomplete or mixed banks and complete only the compute
+run. Run analysis and presentation explicitly as described above; aggregation
+does not render figures or launch downstream experiments. Archive only the
 exact verified campaign bank named by its manifest:
 
 ```bash

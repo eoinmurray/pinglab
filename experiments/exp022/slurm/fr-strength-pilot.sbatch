@@ -20,9 +20,9 @@ if (( SLURM_ARRAY_TASK_ID >= ${#models[@]} )); then
 fi
 
 cd "$PINGLAB_ROOT"
-source experiments/exp022_support/load-wilkes-modules.sh
-experiments/exp022_support/ensure-mnist-link.sh "$PINGLAB_DATA_ROOT"
-"$EXP022_UV" run python -m experiments.exp022_support.fr_strength_pilot \
+source experiments/exp022/slurm/load-wilkes-modules.sh
+experiments/exp022/slurm/ensure-mnist-link.sh "$PINGLAB_DATA_ROOT"
+"$EXP022_UV" run python -m experiments.exp022.fr_strength_pilot \
   --model "${models[$SLURM_ARRAY_TASK_ID]}" \
   --strength "${strengths[$SLURM_ARRAY_TASK_ID]}" \
   --output-root "$EXP022_PILOT_ROOT"

@@ -28,8 +28,8 @@ if (( SLURM_ARRAY_TASK_ID >= ${#cells[@]} )); then
 fi
 
 cd "$PINGLAB_ROOT"
-source experiments/exp022_support/load-wilkes-modules.sh
-experiments/exp022_support/ensure-mnist-link.sh "$PINGLAB_DATA_ROOT"
+source experiments/exp022/slurm/load-wilkes-modules.sh
+experiments/exp022/slurm/ensure-mnist-link.sh "$PINGLAB_DATA_ROOT"
 cell_root="$EXP022_PILOT_ROOT/${cells[$SLURM_ARRAY_TASK_ID]}"
 test -f "$cell_root/config.json"
 test -f "$cell_root/weights_final.pth"

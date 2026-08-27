@@ -15,7 +15,7 @@ from pathlib import Path
 import torch
 from torchvision.datasets import MNIST
 
-REPO = Path(__file__).resolve().parents[2]
+REPO = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(REPO))
 
 from experiments import exp022  # noqa: E402

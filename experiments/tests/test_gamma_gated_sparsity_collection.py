@@ -692,8 +692,9 @@ def test_slurm_dry_run_preserves_collection_dependencies(
     assert "--mem=16G" in standard["command"]
     assert "--gres=gpu:1" in standard["command"]
     assert standard["command"][-1].endswith(
-        "experiments/exp022_support/train-array.sbatch"
+        "experiments/exp022/slurm/train-array.sbatch"
     )
+    assert Path(standard["command"][-1]).is_file()
     aggregate = jobs["ggs-exp022-aggregate"]
     assert f"--export=ALL,PINGLAB_ROOT={slurm.REPO}" in aggregate["command"]
     assert any(

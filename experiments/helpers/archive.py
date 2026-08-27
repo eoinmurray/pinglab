@@ -161,7 +161,7 @@ def verified_campaign_source(manifest_path: Path) -> tuple[dict, Path]:
     if str(REPO) not in sys.path:
         sys.path.insert(0, str(REPO))
     from experiments import exp022
-    from experiments.exp022_support import campaign
+    from experiments.exp022 import campaign
 
     manifest = exp022._checked_manifest(
         manifest_path, allow_generated_dirty=True,

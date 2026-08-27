@@ -6,17 +6,17 @@
 
 set -euo pipefail
 
-: "${PINGLAB_ROOT:?submit through experiments/exp022_support/submit-tier.sh}"
-: "${EXP022_MANIFEST:?submit through experiments/exp022_support/submit-tier.sh}"
-: "${EXP022_TIER:?submit through experiments/exp022_support/submit-tier.sh}"
-: "${EXP022_SELECTION:?submit through experiments/exp022_support/submit-tier.sh}"
-: "${EXP022_UV:?submit through experiments/exp022_support/submit-tier.sh}"
-: "${PINGLAB_DATA_ROOT:?submit through experiments/exp022_support/submit-tier.sh}"
+: "${PINGLAB_ROOT:?submit through experiments/exp022/slurm/submit-tier.sh}"
+: "${EXP022_MANIFEST:?submit through experiments/exp022/slurm/submit-tier.sh}"
+: "${EXP022_TIER:?submit through experiments/exp022/slurm/submit-tier.sh}"
+: "${EXP022_SELECTION:?submit through experiments/exp022/slurm/submit-tier.sh}"
+: "${EXP022_UV:?submit through experiments/exp022/slurm/submit-tier.sh}"
+: "${PINGLAB_DATA_ROOT:?submit through experiments/exp022/slurm/submit-tier.sh}"
 : "${SLURM_ARRAY_TASK_ID:?this script must run as an array job}"
 
 cd "$PINGLAB_ROOT"
-source experiments/exp022_support/load-wilkes-modules.sh
-experiments/exp022_support/ensure-mnist-link.sh "$PINGLAB_DATA_ROOT"
+source experiments/exp022/slurm/load-wilkes-modules.sh
+experiments/exp022/slurm/ensure-mnist-link.sh "$PINGLAB_DATA_ROOT"
 "$EXP022_UV" run python experiments/exp022/compute.py --campaign-validate "$EXP022_MANIFEST"
 mapfile -t cells < "$EXP022_SELECTION"
 if (( SLURM_ARRAY_TASK_ID >= ${#cells[@]} )); then
