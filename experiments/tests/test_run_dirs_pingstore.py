@@ -126,9 +126,9 @@ def test_local_prepare_reuses_log_created_inside_exact_hidden_run(
     assert log.read_text() == '{"event":"started"}\n'
 
 
-def test_direct_v2_run_reuse_and_selection(tmp_path, monkeypatch):
+def test_direct_v2_run_cannot_be_published(tmp_path, monkeypatch):
     from experiments.helpers import paths, provenance
-    from pingstore.contracts import validate_run_directory
+    from pingstore.contracts import PingstoreError, validate_run_directory
 
     registry = tmp_path / "experiments/collections/registry.json"
     registry.parent.mkdir(parents=True)
@@ -142,24 +142,19 @@ def test_direct_v2_run_reuse_and_selection(tmp_path, monkeypatch):
     monkeypatch.setattr(paths, "RUNS_ROOT", tmp_path / ".pingstore/runs")
     monkeypatch.setattr(provenance, "git_state", lambda: ("abc123", False))
     monkeypatch.setattr(provenance, "_code_dirty", lambda: False)
-    with run_dirs.published_run("exp001", "r001") as (state, presentation):
-        (state / "weights.pt").write_bytes(b"trained")
-        paths.log_runner_event("exp001", "completed", run_id="r001")
-        (presentation / "plot.svg").write_text("<svg/>")
+    with pytest.raises(PingstoreError, match="requires v3"):
+        with run_dirs.published_run("exp001", "r001") as (state, presentation):
+            (state / "weights.pt").write_bytes(b"trained")
+            paths.log_runner_event("exp001", "completed", run_id="r001")
+            (presentation / "plot.svg").write_text("<svg/>")
     first = tmp_path / ".pingstore/runs/exp001-r001-local"
     original = validate_run_directory(first)
     assert (first / "export/state/logs/exp001.jsonl").is_file()
     with pytest.raises(RuntimeError, match="before finalizing"):
         paths.log_runner_event("exp001", "completed", run_id="r001")
-    assert paths.active_run_state("exp001") == first / "export/state"
-    assert not (tmp_path / ".artifacts/exp001/run.sh").exists()
-    assert paths.current_run_number("exp001") == 1
-    with run_dirs.published_run("exp001", "r002", plot_only=True) as (state, presentation):
-        assert (state / "weights.pt").read_bytes() == b"trained"
-        assert (presentation / "plot.svg").read_text() == "<svg/>"
-        (presentation / "plot.svg").write_text("<svg>new</svg>")
+    assert not (tmp_path / ".artifacts/exp001").exists()
+    assert (first / "export/state/weights.pt").read_bytes() == b"trained"
     assert validate_run_directory(first) == original
-    assert paths.active_run_state("exp001").parent.parent.name == "exp001-r002-local"
 
 
 def test_direct_v2_nested_presentation_never_publishes(tmp_path, monkeypatch):

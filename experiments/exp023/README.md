@@ -1,7 +1,7 @@
 # Exp023 — PING fundamentals
 
-The implementation was assessed against Experiment Runner Guide 1.1.0,
-Storage Guide 2.0.0 and Writing Guide 6.3.0. Current operational requirements
+The implementation is maintained against Experiment Runner Guide 2.0.0,
+Storage Guide 2.0.0 and Writing Guide 8.0.0. Current operational requirements
 are defined by the [Runner Guide](../README.md), [Storage Guide](../../tools/pingstore/README.md)
 and [Writing Guide](../../writings/README.md). These commands are independent and
 never materialize or publish. This implementation change does not establish a scientific rerun.
@@ -36,8 +36,9 @@ materialization/publication requires separate authorization.
   preserved. The historical f_gamma_hz field is not a rhythmicity significance
   test: it reports the band peak only when I activity is present. It must not
   be interpreted as proof of gamma or as an independent measured absence in COBA.
-- Current simulator defaults are not evidence of historical execution. No
-  local completed exp023 evidence was available during conformance work. The
+- Current simulator defaults are not evidence of historical execution. The local
+  production chain is `exp023-r001-compute-local`, `exp023-r002-analyse-local`
+  and `exp023-r003-present-local`. This conformance pass reused it. The
   article renders quantities only from a selected presentation; absent evidence
   produces the shared unavailable-data notice.
 

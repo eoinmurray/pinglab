@@ -29,16 +29,24 @@
   let status = r.family_status.at(family)
   [#status.trained of #status.cells registered cells have retained training results.]
 }
-#let run-links(items) = items.map(item => link(item + ".html")[#item]).join([, ])
+#let study-names = (
+  exp024: "the convergence audit", exp025: "the accuracy–rate frontier",
+  exp037: "the spike-loss and noise comparison", exp038: "the inhibitory-loop intervention",
+  exp041: "the frequency–rate comparison", exp042: "the gamma-disruption study",
+  exp044: "the timestep audit", exp046: "the spikes-per-cycle study",
+  exp048: "the duration and input-rate comparison", exp049: "the recurrent-training study",
+  exp082: "the continuous-stream classification study",
+)
+#let run-links(items) = items.map(item => link(item + ".html")[#study-names.at(item)]).join([, ])
 #let figure-lineage(path) = {
   let records = r.at("presentation_lineage", default: ())
     .filter(item => item.file == path.split("/").last())
   if records.len() == 0 {
-    [Per-figure lineage is not supplied here; consult the selected run's `run.json`.]
-  } else if records.first().operation == "carry-historical" {
-    [Copied unchanged from #raw(records.first().source_run); this presentation did not rerun the probe.]
+    [The source of this figure is not specified.]
+  } else if records.first().operation.starts-with("carry") {
+    [Previously recorded diagnostic, reused without a new simulation.]
   } else {
-    [Rendered from retained analysis in #raw(records.first().source_run).]
+    [Based on retained measurements.]
   }
 }
 #let result-figure(path, alt, caption) = figure(
@@ -180,10 +188,12 @@
 
   + *Calculate class scores.* Most networks used mean pre-reset output voltage. Variable-rate training used spike counts and smaller initial readout weights.
 
+    #block(breakable: false)[
     $ z_"voltage" = 1 / N sum_(t=1)^N v(t), quad
       z_"count" = sum_(t=1)^N s(t). quad "(1)" $
 
     Each score applies to one output neuron and presentation. Here $t$ indexes the $N$ timesteps, $v(t)$ is pre-reset voltage, and $s(t)$ is a binary spike; voltage and both scores are dimensionless.
+    ]
 
   + *Train the networks.* Training used #r.standard.epochs epochs of AdamW, learning rate 0.0004, batches of #r.standard.batch_size, zero weight decay, and gradient clipping at 1. Surrogate gradients approximated spike derivatives#cite(1); voltage-gradient damping was 1,000 for recurrent networks and 1 for controls. Activity-constrained conditions minimized
 
@@ -193,11 +203,11 @@
 
   + *Select models.* Validation averaged three fixed Poisson encoding draws. Selection minimized mean cross-entropy, breaking ties by higher accuracy and then earlier epoch. Selected and final-epoch models were retained.
 
-  + *Summarize and retain outputs.* Learning curves show individual validation histories; baseline summaries average three seeds. Accuracy uses selected models, whereas firing rates average final-epoch validation measurements across images and encoding draws. Retained models and histories support subsequent experiments. Reused seed-42 digit-zero rasters are individual probes, not across-seed estimates; no new diagnostic simulations were performed.
+  + *Measure activity and retain models.* Accuracy uses selected models, whereas firing rates average final-epoch validation measurements across images and encoding draws. Retained models and histories support subsequent experiments. Learning curves show individual validation histories; baseline summaries average three seeds. Reused seed-42 digit-zero rasters are individual probes, not across-seed estimates; no new diagnostic simulations were performed.
 
   == Appendix A: Training-run specification sheets
 
-  The following shared sheet and all seven TR sheets specify the controlled recipes and their intended uses. The observed learning curves and diagnostic plots are in Results. Operational resource notes are retained as part of the specification, not as evidence that a new job was submitted.
+  The following shared sheet and all seven TR sheets specify the controlled recipes and their intended uses. The observed learning curves and diagnostic plots are in Results.
 
   === A.1. Shared production specification
 
@@ -227,7 +237,7 @@
     [E/I loop strength], [COBA: 0; PING: 1], [The forward architectural difference under comparison],
     [Gradient damping], [COBA: 1; PING: 1,000], [Backward-pass stabilization for the recurrent PING loop; it does not change forward dynamics],
     [Surrogate slope], [1], [Spike-gradient surrogate parameter],
-    [Default readout], [`mem-mean`], [A *spiking* $1024 arrow 10$ output-LIF layer. At each timestep its pre-reset voltages enter the temporal mean, then emitted spikes subtract the threshold before the next update. These mean voltages—not spike counts—are the logits],
+    [Default readout], [mean-voltage], [A *spiking* $1024 arrow 10$ output-LIF layer. At each timestep its pre-reset voltages enter the temporal mean, then emitted spikes subtract the threshold before the next update. These mean voltages—not spike counts—are the logits],
     [Stored projection shapes], [$784 times 1024$; $1024 times 256$; $256 times 1024$; $1024 times 10$], [Input→E, E→I, I→E, and E→class, in source-to-destination orientation],
   )
 
@@ -243,7 +253,7 @@
     [Input rate], [25 Hz maximum-pixel rate], [Fixed-rate collection baseline],
     [Spike budget], [Off], [Measures unconstrained capacity],
     [Cells], [2 architectures × 3 seeds = 6], [Across-seed comparison for both models],
-    [Readout shape], [$1024 arrow 10$ spiking LIF outputs], [`mem-mean`: mean membrane voltage supplies the logits],
+    [Readout shape], [$1024 arrow 10$ spiking LIF outputs], [mean-voltage: mean membrane voltage supplies the logits],
   )
 
   #divider()
@@ -260,7 +270,7 @@
     [Hidden-E rate target $r_"max"$], [off, 25, 10, 5, 2.5, 1 Hz], [Spans unconstrained through severe sparsity],
     [Penalty strength], [$0.041$ when enabled], [Calibrated for the sample-wise, population-normalized Hz objective],
     [Cells], [2 × 6 settings × 3 seeds = 36], [Error bars at every frontier point],
-    [Readout shape], [$1024 arrow 10$ spiking LIF outputs], [`mem-mean`: mean membrane voltage supplies the logits],
+    [Readout shape], [$1024 arrow 10$ spiking LIF outputs], [mean-voltage: mean membrane voltage supplies the logits],
   )
 
   #divider()
@@ -276,14 +286,14 @@
     [Training pool], [7,000 samples], [Sweep-scale default],
     [$tau_"GABA"$], [4.5, 6, 9, 12, 18, 27 ms], [Moves the inhibitory rhythm across a broad timescale range],
     [Cells], [6 settings × 3 seeds = 18], [Across-seed estimate at each decay],
-    [Readout shape], [$1024 arrow 10$ spiking LIF outputs], [`mem-mean`: mean membrane voltage supplies the logits],
+    [Readout shape], [$1024 arrow 10$ spiking LIF outputs], [mean-voltage: mean membrane voltage supplies the logits],
   )
 
   #divider()
 
   === A.5. TR-04 — Integration-timestep sweep
 
-  This run changes the integration timestep while keeping each presentation at 200 ms. It tests whether the observed dynamics depend on numerical resolution and measures the extra compute required by finer timesteps. The 0.05 ms cells need the large-memory Cambridge request. The resulting checkpoints are used by #run-links(("exp044",)).
+  This run changes the integration timestep while keeping each presentation at 200 ms. It tests whether the observed dynamics depend on numerical resolution and measures the extra compute required by finer timesteps. The finest timestep requires the longest unrolled training trajectories. The resulting checkpoints are used by #run-links(("exp044",)).
 
   #table(
     columns: (1.2fr, 1.5fr, 2fr),
@@ -293,7 +303,7 @@
     [$Delta t$], [0.05, 0.1, 0.25, 0.5, 1 ms], [Changes numerical resolution while holding 200 ms physical time fixed],
     [Steps/presentation], [4,000; 2,000; 800; 400; 200], [Compute and activation memory scale inversely with $Delta t$],
     [Cells], [5 settings × 3 seeds = 15], [Across-seed stability check],
-    [Readout shape], [$1024 arrow 10$ spiking LIF outputs], [`mem-mean`: mean membrane voltage supplies the logits],
+    [Readout shape], [$1024 arrow 10$ spiking LIF outputs], [mean-voltage: mean membrane voltage supplies the logits],
   )
 
   #divider()
@@ -310,16 +320,16 @@
     [Loop conditions], [frozen PING; trainable PING init; trainable zero init; trainable 0.1 init], [Separates built-in dynamics from recurrence learned during task training],
     [Trainable projections], [$W_"EI"$ and $W_"IE"$ only in trainable conditions], [The frozen condition is the mechanistic control],
     [Cells], [4 conditions × 3 seeds = 12], [Across-seed comparison],
-    [Readout shape], [$1024 arrow 10$ spiking LIF outputs], [`mem-mean`: mean membrane voltage supplies the logits],
+    [Readout shape], [$1024 arrow 10$ spiking LIF outputs], [mean-voltage: mean membrane voltage supplies the logits],
   )
 
   #divider()
 
   === A.7. TR-06 — Variable-rate streaming bank
 
-  This run trains PING across the input rates used by exp082. One rate is sampled uniformly for each presentation, and the ten output LIF neurons produce class logits from their total spike counts rather than their mean membrane voltages. This keeps the cross-entropy logits dimensionless and gives one additional output spike the same logit increment. The readout weights use a small Gaussian initialization, $cal(N)(0.05, 0.04^2)$, lower-clamped at zero and governed by the shared non-negative constraint.
+  This condition trains PING across the input rates used by the continuous-stream classification study. One rate is sampled uniformly for each presentation, and the ten output LIF neurons produce class logits from their total spike counts rather than their mean membrane voltages. This keeps the cross-entropy logits dimensionless and gives one additional output spike the same logit increment. The readout weights use a small Gaussian initialization, $cal(N)(0.05, 0.04^2)$, lower-clamped at zero and governed by the shared non-negative constraint.
 
-  The recorded design rationale for this smaller initializer was to avoid saturation at the `mem-mean` scale and silence at the generic fan-in-normalized scale. The present bank retains the chosen $cal(N)(0.05, 0.04^2)$ setting; its learning curves do not independently establish those earlier calibration comparisons. This is a specified spike-count recipe, not a claim that the initializer is uniquely optimal.
+  The recorded design rationale for this smaller initializer was to avoid saturation at the mean-voltage scale and silence at the generic fan-in-normalized scale. The present bank retains the chosen $cal(N)(0.05, 0.04^2)$ setting; its learning curves do not independently establish those earlier calibration comparisons. This is a specified spike-count recipe, not a claim that the initializer is uniquely optimal.
 
   Output firing rates may still be reported as activity measurements. During streaming inference, the output neurons reset at digit boundaries while the hidden PING state continues. The resulting checkpoints are used by #run-links(("exp082",)).
 
@@ -328,12 +338,12 @@
     table.header([*Key parameter*], [*Value*], [*Why it differs*]),
     [Architecture], [PING], [Target model for streaming inference],
     [Training pool], [7,000 samples], [Uses the shared sweep-scale training set],
-    [Input-rate set], [0.5, 0.75, 1, 1.5, 2, 3, 5, 7.5, 10, 15, 25 Hz], [Denser sampling within the interval selected by exp080],
+    [Input-rate set], [0.5, 0.75, 1, 1.5, 2, 3, 5, 7.5, 10, 15, 25 Hz], [Denser sampling within the interval selected by the input-rate calibration study],
     [Sampling rule], [Uniform categorical, independently per presentation], [Makes rate variation part of the training distribution],
-    [Readout], [`spike-count`], [Hidden E spikes drive ten spiking LIF class neurons; each logit is that class neuron's total spikes over the presentation],
-    [Readout initialization], [$cal(N)(0.05, 0.04^2)$, constrained non-negative], [Keeps the spiking outputs near threshold at high training rates without the saturation caused by the default `mem-mean` scale],
+    [Readout], [spike-count], [Hidden E spikes drive ten spiking LIF class neurons; each logit is that class neuron's total spikes over the presentation],
+    [Readout initialization], [$cal(N)(0.05, 0.04^2)$, constrained non-negative], [Keeps the spiking outputs near threshold at high training rates without the saturation caused by the default mean-voltage scale],
     [Readout shape], [$1024 arrow 10$ spiking LIF outputs], [Ten class neurons emit and reset throughout the presentation],
-    [Cells], [1 recipe × 3 seeds = 3], [Checkpoint bank expected by exp082],
+    [Cells], [1 recipe × 3 seeds = 3], [Models for continuous-stream classification],
   )
 
   #divider()
@@ -346,8 +356,8 @@
   loop when the feedforward projection starts weak? It varies the parent mean used
   to initialize expected summed input coupling, before lower clamping and fan-in
   normalization; it does not directly set the mean of the stored synaptic matrix.
-  The training pool, optimizer, recurrent loop, and `mem-mean` readout remain at the
-  reduced-sweep defaults. Exp022 owns all twelve checkpoints, and #run-links(("exp025",))
+  The training pool, optimizer, recurrent loop, and mean-voltage readout remain at the
+  reduced-sweep defaults. This bank retains all twelve models, and #run-links(("exp025",))
   aggregates the three seeds at each setting to test recruitment and path dependence.
 
   #table(
@@ -358,9 +368,9 @@
     [Epochs], [50], [Matches the reduced production standard],
     [Input summed-coupling parent mean], [0.05, 0.1, 0.3, 0.9], [Varies initial feedforward drive from weak coupling to the shared 0.9 standard before clamping and fan-in normalization],
     [Hidden-E rate target], [1 Hz], [Applies the strictest TR-02 activity ceiling from epoch 0],
-    [Parameters held fixed], [PING loop, optimizer, dataset split, and `mem-mean` readout], [Isolates initial feedforward recruitment from the activity-ceiling sweep],
+    [Parameters held fixed], [PING loop, optimizer, dataset split, and mean-voltage readout], [Isolates initial feedforward recruitment from the activity-ceiling sweep],
     [Cells], [4 settings × 3 seeds = 12], [Across-seed estimate for every condition],
-    [Readout shape], [$1024 arrow 10$ spiking LIF outputs], [`mem-mean`: mean membrane voltage supplies the logits],
+    [Readout shape], [$1024 arrow 10$ spiking LIF outputs], [mean-voltage: mean membrane voltage supplies the logits],
   )
 
   #reference-list((

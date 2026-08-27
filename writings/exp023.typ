@@ -176,14 +176,14 @@
     interpolation, clamped to half a bin; it was reported only when I spikes
     were present. This reporting rule is not a test of significant rhythmicity.
 
-  + *Select illustrative neurons.* Each displayed cell was the first cell
+  + *Reconstruct signed currents.* Each displayed cell was the first cell
     attaining the highest total spike count in its population during that
     raster trial. A silent E population used cell zero; a silent I population
     had no selected-cell panels. Raster trials used #points.coba.n_in input
     channels at #points.coba.input_rate_hz Hz for COBA and
     #points.ping.input_rate_hz Hz for PING, unlike the matched-drive sweep.
 
-  + #block(breakable: false)[*Reconstruct signed currents.* For the selected cells, recorded conductances
+    #block(breakable: false)[For the selected cells, recorded conductances
     and voltages gave
     $ I_X^"in" = -g_X (V - E_X), $
     where $X$ identifies excitation, inhibition or leak; $g_X$ is conductance in

@@ -2,13 +2,14 @@ from __future__ import annotations
 
 import copy
 import json
+import re
 import subprocess
 from pathlib import Path
 
 import pytest
 import torch
-from experiments import exp022
 from experiments.exp022 import campaign, fr_strength_pilot
+from experiments.exp022 import compute as exp022
 from experiments.helpers import archive
 
 CONCRETE_TIERS = ("standard", "fine_dt", "canonical_coba", "canonical_ping", "variable_rate")
@@ -92,9 +93,11 @@ def test_every_registered_training_run_has_guide_and_results_sections() -> None:
     writing = (exp022.REPO / "writings" / "exp022.typ").read_text()
     run_ids = tuple(exp022.TRAINING_RUN_IDS.values())
     assert len(run_ids) == len(set(run_ids))
+    results = re.findall(r"^\s*=== \d+\. (TR-\d+) —", writing, re.MULTILINE)
+    specifications = re.findall(r"^\s*=== A\.\d+\. (TR-\d+) —", writing, re.MULTILINE)
     for run_id in run_ids:
-        assert writing.count(f"=== {run_id} —") == 1
-        assert writing.count(f"=== {run_id} results —") == 1
+        assert results.count(run_id) == 1
+        assert specifications.count(run_id) == 1
 
 
 def test_tr07_low_input_controls_use_production_contract(tmp_path: Path) -> None:
@@ -573,7 +576,7 @@ def test_checked_manifest_rejects_rehashed_executable_mutations(
         exp022._checked_manifest(path)
 
 
-def test_external_aggregation_dispatches_external_training_root(tmp_path: Path, monkeypatch) -> None:
+def test_external_aggregation_completes_compute_without_downstream_dispatch(tmp_path: Path, monkeypatch) -> None:
     manifest = {
         "campaign_id": "external", "campaign_root": str(tmp_path),
         "cells": [{} for _ in exp022.CANONICAL_CELLS],
@@ -583,24 +586,14 @@ def test_external_aggregation_dispatches_external_training_root(tmp_path: Path, 
         "retry_cells": [],
         "cells": [{"name": "cell", "valid": True}],
     })
-    observed = {}
-    commands = []
-
-    def fake_run(command, **kwargs):
-        commands.append(command)
-        observed.update(kwargs["env"])
-        return subprocess.CompletedProcess([], 0)
-
-    monkeypatch.setattr(exp022.subprocess, "run", fake_run)
+    observed = []
+    monkeypatch.setattr(exp022, "capture_campaign", lambda path, value: observed.append((path, value)))
+    monkeypatch.setattr(exp022.subprocess, "run", lambda *args, **kwargs: pytest.fail("aggregation must not dispatch downstream stages"))
     assert exp022._handle_campaign_cli([
         "exp022.py", "--campaign-aggregate", str(tmp_path / "campaign.json"),
     ])
-    assert observed["PINGLAB_TRAINING_ROOT"] == str(tmp_path / "cells")
+    assert observed == [(tmp_path / "campaign.json", manifest)]
     assert exp022.training_root_provenance(tmp_path)["location"] == "external"
-    assert [command[-2:] for command in commands[1:]] == [
-        ["--plot-only", "appendix-rasters"],
-        ["--plot-only", "comparison-rasters"],
-    ]
 
 
 def test_post_aggregation_check_allows_only_generated_exp022_artifacts(

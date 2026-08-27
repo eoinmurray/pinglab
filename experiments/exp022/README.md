@@ -1,5 +1,10 @@
 # Exp022: compute, analyse, present
 
+**Current status (2026-08-27):** the [verified Gold-2 ancestry repair](ANCESTRY.md)
+resolved the historical-source pins described in the earlier migration record
+below. The existing bank and all dependent local runs have complete operational
+v3 pins. Historical source declarations remain preserved as provenance.
+
 The shared lifecycle is defined in [the experiment guide](../README.md).
 `recipe.py` owns the scientific registry and read-only bank interface.
 `compute.py` owns training, campaign recovery and retained diagnostic simulations.
@@ -83,7 +88,7 @@ The following local runs were created without training or simulation:
 
 | Stage | Completed run | Output |
 | --- | --- | --- |
-| Compute import | `exp022-r001-compute-local` | 102 cells, 408 unchanged scientific files under `export/cells/` |
+| Compute import | `exp022-r001-compute-slurm` | 102 cells, 408 unchanged scientific files under `export/cells/` |
 | Analyse | `exp022-r002-analyse-local` | Results, checkpoint-role inventories and plot-ready curves under `export/` |
 | Present | `exp022-r003-present-local` | Seven regenerated curve figures, numbers and 35 carried historical raster/comparison images |
 
@@ -113,18 +118,16 @@ figure stamps retain their original identities, explained by `id_order_migration
 in each new run.json. The historical Gold-2 source was not changed.
 
 The command forms below require validated v3 sources and resolvable v3 input
-pins throughout their lineage. The retained bank and presentation have unresolved
-historical-source references;
-they are not ready for conforming operational reuse until that gap is resolved
-through separately authorized work. A successful payload checksum alone is not
-sufficient. Do not substitute the v2 Gold-2 source or silently drop its input pins.
+pins throughout their lineage. The separately authorized ancestry repair now
+satisfies this prerequisite. The original missing historical input remains
+preserved in the repair records; no v2 source is used operationally.
 
 ```sh
 # Analyse the imported bank; prints a NEW analyse ID.
-uv run python experiments/exp022/analyse.py --source exp022-r001-compute-local
+uv run python experiments/exp022/analyse.py --source exp022-r001-compute-slurm
 ```
 
-Once the input lineage is conforming, reuse images retained in a v3 presentation
+Reuse images retained in a v3 presentation
 of the exact same analysis and compute bank. This creates a new presentation run:
 
 ```sh
@@ -142,7 +145,7 @@ To generate genuinely new raw probes later, explicitly run:
 
 ```sh
 uv run python experiments/exp022/compute.py \
-  --source exp022-r001-compute-local --diagnostics
+  --source exp022-r001-compute-slurm --diagnostics
 # Then analyse that NEW compute ID and present its analysis ID.
 ```
 
@@ -154,9 +157,33 @@ identity; collection requires `--runpod --collect --run-id <that-identity>`.
 
 ## Preview and publication
 
+### HPC identity correction
+
+On 2026-08-27, at the user's request, `exp022-r001-compute-local` was renamed
+to `exp022-r001-compute-slurm`. This run's suffix and `origin` now describe
+the historical Slurm computation. Its recorded local import command, host and
+timestamps remain unchanged; `origin_semantics` and `scientific_execution`
+make that distinction explicit. Earlier migration records retain their old IDs.
+
+The three dependent exp022 runs and five dependent exp024 runs were re-pinned
+in dependency order. Current bank IDs in exp022 numerical exports and replay
+scripts were updated; scientific values, all 408 bank files, figures and
+historical execution attachments were preserved. Each affected run retains
+original manifests and changed files under `provenance/hpc-id-migration/`.
+Complete rollback copies and the migration journal are retained under
+`/Users/eoin/pinglab-exp022-hpc-id.hHn6uH/`.
+
+All nine affected runs passed layout, payload checksum and available input-pin
+validation. The historical `exp022-gold-2-repaired-slurm` source was already
+absent from the live store; its unresolved references in r001 and r003 remain
+unchanged. The preview was briefly paused during activation and resumed.
+No training, analysis, rendering, materialization or publication was performed.
+
+### Presentation selection
+
 Preview may select only a validated v3 present run with conforming input lineage.
-The unresolved source pins described above must be resolved before using the
-retained exp022 presentation. The existing article-scoped `data-file()` bindings
+The ancestry repair resolved the source pins described in the historical notes.
+The existing article-scoped `data-file()` bindings
 consume the selected presentation.
 The retained v3 compute/analysis runs have no presentation directory and are
 excluded by their stage. A conforming present run exposes `export/`; historical

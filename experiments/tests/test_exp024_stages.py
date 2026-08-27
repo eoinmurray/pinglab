@@ -80,9 +80,17 @@ def resign(directory):
     write_json_atomic(directory / "run.json", record)
 
 
-@pytest.mark.parametrize("schema", [RUN_SCHEMA, LEGACY_RUN_SCHEMA])
-def test_stages_pin_sources_preserve_measurements_and_never_publish(repo, schema):
-    identity, bank = make_compute(repo, schema=schema)
+def test_analysis_rejects_typed_v2_before_reserving(repo):
+    identity, directory = make_compute(repo, schema=LEGACY_RUN_SCHEMA)
+    before = (directory / "run.json").read_bytes(), payload_digest(directory)
+    with pytest.raises(PingstoreError, match="requires v3"):
+        analyse.analyse(identity)
+    assert before == ((directory / "run.json").read_bytes(), payload_digest(directory))
+    assert list((repo / ".pingstore/runs").iterdir()) == [directory]
+
+
+def test_stages_pin_sources_preserve_measurements_and_never_publish(repo):
+    identity, bank = make_compute(repo)
     before = payload_digest(bank)
     analysis_id = analyse.analyse(identity)
     analysis_root = repo / ".pingstore/runs" / analysis_id

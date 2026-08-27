@@ -11,7 +11,7 @@ from .contracts import (
     load_json,
     run_root,
     validate_collections,
-    validate_run_directory,
+    validate_operational_run_directory,
 )
 from .layout import presentation_directory
 
@@ -42,7 +42,7 @@ def _replace_tree(source: Path, destination: Path) -> None:
 
 def materialize_run(root: Path, run_id: str, artifacts_root: Path) -> dict:
     directory = run_root(root, run_id)
-    run = validate_run_directory(directory)
+    run = validate_operational_run_directory(directory)
     files = presentation_directory(directory, run)
     if files is None:
         raise PingstoreError(f"compute/analyse runs cannot be published: {run_id}")
@@ -64,7 +64,7 @@ def materialize_view(root: Path, name: str, destination: Path) -> dict:
     try:
         for run_id in selected:
             directory = run_root(root, run_id)
-            run = validate_run_directory(directory)
+            run = validate_operational_run_directory(directory)
             files = presentation_directory(directory, run)
             if files is None:
                 raise PingstoreError(f"compute/analyse runs cannot be published: {run_id}")

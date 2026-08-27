@@ -217,3 +217,15 @@ def validate_run_directory(directory: Path) -> dict[str, Any]:
     if payload_digest(directory) != run["payload_digest"]:
         raise PingstoreError(f"payload checksum mismatch: {directory}")
     return run
+
+
+def validate_operational_run_directory(directory: Path) -> dict[str, Any]:
+    """Require v3 before consuming evidence; legacy inspection is not execution."""
+    if any(path.is_symlink() for path in (directory, *directory.parents)):
+        raise PingstoreError("operational input paths must not use symlinks")
+    manifest = directory / "run.json"
+    if manifest.is_symlink() or not manifest.is_file():
+        raise PingstoreError(f"run.json must be a regular file: {manifest}")
+    if load_json(manifest).get("schema") != RUN_SCHEMA:
+        raise PingstoreError("operational evidence requires v3; legacy v2 is not accepted")
+    return validate_run_directory(directory)

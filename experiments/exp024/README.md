@@ -6,7 +6,7 @@ and [Writing Guide](../../writings/README.md). No training or inference is perfo
 ## Independent stages
 
 ```sh
-uv run python experiments/exp024/analyse.py --source exp022-r001-compute-local
+uv run python experiments/exp024/analyse.py --source exp022-r001-compute-slurm
 uv run python experiments/exp024/present.py --source <printed-exp024-analyse-id>
 ```
 
@@ -21,12 +21,11 @@ Presentation reads saved analysis, not cell histories. It writes the existing
 three SVGs and `numbers.json` into its flat `export/`, with figure lineage in
 `run.json`. Both stages validate and pin their inputs, write v3 through shared
 helpers, and print a new stage ID. `--run-id` accepts an unused reservation only.
-Sources must declare their stage and use v3. The current shared helpers still
-accept typed v2; that implementation is nonconforming with Storage Guide 2.0.0,
-not an allowed compatibility path. Operational inputs and their pins must resolve
-to validated v3 runs. The exp022 bank's unresolved historical-source pin is
-documented in its [storage runbook](../exp022/README.md); resolve that prerequisite
-through separately authorized work before executing the commands above.
+Sources must declare their stage and use v3. Shared operational source validation
+now rejects typed and untyped v2 before reserving a downstream run. The
+[verified exp022 ancestor repair](../exp022/ANCESTRY.md) resolved the historical
+source prerequisite and re-pinned all five retained exp024 runs without changing
+their scientific values. Operational inputs and pins resolve to validated v3 runs.
 For a diagnostic compute run with a pinned `bank` input, analysis resolves and
 records that exact bank as an additional input.
 

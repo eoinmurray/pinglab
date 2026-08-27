@@ -1,6 +1,7 @@
 # Exp081: filtered-response theory
 
-Independent stages follow Storage Guide 2.0.0 and Experiment Runner Guide 1.1.0.
+Independent stages follow Storage Guide 2.0.0 and Experiment Runner Guide 2.0.0.
+The article follows Writing Guide 8.0.0.
 The physical equations, rate/probe grids, random-seed derivation, integration
 scheme and default sample counts are preserved from the combined runner.
 
@@ -41,7 +42,9 @@ being silently rewritten. Publication remains separately authorized.
 ## Evidence and verification boundary
 
 This refactor does not migrate legacy runs or constitute a new scientific run.
-No completed exp081 evidence was available locally during conformance work.
+The full-profile local chain is `exp081-r001-compute-local`,
+`exp081-r002-analyse-local` and `exp081-r003-present-local`.
+The current conformance pass reused those completed runs without simulation.
 Historical interpretations remain in the article's Discussion and Conclusion;
 they require verification against selected scientific evidence before publication.
 The article shows the shared unavailable-data notice when no presentation is

@@ -85,6 +85,9 @@
 
   == Methods
 
+  We assessed finite changes in accuracy, activity and weights using retained
+  learning histories from unregularised classifiers.
+
   + *Select the baseline histories.* We reused all #n seeds per architecture from
     the unregularised activity comparison. Each history contains #c.epochs
     consecutive completed epochs; final values refer to the last epoch, not the
@@ -121,7 +124,7 @@
     meet the audit's operational stability criterion. This endpoint diagnostic
     does not exclude fluctuations within the window or prove asymptotic convergence.
 
-  + *Summarise trajectories.* We retained per-seed slopes, first-to-final-epoch
+    We retained per-seed slopes, first-to-final-epoch
     weight-norm ratios, and final-window weight-norm slopes, and computed means
     and sample standard deviations across seeds. Curves show individual seeds.
     The first epoch reaching 99% of final accuracy supplies a separate descriptive

@@ -109,16 +109,12 @@ def test_v3_rejects_symlinks(tmp_path, relative):
         validate_run_directory(directory)
 
 
-def test_discovery_resolves_mixed_schemas_and_validates_excluded_runs(tmp_path):
+def test_discovery_requires_v3_and_validates_excluded_runs(tmp_path):
     compute = make_run(tmp_path, "compute")
     make_run(tmp_path, "analyse", number=2)
     present = make_run(tmp_path, number=3)
-    legacy = make_run(tmp_path, None, number=4, schema=LEGACY_RUN_SCHEMA)
-    make_run(tmp_path, "compute", number=5, schema=LEGACY_RUN_SCHEMA)
     rows = discover_runs(tmp_path / "runs")
-    assert [row["presentation"] for row in rows] == [
-        f"{present.name}/export", f"{legacy.name}/presentation",
-    ]
+    assert [row["presentation"] for row in rows] == [f"{present.name}/export"]
     (compute / "export/numbers.json").write_text("corrupted")
     with pytest.raises(PingstoreError, match="checksum mismatch"):
         discover_runs(tmp_path / "runs")
@@ -149,12 +145,26 @@ def test_materialization_copies_only_whole_present_export(tmp_path):
 def test_both_materializers_reject_scientific_stages(tmp_path, stage, schema):
     directory = make_run(tmp_path, stage, schema=schema)
     write_json_atomic(tmp_path / "collections.json", {"demo": [directory.name]})
-    with pytest.raises(PingstoreError, match="cannot be published"):
+    error = "cannot be published" if schema == RUN_SCHEMA else "requires v3"
+    with pytest.raises(PingstoreError, match=error):
         materialize_run(tmp_path, directory.name, tmp_path / "artifacts")
-    with pytest.raises(PingstoreError, match="cannot be published"):
+    with pytest.raises(PingstoreError, match=error):
         materialize_view(tmp_path, "demo", tmp_path / "view")
     assert not (tmp_path / "artifacts").exists()
     assert not (tmp_path / "view").exists()
+
+
+@pytest.mark.parametrize("stage", [None, "compute", "analyse", "present"])
+def test_legacy_evidence_is_rejected_by_operational_readers(tmp_path, stage):
+    directory = make_run(tmp_path, stage, schema=LEGACY_RUN_SCHEMA)
+    before = (directory / "run.json").read_bytes(), payload_digest(directory)
+    with pytest.raises(PingstoreError, match="requires v3"):
+        stages.source_run(tmp_path, directory.name)
+    with pytest.raises(PingstoreError, match="requires v3"):
+        discover_runs(tmp_path / "runs")
+    with pytest.raises(PingstoreError, match="requires v3"):
+        materialize_run(tmp_path, directory.name, tmp_path / "artifacts")
+    assert before == ((directory / "run.json").read_bytes(), payload_digest(directory))
 
 
 def test_stage_writer_finishes_v3_with_separate_evidence(tmp_path, monkeypatch):

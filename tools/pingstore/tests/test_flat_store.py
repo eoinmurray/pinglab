@@ -54,6 +54,23 @@ def _staging(tmp_path: Path, run_id: str = "r001") -> Path:
     return staging
 
 
+def _presentation(repo: Path) -> dict:
+    from pingstore.contracts import payload_digest, write_json_atomic
+
+    identity = "exp001-r001-present-local"
+    directory = repo / ".pingstore/runs" / identity
+    (directory / "export").mkdir(parents=True)
+    (directory / "export/result.svg").write_text("<svg/>")
+    record = {
+        "schema": "pingstore.run/v3", "run_id": identity, "experiment": "exp001",
+        "collection": "demo", "origin": "local", "stage": "present", "inputs": {},
+        "created_at": "2026-08-27T12:00:00Z", "execution": {}, "provenance": {},
+        "payload_digest": payload_digest(directory),
+    }
+    write_json_atomic(directory / "run.json", record)
+    return record
+
+
 def test_local_capture_is_flat_complete_and_immutable(tmp_path: Path) -> None:
     repo = _repo(tmp_path)
     staging = _staging(tmp_path)
@@ -152,7 +169,7 @@ def test_campaign_capture_uses_same_flat_run_layout(
 
 def test_manual_view_materializes_one_run_per_experiment(tmp_path: Path) -> None:
     repo = _repo(tmp_path)
-    run = capture_local_run(repo, "exp001", _staging(tmp_path))
+    run = _presentation(repo)
     collections = {"demo/latest": [run["run_id"]]}
     validate_collections(collections)
     (repo / ".pingstore/collections.json").write_text(json.dumps(collections))
@@ -304,15 +321,15 @@ def test_materialization_copies_presentation_exactly_without_suffix_filter(tmp_p
     from pingstore.contracts import payload_digest, write_json_atomic
 
     repo = _repo(tmp_path)
-    run = capture_local_run(repo, "exp001", _staging(tmp_path))
+    run = _presentation(repo)
     directory = repo / ".pingstore/runs" / run["run_id"]
     # Fixture assembly only: include an explicitly designated presentation file
     # whose suffix the v1 materializer would have silently discarded.
-    (directory / "presentation/download.npz").write_bytes(b"presentation download")
+    (directory / "export/download.npz").write_bytes(b"presentation download")
     run["payload_digest"] = payload_digest(directory)
     write_json_atomic(directory / "run.json", run)
     materialize_run(repo / ".pingstore", run["run_id"], tmp_path / "view")
-    source = {p.name: p.read_bytes() for p in (directory / "presentation").iterdir()}
+    source = {p.name: p.read_bytes() for p in (directory / "export").iterdir()}
     target = {p.name: p.read_bytes() for p in (tmp_path / "view/exp001").iterdir()}
     assert target == source
 

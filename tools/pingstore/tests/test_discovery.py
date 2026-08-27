@@ -12,23 +12,25 @@ from pingstore.contracts import PingstoreError, payload_digest, payload_inventor
 from pingstore.discovery import discover_runs
 
 
-def make_run(source: Path, run_id: str = "exp001-r001-local", **overrides) -> Path:
+def make_run(source: Path, run_id: str = "exp001-r001-present-local", **overrides) -> Path:
     directory = source / run_id
-    (directory / "export/state").mkdir(parents=True)
-    (directory / "presentation").mkdir()
+    (directory / "provenance/state").mkdir(parents=True)
+    (directory / "export").mkdir()
     (directory / "README.md").write_text("Run notes\n")
-    (directory / "export/state/weights.bin").write_bytes(b"scientific payload")
-    (directory / "presentation/numbers.json").write_text('{"value": 1}\n')
-    (directory / "presentation/_manifest.json").write_text(
+    (directory / "provenance/state/weights.bin").write_bytes(b"scientific payload")
+    (directory / "export/numbers.json").write_text('{"value": 1}\n')
+    (directory / "export/_manifest.json").write_text(
         '{"run_id": "wrong", "run_at": "wrong"}'
     )
     record = {
-        "schema": "pingstore.run/v2",
+        "schema": "pingstore.run/v3",
         "run_id": run_id,
         "experiment": run_id.split("-")[0],
         "collection": "demo",
         "origin": "local",
         "created_at": "2026-08-27T12:00:00+02:00",
+        "stage": "present",
+        "inputs": {},
         "execution": {},
         "provenance": {},
         "payload_digest": payload_digest(directory),
@@ -49,7 +51,7 @@ def test_projection_uses_authoritative_metadata_without_mutation(tmp_path):
             "experiment": "exp001",
             "label": directory.name,
             "created_at": "2026-08-27T10:00:00+00:00",
-            "presentation": f"{directory.name}/presentation",
+            "presentation": f"{directory.name}/export",
         }
     ]
     assert before == (
@@ -60,14 +62,14 @@ def test_projection_uses_authoritative_metadata_without_mutation(tmp_path):
 
 
 def test_all_runs_sorted_without_selection_or_filtering(tmp_path):
-    names = ["exp002-r001-local", "exp001-r002-local", "exp001-r001-local"]
+    names = ["exp002-r001-present-local", "exp001-r002-present-local", "exp001-r001-present-local"]
     for name in names:
         make_run(tmp_path, name)
     assert [row["id"] for row in discover_runs(tmp_path)] == sorted(names)
 
 
 def test_hidden_incomplete_entries_and_files_are_ignored(tmp_path):
-    (tmp_path / ".exp001-r001-local.tmp").mkdir()
+    (tmp_path / ".exp001-r001-present-local.tmp").mkdir()
     (tmp_path / ".metadata").write_text("not a run")
     (tmp_path / "notes.txt").write_text("not a run")
     assert discover_runs(tmp_path) == []
@@ -96,9 +98,9 @@ def test_symlink_source_or_ancestor_is_rejected(tmp_path, nested):
     "path",
     [
         "README.md",
-        "presentation/numbers.json",
-        "presentation/_manifest.json",
-        "export/state/weights.bin",
+        "export/numbers.json",
+        "export/_manifest.json",
+        "provenance/state/weights.bin",
     ],
 )
 def test_corrupt_payload_fails_including_export_and_nested_metadata(tmp_path, path):
@@ -125,9 +127,9 @@ def test_invalid_visible_run_is_not_silently_omitted(tmp_path, damage):
     elif damage == "extra-root":
         (directory / "extra").write_text("unexpected")
     elif damage == "nested-presentation":
-        (directory / "presentation/nested").mkdir()
+        (directory / "export/nested").mkdir()
     elif damage == "symlink-payload":
-        (directory / "presentation/link").symlink_to(directory / "README.md")
+        (directory / "export/link").symlink_to(directory / "README.md")
     else:
         (directory / "run.json").write_text("{")
     with pytest.raises(PingstoreError, match=directory.name):
@@ -221,6 +223,6 @@ def test_module_entry_point_and_environment_protocol(tmp_path):
 
 def test_no_mutating_subcommands(capsys):
     with pytest.raises(SystemExit) as exc:
-        main(["delete", "exp001-r001-local"])
+        main(["delete", "exp001-r001-present-local"])
     assert exc.value.code == 2
     assert "invalid choice" in capsys.readouterr().err

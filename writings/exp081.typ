@@ -112,9 +112,9 @@
     $ z=1/T integral_0^T (v(t)-E_L) dif t. quad "(2)" $
     Here $z$ is mean depolarization in mV and $T=#p.presentation_ms$ ms is the
     presentation duration. The discrete estimate averaged every post-update voltage
-    after subtracting rest; individual estimates were retained for reuse.],
+    after subtracting rest; individual estimates were retained for reuse.
 
-    [*Aggregate independent presentations.* At each rate and conductance we
+    At each rate and conductance we
     calculated the arithmetic mean and sample SD, using the number of presentations
     minus one as the variance denominator. Distribution probes used
     #p.histogram_bins common linear bins, from zero to the maximum response rounded

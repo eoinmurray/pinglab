@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from pathlib import Path
 
-from .contracts import PingstoreError, validate_run_directory
+from .contracts import PingstoreError, validate_operational_run_directory
 from .layout import has_presentation_content, presentation_directory
 
 
@@ -33,7 +33,7 @@ def discover_runs(source: Path) -> list[dict[str, str]]:
         ):
             continue
         try:
-            run = validate_run_directory(directory)
+            run = validate_operational_run_directory(directory)
             # The run contract requires a string; Demolab additionally requires
             # a parseable, timezone-aware timestamp. Never substitute file times.
             created_at = datetime.fromisoformat(

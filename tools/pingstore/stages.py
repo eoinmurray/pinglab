@@ -14,7 +14,7 @@ from pathlib import Path
 
 from .contracts import (
     EXPERIMENT_RE, RUN_SCHEMA, PingstoreError, file_sha256, load_json,
-    payload_digest, run_root, validate_run_directory, write_json_atomic,
+    payload_digest, run_root, validate_operational_run_directory, write_json_atomic,
 )
 from .layout import (
     display_manifest, export_directory, has_presentation_content,
@@ -61,7 +61,7 @@ class SourceRun:
         }
 
     def check_unchanged(self) -> None:
-        record = validate_run_directory(self.directory)
+        record = validate_operational_run_directory(self.directory)
         if (record["payload_digest"] != self.record["payload_digest"]
                 or file_sha256(self.directory / "run.json") != self.manifest_sha256):
             raise PingstoreError(f"source changed during execution: {self.directory.name}")
@@ -72,7 +72,7 @@ def source_run(root: Path, run_id: str, *, stage: str | None = None,
     directory = run_root(root.absolute(), run_id)
     if any(path.is_symlink() for path in (directory, *directory.parents)):
         raise PingstoreError("source paths must not use symlinks")
-    record = validate_run_directory(directory)
+    record = validate_operational_run_directory(directory)
     if stage is not None and record.get("stage") != stage:
         raise PingstoreError(f"{run_id} is not a {stage} run")
     if experiment is not None and record["experiment"] != experiment:
@@ -122,7 +122,7 @@ def stage_reservation(directory: Path) -> dict:
         raise PingstoreError("stage reservation must not use symlinks")
     if not path.is_file() and (directory / "export/provenance/reservation.json").exists():
         raise PingstoreError(
-            "legacy v2 reservation: finish with its original code or reserve a fresh v3 run"
+            "legacy v2 reservation is historical evidence; reserve a fresh v3 run"
         )
     reservation = load_json(path)
     if reservation.get("schema") != RUN_SCHEMA:
@@ -240,7 +240,7 @@ def stage_run(repo: Path, experiment: str, stage: str, *,
         lock.unlink()
         record["payload_digest"] = payload_digest(directory)
         write_json_atomic(directory / "run.json", record)
-        validate_run_directory(directory)
+        validate_operational_run_directory(directory)
         if destination.exists():
             raise PingstoreError(f"completed destination already exists: {identity}")
         os.rename(directory, destination)

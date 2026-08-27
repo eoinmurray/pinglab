@@ -205,7 +205,7 @@ def present(identity: str, *, retained_presentation: str | None = None,
     inputs = {"analysis": analysis}
     retained = None
     if retained_presentation:
-        retained = source_run(root, retained_presentation, experiment=recipe.SLUG)
+        retained = source_run(root, retained_presentation, stage="present", experiment=recipe.SLUG)
         # Accept the original import or a prior presentation of the exact same
         # analysis and bank. An experiment-name match alone is insufficient.
         compute_ref = (analysis.record["inputs"].get("bank")

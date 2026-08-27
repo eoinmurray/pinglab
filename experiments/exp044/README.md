@@ -1,7 +1,7 @@
 # Exp044: integration-timestep audit
 
 Conformance target: Experiment Runner Guide 2.0.0, Storage Guide 2.0.0 and
-Writing Guide 7.0.0. Training remains owned by exp022. Exp044 never launches it.
+Writing Guide 8.0.0. Training remains owned by exp022. Exp044 never launches it.
 
 ```sh
 uv run python experiments/exp044/compute.py --source <exp022-compute-bank>
@@ -55,6 +55,11 @@ Completed stages may be reused only with matching bank, profile and lineage.
 Legacy campaign plans are rejected; staged outputs are excluded from v2 capture.
 
 ## Explicit source boundary
+
+The subsequent [exp022 ancestry repair](../exp022/ANCESTRY.md) verified the R2
+ancestor and updated this chain's pins without changing scientific outputs.
+The source-boundary policy below remains unchanged; its historical references
+record the circumstances of the original execution.
 
 The user explicitly selected `.pingstore/runs/exp022-r001-compute-slurm` as the
 new source data for exp044. This is a scoped source-boundary instruction: exp044

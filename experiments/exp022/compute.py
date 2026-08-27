@@ -713,8 +713,8 @@ def copy_bank(bank: Path, destination: Path) -> list[dict]:
 
 
 def import_bank(identity: str, *, run_id: str | None = None) -> str:
-    """One-time, non-destructive import of a historical exp022 bank."""
-    source = source_run(REPO / ".pingstore", identity, experiment=SLUG)
+    """Copy an explicit v3 compute bank without training; legacy import is separate."""
+    source = source_run(REPO / ".pingstore", identity, stage="compute", experiment=SLUG)
     with stage_run(REPO, SLUG, "compute", inputs={"import": source}, run_id=run_id,
                    configuration=source.record["execution"].get("configuration"),
                    export_root="export/cells", operation="import") as run:
@@ -800,7 +800,7 @@ def main() -> None:
         return
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--run-id", help="identity already reserved before dispatch")
-    parser.add_argument("--import-source", help="import an explicit historical bank without computation")
+    parser.add_argument("--import-source", help="copy an explicit v3 compute bank without computation")
     parser.add_argument("--source", help="compute bank for new retained diagnostic probes")
     parser.add_argument("--diagnostics", action="store_true",
                         help="simulate fixed probes only; requires --source")
