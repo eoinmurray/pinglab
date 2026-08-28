@@ -2,8 +2,40 @@
 
 from __future__ import annotations
 
+import gzip
+import os
+import re
+import shutil
+import subprocess
+import sys
+from pathlib import Path
+from types import SimpleNamespace
+from xml.etree import ElementTree
+
 import numpy as np
+import pytest
 from experiments import exp080
+from experiments.exp080 import (
+    analyse,
+    collection,
+    compute,
+    historical,
+    import_gold2,
+    inputs,
+    measurements,
+    present,
+    recipe,
+)
+from pingstore import stages
+from pingstore.contracts import (
+    PingstoreError,
+    file_sha256,
+    load_json,
+    payload_digest,
+    validate_operational_run_directory,
+    write_json_atomic,
+)
+from pingstore.discovery import discover_runs
 
 
 def test_registered_simulator_validations_pass() -> None:
@@ -18,15 +50,15 @@ def test_early_spike_contributes_more_than_late_spike() -> None:
 def test_direct_features_replay_and_zero_input() -> None:
     import torch
 
-    device = exp080.torch_device()
+    device = compute.torch_device()
     images = torch.zeros((2, 28, 28), dtype=torch.uint8, device=device)
     rates = torch.tensor([0.5, 25.0], device=device)
-    first = exp080.direct_features(
+    first = compute.direct_features(
         images,
         rates,
         torch.Generator(device=device).manual_seed(123),
     )
-    replay = exp080.direct_features(
+    replay = compute.direct_features(
         images,
         rates,
         torch.Generator(device=device).manual_seed(123),
@@ -41,7 +73,6 @@ def test_rate_grid_brackets_registered_floor() -> None:
 
 
 def test_floor_requires_every_decoder_to_cross_criterion(tmp_path, monkeypatch) -> None:
-    monkeypatch.setattr(exp080, "FIGURES", tmp_path)
     correctness = np.zeros((len(exp080.RATES_HZ), len(exp080.SEEDS), 10), dtype=bool)
     correctness[1, :, :6] = True
     correctness[1, 2, 4:6] = False
@@ -56,7 +87,6 @@ def test_floor_requires_every_decoder_to_cross_criterion(tmp_path, monkeypatch) 
 
 
 def test_no_crossing_is_recorded_as_a_censored_result(tmp_path, monkeypatch) -> None:
-    monkeypatch.setattr(exp080, "FIGURES", tmp_path)
     correctness = np.zeros((len(exp080.RATES_HZ), len(exp080.SEEDS), 10), dtype=bool)
 
     decision = exp080.analyze(correctness)
@@ -67,4 +97,748 @@ def test_no_crossing_is_recorded_as_a_censored_result(tmp_path, monkeypatch) -> 
         "floor_hz": None,
         "ceiling_hz": max(exp080.RATES_HZ),
     }
-    assert (tmp_path / "decision.json").is_file()
+    assert list(tmp_path.iterdir()) == []
+
+
+def dataset_record(count, prefix):
+    return {
+        "source": "synthetic test fixture",
+        "image_shape": [count, 28, 28],
+        "label_shape": [count],
+        "raw_sha256": {
+            f"{prefix}-images-idx3-ubyte": "a" * 64,
+            f"{prefix}-labels-idx1-ubyte": "b" * 64,
+        },
+    }
+
+
+@pytest.fixture
+def repo(tmp_path, monkeypatch):
+    for module in (compute, analyse, present, import_gold2):
+        monkeypatch.setattr(module, "REPO", tmp_path)
+    monkeypatch.setattr(stages, "memberships", lambda _: {"exp080": "test"})
+    monkeypatch.setattr(
+        stages, "_capture_code", lambda *a: {"git_commit": "fixture", "dirty": False}
+    )
+    monkeypatch.setenv("PINGLAB_SMOKE", "1")
+    monkeypatch.setenv("EXP080_DEVICE", "cpu")
+    calls = []
+    monkeypatch.setattr(
+        compute,
+        "load_mnist_training",
+        lambda: (
+            np.zeros((150, 28, 28), dtype=np.uint8),
+            np.zeros(150, dtype=np.int64),
+            dataset_record(60000, "train"),
+        ),
+    )
+
+    def illustration(images, output):
+        calls.append("illustration")
+        np.savez_compressed(
+            output / "feature_samples.npz",
+            image=images[0],
+            features_mV=np.zeros((3, 784), dtype=np.float32),
+            rates_hz=np.asarray([0.5, 5.0, 25.0]),
+        )
+
+    def train(images, labels, seed, output, cfg):
+        calls.append(seed)
+        assert not list((tmp_path / ".pingstore/runs").glob("exp080-*-compute"))
+        directory = output / "models" / f"seed-{seed}"
+        directory.mkdir(parents=True)
+        path = directory / "decoder.pt"
+        path.write_bytes(f"synthetic checkpoint {seed}".encode())
+        record = {
+            "seed": seed,
+            "device": "cpu",
+            "runtime_s": 0.1,
+            "selected_epoch": 1,
+            "selected_validation_accuracy": 0.75,
+            "history": [
+                {"epoch": i, "train_accuracy": 0.7, "validation_accuracy": 0.75}
+                for i in range(1, cfg["epochs"] + 1)
+            ],
+            "checkpoint": str(path.relative_to(output)),
+            "checkpoint_sha256": file_sha256(path),
+        }
+        write_json_atomic(directory / "training.json", record)
+        return record
+
+    def evaluate(records, output, cfg):
+        calls.append("evaluation")
+        values = np.zeros((8, 3, cfg["test_count"]), dtype=bool)
+        values[2:, :, :30] = True
+        path = output / "held_out_correctness.npz"
+        np.savez_compressed(
+            path,
+            correctness=values,
+            rates_hz=np.asarray(cfg["rates_hz"]),
+            seeds=np.asarray(cfg["seeds"]),
+            labels=np.zeros(cfg["test_count"], dtype=np.int64),
+        )
+        return {
+            "device": "cpu",
+            "runtime_s": 0.1,
+            "dataset": dataset_record(cfg["test_count"], "t10k"),
+            "arrays_sha256": file_sha256(path),
+        }, values
+
+    monkeypatch.setattr(compute, "illustrative_features", illustration)
+    monkeypatch.setattr(compute, "train_seed", train)
+    monkeypatch.setattr(compute, "evaluate", evaluate)
+    return tmp_path, calls
+
+
+def resign(directory):
+    record = load_json(directory / "run.json")
+    record["payload_digest"] = payload_digest(directory)
+    write_json_atomic(directory / "run.json", record)
+
+
+def forbidden(*a, **k):
+    pytest.fail("stage crossed its execution boundary")
+
+
+def test_stages_are_isolated_and_replay_only_explicit_evidence(repo, monkeypatch):
+    root, calls = repo
+    compute_id = compute.compute()
+    assert calls == ["illustration", 42, 43, 44, "evaluation"]
+    source = inputs.source(root, compute_id, "compute")
+    before = source.reference
+    assert source.record["inputs"] == {}
+    assert discover_runs(root / ".pingstore/runs") == []
+    for name in ("compute", "direct_features", "train_seed", "evaluate"):
+        monkeypatch.setattr(compute, name, forbidden)
+    monkeypatch.setattr(recipe, "validate_simulator", forbidden)
+    monkeypatch.setenv("PINGLAB_SMOKE", "0")
+    analysis_id = analyse.analyse(compute_id)
+    analysis = inputs.source(root, analysis_id, "analyse")
+    result = load_json(analysis.export / "results.json")
+    assert result["recipe"]["profile"] == "smoke"
+    assert result["decision"]["r_train_hz"] == 0.5
+    assert result["decision"]["rows"][2]["per_seed_accuracy"] == [0.6, 0.6, 0.6]
+    assert not list(analysis.export.rglob("*.pt"))
+    assert discover_runs(root / ".pingstore/runs") == []
+    monkeypatch.setattr(measurements, "analyze", forbidden)
+    monkeypatch.setattr(analyse, "analyse", forbidden)
+    present_id = present.present(analysis_id)
+    output = inputs.source(root, present_id, "present")
+    assert output.record["inputs"] == {
+        "analysis": analysis.reference,
+        "compute": source.reference,
+    }
+    assert load_json(output.presentation / "numbers.json") == result
+    assert {p.name for p in output.presentation.iterdir()} >= {
+        "numbers.json",
+        "decision.json",
+        "feature_images.png",
+        "psychometric.svg",
+        "training_history.svg",
+    }
+    assert all(p.is_file() for p in output.presentation.iterdir())
+    assert not (root / ".artifacts").exists()
+    assert inputs.source(root, compute_id, "compute").reference == before
+    assert [r["id"] for r in discover_runs(root / ".pingstore/runs")] == [present_id]
+
+
+@pytest.mark.parametrize("stage", ["compute", "analyse", "present"])
+def test_failure_remains_hidden_and_preserves_prior_runs(repo, monkeypatch, stage):
+    root, _ = repo
+
+    def fail(*a, **k):
+        raise RuntimeError("injected failure")
+
+    source_id = None
+    if stage != "compute":
+        source_id = compute.compute()
+    if stage == "present":
+        source_id = analyse.analyse(source_id)
+    existing = {
+        p.name: file_sha256(p / "run.json")
+        for p in (root / ".pingstore/runs").glob("exp080-*")
+    }
+    module, function = {
+        "compute": (compute, "train_seed"),
+        "analyse": (measurements, "analyze"),
+        "present": (present.plots, "plot_training"),
+    }[stage]
+    monkeypatch.setattr(module, function, fail)
+    with pytest.raises(RuntimeError, match="injected"):
+        if stage == "compute":
+            compute.compute()
+        else:
+            getattr({"analyse": analyse, "present": present}[stage], stage)(source_id)
+    assert {
+        p.name: file_sha256(p / "run.json")
+        for p in (root / ".pingstore/runs").glob("exp080-*")
+    } == existing
+    assert len(list((root / ".pingstore/runs").glob(f".exp080-*-{stage}.tmp"))) == 1
+
+
+@pytest.mark.parametrize(
+    "change",
+    [
+        "payload",
+        "provenance",
+        "manifest",
+        "schema",
+        "stage",
+        "recipe",
+        "checkpoint",
+        "selection",
+        "arrays",
+    ],
+)
+def test_invalid_sources_fail_closed(repo, change):
+    root, _ = repo
+    identity = compute.compute()
+    source = inputs.source(root, identity, "compute")
+    if change in {"payload", "provenance"}:
+        path = (
+            source.export / "held_out_correctness.npz"
+            if change == "payload"
+            else source.directory / "provenance/run.sh"
+        )
+        path.write_bytes(path.read_bytes() + b"tampered")
+    elif change in {"manifest", "schema", "stage", "recipe"}:
+        record = load_json(source.directory / "run.json")
+        if change == "manifest":
+            record["inputs"] = {"unexpected": source.reference}
+        elif change == "schema":
+            record["schema"] = "pingstore.run/v2"
+        elif change == "stage":
+            record["stage"] = "analyse"
+        else:
+            record["execution"]["configuration"]["test_count"] = 51
+        write_json_atomic(source.directory / "run.json", record)
+    else:
+        document = load_json(source.export / "evidence.json")
+        if change == "checkpoint":
+            (source.export / document["training"][0]["checkpoint"]).write_bytes(
+                b"other checkpoint"
+            )
+        elif change == "selection":
+            document["training"][0]["selected_epoch"] = 2
+            write_json_atomic(
+                source.export / "models/seed-42/training.json", document["training"][0]
+            )
+        else:
+            path = source.export / "held_out_correctness.npz"
+            with np.load(path) as data:
+                arrays = {k: data[k] for k in data.files}
+            arrays["rates_hz"] = arrays["rates_hz"][::-1]
+            np.savez_compressed(path, **arrays)
+            document["evaluation"]["arrays_sha256"] = file_sha256(path)
+        write_json_atomic(source.export / "evidence.json", document)
+        resign(source.directory)
+    with pytest.raises((PingstoreError, OSError)):
+        analyse.analyse(identity)
+    assert not list((root / ".pingstore/runs").glob("exp080-*-analyse"))
+
+
+def test_presentation_rechecks_transitive_ancestry_during_execution(repo, monkeypatch):
+    root, _ = repo
+    compute_id = compute.compute()
+    analysis_id = analyse.analyse(compute_id)
+    source = inputs.source(root, compute_id, "compute")
+    original = present.plots.plot_training
+
+    def mutate(*args):
+        original(*args)
+        record = load_json(source.directory / "run.json")
+        record["execution"]["command"] = ["changed"]
+        write_json_atomic(source.directory / "run.json", record)
+
+    monkeypatch.setattr(present.plots, "plot_training", mutate)
+    with pytest.raises(PingstoreError, match="source changed"):
+        present.present(analysis_id)
+    assert not list((root / ".pingstore/runs").glob("exp080-*-present"))
+
+
+def test_reservations_are_source_neutral_atomic_and_not_reusable(repo):
+    root, _ = repo
+    identity = stages.reserve_stage(
+        root / ".pingstore", "exp080", "compute", origin="slurm"
+    )
+    assert identity == "exp080-r001-compute"
+    assert not (root / ".pingstore/runs" / identity).exists()
+    assert compute.compute(run_id=identity) == identity
+    source = inputs.source(root, identity, "compute")
+    assert source.record["origin"] == "slurm"
+    assert not list((root / ".pingstore/runs").glob(".*.tmp"))
+    with pytest.raises(PingstoreError, match="unused reserved"):
+        compute.compute(run_id=identity)
+
+
+def test_collection_adapter_reserves_and_dispatches_separate_stages(repo, monkeypatch):
+    root, _ = repo
+    row = {
+        "execution": {"mode": "exp080-staged"},
+        "paths": {"state": str(root / "campaign")},
+        "required_outputs": [str(root / "campaign/stage-refs.json")],
+    }
+    commands = []
+
+    def dispatch(command, **kwargs):
+        commands.append(command)
+        stage = command[2].rsplit(".", 1)[-1]
+        identity = command[command.index("--run-id") + 1]
+        if stage == "compute":
+            compute.compute(run_id=identity)
+        else:
+            source = command[command.index("--source") + 1]
+            getattr({"analyse": analyse, "present": present}[stage], stage)(
+                source, run_id=identity
+            )
+        return SimpleNamespace(stdout="")
+
+    monkeypatch.setattr(collection.subprocess, "run", dispatch)
+    refs = collection.execute(root, {"profile": "smoke"}, row)
+    assert [c[2] for c in commands] == [
+        f"experiments.exp080.{s}" for s in collection.STAGES
+    ]
+    assert set(refs) == set(collection.STAGES)
+    assert collection.completed(root, {}, row).reference == refs["present"]
+    collection.execute(root, {"profile": "smoke"}, row)
+    assert len(commands) == 3
+    with pytest.raises(PingstoreError, match="legacy"):
+        collection.require_staged({"execution": {"mode": "monolithic"}})
+
+
+def test_cpu_checkpoint_keeps_selected_epoch_weights(tmp_path, monkeypatch):
+    import torch
+
+    class Decoder(torch.nn.Module):
+        def __init__(self):
+            super().__init__()
+            self.logits = torch.nn.Parameter(torch.zeros(1, 2))
+            self.snapshots = []
+
+        def forward(self, features):
+            if self.training:
+                return self.logits
+            self.snapshots.append(self.logits.detach().clone())
+            return torch.tensor(
+                [[1.0, 0.0]] if len(self.snapshots) == 1 else [[0.0, 1.0]]
+            )
+
+    model = Decoder()
+    monkeypatch.setenv("EXP080_DEVICE", "cpu")
+    monkeypatch.setattr(compute, "make_model", lambda *a: model)
+    monkeypatch.setattr(compute, "direct_features", lambda *a: torch.zeros(1, 784))
+    cfg = {**recipe.configuration(smoke=True), "train_count": 1, "validation_count": 1}
+    result = compute.train_seed(
+        np.zeros((2, 28, 28), dtype=np.uint8),
+        np.zeros(2, dtype=np.int64),
+        42,
+        tmp_path,
+        cfg,
+    )
+    checkpoint = torch.load(tmp_path / result["checkpoint"], weights_only=True)
+    assert result["selected_epoch"] == 1
+    assert torch.equal(checkpoint["state_dict"]["logits"], model.snapshots[0])
+    assert not torch.equal(checkpoint["state_dict"]["logits"], model.snapshots[1])
+
+
+def test_cli_help_and_legacy_entrypoint_do_not_execute():
+    root = Path(__file__).resolve().parents[2]
+    for stage in ("compute", "analyse", "present"):
+        result = subprocess.run(
+            [sys.executable, "-m", f"experiments.exp080.{stage}", "--help"],
+            cwd=root,
+            text=True,
+            capture_output=True,
+        )
+        assert result.returncode == 0, result.stderr
+    result = subprocess.run(
+        [sys.executable, "-m", "experiments.exp080"],
+        cwd=root,
+        text=True,
+        capture_output=True,
+    )
+    assert result.returncode != 0
+    assert "independent stages" in result.stderr
+
+
+def test_atomic_rename_only_exposes_a_valid_complete_run(repo, monkeypatch):
+    root, _ = repo
+    rename = os.rename
+    seen = []
+
+    def checked_rename(source, destination):
+        if Path(destination).name.startswith("exp080-"):
+            record = validate_operational_run_directory(source)
+            assert record["stage"] == "compute"
+            assert not Path(destination).exists()
+            assert (Path(source) / "export/evidence.json").is_file()
+            seen.append(record["run_id"])
+        return rename(source, destination)
+
+    monkeypatch.setattr(stages.os, "rename", checked_rename)
+    identity = compute.compute()
+    assert seen == [identity]
+    assert (root / ".pingstore/runs" / identity).is_dir()
+
+
+def test_importing_package_has_no_execution_or_plotting_side_effects(tmp_path):
+    root = Path(__file__).resolve().parents[2]
+    result = subprocess.run(
+        [
+            sys.executable,
+            "-c",
+            "import sys; from experiments import exp080; "
+            "assert 'torch' not in sys.modules; assert 'matplotlib.pyplot' not in sys.modules",
+        ],
+        cwd=tmp_path,
+        env={**os.environ, "PYTHONPATH": str(root)},
+        text=True,
+        capture_output=True,
+    )
+    assert result.returncode == 0, result.stderr
+    assert list(tmp_path.iterdir()) == []
+
+
+@pytest.fixture
+def archive(repo, monkeypatch):
+    from PIL import Image
+
+    root, _ = repo
+    monkeypatch.setenv("PINGLAB_SMOKE", "0")
+    compute_id = compute.compute()
+    source = inputs.source(root, compute_id, "compute")
+    document = load_json(source.export / "evidence.json")
+    archive = root / "archive"
+    data = archive / historical.DERIVED
+    shutil.copytree(source.export, data)
+    (data / "evidence.json").unlink()
+    (data / "feature_samples.npz").unlink()
+    Image.fromarray(np.zeros((2, 2), dtype=np.uint8)).save(data / "feature_images.png")
+    with np.load(data / "held_out_correctness.npz") as arrays:
+        decision = measurements.analyze(arrays["correctness"], recipe.configuration())
+    provenance = {
+        "campaign_id": historical.CAMPAIGN,
+        "source_git_commit": historical.COMMIT,
+        "experiment": "exp080",
+        "dependencies": [],
+        "training_run": None,
+        "lockfile_sha256": "c" * 64,
+    }
+    numbers = {
+        **document,
+        "parameters": recipe.reported_parameters(recipe.configuration()),
+        "decision": decision,
+        "run_id": "r001",
+        "collection_provenance": provenance,
+    }
+    write_json_atomic(data / "numbers.json", numbers)
+    write_json_atomic(data / "decision.json", decision)
+    write_json_atomic(data / "reproducer.json", {"command": "historical command"})
+    (data / "psychometric.svg").write_text("obsolete figure")
+    write_json_atomic(
+        archive / "lineage.json", {"sources": {"base": {"run_id": historical.CAMPAIGN}}}
+    )
+    base = archive / historical.BASE
+    original = {
+        "run_id": historical.CAMPAIGN,
+        "source": {
+            "git_commit": historical.COMMIT,
+            "git_clean": True,
+            "lockfile": {"sha256": "c" * 64},
+        },
+    }
+    write_json_atomic(base / "run.json", original)
+    write_json_atomic(
+        base / "collection-plan.json",
+        {
+            "source": original["source"],
+            "campaign_id": historical.CAMPAIGN,
+            "stages": [
+                {
+                    "experiments": [
+                        {
+                            "slug": "exp080",
+                            "dependencies": [],
+                            "training_run": None,
+                            "execution": {"mode": "monolithic"},
+                            "command": ["python", "-m", "experiments.exp080"],
+                        }
+                    ]
+                }
+            ],
+        },
+    )
+    write_json_atomic(
+        base / "collection-status/exp080.json",
+        {"experiment": "exp080", "state": "complete"},
+    )
+    logs = base / "logs/collection"
+    logs.mkdir(parents=True)
+    (logs / f"ggs-exp080_{historical.JOB}.out").write_text(
+        f"job={historical.JOB} host=test action=run-experiment experiment=exp080\n"
+        "exp080 complete: selected 0.5--25 Hz\n"
+    )
+    (logs / f"ggs-exp080_{historical.JOB}.err").write_text("")
+    files = [
+        {
+            "path": str(p.relative_to(archive)),
+            "size_bytes": p.stat().st_size,
+            "sha256": file_sha256(p),
+        }
+        for p in sorted(archive.rglob("*"))
+        if p.is_file()
+    ]
+    write_json_atomic(
+        archive / "inventory.json",
+        {
+            "contract_version": "runstore/v1",
+            "run_id": "gold-2",
+            "files": files,
+            "file_count": len(files),
+            "total_size_bytes": sum(r["size_bytes"] for r in files),
+        },
+    )
+    write_json_atomic(
+        archive / "run.json",
+        {
+            "contract_version": "runstore/v1",
+            "run_id": "gold-2",
+            "archive": {"uri": historical.URI},
+        },
+    )
+    remote = root / "remote"
+    remote.mkdir()
+    for name in ("run.json", "inventory.json"):
+        shutil.copyfile(archive / name, remote / name)
+    return root, archive, remote
+
+
+def test_historical_plan_preserves_all_checkpoints_trials_and_sources(archive):
+    root, source, remote = archive
+    before = {p: file_sha256(p) for p in source.rglob("*") if p.is_file()}
+    runs = set((root / ".pingstore/runs").iterdir())
+    plan = historical.make_plan(source, remote)
+    assert plan["upstream_inputs"] == {}
+    assert plan["source_file_count"] == 19
+    assert len([r for r in plan["files"] if r["target"].endswith("decoder.pt")]) == 3
+    assert plan["checks"]["exact_numerical_replay"]
+    assert plan["retained_source_bytes"] < plan["source_bytes"]
+    assert plan["excluded_experiment_files"][0]["path"].endswith("psychometric.svg")
+    assert {p: file_sha256(p) for p in source.rglob("*") if p.is_file()} == before
+    assert set((root / ".pingstore/runs").iterdir()) == runs
+
+
+@pytest.mark.parametrize("change", ["remote", "checkpoint", "missing", "symlink"])
+def test_historical_plan_rejects_missing_changed_or_linked_evidence(archive, change):
+    root, source, remote = archive
+    if change == "remote":
+        (remote / "run.json").write_text("{}")
+    elif change == "checkpoint":
+        (source / historical.DERIVED / "models/seed-42/decoder.pt").write_bytes(
+            b"corrupt"
+        )
+    elif change == "missing":
+        (source / historical.DERIVED / "held_out_correctness.npz").unlink()
+    else:
+        path = source / historical.DERIVED / "feature_images.png"
+        target = root / "untrusted.png"
+        path.rename(target)
+        path.symlink_to(target)
+    with pytest.raises(PingstoreError):
+        historical.make_plan(source, remote)
+
+
+def test_historical_illustration_is_carried_without_simulation(repo, monkeypatch):
+    from PIL import Image
+
+    root, _ = repo
+    identity = compute.compute()
+    source = inputs.source(root, identity, "compute")
+    Image.fromarray(np.zeros((2, 2), dtype=np.uint8)).save(
+        source.export / "feature_images.png"
+    )
+    original = (source.export / "feature_images.png").read_bytes()
+    (source.export / "feature_samples.npz").unlink()
+    document = load_json(source.export / "evidence.json")
+    document["illustration"] = {
+        "kind": "historical-image",
+        "path": "feature_images.png",
+    }
+    write_json_atomic(source.export / "evidence.json", document)
+    record = load_json(source.directory / "run.json")
+    record["execution"]["operation"] = "historical-import"
+    record["historical_import"] = {"producer": {"campaign_id": "fixture"}}
+    write_json_atomic(source.directory / "run.json", record)
+    resign(source.directory)
+    monkeypatch.setattr(compute, "direct_features", forbidden)
+    monkeypatch.setattr(present.plots, "plot_feature_images", forbidden)
+    analysis_id = analyse.analyse(identity)
+    presentation_id = present.present(analysis_id)
+    presentation = inputs.source(root, presentation_id, "present")
+    assert (presentation.export / "feature_images.png").read_bytes() == original
+    assert (
+        presentation.record["retained_figures"]["feature_images.png"]["regenerated"]
+        is False
+    )
+
+
+def test_approved_import_keeps_bytes_lineage_and_independent_stages(
+    archive, monkeypatch
+):
+    root, source, remote = archive
+    plan = historical.make_plan(source, remote)
+    before = {p: file_sha256(p) for p in source.rglob("*") if p.is_file()}
+    monkeypatch.setattr(import_gold2, "execution_origin", lambda: "local")
+    monkeypatch.setattr(compute, "compute", forbidden)
+    monkeypatch.setattr(compute, "direct_features", forbidden)
+    identity = import_gold2.import_subset(source, plan, remote)
+    run = inputs.source(root, identity, "compute")
+    assert run.record["origin"] == "local"
+    assert run.record["execution"]["operation"] == "historical-import"
+    assert run.record["historical_import"]["producer"] == plan["producer"]
+    assert run.record["historical_import"]["training_executed"] is False
+    assert not list((root / ".pingstore/runs").glob("*-analyse"))
+    for row in plan["files"]:
+        copied = (run.directory / row["target"]).read_bytes()
+        assert len(copied) == row["retained_bytes"]
+        restored = gzip.decompress(copied) if row["encoding"] == "gzip" else copied
+        assert restored == (source / row["path"]).read_bytes()
+    analysis_id = analyse.analyse(identity)
+    presentation_id = present.present(analysis_id)
+    presentation = inputs.source(root, presentation_id, "present")
+    original = load_json(source / historical.DERIVED / "numbers.json")
+    assert (
+        load_json(presentation.export / "numbers.json")["decision"]
+        == original["decision"]
+    )
+    assert {p: file_sha256(p) for p in source.rglob("*") if p.is_file()} == before
+
+
+def test_import_rejects_modified_approval_before_allocating(archive):
+    root, source, remote = archive
+    plan = historical.make_plan(source, remote)
+    plan["files"].pop()
+    before = set((root / ".pingstore/runs").iterdir())
+    with pytest.raises(PingstoreError, match="approval"):
+        import_gold2.import_subset(source, plan, remote)
+    assert set((root / ".pingstore/runs").iterdir()) == before
+
+
+def test_import_copy_failure_stays_hidden(archive, monkeypatch):
+    root, source, remote = archive
+    plan = historical.make_plan(source, remote)
+    before = set((root / ".pingstore/runs").glob("exp080-*"))
+    original = import_gold2.copy_selected
+
+    def fail(archive, run, row):
+        original(archive, run, row)
+        raise RuntimeError("copy failure")
+
+    monkeypatch.setattr(import_gold2, "copy_selected", fail)
+    monkeypatch.setattr(import_gold2, "execution_origin", lambda: "local")
+    with pytest.raises(RuntimeError, match="copy failure"):
+        import_gold2.import_subset(source, plan, remote)
+    assert set((root / ".pingstore/runs").glob("exp080-*")) == before
+    assert len(list((root / ".pingstore/runs").glob(".exp080-*-compute.tmp"))) == 1
+
+
+def test_shared_collection_registration_rejects_legacy_rows(tmp_path):
+    from experiments.collections.gamma_gated_sparsity import execution, plan
+
+    campaign = plan.build_plan(tmp_path / "campaign", "fixture")
+    row = next(
+        r for s in campaign["stages"] for r in s["experiments"] if r["slug"] == "exp080"
+    )
+    assert row["execution"] == {
+        "mode": "exp080-staged",
+        "stages": ["compute", "analyse", "present"],
+    }
+    assert row["command"] == []
+    assert row["required_outputs"] == [
+        str(tmp_path / "campaign/downstream/exp080/stage-refs.json")
+    ]
+    assert execution._stage_adapter("exp080") is collection
+    legacy = {**row, "execution": {"mode": "monolithic"}}
+    assert not execution._outputs_valid_for_plan(campaign, legacy)
+    with pytest.raises(PingstoreError, match="legacy"):
+        execution._run_downstream(campaign, legacy)
+
+
+@pytest.mark.parametrize("view", ["crossed", "censored", "absent", "broken"])
+def test_article_renders_explicit_evidence_without_false_branches(repo, view):
+    from demolab_cli import _paths
+
+    root, _ = repo
+    project = Path(__file__).resolve().parents[2]
+    presentation_id = present.present(analyse.analyse(compute.compute()))
+    run = inputs.source(root, presentation_id, "present")
+    # Changes below affect a disposable rendering fixture, never a completed run.
+    shutil.copytree(run.export, root / "render-data")
+    numbers = root / "render-data/numbers.json"
+    if view == "censored":
+        record = load_json(numbers)
+        record["decision"] = measurements.analyze(np.zeros((8, 3, 50), dtype=bool))
+        write_json_atomic(numbers, record)
+    elif view == "broken":
+        numbers.write_text("not json")
+    (root / "writings").mkdir()
+    for name in ("exp080.typ", "contents.typ", "run-inputs.typ", "run-view.typ"):
+        shutil.copyfile(project / "writings" / name, root / "writings" / name)
+    (root / ".demolab").mkdir()
+    for name in ("lib.typ", "style.css"):
+        shutil.copyfile(_paths.TYP / name, root / ".demolab" / name)
+    (root / ".demolab/VERSION").write_text("test")
+    write_json_atomic(
+        root / "preview.json",
+        {} if view == "absent" else {"exp080": {"exp080": "/render-data"}},
+    )
+    document = root / "article.typ"
+    document.write_text(
+        '#import "/.demolab/lib.typ": entry-page\n'
+        '#import "/writings/exp080.typ": meta, body\n'
+        '#entry-page(meta, body, id: "exp080")\n'
+    )
+    command = [
+        _paths.find_typst(project),
+        "compile",
+        "--root",
+        str(root),
+        "--input",
+        "demolab-preview-file=/preview.json",
+        "--features",
+        "html",
+        "--format",
+        "html",
+        str(document),
+        str(root / "article.html"),
+    ]
+    result = subprocess.run(command, capture_output=True, text=True, timeout=30)
+    if view == "broken":
+        assert result.returncode != 0 and "json" in result.stderr.lower()
+        return
+    assert result.returncode == 0, result.stderr
+    html = (root / "article.html").read_text()
+    assert html.count('<nav aria-label="Table of Contents">') == 1
+    assert "else [" not in html
+    if view == "absent":
+        assert 'class="exp080-equation"' not in html
+        assert "All three nonlinear decoders reached" not in html
+        assert "A required run is unavailable" in html
+        return
+    headings = re.findall(r"<h3\b[^>]*>(.*?)</h3>", html, re.S)
+    assert sum(heading.startswith("References") for heading in headings) == 1
+    assert html.count('class="exp080-equation"') == 5
+    for number in range(1, 6):
+        assert f"<span>({number})</span>" in html
+    assert len(re.findall(r"<img\b", html)) == 3
+    for math in re.findall(r"<math\b.*?</math>", html, re.S):
+        tree = ElementTree.fromstring(math)
+        for subscript in tree.iter("msub"):
+            assert "(" not in "".join(subscript[1].itertext())
+    assert "over 50 decoder-training epochs" not in html
+    if view == "crossed":
+        assert "The selected floor is 0.5 Hz" in html
+        assert "No rate met the criterion" not in html
+    else:
+        assert "No rate met the criterion" in html
+        assert "The selected floor is" not in html
