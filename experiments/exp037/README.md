@@ -80,7 +80,7 @@ present separately after compute completes.
 
 The `baseline_results`, `frontier_summary`, `perturbation`,
 `perturbation_summary`, `config` and checkpoint interfaces remain available.
-`notebook_run_id` is retained as a presentation identity alias. exp092, exp093 and
+`notebook_run_id` is retained as a presentation identity alias. exp092 and
 exp109 consume summaries and/or `perturbation_curves.svg`; migrating their execution
 is separate work.
 

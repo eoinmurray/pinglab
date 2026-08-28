@@ -67,7 +67,7 @@ unchanged. Inference results remain in `ei_sweep`, `ei_sweep_summary`, and
 Present preserves five figure families (ten PNG/SVG/PDF files) plus
 `numbers.json`: `rate_rasters__ping`, `fi_curve__ping`, `fi_curve_uniform`,
 `ei_rasters`, and `loop_transfer_compound`. The main article and downstream
-exp092/exp093/exp109 consumers retain their existing figure and number keys.
+exp092/exp109 consumers retain their existing figure and number keys.
 Run IDs are no longer stamped onto scientific figures.
 
 ## Gold-2 audit and selective import

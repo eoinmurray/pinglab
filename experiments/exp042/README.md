@@ -198,8 +198,8 @@ input pins validate under v3. The current four-page writing was rendered and
 visually reviewed with the imported presentation, without editing its text.
 Existing run manifests, published files and user guide edits remain unchanged.
 
-Exp092 needs `numbers.json` and `rhythm_compound.png`; exp093 uses the compound
-figure. No collection compute experiment depends on exp042 raw arrays. Those
+Exp092 needs `numbers.json` and `rhythm_compound.png`.
+No collection compute experiment depends on exp042 raw arrays. Those
 outputs are present, but no downstream experiment was migrated or executed here.
 Keep the pinned exp022 bank and its complete ancestry with any transferred run.
 R2 remains unchanged. No simulation, publication, commit or push was performed.

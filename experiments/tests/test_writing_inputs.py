@@ -195,24 +195,6 @@ def test_image_only_input_needs_no_numbers_file(lab):
     evaluate(lab, report_expression("exp099"), preview=selection, error="file not found")
 
 
-def test_comparison_waits_for_all_inputs_then_renders(lab):
-    text = (WRITINGS / "exp093.typ").read_text()
-    declaration = re.search(r"^#let inputs = \((.*?)\)", text, re.M)
-    keys = re.findall(r'"([^"]+)"', declaration[1])
-    selection = {"exp093": {key: "/selected" for key in keys}}
-    selection["exp093"]["exp044"] = None
-    assert NOTICE in evaluate(lab, report_expression("exp093"), preview=selection)
-    (lab / "selected").mkdir()
-    (lab / "selected/numbers.json").write_text(json.dumps({
-        "legacy": {"run_id": "fixture-old"}, "current": {"run_id": "fixture-new"},
-        "figures": [{"experiment": "exp025", "filename": "chart.svg", "title": "Fixture"}],
-    }))
-    for filename in ("chart.svg", "legacy__exp025__chart.svg"):
-        (lab / "selected" / filename).write_text(SVG)
-    selection["exp093"]["exp044"] = "/selected"
-    assert NOTICE not in evaluate(lab, report_expression("exp093"), preview=selection)
-
-
 @pytest.mark.parametrize("path", ["../input/a.json", "input/../a.json", "/input/a.json", "input\\a.json"])
 def test_invalid_logical_paths_are_rejected(lab, path):
     evaluate(

@@ -99,7 +99,7 @@ population traces, voltage/conductance recordings, input spikes and unrelated
 weight matrices remain in R2. Training histories/checkpoints are reused through
 the bank pin, not copied again.
 
-exp092, exp093 and exp109 consume report summaries/rhythmicity and, where
+exp092 and exp109 consume report summaries/rhythmicity and, where
 applicable, `training_curves.svg`; these interfaces are retained. Migrating those
 consumers' execution is separate work.
 

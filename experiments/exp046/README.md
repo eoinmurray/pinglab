@@ -59,7 +59,7 @@ Analysis exports `results.json`. Presentation exports `numbers.json`,
 `spikes_per_cycle_distribution.{svg,pdf}` and `ceiling_vs_fgamma.{svg,pdf}`.
 Existing `results`, `global_fracs`, `per_tau`, `ceiling` and
 `n_cell_cycle_pairs` fields remain available. This preserves the outputs used
-by exp092, exp093 and exp109; their own execution migrations are separate work.
+by exp092 and exp109; their own execution migrations are separate work.
 Repository run IDs are no longer stamped onto scientific figures.
 
 ## Deferred scientific review

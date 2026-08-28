@@ -255,7 +255,7 @@ preview:
   discover: [uv, run, pingstore, discover]
   articles:
     exp092: [exp023, exp025, exp038, exp048]
-    exp093:
+    comparison:
       baseline: [exp025, exp038, exp049]
       candidate: [exp025, exp038, exp049]
 ```

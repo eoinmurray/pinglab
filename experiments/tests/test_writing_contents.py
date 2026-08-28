@@ -57,7 +57,7 @@ def test_article_sections_are_unnumbered_and_results_precede_methods(article):
     # Source checks include reports whose data-dependent body is unavailable.
     source = article.read_text()
     headings = re.findall(r"^[ \t]*(=+) (.+)$", source, re.M)
-    assert headings or article.stem in {"exp092", "exp093"}
+    assert headings or article.stem == "exp092"
     for _, title in headings:
         assert not SECTION_ORDINAL.match(title), (article, title)
     top = [title for level, title in headings if level == "=="]
