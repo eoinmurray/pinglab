@@ -1,22 +1,37 @@
 #let meta = (
   status: "Drafted",
   title: "Parameters & Units",
+  updated_at: "2026-08-28",
   date: "2026-05-14",
   description: "The unit system used throughout the codebase and the biophysical constants for the COBA / PING model.",
   collection: "snnsim-docs",
+  order: 2,
 )
 
 #let body = [
-  All physical quantities in the codebase use the same unit system: *ms for time, mV for voltage, nF for capacitance, μS for conductance, nA for current, Hz for rates*. Time fields carry an explicit _\_ms_ suffix (_sim_ms_, _ref_ms_E_, _tau_gaba_); CLI flags follow the same convention (_--t-ms 600_). A Δt of 1 means 1 ms, not 1 s.
+  == Contents
+
+  + #link("/exp004/#using-this-reference")[Using this reference]
+  + #link("/exp004/#quantities")[Quantities]
+  + #link("/exp004/#coba-ping-biophysical-constants")[Biophysical constants]
+  + #link("/exp004/#internal-consistency")[Internal consistency]
+  + #link("/exp004/#checking-a-configuration")[Checking a configuration]
+
+
+  == Using this reference
+
+  Use this page when setting a CLI flag, reading a saved configuration, or checking a neuron update. The legacy SNNSIM biophysical model uses *ms for time, mV for voltage, nF for capacitance, μS for conductance, nA for current, and Hz for rates*. A `--dt 1` means 1 ms, not 1 s. Names are not uniformly suffixed: `sim_ms`, `ref_ms_E`, `tau_gaba`, and `dt` all represent milliseconds.
+
+  The values below describe library defaults or explicitly labelled examples, not a universal experiment recipe. CLI defaults, loaded configurations, and committed experiment recipes can differ. Graph bundles declare their own units and parameters; see #link("/exp105/")[Networks, signals, and parameters].
 
   == Quantities
 
   #table(
     columns: (auto, auto, auto, auto),
     align: (left, left, right, left),
-    [*Quantity*], [*Unit*], [*Typical value*], [*Variable*],
-    [Integration step], [ms], [0.25], [_dt_, _DT_MS_],
-    [Simulation length], [ms], [600], [_sim_ms_],
+    [*Quantity*], [*Unit*], [*Default or example*], [*Variable*],
+    [Integration step], [ms], [0.25], [_dt_ / `--dt`],
+    [Simulation length], [ms], [200 (CLI); 600 (Config)], [_sim_ms_ / `--t-ms`],
     [Membrane time constant], [ms], [20 (E), 5 (I)], [_tau_m_E_, _tau_m_I_],
     [Refractory period], [ms], [3 (E), 1.5 (I)], [_ref_ms_E_, _ref_ms_I_],
     [AMPA decay], [ms], [2], [_tau_ampa_],
@@ -28,9 +43,7 @@
     [GABA reversal], [mV], [−80], [_E_i_],
     [Membrane capacitance], [nF], [1.0 (E), 0.5 (I)], [_C_m_E_, _C_m_I_],
     [Leak conductance], [μS], [0.05 (E), 0.1 (I)], [_g_L_E_, _g_L_I_],
-    [External drive], [μS], [0.0006 (async), 0.003 (PING)], [_t_e_async_, _t_e_ping_],
-    [Input current (CUBA)], [nA], [20 per spike], [_input_scale_],
-    [CUBA weight std], [nA], [32], [_W_STD_CUBA_],
+    [External drive], [μS], [0.0006 (Config baseline)], [_t_e_async_],
     [Max input rate], [Hz], [25], [_max_rate_hz_],
     [Population firing rate], [Hz], [20–80], [_r_E_, _r_I_],
     [Gamma frequency], [Hz], [30–80], [_f_0_],
@@ -38,7 +51,7 @@
 
   == COBA / PING biophysical constants
 
-  Used by #link("/exp100/")[COBA] and #link("/exp100/")[PING]. Values follow neuroscience conventions (cf. Dayan & Abbott, Gerstner _Neuronal Dynamics_); the E:I asymmetry in $tau_m, C_m, g_L, tau_"ref"$ produces the timescale separation that makes PING dynamics possible.
+  These are the default constants in `tools/snnsim/models.py` used by #link("/exp100/")[COBANet]. They are model choices, not universal biological constants. Capacitance and leak satisfy $tau_m = C_m / g_L$. Here $tau_m$ is the passive membrane time constant, $C_m$ the capacitance, and $g_L$ the leak conductance.
 
   #table(
     columns: (auto, auto, auto),
@@ -55,7 +68,7 @@
     [$E_i$ (mV, reversal)], [−80], [−80],
   )
 
-  Synapse time constants: $tau_"AMPA" = 2$ ms (excitation), $tau_"GABA" = 9$ ms (inhibition). These set the ceiling on PING's Δt-stability: once $Delta t gt.tilde tau_"GABA"$ the E→I→E loop cannot complete within one step.
+  Synapse time constants: $tau_"AMPA" = 2$ ms (excitation), $tau_"GABA" = 9$ ms (inhibition). These are decay times, not a sufficient timestep-stability criterion. Check timestep sensitivity for the intended input, recurrence, and measurement. `--tau-gaba` overrides the inhibitory decay; `--train-leak` allows bounded, per-neuron membrane time constants instead of fixed leak defaults.
 
   == Internal consistency
 
@@ -77,5 +90,13 @@
 
   == Why not SI?
 
-  Pure SI (F, S, V, A, s) forces every value to a large negative exponent — $C_m = 10^(-9)$ F, $g_L = 5 times 10^(-8)$ S, $Delta t = 2.5 times 10^(-4)$ s. The neuroscience convention (ms, mV, nF, μS, nA) keeps every typical value between $10^(-3)$ and $10^2$, which makes numerical debugging and human intuition faster. The tradeoff is that readers have to trust the unit consistency rather than verify it by plugging into SI formulas — this page is here so that trust is auditable.
+  Pure SI (F, S, V, A, s) forces every value to a large negative exponent — $C_m = 10^(-9)$ F, $g_L = 5 times 10^(-8)$ S, $Delta t = 2.5 times 10^(-4)$ s. The neuroscience convention (ms, mV, nF, μS, nA) keeps every typical value between $10^(-3)$ and $10^2$, which makes numerical debugging and human intuition faster. Conversion to SI remains available as an independent check; the equations above show why no extra scale factor is needed in these units.
+  == Checking a configuration
+
+  + *Separate defaults from overrides.* Read the saved `config.json` and the recipe that supplied it. For CLI inference, explicit flags override inherited values; omitted fields fall back to defaults.
+  + *Convert rates once.* With timestep $Delta t$ in ms and input rate $r$ in Hz, a Bernoulli spike encoder uses probability $p = r Delta t / 1000$ per step. Here $p$ is dimensionless. Check that the probability is meaningful for the chosen rate and timestep.
+  + *Check duration and counters.* The legacy path uses `int(t_ms / dt)` simulation steps. Avoid assuming a non-integral duration is preserved exactly. Refractory times are also discretised to steps.
+  + *Check the stored weights.* Initialization means are on a summed-coupling scale; individual stored edges are fan-in normalised. Readout weights can use direct initialization instead. See #link("/exp006/#weight-init")[Weight init].
+
+  #link("/exp011/")[Previous: SNNSIM command-line guide] · #link("/exp100/")[Next: COBANet]
 ]

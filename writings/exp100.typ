@@ -1,12 +1,38 @@
 #let meta = (
   status: "Drafted",
   title: "COBANet",
+  updated_at: "2026-08-28",
   date: "2026-05-14",
-  description: "Deriving the conductance-based (COBA) two-population neuron equations and their exact exponential-Euler discretization.",
+  description: "How COBANet updates conductances, membrane voltages, spikes, and resets, with the equations and implementation limits needed to work on the simulator.",
   collection: "snnsim-docs",
+  order: 3,
 )
 
 #let body = [
+  == Contents
+
+  + #link("/exp100/#implementation-map")[Implementation map]
+  + #link("/exp100/#1-a-conductance-based-neuron-equation")[Neuron equation]
+  + #link("/exp100/#2-the-coba-model")[The COBA model]
+  + #link("/exp100/#3-discretization")[Discretization]
+  + #link("/exp100/#checking-an-implementation-change")[Checking an implementation change]
+
+
+  == Implementation map
+
+  `COBANet` in `tools/snnsim/models.py` implements the built-in `--model ping` network. This page explains the minimal input→E→I→E motif; optional E→E, I→I, direct drives, adaptation, and trainable leak extend it. Read #link("/exp004/")[Parameters & Units] alongside these equations.
+
+  #table(
+    columns: (auto, 1fr),
+    [*Code*], [*Responsibility*],
+    [`exp_synapse`], [Decay the previous conductance, then add the current spike kick.],
+    [`lif_step_expeuler`], [Integrate voltage under fixed conductances, then apply clamps, refractory gating, spike detection, and reset.],
+    [`COBANet._step_body`], [Schedule population updates, recurrence, and readout.],
+    [`set_sim_dt` in `config.py`], [Set timestep, duration, and derived step count for legacy execution.],
+  )
+
+  Reuse the execution interface rather than changing model globals around a live network. A small forward command is given in #link("/exp011/#quick-start")[Quick start].
+
   == 1. A conductance based neuron equation
 
   The membrane is a capacitor ($C_m$) pierced by ion channels in parallel. Conservation of charge (Kirchhoff) balances the capacitive current $C_m dif V\/dif t$ against the total ionic current:
@@ -23,17 +49,19 @@
 
   == 2. The COBA model
 
-  COBANet specialises (3) to two populations — E driven by excitation and inhibition, I by excitation only:
+  In the minimal PING motif, E receives excitation and inhibition, while I receives excitation only. These equations omit the optional I→I pathway:
 
   $ C_m^E (dif V^E) / (dif t) = -g_L^E (V^E - E_L) - g_e^E (V^E - E_e) - g_i^E (V^E - E_i) quad (4) $
 
   $ C_m^I (dif V^I) / (dif t) = -g_L^I (V^I - E_L) - g_e^I (V^I - E_e) quad (5) $
 
-  A neuron spikes at threshold $V_"th"$ and resets to $V_"reset"$ for a refractory period:
+  After integration, a neuron outside its refractory period spikes at threshold $V_"th"$ and resets to $V_"reset"$. A refractory neuron cannot emit a spike:
 
-  $ s_(t+1) = bb(1)[V >= V_"th"], quad V <- V_"reset" "if" s_(t+1) = 1 "or refractory" quad (6) $
+  $ s_(t+1) = chi_(t+1) bb(1)[U_(t+1) >= V_"th"], quad V_(t+1) = cases(V_"reset" & "if spiking or refractory", U_(t+1) & "otherwise"). quad (6) $
 
-  Each synaptic conductance is an exponential trace driven by presynaptic spikes — each spike adds its full weight as an instantaneous jump, then the conductance decays with the channel time constant; there is no E→E connection:
+  Here $U_(t+1)$ is the integrated candidate voltage and $chi_(t+1)$ is 1 when the refractory counter permits a spike, otherwise 0. Thresholding follows the voltage update, not the previous step's voltage.
+
+  Each synaptic conductance is an exponential trace driven by presynaptic spikes — each spike adds its full weight as an instantaneous jump, then the conductance decays with the channel time constant; this minimal motif has no E→E connection:
 
   $ (dif g^E_e) / (dif t) = -(g^E_e) / (tau_"AMPA") + W_"in" sum_k delta(t - t^"inp"_k) quad (7) $
 
@@ -45,7 +73,7 @@
 
   == 3. Discretization
 
-  The conductances (7)–(9) and membrane equations (4)–(5) are continuous ODEs. The delta-driven conductances integrate *exactly* over one step: between spikes they decay by $e^(-Delta t \/ tau)$, and any spike landing in the step adds its full weight — the decay-then-add recurrence $g_(t+1) = e^(-Delta t \/ tau) g_t + W s_t$ (with the $tau$, $W$ and spike train $s$ of each of (7)–(9)). The membrane we integrate by *exponential Euler* — the same algebra for both populations (the I neuron drops $g_i$).
+  The conductances (7)–(9) and membrane equations (4)–(5) are continuous ODEs. The implementation places spike kicks on the timestep grid. Between kicks the conductances decay by $e^(-Delta t \/ tau)$, and the supplied spike adds its full weight at the update boundary — the decay-then-add recurrence $g_(t+1) = e^(-Delta t \/ tau) g_t + s_t W$ (with the $tau$, $W$ and spike train $s$ of each of (7)–(9)). The membrane we integrate by *exponential Euler* — the same algebra for both populations (the I neuron drops $g_i$).
 
   Collecting on $V$ makes it linear, with total conductance $g_"tot" = g_L + g_e + g_i$:
 
@@ -67,7 +95,18 @@
 
   with step (12) for each population $p in {E, I}$: $V^p_(t+1) = V^p_oo + (V^p_t - V^p_oo) e^(-Delta t \/ tau^p_"eff")$.
 
-  Being the _exact_ frozen-conductance integral, (12) is *dt-invariant* — $N$ small steps equal one big step, so firing rates and the gamma frequency are physical (Hz) properties, not timestep artifacts (#link("/exp044/")[exp044]). A forward-Euler step $V_(t+1) = V_t + (Delta t \/ C_m) I_"net"(V_t)$ — not dt-invariant — is kept only as a parity toggle (_COBA_INTEGRATOR_).
+  Equation (12) is exact only while those conductances are held fixed. In a passive interval without threshold events or clamps, subdividing that same fixed-conductance interval preserves the solution in exact arithmetic. It does not establish timestep invariance of a spiking network: conductance updates, threshold crossings, refractory counters, and recurrent scheduling still depend on the grid. Measure timestep sensitivity for the intended protocol rather than assuming firing rates or gamma frequency are invariant. The alternative `lif_step` uses forward Euler and is selected through `COBA_INTEGRATOR`.
 
-  Each step runs in fixed order: conductances (7)–(9), then $g_"tot", tau_"eff", V_oo$, then the membrane step (12), then spike + reset (6). *The zero-order hold is this ordering* — the conductances advance once, then stay fixed while the membrane integrates across $Delta t$. E and I advance synchronously, phase-locking the E→I→E gamma cycle to the grid.
+  For each population update, conductances advance first, then the membrane integrates, then spike and reset are evaluated. This ordering defines the frozen-conductance interval. Recurrent inputs use the stored spikes supplied by `COBANet._step_body`; do not substitute a different same-step schedule while claiming equivalent dynamics.
+
+  == Checking an implementation change
+
+  + *Preserve the kick convention.* `exp_synapse` computes `g * decay + spikes @ W`; `(g + spikes @ W) * decay` attenuates every new kick and changes the model.
+  + *Preserve spike timing.* Keep integration, refractory-counter update, thresholding, and reset in the implemented order. The returned voltage may already be reset while the emitted spike is still available.
+  + *Separate forward and backward changes.* `--v-grad-dampen` modifies autograd through the increment; its local effect is described in #link("/exp015/")[Gradient Stabilisation].
+  + *Test the intended extension.* A minimal PING equation does not describe enabled I→I recurrence, adaptation, noise, or state clamps. Inspect the corresponding branch in the model and extend the existing tests when changing it.
+
+  Source reference: `tools/snnsim/models.py`, `tools/snnsim/config.py`, and `tools/snnsim/tests/test_models.py`.
+
+  #link("/exp004/")[Previous: Parameters & Units] · #link("/exp006/")[Next: Training]
 ]

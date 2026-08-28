@@ -1,15 +1,51 @@
 #let meta = (
   status: "Drafted",
   title: "Compute options",
+  updated_at: "2026-08-28",
   date: "2026-08-11",
   description: "A practical inventory of pinglab compute: when each machine or provider is appropriate, how access works, and the commands used to launch and monitor work.",
   collection: "pinglab-docs",
+  order: 1,
 )
 
 #let body = [
-  This is the operational map for pinglab compute. It separates the persistent control plane from the machines that perform numerical work, and records the authentication boundary for each provider. Prices, balances, queues, and GPU stock change. The commands below query those values when a decision is made instead of preserving a stale snapshot here.
+  == Contents
+
+  + #link("/exp103/#execution-workflow")[Execution workflow]
+  + #link("/exp103/#1-local-mac")[Local Mac]
+  + #link("/exp103/#2-hetzner-control-plane")[Hetzner]
+  + #link("/exp103/#3-olorin")[Olorin]
+  + #link("/exp103/#4-csd3-wilkes3-service-level-2")[Wilkes3 SL2]
+  + #link("/exp103/#5-csd3-wilkes3-service-level-3")[Wilkes3 SL3]
+  + #link("/exp103/#6-runpod")[RunPod]
+  + #link("/exp103/#7-modal")[Modal]
+  + #link("/exp103/#completion-checklist")[Completion checklist]
+
+  This is the operational map for pinglab compute. It separates the persistent control plane from the machines that perform numerical work, and records the authentication boundary for each provider. Prices, balances, queues, and GPU stock change. Host aliases, hardware, accounts, and service names below are the recorded project configuration, not a live availability report. Check the relevant machine and provider before launch; an edit date is not evidence that credentials or capacity were revalidated.
 
   Never place a password, TOTP seed, private SSH key, RunPod API key, or Modal token in this repository. Authentication commands either use an encrypted local key or open the provider's own interactive login flow.
+
+  == Execution workflow
+
+  Choose the stage before choosing the machine. From the repository root, these commands show the independent exp022 entry points:
+
+  ```sh
+  uv run python experiments/exp022/compute.py --help
+  uv run python experiments/exp022/analyse.py --help
+  uv run python experiments/exp022/present.py --help
+  ```
+
+  The execution pattern is:
+
+  ```sh
+  uv run python experiments/exp022/compute.py
+  uv run python experiments/exp022/analyse.py --source <compute-run-id>
+  uv run python experiments/exp022/present.py --source <analysis-run-id>
+  ```
+
+  Replace each placeholder with the exact completed run ID printed by the preceding stage. The first command can perform substantial work: inspect the recipe and backend plan before running it. Analyse and present do not launch upstream work or automatically publish. Do not assume a command is a dry run merely because it lacks `--live`; that gate belongs to specific remote dispatch interfaces.
+
+  Each completed stage produces an immutable v3 run with `run.json` and `export/`. Hidden temporary directories are incomplete, not usable evidence. Preview selects a present run without changing retained evidence; materialization and deployment are separate operations. See the versioned #link("https://github.com/eoinmurray/pinglab/blob/main/experiments/README.md")[Experiment Runner Guide] and #link("https://github.com/eoinmurray/pinglab/blob/main/tools/pingstore/README.md")[Storage Guide].
 
   == 1. Local Mac
 
@@ -23,11 +59,11 @@
   cd /Users/eoin/pinglab
   uv sync --dev
 
-  # Run an experiment locally.
-  uv run python experiments/expNNN.py
+  # Inspect a stage before deciding whether to execute it.
+  uv run python experiments/exp022/compute.py --help
 
   # Preview the Demolab collection.
-  demolab dev
+  uv run demolab dev
   ```
 
   Keep cloud commands in dry-run mode until spending has been explicitly authorised.
@@ -45,7 +81,8 @@
 
   # Inspect the persistent session and preview service.
   tmux list-sessions
-  tmux attach -t shd-autoresearch
+  # Attach only after choosing the session from the list.
+  tmux attach -t <session-name>
   systemctl --user status demolab-dev.service
 
   # Reach Olorin from the control plane.
@@ -71,14 +108,14 @@
 
   # On Olorin, after confirming that GPU N is idle:
   cd /scratch/em586/pinglab
-  CUDA_VISIBLE_DEVICES=N uv run python experiments/expNNN.py
+  CUDA_VISIBLE_DEVICES=N uv run python experiments/exp022/compute.py
   ```
 
   Never launch on all four GPUs merely because the machine accepts the command. Shared infrastructure without a scheduler requires more restraint, not less.
 
   == 4. CSD3 Wilkes3, Service Level 2
 
-  *When to use.* Use SL2 for planned production runs where a queue of hours is acceptable. It is the default scheduled backend for long, reproducible A100 jobs and should consume the purchased allocation before commercial cloud credits.
+  *When to use.* Use SL2 for planned production runs where queued execution is acceptable. It is the scheduled backend for planned A100 jobs. Confirm the allocation balance, account permission, and queue before committing work.
 
   *Provider overview.* Wilkes3 is Cambridge's Slurm-managed A100 cluster. The SL2 GPU account is `OLEARY-SL2-GPU`; the Ampere partition uses QOS `gpu1`. Account balance and scheduler estimates are live administrative state and must be queried at submission time.
 
@@ -92,7 +129,7 @@
   ssh csd3 mybalance
   ssh csd3 'sacctmgr show assoc user="$USER" format=Account,Partition,QOS'
 
-  # Submit one A100 job on SL2.
+  # On CSD3, submit a prepared job script with a reserved run identity.
   sbatch \
     --account=OLEARY-SL2-GPU \
     --partition=ampere \
@@ -100,7 +137,7 @@
     --gres=gpu:1 \
     job.slurm
 
-  # Ask Slurm for an estimate without submitting.
+  # On CSD3, ask Slurm for an estimate without submitting.
   sbatch --test-only \
     --account=OLEARY-SL2-GPU --qos=gpu1 job.slurm
   ```
@@ -109,9 +146,9 @@
 
   == 5. CSD3 Wilkes3, Service Level 3
 
-  *When to use.* Use SL3 for non-urgent work that can wait several days, for overflow, or for jobs submitted well before their results are needed. It is a poor interactive backend.
+  *When to use.* Use SL3 for non-urgent work that can wait for lower-priority capacity, for overflow, or for jobs submitted well before their results are needed. It is a poor interactive backend.
 
-  *Provider overview.* SL3 uses the same Wilkes3 A100 hardware and Ampere partition but a lower-priority service level. The GPU account is `OLEARY-SL3-GPU` and its QOS is `gpu2`.
+  *Provider overview.* SL3 uses the same recorded Wilkes3 A100 hardware and Ampere partition with a lower-priority service level; no queue-time guarantee is implied. The GPU account is `OLEARY-SL3-GPU` and its QOS is `gpu2`.
 
   *How to use.* Authentication is identical to SL2. Toggle the account and QOS at submission time:
 
@@ -149,7 +186,7 @@
   runpodctl pod list -o json
   runpodctl user -o json
 
-  # Free plan, then an explicitly paid capacity check.
+  # Dry-run plan, then an explicitly paid capacity check.
   uv run python experiments/helpers/runpod_smoke.py
   uv run python experiments/helpers/runpod_smoke.py --live
 
@@ -157,19 +194,17 @@
   uv run python experiments/exp022.py --runpod --gpu 5090
   uv run python experiments/exp022.py --runpod --gpu 5090 --live
 
-  # Kill switch for an exp022 fleet.
-  uv run python experiments/exp022.py --runpod --reap
   ```
 
-  Every pod-creating command spends money. Dry-run first, obtain explicit approval, launch, monitor, collect, and verify that `runpodctl pod list` is empty.
+  Pod creation can incur charges. Dry-run first, obtain explicit approval, record the pod IDs, launch, monitor, and collect. Verify that the pods created for this dispatch are terminated; unrelated pods need not disappear. Broad reap commands can affect other work, so inspect their scope before using them.
 
   == 7. Modal
 
-  *When to use.* Use Modal when reliable serverless startup, automatic scaling, and reduced infrastructure management justify a higher GPU-hour price. It is useful as an escape hatch when RunPod image or SSH transport is unreliable. Only runners with an implemented Modal backend can use it.
+  *When to use.* Use Modal when managed function execution and reduced infrastructure management fit the workload; compare current cost and startup behaviour rather than assuming a fixed premium or guaranteed startup time. It is useful as an escape hatch when RunPod image or SSH transport is unreliable. Only runners with an implemented Modal backend can use it.
 
   *Provider overview.* Modal runs containerized functions and bills GPU, CPU, and memory by execution time. It provides managed scheduling rather than a persistent SSH host. Pinglab's Modal integration is narrower than its RunPod integration, so backend support must be confirmed in the selected runner.
 
-  *How to use.* `modal setup` opens Modal's authentication flow and stores a local token. Never commit token values. As with RunPod, pinglab requires `--live` before a runner dispatches paid work.
+  *How to use.* `modal setup` opens Modal's authentication flow and stores a local token. Never commit token values. For a runner implementing the project remote-dispatch contract, `--live` gates paid work. The low-level SNNSIM tool's `--modal` is a different interface; do not assume it shares that gate.
 
   ```sh
   # One-time interactive authentication.
@@ -178,14 +213,23 @@
   # Replace <runner> with a runner confirmed to support Modal.
   uv run python experiments/<runner>.py --help
 
-  # Free plan, followed by an explicitly authorised live dispatch.
+  # For a confirmed compatible runner: plan, then authorised dispatch.
   uv run python experiments/<runner>.py --modal
   uv run python experiments/<runner>.py --modal --live
   ```
 
   Modal is not a drop-in flag for every experiment. If a runner does not expose `--modal`, adding a backend is implementation work rather than a command-line choice.
 
+  == Completion checklist
+
+  + *Before launch:* inspect the recipe, supported backend flags, resource request, output destination, and reserved run identity. Confirm shared-machine permission or paid-work approval.
+  + *During execution:* retain job or pod IDs, inspect logs and progress, and distinguish retries from a new scientific condition.
+  + *After execution:* require the stage's completed run and validation, not just a successful scheduler exit or a directory containing files. Keep partial outputs hidden.
+  + *Before downstream work:* pass explicit validated v3 inputs. A new measurement needs analyse; a new rendering needs present. Neither should rerun compute implicitly.
+  + *Before leaving paid infrastructure:* verify collection and termination for this dispatch's resources. Backup and recovery are described in #link("/exp104/")[Cloudflare R2 archive].
+
   == Decision order
 
-  Use the smallest adequate option. Develop locally; orchestrate from Hetzner; use an idle Olorin GPU for opportunistic free work; submit planned production to Wilkes3 SL2; use RunPod for urgent overflow; choose Modal when managed reliability is worth the premium; and leave SL3 for work that can wait.
+  Use the smallest adequate option. Develop locally; orchestrate from Hetzner; use an available Olorin GPU when shared-machine policy permits; submit planned production to Wilkes3 SL2; use RunPod for urgent overflow; choose Modal when managed execution fits the task and current cost; and leave SL3 for work that can wait.
+  #link("/exp104/")[Next: Cloudflare R2 archive]
 ]

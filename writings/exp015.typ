@@ -2,133 +2,102 @@
   status: "Drafted",
   title: "Gradient Stabilisation",
   date: "2026-06-12",
-  description: "Why conductance-based spiking networks need --v-grad-dampen to train, derived from the discrete equations: the recurrent loop makes the backpropagated gradient diverge geometrically, and per-step voltage-gradient damping bounds it.",
+  updated_at: "2026-08-28",
+  description: "What voltage-gradient damping changes in SNNSIM, how to check it, and how to diagnose unstable training without confusing local derivatives with a global stability guarantee.",
   collection: "snnsim-docs",
+  order: 5,
 )
 
 #let body = [
-  Conductance-based spiking networks (COBA, PING) need one extra ingredient to train at all: a single flag, `--v-grad-dampen`. This article is the deep dive on why it is needed and what it does, derived from the discrete equations the code runs. For the surrounding recipe — BPTT, the spike surrogate, the loss, optimiser, readout, and regulariser — see the #link("/exp006/")[Training] article; this one assumes that background.
+  == Contents
 
-  *In plain English.* The E and I cells form a loop that makes the network oscillate at gamma (≈25 Hz). Training sends the gradient backward around that same loop, and each time a neuron crosses its spike threshold the surrogate hands the gradient a large multiplier. The loop is traversed _once per gamma cycle_ — only about five times in a 200 ms trial — but each pass multiplies by a factor well above one (the surrogate slope enters squared), so a handful of passes is enough to overflow to NaN. The forward simulation stays bounded because the spike reset clamps each cell every cycle; the gradient sidesteps that reset, so forward stability buys nothing backward. The fix, `--v-grad-dampen`, divides the voltage gradient by a constant $gamma$ at every step, shrinking the loop's multiplier below one — and thanks to a straight-through trick it changes only the gradient, never the simulation. The rest of this article proves each of those claims from the discrete equations.
+  + #link("/exp015/#using-the-control")[Using the control]
+  + #link("/exp015/#check-the-primitive")[Check the primitive]
+  + #link("/exp015/#the-implemented-update")[The implemented update]
+  + #link("/exp015/#what-the-derivatives-say")[What the derivatives say]
+  + #link("/exp015/#diagnosing-a-training-failure")[Diagnosing a training failure]
 
-  Naive BPTT through a 2000-step COBA/PING trial reaches NaN within a few batches. This article establishes the failure and its remedy from the discrete equations the code runs — no step omitted. The plan is: write the one-step map, differentiate it exactly (Lemma 1), propagate the gradient backward (the recursion), show the recurrent loop forces that gradient to diverge geometrically (Proposition 1), and show that scaling the per-step voltage gradient by $1\/gamma$ makes the loop a contraction while leaving the forward trajectory untouched (Proposition 2).
+  == Using the control
 
-  == Setup: the discrete update
+  `--v-grad-dampen` changes the backward pass through the legacy biophysical neuron's membrane increment. It is intended to reduce gradient amplification without intentionally changing the forward model. It does not divide the entire voltage gradient by a constant, repair a non-finite forward pass, or guarantee convergence.
 
-  Index the timesteps $t = 0, dots, T$ at $Delta t = 0.1$ ms. Each cell holds a state $(V^t, g_e^t, g_i^t)$. With reversal potentials $E_L, E_e, E_i$, capacitance $C_m$, leak $g_L$, synaptic decays $beta_e = e^(-Delta t\/tau_e)$ and $beta_i = e^(-Delta t\/tau_i)$, threshold $theta.alt$ and reset $V_r$, the step is exactly (`lif_step_expeuler`, `exp_synapse`):
+  In `tools/snnsim/models.py`, both `lif_step` and `lif_step_expeuler` apply `_scale_grad(dv, 1.0 / v_grad_dampen)` to the voltage increment `dv`. The legacy training CLI defaults to 80; the #link("/exp006/#start-a-small-training-run")[small training example] explicitly uses 1000. Treat either value as a configuration choice, not a universal threshold. A value of 1 disables the scaling. Use positive values, and values at least 1 when the intention is damping rather than amplification.
 
-  $ s^t = Theta(V^t - theta.alt) chi^t, quad ("S") $
+  Damping changes the optimization problem's supplied gradients. Keep it fixed when reproducing a recipe; record it when comparing training runs. Graph-native training has its own recipe contract: see #link("/exp088/")[Training recipes and graph-native learning].
 
-  $ g_e^(t+1) = beta_e (g_e^t + W_e s_"pre"^t), quad g_i^(t+1) = beta_i (g_i^t + W_i s_"pre"^t), quad ("C") $
+  == Check the primitive
 
-  $ tilde(V)^(t+1) = V_oo^(t+1) + (V^t - V_oo^(t+1)) alpha^(t+1), quad
-  V^(t+1) = cases(V_r & "if " s^t=1 " or refractory", tilde(V)^(t+1) & "otherwise,") quad ("V") $
+  This small check exercises the actual helper without training a network or downloading data. Run it from the repository root:
 
-  where $chi^t in {0,1}$ is the not-refractory gate, and the membrane decay and rest point are built from the _post_-update conductances $g^(t+1)$:
+  ```python
+  import torch
+  from tools.snnsim.models import _scale_grad
 
-  $ g_"tot" = g_L + g_e^(t+1) + g_i^(t+1), quad
-  alpha^(t+1) = e^(-Delta t g_"tot"\/C_m), quad
-  V_oo^(t+1) = (g_L E_L + g_e^(t+1) E_e + g_i^(t+1) E_i)/(g_"tot"). quad ("P") $
+  x = torch.tensor([2.0], dtype=torch.float64, requires_grad=True)
+  y = _scale_grad(x, 0.01)
+  y.sum().backward()
+  torch.testing.assert_close(y, x)
+  torch.testing.assert_close(x.grad, torch.tensor([0.01], dtype=x.dtype))
+  ```
 
-  The timing matters and is taken from the code: the spike $s^t$ in (S) is read from the _current_ voltage $V^t$, drives the conductance one step later in (C), and that conductance sets the voltage in (V). So one synaptic edge — presynaptic voltage to postsynaptic voltage — spans one timestep.
+  Expected result: both assertions pass. The forward value is approximately 2 and its derivative is approximately 0.01. The helper is private; this is an implementation check, not a new public API.
 
-  == Lemma 1 — the one-step Jacobian
+  The helper computes
 
-  Differentiate (S), (C), (V) entry by entry. The spike #link("/exp006/")[surrogate] gives the spike derivative
+  $ F_c(x) = c x + (1-c) "detach"(x). quad (1) $
 
-  $ (partial s^t)/(partial V^t) = sigma'(V^t - theta.alt) chi^t, quad sigma'(u) = k/((1+k |u|)^2), quad sigma'(0) = k. quad (1) $
+  Here $x$ is the input tensor, $c$ is a dimensionless gradient scale, and `detach` retains the value while removing its autograd dependency. In exact arithmetic $F_c(x)=x$, but autograd returns derivative $c$. Floating-point multiplication and addition can introduce rounding: this expression does not establish bitwise identity of full trajectories. PyTorch documents the dependency boundary in #link("https://docs.pytorch.org/docs/stable/generated/torch.Tensor.detach.html")[Tensor.detach].
 
-  From (C), the conductance partials are a self-decay and a _presynaptic-voltage_ coupling obtained by chaining (1):
+  == The implemented update
 
-  $ (partial g_e^(t+1))/(partial g_e^t) = beta_e, quad
-  (partial g_e^(t+1))/(partial V_"pre"^t) = beta_e W_e sigma'(V_"pre"^t - theta.alt) chi_"pre"^t. quad (2) $
+  The following equations describe the local exponential-Euler membrane update with noise and active voltage clamps excluded. They are an implementation derivation, not a proof of global network stability. The #link("/exp100/")[COBANet] page covers the surrounding dynamics.
 
-  From (V), with $g$ held, the membrane self-term is the decay; and differentiating (P) gives the conductance-to-voltage term ($partial g_"tot" \/ partial g_e = 1$, $partial V_oo \/ partial g_e = (E_e - V_oo)\/g_"tot"$, $partial alpha \/ partial g_e = -(Delta t \/ C_m) alpha$):
+  The synapse helper decays the previous conductance and then adds the spike kick:
 
-  $ (partial tilde(V)^(t+1))/(partial V^t) = alpha^(t+1), quad
-  (partial tilde(V)^(t+1))/(partial g_e^(t+1))
-  = underbrace((1-alpha) (E_e - V_oo)/(g_"tot"), "rest shifts") - underbrace((Delta t)/(C_m) alpha (V^t - V_oo), "decay shifts")
-  eq.triple kappa_e approx (Delta t)/(C_m)(E_e - V), quad (3) $
+  $ g^(t+1) = beta g^t + s^t W, quad beta = e^(-Delta t / tau). quad (2) $
 
-  the last step being the leading order in $Delta t$ (using $1-alpha approx Delta t g_"tot"\/C_m$). Define $kappa_i$ identically with $E_i$. Collecting (1)–(3), the one-step Jacobian on $(V, g_e, g_i)$, with the cross-cell coupling in the lower-left block, is
+  Here $g^t$ is a row of conductances in μS at step $t$, $s^t$ the supplied presynaptic spike row, $W$ the stored weight matrix in μS, $Delta t$ the timestep in ms, and $tau$ the synaptic decay time in ms. In particular, the new kick is not multiplied by $beta$. Network scheduling determines which spike row reaches each pathway.
 
-  $ J^t = (partial(V,g_e,g_i)^(t+1))/(partial(V,g_e,g_i)^t) =
-  mat(
-    rho alpha, kappa_e, kappa_i;
-    beta_e W_e sigma'(V_"pre"-theta.alt) chi_"pre", beta_e, 0;
-    beta_i W_i sigma'(V_"pre"-theta.alt) chi_"pre", 0, beta_i
-  ). quad ("J") $
+  Using the updated excitatory and inhibitory conductances $g_e$ and $g_i$, define
 
-  The single subtlety, and it is decisive below: the reset in (V) is a `torch.where`, so on any cell that spikes or is refractory the output is the constant $V_r$ and the membrane self-term is gated to zero. We write this as the factor $rho in {0,1}$ on the $partial V^(t+1)\/partial V^t$ entry: $rho = 0$ at a spike (gradient through the cell's own membrane is cut), $rho = 1$ otherwise. Crucially $rho$ multiplies only the membrane self-term — it does *not* touch the spike output $s^t$ in (1)–(2), which is evaluated at $V^t$ _before_ the reset.
+  $ g_"tot" = g_L + g_e + g_i, quad
+    V_oo = (g_L E_L + g_e E_e + g_i E_i) / g_"tot", quad
+    alpha = e^(-Delta t g_"tot" / C_m). quad (3) $
 
-  == Backpropagation: the gradient recursion
+  Here $g_L$ is leak conductance, $C_m$ capacitance in nF, and $E_L$, $E_e$, $E_i$ the leak, excitatory, and inhibitory reversal potentials in mV. $g_"tot"$ is total conductance, $V_oo$ the frozen-conductance equilibrium voltage, and $alpha$ the dimensionless membrane decay.
 
-  Let $lambda^t eq.triple partial cal(L)\/partial(V,g_e,g_i)^t$. Reverse-mode autodiff is exactly the linear recursion
+  For current voltage $V$, the increment and candidate voltage are
 
-  $ lambda^t = (J^t)^top lambda^(t+1), quad lambda^T = nabla_(x^T) cal(L)
-  quad ==> quad
-  lambda^t = (product_(s=t)^(T-1) J^s)^top lambda^T. quad (4) $
+  $ d v = (V_oo - V)(1-alpha), quad U = V + F_(1/gamma)(d v). quad (4) $
 
-  So the gradient that reaches step $t$ is governed by the product of one-step Jacobians, and $norm(lambda^t) <= (product_s norm(J^s)) norm(lambda^T)$. Whether this is benign or catastrophic is decided by the voltage component of (J) chained through the recurrent wiring.
+  Here $gamma$ is `v_grad_dampen` and $U$ is the candidate voltage before noise, clamps, thresholding, and reset. The implementation advances the voltage before testing its spike threshold. On a spiking or refractory cell, `torch.where` replaces the retained voltage with the reset value; the emitted spike remains a separate output with its surrogate derivative.
 
-  == Proposition 1 — the backpropagated gradient diverges (the problem)
+  == What the derivatives say
 
-  _Claim._ In a network with a recurrent E→I→E loop, the voltage gradient grows geometrically in the number of gamma _cycles_ traversed — not in the number of timesteps. A 200 ms trial holds only $N approx 5$ cycles against $T = 2000$ steps; the danger is that each cycle multiplies by a large factor, not that there are many cycles.
+  Holding conductances fixed, the backward derivative of the candidate voltage is
 
-  _Proof._ Compose (2) and (3): the gradient carried from a postsynaptic voltage at $t{+}1$ to a presynaptic voltage at $t$ across one synapse is the product of the conductance-coupling and the membrane term,
+  $ (partial U) / (partial V) = 1 - (1-alpha)/gamma. quad (5) $
 
-  $ a eq.triple (partial V_"post"^(t+1))/(partial V_"pre"^t)
-  = underbrace(kappa, approx (Delta t)/(C_m)(E_"syn"-V)) dot underbrace(beta W, "synapse") dot underbrace(sigma'(V_"pre"-theta.alt), "spike"). quad (5) $
+  Thus damping the increment preserves the direct $V$ pathway; it does not replace the full derivative by $alpha/gamma$. For $gamma >= 1$ and positive conductances this local derivative lies between $alpha$ and 1.
 
-  Traverse the loop once: $V_E -> V_I$ across $W_(e i)$ (edge gain $a_(e i)$), then $V_I -> V_E$ across $W_(i e)$ (edge gain $a_(i e)$). Over one round trip the $E$-voltage gradient maps to itself with the *loop gain*
+  Define the undamped conductance sensitivity for channel $q in {e,i}$ as
 
-  $ rho.alt = a_(e i) a_(i e)
-  = underbrace(k^2, "two " sigma' " at volley") dot beta_e beta_i W_(e i) W_(i e) kappa_I kappa_E. quad (6) $
+  $ kappa_q = (1-alpha)(E_q - V_oo)/g_"tot"
+    - (Delta t / C_m) alpha (V - V_oo). quad (6) $
 
-  The factor $k^2$ appears *once per gamma cycle*. Each population fires a single synchronous volley per cycle, so the two large kicks $sigma' -> sigma'(0) = k$ (one for $E$, one for $I$) occur together once per loop traversal and nowhere else; between volleys the per-step Jacobians are the mild sub-unit decays $alpha, beta < 1$, which merely carry the gradient along without amplifying it. So (4) collapses, across cycles, to the scalar recursion $lambda_(V,E)^((n)) approx rho.alt lambda_(V,E)^((n+1))$, giving after $N$ cycles
+  $E_q$ is that channel's reversal potential. The damped candidate-voltage derivative is $partial U / partial g_q = kappa_q / gamma$. At small timesteps, $kappa_q approx (Delta t / C_m)(E_q-V)$. This is where the control reduces sensitivity to both recurrent and feedforward conductance inputs.
 
-  $ |lambda_(V,E)| gt.eq.slant |rho.alt|^N |lambda_(V,E)^T|. quad (7) $
+  These are local derivatives before reset and active clamps. Reset gates every derivative of the retained reset voltage, not just its membrane self-term. Gradients through the emitted spike can still propagate along other paths. The full backward pass combines these paths across cells and time; time-accumulated readouts also inject gradients at multiple steps.
 
-  *Worked example (default PING init).* Take the released constants: $Delta t = 0.1$ ms, $k = 5$, $C_m^E = 1.0$ nF, $C_m^I = 0.5$ nF, $E_e = 0$, $E_i = -80$ mV, $V approx theta.alt = -50$ mV at the crossing, $tau_"AMPA" = 2$ ms ($beta_e = e^(-0.05) approx 0.95$), $tau_"GABA" = 9$ ms ($beta_i approx 0.99$), and order-µS coupling $W_(e i) approx 1$, $W_(i e) approx 2$ µS. The two edge gains (5) are
+  A scalar loop-gain estimate can be a heuristic, but does not prove that gradients grow once per gamma cycle or that dividing an estimated gain by $gamma^2$ makes the entire network contractive. Such claims require the actual trajectory, stored fan-in-scaled weights, surrogate normalization, gates, and full coupled Jacobians. Neither successful forward simulation nor removal of the inhibitory loop guarantees stable learning.
 
-  $ a_(e i) = underbrace((0.1)/(0.5) (0 - (-50)), kappa_(-> I) = 10) dot underbrace(0.95 dot 1, beta_e W_(e i)) dot underbrace(5, k) approx 48, $
+  == Diagnosing a training failure
 
-  $ a_(i e) = underbrace((0.1)/(1.0) (-80 - (-50)), kappa_(-> E) = -3) dot underbrace(0.99 dot 2, beta_i W_(i e)) dot underbrace(5, k) approx -30, $
+  + *Locate the first non-finite value.* Check inputs, forward states, loss, and then gradients. If the forward pass is invalid, changing the backward derivative is not the repair.
+  + *Inspect the optimizer diagnostics.* The legacy trainer records gradient norms and skipped updates. It clips the assembled gradient to norm 1 and skips an update if that norm is non-finite. Clipping cannot make an already invalid gradient informative.
+  + *Change one control at a time.* Compare positive damping values while keeping the seed, input, duration, timestep, initialization, and optimizer settings fixed. Lower learning rate and stronger damping are different interventions.
+  + *Check learning as well as finiteness.* Stronger damping also reduces useful conductance-input sensitivities. A finite loss with negligible learning is not sufficient evidence of a good setting.
+  + *Keep the scope of the check explicit.* The helper assertion verifies its local derivative. Establishing training stability or accuracy requires a separately authorized experiment, with retained diagnostics and validation results.
 
-  so the loop gain is $rho.alt = a_(e i) a_(i e) approx -1.4 times 10^3$. Over the $N approx 5$ cycles of a 200 ms trial — not the $T = 2000$ steps — the voltage gradient is amplified by
-
-  $ |rho.alt|^N approx (1.4 times 10^3)^5 approx 6 times 10^15. $
-
-  A unit gradient seeded at the readout thus returns to $t = 0$ scaled by $tilde 10^16$; summed over the batch and compounded across successive optimiser steps it crosses the fp32 ceiling ($approx 3.4 times 10^38$) and the loss becomes NaN within a few batches. The blow-up is robust: even if threshold spread cuts the effective $sigma'$ tenfold (each edge $div 10$, so $rho.alt div 100$), $|rho.alt| approx 14$ and $|rho.alt|^5 approx 6 times 10^5$ — still divergent. The compounding is per cycle, not per step. ∎
-
-  _Why the forward pass does not blow up the same way._ The forward orbit is bounded because the reset (V) slams each spiking cell to $V_r$ every cycle — that is the $rho = 0$ gate in (J), a strong per-cycle contraction. But $rho.alt$ in (6) is built only from the spike-output edges (5), i.e. from $sigma'$ evaluated _before_ the reset; the gate $rho$ sits on the membrane self-term and never enters the loop product. So the backward loop bypasses precisely the contraction that bounds the forward orbit. Forward stability and backward divergence are not in contradiction: they travel different paths through (J), and the straight-through reset is what separates them.
-
-  == Proposition 2 — per-step voltage-gradient damping bounds it (the solution)
-
-  The flag `--v-grad-dampen` inserts, before the reset, the operation `dv = _scale_grad(dv, 1/γ)` where $d v = (V_oo - V)(1-alpha)$ is the membrane increment in (V). The primitive
-
-  $ "_scale_grad"(x, c) = c x + "detach"(x)(1-c) quad (8) $
-
-  is the identity in the forward pass ($c x + (1{-}c)x = x$) but multiplies the backward gradient through $x$ by $c = 1\/gamma$. Re-differentiating (V) with $d v$ so scaled changes two partials of (J):
-
-  $ (partial V^(t+1))/(partial V^t) = 1 - (1-alpha)/(gamma) in [alpha, 1], quad
-  (partial V^(t+1))/(partial g^(t+1)) = kappa/gamma. quad (9) $
-
-  The membrane self-term stays bounded by 1 (for $gamma -> oo$ it tends to 1 — the slow integration pathway is _preserved_, not crushed), while every voltage←conductance edge — and therefore every loop edge (5) — is divided by $gamma$. The loop gain (6) becomes
-
-  $ rho.alt_gamma = a_(e i)/gamma a_(i e)/gamma = rho.alt/(gamma^2), quad (10) $
-
-  so the backward loop is a contraction, $|rho.alt_gamma| <= 1$, as soon as
-
-  $ gamma >= sqrt(|rho.alt|). quad (11) $
-
-  By (8) the forward trajectory $x^t$ is bitwise identical with or without the flag, so this is a pure modification of the gradient, not of the dynamics. ∎
-
-  In code this is the single line `_scale_grad(dv, 1.0 / v_grad_dampen)` in the LIF step. Since $|rho.alt| tilde k^2 c$ for an order-unity loop constant $c$, the threshold (11) scales like $sqrt(|rho.alt|) tilde k sqrt(c)$, consistent with the recipes: $gamma approx 80$ for the unitless standard SNN and $gamma approx 1000$ for COBA/PING (used by #link("/exp025/")[exp025] and downstream), whose larger conductance-scale loop constant demands the larger $gamma$.
-
-  == Corollary — the cost, and choosing γ
-
-  The $1\/gamma$ in (9) lands on _every_ voltage←conductance gradient, not only the recurrent loop. The feedforward input also enters through $g_e$ (the term $W_"in" s_"in"$ in (C)), so the input-weight gradient is suppressed by the same factor: damping trades a slice of the legitimate learning signal for stability. Hence the operating rule — take the smallest $gamma$ satisfying (11), i.e. the smallest value that prevents overflow. Too large a $gamma$ can therefore quietly cap achievable accuracy by starving the input layer of gradient. Distinct from gradient clipping, which rescales the assembled parameter gradient after the fact: damping reshapes the recursion (4) term by term, before any parameter gradient is formed. Tightening (11) per-layer on long-trial tasks is open work.
-
-  *Prediction.* The mechanism implies the flag is load-bearing only when the loop exists: the same network should train with damping fully off when run as COBA ($W_(e i)=0$, loop open), but fail as PING ($W_(e i)>0$) — every optimiser step's gradient going non-finite and being skipped, leaving the network frozen at chance.
+  #link("/exp006/")[Previous: Training] · #link("/exp011/")[Back to SNNSIM command-line guide]
 ]

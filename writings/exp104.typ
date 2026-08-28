@@ -2,96 +2,122 @@
   status: "Drafted",
   title: "Cloudflare R2 archive",
   date: "2026-08-11",
-  description: "How to access pinglab's Cloudflare R2 bucket and archive or restore provenance-keyed experiment scratch.",
+  updated_at: "2026-08-28",
+  description: "Configure R2 access, inspect backups, and distinguish campaign payload recovery from restoring a complete validated Pingstore run.",
   collection: "pinglab-docs",
+  order: 2,
 )
 
 #let body = [
-  Cloudflare R2 mirrors immutable Pingstore runs that are expensive to reproduce, including trained checkpoint banks under `.pingstore/runs/`. Git remains the source-code record; writings consume explicitly selected presentation runs through `run-inputs.typ`.
+  == Contents
 
-  The supported interface is `experiments/helpers/archive.py`. It stores snapshots at:
+  + #link("/exp104/#what-is-backed-up")[What is backed up]
+  + #link("/exp104/#access-and-authentication")[Access and authentication]
+  + #link("/exp104/#inspect-snapshots")[Inspect snapshots]
+  + #link("/exp104/#archive-a-completed-campaign")[Archive a completed campaign]
+  + #link("/exp104/#restore-campaign-payloads")[Restore campaign payloads]
+  + #link("/exp104/#completed-run-recovery")[Completed-run recovery]
+  + #link("/exp104/#safety-and-troubleshooting")[Safety and troubleshooting]
 
-  ```text
-  r2:pinglab/archive/<experiment-slug>/<producing-git-sha>/
-  ```
+  == What is backed up
+
+  R2 is remote backup storage for expensive-to-reproduce payloads such as trained checkpoint banks. Git records source code; Pingstore records completed scientific runs. An R2 snapshot is not automatically a complete Pingstore run, and a successful download does not make recovered files operational evidence.
+
+  The current helper is `experiments/helpers/archive.py`. Its interfaces differ:
+
+  #table(
+    columns: (auto, 1fr),
+    [*Command*], [*Current scope*],
+    [`list`], [List an experiment's remote snapshots and summary metadata.],
+    [`archive-campaign`], [Validate the named exp022 campaign and back up its complete cell payload bank with an inventory.],
+    [`restore-campaign`], [Copy that bank into a separate absent or empty directory and compare the copy with remote files.],
+    [`archive` / `restore`], [Older active-view/scratch interfaces. These do not provide complete v3 run backup and recovery; do not use them as that workflow.],
+  )
+
+  The generic `archive` resolves an export through the published artifact view rather than accepting an explicit complete run. It can miss the authoritative `run.json`, retained execution provenance, and notes. The generic `restore` copies files into a hidden scratch layout but does not reconstruct or validate a complete manifest. Those limits require implementation work, not a documentation promise.
 
   == Access and authentication
 
-  The Mac currently has the `r2:` rclone remote. Hetzner does not. Credentials consist of an Access Key ID, Secret Access Key, and the EU R2 endpoint. Never commit or paste their values.
+  Check the machine you are using; remote configuration is local to that account. Do not infer R2 access from an SSH alias or from access working on another host.
 
-  To configure a new machine, create an *Object Read & Write* token scoped to the `pinglab` bucket in the #link("https://dash.cloudflare.com/")[Cloudflare dashboard]. Then configure rclone interactively:
+  ```sh
+  rclone listremotes
+  ```
+
+  If `r2:` is missing, create an *Object Read & Write* credential scoped to the `pinglab` bucket in the #link("https://dash.cloudflare.com/")[Cloudflare dashboard], then run:
 
   ```sh
   rclone config
   ```
 
-  Use these choices:
+  Choose remote name `r2`, storage `s3`, and provider `Cloudflare`. Enter the Access Key ID, Secret Access Key, and endpoint supplied by Cloudflare for the bucket's jurisdiction. For an EU-jurisdiction bucket, use its EU endpoint. Follow the official #link("https://developers.cloudflare.com/r2/examples/rclone/")[rclone setup guide] and #link("https://developers.cloudflare.com/r2/api/tokens/")[token guide]. Use separate scoped credentials per machine where practical; read-only access is sufficient for inspection and download.
 
-  1. Remote name: `r2`.
-  2. Storage: `s3`.
-  3. Provider: `Cloudflare`.
-  4. Enter the Access Key ID and Secret Access Key manually.
-  5. Endpoint: the EU endpoint shown by Cloudflare.
-  6. ACL: `private`.
-
-  Prefer a separate bucket-scoped token for each machine. See Cloudflare's #link("https://developers.cloudflare.com/r2/api/tokens/")[token guide] and #link("https://developers.cloudflare.com/r2/examples/rclone/")[rclone guide].
-
-  Verify access without writing:
+  Never commit credentials or print unredacted configuration. Verify the remote without uploading:
 
   ```sh
-  rclone listremotes
   rclone config redacted r2
-  rclone lsd r2:
   rclone lsf --dirs-only r2:pinglab/archive
   ```
 
-  Do not print the unredacted rclone configuration.
+  The helper defaults to remote `r2` and bucket `pinglab`; `PINGLAB_R2_REMOTE` and `PINGLAB_R2_BUCKET` override these. R2 credentials are separate from RunPod volume credentials.
 
-  == Archive a run
-
-  Check the local scratch, then archive it:
-
-  ```sh
-  du -sh .pingstore/runs/exp022-*
-  uv run python experiments/helpers/archive.py archive exp022
-  ```
-
-  The helper determines the producing Git commit, copies the tree, uploads `MANIFEST.json`, and verifies it with `rclone check`. It uses `copy`, never `sync`, so a partial local tree cannot delete existing remote objects.
-
-  == List snapshots
+  == Inspect snapshots
 
   ```sh
   uv run python experiments/helpers/archive.py list exp022
-
   rclone tree r2:pinglab/archive/exp022 --max-depth 2
   rclone size r2:pinglab/archive/exp022
-  rclone cat r2:pinglab/archive/exp022/<sha>/MANIFEST.json
   ```
 
-  == Restore a snapshot
-
-  Restore the latest snapshot:
+  For an explicitly chosen snapshot identifier:
 
   ```sh
-  uv run python experiments/helpers/archive.py restore exp022
+  rclone cat r2:pinglab/archive/exp022/<snapshot-id>/MANIFEST.json
   ```
 
-  Or restore a specific producing commit:
+  Replace the placeholder before running. The remote prefix is `archive/<experiment>/<snapshot-id>/`; older snapshots use a producing commit, while campaign snapshots add a manifest-digest suffix. Inspect the manifest's archive type, source, inventory, and identity before choosing a recovery procedure. A commit alone does not uniquely identify every run produced by that code. Inspection for historical migration or recovery requires separate authorization.
+
+  == Archive a completed campaign
+
+  For an explicitly selected exp022 campaign with all cells complete and valid:
 
   ```sh
-  uv run python experiments/helpers/archive.py restore exp022 <sha>
+  uv run python experiments/helpers/archive.py archive-campaign \
+    /path/to/campaign/campaign.json
   ```
 
-  Restore into a hidden incomplete run beneath `.pingstore/runs/`; validate it before atomically publishing the run. Never use an incomplete restore as a writing input or publish it as completed evidence.
+  Replace the example path with the exact manifest. The helper checks the campaign, archives its `cells/` bank, records file sizes and SHA-256 hashes in `MANIFEST.json`, and verifies the uploaded payload against the local source. Its snapshot identity combines the producing commit and campaign manifest digest; an existing destination is refused.
 
-  == Safety rules
+  Expected result: a reported snapshot ID and successful copy verification. Keep the campaign manifest and execution records separately: this command copies the cell bank, not every file in the campaign directory or a complete v3 run. Uploading consumes storage and transfer resources; confirm the source and authorization first.
 
-  - Never run `rclone sync` against an archive prefix.
-  - Archive only completed runs worth preserving.
-  - Do not use R2 as mutable training storage.
-  - Keep snapshots from different producing commits separate.
-  - Revoke and replace a token immediately if it may have leaked.
-  - Do not confuse R2 credentials with `RUNPOD_S3_ACCESS_KEY_ID` and `RUNPOD_S3_SECRET_ACCESS_KEY`; those access RunPod storage.
+  == Restore campaign payloads
 
-  The helper deliberately has no delete command. Remote deletion should remain a separate, explicit administrative action.
+  Choose a specific snapshot and a separate destination:
+
+  ```sh
+  uv run python experiments/helpers/archive.py restore-campaign \
+    exp022 <snapshot-id> --destination /path/to/empty-recovery-directory
+  ```
+
+  The destination must be absent or empty. The helper copies the payload and runs `rclone check --download`; this checks the downloaded files against the remote copy. It does not independently establish the original scientific provenance or reconstruct a completed run. The current restore path also does not verify every downloaded file against the recorded SHA-256 inventory; retain and check that manifest before treating recovery as authenticated evidence.
+
+  Do not restore over a live bank, an existing completed run, or a published artifact directory. Keep the recovered payload separate until its identity, completeness, checkpoint roles, and intended use have been validated.
+
+  == Completed-run recovery
+
+  The #link("https://github.com/eoinmurray/pinglab/blob/main/tools/pingstore/README.md")[Storage Guide] is authoritative. A complete v3 backup must preserve `run.json`, the full `export/`, and any `README.md` or `provenance/`. Its payload checksum covers every payload file, not only model weights.
+
+  Recovery must validate the schema, exact root layout, payload checksum, and required upstream input references before making a run visible or consuming it. A hidden `.pingstore/runs/.<run-id>.tmp/` directory is incomplete until validation and atomic completion. Do not fabricate missing provenance, choose the latest snapshot implicitly, or rename a payload-only download into a completed run.
+
+  The helper currently has no general command that performs that complete workflow. Recovering historical evidence, importing payloads into new runs, or migrating old schemas requires separate explicit authorization and a source-specific plan. V2 evidence remains non-operational; it must not be silently relabelled as v3.
+
+  == Safety and troubleshooting
+
+  + *Remote missing or access denied:* check the local remote name, bucket scope, endpoint, and permissions. Do not paste secrets into logs or the repository.
+  + *Snapshot already exists:* verify its identity rather than overwriting it. `rclone copy` avoids destination deletion, but can still overwrite matching objects; it is not an immutability guarantee by itself.
+  + *Copy interrupted or verification failed:* retain the source and incomplete destination for inspection. Do not delete the original or declare recovery complete.
+  + *Unexpected snapshot contents:* stop before restoration into operational storage. Distinguish a campaign cell bank, a legacy export snapshot, and a complete run.
+  + *Deletion or cleanup:* keep it separate and explicitly authorized. Never run `rclone sync` against an archive prefix. The helper has no delete command.
+
+  #link("/exp103/")[Previous: Compute options]
 ]
