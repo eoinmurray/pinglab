@@ -150,6 +150,7 @@ def infer(
     adapt_tau_bounds_ms=None,
     adapt_strength_init_mv=1.0,
     adapt_strength_max_mv=None,
+    recording_mode="full",
 ):
     """Run inference with saved weights at a given dt.
 
@@ -157,11 +158,16 @@ def infer(
     {"per_cell_rates", "pop_traces", "rasters"}. metrics.json is always written.
     Each maps to an emitter below; recording is enabled only if a recording-backed
     output is requested, so the default accuracy path stays cheap.
+    recording_mode selects full traces (default), E/I spikes, or I spikes only.
     """
     outputs = set(outputs or ())
     emit_per_cell_rates = "per_cell_rates" in outputs
     emit_pop_traces = "pop_traces" in outputs
     emit_rasters = "rasters" in outputs
+    if recording_mode not in ("full", "spikes", "inhibitory"):
+        raise ValueError(f"unknown recording mode: {recording_mode}")
+    if recording_mode == "inhibitory" and (emit_per_cell_rates or emit_pop_traces):
+        raise ValueError("inhibitory recording supports rasters only")
 
     # Seed, pin dt, and resolve hidden_sizes (explicit > checkpoint > dataset
     # default) — the shared per-run setup (see _pin_run / _resolve_hidden_sizes).
@@ -174,7 +180,8 @@ def infer(
     # MNIST inference reports the untouched official test partition. Training
     # uses a validation split drawn only from the official training partition.
     _, X_te, _, y_te = load_dataset(
-        dataset, max_samples=None, split=True, evaluation_split="test"
+        dataset, max_samples=None, split=True, evaluation_split="test",
+        evaluation_only=True,
     )
     if max_samples is not None and max_samples < len(y_te):
         eval_idx = np.random.RandomState(42).choice(
@@ -275,6 +282,7 @@ def infer(
     _recording_outputs = emit_per_cell_rates or emit_pop_traces or emit_rasters
     if _recording_outputs:
         net.recording = True
+        net.recording_mode = recording_mode
     per_cell_e = None  # running (N_E,) spike-count sum across the test set
     per_cell_i = None  # running (N_I,) spike-count sum across the test set
     per_sample_e_rates: list = []  # one hidden-E population-mean rate per trial
@@ -356,7 +364,7 @@ def infer(
         _iov["c"] = z["i_cell"][_ord]
         _iov["bounds"] = _np.searchsorted(_iov["tr"], _np.arange(_iov["n_trials"] + 1))
         _iov["g"] = 0  # running global trial offset
-        net.recording = True  # override needs the I-population to exist in the step
+        # The override hook and online rates do not require trajectory recording.
         log.info(f"  i-override: {i_override_file} ({_iov['n_trials']} trials)")
 
     ce_sum = 0.0  # cross-entropy summed over samples → mean loss (a standard eval metric)
@@ -404,9 +412,10 @@ def infer(
                     _pop_rows(rec, ik, pop_i_rows)
                 if emit_rasters:
                     nb_e, rast_T = _accum_rasters(rec, hk, rast_e, rast_trial)
-                    _accum_rasters(rec, ik, rast_i, rast_trial)
+                    nb_i, i_T = _accum_rasters(rec, ik, rast_i, rast_trial)
                     _accum_rasters(rec, "out_spikes", rast_out, rast_trial)
-                    rast_trial += nb_e
+                    rast_T = rast_T or i_T
+                    rast_trial += nb_e or nb_i
 
     acc = 100.0 * correct / total
     ce_loss = ce_sum / total if total else 0.0
@@ -505,6 +514,10 @@ def infer(
         i_tr, i_t, i_c = _cat(rast_i)
         out_tr, out_t, out_c = _cat(rast_out)
         out_npz = out_dir_path / "rasters.npz"
+        populations = {"i_trial": i_tr, "i_t": i_t, "i_cell": i_c}
+        if recording_mode != "inhibitory":
+            populations.update(e_trial=e_tr, e_t=e_t, e_cell=e_c,
+                               out_trial=out_tr, out_t=out_t, out_cell=out_c)
         np.savez(
             out_npz,
             dt=np.float32(dt),
@@ -512,9 +525,7 @@ def infer(
             T=np.int32(rast_T),
             n_e=np.int32(M.N_HID),
             n_i=np.int32(M.N_INH),
-            e_trial=e_tr, e_t=e_t, e_cell=e_c,
-            i_trial=i_tr, i_t=i_t, i_cell=i_c,
-            out_trial=out_tr, out_t=out_t, out_cell=out_c,
+            **populations,
         )
         mb = out_npz.stat().st_size / 1e6
         log.info(
@@ -558,6 +569,7 @@ def infer_and_snapshot(
     adapt_tau_bounds_ms=None,
     adapt_strength_init_mv=1.0,
     adapt_strength_max_mv=None,
+    recording_mode="full",
 ):
     """Run inference on a single sample and save full spike trajectory to snapshot.npz.
 
@@ -565,6 +577,8 @@ def infer_and_snapshot(
     class) for MNIST, or raw index for other datasets. Pass sample_index to force a
     raw test-set index regardless of dataset — notebooks that grab "test trial N"
     (rather than "digit D instance S") use this to reproduce a specific raster.
+    recording_mode defaults to full traces; spikes and inhibitory retain only
+    E/I or I trajectories respectively, plus the usual snapshot metadata.
     """
     import numpy as np
 
@@ -577,7 +591,8 @@ def infer_and_snapshot(
 
     # Load dataset
     _, X_te, _, y_te = load_dataset(
-        dataset, max_samples=None, split=True, evaluation_split="test"
+        dataset, max_samples=None, split=True, evaluation_split="test",
+        evaluation_only=True,
     )
     M.N_IN = 784
 
@@ -658,8 +673,9 @@ def infer_and_snapshot(
         net._hidden_perturb_fn = _ov_fn
 
     # Run forward pass with spike recording enabled
-    # Recording captures all spike trains and intermediate state (voltages, conductances)
+    # The selected recording mode controls which trajectory buffers are allocated.
     net.recording = True
+    net.recording_mode = recording_mode
     net.eval()  # Disable dropout, batch norm, etc.
     with torch.no_grad():
         # Encode pixel data as Poisson spike train using EVAL_SEED for determinism

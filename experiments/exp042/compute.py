@@ -32,7 +32,11 @@ def _job_path(export, job):
 def _run_jobs(simulator, bank, export, jobs):
     for job in jobs:
         metrics = simulator.evaluate(bank.export / job["cell"], job)
-        write_json_atomic(_job_path(export, job), {"job": job, "metrics": metrics})
+        record = {"job": job, "metrics": metrics}
+        canonical = recipe.replay_job(job)
+        if canonical != job:
+            record["replay_of"] = canonical["id"]
+        write_json_atomic(_job_path(export, job), record)
 
 
 def _shard_paths(repo, run_id, index, count):

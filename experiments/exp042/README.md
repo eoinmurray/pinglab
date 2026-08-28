@@ -25,22 +25,30 @@ controls, 30 cycle-jitter, 27 per-cell-jitter), or 39 smoke jobs with
 `PINGLAB_SMOKE=1`. Evaluation uses 1,000 or 100 test images respectively. Two
 illustrative perturbation recordings at 14 ms are additional compute work, not
 part of the condition-job count. Shared baseline caching avoids duplicate baseline
-simulations across shards: the successful fresh-run launch budgets are 69 production
-and 42 smoke (condition jobs plus three illustrative launches). Retries can add work.
+simulations across shards. The two zero-zero arms share one canonical replay per
+seed, retaining separate logical rows and explicit `replay_of` provenance. The
+successful fresh-run launch budgets are 66 production and 39 smoke (three fewer
+distinct evaluations than condition rows, plus three illustrative launches).
+Retries can add work.
 No production runtime or retained-size measurement exists for this staged version.
 
 ## Retention and stage boundaries
 
-- Compute retains per-condition simulator metrics and two losslessly compressed
+- Compute requests I-only baseline recordings and E/I-only illustrative snapshots;
+  voltage, conductance, input and readout recording buffers are not allocated.
+  Metrics-only overrides do not record trajectories. Inference loads only the
+  MNIST test partition, preserving test selection, normalization and RNG behavior.
+  Compute retains per-condition simulator metrics and two losslessly compressed
   single-trial spike recordings, with configurations, checkpoint hashes and
-  execution provenance. Large baseline rasters, overrides and unused snapshot
-  channels remain scratch. Overrides are removed immediately after inference;
+  execution provenance. Baseline I rasters and overrides remain scratch;
+  unused snapshot channels are not generated. Overrides are removed immediately after inference;
   sharded baselines are shared within the compute reservation until completion.
 - Analyse selects the same display cells, measures full-population illustrative
   rates, and computes the same per-seed rows, means and standard errors. Its
   compact raster selections let presentation run without simulation.
-- Present reads only retained analysis and renders `rhythm_compound`,
-  `cell_jitter_sweep` and `jitter_sweep`, plus report numbers. Exports are flat.
+- Present reads only retained analysis and renders `rhythm_compound.png`,
+  `cell_jitter_sweep.svg` and `jitter_sweep.svg`, plus report numbers. Exports are flat;
+  future presentations omit the unused PDF alternatives. Existing runs stay intact.
   Obsolete figures are never created; existing outputs are never cleaned in place.
 
 The original spike-time transforms are preserved, including rounded offsets,
@@ -60,7 +68,10 @@ committed execution code. A retry reuses only a matching complete shard; stale
 locks require explicit recovery rather than automatic removal.
 
 A shared reservation lock prevents collection racing workers; per-cell locks
-prevent duplicate baseline simulations. After all shards succeed, the compute
+prevent duplicate baseline and zero-zero replay simulations. Either zero-zero arm
+may acquire the lock first; it always executes the canonical cycle-zero job and
+the other arm reuses those metrics. The replay is not replaced with unperturbed
+baseline metrics. After all shards succeed, the compute
 collector verifies them, produces the two
 illustrative recordings, removes the shared baseline scratch, and completes the run atomically. Only then does the
 collection orchestrator invoke analyse and present explicitly. Neither downstream
@@ -80,6 +91,21 @@ shows the shared unavailable-data notice. Fixture-based tests are not scientific
 evidence or published results. Preview selection, production execution and
 publication remain separate human decisions. Keep all pinned input runs when
 transferring a completed result.
+
+## Performance changes verified: 2026-08-28
+
+The simulator fast suite passed 382 tests (two existing expected failures; slow
+tests excluded). The focused experiment, collection, checkpoint and writing-input
+suite passed 121 tests. New checks compare metrics-only overrides with full
+recording on a real tiny simulator, compare I-only raster events and selected
+snapshot arrays exactly, verify test-only loading, exercise concurrent zero
+replay reuse, and retain all 66 production rows with 66 mocked CLI launches.
+The existing writing fixture compiles with only PNG/SVG presentation files.
+Ruff and whitespace checks passed. The three existing exp042 runs and their
+exp022 bank still validate against their pre-edit manifest and payload pins.
+
+These are code/fixture checks, not a production rerun or a measured GPU wall-time
+speedup. No existing run, archive or published output was modified.
 
 ## Migration verification
 

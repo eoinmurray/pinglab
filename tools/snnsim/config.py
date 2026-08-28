@@ -193,6 +193,8 @@ def save_snapshot_npz(
     # primary_hid_key returns 'hid' for single-layer, 'hid_1' for the deepest multi-layer
     hid_key = primary_hid_key_fn(rec)
     inh_key = primary_inh_key_fn(rec)
+    if hid_key not in rec:
+        hid_key = None  # An explicitly I-only recording has no E trajectory.
 
     # Save excitatory spikes under canonical name 'spk_e' (from whatever key they're in)
     if hid_key:

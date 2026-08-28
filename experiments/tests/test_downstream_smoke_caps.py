@@ -65,7 +65,9 @@ def test_exp042_baseline_inference_is_capped_in_smoke(
         out_dir = Path(cmd[cmd.index("--out-dir") + 1])
         out_dir.mkdir(parents=True, exist_ok=True)
         (out_dir / "metrics.json").write_text("{}")
-        np.savez(out_dir / "rasters.npz", n_trials=np.int32(0))
+        np.savez(out_dir / "rasters.npz", n_trials=np.int32(0), T=np.int32(20),
+                 n_i=np.int32(2), i_trial=np.array([], dtype="int32"),
+                 i_t=np.array([], dtype="int32"), i_cell=np.array([], dtype="int32"))
 
     monkeypatch.setattr(exp042_simulation, "run_cli", fake_run)
     simulator = exp042_simulation.Simulator(tmp_path / "scratch", tmp_path / "commands",

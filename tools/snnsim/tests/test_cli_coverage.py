@@ -61,6 +61,21 @@ _FAST = ["--n-hidden", "32", "--dt", "0.5", "--t-ms", "40"]
 
 
 class TestParseArgsSubcommands:
+    @pytest.mark.parametrize("snapshot", [False, True])
+    @pytest.mark.parametrize("mode", ["full", "spikes", "inhibitory"])
+    def test_recording_mode_reaches_inference(self, monkeypatch, tmp_path, snapshot, mode):
+        args = parse_args(["sim", "--infer", "--load-weights", "fixture.pth",
+                           "--recording-mode", mode])
+        seen = []
+
+        def capture(**kwargs):
+            seen.append(kwargs)
+            return {"acc": 0}
+
+        monkeypatch.setattr(cli, "infer_and_snapshot" if snapshot else "infer", capture)
+        cli._emit_infer(args, None, tmp_path, None, snapshot_mode=snapshot)
+        assert seen[0]["recording_mode"] == mode
+
     def test_sim_defaults(self):
         args = parse_args(["sim"])
         assert args.mode == "sim"

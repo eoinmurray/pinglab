@@ -803,6 +803,13 @@ def _build_subparsers(parser, parent):
         "spike_summary (--input-file only; compact per-presentation E/I/output spike counts).",
     )
     sim_parser.add_argument(
+        "--recording-mode",
+        choices=("full", "spikes", "inhibitory"),
+        default="full",
+        help="[--infer] Recording channels: full traces (default), E/I spikes only, "
+        "or inhibitory spikes only. Metrics-only inference never records trajectories.",
+    )
+    sim_parser.add_argument(
         "--tau-gaba",
         type=float,
         default=None,
@@ -1948,6 +1955,7 @@ def _emit_infer(args, C, out_dir, log, snapshot_mode=False):
             digit=args.digit,
             sample=args.sample,
             sample_index=getattr(args, "sample_index", None),
+            recording_mode=getattr(args, "recording_mode", "full"),
             tau_gaba=getattr(args, "tau_gaba", None),
             skip_load=getattr(args, "skip_load", None),
             perturb_mode=_pmode,
@@ -1983,6 +1991,7 @@ def _emit_infer(args, C, out_dir, log, snapshot_mode=False):
         dales_law=args.dales_law,
         seed=args.seed,
         outputs=getattr(args, "outputs", None),
+        recording_mode=getattr(args, "recording_mode", "full"),
         tau_gaba=getattr(args, "tau_gaba", None),
         scale_w_in=getattr(args, "scale_w_in", 1.0),
         scale_w_ei=getattr(args, "scale_w_ei", 1.0),

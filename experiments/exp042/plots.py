@@ -98,7 +98,7 @@ def plot_cell_jitter_sweep(
     # H17: caption carries the takeaway
     fig.tight_layout()
     out_path.parent.mkdir(parents=True, exist_ok=True)
-    save_figure(fig, out_path)
+    save_figure(fig, out_path, formats=("svg",))
     plt.close(fig)
 
 
@@ -190,7 +190,7 @@ def plot_jitter_sweep(
     ax_acc.spines["top"].set_visible(False)
     fig.tight_layout()
     out_path.parent.mkdir(parents=True, exist_ok=True)
-    save_figure(fig, out_path)
+    save_figure(fig, out_path, formats=("svg",))
     plt.close(fig)
 
 
@@ -356,6 +356,6 @@ def fig_rhythm_compound(
     # H17: caption carries the takeaway
     fig.tight_layout(rect=(0, 0, 1, 0.96))
     out_path.parent.mkdir(parents=True, exist_ok=True)
-    save_figure(fig, out_path, formats=("png", "pdf"))  # dense rasters: PNG, not SVG
+    save_figure(fig, out_path, formats=("png",))  # dense rasters: PNG, not SVG
     plt.close(fig)
     plt.rcParams["savefig.bbox"] = prev_bbox

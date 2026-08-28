@@ -141,11 +141,11 @@ def test_exp042_catalog_contains_only_figure_generating_jobs() -> None:
     assert all("xtau" not in job and "alpha_mix" not in job for job in jobs)
     assert workloads.workload_contract("exp042", smoke=False) == {
         "condition_jobs": 66,
-        "simulator_launches_max": 69,
+        "simulator_launches_max": 66,
     }
     assert workloads.workload_contract("exp042", smoke=True) == {
         "condition_jobs": 39,
-        "simulator_launches_max": 42,
+        "simulator_launches_max": 39,
     }
 
 

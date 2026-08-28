@@ -650,6 +650,7 @@ def i_step_coba(
 
 class COBANet(nn.Module):
     recording = False
+    recording_mode = "full"
     signed_weights = False
 
     def _set_meta(self, B, n_spk, rec, sizes):
@@ -1123,29 +1124,37 @@ class COBANet(nn.Module):
         # Pre-allocate recording buffers on GPU
         rec_buf = None
         if self.recording:
-            rec_buf = {"out": torch.zeros(T_steps, B, N_OUT, device=device)}
-            if self.readout_mode in ("spike-count", "spike-rate"):
+            if self.recording_mode not in ("full", "spikes", "inhibitory"):
+                raise ValueError(f"unknown recording mode: {self.recording_mode}")
+            full_recording = self.recording_mode == "full"
+            rec_buf = {}
+            if full_recording:
+                rec_buf["out"] = torch.zeros(T_steps, B, N_OUT, device=device)
+            if full_recording and self.readout_mode in ("spike-count", "spike-rate"):
                 rec_buf["out_spikes"] = torch.zeros(T_steps, B, N_OUT, device=device)
                 rec_buf["v_out"] = torch.zeros(T_steps, B, N_OUT, device=device)
-            if has_input_spikes:
+            if full_recording and has_input_spikes:
                 rec_buf["input"] = torch.zeros(T_steps, B, N_IN, device=device)
             for i in range(1, self.n_layers + 1):
                 n_e = self.hidden_sizes[i - 1]
-                rec_buf[self._hid_key(i)] = torch.zeros(T_steps, B, n_e, device=device)
+                if self.recording_mode != "inhibitory":
+                    rec_buf[self._hid_key(i)] = torch.zeros(T_steps, B, n_e, device=device)
                 # Extra trace buffers: membrane voltage and conductances for
                 # E (and I, where present). Lets downstream image-mode dump
                 # per-neuron v/g traces alongside spikes.
-                rec_buf[f"v_e_{i}"] = torch.zeros(T_steps, B, n_e, device=device)
-                rec_buf[f"ge_e_{i}"] = torch.zeros(T_steps, B, n_e, device=device)
+                if full_recording:
+                    rec_buf[f"v_e_{i}"] = torch.zeros(T_steps, B, n_e, device=device)
+                    rec_buf[f"ge_e_{i}"] = torch.zeros(T_steps, B, n_e, device=device)
                 if i in self.ei_layers:
                     n_inh = self.n_inh_per_layer.get(i, n_e // 4)
                     rec_buf[self._inh_key(i)] = torch.zeros(
                         T_steps, B, n_inh, device=device
                     )
-                    rec_buf[f"gi_e_{i}"] = torch.zeros(T_steps, B, n_e, device=device)
-                    rec_buf[f"v_i_{i}"] = torch.zeros(T_steps, B, n_inh, device=device)
-                    rec_buf[f"ge_i_{i}"] = torch.zeros(T_steps, B, n_inh, device=device)
-                    rec_buf[f"gi_i_{i}"] = torch.zeros(T_steps, B, n_inh, device=device)
+                    if full_recording:
+                        rec_buf[f"gi_e_{i}"] = torch.zeros(T_steps, B, n_e, device=device)
+                        rec_buf[f"v_i_{i}"] = torch.zeros(T_steps, B, n_inh, device=device)
+                        rec_buf[f"ge_i_{i}"] = torch.zeros(T_steps, B, n_inh, device=device)
+                        rec_buf[f"gi_i_{i}"] = torch.zeros(T_steps, B, n_inh, device=device)
         # GPU-side spike accumulators
         n_spk_tensors = {}
         for i in range(1, self.n_layers + 1):
@@ -1307,16 +1316,20 @@ class COBANet(nn.Module):
                     rec_buf["input"][t] = slc["in_t"]
                 for i in range(1, self.n_layers + 1):
                     k = str(i)
-                    rec_buf[self._hid_key(i)][t] = state["s_e"][k]
-                    rec_buf[f"v_e_{i}"][t] = state["v_e"][k]
-                    rec_buf[f"ge_e_{i}"][t] = state["ge_e"][k]
+                    if self._hid_key(i) in rec_buf:
+                        rec_buf[self._hid_key(i)][t] = state["s_e"][k]
+                    if full_recording:
+                        rec_buf[f"v_e_{i}"][t] = state["v_e"][k]
+                        rec_buf[f"ge_e_{i}"][t] = state["ge_e"][k]
                     if i in self.ei_layers:
                         rec_buf[self._inh_key(i)][t] = state["s_i"][k]
-                        rec_buf[f"gi_e_{i}"][t] = state["gi_e"][k]
-                        rec_buf[f"v_i_{i}"][t] = state["v_i"][k]
-                        rec_buf[f"ge_i_{i}"][t] = state["ge_i"][k]
-                        rec_buf[f"gi_i_{i}"][t] = state["gi_i"][k]
-                rec_buf["out"][t] = logits_t
+                        if full_recording:
+                            rec_buf[f"gi_e_{i}"][t] = state["gi_e"][k]
+                            rec_buf[f"v_i_{i}"][t] = state["v_i"][k]
+                            rec_buf[f"ge_i_{i}"][t] = state["ge_i"][k]
+                            rec_buf[f"gi_i_{i}"][t] = state["gi_i"][k]
+                if full_recording:
+                    rec_buf["out"][t] = logits_t
                 if "out_spikes" in rec_buf:
                     rec_buf["out_spikes"][t] = state["s_out"]
                     rec_buf["v_out"][t] = state["v_out"]

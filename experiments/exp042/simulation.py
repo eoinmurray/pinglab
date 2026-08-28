@@ -12,7 +12,7 @@ from experiments.helpers.checkpoints import cache_tag, resolve_checkpoint
 from experiments.helpers.run_cli import run_cli
 from pingstore.contracts import write_json_atomic
 
-from .recipe import CHECKPOINT_ROLE, EVAL_SEED
+from .recipe import CHECKPOINT_ROLE, EVAL_SEED, replay_job
 from .transforms import _build_override
 
 
@@ -91,6 +91,8 @@ class Simulator:
                             str(self.checkpoint_path(train_dir)),
                             "--outputs",
                             "rasters",
+                            "--recording-mode",
+                            "inhibitory",
                             "--out-dir",
                             str(tmp),
                         ]
@@ -112,7 +114,10 @@ class Simulator:
             with np.load(
                 metrics_path.parent / "rasters.npz", allow_pickle=False
             ) as data:
-                R = dict(data)
+                R = {
+                    key: data[key]
+                    for key in ("T", "n_i", "n_trials", "i_trial", "i_t", "i_cell")
+                }
             self.cache[key] = (m, R)
         return self.cache[key]
 
@@ -197,7 +202,9 @@ class Simulator:
         ).resolve()
         if reuse:
             try:
-                return self.read_snapshot(out_dir / "snapshot.npz")
+                return self.read_snapshot(
+                    out_dir / "snapshot.npz", inhibitory_only=i_override is None
+                )
             except (OSError, ValueError):
                 return None
         out_dir.mkdir(parents=True, exist_ok=True)
@@ -210,28 +217,64 @@ class Simulator:
             str(self.checkpoint_path(train_dir)),
             "--sample-index",
             str(sample_idx),
+            "--recording-mode",
+            "inhibitory" if i_override is None else "spikes",
             "--out-dir",
             str(out_dir),
         ]
         if i_override is not None:
             cmd += ["--i-override-file", str(i_override)]
-        else:
-            cmd += ["--outputs", "rasters"]  # baseline pass exposes the I-stream
         self.run(cmd)
-        return self.read_snapshot(out_dir / "snapshot.npz")
+        return self.read_snapshot(
+            out_dir / "snapshot.npz", inhibitory_only=i_override is None
+        )
 
     @staticmethod
-    def read_snapshot(path):
+    def read_snapshot(path, *, inhibitory_only=False):
         with np.load(path, allow_pickle=False) as data:
-            return {key: np.array(data[key]) for key in ("spk_e", "spk_i", "label")}
+            keys = (
+                ("spk_i", "label") if inhibitory_only else ("spk_e", "spk_i", "label")
+            )
+            return {key: np.array(data[key]) for key in keys}
 
     def evaluate(self, train_dir, job):
-        import torch
-
         cfg = json.loads((train_dir / "config.json").read_text())
         baseline, rasters = self._run_baseline(train_dir)
         if job["condition"] == "baseline":
             return baseline
+        if job["condition"] in ("jitter_sigma_0", "cell_jitter_sigma_0"):
+            return self._zero_replay(train_dir, rasters, cfg, replay_job(job))
+        return self._evaluate_override(train_dir, rasters, cfg, job)
+
+    def _zero_replay(self, train_dir, rasters, cfg, job):
+        """Compute one canonical zero replay even when its rows span shards."""
+        checkpoint = resolve_checkpoint(train_dir, CHECKPOINT_ROLE)
+        folder = (
+            self.baseline_root / "zero-replay" / train_dir.name / cache_tag(checkpoint)
+        )
+        folder.mkdir(parents=True, exist_ok=True)
+        path = folder / "result.json"
+        expected = {
+            "recipe": self.configuration,
+            "job": job,
+            "checkpoint_sha256": checkpoint["sha256"],
+        }
+        with (folder / "cache.lock").open("a+b") as lock:
+            fcntl.flock(lock, fcntl.LOCK_EX)
+            if path.exists():
+                record = json.loads(path.read_text())
+                if any(record.get(key) != value for key, value in expected.items()):
+                    raise ValueError(
+                        "zero-replay scratch belongs to a different compute recipe"
+                    )
+                return record["metrics"]
+            metrics = self._evaluate_override(train_dir, rasters, cfg, job)
+            write_json_atomic(path, {**expected, "metrics": metrics})
+            return metrics
+
+    def _evaluate_override(self, train_dir, rasters, cfg, job):
+        import torch
+
         gen = torch.Generator().manual_seed(EVAL_SEED + 17 + job["seed_offset"])
         with tempfile.TemporaryDirectory(
             prefix=".override-", dir=self.scratch

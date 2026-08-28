@@ -101,6 +101,7 @@ def load_dataset(
     dt_ms=None,
     t_ms=None,
     evaluation_split="validation",
+    evaluation_only=False,
 ):
     """Load full dataset as (X, y) numpy arrays in [0, 1] / int64.
 
@@ -114,29 +115,35 @@ def load_dataset(
                split used during training or the untouched official test split.
                SHD retains its official train/test contract.
         dt_ms, t_ms: currently unused; kept for call-site compatibility
+        evaluation_only: skip the unused MNIST training partition; requires
+               split=True and evaluation_split='test'. Training outputs are None.
 
     Single canonical loader used by train, infer, and image paths so
     "first digit-0 sample" means the same physical sample everywhere.
     """
+    if evaluation_only and (not split or evaluation_split != "test"):
+        raise ValueError("evaluation_only requires split=True and evaluation_split='test'")
     if name == "mnist":
         from torchvision import datasets, transforms
 
-        mnist_train = datasets.MNIST(
-            root="/tmp/mnist",
-            train=True,
-            download=True,
-            transform=transforms.ToTensor(),
-        )
         mnist_test = datasets.MNIST(
             root="/tmp/mnist",
             train=False,
             download=True,
             transform=transforms.ToTensor(),
         )
-        X = mnist_train.data.numpy().reshape(-1, 784).astype(np.float32) / 255.0
-        y = mnist_train.targets.numpy().astype(np.int64)
         X_test = mnist_test.data.numpy().reshape(-1, 784).astype(np.float32) / 255.0
         y_test = mnist_test.targets.numpy().astype(np.int64)
+        if evaluation_only:
+            return None, X_test, None, y_test
+        mnist_train = datasets.MNIST(
+            root="/tmp/mnist",
+            train=True,
+            download=True,
+            transform=transforms.ToTensor(),
+        )
+        X = mnist_train.data.numpy().reshape(-1, 784).astype(np.float32) / 255.0
+        y = mnist_train.targets.numpy().astype(np.int64)
     elif name == "shd":
         # Event data. Keep SHD's OFFICIAL train/test split — it holds out two
         # speakers unseen in training, and every published SHD number is reported

@@ -27,11 +27,8 @@ COMPOUND_SIGMA_MS = 14.0
 SHARDS = 8
 FIGURES = (
     "rhythm_compound.png",
-    "rhythm_compound.pdf",
     "cell_jitter_sweep.svg",
-    "cell_jitter_sweep.pdf",
     "jitter_sweep.svg",
-    "jitter_sweep.pdf",
 )
 
 
@@ -95,3 +92,15 @@ def jobs(cfg):
                 }
             )
     return result
+
+
+def replay_job(job):
+    """Both zero-zero arms replay identical I spikes; retain separate logical rows."""
+    if job["condition"] == "cell_jitter_sigma_0":
+        return {
+            **job,
+            "id": job["id"].replace("__cell_jitter_sigma_0", "__jitter_sigma_0"),
+            "condition": "jitter_sigma_0",
+            "group": "jitter_sweep",
+        }
+    return job

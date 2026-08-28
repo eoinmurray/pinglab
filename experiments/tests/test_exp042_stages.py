@@ -98,13 +98,12 @@ def lab(tmp_path, monkeypatch):
             e, i = np.zeros((20, 4), dtype=bool), np.zeros((20, 2), dtype=bool)
             e[::4] = True
             i[::3] = True
-            np.savez(
-                out / "snapshot.npz",
-                spk_e=e,
-                spk_i=i,
-                label=np.int64(0),
-                unused_voltage=np.ones((20, 100)),
-            )
+            mode = get("--recording-mode")
+            assert mode == ("spikes" if "--i-override-file" in args else "inhibitory")
+            arrays = {"spk_i": i, "label": np.int64(0)}
+            if mode == "spikes":
+                arrays["spk_e"] = e
+            np.savez(out / "snapshot.npz", **arrays)
         else:
             samples = int(get("--max-samples"))
             write_json_atomic(
@@ -120,6 +119,7 @@ def lab(tmp_path, monkeypatch):
                 },
             )
         if "--outputs" in args and get("--outputs") == "rasters":
+            assert get("--recording-mode") == "inhibitory"
             np.savez(
                 out / "rasters.npz",
                 T=np.int32(20),
@@ -144,9 +144,16 @@ def test_stages_preserve_small_evidence_and_never_run_upstream(lab, monkeypatch)
     identity = compute.compute(bank_id)
     raw = inputs.source(root, identity, "compute")
     assert len(list(raw.export.glob("jobs/*.json"))) == 39
-    assert (
-        len(calls) == 42
-    )  # 39 condition launches + baseline/paired illustrative snapshots
+    assert len(calls) == 39  # 36 distinct evaluations plus three illustrative launches
+    for job in recipe.jobs(recipe.configuration(smoke=True)):
+        if job["condition"] == "cell_jitter_sigma_0":
+            row = load_json(raw.export / "jobs" / (job["id"] + ".json"))
+            source = recipe.replay_job(job)["id"]
+            assert row["replay_of"] == source
+            assert (
+                row["metrics"]
+                == load_json(raw.export / "jobs" / (source + ".json"))["metrics"]
+            )
     assert raw.record["inputs"] == {"bank": before}
     assert not list(raw.directory.glob(".scratch-*"))
     assert not list(raw.export.rglob("rasters.npz"))
@@ -256,7 +263,7 @@ def test_shards_are_pinned_resumable_and_collect_without_repeating_sweeps(lab):
     for index in range(8):
         compute.shard(bank_id, run_id=identity, index=index)
     before = len(calls)
-    assert before == 39  # shared baselines are generated once, not per shard
+    assert before == 36  # shared baselines and zero replays run once, not per shard
     compute.shard(bank_id, run_id=identity, index=0)
     assert len(calls) == before
     compute.compute(bank_id, run_id=identity, collect=True)
@@ -269,6 +276,65 @@ def test_shards_are_pinned_resumable_and_collect_without_repeating_sweeps(lab):
     assert not (output.directory / ".baseline-scratch").exists()
     with pytest.raises((PingstoreError, OSError)):
         compute.shard(bank_id, run_id=identity, index=0)
+
+
+def test_production_retains_all_rows_with_66_launches(lab, monkeypatch):
+    root, bank_id, calls = lab
+    monkeypatch.setenv("PINGLAB_SMOKE", "0")
+    identity = compute.compute(bank_id)
+    raw = inputs.source(root, identity, "compute")
+    assert len(list(raw.export.glob("jobs/*.json"))) == 66
+    assert len(calls) == 66
+    assert sum("--sample-index" in args for args in calls) == 3
+
+
+def test_zero_replay_is_shared_between_concurrent_workers(lab):
+    from concurrent.futures import ThreadPoolExecutor
+    from threading import Barrier
+
+    root, bank_id, calls = lab
+    bank = inputs.source(root, bank_id, "compute", experiment="exp022")
+    cfg = recipe.configuration(smoke=True)
+    jobs = [
+        j
+        for j in recipe.jobs(cfg)
+        if j["seed"] == 42
+        and j["condition"] in ("jitter_sigma_0", "cell_jitter_sigma_0")
+    ]
+    barrier = Barrier(2)
+
+    def worker(index):
+        scratch = root / f"worker-{index}"
+        scratch.mkdir()
+        simulator = simulation.Simulator(
+            scratch, scratch / "commands", cfg, baseline_root=root / "shared"
+        )
+        barrier.wait(timeout=5)
+        job = jobs[index]
+        return simulator.evaluate(bank.export / job["cell"], job)
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        a, b = list(pool.map(worker, range(2)))
+    assert a == b
+    assert len(calls) == 2  # one baseline and one zero replay
+    assert sum("--i-override-file" in args for args in calls) == 1
+
+
+def test_zero_replay_cache_rejects_recipe_drift(lab):
+    root, bank_id, _ = lab
+    bank = inputs.source(root, bank_id, "compute", experiment="exp022")
+    cfg = recipe.configuration(smoke=True)
+    job = next(j for j in recipe.jobs(cfg) if j["condition"] == "jitter_sigma_0")
+    scratch = root / "scratch"
+    scratch.mkdir()
+    simulator = simulation.Simulator(scratch, scratch / "commands", cfg)
+    simulator.evaluate(bank.export / job["cell"], job)
+    path = next(scratch.glob("zero-replay/*/*/result.json"))
+    record = load_json(path)
+    record["recipe"]["evaluation_samples"] += 1
+    write_json_atomic(path, record)
+    with pytest.raises(ValueError, match="zero-replay scratch"):
+        simulator.evaluate(bank.export / job["cell"], job)
 
 
 def test_shard_does_not_reuse_tampered_metrics(lab):

@@ -460,6 +460,96 @@ def _write_i_override(path, T, n_i, n_trials, seed=0):
     )
 
 
+@pytest.fixture
+def synthetic_inference(monkeypatch, tmp_path):
+    """Real simulator, synthetic images and an untrained tiny checkpoint; no downloads."""
+    import infer as module
+    import models as M
+    from config import build_net, setup_model_globals
+
+    M.N_IN = 784
+    setup_model_globals([8])
+    torch.manual_seed(42)
+    weights = tmp_path / "weights.pth"
+    torch.save(build_net("ping", hidden_sizes=[8], readout_mode="mem-mean").state_dict(), weights)
+    images = np.random.default_rng(11).random((70, 784)).astype("float32")
+    labels = np.arange(70, dtype="int64") % 10
+    loaders, nets = [], []
+
+    def dataset(*args, **kwargs):
+        loaders.append(kwargs)
+        return None, images, None, labels
+
+    def build(*args, **kwargs):
+        net = build_net(*args, **kwargs)
+        nets.append(net)
+        return net
+
+    monkeypatch.setattr(module, "load_dataset", dataset)
+    monkeypatch.setattr(module, "_auto_device", lambda: torch.device("cpu"))
+    monkeypatch.setattr(module, "build_net", build)
+    kwargs = dict(model_name="ping", dt=0.1, t_ms=2.0, load_weights=weights,
+                  dataset="mnist", hidden_sizes=[8], seed=42, readout_mode="mem-mean")
+    return kwargs, loaders, nets
+
+
+def test_override_metrics_do_not_record_and_match_full_recording(synthetic_inference, tmp_path):
+    kwargs, loaders, nets = synthetic_inference
+    override = tmp_path / "override.npz"
+    _write_i_override(override, T=20, n_i=2, n_trials=65)
+    full_dir, lean_dir = tmp_path / "full", tmp_path / "lean"
+    full_dir.mkdir()
+    lean_dir.mkdir()
+    full = infer(**kwargs, max_samples=65, i_override_file=override,
+                 outputs={"rasters"}, out_dir=full_dir)
+    lean = infer(**kwargs, max_samples=65, i_override_file=override, out_dir=lean_dir)
+    assert full == lean
+    assert full["rates_hz"]["inh"] > 0
+    assert nets[0].recording and not nets[1].recording
+    assert not hasattr(nets[1], "spike_record")
+    assert {p.name for p in lean_dir.iterdir()} == {"metrics.json"}
+    assert all(call["evaluation_only"] for call in loaders)
+
+
+def test_i_only_baseline_matches_full_i_events(synthetic_inference, tmp_path):
+    kwargs, _, nets = synthetic_inference
+    full_dir, lean_dir = tmp_path / "full", tmp_path / "lean"
+    full_dir.mkdir()
+    lean_dir.mkdir()
+    full = infer(**kwargs, max_samples=65, outputs={"rasters"}, out_dir=full_dir)
+    lean = infer(**kwargs, max_samples=65, outputs={"rasters"},
+                 recording_mode="inhibitory", out_dir=lean_dir)
+    assert full == lean
+    assert set(nets[-1].spike_record) == {"inh"}
+    with np.load(full_dir / "rasters.npz") as original, np.load(lean_dir / "rasters.npz") as selected:
+        assert int(selected["n_trials"]) == 65
+        assert int(selected["T"]) == 20
+        assert not any(k.startswith(("e_", "out_")) for k in selected.files)
+        for key in selected.files:
+            assert np.array_equal(selected[key], original[key])
+
+
+@pytest.mark.parametrize("mode", ["spikes", "inhibitory"])
+@pytest.mark.parametrize("override", [False, True])
+def test_selected_snapshots_preserve_spikes_without_trace_buffers(synthetic_inference, tmp_path, mode, override):
+    kwargs, _, nets = synthetic_inference
+    if override:
+        path = tmp_path / "override.npz"
+        _write_i_override(path, T=20, n_i=2, n_trials=1)
+        kwargs = {**kwargs, "i_override_file": path}
+    full_dir, lean_dir = tmp_path / "full", tmp_path / "lean"
+    infer_and_snapshot(**kwargs, sample_index=3, out_dir=full_dir)
+    infer_and_snapshot(**kwargs, sample_index=3, out_dir=lean_dir, recording_mode=mode)
+    assert set(nets[-1].spike_record) == ({"hid", "inh"} if mode == "spikes" else {"inh"})
+    with np.load(full_dir / "snapshot.npz") as full, np.load(lean_dir / "snapshot.npz") as lean:
+        expected = {"dt", "n_e", "n_i", "label", "spk_i"}
+        if mode == "spikes":
+            expected.add("spk_e")
+        assert set(lean.files) == expected
+        for key in lean.files:
+            assert np.array_equal(lean[key], full[key])
+
+
 @pytest.mark.slow
 class TestIOverride:
     def test_infer_i_override(self, trained_ckpt, tmp_out):
