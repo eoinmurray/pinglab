@@ -159,10 +159,9 @@ def test_exp022_and_exp049_read_compact_epoch_records(tmp_path, monkeypatch):
     (tmp_path / "metrics.json").write_text(json.dumps({"epochs": rows}))
     assert exp022.training_curve(tmp_path) == ([1, 2], [80.0, 90.0])
     assert exp022.final_rates(tmp_path) == (6.0, 21.0)
-    monkeypatch.setattr(exp049, "COND_ORDER", ["frozen_ping"])
-    monkeypatch.setattr(exp049, "SEEDS", [42])
-    monkeypatch.setattr(exp049, "cell_dir", lambda *_: tmp_path)
-    curves = exp049._load_epoch_curves()[tmp_path.name]
+    from experiments.exp049.measurements import epoch_curve
+    from experiments.helpers.checkpoints import epoch_metrics
+    curves = epoch_curve(epoch_metrics(tmp_path), "frozen_ping")
     assert curves["ep"] == [1, 2]
     assert curves["rate_e"] == [5, 6]
     assert curves["contrast"] == [0.4, 0.6]

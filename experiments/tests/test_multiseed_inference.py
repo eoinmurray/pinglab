@@ -210,7 +210,7 @@ def test_downstream_runners_honor_isolated_runner_paths(tmp_path: Path) -> None:
     }
     for slug in (
         "exp033", "exp037",
-        "exp049", "exp082",
+        "exp082",
     ):
         root = tmp_path / slug
         env = {

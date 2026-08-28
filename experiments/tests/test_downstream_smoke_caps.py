@@ -37,39 +37,19 @@ def _write_final_checkpoint(train_dir: Path, config: dict) -> None:
     }))
 
 
-@pytest.mark.parametrize("module", [exp049])
-def test_quantitative_inference_is_capped_in_smoke(
-    module, monkeypatch, tmp_path: Path,
-) -> None:
-    train_dir = tmp_path / "train"
-    train_dir.mkdir()
-    _write_final_checkpoint(train_dir, {"tau_gaba_ms": 6.0})
-    observed: list[str] = []
-
-    monkeypatch.setattr(module, "ARTIFACTS", tmp_path / "derived")
-    monkeypatch.setattr(module, "SMOKE", True)
-    monkeypatch.setattr(module, "EVAL_MAX_SAMPLES", 100)
-    monkeypatch.setattr(module, "run_cli", lambda cmd: observed.extend(cmd))
-    module._infer_cell(train_dir, ["--outputs", "pop_traces"], "infer")
-
-    assert observed[observed.index("--max-samples") + 1] == "100"
+def test_exp049_quantitative_inference_is_capped_in_smoke(tmp_path):
+    from experiments.exp049 import recipe
+    job = next(j for j in recipe.jobs(recipe.configuration(smoke=True)) if j["kind"] == "infer")
+    args = recipe.inference_args(tmp_path, tmp_path / "weights_final.pth", tmp_path / "out", job)
+    assert args[args.index("--max-samples") + 1] == "100"
 
 
-@pytest.mark.parametrize("module", [exp049])
-def test_single_sample_inference_does_not_restrict_sample_index(
-    module, monkeypatch, tmp_path: Path,
-) -> None:
-    train_dir = tmp_path / "train"
-    train_dir.mkdir()
-    _write_final_checkpoint(train_dir, {"tau_gaba_ms": 6.0})
-    observed: list[str] = []
-
-    monkeypatch.setattr(module, "ARTIFACTS", tmp_path / "derived")
-    monkeypatch.setattr(module, "SMOKE", True)
-    monkeypatch.setattr(module, "run_cli", lambda cmd: observed.extend(cmd))
-    module._infer_cell(train_dir, ["--sample-index", "50"], "snapshot")
-
-    assert "--max-samples" not in observed
+def test_exp049_single_sample_inference_does_not_restrict_sample_index(tmp_path):
+    from experiments.exp049 import recipe
+    job = next(j for j in recipe.jobs(recipe.configuration(smoke=True)) if j["kind"] == "snapshot")
+    args = recipe.inference_args(tmp_path, tmp_path / "weights_final.pth", tmp_path / "out", {**job, "sample_index": 50})
+    assert "--max-samples" not in args
+    assert args[-2:] == ["--sample-index", "50"]
 
 
 def test_exp042_baseline_inference_is_capped_in_smoke(

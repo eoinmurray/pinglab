@@ -3,112 +3,225 @@
 #let data-file = data-file.with(article: "exp049")
 
 #let meta = (
-  status: "Implemented",
-  title: "Training Collapses the PING Loop",
+  status: "Ready for review",
+  title: "Training Recurrent Weights Weakens PING Rhythmicity",
   date: "2026-06-09",
-  description: "Unfreeze the recurrent conductances and Adam does not preserve or recover effective E-to-I recruitment; every tested initialisation moves toward dense E firing and weak I activity.",
+  updated_at: "2026-08-28",
+  description: "Trainable recurrent conductances produced lower reference-image rhythmicity and higher excitatory firing than the frozen PING control; outcomes depended on initialization.",
   collection: "gamma-gated-sparsity",
 )
 
 #let inputs = ("exp049",)
 #let preview-figures = (
-  (path: "exp049/attractor_ei.svg", label: "attractor ei"),
-  (path: "exp049/training_curves.svg", label: "training curves"),
-  (path: "exp049/weights__trainable_ping_init.svg", label: "weights trainable ping init"),
-  (path: "exp049/phase_portrait.svg", label: "phase portrait"),
-  (path: "exp049/acc_rate_trajectory.svg", label: "acc rate trajectory"),
+  (path: "exp049/attractor_ei.svg", label: "Final population rates"),
+  (path: "exp049/training_curves.svg", label: "Learning and rhythmicity"),
+  (path: "exp049/weights__trainable_ping_init.svg", label: "Recurrent conductances"),
+  (path: "exp049/phase_portrait.svg", label: "Rate and rhythmicity trajectories"),
+  (path: "exp049/acc_rate_trajectory.svg", label: "Accuracy and firing trajectories"),
 )
 
 // Keep calculations lazy: absent inputs never become fabricated results.
 #let render-report(data-file) = [
 #let r049 = data-json(data-file("exp049/numbers.json"))
-#let canonical42 = r049.summary.filter(r => r.condition == "trainable_ping_init" and r.seed == 42).first()
-#let wei_zero42 = calc.round(100 * canonical42.w_ei.trained_zero_fraction, digits: 1)
-#let wie_zero42 = calc.round(100 * canonical42.w_ie.trained_zero_fraction, digits: 1)
-#let wei_mean42 = calc.round(canonical42.w_ei.trained_mean, digits: 6)
-#let wie_mean42 = calc.round(canonical42.w_ie.trained_mean, digits: 6)
-
-
-
-#let body = [
-  The trained networks this entry uses are produced once in the shared training hub, #link("/exp022/")[exp022 (Training)], and reused here rather than retrained.
+#let mean(values) = values.sum() / values.len()
+#let rounded(value, digits: 1) = calc.round(value, digits: digits)
+#let condition(name) = r049.summary.filter(r => r.condition == name)
+#let average(name, key) = rounded(mean(condition(name).map(r => r.at(key))))
+#let trainable = r049.summary.filter(r => r.condition != "frozen_ping")
+#let canonical42 = condition("trainable_ping_init").filter(r => r.seed == 42).first()
+#let wei_zero42 = rounded(100 * canonical42.w_ei.trained_zero_fraction)
+#let wie_zero42 = rounded(100 * canonical42.w_ie.trained_zero_fraction)
+#let wei_mean42 = str(rounded(canonical42.w_ei.trained_mean, digits: 6))
+#let wie_mean42 = str(rounded(canonical42.w_ie.trained_mean, digits: 6))
+#let frozen_e = average("frozen_ping", "e_rate_hz")
+#let frozen_i = average("frozen_ping", "i_rate_hz")
+#let frozen_acc = average("frozen_ping", "acc")
+#let acc_low = rounded(calc.min(..trainable.map(r => r.acc)))
+#let acc_high = rounded(calc.max(..trainable.map(r => r.acc)))
+#let contrast_low = rounded(r049.rhythmicity.final_contrast_trainable_min, digits: 3)
+#let contrast_high = rounded(r049.rhythmicity.final_contrast_trainable_max, digits: 3)
+#let contrast_frozen = rounded(r049.rhythmicity.canonical_contrast, digits: 3)
+#let contrast_first = rounded(r049.rhythmicity.epoch1_contrast_trainable, digits: 3)
+#let eval_n = r049.config.evaluation_samples
 
   == Abstract
 
-  #link("/exp025/")[exp025] freezes the recurrent conductances $W^(E I), W^(I E)$ at biophysical values. When they are trainable, Adam does _not_ preserve or recover effective PING from any tested initialisation (canonical, zero, or 10% of canonical): E→I recruitment weakens or remains absent, inhibitory firing collapses, and the network moves toward dense E firing at ≈ 90% accuracy, close to the frozen PING control (≈ 91%). The matrices store non-negative conductance magnitudes; inhibition is produced by the GABA reversal potential, not by a negative $W^(I E)$. PING is therefore a structural prior imposed by the frozen loop in this setup, not one gradient descent recovers on its own.
-
-  == Method
-
-  All checkpoint-backed rhythmicity, raster, and recurrent-weight summaries use the final-epoch checkpoint. Per-epoch trajectories continue to come directly from the training history.
-
-  Quantitative checkpoint-backed inference uses the same fixed 1,000-image subset
-  of the official MNIST test partition for every condition and seed. Single-trial
-  raster panels remain illustrative and do not define that evaluation corpus.
-
-  *Architecture.* $N_E = 1024$ excitatory, $N_I = 256$ inhibitory, mem-mean readout, Dale's law enforced. Hyperparameters match the shared #link("/exp022/")[exp022] PING recipe: Adam at lr $4 times 10^(-4)$, batch 256, surrogate slope 1, lower-clamped-Gaussian $W_"in"$ with parent parameters $(0.9, 0.09)$ and a 95% initial-zero fraction, directly specified readout initialization, gradient norm clipped to 1.0, $Delta t = 0.1$ ms, $T = 200$ ms, no firing-rate regulariser. The zero-initialized input parameters remain trainable and may regrow.
-
-  Both recurrent matrices are non-negative conductance magnitudes. After each optimiser step they are projected onto the non-negative cone. Their physiological sign is supplied by the pathway reversal potential: I→E contributes $g_I (E_I - V)$ with $E_I = -80$ mV and is therefore inhibitory despite $W^(I E) >= 0$.
-
-  *Sweep.* Four conditions × three seeds (42, 43, 44) on the 10% MNIST subset (5600 train / 1400 test), 50 epochs. Only the initial $(W^(E I), W^(I E))$ and the trainable-or-not flag vary:
-
-  #table(
-    columns: 3,
-    [Condition], [$W^(E I), W^(I E)$ init], [Trainable?],
-    [_frozen_ping_ (control)], [canonical biophysical], [no],
-    [_trainable_ping_init_], [canonical biophysical], [*yes*],
-    [_trainable_zero_init_], [$0$ (COBA-equivalent start)], [*yes*],
-    [_trainable_small_init_], [$0.1 times$ canonical], [*yes*],
-  )
-
-  Canonical biophysical means $W^(E I) tilde cal(N)(1.0, 0.1)$ μS, $W^(I E) tilde cal(N)(2.0, 0.2)$ μS at $N_I = 256$, fan-in-normalised, so the trainer reports per-edge means of ≈ 0.0010 and ≈ 0.0078. "PING is on" means the inhibitory loop is active: E recruits I, and I paces a gamma rhythm through GABA conductance. "The loop is lost" means E→I recruitment is too weak to sustain that regime, I activity is low or absent, and E fires densely. The firing rates and rhythmicity are the cleanest read of which regime a trained network reaches.
+  Training the recurrent E→I and I→E conductances weakened reference-image
+  rhythmicity relative to a frozen PING control. We reanalysed retained results
+  from four conditions and three seeds per condition after 50 epochs of MNIST
+  training. Final contrast was #contrast_low–#contrast_high across trainable
+  networks, versus a frozen-control mean of #contrast_frozen. Excitatory firing
+  increased, while inhibitory firing depended on initialization. Trainable
+  networks scored #acc_low–#acc_high% on #eval_n test images, compared with a
+  #frozen_acc% control mean. These conditions did not recover the control's
+  strongly rhythmic regime; they do not establish a universal failure of
+  learning or an accuracy-equivalence result.
 
   == Results
 
-  The whole sweep collapses to one picture. In the (E firing rate, I firing rate) plane, a network "found PING" if it sits in the low-E / high-I corner, and "lost the loop" if it sits in the dense-E / silent-I corner.
+  === 1. Recurrent training changes population activity
 
   #figure(
     data-image(data-file("exp049/attractor_ei.svg"), width: 100%,
-      alt: "Scatter of trained networks in the E-rate / I-rate plane: the frozen control sits alone at low E and high I, every trainable condition sits along the silent-I floor at high E."),
-    caption: [Each point is one trained network (4 conditions × 3 seeds). The *frozen control* (grey) sits in the PING corner, E ≈ 10 Hz and I ≈ 57 Hz, the inhibitory loop alive. *Every trainable condition* (started at canonical PING, at zero, or at 0.1× canonical) collapses to the dense-E / silent-I floor, E ≈ 40–75 Hz and I ≈ 0–7 Hz, at ≈ 90% accuracy, essentially matching the ≈ 91% control. Where the loop _starts_ makes no difference; only whether it is allowed to train. Gradient descent never reaches PING, and dropping it costs no accuracy.],
+      alt: "Final test-set E/I firing rates: the frozen control has low E and high I activity; trainable conditions have higher E rates and differing residual I activity."),
+    caption: [
+      Each point is one final-epoch network, evaluated on #eval_n official-test
+      images; legend accuracies are condition means over three seeds. Frozen
+      E/I means were #frozen_e/#frozen_i Hz. Canonical, zero and small trainable
+      initializations gave E means of #average("trainable_ping_init", "e_rate_hz"),
+      #average("trainable_zero_init", "e_rate_hz") and
+      #average("trainable_small_init", "e_rate_hz") Hz; corresponding I means
+      were #average("trainable_ping_init", "i_rate_hz"),
+      #average("trainable_zero_init", "i_rate_hz") and
+      #average("trainable_small_init", "i_rate_hz") Hz. Only zero initialization
+      left I completely silent. Firing rates alone do not identify PING.
+    ],
   )
 
-  == Training curves — functional loop collapse, epoch by epoch
+  === 2. Rhythmicity is already low at the first logged epoch
 
   #figure(
     data-image(data-file("exp049/training_curves.svg"), width: 100%,
-      alt: "Four per-epoch panels (accuracy, E rate, I rate, pingness) for the four conditions; the frozen control keeps a low E rate, high I rate, and high pingness while every trainable run does the opposite."),
-    caption: [Per-epoch metrics from the runs themselves, coloured by init: PING init (black), zero init (red), small-seed init (amber), frozen-PING control (grey dashed); 10% of MNIST, 50 epochs, 3 seeds each. *Accuracy*: all reach ≈ 85–90% and track each other; losing effective PING costs nothing. *E rate*: the trainable runs climb to ≈ 37–75 Hz as inhibition releases the excitatory population, while the frozen control stays gated near 10 Hz. *I rate*: every trainable run drops to ≈ 0 within a few epochs as effective E→I recruitment weakens or remains absent, while the frozen control's I rate _rises_ to ≈ 57 Hz as its readout trains. *Pingness*: the exp054 lobe–trough contrast holds near ≈ 0.99 for the frozen control while every trainable init collapses to ≈ 0.1–0.2. The residual floor is the metric's known low-rate inflation under shared input (#link("/exp054/")[exp054]), not a surviving rhythm: the frozen-vs-trainable gap is the signal. Functional loop activity dies early, from every start, with no accuracy penalty.],
+      alt: "Validation accuracy and E/I rates over 50 epochs, alongside reference-image rhythmicity; frozen recurrence retains high contrast while trainable recurrence has low contrast."),
+    caption: [
+      Retained histories: validation accuracy and population rates, plus
+      contrast from a fixed reference-image diagnostic. Lines show three-seed
+      means; shading spans seed minima and maxima. Each series is smoothed
+      with a five-epoch edge-padded moving average, not a confidence interval.
+      The unsmoothed trainable contrast averaged #contrast_first after epoch 1;
+      final values were #contrast_low–#contrast_high. This figure contains no
+      epoch-0 observation and cannot resolve the intervening transition.
+    ],
   )
 
-  The saved matrices identify which side of the recurrent loop changes. In the canonical-initialisation seed-42 checkpoint, $#wei_zero42%$ of E→I entries are zero after training, compared with $#wie_zero42%$ of I→E entries; their final means are $#wei_mean42$ and $#wie_mean42$, respectively. Thus the silent inhibitory population is associated chiefly with sparse E→I recruitment, while the I→E conductance remains predominantly positive.
+  === 3. The two recurrent matrices change differently
 
   #figure(
     data-image(data-file("exp049/weights__trainable_ping_init.svg"), width: 100%,
-      alt: "Separate initial and trained distributions for E-to-I and I-to-E conductance matrices in the canonical-initialisation condition, including their zero fractions."),
-    caption: [*The two recurrent matrices do not collapse symmetrically.* Initial and trained conductance distributions for the canonical-initialisation condition, pooled across seeds 42–44; each panel reports its own mean and zero fraction. The checkpoint-level distinction is already clear in seed 42: $#wei_zero42%$ of $W^(E I)$ entries are zero after training, versus $#wie_zero42%$ of $W^(I E)$ entries. The loss of PING therefore tracks weakened E→I recruitment and near-silent I activity, not I→E weights crossing into a negative sign cone.],
+      alt: "Positive initial and final recurrent conductances for canonical trainable initialization, with separate E-to-I and I-to-E means and zero fractions."),
+    caption: [
+      Initial and final conductance distributions, pooled across three seeds
+      with canonical trainable initialization. Histograms contain positive
+      entries; mean and zero-fraction annotations include all entries. For
+      seed 42, #wei_zero42% of E→I entries and #wie_zero42% of I→E entries were
+      zero; final means were #wei_mean42 and #wie_mean42 in model conductance
+      units. Lower E→I recruitment is consistent with reduced I activity, but
+      sparsification is not symmetric and these observations do not isolate
+      its causal contribution.
+    ],
   )
 
-  == Phase portrait — there is only one attractor under training
-
-  The four per-epoch panels above tell the story but separate the two state variables that matter. Putting _E rate_ and _pingness_ on perpendicular axes shows the trajectories of training directly, and the geometry rules out a misreading: it is _not_ the case that PING and COBA are two attractors of the same dynamics, with the architecture deciding the basin. Under training there is *one* attractor (the COBA corner), and the PING state only persists because freezing the loop zeroes its gradients.
+  === 4. Rate–rhythmicity trajectories do not establish attractors
 
   #figure(
     data-image(data-file("exp049/phase_portrait.svg"), width: 100%,
-      alt: "Training trajectories in the E-rate / pingness plane: the frozen control stays in the high-pingness corner while every trainable run sits on the pingness ≈ 0.1 floor."),
-    caption: [Each trainable trajectory is the per-epoch mean across 3 seeds, alpha-ramped along the epoch axis so the direction of flow reads off the line itself; open markers are epoch 1 (the first logged epoch), filled markers are epoch 50. *Frozen PING (grey)*: sits in the upper PING basin from start to finish at pingness ≈ 0.98; drifts a little in E rate (≈ 4 → 10 Hz) as the feedforward and readout weights train, but the loop weights themselves can't move by construction. *Trainable PING init (black)*: was initialised with canonical biophysical loop weights, but by the time the first metric is logged (after epoch 1) rhythmicity has already collapsed to ≈ 0.17. The trajectory then walks rightward along the COBA floor with the others. *Trainable zero init (red)* and *small-seed init (amber)*: start at the floor and stay there, E rate climbing as the feedforward layer learns the task. Every legend entry lands at 83–91% accuracy, so the move costs nothing. The reading is sharper than the time-series panels suggest: the empty band between pingness ≈ 0.2 and ≈ 0.85 is the _whole story_, because gradient descent flies through it within one epoch and the metric never catches it mid-flight. There is no separatrix between PING and COBA under training because there is no slow trajectory through the gap. The freeze isn't preventing slow erosion; it's preventing instant collapse.],
+      alt: "Unsmoothed mean validation E rate versus reference-image contrast: trainable trajectories remain at low contrast; frozen endpoints remain near contrast one."),
+    caption: [
+      Trainable curves are unsmoothed three-seed means; fading indicates epoch
+      order, open markers epoch 1 and filled markers epoch 50. Frozen points
+      show the three final endpoints and their mean, not a full trajectory.
+      Rates and contrast come from different evaluation samples. The contrast
+      gap describes these observations; it identifies neither a separatrix
+      nor a basin boundary, and is not evidence that only one attractor exists.
+    ],
   )
 
-  == Accuracy–rate trajectory — same destination, different spike economy
-
-  Figure 4 puts pingness on its own axis. Putting pingness on the _colour_ axis instead and replaying training as (E rate, accuracy) trajectories (the #link("/exp025/")[exp025] accuracy–rate frontier given a time axis) gives another reading of the same data: every condition reaches the same final test accuracy, but along very different routes, and only one of them is doing PING while it gets there.
+  === 5. Similar validation accuracy can accompany different firing rates
 
   #figure(
     data-image(data-file("exp049/acc_rate_trajectory.svg"), width: 100%,
-      alt: "Test accuracy versus E rate trajectories coloured by pingness: the frozen control climbs in the low-rate PING basin, every trainable run ends far right in the COBA attractor at the same accuracy."),
-    caption: [Each trajectory is the per-epoch mean across 3 seeds; per-segment colour is that epoch's pingness on a viridis 0→1 scale (colourbar at right). Open markers are epoch 1, filled markers are epoch 50. The frontier _with time_ tells three things at once. *Same destination*: all four conditions land at ≈ 83–91% accuracy by epoch 50, regardless of init or whether the loop trains. *Different routes*: the frozen control climbs accuracy almost vertically with little change in E rate (≈ 4 → 10 Hz); the trainable conditions all bend right and up, the biggest one (zero init) reaching final accuracy at E ≈ 75 Hz, ≈ 8× the frozen control's rate. *Only one of them is still PING*: the frozen control's line is bright yellow because pingness stays high (≈ 1.0) the whole way; every trainable line is dark purple because rhythmicity had already collapsed to ≈ 0.1 by the first logged epoch. Reading the colour bar: most of pingness 0.2–0.85 is unused space, because no trajectory crosses it slowly enough to be logged. Reading the geometry: this is the manuscript's accuracy–rate frontier (#link("/exp025/")[exp025], §2.3) animated, and the architecture is the only thing keeping a trained network on the sparse, rhythmic side of it. The dashed divider at ≈ 17 Hz marks the two basins explicitly: frozen PING holds the left, every trainable run ends in the right, at the same accuracy.],
+      alt: "Validation accuracy versus E firing rate through training, with colour showing reference-image contrast and markers indicating the first and final epochs."),
+    caption: [
+      Unsmoothed three-seed mean validation trajectories; each segment's colour
+      averages the reference-image contrast at its endpoints. Open and filled
+      markers denote epochs 1 and 50. This complements the
+      #link("/exp025/")[accuracy–rate comparison], without establishing equal
+      accuracy or measured energy savings. Final official-test means were
+      #average("trainable_ping_init", "acc")%,
+      #average("trainable_zero_init", "acc")% and
+      #average("trainable_small_init", "acc")% for canonical, zero and small
+      trainable initializations, versus #frozen_acc% for the frozen control.
+      Initialization therefore matters within the tested conditions.
+    ],
   )
-]
-#body
+
+  == Methods
+
+  We reused networks from the #link("/exp022/")[shared training study] and
+  reanalysed retained observations. No new training or simulation was performed.
+
+  + *Compare recurrent trainability.* Twelve conductance-based leaky-integrate-and-fire
+    classifiers had 784 Poisson input channels, 1,024 excitatory (E), 256
+    inhibitory (I) and 10 output cells. Three seeds per condition compared
+    frozen canonical recurrence with trainable canonical, zero and 10%-canonical
+    E→I/I→E conductances; E→E and I→I coupling stayed zero. Canonical initializer
+    means were $1/1024$ and $2/256$, respectively, with standard deviations one
+    tenth of each mean and negative draws clamped to zero.
+
+  + *Train on a held-out split.* The 7,000-image subset contained 6,300 optimizer-training
+    and 700 validation images from the official MNIST training partition.
+    Input and readout weights trained for 50 epochs with AdamW, learning rate
+    $4 times 10^(-4)$, zero weight decay, batch size 256, surrogate slope 1,
+    voltage-gradient damping 1,000, gradient-norm clipping at 1 and no firing-rate
+    penalty. Class scores were mean pre-reset output voltages; each 200 ms
+    presentation used 0.1 ms steps and pixel-dependent input rates up to 25 Hz.
+
+  + *Constrain conductance signs.* Trainable recurrent magnitudes were projected
+    onto the non-negative cone after each optimizer step. Inhibition arose
+    through $g_I (E_I - V)$, where $g_I$ is inhibitory conductance, $E_I = -80$
+    mV its reversal potential, and $V$ membrane voltage: a positive I→E weight
+    need not become negative to inhibit. Input zeros remained trainable and
+    could regrow; initialization details are listed below.
+
+  + *Evaluate final networks.* All endpoint tests and weight comparisons used
+    epoch 50, not validation-selected weights. Accuracy and whole-population
+    mean E/I rates used the same #eval_n official-test images per network;
+    per-epoch validation metrics averaged three fixed Poisson encoding draws.
+    For endpoint spectra, demeaned nonconstant E-population traces received
+    full-trial Welch density estimation; the mean spectrum's largest bin
+    within 5–150 Hz defined the retained peak, without interpolation.
+
+  + *Measure temporal contrast.* After each epoch, the same fixed reference
+    digit's Poisson spike realization elicited a diagnostic response.
+    E-population counts were binned at 1 ms; their autocorrelation was normalized
+    by lag overlap and squared mean count, over 0–100 ms, then smoothed with
+    weights $(1/4, 1/2, 1/4)$ after replacing the zero-lag entry by its neighbour:
+    #math.equation(block: true, numbering: "(1)", $R = (L - Q) / (L + Q)$)
+    Here $R$ is dimensionless contrast, $Q$ the first local trough from lag
+    2 ms onward, and $L$ the preceding positive-lag maximum of the smoothed
+    autocorrelogram. We reused the retained scalar; it is neither a
+    test-population rhythm estimate nor a calibrated probability of PING.
+
+  == Appendix: retained parameters and interpretation limits
+
+  Input weights used lower-clamped normal draws with parent mean 0.9 and
+  standard deviation 0.09, followed by 95% initial zeros; retained values were
+  divided by $0.05 times 784$ to preserve expected summed input coupling.
+  Readout initialization
+  used parent mean 1.12060546875 and standard deviation 0.8349609375.
+  Excitatory and inhibitory synaptic decays were 2 and 6 ms. Membrane time
+  constants were not trained; adaptive thresholds were disabled. The frozen
+  control used the same canonical recurrence as the
+  #link("/exp025/")[fixed-loop training comparison].
+
+  Recurrent-weight summaries distinguished the two directions: zeros counted
+  non-positive entries, positive means excluded zeros, and distribution plots
+  pooled seeds before binning. Illustrative diagnostic cards used a separate
+  test-image snapshot, seed 42 and image index 0, with 200 E and 50 I cells
+  sampled for display. Their accuracy trajectories are validation measurements;
+  their E/I rate trajectories are reference-image diagnostics, while header
+  statistics and spectra describe final official-test evaluations.
+
+  The PING interpretation concerns excitatory recruitment of inhibition and
+  rhythmic feedback, not the sign of a stored conductance magnitude. Reduced
+  contrast, higher E firing and weaker I activity support loss or weakening of
+  the frozen control's regime in these conditions. Residual contrast and a
+  spectral maximum do not establish a surviving gamma rhythm: the
+  #link("/exp054/")[rhythmicity diagnostic study] addresses metric specificity.
+  In particular, a low contrast value alone does not identify its source as
+  low-rate inflation or shared input. The three initializations and three seeds
+  do not establish impossibility of learning PING, accuracy equivalence,
+  attractor stability or a continuous transition between epochs.
 ]
 
 #let body = if inputs-ready(data-file, inputs) {
@@ -116,7 +229,7 @@
 } else {
   pending-report(
     data-file, inputs,
-    [What happens when recurrent PING weights are released for training? Compare frozen recurrence with several trainable initializations.],
+    [How does training recurrent conductances change population activity and rhythmicity relative to a frozen PING control?],
     preview-figures, json-inputs: ("exp049",),
   )
 }
