@@ -186,10 +186,7 @@ def test_downstream_runners_honor_isolated_runner_paths(tmp_path: Path) -> None:
         for path in active.rglob("*")
         if path.is_file()
     }
-    for slug in (
-        "exp033",
-        "exp082",
-    ):
+    for slug in ("exp082",):
         root = tmp_path / slug
         env = {
             **os.environ,

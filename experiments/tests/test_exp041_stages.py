@@ -495,7 +495,7 @@ def test_inference_caps_and_import_side_effects(tmp_path):
     assert result.returncode == 0, result.stderr
 
 
-@pytest.mark.parametrize("slug", ["exp033", "exp054"])
+@pytest.mark.parametrize("slug", ["exp054"])
 def test_unmigrated_consumers_cannot_silently_read_stale_exp041_outputs(
     tmp_path, monkeypatch, slug
 ):

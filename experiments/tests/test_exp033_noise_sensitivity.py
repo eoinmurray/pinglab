@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import numpy as np
-from experiments import exp033
+from experiments.exp033 import numerics as exp033
 
 
 def test_refined_hopf_lies_inside_coarse_bracket() -> None:
@@ -46,7 +46,7 @@ def test_tau_gaba_sweep_propagates_sigma(monkeypatch) -> None:
 def test_exp054_explicitly_selects_reference_sigma() -> None:
     source = (exp033.REPO / "experiments" / "exp054.py").read_text()
     assert "sigma = exp033.SIGMA_V_MV" in source
-    assert "hysteresis_sweep(hopf[\"I_ext_star\"], sigma=sigma)" in source
+    assert 'hysteresis_sweep(hopf["I_ext_star"], sigma=sigma)' in source
 
 
 def test_publication_text_does_not_claim_fully_fitted_scale() -> None:
