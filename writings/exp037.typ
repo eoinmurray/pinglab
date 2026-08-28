@@ -1,9 +1,12 @@
+#import "contents.typ": with-contents
 #import "/.demolab/lib.typ": data-json, data-image, cite, reference-list
 #import "run-inputs.typ": data-file, inputs-ready, pending-report
+#import "run-view.typ": with-datasets, run-view
+#import "run-inputs.typ": input-assets
 #let data-file = data-file.with(article: "exp037")
 
 #let meta = (
-  status: "Ready for review",
+  status: "[▦ DATA]",
   title: "Dropped Spikes vs Added Noise",
   date: "2026-05-30",
   updated_at: "2026-08-28",
@@ -65,9 +68,11 @@
   of these trained networks, but does not separate recurrent timing from
   firing-rate or readout effects.
 
-  == Results
+  #run-view("exp037", inputs)
 
-  === 1. Deletion and insertion have different effects
+  == Results: Spike deletion tolerated; added spikes impair PING
+
+  === Deletion and insertion have different effects
 
   #figure(
     report-image("exp037/perturbation_curves.svg",
@@ -85,7 +90,7 @@
     ],
   )
 
-  === 2. PING rasters retain bands under partial deletion
+  === PING rasters retain bands under partial deletion
 
   #figure(
     report-image("exp037/perturb_rasters__drop__ping.png",
@@ -110,7 +115,7 @@
     ],
   )
 
-  === 3. COBA activity thins or increases with the intervention
+  === COBA activity thins or increases with the intervention
 
   #figure(
     report-image("exp037/perturb_rasters__drop__coba.png",
@@ -217,10 +222,14 @@
   ))
 ]
 
-#let body = if inputs-ready(data-file, inputs) {
+#let report-body = if inputs-ready(data-file, inputs) {
   render-report(data-file)
 } else {
   pending-report(data-file, inputs,
     [How do trained COBA and PING networks respond to deletion and insertion of hidden spikes? Compare retained inference trials from validation-selected classifiers.],
     preview-figures, json-inputs: ("exp037",))
 }
+
+#let meta = meta + (assets: input-assets("exp037", inputs))
+#let body = with-datasets("exp037", inputs, report-body, placed: inputs-ready(data-file, inputs))
+#let body = with-contents(body)

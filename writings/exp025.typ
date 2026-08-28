@@ -1,9 +1,12 @@
+#import "contents.typ": with-contents
 #import "/.demolab/lib.typ": data-json, data-image, cite, reference-list
 #import "run-inputs.typ": data-file, inputs-ready, pending-report
+#import "run-view.typ": with-datasets, run-view
+#import "run-inputs.typ": input-assets
 #let data-file = data-file.with(article: "exp025")
 
 #let meta = (
-  status: "Results available",
+  status: "[▦ DATA]",
   title: "Accuracy and Firing Rate With and Without Inhibition",
   date: "2026-05-30",
   updated_at: "2026-08-28",
@@ -91,9 +94,11 @@
   used different voltage-gradient damping, so this comparison does not isolate
   a causal benefit of gamma timing or measure energy savings.
 
-  == Results
+  #run-view("exp025", inputs)
 
-  === 1. Accuracy–rate frontier
+  == Results: PING retains more accuracy at the lowest activity ceilings
+
+  === Accuracy–rate frontier
 
   #figure(
     data-image(data-file("exp025/results_compound.png"),
@@ -112,7 +117,7 @@
     ],
   )
 
-  === 2. Participation and frequency
+  === Participation and frequency
 
   #figure(
     data-image(data-file("exp025/theta_p_fgamma.svg"),
@@ -131,7 +136,7 @@
     ],
   )
 
-  === 3. Initial input coupling
+  === Initial input coupling
 
   #figure(
     data-image(data-file("exp025/low_w_in_sweep.svg"),
@@ -150,7 +155,7 @@
     ],
   )
 
-  === 4. Input scaling at inference
+  === Input scaling at inference
 
   #figure(
     data-image(data-file("exp025/w_in_scale_sweep.svg"),
@@ -170,7 +175,7 @@
     ],
   )
 
-  === 5. Scaling versus excitatory rate
+  === Scaling versus excitatory rate
 
   #figure(
     data-image(data-file("exp025/w_in_scale_sweep_vs_rate.svg"),
@@ -215,7 +220,7 @@
     excitatory population, $N_E$ its size, $T$ duration in seconds, and $B$ batch
     size. Rates $r_b$ and ceilings $r_"max"$ are in hertz; $lambda = 0.041$
     $"Hz"^(-2)$ weights the dimensionless penalty $L_"rate"$. Six ceiling conditions
-    (Appendix A) and three seeds yielded 36 networks.
+    (#link(<sec-training-settings>)[Training settings]) and three seeds yielded 36 networks.
 
   + *Evaluate training endpoints.* Final-epoch weights, rather than
     validation-selected weights, supplied the endpoint comparisons. Each network
@@ -225,7 +230,7 @@
   + *Measure cycle participation.* For seed 42, oscillation frequency $f_gamma$
     was the 5–150 Hz peak of trial-averaged Welch spectra of E activity #cite(1).
     Participation $p$ was the fraction of E-cell/cycle pairs containing at least
-    one spike, with cycles delimited by I-burst midpoints (Appendix B).
+    one spike, with cycles delimited by I-burst midpoints (#link(<sec-measurement-details>)[Measurement details]).
 
     #math.equation(block: true, numbering: "(1)", $ r_E approx p f_gamma. $)
 
@@ -240,7 +245,7 @@
     by dimensionless $s in [0.05, 3]$, holding other weights fixed, on the same
     1,000 test images at 24 scales.
 
-  == Appendix A. Training settings
+  == Appendix: Training settings <sec-training-settings>
 
   #table(
     columns: 2,
@@ -277,7 +282,7 @@
   retained checkpoints selected by minimum validation cross-entropy, with ties
   resolved by accuracy then earliest epoch; the comparisons here used epoch 50.
 
-  == Appendix B. Measurement details
+  == Appendix: Measurement details <sec-measurement-details>
 
   Welch spectra used each full 200 ms demeaned E-population trace with a Hann
   window; constant traces were excluded. Spectra were averaged before selecting
@@ -312,7 +317,7 @@
 #body
 ]
 
-#let body = if inputs-ready(data-file, inputs) {
+#let report-body = if inputs-ready(data-file, inputs) {
   render-report(data-file)
 } else {
   pending-report(
@@ -321,3 +326,7 @@
     preview-figures, json-inputs: ("exp025",),
   )
 }
+
+#let meta = meta + (assets: input-assets("exp025", inputs))
+#let body = with-datasets("exp025", inputs, report-body, placed: inputs-ready(data-file, inputs))
+#let body = with-contents(body)

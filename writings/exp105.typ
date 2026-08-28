@@ -1,5 +1,7 @@
+#import "contents.typ": with-contents
+#import "run-view.typ": with-datasets
 #let meta = (
-  status: "Drafted",
+  status: "[≡ TXT]",
   title: "Networks, signals, and parameters",
   date: "2026-08-14",
   description: "The core snnlang authoring objects, their names, shapes, units, neuron populations, and parameter declarations.",
@@ -8,15 +10,6 @@
 )
 
 #let body = [
-  == Contents
-
-  + #link("/exp105/#developer-guide")[Developer guide]
-  + #link("/exp105/#networks")[Networks]
-  + #link("/exp105/#signals-and-inputs")[Signals and inputs]
-  + #link("/exp105/#populations")[Populations]
-  + #link("/exp105/#parameters")[Parameters]
-  + #link("/exp105/#api-reference")[API reference]
-
   == Developer guide
 
   === Networks
@@ -112,3 +105,6 @@
 
   #link("/exp106/")[Next: Components, projections, and delays]
 ]
+
+#let body = with-datasets("exp105", (), body)
+#let body = with-contents(body)

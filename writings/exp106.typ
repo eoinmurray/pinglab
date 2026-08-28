@@ -1,5 +1,7 @@
+#import "contents.typ": with-contents
+#import "run-view.typ": with-datasets
 #let meta = (
-  status: "Drafted",
+  status: "[≡ TXT]",
   title: "Components, projections, and delays",
   date: "2026-08-14",
   description: "Compose reusable circuit motifs and connect them with explicit synapses, weights, polarity, topology, and causal delays.",
@@ -8,14 +10,6 @@
 )
 
 #let body = [
-  == Contents
-
-  + #link("/exp106/#developer-guide")[Developer guide]
-  + #link("/exp106/#components")[Components]
-  + #link("/exp106/#projections")[Projections]
-  + #link("/exp106/#scheduling-and-causality")[Scheduling and causality]
-  + #link("/exp106/#api-reference")[API reference]
-
   == Developer guide
 
   === Components
@@ -107,3 +101,6 @@
 
   #link("/exp107/")[Next: Compiling and executing bundles]
 ]
+
+#let body = with-datasets("exp106", (), body)
+#let body = with-contents(body)

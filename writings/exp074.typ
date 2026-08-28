@@ -1,9 +1,12 @@
+#import "contents.typ": with-contents
 #import "/.demolab/lib.typ": data-json, data-image
 #import "run-inputs.typ": data-file, inputs-ready, pending-report
+#import "run-view.typ": with-datasets, run-view
+#import "run-inputs.typ": input-assets
 #let data-file = data-file.with(article: "exp074")
 
 #let meta = (
-  status: "Implemented",
+  status: "[≡ TXT]",
   title: "From Python graph to spikes",
   date: "2026-07-31",
   description: "The first snnlang vertical slice: author a PING network in Python, compile a portable bundle, execute it through tools/snnsim, and retain both the graph and its spike rasters.",
@@ -32,6 +35,8 @@
   published record retains the graph, compiler reports, exact input, simulator
   rasters, and summary numbers. This entry tests plumbing, not a neuroscientific
   hypothesis.
+
+  #run-view("exp074", inputs)
 
   == The compiled network
 
@@ -75,7 +80,7 @@
 #body
 ]
 
-#let body = if inputs-ready(data-file, inputs) {
+#let report-body = if inputs-ready(data-file, inputs) {
   render-report(data-file)
 } else {
   pending-report(
@@ -84,3 +89,7 @@
     preview-figures, json-inputs: ("exp074",),
   )
 }
+
+#let meta = meta + (assets: input-assets("exp074", inputs))
+#let body = with-datasets("exp074", inputs, report-body, placed: inputs-ready(data-file, inputs))
+#let body = with-contents(body)

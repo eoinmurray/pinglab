@@ -1,9 +1,12 @@
+#import "contents.typ": with-contents
 #import "/.demolab/lib.typ": data-json, data-image, cite, reference-list
 #import "run-inputs.typ": data-file, inputs-ready, pending-report
+#import "run-view.typ": with-datasets, run-view
+#import "run-inputs.typ": input-assets
 #let data-file = data-file.with(article: "exp023")
 
 #let meta = (
-  status: "Results available",
+  status: "[▦ DATA]",
   title: "Turning the PING Loop On",
   date: "2026-05-13",
   updated_at: "2026-08-27",
@@ -54,9 +57,11 @@
   representative rasters use different operating points and do not isolate a
   matched-input effect of the loop.
 
-  == Results
+  #run-view("exp023", inputs)
 
-  === 1. Architecture, population activity and rate response
+  == Results: Tested PING loop produces rhythmic, sparse excitatory activity
+
+  === Architecture, population activity and rate response
 
   #figure(
     data-image(data-file("exp023/overview_compound.png"), width: 100%,
@@ -72,7 +77,7 @@
     ],
   )
 
-  === 2. COBA excitatory-cell traces
+  === COBA excitatory-cell traces
 
   #figure(
     data-image(data-file("exp023/traces__coba__v_e.svg"), width: 100%),
@@ -94,7 +99,7 @@
       and conductance using the driving-force relation in Methods.],
   )
 
-  === 3. PING excitatory-cell traces
+  === PING excitatory-cell traces
 
   #figure(
     data-image(data-file("exp023/traces__ping__v_e.svg"), width: 100%),
@@ -116,7 +121,7 @@
   )
 
   #if r.raster.ping.i_index != none [
-    === 4. PING inhibitory-cell traces
+    === PING inhibitory-cell traces
 
     #figure(
       data-image(data-file("exp023/traces__ping__v_i.svg"), width: 100%),
@@ -202,7 +207,7 @@
   ))
 ]
 
-#let body = if inputs-ready(data-file, inputs) {
+#let report-body = if inputs-ready(data-file, inputs) {
   render-report(data-file)
 } else {
   pending-report(
@@ -213,3 +218,7 @@
     preview-figures,
   )
 }
+
+#let meta = meta + (assets: input-assets("exp023", inputs))
+#let body = with-datasets("exp023", inputs, report-body, placed: inputs-ready(data-file, inputs))
+#let body = with-contents(body)

@@ -1,9 +1,12 @@
+#import "contents.typ": with-contents
 #import "/.demolab/lib.typ": data-json, data-image, cite, reference-list
 #import "run-inputs.typ": data-file, inputs-ready, pending-report
+#import "run-view.typ": with-datasets, run-view
+#import "run-inputs.typ": input-assets
 #let data-file = data-file.with(article: "exp022")
 
 #let meta = (
-  status: "Results available",
+  status: "[▦ DATA]",
   title: "Training Runs",
   date: "2026-08-11",
   updated_at: "2026-08-27",
@@ -66,14 +69,6 @@
 }
 
 #let body = [
-  == Contents
-
-  + #link("#abstract")[Abstract]
-  + #link("#results")[Results: TR-01 through TR-07]
-  + #link("#methods")[Methods]
-  + #link("#appendix-a-training-run-specification-sheets")[Appendix A: shared and TR-specific specification sheets]
-  + #link("#references")[References]
-
   == Abstract
 
   #let abstract-condition-count = r.cells.map(cell => (cell.family, cell.model, cell.tag)).dedup().len()
@@ -81,9 +76,11 @@
 
   We assembled a reusable bank of #r.n_cells spiking networks for MNIST handwritten-digit classification, covering #abstract-condition-count conditions with #abstract-seed-count random seeds each. Training lasted #r.standard.epochs epochs per network. Conditions compared feedforward controls with excitatory–inhibitory recurrent networks and varied activity penalties, inhibitory decay, numerical timestep, recurrent initialization and trainability, and input drive. In the baseline comparison, mean validation accuracy at selected checkpoints was #mean-field("canonical", "acc", model: "coba")% for feedforward networks and #mean-field("canonical", "acc", model: "ping")% for recurrent networks. Their final-epoch excitatory firing rates were #mean-field("canonical", "rate_e", model: "coba") and #mean-field("canonical", "rate_e", model: "ping") Hz, respectively. Retained models and learning histories support subsequent experiments; these training-recipe comparisons do not isolate a causal benefit of gamma timing.
 
-  == Results
+  #run-view("exp022", inputs)
 
-  === 1. TR-01 — Canonical full-data reference
+  == Results: Reusable training bank across seven recipe families
+
+  === TR-01 — Canonical full-data reference
 
   #result-figure(
     "exp022/curves__canonical.svg",
@@ -96,7 +93,7 @@
     [Canonical PING, seed 42: one digit-0 diagnostic from the final-epoch checkpoint, with E/I population rates and the accompanying inhibitory spectrum; not a population estimate.],
   )
 
-  === 2. TR-02 — Activity-ceiling sweep
+  === TR-02 — Activity-ceiling sweep
 
   #result-figure(
     "exp022/curves__theta_u.svg",
@@ -109,7 +106,7 @@
     [PING with the activity penalty off, seed 42, final-epoch digit-0 probe. This is the reference endpoint, not a raster of the strictest ceiling.],
   )
 
-  === 3. TR-03 — Inhibitory-timescale sweep
+  === TR-03 — Inhibitory-timescale sweep
 
   #result-figure(
     "exp022/curves__tau_gaba.svg",
@@ -122,7 +119,7 @@
     [Reference inhibitory decay of 6 ms, seed 42, final-epoch digit-0 probe; the plotted spectrum describes this example only.],
   )
 
-  === 4. TR-04 — Integration-timestep sweep
+  === TR-04 — Integration-timestep sweep
 
   #result-figure(
     "exp022/curves__dt.svg",
@@ -135,7 +132,7 @@
     [Reference timestep of 0.1 ms, seed 42, final-epoch digit-0 probe. One reference raster cannot establish timestep convergence.],
   )
 
-  === 5. TR-05 — Recurrent-initialization sweep
+  === TR-05 — Recurrent-initialization sweep
 
   #result-figure(
     "exp022/curves__init.svg",
@@ -148,7 +145,7 @@
     [Frozen recurrent PING control, seed 42, final-epoch digit-0 probe; this example does not describe the trainable conditions.],
   )
 
-  === 6. TR-06 — Variable-rate streaming bank
+  === TR-06 — Variable-rate streaming bank
 
   #result-figure(
     "exp022/curves__variable_rate.svg",
@@ -161,7 +158,7 @@
     [Variable-rate PING, seed 42, final-epoch digit-0 probe at 5 Hz maximum-pixel input rate. This retained E/I diagnostic does not include output-neuron spikes or continuous-stream resets.],
   )
 
-  === 7. TR-07 — Low-input recruitment sweep
+  === TR-07 — Low-input recruitment sweep
 
   #result-figure(
     "exp022/curves__low_w_in.svg",
@@ -184,7 +181,7 @@
 
   + *Build the networks.* Each network contained 1,024 excitatory neurons and ten spiking leaky integrate-and-fire outputs. Recurrent networks added feedback through 256 inhibitory neurons; feedforward controls disabled it. Input and output projections were trained, while recurrent projections were fixed except in designated conditions. Weights retained their excitatory or inhibitory sign.
 
-  + *Vary the conditions.* Seven families covered the baseline, activity ceilings, inhibitory decay, timestep, recurrent initialization and trainability, and input drive. Each condition used initialization seeds 42–44; Appendix A lists the grids and shared settings.
+  + *Vary the conditions.* Seven families covered the baseline, activity ceilings, inhibitory decay, timestep, recurrent initialization and trainability, and input drive. Each condition used initialization seeds 42–44; #link(<sec-training-run-specification-sheets>)[Training-run specification sheets] lists the grids and shared settings.
 
   + *Present the images.* Pixels generated Poisson spikes over #r.standard.t_ms ms, normally with a maximum-pixel rate of 25 Hz and a 0.1 ms timestep. Variable-rate training sampled uniformly from eleven rates between 0.5 and 25 Hz; timestep conditions ranged from 0.05 to 1 ms.
 
@@ -207,11 +204,11 @@
 
   + *Measure activity and retain models.* Accuracy uses selected models, whereas firing rates average final-epoch validation measurements across images and encoding draws. Retained models and histories support subsequent experiments. Learning curves show individual validation histories; baseline summaries average three seeds. Reused seed-42 digit-zero rasters are individual probes, not across-seed estimates; no new diagnostic simulations were performed.
 
-  == Appendix A: Training-run specification sheets
+  == Appendix: Training-run specification sheets <sec-training-run-specification-sheets>
 
   The following shared sheet and all seven TR sheets specify the controlled recipes and their intended uses. The observed learning curves and diagnostic plots are in Results.
 
-  === A.1. Shared production specification
+  === Shared production specification
 
   All runs map Poisson-encoded pixels through 1,024 excitatory neurons to ten spiking output LIF neurons. COBA and PING use the same input-weight and readout-weight initialization distributions. COBA disables recurrent E/I coupling; PING adds a $1024 arrow 256 arrow 1024$ E/I feedback loop and uses stronger backward-pass gradient damping to stabilize training through that recurrent path.
 
@@ -243,7 +240,7 @@
     [Stored projection shapes], [$784 times 1024$; $1024 times 256$; $256 times 1024$; $1024 times 10$], [Input→E, E→I, I→E, and E→class, in source-to-destination orientation],
   )
 
-  === A.2. TR-01 — Canonical full-data reference
+  === Specification: TR-01 — Canonical full-data reference
 
   The full-data COBA and PING cells are used for headline accuracy. They use the official MNIST training partition with no spike-budget penalty, so the comparison is not affected by the smaller dataset or regularization used in the sweeps. Ten percent of that partition is reserved for checkpoint selection; the official test partition remains untouched during training. This experiment reports their validation learning histories; independent official-test evaluation belongs to the downstream experiments.
 
@@ -260,7 +257,7 @@
 
   #divider()
 
-  === A.3. TR-02 — Activity-ceiling sweep
+  === Specification: TR-02 — Activity-ceiling sweep
 
   This run measures the trade-off between accuracy and firing rate as the activity ceiling is tightened. For each presentation, the loss computes the population-mean hidden-E firing rate, applies a one-sided quadratic penalty above the target, then averages the penalties across the minibatch. Quiet presentations therefore cannot offset active presentations. Expressing the target in hertz and normalising over samples, neurons, duration, and hidden layers makes the intervention comparable across those dimensions. A smaller training pool keeps the multi-seed sweep manageable; only the activity target changes across conditions. Comparisons with the full-data cells also change training-pool size and cannot isolate the penalty alone. The resulting checkpoints are used by #run-links(("exp024", "exp025", "exp037", "exp038")).
 
@@ -277,7 +274,7 @@
 
   #divider()
 
-  === A.4. TR-03 — Inhibitory-timescale sweep
+  === Specification: TR-03 — Inhibitory-timescale sweep
 
   This run changes $tau_"GABA"$ to test how the inhibitory timescale affects gamma frequency, firing rate, and accuracy. All other scientific settings are held fixed, with 6 ms as the standard condition. The resulting checkpoints are used by #run-links(("exp041", "exp042", "exp046")).
 
@@ -293,7 +290,7 @@
 
   #divider()
 
-  === A.5. TR-04 — Integration-timestep sweep
+  === Specification: TR-04 — Integration-timestep sweep
 
   This run changes the integration timestep while keeping each presentation at 200 ms. It tests whether the observed dynamics depend on numerical resolution and measures the extra compute required by finer timesteps. The finest timestep requires the longest unrolled training trajectories. The resulting checkpoints are used by #run-links(("exp044",)).
 
@@ -310,7 +307,7 @@
 
   #divider()
 
-  === A.6. TR-05 — Recurrent-initialization sweep
+  === Specification: TR-05 — Recurrent-initialization sweep
 
   This run tests whether training preserves the PING loop or learns a useful loop from weaker initial conditions. Recurrent initialization and trainability change together, while the feedforward network and classifier remain fixed to the PING recipe. The resulting checkpoints are used by #run-links(("exp049",)).
 
@@ -327,7 +324,7 @@
 
   #divider()
 
-  === A.7. TR-06 — Variable-rate streaming bank
+  === Specification: TR-06 — Variable-rate streaming bank
 
   This condition trains PING across the input rates used by the continuous-stream classification study. One rate is sampled uniformly for each presentation, and the ten output LIF neurons produce class logits from their total spike counts rather than their mean membrane voltages. This keeps the cross-entropy logits dimensionless and gives one additional output spike the same logit increment. The readout weights use a small Gaussian initialization, $cal(N)(0.05, 0.04^2)$, lower-clamped at zero and governed by the shared non-negative constraint.
 
@@ -350,7 +347,7 @@
 
   #divider()
 
-  === A.8. TR-07 — Low-input recruitment sweep
+  === Specification: TR-07 — Low-input recruitment sweep
 
   TR-02 asks how changing the activity ceiling affects networks initialized at the
   standard input coupling. TR-07 asks the complementary question: with the strictest
@@ -382,8 +379,12 @@
 #body
 ]
 
-#let body = if inputs-ready(data-file, inputs) {
+#let report-body = if inputs-ready(data-file, inputs) {
   render-report(data-file)
 } else {
   pending-report(data-file, inputs, [], ())
 }
+
+#let meta = meta + (assets: input-assets("exp022", inputs))
+#let body = with-datasets("exp022", inputs, report-body, placed: inputs-ready(data-file, inputs))
+#let body = with-contents(body)

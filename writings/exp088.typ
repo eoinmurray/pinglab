@@ -1,5 +1,7 @@
+#import "contents.typ": with-contents
+#import "run-view.typ": with-datasets
 #let meta = (
-  status: "Drafted",
+  status: "[≡ TXT]",
   title: "Training recipes and graph-native learning",
   date: "2026-08-14",
   description: "Declare standard objectives, parameter groups, optimization, regularization, and the boundary of current training support.",
@@ -8,13 +10,6 @@
 )
 
 #let body = [
-  == Contents
-
-  + #link("/exp088/#developer-guide")[Developer guide]
-  + #link("/exp088/#training-is-separate-from-the-graph")[Training is separate from the graph]
-  + #link("/exp088/#current-boundary")[Current boundary]
-  + #link("/exp088/#api-reference")[API reference]
-
   == Developer guide
 
   === Training is separate from the graph
@@ -102,3 +97,6 @@
 
   #link("/exp089/")[Next: Runtime state, checkpoints, and provenance]
 ]
+
+#let body = with-datasets("exp088", (), body)
+#let body = with-contents(body)

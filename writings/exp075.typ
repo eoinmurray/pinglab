@@ -1,9 +1,12 @@
+#import "contents.typ": with-contents
 #import "/.demolab/lib.typ": data-json, data-image
 #import "run-inputs.typ": data-file, inputs-ready, pending-report
+#import "run-view.typ": with-datasets, run-view
+#import "run-inputs.typ": input-assets
 #let data-file = data-file.with(article: "exp075")
 
 #let meta = (
-  status: "Implemented",
+  status: "[≡ TXT]",
   title: "A compiled graph learns",
   date: "2026-07-31",
   description: "A deliberately small MNIST run checks that an snnlang graph and training recipe can drive the existing tools/snnsim trainer without legacy structural flags.",
@@ -32,6 +35,8 @@
   #r.config.max_samples MNIST examples for #r.config.epochs epochs. The
   experiment asks one intentionally unglamorous question: does the compiled
   network actually learn?
+
+  #run-view("exp075", inputs)
 
   == Graph and training scope
 
@@ -84,7 +89,7 @@
 #body
 ]
 
-#let body = if inputs-ready(data-file, inputs) {
+#let report-body = if inputs-ready(data-file, inputs) {
   render-report(data-file)
 } else {
   pending-report(
@@ -93,3 +98,7 @@
     preview-figures, json-inputs: ("exp075",),
   )
 }
+
+#let meta = meta + (assets: input-assets("exp075", inputs))
+#let body = with-datasets("exp075", inputs, report-body, placed: inputs-ready(data-file, inputs))
+#let body = with-contents(body)

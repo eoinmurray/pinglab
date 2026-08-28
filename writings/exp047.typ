@@ -1,9 +1,12 @@
+#import "contents.typ": with-contents
 #import "/.demolab/lib.typ": data-json, data-image, cite, reference-list
 #import "run-inputs.typ": data-file, inputs-ready, pending-report
+#import "run-view.typ": with-datasets, run-view
+#import "run-inputs.typ": input-assets
 #let data-file = data-file.with(article: "exp047")
 
 #let meta = (
-  status: "Ready for review",
+  status: "[▦ DATA]",
   title: "Pool-Size Effects Depend on Synaptic Scaling",
   date: "2026-07-14",
   updated_at: "2026-08-28",
@@ -59,9 +62,11 @@
   The tested inverse-scaling path preserved rates; this does not establish
   that it is the only possible compensation, or demonstrate gamma rhythmicity.
 
-  == Results
+  #run-view("exp047", inputs)
 
-  === 1. Pool-size dependence changes with synaptic scaling
+  == Results: Holding summed inhibition fixed preserves rates as inhibitory pools grow
+
+  === Pool-size dependence changes with synaptic scaling
 
   #figure(
     data-image(data-file("exp047/pool_size_controls.svg"),
@@ -139,7 +144,7 @@
 #body
 ]
 
-#let body = if inputs-ready(data-file, inputs) {
+#let report-body = if inputs-ready(data-file, inputs) {
   render-report(data-file)
 } else {
   pending-report(
@@ -148,3 +153,7 @@
     preview-figures, json-inputs: ("exp047",),
   )
 }
+
+#let meta = meta + (assets: input-assets("exp047", inputs))
+#let body = with-datasets("exp047", inputs, report-body, placed: inputs-ready(data-file, inputs))
+#let body = with-contents(body)

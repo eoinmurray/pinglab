@@ -1,5 +1,7 @@
+#import "contents.typ": with-contents
+#import "run-view.typ": with-datasets
 #let meta = (
-  status: "Drafted",
+  status: "[≡ TXT]",
   title: "Compute options",
   updated_at: "2026-08-28",
   date: "2026-08-11",
@@ -9,18 +11,6 @@
 )
 
 #let body = [
-  == Contents
-
-  + #link("/exp103/#execution-workflow")[Execution workflow]
-  + #link("/exp103/#1-local-mac")[Local Mac]
-  + #link("/exp103/#2-hetzner-control-plane")[Hetzner]
-  + #link("/exp103/#3-olorin")[Olorin]
-  + #link("/exp103/#4-csd3-wilkes3-service-level-2")[Wilkes3 SL2]
-  + #link("/exp103/#5-csd3-wilkes3-service-level-3")[Wilkes3 SL3]
-  + #link("/exp103/#6-runpod")[RunPod]
-  + #link("/exp103/#7-modal")[Modal]
-  + #link("/exp103/#completion-checklist")[Completion checklist]
-
   This is the operational map for pinglab compute. It separates the persistent control plane from the machines that perform numerical work, and records the authentication boundary for each provider. Prices, balances, queues, and GPU stock change. Host aliases, hardware, accounts, and service names below are the recorded project configuration, not a live availability report. Check the relevant machine and provider before launch; an edit date is not evidence that credentials or capacity were revalidated.
 
   Never place a password, TOTP seed, private SSH key, RunPod API key, or Modal token in this repository. Authentication commands either use an encrypted local key or open the provider's own interactive login flow.
@@ -47,7 +37,7 @@
 
   Each completed stage produces an immutable v3 run with `run.json` and `export/`. Hidden temporary directories are incomplete, not usable evidence. Preview selects a present run without changing retained evidence; materialization and deployment are separate operations. See the versioned #link("https://github.com/eoinmurray/pinglab/blob/main/experiments/README.md")[Experiment Runner Guide] and #link("https://github.com/eoinmurray/pinglab/blob/main/tools/pingstore/README.md")[Storage Guide].
 
-  == 1. Local Mac
+  == Local Mac
 
   *When to use.* Use the Mac for editing, Demolab preview, plotting, analysis of collected results, dry-run dispatch plans, and plumbing-scale tests. It is the shortest feedback loop. It is not a CUDA training machine.
 
@@ -68,7 +58,7 @@
 
   Keep cloud commands in dry-run mode until spending has been explicitly authorised.
 
-  == 2. Hetzner control plane
+  == Hetzner control plane
 
   *When to use.* Use Hetzner for the persistent Codex session, orchestration, monitoring, result collection, and the public development preview. Do not use its small CPU and memory allocation for substantial numerical experiments.
 
@@ -89,7 +79,7 @@
   ssh olorin 'hostname; whoami'
   ```
 
-  == 3. Olorin
+  == Olorin
 
   *When to use.* Use Olorin for large single-GPU or multi-GPU work when a GPU is visibly idle and the Division F fair-use policy permits the allocation. Its large VRAM makes it the first choice for workloads that do not fit on consumer GPUs.
 
@@ -113,7 +103,7 @@
 
   Never launch on all four GPUs merely because the machine accepts the command. Shared infrastructure without a scheduler requires more restraint, not less.
 
-  == 4. CSD3 Wilkes3, Service Level 2
+  == CSD3 Wilkes3, Service Level 2
 
   *When to use.* Use SL2 for planned production runs where queued execution is acceptable. It is the scheduled backend for planned A100 jobs. Confirm the allocation balance, account permission, and queue before committing work.
 
@@ -144,7 +134,7 @@
 
   Command-line `sbatch` options override matching `#SBATCH` lines, so one job script can target either service level.
 
-  == 5. CSD3 Wilkes3, Service Level 3
+  == CSD3 Wilkes3, Service Level 3
 
   *When to use.* Use SL3 for non-urgent work that can wait for lower-priority capacity, for overflow, or for jobs submitted well before their results are needed. It is a poor interactive backend.
 
@@ -168,7 +158,7 @@
 
   The names are easy to invert: SL2 maps to `gpu1`, while SL3 maps to `gpu2`.
 
-  == 6. RunPod
+  == RunPod
 
   *When to use.* Use RunPod for urgent burst capacity when Olorin is occupied and Wilkes3 is queued. Prefer a 4090 when the workload fits in 24 GB and stock exists; use a 5090 for additional VRAM or faster turnaround. Always run the smoke test before a fleet launch because allocation does not guarantee that the container will become usable promptly.
 
@@ -198,7 +188,7 @@
 
   Pod creation can incur charges. Dry-run first, obtain explicit approval, record the pod IDs, launch, monitor, and collect. Verify that the pods created for this dispatch are terminated; unrelated pods need not disappear. Broad reap commands can affect other work, so inspect their scope before using them.
 
-  == 7. Modal
+  == Modal
 
   *When to use.* Use Modal when managed function execution and reduced infrastructure management fit the workload; compare current cost and startup behaviour rather than assuming a fixed premium or guaranteed startup time. It is useful as an escape hatch when RunPod image or SSH transport is unreliable. Only runners with an implemented Modal backend can use it.
 
@@ -233,3 +223,6 @@
   Use the smallest adequate option. Develop locally; orchestrate from Hetzner; use an available Olorin GPU when shared-machine policy permits; submit planned production to Wilkes3 SL2; use RunPod for urgent overflow; choose Modal when managed execution fits the task and current cost; and leave SL3 for work that can wait.
   #link("/exp104/")[Next: Cloudflare R2 archive]
 ]
+
+#let body = with-datasets("exp103", (), body)
+#let body = with-contents(body)

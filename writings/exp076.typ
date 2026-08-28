@@ -1,9 +1,12 @@
+#import "contents.typ": with-contents
 #import "/.demolab/lib.typ": data-json, data-image
 #import "run-inputs.typ": data-file, inputs-ready, pending-report
+#import "run-view.typ": with-datasets, run-view
+#import "run-inputs.typ": input-assets
 #let data-file = data-file.with(article: "exp076")
 
 #let meta = (
-  status: "Implemented",
+  status: "[≡ TXT]",
   title: "A bundle checkpoint replays",
   date: "2026-08-02",
   description: "A small deterministic MNIST gate checks that snnlang bundle checkpoints replay through tools/snnsim and that the current bundle adapter is numerically equivalent to the matching legacy route.",
@@ -46,6 +49,8 @@
   equality for initial state dictionaries, forward logits, cross-entropy loss,
   gradients, and one AdamW step. This validates only the current MNIST PING +
   MeanVoltage adapter, not arbitrary `snnlang` graphs.
+
+  #run-view("exp076", inputs)
 
   == Lifecycle checked
 
@@ -139,7 +144,7 @@
 #body
 ]
 
-#let body = if inputs-ready(data-file, inputs) {
+#let report-body = if inputs-ready(data-file, inputs) {
   render-report(data-file)
 } else {
   pending-report(
@@ -148,3 +153,7 @@
     preview-figures, json-inputs: ("exp076",),
   )
 }
+
+#let meta = meta + (assets: input-assets("exp076", inputs))
+#let body = with-datasets("exp076", inputs, report-body, placed: inputs-ready(data-file, inputs))
+#let body = with-contents(body)

@@ -1,10 +1,13 @@
+#import "contents.typ": with-contents
 #import "/.demolab/lib.typ": data-json, data-image
 #import "run-inputs.typ": data-file, inputs-ready, pending-report
+#import "run-view.typ": with-datasets, run-view
+#import "run-inputs.typ": input-assets
 #import "/.demolab/lib.typ": cite, reference-list
 #let data-file = data-file.with(article: "exp086")
 
 #let meta = (
-  status: "Implemented",
+  status: "[≡ TXT]",
   title: "Lowet 2017",
   date: "2026-08-19",
   description: "Reduce coupling at fixed detuning and test whether two PING networks develop cortical-like intermittent phase attraction.",
@@ -58,6 +61,8 @@
 
   In macaque V1, nearby gamma rhythms did not hold one fixed relative-phase position. Their relative phase continued to move, but its velocity slowed near positions where coupling made the two instantaneous frequencies more similar. This phase-dependent slowing concentrated the observed phase differences around those positions despite continuing phase slips#cite(1). The effect could create recurring windows for communication without permanent synchronization. We reproduced that qualitative regime in one fixed-input PING trajectory by reducing equal reciprocal coupling from 0.08 to #selected-k µS. The networks completed #selected.phase_slips phase slips, but their relative phase remained concentrated around a preferred position. Removing coupling produced #uncoupled.phase_slips slips and an almost uniform phase distribution. This is a controlled demonstration, not a claim about reliability across inputs or seeds.
 
+  #run-view("exp086", inputs)
+
   == Prior work
 
   Lowet et al. (2015) mapped synchronization across detuning and coupling in two 80-E, 20-I PING networks with reciprocal E-to-E and E-to-I fan-in eight#cite(2). Lowet et al. (2017) found the corresponding signature in macaque V1: coupling reduced instantaneous frequency differences near preferred phases, producing imperfect rather than permanent synchronization#cite(1).
@@ -74,30 +79,6 @@
   )
 
   *Coupling units.* Both models divide total pathway strength across eight afferents. Lowet reports summed conductance density in mS/cm²; SNNLANG reports summed absolute conductance in µS. Normalizing each by target leak conductance places our E-to-E and E-to-I strengths at $kappa = 1.6$ and $0.8$, within Lowet's broad sweep but more E-to-E dominated#cite(2). Here $kappa$ is cross-network conductance divided by target leak conductance.
-
-  == Methods
-
-  #block(inset: 10pt, fill: rgb("f3f0e8"), radius: 3pt)[
-    *All three methods were run once. The starting values and topology were sourced from exp085. Every coupling condition reused the same saved network state and pre-generated input spike trains.*
-  ]
-
-  + *Define the starting rhythms.* Each network contains an excitatory population, an inhibitory population, and a local E-to-I-to-E feedback loop. Reciprocal excitation targets both E and I populations with $K_(E E) = #start.k-ee-us$ µS, $K_(E I) = #start.k-ei-us$ µS, and delay $d = #start.delay-ms$ ms. Drive Networks A and B at #start.input-a-hz and #start.input-b-hz Hz. Run them without cross-network coupling and confirm regular rhythms near mean frequency #start.mean-frequency-hz Hz and detuning #start.detuning-hz Hz. Interpolate phase between consecutive excitatory volleys and calculate their wrapped and unwrapped relative phase. Generates #link("#result-1-uncoupled-rhythms")[Result 1].
-
-    #figure(
-      data-image(data-file("exp086/network.svg"),
-        width: 100%,
-        alt: "Implemented topology of two PING networks with local excitatory-inhibitory loops and reciprocal excitatory coupling.",
-      ),
-      caption: [Implemented topology. Networks A and B each contain a local E-to-I-to-E PING loop. Reciprocal projections target E and I populations with independently controlled strengths.],
-    )
-
-  + *Reduce coupling while everything else stays the same.* Save the network immediately before coupling begins. Replay from that point several times with the same neuron states and the same pre-generated input spike trains after that point. Change only the coupling strength $K$: begin at #start.k-ee-us µS, then use progressively weaker values down to zero. E-to-E and E-to-I coupling always use the same value. Run one trajectory at each value of $K$; repeated seeds and trials are outside this experiment. For each coupling strength, track the phase gap between the two rhythms. Strong coupling may keep that gap fixed. Weaker coupling may allow one rhythm to repeatedly gain a full cycle on the other, producing phase slips. We are looking for the intermediate behaviour reported by Lowet et al. (2017): phase slips continue, but the phase gap repeatedly slows near one preferred value, making that value more common#cite(1). Select one trajectory that shows this pattern. This demonstrates the behaviour once; it does not establish reliability across seeds. Generates #link("#result-2-coupling-boundary")[Result 2].
-
-    The expected and measured coupling regimes are placed together in #link("#result-2-coupling-boundary")[Result 2].
-
-  + *Relate phase velocity to phase position.* For the selected condition, estimate each network's instantaneous frequency from consecutive excitatory volleys. Relative-phase velocity is $v_theta = 2 pi (f_A - f_B)$, where $f_A$ and $f_B$ are the instantaneous frequencies of Networks A and B. Group $v_theta$ by wrapped relative-phase position $theta$, and compare the resulting velocity curve with the distribution of $theta$. Intermittent attraction requires continued phase slips, a non-uniform phase distribution, and lower absolute velocity near the distribution's preferred position. Generates #link("#result-3-intermittent-attraction")[Result 3].
-
-    The expected signature and its measured counterpart are placed together in #link("#result-3-intermittent-attraction")[Result 3].
 
   == Results
 
@@ -146,6 +127,29 @@
       caption: [Expected intermittent-attraction signature above and measured result below. The schematic is qualitative; matching panel positions connect each proposed relationship to its observation. At $K = #selected-k$ µS, relative phase continues to slip but has concentration #selected-concentration. Its distribution peaks at #selected-preferred rad and reaches #selected-density-ratio times the mean density. The smallest absolute mean velocity occurs at #selected-slow rad, #selected-alignment rad away—one analysis bin—from the density peak. This single trajectory shows the Lowet-style signature, but does not establish its reliability across trials.],
     )
 
+  == Methods
+
+  #block(inset: 10pt, fill: rgb("f3f0e8"), radius: 3pt)[
+    *All three methods were run once. The starting values and topology were sourced from exp085. Every coupling condition reused the same saved network state and pre-generated input spike trains.*
+  ]
+
+  + *Define the starting rhythms.* Each network contains an excitatory population, an inhibitory population, and a local E-to-I-to-E feedback loop. Reciprocal excitation targets both E and I populations with $K_(E E) = #start.k-ee-us$ µS, $K_(E I) = #start.k-ei-us$ µS, and delay $d = #start.delay-ms$ ms. Drive Networks A and B at #start.input-a-hz and #start.input-b-hz Hz. Run them without cross-network coupling and confirm regular rhythms near mean frequency #start.mean-frequency-hz Hz and detuning #start.detuning-hz Hz. Interpolate phase between consecutive excitatory volleys and calculate their wrapped and unwrapped relative phase. Generates #link("#result-1-uncoupled-rhythms")[Result 1].
+
+    #figure(
+      data-image(data-file("exp086/network.svg"),
+        width: 100%,
+        alt: "Implemented topology of two PING networks with local excitatory-inhibitory loops and reciprocal excitatory coupling.",
+      ),
+      caption: [Implemented topology. Networks A and B each contain a local E-to-I-to-E PING loop. Reciprocal projections target E and I populations with independently controlled strengths.],
+    )
+
+  + *Reduce coupling while everything else stays the same.* Save the network immediately before coupling begins. Replay from that point several times with the same neuron states and the same pre-generated input spike trains after that point. Change only the coupling strength $K$: begin at #start.k-ee-us µS, then use progressively weaker values down to zero. E-to-E and E-to-I coupling always use the same value. Run one trajectory at each value of $K$; repeated seeds and trials are outside this experiment. For each coupling strength, track the phase gap between the two rhythms. Strong coupling may keep that gap fixed. Weaker coupling may allow one rhythm to repeatedly gain a full cycle on the other, producing phase slips. We are looking for the intermediate behaviour reported by Lowet et al. (2017): phase slips continue, but the phase gap repeatedly slows near one preferred value, making that value more common#cite(1). Select one trajectory that shows this pattern. This demonstrates the behaviour once; it does not establish reliability across seeds. Generates #link("#result-2-coupling-boundary")[Result 2].
+
+    The expected and measured coupling regimes are placed together in #link("#result-2-coupling-boundary")[Result 2].
+
+  + *Relate phase velocity to phase position.* For the selected condition, estimate each network's instantaneous frequency from consecutive excitatory volleys. Relative-phase velocity is $v_theta = 2 pi (f_A - f_B)$, where $f_A$ and $f_B$ are the instantaneous frequencies of Networks A and B. Group $v_theta$ by wrapped relative-phase position $theta$, and compare the resulting velocity curve with the distribution of $theta$. Intermittent attraction requires continued phase slips, a non-uniform phase distribution, and lower absolute velocity near the distribution's preferred position. Generates #link("#result-3-intermittent-attraction")[Result 3].
+
+    The expected signature and its measured counterpart are placed together in #link("#result-3-intermittent-attraction")[Result 3].
   == References
 
   #reference-list((
@@ -162,7 +166,7 @@
 #body
 ]
 
-#let body = if inputs-ready(data-file, inputs) {
+#let report-body = if inputs-ready(data-file, inputs) {
   render-report(data-file)
 } else {
   pending-report(
@@ -171,3 +175,7 @@
     preview-figures, json-inputs: ("exp086",),
   )
 }
+
+#let meta = meta + (assets: input-assets("exp086", inputs))
+#let body = with-datasets("exp086", inputs, report-body, placed: inputs-ready(data-file, inputs))
+#let body = with-contents(body)

@@ -1,5 +1,7 @@
+#import "contents.typ": with-contents
+#import "run-view.typ": with-datasets
 #let meta = (
-  status: "Drafted",
+  status: "[≡ TXT]",
   title: "Inputs, outputs, and readouts",
   date: "2026-08-14",
   description: "Bind data to graph inputs, expose internal activity, and turn network signals into stable output values.",
@@ -8,14 +10,6 @@
 )
 
 #let body = [
-  == Contents
-
-  + #link("/exp108/#developer-guide")[Developer guide]
-  + #link("/exp108/#outputs-and-observables")[Outputs and observables]
-  + #link("/exp108/#standard-readouts")[Standard readouts]
-  + #link("/exp108/#input-bindings")[Input bindings]
-  + #link("/exp108/#api-reference")[API reference]
-
   == Developer guide
 
   === Outputs and observables
@@ -143,3 +137,6 @@
 
   #link("/exp088/")[Next: Training recipes and graph-native learning]
 ]
+
+#let body = with-datasets("exp108", (), body)
+#let body = with-contents(body)

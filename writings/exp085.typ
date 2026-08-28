@@ -1,10 +1,13 @@
+#import "contents.typ": with-contents
 #import "/.demolab/lib.typ": data-json, data-image
 #import "run-inputs.typ": data-file, inputs-ready, pending-report
+#import "run-view.typ": with-datasets, run-view
+#import "run-inputs.typ": input-assets
 #import "/.demolab/lib.typ": cite, reference-list
 #let data-file = data-file.with(article: "exp085")
 
 #let meta = (
-  status: "Implemented",
+  status: "[≡ TXT]",
   title: "Lowet 2015",
   date: "2026-08-19",
   description: "Distinguish the pathways that phase-lock two cortical PING rhythms.",
@@ -41,6 +44,8 @@
 
   Two gamma rhythms with different frequencies drift out of phase unless coupling corrects the mismatch. Lowet et al. showed that reciprocal excitation can synchronize PING networks through pathways targeting either excitatory or inhibitory neurons#cite(1). We recreate that setup and separate the two mechanisms. Both pathways alter volley timing, but only E-to-E coupling stops the drift at this operating point. Excitation advances the next E volley; inhibition follows rather than initiating the correction.
 
+  #run-view("exp085", inputs)
+
   == The question
 
   Lowet et al. connected two PING networks through reciprocal E-to-E and E-to-I projections and showed that locking depends on detuning and coupling strength#cite(1). The two pathways suggest different mechanisms. E-to-E input can advance the target rhythm directly. E-to-I input can recruit inhibition and delay its next volley. Which route actually stops phase drift?
@@ -58,7 +63,7 @@
 
   == Evidence
 
-  === 1. The uncoupled rhythms drift
+  === The uncoupled rhythms drift
 
   #figure(
     data-image(data-file("exp085/uncoupled.png"), width: 88%, alt: "Two clean PING rhythms above their continually wrapping relative phase."),
@@ -67,7 +72,7 @@
 
   Network A oscillates at #calc.round(a.frequency_hz, digits: 1) Hz and Network B at #calc.round(b.frequency_hz, digits: 1) Hz. Their low interval variability confirms regular rhythms. Relative phase wraps #r.uncoupled.phase_wraps times, establishing the drift that coupling must stop.
 
-  === 2. The pathways make different corrections
+  === The pathways make different corrections
 
   We deliver one coupling-matched probe volley at different phases of Network A's cycle. E-targeted probes advance the next excitatory volley late in the cycle. I-targeted probes delay it only in a narrow window.
 
@@ -83,7 +88,7 @@
 
   The I-targeted delay occurs when residual local excitation and the probe jointly push recovered I neurons back across threshold. Earlier probes meet refractory neurons; later probes arrive after the local excitation has faded. The inhibitory correction is therefore strong but difficult to engage.
 
-  === 3. Only E-to-E coupling stops the drift
+  === Only E-to-E coupling stops the drift
 
   We start four conditions from the same saved state: no coupling, E-to-E only, E-to-I only, and both pathways.
 
@@ -96,7 +101,7 @@
 
   The doublet mechanism exists, but its narrow phase window is insufficient here. Direct excitation captures the drifting rhythms.
 
-  === 4. The first correction begins in E
+  === The first correction begins in E
 
   #figure(
     data-image(data-file("exp085/event_aligned_mechanism.png"), width: 92%, alt: "Cross-network excitation followed by an advanced excitatory volley and advanced feedback inhibition."),
@@ -131,7 +136,7 @@
 #body
 ]
 
-#let body = if inputs-ready(data-file, inputs) {
+#let report-body = if inputs-ready(data-file, inputs) {
   render-report(data-file)
 } else {
   pending-report(
@@ -140,3 +145,7 @@
     preview-figures, json-inputs: ("exp085",),
   )
 }
+
+#let meta = meta + (assets: input-assets("exp085", inputs))
+#let body = with-datasets("exp085", inputs, report-body, placed: inputs-ready(data-file, inputs))
+#let body = with-contents(body)

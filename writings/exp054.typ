@@ -1,9 +1,12 @@
+#import "contents.typ": with-contents
 #import "/.demolab/lib.typ": data-json, data-image
 #import "run-inputs.typ": data-file, inputs-ready, pending-report
+#import "run-view.typ": with-datasets, run-view
+#import "run-inputs.typ": input-assets
 #let data-file = data-file.with(article: "exp054")
 
 #let meta = (
-  status: "Implemented",
+  status: "[≡ TXT]",
   title: "Gamma Turns On Across the Coupling Map",
   date: "2026-06-15",
   description: "A single bounded scalar (the lobe–trough contrast of the spike-time autocorrelation) for how rhythmic a spiking network is, made rate-invariant by private per-cell input.",
@@ -27,26 +30,7 @@
 
   A single bounded scalar for how rhythmic a spiking network is: the *lobe–trough contrast* of its spike-time autocorrelation, $("lobe" - "trough") \/ ("lobe" + "trough") in [0,1)$. Driving each excitatory cell with its own private Poisson input makes the metric rate-invariant by construction; across untrained PING networks it reads 0 along the COBA edges and rises smoothly to 0.98 through the PING interior, a rankable gradient that tracks the gamma-gated collapse of the E firing rate from 95 to 3 Hz.
 
-  == Methods
-
-  The networks here are untrained PING populations driven by external input; the rhythmicity metric is read off the resulting excitatory raster. Write $r(t)$ for the binned population spike count ($n$ bins of width $Delta t$) and $ell$ for the lag. The metric is read off in a fixed sequence of steps:
-
-  + *Drive each E cell with its own private Poisson channel.* Every excitatory cell receives an independent homogeneous Poisson spike train at 100 Hz through a one-to-one identity input weight: there is no shared, dense $W_"in"$ projection, so no two cells share an input channel. Private input removes the input-driven spike coincidence that would otherwise inflate the metric at low firing, which is what makes the contrast rate-invariant by construction (Figures 4–5) with no post-hoc correction.
-  + *Bin to a population count.* Sum spikes across cells into one count per $Delta t$ bin, giving the population trace $r(t)$ of length $n$.
-  + *Raw autocorrelation.* Form the lag product $sum_t r(t) r(t+ell)$, which counts spike pairs separated by lag $ell$. All lags are computed at once in $O(n log n)$ via the Wiener–Khinchin route (zero-pad $r$, take its FFT, multiply by the conjugate, inverse-transform) rather than the $O(n^2)$ direct sum.
-  + *Correct for finite overlap.* Only $n-ell$ bin-pairs exist at lag $ell$ (the last $ell$ samples have no partner), so the raw sum tapers toward zero with lag simply from running out of overlap; dividing by that per-lag overlap $n-ell$ converts it to the _average_ product per available pair and flattens the taper.
-  + *Set the chance level.* Divide by the mean rate squared $⟨ r ⟩^2$ so rate-matched independent firing sits at $A = 1$, and drop the self-paired zero lag. The result is the normalised autocorrelogram
-
-    $ A(ell) = 1 / (⟨ r ⟩^2) 1 / (n - ell) sum_t r(t) r(t+ell). $
-
-  + *Locate the Mexican hat.* A rhythmic $A(ell)$ has a "Mexican-hat" profile: a central lobe above 1 (spikes recur a cycle apart) flanked by a dip below 1 where firing is suppressed between volleys. Scanning out from zero lag, take the trough as the first local minimum of a lightly smoothed $A(ell)$ (it falls near the half-period) and the lobe as the highest point at a shorter lag. Both searches start one bin past zero, so the self-paired zero-lag value dropped in step 5 is excluded from the lobe height: the lobe is read from the first real lag onward, never the trivial self-correlation.
-  + *Read the contrast.* The metric is the *lobe–trough contrast*
-
-    $ "contrast" = ("lobe" - "trough") / ("lobe" + "trough") in [0, 1), $
-
-    zero when lobe equals trough (no structure) and approaching 1 as the trough goes silent. It is bounded by construction, with no trough floor needed.
-
-  In words: $A(ell)$ is how much more (or less) likely a spike is to be followed by another one $ell$ ms later than under independent firing, with $A = 1$ the chance floor. A central lobe above 1 says spikes _cluster_ in volleys; a trough below 1 near the half-period says firing is _suppressed between_ them. The contrast is *0* when the spikes carry no such structure (asynchronous) and approaches *1* as sharp volleys separate against near-silence; because it reads the _shape_ of $A(ell)$, it registers a rhythm whether or not its frequency holds still.
+  #run-view("exp054", inputs)
 
   == Results
 
@@ -89,11 +73,33 @@
       alt: "Nine-panel figure: top row E-rate, I-rate, and contrast maps with three circled diagonal points; middle row their rasters; bottom row the exp033 mean-field Hopf crossing, supercritical amplitude, and gamma frequency versus tau_GABA."),
     caption: [Panels are lettered *A–I* in reading order. *Top (empirics, A–C).* Across the $W_(E I) times W_(I E)$ plane the E rate falls (*A*), the I rate rises (*B*), and the lobe–trough contrast rises (*C*): three readings of one loop engaging, 0 along both COBA edges and smoothly up toward strong coupling. The contrast map circles three points along the $W_(I E) = 2 W_(E I)$ diagonal, shown as rasters *D/E/F*: the fully-off origin (*D*), emerging volleys (*E*), and sharp gamma volleys (*F*). *Bottom (theory, G–I, #link("/exp033/")[exp033]).* The same onset from the 4 mV reference of a 4D conductance mean-field with inherited biophysical parameters and a sensitivity-tested effective-noise scale: a complex-conjugate eigenvalue pair crosses into the right half-plane at $I^* approx 0.60$ nA (a Hopf, *G*), the amplitude rises continuously with coinciding up/down branches (supercritical and reversible, not a hard switch, *H*), and the predicted gamma frequency falls with $tau_"GABA"$ in step with the #link("/exp041/")[exp041] spiking measurement (*I*). The smooth empirical turn-on is exactly what a supercritical Hopf predicts.],
   )
+
+  == Methods
+
+  The networks here are untrained PING populations driven by external input; the rhythmicity metric is read off the resulting excitatory raster. Write $r(t)$ for the binned population spike count ($n$ bins of width $Delta t$) and $ell$ for the lag. The metric is read off in a fixed sequence of steps:
+
+  + *Drive each E cell with its own private Poisson channel.* Every excitatory cell receives an independent homogeneous Poisson spike train at 100 Hz through a one-to-one identity input weight: there is no shared, dense $W_"in"$ projection, so no two cells share an input channel. Private input removes the input-driven spike coincidence that would otherwise inflate the metric at low firing, which is what makes the contrast rate-invariant by construction (Figures 4–5) with no post-hoc correction.
+  + *Bin to a population count.* Sum spikes across cells into one count per $Delta t$ bin, giving the population trace $r(t)$ of length $n$.
+  + *Raw autocorrelation.* Form the lag product $sum_t r(t) r(t+ell)$, which counts spike pairs separated by lag $ell$. All lags are computed at once in $O(n log n)$ via the Wiener–Khinchin route (zero-pad $r$, take its FFT, multiply by the conjugate, inverse-transform) rather than the $O(n^2)$ direct sum.
+  + *Correct for finite overlap.* Only $n-ell$ bin-pairs exist at lag $ell$ (the last $ell$ samples have no partner), so the raw sum tapers toward zero with lag simply from running out of overlap; dividing by that per-lag overlap $n-ell$ converts it to the _average_ product per available pair and flattens the taper.
+  + *Set the chance level.* Divide by the mean rate squared $⟨ r ⟩^2$ so rate-matched independent firing sits at $A = 1$, and drop the self-paired zero lag. The result is the normalised autocorrelogram
+
+    $ A(ell) = 1 / (⟨ r ⟩^2) 1 / (n - ell) sum_t r(t) r(t+ell). $
+
+  + *Locate the Mexican hat.* A rhythmic $A(ell)$ has a "Mexican-hat" profile: a central lobe above 1 (spikes recur a cycle apart) flanked by a dip below 1 where firing is suppressed between volleys. Scanning out from zero lag, take the trough as the first local minimum of a lightly smoothed $A(ell)$ (it falls near the half-period) and the lobe as the highest point at a shorter lag. Both searches start one bin past zero, so the self-paired zero-lag value dropped in step 5 is excluded from the lobe height: the lobe is read from the first real lag onward, never the trivial self-correlation.
+  + *Read the contrast.* The metric is the *lobe–trough contrast*
+
+    $ "contrast" = ("lobe" - "trough") / ("lobe" + "trough") in [0, 1), $
+
+    zero when lobe equals trough (no structure) and approaching 1 as the trough goes silent. It is bounded by construction, with no trough floor needed.
+
+  In words: $A(ell)$ is how much more (or less) likely a spike is to be followed by another one $ell$ ms later than under independent firing, with $A = 1$ the chance floor. A central lobe above 1 says spikes _cluster_ in volleys; a trough below 1 near the half-period says firing is _suppressed between_ them. The contrast is *0* when the spikes carry no such structure (asynchronous) and approaches *1* as sharp volleys separate against near-silence; because it reads the _shape_ of $A(ell)$, it registers a rhythm whether or not its frequency holds still.
+
 ]
 #body
 ]
 
-#let body = if inputs-ready(data-file, inputs) {
+#let report-body = if inputs-ready(data-file, inputs) {
   render-report(data-file)
 } else {
   pending-report(
@@ -102,3 +108,7 @@
     preview-figures, json-inputs: (),
   )
 }
+
+#let meta = meta + (assets: input-assets("exp054", inputs))
+#let body = with-datasets("exp054", inputs, report-body, placed: inputs-ready(data-file, inputs))
+#let body = with-contents(body)

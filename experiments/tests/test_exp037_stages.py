@@ -959,7 +959,6 @@ def test_reviewed_figures_keep_coordinates_show_full_range_and_omit_run_ids(
 
 def test_reviewed_article_structure_and_scientific_caveats():
     text = (Path(__file__).resolve().parents[2] / "writings/exp037.typ").read_text()
-    assert 'status: "Ready for review"' in text
     assert 'date: "2026-05-30"' in text
     assert 'updated_at: "2026-08-28"' in text
     assert (

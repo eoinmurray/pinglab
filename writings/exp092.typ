@@ -1,10 +1,13 @@
+#import "contents.typ": with-contents
 #import "/.demolab/lib.typ": data-json, data-image
 #import "run-inputs.typ": data-file, inputs-ready, pending-report
+#import "run-view.typ": with-datasets
+#import "run-inputs.typ": input-assets
 #import "manuscript-figures.typ": figure-description
 #let data-file = data-file.with(article: "exp092")
 
 #let meta = (
-  status: "Drafted",
+  status: "[▦ DATA]",
   title: "Gamma-Gated Sparsity Figure Gallery",
   date: "2026-08-20",
   description: "The figures from the gamma-gated sparsity manuscript, presented in sequence with their full captions.",
@@ -53,7 +56,7 @@
 #let coba25_rate = calc.round(mean(r25off("coba").map(r => r.rate_e)))
 #let coba25_acc = calc.round(mean(r25off("coba").map(r => r.final_acc)))
 #let rate_ratio25 = calc.round(mean(r25off("coba").map(r => r.rate_e)) / mean(r25off("ping").map(r => r.rate_e)))
-// Total-population spike-count reduction (§3, §4): E-only rates from `results`, PING inhibitory
+// Total-population spike-count reduction (Discussion, Conclusion and Future Directions): E-only rates from `results`, PING inhibitory
 // rate from `rate_target_p_fgamma` (the only op-point I measurement). COBA I is silent (loop off).
 #let ping25_i = r25-pfg.filter(r => r.model == "ping" and r25-target(r) == none).first().i_rate
 #let spike_ratio = calc.round((1024 * mean(r25off("coba").map(r => r.rate_e))) / (1024 * mean(r25off("ping").map(r => r.rate_e)) + 256 * ping25_i))
@@ -77,7 +80,7 @@
 #let acc41_fast = calc.round(mean(r041.results.filter(r => r.tau_gaba_ms == 4.5).map(r => r.acc)), digits: 1)
 #let acc41_slow = calc.round(mean(r041.results.filter(r => r.tau_gaba_ms == 27.0).map(r => r.acc)), digits: 1)
 #let acc41_drop = calc.round(acc41_fast - acc41_slow, digits: 1)
-// Canonical trained gamma at tau_GABA = 9 ms (exp041, 3 seeds); sets the streaming cycle bound (§2.7, §3).
+// Canonical trained gamma at tau_GABA = 9 ms (exp041, 3 seeds); sets the streaming cycle bound (Streaming classification, Discussion).
 #let fg_canon_raw = mean(r041.results.filter(r => r.tau_gaba_ms == 9.0).map(r => r.f_gamma_hz))
 #let fg_canon = calc.round(fg_canon_raw)
 #let Tg_canon = calc.round(1000 / fg_canon_raw)
@@ -85,19 +88,19 @@
 #let sat_lo_cyc = calc.round(40 * fg_canon_raw / 1000, digits: 1)
 #let sat_hi_cyc = calc.round(50 * fg_canon_raw / 1000, digits: 1)
 
-// exp022 (training hub): canonical training length, folded into §5.4.
+// exp022 (training hub): canonical training length, folded into Training methods.
 #let r022 = data-json(data-file("exp022/numbers.json"))
 #let hub_epochs = r022.standard.epochs
 // exp049 (Figure 5): released-loop training length.
 #let r049 = data-json(data-file("exp049/numbers.json"))
 #let ep049 = r049.config.epochs
-// exp049 rhythmicity (§2.4): lobe-trough contrast R at epoch 1 vs canonical, and the
+// exp049 rhythmicity (Loop-weight interventions): lobe-trough contrast R at epoch 1 vs canonical, and the
 // final trainable-init range, all read from the cached per-epoch logs (numbers.json).
 #let r49_can = calc.round(r049.rhythmicity.canonical_contrast, digits: 2)
 #let r49_ep1 = calc.round(r049.rhythmicity.epoch1_contrast_trainable, digits: 2)
 #let r49_fin_lo = calc.round(r049.rhythmicity.final_contrast_trainable_min, digits: 2)
 #let r49_fin_hi = calc.round(r049.rhythmicity.final_contrast_trainable_max, digits: 2)
-// Frozen-PING control trained-state operating point (§2.4), from the summary rows.
+// Frozen-PING control trained-state operating point (Loop-weight interventions), from the summary rows.
 #let r49_fz = r049.summary.filter(r => r.condition == "frozen_ping")
 #let r49_fz_acc = calc.round(mean(r49_fz.map(r => r.acc)))
 #let r49_fz_e = calc.round(mean(r49_fz.map(r => r.e_rate_hz)))
@@ -167,15 +170,15 @@
 #let body = [
   #figure(
     data-image(data-file("exp023/overview_compound.png"), width: 100%, alt: "Two-column comparison of the free-running network, each column headed by a wiring schematic. Left (COBA, loop off): schematic of input to a lone excitatory population with no inhibitory population, an asynchronous excitatory raster, a power spectrum with no gamma peak, and an f-I curve rising to about " + str(coba_fi_max) + " Hz. Right (PING, loop on): schematic of the excitatory-inhibitory loop (E to I via W_ei, I to E via W_ie), synchronous inhibitory bursts, gamma-banded excitatory raster, a sharp spectral peak near 42 Hz, and an excitatory rate held roughly an order of magnitude lower across two decades of input drive."),
-    caption: [*A single recurrent E→I→E loop simultaneously generates a gamma rhythm and clamps the excitatory firing rate.* Free-running activity of the two-population conductance-based network (excitatory pool $N_E = 1024$, inhibitory pool $N_I = 256$; canonical biophysical parameters, §5.1) under matched Poisson drive, in two configurations. Each column shows, from top: a wiring schematic, a single-trial spike raster, the excitatory power spectral density (PSD), and the excitatory $f$–$I$ curve. *(A)* COBA baseline with the recurrent loop disabled ($W^(E I) = W^(I E) = 0$): input projects to the excitatory (E) population only, with no inhibitory (I) population (schematic). The E spike raster is asynchronous, the Welch PSD of the summed E population shows no gamma-band peak, and the excitatory $f$–$I$ curve rises to $approx #coba_fi_max$ Hz under the strongest drive tested. *(B)* PING configuration with the loop engaged (schematic: E→I via $W^(E I)$, I→E via $W^(I E)$; no I→I or E→E synapse): the inhibitory (I) population fires synchronous bursts, the E raster forms gamma bands, the PSD shows a discrete peak at $f_gamma approx #fgamma023$ Hz, and on axes shared with (A) the E rate is held approximately an order of magnitude lower across two decades of input drive while the I rate rises to $approx #ping_i_max$ Hz. Source: #link("/exp023/")[exp023].],
+    caption: [*A single recurrent E→I→E loop simultaneously generates a gamma rhythm and clamps the excitatory firing rate.* Free-running activity of the two-population conductance-based network (excitatory pool $N_E = 1024$, inhibitory pool $N_I = 256$; canonical biophysical parameters, #link("/exp109/#single-neuron-and-synapse-dynamics")[Neuron and synapse dynamics]) under matched Poisson drive, in two configurations. Each column shows, from top: a wiring schematic, a single-trial spike raster, the excitatory power spectral density (PSD), and the excitatory $f$–$I$ curve. *(A)* COBA baseline with the recurrent loop disabled ($W^(E I) = W^(I E) = 0$): input projects to the excitatory (E) population only, with no inhibitory (I) population (schematic). The E spike raster is asynchronous, the Welch PSD of the summed E population shows no gamma-band peak, and the excitatory $f$–$I$ curve rises to $approx #coba_fi_max$ Hz under the strongest drive tested. *(B)* PING configuration with the loop engaged (schematic: E→I via $W^(E I)$, I→E via $W^(I E)$; no I→I or E→E synapse): the inhibitory (I) population fires synchronous bursts, the E raster forms gamma bands, the PSD shows a discrete peak at $f_gamma approx #fgamma023$ Hz, and on axes shared with (A) the E rate is held approximately an order of magnitude lower across two decades of input drive while the I rate rises to $approx #ping_i_max$ Hz. Source: #link("/exp023/")[exp023].],
   )
   #figure(
     data-image(data-file("exp054/onset_super_compound.png"), width: 100%, alt: "Nine panels. Top row: heatmaps of excitatory rate, inhibitory rate, and lobe-trough rhythmicity across the W_EI by W_IE coupling plane, with rhythmicity near zero on the COBA edges and rising to about 0.98 at strong coupling. Middle row: single-trial rasters at three points along the coupling diagonal, from asynchronous to sharp gamma volleys. Bottom row: the mean-field reduction, showing a complex eigenvalue pair crossing into the right half-plane at 0.60 nA, a continuous amplitude onset with coincident up and down ramps, and gamma frequency falling with the GABA time constant in agreement with the spiking measurement."),
-    caption: [*Gamma emerges through a smooth, reversible onset across the coupling plane, consistent with a supercritical Hopf bifurcation of the mean-field reduction.* Nine panels (A–I). *(A–C)* Steady-state measurements across the $11 times 11$ $W^(E I) times W^(I E)$ coupling plane: mean excitatory firing rate (A), mean inhibitory firing rate (B), and the lobe–trough rhythmicity contrast $R$ (C, §5.5), which is $approx 0$ along the two COBA edges and rises to $approx 0.98$ toward strong coupling. *(D–F)* Single-trial E (black) and I (red) rasters at three points sampled along the $W^(I E) = 2 W^(E I)$ diagonal (circled in C): the loop-disabled origin (D, asynchronous), weak coupling ($R < 0.5$, E), and strong coupling (F, sharp gamma volleys). *(G–I)* The four-dimensional conductance mean-field reduction (§5.3): a complex-conjugate eigenvalue pair crosses into the right half-plane at external drive $I^star = #hopf_iext$ nA (G), locating a Hopf bifurcation at $f^star approx #hopf_fstar$ Hz; the steady-state oscillation amplitude grows continuously across the onset with coincident up- and down-ramp branches (H), the signature of a supercritical, reversible transition; and the predicted gamma frequency falls with $tau_"GABA"$ in qualitative agreement with the spiking measurement (I). Source: #link("/exp054/")[exp054] (coupling-plane maps and mean-field, incorporating #link("/exp033/")[exp033]); spiking $f_gamma$ from #link("/exp041/")[exp041].],
+    caption: [*Gamma emerges through a smooth, reversible onset across the coupling plane, consistent with a supercritical Hopf bifurcation of the mean-field reduction.* Nine panels (A–I). *(A–C)* Steady-state measurements across the $11 times 11$ $W^(E I) times W^(I E)$ coupling plane: mean excitatory firing rate (A), mean inhibitory firing rate (B), and the lobe–trough rhythmicity contrast $R$ (C, #link("/exp109/#measurement-and-analysis")[Measurement and analysis]), which is $approx 0$ along the two COBA edges and rises to $approx 0.98$ toward strong coupling. *(D–F)* Single-trial E (black) and I (red) rasters at three points sampled along the $W^(I E) = 2 W^(E I)$ diagonal (circled in C): the loop-disabled origin (D, asynchronous), weak coupling ($R < 0.5$, E), and strong coupling (F, sharp gamma volleys). *(G–I)* The four-dimensional conductance mean-field reduction (#link("/exp109/#mean-field-reduction")[Mean-field reduction]): a complex-conjugate eigenvalue pair crosses into the right half-plane at external drive $I^star = #hopf_iext$ nA (G), locating a Hopf bifurcation at $f^star approx #hopf_fstar$ Hz; the steady-state oscillation amplitude grows continuously across the onset with coincident up- and down-ramp branches (H), the signature of a supercritical, reversible transition; and the predicted gamma frequency falls with $tau_"GABA"$ in qualitative agreement with the spiking measurement (I). Source: #link("/exp054/")[exp054] (coupling-plane maps and mean-field, incorporating #link("/exp033/")[exp033]); spiking $f_gamma$ from #link("/exp041/")[exp041].],
   )
   #figure(
     data-image(data-file("exp025/results_compound.png"), width: 100%, alt: "Trained-network comparison. Top: single-trial rasters, with COBA firing densely and asynchronously and PING firing in gamma bands with synchronous inhibitory bursts. Bottom left: test accuracy per epoch, both configurations converging to about 91 percent. Bottom right: the accuracy-rate frontier, with PING lying above and to the left of COBA at every spike-budget setting; at the unpenalised operating point PING reaches about 91 percent near 12 Hz against COBA's 91 percent near 181 Hz."),
-    caption: [*Trained PING matches COBA classification accuracy while operating at an order-of-magnitude lower excitatory firing rate.* Both configurations were trained on MNIST by surrogate-gradient descent (§5.4). Top: representative single-trial rasters of the trained networks: COBA fires densely and asynchronously with the inhibitory population silent, whereas PING fires in gamma bands with synchronous inhibitory bursts (red) above excitatory spikes (black). For visualisation, each raster is an extended 400 ms replay of one digit, twice the 200 ms presentation used for training and quantitative evaluation. Bottom left: test accuracy per epoch, both configurations converging to $approx #ping25_acc%$. Bottom right: accuracy–rate frontier traced by sweeping the sample-wise hidden-E rate ceiling (§5.4); each marker shows mean hidden-E firing rate (abscissa) and test accuracy (ordinate) across three independent seeds, with standard-error bars. PING lies above and to the left of COBA across the sweep. At the unpenalised operating point (starred), PING reaches $approx #ping25_acc%$ at $approx #ping25_rate$ Hz, against COBA's $approx #coba25_acc%$ at $approx #coba25_rate$ Hz. Source: #link("/exp025/")[exp025]; rate-attractor analysis in #link("/exp024/")[exp024].],
+    caption: [*Trained PING matches COBA classification accuracy while operating at an order-of-magnitude lower excitatory firing rate.* Both configurations were trained on MNIST by surrogate-gradient descent (#link("/exp109/#training")[Training methods]). Top: representative single-trial rasters of the trained networks: COBA fires densely and asynchronously with the inhibitory population silent, whereas PING fires in gamma bands with synchronous inhibitory bursts (red) above excitatory spikes (black). For visualisation, each raster is an extended 400 ms replay of one digit, twice the 200 ms presentation used for training and quantitative evaluation. Bottom left: test accuracy per epoch, both configurations converging to $approx #ping25_acc%$. Bottom right: accuracy–rate frontier traced by sweeping the sample-wise hidden-E rate ceiling (#link("/exp109/#training")[Training methods]); each marker shows mean hidden-E firing rate (abscissa) and test accuracy (ordinate) across three independent seeds, with standard-error bars. PING lies above and to the left of COBA across the sweep. At the unpenalised operating point (starred), PING reaches $approx #ping25_acc%$ at $approx #ping25_rate$ Hz, against COBA's $approx #coba25_acc%$ at $approx #coba25_rate$ Hz. Source: #link("/exp025/")[exp025]; rate-attractor analysis in #link("/exp024/")[exp024].],
   )
   #figure(
     data-image(data-file("exp038/loop_transfer_compound.png"), width: 100%, alt: "Inference-time loop activation on COBA networks trained with three seeds. Top: illustrative seed-42 rasters at loop-off and full loop strength. Bottom: across-seed mean rates and accuracy with standard-deviation bands."),
@@ -187,11 +190,11 @@
   )
   #figure(
     data-image(data-file("exp041/rate_vs_fgamma.svg"), width: 100%, alt: "Top: mean post-training excitatory firing rate against measured gamma frequency, with per-condition means over three seeds and error bars on both axes; a linear fit passes through every error bar. Bottom: test accuracy over the same sweep, declining systematically toward the low-frequency conditions."),
-    caption: [*Post-training excitatory rate covaries affinely with gamma frequency across a sweep of inhibitory decay kinetics.* Networks were trained from scratch at each of six values of the GABA decay constant $tau_"GABA" in {4.5, 6, 9, 12, 18, 27}$ ms. Changing $tau_"GABA"$ alters both the realised gamma frequency and the duration and integrated influence of inhibition (§5.4). Top: mean post-training excitatory firing rate against measured $f_gamma$; markers are per-condition means over three seeds, with error bars ($plus.minus$ SD) on both axes. The linear fit $r_E = #fit_a + #fit_p f_gamma$ passes through every error bar ($R^2 = #fit_r2$). Bottom: mean test accuracy declines from $#acc41_fast%$ at $tau_"GABA" = 4.5$ ms to $#acc41_slow%$ at $27$ ms, a $#acc41_drop$ percentage-point tradeoff. The sweep establishes covariance with realised frequency, not an independent causal effect of frequency alone. Source: #link("/exp041/")[exp041].],
+    caption: [*Post-training excitatory rate covaries affinely with gamma frequency across a sweep of inhibitory decay kinetics.* Networks were trained from scratch at each of six values of the GABA decay constant $tau_"GABA" in {4.5, 6, 9, 12, 18, 27}$ ms. Changing $tau_"GABA"$ alters both the realised gamma frequency and the duration and integrated influence of inhibition (#link("/exp109/#training")[Training methods]). Top: mean post-training excitatory firing rate against measured $f_gamma$; markers are per-condition means over three seeds, with error bars ($plus.minus$ SD) on both axes. The linear fit $r_E = #fit_a + #fit_p f_gamma$ passes through every error bar ($R^2 = #fit_r2$). Bottom: mean test accuracy declines from $#acc41_fast%$ at $tau_"GABA" = 4.5$ ms to $#acc41_slow%$ at $27$ ms, a $#acc41_drop$ percentage-point tradeoff. The sweep establishes covariance with realised frequency, not an independent causal effect of frequency alone. Source: #link("/exp041/")[exp041].],
   )
   #figure(
     data-image(data-file("exp046/spikes_per_cycle_distribution.svg"), width: 100%, alt: "A row of bar charts, one per value of the GABA time constant, each showing the distribution of spikes per (cell, cycle) pair over the categories 0, 1, 2, and 3 or more. Across the sweep the zero-spike category dominates and the one-spike category is next, with the two-and-more categories nearly empty, so almost every pair contains at most one spike."),
-    caption: [*The affine rate law follows from a near-binary per-cycle firing statistic: each excitatory cell contributes at most one spike per gamma cycle.* Excitatory spikes were resolved into (cell, cycle) pairs by assigning each spike to the gamma cycle inferred from peaks of the population inhibitory-burst rate (§5.5). Each panel shows the distribution of spikes per pair (0, 1, 2, or $>= 3$) at one value of $tau_"GABA"$. Across the sweep, $P(0) approx #p0_046%$, $P(1) approx #p1_046%$, and the multi-spike fraction ($>= 2$) stays near $approx #pmulti_046%$; pooled over all conditions, $#pleq1_046%$ of pairs contain at most one spike. Source: #link("/exp046/")[exp046].],
+    caption: [*The affine rate law follows from a near-binary per-cycle firing statistic: each excitatory cell contributes at most one spike per gamma cycle.* Excitatory spikes were resolved into (cell, cycle) pairs by assigning each spike to the gamma cycle inferred from peaks of the population inhibitory-burst rate (#link("/exp109/#measurement-and-analysis")[Measurement and analysis]). Each panel shows the distribution of spikes per pair (0, 1, 2, or $>= 3$) at one value of $tau_"GABA"$. Across the sweep, $P(0) approx #p0_046%$, $P(1) approx #p1_046%$, and the multi-spike fraction ($>= 2$) stays near $approx #pmulti_046%$; pooled over all conditions, $#pleq1_046%$ of pairs contain at most one spike. Source: #link("/exp046/")[exp046].],
   )
   #figure(
     data-image(data-file("exp037/perturbation_curves.svg"), width: 100%, alt: "Across-seed mean test accuracy with standard-deviation bands against spike deletion and Poisson addition for PING and COBA."),
@@ -217,7 +220,7 @@
 #body
 ]
 
-#let body = if inputs-ready(data-file, inputs) {
+#let report-body = if inputs-ready(data-file, inputs) {
   render-report(data-file)
 } else {
   pending-report(
@@ -227,3 +230,7 @@
     json-inputs: ("exp022", "exp023", "exp025", "exp033", "exp037", "exp038", "exp041", "exp042", "exp044", "exp046", "exp048", "exp049",),
   )
 }
+
+#let meta = meta + (assets: input-assets("exp092", inputs))
+#let body = with-datasets("exp092", inputs, report-body)
+#let body = with-contents(body)

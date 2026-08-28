@@ -1,9 +1,13 @@
-#import "/.demolab/lib.typ": data-image, video, cite, reference-list
+#import "contents.typ": with-contents
+#import "/.demolab/lib.typ": data-image, cite, reference-list
+#import "run-inputs.typ": video
 #import "run-inputs.typ": data-file, inputs-ready, pending-report
+#import "run-view.typ": with-datasets, run-view
+#import "run-inputs.typ": input-assets
 #let data-file = data-file.with(article: "exp099")
 
 #let meta = (
-  status: "Results available",
+  status: "[▦ DATA]",
   title: "From simplified to brainlike input in a PING network",
   created_at: "2026-08-26",
   updated_at: "2026-08-28",
@@ -28,9 +32,11 @@
   Its working media illustrate the probe; they do not establish the planned
   controlled comparison or identify which input features preserve PING.
 
-  == Results
+  #run-view("exp099", inputs)
 
-  === 1. Network structure
+  == Results: Richer-input probe completed; controlled comparison remains unevaluated
+
+  === Network structure
 
   #figure(
     data-image(data-file("exp099/network.svg"), width: 100%),
@@ -39,7 +45,7 @@
     kind: image, supplement: [Figure],
   )
 
-  === 2. Richer-input probe
+  === Richer-input probe
 
   #let clip = data-file("exp099/richer-input-ai-to-intermittent-ping.mp4")
   // Missing files in a selected run remain errors, not empty-run placeholders.
@@ -104,7 +110,7 @@
     1,800 ms. These single-seed descriptors do not establish a causal input
     effect or classify a rhythm as PING by themselves.
 
-  == 4. References
+  == References
 
   #reference-list((
     (text: [Börgers, C. & Kopell, N. — _Synchronization in Networks of Excitatory
@@ -113,8 +119,12 @@
   ))
 ]
 
-#let body = if inputs-ready(data-file, inputs) {
+#let report-body = if inputs-ready(data-file, inputs) {
   render-report(data-file)
 } else {
   pending-report(data-file, inputs, [], ())
 }
+
+#let meta = meta + (assets: input-assets("exp099", inputs))
+#let body = with-datasets("exp099", inputs, report-body, placed: inputs-ready(data-file, inputs))
+#let body = with-contents(body)

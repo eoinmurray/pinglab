@@ -1,9 +1,12 @@
+#import "contents.typ": with-contents
 #import "/.demolab/lib.typ": data-json, data-image, cite, reference-list
 #import "run-inputs.typ": data-file, inputs-ready, pending-report
+#import "run-view.typ": with-datasets, run-view
+#import "run-inputs.typ": input-assets
 #let data-file = data-file.with(article: "exp041")
 
 #let meta = (
-  status: "Ready for review",
+  status: "[▦ DATA]",
   title: "Firing Rate Tracks Gamma Frequency",
   date: "2026-06-02",
   updated_at: "2026-08-27",
@@ -53,9 +56,11 @@
   model, but does not establish constant participation or identify a physical
   non-rhythmic baseline.
 
-  == Results
+  #run-view("exp041", inputs)
 
-  === 1. Training trajectories
+  == Results: Affine fit explains #calc.round(100 * fit.r2_affine, digits: 1)% of between-condition firing-rate variance
+
+  === Training trajectories
 
   #figure(
     data-image(data-file("exp041/training_curves.svg"),
@@ -69,7 +74,7 @@
     ],
   )
 
-  === 2. Population rhythm frequency
+  === Population rhythm frequency
 
   #figure(
     data-image(data-file("exp041/psds.svg"),
@@ -84,7 +89,7 @@
     ],
   )
 
-  === 3. Illustrative spike timing
+  === Illustrative spike timing
 
   #figure(
     data-image(data-file("exp041/raster_strip.png"),
@@ -99,7 +104,7 @@
     ],
   )
 
-  === 4. Rate–frequency relationship
+  === Rate–frequency relationship
 
   #figure(
     data-image(data-file("exp041/rate_vs_fgamma.svg"),
@@ -204,7 +209,7 @@
 #body
 ]
 
-#let body = if inputs-ready(data-file, inputs) {
+#let report-body = if inputs-ready(data-file, inputs) {
   render-report(data-file)
 } else {
   pending-report(
@@ -213,3 +218,7 @@
     preview-figures, json-inputs: ("exp041",),
   )
 }
+
+#let meta = meta + (assets: input-assets("exp041", inputs))
+#let body = with-datasets("exp041", inputs, report-body, placed: inputs-ready(data-file, inputs))
+#let body = with-contents(body)

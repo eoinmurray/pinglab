@@ -1,5 +1,7 @@
+#import "contents.typ": with-contents
+#import "run-view.typ": with-datasets
 #let meta = (
-  status: "Drafted",
+  status: "[≡ TXT]",
   title: "SNNSIM command-line guide",
   updated_at: "2026-08-28",
   date: "2026-07-06",
@@ -9,19 +11,6 @@
 )
 
 #let body = [
-  == Contents
-
-  + #link("/exp011/#start-here")[Start here]
-  + #link("/exp011/#quick-start")[Quick start]
-  + #link("/exp011/#the-tool-and-the-experiment")[The tool and the experiment]
-  + #link("/exp011/#commands")[Commands]
-  + #link("/exp011/#shared-options")[Shared options]
-  + #link("/exp011/#config-inheritance")[Config inheritance]
-  + #link("/exp011/#artifacts")[Artifacts]
-  + #link("/exp011/#recipes")[Recipes]
-  + #link("/exp011/#troubleshooting")[Troubleshooting]
-
-
   == Start here
 
   `tools/snnsim/tool.py` is the command-line entry point for simulation, training, and weight inspection. It emits data; analysis and presentation stages turn those data into measurements and figures. This guide focuses on the legacy CLI and points to the graph API where its contract differs.
@@ -330,3 +319,6 @@
 
   #link("/exp004/")[Next: Parameters & Units]
 ]
+
+#let body = with-datasets("exp011", (), body)
+#let body = with-contents(body)

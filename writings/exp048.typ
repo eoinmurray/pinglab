@@ -1,9 +1,12 @@
+#import "contents.typ": with-contents
 #import "/.demolab/lib.typ": data-json, data-image, cite, reference-list
 #import "run-inputs.typ": data-file, inputs-ready, pending-report
+#import "run-view.typ": with-datasets, run-view
+#import "run-inputs.typ": input-assets
 #let data-file = data-file.with(article: "exp048")
 
 #let meta = (
-  status: "Implemented",
+  status: "[▦ DATA]",
   title: "DEPRECATED — Accuracy Across Duration and Input Rate",
   date: "2026-06-08",
   updated_at: "2026-08-28",
@@ -79,9 +82,11 @@
   with spike-count readout]. The duration-matched decoder used known segment
   timings; this was not a test of blind boundary detection.
 
-  == Results
+  #run-view("exp048", inputs)
 
-  === 1. Streaming classification
+  == Results: Streaming accuracy falls at short durations and low input rates
+
+  === Streaming classification
 
   #figure(
     report-image(data-file("exp048/varying_headline_stream.png"),
@@ -103,7 +108,7 @@
       failure floor.],
   )
 
-  === 2. Duration and encoding-rate limits
+  === Duration and encoding-rate limits
 
   #figure(
     report-image(data-file("exp048/acc_grid_tau_rate.png"),
@@ -160,7 +165,7 @@
     #r.encoding_rate_psychometric.new_streams_per_seed streams of
     #r.encoding_rate_psychometric.digits_per_stream digits per seed at fixed
     #r.encoding_rate_psychometric.presentation_ms ms; higher-rate points reused
-    that duration's grid measurements. Appendix A gives the complete grids and
+    that duration's grid measurements. #link(<sec-conditions-and-decoder-identities>)[Conditions and decoder identities] gives the complete grids and
     the separate constant-rate versus rate-compensated duration comparison.
 
   4. *Integrate output evidence.* E-cell spikes drove a non-spiking leaky
@@ -190,7 +195,7 @@
     whole-trial average used in training. Correct predictions were counted per
     seed; captions report across-seed means and sample standard errors.
 
-  == Appendix A. Conditions and decoder identities
+  == Appendix: Conditions and decoder identities <sec-conditions-and-decoder-identities>
 
   The grid crossed durations
   #cfg.tau_grid_ms.map(x => str(x) + " ms").join(", ") with encoding rates
@@ -252,7 +257,7 @@
 #body
 ]
 
-#let body = if inputs-ready(data-file, inputs) {
+#let report-body = if inputs-ready(data-file, inputs) {
   render-report(data-file)
 } else {
   pending-report(
@@ -261,3 +266,7 @@
     preview-figures, json-inputs: ("exp048",),
   )
 }
+
+#let meta = meta + (assets: input-assets("exp048", inputs))
+#let body = with-datasets("exp048", inputs, report-body, placed: inputs-ready(data-file, inputs))
+#let body = with-contents(body)

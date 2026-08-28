@@ -1,10 +1,13 @@
+#import "contents.typ": with-contents
 #import "/.demolab/lib.typ": data-json, data-image
 #import "run-inputs.typ": data-file, inputs-ready, pending-report
+#import "run-view.typ": with-datasets, run-view
+#import "run-inputs.typ": input-assets
 #import "/.demolab/lib.typ": cite, reference-list
 #let data-file = data-file.with(article: "exp080")
 
 #let meta = (
-  status: "Implemented",
+  status: "[≡ TXT]",
   title: "Calibrating Accuracy Across Input Rates",
   date: "2026-08-10",
   description: "Direct-simulation decoder calibration of the input-rate range for later variable-rate PING training.",
@@ -38,6 +41,70 @@
   meets the criterion for every decoder, the result is reported as censored
   rather than treated as a selected interval.] The result calibrates this
   feature representation and decoder; it does not measure PING-network accuracy.
+
+  #run-view("exp080", inputs)
+
+  == Results
+
+  === Decoder training
+
+  Validation accuracy improved across training for all three decoder seeds.
+
+  #figure(
+    data-image(data-file("exp080/training_history.svg"), width: 72%,
+      alt: "Three validation-accuracy curves over the decoder training run."),
+    caption: [Mixed-rate validation accuracy across training. The horizontal
+      axis is epoch and the vertical axis is validation accuracy. Each curve is
+      one independently trained nonlinear decoder, and every epoch uses fresh
+      direct feature simulations. All three decoders improve before checkpoint
+      selection.],
+  )
+
+  === What the decoder saw
+
+  #figure(
+    data-image(data-file("exp080/feature_images.png"),
+      alt: "One MNIST input image followed by filtered feature images at increasing input rates."),
+    caption: [An MNIST input image and its directly simulated filtered features.
+      The left panel shows the normalized input. The remaining panels show
+      independent spike realizations at maximum-pixel encoding rates of
+      #r.parameters.rates_hz.at(2) Hz, #r.parameters.rates_hz.at(5) Hz, and
+      #r.parameters.rates_hz.last() Hz. Each simulation uses a
+      #r.parameters.probe_uS μS synaptic conductance and a
+      #r.parameters.presentation_ms ms presentation. Greater input rate
+      preserves more of the digit's spatial structure.],
+  )
+
+  Sparse presentations retained fragments of the digit rather than a uniformly
+  attenuated image. Increasing rate filled in the spatial pattern and reduced
+  the importance of individual event times.
+
+  === Empirical rate selection
+
+  #figure(
+    data-image(data-file("exp080/psychometric.svg"), width: 72%,
+      alt: "Held-out decoder accuracy against maximum-pixel encoding rate, with the practical criterion and any selected floor marked."),
+    caption: [Held-out nonlinear-decoder accuracy against maximum-pixel encoding
+      rate. Points average the official test images and three independently
+      trained decoders. The band spans the lowest and highest decoder accuracy
+      at each rate. Horizontal rules mark chance and the
+      #pct(r.parameters.useful_accuracy) practical criterion. The red vertical
+      rule, when present, marks the first tested rate at which all three
+      decoders meet that criterion.],
+  )
+
+  #if criterion-crossed [
+    All three decoders first met the practical
+    #pct(r.parameters.useful_accuracy) criterion at #d.r_train_hz Hz. Mean
+    accuracy at that condition was
+    #pct(d.rows.filter(row => row.rate_hz == d.r_train_hz).first().accuracy).
+    We therefore select #d.recommendation.floor_hz to
+    #d.recommendation.ceiling_hz Hz for later variable-rate PING training.
+  ] else [
+    No tested rate met the practical #pct(r.parameters.useful_accuracy)
+    criterion for every decoder. The result is therefore right-censored at
+    #d.recommendation.ceiling_hz Hz and does not define a training-rate floor.
+  ]
 
   == Methods
 
@@ -144,69 +211,6 @@
       )
     ],
   )
-
-  == Results
-
-  === Decoder training
-
-  Validation accuracy improved across training for all three decoder seeds.
-
-  #figure(
-    data-image(data-file("exp080/training_history.svg"), width: 72%,
-      alt: "Three validation-accuracy curves over the decoder training run."),
-    caption: [Mixed-rate validation accuracy across training. The horizontal
-      axis is epoch and the vertical axis is validation accuracy. Each curve is
-      one independently trained nonlinear decoder, and every epoch uses fresh
-      direct feature simulations. All three decoders improve before checkpoint
-      selection.],
-  )
-
-  === What the decoder saw
-
-  #figure(
-    data-image(data-file("exp080/feature_images.png"),
-      alt: "One MNIST input image followed by filtered feature images at increasing input rates."),
-    caption: [An MNIST input image and its directly simulated filtered features.
-      The left panel shows the normalized input. The remaining panels show
-      independent spike realizations at maximum-pixel encoding rates of
-      #r.parameters.rates_hz.at(2) Hz, #r.parameters.rates_hz.at(5) Hz, and
-      #r.parameters.rates_hz.last() Hz. Each simulation uses a
-      #r.parameters.probe_uS μS synaptic conductance and a
-      #r.parameters.presentation_ms ms presentation. Greater input rate
-      preserves more of the digit's spatial structure.],
-  )
-
-  Sparse presentations retained fragments of the digit rather than a uniformly
-  attenuated image. Increasing rate filled in the spatial pattern and reduced
-  the importance of individual event times.
-
-  === Empirical rate selection
-
-  #figure(
-    data-image(data-file("exp080/psychometric.svg"), width: 72%,
-      alt: "Held-out decoder accuracy against maximum-pixel encoding rate, with the practical criterion and any selected floor marked."),
-    caption: [Held-out nonlinear-decoder accuracy against maximum-pixel encoding
-      rate. Points average the official test images and three independently
-      trained decoders. The band spans the lowest and highest decoder accuracy
-      at each rate. Horizontal rules mark chance and the
-      #pct(r.parameters.useful_accuracy) practical criterion. The red vertical
-      rule, when present, marks the first tested rate at which all three
-      decoders meet that criterion.],
-  )
-
-  #if criterion-crossed [
-    All three decoders first met the practical
-    #pct(r.parameters.useful_accuracy) criterion at #d.r_train_hz Hz. Mean
-    accuracy at that condition was
-    #pct(d.rows.filter(row => row.rate_hz == d.r_train_hz).first().accuracy).
-    We therefore select #d.recommendation.floor_hz to
-    #d.recommendation.ceiling_hz Hz for later variable-rate PING training.
-  ] else [
-    No tested rate met the practical #pct(r.parameters.useful_accuracy)
-    criterion for every decoder. The result is therefore right-censored at
-    #d.recommendation.ceiling_hz Hz and does not define a training-rate floor.
-  ]
-
   == Conclusion
 
   #if criterion-crossed [
@@ -247,7 +251,7 @@
 #body
 ]
 
-#let body = if inputs-ready(data-file, inputs) {
+#let report-body = if inputs-ready(data-file, inputs) {
   render-report(data-file)
 } else {
   pending-report(
@@ -256,3 +260,7 @@
     preview-figures, json-inputs: ("exp080",),
   )
 }
+
+#let meta = meta + (assets: input-assets("exp080", inputs))
+#let body = with-datasets("exp080", inputs, report-body, placed: inputs-ready(data-file, inputs))
+#let body = with-contents(body)

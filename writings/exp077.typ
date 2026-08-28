@@ -1,9 +1,12 @@
+#import "contents.typ": with-contents
 #import "/.demolab/lib.typ": data-json, data-image
 #import "run-inputs.typ": data-file, inputs-ready, pending-report
+#import "run-view.typ": with-datasets, run-view
+#import "run-inputs.typ": input-assets
 #let data-file = data-file.with(article: "exp077")
 
 #let meta = (
-  status: "Implemented",
+  status: "[≡ TXT]",
   title: "Arbitrary coupled graphs execute natively",
   date: "2026-08-05",
   description: "A cumulative snnlang validation establishes the typed execution seam, exact single-PING parity, and graph-only construction of two independently driven PING circuits with delayed reciprocal inhibition.",
@@ -35,6 +38,8 @@
   reciprocal, and explicitly delayed reciprocal forms. Every variant changes
   graph data only. This is an execution and causality result, not a scientific
   claim about inhibitory coupling.
+
+  #run-view("exp077", inputs)
 
   == Registered goal
 
@@ -155,7 +160,7 @@
 #body
 ]
 
-#let body = if inputs-ready(data-file, inputs) {
+#let report-body = if inputs-ready(data-file, inputs) {
   render-report(data-file)
 } else {
   pending-report(
@@ -164,3 +169,7 @@
     preview-figures, json-inputs: ("exp077",),
   )
 }
+
+#let meta = meta + (assets: input-assets("exp077", inputs))
+#let body = with-datasets("exp077", inputs, report-body, placed: inputs-ready(data-file, inputs))
+#let body = with-contents(body)

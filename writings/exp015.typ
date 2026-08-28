@@ -1,5 +1,7 @@
+#import "contents.typ": with-contents
+#import "run-view.typ": with-datasets
 #let meta = (
-  status: "Drafted",
+  status: "[≡ TXT]",
   title: "Gradient Stabilisation",
   date: "2026-06-12",
   updated_at: "2026-08-28",
@@ -9,14 +11,6 @@
 )
 
 #let body = [
-  == Contents
-
-  + #link("/exp015/#using-the-control")[Using the control]
-  + #link("/exp015/#check-the-primitive")[Check the primitive]
-  + #link("/exp015/#the-implemented-update")[The implemented update]
-  + #link("/exp015/#what-the-derivatives-say")[What the derivatives say]
-  + #link("/exp015/#diagnosing-a-training-failure")[Diagnosing a training failure]
-
   == Using the control
 
   `--v-grad-dampen` changes the backward pass through the legacy biophysical neuron's membrane increment. It is intended to reduce gradient amplification without intentionally changing the forward model. It does not divide the entire voltage gradient by a constant, repair a non-finite forward pass, or guarantee convergence.
@@ -101,3 +95,6 @@
 
   #link("/exp006/")[Previous: Training] · #link("/exp011/")[Back to SNNSIM command-line guide]
 ]
+
+#let body = with-datasets("exp015", (), body)
+#let body = with-contents(body)

@@ -1,9 +1,12 @@
+#import "contents.typ": with-contents
 #import "/.demolab/lib.typ": data-json, data-image
 #import "run-inputs.typ": data-file, inputs-ready, pending-report
+#import "run-view.typ": with-datasets, run-view
+#import "run-inputs.typ": input-assets
 #let data-file = data-file.with(article: "exp049")
 
 #let meta = (
-  status: "Ready for review",
+  status: "[▦ DATA]",
   title: "Training Recurrent Weights Weakens PING Rhythmicity",
   date: "2026-06-09",
   updated_at: "2026-08-28",
@@ -57,9 +60,11 @@
   strongly rhythmic regime; they do not establish a universal failure of
   learning or an accuracy-equivalence result.
 
-  == Results
+  #run-view("exp049", inputs)
 
-  === 1. Recurrent training changes population activity
+  == Results: None of the trainable initializations recovered the frozen control’s rhythmicity
+
+  === Recurrent training changes population activity
 
   #figure(
     data-image(data-file("exp049/attractor_ei.svg"), width: 100%,
@@ -78,7 +83,7 @@
     ],
   )
 
-  === 2. Rhythmicity is already low at the first logged epoch
+  === Rhythmicity is already low at the first logged epoch
 
   #figure(
     data-image(data-file("exp049/training_curves.svg"), width: 100%,
@@ -94,7 +99,7 @@
     ],
   )
 
-  === 3. The two recurrent matrices change differently
+  === The two recurrent matrices change differently
 
   #figure(
     data-image(data-file("exp049/weights__trainable_ping_init.svg"), width: 100%,
@@ -111,7 +116,7 @@
     ],
   )
 
-  === 4. Rate–rhythmicity trajectories do not establish attractors
+  === Rate–rhythmicity trajectories do not establish attractors
 
   #figure(
     data-image(data-file("exp049/phase_portrait.svg"), width: 100%,
@@ -126,7 +131,7 @@
     ],
   )
 
-  === 5. Similar validation accuracy can accompany different firing rates
+  === Similar validation accuracy can accompany different firing rates
 
   #figure(
     data-image(data-file("exp049/acc_rate_trajectory.svg"), width: 100%,
@@ -224,7 +229,7 @@
   attractor stability or a continuous transition between epochs.
 ]
 
-#let body = if inputs-ready(data-file, inputs) {
+#let report-body = if inputs-ready(data-file, inputs) {
   render-report(data-file)
 } else {
   pending-report(
@@ -233,3 +238,7 @@
     preview-figures, json-inputs: ("exp049",),
   )
 }
+
+#let meta = meta + (assets: input-assets("exp049", inputs))
+#let body = with-datasets("exp049", inputs, report-body, placed: inputs-ready(data-file, inputs))
+#let body = with-contents(body)

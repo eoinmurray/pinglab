@@ -1,5 +1,7 @@
+#import "contents.typ": with-contents
+#import "run-view.typ": with-datasets
 #let meta = (
-  status: "Drafted",
+  status: "[≡ TXT]",
   title: "Compiling and executing bundles",
   date: "2026-08-14",
   description: "Validate a graph, write its portable bundle, select an executor, supply inputs, and retrieve named outputs and recordings.",
@@ -8,14 +10,6 @@
 )
 
 #let body = [
-  == Contents
-
-  + #link("/exp107/#developer-guide")[Developer guide]
-  + #link("/exp107/#compilation")[Compilation]
-  + #link("/exp107/#execution-requests")[Execution requests]
-  + #link("/exp107/#recordings-and-results")[Recordings and results]
-  + #link("/exp107/#api-reference")[API reference]
-
   == Developer guide
 
   === Compilation
@@ -106,3 +100,6 @@
 
   #link("/exp108/")[Next: Inputs, outputs, and readouts]
 ]
+
+#let body = with-datasets("exp107", (), body)
+#let body = with-contents(body)

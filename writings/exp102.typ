@@ -1,5 +1,7 @@
+#import "contents.typ": with-contents
+#import "run-view.typ": with-datasets
 #let meta = (
-  status: "Drafted",
+  status: "[≡ TXT]",
   title: "SNNLANG developer documentation",
   date: "2026-07-30",
   description: "Start with the collection contents, learn the high-level development model, then use the concrete SNNLANG and graph-execution API reference.",
@@ -8,14 +10,6 @@
 )
 
 #let body = [
-  == Contents
-
-  + #link("/exp102/#developer-guide")[Developer guide]
-  + #link("/exp102/#your-first-network")[Your first network]
-  + #link("/exp102/#run-the-graph")[Run the graph]
-  + #link("/exp102/#api-reference")[API reference]
-  + #link("/exp102/#collection-reading-path")[Collection reading path]
-
   == Developer guide
 
   === What snnlang does
@@ -124,3 +118,6 @@
 
   #link("/exp105/")[Next: Networks, signals, and parameters]
 ]
+
+#let body = with-datasets("exp102", (), body)
+#let body = with-contents(body)

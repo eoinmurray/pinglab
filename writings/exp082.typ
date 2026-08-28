@@ -1,9 +1,12 @@
+#import "contents.typ": with-contents
 #import "/.demolab/lib.typ": data-json, data-image
 #import "run-inputs.typ": data-file, inputs-ready, pending-report
+#import "run-view.typ": with-datasets, run-view
+#import "run-inputs.typ": input-assets
 #let data-file = data-file.with(article: "exp082")
 
 #let meta = (
-  status: "Implemented",
+  status: "[≡ TXT]",
   title: "Spike-Count Classification in a Continuous Stream",
   date: "2026-08-10",
   description: "A multi-seed study of spike-count classification across input rates and presentation durations.",
@@ -29,13 +32,15 @@
 #let at-duration(duration) = r.grid_per_seed.filter(row => row.duration_ms == duration)
 #let at-rate(rate) = r.duration_200ms_psychometric.filter(row => row.rate_hz == rate)
 #let body = [
-  == 1. Abstract
+  == Abstract
 
   We asked whether a spiking network could classify a continuous digit stream when each digit arrived at a different strength or remained visible for a different time. We froze networks trained on changing input rates and used their output spikes as class evidence. The classifier worked across a broad range of input strengths once enough spikes arrived. Weak or brief inputs were harder, and some ended before the output produced any evidence. Longer presentations helped, but the experiment cannot separate extra viewing time from extra decision time. It also does not show that the network's rhythmic activity caused the result.
 
   The main lesson is that the classifier handled changing inputs when each digit produced enough evidence before the decision ended.
 
-  == 2. Prospective design and scope
+  #run-view("exp082", inputs)
+
+  == Prospective design and scope
 
   Three PING networks were trained independently across changing input rates, then frozen before evaluation. Within each five-digit stream, the PING network runs continuously: its hidden neuronal state does not reset when the digit changes. Only the output-LIF state and class counts reset, so each digit starts a new decision without restarting the network. The shared design below shows this streaming arrangement.
 
@@ -50,9 +55,9 @@
     The experiment and publication scaffold were committed before execution. The networks, readout, evaluation grid, checkpoint policy, sampling scale, and planned outputs were fixed. Missing directional thresholds and a formal uncertainty model limit confirmatory interpretation.
   ]
 
-  == 3. Investigations
+  == Investigations
 
-  === 3.1 How output spikes become a decision
+  === How output spikes become a decision
 
   The first investigation shows how the trained readout forms a decision. At timestep $t$, the excitatory spike vector $bold(s)^E(t)$ drives ten learned output-LIF units. For a presentation beginning at $a$ and ending before $b$, class $c$ accumulates
 
@@ -67,7 +72,7 @@
 
   In this digit-4 presentation, output spikes increment class counts around successive population bursts. Softmax converts those counts into the displayed shares, but it is not a calibrated posterior and does not determine the winner. The trajectory explains the readout and is consistent with bursts delivering packets of class evidence. One selected example cannot show that each cycle improves the decision or that rhythmic packaging causes the aggregate pattern. The next investigation therefore tests the same readout in a changing stream.
 
-  === 3.2 Classification in a changing stream
+  === Classification in a changing stream
 
   The second investigation changes input rate and presentation duration at digit boundaries while enforcing $T_"readout"=T_"presentation"$. Boundary resets should prevent class evidence from leaking across labels, although continuing hidden state can shape early activity. Five registered conditions span sparse, dense, short, and matched presentations. This stream is a qualitative stress test, not an accuracy estimate.
 
@@ -78,7 +83,7 @@
 
   Three of five presentations were correct. The 0.5 Hz presentation produced no output spikes and failed; the 2 Hz presentation also failed. Presentations at 5, 10, and 25 Hz were correct despite lasting from 25 to 200 ms. The stream verifies matched-window operation and exposes a silent sparse-input failure. Five outcomes cannot estimate reliability.
 
-  === 3.3 Rate and duration robustness
+  === Rate and duration robustness
 
   The factorial evaluation crosses four matched presentation/readout durations with all eleven training rates. Each condition contains 200 digits for each network. The leading account predicts that accuracy will rise as rate and duration supply more output events, then remain useful across a broad upper-rate region.
 
@@ -96,13 +101,13 @@
 
   At 200 ms, mean accuracy rose from #pct(mean(at-rate(0.5).map(row => row.accuracy))) at 0.5 Hz to #pct(mean(at-rate(3.0).map(row => row.accuracy))) at 3 Hz and #pct(mean(at-rate(7.5).map(row => row.accuracy))) at 7.5 Hz. Across 10--25 Hz, it remained between #pct(mean(at-rate(10.0).map(row => row.accuracy))) and #pct(mean(at-rate(15.0).map(row => row.accuracy))). The dense end did not collapse. At 15 Hz, seed-level accuracy ranged from #pct(minimum(at-rate(15.0).map(row => row.accuracy))) to #pct(maximum(at-rate(15.0).map(row => row.accuracy))). The sparse edge was weaker: at 0.5 Hz, accuracy ranged from #pct(minimum(at-rate(0.5).map(row => row.accuracy))) to #pct(maximum(at-rate(0.5).map(row => row.accuracy))), with #pct(mean(at-rate(0.5).map(row => row.silent_fraction))) silent windows on average.
 
-  == 4. Executed methods
+  == Executed methods
 
-  === 4.1 Networks and frozen selection
+  === Networks and frozen selection
 
   Three PING networks were trained independently on MNIST. Each image presentation sampled one of the eleven registered input rates. A learned projection connected 1024 excitatory cells to ten output-LIF class units, whose spike counts served as logits. Validation accuracy selected one checkpoint per seed. All weights and checkpoints remained fixed during the study.
 
-  === 4.2 Streaming evaluation and diagnostics
+  === Streaming evaluation and diagnostics
 
   Input pixels generated independent Bernoulli spikes at 0.1 ms resolution. Each evaluation cell comprised 40 independent five-digit streams per seed, giving 200 decisions. We simulated five streams per batch, with separate neuronal state for each stream. Hidden state continued only within a stream. At every digit boundary, the output-LIF state and counter reset. Each decision therefore used its matched presentation window alone. The factorial evaluation crossed presentations of 25, 50, 100, and 200 ms with input rates from 0.5 to 25 Hz. The fixed-duration psychometric is the 200 ms slice. For each seed and condition, we retained accuracy, output spikes per presentation, silent-window fraction, and excitatory and inhibitory population rates. The plots summarize seed-level accuracy; they do not pool seeds into one nominal replicate.
 
@@ -112,13 +117,13 @@
 
   where $A_(d,r,s)$ is accuracy for duration $d$, rate $r$, and trained seed $s$. Each cell contains $N=200$ digits; $hat(y)$ is the predicted label and $y$ is the true label. Output silence is a companion diagnostic. We summarize the three seed-level accuracies rather than treating 600 presentations as independent network replicates.
 
-  === 4.3 Illustrations, deviations, and limits
+  === Illustrations, deviations, and limits
 
   The variable stream used five fixed duration--rate pairs and supports only qualitative interpretation. The single-trial figure shows the first correct presentation in a pre-existing 200 ms, 5 Hz stream, selected to explain a successful readout rather than estimate reliability. All factorial cells completed without a known scientific deviation, retraining, or parameter search. Evaluation used held-out streams and validation-selected classifiers. The study lacks a fixed-rate control, population-level intervals, additional training seeds, an independent stream-bank repeat, and adjusted condition comparisons. Agreement across three networks supports robustness within the tested protocol, not across a broader network population. This is a deployment evaluation rather than an account of final-epoch dynamics.
 
   #pagebreak()
 
-  == 5. Conclusion
+  == Conclusion
 
   Across these three networks, the native matched-window readout worked over a broad part of the trained rate range. At 200 ms, accuracy remained high from moderate through dense rates, weakening the narrow-optimum rival. Longer windows improved accuracy and reduced silence. The weak 0.5 Hz edge points to insufficient output evidence as the sparse-input failure mode.
 
@@ -127,7 +132,7 @@
 #body
 ]
 
-#let body = if inputs-ready(data-file, inputs) {
+#let report-body = if inputs-ready(data-file, inputs) {
   render-report(data-file)
 } else {
   pending-report(
@@ -136,3 +141,7 @@
     preview-figures, json-inputs: ("exp082",),
   )
 }
+
+#let meta = meta + (assets: input-assets("exp082", inputs))
+#let body = with-datasets("exp082", inputs, report-body, placed: inputs-ready(data-file, inputs))
+#let body = with-contents(body)

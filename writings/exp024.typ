@@ -1,9 +1,12 @@
+#import "contents.typ": with-contents
 #import "/.demolab/lib.typ": data-json, data-image, cite, reference-list
 #import "run-inputs.typ": data-file, inputs-ready, pending-report
+#import "run-view.typ": with-datasets, run-view
+#import "run-inputs.typ": input-assets
 #let data-file = data-file.with(article: "exp024")
 
 #let meta = (
-  status: "Results available",
+  status: "[▦ DATA]",
   title: "Accuracy Plateaus While Firing Rate Rises",
   date: "2026-06-02",
   updated_at: "2026-08-27",
@@ -38,6 +41,8 @@
   rate-stability threshold. Accuracy and firing rate therefore require separate
   convergence checks; a low rate alone does not establish a fixed-rate attractor.
 
+  #run-view("exp024", inputs)
+
   == Inputs
 
   Uses the unregularised baseline learning histories from
@@ -45,9 +50,9 @@
   The complete trajectories support comparisons throughout learning, rather than
   only at a selected checkpoint.
 
-  == Results
+  == Results: Both architectures miss rate-stability criteria despite converged accuracy
 
-  === 1. COBA training trajectories
+  === COBA training trajectories
 
   #figure(
     data-image(data-file("exp024/coba_curves.svg"), width: 100%,
@@ -60,7 +65,7 @@
       and #count("coba", "e_rate_converged_count")/#n meet the rate criterion.],
   )
 
-  === 2. PING training trajectories
+  === PING training trajectories
 
   #figure(
     data-image(data-file("exp024/ping_curves.svg"), width: 100%,
@@ -73,7 +78,7 @@
       and #count("ping", "e_rate_converged_count")/#n meet the rate criterion.],
   )
 
-  === 3. Accuracy, cross-entropy and activity
+  === Accuracy, cross-entropy and activity
 
   #figure(
     data-image(data-file("exp024/confidence_inflation.svg"), width: 100%,
@@ -163,10 +168,14 @@
 #body
 ]
 
-#let body = if inputs-ready(data-file, inputs) {
+#let report-body = if inputs-ready(data-file, inputs) {
   render-report(data-file)
 } else {
   pending-report(data-file, inputs,
     [Does firing rate settle when classification accuracy plateaus? Compare the
       retained validation trajectories of COBA and PING.], preview-figures)
 }
+
+#let meta = meta + (assets: input-assets("exp024", inputs))
+#let body = with-datasets("exp024", inputs, report-body, placed: inputs-ready(data-file, inputs))
+#let body = with-contents(body)

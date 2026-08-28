@@ -25,7 +25,21 @@ def main(argv: list[str] | None = None) -> int:
         type=Path,
         help="runs directory (default: DEMOLAB_PREVIEW_SOURCE, then .pingstore/runs)",
     )
+    presentation = commands.add_parser(
+        "presentation-inputs",
+        help="prepare validated JSON for Pinglab's Typst run view",
+    )
+    presentation.add_argument(
+        "--root",
+        type=Path,
+        default=Path("."),
+        help="lab directory (default: current working directory)",
+    )
     args = parser.parse_args(argv)
+    if args.command == "presentation-inputs":
+        from .presentation_inputs import prepare
+
+        return prepare(args.root)
     source = args.source or Path(
         os.environ.get("DEMOLAB_PREVIEW_SOURCE") or ".pingstore/runs"
     )

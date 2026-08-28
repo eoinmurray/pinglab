@@ -1,9 +1,12 @@
+#import "contents.typ": with-contents
 #import "/.demolab/lib.typ": data-json, data-image
 #import "run-inputs.typ": data-file, inputs-ready, pending-report
+#import "run-view.typ": with-datasets, run-view
+#import "run-inputs.typ": input-assets
 #let data-file = data-file.with(article: "exp084")
 
 #let meta = (
-  status: "Implemented",
+  status: "[≡ TXT]",
   title: "Can inhibitory recovery tune default PING into gamma?",
   date: "2026-08-17",
   description: "A one-parameter SNNLANG sweep tests whether inhibitory synaptic decay controls the default PING component's rhythm frequency.",
@@ -30,23 +33,7 @@
 
   At a fixed #r.config.input_rate_hz Hz/channel drive, shortening inhibitory synaptic decay from #slowest.tau_gaba_ms to #fastest.tau_gaba_ms ms accelerates the default SNNLANG PING rhythm from #calc.round(slowest.rhythm_frequency_median_hz, digits: 2) to #calc.round(fastest.rhythm_frequency_median_hz, digits: 2) Hz. Decays of #r.conditions.at(1).tau_gaba_ms ms and below enter the 30--80 Hz gamma band without weakening the standard rhythmicity score. This experiment varies one public component parameter while preserving the authored circuit, paired inputs, and analysis policy established in exp083.
 
-  == Methods
-
-  + *Fix the active operating point.* A typed #(r.config.n_input)-channel spike input drives #r.config.n_e excitatory (E) and #r.config.n_i inhibitory (I) cells at #r.config.input_rate_hz Hz per channel. Each condition reuses the same #r.config.trials deterministic input tensors and network seed. Trials last #r.config.t_ms ms; the first #r.config.burn_ms ms are excluded.
-
-  + *Vary inhibitory recovery only.* The public `tau_gaba` argument of `snn.components.ping()` spans #(r.config.tau_gaba_ms.map(value => str(value) + " ms").join(", ")). The default is #default.tau_gaba_ms ms. Every other neuron, synapse, delay, initializer, and constraint specification remains unchanged.
-
-  + *Apply the registered rhythm analyses.* The #raw(r.frequency_analysis.name) estimator reports the dominant E-population rhythm over #r.frequency_analysis.band_hz.at(0)--#r.frequency_analysis.band_hz.at(1) Hz, including its prominence and subharmonic rules. Rhythmicity is the standard autocorrelation lobe-trough contrast $R$ used in exp083. E/I lag is measured separately from the peak cross-correlation of 1 ms population counts.
-
-  #figure(
-    data-image(data-file("exp084/network.svg"),
-      width: 82%,
-      alt: "Compiled default PING graph at the default inhibitory decay condition.",
-    ),
-    caption: [
-      Compiled SNNLANG graph at the #default.tau_gaba_ms ms default condition. Across the sweep, only the decay time attached to the I-to-E GABA projection changes. The input tensor, populations, weights, delays, and execution seeds are paired across conditions.
-    ],
-  )
+  #run-view("exp084", inputs)
 
   == Results
 
@@ -71,11 +58,30 @@
       Single paired-trial E and I rasters at the preselected fast, default, and slow inhibitory decay conditions. Time is in milliseconds; E cells are black, I cells are red, and the dashed vertical line marks the transient exclusion. Right labels give inhibitory decay and the resolved dominant frequency.
     ],
   )
+
+  == Methods
+
+  + *Fix the active operating point.* A typed #(r.config.n_input)-channel spike input drives #r.config.n_e excitatory (E) and #r.config.n_i inhibitory (I) cells at #r.config.input_rate_hz Hz per channel. Each condition reuses the same #r.config.trials deterministic input tensors and network seed. Trials last #r.config.t_ms ms; the first #r.config.burn_ms ms are excluded.
+
+  + *Vary inhibitory recovery only.* The public `tau_gaba` argument of `snn.components.ping()` spans #(r.config.tau_gaba_ms.map(value => str(value) + " ms").join(", ")). The default is #default.tau_gaba_ms ms. Every other neuron, synapse, delay, initializer, and constraint specification remains unchanged.
+
+  + *Apply the registered rhythm analyses.* The #raw(r.frequency_analysis.name) estimator reports the dominant E-population rhythm over #r.frequency_analysis.band_hz.at(0)--#r.frequency_analysis.band_hz.at(1) Hz, including its prominence and subharmonic rules. Rhythmicity is the standard autocorrelation lobe-trough contrast $R$ used in exp083. E/I lag is measured separately from the peak cross-correlation of 1 ms population counts.
+
+  #figure(
+    data-image(data-file("exp084/network.svg"),
+      width: 82%,
+      alt: "Compiled default PING graph at the default inhibitory decay condition.",
+    ),
+    caption: [
+      Compiled SNNLANG graph at the #default.tau_gaba_ms ms default condition. Across the sweep, only the decay time attached to the I-to-E GABA projection changes. The input tensor, populations, weights, delays, and execution seeds are paired across conditions.
+    ],
+  )
+
 ]
 #body
 ]
 
-#let body = if inputs-ready(data-file, inputs) {
+#let report-body = if inputs-ready(data-file, inputs) {
   render-report(data-file)
 } else {
   pending-report(
@@ -84,3 +90,7 @@
     preview-figures, json-inputs: ("exp084",),
   )
 }
+
+#let meta = meta + (assets: input-assets("exp084", inputs))
+#let body = with-datasets("exp084", inputs, report-body, placed: inputs-ready(data-file, inputs))
+#let body = with-contents(body)

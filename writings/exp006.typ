@@ -1,5 +1,7 @@
+#import "contents.typ": with-contents
+#import "run-view.typ": with-datasets
 #let meta = (
-  status: "Drafted",
+  status: "[≡ TXT]",
   title: "Training",
   updated_at: "2026-08-28",
   date: "2026-05-14",
@@ -9,18 +11,6 @@
 )
 
 #let body = [
-  == Contents
-
-  + #link("/exp006/#start-a-small-training-run")[Start a small training run]
-  + #link("/exp006/#checkpoints-and-evaluation")[Checkpoints and evaluation]
-  + #link("/exp006/#backpropagation-through-time")[Backpropagation through time]
-  + #link("/exp006/#surrogate-gradients")[Surrogate gradients]
-  + #link("/exp006/#readout")[Readout]
-  + #link("/exp006/#firing-rate-regularisation")[Firing-rate regularisation]
-  + #link("/exp006/#weight-init")[Weight init]
-  + #link("/exp006/#troubleshooting")[Troubleshooting]
-
-
   This page describes the legacy `--executor legacy` training path in `tools/snnsim/train.py`. It connects the training controls to their implementation. For declarative graph training, use #link("/exp088/")[Training recipes and graph-native learning]; graph checkpoints and input bindings have a different contract.
 
   == Start a small training run
@@ -161,3 +151,6 @@
 
   #link("/exp100/")[Previous: COBANet] · #link("/exp015/")[Next: Gradient Stabilisation]
 ]
+
+#let body = with-datasets("exp006", (), body)
+#let body = with-contents(body)

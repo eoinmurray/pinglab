@@ -1,5 +1,7 @@
+#import "contents.typ": with-contents
+#import "run-view.typ": with-datasets
 #let meta = (
-  status: "Drafted",
+  status: "[≡ TXT]",
   title: "Parameters & Units",
   updated_at: "2026-08-28",
   date: "2026-05-14",
@@ -9,15 +11,6 @@
 )
 
 #let body = [
-  == Contents
-
-  + #link("/exp004/#using-this-reference")[Using this reference]
-  + #link("/exp004/#quantities")[Quantities]
-  + #link("/exp004/#coba-ping-biophysical-constants")[Biophysical constants]
-  + #link("/exp004/#internal-consistency")[Internal consistency]
-  + #link("/exp004/#checking-a-configuration")[Checking a configuration]
-
-
   == Using this reference
 
   Use this page when setting a CLI flag, reading a saved configuration, or checking a neuron update. The legacy SNNSIM biophysical model uses *ms for time, mV for voltage, nF for capacitance, μS for conductance, nA for current, and Hz for rates*. A `--dt 1` means 1 ms, not 1 s. Names are not uniformly suffixed: `sim_ms`, `ref_ms_E`, `tau_gaba`, and `dt` all represent milliseconds.
@@ -100,3 +93,6 @@
 
   #link("/exp011/")[Previous: SNNSIM command-line guide] · #link("/exp100/")[Next: COBANet]
 ]
+
+#let body = with-datasets("exp004", (), body)
+#let body = with-contents(body)

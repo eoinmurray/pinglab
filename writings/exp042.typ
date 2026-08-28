@@ -1,9 +1,12 @@
+#import "contents.typ": with-contents
 #import "/.demolab/lib.typ": data-json, data-image
 #import "run-inputs.typ": data-file, inputs-ready, pending-report
+#import "run-view.typ": with-datasets, run-view
+#import "run-inputs.typ": input-assets
 #let data-file = data-file.with(article: "exp042")
 
 #let meta = (
-  status: "Results available",
+  status: "[▦ DATA]",
   title: "Breaking Gamma Releases the Rate Gate",
   date: "2026-06-02",
   updated_at: "2026-08-27",
@@ -78,9 +81,11 @@
   jitter preserved burst synchrony and raised it to #cyc_e_anchor Hz. Within the
   tested regime, inhibitory temporal structure therefore gates excitatory rate.
 
-  == Results
+  #run-view("exp042", inputs)
 
-  === 1. Equal mean inhibition produces opposite excitatory rates
+  == Results: Inhibitory spike timing changes excitatory rates at similar inhibition levels
+
+  === Equal mean inhibition produces opposite excitatory rates
 
   #figure(
     data-image(data-file("exp042/rhythm_compound.png"),
@@ -103,7 +108,7 @@
   compared with #base_i Hz at baseline. Similar amounts of inhibition produced
   opposite outcomes: its timing matters.
 
-  === 2. Millisecond-scale smearing collapses firing and accuracy
+  === Millisecond-scale smearing collapses firing and accuracy
 
   #figure(
     data-image(data-file("exp042/cell_jitter_sweep.svg"),
@@ -123,7 +128,7 @@
   This supports the idea that gaps between inhibitory bursts let excitatory
   cells recover and fire.
 
-  === 3. Moving intact bursts releases excitatory firing
+  === Moving intact bursts releases excitatory firing
 
   #figure(
     data-image(data-file("exp042/jitter_sweep.svg"),
@@ -217,7 +222,7 @@
 #body
 ]
 
-#let body = if inputs-ready(data-file, inputs) {
+#let report-body = if inputs-ready(data-file, inputs) {
   render-report(data-file)
 } else {
   pending-report(
@@ -226,3 +231,7 @@
     preview-figures, json-inputs: ("exp042",),
   )
 }
+
+#let meta = meta + (assets: input-assets("exp042", inputs))
+#let body = with-datasets("exp042", inputs, report-body, placed: inputs-ready(data-file, inputs))
+#let body = with-contents(body)

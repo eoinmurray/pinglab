@@ -1,5 +1,7 @@
+#import "contents.typ": with-contents
+#import "run-view.typ": with-datasets
 #let meta = (
-  status: "Drafted",
+  status: "[≡ TXT]",
   title: "Cloudflare R2 archive",
   date: "2026-08-11",
   updated_at: "2026-08-28",
@@ -9,16 +11,6 @@
 )
 
 #let body = [
-  == Contents
-
-  + #link("/exp104/#what-is-backed-up")[What is backed up]
-  + #link("/exp104/#access-and-authentication")[Access and authentication]
-  + #link("/exp104/#inspect-snapshots")[Inspect snapshots]
-  + #link("/exp104/#archive-a-completed-campaign")[Archive a completed campaign]
-  + #link("/exp104/#restore-campaign-payloads")[Restore campaign payloads]
-  + #link("/exp104/#completed-run-recovery")[Completed-run recovery]
-  + #link("/exp104/#safety-and-troubleshooting")[Safety and troubleshooting]
-
   == What is backed up
 
   R2 is remote backup storage for expensive-to-reproduce payloads such as trained checkpoint banks. Git records source code; Pingstore records completed scientific runs. An R2 snapshot is not automatically a complete Pingstore run, and a successful download does not make recovered files operational evidence.
@@ -121,3 +113,6 @@
 
   #link("/exp103/")[Previous: Compute options]
 ]
+
+#let body = with-datasets("exp104", (), body)
+#let body = with-contents(body)

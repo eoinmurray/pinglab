@@ -1,9 +1,12 @@
+#import "contents.typ": with-contents
 #import "/.demolab/lib.typ": data-json, data-image, cite, reference-list
 #import "run-inputs.typ": data-file, inputs-ready, pending-report
+#import "run-view.typ": with-datasets, run-view
+#import "run-inputs.typ": input-assets
 #let data-file = data-file.with(article: "exp033")
 
 #let meta = (
-  status: "Implemented",
+  status: "[▦ DATA]",
   title: "Gamma Emerges at a Hopf Bifurcation",
   date: "2026-05-28",
   updated_at: "2026-08-28",
@@ -71,9 +74,11 @@
   \[(!) This supplies a candidate mechanism for recruitment, not a demonstrated
   identification of the spiking transition.\]
 
-  == Results
+  #run-view("exp033", inputs)
 
-  === 1. Oscillatory onset
+  == Results: Up/down sweeps show no resolved hysteresis at oscillatory onset
+
+  === Oscillatory onset
 
   #figure(
     data-image(data-file("exp033/bifurcation_compound.svg"), width: 100%,
@@ -90,7 +95,7 @@
     ],
   ) <fig-overview>
 
-  === 2. Sensitivity to the effective noise scale
+  === Sensitivity to the effective noise scale
 
   #figure(
     data-image(data-file("exp033/sigma_sensitivity.svg"), width: 100%,
@@ -105,7 +110,7 @@
     ],
   ) <fig-sigma>
 
-  === 3. Linear stability
+  === Linear stability
 
   #figure(
     data-image(data-file("exp033/eigenvalues_complex.svg"), width: 100%,
@@ -121,7 +126,7 @@
     ],
   ) <fig-eigenvalues>
 
-  === 4. Inhibitory decay and rhythm frequency
+  === Inhibitory decay and rhythm frequency
 
   #figure(
     data-image(data-file("exp033/freq_vs_tau_gaba.svg"), width: 100%,
@@ -139,7 +144,7 @@
     ],
   ) <fig-frequency>
 
-  === 5. Reversibility at the sampled resolution
+  === Reversibility at the sampled resolution
 
   #figure(
     data-image(data-file("exp033/hysteresis.svg"), width: 100%,
@@ -155,7 +160,7 @@
     ],
   ) <fig-hysteresis>
 
-  === 6. Above-onset waveform
+  === Above-onset waveform
 
   #figure(
     data-image(data-file("exp033/limit_cycle.svg"), width: 100%,
@@ -170,7 +175,7 @@
     ],
   ) <fig-cycle>
 
-  === 7. Timing through the feedback loop
+  === Timing through the feedback loop
 
   #figure(
     data-image(data-file("exp033/timeseries.svg"), width: 100%,
@@ -183,7 +188,7 @@
     ],
   ) <fig-timeseries>
 
-  === 8. Pairwise projections
+  === Pairwise projections
 
   #figure(
     data-image(data-file("exp033/phase_planes.svg"), width: 100%,
@@ -197,7 +202,7 @@
     ],
   ) <fig-phase>
 
-  === 9. Quasi-steady reductions
+  === Quasi-steady reductions
 
   #figure(
     data-image(data-file("exp033/reduction_ladder.svg"), width: 100%,
@@ -266,9 +271,9 @@
     Each network frequency came from the interpolated peak of trial-averaged
     population spectra; these were not medians of individual-trial peaks.
 
-  == Appendix A. From spiking membranes to a population-rate closure
+  == Appendix: From spiking membranes to a population-rate closure
 
-  === A.1 Summary of COBA model.
+  === Summary of COBA model.
 
   Here $V$ is membrane voltage (mV), $C_m$ capacitance (nF), $g_L$ leak
   conductance (µS), and $E_L$, $E_e$, $E_i$ are leak, excitatory and inhibitory
@@ -288,7 +293,7 @@
   $ g^E_(i,t+1) = e^(-Delta t \/ tau_"GABA") g^E_(i,t) + W_"ie" s^i_t $ <eq-old-5>
   $ g^I_(e,t+1) = e^(-Delta t \/ tau_"AMPA") g^I_(e,t) + W_"ei" s^e_t $ <eq-old-6>
 
-  === A.2. Continuous-time form with tonic drive.
+  === Continuous-time form with tonic drive.
 
   Recast in continuous time. The synapses @eq-old-4 to @eq-old-6 are the exp-Euler form of
   first-order filters $tau dot(g) = -g + tau sum W s$, used here as ODEs. At a
@@ -307,7 +312,7 @@
   with $s^E (t), s^I (t)$ the population spike trains and $W^(E I), W^(I E)$ the
   recurrent weight matrices; @eq-old-9 and @eq-old-10 are the continuous forms of @eq-old-5 and @eq-old-6.
 
-  === A.3. Homogeneous coupling and population means.
+  === Homogeneous coupling and population means.
 
   The motivating spiking network has $N_E = 1024$ excitatory cells and
   $N_I = 256$ inhibitory cells. These are population sizes, not extra state
@@ -357,7 +362,7 @@
     tau_"AMPA" dot(g)_e^I & = -g_e^I + tau_"AMPA" tilde(W)^(E I) E \
     tau_"GABA" dot(g)_i^E & = -g_i^E + tau_"GABA" tilde(W)^(I E) I $
 
-  === A.4. Driving-force linearisation.
+  === Driving-force linearisation.
 
   The synaptic current is conductance times a _driving force_, $-g (V - E_"rev")$,
   a $g$–$V$ product, hence nonlinear. Freeze $V$ at rest, $V_"rest" = E_L = -65$ mV,
@@ -384,7 +389,7 @@
     tau_"AMPA" dot(g)_e^I & = -g_e^I + tau_"AMPA" tilde(W)^(E I) E \
     tau_"GABA" dot(g)_i^E & = -g_i^E + tau_"GABA" tilde(W)^(I E) I $
 
-  === A.5. Population rate from an f-I curve.
+  === Population rate from an f-I curve.
 
   Under @eq-old-17 to @eq-old-19 the membrane equations @eq-old-7 and @eq-old-8 read
   $C_m dot(V) = -g_L (V - E_L) + I_"syn"$, LIF with a synaptic current. A LIF cell
@@ -404,7 +409,7 @@
   $ tau_I dot(I) = -I + Phi_I (g_e^I |Delta V_"exc"|) $ <eq-old-24>
 
   where $Phi_E, Phi_I$ are the smooth steady-state gain functions (the noisy LIF steady-state
-  curve defined in section A.9). Two more equations down, together
+  curve defined in #link(<sec-noisy-lif-gain-and-parameter-values>)[Noisy LIF gain and parameter values]). Two more equations down, together
   with @eq-old-15 and @eq-old-16, four equations in $(E, I, g_e^I, g_i^E)$.
 
   _Running system, end of A.5: a closed 4D rate model in $(E, I, g_e^I, g_i^E)$,
@@ -414,7 +419,7 @@
     tau_"AMPA" dot(g)_e^I & = -g_e^I + tau_"AMPA" tilde(W)^(E I) E \
     tau_"GABA" dot(g)_i^E & = -g_i^E + tau_"GABA" tilde(W)^(I E) I $
 
-  === A.6. Absorb the driving-force constants.
+  === Absorb the driving-force constants. <sec-absorb-the-driving-force-constants>
 
   The prefactors $Delta V_"inh", |Delta V_"exc"|$ in @eq-old-23 and @eq-old-24 and the fan-in
   scalings in @eq-old-15 and @eq-old-16 are constants carrying no dynamics; fold them into the
@@ -427,7 +432,7 @@
   The figures retain the original conductances $g$ in µS; the equations below
   use $h$ and current-valued couplings $W$ (nA per spike).\]
 
-  === A.7 The 4D system
+  === The 4D system
 
   After A.1–A.6, the mean-field equations are
   $ tau_E dot(E) = -E + Phi_E (I_"ext" - h_i^E), quad
@@ -435,10 +440,10 @@
   $ tau_"AMPA" dot(h)_e^I = -h_e^I + tau_"AMPA" W^(E I) E, quad
     tau_"GABA" dot(h)_i^E = -h_i^E + tau_"GABA" W^(I E) I $ <eq-old-27>
 
-  in state $(E, I, h_e^I, h_i^E)$. The tested quasi-steady reductions are examined in Appendix B; this is not
+  in state $(E, I, h_e^I, h_i^E)$. The tested quasi-steady reductions are examined in #link(<sec-appendix-which-variables-can-be-eliminated>)[Appendix: Which variables can be eliminated?]; this is not
   a claim that four physical coordinates are the only possible description.
 
-  === A.8 4D Jacobian
+  === 4D Jacobian
 
   At a fixed point $(E^*, I^*, h_e^(I*), h_i^(E*))$:
   $ J = mat(
@@ -482,7 +487,7 @@
   is excluded for this particular four-filter model with finite positive time
   constants. This does not exclude every possible torus mechanism.\]
 
-  === A.9. Noisy LIF gain and parameter values
+  === Noisy LIF gain and parameter values <sec-noisy-lif-gain-and-parameter-values>
   $ phi(mu) &= [tau_"ref" + tau_m sqrt(pi) Q(mu)]^(-1), \
     Q(mu) &= integral_a^b e^(u^2) (1 + "erf" u) dif u, \
     a &= (V_"reset" - mu_V) \/ sigma_V, \
@@ -523,13 +528,13 @@
   does not validate the underlying quadrature.\] The noise scale 3–6 mV was varied
   without calibration to spiking voltage statistics.
 
-  == Appendix B. Which variables can be eliminated?
+  == Appendix: Which variables can be eliminated? <sec-appendix-which-variables-can-be-eliminated>
 
   The four first-order filters preserve the sequence of excitation, recruitment
   and inhibition. Removing original variables by QSS substitution can destroy
   this feedback timing, but it is not the same operation as reducing the dynamics
   onto a centre manifold #cite(1). The following algebra retains the original
-  reduction attempts, using the current-valued $h$ coordinates from section A.6.
+  reduction attempts, using the current-valued $h$ coordinates from #link(<sec-absorb-the-driving-force-constants>)[Absorb the driving-force constants].
 
   + *Route A: the textbook Wilson-Cowan model (slave the conductances).* The standard
     2D tool is two rates with instantaneous coupling, the 4D model with instantaneous
@@ -641,7 +646,7 @@
   coordinate pairs cannot parameterize a local manifold. The numerical QSS
   tests and the geometric question must be distinguished.\]
 
-  == Appendix C. Numerical protocol and interpretation
+  == Appendix: Numerical protocol and interpretation
 
   LSODA relative/absolute tolerances were $(10^(-7), 10^(-10))$ for ramps,
   $(10^(-9), 10^(-12))$ for waveforms, and $(10^(-8), 10^(-11))$ for comparisons;
@@ -662,7 +667,7 @@
   spiking spectral peaks are different measurements. The comparison does not
   identify a causal contribution of gamma timing to classifier accuracy.
 
-  === C.1. What the amplitude ramps test
+  === What the amplitude ramps test
 
   The measured amplitude is
 
@@ -699,7 +704,7 @@
   that most amplitude is acquired within a particular narrow drive band.
   Those earlier claims exceeded the sampled evidence.\]
 
-  === C.2. Mechanistic connections and their limits
+  === Mechanistic connections and their limits
 
   The motivating proposal was that the
   #link("/exp025/")[input-coupling recruitment transition] is a supercritical
@@ -743,7 +748,7 @@
 #body
 ]
 
-#let body = if inputs-ready(data-file, inputs) {
+#let report-body = if inputs-ready(data-file, inputs) {
   render-report(data-file)
 } else {
   pending-report(
@@ -752,3 +757,7 @@
     preview-figures, json-inputs: ("exp033",),
   )
 }
+
+#let meta = meta + (assets: input-assets("exp033", inputs))
+#let body = with-datasets("exp033", inputs, report-body, placed: inputs-ready(data-file, inputs))
+#let body = with-contents(body)

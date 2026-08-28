@@ -1,9 +1,12 @@
+#import "contents.typ": with-contents
 #import "/.demolab/lib.typ": data-json, data-image, cite, reference-list
 #import "run-inputs.typ": data-file, inputs-ready, pending-report
+#import "run-view.typ": with-datasets, run-view
+#import "run-inputs.typ": input-assets
 #let data-file = data-file.with(article: "exp044")
 
 #let meta = (
-  status: "Results available",
+  status: "[▦ DATA]",
   title: "Firing Rate Across the Timestep Sweep",
   date: "2026-06-02",
   updated_at: "2026-08-27",
@@ -40,9 +43,11 @@
   pipeline, not one network evaluated at different timesteps. Single-trial rasters
   permit qualitative inspection of burst cadence; they do not establish gamma-period invariance.
 
-  == Results
+  #run-view("exp044", inputs)
 
-  === 1. Firing rate and classification accuracy
+  == Results: Mean firing spans #number(summary.e_rate_min_hz)–#number(summary.e_rate_max_hz) Hz; accuracy spans #number(summary.acc_min_pct)–#number(summary.acc_max_pct)%
+
+  === Firing rate and classification accuracy
 
   #figure(
     data-image(data-file("exp044/dt_sweep.svg"), width: 100%,
@@ -53,7 +58,7 @@
       official-test images at its training timestep.],
   )
 
-  === 2. Single-trial burst cadence
+  === Single-trial burst cadence
 
   #figure(
     data-image(data-file("exp044/raster_strip.png"), width: 100%,
@@ -65,7 +70,7 @@
       inspection, not a population estimate of gamma-period invariance.],
   )
 
-  === 3. Training trajectories
+  === Training trajectories
 
   #figure(
     data-image(data-file("exp044/training_curves.svg"), width: 100%,
@@ -133,7 +138,7 @@
 #body
 ]
 
-#let body = if inputs-ready(data-file, inputs) {
+#let report-body = if inputs-ready(data-file, inputs) {
   render-report(data-file)
 } else {
   pending-report(
@@ -142,3 +147,7 @@
     preview-figures, json-inputs: ("exp044",),
   )
 }
+
+#let meta = meta + (assets: input-assets("exp044", inputs))
+#let body = with-datasets("exp044", inputs, report-body, placed: inputs-ready(data-file, inputs))
+#let body = with-contents(body)

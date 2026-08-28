@@ -1,10 +1,13 @@
+#import "contents.typ": with-contents
 #import "/.demolab/lib.typ": data-json, data-image
 #import "run-inputs.typ": data-file, inputs-ready, pending-report
+#import "run-view.typ": with-datasets
+#import "run-inputs.typ": input-assets
 #import "manuscript-figures.typ": figure-description
 #let data-file = data-file.with(article: "exp093")
 
 #let meta = (
-  status: "Implemented",
+  status: "[▦ DATA]",
   title: "Old and New Manuscript Figures",
   date: "2026-08-22",
   description: "Compare the legacy and current gamma-gated sparsity manuscript plots side by side.",
@@ -83,8 +86,12 @@
 #body
 ]
 
-#let body = if inputs-ready(data-file, inputs) {
+#let report-body = if inputs-ready(data-file, inputs) {
   render-report(data-file)
 } else {
   pending-report(data-file, inputs, [], ())
 }
+
+#let meta = meta + (assets: input-assets("exp093", inputs))
+#let body = with-datasets("exp093", inputs, report-body)
+#let body = with-contents(body)

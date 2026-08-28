@@ -1,9 +1,12 @@
+#import "contents.typ": with-contents
 #import "/.demolab/lib.typ": data-json, data-image
 #import "run-inputs.typ": data-file, inputs-ready, pending-report
+#import "run-view.typ": with-datasets, run-view
+#import "run-inputs.typ": input-assets
 #let data-file = data-file.with(article: "exp083")
 
 #let meta = (
-  status: "Implemented",
+  status: "[≡ TXT]",
   title: "When does the default PING circuit start to sing?",
   date: "2026-08-17",
   description: "A fixed SNNLANG graph tests whether the default PING component develops a reproducible gamma rhythm as homogeneous Poisson drive increases.",
@@ -32,27 +35,7 @@
 
   The default `snn.components.ping()` circuit is silent at weak drive, then switches abruptly into a strongly rhythmic state near #transition.input_rate_hz Hz per input channel. The dominant rhythm rises from #calc.round(transition.rhythm_frequency_median_hz, digits: 2) to #calc.round(last-active.rhythm_frequency_median_hz, digits: 2) Hz across the active sweep and remains predominantly below the conventional gamma band. One compiled graph produces the entire response curve. No model parameter is tuned between conditions.
 
-  == Methods
-
-  + *Author one graph.* A typed #(r.config.n_input)-channel spike input drives the default PING component, which contains #r.config.n_e excitatory (E) and #r.config.n_i inhibitory (I) cells. The timestep is #r.config.dt_ms ms. Neuron, synapse, delay, initializer, and constraint specifications remain at their component defaults.
-
-  + *Vary only input drive.* Homogeneous Poisson input spans #(r.config.rates_hz.map(value => str(value) + " Hz").join(", ")) per channel. Every condition uses the same compiled graph and #r.config.trials paired deterministic trials, each lasting #r.config.t_ms ms. Measurements exclude the first #r.config.burn_ms ms.
-
-  + *Resolve the dominant rhythm.* The #raw(r.frequency_analysis.name) policy computes a single-trial Welch spectrum from the E-population raster. It searches #r.frequency_analysis.band_hz.at(0)--#r.frequency_analysis.band_hz.at(1) Hz, interpolates the peak between bins, rejects maxima at the band edge, and requires peak power to exceed #r.frequency_analysis.min_prominence_ratio times the band median. If a peak at half the selected frequency carries at least #calc.round(r.frequency_analysis.subharmonic_ratio * 100)% of its power, the lower frequency is reported. This prevents a strong harmonic from masquerading as the population rhythm.
-
-  + *Score rhythmicity.* The standard exp054 metric bins the E-population spike count at 1 ms, computes its normalized autocorrelogram, and applies a three-point smoothing kernel. If $L$ is the first side-lobe height and $T$ the following trough height, the dimensionless Michelson contrast is $R = (L - T) / (L + T)$. Silence is reported as $R = 0$.
-
-  + *Measure E/I timing separately.* Post-transient population spikes are binned at 1 ms. The lag of the strongest E/I cross-correlation within plus or minus 20 ms is descriptive and does not enter the gamma-resolution rule.
-
-  #figure(
-    data-image(data-file("exp083/network.svg"),
-      width: 82%,
-      alt: "Compiled SNNLANG graph with one typed spike input driving the default PING component.",
-    ),
-    caption: [
-      Compiled graph reused at every input condition. A time-by-batch-by-#r.config.n_input spike tensor drives one default PING component with #r.config.n_e E cells and #r.config.n_i I cells. Only the input event probability changes across the sweep; the graph and its parameters remain fixed.
-    ],
-  )
+  #run-view("exp083", inputs)
 
   == Results
 
@@ -87,11 +70,34 @@
       Mean E-population power spectra at the preselected input rates. Frequency is in hertz and power is normalized to each curve's maximum for shape comparison; frequency resolution uses the unnormalized single-trial spectra. The grey region marks the former 30--80 Hz gamma-only window. The dominant peaks sit below it, while visible harmonics fall inside it, explaining why a gamma-restricted search gave a misleading frequency curve.
     ],
   )
+
+  == Methods
+
+  + *Author one graph.* A typed #(r.config.n_input)-channel spike input drives the default PING component, which contains #r.config.n_e excitatory (E) and #r.config.n_i inhibitory (I) cells. The timestep is #r.config.dt_ms ms. Neuron, synapse, delay, initializer, and constraint specifications remain at their component defaults.
+
+  + *Vary only input drive.* Homogeneous Poisson input spans #(r.config.rates_hz.map(value => str(value) + " Hz").join(", ")) per channel. Every condition uses the same compiled graph and #r.config.trials paired deterministic trials, each lasting #r.config.t_ms ms. Measurements exclude the first #r.config.burn_ms ms.
+
+  + *Resolve the dominant rhythm.* The #raw(r.frequency_analysis.name) policy computes a single-trial Welch spectrum from the E-population raster. It searches #r.frequency_analysis.band_hz.at(0)--#r.frequency_analysis.band_hz.at(1) Hz, interpolates the peak between bins, rejects maxima at the band edge, and requires peak power to exceed #r.frequency_analysis.min_prominence_ratio times the band median. If a peak at half the selected frequency carries at least #calc.round(r.frequency_analysis.subharmonic_ratio * 100)% of its power, the lower frequency is reported. This prevents a strong harmonic from masquerading as the population rhythm.
+
+  + *Score rhythmicity.* The standard exp054 metric bins the E-population spike count at 1 ms, computes its normalized autocorrelogram, and applies a three-point smoothing kernel. If $L$ is the first side-lobe height and $T$ the following trough height, the dimensionless Michelson contrast is $R = (L - T) / (L + T)$. Silence is reported as $R = 0$.
+
+  + *Measure E/I timing separately.* Post-transient population spikes are binned at 1 ms. The lag of the strongest E/I cross-correlation within plus or minus 20 ms is descriptive and does not enter the gamma-resolution rule.
+
+  #figure(
+    data-image(data-file("exp083/network.svg"),
+      width: 82%,
+      alt: "Compiled SNNLANG graph with one typed spike input driving the default PING component.",
+    ),
+    caption: [
+      Compiled graph reused at every input condition. A time-by-batch-by-#r.config.n_input spike tensor drives one default PING component with #r.config.n_e E cells and #r.config.n_i I cells. Only the input event probability changes across the sweep; the graph and its parameters remain fixed.
+    ],
+  )
+
 ]
 #body
 ]
 
-#let body = if inputs-ready(data-file, inputs) {
+#let report-body = if inputs-ready(data-file, inputs) {
   render-report(data-file)
 } else {
   pending-report(
@@ -100,3 +106,7 @@
     preview-figures, json-inputs: ("exp083",),
   )
 }
+
+#let meta = meta + (assets: input-assets("exp083", inputs))
+#let body = with-datasets("exp083", inputs, report-body, placed: inputs-ready(data-file, inputs))
+#let body = with-contents(body)

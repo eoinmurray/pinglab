@@ -1,10 +1,13 @@
+#import "contents.typ": with-contents
 #import "/.demolab/lib.typ": data-json, data-image
 #import "run-inputs.typ": data-file, inputs-ready, pending-report
+#import "run-view.typ": with-datasets, run-view
+#import "run-inputs.typ": input-assets
 #import "/.demolab/lib.typ": cite, reference-list
 #let data-file = data-file.with(article: "exp081")
 
 #let meta = (
-  status: "Results available",
+  status: "[▦ DATA]",
   title: "How Pixel Features Respond to Input Rate",
   date: "2026-08-10",
   updated_at: "2026-08-27",
@@ -42,9 +45,11 @@
   fluctuation approximation; direct simulation remains necessary for quantitative
   predictions in this regime.
 
-  == Results
+  #run-view("exp081", inputs)
 
-  === 1. Empirical finite-window response
+  == Results: Linear theory captures filtering but misestimates finite-window response magnitudes
+
+  === Empirical finite-window response
 
   #figure(
     data-image(data-file("exp081/empirical_moments.svg"), width: 100%,
@@ -65,7 +70,7 @@
       bin on a logarithmic scale; feature values are in mV.],
   )
 
-  === 2. Analytical frequency response
+  === Analytical frequency response
 
   #figure(
     data-image(data-file("exp081/frequency_response.svg"), width: 100%,
@@ -77,7 +82,7 @@
       in dB relative to the lowest-drive DC response; frequency is in Hz.],
   )
 
-  === 3. Analytical and empirical moments
+  === Analytical and empirical moments
 
   #figure(
     data-image(data-file("exp081/analytical_empirical.svg"), width: 100%,
@@ -130,7 +135,7 @@
     frequency $omega$ in rad/ms. Its predicted variance was
     $ "Var"(z)=1/(2 pi) integral_(-oo)^oo abs(H_r (omega))^2 (r/1000) dif omega.
       quad "(3)" $
-    Appendix A specifies the transfer and Appendix B derives it.],
+    #link(<sec-appendix-model-specification-and-calculations>)[Appendix: model specification and calculations] specifies the transfer and #link(<sec-appendix-derivation-of-the-analytical-filter>)[Appendix: derivation of the analytical filter] derives it.],
 
     [*Integrate and compare.* We used trapezoidal integration over a logarithmic
     frequency grid, added the low-frequency DC tail, and checked a coarser grid.
@@ -142,7 +147,7 @@
 
   == Discussion
 
-  === Empirical finite-window response
+  === Interpreting the empirical finite-window response
 
   Mean response increased with input rate and event strength. Variability first
   increased as spike count and timing diversified, then flattened or declined
@@ -180,10 +185,10 @@
   Its zeros at $f=n/T_s$ cancel modulation containing an integer number of
   cycles within the presentation. Here $n$ is any nonzero integer. The absolute
   sinc response creates the lobes, while the Panel A low-pass response supplies
-  their falling envelope. Appendix B.3 derives Equation D1 from the
+  their falling envelope. #link(<sec-finite-window-average>)[Finite-window average] derives Equation D1 from the
   finite-window averaging kernel.
 
-  === Analytical and empirical moments
+  === Interpreting analytical and empirical moments
 
   The stationary model reproduced the mean curve's broad shape but not its
   magnitude, and it failed to reproduce the shape of the empirical standard
@@ -220,9 +225,9 @@
   analytical SD rises too sharply and peaks too early, especially for the
   largest conductance increment.
 
-  == Appendix A: model specification and calculations
+  == Appendix: model specification and calculations <sec-appendix-model-specification-and-calculations>
 
-  === A.1 Simulate the finite-window feature
+  === Simulate the finite-window feature
 
   We fixed the normalized pixel intensity at $x=1$ and varied only its input
   rate $r$ from #p.input_rate_grid_hz.first() to
@@ -272,7 +277,7 @@
   conductance shot noise#cite(1).
 
 
-  === A.2 Calculate the stationary operating point
+  === Calculate the stationary operating point
 
   For stationary Poisson rate $r$, filtered-shot-noise theory#cite(2) gives the
   mean AMPA conductance
@@ -296,11 +301,11 @@
   An overbar denotes an operating-point quantity, $macron(g)_r$ is mean conductance at
   rate $r$, $macron(v)_r$ is the voltage evaluated at mean conductance, and
   $mu_"linear" (z)$ is the resulting linear prediction for mean feature value.
-  Appendix B.1 derives Equations A6–A8 from the continuous conductance and
+  #link(<sec-stationary-conductance-and-voltage>)[Stationary conductance and voltage] derives Equations A6–A8 from the continuous conductance and
   membrane equations.
 
 
-  === A.3 Derive the local frequency response
+  === Derive the local frequency response
 
   Linearizing Equations A2–A4 in their continuous-time limit around the operating point gives the response from
   input-rate fluctuation to voltage fluctuation,
@@ -314,7 +319,7 @@
 
   Here $omega$ is angular frequency in rad/ms and $i$ is the imaginary unit.
   The transfer function $G_r (omega)$ maps a small input-rate fluctuation to its
-  voltage response around the operating point. Appendix B.2 derives Equation A9
+  voltage response around the operating point. #link(<sec-synapse-plus-membrane-linearization>)[Synapse-plus-membrane linearization] derives Equation A9
   by linearizing the synaptic and membrane equations.
 
   Averaging voltage over the finite presentation contributes
@@ -326,7 +331,7 @@
   $ H_r (omega) = A_T (omega) G_r (omega). quad "(A11)" $
 
   Here $A_T (omega)$ is the transfer function of averaging over duration $T$, and
-  $H_r (omega)$ is the complete input-to-feature transfer function. Appendix B.3
+  $H_r (omega)$ is the complete input-to-feature transfer function. #link(<sec-finite-window-average>)[Finite-window average]
   derives Equations A10 and A11.
 
   To generate Figure 3, we evaluated Equations A9 and A11 from
@@ -346,7 +351,7 @@
   the lowest operating rate used as the DC reference.
 
 
-  === A.4 Calculate the linearized feature variance
+  === Calculate the linearized feature variance
 
   The centred ideal Poisson input has a white two-sided spectrum on the
   millisecond time base,
@@ -364,16 +369,16 @@
 
   Here $S_"in" (omega)$ is the two-sided input power spectrum, $S_z (omega)$ is
   the feature power spectrum, and $"Var"_"linear"(z)$ is the predicted feature
-  variance. Appendix B.4 derives Equations A13–A15 from the Poisson spectrum and
+  variance. #link(<sec-poisson-spectrum-and-feature-variance>)[Poisson spectrum and feature variance] derives Equations A13–A15 from the Poisson spectrum and
   the linear-filter variance identity.
 
   We integrated Equation A15 numerically on a logarithmic frequency grid. A
   second calculation with half as many points measured quadrature refinement.
 
 
-  == Appendix B: derivation of the analytical filter
+  == Appendix: derivation of the analytical filter <sec-appendix-derivation-of-the-analytical-filter>
 
-  === B.1 Stationary conductance and voltage
+  === Stationary conductance and voltage <sec-stationary-conductance-and-voltage>
 
   Write the continuous AMPA equation driven by an event train
   $s(t)=sum_k delta(t-t_k)$ as
@@ -400,7 +405,7 @@
 
   and collecting the terms multiplying $macron(v)_r$ gives Equation A7.
 
-  === B.2 Synapse-plus-membrane linearization
+  === Synapse-plus-membrane linearization <sec-synapse-plus-membrane-linearization>
 
   Decompose each quantity into its operating point and a small fluctuation,
 
@@ -434,7 +439,7 @@
   numerator contains the conductance increment and local excitatory driving
   force.
 
-  === B.3 Finite-window average
+  === Finite-window average <sec-finite-window-average>
 
   Linearizing Equation A5 leaves the average of the voltage fluctuation,
 
@@ -459,7 +464,7 @@
   which becomes Equation D1 after substituting $omega=2 pi f/1000$ and
   $T_s=T/1000$.
 
-  === B.4 Poisson spectrum and feature variance
+  === Poisson spectrum and feature variance <sec-poisson-spectrum-and-feature-variance>
 
   For ideal Poisson events with rate $r/1000$ per ms, disjoint intervals have
   independent counts and count variance equals count mean. The centred impulse
@@ -497,7 +502,7 @@
 #body
 ]
 
-#let body = if inputs-ready(data-file, inputs) {
+#let report-body = if inputs-ready(data-file, inputs) {
   render-report(data-file)
 } else {
   pending-report(
@@ -506,3 +511,7 @@
     preview-figures, json-inputs: ("exp081",),
   )
 }
+
+#let meta = meta + (assets: input-assets("exp081", inputs))
+#let body = with-datasets("exp081", inputs, report-body, placed: inputs-ready(data-file, inputs))
+#let body = with-contents(body)

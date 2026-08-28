@@ -61,3 +61,8 @@ downstream stages never launch upstream work or automatically publish.
 
 Before creating or editing `writings/expXXX.typ`, read and follow
 the versioned [Writing Guide](writings/README.md).
+
+Agents must maintain each article's exact `[≡ TXT]` or `[▦ DATA]`
+status after relevant article, implementation, execution or local-data changes,
+including dependent comparisons and syntheses. Follow Writing Guide section 3.5
+for validation and uncertainty handling; status-only edits do not change dates.

@@ -75,17 +75,20 @@ def test_writings_do_not_import_legacy_resolver_or_link_artifacts():
         assert not re.search(r'^#import "/.demolab/lib.typ":.*\bdata-file\b', text, re.M), path
 
 
-def test_input_keys_match_preview_attachments():
+def test_input_keys_match_url_allowlist_and_legacy_attachments():
     config = subprocess.run(
         [_paths.find_typst(ROOT), "eval", "--root", str(ROOT), 'yaml("/demolab.yaml")'],
         capture_output=True, text=True, check=True, timeout=30,
     )
-    attachments = json.loads(config.stdout)["preview"]["articles"]
+    settings = json.loads(config.stdout)
+    attachments = settings["legacy_preview"]["articles"]
     for article in REPORTS:
         text = (WRITINGS / f"{article}.typ").read_text()
         declaration = re.search(r"^#let inputs = \((.*?)\)", text, re.M)
         assert declaration is not None, article
         assert set(re.findall(r'"([^"]+)"', declaration[1])) == set(attachments[article]), article
+        for key in attachments[article]:
+            assert "source." + key in settings["url_inputs"], (article, key)
 
 
 RESOLVER = '{ import "/writings/run-inputs.typ": data-file, inputs-ready; '
@@ -121,7 +124,7 @@ def test_exp081_selected_report_renders_all_sections(lab):
     for removed in ("Inputs and outputs", "Design Scope", "Prior art", "Conclusion", "Limitations"):
         assert removed not in rendered
     assert "Empirical finite-window response" in rendered
-    assert "Appendix B" in rendered
+    assert "derivation of the analytical filter" in rendered
     assert "uv run" not in rendered
     (selected / "numbers.json").write_text("broken")
     evaluate(lab, report_expression("exp081"), preview={"exp081": {"exp081": "/selected"}}, error="error:")

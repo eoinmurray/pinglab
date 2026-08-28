@@ -1,9 +1,12 @@
+#import "contents.typ": with-contents
 #import "/.demolab/lib.typ": data-json, data-image, cite, reference-list
 #import "run-inputs.typ": data-file, inputs-ready, pending-report
+#import "run-view.typ": with-datasets, run-view
+#import "run-inputs.typ": input-assets
 #let data-file = data-file.with(article: "exp038")
 
 #let meta = (
-  status: "Ready for review",
+  status: "[▦ DATA]",
   title: "Switching On the Inhibitory Loop",
   date: "2026-05-30",
   updated_at: "2026-08-28",
@@ -50,9 +53,11 @@
   but does not isolate a benefit of gamma timing or establish that retraining
   would recover accuracy.
 
-  == Results
+  #run-view("exp038", inputs)
 
-  === 1. Lower firing with an accuracy cost
+  == Results: Inhibitory feedback lowers firing at an accuracy cost
+
+  === Lower firing with an accuracy cost
 
   #figure(
     data-image(data-file("exp038/loop_transfer_compound.png"), width: 100%,
@@ -68,7 +73,7 @@
     ],
   )
 
-  === 2. Burst structure across loop strength
+  === Burst structure across loop strength
 
   #figure(
     data-image(data-file("exp038/ei_rasters.png"), width: 100%,
@@ -128,7 +133,7 @@
     #link("/exp023/")[architectural response-to-drive study]; they are not
     additional loop-transfer accuracy evaluations.
 
-  == Appendix A. Retained training and probe settings
+  == Appendix: Retained training and probe settings
 
   #table(
     columns: 2,
@@ -177,7 +182,7 @@
 #body
 ]
 
-#let body = if inputs-ready(data-file, inputs) {
+#let report-body = if inputs-ready(data-file, inputs) {
   render-report(data-file)
 } else {
   pending-report(
@@ -186,3 +191,7 @@
     preview-figures, json-inputs: ("exp038",),
   )
 }
+
+#let meta = meta + (assets: input-assets("exp038", inputs))
+#let body = with-datasets("exp038", inputs, report-body, placed: inputs-ready(data-file, inputs))
+#let body = with-contents(body)

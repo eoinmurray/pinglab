@@ -1,5 +1,7 @@
+#import "contents.typ": with-contents
+#import "run-view.typ": with-datasets
 #let meta = (
-  status: "Drafted",
+  status: "[≡ TXT]",
   title: "Runtime state, checkpoints, and provenance",
   date: "2026-08-14",
   description: "Continue simulations safely, distinguish dynamic state from learned parameters, and record enough identity to replay a run.",
@@ -8,14 +10,6 @@
 )
 
 #let body = [
-  == Contents
-
-  + #link("/exp089/#developer-guide")[Developer guide]
-  + #link("/exp089/#runtime-state")[Runtime state]
-  + #link("/exp089/#checkpoints")[Checkpoints]
-  + #link("/exp089/#provenance")[Provenance]
-  + #link("/exp089/#api-reference")[API reference]
-
   == Developer guide
 
   === Runtime state
@@ -106,3 +100,6 @@
 
   #link("/exp090/")[Next: Compatibility, status, and extension]
 ]
+
+#let body = with-datasets("exp089", (), body)
+#let body = with-contents(body)

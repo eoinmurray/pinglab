@@ -1,5 +1,7 @@
+#import "contents.typ": with-contents
+#import "run-view.typ": with-datasets
 #let meta = (
-  status: "Drafted",
+  status: "[≡ TXT]",
   title: "Compatibility, status, and extension",
   date: "2026-08-14",
   description: "Understand the legacy compatibility contract, current capability boundary, and rules for extending snnlang safely.",
@@ -8,15 +10,6 @@
 )
 
 #let body = [
-  == Contents
-
-  + #link("/exp090/#developer-guide")[Developer guide]
-  + #link("/exp090/#compatibility")[Compatibility]
-  + #link("/exp090/#current-support")[Current support]
-  + #link("/exp090/#what-remains")[What remains]
-  + #link("/exp090/#extending-snnlang")[Extending snnlang]
-  + #link("/exp090/#api-reference")[API reference]
-
   == Developer guide
 
   === Compatibility
@@ -235,3 +228,6 @@
   - `tools/snnsim/bundle.py`: the narrow legacy adapter.
   - `tools/snnlang/tests` and `tools/snnsim/tests/test_execution.py`: focused conformance fixtures.
 ]
+
+#let body = with-datasets("exp090", (), body)
+#let body = with-contents(body)

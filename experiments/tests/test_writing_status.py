@@ -1,4 +1,4 @@
-"""Every article declares a research milestone from the Writing Guide."""
+"""Validate authored availability badges without requiring a local run store."""
 
 from __future__ import annotations
 
@@ -12,19 +12,14 @@ from demolab_cli import _paths
 ROOT = Path(__file__).resolve().parents[2]
 ARTICLES = sorted((ROOT / "writings").glob("exp[0-9][0-9][0-9].typ"))
 STATUSES = {
-    "Planned",
-    "Drafted",
-    "Implemented",
-    "Results available",
-    "Ready for review",
-    "Reviewed",
-    "Paused",
+    "[≡ TXT]",
+    "[▦ DATA]",
 }
 
 
 def test_status_vocabulary_matches_writing_guide():
     guide = (ROOT / "writings/README.md").read_text()
-    section = guide.split("### 3.5. Research milestones\n", 1)[1].split(
+    section = guide.split("### 3.5. Local-data availability\n", 1)[1].split(
         "\n## 4.", 1
     )[0]
     labels = {

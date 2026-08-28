@@ -1,5 +1,7 @@
+#import "contents.typ": with-contents
+#import "run-view.typ": with-datasets
 #let meta = (
-  status: "Drafted",
+  status: "[≡ TXT]",
   title: "COBANet",
   updated_at: "2026-08-28",
   date: "2026-05-14",
@@ -9,15 +11,6 @@
 )
 
 #let body = [
-  == Contents
-
-  + #link("/exp100/#implementation-map")[Implementation map]
-  + #link("/exp100/#1-a-conductance-based-neuron-equation")[Neuron equation]
-  + #link("/exp100/#2-the-coba-model")[The COBA model]
-  + #link("/exp100/#3-discretization")[Discretization]
-  + #link("/exp100/#checking-an-implementation-change")[Checking an implementation change]
-
-
   == Implementation map
 
   `COBANet` in `tools/snnsim/models.py` implements the built-in `--model ping` network. This page explains the minimal input→E→I→E motif; optional E→E, I→I, direct drives, adaptation, and trainable leak extend it. Read #link("/exp004/")[Parameters & Units] alongside these equations.
@@ -33,7 +26,7 @@
 
   Reuse the execution interface rather than changing model globals around a live network. A small forward command is given in #link("/exp011/#quick-start")[Quick start].
 
-  == 1. A conductance based neuron equation
+  == A conductance based neuron equation
 
   The membrane is a capacitor ($C_m$) pierced by ion channels in parallel. Conservation of charge (Kirchhoff) balances the capacitive current $C_m dif V\/dif t$ against the total ionic current:
 
@@ -47,7 +40,7 @@
 
   $ C_m (dif V) / (dif t) = -g_L (V - E_L) - g_e (V - E_e) - g_i (V - E_i) quad (3) $
 
-  == 2. The COBA model
+  == The COBA model
 
   In the minimal PING motif, E receives excitation and inhibition, while I receives excitation only. These equations omit the optional I→I pathway:
 
@@ -71,7 +64,7 @@
 
   (7) is E's excitation from the input $W_"in"$; (8) its inhibition from I via $W_"ie"$; (9) the I population's excitation from E via $W_"ei"$.
 
-  == 3. Discretization
+  == Discretization
 
   The conductances (7)–(9) and membrane equations (4)–(5) are continuous ODEs. The implementation places spike kicks on the timestep grid. Between kicks the conductances decay by $e^(-Delta t \/ tau)$, and the supplied spike adds its full weight at the update boundary — the decay-then-add recurrence $g_(t+1) = e^(-Delta t \/ tau) g_t + s_t W$ (with the $tau$, $W$ and spike train $s$ of each of (7)–(9)). The membrane we integrate by *exponential Euler* — the same algebra for both populations (the I neuron drops $g_i$).
 
@@ -110,3 +103,6 @@
 
   #link("/exp004/")[Previous: Parameters & Units] · #link("/exp006/")[Next: Training]
 ]
+
+#let body = with-datasets("exp100", (), body)
+#let body = with-contents(body)
