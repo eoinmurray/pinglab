@@ -6,6 +6,7 @@
   status: "Implemented",
   title: "One Spike per Gamma Cycle",
   date: "2026-06-04",
+  updated_at: "2026-08-28",
   description: "Counting E spikes per gamma cycle across exp041's 18 checkpoints shows the architecture is overwhelmingly one-spike-per-cycle.",
   collection: "gamma-gated-sparsity",
 )

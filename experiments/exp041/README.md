@@ -83,11 +83,13 @@ review`. This is not author acceptance or publication.
 
 ## Downstream boundary
 
-Exp033, exp046 and exp054 still consume legacy exp041 paths. New campaigns stop
-those consumers explicitly rather than reading stale or missing files after
-exp041 finishes. Their own staged input migrations are separate work. In
-particular, exp046 will need the pinned exp041 analysis measurements and the
-same exp022 training bank; no automatic publication bridge was introduced.
+Exp033 and exp054 still consume legacy exp041 paths. New campaigns stop those
+consumers explicitly rather than reading stale or missing files after exp041
+finishes. Their own staged input migrations are separate work. Exp046 now pins
+the exp041 analysis measurements and the same exp022 training bank directly;
+no automatic publication bridge was introduced. Its selective historical-data
+import is recorded in [the exp046 notes](../exp046/README.md); scientific article
+review remains separate.
 
 The code migration itself imported no Gold-2 data and rewrote no existing runs.
 The later, separately authorized import is recorded below. Exp033 and exp054 use
