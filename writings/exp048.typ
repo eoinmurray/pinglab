@@ -1,11 +1,12 @@
-#import "/.demolab/lib.typ": data-json, data-image
+#import "/.demolab/lib.typ": data-json, data-image, cite, reference-list
 #import "run-inputs.typ": data-file, inputs-ready, pending-report
 #let data-file = data-file.with(article: "exp048")
 
 #let meta = (
   status: "Implemented",
-  title: "Accuracy Across Duration and Input Rate",
+  title: "DEPRECATED — Accuracy Across Duration and Input Rate",
   date: "2026-06-08",
+  updated_at: "2026-08-28",
   description: "Streaming psychometric curves identify the presentation durations and encoding rates that support classification in a frozen trained PING network.",
   collection: "gamma-gated-sparsity",
 )
@@ -16,6 +17,22 @@
   (path: "exp048/acc_grid_tau_rate.png", label: "acc grid tau rate"),
 )
 
+// Clip only footer bookkeeping in the article; source images remain unchanged.
+#let report-image(path, trim-bottom: 0%, alt: none) = context {
+  if target() == "html" {
+    html.elem("div", attrs: (style: "clip-path:inset(0 0 " + str(trim-bottom / 1%) + "% 0)"),
+      data-image(path, width: 100%, alt: alt))
+  } else {
+    layout(size => {
+      let graphic = data-image(path, width: size.width, alt: alt)
+      let dimensions = measure(graphic)
+      pad(bottom: dimensions.height * trim-bottom,
+        block(width: size.width, height: dimensions.height * (100% - trim-bottom),
+          clip: true, graphic))
+    })
+  }
+}
+
 // Keep calculations lazy: absent inputs never become fabricated results.
 #let render-report(data-file) = [
 #let r = data-json(data-file("exp048/numbers.json"))
@@ -23,7 +40,6 @@
 #let rate-at(rate) = r.encoding_rate_psychometric.curve.filter(x => x.input_rate_hz == rate).at(0)
 #let p05 = rate-at(0.5)
 #let p2 = rate-at(2.0)
-#let p3 = rate-at(3.0)
 #let p5 = rate-at(5.0)
 #let p10 = rate-at(10.0)
 #let varying-correct = r.varying_headline.seg_correct.fold(0, (total, x) => total + x)
@@ -49,151 +65,61 @@
 #let body = [
   == Abstract
 
-  A frozen pyramidal-interneuron gamma (PING) network, whose trained weights
-  remain fixed during evaluation, is tested under
-  reductions of Modified National Institute of Standards and Technology (MNIST)
-  digit evidence. It classifies continuously
-  streamed digits without retraining, but a duration × input-rate sweep reveals
-  a failure floor below #cfg.tau_grid_ms.at(1) ms. At fixed
+  A frozen pyramidal-interneuron gamma (PING) network classified continuously
+  streamed Modified National Institute of Standards and Technology (MNIST) digits
+  without retraining, but showed rate-dependent losses at short presentation
+  durations. At fixed
   #r.encoding_rate_psychometric.presentation_ms ms presentation and
-  readout windows, performance remains at #(cfg.n_classes)-class chance through
+  readout windows, performance remained near #(cfg.n_classes)-class chance through
   #p05.input_rate_hz Hz
-  and becomes clearly informative by #p2.input_rate_hz Hz. Together, the curves
-  delimit temporal and event-rate evidence regimes for a future variable-rate
-  training experiment.
-
-  == Methods
-
-  === Streaming duration and encoding rate
-
-  The trained baseline from #link("/exp025/")[the canonical PING experiment]
-  contains #cfg.n_e excitatory (E) and #cfg.n_i inhibitory (I) cells. It was
-  trained on one MNIST digit per #cfg.trained_t_ms ms trial using random seeds
-  #cfg.train_seeds.map(str).join(", "). Each seed identifies an independent
-  training run with a reproducible random initialization and data order.
-  Everything here is *inference-only* at
-  the trained timestep Δt = #cfg.dt ms; the weights are never updated.
-  The two-dimensional sweep averages over all #cfg.train_seeds.len() seeds; the
-  single-stream examples use seed #cfg.seed.
-
-  A stream of digits, each shown for τ ms, is classified in one forward pass. The _only_ change from training is a sliding readout window:
-
-  1. *Encode* each digit as a Poisson spike train over τ ms across
-    #cfg.n_in input channels, one per pixel. Each channel generates independent
-    random spikes. The stated encoding rate is the expected number of spikes
-    per second for a full-intensity pixel; lower pixel intensities reduce that
-    rate proportionally.
-  2. *Concatenate* the per-digit trains into one input stream. At segment index
-    k, the Poisson rate switches instantaneously at the boundary
-
-    $ t_k = k tau. quad "(1)" $
-
-    Here t#sub[k] is the boundary time of segment k, k is the segment index,
-    and τ is the duration of each segment.
-
-  3. *Run once* through the trained network at the trained Δt, without
-    retraining.
-  4. *Integrate evidence* in a non-spiking output leaky integrator, one unit per
-    class. A leaky integrator accumulates incoming spikes while gradually
-    discounting older input:
-
-    $ v_"out" (t) = beta_"out" v_"out" (t-1) + (1 - beta_"out") / (Delta t) bold(s)^E (t-1) W_"out". quad "(2)" $
-
-    Here t is the discrete timestep; v#sub[out] (t) is the vector of
-    output-unit states; β#sub[out] is their leak factor, the fraction of the
-    previous output state retained for one timestep; Δt
-    is the simulation timestep; s#super[E] (t−1) is the E-cell spike
-    vector at the preceding timestep; and W#sub[out] is the trained
-    E-to-output weight matrix.
-
-  5. *Read a sliding window.* Average v#sub[out] over the trailing τ-window and
-    apply a softmax:
-
-    $ "logits"(t) = (Delta t) / tau sum_(u=t-w+1)^(t) v_"out" (u). quad "(3)" $
-
-    $ p("class", t) = "softmax"("logits"(t)). quad "(4)" $
-
-    Here logits(t) is the class-evidence vector; u indexes
-    timesteps in the window; τ is the presentation duration;
-    w is its number of timesteps; and p(class,t) is
-    the softmax-normalized class-probability vector. Softmax converts the logits
-    into non-negative class probabilities that sum to one. The readout-window duration
-    is matched exactly to the current digit's presentation duration:
-
-    $ T_"readout" = T_"presentation" = tau. quad "(5)" $
-
-    Here T#sub[readout] is the duration over which output evidence is averaged,
-    T#sub[presentation] is the time for which the digit is shown, and τ is that
-    common duration.
-
-    The corresponding window length is
-
-    $ w = tau / (Delta t). quad "(6)" $
-
-    Every digit is therefore read over exactly
-    its own presentation duration; readout duration is not varied independently.
-    At training the average ran over the _whole_ trial; the trailing
-    matched-duration window is the single change.
-  6. *Predict per segment* at the end of the digit's τ-window according to
-
-    $ hat(c)(t) = arg max_c p("class"=c, t). quad "(7)" $
-
-    Here c indexes the #cfg.n_classes digit classes, and arg max selects the
-    class with the largest probability.
-
-  The output leak is
-
-  $ beta_"out" = exp(-Delta t \/ tau_"out"). quad "(8)" $
-
-  Here τ#sub[out] is the output-unit time constant, which controls how quickly
-  accumulated output evidence decays, and exp denotes the exponential
-  function. The probability trace p(class,t) is the network's online class
-  confidence.
-
-  The grid uses presentation durations
-  #cfg.tau_grid_ms.map(x => str(x) + " ms").join(", ") and input rates
-  #cfg.rate_grid_hz.map(x => str(x) + " Hz").join(", ") per channel. This gives
-  #grid-cells cells with #segments-per-cell classified segments per cell.
-
-  To resolve the encoding-rate floor below the grid, additional evaluations use
-  rates #r.encoding_rate_psychometric.new_rates_hz.map(x => str(x) + " Hz").join(", ") while holding both presentation and readout at
-  #r.encoding_rate_psychometric.presentation_ms ms. Each cell contains
-  #(r.encoding_rate_psychometric.new_streams_per_seed) streams of
-  #(r.encoding_rate_psychometric.digits_per_stream) digits for every trained
-  seed. The #cfg.rate_grid_hz.map(x => str(x) + " Hz").join(", ") points use
-  the same fixed-duration protocol and come from the corresponding grid row.
+  and became clearly informative by #p2.input_rate_hz Hz, reaching
+  #calc.round(100 * p5.accuracy, digits: 1)% at #p5.input_rate_hz Hz.
+  These historical results
+  motivated the successor study of #link("/exp082/")[variable-rate training
+  with spike-count readout]. The duration-matched decoder used known segment
+  timings; this was not a test of blind boundary detection.
 
   == Results
 
-  === Streaming classification and temporal evidence
+  === 1. Streaming classification
 
   #figure(
-    data-image(data-file("exp048/varying_headline_stream.png"),
-      width: 100%,
+    report-image(data-file("exp048/varying_headline_stream.png"),
+      trim-bottom: 3%,
       alt: "A digit stream where each segment has its own duration and input rate, with errors marked in red.",
     ),
-    caption: [Classification when presentation duration and encoding rate vary
+    caption: [Historical illustrative classification when presentation duration and encoding rate vary
       between segments. The segment conditions are #varying-conditions. Thumbnail
       opacity increases with encoding rate. The middle panels plot E- and I-cell
       spike rasters against time (ms); the lower panel plots class probability
       against time (ms), with the true class emphasized in red. The
       label-to-prediction pairs are #varying-predictions, giving
-      #varying-correct of #r.varying_headline.labels.len() correct segments.],
+      #varying-correct of #r.varying_headline.labels.len() correct segments.
+      The raster panels show sampled cells in rank order; their endpoint labels
+      denote population sizes, not the number of displayed cells. The
+      #r.varying_headline.segments.at(0).at(0) ms, #p10.input_rate_hz Hz error
+      occurs at a condition with #calc.round(100 * p10.accuracy, digits: 1)%
+      mean accuracy, so this single error does not establish an encoding-rate
+      failure floor.],
   )
 
+  === 2. Duration and encoding-rate limits
+
   #figure(
-    data-image(data-file("exp048/acc_grid_tau_rate.png"),
-      width: 100%,
+    report-image(data-file("exp048/acc_grid_tau_rate.png"),
+      trim-bottom: 6.7%,
       alt: "A duration-by-input-rate accuracy heatmap beside a fixed-duration encoding-rate psychometric curve.",
     ),
     caption: [Temporal and encoding-rate limits of the frozen PING classifier.
       *(A)* Per-segment accuracy (%) is shown for presentation duration (ms,
       horizontal) and Poisson encoding rate (Hz per channel, vertical), using
-      #segments-per-cell segments per cell. *(B)* Probability of a correct
+      #segments-per-cell segments per cell across #cfg.train_seeds.len() seeds.
+      *(B)* Probability of a correct
       classification (%) is plotted against encoding rate (Hz) with presentation
-      and readout fixed at #r.encoding_rate_psychometric.presentation_ms ms. The
+      and readout fixed at #r.encoding_rate_psychometric.presentation_ms ms.
+      Points and the shaded band summarize seeds (mean ±1 standard error). The
       inset enlarges the linear
-      #r.encoding_rate_psychometric.new_rates_hz.first()–#p10.input_rate_hz
+      0–#p10.input_rate_hz
       Hz interval without changing the axis scale. The
       dashed line marks #(cfg.n_classes)-class chance and the dotted line the
       #r.encoding_rate_psychometric.trained_rate_hz Hz training rate. Accuracy
@@ -203,19 +129,124 @@
       #calc.round(100 * p5.accuracy, digits: 1)% at #p5.input_rate_hz Hz.],
   )
 
-  The fixed-duration rate curve distinguishes a nonviable encoder regime from ordinary
-  classification errors under weak evidence. In the variable-condition stream,
-  the first failed segment received #p10.input_rate_hz Hz for
-  #r.varying_headline.segments.at(0).at(0) ms, yet that condition
-  reaches #calc.round(100 * p10.accuracy, digits: 1)% across the population. Its
-  error is therefore natural trial-level variation, not evidence that
-  #p10.input_rate_hz Hz is intrinsically too low. The other failed segment,
-  presented at #r.varying_headline.segments.at(4).at(1) Hz for
-  #r.varying_headline.segments.at(4).at(0) ms, is likewise above the empty-input
-  rate floor, although its shorter window supplies less total evidence. Rates
-  below #p05.input_rate_hz Hz are not useful
-  operating points; #p2.input_rate_hz Hz is the lowest clearly informative tested
-  rate and #p5.input_rate_hz Hz is a practical lower bound for future sweeps.
+
+  == Methods
+
+  Reused seed-level measurements and illustrative figures described continuous
+  digit classification with frozen PING weights. The documented protocol below
+  specifies the evaluation and decoder; missing raw recordings prevent prediction
+  replay and independent confirmation of historical model identities.
+
+  1. *Select classifiers and digits.* MNIST handwritten digits #cite(1) were
+    sampled from the official test partition, separately from training and
+    validation. The protocol selected the best validation epoch from each of
+    #cfg.train_seeds.len() independently trained networks (seeds
+    #cfg.train_seeds.map(str).join(", ")), each with #cfg.n_e excitatory (E) and
+    #cfg.n_i inhibitory (I) cells, trained on #cfg.trained_t_ms ms presentations
+    at #cfg.input_rate_hz Hz. Illustrative streams used seed #cfg.seed and
+    distinct digit classes; population estimates used all seeds.
+
+  2. *Encode and concatenate.* Independent Bernoulli draws at each
+    Δt = #cfg.dt ms timestep approximated Poisson input across #cfg.n_in pixel
+    channels; firing probability was pixel intensity times encoding rate times
+    Δt/1000. Encoding rates referred to full-intensity pixels, with lower
+    intensities scaling them proportionally. Digits were concatenated with no
+    gaps; rate and duration changed at known boundaries while hidden state
+    continued without resetting within the stream.
+
+  3. *Vary evidence.* Crossed presentation durations and encoding rates defined
+    #grid-cells conditions, each evaluated using #cfg.n_grid_streams streams of
+    #cfg.n_per_stream digits per seed. Lower-rate evaluations used
+    #r.encoding_rate_psychometric.new_streams_per_seed streams of
+    #r.encoding_rate_psychometric.digits_per_stream digits per seed at fixed
+    #r.encoding_rate_psychometric.presentation_ms ms; higher-rate points reused
+    that duration's grid measurements. Appendix A gives the complete grids and
+    the separate constant-rate versus rate-compensated duration comparison.
+
+  4. *Integrate output evidence.* E-cell spikes drove a non-spiking leaky
+    integrator with a one-timestep delay and zero initial state:
+
+    $ v_"out" (t) = beta_"out" v_"out" (t-1) + (1 - beta_"out") / (Delta t) bold(s)^E (t-1) W_"out". quad "(1)" $
+
+    Here t indexes timesteps from zero, v#sub[out] is the class-state vector,
+    s#super[E] the E-spike vector, W#sub[out] the trained output weights, and
+    β#sub[out] the leak factor. The decoder used the trained output time constant
+    τ#sub[out], defaulting to 2 ms when unspecified; its historical value was
+    not independently confirmed.
+
+  5. *Read and score segments.* A trailing mean used the current presentation
+    duration τ, with w timesteps and w#sub[t] available during startup:
+
+    $ "logits"(t) = 1 / w_t sum_(u=t-w_t+1)^(t) v_"out" (u), quad w_t = min(w, t+1). quad "(2)" $
+
+    Here u indexes the window and logits is the class-evidence vector. At each
+    known segment endpoint the predicted class ĉ was
+
+    $ hat(c)(t) = arg max_c p("class"=c, t). quad "(3)" $
+
+    Here c indexes classes and p is softmax-normalized evidence, not calibrated
+    confidence; quantitative sweeps selected logits directly. Readout duration
+    matched presentation duration rather than varying independently, unlike the
+    whole-trial average used in training. Correct predictions were counted per
+    seed; captions report across-seed means and sample standard errors.
+
+  == Appendix A. Conditions and decoder identities
+
+  The grid crossed durations
+  #cfg.tau_grid_ms.map(x => str(x) + " ms").join(", ") with encoding rates
+  #cfg.rate_grid_hz.map(x => str(x) + " Hz").join(", ") per channel.
+  Each cell contained #segments-per-cell classified segments across
+  #cfg.train_seeds.len() seeds. The low-rate extension used
+  #r.encoding_rate_psychometric.new_rates_hz.map(x => str(x) + " Hz").join(", ")
+  with presentation and readout fixed at
+  #r.encoding_rate_psychometric.presentation_ms ms.
+
+  The separate duration comparison used
+  #cfg.tau_sweep_ms.map(x => str(x) + " ms").join(", "), with
+  #cfg.n_streams streams of #cfg.n_per_stream digits per seed. Constant encoding
+  remained at #cfg.input_rate_hz Hz; the compensated rate multiplied this by
+  #cfg.trained_t_ms ms divided by the current duration. The fixed illustrative
+  stream contained #cfg.n_digits_headline digits at #cfg.tau_headline_ms ms and
+  #cfg.input_rate_hz Hz. The variable conditions appear in Figure 1.
+
+  For a constant-duration stream, the boundary time t#sub[k] of segment k was
+
+  $ t_k = k tau. quad "(4)" $
+
+  Here k indexes segments from zero; varying-duration boundaries instead summed
+  preceding durations. The output probabilities were
+
+  $ p("class", t) = "softmax"("logits"(t)). quad "(5)" $
+
+  Softmax converted the evidence vector into non-negative values summing to one.
+  The fixed illustrative stream selected its softmax maximum; the varying stream
+  and sweeps selected the maximum logit. Matched readout and presentation obeyed
+
+  $ T_"readout" = T_"presentation" = tau. quad "(6)" $
+
+  Here T#sub[readout] and T#sub[presentation] are the respective durations in ms.
+  The window length was
+
+  $ w = tau / (Delta t). quad "(7)" $
+
+  At intermediate times the trailing window could include preceding-segment
+  activity; at the scored endpoint it covered the current segment. This
+  duration-matched decoder used known boundaries, not inferred boundary detection.
+  The output leak was
+
+  $ beta_"out" = exp(-Delta t \/ tau_"out"). quad "(8)" $
+
+  The exponential factor retained part of the previous state at each timestep;
+  τ#sub[out] set the evidence-decay timescale. Equation (1) applied from timestep
+  one onward, with v#sub[out] (0) = 0. The window average divided by its available
+  length during startup, as stated in Equation (2).
+
+  #reference-list((
+    (text: [Y. LeCun, L. Bottou, Y. Bengio, and P. Haffner.
+      “Gradient-based learning applied to document recognition.”
+      _Proceedings of the IEEE_ 86(11), 2278–2324 (1998).],
+      doi: "10.1109/5.726791"),
+  ))
 
 ]
 #body
