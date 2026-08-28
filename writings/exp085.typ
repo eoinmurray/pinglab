@@ -8,7 +8,7 @@
 
 #let meta = (
   status: "[▦ DATA]",
-  title: "Excitatory Population Coupling Locks Detuned Rhythms",
+  title: "Lowet 2015",
   date: "2026-08-19",
   updated_at: "2026-08-28",
   description: "Distinguish the pathways that phase-lock two cortical PING rhythms.",
