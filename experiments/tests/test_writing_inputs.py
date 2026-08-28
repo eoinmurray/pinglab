@@ -161,10 +161,33 @@ def test_fixed_inventory_and_preview_precedence(lab):
 def test_image_only_input_needs_no_numbers_file(lab):
     (lab / "selected").mkdir()
     (lab / "selected/network.svg").write_text(SVG)
-    (lab / "selected/richer-input-ai-to-intermittent-ping.png").write_bytes(PNG)
     (lab / "selected/richer-input-ai-to-intermittent-ping.mp4").write_bytes(b"fixture-video")
     selection = {"exp099": {"exp099": "/selected"}}
-    assert NOTICE not in evaluate(lab, report_expression("exp099"), preview=selection)
+    rendered = evaluate(lab, report_expression("exp099"), preview=selection)
+    assert NOTICE not in rendered
+    headings = ["Abstract", "Results", "Methods", "References"]
+    assert [rendered.index(name) for name in headings] == sorted(
+        rendered.index(name) for name in headings
+    )
+    assert "Working media" not in rendered
+    assert "controlled comparison remain planned" in rendered
+    # Compile contexts too: the video must share the diagram's figure counter,
+    # and the article must no longer depend on the standalone poster.
+    (lab / "report.typ").write_text('#import "writings/exp099.typ": body\n#body\n')
+    result = subprocess.run(
+        [_paths.find_typst(ROOT), "compile", "--features", "html", "--format", "html",
+         "--root", str(lab), "--input", "demolab-preview-file=/demolab-preview-file.json",
+         str(lab / "report.typ"), str(lab / "report.html")],
+        capture_output=True, text=True, timeout=30,
+    )
+    assert result.returncode == 0, result.stderr
+    html = (lab / "report.html").read_text()
+    captions = re.findall(r"<figcaption\b[^>]*>(.*?)</figcaption>", html, re.S)
+    assert len(captions) == 2
+    assert re.search(r"Figure\s+1", re.sub(r"<[^>]+>", "", captions[0]))
+    assert re.search(r"Figure\s+2", re.sub(r"<[^>]+>", "", captions[1]))
+    assert html.count("<video ") == 1
+    assert "richer-input-ai-to-intermittent-ping.png" not in html
     (lab / "selected/network.svg").unlink()
     evaluate(lab, report_expression("exp099"), preview=selection, error="file not found")
 

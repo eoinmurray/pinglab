@@ -1,4 +1,4 @@
-"""Retired combined runner; execute the independent exp099 stages."""
+"""Reject combined execution without dispatching any stage."""
 
 if __name__ == "__main__":
     raise SystemExit(
