@@ -35,6 +35,7 @@ from experiments.exp041 import collection as exp041_collection
 from experiments.exp042 import collection as exp042_collection
 from experiments.exp044 import collection as exp044_collection
 from experiments.exp046 import collection as exp046_collection
+from experiments.exp047 import collection as exp047_collection
 from experiments.exp049 import collection as exp049_collection
 from experiments.exp081 import collection as exp081_collection
 
@@ -177,7 +178,7 @@ def test_plan_paths_are_isolated_and_all_runners_are_integrated(tmp_path: Path) 
     assert payload["excluded"] == ["exp048"]
     assert payload["blocking_issues"] == []
     assert payload["acceptance_issues"] == []
-    assert all(row["command"] or row["execution"]["mode"] in {"exp023-staged", "exp024-staged", "exp025-staged", "exp033-staged", "exp037-staged", "exp038-staged", "exp041-staged", "exp042-staged", "exp044-staged", "exp046-staged", "exp049-staged", "exp081-staged"} for row in rows)
+    assert all(row["command"] or row["execution"]["mode"] in {"exp023-staged", "exp024-staged", "exp025-staged", "exp033-staged", "exp037-staged", "exp038-staged", "exp041-staged", "exp042-staged", "exp044-staged", "exp046-staged", "exp047-staged", "exp049-staged", "exp081-staged"} for row in rows)
     audit = next(row for row in rows if row["slug"] == "exp024")
     assert audit["execution"]["stages"] == ["analyse", "present"]
     assert not any(".artifacts" in path for path in audit["required_outputs"])
@@ -258,7 +259,7 @@ def test_local_resume_runs_in_dependency_order(tmp_path: Path, monkeypatch) -> N
 
     # Scientific work is mocked here; real stage-reference validation has its
     # own fixture-run coverage in test_exp024_stages.py and test_exp081.py.
-    for adapter in (exp023_collection, exp024_collection, exp025_collection, exp033_collection, exp037_collection, exp038_collection, exp041_collection, exp042_collection, exp044_collection, exp046_collection, exp049_collection, exp081_collection):
+    for adapter in (exp023_collection, exp024_collection, exp025_collection, exp033_collection, exp037_collection, exp038_collection, exp041_collection, exp042_collection, exp044_collection, exp046_collection, exp047_collection, exp049_collection, exp081_collection):
         monkeypatch.setattr(adapter, "completed", lambda repo, plan, row:
                             execution.load_json(Path(row["required_outputs"][0])))
 
@@ -417,12 +418,13 @@ def test_compose_campaign_replaces_selected_outputs_and_records_sources(
     composite_plan = execution.load_json(destination / execution.PLAN_NAME)
     rows = {row["slug"]: row for row in execution.rows_in_order(composite_plan)}
     assert not execution._outputs_valid_for_plan(composite_plan, rows["exp025"])
-    assert execution._outputs_valid_for_plan(composite_plan, rows["exp047"])
+    assert not execution._outputs_valid_for_plan(composite_plan, rows["exp047"])
+    assert execution._outputs_valid_for_plan(composite_plan, rows["exp080"])
 
-    (destination / "derived/.artifacts/exp047/figure.svg").write_text(
+    (destination / "derived/.artifacts/exp080/figure.svg").write_text(
         "<svg><text>tampered</text></svg>\n"
     )
-    assert not execution._outputs_valid_for_plan(composite_plan, rows["exp047"])
+    assert not execution._outputs_valid_for_plan(composite_plan, rows["exp080"])
 
 
 def test_integrate_repair_preserves_base_and_records_repaired_source(
@@ -598,7 +600,7 @@ def test_publication_build_runs_promotion_from_separate_checkout(
     monkeypatch.setattr(execution.shutil, "which", lambda _name: "/usr/bin/uv")
     promotions = []
     from pingstore import materialize
-    for adapter in (exp023_collection, exp024_collection, exp025_collection, exp033_collection, exp037_collection, exp038_collection, exp041_collection, exp042_collection, exp044_collection, exp046_collection, exp049_collection, exp081_collection):
+    for adapter in (exp023_collection, exp024_collection, exp025_collection, exp033_collection, exp037_collection, exp038_collection, exp041_collection, exp042_collection, exp044_collection, exp046_collection, exp047_collection, exp049_collection, exp081_collection):
         monkeypatch.setattr(adapter, "completed", lambda repo, plan, row:
                             SimpleNamespace(record={"run_id": row["slug"] + "-r003-present-local"}))
     monkeypatch.setattr(materialize, "materialize_run", lambda store, identity, target:
@@ -656,7 +658,7 @@ def test_publication_build_rejects_stubbed_entries(tmp_path: Path, monkeypatch) 
     monkeypatch.setattr(execution.shutil, "which", lambda _name: "/usr/bin/uv")
     monkeypatch.setattr(execution, "promote_experiment", lambda *_args, **_kwargs: None)
     from pingstore import materialize
-    for adapter in (exp023_collection, exp024_collection, exp025_collection, exp033_collection, exp037_collection, exp038_collection, exp041_collection, exp042_collection, exp044_collection, exp046_collection, exp049_collection, exp081_collection):
+    for adapter in (exp023_collection, exp024_collection, exp025_collection, exp033_collection, exp037_collection, exp038_collection, exp041_collection, exp042_collection, exp044_collection, exp046_collection, exp047_collection, exp049_collection, exp081_collection):
         monkeypatch.setattr(adapter, "completed", lambda repo, plan, row:
                             SimpleNamespace(record={"run_id": row["slug"] + "-r003-present-local"}))
     monkeypatch.setattr(materialize, "materialize_run", lambda *args: None)

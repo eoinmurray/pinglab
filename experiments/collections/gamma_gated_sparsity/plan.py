@@ -45,7 +45,7 @@ EXTRA_REQUIRED_OUTPUTS: dict[str, tuple[str, ...]] = {
 
 
 def runner_command(slug: str) -> list[str]:
-    if slug in {"exp023", "exp024", "exp025", "exp033", "exp037", "exp038", "exp041", "exp042", "exp044", "exp046", "exp049", "exp081"}:
+    if slug in {"exp023", "exp024", "exp025", "exp033", "exp037", "exp038", "exp041", "exp042", "exp044", "exp046", "exp047", "exp049", "exp081"}:
         # The adapter dispatches explicit source/run IDs, never this legacy command.
         return []
     return [
@@ -85,7 +85,7 @@ def build_plan(root: Path, campaign_id: str, *, smoke: bool = False) -> dict[str
         execution = {"mode": "monolithic"}
         if experiment.slug == "exp024":
             execution = {"mode": "exp024-staged", "stages": ["analyse", "present"]}
-        elif experiment.slug in {"exp023", "exp025", "exp033", "exp037", "exp038", "exp041", "exp042", "exp044", "exp046", "exp049", "exp081"}:
+        elif experiment.slug in {"exp023", "exp025", "exp033", "exp037", "exp038", "exp041", "exp042", "exp044", "exp046", "exp047", "exp049", "exp081"}:
             execution = {"mode": f"{experiment.slug}-staged", "stages": ["compute", "analyse", "present"]}
         contract = workload_contract(experiment.slug, smoke=smoke)
         if shard_count(experiment.slug) > 1:
@@ -108,7 +108,7 @@ def build_plan(root: Path, campaign_id: str, *, smoke: bool = False) -> dict[str
                 },
                 "command": runner_command(experiment.slug),
                 "execution": execution,
-                "required_outputs": [str(state / "stage-refs.json")] if experiment.slug in {"exp023", "exp024", "exp025", "exp033", "exp037", "exp038", "exp041", "exp042", "exp044", "exp046", "exp049", "exp081"} else [
+                "required_outputs": [str(state / "stage-refs.json")] if experiment.slug in {"exp023", "exp024", "exp025", "exp033", "exp037", "exp038", "exp041", "exp042", "exp044", "exp046", "exp047", "exp049", "exp081"} else [
                     str(
                         resolved / "derived/.artifacts" / experiment.slug
                         / filename

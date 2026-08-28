@@ -1,12 +1,13 @@
-#import "/.demolab/lib.typ": data-json, data-image
+#import "/.demolab/lib.typ": data-json, data-image, cite, reference-list
 #import "run-inputs.typ": data-file, inputs-ready, pending-report
 #let data-file = data-file.with(article: "exp047")
 
 #let meta = (
-  status: "Implemented",
-  title: "Pool Size Requires Synaptic Rescaling",
+  status: "Ready for review",
+  title: "Pool-Size Effects Depend on Synaptic Scaling",
   date: "2026-07-14",
-  description: "Paired controls separate fixed summed I→E coupling from fixed realised synaptic strength as the inhibitory pool grows.",
+  updated_at: "2026-08-28",
+  description: "Paired controls separate fixed summed I→E coupling from fixed expected synaptic strength as the inhibitory pool grows.",
   collection: "gamma-gated-sparsity",
 )
 
@@ -35,9 +36,8 @@
 #let g-lo = cfg.reference_g_ie.at(0)
 #let g-mid = cfg.reference_g_ie.at(1)
 #let g-hi = cfg.reference_g_ie.at(2)
-#let j-lo-ns = calc.round(cfg.reference_j_ie.at(0) * 1000, digits: 2)
 #let j-mid-ns = calc.round(cfg.reference_j_ie.at(1) * 1000, digits: 2)
-#let j-hi-ns = calc.round(cfg.reference_j_ie.at(2) * 1000, digits: 2)
+#let j-ns = cfg.reference_j_ie.map(x => x * 1000)
 #let n-seeds = cfg.seeds.len()
 #let re-ft-lo-fmt = calc.round(re-ft-lo, digits: 2)
 #let re-ft-hi-fmt = calc.round(re-ft-hi, digits: 2)
@@ -49,51 +49,92 @@
 #let body = [
   == Abstract
 
-  The apparent invariance of pyramidal–interneuron network gamma (PING) firing rate to inhibitory-pool size is a consequence of the simulator's fan-in normalization, not independence from interneuron count. Excitatory cells are denoted E and inhibitory cells I. Let $G_(I E)$ denote the expected summed I→E coupling after lower clamping. Dividing by the presynaptic pool size gives realised mean synaptic conductance $j_(I E) = G_(I E) / N_I$. We vary $N_I$ under paired controls. Rates remain flat when $G_(I E)$ is fixed and $j_(I E) prop 1 / N_I$; when the realised synapse $j_(I E)$ is fixed, rates change strongly with $N_I$. Pool-size invariance therefore requires compensatory inverse scaling of individual synapses.
-
-  == Methods
-
-  *1. Weight convention.* For a dense I→E matrix with shape $N_I times N_E$, the simulator draws $X tilde cal(N)(mu, sigma^2)$, lower-clamps it as $U = max(0, X)$, and divides by $N_I$. The CLI values are the parent-Gaussian parameters on the summed-coupling scale; the expected summed coupling is $G_(I E) = cal(E)[U]$. Thus
-
-  $ cal(E)[W_(k j)^(I E)] approx j_(I E) = G_(I E) / N_I, quad cal(E)[sum_(k=1)^(N_I) W_(k j)^(I E)] approx G_(I E). quad (1) $
-
-    $G_(I E)$ is consequently an expected _summed coupling_, not the conductance of one synapse. An inhibitory volley with active set $cal(A)$ gives E cell $j$ the conductance increment
-
-    $ Delta g_j^I = sum_(k in cal(A)) W_(k j)^(I E), quad (2) $
-
-    where:
-
-    - $cal(E)$ denotes expectation over random weight initialization;
-    - $W_(k j)^(I E)$ is the realised conductance from inhibitory cell $k$ to excitatory cell $j$;
-    - $j_(I E)$ is the mean realised conductance of one I→E synapse;
-    - $G_(I E)$ is the expected sum of all I→E weights arriving at one E cell;
-    - $N_I$ and $N_E$ are the inhibitory and excitatory pool sizes;
-    - $cal(A)$ is the set of inhibitory cells active in a volley; and
-    - $Delta g_j^I$ is the resulting inhibitory-conductance increment at excitatory cell $j$.
-
-    Equation 2 therefore depends on both the realised synapses and the number of participating inhibitory cells.
-
-  *2. Paired controls.* We sweep $N_I in {#n-lo, #n-mid, #n-hi}$ under two conventions. In the fixed-summed-coupling arm, $G_(I E) in {#g-lo, #g-mid, #g-hi}$ μS is held fixed, forcing $j_(I E) prop 1 / N_I$. In the fixed-synapse arm, $j_(I E) in {#j-lo-ns, #j-mid-ns, #j-hi-ns}$ nS is held fixed and the nominal parameter is set to $G_(I E) = N_I j_(I E)$. The two arms coincide at the reference pool $N_I = #cfg.n_i_reference$.
-
-  *3. Simulation.* Untrained dense PING network, $N_E = #cfg.n_e$, $Delta t = #cfg.dt_ms$ ms, $T = #cfg.t_ms$ ms, #cfg.n_batch independent Poisson-input trials per network and #n-seeds network/input seeds per condition. E→I summed coupling is fixed at #cfg.g_ei_total μS; input comprises #cfg.n_in independent #cfg.input_rate_hz Hz Poisson channels. Markers show seed means and error bars ±1 standard deviation (SD).
+  Inhibitory-pool size had little effect on firing rates when expected summed
+  inhibition was held fixed, but rates fell strongly when expected individual
+  synaptic strength was fixed. We reanalysed untrained pyramidal–interneuron
+  network gamma (PING) simulations with #cfg.n_e excitatory cells and
+  #n-lo–#n-hi inhibitory cells. At nominal summed coupling #g-mid μS,
+  excitatory rates stayed near #re-ft-hi-fmt Hz; at mean synaptic strength
+  #j-mid-ns nS, they fell from #re-fs-lo-fmt to #re-fs-hi-fmt Hz.
+  The tested inverse-scaling path preserved rates; this does not establish
+  that it is the only possible compensation, or demonstrate gamma rhythmicity.
 
   == Results
 
-  Fixed summed coupling produces overlapping rate curves. At $G_(I E) = #g-mid$ μS, the E rate is #re-ft-lo-fmt Hz for $N_I = #n-lo$ and #re-ft-hi-fmt Hz for $N_I = #n-hi$. This is the expected consequence of holding the summed I→E coupling fixed while shrinking each realised synapse as $1 / N_I$.
-
-  Fixed realised synaptic strength gives the opposite result. At $j_(I E) = #j-mid-ns$ nS, increasing $N_I$ from #n-lo to #n-hi changes the E rate from #re-fs-lo-fmt to #re-fs-hi-fmt Hz and the I rate from #ri-fs-lo-fmt to #ri-fs-hi-fmt Hz. Every tested synaptic strength shows the same pool-size dependence. The direction is mechanistically consistent: more inhibitory cells at unchanged individual strength produce greater population-level inhibition, while the recurrent feedback reduces both E activity and the I activity it recruits.
+  === 1. Pool-size dependence changes with synaptic scaling
 
   #figure(
     data-image(data-file("exp047/pool_size_controls.svg"),
       width: 100%,
-      alt: "Four panels comparing E and I firing rates across inhibitory pool sizes. Rates are flat when summed coupling is fixed, but fall strongly with pool size when realised synaptic strength is fixed.",
+      alt: "Four panels of E and I firing rates for inhibitory pools of 16, 64 and 256 cells. Fixed summed coupling gives nearly flat rates; fixed expected synaptic strength gives falling rates.",
     ),
-    caption: [*Excitatory and inhibitory firing rates across inhibitory-pool size under two I→E scaling controls.* Top: excitatory-cell rate in Hz per cell. Bottom: inhibitory-cell rate in Hz per cell. *(a)* Holding the expected summed I→E coupling $G_(I E)$ fixed makes the realised synapse $j_(I E) = G_(I E) / N_I$ shrink as the pool grows. *(b)* Holding $j_(I E)$ fixed makes summed coupling grow with $N_I$. Each curve is one coupling level; markers are means and error bars ±1 standard deviation (SD) over #n-seeds seeds, with #cfg.n_batch trials per seed. The controls coincide at the reference pool $N_I = #cfg.n_i_reference$. Rates are invariant to pool size only under inverse scaling of individual synapses.],
+    caption: [*Reanalysed population firing rates.* Top: excitatory (E); bottom:
+      inhibitory (I). Left: fixed expected summed coupling $G_(I E)$; right:
+      fixed expected synaptic strength $j_(I E)$. Markers are means ±1 sample
+      standard deviation across #n-seeds seeds, with #cfg.n_batch trials per seed.
+      At nominal $G_(I E) = #g-mid$ μS, E rates change from #re-ft-lo-fmt to
+      #re-ft-hi-fmt Hz across #n-lo–#n-hi I cells. At $j_(I E) approx #j-mid-ns$
+      nS, E rates fall from #re-fs-lo-fmt to #re-fs-hi-fmt Hz and I rates from
+      #ri-fs-lo-fmt to #ri-fs-hi-fmt Hz. All tested fixed-mean levels show this
+      decrease, consistent with stronger summed inhibition and reduced E–I
+      feedback. Shared conditions reuse the same simulations.],
   )
 
-  == Conclusion
+  == Methods
 
-  The network is not intrinsically insensitive to inhibitory-pool size. It is insensitive only along a specific normalization path: individual I→E synapses must scale approximately as $1 / N_I$ so that expected summed coupling stays fixed. The operative control variable in this dense model is population-level inhibitory drive, jointly determined by pool size, realised synaptic strength, and volley participation. This experiment does not establish that the same inverse scaling holds biologically; it identifies the compensation required for invariance in the model.
+  We compared two scaling controls using retained simulations of untrained,
+  dense recurrent excitatory–inhibitory networks, without additional simulation.
+  #set math.equation(numbering: "(1)")
+
+  + *Initialize fan-in-normalized weights.* For an I→E matrix with
+    #cfg.n_e excitatory columns and $N_I$ inhibitory rows, each weight was
+    $W_(k j)^(I E) = U / N_I$, with $U = max(0, X)$ and
+    $X tilde cal(N)(mu, sigma^2)$ a Gaussian draw of mean $mu$ and standard
+    deviation $sigma = 0.1 mu$, in μS. Defining expected summed coupling
+    $G_(I E) = cal(E)[U]$ gives
+
+    $ cal(E)[W_(k j)^(I E)] = j_(I E) = G_(I E) / N_I, quad
+      cal(E)[sum_(k=1)^(N_I) W_(k j)^(I E)] = G_(I E). $
+
+    Here $cal(E)$ averages over weight initialization, $k$ indexes inhibitory
+    cells and $j$ excitatory cells; $j_(I E)$ is the expected conductance of
+    one synapse, not an identical realised weight. An inhibitory volley gives
+
+    $ Delta g_j^I = sum_(k in cal(A)) W_(k j)^(I E), $
+
+    where $cal(A)$ is the active inhibitory set and $Delta g_j^I$ the
+    conductance increment at E cell $j$, in μS; both weights and participation
+    therefore enter the increment.
+
+  + *Apply paired pool-size controls.* We swept
+    $N_I in {#n-lo, #n-mid, #n-hi}$. Fixed-summed controls used parent means
+    $mu in {#g-lo, #g-mid, #g-hi}$ μS, so $j_(I E) prop 1 / N_I$;
+    fixed-mean-synapse controls scaled $mu$ with $N_I$, giving nominal
+    $j_(I E) in {#j-ns.at(0), #j-ns.at(1), #j-ns.at(2)}$ nS.
+    Nominal values approximate the post-clamp expectations; the arms coincide
+    at #cfg.n_i_reference I cells, with one additional shared condition at
+    #n-mid I cells and nominal 1 μS summed coupling.
+
+  + *Drive and measure the networks.* Nominal E→I summed coupling stayed at
+    #cfg.g_ei_total μS; input weights used parent mean #r.recipe.w_in_mean μS,
+    #calc.round(r.recipe.w_in_initial_zero_fraction * 100)% initial zeros,
+    compensation for zeroing and fan-in normalization. Each network received
+    #cfg.n_in independent #cfg.input_rate_hz Hz input channels, implemented
+    as Bernoulli spikes per #cfg.dt_ms ms timestep, for #cfg.t_ms ms and
+    #cfg.n_batch trials, with seeds #cfg.seeds.map(str).join(", ").
+    We retained all conditions and averaged spike counts over the full duration,
+    trials and cells within each population; overlapping controls reused
+    measurements, giving #n-seeds seeds at each of 18 conditions from
+    #(14 * n-seeds) distinct simulations. The reanalysis uses these rates,
+    not raw spike trains; population rates alone do not establish gamma
+    oscillations #cite(1).
+
+  #reference-list((
+    (text: [G. Buzsáki and X.-J. Wang. “Mechanisms of Gamma Oscillations.”
+      _Annual Review of Neuroscience_ 35, 203–225 (2012).],
+      doi: "10.1146/annurev-neuro-062111-150444"),
+  ))
+
 ]
 #body
 ]
