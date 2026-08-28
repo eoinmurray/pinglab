@@ -44,7 +44,7 @@
 
   == Abstract
 
-  We characterised PING _in isolation from any task_: no training, readout
+  I characterised PING _in isolation from any task_: no training, readout
   evaluation or loss, just a free-running network driven by Poisson input.
   #if peak == none [
     No PING spectral peak met the stated reporting rule.
@@ -95,7 +95,7 @@
   #figure(
     data-image(data-file("exp023/traces__coba__i_e.svg"), width: 100%),
     caption: [Signed excitatory and leak currents for the same COBA cell.
-      Positive current is depolarising; current is reconstructed from voltage
+      Positive current is depolarising; current was reconstructed from voltage
       and conductance using the driving-force relation in Methods.],
   )
 
@@ -143,7 +143,7 @@
 
   == Methods
 
-  We compared untrained loop-off and loop-on networks using the following
+  I compared untrained loop-off and loop-on networks using the following
   simulation and measurement procedure.
 
   + *Construct the two loop conditions.* Both networks contained #c.n_e

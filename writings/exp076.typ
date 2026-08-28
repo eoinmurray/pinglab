@@ -1,15 +1,16 @@
 #import "contents.typ": with-contents
-#import "/.demolab/lib.typ": data-json, data-image
+#import "/.demolab/lib.typ": data-json, data-image, cite, reference-list
 #import "run-inputs.typ": data-file, inputs-ready, pending-report
 #import "run-view.typ": with-datasets, run-view
 #import "run-inputs.typ": input-assets
 #let data-file = data-file.with(article: "exp076")
 
 #let meta = (
-  status: "[≡ TXT]",
+  status: "[▦ DATA]",
   title: "A bundle checkpoint replays",
+  updated_at: "2026-08-28",
   date: "2026-08-02",
-  description: "A small deterministic MNIST gate checks that snnlang bundle checkpoints replay through tools/snnsim and that the current bundle adapter is numerically equivalent to the matching legacy route.",
+  description: "Checkpoint interchange and deterministic one-step equivalence in a spiking classifier.",
   collection: "snnlang-docs",
   order: 3,
 )
@@ -31,115 +32,95 @@
 #let body = [
   == Abstract
 
-  This is an integration and equivalence experiment, not an accuracy benchmark.
-  A Python `snnlang` program authors the current supported backend subset:
-  MNIST input spikes, one #(r.config.n_e)-E/#(r.config.n_i)-I PING cell, and a
-  mean-voltage classifier. The compiled bundle owns the graph topology,
-  initialisers, unit-weight cross-entropy objective, AdamW optimiser, epoch
-  count, and trainable/frozen parameter scope. The runner owns execution choices:
-  #(r.config.max_samples) deterministic MNIST examples, batch size
-  #r.config.batch_size, #r.config.t_ms ms presentation duration, #r.config.dt_ms
-  ms timestep, and seed #r.config.seed.
-
-  The selected bundle-trained checkpoint replayed through
-  `tools/snnsim sim --bundle --infer --load-weights` at
-  #pct(r.replay.selected_checkpoint_accuracy_pct), exactly matching the
-  trainer's recorded best accuracy. The final checkpoint also replayed exactly.
-  A focused deterministic unit gate separately shows exact bundle-vs-legacy
-  equality for initial state dictionaries, forward logits, cross-entropy loss,
-  gradients, and one AdamW step. This validates only the current MNIST PING +
-  MeanVoltage adapter, not arbitrary `snnlang` graphs.
+  I trained a compiled #(r.config.n_e)-excitatory/#(r.config.n_i)-inhibitory
+  classifier and exercised checkpoint loading through compiled and explicit
+  network descriptions. The selected checkpoint achieved
+  #pct(r.replay.selected_checkpoint_accuracy_pct) on
+  #r.replay.evaluation_samples official-test images, compared with
+  #pct(r.replay.trainer_best_accuracy_pct) during validation. These evaluations
+  used different partitions and encoding aggregation, so their difference is
+  not a numerical replay error. A separate deterministic one-step gate passed
+  exact comparisons of initial parameters, logits, loss, gradients and an
+  AdamW update. The result supports checkpoint compatibility for this network
+  family, not arbitrary graph equivalence.
 
   #run-view("exp076", inputs)
 
-  == Lifecycle checked
+  == Results
 
-  #data-image(data-file("exp076/lifecycle.svg"), width: 100%)
+  === Training and replay protocol
 
-  The experiment stores the complete executable bundle at
-  the selected run’s retained network bundle, including `graph.json`,
-  `training.json`, and the manifest that authenticates both. Training writes a
-  selected checkpoint and a final checkpoint. Replay then exercises four load
-  paths: bundle checkpoint through bundle inference, final bundle checkpoint
-  through bundle inference, selected bundle checkpoint through the equivalent
-  explicit legacy route, and a separately trained legacy checkpoint through the
-  bundle route.
+  #figure(data-image(data-file("exp076/lifecycle.svg"), width: 100%),
+    caption: [Protocol schematic for compilation, training, checkpoint reload
+      and a separate one-step equivalence test; the arrows describe operations,
+      not measurements.])
 
-  == Short training trajectory
+  #figure(data-image(data-file("exp076/training_curves.png"), width: 100%),
+    caption: [Training and validation trajectories across #r.config.epochs
+      epochs. Validation averages #r.config.validation_encoder_draws.count
+      encoder draws on #r.config.held_out_count images. The selected checkpoint
+      came from epoch #r.trajectory.selected_epoch.])
 
-  #data-image(data-file("exp076/training_curves.png"), width: 100%)
+  === Checkpoint evaluations
 
-  The run used #r.config.train_count training examples and
-  #r.config.held_out_count held-out examples from the deterministic split.
-  Best held-out accuracy was #pct(r.trajectory.best_accuracy_pct) at epoch
-  #r.trajectory.best_epoch; the final epoch was
-  #pct(r.trajectory.final_accuracy_pct). The point is not that this tiny model is
-  good at MNIST. The point is that an ordinary bundle-trained checkpoint is
-  reloadable and produces reproducible held-out evaluation.
+  #figure(table(columns: (1.6fr, 1fr, 1fr),
+    [Checkpoint], [Validation], [Official-test replay],
+    [Selected], [#pct(r.replay.trainer_best_accuracy_pct)], [#pct(r.replay.selected_checkpoint_accuracy_pct)],
+    [Final], [#pct(r.replay.trainer_final_epoch_accuracy_pct)], [#pct(r.replay.final_checkpoint_accuracy_pct)],
+  ), kind: table,
+    caption: [Validation used #r.config.held_out_count images and multiple
+      encoder draws; replay used #r.replay.evaluation_samples official-test
+      images and one fixed encoding. The selected bundle checkpoint loaded
+      through the explicit route achieved
+      #pct(r.compatibility.legacy_route_accuracy_on_bundle_checkpoint_pct).
+      A separately trained explicit-network checkpoint loaded through the
+      bundle route achieved
+      #pct(r.compatibility.bundle_route_accuracy_on_legacy_checkpoint_pct).])
 
-  == Replay and checkpoint compatibility
+  === Deterministic one-step equivalence
 
-  #table(
-    columns: (1.6fr, 1fr, 1fr),
-    [Check], [Reference], [Fresh replay],
-    [Selected checkpoint], [#pct(r.replay.trainer_best_accuracy_pct)], [#pct(r.replay.selected_checkpoint_accuracy_pct)],
-    [Final checkpoint], [#pct(r.replay.trainer_final_epoch_accuracy_pct)], [#pct(r.replay.final_checkpoint_accuracy_pct)],
-  )
-
-  Selected replay differed from the trainer by
-  #pp(r.replay.selected_delta_pct_points), and final replay differed by
-  #pp(r.replay.final_delta_pct_points). The exact match is expected here because
-  training-time evaluation and fresh inference use the same held-out split,
-  presentation duration, seed, and deterministic Poisson evaluation generator.
-
-  Structurally, every checked checkpoint loaded with no missing keys, no
-  unexpected keys, and no shape mismatches. The state dictionary keys were
-  `W_ff.0`, `W_ff.1`, `W_ee.1`, `W_ei.1`, `W_ie.1`, and `W_ii.1`. The equivalent
-  legacy route loaded the bundle-produced selected checkpoint and reached
-  #pct(r.compatibility.legacy_route_accuracy_on_bundle_checkpoint_pct). The
-  bundle route loaded a checkpoint produced by a separate one-epoch legacy run
-  and reached #pct(r.compatibility.bundle_route_accuracy_on_legacy_checkpoint_pct),
-  matching that legacy checkpoint's own selected accuracy.
-
-  == Deterministic one-step parity gate
-
-  #table(
-    columns: (1.4fr, 1fr),
-    [Stage], [Result],
-    [Initial state dictionary], [#r.parity.initial_state_dict],
+  #figure(table(columns: (1.6fr, 1fr),
+    [Comparison], [Result],
+    [Initial parameters], [#r.parity.initial_state_dict],
     [Forward logits], [#r.parity.forward_logits],
-    [Cross-entropy loss], [#r.parity.cross_entropy_loss],
+    [Cross-entropy], [#r.parity.cross_entropy_loss],
     [Gradients], [#r.parity.gradients],
-    [One AdamW step], [#r.parity.adamw_step],
-    [Tolerance], [rtol #r.parity.tolerance.rtol, atol #r.parity.tolerance.atol],
-  )
+    [AdamW update], [#r.parity.adamw_step],
+  ), kind: table,
+    caption: [Separately executed deterministic test with identical encoded
+      spikes, labels and seeded initialisation. Relative and absolute
+      tolerances were both zero. This gate does not compare accuracies obtained
+      on different datasets.])
 
-  The automated gate constructs the bundle and equivalent legacy configurations
-  from their public descriptions, seeds both initialisations identically, feeds
-  the exact same already-encoded spike tensor and labels, and compares tensors in
-  order. If a future edit breaks parity, the test reports the first divergent
-  stage and tensor name rather than a generic failure.
+  == Methods
 
-  The trainable parameter set is `W_ff.0` and `W_ff.1`: input and readout
-  projections. The recurrent E/I matrices `W_ee.1`, `W_ei.1`, `W_ie.1`, and
-  `W_ii.1` are frozen under the current bundle-training design. Unsupported
-  objectives, parameter scopes, optimiser variants, graph shapes, and structural
-  CLI overrides remain capability errors rather than silent fallbacks.
+  I tested checkpoint interchange and numerical equivalence as separate
+  properties of the same supported classifier family.
 
-  == Runtime and scope
+  + *Train and select states.* I split #r.config.max_samples MNIST training
+    images into #r.config.train_count optimisation and
+    #r.config.held_out_count validation examples. The network used a
+    mean-voltage readout, #r.config.dt_ms ms timestep and #r.config.t_ms ms
+    duration. I trained input and readout weights for #r.config.epochs epochs
+    with AdamW#cite(1), learning rate #r.config.learning_rate, weight decay
+    #r.config.weight_decay and gradient-norm clipping at one, while recurrent
+    weights remained fixed. Selection minimised cross-entropy averaged over
+    #r.config.validation_encoder_draws.count validation encodings, with accuracy
+    and earliest epoch as tie-breakers.
+  + *Reload and evaluate.* I evaluated selected and final states on
+    #r.replay.evaluation_samples sampled official-test images using one fixed
+    spike encoding. I also loaded the selected compiled-network state through
+    the explicit network route, then trained an explicit network for one epoch
+    with a separate seed and loaded that state through the compiled route.
+    Checkpoint inspection compared parameter names and shapes; accuracy
+    comparisons retained their dataset and encoding context.
+  + *Test one-step equality.* In a separate deterministic fixture I seeded
+    both descriptions identically and supplied the same encoded spikes and
+    labels. I compared initial parameters, forward outputs, cross-entropy,
+    gradients and one AdamW update with zero numerical tolerance. This bounded
+    test isolates implementation equivalence from stochastic evaluation.
 
-  The complete local experiment took #sec(r.runtime.total_elapsed_s), including
-  bundle training, selected/final replay, legacy checkpoint loading, a tiny
-  legacy checkpoint-production run, and bundle loading of that legacy checkpoint.
-  Bundle training itself reported #sec(r.runtime.training_elapsed_s).
-
-  This establishes a small but useful invariant: for the currently supported
-  MNIST PING + MeanVoltage subset, `snnlang` bundle execution is not merely
-  shape-compatible with the legacy route; it is numerically identical for the
-  deterministic one-step training calculation and checkpoint-compatible across
-  the bundle and legacy inference routes. It says nothing about unsupported
-  graph topologies, objectives, recurrent plasticity scopes, custom readouts, or
-  accelerator-specific execution.
+  #reference-list(((text: [Ilya Loshchilov and Frank Hutter: _Decoupled Weight Decay Regularization_. ICLR, 2019.], doi: "10.48550/arXiv.1711.05101"),))
 ]
 #body
 ]

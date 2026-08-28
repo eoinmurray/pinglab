@@ -144,7 +144,22 @@ def inference_args(
         str(destination),
     ]
     if sample_index is None:
-        args += ["--outputs", "pop_traces", "--max-samples", str(samples)]
+        args += [
+            "--outputs",
+            "pop_traces",
+            "--max-samples",
+            str(samples),
+            "--recording-mode",
+            "spikes",
+            "--output-fields",
+            "pop_e",
+        ]
     else:
-        args += ["--sample-index", str(sample_index)]
+        args += ["--sample-index", str(sample_index)] + [
+            "--recording-mode",
+            "spikes",
+            "--output-fields",
+            "spk_e",
+            "spk_i",
+        ]
     return args

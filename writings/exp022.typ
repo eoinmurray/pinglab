@@ -74,7 +74,7 @@
   #let abstract-condition-count = r.cells.map(cell => (cell.family, cell.model, cell.tag)).dedup().len()
   #let abstract-seed-count = r.cells.map(cell => cell.seed).dedup().len()
 
-  We assembled a reusable bank of #r.n_cells spiking networks for MNIST handwritten-digit classification, covering #abstract-condition-count conditions with #abstract-seed-count random seeds each. Training lasted #r.standard.epochs epochs per network. Conditions compared feedforward controls with excitatory–inhibitory recurrent networks and varied activity penalties, inhibitory decay, numerical timestep, recurrent initialization and trainability, and input drive. In the baseline comparison, mean validation accuracy at selected checkpoints was #mean-field("canonical", "acc", model: "coba")% for feedforward networks and #mean-field("canonical", "acc", model: "ping")% for recurrent networks. Their final-epoch excitatory firing rates were #mean-field("canonical", "rate_e", model: "coba") and #mean-field("canonical", "rate_e", model: "ping") Hz, respectively. Retained models and learning histories support subsequent experiments; these training-recipe comparisons do not isolate a causal benefit of gamma timing.
+  I assembled a reusable bank of #r.n_cells spiking networks for MNIST handwritten-digit classification, covering #abstract-condition-count conditions with #abstract-seed-count random seeds each. Training lasted #r.standard.epochs epochs per network. Conditions compared feedforward controls with excitatory–inhibitory recurrent networks and varied activity penalties, inhibitory decay, numerical timestep, recurrent initialization and trainability, and input drive. In the baseline comparison, mean validation accuracy at selected checkpoints was #mean-field("canonical", "acc", model: "coba")% for feedforward networks and #mean-field("canonical", "acc", model: "ping")% for recurrent networks. Their final-epoch excitatory firing rates were #mean-field("canonical", "rate_e", model: "coba") and #mean-field("canonical", "rate_e", model: "ping") Hz, respectively. Retained models and learning histories support subsequent experiments; these training-recipe comparisons do not isolate a causal benefit of gamma timing.
 
   #run-view("exp022", inputs)
 
@@ -175,7 +175,7 @@
 
   == Methods
 
-  We trained spiking classifiers under controlled conditions, then analysed retained learning histories and reused diagnostic simulations.
+  I trained spiking classifiers under controlled conditions, then analysed retained learning histories and reused diagnostic simulations.
 
   + *Prepare the data.* Stratified MNIST splits provided 54,000 training and 6,000 validation images for the baseline, and 6,300 and 700 for sweeps. The split seed was 42; the official test set was excluded from training and model selection.
 
@@ -202,7 +202,7 @@
 
   + *Select models.* Validation averaged three fixed Poisson encoding draws. Selection minimized mean cross-entropy, breaking ties by higher accuracy and then earlier epoch. Selected and final-epoch models were retained.
 
-  + *Measure activity and retain models.* Accuracy uses selected models, whereas firing rates average final-epoch validation measurements across images and encoding draws. Retained models and histories support subsequent experiments. Learning curves show individual validation histories; baseline summaries average three seeds. Reused seed-42 digit-zero rasters are individual probes, not across-seed estimates; no new diagnostic simulations were performed.
+  + *Measure activity and retain models.* Accuracy used selected models, whereas firing rates averaged final-epoch validation measurements across images and encoding draws. Retained models and histories support subsequent experiments. Learning curves show individual validation histories; baseline summaries average three seeds. Reused seed-42 digit-zero rasters are individual probes, not across-seed estimates; no new diagnostic simulations were performed.
 
   == Appendix: Training-run specification sheets <sec-training-run-specification-sheets>
 

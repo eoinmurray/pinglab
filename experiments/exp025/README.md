@@ -172,3 +172,12 @@ show the unavailable-data notice, while missing selected files and corrupt JSON
 fail compilation. The existing writing-input and writing-status suites passed
 89 tests, and `git diff --check` passed. The writing audit is retained under
 `.r2/exp025-writing-approved/`.
+
+## Future-run data retention — 2026-08-28
+
+Snapshot jobs record E/I spikes only. Scale jobs accumulate only per-sample E rates. PING frequency jobs retain E population traces and E/I events; unused I traces, other rate arrays and output events are not emitted. Native compute no longer writes full NPZs and then extracts selected fields.
+
+These changes affect future execution only. Existing immutable runs and R2
+archives are unchanged. Required arrays keep their original numerical values;
+selected NPZ outputs use lossless compression. No production rerun or new
+publication was performed for this cleanup.

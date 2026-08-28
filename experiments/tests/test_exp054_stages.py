@@ -133,7 +133,16 @@ def lab(tmp_path, monkeypatch):
         assert args == recipe.simulation_args(cfg, item, output)
         write_json_atomic(output / "config.json", config_record(cfg, item))
         write_json_atomic(output / "metrics.json", {"fixture": True})
-        np.savez(output / "rasters.npz", **data)
+        compact = {k: v for k, v in data.items() if not k.startswith("out_")}
+        burn = int(args[args.index("--recording-start-step") + 1])
+        for population in ("e", "i"):
+            keep = compact[f"{population}_t"] >= burn
+            for field in ("trial", "t", "cell"):
+                compact[f"{population}_{field}"] = compact[f"{population}_{field}"][
+                    keep
+                ]
+        compact["recording_start_step"] = np.int32(burn)
+        np.savez_compressed(output / "rasters.npz", **compact)
         (output / "run.sh").write_text("# synthetic fixture, never executed\n")
 
     monkeypatch.setattr(compute, "run_cli", simulate)
@@ -913,3 +922,27 @@ def test_scheduler_reserves_exp054_before_dispatch_without_running_jobs(
     slurm.submit_campaign(campaign, resources, submit=True)
     assert events == ["reserved", "ggs-exp054", "ggs-finalize"]
     assert not list((tmp_path / ".pingstore/runs").glob("exp054-*"))
+
+
+def test_postburn_sparse_evidence_preserves_all_analysis_inputs(tmp_path):
+    cfg = recipe.configuration(smoke=True)
+    full = recording(cfg)
+    burn = int(cfg["burn_ms"] / cfg["dt_ms"])
+    lean = {k: v for k, v in full.items() if not k.startswith("out_")}
+    for population in ("e", "i"):
+        keep = lean[f"{population}_t"] >= burn
+        for field in ("trial", "t", "cell"):
+            key = f"{population}_{field}"
+            lean[key] = lean[key][keep]
+    lean["recording_start_step"] = np.int32(burn)
+    path = tmp_path / "rasters.npz"
+    np.savez_compressed(path, **lean)
+    validated = evidence.raster(path, cfg)
+    for original, selected in zip(
+        measurements.dense(full, cfg), measurements.dense(validated, cfg), strict=True
+    ):
+        np.testing.assert_array_equal(original, selected)
+    lean["recording_start_step"] = np.int32(burn + 1)
+    np.savez_compressed(path, **lean)
+    with pytest.raises(PingstoreError, match="dimensions differ"):
+        evidence.raster(path, cfg)

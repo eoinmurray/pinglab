@@ -10,11 +10,8 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parents[2]
 sys.path[:0] = [str(REPO), str(REPO / "tools")]
 from experiments.exp038 import evidence, inputs, recipe
-from experiments.exp041.import_gold2 import extract_arrays
 from experiments.helpers.run_cli import run_cli
 from pingstore.contracts import PingstoreError, load_json, write_json_atomic
-
-SNAPSHOT_ARRAYS = ("dt", "n_e", "n_i", "label", "spk_e", "spk_i")
 
 
 def compute(identity, *, run_id=None):
@@ -65,11 +62,6 @@ def compute(identity, *, run_id=None):
             evidence.inference_config(
                 load_json(output / "config.json"), contract["configs"][name], job
             )
-            if "sample_index" in job:
-                target = output / "snapshot.npz"
-                temporary = output / "snapshot.selected"
-                extract_arrays(target, temporary, SNAPSHOT_ARRAYS)
-                temporary.replace(target)
             evidence.recordings(output, contract["configs"][name], job)
             keep = "snapshot.npz" if "sample_index" in job else "metrics.json"
             for path in output.iterdir():

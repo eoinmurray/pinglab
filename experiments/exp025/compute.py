@@ -10,7 +10,7 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parents[2]
 sys.path[:0] = [str(REPO), str(REPO / "tools")]
 from experiments.exp025 import evidence, inputs, recipe
-from experiments.exp041.import_gold2 import extract_arrays, normalized_metrics
+from experiments.exp041.import_gold2 import normalized_metrics
 from experiments.helpers.run_cli import run_cli
 from pingstore.contracts import PingstoreError, load_json, write_json_atomic
 
@@ -38,14 +38,6 @@ def payload_arrays(job):
             ),
         }
     return {}
-
-
-def compact(directory, job):
-    for filename, keys in payload_arrays(job).items():
-        path = directory / filename
-        temporary = directory / (filename + ".selected")
-        extract_arrays(path, temporary, keys)
-        temporary.replace(path)
 
 
 def compute(identity, *, run_id=None):
@@ -109,7 +101,6 @@ def compute(identity, *, run_id=None):
                         load_json(output / "metrics.json"), simulation_config
                     ),
                 )
-            compact(output, job)
             evidence.recordings(output, contract["configs"][name], job)
             for filename in ("config.json", "run.sh", "run.jsonl", "output.log"):
                 if (output / filename).exists():

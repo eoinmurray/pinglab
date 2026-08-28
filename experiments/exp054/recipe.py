@@ -145,4 +145,16 @@ def simulation_args(cfg, item, output):
             "--w-in-initial-zero-fraction",
             str(cfg["shared_zero_fraction"]),
         ]
-    return args
+    return args + [
+        "--recording-mode",
+        "spikes",
+        "--recording-start-step",
+        str(int(cfg["burn_ms"] / cfg["dt_ms"])),
+        "--output-fields",
+        "e_trial",
+        "e_t",
+        "e_cell",
+        "i_trial",
+        "i_t",
+        "i_cell",
+    ]

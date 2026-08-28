@@ -150,4 +150,8 @@ def inference_args(train, checkpoint, output, job):
             args += ["--sample-index", str(job["sample_index"])]
         else:
             args += ["--outputs", "pop_traces", "--max-samples", str(job["samples"])]
+    fields = [key for name in PAYLOADS[job["kind"]] for key in ARRAYS.get(name, ())]
+    args += ["--output-fields", *dict.fromkeys(fields)]
+    if job["kind"] != "weights_dump":
+        args += ["--recording-mode", "spikes"]
     return args

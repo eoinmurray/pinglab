@@ -116,6 +116,18 @@ def lab(tmp_path, monkeypatch):
     calls = []
 
     def simulate(args, **kwargs):
+        from config import save_selected_npz
+
+        fields = []
+        if "--output-fields" in args:
+            for arg in args[args.index("--output-fields") + 1 :]:
+                if arg.startswith("--"):
+                    break
+                fields.append(arg)
+
+        def save(path, **arrays):
+            save_selected_npz(path, arrays, fields or None)
+
         assert kwargs == {"no_sync": True}
         calls.append(args)
 
@@ -160,13 +172,13 @@ def lab(tmp_path, monkeypatch):
                 for key in recipe.WEIGHT_ARRAYS
             }
             arrays["unused_input_matrix"] = np.zeros((784, 200))
-            np.savez(out / "weights_dump.npz", **arrays)
+            save(out / "weights_dump.npz", **arrays)
         elif "--sample-index" in args:
             cfg["sample_index"] = int(value("--sample-index"))
             e, i = np.zeros((2000, 200), dtype=bool), np.zeros((2000, 64), dtype=bool)
             e[::20, ::2] = True
             i[::30] = True
-            np.savez(
+            save(
                 out / "snapshot.npz",
                 dt=0.1,
                 n_e=200,
@@ -184,7 +196,7 @@ def lab(tmp_path, monkeypatch):
                 ),
                 (n, 1),
             )
-            np.savez(out / "pop_traces.npz", dt=np.float32(0.1), pop_e=pop, pop_i=pop)
+            save(out / "pop_traces.npz", dt=np.float32(0.1), pop_e=pop, pop_i=pop)
             write_json_atomic(
                 out / "metrics.json",
                 {

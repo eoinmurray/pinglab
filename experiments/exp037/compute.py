@@ -12,7 +12,6 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parents[2]
 sys.path[:0] = [str(REPO), str(REPO / "tools")]
 from experiments.exp037 import evidence, inputs, recipe
-from experiments.exp041.import_gold2 import extract_arrays
 from experiments.helpers.run_cli import run_cli
 from pingstore.contracts import (
     PingstoreError,
@@ -22,8 +21,6 @@ from pingstore.contracts import (
     write_json_atomic,
 )
 from pingstore.stages import _capture_code, reserve_stage, stage_reservation, utc_now
-
-SNAPSHOT_ARRAYS = recipe.SNAPSHOT_ARRAYS
 
 
 def _run_jobs(bank, directory, jobs, contract):
@@ -56,11 +53,9 @@ def _run_jobs(bank, directory, jobs, contract):
             evidence.recordings(scratch, cfg, job)
             output.mkdir(parents=True)
             if job["kind"] == "raster":
-                extract_arrays(
-                    scratch / "snapshot.npz", output / "snapshot.npz", SNAPSHOT_ARRAYS
-                )
+                (scratch / "snapshot.npz").rename(output / "snapshot.npz")
             else:
-                shutil.copyfile(scratch / "metrics.json", output / "metrics.json")
+                (scratch / "metrics.json").rename(output / "metrics.json")
             for p in scratch.iterdir():
                 if p.name not in ("snapshot.npz", "metrics.json"):
                     p.rename(attachments / p.name)

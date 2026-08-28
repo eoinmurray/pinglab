@@ -173,21 +173,42 @@ def inference_args(train, checkpoint, output, job):
         str(output),
     ]
     if job["kind"] == "snapshot":
-        return args + [
-            "--input",
-            "dataset",
-            "--dataset",
-            "mnist",
-            "--digit",
-            "0",
-            "--sample",
-            "0",
-            "--t-ms",
-            "400",
-        ]
+        return (
+            args
+            + ["--recording-mode", "spikes", "--output-fields", "spk_e", "spk_i"]
+            + [
+                "--input",
+                "dataset",
+                "--dataset",
+                "mnist",
+                "--digit",
+                "0",
+                "--sample",
+                "0",
+                "--t-ms",
+                "400",
+            ]
+        )
     args += ["--max-samples", str(job["samples"])]
     if job["kind"] == "pfg" and job["is_ping"]:
-        args += ["--outputs", "pop_traces", "rasters"]
+        args += [
+            "--outputs",
+            "pop_traces",
+            "rasters",
+            "--recording-mode",
+            "spikes",
+            "--output-fields",
+            "pop_e",
+        ] + ["e_trial", "e_t", "e_cell", "i_trial", "i_t", "i_cell"]
     elif job["kind"] == "scale":
-        args += ["--scale-w-in", str(job["scale"]), "--outputs", "per_cell_rates"]
+        args += [
+            "--scale-w-in",
+            str(job["scale"]),
+            "--outputs",
+            "per_cell_rates",
+            "--recording-mode",
+            "spikes",
+            "--output-fields",
+            "rate_e_per_sample",
+        ]
     return args

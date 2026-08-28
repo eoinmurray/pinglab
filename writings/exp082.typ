@@ -50,7 +50,7 @@
 
   Longer matched presentation and decision windows improved continuous-stream
   digit classification across three frozen spiking networks trained with
-  variable input rates. We reanalysed retained MNIST evaluations crossing four
+  variable input rates. I reanalysed retained MNIST evaluations crossing four
   durations with eleven rates, comprising #r.scientific_preflight.evaluation_grid.n_presentations
   decisions. Mean accuracy across rates and networks rose from
   #pct(mean(at-duration(25.0).map(row => row.accuracy))) at 25 ms to
@@ -126,10 +126,10 @@
     caption: [The same 200 ms slice, mean ± sample SD/√3 across seeds 42–44.
       Accuracy rose from #pct(rate-mean(0.5)) at 0.5 Hz to
       #pct(rate-mean(3.0)) at 3 Hz and #pct(rate-mean(7.5)) at 7.5 Hz.
-      The 10, 15 and 25 Hz means span #pct(minimum(dense-means))–#pct(maximum(dense-means)).
-      The dense end did not collapse. At 15 Hz, seed accuracies span
+      The 10, 15 and 25 Hz means spanned #pct(minimum(dense-means))–#pct(maximum(dense-means)).
+      The dense end did not collapse. At 15 Hz, seed accuracies spanned
       #pct(minimum(at-rate(15.0).map(row => row.accuracy)))–#pct(maximum(at-rate(15.0).map(row => row.accuracy))).
-      At 0.5 Hz, the range is #pct(minimum(at-rate(0.5).map(row => row.accuracy)))–#pct(maximum(at-rate(0.5).map(row => row.accuracy))),
+      At 0.5 Hz, the range was #pct(minimum(at-rate(0.5).map(row => row.accuracy)))–#pct(maximum(at-rate(0.5).map(row => row.accuracy))),
       with #pct(mean(at-rate(0.5).map(row => row.silent_fraction))) silent windows.
       No fixed-rate-training control or independent stream-bank repeat establishes
       why this transfer works. Comparison with
@@ -141,7 +141,7 @@
   #block(sticky: true)[
     == Methods
 
-    We reused trained networks and retained inference measurements to evaluate
+    I reused trained networks and retained inference measurements to evaluate
     matched-window spike-count classification, without retraining or new simulation.
   ]
   #set math.equation(numbering: "(1)")
@@ -190,10 +190,10 @@
     maximum-pixel input rate $r$ (Hz) and trained seed $s$ was
     $ A_(d,r,s) = 1/N sum_(i=1)^N bb(1)[hat(y)_(i,d,r,s) = y_i]. $ <eq-accuracy>
     Here $N=200$, $i$ indexes digit presentations, $hat(y)$ and $y$ are predicted
-    and true labels, and $bb(1)$ is an indicator. We retained original
+    and true labels, and $bb(1)$ is an indicator. I retained original
     per-seed aggregates of accuracy, class spike totals, output spikes per
     presentation, silence and E/I rates; individual grid decisions were not
-    archived. E/I rates use all 1,024/256 cells and the complete presentation
+    archived. E/I rates used all 1,024/256 cells and the complete presentation
     duration. Seed means and sample SD/√3 summarize three networks, not 600
     independent network replicates; no additional stream-bank repeats, adjusted
     comparisons or population-level intervals support broader generalization.

@@ -142,13 +142,12 @@ def repo(tmp_path, monkeypatch):
             rates_hz=np.asarray([0.5, 5.0, 25.0]),
         )
 
-    def train(images, labels, seed, output, cfg):
+    def train(images, labels, seed, output, cfg, *, state_cache):
         calls.append(seed)
         assert not list((tmp_path / ".pingstore/runs").glob("exp080-*-compute"))
         directory = output / "models" / f"seed-{seed}"
         directory.mkdir(parents=True)
-        path = directory / "decoder.pt"
-        path.write_bytes(f"synthetic checkpoint {seed}".encode())
+        state_cache[seed] = {"fixture": seed}
         record = {
             "seed": seed,
             "device": "cpu",
@@ -159,13 +158,13 @@ def repo(tmp_path, monkeypatch):
                 {"epoch": i, "train_accuracy": 0.7, "validation_accuracy": 0.75}
                 for i in range(1, cfg["epochs"] + 1)
             ],
-            "checkpoint": str(path.relative_to(output)),
-            "checkpoint_sha256": file_sha256(path),
+            "checkpoint_retention": "memory_only",
         }
         write_json_atomic(directory / "training.json", record)
         return record
 
-    def evaluate(records, output, cfg):
+    def evaluate(records, output, cfg, *, state_cache):
+        assert set(state_cache) == set(cfg["seeds"])
         calls.append("evaluation")
         values = np.zeros((8, 3, cfg["test_count"]), dtype=bool)
         values[2:, :, :30] = True
@@ -315,7 +314,7 @@ def test_invalid_sources_fail_closed(repo, change):
     else:
         document = load_json(source.export / "evidence.json")
         if change == "checkpoint":
-            (source.export / document["training"][0]["checkpoint"]).write_bytes(
+            (source.export / "models/seed-42/decoder.pt").write_bytes(
                 b"other checkpoint"
             )
         elif change == "selection":
@@ -406,7 +405,10 @@ def test_collection_adapter_reserves_and_dispatches_separate_stages(repo, monkey
         collection.require_staged({"execution": {"mode": "monolithic"}})
 
 
-def test_cpu_checkpoint_keeps_selected_epoch_weights(tmp_path, monkeypatch):
+@pytest.mark.parametrize("memory_only", [False, True])
+def test_cpu_checkpoint_keeps_selected_epoch_weights(
+    tmp_path, monkeypatch, memory_only
+):
     import torch
 
     class Decoder(torch.nn.Module):
@@ -428,14 +430,21 @@ def test_cpu_checkpoint_keeps_selected_epoch_weights(tmp_path, monkeypatch):
     monkeypatch.setattr(compute, "make_model", lambda *a: model)
     monkeypatch.setattr(compute, "direct_features", lambda *a: torch.zeros(1, 784))
     cfg = {**recipe.configuration(smoke=True), "train_count": 1, "validation_count": 1}
+    cache = {} if memory_only else None
     result = compute.train_seed(
         np.zeros((2, 28, 28), dtype=np.uint8),
         np.zeros(2, dtype=np.int64),
         42,
         tmp_path,
         cfg,
+        state_cache=cache,
     )
-    checkpoint = torch.load(tmp_path / result["checkpoint"], weights_only=True)
+    if memory_only:
+        assert not list(tmp_path.rglob("*.pt"))
+        assert result["checkpoint_retention"] == "memory_only"
+        checkpoint = {"state_dict": cache[42]}
+    else:
+        checkpoint = torch.load(tmp_path / result["checkpoint"], weights_only=True)
     assert result["selected_epoch"] == 1
     assert torch.equal(checkpoint["state_dict"]["logits"], model.snapshots[0])
     assert not torch.equal(checkpoint["state_dict"]["logits"], model.snapshots[1])
@@ -499,6 +508,18 @@ def test_importing_package_has_no_execution_or_plotting_side_effects(tmp_path):
     assert list(tmp_path.iterdir()) == []
 
 
+def retain_historical_checkpoints(data, document):
+    for record in document["training"]:
+        record.pop("checkpoint_retention")
+        checkpoint = data / f"models/seed-{record['seed']}/decoder.pt"
+        checkpoint.write_bytes(f"synthetic checkpoint {record['seed']}".encode())
+        record.update(
+            checkpoint=str(checkpoint.relative_to(data)),
+            checkpoint_sha256=file_sha256(checkpoint),
+        )
+        write_json_atomic(checkpoint.parent / "training.json", record)
+
+
 @pytest.fixture
 def archive(repo, monkeypatch):
     from PIL import Image
@@ -511,6 +532,8 @@ def archive(repo, monkeypatch):
     archive = root / "archive"
     data = archive / historical.DERIVED
     shutil.copytree(source.export, data)
+    # Historical archives have the original on-disk checkpoint contract.
+    retain_historical_checkpoints(data, document)
     (data / "evidence.json").unlink()
     (data / "feature_samples.npz").unlink()
     Image.fromarray(np.zeros((2, 2), dtype=np.uint8)).save(data / "feature_images.png")
@@ -664,6 +687,7 @@ def test_historical_illustration_is_carried_without_simulation(repo, monkeypatch
         "kind": "historical-image",
         "path": "feature_images.png",
     }
+    retain_historical_checkpoints(source.export, document)
     write_json_atomic(source.export / "evidence.json", document)
     record = load_json(source.directory / "run.json")
     record["execution"]["operation"] = "historical-import"
@@ -842,3 +866,23 @@ def test_article_renders_explicit_evidence_without_false_branches(repo, view):
     else:
         assert "No rate met the criterion" in html
         assert "The selected floor is" not in html
+
+
+def test_cached_decoder_load_matches_checkpoint_predictions(tmp_path):
+    import torch
+
+    seed = 42
+    model = compute.make_model(torch.device("cpu"), seed)
+    state = {k: v.detach().clone() for k, v in model.state_dict().items()}
+    path = tmp_path / "decoder.pt"
+    torch.save({"state_dict": state}, path)
+    records = [
+        {"seed": seed, "checkpoint": path.name, "checkpoint_sha256": file_sha256(path)}
+    ]
+    disk = compute.load_models(records, torch.device("cpu"), tmp_path)[0]
+    cached = compute.load_models(
+        records, torch.device("cpu"), tmp_path, state_cache={seed: state}
+    )[0]
+    features = torch.arange(784, dtype=torch.float32)[None] / 784
+    with torch.no_grad():
+        assert torch.equal(disk(features), cached(features))

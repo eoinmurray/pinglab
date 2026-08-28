@@ -106,7 +106,9 @@ def synthetic(spec, *, runtime_state=None):
     )
     return ExecutionResult(
         executor="graph",
-        recordings=data,
+        recordings=data
+        if spec.recording_fields is None
+        else {k: data[k] for k in spec.recording_fields},
         parameters={
             row["id"]: torch.ones(tuple(reversed(row["shape"])))
             for row in spec.graph["parameters"]

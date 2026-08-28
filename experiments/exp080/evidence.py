@@ -80,12 +80,28 @@ def validate(output, cfg, *, historical=False, document=None):
     records = document["training"]
     require([r["seed"] for r in records] == cfg["seeds"], "decoder seeds disagree")
     for record in records:
-        checkpoint = f"models/seed-{record['seed']}/decoder.pt"
-        require(record.get("checkpoint") == checkpoint, "unexpected checkpoint path")
-        require(
-            file_sha256(output / checkpoint) == record.get("checkpoint_sha256"),
-            "checkpoint hash differs from selected training record",
-        )
+        if record.get("checkpoint_retention") == "memory_only":
+            require(
+                not historical,
+                "historical imports must retain their checkpoint evidence",
+            )
+            require(
+                "checkpoint" not in record and "checkpoint_sha256" not in record,
+                "memory-only training must not declare a checkpoint file",
+            )
+            require(
+                not (output / f"models/seed-{record['seed']}/decoder.pt").exists(),
+                "memory-only training contains an unexpected checkpoint",
+            )
+        else:
+            checkpoint = f"models/seed-{record['seed']}/decoder.pt"
+            require(
+                record.get("checkpoint") == checkpoint, "unexpected checkpoint path"
+            )
+            require(
+                file_sha256(output / checkpoint) == record.get("checkpoint_sha256"),
+                "checkpoint hash differs from selected training record",
+            )
         training_path = output / f"models/seed-{record['seed']}/training.json"
         require(load_json(training_path) == record, "training record copies disagree")
         history = record["history"]

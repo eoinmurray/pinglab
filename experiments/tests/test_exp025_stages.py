@@ -92,6 +92,18 @@ def lab(tmp_path, monkeypatch):
     calls = []
 
     def simulate(args, **kwargs):
+        from config import save_selected_npz
+
+        fields = []
+        if "--output-fields" in args:
+            for arg in args[args.index("--output-fields") + 1 :]:
+                if arg.startswith("--"):
+                    break
+                fields.append(arg)
+
+        def save(path, **arrays):
+            save_selected_npz(path, arrays, fields or None)
+
         calls.append(args)
 
         def arg(key):
@@ -108,9 +120,7 @@ def lab(tmp_path, monkeypatch):
             e, i = np.zeros((4000, 4), bool), np.zeros((4000, 2), bool)
             e[::200] = True
             i[::200] = True
-            np.savez(
-                out / "snapshot.npz", dt=0.1, spk_e=e, spk_i=i, unused=np.zeros(20)
-            )
+            save(out / "snapshot.npz", dt=0.1, spk_e=e, spk_i=i, unused=np.zeros(20))
         else:
             n = int(arg("--max-samples"))
             write_json_atomic(
@@ -129,14 +139,14 @@ def lab(tmp_path, monkeypatch):
                 },
             )
             if "per_cell_rates" in args:
-                np.savez(
+                save(
                     out / "per_cell_rates.npz",
                     rate_e_per_sample=np.linspace(0.5, 2.0, n, dtype=np.float32),
                     unused=np.zeros(20),
                 )
             if "pop_traces" in args:
                 t = np.arange(2000) * 0.1 / 1000
-                np.savez(
+                save(
                     out / "pop_traces.npz",
                     dt=0.1,
                     pop_e=np.tile(0.1 + 0.05 * np.sin(2 * np.pi * 50 * t), (n, 1)),
@@ -153,7 +163,7 @@ def lab(tmp_path, monkeypatch):
                             p + "_cell": np.zeros(tr.size, np.int32),
                         }
                     )
-                np.savez(out / "rasters.npz", **data)
+                save(out / "rasters.npz", **data)
         simulation_config = {
             **cfg,
             "infer": True,

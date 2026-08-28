@@ -40,12 +40,18 @@ def jobs(schedule):
     ]
 
 
-def recording(root, job):
-    data = arrays(root / "jobs" / job["id"] / "recordings.npz")
+def recording_sizes(job):
+    """Channels consumed by the committed analysis for this job."""
+    if job["id"] == "prefix":
+        return {}
     sizes = {"population_0": recipe.N_E, "population_1": recipe.N_I}
     if job["graph"] != "prc":
         sizes.update(population_2=recipe.N_E, population_3=recipe.N_I)
-    else:
+    elif job["id"] == next(
+        f"prc-I-{index:02d}"
+        for index, fraction in enumerate(recipe.PRC_PHASE_FRACTIONS)
+        if round(float(fraction), 2) == 0.12
+    ):
         sizes.update(
             {
                 "PING_A_I.voltage": recipe.N_I,
@@ -54,13 +60,21 @@ def recording(root, job):
             }
         )
     if job["id"].startswith("pathway-"):
-        sizes.update(
-            {
-                "PING_A_E_to_PING_B_E_K_EE.conductance": recipe.N_E,
-                "PING_B_I_to_E.conductance": recipe.N_E,
-            }
-        )
-    for name, size in sizes.items():
+        sizes.pop("population_1")
+        if job["id"] not in ("pathway-none", "pathway-e_to_e"):
+            sizes.pop("population_3")
+        else:
+            sizes["PING_B_I_to_E.conductance"] = recipe.N_E
+        if job["id"] == "pathway-e_to_e":
+            sizes["PING_A_E_to_PING_B_E_K_EE.conductance"] = recipe.N_E
+    return sizes
+
+
+def recording(root, job):
+    if job["id"] == "prefix":
+        return {}
+    data = arrays(root / "jobs" / job["id"] / "recordings.npz")
+    for name, size in recording_sizes(job).items():
         value = data.get(name)
         if value is None or value.shape != (job["steps"], 1, size):
             raise PingstoreError(
@@ -111,14 +125,17 @@ def compute_export(root, cfg):
     for job in expected:
         directory = root / "jobs" / job["id"]
         request = load_json(directory / "request.json")
-        if request != {
+        expected_request = {
             **job,
             "seed": recipe.NETWORK_SEED,
             "recording": "full",
             "graph_sha256": cfg["graph_hashes"][job["graph"]],
             "kind": "simulate",
             "executor": "graph",
-        }:
+        }
+        if "recording_fields" in request:
+            expected_request["recording_fields"] = list(recording_sizes(job))
+        if request != expected_request:
             raise PingstoreError("exp085 simulation request differs")
         drive = arrays(directory / "inputs.npz")
         names = {f"drive_A_{recipe.INPUT_RATE_A_HZ:g}_Hz": recipe.N_INPUT}

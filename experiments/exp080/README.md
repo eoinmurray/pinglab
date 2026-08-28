@@ -224,3 +224,12 @@ unchanged. Of 73 pre-existing manifests, 67 remain unchanged; exp083's three run
 were separately deleted with Anomancer's authorization and exp084's three runs
 were separately moved to its owner's documented recovery location. Neither change
 was performed by this task, and no missing run was recreated.
+
+## Future-run data retention — 2026-08-28
+
+Native compute keeps each validation-selected decoder state in memory through held-out evaluation and does not write decoder.pt. Training histories and held-out correctness remain retained; memory_only is explicit in the training record. The low-level helper still supports checkpoint files for explicit callers. Readers continue to validate checkpoint hashes when consuming older v3 evidence.
+
+These changes affect future execution only. Existing immutable runs and R2
+archives are unchanged. Required arrays keep their original numerical values;
+selected NPZ outputs use lossless compression. No production rerun or new
+publication was performed for this cleanup.

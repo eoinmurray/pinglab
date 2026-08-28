@@ -58,7 +58,7 @@
   == Abstract
 
   Both trained networks tolerated substantial spike deletion, whereas added
-  spikes reduced PING accuracy much more sharply than COBA accuracy. We
+  spikes reduced PING accuracy much more sharply than COBA accuracy. I
   reanalysed retained MNIST evaluations from three independently trained seeds
   per model on #eval_n test images. At 80% deletion probability, PING scored
   #acc("ping", "drop", 0.8)% and COBA #acc("coba", "drop", 0.8)%; deleting all
@@ -142,7 +142,7 @@
   #block(sticky: true)[
     == Methods
 
-    We reused trained networks and retained inference trials to compare deletion
+    I reused trained networks and retained inference trials to compare deletion
     and insertion of hidden spikes, without retraining.
   ]
   #set math.equation(numbering: "(1)")
@@ -151,7 +151,7 @@
     a 7,000-image training pool, split into 6,300 optimization and 700 validation
     images. Networks had 1,024 excitatory and 256 inhibitory hidden neurons,
     with the E→I→E loop enabled for PING and disabled for COBA; input and readout
-    weights were learned, while recurrent weights stayed fixed. We used the
+    weights were learned, while recurrent weights stayed fixed. I used the
     unregularized conditions from seeds 42–44 after #cfg.epochs training epochs,
     selecting the minimum-validation-loss epoch, not the maximum-accuracy epoch.
     During training, voltage-increment gradients were divided by 1,000 for PING
@@ -184,7 +184,7 @@
     Illustrative trials used seed 42 and test-image index 0, independently of
     digit-class selection.
 
-  + *Normalize the nominal added rate.* We retained the original normalization:
+  + *Normalize the nominal added rate.* I retained the original normalization:
     $ x_"add" = frac(100 r_"add", overline(r)_(E,"ref")) $ <eq-normalize>
     Here $x_"add"$ is the displayed percentage and $overline(r)_(E,"ref")$ is the
     model's three-seed mean E rate in Hz from final-epoch reference-image

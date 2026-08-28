@@ -48,7 +48,7 @@
   calibration interval.] else [No tested rate reached the
   #pct(p.useful_accuracy) accuracy criterion for every decoder, so the
   calibration did not establish a lower bound.]
-  We trained #p.seeds.len() decoders on freshly simulated MNIST features at
+  I trained #p.seeds.len() decoders on freshly simulated MNIST features at
   #p.rates_hz.len() input rates, using synaptic and membrane filtering over
   #p.presentation_ms ms. Frozen validation-selected decoders were evaluated on
   #p.test_count held-out images per rate. #if criterion-crossed [Mean accuracy
@@ -104,7 +104,7 @@
 
   == Methods
 
-  We calibrated which input rates preserved usable digit information after
+  I calibrated which input rates preserved usable digit information after
   independent synaptic and membrane filtering of each pixel.
 
   #enum(

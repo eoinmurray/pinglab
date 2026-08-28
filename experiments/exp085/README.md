@@ -272,3 +272,12 @@ No completed runs, archive, publication selection or materialization directory
 were changed. Nothing was staged or committed; Reviewed still requires approval.
 Audit evidence is under
 `/var/folders/d7/m7d98tgd3hx0kxnm64vwrk_40000gn/T/pinglab-exp085-relabel-4glr1apw/`.
+
+## Future-run data retention — 2026-08-28
+
+Each job explicitly selects the graph channels consumed by analysis. PRC voltage/conductance traces are kept only for the I-pulse doublet example. Pathway jobs retain E populations, plus target I spikes and the required conductances for the event-aligned mechanism. The shared prefix retains branching state but no trajectory file. Unused graph voltage/conductance channels and duplicate named spike recordings are not collected or written; exact inputs and parameters remain execution evidence.
+
+These changes affect future execution only. Existing immutable runs and R2
+archives are unchanged. Required arrays keep their original numerical values;
+selected NPZ outputs use lossless compression. No production rerun or new
+publication was performed for this cleanup.

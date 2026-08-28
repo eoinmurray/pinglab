@@ -17,9 +17,11 @@ def dense(data, cfg):
     burn = int(cfg["burn_ms"] / cfg["dt_ms"])
     result = []
     for prefix, size in (("e", cfg["n_e"]), ("i", cfg["n_i"])):
-        a = np.zeros((int(data["T"]), size), dtype=np.int8)
-        a[data[f"{prefix}_t"], data[f"{prefix}_cell"]] = 1
-        result.append(a[burn:])
+        a = np.zeros((int(data["T"]) - burn, size), dtype=np.int8)
+        times, cells = data[f"{prefix}_t"], data[f"{prefix}_cell"]
+        keep = times >= burn
+        a[times[keep] - burn, cells[keep]] = 1
+        result.append(a)
     return result
 
 

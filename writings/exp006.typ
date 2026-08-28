@@ -61,7 +61,7 @@
 
   $ h^t = f(h^(t-1), x^t; theta), quad y^t = g(h^t; theta) $
 
-  with input $x^t$, output $y^t$, and parameters $theta$ shared across time. Running $T$ steps gives a chain $h^0 -> h^1 -> dots.c -> h^T$, which for gradients we treat as a depth-$T$ feedforward network with tied weights.
+  with input $x^t$, output $y^t$, and parameters $theta$ shared across time. Running $T$ steps gives a chain $h^0 -> h^1 -> dots.c -> h^T$, which for gradients is treated as a depth-$T$ feedforward network with tied weights.
 
   For a scalar loss $cal(L)$ depending on the final state, define $lambda^t = partial cal(L) / partial h^t$ as the total sensitivity to state $h^t$. Then the contribution through state updates is
 

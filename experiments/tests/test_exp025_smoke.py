@@ -58,7 +58,9 @@ def test_smoke_scaled_inference_caps_dataset(tmp_path: Path) -> None:
         tmp_path, tmp_path / "weights_final.pth", tmp_path / "out", jobs[0]
     )
     assert args[args.index("--max-samples") + 1] == "100"
-    assert args[-4:] == ["--scale-w-in", "0.5", "--outputs", "per_cell_rates"]
+    assert args[args.index("--scale-w-in") + 1] == "0.5"
+    assert args[args.index("--outputs") + 1] == "per_cell_rates"
+    assert args[args.index("--output-fields") + 1 :] == ["rate_e_per_sample"]
 
 
 def test_frontier_endpoint_requests_one_official_test_forward_pass(

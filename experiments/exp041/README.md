@@ -194,3 +194,12 @@ are retained under `.r2/exp041-import-c12xbg6s/`. The run-local `README.md` expl
 the original HPC execution, local import and retained scientific scope in plain
 English. Removing unused source arrays from the local import does not authorize
 deleting or altering the Gold-2 originals.
+
+## Future-run data retention — 2026-08-28
+
+Frequency jobs accumulate and store only E population traces; raster jobs retain only E/I spikes and metadata. Both use the E/I spike recorder, without voltage, conductance, input or readout trajectories.
+
+These changes affect future execution only. Existing immutable runs and R2
+archives are unchanged. Required arrays keep their original numerical values;
+selected NPZ outputs use lossless compression. No production rerun or new
+publication was performed for this cleanup.

@@ -138,3 +138,12 @@ The current bank is `exp022-r001-compute`. The
 [source-neutral naming migration](../../tools/pingstore/SOURCE_NEUTRAL_IDS.md)
 removed execution-source suffixes from all completed runs and updated their pins.
 Local import origin and historical Slurm training remain explicit in `run.json`.
+
+## Future-run data retention — 2026-08-28
+
+Raster probes retain only E/I spikes and metadata, using the E/I spike recorder. The official-test evaluations remain metrics-only. All timesteps, sample choices and full-trial rates are unchanged.
+
+These changes affect future execution only. Existing immutable runs and R2
+archives are unchanged. Required arrays keep their original numerical values;
+selected NPZ outputs use lossless compression. No production rerun or new
+publication was performed for this cleanup.

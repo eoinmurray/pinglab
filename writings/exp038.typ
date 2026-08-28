@@ -46,7 +46,7 @@
   Enabling an inhibitory loop after feedforward training reduced mean excitatory
   firing from approximately #rate_off to #rate_on Hz, a #rate_ratio\-fold decrease,
   while MNIST test accuracy fell from approximately #acc_off% to #acc_on%.
-  We reanalysed retained observations from three independently trained networks,
+  I reanalysed retained observations from three independently trained networks,
   keeping learned input and readout weights fixed while varying bidirectional
   loop coupling. Illustrative rasters showed increasingly grouped E/I bursts
   without retraining. The intervention demonstrates suppression after training,
@@ -90,7 +90,7 @@
 
   == Methods
 
-  We reused networks from the #link("/exp022/")[shared training study] and
+  I reused networks from the #link("/exp022/")[shared training study] and
   reanalysed retained inference observations. No new training or simulation
   was performed for this account.
 
@@ -99,7 +99,7 @@
     Conductance-based leaky-integrate-and-fire networks had 784 Poisson input
     channels, 1,024 excitatory (E), 256 inhibitory (I), and 10 output cells;
     pixels set rates up to 25 Hz. Input and readout weights trained for 50 epochs;
-    class scores were mean pre-reset output voltages. We selected the minimum
+    class scores were mean pre-reset output voltages. I selected the minimum
     mean validation cross-entropy over three fixed encoding draws, breaking
     ties by accuracy and then earliest epoch, rather than using final-epoch weights.
 
@@ -153,7 +153,7 @@
   ceilings of 25, 10, 5, 2.5 and 1 Hz). Its summaries preserve selected and
   final-epoch validation accuracy, final-epoch training E rate, and across-seed
   means and SEM; these are distinct from the inference measurements above.
-  The loop-transfer comparison uses only the three unpenalised feedforward
+  The loop-transfer comparison used only the three unpenalised feedforward
   classifiers. The #link("/exp025/")[accuracy–rate comparison] describes the
   broader training design.
 

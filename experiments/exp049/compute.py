@@ -9,7 +9,6 @@ from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[2]
 sys.path[:0] = [str(REPO), str(REPO / "tools")]
-from experiments.exp041.import_gold2 import extract_arrays
 from experiments.exp049 import evidence, inputs, recipe
 from experiments.helpers.run_cli import run_cli
 from pingstore.contracts import PingstoreError, load_json, write_json_atomic
@@ -67,12 +66,6 @@ def compute(identity, *, run_id=None):
             evidence.inference_config(
                 load_json(output / "config.json"), contract["configs"][name], job
             )
-            for filename in recipe.PAYLOADS[job["kind"]]:
-                if filename in recipe.ARRAYS:
-                    target = output / filename
-                    temporary = output / (filename + ".selected")
-                    extract_arrays(target, temporary, recipe.ARRAYS[filename])
-                    temporary.replace(target)
             evidence.recordings(output, contract["configs"][name], job)
             keep = recipe.PAYLOADS[job["kind"]]
             for path in output.iterdir():

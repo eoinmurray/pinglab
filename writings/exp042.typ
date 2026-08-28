@@ -72,9 +72,9 @@
 #let body = [
   == Abstract
 
-  Precisely timed inhibitory bursts, rather than mean inhibition alone, suppress
+  Precisely timed inhibitory bursts, rather than mean inhibition alone, suppressed
   excitatory firing in trained pyramidal–interneuron network gamma (PING)
-  classifiers. We replayed three frozen networks while either independently
+  classifiers. I replayed three frozen networks while either independently
   jittering inhibitory spikes or shifting whole inhibitory bursts. At the
   rate-matched comparison, per-cell jitter smeared the bursts and reduced the
   excitatory rate from #base_e Hz to approximately zero, whereas cycle-coherent
@@ -151,11 +151,11 @@
 
   == Methods
 
-  The experiment isolates inhibitory timing by replaying frozen networks,
+  The experiment isolated inhibitory timing by replaying frozen networks,
   changing only when recorded inhibitory spikes arrive, and measuring the
   resulting excitatory activity and classification performance.
 
-  + *Select the frozen networks.* We used the three baseline PING classifiers
+  + *Select the frozen networks.* I used the three baseline PING classifiers
     from the #link("/exp022/")[shared training study], with seeds 42–44, at their
     final training epoch because the experiment tests final-epoch dynamics
     rather than validation-selected deployment performance. The reference gamma
@@ -182,21 +182,21 @@
 
     Here $P_gamma$ is the cycle duration in milliseconds and $f_gamma$ is gamma
     frequency in hertz; at the baseline operating point, $P_gamma approx
-    #period_ms$ ms. Both interventions draw offsets
+    #period_ms$ ms. Both interventions drew offsets
 
     $ Delta tilde cal(N)(0, sigma^2). $
 
     Here $Delta$ is a temporal offset in milliseconds and $sigma$ is its standard
-    deviation. Cycle-coherent jitter draws one $Delta$ for every trial and cycle
-    and applies it to all inhibitory spikes in that cycle. Per-cell jitter draws
-    an independent $Delta$ for every inhibitory spike. Offsets are rounded to
-    simulation timesteps and shifted times are clamped to the finite trial
-    window; spikes that coincide at the same cell and timestep merge.
+    deviation. Cycle-coherent jitter drew one $Delta$ for every trial and cycle
+    and applied it to all inhibitory spikes in that cycle. Per-cell jitter drew
+    an independent $Delta$ for every inhibitory spike. Offsets were rounded to
+    simulation timesteps and shifted times were clamped to the finite trial
+    window; spikes that coincided at the same cell and timestep merged.
 
-  + *Construct the limiting controls.* Phase-shuffle applies one shared
+  + *Construct the limiting controls.* Phase-shuffle applied one shared
     permutation of time to all inhibitory cells in a trial, preserving
     same-timestep co-firing while removing phase order. Rate-matched Poisson
-    redraws each trial and cell from its observed spike count, removing temporal
+    redrew each trial and cell from its observed spike count, removing temporal
     and cross-cell structure while preserving expected rate.
 
   + *Replay and measure the perturbed stream.* A second forward pass replaced
@@ -205,7 +205,7 @@
     matrix from inhibitory to excitatory cells, and the frozen readout consumed
     the resulting excitatory spikes.
 
-    For every condition we retained excitatory and inhibitory firing rates and
+    For every condition I retained excitatory and inhibitory firing rates and
     test accuracy, then averaged each
     quantity over the three independently trained seeds. Sweep error bars are
     ±1 standard error of the mean across seeds.

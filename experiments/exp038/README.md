@@ -227,3 +227,12 @@ with the retained data. Scientific numbers are unchanged from the initial
 presentation; only labels, layout, execution metadata and the projection of
 saved image labels differ. The 33 preceding runs and published artifacts remain
 unchanged. No training, simulation or reanalysis was performed in this pass.
+
+## Future-run data retention — 2026-08-28
+
+Raster jobs record only E/I spikes and metadata. Uniform-drive f–I probes use the E/I spike recorder without voltage, conductance, input or readout traces. Native compute no longer rewrites snapshots to remove unused fields.
+
+These changes affect future execution only. Existing immutable runs and R2
+archives are unchanged. Required arrays keep their original numerical values;
+selected NPZ outputs use lossless compression. No production rerun or new
+publication was performed for this cleanup.

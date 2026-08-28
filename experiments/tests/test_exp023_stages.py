@@ -49,17 +49,30 @@ def repo(tmp_path, monkeypatch):
         e[::100, 1] = True
         if arg("--ei-strength") != "0":
             i[5::100, 0] = True
-        np.savez_compressed(
+        from config import save_snapshot_npz
+
+        selected = args[args.index("--output-fields") + 1 :]
+        selected = selected[
+            : next(
+                (i for i, x in enumerate(selected) if x.startswith("--")), len(selected)
+            )
+        ]
+        save_snapshot_npz(
             destination / "snapshot.npz",
-            spk_e=e,
-            spk_i=i,
-            dt=float(arg("--dt")),
-            input_spikes=np.zeros((steps, int(arg("--n-in"))), dtype=bool),
-            v_e_1=np.full(e.shape, -60.0),
-            ge_e_1=np.full(e.shape, 0.01),
-            gi_e_1=np.full(e.shape, 0.02 if i.any() else 0.0),
-            v_i_1=np.full(i.shape, -55.0),
-            ge_i_1=np.full(i.shape, 0.03),
+            {
+                "hid": e,
+                "inh": i,
+                "input": np.zeros((steps, int(arg("--n-in"))), dtype=bool),
+                "v_e_1": np.full(e.shape, -60.0),
+                "ge_e_1": np.full(e.shape, 0.01),
+                "gi_e_1": np.full(e.shape, 0.02 if i.any() else 0.0),
+                "v_i_1": np.full(i.shape, -55.0),
+                "ge_i_1": np.full(i.shape, 0.03),
+            },
+            float(arg("--dt")),
+            recipe.N_E,
+            recipe.N_I,
+            output_fields=selected,
         )
         write_json_atomic(destination / "config.json", {"arguments": args})
         (destination / "run.sh").write_text("fixture only\n")
@@ -94,8 +107,8 @@ def test_independent_v3_stages_preserve_measurements_and_never_publish(
     results = load_json(analysis.export / "results.json")
     assert results["config"]["profile"] == "smoke"
     assert results["config"]["drive"]["fi_sweep"]["t_ms"] == 200
-    assert results["raster"]["coba"]["e_rate_hz"] == 25
-    assert results["raster"]["ping"]["i_rate_hz"] == 50
+    assert results["raster"]["coba"]["e_rate_hz"] == pytest.approx(25)
+    assert results["raster"]["ping"]["i_rate_hz"] == pytest.approx(50)
     assert results["raster"]["ping"]["e_index"] == 1
     assert results["f_gamma_hz"]["coba"] is None
     with np.load(analysis.export / "traces.npz") as data:
@@ -345,3 +358,48 @@ def test_article_renders_selected_fixture_numbers_and_all_sections(repo):
     (output.export / "numbers.json").write_text("invalid fixture JSON")
     result = subprocess.run(command, capture_output=True, text=True, timeout=60)
     assert result.returncode != 0
+
+
+@pytest.mark.parametrize("silent", [False, True])
+def test_compact_snapshots_preserve_scope_analysis_and_fi_rates(tmp_path, silent):
+    from config import save_snapshot_npz
+
+    cfg = recipe.configuration(smoke=True)
+    cfg.update(n_e=4, n_i=2)
+    point = {"t_ms": 10, "dt_ms": 0.1, "n_in": 3}
+    rng = np.random.default_rng(42)
+    e = (rng.random((100, 4)) < 0.1) & (not silent)
+    i = (rng.random((100, 2)) < 0.1) & (not silent)
+    rec = {"hid": e, "inh": i, "input": np.zeros((100, 3), bool)}
+    for p, n in (("e", 4), ("i", 2)):
+        rec[f"v_{p}_1"] = rng.uniform(-70, -50, (100, n))
+        for g in ("ge", "gi"):
+            rec[f"{g}_{p}_1"] = rng.uniform(0, 0.2, (100, n))
+    save_snapshot_npz(tmp_path / "full.npz", rec, 0.1, 4, 2)
+    args = recipe.raster_args("ping")
+    fields = args[args.index("--output-fields") + 1 :]
+    save_snapshot_npz(tmp_path / "scope.npz", rec, 0.1, 4, 2, output_fields=fields)
+    full = analyse.snapshot(tmp_path / "full.npz", cfg, point, traces=True)
+    lean = analyse.snapshot(tmp_path / "scope.npz", cfg, point, traces=True)
+    full_traces, full_selection = analyse.select_traces(full, cfg["biophysics"])
+    lean_traces, lean_selection = analyse.select_traces(lean, cfg["biophysics"])
+    assert lean_selection == full_selection
+    assert "input_spikes" not in lean and "v_e_1" not in lean
+    for key in full_traces:
+        np.testing.assert_array_equal(lean_traces[key], full_traces[key])
+    save_snapshot_npz(
+        tmp_path / "fi.npz",
+        rec,
+        0.1,
+        4,
+        2,
+        output_fields=["spk_e_count", "spk_i_count"],
+    )
+    counts = analyse.snapshot(tmp_path / "fi.npz", cfg, point)
+    assert set(counts) == {"dt", "T", "n_e", "n_i", "spk_e_count", "spk_i_count"}
+    for p in ("e", "i"):
+        rate = float(
+            counts[f"spk_{p}_count"]
+            / (cfg[f"n_{p}"] * int(counts["T"]) * counts["dt"] / 1000.0)
+        )
+        assert rate == analyse.population_rate(full[f"spk_{p}"], full["dt"])

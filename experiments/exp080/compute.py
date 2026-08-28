@@ -162,7 +162,13 @@ def batches(indices: np.ndarray, seed: int, shuffle: bool) -> list[np.ndarray]:
 
 
 def train_seed(
-    images: np.ndarray, labels: np.ndarray, seed: int, output: Path, cfg: dict
+    images: np.ndarray,
+    labels: np.ndarray,
+    seed: int,
+    output: Path,
+    cfg: dict,
+    *,
+    state_cache=None,
 ) -> dict[str, Any]:
     import torch
 
@@ -250,7 +256,10 @@ def train_seed(
     directory = output / "models" / f"seed-{seed}"
     directory.mkdir(parents=True, exist_ok=True)
     checkpoint = directory / "decoder.pt"
-    torch.save({"state_dict": best_state, "seed": seed}, checkpoint)
+    if state_cache is None:
+        torch.save({"state_dict": best_state, "seed": seed}, checkpoint)
+    else:
+        state_cache[seed] = best_state
     record = {
         "seed": seed,
         "device": str(device),
@@ -258,38 +267,50 @@ def train_seed(
         "selected_epoch": best_epoch,
         "selected_validation_accuracy": best_accuracy,
         "history": history,
-        "checkpoint": str(checkpoint.relative_to(output)),
-        "checkpoint_sha256": sha256_file(checkpoint),
     }
+    if state_cache is None:
+        record.update(
+            checkpoint=str(checkpoint.relative_to(output)),
+            checkpoint_sha256=sha256_file(checkpoint),
+        )
+    else:
+        record["checkpoint_retention"] = "memory_only"
     (directory / "training.json").write_text(json.dumps(record, indent=2) + "\n")
     return record
 
 
-def load_models(records: list[dict[str, Any]], device: Any, output: Path) -> list[Any]:
+def load_models(
+    records: list[dict[str, Any]], device: Any, output: Path, *, state_cache=None
+) -> list[Any]:
     import torch
 
     models = []
     for item in records:
-        path = output / item["checkpoint"]
-        if sha256_file(path) != item["checkpoint_sha256"]:
-            raise RuntimeError(f"checkpoint hash mismatch: {path}")
-        model = make_model(device, int(item["seed"]))
-        model.load_state_dict(
-            torch.load(path, map_location=device, weights_only=True)["state_dict"]
-        )
+        seed = int(item["seed"])
+        if state_cache is None:
+            path = output / item["checkpoint"]
+            if sha256_file(path) != item["checkpoint_sha256"]:
+                raise RuntimeError(f"checkpoint hash mismatch: {path}")
+            state = torch.load(path, map_location=device, weights_only=True)[
+                "state_dict"
+            ]
+        else:
+            state = state_cache[seed]
+        model = make_model(device, seed)
+        model.load_state_dict(state)
         model.eval()
         models.append(model)
     return models
 
 
 def evaluate(
-    records: list[dict[str, Any]], output: Path, cfg: dict
+    records: list[dict[str, Any]], output: Path, cfg: dict, *, state_cache=None
 ) -> tuple[dict[str, Any], np.ndarray]:
     import torch
 
     images, labels, dataset = load_mnist_test(cfg)
     device = torch_device()
-    models = load_models(records, device, output)
+    models = load_models(records, device, output, state_cache=state_cache)
     correctness = np.empty(
         (len(RATES_HZ), len(SEEDS), cfg["test_count"]), dtype=np.bool_
     )
@@ -383,8 +404,13 @@ def compute(*, run_id: str | None = None) -> str:
         validation = recipe.validate_simulator()
         images, labels, dataset = load_mnist_training()
         illustrative_features(images, run.export)
-        records = [train_seed(images, labels, seed, run.export, cfg) for seed in SEEDS]
-        evaluation, _ = evaluate(records, run.export, cfg)
+        state_cache = {}
+        records = [
+            train_seed(images, labels, seed, run.export, cfg, state_cache=state_cache)
+            for seed in SEEDS
+        ]
+        evaluation, _ = evaluate(records, run.export, cfg, state_cache=state_cache)
+        state_cache.clear()
         write_json_atomic(
             run.export / "evidence.json",
             {

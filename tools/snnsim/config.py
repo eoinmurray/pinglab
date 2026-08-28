@@ -117,6 +117,19 @@ def set_sim_dt(dt, t_ms):
     M.T_steps = int(t_ms / dt)
 
 
+def save_selected_npz(path, arrays, fields=None):
+    """Write an explicit field selection losslessly; preserve existing defaults."""
+    if fields is None:
+        np.savez(path, **arrays)
+        return
+    metadata = {"dt", "n_e", "n_i", "T", "n_trials", "label", "recording_start_step"}
+    keep = set(fields) | metadata
+    selected = {k: v for k, v in arrays.items() if k in keep}
+    if not set(selected) - metadata:
+        raise ValueError("output field selection contains no available data arrays")
+    np.savez_compressed(path, **selected)
+
+
 def save_snapshot_npz(
     out_path,
     rec,
@@ -128,6 +141,7 @@ def save_snapshot_npz(
     primary_inh_key_fn=None,
     label=None,
     extra=None,
+    output_fields=None,
 ):
     """Save spike recording and metadata to NPZ file for notebook analysis.
 
@@ -149,6 +163,9 @@ def save_snapshot_npz(
         dt: Timestep (ms) — stored as metadata
         n_e: Number of excitatory neurons — stored as metadata
         n_i: Number of inhibitory neurons — stored as metadata
+        output_fields: Optional retained-field names. Selected outputs are compressed
+             losslessly. Population spike counts and active-cell traces can replace
+             full snapshots; the default still emits every recorded field.
         display: Optional stimulus array (ext_g or input_spikes tensor).
                  Used as fallback for 'input_spikes' field if rec doesn't contain it.
         primary_hid_key_fn: Function that finds the deepest hidden layer key in rec.
@@ -237,10 +254,32 @@ def save_snapshot_npz(
                 continue
             npz_data[key] = val.numpy() if hasattr(val, "numpy") else np.asarray(val)
 
-    # Write all fields to NPZ (automatic gzip compression).
-    # ty flags **dict unpacking into savez (it conservatively binds each value to
-    # the allow_pickle: bool kwarg); the array kwargs are correct at runtime.
-    np.savez(out_path, **npz_data)  # ty: ignore[invalid-argument-type]
+    if output_fields is not None:
+        for population in ("e", "i"):
+            if not any(
+                field in output_fields
+                for field in (f"spk_{population}_count", f"v_{population}_selected")
+            ):
+                continue
+            spikes = npz_data[f"spk_{population}"]
+            if f"spk_{population}_count" in output_fields:
+                npz_data[f"spk_{population}_count"] = np.asarray(
+                    spikes.sum(), dtype=np.int64
+                )
+                npz_data["T"] = np.int64(spikes.shape[0])
+            if f"v_{population}_selected" in output_fields:
+                counts = spikes.sum(axis=0)
+                index = int(np.argmax(counts)) if counts.size and counts.any() else 0
+                npz_data[f"{population}_trace_index"] = np.int64(index)
+                for signal in ("v", "ge", "gi"):
+                    name = f"{signal}_{population}_1"
+                    if name in npz_data:
+                        npz_data[f"{signal}_{population}_selected"] = npz_data[name][
+                            :, index
+                        ]
+        if "has_gi_e" in output_fields:
+            npz_data["has_gi_e"] = np.asarray(npz_data["gi_e_1"].any())
+    save_selected_npz(out_path, npz_data, output_fields)
 
 
 # =============================================================================
@@ -533,6 +572,7 @@ def run_sim(
     v_perturb_eps=0.0,
     v_perturb_seed=0,
     recurrent_weight_scales=None,
+    recording_mode="full",
 ):
     """Run a single simulation with any registered model.
 
@@ -620,6 +660,7 @@ def run_sim(
     )
     net.to(cfg.torch_device)
     net.recording = True
+    net.recording_mode = recording_mode
 
     fwd_kwargs: dict = {
         "v_perturb_eps": float(v_perturb_eps),

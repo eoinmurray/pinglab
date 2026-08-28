@@ -638,3 +638,120 @@ class TestDumpWeights:
                 hidden_sizes=[32],
                 out_dir=tmp_out,
             )
+
+
+@pytest.mark.parametrize(
+    "fields",
+    [
+        {
+            "pop_e",
+            "rate_e_per_cell",
+            "e_trial",
+            "e_t",
+            "e_cell",
+            "i_trial",
+            "i_t",
+            "i_cell",
+        },
+        {
+            "pop_e",
+            "rate_e_per_sample",
+            "e_trial",
+            "e_t",
+            "e_cell",
+            "i_trial",
+            "i_t",
+            "i_cell",
+        },
+    ],
+)
+def test_selected_inference_arrays_equal_full_pass(
+    synthetic_inference, tmp_path, fields
+):
+    kwargs, _, nets = synthetic_inference
+    full_dir, lean_dir = tmp_path / "full", tmp_path / "lean"
+    full_dir.mkdir()
+    lean_dir.mkdir()
+    outputs = {"rasters", "pop_traces", "per_cell_rates"}
+    full = infer(**kwargs, max_samples=65, outputs=outputs, out_dir=full_dir)
+    lean = infer(
+        **kwargs,
+        max_samples=65,
+        outputs=outputs,
+        out_dir=lean_dir,
+        recording_mode="spikes",
+        output_fields=fields,
+    )
+    assert full == lean
+    assert set(nets[-1].spike_record) == {"hid", "inh"}
+    metadata = {"dt", "T", "n_trials", "n_e", "n_i"}
+    for filename in ("rasters.npz", "pop_traces.npz", "per_cell_rates.npz"):
+        with (
+            np.load(full_dir / filename) as original,
+            np.load(lean_dir / filename) as selected,
+        ):
+            assert set(selected.files) == set(original.files) & (fields | metadata)
+            for key in selected.files:
+                np.testing.assert_array_equal(selected[key], original[key])
+
+
+def test_probe_postburn_events_preserve_full_window_rates(tmp_path, monkeypatch):
+    import infer as module
+
+    monkeypatch.setattr(module, "_auto_device", lambda: torch.device("cpu"))
+    full_dir, lean_dir = tmp_path / "full", tmp_path / "lean"
+    full_dir.mkdir()
+    lean_dir.mkdir()
+    kwargs = dict(
+        model_name="ping",
+        dt=0.1,
+        t_ms=20,
+        hidden_sizes=[8],
+        n_in=8,
+        n_inh=2,
+        seed=42,
+        input_rate_hz=1000,
+        w_in=(5.0, 0.5),
+        n_batch=2,
+        outputs={"rasters"},
+    )
+    fields = {f"{p}_{f}" for p in ("e", "i") for f in ("trial", "t", "cell")}
+    full = probe(**kwargs, out_dir=full_dir)
+    lean = probe(
+        **kwargs,
+        out_dir=lean_dir,
+        recording_mode="spikes",
+        output_fields=fields,
+        recording_start_step=100,
+    )
+    assert full == lean
+    with (
+        np.load(full_dir / "rasters.npz") as original,
+        np.load(lean_dir / "rasters.npz") as selected,
+    ):
+        assert int(selected["recording_start_step"]) == 100
+        assert int(selected["T"]) == int(original["T"]) == 200
+        assert not any(k.startswith("out_") for k in selected.files)
+        assert len(original["e_t"]) > 0
+        for population in ("e", "i"):
+            keep = original[f"{population}_t"] >= 100
+            for field in ("trial", "t", "cell"):
+                key = f"{population}_{field}"
+                np.testing.assert_array_equal(selected[key], original[key][keep])
+
+
+def test_selected_weight_dump_matches_full(synthetic_inference, tmp_path):
+    kwargs, _, _ = synthetic_inference
+    kwargs.pop("readout_mode")
+    fields = {
+        f"W_{kind}_1_{stage}" for kind in ("ei", "ie") for stage in ("init", "trained")
+    }
+    dump_weights(**kwargs, out_dir=tmp_path / "full")
+    dump_weights(**kwargs, out_dir=tmp_path / "lean", output_fields=fields)
+    with (
+        np.load(tmp_path / "full/weights_dump.npz") as full,
+        np.load(tmp_path / "lean/weights_dump.npz") as lean,
+    ):
+        assert set(lean.files) == fields
+        for key in fields:
+            np.testing.assert_array_equal(lean[key], full[key])

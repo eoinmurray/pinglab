@@ -69,3 +69,12 @@ uv run pytest experiments/tests/test_exp023_drive_provenance.py experiments/test
 
 Run IDs now use the [source-neutral convention](../../tools/pingstore/SOURCE_NEUTRAL_IDS.md).
 Execution origin remains in `run.json`; migration preserved scientific results.
+
+## Future-run data retention — 2026-08-28
+
+Scope snapshots retain E/I spikes and the selected active-cell voltage/conductance vectors. The f–I sweep retains population spike totals and dimensions only. Sweep simulation uses the E/I spike recorder; scope dynamics and trace selection are unchanged.
+
+These changes affect future execution only. Existing immutable runs and R2
+archives are unchanged. Required arrays keep their original numerical values;
+selected NPZ outputs use lossless compression. No production rerun or new
+publication was performed for this cleanup.

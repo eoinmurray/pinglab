@@ -54,7 +54,7 @@
 
   Inhibitory-pool size had little effect on firing rates when expected summed
   inhibition was held fixed, but rates fell strongly when expected individual
-  synaptic strength was fixed. We reanalysed untrained pyramidal–interneuron
+  synaptic strength was fixed. I reanalysed untrained pyramidal–interneuron
   network gamma (PING) simulations with #cfg.n_e excitatory cells and
   #n-lo–#n-hi inhibitory cells. At nominal summed coupling #g-mid μS,
   excitatory rates stayed near #re-ft-hi-fmt Hz; at mean synaptic strength
@@ -77,17 +77,17 @@
       inhibitory (I). Left: fixed expected summed coupling $G_(I E)$; right:
       fixed expected synaptic strength $j_(I E)$. Markers are means ±1 sample
       standard deviation across #n-seeds seeds, with #cfg.n_batch trials per seed.
-      At nominal $G_(I E) = #g-mid$ μS, E rates change from #re-ft-lo-fmt to
+      At nominal $G_(I E) = #g-mid$ μS, E rates changed from #re-ft-lo-fmt to
       #re-ft-hi-fmt Hz across #n-lo–#n-hi I cells. At $j_(I E) approx #j-mid-ns$
-      nS, E rates fall from #re-fs-lo-fmt to #re-fs-hi-fmt Hz and I rates from
-      #ri-fs-lo-fmt to #ri-fs-hi-fmt Hz. All tested fixed-mean levels show this
+      nS, E rates fell from #re-fs-lo-fmt to #re-fs-hi-fmt Hz and I rates from
+      #ri-fs-lo-fmt to #ri-fs-hi-fmt Hz. All tested fixed-mean levels showed this
       decrease, consistent with stronger summed inhibition and reduced E–I
-      feedback. Shared conditions reuse the same simulations.],
+      feedback. Shared conditions reused the same simulations.],
   )
 
   == Methods
 
-  We compared two scaling controls using retained simulations of untrained,
+  I compared two scaling controls using retained simulations of untrained,
   dense recurrent excitatory–inhibitory networks, without additional simulation.
   #set math.equation(numbering: "(1)")
 
@@ -111,7 +111,7 @@
     conductance increment at E cell $j$, in μS; both weights and participation
     therefore enter the increment.
 
-  + *Apply paired pool-size controls.* We swept
+  + *Apply paired pool-size controls.* I swept
     $N_I in {#n-lo, #n-mid, #n-hi}$. Fixed-summed controls used parent means
     $mu in {#g-lo, #g-mid, #g-hi}$ μS, so $j_(I E) prop 1 / N_I$;
     fixed-mean-synapse controls scaled $mu$ with $N_I$, giving nominal
@@ -127,10 +127,10 @@
     #cfg.n_in independent #cfg.input_rate_hz Hz input channels, implemented
     as Bernoulli spikes per #cfg.dt_ms ms timestep, for #cfg.t_ms ms and
     #cfg.n_batch trials, with seeds #cfg.seeds.map(str).join(", ").
-    We retained all conditions and averaged spike counts over the full duration,
+    I retained all conditions and averaged spike counts over the full duration,
     trials and cells within each population; overlapping controls reused
     measurements, giving #n-seeds seeds at each of 18 conditions from
-    #(14 * n-seeds) distinct simulations. The reanalysis uses these rates,
+    #(14 * n-seeds) distinct simulations. The reanalysis used these rates,
     not raw spike trains; population rates alone do not establish gamma
     oscillations #cite(1).
 

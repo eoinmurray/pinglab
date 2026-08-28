@@ -2638,3 +2638,42 @@ def test_graph_cli_runtime_state_round_trip_and_legacy_rejection(tmp_path):
         assert "require --executor graph" in str(exc)
     else:
         raise AssertionError("legacy executor must reject graph-runtime-state flags")
+
+
+@pytest.mark.parametrize("selection", ["mixed", "empty"])
+def test_recording_field_selection_preserves_outputs_and_branch_state(selection):
+    graph = _coupled_graph()
+    inputs = {"drive_a": torch.ones(12, 1, 3), "drive_b": torch.ones(12, 1, 2)}
+    spec = dict(
+        kind="simulate",
+        executor="graph",
+        graph=graph,
+        inputs=inputs,
+        device="cpu",
+        seed=42,
+    )
+    full = simulate(ExecutionSpec(**spec))
+    fields = (
+        []
+        if selection == "empty"
+        else [
+            graph["observables"][0]["id"],
+            next(k for k in full.recordings if k.endswith(".conductance")),
+            next(k for k in full.recordings if k.endswith(".voltage")),
+        ]
+    )
+    selected = simulate(ExecutionSpec(**spec, recording_fields=fields))
+    assert set(selected.recordings) == set(fields)
+    for key in fields:
+        assert torch.equal(selected.recordings[key], full.recordings[key])
+    assert selected.outputs.keys() == full.outputs.keys()
+    for key in full.outputs:
+        assert torch.equal(selected.outputs[key], full.outputs[key])
+    for expected, actual in zip(
+        _state_tensors(full.runtime_state),
+        _state_tensors(selected.runtime_state),
+        strict=True,
+    ):
+        assert torch.equal(expected, actual)
+    with pytest.raises(ValueError, match="unavailable recording fields"):
+        simulate(ExecutionSpec(**spec, recording_fields=["missing"]))

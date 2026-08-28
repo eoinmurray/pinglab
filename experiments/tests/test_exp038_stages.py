@@ -96,6 +96,18 @@ def lab(tmp_path, monkeypatch):
     calls = []
 
     def simulate(args, **kwargs):
+        from config import save_selected_npz
+
+        fields = []
+        if "--output-fields" in args:
+            for arg in args[args.index("--output-fields") + 1 :]:
+                if arg.startswith("--"):
+                    break
+                fields.append(arg)
+
+        def save(path, **arrays):
+            save_selected_npz(path, arrays, fields or None)
+
         assert kwargs == {"no_sync": True}
         calls.append(args)
 
@@ -139,7 +151,7 @@ def lab(tmp_path, monkeypatch):
             e, i = np.zeros((2000, 200), dtype=bool), np.zeros((2000, 64), dtype=bool)
             e[::20, ::2] = True
             i[::30] = True
-            np.savez(
+            save(
                 out / "snapshot.npz",
                 dt=0.1,
                 n_e=200,
@@ -203,7 +215,7 @@ def test_independent_stages_preserve_roles_and_never_publish(lab, monkeypatch):
     c = inputs.source(root, cid, "compute")
     for p in c.export.rglob("snapshot.npz"):
         with np.load(p) as d:
-            assert set(d.files) == set(compute.SNAPSHOT_ARRAYS)
+            assert set(d.files) == {"dt", "n_e", "n_i", "label", "spk_e", "spk_i"}
     monkeypatch.setattr(
         compute, "run_cli", lambda *a, **k: pytest.fail("downstream simulation")
     )

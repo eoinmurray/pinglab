@@ -68,7 +68,7 @@
 #let body = [
   == Abstract
 
-  In macaque V1, nearby gamma rhythms did not hold one fixed relative-phase position. Their relative phase continued to move, but its velocity slowed near positions where coupling made the two instantaneous frequencies more similar. This phase-dependent slowing concentrated the observed phase differences around those positions despite continuing phase slips#cite(1). The effect could create recurring windows for communication without permanent synchronization. We reproduced that qualitative regime in one fixed-input PING trajectory by reducing equal reciprocal coupling from 0.08 to #selected-k µS. The networks accumulated #selected.phase_slips whole net phase windings, but their relative phase remained concentrated around a preferred position. Removing coupling produced #uncoupled.phase_slips whole net windings and an almost uniform phase distribution. This is a controlled demonstration, not a claim about reliability across inputs or seeds.
+  In macaque V1, nearby gamma rhythms did not hold one fixed relative-phase position. Their relative phase continued to move, but its velocity slowed near positions where coupling made the two instantaneous frequencies more similar. This phase-dependent slowing concentrated the observed phase differences around those positions despite continuing phase slips#cite(1). The effect could create recurring windows for communication without permanent synchronization. I reproduced that qualitative regime in one fixed-input PING trajectory by reducing equal reciprocal coupling from 0.08 to #selected-k µS. The networks accumulated #selected.phase_slips whole net phase windings, but their relative phase remained concentrated around a preferred position. Removing coupling produced #uncoupled.phase_slips whole net windings and an almost uniform phase distribution. This is a controlled demonstration, not a claim about reliability across inputs or seeds.
 
   #run-view("exp086", inputs)
 
@@ -80,14 +80,14 @@
 
   #table(
     columns: (1.05fr, 1.55fr, 1.55fr, 1.45fr),
-    [*Quantity*], [*Lowet regime*], [*Our starting point*], [*First move*],
+    [*Quantity*], [*Lowet regime*], [*Starting point*], [*First move*],
     [Mean frequency $accent(f, macron)$], [Approximately 30--40 Hz in the illustrated model and macaque conditions], [#start.mean-frequency-hz Hz], [Hold fixed initially],
     [Detuning $Delta f$], [Illustrated macaque examples span approximately 2.8--4.8 Hz], [#start.detuning-hz Hz, or #start.relative-detuning of $accent(f, macron)$], [Hold near the starting value],
     [Effective interaction $epsilon$], [Phase-dependent frequency modulation is approximately 1.6--1.8 Hz in representative macaque conditions], [Not fitted; strong coupling leaves a mean frequency difference of #start.residual-hz Hz], [Describe the correction; fit $epsilon$ later],
     [Synchronization], [Representative phase-locking values approximately 0.3--0.5 with phase slips], [Phase concentration #start.phase-concentration with no whole net windings], [Weaken coupling first],
   )
 
-  *Coupling units.* Both models divide total pathway strength across eight afferents. Lowet reports summed conductance density in mS/cm²; the present model uses summed absolute conductance in µS. Normalizing each by target leak conductance places our E-to-E and E-to-I strengths at $kappa = 1.6$ and $0.8$, within Lowet's broad sweep but more E-to-E dominated#cite(2). Here $kappa$ is cross-network conductance divided by target leak conductance. The present neurons are conductance-based leaky integrate-and-fire cells; Lowet used Hodgkin–Huxley cells. Leak normalization compares scales, not dynamical equivalence.
+  *Coupling units.* Both models divide total pathway strength across eight afferents. Lowet reports summed conductance density in mS/cm²; the present model uses summed absolute conductance in µS. Normalizing each by target leak conductance places this model's E-to-E and E-to-I strengths at $kappa = 1.6$ and $0.8$, within Lowet's broad sweep but more E-to-E dominated#cite(2). Here $kappa$ is cross-network conductance divided by target leak conductance. The present neurons are conductance-based leaky integrate-and-fire cells; Lowet used Hodgkin–Huxley cells. Leak normalization compares scales, not dynamical equivalence.
 
   == Results
 
@@ -95,7 +95,7 @@
 
     #figure(
       report-image("exp086/uncoupled.png", width: 100%, alt: "Uncoupled population rhythms and circulating relative phase."),
-      caption: [Both uncoupled networks maintain regular PING rhythms, but Network A runs at #uncoupled-frequency-a Hz and Network B at #uncoupled-frequency-b Hz. Their relative phase therefore circulates, accumulating #uncoupled.phase_slips whole net windings with phase concentration #uncoupled-concentration.],
+      caption: [Both uncoupled networks maintained regular PING rhythms, but Network A ran at #uncoupled-frequency-a Hz and Network B at #uncoupled-frequency-b Hz. Their relative phase therefore circulated, accumulating #uncoupled.phase_slips whole net windings with phase concentration #uncoupled-concentration.],
     )
 
   === Coupling boundary <result-2-coupling-boundary>
@@ -105,7 +105,7 @@
         width: 100%,
         alt: "Measured comparison of strong, intermediate, and absent coupling.",
       ),
-      caption: [One fixed-input trajectory per condition. At 0.08 µS, relative phase concentrates near one position with concentration #strong-concentration. At #selected-k µS, it accumulates #selected.phase_slips whole net phase windings but repeatedly slows near one phase region. With no coupling, it accumulates #uncoupled.phase_slips whole net windings and approaches uniform drift.],
+      caption: [One fixed-input trajectory per condition. At 0.08 µS, relative phase concentrated near one position with concentration #strong-concentration. At #selected-k µS, it accumulated #selected.phase_slips whole net phase windings but repeatedly slowed near one phase region. With no coupling, it accumulated #uncoupled.phase_slips whole net windings and approached uniform drift.],
     )
 
   === Intermittent phase attraction <result-3-intermittent-attraction>
@@ -115,7 +115,7 @@
         width: 100%,
         alt: "Measured four-panel signature of intermittent phase attraction.",
       ),
-      caption: [At equal reciprocal coupling $K = #selected-k$ µS, relative phase continues to slip but has concentration #selected-concentration. Its distribution peaks at #selected-preferred rad and reaches #selected-density-ratio times the mean density. Across 24 phase bins, the smallest absolute mean velocity occurs at #selected-slow rad, #selected-alignment rad away from the density peak. The displayed velocity trace uses 8 ms Gaussian smoothing. This single trajectory shows the Lowet-style signature, but does not establish its reliability across trials.],
+      caption: [At equal reciprocal coupling $K = #selected-k$ µS, relative phase continued to slip but had concentration #selected-concentration. Its distribution peaked at #selected-preferred rad and reached #selected-density-ratio times the mean density. Across 24 phase bins, the smallest absolute mean velocity occurred at #selected-slow rad, #selected-alignment rad away from the density peak. The displayed velocity trace uses 8 ms Gaussian smoothing. This single trajectory shows the Lowet-style signature, but does not establish its reliability across trials.],
     )
 
   == Methods
@@ -124,7 +124,7 @@
     *One fixed-input trajectory was simulated per coupling condition. Every condition reused the same saved network state and pre-generated input spike trains.*
   ]
 
-  + *Define the starting rhythms.* Each network contains an excitatory population, an inhibitory population, and a local E-to-I-to-E feedback loop. Reciprocal excitation targets both E and I populations with $K_(E E) = #start.k-ee-us$ µS, $K_(E I) = #start.k-ei-us$ µS, and delay $d = #start.delay-ms$ ms. Drive Networks A and B at #start.input-a-hz and #start.input-b-hz Hz. Run them without cross-network coupling and confirm regular rhythms near mean frequency #start.mean-frequency-hz Hz and detuning #start.detuning-hz Hz. Interpolate phase between consecutive excitatory volleys and calculate their wrapped and unwrapped relative phase. See #link(<result-1-uncoupled-rhythms>)[Uncoupled rhythms].
+  + *Define the starting rhythms.* Each network contains an excitatory population, an inhibitory population, and a local E-to-I-to-E feedback loop. Reciprocal excitation targets both E and I populations with $K_(E E) = #start.k-ee-us$ µS, $K_(E I) = #start.k-ei-us$ µS, and delay $d = #start.delay-ms$ ms. I drove Networks A and B at #start.input-a-hz and #start.input-b-hz Hz. I ran them without cross-network coupling and confirmed regular rhythms near mean frequency #start.mean-frequency-hz Hz and detuning #start.detuning-hz Hz. I interpolated phase between consecutive excitatory volleys and calculated their wrapped and unwrapped relative phase. See #link(<result-1-uncoupled-rhythms>)[Uncoupled rhythms].
 
     #figure(
       report-image("exp086/network.svg",
@@ -134,10 +134,10 @@
       caption: [Implemented topology. Networks A and B each contain a local E-to-I-to-E PING loop. Reciprocal projections target E and I populations with independently controlled strengths.],
     )
 
-  + *Reduce coupling while everything else stays the same.* Save the network immediately before coupling begins. Replay from that point several times with the same neuron states and the same pre-generated input spike trains after that point. Change only the coupling strength $K$: begin at #start.k-ee-us µS, then use progressively weaker values down to zero. E-to-E and E-to-I coupling always use the same value. Use nine values from 0.08 to 0.00 µS in 0.01 µS steps, each with a 500 ms uncoupled prefix and a 4,500 ms coupled suffix. Exclude the first 300 ms after coupling from phase measurements. Run one trajectory at each value of $K$; repeated seeds and trials are outside this experiment. For each coupling strength, track the phase gap between the two rhythms. Strong coupling may keep that gap fixed. Weaker coupling may allow one rhythm to repeatedly gain a full cycle on the other, producing phase slips. We are looking for the intermediate behaviour reported by Lowet et al. (2017): phase slips continue, but the phase gap repeatedly slows near one preferred value, making that value more common#cite(1). Among nonzero, nonmaximal coupling conditions with at least two whole net windings, select the largest product of phase concentration, peak-to-mean density, nonnegative slowing fraction and the exponential of negative angular alignment error. Count whole net windings by taking the floor of the absolute unwrapped phase change divided by $2 pi$; this does not count every reversing slip event. This demonstrates the behaviour once; it does not establish reliability across seeds. See #link(<result-2-coupling-boundary>)[Coupling boundary].
+  + *Reduce coupling while everything else stays the same.* I saved the network immediately before coupling began. I replayed from that point several times with the same neuron states and the same pre-generated input spike trains after that point. I changed only the coupling strength $K$: I began at #start.k-ee-us µS, then used progressively weaker values down to zero. E-to-E and E-to-I coupling always used the same value. I used nine values from 0.08 to 0.00 µS in 0.01 µS steps, each with a 500 ms uncoupled prefix and a 4,500 ms coupled suffix. I excluded the first 300 ms after coupling from phase measurements. I ran one trajectory at each value of $K$; repeated seeds and trials are outside this experiment. For each coupling strength, I tracked the phase gap between the two rhythms. Strong coupling may keep that gap fixed. Weaker coupling may allow one rhythm to repeatedly gain a full cycle on the other, producing phase slips. I looked for the intermediate behaviour reported by Lowet et al. (2017): phase slips continue, but the phase gap repeatedly slows near one preferred value, making that value more common#cite(1). Among nonzero, nonmaximal coupling conditions with at least two whole net windings, I selected the largest product of phase concentration, peak-to-mean density, nonnegative slowing fraction and the exponential of negative angular alignment error. I counted whole net windings by taking the floor of the absolute unwrapped phase change divided by $2 pi$; this does not count every reversing slip event. This demonstrates the behaviour once; it does not establish reliability across seeds. See #link(<result-2-coupling-boundary>)[Coupling boundary].
 
 
-  + *Relate phase velocity to phase position.* For the selected condition, estimate each network's instantaneous frequency from consecutive excitatory volleys. Relative-phase velocity is $v_theta = 2 pi (f_A - f_B)$, where $f_A$ and $f_B$ are the instantaneous frequencies of Networks A and B in Hz, and $v_theta$ is in rad/s. Group $v_theta$ by wrapped relative-phase position $theta$ in radians, and compare the resulting velocity curve with the distribution of $theta$. Intermittent attraction requires continued phase slips, a non-uniform phase distribution, and lower absolute velocity near the distribution's preferred position. See #link(<result-3-intermittent-attraction>)[Intermittent phase attraction].
+  + *Relate phase velocity to phase position.* For the selected condition, I estimated each network's instantaneous frequency from consecutive excitatory volleys. Relative-phase velocity is $v_theta = 2 pi (f_A - f_B)$, where $f_A$ and $f_B$ are the instantaneous frequencies of Networks A and B in Hz, and $v_theta$ is in rad/s. I grouped $v_theta$ by wrapped relative-phase position $theta$ in radians, and compared the resulting velocity curve with the distribution of $theta$. Intermittent attraction requires continued phase slips, a non-uniform phase distribution, and lower absolute velocity near the distribution's preferred position. See #link(<result-3-intermittent-attraction>)[Intermittent phase attraction].
 
   #reference-list((
     (

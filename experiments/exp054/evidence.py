@@ -108,6 +108,10 @@ def raster(path, cfg):
             for prefix in ("e", "i", "out")
             for field in ("trial", "t", "cell")
         }
+        compact = "recording_start_step" in archive.files
+        if compact:
+            fields -= {f"out_{field}" for field in ("trial", "t", "cell")}
+            fields.add("recording_start_step")
         if len(archive.files) != len(fields) or set(archive.files) != fields:
             raise PingstoreError("unexpected exp054 raster fields")
         data = {key: archive[key] for key in fields}
@@ -118,11 +122,15 @@ def raster(path, cfg):
         "n_e": cfg["n_e"],
         "n_i": cfg["n_i"],
     }
+    if compact:
+        expected["recording_start_step"] = int(cfg["burn_ms"] / cfg["dt_ms"])
     for key, value in expected.items():
         a = data[key]
         if a.shape != () or a.dtype.kind not in "iuf" or a.item() != value:
             raise PingstoreError("exp054 raster dimensions differ from recipe")
     for prefix, width in (("e", cfg["n_e"]), ("i", cfg["n_i"]), ("out", None)):
+        if compact and prefix == "out":
+            continue
         trial, times, cells = (data[f"{prefix}_{k}"] for k in ("trial", "t", "cell"))
         if any(a.ndim != 1 or a.dtype.kind not in "iu" for a in (trial, times, cells)):
             raise PingstoreError("exp054 sparse indices must be integer vectors")
@@ -130,7 +138,7 @@ def raster(path, cfg):
             raise PingstoreError("exp054 sparse indices have unequal lengths")
         if (
             np.any(trial != 0)
-            or np.any(times < 0)
+            or np.any(times < expected.get("recording_start_step", 0))
             or np.any(times >= expected["T"])
             or np.any(cells < 0)
             or (width is not None and np.any(cells >= width))

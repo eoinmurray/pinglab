@@ -36,7 +36,7 @@
   Final-epoch mean excitatory rates ranged from #number(summary.e_rate_min_hz) to
   #number(summary.e_rate_max_hz) Hz across a twentyfold integration-timestep sweep;
   mean test accuracy ranged from #number(summary.acc_min_pct) to
-  #number(summary.acc_max_pct)%. We reused fifteen trained PING networks, with
+  #number(summary.acc_max_pct)%. I reused fifteen trained PING networks, with
   three seeds at each timestep and 200 ms presentations, then evaluated
   #cfg.evaluation_samples held-out MNIST images per network. Training and inference
   used matched timesteps. The comparison therefore tests the complete trained
@@ -76,7 +76,7 @@
     data-image(data-file("exp044/training_curves.svg"), width: 100%,
       alt: "Per-network validation accuracy and excitatory firing rate versus epoch, coloured by integration timestep."),
     caption: [Retained training histories: validation accuracy (top) and E rate
-      (bottom), one line per timestep and seed. Each epoch averages
+      (bottom), one line per timestep and seed. Each epoch averaged
       #c.validation_encoder_draws.count encoder draws per validation image.
       The final-epoch comparison is a finite-training snapshot, not an established
       fixed-point ceiling.],

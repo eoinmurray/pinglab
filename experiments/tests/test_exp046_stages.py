@@ -56,7 +56,10 @@ def cycle_lab(lab, monkeypatch):
             return args[args.index(key) + 1]
 
         assert value("--device") == "auto"
-        assert args[-3:] == ["--outputs", "rasters", "per_cell_rates"]
+        assert args[args.index("--outputs") + 1 : args.index("--recording-mode")] == [
+            "rasters",
+            "per_cell_rates",
+        ]
         output = Path(value("--out-dir"))
         output.mkdir(parents=True)
         config = load_json(Path(value("--load-config")))

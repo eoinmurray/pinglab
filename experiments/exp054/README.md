@@ -278,3 +278,12 @@ other tasks' uncommitted tests. The dedicated render fixture now obtains
 checkout files. The standalone writing-status check was given the same installed
 library in the disposable candidate; no shared generated files were changed.
 Evidence: `.r2/exp054-commit-8yevmopc/`.
+
+## Future-run data retention — 2026-08-28
+
+Probes record E/I spikes without other trajectories and emit only events at or after the registered burn-in. Explicit recording_start_step metadata preserves absolute timestep indices and the full simulation duration. Full-window rates and dynamics are unchanged. Analysis constructs only post-burn-in dense arrays; native compute moves the compressed payload without repacking it.
+
+These changes affect future execution only. Existing immutable runs and R2
+archives are unchanged. Required arrays keep their original numerical values;
+selected NPZ outputs use lossless compression. No production rerun or new
+publication was performed for this cleanup.

@@ -139,6 +139,7 @@ class ExecutionSpec:
     seed: int = 0
     device: str = "auto"
     recording: RecordingProfile = "full"
+    recording_fields: Sequence[str] | None = None
     checkpoint: Path | None = None
     runtime_state: GraphRuntimeState | None = None
     options: Mapping[str, Any] = field(default_factory=dict)
@@ -2594,6 +2595,7 @@ class GraphExecutor(nn.Module):
         inputs: Mapping[str, torch.Tensor],
         *,
         record: bool | RecordingProfile = True,
+        recording_fields: Sequence[str] | None = None,
         runtime_state: GraphRuntimeState | None = None,
         interventions: Sequence[Mapping[str, Any]] = (),
     ) -> ExecutionResult:
@@ -2865,11 +2867,42 @@ class GraphExecutor(nn.Module):
         projection_recordings: dict[str, list[torch.Tensor]] = {
             f"{p.id}.conductance": [] for p in self.plan.projections
         }
+        selected_fields = None if recording_fields is None else set(recording_fields)
+        if selected_fields is not None:
+            available = set(recordings) if recording != "none" else set()
+            if recording == "full":
+                available |= set(state_recordings) | set(projection_recordings)
+                available |= {f"{name}.spikes" for name in populations}
+            unknown = selected_fields - available
+            if unknown:
+                raise ValueError(f"unavailable recording fields: {sorted(unknown)}")
+            recordings = {k: v for k, v in recordings.items() if k in selected_fields}
+            state_recordings = {
+                k: v for k, v in state_recordings.items() if k in selected_fields
+            }
+            projection_recordings = {
+                k: v for k, v in projection_recordings.items() if k in selected_fields
+            }
         integrator_sum: dict[str, torch.Tensor] = {}
         spike_traces: dict[str, list[torch.Tensor]] = {name: [] for name in populations}
         voltage_traces: dict[str, list[torch.Tensor]] = {
             name: [] for name in populations
         }
+        if selected_fields is not None:
+            required_signals = {row["signal"] for row in self.plan.outputs}
+            for operation in self.plan.graph.get("operations", []):
+                required_signals.update(operation["sources"])
+            named_spikes = selected_fields if recording == "full" else set()
+            spike_traces = {
+                name: []
+                for name in populations
+                if f"{name}.spikes" in required_signals | named_spikes
+            }
+            voltage_traces = {
+                name: []
+                for name in populations
+                if f"{name}.voltage" in required_signals
+            }
 
         for t in range(steps):
             new_spikes: dict[str, torch.Tensor] = {}
@@ -2984,13 +3017,16 @@ class GraphExecutor(nn.Module):
                         )
                         new_spikes[name] = torch.maximum(new_spikes[name], added)
             spikes = new_spikes
-            for name in populations:
+            for name in spike_traces:
                 spike_traces[name].append(spikes[name])
+            for name in voltage_traces:
                 voltage_traces[name].append(voltage[name])
             for name in populations:
                 histories[name].push(spikes[name])
             if recording != "none":
                 for observable in self.plan.observables:
+                    if observable["id"] not in recordings:
+                        continue
                     owner, _, port = observable["signal"].partition(".")
                     recordings[observable["id"]].append(
                         (spikes if port == "spikes" else voltage)[owner]
@@ -2999,10 +3035,14 @@ class GraphExecutor(nn.Module):
                     )
             if recording == "full":
                 for name in populations:
+                    if f"{name}.voltage" not in state_recordings:
+                        continue
                     state_recordings[f"{name}.voltage"].append(
                         voltage[name].detach().clone()
                     )
                 for projection in self.plan.projections:
+                    if f"{projection.id}.conductance" not in projection_recordings:
+                        continue
                     projection_recordings[f"{projection.id}.conductance"].append(
                         conductance[(projection.id, projection.polarity)]
                         .detach()
@@ -3013,9 +3053,10 @@ class GraphExecutor(nn.Module):
         signal_values: dict[str, torch.Tensor] = {
             f"{name}.value": value for name, value in inputs.items()
         }
-        for name in populations:
-            signal_values[f"{name}.spikes"] = torch.stack(spike_traces[name])
-            signal_values[f"{name}.voltage"] = torch.stack(voltage_traces[name])
+        for name, values in spike_traces.items():
+            signal_values[f"{name}.spikes"] = torch.stack(values)
+        for name, values in voltage_traces.items():
+            signal_values[f"{name}.voltage"] = torch.stack(values)
 
         def time_mask(
             mask: torch.Tensor, *, target: torch.Tensor, op_id: str
@@ -3138,6 +3179,7 @@ class GraphExecutor(nn.Module):
                 {
                     f"{name}.spikes": torch.stack(values)
                     for name, values in spike_traces.items()
+                    if selected_fields is None or f"{name}.spikes" in selected_fields
                 }
             )
         next_input_histories = {
@@ -3412,6 +3454,11 @@ def simulate(
     result = built.model(
         resolved_inputs.tensors,
         record=spec.recording,
+        **(
+            {"recording_fields": spec.recording_fields}
+            if spec.recording_fields is not None
+            else {}
+        ),
         runtime_state=runtime_state
         if runtime_state is not None
         else spec.runtime_state,

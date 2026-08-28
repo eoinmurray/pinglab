@@ -157,5 +157,11 @@ def inference_args(train, checkpoint, output, job):
         str(job["samples"]),
     ]
     if job["kind"] == "raster":
-        args += ["--sample-index", str(job["sample_index"])]
+        args += ["--sample-index", str(job["sample_index"])] + [
+            "--recording-mode",
+            "spikes",
+            "--output-fields",
+            "spk_e",
+            "spk_i",
+        ]
     return args + ["--out-dir", str(output)]

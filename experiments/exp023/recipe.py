@@ -68,7 +68,19 @@ def raster_args(
     cell: str, out_dir: Path | None = None, *, smoke: bool = False
 ) -> list[str]:
     rate = COBA_INPUT_RATE_HZ if cell == "coba" else PING_INPUT_RATE_HZ
-    args = _args(cell, rate, N_IN, smoke)
+    args = _args(cell, rate, N_IN, smoke) + [
+        "--output-fields",
+        "spk_e",
+        "spk_i",
+        "v_e_selected",
+        "ge_e_selected",
+        "gi_e_selected",
+        "v_i_selected",
+        "ge_i_selected",
+        "e_trace_index",
+        "i_trace_index",
+        "has_gi_e",
+    ]
     if out_dir is not None:
         args += ["--out-dir", str(out_dir)]
     return args
@@ -77,7 +89,13 @@ def raster_args(
 def fi_args(
     cell: str, rate_hz: int, out_dir: Path | None = None, *, smoke: bool = False
 ) -> list[str]:
-    args = _args(cell, rate_hz, FI_N_IN, smoke)
+    args = _args(cell, rate_hz, FI_N_IN, smoke) + [
+        "--recording-mode",
+        "spikes",
+        "--output-fields",
+        "spk_e_count",
+        "spk_i_count",
+    ]
     if out_dir is not None:
         args += ["--out-dir", str(out_dir)]
     return args

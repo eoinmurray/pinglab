@@ -65,7 +65,7 @@
 
   A four-variable population-rate model lost stability through an oscillatory
   crossing at #istar nA and approximately #fstar Hz. Reusing numerical sweeps
-  with fixed cellular and coupling parameters, we compared inhibitory decay,
+  with fixed cellular and coupling parameters, I compared inhibitory decay,
   effective voltage noise and quasi-steady reductions. Up/down amplitude ramps
   were consistent with a supercritical onset at the sampled resolution. Slower
   inhibition reduced frequency in both the model and separately trained spiking
@@ -84,8 +84,8 @@
     data-image(data-file("exp033/bifurcation_compound.svg"), width: 100%,
       alt: "Three panels showing eigenvalue crossing, amplitude ramps and frequency versus inhibitory decay."),
     caption: [
-      At the reference noise scale of 4 mV, one conjugate pair crosses at
-      #istar nA with onset frequency #fstar Hz. Up/down amplitudes nearly coincide;
+      At the reference noise scale of 4 mV, one conjugate pair crossed at
+      #istar nA with onset frequency #fstar Hz. Up/down amplitudes nearly coincided;
       inhibitory-decay trends agree qualitatively with separately measured spiking
       rhythms. \[(!) This is a candidate explanation of the
       #link("/exp025/")[input-coupling recruitment transition], whose empirical
@@ -102,9 +102,9 @@
       alt: "Noise-scale sensitivity of onset drive, absolute frequency, equilibrium rates and relative-onset amplitude."),
     caption: [
       Across 3, 4, 5 and 6 mV, the retained tests support a reversible onset;
-      the threshold spans #sens-i-lo–#sens-i-hi nA while frequency remains near
-      #fstar Hz. E amplitude at onset plus 0.4 nA falls from #sens-a-hi to
-      #sens-a-lo Hz. At the 4 mV reference, equilibrium E/I rates are #estar and
+      the threshold spanned #sens-i-lo–#sens-i-hi nA while frequency remained near
+      #fstar Hz. E amplitude at onset plus 0.4 nA fell from #sens-a-hi to
+      #sens-a-lo Hz. At the 4 mV reference, equilibrium E/I rates were #estar and
       #irate Hz: \[(!) the unstable equilibrium is low-rate, not silent.\] The noise
       parameter is free; this sweep is not a calibration to spiking activity.
     ],
@@ -133,8 +133,8 @@
       alt: "Both frequencies decrease with inhibitory decay; the mean-field curve crosses above the spiking curve at 27 ms."),
     caption: [
       Mean-field onset frequency and the median measured frequency of three
-      separately trained spiking networks per decay time both decrease. At #tg ms
-      they are #fstar and #fspk Hz; \[(!) the mean-field curve is below the spiking curve
+      separately trained spiking networks per decay time both decreased. At #tg ms
+      they were #fstar and #fspk Hz; \[(!) the mean-field curve is below the spiking curve
       through 18 ms and above it at 27 ms.\] The
       #link("/exp041/")[trained-network frequency study] supplies the measurements,
       not fitted gain parameters. Retraining changes weights as well as inhibitory
@@ -150,10 +150,10 @@
     data-image(data-file("exp033/hysteresis.svg"), width: 100%,
       alt: "Upward and downward drive ramps have nearly matching peak-to-peak excitatory amplitudes."),
     caption: [
-      The 25-point ramps give a maximum branch gap of
+      The 25-point ramps gave a maximum branch gap of
       $#gapmant times 10^(-6)$ $"ms"^(-1)$ and measured hysteresis width #hystwidth nA
       at the 0.1 Hz amplitude threshold. The rising-branch squared-amplitude fit
-      has slope $#a2mant times 10^(-4)$ $"ms"^(-2)$/nA and $R^2 = #a2r2$.
+      had slope $#a2mant times 10^(-4)$ $"ms"^(-2)$/nA and $R^2 = #a2r2$.
       \[(!) These diagnostics support a supercritical interpretation; they do not rule
       out a narrow bistable interval or an unstable cycle. No first Lyapunov
       coefficient was computed #cite(1).\]
@@ -168,7 +168,7 @@
     caption: [
       Reused E (black) and I (red) trajectories at onset plus 0.4 nA,
       over a window of three onset periods. Rates are in inverse milliseconds
-      on separate axes. The absolute cross-correlation peak lag is #elag ms;
+      on separate axes. The absolute cross-correlation peak lag was #elag ms;
       \[(!) this magnitude is not a signed causal delay or a synaptic round-trip time.\]
       Raw samples are unavailable for remeasurement; the retained waveform and
       scalar are historical observations, not a new simulation.
@@ -210,7 +210,7 @@
     caption: [
       Reused inhibitory-conductance deviations (µS) after small kicks at
       1 nA. The full model and AMPA-slaved three-variable reduction oscillate;
-      the rate-slaved two-variable probe decays. Their onset frequencies are
+      the rate-slaved two-variable probe decays. Their onset frequencies were
       approximately #fstar0 and #fstar3 Hz, respectively; these are not measured
       frequencies of the displayed 1 nA traces. All six original-variable
       two-dimensional reductions have negative divergence. \[(!) The three-variable
@@ -221,7 +221,7 @@
 
   == Methods
 
-  We reused a deterministic population-rate analysis and compared its onset
+  I reused a deterministic population-rate analysis and compared its onset
   frequencies with independent measurements from trained spiking networks.
 
   + *Define the population model.* E/I rates relaxed toward noisy LIF gains
@@ -262,7 +262,7 @@
     demeaned I–E cross-correlation lag, and 2,000 over four periods for projections.
     A separate 300 ms comparison measured amplitudes after 150 ms at onset plus
     1 nA; the illustrated reduction ladder used 400 ms at a common 1 nA.
-    We tested AMPA elimination and all six two-variable QSS reductions.
+    I tested AMPA elimination and all six two-variable QSS reductions.
 
   + *Vary noise and inhibitory decay.* Noise scales 3–6 mV used 121- and
     241-point drive grids over 0–1.2 nA, with refined crossings and repeated
@@ -282,7 +282,7 @@
   time. $Delta t$ is the timestep, $W$ a conductance increment per spike (µS),
   and superscripts identify the receiving E or I population.
 
-  We start from the COBANet model (#link("/exp100/")[conductance-based spiking model specification]): conductance-based E
+  The derivation starts from the COBANet model (#link("/exp100/")[conductance-based spiking model specification]): conductance-based E
   and I membranes, a threshold-reset rule, and three exponential synapses (no E→E; I
   receives no inhibition):
   $ C_m^E dot(V)^E = -g_L^E (V^E - E_L) - g_e^E (V^E - E_e) - g_i^E (V^E - E_i) $ <eq-old-1>
@@ -298,8 +298,8 @@
   Recast in continuous time. The synapses @eq-old-4 to @eq-old-6 are the exp-Euler form of
   first-order filters $tau dot(g) = -g + tau sum W s$, used here as ODEs. At a
   constant input rate, $g_e^E$ in @eq-old-4 settles to a steady mean, so its excitatory current
-  into the E membrane @eq-old-1 is a near-constant depolarising drive; we replace it by a
-  tonic current $I_"ext"$, the swept control parameter. The E membrane then carries
+  into the E membrane @eq-old-1 is a near-constant depolarising drive; replacing it by a
+  tonic current $I_"ext"$ defines the swept control parameter. The E membrane then carries
   $I_"ext"$ in place of $g_e^E$:
   $ C_m^E dot(V)^E = -g_L^E (V^E - E_L) - g_i^E (V^E - E_i) + I_"ext" $ <eq-old-7>
   $ C_m^I dot(V)^I = -g_L^I (V^I - E_L) - g_e^I (V^I - E_e) $ <eq-old-8>
@@ -378,7 +378,7 @@
 
   (inhibition pulls $V$ down, $Delta V_"inh" = +15$ mV; excitation pushes it up,
   $|Delta V_"exc"| = 65$ mV). Removing the $g$–$V$ coupling reduces COBA to a
-  current-based (CUBA) form; the cost is shunting: with $V$ fixed we ignore that
+  current-based (CUBA) form; the cost is shunting: fixing $V$ neglects the fact that
   conductance also lowers the effective time constant
   ($tau_"eff" = C_m \/ g_"tot"$, with $g_"tot"$ the total membrane conductance).
 
@@ -402,7 +402,7 @@
   $ I_"eff"^I (t) = g_e^I (t) |Delta V_"exc"| $ <eq-old-22>
 
   (I receives only excitation; E receives the drive minus inhibitory current.) The
-  instantaneous-rate replacement @eq-old-20 assumes slow inputs. We approximate
+  instantaneous-rate replacement @eq-old-20 assumes slow inputs. The closure approximates
   the finite population response by relaxation on $tau_E$ and $tau_I$; this is
   \[(!) a closure assumption, not an exact consequence of the single-cell gain\]:
   $ tau_E dot(E) = -E + Phi_E (I_"ext" - g_i^E Delta V_"inh") $ <eq-old-23>
@@ -500,7 +500,7 @@
   and threshold bounds. This is the same Siegert gain, split for readability.
   $tau_m$ and $tau_"ref"$ are membrane and refractory times (ms); $sigma_V$ is
   the effective voltage-noise scale entering this formula, not a measured
-  membrane standard deviation. The rate is in inverse milliseconds. We use
+  membrane standard deviation. The rate is in inverse milliseconds. The model uses
   $E_L = V_"reset" = -65$ mV, $V_"th" = -50$ mV; E/I values are
   $tau_m = (20, 5)$ ms, $g_L = (0.05, 0.10)$ µS and
   $tau_"ref" = (3, 1.5)$ ms, respectively.
@@ -522,7 +522,7 @@
   \[(!) This restores the baseline parameter mapping; it does not identify
   these fixed couplings with the final trained weights.\]
 
-  Quadrature uses at most 200 subdivisions and caps the exponent $u^2$ at 700.
+  Quadrature used at most 200 subdivisions and capped the exponent $u^2$ at 700.
   \[(!) The original execution reported subdivision, roundoff and convergence warnings.
   Their quantitative impact remains unresolved; agreement of retained summaries
   does not validate the underlying quadrature.\] The noise scale 3–6 mV was varied
@@ -595,8 +595,8 @@
     $Phi'$ sits off-diagonal. Eliminate _any_ two variables and the 2D trace is
     $-1 \/ tau_a - 1 \/ tau_b < 0$, where $tau_a$ and $tau_b$ are the two
     retained time constants; Bendixson–Dulac then rules out a cycle. Routes A–C
-    are three of the $binom(4, 2) = 6$ ways to pick the kept pair; the numerical study sweeps
-    all six and none crosses. The negative-divergence argument applies to these
+    are three of the $binom(4, 2) = 6$ ways to pick the kept pair; the numerical study swept
+    all six and none crossed. The negative-divergence argument applies to these
     original-variable QSS reductions. It does not exclude a nonlinear change of
     coordinates or a centre-manifold reduction of the same feedback mechanism.
 
@@ -621,8 +621,8 @@
     $ tau_"GABA" dot(h)_i^E = -h_i^E + tau_"GABA" W^(I E) I, $ <eq-old-40>
 
     This still Hopfs. Located like the 4D bifurcation (sweep $I_"ext"$, diagonalise the
-    $3 times 3$ Jacobian, find the complex-pair crossing), it gives
-    $I_"ext"^* = #istar3$ nA and $f^* = #fstar3$ Hz, both above the 4D values, in the retained comparison. The six 2D reductions have no crossing in the sampled grid.
+    $3 times 3$ Jacobian, find the complex-pair crossing), it gave
+    $I_"ext"^* = #istar3$ nA and $f^* = #fstar3$ Hz, both above the 4D values, in the retained comparison. The six 2D reductions had no crossing in the sampled grid.
     The displayed probe compares 4D, 3D and the rate-slaved 2D model only
     (@fig-ladder); it is not a time-series panel of all six reductions.
 
@@ -712,7 +712,7 @@
   \[(!) The present model supplies that candidate mechanism, but the empirical
   recruitment marker uses input-weight scaling and an inhibitory-rate
   crossing. No calibration equates it with this model's current threshold.
-  The equilibrium at onset has E/I rates #estar/#irate Hz and is not silent.\]
+  The equilibrium at onset had E/I rates #estar/#irate Hz and is not silent.\]
 
   The original frequency interpretation was that slower inhibition acts as
   the clock and that synchronous excitatory volleys sharpen the spiking

@@ -13,7 +13,13 @@ from pathlib import Path
 import models as M
 import numpy as np
 import torch
-from config import build_net, save_snapshot_npz, set_sim_dt, setup_model_globals
+from config import (
+    build_net,
+    save_selected_npz,
+    save_snapshot_npz,
+    set_sim_dt,
+    setup_model_globals,
+)
 from datasets import DATASET_N_HIDDEN_DEFAULTS, load_dataset
 from encoders import EVAL_SEED, encode_batch
 from scan import _auto_device, primary_hid_key, primary_inh_key
@@ -151,6 +157,7 @@ def infer(
     adapt_strength_init_mv=1.0,
     adapt_strength_max_mv=None,
     recording_mode="full",
+    output_fields=None,
 ):
     """Run inference with saved weights at a given dt.
 
@@ -159,6 +166,8 @@ def infer(
     Each maps to an emitter below; recording is enabled only if a recording-backed
     output is requested, so the default accuracy path stays cheap.
     recording_mode selects full traces (default), E/I spikes, or I spikes only.
+    output_fields optionally selects a union of fields across requested NPZs;
+    shape metadata is retained automatically and selected files are compressed.
     """
     outputs = set(outputs or ())
     emit_per_cell_rates = "per_cell_rates" in outputs
@@ -180,7 +189,10 @@ def infer(
     # MNIST inference reports the untouched official test partition. Training
     # uses a validation split drawn only from the official training partition.
     _, X_te, _, y_te = load_dataset(
-        dataset, max_samples=None, split=True, evaluation_split="test",
+        dataset,
+        max_samples=None,
+        split=True,
+        evaluation_split="test",
         evaluation_only=True,
     )
     if max_samples is not None and max_samples < len(y_te):
@@ -228,8 +240,11 @@ def infer(
     assert load_weights is not None
     state = torch.load(load_weights, map_location=device)
     if skip_load:
-        state = {k: v for k, v in state.items()
-                 if not any(k.startswith(p) for p in skip_load)}
+        state = {
+            k: v
+            for k, v in state.items()
+            if not any(k.startswith(p) for p in skip_load)
+        }
         log.info(f"  skip-load: dropped keys matching {list(skip_load)}")
     net.load_state_dict(state, strict=False)
     log.info(f"  loaded {load_weights}")
@@ -246,17 +261,22 @@ def infer(
         for _k in net.W_ie:
             net.W_ie[_k].data.mul_(float(scale_w_ie))
     if (scale_w_in, scale_w_ei, scale_w_ie) != (1.0, 1.0, 1.0):
-        log.info(f"  scaled weights: W_in×{scale_w_in} W_ei×{scale_w_ei} W_ie×{scale_w_ie}")
+        log.info(
+            f"  scaled weights: W_in×{scale_w_in} W_ei×{scale_w_ei} W_ie×{scale_w_ie}"
+        )
 
     # Optional hidden-spike perturbation: install the callback so drop/add noise
     # is applied inside the forward loop (I-loop + readout react within the trial).
     if perturb_mode is not None:
         _pgen = torch.Generator(device=device).manual_seed(EVAL_SEED + 1)
-        net._hidden_perturb_fn = _make_perturb_fn(perturb_mode, perturb_level, dt, _pgen)
+        net._hidden_perturb_fn = _make_perturb_fn(
+            perturb_mode, perturb_level, dt, _pgen
+        )
         log.info(f"  perturb: {perturb_mode} level={perturb_level}")
 
     # Evaluate — pre-encode pixels as Poisson spikes (same path as train)
     import torch.nn.functional as F
+
     net.eval()
     correct = total = 0
     eval_gen = torch.Generator().manual_seed(EVAL_SEED)
@@ -353,9 +373,12 @@ def infer(
     _iov: dict | None = None  # heterogeneous: ints + arrays, keyed by name
     if i_override_file is not None:
         import numpy as _np
+
         z = _np.load(i_override_file)
         _iov = {
-            "T": int(z["T"]), "n_i": int(z["n_i"]), "n_trials": int(z["n_trials"]),
+            "T": int(z["T"]),
+            "n_i": int(z["n_i"]),
+            "n_trials": int(z["n_trials"]),
         }
         _tr = z["i_trial"]
         _ord = _np.argsort(_tr, kind="stable")
@@ -367,13 +390,16 @@ def infer(
         # The override hook and online rates do not require trajectory recording.
         log.info(f"  i-override: {i_override_file} ({_iov['n_trials']} trials)")
 
-    ce_sum = 0.0  # cross-entropy summed over samples → mean loss (a standard eval metric)
+    ce_sum = (
+        0.0  # cross-entropy summed over samples → mean loss (a standard eval metric)
+    )
     with torch.no_grad():
         for X_b, y_b in test_loader:
             X_b, y_b = X_b.to(device), y_b.to(device)
             spk = encode_batch(X_b, dt, generator=eval_gen)
             if _iov is not None:
                 import numpy as _np
+
                 Bc = y_b.size(0)
                 ov = _np.zeros((Bc, _iov["T"], _iov["n_i"]), dtype="float32")
                 for j in range(Bc):
@@ -404,16 +430,22 @@ def infer(
                 rec = net.spike_record
                 hk, ik = primary_hid_key(rec), primary_inh_key(rec)
                 if emit_per_cell_rates:
-                    per_cell_e = _accum_per_cell(rec, hk, per_cell_e)
-                    per_cell_i = _accum_per_cell(rec, ik, per_cell_i)
-                    _accum_per_sample_rates(rec, hk, per_sample_e_rates)
+                    if output_fields is None or "rate_e_per_cell" in output_fields:
+                        per_cell_e = _accum_per_cell(rec, hk, per_cell_e)
+                    if output_fields is None or "rate_i_per_cell" in output_fields:
+                        per_cell_i = _accum_per_cell(rec, ik, per_cell_i)
+                    if output_fields is None or "rate_e_per_sample" in output_fields:
+                        _accum_per_sample_rates(rec, hk, per_sample_e_rates)
                 if emit_pop_traces:
-                    _pop_rows(rec, hk, pop_e_rows)
-                    _pop_rows(rec, ik, pop_i_rows)
+                    if output_fields is None or "pop_e" in output_fields:
+                        _pop_rows(rec, hk, pop_e_rows)
+                    if output_fields is None or "pop_i" in output_fields:
+                        _pop_rows(rec, ik, pop_i_rows)
                 if emit_rasters:
                     nb_e, rast_T = _accum_rasters(rec, hk, rast_e, rast_trial)
                     nb_i, i_T = _accum_rasters(rec, ik, rast_i, rast_trial)
-                    _accum_rasters(rec, "out_spikes", rast_out, rast_trial)
+                    if output_fields is None or "out_t" in output_fields:
+                        _accum_rasters(rec, "out_spikes", rast_out, rast_trial)
                     rast_T = rast_T or i_T
                     rast_trial += nb_e or nb_i
 
@@ -474,11 +506,9 @@ def infer(
         if per_cell_i is not None:
             dump["rate_i_per_cell"] = (per_cell_i / denom).astype(np.float32)
         if per_sample_e_rates:
-            dump["rate_e_per_sample"] = np.asarray(
-                per_sample_e_rates, dtype=np.float32
-            )
+            dump["rate_e_per_sample"] = np.asarray(per_sample_e_rates, dtype=np.float32)
         out_npz = out_dir_path / "per_cell_rates.npz"
-        np.savez(out_npz, **dump)
+        save_selected_npz(out_npz, dump, output_fields)
         log.info(f"  → {out_npz}  ({len(dump)} arrays)")
 
     # E2: write per-trial population activity traces (base signal for PSD/f_gamma).
@@ -490,8 +520,7 @@ def infer(
         if pop_i_rows:
             dump["pop_i"] = np.stack(pop_i_rows)  # (n_samples, T)
         out_npz = out_dir_path / "pop_traces.npz"
-        # ty false positive on **dict → savez (see save_snapshot_npz in config.py).
-        np.savez(out_npz, **dump)  # ty: ignore[invalid-argument-type]
+        save_selected_npz(out_npz, dump, output_fields)
         n_e = dump.get("pop_e", np.zeros((0, 0))).shape
         log.info(f"  → {out_npz}  (pop_e={n_e})")
 
@@ -501,6 +530,7 @@ def infer(
     # per trial. Spikes are sparse so this stays small (tens of MB) vs the dense
     # (n_trials × T × N) arrays it represents.
     if emit_rasters and out_dir_path and out_dir_path.exists():
+
         def _cat(store):
             if not store["trial"]:
                 return (np.zeros(0, np.int32),) * 3
@@ -516,16 +546,25 @@ def infer(
         out_npz = out_dir_path / "rasters.npz"
         populations = {"i_trial": i_tr, "i_t": i_t, "i_cell": i_c}
         if recording_mode != "inhibitory":
-            populations.update(e_trial=e_tr, e_t=e_t, e_cell=e_c,
-                               out_trial=out_tr, out_t=out_t, out_cell=out_c)
-        np.savez(
+            populations.update(
+                e_trial=e_tr,
+                e_t=e_t,
+                e_cell=e_c,
+                out_trial=out_tr,
+                out_t=out_t,
+                out_cell=out_c,
+            )
+        save_selected_npz(
             out_npz,
-            dt=np.float32(dt),
-            n_trials=np.int32(rast_trial),
-            T=np.int32(rast_T),
-            n_e=np.int32(M.N_HID),
-            n_i=np.int32(M.N_INH),
-            **populations,
+            dict(
+                dt=np.float32(dt),
+                n_trials=np.int32(rast_trial),
+                T=np.int32(rast_T),
+                n_e=np.int32(M.N_HID),
+                n_i=np.int32(M.N_INH),
+                **populations,
+            ),
+            output_fields,
         )
         mb = out_npz.stat().st_size / 1e6
         log.info(
@@ -533,7 +572,12 @@ def infer(
             f"{e_tr.size + i_tr.size + out_tr.size} spikes, {mb:.1f} MB)"
         )
 
-    return {"acc": acc, "ce_loss": ce_loss, "rates_hz": rates_hz, "hid_rate_hz": hid_rate_hz}
+    return {
+        "acc": acc,
+        "ce_loss": ce_loss,
+        "rates_hz": rates_hz,
+        "hid_rate_hz": hid_rate_hz,
+    }
 
 
 def infer_and_snapshot(
@@ -570,6 +614,7 @@ def infer_and_snapshot(
     adapt_strength_init_mv=1.0,
     adapt_strength_max_mv=None,
     recording_mode="full",
+    output_fields=None,
 ):
     """Run inference on a single sample and save full spike trajectory to snapshot.npz.
 
@@ -591,7 +636,10 @@ def infer_and_snapshot(
 
     # Load dataset
     _, X_te, _, y_te = load_dataset(
-        dataset, max_samples=None, split=True, evaluation_split="test",
+        dataset,
+        max_samples=None,
+        split=True,
+        evaluation_split="test",
         evaluation_only=True,
     )
     M.N_IN = 784
@@ -602,7 +650,7 @@ def infer_and_snapshot(
     if sample_index is not None:
         sample_idx = sample_index if 0 <= sample_index < len(X_te) else 0
     elif dataset == "mnist":
-        digit_mask = (y_te == digit)
+        digit_mask = y_te == digit
         digit_indices = np.where(digit_mask)[0]
         if sample >= len(digit_indices):
             log.warning(
@@ -645,14 +693,19 @@ def infer_and_snapshot(
     assert load_weights is not None
     state = torch.load(load_weights, map_location=device)
     if skip_load:
-        state = {k: v for k, v in state.items()
-                 if not any(k.startswith(p) for p in skip_load)}
+        state = {
+            k: v
+            for k, v in state.items()
+            if not any(k.startswith(p) for p in skip_load)
+        }
     net.load_state_dict(state, strict=False)
 
     # Optional hidden-spike perturbation for the snapshot (same hook as infer()).
     if perturb_mode is not None:
         _pgen = torch.Generator(device=device).manual_seed(EVAL_SEED + 1)
-        net._hidden_perturb_fn = _make_perturb_fn(perturb_mode, perturb_level, dt, _pgen)
+        net._hidden_perturb_fn = _make_perturb_fn(
+            perturb_mode, perturb_level, dt, _pgen
+        )
 
     # Optional single-trial I-spike override (B=1): substitute s_i[t] each step.
     if i_override_file is not None:
@@ -693,7 +746,15 @@ def infer_and_snapshot(
     # Save snapshot with canonical field names and metadata (including the sample's
     # true class label, for rasters that annotate the digit).
     # (Uses shared utility to ensure all snapshot fields are consistent across code paths)
-    save_snapshot_npz(out_path, rec, dt, M.N_HID, M.N_INH, label=int(y_single.item()))
+    save_snapshot_npz(
+        out_path,
+        rec,
+        dt,
+        M.N_HID,
+        M.N_INH,
+        label=int(y_single.item()),
+        output_fields=output_fields,
+    )
 
     return {"acc": None}
 
@@ -735,6 +796,9 @@ def probe(
     scale_w_in=1.0,
     scale_w_ei=1.0,
     scale_w_ie=1.0,
+    output_fields=None,
+    recording_mode="full",
+    recording_start_step=0,
 ):
     """Drive a net with uniform homogeneous Poisson input; emit E/I rates.
 
@@ -744,6 +808,8 @@ def probe(
     writes population E/I firing rates to metrics.json. Optional --outputs add
     rasters.npz / per_cell_rates.npz for cycle- or cell-level analysis.
 
+    recording_start_step trims only emitted sparse events; dynamics and reported
+    rates use the complete input window. Retained times remain absolute indices.
     No dataset and no accuracy — this is the untrained-net / f-I-curve probe path.
     ei_strength/ei_ratio set the recurrent means (w_ei=(s, s·0.1),
     w_ie=(s·ratio, s·ratio·0.1)); n_inh sets the I-pool size. private_w_in wires
@@ -796,6 +862,7 @@ def probe(
         # One input channel per E cell (identity W_in) — removes shared-input
         # coincidences so the measured rhythmicity is input-decorrelated.
         import torch as _t
+
         n_e = hidden_sizes[-1]
         with _t.no_grad():
             w = net.W_ff[0]
@@ -814,10 +881,14 @@ def probe(
             net.W_ie[key].data.mul_(float(scale_w_ie))
     if (scale_w_in, scale_w_ei, scale_w_ie) != (1.0, 1.0, 1.0):
         log.info(
-            f"  scaled weights: W_in×{scale_w_in} "
-            f"W_ei×{scale_w_ei} W_ie×{scale_w_ie}"
+            f"  scaled weights: W_in×{scale_w_in} W_ei×{scale_w_ei} W_ie×{scale_w_ie}"
         )
     net.eval()
+    if recording_mode not in ("full", "spikes"):
+        raise ValueError("probe recording requires E/I spikes")
+    if "spike_summary" in (outputs or ()) and recording_mode != "full":
+        raise ValueError("spike_summary requires output spikes from full recording")
+    net.recording_mode = recording_mode
     net.recording = True
 
     outputs = set(outputs or ())
@@ -848,8 +919,14 @@ def probe(
         T_steps = int(t_ms / dt)
         p_step = input_rate_hz * dt / 1000.0
         gen = torch.Generator().manual_seed((seed or 0) + 1)
-        spk_in = (torch.rand(T_steps, int(n_batch), M.N_IN, generator=gen) < p_step).float().to(device)
+        spk_in = (
+            (torch.rand(T_steps, int(n_batch), M.N_IN, generator=gen) < p_step)
+            .float()
+            .to(device)
+        )
         readout_reset = None
+    if not 0 <= recording_start_step < T_steps:
+        raise ValueError("recording start must lie inside the simulation")
     with torch.no_grad():
         net(input_spikes=spk_in, readout_reset_mask=readout_reset)
 
@@ -862,7 +939,9 @@ def probe(
     i_sum = float(rec[ik].sum().item()) if ik else 0.0
     r_e = e_sum / (n_batch * n_e * t_sec)
     r_i = i_sum / (n_batch * n_i * t_sec) if ik else 0.0
-    log.info(f"  probe: rate_e={r_e:.2f}Hz rate_i={r_i:.2f}Hz (n_batch={n_batch}, input={input_rate_hz}Hz)")
+    log.info(
+        f"  probe: rate_e={r_e:.2f}Hz rate_i={r_i:.2f}Hz (n_batch={n_batch}, input={input_rate_hz}Hz)"
+    )
 
     out_dir_path = Path(out_dir) if out_dir else None
     if out_dir_path and out_dir_path.exists():
@@ -870,9 +949,15 @@ def probe(
             "mode": "probe",
             "model": model_name,
             "config": {
-                "dt": dt, "t_ms": t_ms, "n_in": int(n_in), "n_hidden": n_e,
-                "n_inh": n_i, "ei_strength": ei_strength, "ei_ratio": ei_ratio,
-                "input_rate_hz": input_rate_hz, "n_batch": int(n_batch),
+                "dt": dt,
+                "t_ms": t_ms,
+                "n_in": int(n_in),
+                "n_hidden": n_e,
+                "n_inh": n_i,
+                "ei_strength": ei_strength,
+                "ei_ratio": ei_ratio,
+                "input_rate_hz": input_rate_hz,
+                "n_batch": int(n_batch),
                 "load_weights": str(load_weights) if load_weights else None,
             },
             "rate_e_hz": r_e,
@@ -884,15 +969,17 @@ def probe(
         log.info(f"  → {out_dir_path / 'metrics.json'}")
 
         if emit_per_cell:
-            per_e = rec[hk].sum(dim=(0, 1)).detach().cpu().numpy() if hk else np.zeros(0)
+            per_e = (
+                rec[hk].sum(dim=(0, 1)).detach().cpu().numpy() if hk else np.zeros(0)
+            )
             dump = {"rate_e_per_cell": (per_e / (n_batch * t_sec)).astype(np.float32)}
             if ik:
                 per_i = rec[ik].sum(dim=(0, 1)).detach().cpu().numpy()
                 dump["rate_i_per_cell"] = (per_i / (n_batch * t_sec)).astype(np.float32)
-            # ty false positive on **dict → savez (see config.save_snapshot_npz).
-            np.savez(out_dir_path / "per_cell_rates.npz", **dump)  # ty: ignore[invalid-argument-type]
+            save_selected_npz(out_dir_path / "per_cell_rates.npz", dump, output_fields)
 
         if emit_rasters:
+
             def _coo(key):
                 r = rec.get(key)
                 if r is None:
@@ -900,18 +987,41 @@ def probe(
                 a = r.detach().cpu().numpy()
                 if a.ndim == 2:
                     a = a[:, None, :]
-                tt, bb, cc = a.nonzero()
+                tt, bb, cc = a[recording_start_step:].nonzero()
+                tt = tt + recording_start_step
                 return bb.astype("int32"), tt.astype("int32"), cc.astype("int32")
+
             e_tr, e_t, e_c = _coo(hk)
             i_tr, i_t, i_c = _coo(ik)
-            out_tr, out_t, out_c = _coo("out_spikes")
-            np.savez(
+            out_tr, out_t, out_c = (
+                _coo("out_spikes")
+                if output_fields is None or "out_t" in output_fields
+                else (np.zeros(0, np.int32),) * 3
+            )
+            save_selected_npz(
                 out_dir_path / "rasters.npz",
-                dt=np.float32(dt), n_trials=np.int32(n_batch), T=np.int32(T_steps),
-                n_e=np.int32(n_e), n_i=np.int32(n_i),
-                e_trial=e_tr, e_t=e_t, e_cell=e_c,
-                i_trial=i_tr, i_t=i_t, i_cell=i_c,
-                out_trial=out_tr, out_t=out_t, out_cell=out_c,
+                dict(
+                    dt=np.float32(dt),
+                    n_trials=np.int32(n_batch),
+                    T=np.int32(T_steps),
+                    n_e=np.int32(n_e),
+                    n_i=np.int32(n_i),
+                    e_trial=e_tr,
+                    e_t=e_t,
+                    e_cell=e_c,
+                    i_trial=i_tr,
+                    i_t=i_t,
+                    i_cell=i_c,
+                    out_trial=out_tr,
+                    out_t=out_t,
+                    out_cell=out_c,
+                    **(
+                        {"recording_start_step": np.int32(recording_start_step)}
+                        if recording_start_step
+                        else {}
+                    ),
+                ),
+                output_fields,
             )
             log.info(
                 f"  → {out_dir_path / 'rasters.npz'}  "
@@ -919,21 +1029,22 @@ def probe(
             )
 
         if emit_spike_summary:
+
             def _as_tbc(key, width):
                 value = rec.get(key)
                 if value is None:
-                    return torch.zeros(
-                        (T_steps, n_batch, width), device=device
-                    )
+                    return torch.zeros((T_steps, n_batch, width), device=device)
                 if value.ndim == 2:
                     value = value.unsqueeze(1)
                 return value
 
             starts = [0]
             if readout_reset is not None:
-                reset_indices = torch.nonzero(
-                    readout_reset.detach().bool().cpu(), as_tuple=False
-                ).flatten().tolist()
+                reset_indices = (
+                    torch.nonzero(readout_reset.detach().bool().cpu(), as_tuple=False)
+                    .flatten()
+                    .tolist()
+                )
                 starts.extend(int(index) for index in reset_indices if int(index) > 0)
             starts = sorted(set(starts))
             stops = [*starts[1:], T_steps]
@@ -943,13 +1054,33 @@ def probe(
             out_spikes = _as_tbc("out_spikes", M.N_OUT)
 
             def _population_counts(value):
-                return torch.stack(
-                    [value[start:stop].sum(dim=(0, 2)) for start, stop in zip(starts, stops)]
-                ).transpose(0, 1).detach().cpu().numpy().astype(np.int64)
+                return (
+                    torch.stack(
+                        [
+                            value[start:stop].sum(dim=(0, 2))
+                            for start, stop in zip(starts, stops)
+                        ]
+                    )
+                    .transpose(0, 1)
+                    .detach()
+                    .cpu()
+                    .numpy()
+                    .astype(np.int64)
+                )
 
-            output_counts = torch.stack(
-                [out_spikes[start:stop].sum(dim=0) for start, stop in zip(starts, stops)]
-            ).permute(1, 0, 2).detach().cpu().numpy().astype(np.int64)
+            output_counts = (
+                torch.stack(
+                    [
+                        out_spikes[start:stop].sum(dim=0)
+                        for start, stop in zip(starts, stops)
+                    ]
+                )
+                .permute(1, 0, 2)
+                .detach()
+                .cpu()
+                .numpy()
+                .astype(np.int64)
+            )
             np.savez_compressed(
                 out_dir_path / "spike_summary.npz",
                 dt=np.float32(dt),
@@ -996,6 +1127,7 @@ def dump_weights(
     adapt_tau_bounds_ms=None,
     adapt_strength_init_mv=1.0,
     adapt_strength_max_mv=None,
+    output_fields=None,
 ):
     """Emit initialisation and trained weight matrices to weights_dump.npz.
 
@@ -1056,18 +1188,27 @@ def dump_weights(
 
     # INIT weights: read straight off the freshly built (untrained) net.
     dump: dict[str, "np.ndarray"] = {}
+
+    def retain(name, value):
+        if output_fields is None or name in output_fields:
+            dump[name] = (
+                value.detach().cpu().numpy()
+                if hasattr(value, "detach")
+                else np.asarray(value)
+            )
+
     for name in _WEIGHT_DICTS:
         pdict = getattr(net, name, None)
         if pdict is None:
             continue
         for k, w in pdict.items():
-            dump[f"{name}_{k}_init"] = w.detach().cpu().numpy()
+            retain(f"{name}_{k}_init", w)
 
     # Feed-forward weights (W_ff ParameterList): W_ff[0] = W_in, W_ff[-1] = W_out.
     # Emitted as W_ff_<i>_init so notebooks can read the readout matrix (W_out).
     if hasattr(net, "W_ff"):
         for i, w in enumerate(net.W_ff):
-            dump[f"W_ff_{i}_init"] = w.detach().cpu().numpy()
+            retain(f"W_ff_{i}_init", w)
     for name in (
         "b_out",
         "readout_alpha",
@@ -1080,9 +1221,9 @@ def dump_weights(
         if parameter is not None:
             if isinstance(parameter, torch.nn.ParameterDict):
                 for k, value in parameter.items():
-                    dump[f"{name}_{k}_init"] = value.detach().cpu().numpy()
+                    retain(f"{name}_{k}_init", value)
             else:
-                dump[f"{name}_init"] = parameter.detach().cpu().numpy()
+                retain(f"{name}_init", parameter)
 
     # TRAINED weights: pulled from the saved state_dict (keys look like "W_ei.1"
     # or "W_ff.2"). W_ff entries are emitted too; the last index is W_out.
@@ -1091,28 +1232,27 @@ def dump_weights(
     for sk, sv in state.items():
         name, _, key = sk.partition(".")
         if name in _WEIGHT_DICTS and key:
-            arr = sv.detach().cpu().numpy() if hasattr(sv, "detach") else np.asarray(sv)
-            dump[f"{name}_{key}_trained"] = arr
+            retain(f"{name}_{key}_trained", sv)
         elif name == "W_ff" and key:
-            arr = sv.detach().cpu().numpy() if hasattr(sv, "detach") else np.asarray(sv)
-            dump[f"W_ff_{key}_trained"] = arr
+            retain(f"W_ff_{key}_trained", sv)
         elif sk in ("b_out", "readout_alpha"):
-            arr = sv.detach().cpu().numpy() if hasattr(sv, "detach") else np.asarray(sv)
-            dump[f"{sk}_trained"] = arr
-        elif name in (
-            "tau_m_e_logit",
-            "tau_m_i_logit",
-            "adapt_tau_logit",
-            "adapt_strength_logit",
-        ) and key:
-            arr = sv.detach().cpu().numpy() if hasattr(sv, "detach") else np.asarray(sv)
-            dump[f"{name}_{key}_trained"] = arr
+            retain(f"{sk}_trained", sv)
+        elif (
+            name
+            in (
+                "tau_m_e_logit",
+                "tau_m_i_logit",
+                "adapt_tau_logit",
+                "adapt_strength_logit",
+            )
+            and key
+        ):
+            retain(f"{name}_{key}_trained", sv)
 
     assert out_dir is not None, "dump_weights requires out_dir"
     out_path = Path(out_dir) / "weights_dump.npz"
     out_path.parent.mkdir(parents=True, exist_ok=True)
-    # ty false positive on **dict → savez (see config.save_snapshot_npz).
-    np.savez(out_path, **dump)  # ty: ignore[invalid-argument-type]
+    save_selected_npz(out_path, dump, output_fields)
     log.info(f"  → {out_path}  ({len(dump)} arrays)")
 
     return {"n_arrays": len(dump), "path": str(out_path)}

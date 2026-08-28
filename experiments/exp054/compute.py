@@ -87,8 +87,7 @@ def compute(*, run_id=None):
             evidence.raster(original, cfg)
             destination = run.export / "probe" / item["id"]
             destination.mkdir(parents=True)
-            evidence.repack(original, destination / "rasters.npz")
-            original.unlink()
+            original.rename(destination / "rasters.npz")
         evidence.write(run.export, mean_field(cfg))
         write_json_atomic(
             run.export / "recordings.json",

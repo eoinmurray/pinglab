@@ -1,15 +1,16 @@
 #import "contents.typ": with-contents
-#import "/.demolab/lib.typ": data-json, data-image
+#import "/.demolab/lib.typ": data-json, data-image, cite, reference-list
 #import "run-inputs.typ": data-file, inputs-ready, pending-report
 #import "run-view.typ": with-datasets, run-view
 #import "run-inputs.typ": input-assets
 #let data-file = data-file.with(article: "exp074")
 
 #let meta = (
-  status: "[≡ TXT]",
+  status: "[▦ DATA]",
   title: "From Python graph to spikes",
+  updated_at: "2026-08-28",
   date: "2026-07-31",
-  description: "The first snnlang vertical slice: author a PING network in Python, compile a portable bundle, execute it through tools/snnsim, and retain both the graph and its spike rasters.",
+  description: "A compiled excitatory–inhibitory network responds to a controlled spike input.",
   collection: "snnlang-docs",
   order: 1,
 )
@@ -27,55 +28,61 @@
 #let body = [
   == Abstract
 
-  This is the smallest useful end-to-end demonstration of `snnlang`. The
-  experiment runner defines a PING circuit using the Python authoring API,
-  compiles it into a deterministic data-only bundle, and invokes `tools/snnsim`
-  through its command-line interface. The simulator receives an explicit,
-  saved Poisson spike tensor rather than an implicit constant drive. The
-  published record retains the graph, compiler reports, exact input, simulator
-  rasters, and summary numbers. This entry tests plumbing, not a neuroscientific
-  hypothesis.
+  I executed a compiled excitatory–inhibitory network from a Python-authored
+  graph using an explicit spike input. Across #r.config.n_batch trials of
+  #r.config.t_ms ms, the realised input rate was
+  #calc.round(r.input.realised_rate_hz, digits: 2) Hz; mean excitatory and
+  inhibitory rates were #calc.round(r.output.rate_e_hz, digits: 2) and
+  #calc.round(r.output.rate_i_hz, digits: 2) Hz. The retained topology and aligned
+  input/output rasters demonstrate that the compiled description can drive a
+  spiking simulation. This is an integration demonstration, not a test of a
+  neuroscientific mechanism.
 
   #run-view("exp074", inputs)
 
-  == The compiled network
+  == Results
 
-  #data-image(data-file("exp074/network.svg"), width: 100%)
+  === Compiled network
 
-  The graph contains #r.graph.populations populations,
-  #r.graph.projections projections, #r.graph.operations graph operations, and
-  #r.graph.parameter_tensors parameter tensors. Its canonical graph digest is
-  #(r.graph.digest_short + "..."). The simulator consumes this compiled description; the
-  Python objects used to author it do not cross the process boundary.
+  #figure(data-image(data-file("exp074/network.svg"), width: 100%),
+    caption: [Compiled topology with #r.config.n_e excitatory neurons,
+      #r.config.n_i inhibitory neurons and a ten-class mean-voltage readout.
+      The complete graph contains #r.graph.populations populations and
+      #r.graph.projections projections.])
 
-  == Exact spiking input and response
+  === Aligned input and response
 
-  The saved input tensor has shape #r.input.shape_text and contains
-  #r.input.total_spikes spikes. Its requested uniform Poisson rate was
-  #r.config.input_rate_hz Hz and its realised rate was
-  #calc.round(r.input.realised_rate_hz, digits: 2) Hz. The aligned raster below
-  shows trial #r.output.display_trial: the exact input events, then the
-  excitatory and inhibitory events produced by the compiled network.
+  #figure(data-image(data-file("exp074/rasters.png"), width: 100%),
+    caption: [Input, excitatory and inhibitory spikes in trial
+      #r.output.display_trial, with zero-based trial numbering. The displayed
+      trial contained #r.output.display_trial_spikes.input input,
+      #r.output.display_trial_spikes.e excitatory and
+      #r.output.display_trial_spikes.i inhibitory events. Rates in the abstract
+      aggregate all #r.config.n_batch trials, not only this illustrative raster.])
 
-  #data-image(data-file("exp074/rasters.png"), width: 100%)
+  == Methods
 
-  Across all #r.config.n_batch trials and #r.config.t_ms ms, the simulator
-  measured mean E and I rates of
-  #calc.round(r.output.rate_e_hz, digits: 2) Hz and
-  #calc.round(r.output.rate_i_hz, digits: 2) Hz respectively. The displayed
-  trial contains #r.output.display_trial_spikes.input input,
-  #r.output.display_trial_spikes.e E, and
-  #r.output.display_trial_spikes.i I spikes.
+  I tested whether a compiled network description reproduced the requested
+  spiking computation in a PyTorch-based simulator#cite(1).
 
-  == What this establishes
+  + *Define the network.* I authored a pyramidal–interneuron gamma circuit with
+    #r.config.n_e excitatory and #r.config.n_i inhibitory neurons, driven by
+    #r.config.n_input input channels. A ten-class mean-voltage readout received
+    excitatory spikes; no weights were trained in this experiment.
+  + *Generate and simulate input.* I generated independent Bernoulli spike
+    events with probability equal to input rate times timestep in seconds,
+    approximating a #r.config.input_rate_hz Hz Poisson drive. I used seed
+    #r.config.seed, #r.config.n_batch trials, a #r.config.dt_ms ms integration
+    step and a #r.config.t_ms ms duration, and supplied the exact generated
+    tensor to the simulator.
+  + *Measure the response.* I counted input events and divided by channel
+    count, trial count and duration to obtain the realised input rate.
+    Excitatory and inhibitory rates used their respective population sizes;
+    I retained aligned event times and cell indices for the specified
+    illustrative trial. These measurements establish execution and activity,
+    not oscillatory synchronisation or classification performance.
 
-  The useful result is architectural: one short Python definition can be
-  statically checked, visualised, serialised, handed to the existing optimised
-  PyTorch simulator, and inspected as ordinary Demolab evidence. Execution
-  settings remain with the experiment runner, while graph structure remains in
-  the bundle. The next experiments can change the authored network without
-  growing another pile of bespoke simulator flags—a small victory over
-  configuration archaeology.
+  #reference-list(((text: [Adam Paszke et al.: _PyTorch: An Imperative Style, High-Performance Deep Learning Library_. NeurIPS, 2019.], doi: "10.48550/arXiv.1912.01703"),))
 ]
 #body
 ]

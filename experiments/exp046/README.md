@@ -173,3 +173,12 @@ are retained under `.r2/exp046-import-sasnxdvi/` and in compute provenance.
 still `Implemented`, not `Ready for review`. Its hardcoded claims, reference
 line, interpretation and the historical counting difference remain for the
 author's final science review. No publication, commit or push was performed.
+
+## Future-run data retention — 2026-08-28
+
+Cycle-counting jobs retain sparse E/I events and per-cell E rates only, with lossless compression at the first write. They no longer record voltage, conductance, input or readout trajectories, or accumulate unused I and per-sample rate arrays.
+
+These changes affect future execution only. Existing immutable runs and R2
+archives are unchanged. Required arrays keep their original numerical values;
+selected NPZ outputs use lossless compression. No production rerun or new
+publication was performed for this cleanup.

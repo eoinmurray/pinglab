@@ -103,7 +103,7 @@
       The raster panels show sampled cells in rank order; their endpoint labels
       denote population sizes, not the number of displayed cells. The
       #r.varying_headline.segments.at(0).at(0) ms, #p10.input_rate_hz Hz error
-      occurs at a condition with #calc.round(100 * p10.accuracy, digits: 1)%
+      occurred at a condition with #calc.round(100 * p10.accuracy, digits: 1)%
       mean accuracy, so this single error does not establish an encoding-rate
       failure floor.],
   )
@@ -128,9 +128,9 @@
       Hz interval without changing the axis scale. The
       dashed line marks #(cfg.n_classes)-class chance and the dotted line the
       #r.encoding_rate_psychometric.trained_rate_hz Hz training rate. Accuracy
-      stays at its empty-input floor, the accuracy obtained when almost no input
-      spikes arrive, through #p05.input_rate_hz Hz, becomes
-      informative by #p2.input_rate_hz Hz, and reaches
+      stayed at its empty-input floor, the accuracy obtained when almost no input
+      spikes arrive, through #p05.input_rate_hz Hz, became
+      informative by #p2.input_rate_hz Hz, and reached
       #calc.round(100 * p5.accuracy, digits: 1)% at #p5.input_rate_hz Hz.],
   )
 

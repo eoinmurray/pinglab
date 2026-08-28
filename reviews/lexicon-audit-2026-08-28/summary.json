@@ -1,0 +1,12 @@
+{
+  "files": 46,
+  "lines": 8977,
+  "candidates": 237,
+  "cross_file_candidates": 234,
+  "supplementary_candidates": 3,
+  "matched_occurrences": 16824,
+  "math_spans": 1403,
+  "repeated_inline_code": 58,
+  "repeated_declarations": 119,
+  "repeated_math_tokens": 150
+}

@@ -66,7 +66,7 @@
 
   == Discretization
 
-  The conductances (7)–(9) and membrane equations (4)–(5) are continuous ODEs. The implementation places spike kicks on the timestep grid. Between kicks the conductances decay by $e^(-Delta t \/ tau)$, and the supplied spike adds its full weight at the update boundary — the decay-then-add recurrence $g_(t+1) = e^(-Delta t \/ tau) g_t + s_t W$ (with the $tau$, $W$ and spike train $s$ of each of (7)–(9)). The membrane we integrate by *exponential Euler* — the same algebra for both populations (the I neuron drops $g_i$).
+  The conductances (7)–(9) and membrane equations (4)–(5) are continuous ODEs. The implementation places spike kicks on the timestep grid. Between kicks the conductances decay by $e^(-Delta t \/ tau)$, and the supplied spike adds its full weight at the update boundary — the decay-then-add recurrence $g_(t+1) = e^(-Delta t \/ tau) g_t + s_t W$ (with the $tau$, $W$ and spike train $s$ of each of (7)–(9)). The membrane is integrated by *exponential Euler* — the same algebra for both populations (the I neuron drops $g_i$).
 
   Collecting on $V$ makes it linear, with total conductance $g_"tot" = g_L + g_e + g_i$:
 

@@ -205,3 +205,12 @@ Ruff, the exp049 type check and `git diff --check` pass. All 41 completed runs p
 v3 layout and full payload-checksum validation; all 38 pre-review manifests are
 unchanged. The final four-page preview was compiled against `exp049-r006-present`
 and visually inspected, including all four condition cards.
+
+## Future-run data retention — 2026-08-28
+
+Weight dumps select only the four initial/trained E→I and I→E matrices before conversion and writing. Frequency outputs contain E population traces only; snapshots contain E/I spikes and metadata. Simulation uses the spike recorder. Native compute no longer writes and then compacts full NPZs.
+
+These changes affect future execution only. Existing immutable runs and R2
+archives are unchanged. Required arrays keep their original numerical values;
+selected NPZ outputs use lossless compression. No production rerun or new
+publication was performed for this cleanup.

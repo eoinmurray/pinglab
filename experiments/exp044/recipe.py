@@ -131,5 +131,11 @@ def inference_args(
     if sample_index is None:
         args += ["--max-samples", str(samples)]
     else:
-        args += ["--sample-index", str(sample_index)]
+        args += ["--sample-index", str(sample_index)] + [
+            "--recording-mode",
+            "spikes",
+            "--output-fields",
+            "spk_e",
+            "spk_i",
+        ]
     return args

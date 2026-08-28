@@ -30,7 +30,7 @@
 #let body = [
   == Abstract
 
-  We audited whether firing rate settled once classification accuracy plateaued,
+  I audited whether firing rate settled once classification accuracy plateaued,
   using unregularised PING and COBA networks from the shared training study.
   The comparison reused #n seeds per architecture and #c.epochs epochs of MNIST
   training. Final mean validation accuracy was #value("coba", "final_acc")% for
@@ -58,11 +58,11 @@
     data-image(data-file("exp024/coba_curves.svg"), width: 100%,
       alt: "COBA training and validation loss, validation accuracy, and excitatory firing rate over epochs."),
     caption: [COBA, #n seeds shown separately. Training loss is solid and validation
-      loss dashed. Final mean validation accuracy is #value("coba", "final_acc")%
+      loss dashed. Final mean validation accuracy was #value("coba", "final_acc")%
       and E rate #value("coba", "final_e_rate_hz") Hz. The mean final-window E-rate
-      slope is #value("coba", "e_rate_slope_last10_hz_per_ep", digits: 3) Hz/epoch;
-      #count("coba", "accuracy_converged_count")/#n seeds meet the accuracy criterion
-      and #count("coba", "e_rate_converged_count")/#n meet the rate criterion.],
+      slope was #value("coba", "e_rate_slope_last10_hz_per_ep", digits: 3) Hz/epoch;
+      #count("coba", "accuracy_converged_count")/#n seeds met the accuracy criterion
+      and #count("coba", "e_rate_converged_count")/#n met the rate criterion.],
   )
 
   === PING training trajectories
@@ -71,11 +71,11 @@
     data-image(data-file("exp024/ping_curves.svg"), width: 100%,
       alt: "PING training and validation loss, validation accuracy, and excitatory and inhibitory firing rates over epochs."),
     caption: [PING, #n seeds shown separately; E rate solid, I rate dashed.
-      Final mean E and I rates are #value("ping", "final_e_rate_hz") and
-      #value("ping", "final_i_rate_hz") Hz. The mean final-window E-rate slope is
+      Final mean E and I rates were #value("ping", "final_e_rate_hz") and
+      #value("ping", "final_i_rate_hz") Hz. The mean final-window E-rate slope was
       #value("ping", "e_rate_slope_last10_hz_per_ep", digits: 3) Hz/epoch;
-      #count("ping", "accuracy_converged_count")/#n seeds meet the accuracy criterion
-      and #count("ping", "e_rate_converged_count")/#n meet the rate criterion.],
+      #count("ping", "accuracy_converged_count")/#n seeds met the accuracy criterion
+      and #count("ping", "e_rate_converged_count")/#n met the rate criterion.],
   )
 
   === Accuracy, cross-entropy and activity
@@ -92,13 +92,13 @@
 
   == Methods
 
-  We assessed finite changes in accuracy, activity and weights using retained
+  I assessed finite changes in accuracy, activity and weights using retained
   learning histories from unregularised classifiers.
 
-  + *Select the baseline histories.* We reused all #n seeds per architecture from
+  + *Select the baseline histories.* I reused all #n seeds per architecture from
     the unregularised activity comparison. Each history contains #c.epochs
     consecutive completed epochs; final values refer to the last epoch, not the
-    checkpoint selected by minimum validation loss. The audit performs no new
+    checkpoint selected by minimum validation loss. The audit involved no new
     training or inference.
 
   + *Identify the evaluation split.* The training pool contained #c.max_samples
@@ -119,7 +119,7 @@
     #c.voltage_gradient_damping.coba for COBA and #c.voltage_gradient_damping.ping
     for PING; no activity regulariser was applied.
 
-  + *Measure final-window drift.* For each seed, we retained validation accuracy,
+  + *Measure final-window drift.* For each seed, I retained validation accuracy,
     training and validation cross-entropy, and population-mean E and I rates.
     The final #c.window_epochs epochs define the endpoint slope
     #math.equation(block: true,
@@ -131,7 +131,7 @@
     meet the audit's operational stability criterion. This endpoint diagnostic
     does not exclude fluctuations within the window or prove asymptotic convergence.
 
-    We retained per-seed slopes, first-to-final-epoch
+    I retained per-seed slopes, first-to-final-epoch
     weight-norm ratios, and final-window weight-norm slopes, and computed means
     and sample standard deviations across seeds. Curves show individual seeds.
     The first epoch reaching 99% of final accuracy supplies a separate descriptive

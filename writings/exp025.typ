@@ -86,7 +86,7 @@
   Without an activity penalty, PING networks had a #baseline_ratio\-fold lower
   mean excitatory firing rate than COBA networks on MNIST
   (#ping_off_rate versus #coba_off_rate Hz), with test accuracy of
-  #ping_off_acc% versus #coba_off_acc%. We reused trained networks and
+  #ping_off_acc% versus #coba_off_acc%. I reused trained networks and
   measurements to compare activity ceilings, cycle participation, and input
   coupling. Across three seeds, tightening the ceiling preserved more accuracy
   in PING at the lowest targets, but did not establish a structural rate floor.
@@ -129,9 +129,9 @@
       test images each. PING participation varied from #p_lo to #p_hi and
       oscillation frequency from approximately #fg_hi to #fg_lo Hz. The dashed
       $p f_gamma$ approximation differs from measured E rate by up to
-      #pfg_err_max%; participation is not constant. PING accuracy spans
-      #ping_acc_lo–#ping_acc_hi%; COBA falls from #coba_acc_loose% to
-      #coba_acc_tight% as the ceiling tightens. These are individual-seed
+      #pfg_err_max%; participation is not constant. PING accuracy spanned
+      #ping_acc_lo–#ping_acc_hi%; COBA fell from #coba_acc_loose% to
+      #coba_acc_tight% as the ceiling tightened. These are individual-seed
       measurements, not across-seed estimates.
     ],
   )
@@ -170,7 +170,7 @@
       images per condition. PING black, COBA red. Dashed $s = 1$ marks training;
       the dotted marker labelled $f^*$ denotes the empirical input scale
       #run.plot_data.scale_crossing where I rate crosses 0.05 Hz, not a fitted
-      bifurcation. Penalty and total-objective axes stop at 4; COBA's penalty reaches approximately
+      bifurcation. Penalty and total-objective axes stop at 4; COBA's penalty reached approximately
       #coba_pen_s3 at $s = 3$.
     ],
   )
@@ -185,15 +185,15 @@
     caption: [
       Figure 4 replotted against mean E rate. Stars mark the trained
       points: PING #ping_star_e Hz and COBA #coba_star_e Hz. PING's highest
-      sampled accuracy is approximately #ping_plateau%; at input scale $s = 3$,
-      COBA reaches approximately #coba_acc_s3% at #coba_e_s3 Hz. This single
+      sampled accuracy was approximately #ping_plateau%; at input scale $s = 3$,
+      COBA reached approximately #coba_acc_s3% at #coba_e_s3 Hz. This single
       direction of weight scaling does not map the full loss landscape.
     ],
   )
 
   == Methods
 
-  We reused networks and learning histories from the
+  I reused networks and learning histories from the
   #link("/exp022/")[shared training study] and reanalysed retained inference
   measurements; no new training or simulation was performed.
 

@@ -803,6 +803,12 @@ def _build_subparsers(parser, parent):
         "spike_summary (--input-file only; compact per-presentation E/I/output spike counts).",
     )
     sim_parser.add_argument(
+        "--recording-start-step",
+        type=int,
+        default=0,
+        help="[probe rasters] First retained timestep; simulation and metrics still use the full window.",
+    )
+    sim_parser.add_argument(
         "--recording-mode",
         choices=("full", "spikes", "inhibitory"),
         default="full",
@@ -1013,6 +1019,13 @@ def _build_subparsers(parser, parent):
         "--load-weights run/weights.pth --out-dir analysis/",
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
+    for output_parser in (sim_parser, dump_parser):
+        output_parser.add_argument(
+            "--output-fields",
+            nargs="+",
+            default=None,
+            help="Retain only these NPZ data fields, with lossless compression; shape metadata is automatic.",
+        )
     dump_parser.add_argument(
         "--load-config",
         type=str,
@@ -1741,6 +1754,7 @@ def _run_sim(args, C, out_dir, log):
             ext_g_inhib_e=realized.inhibitory_e,
             ext_g_inhib_i=realized.inhibitory_i,
             recurrent_weight_scales=recurrent_scales,
+            recording_mode=getattr(args, "recording_mode", "full"),
         )
     elif (
         getattr(args, "input", "synthetic-spikes") == "synthetic-spikes"
@@ -1763,6 +1777,7 @@ def _run_sim(args, C, out_dir, log):
             t_e_async=t_e_async,
             input_spikes=spk_in,
             recurrent_weight_scales=recurrent_scales,
+            recording_mode=getattr(args, "recording_mode", "full"),
         )
     else:
         # Cell-drive path (--independent-drive / --shared-drive / --quenched-
@@ -1793,6 +1808,7 @@ def _run_sim(args, C, out_dir, log):
             ext_g=ext_g,
             ext_g_i=ext_g_i,
             recurrent_weight_scales=recurrent_scales,
+            recording_mode=getattr(args, "recording_mode", "full"),
         )
 
     spk_e = rec[primary_hid_key(rec)]
@@ -1860,7 +1876,14 @@ def _run_sim(args, C, out_dir, log):
     # Save full integration window snapshot for notebooks
     out_path = Path(out_dir) / "snapshot.npz"
     save_snapshot_npz(
-        out_path, rec, dt, C.N_E, C.N_I, display=display, extra=extra or None
+        out_path,
+        rec,
+        dt,
+        C.N_E,
+        C.N_I,
+        display=display,
+        extra=extra or None,
+        output_fields=getattr(args, "output_fields", None),
     )
 
 
@@ -1956,6 +1979,7 @@ def _emit_infer(args, C, out_dir, log, snapshot_mode=False):
             sample=args.sample,
             sample_index=getattr(args, "sample_index", None),
             recording_mode=getattr(args, "recording_mode", "full"),
+            output_fields=getattr(args, "output_fields", None),
             tau_gaba=getattr(args, "tau_gaba", None),
             skip_load=getattr(args, "skip_load", None),
             perturb_mode=_pmode,
@@ -1991,6 +2015,7 @@ def _emit_infer(args, C, out_dir, log, snapshot_mode=False):
         dales_law=args.dales_law,
         seed=args.seed,
         outputs=getattr(args, "outputs", None),
+        output_fields=getattr(args, "output_fields", None),
         recording_mode=getattr(args, "recording_mode", "full"),
         tau_gaba=getattr(args, "tau_gaba", None),
         scale_w_in=getattr(args, "scale_w_in", 1.0),
@@ -2022,6 +2047,7 @@ def _run_dump_weights(args, C, out_dir, log):
     """
     w_in = _resolve_w_in(args)
     dump_weights(
+        output_fields=getattr(args, "output_fields", None),
         dt=args.dt,
         out_dir=str(out_dir),
         model_name=args.model,
@@ -2058,6 +2084,8 @@ def _emit_probe(args, C, out_dir, log):
     rasters. The sim path routes here for --input synthetic-spikes / --input-file
     (this was the standalone `probe` subcommand before it was folded into sim)."""
     probe(
+        recording_mode=getattr(args, "recording_mode", "full"),
+        recording_start_step=getattr(args, "recording_start_step", 0),
         model_name=args.model,
         dt=args.dt,
         t_ms=args.t_ms,
@@ -2079,6 +2107,7 @@ def _emit_probe(args, C, out_dir, log):
         input_file=getattr(args, "input_file", None),
         out_dir=str(out_dir),
         outputs=getattr(args, "outputs", None),
+        output_fields=getattr(args, "output_fields", None),
         tau_gaba=getattr(args, "tau_gaba", None),
         private_w_in=getattr(args, "private_w_in", False),
         train_leak=getattr(args, "train_leak", False),

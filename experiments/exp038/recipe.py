@@ -171,6 +171,7 @@ def inference_args(train, checkpoint, output, job):
         "auto",
     ]
     if job["kind"] == "fi_uniform":
+        args += ["--recording-mode", "spikes"]
         args += [
             "--input",
             "synthetic-spikes",
@@ -196,5 +197,11 @@ def inference_args(train, checkpoint, output, job):
         if "samples" in job:
             args += ["--max-samples", str(job["samples"])]
         if "sample_index" in job:
-            args += ["--sample-index", str(job["sample_index"])]
+            args += ["--sample-index", str(job["sample_index"])] + [
+                "--recording-mode",
+                "spikes",
+                "--output-fields",
+                "spk_e",
+                "spk_i",
+            ]
     return args + ["--out-dir", str(output)]

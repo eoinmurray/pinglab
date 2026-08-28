@@ -34,6 +34,7 @@ def acquire(run):
             **job,
             "seed": recipe.NETWORK_SEED,
             "recording": "full",
+            "recording_fields": list(evidence.recording_sizes(job)),
             "graph_sha256": cfg["graph_hashes"][job["graph"]],
             "kind": "simulate",
             "executor": "graph",
@@ -48,12 +49,14 @@ def acquire(run):
                 graph=graphs[job["graph"]],
                 inputs=drive,
                 seed=recipe.NETWORK_SEED,
+                recording_fields=request["recording_fields"],
             ),
             runtime_state=state,
         )
-        np.savez_compressed(
-            directory / "recordings.npz", **numpy_tensors(result.recordings)
-        )
+        if result.recordings:
+            np.savez_compressed(
+                directory / "recordings.npz", **numpy_tensors(result.recordings)
+            )
         np.savez_compressed(
             directory / "parameters.npz", **numpy_tensors(result.parameters)
         )

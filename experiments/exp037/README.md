@@ -245,3 +245,12 @@ writing status. A regression test requires all five images and captions in HTML;
 the live browser preview was also checked against `exp037-r004-present`, with all
 five images loaded and the corrected curve labels and full range visible.
 Concurrent exp042/simulator work was left untouched.
+
+## Future-run data retention — 2026-08-28
+
+Raster jobs record only E/I spikes and their metadata. Compact payloads are moved from job scratch into the staged export without a second serialization. Quantitative inference remains metrics-only; all perturbations, samples and checkpoint roles are unchanged.
+
+These changes affect future execution only. Existing immutable runs and R2
+archives are unchanged. Required arrays keep their original numerical values;
+selected NPZ outputs use lossless compression. No production rerun or new
+publication was performed for this cleanup.

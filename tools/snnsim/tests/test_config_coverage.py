@@ -413,3 +413,21 @@ class TestBuildConfig:
         c = C.build_config(args)
         assert c.w_ei == (2.0, pytest.approx(0.2))
         assert c.w_ie == (4.0, pytest.approx(0.4))
+
+
+def test_spike_only_simulation_matches_full_dynamics():
+    C.cfg.n_e = 16
+    C.cfg.n_i = 4
+    C.cfg.sim_ms = 10
+    set_sim_dt(DT, 10)
+    spikes = torch.ones(100, 1, M.N_IN)
+    full, stimulus, full_weights = run_sim(DT, 0.3, input_spikes=spikes)
+    lean, lean_stimulus, lean_weights = run_sim(
+        DT, 0.3, input_spikes=spikes, recording_mode="spikes"
+    )
+    assert set(lean) == {"hid", "inh"}
+    for key in lean:
+        np.testing.assert_array_equal(lean[key], full[key])
+    np.testing.assert_array_equal(stimulus, lean_stimulus)
+    for key in full_weights:
+        np.testing.assert_array_equal(lean_weights[key], full_weights[key])

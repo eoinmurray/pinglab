@@ -50,7 +50,7 @@
   == Abstract
 
   Training the recurrent E→I and I→E conductances weakened reference-image
-  rhythmicity relative to a frozen PING control. We reanalysed retained results
+  rhythmicity relative to a frozen PING control. I reanalysed retained results
   from four conditions and three seeds per condition after 50 epochs of MNIST
   training. Final contrast was #contrast_low–#contrast_high across trainable
   networks, versus a frozen-control mean of #contrast_frozen. Excitatory firing
@@ -152,7 +152,7 @@
 
   == Methods
 
-  We reused networks from the #link("/exp022/")[shared training study] and
+  I reused networks from the #link("/exp022/")[shared training study] and
   reanalysed retained observations. No new training or simulation was performed.
 
   + *Compare recurrent trainability.* Twelve conductance-based leaky-integrate-and-fire
@@ -194,7 +194,7 @@
     #math.equation(block: true, numbering: "(1)", $R = (L - Q) / (L + Q)$)
     Here $R$ is dimensionless contrast, $Q$ the first local trough from lag
     2 ms onward, and $L$ the preceding positive-lag maximum of the smoothed
-    autocorrelogram. We reused the retained scalar; it is neither a
+    autocorrelogram. I reused the retained scalar; it is neither a
     test-population rhythm estimate nor a calibrated probability of PING.
 
   == Appendix: retained parameters and interpretation limits

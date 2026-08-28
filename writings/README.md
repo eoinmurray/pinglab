@@ -1,6 +1,6 @@
 # Writing Guide
 
-Version: **17.0.0**
+Version: **18.0.0**
 
 The Writing Guide defines the conventions for Pinglab's published experiment
 entries in `writings/expXXX.typ`. This file is the canonical guide.
@@ -14,6 +14,11 @@ corrections or clarifications that do not change requirements. Update the versio
 above and add a short entry to the version history when changing the guide.
 
 ### 1.1. Version history
+
+- **18.0.0** — Specify first-person singular for the sole author's actions and
+  interpretations, and distinguish past experimental work from present
+  definitions, figure descriptions and conclusions, and explicitly planned work.
+  Apply these rules throughout articles without changing scientific substance.
 
 - **17.0.0** — Require the plain `Results` heading, with no tagline or
   description. Remove the finding-summary requirement and migrate existing
@@ -281,6 +286,51 @@ the missing inputs in the task summary, not new article prose.
 - A status check authorizes no execution, input selection, materialization,
   publication, historical inspection, migration or mutation of stored runs.
 
+### 3.6. Tense and grammatical person
+
+These are polished scientific articles, not diary entries. Apply the following
+rules throughout rendered content, including abstracts, Methods, captions and
+appendices; choose tense by the sentence's function, not by section alone.
+
+- Use first-person singular (`I`, `my`) for the sole author's actions, decisions
+  and interpretations: “I trained the networks”; “I interpret this as…”. Do not
+  use `we`, `our` or `us` to imply a research team or as an authorial substitute
+  for `I`. Use plural person only for explicitly identified human collaborators
+  who performed the stated work. Attribute reused work to its actual source;
+  changing person must not turn reuse into a claim of new execution.
+- Do not force a pronoun into every sentence. Prefer the scientific subject
+  when natural (“Accuracy increased”) and allow passive voice when the actor
+  is unimportant (“Weights were held fixed”). In mathematical exposition,
+  prefer “Substituting gives…” or “Consider…” to an ambiguous authorial `we`.
+- Use past tense for completed procedures, choices and observations, including
+  reused experiments: “I evaluated three seeds”; “Mean accuracy was 92%”.
+  Do not narrate completed Methods as instructions or as work happening now.
+- Use present tense for model and algorithm definitions, mathematical
+  relationships, established knowledge, the article's scope, and what a figure
+  or table displays: “The model contains two populations”; “Figure 2 shows
+  mean accuracy”. A caption may therefore mix present display descriptions
+  with past observations: “Points show seed means; accuracy fell at high jitter”.
+  Concise finding headings may use present tense.
+- Use present tense for current interpretations and supported conclusions,
+  keeping their evidential limits explicit: “This result suggests…”; “These
+  measurements do not establish…”. An observed outcome remains past tense
+  even when the interpretation is present tense.
+- Mark unperformed work explicitly as a plan, possibility or prediction:
+  “I plan to test…”; “The planned comparison will…”; “This could…”. Never
+  change planned or uncertain work into a completed observation for stylistic
+  consistency. Use present progressive only for work actually in progress.
+- Short action-led Methods labels, mathematical instructions and reference-page
+  instructions may remain imperative. Method-step prose must still distinguish
+  completed work from plans. Preserve quoted wording, bibliographic titles,
+  mathematical symbols and source-code identifiers.
+
+For a tense/person conformance pass, preserve scientific meaning, execution
+status, qualifications and authored dates. A grammatical change alone does not
+advance `meta.updated_at`; a substantive correction follows section 3.4. Check
+tense and attribution in context rather than replacing every present-tense verb
+or every occurrence of a pronoun mechanically. Flag uncertain execution or
+authorship rather than guessing.
+
 ## 4. Titles
 
 For the experiment's overall title (`meta.title`), use a short, plain-English
@@ -380,8 +430,9 @@ is useful.
 - Use plain, direct language, consistent terminology and one main idea per
   sentence. Write researcher-to-colleague prose. Retain necessary scientific
   terms and define unfamiliar terms or notation.
-- Use past tense for completed work and future tense for planned work. Never
-  substitute an expected outcome for an observation.
+- Follow section 3.6 for tense and person: past for completed work, present for
+  definitions and current conclusions, and explicit planning language for
+  unperformed work. Never substitute an expected outcome for an observation.
 - Omit general background, citations, repository bookkeeping and unnecessary
   implementation details.
 - Interpolate reported values from retained evidence where possible; do not
@@ -392,7 +443,7 @@ is useful.
 The values below illustrate the verified result; the article should interpolate
 them from its selected evidence.
 
-> We assembled a reusable bank of 102 spiking networks for MNIST handwritten-digit
+> I assembled a reusable bank of 102 spiking networks for MNIST handwritten-digit
 > classification, covering 34 conditions with three random seeds each. Training
 > lasted 50 epochs per network. Conditions compared feedforward controls with
 > excitatory–inhibitory recurrent networks and varied activity penalties,
