@@ -11,7 +11,6 @@ preview:
   # Explicit attachments also render selectors before an experiment has any runs.
   articles:
     exp004: []
-    exp005: []
     exp006: []
     exp011: []
     exp015: []
