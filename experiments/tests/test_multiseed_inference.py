@@ -192,30 +192,13 @@ def test_exp038_ei_summary_is_across_seed_mean_and_sample_sd() -> None:
     assert {point["n_total"] for point in points} == {1400}
 
 
-def test_exp038_quantitative_inference_uses_reduced_eval_subset(
-    monkeypatch, tmp_path: Path
-) -> None:
-    train_dir = tmp_path / "coba__off__seed42"
-    train_dir.mkdir()
-    (train_dir / "config.json").write_text("{}")
-    _write_selected_checkpoint(train_dir)
-    commands = []
-
-    def fake_run_cli(command):
-        commands.append(command)
-        out = Path(command[command.index("--out-dir") + 1])
-        out.mkdir(parents=True, exist_ok=True)
-        (out / "metrics.json").write_text(json.dumps({
-            "best_acc": 90.0,
-            "n_correct": 900,
-            "n_total": 1000,
-            "rates_hz": {"hid1": 120.0, "inh1": 0.0},
-        }))
-
-    monkeypatch.setattr(exp038, "run_cli", fake_run_cli)
-    result = exp038.run_inproc_infer(train_dir, 0.5, tmp_path / "infer")
-    assert commands[0][commands[0].index("--max-samples") + 1] == "1000"
-    assert result["n_total"] == 1000
+def test_exp038_quantitative_inference_uses_reduced_eval_subset(tmp_path: Path) -> None:
+    from experiments.exp038 import recipe
+    job = next(j for j in recipe.jobs(recipe.configuration()) if j["kind"] == "ei_sweep")
+    args = recipe.inference_args(tmp_path, tmp_path / "weights.pth", tmp_path / "out", job)
+    assert args[args.index("--max-samples") + 1] == "1000"
+    assert args[args.index("--load-weights") + 1].endswith("weights.pth")
+    assert args[args.index("--skip-load") + 1:args.index("--skip-load") + 3] == ["W_ei.", "W_ie."]
 
 
 def test_downstream_runners_honor_isolated_runner_paths(tmp_path: Path) -> None:
@@ -226,7 +209,7 @@ def test_downstream_runners_honor_isolated_runner_paths(tmp_path: Path) -> None:
         if path.is_file()
     }
     for slug in (
-        "exp033", "exp037", "exp038",
+        "exp033", "exp037",
         "exp049", "exp082",
     ):
         root = tmp_path / slug

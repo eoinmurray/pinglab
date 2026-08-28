@@ -1,12 +1,13 @@
-#import "/.demolab/lib.typ": data-json, data-image
+#import "/.demolab/lib.typ": data-json, data-image, cite, reference-list
 #import "run-inputs.typ": data-file, inputs-ready, pending-report
 #let data-file = data-file.with(article: "exp038")
 
 #let meta = (
-  status: "Implemented",
+  status: "Ready for review",
   title: "Switching On the Inhibitory Loop",
   date: "2026-05-30",
-  description: "Loads a trained COBA network and switches the I-loop on at inference by sweeping ei_strength from 0 to 1; the same weights fire ≈15× slower.",
+  updated_at: "2026-08-28",
+  description: "Enabling an inhibitory loop after feedforward training reduced excitatory firing but lowered classification accuracy; the experiment does not isolate a benefit of gamma timing.",
   collection: "gamma-gated-sparsity",
 )
 
@@ -20,102 +21,158 @@
 #let render-report(data-file) = [
 #let run = data-json(data-file("exp038/numbers.json"))
 #let cfg = run.config
-#let eval_n = cfg.at("evaluation_samples_per_seed", default: (1000,)).first()
-#let eval_pool = cfg.at("evaluation_pool_samples", default: 10000)
-#let ei = run.at("ei_sweep_summary", default: run.ei_sweep)
+#let eval_n = cfg.evaluation_samples_per_seed.first()
+#let eval_pool = cfg.evaluation_pool_samples
+#let ei = run.ei_sweep_summary
 #let at(strength) = ei.filter(r => calc.abs(r.ei_strength - strength) < 0.001).first()
 #let loop_off = at(0.0)
 #let loop_on = at(1.0)
 #let rate_off = calc.round(loop_off.hid_rate_hz)
 #let rate_on = calc.round(loop_on.hid_rate_hz)
 #let inhibition_on = calc.round(loop_on.inh_rate_hz)
-#let rate_ratio = calc.round(loop_off.hid_rate_hz / loop_on.hid_rate_hz)
+#let rate_ratio = calc.round(loop_off.hid_rate_hz / loop_on.hid_rate_hz, digits: 1)
 #let acc_off = calc.round(loop_off.acc)
 #let acc_on = calc.round(loop_on.acc)
 #let acc_cost = calc.round(loop_off.acc - loop_on.acc)
+#let labels = run.at("illustrative_labels", default: none)
+#let image-description = if labels == none { [the same test image] } else { [the same digit-#labels.ei_rasters.first() test image] }
 
 #let body = [
-  The trained networks this entry uses are produced once in the shared training
-  hub, #link("/exp022/")[exp022 (Training)], and reused here rather than retrained.
-  Its complete TR-02 activity frontier contains seeds 42–44 at every COBA and
-  PING rate target. The machine-readable results retain each checkpoint row and
-  report the across-seed mean and SEM for every frontier point.
-
   == Abstract
 
-  Loads a trained COBA network and switches the I-loop on at inference by sweeping
-  _ei_strength_ from 0 to 1. Across independently trained seeds 42–44, the same
-  feedforward weights that fire at ≈ #rate_off Hz without the loop fire at ≈
-  #rate_on Hz with it engaged, a ≈ #rate_ratio× drop with no weight update.
-  Accuracy, though, falls ≈ #acc_cost pp (from ≈ #acc_off% to ≈ #acc_on%) as the loop engages,
-  because the readout was never trained with it. PING gating is a post-hoc sparsity
-  knob: the architecture, not the training, supplies the gamma dynamics, but using
-  it well still needs training _with_ the loop.
+  Enabling an inhibitory loop after feedforward training reduced mean excitatory
+  firing from approximately #rate_off to #rate_on Hz, a #rate_ratio\-fold decrease,
+  while MNIST test accuracy fell from approximately #acc_off% to #acc_on%.
+  We reanalysed retained observations from three independently trained networks,
+  keeping learned input and readout weights fixed while varying bidirectional
+  loop coupling. Illustrative rasters showed increasingly grouped E/I bursts
+  without retraining. The intervention demonstrates suppression after training,
+  but does not isolate a benefit of gamma timing or establish that retraining
+  would recover accuracy.
 
-  == Method
+  == Results
 
-  Each inference intervention starts from the checkpoint selected by validation accuracy. The recurrent-loop replacements and input-rate sweeps therefore probe the selected classifier, not the final-epoch training state.
+  === 1. Lower firing with an accuracy cost
+
+  #figure(
+    data-image(data-file("exp038/loop_transfer_compound.png"), width: 100%,
+      alt: "Rasters with the loop off and enabled after training, followed by population firing rates and test accuracy across bidirectional loop strengths."),
+    caption: [
+      Reanalysed inference observations; no retraining. *Top:* seed-42 rasters
+      for #image-description, showing 200 E cells (black) and 64 I cells (red).
+      *Bottom:* population rates and accuracy on #eval_n test images per seed;
+      means ± sample SD across seeds 42–44. At full loop strength, E rate fell
+      from approximately #rate_off to #rate_on Hz, I rate reached #inhibition_on Hz,
+      and accuracy fell by #acc_cost percentage points. Both coupling directions
+      varied; lower activity alone does not identify a causal benefit of rhythm.
+    ],
+  )
+
+  === 2. Burst structure across loop strength
+
+  #figure(
+    data-image(data-file("exp038/ei_rasters.png"), width: 100%,
+      alt: "Six E/I spike rasters from the same test image, at loop strengths zero through one, showing increasingly grouped bursts."),
+    caption: [
+      Seed 42, #image-description, at six bidirectional loop strengths
+      $s = 0, 0.2, 0.4, 0.6, 0.8, 1$. Learned input and readout weights were fixed;
+      recurrent E↔I weights were initialized at each strength without training.
+      Rows show the same sampled 200 E and 64 I cells over 200 ms. Burst grouping
+      is illustrative: these panels do not estimate gamma frequency or establish
+      a continuous transition between the sampled strengths.
+    ],
+  )
+
+  == Methods
+
+  We reused networks from the #link("/exp022/")[shared training study] and
+  reanalysed retained inference observations. No new training or simulation
+  was performed for this account.
+
+  + *Reuse trained classifiers.* MNIST handwritten digits #cite(1) supplied
+    6,300 training and 700 validation images from the official training partition.
+    Conductance-based leaky-integrate-and-fire networks had 784 Poisson input
+    channels, 1,024 excitatory (E), 256 inhibitory (I), and 10 output cells;
+    pixels set rates up to 25 Hz. Input and readout weights trained for 50 epochs;
+    class scores were mean pre-reset output voltages. We selected the minimum
+    mean validation cross-entropy over three fixed encoding draws, breaking
+    ties by accuracy and then earliest epoch, rather than using final-epoch weights.
+
+  + *Enable the loop after training.* Three feedforward controls, seeds 42–44,
+    had no activity penalty or recurrent coupling during training.
+    Dimensionless strength $s$ took eleven values from 0 to 1 in steps of 0.1;
+    it set E→I and I→E initializer means to $s$ and $2s$, respectively, with
+    standard deviations one tenth of those means and normalization by source
+    population size. These lower-clamped normal weights replaced the zero
+    recurrent matrices; learned input and readout weights stayed fixed, and
+    E→E and I→I coupling stayed zero. The same network seed was reused across
+    strengths; no optimization followed the intervention.
+
+  + *Evaluate responses.* Each strength used the same #eval_n images from the
+    official #eval_pool\-image test partition, with 200 ms presentations and
+    0.1 ms steps. Accuracy counted correct classifications; rates included all
+    cells and all evaluated presentations:
+
+    #math.equation(block: true, numbering: "(1)", $ r_P = 1 / (M N_P T) sum_(b=1)^M sum_(n in P) z_(b n). $)
+
+    Here $P$ denotes E or I, $N_P$ its cell count, $M$ the number of presentations,
+    $T$ their duration in seconds, and $z_(b n)$ cell $n$'s spike count during
+    presentation $b$; $r_P$ is in hertz. Curves show means and sample standard
+    deviations across the three networks; single-image rasters are illustrative.
+
+  + *Probe input drive.* Auxiliary probes reused seed-42 classifiers trained
+    with and without the loop. Uniform independent Poisson inputs covered
+    26 rates between 0 and 100 Hz, with 32 trials per rate; a separate trained-loop
+    probe used one test image at ten maximum pixel rates from 0 to approximately
+    23.08 Hz. These retained firing curves complement the
+    #link("/exp023/")[architectural response-to-drive study]; they are not
+    additional loop-transfer accuracy evaluations.
+
+  == Appendix A. Retained training and probe settings
 
   #table(
     columns: 2,
     [Parameter], [Value],
-    [Integration timestep $Delta t$], [0.1 ms],
-    [Trial duration $T$], [200 ms],
-    [Evaluation corpus], [Official MNIST test partition (#eval_pool samples)],
-    [Evaluated held-out samples per seed], [#eval_n],
-    [Epochs], [50],
+    [Integration timestep], [0.1 ms],
+    [Trial duration], [200 ms],
+    [Evaluation corpus], [Official MNIST test partition (#eval_pool images)],
+    [Evaluated images per seed], [#eval_n],
+    [Training epochs], [50],
+    [Optimizer], [AdamW; learning rate $4 times 10^(-4)$; zero weight decay],
+    [Batch size; gradient-norm clip], [256; 1],
+    [Excitatory / inhibitory synaptic decay], [2 / 6 ms],
   )
 
-  The PING and COBA baseline definitions and the training recipe are in
-  #link("/exp025/")[exp025]; this entry runs the COBA → PING I-loop transfer probe
-  at eval time on the trained baselines. (The input-rate sweep / f–I curve material
-  that previously lived here has moved to #link("/exp023/")[exp023], the natural home
-  for "architectural response to drive".)
+  The broader retained activity frontier contains 36 classifiers: two network
+  configurations, three seeds, and six activity conditions (penalty off or
+  ceilings of 25, 10, 5, 2.5 and 1 Hz). Its summaries preserve selected and
+  final-epoch validation accuracy, final-epoch training E rate, and across-seed
+  means and SEM; these are distinct from the inference measurements above.
+  The loop-transfer comparison uses only the three unpenalised feedforward
+  classifiers. The #link("/exp025/")[accuracy–rate comparison] describes the
+  broader training design.
 
-  *Inference-time probe.* The trained COBA baselines (seeds 42–44,
-  activity regulariser off) are
-  loaded and _ei_strength_ (the I-loop gain) is overridden at eval time across 11
-  values from 0 to 1. Each seed uses the same grid and held-out sample count.
-  $W_"in"$ and $W_"out"$ load from its COBA checkpoint;
-  $W^(E I)$ and $W^(I E)$ are freshly initialised (the COBA checkpoint stores these
-  at zero, so skipping the load leaves a functional I-loop). No retraining. The
-  quantitative curves report the across-seed mean and shaded sample SD. The raster
-  panels show seed 42 as an explicitly illustrative example.
+  Feedforward and loop-enabled training used voltage-gradient damping of 1 and
+  1,000 respectively; this difference affects the auxiliary between-model
+  comparisons, not the within-classifier inference intervention. Dale's law
+  was enforced, adaptive thresholds were disabled, and membrane time constants
+  were not trained.
 
-  == Results
+  Illustrative snapshots use test-image index 0, not selection by digit class.
+  A fixed pseudorandom sample selects 200 E and 64 I cells for display; reported
+  firing rates use the full populations. Uniform-input E+I overlays add the
+  two population means without weighting by cell count, and are not a
+  whole-network mean. Neither the transfer rasters nor these firing curves
+  provide a spectral gamma-frequency estimate. The accuracy decline is
+  consistent with changing the trained network's dynamics, but does not
+  identify the readout as its sole cause or test recovery by retraining.
 
-  #figure(
-    data-image(data-file("exp038/loop_transfer_compound.png"), width: 100%,
-      alt: "Trained COBA replayed with the inference-time I-loop swept from 0 to 1: rasters at ei=0 and ei=1, E and I rate versus loop strength, and test accuracy versus loop strength."),
-    caption: [
-      Switching the recurrent I-loop on _at inference_ on a trained COBA network (no
-      retraining; $W^(E I) \/ W^(I E)$ freshly wired, since the COBA checkpoint
-      stores them at zero). *Top*: the same feedforward weights fire densely and
-      asynchronously at _ei = 0_ (COBA) and in gamma bands at _ei = 1_ (PING); the
-      gamma dynamics come from the inhibitory architecture, not from training.
-      *Bottom left*: across-seed mean E rate falls ≈ #rate_ratio× (≈ #rate_off →
-      #rate_on Hz) as the loop engages while I rises to ≈ #inhibition_on Hz; the
-      suppression is continuous in loop strength. *Bottom right*: mean accuracy
-      _degrades_ without retraining, from the ≈ #acc_off% COBA baseline to ≈
-      #acc_on% at full strength (a ≈ #acc_cost pp cost). Shaded bands show sample
-      SD across seeds 42–44. So the architecture supplies the
-      rate-gating for free, but using it well needs training _with_ the loop
-      (#link("/exp025/")[exp025]): the sparsity is architectural, the accuracy is
-      learned.
-    ],
-  )
-
-  #figure(
-    data-image(data-file("exp038/ei_rasters.png"), width: 100%,
-      alt: "Six stacked E/I spike rasters of the same trial replayed at ei_strength 0, 0.2, 0.4, 0.6, 0.8, 1, showing dense asynchronous firing giving way to gamma bands as the loop strengthens."),
-    caption: [
-      The illustrative seed-42 transition: trained COBA replayed at six inference-time _ei_strength_
-      values (same trial, same feedforward weights, a fresh I-loop each row). At
-      _ei = 0_ the asynchronous-dense COBA pattern persists; by _ei ≈ 0.4_ the same
-      weights produce gamma cycles, sharpening toward _ei = 1_. The rhythm appears
-      continuously as the loop is wired in, with no retraining at any point.
-    ],
-  )
+  #reference-list((
+    (text: [Y. LeCun, L. Bottou, Y. Bengio, and P. Haffner.
+      “Gradient-based learning applied to document recognition.”
+      _Proceedings of the IEEE_ 86(11), 2278–2324 (1998).],
+      doi: "10.1109/5.726791"),
+  ))
 ]
 #body
 ]
@@ -125,7 +182,7 @@
 } else {
   pending-report(
     data-file, inputs,
-    [What changes when an inhibitory loop is enabled after feedforward training? Sweep loop strength at inference while holding trained weights and evaluation inputs fixed.],
+    [What changes when an inhibitory loop is enabled after feedforward training? Sweep loop strength at inference while holding learned input and readout weights and the test-image subset fixed.],
     preview-figures, json-inputs: ("exp038",),
   )
 }

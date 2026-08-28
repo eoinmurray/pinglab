@@ -28,6 +28,7 @@ from experiments.collections.gamma_gated_sparsity.plan import REPO, build_plan
 from experiments.exp023 import collection as exp023_collection
 from experiments.exp024 import collection as exp024_collection
 from experiments.exp025 import collection as exp025_collection
+from experiments.exp038 import collection as exp038_collection
 from experiments.exp041 import collection as exp041_collection
 from experiments.exp042 import collection as exp042_collection
 from experiments.exp044 import collection as exp044_collection
@@ -48,7 +49,6 @@ def test_downstream_cell_banks_resolve_through_exp022_registry() -> None:
 
     for module, seeds in (
         (exp037, exp037.SEEDS_BASELINE),
-        (exp038, exp038.SEEDS_BASELINE),
     ):
         assert {
             module.cell_dir(model, target, seed).name
@@ -56,6 +56,12 @@ def test_downstream_cell_banks_resolve_through_exp022_registry() -> None:
             for target in module.RATE_TARGET_GRID_HZ
             for seed in seeds
         } == registered["TR-02"]
+    assert {
+        exp038.cell_name(m, t, s)
+        for m in exp038.MODELS
+        for t in exp038.RATE_TARGET_GRID_HZ
+        for s in exp038.SEEDS_BASELINE
+    } == registered["TR-02"]
     assert {
         exp025.cell_name(m, t, s)
         for m in exp025.MODELS
@@ -168,7 +174,7 @@ def test_plan_paths_are_isolated_and_all_runners_are_integrated(tmp_path: Path) 
     assert payload["excluded"] == ["exp048"]
     assert payload["blocking_issues"] == []
     assert payload["acceptance_issues"] == []
-    assert all(row["command"] or row["execution"]["mode"] in {"exp023-staged", "exp024-staged", "exp025-staged", "exp041-staged", "exp042-staged", "exp044-staged", "exp046-staged", "exp081-staged"} for row in rows)
+    assert all(row["command"] or row["execution"]["mode"] in {"exp023-staged", "exp024-staged", "exp025-staged", "exp038-staged", "exp041-staged", "exp042-staged", "exp044-staged", "exp046-staged", "exp081-staged"} for row in rows)
     audit = next(row for row in rows if row["slug"] == "exp024")
     assert audit["execution"]["stages"] == ["analyse", "present"]
     assert not any(".artifacts" in path for path in audit["required_outputs"])
@@ -249,7 +255,7 @@ def test_local_resume_runs_in_dependency_order(tmp_path: Path, monkeypatch) -> N
 
     # Scientific work is mocked here; real stage-reference validation has its
     # own fixture-run coverage in test_exp024_stages.py and test_exp081.py.
-    for adapter in (exp023_collection, exp024_collection, exp025_collection, exp041_collection, exp042_collection, exp044_collection, exp046_collection, exp081_collection):
+    for adapter in (exp023_collection, exp024_collection, exp025_collection, exp038_collection, exp041_collection, exp042_collection, exp044_collection, exp046_collection, exp081_collection):
         monkeypatch.setattr(adapter, "completed", lambda repo, plan, row:
                             execution.load_json(Path(row["required_outputs"][0])))
 
@@ -589,7 +595,7 @@ def test_publication_build_runs_promotion_from_separate_checkout(
     monkeypatch.setattr(execution.shutil, "which", lambda _name: "/usr/bin/uv")
     promotions = []
     from pingstore import materialize
-    for adapter in (exp023_collection, exp024_collection, exp025_collection, exp041_collection, exp042_collection, exp044_collection, exp046_collection, exp081_collection):
+    for adapter in (exp023_collection, exp024_collection, exp025_collection, exp038_collection, exp041_collection, exp042_collection, exp044_collection, exp046_collection, exp081_collection):
         monkeypatch.setattr(adapter, "completed", lambda repo, plan, row:
                             SimpleNamespace(record={"run_id": row["slug"] + "-r003-present-local"}))
     monkeypatch.setattr(materialize, "materialize_run", lambda store, identity, target:
@@ -647,7 +653,7 @@ def test_publication_build_rejects_stubbed_entries(tmp_path: Path, monkeypatch) 
     monkeypatch.setattr(execution.shutil, "which", lambda _name: "/usr/bin/uv")
     monkeypatch.setattr(execution, "promote_experiment", lambda *_args, **_kwargs: None)
     from pingstore import materialize
-    for adapter in (exp023_collection, exp024_collection, exp025_collection, exp041_collection, exp042_collection, exp044_collection, exp046_collection, exp081_collection):
+    for adapter in (exp023_collection, exp024_collection, exp025_collection, exp038_collection, exp041_collection, exp042_collection, exp044_collection, exp046_collection, exp081_collection):
         monkeypatch.setattr(adapter, "completed", lambda repo, plan, row:
                             SimpleNamespace(record={"run_id": row["slug"] + "-r003-present-local"}))
     monkeypatch.setattr(materialize, "materialize_run", lambda *args: None)
