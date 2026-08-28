@@ -409,6 +409,8 @@ def _stage_adapter(slug: str):
         from experiments.exp025 import collection
     elif slug == "exp049":
         from experiments.exp049 import collection
+    elif slug == "exp082":
+        from experiments.exp082 import collection
     elif slug == "exp037":
         from experiments.exp037 import collection
     elif slug == "exp038":
@@ -433,9 +435,9 @@ def _stage_adapter(slug: str):
 
 
 def _outputs_valid_for_plan(plan: dict[str, Any], row: dict[str, Any]) -> bool:
-    if row.get("slug") in {"exp023", "exp025", "exp033", "exp037", "exp038", "exp041", "exp042", "exp044", "exp046", "exp047", "exp049", "exp081"} and row.get("execution", {}).get("mode") != f"{row['slug']}-staged":
+    if row.get("slug") in {"exp023", "exp025", "exp033", "exp037", "exp082", "exp038", "exp041", "exp042", "exp044", "exp046", "exp047", "exp049", "exp081"} and row.get("execution", {}).get("mode") != f"{row['slug']}-staged":
         return False
-    if row.get("execution", {}).get("mode") in {"exp023-staged", "exp024-staged", "exp025-staged", "exp033-staged", "exp037-staged", "exp038-staged", "exp041-staged", "exp042-staged", "exp044-staged", "exp046-staged", "exp047-staged", "exp049-staged", "exp081-staged"}:
+    if row.get("execution", {}).get("mode") in {"exp023-staged", "exp024-staged", "exp025-staged", "exp033-staged", "exp037-staged", "exp082-staged", "exp038-staged", "exp041-staged", "exp042-staged", "exp044-staged", "exp046-staged", "exp047-staged", "exp049-staged", "exp081-staged"}:
         completed = _stage_adapter(row["slug"]).completed
         from pingstore.contracts import PingstoreError
         try:
@@ -505,6 +507,8 @@ def integrate_repair(root: Path, repair_root: Path, slug: str) -> dict[str, Any]
     rows = {row["slug"]: row for row in rows_in_order(plan)}
     if slug not in rows or slug == "exp022":
         raise CollectionError(f"unknown repairable downstream experiment: {slug}")
+    if slug == "exp082":
+        raise CollectionError("exp082 repair integration is historical; use a separately authorized v3 import")
     if slug in (plan.get("repairs") or {}):
         raise CollectionError(f"campaign already registers a repair for {slug}")
 
@@ -756,7 +760,7 @@ def _run_downstream(plan: dict[str, Any], row: dict[str, Any]) -> None:
             f"{slug} still reads legacy exp041 presentation paths; migrate its "
             "explicit staged inputs before executing against this plan"
         )
-    if slug in {"exp023", "exp024", "exp025", "exp033", "exp037", "exp038", "exp041", "exp042", "exp044", "exp046", "exp047", "exp049", "exp081"}:
+    if slug in {"exp023", "exp024", "exp025", "exp033", "exp037", "exp082", "exp038", "exp041", "exp042", "exp044", "exp046", "exp047", "exp049", "exp081"}:
         adapter = _stage_adapter(slug)
         execute, require_staged = adapter.execute, adapter.require_staged
         require_staged(row)
@@ -857,7 +861,7 @@ def run_experiment_shard(root: Path, slug: str, index: int, count: int) -> None:
         },
     )
     try:
-        if slug in {"exp037", "exp042"}:
+        if slug in {"exp037", "exp082", "exp042"}:
             result = _stage_adapter(slug).execute_shard(REPO, plan, row, index, count)
         else:
             result = execute_shard(slug, index, count, smoke=plan.get("profile") == "smoke")
@@ -924,7 +928,7 @@ def finalize_campaign(root: Path) -> dict[str, Any]:
         # Staged experiments already own immutable runs; never recapture them as v2.
         legacy_plan = {**plan, "stages": [
             {**stage, "experiments": [row for row in stage["experiments"]
-                                     if row.get("execution", {}).get("mode") not in {"exp023-staged", "exp024-staged", "exp025-staged", "exp033-staged", "exp037-staged", "exp038-staged", "exp041-staged", "exp042-staged", "exp044-staged", "exp046-staged", "exp047-staged", "exp049-staged", "exp081-staged"}]}
+                                     if row.get("execution", {}).get("mode") not in {"exp023-staged", "exp024-staged", "exp025-staged", "exp033-staged", "exp037-staged", "exp082-staged", "exp038-staged", "exp041-staged", "exp042-staged", "exp044-staged", "exp046-staged", "exp047-staged", "exp049-staged", "exp081-staged"}]}
             for stage in plan["stages"]
         ]}
         capture_campaign_metadata(root, legacy_plan)
@@ -1006,7 +1010,7 @@ def build_publication(root: Path, checkout: Path) -> dict[str, Any]:
         raise CollectionError("uv is required for publication build")
     promoted = []
     for row in rows_in_order(plan):
-        if row.get("execution", {}).get("mode") in {"exp023-staged", "exp024-staged", "exp025-staged", "exp033-staged", "exp037-staged", "exp038-staged", "exp041-staged", "exp042-staged", "exp044-staged", "exp046-staged", "exp047-staged", "exp049-staged", "exp081-staged"}:
+        if row.get("execution", {}).get("mode") in {"exp023-staged", "exp024-staged", "exp025-staged", "exp033-staged", "exp037-staged", "exp082-staged", "exp038-staged", "exp041-staged", "exp042-staged", "exp044-staged", "exp046-staged", "exp047-staged", "exp049-staged", "exp081-staged"}:
             completed = _stage_adapter(row["slug"]).completed
             from pingstore.materialize import materialize_run
             presentation = completed(REPO, plan, row)

@@ -179,8 +179,8 @@ def test_exp038_quantitative_inference_uses_reduced_eval_subset(tmp_path: Path) 
     assert args[args.index("--skip-load") + 1:args.index("--skip-load") + 3] == ["W_ei.", "W_ie."]
 
 
-def test_downstream_runners_honor_isolated_runner_paths(tmp_path: Path) -> None:
-    active = REPO / "artifacts"
+def test_exp082_import_does_not_select_or_create_legacy_runner_paths(tmp_path: Path) -> None:
+    active = REPO / ".artifacts"
     before = {
         path.relative_to(active): (path.stat().st_size, path.stat().st_mtime_ns)
         for path in active.rglob("*")
@@ -195,11 +195,13 @@ def test_downstream_runners_honor_isolated_runner_paths(tmp_path: Path) -> None:
             "PINGLAB_RUN_DERIVED_DIR": str((root / "derived").resolve()),
             "PINGLAB_RUN_LOG_DIR": str((root / "logs").resolve()),
             "PINGLAB_TRAINING_ROOT": str((tmp_path / "training").resolve()),
+            "PINGLAB_SMOKE": "0",
         }
         code = (
             f"from experiments import {slug} as m; import json; "
-            "print(json.dumps({'state': str(m.RUN_PATHS.state), "
-            "'derived': str(m.FIGURES), 'logs': str(m.RUN_PATHS.logs)}))"
+            "print(json.dumps({'legacy_paths': hasattr(m, 'RUN_PATHS'), "
+            "'legacy_execution': hasattr(m, 'run_infer_job'), "
+            "'condition_jobs': len(m.infer_jobs())}))"
         )
         result = subprocess.run(
             [sys.executable, "-c", code],
@@ -209,12 +211,13 @@ def test_downstream_runners_honor_isolated_runner_paths(tmp_path: Path) -> None:
             capture_output=True,
             check=True,
         )
-        paths = json.loads(result.stdout)
-        assert paths == {
-            "state": str((root / "state").resolve()),
-            "derived": str((root / "derived").resolve()),
-            "logs": str((root / "logs").resolve()),
+        assert json.loads(result.stdout) == {
+            "legacy_paths": False,
+            "legacy_execution": False,
+            "condition_jobs": 132,
         }
+        assert not root.exists()
+        assert not (tmp_path / "training").exists()
     after = {
         path.relative_to(active): (path.stat().st_size, path.stat().st_mtime_ns)
         for path in active.rglob("*")

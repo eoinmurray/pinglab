@@ -38,6 +38,7 @@ from experiments.exp046 import collection as exp046_collection
 from experiments.exp047 import collection as exp047_collection
 from experiments.exp049 import collection as exp049_collection
 from experiments.exp081 import collection as exp081_collection
+from experiments.exp082 import collection as exp082_collection
 
 
 def test_collection_production_training_horizon_is_50_epochs() -> None:
@@ -178,7 +179,7 @@ def test_plan_paths_are_isolated_and_all_runners_are_integrated(tmp_path: Path) 
     assert payload["excluded"] == ["exp048"]
     assert payload["blocking_issues"] == []
     assert payload["acceptance_issues"] == []
-    assert all(row["command"] or row["execution"]["mode"] in {"exp023-staged", "exp024-staged", "exp025-staged", "exp033-staged", "exp037-staged", "exp038-staged", "exp041-staged", "exp042-staged", "exp044-staged", "exp046-staged", "exp047-staged", "exp049-staged", "exp081-staged"} for row in rows)
+    assert all(row["command"] or row["execution"]["mode"] in {"exp023-staged", "exp024-staged", "exp025-staged", "exp033-staged", "exp037-staged", "exp038-staged", "exp041-staged", "exp042-staged", "exp044-staged", "exp046-staged", "exp047-staged", "exp049-staged", "exp081-staged", "exp082-staged"} for row in rows)
     audit = next(row for row in rows if row["slug"] == "exp024")
     assert audit["execution"]["stages"] == ["analyse", "present"]
     assert not any(".artifacts" in path for path in audit["required_outputs"])
@@ -259,7 +260,7 @@ def test_local_resume_runs_in_dependency_order(tmp_path: Path, monkeypatch) -> N
 
     # Scientific work is mocked here; real stage-reference validation has its
     # own fixture-run coverage in test_exp024_stages.py and test_exp081.py.
-    for adapter in (exp023_collection, exp024_collection, exp025_collection, exp033_collection, exp037_collection, exp038_collection, exp041_collection, exp042_collection, exp044_collection, exp046_collection, exp047_collection, exp049_collection, exp081_collection):
+    for adapter in (exp023_collection, exp024_collection, exp025_collection, exp033_collection, exp037_collection, exp038_collection, exp041_collection, exp042_collection, exp044_collection, exp046_collection, exp047_collection, exp049_collection, exp081_collection, exp082_collection):
         monkeypatch.setattr(adapter, "completed", lambda repo, plan, row:
                             execution.load_json(Path(row["required_outputs"][0])))
 
@@ -427,7 +428,7 @@ def test_compose_campaign_replaces_selected_outputs_and_records_sources(
     assert not execution._outputs_valid_for_plan(composite_plan, rows["exp080"])
 
 
-def test_integrate_repair_preserves_base_and_records_repaired_source(
+def test_exp082_legacy_repair_is_rejected_without_mutating_campaign(
     tmp_path: Path, monkeypatch
 ) -> None:
     root = tmp_path / "campaign"
@@ -502,31 +503,12 @@ def test_integrate_repair_preserves_base_and_records_repaired_source(
 
     monkeypatch.setattr(execution.subprocess, "run", fake_git)
 
-    result = execution.integrate_repair(root, repair_root, "exp082")
-
-    updated = execution.load_json(root / execution.PLAN_NAME)
-    numbers = execution.load_json(Path(row["required_outputs"][0]))
-    run = execution.load_json(root / "run.json")
-    assert result["source_git_commit"] == expected_repair_source["git_commit"]
-    assert result["integration_source_git_commit"] == integration_source["git_commit"]
-    assert updated["source"] == base_source
-    assert updated["repairs"]["exp082"]["source"] == expected_repair_source
-    assert updated["repairs"]["exp082"]["integration_source"] == integration_source
-    assert (
-        numbers["collection_provenance"]["source_git_commit"]
-        == expected_repair_source["git_commit"]
-    )
-    assert (
-        numbers["collection_provenance"]["repair"]["base_source_git_commit"]
-        == base_source["git_commit"]
-    )
-    assert run["upstream"] == [
-        f"exp082-repair:{expected_repair_source['git_commit']}:{repair_root.resolve()}"
-    ]
-    assert (
-        execution.load_json(root / execution.STATUS_DIR / "exp082.json")["state"]
-        == "complete"
-    )
+    before = {path: path.read_bytes() for directory in (root, repair_root)
+              for path in directory.rglob("*") if path.is_file()}
+    with pytest.raises(execution.CollectionError, match="separately authorized v3 import"):
+        execution.integrate_repair(root, repair_root, "exp082")
+    assert {path: path.read_bytes() for directory in (root, repair_root)
+            for path in directory.rglob("*") if path.is_file()} == before
 
 
 def test_finalize_captures_campaign_and_writes_pingstore_inventory(
@@ -548,9 +530,10 @@ def test_finalize_captures_campaign_and_writes_pingstore_inventory(
     staged = {"slug": "exp024", "execution": {"mode": "exp024-staged"}}
     staged_root = {"slug": "exp081", "execution": {"mode": "exp081-staged"}}
     staged_audit = {"slug": "exp044", "execution": {"mode": "exp044-staged"}}
+    staged_stream = {"slug": "exp082", "execution": {"mode": "exp082-staged"}}
     legacy = {"slug": "exp023", "execution": {"mode": "monolithic"}}
     monkeypatch.setattr(execution, "load_plan", lambda _root: {
-        "campaign_id": "smoke", "stages": [{"experiments": [staged, staged_root, staged_audit, legacy]}],
+        "campaign_id": "smoke", "stages": [{"experiments": [staged, staged_root, staged_audit, staged_stream, legacy]}],
     })
     monkeypatch.setattr(
         execution,
@@ -600,7 +583,7 @@ def test_publication_build_runs_promotion_from_separate_checkout(
     monkeypatch.setattr(execution.shutil, "which", lambda _name: "/usr/bin/uv")
     promotions = []
     from pingstore import materialize
-    for adapter in (exp023_collection, exp024_collection, exp025_collection, exp033_collection, exp037_collection, exp038_collection, exp041_collection, exp042_collection, exp044_collection, exp046_collection, exp047_collection, exp049_collection, exp081_collection):
+    for adapter in (exp023_collection, exp024_collection, exp025_collection, exp033_collection, exp037_collection, exp038_collection, exp041_collection, exp042_collection, exp044_collection, exp046_collection, exp047_collection, exp049_collection, exp081_collection, exp082_collection):
         monkeypatch.setattr(adapter, "completed", lambda repo, plan, row:
                             SimpleNamespace(record={"run_id": row["slug"] + "-r003-present-local"}))
     monkeypatch.setattr(materialize, "materialize_run", lambda store, identity, target:
@@ -658,7 +641,7 @@ def test_publication_build_rejects_stubbed_entries(tmp_path: Path, monkeypatch) 
     monkeypatch.setattr(execution.shutil, "which", lambda _name: "/usr/bin/uv")
     monkeypatch.setattr(execution, "promote_experiment", lambda *_args, **_kwargs: None)
     from pingstore import materialize
-    for adapter in (exp023_collection, exp024_collection, exp025_collection, exp033_collection, exp037_collection, exp038_collection, exp041_collection, exp042_collection, exp044_collection, exp046_collection, exp047_collection, exp049_collection, exp081_collection):
+    for adapter in (exp023_collection, exp024_collection, exp025_collection, exp033_collection, exp037_collection, exp038_collection, exp041_collection, exp042_collection, exp044_collection, exp046_collection, exp047_collection, exp049_collection, exp081_collection, exp082_collection):
         monkeypatch.setattr(adapter, "completed", lambda repo, plan, row:
                             SimpleNamespace(record={"run_id": row["slug"] + "-r003-present-local"}))
     monkeypatch.setattr(materialize, "materialize_run", lambda *args: None)
@@ -852,7 +835,8 @@ def test_plan_records_reviewed_heavy_workload_contracts(tmp_path: Path) -> None:
     plan = build_plan(tmp_path / "campaign", "production")
     rows = {row["slug"]: row for row in execution.rows_in_order(plan)}
     assert rows["exp082"]["execution"] == {
-        "mode": "sharded-inference",
+        "mode": "exp082-staged",
+        "stages": ["compute", "analyse", "present"],
         "shards": 6,
         "partition": "ordered-round-robin",
         "workload_contract": {

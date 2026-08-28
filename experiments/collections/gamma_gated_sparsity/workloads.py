@@ -58,11 +58,11 @@ def jobs_for_shard(slug: str, index: int, count: int) -> list[str]:
         )
     if not 0 <= index < count:
         raise ValueError(f"shard index {index} outside [0, {count})")
-    if slug in {"exp037", "exp042"}:
+    if slug in {"exp037", "exp042", "exp082"}:
         import os
 
         recipe = importlib.import_module(f"experiments.{slug}.recipe")
-        cfg = recipe.configuration(smoke=os.environ.get("PINGLAB_SMOKE") == "1")
+        cfg = recipe.environment_configuration() if slug == "exp082" else recipe.configuration(smoke=os.environ.get("PINGLAB_SMOKE") == "1")
         jobs = [job["id"] for job in recipe.jobs(cfg)]
     else:
         jobs = list(_runner(slug).infer_jobs())
@@ -80,7 +80,7 @@ def execute_shard(
         )
     if not 0 <= index < count:
         raise ValueError(f"shard index {index} outside [0, {count})")
-    if slug in {"exp037", "exp042"}:
+    if slug in {"exp037", "exp042", "exp082"}:
         raise ValueError(f"{slug} shards require the staged adapter and an explicit v3 bank")
     runner = _runner(slug)
     all_jobs = list(runner.infer_jobs())
