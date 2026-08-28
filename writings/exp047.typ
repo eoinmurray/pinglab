@@ -64,7 +64,7 @@
 
   #run-view("exp047", inputs)
 
-  == Results: Holding summed inhibition fixed preserves rates as inhibitory pools grow
+  == Results
 
   === Pool-size dependence changes with synaptic scaling
 

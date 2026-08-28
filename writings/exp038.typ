@@ -55,7 +55,7 @@
 
   #run-view("exp038", inputs)
 
-  == Results: Inhibitory feedback lowers firing at an accuracy cost
+  == Results
 
   === Lower firing with an accuracy cost
 

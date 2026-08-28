@@ -7,6 +7,7 @@ The generated JSON belongs to the presentation runtime, not the storage conventi
 from __future__ import annotations
 
 import json
+import math
 import os
 import re
 import sys
@@ -52,6 +53,79 @@ def experiment_dependencies(articles: dict, declared: dict | None = None) -> dic
         article: {"upstream": sorted(parents), "downstream": sorted(downstream[article])}
         for article, parents in sorted(upstream.items())
     }
+
+
+def execution_duration(record: dict) -> float | None:
+    """Elapsed time of this recorded operation, never inherited scientific work."""
+    execution = record["execution"]
+    values = [execution.get(key) for key in ("started_at", "completed_at")]
+    if any(value is None for value in values):
+        return None
+    try:
+        timestamps = [datetime.fromisoformat(value.replace("Z", "+00:00")) for value in values]
+        if any(value.utcoffset() is None for value in timestamps):
+            raise ValueError("execution timestamps must include a timezone")
+        seconds = (timestamps[1] - timestamps[0]).total_seconds()
+        if seconds < 0:
+            raise ValueError("completed_at precedes started_at")
+    except (AttributeError, TypeError, ValueError, OverflowError) as exc:
+        raise PingstoreError(f"{record['run_id']}: invalid execution duration: {exc}") from exc
+    return seconds
+
+
+def scientific_timing(directory: Path, record: dict) -> dict | None:
+    """Project explicitly retained evidence inside a validated v3 run, not a stage input."""
+    declaration = record.get("scientific_execution")
+    if declaration is None:
+        return None
+    if not isinstance(declaration, dict):
+        raise PingstoreError(f"{record['run_id']}: invalid scientific_execution")
+    reference = declaration.get("record")
+    if reference is None:
+        return None
+    if (not isinstance(reference, str) or "\\" in reference
+            or reference.split("/")[0] != "provenance"
+            or any(part in ("", ".", "..") for part in reference.split("/"))):
+        raise PingstoreError(f"{record['run_id']}: scientific timing must reference retained provenance")
+    # Discovery already checks the enclosing payload digest and rejects symlinks.
+    # Never traverse historical inputs or treat the retained manifest as operational.
+    evidence = load_json(directory / reference)
+    execution = evidence.get("execution")
+    if not isinstance(execution, dict):
+        raise PingstoreError(f"{record['run_id']}: missing retained scientific execution")
+    seconds = execution_duration({"run_id": record["run_id"], "execution": execution})
+    if seconds is None:
+        return None
+    result = {
+        "duration_seconds": seconds,
+        "started_at": execution["started_at"],
+        "completed_at": execution["completed_at"],
+        "origin": declaration.get("origin", "unknown"),
+        "record": reference,
+        "job_seconds": None,
+        "jobs": None,
+    }
+    cells = execution.get("cells")
+    if cells is not None:
+        if not isinstance(cells, list) or len(cells) != declaration.get("cells"):
+            raise PingstoreError(f"{record['run_id']}: inconsistent scientific timing cell count")
+        attempts = set()
+        durations = []
+        for cell in cells:
+            attempt = cell.get("attempt", {}) if isinstance(cell, dict) else {}
+            if not isinstance(attempt, dict):
+                raise PingstoreError(f"{record['run_id']}: invalid retained timing attempt")
+            identity = attempt.get("attempt_id")
+            elapsed = attempt.get("elapsed_seconds")
+            if (not isinstance(identity, str) or not identity or identity in attempts
+                    or attempt.get("state") != "complete"
+                    or isinstance(elapsed, bool) or not isinstance(elapsed, (int, float))
+                    or not math.isfinite(elapsed) or elapsed < 0):
+                raise PingstoreError(f"{record['run_id']}: invalid or duplicate retained timing attempt")
+            attempts.add(identity)
+            durations.append(elapsed)
+        result.update(job_seconds=sum(durations), jobs=len(attempts))
+    return result
 
 
 def projection(
@@ -127,6 +201,9 @@ def projection(
                 "collection": record["collection"],
                 "views": memberships.get(entry["id"], []),
                 "origin": record["origin"],
+                "duration_seconds": execution_duration(record),
+                "execution_operation": record["execution"].get("operation"),
+                "scientific_timing": scientific_timing(source / entry["id"], record),
                 "basepath": "/" + directory.relative_to(root).as_posix(),
                 "export_bytes": sum(p.stat().st_size for p in files),
                 "export_files": len(files),
@@ -151,6 +228,9 @@ def projection(
                 record["created_at"].replace("Z", "+00:00")
             ).astimezone(timezone.utc).isoformat(),
             "origin": record["origin"],
+            "duration_seconds": execution_duration(record),
+            "execution_operation": record["execution"].get("operation"),
+            "scientific_timing": scientific_timing(source / key, record),
             "export_bytes": sum(
                 path.stat().st_size for path in directory.rglob("*") if path.is_file()
             ),

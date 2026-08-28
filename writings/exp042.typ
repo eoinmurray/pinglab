@@ -83,7 +83,7 @@
 
   #run-view("exp042", inputs)
 
-  == Results: Inhibitory spike timing changes excitatory rates at similar inhibition levels
+  == Results
 
   === Equal mean inhibition produces opposite excitatory rates
 

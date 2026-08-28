@@ -29,7 +29,7 @@
 
   #run-view("exp046", inputs)
 
-  == Results: Silent cell-cycles dominate; repeated spikes within a cycle are rare
+  == Results
 
   #figure(
     data-image(data-file("exp046/spikes_per_cycle_distribution.svg"), width: 100%,

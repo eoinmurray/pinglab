@@ -185,7 +185,7 @@
 
   The remainder of the paper is organised as follows. #link(<sec-model-comparison>)[Model comparison] describes the model; #link(<sec-gamma-onset>)[Gamma onset] characterises the gamma onset in theory and simulation; #link(<sec-accuracy-rate-frontier>)[Accuracy–rate frontier] reports the trained accuracy–rate frontier; #link(<sec-loop-weight-interventions>)[Loop-weight interventions] reports two experiments that test whether the firing-rate reduction is acquired during training; #link(<sec-rate-frequency-relationship>)[Rate–frequency relationship] reports the relationship between the gamma frequency and the post-training firing rate; #link(<sec-dynamics-and-robustness>)[Dynamics and robustness] reports robustness of the post-training firing rate to spike perturbations and to integration timestep; and #link(<sec-streaming-classification>)[Streaming classification] reports a streaming-classification protocol.
 
-  == Results: Fixed-loop PING networks classify digits with sparse excitatory firing
+  == Results
 
   === The model: COBA baseline and the PING loop <sec-model-comparison>
 

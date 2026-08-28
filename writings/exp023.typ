@@ -59,7 +59,7 @@
 
   #run-view("exp023", inputs)
 
-  == Results: Tested PING loop produces rhythmic, sparse excitatory activity
+  == Results
 
   === Architecture, population activity and rate response
 

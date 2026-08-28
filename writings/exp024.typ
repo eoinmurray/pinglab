@@ -50,7 +50,7 @@
   The complete trajectories support comparisons throughout learning, rather than
   only at a selected checkpoint.
 
-  == Results: Both architectures miss rate-stability criteria despite converged accuracy
+  == Results
 
   === COBA training trajectories
 

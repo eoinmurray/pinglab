@@ -76,7 +76,7 @@
 
   #run-view("exp033", inputs)
 
-  == Results: Up/down sweeps show no resolved hysteresis at oscillatory onset
+  == Results
 
   === Oscillatory onset
 

@@ -75,16 +75,12 @@ def test_article_sections_are_unnumbered_and_results_precede_methods(article):
 
 
 @pytest.mark.parametrize("article", ARTICLES, ids=lambda path: path.stem)
-def test_results_tagline_does_not_copy_article_title(article):
-    # Synonymous restatements still require the guide's editorial review.
+def test_results_heading_is_plain(article):
+    # Include reports whose data-dependent body is unavailable.
     source = article.read_text()
-    title = re.search(r'^  title: "([^"]+)"', source, re.M)
-    assert title is not None
-    normalized_title = re.sub(r"[\W_]+", "", title[1]).casefold()
-    for tagline in re.findall(
-        r'^\s*== (?:\d+\. )?Results: ([^\n]+)', source, re.M
-    ):
-        assert re.sub(r"[\W_]+", "", tagline).casefold() != normalized_title
+    for title in re.findall(r'^[ \t]*== (Results\b[^\n]*)', source, re.M):
+        title = re.sub(r' <[^>]+>$', '', title)
+        assert title == "Results", (article, title)
 
 
 @pytest.mark.parametrize("article", ARTICLES, ids=lambda path: path.stem)
@@ -127,7 +123,7 @@ def test_rendered_headings_are_scoped_and_include_generated_sections(lab, pdf):
   == Abstract
   Summary.
   #context heading(level: 2)[Datasets]
-  == Results: Inhibitory feedback lowers firing at an accuracy cost
+  == Results
   Evidence.
   === Detail
   Detail.
@@ -154,12 +150,10 @@ def test_rendered_headings_are_scoped_and_include_generated_sections(lab, pdf):
     first, second = navigation(html)
     assert [a.text for a in first.findall('.//a')] == [
         'Abstract', 'Datasets',
-        'Results: Inhibitory feedback lowers firing at an accuracy cost',
+        'Results',
         'Methods', 'References']
     results = first.findall('.//a')[2]
-    assert results.attrib['href'] == (
-        '#results-inhibitory-feedback-lowers-firing-at-an-accuracy-cost'
-    )
+    assert results.attrib['href'] == '#results'
     assert 'id="' + results.attrib['href'][1:] + '"' in html
     assert [a.text for a in second.findall('.//a')] == ['Reference']
     assert html.index('</nav>') < html.index('id="abstract"')

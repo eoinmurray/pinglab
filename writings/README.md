@@ -1,6 +1,6 @@
 # Writing Guide
 
-Version: **16.0.0**
+Version: **17.0.0**
 
 The Writing Guide defines the conventions for Pinglab's published experiment
 entries in `writings/expXXX.typ`. This file is the canonical guide.
@@ -14,6 +14,10 @@ corrections or clarifications that do not change requirements. Update the versio
 above and add a short entry to the version history when changing the guide.
 
 ### 1.1. Version history
+
+- **17.0.0** — Require the plain `Results` heading, with no tagline or
+  description. Remove the finding-summary requirement and migrate existing
+  headings and dependent links; preserve scientific content and authored dates.
 
 - **16.0.0** — Prohibit section numbering at every article heading level,
   including appendices and References. Require Results before Methods, migrate
@@ -447,11 +451,9 @@ records their source lineage, and captions must not imply a new simulation.
 Stub the Results section with unnumbered headings, figures and concise captions
 only. Do not fill it with narrative prose.
 
-1. Name the section `Results: <terse finding>` and place it before `Methods`.
-   After the colon, give one short, plain-English statement of the principal
-   supported finding or reusable output. Aim for 4–12 words, without a trailing
-   full stop. The angle brackets denote a placeholder, not literal text.
-   Do not add or preserve a section-number prefix (section 4.2).
+1. Name the section exactly `Results` and place it before `Methods`.
+   Do not append a tagline, description or other suffix, or add a
+   section-number prefix (section 4.2).
 2. Use unnumbered subsection headings such as `Rhythm frequency`, not
    `Plot 1`. Name the comparison or supported finding plainly.
 3. Select only the key plots needed to show the experiment's results. There is
@@ -466,39 +468,15 @@ only. Do not fill it with narrative prose.
    expectation-versus-result commentary, or a concluding summary. Do not add
    prose placeholders asking a later pass to fill these in.
 
-### Ground the Results heading
+When migrating existing headings, remove their taglines and repair any authored
+links to former anchors. The shared TOC picks up the plain heading automatically.
+Preserve scientific content and authored dates; apply section 3.5 to availability.
 
-- State what the experiment established, not merely its topic or intended
-  outcome. Preserve consequential trade-offs and uncertainty; do not imply
-  causation from association. Negative and null findings qualify equally.
-- The tagline must add information beyond `meta.title`, not copy the title or
-  restate it with synonyms. Summarize what the results actually showed: a
-  measured difference, magnitude, successful output, failed criterion, boundary
-  or trade-off. If the title already states the main finding, give its decisive
-  supporting result or qualification. Do not substitute a secondary result
-  merely to sound different. Check the title and tagline side by side: the
-  tagline must tell the reader something substantive they have not just read.
-  For example, after "Pool-Size Effects Depend on Synaptic Scaling", prefer
-  `Results: Holding summed inhibition fixed preserves rates as inhibitory pools grow`
-  over `Results: Pool-size effects depend on synaptic scaling`.
-- Ground the statement in implementation and retained evidence. Where no
-  outcome is established, use `Results: Not yet evaluated`; missing local data
-  alone does not establish that an experiment was never evaluated. Do not run
-  an experiment merely to supply a heading.
-- The heading does not authorize narrative prose beneath it. Existing rules
-  for unnumbered subsections, figures and captions remain unchanged.
-- Limit migration changes to the Results heading and necessary dependent links,
-  not the rest of the scientific account. The shared TOC picks up the new
-  heading automatically; repair any authored links to its former anchor.
-  Apply sections 3.4 and 3.5 to dates and availability. A heading that only
-  summarizes an existing supported finding does not change scientific meaning
-  or require a new authored date.
-
-Illustrative scaffold (replace the heading with the supported finding, and the
-figure paths and captions with retained outputs and their measurement details):
+Illustrative scaffold (replace the figure paths and captions with retained
+outputs and their measurement details):
 
 ```typst
-== Results: Not yet evaluated
+== Results
 
 === Rhythm frequency
 

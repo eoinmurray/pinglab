@@ -59,6 +59,127 @@ def test_projection_is_read_only_and_distinguishes_sizes(source):
     assert not (source / ".demolab").exists()
 
 
+@pytest.mark.parametrize("stage", ["compute", "analyse", "present"])
+@pytest.mark.parametrize("operation", ["execute", "import"])
+def test_duration_projects_recorded_operation_for_every_stage(source, stage, operation):
+    directory = make_run(source / ".pingstore/runs", f"exp001-r001-{stage}", stage=stage,
+                         execution={
+                             "operation": operation,
+                             "started_at": "2026-08-27T23:59:00.250+02:00",
+                             "completed_at": "2026-08-27T22:01:37.750Z",
+                         })
+    before = {p: p.read_bytes() for p in directory.rglob("*") if p.is_file()}
+    data = projection(source)
+    row = data["display_runs"][0]
+    assert row["duration_seconds"] == 157.5
+    assert row["execution_operation"] == operation
+    if stage == "present":
+        assert data["runs"][0]["duration_seconds"] == 157.5
+    else:
+        assert data["runs"] == []
+    assert before == {p: p.read_bytes() for p in directory.rglob("*") if p.is_file()}
+
+
+@pytest.mark.parametrize("execution,expected", [
+    ({}, None),
+    ({"completed_at": "2026-08-27T10:00:00Z"}, None),
+    ({"started_at": "2026-08-27T10:00:00Z"}, None),
+    ({"started_at": "2026-08-27T10:00:00Z", "completed_at": "2026-08-27T10:00:00Z"}, 0),
+])
+def test_duration_missing_is_not_inferred_from_creation_or_file_times(source, execution, expected):
+    directory = make_run(source / ".pingstore/runs", execution=execution)
+    os.utime(directory / "run.json", (100, 200))
+    assert projection(source)["runs"][0]["duration_seconds"] == expected
+
+
+@pytest.mark.parametrize("started,completed", [
+    ("2026-08-27T10:00:00Z", "2026-08-27T09:59:59Z"),
+    ("2026-08-27T10:00:00", "2026-08-27T10:01:00Z"),
+    ("2026-08-27T10:00:00Z", "2026-08-27T10:01:00"),
+    ("invalid", "2026-08-27T10:01:00Z"),
+    ("2026-08-27T10:00:00Z", 100),
+])
+def test_invalid_duration_fails_projection(source, started, completed):
+    make_run(source / ".pingstore/runs", execution={
+        "started_at": started, "completed_at": completed,
+    })
+    with pytest.raises(PingstoreError, match="invalid execution duration"):
+        projection(source)
+
+
+def make_scientific_run(source, *, cells=None):
+    directory = make_run(source / ".pingstore/runs", "exp001-r001-compute", stage="compute",
+                         execution={"operation": "import", "started_at": "2026-08-27T10:00:00Z",
+                                    "completed_at": "2026-08-27T10:00:03Z"},
+                         scientific_execution={"record": "provenance/scientific.json",
+                                               "origin": "slurm", "cells": 2})
+    retained = {"schema": "pingstore.run/v2", "inputs": {"unavailable": "not traversed"},
+                "execution": {"started_at": "2026-08-18T15:42:06Z",
+                              "completed_at": "2026-08-20T22:46:22Z",
+                              "cells": cells if cells is not None else [
+                                  {"attempt": {"attempt_id": str(i), "state": "complete",
+                                               "elapsed_seconds": seconds}}
+                                  for i, seconds in enumerate((3600.5, 7200.25))]}}
+    (directory / "provenance/scientific.json").write_text(json.dumps(retained))
+    metadata = json.loads((directory / "run.json").read_text())
+    metadata["payload_digest"] = payload_digest(directory)
+    (directory / "run.json").write_text(json.dumps(metadata))
+    return directory
+
+
+def test_scientific_span_and_job_total_are_separate_from_import(source):
+    directory = make_scientific_run(source)
+    before = {p: p.read_bytes() for p in directory.rglob("*") if p.is_file()}
+    row = projection(source)["display_runs"][0]
+    assert row["duration_seconds"] == 3
+    assert row["origin"] == "local"
+    assert row["scientific_timing"] == {
+        "duration_seconds": 198256, "started_at": "2026-08-18T15:42:06Z",
+        "completed_at": "2026-08-20T22:46:22Z", "origin": "slurm",
+        "record": "provenance/scientific.json", "jobs": 2, "job_seconds": 10800.75,
+    }
+    assert before == {p: p.read_bytes() for p in directory.rglob("*") if p.is_file()}
+
+
+@pytest.mark.parametrize("reference", [
+    "../outside.json", "/outside.json", "provenance/../../outside.json",
+    "provenance//scientific.json", "export/numbers.json", "provenance\\scientific.json",
+])
+def test_scientific_timing_cannot_escape_retained_provenance(source, reference):
+    directory = make_scientific_run(source)
+    metadata = json.loads((directory / "run.json").read_text())
+    metadata["scientific_execution"]["record"] = reference
+    (directory / "run.json").write_text(json.dumps(metadata))
+    with pytest.raises(PingstoreError, match="must reference retained provenance"):
+        projection(source)
+
+
+def test_scientific_evidence_checksum_is_validated_before_display(source):
+    directory = make_scientific_run(source)
+    (directory / "provenance/scientific.json").write_text('{}')
+    with pytest.raises(PingstoreError, match="checksum"):
+        projection(source)
+
+
+@pytest.mark.parametrize("change", [
+    {"attempt_id": "0"}, {"elapsed_seconds": -1}, {"elapsed_seconds": None},
+    {"elapsed_seconds": True}, {"elapsed_seconds": float("nan")}, {"state": "failed"},
+])
+def test_scientific_job_total_rejects_bad_or_duplicate_attempts(source, change):
+    make_scientific_run(source, cells=[
+        {"attempt": {"attempt_id": "0", "state": "complete", "elapsed_seconds": 10}},
+        {"attempt": {"attempt_id": "1", "state": "complete", "elapsed_seconds": 20, **change}},
+    ])
+    with pytest.raises(PingstoreError, match="invalid or duplicate retained timing attempt"):
+        projection(source)
+
+
+def test_scientific_job_total_requires_declared_cell_count(source):
+    make_scientific_run(source, cells=[])
+    with pytest.raises(PingstoreError, match="cell count"):
+        projection(source)
+
+
 def test_url_selection_requires_declared_key_and_valid_present_run(source):
     run = make_run(source / ".pingstore/runs", "exp001-r001-present")
     value = "/" + (run / "export").relative_to(source).as_posix()

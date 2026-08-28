@@ -96,7 +96,7 @@
 
   #run-view("exp025", inputs)
 
-  == Results: PING retains more accuracy at the lowest activity ceilings
+  == Results
 
   === Accuracy–rate frontier
 

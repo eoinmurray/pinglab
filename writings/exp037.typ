@@ -70,7 +70,7 @@
 
   #run-view("exp037", inputs)
 
-  == Results: Spike deletion tolerated; added spikes impair PING
+  == Results
 
   === Deletion and insertion have different effects
 

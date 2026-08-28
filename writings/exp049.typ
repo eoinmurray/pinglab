@@ -62,7 +62,7 @@
 
   #run-view("exp049", inputs)
 
-  == Results: None of the trainable initializations recovered the frozen control’s rhythmicity
+  == Results
 
   === Recurrent training changes population activity
 

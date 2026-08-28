@@ -84,7 +84,7 @@
 
   #run-view("exp048", inputs)
 
-  == Results: Streaming accuracy falls at short durations and low input rates
+  == Results
 
   === Streaming classification
 

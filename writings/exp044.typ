@@ -45,7 +45,7 @@
 
   #run-view("exp044", inputs)
 
-  == Results: Mean firing spans #number(summary.e_rate_min_hz)–#number(summary.e_rate_max_hz) Hz; accuracy spans #number(summary.acc_min_pct)–#number(summary.acc_max_pct)%
+  == Results
 
   === Firing rate and classification accuracy
 

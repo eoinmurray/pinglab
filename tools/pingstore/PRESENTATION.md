@@ -27,7 +27,7 @@ PYTHONPATH=../demolab uv run --no-sync demolab dev 3010
 ```
 
 Open an article to see a bordered Datasets table: run name, readable creation date and
-time (timezone label omitted), export size (decimal bytes/KB/MB/GB/TB) and execution origin (`slurm`,
+time (timezone label omitted), duration, export size (decimal bytes/KB/MB/GB/TB) and execution origin (`slurm`,
 `modal`, `runpod`, `local`, `mixed` or `unknown`). A single Upstream/Downstream
 block above the run table links the current page's experiment dependencies;
 it does not repeat the experiment title or add columns to each run.
@@ -88,6 +88,24 @@ data is available; dependent reports retain their existing readiness checks.
 
 - **Collection**: authoritative `run.json.collection`, not the article's category.
 - **Views**: current membership in optional `.pingstore/collections.json`.
+- **Duration**: `execution.completed_at − execution.started_at` from authoritative
+  `run.json`, projected as `duration_seconds` for every stage. This measures only
+  the recorded operation, not upstream runs or total campaign compute time.
+  Import operations are explicitly labelled `(import)` and exclude the original
+  training/simulation. Whole-second timestamps with equal endpoints display
+  `<1 s`; missing endpoints display a dash. Invalid, timezone-free or reversed
+  timestamp pairs fail preparation. Hover for the exact recorded difference.
+- **Retained scientific timing**: when `run.json.scientific_execution.record`
+  explicitly identifies evidence under this validated v3 run's `provenance/`,
+  the table instead shows that execution's start-to-finish span, labelled
+  `(HPC span)` for Slurm. The tooltip distinguishes this elapsed span (including
+  gaps) from summed job-hours of retained completed cell attempts, and keeps the
+  import duration separate. The job total includes inherited and retrained cells
+  retained in the bank, not unretained attempts or all historical campaign work.
+  Creation date and origin still describe the recorded storage operation.
+  No historical inputs are traversed, no legacy run becomes operational, and no
+  stored manifest is rewritten. Evidence bytes remain covered by the enclosing
+  v3 payload checksum; unsafe references or invalid/duplicate attempts fail.
 - **Export** / **Files**: bytes and regular-file count in this present run's export.
 - **Display-only stages**: compute/analyse rows sum regular files recursively in
   the validated scientific export directory, including an explicit `export_root`.

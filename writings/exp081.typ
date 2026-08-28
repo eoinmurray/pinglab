@@ -47,7 +47,7 @@
 
   #run-view("exp081", inputs)
 
-  == Results: Linear theory captures filtering but misestimates finite-window response magnitudes
+  == Results
 
   === Empirical finite-window response
 

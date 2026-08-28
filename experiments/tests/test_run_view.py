@@ -62,20 +62,34 @@ def render(tmp_path, runs, *, interactive=True, inputs=("exp047",), pdf=False, a
 
 
 @pytest.mark.parametrize("origin", ["slurm", "modal", "runpod", "local", "mixed", "unknown"])
-def test_run_table_has_name_date_export_size_and_origin_columns(tmp_path, origin):
+def test_run_table_has_name_date_duration_export_size_and_origin_columns(tmp_path, origin):
     panel = render(tmp_path, [run("exp047-r004-present", origin=origin)])
     row = panel.find("table/tbody/tr")
     assert list(panel.iter("details")) == []
     assert list(panel.iter("ul")) == []
     headers = panel.findall("table/thead/tr/th")
-    assert [header.text for header in headers] == ["Run", "Date", "Size", "Origin"]
+    assert [header.text for header in headers] == ["Run", "Date", "Duration", "Size", "Origin"]
     assert all(header.attrib["scope"] == "col" for header in headers)
-    assert len(row.findall("td")) == 4
+    assert len(row.findall("td")) == 5
     assert " ".join(" ".join(row.itertext()).split()) == (
-        f"exp047-r004-present 28 Aug 2026, 1:31 pm 2 KB {origin}"
+        f"exp047-r004-present 28 Aug 2026, 1:31 pm — 2 KB {origin}"
     )
     assert row.find("td/time").attrib["datetime"] == "2026-08-28T13:31:23+00:00"
     assert row.find("td/a").attrib["aria-current"] == "true"
+
+
+@pytest.mark.parametrize("interactive", [True, False])
+def test_timestamp_stays_on_one_line_in_scrollable_table(tmp_path, interactive):
+    panel = render(tmp_path, [run("present")], interactive=interactive)
+    assert panel.find("table/tbody/tr/td[@class='run-date']/time") is not None
+    html = (tmp_path / "view.html").read_text()
+    css = "\n".join(re.findall(r"<style\b[^>]*>(.*?)</style>", html, re.S))
+    date_rule = re.search(r"\.run-view \.run-date\s*\{([^}]*)\}", css)
+    assert date_rule is not None
+    assert "white-space:nowrap;" in date_rule.group(1)
+    panel_rule = re.search(r"\.run-view\s*\{([^}]*)\}", css)
+    assert panel_rule is not None
+    assert "overflow-x:auto;" in panel_rule.group(1)
 
 
 def test_links_preserve_other_inputs_and_open_new_tabs(tmp_path):
@@ -102,7 +116,7 @@ def test_static_table_shows_only_selected_run_without_links(tmp_path):
 def test_empty_input_is_explicit(tmp_path):
     panel = render(tmp_path, [])
     cell = panel.find("table/tbody/tr/td")
-    assert cell.attrib["colspan"] == "4"
+    assert cell.attrib["colspan"] == "5"
     assert "".join(cell.itertext()).strip() == "exp047 — No presentation runs available."
 
 
@@ -114,7 +128,7 @@ def test_unknown_origin_fallback(tmp_path):
 def test_no_inputs_shows_empty_datasets_table(tmp_path):
     panel = render(tmp_path, [], inputs=())
     assert panel.find("table/tbody/tr/td").text == "No datasets declared."
-    assert panel.find("table/tbody/tr/td").attrib["colspan"] == "4"
+    assert panel.find("table/tbody/tr/td").attrib["colspan"] == "5"
 
 
 @pytest.mark.parametrize("interactive", [True, False])
@@ -141,7 +155,7 @@ def test_dependencies_appear_once_for_page_above_runs(tmp_path, interactive, wit
     assert "exp047" not in "".join(block.itertext())
     assert "exp099" not in "".join(panel.itertext())
     assert [header.text for header in panel.findall("table/thead/tr/th")] == [
-        "Run", "Date", "Size", "Origin",
+        "Run", "Date", "Duration", "Size", "Origin",
     ]
 
 
@@ -216,6 +230,54 @@ def test_readable_dates_keep_exact_timestamp(tmp_path, timestamp, label):
     time = panel.find("table/tbody/tr/td/time")
     assert time.text == label
     assert time.attrib["datetime"] == timestamp
+
+
+@pytest.mark.parametrize("seconds,label", [
+    (None, "—"), (0, "<1s"), (0.25, "<1s"), (1, "1s"), (59, "59s"),
+    (60, "1m"), (157.5, "2m 38s"), (3599.6, "1h"),
+    (3661, "1h 1m 1s"), (90061, "1d 1h 1m 1s"),
+])
+def test_readable_duration_and_exact_tooltip(tmp_path, seconds, label):
+    panel = render(tmp_path, [run("present") | {"duration_seconds": seconds}])
+    cell = panel.find("table/tbody/tr/td[@class='run-duration']")
+    assert cell.text == label
+    if seconds is None:
+        assert cell.attrib["title"] == "Execution timing not recorded"
+    else:
+        assert f"Recorded elapsed time: {seconds} seconds" in cell.attrib["title"]
+        assert "excludes upstream runs" in cell.attrib["title"]
+
+
+@pytest.mark.parametrize("stage", ["compute", "analyse", "present"])
+@pytest.mark.parametrize("interactive", [True, False])
+@pytest.mark.parametrize("operation", ["import", "historical-import"])
+def test_import_duration_is_compact_with_explicit_tooltip_for_every_stage(tmp_path, stage, interactive, operation):
+    panel = render(tmp_path, [run(stage, stage=stage) | {
+        "duration_seconds": 3, "execution_operation": operation,
+    }], interactive=interactive)
+    cell = panel.find("table/tbody/tr/td[@class='run-duration']")
+    assert cell.text == "3s"
+    assert "excludes original training or simulation" in cell.attrib["title"]
+
+
+@pytest.mark.parametrize("interactive", [True, False])
+@pytest.mark.parametrize("operation", ["import", "historical-import"])
+def test_scientific_duration_prefers_hpc_span_and_explains_job_total(tmp_path, interactive, operation):
+    panel = render(tmp_path, [run("compute", stage="compute") | {
+        "duration_seconds": 3, "execution_operation": operation,
+        "scientific_timing": {
+            "duration_seconds": 198256, "origin": "slurm", "jobs": 102,
+            "job_seconds": 627332.174, "started_at": "2026-08-18T15:42:06Z",
+            "completed_at": "2026-08-20T22:46:22Z",
+        },
+    }], interactive=interactive)
+    cell = panel.find("table/tbody/tr/td[@class='run-duration']")
+    assert cell.text == "2d 7h 4m 16s"
+    assert "includes gaps between jobs" in cell.attrib["title"]
+    assert "102 retained completed attempts: 174.26 job-hours" in cell.attrib["title"]
+    assert "excludes unretained attempts" in cell.attrib["title"]
+    assert "Import operation: 3 seconds (excluded)" in cell.attrib["title"]
+    assert panel.find("table/tbody/tr/td[@class='run-origin']").text == "local"
 
 
 @pytest.mark.parametrize("abstract", ["Abstract", "1. Abstract", "*Abstract*"])

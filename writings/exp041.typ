@@ -58,7 +58,7 @@
 
   #run-view("exp041", inputs)
 
-  == Results: Affine fit explains #calc.round(100 * fit.r2_affine, digits: 1)% of between-condition firing-rate variance
+  == Results
 
   === Training trajectories
 

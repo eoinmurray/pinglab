@@ -78,7 +78,7 @@
 
   #run-view("exp022", inputs)
 
-  == Results: Reusable training bank across seven recipe families
+  == Results
 
   === TR-01 — Canonical full-data reference
 

@@ -31,8 +31,6 @@ url_inputs:
   source.exp080: {type: path, root: .pingstore/runs}
   source.exp081: {type: path, root: .pingstore/runs}
   source.exp082: {type: path, root: .pingstore/runs}
-  source.exp083: {type: path, root: .pingstore/runs}
-  source.exp084: {type: path, root: .pingstore/runs}
   source.exp085: {type: path, root: .pingstore/runs}
   source.exp086: {type: path, root: .pingstore/runs}
   source.exp099: {type: path, root: .pingstore/runs}
@@ -68,8 +66,6 @@ legacy_preview:
     exp080: [exp080]
     exp081: [exp081]
     exp082: [exp082]
-    exp083: [exp083]
-    exp084: [exp084]
     exp085: [exp085]
     exp086: [exp086]
     exp088: []

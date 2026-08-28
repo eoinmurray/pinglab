@@ -34,7 +34,7 @@
 
   #run-view("exp099", inputs)
 
-  == Results: Richer-input probe completed; controlled comparison remains unevaluated
+  == Results
 
   === Network structure
 

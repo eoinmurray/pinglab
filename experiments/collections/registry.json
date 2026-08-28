@@ -23,13 +23,21 @@
     "exp080": "gamma-gated-sparsity",
     "exp081": "gamma-gated-sparsity",
     "exp082": "gamma-gated-sparsity",
-    "exp083": "demo",
-    "exp084": "demo",
     "exp085": "demo",
     "exp086": "demo",
     "exp099": "demo"
   },
   "historical": {
+    "exp083": {
+      "collection": "demo",
+      "disposition": "removed-and-pruned",
+      "evidence": "Code, article, dedicated tests, generated local pages and three fresh local runs totalling 4,301,421 bytes were explicitly removed on 2026-08-28. Prior code is retained in commit 483f4bd3. No remote backup was verified."
+    },
+    "exp084": {
+      "collection": "demo",
+      "disposition": "removed-and-pruned",
+      "evidence": "Code, article, dedicated tests, generated local pages and all three fresh local runs were explicitly removed from the active checkout on 2026-08-28. A recoverable local Trash copy preserves the source files and complete runs; no remote backup was verified."
+    },
     "exp087": {
       "disposition": "removed-and-pruned",
       "evidence": "The experiment was removed in commit 6bc83e96; its final ignored local residue and Pingstore legacy reference were explicitly pruned on 2026-08-24."
