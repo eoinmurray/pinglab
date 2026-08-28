@@ -6,16 +6,17 @@
 #let data-file = data-file.with(article: "exp054")
 
 #let meta = (
-  status: "[≡ TXT]",
+  status: "[▦ DATA]",
   title: "Gamma Turns On Across the Coupling Map",
   date: "2026-06-15",
-  description: "A single bounded scalar (the lobe–trough contrast of the spike-time autocorrelation) for how rhythmic a spiking network is, made rate-invariant by private per-cell input.",
+  updated_at: "2026-08-28",
+  description: "Lobe–trough contrast across untrained PING coupling strengths, with private- and shared-input null controls and a separate mean-field onset comparison.",
   collection: "gamma-gated-sparsity",
 )
 
 #let inputs = ("exp054",)
 #let preview-figures = (
-  (path: "exp054/turnon_compound.png", label: "turnon compound"),
+  (path: "exp054/turnon_maps_compound.png", label: "turnon compound"),
   (path: "exp054/grid_rasters.png", label: "grid rasters"),
   (path: "exp054/grid_autocorr.png", label: "grid autocorr"),
   (path: "exp054/rate_invariance.png", label: "rate invariance"),
@@ -28,72 +29,88 @@
 #let body = [
   == Abstract
 
-  A single bounded scalar for how rhythmic a spiking network is: the *lobe–trough contrast* of its spike-time autocorrelation, $("lobe" - "trough") \/ ("lobe" + "trough") in [0,1)$. Driving each excitatory cell with its own private Poisson input makes the metric rate-invariant by construction; across untrained PING networks it reads 0 along the COBA edges and rises smoothly to 0.98 through the PING interior, a rankable gradient that tracks the gamma-gated collapse of the E firing rate from 95 to 3 Hz.
+  Across 121 untrained PING coupling conditions, the *lobe–trough contrast* of the excitatory spike-time autocorrelation is near zero on the uncoupled edges and generally larger in the coupled interior. Excitatory firing spans 2.77–94.31 Hz; contrast reaches 0.984 at the strong-coupling corner and 0.997 elsewhere. Private-input nulls remain below 0.068 over the tested firing range, whereas shared-input coincidence can produce substantial contrast without an inhibitory loop. These single-seed controls support private input for this comparison, not universal rate invariance. A separate conductance mean-field comparison suggests a possible onset mechanism without establishing the spiking transition's bifurcation type.
 
   #run-view("exp054", inputs)
 
   == Results
 
   #figure(
-    data-image(data-file("exp054/turnon_compound.png"), width: 100%,
-      alt: "Scalar maps of E rate, I rate, and lobe–trough contrast over the W_EI × W_IE grid, with three example E/I rasters beneath showing asynchronous, emerging, and sharp gamma volleys."),
-    caption: [The anchor result: gamma switches on smoothly across the recurrent-weight plane, read as scalar maps over the $W_(E I) times W_(I E)$ grid (untrained networks, private per-cell Poisson input) with example rasters beneath. *Top*: three per-cell summaries, every cell labelled. *E rate* is high along both zero edges (the loop is broken, E fires at the input-driven ≈95 Hz) and gated down through the interior; *I rate* is silent where $W_(E I) = 0$, runs away along $W_(I E) = 0$ (clipped so the interior is legible), and is controlled once the loop closes; *lobe–trough contrast* (the rhythm scored 0–1) reads exactly 0 along both COBA edges and rises smoothly toward strong coupling, with three points marked along the $W_(I E) = 2 W_(E I)$ diagonal. *Bottom*: E/I rasters (E black, I red above) at those points: *A* the fully-off origin ($W_(E I) = W_(I E) = 0$), asynchronous with no I; *B* weak coupling, emerging volleys (contrast 0.27, below the half-way mark); *C* strong coupling, sharp volleys (contrast 0.98). E rate falling, I rate rising, and contrast rising are three readings of the same loop engaging. The full per-cell detail (every raster and autocorrelogram) is in the figures below; the rate-fairness behind the contrast metric is in Figures 4–5.],
+    data-image(data-file("exp054/turnon_maps_compound.png"), width: 100%,
+      alt: "Maps of E rate, I rate and lobe–trough contrast over the coupling grid, above three example E/I rasters showing asynchronous firing and increasingly separated volleys."),
+    caption: [*Top*: per-neuron E and I rates and lobe–trough contrast across the 11×11 coupling grid; $W_(E I)$ and $W_(I E)$ denote E-to-I and I-to-E coupling strengths. On either zero edge the loop is broken: E fires at 94.31 Hz and contrast is 0.00169; I is silent when E-to-I coupling is zero and its high rate on the other edge is colour-clipped. *Bottom*: diagonal examples A/B/C have contrasts 0.00169/0.270/0.984. E spikes are black, I spikes red; each raster shows 200 ms from the first 160 E and 48 I neurons. Coupled conditions generally show stronger temporal structure, but the map is not strictly monotonic. One seed per condition; no uncertainty estimate.],
   )
 
   #figure(
     data-image(data-file("exp054/grid_rasters.png"), width: 100%,
-      alt: "A 6×6 grid of E/I rasters across the coupling plane: the two zero edges are asynchronous, the interior shows increasingly sharp gamma volleys."),
-    caption: [E/I rasters for a 6×6 subset of the grid (every other cell; the heatmaps below use all 121). The two zero edges are the controls: $W_(E I) = 0$ (left column) leaves I silent and E asynchronous; $W_(I E) = 0$ (bottom row) lets I fire but not inhibit E, so both stay dense; neither is rhythmic. The interior shows clear gamma volleys (E black, I red) that sharpen as either weight grows, the rhythm the contrast (Figure 1) scores.],
+      alt: "E/I rasters at every other coupling-grid coordinate: dense edge activity and separated volleys in much of the coupled interior."),
+    caption: [E/I rasters at a 6×6 subset of coupling coordinates; the maps above use all 121 conditions. The left column has no E-to-I coupling and silent I neurons; the bottom row has no inhibitory feedback to E. Many interior conditions show separated volleys. Display windows and neuron subsets match Figure 1; measurements use all neurons over the full post-burn recording.],
   )
 
   #figure(
     data-image(data-file("exp054/grid_autocorr.png"), width: 100%,
-      alt: "A 6×6 grid of E-population autocorrelograms: flat at chance along the zero edges, developing a Mexican-hat lobe-and-trough through the interior."),
-    caption: [The E-population autocorrelogram $A(ell)$ for a 6×6 subset of the grid (lag 0–50 ms; dotted line = chance, $A = 1$), with the located lobe (▲) and trough (▼) marked. The two zero edges are flat at 1: asynchronous firing, no structure. Through the interior the Mexican hat emerges: a sharp central lobe at ≈1 ms over a trough near the half-period, with a secondary peak at the full period further out. The contrast in Figure 1 is exactly this lobe-versus-trough read off as one number.],
+      alt: "E-population autocorrelograms at a 6×6 subset of coupling coordinates, with lobe and trough markers and a chance reference."),
+    caption: [E-population autocorrelograms at the same 6×6 coordinates, shown over 0–50 ms; dotted lines mark the chance reference $A = 1$. Markers locate the selected lobe (▲) and trough (▼) of the smoothed curve. Edge curves are near chance. In the coupled interior, short-lag clustering, suppression between volleys and later recurrence peaks provide complementary evidence. The contrast scores the first lobe and trough, not the later peak's frequency.],
   )
 
   #figure(
     data-image(data-file("exp054/rate_invariance.png"), width: 100%,
-      alt: "Contrast versus input rate for null networks: the private-input null stays flat near zero across all rates while the shared-input null climbs as firing thins."),
-    caption: [The rate-invariance test that justifies the private-input choice. Each line is a *non-rhythmic null network* (no inhibitory loop, no rhythm at any drive) scanned over input rate; a rate-invariant metric should read ≈0 everywhere. With *private input* (black) it does: flat at ≤0.07 across all firing rates. With *shared input* (grey dashed) it instead *climbs to ≈0.50 as firing thins*: cells sharing input channels fire coincidentally, and the metric reads that as rhythm. The real PING cells (red) sit well above the private-input null, so their contrast is genuine, with no correction needed.],
+      alt: "Contrast versus measured E firing rate: private-input null values remain small, while the sparsest shared-input nulls show elevated contrast."),
+    caption: [Contrast against measured E firing rate. Without an inhibitory loop, the private-input null (black) stays at or below 0.0671 over 0.97–94.31 Hz; the shared-input null (grey) reaches 0.50 at its sparsest firing. Shared afferents can create short-lag coincidence that this score detects. Red points show the PING coupling grid, including its near-zero edges. These finite, single-seed controls do not prove rate invariance or establish rhythmicity from contrast alone.],
   )
 
   #figure(
     data-image(data-file("exp054/null_autocorr.png"), width: 100%,
-      alt: "Autocorrelograms at matched low firing: the shared-input null shows a spurious central peak, the private-input null is flat around chance."),
-    caption: [Why shared input fails and private input does not, at matched low firing rates. *Top (shared input):* coincident spikes from shared channels leave a central peak over a shallow dip (a spurious hat with no inhibitory loop behind it), and the metric marks a lobe (▲) and trough (▼) and reports a non-zero contrast. *Bottom (private input):* the same firing rates, but with one channel per cell the central peak is gone; $A(ell)$ is flat shot-noise around chance and the contrast collapses to ≈0. Same rate, same spike counts; the only difference is whether cells share input.],
+      alt: "Low-rate shared- and private-input null autocorrelograms selected by approximate rate matching, with each actual rate labelled."),
+    caption: [Null autocorrelograms nearest to target E rates of 1, 2.5 and 5 Hz. Shared-input examples (top) actually fire at 0.40/1.72/4.20 Hz; private-input examples (bottom) at 0.97/1.88/4.90 Hz. The rates and spike counts are not equal. Shared-input examples illustrate central coincidence without inhibitory feedback; private-input examples show smaller contrast and finite-sample fluctuations around chance.],
   )
 
-  == The onset over its mean-field bifurcation
-
-  The turn-on above is _what_ the network does; the #link("/exp033/")[exp033] 4D conductance mean-field is _why_. This final section stacks the two into one manuscript figure: the empirical maps and example rasters directly over the mean-field bifurcation that predicts them. It recomputes the #link("/exp033/")[exp033] numerics (Hopf crossing, hysteresis sweep, gamma-vs-$tau_"GABA"$) and reuses this notebook's own map and raster rendering, so restyling Figure 1 propagates here automatically, and no figures are copied. (This is the anchor that was formerly its own entry.)
+  === Comparison with a mean-field onset
 
   #figure(
     data-image(data-file("exp054/onset_super_compound.png"), width: 100%,
-      alt: "Nine-panel figure: top row E-rate, I-rate, and contrast maps with three circled diagonal points; middle row their rasters; bottom row the exp033 mean-field Hopf crossing, supercritical amplitude, and gamma frequency versus tau_GABA."),
-    caption: [Panels are lettered *A–I* in reading order. *Top (empirics, A–C).* Across the $W_(E I) times W_(I E)$ plane the E rate falls (*A*), the I rate rises (*B*), and the lobe–trough contrast rises (*C*): three readings of one loop engaging, 0 along both COBA edges and smoothly up toward strong coupling. The contrast map circles three points along the $W_(I E) = 2 W_(E I)$ diagonal, shown as rasters *D/E/F*: the fully-off origin (*D*), emerging volleys (*E*), and sharp gamma volleys (*F*). *Bottom (theory, G–I, #link("/exp033/")[exp033]).* The same onset from the 4 mV reference of a 4D conductance mean-field with inherited biophysical parameters and a sensitivity-tested effective-noise scale: a complex-conjugate eigenvalue pair crosses into the right half-plane at $I^* approx 0.60$ nA (a Hopf, *G*), the amplitude rises continuously with coinciding up/down branches (supercritical and reversible, not a hard switch, *H*), and the predicted gamma frequency falls with $tau_"GABA"$ in step with the #link("/exp041/")[exp041] spiking measurement (*I*). The smooth empirical turn-on is exactly what a supercritical Hopf predicts.],
+      alt: "Nine panels compare coupling maps and example rasters with a separate mean-field eigenvalue crossing, amplitude sweep and frequency-versus-inhibitory-decay comparison."),
+    caption: [*A–F*: the same coupling maps and diagonal rasters as Figure 1. *G–I*: the #link("/exp033/")[conductance mean-field reference] with a 4 mV effective-noise scale. A complex eigenvalue pair crosses the imaginary axis near external drive $I^* = 0.596$ nA (G); the finite up/down branches of peak-to-peak E-rate amplitude nearly coincide (H). This is compatible with a soft onset, but does not establish supercriticality of the spiking map: theory varies drive, whereas that map varies coupling. Mean-field onset frequency and the three-seed median #link("/exp041/")[spiking frequency] both decrease with inhibitory decay $tau_"GABA"$ (I), with substantial quantitative differences. The phenomenological comparison is a possible mechanism, not a fitted explanation of the same transition.],
   )
 
+  #context if target() != "html" { pagebreak(weak: true) }
   == Methods
 
-  The networks here are untrained PING populations driven by external input; the rhythmicity metric is read off the resulting excitatory raster. Write $r(t)$ for the binned population spike count ($n$ bins of width $Delta t$) and $ell$ for the lag. The metric is read off in a fixed sequence of steps:
+  Untrained PING populations test coupling-dependent temporal structure; uncoupled controls test the influence of input sharing. The mean-field comparison reuses numerical observations from a separate conductance model.
 
-  + *Drive each E cell with its own private Poisson channel.* Every excitatory cell receives an independent homogeneous Poisson spike train at 100 Hz through a one-to-one identity input weight: there is no shared, dense $W_"in"$ projection, so no two cells share an input channel. Private input removes the input-driven spike coincidence that would otherwise inflate the metric at low firing, which is what makes the contrast rate-invariant by construction (Figures 4–5) with no post-hoc correction.
-  + *Bin to a population count.* Sum spikes across cells into one count per $Delta t$ bin, giving the population trace $r(t)$ of length $n$.
-  + *Raw autocorrelation.* Form the lag product $sum_t r(t) r(t+ell)$, which counts spike pairs separated by lag $ell$. All lags are computed at once in $O(n log n)$ via the Wiener–Khinchin route (zero-pad $r$, take its FFT, multiply by the conjugate, inverse-transform) rather than the $O(n^2)$ direct sum.
-  + *Correct for finite overlap.* Only $n-ell$ bin-pairs exist at lag $ell$ (the last $ell$ samples have no partner), so the raw sum tapers toward zero with lag simply from running out of overlap; dividing by that per-lag overlap $n-ell$ converts it to the _average_ product per available pair and flattens the taper.
-  + *Set the chance level.* Divide by the mean rate squared $⟨ r ⟩^2$ so rate-matched independent firing sits at $A = 1$, and drop the self-paired zero lag. The result is the normalised autocorrelogram
+  #set math.equation(numbering: "(1)")
+  #counter(math.equation).update(0)
+  #show math.equation.where(block: true): equation => context {
+    if target() == "html" {
+      html.elem("div", attrs: (class: "exp054-equation", style: "display:flex;align-items:center;gap:1em"), {
+        html.elem("div", attrs: (style: "flex:1;min-width:0;overflow-x:auto"), equation)
+        html.elem("span", numbering("(1)", ..counter(math.equation).at(equation.location())))
+      })
+    } else { equation }
+  }
 
-    $ A(ell) = 1 / (⟨ r ⟩^2) 1 / (n - ell) sum_t r(t) r(t+ell). $
+  + *Sweep coupling.* Simulate 256 E and 256 I neurons at all 11×11 combinations of $W_(E I) = 0$–3 µS and $W_(I E) = 0$–6 µS. Each E neuron receives a private 100 Hz Poisson channel with identity weight 0.5. Use seed 42, one trial, 0.25 ms steps and 1,000 ms recordings; discard the first 100 ms.
+  + *Construct uncoupled controls.* Set both coupling strengths to zero. Scan private input at 1/2/5/10/20/40/70/100 Hz and shared input at 8/12/16/20/28/40/60/100 Hz. Shared input uses 200 channels, weight 0.2 and 95% initial zero connections. The 100 Hz private origin is shared with the coupling grid, giving 136 unique probes.
+  + *Measure rates and autocorrelation.* Divide each population's post-burn spike count by neuron count and 0.9 s. Bin E spikes at $Delta t = 1$ ms, obtaining counts $r(t)$ in $n = 900$ bins. For integer lag $ell = 1, dots, 100$, calculate
 
-  + *Locate the Mexican hat.* A rhythmic $A(ell)$ has a "Mexican-hat" profile: a central lobe above 1 (spikes recur a cycle apart) flanked by a dip below 1 where firing is suppressed between volleys. Scanning out from zero lag, take the trough as the first local minimum of a lightly smoothed $A(ell)$ (it falls near the half-period) and the lobe as the highest point at a shorter lag. Both searches start one bin past zero, so the self-paired zero-lag value dropped in step 5 is excluded from the lobe height: the lobe is read from the first real lag onward, never the trivial self-correlation.
-  + *Read the contrast.* The metric is the *lobe–trough contrast*
+    $ A(ell) = 1 / (⟨ r ⟩^2 (n - ell)) sum_(t=0)^(n-ell-1) r(t) r(t+ell). $ <exp054-autocorrelation>
 
-    $ "contrast" = ("lobe" - "trough") / ("lobe" + "trough") in [0, 1), $
+    Here $t$ indexes bins and $⟨ r ⟩$ is their mean count; physical lag is $ell Delta t$. Zero-padded FFT correlation, divided by available overlap and mean count squared, gives chance reference 1. Exclude zero lag.
+  + *Locate the lobe and trough.* Smooth with weights $(0.25, 0.5, 0.25)$, filling the excluded zero-lag entry from the first lag. Find the first local minimum from lag 2, and the preceding maximum from lag 1. Their smoothed heights define
 
-    zero when lobe equals trough (no structure) and approaching 1 as the trough goes silent. It is bounded by construction, with no trough floor needed.
+    $ "contrast" = ("lobe" - "trough") / ("lobe" + "trough"). $ <exp054-contrast>
 
-  In words: $A(ell)$ is how much more (or less) likely a spike is to be followed by another one $ell$ ms later than under independent firing, with $A = 1$ the chance floor. A central lobe above 1 says spikes _cluster_ in volleys; a trough below 1 near the half-period says firing is _suppressed between_ them. The contrast is *0* when the spikes carry no such structure (asynchronous) and approaches *1* as sharp volleys separate against near-silence; because it reads the _shape_ of $A(ell)$, it registers a rhythm whether or not its frequency holds still.
+    For $0 <= "trough" <= "lobe"$ and a positive denominator, this lies in $[0,1]$. A missing trough or invalid denominator leaves the score undefined; no trough floor is imposed on contrast.
+  + *Compare mean-field onset.* Use the #link("/exp033/")[four-variable conductance model] at 4 mV effective noise. Continue fixed points over 401 drives from 0–4 nA and refine the leading-eigenvalue crossing with Brent's method. Sweep 25 drives from 0.1 nA below to 0.55 nA above the crossing in both directions, carrying endpoint states. Integrate 2 s per drive with LSODA and measure peak-to-peak E-rate amplitude ($"ms"^(-1)$) over the final 500 ms. Retained amplitudes are reused; missing trajectories are not reconstructed.
+  + *Compare frequencies.* Repeat the theoretical crossing search at inhibitory decays 4.5/6/9/12/18/27 ms. Overlay the median frequency across three seeded #link("/exp041/")[spiking-network measurements] at each decay; do not refit the mean-field noise scale.
+
+  == Appendix: reading the autocorrelogram
+
+  The raw lag product $sum_t r(t) r(t+ell)$ counts spike pairs separated by $ell$ bins. Only $n-ell$ bin pairs exist at that lag: the last $ell$ bins have no partner. Dividing by this overlap converts the raw sum into an average product per available pair, removing the taper caused by finite recording length. Dividing again by $⟨ r ⟩^2$ places independent firing near $A = 1$; this is a reference level, not a lower bound.
+
+  The Wiener–Khinchin route computes the lag products by zero-padding the count trace, taking its fast Fourier transform (FFT), multiplying by the complex conjugate and inverse-transforming. This costs $O(n log n)$ for all lags rather than a full $O(n^2)$ direct correlation, where $O$ denotes asymptotic computational scaling.
+
+  A central lobe above chance describes short-lag spike clustering. A later trough can reflect suppression between volleys; a subsequent peak near the period is separate evidence of recurrence. Contrast is zero when its lobe and trough are equal, and reaches one if a positive lobe is paired with a zero trough. It summarizes their relative heights without measuring a stable oscillation frequency. Finite recordings, missing extrema and shared-input coincidence therefore matter when interpreting this scalar alongside rasters and longer-lag structure.
 
 ]
 #body

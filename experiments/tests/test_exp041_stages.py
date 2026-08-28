@@ -496,7 +496,7 @@ def test_inference_caps_and_import_side_effects(tmp_path):
 
 
 @pytest.mark.parametrize("slug", ["exp054"])
-def test_unmigrated_consumers_cannot_silently_read_stale_exp041_outputs(
+def test_migrated_consumers_require_explicit_exp041_stage_references(
     tmp_path, monkeypatch, slug
 ):
     from experiments.collections.gamma_gated_sparsity import execution
@@ -511,7 +511,7 @@ def test_unmigrated_consumers_cannot_silently_read_stale_exp041_outputs(
         "run",
         lambda *a, **k: pytest.fail("legacy downstream launch"),
     )
-    with pytest.raises(execution.CollectionError, match="explicit staged inputs"):
+    with pytest.raises(PingstoreError, match="requires completed exp041 analysis"):
         execution._run_downstream(plan, row)
 
 

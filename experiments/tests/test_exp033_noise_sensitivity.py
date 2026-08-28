@@ -44,9 +44,9 @@ def test_tau_gaba_sweep_propagates_sigma(monkeypatch) -> None:
 
 
 def test_exp054_explicitly_selects_reference_sigma() -> None:
-    source = (exp033.REPO / "experiments" / "exp054.py").read_text()
-    assert "sigma = exp033.SIGMA_V_MV" in source
-    assert 'hysteresis_sweep(hopf["I_ext_star"], sigma=sigma)' in source
+    from experiments.exp054.recipe import configuration
+
+    assert configuration()["mean_field"]["sigma_V_mV"] == exp033.SIGMA_V_MV
 
 
 def test_publication_text_does_not_claim_fully_fitted_scale() -> None:
