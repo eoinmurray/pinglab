@@ -88,16 +88,12 @@ def test_exp037_jobs_cover_every_quantitative_seed() -> None:
     assert {exp037._parse_job(job)[2] for job in raster} == {42}
 
 
-def test_exp037_raster_cache_is_model_and_seed_specific(
-    monkeypatch, tmp_path: Path
-) -> None:
-    monkeypatch.setattr(exp037, "ARTIFACTS", tmp_path)
-    paths = {
-        exp037._perturb_raster_out_dir(model, seed, "drop", 0.5, 0)
-        for model in exp037.MODELS
-        for seed in exp037.SEEDS_BASELINE
-    }
-    assert len(paths) == len(exp037.MODELS) * len(exp037.SEEDS_BASELINE)
+def test_exp037_raster_jobs_are_model_seed_mode_and_level_specific():
+    from experiments.exp037 import recipe
+    jobs=recipe.jobs(recipe.configuration())
+    assert len({j["path"] for j in jobs}) == len(jobs)
+    rasters=[j for j in jobs if j["kind"]=="raster"]
+    assert len(rasters)==12 and {j["seed"] for j in rasters}=={42}
 
 
 def test_exp037_accuracy_summary_is_across_seed_mean_and_sample_sd() -> None:
@@ -141,30 +137,12 @@ def test_exp037_publication_rows_retain_seed_and_sample_provenance() -> None:
     }]
 
 
-def test_exp037_quantitative_inference_uses_publication_subset(
-    monkeypatch, tmp_path: Path
-) -> None:
-    train_dir = tmp_path / "coba__off__seed42"
-    train_dir.mkdir()
-    (train_dir / "config.json").write_text("{}")
-    _write_selected_checkpoint(train_dir)
-    commands = []
-
-    def fake_run_cli(command):
-        commands.append(command)
-        out = Path(command[command.index("--out-dir") + 1])
-        out.mkdir(parents=True, exist_ok=True)
-        (out / "metrics.json").write_text(json.dumps({
-            "best_acc": 90.0,
-            "n_total": 14000,
-            "rates_hz": {"hid1": 10.0},
-        }))
-
-    monkeypatch.setattr(exp037, "ARTIFACTS", tmp_path / "state")
-    monkeypatch.setattr(exp037, "run_cli", fake_run_cli)
-    result = exp037.run_perturbation_sweep(train_dir, "drop", 0.5)
-    assert commands[0][commands[0].index("--max-samples") + 1] == "1000"
-    assert result["n_total"] == 14000
+def test_exp037_quantitative_inference_uses_publication_subset(tmp_path):
+    from experiments.exp037 import recipe
+    job=next(j for j in recipe.jobs(recipe.configuration()) if j["kind"]=="sweep")
+    args=recipe.inference_args(tmp_path,tmp_path/"weights.pth",tmp_path/"out",job)
+    assert args[args.index("--max-samples")+1]=="1000"
+    assert args[args.index("--load-weights")+1].endswith("weights.pth")
 
 
 def test_exp038_ei_summary_is_across_seed_mean_and_sample_sd() -> None:
@@ -209,7 +187,7 @@ def test_downstream_runners_honor_isolated_runner_paths(tmp_path: Path) -> None:
         if path.is_file()
     }
     for slug in (
-        "exp033", "exp037",
+        "exp033",
         "exp082",
     ):
         root = tmp_path / slug

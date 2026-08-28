@@ -28,6 +28,7 @@ from experiments.collections.gamma_gated_sparsity.plan import REPO, build_plan
 from experiments.exp023 import collection as exp023_collection
 from experiments.exp024 import collection as exp024_collection
 from experiments.exp025 import collection as exp025_collection
+from experiments.exp037 import collection as exp037_collection
 from experiments.exp038 import collection as exp038_collection
 from experiments.exp041 import collection as exp041_collection
 from experiments.exp042 import collection as exp042_collection
@@ -52,7 +53,7 @@ def test_downstream_cell_banks_resolve_through_exp022_registry() -> None:
         (exp037, exp037.SEEDS_BASELINE),
     ):
         assert {
-            module.cell_dir(model, target, seed).name
+            module.cell_name(model, target, seed)
             for model in module.MODELS
             for target in module.RATE_TARGET_GRID_HZ
             for seed in seeds
@@ -175,7 +176,7 @@ def test_plan_paths_are_isolated_and_all_runners_are_integrated(tmp_path: Path) 
     assert payload["excluded"] == ["exp048"]
     assert payload["blocking_issues"] == []
     assert payload["acceptance_issues"] == []
-    assert all(row["command"] or row["execution"]["mode"] in {"exp023-staged", "exp024-staged", "exp025-staged", "exp038-staged", "exp041-staged", "exp042-staged", "exp044-staged", "exp046-staged", "exp049-staged", "exp081-staged"} for row in rows)
+    assert all(row["command"] or row["execution"]["mode"] in {"exp023-staged", "exp024-staged", "exp025-staged", "exp037-staged", "exp038-staged", "exp041-staged", "exp042-staged", "exp044-staged", "exp046-staged", "exp049-staged", "exp081-staged"} for row in rows)
     audit = next(row for row in rows if row["slug"] == "exp024")
     assert audit["execution"]["stages"] == ["analyse", "present"]
     assert not any(".artifacts" in path for path in audit["required_outputs"])
@@ -256,7 +257,7 @@ def test_local_resume_runs_in_dependency_order(tmp_path: Path, monkeypatch) -> N
 
     # Scientific work is mocked here; real stage-reference validation has its
     # own fixture-run coverage in test_exp024_stages.py and test_exp081.py.
-    for adapter in (exp023_collection, exp024_collection, exp025_collection, exp038_collection, exp041_collection, exp042_collection, exp044_collection, exp046_collection, exp049_collection, exp081_collection):
+    for adapter in (exp023_collection, exp024_collection, exp025_collection, exp037_collection, exp038_collection, exp041_collection, exp042_collection, exp044_collection, exp046_collection, exp049_collection, exp081_collection):
         monkeypatch.setattr(adapter, "completed", lambda repo, plan, row:
                             execution.load_json(Path(row["required_outputs"][0])))
 
@@ -403,24 +404,24 @@ def test_compose_campaign_replaces_selected_outputs_and_records_sources(
         == "repair-run"
     )
     assert (
-        execution.load_json(destination / "derived/.artifacts/exp037/numbers.json")[
+        execution.load_json(destination / "derived/.artifacts/exp047/numbers.json")[
             "marker"
         ]
         == "base-run"
     )
     composition = execution.load_json(destination / "composition.json")
     assert composition["experiments"]["exp025"]["run_id"] == "repair-run"
-    assert composition["experiments"]["exp037"]["run_id"] == "base-run"
+    assert composition["experiments"]["exp047"]["run_id"] == "base-run"
 
     composite_plan = execution.load_json(destination / execution.PLAN_NAME)
     rows = {row["slug"]: row for row in execution.rows_in_order(composite_plan)}
     assert not execution._outputs_valid_for_plan(composite_plan, rows["exp025"])
-    assert execution._outputs_valid_for_plan(composite_plan, rows["exp037"])
+    assert execution._outputs_valid_for_plan(composite_plan, rows["exp047"])
 
-    (destination / "derived/.artifacts/exp037/figure.svg").write_text(
+    (destination / "derived/.artifacts/exp047/figure.svg").write_text(
         "<svg><text>tampered</text></svg>\n"
     )
-    assert not execution._outputs_valid_for_plan(composite_plan, rows["exp037"])
+    assert not execution._outputs_valid_for_plan(composite_plan, rows["exp047"])
 
 
 def test_integrate_repair_preserves_base_and_records_repaired_source(
@@ -596,7 +597,7 @@ def test_publication_build_runs_promotion_from_separate_checkout(
     monkeypatch.setattr(execution.shutil, "which", lambda _name: "/usr/bin/uv")
     promotions = []
     from pingstore import materialize
-    for adapter in (exp023_collection, exp024_collection, exp025_collection, exp038_collection, exp041_collection, exp042_collection, exp044_collection, exp046_collection, exp049_collection, exp081_collection):
+    for adapter in (exp023_collection, exp024_collection, exp025_collection, exp037_collection, exp038_collection, exp041_collection, exp042_collection, exp044_collection, exp046_collection, exp049_collection, exp081_collection):
         monkeypatch.setattr(adapter, "completed", lambda repo, plan, row:
                             SimpleNamespace(record={"run_id": row["slug"] + "-r003-present-local"}))
     monkeypatch.setattr(materialize, "materialize_run", lambda store, identity, target:
@@ -654,7 +655,7 @@ def test_publication_build_rejects_stubbed_entries(tmp_path: Path, monkeypatch) 
     monkeypatch.setattr(execution.shutil, "which", lambda _name: "/usr/bin/uv")
     monkeypatch.setattr(execution, "promote_experiment", lambda *_args, **_kwargs: None)
     from pingstore import materialize
-    for adapter in (exp023_collection, exp024_collection, exp025_collection, exp038_collection, exp041_collection, exp042_collection, exp044_collection, exp046_collection, exp049_collection, exp081_collection):
+    for adapter in (exp023_collection, exp024_collection, exp025_collection, exp037_collection, exp038_collection, exp041_collection, exp042_collection, exp044_collection, exp046_collection, exp049_collection, exp081_collection):
         monkeypatch.setattr(adapter, "completed", lambda repo, plan, row:
                             SimpleNamespace(record={"run_id": row["slug"] + "-r003-present-local"}))
     monkeypatch.setattr(materialize, "materialize_run", lambda *args: None)
@@ -833,23 +834,10 @@ def test_workload_shards_are_disjoint_complete_and_stable(monkeypatch) -> None:
     ]
 
 
-def test_exp037_shard_completion_uses_checkpoint_cache_tag(
-    tmp_path: Path, monkeypatch
-) -> None:
-    train_dir = tmp_path / "training" / "coba__off__seed42"
-    checkpoint = {"path": train_dir / "weights.pth", "sha256": "a" * 64}
-    monkeypatch.setattr(exp037, "ARTIFACTS", tmp_path / "artifacts")
-    monkeypatch.setattr(exp037, "baseline_dir", lambda _model, _seed: train_dir)
-    monkeypatch.setattr(exp037, "resolve_checkpoint", lambda *_args: checkpoint)
-    monkeypatch.setattr(exp037, "cache_tag", lambda _checkpoint: "best__aaaa")
-
-    output = (
-        exp037._perturb_out_dir(train_dir, "drop", 0.0) / "best__aaaa" / "metrics.json"
-    )
-    output.parent.mkdir(parents=True)
-    output.write_text("{}\n")
-
-    assert exp037.job_is_done("sweep__coba__seed42__drop__0")
+def test_exp037_legacy_shard_execution_requires_explicit_v3_bank():
+    from experiments.collections.gamma_gated_sparsity.workloads import execute_shard
+    with pytest.raises(ValueError, match="explicit v3 bank"):
+        execute_shard("exp037", 0, 6, smoke=False)
 
 
 def test_exp042_legacy_shard_execution_requires_explicit_v3_bank():

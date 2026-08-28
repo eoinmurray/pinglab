@@ -1,0 +1,308 @@
+"""Compute exp037 perturbations from a pinned v3 bank; includes six-shard execution."""
+
+import argparse
+import contextlib
+import fcntl
+import os
+import shutil
+import sys
+import tempfile
+from pathlib import Path
+
+REPO = Path(__file__).resolve().parents[2]
+sys.path[:0] = [str(REPO), str(REPO / "tools")]
+from experiments.exp037 import evidence, inputs, recipe
+from experiments.exp041.import_gold2 import extract_arrays
+from experiments.helpers.run_cli import run_cli
+from pingstore.contracts import (
+    PingstoreError,
+    file_sha256,
+    load_json,
+    run_root,
+    write_json_atomic,
+)
+from pingstore.stages import _capture_code, reserve_stage, stage_reservation, utc_now
+
+SNAPSHOT_ARRAYS = recipe.SNAPSHOT_ARRAYS
+
+
+def _run_jobs(bank, directory, jobs, contract):
+    for job in jobs:
+        output = directory / "export" / job["path"]
+        attachments = directory / "provenance/simulations" / job["path"]
+        if output.exists() or attachments.exists():
+            raise PingstoreError(
+                "incomplete job already exists; explicit recovery or a fresh run is required"
+            )
+        attachments.mkdir(parents=True)
+        train = bank.export / job["cell_name"]
+        shutil.copyfile(train / "config.json", attachments / "training-config.json")
+        with tempfile.TemporaryDirectory(prefix=".job-", dir=directory) as tmp:
+            scratch = Path(tmp) / "output"
+            args = recipe.inference_args(train, train / "weights.pth", scratch, job)
+            write_json_atomic(
+                attachments / "command.json", {"job": job, "arguments": args}
+            )
+            print(f"[infer] {job['id']}", flush=True)
+            with (
+                (attachments / "stdout.log").open("w") as stdout,
+                (attachments / "stderr.log").open("w") as stderr,
+                contextlib.redirect_stdout(stdout),
+                contextlib.redirect_stderr(stderr),
+            ):
+                run_cli(args, no_sync=True)
+            cfg = contract["configs"][job["cell_name"]]
+            evidence.inference_config(load_json(scratch / "config.json"), cfg, job)
+            evidence.recordings(scratch, cfg, job)
+            output.mkdir(parents=True)
+            if job["kind"] == "raster":
+                extract_arrays(
+                    scratch / "snapshot.npz", output / "snapshot.npz", SNAPSHOT_ARRAYS
+                )
+            else:
+                shutil.copyfile(scratch / "metrics.json", output / "metrics.json")
+            for p in scratch.iterdir():
+                if p.name not in ("snapshot.npz", "metrics.json"):
+                    p.rename(attachments / p.name)
+                elif job["kind"] == "raster" and p.name == "metrics.json":
+                    p.rename(attachments / p.name)
+            evidence.recordings(output, cfg, job)
+
+
+def _job_inventory(directory, jobs):
+    files = {}
+    for job in jobs:
+        for prefix in ("export", "provenance/simulations"):
+            folder = directory / prefix / job["path"]
+            if not folder.is_dir() or folder.is_symlink():
+                raise PingstoreError("missing or linked job evidence")
+            for path in folder.rglob("*"):
+                if path.is_symlink() or not (path.is_file() or path.is_dir()):
+                    raise PingstoreError("unsupported job evidence entry")
+                if path.is_file():
+                    files[str(path.relative_to(directory))] = file_sha256(path)
+    return files
+
+
+def _verify_shard(directory, record, jobs):
+    if record.get("jobs") != [job["id"] for job in jobs]:
+        raise PingstoreError("shard job identity differs")
+    if record.get("files") != _job_inventory(directory, jobs):
+        raise PingstoreError("shard payload changed or is incomplete")
+
+
+def _shard_paths(repo, run_id, index, count):
+    if count != recipe.SHARDS or not 0 <= index < count:
+        raise PingstoreError("exp037 requires six shards and an index in [0, 6)")
+    destination = run_root(repo / ".pingstore", run_id)
+    directory = destination.with_name(f".{run_id}.tmp")
+    record = stage_reservation(directory)
+    if (
+        record["experiment"] != recipe.SLUG
+        or record["stage"] != "compute"
+        or record["run_id"] != run_id
+        or destination.exists()
+        or (directory / "run.json").exists()
+    ):
+        raise PingstoreError("shards require an unused exp037 v3 compute reservation")
+    return directory
+
+
+@contextlib.contextmanager
+def _compute_lock(directory, *, exclusive):
+    path = directory / "provenance/compute.lock"
+    if any(p.is_symlink() for p in (directory, *directory.parents, path.parent, path)):
+        raise PingstoreError("compute working paths must not use symlinks")
+    descriptor = os.open(path, os.O_CREAT | os.O_RDWR | os.O_NOFOLLOW, 0o600)
+    with os.fdopen(descriptor, "a+b") as handle:
+        try:
+            fcntl.flock(
+                handle, (fcntl.LOCK_EX if exclusive else fcntl.LOCK_SH) | fcntl.LOCK_NB
+            )
+        except BlockingIOError as exc:
+            raise PingstoreError("compute reservation is busy") from exc
+        try:
+            yield
+        finally:
+            fcntl.flock(handle, fcntl.LOCK_UN)
+
+
+def shard(identity, *, run_id, index, count=recipe.SHARDS):
+    """Compute-only recovery: each shard owns an isolated lock and completion record."""
+    bank = inputs.source(REPO, identity, "compute", experiment="exp022")
+    contract = evidence.training_contract(bank.export)
+    evidence.histories(bank.export, contract)
+    cfg = recipe.configuration(smoke=os.environ.get("PINGLAB_SMOKE") == "1")
+    directory = _shard_paths(REPO, run_id, index, count)
+    with _compute_lock(directory, exclusive=False):
+        folder = directory / "provenance" / "shards" / str(index)
+        folder.mkdir(parents=True, exist_ok=True)
+        lock = folder / "writer.lock"
+        try:
+            descriptor = os.open(lock, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
+        except FileExistsError as exc:
+            raise PingstoreError(
+                "shard is busy; interrupted locks need explicit recovery"
+            ) from exc
+        os.close(descriptor)
+        try:
+            # Recheck after locking so collection cannot race a newly started worker.
+            _shard_paths(REPO, run_id, index, count)
+            code = _capture_code(REPO, directory)
+            # The campaign requires a frozen checkout; do not permit mixed worker code.
+            if code.get("code_dirty"):
+                raise PingstoreError(
+                    "distributed exp037 compute requires committed execution code"
+                )
+            job_list = recipe.jobs(cfg)[index::count]
+            expected = {
+                "run_id": run_id,
+                "bank": bank.reference,
+                "recipe": cfg,
+                "index": index,
+                "count": count,
+                "source": code,
+                "jobs": [job["id"] for job in job_list],
+            }
+            marker = folder / "completed.json"
+            if marker.exists():
+                previous = load_json(marker)
+                if any(previous.get(k) != v for k, v in expected.items()):
+                    raise PingstoreError(
+                        "shard source or recipe changed; reserve a fresh compute run"
+                    )
+                _verify_shard(directory, previous, job_list)
+                return previous
+            started = utc_now()
+            _run_jobs(bank, directory, job_list, contract)
+            for ancestor in inputs.lineage(REPO, identity, bank.reference).values():
+                ancestor.check_unchanged()
+            record = {
+                **expected,
+                "started_at": started,
+                "completed_at": utc_now(),
+                "command": [sys.executable, *sys.argv],
+                "scheduler": {
+                    k: os.environ[k]
+                    for k in ("SLURM_JOB_ID", "SLURM_ARRAY_TASK_ID")
+                    if k in os.environ
+                },
+                "files": _job_inventory(directory, job_list),
+            }
+            write_json_atomic(marker, record)
+            return record
+        finally:
+            lock.unlink()
+
+
+def compute(identity, *, run_id=None, collect=False):
+    bank = inputs.source(REPO, identity, "compute", experiment="exp022")
+    contract = evidence.training_contract(bank.export)
+    evidence.histories(bank.export, contract)
+    cfg = recipe.configuration(smoke=os.environ.get("PINGLAB_SMOKE") == "1")
+    if collect and not run_id:
+        raise PingstoreError("collection requires an explicit compute reservation")
+    run_id = run_id or reserve_stage(REPO / ".pingstore", recipe.SLUG, "compute")
+    directory = _shard_paths(REPO, run_id, 0, recipe.SHARDS)
+    with _compute_lock(directory, exclusive=True):
+        _shard_paths(REPO, run_id, 0, recipe.SHARDS)
+        if not collect and (directory / "provenance/shards").exists():
+            raise PingstoreError("sharded work requires explicit --collect")
+        if collect:
+            directory = _shard_paths(REPO, run_id, 0, recipe.SHARDS)
+            if list((directory / "provenance/shards").glob("*/writer.lock")):
+                raise PingstoreError("compute shards are still running")
+            for index in range(recipe.SHARDS):
+                record = load_json(
+                    directory / "provenance/shards" / str(index) / "completed.json"
+                )
+                if (
+                    record.get("run_id") != run_id
+                    or record.get("bank") != bank.reference
+                    or record.get("recipe") != cfg
+                    or record.get("index") != index
+                    or record.get("count") != recipe.SHARDS
+                ):
+                    raise PingstoreError("shard bank, recipe or identity mismatch")
+                _verify_shard(
+                    directory, record, recipe.jobs(cfg)[index :: recipe.SHARDS]
+                )
+        with inputs.execution(
+            REPO, "compute", sources={"bank": bank}, run_id=run_id, configuration=cfg
+        ) as run:
+            if collect:
+                for index in range(recipe.SHARDS):
+                    marker = load_json(
+                        run.provenance / "shards" / str(index) / "completed.json"
+                    )
+                    if marker["source"] != run.record["provenance"]:
+                        raise PingstoreError(
+                            "worker and collector execution code differ"
+                        )
+            environment = {"PINGLAB_SMOKE": "1" if cfg["profile"] == "smoke" else "0"}
+            run.record["execution"]["environment"] = environment
+            write_json_atomic(run.provenance / "command.json", run.record["execution"])
+            replay = run.provenance / "run.sh"
+            replay.write_text(
+                replay.read_text()
+                .replace(" --collect", "")
+                .replace(
+                    "\nexec ",
+                    f"\nexport PINGLAB_SMOKE={environment['PINGLAB_SMOKE']}\nexec ",
+                    1,
+                )
+            )
+            if not collect:
+                _run_jobs(bank, run.directory, recipe.jobs(cfg), contract)
+            for job in recipe.jobs(cfg):
+                train = contract["configs"][job["cell_name"]]
+                evidence.inference_config(
+                    load_json(
+                        run.provenance / "simulations" / job["path"] / "config.json"
+                    ),
+                    train,
+                    job,
+                )
+                evidence.recordings(run.export / job["path"], train, job)
+            write_json_atomic(
+                run.export / "evidence.json",
+                {
+                    "schema": "exp037.compute/v1",
+                    "recipe": cfg,
+                    "training_contract": contract,
+                    "jobs": recipe.jobs(cfg),
+                },
+            )
+    return run.run_id
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--source", required=True, help="explicit completed exp022 compute ID"
+    )
+    parser.add_argument("--run-id", help="unused v3 reservation")
+    parser.add_argument(
+        "--shard-index", type=int, help="compute worker index (six shards)"
+    )
+    parser.add_argument(
+        "--collect",
+        action="store_true",
+        help="complete this compute run from its six shards",
+    )
+    args = parser.parse_args()
+    try:
+        if args.shard_index is not None:
+            if not args.run_id or args.collect:
+                raise PingstoreError(
+                    "shard workers require --run-id and cannot --collect"
+                )
+            shard(args.source, run_id=args.run_id, index=args.shard_index)
+        else:
+            compute(args.source, run_id=args.run_id, collect=args.collect)
+    except (PingstoreError, OSError, KeyError, ValueError) as exc:
+        parser.exit(1, f"exp037 compute: {exc}\n")
+
+
+if __name__ == "__main__":
+    main()

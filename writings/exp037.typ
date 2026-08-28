@@ -1,12 +1,13 @@
-#import "/.demolab/lib.typ": data-json, data-image
+#import "/.demolab/lib.typ": data-json, data-image, cite, reference-list
 #import "run-inputs.typ": data-file, inputs-ready, pending-report
 #let data-file = data-file.with(article: "exp037")
 
 #let meta = (
-  status: "Implemented",
+  status: "Ready for review",
   title: "Dropped Spikes vs Added Noise",
   date: "2026-05-30",
-  description: "Perturbs the hidden spike stream of trained PING and COBA at inference. PING forgives most dropped spikes but breaks under a small rate of added Poisson noise; COBA is flat to both. The gamma cycle made visible.",
+  updated_at: "2026-08-28",
+  description: "Both trained networks tolerated substantial spike deletion, but PING accuracy fell more sharply under added spikes. The perturbations changed both recurrent feedback and readout input, so they do not isolate gamma gating.",
   collection: "gamma-gated-sparsity",
 )
 
@@ -21,207 +22,205 @@
 
 // Keep calculations lazy: absent inputs never become fabricated results.
 #let render-report(data-file) = [
-// Provenance (HOUSESTYLE H9): every run number below is read from the run's
-// numbers.json, never hand-typed, so a re-run updates the prose automatically.
 #let run = data-json(data-file("exp037/numbers.json"))
 #let cfg = run.config
-#let eval_n = cfg.at("evaluation_samples_per_seed", default: (1000,)).first()
-#let eval_pool = cfg.at("evaluation_pool_samples", default: 1000)
-#let mean(a) = a.sum() / a.len()
-#let rate-target(r) = if r.keys().contains("rate_target_hz") { r.rate_target_hz } else { r.theta_u }
-
-// Trained-baseline hidden E rates + accuracy (θ_u off, averaged over seeds).
-#let base = run.baseline_results
-#let coba_base_rate = calc.round(mean(base.filter(r => r.model == "coba" and rate-target(r) == none).map(r => r.rate_e)))
-#let ping_base_rate = calc.round(mean(base.filter(r => r.model == "ping" and rate-target(r) == none).map(r => r.rate_e)))
-#let coba_base_acc = calc.round(mean(base.filter(r => r.model == "coba" and rate-target(r) == none).map(r => r.final_acc)))
-#let ping_base_acc = calc.round(mean(base.filter(r => r.model == "ping" and rate-target(r) == none).map(r => r.final_acc)))
-#let rate_ratio = calc.round(coba_base_rate / ping_base_rate)
-
-// Perturbation sweep points (drop = fraction of emitted spikes; add = Hz/neuron).
-#let pert = run.at("perturbation_summary", default: run.perturbation)
-#let at(model, mode, level) = pert.filter(r => r.model == model and r.mode == mode and calc.abs(r.level - level) < 0.001).first().acc
-#let ping_drop80 = calc.round(at("ping", "drop", 0.8))
-#let ping_drop_full = calc.round(at("ping", "drop", 1.0))
-#let coba_add_max = calc.round(at("coba", "add", 40.0))
-#let add_max = calc.round(calc.max(..pert.filter(r => r.mode == "add").map(r => r.level)))
-// PING add "knee": the lowest added rate at which test accuracy first drops below 80%.
-#let ping_add_knee = calc.round(pert.filter(r => r.model == "ping" and r.mode == "add" and r.acc < 80).sorted(key: r => r.level).first().level)
-// The add panel reads as a percentage of each model's own baseline E rate.
-#let ping_base_exact = mean(base.filter(r => r.model == "ping" and rate-target(r) == none).map(r => r.rate_e))
-#let coba_base_exact = mean(base.filter(r => r.model == "coba" and rate-target(r) == none).map(r => r.rate_e))
-#let ping_add_knee_pct = calc.round(ping_add_knee / ping_base_exact * 100)
-#let coba_add_max_pct = calc.round(add_max / coba_base_exact * 100)
-
-#let body = [
-  The trained networks this entry uses are produced once in the shared training
-  hub, #link("/exp022/")[exp022 (Training)], and reused here rather than retrained.
-  Its complete TR-02 activity frontier contains seeds 42–44 at every COBA and
-  PING rate target. The machine-readable results retain each checkpoint row and
-  report the across-seed mean and SEM for every frontier point.
+#let rounded(value) = calc.round(value, digits: 1)
+#let mean(values) = values.sum() / values.len()
+#let pert = run.perturbation_summary
+#let point(model, mode, level) = pert.filter(r => r.model == model and r.mode == mode and calc.abs(r.level - level) < 0.001).first()
+#let acc(model, mode, level) = rounded(point(model, mode, level).acc)
+#let reference-rate(model) = mean(run.baseline_results.filter(r => r.model == model and r.rate_target_hz == none).map(r => r.rate_e))
+#let eval_n = cfg.evaluation_samples_per_seed.first()
+#let add_max = calc.max(..pert.filter(r => r.mode == "add").map(r => r.level))
+#let knee-points = pert.filter(r => r.model == "ping" and r.mode == "add" and r.acc < 80).sorted(key: r => r.level)
+#let knee = if knee-points.len() > 0 { knee-points.first().level } else { none }
+#let labels = run.at("illustrative_labels", default: ())
+#let trial-description = if labels.len() > 0 and labels.all(label => label == labels.first()) {
+  [the same test image of digit #labels.first()]
+} else { [the same test-image index in each condition] }
+// HTML has no paged layout context; keep its images native and responsive.
+#let report-image(path, alt, ratio: 0.58) = context {
+  if target() == "html" {
+    data-image(data-file(path), width: 100%, alt: alt)
+  } else {
+    // Fix the page frame so a short remainder cannot crop the image.
+    layout(size => {
+      let width = size.width
+      box(width: width, height: width * ratio,
+        data-image(data-file(path), width: width, height: width * ratio, fit: "contain", alt: alt))
+    })
+  }
+}
 
   == Abstract
 
-  Perturbs the hidden spike stream of trained PING and COBA networks at inference
-  (drop spikes, add spikes) to ask whether the PING rate floor is dynamical or
-  informational. PING tolerates dropping ≈ 80% of its emitted spikes (accuracy
-  #ping_drop80% at that level, from #ping_base_acc% unperturbed) yet collapses once
-  added Poisson noise passes ≈ #ping_add_knee_pct% of its own baseline rate. COBA is
-  roughly flat to both, holding #coba_add_max% across the whole add sweep (which
-  reaches only ≈ #coba_add_max_pct% of its far higher baseline). The asymmetry, drops
-  forgiven while adds break the gating, is the gamma cycle made visible: a structural
-  feature of the architecture, not a readout-side trade-off.
-
-  == Method
-
-  All perturbations are applied to the checkpoint selected by validation accuracy. This measures robustness of the selected classifier rather than the final dynamical state reached at epoch 50.
-
-  #table(
-    columns: 2,
-    [Parameter], [Value],
-    [Integration timestep $Delta t$], [#cfg.dt ms],
-    [Trial duration $T$], [#cfg.t_ms ms],
-    [Evaluation corpus], [Official MNIST test partition (#eval_pool samples)],
-    [Evaluated held-out samples per seed], [#eval_n],
-    [Baseline training epochs (in #link("/exp022/")[exp022])], [#cfg.epochs],
-  )
-
-  The PING and COBA baseline definitions and training recipe are in
-  #link("/exp025/")[exp025], where the rate-floor mechanism is also worked out. This
-  entry tests whether the floor is *dynamical* (locked by the cycle period) or
-  *informational* (locked by the readout's spike-count requirement) by perturbing
-  the hidden spike stream of the trained networks at inference.
-
-  *The perturbation.* A per-step callback on the COBANet's _\_hidden_perturb_fn_
-  slot fires every timestep of every trial, with no warm-up, schedule, or exclusion.
-  Trials are $T = #cfg.t_ms$ ms at $Delta t = #cfg.dt$ ms → 2000 fires per trial,
-  applied across a fixed 1,000-image subset of the official test partition for independently trained seeds 42, 43,
-  and 44. At each
-  timestep $t$:
-
-  + _update conductances_ from the previous step's spikes:
-    $g_e^((t)) <- g_e^((t-1)) dot d_"AMPA" + bold(tilde(s))^(E,(t-1)) W_(e e) +
-    "input"^((t)) W_"in"$, with the analogous update for $g_i^((t))$ from
-    $bold(tilde(s))^(I,(t-1)) W_(i e)$ and the E→I conductance from
-    $bold(tilde(s))^(E,(t-1)) W_(e i)$;
-  + _LIF step_ integrates $V^((t))$ and emits raw spike vectors
-    $bold(s)^(E,(t)) in {0,1}^(B times N_E)$,
-    $bold(s)^(I,(t)) in {0,1}^(B times N_I)$;
-  + _perturbation callback_ rewrites the raw vectors →
-    $bold(tilde(s))^(E,(t)), bold(tilde(s))^(I,(t))$;
-  + _record_ the perturbed vectors into the spike buffer;
-  + _readout accumulator_ adds $bold(tilde(s))^(E,(t)) W_"out"$ to the mem-mean
-    integrator.
-
-  Step 1 of timestep $t+1$ consumes the perturbed spikes through
-  $W_(e e), W_(e i), W_(i e)$: a dropped E spike fails to drive I next step and
-  contributes nothing to the readout; an injected I spike adds inhibition next step
-  and counts in the rate metric. E and I get the same mode and level with
-  independent draws.
-
-  *Drop mode.* For each (batch, neuron, timestep) slot $i$, draw
-  $u_i tilde "Uniform"(0,1)$ i.i.d. and keep each emitted spike with probability
-  $1 - p_"drop"$:
-
-  $ tilde(s)_i = s_i dot bb(1)[u_i >= p_"drop"]. $
-
-  Drop thins the count fed to both the readout and the next-step conductance update
-  while leaving the E→I→E loop intact. Sweep $p_"drop" in {0.0, 0.1, ..., 1.0}$, 11
-  levels.
-
-  *Add mode.* For each slot draw $u_i tilde "Uniform"(0,1)$ i.i.d. and flip silent
-  slots on at Poisson statistics, phase-independent:
-
-  $ tilde(s)_i = min(s_i + bb(1)[u_i < r_"add" dot Delta t \/ 1000], 1). $
-
-  Sweep $r_"add" in {0, 2, ..., #add_max}$ Hz per neuron, 21 levels, applied equally
-  to E and I. Because the two architectures sit at very different baselines
-  (COBA ≈ #coba_base_rate Hz per E cell versus PING ≈ #ping_base_rate Hz, a factor of
-  ≈ #rate_ratio), a fixed added rate is a much larger relative insult to PING than to
-  COBA, so the right panel of Figure 1 expresses the added rate as a percentage of
-  each model's own baseline E rate (the architecture-fair view). The per-step RNG is
-  seeded separately from the input encoder, so the Poisson input stream matches the
-  unperturbed baseline. Every seed uses the same 11-point drop and 21-point add
-  grids and the same held-out sample count: 2 models × 3 seeds × (11 + 21) = 192
-  quantitative forward passes. Curves report the across-seed mean and shaded sample
-  SD. Rasters are illustrative seed-42 trials and are not treated as replicated
-  quantitative evidence.
+  Both trained networks tolerated substantial spike deletion, whereas added
+  spikes reduced PING accuracy much more sharply than COBA accuracy. We
+  reanalysed retained MNIST evaluations from three independently trained seeds
+  per model on #eval_n test images. At 80% deletion probability, PING scored
+  #acc("ping", "drop", 0.8)% and COBA #acc("coba", "drop", 0.8)%; deleting all
+  spikes reduced both to #acc("ping", "drop", 1.0)%. At the largest nominal
+  added rate (#add_max Hz per neuron), PING scored #acc("ping", "add", add_max)%
+  and COBA #acc("coba", "add", add_max)%. This asymmetry constrains robustness
+  of these trained networks, but does not separate recurrent timing from
+  firing-rate or readout effects.
 
   == Results
 
+  === 1. Deletion and insertion have different effects
+
   #figure(
-    data-image(data-file("exp037/perturbation_curves.svg"),
-      width: 100%,
-      alt: "Two panels of across-seed mean test accuracy with shaded standard deviation versus perturbation level for COBA (red) and PING (black).",
-    ),
+    report-image("exp037/perturbation_curves.svg",
+      "Mean test accuracy with sample standard deviation: both models tolerate substantial deletion; PING declines more steeply under added spikes.", ratio: 0.55),
     caption: [
-      *Left (drop):* Bernoulli mask, percent of emitted spikes dropped. *Right (add):*
-      Poisson injection as a percent of each model's own baseline E rate, so the two
-      architectures are insult-matched. The asymmetry is direct: PING (black) holds
-      accuracy to ≈ #ping_drop80% at 80% drop but collapses once added noise passes
-      ≈ #ping_add_knee_pct% of its baseline, while COBA (red) stays at #coba_add_max%
-      across its whole sweep, which reaches only ≈ #coba_add_max_pct% of its far higher
-      baseline. Lines are means across independently trained seeds 42–44; shaded
-      bands show sample SD. The dashed line marks chance.
+      Means ± sample SD across seeds 42–44, #eval_n test images per seed.
+      Unperturbed PING/COBA accuracies were #acc("ping", "drop", 0)%/
+      #acc("coba", "drop", 0)%. The dashed line is nominal 10% chance.
+      The added-rate axis divides by final-epoch reference-image E rates
+      (#rounded(reference-rate("ping"))/#rounded(reference-rate("coba")) Hz),
+      not test-set baseline rates. The same 0–#add_max Hz sweep therefore covers
+      different normalized ranges; it does not match relative perturbation doses.
+      #if knee != none [PING's first sampled mean below 80% occurred at #knee Hz;
+        this is a grid crossing, not an estimated critical threshold.]
     ],
   )
 
+  === 2. PING rasters retain bands under partial deletion
+
   #figure(
-    data-image(data-file("exp037/perturb_rasters__drop__ping.png"),
-      width: 100%,
-      alt: "Three stacked single-trial rasters of trained PING at drop levels 0, 50, and 100 percent; E spikes in black above I spikes in red. The gamma banding is preserved at 0 and 50 percent and silent at 100 percent.",
-    ),
+    report-image("exp037/perturb_rasters__drop__ping.png",
+      "Three PING rasters at deletion probabilities 0, 0.5 and 1: visible bands remain at partial deletion; full deletion leaves no recorded spikes."),
     caption: [
-      Illustrative seed-42 PING replayed on the same MNIST digit 0 trial across three drop levels
-      (0, 50, 100%); E (black) above I (red). The gamma cadence persists as spikes are
-      thinned and only vanishes at total drop: dropping spikes thins the train without
-      injecting phase-incoherent activity.
+      Retained seed-42 trials of #trial-description at deletion probabilities
+      0, 0.5 and 1. E spikes (black) are below I spikes (red). The display samples
+      200 E and 64 I cells; annotated E rates use the full population.
+      Banding is visible at partial deletion, but these illustrative rasters
+      provide no quantitative phase-coherence or gamma-frequency estimate.
+    ],
+  )
+  #figure(
+    report-image("exp037/perturb_rasters__add__ping.png",
+      "Three PING rasters at nominal added rates 0, 20 and 40 Hz: dense inserted spikes increasingly obscure the unperturbed banding."),
+    caption: [
+      The same seed and test image at nominal added rates 0, 20 and #add_max Hz
+      per neuron, applied independently to E and I. The displayed stream
+      includes inserted spikes, which increasingly obscure its bands; this
+      alone does not establish that an underlying oscillator disappeared.
+      Display sampling and E-rate annotation follow the preceding figure.
     ],
   )
 
+  === 3. COBA activity thins or increases with the intervention
+
   #figure(
-    data-image(data-file("exp037/perturb_rasters__add__ping.png"),
-      width: 100%,
-      alt: "Three stacked single-trial rasters of trained PING at added Poisson rates of 0, 20, and 40 Hz; E spikes in black above I spikes in red. The gamma banding dissolves into asynchronous firing as the added rate rises.",
-    ),
+    report-image("exp037/perturb_rasters__drop__coba.png",
+      "Three COBA rasters at deletion probabilities 0, 0.5 and 1: E activity thins and becomes silent at full deletion."),
     caption: [
-      Illustrative seed-42 PING replayed across three added-noise levels (0, 20, 40 Hz per neuron).
-      The gamma banding dissolves into asynchronous firing as the added rate rises,
-      matching the accuracy cliff in the previous figure.
+      Retained seed-42 COBA trials of #trial-description, with the same
+      display sampling. E activity thins as deletion increases and vanishes at
+      full deletion. This qualitative pattern does not imply accuracy is
+      unchanged across the deletion sweep.
+    ],
+  )
+  #figure(
+    report-image("exp037/perturb_rasters__add__coba.png",
+      "Three COBA rasters at nominal added rates 0, 20 and 40 Hz: E activity grows and imposed I spikes appear despite disabled recurrent coupling."),
+    caption: [
+      The same COBA trial at nominal added rates 0, 20 and #add_max Hz per neuron.
+      Inserted E spikes increase recorded activity; imposed I spikes are also
+      visible even though COBA's E→I→E coupling is disabled. The unperturbed
+      population is denser than PING's, so equal nominal rates are not equal
+      fractional perturbations.
     ],
   )
 
-  #figure(
-    data-image(data-file("exp037/perturb_rasters__drop__coba.png"),
-      width: 100%,
-      alt: "Three stacked single-trial rasters of trained COBA at drop levels 0, 50, and 100 percent; dense asynchronous E firing that thins uniformly with drop and is silent at 100 percent.",
-    ),
-    caption: [
-      Illustrative seed-42 COBA replayed across the same drop sweep. With no cycle to preserve,
-      dropping spikes just thins a uniform asynchronous mean.
-    ],
-  )
+  #block(sticky: true)[
+    == Methods
 
-  #figure(
-    data-image(data-file("exp037/perturb_rasters__add__coba.png"),
-      width: 100%,
-      alt: "Three stacked single-trial rasters of trained COBA at added Poisson rates of 0, 20, and 40 Hz; dense asynchronous firing whose mean rate rises but whose structure is unchanged.",
-    ),
-    caption: [
-      Illustrative seed-42 COBA replayed across the same add sweep. Added spikes blend into COBA's
-      asynchronous mean: no temporal structure to corrupt, just a higher mean rate.
-    ],
-  )
-]
-#body
+    We reused trained networks and retained inference trials to compare deletion
+    and insertion of hidden spikes, without retraining.
+  ]
+  #set math.equation(numbering: "(1)")
+
+  + *Select trained classifiers.* MNIST handwritten digits #cite(1) supplied
+    a 7,000-image training pool, split into 6,300 optimization and 700 validation
+    images. Networks had 1,024 excitatory and 256 inhibitory hidden neurons,
+    with the E→I→E loop enabled for PING and disabled for COBA; input and readout
+    weights were learned, while recurrent weights stayed fixed. We used the
+    unregularized conditions from seeds 42–44 after #cfg.epochs training epochs,
+    selecting the minimum-validation-loss epoch, not the maximum-accuracy epoch.
+    During training, voltage-increment gradients were divided by 1,000 for PING
+    and 1 for COBA; these are different trained recipes, not an isolated loop control.
+    The wider retained activity-penalty comparison is described in
+    #link("/exp025/")[the training activity-frontier study].
+
+  + *Perturb emitted spikes.* Each trial lasted #cfg.t_ms ms at timestep
+    #cfg.dt ms, with no warm-up or excluded interval. After membrane integration
+    and spike emission, the intervention independently modified every E and I
+    spike slot before rate recording, readout input and subsequent recurrent
+    feedback (see Appendix).
+    $ tilde(s)_j = s_j bb(1)[u_j >= p_"drop"] $ <eq-drop>
+    $ tilde(s)_j = min(s_j + bb(1) lr([u_j < frac(r_"add" dot Delta t, 1000)]), 1) $ <eq-add>
+    Here $s_j$ and $tilde(s)_j$ are the raw and modified binary spikes for a
+    neuron–image–timestep slot $j$; $u_j$ is an independent uniform draw on
+    $[0,1)$ and $bb(1)$ is an indicator. Deletion probability $p_"drop"$ ran
+    from 0 to 1 in steps of 0.1; nominal insertion rate $r_"add"$ ran from
+    0 to #add_max Hz in steps of 2, with $Delta t$ in ms.
+    Insertion is a Bernoulli approximation to Poisson arrivals, capped at one
+    spike per slot; collisions with existing spikes add nothing.
+
+  + *Evaluate the selected networks.* Pixel intensity controlled Poisson input
+    encoding, with a maximum rate of 25 Hz. An independent perturbation generator
+    preserved the input-encoding stream across conditions. Each of 192
+    model–seed–condition evaluations used #eval_n of the 10,000 official-test images;
+    prediction selected the largest time-averaged output membrane potential.
+    Accuracy and full-population E rates were aggregated over images and then
+    over three seeds; curve envelopes show sample SD, not confidence intervals.
+    Illustrative trials used seed 42 and test-image index 0, independently of
+    digit-class selection.
+
+  + *Normalize the nominal added rate.* We retained the original normalization:
+    $ x_"add" = frac(100 r_"add", overline(r)_(E,"ref")) $ <eq-normalize>
+    Here $x_"add"$ is the displayed percentage and $overline(r)_(E,"ref")$ is the
+    model's three-seed mean E rate in Hz from final-epoch reference-image
+    diagnostics. This differs in image and sometimes epoch from the selected
+    classifiers' test evaluations; it is not a test-set firing-rate baseline.
+    The full sampled range is displayed, without treating normalization as a
+    matched-dose experiment.
+
+  == Appendix. Within-step dynamics
+
+  Conductances first decay and receive the previous timestep's modified spikes.
+  For example, excitatory drive to E follows
+  $ g_E^((t)) = d_A g_E^((t-1)) + tilde(bold(s))_E^((t-1)) W_(E E) + bold(s)_"in"^((t)) W_"in". $ <eq-conductance>
+  Here $t$ indexes simulation steps, $g_E$ is the excitatory conductance vector,
+  $d_A$ is its AMPA decay factor, $bold(s)_"in"$ is the input-spike vector,
+  and $W_"in"$ and $W_(E E)$ are input and E→E conductance weights.
+  The analogous E→I and I→E terms use $W_(E I)$ and $W_(I E)$, with inhibitory
+  GABA decay for I→E. E→E weights were zero in these networks.
+
+  Membrane integration and threshold/reset operations then emit raw E/I spikes.
+  Deletion or insertion replaces those emitted spikes, which enter the recorded
+  stream and the current readout update, and affect recurrent conductances at
+  the next timestep. It does not undo a membrane reset or cause an inserted
+  spike to trigger one. Thus deletion preserves connectivity but changes
+  feedback activity; it does not leave loop dynamics intact. These interventions
+  jointly affect feedback, spike counts and readout drive, so the observed
+  asymmetry cannot by itself distinguish a dynamical activity floor from an
+  informational requirement of the classifier.
+
+  #reference-list((
+    (text: [Y. LeCun, L. Bottou, Y. Bengio, and P. Haffner.
+      “Gradient-based learning applied to document recognition.”
+      _Proceedings of the IEEE_ 86(11), 2278–2324 (1998).],
+      doi: "10.1109/5.726791"),
+  ))
 ]
 
 #let body = if inputs-ready(data-file, inputs) {
   render-report(data-file)
 } else {
-  pending-report(
-    data-file, inputs,
-    [How do trained COBA and PING networks respond to spike deletion and added spikes? Compare matched inference perturbations using retained baseline checkpoints.],
-    preview-figures, json-inputs: ("exp037",),
-  )
+  pending-report(data-file, inputs,
+    [How do trained COBA and PING networks respond to deletion and insertion of hidden spikes? Compare retained inference trials from validation-selected classifiers.],
+    preview-figures, json-inputs: ("exp037",))
 }
