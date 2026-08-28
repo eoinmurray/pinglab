@@ -1,11 +1,12 @@
-# Scientific and writing review — author decision pending
+# Scientific and writing review — corrections applied, author review pending
 
 Reviewed against the historical evidence retained by `exp033-r001-compute`,
 independent analysis `exp033-r002-analyse`, presentation `exp033-r003-present`,
-and the current numerical implementation on 2026-08-28. This is an audit, not an
-approved scientific rewrite. The article remains unchanged and is not Reviewed.
+and the current numerical implementation on 2026-08-28. The list below records
+the initial audit. The author subsequently authorized the writing/science
+corrections; their implementation is recorded at the end. The article is not Reviewed.
 
-## Substantive corrections requiring author approval
+## Initial substantive findings (now corrected in the article)
 
 1. **The equilibrium is not silent.** At the reference crossing the retained E
    and I rates are 4.1041319230864385 Hz and 0.705727461978268 Hz. Describe loss of
@@ -95,3 +96,61 @@ contact-sheet scale; figures and equations render, but the above scientific,
 label and axis defects mean this is **not a completed writing review**. Full-size
 post-correction visual checks, responsive checks and regression tests for the
 writing/display corrections remain pending approval.
+
+## Authorized correction outcome
+
+All five substantive findings above are addressed without changing scientific
+measurements or numerical recipes. The long two-dimensional reduction argument
+is retained but scoped to the tested QSS ring family; the curved centre manifold
+and its restricted two-dimensional vector field are distinguished from coordinate
+elimination. Conductance variables and current-valued coordinates now use
+different symbols, and frequency conversion explicitly includes 1000 ms/s.
+
+Connections to the recruitment, inhibitory-decay and coupling-map studies are
+linked by scientific names and distinguished as motivation, measured comparison
+and reuse, respectively. The independent-cell finite-size scaling is
+qualified rather than asserted for a synchronous network. Fixed driving forces,
+free noise scale, unavailable raw waveforms, heuristic criticality and unresolved
+quadrature warnings remain explicit. Literature supports the theoretical
+qualifications, not the experiment's numerical outcomes.
+
+The article preserves its creation date and all numbered derivations, moves
+procedural detail to appendices, and uses five scientific Methods steps with
+numbered Results captions. There was no Discussion section. The final explicitly
+selected presentation is exp033-r005-present, with the same analysis as before;
+all retained numerical results and decision flags are exactly unchanged.
+
+The HTML and 16-page PDF were checked with nine loaded figures, resolved
+references and equations, plus 390px reading views. The gain equation was split
+without changing its mathematics. Visual inspection also found and fixed a
+Matplotlib annotation overlap and a Typst gain-argument subscript error;
+regression tests cover both. The combined suite passed 197 tests; final targeted
+render/layout tests passed again. See README for exact provenance and audit paths.
+No author-reviewed status, publication, materialization or new simulation is claimed.
+
+## Author-requested restoration and visible corrections
+
+The author requested restoration of omitted scientific material and bracketed
+`[(!) ...]` markers for substantial changes. Appendix A again restores the
+1,024/256 population sizes, the strength mapping `s` and `r*s`, the numerical
+angular frequency, and the fuller eigenvalue/double-Hopf explanation. Appendix B
+restores the dimensionality question and the van der Pol/FitzHugh–Nagumo comparison.
+Appendix C restores the amplitude definition, square-root law and derivative,
+unstable-cycle basin-boundary explanation, and the original mechanistic proposals.
+Unsupported assertions are preserved as earlier interpretations alongside
+explicitly marked qualifications, not reinstated as verified results.
+
+One additional check used the retained 401-point eigenvalue sweep: at most two
+eigenvalues are unstable, and the trace stays negative. The earlier claim of a
+second pair crossing at higher drive is unsupported within 0–4 nA. The displayed
+Jacobian's strictly negative trace also excludes two simultaneously imaginary
+pairs for this four-filter model. This algebraic correction is bracketed.
+
+The restored article passes 43 dedicated tests, including rendered correction
+markers and the restored theory reference link. Nine HTML figures and all 18 PDF
+pages were checked; restored amplitude formulas also fit the 390px reading view.
+Read-only discovery confirms local presentation data; the concurrent status
+migration's `[DATA]` badge is preserved under Writing Guide 11.0.0. Dates and all
+40 original numbered equations remain. No numerical payload, run, publication
+binding or completed run was changed. The author authorized committing and
+pushing this restoration; the separate shared status migration is excluded.

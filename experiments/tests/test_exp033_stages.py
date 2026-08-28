@@ -11,6 +11,7 @@ import numpy as np
 import pytest
 from experiments.exp033 import (
     analyse,
+    appearance,
     collection,
     compute,
     evidence,
@@ -224,7 +225,12 @@ def test_independent_stages_and_lossless_arrays(lab, monkeypatch):
     presented = inputs.source(root, present.present(analysis_id), "present")
     assert set(presented.record["inputs"]) == {"analysis"}
     assert all((presented.presentation / name).is_file() for name in recipe.FIGURES)
-    assert load_json(presented.presentation / "numbers.json") == expected
+    displayed = load_json(presented.presentation / "numbers.json")
+    assert displayed == appearance.article_numbers(expected)
+    assert displayed["results"] == expected["results"]
+    assert [c["passed"] for c in displayed["success_criteria"]] == [
+        c["passed"] for c in expected["success_criteria"]
+    ]
     assert all(p.is_file() for p in presented.presentation.iterdir())
     assert calls == ["compute"]
     assert not (root / ".artifacts").exists()
@@ -590,7 +596,16 @@ def historical_archive(lab, monkeypatch):
     for name in import_gold2.selected_paths():
         path = archive / name
         path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text("fixture evidence")
+        if name.endswith(".svg"):
+            path.write_text(
+                '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 320" '
+                'width="600pt" height="320pt"><g id="axes_1">'
+                '<path id="data" d="M 0 1 L 2 3"/>'
+                '<g id="legend_1"><text x="350" y="25">4D</text></g></g>'
+                '<g id="text_23"><!-- exp033-numerics --><text>stamp</text></g></svg>'
+            )
+        else:
+            path.write_text("fixture evidence")
     old, _ = measurements.analyse(synthetic(), frequencies())
     old["results"]["criticality"] = historical.amplitude_summary(
         old["results"]["criticality"], old["results"]["hopf"]["I_ext_star"]
@@ -734,9 +749,15 @@ def test_historical_import_and_independent_derived_stages(
         monkeypatch.setattr(plots, name, fail)
     output = inputs.source(root, present.present(analysis_id), "present")
     for name in historical.CARRY:
-        assert file_sha256(output.export / name) == file_sha256(
+        edit = output.record["figure_edits"][name]
+        assert edit["source_sha256"] == file_sha256(
             source.export / "retained-figures" / name
         )
+        assert edit["output_sha256"] == file_sha256(output.export / name)
+        assert edit["source_sha256"] != edit["output_sha256"]
+        assert 'd="M 0 1 L 2 3"' in (output.export / name).read_text()
+        assert "exp033-numerics" not in (output.export / name).read_text()
+    source.check_unchanged()
     assert not calls
     assert not (root / ".artifacts").exists()
 
@@ -785,3 +806,139 @@ def test_historical_regression_tolerance_preserves_evidence():
     recorded["A2_slope"] *= 1.01
     with pytest.raises(PingstoreError, match="regression"):
         historical.verify_amplitudes(recorded, r["hopf"]["I_ext_star"])
+
+
+def test_frequency_axis_does_not_magnify_roundoff(tmp_path, monkeypatch):
+    data = synthetic()
+    numbers, _ = measurements.analyse(data, frequencies())
+    rows = numbers["results"]["sigma_sensitivity"]["rows"]
+    for i, row in enumerate(rows):
+        row["hopf"]["freq_star_Hz"] = 27.566 + i * 1e-9
+        row["limit_cycle"]["e_peak_to_peak"] = (8.3 - 1.5 * i) / 1000
+    figures = []
+    original = plots.plt.subplots
+
+    def capture(*a, **k):
+        fig, axes = original(*a, **k)
+        figures.append(fig)
+        return fig, axes
+
+    monkeypatch.setattr(plots.plt, "subplots", capture)
+    plots.plot_sigma_sensitivity(
+        numbers["results"]["sigma_sensitivity"],
+        tmp_path / "sigma.svg",
+        "exp033-fixture",
+    )
+    axis = figures[0].axes[1]
+    assert axis.get_ylim() == (0, 40)
+    assert not axis.yaxis.get_major_formatter().get_useOffset()
+    np.testing.assert_array_equal(
+        axis.lines[0].get_ydata(), [r["hopf"]["freq_star_Hz"] for r in rows]
+    )
+    assert "exp033-fixture" not in (tmp_path / "sigma.svg").read_text()
+    amplitude = figures[0].axes[3]
+    line = amplitude.lines[0]
+    path = line.get_transform().transform_path(line.get_path())
+    text_box = amplitude.texts[0].get_window_extent(figures[0].canvas.get_renderer())
+    assert not path.intersects_bbox(text_box, filled=False)
+
+
+def test_historical_svg_changes_only_stamp_and_legend(tmp_path):
+    import xml.etree.ElementTree as ET
+
+    source, destination = tmp_path / "source.svg", tmp_path / "output.svg"
+    source.write_text(
+        '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 573.113688 325.44" height="325.44pt"><g id="axes_1"><path id="trace" d="M 1 2 L 3 4"/><g id="legend_1"><text x="300" y="20">4D</text></g></g><g id="stamp"><!-- exp033-numerics --><text>old</text></g></svg>'
+    )
+    before = source.read_bytes()
+    appearance.historical_svg(source, destination, move_legend=True)
+    root = ET.parse(destination).getroot()
+    assert root.get("viewBox") == "0 -60 573.113688 385.44"
+    assert root.get("height") == "385.44pt"
+    assert root.find('.//*[@id="trace"]').attrib == {"id": "trace", "d": "M 1 2 L 3 4"}
+    assert root.find('.//*[@id="legend_1"]').get("transform") == "translate(0 -60)"
+    assert root.find('.//*[@id="stamp"]') is None
+    assert source.read_bytes() == before
+    with pytest.raises(PingstoreError, match="exactly one"):
+        appearance.historical_svg(destination, tmp_path / "twice.svg")
+
+
+def test_article_selected_inputs_equations_and_absent_data(lab):
+    import re
+    import shutil
+    import xml.etree.ElementTree as ET
+
+    from demolab_cli import _paths
+
+    root, frequency, _, _ = lab
+    aid = analyse.analyse(compute.compute(), frequency)
+    output = inputs.source(root, present.present(aid), "present")
+    repo = Path(__file__).resolve().parents[2]
+    (root / "writings").mkdir()
+    for name in ("exp033.typ", "run-inputs.typ"):
+        shutil.copyfile(repo / "writings" / name, root / "writings" / name)
+    (root / ".demolab").mkdir()
+    shutil.copyfile(_paths.TYP / "lib.typ", root / ".demolab/lib.typ")
+    write_json_atomic(
+        root / "preview.json",
+        {"exp033": {"exp033": "/" + str(output.export.relative_to(root))}},
+    )
+    doc = root / "doc.typ"
+    doc.write_text(
+        '#set page(paper: "a4", margin: 18mm)\n#set text(size: 10pt)\n#import "writings/exp033.typ": body\n#body'
+    )
+    base = [_paths.find_typst(repo), "compile", "--root", str(root)]
+    selected = ["--input", "demolab-preview-file=/preview.json"]
+    for fmt, extra in [
+        ("pdf", []),
+        ("html", ["--features", "html", "--format", "html"]),
+    ]:
+        result = subprocess.run(
+            [*base, *selected, *extra, str(doc), str(root / ("article." + fmt))],
+            capture_output=True,
+            text=True,
+            timeout=60,
+        )
+        assert result.returncode == 0, result.stderr
+        assert "does not exist" not in result.stderr
+    html = (root / "article.html").read_text()
+    assert len(re.findall(r"<img\b", html)) == 9
+    assert len(re.findall(r"<figcaption\b", html)) == 9
+    assert len(re.findall(r"<math\b", html)) > 100
+    gains = []
+    for expression in re.findall(r"<math\b.*?</math>", html, re.S):
+        for node in ET.fromstring(expression).iter("msub"):
+            if "".join(node[0].itertext()) == "Φ":
+                gains.append(node)
+    assert gains
+    # A missing space after Phi_E puts the entire gain argument in its subscript.
+    assert all(g[1].tag == "mi" and g[1].text in ("𝐸", "𝐼") for g in gains)
+    assert html.index("Results") < html.index("Methods") < html.index("Appendix A")
+    assert "Figure 8" not in (root / "writings/exp033.typ").read_text()
+    assert "exp033-fixture" not in html
+    assert "[(!) This supplies a candidate mechanism" in html
+    assert 'href="https://www.ma.ic.ac.uk/~dturaev/kuznetsov.pdf"' in html
+    result = subprocess.run(
+        [
+            *base,
+            "--features",
+            "html",
+            "--format",
+            "html",
+            str(doc),
+            str(root / "pending.html"),
+        ],
+        capture_output=True,
+        text=True,
+        timeout=60,
+    )
+    assert result.returncode == 0, result.stderr
+    assert "Oscillatory onset" not in (root / "pending.html").read_text()
+    (output.export / "numbers.json").write_text("broken")
+    result = subprocess.run(
+        [*base, *selected, str(doc), str(root / "broken.pdf")],
+        capture_output=True,
+        text=True,
+        timeout=60,
+    )
+    assert result.returncode != 0

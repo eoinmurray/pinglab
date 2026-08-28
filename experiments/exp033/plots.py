@@ -3,7 +3,6 @@
 import matplotlib.pyplot as plt
 import numpy as np
 from experiments.helpers import theme
-from experiments.helpers.stamp import stamp_figure
 
 from .recipe import SIGMA_V_MV
 
@@ -29,7 +28,7 @@ def plot_hysteresis(sweep, hopf, out_path, run_id):
     )
     ax.axvline(i_star, color=theme.AMBER, lw=0.6, ls=":")
     ax.annotate(
-        "no hysteresis:\nbranches coincide",
+        "no resolved hysteresis",
         xy=(i_star, 0.0),
         xytext=(i_star - 0.085, max(yu) * 0.55),
         fontsize=theme.SIZE_ANNOTATION,
@@ -38,10 +37,9 @@ def plot_hysteresis(sweep, hopf, out_path, run_id):
         va="center",
     )
     ax.set_xlabel("$I_\\text{ext}$ (nA)", fontsize=theme.SIZE_LABEL)
-    ax.set_ylabel("E amplitude (peak-to-peak)", fontsize=theme.SIZE_LABEL)
+    ax.set_ylabel("E amplitude (pk-pk, ms$^{-1}$)", fontsize=theme.SIZE_LABEL)
     ax.legend(fontsize=theme.SIZE_LEGEND, frameon=False, loc="upper left")
     fig.tight_layout()
-    stamp_figure(fig, run_id)
     fig.savefig(out_path, dpi=150)
     plt.close(fig)
 
@@ -84,10 +82,9 @@ def plot_eigenvalues_complex(results, hopf, out_path, run_id):
         )
     cbar = fig.colorbar(sc, ax=ax)
     cbar.set_label("$I_\\text{ext}$ (nA)", fontsize=theme.SIZE_LABEL)
-    ax.set_xlabel("Re$(\\lambda)$", fontsize=theme.SIZE_LABEL)
-    ax.set_ylabel("Im$(\\lambda)$", fontsize=theme.SIZE_LABEL)
+    ax.set_xlabel("Re$(\\lambda)$ (ms$^{-1}$)", fontsize=theme.SIZE_LABEL)
+    ax.set_ylabel("Im$(\\lambda)$ (rad/ms)", fontsize=theme.SIZE_LABEL)
     fig.tight_layout()
-    stamp_figure(fig, run_id)
     fig.savefig(out_path, dpi=150)
     plt.close(fig)
 
@@ -98,7 +95,7 @@ def plot_limit_cycle(metrics, out_path, run_id):
     I_ext, tt, E, I = (metrics[k] for k in ("I_ext", "t_ms", "E", "I"))
     print(
         f"  limit cycle at I={I_ext:.2f} nA: "
-        f"I lags E by {metrics['e_leads_i_ms']:.2f} ms"
+        f"absolute cross-correlation lag {metrics['e_leads_i_ms']:.2f} ms"
     )
     fig, ax = plt.subplots(figsize=(8.0, 4.5), dpi=150)
     ax.plot(tt - tt[0], E, color=theme.INK_BLACK, lw=1.3, label="$E$")
@@ -108,7 +105,6 @@ def plot_limit_cycle(metrics, out_path, run_id):
     ax2.plot(tt - tt[0], I, color=theme.DEEP_RED, lw=1.3, label="$I$")
     ax2.set_ylabel("$I$ rate", fontsize=theme.SIZE_LABEL, color=theme.DEEP_RED)
     fig.tight_layout()
-    stamp_figure(fig, run_id)
     fig.savefig(out_path, dpi=150)
     plt.close(fig)
     return {k: metrics[k] for k in ("I_ext", "e_leads_i_ms", "e_peak_to_peak")}
@@ -135,20 +131,18 @@ def plot_frequency_vs_tau_gaba(mf, meas, out_path, run_id):
             "s--",
             color=theme.DEEP_RED,
             lw=1.3,
-            label="spiking $f_\\gamma$ (exp041)",
+            label="spiking $f_\\gamma$",
         )
     ax.set_xlabel("$\\tau_\\text{GABA}$ (ms)", fontsize=theme.SIZE_LABEL)
     ax.set_ylabel("gamma frequency (Hz)", fontsize=theme.SIZE_LABEL)
     ax.legend(fontsize=theme.SIZE_LEGEND, frameon=False, loc="upper right")
     fig.tight_layout()
-    stamp_figure(fig, run_id)
     fig.savefig(out_path, dpi=150)
     plt.close(fig)
 
 
 def plot_phase_planes(coordinates, out_path, run_id):
-    """Project the 4D limit cycle onto every variable pair: the trajectory is a closed loop living on a 2D ribbon —
-    the centre manifold — even though no two physical variables collapse."""
+    """Project the trajectory; projections alone do not establish a centre manifold."""
     theme.apply()
     Y = coordinates["Y"]
     labels = ["$E$", "$I$", "$g_e^I$", "$g_i^E$"]
@@ -161,7 +155,6 @@ def plot_phase_planes(coordinates, out_path, run_id):
         ax.spines["top"].set_visible(False)
         ax.spines["right"].set_visible(False)
     fig.tight_layout()
-    stamp_figure(fig, run_id)
     fig.savefig(out_path, dpi=150)
     plt.close(fig)
 
@@ -188,7 +181,6 @@ def plot_timeseries(coordinates, out_path, run_id):
         ax.spines["right"].set_visible(False)
     axes[-1].set_xlabel("time (ms)", fontsize=theme.SIZE_LABEL)
     fig.tight_layout()
-    stamp_figure(fig, run_id)
     fig.savefig(out_path, dpi=150)
     plt.close(fig)
 
@@ -233,7 +225,6 @@ def plot_reduction_ladder(hopf4, hopf3, coordinates, out_path, run_id):
     ax.spines["right"].set_visible(False)
     ax.legend(fontsize=theme.SIZE_LEGEND, frameon=False, loc="upper right")
     fig.tight_layout()
-    stamp_figure(fig, run_id)
     fig.savefig(out_path, dpi=150)
     plt.close(fig)
 
@@ -284,8 +275,8 @@ def fig_bifurcation_compound(results, hopf, sweep, mf, meas, out_path, run_id):
     cbar = fig.colorbar(sc, ax=axA, fraction=0.046, pad=0.02)
     cbar.set_label("$I_\\text{ext}$ (nA)", fontsize=theme.SIZE_TICK - 1)
     cbar.ax.tick_params(labelsize=theme.SIZE_TICK - 1)
-    axA.set_xlabel("Re$(\\lambda)$", fontsize=theme.SIZE_LABEL)
-    axA.set_ylabel("Im$(\\lambda)$", fontsize=theme.SIZE_LABEL)
+    axA.set_xlabel("Re$(\\lambda)$ (ms$^{-1}$)", fontsize=theme.SIZE_LABEL)
+    axA.set_ylabel("Im$(\\lambda)$ (rad/ms)", fontsize=theme.SIZE_LABEL)
     axA.set_title(
         f"A  Hopf crossing at $I^\\star$ = {hopf['I_ext_star']:.2f} nA",
         loc="left",
@@ -313,9 +304,9 @@ def fig_bifurcation_compound(results, hopf, sweep, mf, meas, out_path, run_id):
     )
     axB.axvline(hopf["I_ext_star"], color=theme.AMBER, lw=0.6, ls=":")
     axB.set_xlabel("$I_\\text{ext}$ (nA)", fontsize=theme.SIZE_LABEL)
-    axB.set_ylabel("E amplitude (pk-pk)", fontsize=theme.SIZE_LABEL)
+    axB.set_ylabel("E amplitude (pk-pk, ms$^{-1}$)", fontsize=theme.SIZE_LABEL)
     axB.set_title(
-        "B  Supercritical, reversible onset",
+        "B  Reversible sampled onset",
         loc="left",
         fontsize=theme.SIZE_LABEL,
         fontweight="semibold",
@@ -336,7 +327,7 @@ def fig_bifurcation_compound(results, hopf, sweep, mf, meas, out_path, run_id):
             "s--",
             color=theme.DEEP_RED,
             lw=1.3,
-            label="spiking $f_\\gamma$ (exp041)",
+            label="spiking $f_\\gamma$",
         )
     axC.set_xlabel("$\\tau_\\text{GABA}$ (ms)", fontsize=theme.SIZE_LABEL)
     axC.set_ylabel("gamma frequency (Hz)", fontsize=theme.SIZE_LABEL)
@@ -349,7 +340,6 @@ def fig_bifurcation_compound(results, hopf, sweep, mf, meas, out_path, run_id):
     axC.legend(fontsize=theme.SIZE_LEGEND, frameon=False, loc="upper right")
     _despine(axC)
 
-    stamp_figure(fig, run_id)
     fig.savefig(out_path, dpi=150)
     plt.close(fig)
 
@@ -369,6 +359,11 @@ def plot_sigma_sensitivity(sensitivity, out_path, run_id):
         sigma, [r["hopf"]["freq_star_Hz"] for r in rows], "o-", color=theme.INK_BLACK
     )
     ax_frequency.set_ylabel("$f^\\star$ (Hz)")
+    values = [r["hopf"]["freq_star_Hz"] for r in rows]
+    # Show absolute frequency; numerical noise must not fill the vertical axis.
+    if values:
+        ax_frequency.set_ylim(0, max(40.0, 1.1 * max(values)))
+    ax_frequency.ticklabel_format(axis="y", style="plain", useOffset=False)
     ax_fixed.plot(
         sigma,
         [1000 * r["fixed_point_at_hopf"]["E_per_ms"] for r in rows],
@@ -393,16 +388,16 @@ def plot_sigma_sensitivity(sensitivity, out_path, run_id):
     )
     ax_amplitude.set_ylabel("E amplitude (Hz, pk-pk)")
     verdict = (
-        "supercritical retained"
+        "onset test retained"
         if sensitivity["supercritical_retained"]
         else "verdict changes"
     )
     ax_amplitude.text(
-        0.02,
+        0.98,
         0.95,
         verdict,
         transform=ax_amplitude.transAxes,
-        ha="left",
+        ha="right",
         va="top",
         fontsize=theme.SIZE_ANNOTATION,
     )
@@ -411,6 +406,5 @@ def plot_sigma_sensitivity(sensitivity, out_path, run_id):
         ax.axvline(SIGMA_V_MV, color=theme.GREY_MID, lw=0.7, ls=":")
         _despine(ax)
     fig.tight_layout()
-    stamp_figure(fig, run_id)
     fig.savefig(out_path, dpi=150)
     plt.close(fig)

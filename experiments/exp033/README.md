@@ -5,9 +5,11 @@
 Execution follows Runner Guide 3.0.0 and Storage Guide 3.0.0. Contract migration
 and the approved selective historical import are complete. Independent analysis
 and presentation were executed without production simulation or training.
-The article remains unchanged pending the substantive corrections listed in
-[SCIENCE_REVIEW.md](SCIENCE_REVIEW.md); it is not Reviewed. Nothing was published,
-materialized, staged, committed or pushed.
+The initial migration was committed and pushed as `c8f65b1c`. The subsequent
+authorized science/writing corrections are recorded in
+[SCIENCE_REVIEW.md](SCIENCE_REVIEW.md), including the author-requested restoration
+of omitted explanations and visible `[(!) ...]` scientific corrections.
+The article is not Reviewed. Nothing was published or materialized.
 
 ```sh
 uv run python -m experiments.exp033.compute
@@ -88,16 +90,15 @@ The authorized legacy-path test update is complete: exp033 is no longer tested
 as an implicit old-storage consumer. Its dedicated tests assert side-effect-free
 imports and explicit stage input validation.
 
-**Shared Slurm dispatch remains blocked on ownership coordination.** Another task
-added exp047 to the exact dispatch line after it was read. This task detected the
-overlap and did not edit `slurm.py`. The author was notified. Until exp033 is added
-by that owner or the line is handed back, do not submit exp033 through the
-collection: the unreserved exp033 HPC worker fails before numerical work.
+**Shared Slurm dispatch still needs the narrow exp033 addition.** The exp047
+owner handed back that addition after committing its own dispatch support. This
+writing-only pass leaves `slurm.py` unchanged. Until exp033 is added, do not submit
+it through the collection: the unreserved HPC worker fails before numerical work.
 
-The shared plan, execution adapter and collection tests contain mixed exp033 and
-concurrent exp047 changes. Future staging requires coordinated hunk ownership;
-none of another task's changes are assumed to belong to this migration. No
-simulator or another experiment package was edited by this task.
+The initial mixed collection changes were separated by ownership before commit;
+exp033 and exp047 integration were committed independently. Future shared edits
+still require coordination. No simulator or another experiment package was
+edited by this task.
 
 ## Approved Gold-2 selective import
 
@@ -169,7 +170,7 @@ amplitude-squared regression reproduces within rtol=1e-12, atol=1e-15; its slope
 difference is 5.421010862427522e-20 and is recorded separately. The original
 exp041 overlay remains unchanged with the explicitly approved upstream deltas.
 
-## Verification
+## Initial migration verification
 
 The combined regression passed **194 tests**, with 12 existing exp041 Matplotlib
 layout warnings. Exp033 lint and type checks pass. Tests cover normal and
@@ -190,3 +191,61 @@ hashes and validate. At verification, all 54 completed runs (including concurren
 work) and their input pins validated. The selected archive files remain unchanged.
 No exp033 files were staged; unrelated edits, including concurrent `047/048`
 packages, shared collection changes, article metadata and `uv.lock`, were preserved.
+
+## Science and writing revision — 2026-08-28
+
+The author authorized the corrections after the initial commit. The article now
+uses numbered Results captions before a five-step Methods account (approximately
+350 words excluding displayed equations). The original derivation and reduction
+algebra remain in appendices, with explicit current-coordinate rescaling,
+corrected dimensions and semantic equation/figure references. Creation date
+2026-05-28 is preserved; updated_at is 2026-08-28. The status line is left to the
+separate article-status owner; this task does not mark the article Reviewed.
+
+Scientific connections are distinguished by role: exp025 motivates the mechanism
+but does not identify its empirical recruitment marker with a Hopf current;
+exp041 supplies three-seed median frequencies of separately trained networks;
+exp054 reuses the same mean-field calculation rather than supplying independent
+confirmation. No claim of a causal accuracy benefit, structural firing-rate
+floor, calibrated noise scale, universal minimum dimension, or proved
+supercriticality is made.
+
+Presentation revisions use `exp033-r002-analyse` without changing results,
+configuration, success Booleans or numerical detail strings. Only criterion labels
+are qualified. `exp033-r004-present` was the first review presentation;
+`exp033-r005-present` additionally moves a sensitivity-panel annotation clear of
+its data curve. Both are immutable new presentation operations, not simulations.
+The final run retains 1,236,778 bytes in total, including 1,021,327 export bytes;
+the intermediate run retains 1,351,967 bytes. Existing historical runs and the
+archive are unchanged; this pass does not reclaim disk space.
+
+Redrawn figures omit internal run stamps and experiment labels, state amplitude
+and eigenvalue units, and show sensitivity frequency on an absolute 0–40 Hz axis.
+The four historical SVGs have only the producer stamp removed; the reduction
+ladder additionally moves its legend 60 SVG units into added top margin. Every
+historical axes subtree and scientific path remains identical. The presentation
+manifest records each original and revised hash and the precise operations.
+Raw waveform samples remain unavailable: no waveforms were reconstructed.
+
+Validation: **197 tests passed** (12 existing exp041 layout warnings); targeted
+render/layout regressions passed again after the final article corrections.
+Lint and type checks pass. Tests cover the frequency-axis roundoff defect,
+annotation/data overlap, historical SVG edit boundaries and hashes, independent
+stage isolation, absent/corrupt article inputs, and the gain-subscript rendering
+failure. All nine images load in the styled HTML; equation and figure links
+resolve. Desktop and 390px reading views were inspected, including the main model
+and split Siegert formula. All 16 PDF pages were visually checked, with changed
+pages rechecked after corrections. The historical quadrature warnings remain an
+unresolved numerical limitation, not a result certified by rendering or tests.
+
+Explicit preview and verification records:
+`.r2/exp033-writing-iu8sdxuj/` (selected presentation, HTML/PDF, tests,
+`verification.json`, and source/output preservation checks). The final lineage is
+`exp033-r005-present` → `exp033-r002-analyse` → historical `exp033-r001-compute`,
+with the pinned exp041 analysis and its exp022 bank ancestry. No new analysis,
+production compute, import, publication or materialization ran in this pass.
+
+The subsequent restoration passes 43 dedicated tests. All nine figures and all
+40 original numbered equations remain; the expanded 18-page PDF and restored
+equations at 390px width were inspected. The shared status migration is separate
+from this experiment's commit and remains preserved in the working checkout.

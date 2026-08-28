@@ -1,14 +1,13 @@
 """Render saved measurements and coordinates; never solve or measure the model."""
 
 import argparse
-import shutil
 import sys
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[2]
 sys.path[:0] = [str(REPO), str(REPO / "tools")]
 
-from experiments.exp033 import evidence, historical, inputs, plots
+from experiments.exp033 import appearance, evidence, historical, inputs, plots
 from pingstore.contracts import (
     PingstoreError,
     file_sha256,
@@ -66,9 +65,16 @@ def present(identity, *, run_id=None):
                     path = source.export / item["path"]
                     if file_sha256(path) != item["sha256"]:
                         raise PingstoreError("historical figure checksum differs")
-                    shutil.copyfile(path, run.export / name)
-                    if file_sha256(run.export / name) != item["sha256"]:
-                        raise PingstoreError("historical figure copy differs")
+                    operations = appearance.historical_svg(
+                        path,
+                        run.export / name,
+                        move_legend=name == "reduction_ladder.svg",
+                    )
+                    run.record.setdefault("figure_edits", {})[name] = {
+                        "source_sha256": item["sha256"],
+                        "output_sha256": file_sha256(run.export / name),
+                        "operations": operations,
+                    }
                 run.record["retained_figure_sources"] = retained
             else:
                 plots.plot_limit_cycle(
@@ -104,7 +110,17 @@ def present(identity, *, run_id=None):
             run.export / "sigma_sensitivity.svg",
             run.run_id,
         )
-        write_json_atomic(run.export / "numbers.json", numbers)
+        write_json_atomic(
+            run.export / "numbers.json", appearance.article_numbers(numbers)
+        )
+        run.record["presentation_revision"] = {
+            "scientific_measurements_changed": False,
+            "changes": [
+                "qualify criticality and QSS criterion labels",
+                "absolute-Hz sensitivity axis; remove internal figure labels",
+                "historical SVG display edits with source and output hashes",
+            ],
+        }
     return run.run_id
 
 
