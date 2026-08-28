@@ -27,6 +27,7 @@ from experiments.collections.gamma_gated_sparsity.graph import (
 from experiments.collections.gamma_gated_sparsity.plan import REPO, build_plan
 from experiments.exp023 import collection as exp023_collection
 from experiments.exp024 import collection as exp024_collection
+from experiments.exp025 import collection as exp025_collection
 from experiments.exp041 import collection as exp041_collection
 from experiments.exp042 import collection as exp042_collection
 from experiments.exp044 import collection as exp044_collection
@@ -45,7 +46,6 @@ def test_downstream_cell_banks_resolve_through_exp022_registry() -> None:
     }
 
     for module, seeds in (
-        (exp025, exp025.SEEDS),
         (exp037, exp037.SEEDS_BASELINE),
         (exp038, exp038.SEEDS_BASELINE),
     ):
@@ -55,6 +55,12 @@ def test_downstream_cell_banks_resolve_through_exp022_registry() -> None:
             for target in module.RATE_TARGET_GRID_HZ
             for seed in seeds
         } == registered["TR-02"]
+    assert {
+        exp025.cell_name(m, t, s)
+        for m in exp025.MODELS
+        for t in exp025.RATE_TARGET_GRID_HZ
+        for s in exp025.SEEDS
+    } == registered["TR-02"]
     assert {
         exp024.cell_name(model, seed)
         for model in exp024.MODELS
@@ -85,7 +91,7 @@ def test_downstream_cell_banks_resolve_through_exp022_registry() -> None:
         "TR-06"
     ]
     assert {
-        exp025.low_w_in_cell_dir(w_in, seed).name
+        exp025.low_w_in_cell_name(w_in, seed)
         for w_in in exp025.LOW_W_IN_VALUES
         for seed in exp025.LOW_W_IN_SEEDS
     } <= registered["TR-07"]
@@ -161,7 +167,7 @@ def test_plan_paths_are_isolated_and_all_runners_are_integrated(tmp_path: Path) 
     assert payload["excluded"] == ["exp048"]
     assert payload["blocking_issues"] == []
     assert payload["acceptance_issues"] == []
-    assert all(row["command"] or row["execution"]["mode"] in {"exp023-staged", "exp024-staged", "exp041-staged", "exp042-staged", "exp044-staged", "exp081-staged"} for row in rows)
+    assert all(row["command"] or row["execution"]["mode"] in {"exp023-staged", "exp024-staged", "exp025-staged", "exp041-staged", "exp042-staged", "exp044-staged", "exp081-staged"} for row in rows)
     audit = next(row for row in rows if row["slug"] == "exp024")
     assert audit["execution"]["stages"] == ["analyse", "present"]
     assert not any(".artifacts" in path for path in audit["required_outputs"])
@@ -242,7 +248,7 @@ def test_local_resume_runs_in_dependency_order(tmp_path: Path, monkeypatch) -> N
 
     # Scientific work is mocked here; real stage-reference validation has its
     # own fixture-run coverage in test_exp024_stages.py and test_exp081.py.
-    for adapter in (exp023_collection, exp024_collection, exp041_collection, exp042_collection, exp044_collection, exp081_collection):
+    for adapter in (exp023_collection, exp024_collection, exp025_collection, exp041_collection, exp042_collection, exp044_collection, exp081_collection):
         monkeypatch.setattr(adapter, "completed", lambda repo, plan, row:
                             execution.load_json(Path(row["required_outputs"][0])))
 
@@ -400,13 +406,13 @@ def test_compose_campaign_replaces_selected_outputs_and_records_sources(
 
     composite_plan = execution.load_json(destination / execution.PLAN_NAME)
     rows = {row["slug"]: row for row in execution.rows_in_order(composite_plan)}
-    assert execution._outputs_valid_for_plan(composite_plan, rows["exp025"])
+    assert not execution._outputs_valid_for_plan(composite_plan, rows["exp025"])
     assert execution._outputs_valid_for_plan(composite_plan, rows["exp037"])
 
-    (destination / "derived/.artifacts/exp025/figure.svg").write_text(
+    (destination / "derived/.artifacts/exp037/figure.svg").write_text(
         "<svg><text>tampered</text></svg>\n"
     )
-    assert not execution._outputs_valid_for_plan(composite_plan, rows["exp025"])
+    assert not execution._outputs_valid_for_plan(composite_plan, rows["exp037"])
 
 
 def test_integrate_repair_preserves_base_and_records_repaired_source(
@@ -582,7 +588,7 @@ def test_publication_build_runs_promotion_from_separate_checkout(
     monkeypatch.setattr(execution.shutil, "which", lambda _name: "/usr/bin/uv")
     promotions = []
     from pingstore import materialize
-    for adapter in (exp023_collection, exp024_collection, exp041_collection, exp042_collection, exp044_collection, exp081_collection):
+    for adapter in (exp023_collection, exp024_collection, exp025_collection, exp041_collection, exp042_collection, exp044_collection, exp081_collection):
         monkeypatch.setattr(adapter, "completed", lambda repo, plan, row:
                             SimpleNamespace(record={"run_id": row["slug"] + "-r003-present-local"}))
     monkeypatch.setattr(materialize, "materialize_run", lambda store, identity, target:
@@ -640,7 +646,7 @@ def test_publication_build_rejects_stubbed_entries(tmp_path: Path, monkeypatch) 
     monkeypatch.setattr(execution.shutil, "which", lambda _name: "/usr/bin/uv")
     monkeypatch.setattr(execution, "promote_experiment", lambda *_args, **_kwargs: None)
     from pingstore import materialize
-    for adapter in (exp023_collection, exp024_collection, exp041_collection, exp042_collection, exp044_collection, exp081_collection):
+    for adapter in (exp023_collection, exp024_collection, exp025_collection, exp041_collection, exp042_collection, exp044_collection, exp081_collection):
         monkeypatch.setattr(adapter, "completed", lambda repo, plan, row:
                             SimpleNamespace(record={"run_id": row["slug"] + "-r003-present-local"}))
     monkeypatch.setattr(materialize, "materialize_run", lambda *args: None)
@@ -856,7 +862,7 @@ def test_plan_records_reviewed_heavy_workload_contracts(tmp_path: Path) -> None:
             "classified_presentations": 26_400,
         },
     }
-    assert rows["exp025"]["execution"] == {"mode": "monolithic"}
+    assert rows["exp025"]["execution"] == {"mode": "exp025-staged", "stages": ["compute", "analyse", "present"]}
 
 
 def test_slurm_test_only_calls_sbatch_without_submitting(monkeypatch) -> None:

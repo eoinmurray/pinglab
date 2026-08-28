@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 from pathlib import Path
 
 from experiments import exp022, exp025
@@ -48,102 +47,47 @@ def test_frontier_statistics_record_three_seed_provenance_per_point() -> None:
         assert len(point["cell_names"]) == 3
 
 
-def test_smoke_scaled_inference_caps_dataset(monkeypatch, tmp_path: Path) -> None:
-    train_dir = tmp_path / "train"
-    train_dir.mkdir()
-    (train_dir / "config.json").write_text(json.dumps({"t_ms": 200.0}))
-    infer_dir = tmp_path / "infer"
-    infer_dir.mkdir()
-    (infer_dir / "metrics.json").write_text(json.dumps({
-        "best_acc": 10.0,
-        "ce_loss": 2.3,
-        "rates_hz": {"hid": 1.0, "inh": 0.5},
-    }))
-    observed: dict[str, object] = {}
+def test_smoke_scaled_inference_caps_dataset(tmp_path: Path) -> None:
+    from experiments.exp025 import recipe
 
-    def fake_infer(
-        _train_dir: Path,
-        extra_args: list[str] | None = None,
-        out_name: str = "infer",
-        max_samples: int | None = None,
-    ) -> Path:
-        observed.update(
-            extra_args=extra_args,
-            out_name=out_name,
-            max_samples=max_samples,
-        )
-        return infer_dir
-
-    monkeypatch.setattr(exp025, "_infer_cell", fake_infer)
-    monkeypatch.setattr(exp025, "SMOKE", True)
-    monkeypatch.setattr(exp025, "MAX_SAMPLES", 100)
-    monkeypatch.setattr(exp025, "EVAL_MAX_SAMPLES", 100)
-    exp025._eval_scaled(train_dir, scale_w_in=0.5)
-
-    assert observed["max_samples"] == 100
-    assert observed["extra_args"] == [
-        "--scale-w-in", "0.5", "--outputs", "per_cell_rates",
+    jobs = [
+        j for j in recipe.jobs(recipe.configuration(smoke=True)) if j["kind"] == "scale"
     ]
+    assert len(jobs) == 6
+    args = recipe.inference_args(
+        tmp_path, tmp_path / "weights_final.pth", tmp_path / "out", jobs[0]
+    )
+    assert args[args.index("--max-samples") + 1] == "100"
+    assert args[-4:] == ["--scale-w-in", "0.5", "--outputs", "per_cell_rates"]
 
 
-def test_frontier_endpoint_uses_one_official_test_forward_pass(
-    monkeypatch, tmp_path: Path,
+def test_frontier_endpoint_requests_one_official_test_forward_pass(
+    tmp_path: Path,
 ) -> None:
-    train_dir = tmp_path / "train"
-    train_dir.mkdir()
-    infer_dir = tmp_path / "infer"
-    infer_dir.mkdir()
-    (infer_dir / "metrics.json").write_text(json.dumps({
-        "best_acc": 73.5,
-        "n_total": 100,
-        "rates_hz": {"hid": 4.25},
-        "config": {
-            "evaluation_partition": "official_mnist_test",
-            "evaluation_samples": 100,
-        },
-    }))
-    observed: dict[str, object] = {}
+    from experiments.exp025 import recipe
 
-    def fake_infer(
-        _train_dir: Path,
-        extra_args: list[str] | None = None,
-        out_name: str = "infer",
-        max_samples: int | None = None,
-    ) -> Path:
-        observed.update(
-            extra_args=extra_args,
-            out_name=out_name,
-            max_samples=max_samples,
-        )
-        return infer_dir
-
-    monkeypatch.setattr(exp025, "_infer_cell", fake_infer)
-    monkeypatch.setattr(exp025, "EVAL_MAX_SAMPLES", 100)
-    endpoint = exp025.evaluate_frontier_cell(train_dir)
-
-    assert observed == {
-        "extra_args": None,
-        "out_name": "frontier",
-        "max_samples": 100,
-    }
-    assert endpoint == {
-        "final_acc": 73.5,
-        "rate_e": 4.25,
-        "evaluation_partition": "official_mnist_test",
-        "evaluation_samples": 100,
-        "checkpoint_role": exp025.CHECKPOINT_ROLE,
-    }
+    jobs = [j for j in recipe.jobs(recipe.configuration()) if j["kind"] == "frontier"]
+    assert len(jobs) == 36
+    assert len({j["cell_name"] for j in jobs}) == 36
+    args = recipe.inference_args(
+        tmp_path, tmp_path / "weights_final.pth", tmp_path / "out", jobs[0]
+    )
+    assert args[args.index("--max-samples") + 1] == "1000"
+    assert "--outputs" not in args
 
 
 def test_low_w_in_cells_are_owned_by_exp022() -> None:
     assert tuple(exp025.LOW_W_IN_VALUES) == (0.05, 0.1, 0.3, 0.9)
-    assert "exp022" in str(exp025.low_w_in_cell_dir(0.9, 43))
+    assert (
+        exp025.low_w_in_cell_name(0.9, 43)
+        == exp022.training_run_cell("TR-07", w_in=0.9, seed=43)["name"]
+    )
 
 
 def test_low_w_in_production_grid_uses_three_seeds() -> None:
     assert exp025.LOW_W_IN_SEEDS == [42, 43, 44]
     paths = {
-        exp025.low_w_in_cell_dir(w_in, seed)
+        exp025.low_w_in_cell_name(w_in, seed)
         for w_in in exp025.LOW_W_IN_VALUES
         for seed in exp025.LOW_W_IN_SEEDS
     }

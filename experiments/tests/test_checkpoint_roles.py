@@ -168,24 +168,15 @@ def test_exp022_and_exp049_read_compact_epoch_records(tmp_path, monkeypatch):
     assert curves["contrast"] == [0.4, 0.6]
 
 
-def test_exp025_raster_replay_never_modifies_upstream_bank(tmp_path, monkeypatch):
+def test_exp025_raster_replay_selects_final_weights_and_external_output(tmp_path):
+    from experiments.exp025 import recipe
     bank = _checkpoint_bank(tmp_path / "bank")
-    (bank / "config.json").write_text("{}")
-    legacy = bank / "infer/snapshot.npz"
-    legacy.parent.mkdir()
-    legacy.write_bytes(b"original snapshot")
     original = {p.relative_to(bank): p.read_bytes() for p in bank.rglob("*") if p.is_file()}
-    state = tmp_path / "exp025-state"
-    monkeypatch.setattr(exp025, "ARTIFACTS", state)
-    monkeypatch.setattr(exp025, "baseline_dir", lambda *_: bank)
-
-    def infer(command):
-        out = Path(command[command.index("--out-dir") + 1])
-        assert state in out.parents
-        (out / "snapshot.npz").write_bytes(b"new analysis snapshot")
-
-    monkeypatch.setattr(exp025, "run_cli", infer)
-    monkeypatch.setattr(exp025, "render_raster", lambda *_: None)
-    exp025.generate_raster("coba", tmp_path / "raster.png")
-    assert exp025.raster_snapshot("coba").read_bytes() == b"new analysis snapshot"
+    job = next(j for j in recipe.jobs(recipe.configuration()) if j["kind"] == "snapshot")
+    output = tmp_path / "compute" / job["path"]
+    args = recipe.inference_args(bank, bank / "weights_final.pth", output, job)
+    assert args[args.index("--load-weights") + 1] == str(bank / "weights_final.pth")
+    assert args[args.index("--out-dir") + 1] == str(output)
+    assert args[-6:] == ["--digit", "0", "--sample", "0", "--t-ms", "400"]
+    assert "--max-samples" not in args
     assert {p.relative_to(bank): p.read_bytes() for p in bank.rglob("*") if p.is_file()} == original
