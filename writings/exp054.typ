@@ -9,7 +9,7 @@
   status: "[▦ DATA]",
   title: "Gamma Turns On Across the Coupling Map",
   date: "2026-06-15",
-  updated_at: "2026-08-28",
+  updated_at: "2026-08-29",
   description: "Lobe–trough contrast across untrained PING coupling strengths, with private- and shared-input null controls and a separate mean-field onset comparison.",
   collection: "gamma-gated-sparsity",
 )
@@ -50,7 +50,7 @@
   #figure(
     data-image(data-file("exp054/grid_autocorr.png"), width: 100%,
       alt: "E-population autocorrelograms at a 6×6 subset of coupling coordinates, with lobe and trough markers and a chance reference."),
-    caption: [E-population autocorrelograms at the same 6×6 coordinates, shown over 0–50 ms; dotted lines mark the chance reference $A = 1$. Markers locate the selected lobe (▲) and trough (▼) of the smoothed curve. Edge curves are near chance. In the coupled interior, short-lag clustering, suppression between volleys and later recurrence peaks provide complementary evidence. The contrast scores the first lobe and trough, not the later peak's frequency.],
+    caption: [E-population autocorrelograms at the same 6×6 coordinates, shown over 0–50 ms; dotted lines mark the chance reference $A_"corr" = 1$. Markers locate the selected lobe (▲) and trough (▼) of the smoothed curve. Edge curves are near chance. In the coupled interior, short-lag clustering, suppression between volleys and later recurrence peaks provide complementary evidence. $R_"contrast"$ scores the first lobe and trough, not the later peak's frequency.],
   )
 
   #figure(
@@ -91,14 +91,14 @@
 
   + *Sweep coupling.* I simulated 256 E and 256 I neurons at all 11×11 combinations of $W_(E I) = 0$–3 µS and $W_(I E) = 0$–6 µS. Each E neuron received a private 100 Hz Poisson channel with identity weight 0.5. I used seed 42, one trial, 0.25 ms steps and 1,000 ms recordings; I discarded the first 100 ms.
   + *Construct uncoupled controls.* I set both coupling strengths to zero. I scanned private input at 1/2/5/10/20/40/70/100 Hz and shared input at 8/12/16/20/28/40/60/100 Hz. Shared input used 200 channels, weight 0.2 and 95% initial zero connections. The 100 Hz private origin was shared with the coupling grid, giving 136 unique probes.
-  + *Measure rates and autocorrelation.* I divided each population's post-burn spike count by neuron count and 0.9 s. I binned E spikes at $Delta t = 1$ ms, obtaining counts $r(t)$ in $n = 900$ bins. For integer lag $ell = 1, dots, 100$, I calculated
+  + *Measure rates and autocorrelation.* I divided each population's post-burn spike count by neuron count and 0.9 s. I binned E spikes at $Delta t_"bin" = 1$ ms, obtaining counts $n_E[k]$ in $N_"bin" = 900$ bins. For integer lag $ell = 1, dots, 100$, I calculated
 
-    $ A(ell) = 1 / (⟨ r ⟩^2 (n - ell)) sum_(t=0)^(n-ell-1) r(t) r(t+ell). $ <exp054-autocorrelation>
+    $ A_"corr"(ell) = 1 / (⟨ n_E ⟩^2 (N_"bin" - ell)) sum_(k=0)^(N_"bin"-ell-1) n_E[k] n_E[k+ell]. $ <exp054-autocorrelation>
 
-    Here $t$ indexes bins and $⟨ r ⟩$ is their mean count; physical lag is $ell Delta t$. Zero-padded FFT correlation, divided by available overlap and mean count squared, gives chance reference 1. I excluded zero lag.
+    Here $k$ indexes bins and $⟨ n_E ⟩$ is their mean count; physical lag is $ell Delta t_"bin"$. Zero-padded FFT correlation, divided by available overlap and mean count squared, gives chance reference 1. I excluded zero lag.
   + *Locate the lobe and trough.* I smoothed with weights $(0.25, 0.5, 0.25)$, filling the excluded zero-lag entry from the first lag. I found the first local minimum from lag 2, and the preceding maximum from lag 1. Their smoothed heights define
 
-    $ "contrast" = ("lobe" - "trough") / ("lobe" + "trough"). $ <exp054-contrast>
+    $ R_"contrast" = (A_"lobe" - A_"trough") / (A_"lobe" + A_"trough"). $ <exp054-contrast>
 
     For $0 <= "trough" <= "lobe"$ and a positive denominator, this lies in $[0,1]$. A missing trough or invalid denominator leaves the score undefined; no trough floor is imposed on contrast.
   + *Compare mean-field onset.* I used the #link("/exp033/")[four-variable conductance model] at 4 mV effective noise. I continued fixed points over 401 drives from 0–4 nA and refined the leading-eigenvalue crossing with Brent's method. I swept 25 drives from 0.1 nA below to 0.55 nA above the crossing in both directions, carrying endpoint states. I integrated 2 s per drive with LSODA and measured peak-to-peak E-rate amplitude ($"ms"^(-1)$) over the final 500 ms. Retained amplitudes were reused; missing trajectories were not reconstructed.
@@ -106,7 +106,7 @@
 
   == Appendix: reading the autocorrelogram
 
-  The raw lag product $sum_t r(t) r(t+ell)$ counts spike pairs separated by $ell$ bins. Only $n-ell$ bin pairs exist at that lag: the last $ell$ bins have no partner. Dividing by this overlap converts the raw sum into an average product per available pair, removing the taper caused by finite recording length. Dividing again by $⟨ r ⟩^2$ places independent firing near $A = 1$; this is a reference level, not a lower bound.
+  The raw lag product $sum_k n_E[k] n_E[k+ell]$ counts spike pairs separated by $ell$ bins. Only $N_"bin"-ell$ bin pairs exist at that lag: the last $ell$ bins have no partner. Dividing by this overlap converts the raw sum into an average product per available pair, removing the taper caused by finite recording length. Dividing again by $⟨ n_E ⟩^2$ places independent firing near $A_"corr" = 1$; this is a reference level, not a lower bound.
 
   The Wiener–Khinchin route computes the lag products by zero-padding the count trace, taking its fast Fourier transform (FFT), multiplying by the complex conjugate and inverse-transforming. This costs $O(n log n)$ for all lags rather than a full $O(n^2)$ direct correlation, where $O$ denotes asymptotic computational scaling.
 

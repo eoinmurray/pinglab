@@ -3,7 +3,7 @@
 #let meta = (
   status: "[≡ TXT]",
   title: "Training",
-  updated_at: "2026-08-28",
+  updated_at: "2026-08-29",
   date: "2026-05-14",
   description: "How to configure legacy SNNSIM training, interpret checkpoints and readouts, and understand the gradients, regularisation, and initialization used by the implementation.",
   collection: "snnsim-docs",
@@ -57,29 +57,29 @@
 
   Every model here is a recurrent system run forward in time, so gradients come from Backpropagation Through Time (BPTT): unroll the recurrence into a deep feedforward graph — one layer per timestep, all sharing the same weights — and backpropagate through it.
 
-  Take a hidden state $h^t$ that evolves as
+  Take a hidden state $h^k$ that evolves as
 
-  $ h^t = f(h^(t-1), x^t; theta), quad y^t = g(h^t; theta) $
+  $ h^k = f(h^(k-1), x^k; theta_"param"), quad z^k = g(h^k; theta_"param") $
 
-  with input $x^t$, output $y^t$, and parameters $theta$ shared across time. Running $T$ steps gives a chain $h^0 -> h^1 -> dots.c -> h^T$, which for gradients is treated as a depth-$T$ feedforward network with tied weights.
+  with input $x^k$, score output $z^k$, and parameters $theta_"param"$ shared across time. Running $N_t$ steps gives a chain $h^0 -> h^1 -> dots.c -> h^(N_t)$, which for gradients is treated as a depth-$N_t$ feedforward network with tied weights.
 
-  For a scalar loss $cal(L)$ depending on the final state, define $lambda^t = partial cal(L) / partial h^t$ as the total sensitivity to state $h^t$. Then the contribution through state updates is
+  For a scalar loss $L_"total"$ depending on the final state, define $a^k = partial L_"total" / partial h^k$ as the total sensitivity to state $h^k$. Then the contribution through state updates is
 
-  $ (partial cal(L)) / (partial theta_k) = sum_(t=1)^T (lambda^t)^top (partial f(h^(t-1), x^t; theta)) / (partial theta_k). $
+  $ (partial L_"total") / (partial theta_j) = sum_(k=1)^(N_t) (a^k)^top (partial f(h^(k-1), x^k; theta_"param")) / (partial theta_j). $
 
-  Here $theta_k$ is one shared parameter and the derivative of $f$ holds its state and input arguments fixed. Direct parameter use in the readout contributes an additional term. Losses or readouts accumulated over time also inject sensitivities at intermediate steps.
+  Here $theta_j$ is one shared parameter and the derivative of $f$ holds its state and input arguments fixed. Direct parameter use in the readout contributes an additional term. Losses or readouts accumulated over time also inject sensitivities at intermediate steps.
 
-  The backward pass contains products of per-step Jacobians $partial h^(t+1)\/partial h^t$, the matrices of state derivatives. Repeated contraction can suppress gradients and amplification can enlarge them; individual norms above 1 do not by themselves prove that the product grows.
+  The backward pass contains products of per-step Jacobians $partial h^(k+1)\/partial h^k$, the matrices of state derivatives. Repeated contraction can suppress gradients and amplification can enlarge them; individual norms above 1 do not by themselves prove that the product grows.
 
-  One simulation step is one step of the recurrence: the state includes membrane voltages, synaptic conductances, and refractory counters. A 200 ms trial at $Delta t = 0.1$ ms unrolls to $T = 2000$ steps, where $Delta t$ is the timestep and $T$ the number of steps. Gradient behaviour depends on the trajectory, surrogate, weights, and reset gates; recurrent coupling alone does not prove divergence. See #link("/exp015/")[Gradient Stabilisation] for the implemented intervention.
+  One simulation step is one step of the recurrence: the state includes membrane voltages, synaptic conductances, and refractory counters. A 200 ms trial at $Delta t_"sim" = 0.1$ ms unrolls to $N_t = 2000$ steps. Gradient behaviour depends on the trajectory, surrogate, weights, and reset gates; recurrent coupling alone does not prove divergence. See #link("/exp015/")[Gradient Stabilisation] for the implemented intervention.
 
   == Surrogate gradients
 
-  The spike function $S = bold(1)[U >= theta]$ has zero gradient almost everywhere, so the backward pass substitutes a smooth surrogate. The legacy spike helper uses a fast-sigmoid surrogate. Forward is the hard step; backward is
+  The spike function $s[k] = bold(1)[V_"candidate" >= V_"th"]$ has zero gradient almost everywhere, so the backward pass substitutes a smooth surrogate. The legacy spike helper uses a fast-sigmoid surrogate. Forward is the hard step; backward is
 
-  $ (partial tilde(S)) / (partial U) = (k) / ((1 + k |U - theta|)^2) $
+  $ (partial tilde(s)) / (partial V_"candidate") = k_"sg" / (1 + k_"sg" |V_"candidate" - V_"th"|)^2 $
 
-  Here $U$ is the pre-reset membrane value, $theta$ the spike threshold, and $k$ the slope in inverse units of $U$; $tilde(S)$ denotes the backward surrogate, not the forward spike. This is Pinglab's normalization. snnTorch's #link("https://snntorch.readthedocs.io/en/latest/_modules/snntorch/surrogate.html#FastSigmoid")[FastSigmoid] uses numerator 1 instead of $k$: equal slopes do not generally give equal gradients.
+  Here $V_"candidate"$ is the pre-reset membrane value, $V_"th"$ the spike threshold, and $k_"sg"$ the surrogate slope in inverse voltage units; $tilde(s)$ denotes the backward surrogate, not the forward spike. This is Pinglab's normalization. snnTorch's #link("https://snntorch.readthedocs.io/en/latest/_modules/snntorch/surrogate.html#FastSigmoid")[FastSigmoid] uses numerator 1 instead of $k_"sg"$: equal slopes do not generally give equal gradients.
 
   It takes its slope from `SURROGATE_SLOPE = 5.0`, overridable per-run with `--surrogate-slope`.
 
@@ -91,9 +91,9 @@
 
   Logits from the readout go into cross-entropy loss:
 
-  $ L_"CE" = -(1) / (B) sum_(b=1)^B log (exp(hat(y)_(b, c_b))) / (sum_k exp(hat(y)_(b, k))) $
+  $ L_"CE" = -1 / B sum_(b=1)^B log (exp(z_(b, c_b))) / (sum_c exp(z_(b, c))) $
 
-  Here $L_"CE"$ is cross-entropy loss, $B$ is batch size, $b$ indexes samples, $hat(y)_b$ is the score vector, $c_b$ the true class, and $k$ indexes classes. Uniform predictions on ten classes give loss $ln 10 approx 2.30$. The implementation uses AdamW with `--weight-decay 0` by default. Gradients are clipped to unit norm (`GRAD_CLIP = 1.0`); an update with non-finite gradient norm is skipped. Checkpoint selection uses validation loss, not this training loss.
+  Here $L_"CE"$ is cross-entropy loss, $B$ is minibatch size, $b$ indexes presentations, $z_b$ is the score vector, $c_b$ the true class, and $c$ indexes classes. Uniform predictions on ten classes give loss $ln 10 approx 2.30$. The implementation uses AdamW with `--weight-decay 0` by default. Gradients are clipped to unit norm (`GRAD_CLIP = 1.0`); an update with non-finite gradient norm is skipped. Checkpoint selection uses validation loss, not this training loss.
 
   == Readout
 
@@ -115,10 +115,10 @@
 
   Hidden activity can be limited with `--fr-reg-upper-target-hz` and `--fr-reg-upper-strength`:
 
-  $ r_b = 1 / (N_E D) sum_(n in E) z_(b n), quad
-    cal(L)_"fr" = s_u / B sum_b "ReLU"(r_b - r_"max")^2 $
+  $ r_b = 1 / (N_E T_"present") sum_(n in E) n_"spike"(b,n), quad
+    L_"rate" = lambda_"rate" / B sum_b "ReLU"(r_b - r_(E,"ceil"))^2 $
 
-  Here $z_(b n)$ is the spike count of hidden excitatory neuron $n$ in sample $b$, $N_E$ is the number of those neurons, $D$ is presentation duration in seconds, $B$ is batch size, $r_b$ and $r_"max"$ are rates in Hz, and $s_u$ is the configured penalty coefficient.
+  Here $n_"spike"(b,n)$ is the spike count of hidden excitatory neuron $n$ in presentation $b$, $N_E$ is the number of those neurons, $T_"present"$ is presentation duration in seconds, $B$ is minibatch size, $r_b$ and $r_(E,"ceil")$ are rates in Hz, and $lambda_"rate"$ is the configured rate-penalty coefficient.
 
   The ceiling is applied separately to each presentation's population-mean hidden-E rate before averaging across the minibatch. The loss is normalised over neurons, presentation duration, samples, and hidden layers. This is the mechanism behind the activity sweep in #link("/exp025/")[exp025] and the rate-floor framing in #link("/exp109/")[exp109].
 
@@ -126,13 +126,13 @@
 
   Dale-constrained magnitudes use a lower-clamped Gaussian, not a half-normal or truncated normal:
 
-  $ X_(i j) tilde cal(N)(mu, sigma^2), quad U_(i j) = max(0, X_(i j)). $
+  $ X_(i j) tilde cal(N)(mu_"init", sigma_"init"^2), quad X_(i j)^+ = max(0, X_(i j)). $
 
-  Here $X_(i j)$ is a Gaussian draw for input index $i$ and output index $j$, and $U_(i j)$ is its non-negative clamp. The configured $mu$ and $sigma$ are parent-Gaussian parameters on the summed-coupling scale, not moments of one stored edge. With initial-zero fraction $s in [0, 1)$ and Bernoulli indicator $B_(i j)$, the stored initialization is
+  Here $X_(i j)$ is a Gaussian draw for input index $i$ and output index $j$, and $X_(i j)^+$ is its non-negative clamp. The configured $mu_"init"$ and $sigma_"init"$ are parent-Gaussian parameters on the summed-coupling scale, not moments of one stored edge. With initial-zero fraction $q_"zero" in [0, 1)$ and Bernoulli indicator $M_(i j)$, the stored initialization is
 
-  $ W_(i j)^(0) = B_(i j) U_(i j) \/ ((1-s) N_"pre"). $
+  $ W_(i j)^(0) = M_(i j) X_(i j)^+ \/ ((1-q_"zero") N_"pre"). $
 
-  Here $N_"pre"$ is fan-in and $B_(i j)$ is 1 with probability $1-s$, otherwise 0. Direct readout initialization (`--readout-w-init-mean` and `--readout-w-init-std`) bypasses this fan-in scaling; do not interpret its parameters as summed coupling.
+  Here $N_"pre"$ is fan-in and $M_(i j)$ is 1 with probability $1-q_"zero"$, otherwise 0. Direct readout initialization (`--readout-w-init-mean` and `--readout-w-init-std`) bypasses this fan-in scaling; do not interpret its parameters as summed coupling.
 
   The compensation keeps the expected column sum independent of $s$; lower clamping means that expected sum is $cal(E)[max(0, X)]$, which is recorded alongside the configured parent parameters. Both lower-clamp zeros and explicitly zeroed entries remain trainable and may become positive. This is sparse initialization of a dense trainable matrix, not structural sparsity.
 

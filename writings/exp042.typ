@@ -9,7 +9,7 @@
   status: "[▦ DATA]",
   title: "Breaking Gamma Releases the Rate Gate",
   date: "2026-06-02",
-  updated_at: "2026-08-27",
+  updated_at: "2026-08-29",
   description: "Overriding the I-stream of trained PING at inference shows what gates the E rate is the timing of inhibition, the rhythm, not its average level.",
   collection: "gamma-gated-sparsity",
 )
@@ -45,7 +45,7 @@
   run.jitter_sweep.filter(r => calc.abs(r.sigma_ms - s) < 0.001).map(r => r.at(key)),
 )
 
-// Per-I-cell jitter: E rate + accuracy along the collapse.
+// Per-I-neuron jitter: E rate + accuracy along the collapse.
 #let cell_e_half = calc.round(cell_at(0.5, "e_rate_hz"), digits: 1)
 #let cell_e1 = calc.round(cell_at(1.0, "e_rate_hz"), digits: 1)
 #let cell_acc5 = calc.round(cell_at(5.0, "acc"), digits: 1)
@@ -76,7 +76,7 @@
   excitatory firing in trained pyramidal–interneuron network gamma (PING)
   classifiers. I replayed three frozen networks while either independently
   jittering inhibitory spikes or shifting whole inhibitory bursts. At the
-  rate-matched comparison, per-cell jitter smeared the bursts and reduced the
+  rate-matched comparison, per-neuron jitter smeared the bursts and reduced the
   excitatory rate from #base_e Hz to approximately zero, whereas cycle-coherent
   jitter preserved burst synchrony and raised it to #cyc_e_anchor Hz. Within the
   tested regime, inhibitory temporal structure therefore gates excitatory rate.
@@ -90,7 +90,7 @@
   #figure(
     data-image(data-file("exp042/rhythm_compound.png"),
       width: 100%,
-      alt: "Matched per-cell and cycle-coherent inhibitory jitter. Per-cell jitter smears inhibitory bursts and silences excitatory cells; cycle-coherent jitter keeps bursts sharp, opens gaps, and raises excitatory firing at nearly the same realised inhibitory rate.",
+      alt: "Matched per-neuron and cycle-coherent inhibitory jitter. Per-neuron jitter smears inhibitory bursts and silences excitatory neurons; cycle-coherent jitter keeps bursts sharp, opens gaps, and raises excitatory firing at nearly the same realised inhibitory rate.",
     ),
     caption: [
       Matched inference-time perturbations at $sigma = #anchor_sigma$ ms. The
@@ -102,7 +102,7 @@
   )
 
   At $sigma = #anchor_sigma$ ms, smearing individual inhibitory spikes almost
-  silenced excitatory cells. Moving whole bursts instead raised firing from
+  silenced excitatory neurons. Moving whole bursts instead raised firing from
   #base_e Hz to #cyc_e_anchor Hz, while accuracy remained #cyc_acc_anchor%.
   Mean inhibitory rates were similar: #cell_i_anchor and #cyc_i_anchor Hz,
   compared with #base_i Hz at baseline. Similar amounts of inhibition produced
@@ -116,7 +116,7 @@
       alt: "Excitatory rate and accuracy fall steeply as independent inhibitory-spike jitter increases, while realised inhibitory rate remains nearly flat.",
     ),
     caption: [
-      Per-I-cell jitter sweep across three frozen networks. Points show
+      Per-I-neuron jitter sweep across three frozen networks. Points show
       across-seed means; error bars are ±1 standard error of the mean. The grey
       trace is the realised mean inhibitory rate.
     ],
@@ -126,7 +126,7 @@
   at $sigma = 0.5$ ms and #cell_e1 Hz at 1 ms. By 5 ms, firing was nearly zero
   and accuracy was #cell_acc5%, despite little change in mean inhibition.
   This supports the idea that gaps between inhibitory bursts let excitatory
-  cells recover and fire.
+  neurons recover and fire.
 
   === Moving intact bursts releases excitatory firing
 
@@ -169,40 +169,40 @@
   + *Record the baseline inhibitory stream.* For each batch, a baseline forward
     pass recorded
 
-    $ bold(s)^I_"base" in {0,1}^(T times B times N_I). $
+    $ bold(s)^I_"base" in {0,1}^(N_t times B times N_I). $
 
-    Here $bold(s)^I_"base"$ is the inhibitory spike tensor, $T$ is the number of
+    Here $bold(s)^I_"base"$ is the inhibitory spike tensor, $N_t$ is the number of
     simulation timesteps, $B$ is the batch size, and $N_I$ is the number of
-    inhibitory cells. Each entry is one when a cell spikes and zero otherwise.
+    inhibitory neurons. Each entry is one when a neuron spikes and zero otherwise.
 
   + *Construct the paired jitter interventions.* The reference gamma-cycle
     duration was
 
-    $ P_gamma = 1000 / f_gamma. $
+    $ T_gamma = 1000 / f_gamma. $
 
-    Here $P_gamma$ is the cycle duration in milliseconds and $f_gamma$ is gamma
-    frequency in hertz; at the baseline operating point, $P_gamma approx
+    Here $T_gamma$ is the cycle duration in milliseconds and $f_gamma$ is gamma
+    frequency in hertz; at the baseline operating point, $T_gamma approx
     #period_ms$ ms. Both interventions drew offsets
 
     $ Delta tilde cal(N)(0, sigma^2). $
 
     Here $Delta$ is a temporal offset in milliseconds and $sigma$ is its standard
     deviation. Cycle-coherent jitter drew one $Delta$ for every trial and cycle
-    and applied it to all inhibitory spikes in that cycle. Per-cell jitter drew
+    and applied it to all inhibitory spikes in that cycle. Per-neuron jitter drew
     an independent $Delta$ for every inhibitory spike. Offsets were rounded to
     simulation timesteps and shifted times were clamped to the finite trial
-    window; spikes that coincided at the same cell and timestep merged.
+    window; spikes that coincided at the same neuron and timestep merged.
 
   + *Construct the limiting controls.* Phase-shuffle applied one shared
-    permutation of time to all inhibitory cells in a trial, preserving
+    permutation of time to all inhibitory neurons in a trial, preserving
     same-timestep co-firing while removing phase order. Rate-matched Poisson
-    redrew each trial and cell from its observed spike count, removing temporal
-    and cross-cell structure while preserving expected rate.
+    redrew each trial and neuron from its observed spike count, removing temporal
+    and cross-neuron structure while preserving expected rate.
 
   + *Replay and measure the perturbed stream.* A second forward pass replaced
     the network's inhibitory spikes with the controlled stream. Excitatory
-    cells received only the replacement stream through $W^(I E)$, the weight
-    matrix from inhibitory to excitatory cells, and the frozen readout consumed
+    neurons received only the replacement stream through $W^(I E)$, the weight
+    matrix from inhibitory to excitatory neurons, and the frozen readout consumed
     the resulting excitatory spikes.
 
     For every condition I retained excitatory and inhibitory firing rates and
@@ -227,7 +227,7 @@
 } else {
   pending-report(
     data-file, inputs,
-    [Does the timing of inhibition matter independently of its mean strength? Compare cell-wise jitter with shifts of intact inhibitory volleys.],
+    [Does the timing of inhibition matter independently of its mean strength? Compare neuron-wise jitter with shifts of intact inhibitory volleys.],
     preview-figures, json-inputs: ("exp042",),
   )
 }

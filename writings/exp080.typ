@@ -10,7 +10,7 @@
   status: "[▦ DATA]",
   title: "Calibrating Accuracy Across Input Rates",
   date: "2026-08-10",
-  updated_at: "2026-08-28",
+  updated_at: "2026-08-29",
   description: "Direct-simulation decoder calibration of the input-rate range for later variable-rate PING training.",
   collection: "gamma-gated-sparsity",
 )
@@ -116,32 +116,32 @@
       separate official test partition, with no overlap.],
 
     [*Simulate filtered features.* Each normalized pixel intensity $x_i in [0,1]$
-      generated an independent binary event $S_i (t)$ at timestep
-      $Delta t=#p.dt_ms$ ms:
+      generated an independent binary event $s_i[k]$ at integration timestep
+      $Delta t_"sim"=#p.dt_ms$ ms:
 
-      $ S_i (t) tilde "Bernoulli"((r x_i Delta t) / 1000). $ <exp080-events>
+      $ s_i[k] tilde "Bernoulli"((r_"input,max" x_i Delta t_"sim") / 1000). $ <exp080-events>
 
-      Here $i$ indexes pixels, $t$ is time in ms, and $r$ is maximum-pixel
+      Here $i$ indexes pixels, $k$ is the update index, and $r_"input,max"$ is maximum-pixel
       encoding rate in spikes/s; 1000 converts milliseconds to seconds.
       Excitatory conductance $g_i (t)$, in μS, decayed before each event increment:
 
-      $ g_i (t) = exp(-(Delta t) / tau_"AMPA") g_i (t-Delta t) + w S_i (t). $ <exp080-conductance>
+      $ g_i[k] = exp(-(Delta t_"sim") / tau_"AMPA") g_i[k-1] + w_"event" s_i[k]. $ <exp080-conductance>
 
       The AMPA decay time was $tau_"AMPA"=2$ ms and event strength
-      $w=#p.probe_uS$ μS. Each non-spiking membrane voltage $v_i (t)$ obeyed
+      $w_"event"=#p.probe_uS$ μS. Each non-spiking membrane voltage $V_(m,i) (t)$ obeyed
 
-      $ C_E (d v_i)/(d t) = g_"L,E" (E_L-v_i) + g_i (t)(E_e-v_i). $ <exp080-membrane>
+      $ C_m^E (d V_(m,i))/(d t) = g_L^E (E_L-V_(m,i)) + g_i (t)(E_e-V_(m,i)). $ <exp080-membrane>
 
-      Capacitance was $C_E=1$ nF, leak conductance $g_"L,E"=0.05$ μS,
+      Capacitance was $C_m^E=1$ nF, leak conductance $g_L^E=0.05$ μS,
       leak reversal $E_L=-65$ mV and excitatory reversal $E_e=0$ mV.
       Starting at zero conductance and $E_L$, voltage advanced by the exact
       exponential solution with each updated conductance held fixed for one
-      timestep. The feature $z_i$, in mV, averaged post-update voltages above rest:
+      timestep. The feature $z_("feature",i)$, in mV, averaged post-update voltages above rest:
 
-      $ z_i = 1/N sum_(k=1)^N (v_i (k Delta t)-E_L)
-        approx 1/T integral_0^T (v_i (t)-E_L) dif t. $ <exp080-feature>
+      $ z_("feature",i) = 1/N_t sum_(k=1)^(N_t) (V_(m,i) (k Delta t_"sim")-E_L)
+        approx 1/T_"present" integral_0^(T_"present") (V_(m,i) (t)-E_L) dif t. $ <exp080-feature>
 
-      Here $T=#p.presentation_ms$ ms, $N=T/(Delta t)$ is the timestep count, and
+      Here $T_"present"=#p.presentation_ms$ ms, $N_t=T_"present"/(Delta t_"sim")$ is the timestep count, and
       $k$ indexes updates. Fresh event trains retained finite-window shot-noise
       effects without a stationary Gaussian approximation#cite(1).],
 

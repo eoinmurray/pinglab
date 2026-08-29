@@ -3,7 +3,7 @@
 #let meta = (
   status: "[≡ TXT]",
   title: "Parameters & Units",
-  updated_at: "2026-08-28",
+  updated_at: "2026-08-29",
   date: "2026-05-14",
   description: "The unit system used throughout the codebase and the biophysical constants for the COBA / PING model.",
   collection: "snnsim-docs",
@@ -67,27 +67,28 @@
 
   The chosen units are self-consistent — no conversion factors appear in the integration code. Two equations carry the whole system.
 
-  The membrane time constant is $tau = C \/ g$. With $C$ in nF and $g$ in μS,
+  The membrane time constant is $tau_m = C_m \/ g_L$. With $C_m$ in nF and
+  $g_L$ in μS,
 
-  $ tau_["ms"] = (C_["nF"]) / (g_[mu"S"]) $
+  $ (tau_m)_["ms"] = (C_m)_["nF"] / (g_L)_[mu"S"] $
 
   so $C_m = 1$ nF and $g_L = 0.05$ μS give $tau_m = 20$ ms directly.
 
-  The LIF voltage update is $dif v = (Delta t \/ C)(-g_L (v - E_L) + I)$. With $Delta t$ in ms, $C$ in nF, $v, E$ in mV, $g$ in μS, and $I$ in nA,
+  The LIF voltage update is $dif V_m = (Delta t_"sim" \/ C_m)(-g_L (V_m - E_L) + I_"ext")$. With $Delta t_"sim"$ in ms, $C_m$ in nF, $V_m$ and $E_L$ in mV, $g_L$ in μS, and $I_"ext"$ in nA,
 
-  $ dif v_["mV"] = (Delta t_["ms"]) / (C_["nF"]) dot I_["nA"] $
+  $ (dif V_m)_["mV"] = (Delta t_"sim")_["ms"] / (C_m)_["nF"] dot (I_"ext")_["nA"] $
 
   because ms·nA / nF = mV exactly.
 
-  Conductance-current products share the same ledger: $g(v - E)$ is μS × mV = nA, so synaptic currents fold into $I$ alongside any direct input current without a scale factor.
+  Conductance-current products share the same ledger: $g(V_m - E)$ is μS × mV = nA, so synaptic currents fold into $I_"ext"$ alongside any direct input current without a scale factor.
 
   == Why not SI?
 
-  Pure SI (F, S, V, A, s) forces every value to a large negative exponent — $C_m = 10^(-9)$ F, $g_L = 5 times 10^(-8)$ S, $Delta t = 2.5 times 10^(-4)$ s. The neuroscience convention (ms, mV, nF, μS, nA) keeps every typical value between $10^(-3)$ and $10^2$, which makes numerical debugging and human intuition faster. Conversion to SI remains available as an independent check; the equations above show why no extra scale factor is needed in these units.
+  Pure SI (F, S, V, A, s) forces every value to a large negative exponent — $C_m = 10^(-9)$ F, $g_L = 5 times 10^(-8)$ S, $Delta t_"sim" = 2.5 times 10^(-4)$ s. The neuroscience convention (ms, mV, nF, μS, nA) keeps every typical value between $10^(-3)$ and $10^2$, which makes numerical debugging and human intuition faster. Conversion to SI remains available as an independent check; the equations above show why no extra scale factor is needed in these units.
   == Checking a configuration
 
   + *Separate defaults from overrides.* Read the saved `config.json` and the recipe that supplied it. For CLI inference, explicit flags override inherited values; omitted fields fall back to defaults.
-  + *Convert rates once.* With timestep $Delta t$ in ms and input rate $r$ in Hz, a Bernoulli spike encoder uses probability $p = r Delta t / 1000$ per step. Here $p$ is dimensionless. Check that the probability is meaningful for the chosen rate and timestep.
+  + *Convert rates once.* With integration timestep $Delta t_"sim"$ in ms and input rate $r_"input"$ in Hz, a Bernoulli spike encoder uses event probability $p_"event" = r_"input" Delta t_"sim" / 1000$ per step. Here $p_"event"$ is dimensionless. Check that the probability is meaningful for the chosen rate and timestep.
   + *Check duration and counters.* The legacy path uses `int(t_ms / dt)` simulation steps. Avoid assuming a non-integral duration is preserved exactly. Refractory times are also discretised to steps.
   + *Check the stored weights.* Initialization means are on a summed-coupling scale; individual stored edges are fan-in normalised. Readout weights can use direct initialization instead. See #link("/exp006/#weight-init")[Weight init].
 

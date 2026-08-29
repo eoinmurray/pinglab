@@ -16,7 +16,7 @@
   status: "[▦ DATA]",
   title: "Lowet 2017",
   date: "2026-08-19",
-  updated_at: "2026-08-28",
+  updated_at: "2026-08-29",
   description: "Reduce coupling at fixed detuning and test whether two PING networks develop cortical-like intermittent phase attraction.",
   collection: "demo",
   order: 2,
@@ -76,13 +76,13 @@
 
   Lowet et al. (2015) mapped synchronization across detuning and coupling in two 80-E, 20-I PING networks with reciprocal E-to-E and E-to-I fan-in eight#cite(2). Lowet et al. (2017) found the corresponding signature in macaque V1: coupling reduced instantaneous frequency differences near preferred phases, producing imperfect rather than permanent synchronization#cite(1).
 
-  The shared parameter-space axes are uncoupled frequency detuning $Delta f$ and measured effective interaction strength $epsilon$. Mean frequency $accent(f, macron)$ sets the timescale; phase noise controls how sharply the rhythms lock.
+  The shared parameter-space axes are uncoupled frequency detuning $Delta f_"detune"$ and measured effective interaction strength $epsilon$. Mean frequency $accent(f, macron)$ sets the timescale; phase noise controls how sharply the rhythms lock.
 
   #table(
     columns: (1.05fr, 1.55fr, 1.55fr, 1.45fr),
     [*Quantity*], [*Lowet regime*], [*Starting point*], [*First move*],
     [Mean frequency $accent(f, macron)$], [Approximately 30--40 Hz in the illustrated model and macaque conditions], [#start.mean-frequency-hz Hz], [Hold fixed initially],
-    [Detuning $Delta f$], [Illustrated macaque examples span approximately 2.8--4.8 Hz], [#start.detuning-hz Hz, or #start.relative-detuning of $accent(f, macron)$], [Hold near the starting value],
+    [Detuning $Delta f_"detune"$], [Illustrated macaque examples span approximately 2.8--4.8 Hz], [#start.detuning-hz Hz, or #start.relative-detuning of $accent(f, macron)$], [Hold near the starting value],
     [Effective interaction $epsilon$], [Phase-dependent frequency modulation is approximately 1.6--1.8 Hz in representative macaque conditions], [Not fitted; strong coupling leaves a mean frequency difference of #start.residual-hz Hz], [Describe the correction; fit $epsilon$ later],
     [Synchronization], [Representative phase-locking values approximately 0.3--0.5 with phase slips], [Phase concentration #start.phase-concentration with no whole net windings], [Weaken coupling first],
   )
@@ -137,7 +137,7 @@
   + *Reduce coupling while everything else stays the same.* I saved the network immediately before coupling began. I replayed from that point several times with the same neuron states and the same pre-generated input spike trains after that point. I changed only the coupling strength $K$: I began at #start.k-ee-us µS, then used progressively weaker values down to zero. E-to-E and E-to-I coupling always used the same value. I used nine values from 0.08 to 0.00 µS in 0.01 µS steps, each with a 500 ms uncoupled prefix and a 4,500 ms coupled suffix. I excluded the first 300 ms after coupling from phase measurements. I ran one trajectory at each value of $K$; repeated seeds and trials are outside this experiment. For each coupling strength, I tracked the phase gap between the two rhythms. Strong coupling may keep that gap fixed. Weaker coupling may allow one rhythm to repeatedly gain a full cycle on the other, producing phase slips. I looked for the intermediate behaviour reported by Lowet et al. (2017): phase slips continue, but the phase gap repeatedly slows near one preferred value, making that value more common#cite(1). Among nonzero, nonmaximal coupling conditions with at least two whole net windings, I selected the largest product of phase concentration, peak-to-mean density, nonnegative slowing fraction and the exponential of negative angular alignment error. I counted whole net windings by taking the floor of the absolute unwrapped phase change divided by $2 pi$; this does not count every reversing slip event. This demonstrates the behaviour once; it does not establish reliability across seeds. See #link(<result-2-coupling-boundary>)[Coupling boundary].
 
 
-  + *Relate phase velocity to phase position.* For the selected condition, I estimated each network's instantaneous frequency from consecutive excitatory volleys. Relative-phase velocity is $v_theta = 2 pi (f_A - f_B)$, where $f_A$ and $f_B$ are the instantaneous frequencies of Networks A and B in Hz, and $v_theta$ is in rad/s. I grouped $v_theta$ by wrapped relative-phase position $theta$ in radians, and compared the resulting velocity curve with the distribution of $theta$. Intermittent attraction requires continued phase slips, a non-uniform phase distribution, and lower absolute velocity near the distribution's preferred position. See #link(<result-3-intermittent-attraction>)[Intermittent phase attraction].
+  + *Relate phase velocity to phase position.* For the selected condition, I estimated each network's instantaneous frequency from consecutive excitatory volleys. Relative-phase velocity is $v_phi = 2 pi (f_A - f_B)$, where $f_A$ and $f_B$ are the instantaneous frequencies of Networks A and B in Hz, and $v_phi$ is in rad/s. I grouped $v_phi$ by wrapped relative phase $phi$ in radians, and compared the resulting velocity curve with the distribution of $phi$. Intermittent attraction requires continued phase slips, a non-uniform phase distribution, and lower absolute velocity near the distribution's preferred position. See #link(<result-3-intermittent-attraction>)[Intermittent phase attraction].
 
   #reference-list((
     (

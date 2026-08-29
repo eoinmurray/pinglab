@@ -9,7 +9,7 @@
   status: "[▦ DATA]",
   title: "Gamma Emerges at a Hopf Bifurcation",
   date: "2026-05-28",
-  updated_at: "2026-08-28",
+  updated_at: "2026-08-29",
   description: "A four-variable population-rate model links oscillatory onset to synaptic timescales, with explicit limits on its connection to spiking recruitment.",
   collection: "gamma-gated-sparsity",
 )
@@ -153,7 +153,7 @@
       The 25-point ramps gave a maximum branch gap of
       $#gapmant times 10^(-6)$ $"ms"^(-1)$ and measured hysteresis width #hystwidth nA
       at the 0.1 Hz amplitude threshold. The rising-branch squared-amplitude fit
-      had slope $#a2mant times 10^(-4)$ $"ms"^(-2)$/nA and $R^2 = #a2r2$.
+      had slope $#a2mant times 10^(-4)$ $"ms"^(-2)$/nA and $R_"fit"^2 = #a2r2$.
       \[(!) These diagnostics support a supercritical interpretation; they do not rule
       out a narrow bistable interval or an unstable cycle. No first Lyapunov
       coefficient was computed #cite(1).\]
@@ -231,12 +231,11 @@
 
     $ tau_E dot(E) &= -E + Phi_E (I_"ext" - 15 g_i^E), \
       tau_I dot(I) &= -I + Phi_I (65 g_e^I), \
-      tau_"AMPA" dot(g)_e^I &= -g_e^I + tau_"AMPA" tilde(W)^(E I) E, \
-      tau_"GABA" dot(g)_i^E &= -g_i^E + tau_"GABA" tilde(W)^(I E) I. $ <eq-model>
+      tau_"AMPA" dot(g)_e^I &= -g_e^I + tau_"AMPA" G_(E arrow I) E, \
+      tau_"GABA" dot(g)_i^E &= -g_i^E + tau_"GABA" G_(I arrow E) I. $ <eq-model>
 
     Here $E,I$ are rates ($"ms"^(-1)$), $g$ conductances (µS), $I_"ext"$ drive (nA),
-    $Phi$ steady-state gains, $tilde(W)$ conductance increments, and $tau$ time
-    constants; dots denote derivatives in milliseconds. Fixed driving forces
+    $Phi$ steady-state gains, $G$ summed conductances, and the pathway-specific time constants; dots denote derivatives in milliseconds. Fixed driving forces
     omit shunting; rate relaxation and the free noise scale define a
     phenomenological closure, not a self-consistent noise theory.
 
@@ -245,16 +244,16 @@
     $10^(-6)$ formed each Jacobian; the first complex-pair crossing was refined
     with Brent's method. Frequency was
 
-    $ f^* = 1000 omega^* / (2 pi), $ <eq-frequency>
+    $ f_"Hopf" = 1000 omega_"Hopf" / (2 pi), $ <eq-frequency>
 
-    with angular frequency $omega^*$ in rad/ms and $f^*$ in Hz; reduced-model
+    with angular frequency $omega_"Hopf"$ in rad/ms and $f_"Hopf"$ in Hz; reduced-model
     crossings retained 0.01 nA grid resolution.
 
   + *Test onset reversibility.* LSODA integrated 25 drives from onset minus
     0.1 to onset plus 0.55 nA in each direction, carrying endpoint states forward.
     Each step lasted 2,000 ms; E peak-to-peak amplitude used the final 500 ms.
     The classifier required branch gap below $10^(-4)$ $"ms"^(-1)$, positive
-    squared-amplitude slope and $R^2 > 0.9$; it was a numerical diagnostic, not
+    squared-amplitude slope and $R_"fit"^2 > 0.9$; it was a numerical diagnostic, not
     a normal-form coefficient.
 
   + *Measure waveforms and reductions.* At onset plus 0.4 nA, 700 ms integrations
@@ -275,34 +274,34 @@
 
   === Summary of COBA model.
 
-  Here $V$ is membrane voltage (mV), $C_m$ capacitance (nF), $g_L$ leak
+  Here $V_m$ is membrane voltage (mV), $C_m$ capacitance (nF), $g_L$ leak
   conductance (µS), and $E_L$, $E_e$, $E_i$ are leak, excitatory and inhibitory
   reversal potentials (mV). $V_"th"$ and $V_"reset"$ are threshold and reset;
   $s$ denotes a spike indicator in discrete time and a spike train in continuous
-  time. $Delta t$ is the timestep, $W$ a conductance increment per spike (µS),
+  time. $Delta t_"sim"$ is the timestep, $W$ a conductance increment per spike (µS),
   and superscripts identify the receiving E or I population.
 
   The derivation starts from the COBANet model (#link("/exp100/")[conductance-based spiking model specification]): conductance-based E
   and I membranes, a threshold-reset rule, and three exponential synapses (no E→E; I
   receives no inhibition):
-  $ C_m^E dot(V)^E = -g_L^E (V^E - E_L) - g_e^E (V^E - E_e) - g_i^E (V^E - E_i) $ <eq-old-1>
-  $ C_m^I dot(V)^I = -g_L^I (V^I - E_L) - g_e^I (V^I - E_e) $ <eq-old-2>
-  $ s_(t+1) = bb(1)[V >= V_"th"], quad V <- V_"reset" "if " s_(t+1)=1
+  $ C_m^E dot(V_m)^E = -g_L^E (V_m^E - E_L) - g_e^E (V_m^E - E_e) - g_i^E (V_m^E - E_i) $ <eq-old-1>
+  $ C_m^I dot(V_m)^I = -g_L^I (V_m^I - E_L) - g_e^I (V_m^I - E_e) $ <eq-old-2>
+  $ s[k+1] = bb(1)[V_m[k+1] >= V_"th"], quad V_m[k+1] <- V_"reset" "if " s[k+1]=1
     " or refractory" $ <eq-old-3>
-  $ g^E_(e,t+1) = e^(-Delta t \/ tau_"AMPA") g^E_(e,t) + W_"in" s^"inp"_t $ <eq-old-4>
-  $ g^E_(i,t+1) = e^(-Delta t \/ tau_"GABA") g^E_(i,t) + W_"ie" s^i_t $ <eq-old-5>
-  $ g^I_(e,t+1) = e^(-Delta t \/ tau_"AMPA") g^I_(e,t) + W_"ei" s^e_t $ <eq-old-6>
+  $ g^E_(e,t+1) = e^(-Delta t_"sim" \/ tau_"AMPA") g^E_(e,t) + W_"in" s^"inp"_t $ <eq-old-4>
+  $ g^E_(i,t+1) = e^(-Delta t_"sim" \/ tau_"GABA") g^E_(i,t) + W_"ie" s^i_t $ <eq-old-5>
+  $ g^I_(e,t+1) = e^(-Delta t_"sim" \/ tau_"AMPA") g^I_(e,t) + W_"ei" s^e_t $ <eq-old-6>
 
   === Continuous-time form with tonic drive.
 
   Recast in continuous time. The synapses @eq-old-4 to @eq-old-6 are the exp-Euler form of
-  first-order filters $tau dot(g) = -g + tau sum W s$, used here as ODEs. At a
+  first-order filters $tau_"syn" dot(g) = -g + tau_"syn" sum W s$, used here as ODEs. At a
   constant input rate, $g_e^E$ in @eq-old-4 settles to a steady mean, so its excitatory current
   into the E membrane @eq-old-1 is a near-constant depolarising drive; replacing it by a
   tonic current $I_"ext"$ defines the swept control parameter. The E membrane then carries
   $I_"ext"$ in place of $g_e^E$:
-  $ C_m^E dot(V)^E = -g_L^E (V^E - E_L) - g_i^E (V^E - E_i) + I_"ext" $ <eq-old-7>
-  $ C_m^I dot(V)^I = -g_L^I (V^I - E_L) - g_e^I (V^I - E_e) $ <eq-old-8>
+  $ C_m^E dot(V_m)^E = -g_L^E (V_m^E - E_L) - g_i^E (V_m^E - E_i) + I_"ext" $ <eq-old-7>
+  $ C_m^I dot(V_m)^I = -g_L^I (V_m^I - E_L) - g_e^I (V_m^I - E_e) $ <eq-old-8>
 
   Here $g_i^E$ is the inhibition onto E and $g_e^I$ the excitation onto I, each a
   continuous-time exponential filter of the presynaptic spikes:
@@ -314,11 +313,11 @@
 
   === Homogeneous coupling and population means.
 
-  The motivating spiking network has $N_E = 1024$ excitatory cells and
-  $N_I = 256$ inhibitory cells. These are population sizes, not extra state
+  The motivating spiking network has $N_E = 1024$ excitatory neurons and
+  $N_I = 256$ inhibitory neurons. These are population sizes, not extra state
   variables in the four-variable closure.
 
-  Now resolve the populations: index E cells by $j in {1, ..., N_E}$ and I cells by
+  Now resolve the populations: index E neurons by $j in {1, ..., N_E}$ and I neurons by
   $k in {1, ..., N_I}$. The recurrent drive in @eq-old-9 and @eq-old-10 is the presynaptic sum
   $W^(E I) s^E = sum_j W^(E I)_(k j) s_j^E$ (and
   $W^(I E) s^I = sum_k W^(I E)_(j k) s_k^I$). Replace each random weight by its
@@ -343,70 +342,71 @@
   and sustain weak noisy gamma below threshold. That is retained as a proposed
   explanation, not an effect isolated by this deterministic calculation.\]
 
-  With no cell index left, every E cell sees the same $g_i^E$ and every I cell the
-  same $g_e^I$, collapsing the per-cell conductances to population means. Defining
+  With no neuron index left, every E neuron sees the same $g_i^E$ and every I neuron the
+  same $g_e^I$, collapsing the per-neuron conductances to population means. Defining
   lumped couplings
-  $ tilde(W)^(E I) eq.triple w^(E I) N_E, quad tilde(W)^(I E) eq.triple w^(I E) N_I $ <eq-old-14>
+  $ G_(E arrow I) eq.triple w^(E I) N_E, quad G_(I arrow E) eq.triple w^(I E) N_I $ <eq-old-14>
 
   the conductance dynamics become
-  $ tau_"AMPA" dot(g)_e^I = -g_e^I + tau_"AMPA" tilde(W)^(E I) E $ <eq-old-15>
-  $ tau_"GABA" dot(g)_i^E = -g_i^E + tau_"GABA" tilde(W)^(I E) I $ <eq-old-16>
+  $ tau_"AMPA" dot(g)_e^I = -g_e^I + tau_"AMPA" G_(E arrow I) E $ <eq-old-15>
+  $ tau_"GABA" dot(g)_i^E = -g_i^E + tau_"GABA" G_(I arrow E) I $ <eq-old-16>
 
-  Two equations, down from $N_E + N_I$. (The fan-in scale $tilde(W)$ folds into
-  $W^(E I), W^(I E)$ in A.6.)
+  Two equations, down from $N_E + N_I$. (The fan-in scale $G$ is converted to
+  $J_(E arrow I), J_(I arrow E)$ in A.6.)
 
   _Running system, end of A.3: conductances are now two population means; the
-  membrane is still per-cell but sees those means:_
-  $ C_m^E dot(V)_j^E & = -g_L^E (V_j^E - E_L) - g_i^E (V_j^E - E_i) + I_"ext" \
-         C_m^I dot(V)_k^I & = -g_L^I (V_k^I - E_L) - g_e^I (V_k^I - E_e) \
-    tau_"AMPA" dot(g)_e^I & = -g_e^I + tau_"AMPA" tilde(W)^(E I) E \
-    tau_"GABA" dot(g)_i^E & = -g_i^E + tau_"GABA" tilde(W)^(I E) I $
+  membrane is still per-neuron but sees those means:_
+  $ C_m^E dot(V_m)_j^E & = -g_L^E ((V_m)_j^E - E_L) - g_i^E ((V_m)_j^E - E_i) + I_"ext" \
+         C_m^I dot(V_m)_k^I & = -g_L^I ((V_m)_k^I - E_L) - g_e^I ((V_m)_k^I - E_e) \
+    tau_"AMPA" dot(g)_e^I & = -g_e^I + tau_"AMPA" G_(E arrow I) E \
+    tau_"GABA" dot(g)_i^E & = -g_i^E + tau_"GABA" G_(I arrow E) I $
 
   === Driving-force linearisation.
 
-  The synaptic current is conductance times a _driving force_, $-g (V - E_"rev")$,
-  a $g$–$V$ product, hence nonlinear. Freeze $V$ at rest, $V_"rest" = E_L = -65$ mV,
-  _in the driving force only_ (leak and threshold keep their full $V$-dependence,
+  The synaptic current is conductance times a _driving force_, $-g (V_m - E_"rev")$,
+  a $g$–$V_m$ product, hence nonlinear. Freeze $V_m$ at rest, $V_"rest" = E_L = -65$ mV,
+  _in the driving force only_ (leak and threshold keep their full $V_m$-dependence,
   handled by the f-I curve in A.5). Each driving force becomes a fixed voltage gap:
-  $ Delta V_"inh" eq.triple V_"rest" - E_i = -65 - (-80) = 15 "mV" $ <eq-old-17>
-  $ Delta V_"exc" eq.triple V_"rest" - E_e = -65 - 0 = -65 "mV" $
+  $ Delta V_"inh,mag" eq.triple V_"rest" - E_i = -65 - (-80) = 15 "mV" $ <eq-old-17>
+  $ Delta V_"exc,signed" eq.triple V_"rest" - E_e = -65 - 0 = -65 "mV", quad
+    Delta V_"exc,mag" eq.triple |Delta V_"exc,signed"| = 65 "mV" $
 
-  The synaptic currents in @eq-old-7 and @eq-old-8 then lose their $V$-dependence and become
+  The synaptic currents in @eq-old-7 and @eq-old-8 then lose their $V_m$-dependence and become
   proportional to conductance alone:
-  $ -g_i^E (V_j^E - E_i) approx -g_i^E Delta V_"inh" $ <eq-old-18>
-  $ -g_e^I (V_k^I - E_e) approx -g_e^I Delta V_"exc" = +g_e^I dot |E_e - V_"rest"| $ <eq-old-19>
+  $ -g_i^E ((V_m)_j^E - E_i) approx -g_i^E Delta V_"inh,mag" $ <eq-old-18>
+  $ -g_e^I ((V_m)_k^I - E_e) approx -g_e^I Delta V_"exc,signed" = +g_e^I dot |E_e - V_"rest"| $ <eq-old-19>
 
-  (inhibition pulls $V$ down, $Delta V_"inh" = +15$ mV; excitation pushes it up,
-  $|Delta V_"exc"| = 65$ mV). Removing the $g$–$V$ coupling reduces COBA to a
-  current-based (CUBA) form; the cost is shunting: fixing $V$ neglects the fact that
+  (inhibition pulls $V_m$ down, $Delta V_"inh,mag" = +15$ mV; excitation pushes it up,
+  $Delta V_"exc,mag" = 65$ mV). Removing the $g$–$V_m$ coupling reduces COBA to a
+  current-based (CUBA) form; the cost is shunting: fixing $V_m$ neglects the fact that
   conductance also lowers the effective time constant
   ($tau_"eff" = C_m \/ g_"tot"$, with $g_"tot"$ the total membrane conductance).
 
   _Running system, end of A.4: the synaptic currents are now linear in conductance
-  (no $V$ left in the driving force):_
-  $ C_m^E dot(V)_j^E & = -g_L^E (V_j^E - E_L) - g_i^E Delta V_"inh" + I_"ext" \
-         C_m^I dot(V)_k^I & = -g_L^I (V_k^I - E_L) + g_e^I |Delta V_"exc"| \
-    tau_"AMPA" dot(g)_e^I & = -g_e^I + tau_"AMPA" tilde(W)^(E I) E \
-    tau_"GABA" dot(g)_i^E & = -g_i^E + tau_"GABA" tilde(W)^(I E) I $
+  (no $V_m$ left in the driving force):_
+  $ C_m^E dot(V_m)_j^E & = -g_L^E ((V_m)_j^E - E_L) - g_i^E Delta V_"inh,mag" + I_"ext" \
+         C_m^I dot(V_m)_k^I & = -g_L^I ((V_m)_k^I - E_L) + g_e^I Delta V_"exc,mag" \
+    tau_"AMPA" dot(g)_e^I & = -g_e^I + tau_"AMPA" G_(E arrow I) E \
+    tau_"GABA" dot(g)_i^E & = -g_i^E + tau_"GABA" G_(I arrow E) I $
 
   === Population rate from an f-I curve.
 
   Under @eq-old-17 to @eq-old-19 the membrane equations @eq-old-7 and @eq-old-8 read
-  $C_m dot(V) = -g_L (V - E_L) + I_"syn"$, LIF with a synaptic current. A LIF cell
+  $C_m dot(V_m) = -g_L (V_m - E_L) + I_"syn"$, LIF with a synaptic current. A LIF neuron
   under constant net current $I$ fires at its f-I rate $phi(I)$; replacing each
-  cell's spikes by that rate gives
+  neuron's spikes by that rate gives
   $ E(t) approx phi_E (I_"eff"^E (t)), quad I(t) approx phi_I (I_"eff"^I (t)) $ <eq-old-20>
 
   with effective input currents (from @eq-old-7 and @eq-old-8 with @eq-old-17 to @eq-old-19 substituted)
-  $ I_"eff"^E (t) = I_"ext" (t) - g_i^E (t) Delta V_"inh" $ <eq-old-21>
-  $ I_"eff"^I (t) = g_e^I (t) |Delta V_"exc"| $ <eq-old-22>
+  $ I_"eff"^E (t) = I_"ext" (t) - g_i^E (t) Delta V_"inh,mag" $ <eq-old-21>
+  $ I_"eff"^I (t) = g_e^I (t) Delta V_"exc,mag" $ <eq-old-22>
 
   (I receives only excitation; E receives the drive minus inhibitory current.) The
   instantaneous-rate replacement @eq-old-20 assumes slow inputs. The closure approximates
   the finite population response by relaxation on $tau_E$ and $tau_I$; this is
-  \[(!) a closure assumption, not an exact consequence of the single-cell gain\]:
-  $ tau_E dot(E) = -E + Phi_E (I_"ext" - g_i^E Delta V_"inh") $ <eq-old-23>
-  $ tau_I dot(I) = -I + Phi_I (g_e^I |Delta V_"exc"|) $ <eq-old-24>
+  \[(!) a closure assumption, not an exact consequence of the single-neuron gain\]:
+  $ tau_E dot(E) = -E + Phi_E (I_"ext" - g_i^E Delta V_"inh,mag") $ <eq-old-23>
+  $ tau_I dot(I) = -I + Phi_I (g_e^I Delta V_"exc,mag") $ <eq-old-24>
 
   where $Phi_E, Phi_I$ are the smooth steady-state gain functions (the noisy LIF steady-state
   curve defined in #link(<sec-noisy-lif-gain-and-parameter-values>)[Noisy LIF gain and parameter values]). Two more equations down, together
@@ -414,31 +414,31 @@
 
   _Running system, end of A.5: a closed 4D rate model in $(E, I, g_e^I, g_i^E)$,
   constants not yet absorbed:_
-  $ tau_E dot(E) & = -E + Phi_E (I_"ext" - g_i^E Delta V_"inh") \
-             tau_I dot(I) & = -I + Phi_I (g_e^I |Delta V_"exc"|) \
-    tau_"AMPA" dot(g)_e^I & = -g_e^I + tau_"AMPA" tilde(W)^(E I) E \
-    tau_"GABA" dot(g)_i^E & = -g_i^E + tau_"GABA" tilde(W)^(I E) I $
+  $ tau_E dot(E) & = -E + Phi_E (I_"ext" - g_i^E Delta V_"inh,mag") \
+             tau_I dot(I) & = -I + Phi_I (g_e^I Delta V_"exc,mag") \
+    tau_"AMPA" dot(g)_e^I & = -g_e^I + tau_"AMPA" G_(E arrow I) E \
+    tau_"GABA" dot(g)_i^E & = -g_i^E + tau_"GABA" G_(I arrow E) I $
 
   === Absorb the driving-force constants. <sec-absorb-the-driving-force-constants>
 
-  The prefactors $Delta V_"inh", |Delta V_"exc"|$ in @eq-old-23 and @eq-old-24 and the fan-in
+  The prefactors $Delta V_"inh,mag", Delta V_"exc,mag"$ in @eq-old-23 and @eq-old-24 and the fan-in
   scalings in @eq-old-15 and @eq-old-16 are constants carrying no dynamics; fold them into the
   couplings:
-  $ W^(E I) eq.triple tilde(W)^(E I) dot |Delta V_"exc"|, quad
-    W^(I E) eq.triple tilde(W)^(I E) dot Delta V_"inh" $ <eq-old-25>
+  $ J_(E arrow I) eq.triple G_(E arrow I) dot Delta V_"exc,mag", quad
+    J_(I arrow E) eq.triple G_(I arrow E) dot Delta V_"inh,mag" $ <eq-old-25>
 
-  \[(!) Define current-valued coordinates $h_e^I = g_e^I |Delta V_"exc"|$ and
-  $h_i^E = g_i^E Delta V_"inh"$ (nA). This invertible rescaling loses no dynamics.
+  \[(!) Define current-valued coordinates $h_e^I = g_e^I Delta V_"exc,mag"$ and
+  $h_i^E = g_i^E Delta V_"inh,mag"$ (nA). This invertible rescaling loses no dynamics.
   The figures retain the original conductances $g$ in µS; the equations below
-  use $h$ and current-valued couplings $W$ (nA per spike).\]
+  use $h$ and current-valued couplings $J$ (nA per spike).\]
 
   === The 4D system
 
   After A.1–A.6, the mean-field equations are
   $ tau_E dot(E) = -E + Phi_E (I_"ext" - h_i^E), quad
     tau_I dot(I) = -I + Phi_I (h_e^I) $ <eq-old-26>
-  $ tau_"AMPA" dot(h)_e^I = -h_e^I + tau_"AMPA" W^(E I) E, quad
-    tau_"GABA" dot(h)_i^E = -h_i^E + tau_"GABA" W^(I E) I $ <eq-old-27>
+  $ tau_"AMPA" dot(h)_e^I = -h_e^I + tau_"AMPA" J_(E arrow I) E, quad
+    tau_"GABA" dot(h)_i^E = -h_i^E + tau_"GABA" J_(I arrow E) I $ <eq-old-27>
 
   in state $(E, I, h_e^I, h_i^E)$. The tested quasi-steady reductions are examined in #link(<sec-appendix-which-variables-can-be-eliminated>)[Appendix: Which variables can be eliminated?]; this is not
   a claim that four physical coordinates are the only possible description.
@@ -446,27 +446,27 @@
   === 4D Jacobian
 
   At a fixed point $(E^*, I^*, h_e^(I*), h_i^(E*))$:
-  $ J = mat(
+  $ J_"flow" = mat(
       -1 \/ tau_E, 0, 0, -Phi'_E \/ tau_E;
       0, -1 \/ tau_I, Phi'_I \/ tau_I, 0;
-      W^(E I), 0, -1 \/ tau_"AMPA", 0;
-      0, W^(I E), 0, -1 \/ tau_"GABA"
+      J_(E arrow I), 0, -1 \/ tau_"AMPA", 0;
+      0, J_(I arrow E), 0, -1 \/ tau_"GABA"
     ) $ <eq-old-28>
 
-  Here $J$ is the derivative of the vector field with respect to its state;
+  Here $J_"flow"$ is the derivative of the vector field with respect to its state;
   $Phi'_E, Phi'_I$ are gain derivatives with respect to input current, evaluated
-  at the fixed-point arguments. Each linear mode evolves as $e^(lambda t)$,
-  where $lambda$ is an eigenvalue: a negative real part decays and a positive
+  at the fixed-point arguments. Each linear mode evolves as $e^(lambda_J t)$,
+  where $lambda_J$ is an eigenvalue: a negative real part decays and a positive
   real part grows. A simple Hopf requires one conjugate pair to cross with nonzero
   angular frequency while the other modes remain damped; criticality requires
   nonlinear information. Simultaneous crossings need a different analysis.
 
   At the retained crossing,
 
-  $ I_"ext"^* = #istar "nA", quad omega^* = #omegastar "rad/ms", $
-  $ f^* = 1000 omega^* / (2 pi) approx #fstar "Hz". $
+  $ I_("ext,Hopf") = #istar "nA", quad omega_"Hopf" = #omegastar "rad/ms", $
+  $ f_"Hopf" = 1000 omega_"Hopf" / (2 pi) approx #fstar "Hz". $
 
-  Here $I_"ext"^*$ is onset drive, $omega^*$ angular frequency, and $f^*$
+  Here $I_("ext,Hopf")$ is onset drive, $omega_"Hopf"$ angular frequency, and $f_"Hopf"$
   frequency in cycles per second. \[(!) The factor 1000 converts milliseconds
   to seconds; it was missing from the earlier Hz equation.\]
 
@@ -480,9 +480,9 @@
   assertion that a second pair crosses at higher drive is not supported by
   the retained 0–4 nA sweep. Moreover, this model has
 
-  $ "tr" J = -1/tau_E - 1/tau_I - 1/tau_"AMPA" - 1/tau_"GABA" < 0, $
+  $ "tr" J_"flow" = -1/tau_E - 1/tau_I - 1/tau_"AMPA" - 1/tau_"GABA" < 0, $
 
-  where $"tr" J$ is the sum of the four eigenvalues. Two simultaneously
+  where $"tr" J_"flow"$ is the sum of the four eigenvalues. Two simultaneously
   imaginary pairs would require zero trace, so a double-Hopf at an equilibrium
   is excluded for this particular four-filter model with finite positive time
   constants. This does not exclude every possible torus mechanism.\]
@@ -504,21 +504,21 @@
   $E_L = V_"reset" = -65$ mV, $V_"th" = -50$ mV; E/I values are
   $tau_m = (20, 5)$ ms, $g_L = (0.05, 0.10)$ µS and
   $tau_"ref" = (3, 1.5)$ ms, respectively.
-  The lumped conductance increments are $tilde(W)^(E I) = 1$ µS and
-  $tilde(W)^(I E) = 2$ µS; fixed driving-force magnitudes are 65 and 15 mV.
-  Fan-in-normalised mean weights give $tilde(W) = w N$, where $w$ is the mean
-  presynaptic weight and $N$ the number of presynaptic cells. These values are
+  The lumped conductance increments are $G_(E arrow I) = 1$ µS and
+  $G_(I arrow E) = 2$ µS; fixed driving-force magnitudes are 65 and 15 mV.
+  Fan-in-normalised mean weights give $G = macron(w) N$, where $w$ is the mean
+  presynaptic weight and $N$ the number of presynaptic neurons. These values are
   inherited baseline settings, not fitted final-epoch weights.
 
   In the spiking model's strength notation,
 
-  $ tilde(W)^(E I) = w^(E I) N_E = s, quad
-    tilde(W)^(I E) = w^(I E) N_I = r s. $
+  $ G_(E arrow I) = w^(E I) N_E = G_"ref", quad
+    G_(I arrow E) = w^(I E) N_I = rho_"IE/EI" G_"ref". $
 
-  Here $s = 1$ µS is excitatory-to-inhibitory strength and $r = 2$ is the
+  Here $G_"ref" = 1$ µS is excitatory-to-inhibitory summed conductance and $rho_"IE/EI" = 2$ is the
   dimensionless inhibitory/excitatory strength ratio. Fan-in normalization
-  makes the individual mean weights $s/N_E$ and $r s/N_I$. Here $s$ is a
-  coupling strength, distinct from the spike indicators in A.1.
+  makes the individual mean weights $G_"ref"/N_E$ and
+  $rho_"IE/EI" G_"ref"/N_I$.
   \[(!) This restores the baseline parameter mapping; it does not identify
   these fixed couplings with the final trained weights.\]
 
@@ -539,12 +539,12 @@
   + *Route A: the textbook Wilson-Cowan model (slave the conductances).* The standard
     2D tool is two rates with instantaneous coupling, the 4D model with instantaneous
     synaptic response at unchanged steady-state coupling. Slave each conductance to its filter's steady value @eq-old-15 and @eq-old-16,
-    $h_e^I = tau_"AMPA" W^(E I) E$ and $h_i^E = tau_"GABA" W^(I E) I$, and substitute
+    $h_e^I = tau_"AMPA" J_(E arrow I) E$ and $h_i^E = tau_"GABA" J_(I arrow E) I$, and substitute
     into @eq-old-26:
 
-    $ tau_E dot(E) = -E + Phi_E (I_"ext" - tau_"GABA" W^(I E) I), $ <eq-old-30>
+    $ tau_E dot(E) = -E + Phi_E (I_"ext" - tau_"GABA" J_(I arrow E) I), $ <eq-old-30>
 
-    $ tau_I dot(I) = -I + Phi_I (tau_"AMPA" W^(E I) E). $ <eq-old-31>
+    $ tau_I dot(I) = -I + Phi_I (tau_"AMPA" J_(E arrow I) E). $ <eq-old-31>
 
     Its divergence (the Jacobian trace),
 
@@ -563,9 +563,9 @@
     $E = Phi_E (I_"ext" - h_i^E)$ and $I = Phi_I (h_e^I)$, into the conductance
     equations @eq-old-27, giving a 2D system in $(h_e^I, h_i^E)$:
 
-    $ tau_"AMPA" dot(h)_e^I = -h_e^I + tau_"AMPA" W^(E I) Phi_E (I_"ext" - h_i^E), $ <eq-old-33>
+    $ tau_"AMPA" dot(h)_e^I = -h_e^I + tau_"AMPA" J_(E arrow I) Phi_E (I_"ext" - h_i^E), $ <eq-old-33>
 
-    $ tau_"GABA" dot(h)_i^E = -h_i^E + tau_"GABA" W^(I E) Phi_I (h_e^I), $ <eq-old-34>
+    $ tau_"GABA" dot(h)_i^E = -h_i^E + tau_"GABA" J_(I arrow E) Phi_I (h_e^I), $ <eq-old-34>
 
     with the same negative-constant divergence,
 
@@ -582,8 +582,8 @@
 
     $ tau_E dot(E) = -E + Phi_E (I_"ext" - h_i^E), $ <eq-old-36>
 
-    $ tau_"GABA" dot(h)_i^E = -h_i^E + tau_"GABA" W^(I E)
-        Phi_I (tau_"AMPA" W^(E I) E). $ <eq-old-37>
+    $ tau_"GABA" dot(h)_i^E = -h_i^E + tau_"GABA" J_(I arrow E)
+        Phi_I (tau_"AMPA" J_(E arrow I) E). $ <eq-old-37>
 
     Trace $-1 \/ tau_E - 1 \/ tau_"GABA" < 0$: no cycle. The split is forced anyway:
     the constants interleave, $tau_"AMPA" = 2 < tau_I = 5 < tau_"GABA" = #tg <
@@ -611,18 +611,18 @@
     universal claim about two-dimensional oscillators was too strong.\]
 
   + *Three dimensions survive.* Slave only the fastest lag, the AMPA conductance
-    $h_e^I = tau_"AMPA" W^(E I) E$ (@fig-phase), leaving a three-lag
+    $h_e^I = tau_"AMPA" J_(E arrow I) E$ (@fig-phase), leaving a three-lag
     ring:
 
     $ tau_E dot(E) = -E + Phi_E (I_"ext" - h_i^E), $ <eq-old-38>
 
-    $ tau_I dot(I) = -I + Phi_I (tau_"AMPA" W^(E I) E), $ <eq-old-39>
+    $ tau_I dot(I) = -I + Phi_I (tau_"AMPA" J_(E arrow I) E), $ <eq-old-39>
 
-    $ tau_"GABA" dot(h)_i^E = -h_i^E + tau_"GABA" W^(I E) I, $ <eq-old-40>
+    $ tau_"GABA" dot(h)_i^E = -h_i^E + tau_"GABA" J_(I arrow E) I, $ <eq-old-40>
 
     This still Hopfs. Located like the 4D bifurcation (sweep $I_"ext"$, diagonalise the
     $3 times 3$ Jacobian, find the complex-pair crossing), it gave
-    $I_"ext"^* = #istar3$ nA and $f^* = #fstar3$ Hz, both above the 4D values, in the retained comparison. The six 2D reductions had no crossing in the sampled grid.
+    $I_("ext,Hopf") = #istar3$ nA and $f_"Hopf" = #fstar3$ Hz, both above the 4D values, in the retained comparison. The six 2D reductions had no crossing in the sampled grid.
     The displayed probe compares 4D, 3D and the rate-slaved 2D model only
     (@fig-ladder); it is not a time-series panel of all six reductions.
 
@@ -671,10 +671,10 @@
 
   The measured amplitude is
 
-  $ A = max_(t in cal(W)) E(t) - min_(t in cal(W)) E(t), $
+  $ A_"pp" = max_(t in cal(T)_"obs") E(t) - min_(t in cal(T)_"obs") E(t), $
 
-  where $E(t)$ is excitatory population rate and $cal(W)$ is the final
-  500 ms observation window of each ramp step. Thus $A$ is peak-to-peak rate,
+  where $E(t)$ is excitatory population rate and $cal(T)_"obs"$ is the final
+  500 ms observation window of each ramp step. Thus $A_"pp"$ is peak-to-peak rate,
   in inverse milliseconds, not mean rate or oscillation power. Carrying each
   endpoint into the next drive tests whether the reached attractor depends
   on sweep direction.
@@ -690,16 +690,16 @@
 
   The supercritical normal form predicts the leading amplitude law
 
-  $ Delta I = I_"ext" - I_"ext"^*, quad A approx C sqrt(Delta I), $
-  $ A^2 approx C^2 Delta I, quad
-    (dif A)/(dif I_"ext") approx C / (2 sqrt(Delta I)). $
+  $ Delta I = I_"ext" - I_("ext,Hopf"), quad A_"pp" approx c_"amp" sqrt(Delta I), $
+  $ A_"pp"^2 approx c_"amp"^2 Delta I, quad
+    (dif A_"pp")/(dif I_"ext") approx c_"amp" / (2 sqrt(Delta I)). $
 
-  Here $Delta I > 0$ is excess drive (nA) and $C > 0$ converts its square
+  Here $Delta I > 0$ is excess drive (nA) and $c_"amp" > 0$ converts its square
   root into peak-to-peak rate; its units are $"ms"^(-1)$/$sqrt("nA")$.
   The square-root law explains the formally unbounded onset slope in the
   ideal asymptotic description #cite(3).
   \[(!) The retained finite-range fit, with slope
-  $#a2mant times 10^(-4)$ $"ms"^(-2)$/nA and $R^2 = #a2r2$, is consistent
+  $#a2mant times 10^(-4)$ $"ms"^(-2)$/nA and $R_"fit"^2 = #a2r2$, is consistent
   with this law. It does not measure an infinite derivative or establish
   that most amplitude is acquired within a particular narrow drive band.
   Those earlier claims exceeded the sampled evidence.\]

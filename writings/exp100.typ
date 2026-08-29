@@ -3,7 +3,7 @@
 #let meta = (
   status: "[≡ TXT]",
   title: "COBANet",
-  updated_at: "2026-08-28",
+  updated_at: "2026-08-29",
   date: "2026-05-14",
   description: "How COBANet updates conductances, membrane voltages, spikes, and resets, with the equations and implementation limits needed to work on the simulator.",
   collection: "snnsim-docs",
@@ -28,31 +28,31 @@
 
   == A conductance based neuron equation
 
-  The membrane is a capacitor ($C_m$) pierced by ion channels in parallel. Conservation of charge (Kirchhoff) balances the capacitive current $C_m dif V\/dif t$ against the total ionic current:
+  The membrane is a capacitor ($C_m$) pierced by ion channels in parallel. Conservation of charge (Kirchhoff) balances the capacitive current $C_m dif V_m\/dif t$ against the total ionic current:
 
-  $ C_m (dif V) / (dif t) = -sum_"ion" I_"ion" quad (1) $
+  $ C_m (dif V_m) / (dif t) = -sum_"ion" I_"ion" quad (1) $
 
-  Each channel passes an ohmic current — its conductance $g_"ion" >= 0$ times the *driving force* $(V - E_"ion")$, the distance of $V$ from the reversal potential $E_"ion"$ (where the channel's net current vanishes, set by the Nernst equilibrium):
+  Each channel passes an ohmic current — its conductance $g_"ion" >= 0$ times the *driving force* $(V_m - E_"ion")$, the distance of $V_m$ from the reversal potential $E_"ion"$ (where the channel's net current vanishes, set by the Nernst equilibrium):
 
-  $ I_"ion" = g_"ion" (V - E_"ion") quad (2) $
+  $ I_"ion" = g_"ion" (V_m - E_"ion") quad (2) $
 
   Because $g_"ion" >= 0$, the current's sign lives entirely in the driving force. Summing a leak ($g_L$, $E_L$) and synaptic conductances — excitatory ($g_e$, $E_e$), inhibitory ($g_i$, $E_i$) — gives the general conductance-based (COBA) neuron:
 
-  $ C_m (dif V) / (dif t) = -g_L (V - E_L) - g_e (V - E_e) - g_i (V - E_i) quad (3) $
+  $ C_m (dif V_m) / (dif t) = -g_L (V_m - E_L) - g_e (V_m - E_e) - g_i (V_m - E_i) quad (3) $
 
   == The COBA model
 
   In the minimal PING motif, E receives excitation and inhibition, while I receives excitation only. These equations omit the optional I→I pathway:
 
-  $ C_m^E (dif V^E) / (dif t) = -g_L^E (V^E - E_L) - g_e^E (V^E - E_e) - g_i^E (V^E - E_i) quad (4) $
+  $ C_m^E (dif V_m^E) / (dif t) = -g_L^E (V_m^E - E_L) - g_e^E (V_m^E - E_e) - g_i^E (V_m^E - E_i) quad (4) $
 
-  $ C_m^I (dif V^I) / (dif t) = -g_L^I (V^I - E_L) - g_e^I (V^I - E_e) quad (5) $
+  $ C_m^I (dif V_m^I) / (dif t) = -g_L^I (V_m^I - E_L) - g_e^I (V_m^I - E_e) quad (5) $
 
   After integration, a neuron outside its refractory period spikes at threshold $V_"th"$ and resets to $V_"reset"$. A refractory neuron cannot emit a spike:
 
-  $ s_(t+1) = chi_(t+1) bb(1)[U_(t+1) >= V_"th"], quad V_(t+1) = cases(V_"reset" & "if spiking or refractory", U_(t+1) & "otherwise"). quad (6) $
+  $ s[k+1] = chi[k+1] bb(1)[V_"candidate"[k+1] >= V_"th"], quad V_m[k+1] = cases(V_"reset" & "if spiking or refractory", V_"candidate"[k+1] & "otherwise"). quad (6) $
 
-  Here $U_(t+1)$ is the integrated candidate voltage and $chi_(t+1)$ is 1 when the refractory counter permits a spike, otherwise 0. Thresholding follows the voltage update, not the previous step's voltage.
+  Here $V_"candidate"[k+1]$ is the integrated candidate voltage and $chi[k+1]$ is 1 when the refractory counter permits a spike, otherwise 0. Thresholding follows the voltage update, not the previous step's voltage.
 
   Each synaptic conductance is an exponential trace driven by presynaptic spikes — each spike adds its full weight as an instantaneous jump, then the conductance decays with the channel time constant; this minimal motif has no E→E connection:
 
@@ -66,19 +66,19 @@
 
   == Discretization
 
-  The conductances (7)–(9) and membrane equations (4)–(5) are continuous ODEs. The implementation places spike kicks on the timestep grid. Between kicks the conductances decay by $e^(-Delta t \/ tau)$, and the supplied spike adds its full weight at the update boundary — the decay-then-add recurrence $g_(t+1) = e^(-Delta t \/ tau) g_t + s_t W$ (with the $tau$, $W$ and spike train $s$ of each of (7)–(9)). The membrane is integrated by *exponential Euler* — the same algebra for both populations (the I neuron drops $g_i$).
+  The conductances (7)–(9) and membrane equations (4)–(5) are continuous ODEs. The implementation places spike kicks on the timestep grid. Between kicks each conductance decays by $e^(-Delta t_"sim" \/ tau_"syn")$, and the supplied spike adds its full event conductance at the update boundary — the decay-then-add recurrence $g[k+1] = e^(-Delta t_"sim" \/ tau_"syn") g[k] + s[k] w_"event"$ (with the pathway-specific $tau_"syn"$, $w_"event"$ and spike train of each of (7)–(9)). The membrane is integrated by *exponential Euler* — the same algebra for both populations (the I neuron drops $g_i$).
 
-  Collecting on $V$ makes it linear, with total conductance $g_"tot" = g_L + g_e + g_i$:
+  Collecting on $V_m$ makes it linear, with total conductance $g_"tot" = g_L + g_e + g_i$:
 
-  $ C_m (dif V) / (dif t) = -(g_L + g_e + g_i) V + (g_L E_L + g_e E_e + g_i E_i) quad (10) $
+  $ C_m (dif V_m) / (dif t) = -(g_L + g_e + g_i) V_m + (g_L E_L + g_e E_e + g_i E_i) quad (10) $
 
   Dividing by $g_"tot"$ gives decay-to-steady-state form, naming $tau_"eff" = C_m\/g_"tot"$ (shorter than $C_m\/g_L$ when synapses are open) and the steady-state voltage $V_oo$ (the conductance-weighted mean of the reversals):
 
-  $ (C_m) / (g_"tot") (dif V) / (dif t) = -(V - (g_L E_L + g_e E_e + g_i E_i) / (g_"tot")) quad (11) $
+  $ (C_m) / (g_"tot") (dif V_m) / (dif t) = -(V_m - (g_L E_L + g_e E_e + g_i E_i) / (g_"tot")) quad (11) $
 
-  A *zero-order hold* freezes the conductances over one step $Delta t$, leaving (11) constant-coefficient with exact solution
+  A *zero-order hold* freezes the conductances over one step $Delta t_"sim"$, leaving (11) constant-coefficient with exact solution
 
-  $ V_(t+1) = V_oo + (V_t - V_oo) e^(-Delta t \/ tau_"eff") quad (12) $
+  $ V_m[k+1] = V_oo + (V_m[k] - V_oo) e^(-Delta t_"sim" \/ tau_"eff") quad (12) $
 
   Per population — I has no $g_i$, so its $g_"tot"$ and $V_oo$ drop those terms:
 
@@ -86,7 +86,7 @@
 
   $ g_"tot"^I = g_L^I + g_e^I, quad tau_"eff"^I = (C_m^I) / (g_"tot"^I), quad V_oo^I = (g_L^I E_L + g_e^I E_e) / (g_"tot"^I) quad (14) $
 
-  with step (12) for each population $p in {E, I}$: $V^p_(t+1) = V^p_oo + (V^p_t - V^p_oo) e^(-Delta t \/ tau^p_"eff")$.
+  with step (12) for each population $P in {E, I}$: $V_m^P[k+1] = V_oo^P + (V_m^P[k] - V_oo^P) e^(-Delta t_"sim" \/ tau_"eff"^P)$.
 
   Equation (12) is exact only while those conductances are held fixed. In a passive interval without threshold events or clamps, subdividing that same fixed-conductance interval preserves the solution in exact arithmetic. It does not establish timestep invariance of a spiking network: conductance updates, threshold crossings, refractory counters, and recurrent scheduling still depend on the grid. Measure timestep sensitivity for the intended protocol rather than assuming firing rates or gamma frequency are invariant. The alternative `lif_step` uses forward Euler and is selected through `COBA_INTEGRATOR`.
 

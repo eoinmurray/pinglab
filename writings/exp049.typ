@@ -9,7 +9,7 @@
   status: "[▦ DATA]",
   title: "Training Recurrent Weights Weakens PING Rhythmicity",
   date: "2026-06-09",
-  updated_at: "2026-08-28",
+  updated_at: "2026-08-29",
   description: "Trainable recurrent conductances produced lower reference-image rhythmicity and higher excitatory firing than the frozen PING control; outcomes depended on initialization.",
   collection: "gamma-gated-sparsity",
 )
@@ -157,7 +157,7 @@
 
   + *Compare recurrent trainability.* Twelve conductance-based leaky-integrate-and-fire
     classifiers had 784 Poisson input channels, 1,024 excitatory (E), 256
-    inhibitory (I) and 10 output cells. Three seeds per condition compared
+    inhibitory (I) and 10 output neurons. Three seeds per condition compared
     frozen canonical recurrence with trainable canonical, zero and 10%-canonical
     E→I/I→E conductances; E→E and I→I coupling stayed zero. Canonical initializer
     means were $1/1024$ and $2/256$, respectively, with standard deviations one
@@ -173,8 +173,8 @@
 
   + *Constrain conductance signs.* Trainable recurrent magnitudes were projected
     onto the non-negative cone after each optimizer step. Inhibition arose
-    through $g_I (E_I - V)$, where $g_I$ is inhibitory conductance, $E_I = -80$
-    mV its reversal potential, and $V$ membrane voltage: a positive I→E weight
+    through $g_I (E_I - V_m)$, where $g_I$ is inhibitory conductance, $E_I = -80$
+    mV its reversal potential, and $V_m$ membrane voltage: a positive I→E weight
     need not become negative to inhibit. Input zeros remained trainable and
     could regrow; initialization details are listed below.
 
@@ -191,9 +191,9 @@
     E-population counts were binned at 1 ms; their autocorrelation was normalized
     by lag overlap and squared mean count, over 0–100 ms, then smoothed with
     weights $(1/4, 1/2, 1/4)$ after replacing the zero-lag entry by its neighbour:
-    #math.equation(block: true, numbering: "(1)", $R = (L - Q) / (L + Q)$)
-    Here $R$ is dimensionless contrast, $Q$ the first local trough from lag
-    2 ms onward, and $L$ the preceding positive-lag maximum of the smoothed
+    #math.equation(block: true, numbering: "(1)", $R_"contrast" = (A_"lobe" - A_"trough") / (A_"lobe" + A_"trough")$)
+    Here $R_"contrast"$ is dimensionless contrast, $A_"trough"$ the first local trough from lag
+    2 ms onward, and $A_"lobe"$ the preceding positive-lag maximum of the smoothed
     autocorrelogram. I reused the retained scalar; it is neither a
     test-population rhythm estimate nor a calibrated probability of PING.
 
@@ -212,7 +212,7 @@
   Recurrent-weight summaries distinguished the two directions: zeros counted
   non-positive entries, positive means excluded zeros, and distribution plots
   pooled seeds before binning. Illustrative diagnostic cards used a separate
-  test-image snapshot, seed 42 and image index 0, with 200 E and 50 I cells
+  test-image snapshot, seed 42 and image index 0, with 200 E and 50 I neurons
   sampled for display. Their accuracy trajectories are validation measurements;
   their E/I rate trajectories are reference-image diagnostics, while header
   statistics and spectra describe final official-test evaluations.

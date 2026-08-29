@@ -10,7 +10,7 @@
   status: "[▦ DATA]",
   title: "From simplified to brainlike input in a PING network",
   created_at: "2026-08-26",
-  updated_at: "2026-08-28",
+  updated_at: "2026-08-29",
   description: "A planned simulation scout comparing a Börgers–Kopell-like input regime with a richer conductance-based background.",
   collection: "demo",
   order: 13,
@@ -55,7 +55,7 @@
     caption: [Simulated single-seed working media, not an established comparison.
       Transmission paths are sampled for readability; the raster retains all
       recorded spikes. The view spans
-      300–1,800 ms with nonuniform playback pacing. R is autocorrelation contrast;
+      300–1,800 ms with nonuniform playback pacing. The figure label R denotes autocorrelation contrast $R_"contrast"$;
       L is the conductance-loop score smoothed over 75 ms and normalized within
       this probe, not a probability of PING.],
     kind: image, supplement: [Figure],
@@ -80,11 +80,11 @@
 
   + *Specify the background and afferents.* I provided shared Poisson afferents
     at 10 Hz and population-private afferents at 15 Hz, with afferent weight
-    means 0.08 μS onto excitatory cells and 0.02 μS onto inhibitory cells.
+    means 0.08 μS onto excitatory neurons and 0.02 μS onto inhibitory neurons.
     I added four excitatory/inhibitory background channels with private events at
     500 Hz and grouped shared events at 80 Hz, grouping 25 excitatory or 10
-    inhibitory cells. Private/shared event amplitudes are 0.06/0.02 μS for
-    excitation onto excitatory cells and 0.03/0.01 μS for the other channels.
+    inhibitory neurons. Private/shared event amplitudes are 0.06/0.02 μS for
+    excitation onto excitatory neurons and 0.03/0.01 μS for the other channels.
     I applied rate and amplitude heterogeneity with mean-one,
     lower-clamped normal multipliers of standard deviation 0.1, plus stationary
     rate modulation with a 250 ms timescale and fractional spread 0.12.
@@ -93,15 +93,15 @@
     timestep with random seed 7. I raised the afferent multiplier smoothly from
     baseline at 600 ms to its peak at 850 ms and back by 1,100 ms; peak
     multipliers are 1.2 for private and 6.5 for shared afferents. I retained spikes,
-    cell voltages, conductances and executed input events, keeping recurrent
+    neuron voltages, conductances and executed input events, keeping recurrent
     weights fixed throughout.
 
   + *Measure temporal organization.* I evaluated excitatory spike-autocorrelation
     lobe–trough contrast in 400 ms windows every 10 ms, using 1 ms lag bins out
     to 100 ms; undefined contrasts were recorded as zero.
-    #math.equation(block: true, numbering: "(1)", $R = (a - b) / (a + b)$)
-    Here $R$ is dimensionless contrast, $a$ is the smoothed autocorrelogram's
-    lobe height before its first trough, and $b$ is that trough's height.
+    #math.equation(block: true, numbering: "(1)", $R_"contrast" = (A_"lobe" - A_"trough") / (A_"lobe" + A_"trough")$)
+    Here $R_"contrast"$ is dimensionless contrast, $A_"lobe"$ is the smoothed autocorrelogram's
+    lobe height before its first trough, and $A_"trough"$ is that trough's height.
     I measured conductance-loop compactness and directional coherence in 40 ms
     windows every 5 ms over 300–1,800 ms, smoothed over 75 ms, and clipped the
     10th–95th-percentile normalization to zero–one. I counted excitatory and

@@ -1,6 +1,6 @@
 # Writing Guide
 
-Version: **18.0.0**
+Version: **19.0.0**
 
 The Writing Guide defines the conventions for Pinglab's published experiment
 entries in `writings/expXXX.typ`. This file is the canonical guide.
@@ -14,6 +14,12 @@ corrections or clarifications that do not change requirements. Update the versio
 above and add a short entry to the version history when changing the guide.
 
 ### 1.1. Version history
+
+- **19.0.0** — Establish shared terminology and mathematical notation for
+  recurrent entities across the experiment collection, including identities,
+  time, populations, activity, readouts, training, statistics, rhythms,
+  connectivity and dynamics. Require experiment-local definitions while
+  prohibiting ambiguous reuse of recurring symbols and scientific terms.
 
 - **18.0.0** — Specify first-person singular for the sole author's actions and
   interpretations, and distinguish past experimental work from present
@@ -330,6 +336,240 @@ advance `meta.updated_at`; a substantive correction follows section 3.4. Check
 tense and attribution in context rather than replacing every present-tense verb
 or every occurrence of a pronoun mechanically. Flag uncertain execution or
 authorship rather than guessing.
+
+### 3.7. Shared terminology and notation
+
+The conventions below apply to recurring terms and symbols across the experiment
+collection. They do not eliminate local definitions: define every nontrivial
+symbol at its first use in each standalone article. Established theory may retain
+its native notation when changing it would obscure the literature, but state its
+mapping to the shared notation explicitly. Do not apply these rules as blind
+textual replacements; preserve scientific meaning, units, executed provenance
+and exact public interfaces.
+
+#### Scientific entities and identities
+
+1. Use **experiment** for the scientific investigation identified by `expXXX`.
+2. Use **article** for its written account.
+3. Use **run** for one completed compute, analyse or present execution.
+4. Use **condition** for one defined point or intervention in an experimental
+   design.
+5. Use **training replicate** for one independently initialized and trained
+   network.
+6. Use **seed** for the stochastic-stream identifier, not for the resulting
+   network.
+7. Use **presentation** for one stimulus exposure; use **encoding draw** for one
+   stochastic realization of that presentation.
+8. Use **neuron** for an individual simulated cell.
+9. Use **component** for a reusable model object containing one or more
+   populations.
+10. Avoid bare **cell** where it could mean a neuron, condition–seed network or
+    multi-population component.
+
+#### Time and indexing
+
+11. Reserve $t$ for physical time.
+12. Use $k$ for a discrete simulation-step index.
+13. Relate discrete and physical time by $t_k=k\Delta t_{\mathrm{sim}}$, where
+    $t_k$ is time at step $k$ and $\Delta t_{\mathrm{sim}}$ is the integration
+    timestep.
+14. Use $N_t$ for the number of simulation timesteps.
+15. Use $T_{\mathrm{present}}$ for physical presentation duration.
+16. Use $T_{\mathrm{readout}}$ for the duration over which readout evidence is
+    accumulated.
+17. Reserve $\tau$ for a time constant rather than an observation duration.
+18. Use $\Delta t_{\mathrm{sim}}$ for integration timestep and
+    $\Delta t_{\mathrm{bin}}$ for analysis-bin width.
+19. Use $T_\gamma$ for gamma-cycle period rather than alternating between
+    $T_\gamma$ and $P_\gamma$.
+20. Attach units to time quantities at code or schema boundaries, such as
+    `duration_ms` and `duration_s`. Keep these internal names out of rendered
+    prose under section 3.
+
+#### Populations, neurons and state
+
+21. Use $N_E$ and $N_I$ for excitatory and inhibitory population sizes.
+22. Use $N_{\mathrm{in}}$ and $N_{\mathrm{out}}$ for input and output population
+    sizes.
+23. Use $B$ only for the current minibatch size.
+24. Use $n_{\mathrm{spike}}$ for a spike count.
+25. Use $s[k]$ for a dimensionless binary spike indicator at simulation step
+    $k$.
+26. Use $s(t)=\sum_j\delta(t-t_j)$ for a continuous impulse train, where $t_j$
+    is event time $j$ and $\delta$ is the Dirac impulse.
+27. Do not use the discrete indicator $s[k]$ and continuous impulse train $s(t)$
+    interchangeably without stating their relationship.
+28. Use $V_m$ for physical membrane voltage and $V_{\mathrm{candidate}}$ for
+    the pre-threshold candidate voltage.
+29. Use a distinct symbol such as $u_{\mathrm{out}}$ for a dimensionless output
+    state.
+30. Preserve $C_m$, $g_L$, $E_L$, $V_{\mathrm{th}}$,
+    $V_{\mathrm{reset}}$, $\tau_{\mathrm{AMPA}}$, $\tau_{\mathrm{GABA}}$ and
+    $\tau_{\mathrm{ref}}$ as the standard biophysical vocabulary.
+
+#### Rates, counts and activity
+
+31. Use $r_E$ and $r_I$ for per-neuron excitatory and inhibitory firing rates.
+32. Report per-neuron firing rates in hertz unless another unit is explicitly
+    stated.
+33. Use $n_P[k]$ for the spike count of population $P$ in analysis bin $k$.
+34. Call $N_E r_E$ a population-total spike rate, measured in spikes per second,
+    rather than a spike count.
+35. Convert a population-total spike rate to a count by multiplying it by the
+    observation duration in seconds.
+36. Identify every rate's population, time window and averaging axes.
+37. Use $r_{\mathrm{input,max}}$ for maximum-pixel or maximum-channel encoding
+    rate.
+38. Use $r_{E,\mathrm{ceil}}$ for a hidden-excitatory firing-rate ceiling.
+39. Do not use $r_{\max}$ for both an encoding-rate maximum and a
+    hidden-population ceiling.
+40. Use **activity** only as an umbrella term when the specific quantity could
+    be voltage, spikes, counts or rate.
+41. Distinguish a tested **activity ceiling**, an empirical **rate plateau** and
+    a demonstrated **lower bound**.
+42. Use $p_{\mathrm{event}}$ for Bernoulli event probability.
+43. Use $p_{\mathrm{part}}$ for measured cell-per-cycle participation.
+44. Use $\beta_{rf}$, not $p$, for a fitted rate–frequency slope.
+45. Treat $r_E\approx p_{\mathrm{part}}f_\gamma$ as a model-dependent
+    approximation, not the definition of participation.
+
+#### Readouts and classification
+
+46. Name a readout by both its state model and its evidence operation.
+47. Use **output LIF with mean pre-reset voltage** for a spiking output layer
+    scored by averaged pre-reset voltage.
+48. Use **output LIF with spike-count readout** for a spiking output layer scored
+    by output counts.
+49. Use **non-spiking leaky-integrator readout** for output units without
+    threshold, reset or refractory dynamics.
+50. Distinguish mean-voltage, final-voltage, spike-count, spike-rate and
+    cumulative-potential readouts.
+51. State the window over which readout evidence is accumulated.
+52. State whether readout state resets at presentation boundaries.
+53. State whether hidden neuronal state resets at presentation boundaries.
+54. State whether the decoder knows presentation boundaries.
+55. Use $z_c$ for the score or logit associated with class $c$.
+56. Use $y$ for the true class and $\hat y$ for the predicted class.
+57. Do not use $\hat y$ for both a score vector and a predicted class.
+58. Do not call softmax-normalized evidence a calibrated probability or
+    confidence unless calibration was measured.
+
+#### Training, checkpoints and losses
+
+59. Distinguish **training loss**, **validation loss** and **test metrics**.
+60. Determine a metric's data split from the executed protocol rather than a
+    legacy filename or panel label.
+61. Use **selected checkpoint** as a role, not as the name of a universal
+    selection algorithm.
+62. When reporting checkpoint selection, state the split, primary metric,
+    aggregation, tie rule and eligible epochs.
+63. Use **final checkpoint** for parameters at the final completed training
+    update or epoch.
+64. Distinguish a parameter snapshot from a resumable checkpoint containing
+    optimizer, random-stream and data-order state.
+65. Use **Adam** and **AdamW** according to the executed optimizer identity.
+66. Record weight decay separately from optimizer identity.
+67. Use $L_{\mathrm{CE}}$ for cross-entropy loss and $L_{\mathrm{total}}$ for the
+    complete objective.
+68. Use $\lambda_{\mathrm{rate}}$ for the rate-penalty coefficient rather than
+    an unqualified $\lambda$.
+69. Use **voltage-gradient damping** as the scientific term.
+70. Preserve exact implementation names such as `v_grad_dampen` and
+    `voltage_grad_dampen` only when referring to those fields directly.
+71. Use $d_{\mathrm{grad}}$ for the dimensionless damping divisor and
+    $\alpha_{\mathrm{grad}}=1/d_{\mathrm{grad}}$ for its multiplier.
+72. State which population and update term receive gradient damping.
+
+#### Statistics and aggregation
+
+73. Identify the axis or distribution represented by every mean.
+74. Distinguish an expectation of a nonlinear response from the response
+    evaluated at the mean input.
+75. Qualify distribution parameters as $\mu_{\mathrm{init}}$,
+    $\sigma_{\mathrm{init}}$, $\mu_I$, $\sigma_V$, $\sigma_{\mathrm{jitter}}$
+    or $\sigma_{\mathrm{smooth}}$.
+76. Label uncertainty as SD, SEM or a confidence interval explicitly.
+77. State the number and kind of independent replicates underlying uncertainty.
+78. Do not change an uncertainty definition when reusing a figure.
+79. Use $R^2_{\mathrm{fit}}$ only for the coefficient of determination of a
+    specified fitted model.
+80. Use **accuracy** for the proportion of correct decisions and
+    **percentage points** for absolute differences between percentages.
+81. Use separate formatters for fractions converted to percentages and numbers
+    already expressed as percentages.
+82. State the handling of undefined estimator values rather than silently
+    replacing them with zero.
+
+#### Rhythms, frequency and phase
+
+83. Use $f_{\mathrm{peak}}$ for a spectral-peak frequency.
+84. State whether $f_{\mathrm{peak}}$ is a raw frequency-bin maximum or a
+    sub-bin interpolated estimate.
+85. State whether spectra were averaged before or after peak selection.
+86. Use $f_{\mathrm{Hopf}}$ for a frequency inferred from a dynamical eigenvalue
+    crossing.
+87. Use $f_\gamma$ only after defining the gamma-frequency estimator used in
+    that context.
+88. Treat a frequency search interval as an estimator setting, not as the
+    definition of gamma.
+89. Use $\omega$ for angular frequency and state whether its units are radians
+    per millisecond or radians per second.
+90. When $\omega$ is in radians per millisecond, multiply by $1000/(2\pi)$ to
+    obtain frequency in hertz.
+91. Use $\Delta f_{\mathrm{bin}}$ for spectral-bin spacing.
+92. Use $\Delta f_{\mathrm{detune}}$ for inter-network frequency detuning.
+93. Use $\phi$ for phase and state whether it is measured in radians or cycles.
+94. Use $R_{\mathrm{phase}}$ for circular phase concentration.
+95. Use $R_{\mathrm{contrast}}$ for autocorrelation lobe–trough contrast.
+96. Do not use **rhythmicity**, **coherence**, **contrast**,
+    **phase concentration** and **phase locking** as interchangeable metric names.
+
+#### Connectivity and coupling
+
+97. Use $W$ for a realized connection matrix.
+98. State the source and target axes of every connection matrix.
+99. State pathway direction separately from matrix-storage orientation.
+100. Document any transpose between graph-declaration and runtime matrix
+     orientations.
+101. Use $w_{\mathrm{event}}$ for the conductance increment caused by one
+     presynaptic event.
+102. Use $G_{A\rightarrow B}$ for summed conductance from population $A$ to
+     population $B$.
+103. Use $J_{A\rightarrow B}$ for current-valued or driving-force-rescaled
+     coupling.
+104. Distinguish an individual edge weight, expected edge strength, realized
+     summed conductance and current-valued coupling.
+105. State whether a reported coupling is per-edge, fan-in normalized or
+     population summed.
+106. Distinguish excitatory or inhibitory polarity from the postsynaptic
+     population receiving the conductance.
+107. Use separate notation for a signed driving force and its positive magnitude.
+108. Use $q_{\mathrm{zero}}$ for an initial zero fraction rather than $s$.
+109. Distinguish initial zeros, a permanent connectivity mask, a disabled
+     projection and a frozen parameter.
+110. Do not call a lower-clamped Gaussian a truncated Gaussian unless negative
+     values were resampled from the conditional distribution.
+
+#### Dynamics and technical terminology
+
+111. Use **silent** only for zero or criterion-defined negligible spiking.
+112. Use **non-oscillating equilibrium** for a stationary state that may have
+     nonzero firing rates.
+113. Distinguish equilibrium, fixed point, steady state and time-averaged
+     operating point when more than one appears.
+114. Use $J_{\mathrm{flow}}$ for a continuous-time vector-field Jacobian and
+     $J_{\mathrm{step}}$ for a discrete update Jacobian.
+115. Use $\lambda_J$ for a dynamical eigenvalue rather than sharing $\lambda$
+     with a loss coefficient.
+116. Use $A_{\mathrm{pp}}$ for peak-to-peak oscillation amplitude rather than a
+     bare $A$.
+117. Use $A_{\mathrm{corr}}$ for an autocorrelation function if $A$ is otherwise
+     needed for amplitude or accuracy.
+118. Qualify **exact**, **stable**, **deterministic**, **equivalent** and
+     **invariant** with the tested object and conditions.
+119. Distinguish backend, executor, target, provider and device.
+120. Preserve exact public API, schema, command-line and citation spellings
+     rather than silently translating them into prose conventions.
 
 ## 4. Titles
 

@@ -108,9 +108,9 @@
         ]
       } else { it }
     }
-    $ R = abs(1 / N sum_(n=1)^N exp(i delta phi_n)) $ <phase-concentration>
+    $ R_"phase" = abs(1 / N_"phase" sum_(n=1)^(N_"phase") exp(i delta phi_n)) $ <phase-concentration>
 
-    Here $R$ is circular concentration, $N$ the number of valid timesteps, $n$ their index, $delta phi_n$ the A-minus-B phase in radians, and $i$ the imaginary unit.
+    Here $R_"phase"$ is circular phase concentration, $N_"phase"$ the number of valid timesteps, $n$ their index, $delta phi_n$ the A-minus-B phase in radians, and $i$ the imaginary unit.
 
   + *Resolve the first correction.* I compared the no-coupling and E-to-E conditions around the first A-to-B arrival with a complete −5 to +17 ms window. I measured the next target E volley, target E/I rates and mean incoming and feedback conductances; the event and probe examples reuse the same trajectories, not independent repetitions.
 

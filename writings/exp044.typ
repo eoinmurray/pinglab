@@ -9,7 +9,7 @@
   status: "[▦ DATA]",
   title: "Firing Rate Across the Timestep Sweep",
   date: "2026-06-02",
-  updated_at: "2026-08-27",
+  updated_at: "2026-08-29",
   description: "Compares final-epoch firing rate, classification accuracy and illustrative rasters across a twentyfold integration-timestep sweep.",
   collection: "gamma-gated-sparsity",
 )
@@ -88,7 +88,7 @@
   then measured endpoint dynamics at matched training and inference timesteps.
 
   + *Reuse the trained population.* One PING network was trained per
-    $Delta t in {0.05, 0.1, 0.25, 0.5, 1.0}$ ms and seed $in {42, 43, 44}$,
+    $Delta t_"sim" in {0.05, 0.1, 0.25, 0.5, 1.0}$ ms and seed $in {42, 43, 44}$,
     giving fifteen networks. Each had #c.n_in inputs, #c.n_hidden excitatory
     neurons, #c.n_inh inhibitory neurons and #c.n_out class outputs.
     Network geometry, synaptic settings, readout and optimisation settings were
@@ -98,7 +98,7 @@
     training pool contained #c.dataset_split.optimizer_train_samples optimisation
     images and #c.dataset_split.validation_samples validation images; the official
     test partition was excluded from training. Each presentation lasted
-    $T = 200$ ms, so the integration timestep $Delta t$ changed the step count
+    $T_"present" = 200$ ms, so the integration timestep $Delta t_"sim"$ changed the step count
     from 4,000 to 200. Image intensities drove Poisson input with peak rate
     #c.input_rate Hz.
 
@@ -121,8 +121,8 @@
   #table(
     columns: 2,
     [Parameter], [Value],
-    [Integration timestep $Delta t$], [0.05–1.0 ms (swept)],
-    [Trial duration $T$], [#c.t_ms ms],
+    [Integration timestep $Delta t_"sim"$], [0.05–1.0 ms (swept)],
+    [Presentation duration $T_"present"$], [#c.t_ms ms],
     [MNIST training pool], [#c.max_samples images: #c.dataset_split.optimizer_train_samples optimisation / #c.dataset_split.validation_samples validation],
     [Official-test evaluation], [#cfg.evaluation_samples images per network],
     [Epochs], [#c.epochs],

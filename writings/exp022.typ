@@ -9,7 +9,7 @@
   status: "[▦ DATA]",
   title: "Training Runs",
   date: "2026-08-11",
-  updated_at: "2026-08-27",
+  updated_at: "2026-08-29",
   description: "Seven controlled training families, their retained checkpoint bank, validation learning curves, and raster diagnostics.",
   collection: "gamma-gated-sparsity",
 )
@@ -32,7 +32,7 @@
 }
 #let family-coverage(family) = {
   let status = r.family_status.at(family)
-  [#status.trained of #status.cells registered cells have retained training results.]
+  [#status.trained of #status.cells registered training replicates have retained results.]
 }
 #let study-names = (
   exp024: "the convergence audit", exp025: "the accuracy–rate frontier",
@@ -84,7 +84,7 @@
 
   #result-figure(
     "exp022/curves__canonical.svg",
-    "Validation-accuracy learning curves for the canonical COBA and PING cells.",
+    "Validation-accuracy learning curves for the canonical COBA and PING training replicates.",
     [Individual learning histories for both architectures and all three seeds in the full-data family; no across-seed averaging or uncertainty bands.],
   )
   #result-figure(
@@ -124,7 +124,7 @@
   #result-figure(
     "exp022/curves__dt.svg",
     "Validation learning curves across five integration timesteps.",
-    [Individual histories for five timesteps and three seeds per setting. Training and evaluation use each cell's own timestep at a fixed presentation duration; no across-seed bands are shown.],
+    [Individual histories for five timesteps and three seeds per setting. Training and evaluation use each training replicate's own timestep at a fixed presentation duration; no across-seed bands are shown.],
   )
   #result-figure(
     "exp022/rasters__ping__dt0p1__seed42.png",
@@ -149,7 +149,7 @@
 
   #result-figure(
     "exp022/curves__variable_rate.svg",
-    "Validation learning histories for all three variable-rate spike-count cells.",
+    "Validation learning histories for all three variable-rate spike-count training replicates.",
     [Three individual seed histories for the variable-rate spike-count recipe. Each validation presentation draws from the specified rate set; these curves do not separate accuracy by input rate and have no uncertainty bands.],
   )
   #result-figure(
@@ -188,17 +188,20 @@
   + *Calculate class scores.* Most networks used mean pre-reset output voltage. Variable-rate training used spike counts and smaller initial readout weights.
 
     #block(breakable: false)[
-    $ z_"voltage" = 1 / N sum_(t=1)^N v(t), quad
-      z_"count" = sum_(t=1)^N s(t). quad "(1)" $
+    $ z_"voltage" = 1 / N_t sum_(k=1)^(N_t) u_"out"[k], quad
+      z_"count" = sum_(k=1)^(N_t) s_"out"[k]. quad "(1)" $
 
-    Each score applies to one output neuron and presentation. Here $t$ indexes the $N$ timesteps, $v(t)$ is pre-reset voltage, and $s(t)$ is a binary spike; voltage and both scores are dimensionless.
+    Each score applies to one output neuron and presentation. Here $k$ indexes
+    the $N_t$ timesteps, $u_"out"[k]$ is dimensionless pre-reset output state,
+    and $s_"out"[k]$ is a dimensionless binary output spike; both scores are
+    dimensionless.
     ]
 
   + *Train the networks.* Training used #r.standard.epochs epochs of AdamW, learning rate 0.0004, batches of #r.standard.batch_size, zero weight decay, and gradient clipping at 1. Surrogate gradients approximated spike derivatives#cite(1); voltage-gradient damping was 1,000 for recurrent networks and 1 for controls. Activity-constrained conditions minimized
 
-    $ L = L_"CE" + lambda lr(⟨max(0, r - r_"max")^2⟩)_"batch". quad "(2)" $
+    $ L_"total" = L_"CE" + lambda_"rate" lr(⟨max(0, r_E - r_(E,"ceil"))^2⟩)_"batch". quad "(2)" $
 
-    $L$ is total loss and $L_"CE"$ is mean cross-entropy. Each presentation's mean excitatory firing rate $r$ and ceiling $r_"max"$ are in hertz. Brackets average the individual penalties across the batch; $lambda = 0.041$ with rates in hertz, or zero when disabled.
+    $L_"total"$ is total loss and $L_"CE"$ is mean cross-entropy. Each presentation's mean excitatory firing rate $r_E$ and ceiling $r_(E,"ceil")$ are in hertz. Brackets average the individual penalties across the minibatch; $lambda_"rate" = 0.041$ with rates in hertz, or zero when disabled.
 
   + *Select models.* Validation averaged three fixed Poisson encoding draws. Selection minimized mean cross-entropy, breaking ties by higher accuracy and then earlier epoch. Selected and final-epoch models were retained.
 
@@ -212,7 +215,7 @@
 
   All runs map Poisson-encoded pixels through 1,024 excitatory neurons to ten spiking output LIF neurons. COBA and PING use the same input-weight and readout-weight initialization distributions. COBA disables recurrent E/I coupling; PING adds a $1024 arrow 256 arrow 1024$ E/I feedback loop and uses stronger backward-pass gradient damping to stabilize training through that recurrent path.
 
-  These are specified production settings, not newly measured results. Unless a TR-specific sheet says otherwise, every cell uses this contract. In the tables, $cal(N)(mu, sigma^2)$ denotes a normal distribution with mean $mu$ and standard deviation $sigma$; $max(0, x)$ replaces a sampled weight $x$ by zero when negative. LIF means leaky integrate-and-fire.
+  These are specified production settings, not newly measured results. Unless a TR-specific sheet says otherwise, every condition–seed network uses this contract. In the tables, $cal(N)(mu_"init", sigma_"init"^2)$ denotes a normal distribution with initialization mean $mu_"init"$ and standard deviation $sigma_"init"$; $max(0, x)$ replaces a sampled weight $x$ by zero when negative. LIF means leaky integrate-and-fire.
 
   #table(
     columns: (1.25fr, 1.3fr, 2.2fr),
@@ -221,8 +224,8 @@
     [Dataset], [MNIST], [784 normalized pixels encoded as independent Poisson channels],
     [Presentation duration], [200 ms], [One static digit per training presentation],
     [Integration timestep], [0.1 ms], [2,000 recurrent updates per presentation],
-    [Epochs], [50], [Training horizon for every production cell],
-    [Seeds], [42, 43, 44], [Three independently initialized cells per configuration],
+    [Epochs], [50], [Training horizon for every production training replicate],
+    [Seeds], [42, 43, 44], [Three independently initialized training replicates per configuration],
     [Minibatch], [256], [Presentations per optimization step],
     [Optimizer learning rate], [$4 times 10^(-4)$], [Shared learning rate],
     [Input population], [784], [One channel per image pixel],
@@ -242,7 +245,7 @@
 
   === Specification: TR-01 — Canonical full-data reference
 
-  The full-data COBA and PING cells are used for headline accuracy. They use the official MNIST training partition with no spike-budget penalty, so the comparison is not affected by the smaller dataset or regularization used in the sweeps. Ten percent of that partition is reserved for checkpoint selection; the official test partition remains untouched during training. This experiment reports their validation learning histories; independent official-test evaluation belongs to the downstream experiments.
+  The full-data COBA and PING condition–seed networks are used for headline accuracy. They use the official MNIST training partition with no spike-budget penalty, so the comparison is not affected by the smaller dataset or regularization used in the sweeps. Ten percent of that partition is reserved for checkpoint selection; the official test partition remains untouched during training. This experiment reports their validation learning histories; independent official-test evaluation belongs to the downstream experiments.
 
   #table(
     columns: (1.2fr, 1.4fr, 2fr),
@@ -251,7 +254,7 @@
     [Training pool], [60,000 official training samples], [54,000 optimizer-training and 6,000 validation samples],
     [Input rate], [25 Hz maximum-pixel rate], [Fixed-rate collection baseline],
     [Spike budget], [Off], [Measures unconstrained capacity],
-    [Cells], [2 architectures × 3 seeds = 6], [Across-seed comparison for both models],
+    [Training replicates], [2 architectures × 3 seeds = 6], [Across-seed comparison for both models],
     [Readout shape], [$1024 arrow 10$ spiking LIF outputs], [mean-voltage: mean membrane voltage supplies the logits],
   )
 
@@ -259,16 +262,16 @@
 
   === Specification: TR-02 — Activity-ceiling sweep
 
-  This run measures the trade-off between accuracy and firing rate as the activity ceiling is tightened. For each presentation, the loss computes the population-mean hidden-E firing rate, applies a one-sided quadratic penalty above the target, then averages the penalties across the minibatch. Quiet presentations therefore cannot offset active presentations. Expressing the target in hertz and normalising over samples, neurons, duration, and hidden layers makes the intervention comparable across those dimensions. A smaller training pool keeps the multi-seed sweep manageable; only the activity target changes across conditions. Comparisons with the full-data cells also change training-pool size and cannot isolate the penalty alone. The resulting checkpoints are used by #run-links(("exp024", "exp025", "exp037", "exp038")).
+  This run measures the trade-off between accuracy and firing rate as the activity ceiling is tightened. For each presentation, the loss computes the population-mean hidden-E firing rate, applies a one-sided quadratic penalty above the target, then averages the penalties across the minibatch. Quiet presentations therefore cannot offset active presentations. Expressing the target in hertz and normalising over samples, neurons, duration, and hidden layers makes the intervention comparable across those dimensions. A smaller training pool keeps the multi-seed sweep manageable; only the activity target changes across conditions. Comparisons with the full-data training replicates also change training-pool size and cannot isolate the penalty alone. The resulting checkpoints are used by #run-links(("exp024", "exp025", "exp037", "exp038")).
 
   #table(
     columns: (1.2fr, 1.5fr, 2fr),
     table.header([*Key parameter*], [*Value*], [*Why it differs*]),
     [Architectures], [COBA and PING], [Direct architecture comparison],
     [Training pool], [7,000 official training samples], [6,300 optimizer-training and 700 validation samples],
-    [Hidden-E rate target $r_"max"$], [off, 25, 10, 5, 2.5, 1 Hz], [Spans unconstrained through severe sparsity],
+    [Hidden-E rate ceiling $r_(E,"ceil")$], [off, 25, 10, 5, 2.5, 1 Hz], [Spans unconstrained through severe sparsity],
     [Penalty strength], [$0.041$ when enabled], [Calibrated for the sample-wise, population-normalized Hz objective],
-    [Cells], [2 × 6 settings × 3 seeds = 36], [Error bars at every frontier point],
+    [Training replicates], [2 × 6 settings × 3 seeds = 36], [Error bars at every frontier point],
     [Readout shape], [$1024 arrow 10$ spiking LIF outputs], [mean-voltage: mean membrane voltage supplies the logits],
   )
 
@@ -284,7 +287,7 @@
     [Architecture], [PING], [The manipulated quantity belongs to the recurrent inhibitory loop],
     [Training pool], [7,000 samples], [Sweep-scale default],
     [$tau_"GABA"$], [4.5, 6, 9, 12, 18, 27 ms], [Moves the inhibitory rhythm across a broad timescale range],
-    [Cells], [6 settings × 3 seeds = 18], [Across-seed estimate at each decay],
+    [Training replicates], [6 settings × 3 seeds = 18], [Across-seed estimate at each decay],
     [Readout shape], [$1024 arrow 10$ spiking LIF outputs], [mean-voltage: mean membrane voltage supplies the logits],
   )
 
@@ -299,9 +302,9 @@
     table.header([*Key parameter*], [*Value*], [*Why it differs*]),
     [Architecture], [PING], [Tests the recurrent reference model],
     [Training pool], [7,000 samples], [Sweep-scale default],
-    [$Delta t$], [0.05, 0.1, 0.25, 0.5, 1 ms], [Changes numerical resolution while holding 200 ms physical time fixed],
-    [Steps/presentation], [4,000; 2,000; 800; 400; 200], [Compute and activation memory scale inversely with $Delta t$],
-    [Cells], [5 settings × 3 seeds = 15], [Across-seed stability check],
+    [$Delta t_"sim"$], [0.05, 0.1, 0.25, 0.5, 1 ms], [Changes numerical resolution while holding 200 ms physical time fixed],
+    [Steps/presentation], [4,000; 2,000; 800; 400; 200], [Compute and activation memory scale inversely with $Delta t_"sim"$],
+    [Training replicates], [5 settings × 3 seeds = 15], [Across-seed stability check],
     [Readout shape], [$1024 arrow 10$ spiking LIF outputs], [mean-voltage: mean membrane voltage supplies the logits],
   )
 
@@ -318,7 +321,7 @@
     [Training pool], [7,000 samples], [Sweep-scale default],
     [Loop conditions], [frozen PING; trainable PING init; trainable zero init; trainable 0.1 init], [Separates built-in dynamics from recurrence learned during task training],
     [Trainable projections], [$W_"EI"$ and $W_"IE"$ only in trainable conditions], [The frozen condition is the mechanistic control],
-    [Cells], [4 conditions × 3 seeds = 12], [Across-seed comparison],
+    [Training replicates], [4 conditions × 3 seeds = 12], [Across-seed comparison],
     [Readout shape], [$1024 arrow 10$ spiking LIF outputs], [mean-voltage: mean membrane voltage supplies the logits],
   )
 
@@ -342,7 +345,7 @@
     [Readout], [spike-count], [Hidden E spikes drive ten spiking LIF class neurons; each logit is that class neuron's total spikes over the presentation],
     [Readout initialization], [$cal(N)(0.05, 0.04^2)$, constrained non-negative], [Keeps the spiking outputs near threshold at high training rates without the saturation caused by the default mean-voltage scale],
     [Readout shape], [$1024 arrow 10$ spiking LIF outputs], [Ten class neurons emit and reset throughout the presentation],
-    [Cells], [1 recipe × 3 seeds = 3], [Models for continuous-stream classification],
+    [Training replicates], [1 recipe × 3 seeds = 3], [Models for continuous-stream classification],
   )
 
   #divider()
@@ -368,7 +371,7 @@
     [Input summed-coupling parent mean], [0.05, 0.1, 0.3, 0.9], [Varies initial feedforward drive from weak coupling to the shared 0.9 standard before clamping and fan-in normalization],
     [Hidden-E rate target], [1 Hz], [Applies the strictest TR-02 activity ceiling from epoch 0],
     [Parameters held fixed], [PING loop, optimizer, dataset split, and mean-voltage readout], [Isolates initial feedforward recruitment from the activity-ceiling sweep],
-    [Cells], [4 settings × 3 seeds = 12], [Across-seed estimate for every condition],
+    [Training replicates], [4 settings × 3 seeds = 12], [Across-seed estimate for every condition],
     [Readout shape], [$1024 arrow 10$ spiking LIF outputs], [mean-voltage: mean membrane voltage supplies the logits],
   )
 

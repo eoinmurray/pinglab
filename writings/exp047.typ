@@ -9,7 +9,7 @@
   status: "[▦ DATA]",
   title: "Pool-Size Effects Depend on Synaptic Scaling",
   date: "2026-07-14",
-  updated_at: "2026-08-28",
+  updated_at: "2026-08-29",
   description: "Paired controls separate fixed summed I→E coupling from fixed expected synaptic strength as the inhibitory pool grows.",
   collection: "gamma-gated-sparsity",
 )
@@ -55,8 +55,8 @@
   Inhibitory-pool size had little effect on firing rates when expected summed
   inhibition was held fixed, but rates fell strongly when expected individual
   synaptic strength was fixed. I reanalysed untrained pyramidal–interneuron
-  network gamma (PING) simulations with #cfg.n_e excitatory cells and
-  #n-lo–#n-hi inhibitory cells. At nominal summed coupling #g-mid μS,
+  network gamma (PING) simulations with #cfg.n_e excitatory neurons and
+  #n-lo–#n-hi inhibitory neurons. At nominal summed coupling #g-mid μS,
   excitatory rates stayed near #re-ft-hi-fmt Hz; at mean synaptic strength
   #j-mid-ns nS, they fell from #re-fs-lo-fmt to #re-fs-hi-fmt Hz.
   The tested inverse-scaling path preserved rates; this does not establish
@@ -71,14 +71,14 @@
   #figure(
     data-image(data-file("exp047/pool_size_controls.svg"),
       width: 100%,
-      alt: "Four panels of E and I firing rates for inhibitory pools of 16, 64 and 256 cells. Fixed summed coupling gives nearly flat rates; fixed expected synaptic strength gives falling rates.",
+      alt: "Four panels of E and I firing rates for inhibitory pools of 16, 64 and 256 neurons. Fixed summed coupling gives nearly flat rates; fixed expected synaptic strength gives falling rates.",
     ),
     caption: [*Reanalysed population firing rates.* Top: excitatory (E); bottom:
-      inhibitory (I). Left: fixed expected summed coupling $G_(I E)$; right:
-      fixed expected synaptic strength $j_(I E)$. Markers are means ±1 sample
+      inhibitory (I). Left: fixed expected summed coupling $G_(I arrow E)$; right:
+      fixed expected synaptic strength $macron(w)_(I arrow E)$. Markers are means ±1 sample
       standard deviation across #n-seeds seeds, with #cfg.n_batch trials per seed.
-      At nominal $G_(I E) = #g-mid$ μS, E rates changed from #re-ft-lo-fmt to
-      #re-ft-hi-fmt Hz across #n-lo–#n-hi I cells. At $j_(I E) approx #j-mid-ns$
+      At nominal $G_(I arrow E) = #g-mid$ μS, E rates changed from #re-ft-lo-fmt to
+      #re-ft-hi-fmt Hz across #n-lo–#n-hi I neurons. At $macron(w)_(I arrow E) approx #j-mid-ns$
       nS, E rates fell from #re-fs-lo-fmt to #re-fs-hi-fmt Hz and I rates from
       #ri-fs-lo-fmt to #ri-fs-hi-fmt Hz. All tested fixed-mean levels showed this
       decrease, consistent with stronger summed inhibition and reduced E–I
@@ -93,32 +93,32 @@
 
   + *Initialize fan-in-normalized weights.* For an I→E matrix with
     #cfg.n_e excitatory columns and $N_I$ inhibitory rows, each weight was
-    $W_(k j)^(I E) = U / N_I$, with $U = max(0, X)$ and
-    $X tilde cal(N)(mu, sigma^2)$ a Gaussian draw of mean $mu$ and standard
-    deviation $sigma = 0.1 mu$, in μS. Defining expected summed coupling
-    $G_(I E) = cal(E)[U]$ gives
+    $W_(k j)^(I E) = G_"draw" / N_I$, with $G_"draw" = max(0, X)$ and
+    $X tilde cal(N)(mu_"init", sigma_"init"^2)$ a Gaussian draw of mean $mu_"init"$ and standard
+    deviation $sigma_"init" = 0.1 mu_"init"$, in μS. Defining expected summed coupling
+    $G_(I arrow E) = cal(E)[G_"draw"]$ gives
 
-    $ cal(E)[W_(k j)^(I E)] = j_(I E) = G_(I E) / N_I, quad
-      cal(E)[sum_(k=1)^(N_I) W_(k j)^(I E)] = G_(I E). $
+    $ cal(E)[W_(k j)^(I E)] = macron(w)_(I arrow E) = G_(I arrow E) / N_I, quad
+      cal(E)[sum_(k=1)^(N_I) W_(k j)^(I E)] = G_(I arrow E). $
 
     Here $cal(E)$ averages over weight initialization, $k$ indexes inhibitory
-    cells and $j$ excitatory cells; $j_(I E)$ is the expected conductance of
+    neurons and $j$ excitatory neurons; $macron(w)_(I arrow E)$ is the expected conductance of
     one synapse, not an identical realised weight. An inhibitory volley gives
 
-    $ Delta g_j^I = sum_(k in cal(A)) W_(k j)^(I E), $
+    $ Delta g_("inh,post=E",j) = sum_(k in cal(I)_"active") W_(k j)^(I E), $
 
-    where $cal(A)$ is the active inhibitory set and $Delta g_j^I$ the
-    conductance increment at E cell $j$, in μS; both weights and participation
+    where $cal(I)_"active"$ is the active inhibitory set and $Delta g_("inh,post=E",j)$ the
+    inhibitory conductance increment at E neuron $j$, in μS; both weights and participation
     therefore enter the increment.
 
   + *Apply paired pool-size controls.* I swept
     $N_I in {#n-lo, #n-mid, #n-hi}$. Fixed-summed controls used parent means
-    $mu in {#g-lo, #g-mid, #g-hi}$ μS, so $j_(I E) prop 1 / N_I$;
-    fixed-mean-synapse controls scaled $mu$ with $N_I$, giving nominal
-    $j_(I E) in {#j-ns.at(0), #j-ns.at(1), #j-ns.at(2)}$ nS.
+    $mu_"init" in {#g-lo, #g-mid, #g-hi}$ μS, so $macron(w)_(I arrow E) prop 1 / N_I$;
+    fixed-mean-synapse controls scaled $mu_"init"$ with $N_I$, giving nominal
+    $macron(w)_(I arrow E) in {#j-ns.at(0), #j-ns.at(1), #j-ns.at(2)}$ nS.
     Nominal values approximate the post-clamp expectations; the arms coincide
-    at #cfg.n_i_reference I cells, with one additional shared condition at
-    #n-mid I cells and nominal 1 μS summed coupling.
+    at #cfg.n_i_reference I neurons, with one additional shared condition at
+    #n-mid I neurons and nominal 1 μS summed coupling.
 
   + *Drive and measure the networks.* Nominal E→I summed coupling stayed at
     #cfg.g_ei_total μS; input weights used parent mean #r.recipe.w_in_mean μS,
@@ -128,7 +128,7 @@
     as Bernoulli spikes per #cfg.dt_ms ms timestep, for #cfg.t_ms ms and
     #cfg.n_batch trials, with seeds #cfg.seeds.map(str).join(", ").
     I retained all conditions and averaged spike counts over the full duration,
-    trials and cells within each population; overlapping controls reused
+    trials and neurons within each population; overlapping controls reused
     measurements, giving #n-seeds seeds at each of 18 conditions from
     #(14 * n-seeds) distinct simulations. The reanalysis used these rates,
     not raw spike trains; population rates alone do not establish gamma

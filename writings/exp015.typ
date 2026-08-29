@@ -4,7 +4,7 @@
   status: "[≡ TXT]",
   title: "Gradient Stabilisation",
   date: "2026-06-12",
-  updated_at: "2026-08-28",
+  updated_at: "2026-08-29",
   description: "What voltage-gradient damping changes in SNNSIM, how to check it, and how to diagnose unstable training without confusing local derivatives with a global stability guarantee.",
   collection: "snnsim-docs",
   order: 5,
@@ -48,42 +48,42 @@
 
   The synapse helper decays the previous conductance and then adds the spike kick:
 
-  $ g^(t+1) = beta g^t + s^t W, quad beta = e^(-Delta t / tau). quad (2) $
+  $ g^(k+1) = beta_"syn" g^k + s[k] W, quad beta_"syn" = e^(-Delta t_"sim" / tau_"syn"). quad (2) $
 
-  Here $g^t$ is a row of conductances in μS at step $t$, $s^t$ the supplied presynaptic spike row, $W$ the stored weight matrix in μS, $Delta t$ the timestep in ms, and $tau$ the synaptic decay time in ms. In particular, the new kick is not multiplied by $beta$. Network scheduling determines which spike row reaches each pathway.
+  Here $g^k$ is a row of conductances in μS at step $k$, $s[k]$ the supplied dimensionless presynaptic spike row, $W$ the stored weight matrix in μS, $Delta t_"sim"$ the integration timestep in ms, and $tau_"syn"$ the pathway's synaptic decay time in ms. In particular, the new kick is not multiplied by $beta_"syn"$. Network scheduling determines which spike row reaches each pathway.
 
   Using the updated excitatory and inhibitory conductances $g_e$ and $g_i$, define
 
   $ g_"tot" = g_L + g_e + g_i, quad
     V_oo = (g_L E_L + g_e E_e + g_i E_i) / g_"tot", quad
-    alpha = e^(-Delta t g_"tot" / C_m). quad (3) $
+    alpha_"mem" = e^(-Delta t_"sim" g_"tot" / C_m). quad (3) $
 
-  Here $g_L$ is leak conductance, $C_m$ capacitance in nF, and $E_L$, $E_e$, $E_i$ the leak, excitatory, and inhibitory reversal potentials in mV. $g_"tot"$ is total conductance, $V_oo$ the frozen-conductance equilibrium voltage, and $alpha$ the dimensionless membrane decay.
+  Here $g_L$ is leak conductance, $C_m$ capacitance in nF, and $E_L$, $E_e$, $E_i$ the leak, excitatory, and inhibitory reversal potentials in mV. $g_"tot"$ is total conductance, $V_oo$ the frozen-conductance equilibrium voltage, and $alpha_"mem"$ the dimensionless membrane decay.
 
-  For current voltage $V$, the increment and candidate voltage are
+  For current voltage $V_m$, the increment and candidate voltage are
 
-  $ d v = (V_oo - V)(1-alpha), quad U = V + F_(1/gamma)(d v). quad (4) $
+  $ dif V_m = (V_oo - V_m)(1-alpha_"mem"), quad V_"candidate" = V_m + F_(1/d_"grad")(dif V_m). quad (4) $
 
-  Here $gamma$ is `v_grad_dampen` and $U$ is the candidate voltage before noise, clamps, thresholding, and reset. The implementation advances the voltage before testing its spike threshold. On a spiking or refractory cell, `torch.where` replaces the retained voltage with the reset value; the emitted spike remains a separate output with its surrogate derivative.
+  Here $d_"grad"$ is the dimensionless damping divisor configured by `v_grad_dampen`, and $V_"candidate"$ is the candidate voltage before noise, clamps, thresholding, and reset. The implementation advances the voltage before testing its spike threshold. On a spiking or refractory neuron, `torch.where` replaces the retained voltage with the reset value; the emitted spike remains a separate output with its surrogate derivative.
 
   == What the derivatives say
 
   Holding conductances fixed, the backward derivative of the candidate voltage is
 
-  $ (partial U) / (partial V) = 1 - (1-alpha)/gamma. quad (5) $
+  $ (partial V_"candidate") / (partial V_m) = 1 - (1-alpha_"mem")/d_"grad". quad (5) $
 
-  Thus damping the increment preserves the direct $V$ pathway; it does not replace the full derivative by $alpha/gamma$. For $gamma >= 1$ and positive conductances this local derivative lies between $alpha$ and 1.
+  Thus damping the increment preserves the direct $V_m$ pathway; it does not replace the full derivative by $alpha_"mem"/d_"grad"$. For $d_"grad" >= 1$ and positive conductances this local derivative lies between $alpha_"mem"$ and 1.
 
   Define the undamped conductance sensitivity for channel $q in {e,i}$ as
 
-  $ kappa_q = (1-alpha)(E_q - V_oo)/g_"tot"
-    - (Delta t / C_m) alpha (V - V_oo). quad (6) $
+  $ kappa_q = (1-alpha_"mem")(E_q - V_oo)/g_"tot"
+    - (Delta t_"sim" / C_m) alpha_"mem" (V_m - V_oo). quad (6) $
 
-  $E_q$ is that channel's reversal potential. The damped candidate-voltage derivative is $partial U / partial g_q = kappa_q / gamma$. At small timesteps, $kappa_q approx (Delta t / C_m)(E_q-V)$. This is where the control reduces sensitivity to both recurrent and feedforward conductance inputs.
+  $E_q$ is that channel's reversal potential. The damped candidate-voltage derivative is $partial V_"candidate" / partial g_q = kappa_q / d_"grad"$. At small timesteps, $kappa_q approx (Delta t_"sim" / C_m)(E_q-V_m)$. This is where the control reduces sensitivity to both recurrent and feedforward conductance inputs.
 
   These are local derivatives before reset and active clamps. Reset gates every derivative of the retained reset voltage, not just its membrane self-term. Gradients through the emitted spike can still propagate along other paths. The full backward pass combines these paths across cells and time; time-accumulated readouts also inject gradients at multiple steps.
 
-  A scalar loop-gain estimate can be a heuristic, but does not prove that gradients grow once per gamma cycle or that dividing an estimated gain by $gamma^2$ makes the entire network contractive. Such claims require the actual trajectory, stored fan-in-scaled weights, surrogate normalization, gates, and full coupled Jacobians. Neither successful forward simulation nor removal of the inhibitory loop guarantees stable learning.
+  A scalar loop-gain estimate can be a heuristic, but does not prove that gradients grow once per gamma cycle or that dividing an estimated gain by $d_"grad"^2$ makes the entire network contractive. Such claims require the actual trajectory, stored fan-in-scaled weights, surrogate normalization, gates, and full coupled Jacobians. Neither successful forward simulation nor removal of the inhibitory loop guarantees stable learning.
 
   == Diagnosing a training failure
 

@@ -9,7 +9,7 @@
   status: "[▦ DATA]",
   title: "Dropped Spikes vs Added Noise",
   date: "2026-05-30",
-  updated_at: "2026-08-28",
+  updated_at: "2026-08-29",
   description: "Both trained networks tolerated substantial spike deletion, but PING accuracy fell more sharply under added spikes. The perturbations changed both recurrent feedback and readout input, so they do not isolate gamma gating.",
   collection: "gamma-gated-sparsity",
 )
@@ -98,7 +98,7 @@
     caption: [
       Retained seed-42 trials of #trial-description at deletion probabilities
       0, 0.5 and 1. E spikes (black) are below I spikes (red). The display samples
-      200 E and 64 I cells; annotated E rates use the full population.
+      200 E and 64 I neurons; annotated E rates use the full population.
       Banding is visible at partial deletion, but these illustrative rasters
       provide no quantitative phase-coherence or gamma-frequency estimate.
     ],
@@ -165,12 +165,12 @@
     spike slot before rate recording, readout input and subsequent recurrent
     feedback (see Appendix).
     $ tilde(s)_j = s_j bb(1)[u_j >= p_"drop"] $ <eq-drop>
-    $ tilde(s)_j = min(s_j + bb(1) lr([u_j < frac(r_"add" dot Delta t, 1000)]), 1) $ <eq-add>
+    $ tilde(s)_j = min(s_j + bb(1) lr([u_j < frac(r_"add" dot Delta t_"sim", 1000)]), 1) $ <eq-add>
     Here $s_j$ and $tilde(s)_j$ are the raw and modified binary spikes for a
     neuron–image–timestep slot $j$; $u_j$ is an independent uniform draw on
     $[0,1)$ and $bb(1)$ is an indicator. Deletion probability $p_"drop"$ ran
     from 0 to 1 in steps of 0.1; nominal insertion rate $r_"add"$ ran from
-    0 to #add_max Hz in steps of 2, with $Delta t$ in ms.
+    0 to #add_max Hz in steps of 2, with $Delta t_"sim"$ in ms.
     Insertion is a Bernoulli approximation to Poisson arrivals, capped at one
     spike per slot; collisions with existing spikes add nothing.
 

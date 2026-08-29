@@ -9,7 +9,7 @@
   status: "[▦ DATA]",
   title: "Firing Rate Tracks Gamma Frequency",
   date: "2026-06-02",
-  updated_at: "2026-08-27",
+  updated_at: "2026-08-29",
   description: "Across PING networks trained at different inhibitory decay times, compare excitatory firing rate with gamma frequency and test accuracy.",
   collection: "gamma-gated-sparsity",
 )
@@ -51,7 +51,7 @@
   Reusing their final-epoch weights, I measured population rhythms and MNIST
   test performance on the same #cfg.evaluation_samples images per network.
   The six seed-averaged conditions gave an affine rate–frequency fit with
-  intercept #fa Hz, slope #fp and $R^2 = #fr$; test accuracy ranged from
+  intercept #fa Hz, slope #fp and $R_"fit"^2 = #fr$; test accuracy ranged from
   #acc_lo% to #acc_hi%. This association is consistent with a cycle-participation
   model, but does not establish constant participation or identify a physical
   non-rhythmic baseline.
@@ -98,7 +98,7 @@
     ),
     caption: [
       The same illustrative MNIST image at each decay time, using seed 42.
-      Each panel shows 200 excitatory and 64 inhibitory cells during the first
+      Each panel shows 200 excitatory and 64 inhibitory neurons during the first
       100 ms; displayed rates use the full populations and 200 ms trial.
       These probes illustrate timing, not the population frequency estimate.
     ],
@@ -122,7 +122,7 @@
   #figure(
     table(
       columns: 4,
-      [fit], [intercept (Hz)], [slope (Hz/Hz)], [$R^2$],
+      [fit], [intercept (Hz)], [slope (Hz/Hz)], [$R_"fit"^2$],
       [affine], [#fa], [#fp], [#fr],
       [through origin], [0], [#po], [#pr],
     ),
@@ -148,21 +148,21 @@
 
   + *Measure fixed-trial responses.* Each network received the same fixed
     subset of #cfg.evaluation_samples images from the official MNIST test partition.
-    I measured classification accuracy, mean excitatory spikes per cell per
+    I measured classification accuracy, mean excitatory spikes per neuron per
     second, and each trial's population-E trace over the full 200 ms. The
     illustrative raster used image index 0 and seed 42; a fixed random seed of
-    0 selected displayed cells without replacement.
+    0 selected displayed neurons without replacement.
 
   + *Estimate rhythm frequency.* I demeaned each trial's trace and used a
     Welch density estimate with one full-trial Hann window #cite(1), then
     averaged PSDs across trials. The largest peak between 5 and 150 Hz defined
     the candidate gamma frequency; its neighbouring linear-power values gave
 
-    $ f_gamma = f_k + 1/2 (y_0 - y_2)/(y_0 - 2 y_1 + y_2) dot Delta f. $
+    $ f_"peak" = f_"peak,bin" + 1/2 (y_0 - y_2)/(y_0 - 2 y_1 + y_2) dot Delta f_"bin". $
 
-    Here $f_gamma$ is the interpolated frequency, $f_k$ the peak-bin frequency,
-    and $Delta f = 5$ Hz the bin spacing; $y_0$, $y_1$ and $y_2$ are PSD values
-    immediately below, at and above that bin. I clamped the correction to
+    Here $f_"peak"$ is the interpolated spectral-peak frequency, $f_"peak,bin"$ the peak-bin frequency,
+    and $Delta f_"bin" = 5$ Hz the bin spacing; $y_0$, $y_1$ and $y_2$ are PSD values
+    immediately below, at and above that bin. Because the peak search is restricted to the defined gamma band, the reported estimator is $f_gamma eq.triple f_"peak"$. I clamped the correction to
     half a bin, using zero offset for zero curvature or a spectrum endpoint.
     Interpolation reduces bin quantisation but can remain biased #cite(2).
     Per-trial peak distributions were diagnostics; their medians did not enter
@@ -172,24 +172,24 @@
     and excitatory rate over the three seeds, then fitted the six condition
     points with equal weight by least squares:
 
-    $ r_E = a + p dot f_gamma, quad r_E = p_0 dot f_gamma. $
+    $ r_E = a + beta_(r f) dot f_gamma, quad r_E = beta_(r f,0) dot f_gamma. $
 
     Here $r_E$ is mean excitatory firing rate in hertz, $a$ is the affine
-    intercept in hertz, and $p$ and $p_0$ are dimensionless slopes. Both fits
-    report $R^2$, the coefficient of determination using centred total sum of
+    intercept in hertz, and $beta_(r f)$ and $beta_(r f,0)$ are dimensionless fitted slopes. Both fits
+    report $R_"fit"^2$, the coefficient of determination using centred total sum of
     squares; error bars are sample standard deviations divided by $sqrt(3)$.
 
   == Appendix: Cycle-participation model
 
-  If a fraction $p$ of excitatory cells emits exactly one spike during each
-  cycle of duration $1 / f_gamma$, its cyclic per-cell rate is $p dot f_gamma$.
+  If a participation fraction $p_"part"$ of excitatory neurons emits exactly one spike during each
+  cycle of duration $1 / f_gamma$, its cyclic per-neuron rate is $p_"part" dot f_gamma$.
   Adding a frequency-independent contribution $a$ gives
 
   $ r_E = underbrace(a, "non-rhythmic contribution") +
-    underbrace(p dot f_gamma, "cyclic contribution"). $
+    underbrace(p_"part" dot f_gamma, "cyclic contribution"). $
 
   This is a proposed interpretation of the affine form, conditional on stable
-  participation. Cells nearest threshold when inhibition drops could contribute
+  participation. Neurons nearest threshold when inhibition drops could contribute
   one spike while others recover; long inhibitory decay could instead sustain
   tonic inhibition and leave a feedforward contribution. Neither mechanism is
   established by the fit alone. In particular, an extrapolated intercept need

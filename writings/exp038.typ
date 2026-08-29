@@ -9,7 +9,7 @@
   status: "[▦ DATA]",
   title: "Switching On the Inhibitory Loop",
   date: "2026-05-30",
-  updated_at: "2026-08-28",
+  updated_at: "2026-08-29",
   description: "Enabling an inhibitory loop after feedforward training reduced excitatory firing but lowered classification accuracy; the experiment does not isolate a benefit of gamma timing.",
   collection: "gamma-gated-sparsity",
 )
@@ -64,7 +64,7 @@
       alt: "Rasters with the loop off and enabled after training, followed by population firing rates and test accuracy across bidirectional loop strengths."),
     caption: [
       Reanalysed inference observations; no retraining. *Top:* seed-42 rasters
-      for #image-description, showing 200 E cells (black) and 64 I cells (red).
+      for #image-description, showing 200 E neurons (black) and 64 I neurons (red).
       *Bottom:* population rates and accuracy on #eval_n test images per seed;
       means ± sample SD across seeds 42–44. At full loop strength, E rate fell
       from approximately #rate_off to #rate_on Hz, I rate reached #inhibition_on Hz,
@@ -82,7 +82,7 @@
       Seed 42, #image-description, at six bidirectional loop strengths
       $s = 0, 0.2, 0.4, 0.6, 0.8, 1$. Learned input and readout weights were fixed;
       recurrent E↔I weights were initialized at each strength without training.
-      Rows show the same sampled 200 E and 64 I cells over 200 ms. Burst grouping
+      Rows show the same sampled 200 E and 64 I neurons over 200 ms. Burst grouping
       is illustrative: these panels do not estimate gamma frequency or establish
       a continuous transition between the sampled strengths.
     ],
@@ -97,7 +97,7 @@
   + *Reuse trained classifiers.* MNIST handwritten digits #cite(1) supplied
     6,300 training and 700 validation images from the official training partition.
     Conductance-based leaky-integrate-and-fire networks had 784 Poisson input
-    channels, 1,024 excitatory (E), 256 inhibitory (I), and 10 output cells;
+    channels, 1,024 excitatory (E), 256 inhibitory (I), and 10 output neurons;
     pixels set rates up to 25 Hz. Input and readout weights trained for 50 epochs;
     class scores were mean pre-reset output voltages. I selected the minimum
     mean validation cross-entropy over three fixed encoding draws, breaking
@@ -116,12 +116,12 @@
   + *Evaluate responses.* Each strength used the same #eval_n images from the
     official #eval_pool\-image test partition, with 200 ms presentations and
     0.1 ms steps. Accuracy counted correct classifications; rates included all
-    cells and all evaluated presentations:
+    neurons and all evaluated presentations:
 
-    #math.equation(block: true, numbering: "(1)", $ r_P = 1 / (M N_P T) sum_(b=1)^M sum_(n in P) z_(b n). $)
+    #math.equation(block: true, numbering: "(1)", $ r_P = 1 / (N_"eval" N_P T_"present") sum_(b=1)^(N_"eval") sum_(n in P) n_"spike"(b,n). $)
 
-    Here $P$ denotes E or I, $N_P$ its cell count, $M$ the number of presentations,
-    $T$ their duration in seconds, and $z_(b n)$ cell $n$'s spike count during
+    Here $P$ denotes E or I, $N_P$ its neuron count, $N_"eval"$ the number of presentations,
+    $T_"present"$ their duration in seconds, and $n_"spike"(b,n)$ neuron $n$'s spike count during
     presentation $b$; $r_P$ is in hertz. Curves show means and sample standard
     deviations across the three networks; single-image rasters are illustrative.
 
@@ -164,9 +164,9 @@
   were not trained.
 
   Illustrative snapshots use test-image index 0, not selection by digit class.
-  A fixed pseudorandom sample selects 200 E and 64 I cells for display; reported
+  A fixed pseudorandom sample selects 200 E and 64 I neurons for display; reported
   firing rates use the full populations. Uniform-input E+I overlays add the
-  two population means without weighting by cell count, and are not a
+  two population means without weighting by neuron count, and are not a
   whole-network mean. Neither the transfer rasters nor these firing curves
   provide a spectral gamma-frequency estimate. The accuracy decline is
   consistent with changing the trained network's dynamics, but does not

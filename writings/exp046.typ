@@ -9,7 +9,7 @@
   status: "[▦ DATA]",
   title: "One Spike per Gamma Cycle",
   date: "2026-06-04",
-  updated_at: "2026-08-28",
+  updated_at: "2026-08-29",
   description: "Counting E spikes per gamma cycle across exp041's 18 checkpoints shows the architecture is overwhelmingly one-spike-per-cycle.",
   collection: "gamma-gated-sparsity",
 )
@@ -25,7 +25,7 @@
 #let body = [
   == Abstract
 
-  #link("/exp041/")[exp041]'s slope $p approx 0.20$ was interpreted as _"each E cell joins a cycle with ≈ 20% probability"_. That reading assumes the per-cycle spike count is bounded by 1 (an E cell either participates in this cycle or not). I measured that directly by walking through every gamma cycle in the shared 1,000-image held-out evaluation subset and counting how many spikes each E cell actually emitted, on all 18 trained checkpoints in exp041's $tau_"GABA"$ sweep.
+  #link("/exp041/")[exp041]'s fitted rate–frequency slope $beta_(r f) approx 0.20$ was interpreted as _"each E neuron joins a cycle with ≈ 20% probability"_. That reading assumes the per-cycle spike count is bounded by 1 (an E neuron either participates in this cycle or not). I measured that directly by walking through every gamma cycle in the shared 1,000-image held-out evaluation subset and counting how many spikes each E neuron actually emitted, on all 18 training replicates in exp041's $tau_"GABA"$ sweep.
 
   #run-view("exp046", inputs)
 
@@ -33,26 +33,26 @@
 
   #figure(
     data-image(data-file("exp046/spikes_per_cycle_distribution.svg"), width: 100%,
-      alt: "Six bar charts, one per τ_GABA, of the probability an E cell emits 0, 1, 2, or ≥3 spikes in a gamma cycle; every panel is dominated by the 0 and 1 bars."),
-    caption: [Distribution of E spike count per gamma cycle per cell, by $tau_"GABA"$, three seeds aggregated. Across *179 million (cell, cycle) pairs*, the architecture was overwhelmingly bimodal: each cell either emitted zero spikes in a given cycle (≈ 79% of the time) or exactly one (≈ 20% of the time). Two-or-more events occurred in ≈ 1.1% of cycles; three-or-more in ≈ 0.14%. Pooled over the sweep, 98.9% of pairs carried at most one spike.],
+      alt: "Six bar charts, one per τ_GABA, of the probability an E neuron emits 0, 1, 2, or ≥3 spikes in a gamma cycle; every panel is dominated by the 0 and 1 bars."),
+    caption: [Distribution of E spike count per gamma cycle per neuron, by $tau_"GABA"$, three seeds aggregated. Across *179 million (neuron, cycle) pairs*, the architecture was overwhelmingly bimodal: each neuron either emitted zero spikes in a given cycle (≈ 79% of the time) or exactly one (≈ 20% of the time). Two-or-more events occurred in ≈ 1.1% of cycles; three-or-more in ≈ 0.14%. Pooled over the sweep, 98.9% of pairs carried at most one spike.],
   )
 
   #figure(
     data-image(data-file("exp046/ceiling_vs_fgamma.svg"), width: 100%,
-      alt: "Per-cell E rate against measured gamma frequency; the busiest cell tracks the one-spike-per-cycle line while the median cell tracks exp041's shallower slope."),
-    caption: [Per-cell E rate versus measured gamma frequency $f_gamma$ across the $tau_"GABA"$ sweep. The busiest cell in each network tracks the one-spike-per-cycle ceiling $r = f_gamma$ (max-cell fit $r = 0.97 f_gamma$, $R^2 = 0.88$), while the median cell sits on exp041's shallower $r approx 0.20 f_gamma$ participation slope. The ceiling is near-strict: even the most active cell rarely exceeded one spike per cycle.],
+      alt: "Per-neuron E rate against measured gamma frequency; the busiest neuron tracks the one-spike-per-cycle line while the median neuron tracks exp041's shallower slope."),
+    caption: [Per-neuron E rate versus measured gamma frequency $f_gamma$ across the $tau_"GABA"$ sweep. The busiest neuron in each network tracks the one-spike-per-cycle ceiling $r = f_gamma$ (max-neuron fit $r = 0.97 f_gamma$, $R_"fit"^2 = 0.88$), while the median neuron sits on exp041's shallower $r approx 0.20 f_gamma$ participation slope. The ceiling is near-strict: even the most active neuron rarely exceeded one spike per cycle.],
   )
 
   == Methods
 
   Cycle statistics were evaluated from the final-epoch checkpoints used by exp041, so this experiment audits the same endpoint gamma dynamics. The source training horizon was read from those checkpoint configurations and retained in the generated provenance.
 
-  For each of exp041's 18 trained cells (6 $tau_"GABA"$ × 3 seeds):
+  For each of exp041's 18 trained networks (6 $tau_"GABA"$ × 3 seeds):
 
   + I ran inference on the fixed 1,000-image subset of the official MNIST test partition; I captured per-trial $(T, B, N_E)$ and $(T, B, N_I)$ spike tensors.
-  + I detected I-burst times per trial: I smoothed the population I rate with a 1-ms Gaussian, and used scipy peak detection with min-distance set to half the cell's own $1 \/ f_gamma$.
+  + I detected I-burst times per trial: I smoothed the population I rate with a 1-ms Gaussian, and used scipy peak detection with min-distance set to half the network's own $1 \/ f_gamma$.
   + Cycle boundaries were the midpoints between consecutive I-burst peaks (the first cycle started at $t = 0$ and the last ended at trial end).
-  + For each (cell, cycle, trial), I counted the number of E spikes within the cycle window.
+  + For each (neuron, cycle, trial), I counted the number of E spikes within the cycle window.
   + I bucketed counts globally into ${0, 1, 2, >= 3}$ and aggregated by $tau_"GABA"$.
 
   The cycle anchor is the I-burst: this is the right anchor because the cycle is operationally defined as _"the time between one inhibitory blanket and the next"_, not as the time between E bursts (which can be silent on a given cycle).
@@ -66,7 +66,7 @@
 } else {
   pending-report(
     data-file, inputs,
-    [How often does an excitatory cell spike within one gamma cycle? Count spikes between inhibitory volleys across the exp041 inhibitory-timescale sweep.],
+    [How often does an excitatory neuron spike within one gamma cycle? Count spikes between inhibitory volleys across the exp041 inhibitory-timescale sweep.],
     preview-figures, json-inputs: (),
   )
 }

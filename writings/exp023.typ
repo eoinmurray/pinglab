@@ -9,7 +9,7 @@
   status: "[▦ DATA]",
   title: "Turning the PING Loop On",
   date: "2026-05-13",
-  updated_at: "2026-08-27",
+  updated_at: "2026-08-29",
   description: "PING stripped to its biophysical fundamentals: free-running activity, population spectra and rate responses with the excitatory–inhibitory loop off and on.",
   collection: "gamma-gated-sparsity",
 )
@@ -77,65 +77,65 @@
     ],
   )
 
-  === COBA excitatory-cell traces
+  === COBA excitatory-neuron traces
 
   #figure(
     data-image(data-file("exp023/traces__coba__v_e.svg"), width: 100%),
-    caption: [Membrane voltage of the highest-spike-count E cell with the loop
+    caption: [Membrane voltage of the highest-spike-count E neuron with the loop
       off, driven at #points.coba.input_rate_hz Hz for #points.coba.t_ms ms.
       The dashed line marks the #b.threshold_mV mV threshold; spikes reset
-      voltage to #b.reset_mV mV. This is an illustrative cell, not a population mean.],
+      voltage to #b.reset_mV mV. This is an illustrative neuron, not a population mean.],
   )
   #figure(
     data-image(data-file("exp023/traces__coba__g_e.svg"), width: 100%),
     caption: [Excitatory conductance (black) and fixed leak (dotted) for the same
-      COBA cell. Input spikes increase excitation, which decays between events;
+      COBA neuron. Input spikes increase excitation, which decays between events;
       the disconnected inhibitory feedback contributes no conductance.],
   )
   #figure(
     data-image(data-file("exp023/traces__coba__i_e.svg"), width: 100%),
-    caption: [Signed excitatory and leak currents for the same COBA cell.
+    caption: [Signed excitatory and leak currents for the same COBA neuron.
       Positive current is depolarising; current was reconstructed from voltage
       and conductance using the driving-force relation in Methods.],
   )
 
-  === PING excitatory-cell traces
+  === PING excitatory-neuron traces
 
   #figure(
     data-image(data-file("exp023/traces__ping__v_e.svg"), width: 100%),
-    caption: [Membrane voltage of the highest-spike-count PING E cell at
+    caption: [Membrane voltage of the highest-spike-count PING E neuron at
       #points.ping.input_rate_hz Hz input for #points.ping.t_ms ms.
       This is a different input rate from COBA, not a matched-input trace comparison.],
   )
   #figure(
     data-image(data-file("exp023/traces__ping__g_e.svg"), width: 100%),
     caption: [Excitatory (black), inhibitory (red when nonzero) and leak (dotted)
-      conductances on the same PING E cell. All conductances are non-negative;
+      conductances on the same PING E neuron. All conductances are non-negative;
       inhibition enters through its reversal potential, not a negative conductance.],
   )
   #figure(
     data-image(data-file("exp023/traces__ping__i_e.svg"), width: 100%),
-    caption: [Signed currents on the same PING E cell. Inhibitory current is
+    caption: [Signed currents on the same PING E neuron. Inhibitory current is
       hyperpolarising when voltage exceeds the #b.E_I_mV mV inhibitory reversal
       potential, even though inhibitory conductance is positive.],
   )
 
   #if r.raster.ping.i_index != none [
-    === PING inhibitory-cell traces
+    === PING inhibitory-neuron traces
 
     #figure(
       data-image(data-file("exp023/traces__ping__v_i.svg"), width: 100%),
-      caption: [Membrane voltage of the highest-spike-count PING I cell,
+      caption: [Membrane voltage of the highest-spike-count PING I neuron,
         from the same trial as the PING E traces. The dashed line marks threshold.],
     )
     #figure(
       data-image(data-file("exp023/traces__ping__g_i.svg"), width: 100%),
       caption: [Excitatory conductance arriving from the E population (black)
-        and fixed leak (dotted) on the selected I cell. The model has no I→I synapse.],
+        and fixed leak (dotted) on the selected I neuron. The model has no I→I synapse.],
     )
     #figure(
       data-image(data-file("exp023/traces__ping__i_i.svg"), width: 100%),
-      caption: [Signed excitatory and leak currents on the same I cell.
+      caption: [Signed excitatory and leak currents on the same I neuron.
         These cellular traces illustrate reciprocal E→I→E feedback; they do not
         measure population-wide phase locking or spikes per cycle.],
     )
@@ -147,7 +147,7 @@
   simulation and measurement procedure.
 
   + *Construct the two loop conditions.* Both networks contained #c.n_e
-    excitatory (E) and #c.n_i inhibitory (I) neurons. An input layer drove E cells through
+    excitatory (E) and #c.n_i inhibitory (I) neurons. An input layer drove E neurons through
     feedforward weights; reciprocal E→I and I→E weights formed the PING loop,
     without E→E or I→I recurrence. Loop coupling was
     #points.coba.ei_strength or #points.ping.ei_strength; the I→E parent mean
@@ -169,11 +169,12 @@
   + *Measure the drive response.* Both loop conditions used
     #c.trials_per_condition trial at each of #sweep.input_rates_hz.map(str).join([, ]) Hz
     through #sweep.n_in input channels for #sweep.t_ms ms, without a discarded transient.
-    Mean per-cell firing rate was
-    $ r_P = S_P / (N_P D), $
-    where $P$ identifies E or I, $S_P$ is the population's total spike count,
-    $N_P$ its neuron count, $D$ the full trial duration in seconds and $r_P$
-    the rate in hertz. No averaging across independent seeds was performed.
+    Mean per-neuron firing rate was
+    $ r_P = n_("spike",P) / (N_P T_"present"), $
+    where $P$ identifies E or I, $n_("spike",P)$ is the population's total
+    spike count, $N_P$ its neuron count, $T_"present"$ the full presentation
+    duration in seconds and $r_P$ the rate in hertz. No averaging across
+    independent seeds was performed.
 
   + *Estimate the population spectrum.* The mean E spike trace was demeaned
     and passed to Welch's density estimator with one full-trial window.#cite(1)
@@ -183,18 +184,18 @@
     interpolation, clamped to half a bin; it was reported only when I spikes
     were present. This reporting rule is not a test of significant rhythmicity.
 
-  + *Reconstruct signed currents.* Each displayed cell was the first cell
+  + *Reconstruct signed currents.* Each displayed neuron was the first neuron
     attaining the highest total spike count in its population during that
-    raster trial. A silent E population used cell zero; a silent I population
-    had no selected-cell panels. Raster trials used #points.coba.n_in input
+    raster trial. A silent E population used neuron zero; a silent I population
+    had no selected-neuron panels. Raster trials used #points.coba.n_in input
     channels at #points.coba.input_rate_hz Hz for COBA and
     #points.ping.input_rate_hz Hz for PING, unlike the matched-drive sweep.
 
-    #block(breakable: false)[For the selected cells, recorded conductances
+    #block(breakable: false)[For the selected neurons, recorded conductances
     and voltages gave
-    $ I_X^"in" = -g_X (V - E_X), $
+    $ I_X^"in" = -g_X (V_m - E_X), $
     where $X$ identifies excitation, inhibition or leak; $g_X$ is conductance in
-    µS, $V$ membrane voltage and $E_X$ reversal potential in mV, and
+    µS, $V_m$ membrane voltage and $E_X$ reversal potential in mV, and
     $I_X^"in"$ inward current in nA. Reversals were #b.E_E_mV,
     #b.E_I_mV and #b.E_L_mV mV, respectively; positive current is depolarising.
     The sign lives in the driving force, never in the conductance.]

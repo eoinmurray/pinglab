@@ -9,7 +9,7 @@
   status: "[▦ DATA]",
   title: "Spike-Count Classification in a Continuous Stream",
   date: "2026-08-10",
-  updated_at: "2026-08-28",
+  updated_at: "2026-08-29",
   description: "A multi-seed study of spike-count classification across input rates and presentation durations.",
   collection: "gamma-gated-sparsity",
 )
@@ -79,10 +79,10 @@
 
   #figure(
     report-image("exp082/single_trial.png",
-      "Digit 4 with rasters of 200 excitatory and 64 inhibitory cells, and ten softmax count-share trajectories."),
+      "Digit 4 with rasters of 200 excitatory and 64 inhibitory neurons, and ten softmax count-share trajectories."),
     caption: [Retained seed-42 digit #r.single_trial.labels.first(), the first correct
       presentation in the 200 ms, 5 Hz matched stream. Red marks the true and
-      winning class. Rasters display the first 200 E and 64 I cells, not the full
+      winning class. Rasters display the first 200 E and 64 I neurons, not the full
       populations. Softmax count shares explain the readout; they are not calibrated
       probabilities. Selecting a success cannot estimate accuracy or show that
       each rhythmic burst improves the decision.],
@@ -174,27 +174,27 @@
     along the batch axis, without changing the recipe.
 
   + *Read output spike counts.* The learned projection from excitatory spikes
-    drove the output-LIF units. For a presentation covering timesteps $a$ through
-    $b-1$, the count for class $c$ at timestep $u$ was
-    $ z_c (u) = sum_(t=a)^u s_c^"out" (t), quad a <= u < b. $ <eq-count>
-    Here $t$ indexes timesteps and $s_c^"out" (t)$ is the binary output spike.
-    Prediction was $arg max_c z_c (b-1)$; ties selected the lowest class index,
+    drove the output-LIF units. For a presentation covering timesteps $k_a$ through
+    $k_b-1$, the count-based class score at timestep $k$ was
+    $ z_c[k] = sum_(j=k_a)^k s_c^"out"[j], quad k_a <= k < k_b. $ <eq-count>
+    Here $j$ indexes timesteps and $s_c^"out"[j]$ is the dimensionless binary output spike.
+    Prediction was $arg max_c z_c[k_b-1]$; ties selected the lowest class index,
     including class 0 for silent windows. The displayed count share was
-    $ p_c (u) = frac(exp(z_c (u)), sum_(k=0)^9 exp(z_k (u))). $ <eq-share>
-    Here $k$ indexes the ten digit classes; $p_c$ is a softmax transformation,
+    $ p_"class"(c,k) = frac(exp(z_c[k]), sum_(j=0)^9 exp(z_j[k])). $ <eq-share>
+    Here $j$ indexes the ten digit classes; $p_"class"$ is a softmax transformation,
     not a calibrated posterior. Seed-42 illustrations reused a five-digit
     matched stream and a fixed changing-duration/rate stream; the single-digit
     explanation selected the first correct matched presentation.
 
-  + *Measure condition-level performance.* Accuracy for duration $d$ (ms),
-    maximum-pixel input rate $r$ (Hz) and trained seed $s$ was
-    $ A_(d,r,s) = 1/N sum_(i=1)^N bb(1)[hat(y)_(i,d,r,s) = y_i]. $ <eq-accuracy>
-    Here $N=200$, $i$ indexes digit presentations, $hat(y)$ and $y$ are predicted
+  + *Measure condition-level performance.* Accuracy for presentation duration $T_"present"$ (ms),
+    maximum-pixel input rate $r_"input,max"$ (Hz) and trained seed $xi$ was
+    $ "Acc"(T_"present",r_"input,max",xi) = 1/N_"eval" sum_(i=1)^(N_"eval") bb(1)[hat(y)_(i,T_"present",r_"input,max",xi) = y_i]. $ <eq-accuracy>
+    Here $N_"eval"=200$, $i$ indexes digit presentations, $hat(y)$ and $y$ are predicted
     and true labels, and $bb(1)$ is an indicator. I retained original
     per-seed aggregates of accuracy, class spike totals, output spikes per
     presentation, silence and E/I rates; individual grid decisions were not
-    archived. E/I rates used all 1,024/256 cells and the complete presentation
-    duration. Seed means and sample SD/√3 summarize three networks, not 600
+    archived. E/I rates used all 1,024/256 neurons and the complete presentation
+    duration. Seed means and SEM summarize three training replicates, not 600
     independent network replicates; no additional stream-bank repeats, adjusted
     comparisons or population-level intervals support broader generalization.
     No causal gamma manipulation, fixed-rate-training control or separation of

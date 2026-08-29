@@ -10,7 +10,7 @@
   status: "[▦ DATA]",
   title: "How Pixel Features Respond to Input Rate",
   date: "2026-08-10",
-  updated_at: "2026-08-27",
+  updated_at: "2026-08-29",
   description: "Standalone empirical and analytical study of synaptic, membrane, and finite-window filtering under sparse Poisson drive.",
   collection: "gamma-gated-sparsity",
 )
@@ -100,24 +100,24 @@
 
   #enum(
     [*Generate independent events.* At each timestep, a fully active pixel
-    generated a Bernoulli event with probability $r Delta t/1000$, where $r$ is
-    input rate in spikes/s and $Delta t=#p.dt_ms$ ms. Separate deterministic random
+    generated a Bernoulli event with probability $p_"event"=r_"input" Delta t_"sim"/1000$, where $r_"input"$ is
+    input rate in spikes/s and $Delta t_"sim"=#p.dt_ms$ ms. Separate deterministic random
     streams, derived from seed #p.seed, supplied moment and distribution probes;
     each presentation started with zero conductance and resting voltage.],
 
     [*Update synapse and membrane.* Conductance decayed exponentially with a
     #p.membrane.tau_ampa_ms ms AMPA time constant before adding the event increment.
     Voltage followed
-    $ C (d v)/(d t)=g_L (E_L-v)+g(t)(E_e-v). quad "(1)" $
-    Here $t$ is time in ms, $v$ is membrane voltage in mV, $g$ is excitatory conductance in μS,
-    $C=#p.membrane.C_m_nF$ nF is capacitance, $g_L=#p.membrane.g_L_uS$ μS is leak
+    $ C_m (d V_m)/(d t)=g_L (E_L-V_m)+g(t)(E_e-V_m). quad "(1)" $
+    Here $t$ is time in ms, $V_m$ is membrane voltage in mV, $g$ is excitatory conductance in μS,
+    $C_m=#p.membrane.C_m_nF$ nF is capacitance, $g_L=#p.membrane.g_L_uS$ μS is leak
     conductance, and $E_L=#p.membrane.E_L_mV$ mV and $E_e=#p.membrane.E_e_mV$ mV
     are reversal potentials. Each voltage step used the exact exponential solution
     with the updated conductance held fixed; arithmetic used single precision.],
 
     [*Measure the finite-window feature.* I approximated
-    $ z=1/T integral_0^T (v(t)-E_L) dif t. quad "(2)" $
-    Here $z$ is mean depolarization in mV and $T=#p.presentation_ms$ ms is the
+    $ z_"feature"=1/T_"present" integral_0^(T_"present") (V_m(t)-E_L) dif t. quad "(2)" $
+    Here $z_"feature"$ is mean depolarization in mV and $T_"present"=#p.presentation_ms$ ms is the
     presentation duration. The discrete estimate averaged every post-update voltage
     after subtracting rest; individual estimates were retained for reuse.
 
@@ -133,7 +133,7 @@
     membrane responses about it. Multiplication by the rectangular averaging
     response gave $H_r (omega)$, the input-to-feature transfer function at angular
     frequency $omega$ in rad/ms. Its predicted variance was
-    $ "Var"(z)=1/(2 pi) integral_(-oo)^oo abs(H_r (omega))^2 (r/1000) dif omega.
+    $ "Var"(z_"feature")=1/(2 pi) integral_(-oo)^oo abs(H_r (omega))^2 (r_"input"/1000) dif omega.
       quad "(3)" $
     #link(<sec-appendix-model-specification-and-calculations>)[Appendix: model specification and calculations] specifies the transfer and #link(<sec-appendix-derivation-of-the-analytical-filter>)[Appendix: derivation of the analytical filter] derives it.],
 
@@ -230,42 +230,42 @@
   === Simulate the finite-window feature
 
   I fixed the normalized pixel intensity at $x=1$ and varied only its input
-  rate $r$ from #p.input_rate_grid_hz.first() to
+  rate $r_"input"$ from #p.input_rate_grid_hz.first() to
   #p.input_rate_grid_hz.last() spikes/s. At each timestep, the pixel generated
   an event with probability
 
-  $ p_"event" = (r Delta t) / 1000. quad "(A1)" $
+  $ p_"event" = (r_"input" Delta t_"sim") / 1000. quad "(A1)" $
 
-  Here $r$ is the input rate in spikes/s and $Delta t=#p.dt_ms$ ms. During a
-  presentation of duration $T=#p.presentation_ms$ ms, the expected number of
-  events is $r T / 1000$. Expected event count is therefore a consequence of the
+  Here $r_"input"$ is the input rate in spikes/s and $Delta t_"sim"=#p.dt_ms$ ms. During a
+  presentation of duration $T_"present"=#p.presentation_ms$ ms, the expected number of
+  events is $r_"input" T_"present" / 1000$. Expected event count is therefore a consequence of the
   chosen rate, not a separate experimental variable.
 
   Conductance and membrane voltage followed
 
-  $ g(t) = beta g(t-Delta t) + w S(t), quad "(A2)" $
+  $ g[k] = beta_"AMPA" g[k-1] + w_"event" s[k], quad "(A2)" $
 
-  $ beta = exp(-Delta t/tau_"AMPA"), quad "(A3)" $
+  $ beta_"AMPA" = exp(-Delta t_"sim"/tau_"AMPA"), quad "(A3)" $
 
   $
-    C (d v)/(d t) = g_L (E_L-v) + g(t)(E_e-v). quad "(A4)"
+    C_m (d V_m)/(d t) = g_L (E_L-V_m) + g(t)(E_e-V_m). quad "(A4)"
   $
 
-  Here $S(t)$ is one when an event occurs and zero otherwise, $g(t)$ is AMPA
-  conductance, $w$ is the conductance increment per event, $beta$ is the
+  Here $s[k]$ is one when an event occurs and zero otherwise, $g[k]$ is AMPA
+  conductance, $w_"event"$ is the conductance increment per event, $beta_"AMPA"$ is the
   per-timestep decay factor, and $tau_"AMPA"$ is the AMPA decay time constant.
-  The membrane voltage is $v(t)$, $C$ is membrane capacitance, $g_L$ is leak
+  The membrane voltage is $V_m(t)$, $C_m$ is membrane capacitance, $g_L$ is leak
   conductance, $E_L$ is the leak reversal potential, and $E_e$ is the
   excitatory reversal potential.
 
-  I used $C=1$ nF, $g_L=0.05$ μS, $E_L=-65$ mV, $E_e=0$ mV,
+  I used $C_m=1$ nF, $g_L=0.05$ μS, $E_L=-65$ mV, $E_e=0$ mV,
   $tau_"AMPA"=2$ ms, and independent probe conductances
-  $w in {#p.probes_uS.map(str).join(", ")}$ μS. Every presentation began from
-  $g(0)=0$ and $v(0)=E_L$. Its continuous-time scalar feature was
+  $w_"event" in {#p.probes_uS.map(str).join(", ")}$ μS. Every presentation began from
+  $g(0)=0$ and $V_m(0)=E_L$. Its continuous-time scalar feature was
 
-  $ z = 1/T integral_0^T (v(t)-E_L) dif t. quad "(A5)" $
+  $ z_"feature" = 1/T_"present" integral_0^(T_"present") (V_m(t)-E_L) dif t. quad "(A5)" $
 
-  Here $z$ is the baseline-subtracted mean voltage and $T$ is presentation
+  Here $z_"feature"$ is the baseline-subtracted mean voltage and $T_"present"$ is presentation
   duration. Simulation used the arithmetic mean of post-update voltages as the
   discrete approximation to this integral.
 
@@ -470,10 +470,10 @@
   independent counts and count variance equals count mean. The centred impulse
   train therefore has autocovariance
 
-  $ R_(delta s) (tau)=(r/1000)delta(tau). quad "(B7)" $
+  $ C_(delta s) (ell)=(r_"input"/1000)delta(ell). quad "(B7)" $
 
-  Here $R_(delta s) (tau)$ is the input autocovariance at lag $tau$, and
-  $delta(tau)$ is the Dirac delta function.
+  Here $C_(delta s) (ell)$ is the input autocovariance at lag $ell$, and
+  $delta(ell)$ is the Dirac delta function.
 
   Fourier transformation of the delta function gives the constant spectrum in
   Equation A13. A linear time-invariant filter multiplies the input spectrum by

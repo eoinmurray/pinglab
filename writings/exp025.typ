@@ -9,7 +9,7 @@
   status: "[▦ DATA]",
   title: "Accuracy and Firing Rate With and Without Inhibition",
   date: "2026-05-30",
-  updated_at: "2026-08-28",
+  updated_at: "2026-08-29",
   description: "Reused MNIST networks compare accuracy and excitatory firing rates with and without an inhibitory loop. Different gradient damping limits causal attribution to gamma timing.",
   collection: "gamma-gated-sparsity",
 )
@@ -128,7 +128,7 @@
       Five penalised conditions per model, seed 42, #run.recipe.pfg_samples
       test images each. PING participation varied from #p_lo to #p_hi and
       oscillation frequency from approximately #fg_hi to #fg_lo Hz. The dashed
-      $p f_gamma$ approximation differs from measured E rate by up to
+      $p_"part" f_gamma$ approximation differs from measured E rate by up to
       #pfg_err_max%; participation is not constant. PING accuracy spanned
       #ping_acc_lo–#ping_acc_hi%; COBA fell from #coba_acc_loose% to
       #coba_acc_tight% as the ceiling tightened. These are individual-seed
@@ -202,7 +202,7 @@
     at a 25 Hz maximum, for 200 ms with 0.1 ms steps.
 
   + *Compare network configurations.* Both conductance-based networks had 1,024
-    excitatory (E), 256 inhibitory (I), and 10 output leaky-integrate-and-fire cells.
+    excitatory (E), 256 inhibitory (I), and 10 output leaky-integrate-and-fire neurons.
     Pyramidal-interneuron gamma (PING) enabled fixed E↔I coupling; COBA disabled it;
     E→E and I→I coupling were zero throughout. Only input and readout weights
     trained; class scores were mean pre-reset output membrane voltages
@@ -213,12 +213,12 @@
     (zero weight decay), learning rate $4 times 10^(-4)$, batch size 256, and
     gradient-norm clipping at 1. Cross-entropy was supplemented by:
 
-    #math.equation(block: true, numbering: "(1)", $ r_b = 1 / (N_E T) sum_(n in E) z_(b n), quad
-      L_"rate" = lambda / B sum_b max(r_b - r_"max", 0)^2. $)
+    #math.equation(block: true, numbering: "(1)", $ r_b = 1 / (N_E T_"present") sum_(n in E) n_"spike"(b,n), quad
+      L_"rate" = lambda_"rate" / B sum_b max(r_b - r_(E,"ceil"), 0)^2. $)
 
-    Here $z_(b n)$ counts cell $n$'s spikes in presentation $b$, $E$ is the
-    excitatory population, $N_E$ its size, $T$ duration in seconds, and $B$ batch
-    size. Rates $r_b$ and ceilings $r_"max"$ are in hertz; $lambda = 0.041$
+    Here $n_"spike"(b,n)$ counts excitatory neuron $n$'s spikes in presentation $b$, $E$ is the
+    excitatory population, $N_E$ its size, $T_"present"$ its duration in seconds, and $B$ minibatch
+    size. Rates $r_b$ and ceilings $r_(E,"ceil")$ are in hertz; $lambda_"rate" = 0.041$
     $"Hz"^(-2)$ weights the dimensionless penalty $L_"rate"$. Six ceiling conditions
     (#link(<sec-training-settings>)[Training settings]) and three seeds yielded 36 networks.
 
@@ -229,13 +229,13 @@
 
   + *Measure cycle participation.* For seed 42, oscillation frequency $f_gamma$
     was the 5–150 Hz peak of trial-averaged Welch spectra of E activity #cite(1).
-    Participation $p$ was the fraction of E-cell/cycle pairs containing at least
+    Participation $p_"part"$ was the fraction of E-neuron/cycle pairs containing at least
     one spike, with cycles delimited by I-burst midpoints (#link(<sec-measurement-details>)[Measurement details]).
 
-    #math.equation(block: true, numbering: "(1)", $ r_E approx p f_gamma. $)
+    #math.equation(block: true, numbering: "(1)", $ r_E approx p_"part" f_gamma. $)
 
     This diagnostic approximation relates mean E rate $r_E$ (Hz), dimensionless
-    $p$, and $f_gamma$ (Hz); repeated spikes and differing cycle/frequency
+    $p_"part"$, and $f_gamma$ (Hz); repeated spikes and differing cycle/frequency
     aggregation prevent treating it as an identity.
 
   + *Vary input coupling.* Twelve PING networks used four initial input-coupling
@@ -250,8 +250,8 @@
   #table(
     columns: 2,
     [Parameter], [Value],
-    [Integration timestep $Delta t$], [0.1 ms],
-    [Trial duration $T$], [200 ms; illustrative rasters use 400 ms],
+    [Integration timestep $Delta t_"sim"$], [0.1 ms],
+    [Presentation duration $T_"present"$], [200 ms; illustrative rasters use 400 ms],
     [MNIST training pool], [7,000 official-training images: 6,300 optimizer-training / 700 validation],
     [Evaluation], [Fixed 1,000-image official-test subset],
     [Epochs], [50],
@@ -295,7 +295,7 @@
   using that trial's E spectral peak. Cycle boundaries lay midway between I
   peaks, with the trial endpoints closing the first and last cycles. Trials with
   no usable frequency or I peak were omitted from participation; active
-  cell/cycle pairs were pooled across accepted trials. This extends the
+  neuron/cycle pairs were pooled across accepted trials. This extends the
   #link("/exp041/")[frequency–rate comparison] using the
   #link("/exp046/")[cycle-participation measurement].
 
