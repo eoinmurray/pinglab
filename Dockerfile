@@ -59,7 +59,7 @@ WORKDIR /workspace/pinglab
 # Start script — two modes, chosen at runtime by the CELLS env var:
 #   • CELLS set → fire-and-forget work. Start sshd in the background (for
 #     debugging), check out the exact pinned commit ($PIN_SHA), then hand off to
-#     experiments/${PINGLAB_POD_RUNNER}.py --pod-run (default exp022). Training
+#     experiments.${PINGLAB_POD_RUNNER}.compute --pod-run (default exp022). Training
 #     pods write to /shared/training; infer pods write to /shared/artifacts/<slug>.
 #     Self-terminates when done; a backstop removes the pod after $MAX_RUNTIME.
 #   • CELLS unset → just sshd in the foreground (the collect step / debugging).
@@ -75,7 +75,7 @@ RUN printf '%s\n' \
       'git fetch origin "$PIN_SHA" --depth 1 -q && git reset --hard "$PIN_SHA" -q' \
       '( sleep "${MAX_RUNTIME:-54000}"; runpodctl remove pod "$RUNPOD_POD_ID" ) &' \
       'RUNNER="${PINGLAB_POD_RUNNER:-exp022}"' \
-      'exec uv run --no-sync python experiments/${RUNNER}.py --pod-run' \
+      'exec uv run --no-sync python -m experiments.${RUNNER}.compute --pod-run' \
     > /start.sh && chmod +x /start.sh
 
 CMD ["/start.sh"]

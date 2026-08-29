@@ -387,12 +387,14 @@ def test_missing_measurements_never_become_zeros(lab, damage):
 @pytest.mark.parametrize("flag", [[], ["--plot-only"], ["--skip-training"]])
 def test_combined_launchers_are_retired(flag):
     root = Path(__file__).resolve().parents[2]
-    for target in (["-m", "experiments.exp044"], ["experiments/exp044.py"]):
-        result = subprocess.run(
-            [sys.executable, *target, *flag], cwd=root, capture_output=True, text=True
-        )
-        assert result.returncode != 0
-        assert "independent stages" in result.stderr
+    result = subprocess.run(
+        [sys.executable, "-m", "experiments.exp044", *flag],
+        cwd=root,
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode != 0
+    assert "independent stages" in result.stderr
 
 
 def test_collection_reserves_and_dispatches_explicit_stages(lab, monkeypatch):

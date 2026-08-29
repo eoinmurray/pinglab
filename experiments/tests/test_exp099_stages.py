@@ -282,11 +282,11 @@ def test_import_and_retired_entrypoints_never_dispatch(tmp_path):
         timeout=30,
     )
     assert result.returncode == 0, result.stderr
-    for command in (
-        [sys.executable, str(root / "experiments/exp099.py")],
+    result = subprocess.run(
         [sys.executable, "-m", "experiments.exp099"],
-    ):
-        result = subprocess.run(
-            command, cwd=root, capture_output=True, text=True, timeout=30
-        )
-        assert result.returncode != 0 and "requires independent stages" in result.stderr
+        cwd=root,
+        capture_output=True,
+        text=True,
+        timeout=30,
+    )
+    assert result.returncode != 0 and "requires independent stages" in result.stderr

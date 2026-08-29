@@ -20,13 +20,13 @@ def test_modal_meta_flag_parses_for_dispatch_runner():
 
 def test_scheduler_cell_meta_flags_parse_for_dispatch_runner():
     meta = parse_meta(
-        ["exp022.py", "--train-cell", "ping__off__seed42"],
+        ["compute.py", "--train-cell", "ping__off__seed42"],
         allow_dispatch=True,
     )
     assert meta.train_cell == "ping__off__seed42"
 
     listing = parse_meta(
-        ["exp022.py", "--list-cells", "variable_rate"],
+        ["compute.py", "--list-cells", "variable_rate"],
         allow_dispatch=True,
     )
     assert listing.list_cells == "variable_rate"

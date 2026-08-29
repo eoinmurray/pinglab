@@ -590,7 +590,7 @@ def test_external_aggregation_completes_compute_without_downstream_dispatch(tmp_
     monkeypatch.setattr(exp022, "capture_campaign", lambda path, value: observed.append((path, value)))
     monkeypatch.setattr(exp022.subprocess, "run", lambda *args, **kwargs: pytest.fail("aggregation must not dispatch downstream stages"))
     assert exp022._handle_campaign_cli([
-        "exp022.py", "--campaign-aggregate", str(tmp_path / "campaign.json"),
+        "compute.py", "--campaign-aggregate", str(tmp_path / "campaign.json"),
     ])
     assert observed == [(tmp_path / "campaign.json", manifest)]
     assert exp022.training_root_provenance(tmp_path)["location"] == "external"
@@ -609,7 +609,7 @@ def test_post_aggregation_check_allows_only_generated_exp022_artifacts(
         manifest_path, allow_generated_dirty=True,
     )["campaign_id"] == "checked"
     monkeypatch.setattr(
-        campaign, "git_dirty_paths", lambda _repo: ["experiments/exp022.py"],
+        campaign, "git_dirty_paths", lambda _repo: ["experiments/exp022/compute.py"],
     )
     with pytest.raises(SystemExit, match="clean source worktree"):
         exp022._checked_manifest(manifest_path, allow_generated_dirty=True)
@@ -643,7 +643,7 @@ def test_campaign_creation_refuses_existing_destination(
     )
     with pytest.raises(SystemExit, match="already exists and will not be modified"):
         exp022._handle_campaign_cli([
-            "exp022.py", "--campaign-manifest", str(root),
+            "compute.py", "--campaign-manifest", str(root),
             "--campaign-id", "must-not-overwrite", "--tier", "variable_rate",
         ])
     after = {

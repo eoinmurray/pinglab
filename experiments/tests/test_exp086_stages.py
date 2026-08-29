@@ -317,10 +317,10 @@ def test_real_recipe_and_collection_membership():
     assert len(recipe.branches()) == 9
 
 
-def test_flat_runner_refuses_implicit_execution():
+def test_combined_runner_refuses_implicit_execution():
     root = Path(__file__).resolve().parents[2]
     result = subprocess.run(
-        [sys.executable, str(root / "experiments/exp086.py")],
+        [sys.executable, "-m", "experiments.exp086"],
         cwd=root,
         text=True,
         capture_output=True,

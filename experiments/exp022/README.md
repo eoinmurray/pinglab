@@ -9,8 +9,8 @@ The shared lifecycle is defined in [the experiment guide](../README.md).
 `recipe.py` owns the scientific registry and read-only bank interface.
 `compute.py` owns training, campaign recovery and retained diagnostic simulations.
 `analyse.py` owns measurements; `present.py` draws saved analysis only.
-The original `exp022.py` launcher now delegates to compute. Legacy Python imports
-remain available, but combined `--skip-training`/`--plot-only` modes are retired.
+Run compute explicitly as `python -m experiments.exp022.compute`. Legacy Python
+imports remain available, but combined `--skip-training`/`--plot-only` modes are retired.
 
 ## Code layout and dependencies
 

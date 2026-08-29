@@ -308,12 +308,13 @@ def test_retired_entrypoints_and_import_side_effects(tmp_path):
     )
     assert result.returncode == 0, result.stderr
     assert not list(tmp_path.iterdir())
-    for command in (
-        [sys.executable, str(root / "experiments/exp049.py")],
+    result = subprocess.run(
         [sys.executable, "-m", "experiments.exp049"],
-    ):
-        result = subprocess.run(command, cwd=root, capture_output=True, text=True)
-        assert result.returncode != 0 and "explicit" in result.stderr
+        cwd=root,
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode != 0 and "explicit" in result.stderr
 
 
 def test_v2_and_wrong_stage_inputs_are_rejected(lab):

@@ -14,8 +14,8 @@ Two halves, mirroring runpod.py:
     whenever an experiment-runner process is alive; when the lease expires with
     nothing running, `runpodctl stop pod` self-stops the pod. `resume` re-arms it.
 
-WHAT COUNTS AS "USING IT": a runner process — `experiments/expNNN.py` — is
-running. That is the ONLY renewal signal (chosen over SSH-login or GPU-util):
+WHAT COUNTS AS "USING IT": an explicit experiment-stage process is running.
+That is the ONLY renewal signal (chosen over SSH-login or GPU-util):
 merely connecting does not hold the pod open, and a long run can never be
 stopped mid-flight, because every poll while it runs pushes the deadline out.
 This needs NO runner edits and NO image rebuild — the watcher is injected over
@@ -64,10 +64,12 @@ MAX_WARM_HOURS = 24.0        # hard ceiling from launch — stop regardless (saf
 # stop and are visible to a collector pod. Overridable for local testing.
 WARM_DIR = Path(os.environ.get("PINGLAB_WARM_DIR", "/shared/.warm"))
 
-# A "runner is active" = a live `experiments/expNNN.py` process. The watcher's
-# own cmdline is `experiments/helpers/warm_pod.py`, which does NOT match, so the
-# watcher never counts itself as activity.
-RUNNER_RE = re.compile(r"experiments/exp[0-9]{3}\.py")
+# A "runner is active" = a live staged module or staged script. The watcher's
+# own cmdline is `experiments/helpers/warm_pod.py`, which does not match.
+RUNNER_RE = re.compile(
+    r"(?:-m\s+experiments\.exp[0-9]{3}\.(?:compute|analyse|present)\b|"
+    r"experiments/exp[0-9]{3}/(?:compute|analyse|present)\.py\b)"
+)
 
 # Reuse runpod.py's pod-side constant so the arm command uses the same uv.
 UV = "/root/.local/bin/uv"
@@ -207,7 +209,10 @@ def launch(gpu: str = "5090", hours: float = LEASE_HOURS,
 
     print(f"\n=== warm pod {pod_id} up ({gpu}) ===")
     print(f"  ssh -i ~/.ssh/id_ed25519 -p {port} root@{host}")
-    print(f"  cd {POD_REPO} && {UV} run python experiments/exp042.py   # your short runs")
+    print(
+        f"  cd {POD_REPO} && {UV} run python -m experiments.exp042.compute "
+        "--source <exp022-compute-id>   # your short runs"
+    )
     print(f"  it STOPS after {hours}h with no runner; each run resets the clock.")
     print(f"  resume : uv run python experiments/helpers/warm_pod.py resume {pod_id} --hours {hours}")
     print(f"  stop   : uv run python experiments/helpers/warm_pod.py stop {pod_id}")

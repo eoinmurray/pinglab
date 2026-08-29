@@ -148,7 +148,7 @@ def _cell_by_name(name: str) -> dict | None:
 
 
 def pod_run() -> None:
-    """Pod-side entrypoint (image start script runs `exp022.py --pod-run`).
+    """Pod-side entrypoint (the image runs this compute module with `--pod-run`).
 
     Trains every cell named in the CELLS env var to the shared volume, skipping
     any already done there (scale-aware marker → free resume across pods), then

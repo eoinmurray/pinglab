@@ -602,7 +602,7 @@ def test_v2_rejected(lab):
     assert not calls
 
 
-def test_cli_requires_source_and_flat_runner_is_retired():
+def test_cli_requires_source_and_combined_runner_is_retired():
     root = Path(__file__).resolve().parents[2]
     for stage in ("compute", "analyse", "present"):
         result = subprocess.run(
@@ -614,7 +614,7 @@ def test_cli_requires_source_and_flat_runner_is_retired():
         assert result.returncode == 2
         assert "--source" in result.stderr
     result = subprocess.run(
-        [sys.executable, "experiments/exp048.py"],
+        [sys.executable, "-m", "experiments.exp048"],
         cwd=root,
         capture_output=True,
         text=True,

@@ -6,13 +6,12 @@ run the same way every time, so its physics/training parameters (weights, rates,
 overridable CLI flags. Only a small set of *meta* flags — which don't change the
 science, just how/whether it runs or re-renders — may be accepted.
 
-This scans each experiments/exp<NNN>.py for the flags it accepts (argparse
+This scans each explicit compute, analyse and present module for the flags it accepts (argparse
 add_argument + bare `"--flag" in sys.argv` checks) and fails on anything outside
 the meta allowlist. A new science flag lights up here until it is either hardcoded
 or (if genuinely meta) added to ALLOWED with justification.
 
-Scope note: only canonical runners exp<digits>.py are governed; helper/dispatch
-scripts (e.g. exp022_runpod.py) are excluded by the filename pattern.
+Scope note: helper and dispatch modules are excluded.
 """
 
 import re
@@ -49,16 +48,20 @@ EXP022_CAMPAIGN_META = {
     "--tier",
 }
 
-# Canonical runners only — exp<digits>.py, so exp022_runpod.py et al. are skipped.
+# Canonical staged runners only; helper and dispatch modules are skipped.
 RUNNERS = sorted(
-    p for p in EXPERIMENTS.glob("exp*.py") if re.fullmatch(r"exp\d+\.py", p.name)
-)
-RUNNERS += sorted(
     path for path in EXPERIMENTS.glob("exp[0-9][0-9][0-9]/*.py")
     if path.stem in {"compute", "analyse", "present"}
 )
-STAGE_META = {"--source", "--run-id", "--import-source", "--diagnostics",
-              "--retained-presentation"}
+STAGE_META = {
+    "--source",
+    "--frequency-source",  # explicit second analysis input
+    "--run-id",
+    "--import-source",
+    "--diagnostics",
+    "--retained-presentation",
+    "--shard-index",  # scheduler-owned partition of a committed recipe
+}
 
 
 def _is_meta(flag: str) -> bool:
@@ -79,7 +82,7 @@ def test_runners_exist():
 @pytest.mark.parametrize("runner", RUNNERS, ids=lambda p: p.name)
 def test_runner_accepts_only_meta_flags(runner):
     allowed = ALLOWED_EXACT | (
-        EXP022_CAMPAIGN_META if runner.name == "exp022.py" or runner.parent.name == "exp022" else set()
+        EXP022_CAMPAIGN_META if runner.parent.name == "exp022" else set()
     )
     if runner.parent != EXPERIMENTS:
         allowed |= STAGE_META

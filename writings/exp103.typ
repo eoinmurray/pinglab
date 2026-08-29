@@ -181,8 +181,8 @@
   uv run python experiments/helpers/runpod_smoke.py --live
 
   # Experiment dispatch remains a dry-run without --live.
-  uv run python experiments/exp022.py --runpod --gpu 5090
-  uv run python experiments/exp022.py --runpod --gpu 5090 --live
+  uv run python -m experiments.exp022.compute --runpod --gpu 5090
+  uv run python -m experiments.exp022.compute --runpod --gpu 5090 --live
 
   ```
 

@@ -27,8 +27,8 @@ talking to RunPod lives here, so exp022 (training), exp037 and exp042 (inference
 all share one code path.
 
 The pod's start script (see the repo Dockerfile) self-runs when the CELLS env var
-is set: it checks out PIN_SHA, runs experiments/${PINGLAB_POD_RUNNER}.py --pod-run
-(the runner `dispatch()` recorded), then self-terminates. With no CELLS it just
+is set: it checks out PIN_SHA, runs the selected experiment's compute module with
+`--pod-run` (the runner `dispatch()` recorded), then self-terminates. With no CELLS it just
 runs sshd — the mode collect_subpath() and debugging use.
 """
 
@@ -681,8 +681,9 @@ def dispatch(
       • live=True     → pin+verify the sha, then fire the fleet fire-and-forget.
 
     `buckets` is [{"name", "cells": [job-id, …]}]; the runner builds them (via
-    chunk_buckets or its own logic). `runner` is the experiments/expNNN stem the
-    pod re-invokes as `--pod-run` (recorded in PINGLAB_POD_RUNNER). `extra_env` /
+    chunk_buckets or its own logic). `runner` is the expNNN package stem whose
+    compute module the pod re-invokes with `--pod-run` (recorded in
+    PINGLAB_POD_RUNNER). `extra_env` /
     `plumbing_env` inject runner-specific env (e.g. PINGLAB_ARTIFACTS_ROOT)."""
     if collect:
         print(f"collecting {VOLUME_MOUNT}/{collect_subdir} @ {DATACENTER} "
@@ -702,7 +703,7 @@ def dispatch(
         if runner == "exp022":
             print("→ compute capture finishes first; then explicitly analyse and present its run ID")
         else:
-            print(f"→ build figures with: uv run python experiments/{runner}.py --skip-training")
+            print("→ continue with explicit analyse and present stages using the collected run ID")
         return
 
     n_jobs = sum(len(b["cells"]) for b in buckets)
@@ -748,7 +749,7 @@ def dispatch(
     print(f"\n=== fired {len(ok)}/{len(pods)} pods ({gpu}) ===")
     print("pods self-run + self-terminate; monitor with `runpodctl pod list`.")
     print(f"when the list is empty, collect: "
-          f"uv run python experiments/{runner}.py --runpod --collect"
+          f"uv run python -m experiments.{runner}.compute --runpod --collect"
           + (" --plumbing" if plumbing else ""))
 
 

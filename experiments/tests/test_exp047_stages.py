@@ -475,12 +475,13 @@ def test_reservations_reject_legacy_and_orphaned_completion(repo):
         collection.require_staged({"execution": {"mode": "monolithic"}})
 
 
-@pytest.mark.parametrize("module", ["experiments.exp047", "experiments/exp047.py"])
-def test_retired_runner_fails_before_any_output(module, tmp_path):
+def test_retired_runner_fails_before_any_output(tmp_path):
     root = Path(__file__).resolve().parents[2]
-    args = ["-m", module] if "/" not in module else [str(root / module)]
     result = subprocess.run(
-        [sys.executable, *args, "--plot-only"], cwd=root, capture_output=True, text=True
+        [sys.executable, "-m", "experiments.exp047", "--plot-only"],
+        cwd=root,
+        capture_output=True,
+        text=True,
     )
     assert result.returncode != 0
     assert "independent stages" in result.stderr

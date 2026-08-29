@@ -2,7 +2,7 @@
 
 Deterministic — no real pods, no real processes. `ps axww` and the wall clock
 are mocked so the watcher's renew/stop logic is exercised in-memory:
-  • _runner_active parses ps output and matches only real runners (expNNN.py),
+  • _runner_active parses ps output and matches only explicit experiment stages,
     never the watcher itself.
   • watch() stops the pod once the idle window passes with nothing running.
   • a live runner keeps renewing the lease, so a long run is never stopped.
@@ -19,10 +19,19 @@ def _fake_ps(stdout):
     return lambda *a, **k: SimpleNamespace(stdout=stdout, returncode=0)
 
 
-def test_runner_active_detects_runner(monkeypatch):
-    monkeypatch.setattr(w.subprocess, "run", _fake_ps(
-        "  1 ??  Ss  0:00 /usr/sbin/sshd -D\n"
-        "123 pts/0 Rl 3:21 python experiments/exp042.py\n"))
+@pytest.mark.parametrize(
+    "command",
+    [
+        "python -m experiments.exp042.compute --source exp022-r001-compute",
+        "python experiments/exp042/compute.py --source exp022-r001-compute",
+    ],
+)
+def test_runner_active_detects_runner(monkeypatch, command):
+    monkeypatch.setattr(
+        w.subprocess,
+        "run",
+        _fake_ps(f"  1 ??  Ss  0:00 /usr/sbin/sshd -D\n123 pts/0 Rl 3:21 {command}\n"),
+    )
     assert w._runner_active() is True
 
 

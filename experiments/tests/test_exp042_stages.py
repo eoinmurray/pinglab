@@ -498,12 +498,9 @@ def test_import_has_no_implicit_paths_or_execution(tmp_path, monkeypatch):
     assert not list(tmp_path.iterdir())
 
 
-@pytest.mark.parametrize(
-    "target", [["-m", "experiments.exp042"], ["experiments/exp042.py"]]
-)
-def test_combined_runner_is_retired(target):
+def test_combined_runner_is_retired():
     result = subprocess.run(
-        [sys.executable, *target, "--skip-training"],
+        [sys.executable, "-m", "experiments.exp042", "--skip-training"],
         cwd=Path(__file__).resolve().parents[2],
         capture_output=True,
         text=True,

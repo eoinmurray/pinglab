@@ -229,13 +229,14 @@ def test_stage_cli_help_and_explicit_sources(tmp_path, name):
 
 def test_retired_entrypoints_fail_without_execution(tmp_path):
     root = Path(__file__).resolve().parents[2]
-    for command in (
-        [sys.executable, str(root / "experiments/exp081.py")],
+    result = subprocess.run(
         [sys.executable, "-m", "experiments.exp081"],
-    ):
-        result = subprocess.run(command, cwd=root, capture_output=True, text=True)
-        assert result.returncode != 0
-        assert "requires independent stages" in result.stderr
+        cwd=root,
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode != 0
+    assert "requires independent stages" in result.stderr
 
 
 def test_collection_reserves_dispatches_and_resumes_without_v2_capture(

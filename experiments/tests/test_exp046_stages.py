@@ -317,13 +317,14 @@ def test_ancestor_mutation_during_analysis_prevents_completion(cycle_lab, monkey
 
 def test_retired_entrypoints_fail_without_outputs(tmp_path):
     root = Path(__file__).resolve().parents[2]
-    for command in (
-        [sys.executable, str(root / "experiments/exp046.py")],
+    result = subprocess.run(
         [sys.executable, "-m", "experiments.exp046"],
-    ):
-        result = subprocess.run(command, cwd=root, capture_output=True, text=True)
-        assert result.returncode != 0
-        assert "explicit" in result.stderr
+        cwd=root,
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode != 0
+    assert "explicit" in result.stderr
 
 
 def test_import_has_no_storage_side_effects_and_preserves_sample_caps(tmp_path):
