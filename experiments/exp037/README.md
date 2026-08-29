@@ -18,7 +18,7 @@ uv run python -m experiments.exp037.present --source <exp037-analysis-run-id>
 - **Compute:** 192 quantitative evaluations and 12 illustrative snapshots from
   validation-selected `weights.pth` checkpoints. No training, analysis or publication.
   Metrics and exact NPY entries for timestep, population sizes, label and E/I spikes
-  are retained. Configurations, commands and execution logs go in `provenance/`.
+  are retained. Supporting configurations and execution logs go in `export/evidence/`.
 - **Analyse:** reads the pinned 36-cell TR-02 bank histories and compute evidence;
   produces baseline/frontier summaries, per-seed perturbation rows, across-seed
   aggregates, normalized curve coordinates and raster display coordinates.

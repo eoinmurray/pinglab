@@ -6,7 +6,6 @@ import argparse
 import math
 import os
 import platform
-import shlex
 import sys
 from pathlib import Path
 from typing import Any
@@ -90,14 +89,6 @@ def compute(*, run_id: str | None = None) -> str:
             "EXP081_DEVICE": str(torch_device()),
         }
         run.record["execution"]["environment"] = environment
-        write_json_atomic(run.provenance / "command.json", run.record["execution"])
-        replay = run.provenance / "run.sh"
-        exports = "".join(
-            f"export {key}={shlex.quote(value)}\n" for key, value in environment.items()
-        )
-        replay.write_text(
-            replay.read_text().replace("\nexec ", "\n" + exports + "exec ", 1)
-        )
         rates, probes = np.meshgrid(cfg["input_rate_grid_hz"], cfg["probes_uS"])
         features = simulate_features(
             rates, probes, cfg["moment_draws"], cfg["moment_seed"], config=cfg
@@ -121,7 +112,7 @@ def compute(*, run_id: str | None = None) -> str:
             input_rates_hz=np.asarray(cfg["distribution_rates_hz"]),
         )
         write_json_atomic(
-            run.provenance / "environment.json",
+            run.evidence / "environment.json",
             {
                 "python": platform.python_version(),
                 "numpy": np.__version__,

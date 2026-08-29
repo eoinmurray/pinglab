@@ -155,7 +155,7 @@ def analyse(identity: str, *, run_id: str | None = None) -> str:
             "schema": "exp024.analysis/v1", "config": scale, "measurement": configuration,
             "cells": rows, "models": models,
         })
-        write_json_atomic(run.provenance / "source-configurations.json", configs)
+        write_json_atomic(run.evidence / "source-configurations.json", configs)
     return run.run_id
 
 

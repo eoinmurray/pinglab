@@ -13,7 +13,7 @@ uv run python experiments/exp023/present.py --source <exp023-analyse-run>
 ```
 
 Compute retains two raster trials and fourteen matched-drive sweep trials.
-Analysis reads explicitly selected v3 evidence, retaining spectra, selected-cell
+Analysis reads explicitly selected v4 runs, retaining spectra, selected-cell
 traces/currents, firing rates and peak estimates. Presentation reads those
 measurements and the pinned computation's rasters, without recomputing spectra,
 selecting cells or simulating. Its flat export retains the existing figure names
@@ -46,7 +46,7 @@ materialization/publication requires separate authorization.
 
 Every new stage uses v3, stage-labelled IDs, atomic completion and both payload
 and authoritative-manifest input pins. Simulation commands, configurations and
-logs are retained under provenance/. Failed executions remain hidden. --run-id
+supporting scientific logs are retained under `export/evidence/`. Failed executions remain hidden. --run-id
 accepts only an unused reservation; reruns use fresh identities.
 
 The former combined commands, including --plot-only and --skip-training, fail

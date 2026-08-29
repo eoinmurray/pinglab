@@ -1,7 +1,7 @@
 # exp046 — spikes per excitatory cell per gamma cycle
 
 Execution target: **Experiment Runner Guide 3.0.0 / Storage Guide 3.0.0**,
-using `pingstore.run/v3` and source-neutral stage IDs. This migration preserves
+using `pingstore.run/v4` and source-neutral stage IDs. This migration preserves
 the numerical definitions. The author deferred scientific and article review
 until after migration and historical-data handling; the article is unchanged
 and remains `Implemented`. Writing Guide 9.0.0 review is **not complete**.

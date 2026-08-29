@@ -80,7 +80,7 @@ reservation, independent stage dispatch and validated reuse. Shared registration
 now routes exp054 through it in `plan.py`, `execution.py` and `slurm.py`:
 
 - New plans require `stage-refs.json`, with no combined runner command.
-- Dispatch and reuse require staged v3 evidence and explicit frequency ancestry.
+- Dispatch and reuse require staged v4 runs and explicit frequency ancestry.
 - Scheduler dispatch reserves all stage identities first. No shard/simulator
   change was necessary. Tests mock scheduler submission; no real job was sent.
 - Finalization excludes exp054 from legacy capture. Separately authorized

@@ -7,7 +7,6 @@ import json
 import math
 import os
 import platform
-import shlex
 import sys
 import time
 from pathlib import Path
@@ -393,14 +392,6 @@ def compute(*, run_id: str | None = None) -> str:
             ),
         }
         run.record["execution"]["environment"] = environment
-        write_json_atomic(run.provenance / "command.json", run.record["execution"])
-        replay = run.provenance / "run.sh"
-        exports = "".join(
-            f"export {key}={shlex.quote(value)}\n" for key, value in environment.items()
-        )
-        replay.write_text(
-            replay.read_text().replace("\nexec ", "\n" + exports + "exec ", 1)
-        )
         validation = recipe.validate_simulator()
         images, labels, dataset = load_mnist_training()
         illustrative_features(images, run.export)

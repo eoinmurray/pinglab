@@ -163,6 +163,7 @@ def test_stages_preserve_small_evidence_and_never_run_upstream(lab, monkeypatch)
         "jobs",
         "cell.npz",
         "cycle.npz",
+        "evidence",
         "evidence.json",
     }
     monkeypatch.setattr(
@@ -220,13 +221,12 @@ def test_v2_and_missing_ancestor_rejected_before_reservation(lab):
     path = root / ".pingstore/runs" / bank_id / "run.json"
     record = load_json(path)
     write_json_atomic(path, {**record, "schema": "pingstore.run/v2"})
-    with pytest.raises(PingstoreError, match="v3"):
+    with pytest.raises(PingstoreError, match="v4"):
         compute.compute(bank_id)
     record["inputs"] = {
         "missing": {
-            "run_id": "exp022-r999-compute-local",
+            "run_id": "exp022-r999-compute",
             "payload_digest": "sha256:" + "a" * 64,
-            "run_json_sha256": "a" * 64,
         }
     }
     write_json_atomic(path, record)
@@ -463,15 +463,14 @@ def test_active_worker_blocks_collection(lab):
     assert not (directory / "run.json").exists()
 
 
-def test_ancestor_manifest_drift_prevents_downstream_completion(lab):
+def test_ancestor_metadata_amendment_does_not_change_payload_identity(lab):
     root, bank_id, _ = lab
     compute_id = compute.compute(bank_id)
     bank = inputs.source(root, bank_id, "compute", experiment="exp022")
     record = dict(bank.record)
     record["execution"] = {**record["execution"], "note": "fixture manifest change"}
     write_json_atomic(bank.directory / "run.json", record)
-    with pytest.raises(PingstoreError, match="checksum changed"):
-        analyse.analyse(compute_id)
+    assert analyse.analyse(compute_id).endswith("-analyse")
 
 
 def test_combined_runner_is_retired():

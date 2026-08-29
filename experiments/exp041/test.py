@@ -147,19 +147,17 @@ def resign(directory):
     write_json_atomic(directory / "run.json", record)
 
 
-def test_ancestor_drift_during_stage_prevents_completion(lab):
+def test_ancestor_metadata_amendment_during_stage_is_allowed(lab):
     root, bank_id, _ = lab
     bank = inputs.source(root, bank_id, "compute", experiment="exp022")
     compute_id = compute.compute(bank_id)
     source = inputs.source(root, compute_id, "compute")
-    with pytest.raises(PingstoreError, match="source changed"):
-        with inputs.execution(root, "analyse", sources={"compute": source}) as run:
-            record = load_json(bank.directory / "run.json")
-            record["execution"]["changed"] = True
-            write_json_atomic(bank.directory / "run.json", record)
-            write_json_atomic(run.export / "fixture.json", {})
-    assert run.directory.name.startswith(".")
-    assert not (root / ".pingstore/runs" / run.run_id).exists()
+    with inputs.execution(root, "analyse", sources={"compute": source}) as run:
+        record = load_json(bank.directory / "run.json")
+        record["execution"]["changed"] = True
+        write_json_atomic(bank.directory / "run.json", record)
+        write_json_atomic(run.export / "fixture.json", {})
+    assert (root / ".pingstore/runs" / run.run_id).is_dir()
 
 
 def test_v2_is_rejected_even_with_an_incomplete_payload(lab):
@@ -168,20 +166,19 @@ def test_v2_is_rejected_even_with_an_incomplete_payload(lab):
     r = load_json(path)
     r["schema"] = "pingstore.run/v2"
     write_json_atomic(path, r)
-    with pytest.raises(PingstoreError, match="requires v3"):
+    with pytest.raises(PingstoreError, match="requires v4"):
         compute.compute(bank_id)
     assert calls == []
 
 
-def test_changed_authoritative_ancestor_pin_is_rejected(lab):
+def test_changed_authoritative_ancestor_metadata_is_allowed(lab):
     root, bank_id, _ = lab
     compute_id = compute.compute(bank_id)
     path = root / ".pingstore/runs" / bank_id / "run.json"
     r = load_json(path)
     r["execution"]["note"] = "manifest-only change"
     write_json_atomic(path, r)
-    with pytest.raises(PingstoreError, match="checksum changed"):
-        analyse.analyse(compute_id)
+    assert analyse.analyse(compute_id).endswith("-analyse")
 
 
 def test_failure_stays_hidden_and_reservations_cannot_be_reused(lab, monkeypatch):
@@ -253,7 +250,7 @@ def test_collection_reserves_and_dispatches_explicit_stages(lab, monkeypatch):
             root
             / ".pingstore/runs"
             / f".{identity}.tmp"
-            / "provenance/reservation.json"
+            / ".reservation.json"
         )
         assert reservation["origin"] == "slurm-wilkes"
     assert collection.reserve(root, row) == ids
@@ -452,7 +449,6 @@ def test_strict_lineage_does_not_ignore_missing_historical_input(lab):
         "missing": {
             "run_id": "exp022-r999-compute",
             "payload_digest": "sha256:" + "0" * 64,
-            "run_json_sha256": "0" * 64,
         }
     }
     write_json_atomic(path, record)

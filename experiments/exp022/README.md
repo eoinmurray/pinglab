@@ -33,11 +33,12 @@ move does not rewrite their commands, manifests, reservations or completed runs.
 
 ## Current storage contract
 
-All operational writes and inputs require `pingstore.run/v3`: required `run.json`
-and `export/`, with optional `README.md` and `provenance/`. Compute/analyse exports may nest files;
+All operational writes and inputs require `pingstore.run/v4`: exactly `run.json`,
+`README.md`, and `export/`. Compute/analyse exports may nest files;
 present exports are flat figures, tables and numbers. Scripts, source patches,
 import inventories and the detailed presentation-lineage attachment are retained
-under `provenance/`. The authoritative record is always `run.json`.
+under `export/evidence/`. The authoritative machine record is `run.json`; README
+is the human-readable history.
 
 The r001/r002/r003 runs below have been migrated to v3 with their IDs unchanged.
 The original mixed-output Gold-2 source is historical v2 evidence, not an allowed

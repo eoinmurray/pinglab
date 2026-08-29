@@ -87,14 +87,14 @@ def execution(repo, recipe, stage, *, sources=None, run_id=None):
             ancestor.check_unchanged()
 
 
-def command(repo, provenance, name, argv):
-    """Keep the actual child command and complete logs, including failed work."""
+def command(repo, evidence, name, argv):
+    """Keep child status and logs needed to interpret scientific outputs."""
     env = dict(os.environ)
     env.setdefault("PINGLAB_NO_COMPILE", "1")
     started = time.monotonic()
     with (
-        (provenance / f"{name}.stdout").open("w") as out,
-        (provenance / f"{name}.stderr").open("w") as err,
+        (evidence / f"{name}.stdout").open("w") as out,
+        (evidence / f"{name}.stderr").open("w") as err,
     ):
         result = subprocess.run(
             argv, cwd=repo, env=env, stdout=out, stderr=err, check=False
@@ -108,19 +108,20 @@ def command(repo, provenance, name, argv):
             for key in ("PINGLAB_NO_COMPILE", "OMP_NUM_THREADS", "MKL_NUM_THREADS")
         },
     }
-    write_json_atomic(provenance / f"{name}.json", record)
+    write_json_atomic(evidence / f"{name}.json", record)
     # The simulator owns these execution attachments, not scientific outputs.
     # Move them before atomic completion; completed sources are never rewritten.
     if "--out-dir" in argv:
         output = Path(argv[argv.index("--out-dir") + 1])
-        for filename in ("run.sh", "run.jsonl", "output.log"):
+        (output / "run.sh").unlink(missing_ok=True)
+        for filename in ("run.jsonl", "output.log"):
             attachment = output / filename
             if attachment.is_file():
-                retained = provenance / name
+                retained = evidence / name
                 retained.mkdir(exist_ok=True)
                 attachment.rename(retained / filename)
     if result.returncode:
-        tail = (provenance / f"{name}.stderr").read_text()[-4000:]
+        tail = (evidence / f"{name}.stderr").read_text()[-4000:]
         raise RuntimeError(f"{name} failed ({result.returncode}): {tail}")
     return record
 
@@ -129,10 +130,10 @@ def test_evidence(repo, run, name, nodes):
     """Execute an explicitly scoped numerical gate and retain its test report."""
     import sys
 
-    report = run.provenance / f"{name}.xml"
+    report = run.evidence / f"{name}.xml"
     record = command(
         repo,
-        run.provenance,
+        run.evidence,
         name,
         [
             sys.executable,

@@ -25,13 +25,6 @@ def compute(identity, *, run_id=None):
     ) as run:
         smoke = "1" if cfg["profile"] == "smoke" else "0"
         run.record["execution"]["environment"] = {"PINGLAB_SMOKE": smoke}
-        write_json_atomic(run.provenance / "command.json", run.record["execution"])
-        replay = run.provenance / "run.sh"
-        replay.write_text(
-            replay.read_text().replace(
-                "\nexec ", f"\nexport PINGLAB_SMOKE={smoke}\nexec "
-            )
-        )
         write_json_atomic(
             run.export / "evidence.json",
             {
@@ -45,7 +38,7 @@ def compute(identity, *, run_id=None):
         for cell, checkpoint in zip(contract["cells"], checkpoints, strict=True):
             train = bank.export / cell["cell_name"]
             output = run.export / "infer" / cell["cell_name"]
-            attachments = run.provenance / "simulations" / cell["cell_name"]
+            attachments = run.evidence / "simulations" / cell["cell_name"]
             attachments.mkdir(parents=True)
             shutil.copyfile(train / "config.json", attachments / "training-config.json")
             args = recipe.inference_args(
@@ -57,7 +50,7 @@ def compute(identity, *, run_id=None):
             )
             commands.append({"cell": cell["cell_name"], "arguments": args})
             write_json_atomic(
-                run.provenance / "simulations.json", {"commands": commands}
+                run.evidence / "simulations.json", {"commands": commands}
             )
             print(f"[infer] {cell['cell_name']}", flush=True)
             with (

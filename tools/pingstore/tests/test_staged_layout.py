@@ -1,4 +1,4 @@
-"""v3 enforcement and mixed-store compatibility; no scientific execution."""
+"""V4 enforcement and historical-store rejection; no scientific execution."""
 
 from concurrent.futures import ThreadPoolExecutor
 
@@ -6,6 +6,7 @@ import pytest
 from pingstore import stages
 from pingstore.contracts import (
     LEGACY_RUN_SCHEMA,
+    PREVIOUS_RUN_SCHEMA,
     RUN_SCHEMA,
     PingstoreError,
     load_json,
@@ -34,6 +35,7 @@ def make_run(store, stage="present", *, number=1, schema=RUN_SCHEMA):
         record.update(stage=stage, inputs={})
     output = directory / ("export" if schema == RUN_SCHEMA else "presentation")
     (output / "numbers.json").write_text('{"value": 1}\n')
+    write_json_atomic(directory / "run.json", {**record, "payload_digest": "sha256:" + "0" * 64})
     record["payload_digest"] = payload_digest(directory)
     write_json_atomic(directory / "run.json", record)
     return directory
@@ -46,10 +48,10 @@ def resign(directory):
 
 
 @pytest.mark.parametrize("stage", ["compute", "analyse", "present"])
-def test_v3_minimal_root_and_default_export(tmp_path, stage):
+def test_v4_minimal_root_and_default_export(tmp_path, stage):
     directory = make_run(tmp_path, stage)
     record = validate_run_directory(directory)
-    assert {p.name for p in directory.iterdir()} == {"run.json", "export"}
+    assert {p.name for p in directory.iterdir()} == {"run.json", "README.md", "export"}
     assert export_directory(directory, record) == directory / "export"
     expected = directory / "export" if stage == "present" else None
     assert presentation_directory(directory, record) == expected
@@ -68,15 +70,15 @@ def test_only_present_exports_must_be_flat(tmp_path, stage):
 
 
 @pytest.mark.parametrize("entry", ["presentation", "unexpected.json"])
-def test_v3_rejects_extra_root_entries(tmp_path, entry):
+def test_v4_rejects_extra_root_entries(tmp_path, entry):
     directory = make_run(tmp_path)
     (directory / entry).write_text("unexpected")
     resign(directory)
-    with pytest.raises(PingstoreError, match="v3 run requires"):
+    with pytest.raises(PingstoreError, match="v4 run must contain exactly"):
         validate_run_directory(directory)
 
 
-def test_v3_requires_stage_and_counter_first_id(tmp_path):
+def test_v4_requires_stage_and_counter_first_id(tmp_path):
     directory = make_run(tmp_path)
     record = load_json(directory / "run.json")
     del record["stage"]
@@ -89,9 +91,9 @@ def test_v3_requires_stage_and_counter_first_id(tmp_path):
         validate_run_directory(directory)
 
 
-@pytest.mark.parametrize("relative", ["README.md", "provenance/nested/source.patch"])
-def test_optional_evidence_is_checksummed(tmp_path, relative):
-    directory = make_run(tmp_path)
+@pytest.mark.parametrize("relative", ["export/evidence/nested/config.json", "export/value.bin"])
+def test_export_evidence_is_checksummed(tmp_path, relative):
+    directory = make_run(tmp_path, "compute")
     evidence = directory / relative
     evidence.parent.mkdir(parents=True, exist_ok=True)
     evidence.write_text("original")
@@ -102,8 +104,8 @@ def test_optional_evidence_is_checksummed(tmp_path, relative):
         validate_run_directory(directory)
 
 
-@pytest.mark.parametrize("relative", ["export/link", "provenance/link", "run.json"])
-def test_v3_rejects_symlinks(tmp_path, relative):
+@pytest.mark.parametrize("relative", ["export/link", "README.md", "run.json"])
+def test_v4_rejects_symlinks(tmp_path, relative):
     directory = make_run(tmp_path)
     target = tmp_path / "outside"
     target.write_text("outside")
@@ -138,7 +140,6 @@ def test_discovery_omits_empty_and_bookkeeping_only_exports(tmp_path):
 def test_materialization_copies_only_whole_present_export(tmp_path):
     directory = make_run(tmp_path)
     (directory / "export/download.unusual").write_bytes(b"arbitrary suffix")
-    write_json_atomic(directory / "provenance/command.json", {"command": ["example"]})
     resign(directory)
     materialize_run(tmp_path, directory.name, tmp_path / "artifacts")
     copied = tmp_path / "artifacts/exp001"
@@ -152,7 +153,7 @@ def test_materialization_copies_only_whole_present_export(tmp_path):
 def test_both_materializers_reject_scientific_stages(tmp_path, stage, schema):
     directory = make_run(tmp_path, stage, schema=schema)
     write_json_atomic(tmp_path / "collections.json", {"demo": [directory.name]})
-    error = "cannot be published" if schema == RUN_SCHEMA else "requires v3"
+    error = "cannot be published" if schema == RUN_SCHEMA else "requires v4"
     with pytest.raises(PingstoreError, match=error):
         materialize_run(tmp_path, directory.name, tmp_path / "artifacts")
     with pytest.raises(PingstoreError, match=error):
@@ -165,17 +166,17 @@ def test_both_materializers_reject_scientific_stages(tmp_path, stage, schema):
 def test_legacy_evidence_is_rejected_by_operational_readers(tmp_path, stage):
     directory = make_run(tmp_path, stage, schema=LEGACY_RUN_SCHEMA)
     before = (directory / "run.json").read_bytes(), payload_digest(directory)
-    with pytest.raises(PingstoreError, match="requires v3"):
+    with pytest.raises(PingstoreError, match="requires v4"):
         stages.source_run(tmp_path, directory.name)
-    with pytest.raises(PingstoreError, match="requires v3"):
+    with pytest.raises(PingstoreError, match="requires v4"):
         discover_runs(tmp_path / "runs")
-    with pytest.raises(PingstoreError, match="requires v3"):
+    with pytest.raises(PingstoreError, match="requires v4"):
         materialize_run(tmp_path, directory.name, tmp_path / "artifacts")
     assert before == ((directory / "run.json").read_bytes(), payload_digest(directory))
 
 
 @pytest.mark.parametrize("origin", ["local", "slurm-wilkes", "runpod"])
-def test_stage_writer_finishes_v3_with_separate_evidence(tmp_path, monkeypatch, origin):
+def test_stage_writer_finishes_v4_with_readme_and_no_provenance(tmp_path, monkeypatch, origin):
     monkeypatch.setattr(stages, "memberships", lambda repo: {"exp001": "demo"})
     monkeypatch.setattr(stages, "_capture_code", lambda repo, directory: {
         "git_commit": "fixture", "dirty": False,
@@ -191,8 +192,9 @@ def test_stage_writer_finishes_v3_with_separate_evidence(tmp_path, monkeypatch, 
     assert record["schema"] == RUN_SCHEMA
     assert record["origin"] == origin
     assert (run.export / "_manifest.json").is_file()
-    assert (run.provenance / "run.sh").is_file()
-    assert not (run.export / "provenance").exists()
+    assert (run.directory / "README.md").is_file()
+    assert not (run.directory / "provenance").exists()
+    assert {path.name for path in run.directory.iterdir()} == {"run.json", "README.md", "export"}
     assert not (run.directory / "presentation").exists()
 
 
@@ -200,7 +202,7 @@ def test_legacy_reservation_is_not_rewritten(tmp_path):
     old = tmp_path / "export/provenance/reservation.json"
     write_json_atomic(old, {"run_id": "exp001-r001-compute-local"})
     before = old.read_bytes()
-    with pytest.raises(PingstoreError, match="legacy v2 reservation"):
+    with pytest.raises(PingstoreError, match="legacy v2/v3 reservation"):
         stages.stage_reservation(tmp_path)
     assert old.read_bytes() == before
     assert not (tmp_path / "provenance").exists()
@@ -225,25 +227,22 @@ def test_source_neutral_reservations_keep_origin_and_avoid_cross_origin_collisio
 
 
 @pytest.mark.parametrize("origin", ["local", "slurm-wilkes", "runpod"])
-def test_existing_suffixed_v3_is_readable_without_rewriting(tmp_path, origin):
+def test_existing_suffixed_v3_is_historical_not_operational(tmp_path, origin):
     directory = make_run(tmp_path)
     record = load_json(directory / "run.json")
-    record.update(run_id=directory.name + "-" + origin, origin=origin)
+    record.update(schema=PREVIOUS_RUN_SCHEMA, run_id=directory.name + "-" + origin, origin=origin)
     renamed = directory.with_name(record["run_id"])
     directory.rename(renamed)
     write_json_atomic(renamed / "run.json", record)
     before = (renamed / "run.json").read_bytes()
-    assert stages.source_run(tmp_path, renamed.name).record["origin"] == origin
-    assert (renamed / "run.json").read_bytes() == before
-    record["origin"] = "different-origin"
-    write_json_atomic(renamed / "run.json", record)
-    with pytest.raises(PingstoreError, match="execution origin differ"):
+    with pytest.raises(PingstoreError, match="requires v4"):
         stages.source_run(tmp_path, renamed.name)
+    assert (renamed / "run.json").read_bytes() == before
 
 
 def test_suffixed_reservation_cannot_be_completed(tmp_path):
     path = tmp_path / "runs/.exp001-r001-compute-local.tmp"
-    reservation = path / "provenance/reservation.json"
+    reservation = path / ".reservation.json"
     write_json_atomic(reservation, {"schema": RUN_SCHEMA,
         "run_id": "exp001-r001-compute-local", "experiment": "exp001",
         "stage": "compute", "origin": "local"})

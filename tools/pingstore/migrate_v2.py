@@ -154,6 +154,7 @@ def migrate_run(source: Path, destination: Path) -> dict:
     write_json_atomic(
         temporary / converted["format_migration"]["mapping"], {"files": records}
     )
+    write_json_atomic(temporary / "run.json", {**converted, "payload_digest": "sha256:" + "0" * 64})
     converted["payload_digest"] = payload_digest(temporary)
     write_json_atomic(temporary / "run.json", converted)
     validate_run_directory(temporary)

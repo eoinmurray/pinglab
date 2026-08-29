@@ -241,7 +241,7 @@ def test_acquisition_preserves_all_probes_inputs_weights_and_branch_state(
     assert not list((root / "export").glob("*.png"))
     assert not (lab / ".artifacts").exists()
     assert discover_runs(lab / ".pingstore/runs") == []
-    assert len(list((root / "provenance/simulations").glob("*.json"))) == 49
+    assert len(list((root / "export/evidence/simulations").glob("*.json"))) == 49
 
 
 def check_article_render(lab, output):
@@ -459,7 +459,7 @@ def test_reject_v2_before_allocation(lab, stage):
             "payload_digest": payload_digest(root),
         },
     )
-    with pytest.raises(PingstoreError, match="requires v3"):
+    with pytest.raises(PingstoreError, match="requires v4"):
         (analyse.analyse if stage == "compute" else present.present)(identity)
     assert list(root.parent.iterdir()) == [root]
 
@@ -484,7 +484,7 @@ def test_missing_wrong_stage_and_recipe_inputs_do_not_allocate(retained):
     assert sorted(p.name for p in runs.iterdir()) == before
 
 
-@pytest.mark.parametrize("target", ["manifest", "payload", "layout", "symlink"])
+@pytest.mark.parametrize("target", ["payload", "layout", "symlink"])
 def test_complete_ancestry_rejects_tampering(retained, target):
     lab, compute_id, analysis_id = retained
     root = directory(lab, compute_id)
@@ -493,7 +493,7 @@ def test_complete_ancestry_rejects_tampering(retained, target):
         record["execution"]["extra"] = "changed"
         write_json_atomic(root / "run.json", record)
     elif target == "payload":
-        (root / "provenance/extra.txt").write_text("changed")
+        (root / "export/evidence/extra.txt").write_text("changed")
     elif target == "layout":
         (root / "unexpected.txt").write_text("bad root")
         refresh(root)
@@ -587,7 +587,7 @@ def test_source_mutation_during_stage_never_completes(retained, monkeypatch, sta
             result = None
         else:
             result = original(*args)
-        (root / "provenance/late-change.txt").write_text("changed ancestor")
+        (root / "export/evidence/late-change.txt").write_text("changed ancestor")
         return result
 
     monkeypatch.setattr(module, worker, mutate)
@@ -732,7 +732,7 @@ def test_presentation_rejects_inconsistent_analysis_before_reservation(
     root = directory(lab, analysis_id)
     if broken == "pin":
         record = load_json(root / "run.json")
-        record["inputs"]["compute"]["run_json_sha256"] = "0" * 64
+        record["inputs"]["compute"]["payload_digest"] = "sha256:" + "0" * 64
         write_json_atomic(root / "run.json", record)
     elif broken in ("results", "graph"):
         path = (

@@ -96,7 +96,7 @@ data is available; dependent reports retain their existing readiness checks.
   `<1 s`; missing endpoints display a dash. Invalid, timezone-free or reversed
   timestamp pairs fail preparation. Hover for the exact recorded difference.
 - **Retained scientific timing**: when `run.json.scientific_execution.record`
-  explicitly identifies evidence under this validated v3 run's `provenance/`,
+  explicitly identifies evidence under this validated v4 run's `export/evidence/`,
   the table instead shows that execution's start-to-finish span, labelled
   `(HPC span)` for Slurm. The tooltip distinguishes this elapsed span (including
   gaps) from summed job-hours of retained completed cell attempts, and keeps the
@@ -112,7 +112,7 @@ data is available; dependent reports retain their existing readiness checks.
   `display_runs` is separate from selectable `runs`; discovery, URL inputs and
   default pins still accept only eligible present runs. Hover over a size for
   the exact byte count, or a date for the full recorded instant normalized to UTC.
-- **Run payload**: all payload bytes, including provenance/notes but excluding root
+- **Run payload**: all immutable bytes under `export/`, excluding root
   `run.json`.
 - **Upstream / Downstream**: direct declared experiment dependencies and their
   reverse, including article inputs for comparisons and syntheses. These belong

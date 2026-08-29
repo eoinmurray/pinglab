@@ -3,7 +3,7 @@
 On 2026-08-27, the user authorized retiring execution-source suffixes from run
 IDs. Storage Guide 3.0.0 and Experiment Runner Guide 3.0.0 now require new IDs of
 the form `exp022-r001-compute`, `exp022-r002-analyse`, `exp022-r003-present`.
-The manifest schema remains `pingstore.run/v3`.
+The run-record schema remains `pingstore.run/v4`.
 
 ## Execution origin and compatibility
 

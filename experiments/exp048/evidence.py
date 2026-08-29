@@ -473,13 +473,13 @@ def imported(repo, source):
         or source.record["execution"]["configuration"] != IMPORT
     ):
         raise PingstoreError("not an explicit historical-summary import")
-    archive = source.directory / "provenance/archive"
+    archive = source.directory / "export/evidence/archive"
     files = archive_files(archive)
     history = provenance(archive, files)
     if source.record.get("historical") != history:
         raise PingstoreError("historical provenance differs")
     if source.record.get("source_file_mapping") != {
-        name: f"provenance/archive/{name}" for name in files
+        name: f"export/evidence/archive/{name}" for name in files
     }:
         raise PingstoreError("historical source file mapping differs")
     if (
@@ -571,7 +571,7 @@ def analyse_retained(repo, source, *, run_id=None):
         run.record["historical"] = history
         write_json_atomic(run.export / "results.json", result)
         write_json_atomic(
-            run.provenance / "verification.json",
+            run.evidence / "verification.json",
             {
                 "per_seed_rows": sum(
                     len(numbers[k])
@@ -623,7 +623,7 @@ def present_retained(repo, source, *, run_id=None):
             name: {
                 "operation": "carried-unchanged",
                 "source": original.reference,
-                "path": f"provenance/archive/payload/{name}",
+                "path": f"export/evidence/archive/payload/{name}",
                 "sha256": history["source_files"][f"payload/{name}"]["sha256"],
             }
             for name in CARRIED
@@ -635,7 +635,7 @@ def present_retained(repo, source, *, run_id=None):
             }
         for name in CARRIED:
             shutil.copyfile(
-                original.directory / "provenance/archive/payload" / name,
+                original.directory / "export/evidence/archive/payload" / name,
                 run.export / name,
             )
         theme.set_paper_mode(True)

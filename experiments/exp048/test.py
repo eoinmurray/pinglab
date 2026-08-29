@@ -364,7 +364,7 @@ def test_failure_remains_hidden_and_cannot_resume(lab, monkeypatch):
         compute.compute(bank, run_id=hidden[0].name[1:-4])
 
 
-def test_full_ancestry_rechecked_after_work(lab, monkeypatch):
+def test_ancestry_metadata_amendment_during_work_is_allowed(lab, monkeypatch):
     root, bank, _ = lab
     cid = compute.compute(bank)
     aid = analyse.analyse(cid)
@@ -376,9 +376,8 @@ def test_full_ancestry_rechecked_after_work(lab, monkeypatch):
         path.write_text(path.read_text() + "\n")
 
     monkeypatch.setattr(plots, "plot_grid_and_rate", mutate)
-    with pytest.raises(PingstoreError):
-        present.present(aid)
-    assert not list((root / ".pingstore/runs").glob("exp048-*-present"))
+    presentation_id = present.present(aid)
+    assert (root / ".pingstore/runs" / presentation_id).is_dir()
 
 
 def test_v2_rejected(lab):
@@ -434,7 +433,7 @@ def test_present_rejects_incomplete_or_mismatched_analysis(lab, mutation):
     else:
         p = run.directory / "run.json"
         data = load_json(p)
-        data["inputs"]["bank"]["run_json_sha256"] = "0" * 64
+        data["inputs"]["bank"]["payload_digest"] = "sha256:" + "0" * 64
         write_json_atomic(p, data)
     resign(run.directory)
     with pytest.raises(PingstoreError):

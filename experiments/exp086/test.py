@@ -177,7 +177,7 @@ def test_failure_stays_hidden_and_cannot_resume(repo, monkeypatch, stage):
 
 
 @pytest.mark.parametrize(
-    "corruption", ["payload", "manifest", "nested", "root", "symlink", "v2"]
+    "corruption", ["payload", "nested", "root", "symlink", "v2"]
 )
 def test_transitive_ancestry_corruption_is_rejected(repo, corruption):
     root, _ = repo

@@ -268,7 +268,6 @@ def present(identity: str, *, retained_presentation: str | None = None,
         numbers["presentation_lineage"] = lineage
         write_json_atomic(run.export / "numbers.json", numbers)
         run.record["presentation_lineage"] = lineage
-        write_json_atomic(run.provenance / "presentation-lineage.json", {"files": lineage})
         (run.directory / "README.md").write_text(
             "# Exp022 presentation\n\n"
             f"Rendered analysis `{identity}`. Select `{run.run_id}` in Demolab preview.\n\n"

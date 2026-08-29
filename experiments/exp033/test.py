@@ -242,7 +242,7 @@ def test_independent_stages_and_lossless_arrays(lab, monkeypatch):
 
 
 @pytest.mark.parametrize(
-    "damage", ["payload", "manifest", "v2", "root_file", "symlink"]
+    "damage", ["payload", "v2", "root_file", "symlink"]
 )
 def test_source_corruption_rejected_before_reservation(lab, damage):
     root, frequency, bank, _ = lab
@@ -268,7 +268,7 @@ def test_source_corruption_rejected_before_reservation(lab, damage):
 
 
 @pytest.mark.parametrize("target", ["ancestor", "compute"])
-def test_mutation_during_analysis_never_completes(lab, monkeypatch, target):
+def test_metadata_amendment_during_analysis_is_allowed(lab, monkeypatch, target):
     root, frequency, bank, _ = lab
     identity = compute.compute()
     original = measurements.analyse
@@ -287,10 +287,8 @@ def test_mutation_during_analysis_never_completes(lab, monkeypatch, target):
         return output
 
     monkeypatch.setattr(measurements, "analyse", mutate)
-    with pytest.raises(PingstoreError):
-        analyse.analyse(identity, frequency)
-    assert not list((root / ".pingstore/runs").glob("exp033-*-analyse"))
-    assert list((root / ".pingstore/runs").glob(".exp033-*-analyse.tmp"))
+    analysis_id = analyse.analyse(identity, frequency)
+    assert (root / ".pingstore/runs" / analysis_id).is_dir()
 
 
 def test_compute_failure_and_reserved_identity_reuse(lab, monkeypatch):

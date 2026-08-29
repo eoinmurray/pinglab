@@ -12,18 +12,16 @@ from pingstore.contracts import PingstoreError, payload_digest, payload_inventor
 from pingstore.discovery import discover_runs
 
 
-def make_run(source: Path, run_id: str = "exp001-r001-present-local", **overrides) -> Path:
+def make_run(source: Path, run_id: str = "exp001-r001-present", **overrides) -> Path:
     directory = source / run_id
-    (directory / "provenance/state").mkdir(parents=True)
-    (directory / "export").mkdir()
+    (directory / "export").mkdir(parents=True)
     (directory / "README.md").write_text("Run notes\n")
-    (directory / "provenance/state/weights.bin").write_bytes(b"scientific payload")
     (directory / "export/numbers.json").write_text('{"value": 1}\n')
     (directory / "export/_manifest.json").write_text(
         '{"run_id": "wrong", "run_at": "wrong"}'
     )
     record = {
-        "schema": "pingstore.run/v3",
+        "schema": "pingstore.run/v4",
         "run_id": run_id,
         "experiment": run_id.split("-")[0],
         "collection": "demo",
@@ -36,6 +34,8 @@ def make_run(source: Path, run_id: str = "exp001-r001-present-local", **override
         "payload_digest": payload_digest(directory),
         **overrides,
     }
+    (directory / "run.json").write_text(json.dumps({**record, "payload_digest": "sha256:" + "0" * 64}))
+    record["payload_digest"] = payload_digest(directory)
     (directory / "run.json").write_text(json.dumps(record))
     return directory
 
@@ -62,14 +62,14 @@ def test_projection_uses_authoritative_metadata_without_mutation(tmp_path):
 
 
 def test_all_runs_sorted_without_selection_or_filtering(tmp_path):
-    names = ["exp002-r001-present-local", "exp001-r002-present-local", "exp001-r001-present-local"]
+    names = ["exp002-r001-present", "exp001-r002-present", "exp001-r001-present"]
     for name in names:
         make_run(tmp_path, name)
     assert [row["id"] for row in discover_runs(tmp_path)] == sorted(names)
 
 
 def test_hidden_incomplete_entries_and_files_are_ignored(tmp_path):
-    (tmp_path / ".exp001-r001-present-local.tmp").mkdir()
+    (tmp_path / ".exp001-r001-present.tmp").mkdir()
     (tmp_path / ".metadata").write_text("not a run")
     (tmp_path / "notes.txt").write_text("not a run")
     assert discover_runs(tmp_path) == []
@@ -97,10 +97,8 @@ def test_symlink_source_or_ancestor_is_rejected(tmp_path, nested):
 @pytest.mark.parametrize(
     "path",
     [
-        "README.md",
         "export/numbers.json",
         "export/_manifest.json",
-        "provenance/state/weights.bin",
     ],
 )
 def test_corrupt_payload_fails_including_export_and_nested_metadata(tmp_path, path):
@@ -108,6 +106,14 @@ def test_corrupt_payload_fails_including_export_and_nested_metadata(tmp_path, pa
     (directory / path).write_bytes(b"corrupted")
     with pytest.raises(PingstoreError, match="payload checksum mismatch"):
         discover_runs(tmp_path)
+
+
+def test_readme_history_can_be_amended_without_changing_payload(tmp_path):
+    directory = make_run(tmp_path)
+    digest = json.loads((directory / "run.json").read_text())["payload_digest"]
+    (directory / "README.md").write_text("Corrected history\n")
+    assert discover_runs(tmp_path)
+    assert json.loads((directory / "run.json").read_text())["payload_digest"] == digest
 
 
 @pytest.mark.parametrize(

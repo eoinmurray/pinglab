@@ -719,13 +719,13 @@ def import_bank(identity: str, *, run_id: str | None = None) -> str:
                    configuration=source.record["execution"].get("configuration"),
                    export_root="export/cells", operation="import") as run:
         inventory = copy_bank(source.export, run.export / "cells")
-        shutil.copy2(source.directory / "run.json", run.provenance / "imported-run.json")
+        shutil.copy2(source.directory / "run.json", run.evidence / "imported-run.json")
         if (source.directory / "README.md").is_file():
-            shutil.copy2(source.directory / "README.md", run.provenance / "imported-README.md")
-        write_json_atomic(run.provenance / "import-inventory.json", inventory)
+            shutil.copy2(source.directory / "README.md", run.evidence / "imported-README.md")
+        write_json_atomic(run.evidence / "import-inventory.json", inventory)
         run.record["historical_evidence"] = {
             "source": source.reference,
-            "record": "provenance/imported-run.json",
+            "record": "export/evidence/imported-run.json",
             "note": "Historical cell attempts and inherited/repaired lineage are preserved; "
                     "this execution copied evidence and did not train or simulate.",
         }
@@ -735,7 +735,7 @@ def import_bank(identity: str, *, run_id: str | None = None) -> str:
             "The original remains unchanged.\n\n"
             "The 102 cells and both checkpoint roles are under `export/cells/`. "
             "Source execution and full lineage are retained in "
-            "`provenance/imported-run.json`; this run's local operation is an import, "
+            "`export/evidence/imported-run.json`; this run's local operation is an import, "
             "not historical SLURM execution or retraining.\n\n"
             "Raw raster snapshots were not retained in this historical bank. "
             "Analysis can recover training curves from metrics; presentation must either "
@@ -757,7 +757,7 @@ def capture_campaign(manifest_path: Path, manifest: dict) -> str:
     with stage_run(REPO, SLUG, "compute", run_id=reserved, configuration=SCALE,
                    export_root="export/cells", operation="capture-campaign") as run:
         copy_bank(bank, run.export / "cells")
-        shutil.copy2(manifest_path, run.provenance / "campaign.json")
+        shutil.copy2(manifest_path, run.evidence / "campaign.json")
         run.record["execution"]["campaign"] = {
             "campaign_id": manifest["campaign_id"],
             "manifest_sha256": manifest["manifest_sha256"],

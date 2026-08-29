@@ -5,7 +5,6 @@ from __future__ import annotations
 import contextlib
 import os
 import re
-import shlex
 import subprocess
 import sys
 from dataclasses import dataclass
@@ -45,7 +44,6 @@ def utc_now() -> str:
 class SourceRun:
     directory: Path
     record: dict
-    manifest_sha256: str
 
     @property
     def export(self) -> Path:
@@ -68,13 +66,11 @@ class SourceRun:
         return {
             "run_id": self.record["run_id"],
             "payload_digest": self.record["payload_digest"],
-            "run_json_sha256": self.manifest_sha256,
         }
 
     def check_unchanged(self) -> None:
         record = validate_operational_run_directory(self.directory)
-        if (record["payload_digest"] != self.record["payload_digest"]
-                or file_sha256(self.directory / "run.json") != self.manifest_sha256):
+        if record["payload_digest"] != self.record["payload_digest"]:
             raise PingstoreError(f"source changed during execution: {self.directory.name}")
 
 
@@ -88,7 +84,7 @@ def source_run(root: Path, run_id: str, *, stage: str | None = None,
         raise PingstoreError(f"{run_id} is not a {stage} run")
     if experiment is not None and record["experiment"] != experiment:
         raise PingstoreError(f"{run_id} does not belong to {experiment}")
-    source = SourceRun(directory, record, file_sha256(directory / "run.json"))
+    source = SourceRun(directory, record)
     if reference is not None and source.reference != reference:
         raise PingstoreError(f"upstream identity or checksum changed: {run_id}")
     return source
@@ -118,7 +114,7 @@ def reserve_stage(root: Path, experiment: str, stage: str,
         except FileExistsError:
             continue
         initialize_layout(directory, experiment)
-        write_json_atomic(directory / "provenance/reservation.json", {
+        write_json_atomic(directory / ".reservation.json", {
             "schema": RUN_SCHEMA,
             "run_id": identity, "experiment": experiment, "stage": stage,
             "origin": origin, "reserved_at": utc_now(),
@@ -127,17 +123,20 @@ def reserve_stage(root: Path, experiment: str, stage: str,
 
 
 def stage_reservation(directory: Path) -> dict:
-    """Read a v3 reservation without rewriting incomplete legacy executions."""
-    path = directory / "provenance/reservation.json"
+    """Read a v4 reservation without rewriting incomplete historical executions."""
+    path = directory / ".reservation.json"
     if any(candidate.is_symlink() for candidate in (directory, path.parent, path)):
         raise PingstoreError("stage reservation must not use symlinks")
-    if not path.is_file() and (directory / "export/provenance/reservation.json").exists():
+    if not path.is_file() and (
+        (directory / "provenance/reservation.json").exists()
+        or (directory / "export/provenance/reservation.json").exists()
+    ):
         raise PingstoreError(
-            "legacy v2 reservation is historical evidence; reserve a fresh v3 run"
+            "legacy v2/v3 reservation is historical evidence; reserve a fresh v4 run"
         )
     reservation = load_json(path)
     if reservation.get("schema") != RUN_SCHEMA:
-        raise PingstoreError("stage execution requires a v3 reservation")
+        raise PingstoreError("stage execution requires a v4 reservation")
     match = STAGE_ID_RE.fullmatch(str(reservation.get("run_id", "")))
     if (match is None or match.group(1) != reservation.get("experiment")
             or match.group(3) != reservation.get("stage")):
@@ -157,17 +156,9 @@ def _capture_code(repo: Path, directory: Path) -> dict:
 
     paths = ("experiments", "tools", "pyproject.toml", "uv.lock")
     commit = git("rev-parse", "HEAD").strip()
-    patch = git("diff", "--binary", "HEAD", "--", *paths)
-    for name in git("ls-files", "--others", "--exclude-standard", "--", *paths).splitlines():
-        patch += git("diff", "--no-index", "--binary", "--", "/dev/null", name,
-                     allowed=(0, 1))
+    dirty_paths = git("status", "--porcelain", "--", *paths)
     record = {"git_commit": commit, "dirty": bool(git("status", "--porcelain")),
-              "code_dirty": bool(patch), "patch": None}
-    if patch:
-        destination = directory / "provenance/source.patch"
-        destination.write_text(patch)
-        record["patch"] = {"path": "provenance/source.patch",
-                           "sha256": file_sha256(destination)}
+              "code_dirty": bool(dirty_paths)}
     lock = repo / "uv.lock"
     if lock.is_file():
         record["lockfile_sha256"] = file_sha256(lock)
@@ -188,8 +179,10 @@ class StageRun:
         return self.directory / "export"
 
     @property
-    def provenance(self) -> Path:
-        return self.directory / "provenance"
+    def evidence(self) -> Path:
+        path = self.export / "evidence"
+        path.mkdir(parents=True, exist_ok=True)
+        return path
 
 
 @contextlib.contextmanager
@@ -213,7 +206,7 @@ def stage_run(repo: Path, experiment: str, stage: str, *,
         raise PingstoreError("reservation does not match execution")
     if (directory / "run.json").exists():
         raise PingstoreError("an interrupted execution needs explicit recovery or a new run")
-    lock = directory / "provenance/writer.lock"
+    lock = directory / ".writer.lock"
     descriptor = os.open(lock, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
     with os.fdopen(descriptor, "w") as handle:
         handle.write(f"{os.getpid()}\n")
@@ -230,14 +223,16 @@ def stage_run(repo: Path, experiment: str, stage: str, *,
         "provenance": _capture_code(repo, directory),
     }
     write_json_atomic(directory / "run.json", record)
-    write_json_atomic(directory / "provenance/command.json", record["execution"])
-    replay = list(command)
-    if "--run-id" in replay:
-        index = replay.index("--run-id")
-        del replay[index:index + 2]
-    (directory / "provenance/run.sh").write_text(
-        "#!/bin/sh\n# Replay this stage with the same inputs and a fresh identity.\n"
-        + "cd " + shlex.quote(str(repo)) + "\nexec " + shlex.join(replay) + "\n"
+    inputs_text = "\n".join(
+        f"- `{name}`: `{source.record['run_id']}` (`{source.record['payload_digest']}`)"
+        for name, source in inputs.items()
+    ) or "- None"
+    (directory / "README.md").write_text(
+        f"# {identity}\n\n"
+        f"{stage.capitalize()} run for `{experiment}`. Machine-readable details are in `run.json`.\n\n"
+        f"## Inputs\n\n{inputs_text}\n\n"
+        f"## History\n\n- {record['created_at']}: execution started on `{record['origin']}` "
+        f"from Git commit `{record['provenance']['git_commit']}`.\n"
     )
     run = StageRun(directory, record)
     try:
@@ -245,6 +240,8 @@ def stage_run(repo: Path, experiment: str, stage: str, *,
         for source in inputs.values():
             source.check_unchanged()
         record["execution"]["completed_at"] = utc_now()
+        with (directory / "README.md").open("a") as handle:
+            handle.write(f"- {record['execution']['completed_at']}: run completed successfully.\n")
         # Scientific stages have no preview sidecars. Presentation metadata
         # is only a projection; the complete provenance stays in run.json.
         if stage == "present" and has_presentation_content(run.export):
@@ -254,7 +251,12 @@ def stage_run(repo: Path, experiment: str, stage: str, *,
                 "git_sha": record["provenance"]["git_commit"],
                 "dirty": record["provenance"]["dirty"], "scale": configuration,
             }, identity)
+        evidence = run.export / "evidence"
+        if evidence.is_dir():
+            for replay_script in evidence.rglob("run.sh"):
+                replay_script.unlink()
         lock.unlink()
+        (directory / ".reservation.json").unlink()
         record["payload_digest"] = payload_digest(directory)
         write_json_atomic(directory / "run.json", record)
         validate_operational_run_directory(directory)

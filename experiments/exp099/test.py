@@ -164,7 +164,7 @@ def test_v2_inputs_are_rejected_before_reservation(lab, stage):
             "payload_digest": payload_digest(root),
         },
     )
-    with pytest.raises(PingstoreError, match="requires v3"):
+    with pytest.raises(PingstoreError, match="requires v4"):
         (analyse.analyse if stage == "compute" else present.present)(identity)
     assert list(root.parent.iterdir()) == [root]
 
@@ -178,7 +178,7 @@ def test_wrong_stage_payload_and_manifest_tampering_are_rejected(lab):
     record = load_json(root / "run.json")
     record["execution"]["configuration"]["seed"] = 999
     write_json_atomic(root / "run.json", record)
-    with pytest.raises(PingstoreError, match="checksum changed"):
+    with pytest.raises(PingstoreError, match="recipe or compute lineage"):
         present.present(analysis_id)
     with (root / "export/simulation/snapshot.npz").open("ab") as handle:
         handle.write(b"tampered")

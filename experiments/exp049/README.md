@@ -185,7 +185,7 @@ coordinates agree with the original runner across all 12 figure families.
 
 The import extension passed all 29 exp049 tests and the broader 532-test suite
 (20 existing plotting-layout warnings from other studies). The actual imported
-run passed complete v3 layout/checksum validation, exact NPY/metric comparisons
+run passed complete v4 layout/checksum validation, exact NPY/metric comparisons
 and end-to-end result checks. A five-page Typst preview was compiled against
 `exp049-r003-present`; the writing itself was not revised or published.
 

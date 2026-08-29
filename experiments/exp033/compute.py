@@ -188,7 +188,7 @@ def compute(*, run_id=None):
     with inputs.execution(REPO, "compute", sources={}, run_id=run_id) as run:
         evidence.write(run.export, simulate())
         write_json_atomic(
-            run.provenance / "environment.json",
+            run.evidence / "environment.json",
             {
                 "python": platform.python_version(),
                 "numpy": np.__version__,

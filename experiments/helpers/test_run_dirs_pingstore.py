@@ -142,7 +142,7 @@ def test_direct_v2_run_cannot_be_published(tmp_path, monkeypatch):
     monkeypatch.setattr(paths, "RUNS_ROOT", tmp_path / ".pingstore/runs")
     monkeypatch.setattr(provenance, "git_state", lambda: ("abc123", False))
     monkeypatch.setattr(provenance, "_code_dirty", lambda: False)
-    with pytest.raises(PingstoreError, match="requires v3"):
+    with pytest.raises(PingstoreError, match="requires v4"):
         with run_dirs.published_run("exp001", "r001") as (state, presentation):
             (state / "weights.pt").write_bytes(b"trained")
             paths.log_runner_event("exp001", "completed", run_id="r001")

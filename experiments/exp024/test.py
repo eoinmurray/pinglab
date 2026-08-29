@@ -68,7 +68,9 @@ def config(model, seed):
 
 
 def make_compute(repo, *, schema=RUN_SCHEMA, mutation=None):
-    identity = "exp022-r001-compute-local"
+    identity = (
+        "exp022-r001-compute" if schema == RUN_SCHEMA else "exp022-r001-compute-local"
+    )
     directory = repo / ".pingstore/runs" / identity
     initialize_layout(directory, "exp022", schema=schema)
     for model in recipe.MODELS:
@@ -127,7 +129,7 @@ def resign(directory):
 def test_analysis_rejects_typed_v2_before_reserving(repo):
     identity, directory = make_compute(repo, schema=LEGACY_RUN_SCHEMA)
     before = (directory / "run.json").read_bytes(), payload_digest(directory)
-    with pytest.raises(PingstoreError, match="requires v3"):
+    with pytest.raises(PingstoreError, match="requires v4"):
         analyse.analyse(identity)
     assert before == ((directory / "run.json").read_bytes(), payload_digest(directory))
     assert list((repo / ".pingstore/runs").iterdir()) == [directory]

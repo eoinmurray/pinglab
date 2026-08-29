@@ -228,15 +228,14 @@ def resign(directory):
     write_json_atomic(path, record)
 
 
-def test_inputs_reject_changed_upstream_manifest(lab):
+def test_inputs_allow_upstream_metadata_amendment(lab):
     root, bank, _ = lab
     cid = compute.compute(bank)
     p = root / ".pingstore/runs" / bank / "run.json"
     d = load_json(p)
     d["execution"]["extra"] = "changed"
     write_json_atomic(p, d)
-    with pytest.raises(PingstoreError):
-        analyse.analyse(cid)
+    assert analyse.analyse(cid).endswith("-analyse")
 
 
 def test_failed_simulation_never_completes(lab, monkeypatch):
@@ -331,7 +330,7 @@ def test_v2_and_wrong_stage_inputs_are_rejected(lab):
         analyse.analyse(cid)
 
 
-def test_source_change_during_compute_prevents_completion(lab, monkeypatch):
+def test_source_readme_change_during_compute_is_allowed(lab, monkeypatch):
     root, bank_id, _ = lab
     original = compute.run_cli
 
@@ -341,9 +340,8 @@ def test_source_change_during_compute_prevents_completion(lab, monkeypatch):
         path.write_text("changed while running\n")
 
     monkeypatch.setattr(compute, "run_cli", simulate)
-    with pytest.raises(PingstoreError):
-        compute.compute(bank_id)
-    assert not list((root / ".pingstore/runs").glob("exp049-*-compute"))
+    identity = compute.compute(bank_id)
+    assert (root / ".pingstore/runs" / identity).is_dir()
 
 
 def test_present_rejects_resigned_incomplete_analysis(lab):
@@ -426,7 +424,7 @@ def test_invalid_resigned_compute_is_rejected(lab, fault):
     )
     directory = c.export / job["path"]
     if fault == "config":
-        path = c.directory / "provenance/simulations" / job["path"] / "config.json"
+        path = c.directory / "export/evidence/simulations" / job["path"] / "config.json"
         cfg = load_json(path)
         cfg["load_weights"] = cfg["load_weights"].replace(
             "weights_final.pth", "weights.pth"

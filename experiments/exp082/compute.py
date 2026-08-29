@@ -26,14 +26,14 @@ def _run_jobs(bank, directory, jobs, contract):
     worker = Inference(bank, directory, cfg)
     for job in jobs:
         if (directory / "export" / job["path"]).exists() or (
-            directory / "provenance/simulations" / job["path"]
+            directory / "export/evidence/simulations" / job["path"]
         ).exists():
             raise PingstoreError(
                 "incomplete job exists; explicit recovery or a fresh run required"
             )
         worker.condition(job)
         write_json_atomic(
-            directory / "provenance/simulations" / job["path"] / "dataset.json",
+            directory / "export/evidence/simulations" / job["path"] / "dataset.json",
             worker.dataset,
         )
         evidence.counts(directory / "export" / job["path"] / "counts.npz", cfg)
@@ -42,7 +42,7 @@ def _run_jobs(bank, directory, jobs, contract):
 def _job_inventory(directory, jobs):
     files = {}
     for job in jobs:
-        for prefix in ("export", "provenance/simulations"):
+        for prefix in ("export", "export/evidence/simulations"):
             folder = directory / prefix / job["path"]
             if not folder.is_dir() or folder.is_symlink():
                 raise PingstoreError("missing or linked job evidence")
@@ -80,9 +80,10 @@ def _shard_paths(repo, run_id, index, count):
 
 @contextlib.contextmanager
 def _compute_lock(directory, *, exclusive):
-    path = directory / "provenance/compute.lock"
+    path = directory / "export/evidence/compute.lock"
     if any(p.is_symlink() for p in (directory, *directory.parents, path.parent, path)):
         raise PingstoreError("compute working paths must not use symlinks")
+    path.parent.mkdir(parents=True, exist_ok=True)
     descriptor = os.open(path, os.O_CREAT | os.O_RDWR | os.O_NOFOLLOW, 0o600)
     with os.fdopen(descriptor, "a+b") as handle:
         try:
@@ -104,7 +105,7 @@ def shard(identity, *, run_id, index, count=recipe.SHARDS):
     cfg = recipe.environment_configuration()
     directory = _shard_paths(REPO, run_id, index, count)
     with _compute_lock(directory, exclusive=False):
-        folder = directory / "provenance" / "shards" / str(index)
+        folder = directory / "export/evidence" / "shards" / str(index)
         folder.mkdir(parents=True, exist_ok=True)
         lock = folder / "writer.lock"
         try:
@@ -174,15 +175,15 @@ def compute(identity, *, run_id=None, collect=False):
     directory = _shard_paths(REPO, run_id, 0, recipe.SHARDS)
     with _compute_lock(directory, exclusive=True):
         _shard_paths(REPO, run_id, 0, recipe.SHARDS)
-        if not collect and (directory / "provenance/shards").exists():
+        if not collect and (directory / "export/evidence/shards").exists():
             raise PingstoreError("sharded work requires explicit --collect")
         if collect:
             directory = _shard_paths(REPO, run_id, 0, recipe.SHARDS)
-            if list((directory / "provenance/shards").glob("*/writer.lock")):
+            if list((directory / "export/evidence/shards").glob("*/writer.lock")):
                 raise PingstoreError("compute shards are still running")
             for index in range(recipe.SHARDS):
                 record = load_json(
-                    directory / "provenance/shards" / str(index) / "completed.json"
+                    directory / "export/evidence/shards" / str(index) / "completed.json"
                 )
                 if (
                     record.get("run_id") != run_id
@@ -201,7 +202,7 @@ def compute(identity, *, run_id=None, collect=False):
             if collect:
                 for index in range(recipe.SHARDS):
                     marker = load_json(
-                        run.provenance / "shards" / str(index) / "completed.json"
+                        run.evidence / "shards" / str(index) / "completed.json"
                     )
                     if marker["source"] != run.record["provenance"]:
                         raise PingstoreError(
@@ -220,26 +221,13 @@ def compute(identity, *, run_id=None, collect=False):
                 },
             }
             run.record["execution"]["environment"] = environment
-            write_json_atomic(run.provenance / "command.json", run.record["execution"])
-            replay = run.provenance / "run.sh"
-            replay.write_text(
-                replay.read_text()
-                .replace(" --collect", "")
-                .replace(
-                    "\nexec ",
-                    "\n"
-                    + "".join(f"export {k}={v}\n" for k, v in environment.items())
-                    + "exec ",
-                    1,
-                )
-            )
             if not collect:
                 _run_jobs(bank, run.directory, recipe.jobs(cfg), contract)
             worker = Inference(bank, run.directory, cfg)
             for job in recipe.jobs(cfg):
                 if (
                     load_json(
-                        run.provenance / "simulations" / job["path"] / "dataset.json"
+                        run.evidence / "simulations" / job["path"] / "dataset.json"
                     )
                     != worker.dataset
                 ):
@@ -248,7 +236,7 @@ def compute(identity, *, run_id=None, collect=False):
                     )
             for name in ("matched", "variable"):
                 worker.stream(name)
-            write_json_atomic(run.provenance / "dataset.json", worker.dataset)
+            write_json_atomic(run.evidence / "dataset.json", worker.dataset)
             evidence.validate_compute(run.export, cfg)
             write_json_atomic(
                 run.export / "evidence.json",

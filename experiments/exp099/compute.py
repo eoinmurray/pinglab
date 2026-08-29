@@ -100,7 +100,7 @@ def compute(*, run_id: str | None = None) -> str:
         command = simulate(run.export, bundle)
         run.record["execution"]["simulation_command"] = command
         write_json_atomic(
-            run.provenance / "simulation-command.json", {"command": command}
+            run.evidence / "simulation-command.json", {"command": command}
         )
     return run.run_id
 

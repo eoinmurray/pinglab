@@ -75,7 +75,7 @@ def reserve(repo: Path, row: dict, *, origin: str | None = None) -> dict:
                 record["run_id"] == identity
                 and record["experiment"] == recipe.SLUG
                 and record["stage"] == stage
-                and not (temporary / "provenance/writer.lock").exists()
+                and not (temporary / ".writer.lock").exists()
             ):
                 continue
         identities[stage] = reserve_stage(
@@ -151,7 +151,7 @@ def execute(repo: Path, plan: dict, row: dict) -> dict:
         command += ["--source", refs[upstream]["run_id"]]
         if stage == "compute":
             temporary = repo / ".pingstore/runs" / f".{identities[stage]}.tmp"
-            if (temporary / "provenance/shards").exists():
+            if (temporary / "export/evidence/shards").exists():
                 command += ["--collect"]
         environment = {
             **os.environ,

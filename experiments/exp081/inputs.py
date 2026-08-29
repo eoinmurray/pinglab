@@ -1,4 +1,4 @@
-"""Validated v3 evidence for exp081; no legacy or implicit selection fallback."""
+"""Validated v4 runs for exp081; no legacy or implicit selection fallback."""
 
 from pathlib import Path
 
@@ -19,7 +19,7 @@ def source(
         reference=reference,
     )
     if result.record["schema"] != RUN_SCHEMA:
-        raise PingstoreError("exp081 requires v3 evidence; legacy v2 is not accepted")
+        raise PingstoreError("exp081 requires v4 evidence; legacy v2/v3 is not accepted")
     return result
 
 

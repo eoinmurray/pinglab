@@ -1,6 +1,6 @@
 # exp025 — accuracy–rate frontier
 
-Contract migration: runner 3.0.0 and Pingstore `pingstore.run/v3`.
+Contract migration: runner 4.0.0 and Pingstore `pingstore.run/v4`.
 The migration retained historical measurements, model choices and plotting
 conventions. The author-approved article corrections are recorded below;
 stored figures and runs remain unchanged.

@@ -1,7 +1,7 @@
 # exp038 — switching on the inhibitory loop
 
 Contract migration target: Experiment Runner Guide **3.0.0** and Storage Guide
-**3.0.0**, using `pingstore.run/v3` and source-neutral stage IDs. Scientific
+**4.0.0**, using `pingstore.run/v4` and source-neutral stage IDs. Scientific
 interpretation and article revision remain separate from this execution migration.
 
 ## Independent stages

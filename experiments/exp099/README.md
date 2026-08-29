@@ -12,7 +12,7 @@ uv run python experiments/exp099/analyse.py --source <compute-run-id>
 uv run python experiments/exp099/present.py --source <analyse-run-id>
 ```
 
-Each command completes exactly one source-neutral `pingstore.run/v3` run.
+Each command completes exactly one source-neutral `pingstore.run/v4` run.
 `--run-id` accepts an unused stage identity reserved before dispatch. Analysis
 and presentation validate explicit inputs, including payload and manifest pins;
 they never launch upstream work. No command materializes, copies web assets,

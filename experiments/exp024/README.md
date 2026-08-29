@@ -15,7 +15,7 @@ unregularised baseline identities. Analysis requires complete, contiguous
 histories and explicit validation-split metadata for all six cells. It reads
 configurations from the selected evidence, not today's training defaults.
 Its `export/` contains `curves.json` and `results.json`; source configurations
-are retained under `provenance/`. Checkpoints remain in the source compute run.
+are retained under `export/evidence/`. Checkpoints remain in the source compute run.
 
 Presentation reads saved analysis, not cell histories. It writes the existing
 three SVGs and `numbers.json` into its flat `export/`, with figure lineage in

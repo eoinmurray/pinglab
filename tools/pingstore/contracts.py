@@ -11,7 +11,8 @@ from pathlib import Path
 from typing import Any
 
 LEGACY_RUN_SCHEMA = "pingstore.run/v2"
-RUN_SCHEMA = "pingstore.run/v3"
+PREVIOUS_RUN_SCHEMA = "pingstore.run/v3"
+RUN_SCHEMA = "pingstore.run/v4"
 EXPERIMENT_RE = re.compile(r"^exp[0-9]{3}$")
 RUN_ID_RE = re.compile(r"^exp[0-9]{3}-[a-z0-9][a-z0-9.-]*$")
 STAGE_ID_RE = re.compile(r"^(exp[0-9]{3})-r([0-9]{3,})-(compute|analyse|present)$")
@@ -52,10 +53,11 @@ def write_json_atomic(path: Path, value: dict[str, Any]) -> None:
 
 
 def validate_run(value: dict[str, Any]) -> dict[str, Any]:
-    if value.get("schema") not in (LEGACY_RUN_SCHEMA, RUN_SCHEMA):
-        raise PingstoreError(f"run schema must be {LEGACY_RUN_SCHEMA} or {RUN_SCHEMA}")
-    if value["schema"] == RUN_SCHEMA and "stage" not in value:
-        raise PingstoreError("v3 runs require an explicit stage")
+    schemas = (LEGACY_RUN_SCHEMA, PREVIOUS_RUN_SCHEMA, RUN_SCHEMA)
+    if value.get("schema") not in schemas:
+        raise PingstoreError(f"run schema must be one of {', '.join(schemas)}")
+    if value["schema"] in (PREVIOUS_RUN_SCHEMA, RUN_SCHEMA) and "stage" not in value:
+        raise PingstoreError("v3/v4 runs require an explicit stage")
     run_id = value.get("run_id")
     experiment = value.get("experiment")
     if not isinstance(run_id, str) or not RUN_ID_RE.fullmatch(run_id):
@@ -93,8 +95,11 @@ def validate_run(value: dict[str, Any]) -> dict[str, Any]:
                 raise PingstoreError("run cannot be its own input")
             if not re.fullmatch(r"sha256:[0-9a-f]{64}", str(reference.get("payload_digest", ""))):
                 raise PingstoreError("input requires a payload checksum")
-            if not re.fullmatch(r"[0-9a-f]{64}", str(reference.get("run_json_sha256", ""))):
-                raise PingstoreError("input requires a run.json checksum")
+            if value["schema"] == RUN_SCHEMA:
+                if set(reference) != {"run_id", "payload_digest"}:
+                    raise PingstoreError("v4 input pins contain only run_id and payload_digest")
+            elif not re.fullmatch(r"[0-9a-f]{64}", str(reference.get("run_json_sha256", ""))):
+                raise PingstoreError("v2/v3 input requires a run.json checksum")
     for key in ("collection", "origin", "created_at"):
         if not isinstance(value.get(key), str) or not value[key]:
             raise PingstoreError(f"{key} must be a non-empty string")
@@ -137,9 +142,27 @@ def file_sha256(path: Path) -> str:
 
 
 def payload_inventory(directory: Path) -> list[dict[str, Any]]:
-    """Inventory all payload bytes, including nested manifests; exclude run.json."""
+    """Inventory immutable scientific bytes.
+
+    V4 digests only export/. README history and run.json metadata can be amended
+    without changing scientific identity. Historical schemas retain their
+    original whole-run digest definition for inspection and migration.
+    """
+    manifest = directory / "run.json"
+    if manifest.is_file():
+        schema = load_json(manifest).get("schema")
+    elif (
+        (directory / "README.md").is_file()
+        and (directory / "export").is_dir()
+        and not (directory / "presentation").exists()
+        and not (directory / "provenance").exists()
+    ):
+        schema = RUN_SCHEMA
+    else:
+        schema = None
+    root = directory / "export" if schema == RUN_SCHEMA else directory
     rows = []
-    for path in sorted(directory.rglob("*")):
+    for path in sorted(root.rglob("*")):
         if path.is_symlink() or not (path.is_file() or path.is_dir()):
             raise PingstoreError(f"unsupported payload entry: {path}")
         relative = path.relative_to(directory).as_posix()
@@ -176,7 +199,7 @@ def validate_layout(directory: Path) -> None:
             )
         directories = {"export", "presentation"}
         flat = directory / "presentation"
-    else:
+    elif run["schema"] == PREVIOUS_RUN_SCHEMA:
         if not {"run.json", "export"} <= names or names - {
             "run.json", "README.md", "export", "provenance"
         }:
@@ -184,6 +207,13 @@ def validate_layout(directory: Path) -> None:
                 "v3 run requires run.json and export/; only README.md and provenance/ are optional"
             )
         directories = {"export", "provenance"}
+        flat = directory / "export" if run["stage"] == "present" else None
+    else:
+        if names != {"run.json", "README.md", "export"}:
+            raise PingstoreError(
+                "v4 run must contain exactly run.json, README.md and export/"
+            )
+        directories = {"export"}
         flat = directory / "export" if run["stage"] == "present" else None
     for name in names:
         path = directory / name
@@ -223,12 +253,12 @@ def validate_run_directory(directory: Path) -> dict[str, Any]:
 
 
 def validate_operational_run_directory(directory: Path) -> dict[str, Any]:
-    """Require v3 before consuming evidence; legacy inspection is not execution."""
+    """Require v4 before consuming evidence; historical inspection is not execution."""
     if any(path.is_symlink() for path in (directory, *directory.parents)):
         raise PingstoreError("operational input paths must not use symlinks")
     manifest = directory / "run.json"
     if manifest.is_symlink() or not manifest.is_file():
         raise PingstoreError(f"run.json must be a regular file: {manifest}")
     if load_json(manifest).get("schema") != RUN_SCHEMA:
-        raise PingstoreError("operational evidence requires v3; legacy v2 is not accepted")
+        raise PingstoreError("operational evidence requires v4; historical v2/v3 is not accepted")
     return validate_run_directory(directory)

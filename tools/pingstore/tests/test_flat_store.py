@@ -57,16 +57,19 @@ def _staging(tmp_path: Path, run_id: str = "r001") -> Path:
 def _presentation(repo: Path) -> dict:
     from pingstore.contracts import payload_digest, write_json_atomic
 
-    identity = "exp001-r001-present-local"
+    identity = "exp001-r001-present"
     directory = repo / ".pingstore/runs" / identity
     (directory / "export").mkdir(parents=True)
+    (directory / "README.md").write_text("# exp001 run\n")
     (directory / "export/result.svg").write_text("<svg/>")
     record = {
-        "schema": "pingstore.run/v3", "run_id": identity, "experiment": "exp001",
+        "schema": "pingstore.run/v4", "run_id": identity, "experiment": "exp001",
         "collection": "demo", "origin": "local", "stage": "present", "inputs": {},
         "created_at": "2026-08-27T12:00:00Z", "execution": {}, "provenance": {},
         "payload_digest": payload_digest(directory),
     }
+    write_json_atomic(directory / "run.json", {**record, "payload_digest": "sha256:" + "0" * 64})
+    record["payload_digest"] = payload_digest(directory)
     write_json_atomic(directory / "run.json", record)
     return record
 
@@ -288,7 +291,8 @@ def test_activation_rechecks_source_and_recovers_interruption(tmp_path, monkeypa
     original_rename(source, work / "rollback")
     recover_store(source, work)
     assert tree_inventory(source) == baseline
-    (source / "runs/exp001-r001-local/files/numbers.json").write_text("{}")
+    monkeypatch.setattr(os, "rename", original_rename)
+    (source / "runs/exp001-r001-local/files/numbers.json").write_text('{"changed": true}')
     with pytest.raises(PingstoreError, match="changed since verification"):
         activate_store(source, work)
 

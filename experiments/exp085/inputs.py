@@ -1,4 +1,4 @@
-"""Validated v3 evidence and complete immutable ancestry for exp085."""
+"""Validated v4 runs and complete export ancestry for exp085."""
 
 from contextlib import contextmanager
 

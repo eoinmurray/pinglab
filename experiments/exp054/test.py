@@ -160,7 +160,7 @@ def test_independent_stages_and_all_figures(lab, monkeypatch):
     source = inputs.source(root, identity, "compute")
     assert len(calls) == 51 and source.record["inputs"] == {}
     assert len(list(source.export.glob("probe/*/rasters.npz"))) == 51
-    assert not list((source.directory / "provenance").rglob("rasters.npz"))
+    assert not list((source.directory / "export/evidence").rglob("rasters.npz"))
     original = source.reference
     monkeypatch.setenv("PINGLAB_SMOKE", "0")
     monkeypatch.setattr(
@@ -376,13 +376,13 @@ def test_failures_remain_hidden_and_cannot_resume(lab, monkeypatch, stage):
         operation()
     assert {p.name for p in (root / ".pingstore/runs").glob("exp054-*")} == before
     (hidden,) = (root / ".pingstore/runs").glob(".exp054-*.tmp")
-    assert (hidden / "provenance/writer.lock").exists()
+    assert (hidden / ".writer.lock").exists()
     with pytest.raises(PingstoreError, match="interrupted"):
         operation(run_id=hidden.name[1:-4])
 
 
 @pytest.mark.parametrize(
-    "damage", ["payload", "manifest", "layout", "v2", "recipe", "inventory"]
+    "damage", ["payload", "layout", "v2", "recipe", "inventory"]
 )
 def test_corrupt_inputs_rejected_before_reservation(lab, damage):
     root, frequency, _ = lab
@@ -410,16 +410,15 @@ def test_corrupt_inputs_rejected_before_reservation(lab, damage):
     assert not list((root / ".pingstore/runs").glob(".exp054-*.tmp"))
 
 
-def test_ancestor_manifest_change_is_detected(lab):
+def test_ancestor_metadata_change_does_not_change_payload_identity(lab):
     root, frequency, _ = lab
     identity = compute.compute()
     analysis = analyse.analyse(identity, frequency)
     path = root / ".pingstore/runs" / frequency / "run.json"
     record = load_json(path)
-    record["note"] = "changed authoritative provenance"
+    record["execution"]["note"] = "changed authoritative provenance"
     write_json_atomic(path, record)
-    with pytest.raises(PingstoreError, match="checksum changed"):
-        present.present(analysis)
+    assert present.present(analysis).endswith("-present")
 
 
 def test_source_change_during_stage_prevents_completion(lab, monkeypatch):
@@ -519,7 +518,7 @@ def test_legacy_and_interrupted_campaigns_fail_closed(lab):
     }
     ids = collection.reserve(root, row)
     temporary = root / ".pingstore/runs" / ("." + ids["compute"] + ".tmp")
-    (temporary / "provenance/writer.lock").write_text("interrupted")
+    (temporary / ".writer.lock").write_text("interrupted")
     with pytest.raises(PingstoreError, match="explicit recovery"):
         collection.reserve(root, row)
 

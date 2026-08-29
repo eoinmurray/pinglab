@@ -123,9 +123,6 @@ def test_independent_stages_preserve_shared_rows_and_never_publish(repo, monkeyp
     assert source.record["inputs"] == {}
     assert source.record["execution"]["environment"] == {"PINGLAB_SMOKE": "1"}
     assert not list(source.export.rglob("run.sh"))
-    assert (
-        len(list((source.directory / "provenance/simulations").glob("*/run.sh"))) == 28
-    )
     monkeypatch.setenv("PINGLAB_SMOKE", "0")
     monkeypatch.setattr(
         compute, "run_cli", lambda *a, **k: pytest.fail("downstream simulated")
@@ -222,13 +219,13 @@ def test_stage_failures_remain_hidden(repo, monkeypatch, mode):
     assert {p.name for p in (root / ".pingstore/runs").glob("exp047-*")} == before
     hidden = list((root / ".pingstore/runs").glob(".exp047-*.tmp"))
     assert len(hidden) == 1
-    assert (hidden[0] / "provenance/writer.lock").exists()
+    assert (hidden[0] / ".writer.lock").exists()
     with pytest.raises(PingstoreError, match="interrupted"):
         command(run_id=hidden[0].name[1:-4])
 
 
 @pytest.mark.parametrize(
-    "corruption", ["payload", "manifest", "nested_metadata", "symlink", "root", "v2"]
+    "corruption", ["payload", "nested_metadata", "symlink", "root", "v2"]
 )
 def test_sources_and_ancestry_reject_corruption(repo, corruption):
     root, _ = repo
@@ -239,7 +236,7 @@ def test_sources_and_ancestry_reject_corruption(repo, corruption):
         next(source.export.glob("probe/*/metrics.json")).write_text("{}")
     elif corruption == "nested_metadata":
         next(
-            (source.directory / "provenance/simulations").glob("*/config.json")
+            (source.directory / "export/evidence/simulations").glob("*/config.json")
         ).write_text("{}")
     elif corruption == "symlink":
         (source.export / "link").symlink_to(source.export / "evidence.json")
@@ -264,7 +261,7 @@ def test_resigned_wrong_scientific_config_is_rejected(repo, field, value):
     root, _ = repo
     identity = compute.compute()
     source = inputs.source(root, identity, "compute")
-    path = next((source.directory / "provenance/simulations").glob("*/config.json"))
+    path = next((source.directory / "export/evidence/simulations").glob("*/config.json"))
     doc = load_json(path)
     doc[field] = value
     write_json_atomic(path, doc)
@@ -304,7 +301,7 @@ def test_wrong_stage_and_experiment_are_rejected(repo):
 
 
 @pytest.mark.parametrize("stage", ["analyse", "present"])
-def test_ancestor_changes_during_stage_prevent_completion(repo, monkeypatch, stage):
+def test_ancestor_metadata_changes_during_stage_are_allowed(repo, monkeypatch, stage):
     root, _ = repo
     compute_id = compute.compute()
     source = inputs.source(root, compute_id, "compute")
@@ -328,9 +325,8 @@ def test_ancestor_changes_during_stage_prevent_completion(repo, monkeypatch, sta
 
         monkeypatch.setattr(present.plots, "plot_controls", changed)
         command, identity = present.present, analysis_id
-    with pytest.raises(PingstoreError):
-        command(identity)
-    assert not list((root / ".pingstore/runs").glob(f"exp047-*-{stage}"))
+    result = command(identity)
+    assert (root / ".pingstore/runs" / result).is_dir()
 
 
 def test_analysis_grid_validation_does_not_accept_invented_or_missing_rows(repo):

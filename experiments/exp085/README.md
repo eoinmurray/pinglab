@@ -14,7 +14,7 @@ uv run python -m experiments.exp085.present --source <exp085-analyse-run-id>
 ```
 
 The corresponding `experiments/exp085/{compute,analyse,present}.py` scripts also
-work directly. Each command completes one immutable `pingstore.run/v3` run and
+work directly. Each command completes one immutable `pingstore.run/v4` run and
 prints its source-neutral ID. `--run-id` accepts only an unused reservation
 allocated through the existing shared stage helper. Flat execution and
 `python -m experiments.exp085` stop with explicit-stage instructions.

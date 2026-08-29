@@ -21,17 +21,8 @@ def compute(*, run_id=None):
     ) as run:
         environment = {"PINGLAB_SMOKE": "1" if cfg["profile"] == "smoke" else "0"}
         run.record["execution"]["environment"] = environment
-        write_json_atomic(run.provenance / "command.json", run.record["execution"])
-        replay = run.provenance / "run.sh"
-        replay.write_text(
-            replay.read_text().replace(
-                "\nexec ",
-                f"\nexport PINGLAB_SMOKE={environment['PINGLAB_SMOKE']}\nexec ",
-                1,
-            )
-        )
         for item in recipe.jobs(cfg):
-            attachments = run.provenance / "simulations" / item["id"]
+            attachments = run.evidence / "simulations" / item["id"]
             attachments.mkdir(parents=True)
             args = recipe.simulation_args(cfg, item, attachments)
             write_json_atomic(
@@ -52,7 +43,7 @@ def compute(*, run_id=None):
             output = run.export / "probe" / item["id"]
             output.mkdir(parents=True)
             (attachments / "metrics.json").rename(output / "metrics.json")
-        evidence.rows(run.export, run.provenance, cfg)
+        evidence.rows(run.export, run.evidence, cfg)
         write_json_atomic(
             run.export / "evidence.json",
             {"schema": "exp047.compute/v1", "recipe": cfg, "jobs": recipe.jobs(cfg)},

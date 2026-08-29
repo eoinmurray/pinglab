@@ -101,7 +101,6 @@ def test_independent_v3_stages_preserve_measurements_and_never_publish(
     source = inputs.source(root, compute_id, "compute")
     assert source.record["inputs"] == {}
     assert not list(source.export.rglob("run.sh"))
-    assert (source.directory / "provenance/simulations/scope/ping/run.sh").is_file()
     before = source.reference
     monkeypatch.setenv("PINGLAB_SMOKE", "0")
     monkeypatch.setattr(
@@ -172,8 +171,7 @@ def test_sources_and_authoritative_pins_are_validated(repo):
     record = load_json(record_path)
     record["execution"]["note"] = "changed manifest, unchanged payload"
     write_json_atomic(record_path, record)
-    with pytest.raises(PingstoreError, match="checksum changed"):
-        present.present(analysis_id)
+    assert present.present(analysis_id).startswith("exp023-")
 
 
 def test_missing_or_corrupt_snapshot_is_not_silently_recomputed(repo):
@@ -210,7 +208,7 @@ def test_unsupported_schema_is_rejected_before_scientific_consumption(repo):
             "payload_digest": payload_digest(directory),
         },
     )
-    with pytest.raises(PingstoreError, match="requires v3"):
+    with pytest.raises(PingstoreError, match="requires v4"):
         analyse.analyse(identity)
 
 
@@ -255,7 +253,7 @@ def test_collection_plans_use_reserved_stages_and_reject_legacy(repo):
             root
             / ".pingstore/runs"
             / f".{identity}.tmp"
-            / "provenance/reservation.json"
+            / ".reservation.json"
         )
         assert reservation["origin"] == "slurm-wilkes"
     assert collection.reserve(root, row) == reservations

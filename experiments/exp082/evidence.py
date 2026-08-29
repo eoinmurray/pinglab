@@ -77,7 +77,7 @@ def validate_import(run, cfg):
         or cfg != recipe.configuration()
     ):
         raise PingstoreError("aggregate evidence lacks its retained import contract")
-    proof = load_json(run.directory / "provenance/import.json")
+    proof = load_json(run.directory / "export/evidence/import.json")
     if (
         proof.get("schema") != RETAINED_SCHEMA
         or proof.get("source_files") != 199
@@ -97,7 +97,7 @@ def validate_import(run, cfg):
         ):
             raise PingstoreError("retained source mapping checksum differs")
     old = load_json(
-        run.directory / "provenance/archive/derived/artifacts/data/exp082/numbers.json"
+        run.directory / "export/evidence/archive/derived/artifacts/data/exp082/numbers.json"
     )
     rows = [
         aggregate(run.export / j["path"] / "condition.json", j, cfg)

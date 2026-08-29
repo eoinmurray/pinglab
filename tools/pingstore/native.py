@@ -84,6 +84,7 @@ def _complete(
     initialize_layout(temporary, run["experiment"], schema=LEGACY_RUN_SCHEMA)
     if manifest is not None:
         display_manifest(temporary, manifest, run["run_id"], schema=LEGACY_RUN_SCHEMA)
+    write_json_atomic(temporary / "run.json", {**run, "payload_digest": "sha256:" + "0" * 64})
     run["payload_digest"] = payload_digest(temporary)
     write_json_atomic(temporary / "run.json", run)
     validate_run_directory(temporary)

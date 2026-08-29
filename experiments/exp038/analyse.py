@@ -58,7 +58,7 @@ def analyse(identity, *, run_id=None):
             evidence.inference_config(
                 load_json(
                     source.directory
-                    / "provenance/simulations"
+                    / "export/evidence/simulations"
                     / job["path"]
                     / "config.json"
                 ),

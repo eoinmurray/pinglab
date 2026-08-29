@@ -59,15 +59,8 @@ def compute(*, run_id=None):
     ) as run:
         smoke = "1" if cfg["profile"] == "smoke" else "0"
         run.record["execution"]["environment"] = {"PINGLAB_SMOKE": smoke}
-        write_json_atomic(run.provenance / "command.json", run.record["execution"])
-        replay = run.provenance / "run.sh"
-        replay.write_text(
-            replay.read_text().replace(
-                "\nexec ", f"\nexport PINGLAB_SMOKE={smoke}\nexec ", 1
-            )
-        )
         for item in recipe.jobs(cfg):
-            attachments = run.provenance / "simulations" / item["id"]
+            attachments = run.evidence / "simulations" / item["id"]
             attachments.mkdir(parents=True)
             args = recipe.simulation_args(cfg, item, attachments)
             write_json_atomic(

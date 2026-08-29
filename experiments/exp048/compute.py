@@ -59,7 +59,7 @@ def compute(identity, *, run_id=None):
             cfg = contract["configs"][name]
             _, x, _, y = load_mnist_split(max_samples=int(cfg["max_samples"]))
             datasets[seed] = (x, y)
-            attachments = run.provenance / "readouts" / name
+            attachments = run.evidence / "readouts" / name
             with tempfile.TemporaryDirectory(
                 prefix=".readout-", dir=run.directory
             ) as temp:
@@ -102,7 +102,7 @@ def compute(identity, *, run_id=None):
             for index in range(job["streams"]):
                 destination = run.export / job["id"] / f"stream-{index:03d}"
                 destination.mkdir(parents=True)
-                attachments = run.provenance / job["id"] / f"stream-{index:03d}"
+                attachments = run.evidence / job["id"] / f"stream-{index:03d}"
                 pixels, labels = select(job, x, y, rng)
                 generator = torch.Generator().manual_seed(job["poisson_seed"] + index)
                 spike_input = stimuli.encode_varying_stream(

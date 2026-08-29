@@ -24,13 +24,6 @@ def compute(identity, *, run_id=None):
     ) as run:
         env = {"PINGLAB_SMOKE": "1" if cfg["profile"] == "smoke" else "0"}
         run.record["execution"]["environment"] = env
-        write_json_atomic(run.provenance / "command.json", run.record["execution"])
-        replay = run.provenance / "run.sh"
-        replay.write_text(
-            replay.read_text().replace(
-                "\nexec ", f"\nexport PINGLAB_SMOKE={env['PINGLAB_SMOKE']}\nexec "
-            )
-        )
         write_json_atomic(
             run.export / "evidence.json",
             {
@@ -45,12 +38,12 @@ def compute(identity, *, run_id=None):
             name = job["cell_name"]
             train = bank.export / name
             output = run.export / job["path"]
-            attachments = run.provenance / "simulations" / job["path"]
+            attachments = run.evidence / "simulations" / job["path"]
             attachments.mkdir(parents=True)
             shutil.copyfile(train / "config.json", attachments / "training-config.json")
             args = recipe.inference_args(train, train / "weights.pth", output, job)
             commands.append({"job": job, "arguments": args})
-            write_json_atomic(run.provenance / "simulations.json", commands)
+            write_json_atomic(run.evidence / "simulations.json", commands)
             print(f"[infer] {job['path']}", flush=True)
             with (
                 (attachments / "stdout.log").open("w") as stdout,

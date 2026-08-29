@@ -277,25 +277,19 @@ def test_failed_compute_stays_hidden(cycle_lab, monkeypatch):
     assert list((root / ".pingstore/runs").glob(".exp046-*-compute.tmp"))
 
 
-@pytest.mark.parametrize("damage", ["v2", "ancestor"])
-def test_historical_schema_and_changed_ancestor_are_rejected(cycle_lab, damage):
+def test_historical_schema_is_rejected(cycle_lab):
     root, bank_id, frequency_id, _ = cycle_lab
     identity = compute.compute(bank_id)
     run = inputs.source(root, identity, "compute")
-    if damage == "v2":
-        record = load_json(run.directory / "run.json")
-        record["schema"] = "pingstore.run/v2"
-        write_json_atomic(run.directory / "run.json", record)
-    else:
-        bank = inputs.source(root, bank_id, "compute", experiment="exp022")
-        (bank.directory / "README.md").write_text("changed after pinning")
-        resign(bank)
+    record = load_json(run.directory / "run.json")
+    record["schema"] = "pingstore.run/v2"
+    write_json_atomic(run.directory / "run.json", record)
     with pytest.raises(PingstoreError):
         analyse.analyse(identity, frequency_id)
     assert not list((root / ".pingstore/runs").glob("exp046-*-analyse"))
 
 
-def test_ancestor_mutation_during_analysis_prevents_completion(cycle_lab, monkeypatch):
+def test_ancestor_readme_amendment_during_analysis_is_allowed(cycle_lab, monkeypatch):
     root, bank_id, frequency_id, _ = cycle_lab
     identity = compute.compute(bank_id)
     bank = inputs.source(root, bank_id, "compute", experiment="exp022")
@@ -307,9 +301,8 @@ def test_ancestor_mutation_during_analysis_prevents_completion(cycle_lab, monkey
         return result
 
     monkeypatch.setattr(measurements, "measure", changed)
-    with pytest.raises(PingstoreError):
-        analyse.analyse(identity, frequency_id)
-    assert not list((root / ".pingstore/runs").glob("exp046-*-analyse"))
+    analysis_id = analyse.analyse(identity, frequency_id)
+    assert (root / ".pingstore/runs" / analysis_id).is_dir()
 
 
 def test_retired_entrypoints_fail_without_outputs(tmp_path):

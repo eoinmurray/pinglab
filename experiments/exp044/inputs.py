@@ -8,7 +8,7 @@ from pingstore.stages import source_run, stage_run
 
 from . import recipe
 
-SOURCE_POLICY = "selected-v3-training-bank"
+SOURCE_POLICY = "selected-v4-training-bank"
 
 
 def lineage(repo: Path, identity: str, *, reference: dict | None = None) -> dict:
@@ -30,10 +30,10 @@ def lineage(repo: Path, identity: str, *, reference: dict | None = None) -> dict
             raise PingstoreError("exp044 input paths must not use symlinks")
         if not (directory / "run.json").is_file():
             raise PingstoreError(
-                f"exp044 requires complete v3 input lineage: missing {run_id}"
+                f"exp044 requires complete v4 input lineage: missing {run_id}"
             )
         if load_json(directory / "run.json").get("schema") != RUN_SCHEMA:
-            raise PingstoreError(f"exp044 requires v3 evidence: {run_id}")
+            raise PingstoreError(f"exp044 requires v4 evidence: {run_id}")
         run = source_run(repo / ".pingstore", run_id, reference=pin)
         visiting.add(run_id)
         # The user selected the self-contained bank as exp044's new source.

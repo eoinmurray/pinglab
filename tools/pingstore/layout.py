@@ -6,7 +6,8 @@ import shutil
 from pathlib import Path
 
 from .contracts import (
-    LEGACY_RUN_SCHEMA, RUN_SCHEMA, PingstoreError, load_json, write_json_atomic,
+    LEGACY_RUN_SCHEMA, PREVIOUS_RUN_SCHEMA, RUN_SCHEMA, PingstoreError, load_json,
+    write_json_atomic,
 )
 
 FIGURE_SUFFIXES = {".svg", ".png", ".jpg", ".jpeg", ".pdf", ".gif", ".webp", ".mp4"}
@@ -22,11 +23,16 @@ RECORD_NAMES = {
 
 
 def initialize_layout(root: Path, experiment: str, *, schema: str = RUN_SCHEMA) -> None:
-    if schema not in (LEGACY_RUN_SCHEMA, RUN_SCHEMA):
+    if schema not in (LEGACY_RUN_SCHEMA, PREVIOUS_RUN_SCHEMA, RUN_SCHEMA):
         raise PingstoreError(f"unsupported layout schema: {schema}")
     (root / "export").mkdir(parents=True, exist_ok=True)
     if schema == RUN_SCHEMA:
-        return  # v3 has no mandatory README or empty evidence/presentation folders.
+        readme = root / "README.md"
+        if not readme.exists():
+            readme.write_text(f"# {experiment} run\n\n## History\n\n")
+        return
+    if schema == PREVIOUS_RUN_SCHEMA:
+        return
     (root / "presentation").mkdir(exist_ok=True)
     readme = root / "README.md"
     if not readme.exists():
@@ -37,7 +43,7 @@ def initialize_layout(root: Path, experiment: str, *, schema: str = RUN_SCHEMA) 
 
 def export_directory(root: Path, run: dict) -> Path:
     """Resolve scientific output from an already validated v2/v3 record."""
-    default = "export" if run["schema"] == RUN_SCHEMA else "export/state"
+    default = "export" if run["schema"] in (PREVIOUS_RUN_SCHEMA, RUN_SCHEMA) else "export/state"
     return root / run.get("export_root", default)
 
 
@@ -47,7 +53,7 @@ def presentation_directory(root: Path, run: dict) -> Path | None:
     Callers must validate the complete run before consuming this directory.
     Untyped v2 evidence retains its original presentation behaviour.
     """
-    if run["schema"] == RUN_SCHEMA:
+    if run["schema"] in (PREVIOUS_RUN_SCHEMA, RUN_SCHEMA):
         return root / "export" if run["stage"] == "present" else None
     if run["schema"] == LEGACY_RUN_SCHEMA:
         return root / "presentation" if run.get("stage") in (None, "present") else None

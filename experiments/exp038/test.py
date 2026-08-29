@@ -297,7 +297,7 @@ def test_analyse_rejects_corrupt_even_resigned_payload(lab, mutation):
         data["spk_e"] = np.full_like(data["spk_e"], 2, dtype=np.int8)
         np.savez_compressed(p, **data)
     elif mutation == "config":
-        p = c.directory / "provenance/simulations" / jobs[0]["path"] / "config.json"
+        p = c.directory / "export/evidence/simulations" / jobs[0]["path"] / "config.json"
         d = load_json(p)
         d["spike_rate"] = 111
         write_json_atomic(p, d)
@@ -316,15 +316,14 @@ def test_analyse_rejects_corrupt_even_resigned_payload(lab, mutation):
     assert not list((root / ".pingstore/runs").glob("*-analyse"))
 
 
-def test_inputs_reject_changed_upstream_manifest(lab):
+def test_inputs_allow_upstream_metadata_amendment(lab):
     root, bank, _ = lab
     cid = compute.compute(bank)
     p = root / ".pingstore/runs" / bank / "run.json"
     d = load_json(p)
     d["execution"]["extra"] = "changed"
     write_json_atomic(p, d)
-    with pytest.raises(PingstoreError):
-        analyse.analyse(cid)
+    assert analyse.analyse(cid).endswith("-analyse")
 
 
 def test_failed_simulation_never_completes(lab, monkeypatch):
@@ -417,7 +416,7 @@ def test_v2_and_wrong_stage_inputs_are_rejected(lab):
         analyse.analyse(cid)
 
 
-def test_source_change_during_compute_prevents_completion(lab, monkeypatch):
+def test_source_readme_change_during_compute_is_allowed(lab, monkeypatch):
     root, bank_id, _ = lab
     original = compute.run_cli
 
@@ -427,9 +426,8 @@ def test_source_change_during_compute_prevents_completion(lab, monkeypatch):
         path.write_text("changed while running\n")
 
     monkeypatch.setattr(compute, "run_cli", simulate)
-    with pytest.raises(PingstoreError):
-        compute.compute(bank_id)
-    assert not list((root / ".pingstore/runs").glob("exp038-*-compute"))
+    identity = compute.compute(bank_id)
+    assert (root / ".pingstore/runs" / identity).is_dir()
 
 
 def test_present_rejects_resigned_incomplete_analysis(lab):

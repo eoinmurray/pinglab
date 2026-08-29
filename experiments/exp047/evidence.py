@@ -98,7 +98,9 @@ def compute_contract(run):
         *(f"probe/{j['id']}/metrics.json" for j in recipe.jobs(cfg)),
     }
     actual_files = {
-        str(p.relative_to(run.export)) for p in run.export.rglob("*") if p.is_file()
+        str(p.relative_to(run.export))
+        for p in run.export.rglob("*")
+        if p.is_file() and not p.is_relative_to(run.export / "evidence")
     }
     if actual_files != expected_files:
         raise PingstoreError("exp047 compute metric grid differs")

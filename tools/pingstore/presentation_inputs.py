@@ -16,7 +16,6 @@ from pathlib import Path
 
 from pingstore.contracts import (
     PingstoreError,
-    file_sha256,
     load_json,
     write_json_atomic,
 )
@@ -74,7 +73,7 @@ def execution_duration(record: dict) -> float | None:
 
 
 def scientific_timing(directory: Path, record: dict) -> dict | None:
-    """Project explicitly retained evidence inside a validated v3 run, not a stage input."""
+    """Project explicitly retained scientific evidence inside a validated v4 run."""
     declaration = record.get("scientific_execution")
     if declaration is None:
         return None
@@ -84,9 +83,9 @@ def scientific_timing(directory: Path, record: dict) -> dict | None:
     if reference is None:
         return None
     if (not isinstance(reference, str) or "\\" in reference
-            or reference.split("/")[0] != "provenance"
+            or reference.split("/")[:2] != ["export", "evidence"]
             or any(part in ("", ".", "..") for part in reference.split("/"))):
-        raise PingstoreError(f"{record['run_id']}: scientific timing must reference retained provenance")
+        raise PingstoreError(f"{record['run_id']}: scientific timing must reference export evidence")
     # Discovery already checks the enclosing payload digest and rejects symlinks.
     # Never traverse historical inputs or treat the retained manifest as operational.
     evidence = load_json(directory / reference)
@@ -133,7 +132,7 @@ def projection(
     declared_dependencies: dict | None = None,
 ) -> dict:
     source = root / ".pingstore/runs"
-    # The authoritative discovery adapter validates ALL visible v3 payloads first.
+    # The authoritative discovery adapter validates ALL visible v4 payloads first.
     discovered = discover_runs(source) if source.exists() or source.is_symlink() else []
     records = {}
     if source.exists():
@@ -145,14 +144,12 @@ def projection(
             ):
                 continue
             records[directory.name] = load_json(directory / "run.json")
-    manifest_hashes = {key: file_sha256(source / key / "run.json") for key in records}
     for key, record in records.items():
         for reference in record["inputs"].values():
             parent = records.get(reference["run_id"])
             if (
                 parent is None
                 or parent["payload_digest"] != reference["payload_digest"]
-                or manifest_hashes[reference["run_id"]] != reference["run_json_sha256"]
             ):
                 raise PingstoreError(
                     f"{key}: missing or changed upstream input {reference['run_id']}"

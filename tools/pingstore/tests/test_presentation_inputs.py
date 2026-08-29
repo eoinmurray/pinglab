@@ -9,7 +9,7 @@ import sys
 
 import pytest
 from pingstore.cli import main
-from pingstore.contracts import PingstoreError, file_sha256, payload_digest
+from pingstore.contracts import PingstoreError, payload_digest
 from pingstore.presentation_inputs import projection
 from pingstore.tests.test_discovery import make_run
 
@@ -31,7 +31,6 @@ def test_projection_is_read_only_and_distinguishes_sizes(source):
     reference = {
         "run_id": parent.name,
         "payload_digest": parent_meta["payload_digest"],
-        "run_json_sha256": file_sha256(parent / "run.json"),
     }
     child = make_run(
         store, "exp001-r002-present", inputs={"first": reference, "also": reference}
@@ -111,7 +110,7 @@ def make_scientific_run(source, *, cells=None):
     directory = make_run(source / ".pingstore/runs", "exp001-r001-compute", stage="compute",
                          execution={"operation": "import", "started_at": "2026-08-27T10:00:00Z",
                                     "completed_at": "2026-08-27T10:00:03Z"},
-                         scientific_execution={"record": "provenance/scientific.json",
+                         scientific_execution={"record": "export/evidence/scientific.json",
                                                "origin": "slurm", "cells": 2})
     retained = {"schema": "pingstore.run/v2", "inputs": {"unavailable": "not traversed"},
                 "execution": {"started_at": "2026-08-18T15:42:06Z",
@@ -120,7 +119,8 @@ def make_scientific_run(source, *, cells=None):
                                   {"attempt": {"attempt_id": str(i), "state": "complete",
                                                "elapsed_seconds": seconds}}
                                   for i, seconds in enumerate((3600.5, 7200.25))]}}
-    (directory / "provenance/scientific.json").write_text(json.dumps(retained))
+    (directory / "export/evidence").mkdir()
+    (directory / "export/evidence/scientific.json").write_text(json.dumps(retained))
     metadata = json.loads((directory / "run.json").read_text())
     metadata["payload_digest"] = payload_digest(directory)
     (directory / "run.json").write_text(json.dumps(metadata))
@@ -136,27 +136,27 @@ def test_scientific_span_and_job_total_are_separate_from_import(source):
     assert row["scientific_timing"] == {
         "duration_seconds": 198256, "started_at": "2026-08-18T15:42:06Z",
         "completed_at": "2026-08-20T22:46:22Z", "origin": "slurm",
-        "record": "provenance/scientific.json", "jobs": 2, "job_seconds": 10800.75,
+        "record": "export/evidence/scientific.json", "jobs": 2, "job_seconds": 10800.75,
     }
     assert before == {p: p.read_bytes() for p in directory.rglob("*") if p.is_file()}
 
 
 @pytest.mark.parametrize("reference", [
-    "../outside.json", "/outside.json", "provenance/../../outside.json",
-    "provenance//scientific.json", "export/numbers.json", "provenance\\scientific.json",
+    "../outside.json", "/outside.json", "export/evidence/../../outside.json",
+    "export/evidence//scientific.json", "export/numbers.json", "export\\evidence\\scientific.json",
 ])
 def test_scientific_timing_cannot_escape_retained_provenance(source, reference):
     directory = make_scientific_run(source)
     metadata = json.loads((directory / "run.json").read_text())
     metadata["scientific_execution"]["record"] = reference
     (directory / "run.json").write_text(json.dumps(metadata))
-    with pytest.raises(PingstoreError, match="must reference retained provenance"):
+    with pytest.raises(PingstoreError, match="must reference export evidence"):
         projection(source)
 
 
 def test_scientific_evidence_checksum_is_validated_before_display(source):
     directory = make_scientific_run(source)
-    (directory / "provenance/scientific.json").write_text('{}')
+    (directory / "export/evidence/scientific.json").write_text('{}')
     with pytest.raises(PingstoreError, match="checksum"):
         projection(source)
 
@@ -210,7 +210,6 @@ def test_experiment_dependencies_do_not_depend_on_runs_or_selection(source):
     make_run(store, "exp009-r001-compute", stage="compute", inputs={
         "source": {
             "run_id": parent.name, "payload_digest": payload_digest(parent),
-            "run_json_sha256": file_sha256(parent / "run.json"),
         },
     })
     data = projection(source, declared_dependencies=declared, article="exp001", overrides={
@@ -232,7 +231,7 @@ def test_defaults_and_corrupt_payload_fail_closed(source):
         projection(source)
 
 
-def test_wrong_upstream_manifest_pin_fails(source):
+def test_wrong_upstream_payload_pin_fails(source):
     store = source / ".pingstore/runs"
     parent = make_run(store, "exp001-r001-compute", stage="compute")
     make_run(
@@ -241,8 +240,7 @@ def test_wrong_upstream_manifest_pin_fails(source):
         inputs={
             "analysis": {
                 "run_id": parent.name,
-                "payload_digest": payload_digest(parent),
-                "run_json_sha256": "0" * 64,
+                "payload_digest": "sha256:" + "0" * 64,
             }
         },
     )

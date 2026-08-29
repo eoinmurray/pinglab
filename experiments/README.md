@@ -1,185 +1,118 @@
 # Experiment Runner Guide
 
-Version: **3.0.0**
+Version: **4.0.0**
 
-The Experiment Runner Guide defines the conventions for Pinglab's experiment
-execution code and independent compute, analyse and present stages. This file
-is the canonical guide.
+This guide defines Pinglab's independent compute, analyse, and present commands.
+The [Storage Guide](../tools/pingstore/README.md) owns run layout and validation.
 
-## 1. Versioning
-
-Version this guide independently of Pinglab, Demolab and the other guides.
-Increment the major version when changed requirements make previously compliant
-experiment execution code require revision, the minor version for compatible
-additions, and the patch version for corrections or clarifications that do not
-change requirements. Update the version above and add a short entry to the
-version history when changing the guide.
-
-### 1.1. Version history
-
-- **3.0.0** — Use source-neutral staged IDs and reservations, following Storage
-  Guide 3.0.0. Execution location remains explicit manifest metadata; stage
-  boundaries and the v3 schema are unchanged.
-
-- **2.0.0** — Require v3 for all operational execution and inputs, aligning with
-  Storage Guide 2.0.0. Remove legacy capture, discovery, publication and reservation
-  completion allowances; historical preservation does not authorize operational use.
-- **1.1.0** — Add source-preserving, scoped conformance guidance and evidence-led
-  suggestions for encoding reusable rules with explicit approval. Execution
-  contracts remain unchanged.
-- **1.0.0** — Name and version the existing Experiment Runner Guide; execution
-  requirements remain unchanged.
-
-### 1.2. Applying the guide to existing work
-
-Read the current target, its recipe, relevant stage dependencies and tests
-immediately before editing. Use the live files, including uncommitted edits, as
-the baseline; do not reconstruct an older implementation or undo settled
-scientific decisions, whether made directly by the user or through an agent.
-
-- Treat conformance as a minimal, scoped change, not permission to redesign an
-  experiment. Preserve scientific definitions, parameter values, selection and
-  measurement rules, stage boundaries and unrelated manual edits. Change only
-  the requested target and strictly necessary dependencies.
-- Apply the requested guide version, not silently the latest one. If that
-  version cannot be recovered, ask which available version to use. Explicit
-  user instructions control scope and any exceptions to the guide.
-- Distinguish current code's intended behaviour from historical execution.
-  Ground claims about completed work in retained provenance and outputs; an
-  implementation change does not establish that an experiment was rerun.
-- Editing code or documentation does not itself authorize experiment execution,
-  upstream work, migration or publication. Keep verification within the task's
-  authorized scope and the independent-stage boundaries below.
-- If conformance would materially change scientific meaning, interfaces or a
-  settled decision, identify the conflict and ask before doing so. Preservation
-  does not establish scientific correctness or excuse unsupported claims.
-- Review the diff against the live starting files and run relevant checks.
-  Report unresolved gaps and checks not performed; distinguish test results
-  from newly executed experiments and historical evidence.
-
-### 1.3. Improving the guide through use
-
-While applying this guide, use concrete execution difficulties, weaknesses in
-the implementation and the user's corrections to identify improvements to its
-reusable instructions.
-
-- Suggest encoding a rule when the lesson would materially improve future
-  experiment execution; do not manufacture a suggestion for every task.
-- Distinguish reusable rules from experiment-specific scientific choices.
-  Check existing rules and refine them rather than adding duplicates. Put a
-  rule in the guide that owns it; storage and writing have separate guides.
-- For each suggestion, state the observed problem, propose exact wording and
-  its location, explain the expected benefit, and ask whether to encode it.
-- Complete the requested work first unless a conflict requires clarification.
-  Present suggestions in the task response, not in scientific outputs.
-- Do not modify the guide or broaden experiment edits without explicit
-  approval. Approved guide changes follow its versioning rules and do not
-  themselves authorize execution or changes to retained evidence.
-
-## 2. Experiment lifecycle
-
-An experiment has three independent execution stages and a Typst writing:
+## 1. Experiment shape
 
 ```text
 experiments/expXXX/
-    recipe.py       # shared scientific definitions; no execution on import
-    compute.py      # training, simulation, retained recordings/checkpoints
-    analyse.py      # measurements and numerical results from explicit evidence
-    present.py      # figures, tables, videos and report-ready numbers
-writings/expXXX.typ  # explanation and interpretation
+    recipe.py
+    compute.py
+    analyse.py
+    present.py
+writings/expXXX.typ
 ```
 
-Compute is usually the expensive GPU/HPC stage, analysis is usually intermediate,
-and presentation is usually cheap. These are expectations, not cost guarantees.
-Scientific parameters live in committed recipes, not arbitrary CLI overrides.
-Changing a measurement belongs to analysis; changing its appearance belongs to
-presentation. Inference to generate a raster is computation, not plotting.
+`recipe.py` owns committed scientific definitions without executing on import.
+Compute produces expensive or primary scientific outputs. Analyse measures
+explicit compute evidence. Present creates flat figures, tables, videos, and
+report-ready numbers. A change of estimator belongs in analyse; a change of
+appearance belongs in present; inference that generates new activity belongs in
+compute.
 
-## 3. Commands and boundaries
+## 2. Commands and boundaries
 
 ```sh
 uv run python experiments/exp022/compute.py
 uv run python experiments/exp022/analyse.py --source <compute-run-id>
-uv run python experiments/exp022/present.py --source <analysis-run-id>
+uv run python experiments/exp022/present.py --source <analyse-run-id>
 ```
 
-Each command creates one completed run and prints its ID. Inputs are explicit
-completed Pingstore runs: no latest/active fallback, automatic upstream execution,
-or mutation of source evidence. The stage commands do not materialize or publish.
-Large inputs remain in their source runs; downstream runs retain references and
-their own outputs. A separately authorized historical import may copy scientific
-payloads to preserve the original and give the new compute run a self-contained
-export. Operational inputs must still resolve to validated v3 runs; migration
-evidence belongs in provenance, not in an unresolved or v2 operational input pin.
+Each command creates exactly one `pingstore.run/v4` run and prints its identity.
+Every input is an explicit completed v4 run. Commands never choose latest,
+automatically execute another stage, materialize, or publish.
 
-Run IDs contain the experiment, counter and stage, for example
-`exp022-r001-compute`. Local, Slurm and RunPod execution share that format;
-`origin` and execution records carry location and scheduler provenance.
-Use `--run-id` only for a source-neutral identity reserved before dispatch.
-Distributed compute may own mutable campaign/checkpoint working directories until
-completion; those are not completed scientific evidence. Scheduler retries and checkpoint recovery
-remain inside compute. A failed stage leaves its hidden run for inspection, never
-modifies an earlier completed run, and is not silently resumed by a downstream
-stage. Rerun with a fresh identity unless a compute-specific recovery procedure
-explicitly handles the incomplete work.
+New IDs are source-neutral: `exp022-r001-compute`,
+`exp022-r002-analyse`, and `exp022-r003-present`. Local, Slurm, and RunPod use the
+same shape. Execution location and scheduler details belong in `run.json`.
 
-## 4. Storage, preview and publication
+Failed work remains in its hidden temporary run. Downstream stages do not consume
+it. Rerun with a new identity unless an experiment-specific compute recovery
+procedure explicitly resumes the incomplete working directory.
 
-The [Storage Guide](../tools/pingstore/README.md) owns layout, stage IDs,
-input provenance, validation and immutability. Stages are execution labels, not
-mutable lifecycle states. The shared implementation is `tools/pingstore/stages.py`.
+## 3. Run records
 
-All operational runs require `pingstore.run/v3`: required `run.json` and `export/`,
-optional `README.md` and `provenance/`. All three stages put outputs in `export/`;
-compute/analyse may nest files, while present exports are flat publication inputs.
-Execution attachments belong in `provenance/`, outside the copyable output.
-Run provenance is always authoritative in `run.json`. Use `StageRun.export` and
-`StageRun.provenance` when writing; use validated `SourceRun.export` (the declared
-scientific root), `SourceRun.outputs` (the whole export), and
-`SourceRun.presentation` (validated v3 present export) when reading.
-Writers and readers must reject v2; existing shared helpers that still accept
-it require revision and do not provide an exception to this contract.
+Every completed run contains exactly `run.json`, `README.md`, and `export/`.
 
-`pingstore discover` validates all completed runs and lists populated present
-exports. Every visible candidate must pass v3 schema, layout and checksum
-validation; v2 fails discovery rather than being listed or silently skipped.
-Compute/analyse runs are excluded regardless of file contents. Preview selects a
-listed run and renders the current Typst source; it does not change Pingstore, `.artifacts/` or
-the published site. Writings must
-use article-scoped `data-file()` bindings; see the [Writing Guide](../writings/README.md).
-Publication is separately authorized: materialize the explicitly selected run's
-complete `export/` into `.artifacts/<experiment>/`, then build/publish. V2
-presentations are not valid publication inputs.
+- Put machine-readable execution history in `run.json` once.
+- Put human-readable history in README.
+- Put scientific outputs required by downstream stages in `export/`.
+- Put supporting machine-consumed records under `export/evidence/` when they are
+  genuinely scientific outputs rather than duplicate provenance.
 
-## 5. Progressive example
+Do not create `provenance/`, copied command manifests, replay scripts, source
+patches, or parallel provenance envelopes. The shared stage helper already
+records command, environment, configuration, Git commit, dirty state, lockfile
+checksum, inputs, and timing in `run.json`.
 
-Compute produces `exp022-r001-compute`; analyse reads it and produces
-`exp022-r002-analyse`; present reads that and produces
-`exp022-r003-present`. Preview selects the third run.
+Use `StageRun.export` for primary outputs and `StageRun.evidence` for supporting
+scientific records. Read sources through validated `SourceRun.export` or
+`SourceRun.outputs`; supporting records are under `SourceRun.outputs / "evidence"`.
 
-- Change colours: present the same analysis again, producing a new run.
-- Change an estimator: analyse the same compute evidence, then present explicitly.
-- Change simulation conditions: compute again, then explicitly analyse and present.
-- Change prose: edit Typst and refresh preview with the same presentation run.
+Present exports remain flat publication inputs and therefore do not use
+`StageRun.evidence`. Presentation lineage belongs in `run.json` or the exported
+`numbers.json` when required.
 
-## 6. Migration boundary
+## 4. Input identity
 
-All experiments, including exp022 and flat `expXXX.py` runners, must write and
-consume validated v3 runs. Existing v2 readers and capture paths are nonconforming;
-this requirement does not itself change code, migrate evidence or authorize execution.
-Old hidden v2 reservations must not be completed or silently converted. New
-execution requires a fresh v3 reservation.
+Each input role stores `{run_id, payload_digest}`. The digest covers all export
+bytes. Readers validate the source and compare that pair before use and again
+before completion. They do not pin `run.json` bytes: correcting metadata or
+README history must not invalidate scientific descendants.
 
-The three local staged exp022 runs were explicitly migrated to v3 with recoverable
-originals; see [the migration record](exp022/README.md). Historical v2 runs remain
-unchanged as non-operational evidence. Historical inspection for migration/recovery
-and migration require separate explicit authorization and recoverable originals.
-Every operational input pin must resolve to validated v3 evidence; a migrated
-manifest alone does not repair missing or v2 upstream references.
+Large inputs remain in their source runs. A downstream run stores references and
+its own outputs rather than copying upstream payloads. Keep all referenced runs
+when transferring a derived result.
 
-Preserve existing completed-run identities unless a migration is explicitly
-authorized. A historical import must preserve scientific bytes and checkpoint
-roles without claiming retraining. Historical rasters lacking raw snapshots may
-be explicitly carried from a validated v3 source, retaining their original lineage
-and making no claim of regeneration. Importing unmigrated historical evidence is
-a separately authorized operation governed by the Storage Guide.
+## 5. Preview and publication
+
+`pingstore discover` validates completed v4 runs and lists populated present
+exports. Preview selects one of those runs and renders current Typst source; it
+does not mutate Pingstore or published artifacts.
+
+Publication is separately authorized. Materialize the complete flat export of
+an explicitly selected present run into `.artifacts/<experiment>/`, then build or
+publish. Compute and analyse runs cannot be published directly.
+
+## 6. Historical work
+
+V2 and v3 runs and incomplete reservations are non-operational historical
+evidence. Migration must be explicit and recoverable. It does not claim that an
+experiment was rerun and does not authorize publication or remote-store changes.
+
+Ground scientific claims in retained outputs and history, not current code alone.
+Preserve scientific definitions and distinguish an import or metadata migration
+from training, inference, analysis, or plotting.
+
+## 7. Applying this guide
+
+Read the live target, recipe, dependencies, and relevant tests before editing.
+Preserve unrelated changes and scientific choices. A guide update does not
+authorize execution, migration, publication, or rewriting evidence unless the
+user separately requests that operation.
+
+Review the live diff and run proportionate tests. Report what was not executed
+or verified. If a reusable rule needs improvement, propose exact wording and ask
+before changing the guide outside the requested scope.
+
+## 8. Version history
+
+- **4.0.0** — Adopt the v4 three-entry run root, mandatory README history,
+  export-only digests, compact input pins, and `export/evidence/` for supporting
+  scientific outputs.
+- **3.0.0** — Adopted source-neutral staged IDs.
+- **2.0.0** — Required v3 execution.
+- **1.0.0** — Versioned the runner guide.

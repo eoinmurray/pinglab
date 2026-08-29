@@ -276,7 +276,6 @@ def test_failure_remains_hidden_and_preserves_prior_runs(repo, monkeypatch, stag
     "change",
     [
         "payload",
-        "provenance",
         "manifest",
         "schema",
         "stage",
@@ -290,12 +289,8 @@ def test_invalid_sources_fail_closed(repo, change):
     root, _ = repo
     identity = compute.compute()
     source = inputs.source(root, identity, "compute")
-    if change in {"payload", "provenance"}:
-        path = (
-            source.export / "held_out_correctness.npz"
-            if change == "payload"
-            else source.directory / "provenance/run.sh"
-        )
+    if change == "payload":
+        path = source.export / "held_out_correctness.npz"
         path.write_bytes(path.read_bytes() + b"tampered")
     elif change in {"manifest", "schema", "stage", "recipe"}:
         record = load_json(source.directory / "run.json")
@@ -333,7 +328,7 @@ def test_invalid_sources_fail_closed(repo, change):
     assert not list((root / ".pingstore/runs").glob("exp080-*-analyse"))
 
 
-def test_presentation_rechecks_transitive_ancestry_during_execution(repo, monkeypatch):
+def test_presentation_allows_transitive_metadata_amendment_during_execution(repo, monkeypatch):
     root, _ = repo
     compute_id = compute.compute()
     analysis_id = analyse.analyse(compute_id)
@@ -347,9 +342,8 @@ def test_presentation_rechecks_transitive_ancestry_during_execution(repo, monkey
         write_json_atomic(source.directory / "run.json", record)
 
     monkeypatch.setattr(present.plots, "plot_training", mutate)
-    with pytest.raises(PingstoreError, match="source changed"):
-        present.present(analysis_id)
-    assert not list((root / ".pingstore/runs").glob("exp080-*-present"))
+    presentation_id = present.present(analysis_id)
+    assert (root / ".pingstore/runs" / presentation_id).is_dir()
 
 
 def test_reservations_are_source_neutral_atomic_and_not_reusable(repo):

@@ -24,13 +24,6 @@ def compute(*, run_id: str | None = None) -> str:
     ) as run:
         environment = {"PINGLAB_SMOKE": "1" if smoke else "0"}
         run.record["execution"]["environment"] = environment
-        write_json_atomic(run.provenance / "command.json", run.record["execution"])
-        replay = run.provenance / "run.sh"
-        replay.write_text(
-            replay.read_text().replace(
-                "\nexec ", f"\nexport PINGLAB_SMOKE={int(smoke)}\nexec ", 1
-            )
-        )
         commands = []
         for relative, scientific_args in recipe.simulations(smoke=smoke):
             destination = run.export / relative
@@ -41,7 +34,7 @@ def compute(*, run_id: str | None = None) -> str:
             args = [*scientific_args, "--out-dir", str(destination)]
             commands.append({"output": relative, "arguments": args})
             write_json_atomic(
-                run.provenance / "simulations.json", {"commands": commands}
+                run.evidence / "simulations.json", {"commands": commands}
             )
             run_cli(args, no_sync=True)
             if not (destination / "snapshot.npz").is_file():
@@ -52,7 +45,7 @@ def compute(*, run_id: str | None = None) -> str:
             for name in ("config.json", "run.sh", "output.log", "run.jsonl"):
                 attachment = destination / name
                 if attachment.exists():
-                    target = run.provenance / "simulations" / relative / name
+                    target = run.evidence / "simulations" / relative / name
                     target.parent.mkdir(parents=True, exist_ok=True)
                     attachment.rename(target)
     return run.run_id

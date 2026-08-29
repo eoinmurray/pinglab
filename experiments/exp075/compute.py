@@ -40,7 +40,7 @@ def compute(*, run_id=None):
         bundle = author_bundle()
         bundle.write(run.export / "network.bundle", visualise=False)
         run_training(
-            run.export / "network.bundle", run.export / "training", run.provenance
+            run.export / "network.bundle", run.export / "training", run.evidence
         )
     return run.run_id
 

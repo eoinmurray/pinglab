@@ -207,7 +207,7 @@ def test_independent_stages_preserve_bank_and_do_not_publish(lab, monkeypatch):
     assert set(run.record["inputs"]) == {"bank"}
     original = load_json(
         run.directory
-        / "provenance/simulations/frontier/coba__off__seed42/metrics.original.json"
+        / "export/evidence/simulations/frontier/coba__off__seed42/metrics.original.json"
     )
     assert "seed" not in original["config"] and "tau_gaba_ms" not in original["config"]
     corrected = load_json(run.export / "frontier/coba__off__seed42/metrics.json")
@@ -277,15 +277,14 @@ def test_raw_payload_corruption_blocks_analysis(lab):
         analyse.analyse(identity)
 
 
-def test_ancestor_manifest_drift_blocks_analysis(lab):
+def test_ancestor_metadata_amendment_does_not_change_payload_identity(lab):
     root, bank_id, _ = lab
     identity = compute.compute(bank_id)
     path = root / ".pingstore/runs" / bank_id / "run.json"
     record = load_json(path)
     record["execution"]["note"] = "changed"
     write_json_atomic(path, record)
-    with pytest.raises(PingstoreError, match="checksum"):
-        analyse.analyse(identity)
+    assert analyse.analyse(identity).endswith("-analyse")
 
 
 def test_inference_failure_stays_hidden(lab, monkeypatch):

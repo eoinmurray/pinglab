@@ -89,6 +89,7 @@ def test_independent_stages_pin_v3_and_preserve_measurements(stage_repo, monkeyp
     before = payload_digest(upstream)
     assert sorted(p.name for p in (upstream / "export").iterdir()) == [
         "distribution_samples.npz",
+        "evidence",
         "feature_samples.npz",
     ]
     monkeypatch.setattr(
@@ -158,7 +159,7 @@ def test_downstream_rejects_v2_even_when_typed(stage_repo, stage):
         },
     )
     validate_run_directory(directory)
-    with pytest.raises(PingstoreError, match="requires v3"):
+    with pytest.raises(PingstoreError, match="requires v4"):
         (analyse.analyse if stage == "compute" else present.present)(identity)
     assert len(list((repo / ".pingstore/runs").iterdir())) == 1
 
@@ -173,7 +174,7 @@ def test_wrong_stage_and_tampered_evidence_are_rejected(stage_repo):
     manifest = load_json(root / "run.json")
     manifest["execution"]["configuration"]["seed"] = 999
     write_json_atomic(root / "run.json", manifest)
-    with pytest.raises(PingstoreError, match="checksum changed"):
+    with pytest.raises(PingstoreError, match="recipe or compute lineage"):
         present.present(analysis_id)
     with (root / "export/feature_samples.npz").open("ab") as stream:
         stream.write(b"tampered")
@@ -262,7 +263,7 @@ def test_collection_reserves_dispatches_and_resumes_without_v2_capture(
             repo
             / ".pingstore/runs"
             / f".{identity}.tmp"
-            / "provenance/reservation.json"
+            / ".reservation.json"
         )
         assert reservation["origin"] == "slurm-wilkes"
     calls = []

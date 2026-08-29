@@ -58,9 +58,10 @@ def _shard_paths(repo, run_id, index, count):
 
 @contextlib.contextmanager
 def _compute_lock(directory, *, exclusive):
-    path = directory / "provenance/compute.lock"
+    path = directory / "export/evidence/compute.lock"
     if any(p.is_symlink() for p in (directory, *directory.parents, path.parent, path)):
         raise PingstoreError("compute working paths must not use symlinks")
+    path.parent.mkdir(parents=True, exist_ok=True)
     descriptor = os.open(path, os.O_CREAT | os.O_RDWR | os.O_NOFOLLOW, 0o600)
     with os.fdopen(descriptor, "a+b") as handle:
         try:
@@ -82,7 +83,7 @@ def shard(identity, *, run_id, index, count=recipe.SHARDS):
     cfg = recipe.configuration(smoke=os.environ.get("PINGLAB_SMOKE") == "1")
     directory = _shard_paths(REPO, run_id, index, count)
     with _compute_lock(directory, exclusive=False):
-        folder = directory / "provenance" / "shards" / str(index)
+        folder = directory / "export/evidence" / "shards" / str(index)
         folder.mkdir(parents=True, exist_ok=True)
         lock = folder / "writer.lock"
         try:
@@ -178,15 +179,15 @@ def compute(identity, *, run_id=None, collect=False):
     directory = _shard_paths(REPO, run_id, 0, recipe.SHARDS)
     with _compute_lock(directory, exclusive=True):
         _shard_paths(REPO, run_id, 0, recipe.SHARDS)
-        if not collect and (directory / "provenance/shards").exists():
+        if not collect and (directory / "export/evidence/shards").exists():
             raise PingstoreError("sharded work requires explicit --collect")
         if collect:
             directory = _shard_paths(REPO, run_id, 0, recipe.SHARDS)
-            if list((directory / "provenance/shards").glob("*/writer.lock")):
+            if list((directory / "export/evidence/shards").glob("*/writer.lock")):
                 raise PingstoreError("compute shards are still running")
             for index in range(recipe.SHARDS):
                 record = load_json(
-                    directory / "provenance/shards" / str(index) / "completed.json"
+                    directory / "export/evidence/shards" / str(index) / "completed.json"
                 )
                 if (
                     record.get("run_id") != run_id
@@ -205,7 +206,7 @@ def compute(identity, *, run_id=None, collect=False):
             if collect:
                 for index in range(recipe.SHARDS):
                     marker = load_json(
-                        run.provenance / "shards" / str(index) / "completed.json"
+                        run.evidence / "shards" / str(index) / "completed.json"
                     )
                     if marker["source"] != run.record["provenance"]:
                         raise PingstoreError(
@@ -213,21 +214,10 @@ def compute(identity, *, run_id=None, collect=False):
                         )
             environment = {"PINGLAB_SMOKE": "1" if cfg["profile"] == "smoke" else "0"}
             run.record["execution"]["environment"] = environment
-            write_json_atomic(run.provenance / "command.json", run.record["execution"])
-            replay = run.provenance / "run.sh"
-            replay.write_text(
-                replay.read_text()
-                .replace(" --collect", "")
-                .replace(
-                    "\nexec ",
-                    f"\nexport PINGLAB_SMOKE={environment['PINGLAB_SMOKE']}\nexec ",
-                    1,
-                )
-            )
             with tempfile.TemporaryDirectory(
                 prefix=".scratch-", dir=run.directory
             ) as tmp:
-                simulator = Simulator(Path(tmp), run.provenance / "commands", cfg)
+                simulator = Simulator(Path(tmp), run.evidence / "commands", cfg)
                 if not collect:
                     _run_jobs(simulator, bank, run.export, recipe.jobs(cfg))
                 raster = cfg["raster"]

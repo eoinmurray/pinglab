@@ -215,7 +215,7 @@ def test_independent_stages_and_explicit_immutable_ancestry(lab, monkeypatch):
 
 @pytest.mark.parametrize(
     "corruption",
-    ["payload", "manifest", "v2", "wrong-stage", "wrong-experiment", "recipe"],
+    ["payload", "v2", "wrong-stage", "wrong-experiment", "recipe"],
 )
 def test_invalid_evidence_is_rejected_before_allocation(lab, corruption):
     repo, modules, compute, analyse = chain(lab)
@@ -379,7 +379,7 @@ def test_simulator_execution_attachments_are_retained_as_provenance(tmp_path):
 
     output = tmp_path / "export"
     output.mkdir()
-    provenance = tmp_path / "provenance"
+    provenance = tmp_path / "export/evidence"
     provenance.mkdir()
     for name in ("run.sh", "run.jsonl", "output.log", "metrics.json"):
         (output / name).write_text(name)
@@ -389,9 +389,8 @@ def test_simulator_execution_attachments_are_retained_as_provenance(tmp_path):
         "simulator",
         [sys.executable, "-c", "pass", "--out-dir", str(output)],
     )
-    assert [path.name for path in output.iterdir()] == ["metrics.json"]
+    assert sorted(path.name for path in output.iterdir()) == ["evidence", "metrics.json"]
     assert {path.name for path in (provenance / "simulator").iterdir()} == {
-        "run.sh",
         "run.jsonl",
         "output.log",
     }

@@ -120,7 +120,7 @@ def lab(tmp_path, monkeypatch):
                 i_counts=np.ones(shape, dtype=np.int64),
                 labels=np.zeros(shape, dtype=np.int64),
             )
-            attachment = self.directory / "provenance/simulations" / job["path"]
+            attachment = self.directory / "export/evidence/simulations" / job["path"]
             attachment.mkdir(parents=True)
             write_json_atomic(attachment / "command.json", {"fixture": True})
 
@@ -255,7 +255,7 @@ def test_missing_source_never_allocates(lab, stage):
     assert set((repo / ".pingstore/runs").iterdir()) == before
 
 
-@pytest.mark.parametrize("target", ["payload", "manifest", "v2", "root", "symlink"])
+@pytest.mark.parametrize("target", ["payload", "v2", "root", "symlink"])
 def test_source_corruption_rejected(lab, target):
     repo, bank, _ = lab
     cid = compute.compute(bank)

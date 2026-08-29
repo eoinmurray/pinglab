@@ -66,7 +66,7 @@ def reserve(repo: Path, row: dict, *, origin: str | None = None) -> dict:
                 record["run_id"] == identity
                 and record["experiment"] == recipe.SLUG
                 and record["stage"] == stage
-                and not (temporary / "provenance/writer.lock").exists()
+                and not (temporary / ".writer.lock").exists()
             ):
                 continue
         identities[stage] = reserve_stage(
