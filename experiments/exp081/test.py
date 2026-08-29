@@ -258,7 +258,12 @@ def test_collection_reserves_dispatches_and_resumes_without_v2_capture(
     identities = collection.reserve(repo, row, origin="slurm-wilkes")
     for stage, identity in identities.items():
         assert identity.endswith("-" + stage)
-        reservation = load_json(repo / ".pingstore/runs" / f".{identity}.tmp" / "provenance/reservation.json")
+        reservation = load_json(
+            repo
+            / ".pingstore/runs"
+            / f".{identity}.tmp"
+            / "provenance/reservation.json"
+        )
         assert reservation["origin"] == "slurm-wilkes"
     calls = []
 

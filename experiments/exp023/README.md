@@ -64,7 +64,7 @@ nonconforming implementations, not permitted compatibility exceptions.
 Tests use fabricated arrays in temporary stores, not scientific experiments:
 
 ```sh
-uv run pytest experiments/tests/test_exp023_drive_provenance.py experiments/tests/test_exp023_stages.py
+uv run pytest experiments/exp023/test.py
 ```
 
 Run IDs now use the [source-neutral convention](../../tools/pingstore/SOURCE_NEUTRAL_IDS.md).

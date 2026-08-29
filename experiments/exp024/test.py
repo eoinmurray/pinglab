@@ -26,24 +26,44 @@ from pingstore.layout import initialize_layout
 def repo(tmp_path, monkeypatch):
     monkeypatch.setattr(analyse, "REPO", tmp_path)
     monkeypatch.setattr(present, "REPO", tmp_path)
-    monkeypatch.setattr(stages, "memberships", lambda repo: {"exp022": "demo", "exp024": "demo"})
-    monkeypatch.setattr(stages, "_capture_code", lambda *args: {"git_commit": "fixture", "dirty": False})
+    monkeypatch.setattr(
+        stages, "memberships", lambda repo: {"exp022": "demo", "exp024": "demo"}
+    )
+    monkeypatch.setattr(
+        stages, "_capture_code", lambda *args: {"git_commit": "fixture", "dirty": False}
+    )
     return tmp_path
 
 
 def config(model, seed):
     return {
-        "training_cell_name": recipe.cell_name(model, seed), "training_run_id": "TR-02",
-        "seed": seed, "dataset": "mnist", "readout_mode": "mem-mean",
-        "fr_reg_upper_strength": 0, "ei_strength": 0 if model == "coba" else 1,
-        "epochs": 12, "t_ms": 200, "dt": .1, "batch_size": 256,
-        "max_samples": 7000, "n_in": 784, "n_hidden": 1024, "n_inh": 256,
-        "n_out": 10, "input_rate": 25, "v_grad_dampen": 1 if model == "coba" else 1000,
-        "lr": .0004, "validation_encoder_draws": {"count": 3},
-        "dataset_split": {"checkpoint_selection_partition": "validation",
-                          "official_test_used_during_training": False,
-                          "optimizer_train_samples": 6300, "validation_samples": 700,
-                          "official_test_samples": 10000},
+        "training_cell_name": recipe.cell_name(model, seed),
+        "training_run_id": "TR-02",
+        "seed": seed,
+        "dataset": "mnist",
+        "readout_mode": "mem-mean",
+        "fr_reg_upper_strength": 0,
+        "ei_strength": 0 if model == "coba" else 1,
+        "epochs": 12,
+        "t_ms": 200,
+        "dt": 0.1,
+        "batch_size": 256,
+        "max_samples": 7000,
+        "n_in": 784,
+        "n_hidden": 1024,
+        "n_inh": 256,
+        "n_out": 10,
+        "input_rate": 25,
+        "v_grad_dampen": 1 if model == "coba" else 1000,
+        "lr": 0.0004,
+        "validation_encoder_draws": {"count": 3},
+        "dataset_split": {
+            "checkpoint_selection_partition": "validation",
+            "official_test_used_during_training": False,
+            "optimizer_train_samples": 6300,
+            "validation_samples": 700,
+            "official_test_samples": 10000,
+        },
     }
 
 
@@ -54,23 +74,47 @@ def make_compute(repo, *, schema=RUN_SCHEMA, mutation=None):
     for model in recipe.MODELS:
         for seed in recipe.SEEDS:
             cfg = config(model, seed)
-            metrics = {"epochs": [{
-                "ep": epoch, "acc": 90 + epoch * .02, "loss": 1 / epoch,
-                "test_loss": .4 + .01 / epoch, "test_rate_e": (100 + epoch) if model == "coba" else (10 + epoch * .08),
-                "test_rate_i": 0 if model == "coba" else 60 + epoch,
-                "weight_norms": {"W_ff.0": 2 + epoch, "W_ff.1": 50 + epoch * .1},
-            } for epoch in range(1, 13)]}
+            metrics = {
+                "epochs": [
+                    {
+                        "ep": epoch,
+                        "acc": 90 + epoch * 0.02,
+                        "loss": 1 / epoch,
+                        "test_loss": 0.4 + 0.01 / epoch,
+                        "test_rate_e": (100 + epoch)
+                        if model == "coba"
+                        else (10 + epoch * 0.08),
+                        "test_rate_i": 0 if model == "coba" else 60 + epoch,
+                        "weight_norms": {
+                            "W_ff.0": 2 + epoch,
+                            "W_ff.1": 50 + epoch * 0.1,
+                        },
+                    }
+                    for epoch in range(1, 13)
+                ]
+            }
             if mutation:
                 mutation(cfg, metrics)
             cell = directory / "export/cells" / recipe.cell_name(model, seed)
             write_json_atomic(cell / "config.json", cfg)
             write_json_atomic(cell / "metrics.json", metrics)
-    write_json_atomic(directory / "run.json", {
-        "schema": schema, "run_id": identity, "experiment": "exp022", "collection": "demo",
-        "origin": "local", "stage": "compute", "inputs": {}, "export_root": "export/cells",
-        "created_at": "2026-08-27T12:00:00+00:00", "execution": {}, "provenance": {},
-        "payload_digest": payload_digest(directory),
-    })
+    write_json_atomic(
+        directory / "run.json",
+        {
+            "schema": schema,
+            "run_id": identity,
+            "experiment": "exp022",
+            "collection": "demo",
+            "origin": "local",
+            "stage": "compute",
+            "inputs": {},
+            "export_root": "export/cells",
+            "created_at": "2026-08-27T12:00:00+00:00",
+            "execution": {},
+            "provenance": {},
+            "payload_digest": payload_digest(directory),
+        },
+    )
     return identity, directory
 
 
@@ -96,7 +140,9 @@ def test_stages_pin_sources_preserve_measurements_and_never_publish(repo):
     analysis_root = repo / ".pingstore/runs" / analysis_id
     results = load_json(analysis_root / "export/results.json")
     assert results["models"]["coba"]["final_e_rate_hz"]["mean"] == 112
-    assert results["models"]["ping"]["e_rate_slope_last10_hz_per_ep"]["mean"] == pytest.approx(.08)
+    assert results["models"]["ping"]["e_rate_slope_last10_hz_per_ep"][
+        "mean"
+    ] == pytest.approx(0.08)
     assert results["models"]["ping"]["e_rate_converged_count"] == 0
     assert results["models"]["ping"]["accuracy_converged_count"] == 3
     assert results["config"]["epochs"] == 12
@@ -120,15 +166,18 @@ def test_stages_pin_sources_preserve_measurements_and_never_publish(repo):
     assert discover_runs(repo / ".pingstore/runs")[0]["id"] == presentation_id
 
 
-@pytest.mark.parametrize("mutation,match", [
-    (lambda c, m: m["epochs"][0].pop("test_rate_e"), "nonfinite"),
-    (lambda c, m: m["epochs"][0].update(test_loss=float("nan")), "nonfinite"),
-    (lambda c, m: m["epochs"].pop(), "incomplete"),
-    (lambda c, m: m["epochs"][2].update(ep=2), "contiguous"),
-    (lambda c, m: c.update(fr_reg_upper_strength=.041), "fr_reg_upper_strength"),
-    (lambda c, m: c.pop("dataset_split"), "validation split"),
-    (lambda c, m: c.update(seed=999), "seed"),
-])
+@pytest.mark.parametrize(
+    "mutation,match",
+    [
+        (lambda c, m: m["epochs"][0].pop("test_rate_e"), "nonfinite"),
+        (lambda c, m: m["epochs"][0].update(test_loss=float("nan")), "nonfinite"),
+        (lambda c, m: m["epochs"].pop(), "incomplete"),
+        (lambda c, m: m["epochs"][2].update(ep=2), "contiguous"),
+        (lambda c, m: c.update(fr_reg_upper_strength=0.041), "fr_reg_upper_strength"),
+        (lambda c, m: c.pop("dataset_split"), "validation split"),
+        (lambda c, m: c.update(seed=999), "seed"),
+    ],
+)
 def test_invalid_scientific_evidence_leaves_only_hidden_failure(repo, mutation, match):
     identity, _ = make_compute(repo, mutation=mutation)
     with pytest.raises(PingstoreError, match=match):
@@ -163,23 +212,39 @@ def test_present_rejects_wrong_stage_and_rechecks_compute_pin(repo):
 
 def test_diagnostics_use_endpoint_secant_absolute_threshold_and_first_crossing():
     values = [90, 100, 0, 0, 0, 0, 0, 0, 0, 90.45]
-    assert recipe.slope_last_n(values) == pytest.approx(.05)
+    assert recipe.slope_last_n(values) == pytest.approx(0.05)
     assert recipe.accuracy_marker([90, 20, 90]) == 1
     assert recipe.accuracy_marker([0, 0]) is None
     with pytest.raises(ValueError):
         recipe.slope_last_n([1])
-    cell = {"name": "fixture", "model": "ping", "seed": 42, "epochs": [
-        {"acc": 90, "test_rate_e": 20 - i, "test_rate_i": 1, "loss": 1,
-         "test_loss": 1, "weight_norms": {key: 1 for key in recipe.PARAMETERS}}
-        for i in range(10)]}
+    cell = {
+        "name": "fixture",
+        "model": "ping",
+        "seed": 42,
+        "epochs": [
+            {
+                "acc": 90,
+                "test_rate_e": 20 - i,
+                "test_rate_i": 1,
+                "loss": 1,
+                "test_loss": 1,
+                "weight_norms": {key: 1 for key in recipe.PARAMETERS},
+            }
+            for i in range(10)
+        ],
+    }
     assert analyse.diagnose(cell)["e_rate_converged"] is False
 
 
 def test_presentation_does_not_invoke_analysis(repo, monkeypatch):
     identity, _ = make_compute(repo)
     analysis_id = analyse.analyse(identity)
-    monkeypatch.setattr(analyse, "analyse", lambda *a, **k: pytest.fail("upstream execution"))
-    monkeypatch.setattr(analyse, "read_cell", lambda *a, **k: pytest.fail("training cell read"))
+    monkeypatch.setattr(
+        analyse, "analyse", lambda *a, **k: pytest.fail("upstream execution")
+    )
+    monkeypatch.setattr(
+        analyse, "read_cell", lambda *a, **k: pytest.fail("training cell read")
+    )
     present.present(analysis_id)
 
 
@@ -187,9 +252,11 @@ def test_collection_dispatch_tracks_runs_without_materialization(repo, monkeypat
     identity, _ = make_compute(repo)
     manifest = repo / "campaign/campaign.json"
     write_json_atomic(manifest, {"pingstore_run_id": identity})
-    row = {"execution": {"mode": "exp024-staged"},
-           "paths": {"state": str(repo / "campaign/downstream/exp024")},
-           "required_outputs": [str(repo / "campaign/downstream/exp024/stage-refs.json")]}
+    row = {
+        "execution": {"mode": "exp024-staged"},
+        "paths": {"state": str(repo / "campaign/downstream/exp024")},
+        "required_outputs": [str(repo / "campaign/downstream/exp024/stage-refs.json")],
+    }
     plan = {"exp022_manifest": str(manifest)}
     reserved = collection.reserve(repo, row, origin="slurm-wilkes")
     calls = []
@@ -198,7 +265,9 @@ def test_collection_dispatch_tracks_runs_without_materialization(repo, monkeypat
         calls.append(command)
         source = command[command.index("--source") + 1]
         run_id = command[command.index("--run-id") + 1]
-        function = analyse.analyse if command[2].endswith("analyse") else present.present
+        function = (
+            analyse.analyse if command[2].endswith("analyse") else present.present
+        )
         function(source, run_id=run_id)
         return SimpleNamespace(stdout=run_id + "\n")
 
@@ -216,13 +285,17 @@ def test_collection_dispatch_tracks_runs_without_materialization(repo, monkeypat
         collection.execute(repo, plan, old)
 
 
-def test_collection_retries_presentation_with_fresh_id_and_reuses_analysis(repo, monkeypatch):
+def test_collection_retries_presentation_with_fresh_id_and_reuses_analysis(
+    repo, monkeypatch
+):
     identity, _ = make_compute(repo)
     manifest = repo / "campaign/campaign.json"
     write_json_atomic(manifest, {"pingstore_run_id": identity})
-    row = {"execution": {"mode": "exp024-staged"},
-           "paths": {"state": str(repo / "campaign/exp024")},
-           "required_outputs": [str(repo / "campaign/exp024/stage-refs.json")]}
+    row = {
+        "execution": {"mode": "exp024-staged"},
+        "paths": {"state": str(repo / "campaign/exp024")},
+        "required_outputs": [str(repo / "campaign/exp024/stage-refs.json")],
+    }
     plan = {"exp022_manifest": str(manifest)}
     calls = []
     original_plot = present.plot_model_curves
@@ -252,17 +325,26 @@ def test_collection_retries_presentation_with_fresh_id_and_reuses_analysis(repo,
     assert calls.count("experiments.exp024.analyse") == 1
     assert refs["present"]["run_id"] not in failed.name
     assert payload_digest(failed) == failed_digest
-    assert collection.completed(repo, plan, row).record["run_id"] == refs["present"]["run_id"]
+    assert (
+        collection.completed(repo, plan, row).record["run_id"]
+        == refs["present"]["run_id"]
+    )
 
 
 @pytest.mark.parametrize("entrypoint", ["analyse.py", "present.py"])
 def test_cli_requires_explicit_source_and_resolves_outside_repo(tmp_path, entrypoint):
     script = Path(__file__).parents[1] / "exp024" / entrypoint
-    result = subprocess.run([sys.executable, str(script), "--help"], cwd=tmp_path,
-                            capture_output=True, text=True)
+    result = subprocess.run(
+        [sys.executable, str(script), "--help"],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+    )
     assert result.returncode == 0
     assert "--source" in result.stdout
-    result = subprocess.run([sys.executable, str(script)], cwd=tmp_path, capture_output=True, text=True)
+    result = subprocess.run(
+        [sys.executable, str(script)], cwd=tmp_path, capture_output=True, text=True
+    )
     assert result.returncode != 0
     assert "--source" in result.stderr
     assert not (tmp_path / ".pingstore").exists()

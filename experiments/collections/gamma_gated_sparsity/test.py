@@ -25,12 +25,15 @@ from experiments.collections.gamma_gated_sparsity.graph import (
     ordered_experiments,
 )
 from experiments.collections.gamma_gated_sparsity.plan import REPO, build_plan
+from experiments.collections.gamma_gated_sparsity.testing import (
+    slurm_resources as _slurm_resources,
+)
 from experiments.exp023 import collection as exp023_collection
 from experiments.exp024 import collection as exp024_collection
 from experiments.exp025 import collection as exp025_collection
+from experiments.exp033 import collection as exp033_collection
 from experiments.exp037 import collection as exp037_collection
 from experiments.exp038 import collection as exp038_collection
-from experiments.exp033 import collection as exp033_collection
 from experiments.exp041 import collection as exp041_collection
 from experiments.exp042 import collection as exp042_collection
 from experiments.exp044 import collection as exp044_collection
@@ -261,7 +264,7 @@ def test_local_resume_runs_in_dependency_order(tmp_path: Path, monkeypatch) -> N
     monkeypatch.setattr(execution, "source_provenance", lambda: plan["source"])
 
     # Scientific work is mocked here; real stage-reference validation has its
-    # own fixture-run coverage in test_exp024_stages.py and test_exp081.py.
+    # own fixture-run coverage in exp024/test.py and exp081/test.py.
     for adapter in (exp023_collection, exp024_collection, exp025_collection, exp033_collection, exp037_collection, exp038_collection, exp041_collection, exp042_collection, exp044_collection, exp046_collection, exp047_collection, exp049_collection, exp054_collection, exp080_collection, exp081_collection, exp082_collection):
         monkeypatch.setattr(adapter, "completed", lambda repo, plan, row:
                             execution.load_json(Path(row["required_outputs"][0])))
@@ -656,29 +659,6 @@ def test_publication_build_rejects_stubbed_entries(tmp_path: Path, monkeypatch) 
     monkeypatch.setattr(execution.subprocess, "run", fake_run)
     with pytest.raises(execution.CollectionError, match="stubbed"):
         execution.build_publication(root, checkout)
-
-
-def _slurm_resources(tmp_path: Path) -> dict:
-    return {
-        "account": "SL2-test",
-        "partition": "ampere",
-        "mnist_cache": str(tmp_path / "mnist"),
-        "uv": "/usr/bin/uv",
-        "exp022": {
-            tier: {
-                "time": "01:00:00",
-                "cpus": 4,
-                "memory_gb": 16,
-                "gpus": 1,
-                "concurrency": 2,
-            }
-            for tier in slurm.TIERS
-        },
-        "jobs": {
-            kind: {"time": "00:30:00", "cpus": 2, "memory_gb": 8, "gpus": 0}
-            for kind in ("aggregate", "downstream", "heavy_downstream", "finalize")
-        },
-    }
 
 
 def test_slurm_resources_require_every_measured_tier(tmp_path: Path) -> None:

@@ -11,7 +11,7 @@ from pathlib import Path
 import pytest
 from demolab_cli import _paths
 
-ROOT = Path(__file__).resolve().parents[2]
+ROOT = Path(__file__).resolve().parents[1]
 WRITINGS = ROOT / "writings"
 REPORTS = [
     path.stem for path in sorted(WRITINGS.glob("exp*.typ"))

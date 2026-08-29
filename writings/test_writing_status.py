@@ -9,7 +9,7 @@ from pathlib import Path
 import pytest
 from demolab_cli import _paths
 
-ROOT = Path(__file__).resolve().parents[2]
+ROOT = Path(__file__).resolve().parents[1]
 ARTICLES = sorted((ROOT / "writings").glob("exp[0-9][0-9][0-9].typ"))
 STATUSES = {
     "[≡ TXT]",

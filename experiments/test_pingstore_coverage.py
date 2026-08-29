@@ -4,7 +4,7 @@ from pathlib import Path
 
 from pingstore.registry import coverage
 
-REPO = Path(__file__).resolve().parents[2]
+REPO = Path(__file__).resolve().parents[1]
 
 
 def test_every_runnable_experiment_has_membership_and_capture_route() -> None:

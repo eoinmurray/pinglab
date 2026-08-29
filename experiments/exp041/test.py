@@ -16,7 +16,7 @@ from experiments.exp041 import (
     present,
     recipe,
 )
-from experiments.tests.test_exp044_provenance import _common_config
+from experiments.exp044.test import _common_config
 from pingstore import stages
 from pingstore.contracts import (
     PingstoreError,

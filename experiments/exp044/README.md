@@ -82,7 +82,7 @@ runs. They exercise stage separation, checkpoint policy, measurements, failure
 handling, v3 lineage, collection dispatch and selected-input Typst rendering.
 
 ```sh
-uv run pytest experiments/tests/test_exp044_provenance.py experiments/tests/test_exp044_stages.py
+uv run pytest experiments/exp044/test.py
 ```
 
 The conformance verification passed 214 tests, including checkpoint/smoke rules,

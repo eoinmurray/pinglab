@@ -222,10 +222,10 @@ The shared collection test's pre-existing exp033 import-order lint was left
 untouched at the ownership handoff. Commands:
 
 ```sh
-uv run --no-sync pytest -q experiments/tests/test_exp047_stages.py experiments/tests/test_exp023_stages.py experiments/tests/test_exp081.py experiments/tests/test_gamma_gated_sparsity_collection.py tools/pingstore/tests
-uv run --no-sync ruff check experiments/exp047 experiments/tests/test_exp047_stages.py
-uv run --no-sync ruff format --check experiments/exp047 experiments/tests/test_exp047_stages.py
-uv run --no-sync ty check experiments/exp047 experiments/tests/test_exp047_stages.py
+uv run --no-sync pytest -q experiments/exp047/test.py experiments/exp023/test.py experiments/exp081/test.py experiments/collections/gamma_gated_sparsity/test.py tools/pingstore/tests
+uv run --no-sync ruff check experiments/exp047
+uv run --no-sync ruff format --check experiments/exp047
+uv run --no-sync ty check experiments/exp047/test.py
 ```
 
 Not performed: real simulator execution, Slurm submission, spike-level

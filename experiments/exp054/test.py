@@ -13,6 +13,7 @@ from types import SimpleNamespace
 import numpy as np
 import pytest
 from experiments.exp033 import measurements as mf_measurements
+from experiments.exp033.test import synthetic
 from experiments.exp054 import (
     analyse,
     collection,
@@ -24,7 +25,6 @@ from experiments.exp054 import (
     present,
     recipe,
 )
-from experiments.tests.test_exp033_stages import synthetic
 from pingstore import stages
 from pingstore.contracts import (
     PingstoreError,
@@ -706,7 +706,7 @@ def test_scheduler_reserves_exp054_before_dispatch_without_running_jobs(
 ):
     from experiments.collections.gamma_gated_sparsity import execution, slurm
     from experiments.collections.gamma_gated_sparsity.plan import build_plan
-    from experiments.tests.test_gamma_gated_sparsity_collection import _slurm_resources
+    from experiments.collections.gamma_gated_sparsity.testing import slurm_resources
 
     campaign = tmp_path / "campaign"
     plan = build_plan(campaign, "fixture", smoke=True)
@@ -717,7 +717,7 @@ def test_scheduler_reserves_exp054_before_dispatch_without_running_jobs(
     )
     write_json_atomic(tmp_path / "bank.json", {"manifest_sha256": "a" * 64})
     resources = tmp_path / "resources.json"
-    write_json_atomic(resources, _slurm_resources(tmp_path))
+    write_json_atomic(resources, slurm_resources(tmp_path))
     monkeypatch.setattr(slurm, "REPO", tmp_path)
     monkeypatch.setattr(slurm, "load_plan", lambda *a: plan)
     monkeypatch.setattr(

@@ -19,7 +19,7 @@ from pathlib import Path
 
 import pytest
 
-EXPERIMENTS = Path(__file__).resolve().parents[1]
+EXPERIMENTS = Path(__file__).resolve().parent
 
 from experiments.helpers.cli import ALL_META_FLAGS
 

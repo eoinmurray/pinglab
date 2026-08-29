@@ -43,7 +43,7 @@ automatically selected or published run.
 
 ## Verification
 
-The shared synthetic tests in `experiments/tests/test_snnlang_stages.py` exercise
+The shared synthetic tests in `experiments/helpers/test_snnlang_stages.py` exercise
 stage isolation, explicit inputs, immutable sources, v2 and corruption rejection,
 transitive source changes and failed-stage preservation. Real presentations were
 rendered against the articles in both HTML and paged PDF. Runtime-specific

@@ -8,6 +8,7 @@ import numpy as np
 import pytest
 from experiments.exp041 import analyse as upstream_analyse
 from experiments.exp041 import compute as upstream_compute
+from experiments.exp041 import test as upstream_tests
 from experiments.exp046 import (
     analyse,
     collection,
@@ -17,7 +18,6 @@ from experiments.exp046 import (
     present,
     recipe,
 )
-from experiments.tests import test_exp041_stages as upstream_tests
 from pingstore import stages
 from pingstore.contracts import (
     PingstoreError,

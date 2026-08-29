@@ -11,7 +11,7 @@ from xml.etree import ElementTree
 import pytest
 from demolab_cli import _paths
 
-ROOT = Path(__file__).resolve().parents[2]
+ROOT = Path(__file__).resolve().parents[1]
 
 
 def run(identity, experiment="exp047", origin="local", stage="present"):
@@ -166,6 +166,7 @@ def test_no_experiment_dependencies_shows_dashes(tmp_path):
 
 def test_lab_hook_uses_declared_graph_and_article_reuse():
     from pingstore.presentation_inputs import article_inputs, experiment_dependencies
+
     from writings.prepare import declared_dependencies
 
     data = experiment_dependencies(article_inputs(ROOT), declared_dependencies())

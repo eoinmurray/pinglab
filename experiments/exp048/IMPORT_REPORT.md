@@ -102,8 +102,8 @@ Payload digests for the final chain:
 Final verification command (131 passing tests):
 
 ```sh
-PYTHONDONTWRITEBYTECODE=1 .venv/bin/pytest -q experiments/tests/test_exp048_stages.py tools/pingstore/tests experiments/tests/test_gamma_gated_sparsity_collection.py::test_graph_orders_dependencies_and_replaces_exp048_with_exp082 experiments/tests/test_gamma_gated_sparsity_collection.py::test_plan_paths_are_isolated_and_all_runners_are_integrated
-.venv/bin/ruff check experiments/exp048 experiments/tests/test_exp048_stages.py
+PYTHONDONTWRITEBYTECODE=1 .venv/bin/pytest -q experiments/exp048/test.py tools/pingstore/tests experiments/collections/gamma_gated_sparsity/test.py::test_graph_orders_dependencies_and_replaces_exp048_with_exp082 experiments/collections/gamma_gated_sparsity/test.py::test_plan_paths_are_isolated_and_all_runners_are_integrated
+.venv/bin/ruff check experiments/exp048
 .venv/bin/ty check experiments/exp048
 git diff --check
 ```

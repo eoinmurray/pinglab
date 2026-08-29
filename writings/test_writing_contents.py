@@ -12,7 +12,7 @@ from xml.etree import ElementTree
 import pytest
 from demolab_cli import _paths
 
-ROOT = Path(__file__).resolve().parents[2]
+ROOT = Path(__file__).resolve().parents[1]
 ARTICLES = sorted((ROOT / "writings").glob("exp[0-9][0-9][0-9].typ"))
 SECTION_ORDINAL = re.compile(
     r"^(?:\d+(?:\.\d+)*\.?|[A-Z](?:\.\d+)+\.?)\s|^Appendix [A-Z][.:]\s"

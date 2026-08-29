@@ -1,3 +1,6 @@
+import numpy as np
+from experiments import exp049
+
 """Synthetic staged probes; no production simulations or historical imports."""
 
 import os
@@ -5,8 +8,8 @@ import subprocess
 import sys
 from pathlib import Path
 
-import numpy as np
 import pytest
+from experiments.exp044.test import _common_config
 from experiments.exp049 import (
     analyse,
     collection,
@@ -17,7 +20,6 @@ from experiments.exp049 import (
     present,
     recipe,
 )
-from experiments.tests.test_exp044_provenance import _common_config
 from pingstore import stages
 from pingstore.contracts import (
     PingstoreError,
@@ -627,3 +629,12 @@ def test_bank_contract_rejects_resigned_mismatches(lab, fault):
         compute.compute(bank_id)
     assert not calls
     assert not list((root / ".pingstore/runs").glob("exp049-*-compute"))
+
+
+def test_weight_summaries_keep_e_to_i_and_i_to_e_pruning_separate():
+    w_ei = exp049.weight_summary(np.array([0.1, 0.2, 0.3]), np.array([0.0, 0.0, 0.3]))
+    w_ie = exp049.weight_summary(np.array([0.4, 0.5, 0.6]), np.array([0.4, 0.5, 0.6]))
+
+    assert w_ei["trained_zero_fraction"] == 2 / 3
+    assert w_ie["trained_zero_fraction"] == 0.0
+    assert w_ei["trained_mean"] != w_ie["trained_mean"]

@@ -8,27 +8,42 @@ from pathlib import Path
 
 import pytest
 import torch
-from experiments.exp022 import campaign, fr_strength_pilot
+from experiments import exp022 as exp022_package
+from experiments.exp022 import campaign, fr_strength_pilot, tr06_diagnostic
 from experiments.exp022 import compute as exp022
 from experiments.helpers import archive
 
-CONCRETE_TIERS = ("standard", "fine_dt", "canonical_coba", "canonical_ping", "variable_rate")
+CONCRETE_TIERS = (
+    "standard",
+    "fine_dt",
+    "canonical_coba",
+    "canonical_ping",
+    "variable_rate",
+)
 
 
 def test_registry_has_102_unique_cells_partitioned_once() -> None:
     names = [cell["name"] for cell in exp022.CANONICAL_CELLS]
     assert len(names) == len(set(names)) == 102
-    tiered = [cell["name"] for tier in CONCRETE_TIERS for cell in exp022.cells_in_resource_tier(tier)]
+    tiered = [
+        cell["name"]
+        for tier in CONCRETE_TIERS
+        for cell in exp022.cells_in_resource_tier(tier)
+    ]
     assert sorted(tiered) == sorted(names)
 
 
 def test_tr02_registry_uses_explicit_hz_targets() -> None:
     cells = [
-        cell for cell in exp022.CANONICAL_CELLS
-        if cell["training_run_id"] == "TR-02"
+        cell for cell in exp022.CANONICAL_CELLS if cell["training_run_id"] == "TR-02"
     ]
     assert {cell["rate_target_hz"] for cell in cells} == {
-        None, 25.0, 10.0, 5.0, 2.5, 1.0,
+        None,
+        25.0,
+        10.0,
+        5.0,
+        2.5,
+        1.0,
     }
     for cell in cells:
         args = cell["extra"]
@@ -55,7 +70,9 @@ def test_downstream_contract_interface_is_isolated_and_fail_closed() -> None:
         exp022.require_training_run_cells("TR-06", {"invented-cell"})
 
 
-def test_campaign_python_identity_stays_inside_environment(monkeypatch, tmp_path: Path) -> None:
+def test_campaign_python_identity_stays_inside_environment(
+    monkeypatch, tmp_path: Path
+) -> None:
     bin_dir = tmp_path / "venv" / "bin"
     bin_dir.mkdir(parents=True)
     python = bin_dir / "python"
@@ -64,7 +81,9 @@ def test_campaign_python_identity_stays_inside_environment(monkeypatch, tmp_path
     assert campaign.python_executable() == str(python)
 
 
-def test_campaign_python_identity_normalizes_parent_alias(monkeypatch, tmp_path: Path) -> None:
+def test_campaign_python_identity_normalizes_parent_alias(
+    monkeypatch, tmp_path: Path
+) -> None:
     real_bin = tmp_path / "real" / "venv" / "bin"
     real_bin.mkdir(parents=True)
     python = real_bin / "python"
@@ -102,16 +121,17 @@ def test_every_registered_training_run_has_guide_and_results_sections() -> None:
 
 def test_tr07_low_input_controls_use_production_contract(tmp_path: Path) -> None:
     cells = [
-        cell for cell in exp022.CANONICAL_CELLS
-        if cell["training_run_id"] == "TR-07"
+        cell for cell in exp022.CANONICAL_CELLS if cell["training_run_id"] == "TR-07"
     ]
     assert len(cells) == 12
     assert {cell["seed"] for cell in cells} == {42, 43, 44}
     assert {cell["w_in"] for cell in cells} == {0.05, 0.1, 0.3, 0.9}
     for cell in cells:
         args = exp022.build_train_args(
-            cell, tmp_path / cell["name"],
-            exp022.SUBSET_MAX_SAMPLES, exp022.EPOCHS_STANDARD,
+            cell,
+            tmp_path / cell["name"],
+            exp022.SUBSET_MAX_SAMPLES,
+            exp022.EPOCHS_STANDARD,
         )
         assert args[args.index("--max-samples") + 1] == "7000"
         assert args[args.index("--epochs") + 1] == "50"
@@ -161,7 +181,7 @@ def test_all_resolved_commands_keep_family_contract(tmp_path: Path) -> None:
             assert args[args.index("--max-samples") + 1] == "7000"
         if cell["family"] == "variable_rate":
             assert args[args.index("--readout") + 1] == "spike-count"
-            assert tuple(map(float, args[args.index("--input-rates") + 1:])) == (
+            assert tuple(map(float, args[args.index("--input-rates") + 1 :])) == (
                 exp022.VARIABLE_RATE_TRAINING_RATES_HZ
             )
 
@@ -172,7 +192,10 @@ def test_all_resolved_cells_have_complete_scientific_contract(tmp_path: Path) ->
         samples, epochs = exp022.cell_samples_epochs(cell)
         args = exp022.build_train_args(cell, tmp_path / cell["name"], samples, epochs)
         resolved = campaign.resolved_parameters(
-            cell, args, samples, epochs,
+            cell,
+            args,
+            samples,
+            epochs,
             scientific_contract=exp022.scientific_contract(cell, samples, epochs),
         )
         contract = resolved["scientific_contract"]
@@ -190,7 +213,9 @@ def test_all_resolved_cells_have_complete_scientific_contract(tmp_path: Path) ->
         assert contract["optimizer"]["weight_decay"] == 0.0
         assert contract["optimizer"]["gradient_clip_norm"] == 1.0
         assert contract["dataset"]["optimizer_train_samples"] == round(samples * 0.9)
-        assert contract["dataset"]["validation_samples"] == samples - round(samples * 0.9)
+        assert contract["dataset"]["validation_samples"] == samples - round(
+            samples * 0.9
+        )
         assert contract["dataset"]["official_test_samples"] == 10000
         assert contract["dataset"]["official_test_used_during_training"] is False
         if cell["family"] == "variable_rate":
@@ -210,7 +235,10 @@ def test_every_production_argument_is_mapped_or_operational(tmp_path: Path) -> N
         samples, epochs = exp022.cell_samples_epochs(cell)
         args = exp022.build_train_args(cell, tmp_path / cell["name"], samples, epochs)
         parameters = campaign.resolved_parameters(
-            cell, args, samples, epochs,
+            cell,
+            args,
+            samples,
+            epochs,
             scientific_contract=exp022.scientific_contract(cell, samples, epochs),
         )
         row = {"parameters": parameters}
@@ -240,7 +268,10 @@ def test_unmapped_manifest_argument_fails_closed(tmp_path: Path) -> None:
     ],
 )
 def test_scientific_argument_saved_config_transform(
-    flag: str, raw: object, key: str, expected: object,
+    flag: str,
+    raw: object,
+    key: str,
+    expected: object,
 ) -> None:
     row = {"parameters": {"arguments": {flag: raw}}}
     assert campaign._same(campaign._expected_config(row)[key], expected)
@@ -251,14 +282,19 @@ def test_validator_rejects_each_resolved_scientific_config_mismatch(
 ) -> None:
     cell = exp022.PLANNED_VARIABLE_RATE_CELLS[0]
     samples, epochs = 100, 2
-    args = exp022.build_train_args(cell, tmp_path / "cells" / cell["name"], samples, epochs)
+    args = exp022.build_train_args(
+        cell, tmp_path / "cells" / cell["name"], samples, epochs
+    )
     row = {
         "name": cell["name"],
         "training_run_id": cell["training_run_id"],
         "resource_tier": "variable_rate",
         "output_directory": str(tmp_path / "cells" / cell["name"]),
         "parameters": campaign.resolved_parameters(
-            cell, args, samples, epochs,
+            cell,
+            args,
+            samples,
+            epochs,
             scientific_contract=exp022.scientific_contract(cell, samples, epochs),
         ),
     }
@@ -293,9 +329,15 @@ def _manifest_cell(tmp_path: Path, *, epochs: int = 2, samples: int = 100) -> di
             "epochs": epochs,
             "max_samples": samples,
             "arguments": {
-                "--model": "ping", "--dataset": "mnist", "--epochs": str(epochs),
-                "--max-samples": str(samples), "--dt": "0.1", "--t-ms": "200.0",
-                "--tau-gaba": "6.0", "--seed": "42", "--readout": "spike-count",
+                "--model": "ping",
+                "--dataset": "mnist",
+                "--epochs": str(epochs),
+                "--max-samples": str(samples),
+                "--dt": "0.1",
+                "--t-ms": "200.0",
+                "--tau-gaba": "6.0",
+                "--seed": "42",
+                "--readout": "spike-count",
                 "--input-rates": ["0.5", "1.0", "2.0", "5.0", "10.0", "25.0"],
             },
         },
@@ -318,7 +360,8 @@ def _write_valid_cell(row: dict) -> Path:
             "zeros_remain_trainable": True,
             "requested_initial_zero_fraction": (
                 expected.get("w_in_initial_zero_fraction", 0.0)
-                if role == "W_in" else 0.0
+                if role == "W_in"
+                else 0.0
             ),
             "statistics": {"n_parameters": 1},
         }
@@ -328,10 +371,13 @@ def _write_valid_cell(row: dict) -> Path:
     (directory / "config.json").write_text(json.dumps(config))
     epochs = row["parameters"]["epochs"]
     samples = round(row["parameters"]["max_samples"] * 0.9)
-    (directory / "metrics.jsonl").write_text("\n".join(
-        json.dumps({"ep": epoch, "samples": samples, "acc": 10.0})
-        for epoch in range(1, epochs + 1)
-    ) + "\n")
+    (directory / "metrics.jsonl").write_text(
+        "\n".join(
+            json.dumps({"ep": epoch, "samples": samples, "acc": 10.0})
+            for epoch in range(1, epochs + 1)
+        )
+        + "\n"
+    )
     state = {
         "b_out": torch.ones(10),
         "W_ff.0": torch.ones(784, 1024),
@@ -340,7 +386,9 @@ def _write_valid_cell(row: dict) -> Path:
         "W_ie.1": torch.ones(256, 1024),
     }
     torch.save(state, directory / "weights.pth")
-    torch.save({**state, "b_out": torch.full((10,), 2.0)}, directory / "weights_final.pth")
+    torch.save(
+        {**state, "b_out": torch.full((10,), 2.0)}, directory / "weights_final.pth"
+    )
     checkpoints = {
         "best_validation": {
             "filename": "weights.pth",
@@ -353,13 +401,17 @@ def _write_valid_cell(row: dict) -> Path:
             "sha256": campaign.sha256_file(directory / "weights_final.pth"),
         },
     }
-    (directory / "metrics.json").write_text(json.dumps({
-        **identity,
-        "config": {**expected, "weight_initialization": initialization},
-        "best_epoch": 1,
-        "checkpoints": checkpoints,
-        "weight_final": {role: {"zero_fraction": 0.0} for role in roles},
-    }))
+    (directory / "metrics.json").write_text(
+        json.dumps(
+            {
+                **identity,
+                "config": {**expected, "weight_initialization": initialization},
+                "best_epoch": 1,
+                "checkpoints": checkpoints,
+                "weight_final": {role: {"zero_fraction": 0.0} for role in roles},
+            }
+        )
+    )
     return directory
 
 
@@ -372,13 +424,21 @@ def test_validator_states_and_valid_checkpoint(tmp_path: Path) -> None:
     assert campaign.validate_cell(row)["state"] == "partial"
     directory.rename(tmp_path / "discarded")
     _write_valid_cell(row)
-    assert campaign.validate_cell(row) == {"valid": True, "state": "complete", "reasons": []}
+    assert campaign.validate_cell(row) == {
+        "valid": True,
+        "state": "complete",
+        "reasons": [],
+    }
 
 
-def test_validator_recognizes_w_ff_readout_without_named_output_key(tmp_path: Path) -> None:
+def test_validator_recognizes_w_ff_readout_without_named_output_key(
+    tmp_path: Path,
+) -> None:
     row = _manifest_cell(tmp_path)
     directory = _write_valid_cell(row)
-    checkpoint = torch.load(directory / "weights.pth", map_location="cpu", weights_only=True)
+    checkpoint = torch.load(
+        directory / "weights.pth", map_location="cpu", weights_only=True
+    )
     checkpoint.pop("b_out")
     torch.save(checkpoint, directory / "weights.pth")
     metrics = json.loads((directory / "metrics.json").read_text())
@@ -386,22 +446,33 @@ def test_validator_recognizes_w_ff_readout_without_named_output_key(tmp_path: Pa
         directory / "weights.pth"
     )
     (directory / "metrics.json").write_text(json.dumps(metrics))
-    assert campaign.validate_cell(row) == {"valid": True, "state": "complete", "reasons": []}
+    assert campaign.validate_cell(row) == {
+        "valid": True,
+        "state": "complete",
+        "reasons": [],
+    }
 
 
 def test_validator_rejects_corrupt_mismatched_and_short_history(tmp_path: Path) -> None:
     row = _manifest_cell(tmp_path)
     directory = _write_valid_cell(row)
     (directory / "weights.pth").write_bytes(b"not a checkpoint")
-    assert any("checkpoint load failed" in reason for reason in campaign.validate_cell(row)["reasons"])
+    assert any(
+        "checkpoint load failed" in reason
+        for reason in campaign.validate_cell(row)["reasons"]
+    )
     _write_valid_cell(row)
     config = json.loads((directory / "config.json").read_text())
     config["seed"] = 44
     (directory / "config.json").write_text(json.dumps(config))
-    assert any("seed mismatch" in reason for reason in campaign.validate_cell(row)["reasons"])
+    assert any(
+        "seed mismatch" in reason for reason in campaign.validate_cell(row)["reasons"]
+    )
     config["seed"] = 42
     (directory / "config.json").write_text(json.dumps(config))
-    (directory / "metrics.jsonl").write_text(json.dumps({"ep": 1, "samples": 100}) + "\n")
+    (directory / "metrics.jsonl").write_text(
+        json.dumps({"ep": 1, "samples": 100}) + "\n"
+    )
     assert any("epoch 2" in reason for reason in campaign.validate_cell(row)["reasons"])
 
 
@@ -411,18 +482,27 @@ def test_preserve_partial_never_overwrites(tmp_path: Path) -> None:
     directory.mkdir(parents=True)
     (directory / "broken.txt").write_text("evidence")
     preserved = campaign.preserve_partial(directory)
-    assert preserved is not None and (preserved / "broken.txt").read_text() == "evidence"
+    assert (
+        preserved is not None and (preserved / "broken.txt").read_text() == "evidence"
+    )
     assert not directory.exists()
 
 
 def test_status_identifies_retry_cells(tmp_path: Path) -> None:
     complete = _manifest_cell(tmp_path)
-    missing = {**_manifest_cell(tmp_path), "name": "missing", "output_directory": str(tmp_path / "cells" / "missing")}
+    missing = {
+        **_manifest_cell(tmp_path),
+        "name": "missing",
+        "output_directory": str(tmp_path / "cells" / "missing"),
+    }
     _write_valid_cell(complete)
-    status = campaign.summarize_status({
-        "campaign_id": "test", "campaign_root": str(tmp_path),
-        "cells": [complete, missing],
-    })
+    status = campaign.summarize_status(
+        {
+            "campaign_id": "test",
+            "campaign_root": str(tmp_path),
+            "cells": [complete, missing],
+        }
+    )
     assert status["counts"] == {"complete": 1, "missing": 1}
     assert status["retry_cells"] == ["missing"]
 
@@ -432,13 +512,16 @@ def test_campaign_train_does_not_touch_valid_cell(tmp_path: Path, monkeypatch) -
     directory = _write_valid_cell(row)
     before = campaign.sha256_file(directory / "weights.pth")
     manifest = {
-        "campaign_id": "test", "manifest_sha256": "abc",
+        "campaign_id": "test",
+        "manifest_sha256": "abc",
         "repository": {"commit": "deadbeef", "dirty": False},
-        "campaign_root": str(tmp_path), "cells": [row],
+        "campaign_root": str(tmp_path),
+        "cells": [row],
     }
     monkeypatch.setattr(exp022, "_checked_manifest", lambda _path: manifest)
     monkeypatch.setattr(
-        exp022.subprocess, "run",
+        exp022.subprocess,
+        "run",
         lambda *_args, **_kwargs: pytest.fail("valid cell must not launch training"),
     )
     assert exp022._campaign_train(tmp_path / "campaign.json", row["name"]) == 0
@@ -447,9 +530,11 @@ def test_campaign_train_does_not_touch_valid_cell(tmp_path: Path, monkeypatch) -
 
 def _attempt_manifest(tmp_path: Path, row: dict) -> dict:
     return {
-        "campaign_id": "test", "manifest_sha256": "abc",
+        "campaign_id": "test",
+        "manifest_sha256": "abc",
         "repository": {"commit": "deadbeef", "dirty": False},
-        "campaign_root": str(tmp_path), "cells": [row],
+        "campaign_root": str(tmp_path),
+        "cells": [row],
         "_runtime_commands": {row["name"]: ["tool", "train"]},
     }
 
@@ -498,19 +583,24 @@ def test_stale_attempt_requires_explicit_recovery(tmp_path: Path) -> None:
     assert status["recoverable_cells"] == [row["name"]]
     with pytest.raises(RuntimeError, match="use --recover-stale"):
         campaign.acquire_attempt(manifest, row)
-    recovered, recovered_lock = campaign.acquire_attempt(manifest, row, recover_stale=True)
+    recovered, recovered_lock = campaign.acquire_attempt(
+        manifest, row, recover_stale=True
+    )
     assert recovered["attempt_id"] != record["attempt_id"]
     campaign.release_attempt(recovered_lock, recovered["attempt_id"])
     lock.unlink(missing_ok=True)
 
 
-def test_failed_subprocess_without_metrics_records_failure(tmp_path: Path, monkeypatch) -> None:
+def test_failed_subprocess_without_metrics_records_failure(
+    tmp_path: Path, monkeypatch
+) -> None:
     row = _manifest_cell(tmp_path)
     manifest = _attempt_manifest(tmp_path, row)
     monkeypatch.setattr(exp022, "_checked_manifest", lambda _path: manifest)
     monkeypatch.setattr(exp022, "_gpu_metadata", lambda: {"available": False})
     monkeypatch.setattr(
-        exp022.subprocess, "run",
+        exp022.subprocess,
+        "run",
         lambda *_args, **_kwargs: subprocess.CompletedProcess([], 7),
     )
     assert exp022._campaign_train(tmp_path / "campaign.json", row["name"]) == 1
@@ -519,7 +609,9 @@ def test_failed_subprocess_without_metrics_records_failure(tmp_path: Path, monke
     assert attempt["exit_code"] == 7
 
 
-def test_preserve_partial_avoids_timestamp_collision(tmp_path: Path, monkeypatch) -> None:
+def test_preserve_partial_avoids_timestamp_collision(
+    tmp_path: Path, monkeypatch
+) -> None:
     row = _manifest_cell(tmp_path)
     directory = Path(row["output_directory"])
     directory.mkdir(parents=True)
@@ -533,14 +625,22 @@ def test_preserve_partial_avoids_timestamp_collision(tmp_path: Path, monkeypatch
     assert (preserved / "evidence").read_text() == "new"
 
 
-def _write_checked_manifest(tmp_path: Path, monkeypatch, tier: str = "variable_rate") -> Path:
+def _write_checked_manifest(
+    tmp_path: Path, monkeypatch, tier: str = "variable_rate"
+) -> Path:
     monkeypatch.setattr(campaign, "git_identity", lambda _repo: ("deadbeef", False))
-    monkeypatch.setattr(campaign, "lock_identity", lambda _repo: {"path": "uv.lock", "sha256": "lock"})
+    monkeypatch.setattr(
+        campaign, "lock_identity", lambda _repo: {"path": "uv.lock", "sha256": "lock"}
+    )
     cells = exp022.cells_in_resource_tier(tier)
     payload = campaign.create_manifest(
-        repo=exp022.REPO, campaign_root=tmp_path, campaign_id="checked",
-        cells=cells, tier_for=exp022.cell_resource_tier,
-        samples_epochs=exp022.cell_samples_epochs, build_args=exp022.build_train_args,
+        repo=exp022.REPO,
+        campaign_root=tmp_path,
+        campaign_id="checked",
+        cells=cells,
+        tier_for=exp022.cell_resource_tier,
+        samples_epochs=exp022.cell_samples_epochs,
+        build_args=exp022.build_train_args,
         scientific_contract_for=exp022.scientific_contract,
         selection_tier=tier,
     )
@@ -549,12 +649,21 @@ def _write_checked_manifest(tmp_path: Path, monkeypatch, tier: str = "variable_r
     return path
 
 
-@pytest.mark.parametrize("mutation", [
-    "command", "command_shell", "output_directory", "required_outputs",
-    "duplicate", "missing",
-])
+@pytest.mark.parametrize(
+    "mutation",
+    [
+        "command",
+        "command_shell",
+        "output_directory",
+        "required_outputs",
+        "duplicate",
+        "missing",
+    ],
+)
 def test_checked_manifest_rejects_rehashed_executable_mutations(
-    tmp_path: Path, monkeypatch, mutation: str,
+    tmp_path: Path,
+    monkeypatch,
+    mutation: str,
 ) -> None:
     path = _write_checked_manifest(tmp_path, monkeypatch)
     payload = campaign.load_manifest(path)
@@ -576,48 +685,79 @@ def test_checked_manifest_rejects_rehashed_executable_mutations(
         exp022._checked_manifest(path)
 
 
-def test_external_aggregation_completes_compute_without_downstream_dispatch(tmp_path: Path, monkeypatch) -> None:
+def test_external_aggregation_completes_compute_without_downstream_dispatch(
+    tmp_path: Path, monkeypatch
+) -> None:
     manifest = {
-        "campaign_id": "external", "campaign_root": str(tmp_path),
+        "campaign_id": "external",
+        "campaign_root": str(tmp_path),
         "cells": [{} for _ in exp022.CANONICAL_CELLS],
     }
     monkeypatch.setattr(exp022, "_checked_manifest", lambda *_args, **_kwargs: manifest)
-    monkeypatch.setattr(campaign, "summarize_status", lambda _manifest: {
-        "retry_cells": [],
-        "cells": [{"name": "cell", "valid": True}],
-    })
+    monkeypatch.setattr(
+        campaign,
+        "summarize_status",
+        lambda _manifest: {
+            "retry_cells": [],
+            "cells": [{"name": "cell", "valid": True}],
+        },
+    )
     observed = []
-    monkeypatch.setattr(exp022, "capture_campaign", lambda path, value: observed.append((path, value)))
-    monkeypatch.setattr(exp022.subprocess, "run", lambda *args, **kwargs: pytest.fail("aggregation must not dispatch downstream stages"))
-    assert exp022._handle_campaign_cli([
-        "compute.py", "--campaign-aggregate", str(tmp_path / "campaign.json"),
-    ])
+    monkeypatch.setattr(
+        exp022, "capture_campaign", lambda path, value: observed.append((path, value))
+    )
+    monkeypatch.setattr(
+        exp022.subprocess,
+        "run",
+        lambda *args, **kwargs: pytest.fail(
+            "aggregation must not dispatch downstream stages"
+        ),
+    )
+    assert exp022._handle_campaign_cli(
+        [
+            "compute.py",
+            "--campaign-aggregate",
+            str(tmp_path / "campaign.json"),
+        ]
+    )
     assert observed == [(tmp_path / "campaign.json", manifest)]
     assert exp022.training_root_provenance(tmp_path)["location"] == "external"
 
 
 def test_post_aggregation_check_allows_only_generated_exp022_artifacts(
-    tmp_path: Path, monkeypatch,
+    tmp_path: Path,
+    monkeypatch,
 ) -> None:
     manifest_path = _write_checked_manifest(tmp_path, monkeypatch)
     monkeypatch.setattr(campaign, "git_identity", lambda _repo: ("deadbeef", True))
     monkeypatch.setattr(
-        campaign, "git_dirty_paths",
+        campaign,
+        "git_dirty_paths",
         lambda _repo: [".artifacts/exp022/numbers.json", ".demolab/pdfs/exp022.pdf"],
     )
-    assert exp022._checked_manifest(
-        manifest_path, allow_generated_dirty=True,
-    )["campaign_id"] == "checked"
+    assert (
+        exp022._checked_manifest(
+            manifest_path,
+            allow_generated_dirty=True,
+        )["campaign_id"]
+        == "checked"
+    )
     monkeypatch.setattr(
-        campaign, "git_dirty_paths", lambda _repo: ["experiments/exp022/compute.py"],
+        campaign,
+        "git_dirty_paths",
+        lambda _repo: ["experiments/exp022/compute.py"],
     )
     with pytest.raises(SystemExit, match="clean source worktree"):
         exp022._checked_manifest(manifest_path, allow_generated_dirty=True)
 
 
-@pytest.mark.parametrize("occupied", ["empty", "manifest", "cell", "status", "arbitrary"])
+@pytest.mark.parametrize(
+    "occupied", ["empty", "manifest", "cell", "status", "arbitrary"]
+)
 def test_campaign_creation_refuses_existing_destination(
-    tmp_path: Path, monkeypatch, occupied: str,
+    tmp_path: Path,
+    monkeypatch,
+    occupied: str,
 ) -> None:
     root = tmp_path / "campaign"
     root.mkdir()
@@ -635,25 +775,37 @@ def test_campaign_creation_refuses_existing_destination(
         (root / "notes.txt").write_text("keep me")
     before = {
         path.relative_to(root).as_posix(): path.read_bytes()
-        for path in root.rglob("*") if path.is_file()
+        for path in root.rglob("*")
+        if path.is_file()
     }
     monkeypatch.setattr(
-        campaign, "create_manifest",
+        campaign,
+        "create_manifest",
         lambda **_kwargs: {"campaign_id": "must-not-overwrite"},
     )
     with pytest.raises(SystemExit, match="already exists and will not be modified"):
-        exp022._handle_campaign_cli([
-            "compute.py", "--campaign-manifest", str(root),
-            "--campaign-id", "must-not-overwrite", "--tier", "variable_rate",
-        ])
+        exp022._handle_campaign_cli(
+            [
+                "compute.py",
+                "--campaign-manifest",
+                str(root),
+                "--campaign-id",
+                "must-not-overwrite",
+                "--tier",
+                "variable_rate",
+            ]
+        )
     after = {
         path.relative_to(root).as_posix(): path.read_bytes()
-        for path in root.rglob("*") if path.is_file()
+        for path in root.rglob("*")
+        if path.is_file()
     }
     assert after == before
 
 
-def test_verified_archive_source_is_manifest_cells_not_legacy(tmp_path: Path, monkeypatch) -> None:
+def test_verified_archive_source_is_manifest_cells_not_legacy(
+    tmp_path: Path, monkeypatch
+) -> None:
     row = _manifest_cell(tmp_path)
     manifest = _attempt_manifest(tmp_path, row)
     manifest["cells"] = [{} for _ in exp022.CANONICAL_CELLS]
@@ -664,10 +816,15 @@ def test_verified_archive_source_is_manifest_cells_not_legacy(tmp_path: Path, mo
         return manifest
 
     monkeypatch.setattr(exp022, "_checked_manifest", fake_checked_manifest)
-    monkeypatch.setattr(campaign, "summarize_status", lambda _manifest: {
-        "retry_cells": [], "recoverable_cells": [],
-        "cells": [{"state": "complete"} for _ in exp022.CANONICAL_CELLS],
-    })
+    monkeypatch.setattr(
+        campaign,
+        "summarize_status",
+        lambda _manifest: {
+            "retry_cells": [],
+            "recoverable_cells": [],
+            "cells": [{"state": "complete"} for _ in exp022.CANONICAL_CELLS],
+        },
+    )
     selected, source = archive.verified_campaign_source(tmp_path / "campaign.json")
     assert selected is manifest
     assert source == (tmp_path / "cells").resolve()
@@ -675,7 +832,9 @@ def test_verified_archive_source_is_manifest_cells_not_legacy(tmp_path: Path, mo
     assert checked["allow_generated_dirty"] is True
 
 
-def test_mnist_link_helper_accepts_existing_and_concurrent_creation(tmp_path: Path) -> None:
+def test_mnist_link_helper_accepts_existing_and_concurrent_creation(
+    tmp_path: Path,
+) -> None:
     cache = tmp_path / "cache"
     (cache / "MNIST").mkdir(parents=True)
     link = tmp_path / "mnist"
@@ -696,10 +855,14 @@ def test_wilkes_modules_load_in_sanitized_environment(tmp_path: Path) -> None:
     helper = exp022.REPO / "experiments" / "exp022" / "slurm" / "load-wilkes-modules.sh"
     subprocess.run(
         [
-            "env", "-i", f"PATH={Path('/usr/bin')}:/bin",
+            "env",
+            "-i",
+            f"PATH={Path('/usr/bin')}:/bin",
             f"EXP022_MODULES_INIT={initializer}",
             f"EXP022_MODULE_CALLS={calls}",
-            "/bin/bash", "-c", f"source {helper}",
+            "/bin/bash",
+            "-c",
+            f"source {helper}",
         ],
         check=True,
     )
@@ -732,10 +895,7 @@ def test_fr_strength_pilot_is_isolated_from_registered_tr02() -> None:
 
 def test_fr_strength_pilot_array_is_fixed_and_collision_free() -> None:
     script = (
-        exp022.REPO
-        / "experiments"
-        / "exp022" / "slurm"
-        / "fr-strength-pilot.sbatch"
+        exp022.REPO / "experiments" / "exp022" / "slurm" / "fr-strength-pilot.sbatch"
     ).read_text()
     assert "models=(coba coba coba coba ping ping ping ping)" in script
     assert "strengths=(0.004 0.016 0.041 0.1 0.004 0.016 0.041 0.1)" in script
@@ -747,7 +907,8 @@ def test_fr_strength_pilot_eval_uses_figure_one_contract() -> None:
     script = (
         exp022.REPO
         / "experiments"
-        / "exp022" / "slurm"
+        / "exp022"
+        / "slurm"
         / "fr-strength-pilot-eval.sbatch"
     ).read_text()
     assert script.count("__lambda") == 8
@@ -780,9 +941,7 @@ def test_import_compatible_cell_restamps_destination_and_keeps_origin(
     destination_root = (tmp_path / "destination").resolve()
     source_row = _manifest_cell(source_root)
     source_row["family"] = "variable_rate"
-    source_row["parameters"]["arguments"]["--out-dir"] = source_row[
-        "output_directory"
-    ]
+    source_row["parameters"]["arguments"]["--out-dir"] = source_row["output_directory"]
     _write_valid_cell(source_row)
     source_manifest = {
         "schema": campaign.SCHEMA,
@@ -823,3 +982,181 @@ def test_import_compatible_cell_restamps_destination_and_keeps_origin(
     )
     assert imported["campaign_id"] == "repair"
     assert imported["imported_cell_provenance"]["campaign_id"] == "base"
+
+
+"""Relocation checks that never train, submit jobs or touch retained evidence."""
+
+import os
+import sys
+
+import pytest
+
+REPO = Path(__file__).resolve().parents[2]
+EXPERIMENT = REPO / "experiments" / "exp022"
+SLURM = EXPERIMENT / "slurm"
+
+
+@pytest.mark.parametrize(
+    "imports",
+    [
+        "from experiments.exp022 import campaign, compute",
+        "from experiments.exp022 import compute, campaign",
+        "from experiments.exp022 import tr06_diagnostic, fr_strength_pilot; "
+        "from experiments.exp022 import campaign, compute",
+        "import sys; sys.path.insert(0, 'experiments'); import exp022; "
+        "from experiments.exp022 import campaign, compute; "
+        "assert exp022.campaign is campaign; "
+        "assert exp022.run_tr06_diagnostic is compute.run_tr06_diagnostic",
+    ],
+)
+def test_relocated_imports_preserve_campaign_and_scheduler_hooks(imports):
+    subprocess.run(
+        [sys.executable, "-c", imports + "; assert compute.campaign is campaign"],
+        cwd=REPO,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+
+
+@pytest.mark.parametrize(
+    "entrypoint",
+    [
+        "compute.py",
+        "analyse.py",
+        "present.py",
+        "tr06_diagnostic.py",
+        "slurm/wilkes_diagnostic.py",
+    ],
+)
+def test_file_entrypoints_resolve_from_an_external_directory(entrypoint, tmp_path):
+    completed = subprocess.run(
+        [sys.executable, str(EXPERIMENT / entrypoint), "--help"],
+        cwd=tmp_path,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    assert "usage:" in completed.stdout
+
+
+def test_pilot_module_entrypoint():
+    completed = subprocess.run(
+        [sys.executable, "-m", "experiments.exp022.fr_strength_pilot", "--help"],
+        cwd=REPO,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    assert "--strength" in completed.stdout
+
+
+def test_slurm_scripts_and_collection_references_resolve():
+    scripts = sorted(SLURM.glob("*.sh")) + sorted(SLURM.glob("*.sbatch"))
+    scripts.append(
+        REPO / "experiments/collections/gamma_gated_sparsity/collection-job.sbatch"
+    )
+    for script in scripts:
+        subprocess.run(["bash", "-n", str(script)], check=True, capture_output=True)
+        for reference in re.findall(r"experiments/exp022/[\w./-]+", script.read_text()):
+            target = REPO / reference
+            assert target.is_file(), (script, reference)
+    # This helper is executed directly; module initialization is only sourced.
+    assert os.access(SLURM / "ensure-mnist-link.sh", os.X_OK)
+
+
+def test_submit_wrapper_finds_repository_before_validation(tmp_path):
+    cache = tmp_path / "cache"
+    (cache / "MNIST").mkdir(parents=True)
+    manifest = tmp_path / "campaign.json"
+    manifest.write_text("{}")
+    uv = tmp_path / "uv"
+    uv.write_text(
+        '#!/bin/bash\nprintf "cwd=%s\\n" "$PWD"\nprintf "arg=%s\\n" "$@"\nexit 23\n'
+    )
+    uv.chmod(0o755)
+    completed = subprocess.run(
+        ["bash", str(SLURM / "submit-tier.sh"), str(manifest), "standard", "--dry-run"],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+        env={
+            **os.environ,
+            "EXP022_SLURM_ACCOUNT": "test-account",
+            "EXP022_WALLTIME": "00:01:00",
+            "EXP022_CONCURRENCY": "1",
+            "EXP022_MNIST_CACHE": str(cache),
+            "EXP022_UV": str(uv),
+        },
+    )
+    # Stop at mocked validation: no scheduler or campaign mutation is involved.
+    assert completed.returncode == 23, completed.stderr
+    assert f"cwd={REPO}" in completed.stdout
+    assert "arg=experiments/exp022/compute.py" in completed.stdout
+    assert "arg=--campaign-validate" in completed.stdout
+
+
+def test_tr06_diagnostic_variants_change_only_the_readout_contract(tmp_path) -> None:
+    commands = {
+        variant: tr06_diagnostic.diagnostic_args(
+            variant,
+            output=tmp_path / variant,
+            max_samples=700,
+            epochs=10,
+            seed=42,
+            device="cuda",
+            n_hidden=64,
+            t_ms=50.0,
+            dt_ms=1.0,
+        )
+        for variant in tr06_diagnostic.VARIANTS
+    }
+    registered = commands["registered-spike-count"]
+    fanin = commands["fanin-spike-count"]
+    mean_005 = commands["mean-005-spike-count"]
+    mean_010 = commands["mean-010-spike-count"]
+    control = commands["mem-mean-control"]
+
+    assert registered[registered.index("--readout") + 1] == "spike-count"
+    assert (
+        registered[registered.index("--readout-w-init-mean") + 1]
+        == exp022_package.SHARED_READOUT_W_INIT_MEAN
+    )
+    assert (
+        registered[registered.index("--readout-w-init-std") + 1]
+        == exp022_package.SHARED_READOUT_W_INIT_STD
+    )
+    assert fanin[fanin.index("--readout") + 1] == "spike-count"
+    assert "--readout-w-init-mean" not in fanin
+    assert "--readout-w-init-std" not in fanin
+    assert mean_005[mean_005.index("--readout-w-init-mean") + 1] == "0.05"
+    assert mean_010[mean_010.index("--readout-w-init-mean") + 1] == "0.1"
+    assert mean_005[mean_005.index("--readout-w-init-std") + 1] == "0.04"
+    assert mean_010[mean_010.index("--readout-w-init-std") + 1] == "0.08"
+    assert control[control.index("--readout") + 1] == "mem-mean"
+    assert (
+        control[control.index("--readout-w-init-mean") + 1]
+        == exp022_package.SHARED_READOUT_W_INIT_MEAN
+    )
+    for command in commands.values():
+        assert command[command.index("--max-samples") + 1] == "700"
+        assert command[command.index("--epochs") + 1] == "10"
+        assert command[command.index("--seed") + 1] == "42"
+        assert command[command.index("--device") + 1] == "cuda"
+        assert command[command.index("--n-hidden") + 1] == "64"
+        assert command[command.index("--t-ms") + 1] == "50.0"
+        assert command[command.index("--dt") + 1] == "1.0"
+        start = command.index("--input-rates") + 1
+        assert tuple(map(float, command[start : start + 11])) == (
+            0.5,
+            0.75,
+            1.0,
+            1.5,
+            2.0,
+            3.0,
+            5.0,
+            7.5,
+            10.0,
+            15.0,
+            25.0,
+        )

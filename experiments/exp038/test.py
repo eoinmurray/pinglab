@@ -7,7 +7,7 @@ from pathlib import Path
 
 import numpy as np
 import pytest
-from experiments.exp037 import (
+from experiments.exp038 import (
     analyse,
     collection,
     compute,
@@ -16,7 +16,7 @@ from experiments.exp037 import (
     present,
     recipe,
 )
-from experiments.tests.test_exp044_provenance import _common_config
+from experiments.exp044.test import _common_config
 from pingstore import stages
 from pingstore.contracts import (
     PingstoreError,
@@ -32,7 +32,7 @@ def lab(tmp_path, monkeypatch):
     for module in (compute, analyse, present):
         monkeypatch.setattr(module, "REPO", tmp_path)
     monkeypatch.setattr(
-        stages, "memberships", lambda _: {"exp022": "demo", "exp037": "demo"}
+        stages, "memberships", lambda _: {"exp022": "demo", "exp038": "demo"}
     )
     monkeypatch.setattr(
         stages, "_capture_code", lambda *a: {"git_commit": "fixture", "dirty": False}
@@ -113,6 +113,7 @@ def lab(tmp_path, monkeypatch):
         def value(key):
             return args[args.index(key) + 1]
 
+        assert value("--device") == "auto"
         assert Path(value("--load-weights")).name == "weights.pth"
         out = Path(value("--out-dir"))
         out.mkdir(parents=True)
@@ -126,8 +127,6 @@ def lab(tmp_path, monkeypatch):
         rate = float(value("--input-rate")) if "--input-rate" in args else 25.0
         cfg = {
             **train,
-            "perturb_mode": value("--perturb-mode"),
-            "perturb_level": [float(value("--perturb-level"))],
             "load_config": value("--load-config"),
             "load_weights": value("--load-weights"),
             "input": "synthetic-spikes" if uniform else "dataset",
@@ -178,23 +177,17 @@ def lab(tmp_path, monkeypatch):
             )
         else:
             n = cfg["max_samples"]
-            acc = (
-                90 - int(cfg["perturb_level"][0])
-                if cfg["perturb_mode"] == "add"
-                else 90
-            )
             write_json_atomic(
                 out / "metrics.json",
                 {
                     "config": {
                         **train,
                         "ei_strength": strength,
-                        "load_weights": value("--load-weights"),
                         "evaluation_partition": "official_mnist_test",
                         "evaluation_samples": n,
                     },
-                    "best_acc": acc,
-                    "n_correct": n * acc // 100,
+                    "best_acc": 90.0,
+                    "n_correct": n * 9 // 10,
                     "n_total": n,
                     "rates_hz": {"hid": 20.0, "inh": 10.0},
                 },
@@ -213,6 +206,83 @@ def resign(directory):
     write_json_atomic(path, record)
 
 
+def test_independent_stages_preserve_roles_and_never_publish(lab, monkeypatch):
+    root, bank_id, calls = lab
+    bank = inputs.source(root, bank_id, "compute", experiment="exp022")
+    cid = compute.compute(bank_id)
+    assert len(calls) == 20
+    c = inputs.source(root, cid, "compute")
+    for p in c.export.rglob("snapshot.npz"):
+        with np.load(p) as d:
+            assert set(d.files) == {"dt", "n_e", "n_i", "label", "spk_e", "spk_i"}
+    monkeypatch.setattr(
+        compute, "run_cli", lambda *a, **k: pytest.fail("downstream simulation")
+    )
+    aid = analyse.analyse(cid)
+    a = inputs.source(root, aid, "analyse")
+    result = load_json(a.export / "results.json")
+    assert len(result["baseline_results"]) == 36
+    assert {r["rate_e"] for r in result["baseline_results"]} == {25.0}
+    assert {r["epoch"] for r in result["checkpoint_provenance"]} == {43}
+    assert {r["role"] for r in result["checkpoint_provenance"]} == {"best_validation"}
+    monkeypatch.setattr(
+        measurements,
+        "summarize_ei_points",
+        lambda *a: pytest.fail("presentation aggregation"),
+    )
+    monkeypatch.setattr(
+        measurements, "raster", lambda *a: pytest.fail("presentation measurement")
+    )
+    pid = present.present(aid)
+    p = inputs.source(root, pid, "present")
+    labels = load_json(p.export / "numbers.json")["illustrative_labels"]
+    assert labels == {"rate_rasters": [7, 7, 7], "ei_rasters": [7, 7]}
+    assert {f.name for f in p.export.iterdir()} == {
+        "numbers.json",
+        "_manifest.json",
+        *recipe.FIGURES,
+    }
+    assert p.record["inputs"] == {"analysis": a.reference}
+    assert not (root / ".artifacts").exists()
+    assert not (root / ".pingstore/runs" / f".{pid}.tmp").exists()
+    bank.check_unchanged()
+
+
+def test_recipe_retains_full_production_grid():
+    jobs = recipe.jobs(recipe.configuration())
+    assert len(jobs) == 101
+    assert {
+        kind: sum(j["kind"] == kind for j in jobs)
+        for kind in ("rate_raster", "fi_uniform", "ei_sweep", "ei_raster")
+    } == {"rate_raster": 10, "fi_uniform": 52, "ei_sweep": 33, "ei_raster": 6}
+    assert len({j["path"] for j in jobs}) == 101
+    assert {j["samples"] for j in jobs if "samples" in j} == {1000}
+    assert {j["trials"] for j in jobs if "trials" in j} == {32}
+    assert (
+        recipe.configuration()["rate_rasters"] == np.linspace(0, 100, 40)[:10].tolist()
+    )
+
+
+def test_snapshots_preserve_full_population_rate_and_rng_selection(tmp_path):
+    e = np.zeros((20, 256), bool)
+    i = np.zeros((20, 128), bool)
+    e[::2, :] = True
+    i[::4, :] = True
+    np.savez(
+        tmp_path / "snapshot.npz", spk_e=e[:, None, :], spk_i=i[:, None, :], label=7
+    )
+    result = measurements.raster(
+        tmp_path, {"dt": 0.1, "t_ms": 2.0}, {"kind": "rate_raster", "input_rate": 10.0}
+    )
+    rng = np.random.default_rng(0)
+    ei = np.sort(rng.choice(256, 200, replace=False))
+    ii = np.sort(rng.choice(128, 64, replace=False))
+    np.testing.assert_array_equal(result["e"], e[:, ei])
+    np.testing.assert_array_equal(result["i"], i[:, ii])
+    assert result["e_rate_hz"] == 5000.0
+    assert result["i_rate_hz"] == 2500.0
+
+
 @pytest.mark.parametrize("mutation", ["sample_count", "snapshot", "config", "missing"])
 def test_analyse_rejects_corrupt_even_resigned_payload(lab, mutation):
     root, bank, _ = lab
@@ -221,11 +291,7 @@ def test_analyse_rejects_corrupt_even_resigned_payload(lab, mutation):
     cfg = recipe.configuration(smoke=True)
     jobs = recipe.jobs(cfg)
     if mutation == "snapshot":
-        p = (
-            c.export
-            / next(j["path"] for j in jobs if j["kind"] == "raster")
-            / "snapshot.npz"
-        )
+        p = c.export / jobs[0]["path"] / "snapshot.npz"
         with np.load(p) as raw:
             data = {k: raw[k] for k in raw.files}
         data["spk_e"] = np.full_like(data["spk_e"], 2, dtype=np.int8)
@@ -236,7 +302,7 @@ def test_analyse_rejects_corrupt_even_resigned_payload(lab, mutation):
         d["spike_rate"] = 111
         write_json_atomic(p, d)
     else:
-        job = next(j for j in jobs if j["kind"] == "sweep")
+        job = next(j for j in jobs if j["kind"] == "ei_sweep")
         p = c.export / job["path"] / "metrics.json"
         if mutation == "missing":
             p.unlink()
@@ -270,8 +336,8 @@ def test_failed_simulation_never_completes(lab, monkeypatch):
     monkeypatch.setattr(compute, "run_cli", fail)
     with pytest.raises(RuntimeError, match="fixture failure"):
         compute.compute(bank)
-    assert not list((root / ".pingstore/runs").glob("exp037-*-compute"))
-    assert list((root / ".pingstore/runs").glob(".exp037-*-compute.tmp"))
+    assert not list((root / ".pingstore/runs").glob("exp038-*-compute"))
+    assert list((root / ".pingstore/runs").glob(".exp038-*-compute.tmp"))
 
 
 def test_collection_reserves_dispatches_and_resumes(lab, monkeypatch):
@@ -279,8 +345,8 @@ def test_collection_reserves_dispatches_and_resumes(lab, monkeypatch):
     manifest = root / "bank.json"
     write_json_atomic(manifest, {"pingstore_run_id": bank})
     row = {
-        "slug": "exp037",
-        "execution": {"mode": "exp037-staged"},
+        "slug": "exp038",
+        "execution": {"mode": "exp038-staged"},
         "paths": {"state": str(root / "campaign/state")},
         "required_outputs": [str(root / "campaign/state/stage-refs.json")],
     }
@@ -319,7 +385,7 @@ def test_collection_reserves_dispatches_and_resumes(lab, monkeypatch):
 
 def test_retired_entrypoints_and_import_side_effects(tmp_path):
     root = Path(__file__).resolve().parents[2]
-    code = "from experiments import exp037; assert exp037.CHECKPOINT_ROLE == 'best_validation'"
+    code = "from experiments import exp038; assert exp038.CHECKPOINT_ROLE == 'best_validation'"
     result = subprocess.run(
         [sys.executable, "-c", code],
         cwd=tmp_path,
@@ -330,7 +396,7 @@ def test_retired_entrypoints_and_import_side_effects(tmp_path):
     assert result.returncode == 0, result.stderr
     assert not list(tmp_path.iterdir())
     result = subprocess.run(
-        [sys.executable, "-m", "experiments.exp037"],
+        [sys.executable, "-m", "experiments.exp038"],
         cwd=root,
         capture_output=True,
         text=True,
@@ -363,7 +429,7 @@ def test_source_change_during_compute_prevents_completion(lab, monkeypatch):
     monkeypatch.setattr(compute, "run_cli", simulate)
     with pytest.raises(PingstoreError):
         compute.compute(bank_id)
-    assert not list((root / ".pingstore/runs").glob("exp037-*-compute"))
+    assert not list((root / ".pingstore/runs").glob("exp038-*-compute"))
 
 
 def test_present_rejects_resigned_incomplete_analysis(lab):
@@ -373,7 +439,7 @@ def test_present_rejects_resigned_incomplete_analysis(lab):
     source = inputs.source(root, aid, "analyse")
     path = source.export / "results.json"
     result = load_json(path)
-    result["perturbation"].pop()
+    result["ei_sweep"].pop()
     write_json_atomic(path, result)
     resign(source.directory)
     with pytest.raises(PingstoreError, match="incomplete"):
@@ -382,7 +448,6 @@ def test_present_rejects_resigned_incomplete_analysis(lab):
 
 
 def test_article_renders_only_selected_presentation(lab):
-    import re
     import shutil
 
     from demolab_cli import _paths
@@ -398,11 +463,11 @@ def test_article_renders_only_selected_presentation(lab):
     shutil.copy2(_paths.TYP / "lib.typ", root / ".demolab/lib.typ")
     write_json_atomic(
         root / "preview.json",
-        {"exp037": {"exp037": "/" + str(output.export.relative_to(root))}},
+        {"exp038": {"exp038": "/" + str(output.export.relative_to(root))}},
     )
     document = root / "document.typ"
     document.write_text(
-        '#set page(paper: "a4", margin: 18mm)\n#set text(size: 10pt)\n#import "writings/exp037.typ": body\n#body\n'
+        '#set page(paper: "a4", margin: 18mm)\n#set text(size: 10pt)\n#import "writings/exp038.typ": body\n#body\n'
     )
     command = [
         _paths.find_typst(source_root),
@@ -421,27 +486,6 @@ def test_article_renders_only_selected_presentation(lab):
     result = subprocess.run(command, capture_output=True, text=True, timeout=60)
     assert result.returncode == 0, result.stderr
     assert list(root.glob("article-*.png"))
-    html_command = [
-        _paths.find_typst(source_root),
-        "compile",
-        "--features",
-        "html",
-        "--format",
-        "html",
-        "--root",
-        str(root),
-        "--input",
-        "demolab-preview-file=/preview.json",
-        str(document),
-        str(root / "article.html"),
-    ]
-    result = subprocess.run(html_command, capture_output=True, text=True, timeout=60)
-    assert result.returncode == 0, result.stderr
-    html = (root / "article.html").read_text()
-    images = re.findall(r"<img\b[^>]*>", html)
-    assert len(images) == 5
-    assert all('alt="' in tag and 'src="' in tag for tag in images)
-    assert len(re.findall(r"<figcaption\b", html)) == 5
     # Older v3 presentations lack the optional image-label projection.
     numbers = load_json(output.export / "numbers.json")
     numbers.pop("illustrative_labels")
@@ -453,236 +497,31 @@ def test_article_renders_only_selected_presentation(lab):
     assert result.returncode != 0
 
 
-def test_independent_stages_preserve_measurements_and_never_publish(lab, monkeypatch):
-    root, bank, calls = lab
-    cid = compute.compute(bank)
-    assert len(calls) == 54
-    source = inputs.source(root, cid, "compute")
-    for path in source.export.rglob("snapshot.npz"):
-        with np.load(path) as data:
-            assert set(data.files) == set(recipe.SNAPSHOT_ARRAYS)
-    monkeypatch.setattr(
-        compute, "run_cli", lambda *a, **k: pytest.fail("downstream simulation")
-    )
-    aid = analyse.analyse(cid)
-    analysis = inputs.source(root, aid, "analyse")
-    result = load_json(analysis.export / "results.json")
-    assert len(result["perturbation"]) == 42
-    assert len(result["baseline_results"]) == 36
-    assert {r["rate_e"] for r in result["baseline_results"]} == {25.0}
-    assert result["plot_data"]["baseline_e_rate_hz"] == {"coba": 25.0, "ping": 25.0}
-    assert {r["role"] for r in result["checkpoint_provenance"]} == {"best_validation"}
-    for name in (
-        "raster",
-        "plot_data",
-        "baseline_rows",
-        "summarize_accuracy",
-        "summarize_perturbation_rows",
-    ):
-        monkeypatch.setattr(
-            measurements, name, lambda *a, **k: pytest.fail("presentation measurement")
-        )
-    pid = present.present(aid)
-    output = inputs.source(root, pid, "present")
-    assert {f.name for f in output.export.iterdir()} == {
-        "numbers.json",
-        "_manifest.json",
-        *recipe.FIGURES,
-    }
-    assert output.record["inputs"] == {"analysis": analysis.reference}
-    assert not (root / ".artifacts").exists()
-    assert load_json(output.export / "numbers.json")["illustrative_labels"] == [7] * 12
+def test_raster_labels_use_recorded_class_and_do_not_overlap(tmp_path, monkeypatch):
+    from experiments.exp038 import plots
 
-
-def test_recipe_preserves_production_and_smoke_grids():
-    for smoke, total, sweeps in ((False, 204, 192), (True, 54, 42)):
-        jobs = recipe.jobs(recipe.configuration(smoke=smoke))
-        assert len(jobs) == total
-        assert len({j["id"] for j in jobs}) == total
-        assert len({j["path"] for j in jobs}) == total
-        assert sum(j["kind"] == "sweep" for j in jobs) == sweeps
-        assert {j["seed"] for j in jobs if j["kind"] == "sweep"} == {42, 43, 44}
-        assert {j["sample_index"] for j in jobs if j["kind"] == "raster"} == {0}
-    assert recipe.SHARDS == 6
-
-
-def test_raster_selection_preserves_dtype_sum_and_rng(tmp_path):
-    e = (np.arange(20 * 256).reshape(20, 256) % 3 == 0).astype(np.float32)
-    i = (np.arange(20 * 128).reshape(20, 128) % 5 == 0).astype(np.float32)
-    np.savez(
-        tmp_path / "snapshot.npz", spk_e=e[:, None, :], spk_i=i[:, None, :], label=7
-    )
-    job = {"model": "ping", "seed": 42, "mode": "drop", "level": 0.5}
-    result = measurements.raster(tmp_path, {"dt": 0.1, "t_ms": 2.0}, job)
-    rng = np.random.default_rng(0)
-    ei = np.sort(rng.choice(256, 200, replace=False))
-    ii = np.sort(rng.choice(128, 64, replace=False))
-    et, en = np.where(e[:, ei].astype(bool))
-    it, inn = np.where(i[:, ii].astype(bool))
-    for key, expected in (
-        ("e_t", et * 0.1),
-        ("e_n", en),
-        ("i_t", it * 0.1),
-        ("i_n", inn + 206),
-    ):
-        np.testing.assert_array_equal(result[key], expected)
-    assert result["e_rate_hz"] == float(e.sum() / (256 * 0.002))
-
-
-def test_shards_collect_without_reexecuting_and_resume_verified_work(lab, monkeypatch):
-    root, bank, calls = lab
-    monkeypatch.setattr(
-        compute, "_capture_code", lambda *a: {"git_commit": "fixture", "dirty": False}
-    )
-    rid = stages.reserve_stage(root / ".pingstore", "exp037", "compute")
-    for index in range(6):
-        compute.shard(bank, run_id=rid, index=index)
-    assert len(calls) == 54
-    compute.shard(bank, run_id=rid, index=0)
-    assert len(calls) == 54
-    compute.compute(bank, run_id=rid, collect=True)
-    assert len(calls) == 54
-    source = inputs.source(root, rid, "compute")
-    assert (
-        len(list((source.directory / "provenance/shards").glob("*/completed.json")))
-        == 6
-    )
-    with pytest.raises(PingstoreError):
-        compute.shard(bank, run_id=rid, index=0)
-
-
-@pytest.mark.parametrize("fault", ["payload", "attachment", "bank", "profile"])
-def test_shard_resume_rejects_changed_evidence(lab, monkeypatch, fault):
-    root, bank, _ = lab
-    monkeypatch.setattr(
-        compute, "_capture_code", lambda *a: {"git_commit": "fixture", "dirty": False}
-    )
-    rid = stages.reserve_stage(root / ".pingstore", "exp037", "compute")
-    compute.shard(bank, run_id=rid, index=0)
-    directory = root / ".pingstore/runs" / f".{rid}.tmp"
-    if fault == "profile":
-        monkeypatch.setenv("PINGLAB_SMOKE", "0")
-    elif fault == "bank":
-        (root / ".pingstore/runs" / bank / "README.md").write_text("changed")
-    else:
-        path = next(
-            (
-                directory
-                / ("export" if fault == "payload" else "provenance/simulations")
-            ).rglob("*.json")
-        )
-        path.write_text("{}")
-    with pytest.raises(PingstoreError):
-        compute.shard(bank, run_id=rid, index=0)
-    assert not (root / ".pingstore/runs" / rid).exists()
-
-
-def test_collect_rejects_missing_shards_and_busy_reservation(lab, monkeypatch):
-    root, bank, _ = lab
-    rid = stages.reserve_stage(root / ".pingstore", "exp037", "compute")
-    with pytest.raises((OSError, PingstoreError)):
-        compute.compute(bank, run_id=rid, collect=True)
-    directory = root / ".pingstore/runs" / f".{rid}.tmp"
-    with compute._compute_lock(directory, exclusive=False):
-        with pytest.raises(PingstoreError, match="busy"):
-            compute.compute(bank, run_id=rid)
-
-
-def test_collection_keeps_six_staged_compute_shards(tmp_path):
-    from experiments.collections.gamma_gated_sparsity.plan import build_plan
-    from experiments.collections.gamma_gated_sparsity.workloads import jobs_for_shard
-
-    plan = build_plan(tmp_path / "campaign", "fixture")
-    row = next(
-        row
-        for stage in plan["stages"]
-        for row in stage["experiments"]
-        if row["slug"] == "exp037"
-    )
-    assert row["execution"]["mode"] == "exp037-staged"
-    assert row["execution"]["shards"] == 6
-    assert row["execution"]["stages"] == ["compute", "analyse", "present"]
-    assert row["command"] == []
-    shards = [jobs_for_shard("exp037", index, 6) for index in range(6)]
-    assert sum(map(len, shards)) == 204
-    assert len(set().union(*map(set, shards))) == 204
-
-
-def test_collection_dispatches_shards_with_bank_and_reservation(lab, monkeypatch):
-    root, bank, _ = lab
-    manifest = root / "bank.json"
-    write_json_atomic(manifest, {"pingstore_run_id": bank})
-    row = {
-        "slug": "exp037",
-        "execution": {"mode": "exp037-staged"},
-        "paths": {"state": str(root / "campaign/state")},
-        "required_outputs": [str(root / "campaign/state/stage-refs.json")],
-    }
-    plan = {"profile": "smoke", "exp022_manifest": str(manifest)}
-    reservations = collection.reserve(root, row)
-    calls = []
-    monkeypatch.setattr(
-        collection.subprocess, "run", lambda command, **kw: calls.append((command, kw))
-    )
-    result = collection.execute_shard(root, plan, row, 2, 6)
-    command, kwargs = calls[0]
-    assert command[2] == "experiments.exp037.compute"
-    assert command[command.index("--source") + 1] == bank
-    assert command[command.index("--run-id") + 1] == reservations["compute"]
-    assert command[command.index("--shard-index") + 1] == "2"
-    assert kwargs["env"]["PINGLAB_SMOKE"] == "1"
-    assert result["compute_run_id"] == reservations["compute"]
-    with pytest.raises(PingstoreError):
-        collection.execute_shard(root, plan, row, 0, 5)
-
-
-def test_reviewed_figures_keep_coordinates_show_full_range_and_omit_run_ids(
-    tmp_path, monkeypatch
-):
-    from experiments.exp037 import plots
-
-    captured = []
-    monkeypatch.setattr(plots, "save_figure", lambda fig, *a, **k: captured.append(fig))
-    data = {"use_pct": True, "panels": {}}
-    for mode in ("drop", "add"):
-        data["panels"][mode] = {
-            model: {
-                "x": [0, 80, 100] if mode == "drop" else [0, 100, 201.426],
-                "mean": [90, 89, 10.6],
-                "lo": [89, 88, 10],
-                "hi": [91, 90, 11.2],
-            }
-            for model in recipe.MODELS
+    samples = [
+        {
+            "e": np.zeros((20, 200), bool),
+            "i": np.zeros((20, 64), bool),
+            "dt": 0.1,
+            "t_ms": 2.0,
+            "spike_rate": float(rate),
+            "e_rate_hz": 10.0,
+            "i_rate_hz": 45.0,
+            "label": 7,
         }
-    plots.plot_perturbation_curves(data, tmp_path / "curves", "exp037-r999-present")
-    figure = captured[0]
-    assert not figure.texts
-    for axis, mode in zip(figure.axes, ("drop", "add")):
-        for line, model in zip(axis.lines[:2], recipe.MODELS):
-            np.testing.assert_array_equal(
-                line.get_xdata(), data["panels"][mode][model]["x"]
-            )
-            np.testing.assert_array_equal(
-                line.get_ydata(), data["panels"][mode][model]["mean"]
-            )
-    assert figure.axes[1].get_xlim()[1] > 201.426
-    assert "reference E rate" in figure.axes[1].get_xlabel()
-    assert "Poisson" not in figure.axes[1].get_title(loc="left")
-    assert "probability" in figure.axes[0].get_xlabel()
-
-
-def test_reviewed_article_structure_and_scientific_caveats():
-    text = (Path(__file__).resolve().parents[2] / "writings/exp037.typ").read_text()
-    assert 'date: "2026-05-30"' in text
-    assert 'updated_at: "2026-08-28"' in text
-    assert (
-        text.index("== Abstract") < text.index("== Results") < text.index("== Methods")
-    )
-    assert "== Discussion" not in text
-    assert "minimum-validation-loss epoch" in text
-    assert "not test-set baseline rates" in text
-    assert "does not match relative perturbation doses" in text
-    assert "capped at one" in text
-    assert "digit 0" not in text
-    assert 'fit: "contain"' in text
-    assert "#reference-list" in text and "#cite(1)" in text
+        for rate in range(10)
+    ]
+    figures = []
+    monkeypatch.setattr(plots, "save_figure", lambda fig, *a, **k: figures.append(fig))
+    plots.plot_rate_rasters(samples, tmp_path / "rasters", "fixture")
+    plots.plot_fi_curve(samples, tmp_path / "curve", "fixture")
+    raster, curve = figures
+    raster.canvas.draw()
+    renderer = raster.canvas.get_renderer()
+    boxes = [ax.texts[0].get_window_extent(renderer) for ax in raster.axes]
+    assert all(a.y0 > b.y1 for a, b in zip(boxes, boxes[1:]))
+    assert all(box.x1 < raster.bbox.x1 and box.y0 > 0 for box in boxes)
+    assert "label 7" in raster.axes[0].get_title(loc="left")
+    assert "label 7" in curve._suptitle.get_text()

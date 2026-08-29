@@ -8,7 +8,7 @@ import numpy as np
 from experiments import exp022, exp037, exp038
 from experiments.helpers.checkpoints import sha256_file
 
-REPO = Path(__file__).resolve().parents[2]
+REPO = Path(__file__).resolve().parents[1]
 
 
 def test_frontier_consumers_cover_the_complete_tr02_registry() -> None:

@@ -116,12 +116,12 @@ Final regression: **461 passed in 17.58 seconds**:
 
 ```sh
 uv run --no-sync pytest -q \
-  experiments/tests/test_exp082_stages.py experiments/tests/test_exp082_scaffold.py \
-  experiments/tests/test_checkpoint_roles.py \
-  experiments/tests/test_gamma_gated_sparsity_collection.py \
-  experiments/tests/test_multiseed_inference.py tools/pingstore/tests \
-  experiments/tests/test_writing_inputs.py experiments/tests/test_writing_status.py \
-  experiments/tests/test_writing_contents.py tools/snnsim/tests/test_models.py
+  experiments/exp082/test.py \
+  experiments/test_checkpoint_roles.py \
+  experiments/collections/gamma_gated_sparsity/test.py \
+  experiments/test_multiseed_inference.py tools/pingstore/tests \
+  writings/test_writing_inputs.py writings/test_writing_status.py \
+  writings/test_writing_contents.py tools/snnsim/tests/test_models.py
 ```
 
 Ruff, package type checking and Git whitespace checks passed. Live R2 run,
@@ -167,7 +167,7 @@ discovery still validates all three exp082 presentations, supporting `[▦ DATA]
 The separately authorized Writing Guide 17 migration changed the article's
 heading to plain `Results` and updated its dedicated rendering assertion. Both
 changes were preserved without editing those files. This is mixed ownership in
-`writings/exp082.typ` and `experiments/tests/test_exp082_stages.py`, in addition to
+`writings/exp082.typ` and `experiments/exp082/test.py`, in addition to
 shared collection files; the writing task was notified that whole-file staging
 requires coordination. Current HTML/PDF rendering assertions pass, but the prior
 manual browser and paged inspection predates this heading-only change and the

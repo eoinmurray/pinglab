@@ -89,7 +89,7 @@ now routes exp054 through it in `plan.py`, `execution.py` and `slurm.py`:
 
 Only exp054 registration hunks and its necessary shared test expectations were
 changed. The shared tests affected are `test_gamma_gated_sparsity_collection.py`,
-`test_exp041_stages.py` and `test_exp033_noise_sensitivity.py`. Exp080's previously
+`exp041/test.py` and `exp033/test.py`. Exp080's previously
 uncommitted registration and fixture hunks were preserved, not adopted as ours.
 The old exp054 source-text assertion now checks the explicit recipe; dedicated
 numerical tests verify sigma propagation through the retained compute functions.
