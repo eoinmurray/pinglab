@@ -10,7 +10,7 @@
   status: "[▦ DATA]",
   title: "Lowet 2015",
   date: "2026-08-19",
-  updated_at: "2026-08-28",
+  updated_at: "2026-08-29",
   description: "Distinguish the pathways that phase-lock two cortical PING rhythms.",
   collection: "demo",
   order: 1,
@@ -43,28 +43,18 @@
 #let body = [
   == Abstract
 
-  Coupling between excitatory populations locked two detuned gamma rhythms; coupling onto inhibitory populations alone did not. I compared four coupling conditions in two networks, each containing #r.network.populations_per_network.E excitatory and #r.network.populations_per_network.I inhibitory neurons, and measured their responses to isolated probe volleys. Final phase drift was #calc.round(e-to-e.final_drift_rate_cycles_per_s, digits: 2) cycles/s with excitatory-to-excitatory coupling versus #calc.round(e-to-i.final_drift_rate_cycles_per_s, digits: 2) cycles/s with excitatory-to-inhibitory coupling. Combined coupling also locked. In the illustrated correction, excitation advanced the next excitatory volley by #calc.round(mechanism.next_target_volley_advance_ms, digits: 1) ms, followed by feedback inhibition. These observations distinguish the pathways at one seeded operating point, not across network realizations or coupling regimes.
+  Coupling between excitatory populations locked two detuned gamma rhythms; coupling onto inhibitory populations alone did not. I compared four coupling conditions in two networks, each containing #r.network.populations_per_network.E excitatory and #r.network.populations_per_network.I inhibitory neurons, and measured their responses to isolated probe volleys. Final phase drift was #calc.round(e-to-e.final_drift_rate_cycles_per_s, digits: 2) cycles/s with excitatory-to-excitatory coupling versus #calc.round(e-to-i.final_drift_rate_cycles_per_s, digits: 2) cycles/s with excitatory-to-inhibitory coupling. Combined coupling also locked. In the illustrated correction, excitation advanced the next excitatory volley by #calc.round(mechanism.next_target_volley_advance_ms, digits: 1) ms, followed by feedback inhibition. These observations distinguish the pathways at one seeded operating point; they do not establish dominance across delays, detuning, noise, network realizations, or broader coupling regimes.
 
   #run-view("exp085", inputs)
 
-  == The question
+  == Results
 
-  Lowet et al. connected two pyramidal-interneuron gamma (PING) networks through reciprocal excitatory-to-excitatory (E-to-E) and excitatory-to-inhibitory (E-to-I) projections and showed that locking depends on detuning and coupling strength#cite(1). They varied the two pathways jointly; here I separated them in an adapted model. E-to-E input can advance the target rhythm directly. E-to-I input can recruit inhibition and delay its next volley. Which route actually stops phase drift?
-
-  == The system
-
-  Each network contains #r.network.populations_per_network.E excitatory (E) and #r.network.populations_per_network.I inhibitory (I) conductance-based leaky integrate-and-fire (LIF) neurons in a local PING loop. Sparse reciprocal excitation targets both populations through separate pathways.
+  === The uncoupled rhythms drift
 
   #figure(
     data-image(data-file("exp085/network.svg"), width: 78%, alt: "Two matched PING networks with local E-to-I-to-E loops and reciprocal E-to-E and E-to-I coupling."),
     caption: [Model schematic: two matched PING circuits. Long-range excitation targets either E or I with exact fan-in 8.],
   )
-
-  Network A receives #r.network.detuning_input_rates_hz.PING_A Hz input and Network B receives #r.network.detuning_input_rates_hz.PING_B Hz. The nominal cross-network weights are $K_(E E) = #r.network.weights.K_EE$ for E-to-E and $K_(E I) = #r.network.weights.K_EI$ for E-to-I projections, with transmission delay $d = #r.network.delay_ms$ ms.
-
-  == Results
-
-  === The uncoupled rhythms drift
 
   #figure(
     data-image(data-file("exp085/uncoupled.png"), width: 88%, alt: "Two clean PING rhythms above their continually wrapping relative phase."),
@@ -99,9 +89,9 @@
 
   == Methods
 
-  I compared isolated phase perturbations with sustained reciprocal coupling, using one network initialization and fixed input realizations. No parameters were trained or selected across repetitions.
+  Lowet et al. varied reciprocal excitatory-to-excitatory (E-to-E) and excitatory-to-inhibitory (E-to-I) coupling jointly between two pyramidal-interneuron gamma (PING) networks#cite(1). I separated these pathways in an adapted model, comparing isolated phase perturbations with sustained coupling under one initialization and fixed input realizations. No parameters were trained or selected across repetitions.
 
-  + *Set the network and drive.* I evolved the two circuits at 0.1 ms resolution, driving each E population through 128 independent spike channels at its stated rate, sampled as Bernoulli approximations to Poisson input. Local E-to-I excitation decayed in #r.network.local_e_to_i.ampa_tau_ms ms and I-to-E inhibition in 9 ms; external and cross-network excitation decayed in 2 ms. Cross-network excitation retained exactly eight afferents per target, with each nominal strength divided across those afferents.
+  + *Set the network and drive.* I constructed two local PING loops, each with #r.network.populations_per_network.E excitatory (E) and #r.network.populations_per_network.I inhibitory (I) conductance-based leaky integrate-and-fire neurons, and evolved them at 0.1 ms resolution. I drove their E populations through 128 independent spike channels at #r.network.detuning_input_rates_hz.PING_A and #r.network.detuning_input_rates_hz.PING_B Hz, using Bernoulli approximations to Poisson input. Local E-to-I excitation decayed in #r.network.local_e_to_i.ampa_tau_ms ms and I-to-E inhibition in 9 ms; external and cross-network excitation decayed in 2 ms. Reciprocal E-to-E and E-to-I projections had nominal weights $K_(E E) = #r.network.weights.K_EE$ and $K_(E I) = #r.network.weights.K_EI$, delay $d = #r.network.delay_ms$ ms, and eight afferents per target; each nominal strength was divided across them.
 
   + *Measure the uncoupled rhythms.* I simulated 2 s and discarded the first 300 ms for rhythm measurements. Per-neuron population rates were smoothed with a 1 ms Gaussian standard deviation; E volleys required 15 ms separation and prominence of 10% of the maximum rate. Frequency was the reciprocal mean inter-volley interval, variability its standard deviation divided by its mean, and phase advanced linearly between successive E volleys. I checked regular gamma activity, repeated phase wrapping and one I spike per neuron per cycle.
 
@@ -123,10 +113,6 @@
     Here $R$ is circular concentration, $N$ the number of valid timesteps, $n$ their index, $delta phi_n$ the A-minus-B phase in radians, and $i$ the imaginary unit.
 
   + *Resolve the first correction.* I compared the no-coupling and E-to-E conditions around the first A-to-B arrival with a complete −5 to +17 ms window. I measured the next target E volley, target E/I rates and mean incoming and feedback conductances; the event and probe examples reuse the same trajectories, not independent repetitions.
-
-  == Scope
-
-  This is one selected operating point, not a claim that E-to-E coupling dominates across delays, detuning, noise, or network realizations. Broader claims require systematic sweeps and repeated runs.
 
   #reference-list((
     (

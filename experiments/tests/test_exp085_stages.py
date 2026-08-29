@@ -273,7 +273,7 @@ def check_article_render(lab, output):
     )
     assert not re.sub('<[^>]+>', '', without_headings).strip()
     methods = re.search(
-        r'<h[1-6][^>]*>Methods</h[1-6]>(.*?)<h[1-6][^>]*>Scope', html, re.S
+        r'<h[1-6][^>]*>Methods</h[1-6]>(.*?)<h[1-6][^>]*>References', html, re.S
     ).group(1)
     assert len(re.findall(r"<ol\b", methods)) == 1
     assert len(re.findall(r"<li\b", methods)) == 5
