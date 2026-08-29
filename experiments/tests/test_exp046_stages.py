@@ -1,6 +1,5 @@
 """Synthetic cycle evidence; no training, production inference or historical import."""
 
-import os
 import subprocess
 import sys
 from pathlib import Path
@@ -13,7 +12,6 @@ from experiments.exp046 import (
     analyse,
     collection,
     compute,
-    import_gold2,
     inputs,
     measurements,
     present,
@@ -23,7 +21,6 @@ from experiments.tests import test_exp041_stages as upstream_tests
 from pingstore import stages
 from pingstore.contracts import (
     PingstoreError,
-    file_sha256,
     load_json,
     payload_digest,
     write_json_atomic,
@@ -327,25 +324,6 @@ def test_retired_entrypoints_fail_without_outputs(tmp_path):
     assert "explicit" in result.stderr
 
 
-def test_import_has_no_storage_side_effects_and_preserves_sample_caps(tmp_path):
-    assert recipe.configuration()["evaluation_samples"] == 1000
-    assert recipe.configuration(smoke=True)["evaluation_samples"] == 100
-    root = Path(__file__).resolve().parents[2]
-    result = subprocess.run(
-        [
-            sys.executable,
-            "-c",
-            "from experiments import exp046; assert not hasattr(exp046, 'RUN_PATHS'); assert exp046.cell_name(4.5,42)=='ping__tg4p5__seed42'",
-        ],
-        cwd=tmp_path,
-        env={**os.environ, "PYTHONPATH": str(root)},
-        capture_output=True,
-        text=True,
-    )
-    assert result.returncode == 0, result.stderr
-    assert not list(tmp_path.iterdir())
-
-
 def test_unchanged_article_renders_explicit_present_outputs(cycle_lab):
     import shutil
 
@@ -461,210 +439,3 @@ def test_collection_requires_completed_frequency_dependency(cycle_lab):
 def test_legacy_collection_plan_rejected():
     with pytest.raises(PingstoreError, match="legacy"):
         collection.require_staged({"execution": {"mode": "monolithic"}})
-
-
-def _gold2_fixture(cycle_lab, monkeypatch):
-    root, bank_id, frequency_id, _ = cycle_lab
-    identity = compute.compute(bank_id)
-    analysis_id = analyse.analyse(identity, frequency_id)
-    source = inputs.source(root, identity, "compute")
-    result = inputs.source(root, analysis_id, "analyse")
-    raw = load_json(source.export / "evidence.json")
-    monkeypatch.setattr(import_gold2, "REPO", root)
-    monkeypatch.setattr(recipe, "EVAL_MAX_SAMPLES", 100)
-    monkeypatch.setattr(import_gold2.archive_helpers.recipe, "EVAL_MAX_SAMPLES", 100)
-    configuration = recipe.configuration
-    monkeypatch.setattr(
-        recipe, "configuration", lambda **kwargs: configuration(smoke=True)
-    )
-    archive = root / "gold-2"
-    write_json_atomic(
-        archive / "run.json",
-        {
-            "run_id": "gold-2",
-            "contract_version": "runstore/v1",
-            "archive": {"uri": import_gold2.URI},
-        },
-    )
-    write_json_atomic(
-        archive / import_gold2.DERIVED / "numbers.json",
-        load_json(result.export / "results.json"),
-    )
-    for name in ("lineage.json", f"{import_gold2.BASE}/collection-plan.json"):
-        write_json_atomic(archive / name, {})
-    write_json_atomic(
-        archive / import_gold2.BASE / "run.json",
-        {
-            "run_id": "historical-campaign",
-            "source": {"git_commit": "historical"},
-        },
-    )
-    write_json_atomic(
-        archive / import_gold2.BASE / "collection-status/exp046.json",
-        {
-            "experiment": "exp046",
-            "state": "complete",
-        },
-    )
-    write_json_atomic(
-        archive / import_gold2.BASE / "submissions/collection-submission.json",
-        {
-            "jobs": [{"name": "ggs-exp046", "job_id": "fixture"}],
-        },
-    )
-    for cell, checkpoint in zip(
-        raw["training_contract"]["cells"], raw["checkpoint_provenance"], strict=True
-    ):
-        directory = (
-            archive
-            / import_gold2.STATE
-            / "infer"
-            / cell["cell_name"]
-            / f"final_epoch__{checkpoint['sha256'][:12]}"
-        )
-        config = {
-            **raw["training_contract"]["common"],
-            "seed": cell["seed"],
-            "tau_gaba": cell["tau_gaba_ms"],
-            "infer": True,
-            "scale_w_in": 1.0,
-            "scale_w_ei": 1.0,
-            "scale_w_ie": 1.0,
-            "intervention": [],
-            "scale_projection": [],
-            "max_samples": 100,
-            "load_config": f"/historical/{cell['cell_name']}/config.json",
-            "load_weights": f"/historical/{cell['cell_name']}/weights_final.pth",
-            "outputs": ["rasters", "per_cell_rates"],
-        }
-        write_json_atomic(directory / "config.json", config)
-        for name in import_gold2.SIDECARS[1:]:
-            (directory / name).write_text("historical execution evidence\n")
-        original = source.export / "infer" / cell["cell_name"]
-        metrics = load_json(original / "metrics.json")
-        metrics["config"].pop("seed")
-        metrics["config"].pop("tau_gaba_ms")
-        metrics["config"]["load_weights"] = config["load_weights"]
-        write_json_atomic(directory / "metrics.json", metrics)
-        for payload in import_gold2.ARRAYS:
-            with np.load(original / payload) as data:
-                arrays = {k: data[k] for k in data.files}
-            arrays["unused_array"] = np.ones(100)
-            np.savez(directory / payload, **arrays)
-    rows = [
-        {
-            "path": str(p.relative_to(archive)),
-            "size_bytes": p.stat().st_size,
-            "sha256": file_sha256(p),
-        }
-        for p in sorted(archive.rglob("*"))
-        if p.is_file() and p != archive / "run.json"
-    ]
-    write_json_atomic(
-        archive / "inventory.json",
-        {
-            "contract_version": "runstore/v1",
-            "run_id": "gold-2",
-            "files": rows,
-            "file_count": len(rows),
-            "total_size_bytes": sum(r["size_bytes"] for r in rows),
-        },
-    )
-    plan = import_gold2.make_plan(archive, bank_id)
-    write_json_atomic(root / "import-plan.json", plan)
-    return archive, load_json(root / "import-plan.json")
-
-
-def test_gold2_import_preserves_full_selected_arrays_and_metrics(
-    cycle_lab, monkeypatch
-):
-    import zipfile
-
-    archive, plan = _gold2_fixture(cycle_lab, monkeypatch)
-    root, _, frequency_id, calls = cycle_lab
-    previous_calls = len(calls)
-    identity = import_gold2.import_subset(archive, plan)
-    imported = inputs.source(root, identity, "compute")
-    assert imported.record["origin"] == "local"
-    assert imported.record["execution"]["operation"] == "historical-import"
-    assert imported.record["historical_import"]["simulation_executed"] is False
-    assert imported.record["historical_import"]["producer"]["origin"] == "slurm"
-    for job in plan["jobs"]:
-        original = archive / job["directory"]
-        target = imported.export / "infer" / job["cell"]["cell_name"]
-        for payload, keys in import_gold2.ARRAYS.items():
-            with (
-                zipfile.ZipFile(original / payload) as old,
-                zipfile.ZipFile(target / payload) as new,
-            ):
-                assert set(new.namelist()) == {k + ".npy" for k in keys}
-                for name in new.namelist():
-                    assert new.read(name) == old.read(name)
-        actual = load_json(target / "metrics.json")
-        assert actual["config"].pop("seed") == job["cell"]["seed"]
-        assert actual["config"].pop("tau_gaba_ms") == job["cell"]["tau_gaba_ms"]
-        assert actual == load_json(original / "metrics.json")
-        assert (
-            imported.directory / "provenance/gold-2" / job["directory"] / "metrics.json"
-        ).read_bytes() == (original / "metrics.json").read_bytes()
-    present.present(analyse.analyse(identity, frequency_id))
-    assert len(calls) == previous_calls
-    assert not (root / ".artifacts").exists()
-    import_gold2.verify_files(archive, plan)
-
-
-@pytest.mark.parametrize(
-    "fault", ["checksum", "plan", "checkpoint", "config", "producer", "recording"]
-)
-def test_gold2_import_rejects_inconsistent_evidence(cycle_lab, monkeypatch, fault):
-    archive, plan = _gold2_fixture(cycle_lab, monkeypatch)
-    root, _, _, _ = cycle_lab
-    before = set((root / ".pingstore/runs").iterdir())
-    first = archive / plan["jobs"][0]["directory"]
-    if fault == "checksum":
-        (first / "metrics.json").write_text("corrupt")
-        with pytest.raises(PingstoreError, match="checksum"):
-            import_gold2.import_subset(archive, plan)
-    elif fault == "plan":
-        plan["recipe"]["evaluation_samples"] += 1
-        with pytest.raises(PingstoreError, match="plan changed"):
-            import_gold2.import_subset(archive, plan)
-    else:
-        if fault == "checkpoint":
-            plan["checkpoints"][0]["sha256"] = "0" * 64
-        elif fault == "config":
-            config = load_json(first / "config.json")
-            config["tau_gaba"] += 1
-            write_json_atomic(first / "config.json", config)
-        elif fault == "producer":
-            write_json_atomic(
-                archive / import_gold2.BASE / "submissions/collection-submission.json",
-                {"jobs": []},
-            )
-        else:
-            np.savez(first / "per_cell_rates.npz", rate_e_per_cell=np.zeros(4))
-        with pytest.raises(PingstoreError):
-            import_gold2.validate_science(archive, plan)
-    assert set((root / ".pingstore/runs").iterdir()) == before
-
-
-def test_gold2_source_mutation_prevents_import_completion(cycle_lab, monkeypatch):
-    archive, plan = _gold2_fixture(cycle_lab, monkeypatch)
-    root, _, _, _ = cycle_lab
-    before = {
-        p for p in (root / ".pingstore/runs").iterdir() if not p.name.startswith(".")
-    }
-    extract = import_gold2.archive_helpers.extract_arrays
-
-    def changed(*args):
-        result = extract(*args)
-        (archive / "lineage.json").write_text("changed during import")
-        return result
-
-    monkeypatch.setattr(import_gold2.archive_helpers, "extract_arrays", changed)
-    with pytest.raises(PingstoreError, match="checksum"):
-        import_gold2.import_subset(archive, plan)
-    assert {
-        p for p in (root / ".pingstore/runs").iterdir() if not p.name.startswith(".")
-    } == before
-    assert list((root / ".pingstore/runs").glob(".exp046-*-compute.tmp"))

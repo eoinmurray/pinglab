@@ -129,13 +129,8 @@ of exp082. Fifteen identical HPC checkout copies and one alternate-rendering
 copy add no independent numerical evidence and are not imported.
 
 Anomancer approved a summary-level historical import and independent rebuild on
-2026-08-28. The explicit entrypoint is:
-
-```sh
-uv run python -m experiments.exp048.import_historical --source r2:pinglab/datasets/gamma-gated-sparsity/baseline-20260826/experiment-runs/exp048/exp048--r003
-uv run python -m experiments.exp048.analyse --source <historical-import-analyse-id>
-uv run python -m experiments.exp048.present --source <reaggregated-analyse-id>
-```
+2026-08-28. The one-off import entrypoint was retired after completion; its
+executed code and exact source record remain in immutable run provenance.
 
 The importer pins both original metadata hashes, verifies every payload checksum
 against the approved inventory, and creates an `analyse` run with operation

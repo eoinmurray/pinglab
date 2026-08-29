@@ -7,7 +7,7 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parents[2]
 sys.path[:0] = [str(REPO), str(REPO / "tools")]
 
-from experiments.exp033 import appearance, evidence, historical, inputs, plots
+from experiments.exp033 import appearance, evidence, inputs, plots
 from pingstore.contracts import (
     PingstoreError,
     file_sha256,
@@ -49,12 +49,12 @@ def present(identity, *, run_id=None):
             )
             if "retained_figures" in coords:
                 retained = coords["retained_figures"]
-                if set(retained) != set(historical.CARRY):
+                if set(retained) != set(evidence.CARRY):
                     raise PingstoreError("historical figure selection is incomplete")
                 source = upstreams["compute"]
                 if source.record.get("historical_import", {}).get(
                     "carry_forward_figures"
-                ) != list(historical.CARRY):
+                ) != list(evidence.CARRY):
                     raise PingstoreError("unapproved historical figure source")
                 for name, item in retained.items():
                     if (

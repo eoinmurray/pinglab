@@ -120,13 +120,11 @@ records, rhythmicity summary and previously audited plot data. The 35 pre-existi
 run manifests and the article were unchanged at that import checkpoint;
 publication has not occurred. The subsequent article review is recorded below.
 
-`import_gold2.py` has explicit `plan` and `import` actions. Planning requires
-`--archive`, `--source` (the v3 exp022 bank) and a new `--plan` path; import requires
-`--archive` and that approved `--plan`. It revalidates the plan, checksums,
+The retired one-off importer revalidated its approved plan, checksums,
 producer lineage, configurations, checkpoint matrices and archived results
 before allocating a run, then rechecks sources before atomic completion.
-It never launches analyse/present or publishes. Re-importing is a new operation,
-not an implicit resume or update of the completed import.
+It never launched analyse/present or published. Its executed code remains in
+compute provenance.
 
 The executable plan, fresh R2 metadata check, import verification and independent
 stage verification are retained under `.r2/exp049-import-f1_srzrv/`. The completed

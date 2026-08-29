@@ -134,13 +134,7 @@ and inhibitory decay recovered from the verified sibling configs. The importer
 records the selected file inventory, per-array checksums, destination mappings,
 its source and the shared extraction helper. It never downloads or publishes.
 
-```sh
-uv run python experiments/exp046/import_gold2.py plan --archive .r2/gold-2 --source exp022-r001-compute --plan <new-plan.json>
-uv run python experiments/exp046/import_gold2.py import --archive .r2/gold-2 --plan <new-plan.json>
-```
-
-These commands create another import if explicitly run; they do not resume or
-rewrite the completed run above. The executed plan and verification records
+The one-off importer was retired after completion. The executed plan, code and verification records
 are retained under `.r2/exp046-import-sasnxdvi/` and in compute provenance.
 
 ### Preservation results and unresolved historical difference

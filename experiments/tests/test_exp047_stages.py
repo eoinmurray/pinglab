@@ -1,7 +1,6 @@
 """Exp047 contract regressions using synthetic metrics, never simulation."""
 
 import copy
-import hashlib
 import json
 import subprocess
 import sys
@@ -15,8 +14,6 @@ from experiments.exp047 import (
     collection,
     compute,
     evidence,
-    historical,
-    import_gold2,
     inputs,
     measurements,
     present,
@@ -81,7 +78,7 @@ def fixture_documents(cfg, item):
 
 @pytest.fixture
 def repo(tmp_path, monkeypatch):
-    for module in (compute, analyse, present, import_gold2):
+    for module in (compute, analyse, present):
         monkeypatch.setattr(module, "REPO", tmp_path)
     monkeypatch.setattr(stages, "memberships", lambda _: {"exp047": "demo"})
     monkeypatch.setattr(
@@ -504,243 +501,6 @@ def test_package_import_is_inert():
     )
 
 
-@pytest.fixture
-def archive(tmp_path):
-    root, live = tmp_path / "archive", tmp_path / "remote"
-    root.mkdir()
-    live.mkdir()
-    cfg, rows = recipe.configuration(), {}
-    for item in recipe.jobs(cfg):
-        directory = root / historical.STATE / item["id"]
-        directory.mkdir(parents=True)
-        config, metric = fixture_documents(cfg, item)
-        write_json_atomic(directory / "config.json", config)
-        write_json_atomic(directory / "metrics.json", metric)
-        for name in ("run.sh", "run.jsonl", "output.log"):
-            (directory / name).write_text("synthetic historical fixture\n")
-        rows[item["id"]] = evidence.metric(metric, cfg, item)
-    source = {
-        "git_commit": historical.COMMIT,
-        "git_clean": True,
-        "lockfile": {"sha256": "a" * 64},
-    }
-    records = {
-        "lineage.json": {
-            "sources": {"base": {"run_id": historical.CAMPAIGN}},
-            "selection": {"base_experiment_state": ["exp047"]},
-        },
-        f"{historical.BASE}/run.json": {
-            "run_id": historical.CAMPAIGN,
-            "source": source,
-        },
-        f"{historical.BASE}/collection-plan.json": {
-            "source": source,
-            "stages": [
-                {
-                    "experiments": [
-                        {
-                            "slug": "exp047",
-                            "dependencies": [],
-                            "training_run": None,
-                            "execution": {"mode": "monolithic"},
-                        }
-                    ]
-                }
-            ],
-        },
-        f"{historical.BASE}/collection-status/exp047.json": {
-            "state": "complete",
-            "experiment": "exp047",
-        },
-        f"{historical.DERIVED}/numbers.json": {
-            **measurements.analyse_rows(rows, cfg),
-            "run_id": "r001",
-            "collection_provenance": {
-                "campaign_id": historical.CAMPAIGN,
-                "source_git_commit": historical.COMMIT,
-                "experiment": "exp047",
-                "dependencies": [],
-                "training_run": None,
-                "lockfile_sha256": "a" * 64,
-            },
-        },
-    }
-    for name, value in records.items():
-        write_json_atomic(root / name, value)
-    for name, value in {
-        f"{historical.BASE}/logs/collection/ggs-exp047_{historical.JOB}.out": f"job={historical.JOB} host=fixture action=run-experiment experiment=exp047\n[published] fixture\n",
-        f"{historical.BASE}/logs/collection/ggs-exp047_{historical.JOB}.err": "",
-        f"{historical.DERIVED}/run.sh": "# fixture",
-        f"{historical.DERIVED}/pool_size_controls.svg": "<svg/>",
-    }.items():
-        path = root / name
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(value)
-    write_json_atomic(
-        root / "run.json",
-        {
-            "run_id": "gold-2",
-            "contract_version": "runstore/v1",
-            "archive": {"uri": historical.URI},
-        },
-    )
-    refresh_inventory(root, live)
-    return root, live
-
-
-def refresh_inventory(root, live):
-    rows = [
-        {
-            "path": str(p.relative_to(root)),
-            "size_bytes": p.stat().st_size,
-            "sha256": hashlib.sha256(p.read_bytes()).hexdigest(),
-        }
-        for p in root.rglob("*")
-        if p.is_file()
-        and str(p.relative_to(root)) not in ("run.json", "inventory.json")
-    ]
-    write_json_atomic(
-        root / "inventory.json",
-        {
-            "run_id": "gold-2",
-            "contract_version": "runstore/v1",
-            "files": rows,
-            "file_count": len(rows),
-            "total_size_bytes": sum(row["size_bytes"] for row in rows),
-        },
-    )
-    for name in ("run.json", "inventory.json"):
-        (live / name).write_bytes((root / name).read_bytes())
-
-
-def test_historical_plan_selects_all_metrics_and_retains_original_inventory(archive):
-    import gzip
-
-    root, live = archive
-    plan = historical.make_plan(root, live)
-    assert plan["source_file_count"] == 220
-    metrics = [row for row in plan["files"] if row["target"].startswith("export/")]
-    assert len(metrics) == 42
-    assert plan["upstream_inputs"] == {}
-    assert plan["producer"]["source_git_commit"] == historical.COMMIT
-    original_inventory = (root / "inventory.json").read_bytes()
-    inventory_row = next(
-        row for row in plan["files"] if row["path"] == "inventory.json"
-    )
-    compressed = gzip.compress(original_inventory, mtime=0)
-    assert inventory_row["retained_bytes"] == len(compressed)
-    assert gzip.decompress(compressed) == original_inventory
-    assert plan["excluded_experiment_files"][0]["path"].endswith(".svg")
-    assert not (root / ".pingstore").exists()
-
-
-@pytest.mark.parametrize(
-    "corruption",
-    ["live", "checksum", "config", "summary", "producer", "job", "symlink"],
-)
-def test_historical_plan_rejects_inconsistent_evidence(archive, corruption):
-    root, live = archive
-    if corruption == "live":
-        (live / "run.json").write_text("{}")
-    elif corruption == "checksum":
-        next((root / historical.STATE).glob("*/metrics.json")).write_text("{}")
-    elif corruption == "symlink":
-        path = root / historical.DERIVED / "run.sh"
-        path.unlink()
-        path.symlink_to(live / "run.json")
-    else:
-        if corruption == "config":
-            path = next((root / historical.STATE).glob("*/config.json"))
-            doc = load_json(path)
-            doc["seed"] = 99
-        elif corruption == "summary":
-            path = root / historical.DERIVED / "numbers.json"
-            doc = load_json(path)
-            doc["summary"]["fixed_total"]["1"]["16"]["r_e_hz_mean"] += 1
-        elif corruption == "producer":
-            path = root / historical.BASE / "run.json"
-            doc = load_json(path)
-            doc["source"]["git_commit"] = "b" * 40
-        else:
-            path = (
-                root
-                / historical.BASE
-                / "logs/collection"
-                / f"ggs-exp047_{historical.JOB}.out"
-            )
-            path.write_text(path.read_text().replace(historical.JOB, "99999999"))
-            refresh_inventory(root, live)
-            with pytest.raises(PingstoreError):
-                historical.make_plan(root, live)
-            return
-        write_json_atomic(path, doc)
-        refresh_inventory(root, live)
-    with pytest.raises(PingstoreError):
-        historical.make_plan(root, live)
-
-
-def test_import_preserves_approved_bytes_producer_and_independent_stages(repo, archive):
-    import gzip
-
-    root, calls = repo
-    source, live = archive
-    plan = historical.make_plan(source, live)
-    identity = import_gold2.import_subset(source, plan, live)
-    run = inputs.source(root, identity, "compute")
-    assert calls == []
-    assert run.record["execution"]["operation"] == "historical-import"
-    assert run.record["origin"] == "local"
-    assert run.record["inputs"] == {}
-    assert run.record["historical_import"]["producer"] == plan["producer"]
-    for row in plan["files"]:
-        data = (run.directory / row["target"]).read_bytes()
-        assert len(data) == row["retained_bytes"]
-        if row["encoding"] == "gzip":
-            data = gzip.decompress(data)
-        assert data == (source / row["path"]).read_bytes()
-    assert historical.make_plan(source, live) == plan
-    analysis_id = analyse.analyse(identity)
-    present_id = present.present(analysis_id)
-    numbers = load_json(
-        inputs.source(root, present_id, "present").presentation / "numbers.json"
-    )
-    original = load_json(source / historical.DERIVED / "numbers.json")
-    assert all(
-        numbers[k] == original[k] for k in ("config", "definition", "raw", "summary")
-    )
-    assert not (root / ".artifacts").exists()
-
-
-def test_changed_plan_is_rejected_before_allocation(repo, archive):
-    root, _ = repo
-    source, live = archive
-    plan = historical.make_plan(source, live)
-    plan["files"][0]["target"] = "../../escape"
-    with pytest.raises(PingstoreError, match="plan differs"):
-        import_gold2.import_subset(source, plan, live)
-    assert not (root / ".pingstore").exists()
-
-
-def test_source_mutation_during_import_never_exposes_completed_run(
-    repo, archive, monkeypatch
-):
-    root, _ = repo
-    source, live = archive
-    plan = historical.make_plan(source, live)
-    original = import_gold2.copy_selected
-
-    def changed(*args):
-        result = original(*args)
-        (source / args[2]["path"]).write_bytes(b"mutated after copying")
-        return result
-
-    monkeypatch.setattr(import_gold2, "copy_selected", changed)
-    with pytest.raises(PingstoreError):
-        import_gold2.import_subset(source, plan, live)
-    assert not list((root / ".pingstore/runs").glob("exp047-*"))
-    assert len(list((root / ".pingstore/runs").glob(".exp047-*.tmp"))) == 1
-
-
 def test_article_renders_explicit_presentation_with_equations_and_seed_list(repo):
     import re
     import shutil
@@ -754,7 +514,7 @@ def test_article_renders_explicit_presentation_with_equations_and_seed_list(repo
     output = inputs.source(root, pid, "present")
     source_root = Path(__file__).resolve().parents[2]
     (root / "writings").mkdir()
-    for name in ("exp047.typ", "run-inputs.typ"):
+    for name in ("exp047.typ", "run-inputs.typ", "run-view.typ", "contents.typ"):
         shutil.copy2(source_root / "writings" / name, root / "writings" / name)
     (root / ".demolab").mkdir()
     shutil.copy2(_paths.TYP / "lib.typ", root / ".demolab/lib.typ")

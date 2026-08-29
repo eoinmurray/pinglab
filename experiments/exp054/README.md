@@ -186,20 +186,8 @@ These comparisons exclude the already-retained shared upstream banks. No archive
 no disk space was reclaimed by pruning. Future runs also retain their own code
 patches; size comparisons must include that provenance overhead.
 
-```sh
-uv run --no-sync python -m experiments.exp054.import_gold2 \
-  --archive .r2/gold-2 \
-  --plan .r2/exp054-contract-4qgrfydx/import-plan.json \
-  --plan-sha256 41cbfb4cd2c73c64f8ee82c063d61f33ca7e37ace69fa6be15aa1ae94c1db16d \
-  --producer-code-directory .r2/exp054-contract-4qgrfydx \
-  --live-metadata-directory .r2/exp054-import-ch71rm5x
-uv run --no-sync python -m experiments.exp054.analyse \
-  --source exp054-r001-compute --frequency-source exp041-r002-analyse
-uv run --no-sync python -m experiments.exp054.present --source exp054-r002-analyse
-```
-
-These commands document completed operations, not permission to repeat them.
-The importer checks the exact selection, source sizes/hashes, live metadata,
+The one-off importer was retired after completion; its code and invocation remain
+in run provenance. It checked the exact selection, source sizes/hashes, live metadata,
 producer identity/configuration, full raster inventory, every NPY member and
 upstream pins. It retains source-to-target mappings, original producer code,
 commands and evidence, with the local import distinct from the Slurm producer.

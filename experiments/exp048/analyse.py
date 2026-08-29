@@ -77,11 +77,9 @@ def decode(job, raw, stimulus, w, tau_out):
 
 
 def analyse(identity, *, run_id=None):
-    from experiments.exp048 import historical
-
     candidate = inputs.lineage(REPO, identity)[identity]
-    if candidate.record["execution"].get("configuration") == historical.IMPORT:
-        return historical.analyse(REPO, candidate, run_id=run_id)
+    if candidate.record["execution"].get("configuration") == evidence.IMPORT:
+        return evidence.analyse_retained(REPO, candidate, run_id=run_id)
     source = inputs.source(REPO, identity, "compute")
     bank, contract = inputs.compute_evidence(REPO, source)
     with inputs.execution(

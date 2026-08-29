@@ -116,14 +116,8 @@ matched the cached archive byte for byte. The recorded plan selects 1,039 source
 files (569,410,841 source bytes, including the full source ZIP sizes). Import
 verifies those hashes before and after copying and checks checkpoint roles,
 simulation configurations, sample counts, numerical replay and producer lineage
-before allocating a run. The scoped importer is not a general storage CLI:
-
-```sh
-uv run python -m experiments.exp037.import_gold2 plan \
-  --archive .r2/gold-2 --source exp022-r001-compute --plan <new-plan.json>
-uv run python -m experiments.exp037.import_gold2 import \
-  --archive .r2/gold-2 --plan <audited-plan.json>
-```
+before allocating a run. The scoped importer was retired after completion; its
+executed code, plan and checks remain in immutable run provenance.
 
 Completed runs, each created independently:
 

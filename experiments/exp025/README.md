@@ -56,14 +56,9 @@ have not been rewritten.
 
 ## Selective Gold-2 import
 
-```sh
-uv run python -m experiments.exp025.import_gold2 plan \
-  --archive .r2/gold-2 --source <exp022-compute-run> --plan <new-plan.json>
-uv run python -m experiments.exp025.import_gold2 import \
-  --archive .r2/gold-2 --plan <reviewed-plan.json>
-```
-
-This is an explicit, offline historical import. The importer does not download,
+The completed import was an explicit, offline historical operation. Its one-off
+entrypoint has been retired; the executed code and plan remain in run provenance.
+It did not download,
 train, simulate, analyse, present or publish. Planning verifies archive identity,
 checksums, the 48 checkpoint hashes and the selected configurations. Import
 rebuilds the plan, validates exact equality, copies selected NPY bytes with

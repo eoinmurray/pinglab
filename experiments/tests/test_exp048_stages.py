@@ -1,7 +1,6 @@
 """Synthetic exp048 contract probes; no training or production inference."""
 
 import json
-import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -13,8 +12,6 @@ from experiments.exp048 import (
     analyse,
     compute,
     evidence,
-    historical,
-    import_historical,
     inputs,
     measurements,
     plots,
@@ -175,220 +172,13 @@ def resign(directory):
     write_json_atomic(directory / "run.json", record)
 
 
-@pytest.fixture
-def legacy(lab, monkeypatch):
+def test_rate_inset_matches_article_range_and_uncertainty(lab, monkeypatch, tmp_path):
     root, bank, _ = lab
-    native = inputs.source(root, analyse.analyse(compute.compute(bank)), "analyse")
-    result = load_json(native.export / "results.json")
-    for key in ("schema", "measurement", "checkpoint_provenance"):
-        result.pop(key)
-    result.update(
-        notebook_run_id="r001",
-        duration_s=16803.4,
-        config=historical.legacy_configuration(),
+    compute_id = compute.compute(bank)
+    analysis_id = analyse.analyse(compute_id)
+    numbers = load_json(
+        inputs.source(root, analysis_id, "analyse").export / "results.json"
     )
-    result["encoding_rate_psychometric"]["migration_source"] = (
-        "exp065 initial computation"
-    )
-    directory = root / "legacy"
-    payload = directory / "payload"
-    payload.mkdir(parents=True)
-    for name in historical.PAYLOAD_NAMES:
-        (payload / name).write_bytes(f"historical fixture: {name}".encode())
-    write_json_atomic(payload / "numbers.json", result)
-    write_json_atomic(payload / "_manifest.json", {"run_id": "r003"})
-    rows = [
-        {"path": p.name, "size_bytes": p.stat().st_size, "sha256": file_sha256(p)}
-        for p in sorted(payload.iterdir())
-    ]
-    write_json_atomic(
-        directory / "inventory.json",
-        {
-            "files": rows,
-            "file_count": len(rows),
-            "total_size_bytes": sum(r["size_bytes"] for r in rows),
-        },
-    )
-    write_json_atomic(
-        directory / "run.json",
-        {
-            "experiment": "exp048",
-            "run_id": "exp048/r003",
-            "execution": {"host": "local", "started_at": "2026-07-24T07:37:11+00:00"},
-            "source": {"git_commit": "fixture"},
-        },
-    )
-    monkeypatch.setattr(
-        historical,
-        "SOURCE_HASHES",
-        {
-            name: file_sha256(directory / name)
-            for name in ("run.json", "inventory.json")
-        },
-    )
-    monkeypatch.setattr(import_historical, "REPO", root)
-    monkeypatch.setattr(
-        import_historical,
-        "fetch",
-        lambda source, target: shutil.copytree(directory, target, dirs_exist_ok=True),
-    )
-    return root, directory, result
-
-
-def test_historical_summary_stages_are_isolated_and_preserve_bytes(legacy, monkeypatch):
-    root, directory, numbers = legacy
-
-    def forbidden(*a, **kw):
-        raise AssertionError("upstream work is forbidden")
-
-    monkeypatch.setattr(compute, "run_cli", forbidden)
-    monkeypatch.setattr(compute, "load_mnist_split", forbidden)
-    monkeypatch.setattr(analyse, "decode", forbidden)
-    identity = import_historical.import_run(historical.SOURCE)
-    imported = inputs.source(root, identity, "analyse")
-    assert not imported.record["inputs"]
-    assert imported.record["historical"]["gold_2"] is False
-    assert (imported.export / "numbers.json").read_bytes() == (
-        directory / "payload/numbers.json"
-    ).read_bytes()
-    assert historical.archive_files(
-        imported.directory / "provenance/archive"
-    ) == historical.archive_files(directory)
-    with pytest.raises(PingstoreError):
-        present.present(identity)
-    aid = analyse.analyse(identity)
-    a = inputs.source(root, aid, "analyse")
-    assert a.record["inputs"] == {"historical": imported.reference}
-    result = load_json(a.export / "results.json")
-    assert historical.equivalent(result["grid_sweep_agg"], numbers["grid_sweep_agg"])
-    monkeypatch.setattr(historical, "aggregate", forbidden)
-    monkeypatch.setattr(measurements, "aggregate_grid_rows", forbidden)
-    monkeypatch.setattr(plots, "plot_headline_stream", forbidden)
-    monkeypatch.setattr(plots, "plot_varying_headline_stream", forbidden)
-    pid = present.present(aid)
-    p = inputs.source(root, pid, "present")
-    for name in historical.CARRIED:
-        assert (p.export / name).read_bytes() == (
-            directory / "payload" / name
-        ).read_bytes()
-    assert set(recipe.FIGURES) <= {f.name for f in p.export.iterdir()}
-    assert p.record["historical"]["gold_2"] is False
-    assert p.record["inputs"] == {"analysis": a.reference}
-    assert all(f.is_file() for f in p.export.iterdir())
-    assert not (root / ".artifacts").exists()
-
-
-@pytest.mark.parametrize("mutation", ["checksum", "metadata", "extra", "symlink"])
-def test_historical_import_rejects_unapproved_archive(legacy, mutation):
-    root, directory, _ = legacy
-    before = set((root / ".pingstore/runs").iterdir())
-    if mutation == "checksum":
-        (directory / "payload/numbers.json").write_text("{}")
-    elif mutation == "metadata":
-        (directory / "run.json").write_text("{}")
-    elif mutation == "extra":
-        (directory / "payload/unapproved").write_text("extra")
-    else:
-        # Preserve the link when testing, rather than dereferencing through copytree.
-        target = directory / "payload/numbers.json"
-        saved = directory / "numbers-copy.json"
-        target.rename(saved)
-        target.symlink_to(saved)
-        with pytest.raises(PingstoreError, match="symlinks"):
-            historical.archive_files(directory)
-        return
-    with pytest.raises(PingstoreError):
-        import_historical.import_run(historical.SOURCE)
-    assert set((root / ".pingstore/runs").iterdir()) == before
-
-
-@pytest.mark.parametrize(
-    "mutation", ["row", "aggregate", "headline", "attribution", "gold", "v2"]
-)
-def test_historical_rejects_corrupt_evidence_even_if_resigned(legacy, mutation):
-    root, _, _ = legacy
-    identity = import_historical.import_run(historical.SOURCE)
-    aid = analyse.analyse(identity)
-    run = inputs.source(root, aid, "analyse")
-    if mutation in ("gold", "v2"):
-        path = run.directory / "run.json"
-        d = load_json(path)
-        if mutation == "gold":
-            d["historical"]["gold_2"] = True
-        else:
-            d["schema"] = "pingstore.run/v2"
-    else:
-        path = run.export / "results.json"
-        d = load_json(path)
-        if mutation == "row":
-            d["grid_sweep_per_seed"].pop()
-        elif mutation == "aggregate":
-            d["grid_sweep_agg"][0]["acc"] += 1
-        elif mutation == "headline":
-            d["varying_headline"]["seg_preds"][0] = 99
-        else:
-            d["encoding_rate_psychometric"]["migration_source"] = "Gold-2"
-    write_json_atomic(path, d)
-    if mutation != "v2":
-        resign(run.directory)
-    with pytest.raises(PingstoreError):
-        present.present(aid)
-    assert not list((root / ".pingstore/runs").glob("exp048-*-present"))
-
-
-def test_historical_atomic_failure_and_ancestor_mutation(legacy, monkeypatch):
-    root, _, _ = legacy
-    identity = import_historical.import_run(historical.SOURCE)
-    original = historical.aggregate
-
-    def fail(*a):
-        raise RuntimeError("aggregation interrupted")
-
-    monkeypatch.setattr(historical, "aggregate", fail)
-    with pytest.raises(RuntimeError, match="interrupted"):
-        analyse.analyse(identity)
-    hidden = list((root / ".pingstore/runs").glob(".exp048-*-analyse.tmp"))
-    assert len(hidden) == 1
-    with pytest.raises(PingstoreError, match="interrupted"):
-        analyse.analyse(identity, run_id=hidden[0].name[1:-4])
-    monkeypatch.setattr(historical, "aggregate", original)
-    aid = analyse.analyse(identity)
-    plot = plots.plot_grid_and_rate
-
-    def mutate(*args):
-        plot(*args)
-        path = (
-            root
-            / ".pingstore/runs"
-            / identity
-            / "provenance/archive/payload/headline_stream.png"
-        )
-        path.write_bytes(b"changed during presentation")
-
-    monkeypatch.setattr(plots, "plot_grid_and_rate", mutate)
-    with pytest.raises(PingstoreError):
-        present.present(aid)
-    assert not list((root / ".pingstore/runs").glob("exp048-*-present"))
-
-
-def test_historical_import_cli_emits_one_identity(legacy, monkeypatch, capsys):
-    monkeypatch.setattr(
-        sys, "argv", ["import_historical", "--source", historical.SOURCE]
-    )
-    capsys.readouterr()
-    import_historical.main()
-    lines = capsys.readouterr().out.strip().splitlines()
-    assert len(lines) == 1
-    assert (
-        inputs.source(legacy[0], lines[0], "analyse").record["execution"]["operation"]
-        == "historical-import"
-    )
-
-
-def test_rate_inset_matches_article_range_and_uncertainty(
-    legacy, monkeypatch, tmp_path
-):
-    _, _, numbers = legacy
     inspected = []
 
     def inspect(fig, *a, **kw):

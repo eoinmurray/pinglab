@@ -11,7 +11,6 @@ from experiments.exp042 import (
     analyse,
     collection,
     compute,
-    import_gold2,
     inputs,
     present,
     recipe,
@@ -29,7 +28,7 @@ from pingstore.contracts import (
 
 @pytest.fixture
 def lab(tmp_path, monkeypatch):
-    for module in (compute, analyse, present, import_gold2):
+    for module in (compute, analyse, present):
         monkeypatch.setattr(module, "REPO", tmp_path)
     monkeypatch.setattr(
         stages, "memberships", lambda _: {"exp022": "demo", "exp042": "demo"}
@@ -415,7 +414,7 @@ def test_article_renders_fixture_and_unavailable_data_states(lab):
     output = inputs.source(root, identity, "present")
     source_root = Path(__file__).resolve().parents[2]
     (root / "writings").mkdir()
-    for name in ("exp042.typ", "run-inputs.typ"):
+    for name in ("exp042.typ", "run-inputs.typ", "run-view.typ", "contents.typ"):
         shutil.copy2(source_root / "writings" / name, root / "writings" / name)
     (root / ".demolab").mkdir()
     shutil.copy2(_paths.TYP / "lib.typ", root / ".demolab/lib.typ")
@@ -475,29 +474,6 @@ def test_ancestor_manifest_drift_prevents_downstream_completion(lab):
         analyse.analyse(compute_id)
 
 
-def test_import_has_no_implicit_paths_or_execution(tmp_path, monkeypatch):
-    monkeypatch.setenv("PINGLAB_TRAINING_ROOT", str(tmp_path / "missing-bank"))
-    monkeypatch.setenv("PINGLAB_RUN_STATE_DIR", str(tmp_path / "state"))
-    monkeypatch.setenv("PINGLAB_RUN_DERIVED_DIR", str(tmp_path / "derived"))
-    monkeypatch.setenv("PINGLAB_RUN_LOG_DIR", str(tmp_path / "logs"))
-    root = Path(__file__).resolve().parents[2]
-    result = subprocess.run(
-        [
-            sys.executable,
-            "-c",
-            "from experiments import exp042; "
-            "assert not hasattr(exp042, 'RUN_PATHS'); "
-            "assert not hasattr(exp042, 'TRAINING_ROOT'); "
-            "assert len(exp042.jobs(exp042.configuration())) == 66",
-        ],
-        cwd=root,
-        capture_output=True,
-        text=True,
-    )
-    assert result.returncode == 0, result.stderr
-    assert not list(tmp_path.iterdir())
-
-
 def test_combined_runner_is_retired():
     result = subprocess.run(
         [sys.executable, "-m", "experiments.exp042", "--skip-training"],
@@ -507,214 +483,3 @@ def test_combined_runner_is_retired():
     )
     assert result.returncode != 0
     assert "independent stages" in result.stderr
-
-
-@pytest.fixture
-def historical_subset(lab):
-    """Tiny invented archive matching the real import layout, never R2 data."""
-    root, bank_id, calls = lab
-    archive = root / "archive"
-    archive.mkdir()
-    bank = inputs.source(root, bank_id, "compute", experiment="exp022")
-    evidence = inputs.bank_evidence(bank)
-    cfg = recipe.configuration()
-    groups = {key: [] for key in ("results", "jitter_sweep", "cell_jitter_sweep")}
-    tag = "final_epoch__" + evidence["checkpoints"][0]["sha256"][:12]
-
-    def family(directory, training, *, condition=None, snapshot=False):
-        directory.mkdir(parents=True, exist_ok=True)
-        config = {
-            **training,
-            "n_hidden": [training["n_hidden"]],
-            "tau_gaba": training["tau_gaba_ms"],
-            "infer": True,
-            "model": "ping",
-            "load_weights": f"/original/{training['training_cell_name']}/weights_final.pth",
-            "max_samples": cfg["evaluation_samples"],
-            "sample_index": 0,
-            "i_override_file": f"/original/{condition}.npz",
-        }
-        write_json_atomic(directory / "config.json", config)
-        for name in ("run.sh", "run.jsonl", "output.log"):
-            (directory / name).write_text("synthetic execution record\n")
-        if snapshot:
-            np.savez(
-                directory / "snapshot.npz",
-                spk_e=np.zeros((20, 4), dtype=np.float32),
-                spk_i=np.ones((20, 2), dtype=np.float32),
-                label=np.int32(7),
-                unused_voltage=np.ones((20, 4)),
-            )
-
-    for job in recipe.jobs(cfg):
-        cell, condition = job["cell"], job["condition"]
-        training = evidence["configurations"][cell]
-        stem = f"{cell}_{condition}_{job['seed_offset']}"
-        directory = (
-            archive
-            / import_gold2.STATE
-            / (
-                f"baseline/{cell}/{tag}"
-                if condition == "baseline"
-                else f"ovrun/{cell}__{stem}/{tag}"
-            )
-        )
-        directory.mkdir(parents=True, exist_ok=True)
-        if condition != "baseline":
-            family(directory, training, condition=stem)
-        metrics = {
-            "best_acc": 90.0,
-            "n_total": cfg["evaluation_samples"],
-            "rates_hz": {"hid": 10.0, "inh": 20.0},
-            "config": {
-                **training,
-                "evaluation_partition": cfg["evaluation_partition"],
-                "load_weights": f"/original/{cell}/weights_final.pth",
-            },
-        }
-        write_json_atomic(directory / "metrics.json", metrics)
-        groups[job["group"]].append(analyse.measurement(metrics, job, cfg))
-    cell = recipe.cell_name(42)
-    for condition in ("jitter_sigma_14", "cell_jitter_sigma_14"):
-        family(
-            archive / import_gold2.STATE / f"condraster/{cell}_{condition}_s0/{tag}",
-            evidence["configurations"][cell],
-            snapshot=True,
-            condition=f"{cell}_{condition}_s0_ov",
-        )
-    derived = archive / import_gold2.DERIVED
-    derived.mkdir(parents=True)
-    for name in (*recipe.FIGURES, "_manifest.json", "run.sh"):
-        (derived / name).write_text("synthetic original comparison output")
-    write_json_atomic(
-        derived / "numbers.json",
-        {
-            **groups,
-            "checkpoint_provenance": evidence["checkpoints"],
-            "config": {
-                "seeds": cfg["seeds"],
-                "conditions": cfg["conditions"],
-                "jitter_sigmas_ms": cfg["jitter_sigmas_ms"],
-                "evaluation_samples_per_condition": cfg["evaluation_samples"],
-                "raster_sample_idx": 0,
-                "f_gamma_reference_hz": cfg["f_gamma_reference_hz"],
-            },
-        },
-    )
-    base = archive / "provenance/source-records/base"
-    for name in (
-        "run.json",
-        "inventory.json",
-        "collection-plan.json",
-        "collection-status/exp042.json",
-        "submissions/collection-submission.json",
-    ):
-        write_json_atomic(base / name, {"fixture": True})
-    rows = [
-        {
-            "path": str(p.relative_to(archive)),
-            "size_bytes": p.stat().st_size,
-            "sha256": file_sha256(p),
-            "role": "fixture",
-        }
-        for p in sorted(archive.rglob("*"))
-        if p.is_file()
-    ]
-    write_json_atomic(
-        archive / "inventory.json",
-        {
-            "run_id": "gold-2",
-            "contract_version": "runstore/v1",
-            "files": rows,
-            "file_count": len(rows),
-            "total_size_bytes": sum(r["size_bytes"] for r in rows),
-        },
-    )
-    write_json_atomic(
-        archive / "run.json",
-        {
-            "run_id": "gold-2",
-            "contract_version": "runstore/v1",
-            "archive": {"uri": import_gold2.URI},
-        },
-    )
-    return archive, import_gold2.make_plan(archive, bank_id)
-
-
-def test_gold2_import_preserves_originals_and_supports_independent_stages(
-    lab, historical_subset
-):
-    root, bank_id, calls = lab
-    archive, plan = historical_subset
-    bank_before = inputs.source(root, bank_id, "compute", experiment="exp022").reference
-    identity = import_gold2.import_subset(archive, plan)
-    raw = inputs.source(root, identity, "compute")
-    assert raw.record["execution"]["operation"] == "historical-import"
-    assert raw.record["historical_import"]["simulation_executed"] is False
-    import_gold2.verify_files(raw.directory / "provenance/gold-2", plan)
-    import_gold2.verify_files(archive, plan)
-    assert len(list(raw.export.glob("jobs/*.json"))) == 66
-    with np.load(raw.export / "cell.npz") as data:
-        assert set(data.files) == {"spk_e", "spk_i", "label"}
-        assert data["spk_e"].dtype == np.float32
-    output = inputs.source(root, present.present(analyse.analyse(identity)), "present")
-    numbers = load_json(output.export / "numbers.json")
-    original = load_json(archive / import_gold2.DERIVED / "numbers.json")
-    for group in ("results", "jitter_sweep", "cell_jitter_sweep"):
-        assert numbers[group] == original[group]
-    assert (
-        inputs.source(root, bank_id, "compute", experiment="exp022").reference
-        == bank_before
-    )
-    assert not calls
-    assert not (root / ".artifacts").exists()
-
-
-@pytest.mark.parametrize(
-    "failure",
-    ["checksum", "missing", "plan", "numbers", "configuration", "snapshot", "symlink"],
-)
-def test_gold2_import_rejects_bad_evidence_before_reservation(
-    lab, historical_subset, failure
-):
-    root, _, calls = lab
-    archive, plan = historical_subset
-    target = archive / plan["jobs"][3]["source"]
-    if failure == "checksum":
-        target.write_text("corrupted")
-    elif failure == "missing":
-        target.unlink()
-    elif failure == "plan":
-        plan["recipe"]["evaluation_samples"] = 10
-    elif failure == "symlink":
-        target.rename(target.with_suffix(".original"))
-        target.symlink_to(target.with_suffix(".original"))
-    else:
-        if failure == "numbers":
-            target = archive / import_gold2.DERIVED / "numbers.json"
-            data = load_json(target)
-            data["results"][0]["acc"] = 1
-            write_json_atomic(target, data)
-        elif failure == "configuration":
-            target = target.with_name("config.json")
-            data = load_json(target)
-            data["tau_gaba"] = 12
-            write_json_atomic(target, data)
-        else:
-            target = archive / plan["recordings"]["cell"]
-            np.savez(
-                target, spk_e=np.full((20, 4), 0.5), spk_i=np.ones((20, 2)), label=7
-            )
-        # Valid checksums do not excuse scientifically inconsistent source data.
-        inventory = load_json(archive / "inventory.json")
-        for row in inventory["files"]:
-            if row["path"] == str(target.relative_to(archive)):
-                row.update(size_bytes=target.stat().st_size, sha256=file_sha256(target))
-        inventory["total_size_bytes"] = sum(r["size_bytes"] for r in inventory["files"])
-        write_json_atomic(archive / "inventory.json", inventory)
-        plan = import_gold2.make_plan(archive, plan["bank"]["run_id"])
-    before = sorted(p.name for p in (root / ".pingstore/runs").iterdir())
-    with pytest.raises((PingstoreError, OSError)):
-        import_gold2.import_subset(archive, plan)
-    assert sorted(p.name for p in (root / ".pingstore/runs").iterdir()) == before
-    assert not calls

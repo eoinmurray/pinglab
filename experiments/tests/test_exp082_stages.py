@@ -12,8 +12,6 @@ from experiments.exp082 import (
     collection,
     compute,
     evidence,
-    historical,
-    import_gold2,
     inference,
     inputs,
     measurements,
@@ -154,207 +152,28 @@ def resign(folder):
     write_json_atomic(folder / "run.json", record)
 
 
-@pytest.fixture
-def historical_lab(lab, monkeypatch):
-    root, bank_id, _ = lab
-    monkeypatch.setattr(import_gold2, "REPO", root)
-    archive = root / "archive"
-    archive.mkdir()
-    cfg = recipe.configuration()
-    rows, files = [], []
-
-    def add(name, value):
-        path = archive / name
-        write_json_atomic(path, value)
-        files.append(
-            {
-                "path": name,
-                "size_bytes": path.stat().st_size,
-                "sha256": file_sha256(path),
-            }
-        )
-
-    for job in recipe.jobs(cfg):
-        row = {k: job[k] for k in ("seed", "duration_ms", "rate_hz")}
-        row.update(
-            stream_batch_size=5,
-            n_correct=200,
-            n_total=200,
-            accuracy=1.0,
-            output_spikes_per_presentation=1.0,
-            silent_fraction=0.0,
-            class_spike_totals=[200] + [0] * 9,
-            rate_e_hz=1.0,
-            rate_i_hz=1.0,
-        )
-        rows.append(row)
-        add("state/experiments/exp082/conditions/" + job["id"] + ".json", row)
-    old = {
-        "config": {
-            k: v
-            for k, v in cfg.items()
-            if k not in ("schema", "profile", "checkpoint_policy")
-        },
-        "grid_per_seed": rows,
-        "repair_run_provenance": {"fixture": True},
-    }
-    recordings = {}
-    for name in ("matched", "variable"):
-        conditions = (
-            [[200.0, 5.0]] * 5
-            if name == "matched"
-            else [list(c) for c in recipe.VARIABLE_STREAM]
-        )
-        bounds = np.cumsum([0, *[int(d / 0.1) for d, _ in conditions]]).tolist()
-        old[name + "_stream"] = {
-            "labels": [0] * 5,
-            "boundaries": bounds,
-            "conditions": conditions,
-        }
-        recordings[name] = {"pixels": np.zeros((5, 784), dtype=np.float32)}
-        for key, width in (("spikes_e", 1024), ("spikes_i", 256), ("spikes_out", 10)):
-            recordings[name][key] = np.zeros((bounds[-1], width), dtype=np.int8)
-        recordings[name]["spikes_out"][bounds[:-1], 0] = 1
-    add(import_gold2.DATA + "numbers.json", old)
-    for n in range(65):
-        add(f"provenance/fixture-{n}.json", {"fixture": n})
-    padding = 6079619 - sum(f["size_bytes"] for f in files)
-    filler = archive / "provenance/padding.txt"
-    filler.write_bytes(b"x" * padding)
-    files.append(
-        {
-            "path": "provenance/padding.txt",
-            "size_bytes": padding,
-            "sha256": file_sha256(filler),
-        }
-    )
-    assert len(files) == 199
-    monkeypatch.setattr(import_gold2, "selection", lambda _: (files, []))
-    monkeypatch.setattr(import_gold2, "live_metadata", lambda _: {"fixture": True})
-    monkeypatch.setattr(
-        import_gold2,
-        "verify_bank",
-        lambda _, bank, old: evidence.training_contract(bank.export),
-    )
-    monkeypatch.setattr(
-        import_gold2, "reconstruct", lambda *a: (recordings, {"fixture": True})
-    )
-    return root, bank_id, archive
-
-
-def test_historical_import_independent_analysis(historical_lab, monkeypatch):
-    root, bank, archive = historical_lab
-    for module, name in ((compute, "compute"), (inference.Inference, "simulate")):
-        monkeypatch.setattr(
-            module, name, lambda *a, **k: pytest.fail("upstream execution")
-        )
-    identity = import_gold2.import_run(archive, bank, root / "unused-mnist")
-    run = inputs.source(root, identity, "compute")
-    assert run.record["execution"]["operation"] == "historical-import"
-    assert run.record["historical_import"]["producer_commit"] == historical.PRODUCER
-    assert not (root / ".artifacts").exists()
-    assert not list(run.export.rglob("counts.npz"))
-    inputs.compute_evidence(root, run)
-    derived = analyse.analyse(identity)
-    numbers = load_json(inputs.source(root, derived, "analyse").export / "numbers.json")
-    assert numbers["condition_evidence"] == "historical-aggregate/v1"
-    assert len(numbers["grid_per_seed"]) == 132
-    # A checksum-valid execute run cannot masquerade as an aggregate import.
-    manifest = run.record
-    manifest["execution"]["operation"] = "execute"
-    write_json_atomic(run.directory / "run.json", manifest)
-    with pytest.raises(PingstoreError, match="explicit historical import"):
-        inputs.compute_evidence(root, inputs.source(root, identity, "compute"))
-
-
-def test_historical_failure_stays_hidden(historical_lab, monkeypatch):
-    root, bank, archive = historical_lab
-
-    def fail(*args):
-        raise PingstoreError("fixture validation failure")
-
-    monkeypatch.setattr(historical, "validate_import", fail)
-    with pytest.raises(PingstoreError, match="fixture validation"):
-        import_gold2.import_run(archive, bank, root / "unused-mnist")
-    runs = root / ".pingstore/runs"
-    assert not list(runs.glob("exp082-*"))
-    assert len(list(runs.glob(".exp082-*.tmp"))) == 1
-
-
-@pytest.mark.parametrize(
-    "field,value",
-    [
-        ("n_correct", 201),
-        ("accuracy", 0.5),
-        ("silent_fraction", 0.001),
-        ("rate_e_hz", -1),
-        ("class_spike_totals", [0] * 10),
-    ],
-)
-def test_historical_aggregate_rejects_inconsistent_values(historical_lab, field, value):
-    _, _, archive = historical_lab
+def test_retained_aggregate_rows_are_still_validated(tmp_path):
     cfg = recipe.configuration()
     job = recipe.jobs(cfg)[0]
-    path = archive / "state/experiments/exp082/conditions" / (job["id"] + ".json")
-    row = load_json(path)
-    row[field] = value
+    row = {k: job[k] for k in ("seed", "duration_ms", "rate_hz")}
+    row.update(
+        stream_batch_size=cfg["stream_batch_size"],
+        n_correct=cfg["digits_per_seed_cell"],
+        n_total=cfg["digits_per_seed_cell"],
+        accuracy=1.0,
+        output_spikes_per_presentation=1.0,
+        silent_fraction=0.0,
+        class_spike_totals=[cfg["digits_per_seed_cell"], *([0] * 9)],
+        rate_e_hz=1.0,
+        rate_i_hz=1.0,
+    )
+    path = tmp_path / "condition.json"
     write_json_atomic(path, row)
-    with pytest.raises(PingstoreError, match="invalid historical"):
-        historical.aggregate(path, job, cfg)
-
-
-def test_live_metadata_rejects_mismatch_without_reservation(tmp_path, monkeypatch):
-    name = "run.json"
-    (tmp_path / name).write_bytes(b"cached")
-    monkeypatch.setattr(
-        import_gold2, "HEADERS", {name: (6, file_sha256(tmp_path / name))}
-    )
-    monkeypatch.setattr(
-        import_gold2.subprocess,
-        "run",
-        lambda *a, **k: SimpleNamespace(stdout=b"different"),
-    )
-    with pytest.raises(PingstoreError, match="live R2 metadata differs"):
-        import_gold2.live_metadata(tmp_path)
-    assert not (tmp_path / ".pingstore").exists()
-
-
-@pytest.mark.parametrize("name", ["variable", "single_trial"])
-def test_raster_labels_and_thumbnails_match_display(historical_lab, monkeypatch, name):
-    import matplotlib.pyplot as plt
-
-    root, bank, archive = historical_lab
-    identity = import_gold2.import_run(archive, bank, root / "unused-mnist")
-    source = inputs.source(root, identity, "compute")
-    result = measurements.stream_result(
-        *evidence.stream(source.export, "variable" if name == "variable" else "matched")
-    )
-    if name == "single_trial":
-        result = measurements.first_correct_trial_from_stream(result)
-    result.update(measurements.display_values(result))
-    saved = []
-    monkeypatch.setattr(plt, "close", lambda fig: saved.append(fig))
-    present.plots.plot_stream_headline(result, root / "plot.png", "must-not-stamp")
-    fig = saved[-1]
-    fig.canvas.draw()
-    by_label = {a.get_ylabel(): a for a in fig.axes if a.get_ylabel()}
-    assert by_label["E cell"].get_yticklabels()[-1].get_text() == "200"
-    assert by_label["I cell"].get_yticklabels()[-1].get_text() == "64"
-    a = by_label["softmax share\n$p_c(u)$"]
-    assert (
-        a.yaxis.label.get_window_extent().y1 < by_label["I cell"].get_window_extent().y0
-    )
-    thumbnails = [a for a in fig.axes if a.images]
-    assert len(thumbnails) == (5 if name == "variable" else 1)
-    label_bottom = min(t.get_window_extent().y0 for t in fig.axes[0].texts)
-    assert all(a.get_window_extent().y1 < label_bottom for a in thumbnails)
-    widths = [a.get_window_extent().width for a in thumbnails]
-    assert max(widths) - min(widths) < 0.01
-    assert all(
-        abs(a.get_window_extent().width - a.get_window_extent().height) < 0.01
-        for a in thumbnails
-    )
-    assert all(t.get_text() != "must-not-stamp" for t in fig.texts)
+    assert evidence.aggregate(path, job, cfg) == row
+    row["accuracy"] = 0.5
+    write_json_atomic(path, row)
+    with pytest.raises(PingstoreError, match="condition totals"):
+        evidence.aggregate(path, job, cfg)
 
 
 def test_compact_rate_ticks_do_not_overlap(tmp_path, monkeypatch):
@@ -376,95 +195,6 @@ def test_compact_rate_ticks_do_not_overlap(tmp_path, monkeypatch):
     ]
     boxes = [t.get_window_extent() for t in labels]
     assert all(a.x1 < b.x0 for a, b in zip(boxes, boxes[1:]))
-
-
-def test_article_renders_figures_and_equations_from_explicit_input(historical_lab):
-    import re
-    import shutil
-    import subprocess
-    import xml.etree.ElementTree as ET
-
-    from demolab_cli import _paths
-
-    root, bank, archive = historical_lab
-    cid = import_gold2.import_run(archive, bank, root / "unused-mnist")
-    aid = analyse.analyse(cid)
-    pid = present.present(aid)
-    source = inputs.source(root, pid, "present")
-    repo = Path(__file__).resolve().parents[2]
-    shutil.copytree(repo / "writings", root / "writings")
-    (root / ".demolab").mkdir()
-    shutil.copyfile(_paths.TYP / "lib.typ", root / ".demolab/lib.typ")
-    write_json_atomic(
-        root / "preview.json",
-        {"exp082": {"exp082": "/" + str(source.export.relative_to(root))}},
-    )
-    document = root / "document.typ"
-    document.write_text(
-        '#set page(paper: "a4", margin: 18mm)\n#set text(size: 10pt)\n#import "writings/exp082.typ": body\n#body\n'
-    )
-    command = [
-        _paths.find_typst(repo),
-        "compile",
-        "--root",
-        str(root),
-        "--input",
-        "demolab-preview-file=/preview.json",
-    ]
-    result = subprocess.run(
-        [*command, str(document), str(root / "article.pdf")],
-        capture_output=True,
-        text=True,
-    )
-    assert result.returncode == 0, result.stderr
-    result = subprocess.run(
-        [
-            *command,
-            "--features",
-            "html",
-            "--format",
-            "html",
-            str(document),
-            str(root / "article.html"),
-        ],
-        capture_output=True,
-        text=True,
-    )
-    assert result.returncode == 0, result.stderr
-    html = (root / "article.html").read_text()
-    assert len(re.findall(r"<img\b", html)) == 5
-    assert len(re.findall(r"<figcaption\b", html)) == 5
-    assert html.count('class="exp082-equation"') == 3
-    for equation in re.findall(r"<math\b.*?</math>", html, re.S):
-        tree = ET.fromstring(equation)
-        for element in tree.iter():
-            if element.tag.split("}")[-1] in ("msub", "msup", "msubsup"):
-                # Function arguments must stay on the baseline, outside indices.
-                assert all(
-                    "(" not in "".join(child.itertext()) for child in list(element)[1:]
-                )
-    assert "Minimum validation cross-entropy" in html
-    assert "Validation accuracy selected" not in html
-    assert re.search(r'<h3\b[^>]*>Results(?:<|$)', html)
-    assert "Results:" not in html
-    write_json_atomic(root / "preview.json", {})
-    result = subprocess.run(
-        [
-            *command,
-            "--features",
-            "html",
-            "--format",
-            "html",
-            str(document),
-            str(root / "unavailable.html"),
-        ],
-        capture_output=True,
-        text=True,
-    )
-    assert result.returncode == 0, result.stderr
-    empty = (root / "unavailable.html").read_text()
-    assert "A required run is unavailable" in empty
-    assert "<img" not in empty
 
 
 def fake_plots(monkeypatch):

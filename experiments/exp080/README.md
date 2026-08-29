@@ -168,11 +168,8 @@ including code/execution provenance. The original HPC producer, source hashes,
 commands, logs, approved mapping and live R2 verification are retained separately
 from the local import execution. No original run or archive file was rewritten.
 
-The approved importer is `python -m experiments.exp080.import_gold2`, with explicit
-`--archive`, `--live-metadata`, `--plan` and optional `--verification` arguments.
-It validates the exact approved selection before allocating, revalidates source
-bytes before completion and leaves failures hidden. Invoking it again requires
-separate authorization and creates a new run; completed runs are immutable.
+The approved one-off importer was retired after completion. Its executed code,
+plan and live-metadata verification remain in immutable run provenance.
 
 ## Verification and remaining gates
 

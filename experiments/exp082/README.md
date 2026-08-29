@@ -109,13 +109,13 @@ configuration/history changes are campaign annotations, not numerical training
 changes. The two banks are not generally interchangeable.
 
 Gold-2 has aggregate quantitative condition records, not the new per-presentation
-count exports. `import_gold2.py` admits that representation only under the
-explicit historical-import contract, preserves the 199 approved source files
+count exports. The retained compute run admits that representation only under its
+explicit historical-import contract and preserves the 199 approved source files
 with exact mappings, and verifies live metadata before and after import.
 It validates both original checkpoint roles against the operational bank and
 reconstructs only the ten illustrative pixel arrays. Exact input re-encoding and
 full E/I/output raster equivalence are required before atomic completion.
-It never invents raw decisions or claims a new simulation occurred.
+The one-off importer was retired; its executed code remains in run provenance.
 
 The completed chain is `exp022-r001-compute` → `exp082-r001-compute`
 (historical import) → `exp082-r002-analyse` → `exp082-r005-present`.

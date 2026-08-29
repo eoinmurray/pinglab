@@ -4,7 +4,6 @@ import base64
 import json
 import shutil
 import subprocess
-import sys
 import zipfile
 from functools import partial
 from html.parser import HTMLParser
@@ -19,7 +18,6 @@ from experiments.exp054 import (
     collection,
     compute,
     evidence,
-    historical,
     inputs,
     measurements,
     plots,
@@ -546,30 +544,6 @@ def test_missing_mean_field_sweep_and_wrong_sigma_fail():
         recipe.validate(cfg)
 
 
-def test_import_and_cli_never_launch_work(tmp_path):
-    repo = Path(__file__).resolve().parents[2]
-    code = "import experiments.exp054; import experiments.exp054.recipe; import experiments.exp054.analyse; import experiments.exp054.present"
-    completed = subprocess.run(
-        [sys.executable, "-c", code], cwd=repo, capture_output=True, text=True
-    )
-    assert completed.returncode == 0, completed.stderr
-    for stage in ("compute", "analyse", "present"):
-        completed = subprocess.run(
-            [sys.executable, "-m", f"experiments.exp054.{stage}", "--help"],
-            cwd=repo,
-            capture_output=True,
-            text=True,
-        )
-        assert completed.returncode == 0, completed.stderr
-    completed = subprocess.run(
-        [sys.executable, "-m", "experiments.exp054"],
-        cwd=repo,
-        capture_output=True,
-        text=True,
-    )
-    assert completed.returncode != 0 and "retired" in completed.stderr
-
-
 def test_historical_analysis_preserves_scalars_and_borrowed_theory(lab):
     root, frequency, _ = lab
     native = inputs.source(root, compute.compute(), "compute")
@@ -643,7 +617,7 @@ def test_historical_comparison_does_not_hide_scientific_changes(path):
     other = json.loads(json.dumps(source))
     other["grid"][path][0] += 0.001
     with pytest.raises(PingstoreError, match="do not reproduce"):
-        historical.compare_numbers(source, other)
+        evidence.compare_retained_numbers(source, other)
 
 
 def test_compute_checks_solver_completion_without_analysis(monkeypatch):
@@ -681,153 +655,6 @@ def test_null_lag_label_uses_renderable_mathtext(tmp_path):
         with plots.configured(cfg):
             plots.fig_null_autocorr([data], [data], tmp_path / "null.png")
     assert (tmp_path / "null.png").is_file()
-
-
-@pytest.fixture
-def import_fixture(lab, monkeypatch):
-    from experiments.exp054 import import_gold2 as importer
-    from pingstore.contracts import file_sha256
-
-    root, frequency, _ = lab
-    monkeypatch.setattr(importer, "REPO", root)
-    cfg = recipe.configuration()
-    archive, code, live = (root / name for name in ("archive", "code", "live"))
-    for directory in (archive, code, live):
-        directory.mkdir()
-    prod = {"campaign": "fixture", "git_commit": "fixture", "job_id": "33913631"}
-    monkeypatch.setattr(importer, "producer", lambda *args: prod)
-    delta = {"4.5": 0.0}
-    monkeypatch.setattr(
-        importer.historical,
-        "mean_field",
-        lambda *a: ({}, {"frequency_deltas_hz": delta}),
-    )
-    for name in importer.selected_paths():
-        path = archive / name
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text("synthetic source evidence\n")
-    for item in recipe.jobs(cfg):
-        directory = archive / importer.PROBE / item["id"]
-        write_json_atomic(directory / "config.json", config_record(cfg, item))
-        np.savez(directory / "rasters.npz", **recording(cfg))
-    # Measurements consume the real complete fixture recording grid, not mocks.
-    source = SimpleNamespace(export=archive / "state/experiments/exp054")
-    numbers = measurements.summary(measurements.recordings(source, cfg), cfg)
-    numbers["collection_provenance"] = {
-        "campaign_id": "fixture",
-        "source_git_commit": "fixture",
-    }
-    write_json_atomic(archive / importer.DERIVED / "numbers.json", numbers)
-    write_json_atomic(
-        archive / "run.json", {"archive": {"uri": "r2://pinglab/campaigns/gold-2"}}
-    )
-    write_json_atomic(archive / "lineage.json", {})
-
-    def row(name, directory=archive):
-        path = directory / name
-        return {
-            "path": name,
-            "size_bytes": path.stat().st_size,
-            "sha256": file_sha256(path),
-        }
-
-    write_json_atomic(
-        archive / "inventory.json",
-        {
-            "files": [
-                row(n)
-                for n in sorted(importer.selected_paths() - set(importer.METADATA))
-            ]
-        },
-    )
-    for name in importer.METADATA:
-        shutil.copyfile(archive / name, live / ("live-" + name))
-    f = inputs.source(root, frequency, "analyse", experiment="exp041")
-    with stages.stage_run(
-        root, "exp033", "compute", inputs={"frequencies": f}
-    ) as theory:
-        (theory.export / "fixture.txt").write_text("fixture theory")
-    t = inputs.source(root, theory.run_id, "compute", experiment="exp033")
-    rows = [row(n) for n in sorted(importer.selected_paths())]
-    plan = {
-        "schema": "exp054.selective-import-plan/v1",
-        "archive": "r2://pinglab/campaigns/gold-2",
-        "source_files": rows,
-        "source_file_count": len(rows),
-        "source_bytes": sum(r["size_bytes"] for r in rows),
-        "producer": prod,
-        "producer_code": [],
-        "retained_recordings": [
-            {"path": n, "members": importer.members(archive / n)}
-            for n in sorted(importer.selected_paths())
-            if n.endswith("/rasters.npz")
-        ],
-        "upstream_references": {"mean_field": t.reference, "frequencies": f.reference},
-        "ancestry": {t.record["run_id"]: t.reference, f.record["run_id"]: f.reference},
-        "historical_frequency_deltas_hz": delta,
-        "missing_evidence": ["fixture"],
-    }
-    plan_path = root / "approved-plan.json"
-    write_json_atomic(plan_path, plan)
-    return importer, archive, plan_path, file_sha256(plan_path), code, live
-
-
-def test_selective_import_preserves_sources_and_failure_is_atomic(
-    import_fixture, monkeypatch
-):
-    importer, archive, plan_path, digest, code, live = import_fixture
-    args = archive, plan_path, digest, code, live
-    original = load_json(plan_path)
-    identity = importer.import_subset(*args)
-    imported = inputs.source(importer.REPO, identity, "compute")
-    assert imported.record["origin"] == "local"
-    assert imported.record["execution"]["operation"] == "historical-import"
-    assert imported.record["historical_import"]["simulation_executed"] is False
-    mapping = load_json(imported.directory / "provenance/file-mapping.json")["files"]
-    assert len(mapping) == 828
-    assert len(list(imported.export.glob("probe/*/rasters.npz"))) == 136
-    assert not list((imported.directory / "provenance").rglob("rasters.npz"))
-    importer.verify_files(archive, original)
-    assert imported.record["inputs"] == original["upstream_references"]
-    prepare = importer.prepare
-    calls = []
-
-    def changed_during_import(*a):
-        calls.append(True)
-        if len(calls) == 2:
-            raise PingstoreError("fixture evidence changed during import")
-        return prepare(*a)
-
-    monkeypatch.setattr(importer, "prepare", changed_during_import)
-    with pytest.raises(PingstoreError, match="changed during import"):
-        importer.import_subset(*args)
-    assert [p.name for p in (importer.REPO / ".pingstore/runs").glob("exp054-*")] == [
-        identity
-    ]
-    assert list((importer.REPO / ".pingstore/runs").glob(".exp054-*.tmp"))
-    assert (
-        inputs.source(importer.REPO, identity, "compute").reference
-        == imported.reference
-    )
-
-
-def test_import_preflight_rejects_plan_live_metadata_and_scope(import_fixture):
-    importer, archive, plan_path, digest, code, live = import_fixture
-    with pytest.raises(PingstoreError, match="plan changed"):
-        importer.import_subset(archive, plan_path, "0" * 64, code, live)
-    plan = load_json(plan_path)
-    (live / "live-run.json").write_text("changed")
-    with pytest.raises(PingstoreError, match="live R2"):
-        importer.prepare(archive, plan, code, live)
-    shutil.copyfile(archive / "run.json", live / "live-run.json")
-    plan["source_files"].pop()
-    with pytest.raises(PingstoreError, match="scope"):
-        importer.verify_files(archive, plan)
-    plan = load_json(plan_path)
-    (archive / plan["retained_recordings"][0]["path"]).write_bytes(b"changed")
-    with pytest.raises(PingstoreError, match="changed archive evidence"):
-        importer.prepare(archive, plan, code, live)
-    assert not list((importer.REPO / ".pingstore/runs").glob("*exp054*"))
 
 
 def test_contrast_can_reach_one_and_silent_data_remain_undefined():

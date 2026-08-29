@@ -1,5 +1,6 @@
 """Validate selected bank cells and complete raw inference evidence."""
 
+import copy
 from pathlib import PurePosixPath
 
 import numpy as np
@@ -10,6 +11,20 @@ from experiments.helpers.checkpoints import public_provenance, resolve_checkpoin
 from pingstore.contracts import PingstoreError, load_json
 
 from . import recipe
+
+
+def normalized_metrics(metrics, config):
+    """Add verified simulator metadata while preserving the original metrics."""
+    result = copy.deepcopy(metrics)
+    for key, value in (("seed", config["seed"]), ("tau_gaba_ms", config["tau_gaba"])):
+        if key in result["config"] and not _same(result["config"][key], value):
+            raise PingstoreError(f"conflicting metric metadata: {key}")
+        result["config"][key] = value
+    if result["config"].get("load_weights") != config["load_weights"]:
+        raise PingstoreError(
+            "metrics and command configuration reference different weights"
+        )
+    return result
 
 
 def training_contract(bank):

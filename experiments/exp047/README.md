@@ -91,10 +91,9 @@ experiment-specific provenance files / 40,996 bytes. Shared archive
 metadata is additional; required shared upstream banks are **zero**.
 
 Fresh R2 `run.json` and `inventory.json` were retrieved into the task's audit
-directory and matched the cached bytes exactly. `historical.make_plan()` is a
-read-only planner: it checks those copies, selected source hashes, scientific
-configurations, numerical replay and producer lineage. It never allocates or
-imports a run. Live metadata must be refreshed again if import is delayed.
+directory and matched the cached bytes exactly. The retired read-only planner
+checked those copies, selected source hashes, scientific configurations,
+numerical replay and producer lineage without allocating a run.
 
 The original producer is base campaign `ggs-production-20260818-4ad223d3`, commit
 `4ad223d32620dd9f03698b89f28aedfe944d43ac`, Slurm job **33913459** on
@@ -135,10 +134,9 @@ metadata, plan, byte verification and rendering checks are in
 
 ## Completed historical import and independent rebuild
 
-`import_gold2.import_subset()` rederives the approved plan before allocation and
-after copying, checks every source byte/hash, and verifies lossless decompression.
-It uses the shared stage allocator and atomic completion, and rejects changed
-plans or sources. Failed attempts remain hidden. The historical producer remains
+The retired one-off importer rederived the approved plan before allocation and
+after copying, checked every source byte/hash, and verified lossless decompression.
+Its executed code remains in run provenance. The historical producer remains
 Slurm job 33913459; the new compute record explicitly identifies a **local
 historical import**, not a newly executed simulation. Its immutable README,
 retained commands/logs, producer records, original hashes and mapping preserve

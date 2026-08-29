@@ -160,32 +160,15 @@ metrics with embedded settings, rather than separate config files; original
 shard logs retain their execution history. Historical figures and numbers are
 comparison evidence only, outside the new presentation export.
 
-`import_gold2.py` is a scoped, explicit historical operation, not an operational
-legacy fallback or general storage CLI. It plans from archive metadata without
-fetching, then validates the entire selected subset before reserving a new v3
-compute identity. It never runs simulation, analysis, presentation or publication.
+The completed import was a scoped historical operation, not an operational
+legacy fallback. Its retired entrypoint planned from archive metadata and
+validated the selected subset before reserving a new v3 compute identity. It did
+not run simulation, analysis, presentation or publication.
 Missing files, wrong hashes, changed plans, scientific mismatches and ambiguous
 checkpoint identities fail closed.
 
-Commands used (paths relative to the repository):
-
-```sh
-uv run python experiments/exp042/import_gold2.py plan \
-  --archive .r2/exp042-import-20260827 \
-  --source exp022-r001-compute-slurm \
-  --plan .r2/exp042-import-20260827/import-plan.json
-rclone copy r2:pinglab/campaigns/gold-2 .r2/exp042-import-20260827 \
-  --files-from-raw .r2/exp042-import-20260827/import-plan.files.txt
-uv run python experiments/exp042/import_gold2.py import \
-  --archive .r2/exp042-import-20260827 \
-  --plan .r2/exp042-import-20260827/import-plan.json
-uv run python experiments/exp042/analyse.py --source exp042-r001-compute-local
-uv run python experiments/exp042/present.py --source exp042-r002-analyse-local
-```
-
 The root archive metadata was fetched before planning and rechecked against R2
-afterward. The existing plan path is deliberately not overwritten; do not rerun
-these commands as a publication or automatic resume operation. The exact file
+afterward. The existing plan path is deliberately not overwritten. The exact file
 mapping and hashes are also retained immutably in compute
 `provenance/import-plan.json`. Local working evidence and review pages are in
 `.r2/exp042-import-20260827/`.

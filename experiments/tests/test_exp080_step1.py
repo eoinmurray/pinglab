@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import gzip
 import os
 import re
 import shutil
@@ -19,8 +18,6 @@ from experiments.exp080 import (
     analyse,
     collection,
     compute,
-    historical,
-    import_gold2,
     inputs,
     measurements,
     present,
@@ -114,7 +111,7 @@ def dataset_record(count, prefix):
 
 @pytest.fixture
 def repo(tmp_path, monkeypatch):
-    for module in (compute, analyse, present, import_gold2):
+    for module in (compute, analyse, present):
         monkeypatch.setattr(module, "REPO", tmp_path)
     monkeypatch.setattr(stages, "memberships", lambda _: {"exp080": "test"})
     monkeypatch.setattr(
@@ -520,157 +517,6 @@ def retain_historical_checkpoints(data, document):
         write_json_atomic(checkpoint.parent / "training.json", record)
 
 
-@pytest.fixture
-def archive(repo, monkeypatch):
-    from PIL import Image
-
-    root, _ = repo
-    monkeypatch.setenv("PINGLAB_SMOKE", "0")
-    compute_id = compute.compute()
-    source = inputs.source(root, compute_id, "compute")
-    document = load_json(source.export / "evidence.json")
-    archive = root / "archive"
-    data = archive / historical.DERIVED
-    shutil.copytree(source.export, data)
-    # Historical archives have the original on-disk checkpoint contract.
-    retain_historical_checkpoints(data, document)
-    (data / "evidence.json").unlink()
-    (data / "feature_samples.npz").unlink()
-    Image.fromarray(np.zeros((2, 2), dtype=np.uint8)).save(data / "feature_images.png")
-    with np.load(data / "held_out_correctness.npz") as arrays:
-        decision = measurements.analyze(arrays["correctness"], recipe.configuration())
-    provenance = {
-        "campaign_id": historical.CAMPAIGN,
-        "source_git_commit": historical.COMMIT,
-        "experiment": "exp080",
-        "dependencies": [],
-        "training_run": None,
-        "lockfile_sha256": "c" * 64,
-    }
-    numbers = {
-        **document,
-        "parameters": recipe.reported_parameters(recipe.configuration()),
-        "decision": decision,
-        "run_id": "r001",
-        "collection_provenance": provenance,
-    }
-    write_json_atomic(data / "numbers.json", numbers)
-    write_json_atomic(data / "decision.json", decision)
-    write_json_atomic(data / "reproducer.json", {"command": "historical command"})
-    (data / "psychometric.svg").write_text("obsolete figure")
-    write_json_atomic(
-        archive / "lineage.json", {"sources": {"base": {"run_id": historical.CAMPAIGN}}}
-    )
-    base = archive / historical.BASE
-    original = {
-        "run_id": historical.CAMPAIGN,
-        "source": {
-            "git_commit": historical.COMMIT,
-            "git_clean": True,
-            "lockfile": {"sha256": "c" * 64},
-        },
-    }
-    write_json_atomic(base / "run.json", original)
-    write_json_atomic(
-        base / "collection-plan.json",
-        {
-            "source": original["source"],
-            "campaign_id": historical.CAMPAIGN,
-            "stages": [
-                {
-                    "experiments": [
-                        {
-                            "slug": "exp080",
-                            "dependencies": [],
-                            "training_run": None,
-                            "execution": {"mode": "monolithic"},
-                            "command": ["python", "-m", "experiments.exp080"],
-                        }
-                    ]
-                }
-            ],
-        },
-    )
-    write_json_atomic(
-        base / "collection-status/exp080.json",
-        {"experiment": "exp080", "state": "complete"},
-    )
-    logs = base / "logs/collection"
-    logs.mkdir(parents=True)
-    (logs / f"ggs-exp080_{historical.JOB}.out").write_text(
-        f"job={historical.JOB} host=test action=run-experiment experiment=exp080\n"
-        "exp080 complete: selected 0.5--25 Hz\n"
-    )
-    (logs / f"ggs-exp080_{historical.JOB}.err").write_text("")
-    files = [
-        {
-            "path": str(p.relative_to(archive)),
-            "size_bytes": p.stat().st_size,
-            "sha256": file_sha256(p),
-        }
-        for p in sorted(archive.rglob("*"))
-        if p.is_file()
-    ]
-    write_json_atomic(
-        archive / "inventory.json",
-        {
-            "contract_version": "runstore/v1",
-            "run_id": "gold-2",
-            "files": files,
-            "file_count": len(files),
-            "total_size_bytes": sum(r["size_bytes"] for r in files),
-        },
-    )
-    write_json_atomic(
-        archive / "run.json",
-        {
-            "contract_version": "runstore/v1",
-            "run_id": "gold-2",
-            "archive": {"uri": historical.URI},
-        },
-    )
-    remote = root / "remote"
-    remote.mkdir()
-    for name in ("run.json", "inventory.json"):
-        shutil.copyfile(archive / name, remote / name)
-    return root, archive, remote
-
-
-def test_historical_plan_preserves_all_checkpoints_trials_and_sources(archive):
-    root, source, remote = archive
-    before = {p: file_sha256(p) for p in source.rglob("*") if p.is_file()}
-    runs = set((root / ".pingstore/runs").iterdir())
-    plan = historical.make_plan(source, remote)
-    assert plan["upstream_inputs"] == {}
-    assert plan["source_file_count"] == 19
-    assert len([r for r in plan["files"] if r["target"].endswith("decoder.pt")]) == 3
-    assert plan["checks"]["exact_numerical_replay"]
-    assert plan["retained_source_bytes"] < plan["source_bytes"]
-    assert plan["excluded_experiment_files"][0]["path"].endswith("psychometric.svg")
-    assert {p: file_sha256(p) for p in source.rglob("*") if p.is_file()} == before
-    assert set((root / ".pingstore/runs").iterdir()) == runs
-
-
-@pytest.mark.parametrize("change", ["remote", "checkpoint", "missing", "symlink"])
-def test_historical_plan_rejects_missing_changed_or_linked_evidence(archive, change):
-    root, source, remote = archive
-    if change == "remote":
-        (remote / "run.json").write_text("{}")
-    elif change == "checkpoint":
-        (source / historical.DERIVED / "models/seed-42/decoder.pt").write_bytes(
-            b"corrupt"
-        )
-    elif change == "missing":
-        (source / historical.DERIVED / "held_out_correctness.npz").unlink()
-    else:
-        path = source / historical.DERIVED / "feature_images.png"
-        target = root / "untrusted.png"
-        path.rename(target)
-        path.symlink_to(target)
-    with pytest.raises(PingstoreError):
-        historical.make_plan(source, remote)
-
-
 def test_historical_illustration_is_carried_without_simulation(repo, monkeypatch):
     from PIL import Image
 
@@ -704,66 +550,6 @@ def test_historical_illustration_is_carried_without_simulation(repo, monkeypatch
         presentation.record["retained_figures"]["feature_images.png"]["regenerated"]
         is False
     )
-
-
-def test_approved_import_keeps_bytes_lineage_and_independent_stages(
-    archive, monkeypatch
-):
-    root, source, remote = archive
-    plan = historical.make_plan(source, remote)
-    before = {p: file_sha256(p) for p in source.rglob("*") if p.is_file()}
-    monkeypatch.setattr(import_gold2, "execution_origin", lambda: "local")
-    monkeypatch.setattr(compute, "compute", forbidden)
-    monkeypatch.setattr(compute, "direct_features", forbidden)
-    identity = import_gold2.import_subset(source, plan, remote)
-    run = inputs.source(root, identity, "compute")
-    assert run.record["origin"] == "local"
-    assert run.record["execution"]["operation"] == "historical-import"
-    assert run.record["historical_import"]["producer"] == plan["producer"]
-    assert run.record["historical_import"]["training_executed"] is False
-    assert not list((root / ".pingstore/runs").glob("*-analyse"))
-    for row in plan["files"]:
-        copied = (run.directory / row["target"]).read_bytes()
-        assert len(copied) == row["retained_bytes"]
-        restored = gzip.decompress(copied) if row["encoding"] == "gzip" else copied
-        assert restored == (source / row["path"]).read_bytes()
-    analysis_id = analyse.analyse(identity)
-    presentation_id = present.present(analysis_id)
-    presentation = inputs.source(root, presentation_id, "present")
-    original = load_json(source / historical.DERIVED / "numbers.json")
-    assert (
-        load_json(presentation.export / "numbers.json")["decision"]
-        == original["decision"]
-    )
-    assert {p: file_sha256(p) for p in source.rglob("*") if p.is_file()} == before
-
-
-def test_import_rejects_modified_approval_before_allocating(archive):
-    root, source, remote = archive
-    plan = historical.make_plan(source, remote)
-    plan["files"].pop()
-    before = set((root / ".pingstore/runs").iterdir())
-    with pytest.raises(PingstoreError, match="approval"):
-        import_gold2.import_subset(source, plan, remote)
-    assert set((root / ".pingstore/runs").iterdir()) == before
-
-
-def test_import_copy_failure_stays_hidden(archive, monkeypatch):
-    root, source, remote = archive
-    plan = historical.make_plan(source, remote)
-    before = set((root / ".pingstore/runs").glob("exp080-*"))
-    original = import_gold2.copy_selected
-
-    def fail(archive, run, row):
-        original(archive, run, row)
-        raise RuntimeError("copy failure")
-
-    monkeypatch.setattr(import_gold2, "copy_selected", fail)
-    monkeypatch.setattr(import_gold2, "execution_origin", lambda: "local")
-    with pytest.raises(RuntimeError, match="copy failure"):
-        import_gold2.import_subset(source, plan, remote)
-    assert set((root / ".pingstore/runs").glob("exp080-*")) == before
-    assert len(list((root / ".pingstore/runs").glob(".exp080-*-compute.tmp"))) == 1
 
 
 def test_shared_collection_registration_rejects_legacy_rows(tmp_path):

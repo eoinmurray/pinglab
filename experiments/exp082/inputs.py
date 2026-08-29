@@ -80,9 +80,7 @@ def compute_evidence(repo, run):
     saved = load_json(run.export / "evidence.json")
     historical = saved.get("condition_evidence") == "historical-aggregate/v1"
     if historical:
-        from .historical import validate_import
-
-        validate_import(run, cfg)
+        evidence.validate_import(run, cfg)
         expected["condition_evidence"] = "historical-aggregate/v1"
     if saved != expected:
         raise PingstoreError("compute evidence differs from pinned bank and recipe")

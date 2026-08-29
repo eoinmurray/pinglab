@@ -7,7 +7,7 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parents[2]
 sys.path[:0] = [str(REPO), str(REPO / "tools")]
 
-from experiments.exp033 import evidence, historical, inputs, measurements
+from experiments.exp033 import evidence, inputs, measurements
 from pingstore.contracts import PingstoreError, load_json, write_json_atomic
 
 
@@ -25,7 +25,9 @@ def analyse(identity, frequency_source, *, run_id=None):
         run_id=run_id,
     ) as run:
         if imported:
-            numbers, coordinates, provenance = historical.analyse(compute, frequencies)
+            numbers, coordinates, provenance = evidence.analyse_imported(
+                compute, frequencies
+            )
             run.record["historical_analysis"] = provenance
         else:
             numbers, coordinates = measurements.analyse(

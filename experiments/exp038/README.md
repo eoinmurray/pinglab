@@ -125,17 +125,9 @@ commands, logs, archive records and summary remain under `provenance/gold-2`.
 The unchanged R2 archive remains the recoverable original. No simulation or
 training was performed, and no run was materialized or published.
 
-Reproduction requires an explicit plan and the verified archive:
-
-```sh
-uv run python -m experiments.exp038.import_gold2 plan \
-  --archive .r2/gold-2 --source exp022-r001-compute --plan <new-plan.json>
-uv run python -m experiments.exp038.import_gold2 import \
-  --archive .r2/gold-2 --plan <new-plan.json>
-```
-
-Import creates only compute; analysis and presentation use the independent
-commands above. Re-execution creates fresh identities, never overwrites a run.
+The one-off importer was retired after completion. Its verified plan, executed
+code and archive checks remain in compute provenance. The import created only
+compute; analysis and presentation remain independent stages.
 
 ## Scientific and writing review
 

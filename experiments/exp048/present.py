@@ -14,11 +14,9 @@ from pingstore.contracts import PingstoreError, load_json, write_json_atomic
 
 
 def present(identity, *, run_id=None):
-    from experiments.exp048 import historical
-
     source = inputs.source(REPO, identity, "analyse")
-    if source.record["execution"].get("configuration") == historical.ANALYSIS:
-        return historical.present(REPO, source, run_id=run_id)
+    if source.record["execution"].get("configuration") == evidence.ANALYSIS:
+        return evidence.present_retained(REPO, source, run_id=run_id)
     refs = source.record["inputs"]
     if set(refs) != {"compute", "bank"}:
         raise PingstoreError("analysis must pin compute and bank")

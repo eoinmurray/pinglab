@@ -160,10 +160,9 @@ add only seed and inhibitory decay, recovered from verified sibling configs.
 The run's import plan, file mapping and retained importer record every source
 checksum, selected array checksum, destination and transformation.
 
-The offline importer is `import_gold2.py`, with separate `plan` and `import`
-actions. The executed plan is retained under
+The one-off offline importer was retired after completion. The executed plan is retained under
 `.r2/exp041-import-c12xbg6s/import-plan.json` and in the compute provenance.
-It never downloads, simulates or publishes. Changed plans, wrong checkpoint
+It did not download, simulate or publish. Changed plans, wrong checkpoint
 roles/hashes, configuration conflicts and checksum mismatches fail closed.
 
 ### Scientific and operational verification

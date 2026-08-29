@@ -582,230 +582,18 @@ def test_hpc_without_prior_reservation_fails_before_work(lab, monkeypatch):
     assert not list((root / ".pingstore/runs").glob("*exp033*"))
 
 
-@pytest.fixture
-def historical_archive(lab, monkeypatch):
-    import hashlib
-    import json
-
-    from experiments.exp033 import historical, import_gold2
-    from pingstore.contracts import file_sha256
-
-    root, frequency, _, _ = lab
-    monkeypatch.setattr(import_gold2, "REPO", root)
-    archive = root / "archive"
-    for name in import_gold2.selected_paths():
-        path = archive / name
-        path.parent.mkdir(parents=True, exist_ok=True)
-        if name.endswith(".svg"):
-            path.write_text(
-                '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 320" '
-                'width="600pt" height="320pt"><g id="axes_1">'
-                '<path id="data" d="M 0 1 L 2 3"/>'
-                '<g id="legend_1"><text x="350" y="25">4D</text></g></g>'
-                '<g id="text_23"><!-- exp033-numerics --><text>stamp</text></g></svg>'
-            )
-        else:
-            path.write_text("fixture evidence")
-    old, _ = measurements.analyse(synthetic(), frequencies())
-    old["results"]["criticality"] = historical.amplitude_summary(
-        old["results"]["criticality"], old["results"]["hopf"]["I_ext_star"]
-    )
-    producer = {
-        "campaign": "fixture",
-        "git_commit": "fixture",
-        "exp033_job": "33913627",
-        "exp054_cache_job": "33913631",
-    }
-    old["collection_provenance"] = {
-        "source_git_commit": "fixture",
-        "campaign_id": "fixture",
-        "dependencies": ["exp041"],
-    }
-    write_json_atomic(archive / import_gold2.DERIVED / "numbers.json", old)
-    r = old["results"]
-    subset = {
-        "sweep": synthetic()["reference"]["sweep"],
-        "hopf": r["hopf"],
-        "criticality": r["criticality"],
-        "frequency_vs_tau_gaba": r["frequency_vs_tau_gaba"]["mean_field"],
-        "spiking_exp041": {
-            str(k): v for k, v in r["frequency_vs_tau_gaba"]["spiking_exp041"].items()
-        },
-    }
-    payload = np.empty(6, dtype=object)
-    payload[:] = [{"excluded": "empirical grid"}, *subset.values()]
-    np.savez(archive / import_gold2.CACHE, payload=payload)
-    raw = json.dumps(
-        subset, sort_keys=True, separators=(",", ":"), allow_nan=False
-    ).encode()
-    base = archive / import_gold2.BASE
-    write_json_atomic(archive / "run.json", {"archive": {"uri": "fixture"}})
-    write_json_atomic(
-        base / "run.json", {"run_id": "fixture", "source": {"git_commit": "fixture"}}
-    )
-    write_json_atomic(
-        base / "collection-plan.json",
-        {
-            "stages": [
-                {
-                    "experiments": [
-                        {"slug": s, "command": ["python", s]}
-                        for s in ("exp033", "exp054")
-                    ]
-                }
-            ]
-        },
-    )
-    write_json_atomic(
-        base / "submissions/collection-submission.json",
-        {
-            "jobs": [
-                {"name": "ggs-" + s, "job_id": j}
-                for s, j in (("exp033", "33913627"), ("exp054", "33913631"))
-            ]
-        },
-    )
-    for s, j in (("exp033", "33913627"), ("exp054", "33913631")):
-        write_json_atomic(
-            base / "collection-status" / (s + ".json"),
-            {"state": "complete", "experiment": s},
-        )
-        (base / "logs/collection" / f"ggs-{s}_{j}.out").write_text(
-            f"job={j} host=fixture action=run-experiment experiment={s}\ndevice=cpu\n"
-        )
-
-    def row(name):
-        p = archive / name
-        return {"path": name, "size_bytes": p.stat().st_size, "sha256": file_sha256(p)}
-
-    write_json_atomic(
-        archive / "inventory.json",
-        {
-            "files": [
-                row(n)
-                for n in sorted(import_gold2.selected_paths())
-                if n not in ("inventory.json", "run.json", "lineage.json")
-            ]
-        },
-    )
-    rows = [row(n) for n in sorted(import_gold2.selected_paths())]
-    code = root / "producer.py"
-    code.write_text("# fixture scientific producer\n")
-    plan = {
-        "schema": "exp033.selective-import-plan/v1",
-        "archive": "fixture",
-        "source_files": rows,
-        "source_file_count": len(rows),
-        "source_bytes": sum(r["size_bytes"] for r in rows),
-        "carry_forward_figures": list(historical.CARRY),
-        "producer_code_sha256": file_sha256(code),
-        "producer": producer,
-        "borrowed_cache": {"selected_json_sha256": hashlib.sha256(raw).hexdigest()},
-        "upstream_references": {
-            frequency: inputs.source(
-                root, frequency, "analyse", experiment="exp041"
-            ).reference
-        },
-        "frequency_comparison": {
-            "deltas_hz": {str(t): 0.0 for t in recipe.TAU_GRID_MS}
-        },
-        "missing_evidence": ["raw trajectories"],
-    }
-    plan_path = root / "plan.json"
-    write_json_atomic(plan_path, plan)
-    live = root / "live"
-    live.mkdir()
-    for name in ("inventory.json", "run.json", "lineage.json"):
-        (live / ("live-" + name)).write_bytes((archive / name).read_bytes())
-    return import_gold2, (archive, plan_path, file_sha256(plan_path), code, live)
-
-
-def test_historical_import_and_independent_derived_stages(
-    lab, historical_archive, monkeypatch
-):
-    from experiments.exp033 import historical
-    from pingstore.contracts import file_sha256
-
-    root, frequency, _, calls = lab
-    importer, args = historical_archive
-    monkeypatch.setattr(compute, "simulate", fail)
-    monkeypatch.setattr(numerics, "solve_ivp", fail)
-    identity = importer.import_subset(*args)
-    source = inputs.source(root, identity, "compute")
-    assert source.record["origin"] == "local"
-    assert source.record["historical_import"]["producer"]["job_id"] == "33913627"
-    assert source.record["historical_import"]["cache_producer"]["job_id"] == "33913631"
-    assert (
-        len(load_json(source.directory / "provenance/file-mapping.json")["files"]) == 19
-    )
-    analysis_id = analyse.analyse(identity, frequency)
-    monkeypatch.setattr(historical, "analyse", fail)
-    for name in (
-        "plot_limit_cycle",
-        "plot_timeseries",
-        "plot_phase_planes",
-        "plot_reduction_ladder",
-    ):
-        monkeypatch.setattr(plots, name, fail)
-    output = inputs.source(root, present.present(analysis_id), "present")
-    for name in historical.CARRY:
-        edit = output.record["figure_edits"][name]
-        assert edit["source_sha256"] == file_sha256(
-            source.export / "retained-figures" / name
-        )
-        assert edit["output_sha256"] == file_sha256(output.export / name)
-        assert edit["source_sha256"] != edit["output_sha256"]
-        assert 'd="M 0 1 L 2 3"' in (output.export / name).read_text()
-        assert "exp033-numerics" not in (output.export / name).read_text()
-    source.check_unchanged()
-    assert not calls
-    assert not (root / ".artifacts").exists()
-
-
-@pytest.mark.parametrize("damage", ["plan", "archive", "live", "producer", "copy"])
-def test_historical_import_rejects_changed_evidence(
-    lab, historical_archive, monkeypatch, damage
-):
-    importer, args = historical_archive
-    root = lab[0]
-    archive, plan, _, code, live = args
-    target = {
-        "plan": plan,
-        "archive": archive / importer.CACHE,
-        "live": live / "live-run.json",
-        "producer": code,
-    }
-    if damage == "copy":
-        original = importer.shutil.copyfile
-
-        def broken(src, dst):
-            original(src, dst)
-            Path(dst).write_text("corrupted copy")
-
-        monkeypatch.setattr(importer.shutil, "copyfile", broken)
-    else:
-        target[damage].write_text("changed")
-    with pytest.raises(PingstoreError):
-        importer.import_subset(*args)
-    assert not list((root / ".pingstore/runs").glob("exp033-*"))
-    if damage == "copy":
-        assert list((root / ".pingstore/runs").glob(".exp033-*.tmp"))
-
-
 def test_historical_regression_tolerance_preserves_evidence():
-    from experiments.exp033 import historical
-
     numbers, _ = measurements.analyse(synthetic(), frequencies())
     r = numbers["results"]
-    original = historical.amplitude_summary(r["criticality"], r["hopf"]["I_ext_star"])
+    original = evidence.amplitude_summary(r["criticality"], r["hopf"]["I_ext_star"])
     recorded = copy.deepcopy(original)
     recorded["A2_slope"] = float(np.nextafter(original["A2_slope"], np.inf))
     before = copy.deepcopy(recorded)
-    assert historical.verify_amplitudes(recorded, r["hopf"]["I_ext_star"]) == original
+    assert evidence.verify_amplitudes(recorded, r["hopf"]["I_ext_star"]) == original
     assert recorded == before
     recorded["A2_slope"] *= 1.01
     with pytest.raises(PingstoreError, match="regression"):
-        historical.verify_amplitudes(recorded, r["hopf"]["I_ext_star"])
+        evidence.verify_amplitudes(recorded, r["hopf"]["I_ext_star"])
 
 
 def test_frequency_axis_does_not_magnify_roundoff(tmp_path, monkeypatch):
@@ -875,7 +663,7 @@ def test_article_selected_inputs_equations_and_absent_data(lab):
     output = inputs.source(root, present.present(aid), "present")
     repo = Path(__file__).resolve().parents[2]
     (root / "writings").mkdir()
-    for name in ("exp033.typ", "run-inputs.typ"):
+    for name in ("exp033.typ", "run-inputs.typ", "run-view.typ", "contents.typ"):
         shutil.copyfile(repo / "writings" / name, root / "writings" / name)
     (root / ".demolab").mkdir()
     shutil.copyfile(_paths.TYP / "lib.typ", root / ".demolab/lib.typ")

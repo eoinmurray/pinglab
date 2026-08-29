@@ -8,7 +8,7 @@ REPO = Path(__file__).resolve().parents[2]
 sys.path[:0] = [str(REPO), str(REPO / "tools")]
 
 from experiments.exp033.measurements import spiking_medians
-from experiments.exp054 import evidence, historical, inputs, measurements
+from experiments.exp054 import evidence, inputs, measurements
 from pingstore.contracts import PingstoreError, load_json, write_json_atomic
 
 
@@ -41,9 +41,9 @@ def analyse(identity, frequency_source, *, run_id=None):
         coords = measurements.recordings(source, cfg)
         numbers = measurements.summary(coords, cfg)
         if imported:
-            mf, provenance = historical.mean_field(theory, frequencies)
+            mf, provenance = evidence.retained_mean_field(theory, frequencies)
             original = load_json(source.export / "historical-numbers.json")
-            provenance["empirical_recheck"] = historical.compare_numbers(
+            provenance["empirical_recheck"] = evidence.compare_retained_numbers(
                 numbers, original
             )
             numbers = {
