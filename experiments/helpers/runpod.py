@@ -18,7 +18,7 @@ Two layers, both here:
     every runner calls — it dry-runs / collects / fires from a list of pod
     buckets. `pod_run_loop()` is the single --pod-run entry every runner calls on
     the pod — it iterates the CELLS assignment, skips done jobs, and always
-    self-terminates. `chunk_buckets()` packs jobs into pods.
+    self-terminates.
 
 The runner owns only the *what*: it enumerates its job ids (cell names for
 training, infer-job ids for analysis), maps a job id to an `is_done` check and a
@@ -74,9 +74,7 @@ VOLUME_ID = "3t2fhu0bzr"
 
 # The volume layout pods read/write (all under VOLUME_MOUNT):
 #   training/          — the exp022 weight bank every analysis runner loads
-#   artifacts/<slug>/  — per-experiment infer scratch an analysis fan-out writes
 TRAINING_SUBDIR = "training"
-ARTIFACTS_SUBDIR = "artifacts"
 
 # Timeouts (seconds) — used only for the collect pod, which we DO wait on.
 SSH_ATTEMPT_TIMEOUT = 600      # readiness spans 40s→>490s; wait out slow pods
@@ -90,35 +88,6 @@ PLUMBING_RUNTIME_S = 2400
 
 
 # ── Local ↔ volume path contract ─────────────────────────────────────
-# Both resolved from env on a pod (set by dispatch) and default to local scratch
-# on a laptop, so a runner writes to the same relative place in both worlds.
-
-def training_root() -> Path:
-    """The exp022 weight bank: PINGLAB_TRAINING_ROOT on a pod (/shared/training),
-    else the local scratch default. cell_dir / load_cell read through this."""
-    override = os.environ.get("PINGLAB_TRAINING_ROOT")
-    if override:
-        return Path(override)
-    from .paths import active_run_state
-    try:
-        return active_run_state("exp022")
-    except (FileNotFoundError, RuntimeError):
-        from .paths import runner_paths
-
-        return runner_paths("exp022").state
-
-
-def artifacts_scratch(slug: str) -> Path:
-    """A runner's infer scratch: PINGLAB_ARTIFACTS_ROOT on a pod
-    (/shared/artifacts/<slug>), else the current hidden Pingstore run."""
-    override = os.environ.get("PINGLAB_ARTIFACTS_ROOT")
-    if override:
-        return Path(override)
-    from .paths import runner_paths
-
-    return runner_paths(slug).state
-
-
 def _sh(cmd: list[str], timeout: float | None = None, check: bool = True) -> str:
     """Run a local command, return stdout. Raises on non-zero when check=True."""
     p = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
@@ -639,22 +608,6 @@ def api_key() -> str:
 
 # ── Job → pod bucketing ──────────────────────────────────────────────
 
-def chunk_buckets(job_ids: list[str], per_pod: int, *, prefix: str = "job") -> list[dict]:
-    """Pack job ids into pod assignments [{name, cells}, …], `per_pod` each.
-
-    `cells` is the historical key name the CELLS env is built from — a "cell" is
-    just a job id (a training cell name, or an infer-job id). A runner that needs
-    a smarter split (e.g. exp022's canonical-per-pod) builds its own buckets and
-    passes them straight to dispatch()."""
-    buckets = []
-    for i in range(0, len(job_ids), per_pod):
-        buckets.append({
-            "name": f"{prefix}-{i // per_pod:02d}",
-            "cells": job_ids[i:i + per_pod],
-        })
-    return buckets
-
-
 # ── Fan-out orchestration (the one --runpod entry) ───────────────────
 
 def dispatch(
@@ -680,8 +633,8 @@ def dispatch(
       • live=False    → dry-run: print the fleet plan, create nothing.
       • live=True     → pin+verify the sha, then fire the fleet fire-and-forget.
 
-    `buckets` is [{"name", "cells": [job-id, …]}]; the runner builds them (via
-    chunk_buckets or its own logic). `runner` is the expNNN package stem whose
+    `buckets` is [{"name", "cells": [job-id, …]}]; the runner builds them.
+    `runner` is the expNNN package stem whose
     compute module the pod re-invokes with `--pod-run` (recorded in
     PINGLAB_POD_RUNNER). `extra_env` /
     `plumbing_env` inject runner-specific env (e.g. PINGLAB_ARTIFACTS_ROOT)."""

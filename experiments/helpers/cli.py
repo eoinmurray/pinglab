@@ -202,15 +202,3 @@ def parse_meta(argv: list[str], *, allow_dispatch: bool = False) -> Meta:
         i += 1
 
     return meta
-
-
-# Back-compat shim: the old figure re-render selector. `--plot-only <fig>`
-# subsumes it; kept so any un-migrated caller importing replot_target still runs.
-def replot_target(argv: list[str]) -> str | None:
-    """Deprecated: the figure name after `--plot-only` (or the old `--replot`)."""
-    for flag in ("--plot-only", "--replot"):
-        if flag in argv:
-            i = argv.index(flag)
-            if i + 1 < len(argv) and not argv[i + 1].startswith("--"):
-                return argv[i + 1]
-    return None

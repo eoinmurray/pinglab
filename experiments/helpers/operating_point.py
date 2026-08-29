@@ -42,17 +42,3 @@ TAU_GABA_GAMMA_MS: float = 6.0
 # Measured spiking gamma frequency at TAU_GABA_GAMMA_MS (nb041, 3-seed mean).
 # Re-derive from nb041 if the operating point or the measurement changes.
 F_GAMMA_HZ: float = 43.95
-
-# Gamma period. Everything downstream (sub-cycle floor 0.4·T_γ, streaming
-# reference lines, "one gamma cycle" arithmetic) derives from this.
-T_GAMMA_MS: float = 1000.0 / F_GAMMA_HZ  # ≈ 22.8 ms
-
-# ── NOT the operating point — the library fallback (mirror of models.py) ─────
-# Mirror of src/cli/models.py's module default `tau_gaba = 9.0` (the literature
-# biophysical value). It is what a cell ran at if trained WITHOUT an explicit
-# --tau-gaba, so it is the correct fallback for "cfg.get('tau_gaba_ms') or …"
-# when a loaded cell's config predates that field. Distinct from
-# TAU_GABA_GAMMA_MS: that is "what the collection trains at" (6 ms), this is
-# "what the CLI falls back to" (9 ms). Notebooks can't import models (the CLI
-# boundary), so keep this in sync by hand if the models.py default changes.
-MODELS_DEFAULT_TAU_GABA_MS: float = 9.0

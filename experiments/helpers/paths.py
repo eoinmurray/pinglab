@@ -159,14 +159,6 @@ def active_run_state(slug: str) -> Path:
     return matches[0]
 
 
-def run_state_source(slug: str) -> Path:
-    """Resolve active state, or a non-existent current-run path for dry inspection."""
-    try:
-        return active_run_state(slug)
-    except (FileNotFoundError, RuntimeError):
-        return runner_paths(slug).state
-
-
 def log_runner_event(slug: str, event: str, **fields: object) -> None:
     """Append a compact lifecycle event beneath the runner's explicit log root."""
     paths = runner_paths(slug)
