@@ -24,7 +24,7 @@ Analyse measures explicit pinned compute evidence. Present renders the analysis
 and its exact compute ancestry into flat exports. The scoped shared helper
 `experiments/helpers/snnlang_stages.py` validates v3 layout, payload and manifest
 pins throughout the ancestry before use and again before completion. Simulator
-supporting execution records are retained under `export/evidence/`.
+supporting execution records belong in `run.json`; transient logs use discarded `.scratch/`.
 
 ## Fresh execution verified on 2026-08-28
 

@@ -37,7 +37,7 @@ def present(identity, *, run_id=None):
     arrays = evidence.arrays(source.export / "display.npz")
     streams = {}
     for name in ("matched", "variable"):
-        raw, _ = evidence.stream(compute.export, name)
+        raw, _ = evidence.stream(compute, name)
         streams[name] = {**raw, **result[name + "_stream"]}
     index = result["single_trial_segment_index"]
     matched = streams["matched"]

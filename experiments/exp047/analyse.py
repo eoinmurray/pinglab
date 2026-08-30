@@ -21,7 +21,7 @@ def analyse(identity, *, run_id=None):
         run_id=run_id,
         configuration=recipe.MEASUREMENT,
     ) as run:
-        rows = evidence.rows(compute.export, compute.directory / "export/evidence", cfg)
+        rows = evidence.rows(compute.export, cfg)
         result = measurements.analyse_rows(rows, cfg)
         evidence.analysis(result, cfg)
         write_json_atomic(run.export / "results.json", result)

@@ -1,6 +1,6 @@
 # Experiment Runner Guide
 
-Version: **4.0.0**
+Version: **4.2.0**
 
 This guide defines Pinglab's independent compute, analyse, and present commands.
 The [Storage Guide](../tools/pingstore/README.md) owns run layout and validation.
@@ -50,17 +50,25 @@ Every completed run contains exactly `run.json`, `README.md`, and `export/`.
 - Put machine-readable execution history in `run.json` once.
 - Put human-readable history in README.
 - Put scientific outputs required by downstream stages in `export/`.
-- Put supporting machine-consumed records under `export/evidence/` when they are
-  genuinely scientific outputs rather than duplicate provenance.
+- Keep exports to scientific data. Run-wide files live directly under `export/`;
+  repeated units use `export/<unit-id>/<role-file>` with no deeper nesting.
 
 Do not create `provenance/`, copied command manifests, replay scripts, source
 patches, or parallel provenance envelopes. The shared stage helper already
 records command, environment, configuration, Git commit, dirty state, lockfile
 checksum, inputs, and timing in `run.json`.
 
-Use `StageRun.export` for primary outputs and `StageRun.evidence` for supporting
-scientific records. Read sources through validated `SourceRun.export` or
-`SourceRun.outputs`; supporting records are under `SourceRun.outputs / "evidence"`.
+Use `StageRun.export` for scientific outputs and `StageRun.scratch` for temporary
+logs, commands, duplicate execution configurations, and recovery bookkeeping.
+Per-unit scientific definitions needed to interpret the exported data may remain
+in the unit directory. Scratch is discarded before completion. Read scientific sources through validated
+`SourceRun.export` or `SourceRun.outputs`; read provenance and execution metadata
+from `SourceRun.record`.
+
+Completed unit directories are canonicalized from tool-native working paths.
+Readers use `SourceRun.unit(...)` for a unit directory and `SourceRun.file(...)`
+for a file addressed through a formerly nested path. Do not introduce generic
+container directories such as `data`, `jobs`, `cells`, or `misc`.
 
 Present exports remain flat publication inputs and therefore do not use
 `StageRun.evidence`. Presentation lineage belongs in `run.json` or the exported
@@ -110,9 +118,13 @@ before changing the guide outside the requested scope.
 
 ## 8. Version history
 
+- **4.2.0** — Limit compute/analyse exports to one scientific-unit directory
+  level and standardize shared unit/file resolution.
 - **4.0.0** — Adopt the v4 three-entry run root, mandatory README history,
   export-only digests, compact input pins, and `export/evidence/` for supporting
   scientific outputs.
+- **4.1.0** — Restrict exports to scientific data, replace retained evidence
+  sidecars with discarded scratch space, and stop writing compatibility manifests.
 - **3.0.0** — Adopted source-neutral staged IDs.
 - **2.0.0** — Required v3 execution.
 - **1.0.0** — Versioned the runner guide.

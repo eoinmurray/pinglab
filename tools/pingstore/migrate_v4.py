@@ -48,13 +48,6 @@ def completed_v3_runs(runs: Path) -> list[Path]:
     return result
 
 
-def retain_as_evidence(path: Path, stage: str) -> bool:
-    if stage == "present" or path.name in BOILERPLATE:
-        return False
-    lowered = path.name.lower()
-    return not any(marker in lowered for marker in HISTORY_MARKERS)
-
-
 def rewrite_paths(value, *, retained: set[str], archive_prefix: str):
     if isinstance(value, dict):
         return {
@@ -67,9 +60,6 @@ def rewrite_paths(value, *, retained: set[str], archive_prefix: str):
                 for item in value]
     if isinstance(value, str) and value.startswith("provenance/"):
         rest = value.removeprefix("provenance/")
-        top = rest.split("/", 1)[0]
-        if top in retained:
-            return "export/evidence/" + rest
         return archive_prefix + "/provenance/" + rest
     return value
 
@@ -94,8 +84,7 @@ def readme(record: dict, existing: str, *, migrated_at: str, archive_prefix: str
         + f"- Inputs:\n{inputs}\n"
         + f"- {migrated_at}: migrated from `pingstore.run/v3` to "
           f"`pingstore.run/v4`. Exported scientific bytes were preserved; "
-          f"machine-consumed supporting records were reclassified under "
-          f"`export/evidence/`; duplicate and historical provenance records are "
+          f"provenance and historical metadata records are "
           f"recoverable at `{archive_prefix}`. No training, simulation, analysis, "
           f"plotting, materialization, or publication was performed.\n"
     )
@@ -145,24 +134,7 @@ def apply_migration(store: Path) -> Path:
                 shutil.copy2(script, archived)
                 script.unlink()
 
-            evidence = directory / "export/evidence"
-            if evidence.exists():
-                raise PingstoreError(f"{directory.name}: export/evidence already exists")
             retained = set()
-            if provenance.is_dir():
-                selected = [path for path in provenance.iterdir()
-                            if retain_as_evidence(path, original["stage"])]
-                if selected:
-                    evidence.mkdir()
-                    for path in selected:
-                        destination = evidence / path.name
-                        if path.is_dir():
-                            shutil.copytree(
-                                path, destination, ignore=shutil.ignore_patterns("run.sh")
-                            )
-                        else:
-                            shutil.copy2(path, destination)
-                        retained.add(path.name)
 
             archive_prefix = f"../../migrations/{migration_id}/{directory.name}"
             record = rewrite_paths(original, retained=retained, archive_prefix=archive_prefix)
@@ -321,9 +293,6 @@ def rollback(store: Path, archive: Path) -> None:
     for item in report["runs"]:
         directory = runs / item["run_id"]
         run_archive = archive / directory.name
-        evidence = directory / "export/evidence"
-        if evidence.exists():
-            shutil.rmtree(evidence)
         replay_archive = run_archive / "export_replay_scripts"
         if replay_archive.is_dir():
             for archived in replay_archive.rglob("*"):

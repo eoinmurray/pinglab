@@ -80,7 +80,7 @@ def analyse(identity, *, run_id=None):
             name = job["cell_name"]
             cell = by_name[name]
             train = contract["configs"][name]
-            directory = source.export / job["path"]
+            directory = source.unit(job["path"])
             evidence.recordings(directory, train, job)
             if job["kind"] == "snapshot":
                 with np.load(directory / "snapshot.npz", allow_pickle=False) as raw:

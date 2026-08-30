@@ -60,12 +60,10 @@ def lab(tmp_path, monkeypatch):
     }.items():
         monkeypatch.setattr(recipe, name, value)
     monkeypatch.setattr(measurements, "TRAINED_T_MS", recipe.TRAINED_T_MS)
-    with stages.stage_run(
-        tmp_path, "exp022", "compute", export_root="export/cells"
-    ) as run:
+    with stages.stage_run(tmp_path, "exp022", "compute") as run:
         for seed in recipe.SEEDS:
             name = recipe.cell_name(seed)
-            cell = run.export / "cells" / name
+            cell = run.export / name
             cell.mkdir(parents=True)
             cfg = {
                 "model": "ping",
@@ -303,7 +301,7 @@ def test_rejects_malformed_compute_even_if_resigned(lab, mutation):
     root, bank, _ = lab
     cid = compute.compute(bank)
     run = inputs.source(root, cid, "compute")
-    first = run.export / "job-000/stream-000"
+    first = run.unit("job-000", "stream-000")
     if mutation == "missing":
         (first / "rasters.npz").unlink()
     elif mutation in ("coordinate", "dt"):
@@ -339,7 +337,7 @@ def test_corrupt_bank_and_wrong_stage_fail_before_execution(lab):
     with pytest.raises(PingstoreError):
         analyse.analyse(bank)
     path = (
-        root / ".pingstore/runs" / bank / "export/cells/ping__off__seed42/weights.pth"
+        root / ".pingstore/runs" / bank / "export/ping__off__seed42/weights.pth"
     )
     path.write_bytes(b"corrupt")
     with pytest.raises(PingstoreError):
@@ -444,7 +442,7 @@ def test_present_rejects_incomplete_or_mismatched_analysis(lab, mutation):
 def test_checkpoint_role_mismatch_rejected_even_with_valid_run_checksum(lab):
     root, bank, calls = lab
     directory = root / ".pingstore/runs" / bank
-    p = directory / "export/cells/ping__off__seed42/metrics.json"
+    p = directory / "export/ping__off__seed42/metrics.json"
     d = load_json(p)
     d["checkpoints"]["best_validation"]["filename"] = "weights_final.pth"
     write_json_atomic(p, d)
@@ -502,7 +500,7 @@ def test_real_simulator_parser_preserves_explicit_stream_contract(lab):
                     root
                     / ".pingstore/runs"
                     / bank
-                    / "export/cells/ping__off__seed42/config.json"
+                    / "export/ping__off__seed42/config.json"
                 ),
                 args,
             )

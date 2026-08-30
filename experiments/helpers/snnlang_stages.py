@@ -130,10 +130,10 @@ def test_evidence(repo, run, name, nodes):
     """Execute an explicitly scoped numerical gate and retain its test report."""
     import sys
 
-    report = run.evidence / f"{name}.xml"
+    report = run.scratch / f"{name}.xml"
     record = command(
         repo,
-        run.evidence,
+        run.scratch,
         name,
         [
             sys.executable,

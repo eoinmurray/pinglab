@@ -106,24 +106,20 @@ def test_invalid_duration_fails_projection(source, started, completed):
         projection(source)
 
 
-def make_scientific_run(source, *, cells=None):
+def make_scientific_run(source, **changes):
+    timing = {
+        "duration_seconds": 198256,
+        "started_at": "2026-08-18T15:42:06Z",
+        "completed_at": "2026-08-20T22:46:22Z",
+        "origin": "slurm",
+        "jobs": 2,
+        "job_seconds": 10800.75,
+    }
+    timing.update(changes)
     directory = make_run(source / ".pingstore/runs", "exp001-r001-compute", stage="compute",
                          execution={"operation": "import", "started_at": "2026-08-27T10:00:00Z",
                                     "completed_at": "2026-08-27T10:00:03Z"},
-                         scientific_execution={"record": "export/evidence/scientific.json",
-                                               "origin": "slurm", "cells": 2})
-    retained = {"schema": "pingstore.run/v2", "inputs": {"unavailable": "not traversed"},
-                "execution": {"started_at": "2026-08-18T15:42:06Z",
-                              "completed_at": "2026-08-20T22:46:22Z",
-                              "cells": cells if cells is not None else [
-                                  {"attempt": {"attempt_id": str(i), "state": "complete",
-                                               "elapsed_seconds": seconds}}
-                                  for i, seconds in enumerate((3600.5, 7200.25))]}}
-    (directory / "export/evidence").mkdir()
-    (directory / "export/evidence/scientific.json").write_text(json.dumps(retained))
-    metadata = json.loads((directory / "run.json").read_text())
-    metadata["payload_digest"] = payload_digest(directory)
-    (directory / "run.json").write_text(json.dumps(metadata))
+                         scientific_execution=timing)
     return directory
 
 
@@ -136,47 +132,15 @@ def test_scientific_span_and_job_total_are_separate_from_import(source):
     assert row["scientific_timing"] == {
         "duration_seconds": 198256, "started_at": "2026-08-18T15:42:06Z",
         "completed_at": "2026-08-20T22:46:22Z", "origin": "slurm",
-        "record": "export/evidence/scientific.json", "jobs": 2, "job_seconds": 10800.75,
+        "jobs": 2, "job_seconds": 10800.75,
     }
     assert before == {p: p.read_bytes() for p in directory.rglob("*") if p.is_file()}
 
 
-@pytest.mark.parametrize("reference", [
-    "../outside.json", "/outside.json", "export/evidence/../../outside.json",
-    "export/evidence//scientific.json", "export/numbers.json", "export\\evidence\\scientific.json",
-])
-def test_scientific_timing_cannot_escape_retained_provenance(source, reference):
-    directory = make_scientific_run(source)
-    metadata = json.loads((directory / "run.json").read_text())
-    metadata["scientific_execution"]["record"] = reference
-    (directory / "run.json").write_text(json.dumps(metadata))
-    with pytest.raises(PingstoreError, match="must reference export evidence"):
-        projection(source)
-
-
-def test_scientific_evidence_checksum_is_validated_before_display(source):
-    directory = make_scientific_run(source)
-    (directory / "export/evidence/scientific.json").write_text('{}')
-    with pytest.raises(PingstoreError, match="checksum"):
-        projection(source)
-
-
-@pytest.mark.parametrize("change", [
-    {"attempt_id": "0"}, {"elapsed_seconds": -1}, {"elapsed_seconds": None},
-    {"elapsed_seconds": True}, {"elapsed_seconds": float("nan")}, {"state": "failed"},
-])
-def test_scientific_job_total_rejects_bad_or_duplicate_attempts(source, change):
-    make_scientific_run(source, cells=[
-        {"attempt": {"attempt_id": "0", "state": "complete", "elapsed_seconds": 10}},
-        {"attempt": {"attempt_id": "1", "state": "complete", "elapsed_seconds": 20, **change}},
-    ])
-    with pytest.raises(PingstoreError, match="invalid or duplicate retained timing attempt"):
-        projection(source)
-
-
-def test_scientific_job_total_requires_declared_cell_count(source):
-    make_scientific_run(source, cells=[])
-    with pytest.raises(PingstoreError, match="cell count"):
+@pytest.mark.parametrize("value", [-1, None, True, float("nan")])
+def test_scientific_timing_rejects_invalid_duration(source, value):
+    make_scientific_run(source, duration_seconds=value)
+    with pytest.raises(PingstoreError, match="invalid scientific duration"):
         projection(source)
 
 
@@ -322,7 +286,7 @@ def test_module_entry_point(source):
 def test_nonpresent_rows_are_display_only_with_recursive_export_sizes(source, stage):
     store = source / ".pingstore/runs"
     other = make_run(store, f"exp001-r001-{stage}", stage=stage)
-    nested = other / "export/cells/seed1"
+    nested = other / "export/cells--seed1"
     nested.mkdir(parents=True)
     (nested / "weights.bin").write_bytes(b"nested scientific data")
     metadata = json.loads((other / "run.json").read_text())

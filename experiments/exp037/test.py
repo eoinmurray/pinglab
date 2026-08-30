@@ -38,11 +38,9 @@ def lab(tmp_path, monkeypatch):
         stages, "_capture_code", lambda *a: {"git_commit": "fixture", "dirty": False}
     )
     monkeypatch.setenv("PINGLAB_SMOKE", "1")
-    with stages.stage_run(
-        tmp_path, "exp022", "compute", export_root="export/cells"
-    ) as run:
+    with stages.stage_run(tmp_path, "exp022", "compute") as run:
         for cell in recipe.bank_cells():
-            directory = run.export / "cells" / cell["cell_name"]
+            directory = run.export / cell["cell_name"]
             directory.mkdir(parents=True)
             cfg = {
                 **_common_config(),
@@ -213,7 +211,7 @@ def resign(directory):
     write_json_atomic(path, record)
 
 
-@pytest.mark.parametrize("mutation", ["sample_count", "snapshot", "config", "missing"])
+@pytest.mark.parametrize("mutation", ["sample_count", "snapshot", "missing"])
 def test_analyse_rejects_corrupt_even_resigned_payload(lab, mutation):
     root, bank, _ = lab
     cid = compute.compute(bank)
@@ -222,22 +220,18 @@ def test_analyse_rejects_corrupt_even_resigned_payload(lab, mutation):
     jobs = recipe.jobs(cfg)
     if mutation == "snapshot":
         p = (
-            c.export
-            / next(j["path"] for j in jobs if j["kind"] == "raster")
-            / "snapshot.npz"
+            c.file(
+                next(j["path"] for j in jobs if j["kind"] == "raster"),
+                "snapshot.npz",
+            )
         )
         with np.load(p) as raw:
             data = {k: raw[k] for k in raw.files}
         data["spk_e"] = np.full_like(data["spk_e"], 2, dtype=np.int8)
         np.savez_compressed(p, **data)
-    elif mutation == "config":
-        p = c.directory / "export/evidence/simulations" / jobs[0]["path"] / "config.json"
-        d = load_json(p)
-        d["spike_rate"] = 111
-        write_json_atomic(p, d)
     else:
         job = next(j for j in jobs if j["kind"] == "sweep")
-        p = c.export / job["path"] / "metrics.json"
+        p = c.file(job["path"], "metrics.json")
         if mutation == "missing":
             p.unlink()
         else:
@@ -484,7 +478,6 @@ def test_independent_stages_preserve_measurements_and_never_publish(lab, monkeyp
     output = inputs.source(root, pid, "present")
     assert {f.name for f in output.export.iterdir()} == {
         "numbers.json",
-        "_manifest.json",
         *recipe.FIGURES,
     }
     assert output.record["inputs"] == {"analysis": analysis.reference}
@@ -541,10 +534,7 @@ def test_shards_collect_without_reexecuting_and_resume_verified_work(lab, monkey
     compute.compute(bank, run_id=rid, collect=True)
     assert len(calls) == 54
     source = inputs.source(root, rid, "compute")
-    assert (
-        len(list((source.directory / "export/evidence/shards").glob("*/completed.json")))
-        == 6
-    )
+    assert not (source.directory / ".scratch").exists()
     with pytest.raises(PingstoreError):
         compute.shard(bank, run_id=rid, index=0)
 
@@ -564,7 +554,7 @@ def test_shard_resume_rejects_changed_evidence(lab, monkeypatch, fault):
         path = next(
             (
                 directory
-                / ("export" if fault == "payload" else "export/evidence/simulations")
+                / ("export" if fault == "payload" else ".scratch/simulations")
             ).rglob("*.json")
         )
         path.write_text("{}")

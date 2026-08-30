@@ -16,14 +16,16 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parents[2]
 sys.path[:0] = [str(REPO), str(REPO / "experiments"), str(REPO / "tools")]
 
+from experiments.exp022 import campaign
 from experiments.exp022.recipe import *  # noqa: F403
 from experiments.exp022.recipe import _display_path
-from experiments.exp022 import campaign
+from pingstore.contracts import PingstoreError, write_json_atomic
+from pingstore.stages import reserve_stage, source_run, stage_reservation, stage_run
+
 from helpers import runpod
 from helpers.checkpoints import resolve_checkpoint
 from helpers.cli import parse_meta
-from pingstore.contracts import PingstoreError, load_json, write_json_atomic
-from pingstore.stages import reserve_stage, source_run, stage_reservation, stage_run
+
 
 def cell_dir(name: str) -> Path:
     """Shared per-cell artifact directory."""
@@ -236,11 +238,12 @@ def run_via_runpod(argv: list[str]) -> None:
     )
     if meta.collect:
         with stage_run(REPO, SLUG, "compute", run_id=reserved, configuration=SCALE,
-                       export_root="export/cells", operation="collect-runpod") as run:
+                       operation="collect-runpod") as run:
             for cell in CANONICAL_CELLS:
                 for role in ("best_validation", "final_epoch"):
                     resolve_checkpoint(local_root / cell["name"], role)
             generate_snapshots(local_root, run.export / "snapshots")
+            promote_cells(run.export)
 
 
 def _dispatch_meta(argv: list[str]):
@@ -676,6 +679,17 @@ def generate_snapshots(bank: Path, output: Path) -> None:
         })
 
 
+def promote_cells(export: Path) -> None:
+    """Promote a tool-native cells/ bank to canonical unit directories."""
+    cells = export / "cells"
+    for source in sorted(cells.iterdir()):
+        target = export / source.name
+        if target.exists():
+            raise PingstoreError(f"cell export already exists: {target}")
+        source.rename(target)
+    cells.rmdir()
+
+
 def copy_bank(bank: Path, destination: Path) -> list[dict]:
     """Copy scientific evidence without restamping configs or checkpoint roles."""
     from pingstore.contracts import file_sha256
@@ -717,15 +731,15 @@ def import_bank(identity: str, *, run_id: str | None = None) -> str:
     source = source_run(REPO / ".pingstore", identity, stage="compute", experiment=SLUG)
     with stage_run(REPO, SLUG, "compute", inputs={"import": source}, run_id=run_id,
                    configuration=source.record["execution"].get("configuration"),
-                   export_root="export/cells", operation="import") as run:
+                   operation="import") as run:
         inventory = copy_bank(source.export, run.export / "cells")
-        shutil.copy2(source.directory / "run.json", run.evidence / "imported-run.json")
-        if (source.directory / "README.md").is_file():
-            shutil.copy2(source.directory / "README.md", run.evidence / "imported-README.md")
-        write_json_atomic(run.evidence / "import-inventory.json", inventory)
+        promote_cells(run.export)
+        run.record["execution"]["imported_files"] = len(inventory)
+        run.record["execution"]["imported_bytes"] = sum(
+            row["size_bytes"] for row in inventory
+        )
         run.record["historical_evidence"] = {
             "source": source.reference,
-            "record": "export/evidence/imported-run.json",
             "note": "Historical cell attempts and inherited/repaired lineage are preserved; "
                     "this execution copied evidence and did not train or simulate.",
         }
@@ -733,9 +747,8 @@ def import_bank(identity: str, *, run_id: str | None = None) -> str:
             "# Exp022 compute — imported model bank\n\n"
             f"Imported byte-preserving scientific evidence from `{identity}`. "
             "The original remains unchanged.\n\n"
-            "The 102 cells and both checkpoint roles are under `export/cells/`. "
-            "Source execution and full lineage are retained in "
-            "`export/evidence/imported-run.json`; this run's local operation is an import, "
+            "The 102 cells are direct unit directories under `export/`. "
+            "Source identity is retained in `run.json`; this run's local operation is an import, "
             "not historical SLURM execution or retraining.\n\n"
             "Raw raster snapshots were not retained in this historical bank. "
             "Analysis can recover training curves from metrics; presentation must either "
@@ -755,15 +768,16 @@ def capture_campaign(manifest_path: Path, manifest: dict) -> str:
         )
     bank = Path(manifest["campaign_root"]) / "cells"
     with stage_run(REPO, SLUG, "compute", run_id=reserved, configuration=SCALE,
-                   export_root="export/cells", operation="capture-campaign") as run:
+                   operation="capture-campaign") as run:
         copy_bank(bank, run.export / "cells")
-        shutil.copy2(manifest_path, run.evidence / "campaign.json")
+        shutil.copy2(manifest_path, run.scratch / "campaign.json")
         run.record["execution"]["campaign"] = {
             "campaign_id": manifest["campaign_id"],
             "manifest_sha256": manifest["manifest_sha256"],
             "repository_commit": manifest["repository"]["commit"],
         }
         generate_snapshots(run.export / "cells", run.export / "snapshots")
+        promote_cells(run.export)
         final = campaign.summarize_status(_checked_manifest(manifest_path))
         if any(not row["valid"] for row in final["cells"]):
             raise PingstoreError("campaign changed during compute capture")
@@ -819,7 +833,7 @@ def main() -> None:
         if not (inputs["bank"].export / CANONICAL_CELLS[0]["name"]).is_dir():
             parser.error("--source must be a compute run exporting a model bank")
     with stage_run(REPO, SLUG, "compute", inputs=inputs, run_id=args.run_id,
-                   configuration=SCALE, export_root="export" if inputs else "export/cells") as run:
+                   configuration=SCALE) as run:
         if inputs:
             bank = inputs["bank"].export
         else:
@@ -832,6 +846,8 @@ def main() -> None:
             finally:
                 globals()["TRAINING_ROOT"] = previous
         generate_snapshots(bank, run.export / "snapshots")
+        if not inputs:
+            promote_cells(run.export)
 
 
 if __name__ == "__main__":

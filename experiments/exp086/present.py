@@ -44,7 +44,7 @@ def present(identity, *, run_id=None):
             if row["k"] == result["selected_intermediate"]["k"]
         )
         bundle = load_bundle(
-            compute.export / "branches" / recipe.label(strong["k"]) / "network.bundle"
+            compute.unit("branches", recipe.label(strong["k"]), "network.bundle")
         )
         bundle.visualise(
             run.export / "network.svg", view="circuit", expand_groups=recipe.PING_GROUPS

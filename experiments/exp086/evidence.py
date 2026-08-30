@@ -49,14 +49,14 @@ def compute_contract(source):
         "prefix-state/tensors.npz",
     ]
     required.extend(f"branches/{b['label']}/spikes.npz" for b in recipe.branches())
-    if any(not (source.export / name).is_file() for name in required):
+    if any(not source.file(name).is_file() for name in required):
         raise PingstoreError("exp086 compute evidence is incomplete")
-    state = load_json(source.export / "prefix-state/manifest.json")
+    state = load_json(source.file("prefix-state", "manifest.json"))
     if state.get("completed_steps") != round(recipe.COUPLING_ONSET_MS / recipe.DT_MS):
         raise PingstoreError("exp086 retained prefix has wrong duration")
     for branch in recipe.branches():
         bundle = load_bundle(
-            source.export / "branches" / branch["label"] / "network.bundle"
+            source.unit("branches", branch["label"], "network.bundle")
         )
         if bundle.manifest["graph_digest"] != cfg["graphs"][branch["label"]]:
             raise PingstoreError("exp086 retained network differs from recipe")
@@ -80,7 +80,7 @@ def acquisition(source):
     binary_arrays(
         source.export / "prefix-spikes.npz", recording_shapes(onset), np.uint8
     )
-    state = load_runtime_state(source.export / "prefix-state")
+    state = load_runtime_state(source.unit("prefix-state"))
     if state.completed_steps != onset:
         raise PingstoreError("exp086 retained prefix has wrong duration")
 

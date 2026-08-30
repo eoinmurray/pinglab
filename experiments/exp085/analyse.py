@@ -84,7 +84,7 @@ def analyse(identity, *, run_id=None):
         )
         # Retain the network definition for rendering, not an upstream simulation.
         write_json_atomic(
-            run.export / "network.json", load_json(source.export / "graphs/both.json")
+            run.export / "network.json", load_json(source.file("graphs", "both.json"))
         )
     return run.run_id
 

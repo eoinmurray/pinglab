@@ -159,7 +159,7 @@ def test_independent_stages_and_all_figures(lab, monkeypatch):
     identity = compute.compute()
     source = inputs.source(root, identity, "compute")
     assert len(calls) == 51 and source.record["inputs"] == {}
-    assert len(list(source.export.glob("probe/*/rasters.npz"))) == 51
+    assert len(list(source.export.glob("probe--*/rasters.npz"))) == 51
     assert not list((source.directory / "export/evidence").rglob("rasters.npz"))
     original = source.reference
     monkeypatch.setenv("PINGLAB_SMOKE", "0")
@@ -586,7 +586,11 @@ def test_historical_analysis_preserves_scalars_and_borrowed_theory(lab):
         configuration=cfg,
         operation="historical-import",
     ) as imported:
-        shutil.copytree(native.export / "probe", imported.export / "probe")
+        for unit in native.outputs.glob("probe--*"):
+            shutil.copytree(
+                unit,
+                imported.export / "probe" / unit.name.removeprefix("probe--"),
+            )
         shutil.copyfile(
             native.export / "recordings.json", imported.export / "recordings.json"
         )

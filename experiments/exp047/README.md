@@ -18,7 +18,7 @@ uv run python -m experiments.exp047.present --source <exp047-analysis-run-id>
 
 - **Compute:** runs each unique simulation once. Per-simulation metrics belong
   in `export/probe/<condition>/metrics.json`; configuration, commands and logs
-  belong in `export/evidence/simulations/<condition>/`. `export/evidence.json` records
+  use discarded `.scratch/simulations/<condition>/`. `export/evidence.json` records
   the recipe and complete job list. No aggregate or figure is generated.
 - **Analyse:** validates the compute recipe, grid and retained configurations;
   maps shared measurements into both controls and computes the seed mean and

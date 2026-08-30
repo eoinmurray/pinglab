@@ -329,7 +329,12 @@ PAYLOAD_NAMES = {
     "_manifest.json",
     "_dirty.patch",
     "_run.txt",
-    "run.sh",
+}
+REMOVED_REPLAY_SCRIPT = {
+    "path": "run.sh",
+    "role": "state",
+    "sha256": "8689ec49b3d1a382a76e392db184fbe042535180891984e0df4cb689df7b798f",
+    "size_bytes": 247,
 }
 LEGACY_CONFIG_KEYS = (
     "n_e",
@@ -405,7 +410,12 @@ def archive_files(directory):
         if file_sha256(directory / name) != digest:
             raise PingstoreError(f"approved source metadata changed: {name}")
     inventory = load_json(directory / "inventory.json")
-    rows = inventory["files"]
+    original_rows = inventory["files"]
+    if [row for row in original_rows if row.get("path") == "run.sh"] != [
+        REMOVED_REPLAY_SCRIPT
+    ]:
+        raise PingstoreError("historical replay-script inventory differs")
+    rows = [row for row in original_rows if row.get("path") != "run.sh"]
     if len(rows) != len(PAYLOAD_NAMES) or {r["path"] for r in rows} != PAYLOAD_NAMES:
         raise PingstoreError("historical payload inventory differs")
     for row in rows:
@@ -415,9 +425,9 @@ def archive_files(directory):
             or file_sha256(path) != row["sha256"]
         ):
             raise PingstoreError(f"historical payload checksum differs: {row['path']}")
-    if inventory["file_count"] != len(rows) or inventory["total_size_bytes"] != sum(
-        r["size_bytes"] for r in rows
-    ):
+    if inventory["file_count"] != len(original_rows) or inventory[
+        "total_size_bytes"
+    ] != sum(r["size_bytes"] for r in original_rows):
         raise PingstoreError("historical inventory totals differ")
     original = load_json(directory / "run.json")
     manifest = load_json(directory / "payload/_manifest.json")
@@ -473,20 +483,17 @@ def imported(repo, source):
         or source.record["execution"]["configuration"] != IMPORT
     ):
         raise PingstoreError("not an explicit historical-summary import")
-    archive = source.directory / "export/evidence/archive"
-    files = archive_files(archive)
-    history = provenance(archive, files)
-    if source.record.get("historical") != history:
+    history = source.record.get("historical")
+    if not isinstance(history, dict) or history.get("schema") != "exp048.historical-provenance/v1":
         raise PingstoreError("historical provenance differs")
-    if source.record.get("source_file_mapping") != {
-        name: f"export/evidence/archive/{name}" for name in files
-    }:
-        raise PingstoreError("historical source file mapping differs")
     if (
         file_sha256(source.export / "numbers.json")
-        != files["payload/numbers.json"]["sha256"]
+        != history["source_files"]["payload/numbers.json"]["sha256"]
     ):
         raise PingstoreError("imported numerical bytes differ")
+    for name in CARRIED:
+        if file_sha256(source.export / name) != history["source_files"][f"payload/{name}"]["sha256"]:
+            raise PingstoreError(f"imported carried figure differs: {name}")
     return load_json(source.export / "numbers.json"), history
 
 
@@ -571,7 +578,7 @@ def analyse_retained(repo, source, *, run_id=None):
         run.record["historical"] = history
         write_json_atomic(run.export / "results.json", result)
         write_json_atomic(
-            run.evidence / "verification.json",
+            run.scratch / "verification.json",
             {
                 "per_seed_rows": sum(
                     len(numbers[k])
@@ -623,7 +630,7 @@ def present_retained(repo, source, *, run_id=None):
             name: {
                 "operation": "carried-unchanged",
                 "source": original.reference,
-                "path": f"export/evidence/archive/payload/{name}",
+                "path": f"export/{name}",
                 "sha256": history["source_files"][f"payload/{name}"]["sha256"],
             }
             for name in CARRIED
@@ -635,7 +642,7 @@ def present_retained(repo, source, *, run_id=None):
             }
         for name in CARRIED:
             shutil.copyfile(
-                original.directory / "export/evidence/archive/payload" / name,
+                original.export / name,
                 run.export / name,
             )
         theme.set_paper_mode(True)

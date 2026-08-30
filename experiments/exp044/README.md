@@ -45,7 +45,7 @@ stage directions, including for `--plot-only` and `--skip-training`.
 Use `--run-id` only for an unused v3 reservation. Local and scheduler executions
 reserve fresh stage identities; failures leave hidden incomplete runs. Source
 checkpoints remain in the bank. Commands, logs and training configurations are
-retained under `export/evidence/`, while raw outputs live in compute `export/`.
+written to discarded `.scratch/`, while scientific data live in compute `export/`.
 Analysis and presentation never simulate. None of the stages materializes or
 publishes. Preview/publication requires a separately selected present run.
 

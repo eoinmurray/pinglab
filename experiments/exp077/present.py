@@ -32,7 +32,7 @@ def present(identity, *, run_id=None):
                 }
         plots.render_rasters(recorded, run.export / "matched_rasters.png")
         snn.load_bundle(
-            compute.export / "variants/reciprocal_delayed.bundle"
+            compute.unit("variants", "reciprocal_delayed.bundle")
         ).visualise(run.export / "reciprocal_delayed.svg", view="circuit")
         write_json_atomic(run.export / "delay_timing.json", result["delay_timing"])
         write_json_atomic(

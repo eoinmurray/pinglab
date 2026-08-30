@@ -25,7 +25,7 @@ def analyse(identity, frequency_id, *, run_id=None):
     ) as run:
         rows = []
         for cell in contract["cells"]:
-            directory = compute.export / "infer" / cell["cell_name"]
+            directory = compute.unit("infer", cell["cell_name"])
             common = contract["common"]
             scalar = evidence.measurement(
                 directory / "metrics.json", cell, common, cfg["evaluation_samples"]

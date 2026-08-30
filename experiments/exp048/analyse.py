@@ -99,7 +99,7 @@ def analyse(identity, *, run_id=None):
         for job in recipe.jobs():
             correct = total = 0
             for index in range(job["streams"]):
-                directory = source.export / job["id"] / f"stream-{index:03d}"
+                directory = source.unit(job["id"], f"stream-{index:03d}")
                 raw, stimulus = evidence.stream(directory, job, index)
                 cfg = contract["configs"][recipe.cell_name(job["seed"])]
                 n_correct, n_total, summary, figure = decode(

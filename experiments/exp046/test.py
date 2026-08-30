@@ -124,8 +124,8 @@ def test_independent_stages_preserve_outputs_without_publication(
     assert all(c[c.index("--max-samples") + 1] == "100" for c in calls)
     output = inputs.source(root, identity, "compute")
     assert set(output.record["inputs"]) == {"bank"}
-    assert len(list(output.export.glob("infer/*/rasters.npz"))) == 18
-    assert not list(output.export.glob("infer/*/config.json"))
+    assert len(list(output.export.glob("infer--*/rasters.npz"))) == 18
+    assert not list(output.export.glob("infer--*/config.json"))
     monkeypatch.setattr(
         compute, "run_cli", lambda *a, **k: pytest.fail("implicit inference")
     )
@@ -199,7 +199,7 @@ def test_bad_recordings_fail_closed(cycle_lab, damage):
     root, bank_id, frequency_id, _ = cycle_lab
     identity = compute.compute(bank_id)
     run = inputs.source(root, identity, "compute")
-    path = run.export / "infer" / recipe.cell_name(4.5, 42)
+    path = run.unit("infer", recipe.cell_name(4.5, 42))
     if damage in ("rates", "nan"):
         with np.load(path / "per_cell_rates.npz") as data:
             rates = data["rate_e_per_cell"].copy()

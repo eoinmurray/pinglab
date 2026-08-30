@@ -5,6 +5,7 @@ import re
 
 import numpy as np
 from pingstore.contracts import PingstoreError, file_sha256, load_json
+from pingstore.layout import canonical_export_file
 
 
 def require(condition, message):
@@ -90,19 +91,26 @@ def validate(output, cfg, *, historical=False, document=None):
                 "memory-only training must not declare a checkpoint file",
             )
             require(
-                not (output / f"models/seed-{record['seed']}/decoder.pt").exists(),
+                not canonical_export_file(
+                    output, "models", f"seed-{record['seed']}", "decoder.pt"
+                ).exists(),
                 "memory-only training contains an unexpected checkpoint",
             )
         else:
-            checkpoint = f"models/seed-{record['seed']}/decoder.pt"
+            checkpoint_path = canonical_export_file(
+                output, "models", f"seed-{record['seed']}", "decoder.pt"
+            )
+            checkpoint = checkpoint_path.relative_to(output).as_posix()
             require(
                 record.get("checkpoint") == checkpoint, "unexpected checkpoint path"
             )
             require(
-                file_sha256(output / checkpoint) == record.get("checkpoint_sha256"),
+                file_sha256(checkpoint_path) == record.get("checkpoint_sha256"),
                 "checkpoint hash differs from selected training record",
             )
-        training_path = output / f"models/seed-{record['seed']}/training.json"
+        training_path = canonical_export_file(
+            output, "models", f"seed-{record['seed']}", "training.json"
+        )
         require(load_json(training_path) == record, "training record copies disagree")
         history = record["history"]
         require(

@@ -15,10 +15,10 @@ from pingstore.contracts import PingstoreError, load_json, write_json_atomic
 def analyse(identity, *, run_id=None):
     source = inputs.source(REPO, identity, "compute")
     cfg, bank, contract = inputs.compute_evidence(REPO, source)
-    rows = [evidence.condition(source.export, j, cfg) for j in recipe.jobs(cfg)]
+    rows = [evidence.condition(source, j, cfg) for j in recipe.jobs(cfg)]
     preflight = measurements.grid_output_preflight(rows)
     streams = {
-        name: measurements.stream_result(*evidence.stream(source.export, name))
+        name: measurements.stream_result(*evidence.stream(source, name))
         for name in ("matched", "variable")
     }
     selected = list(streams["matched"]["correct"]).index(1)

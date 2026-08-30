@@ -40,13 +40,11 @@ def lab(tmp_path, monkeypatch):
     monkeypatch.setattr(recipe, "RASTER_N_E_PLOT", 2)
     monkeypatch.setattr(recipe, "RASTER_N_I_PLOT", 1)
     monkeypatch.setenv("PINGLAB_SMOKE", "1")
-    with stages.stage_run(
-        tmp_path, "exp022", "compute", export_root="export/cells"
-    ) as bank:
+    with stages.stage_run(tmp_path, "exp022", "compute") as bank:
         for tau in recipe.TAU_GABA_SWEEP:
             for seed in recipe.SEEDS:
                 name = recipe.cell_name(tau, seed)
-                cell = bank.export / "cells" / name
+                cell = bank.export / name
                 cell.mkdir(parents=True)
                 cfg = {
                     **_common_config(),
@@ -215,7 +213,7 @@ def test_missing_measurements_never_become_zeros(lab, damage):
         return
     compute_id = compute.compute(bank_id)
     output = inputs.source(root, compute_id, "compute")
-    path = output.export / "infer" / recipe.cell_name(4.5, 42) / "metrics.json"
+    path = output.file("infer", recipe.cell_name(4.5, 42), "metrics.json")
     r = load_json(path)
     if damage == "missing_rate":
         del r["rates_hz"]["hid"]
@@ -293,7 +291,7 @@ def test_independent_stages_retain_science_and_never_publish(lab, monkeypatch):
     assert sum("--sample-index" in args for args in calls) == 6
     output = inputs.source(root, compute_id, "compute")
     assert output.record["inputs"] == {"bank": before}
-    assert len(list(output.export.glob("infer/*/pop_traces.npz"))) == 18
+    assert len(list(output.export.glob("infer--*/pop_traces.npz"))) == 18
     assert not list(output.export.rglob("run.sh"))
     monkeypatch.setenv("PINGLAB_SMOKE", "0")
     monkeypatch.setattr(
@@ -307,7 +305,7 @@ def test_independent_stages_retain_science_and_never_publish(lab, monkeypatch):
     assert len(results["aggregate"]) == 6
     assert results["measurement"]["history_partition"] == "validation"
     raw = evidence.snapshot(
-        output.export / "snapshot" / recipe.cell_name(4.5, 42) / "snapshot.npz",
+        output.file("snapshot", recipe.cell_name(4.5, 42), "snapshot.npz"),
         recipe.DT_TRAIN,
         results["config"]["training_contract"]["common"],
     )
@@ -408,14 +406,14 @@ def test_corrupt_scientific_evidence_fails_closed(lab, damage):
     root, bank_id, calls = lab
     identity = compute.compute(bank_id)
     run = inputs.source(root, identity, "compute")
-    directory = run.export / "infer" / recipe.cell_name(4.5, 42)
+    directory = run.unit("infer", recipe.cell_name(4.5, 42))
     if damage == "tau":
         path = directory / "metrics.json"
         data = load_json(path)
         data["config"]["tau_gaba_ms"] = 99
         write_json_atomic(path, data)
     elif damage == "snapshot_shape":
-        path = run.export / "snapshot" / recipe.cell_name(4.5, 42) / "snapshot.npz"
+        path = run.file("snapshot", recipe.cell_name(4.5, 42), "snapshot.npz")
         np.savez_compressed(
             path, spk_e=np.zeros((1, 4)), spk_i=np.zeros((1, 2)), dt=0.1, label=3
         )

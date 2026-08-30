@@ -112,7 +112,7 @@ def compute(*, run_id: str | None = None) -> str:
             input_rates_hz=np.asarray(cfg["distribution_rates_hz"]),
         )
         write_json_atomic(
-            run.evidence / "environment.json",
+            run.scratch / "environment.json",
             {
                 "python": platform.python_version(),
                 "numpy": np.__version__,

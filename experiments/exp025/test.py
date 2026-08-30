@@ -39,12 +39,10 @@ def lab(tmp_path, monkeypatch):
         stages, "_capture_code", lambda *a: {"git_commit": "fixture", "dirty": False}
     )
     monkeypatch.setenv("PINGLAB_SMOKE", "1")
-    with stages.stage_run(
-        tmp_path, "exp022", "compute", export_root="export/cells"
-    ) as run:
+    with stages.stage_run(tmp_path, "exp022", "compute") as run:
         for cell in recipe.bank_cells():
             name = cell["cell_name"]
-            directory = run.export / "cells" / name
+            directory = run.export / name
             directory.mkdir(parents=True)
             cfg = {
                 **_common_config(),
@@ -205,16 +203,12 @@ def test_independent_stages_preserve_bank_and_do_not_publish(lab, monkeypatch):
     assert len(calls) == 56
     run = inputs.source(root, identity, "compute")
     assert set(run.record["inputs"]) == {"bank"}
-    original = load_json(
-        run.directory
-        / "export/evidence/simulations/frontier/coba__off__seed42/metrics.original.json"
-    )
-    assert "seed" not in original["config"] and "tau_gaba_ms" not in original["config"]
-    corrected = load_json(run.export / "frontier/coba__off__seed42/metrics.json")
+    corrected = load_json(run.file("frontier", "coba__off__seed42", "metrics.json"))
     assert (
         corrected["config"]["seed"] == 42 and corrected["config"]["tau_gaba_ms"] == 6.0
     )
-    with np.load(run.export / "snapshot/coba/snapshot.npz") as raw:
+    assert not (run.directory / ".scratch").exists()
+    with np.load(run.file("snapshot", "coba", "snapshot.npz")) as raw:
         assert set(raw.files) == {"dt", "spk_e", "spk_i"}
     monkeypatch.setattr(
         compute, "run_cli", lambda *a, **k: pytest.fail("implicit simulation")
@@ -259,7 +253,7 @@ def test_independent_stages_preserve_bank_and_do_not_publish(lab, monkeypatch):
 def test_wrong_training_recipe_rejected(lab, field, value):
     root, bank_id, calls = lab
     bank = inputs.source(root, bank_id, "compute", experiment="exp022")
-    path = bank.export / recipe.cell_name("coba", None, 42) / "config.json"
+    path = bank.file(recipe.cell_name("coba", None, 42), "config.json")
     cfg = load_json(path)
     cfg[field] = value
     write_json_atomic(path, cfg)
@@ -272,7 +266,7 @@ def test_raw_payload_corruption_blocks_analysis(lab):
     root, bank_id, _ = lab
     identity = compute.compute(bank_id)
     run = inputs.source(root, identity, "compute")
-    (run.export / "snapshot/ping/snapshot.npz").write_bytes(b"corrupt")
+    run.file("snapshot", "ping", "snapshot.npz").write_bytes(b"corrupt")
     with pytest.raises(PingstoreError, match="checksum"):
         analyse.analyse(identity)
 
@@ -357,7 +351,7 @@ def test_recording_semantics_reject_corrupt_but_resigned_payload(lab, fault):
     root, bank_id, _ = lab
     identity = compute.compute(bank_id)
     run = inputs.source(root, identity, "compute")
-    directory = run.export / "pfg/ping__off__seed42"
+    directory = run.unit("pfg", "ping__off__seed42")
     if fault == "samples":
         path = directory / "metrics.json"
         data = load_json(path)

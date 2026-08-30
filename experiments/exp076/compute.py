@@ -179,28 +179,28 @@ def compute(*, run_id=None):
         bundle.write(bundle_dir, visualise=False)
 
         command_records = {
-            "bundle_train": train_bundle(bundle_dir, train_dir, run.evidence),
+            "bundle_train": train_bundle(bundle_dir, train_dir, run.scratch),
             "bundle_replay_selected": infer_bundle(
                 bundle_dir,
                 train_dir / "weights.pth",
                 selected_infer_dir,
-                run.evidence,
+                run.scratch,
             ),
             "bundle_replay_final": infer_bundle(
                 bundle_dir,
                 train_dir / "weights_final.pth",
                 final_infer_dir,
-                run.evidence,
+                run.scratch,
             ),
             "legacy_load_bundle_checkpoint": infer_legacy(
-                train_dir / "weights.pth", legacy_load_bundle_dir, run.evidence
+                train_dir / "weights.pth", legacy_load_bundle_dir, run.scratch
             ),
-            "legacy_train": train_legacy(legacy_train_dir, run.evidence),
+            "legacy_train": train_legacy(legacy_train_dir, run.scratch),
             "bundle_load_legacy_checkpoint": infer_bundle(
                 bundle_dir,
                 legacy_train_dir / "weights.pth",
                 bundle_load_legacy_dir,
-                run.evidence,
+                run.scratch,
             ),
         }
 
@@ -208,7 +208,7 @@ def compute(*, run_id=None):
             REPO, run, "one-step-parity", [recipe.PARITY_TEST]
         )
         write_json_atomic(run.export / "parity.json", parity)
-        write_json_atomic(run.evidence / "commands.json", command_records)
+        run.record["execution"]["commands"] = command_records
     return run.run_id
 
 

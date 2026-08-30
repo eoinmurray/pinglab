@@ -60,7 +60,7 @@ def compute(*, run_id=None):
         smoke = "1" if cfg["profile"] == "smoke" else "0"
         run.record["execution"]["environment"] = {"PINGLAB_SMOKE": smoke}
         for item in recipe.jobs(cfg):
-            attachments = run.evidence / "simulations" / item["id"]
+            attachments = run.scratch / "simulations" / item["id"]
             attachments.mkdir(parents=True)
             args = recipe.simulation_args(cfg, item, attachments)
             write_json_atomic(

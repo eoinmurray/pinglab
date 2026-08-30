@@ -34,7 +34,7 @@ def compute(*, run_id: str | None = None) -> str:
             args = [*scientific_args, "--out-dir", str(destination)]
             commands.append({"output": relative, "arguments": args})
             write_json_atomic(
-                run.evidence / "simulations.json", {"commands": commands}
+                run.scratch / "simulations.json", {"commands": commands}
             )
             run_cli(args, no_sync=True)
             if not (destination / "snapshot.npz").is_file():
@@ -45,7 +45,7 @@ def compute(*, run_id: str | None = None) -> str:
             for name in ("config.json", "run.sh", "output.log", "run.jsonl"):
                 attachment = destination / name
                 if attachment.exists():
-                    target = run.evidence / "simulations" / relative / name
+                    target = run.scratch / "simulations" / relative / name
                     target.parent.mkdir(parents=True, exist_ok=True)
                     attachment.rename(target)
     return run.run_id

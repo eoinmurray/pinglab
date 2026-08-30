@@ -197,7 +197,7 @@ def analyse(identity: str, *, run_id: str | None = None) -> str:
         for cell in cfg["cells"]:
             point = cfg["drive"]["raster_operating_points"][cell]
             data = snapshot(
-                compute.export / "scope" / cell / "snapshot.npz",
+                compute.file("scope", cell, "snapshot.npz"),
                 cfg,
                 point,
                 traces=True,
@@ -225,7 +225,7 @@ def analyse(identity: str, *, run_id: str | None = None) -> str:
         for cell in cfg["cells"]:
             for rate in fi_point["input_rates_hz"]:
                 data = snapshot(
-                    compute.export / "fi" / f"{cell}__r{rate}" / "snapshot.npz",
+                    compute.file("fi", f"{cell}__r{rate}", "snapshot.npz"),
                     cfg,
                     fi_point,
                 )

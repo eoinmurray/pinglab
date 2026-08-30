@@ -2,11 +2,17 @@
 
 from __future__ import annotations
 
+import json
+import os
 import shutil
 from pathlib import Path
 
 from .contracts import (
-    LEGACY_RUN_SCHEMA, PREVIOUS_RUN_SCHEMA, RUN_SCHEMA, PingstoreError, load_json,
+    LEGACY_RUN_SCHEMA,
+    PREVIOUS_RUN_SCHEMA,
+    RUN_SCHEMA,
+    PingstoreError,
+    load_json,
     write_json_atomic,
 )
 
@@ -45,6 +51,98 @@ def export_directory(root: Path, run: dict) -> Path:
     """Resolve scientific output from an already validated v2/v3 record."""
     default = "export" if run["schema"] in (PREVIOUS_RUN_SCHEMA, RUN_SCHEMA) else "export/state"
     return root / run.get("export_root", default)
+
+
+def canonical_export_relative(relative: Path, *, export_root: str = "export") -> Path:
+    """Map a scientific file to export/<unit-id>/<role-file> at maximum."""
+    parts = relative.parts
+    prefix = Path(export_root).parts
+    if prefix and prefix[0] == "export" and tuple(parts[: len(prefix) - 1]) == prefix[1:]:
+        parts = parts[len(prefix) - 1 :]
+    if len(parts) <= 2:
+        return Path(*parts)
+    directories, filename = list(parts[:-1]), parts[-1]
+    bundle = next(
+        (index for index, name in enumerate(directories) if name.endswith(".bundle")),
+        None,
+    )
+    if bundle is None:
+        return Path("--".join(directories)) / filename
+    unit = "--".join(directories[: bundle + 1])
+    remainder = directories[bundle + 1 :]
+    role = "--".join([*remainder, filename]) if remainder else filename
+    return Path(unit) / role
+
+
+def canonical_export_unit(root: Path, *parts: str | Path) -> Path:
+    values = []
+    for part in parts:
+        values.extend(Path(part).parts)
+    direct = root.joinpath(*values)
+    return direct if direct.exists() else root / "--".join(values)
+
+
+def canonical_export_file(root: Path, *parts: str | Path) -> Path:
+    relative = Path()
+    for part in parts:
+        relative /= Path(part)
+    direct = root / relative
+    return direct if direct.exists() else root / canonical_export_relative(relative)
+
+
+def _rewrite_paths(value, mapping: dict[str, str]):
+    if isinstance(value, dict):
+        return {key: _rewrite_paths(item, mapping) for key, item in value.items()}
+    if isinstance(value, list):
+        return [_rewrite_paths(item, mapping) for item in value]
+    if isinstance(value, str):
+        if value in mapping:
+            return mapping[value]
+        if value.startswith("export/") and value[7:] in mapping:
+            return "export/" + mapping[value[7:]]
+    return value
+
+
+def normalize_export_layout(directory: Path, record: dict) -> dict[str, str]:
+    """Normalize a hidden or staged run without mutating a visible source run."""
+    export = directory / "export"
+    export_root = record.get("export_root", "export")
+    files = [path for path in sorted(export.rglob("*")) if path.is_file()]
+    mapping = {
+        path.relative_to(export).as_posix(): canonical_export_relative(
+            path.relative_to(export), export_root=export_root
+        ).as_posix()
+        for path in files
+    }
+    if len(set(mapping.values())) != len(mapping):
+        raise PingstoreError(f"{directory.name}: canonical export paths collide")
+    temporary = directory / ".normalized-export.tmp"
+    if temporary.exists():
+        raise PingstoreError(f"{directory.name}: stale export normalization directory")
+    temporary.mkdir()
+    try:
+        for source in files:
+            target = temporary / mapping[source.relative_to(export).as_posix()]
+            target.parent.mkdir(parents=True, exist_ok=True)
+            os.link(source, target)
+        for target in temporary.rglob("*.json"):
+            try:
+                value = json.loads(target.read_text())
+            except (UnicodeDecodeError, json.JSONDecodeError):
+                continue
+            revised = _rewrite_paths(value, mapping)
+            if revised != value:
+                write_json_atomic(target, revised)
+        shutil.rmtree(export)
+        os.replace(temporary, export)
+    finally:
+        if temporary.exists():
+            shutil.rmtree(temporary)
+    record.pop("export_root", None)
+    revised = _rewrite_paths(record, mapping)
+    record.clear()
+    record.update(revised)
+    return mapping
 
 
 def presentation_directory(root: Path, run: dict) -> Path | None:

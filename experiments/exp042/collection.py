@@ -151,7 +151,7 @@ def execute(repo: Path, plan: dict, row: dict) -> dict:
         command += ["--source", refs[upstream]["run_id"]]
         if stage == "compute":
             temporary = repo / ".pingstore/runs" / f".{identities[stage]}.tmp"
-            if (temporary / "export/evidence/shards").exists():
+            if (temporary / ".scratch/shards").exists():
                 command += ["--collect"]
         environment = {
             **os.environ,

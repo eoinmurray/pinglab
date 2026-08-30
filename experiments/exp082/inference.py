@@ -205,7 +205,7 @@ class Inference:
                     torch.cat(pixels, dim=1),
                     resets,
                     self.directory
-                    / "export/evidence/simulations"
+                    / ".scratch/simulations"
                     / job["path"]
                     / f"batch-{index + 1 - len(pixels):03d}",
                     "spike_summary",
@@ -239,7 +239,7 @@ class Inference:
             train,
             spikes,
             tuple(boundaries[:-1]),
-            self.directory / "export/evidence/simulations/streams" / name,
+            self.directory / ".scratch/simulations/streams" / name,
             "rasters",
         )
         arrays: dict = {"pixels": pixels}

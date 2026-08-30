@@ -47,7 +47,7 @@ def present(identity: str, *, run_id: str | None = None) -> str:
         plots.plot_psychometric(result["decision"], run.export, cfg)
         if illustration["kind"] == "historical-image":
             shutil.copyfile(
-                compute.export / illustration["path"], run.export / "feature_images.png"
+                compute.file(illustration["path"]), run.export / "feature_images.png"
             )
             run.record["retained_figures"] = {
                 "feature_images.png": {
@@ -58,7 +58,7 @@ def present(identity: str, *, run_id: str | None = None) -> str:
             }
         else:
             with np.load(
-                compute.export / illustration["path"], allow_pickle=False
+                compute.file(illustration["path"]), allow_pickle=False
             ) as samples:
                 plots.plot_feature_images(
                     samples["image"],

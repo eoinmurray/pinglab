@@ -125,7 +125,7 @@ def test_stages_are_independent_and_preserve_arrays(repo, monkeypatch):
     analysis = inputs.source(root, aid, "analyse")
     assert analysis.record["inputs"] == {"compute": original}
     result = load_json(analysis.export / "results.json")
-    with np.load(source.export / "branches/k_0p070/spikes.npz") as raw:
+    with np.load(source.file("branches", "k_0p070", "spikes.npz")) as raw:
         expected = measurements.analyse_trajectory(dict(raw), k=0.07)
     assert result["trajectories"][1] == measurements.public_summary(expected)
     with np.load(analysis.export / "k_0p070.npz") as raw:
@@ -191,7 +191,9 @@ def test_transitive_ancestry_corruption_is_rejected(repo, corruption):
         record["execution"]["operation"] = "changed"
         write_json_atomic(source.directory / "run.json", record)
     elif corruption == "nested":
-        (source.export / "branches/k_0p080/network.bundle/manifest.json").write_text(
+        source.file(
+            "branches", "k_0p080", "network.bundle", "manifest.json"
+        ).write_text(
             "{}"
         )
     elif corruption == "root":
@@ -246,7 +248,7 @@ def test_invalid_spikes_rejected_with_valid_payload_digest(repo):
     root, _ = repo
     cid = compute.compute()
     source = inputs.source(root, cid, "compute")
-    path = source.export / "branches/k_0p080/spikes.npz"
+    path = source.file("branches", "k_0p080", "spikes.npz")
     with np.load(path) as raw:
         arrays = dict(raw)
     arrays["population_0"][0, 0, 0] = 2

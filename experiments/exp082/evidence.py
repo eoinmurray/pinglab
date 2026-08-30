@@ -4,12 +4,25 @@ import math
 
 import numpy as np
 from experiments.helpers.checkpoints import public_provenance, resolve_checkpoint
-from pingstore.contracts import PingstoreError, file_sha256, load_json
+from pingstore.contracts import PingstoreError, load_json
+from pingstore.layout import canonical_export_file, canonical_export_unit
 
 from . import recipe
 
 RETAINED_SCHEMA = "exp082.gold2-import/v1"
 RETAINED_PRODUCER = "73f0883edc14aa634f5a6d55e4f4123fbfeb7508"
+
+
+def _file(root, *parts):
+    return root.file(*parts) if hasattr(root, "file") else canonical_export_file(root, *parts)
+
+
+def _unit(root, *parts):
+    return root.unit(*parts) if hasattr(root, "unit") else canonical_export_unit(root, *parts)
+
+
+def _root(root):
+    return root.outputs if hasattr(root, "outputs") else root
 
 
 def aggregate(path, job, cfg):
@@ -77,30 +90,14 @@ def validate_import(run, cfg):
         or cfg != recipe.configuration()
     ):
         raise PingstoreError("aggregate evidence lacks its retained import contract")
-    proof = load_json(run.directory / "export/evidence/import.json")
-    if (
-        proof.get("schema") != RETAINED_SCHEMA
-        or proof.get("source_files") != 199
-        or proof.get("source_bytes") != 6079619
-    ):
+    if record.get("source_files") != 199 or record.get("source_bytes") != 6079619:
         raise PingstoreError("retained import selection differs")
-    mappings = proof.get("files", [])
-    if len(mappings) != 199 or len({m["source"] for m in mappings}) != 199:
-        raise PingstoreError("incomplete retained source mapping")
-    for item in mappings:
-        target = run.directory / item["target"]
-        if not target.is_relative_to(run.directory) or ".." in target.parts:
-            raise PingstoreError("unsafe retained source mapping")
-        if (
-            target.stat().st_size != item["size_bytes"]
-            or file_sha256(target) != item["sha256"]
-        ):
-            raise PingstoreError("retained source mapping checksum differs")
-    old = load_json(
-        run.directory / "export/evidence/archive/derived/artifacts/data/exp082/numbers.json"
-    )
+    if record.get("scientific_files") != 135 or record.get("archived_metadata_files") != 64:
+        raise PingstoreError("retained source mapping partition differs")
+    numbers_path = run.export / "historical-summary.json"
+    old = load_json(numbers_path)
     rows = [
-        aggregate(run.export / j["path"] / "condition.json", j, cfg)
+        aggregate(run.file(j["path"], "condition.json"), j, cfg)
         for j in recipe.jobs(cfg)
     ]
 
@@ -184,7 +181,7 @@ def counts(path, cfg):
 
 
 def stream(root, name):
-    folder = root / "streams" / name
+    folder = _unit(root, "streams", name)
     meta = load_json(folder / "stream.json")
     raw = arrays(folder / "recordings.npz")
     conditions = (
@@ -226,22 +223,32 @@ def stream(root, name):
 def condition(root, job, cfg):
     from . import measurements
 
-    kind = load_json(root / "evidence.json").get("condition_evidence")
+    kind = load_json(_root(root) / "evidence.json").get("condition_evidence")
     if kind == "historical-aggregate/v1":
-        return aggregate(root / job["path"] / "condition.json", job, cfg)
+        return aggregate(_file(root, job["path"], "condition.json"), job, cfg)
     return measurements.condition_row(
-        job, counts(root / job["path"] / "counts.npz", cfg), cfg
+        job, counts(_file(root, job["path"], "counts.npz"), cfg), cfg
     )
 
 
 def validate_compute(root, cfg, *, historical=False):
     expected = {j["id"] for j in recipe.jobs(cfg)}
-    if {p.name for p in (root / "jobs").iterdir()} != expected:
+    base = _root(root)
+    units = (
+        {path.name for path in (base / "jobs").iterdir() if path.is_dir()}
+        if (base / "jobs").is_dir()
+        else {
+            path.name.removeprefix("jobs--")
+            for path in base.glob("jobs--*")
+            if path.is_dir()
+        }
+    )
+    if units != expected:
         raise PingstoreError("incomplete or extra condition jobs")
     for job in recipe.jobs(cfg):
         if historical:
-            aggregate(root / job["path"] / "condition.json", job, cfg)
+            aggregate(_file(root, job["path"], "condition.json"), job, cfg)
         else:
-            counts(root / job["path"] / "counts.npz", cfg)
+            counts(_file(root, job["path"], "counts.npz"), cfg)
     for name in ("matched", "variable"):
         stream(root, name)

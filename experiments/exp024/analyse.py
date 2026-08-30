@@ -120,7 +120,7 @@ def analyse(identity: str, *, run_id: str | None = None) -> str:
         curves, configs, rows = [], {}, []
         for model in recipe.MODELS:
             for seed in recipe.SEEDS:
-                cell, config = read_cell(bank.export / recipe.cell_name(model, seed), model, seed)
+                cell, config = read_cell(bank.unit(recipe.cell_name(model, seed)), model, seed)
                 curves.append(cell)
                 configs[cell["name"]] = config
                 rows.append(diagnose(cell))
@@ -155,7 +155,7 @@ def analyse(identity: str, *, run_id: str | None = None) -> str:
             "schema": "exp024.analysis/v1", "config": scale, "measurement": configuration,
             "cells": rows, "models": models,
         })
-        write_json_atomic(run.evidence / "source-configurations.json", configs)
+        write_json_atomic(run.scratch / "source-configurations.json", configs)
     return run.run_id
 
 

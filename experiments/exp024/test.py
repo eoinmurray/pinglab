@@ -97,7 +97,9 @@ def make_compute(repo, *, schema=RUN_SCHEMA, mutation=None):
             }
             if mutation:
                 mutation(cfg, metrics)
-            cell = directory / "export/cells" / recipe.cell_name(model, seed)
+            cell = directory / "export" / recipe.cell_name(model, seed)
+            if schema != RUN_SCHEMA:
+                cell = directory / "export/cells" / recipe.cell_name(model, seed)
             write_json_atomic(cell / "config.json", cfg)
             write_json_atomic(cell / "metrics.json", metrics)
     write_json_atomic(
@@ -110,7 +112,7 @@ def make_compute(repo, *, schema=RUN_SCHEMA, mutation=None):
             "origin": "local",
             "stage": "compute",
             "inputs": {},
-            "export_root": "export/cells",
+            **({} if schema == RUN_SCHEMA else {"export_root": "export/cells"}),
             "created_at": "2026-08-27T12:00:00+00:00",
             "execution": {},
             "provenance": {},
@@ -191,7 +193,7 @@ def test_invalid_scientific_evidence_leaves_only_hidden_failure(repo, mutation, 
 
 def test_missing_cell_and_tampered_sources_are_rejected(repo):
     identity, bank = make_compute(repo)
-    target = bank / "export/cells/coba__off__seed42/metrics.json"
+    target = bank / "export/coba__off__seed42/metrics.json"
     target.unlink()
     with pytest.raises(PingstoreError, match="checksum"):
         analyse.analyse(identity)
@@ -205,7 +207,7 @@ def test_present_rejects_wrong_stage_and_rechecks_compute_pin(repo):
     with pytest.raises(PingstoreError, match="not a analyse"):
         present.present(identity)
     analysis_id = analyse.analyse(identity)
-    cfg = bank / "export/cells/coba__off__seed42/config.json"
+    cfg = bank / "export/coba__off__seed42/config.json"
     cfg.write_text(cfg.read_text() + "\n")
     resign(bank)
     with pytest.raises(PingstoreError, match="checksum changed"):

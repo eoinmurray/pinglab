@@ -90,7 +90,7 @@ def analyse(identity, *, run_id=None):
     ) as run:
         variants = {}
         for name, _ in recipe.VARIANTS:
-            bundle = snn.load_bundle(source.export / "variants" / f"{name}.bundle")
+            bundle = snn.load_bundle(source.unit("variants", f"{name}.bundle"))
             # Topology inspection performs no simulation or graph planning.
             coupling = [
                 p

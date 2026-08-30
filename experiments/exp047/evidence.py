@@ -3,6 +3,7 @@
 import math
 
 from pingstore.contracts import PingstoreError, load_json
+from pingstore.layout import canonical_export_file
 
 from . import recipe
 
@@ -95,28 +96,25 @@ def compute_contract(run):
         raise PingstoreError("exp047 compute evidence differs from the recipe")
     expected_files = {
         "evidence.json",
-        *(f"probe/{j['id']}/metrics.json" for j in recipe.jobs(cfg)),
+        *(f"probe--{j['id']}/metrics.json" for j in recipe.jobs(cfg)),
     }
     actual_files = {
         str(p.relative_to(run.export))
         for p in run.export.rglob("*")
-        if p.is_file() and not p.is_relative_to(run.export / "evidence")
+        if p.is_file()
     }
     if actual_files != expected_files:
         raise PingstoreError("exp047 compute metric grid differs")
     return cfg
 
 
-def rows(export, provenance, cfg):
+def rows(export, cfg):
     result = {}
     for item in recipe.jobs(cfg):
-        simulation_config(
-            load_json(provenance / "simulations" / item["id"] / "config.json"),
+        result[item["id"]] = metric(
+            load_json(canonical_export_file(export, "probe", item["id"], "metrics.json")),
             cfg,
             item,
-        )
-        result[item["id"]] = metric(
-            load_json(export / "probe" / item["id"] / "metrics.json"), cfg, item
         )
     return result
 

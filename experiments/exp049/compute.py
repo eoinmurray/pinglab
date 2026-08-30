@@ -36,9 +36,9 @@ def compute(identity, *, run_id=None):
         commands = []
         for job in recipe.jobs(cfg):
             name = job["cell_name"]
-            train = bank.export / name
+            train = bank.unit(name)
             output = run.export / job["path"]
-            attachments = run.evidence / "simulations" / job["path"]
+            attachments = run.scratch / "simulations" / job["path"]
             attachments.mkdir(parents=True)
             shutil.copyfile(train / "config.json", attachments / "training-config.json")
             args = recipe.inference_args(
@@ -46,7 +46,7 @@ def compute(identity, *, run_id=None):
             )
             commands.append({"job": job, "arguments": args})
             write_json_atomic(
-                run.evidence / "simulations.json", {"commands": commands}
+                run.scratch / "simulations.json", {"commands": commands}
             )
             print(f"[infer] {job['path']}", flush=True)
             with (

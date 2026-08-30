@@ -28,7 +28,7 @@ def analyse(identity, *, run_id=None):
         trajectories = []
         for branch in recipe.branches():
             recordings = evidence.binary_arrays(
-                source.export / "branches" / branch["label"] / "spikes.npz",
+                source.file("branches", branch["label"], "spikes.npz"),
                 evidence.recording_shapes(steps),
                 np.uint8,
             )

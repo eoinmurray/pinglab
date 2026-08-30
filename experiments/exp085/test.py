@@ -57,7 +57,7 @@ from pingstore.contracts import (
     write_json_atomic,
 )
 from pingstore.discovery import discover_runs
-from pingstore.layout import initialize_layout
+from pingstore.layout import canonical_export_file, initialize_layout
 
 
 def synthetic(spec, *, runtime_state=None):
@@ -241,7 +241,7 @@ def test_acquisition_preserves_all_probes_inputs_weights_and_branch_state(
     assert not list((root / "export").glob("*.png"))
     assert not (lab / ".artifacts").exists()
     assert discover_runs(lab / ".pingstore/runs") == []
-    assert len(list((root / "export/evidence/simulations").glob("*.json"))) == 49
+    assert not (root / ".scratch").exists()
 
 
 def check_article_render(lab, output):
@@ -493,7 +493,7 @@ def test_complete_ancestry_rejects_tampering(retained, target):
         record["execution"]["extra"] = "changed"
         write_json_atomic(root / "run.json", record)
     elif target == "payload":
-        (root / "export/evidence/extra.txt").write_text("changed")
+        (root / "export/extra.txt").write_text("changed")
     elif target == "layout":
         (root / "unexpected.txt").write_text("bad root")
         refresh(root)
@@ -527,7 +527,7 @@ def test_reject_scientifically_incomplete_even_with_valid_checksum(retained, bro
             "weights": ("uncoupled", "parameters.npz"),
             "branch-input": ("pathway-both", "inputs.npz"),
         }[broken]
-        path = root / "export/jobs" / name / filename
+        path = canonical_export_file(root / "export", "jobs", name, filename)
         data = evidence.arrays(path)
         if broken == "recording":
             del data["PING_A_I.voltage"]
@@ -587,7 +587,7 @@ def test_source_mutation_during_stage_never_completes(retained, monkeypatch, sta
             result = None
         else:
             result = original(*args)
-        (root / "export/evidence/late-change.txt").write_text("changed ancestor")
+        (root / "export/late-change.txt").write_text("changed ancestor")
         return result
 
     monkeypatch.setattr(module, worker, mutate)

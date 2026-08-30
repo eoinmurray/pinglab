@@ -61,7 +61,7 @@ def acquire(run):
             directory / "parameters.npz", **numpy_tensors(result.parameters)
         )
         write_json_atomic(
-            run.evidence / "simulations" / f"{job['id']}.json",
+            run.scratch / "simulations" / f"{job['id']}.json",
             {
                 "request": request,
                 "started_at": started,

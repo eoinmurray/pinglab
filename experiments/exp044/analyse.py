@@ -64,7 +64,7 @@ def analyse(identity: str, *, run_id: str | None = None) -> str:
     ) as run:
         rows = [
             evidence.measurement(
-                compute.export / "infer" / cell["cell_name"] / "metrics.json",
+                compute.file("infer", cell["cell_name"], "metrics.json"),
                 cell,
                 contract["common"],
                 cfg["evaluation_samples"],
@@ -77,7 +77,7 @@ def analyse(identity: str, *, run_id: str | None = None) -> str:
         for dt in cfg["dt_sweep_ms"]:
             name = recipe.cell_name(dt, raster["seed"])
             snap = evidence.snapshot(
-                compute.export / "snapshot" / name / "snapshot.npz",
+                compute.file("snapshot", name, "snapshot.npz"),
                 dt,
                 contract["common"],
             )
@@ -114,7 +114,7 @@ def analyse(identity: str, *, run_id: str | None = None) -> str:
             {
                 "schema": "exp044.analysis/v1",
                 "git_sha_train": load_json(
-                    bank.export / contract["cells"][0]["cell_name"] / "config.json"
+                    bank.file(contract["cells"][0]["cell_name"], "config.json")
                 ).get("git_sha"),
                 "recipe": cfg,
                 "measurement": MEASUREMENT,

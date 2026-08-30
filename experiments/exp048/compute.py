@@ -55,11 +55,11 @@ def compute(identity, *, run_id=None):
         datasets = {}
         for seed in recipe.SEEDS:
             name = recipe.cell_name(seed)
-            train = bank.export / name
+            train = bank.unit(name)
             cfg = contract["configs"][name]
             _, x, _, y = load_mnist_split(max_samples=int(cfg["max_samples"]))
             datasets[seed] = (x, y)
-            attachments = run.evidence / "readouts" / name
+            attachments = run.scratch / "readouts" / name
             with tempfile.TemporaryDirectory(
                 prefix=".readout-", dir=run.directory
             ) as temp:
@@ -98,11 +98,11 @@ def compute(identity, *, run_id=None):
                 job["sample_group"], np.random.default_rng(job["sample_seed"])
             )
             x, y = datasets[job["seed"]]
-            train = bank.export / recipe.cell_name(job["seed"])
+            train = bank.unit(recipe.cell_name(job["seed"]))
             for index in range(job["streams"]):
                 destination = run.export / job["id"] / f"stream-{index:03d}"
                 destination.mkdir(parents=True)
-                attachments = run.evidence / job["id"] / f"stream-{index:03d}"
+                attachments = run.scratch / job["id"] / f"stream-{index:03d}"
                 pixels, labels = select(job, x, y, rng)
                 generator = torch.Generator().manual_seed(job["poisson_seed"] + index)
                 spike_input = stimuli.encode_varying_stream(

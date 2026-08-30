@@ -5,6 +5,7 @@ from __future__ import annotations
 import contextlib
 import os
 import re
+import shutil
 import subprocess
 import sys
 from dataclasses import dataclass
@@ -24,10 +25,11 @@ from .contracts import (
     write_json_atomic,
 )
 from .layout import (
-    display_manifest,
+    canonical_export_file,
+    canonical_export_unit,
     export_directory,
-    has_presentation_content,
     initialize_layout,
+    normalize_export_layout,
     presentation_directory,
 )
 from .native import execution_origin
@@ -51,8 +53,14 @@ class SourceRun:
 
     @property
     def outputs(self) -> Path:
-        """The complete export, including siblings of an explicit export_root."""
+        """The complete scientific export, including an explicit export_root's siblings."""
         return self.directory / "export"
+
+    def unit(self, *parts: str | Path) -> Path:
+        return canonical_export_unit(self.outputs, *parts)
+
+    def file(self, *parts: str | Path) -> Path:
+        return canonical_export_file(self.outputs, *parts)
 
     @property
     def presentation(self) -> Path:
@@ -179,8 +187,9 @@ class StageRun:
         return self.directory / "export"
 
     @property
-    def evidence(self) -> Path:
-        path = self.export / "evidence"
+    def scratch(self) -> Path:
+        """Temporary execution attachments, removed before atomic completion."""
+        path = self.directory / ".scratch"
         path.mkdir(parents=True, exist_ok=True)
         return path
 
@@ -188,8 +197,7 @@ class StageRun:
 @contextlib.contextmanager
 def stage_run(repo: Path, experiment: str, stage: str, *,
               inputs: dict[str, SourceRun] | None = None, run_id: str | None = None,
-              configuration: dict | None = None, export_root: str = "export",
-              operation: str = "execute"):
+              configuration: dict | None = None, operation: str = "execute"):
     """Complete one execution atomically; never materialize or dispatch a stage."""
     root = repo / ".pingstore"
     inputs = inputs or {}
@@ -215,7 +223,6 @@ def stage_run(repo: Path, experiment: str, stage: str, *,
         "schema": RUN_SCHEMA, "run_id": identity, "experiment": experiment,
         "collection": memberships(repo)[experiment], "stage": stage,
         "origin": reservation["origin"], "created_at": utc_now(),
-        "export_root": export_root,
         "inputs": {name: source.reference for name, source in inputs.items()},
         "execution": {"operation": operation, "command": command,
                       "host": execution_origin(), "cwd": str(repo),
@@ -242,19 +249,10 @@ def stage_run(repo: Path, experiment: str, stage: str, *,
         record["execution"]["completed_at"] = utc_now()
         with (directory / "README.md").open("a") as handle:
             handle.write(f"- {record['execution']['completed_at']}: run completed successfully.\n")
-        # Scientific stages have no preview sidecars. Presentation metadata
-        # is only a projection; the complete provenance stays in run.json.
-        if stage == "present" and has_presentation_content(run.export):
-            display_manifest(directory, {
-                "slug": experiment, "run_id": identity, "stage": stage,
-                "run_at": record["created_at"], "host": record["origin"],
-                "git_sha": record["provenance"]["git_commit"],
-                "dirty": record["provenance"]["dirty"], "scale": configuration,
-            }, identity)
-        evidence = run.export / "evidence"
-        if evidence.is_dir():
-            for replay_script in evidence.rglob("run.sh"):
-                replay_script.unlink()
+        scratch = run.directory / ".scratch"
+        if scratch.exists():
+            shutil.rmtree(scratch)
+        normalize_export_layout(directory, record)
         lock.unlink()
         (directory / ".reservation.json").unlink()
         record["payload_digest"] = payload_digest(directory)

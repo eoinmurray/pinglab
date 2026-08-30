@@ -14,10 +14,12 @@ management CLI.
   require `pingstore.run/v4`, with exactly required `run.json`, `README.md`, and
   `export/`, and no other root entries or symlinks.
 - `run.json` is authoritative provenance and must declare compute, analyse or
-  present. `export/` holds stage outputs; nesting is allowed for compute/analyse,
-  while present exports contain only flat regular files. Supporting scientific
-  records required by downstream code belong under `export/evidence/`. README
-  holds the human-readable dated history. Do not create provenance sidecars.
+  present. `export/` holds run-wide files and at most one level of canonical
+  scientific-unit directories for compute/analyse; deeper nesting and generic
+  container directories are forbidden. Present exports contain only flat regular
+  files. Execution metadata and temporary
+  records belong in `run.json` or discarded writer scratch space. README holds
+  the human-readable dated history. Do not create provenance sidecars.
 - Discovery validates all completed runs, then lists present runs with nonempty
   output beyond bookkeeping. Materialize only a present run's entire `export/`
   into `.artifacts/<experiment>/`, without extension filtering; reject publication

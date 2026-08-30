@@ -38,11 +38,9 @@ def lab(tmp_path, monkeypatch):
         stages, "_capture_code", lambda *a: {"git_commit": "fixture", "dirty": False}
     )
     monkeypatch.setenv("PINGLAB_SMOKE", "1")
-    with stages.stage_run(
-        tmp_path, "exp022", "compute", export_root="export/cells"
-    ) as run:
+    with stages.stage_run(tmp_path, "exp022", "compute") as run:
         for cell in recipe.bank_cells():
-            directory = run.export / "cells" / cell["cell_name"]
+            directory = run.export / cell["cell_name"]
             directory.mkdir(parents=True)
             cfg = {
                 **_common_config(),
@@ -239,7 +237,6 @@ def test_independent_stages_preserve_roles_and_never_publish(lab, monkeypatch):
     assert labels == {"rate_rasters": [7, 7, 7], "ei_rasters": [7, 7]}
     assert {f.name for f in p.export.iterdir()} == {
         "numbers.json",
-        "_manifest.json",
         *recipe.FIGURES,
     }
     assert p.record["inputs"] == {"analysis": a.reference}
@@ -283,7 +280,7 @@ def test_snapshots_preserve_full_population_rate_and_rng_selection(tmp_path):
     assert result["i_rate_hz"] == 2500.0
 
 
-@pytest.mark.parametrize("mutation", ["sample_count", "snapshot", "config", "missing"])
+@pytest.mark.parametrize("mutation", ["sample_count", "snapshot", "missing"])
 def test_analyse_rejects_corrupt_even_resigned_payload(lab, mutation):
     root, bank, _ = lab
     cid = compute.compute(bank)
@@ -291,19 +288,14 @@ def test_analyse_rejects_corrupt_even_resigned_payload(lab, mutation):
     cfg = recipe.configuration(smoke=True)
     jobs = recipe.jobs(cfg)
     if mutation == "snapshot":
-        p = c.export / jobs[0]["path"] / "snapshot.npz"
+        p = c.file(jobs[0]["path"], "snapshot.npz")
         with np.load(p) as raw:
             data = {k: raw[k] for k in raw.files}
         data["spk_e"] = np.full_like(data["spk_e"], 2, dtype=np.int8)
         np.savez_compressed(p, **data)
-    elif mutation == "config":
-        p = c.directory / "export/evidence/simulations" / jobs[0]["path"] / "config.json"
-        d = load_json(p)
-        d["spike_rate"] = 111
-        write_json_atomic(p, d)
     else:
         job = next(j for j in jobs if j["kind"] == "ei_sweep")
-        p = c.export / job["path"] / "metrics.json"
+        p = c.file(job["path"], "metrics.json")
         if mutation == "missing":
             p.unlink()
         else:

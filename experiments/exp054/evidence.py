@@ -258,10 +258,10 @@ def compute_contract(source):
     }:
         raise PingstoreError("incomplete exp054 probe inventory")
     expected = {item["id"] for item in recipe.jobs(cfg)}
-    if {p.name for p in (source.export / "probe").iterdir()} != expected:
+    if {path.name.removeprefix("probe--") for path in source.outputs.glob("probe--*")} != expected:
         raise PingstoreError("exp054 probe directory differs from recipe")
     for item in recipe.jobs(cfg):
-        if {p.name for p in (source.export / "probe" / item["id"]).iterdir()} != {
+        if {p.name for p in source.unit("probe", item["id"]).iterdir()} != {
             "rasters.npz"
         }:
             raise PingstoreError("unexpected exp054 probe payload")

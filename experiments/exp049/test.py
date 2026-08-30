@@ -43,11 +43,9 @@ def lab(tmp_path, monkeypatch):
         stages, "_capture_code", lambda *a: {"git_commit": "fixture", "dirty": False}
     )
     monkeypatch.setenv("PINGLAB_SMOKE", "1")
-    with stages.stage_run(
-        tmp_path, "exp022", "compute", export_root="export/cells"
-    ) as run:
+    with stages.stage_run(tmp_path, "exp022", "compute") as run:
         for cell in recipe.bank_cells():
-            directory = run.export / "cells" / cell["cell_name"]
+            directory = run.export / cell["cell_name"]
             directory.mkdir(parents=True)
             cfg = {
                 **_common_config(),
@@ -403,7 +401,6 @@ def test_independent_stages_preserve_roles_and_never_publish(lab, monkeypatch):
     p = inputs.source(root, pid, "present")
     assert {f.name for f in p.export.iterdir()} == {
         "numbers.json",
-        "_manifest.json",
         *recipe.FIGURES,
     }
     assert p.record["inputs"] == {"analysis": a.reference}
@@ -412,7 +409,7 @@ def test_independent_stages_preserve_roles_and_never_publish(lab, monkeypatch):
 
 
 @pytest.mark.parametrize(
-    "fault", ["samples", "weights", "snapshot", "config", "trace", "missing"]
+    "fault", ["samples", "weights", "snapshot", "trace", "missing"]
 )
 def test_invalid_resigned_compute_is_rejected(lab, fault):
     root, bank, _ = lab
@@ -422,15 +419,8 @@ def test_invalid_resigned_compute_is_rejected(lab, fault):
     job = next(
         j for j in recipe.jobs(recipe.configuration(smoke=True)) if j["kind"] == kind
     )
-    directory = c.export / job["path"]
-    if fault == "config":
-        path = c.directory / "export/evidence/simulations" / job["path"] / "config.json"
-        cfg = load_json(path)
-        cfg["load_weights"] = cfg["load_weights"].replace(
-            "weights_final.pth", "weights.pth"
-        )
-        write_json_atomic(path, cfg)
-    elif fault == "samples":
+    directory = c.unit(job["path"])
+    if fault == "samples":
         path = directory / "metrics.json"
         m = load_json(path)
         m["n_total"] -= 1

@@ -10,7 +10,7 @@ REPO = Path(__file__).resolve().parents[2]
 sys.path[:0] = [str(REPO), str(REPO / "tools")]
 from experiments.exp038 import evidence, inputs, measurements, recipe
 from experiments.helpers.frontier import summarize_frontier
-from pingstore.contracts import PingstoreError, load_json, write_json_atomic
+from pingstore.contracts import PingstoreError, write_json_atomic
 
 MEASUREMENT = {
     "schema": "exp038.measurement/v1",
@@ -53,18 +53,8 @@ def analyse(identity, *, run_id=None):
                 }
             )
         for job in recipe.jobs(cfg):
-            directory = source.export / job["path"]
+            directory = source.unit(job["path"])
             train = contract["configs"][job["cell_name"]]
-            evidence.inference_config(
-                load_json(
-                    source.directory
-                    / "export/evidence/simulations"
-                    / job["path"]
-                    / "config.json"
-                ),
-                train,
-                job,
-            )
             m = evidence.recordings(directory, train, job)
             if "sample_index" in job:
                 data = measurements.raster(directory, train, job)

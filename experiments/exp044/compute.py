@@ -37,8 +37,8 @@ def compute(identity: str, *, run_id: str | None = None) -> str:
         )
         commands = []
         for cell, checkpoint in zip(contract["cells"], checkpoint_rows, strict=True):
-            train = bank.export / cell["cell_name"]
-            target = run.evidence / "training" / cell["cell_name"] / "config.json"
+            train = bank.unit(cell["cell_name"])
+            target = run.scratch / "training" / cell["cell_name"] / "config.json"
             target.parent.mkdir(parents=True)
             shutil.copyfile(train / "config.json", target)
             modes = ["infer"]
@@ -46,7 +46,7 @@ def compute(identity: str, *, run_id: str | None = None) -> str:
                 modes.append("snapshot")
             for mode in modes:
                 destination = run.export / mode / cell["cell_name"]
-                attachments = run.evidence / "simulations" / mode / cell["cell_name"]
+                attachments = run.scratch / "simulations" / mode / cell["cell_name"]
                 attachments.mkdir(parents=True)
                 args = recipe.inference_args(
                     train,
@@ -61,7 +61,7 @@ def compute(identity: str, *, run_id: str | None = None) -> str:
                     {"cell": cell["cell_name"], "mode": mode, "arguments": args}
                 )
                 write_json_atomic(
-                    run.evidence / "simulations.json", {"commands": commands}
+                    run.scratch / "simulations.json", {"commands": commands}
                 )
                 print(f"[{mode}] {cell['cell_name']}", flush=True)
                 with (

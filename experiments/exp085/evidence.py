@@ -2,6 +2,7 @@
 
 import numpy as np
 from pingstore.contracts import PingstoreError, load_json, write_json_atomic
+from pingstore.layout import canonical_export_file, canonical_export_unit
 
 from . import recipe
 
@@ -73,7 +74,7 @@ def recording_sizes(job):
 def recording(root, job):
     if job["id"] == "prefix":
         return {}
-    data = arrays(root / "jobs" / job["id"] / "recordings.npz")
+    data = arrays(canonical_export_file(root, "jobs", job["id"], "recordings.npz"))
     for name, size in recording_sizes(job).items():
         value = data.get(name)
         if value is None or value.shape != (job["steps"], 1, size):
@@ -104,9 +105,11 @@ def compute_export(root, cfg):
     if record.get("probes") != schedule or record.get("jobs") != expected:
         raise PingstoreError("incomplete or inconsistent exp085 acquisition grid")
     for name, digest in cfg["graph_hashes"].items():
-        if recipe.graph_digest(load_json(root / "graphs" / f"{name}.json")) != digest:
+        if recipe.graph_digest(
+            load_json(canonical_export_file(root, "graphs", f"{name}.json"))
+        ) != digest:
             raise PingstoreError("exp085 graph differs from the recorded recipe")
-    prefix = load_json(root / "prefix-state/manifest.json")
+    prefix = load_json(canonical_export_file(root, "prefix-state", "manifest.json"))
     if prefix.get("schema") != "tools/snnsim.graph-runtime-state/v1" or prefix.get(
         "completed_steps"
     ) != round(recipe.COUPLING_ONSET_MS / recipe.DT_MS):
@@ -115,15 +118,15 @@ def compute_export(root, cfg):
     from pingstore.contracts import file_sha256
 
     if prefix.get("tensors_digest") != "sha256:" + file_sha256(
-        root / "prefix-state/tensors.npz"
+        canonical_export_file(root, "prefix-state", "tensors.npz")
     ):
         raise PingstoreError("exp085 branching state checksum differs")
-    shared_drive = arrays(root / "jobs/uncoupled/inputs.npz")
-    prc_drive = arrays(root / "jobs/prc-baseline/inputs.npz")
+    shared_drive = arrays(canonical_export_file(root, "jobs", "uncoupled", "inputs.npz"))
+    prc_drive = arrays(canonical_export_file(root, "jobs", "prc-baseline", "inputs.npz"))
     probes = {row["id"]: row for row in schedule}
     onset = round(recipe.COUPLING_ONSET_MS / recipe.DT_MS)
     for job in expected:
-        directory = root / "jobs" / job["id"]
+        directory = canonical_export_unit(root, "jobs", job["id"])
         request = load_json(directory / "request.json")
         expected_request = {
             **job,
@@ -181,7 +184,9 @@ def compute_export(root, cfg):
                         "exp085 probe input differs from its acquisition schedule"
                     )
         parameters = arrays(directory / "parameters.npz")
-        graph = load_json(root / "graphs" / f"{job['graph']}.json")
+        graph = load_json(
+            canonical_export_file(root, "graphs", f"{job['graph']}.json")
+        )
         # Graph declarations are target-by-source; the executor retains its
         # source-by-target matrices. Preserve those native tensors unchanged.
         shapes = {

@@ -46,7 +46,7 @@ materialization/publication requires separate authorization.
 
 Every new stage uses v3, stage-labelled IDs, atomic completion and both payload
 and authoritative-manifest input pins. Simulation commands, configurations and
-supporting scientific logs are retained under `export/evidence/`. Failed executions remain hidden. --run-id
+supporting logs use discarded `.scratch/`. Failed executions remain hidden. --run-id
 accepts only an unused reservation; reruns use fresh identities.
 
 The former combined commands, including --plot-only and --skip-training, fail

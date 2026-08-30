@@ -58,8 +58,9 @@ def test_v4_migration_archives_history_and_rewrites_input_pins(tmp_path):
         assert {path.name for path in directory.iterdir()} == {"run.json", "README.md", "export"}
         assert validate_operational_run_directory(directory)["schema"] == RUN_SCHEMA
         assert "V4 history" in (directory / "README.md").read_text()
-    assert (parent / "export/evidence/simulations/config.json").is_file()
-    assert not (parent / "export/evidence/command.json").exists()
+    assert not (parent / "export/evidence").exists()
+    assert (archive / parent.name / "provenance/simulations/config.json").is_file()
+    assert (archive / parent.name / "provenance/command.json").is_file()
     assert not (parent / "export/run.sh").exists()
     assert (archive / parent.name / "provenance/source.patch").is_file()
     assert (archive / parent.name / "export_replay_scripts/run.sh").is_file()

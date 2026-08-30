@@ -1,6 +1,7 @@
 """V4 enforcement and historical-store rejection; no scientific execution."""
 
 from concurrent.futures import ThreadPoolExecutor
+from pathlib import Path
 
 import pytest
 from pingstore import stages
@@ -15,7 +16,12 @@ from pingstore.contracts import (
     write_json_atomic,
 )
 from pingstore.discovery import discover_runs
-from pingstore.layout import export_directory, initialize_layout, presentation_directory
+from pingstore.layout import (
+    canonical_export_relative,
+    export_directory,
+    initialize_layout,
+    presentation_directory,
+)
 from pingstore.materialize import materialize_run, materialize_view
 
 
@@ -69,6 +75,61 @@ def test_only_present_exports_must_be_flat(tmp_path, stage):
         validate_run_directory(directory)
 
 
+def test_compute_and_analyse_reject_deeper_than_one_unit_directory(tmp_path):
+    directory = make_run(tmp_path, "compute")
+    deep = directory / "export/unit/inner/value.json"
+    deep.parent.mkdir(parents=True)
+    deep.write_text("{}")
+    resign(directory)
+    with pytest.raises(PingstoreError, match="scientific unit directory"):
+        validate_run_directory(directory)
+
+
+def test_stage_completion_normalizes_tool_native_paths_and_references(
+    tmp_path, monkeypatch
+):
+    monkeypatch.setattr(stages, "memberships", lambda repo: {"exp001": "demo"})
+    monkeypatch.setattr(
+        stages,
+        "_capture_code",
+        lambda repo, directory: {"git_commit": "fixture", "dirty": False},
+    )
+    with stages.stage_run(tmp_path, "exp001", "compute") as run:
+        artifact = run.export / "jobs/condition-a/result.json"
+        artifact.parent.mkdir(parents=True)
+        write_json_atomic(artifact, {"path": "jobs/condition-a/result.json"})
+        run.record["artifact"] = "export/jobs/condition-a/result.json"
+    record = validate_run_directory(run.directory)
+    target = run.export / "jobs--condition-a/result.json"
+    assert load_json(target) == {"path": "jobs--condition-a/result.json"}
+    assert record["artifact"] == "export/jobs--condition-a/result.json"
+    assert "export_root" not in record
+
+
+def test_stage_completion_rejects_canonical_path_collisions(tmp_path, monkeypatch):
+    monkeypatch.setattr(stages, "memberships", lambda repo: {"exp001": "demo"})
+    monkeypatch.setattr(
+        stages,
+        "_capture_code",
+        lambda repo, directory: {"git_commit": "fixture", "dirty": False},
+    )
+    with pytest.raises(PingstoreError, match="canonical export paths collide"):
+        with stages.stage_run(tmp_path, "exp001", "compute") as run:
+            for relative in (
+                "jobs/condition-a/result.json",
+                "jobs--condition-a/result.json",
+            ):
+                target = run.export / relative
+                target.parent.mkdir(parents=True, exist_ok=True)
+                target.write_text("{}")
+
+
+def test_bundle_internal_paths_become_role_names():
+    assert canonical_export_relative(
+        Path("branches/k/network.bundle/reports/summary.md")
+    ) == Path("branches--k--network.bundle/reports--summary.md")
+
+
 @pytest.mark.parametrize("entry", ["presentation", "unexpected.json"])
 def test_v4_rejects_extra_root_entries(tmp_path, entry):
     directory = make_run(tmp_path)
@@ -91,8 +152,8 @@ def test_v4_requires_stage_and_counter_first_id(tmp_path):
         validate_run_directory(directory)
 
 
-@pytest.mark.parametrize("relative", ["export/evidence/nested/config.json", "export/value.bin"])
-def test_export_evidence_is_checksummed(tmp_path, relative):
+@pytest.mark.parametrize("relative", ["export/data--nested/value.json", "export/value.bin"])
+def test_export_data_is_checksummed(tmp_path, relative):
     directory = make_run(tmp_path, "compute")
     evidence = directory / relative
     evidence.parent.mkdir(parents=True, exist_ok=True)
@@ -191,7 +252,7 @@ def test_stage_writer_finishes_v4_with_readme_and_no_provenance(tmp_path, monkey
     record = validate_run_directory(run.directory)
     assert record["schema"] == RUN_SCHEMA
     assert record["origin"] == origin
-    assert (run.export / "_manifest.json").is_file()
+    assert {path.name for path in run.export.iterdir()} == {"numbers.json"}
     assert (run.directory / "README.md").is_file()
     assert not (run.directory / "provenance").exists()
     assert {path.name for path in run.directory.iterdir()} == {"run.json", "README.md", "export"}

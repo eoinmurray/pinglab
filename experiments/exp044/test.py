@@ -46,13 +46,11 @@ def lab(tmp_path, monkeypatch):
     monkeypatch.setattr(recipe, "RASTER_N_E_PLOT", 2)
     monkeypatch.setattr(recipe, "RASTER_N_I_PLOT", 1)
     monkeypatch.setenv("PINGLAB_SMOKE", "1")
-    with stages.stage_run(
-        tmp_path, "exp022", "compute", export_root="export/cells"
-    ) as bank:
+    with stages.stage_run(tmp_path, "exp022", "compute") as bank:
         for dt in recipe.DT_SWEEP_MS:
             for seed in recipe.SEEDS:
                 name = recipe.cell_name(dt, seed)
-                cell = bank.export / "cells" / name
+                cell = bank.export / name
                 cell.mkdir(parents=True)
                 cfg = {
                     **_common_config(),
@@ -153,7 +151,7 @@ def test_independent_stages_preserve_science_and_never_publish(lab, monkeypatch)
     assert sum("--sample-index" in args for args in calls) == 5
     output = inputs.source(root, compute_id, "compute")
     assert output.record["inputs"] == {"bank": before}
-    assert len(list(output.export.glob("snapshot/*/snapshot.npz"))) == 5
+    assert len(list(output.export.glob("snapshot--*/snapshot.npz"))) == 5
     assert not list(output.export.rglob("run.sh"))
     monkeypatch.setenv("PINGLAB_SMOKE", "0")
     monkeypatch.setattr(
@@ -171,7 +169,7 @@ def test_independent_stages_preserve_science_and_never_publish(lab, monkeypatch)
     assert results["measurement"]["history_partition"] == "validation"
     assert results["rasters"][0]["e_rate_hz"] == 1000
     raw = evidence.snapshot(
-        output.export / "snapshot" / recipe.cell_name(0.05, 42) / "snapshot.npz",
+        output.file("snapshot", recipe.cell_name(0.05, 42), "snapshot.npz"),
         0.05,
         results["config"]["training_contract"]["common"],
     )
@@ -261,7 +259,7 @@ def test_corrupt_payload_and_snapshot_geometry_are_rejected(lab):
     root, bank_id, calls = lab
     identity = compute.compute(bank_id)
     output = inputs.source(root, identity, "compute")
-    path = output.export / "snapshot" / recipe.cell_name(0.05, 42) / "snapshot.npz"
+    path = output.file("snapshot", recipe.cell_name(0.05, 42), "snapshot.npz")
     np.savez_compressed(path, spk_e=np.zeros((2, 4)), spk_i=np.zeros((2, 2)), dt=0.05)
     with pytest.raises(PingstoreError, match="checksum"):
         analyse.analyse(identity)
@@ -370,7 +368,7 @@ def test_missing_measurements_never_become_zeros(lab, damage):
         return
     compute_id = compute.compute(bank_id)
     output = inputs.source(root, compute_id, "compute")
-    path = output.export / "infer" / recipe.cell_name(0.05, 42) / "metrics.json"
+    path = output.file("infer", recipe.cell_name(0.05, 42), "metrics.json")
     r = load_json(path)
     if damage == "missing_rate":
         del r["rates_hz"]["hid"]

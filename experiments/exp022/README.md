@@ -37,7 +37,7 @@ All operational writes and inputs require `pingstore.run/v4`: exactly `run.json`
 `README.md`, and `export/`. Compute/analyse exports may nest files;
 present exports are flat figures, tables and numbers. Scripts, source patches,
 import inventories and the detailed presentation-lineage attachment are retained
-under `export/evidence/`. The authoritative machine record is `run.json`; README
+compactly in `run.json`. The authoritative machine record is `run.json`; README
 is the human-readable history.
 
 The r001/r002/r003 runs below have been migrated to v3 with their IDs unchanged.

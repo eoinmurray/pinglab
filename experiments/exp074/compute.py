@@ -71,7 +71,7 @@ def compute(*, run_id=None):
             run.export / "network.bundle",
             run.export / "input_spikes.npz",
             run.export / "simulation",
-            run.evidence,
+            run.scratch,
         )
     return run.run_id
 

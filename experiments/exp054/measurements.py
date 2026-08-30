@@ -45,7 +45,7 @@ def recordings(source, cfg):
     measured, grid_cells = {}, {}
     for item in recipe.jobs(cfg):
         data = evidence.raster(
-            source.export / "probe" / item["id"] / "rasters.npz", cfg
+            source.file("probe", item["id"], "rasters.npz"), cfg
         )
         e, i = dense(data, cfg)
         s = score(e, cfg)

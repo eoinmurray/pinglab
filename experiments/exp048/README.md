@@ -48,7 +48,7 @@ recorded output spikes without subsampling; sparse input coordinates reconstruct
 the exact float32 simulator input. Native raster arrays are compressed without
 changing their values or dtypes. Scratch dense inputs and unused weight-dump
 arrays are not retained. Original simulator configurations, commands and logs
-belong in `export/evidence/`; shared stage helpers capture execution, code and lockfile
+belong in `run.json`; shared stage helpers capture execution, code and lockfile
 provenance. This retention policy describes future computation, not an approved
 historical import.
 

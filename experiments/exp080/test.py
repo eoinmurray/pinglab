@@ -33,6 +33,7 @@ from pingstore.contracts import (
     write_json_atomic,
 )
 from pingstore.discovery import discover_runs
+from pingstore.layout import canonical_export_file
 
 
 def test_registered_simulator_validations_pass() -> None:
@@ -306,13 +307,14 @@ def test_invalid_sources_fail_closed(repo, change):
     else:
         document = load_json(source.export / "evidence.json")
         if change == "checkpoint":
-            (source.export / "models/seed-42/decoder.pt").write_bytes(
+            source.file("models", "seed-42", "decoder.pt").write_bytes(
                 b"other checkpoint"
             )
         elif change == "selection":
             document["training"][0]["selected_epoch"] = 2
             write_json_atomic(
-                source.export / "models/seed-42/training.json", document["training"][0]
+                source.file("models", "seed-42", "training.json"),
+                document["training"][0],
             )
         else:
             path = source.export / "held_out_correctness.npz"
@@ -502,7 +504,9 @@ def test_importing_package_has_no_execution_or_plotting_side_effects(tmp_path):
 def retain_historical_checkpoints(data, document):
     for record in document["training"]:
         record.pop("checkpoint_retention")
-        checkpoint = data / f"models/seed-{record['seed']}/decoder.pt"
+        checkpoint = canonical_export_file(
+            data, "models", f"seed-{record['seed']}", "decoder.pt"
+        )
         checkpoint.write_bytes(f"synthetic checkpoint {record['seed']}".encode())
         record.update(
             checkpoint=str(checkpoint.relative_to(data)),

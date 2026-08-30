@@ -20,7 +20,7 @@ Presentation also verifies the analysis run's pinned compute source.
 - **Compute:** retains every moment-grid and distribution-probe feature sample.
   The authoritative manifest contains the complete scientific configuration,
   including actual random seeds and sample counts; runtime details live in
-  `export/evidence/environment.json`.
+  `run.json`.
 - **Analyse:** reads retained samples and computes moments, comparison statistics,
   common histogram bins and analytical frequency responses. It retains these
   numerical outputs and pins its computation without copying raw samples.

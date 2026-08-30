@@ -37,26 +37,16 @@ def analyse(identity, *, run_id=None):
     ) as run:
         for job in recipe.jobs(cfg):
             train = contract["configs"][job["cell_name"]]
-            evidence.inference_config(
-                load_json(
-                    source.directory
-                    / "export/evidence/simulations"
-                    / job["path"]
-                    / "config.json"
-                ),
-                train,
-                job,
-            )
-            evidence.recordings(source.export / job["path"], train, job)
+            evidence.recordings(source.unit(job["path"]), train, job)
         summary, curves, cards, weights, rasters, attractor = [], {}, {}, {}, [], {}
         for cond in recipe.COND_ORDER:
             endpoints, matrices, metrics = [], [], []
             for seed in recipe.SEEDS:
                 name = recipe.cell_name(cond, seed)
                 train = contract["configs"][name]
-                directory = source.export / "infer" / name
+                directory = source.unit("infer", name)
                 with np.load(
-                    source.export / "weights_dump" / name / "weights_dump.npz",
+                    source.file("weights_dump", name, "weights_dump.npz"),
                     allow_pickle=False,
                 ) as raw:
                     arrays = tuple(raw[k] for k in recipe.WEIGHT_ARRAYS)
@@ -97,7 +87,7 @@ def analyse(identity, *, run_id=None):
             np.savez_compressed(
                 run.export / filename,
                 **measurements.raster(
-                    source.export / "snapshot" / name, contract["configs"][name]
+                    source.unit("snapshot", name), contract["configs"][name]
                 ),
             )
             rasters.append({"condition": cond, "file": filename})

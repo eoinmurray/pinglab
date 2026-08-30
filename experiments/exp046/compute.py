@@ -36,9 +36,9 @@ def compute(identity, *, run_id=None):
         )
         commands = []
         for cell, checkpoint in zip(contract["cells"], checkpoints, strict=True):
-            train = bank.export / cell["cell_name"]
+            train = bank.unit(cell["cell_name"])
             output = run.export / "infer" / cell["cell_name"]
-            attachments = run.evidence / "simulations" / cell["cell_name"]
+            attachments = run.scratch / "simulations" / cell["cell_name"]
             attachments.mkdir(parents=True)
             shutil.copyfile(train / "config.json", attachments / "training-config.json")
             args = recipe.inference_args(
@@ -50,7 +50,7 @@ def compute(identity, *, run_id=None):
             )
             commands.append({"cell": cell["cell_name"], "arguments": args})
             write_json_atomic(
-                run.evidence / "simulations.json", {"commands": commands}
+                run.scratch / "simulations.json", {"commands": commands}
             )
             print(f"[infer] {cell['cell_name']}", flush=True)
             with (

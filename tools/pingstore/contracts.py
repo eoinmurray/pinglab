@@ -225,6 +225,16 @@ def validate_layout(directory: Path) -> None:
         for path in flat.iterdir():
             if path.is_symlink() or not path.is_file():
                 raise PingstoreError(f"presentation must be flat regular files: {path}")
+    elif run["schema"] == RUN_SCHEMA:
+        export = directory / "export"
+        for path in export.rglob("*"):
+            relative = path.relative_to(export)
+            if len(relative.parts) > 2:
+                raise PingstoreError(
+                    f"scientific export exceeds one unit-directory level: {path}"
+                )
+            if path.is_dir() and len(relative.parts) != 1:
+                raise PingstoreError(f"invalid scientific unit directory: {path}")
     for name in directories & names:
         for path in (directory / name).rglob("*"):
             if path.is_symlink() or not (path.is_file() or path.is_dir()):
@@ -240,13 +250,7 @@ def validate_run_directory(directory: Path) -> dict[str, Any]:
     if "data_root" in run:
         raise PingstoreError("data_root is obsolete; use export_root beneath export/")
     if "export_root" in run:
-        relative = run["export_root"]
-        if not isinstance(relative, str):
-            raise PingstoreError("export_root must be a relative path beneath export/")
-        path = Path(relative)
-        if (path.is_absolute() or not path.parts or path.parts[0] != "export"
-                or ".." in path.parts or not (directory / path).is_dir()):
-            raise PingstoreError("export_root must name a directory beneath export/")
+        raise PingstoreError("export_root is obsolete; unit directories live directly under export/")
     if payload_digest(directory) != run["payload_digest"]:
         raise PingstoreError(f"payload checksum mismatch: {directory}")
     return run

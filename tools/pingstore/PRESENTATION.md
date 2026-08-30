@@ -96,7 +96,7 @@ data is available; dependent reports retain their existing readiness checks.
   `<1 s`; missing endpoints display a dash. Invalid, timezone-free or reversed
   timestamp pairs fail preparation. Hover for the exact recorded difference.
 - **Retained scientific timing**: when `run.json.scientific_execution.record`
-  explicitly identifies evidence under this validated v4 run's `export/evidence/`,
+  explicitly identifies compact historical timing in this validated v4 run's `run.json`,
   the table instead shows that execution's start-to-finish span, labelled
   `(HPC span)` for Slurm. The tooltip distinguishes this elapsed span (including
   gaps) from summed job-hours of retained completed cell attempts, and keeps the

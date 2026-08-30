@@ -50,12 +50,10 @@ def lab(tmp_path, monkeypatch):
     monkeypatch.setenv("PINGLAB_SMOKE", "1")
     for key in ("STREAMS_PER_CELL", "DIGITS_PER_STREAM", "STREAM_BATCH_SIZE"):
         monkeypatch.delenv("PINGLAB_EXP082_" + key, raising=False)
-    with stages.stage_run(
-        tmp_path, "exp022", "compute", export_root="export/cells"
-    ) as run:
+    with stages.stage_run(tmp_path, "exp022", "compute") as run:
         for seed in recipe.SEEDS:
             name = recipe.training_cell_name(seed)
-            folder = run.export / "cells" / name
+            folder = run.export / name
             folder.mkdir(parents=True)
             cfg = {
                 "model": "ping",
@@ -120,7 +118,7 @@ def lab(tmp_path, monkeypatch):
                 i_counts=np.ones(shape, dtype=np.int64),
                 labels=np.zeros(shape, dtype=np.int64),
             )
-            attachment = self.directory / "export/evidence/simulations" / job["path"]
+            attachment = self.directory / ".scratch/simulations" / job["path"]
             attachment.mkdir(parents=True)
             write_json_atomic(attachment / "command.json", {"fixture": True})
 
@@ -394,7 +392,7 @@ def test_missing_pixels_is_an_error_not_dataset_fallback(lab):
     repo, bank, _ = lab
     cid = compute.compute(bank)
     root = repo / ".pingstore/runs" / cid
-    path = root / "export/streams/matched/recordings.npz"
+    path = root / "export/streams--matched/recordings.npz"
     data = evidence.arrays(path)
     del data["pixels"]
     np.savez_compressed(path, **data)

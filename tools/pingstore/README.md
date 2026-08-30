@@ -1,6 +1,6 @@
 # Storage Guide
 
-Version: **4.0.0**
+Version: **4.2.0**
 
 This guide defines Pingstore's filesystem convention. Pingstore is not a
 service, database, catalogue, lifecycle manager, or general management CLI.
@@ -18,16 +18,25 @@ Every completed operational run uses `pingstore.run/v4` and has exactly:
 
 - `run.json` is the authoritative machine-readable record.
 - `README.md` is the mandatory human-readable history.
-- `export/` contains the stage's scientific outputs. Scientific evidence needed
-  by downstream code is an output and may live under `export/evidence/`.
+- `export/` contains only scientific data. Run-wide files live directly under
+  `export/`; repeated scientific units use `export/<unit-id>/<role-file>`.
 
 There is no operational `provenance/` directory. Do not duplicate the command,
 configuration, environment, source revision, or timing in sidecar manifests or
 replay scripts. Record them once in `run.json`. Historical migration material
 belongs in a recoverable migration archive outside `.pingstore/runs/`.
 
-Compute and analyse exports may be nested. Present exports contain only flat
-regular files. No other root entries or symlinks are allowed in a completed run.
+Execution logs, commands, execution configurations, environment captures,
+timing, import mappings, and copied source records are metadata: keep them in
+`run.json`, not `export/`. A per-unit scientific definition may remain as a role
+file when it is data needed to interpret that unit; it must not duplicate the
+run's execution metadata. Writers may use `.scratch/` inside a hidden incomplete
+run, but completion discards it. Compute and analyse exports permit exactly one
+unit-directory level. Unit IDs are canonical scientific identities, not generic
+containers such as `data`, `jobs`, `cells`, or `misc`; role filenames are short
+and repeatable, such as `metrics.json`, `snapshot.npz`, or `weights-best.pth`.
+Present exports contain only flat regular files. No other root entries or
+symlinks are allowed in a completed run.
 
 ## 2. `run.json`
 
@@ -79,9 +88,9 @@ Readers must validate v4 layout and the export digest before consumption.
 Compute starts with empty inputs. Analyse and present name every input explicitly;
 they never select “latest”, launch upstream work, or silently substitute a run.
 
-An optional `export_root` may identify a scientific subdirectory beneath
-`export/`; otherwise readers use the whole export. This does not change the
-payload digest, which always covers all export files.
+`export_root` is obsolete. Readers use the whole export and resolve explicit
+unit IDs. Hidden writers may temporarily use deeper tool-native paths, but the
+shared completion helper canonicalizes them before validation and visibility.
 
 ## 5. Discovery and publication
 
@@ -96,8 +105,8 @@ uv run pingstore discover --source .pingstore/runs
 
 Materialization validates an explicitly selected present run and copies its flat
 `export/` to `.artifacts/<experiment>/`. Publishing compute or analyse runs is
-rejected. `_manifest.json` in a present export is a compatibility projection,
-not authoritative provenance.
+rejected. Presentation metadata is read from `run.json`; exports do not contain
+compatibility manifests.
 
 `collections.json`, when present, maps named views to explicit run-ID arrays.
 No official or latest selection is inferred.
@@ -113,8 +122,8 @@ A migration to v4 must:
 1. validate every source run under its original schema;
 2. create a recoverable archive of original manifests, README files, and root
    provenance trees;
-3. preserve export bytes, reclassifying only machine-consumed scientific records
-   from `provenance/` to `export/evidence/`;
+3. preserve scientific export bytes and archive provenance or metadata rather
+   than moving it into `export/`;
 4. generate or append the human-readable README history;
 5. replace manifest-byte pins with run-ID and export-digest pins;
 6. validate every completed v4 run and the complete dependency graph before
@@ -126,6 +135,10 @@ store changes, or deletion of the recovery archive.
 
 ## 7. Version history
 
+- **4.2.0** — Standardize compute/analyse exports as run-wide root files plus
+  `export/<scientific-unit-id>/<artifact-role>`, with no deeper nesting.
+- **4.1.0** — Make exports scientific-data-only, prefer flat descriptive files,
+  discard writer scratch space, and remove export evidence/metadata sidecars.
 - **4.0.0** — Make README mandatory; reduce completed roots to `run.json`,
   `README.md`, and `export/`; digest only immutable export bytes; remove manifest
   byte pins and operational provenance sidecars; archive v3 provenance outside

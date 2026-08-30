@@ -225,7 +225,7 @@ def test_stage_failures_remain_hidden(repo, monkeypatch, mode):
 
 
 @pytest.mark.parametrize(
-    "corruption", ["payload", "nested_metadata", "symlink", "root", "v2"]
+    "corruption", ["payload", "symlink", "root", "v2"]
 )
 def test_sources_and_ancestry_reject_corruption(repo, corruption):
     root, _ = repo
@@ -233,11 +233,7 @@ def test_sources_and_ancestry_reject_corruption(repo, corruption):
     analysis_id = analyse.analyse(compute_id)
     source = inputs.source(root, compute_id, "compute")
     if corruption == "payload":
-        next(source.export.glob("probe/*/metrics.json")).write_text("{}")
-    elif corruption == "nested_metadata":
-        next(
-            (source.directory / "export/evidence/simulations").glob("*/config.json")
-        ).write_text("{}")
+        next(source.export.glob("probe--*/metrics.json")).write_text("{}")
     elif corruption == "symlink":
         (source.export / "link").symlink_to(source.export / "evidence.json")
     elif corruption == "root":
@@ -253,17 +249,13 @@ def test_sources_and_ancestry_reject_corruption(repo, corruption):
         present.present(analysis_id)
 
 
-@pytest.mark.parametrize(
-    "field,value",
-    [("n_inh", 99), ("seed", 99), ("w_in", [9.0]), ("private_w_in", True)],
-)
-def test_resigned_wrong_scientific_config_is_rejected(repo, field, value):
+def test_resigned_wrong_scientific_config_is_rejected(repo):
     root, _ = repo
     identity = compute.compute()
     source = inputs.source(root, identity, "compute")
-    path = next((source.directory / "export/evidence/simulations").glob("*/config.json"))
+    path = next(source.export.glob("probe--*/metrics.json"))
     doc = load_json(path)
-    doc[field] = value
+    doc["config"]["n_inh"] = 99
     write_json_atomic(path, doc)
     resign(source.directory)
     with pytest.raises(PingstoreError, match="configuration differs"):
@@ -280,7 +272,7 @@ def test_missing_metric_cannot_be_replaced_with_implicit_recomputation(repo):
     root, calls = repo
     identity = compute.compute()
     source = inputs.source(root, identity, "compute")
-    next(source.export.glob("probe/*/metrics.json")).unlink()
+    next(source.export.glob("probe--*/metrics.json")).unlink()
     resign(source.directory)
     with pytest.raises(PingstoreError, match="metric grid"):
         analyse.analyse(identity)

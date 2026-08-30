@@ -178,7 +178,7 @@ def test_missing_or_corrupt_snapshot_is_not_silently_recomputed(repo):
     root, calls = repo
     identity = compute.compute()
     source = inputs.source(root, identity, "compute")
-    (source.export / "scope/ping/snapshot.npz").write_bytes(b"bad fixture")
+    source.file("scope", "ping", "snapshot.npz").write_bytes(b"bad fixture")
     with pytest.raises(PingstoreError, match="checksum"):
         analyse.analyse(identity)
     resign(source.directory)

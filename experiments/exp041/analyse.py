@@ -53,7 +53,7 @@ def analyse(identity, *, run_id=None):
         rows, rasters, arrays = [], [], {}
         common = contract["common"]
         for cell in contract["cells"]:
-            directory = compute.export / "infer" / cell["cell_name"]
+            directory = compute.unit("infer", cell["cell_name"])
             row = evidence.measurement(
                 directory / "metrics.json", cell, common, cfg["evaluation_samples"]
             )
@@ -66,7 +66,7 @@ def analyse(identity, *, run_id=None):
             if cell["seed"] != cfg["raster"]["seed"]:
                 continue
             raw = evidence.snapshot(
-                compute.export / "snapshot" / cell["cell_name"] / "snapshot.npz",
+                compute.file("snapshot", cell["cell_name"], "snapshot.npz"),
                 common["dt"],
                 common,
             )
@@ -119,7 +119,7 @@ def analyse(identity, *, run_id=None):
                 "checkpoint_policy": recipe.CHECKPOINT_POLICY,
                 "checkpoint_provenance": checkpoints,
                 "git_sha_train": load_json(
-                    bank.export / contract["cells"][0]["cell_name"] / "config.json"
+                    bank.file(contract["cells"][0]["cell_name"], "config.json")
                 ).get("git_sha"),
                 "results": [
                     {

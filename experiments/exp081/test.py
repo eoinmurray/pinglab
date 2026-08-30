@@ -89,7 +89,6 @@ def test_independent_stages_pin_v3_and_preserve_measurements(stage_repo, monkeyp
     before = payload_digest(upstream)
     assert sorted(p.name for p in (upstream / "export").iterdir()) == [
         "distribution_samples.npz",
-        "evidence",
         "feature_samples.npz",
     ]
     monkeypatch.setattr(

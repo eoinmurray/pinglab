@@ -73,57 +73,37 @@ def execution_duration(record: dict) -> float | None:
 
 
 def scientific_timing(directory: Path, record: dict) -> dict | None:
-    """Project explicitly retained scientific evidence inside a validated v4 run."""
+    """Project compact historical timing stored authoritatively in run.json."""
     declaration = record.get("scientific_execution")
     if declaration is None:
         return None
     if not isinstance(declaration, dict):
         raise PingstoreError(f"{record['run_id']}: invalid scientific_execution")
-    reference = declaration.get("record")
-    if reference is None:
-        return None
-    if (not isinstance(reference, str) or "\\" in reference
-            or reference.split("/")[:2] != ["export", "evidence"]
-            or any(part in ("", ".", "..") for part in reference.split("/"))):
-        raise PingstoreError(f"{record['run_id']}: scientific timing must reference export evidence")
-    # Discovery already checks the enclosing payload digest and rejects symlinks.
-    # Never traverse historical inputs or treat the retained manifest as operational.
-    evidence = load_json(directory / reference)
-    execution = evidence.get("execution")
-    if not isinstance(execution, dict):
-        raise PingstoreError(f"{record['run_id']}: missing retained scientific execution")
-    seconds = execution_duration({"run_id": record["run_id"], "execution": execution})
-    if seconds is None:
-        return None
+    required = {"duration_seconds", "started_at", "completed_at", "origin"}
+    if not required <= declaration.keys():
+        raise PingstoreError(f"{record['run_id']}: incomplete scientific_execution")
+    seconds = declaration["duration_seconds"]
+    if isinstance(seconds, bool) or not isinstance(seconds, (int, float)) or not math.isfinite(seconds) or seconds < 0:
+        raise PingstoreError(f"{record['run_id']}: invalid scientific duration")
+    elapsed = execution_duration(
+        {
+            "run_id": record["run_id"],
+            "execution": {
+                "started_at": declaration["started_at"],
+                "completed_at": declaration["completed_at"],
+            },
+        }
+    )
+    if elapsed != seconds:
+        raise PingstoreError(f"{record['run_id']}: inconsistent scientific duration")
     result = {
         "duration_seconds": seconds,
-        "started_at": execution["started_at"],
-        "completed_at": execution["completed_at"],
-        "origin": declaration.get("origin", "unknown"),
-        "record": reference,
-        "job_seconds": None,
-        "jobs": None,
+        "started_at": declaration["started_at"],
+        "completed_at": declaration["completed_at"],
+        "origin": declaration["origin"],
+        "job_seconds": declaration.get("job_seconds"),
+        "jobs": declaration.get("jobs"),
     }
-    cells = execution.get("cells")
-    if cells is not None:
-        if not isinstance(cells, list) or len(cells) != declaration.get("cells"):
-            raise PingstoreError(f"{record['run_id']}: inconsistent scientific timing cell count")
-        attempts = set()
-        durations = []
-        for cell in cells:
-            attempt = cell.get("attempt", {}) if isinstance(cell, dict) else {}
-            if not isinstance(attempt, dict):
-                raise PingstoreError(f"{record['run_id']}: invalid retained timing attempt")
-            identity = attempt.get("attempt_id")
-            elapsed = attempt.get("elapsed_seconds")
-            if (not isinstance(identity, str) or not identity or identity in attempts
-                    or attempt.get("state") != "complete"
-                    or isinstance(elapsed, bool) or not isinstance(elapsed, (int, float))
-                    or not math.isfinite(elapsed) or elapsed < 0):
-                raise PingstoreError(f"{record['run_id']}: invalid or duplicate retained timing attempt")
-            attempts.add(identity)
-            durations.append(elapsed)
-        result.update(job_seconds=sum(durations), jobs=len(attempts))
     return result
 
 

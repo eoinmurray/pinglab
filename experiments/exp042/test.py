@@ -42,11 +42,9 @@ def lab(tmp_path, monkeypatch):
     monkeypatch.setattr(recipe, "RASTER_N_E_PLOT", 2)
     monkeypatch.setattr(recipe, "RASTER_N_I_PLOT", 1)
     monkeypatch.setenv("PINGLAB_SMOKE", "1")
-    with stages.stage_run(
-        tmp_path, "exp022", "compute", export_root="export/cells"
-    ) as bank:
+    with stages.stage_run(tmp_path, "exp022", "compute") as bank:
         for seed in recipe.SEEDS:
-            cell = bank.export / "cells" / recipe.cell_name(seed)
+            cell = bank.export / recipe.cell_name(seed)
             cell.mkdir(parents=True)
             config = {
                 "training_run_id": "TR-02",
@@ -163,7 +161,6 @@ def test_stages_preserve_small_evidence_and_never_run_upstream(lab, monkeypatch)
         "jobs",
         "cell.npz",
         "cycle.npz",
-        "evidence",
         "evidence.json",
     }
     monkeypatch.setattr(
@@ -186,7 +183,6 @@ def test_stages_preserve_small_evidence_and_never_run_upstream(lab, monkeypatch)
     assert {p.name for p in presentation.export.iterdir()} == {
         *recipe.FIGURES,
         "numbers.json",
-        "_manifest.json",
     }
     assert (
         inputs.source(root, bank_id, "compute", experiment="exp022").reference == before
