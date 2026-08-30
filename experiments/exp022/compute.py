@@ -42,41 +42,6 @@ def load_cell(name: str) -> Path:
     return d
 
 
-def _tr06_diagnostic_root() -> Path:
-    return Path(os.environ["PINGLAB_ARTIFACTS_ROOT"])
-
-
-def tr06_diagnostic_done(job_id: str) -> bool:
-    """Modal completion hook for one bounded TR-06 readout variant."""
-    from experiments.exp022 import tr06_diagnostic
-
-    return (
-        job_id in tr06_diagnostic.VARIANTS
-        and (_tr06_diagnostic_root() / job_id / "diagnostic_summary.json").exists()
-    )
-
-
-def run_tr06_diagnostic(job_id: str) -> None:
-    """Modal execution hook; diagnostic scale is explicit in the job environment."""
-    from experiments.exp022 import tr06_diagnostic
-
-    def optional_number(name: str, converter):
-        value = os.environ.get(name)
-        return None if value is None else converter(value)
-
-    tr06_diagnostic.run_variant(
-        job_id,
-        root=_tr06_diagnostic_root(),
-        max_samples=int(os.environ["EXP022_TR06_DIAGNOSTIC_MAX_SAMPLES"]),
-        epochs=int(os.environ["EXP022_TR06_DIAGNOSTIC_EPOCHS"]),
-        seed=int(os.environ["EXP022_TR06_DIAGNOSTIC_SEED"]),
-        device="auto",
-        n_hidden=optional_number("EXP022_TR06_DIAGNOSTIC_N_HIDDEN", int),
-        t_ms=optional_number("EXP022_TR06_DIAGNOSTIC_T_MS", float),
-        dt_ms=optional_number("EXP022_TR06_DIAGNOSTIC_DT_MS", float),
-    )
-
-
 def runpod_is_done(cell: dict, plumbing: bool) -> bool:
     """A cell is done iff its metrics.json exists AND was trained at the scale
     THIS run expects (max_samples, epochs, dt all matching).

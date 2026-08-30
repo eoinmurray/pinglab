@@ -5,6 +5,7 @@ from pathlib import Path
 import numpy as np
 from experiments import exp022, exp082
 from experiments.collections.gamma_gated_sparsity.plan import build_plan
+from experiments.exp022 import compute as exp022_compute
 
 """Synthetic contract tests; never use the workspace store or real inference."""
 
@@ -605,15 +606,15 @@ def test_completed_cell_artifacts_are_stamped_with_training_run_id(
     (directory / "config.json").write_text('{"mode": "train"}\n')
     (directory / "metrics.json").write_text('{"config": {"epochs": 50}}\n')
     monkeypatch.setitem(
-        exp022._stamp_training_run_identity.__globals__,
+        exp022_compute._stamp_training_run_identity.__globals__,
         "cell_dir",
         lambda _name: directory,
     )
 
-    exp022._stamp_training_run_identity(cell)
+    exp022_compute._stamp_training_run_identity(cell)
 
-    config = exp022.json.loads((directory / "config.json").read_text())
-    metrics = exp022.json.loads((directory / "metrics.json").read_text())
+    config = exp022_compute.json.loads((directory / "config.json").read_text())
+    metrics = exp022_compute.json.loads((directory / "metrics.json").read_text())
     assert config["training_run_id"] == "TR-06"
     assert config["training_cell_name"] == cell["name"]
     assert metrics["training_run_id"] == "TR-06"

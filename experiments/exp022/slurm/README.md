@@ -5,9 +5,8 @@ scientific registry remains solely in `experiments/exp022/recipe.py`; these scri
 only map a reviewed manifest onto Wilkes3 resources.
 
 The [experiment README](../README.md) describes the stage and dependency layout.
-Campaign validation lives in `experiments/exp022/campaign.py`; the bounded TR-06
-diagnostic lives beside it. Site-specific entrypoints live here in
-`experiments/exp022/slurm/`.
+Campaign validation lives in `experiments/exp022/campaign.py`. Site-specific
+entrypoints live here in `experiments/exp022/slurm/`.
 
 ## Staged execution
 

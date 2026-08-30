@@ -20,15 +20,12 @@ lineage. Historical v2/v3 runs remain non-operational evidence.
 - `analyse.py` measures a completed compute run without executing new science.
 - `present.py` renders a completed analysis and can explicitly carry verified
   historical raster images when the original raw probes were not retained.
-- `tr06_diagnostic.py` is a bounded diagnostic for the TR-06 readout contract;
-  it is not a production-bank training entry.
 - `slurm/` contains the Wilkes environment checks, submission scripts, and the
   [operator runbook](slurm/README.md). The gamma-gated-sparsity collection reuses
   its environment and array helpers.
 
-`experiments.exp022` exports the recipe for downstream consumers and lazily
-forwards scheduler hooks from `compute.py`. Execution uses the explicit stage
-modules rather than the package root.
+`experiments.exp022` exports the recipe for downstream consumers. Execution uses
+the explicit stage modules rather than the package root.
 
 ## Operational workflow
 
